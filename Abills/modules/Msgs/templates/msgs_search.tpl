@@ -60,16 +60,15 @@
             </div>
 
             <div class='form-group'>
-                <label class='control-label col-md-2' for='LOGIN'>_{DATE}_ _{FROM}_:</label>
+                <label class='control-label col-md-3' >_{EXECUTION}_:</label>
                 <div class='col-md-4'>
                     <input id='PLAN_FROM_DATE' name='PLAN_FROM_DATE' value='%PLAN_FROM_DATE%'
-                           placeholder='%PLAN_FROM_DATE%' class='form-control' type='text'>
+                           placeholder='%PLAN_FROM_DATE%' class='form-control datepicker' type='text'>
                 </div>
-
-                <label class='control-label col-md-2' for='PLAN_TO_DATE'>_{TO}_</label>
+                <label class='control-label col-md-1' >-</label>
                 <div class='col-md-4'>
                     <input id='PLAN_TO_DATE' name='PLAN_TO_DATE' value='%PLAN_TO_DATE%' placeholder='%PLAN_TO_DATE%'
-                           class='form-control' type='text'>
+                           class='form-control datepicker' type='text'>
                 </div>
             </div>
 

@@ -77,7 +77,7 @@ sub internet_ipoe_activate{
     if ( !$conf{IPN_SKIP_IP_WARNING}
       && $static_ip
       && $static_ip ne '0.0.0.0'
-      && ($static_ip ne $ENV{REMOTE_ADDR} && $user->{UID})){
+      && ($static_ip ne $ENV{REMOTE_ADDR} && $user->{UID} && ! $attr->{ADMIN_ACTIVATE})){
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_UNALLOW_IP} '$ENV{REMOTE_ADDR}'\n $lang{STATIC} IP: $static_ip", { ID => 320 } );
       return 1;
     }
@@ -119,8 +119,7 @@ sub internet_ipoe_activate{
         'NAS_ID',
         {
           SELECTED  => $nas_id,
-          SEL_LIST  => $Nas->list( { DISABLE => 0, COLS_NAME => 1, NAS_NAME => '_SHOW', %NAS_PARAMS_LIST, SHORT => 1 } )
-          ,
+          SEL_LIST  => $Nas->list( { DISABLE => 0, COLS_NAME => 1, NAS_NAME => '_SHOW', %NAS_PARAMS_LIST, SHORT => 1 } ),
           SEL_KEY   => 'nas_id',
           SEL_VALUE => 'nas_name',
           MAIN_MENU => get_function_index( 'form_nas' )
@@ -190,6 +189,8 @@ sub internet_ipoe_activate{
           );
         }
 
+       ($Nas->{NAS_MNG_IP}, undef, $Nas->{NAS_MNG_PORT})=split(/:/, $Nas->{NAS_MNG_IP_PORT});
+
         my %DATA = (
           ACCT_STATUS_TYPE   => 1,
           USER_NAME          => $user->{LOGIN},
@@ -202,6 +203,8 @@ sub internet_ipoe_activate{
           NAS_IP_ADDRESS     => $Nas->{NAS_IP},
           NAS_MNG_USER       => $Nas->{NAS_MNG_USER},
           NAS_MNG_IP_PORT    => $Nas->{NAS_MNG_IP_PORT},
+          NAS_MNG_IP         => $Nas->{NAS_MNG_IP},
+          NAS_MNG_PORT       => $Nas->{NAS_MNG_PORT},
           TP_ID              => $Internet->{TP_ID},
           CALLING_STATION_ID => $ip,
           NAS_PORT           => $Internet->{PORT},
@@ -251,6 +254,7 @@ sub internet_ipoe_activate{
         else{
           $Internet_ipoe->user_status( { %DATA } );
           $DATA{NAS_PORT} = $Internet_ipoe->{PORT} || $DATA{NAS_PORT} || 0;
+
           internet_ipoe_change_status( { STATUS => 'ONLINE_ENABLE', %DATA } );
 
           if ( $ENV{HTTP_REFERER} && $ENV{HTTP_REFERER} !~ /index.cgi/ && $html->{SID} ){
@@ -554,11 +558,12 @@ sub internet_ipoe_change_status{
     $cmd =~ s/\%DEBUG//g;
 
     if ( $attr->{NAS_IP_ADDRESS} ){
-      $ENV{NAS_IP_ADDRESS} = $attr->{NAS_IP_ADDRESS};
-      $ENV{NAS_MNG_USER} = $attr->{NAS_MNG_USER};
+      $ENV{NAS_IP_ADDRESS}  = $attr->{NAS_IP_ADDRESS};
+      $ENV{NAS_MNG_USER}    = $attr->{NAS_MNG_USER};
       $ENV{NAS_MNG_IP_PORT} = $attr->{NAS_MNG_IP_PORT};
-      $ENV{NAS_ID} = $attr->{NAS_ID};
-      $ENV{NAS_TYPE} = $attr->{NAS_TYPE} || '';
+      $ENV{NAS_ID}          = $attr->{NAS_ID};
+      $ENV{NAS_TYPE}        = $attr->{NAS_TYPE} || '';
+      ($ENV{NAS_MNG_IP}, undef, $ENV{NAS_MNG_PORT}) = split(/:/, $attr->{NAS_MNG_IP_PORT}, 4);
     }
 
     print "IPN: $cmd\n" if ($DEBUG > 4);

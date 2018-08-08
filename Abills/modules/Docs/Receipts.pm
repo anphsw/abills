@@ -528,6 +528,8 @@ sub docs_receipt_list{
       }
     );
 
+    $info{ADMIN_SELECT} = sel_admins();
+
     form_search( { SEARCH_FORM =>
         ($FORM{pdf}) ? '' : $html->tpl_show( _include( 'docs_receipt_search', 'Docs' ), { %info, %FORM },
           { notprint => 1 } ), SHOW_PERIOD => 1 } );
@@ -600,7 +602,7 @@ sub docs_receipt_list{
             "index=2&ID=$line->{payment_id}&UID=$line->{uid}" ),
         }
         else{
-          $val = $PAYMENT_METHODS->{$line->{$col_name}};
+          $val = $PAYMENT_METHODS->{(defined $line->{$col_name} ? $line->{$col_name} : '')} || '';
         }
       }
       elsif ( $col_name eq 'total_sum' ){
@@ -616,18 +618,22 @@ sub docs_receipt_list{
       push @fields_array, $val;
     }
 
+    my $function_fields = q{};
+
     if(! $user || ! $user->{UID}) {
-      push @fields_array, $html->button($lang{SEND_MAIL},
-          "qindex=" . get_function_index('docs_receipt_list') . "&sendmail=$line->{id}&UID=$line->{uid}",
-          { ex_params => 'target=_new', class => 'sendmail' });
+      $function_fields = $html->button($lang{SEND_MAIL},
+        "qindex=" . get_function_index('docs_receipt_list') . "&sendmail=$line->{id}&UID=$line->{uid}",
+        { ex_params => 'target=_new', class => 'sendmail' });
     }
+
+    $function_fields .= $html->button( $lang{PRINT},
+      "qindex=" . get_function_index( 'docs_receipt_list' ) . "&print=$line->{id}&RECEIPT_ID=$line->{uid}&UID=$line->{uid}$pages_qs"
+      , { ex_params => 'target=_new', class => 'print' } )
+      . $delete;
 
     $table->addrow(
       @fields_array,
-        $html->button( $lang{PRINT},
-        "qindex=" . get_function_index( 'docs_receipt_list' ) . "&print=$line->{id}&RECEIPT_ID=$line->{uid}&UID=$line->{uid}$pages_qs"
-        , { ex_params => 'target=_new', class => 'print' } )
-        . $delete
+      $function_fields
     );
   }
 

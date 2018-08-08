@@ -26,15 +26,15 @@
 
         <input type=hidden name='index' value='62'>
         <input type=hidden name='NAS_ID' value='%NAS_ID%'>
-    <div class='row'>
+        <div class='row'>
 
-        <div class='col-md-6'>
-        <div class='box box-theme box-form-big'>
-<div class='box-header with-border'><h4 class='box-title'>_{NAS}_</h4></div>
-<div class='box-body'>
+            <div class='col-md-6'>
+                <div class='box box-theme box-form-big'>
+                    <div class='box-header with-border'><h4 class='box-title'>_{NAS}_</h4></div>
+                    <div class='box-body'>
 
-                <div class='form-group'>
-                    <label for='NAS_IP' class='control-label col-md-3 required'>IP</label>
+                        <div class='form-group'>
+                            <label for='NAS_IP' class='control-label col-md-3 required'>IP</label>
 
                             <div class='col-sm-9'>
                                 <input type=text class='form-control ip-input' required id='NAS_IP'
@@ -45,7 +45,8 @@
                             <label for='NAS_NAME' class='control-label col-md-3 required'>_{NAME}_ (a-zA-Z0-9_)</label>
 
                             <div class='col-md-9'>
-                                <input type='text' class='form-control' id='NAS_NAME' placeholder='%NAS_NAME%' name='NAS_NAME'
+                                <input type='text' class='form-control' id='NAS_NAME' placeholder='%NAS_NAME%'
+                                       name='NAS_NAME'
                                        value='%NAS_NAME%' required pattern='^\\w*\$' maxlength='30'>
                             </div>
                         </div>
@@ -53,13 +54,18 @@
                             <label for='NAS_TYPE' class='control-label col-md-3 required'>_{TYPE}_</label>
 
                             <div class='col-sm-9' id='NAS-type-wrapper'>
-                                <div class='col-md-10'>
+                                <div class='col-md-8'>
                                     %SEL_TYPE%
                                 </div>
-                                <div class='col-md-2'>
-                                    <a class='btn btn-info' id='wiki-link'
+
+                                <div class='col-md-1'>
+                                    <a class='btn btn-info' id='wiki-link' data-tooltip='_{GUIDE_WIKI_LINK}_'
                                        href='http://abills.net.ua/wiki/doku.php/abills:docs:nas'
                                        target='_blank'>?</a>
+                                </div>
+
+                                <div class='col-md-1'>
+                                    %WINBOX%
                                 </div>
                             </div>
                         </div>
@@ -119,9 +125,9 @@
                             <div class='col-md-9'>
 
 
-
                                 <div class='input-group'>
-                                    <input id='NAS_MNG_USER' name='NAS_MNG_USER' value='%NAS_MNG_USER%' placeholder='%NAS_MNG_USER%'
+                                    <input id='NAS_MNG_USER' name='NAS_MNG_USER' value='%NAS_MNG_USER%'
+                                           placeholder='%NAS_MNG_USER%'
                                            class='form-control' type='text'>
                                     <span class='input-group-addon'>
                     <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&create=1&ssh_key=1'
@@ -137,107 +143,111 @@
                             </div>
                         </div>
                         <div class='form-group'>
-                            <label class='control-label col-md-3' for='NAS_MNG_PASSWORD'>_{PASSWD}_ (PoD,RADIUS Secret,SNMP)</label>
+                            <label class='control-label col-md-3' for='NAS_MNG_PASSWORD'>_{PASSWD}_ (PoD,RADIUS
+                                Secret,SNMP)</label>
 
-                    <div class='col-md-9'>
-                        <input id='NAS_MNG_PASSWORD' name='NAS_MNG_PASSWORD' class='form-control' type='password'>
+                            <div class='col-md-9'>
+                                <input id='NAS_MNG_PASSWORD' name='NAS_MNG_PASSWORD' class='form-control'
+                                       type='password'>
+                            </div>
+                        </div>
+                        <div class='form-group'>
+                            %ADDRESS_FORM%
+                        </div>
+
+
                     </div>
-                    </div>
-                    <div class='form-group'>
-                    %ADDRESS_FORM%
-                    </div>
+                </div>
 
-
-        </div>
-        </div>
-
-        </div>
-        <div class='col-md-6'>
-            <div class='form-group'>
-        <div class='box box-theme box-form-big'>
-            <div class='box-header with-border'>
-                <a data-toggle='collapse' data-parent='#accordion' href='#nas_misc'>_{EXTRA}_</a>
             </div>
-            <div id='nas_misc' class='box-collapse box-body collapse in'>
-
-
-                %NAS_ID_FORM%
+            <div class='col-md-6'>
                 <div class='form-group'>
-                    <label for='NAS_DESCRIBE' class='control-label col-md-4'>_{DESCRIBE}_</label>
+                    <div class='box box-theme box-form-big'>
+                        <div class='box-header with-border'>
+                            <a data-toggle='collapse' data-parent='#accordion' href='#nas_misc'>_{EXTRA}_</a>
+                        </div>
+                        <div id='nas_misc' class='box-collapse box-body collapse in'>
 
-                    <div class='col-md-8'>
-                        <input class='form-control' id='NAS_DESCRIBE' placeholder='%NAS_DESCRIBE%' name='NAS_DESCRIBE'
-                               value='%NAS_DESCRIBE%'>
-                    </div>
-                </div>
 
-                <div class='form-group'>
-                    <label class='control-label col-md-4' for='NAS_IDENTIFIER'>Radius NAS-Identifier</label>
+                            %NAS_ID_FORM%
+                            <div class='form-group'>
+                                <label for='NAS_DESCRIBE' class='control-label col-md-4'>_{DESCRIBE}_</label>
 
-                    <div class='col-md-8'>
-                        <input id='NAS_IDENTIFIER' name='NAS_IDENTIFIER' value='%NAS_IDENTIFIER%'
-                               placeholder='%NAS_IDENTIFIER%' class='form-control' type='text'>
-                    </div>
-                </div>
+                                <div class='col-md-8'>
+                                    <input class='form-control' id='NAS_DESCRIBE' placeholder='%NAS_DESCRIBE%'
+                                           name='NAS_DESCRIBE'
+                                           value='%NAS_DESCRIBE%'>
+                                </div>
+                            </div>
 
-                <div class='form-group'>
-                    <label class='control-label col-md-4' for='MAC'>MAC</label>
+                            <div class='form-group'>
+                                <label class='control-label col-md-4' for='NAS_IDENTIFIER'>Radius NAS-Identifier</label>
 
-                    <div class='col-md-8'>
-                        <input id='MAC' name='MAC' value='%MAC%' placeholder='%MAC%' class='form-control' type='text'>
-                    </div>
-                </div>
+                                <div class='col-md-8'>
+                                    <input id='NAS_IDENTIFIER' name='NAS_IDENTIFIER' value='%NAS_IDENTIFIER%'
+                                           placeholder='%NAS_IDENTIFIER%' class='form-control' type='text'>
+                                </div>
+                            </div>
 
-                <div class='form-group'>
-                    <label class='control-label col-md-3' for='AUTH_TYPE'>_{AUTH}_</label>
+                            <div class='form-group'>
+                                <label class='control-label col-md-4' for='MAC'>MAC</label>
 
-                    <div class='col-md-9'>
-                        %SEL_AUTH_TYPE%
-                    </div>
-                </div>
+                                <div class='col-md-8'>
+                                    <input id='MAC' name='MAC' value='%MAC%' placeholder='%MAC%' class='form-control'
+                                           type='text'>
+                                </div>
+                            </div>
 
-                <div class='form-group'>
-                    <label class='control-label col-md-3' for='EXT_ACCT'>External Accounting</label>
+                            <div class='form-group'>
+                                <label class='control-label col-md-3' for='AUTH_TYPE'>_{AUTH}_</label>
 
-                    <div class='col-md-9'>
-                        %NAS_EXT_ACCT%
-                    </div>
-                </div>
+                                <div class='col-md-9'>
+                                    %SEL_AUTH_TYPE%
+                                </div>
+                            </div>
 
-                <div class='form-group'>
-                    <label for='NAS_GROUPS' class='control-label col-sm-3'>_{GROUP}_</label>
+                            <div class='form-group'>
+                                <label class='control-label col-md-3' for='EXT_ACCT'>External Accounting</label>
 
-                    <div class='col-md-9'>
-                        %NAS_GROUPS_SEL%
-                    </div>
-                </div>
+                                <div class='col-md-9'>
+                                    %NAS_EXT_ACCT%
+                                </div>
+                            </div>
 
-                <div class='form-group'>
-                    <label class='col-md-12'>RADIUS _{PARAMS}_ (,)</label>
+                            <div class='form-group'>
+                                <label for='NAS_GROUPS' class='control-label col-sm-3'>_{GROUP}_</label>
 
-                    <div class='col-md-12'>
+                                <div class='col-md-9'>
+                                    %NAS_GROUPS_SEL%
+                                </div>
+                            </div>
+
+                            <div class='form-group'>
+                                <label class='col-md-12'>RADIUS _{PARAMS}_ (,)</label>
+
+                                <div class='col-md-12'>
                         <textarea cols='40' rows='4' name='NAS_RAD_PAIRS'
                                   class='form-control'>%NAS_RAD_PAIRS%</textarea>
+                                </div>
+                            </div>
+
+                            <div>
+
+                                %EXTRA_PARAMS%
+
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div>
-
-                    %EXTRA_PARAMS%
-
-                </div>
             </div>
         </div>
-            </div>
 
+        <div class='row'>
+            <div class='box-footer'>
+                <input type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary'>
+            </div>
         </div>
-</div>
-
-            <div class='row'>
-                <div class='box-footer'>
-                    <input type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary'>
-                </div>
-            </div>
 
     </fieldset>
 </form>

@@ -6,28 +6,23 @@ $lang{YEAR_SHORT}='y.';
 
 $lang{ERR_NO_ORDERS}='No orders';
 
-#@ones = ('гривня', 'тисяча', 'мільйон', 'мільярд', 'трильйон');
-#@twos = ('гривні', 'тисячі', 'мільйони', 'мільярди', 'трильйони');
-#@fifth = ('гривень', 'тисяч', 'мільйонів', 'мільярдів', 'трильйонів');
+@ones  = ('', 'thousand', 'million', 'billion', 'tryllyon');
+@twos  = ('', 'thousand', 'million', 'billion', 'tryllyon');
+@fifth = ('', 'thousand', 'million', 'billion', 'tryllyon');
 
-@ones = ('', 'тисяча', 'мільйон', 'мільярд', 'трильйон');
-@twos = ('', 'тисячі', 'мільйони', 'мільярди', 'трильйони');
-@fifth = ('', 'тисяч', 'мільйонів', 'мільярдів', 'трильйонів');
-
-
-@one = ('', 'один', 'два', 'три', 'чотири', 'п\'ять', 'шість', 'сім', 'вісім', 'дев\'ять');
-@onest = ('', 'одна', 'дві');
-@ten = ('', '', 'двадцять', 'тридцять', 'сорок', 'п\'ятдесят', 'шістдесят', 'сімдесят', 'вісімдесят', 'дев\'яносто');
-@tens = ('десять', 'одинадцять', 'дванадцять', 'тринадцять', 'чотирнадцять', 'п\'ятнадцять', 'шістнадцять', 'сімнадцять', 'вісімнадцять', 'дев\'ятнадцять');
-@hundred = ('', 'сто', 'двісті', 'триста', 'чотириста', 'п\'ятсот', 'шістсот', 'сімсот', 'вісімсот', 'дев\'ятсот');
-@money_unit_names = ('грн','коп');
+@one              = ('', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine');
+@onest            = ('', 'one', 'two');
+@ten              = ('', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety');
+@tens             = ('ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen');
+@hundred          = ('', 'one hundred', 'two hundred', 'three hundred', 'four hundred', 'five hundred', 'six hundred', 'seven hundred', 'eight hundred', 'nine hundred');
+@money_unit_names = ('dollars','cents');
 
 $lang{PAID}='Paid invoice';
 $lang{PARTLY_PAID}='Partly paid';
 $lang{UNPAID}='UnPaid invoice';
 $lang{VAT_INCLUDE}='Vat include';
 $lang{AMOUNT_FOR_PAY}='Amount for pay';
-$lang{ACTIVATE_NEXT_PERIOD}='For next activation period';
+#$lang{ACTIVATE_NEXT_PERIOD}='For next activation period';
 $lang{CURENT_BILLING_PERIOD}='Current Billing Period';
 $lang{NEXT_PERIODS}='Next billing periods';
 

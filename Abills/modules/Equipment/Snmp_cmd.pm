@@ -127,7 +127,23 @@ sub snmp_get {
       TIMEOUT         - Timeout
       OID             - array ( OID, type, value, OID, type, value, ...)
       SILENT
+      VERSION
       DEBUG
+
+    Returns:
+      TRUE or FALSE
+
+    Example:
+      snmp_set({
+         SNMP_COMMUNITY => 'private@10.10.10.11',
+         OID            => [
+          .1.3.6.1.4.1.35265.1.22.3.4.1.20.1.8.69.76.84.88.98.2.72.24, 'i', 4,
+          .1.3.6.1.4.1.35265.1.22.3.4.1.3.1.8.69.76.84.88.98.2.72.24, 'i', 0,
+          .1.3.6.1.4.1.35265.1.22.3.4.1.4.1.8.69.76.84.88.98.2.72.24, 'u', 1
+         ],
+         VERSION        => 'v2c',
+         DEBUG          => 1
+      });
 
 =cut
 #**********************************************************
@@ -163,7 +179,7 @@ sub snmp_set {
   }
 
   if ($debug > 2) {
-    print "$attr->{SNMP_COMMUNITY} ->\n$info <br>";
+    print "$attr->{SNMP_COMMUNITY} ($snmp_community) ->\n$info <br>";
   }
 
   if ($debug > 5) {
@@ -172,7 +188,7 @@ sub snmp_set {
 
   if (! SNMP_util::snmpset($snmp_community, @{ $attr->{OID} })) {
     #print "Set Error: \n$info\n";
-    $result = 0;
+    $result = 1;
   }
 
   if ($SNMP_Session::errmsg && ! $attr->{SILENT}) {
@@ -183,6 +199,8 @@ sub snmp_set {
     else {
       print $message;
     }
+
+    $result = 0;
   }
 
   return $result;

@@ -6,16 +6,19 @@ CREATE TABLE IF NOT EXISTS `timetracker` (
 	date DATE NOT NULL DEFAULT '0000-00-00',
 	PRIMARY KEY (`id`)
 )
-COMMENT = 'Time tracking';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Time tracking';
 
 CREATE TABLE IF NOT EXISTS `timetracker_element` ( 
 	`id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, 
 	`element` VARCHAR(40) DEFAULT '', 
 	`priority` TINYINT(1) UNSIGNED DEFAULT 0,
+	`external_system` SMALLINT(1) UNSIGNED DEFAULT 0,
 	date DATE NOT NULL DEFAULT '0000-00-00',
 	PRIMARY KEY (`id`)
 )
-COMMENT = 'Timetracker elements'; 
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Timetracker elements';
 
 
 

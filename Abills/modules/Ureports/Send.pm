@@ -1,3 +1,14 @@
+=head1 NAME
+
+  Ureports::Send
+
+=head2 SYNOPSIS
+
+  This is code for sending reports
+
+=cut
+
+
 use strict;
 use warnings FATAL => 'all';
 
@@ -11,19 +22,7 @@ our ($html, %conf, $db, $admin);
 
 my $debug = 0;
 
-my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
-my $Ureports = Ureports->new( $db, $admin, \%conf );
-
-=head1 NAME
-
-  Ureports::Send
-
-=head2 SYNOPSIS
-
-  This is code for sending reports
-
-=cut
-
+my $Sender   = Abills::Sender::Core->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 ureports_send_reports($type, $destination, $message, $attr)
@@ -68,13 +67,14 @@ sub ureports_send_reports {
     return 1;
   }
 
+  my $status = 0;
   if ( $type == 1 ) {
     if ( in_array('Sms', \@MODULES) ) {
       $attr->{MESSAGE} = $message;
       $message = $html->tpl_show(_include('ureports_sms_message', 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
 
       load_module('Sms');
-      sms_send(
+      $status = sms_send(
         {
           NUMBER    => $destination,
           MESSAGE   => $message,
@@ -97,9 +97,12 @@ sub ureports_send_reports {
       SUBJECT     => $attr->{SUBJECT} || '',
       DEBUG       => ($debug > 2) ? $debug - 2 : undef
     });
+
+    $status = $Sender->{STATUS};
   }
 
   if ( $debug < 5 ){
+    my $Ureports = Ureports->new( $db, $admin, \%conf );
     $Ureports->log_add(
       {
         DESTINATION => $destination,
@@ -107,7 +110,7 @@ sub ureports_send_reports {
         UID         => $attr->{UID},
         TP_ID       => $attr->{TP_ID} || 0,
         REPORT_ID   => $attr->{REPORT_ID} || 0,
-        STATUS      => 0
+        STATUS      => $status || 0
       }
     );
   }

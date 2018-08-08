@@ -177,6 +177,10 @@ sub online_count {
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
 
+  if($SORT > 9) {
+    $SORT = 9;
+  }
+
   my $EXT_TABLE   = '';
   my @WHERE_RULES = ();
 
@@ -334,6 +338,10 @@ sub online {
 
   my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : 'c.acct_session_id, c.uid, c.service_id';
 
+  if($attr->{INTERNET_SKIP_SHOW_DHCP}) {
+    $attr->{NAS_TYPE}='!dhcp';
+  }
+
   $attr->{SKIP_DEL_CHECK}=1;
   $attr->{SORT_SHIFT}=1;
   $WHERE = $self->search_former($attr, [
@@ -406,6 +414,7 @@ sub online {
       ['REMOTE_ID',         'STR', 'c.remote_id',                                  1 ],
       ['CIRCUIT_ID',        'STR', 'c.circuit_id',                                 1 ],
       ['NAS_ID',            'INT', 'c.nas_id',                                     1 ],
+      ['NAS_TYPE',          'INT', 'nas.nas_type',                                 1 ],
       #['GID',               'INT', 'u.gid',                                        1 ],
       ['ACCT_SESSION_ID',   'STR', 'c.acct_session_id',                            1 ],
       ['SERVICE_ID',        'INT', 'c.service_id',                                 1 ],
@@ -433,7 +442,7 @@ sub online {
     elsif ($field =~ /SWITCH_NAME|SWITCH_ID/ && $EXT_TABLE !~ m/ switch /) {
       $EXT_TABLE .= " LEFT JOIN nas AS switch ON (c.switch_mac <> '' AND c.switch_mac=switch.mac)";
     }
-    elsif ($field =~ /NAS_NAME/ && $EXT_TABLE !~ m/ nas ON /) {
+    elsif ($field =~ /NAS_NAME|NAS_TYPE/ && $EXT_TABLE !~ m/ nas ON /) {
       $EXT_TABLE .= " LEFT JOIN nas ON (nas.id=c.nas_id)";
     }
   }
@@ -1127,7 +1136,7 @@ sub list {
       [ 'IP',              'IP',  'l.ip',   'INET_NTOA(l.ip) AS ip'],
       [ 'CID',             'STR', 'l.cid',                        1],
       [ 'TP_ID',           'INT', 'l.tp_id',                      1],
-      [ 'TP_NUM',          'INT', 'tp.name AS tp_num',            1],
+      [ 'TP_NUM',          'INT', 'tp.id   AS tp_num',            1],
       [ 'TP_NAME',         'STR', 'tp.name AS tp_name',           1],
       [ 'SUM',             'INT', 'l.sum',                        1],
       [ 'NAS_ID',          'INT', 'l.nas_id',                     1],
@@ -1182,7 +1191,7 @@ sub list {
   );
 
   my $list = $self->{list};
-
+  my $session_log_count = 0;
   if ($self->{TOTAL} > 0) {
     $self->query("SELECT COUNT(l.uid) AS total,
       SUM(l.duration) AS duration,
@@ -1197,6 +1206,7 @@ sub list {
       undef,
       { INFO => 1 }
     );
+    $session_log_count = $self->{TOTAL};
   }
 
   #Calculate online sesisons too
@@ -1217,6 +1227,7 @@ sub list {
     $self->{DURATION}   += $self->{ONLINE_DURATION};
   }
 
+  $self->{TOTAL} = $session_log_count;
   return $list;
 }
 
@@ -1774,6 +1785,10 @@ sub list_log_intervals{
 #**********************************************************
 =head2 log_rotate($attr) - Rotate internet logs
 
+  Arguments:
+    $attr
+      DAILY
+
 =cut
 #**********************************************************
 sub log_rotate{
@@ -1783,6 +1798,10 @@ sub log_rotate{
   my @rq = ();
   #TODO
   # Remove for partitioning
+
+  if($CONF->{USE_PARTITIONING}) {
+    return $self;
+  }
 
   push @rq, 'CREATE TABLE IF NOT EXISTS errors_log_new LIKE errors_log;',
     #'CREATE TABLE IF NOT EXISTS errors_log_new_sorted LIKE errors_log;',
@@ -1797,11 +1816,11 @@ sub log_rotate{
   ;
 
   if (!$attr->{DAILY}) {
-    #use POSIX qw(strftime);
-    #my $DATE = (POSIX::strftime("%Y_%m_%d", localtime(time - 86400)));
+    use POSIX qw(strftime);
+    my $DATE = (POSIX::strftime("%Y_%m_%d", localtime(time - 86400)));
     push @rq,
-#      'CREATE TABLE IF NOT EXISTS s_detail_new LIKE s_detail;',
-#      'RENAME TABLE s_detail TO s_detail_' . $DATE . ', s_detail_new TO s_detail;',
+      'CREATE TABLE IF NOT EXISTS s_detail_new LIKE s_detail;',
+      'RENAME TABLE s_detail TO s_detail_' . $DATE . ', s_detail_new TO s_detail;',
 
 #      'CREATE TABLE IF NOT EXISTS errors_log_new LIKE errors_log;',
 #      'RENAME TABLE errors_log TO errors_log_'. $DATE .
@@ -1809,6 +1828,7 @@ sub log_rotate{
       'CREATE TABLE IF NOT EXISTS internet_log_intervals_new LIKE internet_log_intervals;',
       'DROP TABLE internet_log_intervals_old',
       'RENAME TABLE internet_log_intervals TO internet_log_intervals_old, internet_log_intervals_new TO internet_log_intervals;';
+
     if ($CONF->{INTERNET_INTERVAL_PREPAID}) {
       push @rq,
         'INSERT INTO internet_log_intervals SELECT * FROM internet_log_intervals_old WHERE added>=UNIX_TIMESTAMP()-86400*31;';

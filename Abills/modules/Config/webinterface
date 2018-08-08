@@ -102,7 +102,7 @@ sub config_main {
     {
       width   => '100%',
       caption => "Options",
-      title   => [ $lang{PARAM}, $lang{VALUE} ],
+      title   => [ $lang{PARAM}, $lang{DEFAULT_VALUE} ],
       qs      => $pages_qs,
       pages   => $Config->{TOTAL},
       ID      => 'CONFIG'

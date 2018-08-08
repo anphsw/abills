@@ -296,7 +296,7 @@ sub form_payment_add {
     }
 
     if( in_array('Crm', \@MODULES)){
-      require Crm;
+      require Crm::db::Crm;
       Crm->import();
       my $Crm = Crm->new($db, $admin, \%conf);
       $attr->{CASHBOX_SELECT} = $html->form_select(
@@ -415,7 +415,7 @@ sub payment_add {
       }
       else {
         if( in_array('Crm', \@MODULES) && $FORM{CASHBOX_ID}){
-          require Crm;
+          require Crm::db::Crm;
           Crm->import();
           my $Crm = Crm->new($db, $admin, \%conf);
           $Crm->add_coming({
@@ -441,6 +441,7 @@ sub payment_add {
 
         #Make cross modules Functions
         $FORM{PAYMENTS_ID} = $Payments->{PAYMENT_ID};
+        #print "// $FORM{CREATE_RECEIPT} //////";
         cross_modules_call('_payments_maked', {
             %$attr,
             SUM          => $FORM{SUM},
@@ -575,7 +576,11 @@ sub form_payments_list {
         $line->{login} = $html->button($line->{login}, "index=15&UID=$line->{uid}");
       }
       elsif($field_name eq 'dsc') {
-        $line->{dsc} = ($line->{dsc} || q{}) . $html->br().$html->b($line->{inner_describe}) if ($line->{inner_describe});
+        if ($line->{dsc}) {
+          $line->{$field_name} = Abills::Base::convert($line->{$field_name}, { text2html => 1 });
+        }
+
+        $line->{dsc} = ($line->{dsc} || q{}) . $html->b("($line->{inner_describe})") if ($line->{inner_describe});
       }
       elsif($field_name =~ /deposit/ && defined($line->{$field_name})) {
         $line->{$field_name} = ($line->{$field_name} < 0) ? $html->color_mark( $line->{$field_name}, $_COLORS[6] ) : $line->{$field_name};

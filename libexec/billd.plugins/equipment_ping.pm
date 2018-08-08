@@ -5,18 +5,24 @@
    Arguments:
 
      TIMEOUT
+     NAS_IP
 
 =cut
 
+
+use warnings;
+use strict;
 use Equipment;
 use Net::Ping;
 use Events::API;
+
 our (
   $Admin,
   $db,
   %conf,
   $argv,
   $base_dir,
+  $debug,
 );
 
 my $Equipment = Equipment->new( $db, $Admin, \%conf );
@@ -40,38 +46,60 @@ sub equipment_ping {
 
   my $timeout = $attr->{TIMEOUT} || '4';
 
-  my $p = Net::Ping->new( 'syn' ) or die "Can't create new ping object: $!\n";
+  if($argv->{NAS_IP}) {
+    $LIST_PARAMS{NAS_IP}=$argv->{NAS_IP};
+  }
+
+  my $ping = Net::Ping->new( 'syn' ) or die "Can't create new ping object: $!\n";
+
+  if($debug > 6) {
+    $Equipment->{debug}=1;
+  }
 
   my $equipment = $Equipment->_list( {
-      COLS_NAME => 1,
-      PAGE_ROWS => 100000,
-      NAS_IP    => '_SHOW',
-      STATUS    => '0;1',
-      NAS_NAME  => '_SHOW'
-    } );
+    NAS_IP    => '_SHOW',
+    %LIST_PARAMS,
+    COLS_NAME => 1,
+    PAGE_ROWS => 100000,
+    STATUS    => '0;1',
+    NAS_NAME  => '_SHOW',
+  } );
 
   my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
   my $datetime = sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year + 1900, $mon + 1, $mday, $hour, $min, $sec);
 
-  my %ips;
+  my %ips = ();
   foreach my $host (@$equipment) {
-    $ips{$host->{nas_ip}} = { NAS_ID => $host->{nas_id}, STATUS => $host->{status}, NAS_NAME => $host->{nas_name} };
+    if(! $host->{nas_ip}) {
+      next;
+    }
+
+    $ips{$host->{nas_ip}} = {
+      NAS_ID   => $host->{nas_id},
+      STATUS   => $host->{status},
+      NAS_NAME => $host->{nas_name} || q{}
+    };
   }
 
   my %syn;
   my %ret_time;
-  foreach my $key (keys %ips) {
-    my ($ret, $duration, $ip) = $p->ping( $key, $timeout );
+  foreach my $host_ip (keys %ips) {
+    if($debug > 5) {
+      print "Try to ping: $host_ip\n";
+    }
+
+    my ($ret, $duration, $ip) = $ping->ping( $host_ip, $timeout );
     if ($ret) {
-      $syn{$key} = $ip;
-      $ret_time{$key} = $duration;
+      $syn{$host_ip} = $ip;
+      $ret_time{$host_ip} = $duration;
     }
     else {
-      print "$key address not found\n";
+      print "$host_ip address not found\n";
     }
   }
+
   my $message = '';
-  while (my ($host, undef, undef) = $p->ack) {
+  while (my ($host, undef, undef) = $ping->ack) {
     if ($ips{$host}{STATUS} == 1) {
       $message .= "$ips{$host}{NAS_NAME}($host) _{AVAILABLE}_\n";
     }
@@ -91,8 +119,15 @@ sub equipment_ping {
     print " $host is reachable\n" if ( $debug > 1);
     delete $syn{$host};
   }
+
   foreach my $host (keys %syn) {
     if ($ips{$host}{STATUS} == 0) {
+
+      my $ping_icmp = Net::Ping->new("icmp");
+      next if $ping_icmp->ping($host, 2);
+      sleep(1);
+      $ping_icmp->close();
+
       $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 1 } );
       $message .= "$ips{$host}{NAS_NAME}($host) _{UNAVAILABLE}_\n";
     }
@@ -107,7 +142,7 @@ sub equipment_ping {
     print " $host is unreachable\n" if ( $debug > 1);
   }
 
-  $p->close;
+  $ping->close;
 
   if ($message) {
     ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();

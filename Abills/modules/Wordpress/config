@@ -14,7 +14,7 @@
   "08:6:$lang{CHOOSE_IMAGES}:wordpress_gallery_images_choosen:" => 5,
 
   "09:1:$lang{EXPORT}:wordpress_export:"                        => 5,
-  "10:1:$lang{EXPORT} Dv:wordpress_export_dv_tariffs:EXPORT"    => 5,
+  "10:1:$lang{EXPORT} Internet:wordpress_export_dv_tariffs:EXPORT"    => 5,
   "11:1:$lang{EXPORT} Abon:wordpress_export_abon:EXPORT"        => 5,
 );
 

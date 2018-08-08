@@ -10,6 +10,8 @@ $lang{NOT_CHANGED}='Зміни не внесені';
 $lang{NOT_DELETED}='Не видалено';
 $lang{SPENDING}='Розхід';
 $lang{COMING}='Прихід';
+$lang{SPENDING_REPORT}='Звіт по розходу';
+$lang{COMING_REPORT}='Звіт по приходу';
 $lang{SALARY}='Зарплати';
 
 $lang{UNITS}='Одиниць';
@@ -21,6 +23,7 @@ $lang{HOURLY}='Погодинна';
 $lang{BET_OVERTIME}='Ставка за додаткову годину';
 $lang{CHECK_DATA_AND_CHOOSE_CASHBOX}='Провірьте правильність даних, виберіть касу і підтвердіть форму';
 $lang{PAYED}='Оплачено';
+$lang{SUM_TO_PAY}='Сума до сплати';
 $lang{REFERENCE_WORKS}='Довідник робіт';
 $lang{RATIO}='Коефіціент';
 $lang{WORK}='Роботы';
@@ -44,4 +47,11 @@ $lang{NEW_LEAD}='Новий потенційний клієнт';
 $lang{CONTRACT_SIGNED}='Контракт підписано';
 $lang{THE_WORKS}='Проводяться роботи';
 $lang{CONVERSION}='Конвертація';
+$lang{BIND_USER}='Привязати користувача';
+
+$lang{PROGRESS_BAR}='Лінійка виконання';
+
+$lang{PLANNED}='Запланована';
+
+$lang{NO_TYPE}='Без типу';
 1

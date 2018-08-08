@@ -1,4 +1,5 @@
 004:Afghanistan
+008:Albania
 032:Argentina
 031:Azerbaijan
 036:Australia
@@ -6,12 +7,14 @@
 051:Armenia
 056:Belgium
 076:Brazil
+090:Solomon Islands
 100:Bulgaria
 112:Belarus
 124:Canada
 156:China
 158:Taiwan, Province of China
 192:Cuba
+196:Cyprus
 203:Czech Republic
 208:Denmark
 233:Estonia

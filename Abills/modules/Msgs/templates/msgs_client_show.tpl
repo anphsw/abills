@@ -7,7 +7,7 @@
     <input type='hidden' name='INNER_MSG' value='%INNER_MSG%'/>
 
 
-    <div>
+    <div style='word-wrap: break-word;'>
         <div class='box box-theme %MAIN_PANEL_COLOR%'>
             <div class='box-header with-border'>
                 <div class='box-title'>%SUBJECT% </div>
@@ -60,4 +60,56 @@
 
     <!-- end of table -->
 </form>
+
+<script>
+  var saveStr = '_{SAVE}_';
+  var cancelStr = '_{CANCEL}_';
+  var replyId = 0;
+
+  function save_reply(element) {
+    var replyText = jQuery('.reply-edit').val();
+    var date = new Date();
+    var dateStr = date.toISOString().slice(0,10) + " " + date.toTimeString().slice(0,9) + "(%LOGIN%)";
+    replyText = replyText + "\n\n\nEdited: " + dateStr;
+    var replyHtml = replyText.replace(/\</g, "&lt")
+                             .replace(/\>/g, "&gt")
+                             .replace(/\n/g, "<br />");
+
+    jQuery(element).parent().html(replyHtml);
+  }
+
+  function edit_reply(element) {
+    if (replyId==0) {
+      replyId = jQuery(element).attr('reply_id');
+      var replyElement = jQuery(element).closest(".box").find(".box-body");
+      var oldReplyHtml = replyElement[0].innerHTML;
+      var oldReply = replyElement[0].innerText;
+      replyElement.html("")
+        .append("<textarea class='form-control reply-edit' rows='10' style='width:100%; margin-left:auto;margin-right:auto'>" + oldReply + "</textarea>")
+        .append("<button type='button' class='btn btn-default btn-xs reply-save'>" + saveStr + "</button>")
+        .append("<button type='button' class='btn btn-default btn-xs reply-cancel'>" + cancelStr + "</button>");
+      replyElement.children().first().focus();
+      
+      jQuery(".reply-save").click(function(){
+        event.preventDefault();
+        save_reply(this);
+        replyId = 0;
+      });
+
+      jQuery(".reply-cancel").click(function(event){
+        event.preventDefault();
+        jQuery(this).parent().html(oldReplyHtml);
+        replyId = 0;
+      });
+    }
+  };
+
+  jQuery(function(){
+    jQuery(".reply-edit-btn").click(function(event){
+      event.preventDefault();
+      edit_reply(this);
+    });
+  });
+</script>
+
 

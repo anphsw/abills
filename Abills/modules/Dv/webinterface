@@ -598,13 +598,6 @@ sub dv_user {
   $Dv->{UID} = $FORM{UID} || $LIST_PARAMS{UID};
   delete($Dv->{errno});
 
-
-    $Dv->account_check();
-      if(_error_show($Dv)) {
-          return 1;
-            }
-            
-
   if ($FORM{CID} && $FORM{CID} !~ /ANY/i) {
     my $list = $Dv->list({
       LOGIN     => '_SHOW',
@@ -835,6 +828,7 @@ sub dv_user {
     if (!$Dv->{errno}) {
       $Dv->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE};
       if (!$FORM{STATUS} && ($FORM{GET_ABON} || !$FORM{TP_ID})) {
+        delete $Dv->{PERSONAL_TP} if $conf{DV_PT_NO_RECALC};
         service_get_month_fee($Dv);
       }
 
@@ -2305,14 +2299,6 @@ sub dv_error {
 #**********************************************************
 sub dv_stats {
   my ($attr) = @_;
-
-  my $dv = Dv->new($db, $admin, \%conf);
-    $dv->account_check();
-      if(_error_show($dv)) {
-          return 1;
-            }
-            
-
 
   if (defined($attr->{USER_INFO})) {
     my $user = $attr->{USER_INFO};

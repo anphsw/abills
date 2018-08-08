@@ -15,7 +15,8 @@ our(
   $html,
   $db,
   $admin,
-  $user
+  $user,
+  %permissions
 );
 
 #**********************************************************
@@ -31,6 +32,11 @@ sub quick_info_user {
   }
 
   $users->info($attr->{UID});
+
+  if ($permissions{0} && $permissions{0}{12}) {
+    $users->{DEPOSIT} = '--';
+  }
+
   if($users->{DISABLE}) {
     $users->{DISABLE} = $lang{DISABLE};
   }

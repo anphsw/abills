@@ -25,7 +25,7 @@ $lang{PARTLY_PAID}='Частично оплачений';
 $lang{UNPAID}='Не оплаченний';
 $lang{VAT_INCLUDE}='З урахуванням податку';
 $lang{AMOUNT_FOR_PAY}='Сума для оплати';
-$lang{ACTIVATE_NEXT_PERIOD}='Для активації наступного облікового періода потрібно сплатити';
+#$lang{ACTIVATE_NEXT_PERIOD}='Для активації наступного облікового періода потрібно сплатити';
 $lang{CURENT_BILLING_PERIOD}='Поточний обрахунковий період';
 $lang{NEXT_PERIODS}='Наступні обрахункові періоди';
 

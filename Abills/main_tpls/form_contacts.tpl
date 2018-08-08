@@ -113,4 +113,4 @@
 
 </script>
 
-<script src='/styles/default_adm/js/contacts_form.js'></script>
+<script src='/styles/default_adm/js/contacts_form.js?v=0.77.78'></script>

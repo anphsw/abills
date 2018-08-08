@@ -101,6 +101,7 @@ $lang{REGISTRATION} = 'Регистрация';
 $lang{DELETED_USER} = 'Удаление пользователя';
 $lang{EXT_SERVICES} = 'Дополнительные услуги';
 $lang{RESPOSIBLE} = 'Ответственный';
+$lang{RESPONSIBLE} = 'Ответственный';
 $lang{MESSAGES} = 'Сообщения';
 $lang{IN_WORK} = 'В обработке';
 $lang{LOGOUT} = 'Выход';
@@ -369,6 +370,7 @@ $lang{UP_RATING} = 'Поднять рейтинг';
 $lang{EXTRA_FEE} = 'Особая оплата';
 $lang{REPLY} = 'Ответ';
 $lang{EXTRA} = 'Дополнительно';
+$lang{EXTRA_BILL} = 'Дополнительный счет';
 $lang{EXTRA_ABBR} = 'Доп';
 $lang{EXPRESSION} = 'Регулярные выражения';
 $lang{LIST} = 'Список';
@@ -381,9 +383,9 @@ $lang{TYPES} = 'Типы';
 $lang{NAS_STATISTIC} = 'Статистика серверов доступа';
 $lang{HOURS} = 'Часы';
 $lang{CELL_PHONE} = 'Мобильный телефон';
-$lang{SERVICE_ENDED} = 'Услуга завершится через %DAYS%  дней';
+$lang{SERVICE_ENDED} = 'Услуга завершится через %DAYS%  дней. (%EXPIRE_DATE%)';
 $lang{DEBUG} = 'Отладка';
-$lang{NEXT_FEES_THROUGHT} = ' следующее списание через %DAYS% дней';
+$lang{NEXT_FEES_THROUGHT} = ' следующее списание через %DAYS% дней. (%EXPIRE_DATE%)';
 $lang{WEEK} = 'Неделя';
 $lang{LIMIT} = 'Лимит';
 $lang{NOT_EXIST} = 'Не существует';
@@ -743,6 +745,7 @@ $lang{MANUAL} = 'Вручную';
 $lang{PROCESS_RESTARTED_MESSAGE} = 'Процес был неактивен и перезапущен';
 $lang{VERSION}='Версия';
 
+$lang{BUILD_SCHEMA}='Схема дома';
 $lang{FILE_MANAGER} = 'Редактор атачей';
 $lang{PLACEHOLDER} = 'Заполнитель';
 $lang{FUNCTION} = 'Функция';
@@ -770,6 +773,22 @@ $lang{BLOCK_NEGATIVE} = 'Блокировать интернет для нега
 $lang{REDIRECT_NEGATIVE} = 'Перенаправлять негативные сесии в ЛК';
 
 $lang{REG_ADDRESS} = 'Адрес регистрации';
+
+$lang{NUMERATION_ROOMS} = 'Нумерация квартир справа налево';
+$lang{TAX}='Налог';
+$lang{ERR_ACTIVE_PRICE_TOO_HIGHT}='Сума активации слишком большая';
+
+$lang{TAX_MAGAZINE} = 'Журнал налогов';
+$lang{_TAX} = 'налога';
+$lang{PERCENT} = 'Процент';
+$lang{IN_USING} = 'Уже используется';
+
+$lang{SET_CREDIT} = 'Установить кредит на период: %CREDIT_DAYS% дней';
+$lang{CREDIT_SUM} = 'Сумма кредита';
+$lang{CREDIT_PRICE} = 'Стоимость услуги';
+$lang{TRANSFER} = 'Перевод';
+$lang{MODULE_VERSION}='Версия модуля';
+$lang{PLUGIN_VERSION}='Версия плагина';
 
 
 1

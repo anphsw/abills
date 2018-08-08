@@ -214,6 +214,15 @@
 </div>
 </div>
 
+<div class='form-group'>
+	<div class='col-md-3'>
+	  <label for='SERVICE_LINK'>_{DESCRIPTION}_</label>
+	</div>
+	<div class='col-md-9'>
+	<textarea rows="2" name='DESCRIPTION' class='form-control' value='%DESCRIPTION%'></textarea>
+</div>
+</div>
+
   </div>
 	<div class='box-footer'>
         <th colspan='3' class='even'>

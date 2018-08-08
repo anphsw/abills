@@ -6,7 +6,7 @@
 #
 #**********************************************************
 
-VERSION=2.16;
+VERSION=2.25;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -195,6 +195,10 @@ else
   MD5="md5"
 fi;
 
+if [ "${DEBUG}" != "" ]; then
+  echo "${FETCH} $1 $2"
+fi;
+
 ${FETCH} $1 $2
 
 }
@@ -282,7 +286,7 @@ echo "Filesystem write: ${FILE1}"
 echo "Filesystem read : ${FILE2}"
 
 URL="http://abills.net.ua/misc/update.php?bench=${sys_id}&CPU_ONE=${CPU1}&CPU_MULT=${CPU2}&MEM_WR=${MEM1}&MEM_RD=${MEM2}&FILE_WR=${FILE1}&FILE_RD=${FILE2}";
-${FETCH} /tmp/bench ${URL}
+_fetch /tmp/bench ${URL}
 
 if [ "${DEBUG}" != "" ] ; then
   rm *.sysbench
@@ -375,9 +379,14 @@ if [ "${REGISTRATION}" != "" ]; then
   read PASSWORD
   MYHOSTNAME=`hostname`
   sys_info=`echo ${sys_info} | sed 's/\"//g'`;
-  #echo "REG: ${FETCH} ${TMP_DIR}/update.sh ${UPDATE_URL}?SIGN=${CHECKSUM}&L=${LOGIN}&P=${PASSWORD}&H=${MYHOSTNAME}&SYS_ID=${SYS_ID}&sys_info=${sys_info}"
 
-  ${FETCH} ${TMP_DIR}/update.sh "${UPDATE_URL}?""SIGN=${CHECKSUM}&L=${LOGIN}&P=${PASSWORD}&H=${MYHOSTNAME}&SYS_ID=${SYS_ID}&sys_info=${sys_info}";
+  REG_URL="${UPDATE_URL}?""SIGN=${CHECKSUM}&L=${LOGIN}&P=${PASSWORD}&H=${MYHOSTNAME}&SYS_ID=${SYS_ID}&sys_info=${sys_info}"
+
+  if [ "${DEBUG}" != "" ]; then
+    echo ${REG_URL};
+  fi;
+
+  _fetch ${TMP_DIR}/update.sh ${REG_URL};
   VAR=`cat ${TMP_DIR}/update.sh;`
 
   echo ${VAR};
@@ -449,10 +458,11 @@ update_self () {
     SIGN=${SIGN}"&hn="`hostname`;
   fi;
 
-  ${FETCH} ${TMP_DIR}/update.sh "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&SYS_ID=${SYS_ID}";
+  URL="${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&SYS_ID=${SYS_ID}";
+  _fetch ${TMP_DIR}/update.sh "${URL}";
 
   if [ "${DEBUG}" != "" ]; then
-    echo "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&SYS_ID=${SYS_ID}";
+    echo "${URL}";
   fi;
 
 if [ -f "${TMP_DIR}/update.sh" ]; then
@@ -575,7 +585,7 @@ download_and_parse_sql_updates () {
 
   echo "Downloading MySQL changelog file"
 
-  ${FETCH} "${TMP_DIR}/changes" "${CHANGELOG_URL}";
+  _fetch "${TMP_DIR}/changes" "${CHANGELOG_URL}";
 
   cat ${TMP_DIR}/changes |sed -n '/^[0-9]/p' |sed 's/\\\\//' |sed 's/\([0-9]*\).\([0-9]*\).\([0-9]*\)/\3\2\1/' > ${TMP_DIR}/dates;
 
@@ -690,9 +700,7 @@ MODULE=$1;
 echo "Automatically module update";
 
 URL="http://abills.net.ua/misc/update.php?sign=${SIGN}&SYS_ID=${SYS_ID}&module=${MODULE}";
-${FETCH} "${TMP_DIR}/module" "${URL}"
-
-#echo "${FETCH} ${TMP_DIR}/module ${URL}";
+_fetch "${TMP_DIR}/module" "${URL}"
 
 CHECK_MODULE=`grep ${MODULE} ${TMP_DIR}/module`;
 
@@ -1090,15 +1098,11 @@ snapshot_update () {
 SNAPHOT_NAME=abills_.tgz
 UPDATED=updated.txt
 
-URL="${UPDATE_URL}?sign=${SIGN}&get_snapshot=1&SYS_ID=${SYS_ID}";
+URL="${UPDATE_URL}?sign=${SIGN}&get_snapshot=1&SYS_ID=${SYS_ID}&H=${MYHOSTNAME}";
 
 cd ${TMP_DIR}
 
-if [ "${DEBUG}" != "" ]; then
-  echo "${FETCH} ${URL}"
-fi;
-
-${FETCH} ${SNAPHOT_NAME} "${URL}";
+_fetch ${SNAPHOT_NAME} "${URL}";
 
 RESULT=`head -1 ${SNAPHOT_NAME} | grep '\['`
 
@@ -1142,11 +1146,7 @@ git_update () {
     start_dir=${KEY_DIR};
   fi;
 
-  SEARCH_KEY=`ls ${start_dir}/id_dsa.* | head -1;`
-
-  if [ "${SEARCH_KEY}" = "" ]; then
-    SEARCH_KEY=`ls ${start_dir}/id_rsa.* | head -1;`
-  fi;
+  SEARCH_KEY=`ls ${start_dir}/id_rsa.* | head -1;`
 
   BASEDIR=$(dirname $0)
   echo "Found key: ${SEARCH_KEY} (${BASEDIR} ${KEY_DIR})";
@@ -1235,13 +1235,9 @@ free_update () {
 
   cd ${TMP_DIR}
   SNAPHOT_NAME=abills_.tgz
-  URL=https://netix.dl.sourceforge.net/project/abills/abills/0.75/abills-0.75.110.tgz
+  URL=https://netix.dl.sourceforge.net/project/abills/abills/0.77/abills-0.77.77.tgz
 
-  if [ "${DEBUG}" != "" ]; then
-    echo "${FETCH} ${URL}"
-  fi;
-
-  ${FETCH} ${SNAPHOT_NAME} "${URL}";
+  _fetch ${SNAPHOT_NAME} "${URL}";
 
   tar zxvf ${TMP_DIR}/${SNAPHOT_NAME} -C ${TMP_DIR}
 }
@@ -1278,12 +1274,12 @@ get_license () {
     if [ -f ${TMP_DIR}/abills/libexec/license.key ]; then
       rm -f ${TMP_DIR}/abills/libexec/license.key
     fi;
-    ${FETCH} ${TMP_DIR}/abills/libexec/license.key "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&get_key=1&SYS_ID=${SYS_ID}";
+    _fetch ${TMP_DIR}/abills/libexec/license.key "${UPDATE_URL}?sign=${SIGN}&H=${MYHOSTNAME}&getupdate=1&VERSION=${VERSION}&get_key=1&SYS_ID=${SYS_ID}";
     cp "${TMP_DIR}/abills/libexec/license.key" "${BILLING_DIR}/libexec/license.key"
   elif [ -f "${BILLING_DIR}/libexec/license.key" ]; then
      cp "${BILLING_DIR}/libexec/license.key" "${BILLING_DIR}/libexec/license.key.old"
      rm "${BILLING_DIR}/libexec/license.key"
-     ${FETCH} ${BILLING_DIR}/abills/libexec/license.key "${UPDATE_URL}?sign=${SIGN}&getupdate=1&VERSION=${VERSION}&get_key=1&SYS_ID=${SYS_ID}";
+     _fetch ${BILLING_DIR}/libexec/license.key "${UPDATE_URL}?sign=${SIGN}&H=${MYHOSTNAME}&getupdate=1&VERSION=${VERSION}&get_key=1&SYS_ID=${SYS_ID}";
   fi;
 
   echo "License downloaded";

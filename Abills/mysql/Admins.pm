@@ -8,13 +8,8 @@ package Admins;
 
 use strict;
 use parent qw(dbcore);
-#our @ISA = ("main");
 
-#use Defs;
-
-#my $aid;
 my $IP;
-#my $CONF;
 my $SORT      = 1;
 my $DESC      = '';
 my $PG        = 0;
@@ -128,12 +123,13 @@ sub set_permissions {
 
   $self->query("DELETE FROM admin_permits WHERE aid= ? ;", 'do', { Bind => [ $self->{AID} ] });
   my @MULTI_QUERY = ();
-
+  my @log = ();
   while (my ($section, $actions_hash) = each %$permissions) {
     while (my ($action, undef) = each %$actions_hash) {
       my ($perms, $module) = split(/_/, $action);
       next if ($section ne  int($section));
       push @MULTI_QUERY, [ $self->{AID}, $section, ($perms || 0), "$module" ];
+      push @log, "$section:". ($perms || 0). ":$module";
     }
   }
 
@@ -150,8 +146,9 @@ sub set_permissions {
   $self->{AID}         = $self->{MAIN_AID};
   $IP                  = $self->{MAIN_SESSION_IP};
 
-  $self->system_action_add("AID:$self->{CHANGED_AID} PERMISION:", { TYPE => 65 });
+  $self->system_action_add("AID:$self->{CHANGED_AID} PERMISION:". join(';', @log), { TYPE => 65 });
   $self->{AID} = $self->{CHANGED_AID};
+
   return $self->{permissions};
 }
 
@@ -661,7 +658,7 @@ sub action_list {
       ['MONTH',        'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m')" ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
       ['AID',          'INT',  'aa.aid'           ],
-      ['ADMIN',        'INT',  'a.id', 'a.id'     ],
+      ['ADMIN',        'STR',  'a.id', 'a.id as admin_login'],
     ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES,
@@ -815,6 +812,8 @@ sub password {
 
   Arguments:
     $attr
+      TIMEOUT
+      ACTIVE
 
   Returns:
     $online_users, $online_count
@@ -830,8 +829,11 @@ sub online {
 
   my $WHERE = ($self->{SID1}) ?  "WHERE sid='$self->{SID}'" : '';
 
-  $self->query("DELETE FROM web_online WHERE UNIX_TIMESTAMP()-logtime>$time_out;", 'do');
+  if($attr->{ACTIVE}) {
+    $WHERE = " WHERE UNIX_TIMESTAMP() - logtime < 6000";
+  }
 
+  $self->query("DELETE FROM web_online WHERE UNIX_TIMESTAMP()-logtime>$time_out;", 'do');
   $self->query("SELECT admin, ip, UNIX_TIMESTAMP() - logtime, sid  FROM web_online $WHERE;");
 
   my $online_count = $self->{TOTAL} + 0;
@@ -926,28 +928,28 @@ sub online_del {
   return $self;
 }
 
-#**********************************************************
-=head2 online_find($sid) - find session by $sid
-
-  Arguments:
-    $sid -
-
-  Returns:
-    aid
-
-=cut
-#**********************************************************
-sub online_find {
-  my ($self, $sid) = @_;
-
-  return 0 unless ( $sid );
-
-  $self->query("SELECT aid FROM web_online WHERE sid= ?;", undef, {
-      Bind      => [ $sid ]
-    });
-
-  return ($self->{list} && $self->{list}->[0]) ? $self->{list}->[0][0] : 0;
-}
+##**********************************************************
+#=head2 online_find($sid) - find session by $sid
+#
+#  Arguments:
+#    $sid -
+#
+#  Returns:
+#    aid
+#
+#=cut
+##**********************************************************
+#sub online_find {
+#  my ($self, $sid) = @_;
+#
+#  return 0 unless ( $sid );
+#
+#  $self->query("SELECT aid FROM web_online WHERE sid= ?;", undef, {
+#      Bind      => [ $sid ]
+#    });
+#
+#  return ($self->{list} && $self->{list}->[0]) ? $self->{list}->[0][0] : 0;
+#}
 
 #**********************************************************
 =head2 settings_info($id)
@@ -961,13 +963,15 @@ sub settings_info {
   $self->query("SELECT * FROM admin_settings
     WHERE object=? AND aid=?;",
   undef,
-  { INFO => 1, Bind => [  $id, $self->{AID}  ] });
+  { INFO => 1, Bind => [ $id, $self->{AID} ] });
 
   return $self;
 }
 
 #**********************************************************
-# settings_add()
+=head2 settings_add($attr)
+
+=cut
 #**********************************************************
 sub settings_add {
   my $self = shift;
@@ -979,7 +983,9 @@ sub settings_add {
 }
 
 #**********************************************************
-# group_add()
+=head2 group_add($id)
+
+=cut
 #**********************************************************
 sub settings_del {
   my $self = shift;
@@ -1042,7 +1048,9 @@ sub access_add {
 
 
 #**********************************************************
-# access_del()
+=head2 access_del($attr)
+
+=cut
 #**********************************************************
 sub access_del {
   my $self = shift;

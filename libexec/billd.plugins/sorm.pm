@@ -2,8 +2,8 @@
 # mkdir /usr/abills/var/sorm/payments/
 # mkdir /usr/abills/var/sorm/wi-fi/
 # mkdir /usr/abills/var/sorm/dictionaries/
-# echo "2017-01-01 00:00:00" > /usr/abills/var/sorm/last_admin_action
-# echo "2017-08-01 00:00:00" > /usr/abills/var/sorm/last_payments
+# echo "2018-01-01 00:00:01" > /usr/abills/var/sorm/last_admin_action
+# echo "2018-01-01 00:00:01" > /usr/abills/var/sorm/last_payments
 #
 # $conf{BILLD_PLUGINS} = 'sorm';
 # $conf{ISP_ID} = '1'; # идентифакатор ИСП из "информация по операторам связи и их филалах"'
@@ -19,15 +19,16 @@ our (
   $Admin,
   $db,
   $users,
-  $Dv,
   $var_dir,
   $argv,
 );
 
+use Time::Piece;
 use Abills::Base qw/cmd _bp/;
 use Abills::Misc qw/translate_list/;
 use Users;
-use Dv;
+use Internet;
+use Abon;
 use Companies;
 use Finance;
 use Nas;
@@ -35,12 +36,18 @@ use Nas;
 my $User = Users->new($db, $Admin, \%conf);
 my $Company = Companies->new($db, $Admin, \%conf);
 my $Payments = Finance->payments($db, $Admin, \%conf);
+my $Internet = Internet->new($db, $Admin, \%conf);
 my $Nas = Nas->new($db, $Admin, \%conf);
-my $isp_id = $conf{ISP_ID} || 1;
+my $Abon = Abon->new($db, $Admin, \%conf);
 my $start_date = "01.08.2017 12:00:00";
+my $isp_id    = $conf{SORM_ISP_ID} || 1;
+my $server_ip = $conf{SORM_SERVER} || '127.0.0.1';
+my $login     = $conf{SORM_LOGIN}  || 'login';
+my $pswd      = $conf{SORM_PSWD}   || 'password';
+my $t = localtime;
 
 if ($argv->{DICTIONARIES}) {
-  # service_dictionary();
+  supplement_services_dictionary();
   payments_type_dictionary();
   docs_dictionary();
   gates_dictionary();
@@ -50,6 +57,8 @@ elsif ($argv->{START}) {
   my $users_list = $User->list({
     COLS_NAME   => 1,
     PAGE_ROWS   => 99999,
+    DELETED     => 0,
+    DISABLE     => 0,
   });
   
   foreach (@$users_list) {
@@ -61,9 +70,8 @@ else {
   check_system_actions();
   check_payments();
 }
-print "-------\n";
+
 send_changes();
-print "+++++++++\n";
 
 
 #**********************************************************
@@ -80,10 +88,14 @@ sub check_admin_actions {
   close $fh;
 
   my $action_list = $Admin->action_list({ 
-    COLS_NAME => 1, 
+    COLS_NAME => 1,
+    ACTIONS   => '_SHOW',
+    TYPE      => '_SHOW',
+    MODULE    => '_SHOW',
     DATETIME  => ">$last_action_date", 
     SORT      => 'aa.datetime', 
     DESC      => 'DESC',
+    PAGE_ROWS => 99999,
   });
   
   return 1 if ($Admin->{TOTAL} < 1);
@@ -91,7 +103,18 @@ sub check_admin_actions {
   $last_action_date = $action_list->[0]->{datetime} . "\n";
 
   foreach my $action (@$action_list) {
-    user_info_report($action->{uid}) if ($action->{uid});
+    if ($action->{module} eq 'Msgs') {
+
+    }
+    elsif ($action->{module} && $action->{module} eq 'Abon' && $action->{action_type} && $action->{action_type} eq '3') {
+      my (@services) = $action->{actions} =~ m/ADD\:(\d+)/g;
+      foreach (@services) {
+        abon_info_report($action->{uid}, $action->{datetime}, $_);
+      }
+    }
+    else {
+      user_info_report($action->{uid}) if ($action->{uid});
+    }
   }
   
   open ($fh, '>', $filename) or die "Could not open file '$filename' $!";
@@ -162,7 +185,7 @@ sub user_info_report {
 
   $User->pi({ UID => $uid });
   $User->info($uid);
-  $Dv->info($uid);
+  $Internet->info($uid);
 
   my ($family, $name, $surname) = split (' ', $User->{FIO});
 
@@ -170,7 +193,7 @@ sub user_info_report {
 
   $arr[0] = $isp_id;                                    # идентификатор филиала (справочник филиалов)
   $arr[1] = $User->{LOGIN};                             # login
-  $arr[2] = ($Dv->{IP} && $Dv->{IP} ne '0.0.0.0') ? $Dv->{IP} : "";  # статический IP
+  $arr[2] = ($Internet->{IP} && $Internet->{IP} ne '0.0.0.0') ? $Internet->{IP} : "";  # статический IP
   $arr[3] = $User->{EMAIL};                             # e-mail
   $arr[4] = $User->{PHONE} || "";                       # телефон
   $arr[5] = "";                                         # MAC-адрес
@@ -185,8 +208,7 @@ sub user_info_report {
      
      $arr[11] = 0;             # тип абонента (0 - физ лицо, 1 - юр лицо)
 
-    my ($passport_num) = $User->{PASPORT_NUM} =~ m/(\d+)/;
-    my ($passport_ser) = $User->{PASPORT_NUM} =~ m/(\D+)/;
+    my ($passport_ser, $passport_num) = $User->{PASPORT_NUM} =~ m/(.*)\s(\d+)/;
     $passport_ser =~ s/\s//g if ($passport_ser);
     $User->{PASPORT_GRANT} =~ s/\n//g;
     $User->{PASPORT_GRANT} =~ s/\r//g;
@@ -305,6 +327,28 @@ sub user_info_report {
 }
 
 #**********************************************************
+=head2 abon_info_report($uid, $date, $tp)
+
+=cut
+#**********************************************************
+sub abon_info_report {
+  my ($uid, $datetime, $tp_id) = @_;
+  $User->info($uid);
+
+  my $string = '"' . $isp_id .'";';                                      # идентификатор филиала из справочника
+  $string   .= '"' . $User->{LOGIN} . '";';                              # логин
+  $string   .= '"' . ($User->{CONTRACT_ID} || $User->{LOGIN} ) . '";';   # номер договора
+  $string   .= '"' . $tp_id . '";';                                      # идентификатор услуги
+  $string   .= '"' . _date_format($datetime) . '";';                     # дата подключения
+  $string   .= '"";';                                                    # дата отключения
+  $string   .= '""' . "\n";                                              # дополнительная информация
+
+  _add_report('abon', $string);
+
+  return 1;
+}
+
+#**********************************************************
 =head2 ippool_dictionary($attr)
 
 =cut
@@ -312,12 +356,16 @@ sub user_info_report {
 sub ippool_dictionary {
 
   my $pools_list = $Nas->nas_ip_pools_list({
+    IP_COUNT         => '_SHOW',
+    POOL_NAME        => '_SHOW',
+    IP               => '_SHOW',
     COLS_NAME        => 1,
     SHOW_ALL_COLUMNS => 1,
     PAGE_ROWS        => 99999,
   });
 
   foreach my $pool (@$pools_list) {
+    next unless ($pool->{ip});
     my $w=($pool->{ip}/16777216)%256;
     my $x=($pool->{ip}/65536)%256;
     my $y=($pool->{ip}/256)%256;
@@ -334,7 +382,7 @@ sub ippool_dictionary {
 
     _add_report('pool', $string);
   }
-print "IP pool dictionary formed.\n";
+  print "IP pool dictionary formed.\n";
   return 1;
 }
 
@@ -359,7 +407,7 @@ sub docs_dictionary {
 #**********************************************************
 sub gates_dictionary {
   
-  my $string = '"' . $isp_id .'";"91.205.164.46";"01.08.2017";"";"Radius";"Россия";"Республика Крым";"Республика Крым";"г.Ялта";"ул. Соханя";"7";"7"' . "\n";
+  my $string = '"' . $isp_id .'";"1.1.1.1";"01.08.2017";"";"Radius";"Страна";"Область";" ";"город";"улица";"7";"7"' . "\n";
   _add_report('gates', $string);
 
   print "Gates dictionary formed.\n";
@@ -396,14 +444,25 @@ sub payments_type_dictionary {
 }
 
 #**********************************************************
-=head2 nas_info_report($attr)
+=head2 supplement_services_dictionary();($attr)
 
 =cut
 #**********************************************************
-sub nas_dictionary {
+sub supplement_services_dictionary {
+  my $list = $Abon->tariff_list({ COLS_NAME => 1 });
 
+  foreach (@$list) {
+    my $string = '"' . $isp_id .'";';
+    $string .= '"' . $_->{tp_id} . '";';      # номер услуги
+    $string .= '"' . $_->{name} . '";';       # название услуги
+    $string .= '"' . $start_date . '";';      # дата начала действия услуги 
+    $string .= '"";';                         # дата окончания действия услуги
+    $string .= '"' . $_->{name} . '"' . "\n"; # описание
+    _add_report('sup_s', $string);
+  }
 
-  _add_report('p_type', '"1";');
+  print "supplement_services dictionary formed.\n";
+  return 1;
 }
 
 #**********************************************************
@@ -414,8 +473,8 @@ sub nas_dictionary {
 sub payment_report {
   my ($attr) = @_;
 
-  $Dv->info($attr->{uid});
-  my $ip = ($Dv->{IP} ne '0.0.0.0') ? $Dv->{IP} : "";
+  $Internet->info($attr->{uid});
+  my $ip = ($Internet->{IP} ne '0.0.0.0') ? $Internet->{IP} : "";
   
   my $string = '"' . $isp_id .'";';                             # идентификатор филиала из справочника
   $string   .= '"' . $attr->{method} . '";';                    # тип оплаты из сравочника
@@ -437,14 +496,16 @@ sub payment_report {
 #**********************************************************
 sub _add_report {
   my ($type, $string) = @_;
-print $string;
+print "$type : $string";
   my %reports = (
     user    => "$var_dir/sorm/abonents/abonents.csv.utf",
+    abon    => "$var_dir/sorm/abonents/services.csv.utf",
     payment => "$var_dir/sorm/payments/payments.csv.utf",
     p_type  => "$var_dir/sorm/dictionaries/pay-types.csv.utf",
     d_type  => "$var_dir/sorm/dictionaries/doc-types.csv.utf",
     gates   => "$var_dir/sorm/dictionaries/gates.csv.utf",
     pool    => "$var_dir/sorm/dictionaries/ip-numbering-plan.csv.utf",
+    sup_s   => "$var_dir/sorm/dictionaries/supplement-services.csv.utf",
   );
 
   my $filename = $reports{$type};
@@ -471,9 +532,6 @@ print $string;
 #**********************************************************
 sub _date_format {
   my ($date) = @_;
-  
-  # (substr($date, 0, 4), substr($date, 6, 2)) = (substr($date, 8, 2), substr($date, 0, 4));
-  # $date =~ s/\-/\./g;
 
   $date =~ s/(\d{4})-(\d{2})-(\d{2})(.*)/$3.$2.$1$4/;
   return $date;
@@ -485,14 +543,145 @@ sub _date_format {
 =cut
 #**********************************************************
 sub send_changes {
-  
-  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/abonents/abonents.csv.utf > /usr/abills/var/sorm/abonents/abonents.csv') if (-e "/usr/abills/var/sorm/abonents/abonents.csv.utf");
-  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/payments/payments.csv.utf > /usr/abills/var/sorm/payments/payments.csv') if (-e "/usr/abills/var/sorm/payments/payments.csv.utf");
-  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/pay-types.csv.utf > /usr/abills/var/sorm/dictionaries/pay-types.csv') if (-e "/usr/abills/var/sorm/dictionaries/pay-types.csv.utf");
-  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/doc-types.csv.utf > /usr/abills/var/sorm/dictionaries/doc-types.csv') if (-e "/usr/abills/var/sorm/dictionaries/doc-types.csv.utf");
-  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/gates.csv.utf > /usr/abills/var/sorm/dictionaries/gates.csv') if (-e "/usr/abills/var/sorm/dictionaries/gates.csv.utf");
-  # system('iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf > /usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv') if (-e "/usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf");
 
+  use Net::FTP;
+
+  if (-e "/usr/abills/var/sorm/abonents/abonents.csv.utf") {
+    my $file = join('_', 
+      "/usr/abills/var/sorm/abonents/abonents",
+      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+    $file .= ".csv";
+    print "Send $file\n";
+    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/abonents/abonents.csv.utf > $file");
+    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+    $ftp->cwd("/abonents/abonents") or die "Cannot change working directory ", $ftp->message;
+    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    print $ftp->message;
+    $ftp->quit;
+    unlink $file;
+    unlink '/usr/abills/var/sorm/abonents/abonents.csv.utf';
+  }
+
+  if (-e "/usr/abills/var/sorm/payments/payments.csv.utf") {
+    my $file = join('_', 
+      "/usr/abills/var/sorm/payments/payments",
+      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+    $file .= ".csv";
+    print "Send $file\n";
+    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/payments/payments.csv.utf > $file");
+    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+    $ftp->cwd("/payments/balance-fillup") or die "Cannot change working directory ", $ftp->message;
+    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    print $ftp->message;
+    $ftp->quit;
+    unlink $file;
+    unlink '/usr/abills/var/sorm/payments/payments.csv.utf';
+  }
+
+  if (-e "/usr/abills/var/sorm/abonents/services.csv.utf") {
+    my $file = join('_', 
+      "/usr/abills/var/sorm/abonents/services",
+      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+    $file .= ".csv";
+    print "Send $file\n";
+    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/abonents/services.csv.utf > $file");
+    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+    $ftp->cwd("/abonents/services") or die "Cannot change working directory ", $ftp->message;
+    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    print $ftp->message;
+    $ftp->quit;
+    unlink $file;
+    unlink '/usr/abills/var/sorm/services/services.csv.utf';
+  }
+
+  if (-e "/usr/abills/var/sorm/dictionaries/gates.csv.utf") {
+    my $file = join('_', 
+      "/usr/abills/var/sorm/dictionaries/gates",
+      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+    $file .= ".csv";
+    print "Send $file\n";
+    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/gates.csv.utf > $file");
+    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+    $ftp->cwd("/dictionaries/gates") or die "Cannot change working directory ", $ftp->message;
+    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    print $ftp->message;
+    $ftp->quit;
+    unlink $file;
+    unlink '/usr/abills/var/sorm/dictionaries/gates.csv.utf';
+  }
+
+  if (-e "/usr/abills/var/sorm/dictionaries/doc-types.csv.utf") {
+    my $file = join('_', 
+      "/usr/abills/var/sorm/dictionaries/doc-types",
+      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+    $file .= ".csv";
+    print "Send $file\n";
+    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/doc-types.csv.utf > $file");
+    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+    $ftp->cwd("/dictionaries/doc-types") or die "Cannot change working directory ", $ftp->message;
+    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    print $ftp->message;
+    $ftp->quit;
+    unlink $file;
+    unlink '/usr/abills/var/sorm/dictionaries/doc-types.csv.utf';
+  }
+
+  if (-e "/usr/abills/var/sorm/dictionaries/pay-types.csv.utf") {
+    my $file = join('_', 
+      "/usr/abills/var/sorm/dictionaries/pay-types",
+      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+    $file .= ".csv";
+    print "Send $file\n";
+    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/pay-types.csv.utf > $file");
+    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+    $ftp->cwd("/dictionaries/pay-types") or die "Cannot change working directory ", $ftp->message;
+    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    print $ftp->message;
+    $ftp->quit;
+    unlink $file;
+    unlink '/usr/abills/var/sorm/dictionaries/pay-types.csv.utf';
+  }
+
+  if (-e "/usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf") {
+    my $file = join('_', 
+      "/usr/abills/var/sorm/dictionaries/ip-numbering-plan",
+      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+    $file .= ".csv";
+    print "Send $file\n";
+    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf > $file");
+    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+    $ftp->cwd("/dictionaries/ip-numbering-plan") or die "Cannot change working directory ", $ftp->message;
+    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    print $ftp->message;
+    $ftp->quit;
+    unlink $file;
+    unlink '/usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf';
+  }
+
+  if (-e "/usr/abills/var/sorm/dictionaries/supplement-services.csv.utf") {
+    my $file = join('_', 
+      "/usr/abills/var/sorm/dictionaries/supplement-services",
+      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+    $file .= ".csv";
+    print "Send $file\n";
+    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/supplement-services.csv.utf > $file");
+    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+    $ftp->cwd("/dictionaries/supplement-services") or die "Cannot change working directory ", $ftp->message;
+    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    print $ftp->message;
+    $ftp->quit;
+    unlink $file;
+    unlink '/usr/abills/var/sorm/dictionaries/supplement-services.csv.utf';
+  }
+  
   return 1;
 }
 

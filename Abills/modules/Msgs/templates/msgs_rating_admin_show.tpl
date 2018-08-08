@@ -12,6 +12,7 @@
   <div class='box-body' style='text-align: left'>
     %RATING_COMMENT%
   </div>
+    %SIGNATURE%
   <div class='box-footer'>
   </div>
 </div>

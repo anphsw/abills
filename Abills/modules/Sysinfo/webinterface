@@ -9,9 +9,6 @@ use warnings FATAL => 'all';
 
 =cut
 
-
-use Abills::Base;
-
 our (%conf, $db, $admin, %permissions);
 
 require Sysinfo::Reports;

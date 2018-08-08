@@ -351,13 +351,13 @@ sub get_file_content {
     $content .= $_;
   }
   
-  $content =~ s/^CREATE FUNCTION (.*?) END\|$//gms;
-  $content =~ s/^CREATE UNIQUE (.*?);$//gms;
-  $content =~ s/^CREATE INDEX (.*?);$//gms;
-  $content =~ s/^REPLACE INTO (.*?);$//gms;
-  $content =~ s/^INSERT INTO (.*?);$//gms;
-  $content =~ s/^UPDATE (.*?);$//gms;
-  $content =~ s/^DELETE (.*?);$//gms;
+  $content =~ s/^CREATE FUNCTION(.*?) END\|$//gms;
+  $content =~ s/^CREATE UNIQUE(.*?);\s?$//gms;
+  $content =~ s/^CREATE INDEX(.*?);\s?$//gms;
+  $content =~ s/^REPLACE INTO(.*?);\s?$//gms;
+  $content =~ s/^INSERT INTO(.*?);\s?$//gms;
+  $content =~ s/^UPDATE(.*?);\s?$//gms;
+  $content =~ s/^DELETE(.*?);\s?$//gms;
   $content =~ s/\,\s*FOREIGN KEY \(\`.*\`\) REFERENCES \`.*\` \(\`.*?\`\)(?: ON  ?(?:UPDATE|DELETE) ?(?:CASCADE|DELETE|RESTRICT))?//g;
   $content =~ s/\,\s*FOREIGN KEY(.*) ?(?:DELETE)? (?:CASCADE|DELETE|RESTRICT)//gms;
   

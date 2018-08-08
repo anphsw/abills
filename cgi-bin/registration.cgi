@@ -106,7 +106,7 @@ elsif (!@REGISTRATION){
   print "Can't find modules services for registration";
   exit;
 }
-elsif ($FORM{qindex} && $FORM{qindex} == 30 && !$conf{REGISTRATION_NO_ADDRESS_REGISTER}) {
+elsif ($FORM{qindex} && $FORM{qindex} =~ /^\d+$/ && $FORM{qindex} == 30 && !$conf{REGISTRATION_NO_ADDRESS_REGISTER}) {
   require Control::Address_mng;
   form_address_sel();
 }
@@ -157,18 +157,17 @@ elsif ($#REGISTRATION > -1) {
     
     # Send E-mail to admin after registration
     if ($return && $return > 1) {
-      my $message = qq{
-New Registrations
-=========================================
-Username: $FORM{LOGIN}
-Fio:      $FORM{FIO}
-DATE:     $DATE $TIME
-IP:       $ENV{REMOTE_ADDR}
-Module:   $m
-E-Mail:   $FORM{EMAIL}
-=========================================
-
-};
+      my $message = $html->tpl_show(templates('registration_admin_notification'),
+        {
+          LOGIN => $FORM{LOGIN},
+          FIO   => $FORM{FIO},
+          DATE  => $DATE,
+          TIME  => $TIME,
+          REMOTE_ADDR=> $ENV{REMOTE_ADDR},
+          MODULE=> $m,
+          EMAIL => $FORM{EMAIL}
+        },
+        { OUTPUT2RETURN => 1});
 
       if ($conf{REGISTRATION_EXTERNAL}) {
         if (!_external($conf{REGISTRATION_EXTERNAL}, { %FORM })) {
@@ -189,7 +188,6 @@ E-Mail:   $FORM{EMAIL}
         $html->redirect($conf{REGISTRATION_REDIRECT}, { MESSAGE => $lang{SENDED} });
         exit 0;
       }
-      
     }
   }
   else {
@@ -209,7 +207,7 @@ if (!($FORM{header} && $FORM{header} == 2)) {
   $OUTPUT{BODY}       = $html->{OUTPUT};
   # check address form
   $OUTPUT{ADDRESS}    = $html->tpl_show(templates('form_address_build_sel'), { HIDE_ADD_BUILD_BUTTON => "style='display:none;'"  }, {OUTPUT2RETURN => 1});
-  $OUTPUT{TITLE} = "$conf{WEB_TITLE} - $lang{REGISTRATION}";
+  $OUTPUT{TITLE}      = "$conf{WEB_TITLE} - $lang{REGISTRATION}";
   
   print $html->tpl_show(templates('registration'), { %OUTPUT, TITLE_TEXT => $lang{REGISTRATION} });
 }
@@ -325,13 +323,14 @@ sub password_recovery_process {
 =cut
 #**********************************************************
 sub get_address_connected_message {
+
   require Control::Address_mng;
   require Address;
   my $Address = Address->new($db, $admin, \%conf);
 
   my $info = $Address->build_info({ID => $FORM{LOCATION_ID}});
   
-  return ($info->{PLANNED_TO_CONNECT} == 1)
+  return ($info->{PLANNED_TO_CONNECT} && $info->{PLANNED_TO_CONNECT} == 1)
     ? "<div class='callout callout-info'>$lang{CHECK_ADDRESS_PLANNED_TO_CONNECT_MSG}</div>"
     : "<div class='callout callout-info'>$lang{CHECK_ADDRESS_CONNECTED_MSG}</div>";
 }
@@ -347,13 +346,14 @@ sub get_captcha {
   if ($conf{GOOGLE_CAPTCHA_KEY}) {
     return "<script src='https://www.google.com/recaptcha/api.js'></script><div class='g-recaptcha' data-sitekey='$conf{GOOGLE_CAPTCHA_KEY}'></div>";
   }
-  my $captcha_module_load_error = load_pmodule( 'Authen::Captcha', { RETURN => 1 } );
-  
+
+  my $captcha_module_load_error = load_pmodule( 'Authen::Captcha', { RETURN => 1, HEADER => 1 } );
+
   if ($captcha_module_load_error){
-    print "Content-Type : text/html;\n\n";
+    print "Content-Type: text/html\n\n";
     print $captcha_module_load_error;
   };
-  
+
   my $Captcha = Authen::Captcha->new(
     data_folder   => $CAPTCHA_DIR,
     output_folder => $CAPTCHA_DIR,
@@ -411,8 +411,8 @@ sub check_captcha {
     return 0;
   }
   
-  my $user_input = $attr->{CCODE};
-  my $md5hash = $attr->{C};
+  my $user_input = $attr->{CCODE} || q{};
+  my $md5hash    = $attr->{C} || q{};
   
   load_pmodule('Authen::Captcha', { HEADER => 1 });
 

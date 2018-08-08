@@ -450,14 +450,14 @@ sub wordpress_export {
 
   my @exportable_modules = (
     'Abon',
-    'Dv',
+    'Internet',
     #    'Storage', 'Equipment'
   );
 
   our @MODULES;
   my %is_enabled_and_exportable = map { $_ => in_array($_, \@MODULES)} @exportable_modules;
 
-  if ( $is_enabled_and_exportable{'Dv'} ) {
+  if ( $is_enabled_and_exportable{'Internet'} ) {
     wordpress_export_dv_tariffs();
   }
 
@@ -506,12 +506,12 @@ sub wordpress_export_dv_tariffs {
         TP_ID       => $FORM{IDS} || '_SHOW',
         ACTIV_PRICE => '_SHOW',
         COMMENTS    => '_SHOW',
-        MODULE      => 'Dv',
+        MODULE      => 'Internet',
         COLS_UPPER  => 1,
         COLS_NAME   => 1
       } );
 
-    _wordpress_show_cards_form($tariffs_list, "$lang{EXPORT} Dv $lang{TARIF_PLANS}", { });
+    _wordpress_show_cards_form($tariffs_list, "$lang{EXPORT} INternet $lang{TARIF_PLANS}", { });
     return 1;
   }
   else {
@@ -520,13 +520,13 @@ sub wordpress_export_dv_tariffs {
     my $tariffs_list = $Tariffs->list( {
         ACTIV_PRICE => '_SHOW',
         COMMENTS    => '_SHOW',
-        MODULE      => 'Dv',
+        MODULE      => 'Internet',
         COLS_NAME   => 1
       } );
 
     my $table = $html->table( {
         width      => '100%',
-        caption    => 'Dv ' . $lang{TARIF_PLANS},
+        caption    => 'Internet ' . $lang{TARIF_PLANS},
         title      =>
         [ '#', $lang{NAME}, $lang{DAY_FEE}, $lang{MONTH_FEE}, $lang{ACTIVATE}, $lang{GROUP}, $lang{DESCRIBE} ],
         pages      => $Tariffs->{TOTAL},
@@ -560,7 +560,7 @@ sub wordpress_export_dv_tariffs {
             EXPORT => 1
           },
           SUBMIT  => {
-            DV_TARIFFS_EXPORT => "$lang{EXPORT} Dv $lang{TARIF_PLANS}"
+            DV_TARIFFS_EXPORT => "$lang{EXPORT} Internet $lang{TARIF_PLANS}"
           }
         } );
 

@@ -31,6 +31,12 @@
     min-width: 1em;
   }
 
+  ul.color-container > li.colorBlock > div.color-background > span.color_name {
+    position: relative;
+    float: left;
+    opacity: 0.6;
+  }
+
   ul.color-container > li > div.color-background {
     height: 25px;
     margin: 5px 0;
@@ -116,5 +122,27 @@
            value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>
+<script type="text/javascript">
+    var COLORS_NAME = {
+        '#fcfefc' : '_{WHITE}_',
+        '#04fefc' : '_{SEA}_',
+        '#fcfe04' : '_{YELLOW}_',
+        '#048204' : '_{GREEN}_',
+        '#840204' : '_{BROWN}_',
+        '#fc0204' : '_{RED}_',
+        '#fc9a04' : '_{ORANGE}_',
+        '#fc9acc' : '_{PINK}_',
+        '#848284' : '_{GRAY}_',
+        '#0402fc' : '_{BLUE}_',
+        '#840284' : '_{VIOLET}_',
+        '#040204' : '_{BLACK}_',
+        '#04fe04' : '_{YELLOWGREEN}_',
+        '#9cce04' : '_{OLIVE}_',
+        '#fcfe9c' : '_{BEIGE}_',
+        '#dbefdb' : '_{NATURAL}_',
+        '#fde910' : '_{LEMON}_',
+        '#9c3232' : '_{CHERRY}_',
+    };
+</script>
 <script src='/styles/default_adm/js/modules/cablecat/color_editor.js'></script>
 

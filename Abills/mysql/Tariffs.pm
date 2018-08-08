@@ -388,6 +388,11 @@ sub defaults {
 #**********************************************************
 =head2 add($attr) - Add tp
 
+  Arguments:
+    $attr
+      NAME
+      ID
+
 =cut
 #**********************************************************
 sub add {
@@ -403,7 +408,7 @@ sub add {
       $attr->{ID} = 1;
     }
     else {
-      $attr->{ID} = int($self->{list}->[0]->[0]) + 1;
+      $attr->{ID} = ($self->{list}->[0]->[0]) ? int($self->{list}->[0]->[0]) + 1 : 1;
     }
   }
 
@@ -417,10 +422,12 @@ sub add {
      DOMAIN_ID      => $domain_id
   });
 
-  $self->{TP_ID} = $self->{INSERT_ID};
-  $self->{TP_NUM} = $attr->{ID};
+  if(! $self->{errno}) {
+    $self->{TP_ID}  = $self->{INSERT_ID};
+    $self->{TP_NUM} = $attr->{ID};
 
-  $self->{admin}->system_action_add("TP:$self->{TP_ID}", { TYPE => 1 });
+    $self->{admin}->system_action_add("TP:$self->{TP_ID} ID: $self->{TP_NUM}", { TYPE => 1 });
+  }
 
   return $self;
 }
@@ -716,7 +723,7 @@ sub list {
     tp.credit,
     tp.min_use,
     tp.abon_distribution,
-    ";
+   ";
   }
 
   $self->query("SELECT tp.id,

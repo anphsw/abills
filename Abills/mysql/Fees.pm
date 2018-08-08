@@ -181,6 +181,8 @@ sub take {
     else {
       $self->{db}{db}->commit() if(! $self->{db}->{TRANSACTION});
     }
+
+    $self->{FEES_ID} = $self->{INSERT_ID};
   }
   else {
     $self->{errno}  = 14;
@@ -264,7 +266,10 @@ sub list {
       ['DATE',           'DATE','DATE_FORMAT(f.date, \'%Y-%m-%d\')'  ],
       ['FROM_DATE|TO_DATE','DATE', 'DATE_FORMAT(f.date, \'%Y-%m-%d\')'  ],
       ['MONTH',          'DATE', "DATE_FORMAT(f.date, '%Y-%m')"      ],
-      ['REG_DATE',       'DATE', "f.reg_date", "f.reg_date"          ]
+      ['REG_DATE',       'DATE', "f.reg_date", "f.reg_date",       1 ],
+      ['TAX',            'INT',  'ft.tax',                          1 ],
+      ['TAX_SUM',        'INT',  '', 'if(ft.tax>0, SUM(f.sum) / 100 * ft.tax, 0) AS tax_sum'  ],
+
     ],
     { WHERE       => 1,
       USERS_FIELDS=> 1,
@@ -274,6 +279,10 @@ sub list {
     );
 
   my $EXT_TABLES  = $self->{EXT_TABLES};
+
+  if($attr->{TAX} || $attr->{TAX_SUM}) {
+    $EXT_TABLES  .= " LEFT JOIN fees_types ft ON (ft.id=f.method)";
+  }
 
   $self->query("SELECT f.id,
      $self->{SEARCH_FIELDS}
@@ -297,7 +306,7 @@ sub list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query("SELECT count(*) AS total, sum(f.sum) AS sum, count(DISTINCT f.uid) AS total_users FROM fees f
+    $self->query("SELECT COUNT(*) AS total, sum(f.sum) AS sum, count(DISTINCT f.uid) AS total_users FROM fees f
   LEFT JOIN users u ON (u.uid=f.uid) 
   LEFT JOIN admins a ON (a.aid=f.aid)
   $EXT_TABLES
@@ -354,6 +363,8 @@ sub reports {
   }
   elsif ($attr->{TYPE} eq 'METHOD') {
     $date = "f.method";
+    $EXT_TABLE_JOINS_HASH{fees_types}=1;
+    $attr->{TAX_SUM}='_SHOW';
   }
   elsif ($attr->{TYPE} eq 'ADMINS') {
     $date = "a.id AS admin_login";
@@ -382,6 +393,7 @@ sub reports {
       ['MONTH',             'DATE', "DATE_FORMAT(f.date, '%Y-%m')"     ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(f.date, '%Y-%m-%d')"  ],
       ['DATE',              'DATE', "DATE_FORMAT(f.date, '%Y-%m-%d')"  ],
+      ['TAX_SUM',           'INT',  '', 'if(ft.tax>0, SUM(f.sum) / 100 * ft.tax, 0) AS tax_sum'  ],
     ],
     {
       WHERE             => 1,
@@ -398,16 +410,18 @@ sub reports {
   my $EXT_TABLES = $self->mk_ext_tables({
     JOIN_TABLES     => \%EXT_TABLE_JOINS_HASH,
     EXTRA_PRE_JOIN  => [ 'users:INNER JOIN users u ON (u.uid=f.uid)',
-      'admins:LEFT JOIN admins a ON (a.aid=f.aid)'
+      'admins:LEFT JOIN admins a ON (a.aid=f.aid)',
+      'fees_types:LEFT JOIN fees_types ft ON (ft.id=f.method)'
     ]
   });
 
-  $self->query("SELECT $date, COUNT(DISTINCT f.uid) AS login_count, COUNT(*) AS count,  SUM(f.sum) AS sum, f.uid
-      FROM fees f
-      $EXT_TABLES
-      $WHERE 
-      GROUP BY $GROUP
-      ORDER BY $SORT $DESC;",
+  $self->query("SELECT $date, COUNT(DISTINCT f.uid) AS login_count, COUNT(*) AS count,  SUM(f.sum) AS sum,
+      $self->{SEARCH_FIELDS} f.uid
+    FROM fees f
+    $EXT_TABLES
+    $WHERE
+    GROUP BY $GROUP
+    ORDER BY $SORT $DESC;",
     undef,
     $attr
   );
@@ -446,11 +460,15 @@ sub fees_type_list {
   my $WHERE =  $self->search_former($attr, [
       ['ID',           'INT', 'id'      ],
       ['NAME',         'STR', 'name'    ],
+      ['TAX',          'INT', 'tax',   1],
     ],
   { WHERE => 1, });
 
-  $self->query("SELECT id, name, default_describe, sum FROM fees_types
-  $WHERE 
+  $self->query("SELECT name, default_describe, sum,
+    $self->{SEARCH_FIELDS}
+    id
+  FROM fees_types
+  $WHERE
   ORDER BY $SORT $DESC
   LIMIT $PG, $PAGE_ROWS;",
   undef,
@@ -459,7 +477,7 @@ sub fees_type_list {
 
   my $list = $self->{list};
   if ($self->{TOTAL} > 0 || $PG > 0) {
-    $self->query("SELECT count(*) AS total FROM fees_types $WHERE ;",
+    $self->query("SELECT COUNT(*) AS total FROM fees_types $WHERE ;",
     undef, { INFO => 1 });
   }
 
@@ -475,7 +493,7 @@ sub fees_type_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT id, name, default_describe, sum FROM fees_types WHERE id = ? ;",
+  $self->query("SELECT * FROM fees_types WHERE id = ? ;",
   undef,
   { INFO => 1,
     Bind => [ $attr->{ID} ] });
@@ -484,7 +502,9 @@ sub fees_type_info {
 }
 
 #**********************************************************
-# fees_types_change()
+=head2 fees_types_change($attr)
+
+=cut
 #**********************************************************
 sub fees_type_change {
   my $self = shift;
@@ -502,7 +522,7 @@ sub fees_type_change {
 }
 
 #**********************************************************
-=head2 fees_type_add()
+=head2 fees_type_add($attr)
 
 =cut
 #**********************************************************
@@ -517,7 +537,7 @@ sub fees_type_add {
 }
 
 #**********************************************************
-=head2 fees_type_del()
+=head2 fees_type_del($id)
 
 =cut
 #**********************************************************

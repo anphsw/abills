@@ -102,10 +102,15 @@ sub msgs_form_search {
   $Msgs->{PLAN_TIME} = "00:00:00";
   $Msgs->{MSG_ID} = undef;
   $Msgs->{RESPOSIBLE_SEL} = sel_admins({ NAME => 'RESPOSIBLE' });;
+  $Msgs->{PLAN_DATE_PICKER}= $html->form_daterangepicker(
+    {
+      NAME      => 'PLAN_FROM_DATE/PLAN_TO_DATE',
+    }
+  );
 
   form_search({
     SEARCH_FORM     => $html->tpl_show(_include('msgs_search', 'Msgs'), { %{$Msgs}, %FORM }, { OUTPUT2RETURN => 1 }),
-    NO_DEFAULT_DATE => 1,
+    NO_DEFAULT_DATE => 0,
     ADDRESS_FORM    => 1,
     SHOW_PERIOD     => 1,
   });
@@ -147,6 +152,18 @@ sub msgs_list {
 
   $attr->{MODULE} = 'Msgs';
   my Abills::HTML $table; my $list;
+
+  # state for watching messages
+  if($FORM{STATE} && $FORM{STATE} == 12){
+    my $watched_links = $Msgs->msg_watch_list({
+      COLS_NAME => 1,
+      AID       => $admin->{AID}
+    });
+    _error_show($Msgs);
+
+    $LIST_PARAMS{MSG_ID}= join(';', map {$_->{main_msg}} @$watched_links) || 0;
+  }
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Msgs,
     BASE_FIELDS     => 0,
@@ -154,7 +171,7 @@ sub msgs_list {
     HIDDEN_FIELDS   => 'UID,PRIORITY_ID,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,RESPOSIBLE',
     APPEND_FIELDS   => 'UID',
     FUNCTION        => 'messages_list',
-    FUNCTION_FIELDS => 'msgs_admin:show:chg_msgs;uid,msgs_admin:del:del_msgs;state:ALL_MSGS=1',
+    FUNCTION_FIELDS => 'msgs_admin:show:chg_msgs;uid,msgs_admin:del:del_msgs;state:&ALL_MSGS=1',
     MAP             => (!$FORM{UID}) ? 1 : undef,
     MAP_FIELDS      => 'ADDRESS_FLAT,ID,CLIENT_ID,SUBJECT',
     MAP_FILTERS     => {
@@ -215,6 +232,8 @@ sub msgs_list {
       'priority'               => $lang{PRIORITY},
       'plan_date_time'         => $lang{EXECUTION},
       'run_time'               => $lang{RUN_TIME},
+      'soft_deadline'          => 'Soft deadline',
+      'hard_deadline'          => 'Hard deadline',
       'user_read'              => $lang{USER_READ},
       'admin_read'             => $lang{ADMIN_READ},
       'replies_counts'         => "replies_counts",
@@ -348,7 +367,7 @@ sub _msgs_list_status_form {
 #**********************************************************
 sub msgs_dispatch_sel {
   my ($attr) = @_;
-  
+
   my @rows = (
     "$lang{DISPATCH}: ",
     $html->form_select(
@@ -358,12 +377,9 @@ sub msgs_dispatch_sel {
         SEL_LIST       => $Msgs->dispatch_list({ STATE => 0, COLS_NAME => 1 }),
         SEL_KEY        => 'id',
         SEL_VALUE      => 'plan_date,comments,message_count',
-        
         MAIN_MENU      => get_function_index('msgs_dispatch'),
         MAIN_MENU_ARGV => ($Msgs->{DISPATCH_ID}) ? "chg=$Msgs->{DISPATCH_ID}" : '',
-        
         FORM_ID        => 'MSGS_LIST',
-        
         %{ $attr // {} }
       }
     ),
@@ -468,12 +484,12 @@ sub _msgs_list_state_form {
   if ( $state_id == 0 && $state ) {
     $state = $html->b($state) || $state_id;
   }
-  
+
   if ($attr->{admin_read} eq '0000-00-00 00:00:00' || ($state_id eq '0' && !$attr->{replies_counts})){
     my $icon = $html->element('span', '', { class => 'glyphicon glyphicon-flag text-danger' });
     $state = $icon . ($state || '');
   }
-  
+
   if ( $attr->{deligation} && $attr->{deligation} > 0 ) {
     if ( $attr->{chapter_id} && $deligation->{$attr->{chapter_id}} && $deligation->{$attr->{chapter_id}} == $attr->{deligation} ) {
       $state = $html->element('span', '', {

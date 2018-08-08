@@ -101,8 +101,7 @@ sub msgs_unreg_requests_list {
   }
   elsif ( $FORM{add_user} ) {
     $Msgs->unreg_requests_info($FORM{add_user} || $FORM{NOTIFY_ID});
-
-    my @predefined_arr = ('ID', 'LOGIN', 'FIO', 'TP_ID', 'PHONE', 'EMAIL', 'TOTAL', 'ADDRESS_FLAT');
+    my @predefined_arr = ('ID', 'LOGIN', 'FIO', 'TP_ID', 'PHONE', 'EMAIL', 'TOTAL', 'ADDRESS_FLAT', 'LOCATION_ID');
 
     foreach my $id ( sort keys %{$Msgs} ) {
       if ( $Msgs->{$id} && ref $Msgs->{$id} eq '' && !in_array($id, \@predefined_arr) ) {
@@ -110,7 +109,7 @@ sub msgs_unreg_requests_list {
       }
     }
 
-    $Msgs->{TP_SEL} = _sel_tp($FORM{TP_ID});
+    $Msgs->{TP_SEL} = _sel_tp($FORM{TP_ID} || $Msgs->{TP_ID});
     $Msgs->{GID_SEL} = sel_groups();
     $Msgs->{ACTION_LNG} = $lang{ADD};
 
@@ -368,10 +367,13 @@ sub msgs_unreg_requests_list {
         (($line->{uid}) ? $html->button($lang{INFO}, "index=15&UID=$line->{uid}", { class => 'user' }) : $html->button(
             $lang{ADD}, "index=". get_function_index('msgs_unreg_requests_list') ."&add_user=$line->{id}", { class => 'add', TITLE => $lang{ADD_USER} }))
         . ' ' .
-        (((($A_PRIVILEGES->{ $line->{chapter_id} } && $A_PRIVILEGES->{ $line->{chapter_id} } > 2)
-            || ($A_CHAPTER && $#{ $A_CHAPTER } == - 1))                                                     ? $html->button(
+        # reg_request do not have any chapter id!  (0)
+        # (((($A_PRIVILEGES->{ $line->{chapter_id} } && $A_PRIVILEGES->{ $line->{chapter_id} } > 2)
+        #     || ($A_CHAPTER && $#{ $A_CHAPTER } == - 1))                                                     ? 
+          $html->button(
             $lang{DEL}, "index=$index&del=$line->{id}$pages_qs",
-            { MESSAGE => "$lang{DEL} [$line->{id}] " . ($line->{subject} || q{}) . "  ?", class => 'del' }) : ''));
+            { MESSAGE => "$lang{DEL} [$line->{id}] " . ($line->{subject} || q{}) . "  ?", class => 'del' });
+          # : ''));
 
     $table->addrow($html->form_input('del', $line->{id}, { TYPE => 'checkbox', FORM_ID => 'MSGS_UNREG_LIST' }),
       @fields_array);

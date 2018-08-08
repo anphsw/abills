@@ -33,6 +33,8 @@ BEGIN {
   }
 }
 
+our $base_dir;
+
 # Setting autoflush
 $| = 1;
 
@@ -209,7 +211,7 @@ sub find_nas_to_make_arping {
     Internet->import();
 
     my $Internet = Internet->new($db, $admin, \%conf);
-    my $leases_list = Internet->list({
+    my $leases_list = $Internet->list({
       ONLINE_IP => $session_info->{FRAMED_IP_ADDRESS},
       VLAN      => '_SHOW',
       COLS_NAME => 1

@@ -19,15 +19,15 @@
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{DATE}_:</label>
-    <div class='col-md-9'><input class='tcal form-control datepickerActive' name='DATE' type='text' value='%DATE%' /></div>
+    <div class='col-md-9'><input class='datepicker form-control datepickerActive' name='DATE' type='text' value='%DATE%' /></div>
   </div>
   <div class='form-group'>
     <label class='col-md-3'>_{OKPO_EDRPOY}_:</label>
-    <div class='col-md-9'><input class='form-control' name='OKPO' type='text' value='%OKPO%' /></div>
+    <div class='col-md-9'><input class='form-control' pattern='%OKPO_PATTERN%' name='OKPO' type='text' value='%OKPO%' /></div>
   </div>
   <div class='form-group'>
     <label class='col-md-7'>_{INDIVIDUAL_TAX_NUMBER}_:</label>
-    <div class='col-md-5'><input class='form-control' name='INN' type='text' value='%INN%' /></div>
+    <div class='col-md-5'><input class='form-control' name='INN' pattern='%INN_PATTERN%' type='text' value='%INN%' /></div>
   </div>
   <div class='form-group'>
     <label class='col-md-7'>_{CERTIFICATE_OF_INDIVIDUAL_TAX_NUMBER}_:</label>
@@ -42,7 +42,7 @@
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{MFO}_:</label>
-    <div class='col-md-9'><input class='form-control' name='MFO' type='text' value='%MFO%' /></div>
+    <div class='col-md-9'><input class='form-control' name='MFO' pattern='%MFO_PATTERN%' type='text' value='%MFO%' /></div>
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{ACCOUNT}_:</label>

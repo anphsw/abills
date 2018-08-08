@@ -64,15 +64,16 @@ sub fields_del {
 }
 
 #**********************************************************
-
 =head2 fields_list($attr) - list
 
 =cut
-
 #**********************************************************
 sub fields_list {
   my $self = shift;
   my ($attr) = @_;
+
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
 
   my $WHERE = $self->search_former( $attr, [
       [ 'ID',         'INT', 'id',          1 ],
@@ -85,6 +86,7 @@ sub fields_list {
       [ 'USER_CHG',   'INT', 'user_chg',    1 ],
       [ 'MODULE',     'STR', 'module',      1 ],
       [ 'COMMENT',    'STR', 'comment',     1 ],
+      [ 'DOMAIN_ID',  'STR', 'domain_id',   1 ],
     ],
     { WHERE => 1,
     }
@@ -93,7 +95,8 @@ sub fields_list {
   $self->query(
     "SELECT *
      FROM info_fields 
-     $WHERE;",
+     $WHERE
+     ORDER BY $SORT $DESC;",
     undef,
     { COLS_NAME => 1, COLS_UPPER => 1 }
   );
@@ -103,11 +106,9 @@ sub fields_list {
 
 
 #**********************************************************
-
 =head2 fields_change($attr) - change
 
 =cut
-
 #**********************************************************
 sub fields_change {
   my $self = shift;
@@ -123,3 +124,5 @@ sub fields_change {
 
   return $self->{result};
 }
+
+1;

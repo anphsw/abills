@@ -11,7 +11,12 @@ our ($db,
  $admin,
  $html,
  %lang,
+ %conf
 );
+
+if(! $conf{TPL_DIR}) {
+  $conf{TPL_DIR} = '/usr/abills/Abills/templates';
+}
 
 my $FROM_DIR = $conf{TPL_DIR} . "/attach";
 
@@ -96,15 +101,17 @@ sub find_files {
     if (-f "$base_dir/$fname") {
 
       $path      = "$base_dir/$fname";
-      $path      =~ s/$FROM_DIR\///;  
+      $path      =~ s/$FROM_DIR\/// ; 
       $open_path = $path;
       $path      =~ s/\/$fname//;
       $path      =~ s/$fname//;
       my @count_ = $fname =~ m/_/g;
       my $btn;
-      if (scalar @count_ == 2){
-        my ($uid)    = $path =~ /.*\/(.*)/;
-        my ($msg_chg, undef, $real_fname) = split('_', $fname);
+      if ($fname =~ /\d*_\d*_.*/){
+        my ($uid)      = $path  =~ /.*\/(.*)/;
+        my ($msg_chg)  = $fname =~ /(\d*)_\d*_.*/;
+        my ($real_fname) = $fname =~ /\d*_\d*_(.*)/;
+
         $btn = $html->button(" $real_fname", "index=" . get_function_index('msgs_admin') . "&UID=$uid&chg=$msg_chg#last_msg",
           { class => "row default col-md-7 text-left", ADD_ICON => "glyphicon glyphicon-file" });
       }

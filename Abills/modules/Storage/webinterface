@@ -18,6 +18,8 @@ use Abills::Defs;
 use Fees;
 use Nas;
 use Storage::Reports;
+require Storage::Periodic;
+require Storage::Configure;
 
 our ($db,
   %conf,
@@ -25,33 +27,34 @@ our ($db,
   $html,
   %permissions,
   %ADMIN_REPORT,
-  %err_strs);
+  %err_strs,
+  %measures_name);
 
 our Admins $admin;
 our Users $users;
 
-my @item_status = ( $lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, '', $lang{RETURNED_STORAGE} );
+my @item_status = ( $lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLMENTS}, $lang{RETURNED_STORAGE} );
 
 if ( form_purchase_module( {
   HEADER          => $users->{UID} || $user->{UID} || $FORM{UID},
   MODULE          => 'Storage',
-  REQUIRE_VERSION => 7.37,
+  REQUIRE_VERSION => 7.54,
 } ) ) {
   exit;
 }
 
-my $Storage = Storage->new( $db, $admin, \%conf );
-my $fees = Fees->new( $db, $admin, \%conf );
+our $Storage = Storage->new( $db, $admin, \%conf );
+our $fees = Fees->new( $db, $admin, \%conf );
 my $Nas = Nas->new( $db, \%conf, $admin );
 
-my %measures_name = (
-  0 => $lang{UNIT},
-  1 => $lang{METERS},
-  2 => $lang{SM},
-  3 => $lang{MM},
-  4 => $lang{LITERS},
-  5 => $lang{BOXES}
-);
+#my %measures_name = (
+#  0 => $lang{UNIT},
+#  1 => $lang{METERS},
+#  2 => $lang{SM},
+#  3 => $lang{MM},
+#  4 => $lang{LITERS},
+#  5 => $lang{BOXES}
+#);
 
 our %article_actions = (
   0  => $lang{ARRIVAL_OF_THE_GOODS},
@@ -69,337 +72,6 @@ our %article_actions = (
   13 => $lang{RENT},
   14 => $lang{TO_INNER_USE}
 );
-
-
-#***********************************************************
-=head2 storage_articles() - Storage articles
-
-=cut
-#***********************************************************
-sub storage_articles{
-
-  if ( $FORM{message} ) {
-    $html->message( 'info', $lang{INFO}, "$FORM{message}" );
-  }
-
-  $Storage->{ACTION} = 'add';
-  $Storage->{ACTION_LNG} = $lang{ADD};
-  $Storage->{ADD_DATE} = '0000-00-00';
-
-  if ( $FORM{add} ) {
-    if ( $FORM{NAME} && $FORM{ARTICLE_TYPE} && defined( $FORM{MEASURE} ) ) {
-      $Storage->storage_articles_add( { %FORM } );
-      if ( !$Storage->{errno} ) {
-        $html->tpl_show(
-          _include( 'storage_redirect', 'Storage' ),
-          {
-            SECTION => '',
-            MESSAGE => "$lang{ADDED}",
-          }
-        );
-      }
-    }
-    else {
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARTICLETYPE_MEASURE_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'storage_articles', 'Storage' ), { %{$Storage}, %FORM } );
-    }
-  }
-  elsif ( $FORM{del} ) {
-    my $list = $Storage->storage_incoming_articles_list( { ARTICLE_ID => $FORM{del}, COLS_NAME => 1 } );
-    if ( defined( $list->[0]->{id} ) ) {
-      $html->message( 'info', $lang{INFO}, "$lang{CANT_DELETE_ERROR1} " );
-    }
-    else {
-      $Storage->storage_articles_del( { ID => $FORM{del} } );
-      if ( !$Storage->{errno} ) {
-        $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
-      }
-    }
-  }
-  elsif ( $FORM{change} ) {
-    if ( $FORM{NAME} && $FORM{ARTICLE_TYPE} && defined( $FORM{MEASURE} ) ) {
-      $Storage->storage_articles_change( { %FORM } );
-      if ( !$Storage->{errno} ) {
-        $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
-      }
-    }
-    else {
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARTICLETYPE_MEASURE_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'storage_articles', 'Storage' ), { %{$Storage}, %FORM } );
-    }
-  }
-  elsif ( $FORM{chg} ) {
-    $Storage->{ACTION} = 'change';
-    $Storage->{ACTION_LNG} = $lang{CHANGE};
-
-    $Storage->storage_articles_info( { ID => $FORM{chg}, } );
-
-    if ( !$Storage->{errno} ) {
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGING}" );
-    }
-  }
-
-  $Storage->{ARTICLE_TYPES} = $html->form_select(
-    'ARTICLE_TYPE',
-    {
-      SELECTED    => $Storage->{ARTICLE_TYPE} || 0,
-      SEL_LIST    => $Storage->storage_types_list( { COLS_NAME => 1 } ),
-      NO_ID       => 1,
-      SEL_OPTIONS => { '' => '--' },
-    }
-  );
-
-  $Storage->{MEASURE_SEL} = $html->form_select(
-    'MEASURE',
-    {
-      SELECTED      => $Storage->{MEASURE} || $FORM{MEASURE} || 0,
-      SEL_HASH      => \%measures_name,
-      NO_ID         => 1,
-      OUTPUT2RETURN => 1,
-    }
-  );
-
-  if ( !$FORM{add} && !$FORM{change} ) {
-    $html->tpl_show( _include( 'storage_articles', 'Storage' ), $Storage );
-  }
-
-  result_former( {
-    INPUT_DATA      => $Storage,
-    FUNCTION        => 'storage_articles_list',
-    BASE_FIELDS     => 6,
-    FUNCTION_FIELDS => 'change,del',
-    SKIP_USER_TITLE => 1,
-    SELECT_VALUE    => { measure => \%measures_name },
-    EXT_TITLES      => {
-      id        => '#',
-      name      => $lang{NAME},
-      type_name => $lang{TYPE},
-      measure   => $lang{MEASURE},
-      add_date  => $lang{DATE},
-      comments  => $lang{COMMENTS}
-    },
-    TABLE           => {
-      width   => '100%',
-      caption => "$lang{ARTICLES}",
-      qs      => $pages_qs,
-      ID      => 'ARTICLES_LIST',
-      EXPORT  => 1,
-      MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
-    },
-    MAKE_ROWS       => 1,
-    SEARCH_FORMER   => 1,
-    TOTAL           => 1
-  } );
-
-  return 1;
-}
-
-#***********************************************************
-=head2 storage_articles_types() - Storage articles types
-
-=cut
-#***********************************************************
-sub storage_articles_types{
-
-  if ( $FORM{message} ) {
-    $html->message( 'info', $lang{INFO}, "$FORM{message}" );
-  }
-
-  $Storage->{ACTION} = 'add';
-  $Storage->{ACTION_LNG} = $lang{ADD};
-
-  if ( $FORM{add} ) {
-    if ( $FORM{NAME} ) {
-      $Storage->storage_types_add( { %FORM } );
-      if ( !$Storage->{errno} ) {
-        #$html->message('info', $lang{INFO}, "$lang{ADDED}");
-        $html->tpl_show(
-          _include( 'storage_redirect', 'Storage' ),
-          {
-            SECTION => '',
-            MESSAGE => "$lang{ADDED}",
-          }
-        );
-      }
-    }
-    else {
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_TYPE_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'storage_articles_types', 'Storage' ), { %{$Storage}, %FORM } );
-    }
-  }
-  elsif ( $FORM{del} && $FORM{COMMENTS} ) {
-    $Storage->storage_types_del( { ID => $FORM{del} } );
-
-    if ( !$Storage->{errno} ) {
-      $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
-    }
-  }
-  elsif ( $FORM{change} ) {
-    if ( $FORM{NAME} ) {
-      $Storage->storage_types_change( { %FORM } );
-      if ( !$Storage->{errno} ) {
-        $html->tpl_show(
-          _include( 'storage_redirect', 'Storage' ),
-          {
-            SECTION => '',
-            MESSAGE => "$lang{CHANGED}",
-          }
-        );
-      }
-    }
-    else {
-      $Storage->{ACTION} = 'change';
-      $Storage->{ACTION_LNG} = $lang{CHANGE};
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_TYPE_ARE_REQUIRED}" );
-    }
-  }
-  elsif ( $FORM{chg} ) {
-    $Storage->{ACTION} = 'change';
-    $Storage->{ACTION_LNG} = $lang{CHANGE};
-    $Storage->storage_articles_types_info( { ID => $FORM{chg}, } );
-  }
-
-  _error_show( $Storage );
-
-  $html->tpl_show( _include( 'storage_articles_types', 'Storage' ), { %{$Storage}, %FORM } );
-
-  result_former({
-    INPUT_DATA      => $Storage,
-    FUNCTION        => 'storage_types_list',
-    BASE_FIELDS     => 3,
-    DEFAULT_FIELDS  => 'ID,NAME,COMMENTS',
-    FUNCTION_FIELDS => 'change' . ((defined( $permissions{4}->{3} )) ? ',del' : ''),
-    SKIP_USER_TITLE => 1,
-    EXT_TITLES      => {
-      'name'     => $lang{NAME},
-      'comments' => $lang{COMMENTS},
-    },
-    TABLE           => {
-      width   => '100%',
-      caption => $lang{TYPE},
-      qs      => $pages_qs,
-      ID      => 'STORAGE_TYPES',
-      EXPORT  => 1,
-    },
-    MAKE_ROWS       => 1,
-    TOTAL           => 1
-  });
-
-  return 1;
-}
-
-#***********************************************************
-=head2 suppliers_main() - Suppliers
-
-=cut
-#***********************************************************
-sub suppliers_main{
-
-  if ( $FORM{message} ) {
-    $html->message( 'info', $lang{INFO}, "$FORM{message}" );
-  }
-  $Storage->{ACTION} = 'add';
-  $Storage->{ACTION_LNG} = $lang{ADD};
-  $Storage->{DATE} = '0000-00-00';
-
-  if ( $FORM{del} ) {
-    my $list = $Storage->storage_incoming_articles_list( { SUPPLIER_ID => $FORM{del}, COLS_NAME => 1 } );
-    _error_show( $Storage );
-
-    if ( defined( $list->[0]->{id} ) ) {
-      $html->message( 'info', $lang{INFO}, "$lang{CANT_DELETE_ERROR3}" );
-    }
-    else {
-      $Storage->suppliers_del( { ID => $FORM{del} } );
-      if ( !$Storage->{errno} ) {
-        $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
-      }
-    }
-  }
-  elsif ( $FORM{change} ) {
-    if ( $FORM{NAME} ) {
-      $Storage->suppliers_change( { %FORM } );
-      if ( !$Storage->{errno} ) {
-
-        #$html->message('info', $lang{INFO}, "$lang{CHANGED}");
-        $html->tpl_show(
-          _include( 'storage_redirect', 'Storage' ),
-          {
-            SECTION => '',
-            MESSAGE => "$lang{CHANGED}",
-          }
-        );
-      }
-    }
-    else {
-      $Storage->{ACTION} = 'change';
-      $Storage->{ACTION_LNG} = $lang{CHANGE};
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'storage_suppliers_form', 'Storage' ), { %{$Storage}, %FORM } );
-    }
-  }
-  elsif ( $FORM{add} ) {
-    if ( $FORM{NAME} ) {
-      $Storage->suppliers_add( { %FORM } );
-      if ( !$Storage->{errno} ) {
-        $html->tpl_show(
-          _include( 'storage_redirect', 'Storage' ),
-          {
-            SECTION => '',
-            MESSAGE => "$lang{ADDED}",
-          }
-        );
-      }
-    }
-    else {
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'storage_suppliers_form', 'Storage' ), { %{$Storage}, %FORM } );
-    }
-  }
-  elsif ( $FORM{chg} ) {
-    $Storage->{ACTION} = 'change';
-    $Storage->{ACTION_LNG} = $lang{CHANGE};
-    $Storage->suppliers_info( { ID => $FORM{chg} } );
-    if ( !$Storage->{errno} ) {
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGING}" );
-    }
-  }
-  if ( !$FORM{add} and !$FORM{change} ) {
-    $html->tpl_show( _include( 'storage_suppliers_form', 'Storage' ), $Storage );
-  }
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{SUPPLIERS},
-      title   => [ $lang{NAME}, $lang{PHONE}, 'email', 'icq', $lang{SITE}, $lang{DIRECTOR}, $lang{BILL}, '-' ],
-      pages   => $Storage->{TOTAL},
-      ID      => 'STORAGE_ID'
-    }
-  );
-
-  my $list = $Storage->suppliers_list( { COLS_NAME => 1 } );
-  _error_show( $Storage );
-
-  foreach my $line ( @{$list} ) {
-    $table->addrow(
-      $line->{name},
-      $line->{phone},
-      $line->{email},
-      $line->{icq},
-      $line->{site},
-      $line->{director},
-      $line->{mfo},
-      $html->button( $lang{INFO}, "index=$index&chg=$line->{id}", { class => 'change' } )
-        . ' ' . ((defined( $permissions{0}->{5} ))                                     ? $html->button( $lang{DEL},
-          "index=$index&del=$line->{id}",
-          { MESSAGE => "$lang{DEL} $lang{SUPPLIER} $line->{name}?", class => 'del' } ) : '')
-    );
-  }
-
-  print $table->show();
-
-  return 1;
-}
 
 #***********************************************************
 =head2 storage_add_items() - Storage add items
@@ -523,6 +195,25 @@ sub storage_items {
       $Storage->storage_incoming_articles_add( { %FORM } );
       if ( !$Storage->{errno} ) {
         $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
+        my $properties_list = $Storage->storage_property_list({
+          NAME          => '_SHOW',
+          COMMENTS      => '_SHOW',
+          SHOW_ALL_COLS => 1,
+          COLS_NAME     => 1,
+          COLS_UPPER    => 1,
+          DESC => 'desc'
+        });
+
+        foreach my $property (@$properties_list){
+          my $incoming_articles_id = $Storage->{STORAGE_LAST_INCOMING_ARTICLES_ID};
+          if($FORM{"PROPERTY_$property->{ID}"}){
+            $Storage->storage_property_value_add({
+              STORAGE_INCOMING_ARTICLES_ID => $incoming_articles_id,
+              PROPERTY_ID => $property->{ID},
+              VALUE => $FORM{"PROPERTY_$property->{ID}"}
+            });
+          }
+        }
         #        $html->tpl_show(
         #          _include('storage_redirect', 'Storage'),
         #          {
@@ -598,6 +289,27 @@ sub storage_items {
       $Storage->storage_incoming_articles_change( { %FORM } );
       if ( !_error_show($Storage) ) {
         $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+
+        my $properties_list = $Storage->storage_property_list({
+          NAME          => '_SHOW',
+          COMMENTS      => '_SHOW',
+          SHOW_ALL_COLS => 1,
+          COLS_NAME     => 1,
+          COLS_UPPER    => 1,
+          DESC => 'desc'
+        });
+
+        $Storage->storage_property_value_delete( {STORAGE_INCOMING_ARTICLES_ID => $FORM{ID}} );
+        foreach my $property (@$properties_list){
+          if($FORM{"PROPERTY_$property->{ID}"}){
+            $Storage->storage_property_value_add({
+              STORAGE_INCOMING_ARTICLES_ID => $FORM{ID},
+              PROPERTY_ID => $property->{ID},
+              VALUE => $FORM{"PROPERTY_$property->{ID}"}
+            });
+          }
+        }
+
         #        $html->tpl_show(
         #          _include( 'storage_redirect', 'Storage' ),
         #          {
@@ -661,13 +373,18 @@ sub storage_items {
 
     if ( $Storage->{COUNT} && $Storage->{COUNT} == 1 ) {
       $Storage->{INPUT_TYPE} = 'text';
+      $Storage->{CHECK_SN_INDEX} = $index;
     }
     else {
       $Storage->{DIVIDE_BTN} = $html->button( $lang{DIVIDE}, "index=$index&divide=$Storage->{ID}",
         { BUTTON => 2 } ) if ($FORM{sn});
       $Storage->{INPUT_TYPE} = 'hidden';
+      $Storage->{SN_COMMENTS_HIDDEN}= 'hidden';
     }
 
+    $Storage->{DATE_TIME_PICKER} = $html->form_datetimepicker('DATE', ($Storage->{DATE} || ''));
+    my $storage_incoming_articles_id = $FORM{chg} ? $FORM{chg} : "";
+    $Storage->{PROPERTIES} = _property_list_html($storage_incoming_articles_id);
     $html->tpl_show( _include( 'storage_main_form', 'Storage' ), $Storage );
   }
 
@@ -680,6 +397,17 @@ sub storage_items {
 =cut
 #***********************************************************
 sub storage_main{
+
+  if($FORM{sn_check}){
+    $Storage->storage_sn_list({ SERIAL => $FORM{sn_check} });
+    if (  $Storage->{TOTAL} > 0 ) {
+      print "error";
+    }
+    else {
+      print "success";
+    }
+    return 1;
+  }
 
   $Storage->{ACTION} = 'add';
   $Storage->{ACTION_LNG} = $lang{ADD};
@@ -760,6 +488,82 @@ sub storage_main{
       else {
         $html->message( 'info', $lang{INFO}, "$lang{CANT_DIVIDE}" );
       }
+    }
+  }
+  elsif ( $FORM{start_divide} ){
+    storage_start_divide();
+    return 1;
+  }
+  elsif( $FORM{divide_all}){
+    my @sns = split(',\s?', $FORM{SN});
+    my @ids = split(',\s?', $FORM{IDS});
+    my $article_id = $FORM{ARTICLE_ID};
+    my @sn_comments = split(',\s?', $FORM{SN_COMMENTS});
+    my $main_article_id = $FORM{MAIN_ARTICLE_ID};
+    my $sell_price = $FORM{SELL_PRICE};
+    my $rent_price = $FORM{RENT_PRICE};
+    my $by_installments_prices = $FORM{IN_INSTALLMENTS_PRICE};
+    my $incoming_article_id = $FORM{INCOMING_ARTICLE_ID};
+    my $sum_total = $FORM{SUM_TOTAL};
+    my $total_count = $FORM{TOTAL_COUNT};
+    my $sum = $sum_total / $total_count;
+
+    my $i = 0;
+
+    foreach my $id (@ids) {
+      if(($i + 1) < scalar(@ids)){
+        $Storage->storage_incoming_articles_divide({
+          ARTICLE_ID            => $article_id,
+          COUNT                 => $total_count,
+          #        DIVIDE                => 1,
+          SUM_TOTAL             => $sum_total,
+          SUM                   => $sum,
+          SN                    => $sns[$i],
+          MAIN_ARTICLE_ID       => $main_article_id,
+          STORAGE_INCOMING_ID   => $incoming_article_id,
+          SUM_TOTAL             => $sum_total,
+          SELL_PRICE            => $sell_price,
+          RENT_PRICE            => $rent_price,
+          IN_INSTALLMENTS_PRICE => $by_installments_prices,
+        });
+        my $new_incoming_articles_id = $Storage->{INSERT_ID};
+
+        my $properties_values = $Storage->storage_property_value_list({
+          STORAGE_INCOMING_ARTICLES_ID => $main_article_id || 0,
+          VALUE         => '_SHOW',
+          PROPERTY_ID   => '_SHOW',
+          COLS_NAME     => 1,
+          COLS_UPPER    => 1,
+          DESC          => 'desc',
+        });
+
+        foreach my $property_value (@$properties_values) {
+          $Storage->storage_property_value_add({
+            STORAGE_INCOMING_ARTICLES_ID => $new_incoming_articles_id,
+            PROPERTY_ID                  => $property_value->{property_id},
+            VALUE                        => $property_value->{value}
+          });
+        }
+
+        $Storage->storage_incoming_articles_change({
+          ID     => $new_incoming_articles_id,#$Storage->{INSERT_ID},
+          SERIAL => $sns[$i],
+          SN_COMMENTS => $sn_comments[$i]
+        });
+
+
+        $sum_total = $sum_total - $sum_total / $total_count;
+        $total_count--;
+      }
+      else{
+        $Storage->storage_incoming_articles_change({
+          ID     => $main_article_id,
+          SERIAL => $sns[$i],
+          SN_COMMENTS => $sn_comments[$i]
+        });
+      }
+
+      $i++;
     }
   }
   elsif ( $FORM{accountability} ) {
@@ -933,6 +737,7 @@ sub storage_main{
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       SEL_OPTIONS => { '' => '--' },
+      MAIN_MENU   => get_function_index( 'suppliers_main' )
     }
   );
 
@@ -963,19 +768,19 @@ sub storage_main{
     $Storage->{NAS} = $html->form_select( 'NAS_ID',
       {
         SELECTED    => 0,
-        SEL_LIST    => $Nas->list( { COLS_NAME => 1 } ),
+        SEL_LIST    => $Nas->list( { COLS_NAME => 1, PAGE_ROWS => 9999999999 } ),
         SEL_KEY     => 'nas_id',
         SEL_VALUE   => 'nas_name',
         SEL_OPTIONS => { '' => $lang{ALL} },
       }
     );
 
-    $Storage->{ID} = $FORM{install_accountability};
+    $Storage->{ID} = $FORM{ID};
 
     # Check for search form request
     require Control::Users_mng;
     $Storage->{USER_SEARCH} = user_modal_search({
-      EXTRA_BTN_PARAMS => "install_accountability=$FORM{install_accountability}"
+      EXTRA_BTN_PARAMS => "install_accountability=1&ID=$FORM{ID}"
     });
     return 1 if ($Storage->{USER_SEARCH} && $Storage->{USER_SEARCH} eq 2);
 
@@ -1001,7 +806,14 @@ sub storage_main{
     if ( $FORM{INSTALLED_AID} ) {
       $Storage->{INSTALLED_AID} = $FORM{INSTALLED_AID}
     }
-    $html->tpl_show( _include( 'storage_installation_add', 'Storage' ), { COUNT => 1, %{$Storage} } );
+    my $item_accountability_info = $Storage->storage_accountability_list({
+      ID => $FORM{ID},
+      SERIAL => '_SHOW',
+      COLS_NAME => 1,
+      COLS_UPPER => 1,
+    });
+
+    $html->tpl_show( _include( 'storage_installation_add', 'Storage' ), { COUNT => 1, SERIAL => ($item_accountability_info->[0]{SERIAL} || ''), %{$Storage} } );
   }
   elsif ( $FORM{install} ) {
     my $NAS = $Storage->{NAS} = $html->form_select( 'NAS_ID',
@@ -1016,6 +828,8 @@ sub storage_main{
 
     my $list2 = $Storage->storage_accountability_list( {
       ID        => $FORM{ID},
+      STORAGE_INCOMING_ARTICLES_ID => '_SHOW',
+      COUNT => '_SHOW',
       COLS_NAME => 1
     } );
 
@@ -1029,14 +843,25 @@ sub storage_main{
     _error_show( $Storage );
 
     my $leftover = $list2->[0]->{count} || 0;
-    if ( $FORM{NAS_ID} || $FORM{UID} || ($FORM{ADDRESS_DISTRICT} && $FORM{ADDRESS_STREET} && $FORM{ADDRESS_BUILD}) ) {
+
+    if ( $FORM{NAS_ID} || $FORM{UID} || ($FORM{ADDRESS_DISTRICT} && $FORM{ADDRESS_STREET} && ($FORM{ADDRESS_BUILD} || $FORM{ADD_ADDRESS_BUILD})) ) {
       if ( ($leftover - $FORM{COUNT}) > - 1 && $FORM{COUNT} ne '' && $FORM{COUNT} != 0 ) {
-        $Storage->storage_installation_add({
+        if($FORM{ADD_ADDRESS_BUILD}){
+          use Address;
+          my $Address = Address->new($db, $admin, \%conf);
+          $Address->build_add( { STREET_ID => $FORM{ADDRESS_STREET}, ADD_ADDRESS_BUILD => $FORM{ADD_ADDRESS_BUILD} } );
+          if ( !_error_show($Address) ) {
+            $FORM{LOCATION_ID} = $Address->{INSERT_ID};
+          }
+        }
+
+        $Storage->storage_installation_user_add({
           %FORM,
           COUNT_INCOMING               => $list->[0]->{sia_count},
           SUM_TOTAL                    => $list->[0]->{total_sum},
           MAIN_ARTICLE_ID              => $list->[0]->{sia_id},
-          STORAGE_INCOMING_ARTICLES_ID => $list2->[0]->{article_id},
+          STORAGE_INCOMING_ARTICLES_ID => $list2->[0]->{storage_incoming_articles_id},
+          STATUS => '0',
         });
 
         $Storage->storage_accountability_del( {
@@ -1089,6 +914,10 @@ sub storage_main{
     storage_accountability();
     return 1;
   }
+  elsif ( $FORM{print_accountability} ) {
+    storage_accountability();
+    return 1;
+  }
   elsif ( $FORM{show_reserve} ) {
     $Storage->{AID} = sel_admins();
 
@@ -1099,32 +928,34 @@ sub storage_main{
       NAME    => 'admin_select'
     });
 
-    my $list = $Storage->storage_reserve_list( { AID => $FORM{AID} } );
+    my $list = $Storage->storage_reserve_list( { AID => $FORM{AID}, %LIST_PARAMS, COLS_NAME => 1, } );
 
     my $table = $html->table({
       width   => '100%',
       caption => $lang{RESERVE},
-      title   => [ $lang{ADMIN}, $lang{TYPE}, $lang{NAME}, $lang{COUNT}, $lang{SUM}, $lang{DATE}, $lang{COMMENTS}, '-' ]
-      ,
+      title   => [ $lang{ADMIN}, $lang{TYPE}, $lang{NAME}, $lang{COUNT}, $lang{SUM}, $lang{DATE}, $lang{COMMENTS}, 'SN', '-' ],
       pages   => $Storage->{TOTAL},
-      ID      => 'STORAGE_ID'
+      ID      => 'STORAGE_ID',
+      qs      => '&show_reserve=1',
     });
 
     _error_show( $Storage );
 
     foreach my $line ( @{$list} ) {
       my $del = ($permissions{0} && $permissions{0}->{5}) ? $html->button( $lang{DELETE_FROM_RESERVE},
-          "index=$index&del_reserve=$line->[0]",
-          { MESSAGE => "$lang{DELETE_FROM_RESERVE} $line->[7] $line->[3] $line->[10]?", BUTTON => 0, ex_params =>
+          "index=$index&del_reserve=$line->{id}",
+          { MESSAGE => "$lang{DELETE_FROM_RESERVE} $line->{sta_name} $line->{count} $line->{measure}?", BUTTON => 0, ex_params =>
             'style = text-decoration:none' } )            : '';
+      my $measure = (defined($line->{measure}) && $measures_name{$line->{measure}}) ? $measures_name{$line->{measure}} : ($line->{measure} || 'xx');
       $table->addrow(
-        $line->[6],
-        $line->[8],
-        $line->[7],
-        $line->[3] . ' ' . $line->[10],
-        $line->[9],
-        $line->[4],
-        $line->[5],
+        $line->{name},
+        $line->{sat_name},
+        $line->{sta_name},
+        $line->{count} . ' ' . $measure,
+        sprintf('%.2f', $line->{reserve_count}),
+        $line->{date},
+        $line->{comments},
+        $line->{serial},
         $del
       );
     }
@@ -1244,26 +1075,33 @@ sub storage_main{
       }
     }
 
-    my $list = $Storage->storage_discard_list( { COLS_NAME => 1 } );
+    my $list = $Storage->storage_discard_list( { COLS_NAME => 1, %LIST_PARAMS } );
 
     my $table = $html->table({
       width   => '100%',
       caption => $lang{DISCARDED},
       title   => [ $lang{ADMIN}, $lang{TYPE}, $lang{NAME}, $lang{COUNT}, $lang{SUM}, $lang{DATE}, $lang{COMMENTS}, '' ],
       pages   => $Storage->{TOTAL},
-      ID      => 'DISCARD_ID'
+      ID      => 'DISCARD_ID',
+      qs      => '&storage_status=5',
     });
 
     _error_show( $Storage );
 
     foreach my $line ( @{$list} ) {
+      my $measure =  ((defined($line->{measure}) && $measures_name{$line->{measure}}) ? $measures_name{$line->{measure}} : $line->{measure} || 'xx' );
       $table->addrow( $line->{admin_name},
-        $line->{sta_name},
         $line->{sat_name},
-        $line->{count} . ' ' . $line->{measure},
-        $line->{sum},
+        $line->{sta_name},
+        $line->{count} . ' ' . $measure,
+        sprintf('%.2f', $line->{sum}),
         $line->{date},
         $line->{comments},
+        $html->button("$lang{PRINT}",
+          "qindex=$index&print_discard=$FORM{storage_status}&ID=$line->{id}&header=2",
+          {
+            class   => 'btn btn-default btn-xs',
+          }),
         $html->button("$lang{RETURN}",
           "index=$index&storage_status=$FORM{storage_status}&return_id=$line->{id}",
           {
@@ -1275,11 +1113,21 @@ sub storage_main{
 
     print $table->show();
   }
+  elsif ( $FORM{print_discard} ){
+    my $item_print_info = $Storage->storage_print_info({
+      TABLE_NAME => 'storage_discard',
+      SHOW_ALL_COLUMNS => 1,
+      COLS_NAME => 1,
+    });
+
+    $html->tpl_show(
+      _include( 'storage_discard_document_print', 'Storage' ),  $item_print_info );
+  }
   else {
     $Storage->{STORAGE_STORAGES} = storage_storage_sel( $Storage, { ALL => 1 } );
 
     if ( !$FORM{add_article} ) {
-      $html->tpl_show( _include( 'storage_main_filter', 'Storage' ), $Storage );
+      $html->tpl_show( _include( 'storage_main_filter', 'Storage' ), {%$Storage, SERIAL => $FORM{SERIAL}} );
     }
 
     my $list = $Storage->storage_incoming_articles_list({
@@ -1287,7 +1135,9 @@ sub storage_main{
       ARTICLE_TYPES   => $FORM{ARTICLE_TYPE_ID},
       STORAGE_ID      => $FORM{STORAGE_ID},
       SUPPLIER_ID     => $FORM{SUPPLIER_ID},
+      SERIAL => $FORM{SERIAL},
       MAIN_ARTICLE_ID => '_SHOW',
+      COLS_NAME => 1,
     });
 
     if ( _error_show($Storage) ) {
@@ -1311,7 +1161,7 @@ sub storage_main{
       width   => '100%',
       caption => $lang{STORAGE},
       title   =>
-      [ $lang{TYPE}, $lang{NAME}, $lang{COUNT}, $lang{SUM}, $lang{ADDED}, $lang{SUPPLIERS}, $lang{STORAGE}, '-' ],
+      [ $lang{TYPE}, $lang{NAME}, $lang{COUNT}, $lang{SUM}, $lang{ADDED}, $lang{SUPPLIERS}, $lang{STORAGE}, 'SN', $lang{COMMENTS}, $lang{NOTES}, '-' ],
       pages   => $Storage->{TOTAL},
       ID      => 'STORAGE_ID',
       EXPORT  => 1,
@@ -1324,35 +1174,43 @@ sub storage_main{
     my ($info, $info_divide, $del);
 
     foreach my $line ( @{$list} ) {
-      if ( $line->[2] != 0 ) {
+      if ( $line->{sia_count} && $line->{sia_count} != 0 ) {
 
-        my $article_price = $line->[22] || 0;
-        my $instalation_count = $line->[28] || 0;
-        my $inner_use_count = $line->[29] || 0;
-        my $accountability_count = $line->[25] || 0;
-        my $reserve_count = $line->[26] || 0;
-        my $measure = (defined($line->[15]) && $measures_name{$line->[15]}) ? $measures_name{$line->[15]} : ($line->[15] || 'xx');
-        my $discard_count = $line->[27] || 0;
-        my $total = $line->[21] || 0;
-        my $sia_count = $line->[2] || 0;
-        my $article_name = $line->[14] || 'No name article';
+        my $article_price = $line->{article_price} || 0;
+        my $instalation_count = $line->{instalation_count} || 0;
+        my $inner_use_count = $line->{inner_use_count} || 0;
+        my $accountability_count = $line->{accountability_count} || 0;
+        my $reserve_count = $line->{reserve_count} || 0;
+        my $measure = (defined($line->{measure}) && $measures_name{$line->{measure}}) ? _translate($measures_name{$line->{measure}}) : ($line->{measure} || 'xx');
+        my $discard_count = $line->{discard_count} || 0;
+        my $total = $line->{total} || 0;
+        my $sia_count = $line->{sia_count} || 0;
+        my $article_name = $line->{article_name} || 'No name article';
+        my $serial_number = $line->{serial} || '';
 
-        if ( $line->[2] < 2 ) {
+        if ( $line->{sia_count} < 2 ) {
           $info = '';
-          $info_divide = $html->button( $lang{INFO}, "index=$index&add_article=1&chg=$line->[0]&sn=1",
+          $info_divide = $html->button( $lang{INFO}, "index=$index&add_article=1&chg=$line->{sia_id}&sn=1",
             { BUTTON => 1 } );
         }
         else {
-          $info = $html->button( $lang{DIVIDE}, "index=$index&divide=$line->[0]", { BUTTON => 1 } );
-          $info_divide = $html->button( $lang{INFO}, "index=$index&add_article=1&chg=$line->[0]", { BUTTON => 1 } );
+#          $info = $html->button( $lang{DIVIDE}, "index=$index&divide=$line->[0]", { BUTTON => 1 } );
+          $info = $html->button("$lang{DIVIDE}",
+            "get_index=storage_main&start_divide=$line->{sia_id}&header=2",
+            {
+              class         => 'btn-xs',
+              LOAD_TO_MODAL => 1,
+              BUTTON => 1,
+            });
+          $info_divide = $html->button( $lang{INFO}, "index=$index&add_article=1&chg=$line->{sia_id}", { BUTTON => 1 } );
         }
 
         $del = (defined( $permissions{0}->{5} ))                                      ? $html->button( $lang{DEL},
-            "index=$index&add_article=1&del=$line->[0]",
+            "index=$index&add_article=1&del=$line->{sia_id}",
             { MESSAGE => "$lang{DEL} $article_name $total $measure?", BUTTON => 1 } ) : '';
         $table->addrow(
-            ($line->[30] == 0) ? $html->b( $line->[17] ) : $line->[17],
-          $line->[14],
+            ($line->{main_article_id} == 0) ? $html->b( $line->{article_type} ) : $line->{article_type},
+          $line->{article_name},
           "$lang{INSTALLED}: "
             . $instalation_count . ' ' . $measure
             . $html->br()
@@ -1372,7 +1230,7 @@ sub storage_main{
             . $html->br() . '-'
             . $html->br()
             . "$lang{TOTAL}: "
-            . ($line->[2] + $instalation_count + $discard_count) . ' ' . $measure,
+            . ($line->{sia_count} + $instalation_count + $discard_count + $inner_use_count) . ' ' . $measure,
 
           "$lang{INSTALLED}: "
             . ($instalation_count * $article_price)
@@ -1394,27 +1252,30 @@ sub storage_main{
             . $html->br()
             . "$lang{TOTAL}: "
             . ($sia_count + $instalation_count + $discard_count ) * $article_price,
-          $line->[7],
-          $line->[18], #���������� (sm.supplier_id)
-          $storage_storages->[ $line->[12] ],
+          $line->{date},
+          $line->{supplier_name}, #���������� (sm.supplier_id)
+          $storage_storages->[ $line->{storage_id} ],
+          $serial_number,
+          ($line->{si_comments} || ''), #comment
+          ($line->{sn_comments} || ''), #sn_comments
           $info
             . $html->br()
             . $info_divide
             . $html->br()
             . $del
             . $html->br()
-            . $html->button( "$lang{TO_ACCOUNTABILITY}", "index=$index&accountability=$line->[0]", { BUTTON => 1 } )
+            . $html->button( "$lang{TO_ACCOUNTABILITY}", "index=$index&accountability=$line->{sia_id}", { BUTTON => 1 } )
             . $html->br()
-            . $html->button( "$lang{TO_RESERVE}", "index=$index&reserve=$line->[0]", { BUTTON => 1 } )
+            . $html->button( "$lang{TO_RESERVE}", "index=$index&reserve=$line->{sia_id}", { BUTTON => 1 } )
             . $html->br()
-            . $html->button( "$lang{TO_DISCARD}", "index=$index&discard=$line->[0]", { BUTTON => 1 } )
+            . $html->button( "$lang{TO_DISCARD}", "index=$index&discard=$line->{sia_id}", { BUTTON => 1 } )
             . $html->br()
-            . $html->button( "$lang{TO_INNER_USE}", "index=$index&inner_use=$line->[0]", {BUTTON => 1})
-            . (($line->[30] > 0) ? $html->br() . $html->button( "$lang{MAIN}", "index=$index&chg=$line->[0]",
+            . $html->button( "$lang{TO_INNER_USE}", "index=$index&inner_use=$line->{sia_id}", {BUTTON => 1})
+            . (($line->{main_article_id} > 0) ? $html->br() . $html->button( "$lang{MAIN}", "index=$index&chg=$line->{sia_id}",
               { BUTTON => 1 } )  : '')
             . $html->br()
             . $html->button( "$lang{LOG}",
-            "index=" . get_function_index( 'storage_log' ) . "&ARTICLE_ID=$line->[0]&search=1", { BUTTON => 1 } )
+            "index=" . get_function_index( 'storage_log' ) . "&STORAGE_MAIN_ID=$line->{sia_id}&search=1", { BUTTON => 1 } )
           ,
         );
       }
@@ -1484,7 +1345,7 @@ sub storage_installation {
 
   $Storage->{DATE_SELECT} = $html->form_daterangepicker({
     NAME       => 'DATE',
-    THIS_MONTH => 1,
+    THIS_MONTH => $FORM{DATE} ? 0 : 1,
     VALUE      => $FORM{DATE},
     EX_PARAMS => 'disabled="disabled"'
   });
@@ -1522,16 +1383,20 @@ sub storage_installation {
   %LIST_PARAMS = (%FORM, %LIST_PARAMS) if ($FORM{search});
 
   $pages_qs .= "&show_installation=1";
+
   result_former( {
     INPUT_DATA      => $Storage,
     FUNCTION        => 'storage_installation_list',
     FUNCTION_INDEX  => $index,
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'SAT_TYPE,INSTALLED_AID,STA_NAME,COUNT,STATUS,DATE,INSTALLATION_COMMENTS,LOGIN,UID',
-    HIDDEN_FIELDS   => 'UID',
-    FUNCTION_FIELDS => defined($permissions{0}->{5}) ? 'del' : '',
+    DEFAULT_FIELDS  => 'SAT_TYPE,INSTALLED_AID,STA_NAME,COUNT,STATUS,DATE,INSTALLATION_COMMENTS,LOGIN,UID, SERIAL, SUM',
+    HIDDEN_FIELDS   => 'UID,MEASURE,STORAGE_MAIN_ID, STORAGE_ARTICLE_ID',
+    FUNCTION_FIELDS => (defined($permissions{0}->{5}) ? 'del' : '') . ',storage_log:$lang{LOG}:storage_main_id:&search=1',
     #SELECT_VALUE         =>    { installed_aid => $admins_list },
     STATUS_VALS     => \@item_status,
+    FILTER_COLS => {
+      count => '_storage_log_count::MEASURE,',
+    },
     EXT_TITLES      => {
       login                 => $lang{LOGIN},
       sat_type              => $lang{TYPE},
@@ -1539,7 +1404,7 @@ sub storage_installation {
       count                 => $lang{COUNT},
       mac                   => 'MAC',
       ip                    => 'IP',
-      serial                => $lang{SERIAL},
+      serial                => 'SN', #$lang{SERIAL},
       action                => $lang{ACTION},
       status                => $lang{STATUS},
       date                  => $lang{DATE},
@@ -1547,7 +1412,9 @@ sub storage_installation {
       installed_aid         => "$lang{INSTALLED}",
       installation_comments => $lang{COMMENTS},
       address_full2         => "$lang{ADDRESS} $lang{INSTALLED}",
-      admin_name            => $lang{ADMIN}
+      admin_name            => $lang{ADMIN},
+      serial                => 'SN',
+      sum                   => $lang{PRICE}
     },
     FILTER_VALUES   => {
       'installed_aid' => sub {
@@ -1621,7 +1488,7 @@ sub storage_accountability{
     $FORM{add_form} = 1;
   }
   elsif ( $FORM{del_accountability} ) {
-    $Storage->storage_accountability_del( { ID => $FORM{del_accountability} } );
+    $Storage->storage_accountability_del( { ID => $FORM{ID} } );
     if ( !$Storage->{errno} ) {
       $html->tpl_show(
         _include( 'storage_redirect', 'Storage' ),
@@ -1631,6 +1498,22 @@ sub storage_accountability{
         }
       );
     }
+  }
+  elsif( $FORM{print_accountability} ){
+    my $item_print_info = $Storage->storage_print_info({
+      TABLE_NAME => 'storage_accountability',
+      SHOW_ALL_COLUMNS => 1,
+      COLS_NAME => 1,
+    });
+#    delete $item_print_info->{conf};
+#    delete $item_print_info->{admin};
+#    delete $item_print_info->{db};
+#    _bp("", $item_print_info);
+
+    $html->tpl_show(
+      _include( 'storage_accountability_document_print', 'Storage' ), $item_print_info );
+
+    return 1;
   }
   _error_show( $Storage );
 
@@ -1644,61 +1527,100 @@ sub storage_accountability{
     $html->tpl_show( _include( 'storage_accountability', 'Storage' ), { COUNT => 1, %{$Storage}, %FORM } );
   }
   else {
-    print $html->form_main(
-      {
-        CONTENT => "$lang{ADMIN}: " . $Storage->{AID_SEL},
-        HIDDEN  => { index => "$index" },
-        SUBMIT  => { show_accountability => "$lang{SHOW}" },
-        NAME    => 'admin_select'
-      }
-    );
+    $html->tpl_show(_include("storage_accountability_filter", 'Storage'), {
+        ADMIN_SEL => $Storage->{AID_SEL},
+        SERIAL => $FORM{SERIAL},
+      });
+
   }
 
-  my $list = $Storage->storage_accountability_list( {
-    AID       => $FORM{AID},
-    %LIST_PARAMS,
-    COLS_NAME => 1
-  } );
-  _error_show( $Storage );
+#  my $list = $Storage->storage_accountability_list( {
+#    AID       => $FORM{AID},
+#    SERIAL => $FORM{SERIAL} || '',
+#    %LIST_PARAMS,
+#    COLS_NAME => 1
+#  } );
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{ACCOUNTABILITY},
-      title   => [
-        '#', $lang{ADMIN}, $lang{TYPE}, $lang{NAME}, $lang{COUNT}, $lang{SUM}, $lang{DATE}, $lang{COMMENTS}, '-'
-      ],
-      qs               => $pages_qs,
-      pages   => $Storage->{TOTAL},
-      ID      => 'STORAGE_ID'
-    }
-  );
+  _error_show( $Storage );
+  %LIST_PARAMS = %FORM;
+#  my $table = $html->table(
+#    {
+#      width   => '100%',
+#      caption => $lang{ACCOUNTABILITY},
+#      title   => [
+#        '#', $lang{ADMIN}, $lang{TYPE}, $lang{NAME}, $lang{COUNT}, $lang{SUM}, $lang{DATE}, $lang{COMMENTS}, 'SN',  '-'
+#      ],
+#      qs               => $pages_qs,
+#      pages   => $Storage->{TOTAL},
+#      ID      => 'STORAGE_ACCOUNTABILLITY_ID'
+#    }
+#  );
 
   my $counter = 0;
-  foreach my $line ( @{$list} ) {
-    my $del_btn = (defined( $permissions{0}->{5} ))
-      ? $html->button($lang{RETURN_STORAGE},
-        "index=$index&del_accountability=$line->{id}&AID=$line->{aid}",
-        {
-          MESSAGE => "$lang{RETURN_STORAGE} $line->{article_name}\n $lang{COUNT}: $line->{count} $line->{measure} ?"
-        } )
-      : '';
+  my $FUNCTION_FIELDS_STRING = 'storage_main:$lang{RETURN_STORAGE}:id:&del_accountability=1,'; # return to storage
+  $FUNCTION_FIELDS_STRING .= ':$lang{PRINT}:id:&print_accountability=1&header=2&qindex=' . $index . ','; # print
+  $FUNCTION_FIELDS_STRING .= 'storage_main:$lang{INSTALL}:id:&install_accountability=1'; # install
 
-    $table->addrow(
-      ++$counter,
-      $line->{admin_name},
-      $line->{type_name},
-      $line->{article_name},
-      $line->{count} . ' ' . ($measures_name{$line->{measure}} ? $measures_name{$line->{measure}} : $line->{measure}),
-      $line->{sa_sum},
-      $line->{date},
-      $line->{comments},
-      $html->button( $lang{INSTALL},
-        "index=$index&install_accountability=$line->{id}&INSTALLED_AID=" . ($line->{aid} || ''),
-        { BUTTON => 0 } ) . $html->br() . $del_btn );
-  }
+  result_former({
+    INPUT_DATA      => $Storage,
+    FUNCTION        => 'storage_accountability_list',
+    DEFAULT_FIELDS  => 'ADMIN_NAME, ARTICLE_NAME, COUNT, SA_SUM, DATE, COMMENTS, SERIAL',
+    BASE_FIELDS     => 0,
+    HIDDEN_FIELDS   => 'MEASURE',
+    FUNCTION_FIELDS => $FUNCTION_FIELDS_STRING,
+    SKIP_USER_TITLE => 1,
+    FILTER_COLS => {
+      count => '_storage_log_count::MEASURE,',
+      sa_sum => '_storage_sum_normalize::,',
+    },
+    EXT_TITLES      => {
+      admin_name   => $lang{ADMIN},
+      article_name => $lang{NAME},
+      count        => $lang{COUNT},
+      sa_sum       => $lang{PRICE},
+      date         => $lang{DATE},
+      comments     => $lang{COMMENTS},
+      serial       => "SN",
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{ACCOUNTABILITY}",
+      qs      => $pages_qs . "&show_accountability=1",
+      ID      => 'STORAGE_ACCOUNTABILLITY_ID',
+      SHOW_COLS_HIDDEN => { 'show_accountability'=>1 },
+      EXPORT  => 0,
+      MENU    => "",
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    TOTAL           => 1
+  });
 
-  print $table->show();
+#  foreach my $line ( @{$list} ) {
+#    my $del_btn = (defined( $permissions{0}->{5} ))
+#      ? $html->button($lang{RETURN_STORAGE},
+#        "index=$index&del_accountability=$line->{id}&AID=$line->{aid}",
+#        {
+#          MESSAGE => "$lang{RETURN_STORAGE} $line->{article_name}\n $lang{COUNT}: $line->{count} $line->{measure} ?"
+#        } )
+#      : '';
+#
+#    $table->addrow(
+#      ++$counter,
+#      $line->{admin_name},
+#      $line->{type_name},
+#      $line->{article_name},
+#      $line->{count} . ' ' . ($measures_name{$line->{measure}} ? $measures_name{$line->{measure}} : $line->{measure}),
+#      sprintf('%.2f', $line->{sa_sum}),
+#      $line->{date},
+#      $line->{comments},
+#      $line->{serial},
+#      $html->button( $lang{INSTALL},
+#        "index=$index&install_accountability=$line->{id}&INSTALLED_AID=" . ($line->{aid} || ''),
+#        { BUTTON => 0 } ) . $html->br() . $del_btn );
+#  }
+#
+#  print $table->show();
 
   return 1;
 }
@@ -1732,14 +1654,19 @@ sub storage_log{
     CONTROL_FORM  => 1
   } );
 
+
   result_former( {
     INPUT_DATA      => $Storage,
     FUNCTION        => 'storage_log_list',
-    DEFAULT_FIELDS  => 'DATE,ARTICLE_NAME,COUNT,ACTION,COMMENTS,ADMIN_NAME',
+    DEFAULT_FIELDS  => 'DATE,ARTICLE_NAME,COUNT,ACTION,COMMENTS,ADMIN_NAME,LOGIN,SERIAL',
+    HIDDEN_FIELDS   => 'UID,MEASURE',
     FUNCTION_FIELDS => 'del',
     SKIP_USER_TITLE => 1,
     SELECT_VALUE    => { action => \%article_actions,
       storage_id                => $storages_hash
+    },
+    FILTER_COLS => {
+      count => '_storage_log_count::MEASURE,',
     },
     EXT_TITLES      => {
       date         => $lang{DATE},
@@ -1748,8 +1675,10 @@ sub storage_log{
       storage_id   => $lang{STORAGE},
       action       => $lang{ACTION},
       admin_name   => $lang{ADMIN},
+      login        => $lang{USER},
       ip           => 'IP',
-      comments     => $lang{COMMENTS}
+      comments     => $lang{COMMENTS},
+      serial       => 'SN',
     },
     TABLE           => {
       width   => '100%',
@@ -1937,6 +1866,10 @@ sub storage_orders {
 #***********************************************************
 =head2  storage_user_equipment_add($attr) - Add user equipment
 
+  Arguments:
+    $attr
+      REGISTRATION
+
 =cut
 #***********************************************************
 sub storage_user_equipment_add {
@@ -1955,12 +1888,14 @@ sub storage_user_equipment_add {
       COLS_NAME => 1
     });
 
-    _error_show( $Storage );
+    _error_show( $Storage, {  ID => 1811 } );
+
     $FORM{COUNT} = 1 if (!$FORM{COUNT});
     $FORM{STATUS} = $attr->{STATUS} if (!$FORM{STATUS} && $attr->{STATUS});
     my $leftover = $list->[0]->{total};
     my $sell_price = ($list->[0]->{sell_price}) ? $list->[0]->{sell_price} * int( $FORM{COUNT} ) : 0;
     my $rent_price = ($list->[0]->{rent_price}) ? $list->[0]->{rent_price} * int( $FORM{COUNT} ) : 0;
+    my $in_installments_price = ($list->[0]->{in_installments_price} && $FORM{MONTHES}) ? $list->[0]->{in_installments_price} / $FORM{MONTHES} : 0;
 
     if ( $FORM{STATUS} ) {
       if ( $FORM{STATUS} == 1 ) {
@@ -1968,6 +1903,11 @@ sub storage_user_equipment_add {
       }
       elsif ( $FORM{STATUS} == 2 ) {
         $fees->take( $users, $rent_price, { DESCRIBE => "$lang{PAY_FOR_RENT} $list->[0]->{article_name}" } );
+      }
+      elsif( $FORM{STATUS} == 3 ) {
+        $fees->take( $users, $in_installments_price, { DESCRIBE => "$lang{BY_INSTALLMENTS} $list->[0]->{article_name}" } );
+        $FORM{MONTHES} = $FORM{MONTHES} - 1;
+        $FORM{AMOUNT_PER_MONTH} = $in_installments_price;
       }
     }
 
@@ -2014,7 +1954,12 @@ sub storage_user_equipment_add {
   }
   else {
     $Storage->{ID} = $FORM{ID};
-    $html->message( 'info', $lang{INFO}, $lang{CANT_DELETE_ERROR4} );
+
+    if($attr->{REGISTRATION}){
+      return 0;
+    }
+
+    $html->message( 'err', $lang{ERROR}, $lang{CANT_DELETE_ERROR4}, {  ID => 1819 }  );
     $html->tpl_show(
       _include( 'storage_hardware_installation', 'Storage' ),
       {
@@ -2036,16 +1981,29 @@ sub storage_user_equipment_add {
 #***********************************************************
 =head2  storage_hardware($attr) - Hardware
 
+  Arguments:
+    $attr
+
+  Returns:
+
 =cut
 #***********************************************************
 sub storage_hardware{
   my ($attr) = @_;
-  my @status = ( $lang{INSTALLED}, $lang{SOLD}, $lang{RENT} );
+
+  my @status = ( $lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLMENTS} );
   my $add = $FORM{add} || $attr->{add};
 
-  $Storage->{ACTION} = 'add';
-  $Storage->{ACTION_LNG} = $lang{ADD};
-  $Storage->{DATE} = '0000-00-00';
+  if ($attr && $attr->{ACTION}) {
+    $Storage->{ACTION} = $attr->{ACTION};
+    $Storage->{LNG_ACTION} = $attr->{LNG_ACTION};
+  }
+  else {
+    $Storage->{ACTION}     = 'add';
+    $Storage->{LNG_ACTION} = $lang{ADD};
+  }
+
+  $Storage->{DATE}       = '0000-00-00';
 
   my $storage_storages = $Storage->storages_names();
 
@@ -2067,7 +2025,14 @@ sub storage_hardware{
 
   # ADD HARDWARE TO USER -------------------------------------
   if ( $add && $FORM{UID} ) {
-    storage_user_equipment_add($attr);
+    my $result = storage_user_equipment_add($attr);
+    if ($attr->{REGISTRATION}) {
+      if(! $result ) {
+        return 1;
+      }
+      return 0;
+    }
+
     return 1 if ($attr->{ADD_ONLY});
   }
   # RETURN HARDWARE TO STORAGE -------------------------------
@@ -2153,12 +2118,13 @@ sub storage_hardware{
 
   if ( $FORM{chg} && $FORM{UID} ) {
     $Storage->{ACTION} = 'change';
-    $Storage->{ACTION_LNG} = $lang{CHANGE};
+    $Storage->{LNG_ACTION} = $lang{CHANGE};
     $Storage->{DISABLE} = "disabled='disabled'";
     $Storage->storage_installation_info( {
       INSTALLED_AID => '_SHOW',
       ID            => $FORM{chg}
     });
+
     $Storage->{ARTICLE_ID1} = $Storage->{ARTICLE_ID};
     $Storage->{COUNT1} = $Storage->{COUNT};
 
@@ -2234,20 +2200,6 @@ sub storage_hardware{
     );
   }
 
-  $html->tpl_show(
-    _include( 'storage_hardware_installation', 'Storage' ),
-    {
-      COUNT         => 1,
-      %FORM,
-      %{$Storage},
-      ARTICLE_ID    => $Storage->{ARTICLE_ID},
-      ARTICLE_TYPES => $Storage->{ARTICLE_TYPES},
-      STATUS        => $Storage->{STATUS},
-    },
-    { ID => 'storage_hardware_installation' }
-  );
-
-
   if ( !defined( $FORM{del} ) && $FORM{chg} ) {
     if ( defined( $Storage->{TYPE} ) ) {
       my $pdf = ($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '';
@@ -2260,25 +2212,27 @@ sub storage_hardware{
     $Storage->{INSTALLED_AID_SEL} = sel_admins({
       NAME     => 'INSTALLED_AID',
       SELECTED => $Storage->{INSTALLED_AID} || $FORM{INSTALLED_AID} || 0 });
-
-    $html->tpl_show(
-      _include( 'storage_hardware_installation', 'Storage' ),
-      {
-        COUNT         => 1,
-        %FORM,
-        %{$Storage},
-        ARTICLE_ID    => $Storage->{ARTICLE_ID},
-        ARTICLE_TYPES => $Storage->{ARTICLE_TYPES},
-        STATUS        => $Storage->{STATUS},
-      },
-      { ID => 'storage_hardware_installation' }
-    );
   }
+
   #  else{
   #    $Storage->{ACTION}     = 'return';
   #    $Storage->{ACTION_LNG} = $lang{RETURN_STORAGE};
   #    $html->tpl_show( _include( 'storage_return_comment_add', 'Storage' ), { %{$Storage} } );
   #  }
+
+  $html->tpl_show(
+    _include( 'storage_hardware_installation', 'Storage' ),
+    {
+      %$attr,
+      COUNT         => 1,
+      %FORM,
+      %{$Storage},
+      ARTICLE_ID    => $Storage->{ARTICLE_ID},
+      ARTICLE_TYPES => $Storage->{ARTICLE_TYPES},
+      STATUS        => $Storage->{STATUS},
+    },
+    { ID => 'storage_hardware_installation' }
+  );
 
   $FORM{SHOW_STATUS} = defined( $FORM{SHOW_STATUS} ) ? $FORM{SHOW_STATUS} : 5;
 
@@ -2308,7 +2262,7 @@ sub storage_hardware{
       my $table = $html->table(
         {
           width => '100%',
-          title => [ $lang{LOGIN}, $lang{NAME}, 'MAC', 'IP', $lang{SERIAL}, $lang{ACTION}, $lang{STATUS}, $lang{DATE},
+          title => [ $lang{LOGIN}, $lang{NAME}, 'MAC', 'IP', 'SN', $lang{ACTION}, $lang{STATUS}, $lang{DATE},
             $lang{COMMENTS} ],
           pages => $Storage->{TOTAL},
           ID    => 'STORAGE_ID',
@@ -2351,37 +2305,6 @@ sub storage_hardware{
     else {
       storage_installation_list_result_former();
       #print $html->button($lang{HIDE_HARDWARE_LOG}, "index=$index&UID=$FORM{UID}&SHOW_STATUS=$FORM{SHOW_STATUS}&VIEW_HARDWARE_LOG=1", { BUTTON => 1 });
-    }
-  }
-
-  return 1;
-}
-
-#***********************************************************
-=head2 storage_monthly_fees($attr)
-
-=cut
-#***********************************************************
-sub storage_monthly_fees{
-  #my ($attr) = @_;
-
-  $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
-
-  my $d = (split( /-/, $ADMIN_REPORT{DATE}, 3 ))[2];
-
-  if ( $d == 1 ) {
-    my $list = $Storage->storage_rent_fees( { COLS_NAME => 1 } );
-
-    foreach my $line ( @{$list} ) {
-      $users->{BILL_ID} = $line->{bill_id};
-      $users->{UID} = $line->{id};
-      $line->{rent_price} = $line->{rent_price} * $line->{count};
-
-      $fees->take( $users, $line->{rent_price}, { DESCRIBE => "$lang{PAY_FOR_RENT} $line->{article_name}" } );
-
-      if ( $fees->{errno} ) {
-        $html->message( 'err', $lang{ERROR}, "[$fees->{errno}] $err_strs{$fees->{errno}}" );
-      }
     }
   }
 
@@ -2461,105 +2384,6 @@ sub storage_articles_sel {
 }
 
 #**********************************************************
-=head2 storage_storages($attr) - Shows result former for list of storages
-
-=cut
-#**********************************************************
-sub storage_storages{
-  #my ($attr) = @_;
-
-  if ( $FORM{message} ) {
-    $html->message( 'info', $lang{INFO}, "$FORM{message}" );
-  }
-
-  $Storage->{ACTION} = 'add';
-  $Storage->{ACTION_LNG} = $lang{ADD};
-  $Storage->{ADD_DATE} = '0000-00-00';
-
-  if ( $FORM{add} ) {
-    if ( $FORM{NAME} && $FORM{NAME} ne '' ) {
-
-      $Storage->storage_add( { %FORM } );
-      if ( !$Storage->{errno} ) {
-        $html->tpl_show(
-          _include( 'storage_redirect', 'Storage' ),
-          {
-            SECTION => '',
-            MESSAGE => "$lang{ADDED}",
-          }
-        );
-      }
-    }
-    else {
-      $html->message( 'info', $lang{INFO}, "$lang{ERR_WRONG_DATA}" );
-      $html->tpl_show( _include( 'storage_storages', 'Storage' ), { %{$Storage}, %FORM } );
-    }
-  }
-  elsif ( $FORM{del} && $FORM{COMMENTS} ) {
-    $Storage->storage_incoming_articles_list( { STORAGE_ID => $FORM{del}, COLS_NAME => 1 } );
-    if ( $Storage->{total} ) {
-      $html->message( 'info', $lang{INFO}, "$lang{CANT_DELETE_ERROR1} " );
-    }
-    else {
-      $Storage->storage_del( { ID => $FORM{del} } );
-      if ( !$Storage->{errno} ) {
-        $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
-      }
-    }
-  }
-  elsif ( $FORM{change} ) {
-    $Storage->storage_change( { %FORM } );
-    if ( !$Storage->{errno} ) {
-      $html->tpl_show(
-        _include( 'storage_redirect', 'Storage' ),
-        {
-          SECTION => '',
-          MESSAGE => "$lang{CHANGED}",
-        }
-      );
-    }
-  }
-  elsif ( $FORM{chg} ) {
-    $Storage->{ACTION} = 'change';
-    $Storage->{ACTION_LNG} = $lang{CHANGE};
-    $Storage->storage_info( { ID => $FORM{chg} } );
-    if ( !$Storage->{errno} ) {
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGING}" );
-    }
-  }
-
-  if ( !$FORM{add} and !$FORM{change} ) {
-    $html->tpl_show( _include( 'storage_storages', 'Storage' ), $Storage );
-  }
-
-  result_former( {
-    INPUT_DATA      => $Storage,
-    FUNCTION        => 'storages_list',
-    BASE_FIELDS     => 3,
-    FUNCTION_FIELDS => 'change,del',
-    SKIP_USER_TITLE => 1,
-    EXT_TITLES      => {
-      id       => '#',
-      name     => $lang{NAME},
-      comments => $lang{COMMENTS}
-    },
-    TABLE           => {
-      width   => '100%',
-      caption => "$lang{STORAGE}",
-      qs      => $pages_qs,
-      ID      => 'STORAGES_LIST',
-      EXPORT  => 1,
-      #MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
-    },
-    MAKE_ROWS       => 1,
-    SEARCH_FORMER   => 1,
-    TOTAL           => 1
-  });
-
-  return 1;
-}
-
-#**********************************************************
 =head2 storage_storage_sel($Storage, $attr)
 
   Arguments:
@@ -2629,6 +2453,10 @@ sub storage_installation_list_result_former {
     ? $html->b( $item_status[1] )
     : $html->button( $item_status[1], "index=$index&UID=$FORM{UID}&SHOW_STATUS=1", { BUTTON => 1 } )) . ' '
 
+    . ((defined( $FORM{SHOW_STATUS} ) && $FORM{SHOW_STATUS} == 3)
+    ? $html->b( $lang{BY_INSTALLMENTS} )
+    : $html->button( $lang{BY_INSTALLMENTS}, "index=$index&UID=$FORM{UID}&SHOW_STATUS=3", { BUTTON => 1 } )) . ' '
+
     . ((defined( $FORM{SHOW_STATUS} ) && $FORM{SHOW_STATUS} == 4)
     ? $html->b( $lang{RETURNED_STORAGE} )
     : $html->button( $lang{RETURNED_STORAGE}, "index=$index&UID=$FORM{UID}&SHOW_STATUS=4", { BUTTON => 1 } )) . ' '
@@ -2650,7 +2478,7 @@ sub storage_installation_list_result_former {
     INPUT_DATA      => $Storage,
     FUNCTION        => 'storage_installation_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'SAT_TYPE,STA_NAME,MAC,IP,SERIAL,STATUS,DATE,COMMENTS,INSTALLED_AID',
+    DEFAULT_FIELDS  => 'SAT_TYPE,STA_NAME,MAC,IP,SERIAL,STATUS,DATE,COMMENTS,INSTALLED_AID, SUM',
     FUNCTION_FIELDS => defined($permissions{0}{5}) ? 'change,del' : '',
     SELECT_VALUE    => { installed_aid => $admins_list },
     STATUS_VALS     => \@item_status,
@@ -2660,12 +2488,13 @@ sub storage_installation_list_result_former {
       sta_name      => $lang{NAME},
       mac           => $lang{MAC} || 'MAC',
       ip            => $lang{IP} || 'IP',
-      serial        => $lang{SERIAL},
+      serial        => 'SN', #$lang{SERIAL},
       action        => $lang{ACTION},
       status        => $lang{STATUS},
       date          => $lang{DATE},
       comments      => $lang{COMMENTS},
       installed_aid => $lang{INSTALLED},
+      sum           => $lang{SUM},
     },
     FILTER_COLS     => { mac => '_storage_result_former_mac_filter:' . $dhcp_index },
     TABLE           => {
@@ -2768,26 +2597,29 @@ sub storage_inner_use {
       }
     }
 
-    my $list = $Storage->storage_inner_use_list( { COLS_NAME => 1 } );
+    my $list = $Storage->storage_inner_use_list( { COLS_NAME => 1, %LIST_PARAMS } );
 
     my $table = $html->table({
       width   => '100%',
       caption => $lang{TO_INNER_USE},
-      title   => [ $lang{ADMIN}, $lang{TYPE}, $lang{NAME}, $lang{COUNT}, $lang{SUM}, $lang{DATE}, $lang{COMMENTS}, '' ],
+      title   => [ $lang{ADMIN}, $lang{TYPE}, $lang{NAME}, $lang{COUNT}, $lang{SUM}, $lang{DATE}, $lang{COMMENTS}, 'SN', '' ],
       pages   => $Storage->{TOTAL},
-      ID      => 'INNER_USE_ID'
+      ID      => 'INNER_USE_ID',
+      qs      => '&show_inner_use=1',
     });
 
     _error_show( $Storage );
 
     foreach my $line ( @{$list} ) {
+      my $measure =  ((defined($line->{measure}) && $measures_name{$line->{measure}}) ? $measures_name{$line->{measure}} : $line->{measure} || 'xx' );
       $table->addrow( $line->{admin_name},
-        $line->{sta_name},
         $line->{sat_name},
-        $line->{count} . ' ' . $line->{measure},
-        $line->{sum},
+        $line->{sta_name},
+        $line->{count} . ' ' . $measure,
+        sprintf('%.2f', $line->{sum}),
         $line->{date},
         $line->{comments},
+        $line->{serial},
         $html->button("$lang{RETURN}",
           "index=$index&show_inner_use=$FORM{show_inner_use}&return_id=$line->{id}",
           {
@@ -2799,6 +2631,152 @@ sub storage_inner_use {
 
     print $table->show();
   }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 storage_inner_use()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub storage_user_install {
+  #my ($attr) = @_;
+
+  my $Storage_ = Storage->new($db, $admin, \%conf);
+  my $storage_articles = storage_inc_articles_sel(
+    $Storage_,
+    {
+      SIA_ID          => 1,
+      HIDE_ZERO_VALUE => 1,
+      #ARTICLE_TYPE    => 4 # for set to box
+    });
+
+  my @status = ( $lang{INSTALLED}, $lang{SOLD}, $lang{RENT}, $lang{BY_INSTALLMENTS} );
+  my $storage_action = $html->form_select(
+    'STORAGE_ACTION',
+    {
+      SELECTED      => $Storage->{TYPE} || $FORM{STORAGE_ACTION},
+      SEL_ARRAY     => \@status,
+      ARRAY_NUM_ID  => 1,
+      OUTPUT2RETURN => 1,
+    }
+  );
+
+  return $html->tpl_show(_include('storage_form_install', 'Storage'), {
+    STORAGE_ARTICLE_SEL => $storage_articles,
+    STORAGE_ACTIONS     => $storage_action
+  },
+    { ID => 'internet_equipment_form', OUTPUT2RETURN => 1 });
+
+}
+
+#**********************************************************
+=head2 _storage_log_count()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _storage_log_count {
+  my ($count, $attr) = @_;
+
+  return $count unless (defined $attr->{VALUES}{MEASURE});
+
+  my $measure_number = $attr->{VALUES}{MEASURE};
+
+  my $count_measure = $count . " " . $measures_name{$measure_number};
+
+  return $count_measure;
+}
+
+#**********************************************************
+=head2 _storage_sum_normalize()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _storage_sum_normalize {
+  my ($sum) = @_;
+
+  return sprintf('%.2f',$sum);
+}
+
+#**********************************************************
+=head2 storage_start_divide()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub storage_start_divide {
+  #my ($attr) = @_;
+
+  my $installment_id = $FORM{start_divide};
+
+  my $incoming_articles_list = $Storage->storage_incoming_articles_list({
+    ID         => $installment_id,
+    COLS_NAME  => 1,
+    COLS_UPPER => 1
+  });
+
+  my $incoming_article_info = '';
+  if (scalar @$incoming_articles_list == 1) {
+    $incoming_article_info = $incoming_articles_list->[0];
+  }
+
+  my $total_left_count = $incoming_article_info->{total} || 0;
+  my $reserve_count = $incoming_article_info->{reserve_count} || 0;
+  my $installation_count = $incoming_article_info->{instalation_count} || 0;
+  my $inner_use_count = $incoming_article_info->{inner_use_count} || 0;
+  my $discard_count = $incoming_article_info->{discard_count} || 0;
+  my $accountability_count = $incoming_article_info->{accountability_count} || 0;
+  my $article_type = $incoming_article_info->{article_type} || '';
+  my $article_name = $incoming_article_info->{article_name} || '';
+
+  my $total_count = $total_left_count + $reserve_count + $installation_count + $inner_use_count + $discard_count + $accountability_count;
+
+  my $tabindex = 1;
+
+  my $divide_table = $html->table({
+    caption => $lang{STORAGE},
+    title   => [ 'ID', $lang{NAME}, 'SN', $lang{NOTES} ],
+  });
+
+  for (my $article = 1; $article <= $total_left_count; $article++) {
+    my $autofocus = $article == 1 ? 'autofocus' : '';
+    $divide_table->addrow(
+      "$article",
+      "$article_type $article_name",
+      $html->form_input('SN', '', { class => 'form-control sn_check_class', EX_PARAMS => "tabindex=$tabindex $autofocus" })
+      .$html->form_input('IDS', '1', { class => 'form-control', EX_PARAMS => "tabindex=$tabindex $autofocus", TYPE=>'hidden' }),
+      $html->element('textarea', '', { class => 'form-control', name => "SN_COMMENTS" }),
+    );
+  }
+
+  $html->tpl_show(
+    _include('storage_divide', 'Storage'),
+    {
+      DIVIDE_TABLE => $divide_table->show(),
+      CHECK_SN_INDEX => get_function_index('storage_main'),
+      %{$incoming_article_info}
+    }
+  );
 
   return 1;
 }

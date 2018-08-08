@@ -4,11 +4,16 @@
     <div class='container-fluid'>
         <div class='row'>
             <div class='col-md-6'>
-                <div class='box box-primary'>
+                <div class='box box-theme box-big-form'>
                     <div class='box-header with-border'>
-                        <a data-toggle='collapse' data-parent='#accordion' href='#_tp'>_{TARIF_PLAN}_</a>
+                        <h4 class='box-title'>_{TARIF_PLAN}_</h4>
+                        <div class='box-tools pull-right'>
+                            <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+                                <i class='fa fa-minus'></i>
+                            </button>
+                        </div>
                     </div>
-                    <div id='_tp' class='box-body box-collapse collapse in'>
+                    <div class='box-body'>
                         <div class='form-group'>
                             <label for='SERVICE' class='control-label col-md-3'>_{SERVICES}_:</label>
                             <div class='col-md-9'>
@@ -47,13 +52,16 @@
                 </div>
             </div>
             <div class='col-md-6'>
-                <div class='box box-primary'>
+                <div class='box collapsed-box box-theme box-big-form'>
                     <div class='box-header with-border'>
-                        <a data-toggle='collapse' data-parent='#accordion' href='#_abon' >_{ABON}_</a>
+                        <h3 class='box-title'>_{ABON}_</h3>
+                        <div class='box-tools pull-right'>
+                            <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+                                <i class='fa fa-plus'></i>
+                            </button>
+                        </div>
                     </div>
-
-                    <div id='_abon' class='box-body box-collapse collapse out'>
-
+                    <div class='box-body'>
                         <div class='form-group'>
                             <label for='DAY_FEE' class='control-label col-md-3'>_{DAY_FEE}_:</label>
                             <div class='col-md-9'>
@@ -107,7 +115,8 @@
                         <div class='form-group'>
                             <label class='control-label col-md-3' for='REDUCTION_FEE'>_{REDUCTION}_:</label>
                             <div class='col-md-9'>
-                                <input id='REDUCTION_FEE' name='REDUCTION_FEE' value='1' %REDUCTION_FEE% type='checkbox'>
+                                <input id='REDUCTION_FEE' name='REDUCTION_FEE' value='1' %REDUCTION_FEE%
+                                       type='checkbox'>
                             </div>
                         </div>
 
@@ -116,21 +125,22 @@
                                    class='control-label col-md-3'>_{SMALL_DEPOSIT_ACTION}_:</label>
                             <div class='col-md-9'>%SMALL_DEPOSIT_ACTION_SEL%</div>
                         </div>
-
                     </div>
                 </div>
             </div>
         </div>
         <div class='row'>
             <div class='col-md-6'>
-                <div class='box box-primary'>
+                <div class='box collapsed-box box-theme box-big-form'>
                     <div class='box-header with-border'>
-                        <a data-toggle='collapse' data-parent='#accordion' href='#_other' >_{OTHER}_</a>
+                        <h3 class='box-title'>_{OTHER}_</h3>
+                        <div class='box-tools pull-right'>
+                            <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+                                <i class='fa fa-plus'></i>
+                            </button>
+                        </div>
                     </div>
-
-                    <div id='_other' class='box-body box-collapse collapse out'>
-
-
+                    <div class='box-body'>
                         <div class='form-group'>
                             <label for='ACTIV_PRICE' class='control-label col-md-3'>_{ACTIVATE}_:</label>
                             <div class='col-md-9'>
@@ -181,12 +191,12 @@
                         </div>
 
                         <div class='form-group bg-info'>
-                            <label for='NEXT_TARIF_PLAN_SEL' class='control-label col-sm-3'>_{TARIF_PLAN}_ _{NEXT_PERIOD}_:</label>
+                            <label for='NEXT_TARIF_PLAN_SEL' class='control-label col-sm-3'>_{TARIF_PLAN}_
+                                _{NEXT_PERIOD}_:</label>
                             <div class='col-md-9'>
                                 %NEXT_TARIF_PLAN_SEL%
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>

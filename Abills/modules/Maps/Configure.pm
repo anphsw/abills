@@ -287,7 +287,7 @@ sub maps_districts_main {
     $show_add_form = 1;
   }
   elsif ($FORM{del}) {
-    $Maps->districts_del({ ID => $FORM{del} });
+    $Maps->districts_del({}, { district_id => $FORM{del} });
     show_result($Maps, $lang{DELETED});
   }
   elsif ($FORM{chg}) {
@@ -329,6 +329,14 @@ sub maps_districts_main {
       district_id       => '#',
       district     => $lang{DISTRICT},
       object_id     => $lang{MAP},
+    },
+    FILTER_VALUES => {
+      # RESULT FORMER doesn't support naming of key field, so just copy existing value to 'id'
+      district_id => sub {
+        my ($district_id, $line) = @_;
+        $line->{id} = $district_id;
+        return $district_id;
+      }
     },
     FILTER_COLS     => {
       #      type   => '_translate',

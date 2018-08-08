@@ -33,6 +33,11 @@
   Name of served UniFi site
   $conf{UNIFI_SITENAME} = 'default';
 
+  $conf{UNIFI_DEFAULT_LANGUAGE} = 'english';
+
+  External cmd if auch 'ACCESS'
+  $conf{UNIFI_EXTERNAL_CMD} = '';
+
 =head1 VERSION
 
   VERSION: 0.5
@@ -60,10 +65,10 @@ BEGIN {
 }
 
 use Abills::Defs;
-use Abills::Base qw(urldecode urlencode mk_unique_value gen_time _bp);
+use Abills::Base qw(urldecode urlencode mk_unique_value gen_time _bp cmd);
 use Nas;
 use Log;
-use Auth;
+use Auth2;
 use Hotspot;
 use Unifi::Unifi;
 use Abills::Templates;
@@ -80,11 +85,10 @@ my $html = Abills::HTML->new(
   }
 );
 
+$html->{language} = $conf{UNIFI_DEFAULT_LANGUAGE} || 'russian';
+
 if (defined($FORM{language}) && $FORM{language} =~ /^[a-z_]+$/) {
   $html->{language} = $FORM{language};
-}
-else {
-  $html->{language} = 'russian';
 }
 
 $html->{show_header} = 1;
@@ -293,7 +297,8 @@ sub get_user_index {
 #********************************************************************
 sub authorize_client {
   `echo "------- $usermac" >> /tmp/unifi_ap` if ($debug);
-
+  print "Content-Type: application/javascript\n\n";    # if ($debug);
+  print "/*" if ($debug);
   my $message    = '';
   my $data       = $Unifi->convert_result($Unifi->users_list());
   my $index      = get_user_index($data, $usermac);
@@ -303,13 +308,9 @@ sub authorize_client {
     $session_id = $data->{'data'}[$index]->{'{ID}'};
     $userip     = $data->{'data'}[$index]->{'{IP}'} || '';
   }
-
-  print "Content-Type: application/javascript\n\n";    # if ($debug);
-  print "/*" if ($debug);
-
   my $lower_case_user_mac = lc($usermac);
 
-  my $Auth = Auth->new($db, \%conf);
+  my $Auth = Auth2->new($db, \%conf);
   my %RAD = (
     'Acct-Status-Type'   => 1,
     'User-Name'          => $username,
@@ -321,11 +322,10 @@ sub authorize_client {
     'NAS-IP-Address'     => $Nas->{NAS_IP} || $conf{'UNIFI_IP'},
     'Connect-Info'       => $session_id,
   );
-
   $Nas->{NAS_TYPE} = 'unifi';
   $Auth->{debug} = 1 if ($debug);
 
-  my ($r, $RAD_PAIRS) = $Auth->dv_auth(\%RAD, $Nas, { SECRETKEY => $conf{secretkey} });
+  my ($r, $RAD_PAIRS) = $Auth->auth(\%RAD, $Nas, { SECRETKEY => $conf{secretkey} });
 
   my %user_info = (
     'MAC'  => $usermac || '',
@@ -361,6 +361,16 @@ sub authorize_client {
     # give UniFi controller some time to authorize client
     sleep 1;
     $message = "<div class='alert alert-success'>$lang{SUCCESS}</div>";
+    if ($conf{UNIFI_EXTERNAL_CMD}) {
+
+      my $cmd = $conf{UNIFI_EXTERNAL_CMD};
+      cmd($cmd, {
+          DEBUG   => $debug || 0,
+          PARAMS  => { %FORM },
+          ARGV    => 1,
+          timeout => 30
+      });
+    }
   }
   else {
     $Log->log_print('LOG_WARNING', $username, "$userip $usermac " . $RAD_PAIRS->{'Reply-Message'} . (($GT) ? " $GT" : ''), { NAS => $Nas });
@@ -474,15 +484,15 @@ sub read_query_parameters {
 
   $res = $FORM{res} || 0;
   $challenge = $FORM{challenge} || q{};
-  $username  = $FORM{username} || q{};
-  $password  = $FORM{password} || q{};
+  $username  = $FORM{username} || $conf{UNIFI_GUEST_USERNAME} || q{};
+  $password  = $FORM{password} || $conf{UNIFI_GUEST_PASSWORD} || q{};
   $usermac   = urldecode($FORM{id});
   $apmac     = urldecode($FORM{ap});
   $userurl   = $FORM{url} || '';
   $ssid      = $FORM{ssid} || q{};
   $userip    = $FORM{ip} || $ENV{REMOTE_ADDR};
   $operation_type = $FORM{operation_type} || q{};
-
+  `echo "------- $operation_type" >> /tmp/unifi_ap` if ($debug);
   $userurldecode = urldecode($userurl);
   $return_url    = urlencode("$SELF_URL?operation_type=return&id=" . ($usermac || '') . '&ap=' . ($apmac || '') . "&username={LOGIN}&password={PASSWORD}&fastlogin=true");
   $password      = $conf{HOTSPOT_GUEST_PASS} if ($conf{HOTSPOT_GUEST_PASS} && $conf{HOTSPOT_GUEST_PASS} eq 'Guest');
@@ -519,7 +529,6 @@ sub read_query_parameters {
   }
 
   $result = 0;
-
   # If loglogin successful
   if ($res =~ /^.+$/) {
     $result = 1;
@@ -534,7 +543,6 @@ sub read_query_parameters {
   if ($usermac && $usermac eq $TEST_MAC) {
     $result = 3;
   }
-
   # Otherwise it was not a form request
   # Send out an error message
   if ($result == 0) {
@@ -582,8 +590,9 @@ sub print_no_mac_provided {
 sub print_login_form {
   my ($user_info) = @_;
 
-  my $hotspot_username = $FORM{username} || '';
-  my $hotspot_password = $FORM{password} || '';
+  my $hotspot_username = $FORM{username} || $conf{UNIFI_GUEST_USERNAME} || '';
+  my $hotspot_password = $FORM{password} || $conf{UNIFI_GUEST_PASSWORD} || '';
+  my $ssid = $FORM{ssid} || '';
 
   if ($COOKIES{hotspot_username}) {
     $hotspot_username = $COOKIES{hotspot_username};
@@ -615,7 +624,8 @@ sub print_login_form {
       RETURN_URL       => urldecode($return_url),
       RULES            => $rules,
       RULES_SHOW_STYLE => $show_rules_button,
-      EXTRA_INFO       => $extra_info
+      EXTRA_INFO       => $extra_info,
+      ssid             => $ssid
     }
   );
 

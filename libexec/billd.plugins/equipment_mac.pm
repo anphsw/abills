@@ -50,7 +50,14 @@ else {
   $Log->{LOG_FILE} = $var_dir.'/log/equipment_check.log';
 }
 
-equipment_check();
+if ($argv->{DEL_MAC}){
+  $Equipment->mac_log_del({
+    DEL_PERIOD => $conf{EQUIPMENT_MAC_EXPIRE},
+  });
+}
+else{
+  equipment_check();
+}
 
 #**********************************************************
 =head2 equipment_check($attr)

@@ -196,7 +196,7 @@ if ($uid > 0) {
     $functions{1000}     = 'logout';
     $menu_items{1000}{0} = $lang{LOGOUT};
   }
-  
+
   if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY'){
     $user->{MONEY_UNIT_NAMES} = $conf{MONEY_UNIT_NAMES}->[0] || '';
   }
@@ -479,6 +479,10 @@ sub form_info {
   my $tp_credit = 0;
 
   my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $conf{user_credit_change} || q{});
+
+  $user->{CREDIT_DAYS}=$days || q{};
+  $user->{CREDIT_MONTH_CHANGES}=$month_changes || q{};
+
   if (in_array('Dv', \@MODULES) && (! $sum || $sum =~ /\d+/ && $sum == 0)) {
     load_module('Dv', $html);
     my $Dv = Dv->new($db, $admin, \%conf);
@@ -619,7 +623,7 @@ sub form_info {
   }
 
   $user->pi();
-  
+
   if ($FORM{REMOVE_SUBSCRIBE} && in_array($FORM{REMOVE_SUBSCRIBE}, [qw/Push Telegram/])){
     require Contacts;
     Contacts->import();
@@ -633,7 +637,7 @@ sub form_info {
     $html->redirect('/index.cgi');
     return 1;
   }
-  
+
   if ($conf{user_chg_pi}) {
     $user->{ADDRESS_SEL} = $html->tpl_show(
       templates('form_client_address_search'),
@@ -863,9 +867,9 @@ sub form_info {
   }
 
   if (in_array('Paysys', \@MODULES)) {
-    if(defined $user->{GID} && $user->{GID} != 0){
+    if(defined $user->{GID}){
       my $group_info = $user->group_info($user->{GID});
-      if($group_info->{DISABLE_PAYSYS} == 0){
+      if(! defined($group_info->{DISABLE_PAYSYS}) || $group_info->{DISABLE_PAYSYS} == 0){
         my $fn_index = get_function_index('paysys_payment');
         $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
       }
@@ -878,7 +882,7 @@ sub form_info {
   
   if (in_array('Cards', \@MODULES)) {
     my $fn_index = get_function_index('cards_user_payment');
-    $user->{CARDS_PAYMENTS} = $html->button( "$lang{ICARDS}", "index=$fn_index$pages_qs", { BUTTON => 2 } );
+    $user->{CARDS_PAYMENTS} = $html->button( $lang{ICARDS}, "index=$fn_index$pages_qs", { BUTTON => 2 } );
   }
   
   ## Show users info fields
@@ -887,7 +891,7 @@ sub form_info {
     CALLED_FROM_CLIENT_UI => 1,
     RETURN_AS_ARRAY       => 1
   });
-  
+
   foreach my $info_field_view (@$info_fields_view){
       #    if ($info_field_obj eq '_rating') {
       #      $extra = $html->button($lang{RATING}, "index=" . get_function_index('dv_rating_user'), { BUTTON => 1 });
@@ -899,12 +903,11 @@ sub form_info {
     $user->{INFO_FIELDS} .=
       $html->element(
           'div',
-
-          $html->element('div', $name, {
+          $html->element('div', ($name || q{}), {
               class         => 'col-xs-12 col-sm-3 col-md-3 text-1',
               OUTPUT2RETURN => 1
             })
-          . $html->element('div', $view, {
+          . $html->element('div', ($view || q{}), {
               class         => 'col-xs-12 col-sm-9 col-md-9 text-2',
               OUTPUT2RETURN => 1
             }),
@@ -1747,8 +1750,21 @@ sub form_neg_deposit {
   }
 
   if (in_array('Paysys', \@MODULES)) {
-    my $fn_index = get_function_index('paysys_payment');
-    $user_->{PAYMENT_BUTTON} = $html->button( "$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 } );
+#    my $fn_index = get_function_index('paysys_payment');
+#    $user_->{PAYMENT_BUTTON} = $html->button( "$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 } );
+
+    # check if user group has Disable Paysys mode
+    if(defined $user->{GID}){
+      my $group_info = $user->group_info($user->{GID});
+      if($group_info->{DISABLE_PAYSYS} == 0){
+        my $fn_index = get_function_index('paysys_payment');
+        $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
+      }
+    }
+    else{
+      my $fn_index = get_function_index('paysys_payment');
+      $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
+    }
   }
 
   if (in_array('Cards', \@MODULES)) {
@@ -1921,7 +1937,7 @@ sub form_custom {
 
   my $json_info = user_full_info({ SHOW_ID => 1 });
   #$conf{WEB_DEBUG}=1;
-  if($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 3) {
+  if($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10) {
     $html->{OUTPUT} .= '<pre>';
     $html->{OUTPUT} .= $json_info;
     $html->{OUTPUT} .= '</pre>';
@@ -1942,13 +1958,13 @@ sub form_custom {
         foreach my $field_id ( keys %{ $key->{SLIDES}->[$i] } ) {
           my $id = $main_name.'_'.$field_id.'_'.$i;
           $info{$id} = $key->{SLIDES}->[$i]->{$field_id};
-          $html->{OUTPUT} .= "$i  $id ---------------- $key->{SLIDES}->[$i]->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 3);
+          $html->{OUTPUT} .= "$i  $id ---------------- $key->{SLIDES}->[$i]->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10);
         }
       }
     }
     else {
       foreach my $field_id (keys %{ $key->{CONTENT} }) {
-        $html->{OUTPUT} .= $main_name.'_'.$field_id." - $key->{CONTENT}->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 3);
+        $html->{OUTPUT} .= $main_name.'_'.$field_id." - $key->{CONTENT}->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10);
         $info{$main_name.'_'.$field_id} = $key->{CONTENT}->{$field_id};
       }
     }

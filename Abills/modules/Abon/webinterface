@@ -366,7 +366,8 @@ sub abon_user {
               { OUTPUT2RETURN => 1 }
             );
 
-            sendmail("$conf{ADMIN_MAIL}", "$users->{EMAIL}", "$conf{WEB_TITLE} - $Abon->{TP_INFO}->{TP_NAME} $Abon->{COMMENTS}", $message, "$conf{MAIL_CHARSET}", '', {});
+            sendmail($conf{ADMIN_MAIL}, $users->{EMAIL}, "$conf{WEB_TITLE} - $Abon->{TP_INFO}->{TP_NAME} "
+              . ($Abon->{COMMENTS} || q{}), $message, $conf{MAIL_CHARSET}, '', {});
           }
 
           #$Abon->user_tariff_update({ UID   => "$users->{UID}",
@@ -743,7 +744,7 @@ sub abon_tariffs {
     {
       width   => '100%',
       caption => "$lang{ABON}",
-      title   => [ $lang{NAME}, $lang{SUM}, $lang{PERIOD}, $lang{PAYMENT_TYPE}, $lang{PRIORITY}, $lang{USERS}, '-', '-' ],
+      title   => [ $lang{NAME}, $lang{SUM}, $lang{PERIOD}, $lang{PAYMENT_TYPE}, $lang{PRIORITY}, $lang{DESCRIPTION}, $lang{USERS}, '-', '-' ],
       qs      => $pages_qs,
       ID      => 'ABON_TARIFFS'
     }
@@ -760,7 +761,9 @@ sub abon_tariffs {
       "$line->[1]",
       $PERIODS[ $line->[2] ],
       $Payment_Types[ $line->[3] ],
-      $line->[4], $html->button($line->[6], "index=" . get_function_index('abon_user_list') . "&ABON_ID=$line->[7]") . ' ' . $html->button($lang{CHANGE}, "index=$index&ABON_ID=$line->[7]", { class => 'change' }) . ' ' . $delete
+      $line->[4], 
+      $line->[13],
+      $html->button($line->[6],"index=" . get_function_index('abon_user_list') . "&ABON_ID=$line->[7]") . ' ' . $html->button($lang{CHANGE}, "index=$index&ABON_ID=$line->[7]", { class => 'change' }) . ' ' . $delete
     );
   }
 
@@ -770,7 +773,13 @@ sub abon_tariffs {
 }
 
 #**********************************************************
-=head2 abon_periodic($attr) daily_fees
+=head2 abon_periodic($attr) - daily_fees
+
+  Arguments:
+    DATE
+    LOGIN
+    TP_ID
+    
 
 =cut
 #**********************************************************
@@ -889,13 +898,17 @@ sub abon_periodic {
             }
             else {
               $user_tarifs_update{DEL}=$info->{TP_ID};
-              $Abon->user_tariff_change(\%user_tarifs_update);
+              if($debug < 8) {
+                $Abon->user_tariff_change(\%user_tarifs_update);
+              }
               %user_tarifs_update=();
             }
           }
 
           if(%user_tarifs_update) {
-            $Abon->user_tariff_update(\%user_tarifs_update);
+            if($debug < 8) {
+              $Abon->user_tariff_update(\%user_tarifs_update);
+            }
           }
 
           if ($info->{CREATE_ACCOUNT} && $info->{CREATE_DOCS}) {
@@ -939,15 +952,17 @@ sub abon_periodic {
               SEND_EMAIL => $info->{SEND_DOCS} || 0
             };
             our $ADMIN_REPORT;
-            $Abon->user_tariff_update(
-              {
-                UID                     => $user{UID},
-                NOTIFICATION            => 1,
-                DATE                    => $ADMIN_REPORT->{DATE},
-                NOTIFICATION_ACCOUNT_ID => $FORM{ACCOUN_ID},
-                TP_ID                   => "$info->{TP_ID}"
-              }
-            );
+            if($debug < 8) {
+              $Abon->user_tariff_update(
+                {
+                  UID                     => $user{UID},
+                  NOTIFICATION            => 1,
+                  DATE                    => $ADMIN_REPORT->{DATE},
+                  NOTIFICATION_ACCOUNT_ID => $FORM{ACCOUN_ID},
+                  TP_ID                   => "$info->{TP_ID}"
+                }
+              );
+            }
           }
 
           sendmail("$conf{ADMIN_MAIL}", "$info->{EMAIL}", "$conf{WEB_TITLE} - $info->{TP_NAME} $info->{COMMENTS}", "$message", "$conf{MAIL_CHARSET}", '', { ATTACHMENTS => $attach });
@@ -975,12 +990,14 @@ sub abon_periodic {
           };
         }
 
-        $Abon->user_tariff_update({
-          UID                     => $user{UID},
-          NOTIFICATION            => 1,
-          NOTIFICATION_ACCOUNT_ID => $FORM{ACCOUNT_ID},
-          TP_ID                   => $info->{TP_ID}
-        });
+        if($debug < 8) {
+          $Abon->user_tariff_update({
+            UID                     => $user{UID},
+            NOTIFICATION            => 1,
+            NOTIFICATION_ACCOUNT_ID => $FORM{ACCOUNT_ID},
+            TP_ID                   => $info->{TP_ID}
+          });
+        }
 
         if ($info->{SEND_DOCS}) {
           sendmail("$conf{ADMIN_MAIL}", "$info->{EMAIL}", "$conf{WEB_TITLE} - $info->{TP_NAME} $info->{COMMENTS}", "$message", "$conf{MAIL_CHARSET}", '', { ATTACHMENTS => $attach });
@@ -1008,14 +1025,17 @@ sub abon_periodic {
           }
         }
 
-        $Abon->user_tariff_update(
-          {
-            UID          => "$user{UID}",
-            NOTIFICATION => 2,
-            DATE         => $ADMIN_REPORT{DATE},
-            TP_ID        => "$info->{TP_ID}"
-          }
-        );
+        if($debug < 8) {
+          $Abon->user_tariff_update(
+            {
+              UID          => $user{UID},
+              NOTIFICATION => 2,
+              DATE         => $ADMIN_REPORT{DATE},
+              TP_ID        => $info->{TP_ID}
+            }
+          );
+        }
+
         if ($info->{SEND_DOCS}) {
           sendmail("$conf{ADMIN_MAIL}", "$info->{EMAIL}", "$conf{WEB_TITLE} - $info->{TP_NAME} $info->{COMMENTS}", "$message", "$conf{MAIL_CHARSET}", '', { ATTACHMENTS => $attach });
         }
@@ -1047,15 +1067,18 @@ sub abon_periodic {
       $FORM{UID}    = $uid;
       $FORM{create} = 1;
 
-      docs_invoice(
-        {
-          QUITE          => 1,
-          SEND_EMAIL     => $FORM{SEND_EMAIL},
-          OUTPUT2RETURN  => 1,
-          GET_EMAIL_INFO => $FORM{SEND_EMAIL}
-        }
-      );
+      if($debug < 8) {
+        docs_invoice(
+          {
+            QUITE          => 1,
+            SEND_EMAIL     => $FORM{SEND_EMAIL},
+            OUTPUT2RETURN  => 1,
+            GET_EMAIL_INFO => $FORM{SEND_EMAIL}
+          }
+        );
+      }
     }
+
     $^W = 1;
   }
 
@@ -1264,7 +1287,6 @@ sub abon_docs {
 
 #**********************************************************
 sub abon_client {
-
   #my ($attr) = @_;
 
   if ($FORM{ACTIVATE} || $FORM{add}) {
@@ -1297,7 +1319,7 @@ sub abon_client {
     {
       width   => '100%',
       caption => "$lang{EXT_SERVICES}",
-      title   => [ $lang{SERVICE}, $lang{SUM}, $lang{PERIOD}, $lang{START}, $lang{EXPIRE}, '-' ],
+      title   => [ $lang{SERVICE}, $lang{DESCRIPTION}, $lang{SUM}, $lang{PERIOD}, $lang{START}, $lang{EXPIRE}, '-' ],
       qs      => $pages_qs,
       ID      => 'USER_ABON',
     }
@@ -1317,7 +1339,7 @@ sub abon_client {
       next;
     }
 
-    $table->addrow($line->{name}, $line->{price}, $PERIODS[ $line->{period} ], $line->{date}, $line->{next_abon}, $button);
+    $table->addrow($line->{name}, $line->{description}, $line->{price}, $PERIODS[ $line->{period} ], $line->{date}, $line->{next_abon}, $button);
   }
 
   print $table->show();

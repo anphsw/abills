@@ -14,7 +14,7 @@
 <FORM action='$SELF_URL' METHOD=POST ID='REGISTRATION' class='form-horizontal'>
     <input type=hidden name=index value=$index>
     <input type=hidden name=DOMAIN_ID value=$FORM{DOMAIN_ID}>
-    <input type=hidden name=module value=Dv>
+    <input type=hidden name=module value=Internet>
 
     <div class='box box-theme box-form center-block'>
 

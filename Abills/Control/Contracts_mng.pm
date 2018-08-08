@@ -10,6 +10,8 @@ use warnings FATAL => 'all';
 use Abills::Base qw/_bp/;
 
 our (
+  $db,
+  $admin,
   %lang,
   $users,
   $html,
@@ -28,7 +30,15 @@ sub user_contract {
 
   if ($FORM{print_add_contract}) {
     my $list = $users->contracts_list({ UID => $uid, ID => $FORM{print_add_contract}, COLS_UPPER => 1 });
+    $users->info($uid);
     $users->pi({ UID => $uid });
+    my $company_info = {};
+
+    if($users->{COMPANY_ID}){
+      use Companies;
+      my $Company = Companies->new($db, $admin, \%conf);
+      $company_info = $Company->info($users->{COMPANY_ID});
+    }
     if ($FORM{pdf}) {
       my $sig_img = "$conf{TPL_DIR}/sig.png";
       if ($list->[0]->{SIGNATURE}) {
@@ -42,11 +52,11 @@ sub user_contract {
         # open( my $fh, '>', $sig_img);
         # close $fh;
       }
-      $html->tpl_show("$conf{TPL_DIR}/$list->[0]->{template}", { %$users, %{$list->[0]}, FIO_S => $users->{FIO} }, { TITLE => "Contract" });
+      $html->tpl_show("$conf{TPL_DIR}/$list->[0]->{template}", { %$users, %$company_info, %{$list->[0]}, FIO_S => $users->{FIO} }, { TITLE => "Contract" });
       unlink $sig_img;
     }
     else {
-      $html->tpl_show(templates($list->[0]->{template}), { %$users, %{$list->[0]} });
+      $html->tpl_show(templates($list->[0]->{template}), { %$users, %$company_info, %{$list->[0]} });
     }
     return 1;
   }

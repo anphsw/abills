@@ -2,6 +2,10 @@
 
   Api
 
+=head1 VERSION
+
+  VERSION: 0.05
+
 =cut
 
 use strict;
@@ -17,6 +21,7 @@ BEGIN {
   unshift(@INC, $libpath . "Abills/$sql_type/");
   unshift(@INC, $libpath);
   unshift(@INC, $libpath . 'lib/');
+  unshift(@INC, $libpath . 'lib/Abills');
   unshift(@INC, $libpath . 'libexec/');
   unshift(@INC, $libpath . 'Abills/');
   unshift(@INC, $libpath . 'Abills/modules/');
@@ -51,20 +56,20 @@ require Abills::HTML;
 require Abills::SQL;
 require Admins;
 require Conf;
-our $db    = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { %conf, CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { %conf, CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
 our $admin = Admins->new($db, \%conf);
-our $Conf  = Conf->new($db, $admin, \%conf);
-$ENV{DEBUG}=1;
+our $Conf = Conf->new($db, $admin, \%conf);
+$ENV{DEBUG} = 1;
 require Userside::Api;
 
 do '/usr/abills/language/english.pl';
 my %request_list = (
-  'get_api_information' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_api_information'                 => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -84,12 +89,12 @@ my %request_list = (
       }
     )
   },
-  'get_city_district_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_city_district_list'              => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -109,12 +114,12 @@ my %request_list = (
       }
     )
   },
-  'get_city_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_city_list'                       => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -133,12 +138,12 @@ my %request_list = (
       }
     ),
   },
-  'get_device_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_device_list'                     => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -148,7 +153,7 @@ my %request_list = (
             "type": "object",
             "properties": {
               "snmp_version": {
-                "type": "integer"
+                "type": "string"
               },
               "model_id": {
                 "type": "integer"
@@ -180,12 +185,12 @@ my %request_list = (
       }
     ),
   },
-  'get_device_model' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_device_model'                    => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -195,15 +200,14 @@ my %request_list = (
             "type": "object",
             "properties": {
               "id": { "type": "integer" },
-              "type_id": { "type": "integer" },
+              "type_id": { "type": "string" },
               "name": { "type": "string" },
               "iface_count": { "type": "integer" }
             },
             "required": [
                     "name",
                     "id",
-                    "type_id",
-                    "iface_count"
+                    "type_id"
                   ]
           }
         },
@@ -211,21 +215,21 @@ my %request_list = (
       }
     ),
   },
-  'get_device_type' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_device_type'                     => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
         "type": "object",
         "patternProperties": {
-          "^[0-9]+$": {
+          "^[a-zA-Z0-9]+$": {
             "type": "object",
             "properties": {
-              "id": { "type": "integer" },
+              "id": { "type": "string" },
               "name": { "type": "string" }
             },
             "required": [
@@ -238,12 +242,12 @@ my %request_list = (
       }
     ),
   },
-  'get_house_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_house_list'                      => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -273,12 +277,12 @@ my %request_list = (
       }
     ),
   },
- 'get_services_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_services_list'                   => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -289,7 +293,7 @@ my %request_list = (
             "properties": {
               "id": { "type": "integer" },
               "name": { "type": "string" },
-              "cost": { "type": "integer" }
+              "cost": { "type": "string" }
             },
             "required": [
               "name",
@@ -302,12 +306,12 @@ my %request_list = (
       }
     ),
   },
-  'get_street_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_street_list'                     => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -334,11 +338,11 @@ my %request_list = (
     ),
   },
   'get_supported_change_user_data_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -358,12 +362,12 @@ my %request_list = (
       }
     ),
   },
-  'get_supported_method_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_supported_method_list'           => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -383,12 +387,12 @@ my %request_list = (
       }
     ),
   },
-  'get_system_information' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_system_information'              => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -424,12 +428,12 @@ my %request_list = (
       }
     ),
   },
-  'get_tariff_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_tariff_list'                     => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -485,12 +489,12 @@ my %request_list = (
       }
     ),
   },
-  'get_user_additional_data_type_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_user_additional_data_type_list'  => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -516,12 +520,12 @@ my %request_list = (
       }
     ),
   },
-  'get_user_group_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_user_group_list'                 => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -547,12 +551,12 @@ my %request_list = (
       }
     ),
   },
-  'get_user_history' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_user_history'                    => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -598,12 +602,12 @@ my %request_list = (
       }
     ),
   },
-  'get_user_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_user_list'                       => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -808,12 +812,12 @@ my %request_list = (
             }
     ),
   },
-  'get_user_messages' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_user_messages'                   => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -851,12 +855,12 @@ my %request_list = (
       }
     ),
   },
-  'get_user_state_list' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_user_state_list'                 => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -886,12 +890,12 @@ my %request_list = (
       }
     ),
   },
-  'get_user_tags' => {
-    params  => {
-      get_index  => 'us_api',
-      key        => '1523615231263123',
-      cat        => 'module',
-      json       => 1,
+  'get_user_tags'                       => {
+    params => {
+      get_index => 'us_api',
+      key       => '1523615231263123',
+      cat       => 'module',
+      json      => 1,
     },
     schema => q(
       {
@@ -922,35 +926,92 @@ my %request_list = (
 get_json(\%request_list);
 
 sub get_json {
-  my ($request_list)=@_;
+  my ($request_list) = @_;
 
-  my %opts;  
-  GetOptions('local' => \$opts{local}, 'userside' => \$opts{userside}, 'remote=s' => \$opts{remote}, 'debug' => \$opts{debug}, 'request=s' => \$opts{request});
+  my %opts = ();
+  GetOptions(
+    'local'        => \$opts{local},
+    'userside'     => \$opts{userside},
+    'remote=s'     => \$opts{remote},
+    'debug=s'      => \$opts{debug},
+    'request=s'    => \$opts{request},
+    'max_rows=s'   => \$opts{max_rows},
+    'start_page=s' => \$opts{start_page},
+    'uid=s'        => \$opts{uid},
+    'help'         => \$opts{help}
+  );
+
+  if ($opts{help}) {
+    help();
+  }
+
+  %LIST_PARAMS = (
+    MAX_ROWS   => $opts{max_rows},
+    START_PAGE => $opts{start_page} || 0,
+    DEBUG      => $opts{debug} || 0,
+    UID        => $opts{uid}
+  );
 
   my $count = 0;
   foreach my $request (sort keys %$request_list) {
     $count++;
     my $json = q{};
-    if($opts{request}){
+    my $start = Time::HiRes::gettimeofday();
+    if ($opts{request}) {
       $request = $opts{request};
     }
-    if($opts{remote}) {
+
+    if ($opts{remote}) {
       $json = get_remote_request($opts{remote} . '/admin/index.cgi', $request_list->{$request}->{params}, $request);
     }
-    elsif($opts{userside}){
-      $json = web_request("http://demo.userside.eu/api.php?key=keyus&cat=module&request=$request", {CURL => 1, TIMEOUT => 300});
+    elsif ($opts{userside}) {
+      my $request_url = "http://demo.userside.eu/api.php?key=keyus&cat=module&request=$request";
+
+      if ($debug > 2) {
+        print "REQUEST_URL: $request_url\n";
+      }
+
+      $json = web_request($request_url, { CURL => 1, TIMEOUT => 300 });
     }
     else {
-      userside_api($request);
+      userside_api($request, { %LIST_PARAMS });
       $json = $html->{RESULT};
     }
-    if($opts{debug}){
-      print $count . "<json>" . $json . "<json>\n";
-      print $count . ".<schema>" . Dumper($request_list->{$request}->{schema}) . "<schema>\n";
+
+    if ($opts{debug}) {
+      if ($opts{debug} > 1) {
+        print "COUNT:" . $count . "<json>";
+      }
+
+      print $json."\n";
+
+      if ($opts{debug} > 1) {
+        print "<json>\n";
+      }
+
+      if($opts{debug} > 2) {
+        print $count . ".<schema>" . Dumper($request_list->{$request}->{schema}) . "<schema>\n";
+      }
     }
+
+    my $end = Time::HiRes::gettimeofday();
+    printf("%.2f ", $end - $start);
+    #    print "\n------------------------------------------\n";
+    #    print $json;
+    #    print "\n------------------------------------------\n";
+    #    print "$request_list->{$request}->{schema}\n";
+    #    print "\n------------------------------------------\n";
+
+    #{"error":"unknown_method"}
+    if ($json =~ /\{"error":(.+)/) {
+      print $1;
+      print "\n";
+      next;
+    }
+
     ok_json_schema($json, $request_list->{$request}->{schema}, $request);
-    @{ $html->{JSON_OUTPUT} } = ();
-    if($opts{request}){
+    @{$html->{JSON_OUTPUT}} = ();
+    if ($opts{request}) {
       last;
     }
   }
@@ -960,14 +1021,35 @@ sub get_json {
 }
 
 sub get_remote_request {
-  my ($url, $params, $request)=@_;
+  my ($url, $params, $request) = @_;
 
   $url .= "?";
   foreach my $key (keys %$params) {
     $url .= "$key=$params->{$key}&";
   }
+
   $url .= "request=$request";
-  return web_request($url, {INSECURE => 1});
+
+  return web_request($url, { INSECURE => 1 });
 }
+
+sub help {
+
+  print qq{
+  local
+  userside
+  remote=
+  debug
+  request=
+  max_rows=
+  start_page=
+  uid=
+  help
+};
+
+  exit;
+  return 1;
+}
+
 
 1;

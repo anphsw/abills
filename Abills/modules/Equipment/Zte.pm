@@ -226,7 +226,8 @@ sub _zte_onu_list  {
             my $oid_name = $cols->[$i];
 
             my $num = ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /C220/i ) ? sprintf("%02d", $onu_id) : sprintf("%03d", $onu_id);
-            if ($attr->{MODEL_NAME} && ($attr->{MODEL_NAME} =~ /C220|C320/i)) {
+            if ($attr->{MODEL_NAME} && ($attr->{MODEL_NAME} =~ /C220|C320/i)
+               && ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum')) {
               $num =~ s/^0+/ /g;
             }
 
@@ -829,8 +830,10 @@ sub decode_onu {
         $result{onu} =~ s/^0/ /g;
       }
       if ($model_name =~ /C320/i ) {
-        $result{slot} =~ s/^0/ /g;
-        $result{onu} =~ s/^0/ /g;
+        if ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum') {
+          $result{slot} =~ s/^0/ /g;
+          $result{onu} =~ s/^0/ /g;
+        }
       }
     }
 
@@ -847,7 +850,9 @@ sub decode_onu {
     if ($result_type eq 'dhcp') {
       $result{slot} = ($model_name =~ /C220/i ) ? sprintf("%02d", $result{slot}) : sprintf("%02d", $result{slot});
       if ($model_name =~ /C220|C320/i) {
-        $result{slot} =~ s/^0/ /g;
+        if ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum') {
+          $result{slot} =~ s/^0/ /g;
+        }
       }
     }
 
@@ -1123,7 +1128,6 @@ sub _zte_unregister {
   #if(($attr->{NAS_INFO}->{MODEL_NAME} && $attr->{NAS_INFO}->{MODEL_NAME} eq 'C320')) {
   # GPON unreg
   foreach my $oid_type (keys %$snmp) {
-
     my $unreg_result = snmp_get({
       %{$attr},
       WALK   => 1,
@@ -1151,10 +1155,10 @@ sub _zte_unregister {
       #        }
 
       #print "$num TYPE: $oid_type // $id, $value //<br>";
-      $unregister[$num - 1]->{$oid_type} = $value;
-      $unregister[$num - 1]->{'branch'} = decode_onu($branch, { SHELF_INC => ($nas_model eq 'C320') ? 1 : 0 });
+      $unregister[$num - 1]->{$oid_type}    = $value;
+      $unregister[$num - 1]->{'branch'}     = decode_onu($branch, { SHELF_INC => ($nas_model eq 'C320') ? 1 : 0 });
       $unregister[$num - 1]->{'branch_num'} = $branch;
-      $unregister[$num - 1]->{'pon_type'} = $snmp->{$oid_type}->{TYPE} if ($snmp->{$oid_type}->{TYPE});
+      $unregister[$num - 1]->{'pon_type'}   = $snmp->{$oid_type}->{TYPE} if ($snmp->{$oid_type}->{TYPE});
     }
   }
 
@@ -1199,6 +1203,7 @@ sub _zte_unregister {
 
     $unregister[$num - 1]->{$unreg_info{$type}} = $value;
     $unregister[$num - 1]->{'branch'} = decode_onu($branch);
+    $unregister[$num - 1]->{'branch_num'} = $branch;
     $unregister[$num - 1]->{'pon_type'} = $snmp->{UNREGISTER}->{TYPE};
   }
 
@@ -1265,6 +1270,8 @@ sub _zte_mac_serial {
 
   Arguments:
     $attr
+      BRANCH_NUM
+      DEBUG
 
 =cut
 #**********************************************************
@@ -1272,21 +1279,37 @@ sub _zte_unregister_form {
   my($attr) = @_;
 
   my $snmp_oids = _zte();
+  my $debug  = $attr->{DEBUG} || 0;
 
-  my $result = snmp_get({
-    %{$attr},
-    OID  => $snmp_oids->{gpon}{LLID}{OIDS} .'.'. $attr->{BRANCH_NUM},
-    WALK => 1,
-  });
+  if($attr->{PON_TYPE} && $attr->{PON_TYPE} eq 'epon') {
+    my $onu_count = snmp_get({
+      %{$attr},
+      OID  => '.1.3.6.1.4.1.3902.1015.1010.1.7.16.1.7' . '.' . $attr->{BRANCH_NUM}
+    });
 
-  my $next_llid = 1;
-  foreach my $line (@$result) {
-    #print "$line<br>";
-    my($id)=split(/:/, $line);
-    if($next_llid != $id) {
-      last;
+    if ($onu_count =~ m/\-(\d+)/g) {
+      $attr->{LLID} = $1 + 1;
     }
-    $next_llid++;
+  }
+  elsif ($attr->{PON_TYPE} && $attr->{PON_TYPE} eq 'epon' && $snmp_oids->{$attr->{PON_TYPE}}{LLID}{OIDS}) {
+    my $result = snmp_get({
+      %{$attr},
+      OID  => $snmp_oids->{$attr->{PON_TYPE}}{LLID}{OIDS} . '.' . $attr->{BRANCH_NUM},
+      WALK => 1,
+    });
+
+    my $next_llid = 1;
+
+    foreach my $line (@$result) {
+      print "$line<br>\n" if ($debug > 3);
+      my ($id) = split(/:/, $line);
+      if ($next_llid != $id) {
+        last;
+      }
+      $next_llid++;
+    }
+
+    $attr->{LLID}       = $next_llid;
   }
 
   my $vlan_hash = get_vlans( $attr );
@@ -1304,7 +1327,6 @@ sub _zte_unregister_form {
 
   $attr->{ACTION}     = 'onu_registration';
   $attr->{ACTION_LNG} = $lang{ADD};
-  $attr->{LLID}       = $next_llid;
   $attr->{VENDOR}     //= 'zte';
 
   $html->tpl_show( _include( 'equipment_registred_onu_zte', 'Equipment' ), $attr );

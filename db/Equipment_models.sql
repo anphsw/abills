@@ -64,7 +64,7 @@ VALUES
   (163,3,7,'SE100','http://www.ericsson.com/ru/ourportfolio/products/se100?nav=productcategory004%7Cfgb_101_0192%7Cfgb_101_647',6,'','','','',2,1,0,0,4),
   (164,4,12,'C320','http://lanmarket.ua/zte/zte-zxa10-c320-2651/',16,'','','zte.snmp','',2,4,0,0,4),
   (165,4,13,'OLT LTE-8X','http://eltex.nsk.ru/catalog/lte-8x.php',20,'','','eltex.snmp','',2,4,1,0,4),
-  (166,4,22,'MA5683','',24,'','','huawei.snmp','',2,4,0,0,4),
+  (166,4,22,'MA5683','',24,'','','huawei_pon.snmp','',2,4,0,0,4),
   (167,3,2,'DGS-1210-20/C1A','http://dlink.nettech.dn.ua/catalog/item/267/',16,'','','','',2,4,0,0,3),
   (168,3,2,'DGS-1210-20/ME','http://www.dlink.ru/ua/products/1/1981_b.html',16,'','','','',2,4,0,0,3),
   (169,3,2,'DGS-3120-48TC','http://www.dlink.ru/ua/products/1/2060_b.html',44,'','','','',2,8,0,0,3),
@@ -132,7 +132,8 @@ VALUES
   (231, 1, 27, 'SPS224G4', '', 24, '', '', '', '', 2, 4, 0, 0, 1),
   (232, 1, 2, 'DGS-1100-06/ME', 'http://www.dlink.ru/ru/products/1/2048.html', 4, '', '', '', '', 1, 4, 0, 0, 1),
   (233, 6, 3, '3124-4F', '', 24, '', '', '', '', 2, 4, 0, 0, 1),
-  (234, 1, 28, 'GS-5220-16S8C', 'http://www.planet.com.tw/en/product/product.php?id=48563', 24, '', '', '', '', 2, 12, 0, 0, 4);
+  (234, 1, 28, 'GS-5220-16S8C', 'http://www.planet.com.tw/en/product/product.php?id=48563', 24, '', '', '', '', 2, 12, 0, 0, 4),
+  (235, 4, 29, 'V1600D4', 'https://ru.ftthcpe.com/product/v1600d4/', 8, '', '', '', '', 1, 4, 0, 0, 3);
 
 REPLACE INTO `equipment_extra_ports` (`model_id`, `port_number`, `port_type`, `state`, `row`)
 VALUES
@@ -271,7 +272,8 @@ VALUES
   (25, 'Raisecom', '', 'https://www.raisecom.com'),
   (26, 'SNR', '', ''),
   (27, 'Linksys', '', 'http://www.linksys.com/us/'),
-  (28, 'Planet', '', 'http://www.planet.com.tw');
+  (28, 'Planet', '', 'http://www.planet.com.tw'),
+  (29, 'V-SOLUTION', '', 'https://ru.ftthcpe.com');
 
 
 REPLACE INTO `equipment_types` (`id`, `name`)

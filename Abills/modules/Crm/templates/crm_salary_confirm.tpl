@@ -30,28 +30,6 @@
   </div>
 </div>
 <div class='form-group'>
-  <label class='control-label col-md-3'>_{BET}_</label>
-  <div class='col-md-9'>
-    <input type='text' name='BET' value='%BET%' class='form-control'>
-  </div>
-</div>
-<div class='form-group'>
-  <label class='control-label col-md-3'>_{EXTRA}_</label>
-  <div class='col-md-9'>
-    <input type='text' name='EXTRA_AMOUNT' value='%EXTRA_AMOUNT%' class='form-control'>
-  </div>
-</div>
-<div class='form-group'>
-  <label class='control-label col-md-3'>_{MONTH}_</label>
-  <div class='col-md-9'>
-  <div class='input-group'>
-    <input type='text' name='TEXT_MONTH' value='%TEXT_MONTH%' class='form-control'>
-    <span class="input-group-addon" id="basic-addon2">%YEAR% _{YEAR}_</span>
-    </div>
-  </div>
-</div>
-
-<div class='form-group'>
   <label class='control-label col-md-3'>_{SUM}_</label>
   <div class='col-md-9'>
     <input type='text' name='SUM' value='%SUM%' class='form-control'>

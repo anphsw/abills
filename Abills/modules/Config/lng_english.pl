@@ -12,4 +12,5 @@ $lang{BOTH_CASES} = 'Both cases';
 $lang{NUMBERS} = 'Numbers';
 $lang{SPECIAL_CHARS} = 'Special chars';
 $lang{LETTERS} = 'Letters';
+$lang{DEFAULT_VALUE} = 'Default value';
 1;

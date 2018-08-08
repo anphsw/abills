@@ -157,9 +157,10 @@ div.box-body ul.pagination.pagination-sm > li > a {
     padding: 2px 5px;
 }
 
-div.box-body .chosen-container.chosen-container-single {
-    width: 100% !important; /* or any value that fits your needs */
-}
+/* Uncomment this when somebody requests selects with full content width*/
+/*div.box-body .chosen-container.chosen-container-single {*/
+    /*width: 100% !important;*/
+/*}*/
 
 nav.navbar a.header-btn-link {
     color: white;

@@ -650,7 +650,8 @@ sub portal_s_page {
     my (@lang_arr) = split(/;/, $conf{LANGS});
     %LANG = ();
     foreach my $l (@lang_arr) {
-      my ($lang, $lang_name) = split(/:/, $l);
+      my $lang_name = q{};
+      ($lang, $lang_name) = split(/:/, $l);
       $lang =~ s/^\s+//;
       $LANG{$lang} = $lang_name;
     }

@@ -1,4 +1,4 @@
-<form action=$SELF>
+<form action=$SELF class='form-horizontal'>
 <input type=hidden name=index value=$index>
 <table class=form>
 <tr><td>_{TABLES}_ :</td><td><input type=text name=TABLES value='%TABLES%'>

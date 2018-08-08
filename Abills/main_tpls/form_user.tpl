@@ -39,9 +39,42 @@
         jQuery('#company_name_wrapper').remove();
       }
     });
+
+    jQuery('#LOGIN').on('input', function(){
+      var value = jQuery('#LOGIN').val();
+      doDelayedSearch(value)
+    });
   });
+  
+  var timeout = null;
+  function doDelayedSearch(val) {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(function() {
+      doSearch(val); //this is your existing function
+    }, 500);
+  };
+
+  function doSearch(val) {
+    if(!val){
+      jQuery('#LOGIN').parent().parent().removeClass('has-success').addClass('has-error');
+      return 1;
+    }
+    jQuery.post('$SELF_URL', 'header=2&get_index=' + 'msgs_unreg_requests_list' + '&login_check=' + val, function (data) {
+      console.log(data);
+      if(data === 'success'){
+        jQuery('#LOGIN').parent().parent().removeClass('has-error').addClass('has-success');
+      }
+      else{
+        jQuery('#LOGIN').parent().parent().removeClass('has-success').addClass('has-error');
+      }
+
+    });
+  }
 
 </script>
+
 <form class='form-horizontal' action='$SELF_URL' method='post' id='user_form' name='user_form' role='form'>
   <input type=hidden name=index value='$index'>
   <input type=hidden name=COMPANY_ID value='%COMPANY_ID%'>
@@ -70,7 +103,7 @@
         <label class='control-label col-xs-4 col-md-2' for='CREDIT'>_{CREDIT}_</label>
         <div class='col-xs-8 col-md-3'>
           <input id='CREDIT' name='CREDIT' value='%CREDIT%' placeholder='%CREDIT%' class='form-control'
-                 type='text' %CREDIT_READONLY%>
+                 type='number' step='0.01' min='0' %CREDIT_READONLY%>
         </div>
 
         <span class='visible-xs visible-sm col-xs-12' style='padding-top: 5px'> </span>
@@ -108,19 +141,19 @@
         <!-- DISABLE -->
         <div class='col-md-6'>
           <div class='checkbox text-center %DISABLE_COLOR%'>
-            <label>
+            <label for='ACTION_COMMENTS'>
               <input type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' /> %DISABLE%
               <strong>_{DISABLE}_</strong>
               <!--%DISABLE_MARK%-->
             </label>
               <br>
             %DISABLE_COMMENTS%
-            <input class='form-control' type='text' name='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' size='30'
+            <input class='form-control' type='text' name='ACTION_COMMENTS' ID='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' size='30'
                    style='display : none;' />%ACTION_COMMENTS%
           </div>
         </div>
 
-        <div class='col-md-6' id='PASSWORD_WRAPPER'>
+        <div class='col-md-6' id='PASSWORD_WRAPPER' %HIDE_PASSWORD%>
           <label class='control-label col-md-4'>_{PASSWD}_</label>
           <div class='col-md-8' align='left'>%PASSWORD%</div>
         </div>
@@ -142,7 +175,7 @@
         </div>
         <div class='box-body'>
           <div class='form-group' %HIDE_COMPANY%>
-            <label class='control-label col-xs-4 col-md-2'>_{COMPANY}_</label>
+            <label class='control-label col-xs-4 col-md-2' for='COMP'>_{COMPANY}_</label>
             <div class=' col-xs-8 col-md-4'>
               <div class='input-group'>
                 <input type=text name='COMP' value='%COMPANY_NAME%' ID='COMP' class='form-control'
@@ -168,7 +201,7 @@
               </div>
             </div>
             <span class='visible-xs visible-sm col-xs-12' style='padding-top: 10px'> </span>
-            <label class='control-label col-xs-4 col-md-2' for='BILL'>_{EXTRA_ABBR}_. _{BILL}_</label>
+            <label class='control-label col-xs-4 col-md-2' for='EXT_BILL'>!! _{EXTRA_ABBR}_. _{BILL}_</label>
             <div class='col-xs-8 col-md-4'>
               <input type=text name='EXT_BILL_ID' value='%EXT_BILL_ID%' ID='EXT_BILL' class='form-control' readonly>
             </div>

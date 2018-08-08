@@ -24,10 +24,12 @@ CREATE TABLE IF NOT EXISTS `abon_tariffs` (
   `user_portal` TINYINT(1) NOT NULL DEFAULT 0,
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `service_link` VARCHAR(240) NOT NULL DEFAULT '',
+  `description` VARCHAR(240) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Abon tariffs';
 
 CREATE TABLE IF NOT EXISTS `abon_user_list` (
@@ -46,4 +48,5 @@ CREATE TABLE IF NOT EXISTS `abon_user_list` (
   `fees_period` SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0,
   KEY `uid` (`uid`, `tp_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Abon user list';

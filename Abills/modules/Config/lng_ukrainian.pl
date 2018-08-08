@@ -12,5 +12,6 @@ $lang{BOTH_CASES} = 'Обидва випадки';
 $lang{NUMBERS} = 'Цифри';
 $lang{SPECIAL_CHARS} = 'Спеціальні';
 $lang{LETTERS} = 'Букви';
+$lang{DEFAULT_VALUE} = 'Значення по замовчуванню';
 
 1;

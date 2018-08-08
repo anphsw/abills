@@ -21,141 +21,34 @@ our Iptv $Iptv;
 #**********************************************************
 =head2 tv_services($attr)
 
+  Arguments:
+    $attr
+
+  Results:
+
 =cut
 #**********************************************************
 sub tv_services {
 
   $Iptv->{ACTION} = 'add';
-  $Iptv->{LNG_ACTION} = "$lang{ADD}";
+  $Iptv->{LNG_ACTION} = $lang{ADD};
 
   if ( $FORM{add} ){
     $Iptv->services_add( { %FORM } );
     if ( !$Iptv->{errno} ){
-      $html->message( 'info', $lang{SCREENS}, "$lang{ADDED}" );
+      $html->message( 'info', $lang{SCREENS}, $lang{ADDED} );
+      tv_service_info( $Iptv->{INSERT_ID} );
     }
   }
   elsif ( $FORM{change} ){
     $Iptv->services_change( \%FORM );
     if ( !_error_show( $Iptv ) ){
-      $html->message( 'info', $lang{SCREENS}, "$lang{CHANGED}" );
+      $html->message( 'info', $lang{SCREENS}, $lang{CHANGED} );
+      tv_service_info( $FORM{ID} );
     }
   }
   elsif ( $FORM{chg} ){
-    $Iptv->services_info( $FORM{chg} );
-    if ( !$Iptv->{errno} ){
-      $FORM{add_form} = 1;
-      $Iptv->{ACTION} = 'change';
-      $Iptv->{LNG_ACTION} = $lang{CHANGE};
-      if ($Iptv->{PROVIDER_PORTAL_URL}) {
-        $Iptv->{PROVIDER_PORTAL_BUTTON} = _service_portal_filter($Iptv->{PROVIDER_PORTAL_URL});
-      }
-      $html->message( 'info', $lang{SCREENS}, $lang{CHANGING} );
-
-      if ($Iptv->{MODULE}) {
-        my $Tv_service = tv_load_service( $Iptv->{MODULE}, { SERVICE_ID => $Iptv->{ID}, SOFT_EXCEPTION => 1 } );
-        if($Tv_service && $Tv_service->{VERSION}) {
-          $Iptv->{MODULE_VERSION} = $Tv_service->{VERSION};
-        }
-
-        if($Tv_service && $Tv_service->can('tp_export')) {
-          $Iptv->{TP_IMPORT} = $html->button("$lang{IMPORT} $lang{TARIF_PLAN}", "index=$index&tp_import=1&chg=$Iptv->{ID}",
-            { class => 'btn btn-default btn-success' });
-
-          if($FORM{tp_import}) {
-            my %SUBCRIBES_TYPE = (
-              0 => $lang{TARIF_PLAN},
-              1 => $lang{CHANNELS}
-            );
-
-            my $result = $Tv_service->tp_export();
-            if($FORM{tp_import} == 2) {
-              my $Tariffs = Tariffs->new( $db, \%conf, $admin );
-              my $message = '';
-              my @tp_ids = split(/,\s?/, $FORM{IDS});
-
-              foreach my $tp_id (@tp_ids) {
-                if($FORM{'TP_TYPE_'. $tp_id}) {
-                  $Iptv->channel_add({
-                    NUM       => $tp_id,
-                    NAME      => $FORM{'NAME_'. $tp_id},
-                    FILTER_ID => $tp_id,
-                  });
-
-                  _error_show($Iptv, { MESSAGE => "$lang{CHANNEL}: ".$tp_id });
-                }
-                else {
-                  $Tariffs->add({
-                    SERVICE_ID => $Iptv->{ID},
-                    NAME       => $FORM{'NAME_'. $tp_id},
-                    FILTER_ID  => $tp_id,
-                    ID         => $tp_id,
-                    MODULE     => 'Iptv'
-                  });
-                  _error_show($Tariffs, { MESSAGE => "$lang{TARIF_PLAN}: ".$tp_id });
-                }
-
-                $message .= "$Iptv->{ID} $tp_id - $FORM{'NAME_'. $tp_id} $lang{TYPE}:".
-                  $SUBCRIBES_TYPE{$FORM{'TP_TYPE_'. $tp_id}} ."\n";
-              }
-              $html->message('info', $lang{INFO}, $message);
-            }
-            else {
-              my $table = $html->table({
-                width       => '100%',
-                caption     => $lang{SUBSCRIBES},
-                title_plain => [ '#', $lang{NUM}, $lang{NAME}, $lang{TYPE} ],
-                ID          => 'IPTV_EXPORT_TPS',
-                EXPORT      => 1
-              });
-
-              foreach my $tp ( @$result ){
-                my $tp_type = $html->form_select('TP_TYPE_'.$tp->{ID}, {
-                  SELECTED => 0,
-                  SEL_HASH => \%SUBCRIBES_TYPE,
-                  NO_ID    => 1
-                });
-
-                $table->addrow(
-                  $html->form_input('IDS', $tp->{ID}, { TYPE => 'checkbox'}),
-                  $tp->{ID},
-                  $html->form_input('NAME_'.$tp->{ID}, _utf8_encode($tp->{NAME}), { EX_PARAMS => 'readonly' }),
-                  $tp_type
-                );
-              }
-
-              print $html->form_main({
-                CONTENT => $table->show( { OUTPUT2RETURN => 1 } ),
-                HIDDEN  => {
-                  index     => $index,
-                  tp_import => 2,
-                  chg       => $Iptv->{ID},
-                },
-                METHOD  => 'get',
-                SUBMIT  => { import => $lang{IMPORT} }
-              });
-
-              return 0;
-            }
-          }
-        }
-
-        if($Tv_service && $Tv_service->can('test')) {
-          if($FORM{test}) {
-            my $result = $Tv_service->test();
-            if (!$Tv_service->{errno}) {
-              $html->message('info', $lang{INFO}, "$lang{TEST}\n$result");
-            }
-            else {
-              _error_show($Tv_service, {  MESSAGE => 'Test:' });
-            }
-          }
-          else {
-            $Iptv->{SERVICE_TEST} = $html->button("$lang{TEST}", "index=$index&test=1&chg=$Iptv->{ID}",
-              { class => 'btn btn-default btn-info' });
-          }
-        }
-      }
-    }
+    tv_service_info($FORM{chg});
   }
   elsif ( $FORM{del} && $FORM{COMMENTS} ){
     $Iptv->services_del( $FORM{del} );
@@ -170,6 +63,7 @@ sub tv_services {
   #    }
   #  }
   #if ( $FORM{add_form} ){
+  _error_show( $Iptv );
 
   $Iptv->{USER_PORTAL_SEL} = $html->form_select(
     'USER_PORTAL',
@@ -192,11 +86,7 @@ sub tv_services {
     }
   );
 
-  $Iptv->{USER_PORTAL} = ($Iptv->{USER_PORTAL}) ? 'checked' : '';
-  $Iptv->{STATUS} = ($Iptv->{STATUS}) ? 'checked' : '';
   $html->tpl_show( _include( 'iptv_services_add', 'Iptv' ), { %FORM, %$Iptv });
-
-  _error_show( $Iptv );
 
   result_former({
     INPUT_DATA      => $Iptv,
@@ -204,17 +94,18 @@ sub tv_services {
     DEFAULT_FIELDS  => 'NAME,MODULE,STATUS,COMMENT',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
-      name                => $lang{NAME},
-      module              => $lang{MODULE},
-      status              => $lang{STATUS},
-      comment             => $lang{COMMENTS},
+#      name    => $lang{NAME},
+#      module  => 'Plug-in',
+#      status  => $lang{STATUS},
+      comment => $lang{COMMENTS},
     },
     SKIP_USERS_FIELDS => 1,
-    TABLE           => {
+    TABLE          => {
       width      => '100%',
       caption    => "$lang{TV} $lang{SERVICES}",
       qs         => $pages_qs,
-      ID         => 'TV SERVICES'
+      ID         => 'TV SERVICES',
+      MENU       => "$lang{ADD}:index=" . get_function_index('tv_services') . "&add_form=1:add"
     },
     MAKE_ROWS    => 1,
     TOTAL        => 1,
@@ -222,6 +113,156 @@ sub tv_services {
 
   return 1;
 }
+
+
+#**********************************************************
+=head2 tv_service_info($id)
+
+  Arguments:
+    $id
+
+  Results:
+
+=cut
+#**********************************************************
+sub tv_service_info {
+  my ($id)=@_;
+
+  $Iptv->services_info( $id );
+  if ( !$Iptv->{errno} ){
+    $FORM{add_form} = 1;
+    $Iptv->{ACTION} = 'change';
+    $Iptv->{LNG_ACTION} = $lang{CHANGE};
+    if ($Iptv->{PROVIDER_PORTAL_URL}) {
+      $Iptv->{PROVIDER_PORTAL_BUTTON} = _service_portal_filter($Iptv->{PROVIDER_PORTAL_URL});
+    }
+    $html->message( 'info', $lang{SCREENS}, $lang{CHANGING} );
+
+    if ($Iptv->{MODULE}) {
+      my $Tv_service = tv_load_service( $Iptv->{MODULE}, { SERVICE_ID => $Iptv->{ID}, SOFT_EXCEPTION => 1 } );
+      if($Tv_service && $Tv_service->{VERSION}) {
+        $Iptv->{MODULE_VERSION} = $Tv_service->{VERSION};
+      }
+
+      if($Tv_service && $Tv_service->can('tp_export')) {
+        $Iptv->{TP_IMPORT} = $html->button("$lang{IMPORT} $lang{TARIF_PLAN}", "index=$index&tp_import=1&chg=$Iptv->{ID}",
+          { class => 'btn btn-default btn-success' });
+
+        if($FORM{tp_import}) {
+          my %SUBCRIBES_TYPE = (
+            0 => $lang{TARIF_PLAN},
+            1 => $lang{CHANNELS}
+          );
+
+          my $tp_list = $Tv_service->tp_export();
+          if($FORM{tp_import} == 2) {
+            my $Tariffs = Tariffs->new( $db, \%conf, $admin );
+            my $message = '';
+            my @tp_ids = split(/,\s?/, $FORM{IDS} || q{});
+
+            foreach my $tp_id (@tp_ids) {
+              my $iptv_tp_id = 0;
+              if($FORM{'TP_TYPE_'. $tp_id}) {
+                $Iptv->channel_add({
+                  NUM       => $tp_id,
+                  NAME      => $FORM{'NAME_'. $tp_id},
+                  FILTER_ID => $tp_id,
+                });
+
+                _error_show($Iptv, { MESSAGE => "$lang{CHANNEL}: ".$tp_id });
+              }
+              else {
+                $Tariffs->add({
+                  SERVICE_ID => $Iptv->{ID},
+                  NAME       => $FORM{'NAME_'. $tp_id},
+                  FILTER_ID  => $tp_id,
+                  ID         => $tp_id,
+                  MODULE     => 'Iptv'
+                });
+                $iptv_tp_id = $Tariffs->{TP_ID};
+                _error_show($Tariffs, { MESSAGE => "$lang{TARIF_PLAN}: ".$tp_id });
+              }
+
+              $message .= "$Iptv->{ID} $tp_id - $FORM{'NAME_'. $tp_id} $lang{TYPE}:"
+                . $SUBCRIBES_TYPE{$FORM{'TP_TYPE_'. $tp_id}}
+                . (($iptv_tp_id) ? ' '. $html->button('', "index=".get_function_index('iptv_tp')."&TP_ID=".$iptv_tp_id, { class => 'change' }) : '')
+                . "\n";
+            }
+            $html->message('info', $lang{INFO}, $message);
+          }
+          else {
+            my $table = $html->table({
+              width       => '100%',
+              caption     => $lang{SUBSCRIBES},
+              title_plain => [ '#', $lang{NUM}, $lang{NAME}, $lang{TYPE} ],
+              ID          => 'IPTV_EXPORT_TPS',
+              EXPORT      => 1
+            });
+
+            foreach my $tp ( @$tp_list ){
+              my $tp_type = q{};
+
+              if($Tv_service->{TP_LIST}) {
+                $tp_type = $lang{TARIF_PLAN}.$html->form_input('TP_TYPE_' . $tp->{ID}, 0, { EX_PARAMS => 'readonly', TYPE => 'hidden' });
+              }
+              else{
+                $tp_type = $html->form_select('TP_TYPE_' . $tp->{ID}, {
+                  SELECTED => 0,
+                  SEL_HASH => \%SUBCRIBES_TYPE,
+                  NO_ID    => 1
+                });
+              }
+
+              $table->addrow(
+                $html->form_input('IDS', $tp->{ID}, { TYPE => 'checkbox'}),
+                $tp->{ID},
+                $html->form_input('NAME_'.$tp->{ID}, _utf8_encode($tp->{NAME}), { EX_PARAMS => 'readonly' }),
+                $tp_type
+              );
+            }
+
+            print $html->form_main({
+              CONTENT => $table->show( { OUTPUT2RETURN => 1 } ),
+              HIDDEN  => {
+                index     => $index,
+                tp_import => 2,
+                chg       => $Iptv->{ID},
+              },
+              METHOD  => 'get',
+              SUBMIT  => { import => $lang{IMPORT} }
+            });
+
+            return 0;
+          }
+        }
+      }
+
+      if($Tv_service && $Tv_service->can('test')) {
+        if($FORM{test}) {
+          my $result = $Tv_service->test();
+          if (!$Tv_service->{errno}) {
+            $html->message('info', $lang{INFO}, "$lang{TEST}\n$result");
+          }
+          else {
+            _error_show($Tv_service, {  MESSAGE => 'Test:' });
+          }
+        }
+
+        $Iptv->{SERVICE_TEST} = $html->button($lang{TEST}, "index=$index&test=1&chg=$Iptv->{ID}",
+            { class => 'btn btn-default btn-info' });
+      }
+
+      $Iptv->{CONSOLE} = $html->button('Console', "index=". get_function_index('iptv_console') ."&SERVICE_ID=$Iptv->{ID}",
+        { class => 'btn btn-default' });
+    }
+  }
+
+  $Iptv->{USER_PORTAL} = ($Iptv->{USER_PORTAL}) ? 'checked' : '';
+  $Iptv->{STATUS} = ($Iptv->{STATUS}) ? 'checked' : '';
+
+  return 1;
+}
+
 
 #**********************************************************
 =head2 tv_services_sel($attr)
@@ -342,7 +383,11 @@ sub tv_load_service{
     $service_name->import();
 
     if($service_name->can('new')) {
-      $api_object = $service_name->new($db, $admin, \%conf, { %$Iptv_service, HTML => $html });
+      $api_object = $service_name->new($db, $admin, \%conf, {
+        %$Iptv_service,
+        HTML => $html,
+        LANG => \%lang
+      });
     }
     else {
       $html->message( 'err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua" );

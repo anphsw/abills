@@ -36,6 +36,10 @@ my $chart_height           = 350;
 sub internet_stats {
   my ($attr) = @_;
 
+  if($FORM{DEBUG}) {
+    $Sessions->{debug}=1;
+  }
+
   my $uid = $FORM{UID};
   if($FORM{ID}) {
     print user_service_menu({
@@ -703,13 +707,13 @@ sub internet_sessions {
 
   $LIST_PARAMS{SKIP_DEL_CHECK}=1;
 
-  my $default_fields = q{DATE,DURATION_SEC,SENT,RECV,TP_ID,IP,CID,SUM,NAS_ID};
+  my $default_fields = q{DATE,DURATION_SEC,SENT,RECV,TP_NAME,IP,CID,SUM,NAS_ID};
 
   if($attr->{INTERNET_UP_SESSIONS}) {
     $default_fields = $attr->{INTERNET_UP_SESSIONS};
   }
   elsif ($user->{UID}) {
-    $default_fields = 'DATE,DURATION_SEC,SENT,RECV,TP_ID,IP,SUM';
+    $default_fields = 'DATE,DURATION_SEC,SENT,RECV,TP_NAME,IP,SUM';
   }
   else {
     if(! $FORM{UID}) {

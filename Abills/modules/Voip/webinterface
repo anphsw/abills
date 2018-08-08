@@ -110,8 +110,9 @@ if($permissions{4}) {
 }
 
 #*******************************************************************
-# Delete user from module
-# voip_user_del()
+=head2 voip_user_del($uid) - Delete user from module
+
+=cut
 #*******************************************************************
 sub voip_user_del{
   my ($uid) = @_;
@@ -1068,7 +1069,6 @@ sub voip_use{
       rows       =>
       [ [ "$lang{USERS}: " . $html->b( $Sessions->{USERS} ), "$lang{SESSIONS}: " . $html->b( $Sessions->{SESSIONS} ),
           "$lang{DURATION}: " . $html->b( $Sessions->{DURATION} ), "$lang{SUM}: " . $html->b( $Sessions->{SUM} ) ] ],
-      rowcolor   => $_COLORS[2]
     }
   );
 
@@ -1152,14 +1152,17 @@ sub voip_error{
     );
 
     form_search( { SEARCH_FORM =>
-        $html->tpl_show( _include( 'voip_errors_search', 'Voip' ), { %FORM, %{$Voip} }, { OUTPUT2RETURN => 1 } ) } );
+      $html->tpl_show(_include('voip_errors_search', 'Voip'), { %FORM, %{$Voip} },
+        { OUTPUT2RETURN => 1 }),
+      SHOW_PERIOD              =>  1
+    });
 
     if ( !$FORM{sort} ){
       $LIST_PARAMS{SORT} = 1;
       $LIST_PARAMS{DESC} = 'DESC';
     }
 
-    if ( $FORM{search} ){
+    if ( $FORM{search} && $FORM{FROM_DATE}){
       $LIST_PARAMS{INTERVAL} = "$FORM{FROM_DATE}/$FORM{TO_DATE}";
     }
 
@@ -1279,7 +1282,6 @@ sub voip_stats{
     {
       width       => '100%',
       title_plain => [ $lang{PERIOD}, $lang{DURATION}, $lang{SUM} ],
-      rowcolor    => $_COLORS[1]
     }
   );
 
@@ -1335,7 +1337,6 @@ sub voip_stats{
   $table = $html->table(
     {
       width       => '640',
-      rowcolor    => $_COLORS[1],
       caption     => $lang{TOTAL},
       title_plain => [ "$lang{SESSIONS}", "$lang{DURATION}", "$lang{SUM}" ],
       rows        => [ [ $Sessions->{TOTAL}, $Sessions->{DURATION}, $Sessions->{SUM} ] ],
@@ -1422,7 +1423,10 @@ sub voip_session_detail{
   my %ACCT_TERMINATE_CAUSES_VALUE = reverse %ACCT_TERMINATE_CAUSES;
 
   $Sessions->session_detail( { %FORM } );
-  $Sessions->{ACCT_TERMINATE_CAUSE} = "$Sessions->{ACCT_TERMINATE_CAUSE} : " . $ACCT_TERMINATE_CAUSES_VALUE{ $Sessions->{ACCT_TERMINATE_CAUSE} };
+  if($Sessions->{ACCT_TERMINATE_CAUSE}) {
+    $Sessions->{ACCT_TERMINATE_CAUSE} = "$Sessions->{ACCT_TERMINATE_CAUSE} : " . $ACCT_TERMINATE_CAUSES_VALUE{ $Sessions->{ACCT_TERMINATE_CAUSE} };
+  }
+
   $Sessions->{RECALC} = $html->button( $lang{RECALCULATE},
     "index=$index&RECALC=1&SESSION_ID=$FORM{SESSION_ID}&UID=$FORM{UID}", { BUTTON => 1 } );
 
@@ -1447,7 +1451,6 @@ sub voip_stats_calculation{
   my $table = $html->table(
     {
       width       => '640',
-      rowcolor    => $_COLORS[1],
       title_plain => [ "-", "$lang{MIN}", "$lang{MAX}", "$lang{AVG}" ],
       rows        => [ [ $lang{DURATION}, $sessions_->{MIN_DUR}, $sessions_->{MAX_DUR}, $sessions_->{AVG_DUR} ],
         [ $lang{SUM}, $sessions_->{MIN_SUM}, $sessions_->{MAX_SUM}, $sessions_->{AVG_SUM} ] ]
@@ -1472,6 +1475,12 @@ sub voip_user_stats{
   }
 
   my $uid = $FORM{UID} || 0;
+
+  if ( $FORM{SESSION_ID} ){
+    $pages_qs .= "&SESSION_ID=$FORM{SESSION_ID}";
+    voip_session_detail( { USER_INFO => $user } );
+    return 0;
+  }
 
   if ( $FORM{rows} ){
 
@@ -1505,7 +1514,6 @@ sub voip_user_stats{
   $table = $html->table(
     {
       width    => '100%',
-      rowcolor => $_COLORS[0],
       rows     => [
         [
           "$lang{FROM}: ", $html->date_fld2( 'FROM_DATE', { MONTHES => \@MONTHES } ),
@@ -1546,7 +1554,6 @@ sub voip_user_stats{
     {
       width       => '640',
       caption     => $lang{TOTAL},
-      rowcolor    => $_COLORS[1],
       title_plain => [ "$lang{SESSIONS}", "$lang{DURATION}", "$lang{SUM}" ],
       rows        => [ [ $Sessions->{TOTAL}, $Sessions->{DURATION}, $Sessions->{SUM} ] ],
       ID          => 'VOIP_TOTALS'

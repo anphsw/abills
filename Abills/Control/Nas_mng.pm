@@ -8,7 +8,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
-use Abills::Base qw(in_array convert int2ip ip2int ssh_cmd cmd);
+use Abills::Base qw(in_array convert int2ip ip2int ssh_cmd cmd _bp);
 use Nas;
 
 my %auth_types = (
@@ -288,6 +288,7 @@ sub form_nas {
     entrances        => "$lang{ADDRESS} $lang{ENTRANCES}",
     flats            => "$lang{ADDRESS} $lang{FLATS}",
     street_name      => "$lang{ADDRESS} $lang{STREETS}",
+    address_full     => "$lang{ADDRESS}",
 
     #users_count      => "$lang{CONNECTED} $lang{USERS}",
     #users_connections=> "$lang{DENSITY_OF_CONNECTIONS}",
@@ -346,11 +347,9 @@ sub form_nas {
 }
 
 #**********************************************************
-
 =head2 form_nas_add() - nas add
 
 =cut
-
 #**********************************************************
 sub form_nas_add {
 
@@ -413,17 +412,25 @@ sub form_nas_add {
     ($Nas->{NAS_MNG_IP}, $Nas->{COA_PORT}, $Nas->{SSH_PORT}, $Nas->{SNMP_PORT}) = split(':', $Nas->{NAS_MNG_IP_PORT});
   }
 
+  if ($Nas->{NAS_TYPE} && $Nas->{NAS_TYPE} eq "mikrotik_dhcp") {
+    $Nas->{WINBOX} = $html->button( "W", '', {
+      GLOBAL_URL     => "winbox://",
+      NO_LINK_FORMER => 1,
+      target         => '_blank',
+      class          => 'btn btn-info',
+      TITLE          => "Winbox",
+#      ex_params      => "data-tooltip='Winbox'",
+      });
+  }
   $html->tpl_show(templates('form_nas'), $Nas, { ID => 'form_nas' });
 
   return 1;
 }
 
 #**********************************************************
-
 =head2 form_nas_console($NAS, $attr)
 
 =cut
-
 #**********************************************************
 sub form_nas_console {
   my ($Nas_) = @_;
@@ -519,7 +526,8 @@ sub form_nas_console {
 
       push @exec_cmd, "$wait_char\t$FORM{CMD}", "$wait_char\texit";
 
-      my $res = Abills::Nas::Control::telnet_cmd3("$nas_ip:$nas_telnet_port", \@exec_cmd, { debug => $FORM{DEBUG}, LOG => $Log });
+      my $res = Abills::Nas::Control::telnet_cmd3("$nas_ip:$nas_telnet_port", \@exec_cmd, {
+        debug => $FORM{DEBUG}, LOG => $Log });
 
       $result = [ split(/\n/, $res || q{}) ];
     }
@@ -745,7 +753,7 @@ sub form_nas_console {
   my $table = $html->table(
     {
       width   => '100%',
-      caption => "Nas $lang{COMMAND}",
+      caption => "NAS $lang{COMMAND}",
       title   => [ "ID", "NAS", $lang{COMMAND}, $lang{TYPE}, $lang{COMMENTS} ],
       qs      => $pages_qs,
       ID      => 'NAS_CMD',
@@ -757,14 +765,12 @@ sub form_nas_console {
 
   foreach my $saved_cmd (@$cmd_list) {
     my $del_button = $html->button($lang{DEL}, "index=62&NAS_ID=$Nas_->{NAS_ID}&console=1&full=1&del=$saved_cmd->{id}", { DEL => 1 });
-
     my $chg_button = $html->button($lang{CHANGE}, "index=62&NAS_ID=$Nas_->{NAS_ID}&console=1&full=1&info=$saved_cmd->{id}", { CHANGE => 1 });
 
     $table->addrow($saved_cmd->{id}, $Nas_->{NAS_NAME}, $saved_cmd->{cmd}, $saved_cmd->{type}, $saved_cmd->{comments}, "$chg_button $del_button");
   }
 
   print $table->show();
-
   return 1;
 }
 
@@ -800,6 +806,13 @@ sub form_nas_test {
     my $ip     = $conf{RADIUS_TEST_IP}     || '127.0.0.1';
     my $secret = $conf{RADIUS_TEST_SECRET} || 'secretpass';
     my ($mng_port, $second_port) = ('1812', '1812');
+
+    if($ip =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+):(\d+)/) {
+      $ip          = $1;
+      $mng_port    = $2;
+      $second_port = $3;
+    }
+
     my $request_type = 'ACCESS_REQUEST';
 
     # settings for radius statistics
@@ -1391,8 +1404,8 @@ sub form_ip_pools {
     $Nas->{NEXT_POOL_ID_SEL} = $html->form_select(
       'NEXT_POOL_ID',
       {
-        SELECTED => $Nas->{NEXT_POOL_ID} || $FORM{NEXT_POLL_ID} || 0,
-        SEL_LIST  => $Nas->nas_ip_pools_list({ PAGE_ROWS => 200, SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 }),
+        SELECTED  => $Nas->{NEXT_POOL_ID} || $FORM{NEXT_POLL_ID} || 0,
+        SEL_LIST  => $Nas->nas_ip_pools_list({ PAGE_ROWS => 500, POOL_NAME => '_SHOW', COLS_NAME => 1 }),
         SEL_KEY   => 'id',
         SEL_VALUE => 'pool_name',
         NO_ID     => 1,
@@ -1717,7 +1730,8 @@ sub nas_types_list {
     'eltex'         => 'Eltex',
     'kamailio'      => 'kamailio SIP server',
     'ipn'           => 'IPoE static nas',
-    'zte_m6000'     => 'ZTE M6000'
+    'zte_m6000'     => 'ZTE M6000',
+    'huawei_me60'   => 'Huawei ME60 router'
   );
 
   if ($conf{nas_servers}) {
@@ -1728,11 +1742,9 @@ sub nas_types_list {
 }
 
 #**********************************************************
-
 =head2 form_nas_search($attr)
 
 =cut
-
 #**********************************************************
 sub form_nas_search {
   my ($attr) = @_;
@@ -1775,6 +1787,10 @@ sub form_nas_search {
     }
   }
   elsif (defined $FORM{NAS_SEARCH} && $FORM{NAS_SEARCH} == 1) {
+    if($FORM{ADDRESS_FULL}) {
+      $FORM{ADDRESS_FULL} = "*$FORM{ADDRESS_FULL}*";
+    }
+
     my $nases_list = $Nas->list(
       {
         %FORM,
@@ -1782,6 +1798,7 @@ sub form_nas_search {
         COLS_NAME => 1
       }
     );
+
     print form_nas_search_nas_table($nases_list, '');
     return 1;
   }
@@ -1826,11 +1843,9 @@ sub form_nas_search {
 }
 
 #**********************************************************
-
 =head2 form_nas_search_nas_table($nases_list, $table_caption)
 
 =cut
-
 #**********************************************************
 sub form_nas_search_nas_table {
   my ($nases_list, $table_caption) = @_;
@@ -1855,12 +1870,13 @@ sub form_nas_search_nas_table {
         $line->{nas_name},
         {
           class        => 'clickSearchResult',
-          'data-value' => "NAS_ID::$line->{nas_id}" . "#@#NAS_ID1::$line->{nas_name}" . "#@#NAS_IP::$line->{nas_ip}"
+          'data-value' => "NAS_ID::$line->{nas_id}" . "#@#NAS_ID1::". ($line->{nas_name}||q{}) . "#@#NAS_IP::$line->{nas_ip}"
         }
       ),
       $line->{nas_ip},
       $line->{nas_type},
       $line->{mac},
+      $line->{address_full}
     );
   }
 
@@ -1868,11 +1884,9 @@ sub form_nas_search_nas_table {
 }
 
 #**********************************************************
-
 =head2 form_ssh_key($nas_info)
 
 =cut
-
 #**********************************************************
 sub form_ssh_key {
   my ($nas_info) = @_;

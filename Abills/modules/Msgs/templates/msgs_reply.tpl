@@ -28,7 +28,7 @@
         <div class='checkbox'>
           <label>
             <input type='checkbox' name=REPLY_INNER_MSG value=1 %INNER_MSG% style=/>
-            <strong>_{INNER}_</strong>
+            <strong>_{PRIVATE}_</strong>
           </label>
         </div>
       </div>
@@ -120,6 +120,27 @@
   jQuery(function () {
     var MAX_FILES_COUNT = 3;
     initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
+  });
+
+  jQuery(function () {
+    var survey_select = jQuery('select#SURVEY_ID');
+    survey_select.on('change', function(){
+      var select_value = this.value;
+      if(select_value){
+        jQuery.ajax({
+          url: '$SELF_URL?get_index=msgs_admin&header=2&ajax=1&SURVEY_ID=' +  select_value + '',
+          success: function(result){
+            if(result) {
+              jQuery( "[name='REPLY_TEXT']" ).val(result);
+            }
+          }
+        });
+      }
+      else{
+        jQuery( "[name='REPLY_TEXT']" ).val("");
+      }
+    });
+
   });
 </script>
 <script src="/styles/default_adm/js/draganddropfile.js"></script>

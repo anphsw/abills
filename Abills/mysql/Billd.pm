@@ -59,7 +59,8 @@ sub change {
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'billd_plugins',
-      DATA         => $attr
+      DATA         => $attr,
+      SKIP_LOG     => 1
     }
   );
 

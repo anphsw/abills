@@ -74,27 +74,26 @@ sub list {
       ['NAS_MNG_USER',     'STR', 'nas.mng_user', 'nas.mng_user AS nas_mng_user', ],
       ['NAS_MNG_PASSWORD', 'STR', '',    "DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password"],
       ['NAS_RAD_PAIRS',    'STR', 'nas.rad_pairs', 'nas.rad_pairs AS nas_rad_pairs' ],
-      ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'b.coordx, b.coordy'      ],
-      ['NAS_IDS',          'INT', 'nas.id'              ],
+      ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'builds.coordx, builds.coordy'      ],
+      ['NAS_IDS',          'INT', 'nas.id'                               ],
+      ['ADDRESS_FULL',     'STR', "CONCAT(streets.name, ' ', builds.number)",
+        "CONCAT(streets.name, ' ', builds.number) AS address_full" ]
     ],
     { WHERE => 1,
     }
   );
 
-
   if ($attr->{SHOW_MAPS_GOOGLE}) {
-    $EXT_TABLES = "INNER JOIN builds b ON (b.id=nas.location_id)";
+    $EXT_TABLES = "INNER JOIN builds ON (builds.id=nas.location_id)";
     if ($attr->{DISTRICT_ID}) {
-      $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=b.street_id)
+      $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=builds.street_id)
       LEFT JOIN districts ON (districts.id=streets.district_id) ";
     }
   }
-  elsif ($attr->{DISTRICT_ID}) {
-    $EXT_TABLES = "INNER JOIN builds b ON (b.id=nas.location_id)";
-    if ($attr->{DISTRICT_ID}) {
-      $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=b.street_id)
+  elsif ($attr->{DISTRICT_ID} || $attr->{ADDRESS_FULL}) {
+    $EXT_TABLES = "INNER JOIN builds ON (builds.id=nas.location_id)";
+    $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=builds.street_id)
       LEFT JOIN districts ON (districts.id=streets.district_id) ";
-    }
   }
 
   my $ext_fields = '';
@@ -286,6 +285,15 @@ sub change {
     delete $attr->{NAS_MNG_PASSWORD};
   }
 
+  if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD} && ! $attr->{LOCATION_ID}) {
+    require Address;
+    Address->import();
+    my $Address = Address->new($self->{db}, $admin, $self->{conf});
+
+    $Address->build_add($attr);
+    $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
+  }
+
   $self->changes2(
     {
       CHANGE_PARAM    => 'NAS_ID',
@@ -312,6 +320,15 @@ sub add {
 
   if($admin && $admin->{DOMAIN_ID}) {
     $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
+  }
+
+  if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD} && ! $attr->{LOCATION_ID}) {
+    require Address;
+    Address->import();
+    my $Address = Address->new($self->{db}, $admin, $self->{conf});
+
+    $Address->build_add($attr);
+    $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
   }
 
   $self->query_add('nas', {
@@ -419,12 +436,14 @@ sub nas_ip_pools_list {
     [ 'IP',           'INT', 'pool.ip',                                             1],
     [ 'LAST_IP_NUM',  'INT', '(pool.ip + pool.counts) AS last_ip_num',              1],
     [ 'IP_COUNT',     'INT', 'pool.counts AS ip_count',                             1],
-    [ 'IP_FREE',      'INT', '(pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts )) AS ip_free', 1],
+    #[ 'IP_FREE',      'INT', '(pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts )) AS ip_free', 1],
     [ 'INTERNET_IP_FREE',  'INT', '(pool.counts - (SELECT COUNT(*) FROM internet_main internet WHERE internet.ip > pool.ip AND internet.ip <= pool.ip + pool.counts )) AS ip_free', 1],
     [ 'PRIORITY',     'INT', 'pool.priority',                                       1],
     [ 'SPEED',        'INT', 'pool.speed',                                          1],
     [ 'NAME',         'STR', 'pool.name AS name',                                   1],
     [ 'NAS',          'INT', 'np.nas_id',                                           1],
+    [ 'NETMASK',      'IP',  'pool.netmask',                                        1],
+    [ 'GATEWAY',      'IP',  'pool.gateway',                                        1],
     # Kills ip pools choose form
     #    [ 'NAS_ID',       'INT', 'np.nas_id',                                      1],
     [ 'STATIC',       'INT', 'pool.static',                                         1],
@@ -432,9 +451,9 @@ sub nas_ip_pools_list {
   ];
   
   if ($attr->{SHOW_ALL_COLUMNS}){
-    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+    map { $attr->{$_->[0]} = '_SHOW' unless (exists $attr->{$_->[0]} || (! $attr->{INTERNET} && $_->[0] eq 'INTERNET_IP_FREE') ) } @$search_columns;
   }
-  
+
   my $WHERE = $self->search_former($attr, $search_columns,{WHERE => 1});
   
   $self->query2("SELECT $self->{SEARCH_FIELDS} pool.id
@@ -551,13 +570,13 @@ sub ip_pools_list {
       push @WHERE_RULES, "pool.ipv6_prefix<>''";
     }
 
-    push @WHERE_RULES, "pool.static='$attr->{STATIC}'";
+    push @WHERE_RULES, "pool.static IN ($attr->{STATIC})";
 
-    my $WHERE = ($#WHERE_RULES > -1) ? join(' and ', @WHERE_RULES) : '';
+    my $WHERE = ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
     $self->query2("SELECT '', pool.name,
    pool.ip, pool.ip + pool.counts AS last_ip_num, pool.counts, pool.priority,
     INET_NTOA(pool.ip) AS first_ip, INET_NTOA(pool.ip + pool.counts) AS last_ip,
-    pool.id, pool.nas, pool.netmask as netmask, pool.gateway
+    pool.id, pool.nas, pool.netmask as netmask, pool.gateway, pool.dns
     FROM ippools pool
     WHERE $WHERE  ORDER BY $SORT $DESC",
     undef,
@@ -576,7 +595,7 @@ sub ip_pools_list {
   $self->query2("SELECT nas.name, pool.name,
    pool.ip, pool.ip + pool.counts AS last_ip_num, pool.counts, pool.priority,
     INET_NTOA(pool.ip) AS first_ip, INET_NTOA(pool.ip + pool.counts) AS last_ip,
-    pool.id, pool.nas, pool.gateway
+    pool.id, pool.nas, pool.gateway, pool.netmask as netmask
     FROM ippools pool, nas
     WHERE pool.nas=nas.id
     $WHERE  ORDER BY $SORT $DESC",
@@ -603,7 +622,8 @@ sub ip_pools_add {
  	                           });
 
   $admin->system_action_add("NAS_ID:$attr->{NAS_ID} POOLS:" . (join(',', split(/, /, $attr->{ids}))), { TYPE => 1 });
-  return 0;
+
+  return $self;
 }
 
 #**********************************************************
@@ -618,7 +638,8 @@ sub ip_pools_del {
   $self->query_del('ippools', { ID => $id });
 
   $admin->system_action_add("POOL:$id", { TYPE => 10 });
-  return 0;
+
+  return $self;
 }
 
 #**********************************************************

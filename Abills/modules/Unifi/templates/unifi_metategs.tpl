@@ -10,7 +10,7 @@
   <link href='/styles/default_adm/css/bootstrap.min.css' rel='stylesheet'>
   <link href='/styles/default_adm/css/chosen.min.css' rel='stylesheet'>
   <link href='/styles/default_adm/css/font-awesome.min.css' rel='stylesheet'>
-  <link href='/guest/s/default/login.css' rel='stylesheet'>
+  <link href='login.css' rel='stylesheet'>
 
   <script src='/styles/default_adm/js/jquery.min.js'></script>
   <script src='/styles/default_adm/js/bootstrap.min.js'></script>

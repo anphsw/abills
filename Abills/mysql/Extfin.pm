@@ -739,11 +739,12 @@ sub paids_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} > 0 || $PG > 0 ){
-    $self->query2( "SELECT count(p.id) AS total, SUM(sum) AS sum
+    $self->query2( "SELECT COUNT(p.id) AS total, SUM(sum) AS sum
       FROM extfin_paids p
     INNER JOIN admins a ON (a.aid=p.aid)
     LEFT JOIN extfin_paids_types pt ON (p.type_id=pt.id)
     INNER JOIN users u ON (u.uid=p.uid)
+    $EXT_TABLES
     $WHERE;",
       undef,
       { INFO => 1 }

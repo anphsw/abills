@@ -9,6 +9,8 @@ $lang{NOT_CHANGED}='No changed';
 $lang{NOT_DELETED}='No deleted';
 $lang{SPENDING}='Spending';
 $lang{COMING}='Coming';
+$lang{SPENDING_REPORT}='Spending report';
+$lang{COMING_REPORT}='Coming report';
 $lang{SALARY}='Salary';
 $lang{NOT_ADDED}='Not edded';
 
@@ -21,6 +23,7 @@ $lang{HOURLY}='Hourly';
 $lang{BET_OVERTIME}='Bet overtime';
 $lang{CHECK_DATA_AND_CHOOSE_CASHBOX}='Check data choose cashbox';
 $lang{PAYED}='Payed';
+$lang{SUM_TO_PAY}='Amount to pay';
 $lang{REFERENCE_WORKS}='Reference works';
 $lang{RATIO}='Ratio';
 $lang{WORK}='Work';
@@ -44,5 +47,11 @@ $lang{CONTRACT_SIGNED}='Contract signed';
 $lang{THE_WORKS}='The works';
 $lang{CONVERSION}='Conversion';
 $lang{LEAD_ADDED_MESSAGE}='Lead added';
+$lang{BIND_USER}='Bind user';
+
+$lang{PROGRESS_BAR}='Progress Bar';
+
+$lang{PLANNED}='Planned';
+$lang{NO_TYPE}='No Type';
 
 1

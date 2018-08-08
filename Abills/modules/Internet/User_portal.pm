@@ -42,7 +42,15 @@ sub internet_user_info {
   my $service_status = sel_status({ HASH_RESULT => 1 });
   our $Isg;
   if ($conf{INTERNET_ISG}) {
-    require Dv::Cisco_isg;
+    require Internet::Cisco_isg;
+
+    $Nas->list({
+      NAS_TYPE  => 'cisco_isg',
+      PAGE_ROWS => 10000,
+      LIST2HASH => 'nas_id,nas_name'
+    });
+
+    my $nas_list = $Nas->{list_hash};
     #Check deposit and disable STATUS
     my $list = $Internet->list(
       {
@@ -51,7 +59,8 @@ sub internet_user_info {
         DEPOSIT        => '_SHOW',
         INTERNET_STATUS=> '_SHOW',
         TP_NAME        => '_SHOW',
-        TP_CREDIT      => '>0',
+        ONLINE_NAS_ID  => join(';', keys %$nas_list),
+        #TP_CREDIT      => '>0',
         PAYMENTS_TYPE  => 0,
         COLS_NAME      => 1
       }
@@ -71,7 +80,7 @@ sub internet_user_info {
       return 0;
     }
 
-    if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "account-status-query", { USER_NAME => $user->{LOGIN} })) {
+    if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "account-status-query", { USER_NAME => $user->{LOGIN}, NAS_ID => $list->[0]->{online_nas_id} })) {
       return 0;
     }
 
@@ -83,7 +92,8 @@ sub internet_user_info {
 
           #Deactive cure service (TP Service)
           if ($Isg->{CURE_SERVICE} =~ /TP/) {
-            if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "deactivate-service", { USER_NAME    => $user->{LOGIN},
+            if (!cisco_isg_cmd($user->{REMOTE_ADDR}, "deactivate-service", {
+                USER_NAME    => $user->{LOGIN},
                 CURE_SERVICE => $Isg->{CURE_SERVICE},
                 SERVICE_NAME => $service_name  })) {
 
@@ -118,9 +128,10 @@ sub internet_user_info {
   if ($FORM{activate}) {
     #my $old_status = $Internet->{STATUS};
     $Internet->change({
-      UID    => $uid,
-      STATUS => 0,
-      CID    => ($Isg->{ISG_CID_CUR}) ? $Isg->{ISG_CID_CUR} : undef,
+      UID      => $uid,
+      ID       => $FORM{ID},
+      STATUS   => 0,
+      CID      => ($Isg->{ISG_CID_CUR}) ? $Isg->{ISG_CID_CUR} : undef,
       ACTIVATE => ($conf{INTERNET_USER_ACTIVATE_DATE}) ? $DATE : undef
     });
 
@@ -302,7 +313,13 @@ sub internet_user_info {
 
 
 #**********************************************************
-=head2 internet_isg($attr)
+=head2 internet_isg($Service)
+
+  Arguments:
+    $Service
+
+  Returns:
+
 
 =cut
 #**********************************************************
@@ -315,7 +332,9 @@ sub internet_isg {
     $html->message('err', $lang{ERROR}, "$lang{USER}  $lang{DISABLE}", { ID => 16 });
   }
   elsif ($Internet_->{CID} ne $Isg->{ISG_CID_CUR} || ! $Internet_->{CID}) {
-    $html->message('info', $lang{INFO}, "$lang{NOT_ACTIVE}\n\n CID: ". ($Isg->{ISG_CID_CUR} || q{n/d}) ."\n IP: $user->{REMOTE_ADDR} ", { ID => 121  });
+    $html->message('info', $lang{INFO}, "$lang{NOT_ACTIVE}\n\n CID: ". ($Isg->{ISG_CID_CUR} || q{n/d})
+      ."\n IP: $user->{REMOTE_ADDR} ", { ID => 121  });
+
     $html->form_main(
       {
         CONTENT => '',
@@ -338,7 +357,6 @@ sub internet_isg {
     my $table = $html->table(
       {
         width    => '600',
-        rowcolor => 'row_active',
         rows     => [
           [
               ($Isg->{ISG_SESSION_DURATION}) ? "$lang{SESSIONS} $lang{DURATION}: " . sec2time($Isg->{ISG_SESSION_DURATION}, { str => 1 }) : '',
@@ -563,7 +581,7 @@ sub internet_user_chg_tp {
 
   my $period = $FORM{period} || 0;
   if (!$conf{INTERNET_USER_CHG_TP}) {
-    $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", "$lang{NOT_ALLOW}", { ID => 140 });
+    $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 140 });
     return 0;
   }
 
@@ -571,8 +589,10 @@ sub internet_user_chg_tp {
 
   if ($uid) {
     $Internet = $Internet->info($uid, {
-      DOMAIN_ID => $user->{DOMAIN_ID}
+      DOMAIN_ID  => $user->{DOMAIN_ID},
+      ID         => $FORM{ID}
     });
+
     if ($Internet->{TOTAL} < 1) {
       $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 22 });
       return 0;
@@ -591,7 +611,6 @@ sub internet_user_chg_tp {
   if ($conf{FEES_PRIORITY} && $conf{FEES_PRIORITY} =~ /bonus/ && $user->{EXT_BILL_DEPOSIT}) {
     $user->{DEPOSIT} += $user->{EXT_BILL_DEPOSIT};
   }
-  my %CHANGE_PARAMS = ();
 
   if ($user->{GID}) {
     #Get user groups
@@ -650,22 +669,15 @@ sub internet_user_chg_tp {
       }
       else {
         $Internet->change({
-          TP_ID => $FORM{TP_ID},
-          ID    => $FORM{ID},
-          UID   => $uid,
-          STATUS=> ($Internet->{STATUS} == 5) ? 0 : $FORM{STATUS}
+          TP_ID    => $FORM{TP_ID},
+          ID       => $FORM{ID},
+          UID      => $uid,
+          STATUS   => ($Internet->{STATUS} == 5) ? 0 : $FORM{STATUS},
+          ACTIVATE => ($Internet->{ACTIVATE} ne '0000-00-00') ? "$DATE" : undef,
+          ID       => $FORM{ID}
         });
 
-        $user->change(
-          $uid,
-          {
-            ACTIVATE => ($user->{ACTIVATE} ne '0000-00-00') ? "$DATE" : undef,
-            UID      => $uid,
-            %CHANGE_PARAMS
-          }
-        );
-
-        if (! _error_show($user)) {
+        if (! _error_show($Internet)) {
           $html->message('info', $lang{CHANGED}, $lang{CHANGED});
           $Internet->info($uid);
           service_get_month_fee($Internet) if (!$FORM{INTERNET_NO_ABON});
@@ -708,8 +720,8 @@ sub internet_user_chg_tp {
 
       $Internet->{ABON_DATE} = undef;
       if ($Internet->{MONTH_ABON} > 0 && !$Internet->{STATUS} && !$user->{DISABLE}) {
-        if ($user->{ACTIVATE} ne '0000-00-00') {
-          my ($Y, $M, $D) = split(/-/, $user->{ACTIVATE}, 3);
+        if ($Internet->{ACTIVATE} ne '0000-00-00') {
+          my ($Y, $M, $D) = split(/-/, $Internet->{ACTIVATE}, 3);
           $M--;
           $Internet->{ABON_DATE} = POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, $M, ($Y - 1900), 0, 0, 0) + 31 * 86400 + (($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} * 86400 : 0))));
         }
@@ -771,11 +783,11 @@ sub internet_user_chg_tp {
           #Take fees
           if (!$Internet->{STATUS}) {
             service_get_month_fee($Internet) if (!$FORM{INTERNET_NO_ABON});
-            $user->change(
-              $user->{UID},
+            $Internet->change(
               {
                 ACTIVATE => $DATE,
-                UID      => $user->{UID}
+                UID      => $user->{UID},
+                ID       => $FORM{ID}
               }
             );
           }
@@ -1335,56 +1347,56 @@ IP discovery function
 sub internet_dhcp_get_mac {
   my ($ip, $attr) = @_;
 
-  require Dhcphosts;
-  Dhcphosts->import();
-  my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
+  $Internet->info(0, {
+    IP => $ip
+  });
 
-  $Dhcphosts->host_info(0, { IP => $ip });
-  #my $MAC    = '';
   my %PARAMS = ();
 
-  if ($Dhcphosts->{TOTAL} > 0) {
+  if ($Internet->{TOTAL} > 0) {
     %PARAMS = (
-      IP     => $Dhcphosts->{IP},
-      MAC    => $Dhcphosts->{MAC},
-      NAS_ID => $Dhcphosts->{NAS_ID},
-      PORTS  => $Dhcphosts->{PORTS},
-      VID    => $Dhcphosts->{VID},
-      UID    => $Dhcphosts->{UID},
-      SERVER_VID => $Dhcphosts->{SERVER_VID}
+      IP     => $Internet->{IP},
+      MAC    => $Internet->{CID},
+      NAS_ID => $Internet->{NAS_ID},
+      PORTS  => $Internet->{PORT},
+      VID    => $Internet->{VLAN},
+      UID    => $Internet->{UID},
+      SERVER_VID => $Internet->{SERVER_VLAN}
     );
 
     if ($attr->{CHECK_STATIC}) {
       $PARAMS{STATIC} = 1;
     }
-    if ($PARAMS{MAC} ne '00:00:00:00:00:00') {
+
+    if ($PARAMS{MAC} && $PARAMS{MAC} ne '00:00:00:00:00:00') {
       return \%PARAMS;
     }
   }
 
   #Get mac from DB
   if ($conf{DHCPHOSTS_LEASES} && $conf{DHCPHOSTS_LEASES} eq 'db') {
-    my $list = $Dhcphosts->leases_list({
-      IP          => $ip,
+    my $list = $Sessions->online({
+      FRAMED_IP_ADDRESS => $ip,
       VLAN        => '_SHOW',
       SERVER_VLAN => '_SHOW',
       UID         => '_SHOW',
-      STATE       => 2,
+      CID         => '_SHOW',
+      NAS_TYPE    => '!cisco_isg',
+    #  STATE       => 2,
       COLS_NAME   => 1,
       COLS_UPPER  => 1
     });
 
-    if ($Dhcphosts->{TOTAL} > 0) {
+    if ($Sessions->{TOTAL} > 0) {
       %PARAMS        = %{ $list->[0] };
-      $PARAMS{MAC}   = _mac_former($list->[0]->{HARDWARE});
-      $PARAMS{PORTS} = $list->[0]->{PORT};
-      $PARAMS{VID}   = $list->[0]->{VLAN};
-      $PARAMS{UID}   = $list->[0]->{UID};
-      $PARAMS{IP}    = int2ip($list->[0]->{IP});
-      $PARAMS{SERVER_VID} = $list->[0]->{SERVER_VLAN};
+      $PARAMS{MAC}   = _mac_former($list->[0]->{cid});
+      $PARAMS{PORT}  = $list->[0]->{nas_port_id};
+      $PARAMS{VLAN}  = $list->[0]->{vlan};
+      $PARAMS{UID}   = $list->[0]->{uid};
+      $PARAMS{IP}    = int2ip($list->[0]->{framed_ip_address});
+      $PARAMS{SERVER_VLAN} = $list->[0]->{server_vlan};
     }
 
-    load_module('Dhcphosts', $html);
     $PARAMS{CUR_IP}=$ip;
     if (defined($PARAMS{NAS_ID}) && $PARAMS{NAS_ID} == 0 && $PARAMS{CIRCUIT_ID} ) {
       ($PARAMS{NAS_ID}, $PARAMS{PORTS}, $PARAMS{VLAN}, $PARAMS{NAS_MAC})=dhcphosts_o82_info({ %PARAMS });
@@ -1394,40 +1406,40 @@ sub internet_dhcp_get_mac {
   }
 
   #Get mac from leases file
-  else {
-    my $logfile = $conf{DHCPHOSTS_LEASES} || '/var/db/dhcpd/dhcpd.leases';
-    my %list    = ();
-    my $l_ip    = '';
-
-    if(open(my $fh, '<', $logfile)) {
-      while (<$fh>) {
-        next if /^#|^$/;
-
-        if (/^lease (\d+\.\d+\.\d+\.\d+)/) {
-          $l_ip = $1;
-          $list{$ip}{ip} = sprintf("%-17s", $ip);
-        }
-        elsif (/^\s*hardware ethernet (.*);/) {
-          my $mac = $1;
-          if ($ip eq $l_ip) {
-            $list{$ip}{hardware} = sprintf("%s", $mac);
-            if ($list{$ip}{active}) {
-              $PARAMS{MAC} = $list{$ip}{hardware};
-              return \%PARAMS;
-            }
-          }
-        }
-        elsif (/^\s+binding state active/) {
-          $list{$ip}{active} = 1;
-        }
-      }
-      close($fh);
-    }
-    else {
-      $html->message('err', $lang{ERROR}, "Can't read file '$logfile' $!")
-    }
-    $PARAMS{MAC} = ($list{$ip} && $list{$ip}{hardware}) ? $list{$ip}{hardware} : '';
-  }
+#  else {
+#    my $logfile = $conf{DHCPHOSTS_LEASES} || '/var/db/dhcpd/dhcpd.leases';
+#    my %list    = ();
+#    my $l_ip    = '';
+#
+#    if(open(my $fh, '<', $logfile)) {
+#      while (<$fh>) {
+#        next if /^#|^$/;
+#
+#        if (/^lease (\d+\.\d+\.\d+\.\d+)/) {
+#          $l_ip = $1;
+#          $list{$ip}{ip} = sprintf("%-17s", $ip);
+#        }
+#        elsif (/^\s*hardware ethernet (.*);/) {
+#          my $mac = $1;
+#          if ($ip eq $l_ip) {
+#            $list{$ip}{hardware} = sprintf("%s", $mac);
+#            if ($list{$ip}{active}) {
+#              $PARAMS{MAC} = $list{$ip}{hardware};
+#              return \%PARAMS;
+#            }
+#          }
+#        }
+#        elsif (/^\s+binding state active/) {
+#          $list{$ip}{active} = 1;
+#        }
+#      }
+#      close($fh);
+#    }
+#    else {
+#      $html->message('err', $lang{ERROR}, "Can't read file '$logfile' $!")
+#    }
+#    $PARAMS{MAC} = ($list{$ip} && $list{$ip}{hardware}) ? $list{$ip}{hardware} : '';
+#  }
 
   $PARAMS{CUR_IP}=$ip;
   return \%PARAMS;
@@ -1589,7 +1601,7 @@ sub internet_holdup_service {
 
   if (($user->{INTERNET_STATUS} && $user->{INTERNET_STATUS} == 3) || $user->{DISABLE}) {
     $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .
-      $html->button("$lang{ACTIVATE}", "index=$index&del=1&sid=$sid", { BUTTON => 1, MESSAGE => "$lang{ACTIVATE}?" }) );
+      $html->button($lang{ACTIVATE}, "index=$index&del=1&sid=$sid", { BUTTON => 1, MESSAGE => "$lang{ACTIVATE}?" }) );
     return '';
   }
 

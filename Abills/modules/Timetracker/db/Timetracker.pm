@@ -29,11 +29,9 @@ sub new {
 }
 
 #**********************************************************
-
 =head2  add()
 
 =cut
-
 #**********************************************************
 sub add {
   my $self = shift;
@@ -45,11 +43,9 @@ sub add {
 }
 
 #**********************************************************
-
 =head2  add_element()
 
 =cut
-
 #**********************************************************
 sub add_element {
   my $self = shift;
@@ -61,11 +57,9 @@ sub add_element {
 }
 
 #**********************************************************
-
 =head2  del() - Delete user info from all tables
 
 =cut
-
 #**********************************************************
 sub del {
   my $self = shift;
@@ -77,11 +71,9 @@ sub del {
 }
 
 #**********************************************************
-
 =head2  del_element() - Delete element
 
 =cut
-
 #**********************************************************
 sub del_element {
   my $self = shift;
@@ -93,11 +85,9 @@ sub del_element {
 }
 
 #**********************************************************
-
 =head2 list_element($attr) - list for element
 
 =cut
-
 #**********************************************************
 sub list_element {
   my $self = shift;
@@ -106,19 +96,8 @@ sub list_element {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  #my $PG        = ($attr->{PG})        ? $attr->{PG}             : 0;
-  #my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
-
-  # my $WHERE = $self->search_former( $attr, [
-  #     [ 'ID', 'INT', 'id', 1],
-  #     [ 'ELEMENT', 'STR', 'element', 1 ],
-  #   ],
-  #   { WHERE => 1,
-  #   }
-  # );
-
   $self->query2(
-    "SELECT id, element, priority
+    "SELECT id, element, priority, external_system
      FROM timetracker_element ORDER BY $SORT $DESC;",
     undef,
     { COLS_NAME => 1 }
@@ -128,11 +107,9 @@ sub list_element {
 }
 
 #**********************************************************
-
 =head2 list_for_timetracker ($attr) - list for timetracker
 
 =cut
-
 #**********************************************************
 sub list_for_timetracker {
   my $self = shift;
@@ -163,11 +140,9 @@ sub list_for_timetracker {
 }
 
 #**********************************************************
-
 =head2 change_elementS($attr) -  Change element
 
 =cut
-
 #**********************************************************
 sub change_element {
   my $self = shift;

@@ -18,11 +18,9 @@ package Log;
 =cut
 
 use strict;
-use base qw(Exporter main);
+use base qw(Exporter dbcore);
 use POSIX qw(strftime);
 our @EXPORT_OK = qw(log_add log_print);
-
-#our @ISA = ("main");
 
 # Log levels. For details see <syslog.h>
 our %log_levels = (
@@ -116,7 +114,7 @@ sub log_list {
     }
   );
 
-  $self->query2("SELECT l.date, l.log_type, l.action, l.user, l.message, l.nas_id
+  $self->query("SELECT l.date, l.log_type, l.action, l.user, l.message, l.nas_id
   FROM errors_log l
   $WHERE
   ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -127,7 +125,7 @@ sub log_list {
   my $list = $self->{list} || [];
   $self->{OUTPUT_ROWS} = $self->{TOTAL};
 
-  $self->query2("SELECT l.log_type, COUNT(*) AS count
+  $self->query("SELECT l.log_type, COUNT(*) AS count
   FROM errors_log l
   $WHERE
   GROUP BY 1
@@ -260,7 +258,7 @@ sub log_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
+  $self->query("INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
  VALUES (NOW(), ?, ?, ?, ?, ?);",
  'do',
  { Bind => [ $attr->{LOG_TYPE}, 
@@ -283,7 +281,7 @@ sub log_del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("DELETE FROM errors_log WHERE user= ? ;", 'do', { Bind => [ $attr->{LOGIN} ] });
+  $self->query("DELETE FROM errors_log WHERE user= ? ;", 'do', { Bind => [ $attr->{LOGIN} ] });
 
   return 0;
 }
@@ -306,7 +304,7 @@ sub log_reports {
   my ($attr) = @_;
 
   if ($attr->{RETRIES}) {
-    $self->query2("SELECT user, COUNT(*) AS count FROM errors_log WHERE date>CURDATE()
+    $self->query("SELECT user, COUNT(*) AS count FROM errors_log WHERE date>CURDATE()
      GROUP BY user
      ORDER BY 2 DESC
      LIMIT $attr->{RETRIES};", undef, $attr);

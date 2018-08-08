@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS `iptv_main` (
-  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Billing service ID',
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `filter_id` VARCHAR(100) NOT NULL DEFAULT '',
@@ -11,13 +11,13 @@ CREATE TABLE IF NOT EXISTS `iptv_main` (
   `dvcrypt_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `expire` DATE NOT NULL DEFAULT '0000-00-00',
   `activate` DATE NOT NULL DEFAULT '0000-00-00',
-  `subscribe_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `subscribe_id` INT(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'External service ID for syncronization',
   `email` VARCHAR(100) NOT NULL DEFAULT '',
-  `service_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  `service_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Service id for plugin connections',
   PRIMARY KEY (`id`),
   KEY `tp_id` (`tp_id`)
 )
-  COMMENT = 'IPTV users settings';
+  DEFAULT CHARSET=utf8 COMMENT = 'IPTV users settings';
 
 CREATE TABLE IF NOT EXISTS `iptv_tps` (
   `id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS `iptv_tps` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`)
 )
-  COMMENT = 'IPTV TPs';
+  DEFAULT CHARSET=utf8 COMMENT = 'IPTV TPs';
 
 CREATE TABLE IF NOT EXISTS `iptv_channels` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `iptv_channels` (
   UNIQUE KEY `name` (`name`),
   UNIQUE KEY `num` (`num`)
 )
-  COMMENT = 'IPTV channels';
+  DEFAULT CHARSET=utf8 COMMENT = 'IPTV channels';
 
 CREATE TABLE IF NOT EXISTS `iptv_ti_channels` (
   `interval_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `iptv_ti_channels` (
   `mandatory` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   UNIQUE KEY `channel_id` (`channel_id`, `interval_id`)
 )
-  COMMENT = 'IPTV channels prices';
+  DEFAULT CHARSET=utf8 COMMENT = 'IPTV channels prices';
 
 CREATE TABLE IF NOT EXISTS `iptv_users_channels` (
   `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `iptv_users_channels` (
   `changed` DATETIME NOT NULL,
   UNIQUE KEY `id` (`id`, `channel_id`, `tp_id`)
 )
-  COMMENT = 'Iptv users channels';
+  DEFAULT CHARSET=utf8 COMMENT = 'Iptv users channels';
 
 
 CREATE TABLE IF NOT EXISTS `iptv_calls` (
@@ -96,9 +96,10 @@ CREATE TABLE IF NOT EXISTS `iptv_calls` (
   `join_service` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `turbo_mode` VARCHAR(30) NOT NULL DEFAULT '',
   `guest` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `service_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   KEY `acct_session_id` (`acct_session_id`),
   KEY `uid` (`uid`)
-) COMMENT = 'Iptv online';
+) DEFAULT CHARSET=utf8 COMMENT = 'Iptv online';
 
 
 CREATE TABLE IF NOT EXISTS `iptv_subscribes` (
@@ -112,7 +113,7 @@ CREATE TABLE IF NOT EXISTS `iptv_subscribes` (
   PRIMARY KEY (`id`),
   KEY `ext_id` (`ext_id`)
 )
-  COMMENT = 'IPTV Subscribes';
+  DEFAULT CHARSET=utf8 COMMENT = 'IPTV Subscribes';
 
 
 CREATE TABLE IF NOT EXISTS `iptv_screens` (
@@ -126,7 +127,7 @@ CREATE TABLE IF NOT EXISTS `iptv_screens` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `tp_id` (`tp_id`, `num`)
 )
-  COMMENT = 'IPTV Extra screens';
+  DEFAULT CHARSET=utf8 COMMENT = 'IPTV Extra screens';
 
 
 CREATE TABLE IF NOT EXISTS `iptv_users_screens` (
@@ -138,7 +139,7 @@ CREATE TABLE IF NOT EXISTS `iptv_users_screens` (
   `hardware_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   UNIQUE KEY `service_id` (`service_id`, `screen_id`)
 )
-  COMMENT = 'IPTV Extra screens';
+  DEFAULT CHARSET=utf8 COMMENT = 'IPTV Extra screens';
 
 
 CREATE TABLE IF NOT EXISTS `iptv_services` (
@@ -147,7 +148,7 @@ CREATE TABLE IF NOT EXISTS `iptv_services` (
   `module` VARCHAR(24) NOT NULL DEFAULT '',
   `status` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
   `comment` VARCHAR(250) DEFAULT '',
-  `login` VARCHAR(24) NOT NULL DEFAULT '',
+  `login` VARCHAR(72) NOT NULL DEFAULT '',
   `password` BLOB,
   `url` VARCHAR(120) NOT NULL DEFAULT '',
   `user_portal` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
@@ -158,5 +159,5 @@ CREATE TABLE IF NOT EXISTS `iptv_services` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 )
-  COMMENT = 'IPTV Services';
+  DEFAULT CHARSET=utf8 COMMENT = 'IPTV Services';
 

@@ -16,16 +16,15 @@ use lib $libpath . 'lib';
 use lib $libpath . 'Abills/mysql';
 use lib $libpath . 'Abills';
 
-require 'libexec/config.pl';
+do 'libexec/config.pl';
 $base_dir //= $libpath;
 
 use Abills::Defs;
-
 use Abills::Base qw/_bp parse_arguments in_array/;
-use Abills::Misc;
-
 use Abills::SQL;
 use Admins;
+
+require Abills::Misc;
 
 my $db = Abills::SQL->connect(@conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbpasswd'},
   { CHARSET => $conf{dbcharset} });
@@ -41,7 +40,7 @@ if ( $ARGS{DEBUG} ) {
   _bp(undef, undef, { SET_ARGS => { TO_CONSOLE => 1 } });
 }
 
-require 'language/english.pl';
+do 'language/english.pl';
 
 main();
 exit 0;

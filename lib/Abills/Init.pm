@@ -34,8 +34,8 @@ our $libpath;
 BEGIN {
   our $Bin;
   use FindBin '$Bin';
-  
-  #  $libpath = $Bin . '/../'; #assuming we are in /usr/abills/whatever
+
+  $libpath = $Bin . '/../'; #assuming we are in /usr/abills/whatever
   if ( $Bin =~ m/\/abills(\/)/ ) {
     $libpath = substr($Bin, 0, $-[1]);
   }

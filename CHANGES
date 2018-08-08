@@ -1,8 +1,276 @@
 Список запланированных изменений [[abills:todo:todo|Todo List]]
 
-**В системе изменился тип ssh ключей для управления оборудованием с DSA на RSA. Для коректной работы обновите все ключи (/usr/abills/id_dsa.*) при помощи утилиты misc/certs_create.sh ssh [user_name]**
+**В системе изменился тип ssh ключей для управления оборудованием с DSA на RSA. Для коректной работы обновите все ключи (/usr/abills/Certs/id_dsa.*) при помощи утилиты misc/certs_create.sh ssh [user_name]**
+
+====0.78====
+07.08.2018
+  * ''Internet''. Добавлена возможность оставлять комментарий к каждому сервису абонента.
+  * ''Internet''. При создании тарифного плана можно создать новый тип снятия.
+  * ''Msgs''. [[abills:docs:manual:admin:Msgs:msgs_admin#forma_sozdanija_soobschenija_klientu|Периодические оповещения абонентов]]
+  * ''Storage''. В подпункте Установлено добавлен фильтр по товару и типу товара.
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=2523301#id-%D0%97%D0%B0%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%D0%A1%D0%BA%D0%BB%D0%B0%D0%B4%D0%B0-%D0%94%D0%BE%D0%B1%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%D0%BD%D0%BE%D0%B2%D1%8B%D1%85%D1%81%D0%B2%D0%BE%D0%B9%D1%81%D1%82%D0%B2%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%B0|Дополнительные свойства товара]]
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=2523301|Единицы измерения перенесены в базу данных. Появилась возможность добавлять свои единицы измерения]]
+  * ''Paysys''. В модуль выписок для юр. лиц от ПриватБанка добавлена возможность работы с несколькими счетами.
+  * ''Tasks''. [[abills:docs:modules:tasks:ru#dobavlenie_tipa_zadachi|Добавлен плагин периодических задач]]
+  * ''СОРМ''. Добавлена возможность выгрузки периодических снятий в модуле Abon.
+  * ''Rwizard''. Добавлена поддержка модуля Multidoms.
+  * ''Msgs''. Улучшения отчетов.
+  * В серверах доступа типа Mikrotik появилась кнопка для открытия [[abills:docs:nas:mikrotik:abills?s[]=winbox|Winbox]]
+  * [[abills:docs:manual:admin:form_info_fields|Новый тип информационного поля - Язык]]
+  * [[abills:docs:manual:admin:form_info_fields|Новый тип информационного поля - Часовой пояс]]
+
+<accordion title="20180807"><panel title="MySQL"><code mysql>
+CREATE TABLE IF NOT EXISTS  `storage_property` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(30) NOT NULL DEFAULT '',
+  `comments` VARCHAR(60) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage property table';
+
+CREATE TABLE IF NOT EXISTS `storage_articles_property` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `storage_incoming_articles_id` INT(10) UNSIGNED DEFAULT '0',
+  `property_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `value` TEXT,
+  PRIMARY KEY (`id`)
+)
+DEFAULT CHARSET=utf8 COMMENT = 'Storage items property table';
+
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE IF NOT EXISTS  `storage_measure` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(30) NOT NULL DEFAULT '',
+  `comments` VARCHAR(60) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage measuring';
+
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (0, '$lang{UNIT}');
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (1, '$lang{METERS}');
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (2, '$lang{SM}');
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (3, '$lang{MM}');
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (4, '$lang{LITERS}');
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (5, '$lang{BOXES}');
+</code></panel></accordion>
+
+23.07.2018
+  * ''Internet''. Обнуление персонального тарифного плана при изменении основного.
+  * ''Internet''. [[abills:docs:modules:internet:guets_mode:ru|Многоуровневый механизм выдачи гостевых адресов]]
+  * ''Internet''. При создании тарифного плана создается тип снятия.
+  * ''Msgs''. Добавлен фильтр "Отслеживаемые" в списке сообщений.
+  * ''Msgs''. Добавлена возможность редактирования текста шаблонов ответов перед отправлением, прямо в окне сообщения.
+  * ''Msgs''. Улучшены отчеты по заявкам.
+  * ''Msgs''. Поправлено форматирование сообщений при очень длинном тексте.
+  * ''Paysys''. В модуль работы с Приватовскими банковскими выписками - добавлена возможность проводить платежи автоматически.
+  * ''Paysys''. Добавлен модуль Electrum для оплаты биткоинами.
+  * ''Crm''. Улучшено отображение и поиск по расходу и приходу.
+  * ''Crm''. Улучшен фильтр по расходу и приходу при просмотре баланса кассы.
+  * ''Crm''. Добавлена возможность к потенциальному клиенту прикрепить уже существующего.
+  * ''Crm''. [[abills:docs:manual:admin:crm:crm_salary|Зарплаты сотрудникам.]]
+  * ''Equipment''. [[abills:docs:manual:admin:equipment:equipment_info#informacionnaja_panel|Время хранения в базе истории MAC]]
+  * ''Equipment''. [[abills:docs:manual:admin:equipment:equipment_info#dopolnitelnye_parametry|Режим управления]]
+  * ''IPTV''. Улучшение интерфейса сервисов.
+  * ''IPTV''. Привязка сервиса к акаунту при выборе только тарифного плана.
+
+<accordion title="20180723"><panel title="MySQL"><code mysql>
+
+</code></panel></accordion>
+
+27.06.2018
+  * ''Msgs''. Добавлена возможность редактировать ответы в тикетах.
+  * ''Internet''. [[abills:docs:manual:admin:internet:internet_online|Отображения графика загрузки абонентов на сервере доступа]]
+  * ''Storage''. Добавлена проверка на дублирование серийного номера, перед добавлением.
+  * ''Storage''. Улучшения отображения подпункта "Установлено".
+  * ''Storage''. Исправления ошибок.
+  * ''Gps''. Добавлена поддержка протокола tk103.
+  * ''Tasks''. Теперь к типу задачи можно прикреплять ответственного администратора.
+  * ''Tasks''. К задаче возможно добавление нескольких участников.
+  * ''Cards''. Добавлен статус "Передано в производство".
+  * ''СОРМ3''. Выгрузка для периодических снятий.
+  * ''Rwizard''. Добавлена поддержка модуля Multidoms.
+  * Профиль абонента. Добавлена кнопка "Копировать пароль пользователя".
+  * ''abm_console''. [[abills:docs:abm_console:ru#primery|Удаление пользователей по шаблону.]]
+
+<accordion title="20180627"><panel title="MySQL"><code mysql>
+ALTER TABLE `equipment_pon_onu` ADD COLUMN `vlan` smallint(6) unsigned NOT NULL DEFAULT '0';
+
+ALTER TABLE `crm_salaries_payed` DROP PRIMARY KEY;
+ALTER TABLE `crm_salaries_payed` ADD COLUMN `id` INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `crm_leads` ADD COLUMN `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0';
+</code></panel></accordion>
 
 ====0.77====
+31.05.2018
+    * ''Storage''. [[abills:docs:modules:storage:manual:ru#ustanovka_oborudovanija_klientu|Добавлена продажа оборудования клиента в рассрочку]]
+    * ''Storage''. [[abills:docs:modules:storage:manual:ru#opcii_v_configpl|Добавлены опции для проверки правильности ввода данных поставщиков.]]
+    * ''Storage''. [[abills:docs:manual:admin:storage:storage_main#poisk_na_sklade|Добавлена возможность поиска по серийному номеру на складе, а так же во всех статусных вкладках.]]
+    * ''Storage''. [[abills:docs:modules:storage:manual:ru#opcija_-_razdelit|Разделения всей партии товаров.]]
+    * ''Storage''. Добавлена возможность оставить комментарий к каждой единице товаров.
+    * ''Storage''. Улучшение отображения таблицы в подменю Подотчетность.
+    * ''Internet''. [[abills:docs:manual:admin:internet:internet_pools_report|Отчет по использованию пулов адресов]]
+    * ''Internet''. В billd добавлена проверка поточного Online IP и статического.
+    * ''Crm''. [[abills:docs:manual:admin:crm:crm_leads#informacija_o_potencialnom_kliente|Запланированные действия с потенциальным клиентом]]
+    * ''Crm''. Добавлена возможность удаления потенциального клиента.
+    * ''Msgs''. [[abills:docs:manual:admin:file_tree|Редактор аттачей]]
+    * ''Msgs''. При удалении сообщения так же удаляются все ответы и файлы связанные с этим сообщением.
+    * ''Msgs''. [[abills:docs:modules:msgs:ru?s[]=conf&s[]=msgs&s[]=user&s[]=default&s[]=chapter|Раздел по умолчанию при ответе пользователей.]]
+    * ''Msgs''. Возможность прикрепления подзадач.
+    * ''Msgs''. Теперь показывает администратору шаблонные переменные в формате {}.
+    * ''Msgs''. В разделах сообщений добавлены поля Deadline.
+    * ''Cablecat''. [[abills:docs:manual:admin:cablecat:cablecat_commutation|Печатная форма для схем коммутаций]]
+    * ''Paysys''. [[abills:docs:manual:admin:paysys:paysys_settings?s[]=paysys&s[]=new&s[]=scheme|Новая схема работы и подключения модулей.]]
+    * ''Paysys''. [[abills:docs:modules:paysys:yandex_kassa|Модуль Яндекс Кассы переписан под новую схему]]
+    * ''Paysys''. [[abills:docs:modules:paysys:sberbank|Модуль Сбербанка переписан под новую схему]]
+    * ''Paysys''. [[abills:docs:modules:paysys:ru#podkljuchenie|Параметр настройки предлагаемой суммы по умолчанию при оплате.]]
+    * ''Ureports''. Отображение количества подключенных сервисов у абонента.
+    * ''Tasks''. [[abills:docs:modules:tasks:ru|Типы задач, редактирование, удаление, архив.]]
+    * ''Tasks''. [[abills:docs:modules:tasks:ru|Участники задачи.]]
+    * ''Tasks''. [[abills:docs:modules:tasks:ru|Плагины.]]
+    * ''Tasks''. [[abills:docs:modules:tasks:ru|Права ответственного в типе задачи.]]
+    * ''Nas''. Добавление дома при заведении сервера доступа.
+    * ''Iptv''. Отображение даты ручного отключения услуги в кабинете абонента.
+    * ''Charts''. Добавлена кнопка ZOOM на отображениях графиков.
+    * [[abills:docs:manual:admin:form_users|Добавлена кнопка быстрого входа в кабинет клиента.]]
+    * При добавлении пользователя через заявки на подключения изменен алгоритм проверки незанятости логинов.
+
+<accordion title="20180531"><panel title="MySQL"><code mysql>
+ALTER TABLE `crm_actions` MODIFY COLUMN `name` char(60) NOT NULL DEFAULT '';
+ALTER TABLE `iptv_calls` ADD COLUMN `service_id` INT(11) UNSIGNED NOT NULL DEFAULT '0';
+
+ALTER TABLE `storage_sn` ADD COLUMN `sn_comments` TEXT;
+
+ALTER TABLE `tasks_main` CHANGE COLUMN `resposible` `responsible` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `tasks_admins` CHANGE COLUMN `resposible` `responsible` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0';
+
+CREATE TABLE IF NOT EXISTS `tasks_plugins` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `enable` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `name` VARCHAR(60) NOT NULL DEFAULT '',
+  `descr` TEXT NOT NULL,
+  PRIMARY KEY (`id`)
+)
+  COMMENT = 'Tasks plugins';
+</code></panel></accordion>
+26.04.2018
+    * ''Docs''. Учет налогов при выписывании счетов.
+    * ''Docs''. [[abills:docs:modules:docs:ru#shablony|Информация о сервисах абонента в основном контракте.]]
+    * ''Docs''. [[abills:docs:docs:ru|Группировка одинаковых заказов в печатной форме счета]]
+    * Главный поиск теперь работает по сочетанию клавиш CTRL+Enter
+    * AInstall. Теперь происходит установка Freeradius 3 вместо Freeradius 2 для системы FreeBSD.
+
+<accordion title="20180426"><panel title="MySQL"><code mysql>
+ALTER TABLE `storage_installation` ADD COLUMN `monthes` SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE `storage_installation` ADD COLUMN `amount_per_month` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00';
+ALTER TABLE `storage_incoming_articles` ADD COLUMN `in_installments_price` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00';
+ALTER TABLE `docs_invoice_orders` ADD COLUMN `fees_type` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE `abon_tariffs` ADD COLUMN `description` VARCHAR(240) NOT NULL DEFAULT '';
+ALTER TABLE `filters` ADD COLUMN `params` VARCHAR(200) NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS `taxes` ( 
+  `id`            SMALLINT(6) UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `ratecode`      VARCHAR(30)           NOT NULL DEFAULT '',
+  `ratedescr`     VARCHAR(130)          NOT NULL DEFAULT '',
+  `rateamount`    TINYINT(100) UNSIGNED NOT NULL DEFAULT '0',
+  `current`       TINYINT(2) UNSIGNED   NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Tax Magazine';
+</code></panel></accordion>
+11.04.2018
+    * ''Internet''. Формирование конфигурационного файла для ISC-DHCP.
+    * ''Internet''. Отображение MAC адреса абонентов в таблице онлайн сессий.
+    * ''Internet''. Отображение данных по абоненту стало удобней.
+    * ''Internet''. Поиск абонентов по пулам адресов.
+    * ''Internet''. Беспарольный вход только для гостевых сессий с определенными статусами.
+    * ''Internet''. Синхронизация сессий с accel_ipoe.
+    * ''Internet''. Добавлен arpping.
+    * ''Internet''. Статистика по NAS-у.
+    * ''Internet''. Новая система выдачи IP адресов.
+    * ''Internet''. [[abills:docs:modules:cards:ru#opisanie_processa_importa|Улучшен и оптимизирован импорт данных]]
+    * ''NAS''. [[abills:docs:nas:mx80:ru#perekljuchenie_shejpera_v_zavisimosti_ot_vremeni_sutok|Управление MX80 через CoA]]
+    * ''Storage''. [[abills:docs:manual:admin:storage:storage_main_report|Отчёт по складу]]
+    * ''Storage''. [[abills:docs:modules:storage:manual:ru#opcija_-_vnutrennee_ispolzovanie|Добавлен статус Внутреннее использование]]
+    * ''Storage''. Добавлена возможность возвращать списанное оборудование на склад.
+    * ''Cards''. Добавлены права отображения PIN кода карточки.
+    * ''SMS''. SMS callback шлюз теперь поддерживает новую схему контактов.
+    * ''SMS''. [[abills:docs:modules:sms:ru#nikita|СМС система Nikita]]
+    * ''Msgs''. Добавлен отчет по успешности техподдержки.
+    * ''Msgs''. [[abills:docs:modules:msgs:ru?s[]=conf&s[]=msgs&s[]=user&s[]=default&s[]=chapter|Добавлена возможность задавать раздел по умолчанию при создании заявки абонентом]]
+    * ''Crm''. Появилась возможность удалить потенциального клиента.
+    * ''Dom''. [[http://abills.net.ua/wiki/doku.php/abills:docs:modules:dom:ru?s[]=dom|Улучшения модуля Dom]]
+    * ''charts''. Оптимизирован алгоритм подсчета трафика.
+    * ''update.pl''. Теперь умеет обновлять лицензию.
+    * В отчете по списаниям добавлена сумма налога.
+    * Улучшена работа с абонентами и компаниями.
+    * В новую схему контактов добавлена возможность сохранять комментарии.
+    * Добавили предупреждения о надобности перезагрузки радиуса, при изменении данных NAS-а.
+    * При добавлении пользователя, реализована возможность, проверки пароля на соответствие политика паролей.
+    * Интерфейс. В Lite-форме улучшено отображение информационных полей.
+
+<accordion title="20180411"><panel title="MySQL"><code mysql>
+ALTER TABLE `users_contacts` ADD COLUMN `comments` TEXT NOT NULL;
+ALTER TABLE `billd_plugins` ADD COLUMN  `last_end` DATETIME NOT NULL;
+
+CREATE TABLE IF NOT EXISTS `equipment_tr_069_settings` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `onu_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `updatetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `changetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `settings` TEXT,
+  PRIMARY KEY (`id`)
+)   COMMENT='Equipment TR-069 Settings';
+
+ALTER TABLE `builds` ADD COLUMN `schema` VARCHAR(150) NOT NULL DEFAULT '';
+
+# Comment
+
+ALTER TABLE `shedule` ADD KEY uid (uid);
+
+CREATE TABLE IF NOT EXISTS `storage_inner_use` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `storage_incoming_articles_id` INT(10) UNSIGNED DEFAULT '0',
+  `count` INT(10) UNSIGNED DEFAULT '0',
+  `aid` INT(10) UNSIGNED DEFAULT '0',
+  `date` DATETIME DEFAULT NULL,
+  `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `comments` TEXT,
+  PRIMARY KEY (`id`),
+  KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
+);
+
+CREATE TABLE IF NOT EXISTS `crm_actions` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` char(40) NOT NULL DEFAULT '',
+  `action` TEXT NOT NULL,
+  PRIMARY KEY (`id`)
+) COMMENT = 'Actions for leads';
+
+ALTER TABLE `crm_progressbar_step_comments` ADD COLUMN `action_id` INT UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE `crm_progressbar_step_comments` ADD COLUMN `status` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE `crm_progressbar_step_comments` ADD COLUMN `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE `crm_progressbar_step_comments` ADD COLUMN `planned_date` DATE NOT NULL DEFAULT '0000-00-00';
+
+ALTER TABLE `builds` ADD COLUMN `numbering_direction` tinyint(1) unsigned NOT NULL default '0';
+
+ALTER TABLE `billd_plugins` ADD COLUMN `last_end` DATETIME NOT NULL;
+ALTER TABLE `billd_plugins` ADD COLUMN `last_execute` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE `fees_types` ADD COLUMN `tax` DOUBLE(10, 2) NOT NULL DEFAULT '0.00';
+ALTER TABLE `docs_invoice_orders` ADD COLUMN `fees_type` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS paysys_connect (
+  `id` TINYINT UNSIGNED AUTO_INCREMENT,
+  `paysys_id` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `name` VARCHAR(40) NOT NULL DEFAULT '',
+  `module` VARCHAR(40) NOT NULL DEFAULT '',
+  `status` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `paysys_ip` TEXT NOT NULL,
+  UNIQUE KEY `id`(`id`)
+) COMMENT = 'Paysys connected systems';
+</code></panel></accordion>
 01.03.2018
     * ''Internet''. [[abills:docs:modules:internet:user_portal:ru|Информация о prepaid трафике вынесена на первую страницу]]
     * ''Internet''. Добавлено улучшение в отображении Static IP pool-а абонента.
@@ -14,7 +282,7 @@
     * ''Netlist''. Учитывается мультисервисность Internet при формировании таблицы адресов.
     * ''Cablecat''. [[abills:docs:manual:admin:cablecat:cablecat_crosses|Кроссы. Поворот и изменение диапазона портов.]]
     * ''Iptv''. [[abills:docs:manual:admin:iptv:iptv_fetcher#zagruzka_plejlista|Беспарольный доступ до фетчера плейлистов]]
-    * ''Mikrotik Вебконфигуратор''. [[abills:docs:nas:mikrotik:webconfig|Защита от bruteforce, DNF флуда, настройки firewall.]]
+    * ''Mikrotik Вебконфигуратор''. [[abills:docs:nas:mikrotik:webconfig|Защита от bruteforce, DNS флуда, настройки firewall.]]
     * ''charts.cgi''. [[abills:docs:charts.cgi:ru:abills#nastrojka|Режим RRD]]
     * ''Telegram Bot''. Добавлена ID заявки в сообщениях из Msgs.
     * В карточке абонента добавлены поля подьезд и этаж.
@@ -34,6 +302,10 @@ UPDATE internet_online, internet_main SET internet_online.service_id=internet_ma
 INSERT INTO `config` (`param`, `value`, `domain_id`) VALUES ('UPDATE_SQL', '036.sql', 0);
 ALTER TABLE `users_pi` ADD COLUMN `birth_date` DATE NOT NULL DEFAULT '0000-00-00';
 ALTER TABLE `users_pi` ADD COLUMN `reg_address` TEXT;
+
+ALTER TABLE  `equipment_infos` ADD COLUMN `internet_vlan` smallint(6) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE  `equipment_infos` ADD COLUMN `tr_069_vlan` smallint(6) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE  `equipment_infos` ADD COLUMN `iptv_vlan` smallint(6) unsigned NOT NULL DEFAULT '0';
 </code></panel></accordion>
 
 20.02.2018
@@ -1851,7 +2123,7 @@ COMMENT = 'Quick replys msgs tags';
 
 </code></panel></accordion>
 
-=====0.73=====
+
 01.03.2016 \\
   * ''Employers'' [[abills:docs:modules:employees|Модуль сотрудники]]
   * ''Refferal'' [[abills:docs:modules:referral:ru|Модуль для реализации реферальной системы]]

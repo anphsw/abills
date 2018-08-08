@@ -53,7 +53,7 @@ sub auth_admin {
       if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/ && $FORM{REFERER} !~ /index=10/) {
         $html->set_cookies('sid', $admin->{SID}, '', '/');
         $COOKIES{sid} = $admin->{SID};
-        $admin->online({ SID => $admin->{SID} });
+        $admin->online({ SID => $admin->{SID}, TIMEOUT => $conf{web_session_timeout} });
         print "Location: $FORM{REFERER}\n\n";
       }
 

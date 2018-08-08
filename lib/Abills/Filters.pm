@@ -11,17 +11,17 @@ Abills::Filters - AbillS Filters function
 =cut
 
 use strict;
-use vars qw(
-$IPV4
-$IPV4CIDR
-$HD
-$V6P1
-$V6P2
-$IPV6
-$HOCT
-$MAC
-$DEFAULT_DATE_FORMAT
-$EMAIL_EXPR
+our (
+  $IPV4,
+  $IPV4CIDR,
+  $HD,
+  $V6P1,
+  $V6P2,
+  $IPV6,
+  $HOCT,
+  $MAC,
+  $DEFAULT_DATE_FORMAT,
+  $EMAIL_EXPR,
 );
 
 use base 'Exporter';
@@ -68,8 +68,6 @@ $MAC
 $DEFAULT_DATE_FORMAT
 $EMAIL_EXPR
 );
-
-our %EXPORT_TAGS = ();
 
 #Check IP
 $IPV4 = '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}';

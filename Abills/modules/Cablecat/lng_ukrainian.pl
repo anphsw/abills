@@ -100,6 +100,25 @@ $lang{CONNECTION_TRACE} = 'Відслідкувати з&#39єднання';
 $lang{TRACE_UP_TO} = 'Відслідкувати до';
 
 $lang{WRONG_LINKS} = 'Неправильні з&#39єднання';
+$lang{PRINT_SCHEME} = 'Друк схеми';
 
+$lang{WHITE} = 'Білий';
+$lang{SEA} = 'Ціановий';
+$lang{YELLOW} = 'Жовтий';
+$lang{GREEN} = 'Зелений';
+$lang{BROWN} = 'Коричневий';
+$lang{RED} = 'Червоний';
+$lang{ORANGE} = 'Помаранчевий';
+$lang{PINK} = 'Рожевий';
+$lang{GRAY} = 'Сірий';
+$lang{BLUE} = 'Синий';
+$lang{VIOLET} = 'Фіолетовий';
+$lang{BLACK} = 'Чорний';
+$lang{YELLOWGREEN} = 'Жовто-зелений';
+$lang{OLIVE} = 'Оливковий';
+$lang{BEIGE} = 'Бежевий';
+$lang{NATURAL} = 'Природній';
+$lang{LEMON} = 'Лимонний';
+$lang{CHERRY} = 'Вишневий';
 
 1;

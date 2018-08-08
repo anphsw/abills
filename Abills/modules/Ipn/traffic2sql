@@ -377,7 +377,9 @@ sub processing{
                 JOIN_SERVICE => $Ipn->{USERS_INFO}->{JOIN_SERVICE}->{$uid},
                 TRAFFIC_IN   => $in,
                 TRAFFIC_OUT  => $out,
-                TRAFFIC_ID   => $traffic_class
+                TRAFFIC_ID   => $traffic_class,
+                INTERVAL_ID  => $user_tp_interval,
+                ACCT_SESSION_ID => $session_id
               }
             );
           }
@@ -396,7 +398,7 @@ sub processing{
           my $online = 0;
 
           if ( $OCTETS_DIRECTION == 1 ){
-            $used_traffic->{$traffic_class}{TRAFFIC_SUM} = ($used_traffic->{$traffic_class}{TRAFFIC_IN}) ? $used_traffic->{$traffic_class}{TRAFFIC_IN} : 0;
+            $used_traffic->{$traffic_class}{TRAFFIC_SUM} = ($used_traffic->{$traffic_class} && $used_traffic->{$traffic_class}{TRAFFIC_IN}) ? $used_traffic->{$traffic_class}{TRAFFIC_IN} : 0;
             $online = $in;
           }
 

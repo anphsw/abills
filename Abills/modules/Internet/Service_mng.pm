@@ -88,10 +88,9 @@ sub service_warning {
   my $Service = $attr->{SERVICE};
   $DATE    = $attr->{DATE} if($attr->{DATE});
 
-  $user->{DEPOSIT} = 0 if (! $user->{DEPOSIT} || $user->{DEPOSIT} !~ /\d+/);
+  $user->{DEPOSIT} = 0 if (! $user->{DEPOSIT} || $user->{DEPOSIT} !~ /^[0-9\.\,\-]+$/);
   $user->{CREDIT} //= 0;
   $self->{DAYS_TO_FEE} = 0;
-
 
   if($Service->{EXPIRE} && $Service->{EXPIRE} ne '0000-00-00') {
     my $expire = date_diff($Service->{EXPIRE}, $DATE);
@@ -129,9 +128,9 @@ sub service_warning {
   }
   # Get next payment period
   elsif (
-    !$Service->{STATUS}
+    (!$Service->{STATUS} || $Service->{STATUS} == 10)
       && !$user->{DISABLE}
-      && ( $user->{DEPOSIT} + (($user->{CREDIT} > 0) ? $user->{CREDIT} : ($Service->{TP_CREDIT} || 0)) > 0
+      && ( $user->{DEPOSIT} + (($user->{CREDIT} && $user->{CREDIT} > 0) ? $user->{CREDIT} : ($Service->{TP_CREDIT} || 0)) > 0
       || ($Service->{POSTPAID_ABON} || 0)
       || ($Service->{PAYMENT_TYPE} && $Service->{PAYMENT_TYPE} == 1) )
   ){
@@ -243,8 +242,11 @@ sub service_warning {
       my $expire_date = POSIX::strftime("%Y-%m-%d", localtime(POSIX::mktime(0, 0, 12, $from_day, ($from_month - 1), ($from_year - 1900))
           + 86400 * $days_to_fee + (( $Service->{DAY_ABON} && $Service->{DAY_ABON} > 0 ) ? 86400 : 0)));
       $self->{ABON_DATE} = $expire_date;
-      $warning .= " ($expire_date)";
-      $warning .= "\n$lang{SUM}: " . sprintf("%.2f", $Service->{MONTH_ABON} * $reduction_division) if($Service->{MONTH_ABON});
+#      $warning .= " ($expire_date)";
+      $warning  =~ s/\%EXPIRE_DATE\%/$expire_date/g;
+      if($Service->{MONTH_ABON} && $Service->{MONTH_ABON} > 0) {
+        $warning .= "\n$lang{SUM}: " . sprintf("%.2f", $Service->{MONTH_ABON} * $reduction_division);
+      }
     }
     elsif ($Service->{INTERNET_EXPIRE} && $Service->{INTERNET_EXPIRE} ne '0000-00-00') {
       #$Service->{SERVICE_EXPIRE_DATE}=$Service->{INTERNET_EXPIRE} if ($FORM{xml});
@@ -433,13 +435,13 @@ sub get_next_abon_date {
 
   my $start_period_day = $attr->{START_PERIOD_DAY} || $self->{conf}->{START_PERIOD_DAY} || 1;
   my $Service          = $attr->{SERVICE};
-  my $service_activate = $Service->{ACTIVATE} || '0000-00-00';
+  my $service_activate = $Service->{ACTIVATE} || $attr->{ACTIVATE} || '0000-00-00';
   my $service_expire   = $Service->{EXPIRE} || '0000-00-00';
   my $month_abon       = $attr->{MONTH_ABON} || $Service->{MONTH_ABON} || 0;
   my $tp_age           = $Service->{TP_INFO}->{AGE} || 0;
   my $service_status   = $Service->{STATUS} || 0;
   my $abon_distribution= $Service->{ABON_DISTRIBUTION} || 0;
-  my $fixed_fees_day   = $Service->{FIXED_FEES_DAY} || 0;
+  my $fixed_fees_day   = $Service->{FIXED_FEES_DAY} || $attr->{FIXED_FEES_DAY} || 0;
 
   if($attr->{DATE}) {
     $DATE = $attr->{DATE};

@@ -12,10 +12,18 @@
                 </div>
               </div>
 
+              <div class='form-group'>
+                <label class='control-label col-md-3'>_{AUTOFILL}_</label>
+                <div class='col-md-9'>
+                    %EXTERNAL_SYSTEMS%
+                </div>
+              </div>
+
+
               <div class='checkbox text-center'>
                 <label>
                     <input type='checkbox' data-return='1' value = "1" data-checked='%PRIORITY%' name='PRIORITY'  id='PRIORITY_ID'  />
-                    <strong>_{PRIORITY}_</strong>
+                    <strong>_{FOCUS_FACTOR}_</strong>
                 </label>
               </div>
 

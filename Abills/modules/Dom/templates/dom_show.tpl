@@ -32,20 +32,20 @@
       <div class='info-box-content' style='margin-left:5px'>
         <span class='info-box-number'>%DISTRICT_NAME% %STREET_NAME% %BUILD_NAME%</span>
 
-        <div class='col-md-6'>
+        <div class='col-md-12'>
           <p>_{ENTRANCES}_: %BUILD_ENTRANCES%</p>
           <p>_{FLORS}_: %BUILD_FLORS%</p>
           <p>_{MAP}_ _{FLATS}_: %CLIENTS_FLATS_SUM%/%BUILD_FLATS% </p>
         </div>
 
-        <div class='col-md-6'>
+<!--         <div class='col-md-6'>
           <p>_{FLATS}_: %BUILD_FLATS%</p>
           <p>_{USER_FLAT_NUM_NO_CORRECT}_: %USER_SUM_WITH_NO_ROOM%
             <span>
                <a title='_{SHOW}_' id='no_correct_flat' href=''>_{SHOW}_</a>
              </span>
           </p>
-        </div>
+        </div> -->
 
         <div class='col-md-12'>
           <div class='progress '>
@@ -85,7 +85,9 @@
         '%USER_INFO%',
         '%LANG_PACK%',
         'canvas_height',
-        '%BUILD_FLATS%'
+        '%BUILD_FLATS%',
+        '%BUILD_SCHEMA%',
+        '%NUMBERING_DIRECTION%',
     );
     
   })

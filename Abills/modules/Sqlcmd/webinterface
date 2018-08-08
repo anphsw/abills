@@ -107,7 +107,7 @@ sub sqlcmd {
     {
       width       => '100%',
       caption     => $FORM{TABLE_INFO},
-      title_plain => [ $lang{DATE}, "$lang{COMMENTS}", '-', '-' ],
+      title_plain => [ $lang{DATE}, $lang{COMMENTS}, '-', '-' ],
       qs          => $pages_qs,
       pages       => $Sqlcmd->{TOTAL}
     }
@@ -342,7 +342,9 @@ sub sqlcmd {
     $list = $Sqlcmd->list({ QUERY => "SHOW FULL COLUMNS FROM " . ($conf{dbname} ? $conf{dbname} : q{}) .".$FORM{TABLE_INFO}" });
 
     my @CAPTION = ();
-    @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} } if ($Sqlcmd->{MYSQL_FIELDS_NAMES});
+    if ($Sqlcmd->{MYSQL_FIELDS_NAMES} && ref $Sqlcmd->{MYSQL_FIELDS_NAMES} eq 'ARRAY'){
+      @CAPTION = @{ $Sqlcmd->{MYSQL_FIELDS_NAMES} };
+    }
 
     $table = $html->table(
       {
@@ -528,8 +530,8 @@ sub sqlcmd_tables {
       $SORT_HASH{$a} cmp $SORT_HASH{$b};
     }
     else {
-      length($SORT_HASH{$a}) <=> length($SORT_HASH{$b})
-      || $SORT_HASH{$a} cmp $SORT_HASH{$b};
+      length($SORT_HASH{$a}||q{}) <=> length($SORT_HASH{$b}||q{})
+      || ($SORT_HASH{$a}||q{}) cmp ($SORT_HASH{$b} || q{});
     }
   } keys %SORT_HASH;
 
@@ -541,7 +543,8 @@ sub sqlcmd_tables {
   my @active_tables = split(/, /, $FORM{TABLES} || '');
 
   foreach my $line (@sorted) {
-    my @table_rows = ($html->form_input('TABLES', $line->{Name}, { TYPE => 'checkbox', STATE => (in_array($line->{Name}, \@active_tables)) ? 'checked' : '' }));
+    my @table_rows = ($html->form_input('TABLES', $line->{Name},
+      { TYPE => 'checkbox', STATE => (in_array($line->{Name}, \@active_tables)) ? 'checked' : '' }));
     for ($i = 0 ; $i <= $#ACTIVE_FIELDS ; $i++) {
       my $l = $ACTIVE_FIELDS[$i];
 
@@ -577,7 +580,7 @@ sub sqlcmd_tables {
   my $table2 = $html->table(
     {
       width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", "$tables_total", "$lang{SIZE}:", int2byte("$tables_size") ] ]
+      rows       => [ [ "$lang{TOTAL}:", $tables_total, "$lang{SIZE}:", int2byte($tables_size) ] ]
     }
   );
 
@@ -1292,7 +1295,7 @@ sub sqlcmd_collation {
 sub sqlcmd_collation_change {
 
   if(! $FORM{TABLES}) {
-    $html->message('err', $lang{ERROR}, "Select table");
+    $html->message('err', $lang{ERROR}, "SELECT_TABLE");
     return 1;
   }
 

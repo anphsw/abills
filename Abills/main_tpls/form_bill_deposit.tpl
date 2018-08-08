@@ -21,7 +21,7 @@
                 <div class='form-group'>
                     <label class='control-label col-md-3' for='DEPOSIT'>_{DEPOSIT}_:</label>
                     <div class='col-md-9'>
-                        <input id='DEPOSIT' name='DEPOSIT' value='%DEPOSIT%' class='form-control' type='text'>
+                        <input id='DEPOSIT' name='DEPOSIT' value='%DEPOSIT%' class='form-control' type='number' step='0.01'>
                     </div>
                 </div>
 

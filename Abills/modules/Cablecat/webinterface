@@ -38,6 +38,7 @@ require Cablecat;
 Cablecat->import();
 our Cablecat $Cablecat = Cablecat->new($db, $admin, \%conf);
 use Cablecat::Trace;
+use Cablecat::Cable_blank;
 
 require Equipment;
 Equipment->import();
@@ -112,6 +113,7 @@ if ( $permissions{3} ) {
 
 require Cablecat::ResultFormerFilters;
 require Cablecat::Selects;
+require Cablecat::Cable_blank;
 
 our %CROSS_CROSS_TYPE = (
   1 => $lang{RACK_MOUNTABLE},

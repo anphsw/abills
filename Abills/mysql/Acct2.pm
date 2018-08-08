@@ -377,10 +377,10 @@ sub accounting {
           $self->{TARIF_PLAN},
           $self->{TIME_TARIF},
           $self->{TRAF_TARIF}) = $Billing->session_sum($RAD->{'User-Name'},
-          time - $RAD->{'Acct-Session-Time'},
-          $RAD->{'Acct-Session-Time'},
-          $RAD,
-          #\%EXT_ATTR
+                 time - $RAD->{'Acct-Session-Time'},
+                 $RAD->{'Acct-Session-Time'},
+                 $RAD,
+                 #\%EXT_ATTR
         );
       }
       else {
@@ -743,7 +743,8 @@ sub rt_billing {
    IF($RAD->{OUTBYTE2} >= ex_output_octets, $RAD->{OUTBYTE2} - ex_output_octets, ex_output_octets),
    sum,
    tp_id,
-   uid
+   uid,
+   service_id
    FROM internet_online
   WHERE nas_id='$NAS->{NAS_ID}' AND acct_session_id='". $RAD->{'Acct-Session-Id'} ."';");
 
@@ -764,7 +765,8 @@ sub rt_billing {
     $RAD->{INTERIUM_OUTBYTE1},
     $self->{CALLS_SUM},
     $self->{TP_ID},
-    $self->{UID}) = @{ $self->{list}->[0] };
+    $self->{UID},
+    $self->{SERVICE_ID}) = @{ $self->{list}->[0] };
 
   my $out_byte = $RAD->{OUTBYTE} + $RAD->{$output_gigawords} * 4294967296;
   my $in_byte  = $RAD->{INBYTE} + $RAD->{$input_gigawords} * 4294967296;
@@ -792,6 +794,7 @@ sub rt_billing {
     {
       FULL_COUNT => 1,
       TP_ID      => $self->{TP_ID},
+      SERVICE_ID => $self->{SERVICE_ID},
       UID        => $self->{UID},
       DOMAIN_ID  => ($NAS->{DOMAIN_ID}) ? $NAS->{DOMAIN_ID} : 0,
     }

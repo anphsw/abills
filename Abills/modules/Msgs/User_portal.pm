@@ -6,6 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
+use Time::Piece;
 use Abills::Base qw(urlencode convert int2byte);
 use Msgs::Misc::Attachments;
 
@@ -15,9 +16,11 @@ our(
   $html,
   %lang,
   $admin,
-  @priority,
-  @priority_colors,
 );
+
+# Todo: generalize ( Now there are separate arrays in almost each Msgs .pm file)
+my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[6]);
+my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
 
@@ -27,6 +30,11 @@ my $Msgs = Msgs->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub msgs_user {
+
+  if ($FORM{edit_reply}) {
+    _user_edit_reply();
+    return 1;
+  }
 
   #If User have new unread msg, open it
   #(Return msg object with LAST_ID)
@@ -209,16 +217,19 @@ sub msgs_user {
       $Msgs->message_change({
         UID        => $LIST_PARAMS{UID},
         ID         => $FORM{ID},
-        ADMIN_READ => "0000-00-00  00:00:00",
+        ADMIN_READ => "0000-00-00 00:00:00",
         STATE      => $FORM{STATE} || 0,
       });
 
-      if ($FORM{SURVEY_ID}) {
-        msgs_survey_show({ SURVEY_ID => $FORM{SURVEY_ID} });
+      if ($FORM{SURVEY_ANSWER}) {
+        msgs_survey_show({ SURVEY_ANSWER => $FORM{SURVEY_ANSWER} });
       }
     }
 
-    $FORM{ID} = $Msgs->{LAST_ID} if ($Msgs->{LAST_ID});
+    if ($Msgs->{LAST_ID}) {
+      $FORM{ID} = $Msgs->{LAST_ID};
+    }
+
     $Msgs->message_info($FORM{ID}, { UID => $LIST_PARAMS{UID} });
     _error_show($Msgs);
     if ($Msgs->{errno}) {
@@ -259,9 +270,15 @@ sub msgs_user {
       my $reply = '';
 
       if ($Msgs->{SURVEY_ID}) {
-        push @REPLIES, msgs_survey_show({
-            SURVEY_ID => $Msgs->{SURVEY_ID}, MSG_ID => $main_msgs_id
-          });
+        my $main_message_survey = msgs_survey_show({
+          SURVEY_ID => $Msgs->{SURVEY_ID},
+          MSG_ID    => $Msgs->{ID},
+          MAIN_MSG  => 1,
+        });
+
+        if($main_message_survey){
+          push @REPLIES, $main_message_survey;
+        }
       }
       
       foreach my $line (@$replies_list) {
@@ -271,7 +288,8 @@ sub msgs_user {
         if ($line->{survey_id}) {
           push @REPLIES, msgs_survey_show({
               SURVEY_ID => $line->{survey_id},
-              REPLY_ID  => $line->{id}
+              REPLY_ID  => $line->{id},
+              TEXT      => $line->{text}
             });
         }
         else {
@@ -293,10 +311,22 @@ sub msgs_user {
             
             $attachment_html = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
           }
-          
+
+          $FORM{ID} //= q{};
           my $quoting_button = $html->button(
-            $lang{QUOTING}, "index=$index&QUOTING=$line->{id}&ID=$FORM{ID}&sid=$sid", { BUTTON => 1 }
+            $lang{QUOTING}, "index=$index&QUOTING=$line->{id}&ID=$FORM{ID}&sid=". ($sid || q{}), { BUTTON => 1 }
           );
+          my $edit_reply_button = '';
+          if ($line->{creator_id} && $line->{creator_id} eq $user->{LOGIN}) {
+            my $n = gmtime() + 3600 * 3;
+            my $d = Time::Piece->strptime($line->{datetime}, "%Y-%m-%d %H:%M:%S");
+            if (($n-$d)/60 < 5) {
+              $edit_reply_button = $html->button(
+                "$lang{EDIT}", "",
+                { class => 'btn btn-default btn-xs reply-edit-btn', ex_params => "reply_id='$line->{id}'"}
+              );
+            }
+          }
           
           push @REPLIES, $html->tpl_show(
               _include('msgs_reply_show', 'Msgs'),
@@ -309,6 +339,7 @@ sub msgs_user {
                 MESSAGE    => msgs_text_quoting($line->{text}),
                 COLOR      => (($line->{aid} > 0) ? 'box-success' : 'box-theme'),
                 QUOTING    => $quoting_button,
+                EDIT       => $edit_reply_button,
                 ATTACHMENT => $attachment_html,
               },
               { OUTPUT2RETURN => 1 }
@@ -328,7 +359,6 @@ sub msgs_user {
         #$html->message('info',  $lang{INFO},  "$msg_status[$Msgs->{STATE}] $lang{DATE}: $Msgs->{CLOSED_DATE}");
       }
 
-      $Msgs->{REPLY} = join(($FORM{json}) ? ',' : '', @REPLIES);
       $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
       $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
       
@@ -357,9 +387,18 @@ sub msgs_user {
                 { class => 'badge bg-blue'});
         $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
       }
+
+      if (my $last_reply_index = scalar (@$replies_list)){
+        $Msgs->{UPDATED} = $replies_list->[$last_reply_index - 1]->{datetime};
+      }
+      else {
+        $Msgs->{UPDATED} = '--';
+      }
+
       $html->tpl_show(_include('msgs_client_show', 'Msgs'), {
           %$Msgs,
-          ID => $main_msgs_id });
+          ID => $main_msgs_id
+        });
 
       my %params = ();
       my $state = $FORM{STATE};
@@ -385,7 +424,7 @@ sub msgs_user {
     $Msgs->{CHAPTER_SEL} = $html->form_select(
       'CHAPTER',
       {
-        SELECTED       => $Msgs->{CHAPTER} || undef,
+        SELECTED       => $Msgs->{CHAPTER} || $conf{MSGS_USER_DEFAULT_CHAPTER} || undef,
         SEL_LIST       => $Msgs->chapters_list({ INNER_CHAPTER => 0, COLS_NAME => 1 }),
         MAIN_MENU      => get_function_index('msgs_chapters'),
         MAIN_MENU_ARGV => ($Msgs->{CHAPTER}) ? "chg=$Msgs->{CHAPTER}" : ''
@@ -647,6 +686,33 @@ sub _add_color_search {
   else{
     return '';
   }
+}
+
+#**********************************************************
+=head2 _user_edit_reply() 
+
+=cut
+#**********************************************************
+sub _user_edit_reply {
+  return 1 unless ( $FORM{edit_reply} );
+
+  my $list = $Msgs->messages_reply_list({
+    ID         => $FORM{edit_reply},
+    DATETIME   => '_SHOW',
+    CREATOR_ID => '_SHOW',
+    COLS_NAME  => 1
+  });
+
+  return 1 unless ($list->[0]->{creator_id} eq $user->{LOGIN});
+  my $n = gmtime() + 3600 * 3;
+  my $d = Time::Piece->strptime($list->[0]->{datetime}, "%Y-%m-%d %H:%M:%S");
+  if (($n-$d)/60 < 5) {
+    $Msgs->message_reply_change({
+      ID    => $FORM{edit_reply},
+      TEXT  => $FORM{replyText}
+    });
+  };
+  return 1;
 }
 
 1;

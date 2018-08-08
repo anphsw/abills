@@ -875,8 +875,10 @@ sub authenticate {
     return 0;
   }
   elsif ( $type eq 'a' ) {
-    my $aid = $admin->online_find($sid);
-    
+    $admin->online_info($sid);
+
+    my $aid = $admin->{AID};
+
     if ( $aid ) {
       
       my $list = $admin->admins_contacts_list({

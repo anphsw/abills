@@ -258,8 +258,9 @@ sub get_vlans{
 
   my $value = snmp_get({
     %{$attr},
-    OID  => $oid,
-    WALK => 1
+    OID   => $oid,
+    WALK  => 1,
+    DEBUG => $FORM{DEBUG}
   });
 
   my %vlan_hash = ();

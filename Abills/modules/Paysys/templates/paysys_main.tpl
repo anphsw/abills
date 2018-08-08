@@ -23,6 +23,7 @@
 <form method='POST' action='$SELF_URL' class='form form-horizontal'>
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='sid' value='$sid'>
+    <input type='hidden' name='IDENTIFIER' value='%IDENTIFIER%'>
 
     <input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'>
 
@@ -44,7 +45,7 @@
 
             <div class='form-group'>
                 <label class='col-md-3 control-label'>_{DESCRIBE}_:</label>
-                <div class='col-md-9'><input class='form-control' type='text' name='DESCRIBE' value='Пополнение счёта'>
+                <div class='col-md-9'><input class='form-control' type='text' name='DESCRIBE' value='_{BALANCE_RECHARCHE}_'>
                 </div>
             </div>
 

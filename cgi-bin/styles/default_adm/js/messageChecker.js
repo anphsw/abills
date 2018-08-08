@@ -8,7 +8,7 @@
 'use strict';
 
 var AMessageChecker = (function () {
-  var self = {};
+  var self = this || {};
   
   self.last_id = 0;
   
@@ -206,22 +206,24 @@ var AMessageChecker = (function () {
       (new ATooltip).display('<h3>Unsubscribed from group ' + group_id + '</h3>', 2000);
     });
   }
-  
+
   function seenMessage(qb_id, seen_url) {
-    Events.emit('MessageChecker.seenMessage');
-    if (qb_id) hideQBinfo(qb_id);
-    $.get(seen_url, function(data){
-      console.log('seen response', data);
+    Events.emit('MessageChecker.seenMessage', qb_id);
+
+    $.get(seen_url, function (data) {
+      AMessageChecker.checkNow(true);
+      if (data && typeof data['MESSAGE'] !== 'undefined') {
+        aTooltip.displayMessage(data['MESSAGE'], 1000);
+      }
     });
   }
-  
-  Events.on('MessageChecker.seenMessage', function (data) {
-    self.checkNow(true);
-    if (data && typeof data['MESSAGE'] !== 'undefined') {
-      aTooltip.displayMessage(data['MESSAGE'], 1000);
+
+  Events.on('MessageChecker.seenMessage', function(qb_id){
+    if (qb_id) {
+      hideQBinfo(qb_id);
     }
   });
-  
+
   return {
     start      : start,
     stop       : stop,
@@ -650,10 +652,10 @@ var EventsMenu = function (id, options) {
   this.filter = options.filter || function () {return true};
   
   this.events = {};
-  
+  this.notifications = {};
+
   this.init = function () {
 
-    
     this.$menu = new NavbarDropdownMenu(id, {
       BADGE_CUSTOM: false,
       onRefresh   : function (callback) {
@@ -696,6 +698,12 @@ var EventsMenu = function (id, options) {
         }
       });
       $('#' + id).removeClass('hidden');
+
+      Events.on('MessageChecker.seenMessage', function(qb_id){
+        if (qb_id && self.notifications[qb_id]){
+          self.notifications[qb_id].close();
+        }
+      });
     }
     else {
       return false;
@@ -818,13 +826,13 @@ var EventsMenu = function (id, options) {
               '<div class="progress-bar progress-bar-{0}" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"></div>' +
               '</div>' +
               '<a href="{3}" target="{4}" data-notify="url"></a>' +
-              '</div>'
+              '</div>';
           
-          if (!soundsDisabled)
+          if (!soundsDisabled) {
             notifyTpl += '<audio src="/styles/default_adm/bb2_new.mp3" type="audio/mpeg" preload="auto" autoplay></audio>';
+          }
           
-          
-          jQuery.notify({
+          var notification = jQuery.notify({
             // icon: 'glyphicon glyphicon-warning-sign',
             title  : event['ID'] + ' : ' + (event['TITLE'] || event['SUBJECT'] || event['MODULE'] || ''),
             message: event['TEXT'],
@@ -833,21 +841,17 @@ var EventsMenu = function (id, options) {
           }, {
             animate : {
               enter: 'animated fadeInRight',
-              exit : 'animated fadeOutRight',
+              exit : 'animated fadeOutRight'
             },
             delay   : 5000,
             type    : 'bootstrap-success',
-            template: notifyTpl,
+            template: notifyTpl
           });
-          // AMessageChecker.showMessage({
-          //   text    : event['TEXT'],
-          //   extra   : event['EXTRA'],
-          //   caption : event['ID'] + ' : ' + (event['TITLE'] || event['SUBJECT'] || event['MODULE'] || ''),
-          //   id      : event['ID'],
-          //   seen_url: '?get_index=events_seen_message&json=1&MESSAGE_ONLY=1&AJAX=1&header=2&ID=' + event['ID'],
-          //   group_id: event['GROUP_ID']
-          // });
+
           self.showed_in_session[event['ID']] = true;
+
+          // Save reference to allow closing notification
+          self.notifications[event['ID']] = notification;
         }
       }
     }

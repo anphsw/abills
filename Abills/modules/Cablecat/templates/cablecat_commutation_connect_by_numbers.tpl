@@ -4,12 +4,12 @@
 
     <div class='form-group' id='cables_chooser'>
       <p>_{CHOOSE}_ _{CABLES}_</p>
-      <div class='col-md-6'>
+      <div class='col-md-12'>
         <label for='CABLE_1'>
           %CABLE_1_SELECT%
         </label>
       </div>
-      <div class='col-md-6'>
+      <div class='col-md-12'>
         <label for='CABLE_2'>
           %CABLE_2_SELECT%
         </label>

@@ -34,6 +34,8 @@ my $Nas      = Nas->new($db, \%conf, $admin);
 #**********************************************************
 sub internet_online {
 
+  $Sessions->{debug}=1 if ($FORM{DEBUG} && $FORM{DEBUG} > 5);
+
   my $message;
   if ($FORM{ping}) {
     if ($FORM{ping} eq '0.0.0.0' && $FORM{SESSION_ID}) {
@@ -274,12 +276,12 @@ sub internet_online {
     ]
   );
 
-  if ($Sessions->{TOTAL} && $Sessions->{TOTAL} > 500 && ! $FORM{show_columns}){
-    if($FORM{NAS_ID}) {
-      $pages_qs .= "&NAS_ID=$FORM{NAS_ID}";
-      $LIST_PARAMS{NAS_ID} = $FORM{NAS_ID};
-    }
-    elsif(!($FORM{NAS_ID} || $FORM{ZAPED} || $FORM{FILTER})) {
+  if($FORM{NAS_ID}) {
+    $pages_qs .= "&NAS_ID=$FORM{NAS_ID}";
+    $LIST_PARAMS{NAS_ID} = $FORM{NAS_ID};
+  }
+  elsif ($Sessions->{TOTAL} && $Sessions->{TOTAL} > 500 && ! $FORM{show_columns}){
+    if(!($FORM{ZAPED} || $FORM{FILTER})) {
       print internet_online_search();
       my $table = $html->table({
         width      => '100%',
@@ -311,7 +313,12 @@ sub internet_online {
     $LIST_PARAMS{NAS_ERROR_SESSIONS} = $FORM{NAS_ERROR_SESSIONS};
   }
 
-  $Sessions->{debug}=1 if ($FORM{DEBUG} && $FORM{DEBUG} > 5);
+  if(-f '/usr/abills/webreports/internet_online_count.log') {
+    print $html->button($html->img('/reports/internet_online_count-day.png', 'online',
+      { EX_PARAMS => q{class="img-responsive" width="380" height="125"}  }),
+      '', { GLOBAL_URL => '/reports/' });
+  }
+
   my %online_status = (
     0 => "(1) $lang{START}",
     1 => "(1) $lang{START}",
@@ -417,8 +424,8 @@ sub internet_online {
         . $html->button($html->b($nas_row->{nas_name}),
         "index=" . get_function_index('form_nas') . "&NAS_ID=$nas_row->{nas_id}")
         . ":$nas_row->{nas_ip}:$lang{TOTAL}: $total "
-        . $html->button("Zap $lang{SESSIONS}", "index=$index&zapall=1&NAS_ID=$nas_row->{nas_id}",
-        { MESSAGE => "Do you realy want zap all sessions on NAS '$nas_row->{nas_id}' ?", class => 'btn btn-default' })
+        . ($permissions{5}{1} ? $html->button("Zap $lang{SESSIONS}", "index=$index&zapall=1&NAS_ID=$nas_row->{nas_id}",
+        { MESSAGE => "Do you realy want zap all sessions on NAS '$nas_row->{nas_id}' ?", class => 'btn btn-default' }) : '')
         . $html->button("$lang{ERROR}",
         "index=" . get_function_index('internet_error') . "&NAS_ID=$nas_row->{nas_id}&search_form=1&search=1",
         { class => 'btn btn-default' })
@@ -493,7 +500,7 @@ sub internet_online {
         }
         elsif ($col_name eq 'internet_status') {
           if (defined($line->{internet_status})) {
-            my ($status, $color) = split( /:/, $service_status->{ $line->{internet_status} || '' } || '' );
+            my ($status, $color) = split( /:/, $service_status->{ $line->{internet_status} || 0 } || '' );
             $val = $html->color_mark( $status, $color );
           }
           else {
@@ -592,9 +599,9 @@ sub internet_online {
     #TODO MOreelegent solution
     if(! $FORM{json}) {
       $output .=
-        $html->button('Zap All', "index=$index&zapall=1",
+        ($permissions{5}{1} ? $html->button('Zap All', "index=$index&zapall=1",
           { class   => 'btn btn-default btn-danger', ICON => 'glyphicon glyphicon-trash',
-            MESSAGE => "Do you realy want ZAP all sessions ?" })
+            MESSAGE => "Do you realy want ZAP all sessions ?" }) : '')
           . $html->button("$lang{GRAPH} $lang{NAS}", "#",
           { class           => 'btn btn-default', ICON => 'glyphicon glyphicon-stats',
             NEW_WINDOW      => internet_get_chart_query('NAS_ID=all', '1', $chart_new_window_width, $chart_height),
@@ -831,7 +838,8 @@ sub internet_online_builds {
       DISTRICT_PANELS => $districts_content
     }
   );
-  
+
+  return 1;
 }
 
 

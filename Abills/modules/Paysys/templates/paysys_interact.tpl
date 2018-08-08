@@ -17,7 +17,7 @@
 <tr><td>UID</td><td><input type='text' name='UID' value='$FORM{UID}'></td></tr>
     <tr>
         <td>_{SUM}_:</td>
-        <td><input type='text' name='SUM' value='$FORM{SUM}'></td>
+        <td><input type='number' min='0' step='0.01' name='SUM' value='$FORM{SUM}'></td>
     </tr>
     <tr>
         <td>_{DESCRIBE}_:</td>

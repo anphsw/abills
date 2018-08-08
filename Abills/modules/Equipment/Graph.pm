@@ -190,8 +190,10 @@ sub get_graph_data {
 sub del_graph_data {
   my ($attr) = @_;
   my $rrdfile = $var_dir."db/rrd/".$attr->{NAS_ID}."_".$attr->{PORT}."_".lc($attr->{TYPE}).".rrd";
-  
-  unlink($rrdfile) or $html->message( 'err', $lang{ERROR}, "Can't delete file '$rrdfile' $!" );
+
+  if(-f $rrdfile) {
+    unlink($rrdfile) or $html->message('err', $lang{ERROR}, "Can't delete file '$rrdfile' $!");
+  }
 
   return 0;
 }

@@ -16,6 +16,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(load_pmodule show_hash);
 use Abills::Fetcher;
+use JSON;
 
 our $VERSION = 0.01;
 
@@ -60,7 +61,12 @@ sub new {
   $self->{debug}    = $attr->{DEBUG} || 0;
   $self->{CONF}     = $attr->{CONF};
 
-  $self->auth();
+  if($attr->{JSON}) {
+    $self->auth_json();
+  }
+  else {
+    $self->auth();
+  }
 
   return $self;
 }
@@ -214,6 +220,65 @@ sub auth {
   return $self;
 }
 
+
+#**********************************************************
+=head2 auth($attr)
+
+  Arguments:
+    $attr
+      EMAIL
+      PAGE_ROWS
+
+  Returns:
+
+
+=cut
+#**********************************************************
+sub auth_json {
+  my $self = shift;
+
+  use JSON::RPC::Client;
+
+  my $client = new JSON::RPC::Client;
+  $self->{client}=$client;
+  my $url = $self->{URL}; # 'http://www.example.com/jsonrpc/API';
+
+
+  my $callobj = {
+    'debug'   => 1,
+    'params'  => { 'args' => [ $self->{DBNAME}, $self->{LOGIN}, $self->{PASSWORD} ],
+      'method'            => 'login',
+      'service'           => 'common'
+    },
+    'jsonrpc' => '2.0',
+    'method'  => 'call',
+    'id'      => 184826094
+  };
+
+  my $res = $client->call($url, $callobj);
+
+  if ($res) {
+    if ($res->is_error) {
+      print "Error : ";
+      print "CODE: ". $res->error_message->{code};
+      print " MESSAGE: ". $res->error_message->{message};
+      print "\n----------------------------------\n";
+      print %{ $res->error_message->{data} };
+      print "\n----------------------------------\n";
+    }
+    else {
+      #print $res->result;
+    }
+  }
+  else {
+    print $client->status_line;
+  }
+
+  $self->{UID}=$res->result;
+
+  return $self;
+}
+
 #**********************************************************
 =head2 fields_list($attr)
 
@@ -253,6 +318,8 @@ sub fields_list {
 
   Arguments:
     $attr
+      PARTNER_ID
+      INTERNET
 
   Returns:
 
@@ -268,13 +335,19 @@ sub contracts_list {
     push @partner_id, [ ("partner_id", "=", $attr->{PARTNER_ID}) ];
   }
 
+  if($attr->{INTERNET}) {
+    push @partner_id,  [ ( "recurring_invoice_line_ids.product_id.type", "=", 'internet' ) ] ;
+  }
+
   my $list = $models->call('execute_kw',
     $self->{DBNAME}, $self->{UID}, $self->{PASSWORD},
     'account.analytic.account',
     'search_read',
-    [ \@partner_id ],
+    [
+      \@partner_id
+    ],
     {
-      'fields'=> ['id', 'partner_id', 'recurring_invoice_line_ids', 'ip_antenna', 'mac_antenna' ],
+      'fields'=> ['id', 'partner_id', 'recurring_invoice_line_ids', 'ip_antenna', 'mac_antenna', 'code' ],
     }
   );
 
@@ -336,6 +409,7 @@ sub fields_info {
     email         => 'EMAIL',
     street        => 'ADDRESS',
     zip           => 'ZIP',
+    code          => 'CONTRACT_ID',
     # Info fields
     is_company	  => '_IS_COMPANY',
     website	      => '_WEBSITE', #char	Website	Website of Partner or Company
@@ -392,6 +466,10 @@ sub _filter_result {
   my $self = shift;
   my ($list, $attr) = @_;
 
+  if(ref $list ne 'ARRAY') {
+    return $list;
+  }
+
   my $fields = $attr->{FIELDS};
 
   my @users_list = ();
@@ -429,6 +507,252 @@ sub _filter_result {
   }
 
   return \@users_list;
+}
+
+
+#**********************************************************
+=head2 read_partner_contracts($attr)
+
+  Arguments:
+    $attr
+      PARTNER_ID
+      INTERNET
+
+  Returns:
+
+=cut
+#**********************************************************
+sub read_partner_contracts {
+  my $self = shift;
+  my ($attr) = @_;
+
+#=comments
+#  data = {
+#    'category_ids': [4],
+#      'product_types': ['internet'],
+#  }
+#  from datetime import datetime
+#    start = datetime.now()
+#  contracts = json_rpc(SERVER_URL, 'object', 'execute', DATABASE, user_id, PASSWORD, 'abills.api', 'get_partner_contracts', data)
+#  print datetime.now() - start
+#    print len(contracts)
+#  print contracts
+#=cut
+#
+#
+#
+#  my $models = Frontier::Client->new(
+#    url => $self->{URL} . "/xmlrpc/2/object",
+#    debug => 1
+#  );
+##  my @partner_id = ();
+###  if($attr->{PARTNER_ID}) {
+###    push @partner_id, [ ("partner_id", "=", $attr->{PARTNER_ID}) ];
+###  }
+###
+###  if($attr->{INTERNET}) {
+###    push @partner_id,  [ ( "recurring_invoice_line_ids.product_id.type", "=", 'internet' ) ] ;
+###  }
+##
+#
+#  my $list = $models->call('execute',
+#    $self->{DBNAME}, $self->{UID}, $self->{PASSWORD},
+#    'abills.api',
+#    'get_partner_contracts',
+#    {
+##      'category_ids'  => 4,
+##      'product_types' => 'internet' ,
+##       'category_ids'  => [4] ,
+##       'product_types' => ['internet'] ,
+#    },
+#    {
+#      'fields' => [ '*' ],
+#    }
+#  );
+#
+##*********************************************
+##  partners = json_rpc(SERVER_URL, 'object', 'execute_kw', DATABASE, user_id, PASSWORD, 'res.partner', 'search_read',
+##    [[]],
+##  {'fields': ['id', 'name', 'phone', 'email', 'street', 'vat']}
+##  )
+#
+##    my $list = $models->call('execute_kw',
+##      $self->{DBNAME}, $self->{UID}, $self->{PASSWORD},
+##      'res.partner',
+##      'search_read',
+##      [
+##        [  ],
+##      ],
+##      {
+##         'fields'=> ['*'],
+##      }
+##    );
+#
+#
+#  print @$list;
+
+  my %params = ();
+
+  if($attr->{PRODUCT_TYPES}) {
+    $params{product_types}=[$attr->{PRODUCT_TYPES}];
+  }
+
+  if($attr->{CATEGORY_IDS}) {
+    $params{category_ids}=[$attr->{CATEGORY_IDS}];
+  }
+
+  my $callobj = {
+    'debug' => 1,
+    'params' => {
+      'args' => [ $self->{DBNAME}, $self->{UID}, $self->{LOGIN}, 'abills.api', 'get_partner_contracts',
+        \%params
+      ],
+      'method' =>  'execute',
+      'service'=> 'object'
+    },
+    'jsonrpc' => '2.0',
+    'method'  => 'call',
+    'id'      => int(rand(1000000000))
+  };
+
+  if($self->{debug}) {
+    print "\nRequest:\n";
+    print JSON::to_json($callobj);
+    print "\n-----------------------------------\n";
+  }
+
+  my $list =  $self->{client}->call($self->{URL}, $callobj);
+
+  my $fields = fields_custom_info();
+  return $self->_filter_result($list, { FIELDS => $fields });
+
+  #return $list || [];
+}
+
+#**********************************************************
+=head2 fields_custom_info($attr)
+
+  Arguments:
+    $attr
+      PARTNER_ID
+      INTERNET
+
+  Returns:
+
+=cut
+#**********************************************************
+sub fields_custom_info {
+
+  my %fields = (
+    city           => 'CITY',
+    contracts      => '',
+    antenna_type   => '',
+    autoprovision  => '',
+    contract_id    => 'LOGIN',
+    contract_lines => '',
+    id             => '_ODOO_ID',
+    price_unit     => '',
+    product_name   => 'TP_NAME',
+    product_type   => '',
+    quantity       => '',
+    cutoff_date    => '',
+    date_end       => '',
+    date_start     => '',
+    description    => '',
+    ip_antenna     => 'IP',
+    ip_pc          => '',
+    iptv_login     => '',
+    iptv_mac       => '',
+    iptv_model     => '',
+    iptv_pack      => '',
+    iptv_password  => '',
+    iptv_serial_number => '',
+    mac_antenna    => 'CID',
+    mac_ipphone    => '',
+    model  => '',
+    motive => '',
+    ont_ip => '',
+    ont_ip_lan => '',
+    ont_model => '',
+    ont_open_ports => '',
+    ont_serial_number => '',
+    ont_wifi_name => '',
+    ont_wifi_password => '',
+    phone_account => '',
+    phone_ip => '',
+    phone_mac => '',
+    phone_number => '',
+    phone_password => '',
+    phone_user => '',
+    reference => '',
+    router => '',
+    router_mac      => 'CID',
+    router_password => 'PASSWORD',
+    router_series   => '',
+    router_user     => 'INTERNET_LOGIN',
+    sector_bts      => '',
+    signal          => '',
+    speed => '',
+    state => '',
+    wifi_password => '',
+    wifi_ssid => '',
+    country => '',
+    country_state => '',
+    credit   => 'CREDIT',
+    deposit  => 'DEPOSIT',
+    email    => '',
+    id       => '',
+    mobile   => '',
+    name     => 'NAME',
+    phone    => 'PHONE',
+    street   => 'ADDRESS_STREET',
+    street2  => '',
+    zip      => 'ZIP',
+  );
+
+  return \%fields;
+}
+#**********************************************************
+=head2 create_hotspot_user($attr)
+
+  Arguments:
+    $attr
+
+  Returns:
+
+=cut
+#**********************************************************
+sub create_hotspot_user {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my %params = ( 'name'  => $attr->{FIO} || '-',
+                 'email' => $attr->{EMAIL} || '-',
+                 'phone' => $attr->{PHONE} || '0',
+                 'zona'  => $attr->{ssid} || '-');
+
+  my $callobj = {
+    'debug' => 1,
+    'params' => {
+      'args' => [ $self->{DBNAME}, $self->{UID}, $self->{PASSWORD}, 'crm.hotspot.users', 'create',
+        [\%params]
+      ],
+      'method' =>  'execute_kw',
+      'service'=> 'object'
+    },
+    'jsonrpc' => '2.0',
+    'method'  => 'call',
+    'id'      => int(rand(1000000000))
+  };
+
+  if($self->{debug}) {
+    print "\nRequest:\n";
+    print JSON::to_json($callobj);
+    print "\n-----------------------------------\n";
+  }
+
+  my $list =  $self->{client}->call($self->{URL}, $callobj);
+  return $list || [];
 }
 
 1;

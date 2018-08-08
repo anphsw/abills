@@ -21,7 +21,7 @@
     <div class='form-group'>
         <label class='control-label col-md-5' for='SERVER'>Server:</label>
         <div class='col-md-3 control-element'>
-            <input type='text' name='server' value='%server%' class='form-control ip-input' ID='server'/>
+            %SERVER_FORM%
         </div>
     </div>
     <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"></span>
@@ -37,7 +37,7 @@
     <div class='form-group'>
         <label class='control-label col-md-5' for='USER'>Username:</label>
         <div class='col-md-3 control-element'>
-            <input type='text' name='voip_user' value='%voip_user%' class='form-control' ID='voip_user' data-check-for-pattern='%USERNAMEREGEXP%' maxlength='%MAX_USERNAME_LENGTH%'/>
+            <input type='text' name='voip_user' value='%voip_user%' class='form-control' ID='voip_user'/>
         </div>
     </div>
     <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"></span>
@@ -45,7 +45,7 @@
     <div class='form-group'>
         <label class='control-label col-md-5' for='PASS'>Password:</label>
         <div class='col-md-3 control-element'>
-            <input type='text' name='voip_pass' value='%voip_pass%' class='form-control' ID='voip_pass' data-check-for-pattern='%USERNAMEREGEXP%' maxlength='%MAX_USERNAME_LENGTH%'/>
+            <input type='text' name='voip_pass' value='%voip_pass%' class='form-control' ID='voip_pass'/>
         </div>
     </div>
     <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"></span>

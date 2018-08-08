@@ -10,7 +10,6 @@
 use strict;
 use warnings;
 
-
 require Tariffs;
 Tariffs->import();
 
@@ -24,7 +23,7 @@ our (
   $Sessions
 );
 
-my $Tariffs = Tariffs->new($db, \%conf, $Admin);
+#my $Tariffs = Tariffs->new($db, \%conf, $Admin);
 
 change_mpd_speed();
 
@@ -35,7 +34,7 @@ change_mpd_speed();
 #**********************************************************
 sub change_mpd_speed {
   my ($attr) = @_;
-  my $result = '';
+  #my $result = '';
 
   if ($debug > 3) {
     print "Check speed mpd5\n";
@@ -147,7 +146,7 @@ sub change_mpd_speed {
 sub setspeed_mpd {
   my ($NAS, $PORT, $UNAME, $UPSPEED, $DOWNSPEED, $attr) = @_;
 
-	my ($ip, $mng_port, $mng_port2) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
+	my ($ip, $mng_port, undef, undef) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 4);
   if ($debug > 0){
   	print "SETSPEED: NAS_MNG: $ip:$mng_port $NAS->{NAS_MNG_PASSWORD}";
   }
@@ -156,10 +155,10 @@ sub setspeed_mpd {
     $mng_port = 3799;
   }
 
-  my %RAD_PAIRS = ();
+  #my %RAD_PAIRS = ();
   my $type;
   my $result = 0;
-  my $r      = new Radius(
+  my $r      = Radius->new(
     Host   => "$ip:$mng_port",
     Secret => "$NAS->{NAS_MNG_PASSWORD}"
   ) or return "Can't connect '$ip:$mng_port' $!";
@@ -193,7 +192,9 @@ sub setspeed_mpd {
 }
 
 #**********************************************************
-# Shape
+=head2 shape_speed($ci_speed)
+
+=cut
 #**********************************************************
 sub shape_speed {
   my ($cl_speed) = @_;

@@ -25,6 +25,7 @@ our (
 
 my $Diller = Dillers->new($db, $admin, \%conf);
 my $Cards  = Cards->new($db, $admin, \%conf);
+$Cards->{INTERNET}=1;
 my $Tariffs= Tariffs->new($db, \%conf, $admin);
 
 my @status    = ($lang{ENABLE}, $lang{DISABLE}, $lang{USED}, $lang{DELETED}, $lang{RETURNED}, $lang{PROCESSING});
@@ -226,7 +227,7 @@ sub diller_add {
         PAGE_ROWS => 1,
         SORT      => 2,
         DESC      => 'DESC',
-        COLS_NAME => 1
+        COLS_NAME => 1,
       }
     );
     my $serial = 0;
@@ -392,13 +393,14 @@ sub diller_add {
               if ($diller->{PERCENTAGE} > 0) {
                 $sum = $FORM{SUM} - ($FORM{SUM} / 100 * (100 - (100 - $diller->{PERCENTAGE})));
               }
+              my $serial_id = $Diller->{SERIAL} || q{};
               $fees->take(
                 $user, $sum,
                 {
-                  DESCRIBE     => "$lang{ICARDS} $Diller->{SERIAL}$i",
+                  DESCRIBE     => "$lang{ICARDS} $serial_id$i",
                   METHOD       => 0,
-                  EXT_ID       => "$Diller->{SERIAL}$i",
-                  CHECK_EXT_ID => "$Diller->{SERIAL}$i"
+                  EXT_ID       => "$serial_id$i",
+                  CHECK_EXT_ID => "$serial_id$i"
                 }
               );
             }
@@ -687,7 +689,7 @@ sub cards_diller_stats {
       SUM       =>  '_SHOW',
       %LIST_PARAMS,
       PAGE_ROWS => 1000000,
-      COLS_NAME => 1
+      COLS_NAME => 1,
     });
 
     my $total_count = 0;
@@ -856,7 +858,7 @@ sub cards_diller_stats {
 
     my $list = $Cards->cards_list({
       %LIST_PARAMS,
-      COLS_NAME => 1
+      COLS_NAME => 1,
     });
 
     $table = $html->table(
@@ -872,6 +874,7 @@ sub cards_diller_stats {
 
     my @rows = ();
     foreach my $line (@$list) {
+      my $tp_id = $line->{tp_id} || 0;
       if ($FORM{TP_ID}) {
         @rows = ($line->{number},
           $line->{login},
@@ -882,8 +885,11 @@ sub cards_diller_stats {
       }
       else {
         @rows = (
-          $html->button($line->{date}, "&index=$index&CREATED_DATE=$LIST_PARAMS{CREATED_DATE}&PAGE_ROWS=$LIST_PARAMS{PAGE_ROWS}" . (($line->{tp_id} > 0) ? "&TYPE=TP&TP_ID=$line->{tp_id}" : '&TYPE=CARDS&PAYMENTS=1')),
-            (!$line->{count}) ? $lang{PAYMENTS} : $html->button($line->{tp_name}, "&index=$index$pages_qs&TP_ID=$line->{tp_id}"),
+          $html->button($line->{date}, "&index=$index&CREATED_DATE=".
+            ($LIST_PARAMS{CREATED_DATE} || q{})
+            . "&PAGE_ROWS=" . ($LIST_PARAMS{PAGE_ROWS} || 25)
+            . (($tp_id > 0) ? "&TYPE=TP&TP_ID=$tp_id" : '&TYPE=CARDS&PAYMENTS=1')),
+            (!$line->{count}) ? $lang{PAYMENTS} : $html->button($line->{tp_name}, "&index=$index$pages_qs&TP_ID=$tp_id"),
           $line->{count},
           $line->{sum}
         );
@@ -936,19 +942,20 @@ sub cards_diller_stats {
       UID        => '_SHOW',
       COLS_NAME  => 1
     });
+
     $table = $html->table(
       {
-        width      => '100%',
-        caption    => $lang{LOG},
-        title      => [ $lang{SERIAL}, $lang{NUM}, $lang{LOGIN}, $lang{SUM}, $lang{STATUS}, $lang{EXPIRE}, $lang{ADDED} ],
-        qs         => $pages_qs,
-        pages      => $Diller->{TOTAL},
-        ID         => 'CARDS_LIST',
+        width   => '100%',
+        caption => $lang{LOG},
+        title   => [ $lang{SERIAL}, $lang{NUM}, $lang{LOGIN}, $lang{SUM}, $lang{STATUS}, $lang{EXPIRE}, $lang{ADDED} ],
+        qs      => $pages_qs,
+        pages   => $Diller->{TOTAL},
+        ID      => 'CARDS_LIST',
       }
     );
 
     foreach my $line (@$list) {
-      @pin = ("$line->{pin}") if ($conf{CARDS_SHOW_PINS});
+      @pin = ($line->{pin}) if ($conf{CARDS_SHOW_PINS});
       $table->addrow(
         $html->form_input("ID", "$line->{id}", { TYPE => 'checkbox', OUTPUT2RETURN => 1 }).$line->{serial},
         $line->{number},

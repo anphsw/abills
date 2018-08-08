@@ -25,7 +25,7 @@
   "41:40:$lang{CABLES}:cablecat_cable_reports"                  => 4,
   
   "51:0:$lang{CONNECTION_TRACE}:cablecat_user_trace_connection_form" => 20,
-#  "51:0:NAS - $lang{CONNECTION_TRACE}:cablecat_nas_trace_connection_form" => 20,
+  "18:13:$lang{PRINT}:show_box" => 5,
 );
 
 1;

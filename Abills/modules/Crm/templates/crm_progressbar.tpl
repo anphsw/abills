@@ -149,7 +149,7 @@
         for (var i = 0; i <= progress; i++) {
             toggleElement(jQuery('#step_icon').children()[i]);
 
-            
+
         }
     }
 
@@ -191,12 +191,13 @@
 
 <!-- PROGRESSBAR -->
 <div class='box box-primary'>
+
 <div class='box-body'>
 <div class='row' id='progressTracker'>
     <input type='hidden' name='STEP_NUM' id='progressStatus' value='%CUR_STEP%'/>
 
     <hr/>
-    
+
     <div class='alert alert-info' id='tips'>%TIPS%</div>
 
     <ol class='progtrckrText progtrckr-width' id='step_name'></ol>
@@ -205,8 +206,6 @@
 
     <hr/>
 </div>
-
-
 <!-- COMMENTS TO EACH STEP -->
 
 %STEPS_COMMENTS%

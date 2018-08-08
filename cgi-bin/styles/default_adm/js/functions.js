@@ -1165,7 +1165,7 @@ function initChosen(context) {
   if (typeof(CHOSEN_PARAMS) === 'undefined') {
     return false
   }
-  var $selects = $('select:not(#type)', context);
+  var $selects = $('select:not(.not-chosen)', context);
   
   $selects.chosen(CHOSEN_PARAMS);
   

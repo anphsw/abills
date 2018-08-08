@@ -41,7 +41,12 @@ sub form_admins {
   $admin_form->{ACTION}     = 'add';
   $admin_form->{LNG_ACTION} = $lang{ADD};
 
-  if ($FORM{add}) {
+  # Should be sent with another name to prevent authorization
+  if (defined $FORM{API_KEY_NEW}){
+    $FORM{API_KEY} = $FORM{API_KEY_NEW};
+  }
+
+  if ($FORM{add} && !$FORM{subf}) {
     $admin_form->{AID} = $admin->{AID};
     if (!$FORM{A_LOGIN}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} $lang{ADMIN} $lang{LOGIN}");
@@ -90,9 +95,10 @@ sub form_admins {
     push @admin_menu, $lang{GROUP} . ":58:AID=$admin_form->{AID}:users" if (! $admin->{GID});
     push @admin_menu, $lang{ACCESS} . ":59:AID=$admin_form->{AID}:",
     'Paranoid'   . ':'. get_function_index('form_admins_full_log_analyze') .":AID=$admin_form->{AID}:",
-    $lang{CONTACTS}   . ":61:AID=$admin_form->{AID}:contacts",
-    $lang{DOMAINS}    . ":113:AID=$admin_form->{AID}:domains";
-
+    $lang{CONTACTS}   . ":61:AID=$admin_form->{AID}:contacts";
+    if(in_array('Multidoms', \@MODULES)) {
+      push @admin_menu, $lang{DOMAINS} . ":113:AID=$admin_form->{AID}:domains";
+    }
     if(in_array('Msgs', \@MODULES)) {
       push @admin_menu, "$lang{MESSAGES}:".get_function_index('msgs_admin') .":AID=$admin_form->{AID}:msgs";
     }
@@ -122,11 +128,6 @@ sub form_admins {
         $Conf->config_add({ PARAM => 'DEFAULT_PASSWORD_CHANGED', VALUE => 1, REPLACE => 1});
         _error_show($Conf);
         $conf{DEFAULT_PASSWORD_CHANGED} = 1;
-      }
-      
-      # Should be sent with another name to prevent authorization
-      if (defined $FORM{API_KEY_NEW}){
-        $FORM{API_KEY} = $FORM{API_KEY_NEW};
       }
 
       $admin_form->change({%FORM});
@@ -172,7 +173,7 @@ sub form_admins {
       'POSITION',
       {
         SELECTED    => $FORM{POSITION} || $admin_form->{POSITION},
-        SEL_LIST    => $Employees->position_list({ COLS_NAME => 1 }),
+        SEL_LIST    => translate_list($Employees->position_list({ COLS_NAME => 1 }), "position"),
         SEL_KEY     => 'id',
         SEL_VALUE   => 'position',
         NO_ID       => 1,
@@ -755,7 +756,7 @@ sub form_admin_permissions {
   }
   elsif ($FORM{set}) {
     while (my ($k, $v) = each(%FORM)) {
-      if ($v eq '1') {
+      if ($v && $v eq '1') {
         my ($section_index, $action_index) = split(/_/, $k, 2);
         $permits{$section_index}{$action_index} = 1 if (defined($section_index) && defined($action_index));
           #if ($section_index =~ /^\d+$/ && $section_index >= 0);
@@ -1087,7 +1088,7 @@ sub _build_admin_contacts_form{
   my ($admin_contacts_list, $admin_contacts_types_list) = @_;
   my $json = JSON->new()->utf8(0);
 
-  $html->tpl_show( templates( 'form_contacts' ), {
+  $html->tpl_show( templates( 'form_contacts_admin' ), {
     JSON => $json->encode( {
         contacts => $admin_contacts_list,
         options  => {

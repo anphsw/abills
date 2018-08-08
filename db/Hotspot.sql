@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS `hotspot_adverts` (
   `period` ENUM ('month', 'week', 'day', 'year') NOT NULL DEFAULT 'month',
   `url` TEXT,
   `nas_id` SMALLINT(5) UNSIGNED NOT NULL REFERENCES `nas` (`id`)
-);
+) COMMENT = "Hotspot advert";
 
 CREATE TABLE IF NOT EXISTS `hotspot_advert_shows` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT NOT NULL  PRIMARY KEY,

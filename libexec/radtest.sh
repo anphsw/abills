@@ -273,12 +273,12 @@ if [ "${ACTION}" != "help" ]; then
 fi;
 
 # Make direct radius request
-if [ x${RADIUS_ACTION} = x1 ]; then
+if [ "${RADIUS_ACTION}" = 1 ]; then
   #if [ x${RADIUS_SECRET} = x ]; then
   #  RADIUS_SECRET=radsecret;
   #fi;
 
-  if [ x${RADIUS_IP} = x ]; then
+  if [ "${RADIUS_IP}" = "" ]; then
     RADIUS_IP=127.0.0.1;
   else 
     PORT=`echo ${RADIUS_IP}  | awk -F : '{ print $2 }'`

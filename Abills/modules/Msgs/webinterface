@@ -165,6 +165,9 @@ sub msgs_status_bar {
   }
   
   push @header_arr, "$lang{EVERYTHING_EXCEPT_DONE}:index=$index&EVERYTHING_EXCEPT_DONE=1";
+
+  # state for watching messages
+  push @header_arr, "$lang{WATCH}:index=$index&ALL_MSGS=1&STATE=12";
   
   if ( $attr->{NEXT} ) {
     push @header_arr, "$lang{NEXT}:index=$index&NEXT_MSG=" . ($FORM{chg} || $attr->{ID} || 1); #."$pages_qs";
@@ -643,11 +646,11 @@ sub msgs_survey_show {
   my %answers = ();
   
   delete($Msgs->{ACTIVE_SURWEY});
-  
+
   my $uid = $user->{UID} || $LIST_PARAMS{UID} || $FORM{UID};
   
   if ( $FORM{change} ) {
-    $Msgs->survey_answer_add({ %FORM, MSG_ID => $FORM{ID}, UID => $uid });
+    $Msgs->survey_answer_add({ %FORM, SURVEY_ID => $FORM{SURVEY_ANSWER}, MSG_ID => $FORM{ID}, UID => $uid });
     $html->message('info', $lang{INFO}, "$lang{SENDED}");
     delete $FORM{change};
   }
@@ -734,6 +737,9 @@ sub msgs_survey_show {
   }
   else {
     delete $Msgs->{ACTIVE_SURWEY};
+    if($attr->{MAIN_MSG}){
+      return 0;
+    }
   }
   
   my $del_button = '';
@@ -775,17 +781,20 @@ sub msgs_survey_show {
     }
     
     if ( $Msgs->{TPL} ) {
-      if ( !$users ) {
-        $users = $user;
-        $users->pi({ UID => $uid });
+      $Msgs->{TPL} = '' if $attr->{MAIN_MSG};
+      if($attr->{TEXT}){
+        $Msgs->{TPL} = $attr->{TEXT};
       }
-      
-      $Msgs->{TPL} = tpl_parse($Msgs->{TPL}, $users);
+      my $u_info = Users->new($db, $admin, \%conf);
+      $u_info->info($uid);
+      $u_info->pi({UID => $uid});
+
+      $Msgs->{TPL} = tpl_parse($Msgs->{TPL}, $u_info);
       
       if ( $attr->{SHOW_SURVAY_TEXT} ) {
         return $Msgs->{TPL};
       }
-      
+
       $Msgs->{TPL} = convert($Msgs->{TPL}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
     }
     
@@ -795,7 +804,7 @@ sub msgs_survey_show {
         %{$Msgs},
         ACTION    => ($survey_questions)              ? $html->form_input('change', $lang{SEND},
             { TYPE => 'submit', OUTPUT2RETURN => 1 }) : '',
-        SURVEY_ID => ($survey_questions)              ? $html->form_input('SURVEY_ID', $attr->{SURVEY_ID},
+        SURVEY_ID => ($survey_questions)              ? $html->form_input('SURVEY_ANSWER', $attr->{SURVEY_ID},
             { TYPE => 'hidden', OUTPUT2RETURN => 1 }) : undef,
         SURVEY    => $survey_questions,
         DELETE    => ($user->{UID}) ? '' : $del_button,

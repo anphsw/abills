@@ -46,8 +46,8 @@ our ($db,
 );
 
 my $Ureports = Ureports->new( $db, $admin, \%conf );
-my $fees = Fees->new( $db, $admin, \%conf );
-my $tariffs = Tariffs->new( $db, \%conf, $admin );
+my $Fees = Fees->new( $db, $admin, \%conf );
+my $Tariffs = Tariffs->new( $db, \%conf, $admin );
 
 use Abills::Sender::Core;
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
@@ -150,7 +150,8 @@ sub ureports_users_list{
         tp_name     => $lang{TARIF_PLANS},
         status      => "$lang{STATUS}",
         type        => $lang{TYPE},
-        destination => $lang{DESTINATION}
+        destination => $lang{DESTINATION},
+        reports_count=> $lang{REPORTS}
       },
     TABLE           => {
       width   => '100%',
@@ -172,7 +173,7 @@ sub ureports_users_list{
       my $field_name = $Ureports->{COL_NAMES_ARR}->[$i];
 
       if ( $field_name eq 'login' ){
-        $val = $html->button( $line->{login}, "index=11&UID=$line->{uid}" );
+        $val = $html->button( $line->{login}, "index=11&UID=$line->{uid}&MODULE=Ureports" );
       }
       elsif ( $field_name eq 'status' ){
         $val = ($line->{status}) ? $html->color_mark( $service_status[$line->{status}],
@@ -379,7 +380,7 @@ sub ureports_user{
     'TP_ID',
     {
       SELECTED  => $Ureports->{TP_ID},
-      SEL_LIST  => $tariffs->list( { MODULE => 'Ureports', COLS_NAME => 1 } ),
+      SEL_LIST  => $Tariffs->list( { MODULE => 'Ureports', COLS_NAME => 1 } ),
       SEL_KEY   => 'tp_id',
       SEL_VALUE => 'name',
       NO_ID     => 1
@@ -401,7 +402,7 @@ sub ureports_user{
 #**********************************************************
 sub ureports_tp{
 
-  my $tarif_info = $tariffs->defaults();
+  my $tarif_info = $Tariffs->defaults();
   $tarif_info->{LNG_ACTION} = $lang{ADD};
   $tarif_info->{ACTION}     = 'ADD_TP';
 
@@ -427,13 +428,13 @@ sub ureports_tp{
 
     $FORM{add_form} = 1;
 
-    $tariffs->{NAME_SEL} = $html->form_main(
+    $Tariffs->{NAME_SEL} = $html->form_main(
       {
         CONTENT => $html->form_select(
           'TP_ID',
           {
             SELECTED  => $FORM{TP_ID},
-            SEL_LIST  => $tariffs->list( { %LIST_PARAMS, COLS_NAME => 1 } ),
+            SEL_LIST  => $Tariffs->list( { %LIST_PARAMS, COLS_NAME => 1 } ),
             SEL_KEY   => 'tp_id',
             SEL_VALUE => 'name',
             NO_ID     => 1
@@ -447,7 +448,7 @@ sub ureports_tp{
 
     func_menu(
       {
-        $lang{NAME} => $tariffs->{NAME_SEL}
+        $lang{NAME} => $Tariffs->{NAME_SEL}
       },
       [
         $lang{INFO} . ":TP_ID=$FORM{TP_ID}",
@@ -472,10 +473,11 @@ sub ureports_tp{
     $tarif_info->{ACTION} = 'change';
   }
   elsif ( defined( $FORM{del} ) && $FORM{COMMENTS} ){
-    $tariffs->del( $FORM{del} );
+    $Tariffs->del( $FORM{del} );
 
-    if ( !$tariffs->{errno} ){
+    if ( !$Tariffs->{errno} ){
       $html->message( 'info', $lang{DELETED}, "$lang{DELETED} $FORM{del}" );
+      $Ureports->tp_del($FORM{del});
     }
   }
 
@@ -485,7 +487,7 @@ sub ureports_tp{
     'TP_GID',
     {
       SELECTED       => $tarif_info->{TP_GID},
-      SEL_LIST       => $tariffs->tp_group_list( { COLS_NAME => 1 } ),
+      SEL_LIST       => $Tariffs->tp_group_list( { COLS_NAME => 1 } ),
       MAIN_MENU      => get_function_index( 'form_tp_groups' ),
       MAIN_MENU_ARGV => "chg=" . ($tarif_info->{TP_GID} || q{}),
       SEL_OPTIONS    => { '' => '' },
@@ -499,7 +501,7 @@ sub ureports_tp{
 
   if ( $conf{EXT_BILL_ACCOUNT} ){
     my $checked = ($tarif_info->{EXT_BILL_ACCOUNT}) ? ' checked' : '';
-    $tarif_info->{EXT_BILL_ACCOUNT} = "<tr><td>$lang{EXTRA} $lang{BILL}:</td><td><input type='checkbox' name='EXT_BILL_ACCOUNT' value='1' $checked></td></tr>\n";
+    $tarif_info->{EXT_BILL_ACCOUNT} = "<tr><td>$lang{EXTRA_BILL}:</td><td><input type='checkbox' name='EXT_BILL_ACCOUNT' value='1' $checked></td></tr>\n";
   }
   else{
     $tarif_info->{EXT_BILL_ACCOUNT} = '';
@@ -511,13 +513,13 @@ sub ureports_tp{
 
   $LIST_PARAMS{NEW_MODEL_TP} = 1;
   $LIST_PARAMS{MODULE} = 'Ureports';
-  $tariffs->{COL_NAMES_ARR} = undef;
+  $Tariffs->{COL_NAMES_ARR} = undef;
 
   my $base_fields = 2;
   my Abills::HTML $table;
   my $list;
   ($table, $list) = result_former( {
-    INPUT_DATA        => $tariffs,
+    INPUT_DATA        => $Tariffs,
     FUNCTION        => 'list',
     BASE_FIELDS     => $base_fields,
     DEFAULT_FIELDS  => 'ID,NAME,PAYMENT_TYPE,MONTH_FEE,TP_GROUP_NAME',
@@ -554,21 +556,21 @@ sub ureports_tp{
 
   foreach my $line ( @{$list} ){
     my @fields_array = ();
-    for ( my $i = 0; $i < $base_fields + $tariffs->{SEARCH_FIELDS_COUNT}; $i++ ){
-      if ( $tariffs->{COL_NAMES_ARR}->[$i] eq 'id' ){
+    for ( my $i = 0; $i < $base_fields + $Tariffs->{SEARCH_FIELDS_COUNT}; $i++ ){
+      if ( $Tariffs->{COL_NAMES_ARR}->[$i] eq 'id' ){
         $line->{id} = $html->b( $line->{id} );
       }
-      elsif ( $tariffs->{COL_NAMES_ARR}->[$i] eq 'name' ){
+      elsif ( $Tariffs->{COL_NAMES_ARR}->[$i] eq 'name' ){
         $line->{name} = $html->button( $line->{name}, "index=$index&TP_ID=$line->{tp_id}" ),
       }
-      elsif ( $tariffs->{COL_NAMES_ARR}->[$i] eq 'payment_type' ){
+      elsif ( $Tariffs->{COL_NAMES_ARR}->[$i] eq 'payment_type' ){
         $line->{payment_type} = $Payment_Types[ $line->{payment_type} ];
       }
-      elsif ( $tariffs->{COL_NAMES_ARR}->[$i] =~ /time_tarifs|traf_tarifs/ ){
-        $line->{$tariffs->{COL_NAMES_ARR}->[$i]} = $bool_vals[ $line->{$tariffs->{COL_NAMES_ARR}->[$i]} ];
+      elsif ( $Tariffs->{COL_NAMES_ARR}->[$i] =~ /time_tarifs|traf_tarifs/ ){
+        $line->{$Tariffs->{COL_NAMES_ARR}->[$i]} = $bool_vals[ $line->{$Tariffs->{COL_NAMES_ARR}->[$i]} ];
       }
 
-      push @fields_array, $line->{$tariffs->{COL_NAMES_ARR}->[$i]};
+      push @fields_array, $line->{$Tariffs->{COL_NAMES_ARR}->[$i]};
     }
 
     my ($delete, $change);
@@ -599,7 +601,7 @@ sub ureports_tp{
   $table = $html->table(
     {
       width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b( $tariffs->{TOTAL} ) ] ]
+      rows       => [ [ "$lang{TOTAL}:", $html->b( $Tariffs->{TOTAL} ) ] ]
     }
   );
 
@@ -629,8 +631,8 @@ sub ureports_session_detail{
 #**********************************************************
 sub ureports_stats{
 
-  if ( $FORM{del} && $FORM{is_js_confirmed} ){
-    $Ureports->log_del( { %FORM } );
+  if ( $FORM{del} && $FORM{COMMENTS} ){
+    $Ureports->log_del( { %FORM, ID => $FORM{del} } );
     if ( !$Ureports->{errno} ){
       $html->message( 'info', $lang{INFO}, "$lang{DELETED} $lang{MESSAGE} [$FORM{MSG_ID}]" );
     }
@@ -685,8 +687,8 @@ sub ureports_stats{
           UIDS  => ($FORM{UIDS} || '')
         },
         #NAME => 'stats',
-        #ID   => 'stats',
-        class   => 'form-inline',
+        ID   => 'stats',
+        class  => 'form-inline'
       }
     );
 
@@ -719,7 +721,7 @@ sub ureports_stats{
   my $delete = '';
 
   foreach my $line ( @{$list} ){
-    if ( $permissions{3} && $permissions{3}{1} && $LIST_PARAMS{UID} ){
+    if ( $permissions{3} && $permissions{3}{1} ){
       $delete = $html->button( $lang{DEL}, "index=" . $index . "$pages_qs&del=$line->{id}&MSG_ID=$line->{id}",
         { MESSAGE => "$lang{DEL} Session MSG_ID $line->{id}?", class => 'del' } );
     }
@@ -751,10 +753,13 @@ sub ureports_user_info {
   
   if ( $FORM{add} ) {
     if ( $report_type == 0 && $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/ ) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_EMAIL}");
+      $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_EMAIL});
     }
     elsif ( $report_type == 1 && $conf{PHONE_FORMAT} && $FORM{DESTINATION} !~ /$conf{PHONE_FORMAT}/ ) {
       _error_show({ errno => 21, errstr => 'ERR_WRONG_PHONE' });
+    }
+    elsif ( ! $FORM{TP_ID} ) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_SELECT_TP});
     }
     else {
       $Ureports->user_add({ %FORM });
@@ -797,7 +802,7 @@ sub ureports_user_info {
         }
       }
       else {
-        $html->message('err', $lang{INFO}, $lang{CHANGED});
+        $html->message('info', $lang{INFO}, $lang{CHANGED});
       }
     }
   }
@@ -874,19 +879,20 @@ sub ureports_user_info {
   }
   
   $Ureports->{TP_ID} = $html->form_select('TP_ID', {
-      SELECTED => $Ureports->{TP_ID},
-      SEL_LIST => $tariffs->list({ MODULE => 'Ureports', COLS_NAME => 1 }),
-      SEL_KEY  => 'tp_id',
-      NO_ID    => 1
-    });
+    SELECTED => $Ureports->{TP_ID},
+    SEL_LIST => $Tariffs->list({ MODULE => 'Ureports', COLS_NAME => 1 }),
+    SEL_KEY  => 'tp_id',
+    NO_ID    => 1
+  });
   
   # Choose destination type and value
   $Ureports->{TYPE_SEL} = $html->form_select('TYPE', {
-      SELECTED => $Ureports->{TYPE},
-      SEL_HASH => \%service_type,
-      SORT_KEY => 1,
-      NO_ID    => 1,
-    });
+    SELECTED => $Ureports->{TYPE},
+    SEL_HASH => \%service_type,
+    SORT_KEY => 1,
+    NO_ID    => 1,
+  });
+
   $Ureports->{DESTINATION_VIEW} = $html->element('p', $Ureports->{DESTINATION}, {
     class => 'form-control-static',
     OUTPUT2RETURN => 1
@@ -903,10 +909,10 @@ sub ureports_user_info {
   
   $Ureports->{TP_NAME} = '';
   $Ureports->{STATUS_SEL} = $html->form_select('STATUS', {
-      SELECTED     => $Ureports->{STATUS},
-      SEL_ARRAY    => [ $service_status[0], $service_status[1] ],
-      ARRAY_NUM_ID => 1
-    });
+    SELECTED     => $Ureports->{STATUS},
+    SEL_ARRAY    => [ $service_status[0], $service_status[1] ],
+    ARRAY_NUM_ID => 1
+  });
   
   $html->tpl_show(_include('ureports_client_user', 'Ureports'), $Ureports);
   
@@ -1000,7 +1006,7 @@ sub ureports_periodic_reports{
   my %SERVICE_LIST_PARAMS = ();
   $SERVICE_LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
 
-  my $list = $tariffs->list( { %LIST_PARAMS } );
+  my $list = $Tariffs->list( { %LIST_PARAMS } );
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
 
   foreach my $line ( @{$list} ){
@@ -1058,10 +1064,10 @@ sub ureports_periodic_reports{
                 $debug_output .= " UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n";
               }
               else{
-                $fees->take( \%user, $sum, { %PARAMS } );
-                if ( $fees->{errno} ){
-                  print "Error: [$fees->{errno}] $fees->{errstr} ";
-                  if ( $fees->{errno} == 14 ){
+                $Fees->take( \%user, $sum, { %PARAMS } );
+                if ( $Fees->{errno} ){
+                  print "Error: [$Fees->{errno}] $Fees->{errstr} ";
+                  if ( $Fees->{errno} == 14 ){
                     print "[ $user{UID} ] $user{LOGIN} - Don't have money account (Ureport)";
                   }
                   print "\n";
@@ -1072,7 +1078,6 @@ sub ureports_periodic_reports{
                   #$debug_output .= " UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n";
                 }
               }
-
             }
             $debug_output .= "UID: $user{UID} TYPE: $user{DESTINATION_TYPE} DESTINATION: $user{DESTINATION_ID}" if ($debug > 0);
           }
@@ -1183,11 +1188,11 @@ sub ureports_tp_reports{
     }
 
     my $table = $html->table({
-      width      => '100%',
-      caption    => $lang{REPORTS},
-      title      => [ '#', $lang{NAME}, $lang{COMMENTS}, $lang{PRICE}, $lang{VISUAL} ], #"$lang{DEFAULT} $lang{VALUE}"],
-      qs         => $pages_qs,
-      ID         => 'TP_REPORTS'
+      width   => '100%',
+      caption => $lang{REPORTS},
+      title   => [ '#', $lang{NAME}, $lang{COMMENTS}, $lang{PRICE}, $lang{VISUAL} ], #"$lang{DEFAULT} $lang{VALUE}"],
+      qs      => $pages_qs,
+      ID      => 'TP_REPORTS'
     });
 
     #Get extra report
@@ -1277,6 +1282,12 @@ sub ureports_tp_reports{
 #**********************************************************
 =head2 ureports_payments_maked($attr)
 
+  Arguments:
+    $attr
+
+  Results:
+
+
 =cut
 #**********************************************************
 sub ureports_payments_maked{
@@ -1317,6 +1328,11 @@ sub ureports_payments_maked{
 
   if ( $Ureports->{TOTAL} > 0 ){
     my %info = ();
+
+    if($attr->{AMOUNT}) {
+      $info{AMOUNT}=$attr->{AMOUNT};
+    }
+
     my $total_daily_fee = 0;
 
     my $cross_modules_return = cross_modules_call( '_docs', {
@@ -1346,6 +1362,14 @@ sub ureports_payments_maked{
         elsif ( $cross_modules_return->{$module}{month} ){
           $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
         }
+
+        if($cross_modules_return->{$module}->{service_activate}) {
+          $info{ACTIVATE} = $cross_modules_return->{$module}->{service_activate};
+        }
+
+        if($cross_modules_return->{$module}->{tp_fixed_fees_day}) {
+          $info{TP_FIXED_FEES_DAY} = $cross_modules_return->{$module}->{tp_fixed_fees_day};
+        }
       }
     }
 
@@ -1364,7 +1388,13 @@ sub ureports_payments_maked{
         admin => $admin,
         conf  => \%conf
       });
-      $Service->get_next_abon_date({ MONTH_ABON => $user_info->{tp_month_fee} });
+
+      $Service->get_next_abon_date({
+        MONTH_ABON     => $user_info->{tp_month_fee},
+        ACTIVATE       => $info{ACTIVATE},
+        FIXED_FEES_DAY => $info{TP_FIXED_FEES_DAY},
+      });
+
       if($Service->{ABON_DATE} ) {
         $info{EXPIRE_DATE} = $Service->{ABON_DATE};
         $info{EXPIRE_DAYS} = date_diff($DATE, $Service->{ABON_DATE});
@@ -1406,11 +1436,35 @@ sub ureports_payments_maked{
       $user_info->{DESTINATION_ID},
       $html->tpl_show( _include( 'ureports_report_12', 'Ureports' ), { %{$user}, %{$user_info}, %info }, { OUTPUT2RETURN => 1 } ),
       {
-        SUBJECT => $lang{ACCOUNT_REPLENISHMENT},
-        UID     => $user->{UID},
+        %info,
+        SUBJECT  => $lang{ACCOUNT_REPLENISHMENT},
+        UID      => $user->{UID},
+        TP_ID    => $user_info->{TP_ID},
+        REPORT_ID=> 12,
       },
       DEBUG => 5
     );
+
+    if ( $user_info->{MSG_PRICE} > 0 ){
+      my $sum = $user_info->{MSG_PRICE};
+
+      my %PARAMS = (
+        DESCRIBE => "$lang{REPORTS} ($user_info->{REPORT_ID}) ",
+      );
+
+        $Fees->take( $user, $sum, { %PARAMS } );
+        if ( $Fees->{errno} ){
+          print "Error: [$Fees->{errno}] $Fees->{errstr} ";
+          if ( $Fees->{errno} == 14 ){
+            print "[ $user->{UID} ] $user_info->{LOGIN} - Don't have money account";
+          }
+          print "\n";
+        }
+#        elsif ( $debug > 0 ){
+#          $debug_output .= " $user_info->{LOGIN}  UID: $user->{UID} SUM: $sum REDUCTION: $user_info->{REDUCTION}\n" if ($debug > 0);
+#        }
+    }
+
     return 1;
   }
 
@@ -1441,7 +1495,7 @@ sub ureports_multiuser_sel {
     'UREPORTS_TP',
     {
       SELECTED     => $attr->{SELECTED_TP} || '',
-      SEL_LIST     => $tariffs->list( { MODULE => 'Ureports', COLS_NAME => 1 } ),
+      SEL_LIST     => $Tariffs->list( { MODULE => 'Ureports', COLS_NAME => 1 } ),
       SEL_KEY      => 'tp_id',
       SEL_VALUE    => 'name',
       SORT_KEY_NUM => 1,
@@ -1544,6 +1598,62 @@ sub _ureports_get_user_contacts {
   
   return $contacts_list;
 }
+
+#**********************************************************
+=head ureports_quick_info($attr) - Quick information
+
+  Arguments:
+    $attr
+      UID
+
+  Return:
+
+=cut
+#**********************************************************
+sub ureports_quick_info {
+  my ($attr) = @_;
+  my $result;
+
+  my $uid = $attr->{UID} || $FORM{UID};
+
+  if ($attr->{UID}) {
+    my $list = $Ureports->user_list({
+      UID        =>  $uid,
+      REPORTS_COUNT => '_SHOW',
+      COLS_NAME  => 1,
+      COLS_UPPER => 1
+    });
+
+    $result = $list->[0];
+    my $service_status = sel_status({ HASH_RESULT => 1 });
+    $result->{STATUS} = (defined($result->{STATUS})) ? $service_status->{ $result->{STATUS} } : '';
+    return $result;
+  }
+  elsif($attr->{GET_PARAMS}) {
+    $result = {
+      HEADER    => $lang{INTERNET},
+      QUICK_TPL => 'ureports_qi_box',
+      FIELDS => {
+        TP_NAME     => $lang{TARIF_PLAN},
+        STATUS      => $lang{STATUS},
+        MONTH_FEE   => $lang{MONTH_FEE},
+        TP_COMMENTS => $lang{COMMENTS},
+      }
+    };
+
+    return $result;
+  }
+
+  my $reports_list = $Ureports->user_list({
+    UID           =>  $uid,
+    REPORTS_COUNT => '_SHOW',
+    COLS_NAME     => 1,
+  });
+
+  return ($Ureports->{TOTAL} && $Ureports->{TOTAL} > 0) ? $reports_list->[0]->{reports_count} : '';
+}
+
+
 
 1
 

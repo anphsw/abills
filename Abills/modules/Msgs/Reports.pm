@@ -45,15 +45,19 @@ sub msgs_reports {
         STREET     => $lang{STREET},
         BUILD      => $lang{BUILD},
         REPLY      => $lang{REPLY},
+        PER_CLOSED => $lang{CLOSED},
       },
-      FIELDS => {
-        "1:STATE" => $lang{OPEN},
-        "2:STATE" => $lang{CLOSED_UNSUCCESSFUL},
-        "3:STATE" => $lang{CLOSED_SUCCESSFUL}
-      },
+      # FIELDS => {
+      #   "1:STATE" => $lang{OPEN},
+      #   "2:STATE" => $lang{CLOSED_UNSUCCESSFUL},
+      #   "3:STATE" => $lang{CLOSED_SUCCESSFUL}
+      # },
     }
   );
-
+  if ($FORM{TYPE} && $FORM{TYPE} eq 'PER_CLOSED') {
+    report_per_month();
+    return 1;
+  }
   my ($table_sessions);
   my $output = '';
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
@@ -72,7 +76,7 @@ sub msgs_reports {
 
   my $graph_type = '';
   #Day reposrt
-  if ($FORM{DATE}) {
+  if ($FORM{DATE} || $FORM{DAYS}) {
     if (!defined($FORM{sort})) {
       $LIST_PARAMS{SORT} = 1;
       $LIST_PARAMS{DESC} = 'DESC';
@@ -102,6 +106,7 @@ sub msgs_reports {
     }
     elsif ( $type eq 'USER' ){
       $caption[0] = $lang{USERS};
+      $pages_qs .= "&TYPE=USER"
     }
     elsif ( $type eq 'RESPOSIBLE' ){
       $caption[0] = $lang{RESPOSIBLE};
@@ -388,6 +393,7 @@ sub msgs_report_menu {
       AID                     => '_SHOW',
       PAGE_ROWS               => 10000,
       COLS_NAME               => 1,
+      DISABLE                 => '0',
     }
   );
 
@@ -566,7 +572,12 @@ sub msgs_reports_replys {
     $FORM{ADMINS_LOGIN} =~ s/,/;/g;
   }
 
-  my $admins_list = $Admins->list({ COLS_NAME => 1, PAGE_ROWS => 1000, AID => $FORM{ADMINS_LOGIN} || '_SHOW' });
+  my $admins_list = $Admins->list({
+    COLS_NAME => 1, 
+    PAGE_ROWS => 1000, 
+    DISABLE   => '0',
+    AID => $FORM{ADMINS_LOGIN} || '_SHOW' 
+  });
   my %date;
   if ($FORM{FROM_DATE} && $FORM{TO_DATE}) {
     %date = (
@@ -895,7 +906,8 @@ sub msgs_report_tags {
       width      => '100%',
       title      => [ "$lang{NAME}", "$lang{TOTAL}", "$lang{PERCENTAGE}" ],
       cols_align => [ 'right', 'left', 'center', 'center', 'center' ],
-      ID         => 'MSGS_TAGS_REPORTS'
+      ID         => 'MSGS_TAGS_REPORTS',
+      DATA_TABLE => 1,
     }
   );
 
@@ -1118,15 +1130,15 @@ sub msgs_admin_time_spend_report {
 #**********************************************************
 sub msgs_admin_statistics {
 
-  # reports(
-  #   {
-  #     DATE_RANGE=> 1,
-  #     DATE      => $FORM{DATE},
-  #     PERIOD_FORM => 1,
-  #     NO_TAGS   => 1,
-  #     NO_GROUP  => 1
-  #   }
-  # );
+  reports(
+    {
+      DATE_RANGE  => 1,
+      DATE        => $FORM{DATE},
+      PERIOD_FORM => 1,
+      NO_TAGS     => 1,
+      NO_GROUP    => 1
+    }
+  );
 
   my ($year, $month, undef) = split('-', $DATE);
   my $period = sprintf("%s-%#.2d", $year, $month);
@@ -1161,19 +1173,23 @@ sub msgs_admin_statistics {
 
   #Close
   my $msgs_list_closed = $Msgs->messages_list({
-    DONE_DATE              => ">=$from_date;<=$to_date",
+    CLOSED_DATE            => ">=$from_date;<=$to_date",
     RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
+    RATING                 => '_SHOW',
     COLS_NAME              => 1,
     PAGE_ROWS              => 100000,
   });
 
   $msgs_hash->{0}->{CLOSED} = 0;
+  $msgs_hash->{0}->{RATING} = 0;
   foreach my $line (@$msgs_list_closed) {
     if ($line->{resposible} && $msgs_hash->{$line->{resposible}}->{CLOSED}) {
       $msgs_hash->{$line->{resposible}}->{CLOSED}++;
+      $msgs_hash->{$line->{resposible}}->{RATING} += $line->{rating};
     }
     elsif ($line->{resposible}) {
       $msgs_hash->{$line->{resposible}}->{CLOSED} = 1;
+      $msgs_hash->{$line->{resposible}}->{RATING} = $line->{rating};
     }
     else {
       $msgs_hash->{0}->{CLOSED}++;
@@ -1202,10 +1218,10 @@ sub msgs_admin_statistics {
       $msgs_hash->{0}->{OPEN}++;
     }
   }
-  
+
   my $table = $html->table({
     caption    => "$lang{REPORTS} $from_date - $to_date",
-    title      => [ "$lang{RESPOSIBLE} $lang{ADMIN}", $lang{NEW}, $lang{CLOSED}, $lang{OPEN} ],
+    title      => [ "$lang{RESPOSIBLE} $lang{ADMIN}", $lang{NEW}, $lang{CLOSED}, $lang{OPEN}, $lang{AVERAGE_RATING} ],
     ID         => 'MSGS_REPORT'
   });
 
@@ -1218,12 +1234,120 @@ sub msgs_admin_statistics {
       $admin_names->{$admin_id} || $lang{NO_RESPONSIBLE},
       $html->button($msgs_hash->{$admin_id}->{NEW} || '0',  '&ALL_MSGS=1&RESPOSIBLE='.$admin_id . $qs_period),
       $html->button($msgs_hash->{$admin_id}->{CLOSED} || '0', 'STATE=2&RESPOSIBLE='. $admin_id . $qs_period),
-      $msgs_hash->{$admin_id}->{OPEN} || '0'
+      $msgs_hash->{$admin_id}->{OPEN} || '0',
+      ($msgs_hash->{$admin_id}->{RATING} && $msgs_hash->{$admin_id}->{CLOSED}
+        ? sprintf("%.2f", $msgs_hash->{$admin_id}->{RATING} / $msgs_hash->{$admin_id}->{CLOSED})
+        : 0
+      ),
     );
   }
 
   print $table->show();
-  
+
+  return 1;
+}
+
+#**********************************************************
+=head2 report_per_month()
+
+=cut
+#**********************************************************
+sub report_per_month {
+
+  $FORM{TYPE} = 'PER_MONTH';
+
+  my $closed_list = $Msgs->messages_report_closed({
+    F_DATE => $FORM{FROM_DATE},
+    T_DATE => $FORM{TO_DATE},
+  });
+
+  my $msgs_list = $Msgs->messages_reports({
+    %LIST_PARAMS,
+    TYPE      => 'PER_MONTH',
+    COLS_NAME => 1
+  });
+
+  my %result = ();
+
+  foreach my $line (@$closed_list) {
+    $result{$line->{month}} = {
+      closed_msgs    => $line->{total_msgs},
+      average_replys => ($line->{total_msgs} ? $line->{total_replys} / $line->{total_msgs} : 0),
+      average_time   => sec2time(($line->{total_msgs} ? $line->{run_time} / $line->{total_msgs} : 0), {str => 1}),
+      average_rating => ($line->{total_msgs} ? $line->{total_rating} / $line->{total_msgs} : 0),
+    };
+  }
+
+  foreach my $line (@$msgs_list) {
+    $result{$line->{month}}{total_msgs} = $line->{total_msgs};
+  }
+
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{MESSAGES},
+    title_plain => [$lang{DATE}, $lang{NEW}, $lang{CLOSED}, "$lang{REPLYS} ($lang{AVERAGE_PER_APPLICATION})", "$lang{RUN_TIME} ($lang{AVERAGE_PER_APPLICATION})", $lang{AVERAGE_SCORE_FOR_CLOSED_BIDS} ],
+    qs          => $pages_qs,
+    ID          => 'MSGS_REPORT',
+    EXPORT      => 1,
+    
+  });
+
+  foreach my $month (sort keys %result) {
+    $table->addrow(
+      $month,
+      $result{$month}{total_msgs},
+      $result{$month}{closed_msgs},
+      sprintf("%.2f", $result{$month}{average_replys} || 0),
+      $result{$month}{average_time} || 0,
+      sprintf("%.2f", $result{$month}{average_rating} || 0),
+    );
+  }
+
+  print $table->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 msgs_templates_report()
+
+=cut
+#**********************************************************
+sub msgs_templates_report {
+
+  my $form = $html->form_input('index', $index, { TYPE => 'hidden' });
+  $form .= $html->element('div', "", { class => "col-md-4" } );
+  $form .= $html->element('div', msgs_survey_sel(), { class => "col-md-4" } );
+  $form .= $html->element('div', $html->form_input('show', $lang{SHOW}, { TYPE => 'submit' }), { class => "col-md-1" } );
+  $form = $html->element('div', $form, { class => "row" } );
+  $form = $html->element('form', $form, { action => "$SELF_URL" } ) . $html->br() . $html->br();
+  print $form;
+
+  return 1 if (!$FORM{SURVEY_ID});
+
+  my $survey_id = $FORM{SURVEY_ID};
+
+  $Msgs->survey_questions_list({ LIST2HASH => 'id,question'});
+
+  my $q_hash = $Msgs->{list_hash};
+
+  my $list = $Msgs->survey_answer_list({ SURVEY_ID => $survey_id });
+
+  my $table = $html->table({ 
+    width       => '100%',
+    title_plain => [$lang{USER}, $lang{QUESTION}, $lang{COMMENTS}],
+    DATA_TABLE  => 1,
+    DT_CLICK    => 1,
+    ID          => "template_report"
+  });
+
+  foreach my $line (@$list) {
+    next unless ($line->{comments});
+    $table->addrow($line->{login}, $q_hash->{$line->{question_id}}, $line->{comments})
+  }
+
+  print $table->show();
+
   return 1;
 }
 

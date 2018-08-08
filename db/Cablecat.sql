@@ -150,14 +150,14 @@ CREATE TABLE IF NOT EXISTS `cablecat_splitters` (
   CHARSET = 'utf8'
   COMMENT = 'Dividers of fiber signals (PON)';
 
-# CREATE TABLE IF NOT EXISTS `cablecat_connecters_links` (
-#   `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-#   `connecter_1` INT(11) UNSIGNED,
-#   `connecter_2` INT(11) UNSIGNED,
-#   `created` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-# )
-#   CHARSET = 'utf8'
-#   COMMENT = 'Links among connecters';
+CREATE TABLE IF NOT EXISTS `cablecat_connecters_links` (
+   `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+   `connecter_1` INT(11) UNSIGNED,
+   `connecter_2` INT(11) UNSIGNED,
+   `created` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Links among connecters';
 
 CREATE TABLE IF NOT EXISTS `cablecat_links` (
   `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,

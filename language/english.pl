@@ -284,6 +284,7 @@ $lang{ERR_WRONG_SUM} = "Wrong sum. Enter sum.";
 $lang{ERR_ACCESS_DENY} = 'Access Deny';
 $lang{ERR_UNALLOW_IP} = 'Unallow IP';
 $lang{ERR_UNKNOWN} = 'Unknown error';
+$lang{ERR_ACTIVE_PRICE_TOO_HIGHT}='Activating price too hight';
 
 #
 $lang{ERR_IP_ADDRESS_CONFLICT} = 'IP Address Conflict.';
@@ -298,8 +299,8 @@ $lang{MAILBOXES} = 'Mailboxes';
 $lang{ALIASES} = 'Aliases';
 $lang{DOMAINS} = 'Domains';
 $lang{DOMAIN} = 'Domain';
-  $lang{RELAYS} = 'Relay',
-  $lang{ACCESS} = 'Access';
+$lang{RELAYS} = 'Relay',
+$lang{ACCESS} = 'Access';
 $lang{TRANSPORT} = 'Transport';
 $lang{ANTIVIRUS} = 'Antivirus';
 $lang{VIRUS_ALERT} = 'Virus allert';
@@ -406,6 +407,7 @@ $lang{PASSWORD_RECOVERY} = 'Password recovery';
 $lang{BILL_INFO} = 'Billing server info';
 $lang{PRIMARY} = 'Primary';
 $lang{EXTRA} = 'Extra';
+$lang{EXTRA_BILL} = 'Extra bill';
 $lang{EXTRA_ABBR} = 'Extra';
 $lang{DEBETORS} = 'Debitors';
 $lang{DEBT} = 'Debt';
@@ -490,8 +492,8 @@ $lang{NEXT} = 'Next';
 $lang{STEP} = 'Step';
 $lang{FINISH} = 'Finish';
 $lang{HELP} = 'Help';
-$lang{NEXT_FEES_THROUGHT} = 'Next periodic payment after %DAYS% days';
-$lang{SERVICE_ENDED} = 'Service will stop after %DAYS% days';
+$lang{NEXT_FEES_THROUGHT} = 'Next periodic payment after %DAYS% days. (%EXPIRE_DATE%)';
+$lang{SERVICE_ENDED} = 'Service will stop after %DAYS% days. (%EXPIRE_DATE%)';
 $lang{HOLD} = 'Hold';
 $lang{MONTH_FEE_SHORT} = 'M/F';
 $lang{DAY_FEE_SHORT} = 'D/F';
@@ -755,6 +757,9 @@ $lang{MONTHES_A} = 'Monthes';
 $lang{MANUAL} = 'Manual';
 $lang{PROCESS_RESTARTED_MESSAGE} = 'Process was restarted';
 $lang{VERSION} = 'Version';
+
+$lang{BUILD_SCHEMA}='Build scheme';
+
 $lang{FILE_MANAGER} = 'File manager attach';
 $lang{DATE_CONNECTION} = 'Connection date';
 $lang{NEVER} = 'Never';
@@ -801,6 +806,19 @@ $lang{BLOCK_NEGATIVE} = 'Block negative users NAT';
 $lang{REDIRECT_NEGATIVE} = 'Redirect negative users to portal';
 
 $lang{REG_ADDRESS} = 'Registration address';
+$lang{NUMERATION_ROOMS} = 'Numbering from right to left';
+$lang{TAX}='Tax';
 
+$lang{TAX_MAGAZINE} = 'Tax Journal';
+$lang{_TAX} = 'tax';
+$lang{PERCENT} = 'Percent';
+$lang{IN_USING} = 'Already in use';
 
-1
+$lang{SET_CREDIT} = 'Set credit for period: %CREDIT_DAYS% days';
+$lang{CREDIT_SUM} = 'Loan amount';
+$lang{CREDIT_PRICE} = 'Cost of service';
+$lang{TRANSFER} = 'Transfer';
+$lang{MODULE_VERSION}='Module version';
+$lang{PLUGIN_VERSION}='Plugine version';
+
+1;

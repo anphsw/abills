@@ -1,0 +1,1 @@
+ALTER TABLE `paysys_connect` ADD COLUMN `payment_method` INT(11) UNSIGNED NOT NULL DEFAULT '0';

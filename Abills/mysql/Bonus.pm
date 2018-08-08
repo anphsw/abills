@@ -783,7 +783,7 @@ sub service_discount_del {
 }
 
 #**********************************************************
-=head2 service_discount_list()
+=head2 service_discount_list($attr)
 
 =cut
 #**********************************************************

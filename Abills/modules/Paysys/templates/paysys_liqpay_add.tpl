@@ -1,4 +1,4 @@
-<form id='liqpay_form' method='post' action='https://www.liqpay.com/api/checkout' accept-charset='utf-8'>
+<form id='liqpay_form' method='post' action='https://www.liqpay.ua/api/checkout' accept-charset='utf-8'>
     %BODY%
     <input type='hidden' name='signature' value='%SIGN%'/>
     <input type='hidden' name='language' value='ru'/>
@@ -7,7 +7,7 @@
             <div class='box-header with-border text-center'>LiqPAY</div>
             <div class='box-body'>
                 <div class='form-group'>
-                    <img class='col-xs-8 col-xs-offset-2' src='https://www.liqpay.com/static/img/logo.png' />
+                    <img class='col-xs-8 col-xs-offset-2' src='https://www.liqpay.ua/static/img/logo.png' />
                 </div>
                 <div class='form-group'>
                     <a href='https://secure.privatbank.ua/help/verified_by_visa.html'>

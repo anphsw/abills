@@ -141,20 +141,24 @@ sub user_add {
     {
       %{$attr},
       REGISTRATION => 'NOW()',
-      EXPIRE       => $attr->{IPTV_EXPIRE}
+      EXPIRE       => $attr->{IPTV_EXPIRE},
+      ACTIVATE     => $attr->{IPTV_ACTIVATE},
     }
   );
 
   return $self if ($self->{errno});
   $admin->{MODULE}=$MODULE;
 
-  my @info = ('SERVICE_ID', 'TP_ID', 'STATUS', 'EXPIRE', 'CID');
+  my @info = ('SERVICE_ID', 'ID', 'TP_ID', 'STATUS', 'EXPIRE', 'CID');
   my @actions_history = ();
+
   foreach my $param (@info) {
     if(defined($attr->{$param})) {
       push @actions_history, $param.":".$attr->{$param};
     }
   }
+
+  $self->{ID}=$self->{INSERT_ID};
 
   $admin->action_add($attr->{UID}, "ID: $self->{INSERT_ID} ".  join(', ', @actions_history), { TYPE => 1 } );
 
@@ -526,16 +530,16 @@ sub channel_list{
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'NUM', 'INT', 'num' ],
-      [ 'NAME', 'STR', 'name' ],
-      [ 'DISABLE', 'INT', 'disable' ],
-      [ 'PORT', 'INT', 'port' ],
+      [ 'NUM',      'INT', 'num'         ],
+      [ 'NAME',     'STR', 'name'        ],
+      [ 'DISABLE',  'INT', 'disable'     ],
+      [ 'PORT',     'INT', 'port'        ],
       [ 'DESCRIBE', 'STR', 'comments', 1 ],
-      [ 'FILTER', 'STR', 'filter_id', 1 ],
-      [ 'STREAM', 'STR', 'stream', 1 ],
-      [ 'STATE', 'INT', 'state', 1 ],
+      [ 'FILTER',   'STR', 'filter_id',1 ],
+      [ 'STREAM',   'STR', 'stream',   1 ],
+      [ 'STATE',    'INT', 'state',    1 ],
       [ 'GENRE_ID', 'INT', 'genre_id', 1 ],
-      [ 'ID', 'INT', 'id', 1 ],
+      [ 'ID',       'INT', 'id',       1 ],
     ],
     { WHERE => 1, } );
 
@@ -603,6 +607,11 @@ sub user_channels{
 #**********************************************************
 =head2 user_channels_list($attr)
 
+  Arguments:
+    $attr
+      TP_ID  - TP_ID
+      ID     - Service ID
+
 =cut
 #**********************************************************
 sub user_channels_list{
@@ -618,6 +627,7 @@ sub user_channels_list{
   );
 
   $self->{USER_CHANNELS} = $self->{TOTAL};
+
   return $self->{list};
 }
 
@@ -672,19 +682,24 @@ sub channel_ti_list{
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'DISABLE',          'INT', 'disable',   ],
-      [ 'PORT',             'INT', 'port'       ],
-      [ 'DESCRIBE',         'STR', 'comments'   ],
-      [ 'NUMBER',           'INT', 'number'     ],
-      [ 'NAME',             'STR', 'name'       ],
+      [ 'DISABLE',          'INT', 'disable',       ],
+      [ 'PORT',             'INT', 'port'           ],
+      [ 'DESCRIBE',         'STR', 'comments'       ],
+      [ 'NUMBER',           'INT', 'number'         ],
+      [ 'NAME',             'STR', 'name'           ],
       [ 'FILTER_ID',        'STR', 'c.filter_id', 1 ],
-      [ 'IDS',              'INT', 'c.id'       ],
-      [ 'ID',               'INT', 'c.id'       ],
+      [ 'IDS',              'INT', 'c.id'           ],
+      [ 'ID',               'INT', 'c.id'           ],
       [ 'USER_INTERVAL_ID', 'INT', 'ic.interval_id' ],
-      [ 'MANDATORY',        'STR', 'ic.mandatory' ],
+      [ 'MANDATORY',        'STR', 'ic.mandatory'   ],
+      [ 'STREAM',           'STR', 'c.stream',    1 ],
     ],
     { WHERE => 1, }
   );
+
+  if(! $attr->{INTERVAL_ID} && $attr->{USER_INTERVAL_ID}) {
+    $attr->{INTERVAL_ID} = $attr->{USER_INTERVAL_ID};
+  }
 
   $self->query(
     "SELECT IF(ic.channel_id IS NULL, 0, 1) AS interval_channel_id,
@@ -714,7 +729,7 @@ sub channel_ti_list{
     $self->query(
       "SELECT COUNT(*) AS total, SUM(IF (ic.channel_id IS NULL, 0, 1)) AS active
      FROM iptv_channels c
-     LEFT JOIN iptv_ti_channels ic ON (c.id=ic.channel_id and ic.interval_id='$attr->{INTERVAL_ID}')
+     LEFT JOIN iptv_ti_channels ic ON (c.id=ic.channel_id AND ic.interval_id='$attr->{INTERVAL_ID}')
      $WHERE
     ",
       undef,
@@ -739,7 +754,7 @@ sub reports_channels_use{
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $sql = "SELECT c.num,  c.name, count(uc.uid) AS users, SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)>0, 0, 1)) AS debetors
+  my $sql = "SELECT c.num,  c.name, COUNT(uc.uid) AS users, SUM(IF(IF(company.id IS NULL, b.deposit, cb.deposit)>0, 0, 1)) AS debetors
 FROM iptv_channels c
 LEFT JOIN iptv_users_channels uc ON (c.id=uc.channel_id)
 LEFT JOIN iptv_main service ON (service.id=uc.id)
@@ -940,14 +955,14 @@ sub online{
 
   $self->query(
     "SELECT u.id AS login, $self->{SEARCH_FIELDS}  c.nas_id
- FROM iptv_calls c
- LEFT JOIN users u ON (u.uid=c.uid)
- LEFT JOIN iptv_main service  ON (service.uid=u.uid)
+  FROM iptv_calls c
+  LEFT JOIN iptv_main service ON (service.uid=c.uid AND c.CID=service.CID)
+  LEFT JOIN users u ON (u.uid=service.uid)
 
- LEFT JOIN bills b ON (u.bill_id=b.id)
- LEFT JOIN companies company ON (u.company_id=company.id)
- LEFT JOIN bills cb ON (company.bill_id=cb.id)
- $EXT_TABLE
+  LEFT JOIN bills b ON (u.bill_id=b.id)
+  LEFT JOIN companies company ON (u.company_id=company.id)
+  LEFT JOIN bills cb ON (company.bill_id=cb.id)
+  $EXT_TABLE
 
  $WHERE
  ORDER BY $SORT $DESC;",
@@ -1616,7 +1631,7 @@ sub services_list{
       [ 'COMMENT',     'STR', 'comment',     1 ],
       [ 'PROVIDER_PORTAL_URL',     'STR', 'provider_portal_url',     1 ],
       [ 'USER_PORTAL', 'INT', 'user_portal', 1 ],
-      [ 'LOGIN',       'INT', 'login', 1 ],
+      [ 'LOGIN',       'INT', 'login',       1 ],
       [ 'PASSWORD',    'INT', '', "DECODE(nas.mng_password, '$CONF->{secretkey}') AS nas_mng_password" ],
       [ 'ID',          'INT', 'id',            ],
     ],

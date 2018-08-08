@@ -175,11 +175,11 @@ $Reports->{FIELDS}
 }
 
 #**********************************************************
-=head2 rwizard($attr) - Show reports
+=head2 rwizard_old($attr) - Show reports
 
 =cut
 #**********************************************************
-sub rwizard {
+sub rwizard_old {
 
   if ($FORM{qindex} && ! $FORM{print} && ! $FORM{_export}) {
     $FORM{print} = $FORM{REPORT};
@@ -219,6 +219,7 @@ sub rwizard {
 
   #$html->tpl_show(_include('rwizard_panel', 'Rwizard'), {%$Reports});
   if ($FORM{REPORT}) {
+
     $Reports->info({ ID => $FORM{REPORT}, %LIST_PARAMS });
 
     $pages_qs      .= "&REPORT=$FORM{REPORT}";
@@ -256,6 +257,12 @@ sub rwizard {
       $Reports->{QUERY_TOTAL} =~ s/%MONTH%/$html->{MONTH}/g;
 
       $pages_qs .= "&DATE_FROM=$html->{DATE_FROM}&DATE_TO=$html->{DATE_TO}";
+    }
+
+    if ($Reports->{QUERY} =~ /%DOMAIN_ID%/) {
+      my $domain = $admin->{DOMAIN_ID} || 0;
+      $Reports->{QUERY}       =~ s/%DOMAIN_ID%/$domain/g;
+      $Reports->{QUERY_TOTAL} =~ s/%DOMAIN_ID%/$domain/g;
     }
 
     if ($Reports->{QUERY} =~ /%GID%/g) {
@@ -521,7 +528,7 @@ sub rwizard {
         }
       );
 
-      if ($Reports->{COMMENTS}) {
+      if ($Reports->{COMMENTS} && !$FORM{EXPORT_CONTENT}) {
         $html->message('info', $Reports->{COMMENTS});
       }
 
@@ -840,4 +847,773 @@ sub quick_report {
   return $table->show();
 }
 
-1
+#**********************************************************
+=head2 rwizard_report_table($report_id)
+
+=cut
+#**********************************************************
+sub rwizard_report_table {
+  my ($attr) = @_;
+
+  $Reports->info({ ID => $attr->{REPORT} });
+
+  my @cols        = split(/[\r\n]+/, $Reports->{FIELDS});
+  my @titles      = ();
+  my @col_names   = ();
+  my %cols_params = ();
+  foreach my $col (@cols) {
+    next unless ($col);
+    my ($col_name, $col_title,$chart_type, $filter, $post_filter) = split(/:/, $col);
+    $col_title = _translate($col_title || $col_name);
+
+    $cols_params{$col_name}{TITLE}  = $col_title;
+    $cols_params{$col_name}{CHART}  = $chart_type;
+    $cols_params{$col_name}{FILTER} = $filter;
+    $cols_params{$col_name}{POST_FILTER} = $post_filter;
+
+    push @col_names, $col_name;
+    push @titles, $col_title;
+  }
+
+  if ($Reports->{QUERY} =~ /DATE_FROM/) {
+    $attr->{DATE_FROM} //= $DATE;
+    $attr->{DATE_TO}   //= $DATE;
+    $attr->{MONTH}     //= $DATE;
+    $Reports->{QUERY}       =~ s/%DATE_FROM%/$attr->{DATE_FROM}/g;
+    $Reports->{QUERY}       =~ s/%DATE_TO%/$attr->{DATE_TO}/g;
+    $Reports->{QUERY_TOTAL} =~ s/%DATE_FROM%/$attr->{DATE_FROM}/g;
+    $Reports->{QUERY_TOTAL} =~ s/%DATE_TO%/$attr->{DATE_TO}/g;
+    $Reports->{QUERY}       =~ s/%MONTH%/$attr->{MONTH}/g;
+    $Reports->{QUERY_TOTAL} =~ s/%MONTH%/$attr->{MONTH}/g;
+  }
+
+  if ($Reports->{QUERY} =~ /%DOMAIN_ID%/) {
+    my $domain = $admin->{DOMAIN_ID} || 0;
+    $Reports->{QUERY}       =~ s/%DOMAIN_ID%/$domain/g;
+    $Reports->{QUERY_TOTAL} =~ s/%DOMAIN_ID%/$domain/g;
+  }
+
+  if ($Reports->{QUERY} =~ /%GID%/) {
+    if (! defined($attr->{GID}) || $attr->{GID} eq '') {
+      $Reports->{QUERY}       =~ s/and [a-z0-9\.\_]+\=\'%GID%\'//ig;
+      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\=\'%GID%\'//ig;
+    }
+    else {
+      $Reports->{QUERY}       =~ s/%GID%/$attr->{GID}/g;
+      $Reports->{QUERY_TOTAL} =~ s/%GID%/$attr->{GID}/g;
+    }
+  }
+
+  my @params_array = ('DEPOSIT', 'PARAMETER');
+  foreach my $_params (@params_array) {
+    my $params_expr = '\%'. $_params.':?([\S]{0,12})\%';
+    if ($Reports->{QUERY} =~ /$params_expr/g) {
+
+      my $default_parameters_value = $1;
+      if ($attr->{$_params}) {
+        $default_parameters_value = $attr->{$_params};
+      }
+
+      if (! defined($attr->{$_params}) || $attr->{$_params} eq '') {
+        $Reports->{QUERY}       =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?$params_expr\'?//ig;
+        $Reports->{QUERY_TOTAL} =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?$params_expr\'?//ig;
+
+        $Reports->{QUERY} =~ s/$params_expr/$default_parameters_value/ig;
+        $Reports->{QUERY_TOTAL} =~ s/$params_expr/$default_parameters_value/ig;
+      }
+      else {
+        my $prefix  = '=';
+        if ($attr->{$_params} && $attr->{$_params} =~ s/([<=>]+)//g) {
+          $prefix=$1;
+        }
+
+        $Reports->{QUERY}       =~ s/[=<>]{1}\s?\'?$params_expr\'?/$prefix'$attr->{$_params}'/g;
+        $Reports->{QUERY_TOTAL} =~ s/[=<>]{1}\s?\'?$params_expr\'?/$prefix'$attr->{$_params}'/g;
+
+        $Reports->{QUERY} =~ s/$params_expr/$default_parameters_value/ig;
+        $Reports->{QUERY_TOTAL} =~ s/$params_expr/$default_parameters_value/ig;
+
+        delete $attr->{$_params};
+      }
+    }
+  }
+
+  
+  if ($Reports->{QUERY} =~ /%ADDRESS%/g) {
+    if (defined($attr->{ADDRESS_DISTRICT}) && $attr->{ADDRESS_DISTRICT} eq '') {
+      $Reports->{QUERY}       =~ s/\%ADDRESS\%//ig;
+      $Reports->{QUERY_TOTAL} =~ s/\%ADDRESS\%//ig;
+    }
+    else {
+      my $where_result = $Reports->search_expr_users($attr);
+      my $ADDRESS_QUERY = ' AND ' .join(' and ', @$where_result);
+      $Reports->{QUERY}       =~ s/%ADDRESS%/$ADDRESS_QUERY/g;
+      $Reports->{QUERY_TOTAL} =~ s/%ADDRESS%/$ADDRESS_QUERY/g;
+    }
+  }
+
+  my $payment_methods = get_payment_methods();
+  if ($Reports->{QUERY} =~ /%PAYMENT_METHODS%/g) {
+    $Reports->{QUERY}       =~ s/%PAYMENT_METHODS%/$attr->{PAYMENT_METHODS}/g;
+    $Reports->{QUERY_TOTAL} =~ s/%PAYMENT_METHODS%/$attr->{PAYMENT_METHODS}/g;
+  }
+
+  if ($Reports->{QUERY} =~ /%ADMIN_ID%/g) {
+    $Reports->{QUERY}       =~ s/%ADMIN_ID%/$attr->{ADMIN_ID}/g;
+    $Reports->{QUERY_TOTAL} =~ s/%ADMIN_ID%/$attr->{ADMIN_ID}/g;
+  }
+
+  $Reports->{QUERY_TOTAL} =~ s/^[\n\r]+$//g;
+  if ($attr->{DEBUG}) {
+    $Reports->{debug}=1;
+  }
+
+  my $list = $Reports->mk({
+    QUERY       => $Reports->{QUERY},
+    QUERY_TOTAL => $Reports->{QUERY_TOTAL},
+    COLS_NAME   => 1
+  });
+
+  if ($#titles == -1) {
+    if($Reports->{REPORT_COLS_NAME}) {
+      @titles = @{ $Reports->{REPORT_COLS_NAME} };
+    }
+    @col_names = @titles;
+  }
+
+  _error_show($Reports);
+
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$Reports->{NAME}",
+    title   => \@titles,
+    ID      => "REPORTS_$Reports->{ID}",
+    EXPORT  => 1,
+    pages   => $Reports->{TOTAL},
+    qs      => $pages_qs,
+  });
+
+  my $num = -1;
+  foreach my $line (@$list) {
+    my @tr_arr = ();
+    $num++;
+    foreach my $c (@col_names) {
+      my $val = $line->{$c};
+      if ($c eq 'login' && $line->{uid}) {
+        $val = $html->button($line->{login}, "index=15&UID=" . $line->{uid});
+      }
+      elsif($c eq 'payment_method') {
+        $val = $payment_methods->{$line->{$c}};
+      }
+
+      if ($cols_params{$c}{FILTER}) {
+        my $fn_name = $cols_params{$c}{FILTER};
+        if (defined( &$fn_name )) {
+          $val = &{ \&$fn_name }($line->{$c});
+        }
+      }
+
+      if ($cols_params{$c}{POST_FILTER}) {
+        my $fn_name = $cols_params{$c}{POST_FILTER};
+        if (defined( &$fn_name )) {
+          $val = &{ \&$fn_name }($line->{$c});
+        }
+      }
+
+      push @tr_arr, $val;
+    }
+
+    $table->addrow(@tr_arr);
+  }
+  my $result = $table->show( {OUTPUT2RETURN => 1} );
+
+  if ($Reports->{TOTAL}) {
+    my @total_ext = ();
+
+    if($Reports->{SUM})  {
+      push @total_ext, "$lang{SUM}: $Reports->{SUM}";
+    }
+
+    $table = $html->table({
+      width      => '100%',
+      rows       => [ [ "$lang{TOTAL}: ". $html->b($Reports->{TOTAL}), @total_ext ] ]
+    });
+     $result .= $table->show( {OUTPUT2RETURN => 1} );
+  }
+
+  return $result;
+}
+
+#**********************************************************
+=head2 rwizard($attr) - Show reports
+
+=cut
+#**********************************************************
+sub rwizard {
+
+  if ($conf{RWIZARD_OLD}) {
+    rwizard_old();
+    return 1;
+  }
+
+  if ($FORM{qindex} && ! $FORM{print} && ! $FORM{_export}) {
+    $FORM{print} = $FORM{REPORT};
+  }
+
+  if ($FORM{print}) {
+    print $html->header();
+    $FORM{REPORT}=$FORM{print};
+  }
+
+  if (!$FORM{REPORT}) {
+    $html->tpl_show(_include('rwizard_panel', 'Rwizard'), {
+      GROUP_SEL   => _group_sel(\%FORM),
+      REPORTS_SEL => _report_sel(\%FORM),
+    });
+    return 1;
+  }
+  
+  $Reports->info({ ID => $FORM{REPORT}, %LIST_PARAMS });
+  
+  if (! $FORM{print} ) {
+    print _make_report_menu(\%FORM);
+  }
+
+  _make_report_query(\%FORM);
+
+  my ($col_names, $titles, $cols_params) = _read_titles($Reports->{FIELDS});
+
+  if ($FORM{DEBUG}) {
+    $Reports->{debug}=1;
+  }
+
+  my $list = $Reports->mk({
+    QUERY       => $Reports->{QUERY},
+    QUERY_TOTAL => $Reports->{QUERY_TOTAL},
+    %LIST_PARAMS,
+    COLS_NAME   => 1
+  });
+
+  if ($#{$titles} == -1) {
+    if ($Reports->{REPORT_COLS_NAME}) {
+      $titles = $Reports->{REPORT_COLS_NAME};
+    }
+    $col_names = $titles;
+  }
+
+  _error_show($Reports);
+
+  if ($FORM{print}) {
+    _print_report_table($col_names, $titles, $cols_params);
+  }
+  else {
+    my $table               = _make_report_table($col_names, $titles, $cols_params, $list);
+    my ($CHART, $DATA_HASH) = _make_report_chart($col_names, $titles, $cols_params, $list);
+
+    if ($Reports->{COMMENTS} && !$FORM{EXPORT_CONTENT}) {
+      $html->message('info', $Reports->{COMMENTS});
+    }
+
+    print $table;
+
+    if ($Reports->{TOTAL}) {
+      my @total_ext = ();
+
+      if($Reports->{SUM})  {
+        push @total_ext, "$lang{SUM}: $Reports->{SUM}";
+      }
+
+      $table = $html->table({
+        width      => '100%',
+        rows       => [ [ "$lang{TOTAL}: ". $html->b($Reports->{TOTAL}), @total_ext ] ]
+      });
+      print $table->show();
+    }
+    if (scalar keys %$DATA_HASH > 1) {
+    #Show charts
+    $html->make_charts({
+      DATA          => $DATA_HASH,
+      %$CHART
+    });
+  }
+  }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 _report_sel($attr) - report select
+
+=cut
+#**********************************************************
+sub _report_sel {
+  my ($attr) = @_;
+  my $list = $Reports->list({ COLS_NAME => 1, PAGE_ROWS => 10000, GID => $attr->{GID} });
+  my $report_sel = $html->form_select(
+    'REPORT',
+    {
+      SELECTED       => $attr->{REPORT},
+      SEL_LIST       => $list,
+      NO_ID          => 1,
+      MAIN_MENU      => get_function_index('rwizard_config'),
+      MAIN_MENU_ARGV => ($attr->{REPORT}) ? "chg=$attr->{REPORT}" : q{}
+    }
+  );
+
+  return $report_sel;
+}
+
+#**********************************************************
+=head2 _group_sel($attr) - report select
+
+=cut
+#**********************************************************
+sub _group_sel {
+  my ($attr) = @_;
+
+  my $group_sel = $html->form_select(
+    'GID',
+    {
+      SELECTED       => $attr->{GID},
+      SEL_LIST       => $Reports->list_groups({ COLS_NAME => 1}),
+      NO_ID          => 1,
+      EX_PARAMS      => "onchange='autoReload()'",
+      SEL_OPTIONS    => { '' => '--' },
+    }
+  );
+
+  return $group_sel;
+}
+
+#**********************************************************
+=head2 make_report_menu($attr) - report menu
+
+=cut
+#**********************************************************
+sub _make_report_menu {
+  my ($attr) = @_;
+  my @rows = ("$lang{REPORTS}: " . _report_sel($attr));
+
+  $pages_qs      .= "&REPORT=$attr->{REPORT}";
+  while(my($k, $v)=each %$attr) {
+    if ($k =~ /^ADDRESS|STREET|LOCATION|GID|DATE_FROM|DATE_TO|DEPOSIT|PARAMETER|PAYMENT_METHODS|ADMIN_ID/ && $v) {
+      $pages_qs .= "&$k=$v";
+    }
+  }
+
+  if ($Reports->{QUERY} =~ /DATE_FROM/) {
+    push @rows, "$lang{DATE}: " . $html->date_fld2('DATE_FROM', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports_panel', WEEK_DAYS => \@WEEKDAYS })
+      . "-" . $html->date_fld2('DATE_TO', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports_panel', WEEK_DAYS => \@WEEKDAYS });
+  }
+
+  if ($Reports->{QUERY} =~ /%GID%/) {
+    push @rows, "$lang{GROUP}: " . sel_groups();
+  }
+
+  if ($Reports->{QUERY} =~ /%DEPOSIT:?([\S]{0,12})%/) {
+    my $default_parameters_value = $attr->{DEPOSIT} ? $attr->{DEPOSIT} : $1;
+    push @rows, "DEPOSIT: " . $html->form_input('DEPOSIT', "$default_parameters_value");
+  }
+
+  if ($Reports->{QUERY} =~ /%PARAMETER:?([\S]{0,12})%/) {
+    my $default_parameters_value = $attr->{PARAMETER} ? $attr->{PARAMETER} : $1;
+    push @rows, "PARAMETER: " . $html->form_input('PARAMETER', "$default_parameters_value");
+  }
+
+  if ($Reports->{QUERY} =~ /%PAYMENT_METHODS%/) {
+    push @rows, "$lang{PAYMENT_METHODS}: " . $html->form_select(
+      'PAYMENT_METHODS',
+      {
+        SELECTED => (defined($attr->{PAYMENT_METHODS}) && $attr->{PAYMENT_METHODS} ne '') ? $attr->{PAYMENT_METHODS} : 0,
+        SEL_HASH => get_payment_methods(),
+        NO_ID    => 1,
+      }
+    );
+  }
+
+  if ($Reports->{QUERY} =~ /%ADMIN_ID%/g) {
+    push @rows, "$lang{ADMINS}: " . $html->form_select(
+      'ADMIN_ID',
+      {
+        SELECTED  => (defined($attr->{ADMIN_ID}) && $attr->{ADMIN_ID} ne '') ? $attr->{ADMIN_ID} : 0,
+        SEL_LIST  => $admin->list({ DISABLE => 0, COLS_NAME => 1, PAGE_ROWS => 10000 }),
+        SEL_KEY   => 'aid',
+        SEL_VALUE => 'login,name',
+        NO_ID     => 1,
+      }
+    );
+  }
+
+  push @rows, $html->form_input('qindex', $index, { TYPE => 'checkbox' }) ." $lang{PRINT} ",
+            (($permissions{4}) ? $html->form_input('DEBUG', 1, { TYPE => 'checkbox', STATE => $attr->{DEBUG} }) ." $lang{DEBUG}" : ''),
+            $html->form_input('show', $lang{SHOW}, { TYPE => 'submit' });
+  
+  my $output = '';
+  foreach my $val ( @rows ) {
+    $output .= ' '. $html->element('div', $val, { class => 'form-group' });
+  }
+
+  my $report_panel = $html->element('div', $output, {
+    class => 'well well-sm'
+  });
+
+  if ($Reports->{QUERY} =~ /%ADDRESS%/) {
+    $report_panel .= form_address({ SHOW  => 1 });
+  }
+
+  my $result =  $html->form_main({
+    CONTENT => $report_panel,
+    NAME    => 'rwizard',
+    HIDDEN  => {
+      'index' => "$index",
+    },
+    ID   => 'form_reports_panel',
+    NAME => 'form_reports_panel',
+    class=> 'form form-inline',
+  });
+
+  return $result;
+}
+
+#**********************************************************
+=head2 _read_titles($titles_str)
+
+  return 
+    column array
+    titles array
+    chart params array
+
+=cut
+#**********************************************************
+sub _read_titles {
+  my ($fields) = @_;
+
+  my @cols        = split(/[\r\n]+/, $fields);
+  my @titles      = ();
+  my @col_names   = ();
+  my %cols_params = ();
+  foreach my $col (@cols) {
+    next if (! $col);
+    my ($col_name, $col_title, $chart_type, $filter, $post_filter) = split(/:/, $col);
+    if (! $col_title) {
+      $col_title=$col_name
+    }
+    elsif ($col_title =~ /^\$_/) {
+      $col_title = _translate($col_title);
+    }
+
+    $cols_params{$col_name}{TITLE}  = _translate($col_title);
+    $cols_params{$col_name}{CHART}  = $chart_type;
+    $cols_params{$col_name}{FILTER} = $filter;
+    $cols_params{$col_name}{POST_FILTER} = $post_filter;
+
+    push @col_names, $col_name;
+    push @titles, $col_title;
+  }
+
+  return (\@col_names, \@titles, \%cols_params);
+}
+
+#**********************************************************
+=head2 _make_report_query
+
+=cut
+#**********************************************************
+
+sub _make_report_query {
+  my ($attr) = @_;
+
+  if ($Reports->{QUERY} =~ /%DATE_FROM%/) {
+    my $month = $attr->{MONTH} ? $attr->{MONTH} : ($DATE =~ m/^(\d+\-\d+)/)[0];
+    my $date_from = $attr->{DATE_FROM} ? $attr->{DATE_FROM} : $month . '-01';
+    my $date_to = $attr->{DATE_TO} ? $attr->{DATE_TO} : $DATE;
+    $Reports->{QUERY}       =~ s/%DATE_FROM%/$date_from/g;
+    $Reports->{QUERY}       =~ s/%DATE_TO%/$date_to/g;
+    $Reports->{QUERY_TOTAL} =~ s/%DATE_FROM%/$date_from/g;
+    $Reports->{QUERY_TOTAL} =~ s/%DATE_TO%/$date_to/g;
+    $Reports->{QUERY}       =~ s/%MONTH%/$month/g;
+    $Reports->{QUERY_TOTAL} =~ s/%MONTH%/$month/g;
+  }
+
+  if ($Reports->{QUERY} =~ /%DOMAIN_ID%/) {
+    my $domain = $admin->{DOMAIN_ID} || 0;
+    $Reports->{QUERY}       =~ s/%DOMAIN_ID%/$domain/g;
+    $Reports->{QUERY_TOTAL} =~ s/%DOMAIN_ID%/$domain/g;
+  }
+
+  if ($Reports->{QUERY} =~ /%GID%/g) {
+    if (! defined($attr->{GID}) || $attr->{GID} eq '') {
+      $Reports->{QUERY}       =~ s/and [a-z0-9\.\_]+\=\'%GID%\'//ig;
+      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\=\'%GID%\'//ig;
+    }
+    else {
+      $Reports->{QUERY}       =~ s/%GID%/$attr->{GID}/g;
+      $Reports->{QUERY_TOTAL} =~ s/%GID%/$attr->{GID}/g;
+    }
+  }
+
+  my @params_array = ('DEPOSIT', 'PARAMETER');
+  foreach my $_params (@params_array) {
+    my $params_expr = '\%'. $_params.':?([\S]{0,12})\%';
+    if ($Reports->{QUERY} =~ /$params_expr/g) {
+
+      my $default_parameters_value = $1;
+      if ($attr->{$_params}) {
+        $default_parameters_value = $attr->{$_params};
+      }
+
+      if (! defined($attr->{$_params}) || $attr->{$_params} eq '') {
+        $Reports->{QUERY}       =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?$params_expr\'?//ig;
+        $Reports->{QUERY_TOTAL} =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'?$params_expr\'?//ig;
+
+        $Reports->{QUERY} =~ s/$params_expr/$default_parameters_value/ig;
+        $Reports->{QUERY_TOTAL} =~ s/$params_expr/$default_parameters_value/ig;
+      }
+      else {
+        my $prefix  = '=';
+        if ($attr->{$_params} && $attr->{$_params}=~s/([<=>]+)//g) {
+          $prefix=$1;
+        }
+
+        $Reports->{QUERY}       =~ s/[=<>]{1}\s?\'?$params_expr\'?/$prefix'$attr->{$_params}'/g;
+        $Reports->{QUERY_TOTAL} =~ s/[=<>]{1}\s?\'?$params_expr\'?/$prefix'$attr->{$_params}'/g;
+
+        $Reports->{QUERY} =~ s/$params_expr/$default_parameters_value/ig;
+        $Reports->{QUERY_TOTAL} =~ s/$params_expr/$default_parameters_value/ig;
+
+        delete $attr->{$_params};
+      }
+    }
+  }
+
+  if ($Reports->{QUERY} =~ /%ADDRESS%/g) {
+    if (defined($attr->{ADDRESS_DISTRICT}) && $attr->{ADDRESS_DISTRICT} eq '') {
+      $Reports->{QUERY}       =~ s/\%ADDRESS\%//ig;
+      $Reports->{QUERY_TOTAL} =~ s/\%ADDRESS\%//ig;
+    }
+    else {
+      if (defined($attr->{DEPOSIT}) && $attr->{DEPOSIT} eq '') {
+        delete $attr->{DEPOSIT};
+      }
+
+      my $where_result = $Reports->search_expr_users($attr);
+      my $ADDRESS_QUERY = ' AND ' .join(' and ', @$where_result);
+      $Reports->{QUERY}       =~ s/%ADDRESS%/$ADDRESS_QUERY/g;
+      $Reports->{QUERY_TOTAL} =~ s/%ADDRESS%/$ADDRESS_QUERY/g;
+    }
+  }
+
+  if ($Reports->{QUERY} =~ /%PAYMENT_METHODS%/) {
+    if (! defined($attr->{PAYMENT_METHODS}) || $attr->{PAYMENT_METHODS} eq '') {
+      $Reports->{QUERY}       =~ s/and [a-z0-9\.\_]+\=\'%PAYMENT_METHODS%\'//ig;
+      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\=\'%PAYMENT_METHODS%\'//ig;
+    }
+    else {
+      $Reports->{QUERY}       =~ s/%PAYMENT_METHODS%/$attr->{PAYMENT_METHODS}/g;
+      $Reports->{QUERY_TOTAL} =~ s/%PAYMENT_METHODS%/$attr->{PAYMENT_METHODS}/g;
+    }
+  }
+
+  if ($Reports->{QUERY} =~ /%ADMIN_ID%/) {
+    if (! defined($attr->{ADMIN_ID}) || $attr->{ADMIN_ID} eq '') {
+      $Reports->{QUERY}       =~ s/and [a-z0-9\.\_]+\=\'%ADMIN_ID%\'//ig;
+      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\=\'%ADMIN_ID%\'//ig;
+    }
+    else {
+      $Reports->{QUERY}       =~ s/%ADMIN_ID%/$attr->{ADMIN_ID}/g;
+      $Reports->{QUERY_TOTAL} =~ s/%ADMIN_ID%/$attr->{ADMIN_ID}/g;
+    }
+  }
+
+  $Reports->{QUERY_TOTAL} =~ s/^[\n\r]+$//g;
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _print_report_table
+
+=cut
+#**********************************************************
+sub _print_report_table {
+  my ($col_names, $titles, $cols_params) = @_;
+
+  $Reports->{TIME}        = $TIME;
+  $Reports->{DATE}        = $DATE;
+  $Reports->{PAGE}        = 1;
+  $Reports->{TOTAL_PAGES} = 1;
+
+  my $total_records = $Reports->{TOTAL};
+  my $active_page = 1;
+  my $payment_methods = get_payment_methods();
+
+  while($active_page <= $total_records) {
+    $LIST_PARAMS{PG}=$active_page;
+
+    my $list = $Reports->mk({
+      QUERY       => $Reports->{QUERY},
+      QUERY_TOTAL => $Reports->{QUERY_TOTAL},
+      %LIST_PARAMS,
+      COLS_NAME   => 1
+    });
+
+    if (_include('rwizard_print_rows_' . $Reports->{ID}, 'Rwizard', { CHECK_ONLY => 1  })) {
+      foreach my $line ( @$list ) {
+        if (defined($line->{payment_method})) {
+          $line->{payment_method}=$payment_methods->{$line->{payment_method}};
+        }
+
+        $Reports->{REPORT_ROWS} .= $html->tpl_show(_include('rwizard_print_rows_' . $Reports->{ID}, 'Rwizard'),
+          $line,
+          { OUTPUT2RETURN => 1 }
+        );
+      }
+    }
+    else {
+      my $table = $html->table({
+        width         => '100%',
+        title_plain   => $titles,
+        ID            => "REPORTS_$Reports->{ID}",
+      });
+
+      foreach my $line (@$list) {
+        my @tr_arr = ();
+
+        foreach my $c (@$col_names) {
+          my $val = $line->{$c};
+
+          if($c eq 'payment_method') {
+            $val = $payment_methods->{$line->{$c}};
+          }
+
+          if ($cols_params->{$c}{FILTER}) {
+            my $fn_name = $cols_params->{$c}{FILTER};
+            if (defined( &$fn_name )) {
+              $val = &{ \&$fn_name }($line->{$c});
+            }
+          }
+
+          push @tr_arr, $val;
+        }
+
+        $table->addrow(@tr_arr);
+      }
+
+      $Reports->{REPORT_ROWS}=$table->show();
+    }
+
+    if (_include('rwizard_print_' . $Reports->{ID}, 'Rwizard', { CHECK_ONLY => 1  })) {
+      $html->tpl_show(_include('rwizard_print_' . $Reports->{ID}, 'Rwizard'), { %$Reports });
+    }
+    else {
+      $html->tpl_show(_include('rwizard_print', 'Rwizard'), {%$Reports});
+    }
+
+    $active_page += $Reports->{PAGE_TOTAL};
+    $Reports->{PAGE}++;
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _make_report_table
+
+=cut
+#**********************************************************
+sub _make_report_table {
+  my ($col_names, $titles, $cols_params, $list) = @_;
+  my $payment_methods = get_payment_methods();
+  
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$Reports->{NAME}",
+    title   => $titles,
+    ID      => "REPORTS_$Reports->{ID}",
+    EXPORT  => 1,
+    pages   => $Reports->{TOTAL},
+    qs      => $pages_qs,
+  });
+
+  my $num = -1;
+  foreach my $line (@$list) {
+    my @tr_arr = ();
+    $num++;
+    foreach my $c (@$col_names) {
+      my $val = $line->{$c};
+      if ($c eq 'login' && $line->{uid}) {
+        $val = $html->button($line->{login}, "index=15&UID=" . $line->{uid});
+      }
+      elsif($c eq 'payment_method') {
+        $val = $payment_methods->{$line->{$c}};
+      }
+
+      if ($cols_params->{$c}{FILTER}) {
+        my $fn_name = $cols_params->{$c}{FILTER};
+        if (defined( &$fn_name )) {
+          $val = &{ \&$fn_name }($line->{$c});
+        }
+      }
+
+      if ($cols_params->{$c}{POST_FILTER}) {
+        my $fn_name = $cols_params->{$c}{POST_FILTER};
+        if (defined( &$fn_name )) {
+          $val = &{ \&$fn_name }($line->{$c});
+        }
+      }
+
+      push @tr_arr, $val;
+    }
+
+    $table->addrow(@tr_arr);
+  }
+
+  return $table->show({ OUTPUT2RETURN => 1 });
+}
+
+#**********************************************************
+=head2 _make_report_chart
+
+=cut
+#**********************************************************
+sub _make_report_chart {
+  my ($col_names, $titles, $cols_params, $list) = @_;
+  my $payment_methods = get_payment_methods();
+  my %CHART     = ();
+  my %DATA_HASH = ();
+
+  my $num = -1;
+  foreach my $line (@$list) {
+    my @tr_arr = ();
+    $num++;
+    foreach my $c (@$col_names) {
+      my $val = $line->{$c};
+      if($c eq 'payment_method') {
+        $val = $payment_methods->{$line->{$c}};
+      }
+
+      if ($cols_params->{$c}{FILTER}) {
+        my $fn_name = $cols_params->{$c}{FILTER};
+        if (defined( &$fn_name )) {
+          $val = &{ \&$fn_name }($line->{$c});
+        }
+      }
+
+      if ($cols_params->{$c}{CHART}) {
+        $CHART{TYPES}{$cols_params->{$c}{TITLE}}=$cols_params->{$c}{CHART};
+        if ($cols_params->{$c}{CHART} eq 'X_TEXT') {
+          $CHART{X_LINE}[$num] = $val;
+          $CHART{X_TEXT}[$num] = $val;
+        }
+        else {
+          $DATA_HASH{$cols_params->{$c}{TITLE}}[$num] = $val;
+        }
+      }
+    }
+  }
+
+  return (\%CHART, \%DATA_HASH);
+}
+
+1;

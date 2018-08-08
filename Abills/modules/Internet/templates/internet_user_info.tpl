@@ -24,7 +24,7 @@
                 %EXTRA_FIELDS%
 
                 <div class='row'>
-                    <div class='col-md-3 text-1'>_{STATUS}_</div>
+                    <div class='col-md-3 text-1'>_{STATUS}_:</div>
                     <div class='col-md-9 text-2'>%STATUS_VALUE% %HOLDUP_BTN%</div>
                 </div>
             </div>

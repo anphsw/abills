@@ -53,6 +53,13 @@
   </div>
 </div>
 
+<div class='form-group'>
+  <label class='col-md-3 control-label'>_{DATE}_</label>
+  <div class='col-md-9'>
+    %DATERANGE_PICKER%
+  </div>
+</div>
+
 </div>
 </div>
 </div>

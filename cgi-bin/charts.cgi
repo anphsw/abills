@@ -357,14 +357,9 @@ sub build_graphics {
     my $name = get_name_for($type, $key) || '';
     my %charts_for_period = ();
 
-    for my $period (@chart_periods) {
-      my $period_name = $TIME_PERIODS{$period}{NAME};
-      my $period_range = $TIME_PERIODS{$period}{PERIOD};
-      $charts_for_period{$period} = make_chart(
-        $speed_list, "$period_name $type: '$name' ($key) ", $current_time - $period_range, $current_time
-      );
-    }
-
+    $charts_for_period{1} = make_chart(
+      $speed_list, "$type: '$name' ($key) ", $start_time, $current_time
+    );
     show_tabbed(\%charts_for_period, $i);
 
   }
@@ -742,11 +737,17 @@ sub get_highchart {
 
   state $chartCounter = 0;
 
+  my $buttonCounter = $chartCounter;
   my $chartDivId = $attr->{CONTAINER} || "CHART_CONTAINER_" . $chartCounter++;
   my $chartType = $attr->{TYPE} || 'bar';
   my $series = $attr->{SERIES};
   my $chartTitle = $attr->{TITLE};
   my $chartYAxisTitle = $attr->{Y_TITLE} || 'null';
+  my $current_time = timelocal(localtime()) * 1000;
+  my $day_start = $current_time - $TIME_PERIODS{1}{PERIOD} * 1000;
+  my $week_start = $current_time - $TIME_PERIODS{2}{PERIOD} * 1000;
+  my $month_start = $current_time - $TIME_PERIODS{3}{PERIOD} * 1000;
+  my $months_start = $current_time - $TIME_PERIODS{4}{PERIOD} * 1000;
 
   my $chartSeries = $json->encode($series);
 
@@ -758,8 +759,19 @@ sub get_highchart {
     }
   }
 
+  my $months_button = '';
+  if (exists $conf{IPN_DETAIL_CLEAN_PERIOD} && $conf{IPN_DETAIL_CLEAN_PERIOD} >= 90) {
+    $months_button = qq'<button type="button" class="btn btn-default" id="zoom_months_$buttonCounter">3 $lang{MONTHES_A}</button>';
+  }
+
   my $result = qq{
-   <div id='$chartDivId' style='margin: 5px auto; border: 1px solid silver $dimensions'></div>
+    <div class="btn-group">
+      <button type="button" class="btn btn-default" id='zoom_day_$buttonCounter'>$lang{DAY}</button>
+      <button type="button" class="btn btn-default" id='zoom_week_$buttonCounter'>$lang{WEEK}</button>
+      <button type="button" class="btn btn-default" id='zoom_month_$buttonCounter'>$lang{MONTH}</button>
+      $months_button
+    </div>
+    <div id='$chartDivId' style='margin: 5px auto; border: 1px solid silver $dimensions'></div>
     <script>
     jQuery(function () {
 
@@ -776,7 +788,30 @@ sub get_highchart {
         series: $chartSeries,
         xAxis : { type : 'datetime' },
         yAxis : { title: { text: '$chartYAxisTitle' }, min : 0},
-        tooltip : {formatter : labelFormatter }
+        tooltip : {formatter : labelFormatter },
+        rangeSelector : {
+            allButtonsEnabled: true
+        }
+      });
+
+      jQuery('#zoom_day_$buttonCounter').click(function () {
+        var chart = jQuery('#$chartDivId').highcharts();
+        chart.xAxis[0].setExtremes($day_start, $current_time);
+      });
+
+      jQuery('#zoom_week_$buttonCounter').click(function () {
+        var chart = jQuery('#$chartDivId').highcharts();
+        chart.xAxis[0].setExtremes($week_start, $current_time);
+      });
+
+      jQuery('#zoom_month_$buttonCounter').click(function () {
+        var chart = jQuery('#$chartDivId').highcharts();
+        chart.xAxis[0].setExtremes($month_start, $current_time);
+      });
+
+      jQuery('#zoom_months_$buttonCounter').click(function () {
+        var chart = jQuery('#$chartDivId').highcharts();
+        chart.xAxis[0].setExtremes($months_start, $current_time);
       });
     });
     </script>
@@ -980,44 +1015,14 @@ sub get_name_for {
 sub show_tabbed {
   my ($charts_period, $chart_number) = @_;
 
-  my $three_month_tab_control = '';
-  my $three_month_tab_content = '';
-  if ($charts_period->{4}) {
-    $three_month_tab_control =
-      qq'<li role="presentation"><a href="#tab_3_month_$chart_number" aria-controls="#tab_3_month_$chart_number" role="tab" data-toggle="tab">3 $lang{MONTHES_A}</a></li>';
-    $three_month_tab_content =
-      qq'<div role="tabpanel" class="tab-pane" id="tab_3_month_$chart_number">
-        $charts_period->{4}
-      </div>';
-  }
-
-  my $tab_controls = qq{
-    <!-- Nav tabs -->
-    <ul class="nav nav-tabs" role="tablist">
-      <li role="presentation" class="active"><a href="#tab_day_$chart_number" aria-controls="#tab_day_$chart_number" role="tab" data-toggle="tab">$lang{DAY}</a></li>
-      <li role="presentation"><a href="#tab_week_$chart_number" aria-controls="#tab_week_$chart_number" role="tab" data-toggle="tab">$lang{WEEK}</a></li>
-      <li role="presentation"><a href="#tab_month_$chart_number" aria-controls="#tab_month_$chart_number" role="tab" data-toggle="tab">$lang{MONTH}</a></li>
-      $three_month_tab_control
-    </ul>
-    };
-
   my $tabs = qq{
    <!-- Tab panes -->
-    <div class="tab-content">
-      <div role="tabpanel" class="tab-pane active" id="tab_day_$chart_number">
+      <div>
         $charts_period->{1}
       </div>
-      <div role="tabpanel" class="tab-pane" id="tab_week_$chart_number">
-        $charts_period->{2}
-      </div>
-      <div role="tabpanel" class="tab-pane" id="tab_month_$chart_number">
-        $charts_period->{3}
-      </div>
-      $three_month_tab_content
-    </div>
     };
 
-  print $tab_controls . $tabs;
+  print $tabs;
 }
 
 #**********************************************************

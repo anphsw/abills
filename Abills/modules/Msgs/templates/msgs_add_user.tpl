@@ -71,20 +71,39 @@
 
 <script>
 //    jQuery('#REG_REQUEST_BTN').prop('disabled', true);
+
+var timeout = null;
+
+function doDelayedSearch(val) {
+  if (timeout) {
+    clearTimeout(timeout);
+  }
+  timeout = setTimeout(function() {
+    doSearch(val); //this is your existing function
+  }, 500);
+};
+
+function doSearch(val) {
+  if(!val){
+    jQuery('#REG_REQUEST_BTN').prop('disabled', true);
+    jQuery('#LOGIN').parent().parent().removeClass('has-success').addClass('has-error');
+    return 1;
+  }
+  jQuery.post('$SELF_URL', 'header=2&qindex=' + '%CHECK_LOGIN_INDEX%' + '&login_check=' + val, function (data) {
+    console.log(data);
+    if(data === 'success'){
+      jQuery('#REG_REQUEST_BTN').prop('disabled', false);
+      jQuery('#LOGIN').parent().parent().removeClass('has-error').addClass('has-success');
+    }
+    else{
+      jQuery('#REG_REQUEST_BTN').prop('disabled', true);
+      jQuery('#LOGIN').parent().parent().removeClass('has-success').addClass('has-error');
+    }
+
+  });
+}
     jQuery('#LOGIN').on('input', function(){
-        var value = jQuery('#LOGIN').val();
-        jQuery.post('$SELF_URL', 'header=2&qindex=' + '%CHECK_LOGIN_INDEX%' + '&login_check=' + value, function (data) {
-            console.log(data);
-            if(data === 'success'){
-                jQuery('#REG_REQUEST_BTN').prop('disabled', false);
-                jQuery('#LOGIN').parent().parent().removeClass('has-error').addClass('has-success');
-            }
-            else{
-                jQuery('#REG_REQUEST_BTN').prop('disabled', true);
-                jQuery('#LOGIN').parent().parent().removeClass('has-success').addClass('has-error');
-            }
-
-        });
-
+      var value = jQuery('#LOGIN').val();
+      doDelayedSearch(value)
     });
 </script>

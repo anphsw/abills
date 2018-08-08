@@ -21,7 +21,7 @@
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{DATE}_:</label>
-    <div class='col-md-9'><input class='tcal form-control datepickerActive' name='ADD_DATE' type='text' value='%ADD_DATE%' /></div>
+    <div class='col-md-9'><input class='datepicker form-control' name='ADD_DATE' type='text' value='%ADD_DATE%' /></div>
   </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{COMMENTS}_</label>

@@ -39,37 +39,45 @@
   <div class='box box-theme box-big-form'>
     <div class='box-header with-border'><h3 class='box-title'>_{USER_ACCOUNT}_ %DISABLE_MARK%</h3>
       <div class='box-tools pull-right'>
-	    <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
-		  <i class='fa fa-minus'></i>
+      <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+      <i class='fa fa-minus'></i>
         </button>
       </div>
     </div>
     <div class='box-body'>
-	  <div class='row' style='padding-bottom: 10px;'>
-	    <label class='control-label col-md-3 col-xs-3'>_{DEPOSIT}_</label>
-	    
-	    <div class='col-md-9 col-xs-9'>
-	      <div class='input-group'>
+    <div class='row' style='padding-bottom: 10px;'>
+      <label class='control-label col-md-3 col-xs-3'>_{DEPOSIT}_</label>
+      
+      <div class='col-md-9 col-xs-9'>
+        <div class='input-group'>
             <input class='form-control %DEPOSIT_MARK%' type='text' readonly value='%SHOW_DEPOSIT%' placeholder='0'>
-		    <span class='input-group-addon'>%PAYMENTS_BUTTON%</span>
-		    <span class='input-group-addon'>%FEES_BUTTON%</span>
-		    <span class='input-group-addon'>%PRINT_BUTTON%</span>
-	      </div>
-	    </div>
-	  </div>
-	  <div class='row' style='padding-bottom: 10px;'>
-	    <label class='control-label col-md-3 col-xs-3'>_{CREDIT}_</label>
-		<div class='col-md-3 col-xs-3'>
-          <input id='CREDIT' name='CREDIT' class='form-control' type='text' %CREDIT_READONLY% value='%CREDIT%'>
-		</div>
-		<label class='control-label col-md-3 col-xs-3'>_{DATE}_</label>
-		<div class='col-md-3 col-xs-3'>
-		  <input id='CREDIT_DATE' name='CREDIT_DATE' class='datepicker form-control' type='text' %CREDIT_DATE_READONLY% value='%CREDIT_DATE%'>
-		</div>
-	  </div>
-	  
-	  
-	  
+        <span class='input-group-addon'>%PAYMENTS_BUTTON%</span>
+        <span class='input-group-addon'>%FEES_BUTTON%</span>
+        <span class='input-group-addon'>%PRINT_BUTTON%</span>
+        </div>
+      </div>
+    </div>
+    <div class='row' style='padding-bottom: 10px;'>
+      <label class='control-label col-md-3 col-xs-3'>_{CREDIT}_</label>
+      <div class='col-md-3 col-xs-3'>
+        <input id='CREDIT' name='CREDIT' class='form-control' type='number' step='0.01' min='0' %CREDIT_READONLY% value='%CREDIT%'>
+      </div>
+      <label class='control-label col-md-3 col-xs-3'>_{DATE}_</label>
+      <div class='col-md-3 col-xs-3'>
+        <input id='CREDIT_DATE' name='CREDIT_DATE' class='datepicker form-control' type='text' %CREDIT_DATE_READONLY% value='%CREDIT_DATE%'>
+      </div>
+    </div>
+    <div class='row' style='padding-bottom: 10px;'>
+        <label class='control-label col-xs-3 col-md-3'>_{REDUCTION}_(%)</label>
+        <div class=' col-xs-3 col-md-3'>
+          <input id='REDUCTION' name='REDUCTION' class='form-control' type='number' 
+                min='0' max='100' %REDUCTION_READONLY% value='%REDUCTION%' step='0.01'>
+        </div>
+        <label class='control-label col-md-3 col-xs-3'>_{DATE}_</label>
+        <div class='col-md-3 col-xs-3'>
+            <input id='REDUCTION_DATE' name='REDUCTION_DATE' class='datepicker form-control' type='text' %REDUCTION_DATE_READONLY% value='%REDUCTION_DATE%'>
+        </div>
+      </div>
         <!-- ACTIVATION / EXPIRED -->
         <div class='row' style='margin-bottom: 15px;'>
           <label class='control-label col-xs-3 col-md-3' for='ACTIVATE'>_{ACTIVATE}_</label>
@@ -83,9 +91,9 @@
                    class='form-control datepicker' %EXPIRE_READONLY% type='text'>
           </div>
         </div>
-	</div>
+  </div>
 
-	  <div class='box box-default collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
+    <div class='box box-default collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
         <div class='box-header with-border'>
           <h3 class='box-title'>_{EXTRA}_</h3>
           <div class='box-tools pull-right'>
@@ -95,17 +103,6 @@
         </div>
         <div class='box-body'>
           <div class='form-group'>
-		  
-		    <label class='control-label col-xs-4 col-md-4'>_{REDUCTION}_(%)</label>
-		    <div class=' col-xs-3 col-md-3' style='padding-right: 0px;'>
-			  <input id='REDUCTION' name='REDUCTION' class='form-control' type='number' min='0' max='100' %REDUCTION_READONLY% value='%REDUCTION%' step='0.01'>
-		    </div>
-			<div class='col-md-5 col-xs-5' style='padding-left: 0px;'>
-		      <div class='input-group'>
-		        <span class='input-group-addon'>_{DATE}_</span>
-		        <input id='REDUCTION_DATE' name='REDUCTION_DATE' class='datepicker form-control' type='text' %REDUCTION_DATE_READONLY% value='%REDUCTION_DATE%'>
-		      </div>
-		    </div>
             <label class='control-label col-xs-4 col-md-4'>_{COMPANY}_</label>
             <div class=' col-xs-8 col-md-8'>
               <div class='input-group'>
@@ -117,18 +114,18 @@
                                                    class='glyphicon glyphicon-pencil'></a></span>
               </div>
             </div>
-			
-			<label class='control-label col-xs-4 col-md-4'>_{GROUP}_</label>
-			<div class='col-md-8 col-xs-8'>
-		      <div class='input-group'>
+      
+      <label class='control-label col-xs-4 col-md-4'>_{GROUP}_</label>
+      <div class='col-md-8 col-xs-8'>
+          <div class='input-group'>
                 <input type=text name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly>
                 <span class='input-group-addon'><a href='$SELF_URL?index=12&UID=$FORM{UID}'
                                          class='glyphicon glyphicon glyphicon-pencil'></a></span>
               </div>
-		    </div>
-			
-	
-			
+        </div>
+      
+  
+      
             <label class='control-label col-xs-4 col-md-4' for='REG'>_{REGISTRATION}_</label>
             <div class='col-xs-8 col-md-8'>
               <input type=text name='REG' value='%REGISTRATION%' ID='REG' class='form-control' readonly>
@@ -140,19 +137,19 @@
                 <span class='input-group-addon'>%BILL_CORRECTION%</span>
               </div>
             </div>
-		  </div>
-		  <div class='form-group'>
-	        <label class='control-label col-xs-4 col-md-4'>_{PASSWD}_</label>
-			<div class='col-md-4 col-xs-4'>%PASSWORD%</div>
-		  </div>	  
-			
-			<div class='col-md-4 col-xs-4'>
-		      <label class='btn btn-default'>
-		        <input id='DISABLE' name='DISABLE' value='1' %DISABLE% type='checkbox' onClick='add_comments();'>
-			    _{DISABLE}_
-			  </label>
-			</div>
-		    
+      </div>
+      <div class='form-group'>
+          <label class='control-label col-xs-4 col-md-4'>_{PASSWD}_</label>
+      <div class='col-md-4 col-xs-4'>%PASSWORD%</div>
+      </div>    
+      
+      <div class='col-md-4 col-xs-4'>
+          <label class='btn btn-default'>
+            <input id='DISABLE' name='DISABLE' value='1' %DISABLE% type='checkbox' onClick='add_comments();'>
+          _{DISABLE}_
+        </label>
+      </div>
+        
               
             <div class='col-md-8 col-xs-8 %DISABLE_COLOR%'>
               %DISABLE_COMMENTS%
@@ -160,12 +157,12 @@
                      style='visibility: hidden;'>%ACTION_COMMENTS%
             </div>
             %DEL_FORM%
-	  
-	  
-	  
+    
+    
+    
 
-		</div>
-	  </div>
+    </div>
+    </div>
 
 
     <div class='box-footer'>

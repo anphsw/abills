@@ -1,4 +1,4 @@
-<form action='https://www.plategka.com/gateway/' method='post'>
+<form action='https://test.plategka.com/gateway/' method='post'>
     <input type="hidden" name="merchant_id" value="%MERCHANT_ID%"/>
     <input type="hidden" name="order_id" value="%OPERATION_ID%"/>
     <input type="hidden" name="amount" value="%SUM_FOR_PLATEGKA%"/>

@@ -1,69 +1,115 @@
-<TABLE width=500 class=form>
-    <tr class='add'>
-        <td>_{SESSION_ID}_:</td>
-        <td>%SESSION_ID%</td>
-    </tr>
-    <tr class='add'>
-        <td>_{BEGIN}_:</td>
-        <td align=right>%START%</td>
-    </tr>
-    <tr class='add'>
-        <td>_{END}_:</td>
-        <td align=right>%STOP%</td>
-    </tr>
-    <tr class='add'>
-        <td>_{DURATION}_</td>
-        <td align=right>%DURATION%</td>
-    </tr>
-    <tr class='add'>
-        <td>_{TARIF_PLAN}_</td>
-        <td>[%TP_ID%] %TP_NAME%</td>
-    </tr>
-    <tr class='add'>
-        <td>IP:</td>
-        <td align=right>%IP%</td>
-    </tr>
-    <tr class='add'>
-        <td>CALLING_STATION_ID (_{FROM}_):</td>
-        <td align=right>%CALLING_STATION_ID%</td>
-    </tr>
-    <tr class='add'>
-        <td>CALLED_STATION_ID (_{TO}_):</td>
-        <td align=right>%CALLED_STATION_ID%</td>
-    </tr>
-    <tr>
-        <th class='form_title' colspan=2>_{NAS}_</th>
-    </tr>
-    <tr class='add'>
-        <td>ID:</td>
-        <td>%NAS_ID%</td>
-    </tr>
-    <tr class='add'>
-        <td>NAME</td>
-        <td>%NAS_NAME%</td>
-    </tr>
-    <tr class='add'>
-        <td>IP:</td>
-        <td>%NAS_IP%</td>
-    </tr>
-    <tr class='add'>
-        <td colspan=2>&nbsp;</td>
-    </tr>
-    <tr class='add'>
-        <td>_{SUM}_:</td>
-        <td>%SUM%</td>
-    </tr>
-    <tr class='add'>
-        <td>_{BILL}_:</td>
-        <td>%BILL_ID%</td>
-    </tr>
+<div class="form-horizontal">
+    <div class="box box-info ">
+        <div class="box-header with-border">
+            <h2 class="box-title"></h2>
+        </div>
+        <div class="box-body">
+            <div class="form-group">
+                <label class="col-md-3 control-element" for="SESSION_ID">_{SESSION_ID}_:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="SESSION_ID"
+                           id="SESSION_ID" value="%SESSION_ID%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element" for="START">_{BEGIN}_:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="START" id="START"
+                           value="%START%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element" for="STOP">_{END}_:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="STOP" id="STOP"
+                           value="%STOP%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element" for="DURATION">_{DURATION}_:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="DURATION" id="DURATION"
+                           value="%DURATION%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element" for="TP_NAME">_{TARIF_PLAN}_:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="TP_NAME" id="TP_NAME"
+                           value="[%TP_ID%] %TP_NAME%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element">IP:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="IP"
+                           value="%IP%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element">CALLING_STATION_ID (_{FROM}_):</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="CALLING_STATION_ID"
+                           value="%CALLING_STATION_ID%">
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <tr class='add'>
-        <td>_{ROUTE}_:</td>
-        <td>%ROUTE_ID%</td>
-    </tr>
-    <tr class='add'>
-        <td>ACCT_TERMINATE_CAUSE:</td>
-        <td>%ACCT_TERMINATE_CAUSE%</td>
-    </tr>
-    </td></tr></table>
+    <div class="box box-info ">
+        <div class="box-header with-border">
+            <h2 class="box-title">_{NAS}_</h2>
+        </div>
+        <div class="box-body">
+            <div class="form-group">
+                <label class="col-md-3 control-element">ID:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="NAS_ID"
+                           value="%NAS_ID%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element">Name:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="NAS_NAME"
+                           value="%NAS_NAME%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element">IP:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="NAS_IP"
+                           value="%NAS_IP%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element">_{SUM}_:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="SUM"
+                           value="%SUM%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element">_{BILL}_:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="BILL_ID"
+                           value="%BILL_ID%">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element">_{ROUTE}_:</label>
+                <div class="col-md-9">
+                    %ROUTE_ID%
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-element">_{ACCT_TERMINATE_CAUSE}_:</label>
+                <div class="col-md-9">
+                    <input required="" disabled type="text" class="form-control" name="ACCT_TERMINATE_CAUSE"
+                           value="%ACCT_TERMINATE_CAUSE%">
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

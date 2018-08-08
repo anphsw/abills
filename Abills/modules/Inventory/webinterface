@@ -567,6 +567,21 @@ sub inventory_hosts{
     $LIST_PARAMS{SORT} = '1';
     $LIST_PARAMS{DESC} = 'DESC';
   }
+
+  if($FORM{search_form}) {
+    form_search({
+      SIMPLE => {
+        "$lang{LOGIN}"     => 'LOGIN',
+        "$lang{HOSTNAME}"  => 'HOSTNAME',
+        'IP'               => 'IP',
+        'INVENTORY_STATUS' => 'INVENTORY_STATUS',
+        'SIGN'             => 'SIGN',
+        'SYS_ID'           => 'SYS_ID',
+        'LOG_COMMENTS'     => 'LOG_COMMENTS',
+      }
+    });
+  }
+
 #
 #  my @header_arr = ("$lang{ALL}:index=$index&STATE=$pages_qs");
 #  foreach my $id (sort keys %status) {
@@ -606,7 +621,7 @@ sub inventory_hosts{
     },
     TABLE           => {
       width   => '100%',
-      caption => "Inventory - Bugs",
+      caption => "Inventory - Hosts",
       border  => 1,
       qs      => $pages_qs,
       ID      => 'INVENTORY_HOSTS',

@@ -17,7 +17,8 @@
             <div class='form-group'>
                 <label class='col-md-3 control-label'>_{ADMIN}_:</label>
                 <div class='col-md-9'>
-                    <input class='form-control' type=text name=AID value='%AID%'>
+                    <!--<input class='form-control' type=text name=AID value='%AID%'>-->
+                    %ADMIN_SELECT%
                 </div>
             </div>
             <div class='form-group'>

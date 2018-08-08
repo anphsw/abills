@@ -72,7 +72,7 @@ sub add {
   if ($attr->{CREATE_BILL}) {
     $self->change(
       {
-        DISABLE         => int($attr->{DISABLE}),
+        DISABLE         => int($attr->{DISABLE} || 0),
         ID              => $self->{COMPANY_ID},
         CREATE_BILL     => 1,
         CREATE_EXT_BILL => $attr->{CREATE_EXT_BILL}
@@ -85,6 +85,13 @@ sub add {
 
 #**********************************************************
 =head2 change($attr) Change
+
+  Arguments:
+    $attr
+      ID - Main parameter
+
+  Resturn:
+    $self
 
 =cut
 #**********************************************************
@@ -172,6 +179,9 @@ sub del {
 #**********************************************************
 =head2 info($company_id) - Info
 
+  Arguments:
+    $company_info
+
 =cut
 #**********************************************************
 sub info {
@@ -223,84 +233,110 @@ sub list {
 
   my @WHERE_RULES = ();
 
-  my $Conf = Conf->new($self->{db}, $admin, $CONF);
-  my $list = $Conf->config_list({ PARAM => 'ifc*', SORT => 2 });
+  my $info_fields_list;
 
-  if ($self->{TOTAL} > 0) {
-    foreach my $line (@$list) {
-      if ($line->[0] =~ /ifc(\S+)/) {
-        my $field_name = $1;
-        my (undef, $type, undef) = split(/:/, $line->[1]);
+  if($CONF->{info_fields_new}) {
+    require Info_fields;
+    my $Info_fields = Info_fields->new($self->{db}, $admin, $CONF);
+    $info_fields_list = $Info_fields->fields_list({ COMPANY => 1 });
+  }
+  else {
+    my $Conf = Conf->new($self->{db}, $admin, $CONF);
+    $info_fields_list = $Conf->config_list({ PARAM => 'ifc*', SORT => 2, COLS_NAME => 1 });
+  }
 
-        if (defined($attr->{$field_name}) && $type == 4) {
-          push @WHERE_RULES, 'c.' . $field_name . "='$attr->{$field_name}'";
+  if ($info_fields_list) {
+    foreach my $line (@$info_fields_list) {
+      my $field_name = '';
+      my $db_field_name = '';
+      my (undef, $type, undef);
+
+      if($line->{id}) {
+        $db_field_name = $line->{sql_field};
+        $type = $line->{type};
+        $field_name = uc($db_field_name);
+      }
+      elsif ($line->{param} && $line->{param} =~ /ifc(\S+)/) {
+        $field_name = $1;
+        (undef, $type, undef) = split(/:/, $line->{value});
+        $db_field_name = $field_name;
+      }
+      else {
+        next;
+      }
+
+      if (defined($attr->{$field_name}) && $type == 4) {
+        push @WHERE_RULES, 'c.' . $db_field_name . "='$attr->{$field_name}'";
+      }
+      #Skip for bloab
+      elsif ($type == 5) {
+        next;
+      }
+      elsif ($attr->{$field_name}) {
+        if ($type == 1) {
+          my $value = $self->search_expr($attr->{$field_name}, 'INT');
+          push @WHERE_RULES, "(c." .  $db_field_name . "$value)";
         }
-        #Skip for bloab
-        elsif ($type == 5) {
+        elsif ($type == 2) {
+          push @WHERE_RULES, "(c.$db_field_name='$attr->{$field_name}')";
+          $self->{SEARCH_FIELDS} .= "$db_field_name" . '_list.name AS ' .  $db_field_name . '_list_name, ';
+          $self->{SEARCH_FIELDS_COUNT}++;
+          $self->{EXT_TABLES} .= "LEFT JOIN  $db_field_name" . "_list ON (c. $db_field_name =  $db_field_name" . "_list.id)";
           next;
         }
-        elsif ($attr->{$field_name}) {
-          if ($type == 1) {
-            my $value = $self->search_expr("$attr->{$field_name}", 'INT');
-            push @WHERE_RULES, "(c." . $field_name . "$value)";
+        else {
+          $attr->{$field_name} =~ s/\*/\%/ig;
+          if($attr->{$field_name} ne '_SHOW') {
+            push @WHERE_RULES, "c.$db_field_name LIKE '$attr->{$field_name}'";
           }
-          elsif ($type == 2) {
-            push @WHERE_RULES, "(pi.$field_name='$attr->{$field_name}')";
-            $self->{SEARCH_FIELDS} .= "$field_name" . '_list.name AS '. $field_name. '_list_name, ';
-            $self->{SEARCH_FIELDS_COUNT}++;
-            $self->{EXT_TABLES} .= "LEFT JOIN $field_name" . "_list ON (c.$field_name = $field_name" . "_list.id)";
-            next;
-          }
-          else {
-            $attr->{$field_name} =~ s/\*/\%/ig;
-            push @WHERE_RULES, "c.$field_name LIKE '$attr->{$field_name}'";
-          }
-
-          $self->{SEARCH_FIELDS} .= "c.$field_name, ";
-          $self->{SEARCH_FIELDS_COUNT}++;
         }
+
+        $self->{SEARCH_FIELDS} .= "c.$db_field_name, ";
+        $self->{SEARCH_FIELDS_COUNT}++;
       }
     }
-    $self->{EXTRA_FIELDS} = $list;
+
+    $self->{EXTRA_FIELDS} = $info_fields_list;
   }
 
   my $WHERE =  $self->search_former($attr, [
-      ['COMPANY_NAME',   'STR',  'c.name',            ],
-      ['DEPOSIT',        'INT',  'cb.deposit',      1 ],
-      ['CREDIT',         'INT',  'c.credit',        1 ],
-      ['USERS_COUNT',    'INT',  'COUNT(u.uid) AS users_count', 1 ],
-      ['CREDIT_DATE',    'DATE', 'c.credit_date',   1 ],
-      ['ADDRESS',        'STR',  'c.address',       1 ],
-      ['REGISTRATION',   'DATE', 'c.registration',  1 ],
-      ['DISABLE',        'INT',  'c.disable AS status',  1 ],
-      ['CONTRACT_ID',    'INT',  'c.contract_id',   1 ],
-      ['CONTRACT_DATE',  'DATE', 'c.contract_date', 1 ],
-      ['CONTRACT_SUFIX', 'STR',  'c.contract_sufix',1 ],
-      ['ID',             'INT',  'c.id'               ],
-      ['BILL_ID',        'INT',  'c.bill_id',       1 ],
-      ['TAX_NUMBER',     'STR',  'c.tax_number',    1 ],
-      ['BANK_ACCOUNT',   'STR',  'c.bank_account',  1 ],
-      ['BANK_NAME',      'STR'.  'c.bank_name',     1 ],
-      ['COR_BANK_ACCOUNT','STR', 'c.cor_bank_account', 1],
-      ['BANK_BIC',       'STR',  'c.bank_bic',      1 ],
-      ['PHONE',          'STR',  'c.phone',         1 ],
-      ['VAT',            'INT',  'c.vat',           1 ],
-      ['EXT_BILL_ID',    'INT',  'c.ext_bill_id',   1 ],
-      ['DOMAIN_ID',      'INT',  'c.domain_id',     1 ],
-      ['REPRESENTATIVE', 'STR',  'c.representative',1 ],
-      ['LOCATION_ID',    'INT',  'c.location_id',   1 ],
-      ['ADDRESS_FLAT',   'STR',  'c.address_flat',  1 ],
-      ['COMPANY_ADMIN',  'INT',  'u.uid',           1 ],
-      ['COMPANY_ID',     'INT',  'c.id',              ],
-    ],
+    ['COMPANY_NAME',   'STR',  'c.name',            ],
+    ['DEPOSIT',        'INT',  'cb.deposit',      1 ],
+    ['CREDIT',         'INT',  'c.credit',        1 ],
+    ['USERS_COUNT',    'INT',  'COUNT(u.uid) AS users_count', 1 ],
+    ['CREDIT_DATE',    'DATE', 'c.credit_date',   1 ],
+    ['ADDRESS',        'STR',  'c.address',       1 ],
+    ['REGISTRATION',   'DATE', 'c.registration',  1 ],
+    ['DISABLE',        'INT',  'c.disable AS status',  1 ],
+    ['CONTRACT_ID',    'INT',  'c.contract_id',   1 ],
+    ['CONTRACT_DATE',  'DATE', 'c.contract_date', 1 ],
+    ['CONTRACT_SUFIX', 'STR',  'c.contract_sufix',1 ],
+    ['ID',             'INT',  'c.id'               ],
+    ['BILL_ID',        'INT',  'c.bill_id',       1 ],
+    ['TAX_NUMBER',     'STR',  'c.tax_number',    1 ],
+    ['BANK_ACCOUNT',   'STR',  'c.bank_account',  1 ],
+    ['BANK_NAME',      'STR'.  'c.bank_name',     1 ],
+    ['COR_BANK_ACCOUNT','STR', 'c.cor_bank_account', 1],
+    ['BANK_BIC',       'STR',  'c.bank_bic',      1 ],
+    ['PHONE',          'STR',  'c.phone',         1 ],
+    ['VAT',            'INT',  'c.vat',           1 ],
+    ['EXT_BILL_ID',    'INT',  'c.ext_bill_id',   1 ],
+    ['DOMAIN_ID',      'INT',  'c.domain_id',     1 ],
+    ['REPRESENTATIVE', 'STR',  'c.representative',1 ],
+    ['LOCATION_ID',    'INT',  'c.location_id',   1 ],
+    ['ADDRESS_FLAT',   'STR',  'c.address_flat',  1 ],
+    ['COMPANY_ADMIN',  'INT',  'u.uid',           1 ],
+    ['COMPANY_ID',     'INT',  'c.id',              ],
+    #['DOMAIN_ID',      'INT',  'c.domain_id',     1 ],
+  ],
     {
       WHERE_RULES      => \@WHERE_RULES,
       USERS_FIELDS_PRE => 1,
       USE_USER_PI      => 1,
       SKIP_USERS_FIELDS=> [ 'DEPOSIT', 'CREDIT', 'BILL_ID', 'CREDIT_DATE', 'ADDRESS',
-                            'REGISTRATION', 'CONTRACT_ID', 'CONTRACT_DATE', 'PHONE', 
-                            'DOMAIN_ID', 'LOCATION_ID', 'ADDRESS_FLAT'
-                          ],
+        'REGISTRATION', 'CONTRACT_ID', 'CONTRACT_DATE', 'PHONE',
+        'DOMAIN_ID', 'LOCATION_ID', 'ADDRESS_FLAT', 'DOMAIN_ID'
+      ],
       WHERE            => 1,
     }
   );
@@ -310,7 +346,7 @@ sub list {
     $EXT_TABLE .= "LEFT JOIN companie_admins ca ON (ca.uid = u.uid)";
   }
 
-#  if($self->{SEARCH_FIELDS} =~ /pi\./) {
+  #  if($self->{SEARCH_FIELDS} =~ /pi\./) {
 #    $EXT_TABLE .= "LEFT JOIN users_pi pi ON (u.uid = pi.uid)";
 #  }
   
@@ -331,7 +367,8 @@ sub list {
     undef,
     $attr
   );
-  $list = $self->{list};
+
+  my $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
     $self->query("SELECT COUNT(DISTINCT c.id) AS total

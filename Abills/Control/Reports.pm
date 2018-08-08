@@ -236,7 +236,7 @@ sub reports{
       },
       NAME    => 'report_panel',
       ID      => 'report_panel',
-      class   => 'form form-inline',
+      class   => 'form form-inline hidden-print',
     });
 
     if ( $FORM{show} && $FORM{FROM_DATE} ){
@@ -455,7 +455,8 @@ sub report_fees{
         admin_name    => $lang{ADMIN},
         login_count   => $lang{USERS},
         count         => $lang{COUNT},
-        sum           => $lang{SUM}
+        sum           => $lang{SUM},
+        tax_sum       => $lang{TAX}
       },
       FILTER_COLS     => {
         admin_name    => "search_link:report_fees:ADMIN_NAME,$type=1,$pages_qs",
@@ -538,11 +539,12 @@ sub report_payments{
   while (my ($k, $v) = each %$PAYMENT_METHODS) {
     $METHODS_HASH{"$k:$k"} = $v;
   }
-
+  my $fields = '';
   if ( defined( $FORM{FIELDS} ) && $FORM{FIELDS} ne '' ){
     $LIST_PARAMS{METHOD} = $FORM{FIELDS};
     $LIST_PARAMS{METHOD} =~ s/ //g;
     $LIST_PARAMS{METHOD} =~ s/,/;/g;
+    $fields = "FIELDS=" . $LIST_PARAMS{METHOD};
   }
   elsif ( $FORM{METHOD} ){
     $LIST_PARAMS{METHOD} = $FORM{METHOD};
@@ -668,8 +670,8 @@ sub report_payments{
         admin_name    => "search_link:report_payments:ADMIN_NAME,$type=1,$pages_qs",
         method        => "search_link:report_payments:METHOD,TYPE=USER,$pages_qs",
         login         => "search_link:from_users:UID,$type=1,$pages_qs",
-        date          => "search_link:report_payments:DATE,DATE",
-        month         => "search_link:report_payments:MONTH,$pages_qs",
+        date          => "search_link:report_payments:DATE,DATE,$fields",
+        month         => "search_link:report_payments:MONTH,$pages_qs,$fields",
         build         => "search_link:report_payments:LOCATION_ID,LOCATION_ID,TYPE=USER,$pages_qs",
         district_name => "search_link:report_payments:DISTRICT_ID,DISTRICT_ID,TYPE=USER,$pages_qs",
         street_name   => "search_link:report_payments:STREET_ID,STREET_ID,TYPE=USER,$pages_qs",
@@ -829,6 +831,8 @@ sub form_system_changes{
     }
   );
 
+  my $br = $html->br();
+
   foreach my $line ( @{$list} ){
     my $delete = ($permissions{4}{3}) ? $html->button( $lang{DEL}, "index=$index$pages_qs&del=$line->[0]",
         { MESSAGE => "$lang{DEL} [$line->[0]] ?", class => 'del' } ) : '';
@@ -842,10 +846,20 @@ sub form_system_changes{
       $table->{rowcolor} = $_COLORS[3];
     }
 
+    my $message = $line->[2] || q{};
+
+    while($message =~ /([A-Z\_]+)[:|\s]{1}/g) {
+      my $marker = $1;
+      my $colorstring = $html->b($marker).':';
+      $message =~ s/$marker:?/$colorstring/g
+    }
+
+    $message =~ s/;/$br/g;
+
     $table->addrow(
       $html->b( $line->[0] ),
       $html->color_mark( $line->[1], $color ),
-      $html->color_mark( $line->[2], $color ),
+      $html->color_mark( $message, $color ),
       $line->[3],
       $line->[4],
       $line->[5],
@@ -1243,7 +1257,8 @@ sub analiz_user_statistic {
   if (!$conf{USER_FN_LOG}) {
     $conf{LOGS_DIR} = $var_dir . 'log/user_fn.log';
   }
-  open(my $log_file, '<:encoding(UTF-8)', $conf{USER_FN_LOG}) or die "Error in opening file $conf{USER_FN_LOG}";
+
+  open(my $log_file, '<:encoding(UTF-8)', $conf{USER_FN_LOG}) or die "Error in opening file $conf{USER_FN_LOG} $!\n";
   my %info;
   my %transition_info;
   my $transition_1 = '';

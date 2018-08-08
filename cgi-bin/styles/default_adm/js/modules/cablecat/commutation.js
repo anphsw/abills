@@ -44,6 +44,27 @@ var DEFAULT_SCHEME_OPTIONS = {
   OPPOSITE_SHIFT      : 3
 };
 
+var COLORS_NAME = {
+    '#fcfefc' : 'White',
+    '#04fefc' : 'Sea',
+    '#fcfe04' : 'Yellow',
+    '#048204' : 'Green',
+    '#840204' : 'Brown',
+    '#fc0204' : 'Red',
+    '#fc9a04' : 'Orange',
+    '#fc9acc' : 'Pink',
+    '#848284' : 'Gray',
+    '#0402fc' : 'Blue',
+    '#840284' : 'Violet',
+    '#040204' : 'Black',
+    '#04fe04' : 'Yellowgreen',
+    '#9cce04' : 'Olive',
+    '#fcfe9c' : 'Beige',
+    '#dbefdb' : 'Natural',
+    '#fde910' : 'Lemon',
+    '#9c3232' : 'Cherry',
+};
+
 $(function () {
 
   //Instantiate classes
@@ -1481,6 +1502,7 @@ $.extend(Cable.prototype, {
     rect.meta = meta;
 
     this.modules = this.drawModules(this.position.modules);
+
     this.drawFibers(this.position.fibers);
 
     this.rendered = rect;
@@ -1738,7 +1760,7 @@ $.extend(Cable.prototype, {
       });
 
       if (fiber.marked) {
-        drawLine(fiber.edge, fiber.start);
+        drawLine(fiber.edge, fiber.start, fiber.color);
       }
 
       $(fiber_rect.node)
@@ -2729,6 +2751,12 @@ function initContextMenus() {
         };
 
       var full_name = fiber.meta.name; //element.name + ':' + (fiber.rendered.meta.number + 1);
+        if (fiber.marked === true) {
+            full_name += " (" + COLORS_NAME[fiber.color] + " +)";
+        }
+        else {
+            full_name += " (" + COLORS_NAME[fiber.color] + " )";
+        }
 
       return {
         items: {

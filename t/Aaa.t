@@ -115,8 +115,11 @@ sub mac_auth{
 =cut
 #**********************************************************
 sub show_reply{
-  my($RAD_REPLY)=@_;
-  print "RAD_REPLY:\n";
+  my($RAD_REPLY, $message)=@_;
+
+  print (($message) ? $message : "RAD_REPLY");
+  print ":\n";
+
 
   foreach my $k (sort keys %$RAD_REPLY) {
     my $v = $RAD_REPLY->{$k};
@@ -231,6 +234,8 @@ sub _rad {
 
   my $rad_file = $argv->{rad_file} || q{};
 
+  $attr->{rad_file}=$rad_file;
+
   my @users_arr = ();
   if ( $argv->{get_db_users} ) {
     require Users;
@@ -316,7 +321,7 @@ sub _rad {
 
     timethis($count, sub{
       if(%RAD) {
-          %RAD_REQUEST = %RAD;
+        %RAD_REQUEST = %RAD;
       }
       elsif($#users_arr > -1){
         %RAD_REQUEST = %{ $users_arr[ rand( $#users_arr + 1 ) ] };
@@ -326,66 +331,109 @@ sub _rad {
     });
   }
   else {
-    if($debug) {
-      print "Basic\n";
-    }
-
-    my $ret = authenticate();
-    print "  authenticate: $ret\n";
-    ok($ret);
-    if(! $ret) {
-      show_reply(\%RAD_REPLY);
-    }
-
-    if($attr->{auth}) {
-      return 1;
-    }
-
-    $ret = authorize();
-    print "  authorize: $ret\n";
-    ok($ret);
-
-    if($argv->{rad_file} && -f $argv->{rad_file}.'.acct_start') {
-      %RAD_REQUEST = %{ load_rad_pairs($argv->{rad_file}.'.acct_start') };
-    }
-    else {
-      $RAD_REQUEST{'Acct-Status-Type'} = 'Start';
-      $RAD_REQUEST{'Acct-Session-Id'} = 'testsesion_1';
-      $RAD_REQUEST{'Framed-IP-Address'} = '192.168.100.20';
-    }
-
-    $ret = accounting();
-    print "  accounting 'Start': $ret\n";
-    ok($ret);
-
-    if($argv->{rad_file} && -f $argv->{rad_file}.'.acct_alive') {
-      %RAD_REQUEST = %{ load_rad_pairs($argv->{rad_file}.'.acct_alive') };
-    }
-
-    $RAD_REQUEST{'Acct-Status-Type'}='Interim-Update';
-    $ret = accounting();
-    print "  accounting 'Interim-Update': $ret\n";
-    ok($ret);
-
-    if($argv->{rad_file} && -f $rad_file.'.acct_stop') {
-      %RAD_REQUEST = %{ load_rad_pairs($rad_file.'.acct_stop') };
-    }
-    else {
-      $RAD_REQUEST{'Acct-Session-Time'}  = 300;
-      $RAD_REQUEST{'Acct-Output-Octets'} = 11111111;
-      $RAD_REQUEST{'Acct-Input-Octets'}  = 22222222;
-    }
-
-    $RAD_REQUEST{'Acct-Status-Type'}='Stop';
-
-    $ret = accounting();
-    print "  accounting 'Stop': $ret\n";
-    ok($ret);
+    aaa_base($attr);
   }
 
-  if ($argv->{show_result}) {
+  if ($argv->{show_result} || $debug > 2) {
     show_reply(\%RAD_REPLY);
   }
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 aaa_base($attr); - Load file from file
+
+=cut
+#**********************************************************
+sub aaa_base{
+  my ($attr)=@_;
+
+  if($debug) {
+    print "Basic\n";
+  }
+
+  my $rad_file = $attr->{rad_file} || q{};
+
+  if ($debug > 4) {
+    show_reply(\%RAD_REQUEST, 'authenticate request');
+  }
+
+  my $ret = authenticate();
+  print "  authenticate: $ret\n";
+  ok($ret);
+  if(! $ret) {
+    show_reply(\%RAD_REPLY);
+    %RAD_REPLY = ();
+  }
+
+  if($attr->{auth}) {
+    return 1;
+  }
+
+  if ($debug > 4) {
+    show_reply(\%RAD_REQUEST, 'authorize request');
+  }
+
+  $ret = authorize();
+  print "  authorize: $ret\n";
+  ok($ret);
+
+  show_reply(\%RAD_REPLY, 'RAd:REPLY:');
+
+  %RAD_REPLY = ();
+
+  if($rad_file && -f $rad_file.'.acct_start') {
+    %RAD_REQUEST = %{ load_rad_pairs($rad_file.'.acct_start') };
+  }
+  else {
+    $RAD_REQUEST{'Acct-Status-Type'} = 'Start';
+    $RAD_REQUEST{'Acct-Session-Id'} = 'testsesion_1';
+    $RAD_REQUEST{'Framed-IP-Address'} = '192.168.100.20';
+  }
+
+  if ($debug > 4) {
+    show_reply(\%RAD_REQUEST, 'accounting '. $RAD_REQUEST{'Acct-Status-Type'});
+  }
+
+  $ret = accounting();
+  print "  accounting 'Start': $ret\n";
+  ok($ret);
+
+  if($rad_file && -f $rad_file.'.acct_alive') {
+    %RAD_REQUEST = %{ load_rad_pairs($rad_file.'.acct_alive') };
+  }
+
+  $RAD_REQUEST{'Acct-Session-Time'}=200;
+  $RAD_REQUEST{'Acct-Status-Type'}='Interim-Update';
+
+  if ($debug > 4) {
+    show_reply(\%RAD_REQUEST, 'accounting '. $RAD_REQUEST{'Acct-Status-Type'});
+  }
+
+  $ret = accounting();
+  print "  accounting '$RAD_REQUEST{'Acct-Status-Type'}': $ret\n";
+  ok($ret);
+
+  if($rad_file && -f $rad_file.'.acct_stop') {
+    %RAD_REQUEST = %{ load_rad_pairs($rad_file.'.acct_stop') };
+  }
+  else {
+    $RAD_REQUEST{'Acct-Session-Time'}  = 300;
+    $RAD_REQUEST{'Acct-Output-Octets'} = 11111111;
+    $RAD_REQUEST{'Acct-Input-Octets'}  = 22222222;
+  }
+
+  $RAD_REQUEST{'Acct-Status-Type'}='Stop';
+
+  if ($debug > 4) {
+    show_reply(\%RAD_REQUEST, 'accounting '. $RAD_REQUEST{'Acct-Status-Type'});
+  }
+
+  $ret = accounting();
+  print "  accounting 'Stop': $ret\n";
+  ok($ret);
 
   return 1;
 }

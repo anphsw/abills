@@ -122,3 +122,5 @@ $lang{PERIODIC_ANNOUNCE}='Переодическое оповещение';
 $lang{ADD_AGENTS}='Добавление агентов';
 $lang{ADD_AGENT}='Добавить агента';
 $lang{OPTIONS}='Настройки';
+
+1;

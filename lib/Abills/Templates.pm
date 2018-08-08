@@ -66,7 +66,9 @@ sub _include {
            '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
            '../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
     $Bin . '/../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix,
-    $Bin . '/../Abills/templates/' . $module . '_' . $tpl . "_$language" . $sufix
+    $Bin . '/../Abills/templates/' . $module . '_' . $tpl . "_$language" . $sufix,
+    #Fixme for unifi hotspot
+    $Bin . '/../../../../../../../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix
   );
 
   foreach my $result_template (@search_paths) {
@@ -128,7 +130,7 @@ sub tpl_content {
     %lang = ();
   }
 
-  open(my $fh, '<', $filename) || die "Can't open file '$filename' $!";
+  open(my $fh, '<', $filename) || die "Can't open tpl file '$filename' $!";
     while (<$fh>) {
       if (/\$/) {
         my $res = $_;

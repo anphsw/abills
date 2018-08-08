@@ -6,3 +6,4 @@ $lang{ERR_COMPANY_DISABLE}='Поповнення компаніям заборо
 $lang{COMMISSION}='Комісія';
 $lang{ERR_TRY_AGAIN}='виникла помилка. Спробуйте ще раз';
 $lang{DILLERS_USE}='Відправлено ділерам';
+$lang{TRANSFERRED_TO_PRODUCTION}='Передано в виробництво';

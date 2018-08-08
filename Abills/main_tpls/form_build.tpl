@@ -53,6 +53,23 @@
           </div>
 
           <div class='form-group'>
+            <label class='control-label col-md-3' for='BUILD_SCHEMA'>_{BUILD_SCHEMA}_:</label>
+            <div class='col-md-9'>
+              <textarea id='BUILD_SCHEMA' name='BUILD_SCHEMA' placeholder='%BUILD_SCHEMA%' class='form-control' rows="2">%BUILD_SCHEMA%</textarea>
+            </div>
+          </div>
+
+          <div class='form-group'>
+            
+            <label class='control-label col-md-6' for='NUMBERING_DIRECTION'>_{NUMERATION_ROOMS}_:</label>
+            <div class='col-md-6'>
+              <div class="checkbox">
+              <input name="NUMBERING_DIRECTION" %NUMBERING_DIRECTION_CHECK% id='NUMBERING_DIRECTION' value="1" type="checkbox">
+              </div>
+            </div>
+          </div>
+
+          <div class='form-group'>
             <label class='control-label col-md-6' for='CONNECT'>_{PLANNED_TO_CONNECT}_:</label>
             <div class='col-md-6'>
               <div class="checkbox">

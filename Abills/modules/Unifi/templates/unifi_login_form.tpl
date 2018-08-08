@@ -1,4 +1,4 @@
-<link rel='stylesheet' type='text/css'  href='/guest/s/default/login.css'>
+<link rel='stylesheet' type='text/css'  href='login.css'>
 
 <div class='modal fade' id='rulesModal' tabindex='-1' role='dialog'>
   <div class='modal-dialog' role='document'>

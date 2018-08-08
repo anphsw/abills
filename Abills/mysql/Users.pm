@@ -55,6 +55,9 @@ sub new {
   Argumenst:
     $uid
     $attr
+      LOGIN
+      PASSWORD
+      SHOW_PASSWORD
 
   Returns:
     Object
@@ -158,6 +161,10 @@ sub info {
      { INFO => 1,
        Bind => [ $self->{EXT_BILL_ID} ] }
     );
+
+    if($self->{errno}) {
+      delete $self->{errno};
+    }
   }
 
   return $self;
@@ -166,13 +173,18 @@ sub info {
 #**********************************************************
 =head2 pi_add($attr)
 
+  Arguments:
+    $attr
+      EMAIL
+      SKIP_EMAIL_CHECK
+
 =cut
 #**********************************************************
 sub pi_add {
   my $self = shift;
   my ($attr) = @_;
 
-  if ($attr->{EMAIL} && $attr->{EMAIL} ne '') {
+  if ($attr->{EMAIL} && ! $attr->{SKIP_EMAIL_CHECK}) {
     if ($attr->{EMAIL} !~ /(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/) {
       $self->{errno}  = 11;
       $self->{errstr} = 'ERROR_WRONG_EMAIL';
@@ -201,7 +213,8 @@ sub pi_add {
   return [ ] if ($self->{errno});
 
   $admin->{MODULE}=q{};
-  $admin->action_add("$attr->{UID}", "PI", { TYPE => 1 });
+
+  $admin->action_add($attr->{UID}, "PI", { TYPE => 1 });
   return $self;
 }
 
@@ -619,6 +632,11 @@ sub list {
     delete ($attr->{TAGS});
   }
 
+  if($admin->{DOMAIN_ID}) {
+    $attr->{SKIP_DOMAIN}=1;
+    delete $attr->{DOMAIN_ID};
+  }
+
   my @ext_fields = (
     'FIO',
     'FIO2',
@@ -651,7 +669,7 @@ sub list {
     'ACTIVATE',
     'EXPIRE',
     'ACCEPT_RULES',
-    'DOMAIN_ID',
+#    'DOMAIN_ID',
     'UID',
     'PASSWORD'
   );
@@ -865,7 +883,11 @@ sub list {
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE (" . join($where_delimeter, @WHERE_RULES) .')' : '';
 
   if (! $attr->{GID} && $admin->{GID}) {
-    $WHERE .= (($WHERE) ? 'AND' : '') ." u.gid IN ($admin->{GID})";
+    $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." u.gid IN ($admin->{GID})";
+  }
+
+  if ($admin->{DOMAIN_ID}) {
+    $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." u.domain_id IN ($admin->{DOMAIN_ID})";
   }
 
   if ( ! $admin->{permissions}->{0}->{8} ) {
@@ -875,6 +897,8 @@ sub list {
   if($self->{SORT_BY}) {
     $SORT=$self->{SORT_BY};
   }
+
+ #FIXME Need use GROUP by u.uid and change WHERE to HAVING
 
   $self->query("SELECT u.id AS login,
       $self->{SEARCH_FIELDS}
@@ -909,6 +933,13 @@ sub list {
 
 #**********************************************************
 =head2 add($attr) - Add user function
+
+  Arguments:
+    $attr
+      LOGIN
+      CREATE_BILL
+
+  Results:
 
 =cut
 #**********************************************************
@@ -956,12 +987,13 @@ sub add {
     }
   }
 
+  my $password = $attr->{PASSWORD} || q{};
   $self->query_add('users', {
     %$attr,
     REGISTRATION => $attr->{REGISTRATION} || 'NOW()',
     DISABLE      => int($attr->{DISABLE} || 0),
     ID           => $attr->{LOGIN},
-    PASSWORD     => "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')",
+    PASSWORD     => "ENCODE('$password', '$self->{conf}->{secretkey}')",
     DOMAIN_ID    => $admin->{DOMAIN_ID}
   });
 
@@ -1563,7 +1595,7 @@ sub info_field_attach_add {
   my $Attach = Attach->new($self->{db}, $admin, $CONF);
   my $list   = $Conf->config_list({ PARAM => $prefix .'*' });
 
-  if ($self->{TOTAL} > 0) {
+  if ($Conf->{TOTAL} && $Conf->{TOTAL} > 0) {
     foreach my $line (@$list) {
       if ($line->[0] =~ /$prefix(\S+)/) {
         my $field_name = $1;
@@ -1986,7 +2018,7 @@ sub contacts_migrate {
 
 
   # If insert was successful, can remove old info
-  $self->query("UPDATE users_pi SET phone='', email='';", undef);
+  $self->query("UPDATE users_pi SET phone='', email='';", 'do');
 
   return 1;
 }

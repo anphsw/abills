@@ -94,6 +94,12 @@ sub msgs_admin {
   #Get admin privileges
   my ($A_CHAPTER, $A_PRIVILEGES, $CHAPTERS_DELIGATION) = msgs_admin_privileges($admin->{AID});
 
+  if($FORM{ajax} && $FORM{SURVEY_ID}){
+    $Msgs->survey_subject_info($FORM{SURVEY_ID});
+    print "$Msgs->{TPL}";
+    return 1;
+  }
+
   if ( $FORM{MSG_HISTORY} ) {
     form_changes({
       SEARCH_PARAMS => {
@@ -849,14 +855,18 @@ sub msgs_admin_add_form {
     }
   );
 
-  $tpl_info{RESPOSIBLE} = sel_admins({ NAME => 'RESPOSIBLE' });
+  $tpl_info{RESPOSIBLE} = sel_admins({ NAME => 'RESPOSIBLE', SELECTED => $admin->{AID} });
   $tpl_info{INNER_MSG}  = 'checked' if ( $conf{MSGS_INNER_DEFAULT} );
   $tpl_info{SURVEY_SEL} = msgs_survey_sel();
   $tpl_info{PERIODIC}   = 'checked' if ($FORM{PERIODIC});
   $tpl_info{PAR}        = $attr->{PAR} if ($attr->{PAR});
 
   my $add_tpl_form = ($attr->{TASK_ADD}) ? 'msgs_task' : 'msgs_send_form';
-
+  
+  if ($FORM{MESSAGE}) {
+    $Msgs->{TPL_MESSAGE} = $FORM{MESSAGE} || '';
+    $Msgs->{TPL_MESSAGE} =~ s/\%/&#37/g;
+  }
   my $message_form = $html->tpl_show(_include($add_tpl_form, 'Msgs'),
     { %{$attr}, %FORM, %{$Msgs}, %tpl_info },
     { OUTPUT2RETURN => 1,
@@ -1074,6 +1084,7 @@ sub msgs_ticket_show {
         LOAD_TO_MODAL => 1,
         class         => 'btn btn-default',
         ICON          => 'glyphicon glyphicon-tags',
+        TITLE         => $lang{MSGS_TAGS},
       }
     );
   }
@@ -1137,10 +1148,19 @@ sub msgs_ticket_show {
       $rating_icons .= "\n" . $html->element('i', '', { class => 'fa fa-star-o' });
     };
 
+    my $sig_image = '';
+    if ($conf{TPL_DIR} && $Msgs->{UID} && $message_id) {
+      my $sig_path = "$conf{TPL_DIR}/attach/msgs/$Msgs->{UID}/$message_id" . "_sig.png";
+      if ( -f $sig_path ) {
+        $sig_image = $html->img("/images/attach/msgs/$Msgs->{UID}/$message_id" . "_sig.png", 'signature');
+      }
+    }
+
     push @{ $REPLIES }, $msgs_rating_message = $html->tpl_show(_include('msgs_rating_admin_show', 'Msgs'), {
           %{$Msgs},
           RATING_ICONS   => $rating_icons,
-          RATING_COMMENT => $Msgs->{RATING_COMMENT}
+          RATING_COMMENT => $Msgs->{RATING_COMMENT},
+          SIGNATURE      => $sig_image,
         },
         { OUTPUT2RETURN => 1,
         }
@@ -1259,8 +1279,8 @@ sub msgs_ticket_show {
   $params{RATING_ICONS} = $rating_icons;
   $params{LOGIN}        = ($Msgs->{AID}) ? $html->b($Msgs->{A_NAME}) . " ($lang{ADMIN})" : $html->button($Msgs->{LOGIN},
       "index=15&UID=$uid");
-
-
+  $params{ADMIN_LOGIN} = $admin->{A_LOGIN};
+  
   $html->tpl_show(_include($msgs_show_tpl, 'Msgs'), { %{$Msgs}, %params });
 
   if ( !$FORM{quick}
@@ -1292,11 +1312,16 @@ sub msgs_ticket_reply {
   my $msgs_reply_show_tpl = ($conf{MSGS_SIMPLIFIED_MODE}) ? 'msgs_reply_show_simplified_mode' : 'msgs_reply_show';
 
   if ( $Msgs->{SURVEY_ID} ) {
-    push @REPLIES, msgs_survey_show({
-        SURVEY_ID => $Msgs->{SURVEY_ID},
-        MSG_ID    => $Msgs->{ID},
-        MAIN_MSG  => 1,
-      });
+    my $main_message_survey = msgs_survey_show({
+      SURVEY_ID => $Msgs->{SURVEY_ID},
+      MSG_ID    => $Msgs->{ID},
+      MAIN_MSG  => 1,
+    });
+
+    if($main_message_survey){
+      push @REPLIES, $main_message_survey;
+    }
+
   }
 
   my $list = $Msgs->messages_reply_list({
@@ -1316,7 +1341,8 @@ sub msgs_ticket_reply {
       push @REPLIES, msgs_survey_show({
           SURVEY_ID => $line->{survey_id},
           REPLY_ID  => $line->{id},
-          MSG_ID    => $Msgs->{ID}
+          MSG_ID    => $Msgs->{ID},
+          TEXT      => $line->{text},
         });
 
       delete($Msgs->{SURVEY_ID});
@@ -1352,10 +1378,16 @@ sub msgs_ticket_reply {
     }
 
     my $new_topic_button = '';
+    my $edit_reply_button = '';
     if ( $permissions{7} && $permissions{7}->{1} && $uid ) {
       $new_topic_button = $html->button($lang{CREATE_NEW_TOPIC},
         "&index=$index&chg=$message_id&UID=$uid&make_new=$line->{id}&chapter=$Msgs->{CHAPTER}",
-        { MESSAGE => "$lang{NEW_TOPIC}?", BUTTON => 1 });
+        { MESSAGE => "$lang{NEW_TOPIC}?", BUTTON => 1 }
+      );
+      $edit_reply_button = $html->button(
+        "$lang{EDIT}", "",
+        { class => 'btn btn-default btn-xs reply-edit-btn', ex_params => "reply_id='$line->{id}'"}
+      );
     }
 
     my $del_reply_button = $html->button(
@@ -1409,6 +1441,7 @@ sub msgs_ticket_reply {
           MESSAGE       => msgs_text_quoting($line->{text}, 1),
           QUOTING       => $quote_button,
           NEW_TOPIC     => $new_topic_button,
+          EDIT          => $edit_reply_button,
           DELETE        => $del_reply_button,
           ATTACHMENT    => $attachment_html,
           COLOR         => $reply_color,
@@ -1856,7 +1889,7 @@ sub msgs_dispatch {
   if ( $FORM{chg} ) {
     $LIST_PARAMS{DISPATCH_ID} = $FORM{chg};
     $pages_qs .= '&chg=' . $FORM{chg};
-    $index = get_function_index('msgs_dispatch');
+    $index = get_function_index('msgs_admin');
     delete($FORM{chg});
 
     msgs_list({
@@ -1864,6 +1897,8 @@ sub msgs_dispatch {
       ALLOW_TO_CLEAR_DISPATCH => 1,
       DISPATCH_ID             => $LIST_PARAMS{DISPATCH_ID}
     });
+
+    $index = get_function_index('msgs_dispatch');
 
     msgs_dispatch_admins({ DISPATCH_ID => $LIST_PARAMS{DISPATCH_ID} });
 
@@ -2080,6 +2115,23 @@ sub _msgs_show_change_subject_template{
       INDEX   => $changes_index,
       ID      => $msg_id,
     }, {  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _msgs_edit_reply()
+
+=cut
+#**********************************************************
+sub _msgs_edit_reply {
+
+  return 1 unless ( $permissions{7} && $permissions{7}->{1} && $FORM{edit_reply} );
+
+  $Msgs->message_reply_change({
+    ID    => $FORM{edit_reply},
+    TEXT  => $FORM{replyText}
+  });
 
   return 1;
 }

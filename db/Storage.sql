@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS `storage_accountability` (
   `comments` TEXT,
   KEY `id` (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
-);
+)
+  DEFAULT CHARSET=utf8;
 
 
 CREATE TABLE IF NOT EXISTS `storage_articles` (
@@ -19,14 +20,16 @@ CREATE TABLE IF NOT EXISTS `storage_articles` (
   `add_date` DATE NOT NULL,
   PRIMARY KEY (`id`),
   KEY `article_type` (`article_type`)
-);
+)
+  DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `storage_article_types` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(255) DEFAULT NULL,
   `comments` TEXT,
   PRIMARY KEY (`id`)
-);
+)
+  DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `storage_discard` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -39,7 +42,7 @@ CREATE TABLE IF NOT EXISTS `storage_discard` (
   PRIMARY KEY (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
 )
-  COMMENT = 'Storage discard items';
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage discard items';
 
 CREATE TABLE IF NOT EXISTS `storage_incoming` (
   `id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -51,7 +54,8 @@ CREATE TABLE IF NOT EXISTS `storage_incoming` (
   `storage_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `supplier_id` (`supplier_id`)
-);
+)
+  DEFAULT CHARSET=utf8;
 
 
 CREATE TABLE IF NOT EXISTS `storage_incoming_articles` (
@@ -64,10 +68,12 @@ CREATE TABLE IF NOT EXISTS `storage_incoming_articles` (
   `storage_incoming_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `sell_price` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `rent_price` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `in_installments_price` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`id`),
   KEY `storage_incoming_id` (`storage_incoming_id`),
   KEY `article_id` (`article_id`)
-);
+)
+  DEFAULT CHARSET=utf8;
 
 
 CREATE TABLE IF NOT EXISTS `storage_installation` (
@@ -84,11 +90,13 @@ CREATE TABLE IF NOT EXISTS `storage_installation` (
   `mac` VARCHAR(40) NOT NULL DEFAULT '',
   `type` SMALLINT(1) NOT NULL DEFAULT 0,
   `grounds` VARCHAR(40) NOT NULL DEFAULT '',
-  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `date` DATE NOT NULL,
+  `monthes` SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0,
+  `amount_per_month` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
 )
-  COMMENT = 'Storage user installation';
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage user installation';
 
 
 CREATE TABLE IF NOT EXISTS `storage_log` (
@@ -104,7 +112,8 @@ CREATE TABLE IF NOT EXISTS `storage_log` (
   `uid` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `storage_installation_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
-);
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage operation log';
 
 CREATE TABLE IF NOT EXISTS `storage_reserve` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -115,7 +124,8 @@ CREATE TABLE IF NOT EXISTS `storage_reserve` (
   `comments` TEXT,
   PRIMARY KEY (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
-);
+)
+  DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `storage_suppliers` (
   `id` SMALLINT(6) NOT NULL AUTO_INCREMENT,
@@ -138,7 +148,8 @@ CREATE TABLE IF NOT EXISTS `storage_suppliers` (
   `managment` VARCHAR(150) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-);
+)
+  DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `storage_sn` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -147,7 +158,7 @@ CREATE TABLE IF NOT EXISTS `storage_sn` (
   `serial` TEXT CHARACTER SET utf8 NOT NULL,
   PRIMARY KEY (`id`)
 )
-  COMMENT = 'Storage serial numbers';
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage serial numbers';
 
 CREATE TABLE IF NOT EXISTS `storage_storages` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
@@ -155,7 +166,7 @@ CREATE TABLE IF NOT EXISTS `storage_storages` (
   `comments` VARCHAR(60) NOT NULL DEFAULT '',
   PRIMARY KEY `storage_id` (`id`)
 )
-  COMMENT = 'List of storages';
+  DEFAULT CHARSET=utf8 COMMENT = 'List of storages';
 
 
 CREATE TABLE IF NOT EXISTS `storage_inner_use` (
@@ -168,4 +179,38 @@ CREATE TABLE IF NOT EXISTS `storage_inner_use` (
   `comments` TEXT,
   PRIMARY KEY (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
-) COMMENT = 'Inner use';
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Inner use';
+
+CREATE TABLE IF NOT EXISTS  `storage_property` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(30) NOT NULL DEFAULT '',
+  `comments` VARCHAR(60) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage property table';
+
+CREATE TABLE IF NOT EXISTS `storage_articles_property` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `storage_incoming_articles_id` INT(10) UNSIGNED DEFAULT '0',
+  `property_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `value` TEXT,
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage items property table';
+
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE IF NOT EXISTS  `storage_measure` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(30) NOT NULL DEFAULT '',
+  `comments` VARCHAR(60) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage measuring';
+
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (0, '$lang{UNIT}');
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (1, '$lang{METERS}');
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (2, '$lang{SM}');
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (3, '$lang{MM}');
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (4, '$lang{LITERS}');
+REPLACE INTO `storage_measure` (`id`, `name`) VALUES (5, '$lang{BOXES}');

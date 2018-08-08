@@ -6,11 +6,10 @@
 
 =cut
 
-#use strict;
+
+use strict;
 use warnings;
 use FindBin '$Bin';
-
-open( my $HOLE, '>', '/dev/null' );
 
 BEGIN {
   our $libpath = '../';
@@ -37,7 +36,11 @@ our (
   %module,
   %FORM,
   $users,
+  $global_begin_time,
+  $admin
 );
+
+open( my $HOLE, '>', '/dev/null' );
 
 use Test::Simple tests => 390;
 
@@ -133,7 +136,7 @@ foreach my $fn_id (sort keys %functions) {
   }
 
   #Speed test start
-  $begin_time = Time::HiRes::gettimeofday;
+  our $begin_time = Time::HiRes::gettimeofday;
 
   delete($admin->{errstr});
   delete($admin->{sql_errstr});
@@ -297,6 +300,8 @@ sub show_all_vars {
 =cut
 #************************************************
 sub show_isa {
+
+  our @ISA;
 
   print "================== ISA:\n";
   foreach my $value (sort @ISA) {

@@ -3,7 +3,7 @@
 </footer>
 </div> <!-- Content end -->
 </div> <!-- Container end -->
-<script src='/guest/s/default/fastlogin.js'></script>
-<script src='/guest/s/default/hotspot.js'></script>
+<script src='fastlogin.js'></script>
+<script src='hotspot.js'></script>
 </body>
 </html>

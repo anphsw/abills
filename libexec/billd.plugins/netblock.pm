@@ -21,15 +21,15 @@ use Abills::Fetcher;
 #binmode(STDOUT,':utf8');
 use Data::Dumper;
 use Abills::Base qw(int2ip ip2int date_diff
-  decode_base64 encode_base64 ssh_cmd gen_time);
+  decode_base64 encode_base64 ssh_cmd gen_time load_pmodule);
 use Netblock;
 use Events;
 use strict;
 use warnings;
 
-# load_pmodule2('URI::UTF8::Punycode');
-# load_pmodule2('SOAP::Lite');
-# load_pmodule2('XML::LibXML');
+load_pmodule('URI::UTF8::Punycode');
+load_pmodule('SOAP::Lite');
+load_pmodule('XML::LibXML');
 use XML::Simple qw(:strict);
 
 $SOAP::Constants::PREFIX_ENV = 'SOAP-ENV';

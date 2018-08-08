@@ -979,7 +979,14 @@ sub sec2date {
 #***********************************************************
 =head2 int2byte($val, $attr) - Convert Integer to byte definision
 
-  $KBYTE_SIZE - Size of kilobyte (Standart 1024)
+  Arguments:
+    $val
+    $attr
+      $KBYTE_SIZE - Size of kilobyte (Standart 1024)
+      DIMENSION - Mb / Gb / Kb / Bt (Default: auto)
+
+  Result:
+    $val
 
 =cut
 #***********************************************************
@@ -1872,22 +1879,22 @@ sub startup_files {
   our $base_dir;
   $base_dir //= '/usr/abills/';
   
-	my $startup_conf = $base_dir . '/Abills/programs';
-	if ( $attr->{TPL_DIR} ) {
-	  if (-e "$attr->{TPL_DIR}/programs.tpl") {
-	    $startup_conf = "$attr->{TPL_DIR}/programs.tpl";
-	  }
-	}
+  my $startup_conf = $base_dir . '/Abills/programs';
+  if ( $attr->{TPL_DIR} ) {
+    if (-e "$attr->{TPL_DIR}/programs.tpl") {
+      $startup_conf = "$attr->{TPL_DIR}/programs.tpl";
+    }
+  }
 
   my $content = '';
   if(lc($^O) eq 'freebsd') {
     %startup_files = (
       WEB_SERVER_USER    => "www",
       RADIUS_SERVER_USER => "freeradius",
-      APACHE_CONF_DIR    => '/usr/local/apache22/Include/',
+      APACHE_CONF_DIR    => '/usr/local/etc/apache24/Includes/',
       RESTART_MYSQL      => '/usr/local/etc/rc.d/mysql-server',
       RESTART_RADIUS     => '/usr/local/etc/rc.d/freeradius',
-      RESTART_APACHE     => '/usr/local/etc/rc.d/apache22',
+      RESTART_APACHE     => '/usr/local/etc/rc.d/apache24',
       RESTART_DHCP       => '/usr/local/etc/rc.d/isc-dhcp-server',
       SUDO               => '/usr/local/bin/sudo',
     );
@@ -1906,22 +1913,22 @@ sub startup_files {
   }
 
   if ( -f $startup_conf ) {
-	  if (open(my $fh, '<', "$startup_conf") ) {
-		  while( <$fh> ) {
-			  $content .= $_;
-		  }
-	    close($fh);
-	  }
+    if (open(my $fh, '<', "$startup_conf") ) {
+      while( <$fh> ) {
+        $content .= $_;
+      }
+      close($fh);
+    }
 
-  	my @rows = split(/[\r\n]+/, $content);
-	  foreach my $line (@rows) {
-	    my ($key, $val) = split(/=/, $line, 2);
-  	  next if (!$key);
-	    next if (!$val);
-	    if ($val =~ /^([\/A-Za-z0-9\_\.\-]+)/) {
-	      $startup_files{$key}=$val;
-	    }
-	  }
+    my @rows = split(/[\r\n]+/, $content);
+    foreach my $line (@rows) {
+      my ($key, $val) = split(/=/, $line, 2);
+      next if (!$key);
+      next if (!$val);
+      if ($val =~ /^([\/A-Za-z0-9\_\.\-]+)/) {
+        $startup_files{$key}=$val;
+      }
+    }
   }
 
   return \%startup_files;
@@ -2056,7 +2063,7 @@ sub show_hash {
       $result .= show_hash($hash->{$key}, { %{ ($attr) ? $attr : {}}, OUTPUT2RETURN => 1 });
     }
     elsif(ref $hash->{$key} eq 'ARRAY') {
-      foreach my $key_ (@{ $hash->{$key} }) {
+      foreach my $key_ (sort @{ $hash->{$key} }) {
         if(ref $key_ eq 'HASH') {
           $result .= show_hash($key_, { %{ ($attr) ? $attr : {}}, OUTPUT2RETURN => 1 });
         }

@@ -4,7 +4,6 @@
     <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
     <input type='hidden' name='TYPE' value='$FORM{TYPE}'>
     <input type='hidden' name='BRANCH' value='$FORM{BRANCH}'>
-    <input type='hidden' name='MAC_SERIAL' value='$FORM{MAC_SERIAL}'>
     <input type='hidden' name='visual' value='$FORM{visual}'>
     <input type='hidden' name='unregister_list' value='$FORM{unregister_list}'>
     <input type='hidden' name='reg_onu' value='$FORM{reg_onu}'>
@@ -70,7 +69,7 @@
                 <label class='control-label col-md-5' for=''>Mac_Serial:</label>
 
                 <div class='col-md-7 control-element'>
-                     %MAC_SERIAL%
+                     <input type='text' name='MAC_SERIAL' value='%MAC_SERIAL%' class='form-control' ID='%MAC_SERIAL%'/>
                 </div>
             </div>
             <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>

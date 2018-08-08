@@ -29,18 +29,18 @@
         <div class='modal-header'>
           <button type='button' class='close' data-dismiss='modal' aria-label='Close'><span
               aria-hidden='true'>&times;</span></button>
-          <h4 class='modal-title text-center'>_{CHANGE}_ _{CREDIT}_</h4>
+          <h4 class='modal-title text-center'>_{SET_CREDIT}_</h4>
         </div>
         <div class='modal-body' style='padding: 30px;'>
           <input type=hidden name='index' value='10'>
           <input type=hidden name='sid' value='$sid'>
 
           <div class='form-group'>
-            <label class='col-md-7'>_{SUM}_: </label>
+            <label class='col-md-7'>_{CREDIT_SUM}_: </label>
             <label class='col-md-3'> %CREDIT_SUM%</label>
           </div>
           <div class='form-group'>
-            <label class='col-md-7'>_{PRICE}_:</label>
+            <label class='col-md-7'>_{CREDIT_PRICE}_:</label>
             <label class='col-md-3'>%CREDIT_CHG_PRICE%</label>
           </div>
           <div class='form-group'>

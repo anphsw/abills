@@ -174,16 +174,19 @@ sub register_zte {
   }
   elsif($pon_type eq 'epon') {
     print "EPON registration\n" if($debug > 3);
-    telnet_cmd($Telnet, "show onu all-status epon-olt_$branch", { CMD => 1 });
-    my $arr = telnet_cmd($Telnet, "show onu all-status epon-olt_$branch", { CMD => 1 });
 
-    my $max_onu_id = 0;
-    foreach my $line (@$arr) {
-      if($line =~ /epon-onu_$branch:(\d+)/) {
-        $max_onu_id++;
-        my  $onu_num = $1;
-        print $onu_num." => $max_onu_id\n" if($debug > 3);
-        last if ($onu_num > $max_onu_id);
+    my $max_onu_id = $llid;
+    if(! $max_onu_id) {
+      telnet_cmd($Telnet, "show onu all-status epon-olt_$branch", { CMD => 1 });
+      my $arr = telnet_cmd($Telnet, "show onu all-status epon-olt_$branch", { CMD => 1 });
+
+      foreach my $line (@$arr) {
+        if ($line =~ /epon-onu_$branch:(\d+)/) {
+          $max_onu_id++;
+          my $onu_num = $1;
+          print $onu_num . " => $max_onu_id\n" if ($debug > 3);
+          last if ($onu_num > $max_onu_id);
+        }
       }
     }
 

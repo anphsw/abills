@@ -52,19 +52,22 @@
 
 
 CLASSES_NUMS='2 3'
-VERSION=7.20
+VERSION=7.21
 # REVISION: 20180110
 
 name="abills_shaper"
 
-if [ "${abills_shaper_enable}" = "" ]; then
-  name="abills_nat"
-  abills_nat_enable=YES;
-fi;
 
 rcvar=`set_rcvar`
 
 : ${abills_shaper_enable="NO"}
+
+if [ "${abills_shaper_enable}" = "NO" ]; then
+  name="abills_nat"
+  abills_nat_enable=YES;
+fi;
+
+
 : ${abills_shaper_if=""}
 : ${abills_nas_id=""}
 : ${abills_ip_sessions=""}
@@ -100,6 +103,7 @@ load_rc_config ${name}
 IPFW=/sbin/ipfw
 SED=/usr/bin/sed
 BILLING_DIR=/usr/abills
+SKIP_FLUSH=""
 
 start_cmd="abills_shaper_start"
 stop_cmd="abills_shaper_stop"

@@ -398,9 +398,19 @@ sub result_former {
 
   if ($data->{EXTRA_FIELDS}) {
     foreach my $line (@{ $data->{EXTRA_FIELDS} }) {
-      if ($line->[0] =~ /ifu(\S+)/) {
+      if (ref $line eq 'ARRAY' && $line->[0] =~ /ifu(\S+)/) {
         my $field_id = $1;
         my (undef, undef, $name, undef) = split(/:/, $line->[1]);
+        if ($name =~ /\$/) {
+          $SEARCH_TITLES{ $field_id } = _translate($name);
+        }
+        else {
+          $SEARCH_TITLES{ $field_id } = $name;
+        }
+      }
+      elsif($line->{id}) {
+        my $field_id = $line->{sql_field};
+        my $name     = $line->{name};
         if ($name =~ /\$/) {
           $SEARCH_TITLES{ $field_id } = _translate($name);
         }
@@ -532,7 +542,7 @@ sub result_former {
         border              => 1,
         pages               => (! $attr->{SKIP_PAGES}) ? $data->{TOTAL} : undef,
         FIELDS_IDS          => $data->{COL_NAMES_ARR},
-        HAS_FUNCTION_FIELDS => defined $attr->{FUNCTION_FIELDS} && $attr->{FUNCTION_FIELDS} ? 1 : 0,
+        HAS_FUNCTION_FIELDS => (defined $attr->{FUNCTION_FIELDS} && $attr->{FUNCTION_FIELDS}) ? 1 : 0,
         ACTIVE_COLS         => \%ACTIVE_TITLES,
       }
     );
@@ -724,57 +734,12 @@ sub result_former {
       $data->{TOTAL}=0;
       $table->{sub_ref}=1;
 
-      my %PRE_SORT_HASH = ();
-      my $sort = $FORM{sort} || 1;
-      for( my $i=0; $i<=$#{ $attr->{DATAHASH} }; $i++ ) {
-        $PRE_SORT_HASH{$i}=$attr->{DATAHASH}->[$i]->{ $EX_TITLE_ARR[$sort - 1] || q{} } //= q{};
-      }
+      $attr->{EX_TITLE_ARR}=\@EX_TITLE_ARR;
+      $attr->{FUNCTION_FIELDS}=\@function_fields;
 
-      my @sorted_ids = sort {
-        if($FORM{desc}) {
-          length($PRE_SORT_HASH{$b}) <=> length($PRE_SORT_HASH{$a})
-            || $PRE_SORT_HASH{$b} cmp $PRE_SORT_HASH{$a};
-        }
-        else {
-          length($PRE_SORT_HASH{$a}) <=> length($PRE_SORT_HASH{$b})
-            || $PRE_SORT_HASH{$a} cmp $PRE_SORT_HASH{$b};
-        }
-      } keys %PRE_SORT_HASH;
-
-      foreach my $row_num (@sorted_ids) {
-        my @row = ();
-        my $line = $attr->{DATAHASH}->[$row_num];
-
-        for(my $i=0; $i<=$#EX_TITLE_ARR; $i++) {
-          #use filter to cols
-          my $field_name = $EX_TITLE_ARR[$i];
-          my $col_data   = $line->{$field_name};
-
-          if ($attr->{FILTER_COLS} && $attr->{FILTER_COLS}->{$field_name}) {
-            my ($filter_fn, @arr)=split(/:/, $attr->{FILTER_COLS}->{$field_name});
-            Encode::_utf8_off($col_data);
-            push @row, &{ \&$filter_fn }($col_data, { PARAMS => \@arr });
-          }
-          elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$field_name}) {
-            if($attr->{SELECT_VALUE}->{$field_name}->{$col_data}) {
-              my($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$field_name}->{$col_data});
-              push @row, ($color) ? $html->color_mark($value, $color) : $value;
-            }
-            else {
-              Encode::_utf8_off($col_data);
-              push @row, $col_data;
-            }
-          }
-          else {
-            push @row, _hash2html($col_data, $attr);
-          }
-        }
-
-        if($#function_fields > -1) {
-          push @row, @{ table_function_fields(\@function_fields, $line, $attr) };
-        }
-
-        $table->addrow( @row );
+      my $rows  = _datahash2table($attr);
+      foreach my $row (@$rows ) {
+        $table->addrow(@$row);
         $data->{TOTAL}++;
       }
     }
@@ -821,6 +786,85 @@ sub result_former {
   }
 }
 
+
+#**********************************************************
+=head2 _datahash2table($attr) - Datahash to table
+
+  Arguments:
+    $attr
+      EX_TITLE_ARR
+      FUNCTION_FIELDS
+      DATAHASH
+      SELECT_VALUE
+      FILTER_COLS
+
+  Results:
+    \@rows
+
+=cut
+#**********************************************************
+sub _datahash2table {
+  my ($attr)=@_;
+
+  my @rows = ();
+  my $EX_TITLE_ARR = $attr->{EX_TITLE_ARR};
+  my $function_fields = $attr->{FUNCTION_FIELDS};
+  my %PRE_SORT_HASH = ();
+  my $sort = $FORM{sort} || 1;
+  for( my $i=0; $i<=$#{ $attr->{DATAHASH} }; $i++ ) {
+    $PRE_SORT_HASH{$i}=$attr->{DATAHASH}->[$i]->{ $EX_TITLE_ARR->[$sort - 1] || q{} } //= q{};
+  }
+
+  my @sorted_ids = sort {
+    if($FORM{desc}) {
+      length($PRE_SORT_HASH{$b}) <=> length($PRE_SORT_HASH{$a})
+        || $PRE_SORT_HASH{$b} cmp $PRE_SORT_HASH{$a};
+    }
+    else {
+      length($PRE_SORT_HASH{$a}) <=> length($PRE_SORT_HASH{$b})
+        || $PRE_SORT_HASH{$a} cmp $PRE_SORT_HASH{$b};
+    }
+  } keys %PRE_SORT_HASH;
+
+  foreach my $row_num (@sorted_ids) {
+    my @row = ();
+    my $line = $attr->{DATAHASH}->[$row_num];
+
+    for(my $i=0; $i<=$#{ $EX_TITLE_ARR }; $i++) {
+      #use filter to cols
+      my $field_name = $EX_TITLE_ARR->[$i];
+      my $col_data   = $line->{$field_name};
+
+      if ($attr->{FILTER_COLS} && $attr->{FILTER_COLS}->{$field_name}) {
+        my ($filter_fn, @arr)=split(/:/, $attr->{FILTER_COLS}->{$field_name});
+        Encode::_utf8_off($col_data);
+        push @row, &{ \&$filter_fn }($col_data, { PARAMS => \@arr });
+      }
+      elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$field_name}) {
+        if($attr->{SELECT_VALUE}->{$field_name}->{$col_data}) {
+          my($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$field_name}->{$col_data});
+          push @row, ($color) ? $html->color_mark($value, $color) : $value;
+        }
+        else {
+          Encode::_utf8_off($col_data);
+          push @row, $col_data;
+        }
+      }
+      else {
+        push @row, _hash2html($col_data, $attr);
+      }
+    }
+
+    if($#{ $function_fields } > -1) {
+      push @row, @{ table_function_fields($function_fields, $line, $attr) };
+    }
+
+    push @rows, \@row;
+  }
+
+  return \@rows;
+}
+
 #**********************************************************
 =head2 search_link($val, $attr); - forming search link
 
@@ -861,6 +905,10 @@ sub search_link {
   Arguments:
     $col_data - Hash variable content
     $attr
+      SKIPP_UTF_OFF
+
+  Results:
+    $html_value
 
 =cut
 #**********************************************************
@@ -959,9 +1007,10 @@ sub table_function_fields {
     }
     elsif ($function_fields->[$i] eq 'del') {
       push @fields_array,
-        $html->button($lang{DEL},  "&index=$index&del=". ((exists $line->{id}) ? $line->{id} : '')
-            . ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}" : '')
-            . $query_string,  { class => 'del', MESSAGE => "$lang{DEL} ". ($line->{name} || $line->{id} || q{-}) ."?" }
+        $html->button($lang{DEL},  "&index=$index&del="
+          . (($line->{id}) ? $line->{id} : '')
+          . ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}" : '')
+          . $query_string,  { class => 'del', MESSAGE => "$lang{DEL} ". ($line->{name} || $line->{id} || q{-}) ."?" }
         );
     }
     else {
@@ -982,6 +1031,7 @@ sub table_function_fields {
 
         if($name eq 'del') {
           $button_params{class}   = 'del';
+          $button_params{TITLE} = "$lang{DEL}";
           $button_params{MESSAGE} = "$lang{DEL} ". ($line->{name} || $line->{id} || q{-}) ."?";
         }
         elsif($name eq 'change') {

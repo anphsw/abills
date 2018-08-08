@@ -43,6 +43,9 @@
               _{PRINT}_
             </button>
           </div>
+          <div class='btn-group'>
+            %BTN%
+          </div>
         </div>
 
         <!-- ZOOM BUTTON GROUP -->

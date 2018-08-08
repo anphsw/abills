@@ -42,7 +42,8 @@ our %connect_errors_ids = (
   10=> 'TIME_EXPIRED',
   11=> 'NOT_ALLOW_TIME',
   12=> 'WRONG_IP',
-  13=> 'SERVICE_DISABLE'
+  13=> 'SERVICE_DISABLE',
+  14=> 'ACCOUNT_DISABLE'
 );
 
 #**********************************************************
@@ -172,6 +173,7 @@ sub auth {
   internet.disable AS internet_disable,
   internet.id AS service_id,
   internet.cid,
+  internet.speed AS user_speed,
   internet.port
   $ipv6
      FROM internet_main internet
@@ -206,7 +208,17 @@ sub auth {
         $params = ',activate=NOW()';
       }
 
-      $self->query2("UPDATE internet_main SET disable=0 $params WHERE uid='$self->{UID}'", 'do');
+      $self->query2("UPDATE internet_main SET disable=0 $params WHERE uid='$self->{UID}' AND disable>0;", 'do');
+
+      $self->query2("INSERT INTO admin_actions SET
+        AID         = 1,
+        IP          = INET_ATON('127.0.0.1'),
+        DATETIME    = NOW(),
+        ACTIONS     = '2->0',
+        UID         = '$self->{UID}',
+        MODULE      = 'Internet',
+        ACTION_TYPE = 8;",
+      'do');
     }
     else {
       #if ($CONF->{INTERNET_STATUS_NEG_DEPOSIT} && $self->{NEG_DEPOSIT_FILTER_ID}) {
@@ -578,7 +590,9 @@ sub auth {
     }
   }
 
-  $RAD_PAIRS->{'Framed-IP-Netmask'} = $self->{NETMASK} if (defined($RAD_PAIRS->{'Framed-IP-Address'}));
+  if ($RAD_PAIRS->{'Framed-IP-Address'} && $self->{NETMASK}) {
+    $RAD_PAIRS->{'Framed-IP-Netmask'} = $self->{NETMASK}
+  }
 
   $self->nas_pair_former({
     RAD_PAIRS => $RAD_PAIRS,
@@ -759,7 +773,6 @@ sub nas_pair_former {
       }
     );
 
-    #global Traffic
     if ($EX_PARAMS->{traf_limit} > 0) {
       #Gigaword limit
       $RAD_PAIRS->{'Mikrotik-Total-Limit-Gigawords'} = 0;
@@ -776,15 +789,16 @@ sub nas_pair_former {
     }
 
     #Shaper
-    if ($EX_PARAMS->{ex_speed}) {
-      $RAD_PAIRS->{'Mikrotik-Rate-Limit'} = "$EX_PARAMS->{ex_speed}k";
-      $RAD_PAIRS->{'Mikrotik-Address-List'} = "CUSTOM_SPEED";
-    }
-    elsif ($self->{USER_SPEED} > 0) {
+    #global Traffic
+    if ($self->{USER_SPEED} > 0) {
       $RAD_PAIRS->{'Mikrotik-Rate-Limit'} = "$self->{USER_SPEED}k";
       $RAD_PAIRS->{'Mikrotik-Address-List'} = "CUSTOM_SPEED";
     }
-    elsif (defined($EX_PARAMS->{speed}->{0})) {
+    elsif ($EX_PARAMS->{ex_speed}) {
+      $RAD_PAIRS->{'Mikrotik-Rate-Limit'} = "$EX_PARAMS->{ex_speed}k";
+      $RAD_PAIRS->{'Mikrotik-Address-List'} = "CUSTOM_SPEED";
+    }
+    elsif ($EX_PARAMS->{speed} && defined($EX_PARAMS->{speed}->{0})) {
       # old way Make speed
       if ($CONF->{MIKROTIK_QUEUES} || $RAD->{'WISPr-Logoff-URL'}) {
         #        $RAD_PAIRS->{'Ascend-Xmit-Rate'} = int($EX_PARAMS->{speed}->{0}->{IN}) * $CONF->{KBYTE_SIZE};
@@ -1051,7 +1065,7 @@ sub authentication {
   else {
     #Get callback number
     if ($RAD->{'User-Name'} =~ / /) {
-      $RAD_PAIRS{'Reply-Message'} = "Login Not Exist or Expire. Space in login '". $RAD->{'User-Name'} ."'";
+      $RAD_PAIRS{'Reply-Message'} = "USER_NOT_EXIST. Space in login '". $RAD->{'User-Name'} ."'";
       return 1, \%RAD_PAIRS;
     }
 
@@ -1105,7 +1119,7 @@ sub authentication {
 
   if ($self->{errno}) {
     if($self->{errno} == 2) {
-      $RAD_PAIRS{'Reply-Message'} = "Login Not Exist or Expire";
+      $RAD_PAIRS{'Reply-Message'} = "USER_NOT_EXIST";
     }
     else {
       $RAD_PAIRS{'Reply-Message'} = 'SQL error';
@@ -1139,7 +1153,7 @@ sub authentication {
   #If don't athorize any above methods auth PAP password
   else {
     if (defined($RAD->{'User-Password'}) && $self->{PASSWD} ne $RAD->{'User-Password'}) {
-      $RAD_PAIRS{'Reply-Message'} = "WRONG_PASSWORD  //$self->{PASSWD}// '". $RAD->{'User-Password'} ."'";
+      $RAD_PAIRS{'Reply-Message'} = "WRONG_PASSWORD '". $RAD->{'User-Password'} ."'";
       return 1, \%RAD_PAIRS;
     }
   }
@@ -1158,7 +1172,7 @@ sub authentication {
 
   #DIsable
   if ($self->{DISABLE}) {
-    $RAD_PAIRS{'Reply-Message'} = "Account Disable";
+    $RAD_PAIRS{'Reply-Message'} = "ACCOUNT_DISABLE";
     return 1, \%RAD_PAIRS;
   }
 
@@ -1207,7 +1221,8 @@ sub internet_auth {
   else {
     my $user_auth_params = $self->opt82_parse($RAD);
     $user_auth_params->{USER_MAC} = $RAD->{'Calling-Station-Id'};
-    $user_auth_params->{IP} = $RAD->{'Framed-IP-Address'} if($RAD->{'Framed-IP-Address'});
+    $user_auth_params->{IP}       = $RAD->{'Framed-IP-Address'} if($RAD->{'Framed-IP-Address'});
+    $user_auth_params->{USER_NAME}= $RAD->{'User-Name'};
     $self->dhcp_info($user_auth_params, $NAS);
     if($user_auth_params->{SERVER_VLAN}) {
       $self->{SERVER_VLAN}=$user_auth_params->{SERVER_VLAN};
@@ -1267,7 +1282,7 @@ sub internet_auth {
 
   #DIsable
   if ($self->{DISABLE}) {
-    $RAD_PAIRS{'Reply-Message'} = "Account Disable";
+    $RAD_PAIRS{'Reply-Message'} = "ACCOUNT_DISABLE";
     return 1, \%RAD_PAIRS;
   }
 
@@ -1651,7 +1666,7 @@ sub ex_traffic_params {
    $attr
      TP_IPPOOL - TP ip pool id
      GUEST
-     VLAN
+     SERVER_VLAN
 
   Returns:
 
@@ -1721,11 +1736,17 @@ sub get_ip {
     if($guest_mode) {
       #Only guest pool
       #$WHERE = "AND ippools.guest=1";
-      if($attr->{VLAN}) {
-        $WHERE .= " AND ippools.vlan='$attr->{VLAN}'";
+      if($attr->{SERVER_VLAN}) {
+        $WHERE .= " AND (ippools.vlan='$attr->{SERVER_VLAN}' OR ippools.vlan=0)";
+      }
+
+      if(! $self->{UID}) {
+        $WHERE .= $guest;
       }
     }
-    $WHERE .= $guest;
+    else {
+      $WHERE .= $guest;
+    }
 
     $self->query2("SELECT ippools.ip, ippools.counts, ippools.id, ippools.next_pool_id,
        IF(ippools.gateway > 0, INET_NTOA(ippools.gateway), ''),
@@ -1871,7 +1892,7 @@ sub get_ip {
    $attr
      TP_IPPOOL - TP ip pool id
      GUEST
-     VLAN
+     SERVER_VLAN
 
   Returns:
 
@@ -1937,8 +1958,8 @@ sub get_ip2 {
     if($guest_mode) {
       #Only guest pool
       #$WHERE = "AND ippools.guest=1";
-      if($attr->{VLAN}) {
-        $WHERE .= " AND ippools.vlan='$attr->{VLAN}'";
+      if($attr->{SERVER_VLAN}) {
+        $WHERE .= " AND ippools.vlan='$attr->{SERVER_VLAN}'";
       }
     }
     $WHERE .= $guest;
@@ -2311,21 +2332,23 @@ sub neg_deposit_filter_former {
 
   $RAD_PAIRS->{'Acct-Interim-Interval'} = $NAS->{NAS_ALIVE} if ($NAS->{NAS_ALIVE});
 
-  if (!defined($CONF->{NEG_DEPOSIT_USER_IP})) {
-    $CONF->{NEG_DEPOSIT_USER_IP} = 0;
+  #Fixme remove on 0.8
+  if ($CONF->{NEG_DEPOSIT_USER_IP}) {
+    $CONF->{INTERNET_GUEST_STATIC_IP} = $CONF->{NEG_DEPOSIT_USER_IP};
   }
 
   $self->{IP} //= 0;
 
   if (!$attr->{USER_FILTER}) {
     # Return radius attr
-    if ($self->{IP} ne '0' && ( $CONF->{NEG_DEPOSIT_USER_IP} || !$self->{NEG_DEPOSIT_IPPOOL})) {
-      #print "($self->{IP} ne '0' && ( $CONF->{NEG_DEPOSIT_USER_IP} || !$self->{NEG_DEPOSIT_IPPOOL}))\n\n";
+    if (($self->{IP} ne '0' && $CONF->{INTERNET_GUEST_STATIC_IP}) || $RAD->{'Framed-IP-Address'}) { # || !$self->{NEG_DEPOSIT_IPPOOL})) {
+      #print "($self->{IP} ne '0' && ( $CONF->{INTERNET_GUEST_STATIC_IP} || !$self->{NEG_DEPOSIT_IPPOOL}))\n\n";
 
-      if($self->{IP} && ! $attr->{SKIP_ADD_IP}) {
-        $RAD_PAIRS->{'Framed-IP-Address'} = $self->{IP};
+      if(! $attr->{SKIP_ADD_IP}) {
+        $RAD_PAIRS->{'Framed-IP-Address'} = $RAD->{'Framed-IP-Address'} || $self->{IP};
         $self->online_add({
           %$attr,
+          IP                 => $RAD_PAIRS->{'Framed-IP-Address'},
           NAS_ID             => $NAS->{NAS_ID},
           FRAMED_IP_ADDRESS  => "INET_ATON('$self->{IP}')",
           NAS_IP_ADDRESS     => $RAD->{'NAS-IP-Address'},
@@ -2339,9 +2362,9 @@ sub neg_deposit_filter_former {
     elsif(! $attr->{SKIP_ADD_IP}) {
       my $ip = $self->get_ip($NAS->{NAS_ID}, $RAD->{'NAS-IP-Address'},
         {
-          TP_IPPOOL => $self->{NEG_DEPOSIT_IPPOOL} || $self->{TP_IPPOOL},
-          GUEST     => 1,
-          VLAN      => $self->{SERVER_VLAN}, #$self->{VLAN}
+          TP_IPPOOL    => $self->{NEG_DEPOSIT_IPPOOL} || $self->{TP_IPPOOL},
+          GUEST        => 1,
+          SERVER_VLAN  => $self->{SERVER_VLAN}, #$self->{VLAN}
           CONNECT_INFO => $self->{IP}
         });
 
@@ -2528,6 +2551,7 @@ sub opt82_parse {
           }
           #last;
         }
+        print $expr_debug;
       }
 
 #      if ($parse_param eq 'DHCP-Relay-Agent-Information') {
@@ -2616,6 +2640,10 @@ sub dhcp_info {
     }
   }
 
+  if($self->{conf}) {
+    $self->{conf} = $CONF;
+  }
+
   if($attr->{SERVER_VLAN}) {
     push @WHERE_RULES, "internet.vlan='$attr->{VLAN}' AND internet.server_vlan='$attr->{SERVER_VLAN}'";
     $self->{INFO} = "q2q: $attr->{SERVER_VLAN}-$attr->{VLAN} MAC: $attr->{USER_MAC}";
@@ -2683,7 +2711,8 @@ sub dhcp_info {
       INET_NTOA(internet.netmask) AS netmask,
       $pass_fields
       internet.speed AS user_speed,
-      internet.id AS service_id
+      internet.id AS service_id,
+      u.disable
 
    FROM internet_main internet
    INNER JOIN users u ON (u.uid=internet.uid)
@@ -2745,6 +2774,9 @@ sub dhcp_info {
       ORDER BY netmask
       LIMIT 1", undef, { INFO => 1 });
       $self->{TOTAL} = $total;
+      if($self->{errno}==2) {
+        delete $self->{errno};
+      }
     }
   }
 

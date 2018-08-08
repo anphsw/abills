@@ -84,10 +84,10 @@ sub get_api_list {
 
   my $path = $self->{unifi_url} . "/api/s/$self->{unifi_sitename}/" . $api_path;
   $self->mk_request( $path, $params );
+  my $list = $self->{list};
 
   $self->logout();
-
-  return $self->{list};
+  return $list;
 }
 
 #***************************************************************
@@ -161,7 +161,7 @@ sub login{
 #***************************************************************
 sub logout{
   my $self = shift;
-  return $self->mk_request( "$self->{unifi_url}/logout", undef, { CLEAR_COOKIE => 1 } );
+  return $self->mk_request( "$self->{unifi_url}/api/logout", undef, { CLEAR_COOKIE => 1, LOGOUT => 1 } );
 }
 
 #***************************************************************
@@ -194,6 +194,7 @@ sub mk_request{
       COOKIE              => 1,
       HEADERS             => [ "Content-Type: application/json" ],
       JSON_RETURN         => 1,
+      INSECURE            => 1,
       CLEAR_COOKIE        => $attr->{CLEAR_COOKIE},
       GET                 => ($attr->{METHOD} && $attr->{METHOD} eq 'get') ? 1 : undef,
       POST                => ($attr->{METHOD} && $attr->{METHOD} eq 'get') ? undef : 1
@@ -206,13 +207,12 @@ sub mk_request{
 
   if ( $json_result && ref $json_result eq 'HASH' ){
     if ( $json_result->{meta} && $json_result->{meta}->{rc} && $json_result->{meta}->{rc} eq 'ok' ){
-      if ( $attr->{LOGIN} ){
+      if ( $attr->{LOGIN}  || $attr->{LOGOUT} ){
         return 1;
       }
       else{
         $self->{list} = $json_result->{data};
       }
-
       return 1;
     }
 

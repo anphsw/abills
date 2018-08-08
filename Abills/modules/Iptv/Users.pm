@@ -89,6 +89,10 @@ sub iptv_user {
   elsif ( $FORM{new} ) {
 
   }
+  elsif ( $FORM{new_device}) {
+    iptv_new_devices();
+    return 1;
+  }
   elsif ( $FORM{import} ){
     if ( $FORM{add} ){
       my $import_accounts = import_former( \%FORM );
@@ -109,6 +113,9 @@ sub iptv_user {
   }
   elsif ( $FORM{add} ){
     if(! iptv_user_add({ %FORM, %{ ($attr) ? $attr : {} } })) {
+      if($FORM{SERVICE_ID}) {
+        return 0;
+      }
       return 1;
     }
   }
@@ -168,7 +175,6 @@ sub iptv_user {
 
   my DBI $db_ = $Iptv->{db}{db};
   if ( !_error_show( $Iptv ) && $Tv_service ){
-
     my $action_result = iptv_account_action( {
       %FORM,
       ID           => $Iptv->{ID},
@@ -310,6 +316,16 @@ sub iptv_user {
       }
     }
 
+    if($Iptv->{UID}) {
+      print $html->button("Get STB",
+        "get_index=iptv_user&new_device=1&header=2&UID=$Iptv->{UID}",
+        {
+          class         => 'btn-xs',
+          LOAD_TO_MODAL => 1,
+          BUTTON        => 1,
+        });
+    }
+
     if ( $attr->{ACCOUNT_INFO} ){
       return 1;
     }
@@ -317,6 +333,19 @@ sub iptv_user {
   }
 
   iptv_users_list( { USER_ACCOUNT => $sunbscribe_count || 1 } );
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 iptv_new_devices($attr) - New devices
+
+=cut
+#**********************************************************
+sub iptv_new_devices {
+
+  print "New devices";
 
   return 1;
 }
@@ -335,6 +364,18 @@ sub iptv_user_add {
     }
     elsif($attr->{skip_step}) {
       return 1;
+    }
+  }
+
+  if(! $attr->{SERVICE_ID}) {
+    my $tp_list = $Tariffs->list({
+      INNER_TP_ID=> $attr->{TP_ID},
+      SERVICE_ID => '_SHOW',
+      COLS_NAME  => 1
+    });
+
+    if($Tariffs->{TOTAL}) {
+      $FORM{SERVICE_ID}=$tp_list->[0]->{service_id};
     }
   }
 

@@ -56,7 +56,7 @@ use AnyEvent::Handle;
 use AnyEvent::Socket;
 use AnyEvent::Impl::Perl;
 
-use Abills::Base;
+use Abills::Base qw/_bp/;
 use Abills::Server qw/make_pid daemonize stop_server is_running/;
 
 use Abills::Backend::Plugin::BaseAPI;
@@ -92,7 +92,7 @@ _bp(undef, undef, { SET_ARGS => { TO_CONSOLE => 1 } });
     stop_server(undef, \%daemon_args);
     $Log->info('Normal exit', 'Daemon');
   };
-  
+
   #Starting
   if ( defined($ARGS->{'-d'}) || defined($ARGS->{'start'}) ) {
     $start->();

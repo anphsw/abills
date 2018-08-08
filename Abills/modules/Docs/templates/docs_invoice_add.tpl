@@ -10,11 +10,15 @@
   <input type=hidden name='SEND_EMAIL' value='1'>
   <input type=hidden name=INCLUDE_DEPOSIT value=1>
 
-
   <div class='box box-theme box-big-form'>
-    <div class='box-header with-border'><h4>%CAPTION%</h4></div>
-    <div class='box-body'>
+    <div class='box-header with-border'><h4 class='box-title'>%CAPTION%</h4>
 
+      <span class='pull-right'>
+        <a href='$SELF_URL?full=1&get_index=docs_invoice_company&UID=%UID%' class='btn btn-xs btn-success' >_{NEXT_PERIOD_INVOICE}_</a>
+      </span>
+
+    </div>
+    <div class='box-body'>
 
       %FORM_INVOICE_ID%
 

@@ -70,11 +70,11 @@ sub unifi_guests_list {
       $lang{NAME} => $Nas->{NAME_SEL}
     },
     [
-      "Standart::index=$index&NAS_ID=". ($FORM{NAS_ID} || ''),
-      "Full::index=$index&info=FULL&NAS_ID=". ($FORM{NAS_ID} || ''),
-      "Sys info::index=$index&info=SYSINFO&NAS_ID=". ($FORM{NAS_ID} || ''),
-      "Alarms::index=$index&info=ALARM&NAS_ID=". ($FORM{NAS_ID} || ''),
-      "DAILY SITE::index=$index&info=DAILY_SITE&NAS_ID=". ($FORM{NAS_ID} || ''),
+      "Standart::&NAS_ID=". ($FORM{NAS_ID} || ''),
+      "Full::&info=FULL&NAS_ID=". ($FORM{NAS_ID} || ''),
+      "Sys info::&info=SYSINFO&NAS_ID=". ($FORM{NAS_ID} || ''),
+      "Alarms::&info=ALARM&NAS_ID=". ($FORM{NAS_ID} || ''),
+      "DAILY SITE::&info=DAILY_SITE&NAS_ID=". ($FORM{NAS_ID} || ''),
     ]
   );
 
@@ -84,6 +84,7 @@ sub unifi_guests_list {
     $Unifi->{login}          = $Nas->{NAS_MNG_USER};
     $Unifi->{password}       = $Nas->{NAS_MNG_PASSWORD};
     $Unifi->{unifi_sitename} = $Nas->{NAS_IDENTIFIER} || 'default';
+    $Nas->{NAS_MNG_IP_PORT}  =~ s/:(\d+).*$/:$1/g;
     $Unifi->{unifi_url}      = 'https://' . $Nas->{NAS_MNG_IP_PORT};
 
     if ($FORM{HANGUP}) {

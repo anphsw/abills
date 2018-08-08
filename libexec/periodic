@@ -156,7 +156,12 @@ foreach my $m ( @MODULES ){
   push @SKIP_MODULES, $m;
 }
 
-push @daily_functions, 'admin_report_daily' if (!$argv->{MODULES});
+if ( $argv->{LOGIN} ){
+  $LIST_PARAMS{LOGIN} = $argv->{LOGIN};
+  $argv->{NO_ADM_REPORT}=1
+}
+
+push @daily_functions, 'admin_report_daily' if (!$argv->{MODULES} && ! $argv->{NO_ADM_REPORT});
 push @monthly_functions, 'admin_report_monthly' if (!$argv->{NO_ADM_REPORT});
 push @monthly_functions, 'logrotate', 'backup' if (!$argv->{MODULES});
 
@@ -182,10 +187,6 @@ if ( $argv->{DATE} ){
 }
 else{
   $ADMIN_REPORT{DATE} = $DATE;
-}
-
-if ( $argv->{LOGIN} ){
-  $LIST_PARAMS{LOGIN} = $argv->{LOGIN};
 }
 
 if ( defined( $argv->{NO_USERS_WARNINGS} ) ){
@@ -408,7 +409,11 @@ sub sheduler{
     my $shedule_id = $s->{id};
 
     if ( $debug > 0 ){
-      print "Shedule [$shedule_id] $login Module: $s->{module} $type:  $action\n";
+      print "SHEDULE [$shedule_id] $login MODULE: $s->{module} $type:  $action\n";
+    }
+
+    if ( $debug > 7 ) {
+      next;
     }
 
     if ( $type eq 'fees' ){
@@ -1048,7 +1053,8 @@ sub credit_operation{
       CREDIT_DATE => "!0000-00-00;<=$ADMIN_REPORT{DATE}",
       CREDIT      => ">$conf{MAX_STABLE_CREDIT}",
       PAGE_ROWS   => 1000000,
-      COLS_NAME   => 1
+      COLS_NAME   => 1,
+      DEPOSIT     => '_SHOW',
     }
   );
 
@@ -1056,10 +1062,11 @@ sub credit_operation{
     $DEBUG .= "$line->{name} ($line->{id}) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} CREDIT_DATE: $line->{credit_date}\n" if ($debug > 1);
 
     if ( $debug < 8 ){
+
       $Company->change(
         {
           CREDIT      => $conf{MAX_STABLE_CREDIT},
-          COMPANY_ID  => $line->{id},
+          ID          => $line->{id},
           CREDIT_DATE => '0000-00-00',
         }
       );

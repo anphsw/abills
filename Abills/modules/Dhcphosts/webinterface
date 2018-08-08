@@ -1548,7 +1548,7 @@ sub dhcphosts_config{
   # If not set reconfigure command
   if ( !$conf{DHCPHOSTS_RECONFIGURE} ){
     if ( $FORM{web_reconfig} ){
-      $html->message( 'err', $lang{ERORR}, "Not defined  \$conf{DHCPHOSTS_RECONFIGURE}" );
+      $html->message( 'err', $lang{ERORR}, "Not defined \$conf{DHCPHOSTS_RECONFIGURE}" );
     }
     return '';
   }
@@ -1587,6 +1587,7 @@ sub dhcphosts_config{
   });
 
   my %SUBNETS = ();
+  my %NETWORKS_INFO = ();
 
   foreach my $net ( @{$list} ){
     my $NET_ID = $net->{id};
@@ -1613,13 +1614,16 @@ sub dhcphosts_config{
     $INFO{DESCRIBE}      = $Dhcphosts->{COMMENTS};
     $INFO{AUTHORITATIVE} = ($Dhcphosts->{AUTHORITATIVE}) ? 'authoritative;' : '';
     $INFO{DENY_UNKNOWN_CLIENTS} = ($Dhcphosts->{DENY_UNKNOWN_CLIENTS}) ? 'deny unknown-clients;' : '';
-
+    $INFO{VLAN}          = $Dhcphosts->{VLAN} || q{};
     if ( !$Dhcphosts->{STATIC} && $Dhcphosts->{IP_RANGE_FIRST} ne '0.0.0.0' ){
       $INFO{RANGE} = "range $Dhcphosts->{IP_RANGE_FIRST} $Dhcphosts->{IP_RANGE_LAST};";
     }
     else{
       $INFO{RANGE} = '';
     }
+
+    $NETWORKS_INFO{$NET_ID}{NAME}=$INFO{NETWORK_NAME};
+    $NETWORKS_INFO{$NET_ID}{VLAN}=$INFO{VLAN};
 
     #Add static route
     $list = $Dhcphosts->routes_list( { NET_ID => $NET_ID } );
@@ -1805,8 +1809,13 @@ sub dhcphosts_config{
   $INFO{NETWORKS} = '';
   foreach my $id ( sort keys %{ $SUBNETS{0} } ){
     my $net_content = $SUBNETS{0}{$id};
-    $INFO{NETWORKS} .= "#share network ID: $id
-shared-network $INFO{NETWORK_NAME}_$id {
+
+    my $network_name = $NETWORKS_INFO{$id}{NAME} || $INFO{NETWORK_NAME} || q{};
+    my $vlan = $NETWORKS_INFO{$id}{VLAN} || q{};
+    $network_name .= "_$id";
+
+    $INFO{NETWORKS} .= "#Shared network ID: $id VLAN: $vlan
+shared-network $network_name  {
 $net_content";
 
     #Add subnets

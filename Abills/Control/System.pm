@@ -30,6 +30,8 @@ our Conf $Conf;
 our Users $users;
 
 require Control::Nas_mng;
+require Control::Filemanager;
+require Control::Taxes;
 
 #**********************************************************
 =head2 form_status() - service status listing
@@ -355,6 +357,7 @@ sub form_templates {
     show_tpl_info($filename, ($module) ? "$sys_templates/$module/templates/" : "$main_templates_dir/");
   }
   elsif ($FORM{SHOW}) {
+    $html->{METATAGS} = templates('metatags');
     print $html->header();
     my ($module, $file, $lang) = split(/:/, $FORM{SHOW}, 3);
     $file =~ s/.tpl//;
@@ -1229,7 +1232,7 @@ sub form_holidays {
   # если на календаре выбрать выходной день
   if($FORM{change} || $FORM{show}){
     my $holiday_info;
-    my ($month, $day);
+    my ($month, $day)=split(/\-/, $DATE);
 
     # получение данных из таблицы
     if ($FORM{change}) {
@@ -1239,7 +1242,7 @@ sub form_holidays {
       }
       ($month, $day) = split('-', $holiday_info->{DAY});
     }
-    else {
+    elsif($FORM{show} =~ /\-/) {
       my ($m, $d) = split('-', $FORM{show});
       my $search = $m . '-' . $d;
       $holiday_info = $holidays->holidays_info({ DAY => $search });
@@ -1259,7 +1262,7 @@ sub form_holidays {
       YEAR         => $FORM{year},
       COMMENTS     => $holiday_info->{DESCR},
       ACTION       => 'change',
-      BTN_NAME     => "$lang{CHANGE}",
+      BTN_NAME     => $lang{CHANGE},
       FILE_SELECT  => @files_select,
       UPLOAD_FILE  => $file_upload_link
     });
@@ -1535,7 +1538,8 @@ sub form_info_fields {
 
   _error_show($users);
 
-  my @fields_types = ('String',
+  my @fields_types = (
+   'String',
    'Integer',
    $lang{LIST},
    $lang{TEXT},
@@ -1634,7 +1638,7 @@ sub form_info_fields {
     {
       width      => '500',
       caption    => "$lang{INFO_FIELDS} - $lang{COMPANIES}",
-      title      => [ $lang{NAME}, 'SQL field', $lang{TYPE}, $lang{PRIORITY}, "$lang{USER_PORTAL}", '-' ],
+      title      => [ $lang{NAME}, 'SQL field', $lang{TYPE}, $lang{PRIORITY}, $lang{USER_PORTAL}, '-' ],
       NOT_RESPONSIVE => 1,
     }
   );
@@ -1724,14 +1728,17 @@ sub form_info_lists {
   my $list = ();
   my %lists_hash = ();
   _error_show($users);
+
   if($conf{info_fields_new}){
     require Info_fields;
     my $Info_fields = Info_fields->new($db, $admin, \%conf);
-     $list = $Info_fields->fields_list(
+
+    $list = $Info_fields->fields_list(
         {
           TYPE => 2
         }
       );
+
     foreach my $line (@$list) {
       $lists_hash{ $line->{sql_field} . '_list' } = $line->{name};
     } 
@@ -1957,27 +1964,35 @@ sub form_fees_types {
     $LIST_PARAMS{SORT} = 2;
   }
 
-  my $list  = $Fees->fees_type_list({%LIST_PARAMS});
-  my $table = $html->table(
-    {
+  result_former({
+    INPUT_DATA      => $Fees,
+    FUNCTION        => 'fees_type_list',
+    BASE_FIELDS     => 3,
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      tax  => $lang{TAX},
+      id   => '#',
+      name => $lang{NAME},
+      default_describe => $lang{COMMENTS},
+      sum  => $lang{SUM}
+    },
+    FILTER_COLS  => {
+      name => '_translate',
+    },
+    TABLE => {
       width      => '100%',
       caption    => "$lang{FEES} $lang{TYPE}",
-      title      => [ '#', $lang{NAME}, $lang{COMMENTS}, $lang{SUM}, '-', '-' ],
       qs         => $pages_qs,
-      pages      => $Fees->{TOTAL}
-    }
-  );
-
-  foreach my $line (@$list) {
-    my $delete = $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->[0]", { MESSAGE => "$lang{DEL} [$line->[0]]?", class => 'del' });
-
-    $table->addrow($line->[0], ($line->[1] =~ /\$/) ? _translate($line->[1]) : $line->[1], "$line->[2]", "$line->[3]", $html->button($lang{CHANGE}, "index=$index&chg=$line->[0]", { class => 'change' }), $delete);
-  }
-  print $table->show();
+      ID         => 'FEES_TYPE',
+    },
+    MAKE_ROWS    => 1,
+    SEARCH_FORMER=> 1,
+    TOTAL        => 1
+  });
 
   return 1;
 }
-
 
 #**********************************************************
 =head2 get_checksum();
@@ -2122,6 +2137,7 @@ sub form_intervals {
 
     if (defined($FORM{tt})) {
       if(in_array('Internet', \@MODULES)) {
+        load_module('Internet', $html);
         internet_traf_tarifs({ TP => $tarif_plan });
       }
       else {
@@ -2797,7 +2813,7 @@ sub info_fields_new {
       readonly => 'readonly',
       type     => 'text',
       class    => 'form-control',
-      value    => "$fields_types[$chg_list->[0]->{type}]",
+      value    => ($chg_list->[0]) ? $fields_types[$chg_list->[0]->{type}] : q{},
     });
   }
   elsif ( $FORM{del} && $FORM{COMMENTS}) {
@@ -2827,7 +2843,7 @@ sub info_fields_new {
       templates('form_info_fields'),
       {
         %TEMPLATE_ADVERTISEMENT, 
-        %{$chg_list->[0]},
+        %{ ($chg_list->[0]) ? $chg_list->[0] : {} },
         SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
         SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
       }
@@ -2839,51 +2855,66 @@ sub info_fields_new {
     "$lang{COMPANY}:index=$index&COMPANY_FIELDS=1",
     );
   my $status_bar = $html->table_header(\@header_arr);
-  if($FORM{update_table}) {
+
+  if ($FORM{update_table}) {
     my $usr_list = $Conf->config_list({ PARAM => 'ifu*', SORT => 2 });
     foreach my $line (@$usr_list) {
 
-    my $field_name = '';
+      my $field_name = '';
 
-    if ($line->[0] =~ /ifu(\S+)/) {
-      $field_name = $1;
+      if ($line->[0] =~ /ifu\_(\S+)/) {
+        $field_name = $1;
+      }
+
+      my ($position, $field_type, $name, $user_portal, $can_be_changed_by_user) = split(/:/, $line->[1]);
+      $can_be_changed_by_user = ($can_be_changed_by_user) ? 1 : 0;
+      if (!defined($field_type)) {
+        $field_type = 0;
+      }
+
+      $Info_fields->fields_add({
+        NAME        => $name,
+        SQL_FIELD   => $field_name,
+        TYPE        => $field_type,
+        PRIORITY    => $position,
+        ABON_PORTAL => $user_portal,
+        USER_CHG    => $can_be_changed_by_user
+      });
+    }
+    my $company_list = $Conf->config_list({ PARAM => 'ifc*', SORT => 2 });
+
+    foreach my $line (@$company_list) {
+      my $field_name = '';
+
+      if ($line->[0] =~ /ifc\_(\S+)/) {
+        $field_name = $1;
+      }
+      my ($position, $field_type, $name, $user_portal) = split(/:/, $line->[1]);
+
+      if (!defined($field_type)) {
+        $field_type = 0;
+      }
+
+      $user_portal ||= 0;
+
+      $Info_fields->fields_add({
+        NAME        => $name,
+        SQL_FIELD   => $field_name,
+        TYPE        => $field_type,
+        PRIORITY    => $position,
+        ABON_PORTAL => $user_portal,
+        COMPANY     => 1
+      });
     }
 
-    my ($position, $field_type, $name, $user_portal, $can_be_changed_by_user) = split(/:/, $line->[1]);
-    $can_be_changed_by_user = ($can_be_changed_by_user) ? 1 : 0;
-    if (! defined($field_type)){
-      $field_type = 0;
-    }
-    
-    $Info_fields->fields_add( { NAME => $name, SQL_FIELD => $field_name, TYPE => $field_type, PRIORITY => $position, ABON_PORTAL => $user_portal, USER_CHG => $can_be_changed_by_user} );
-  }
-  my $company_list = $Conf->config_list({ PARAM => 'ifc*', SORT => 2 });
-
-  foreach my $line (@$company_list) {
-    my $field_name = '';
-
-    if ($line->[0] =~ /ifc(\S+)/) {
-      $field_name = $1;
-    }
-    my ($position, $field_type, $name, $user_portal) = split(/:/, $line->[1]);
-
-    if (! defined($field_type)){
-      $field_type = 0;
-    }
-
-    $user_portal ||=0;
-
-    $Info_fields->fields_add( { NAME => $name, SQL_FIELD => $field_name, TYPE => $field_type, PRIORITY => $position, ABON_PORTAL => $user_portal, COMPANY => 1} );
+    show_result($Info_fields, $lang{CHANGED});
   }
 
-  show_result( $Info_fields, $lang{CHANGED} );
+  if ($FORM{USR_FIELDS}) {
+    $LIST_PARAMS{COMPANY} = 0;
   }
-
-  if($FORM{USR_FIELDS}){
-    $LIST_PARAMS{COMPANY}=0;
-  }
-  elsif($FORM{COMPANY_FIELDS}){
-    $LIST_PARAMS{COMPANY}=1;
+  elsif ($FORM{COMPANY_FIELDS}) {
+    $LIST_PARAMS{COMPANY} = 1;
   }
 
   result_former(
@@ -2905,7 +2936,7 @@ sub info_fields_new {
         module      => $lang{MODULE},
         comment     => $lang{COMMENTS},
       },
-      FILTER_VALUES => {
+      FILTER_VALUES   => {
         type => sub {
           my (undef, $line) = @_;
           if ($line->{type} == 2) {
@@ -2916,29 +2947,29 @@ sub info_fields_new {
           }
         }
       },
-      SELECT_VALUE => {
-       abon_portal => {
-         0 => $bool[0],
-         1 => $bool[1]
-       },
-       user_chg => {
-         0 => $bool[0],
-         1 => $bool[1]
-       },
-       company => {
-         0 => $bool[0],
-         1 => $bool[1]
-       }
+      SELECT_VALUE    => {
+        abon_portal => {
+          0 => $bool[0],
+          1 => $bool[1]
+        },
+        user_chg    => {
+          0 => $bool[0],
+          1 => $bool[1]
+        },
+        company     => {
+          0 => $bool[0],
+          1 => $bool[1]
+        }
       },
-      TABLE => {
+      TABLE           => {
         width   => '100%',
         caption => $lang{INFO_FIELDS},
         ID      => "INFO_FIELDS",
-        header     => $status_bar,
+        header  => $status_bar,
         MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add; :index=$index&update_table=1&$pages_qs:glyphicon glyphicon-import",
       },
-      MAKE_ROWS => 1,
-      TOTAL     => 1
+      MAKE_ROWS       => 1,
+      TOTAL           => 1
     }
   );
 

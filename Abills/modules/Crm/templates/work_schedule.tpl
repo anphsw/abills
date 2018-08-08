@@ -4,6 +4,7 @@
 <input type='hidden' name='index' value='$index'>
 
 <div class='box box-theme box-form '>
+  <div class='box-header with-border'><h4 class='box-title'>%FIO%</h4></div>
   <div class='box-body'>
     <ul class='nav nav-tabs' role='tablist'>
       <li class='active'>

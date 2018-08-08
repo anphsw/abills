@@ -17,8 +17,6 @@ our(
 );
 
 
-my $Tariffs = Tariffs->new($db, \%conf, $admin);
-
 #**********************************************************
 =head sel_tp($tp_id)
 
@@ -31,11 +29,15 @@ my $Tariffs = Tariffs->new($db, \%conf, $admin);
     SEL_OPTIONS - Extra sel options (items)
     EX_PARAMS   - Extra sell options
 
+  Returns:
+    \%tp_hash (tp_id => name)
+
 =cut
 #**********************************************************
 sub sel_tp {
   my ($attr) = @_;
 
+  my $Tariffs = Tariffs->new($db, \%conf, $admin);
   my %params = ( MODULE => 'Dv;Internet' );
   if ($attr->{MODULE}) {
     $params{MODULE} = $attr->{MODULE};

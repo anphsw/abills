@@ -23,11 +23,15 @@
       <strong><i class='glyphicon glyphicon-calendar'></i> _{DATE}_ _{REGISTRATION}_</strong>
       <p class='muted'>%DATE%</p>
       <hr>
+      <strong><i class='glyphicon glyphicon-envelope'></i> _{USER}_</strong>
+      <p class='muted'>%USER_BUTTON% %DELETE_USER_BUTTON%</p>
+      <hr>
       <div class='' data-tooltip='_{COMMENTS}_'><textarea class='form-control' rows=5 readonly="" >%COMMENTS%</textarea></div>
       <div class='box-footer'>
       %CHANGE_BUTTON%
       %BUTTON_TO_LEAD_INFO%
       %CONVERT_DATA_BUTTON%
+      %ADD_USER_BUTTON%
       </div>
       </div>
     </div>

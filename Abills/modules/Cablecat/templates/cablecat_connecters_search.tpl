@@ -2,9 +2,9 @@
   <div class='box-header with-border'><h4 class='box-title'>_{CONNECTER}_</h4></div>
   <div class='box-body'>
     <form name='CABLECAT_CONNECTERS' id='form_CABLECAT_CONNECTERS' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
-      <input type='hidden' name='TYPE_ID' value='2'/>
-      <input type='hidden' name='search_form' value='1'/>
+      <!--<input type='hidden' name='index' value='$index'/>-->
+      <!--<input type='hidden' name='TYPE_ID' value='2'/>-->
+      <!--<input type='hidden' name='search_form' value='1'/>-->
 
       <div class='form-group'>
         <label class='control-label col-md-3' for='ID_id'>ID</label>

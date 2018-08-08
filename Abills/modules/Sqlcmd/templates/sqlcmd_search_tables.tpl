@@ -1,12 +1,13 @@
-<form action='$SELF' class='form-inline'>
 
-<input type=hidden name=index value='$index'>
+<FORM action='$SELF_URL' class='form-inline' method='GET' ID='SQLCMD_TABLE_SEARCH' name='SQLCMD_TABLE_SEARCH'>
 
-<div class='form-group'>
-  <label for='TABLES'>_{TABLES}_</label>
-  <input type=text ID=TABLES name=TABLES value='%TABLES%' class='form-control'> 
-</div>
+    <input type=hidden name=index value='$index'>
 
-  <input type=submit name=search value='_{SEARCH}_' class='btn btn-primary'>
+    <div class='form-group'>
+        <label for='TABLES'>_{TABLES}_:</label>
+        <input type=text ID=TABLES name=TABLES value='%TABLES%' class='form-control' form='SQLCMD_TABLE_SEARCH'>
+    </div>
 
-</form>
+    <input type=submit name=search value='_{SEARCH}_' class='btn btn-primary' form='SQLCMD_TABLE_SEARCH'>
+
+</FORM>

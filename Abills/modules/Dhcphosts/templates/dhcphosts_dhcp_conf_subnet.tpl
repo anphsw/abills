@@ -1,4 +1,4 @@
- #Subnets %DESCRIBE%
+ #Subnets %DESCRIBE% VLAN: %VLAN%
  subnet %NETWORK% netmask %NETWORK_MASK% {
    %DNS%
    %NTP%

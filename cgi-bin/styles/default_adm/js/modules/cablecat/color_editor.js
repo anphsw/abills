@@ -35,6 +35,7 @@ $(function () {
   
   AResult.init(RESULT_COLORS);
   AVariants.init(CABLECAT_COLORS);
+
   
   var $trash_icon = $('#variantsTrash');
   var $duplicate_all_btn = $('#duplicateWithMark');
@@ -92,6 +93,8 @@ function insertColors(colors, $container, options) {
     $container.append(next_color);
     $insertedDivs[$insertedDivs.length] = next_color;
   });
+
+  console.log($insertedDivs);
   return $insertedDivs;
 }
 
@@ -105,6 +108,8 @@ function getColorLiBlock(options) {
   if (options.mark) {
     $colorDiv.append($('<span class="mark">+</span>'));
   }
+
+  $colorDiv.append($('<span class="color_name">' + COLORS_NAME[options.color] + '</span>'));
     
   var $li = $('<li></li>', {
     'data-hexcolor': options.color,

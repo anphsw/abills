@@ -158,6 +158,17 @@ sub sms_send {
       return 0;
     }
   }
+  
+  if ($attr->{UID} && $conf{SMS_LIMIT}) {
+    my $uid_sms_list = $Sms->list({ 
+      UID      => $attr->{UID},
+      INTERVAL => "$DATE/$DATE",
+    });
+    if ( $uid_sms_list && scalar(@$uid_sms_list) >= $conf{SMS_LIMIT} ) {
+      $html->message( 'err', $lang{ERROR}, "Превышен лимит СМС для этого пользователя" );
+      return 0;
+    }
+  }
 
   if ($conf{SMS_TRANSLIT}) {
     $attr->{MESSAGE} = convert($attr->{MESSAGE}, { txt2translit => 1 });

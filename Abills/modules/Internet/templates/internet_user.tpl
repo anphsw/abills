@@ -127,8 +127,8 @@
               <span class='visible-xs visible-sm col-xs-12' style='padding-top: 10px'> </span>
               <label class='control-label col-xs-4 col-md-2' for='CID'>CID (;)</label>
               <div class='col-xs-8 col-md-4'>
-                <input id='CID' name='CID' value='%CID%' placeholder='%CID%' class='form-control'
-                       type='text'>
+                <input id='CID' name='CID' value='%CID%' placeholder='%CID%'
+                      %CID_PATTERN% class='form-control' type='text'>
               </div>
             </div>
           </div>
@@ -238,7 +238,8 @@
             <div class='form-group'>
               <label class='control-label col-md-3 pull-left' for='CPE_MAC'>CPE MAC</label>
               <div class='col-md-9'>
-                <input id='CPE_MAC' type='text' class='form-control' name='CPE_MAC' value='%CPE_MAC%'>
+                <input id='CPE_MAC' type='text' class='form-control' name='CPE_MAC' value='%CPE_MAC%'
+                       pattern='%CID_PATTERN%'>
               </div>
             </div>
 
@@ -260,13 +261,13 @@
               <div class='col-md-3 %EXPIRE_COLOR%'>
                 <input id='SERVICE_ACTIVATE' name='SERVICE_ACTIVATE' value='%SERVICE_ACTIVATE%'
                        placeholder='%SERVICE_ACTIVATE%'
-                       class='form-control datepicker' rel='tcal' type='text'>
+                       class='form-control datepicker' rel='tcal' type='text' %ACTIVATE_DISABLE%>
               </div>
 
               <label class='control-label col-md-3' for='SERVICE_EXPIRE'>_{EXPIRE}_</label>
               <div class='col-md-3 %EXPIRE_COLOR%'>
                 <input id='SERVICE_EXPIRE' name='SERVICE_EXPIRE' value='%SERVICE_EXPIRE%' placeholder='%SERVICE_EXPIRE%'
-                       class='form-control datepicker' rel='tcal' type='text'>
+                       class='form-control datepicker' rel='tcal' type='text' %EXPIRE_DISABLE%>
               </div>
             </div>
 
@@ -311,6 +312,12 @@
             </div>
             %PASSWORD_FORM%
             %TURBO_MODE_FORM%
+            <div class='form-group'>
+              <label class='control-label col-md-3' for='DETAIL_STATS'>_{COMMENTS}_</label>
+              <div class='col-md-9'>
+                <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'>%INTERNET_COMMENT%</textarea>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -59,7 +59,7 @@
   //ENABLING FEATURES
   var SHOW_MARKERS              = '%SHOW_MARKERS%' || true;
   var CLUSTERING_ENABLED        = '%CLUSTERING_ENABLED%' || true;
-  var DISTRICT_POLYGONS_ENABLED = '%DISTRICT_POLYGONS_ENABLED%' || true;
+  var DISTRICT_POLYGONS_ENABLED = '%DISTRICT_POLYGONS_ENABLED%' || false;
 
   //CONTROL BLOCK
   var layersCtrlEnabled     = true;

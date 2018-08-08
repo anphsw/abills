@@ -57,6 +57,14 @@
                 <div class='col-xs-9'>%NAS_GROUPS_SEL%</div>
             </div>
 
+            <div class='form-group'>
+                <label for='ADDRESS_FULL' class='control-label col-xs-3'>_{ADDRESS}_:</label>
+                <div class='col-xs-9'>
+                <input class='form-control' id='ADDRESS_FULL' placeholder='%ADDRESS_FULL%' name='ADDRESS_FULL' value='%ADDRESS_FULL%'
+                       form='form-search'/>
+                </div>
+            </div>
+
             %SEARCH_BTN%
         </div>
     </div>

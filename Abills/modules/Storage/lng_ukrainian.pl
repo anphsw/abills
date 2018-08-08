@@ -102,6 +102,7 @@ $lang{SM}='см';
 $lang{MM}='мм';
 $lang{LITERS}='літр';
 $lang{BOXES}='ящики';
+$lang{PER_ONE_ITEM}='за 1 одиницю';
 
 $lang{STORAGES}='Склади';
 
@@ -110,3 +111,6 @@ $lang{INNER_USE_SHORT} = 'Внутр. кор.';
 $lang{TO_INNER_USE} = 'До внутрішнього користування';
 
 $lang{IN_STORAGE} = 'На складі';
+
+$lang{BY_INSTALLMENTS} = 'В розстрочку';
+$lang{PROPERTY}='Властивість';

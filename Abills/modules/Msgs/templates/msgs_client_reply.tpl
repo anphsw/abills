@@ -2,7 +2,7 @@
 <input type='hidden' name='RATING' id='rating'/>
 
 <script type='text/javascript'>
-
+'use strict';
   // Multi upload logic
   jQuery(function () {
     var MAX_FILES_COUNT = 3;
@@ -43,7 +43,7 @@
 
     var paint_rating_stars = function (rating) {
       stars.removeClass('active');
-      for (var i = 0; i < rating; i++) {
+      for (var i = 0; i <= rating; i++) {
         jQuery(stars[i]).addClass('active');
       }
     };
@@ -53,7 +53,7 @@
 
       // Fill initial colors
       rating_input.val(3);
-      paint_rating_stars(3);
+      paint_rating_stars(2);
 
       // Fill meta data position for all stars
       stars.each(function (i, s) {
@@ -87,7 +87,13 @@
     };
 
     // Before sending show rating form
-    form.on('submit', check_values_and_submit_form);
+//    form.on('submit', check_values_and_submit_form);
+    jQuery('#go').on('click', function () {
+      var message_state = state_select.val();
+      if ((+message_state === 1) || (+message_state === 2)) {
+        check_values_and_submit_form();
+      }
+    });
   });
 
 </script>

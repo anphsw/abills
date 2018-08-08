@@ -70,14 +70,29 @@ if($permissions{3}) {
 }
 
 #*******************************************************************
-=head2 iptv_user_del($uid, $attr) - Delete user from module
+=head2 iptv_user_del($uid) - Delete user from module
+
+  Arguments:
+    $uid
 
 =cut
 #*******************************************************************
 sub iptv_user_del{
   my ($uid) = @_;
+
+  my $users_list = $Iptv->user_list({ UID => $uid, COLS_NAME => 1 });
+
+  foreach my $line ( @$users_list ) {
+    $Iptv->user_info($line->{id});
+    iptv_account_action({
+      $Iptv,
+      del => 1,
+    });
+  }
+
   $Iptv->{UID} = $uid;
   $Iptv->user_del( { UID => $uid } );
+
   return 0;
 }
 
@@ -1864,12 +1879,22 @@ sub iptv_show_channels{
 #**********************************************************
 =head2 iptv_show_tp($id, $attr) - Iptv show tp info
 
+  Arguments:
+    $id
+    $attr
+
+  Results:
+    $tp_name
+
 =cut
 #**********************************************************
 sub iptv_show_tp{
   my ($id) = @_;
 
   my $tp_name;
+print " $id // ";
+
+  print %tp_list;
 
   if ( $tp_list{$id} ){
     $tp_name = $html->button( $id, "index=" . get_function_index( 'iptv_tp' ) . "&TP_ID=$tp_list{$id}",
@@ -1917,7 +1942,7 @@ sub iptv_account_action{
 
   if ($Iptv->{SERVICE_ID} && ! $Tv_service) {
     $Tv_service = tv_load_service( $Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} } );
-    if($Tv_service->{SUBSCRIBE_COUNT}) {
+    if($Tv_service && $Tv_service->{SUBSCRIBE_COUNT}) {
       $attr->{SUBSCRIBE_COUNT} = $Tv_service->{SUBSCRIBE_COUNT};
     }
   }
@@ -2232,7 +2257,7 @@ sub iptv_account_action{
   }
   elsif ( $attr->{del} ){
     if ( $Tv_service && $Tv_service->can('user_del') ){
-      $Tv_service->user_del({ %$attr, ID => $attr->{del} });
+      $Tv_service->user_del({ %$attr, %{$Iptv}, ID => $attr->{del} });
       if ( $Tv_service->{error} ){
         $Iptv->{errno}  = $Tv_service->{errno};
         $Iptv->{errstr} = $Tv_service->{errstr};
@@ -2691,6 +2716,14 @@ sub iptv_payments_maked{
     return 0;
   }
 
+  if ($FORM{newpassword}) {
+    iptv_account_action({
+      %{ (ref $Iptv eq 'HASH') ? $Iptv : {} },
+      PASSWORD => $FORM{newpassword},
+      change   => 1,
+    });
+  }
+
   foreach my $service_user ( @{$list} ){
     $Iptv->user_info( $service_user->{id} );
     if ( $Iptv->{TOTAL} < 1 ){
@@ -2841,77 +2874,17 @@ sub iptv_quick_info {
   return ($Iptv->{TOTAL} > 0) ? $Iptv->{TOTAL} : '';
 }
 
-
 #**********************************************************
-=head iptv_console($attr) - Quick information
+=head iptv_password_change($attr) - Password change for plugins
 
   Arguments:
     $attr
 
 =cut
 #**********************************************************
-sub iptv_console {
-  my($attr) = @_;
+sub iptv_password_change {
+  my ($attr) = @_;
 
-  my $services = $html->form_main(
-    {
-      CONTENT => tv_services_sel(),
-      HIDDEN  => { index => $index },
-      SUBMIT  => { show  => $lang{SHOW} },
-      class   => 'navbar-form navbar-right',
-    }
-  );
-
-  func_menu({ $lang{NAME} => $services });
-
-  if($FORM{SERVICE_ID}) {
-    $Tv_service = tv_load_service( '', { SERVICE_ID => $FORM{SERVICE_ID} });
-
-    if(! $Tv_service) {
-      return 1;
-    }
-
-    if ($Tv_service->{SERVICE_CONSOLE}) {
-      my $fn = $Tv_service->{SERVICE_CONSOLE};
-      &{ \&$fn }( { %FORM, %{$attr}, %{$Iptv}, SERVICE_ID => $FORM{SERVICE_ID} } );
-    }
-    elsif ($Tv_service->can('reports')) {
-      if($FORM{TYPE}) {
-        $LIST_PARAMS{TYPE}=$FORM{TYPE};
-      }
-
-      $Tv_service->reports({ %FORM, %LIST_PARAMS, SERVICE_ID => $FORM{SERVICE_ID} });
-      _error_show($Tv_service);
-
-      if($Tv_service->{REPORT}) {
-        result_former({
-          FUNCTION_FIELDS => $Tv_service->{FUNCTION_FIELDS},
-#          FUNCTION_FIELDS => "iptv_console:DEL:mac;serial_number:&list="
-#            . ($FORM{list} || '') . "&del=1&COMMENTS=1"
-#            . (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : ''),
-          #":$lang{DEL}:MAC:&del=1&COMMENTS=del",
-          SKIP_USER_TITLE => 1,
-          EXT_TITLES => {
-            id   => 'ID',
-            name => $lang{NAME}
-          },
-          TABLE   => {
-            width    => '100%',
-            caption  => ($Tv_service->{REPORT_NAME} && $lang{$Tv_service->{REPORT_NAME}}) ? $lang{$Tv_service->{REPORT_NAME}} : $Tv_service->{REPORT_NAME},
-            qs       => "&list=" . ($FORM{list} || ''). (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : ''),
-            EXPORT   => 1,
-            ID       => 'TV_REPORTS',
-            header   => $Tv_service->{MENU}
-          },
-#          FILTER_COLS   => {
-#            account              => 'search_link:iptv_users_list:ID',
-#          },
-          DATAHASH      => $Tv_service->{REPORT},
-          TOTAL         => 1
-        });
-      }
-    }
-  }
 
   return 1;
 }

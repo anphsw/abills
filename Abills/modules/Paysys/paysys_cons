@@ -303,7 +303,8 @@ sub paysys_import_form_cons {
               DATE           => $DATA_ARR->[$i]->{DATE},
               EXT_ID         => $ext_id,
               CHECK_EXT_ID   => $ext_id,
-              INNER_DESCRIBE => $inner_describe
+              INNER_DESCRIBE => $inner_describe,
+              CURRENCY       => $conf{SYSTEM_CURRENCY} || 0
             }
           );
 
@@ -1364,7 +1365,9 @@ sub tyme_import {
   my $login = $conf{PAYSYS_TYME_LOGIN};
   my $pass  = $conf{PAYSYS_TYME_PASSWORD};
 
-  my $ftp = Net::FTPSSL->new("$host", SSL => 1, Debug => 0, Port => 21,)
+  my $ftp = Net::FTPSSL->new("$host", useSSL => 0, Debug => 0, Port => 21, SSL_Client_Certificate => {
+      SSL_version   => 'TLSv1',
+    },       )
   or die "Cannot connect to '$host': $@";
   $ftp->login("$login", "$pass");
   my $report_date = '';

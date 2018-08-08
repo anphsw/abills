@@ -13,7 +13,6 @@
 
 use strict;
 use warnings FATAL => 'all';
-#use Exporter qw(import);
 
 our (
   %lang,
@@ -31,19 +30,6 @@ our (
 our $html;
 
 $VERSION = 1.00;
-#
-#@EXPORT = qw(
-#  show_result
-#  sort_array_to_hash
-#  translate_list_value
-#  );
-#
-#@EXPORT_OK = qw(
-#  is_array_ref
-#  is_not_empty_array_ref
-#);
-#
-#%EXPORT_TAGS = ();
 
 #**********************************************************
 =head2 sort_array_to_hash($array_ref, $key_name)
@@ -221,7 +207,7 @@ sub is_not_empty_array_ref {
 =cut
 #**********************************************************
 sub arrays_array2table {
-  my ($lines_array, $attr) = @_;
+  my ($lines_array) = @_;
   
   my $table = '<table class="table table-hover">';
   

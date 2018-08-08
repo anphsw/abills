@@ -319,6 +319,7 @@ sub ipoe_start_active{
   foreach my $line ( @{$nas_list} ){
     if ( in_array( $line->{NAS_TYPE}, \@nas_types ) || $attr->{NAS_IDS} ){
       $nas_info{ $line->{NAS_ID} } = $line;
+      ($nas_info{$line->{NAS_ID}}{NAS_MNG_IP}, undef, $nas_info{$line->{NAS_ID}}{NAS_MNG_PORT}) = split(/:/, $nas_info{$line->{NAS_ID}}{NAS_MNG_IP_PORT}, 4);
     }
   }
 

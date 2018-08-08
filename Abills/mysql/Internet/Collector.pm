@@ -247,20 +247,20 @@ sub user_ips{
     #Session ID
     $session_ids{$ip} = $line->{acct_session_id} || '';
     $interim_times{ $line->{ip} } = $line->{interim_time} || 0;
-    $connect_info{ $line->{ip} } = $line->{CONNECT_INFO} || '';
+    $connect_info{ $line->{ip} }  = $line->{CONNECT_INFO} || '';
 
     #$self->{INTERIM}{$line->[3]}{TIME}=$line->[10];
     $users_info{PAYMENT_TYPE}{ $line->{uid} } = $line->{payment_type};
-    $users_info{DEPOSIT}{ $line->{uid} } = $line->{deposit};
-    $users_info{REDUCTION}{ $line->{uid} } = $line->{reduction};
-    $users_info{ACTIVATE}{ $line->{uid} } = $line->{activate};
-    $users_info{BILL_ID}{ $line->{uid} } = $line->{bill_id};
+    $users_info{DEPOSIT}{ $line->{uid} }      = $line->{deposit};
+    $users_info{REDUCTION}{ $line->{uid} }    = $line->{reduction};
+    $users_info{ACTIVATE}{ $line->{uid} }     = $line->{activate};
+    $users_info{BILL_ID}{ $line->{uid} }      = $line->{bill_id};
     $users_info{JOIN_SERVICE}{ $line->{uid} } = $line->{join_service} if ( $line->{join_service} );
   }
 
-  $self->{USERS_IPS} = \%ips;
-  $self->{USERS_INFO} = \%users_info;
-  $self->{SESSIONS_ID} = \%session_ids;
+  $self->{USERS_IPS}    = \%ips;
+  $self->{USERS_INFO}   = \%users_info;
+  $self->{SESSIONS_ID}  = \%session_ids;
   $self->{INTERIM_TIME} = \%interim_times;
   $self->{CONNECT_INFO} = \%connect_info;
 
@@ -686,6 +686,19 @@ sub traffic_add_user{
 #**********************************************************
 =head2 traffic_user_get2($attr) - Get used traffic from DB
 
+  Arguments:
+    $attr
+      UID
+      DATE_TIME
+      INTERVAL  - $from, $to
+      INTERVAL_ID
+      TRAFFIC_ID
+      ACCT_SESSION_ID
+      ACTIVATE - Activate service
+
+  Returns:
+    $self
+
 =cut
 #**********************************************************
 sub traffic_user_get2{
@@ -696,6 +709,65 @@ sub traffic_user_get2{
   #my $from   = $attr->{FROM} || '';
   my %result = ();
   my $WHERE = '';
+
+  if($self->{conf}->{INTERNET_INTERVAL_PREPAID}) {
+    $self->query("SELECT traffic_type, sent, recv
+      FROM internet_log_intervals
+      WHERE acct_session_id= ?
+        AND interval_id= ?
+        AND uid= ? FOR UPDATE;",
+      undef,
+      { Bind => [ $attr->{ACCT_SESSION_ID}, $attr->{INTERVAL_ID}, $attr->{UID}  ] }
+    );
+
+    my %intrval_traffic = ();
+    foreach my $line (@{ $self->{list} }) {
+      $intrval_traffic{ $line->[0] } = 1;
+      #Traffic class
+      $result{ $line->[0] }{TRAFFIC_IN} = $line->[2];
+      $result{ $line->[0] }{TRAFFIC_OUT} = $line->[1];
+    }
+
+    if (! $self->{TOTAL}) {
+      $self->query("INSERT INTO internet_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
+        VALUES ( ? , ? , ? , ? , ? , ? , ? , ?, NOW());", 'do',
+        { Bind => [
+          $attr->{INTERVAL_ID},
+          $attr->{TRAFFIC_OUT},
+          $attr->{TRAFFIC_IN},
+          0,
+          $attr->{TRAFFIC_ID} || 0,
+          $self->{SUM} || 0,
+          $attr->{ACCT_SESSION_ID},
+          $self->{UID} || $attr->{UID}
+        ] });
+
+    }
+    else {
+      $self->query("UPDATE internet_log_intervals SET
+             sent=sent+ ? ,
+             recv=recv+ ? ,
+             duration=duration + ?,
+             sum=sum + ?
+           WHERE interval_id= ?
+             AND acct_session_id= ?
+             AND traffic_type= ?
+             AND uid= ? ;", 'do',
+        { Bind => [
+          $attr->{TRAFFIC_OUT},
+          $attr->{TRAFFIC_IN},
+          0,
+          $self->{SUM} || 0,
+          $attr->{INTERVAL_ID},
+          $attr->{ACCT_SESSION_ID},
+          $attr->{TRAFFIC_ID} || 0,
+          $attr->{UID}
+        ] }
+      );
+    }
+
+    return \%result;
+  }
 
   if ( $attr->{JOIN_SERVICE} ){
     my @uids_arr = ();
@@ -780,6 +852,15 @@ sub traffic_user_get2{
 #**********************************************************
 =head2 traffic_user_get($attr) - Get used traffic from DB
 
+  Arguments:
+    $attr
+      UID
+      DATE_TIME
+      INTERVAL
+
+  Results:
+    \%result
+
 =cut
 #**********************************************************
 sub traffic_user_get{
@@ -818,7 +899,7 @@ sub traffic_user_get{
   }
   elsif ( $attr->{INTERVAL} ){
     my ($from, $to) = split( /\//, $attr->{INTERVAL} );
-    $from = ($from eq '0000-00-00') ? 'DATE_FORMAT(start, \'%Y-%m\')>=DATE_FORMAT(curdate(), \'%Y-%m\')' : "DATE_FORMAT(start, '\%Y-\%m-\%d')>='$from'";
+    $from = ($from eq '0000-00-00') ? 'DATE_FORMAT(start, \'%Y-%m\')>=DATE_FORMAT(CURDATE(), \'%Y-%m\')' : "DATE_FORMAT(start, '\%Y-\%m-\%d')>='$from'";
     $WHERE .= "( $from AND start<'$to') ";
   }
   elsif ( $attr->{ACTIVATE} && $attr->{ACTIVATE} ne '0000-00-00' ){

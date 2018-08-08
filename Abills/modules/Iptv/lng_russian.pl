@@ -67,4 +67,5 @@ $lang{DISABLE_SERVICE}='Отключить услугу';
 $lang{DISABLED_WILL}='Услуга будет завершена';
 $lang{PROVIDER_PORTAL_URL}='Портал продавца услуги';
 
-$lang{ERR_NO_AVAILABLE_TP}='Нет достпных тарифных планов';
+$lang{ERR_NO_AVAILABLE_TP}='Нет доступных тарифных планов';
+$lang{DISABLE_SERVICE_DATE}='Дата отключения';

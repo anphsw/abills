@@ -10,3 +10,5 @@ CREATE TABLE IF NOT EXISTS `equipment_tr_069_settings` (
   PRIMARY KEY (`id`)
 )   COMMENT='Equipment TR-069 Settings';
 
+ALTER TABLE `builds` ADD COLUMN `schema` VARCHAR(150) NOT NULL DEFAULT '';
+

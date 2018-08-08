@@ -188,8 +188,7 @@ sub _curl_request {
   if ( $attr->{REQUEST_PARAMS_JSON} ) {
     $request_params = '-d "{' . join(',', @request_params_arr) . '}"';
   }
-  
-  if ( $#request_params_arr > - 1 ) {
+  elsif ( $#request_params_arr > - 1 ) {
     $request_params = join('&', @request_params_arr);
     if ( $attr->{GET} ) {
       $request_url .= "?" . $request_params;
@@ -200,7 +199,8 @@ sub _curl_request {
       $request_params = "-d \"$request_params\" ";
     }
   }
-  
+
+  $request_url =~ s/\n/%20/g;
   $request_url =~ s/ /%20/g;
   $request_url =~ s/"/\\"/g;
   $request_url =~ s/\`/\\\`/g;

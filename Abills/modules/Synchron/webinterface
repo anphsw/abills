@@ -11,7 +11,6 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
-#use Abills::Base qw(in_array);
 
 our(
   $html,
@@ -37,7 +36,8 @@ sub syncron_report {
     PASSWORD => $password,
     URL      => $url,
     DBNAME   => $dbname,
-    debug    => $debug
+    debug    => $debug,
+    CONF     => \%conf
   });
 
   my @header_arr = (

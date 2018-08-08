@@ -35,10 +35,10 @@ our @PREDEFINED_RULES = qw/
   /;
 
 my @notes_table_filter_bar = (
-  "$lang{ALL}:index=$index&STATUS=ALL",
+  "$lang{ALL}:index=$index&STATUS=",
   "$lang{ACTIVE}:index=$index&STATUS=0",
-  "$lang{CLOSED}:index=$index&STATUS=1",
-  "$lang{PAUSED}:index=$index&STATUS=2"
+  "$lang{CLOSED}:index=$index&STATUS=2",
+  "$lang{PAUSED}:index=$index&STATUS=1"
 );
 
 
@@ -237,6 +237,7 @@ sub notepad_manager_notes_list_view {
   );
   
   $LIST_PARAMS{AID} = $FORM{AID} || '_SHOW';
+  $LIST_PARAMS{STATUS} = (defined($FORM{STATUS})) ? $FORM{STATUS} : "_SHOW";
   
   my Abills::HTML $table;
   ($table) = result_former({

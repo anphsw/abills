@@ -325,8 +325,8 @@ sub form_builds{
 
   if ( !$FORM{qindex} && !$FORM{xml} && $FORM{BUILDS} ){
     my @header_arr = (
-      "$lang{INFO}:index=$index&BUILDS=$FORM{BUILDS}" . (($FORM{chg}) ? '&chg=$FORM{chg}' : ''),
-      "Media:index=$index&media=1&BUILDS=$FORM{BUILDS}" . (($FORM{chg}) ? '&chg=$FORM{chg}' : '')
+      "$lang{INFO}:index=$index&BUILDS=$FORM{BUILDS}" . (($FORM{chg}) ? "&chg=$FORM{chg}" : ''),
+      "Media:index=$index&media=1&BUILDS=$FORM{BUILDS}" . (($FORM{chg}) ? "&chg=$FORM{chg}" : '')
     );
 
     print $html->table_header( \@header_arr, { TABS => 1 } );
@@ -348,6 +348,7 @@ sub form_builds{
   }
   elsif ( $FORM{change} ){
     $FORM{PLANNED_TO_CONNECT} = $FORM{PLANNED_TO_CONNECT} ? $FORM{PLANNED_TO_CONNECT} : 0;
+    $FORM{NUMBERING_DIRECTION} = $FORM{NUMBERING_DIRECTION} ? $FORM{NUMBERING_DIRECTION} : 0;
     $Address->build_change( \%FORM );
 
     if ( !$Address->{errno} ){
@@ -358,6 +359,7 @@ sub form_builds{
     $Address->build_info( { ID => $FORM{chg} } );
     if ( !$Address->{errno} ){
       $Address->{PLANNED_TO_CONNECT_CHECK}=$Address->{PLANNED_TO_CONNECT}?'checked':'';
+      $Address->{NUMBERING_DIRECTION_CHECK}=$Address->{NUMBERING_DIRECTION}?'checked':'';
       $Address->{ACTION} = 'change';
       $Address->{LNG_ACTION} = "$lang{CHANGE}";
       $FORM{add_form} = 1;
@@ -391,7 +393,7 @@ sub form_builds{
       }
 
     }
-
+    # _bp('', $Address);
     $Address->{STREET_SEL} = sel_streets($Address);
     $html->tpl_show( templates( 'form_build' ), $Address );
   }
@@ -416,8 +418,9 @@ sub form_builds{
   
   $LIST_PARAMS{DISTRICT_ID} = $FORM{DISTRICT_ID} if ($FORM{DISTRICT_ID});
   $LIST_PARAMS{STREET_ID} = $FORM{BUILDS};
-  $LIST_PARAMS{PLANNED_TO_CONNECT} = $FORM{PLANNED_TO_CONNECT};
-  
+  $LIST_PARAMS{PLANNED_TO_CONNECT}  = $FORM{PLANNED_TO_CONNECT};
+  $LIST_PARAMS{NUMBERING_DIRECTION} = $FORM{NUMBERING_DIRECTION};
+    
   my @status_bar = (
     "$lang{PLANNED_TO_CONNECT}:index=$index&BUILDS=" . ($FORM{BUILDS} || '') . "&PLANNED_TO_CONNECT=1",
     "$lang{ALL}:index=$index&BUILDS=" . ($FORM{BUILDS} || '')
@@ -454,7 +457,7 @@ sub form_builds{
     },
     # for button MESSAGE
     FILTER_VALUES => {
-      number => sub {
+      street_name => sub {
         my ($number, $line) = @_;
         $line->{location_id} = $line->{id};
         return $number;
@@ -681,9 +684,10 @@ sub form_address_sel {
 
     if ($conf{STREET_TYPE}) {
       my @street_type_list = split (';', $conf{STREET_TYPE});
+
       $streets_list = [ map { 
         { %$_, 
-          street_name => join (' ', $street_type_list[$_->{type}], $_->{street_name})
+          street_name => join (' ', ($street_type_list[($_->{type} || 0)]) ? $street_type_list[$_->{type}] : q{}, ($_->{street_name} || q{}))
         }; 
       } @{$streets_list} ];
     }
@@ -721,7 +725,8 @@ sub form_address_sel {
     my $districts_list = $Address->district_list({
       %LIST_PARAMS,
       PAGE_ROWS => 1000,
-      COLS_NAME => 1
+      COLS_NAME => 1,
+      SORT      => 'city',
     });
   
     print $js_list . $list_to_options_string->($districts_list);

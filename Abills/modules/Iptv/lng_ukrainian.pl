@@ -66,4 +66,5 @@ $lang{DISABLE_SERVICE}='Відключити послугу';
 $lang{DISABLED_WILL}='Послуга буде закінчена';
 $lang{PROVIDER_PORTAL_URL}='Портал продавця послуги';
 
-$lang{ERR_NO_AVAILABLE_TP}='Нема достпних тарифних планів';
+$lang{ERR_NO_AVAILABLE_TP}='Нема доступних тарифних планів';
+$lang{DISABLE_SERVICE_DATE}='Дата відключення';

@@ -29,6 +29,8 @@ my $Tariffs = Tariffs->new( $db, \%conf, $admin );
 sub iptv_tp{
   my $tarif_info;
 
+  require Control::Services;
+
   my %payment_types = (
     0 => $lang{PREPAID},
     1 => $lang{POSTPAID}
@@ -144,30 +146,20 @@ sub iptv_tp{
     $tarif_info->{POSTPAID_MONTH_FEE} = ($tarif_info->{POSTPAID_MONTH_FEE}) ? 'checked' : '';
     $tarif_info->{ABON_DISTRIBUTION} = ($tarif_info->{ABON_DISTRIBUTION}) ? 'checked' : '';
 
-    my $tp_list = $Tariffs->list( {
-      MODULE       => 'Iptv',
-      NEW_MODEL_TP => 1,
-      DOMAIN_ID    => $admin->{DOMAIN_ID},
-      COLS_NAME    => 1
-    } );
+    $tarif_info->{SMALL_DEPOSIT_ACTION_SEL} = sel_tp({
+      SELECT          => 'SMALL_DEPOSIT_ACTION',
+      SMALL_DEPOSIT_ACTION => $tarif_info->{SMALL_DEPOSIT_ACTION} || 0,
+      SKIP_TP         => $tarif_info->{TP_ID},
+      SEL_OPTIONS     => { 0 => '--', '-1' => $lang{HOLD_UP} },
+      MODULE          => 'Iptv'
+    });
 
-    $tarif_info->{SMALL_DEPOSIT_ACTION_SEL} = $html->form_select(
-      'SMALL_DEPOSIT_ACTION',
-      {
-        SELECTED    => $tarif_info->{SMALL_DEPOSIT_ACTION} || 0,
-        SEL_LIST    => $tp_list,
-        SEL_OPTIONS => { 0 => '--', '-1' => $lang{HOLD_UP} },
-      }
-    );
-
-    $tarif_info->{NEXT_TARIF_PLAN_SEL} = $html->form_select(
-      'NEXT_TARIF_PLAN',
-      {
-        SELECTED    => $tarif_info->{NEXT_TARIF_PLAN},
-        SEL_LIST    => $tp_list,
-        SEL_OPTIONS => { '' => '--' },
-      }
-    );
+    $tarif_info->{NEXT_TARIF_PLAN_SEL} = sel_tp({
+      SELECT          => 'NEXT_TARIF_PLAN',
+      NEXT_TARIF_PLAN => $tarif_info->{NEXT_TARIF_PLAN},
+      SKIP_TP         => $tarif_info->{TP_ID},
+      MODULE          => 'Iptv'
+    });
 
     $tarif_info->{SERVICE_SEL} = tv_services_sel({ %$tarif_info, ALL => 1 });
 
@@ -176,7 +168,7 @@ sub iptv_tp{
         templates( 'form_row' ),
         {
           ID    => 'EXT_BILL_ACCOUNT',
-          NAME  => "$lang{EXTRA} $lang{BILL}",
+          NAME  => $lang{EXTRA_BILL},
           VALUE => $html->form_input( 'EXT_BILL_ACCOUNT', '1', { ID => 'EXT_BILL_ACCOUNT', TYPE => 'checkbox', STATE =>
                 ($tarif_info->{EXT_BILL_ACCOUNT}) ? 'checked' : undef } )
         },
@@ -225,6 +217,7 @@ sub iptv_tp{
       comments             => $lang{DESCRIBE},
       service_id           => "SERVICE_ID",
       service_name         => $lang{SERVICE},
+      inner_tp_id          => 'ID',
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {
@@ -950,8 +943,8 @@ sub upload_m3u{
   my $content = $FORM{FILE}->{Contents} || '';
 
   #split rows
-  my @strings = split( "\n", $content );
-  chop(@strings);
+  my @strings = split( "\n\r?", $content );
+  #chop(@strings);
 
   # upload channels without changes
   if ( $FORM{FILE} && $FORM{SELECT_VARIANTS} && $FORM{SELECT_VARIANTS} == 1 ){

@@ -1641,8 +1641,9 @@ sub extfin_calculated_balance {
   use Finance;
   use Bills;
   use Users;
+
   my $Payments = Finance->payments($db, $admin, \%conf);
-  my $Fees = Finance->fees($db, $admin, \%conf);
+  my $Fees  = Finance->fees($db, $admin, \%conf);
   my $Bills = Bills->new($db, $admin, \%conf);
   my $User  = Users->new($db, $admin, \%conf);
 
@@ -1650,8 +1651,8 @@ sub extfin_calculated_balance {
 
   my ($year, $month, undef) = split('-', $DATE);
 
-  $month        = $FORM{MONTH} if $FORM{MONTH};
-  $year         = $FORM{YEAR}  if $FORM{YEAR};
+  $month        = $FORM{MONTH} if ($FORM{MONTH} && $FORM{MONTH} =~ /^\d+$/);
+  $year         = $FORM{YEAR}  if ($FORM{YEAR});
   $FORM{sort} //= 1;
   $FORM{desc} //= '';
 
@@ -1660,7 +1661,7 @@ sub extfin_calculated_balance {
   $Extfin->{MONTH_SELECT} = $html->form_select(
     'MONTH',
     {
-      SELECTED => $FORM{MONTH} ? int($FORM{MONTH}) : int($month),
+      SELECTED     => $month,
       SEL_ARRAY    => [ '', @MONTHES ],
       ARRAY_NUM_ID => 1,
     }
@@ -1707,9 +1708,6 @@ sub extfin_calculated_balance {
   if($FORM{desc} && $FORM{desc} eq 'DESC'){
     @$bills_list = reverse @$bills_list;
   }
-
-
-
 
   my $period = sprintf("%s-%#.2d", $year, $month);
 

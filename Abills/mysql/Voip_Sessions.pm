@@ -298,6 +298,7 @@ sub list{
 
   my $WHERE = '';
   my @WHERE_RULES = ("u.uid=l.uid");
+  delete $self->{SEARCH_FIELDS};
 
   #Interval from date to date
   if ( $attr->{INTERVAL} ){
@@ -322,6 +323,7 @@ sub list{
 
   $WHERE = $self->search_former( $attr, [
       [ 'LOGIN',        'STR',   'u.id AS login',                        1 ],
+      [ 'START',        'DATE',  'l.start',                              1 ],
       [ 'DATE',         'DATE',  'l.start',                              1 ],
       [ 'DURATION',     'DATE',  'SEC_TO_TIME(l.duration) AS duration',  1 ],
       [ 'IP',           'IP',    'l.ip',  'INET_NTOA(l.client_ip_address) AS ip' ],
@@ -342,7 +344,8 @@ sub list{
     ],
     { WHERE        => 1,
       WHERE_RULES  => \@WHERE_RULES,
-      USERS_FIELDS => 1
+      USERS_FIELDS => 1,
+      USE_USER_PI  => 1,
     }
   );
 
@@ -353,7 +356,7 @@ sub list{
   #    $EXT_TABLES  .= 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)';
   #  }
 
-  $self->query( "SELECT $self->{SEARCH_FIELDS} l.acct_session_id, l.uid
+  $self->query( "SELECT $self->{SEARCH_FIELDS} l.acct_session_id, l.uid, l.nas_id
   FROM (voip_log l, users u)
   $EXT_TABLES
   $WHERE
@@ -377,8 +380,9 @@ sub list{
 }
 
 #**********************************************************
-# session calculation
-# min max average
+=head2 calculation($attr) - session calculation
+
+=cut
 #**********************************************************
 sub calculation{
   my ($self) = shift;
@@ -391,12 +395,12 @@ sub calculation{
     $WHERE .= ($WHERE ne '') ? " and l.uid='$attr->{UID}' " : "WHERE l.uid='$attr->{UID}' ";
   }
 
-  $self->query( "SELECT SEC_TO_TIME(min(l.duration)) AS min_dur,
-     SEC_TO_TIME(max(l.duration)) AS max_dur,
-     SEC_TO_TIME(avg(l.duration)) AS avg_dur,
-     min(l.sum) AS min_sum,
-     max(l.sum) AS max_sum,
-     avg(l.sum) AS avg_sum
+  $self->query( "SELECT SEC_TO_TIME(MIN(l.duration)) AS min_dur,
+     SEC_TO_TIME(MAX(l.duration)) AS max_dur,
+     SEC_TO_TIME(AVG(l.duration)) AS avg_dur,
+     MIN(l.sum) AS min_sum,
+     MAX(l.sum) AS max_sum,
+     AVG(l.sum) AS avg_sum
   FROM voip_log l $WHERE",
     undef,
     { INFO => 1 }

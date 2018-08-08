@@ -36,7 +36,6 @@ our %STR_LEVEL = (
   7 => 'DEBUG',   #   KERN_DEBUG             7        Debug-level messages
 );
 
-use Exporter;
 use parent 'Exporter';
 
 my @levels = qw/
@@ -84,10 +83,12 @@ sub new {
   
   if ( $type eq 'STDOUT' ) {
     require Abills::Backend::Log::File;
+    Abills::Backend::Log::File->import();
     $self->{logger} = Abills::Backend::Log::File->new(\*STDOUT);
   }
   elsif ( $type eq 'FILE' ) {
     require Abills::Backend::Log::File;
+    Abills::Backend::Log::File->import();
     $self->{logger} = Abills::Backend::Log::File->new($attr->{FILE});
   }
   else {

@@ -303,6 +303,9 @@ sub form_companies {
         'users_count' => $lang{USERS},
         'status'      => $lang{STATUS},
       },
+      FILTER_COLS   => {
+        users_count      => ($FORM{json}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
+      },
       TABLE           => {
         width   => '100%',
         caption => $lang{COMPANIES},
@@ -334,6 +337,20 @@ sub form_companies {
   return 1;
 }
 
+
+#**********************************************************
+=head2 _company_user_link()
+
+=cut
+#**********************************************************
+sub _company_user_link{
+  my ($params, $attr) = @_;
+
+  return $html->button($params, "index=11&COMPANY_ID=$attr->{VALUES}->{ID}" );
+
+  return $params;
+}
+
 #**********************************************************
 =head2 form_companie_admins($attr)
 
@@ -361,8 +378,8 @@ sub form_companie_admins {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "$lang{ADMINS}",
-      title      => [ "$lang{ALLOW}", "$lang{LOGIN}", "$lang{FIO}", 'E-mail' ],
+      caption    => $lang{ADMINS},
+      title      => [ $lang{ALLOW}, $lang{LOGIN}, $lang{FIO}, 'E-mail' ],
       qs         => $pages_qs,
       ID         => 'COMPANY_ADMINS'
     }

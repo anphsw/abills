@@ -395,7 +395,12 @@ sub msgs_send_via_telegram {
     my $text = $_[0];
     while ( $text && $text =~ /\_\{(\w+)\}\_/ ) {
       my $to_translate = $1;
-      $text =~ s/\_\{$to_translate\}\_/$lang{$to_translate}/sg;
+      if ($lang{$to_translate}) {
+        $text =~ s/\_\{$to_translate\}\_/$lang{$to_translate}/sg;
+      }
+      else {
+        $text =~ s/\_\{$to_translate\}\_/$to_translate/sg;
+      }
     }
     Encode::_utf8_off($text);
     $text;

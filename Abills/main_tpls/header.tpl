@@ -150,7 +150,7 @@
         <!--/.events-menu-->
 
 
-        <!--Tasks Menu-->
+        <!--Search Menu-->
         <li class='dropdown search-menu'>
           <form class='no-live-select UNIVERSAL_SEARCH_FORM' id='SMALL_SEARCH_FORM' action='$SELF_URL'>
             <input type='hidden' name='index' value='7'>

@@ -204,8 +204,8 @@ sub cards_add {
     $self->query("INSERT INTO cards_users (
        serial, number, login, pin, status, expire,aid,
        diller_id, diller_date, sum, uid, domain_id, created, commission)
-     VALUES (?,?,?,ENCODE(?, ?),?,?,?,?,if (? > 0, now(), '0000-00-00'),
-       ?,?,?,now(),?);",
+     VALUES (?,?,?,ENCODE(?, ?),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),
+       ?,?,?,NOW(),?);",
      'do',
      { Bind => [
         $attr->{SERIAL} || '',
@@ -220,7 +220,7 @@ sub cards_add {
         $attr->{DILLER_ID} || 0,
         $attr->{SUM} || 0,
         $attr->{UID} || 0,
-        $admin->{DOMAIN_ID},
+        $admin->{DOMAIN_ID} || 0,
         $attr->{COMMISSION} || 0
        ]
      });
@@ -515,7 +515,7 @@ sub cards_list {
     WHERE_RULES => \@WHERE_RULES
   });
 
-  my $list;
+  my $list = [];
 
   if ($attr->{TYPE} && $attr->{TYPE} eq 'TP') {
     if ($attr->{TP_ID} && $attr->{TP_ID} ne '_SHOW' ) {
@@ -603,8 +603,8 @@ sub cards_list {
      $attr
     );
 
-    return $self if ($self->{errno});
-    $list = $self->{list};
+    return [] if ($self->{errno});
+    $list = $self->{list} || [];
 
     if ($attr->{SKIP_TOTALS}) {
       return $list;
@@ -614,6 +614,7 @@ sub cards_list {
        COUNT(*) AS total_cards,
        SUM(IF(cu.status=0, 1, 0)) AS enabled,
        SUM(IF(cu.status=1, 1, 0)) AS disabled,
+       SUM(IF(cu.status=6, 1, 0)) AS transferred_to_production,
        SUM(IF(u.activate <> '0000-00-00' or cu.status=2, 1, 0)) AS used,
        SUM(IF(u.activate IS NULL, 1, 0)) AS deleted,
        SUM(IF(cu.status=4, 1, 0)) AS returned,
@@ -622,6 +623,7 @@ sub cards_list {
        SUM(cu.sum) AS total_sum,
        SUM(IF(cu.status=0, cu.sum, 0)) AS enabled_sum,
        SUM(IF(cu.status=1, cu.sum, 0)) AS disabled_sum,
+       SUM(IF(cu.status=6, cu.sum, 0)) AS transferred_to_production_sum,
        SUM(IF(u.activate <> '0000-00-00'  or cu.status=2 , cu.sum, 0)) AS used_sum,
        SUM(IF(u.activate IS NULL, cu.sum, 0)) AS deleted_sum,
        SUM(IF(cu.status=4, cu.sum, 0)) AS returned_sum,
@@ -932,7 +934,9 @@ sub cards_report_days {
  SUM(IF(c.status=2, 1, 0)),
   SUM(IF(c.status=2, c.sum, 0)),
  SUM(IF(c.status=4, 1, 0)),
-  SUM(IF(c.status=4, c.sum, 0))
+  SUM(IF(c.status=4, c.sum, 0)),
+ SUM(IF(c.status=6, 1, 0)),
+  SUM(IF(c.status=6, c.sum, 0))
 from cards_users c
  $WHERE
 GROUP BY 1;"
@@ -952,6 +956,9 @@ GROUP BY 1;"
 
     $RESULT{ $line->[0] }{RETURNED}     = $line->[7];
     $RESULT{ $line->[0] }{RETURNED_SUM} = $line->[8];
+
+    $RESULT{ $line->[0] }{TRANSFERRED_TO_PRODUCTION}     = $line->[7];
+    $RESULT{ $line->[0] }{TRANSFERRED_TO_PRODUCTION_SUM} = $line->[8];
   }
 
   #TOtals
@@ -963,7 +970,9 @@ GROUP BY 1;"
  SUM(IF(c.status=2, 1, 0)) as used_total,
   SUM(IF(c.status=2, c.sum, 0)) as used_total_sum,
  SUM(IF(c.status=3, 1, 0)) as returned_total,
-  SUM(IF(c.status=3, c.sum, 0)) as returned_total_sum
+  SUM(IF(c.status=3, c.sum, 0)) as returned_total_sum,
+ SUM(IF(c.status=6, 1, 0)) as transferred_to_production_total,
+  SUM(IF(c.status=6, c.sum, 0)) as transferred_to_production_total_sum
 from cards_users c
  $WHERE ;",
  undef,

@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS `callcenter_calls_handler` (
   `operator_phone` VARCHAR(20) NOT NULL DEFAULT '',
   `status` INT(2) NOT NULL DEFAULT 0,
   `id` VARCHAR(20) NOT NULL DEFAULT '',
-  `date` DATETIME NOT NULL DEFAULT '00-00-0000 00:00:00',
+  `date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 )
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS `callcenter_ivr_menu` (
   COMMENT = 'Voip IVR Menu';
 
 CREATE TABLE IF NOT EXISTS `callcenter_cdr` (
-  `calldate` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `calldate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `clid` varchar(80) NOT NULL DEFAULT '',
   `src` varchar(80) NOT NULL DEFAULT '',
   `dst` varchar(80) NOT NULL DEFAULT '',

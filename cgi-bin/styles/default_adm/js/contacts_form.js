@@ -71,7 +71,7 @@ $(function () {
     });
     
     $.each(types, function (i, type) {
-      if (type.is_default === 1 && !types_present[type.id]) {
+      if (type.is_default == '1' && !types_present[type.id]) {
         contacts_raw.push({
           type_id    : type.id,
           name       : type.name,
@@ -85,8 +85,12 @@ $(function () {
   
   
   function renderContact(contact_json, position) {
-    
     if (CONTACTS_JSON.options.in_reg_wizard) {
+
+      if (typeof options.types[contact_json.type_id - 1] === 'undefined'){
+        return '';
+      }
+
       contact_json.name    = options.types[contact_json.type_id - 1].name;
       contact_json.type_id = 'CONTACT_TYPE_' + contact_json.type_id;
       contact_json.form    = null;

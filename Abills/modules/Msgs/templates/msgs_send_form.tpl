@@ -117,7 +117,7 @@
           <label class='control-label col-md-3' for='COMMENTS'>_{MESSAGE}_</label>
 
           <div class='col-md-9'>
-            <textarea data-action='drop-zone' class='form-control' id='MESSAGE' name='MESSAGE' rows='3'>%MESSAGE%</textarea>
+            <textarea data-action='drop-zone' class='form-control' id='MESSAGE' name='MESSAGE' rows='3'>%TPL_MESSAGE%</textarea>
           </div>
         </div>
       </div>
@@ -311,3 +311,25 @@
 </FORM>
 
 <script src="/styles/default_adm/js/draganddropfile.js"></script>
+
+<script>
+  jQuery(function () {
+    var survey_select = jQuery('select#SURVEY_ID');
+    survey_select.on('change', function() {
+      var select_value = this.value;
+      if (select_value) {
+        jQuery.ajax({
+          url: '$SELF_URL?get_index=msgs_admin&header=2&ajax=1&SURVEY_ID=' +  select_value + '',
+          success: function (result) {
+            if (result) {
+              jQuery('textarea#MESSAGE').val(result);
+            }
+          }
+        });
+      }
+      else {
+        jQuery('textarea#MESSAGE').val("");
+      }
+    })
+  });
+</script>

@@ -32,6 +32,7 @@ my $Nas = Nas->new($db, \%conf, $admin);
 
 #**********************************************************
 =head2 cisco_isg_cmd($user_ip, $command, $attr) - Cisco ISG functions
+
   Arguments:
     $user_ip - User IP
     $command - Command
@@ -44,6 +45,7 @@ my $Nas = Nas->new($db, \%conf, $admin);
 
     $attr    -
       USER_NAME
+      NAS_ID
       SERVICE_NAME
       CURE_SERVICE
       User-Password
@@ -66,18 +68,24 @@ sub cisco_isg_cmd {
     print "User IP: $user_ip" . $html->br();
   }
 
-  if (!$conf{DV_ISG}) {
+  if (! $conf{DV_ISG} && ! $conf{INTERNET_ISG}) {
     return 1;
   }
 
+  `echo "test isg: $user_ip" >> /usr/abills_new/cgi-bin/isg`;
+
   #Get user NAS server from ip pools
-  if (!$Nas->{NAS_ID}) {
+  if ($attr->{NAS_ID}) {
+    $Nas->info({ NAS_ID => $attr->{NAS_ID} });
+  }
+  else {
     my $list = $Nas->nas_ip_pools_list({
       ACTIVE_NAS_ID => '_SHOW',
       IP            => '_SHOW',
       LAST_IP_NUM   => '_SHOW',
       COLS_NAME     => 1
     });
+
     foreach my $line (@$list) {
       if ($line->{ip} <= ip2int($user_ip) && ip2int($user_ip) <= $line->{last_ip_num}) {
         $Nas->info({ NAS_ID => $line->{active_nas_id} });
@@ -93,9 +101,9 @@ sub cisco_isg_cmd {
 
   #Get Active session info
   my @RAD_REQUEST = (
-    { 'User-Name' => $attr->{USER_NAME} },
+    { 'User-Name'          => $attr->{USER_NAME} },
     { 'Cisco-Account-Info' => "S$user_ip" },
-    { 'Cisco-AVPair' => "subscriber:command=$command" }
+    { 'Cisco-AVPair'       => "subscriber:command=$command" }
   );
 
   # Deactivate cur service
@@ -115,6 +123,7 @@ sub cisco_isg_cmd {
     Secret => $Nas->{NAS_MNG_PASSWORD}
   ) or return "Can't connect '$Nas->{NAS_MNG_IP_PORT}' $!";
 
+
   $conf{'dictionary'} = $base_dir . '/lib/dictionary' if (!$conf{'dictionary'});
   $r->load_dictionary($conf{'dictionary'});
   $r->clear_attributes();
@@ -123,6 +132,7 @@ sub cisco_isg_cmd {
 
   if (!defined $type) {
     my $message = "No responce from CoA server NAS ID: $Nas->{NAS_ID} '$Nas->{NAS_MNG_IP_PORT}' $! / ";
+
     $html->message('err', $lang{ERROR}, $message, { ID => 106 });
     $Log->log_add(
       {
@@ -186,7 +196,15 @@ sub cisco_isg_cmd {
       $html->message('err', $lang{ERROR}, "$lang{NOT_EXIST} ID: '$user_ip' ", { ID => 11 });
     }
     elsif ($Isg->{ISG_CID_CUR} =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
-      my $DHCP_INFO = dv_dhcp_get_mac($Isg->{ISG_CID_CUR});
+      my $DHCP_INFO;
+
+      if($conf{INTERNET_ISG}) {
+        $DHCP_INFO = internet_dhcp_get_mac($Isg->{ISG_CID_CUR});
+      }
+      else {
+        $DHCP_INFO = dv_dhcp_get_mac($Isg->{ISG_CID_CUR});
+      }
+
       $Isg->{ISG_CID_CUR} = $DHCP_INFO->{MAC} || '';
       if ($Isg->{ISG_CID_CUR} eq '') {
         $html->message('err', $lang{ERROR}, "IP: '$user_ip', MAC $lang{NOT_EXIST}. DHCP $lang{ERROR} ", { ID => 12 });

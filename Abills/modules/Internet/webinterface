@@ -13,7 +13,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
-use Abills::Base qw(date_diff in_array sendmail sec2time show_log mk_unique_value int2byte int2ip days_in_month clearquotes next_month);
+use Abills::Base qw(date_diff in_array sendmail sec2time show_log mk_unique_value int2byte _bp int2ip days_in_month clearquotes next_month);
 use Abills::Filters qw(_mac_former human_exp);
 use Internet;
 use Internet::Sessions;
@@ -59,7 +59,7 @@ if($permissions{4}) {
   require Internet::Configure;
 }
 
-if($permissions{6}) {
+if($permissions{5}) {
   require Internet::Monitoring;
 }
 
@@ -179,7 +179,8 @@ sub internet_multiuser {
   $Internet->list({
     GROUP_BY  => 'internet.id',
     ID        => join(';', @multiuser_arr),
-    LIST2HASH => 'id,uid'
+    LIST2HASH => 'id,uid',
+    PAGE_ROWS => 99999,
   });
   my $uid_hash = $Internet->{list_hash};
 
@@ -299,19 +300,23 @@ sub internet_users_list {
 
   internet_users_search($Internet);
 
-  my $service_status = sel_status({ HASH_RESULT => 1 });
-  my $all_btn_active = (defined $FORM{INTERNET_STATUS} ? '' : 'active');
-  my $status_bar     = $html->button($lang{ALL}, "index=$index$pages_qs", { class => "btn btn-default $all_btn_active" });
-
   # To prevent duplicating INTERNET_STATUS field in URL, should cut it from original $qs
   my $clear_qs = $pages_qs || q{};
   $clear_qs =~ s/\&INTERNET_STATUS=\d+//;
 
+  my $current_status = (defined $FORM{INTERNET_STATUS} && $FORM{INTERNET_STATUS} =~ /^\d+$/)
+                         ? $FORM{INTERNET_STATUS}
+                         : undef;
+  my $status_bar     = $html->button($lang{ALL}, "index=$index$clear_qs", {
+      class => "btn btn-default " . (!defined $FORM{INTERNET_STATUS} ? 'active' : '' )
+    });
+
+  my $service_status = sel_status({ HASH_RESULT => 1 });
   foreach my $i (sort keys %$service_status) {
     my $active         = '';
     my ($name) = split(/:/, $service_status->{$i}, 2);
 
-    if (defined($FORM{INTERNET_STATUS}) && $FORM{INTERNET_STATUS} =~ /^\d+$/ && $FORM{INTERNET_STATUS} == $i) {
+    if (defined $current_status && $current_status == $i) {
       $LIST_PARAMS{INTERNET_STATUS} = $FORM{INTERNET_STATUS};
       $pages_qs .= "&INTERNET_STATUS=$i";
       $active    = 'active';
@@ -366,6 +371,7 @@ sub internet_users_list {
       'tp_id'                 => "$lang{TARIF_PLAN} ID",
       'internet_status'       => "Internet $lang{STATUS}",
       'internet_status_date'  => "$lang{STATUS} $lang{DATE}",
+      'internet_comments'     => "Internet $lang{COMMENTS}",
       'online'                => 'Online',
       'online_ip'             => 'Online IP',
       'online_cid'            => 'Online CID',
@@ -504,7 +510,9 @@ sub internet_error {
 
     if ($conf{INTERNET_LOGIN}) {
       $Internet->info($user->{UID});
-      $LIST_PARAMS{LOGIN}.=";$Internet->{INTERNET_LOGIN}";
+      if ($Internet->{INTERNET_LOGIN}) {
+        $LIST_PARAMS{LOGIN}.=";$Internet->{INTERNET_LOGIN}";
+      }
     }
   }
   elsif ($FORM{LOGIN}) {
@@ -724,6 +732,10 @@ sub internet_payments_maked {
     return 0;
   }
 
+  if($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
+    $Internet->{MONTH_ABON} = $Internet->{PERSONAL_TP};
+  }
+
   my $deposit = (defined($attr->{USER_INFO}->{DEPOSIT})) ? $attr->{USER_INFO}->{DEPOSIT} + (($attr->{USER_INFO}->{CREDIT} > 0) ? $attr->{USER_INFO}->{CREDIT} : $Internet->{TP_CREDIT} ) : 0;
 
   my $abon_fees = ($attr->{USER_INFO}->{REDUCTION}==0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON}) * (100 - $attr->{USER_INFO}->{REDUCTION}) / 100;
@@ -745,22 +757,29 @@ sub internet_payments_maked {
     );
     #$Internet->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE} || '0000-00-00';
     service_get_month_fee($Internet, $attr);
-  }
 
-  if($conf{INTERNET_PAY_ACTIVATE}) {
-    my $sum = $attr->{SUM} || 0;
-    if( $Internet->{SERVICE_ACTIVATE} ne '0000-00-00'
-       && $deposit - $sum <= 0 && $deposit > 0) {
-      $Internet->change(
-        {
+    if($conf{INTERNET_PAY_ACTIVATE}) {
+      my $sum = $attr->{SUM} || 0;
+      if( $Internet->{SERVICE_ACTIVATE} ne '0000-00-00' && date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30
+        && $deposit - $sum <= 0 && $deposit > $abon_fees) {
+        #&& $deposit - $sum <= 0 && $deposit > 0) {
+
+        my %service_params = (
           UID    => $attr->{USER_INFO}->{UID},
           ID     => $Internet->{ID},
           STATUS => 0,
           SERVICE_ACTIVATE => $DATE
+        );
+
+        if($Internet->{STATUS}) {
+          $service_params{STATUS}=0;
         }
-      );
+
+        $Internet->change(\%service_params);
+      }
     }
   }
+
 
   return 1;
 }
@@ -833,16 +852,25 @@ sub internet_period_select {
 #**********************************************************
 =head2 internet_registration($attr)
 
+  Arguments:
+    $attr
+      CAPTCHA
+      CAPTCHA_OBJ
+      SHOW_SMS
+      QUITE
+
+
 =cut
 #**********************************************************
 sub internet_registration {
   my ($attr) = @_;
 
   if ($FORM{reg}) {
-    if ($attr->{CAPTCHA} && $attr->{CAPTCHA_OBJ}->check_code("$FORM{CCODE}", "$FORM{C}") != 1) {
-      $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_CAPTCHA}", { ID => 991 });
-    }
-    elsif ($attr->{SKIP_EMAIL_CHECK} && $FORM{EMAIL} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
+#    if ($attr->{CAPTCHA} && $attr->{CAPTCHA_OBJ}->check_code($FORM{CCODE}, $FORM{C}) != 1) {
+#      $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_CAPTCHA}", { ID => 991 });
+#    }
+#    els
+    if ($attr->{SKIP_EMAIL_CHECK} && $FORM{EMAIL} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
       $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_EMAIL}");
     }
     elsif ($conf{REGISTRATION_CHECK_PHONE}
@@ -850,7 +878,7 @@ sub internet_registration {
       $Internet->{MESSAGE} = $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PHONE}. (($conf{PHONE_FORMAT}) ? ' '.human_exp($conf{PHONE_FORMAT}) : q{}));
     }
     elsif (! $FORM{ACCEPT_RULES}) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_ACCEPT_RULES} -");
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCEPT_RULES});
     }
     else {
       my $password = mk_unique_value($conf{PASSWD_LENGTH} || 8);
@@ -914,7 +942,8 @@ sub internet_registration {
             );
 
             if ($FORM{STATUS}) {
-              $Internet->change({ UID    => $uid,
+              $Internet->change({
+                UID    => $uid,
                 STATUS => 0
               });
 
@@ -924,17 +953,17 @@ sub internet_registration {
 
           #show complete when user added
           if ($attr->{SHOW_SMS}) {
-            $html->tpl_show(_include('dv_reg_complete_sms', 'Internet'), { %$Internet, %FORM, %{ ($users) ? $users : {} }, PASSWORD => "$password" });
+            $html->tpl_show(_include('internet_reg_complete_sms', 'Internet'), { %$Internet, %FORM, %{ ($users) ? $users : {} }, PASSWORD => "$password" });
           }
           elsif (! $attr->{QUITE}) {
-            $html->tpl_show(_include('dv_reg_complete', 'Internet'), { %$Internet, %FORM, %{ ($users) ? $users : {} } });
+            $html->tpl_show(_include('internet_reg_complete', 'Internet'), { %$Internet, %FORM, %{ ($users) ? $users : {} } });
           }
 
           #Sendsms
           if ($FORM{PHONE} && in_array('Sms', \@MODULES) && $conf{INTERNET_REGISTRATION_SEND_SMS} && ! $FORM{REGISTRATION_SKIP_SEND_SMS}) {
             load_module('Sms', $html);
 
-            my $message = $html->tpl_show(_include('dv_reg_complete_sms', 'Internet'), { %FORM }, { OUTPUT2RETURN => 1  });;
+            my $message = $html->tpl_show(_include('internet_reg_complete_sms', 'Internet'), { %FORM }, { OUTPUT2RETURN => 1  });;
             sms_send({
               NUMBER  => $FORM{PHONE},
               MESSAGE => $message,
@@ -943,8 +972,8 @@ sub internet_registration {
           }
           #Send mail
           if ($FORM{EMAIL}) {
-            my $message = $html->tpl_show(_include('dv_reg_complete_mail', 'Internet'), { %$Internet, %FORM, PASSWORD => "$password" }, { OUTPUT2RETURN => 1 });
-            sendmail("$conf{ADMIN_MAIL}", "$FORM{EMAIL}", "$lang{REGISTRATION}", "$message", "$conf{MAIL_CHARSET}", '');
+            my $message = $html->tpl_show(_include('internet_reg_complete_mail', 'Internet'), { %$Internet, %FORM, PASSWORD => "$password" }, { OUTPUT2RETURN => 1 });
+            sendmail($conf{ADMIN_MAIL}, $FORM{EMAIL}, $lang{REGISTRATION}, $message, $conf{MAIL_CHARSET}, '');
           }
 
           return $uid;
@@ -999,6 +1028,8 @@ sub internet_registration {
     FEES_INFO
     SKIP_DISABLED
 
+  Returns:
+
 
 =cut
 #**********************************************************
@@ -1009,59 +1040,92 @@ sub internet_docs {
   my @services = ();
   my %info     = ();
 
-  $Internet->info($uid);
+  my $service_list = $Internet->list({
+    UID              => $uid,
+    MONTH_FEE        => '_SHOW',
+    DAY_FEE          => '_SHOW',
+    PERSONAL_TP      => '_SHOW',
+    INTERNET_STATUS  => '_SHOW',
+    ABON_DISTRIBUTION=> '_SHOW',
+    TP_NAME          => '_SHOW',
+    FEES_METHOD      => '_SHOW',
+    TP_ID            => '_SHOW',
+    TP_NUM           => '_SHOW',
+    TP_FIXED_FEES_DAY=> '_SHOW',
+    INTERNET_ACTIVATE=> '_SHOW',
+    GROUP_BY         => 'internet.id',
+    COLS_NAME        => 1
+  });
 
   if ($attr->{FEES_INFO}) {
-    if($Internet->{STATUS} && $Internet->{STATUS} != 5 && $attr->{SKIP_DISABLED}) {
+    my $service_info = $service_list->[0];
+    $info{service_activate} = $service_info->{internet_activate};
+    $info{tp_fixed_fees_day} = $service_info->{tp_fixed_fees_day} || 0;
+
+    if($service_info->{internet_status} && $service_info->{internet_status} != 5 && $attr->{SKIP_DISABLED}) {
       $info{day}   = 0;
       $info{month} = 0;
       $info{abon_distribution} = 0;
     }
     else {
-      if($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
-        $info{day}   = $Internet->{PERSONAL_TP};
-        $info{month} = $Internet->{PERSONAL_TP};
+      if($service_info->{personal_tp} && $service_info->{personal_tp} > 0) {
+        $info{day}   = $service_info->{personal_tp};
+        $info{month} = $service_info->{personal_tp};
         $info{abon_distribution} = 0; #$Internet->{ABON_DISTRIBUTION};
       }
       else {
-        $info{day} = $Internet->{DAY_ABON};
-        $info{month} = $Internet->{MONTH_ABON};
-        $info{abon_distribution} = $Internet->{ABON_DISTRIBUTION};
+        $info{day}   = $service_info->{day_fee};
+        $info{month} = $service_info->{month_fee};
+        $info{abon_distribution} = $service_info->{abon_distribution};
       }
     }
 
     return \%info;
   }
 
-  if ($Internet->{TOTAL}==0 || ($Internet->{STATUS} && $Internet->{STATUS} != 5)
-    #|| ($attr->{PAYMENT_TYPE} && ($Internet->{POSTPAID_ABON} || $Internet->{PAYMENT_TYPE}))
+  if ($Internet->{TOTAL} < 1
+#  if ($Internet->{TOTAL}==0 || ($Internet->{STATUS} && $Internet->{STATUS} != 5)
+#    #|| ($attr->{PAYMENT_TYPE} && ($Internet->{POSTPAID_ABON} || $Internet->{PAYMENT_TYPE}))
   ) {
     return \@services;
   }
 
   our %FEES_METHODS;
-  if ($Internet->{MONTH_ABON} && $Internet->{MONTH_ABON} > 0) {
-    my %FEES_DSC = (
-      MODULE          => 'Internet',
-      TP_ID           => $Internet->{TP_ID},
-      TP_NAME         => $Internet->{TP_NAME},
-      FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
-      FEES_METHOD     => $Internet->{FEES_METHOD} ? $FEES_METHODS{$Internet->{FEES_METHOD}} : undef,
-    );
 
-    push @services, fees_dsc_former(\%FEES_DSC)."||$Internet->{MONTH_ABON}||$Internet->{TP_NAME}";
-  }
+  foreach my $service_info ( @$service_list ) {
+    if($service_info->{internet_status} && $service_info->{internet_status} != 5) {
+      next
+    }
 
-  if ($Internet->{DAY_ABON} && $Internet->{DAY_ABON} > 0) {
-    my $days_in_month =  days_in_month({ DATE => next_month({ DATE => $DATE }) });
-    #Describe| days | sum
-    push @services, "Internet: $lang{MONTH_FEE_SHORT}: $Internet->{TP_NAME} ($Internet->{TP_ID})|$days_in_month $lang{DAY}|"
-        . sprintf("%.2f", ($Internet->{DAY_ABON} * $days_in_month)) . "||$Internet->{TP_NAME}";
+    if($service_info->{personal_tp} && $service_info->{personal_tp} > 0) {
+      $service_info->{month_fee} = $service_info->{personal_tp};
+    }
+
+    if ($service_info->{month_fee} && $service_info->{month_fee} > 0) {
+      my %FEES_DSC = (
+        MODULE          => 'Internet',
+        TP_ID           => $service_info->{tp_id},
+        TP_NAME         => $service_info->{tp_name},
+        FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
+        FEES_METHOD     => $service_info->{fees_method} ? $FEES_METHODS{$service_info->{fees_method}} : undef,
+      );
+
+      #Fixme / make hash export
+      push @services, fees_dsc_former(\%FEES_DSC) . "||$service_info->{month_fee}|$service_info->{tp_num}|$service_info->{tp_name}"
+        ."|$service_info->{fees_method}|$service_info->{internet_activate}";
+    }
+
+    if ($service_info->{day_fee} && $service_info->{day_fee} > 0) {
+      my $days_in_month = days_in_month({ DATE => next_month({ DATE => $DATE }) });
+      #Describe| days | sum
+      push @services, "Internet: $lang{MONTH_FEE_SHORT}: $service_info->{tp_name} ($service_info->{tp_id})|$days_in_month $lang{DAY}|"
+        . sprintf("%.2f", ($service_info->{day_fee} * $days_in_month)) . "||$service_info->{tp_name}"
+        . "|$service_info->{fees_method}|$service_info->{internet_activate}";
+    }
   }
 
   return \@services;
 }
-
 
 
 #**********************************************************

@@ -112,10 +112,15 @@
                             %IPTV_MODEMS%
 
                             <div class='form-group'>
-                                <label class='control-label col-md-3' for='IPTV_EXPIRE'>_{EXPIRE}_:</label>
-                                <div class='col-md-9'>
+                                <label class='control-label col-md-3' for='IPTV_ACTIVATE'>_{ACTIVATE}_:</label>
+                                <div class='col-md-3'>
+                                    <input id='IPTV_ACTIVATE' name='IPTV_ACTIVATE' value='%IPTV_ACTIVATE%'
+                                           placeholder='%IPTV_ACTIVATE%' class='datepicker form-control' type='text'>
+                                </div>
+                                <label class='control-label col-md-2' for='IPTV_EXPIRE'>_{EXPIRE}_:</label>
+                                <div class='col-md-4'>
                                     <input id='IPTV_EXPIRE' name='IPTV_EXPIRE' value='%IPTV_EXPIRE%'
-                                           placeholder='%IPTV_EXPIRE%' class='datapicker form-control' type='text'>
+                                           placeholder='%IPTV_EXPIRE%' class='datepicker form-control' type='text'>
                                 </div>
                             </div>
 

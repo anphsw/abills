@@ -9,6 +9,7 @@ our %FUNCTIONS_LIST = (
   "08:2:$lang{SHEDULE}:internet_form_shedule:UID"   => 11,
   "10:0:$lang{INTERNET}:null:"                      => 5,
   "11:10:$lang{TARIF_PLANS}:internet_tp:"           => 5,
+  "39:10:$lang{FILTERS_LOG}:internet_filters:"      => 5,
   "12:11:$lang{ADD}:internet_tp:"                   => 5,
   "13:11:$lang{INTERVALS}:form_intervals:TP_ID"     => 5,
   "14:11:$lang{NASS}:form_nas_allow:TP_ID"          => 5,
@@ -25,6 +26,7 @@ our %FUNCTIONS_LIST = (
   "27:19:$lang{TARIF_PLANS}:internet_report_tp:"    => 4,
   "36:0:$lang{INTERNET}:internet_online:"           => 6,
   "37:0:$lang{BUILDS}:internet_online_builds:"      => 6,
+  "30:19:IP Pools:internet_pools_report:"           => 4,
 #  "38:0:$lang{INTERNET} $lang{STATS}:internet_use:COMPANY_ID"  => 13
 );
 

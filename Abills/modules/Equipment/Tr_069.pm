@@ -327,7 +327,7 @@ sub tr_069_api {
 
   if ($settings_list->[0]->{unix_changetime} && $settings_list->[0]->{unix_updatetime} && $settings_list->[0]->{unix_changetime} >= $settings_list->[0]->{unix_updatetime}) {
     $onu_setting->{ reconfigure } = 1;
-    $Equipment->tr_069_settings_change($settings_list->[0]->{onu_id}, { UPDATE => 1 });
+    $Equipment->tr_069_settings_change($settings_list->[0]->{onu_id}, { UPDATE => 1 }) if (!$FORM{wlan});
   }
 
   foreach my $key (keys %{$default_settings}) {
@@ -655,8 +655,8 @@ sub tr_069_status {
       . $html->li($html->button('WLAN information', '#'), { id => 'wlan' })
       . $html->li($html->button('VoIP information', '#'), { id => 'voip' })
       . $html->li($html->button('Security information', '#'), { id => 'security' })
-      . $html->li($html->button('Hosts information', '#'), { id => 'hosts' })
-      . $html->li($html->button('Neighbor AP information', '#'), { id => 'neighbor_ap' });
+      . $html->li($html->button('Hosts information', '#'), { id => 'hosts' });
+#      . $html->li($html->button('Neighbor AP information', '#'), { id => 'neighbor_ap' });
 
     return $html->tpl_show(_include('equipment_tr_069_cpe_menu', 'Equipment'), { HTML_CONTENT => $html_content, MENU => 'status', SUB_MENU_CONTENT => $sub_menu_items, %FORM }, $attr);
   }
@@ -766,6 +766,28 @@ sub tr_069_voip {
     SEL_HASH => { 1 => 'Enable', 0 => 'Disable' },
     NO_ID    => 1
   });
+  
+  $FORM{SERVER_FORM}= "<input type='text' name='server' value='$voip_info->{server}' class='form-control ip-input' ID='server'/>";
+
+  if ($conf{TR069_VOIP_SERVERS}) {
+    $conf{TR069_VOIP_SERVERS} =~ s/[\n\s]//g;
+    my @servers_arr = split(/;/, $conf{TR069_VOIP_SERVERS});
+    my %servers_hash = ();
+    my $sel_data = {SEL_ARRAY => \@servers_arr};
+    foreach my $server (@servers_arr) {
+      if ($server =~ /.+:.+/) {
+        my ($s_name, $s_ip) = split(/:/, $server, 2);
+        $servers_hash{$s_ip} = "($s_name)";
+      }
+    }
+    if (%servers_hash) {
+      $sel_data = {SEL_HASH => \%servers_hash}; 
+    }
+    $FORM{SERVER_FORM} = $html->form_select('server', {
+      SELECTED => $voip_info->{server} || '',
+      %{$sel_data}
+    });
+  }
 
   $html_content = $html->tpl_show(_include('equipment_tr_069_cpe_voip', 'Equipment'),
     { %FORM, %{$voip_info},

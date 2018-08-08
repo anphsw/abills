@@ -32,6 +32,10 @@ sub new {
 
   bless($self, $class);
 
+  if(! $CONF->{KBYTE_SIZE}) {
+    $CONF->{KBYTE_SIZE} = 1024;
+  }
+
   $CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
   $Tariffs = Tariffs->new($self->{db}, $CONF);
 
@@ -42,6 +46,13 @@ sub new {
 =head2 traffic_calculations() -
   Arguments:
     $RAD
+      OUTBYTE
+      INBYTE
+      OUTBYTE2
+      INBYTE2
+      SESSION_START
+      ACCT_INPUT_GIGAWORDS
+      ACCT_OUTPUT_GIGAWORDS
 
   Returns:
     Return TRAFFIC SUM
@@ -123,7 +134,6 @@ sub traffic_calculations {
         $prepaid{0} = 0;
         $prepaid{1} = 0;
         foreach my $line (@{ $self->{list} }) {
-          #print "$prepaid{0} / $prepaid1 :: ". ($line->[0]+$line->[1]) ."\n";
           $prepaid{0} = ((($prepaid{0} > 0) ? $prepaid{0} : 0) + $prepaid1) - ($line->[0] + $line->[1]);
           $prepaid{1} = ((($prepaid{1} > 0) ? $prepaid{1} : 0) + $prepaid2) - ($line->[2] + $line->[3]);
 
@@ -196,7 +206,6 @@ sub traffic_calculations {
       $used_traffic->{ONLINE2}       = $sent2 + $recv2;
     }
 
-    #print "($used_traffic->{TRAFFIC_SUM} + $used_traffic->{ONLINE} / $CONF->{MB_SIZE} < $prepaid{'0'})\n";
     # If left global prepaid traffic set traf price to 0
     if ($used_traffic->{TRAFFIC_SUM} + $used_traffic->{ONLINE} / $CONF->{MB_SIZE} < $prepaid{'0'}) {
       $traf_price{in}{0}  = 0;
@@ -259,9 +268,6 @@ sub traffic_calculations {
   my $lo_in  = (defined($traf_price{in}{1}))  ? $recv2 / $CONF->{MB_SIZE} * $traf_price{in}{1}  : 0;
   my $lo_out = (defined($traf_price{out}{1})) ? $sent2 / $CONF->{MB_SIZE} * $traf_price{out}{1} : 0;
 
-#  `echo "REcv:  $used_traffic->{TRAFFIC_IN} \n $gl_in  = ($traf_price{in}{0}) ? $recv / $CONF->{MB_SIZE} * $traf_price{in}{0} : 0;
-#    \nSend: $used_traffic->{TRAFFIC_OUT} \n $gl_out = ($traf_price{out}{0}) ? $sent / $CONF->{MB_SIZE} * $traf_price{out}{0} : 0;
-#   $lo_in + $lo_out + $gl_in + $gl_out " >> /tmp/traf`;
   $traf_sum = $lo_in + $lo_out + $gl_in + $gl_out;
 
   return $traf_sum;
@@ -273,6 +279,7 @@ sub traffic_calculations {
   Arguments:
     UID     - user id
     PERIOD  - start period
+    INTERVAL-
     STATS_ONLY
 
   Returns:
@@ -315,6 +322,7 @@ sub get_traffic {
   if ($CONF->{INTERNET_INTERVAL_PREPAID}) {
     my $period2 =$period;
     $period2 =~ s/start/li\.added/g;
+
     my $sql = "SELECT li.traffic_type,
       SUM(li.sent) / $CONF->{MB_SIZE},
       SUM(li.recv) / $CONF->{MB_SIZE}
@@ -327,8 +335,8 @@ sub get_traffic {
     if ($self->{TOTAL} > 0) {
       foreach my $line (@{ $self->{list} }) {
         my $sufix = (! $line->[0]) ? '' : "_".($line->[0]+1);
-        $result{'TRAFFIC_OUT'.$sufix} = ($result{'TRAFFIC_OUT'.$sufix}) ? $result{'TRAFFIC_OUT'.$sufix} + $line->[1] : $line->[1];
-        $result{'TRAFFIC_IN'.$sufix}  = ($result{'TRAFFIC_IN'.$sufix}) ? $result{'TRAFFIC_IN'.$sufix} + $line->[2] : $line->[2];
+        $result{'TRAFFIC_OUT'.$sufix} = ($result{'TRAFFIC_OUT'.$sufix}) ? $result{'TRAFFIC_OUT'.$sufix} + $line->[1] : ($line->[1] || 0);
+        $result{'TRAFFIC_IN'.$sufix}  = ($result{'TRAFFIC_IN'.$sufix}) ? $result{'TRAFFIC_IN'.$sufix} + $line->[2] : ($line->[2] || 0);
       }
     }
 
@@ -487,6 +495,13 @@ sub get_traffic_ipn {
      $RAD
      $attr
        TP_NUM
+       TP_ID
+       SERVICE_ID
+       UID
+       DOMAIN_ID
+       disable_rt_billing
+       FULL_COUNT
+       USER_INFO
 
   Returns:
     >= 0 - session sum
@@ -527,7 +542,74 @@ sub session_sum {
 
   delete($self->{HANGUP});
 
-  if ($attr->{UID}) {
+  if ($attr->{SERVICE_ID}) {
+    $self->query2("SELECT
+    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')) AS day_begin,
+    DAYOFWEEK(FROM_UNIXTIME($SESSION_START)) AS day_of_week,
+    DAYOFYEAR(FROM_UNIXTIME($SESSION_START)) AS day_of_year,
+    u.reduction,
+    u.bill_id,
+    i.activate,
+    u.company_id,
+    u.domain_id,
+    u.credit,
+    u.ext_bill_id,
+    i.tp_id
+   FROM users u
+   INNER JOIN internet_main i ON (i.uid=u.uid)
+   WHERE i.id='$attr->{SERVICE_ID}';",
+      undef,
+      { INFO => 1 }
+    );
+
+    if ($self->{errno}) {
+      if ($self->{errno} == 2) {
+        return -2, 0, 0, 0, 0, 0;
+      }
+      else {
+        return -3, 0, 0, 0, 0, 0;
+      }
+    }
+
+    $self->{UID} = $attr->{UID};
+
+    if($attr->{TP_ID}) {
+      $self->query2("SELECT
+    tp.min_session_cost,
+    tp.payment_type,
+    tp.octets_direction,
+    tp.traffic_transfer_period,
+    tp.total_time_limit,
+    tp.total_traf_limit,
+    tp.month_traf_limit,
+    tp.id AS tp_num,
+    tp.neg_deposit_filter_id,
+    tp.bills_priority,
+    tp.credit AS tp_credit
+   FROM tarif_plans tp
+   WHERE tp.tp_id= ? ;",
+        undef,
+        { INFO => 1,
+          Bind => [
+            $attr->{TP_ID} || $self->{TP_ID}
+          ] }
+      );
+      $self->{TP_ID}=$attr->{TP_ID};
+    }
+
+    if ($self->{errno}) {
+      #TP not found
+      if ($self->{errno} == 2) {
+        return -5, 0, 0, 0, 0, 0;
+      }
+      else {
+        return -3, 0, 0, 0, 0, 0;
+      }
+    }
+
+    $self->{TP_NUM} = $attr->{TP_NUM};
+  }
+  elsif ($attr->{UID}) {
     $self->query2("SELECT
     UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')) AS day_begin,
     DAYOFWEEK(FROM_UNIXTIME($SESSION_START)) AS day_of_week,
@@ -811,12 +893,13 @@ sub session_sum {
 
   $self->session_splitter($SESSION_START, $SESSION_DURATION, $self->{DAY_BEGIN},
     $self->{DAY_OF_WEEK}, $self->{DAY_OF_YEAR}, { TP_ID => $self->{TP_ID} });
+
   #session devisions
   my @sd = @{ $self->{TIME_DIVISIONS_ARR} };
 
   if (!defined($self->{NO_TPINTERVALS})) {
     if ($#sd < 0) {
-      print "Not allow start period" if ($self->{debug});
+      print "NOT_ALLOW_START_PERIOD" if ($self->{debug});
       return -16, 0, 0, 0, 0, 0;
     }
 
@@ -886,7 +969,7 @@ sub time_intervals {
   my $self = shift;
   my ($TP_ID) = @_;
 
-  $self->query2("SELECT i.day, TIME_TO_SEC(i.begin) AS intervaL_begin,
+  $self->query2("SELECT i.day, TIME_TO_SEC(i.begin) AS interval_begin,
    TIME_TO_SEC(i.end) AS interval_end,
    i.tarif,
    if(SUM(tt.in_price+tt.out_price) IS NULL || SUM(tt.in_price+tt.out_price)=0, 0, SUM(tt.in_price+tt.out_price)) AS interval_traf_price,
@@ -894,8 +977,7 @@ sub time_intervals {
    FROM intervals i
    LEFT JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
    WHERE i.tp_id='$TP_ID'
-   GROUP BY i.id
-   ORDER BY 1,2;"
+   GROUP BY i.id;"
   );
 
   if ($self->{TOTAL} < 1) {
@@ -920,6 +1002,20 @@ sub time_intervals {
 #********************************************************************
 =head2 session_splitter($start, $duration, $day_begin, $day_of_week,
                   $day_or_year, $intervals) - Split session to intervals
+
+  Arguments:
+    $start,
+    $duration,
+    $day_begin,
+    $day_of_week,
+    $day_of_year,
+    $attr
+       TIME_INTERVALS
+       PERIODS_TIME_TARIF
+       PERIODS_TRAF_TARIF
+
+  Returns:
+
 
 =cut
 #********************************************************************
@@ -967,9 +1063,7 @@ sub session_splitter {
     Abills::Base->import( /sec2time/ );
   }
 
-  print "DAY_OF_WEEK: $day_of_week DAY_OF_YEAR: $day_of_year\n" if ($debug == 1);
-
-  while ($duration > 0 && $count < 10) {
+  do {
     if (defined($holidays{$day_of_year}) && defined($time_intervals->{8})) {
       $tarif_day = 8;
     }
@@ -1019,7 +1113,11 @@ sub session_splitter {
           #experimental division time arr
           push @division_time_arr, "$int_id,$duration";
           $duration = 0;
-          last;
+
+          $self->{TIME_DIVISIONS_ARR} = \@division_time_arr;
+          $self->{SUM}                = 0;
+          return $self;
+          #last;
         }
         else {
           my $int_time = $int_end - $start;
@@ -1057,7 +1155,7 @@ sub session_splitter {
 
       print "\n" if ($debug == 1);
     }
-  }
+  } while ($duration > 0 && $count < 10);
 
   $self->{TIME_DIVISIONS_ARR} = \@division_time_arr;
   $self->{SUM}                = 0;
@@ -1067,6 +1165,17 @@ sub session_splitter {
 
 #*******************************************************************
 =head2 time_calculation($attr) - Time calculation
+
+  Arguments:
+    $attr
+      SESSION_START
+      ACCT_SESSION_TIME
+      DAY_BEGIN
+      DAY_OF_WEEK
+      DAY_OF_YEAR
+
+  Returns:
+    $self
 
 =cut
 #*******************************************************************

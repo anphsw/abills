@@ -4,13 +4,13 @@
   <a href='#' class='sidebar-toggle' data-toggle='offcanvas' role='button'>
     <span class='sr-only'>Toggle navigation</span>
   </a>
-  <a href='$SELF_URL' class='header-btn-link' role='button'>
-    <span class='glyphicon glyphicon-home'></span>
-  </a>
+  <!--<a href='$SELF_URL' class='header-btn-link' role='button'>-->
+    <!--<span class='glyphicon glyphicon-home'></span>-->
+  <!--</a>-->
   <!-- Navbar Right Menu -->
   <div class='navbar-custom-menu'>
 
-    <ul class='nav navbar-nav hidden-xs'>
+    <ul class='nav navbar-nav hidden-xs hidden-sm hidden-md'>
       <li>
         <a href="#">
           <span><strong>_{DATE}_:</strong> %DATE% %TIME% </span>
@@ -18,7 +18,7 @@
       </li>
       <li>
         <a href="#" >
-          <span><strong>_{USER}_</strong> %LOGIN%</span>
+          <span><strong>_{LOGIN}_:</strong> %LOGIN%</span>
         </a>
       </li>
       <li>
@@ -26,6 +26,8 @@
           <span><strong>IP:</strong> %IP%</span>
         </a>
       </li>
+    </ul>
+    <ul class='nav navbar-nav navbar-right hidden-xs hidden-sm'>
       <li>
         <a href="#">
           <span><strong>_{STATE}_:</strong> %STATE% <!-- %STATE_CODE% --></span>
@@ -38,7 +40,7 @@
       </li>
     </ul>
 
-    <ul class='nav navbar-nav visible-xs'>
+    <ul class='nav navbar-nav visible-xs visible-sm'>
       <li class="dropdown">
         <a href="#" class="dropdown-toggle" data-toggle="dropdown">
           _{INFO}_

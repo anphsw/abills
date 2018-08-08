@@ -6,14 +6,16 @@
 
 =head1 VERSION
 
-  VERSION: 0.31
-  UPDATE: 20171225
+  VERSION: 0.34
+  UPDATE: 20180415
 
 =cut
 #**********************************************************
 
 
 use strict;
+use warnings;
+
 our (
   %conf,
   %log_levels,
@@ -31,14 +33,14 @@ BEGIN {
     $Bin . '/../lib/');
 }
 
-our $VERSION = 0.31;
+our $VERSION = 0.34;
 
 use POSIX qw(strftime);
 use Abills::Base qw(check_time parse_arguments ip2int cmd in_array);
 use Abills::Server;
 use Abills::SQL;
 use Admins;
-use Dhcphosts;
+use Internet;
 use Log qw(log_add);
 
 #my $begin_time = check_time();
@@ -101,7 +103,7 @@ elsif (make_pid() == 1) {
   exit;
 }
 
-if ($conf{DV_TURBO_MODE}) {
+if ($conf{INTERNET_TURBO_MODE}) {
   require Turbo;
   Turbo->import();
 }
@@ -128,16 +130,16 @@ sub get_tp_classes {
   my %TP_TRAFFIC_CLASSES = ();
 
 
-  my $Dhcphosts = Dhcphosts->new($db, undef, \%conf);
+  my $Internet = Internet->new($db, undef, \%conf);
   # Get tp traffic classe
-  $Dhcphosts->query("SELECT tp.tp_id, COUNT(DISTINCT tt.id) AS classes_count FROM
-     tarif_plans tp
+  $Internet->query("SELECT tp.tp_id, COUNT(DISTINCT tt.id) AS classes_count
+     FROM  tarif_plans tp
      INNER JOIN intervals i ON (i.tp_id=tp.tp_id)
      INNER JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
-     WHERE tp.module='Dv'
+     WHERE tp.module IN ('Dv', 'Internet')
      GROUP BY tp.tp_id", undef, { COLS_NAME => 1 });
 
-  foreach my $tp (@{ $Dhcphosts->{list} }) {
+  foreach my $tp (@{ $Internet->{list} }) {
   	$TP_TRAFFIC_CLASSES{$tp->{tp_id}}=$tp->{classes_count};
   }
 
@@ -164,7 +166,7 @@ sub check_activity {
 
   my $db = db_connect();
 
-  my $Dhcphosts = Dhcphosts->new($db, undef, \%conf);
+  my $Internet = Internet->new($db, undef, \%conf);
 
   my $period = $UPDATE_TIME;
   if ($check_time > 0 && time - $check_time > $UPDATE_TIME) {
@@ -176,68 +178,68 @@ sub check_activity {
   $check_time = time;
   my $WHERE = '';
   if ($argv->{NAS_IDS}) {
-    $WHERE = ' AND ' . join(' or ', @{  $Dhcphosts->search_expr($argv->{NAS_IDS}, 'INT', 'c.nas_id') });
+    $WHERE = ' AND ' . join(' or ', @{  $Internet->search_expr($argv->{NAS_IDS}, 'INT', 'online.nas_id') });
   }
   if (!$attr->{ALL}) {
     $WHERE .= " AND UNIX_TIMESTAMP() - UNIX_TIMESTAMP(started) <= $period";
   }
 
-  my $internet_tables = q{    FROM dv_calls c
-    LEFT JOIN dv_main dv  ON (dv.uid=c.uid)
-    LEFT JOIN tarif_plans tp  ON (tp.id=dv.tp_id AND tp.module='Dv')
+  my $internet_tables = q{ FROM internet_online online
+    LEFT JOIN internet_main internet  ON (internet.id=online.service_id)
+    LEFT JOIN tarif_plans tp  ON (tp.tp_id=internet.tp_id)
   };
 
   if(in_array('Internet', \@MODULES)) {
-    $internet_tables = q{    FROM internet_online c
-      LEFT JOIN internet_main dv  ON (dv.uid=c.uid)
-      LEFT JOIN tarif_plans tp  ON (tp.tp_id=dv.tp_id)
+    $internet_tables = q{  FROM internet_online online
+      LEFT JOIN internet_main internet  ON (internet.id=online.service_id)
+      LEFT JOIN tarif_plans tp  ON (tp.tp_id=internet.tp_id)
     };
   }
 
-  my $sql = "SELECT c.user_name,
-    UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started) AS duration,
-    tp.tp_id,
-    INET_NTOA(c.framed_ip_address) AS ip,
+  my $sql = "SELECT online.user_name,
+    UNIX_TIMESTAMP() - UNIX_TIMESTAMP(online.started) AS duration,
+    online.tp_id,
+    INET_NTOA(online.framed_ip_address) AS ip,
     '255.255.255.255',
-    c.status,
-    c.nas_port_id,
-    c.nas_id,
-    c.uid,
-    n.ip as nas_ip,
+    online.status,
+    online.nas_port_id,
+    online.nas_id,
+    online.uid,
+    n.ip AS nas_ip,
     n.nas_type,
     n.mng_host_port,
     n.mng_user,
     DECODE(n.mng_password, '$conf{secretkey}') AS mng_password,
-    IF(dv.filter_id<>'', dv.filter_id, tp.filter_id) AS filter_id,
-    INET_NTOA(dv.netmask) AS netmask,
-    c.guest
+    IF(internet.filter_id<>'', internet.filter_id, tp.filter_id) AS filter_id,
+    INET_NTOA(internet.netmask) AS netmask,
+    online.guest
     $internet_tables
-    INNER JOIN nas n ON (n.id=c.nas_id)
+    INNER JOIN nas n ON (n.id=online.nas_id)
     WHERE (status=1 OR status=3 OR status=10) $WHERE; ";
 
   if ($debug > 7) {
   	$Log->log_print('LOG_SQL', '', $sql);
   }
 
-  $Dhcphosts->query($sql,
+  $Internet->query($sql,
     undef,
     { COLS_NAME => 1 }
   );
 
   my $fw_step   = 1000;
 
-  foreach my $line (@{ $Dhcphosts->{list} }) {
+  foreach my $line (@{ $Internet->{list} }) {
     my $tp_id = $line->{tp_id};
     my $ip    = $line->{ip};
 
     if ($ip eq '0.0.0.0') {
-      $Log->log_print('LOG_EMERG', $line->{user_name}, "Duration: $line->{duration} TP: $tp_id IP: $ip Status: $line->{status} Wrong ip");
+      $Log->log_print('LOG_EMERG', $line->{user_name}, "DURATION: $line->{duration} TP: $tp_id IP: $ip STATUS: $line->{status} WRONG_IP");
       next;
     }
 
     my $TRAFFIC_CLASSES = $TP_TRAFFIC_CLASSES->{$tp_id} || 1;
 
-    $Log->log_print('LOG_INFO', $line->{user_name}, "Duration: $line->{duration} TP: $tp_id IP: $ip Status: $line->{status} TC: $TRAFFIC_CLASSES Guest: ". $line->{guest});
+    $Log->log_print('LOG_INFO', $line->{user_name}, "DURATION: $line->{duration} TP: $tp_id IP: $ip STATUS: $line->{status} TC: $TRAFFIC_CLASSES GUEST: ". $line->{guest});
     my $cmd = '';
 
     if ($line->{netmask} ne '32') {
@@ -246,8 +248,8 @@ sub check_activity {
     }
 
     if (defined($argv->{IPN_SHAPPER})) {
-    	$cmd = $conf{IPN_FW_START_RULE};
-      $cmd =~ s/\%IP/$line->{ip}/g;
+    	$cmd = $conf{IPN_FW_START_RULE} || $conf{INTERNET_IPOE_START} ;
+      $cmd =~ s/\%IP/$ip/g;
       $cmd =~ s/\%MASK/$line->{netmask}/g;
       #$cmd =~ s/\%NUM/$rule_num/g;
       #$cmd =~ s/\%SPEED_IN/$speed_in/g if ($speed_in > 0);
@@ -281,7 +283,7 @@ sub check_activity {
     }
     else {
     	
-   	  if ($conf{DV_TURBO_MODE}) {
+   	  if ($conf{INTERNET_TURBO_MODE}) {
         $Turbo = Turbo->new($db, undef, \%conf);
         $Turbo->list(
         {

@@ -16,6 +16,7 @@ $lang{CANCEL_PAYMENTS} = 'Відмінити оплату';
 $lang{BALANCE_RECHARCHE_SUM} = 'Сума поповнення рахунку';
 $lang{ERR_SMALL_SUM} = 'Сума поповнення не менше ';
 $lang{CONFIRM_PAYMENT} = 'Підтвердити оплату';
+$lang{PAYSYS_MIN_SUM_MESSAGE}='Мінімальна сума поповнення ';
 
 $lang{UNKNOWN} = 'Невідома';
 $lang{COMPLETE} = 'Закінчена';

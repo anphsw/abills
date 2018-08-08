@@ -38,6 +38,7 @@ use Admins;
 use Conf;
 
 our $silent = 1;
+our %lang;
 our $debug = $conf{PAYSYS_DEBUG} || 0;
 our $html = Abills::HTML->new({ CONF => \%conf });
 our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
@@ -109,8 +110,152 @@ my $output2 = get_request_info();
 if ($debug > 2) {
   mk_log($output2);
 }
-
 #END debug =====================================
+
+
+
+#NEW SCHEME ====================================
+if($conf{PAYSYS_NEW_SCHEME}){
+  require Paysys::Configure;
+  require Paysys::User_portal;
+
+  my $connected_systems_list = $Paysys->paysys_connect_system_list({
+    SHOW_ALL_COLUMNS => 1,
+    STATUS           => 1,
+    COLS_NAME        => 1,
+  });
+
+  foreach my $connected_system (@$connected_systems_list){
+    my $remote_ip = $ENV{REMOTE_ADDR};
+    my $paysys_ip = $connected_system->{paysys_ip};
+    my $module    = $connected_system->{module};
+
+    if(check_ip($remote_ip, $paysys_ip)){
+      my $INPUT_DATA = get_request_info();
+      mk_log("$INPUT_DATA", {
+          PAYSYS_ID => $module,
+
+        });
+      my $REQUIRE_OBJECT = _configure_load_payment_module($module);
+      mk_log("$module loaded\n", {
+          PAYSYS_ID => $module
+        });
+      my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf);
+      mk_log("$module object created\n", {
+          PAYSYS_ID => $module
+        });
+      $PAYSYS_OBJECT->proccess(\%FORM);
+      mk_log("$module process ended\n\n", {
+          PAYSYS_ID => $module
+        });
+      exit;
+    }
+  }
+
+  # payment function
+  paysys_payment_gateway();
+
+  exit;
+}
+
+
+#**********************************************************
+=head2 paysys_payment_gateway()
+
+  Arguments:
+     -
+    
+  Returns:
+  
+=cut
+#**********************************************************
+sub paysys_payment_gateway {
+  # load header
+  $html->{METATAGS} = templates('metatags');
+  $html->{WEB_TITLE} = 'Payment Gateway';
+
+  print $html->header();
+
+  my ($result, $user_info) = paysys_check_user({
+    CHECK_FIELD => $conf{PAYSYS_GATEWAY_IDENTIFIER} || 'UID',
+    USER_ID     => $FORM{IDENTIFIER},
+  });
+
+  my %TEMPLATES_ARGS = ();
+
+  if ($FORM{PAYMENT_SYSTEM}) {
+    my $payment_system_info = $Paysys->paysys_connect_system_info({
+      PAYSYS_ID => $FORM{PAYMENT_SYSTEM},
+      MODULE    => '_SHOW',
+      COLS_NAME => '_SHOW'
+    });
+
+    if($Paysys->{errno}){
+      print $html->message('err', "$lang{ERROR}", 'Payment system not exist');
+    }
+    else{
+      my $Module = _configure_load_payment_module($payment_system_info->{module});
+      my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html });
+      print $Paysys_Object->user_portal($user_info, {
+          %FORM,
+        });
+    }
+    return 1;
+  }
+
+  if($result == 0){
+    #SHOW TEMPLATE WITH PAYMENT SYSTEMS SELECT
+    $TEMPLATES_ARGS{IDENTIFIER} = $FORM{IDENTIFIER};
+    my $connected_systems = $Paysys->paysys_connect_system_list({
+      PAYSYS_ID => '_SHOW',
+      NAME      => '_SHOW',
+      MODULE    => '_SHOW',
+      STATUS    => 1,
+      COLS_NAME => 1,
+    });
+
+    $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });
+    if (in_array('Maps', \@MODULES)) {
+#      $TEMPLATES_ARGS{MAP} = paysys_maps();
+    }
+
+    my $count = 1;
+    foreach my $payment_system (@$connected_systems) {
+      my $Module = _configure_load_payment_module($payment_system->{module});
+
+      if ($Module->can('user_portal')) {
+        $TEMPLATES_ARGS{PAY_SYSTEM_SEL} .= _paysys_system_radio({
+          NAME    => $payment_system->{name},
+          MODULE  => $payment_system->{module},
+          ID      => $payment_system->{paysys_id},
+          CHECKED => $count == 1 ? 'checked' : '',
+        });
+        $count++;
+      }
+    }
+
+    $html->tpl_show(_include('paysys_main', 'Paysys'), \%TEMPLATES_ARGS,
+      { OUTPUT2RETURN => 0});
+
+    return 1;
+  }
+  elsif($result == 1){
+    $html->message("err", "Try again");
+  }
+  elsif($result == 11){
+    $html->message("err", "Paysys Disable");
+  }
+
+  $html->tpl_show(_include('paysys_gateway', 'Paysys'), \%TEMPLATES_ARGS,
+    { });
+}
+
+#END NEW SCHEME ================================
+
+
+
+
+
 load_pmodule('Digest::MD5');
 our $md5 = Digest::MD5->new();
 
@@ -214,7 +359,8 @@ my %ip_binded_system = (
   => 'Minbank',
   '89.111.54.163,89.111.54.165,185.77.232.26,185.77.233.26,185.77.232.27,185.77.233.27'
   => 'Mixplat',
-  '77.75.157.168,77.75.157.169,77.75.159.166,77.75.159.170,77.75.157.166,77.75.157.170'
+#  '77.75.157.168,77.75.157.169,77.75.159.166,77.75.159.170,77.75.157.166,77.75.157.170' # OLD
+  '77.75.157.168, 77.75.157.169, 77.75.159.166, 77.75.159.170, 77.75.158.144, 77.75.158.145, 77.75.158.153, 77.75.158.154, 77.75.158.162, 77.75.158.163, 77.75.155.139, 77.75.155.140, 77.75.155.148, 77.75.155.149, 77.75.155.157, 77.75.155.158'
   => 'Yandex_kassa',
   '91.194.226.0/23'
   => 'Tinkoff',
@@ -350,9 +496,9 @@ elsif (check_ip($ENV{REMOTE_ADDR}, '192.168.1.168')) {
 elsif (check_ip($ENV{REMOTE_ADDR}, '62.149.15.210')){
   require Paysys::systems::City24;
   Paysys::systems::City24->import();
-  my $City24= Paysys::systems::City24->new(\%conf, \%FORM, $admin, $db, { HTML => $html });
+  my $City24= Paysys::systems::City24->new($db, $admin, \%conf);
 
-  $City24->pay();
+  $City24->proccess(\%FORM);
   exit;
 }
 elsif (check_ip($ENV{REMOTE_ADDR}, '192.168.1.200')){
@@ -768,6 +914,28 @@ sub osmp_payments {
     if ($conf{PAYSYS_OSMP_EXTRA_INFO}) {
       $RESULT_HASH{'extra_info'}{'deposit'} = $list->{'deposit'};
       $RESULT_HASH{'extra_info'}{'fee'} = $list->{'fee'};
+
+      if(in_array('Internet', \@MODULES)){
+        use Internet;
+        require Internet::Service_mng;
+
+        my $Internet = Internet->new($db, $admin, \%conf);
+        $Internet->info($list->{uid});
+        my $Service = Internet::Service_mng->new({ lang => \%lang });
+
+        my ($message, $type) = $Service->service_warning({
+          SERVICE => $Internet,
+          USER    => $list,
+          DATE    => $DATE
+        });
+
+        if($message){
+          my ($date) = $message =~ /(\d{4}\-\d{2}\-\d{2})/gm;
+          ($RESULT_HASH{'extra_info'}{'next_fee_date'}) = $date,
+        }
+      };
+
+
       if (in_array('Dv', \@MODULES)) {
         load_module('Dv');
         my ($message, undef) = dv_warning({ USER => $list });
@@ -1716,7 +1884,7 @@ sub get_request_info {
   my $info = '';
 
   while (my ($k, $v) = each %FORM) {
-    $info .= "$k -> $v\n" if ($k ne '__BUFFER');
+    $info .= "$k => $v\n" if ($k ne '__BUFFER');
   }
 
   return $info;

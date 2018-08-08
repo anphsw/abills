@@ -29,7 +29,7 @@ if [ -f /var/run/radattr.${IFNAME} ]; then
    FILTERS=`${AWK}  '/Filter-Id/ {print $2}'  /var/run/radattr.${IFNAME}`
    USER_NAME=`${AWK}  '/User-Name/ {print $2}'  /var/run/radattr.${IFNAME}`
 
-   if [ w${debug} = w1 ]; then
+   if [ "${debug}" = "1" ]; then
      echo "Debug mode"
      echo $DOWNSPEED
      echo $UPSPEED

@@ -48,8 +48,8 @@ if(in_array('Internet', \@MODULES)) {
   $Cards->{INTERNET}=1;
 }
 
-my @status    = ($lang{ENABLE}, $lang{DISABLE}, $lang{USED}, $lang{DELETED}, $lang{RETURNED}, $lang{PROCESSING});
-my @status_colors = ($_COLORS[9], 'text-danger', '#0000FF', '#808080', '#FF8000', '#008040');
+my @status    = ($lang{ENABLE}, $lang{DISABLE}, $lang{USED}, $lang{DELETED}, $lang{RETURNED}, $lang{PROCESSING}, $lang{TRANSFERRED_TO_PRODUCTION});
+my @status_colors = ($_COLORS[9], 'text-danger', '#0000FF', '#808080', '#FF8000', '#008040', '#008999');
 
 $conf{CARDS_PIN_SYMBOLS} = '0123456789' if (!$conf{CARDS_PIN_SYMBOLS});
 
@@ -269,6 +269,7 @@ sub cards_main {
   my $cards_list;
   delete $FORM{STATUS};
   delete ($Cards->{error});
+
   ($table, $cards_list) = result_former({
      INPUT_DATA      => $Cards,
      FUNCTION        => 'cards_list',
@@ -349,6 +350,9 @@ sub cards_main {
       elsif($field_name eq 'number') {
         $val = ($line->{status} && $line->{status}==2) ? $html->button($line->{number}, "index=2&search=1&EXT_ID=$line->{serial}$line->{number}") : $line->{number};
       }
+      elsif($field_name eq 'pin'){
+        $val = ($permissions{4}{9}) ? $line->{pin} : '------';
+      }
       else {
         $val = $line->{$field_name};
       }
@@ -414,6 +418,7 @@ sub cards_main {
         [ "$lang{ENABLE}:", $Cards->{ENABLED}, $Cards->{ENABLED_SUM} ],
         [ $html->color_mark("$lang{DISABLE}:", 'text-danger'), $Cards->{DISABLED}, $Cards->{DISABLED_SUM} ],
         [ $html->color_mark("$lang{RETURNED}:", '#FF8000'), $Cards->{RETURNED}, $Cards->{RETURNED_SUM} ],
+        [ $html->color_mark("$lang{TRANSFERRED_TO_PRODUCTION}:", $state_colors[5]), $Cards->{TRANSFERRED_TO_PRODUCTION}, $Cards->{TRANSFERRED_TO_PRODUCTION_SUM} ],
         [ "$lang{SOLD}:", $Cards->{DILLER_SOLD}, $Cards->{DILLER_SOLD_SUM} ]
       ]
     }
@@ -616,12 +621,19 @@ sub cards_bruteforce {
 #**********************************************************
 =head2 cards_users_add($attr)
 
+  Arguments:
+    $attr
+      create
+
 =cut
 #**********************************************************
 sub cards_users_add {
   my ($attr) = @_;
 
-  if ($FORM{create}) {
+  my $create = $attr->{create} || $FORM{create};
+  my $login_file = $FORM{LOGIN_FILE};
+
+  if ($create) {
     my $export       = '';
     my $begin        = $FORM{BEGIN} || 0;
     my $count        = $FORM{COUNT} || 0;
@@ -633,8 +645,8 @@ sub cards_users_add {
     $FORM{LOGIN_LENGTH}  = 6 if (!$FORM{LOGIN_LENGTH});
     $FORM{PASSWD_LENGTH} = 6 if (!$FORM{PASSWD_LENGTH});
 
-    if ($FORM{LOGIN_FILE}) {
-      $html->message('info', $lang{INFO}, "$lang{FILE}: $FORM{LOGIN_FILE}{filename}");
+    if ($login_file) {
+      $html->message('info', $lang{INFO}, "$lang{FILE}: $login_file->{filename}");
     }
 
     #Create service cards from file
@@ -663,6 +675,8 @@ sub cards_users_add {
 
         for (my $i = 2 ; $i <= $#params ; $i++) {
           my ($k, $v) = split(/=/, $params[$i], 2);
+          $v //= q{};
+
           $v =~ s/\"//g;
           $USER_HASH{$k} = $v;
           if (defined($FORM{EXPORT}) && $FORM{EXPORT} eq 'XML') {
@@ -903,6 +917,16 @@ sub cards_user_payment  {
         `echo "$DATE $TIME $user->{LOGIN} :$rand  $Cards->{SERIAL}$Cards->{NUMBER} A:$ENV{HTTP_USER_AGENT} QS:$ENV{QUERY_STRING} RA:$ENV{REMOTE_ADDR} $output  ($gt)"  >> /tmp/cards_debug`;
       }
 
+      #Sucsess
+      cross_modules_call('_pre_payment', {
+        USER_INFO    => $user,
+        SUM          => $Cards->{SUM},
+        SKIP_MODULES => 'Cards,Sqlcmd',
+        QUITE        => 1,
+        SILENT       => 1,
+        METHOD       => 2
+      });
+
       my $cards_number_length = $conf{CARDS_NUMBER_LENGTH} || 11;
       $payments->add(
         $user,
@@ -917,7 +941,8 @@ sub cards_user_payment  {
       );
 
       if (!$payments->{errno}) {
-        $user->{DEPOSIT} += $Cards->{SUM} - $Cards->{COMMISSION};
+        #FIX ME
+        # $user->{DEPOSIT} += $Cards->{SUM} - $Cards->{COMMISSION};
 
         $Cards->cards_change(
           {
@@ -1125,11 +1150,12 @@ sub cards_report {
       $table->td($lang{RETURNED}, {  colspan => 2 }),
       $table->td($lang{LOGIN},    {  colspan => 2 }),
       $table->td($lang{DILLERS},  {  colspan => 2 }),
-      $table->td($lang{SOLD},     {  colspan => 2 })
+      $table->td($lang{SOLD},     {  colspan => 2 }),
+      $table->td($lang{TRANSFERRED_TO_PRODUCTION},     {  colspan => 2 })
     );
 
     $table->addrow($lang{COUNT}, $lang{SUM}, $lang{COUNT}, $lang{SUM}, $lang{COUNT}, $lang{SUM},
-      $lang{COUNT}, $lang{SUM}, $lang{COUNT}, $lang{SUM}, $lang{COUNT}, $lang{SUM}, $lang{COUNT}, $lang{SUM});
+      $lang{COUNT}, $lang{SUM}, $lang{COUNT}, $lang{SUM}, $lang{COUNT}, $lang{SUM}, $lang{COUNT}, $lang{SUM}, $lang{COUNT}, $lang{SUM});
 
     delete $table->{rowcolor};
 
@@ -1162,6 +1188,8 @@ sub cards_report {
         ($v->{DILLERS_SOLD})     ? $v->{DILLERS_SOLD}     : 0,
         ($v->{DILLERS_SOLD_SUM}) ? $v->{DILLERS_SOLD_SUM} : 0.00,
 
+          ($v->{TRANSFERRED_TO_PRODUCTION})     ? $v->{TRANSFERRED_TO_PRODUCTION}     : 0,
+          ($v->{TRANSFERRED_TO_PRODUCTION_SUM}) ? $v->{TRANSFERRED_TO_PRODUCTION_SUM} : 0.00,
         #$val
       );
 
@@ -1190,7 +1218,10 @@ sub cards_report {
       ($Cards->{DILLERS_TOTAL_SUM}) ? $Cards->{DILLERS_TOTAL_SUM} : 0.00,
 
       ($Cards->{DILLERS_SOLD_TOTAL})     ? $Cards->{DILLERS_TOTAL}     : 0,
-      ($Cards->{DILLERS_SOLD_TOTAL_SUM}) ? $Cards->{DILLERS_TOTAL_SUM} : 0.00
+      ($Cards->{DILLERS_SOLD_TOTAL_SUM}) ? $Cards->{DILLERS_TOTAL_SUM} : 0.00,
+
+        ($Cards->{TRANSFERRED_TO_PRODUCTION})     ? $Cards->{TRANSFERRED_TO_PRODUCTION}     : 0,
+        ($Cards->{TRANSFERRED_TO_PRODUCTION_SUM}) ? $Cards->{TRANSFERRED_TO_PRODUCTION_SUM} : 0.00,
     );
 
     print $table->show();

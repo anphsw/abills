@@ -8,7 +8,7 @@ my $root_index = $non_privileged ? 8 : 5;
 
   "03:" . ($non_privileged ? '1' : '0') . ":$lang{MAP}:maps_edit:" => $root_index,
   "04:3:$lang{LAYERS}:maps_layers"                                  => $root_index,
-  "05:3:$lang{ROUTES}:null:"                                        => $root_index,
+#  "05:3:$lang{ROUTES}:null:"                                        => $root_index,
 #  "06:5:$lang{ROUTES}:maps_routes_list"                             => $root_index,
 #  "07:6:$lang{TYPE}:maps_route_types"                               => $root_index,
 #  "08:6:$lang{GROUPS}:maps_route_groups"                            => $root_index,

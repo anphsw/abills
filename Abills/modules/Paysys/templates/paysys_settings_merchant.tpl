@@ -1,6 +1,6 @@
 <form name='PAYSYS_SETTINGS_MERCHANT' id='form_PAYSYS_SETTINGS_MERCHANT' method='post' class='form form-horizontal %AJAX_SUBMIT_FORM%'>
 
-    <input type='hidden' name='PAYSYSTEM' value='%PAYSYSTEM_NAME%'>
+    <input type='hidden' name='MODULE' value='%PAYSYSTEM_NAME%'>
     <input type='hidden' name='PAYSYSTEM_ID' value='%PAYSYSTEM_ID%'>
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='action' value='%ACTION%'>

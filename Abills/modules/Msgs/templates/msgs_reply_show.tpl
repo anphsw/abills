@@ -8,6 +8,6 @@
   </div>
   <div class='box-footer'>
     %RUN_TIME% %ATTACHMENT%
-    <div class='pull-right'>%QUOTING% %DELETE% %NEW_TOPIC%</div>
+    <div class='pull-right'>%QUOTING% %EDIT% %DELETE% %NEW_TOPIC%</div>
   </div>
 </div>

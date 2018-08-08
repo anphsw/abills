@@ -248,7 +248,6 @@ sub messages_list {
       ['REPLY',            'STR',       'm.user_read',         1 ],
       ['MSG_PHONE',        'STR',       'm.phone', 'm.phone AS msg_phone' ],
       ['USER_READ',        'INT',       'm.user_read',         1 ],
-      ['ADMIN_READ',       'INT',       'm.admin_read',        1 ],
       ['CLOSED_DATE',      'DATE',      'm.closed_date',       1 ],
       ['RUN_TIME',         'DATE',      'SEC_TO_TIME(SUM(r.run_time))',  'SEC_TO_TIME(SUM(r.run_time)) AS run_time' ],
       ['DONE_DATE',        'DATE',      'm.done_date',         1 ],
@@ -256,6 +255,9 @@ sub messages_list {
       ['DELIGATION',       'INT',       'm.delegation',        1 ],
       ['RESPOSIBLE',       'INT',       'm.resposible',          ],
       ['PLAN_DATE',        'DATE',      'm.plan_date',         1 ],
+      ['SOFT_DEADLINE',    'DATE',      "DATEDIFF(curdate(), m.date)", "DATEDIFF(curdate(), m.date) as soft_deadline" ],
+      ['HARD_DEADLINE',    'DATE',      "DATEDIFF(curdate(), MAX(r.datetime))", "DATEDIFF(curdate(), MAX(r.datetime)) as hard_deadline" ],
+      ['ADMIN_READ',       'INT',       'm.admin_read',        1 ],
       #['PLAN_DATE',       'INT',       "DATE_FORMAT(plan_date, '%w')", "DATE_FORMAT(plan_date, '%w') AS plan_date", 1 ],
       ['PLAN_TIME',        'INT',       'm.plan_time',         1 ],
       ['DISPATCH_ID',      'INT',       'm.dispatch_id',       1 ],
@@ -398,21 +400,32 @@ sub message_del {
     UID      => $attr->{UID}
   });
 
-  $self->query("DELETE FROM msgs_attachments
-    WHERE message_id= ?
-    AND message_type=0", 'do', { Bind => [ $attr->{ID} ]}
-  );
+  if ($attr->{ID}) {
+    my @id_arr = split(/,/, $attr->{ID});
+    $self->query("DELETE FROM msgs_attachments
+      WHERE message_id IN (". join(',', map { '?' } @id_arr) . ")
+      AND message_type=0", 'do', { Bind => \@id_arr }
+    );
 
+    $self->query("DELETE FROM msgs_watch
+      WHERE main_msg IN (". join(',', map { '?' } @id_arr) . ")", 'do', { Bind => \@id_arr }
+    );
+  }
 
-  $self->query("DELETE FROM msgs_watch
-    WHERE main_msg= ?", 'do', { Bind => [ $attr->{ID} ]}
-  );
+  if ($attr->{UID}) {
+    $self->query("
+        DELETE FROM msgs_attachments 
+        WHERE create_by = ?
+        AND message_type=0",
+      'do',
+      { Bind => [ $attr->{UID} ] });
 
-  $self->query("UPDATE msgs_unreg_requests SET
-    state = 0,
-    uid   = 0
-    WHERE uid = ? ", 'do', { Bind => [ $attr->{UID} ] }
-  );
+    $self->query("UPDATE msgs_unreg_requests SET
+      state = 0,
+      uid   = 0
+      WHERE uid = ? ", 'do', { Bind => [ $attr->{UID} ] }
+    );
+  }
 
   return $self;
 }
@@ -723,6 +736,14 @@ sub message_reply_del {
     my @id_arr = split(/,/, $attr->{MAIN_MSG});
     push @WHERE_FIELDS, "main_msg IN (". join(',', map { '?' } @id_arr) .')';
     push @WHERE_VALUES, @id_arr;
+
+    $self->query("
+        DELETE FROM msgs_attachments 
+        WHERE message_id IN (SELECT id FROM msgs_reply WHERE $WHERE_FIELDS[0])
+        AND message_type=1",
+      'do',
+      { Bind => \@WHERE_VALUES }
+    );
   }
   elsif ($attr->{ID}) {
     push @WHERE_FIELDS, 'id = ?';
@@ -733,6 +754,14 @@ sub message_reply_del {
   elsif ($attr->{UID}) {
     push @WHERE_FIELDS, 'uid = ?';
     push @WHERE_VALUES, $attr->{UID};
+
+    $self->query("
+        DELETE FROM msgs_attachments 
+        WHERE message_id IN (SELECT id FROM msgs_reply WHERE uid = ?)
+        AND message_type=1",
+      'do',
+      { Bind => [ $attr->{UID} ] }
+    );
   }
 
   if($#WHERE_FIELDS == -1) {
@@ -784,6 +813,7 @@ sub messages_reply_list {
       ['ADMIN',        'STR',  'a.id', 'a.id AS admin', 1],
       ['AID',          'INT',  'mr.aid',  1],
       ['DATETIME',   'DATE',  "mr.datetime", '1' ],
+      ['SURVEY_ID',    'INT',  'mr.survey_id',  1],
     ],
     {
      WHERE_RULES      => \@WHERE_RULES,
@@ -1225,10 +1255,10 @@ sub messages_reports {
       SUM(IF (m.state=1, 1, 0)) AS unmaked,
       SUM(IF (m.state=2, 1, 0)) AS maked,
       SUM(IF (m.state>2, 1, 0)) AS other,
-      SEC_TO_TIME(SUM(mr.run_time)) AS run_time,
+      SEC_TO_TIME(SUM(t1.run_time)) AS run_time,
       SUM(IF(m.admin_read = '0000-00-00 00:00:00', 1, 0)) AS in_work
      FROM msgs_messages m
-     LEFT JOIN msgs_reply mr ON (m.id=mr.main_msg)
+     LEFT JOIN (SELECT mr.main_msg, SUM(mr.run_time) as run_time FROM msgs_reply mr GROUP BY mr.main_msg) as t1 ON (m.id=t1.main_msg)
      $EXT_TABLES
     $WHERE;",
     undef,
@@ -2150,6 +2180,29 @@ sub survey_answer_show {
   );
 
   return $self->{list};
+}
+
+#**********************************************************
+=head2 survey_answer_list($attr)
+
+=cut
+#**********************************************************
+sub survey_answer_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT
+    ma.*,
+    u.id as login
+    FROM msgs_survey_answers ma
+    LEFT JOIN users u ON (u.uid=ma.uid)
+    WHERE survey_id= ? ;",
+    undef,
+    { Bind => [$attr->{SURVEY_ID}], COLS_NAME => 1}
+  );
+
+  return $self->{list};
+
 }
 
 #**********************************************************
@@ -3362,5 +3415,30 @@ sub quick_replys_tags_list {
   return $list;
 }
 
-1
+#**********************************************************
+=head2 messages_report_per_month($attr)
+
+=cut
+#**********************************************************
+sub messages_report_closed {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT DATE_FORMAT(m.closed_date, \'%Y-%m\') AS month,
+    COUNT(DISTINCT m.id) AS total_msgs,
+    SUM(t1.time) AS run_time,
+    SUM(t1.replys) AS total_replys,
+    SUM(m.rating) AS total_rating
+  FROM msgs_messages m
+  LEFT JOIN (SELECT mr.main_msg, SUM(mr.run_time) as time, COUNT(DISTINCT mr.id) AS replys FROM msgs_reply mr GROUP BY mr.main_msg) as t1 ON (m.id=t1.main_msg)
+  WHERE m.closed_date >= ? AND m.closed_date <= ?
+  GROUP BY month;",
+  undef,
+  { COLS_NAME => 1, Bind => [ $attr->{F_DATE}, $attr->{T_DATE} ]}
+  );
+
+  return $self->{list};
+}
+
+1;
 

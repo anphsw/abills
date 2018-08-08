@@ -101,7 +101,7 @@ $lang{SM}='sm';
 $lang{MM}='mm';
 $lang{LITERS}='litre';
 $lang{BOXES}='box';
-
+$lang{PER_ONE_ITEM}='per 1 item';
 
 $lang{STORAGES}='Storages';
 
@@ -110,3 +110,6 @@ $lang{INNER_USE_SHORT} = 'Inner use';
 $lang{TO_INNER_USE} = 'To inner use';
 
 $lang{IN_STORAGE} = 'In storage';
+
+$lang{BY_INSTALLMENTS} = 'By installments';
+$lang{PROPERTY}='Property';

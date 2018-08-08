@@ -191,6 +191,11 @@ if(($FORM{external_auth} || $conf{HOTSPOT_SN_LOGIN}) && !$FORM{next}) {
   $FORM{GUEST_ACCOUNT}=1;
 }
 
+if ($FORM{ajax} && $FORM{mac} && $FORM{PHONE}) {
+  check_auth();
+  exit;
+}
+
 if ($conf{HOTSPOT_AUTO_LOGIN}) {
   fast_login();
 }
@@ -1354,7 +1359,6 @@ sub fast_login {
     });
 
     if ($Hotspot->{TOTAL} > 0) {
-
       if ($conf{HOTSPOT_MAC_CHANGE} && $hot_log->[0]->{phone}) {
         #Update MAC for existing user.
         my $list = $Dv->list({
@@ -1739,6 +1743,25 @@ sub phone_verifycation {
         PHONE    => $FORM{PHONE},
         COMMENTS => 'Phone confirmed.'
       });
+      if ($conf{HOTSPOT_MAC_CHANGE} && $FORM{PHONE}) {
+        #Update MAC for existing user.
+        my $list = $Dv->list({
+          PASSWORD     => '_SHOW',
+          LOGIN        => '_SHOW',
+          UID          => '_SHOW',
+          PHONE        => $FORM{PHONE},
+          CID          => '_SHOW',
+          PAYMENT_TYPE => 2,
+          COLS_NAME    => 1,
+        });
+
+        if ( $Dv->{TOTAL} > 0 && $list->[0]->{cid} ne $FORM{mac}){
+          $Dv->change({
+            UID => $list->[0]->{uid},
+            CID => $FORM{mac},
+          });
+        }
+      }
       $FORM{'3.PHONE'} = $PHONE_PREFIX . $FORM{PHONE};
       $conf{HOTSPOT_MAC_LOGIN} = 1;
 
@@ -1911,6 +1934,31 @@ sub hotspot_card {
     return $Cards->{NUMBER};
   }
 
+  return 1;
+}
+
+#**********************************************************
+=head2 check_auth()
+
+=cut
+#**********************************************************
+sub check_auth {
+  my $hot_log = $Hotspot->log_list({
+    PHONE     => $FORM{PHONE},
+    CID       => $FORM{mac},
+    INTERVAL  => "$DATE/$DATE",
+    ACTION    => 12,
+    COMMENTS  => '_SHOW',
+    COLS_NAME => 1,
+  });
+
+  print "Content-Type: text/html\n\n";
+  if ($Hotspot->{TOTAL} < 1) {
+    print 0;
+  }
+  else {
+    print 1;
+  }
   return 1;
 }
 

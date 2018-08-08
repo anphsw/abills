@@ -316,7 +316,12 @@ sub ureports_periodic_reports{
             my $rest = 0;
             foreach my $line ( @{$list} ){
 
-              $rest = ($line->{prepaid} > 0 && $Sessions->{REST}->{ $line->{traffic_class} } > 0) ? $Sessions->{REST}->{ $line->{traffic_class} } : 0;
+              $rest = 0;
+              if ($line->{prepaid} && $line->{prepaid} > 0
+                 && defined($line->{traffic_class}) && $Sessions->{REST} && $Sessions->{REST}->{ $line->{traffic_class} } && $Sessions->{REST}->{ $line->{traffic_class} } > 0) {
+                $rest = $Sessions->{REST}->{ $line->{traffic_class} };
+              }
+
               if ( $rest < $user->{VALUE} ){
                 $PARAMS{MESSAGE} .= "================\n $lang{TRAFFIC} $lang{TYPE}: $line->{traffic_class}\n$lang{BEGIN}: $line->{interval_begin}\n" . "$lang{END}: $line->{interval_end}\n" . "$lang{TOTAL}: $line->{prepaid}\n" . "\n $lang{REST}: " . $rest . "\n================";
               }
@@ -377,7 +382,8 @@ sub ureports_periodic_reports{
 
         # 9 - X days for expire
         elsif ( $user->{REPORT_ID} == 9 ){
-          if ( $user->{TP_EXPIRE} == $user->{VALUE} ){
+          #if ( $user->{TP_EXPIRE} == $user->{VALUE} ){
+          if ( $user->{EXPIRE_DAYS} == $user->{VALUE} ){
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
               MESSAGE  => "$lang{DAYS_TO_EXPIRE}: $user->{TP_EXPIRE}",
@@ -407,8 +413,8 @@ sub ureports_periodic_reports{
 
         #Report 11 - Small deposit fo next month activation
         elsif ( $user->{REPORT_ID} == 11 ){
-          if ( 0 > $user->{DEPOSIT} ){
-            my $recharge = $user->{TP_MONTH_FEE} + $user->{DEPOSIT};
+          if ( $user->{TP_MONTH_FEE} && $user->{TP_MONTH_FEE} > $user->{DEPOSIT} ){
+            my $recharge = $user->{TP_MONTH_FEE} + (($user->{DEPOSIT} < 0) ? abs($user->{DEPOSIT}) : 0) ;
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
               MESSAGE  => "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH} $lang{BALANCE_RECHARCHE} $recharge",
@@ -422,12 +428,11 @@ sub ureports_periodic_reports{
 
         #Report 13 All service expired throught
         elsif ( $user->{REPORT_ID} == 13 && !$internet_status ){
-          if ( $total_daily_fee > 0
-            || ($user->{EXPIRE_DAYS} && $user->{EXPIRE_DAYS} <= $user->{VALUE})){
+          if ($user->{EXPIRE_DAYS} && $user->{EXPIRE_DAYS} <= $user->{VALUE}){
 
             $debug_output .= "(Day fee: $total_daily_fee / $user->{EXPIRE_DAYS} -> $user->{VALUE} \n" if ($debug > 4);
 
-            if ( $user->{EXPIRE_DAYS} <= $user->{VALUE} ){
+            if ( $user->{EXPIRE_DAYS} <= $user->{VALUE} && $user->{EXPIRE_DAYS}>=0 ){
               $lang{ALL_SERVICE_EXPIRE} =~ s/XX/ $user->{EXPIRE_DAYS} /;
 
               my $message = $lang{ALL_SERVICE_EXPIRE};

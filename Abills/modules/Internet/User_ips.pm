@@ -36,11 +36,12 @@ sub get_static_ip {
 
   my $Internet = Internet->new($db, $admin, \%conf);
   my $Nas      = Nas->new($db, \%conf, $admin);
+
   my $Ip_pool  = $Nas->ip_pools_info($pool_id);
 
   if($attr->{IPV6}) {
     return $Ip_pool->{IPV6_PREFIX}, $Ip_pool->{IPV6_MASK}, $Ip_pool->{IPV6_TEMPLATE},
-      $Ip_pool->{IPV6_PD_PREFIX}, $Ip_pool->{IPV6_PD_MASK}, $Ip_pool->{IPV6_PD_TEMPLATE};
+      $Ip_pool->{IPV6_PD}, $Ip_pool->{IPV6_PD_MASK}, $Ip_pool->{IPV6_PD_TEMPLATE};
   }
 
 #  if($Nas->{TOTAL} < 1) {

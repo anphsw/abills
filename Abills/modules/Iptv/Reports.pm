@@ -10,7 +10,8 @@ use warnings FATAL => 'all';
 our(
   $Iptv,
   %lang,
-  $html
+  $html,
+  $Tv_service
 );
 
 #***********************************************************
@@ -121,7 +122,7 @@ sub iptv_reports_channels{
       $button = $html->button($total_list->{$key}->{total}, "index=$index", { class => 'label label-default' });
     }
     my $deb_button = $html->button($total_list->{$key}->{total_debetors}, "index=$index&list=$key&deb=1", { class => 'label label-default' });
-    my $dis_button = $html->button($total_list->{$key}->{total_disabled}, "index=$index&list=$key&dis=1", { class => 'label label-default' });
+    #my $dis_button = $html->button($total_list->{$key}->{total_disabled}, "index=$index&list=$key&dis=1", { class => 'label label-default' });
 
     $table->addrow( $html->b( $key ), $total_list->{$key}->{name}, '', $button, '', $deb_button);
   }
@@ -153,5 +154,81 @@ sub iptv_reports_channels{
   
   return 1;
 }
+
+#**********************************************************
+=head iptv_console($attr) - Quick information
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub iptv_console {
+  my($attr) = @_;
+
+  my $services = $html->form_main(
+    {
+      CONTENT => tv_services_sel(),
+      HIDDEN  => { index => $index },
+      SUBMIT  => { show  => $lang{SHOW} },
+      class   => 'navbar-form navbar-right',
+    }
+  );
+
+  func_menu({ $lang{NAME} => $services });
+
+  if($FORM{SERVICE_ID}) {
+    $Tv_service = tv_load_service( '', { SERVICE_ID => $FORM{SERVICE_ID} });
+
+    if(! $Tv_service) {
+      return 1;
+    }
+
+    if ($Tv_service->{SERVICE_CONSOLE}) {
+      my $fn = $Tv_service->{SERVICE_CONSOLE};
+      &{ \&$fn }( { %FORM, %{$attr}, %{$Iptv}, SERVICE_ID => $FORM{SERVICE_ID} } );
+    }
+    elsif ($Tv_service->can('reports')) {
+      if($FORM{TYPE}) {
+        $LIST_PARAMS{TYPE}=$FORM{TYPE};
+      }
+
+      $Tv_service->reports({ %FORM, %LIST_PARAMS, SERVICE_ID => $FORM{SERVICE_ID} });
+      _error_show($Tv_service);
+
+      if($Tv_service->{REPORT}) {
+        result_former({
+          FUNCTION_FIELDS => $Tv_service->{FUNCTION_FIELDS},
+          #          FUNCTION_FIELDS => "iptv_console:DEL:mac;serial_number:&list="
+          #            . ($FORM{list} || '') . "&del=1&COMMENTS=1"
+          #            . (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : ''),
+          #":$lang{DEL}:MAC:&del=1&COMMENTS=del",
+          SKIP_USER_TITLE => 1,
+          EXT_TITLES => {
+            id   => 'ID',
+            name => $lang{NAME}
+          },
+          TABLE   => {
+            width    => '100%',
+            caption  => ($Tv_service->{REPORT_NAME} && $lang{$Tv_service->{REPORT_NAME}}) ? $lang{$Tv_service->{REPORT_NAME}} : $Tv_service->{REPORT_NAME},
+            qs       => "&list=" . ($FORM{list} || ''). (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : ''),
+            EXPORT   => 1,
+            ID       => 'TV_REPORTS',
+            header   => $Tv_service->{MENU}
+          },
+          #          FILTER_COLS   => {
+          #            account              => 'search_link:iptv_users_list:ID',
+          #          },
+          DATAHASH      => $Tv_service->{REPORT},
+          SKIPP_UTF_OFF => 1,
+          TOTAL         => 1
+        });
+      }
+    }
+  }
+
+  return 1;
+}
+
 
 1;

@@ -56,7 +56,7 @@ sub check_programs {
   foreach my $line (@programs) {
     my ($name, $start_cmd) = split(/:/, $line, 2);
     if ($debug > 1) {
-      print "Program: $name, $start_cmd\n";
+      print "Program: $name, Start cmd: ". ($start_cmd || q{--}) ."\n";
     }
 
     my @ps = split m|$/|, qx/ps axc | grep $name/;

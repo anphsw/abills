@@ -16,9 +16,18 @@ Arguments:
   pkg         - Try to install missing modules using pkg (FreeBSD only)
   apt-get     - Install using apt-get when possible (Debian / Ubuntu)
   rpm         - Install using rpm packages when possible ( RHEL, CentOS, Fedora )
-  ";
+";
 
-my $action = $ARGV[0] or die $usage;
+my $action = q{};
+
+if($ARGV[0]) {
+  my $action = $ARGV[0];
+}
+else {
+  print $usage;
+  exit 0;
+}
+
 my $batch = $ARGV[1] || 0;
 
 

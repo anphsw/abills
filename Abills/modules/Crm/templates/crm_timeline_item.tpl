@@ -1,12 +1,17 @@
-<style type="text/css">
-  .crm-timeline-item{
-    background: #ecf0f5 !important;
-  }
-</style>
+<li>
+  <!-- timeline icon -->
+  <i class="%ICON%"></i>
+  <div class="timeline-item bg-gray">
+    <span class="time"><i class="fa fa-clock-o"></i>%DATE%</span>
+    <h3 class="timeline-header text-left">%HEADER%</h3>
 
-<li> 
-  <div class='timeline-item crm-timeline-item'>
-    <span class='time'><i class='fa fa-clock-o'></i>%DATE%</span>
-    <div class='timeline-body'>%MESSAGE%</div>
+    <div class="timeline-body text-left">
+      %MESSAGE%
+    </div>
+
+    <div class="timeline-footer text-left">
+    %FOOTER%
+    </div>
+
   </div>
 </li>

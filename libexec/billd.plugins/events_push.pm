@@ -27,7 +27,7 @@ my $json = JSON->new->utf8(1);
 my $DEBUG = ($argv && $argv->{DEBUG}) ? $argv->{DEBUG} : 0;
 
 $DATE //= POSIX::strftime("%Y-%m-%d", localtime());
-my ($year, $month, $day) = split('-', $DATE);
+my (undef, $month, $day) = split('-', $DATE);
 
 _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } });
 

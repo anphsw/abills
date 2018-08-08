@@ -99,6 +99,10 @@ foreach my $data (@$attachments_list){
   
   my $path = $ATTACH_DIR . '/' . $message_reply->{uid};
 
+  if(! -d "$conf{TPL_DIR}/attach") {
+    mkdir ("$conf{TPL_DIR}/attach") or die "Can`t create path '$conf{TPL_DIR}/attach' $!";
+  }
+
   if(! -d $ATTACH_DIR) {
     mkdir ($ATTACH_DIR) or die "Can`t create path '$ATTACH_DIR' $!";
   }

@@ -2,8 +2,8 @@
   <div class='box-header with-border'><h4 class='box-title'>_{WELL}_</h4></div>
   <div class='box-body'>
     <form name='CABLECAT_WELLS' id='form_CABLECAT_WELLS' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index'/>
-      <input type='hidden' name='search_form' value='1'/>
+      <!--<input type='hidden' name='index' value='$index'/>-->
+      <!--<input type='hidden' name='search_form' value='1'/>-->
 
       <div class='form-group'>
         <label class='control-label col-md-3' for='ID_id'>ID</label>

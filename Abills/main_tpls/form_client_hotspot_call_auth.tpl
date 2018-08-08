@@ -15,3 +15,20 @@
     </fieldset>
 
 </form>
+<script>
+jQuery(function(){
+  setInterval(function(){ check_call(); }, 3000);
+});
+
+function check_call() {
+  jQuery.ajax({
+    url: '$SELF_URL?ajax=1&mac=%mac%&PHONE=%PHONE%',
+    success: function(result){
+      if(result == '1') {
+        document.location.href = 'http://google.com';
+      }
+    }
+  });
+}
+
+</script>

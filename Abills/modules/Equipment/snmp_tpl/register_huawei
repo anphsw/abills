@@ -387,7 +387,7 @@ sub telnet_cmd{
 sub _get_onu_service_ports {
   if (telnet_open()) {
     my $data = '';
-    $data = telnet_cmd("display service-port port $argv->{BRANCH} ont $argv->{ONU_ID};");
+    $data = telnet_cmd("display service-port port $argv->{BRANCH} ont $argv->{ONU_ID}; enter;");
     my @list = split('\|', $data || q{});
     my $service_ports = ();
     foreach my $line (@list) {

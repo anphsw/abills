@@ -165,16 +165,16 @@ sub mx80_checklines {
       %LIST_PARAMS
     });
 
-    my $online = $Sessions->{nas_sorted};
-    my $l = $online->{ $nas_info->{nas_id} };
+    my $online_sessions = $Sessions->{nas_sorted};
+    my $l = $online_sessions->{ $nas_info->{nas_id} };
     next if ($#{$l} < 0);
-    foreach my $o (@$l) {
+    foreach my $online (@$l) {
       $total_billing++;
-      if (!$active_mx_ip{$o->{client_ip}}) {
-        print "!!! Not found on nas $o->{user_name} IP: $o->{client_ip} SID: $o->{acct_session_id}\n";
+      if (!$active_mx_ip{$online->{client_ip}}) {
+        print "!!! Not found on nas $online->{user_name} IP: $online->{client_ip} SID: $online->{acct_session_id}\n";
       }
       else {
-        delete $active_mx_ip{$o->{client_ip}};
+        delete $active_mx_ip{$online->{client_ip}};
       }
     }
 

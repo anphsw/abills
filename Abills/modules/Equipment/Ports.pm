@@ -5,7 +5,7 @@
 =cut
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(int2byte in_array int2ip);
+use Abills::Base qw(int2byte in_array int2ip _bp);
 
 our(
   %lang,
@@ -30,8 +30,9 @@ our @skip_ports_types = [
   53
 ];
 
-my @ports_state = ('', $lang{ACTIV}, $lang{DISABLE}, 'Damage', 'Corp vlan', 'Dormant', 'Not Present', 'lowerLayerDown');
-my @admin_ports_state = ('', 'Enabled', 'Disabled', 'Testing');
+my @ports_state = ('', "Up", "Down", 'Damage', 'Corp vlan', 'Dormant', 'Not Present', 'lowerLayerDown');
+#my @admin_ports_state = ('', 'Enabled', 'Disabled', 'Testing');
+my @admin_ports_state = ('', 'Up', 'Down', 'Testing');
 my @ports_state_color = ('', '#008000', '#FF0000');
 
 require Equipment::Pon_mng;
@@ -89,6 +90,9 @@ sub equipment_ports_full {
     }
   }
 
+  $tpl_fields{PORT_DESCR} = "Description";
+  $tpl_fields{NATIVE_VLAN} = "Native VLAN dynamic";
+
   #New
   my $default_fields = 'PORT_NAME,PORT_STATUS,ADMIN_PORT_STATUS,UPLINK,LOGIN,MAC,VLAN,PORT_ALIAS,TRAFFIC';
   my ($table, $list) = result_former({
@@ -110,7 +114,7 @@ sub equipment_ports_full {
         LOGIN             => $lang{LOGIN},
         MAC               => "MAC",
         IP                => "IP",
-        VLAN              => "VLAN",
+        VLAN              => "Native VLAN static",
         ADDRESS_FULL      => $lang{ADDRESS},
         DEPOSIT           => $lang{DEPOSIT},
         TP_NAME           => $lang{TARIF_PLAN},
@@ -1226,15 +1230,14 @@ sub port_result_former {
       $key = "$lang{PORTS}:";
       my @ports_status = split(/\n/, $value);
       $value = q{};
-
       foreach my $line (@ports_status) {
         my ($port, $status)=split(/ /, $line);
-        my $color = q{};
-        my $describe = "State: Down </br>";
-        my $speed = $port_info->{$port_id}->{ETH_SPEED}->{$port} || '';
-        my $duplex = $port_info->{$port_id}->{ETH_DUPLEX}->{$port} || '';
+        my $color       = q{};
+        my $describe    = "State: Down ".$html->br();
+        my $speed       = $port_info->{$port_id}->{ETH_SPEED}->{$port} || '';
+        my $duplex      = $port_info->{$port_id}->{ETH_DUPLEX}->{$port} || '';
         my $admin_state = $port_info->{$port_id}->{ETH_ADMIN_STATE}->{$port} || '';
-        my $vlan = $port_info->{$port_id}->{VLAN}->{$port} || '';
+        my $vlan        = ($port_info->{$port_id}->{VLAN} && ref $port_info->{$port_id}->{VLAN} eq 'HASH' ) ? $port_info->{$port_id}->{VLAN}->{$port} : '';
 
 #$admin_state = "Disble" if ($port  eq '5');
 #$speed = '1Gb/s' if ($port eq '2');
@@ -1246,11 +1249,12 @@ sub port_result_former {
 #$duplex = 'Full';
         if ($status == 1) {
           $color   = 'text-green';
-          $describe = "State: Up </br>";
+          $describe = "State: Up ".$html->br();
         }
-        $describe .= "Speed: $speed </br>" if ($speed);
-        $describe .= "Duplex: $duplex </br>" if ($duplex);
-        $describe .= "Native Vlan : $vlan </br>" if ($vlan);
+
+        $describe .= "Speed: $speed ".$html->br() if ($speed);
+        $describe .= "Duplex: $duplex ".$html->br() if ($duplex);
+        $describe .= "Native Vlan : $vlan ".$html->br() if ($vlan);
 
         my $btn = q{};
         if ($admin_state) {
@@ -1275,6 +1279,7 @@ sub port_result_former {
         }
         $value .= $html->element('span', $btn, {class => 'btn-ethernet', 'data-tooltip' => $describe, 'data-tooltip-position' => 'bottom'});
       }
+
       $value .= $html->br() . "&emsp;";
 
       my $help_ = q{};

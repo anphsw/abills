@@ -103,5 +103,25 @@ $lang{CONNECTION_TRACE} = 'Trace connection';
 $lang{TRACE_UP_TO} = 'Trace up to';
 
 $lang{WRONG_LINKS} = 'Wrong links';
+$lang{PRINT_SCHEME} = 'Print scheme';
+
+$lang{WHITE} = 'White';
+$lang{SEA} = 'Sea';
+$lang{YELLOW} = 'Yellow';
+$lang{GREEN} = 'Green';
+$lang{BROWN} = 'Brown';
+$lang{RED} = 'Red';
+$lang{ORANGE} = 'Orange';
+$lang{PINK} = 'Pink';
+$lang{GRAY} = 'Gray';
+$lang{BLUE} = 'Blue';
+$lang{VIOLET} = 'Violet';
+$lang{BLACK} = 'Black';
+$lang{YELLOWGREEN} = 'Yellowgreen';
+$lang{OLIVE} = 'Olive';
+$lang{BEIGE} = 'Beige';
+$lang{NATURAL} = 'Natural';
+$lang{LEMON} = 'Lemon';
+$lang{CHERRY} = 'Cherry';
 
 1;

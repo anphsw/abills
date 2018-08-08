@@ -235,7 +235,7 @@ sub iptv_monthly_next_tp{
 
       my $expire = undef;
 
-      if (!$CHANGED_TPS{ $user{UID} }
+      if (!$CHANGED_TPS{ $user{ID} }
         && ((!$tp_info->{age} && ($d == $START_PERIOD_DAY) || $user{ACTIVATE} ne '0000-00-00')
         || ($tp_info->{age} && $user{EXPIRE} eq $ADMIN_REPORT{DATE}) )) {
 
@@ -273,11 +273,12 @@ sub iptv_monthly_next_tp{
         if (!$Iptv->{errno}) {
           iptv_account_action(
             {
-              change => 1,
-              UID    => $user{UID},
-              ID     => $user{ID},
-              TP_ID  => $tp_info->{next_tp_id},
-              EXPIRE => $expire
+              change    => 1,
+              UID       => $user{UID},
+              ID        => $user{ID},
+              TP_ID     => $tp_info->{next_tp_id},
+              EXPIRE    => $expire,
+              CHANGE_TP => 1
             }
           );
         }
@@ -700,8 +701,13 @@ sub iptv_sheduler{
       UID     => $uid,
       DISABLE => $action_
     });
-
-    iptv_account_action( { %info, CHANGE_TP => 1 }  );
+    $Iptv->{STATUS}=$action_;
+    iptv_account_action( {
+      %info,
+      #CHANGE_TP => 1,
+      STATUS => $action_,
+      change => 1
+    }  );
   }
 
   return 1;

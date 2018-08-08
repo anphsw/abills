@@ -229,9 +229,7 @@ function defineMainSearchLiveLogic() {
   
         submitOnEnter: true,
         highlight    : false,
-  
         selectable : ':not(.disabled)',
-  
         formatItem: function (data, $item) {
           // Disable selecting if not universal search type;
           var result = Mustache.render(login_uid_row_template, data);
@@ -247,7 +245,6 @@ function defineMainSearchLiveLogic() {
           location.replace('?index=15&UID=' + data.uid);
         },
         param: 'LOGIN',
-  
         required: false
       });
     }
@@ -255,14 +252,6 @@ function defineMainSearchLiveLogic() {
       console.log(Error.message);
     }
   });
- 
-  //Higlighted style
-  var highlighted_style_block = ''
-      + '<style> ol.mp_list li.mp_highlighted {' +
-      ' background-color:' + $('.bg-success').css('background-color')
-      +'}</style>';
-
-  //$('head').append(highlighted_style_block);
 }
 
 

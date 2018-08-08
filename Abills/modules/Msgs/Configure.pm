@@ -469,6 +469,11 @@ sub msgs_survey {
   elsif ($FORM{chg}) {
     $Msgs->survey_subject_info($FORM{chg});
 
+#    if($FORM{ajax}){
+#      print "$Msgs->{TPL}";
+#      return 1;
+#    }
+
     $Msgs->{ACTION} = 'change';
     $Msgs->{LNG_ACTION} = $lang{CHANGE};
     $FORM{add_form} = 1;
@@ -497,6 +502,9 @@ sub msgs_survey {
         NO_ID     => 1
       }
     );
+    if($Msgs->{TPL}) {
+      $Msgs->{TPL} =~ s/\%/\&#37/g;
+    }
     $html->tpl_show(_include('msgs_survey_subject', 'Msgs'), $Msgs);
   }
 

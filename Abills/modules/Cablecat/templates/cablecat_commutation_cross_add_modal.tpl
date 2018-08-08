@@ -87,6 +87,9 @@
       if (old_value) {
         renewChosenValue(select, old_value);
       }
+      else {
+        updateChosen();
+      }
     };
 
     var renew_ports_count = function(){

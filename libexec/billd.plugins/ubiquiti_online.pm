@@ -16,12 +16,13 @@ our ($debug,
   $db
 );
 
-our Dv_Sessions $Sessions;
+our Internet::Sessions $Internet_Sessions;
 our Nas $Nas;
 
 use Unifi::Unifi;
-use Acct;
-use Dv;
+use Acct2;
+use Internet;
+use Internet::Sessions;
 
 ubiquiti_online();
 
@@ -33,9 +34,10 @@ ubiquiti_online();
 sub ubiquiti_online{
   #my ($attr) = @_;
 
-  my $Acct = Acct->new( $db, \%conf );
-  my $Dv   = Dv->new( $db, $Admin, \%conf );
+  my $Acct = Acct2->new( $db, \%conf );
+  my $Internet   = Internet->new( $db, $Admin, \%conf );
   my $Log  = Log->new( $db, $Admin );
+  $Internet_Sessions = Internet::Sessions->new($db, $Admin, \%conf);
 
   if($debug > 2) {
     $Log->{PRINT}=1;
@@ -52,13 +54,13 @@ sub ubiquiti_online{
 
     if ( $debug > 5 ){
       $Nas->{debug} = 1;
-      $Sessions->{debug} = 1;
-      $Dv->{debug} = 1;
+      $Internet_Sessions->{debug} = 1;
+      $Internet->{debug} = 1;
     }
   }
 
   #Get users mac
-  my $list = $Dv->list( {
+  my $list = $Internet->list( {
     CID       => '!',
     TP_ID     => '_SHOW',
     PAGE_ROWS => 100000,
@@ -93,7 +95,7 @@ sub ubiquiti_online{
     $conf{UNIFI_SITENAME}=$nas_info->{nas_identifier} || 'default';
     #Get billing online
     my %online_hash = ();
-    $Sessions->online( {
+    $Internet_Sessions->online( {
       CLIENT_IP          => '_SHOW',
       ACCT_INPUT_OCTETS  => '_SHOW',
       ACCT_OUTPUT_OCTETS => '_SHOW',
@@ -106,13 +108,14 @@ sub ubiquiti_online{
       COLS_NAME          => 1,
     });
 
-    my $online_nas = $Sessions->{nas_sorted};
+    my $online_nas = $Internet_Sessions->{nas_sorted};
 
     foreach my $online ( @{ $online_nas->{ $nas_info->{nas_id} } } ){
       $online_hash{$online->{acct_session_id}} = $online;
     }
 
     my $Unifi = Unifi->new( \%conf );
+    $nas_info->{nas_mng_ip_port} =~ s/:(\d+).*$/:$1/g;
     $Unifi->{unifi_url} = 'https://' . $nas_info->{nas_mng_ip_port};
     $Unifi->{login}     = $nas_info->{nas_mng_user};
     $Unifi->{password}  = $nas_info->{nas_mng_password};
@@ -135,7 +138,6 @@ sub ubiquiti_online{
         "NAS: $nas_info->{nas_id} SITE: $nas_info->{nas_identifier} Error: $Unifi->{errno} $Unifi->{errstr}");
       next;
     }
-
     #Get unifi logins
     my $total_sessions = $#{ $ap_user_list } + 1;
     for ( my $i = 0; $i <= $#{ $ap_user_list }; $i++ ){
@@ -180,7 +182,7 @@ sub ubiquiti_online{
 
       if ( $online_hash{$user_info->{_id}} ){
         print "Online update: $user_info->{_id}\n" if ($debug > 1);
-        $Sessions->online_update( {
+        $Internet_Sessions->online_update( {
           %acct_data,
           STATUS => 3,
         } );
@@ -189,7 +191,7 @@ sub ubiquiti_online{
       }
       else{
         print "Online add: $user_info->{_id}\n" if ($debug > 1);
-        $Sessions->online_add( {
+        $Internet_Sessions->online_add( {
           %acct_data,
           STARTED         => 'NOW()', #$user_info->{first_seen},
           STATUS          => 1,
@@ -205,33 +207,33 @@ sub ubiquiti_online{
         print "Stop session: $session_id\n";
       }
 
-      my $ACCT_INFO = $Sessions->online_info({
+      my $ACCT_INFO = $Internet_Sessions->online_info({
         NAS_ID          => $nas_info->{NAS_ID},
         NAS_PORT        => $online_hash{$session_id}{nas_port_id},
         ACCT_SESSION_ID => $session_id
       });
 
-      if ( $Sessions->{errno} ){
-        $Log->log_print('LOG_ERR', '', "[$Sessions->{errno}] $Sessions->{errstr}\n");
+      if ( $Internet_Sessions->{errno} ){
+        $Log->log_print('LOG_ERR', '', "[$Internet_Sessions->{errno}] $Internet_Sessions->{errstr}\n");
         next;
       }
 
       #Calculate session
-      $ACCT_INFO->{INBYTE}                 = $Sessions->{ACCT_INPUT_OCTETS};
-      $ACCT_INFO->{OUTBYTE}                = $Sessions->{ACCT_OUTPUT_OCTETS};
-      $ACCT_INFO->{'Acct-Input-Gigawords'} = $Sessions->{ACCT_INPUT_GIGAWORDS},
-      $ACCT_INFO->{'Acct-Output-Gigawords'}= $Sessions->{acct_output_gigawords},
-      $ACCT_INFO->{INBYTE2}                = $Sessions->{EX_INPUT_OCTETS};
-      $ACCT_INFO->{OUTBYTE2}               = $Sessions->{EX_OUTPUT_OCTETS};
-      $ACCT_INFO->{'User-Name'}            = $Sessions->{USER_NAME};
-      $ACCT_INFO->{'NAS-Port'}             = $Sessions->{NAS_PORT_ID};
+      $ACCT_INFO->{INBYTE}                 = $Internet_Sessions->{ACCT_INPUT_OCTETS};
+      $ACCT_INFO->{OUTBYTE}                = $Internet_Sessions->{ACCT_OUTPUT_OCTETS};
+      $ACCT_INFO->{'Acct-Input-Gigawords'} = $Internet_Sessions->{ACCT_INPUT_GIGAWORDS},
+      $ACCT_INFO->{'Acct-Output-Gigawords'}= $Internet_Sessions->{acct_output_gigawords},
+      $ACCT_INFO->{INBYTE2}                = $Internet_Sessions->{EX_INPUT_OCTETS};
+      $ACCT_INFO->{OUTBYTE2}               = $Internet_Sessions->{EX_OUTPUT_OCTETS};
+      $ACCT_INFO->{'User-Name'}            = $Internet_Sessions->{USER_NAME};
+      $ACCT_INFO->{'NAS-Port'}             = $Internet_Sessions->{NAS_PORT_ID};
       $ACCT_INFO->{'Acct-Status-Type'}     = 'Stop';
-      $ACCT_INFO->{'Acct-Session-Time'}    = $Sessions->{ACCT_SESSION_TIME} || 0;
+      $ACCT_INFO->{'Acct-Session-Time'}    = $Internet_Sessions->{ACCT_SESSION_TIME} || 0;
       $ACCT_INFO->{'Acct-Terminate-Cause'} = 'Lost-Alive';
-      $ACCT_INFO->{'Acct-Session-Id'}      = $Sessions->{ACCT_SESSION_ID};
-      $ACCT_INFO->{'Connect-Info'}         = $Sessions->{CONNECT_INFO};
-      $ACCT_INFO->{'Framed-IP-Address'}    = $Sessions->{CLIENT_IP};
-      $ACCT_INFO->{'Calling-Station-Id'}   = $Sessions->{CID};
+      $ACCT_INFO->{'Acct-Session-Id'}      = $Internet_Sessions->{ACCT_SESSION_ID};
+      $ACCT_INFO->{'Connect-Info'}         = $Internet_Sessions->{CONNECT_INFO};
+      $ACCT_INFO->{'Framed-IP-Address'}    = $Internet_Sessions->{CLIENT_IP};
+      $ACCT_INFO->{'Calling-Station-Id'}   = $Internet_Sessions->{CID};
       $stop_total++;
       $Acct->accounting( $ACCT_INFO, $nas_info );
     }

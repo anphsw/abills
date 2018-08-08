@@ -39,6 +39,11 @@
       </div>
 
       <div class='form-group'>
+        <label class='col-md-3 control-label'>_{SERIAL}_:</label>
+        <div class='col-md-8'><textarea class='form-control' name='SERIAL'>%SERIAL%</textarea></div>
+      </div>
+
+      <div class='form-group'>
         <label class='col-md-3 control-label'>_{NAS}_:</label>
         <div class='col-md-8'>%NAS%</div>
       </div>

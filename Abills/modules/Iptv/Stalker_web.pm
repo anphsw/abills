@@ -94,7 +94,8 @@ sub stalker_console{
     else{
       my $users_list = $users->list({
         LOGIN     => $FORM{LOGIN} || '-',
-        COLS_NAME => 1 });
+        COLS_NAME => 1
+      });
 
       my $login = $FORM{LOGIN};
       if ($users->{TOTAL} && $users->{TOTAL} > 0) {
@@ -105,11 +106,26 @@ sub stalker_console{
       }
 
       $FORM{TP_ID} = $tp_list{ $FORM{TP_ID} };
-      if ( !_error_show( $users, { MESSAGE => 'Stalker' } ) ){
+      if ( !_error_show( $users, { MESSAGE => 'Stalker LOGIN: '. ($FORM{LOGIN} || q{}), ID => '888' } ) ){
+        my $id = $FORM{ID} || q{};
+
+        if($id !~ /^\d{1,6}$/) {
+          delete $FORM{ID};
+        }
+
         $Iptv->user_add( { %FORM, UID => $users->{UID} } );
         if(! _error_show($Iptv)) {
           $html->message('info', $lang{INFO}, "$lang{ADDED} ". $html->button($login, "index=".
-            get_function_index('iptv_user') ."&UID=$users->{UID}"), { BUTTON => 1 });
+            get_function_index('iptv_user') ."&UID=$users->{UID}").
+            " SERVICE: ". $Iptv->{INSERT_ID}, { BUTTON => 1 });
+
+          if($id !~ /^\d{1,6}$/) {
+            $Tv_service->user_change({
+              CID              => $FORM{CID},
+              ID               => $Iptv->{INSERT_ID},
+              MAIN_ACCOUNT_KEY => 'stb_mac'
+            });
+          }
         }
       }
     }
@@ -118,15 +134,15 @@ sub stalker_console{
     if ( $FORM{EXTERNAL_ID} ){
       $FORM{ID} = $FORM{EXTERNAL_ID};
     }
+
     $Tariffs->add( { %FORM, MODULE => 'Iptv' } );
-    if ( !_error_show( $Tariffs ) ){
+    if ( !_error_show( $Tariffs, { MESSAGE => "ID: ". $FORM{EXTERNAL_ID} } ) ){
       $html->message( 'info', "Stalker",
         "$lang{TARIF_PLAN} $lang{ADDED} [ $Tariffs->{INSERT_ID} ]\n " . $html->button( "$lang{CONFIG}",
           "index=" . get_function_index( 'iptv_tp' ) . "&TP_ID=$Tariffs->{INSERT_ID}", { BUTTON => 1 } ) );
       $tp_list{ $FORM{ID} } = $Tariffs->{INSERT_ID};
     }
   }
-
   if ( $FORM{list} ){
     iptv_stalker_show_list( $FORM{list} );
     return 0;
@@ -159,7 +175,7 @@ sub stalker_console{
   my @TITLE = ();
 
   if ( $Tv_service->{RESULT}->{results} ){
-    @TITLE = keys %{ $Tv_service->{RESULT}->{results}->[0] };
+    @TITLE = sort keys %{ $Tv_service->{RESULT}->{results}->[0] };
   }
 
   my $table = $html->table({
@@ -326,7 +342,13 @@ sub iptv_stalker_show_list{
   my $FUNCTION_FIELDS = "iptv_console:del:mac;serial_number:&list=$list_type&del=1&COMMENTS=1&SERVICE_ID=".$FORM{SERVICE_ID};    #":$lang{DEL}:MAC:&del=1&COMMENTS=del",
 
   if ( $list_type eq 'tariffs' ){
-    $FUNCTION_FIELDS = "iptv_console:add:external_id;name:&list=$list_type&tp_add=1&SERVICE_ID=".$FORM{SERVICE_ID};
+    #print "!!!!!!!/ $FORM{ID} || ! $tp_list{ $FORM{ID} } /";
+    if (! $FORM{ID} || ! $tp_list{ $FORM{ID} }) {
+      $FUNCTION_FIELDS = "iptv_console:add:external_id;name:&list=$list_type&tp_add=1&SERVICE_ID=" . $FORM{SERVICE_ID};
+    }
+    else {
+      $FUNCTION_FIELDS = q{};
+    }
   }
   elsif ( $list_type eq 'ITV' ){
     $FUNCTION_FIELDS = '';
@@ -410,7 +432,7 @@ sub iptv_stalker_show_list{
         if ( $key eq 'mac' ){
           $val = $html->button( $val, "index=$index&list=STB_MODULES&MAC=$val&SERVICE_ID=".$FORM{SERVICE_ID} );
         }
-        push @row, "$key", "$val";
+        push @row, $key, $val;
       }
       $table->addrow( @row );
     }

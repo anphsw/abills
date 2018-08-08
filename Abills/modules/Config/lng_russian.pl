@@ -12,6 +12,7 @@ $lang{BOTH_CASES} = 'Оба регистра';
 $lang{NUMBERS} = 'Цифры';
 $lang{SPECIAL_CHARS} = 'Специальные';
 $lang{LETTERS} = 'Буквы';
+$lang{DEFAULT_VALUE} = 'Значение по умолчанию';
 
 
 1;

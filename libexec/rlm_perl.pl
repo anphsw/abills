@@ -641,7 +641,7 @@ sub auth_ {
   }
 
   my $nas_type = $nas->{NAS_TYPE};
-
+  my $extra_info = q{};
   if ($AUTH{ $nas_type }) {
     my $auth_module = $AUTH{ $nas_type };
     if (!defined($auth_mod{ $nas_type })) {
@@ -652,7 +652,9 @@ sub auth_ {
     delete($auth_mod{$nas_type}->{INFO});
     $auth_mod{$nas_type} = $auth_module->new($db, \%conf);
     ($r, $RAD_PAIRS) = $auth_mod{$nas_type}->auth($RAD, $nas);
-    $RAD_REQUEST{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
+    $RAD_REQUEST{'User-Name'} = $auth_mod{$nas_type}->{LOGIN} if ($auth_mod{$nas_type}->{LOGIN});
+
+    $extra_info = ($auth_mod{$nas_type}->{INFO}) ? ' '.$auth_mod{$nas_type}->{INFO} .' ' : '';
   }
   elsif ($AUTH{ default }) {
     my $auth_module = $AUTH{ default };
@@ -665,6 +667,9 @@ sub auth_ {
     $auth_mod{default} = $auth_module->new($db, \%conf);
     ($r, $RAD_PAIRS) = $auth_mod{default}->auth($RAD, $nas);
     $RAD_REQUEST{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
+    $extra_info = ($auth_mod{ default }->{INFO}) ? ' '.$auth_mod{default}->{INFO} .' ' : '';
+
+    $nas_type = 'default';
   }
   else {
     $auth_mod{'default'} = Auth->new($db, \%conf);
@@ -732,8 +737,7 @@ sub auth_ {
   }
 
   if ($r == 0 || $r == 8) {
-    $Log->log_print( 'LOG_INFO', $RAD_REQUEST{'User-Name'},
-      (($auth_mod{$nas_type}->{INFO}) ? ' '.$auth_mod{$nas_type}->{INFO} : '')."$CID$GT", { NAS => $nas } );
+    $Log->log_print( 'LOG_INFO', $RAD_REQUEST{'User-Name'}, "$extra_info$CID$GT", { NAS => $nas } );
   }
 
   return $r;

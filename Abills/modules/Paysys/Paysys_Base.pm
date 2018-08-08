@@ -332,6 +332,7 @@ sub paysys_pay {
     SKIP_MODULES=> 'Sqlcmd',
     SILENT      => 1,
     SUM         => $PAYMENT_SUM || $amount,
+    AMOUNT      => $amount || $PAYMENT_SUM,
     EXT_ID      => "$payment_system:$ext_id",
     METHOD      => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2',
     timeout     => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
@@ -382,7 +383,8 @@ sub paysys_pay {
         cross_modules_call('_payments_maked', {
           USER_INFO  => $user,
           PAYMENT_ID => $payments_id,
-          SUM        => $amount,
+          SUM        => $PAYMENT_SUM || $amount,
+          AMOUNT     => $amount || $PAYMENT_SUM,
           SILENT     => 1,
           QUITE      => 1,
           timeout    => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
@@ -1066,6 +1068,34 @@ sub _account_expression {
   }
 
   return $CHECK_FIELD;
+}
+
+#**********************************************************
+=head2 _hide_personal_field($symbols_count_show, $field)
+
+  Arguments:
+    $symbols_count_show - how much first symbols show
+    $field -  string
+    
+  Returns:
+  
+=cut
+#**********************************************************
+sub _hide_personal_field {
+  my ( $symbols_count_show, $field ) = @_;
+
+  use Encode;
+  my $field_encoded = decode_utf8($field);
+  my @changed_fields = ();
+
+  foreach my $string (split(/\s/, $field_encoded)){
+    my $string_length = length($string);
+
+    push @changed_fields, substr($string, 0, $symbols_count_show) . '*' x($string_length - $symbols_count_show);
+  }
+  my $result = encode_utf8(join(' ', @changed_fields));
+
+  return $result
 }
   
 1

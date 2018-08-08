@@ -8,7 +8,7 @@ use warnings FATAL => 'all';
 
 =cut
 
-use Abills::Base;
+use Abills::Base qw(int2byte indexof);
 
 my %sysinfo_hash = ();
 my $os           = sysinfo_get_os();
@@ -362,8 +362,8 @@ sub sysinfo_disk {
   my $total_used = 0;
   foreach my $line (@{ $info->{Filesystem} }) {
     if ($line =~ /^\//) {
-      $total_size += $info->{Size}->[$i];
-      $total_used += $info->{Used}->[$i];
+      $total_size += $info->{Size}->[$i] || 0;
+      $total_used += $info->{Used}->[$i] || 0;
       
       my $progress = $html->progress_bar({
         TEXT     => $info->{Capacity}->[$i],
@@ -480,10 +480,10 @@ sub sysinfo_processes {
   my $sorted = arr_hash_sort($info, ($SORT || 0) - 1, { ACTIVE_FIELDS => \@active_fields });
   
   foreach my $line (@$sorted) {
-    reset %watch_proccess;
+    #reset %watch_proccess;
     my $restart_button = '';
     
-    foreach my $proc_name (keys %watch_proccess ) {
+    foreach my $proc_name (sort keys %watch_proccess ) {
       if ($line->{COMMAND} =~ /$proc_name/) {
         my ($color, undef)=split(/:/, $watch_proccess{$proc_name});
         $table->{rowcolor}=$color || $_COLORS[0];
@@ -811,7 +811,9 @@ $sysinfo_hash{'FreeBSD'}{'swap'} = sub {
 };
 
 #**********************************************************
-# Linux
+=head2 Linux disc usage
+
+=cut
 #**********************************************************
 $sysinfo_hash{'Linux'}{'disk'} = sub {
   my $total_info = `/bin/df `;
@@ -835,21 +837,25 @@ $sysinfo_hash{'Linux'}{'disk'} = sub {
   
   foreach my $line (@arr) {
     if ( $line =~ /(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)/ && $line !~ /Available/ ){
+      my $file_system_point = $1 || q{};
       my $size  = $2 || 0;
       my $used  = $3 || 0;
       my $avail = $4 || 0;
+
+      if( $size !~ /\d/) {
+        next;
+      }
+      if ($size =~ /(\d+)([A-Z])$/) {
+        $size = $1 * $division{$2};
+      }
+      if ($used =~ /(\d+)([A-Z])$/) {
+        $used = $1 * $division{$2};
+      }
+      if ($avail =~ /(\d+)([A-Z])$/) {
+        $avail = $1 * $division{$2};
+      }
       
-      if ($size =~ /([A-Z])$/) {
-        $size = $size * $division{$1};
-      }
-      if ($used =~ /([A-Z])$/) {
-        $size = $used * $division{$1};
-      }
-      if ($avail =~ /([A-Z])$/) {
-        $size = $avail * $division{$1};
-      }
-      
-      push @{ $info{Filesystem} }, $1;
+      push @{ $info{Filesystem} }, $file_system_point;
       push @{ $info{Size} },       $size;
       push @{ $info{Used} },       $used;
       push @{ $info{Avail} },      $avail;
@@ -1399,8 +1405,12 @@ sub list_perl_modules {
   return @rv;
 }
 
+#***************************************************************
+=head2 expand_usr64()
 # expand_usr64(dir)
 # If a directory is like /usr/lib and /usr/lib64 exists, return them both
+=cut
+#***************************************************************
 sub expand_usr64 {
   
   if ($_[0] && $_[0] =~ /^(\/usr\/lib\/|\/usr\/local\/lib\/)(.*)$/) {

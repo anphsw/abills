@@ -150,8 +150,8 @@ sub msgs_user_watch {
       LOGIN      => '_SHOW',
       STATE      => '_SHOW',
       PRIORITY   => '_SHOW',
-      DATE       => '_SHOW',
-      SORT       => 'date',
+      LAST_REPLIE_DATE => '_SHOW',
+      SORT             => 'last_replie_date',
     }
   );
   _error_show($Msgs);
@@ -161,9 +161,11 @@ sub msgs_user_watch {
     });
 
   return msgs_sp_table($watched_messages_list, {
-    BADGE => $badge,
-    CAPTION      => $lang{WATCHED},
-    DATA_CAPTION => $lang{CREATED}
+    BADGE           => $badge,
+    CAPTION         => $lang{WATCHED},
+    DATA_CAPTION    => $lang{LAST_ACTIVITY},
+      DATE_KEY => 'last_replie_date',
+    EXTRA_LINK_DATA => "&STATE=12", # state for watching messages
   });
 }
 
@@ -309,13 +311,14 @@ sub msgs_sp_table {
   );
 
   my $badge = $attr->{BADGE} || '';
+  my $extra_link_data = $attr->{EXTRA_LINK_DATA} || '';
   my $msgs_admin_index = get_function_index('msgs_admin');
 
   my $table = $html->table(
     {
       width       => '100%',
       caption     => $html->button(($attr->{SKIP_ICON} ? '' : $MESSAGE_ICON) . ($attr->{CAPTION} || '') . "&nbsp;&nbsp;" ,
-        "index=$msgs_admin_index&ALL_MSGS=1") . $badge,
+        "index=$msgs_admin_index&ALL_MSGS=1$extra_link_data") . $badge,
       title_plain => [ '', ($attr->{DATA_CAPTION} || $lang{DATE}), $lang{LOGIN}, $lang{SUBJECT}, $lang{CHAPTER} ],
       class       => 'table',
       ID          => 'USER_WATCH_LIST'

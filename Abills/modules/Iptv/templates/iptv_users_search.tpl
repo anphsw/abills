@@ -38,6 +38,13 @@
 </div>
 
 <div class='form-group'>
+  <label class='control-label col-md-3' for='CID'>MAC(Modem):</label>
+  <div class='col-md-9'>
+    <input id='CID' name='CID' value='%CID%' placeholder='%CID%' class='form-control' type='text'>
+  </div>
+</div>
+
+<div class='form-group'>
   <label class='control-label col-md-3' for='DVCRYPT_ID'>DV Crypt(*):</label>
   <div class='col-md-9'>
     <input id='DVCRYPT_ID' name='DVCRYPT_ID' value='%DVCRYPT_ID%' placeholder='%DVCRYPT_ID%' class='form-control' type='text'>

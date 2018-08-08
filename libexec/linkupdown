@@ -531,9 +531,8 @@ elsif ( $ACTION eq 'down' ){
   if ( $OS ne 'linux' ){
     $USER =~ s/\./__/g;
     $USER =~ s/\@/___/g;
-    for ( my $i = 0; $i <= $conf{SHAPER_CLASSES}; $i++ ){
+    for ( my $i = 0; $i < $conf{SHAPER_CLASSES}; $i++ ){
       push @FW_ACTIONS, sprintf( "/usr/sbin/ngctl shutdown %s_%s:", 'class' . $i, $USER ) if ($conf{ng_car});
-
       push @FW_ACTIONS, "$IPFW table " . ($users_table_number + $i * 2) . " delete $CLIENT_IP";
       push @FW_ACTIONS, "$IPFW table " . ($users_table_number + $i * 2 + 1) . " delete $CLIENT_IP";
     }

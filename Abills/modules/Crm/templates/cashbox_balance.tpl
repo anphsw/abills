@@ -1,14 +1,26 @@
-<form method='POST' action=$SELF_URL>
+<form method='POST' action=$SELF_URL class='form-horizontal'>
 
 <input type='hidden' name='index' value=$index>
 
-<div class='box box-primary form-horizontal'>
+<div class='box box-primary box-form'>
 <div class='box-header with-border'>_{BALANCE}_</div>
 <div class='box-body'>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{CASHBOX}_</label>
     <div class='col-md-9'>
       %CASHBOX_SELECT%
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>Тип расхода</label>
+    <div class='col-md-9'>
+      %SPENDING_TYPE_SELECT%
+    </div>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-3 control-label'>Тип прихода</label>
+    <div class='col-md-9'>
+      %COMING_TYPE_SELECT%
     </div>
   </div>
   <div class='form-group'>
@@ -31,6 +43,19 @@
 </div>
 
 </form>
+
+<div class='row'>
+<div class='form-group'>
+  <div class='col-md-6'>%COMING_TABLE%</div>
+  <div class='col-md-6'>%SPENDING_TABLE%</div>
+</div>
+</div>
+<div class='row'>
+<div class='form-group'>
+  <div class='col-md-6'>%TOTAL_COMING_TABLE%</div>
+  <div class='col-md-6'>%TOTAL_SPENDING_TABLE%</div>
+</div>
+</div>
 <div class='col-md-4'>
 
     <div class='box box-primary'>

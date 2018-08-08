@@ -16,6 +16,7 @@ $lang{CANCEL_PAYMENTS} = 'Cancel Payments';
 $lang{BALANCE_RECHARCHE_SUM} = 'Balance recharche sum';
 $lang{ERR_SMALL_SUM} = 'Minimal recharge sum ';
 $lang{CONFIRM_PAYMENT} = 'Confirm Payment';
+$lang{PAYSYS_MIN_SUM_MESSAGE}='Min payment amount ';
 
 $lang{UNKNOWN} = 'Unknown';
 $lang{COMPLETE} = 'Complete';

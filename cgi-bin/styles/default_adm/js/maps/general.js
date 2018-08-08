@@ -717,7 +717,7 @@ var BillingObjectParser = (function () {
         Polygon['fillColor']   = Polygon['COLOR'];
         Polygon['strokeColor'] = Polygon['COLOR'];
       }
-      
+
       var polygon = PolygonBuilder.build(Polygon);
       
       if (isDefined(Polygon.NAME) && Polygon.NAME && isDefined(window['Tooltip'])) {

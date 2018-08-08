@@ -407,8 +407,13 @@ sub olltv_console {
     }
   }
 
-  if (!$result || ref $result ne 'HASH' || !$result->{data} || ref $result->{data} ne 'ARRAY'){
-    $html->message('warn', $lang{WARNING}, $lang{ERR_NO_DATA});
+  if (!$result || ref $result ne 'HASH' || !$result->{data}){
+    if($result && $result->{code}) {
+      $html->message('err', $lang{ERROR}, "[$result->{code}] $result->{message}");
+    }
+    else {
+      $html->message('warn', $lang{WARNING}, $lang{ERR_NO_DATA});
+    }
     return 1;
   }
 

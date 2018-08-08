@@ -46,6 +46,54 @@
       </div>
     </div>
 
+    <!-- Pasport panel -->
+      <div class="box collapsed-box" style='margin-bottom: 0px; border-top-width: 1px;'>
+        <div class="box-header with-border">
+          <h3 class="box-title">_{PASPORT}_</h3>
+          <div class="box-tools pull-right">
+            <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+            </button>
+          </div>
+        </div>
+        <div class="box-body">
+          <div class='form-group'>
+            <label class='control-label col-xs-4 col-md-2' for='PASPORT_NUM' readonly>_{NUM}_</label>
+            <div class='col-xs-8 col-sm-4'>
+              <input id='PASPORT_NUM' name='PASPORT_NUM' value='%PASPORT_NUM%'
+                     placeholder='%PASPORT_NUM%'
+                     class='form-control' type='text' readonly>
+            </div>
+            <span class="visible-xs visible-sm col-xs-12" style="padding-top: 10px"> </span>
+            <label class='control-label col-xs-4 col-md-2' for='PASPORT_DATE'>_{DATE}_</label>
+            <div class='col-xs-8 col-sm-4'>
+              <input id='PASPORT_DATE' type='text' name='PASPORT_DATE' value='%PASPORT_DATE%'
+                     class='datepicker form-control' disabled>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='control-label col-xs-4 col-md-2' for='PASPORT_GRANT'>_{GRANT}_</label>
+            <div class='col-xs-8 col-md-10'>
+              <textarea class='form-control' id='PASPORT_GRANT' name='PASPORT_GRANT'
+                        rows='2' readonly>%PASPORT_GRANT%</textarea>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='control-label col-xs-4 col-md-2' for='BIRTH_DATE'>_{BIRTH_DATE}_</label>
+            <div class='col-xs-8 col-md-4'>
+              <input class='form-control datepicker' id='BIRTH_DATE' name='BIRTH_DATE'
+                     type='text' value='%BIRTH_DATE%' disabled>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='control-label col-xs-4 col-md-2' for='REG_ADDRESS'>_{REG_ADDRESS}_</label>
+            <div class='col-xs-8 col-md-10'>
+              <textarea class='form-control' id='REG_ADDRESS' name='REG_ADDRESS'
+                        rows='2' readonly>%REG_ADDRESS%</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
     <div class="box collapsed-box" style='margin-bottom: 0px; border-top-width: 1px;'>
       <div class="box-header with-border">
         <h3 class="box-title">_{CONTRACT}_</h3>
@@ -91,7 +139,7 @@
         </div>
       </div>
       <div class="box-body">
-        <fieldset id='info_fields' disabled="disabled">
+        <fieldset id='info_fields'>
           %INFO_FIELDS%
         </fieldset>
       </div>

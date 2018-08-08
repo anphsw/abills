@@ -114,5 +114,25 @@ $lang{TRACE_UP_TO} = 'Отследить соединение';
 
 $lang{WRONG_LINKS} = 'Неправильные соединения';
 
+$lang{PRINT_SCHEME} = 'Печать схемы';
+
+$lang{WHITE} = 'Белый';
+$lang{SEA} = 'Циановый';
+$lang{YELLOW} = 'Жёлтый';
+$lang{GREEN} = 'Зелёный';
+$lang{BROWN} = 'Коричневый';
+$lang{RED} = 'Красный';
+$lang{ORANGE} = 'Оранжевый';
+$lang{PINK} = 'Розовый';
+$lang{GRAY} = 'Серый';
+$lang{BLUE} = 'Синий';
+$lang{VIOLET} = 'Фиолетовый';
+$lang{BLACK} = 'Черный';
+$lang{YELLOWGREEN} = 'Желто-зеленый';
+$lang{OLIVE} = 'Оливковый';
+$lang{BEIGE} = 'Бежевый';
+$lang{NATURAL} = 'Натуральный';
+$lang{LEMON} = 'Лимонный';
+$lang{CHERRY} = 'Вишневый';
 
 1;

@@ -144,7 +144,7 @@ if [ ! -f /etc/rc.conf ]; then
 fi;
 
 if [ -f /etc/rc.conf ]; then
-. /etc/rc.conf
+  . /etc/rc.conf
 fi;
 
 name="abills_shaper" 
@@ -191,7 +191,7 @@ ifaces=`echo ${abills_ipn_if} | sed 'N;s/\n/ /' |sed 's/,/ /g'`
   done
 fi;
 
-if [ x${abills_dhcp_shaper_nas_ids} != x ]; then
+if [ "${abills_dhcp_shaper_nas_ids}" != "" ]; then
   NAS_IDS="NAS_IDS=";
   nas_ids=`echo ${abills_dhcp_shaper_nas_ids} | sed 'N;s/\n/ /' |sed 's/,/ /g'`
   for i in ${nas_ids}; do
@@ -310,15 +310,15 @@ if [ "${ACTION}" = "start" ];then
 
   # SET
   allownet=`${IPSET} -L |grep allownet|sed 's/ //'|awk -F: '{ print $2 }'`
-  if [ x"${allownet}" = x ]; then
+  if [ "${allownet}" = "" ]; then
     echo "ADD allownet"
     ${IPSET} -N allownet nethash
   fi;
 
 # USERS
   allowip=`${IPSET} -L |grep allowip|sed 's/ //'|awk -F: '{ print $2 }'`
-  if [ x"${allowip}" = x ]; then
-    echo "ADD allowip"
+  if [ "${allowip}" = "" ]; then
+    echo "ADD IPSET: allowip"
     ${IPSET} -N allowip iphash
   fi;
 
@@ -334,10 +334,10 @@ if [ "${ACTION}" = "start" ];then
   ${IPT} -A FORWARD -m set --match-set allowip dst -j ACCEPT
   ${IPT} -t nat -A PREROUTING -m set --match-set allowip src -j ACCEPT
 
-  if [ x"${abills_allow_dhcp_port_67}" != x ]; then
+  if [ "${abills_allow_dhcp_port_67}" != "" ]; then
     # Перенаправление IPN клиентов
     ALLOW_DHCP=`echo ${abills_allow_dhcp_port_67}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
-    echo "${ALLOW_DHCP}"
+    echo "ALLOW DHCP: ${ALLOW_DHCP}"
     for DHCP_POOL in ${ALLOW_DHCP}; do
       ${IPT} -I INPUT -p UDP -s ${DHCP_POOL}  --sport 67 -j ACCEPT
       ${IPT} -I INPUT -p UDP -s ${DHCP_POOL}  --dport 67 -j ACCEPT
@@ -347,10 +347,10 @@ if [ "${ACTION}" = "start" ];then
     echo "unknown DHCP pool"
   fi;
 
-  if [ x"${abills_redirect_clients_pool}" != x ]; then
+  if [ "${abills_redirect_clients_pool}" != "" ]; then
     # Перенаправление IPN клиентов
     REDIRECT_POOL=`echo ${abills_redirect_clients_pool}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
-    echo "${REDIRECT_POOL}"
+    echo "REDIRECT_POOL: ${REDIRECT_POOL}"
     for REDIRECT_IPN_POOL in ${REDIRECT_POOL}; do
       ${IPT} -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 80 -j REDIRECT --to-ports 80
       ${IPT} -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 443 -j REDIRECT --to-ports 80
@@ -361,7 +361,7 @@ if [ "${ACTION}" = "start" ];then
     echo "unknown ABillS IPN IFACES"
   fi;
 
-  if [ x"${abills_ipn_allow_ip}" != x ]; then
+  if [ "${abills_ipn_allow_ip}" != "" ]; then
     ABILLS_ALLOW_IP=`echo ${abills_ipn_allow_ip}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
     echo "Enable allow ips ${ABILLS_ALLOW_IP}";
 
@@ -377,7 +377,7 @@ if [ "${ACTION}" = "start" ];then
     echo "unknown ABillS IPN ALLOW IP"
   fi;
 elif [ "${ACTION}" = stop ]; then
-  echo "${ACTION}";
+  echo "ACTION: ${ACTION}";
   # Разрешаем всё и всем
   ${IPT} -P INPUT ACCEPT
   ${IPT} -P OUTPUT ACCEPT
@@ -392,17 +392,17 @@ elif [ "${ACTION}" = stop ]; then
   ${IPT} -X -t mangle
 
   unknown_clients=`${IPSET} -L |grep unknown_clients|sed 's/ //'|awk -F: '{ print $2 }'`
-    if [ x"${unknown_clients}" != x ]; then
+    if [ "${unknown_clients}" != "" ]; then
       echo "DELETE unknown_clients"
       ${IPSET} destroy unknown_clients
     fi;
   allowip=`${IPSET} -L |grep allowip|sed 's/ //'|awk -F: '{ print $2 }'`
-    if [ x"${allowip}" != x ]; then
+    if [ "${allowip}" != "" ]; then
       echo "DELETE allowip"
       ${IPSET} destroy allowip
     fi;
   allownet=`${IPSET} -L |grep allownet|sed 's/ //'|awk -F: '{ print $2 }'`
-    if [ x"${allownet}" != x ]; then
+    if [ "${allownet}" != "" ]; then
       echo "DELETE allownet"
       ${IPSET} destroy allownet
     fi;
@@ -410,19 +410,20 @@ elif [ "${ACTION}" = stop ]; then
 elif [ "${ACTION}" = "status" ]; then
   ${IPT} -S
 fi;
+
 }
 
 
 #**********************************************************
 # Abills Shapper
 #**********************************************************
-abills_shaper() { 
+abills_shaper() {
 
-  if [ x"${abills_shaper_enable}" = xNO ]; then
+  if [ "${abills_shaper_enable}" = NO ]; then
     return 0;
-  elif [ x"${abills_shaper_enable}" = xNAT ]; then
+  elif [ "${abills_shaper_enable}" = NAT ]; then
     return 0;
-  elif [ x"${abills_shaper_enable}" = x ]; then
+  elif [ "${abills_shaper_enable}" = "" ]; then
     return 0;
   fi;
 
@@ -526,7 +527,7 @@ abills_shaper3() {
     return 0;
   fi;
 echo "ABillS Shapper 3 ${ACTION}"
-if [ x${ACTION} = xstart ]; then
+if [ "${ACTION}" = start ]; then
   ${IPT} -t mangle -A POSTROUTING -o ${EXTERNAL_INTERFACE} -j IPMARK --addr src --and-mask 0xffff --or-mask 0x10000
   ${TC} qdisc add dev ${EXTERNAL_INTERFACE} root handle 1: htb
   ${TC} filter add dev ${EXTERNAL_INTERFACE} parent 1:0 protocol ip fw
@@ -559,6 +560,7 @@ elif [ "${ACTION}" = status ]; then
     ${TC} class show dev ${INTERFACE}
   done
 fi;
+
 }
 
 #**********************************************************
@@ -584,7 +586,7 @@ abills_ipn() {
 #**********************************************************
 abills_nat() {
 
-  if [ x"${abills_nat}" = x ]; then
+  if [ "${abills_nat}" = "" ]; then
     return 0;
   fi;
 

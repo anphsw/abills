@@ -157,11 +157,13 @@ sub events_notice {
     SORT          => 'e.created',
     # DESC          => 'DESC',
   });
-  
+
+  my $translated_events_list = translate_list_simple($events_list, 'comments', 'title', 'state_name', 'priority_name');
+
   if ($attr->{EXPORT}) {
     my @events_list = ();
     my $seen_index = get_function_index('events_seen_message') || 0;
-    foreach my $event (@$events_list) {
+    foreach my $event (@$translated_events_list) {
       push(@events_list, events_event_to_json($event, $seen_index));
     }
     return join(", ", @events_list);
@@ -170,7 +172,7 @@ sub events_notice {
   print JSON::to_json({
       CAPTION => $lang{EVENTS},
       ID      => "EVENTS_LIST",
-      DATA_1  => $events_list,
+      DATA_1  => $translated_events_list,
       TOTAL   => $Events->{TOTAL},
     },
     { pretty => 1 });

@@ -13,12 +13,14 @@ our (
 use Time::Piece;
 use Users;
 use Tariffs;
+use Hotspot;
 use Abills::Base qw/_bp/;
 
 my $t = localtime;
 my $admin = $Admin;
 my $users = Users->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new( $db, \%conf, $admin );
+my $Hotspot = Hotspot->new( $db, \%conf, $admin );
 
 
 my $Sessions = ();
@@ -144,7 +146,9 @@ sub backup_users {
       next;
     }
     foreach my $line (@$list) {
-      print $fh "IP: " . ($line->{ip} || '') .
+      my $hs_name = _hotspot_name($line->{cid}, $line->{start});
+      print $fh "NAS: " . ($hs_name || '') . 
+      ", IP: " . ($line->{ip} || '') .
       ", MAC: " . ($line->{cid} || '') .
       ", start: " . ($line->{start} || '') .
       ", end: " . ($line->{end}   || '') . "\n";
@@ -166,12 +170,34 @@ sub delete_users {
   foreach my $uid (keys %$users_hash) {
     $users->{UID} = $uid;
     $users->del({
-      UID     => $uid,
-      COMMENT => 'Hotspot users clean',
+      UID      => $uid,
+      COMMENTS => 'Hotspot users clean',
     });
     $Sessions->del("", "", "", "", {DELETE_USER => $uid});
   }
   return 1;
 }
+
+#**********************************************************
+=head2 _hotspot_name()
+
+=cut
+#**********************************************************
+sub _hotspot_name {
+  my ($mac, $date) = @_;
+
+  my $list = $Hotspot->log_list({
+    HOTSPOT   => '_SHOW',
+    DATE      => "<=$date",
+    CID       => $mac,
+    PAGE_ROWS => 1,
+    SORT      => 'date',
+    DESC      => 'DESC',
+    COLS_NAME => 1,
+  });
+
+  return $list->[0]->{hotspot};
+}
+
 
 1;

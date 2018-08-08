@@ -335,11 +335,16 @@ sub query{
       }
     }
     elsif ( $attr->{LIST2HASH} ){
-      my ($key, $val) = split( /,\s?/, $attr->{LIST2HASH} );
+      my ($key, @val) = split( /,\s?/, $attr->{LIST2HASH} );
       my %list_hash = ();
 
       while (my $row = $q->fetchrow_hashref()) {
-        $list_hash{$row->{$key}} = $row->{$val};
+        my @vals = ();
+        foreach my $v (@val) {
+          push @vals, $row->{$v};
+        }
+
+        $list_hash{$row->{$key}} = join(', ', @vals);
       }
 
       $self->{list_hash} = \%list_hash;
@@ -446,16 +451,21 @@ sub query_add{
           push @inserts_arr, "$row->{COLUMN_NAME}= ? ";
         }
       }
+
+      if($row->{TYPE_NAME} && $row->{TYPE_NAME} eq 'VARCHAR') {
+        $values->{$column} =~ s/^\s//;
+      }
+
       push @values_arr, $values->{$column};
     }
     elsif ( defined( $values->{$column} ) ){
       if ( $column eq 'COMMENTS' ){
         push @inserts_arr, "$row->{COLUMN_NAME}= ? ";
-        push @values_arr, "$values->{$column}";
+        push @values_arr, $values->{$column};
       }
       elsif ( $values->{$column} ne '' && $values->{$column} == 0 ){
         push @inserts_arr, "$row->{COLUMN_NAME}= ? ";
-        push @values_arr, "$values->{$column}";
+        push @values_arr, $values->{$column};
       }
     }
   }
@@ -1007,7 +1017,9 @@ sub search_expr_users{
   #Info fields
   if ( $info_field && $self->can( 'config_list' ) ){
     my $list = $self->config_list( { PARAM => 'ifu*', SORT => 2 } );
+
     if ( $self->{TOTAL} > 0 ){
+
       foreach my $line ( @{$list} ){
         if ( $line->[0] =~ /ifu(\S+)/ ){
           my $field_name = $1;
@@ -1028,6 +1040,7 @@ sub search_expr_users{
             next;
           }
           elsif ( $attr->{$field_id} ){
+
             if ( $type == 1 ){
               push @fields,
                 @{ $self->search_expr( $attr->{$field_id}, 'INT', "pi.$field_name", { EXT_FIELD => 1 } ) };
@@ -1114,12 +1127,14 @@ sub search_expr_users{
     $EXT_TABLE_JOINS_HASH{builds} = 1;
   }
   elsif ( $attr->{LOCATION_ID} ){
-    push @fields, @{ $self->search_expr( $attr->{LOCATION_ID}, 'INT', 'pi.location_id', { EXT_FIELD =>
-          'streets.name AS address_street, builds.number AS address_build, pi.address_flat, builds.id AS build_id' } ) };
-    $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-    $EXT_TABLE_JOINS_HASH{builds} = 1;
-    $EXT_TABLE_JOINS_HASH{streets} = 1;
-    $self->{SEARCH_FIELDS_COUNT} += 3;
+    if(! $attr->{SKIP_USERS_FIELDS} || ! in_array('LOCATION_ID', $attr->{SKIP_USERS_FIELDS}) ) {
+      push @fields, @{$self->search_expr($attr->{LOCATION_ID}, 'INT', 'pi.location_id', { EXT_FIELD =>
+        'streets.name AS address_street, builds.number AS address_build, pi.address_flat, builds.id AS build_id' })};
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+      $EXT_TABLE_JOINS_HASH{streets} = 1;
+      $self->{SEARCH_FIELDS_COUNT} += 3;
+    }
   }
   elsif ( $attr->{STREET_ID} ){
     push @fields, @{ $self->search_expr( $attr->{STREET_ID}, 'INT', 'builds.street_id',
@@ -1411,7 +1426,6 @@ sub mk_ext_tables{
   return $join_tablee . ($self->{EXT_TABLES} || '');
 }
 
-
 #**********************************************************
 =head2 changes($attr) - Change values in table and make change log
 
@@ -1434,7 +1448,7 @@ sub mk_ext_tables{
 
   Examples:
 
-    $self->changes2(
+    $self->changes(
       {
         CHANGE_PARAM => 'ID',
         TABLE        => 'ring_rules',
@@ -1444,7 +1458,7 @@ sub mk_ext_tables{
 
 =cut
 #**********************************************************
-sub changes{
+sub changes {
   my $self = shift;
   my ($attr) = @_;
 
@@ -1457,8 +1471,7 @@ sub changes{
     exit;
   }
 
-  my $admin = $self->{admin};
-
+  my $admin         = $self->{admin};
   my $TABLE         = $attr->{TABLE};
   my $CHANGE_PARAM  = $attr->{CHANGE_PARAM} || q{};
   my $FIELDS        = $attr->{FIELDS};
@@ -1479,6 +1492,8 @@ sub changes{
       return $self;
     }
   }
+
+  my %changes_info = ();
 
   my @change_params = ();
   foreach my $key (split(/,\s?/, $CHANGE_PARAM)) {
@@ -1537,7 +1552,8 @@ sub changes{
           $v = int2ip( $v );
         }
         elsif ( $field_name eq 'DISABLE' ){
-          $self->{DISABLE} = $v;
+          #$self->{DISABLE} = $v;
+          $changes_info{DISABLE} = $v;
         }
 
         $OLD_DATA->{ $field_name } = $v;
@@ -1588,39 +1604,41 @@ sub changes{
         }
 
         if ( $k eq 'STATUS' ){
-          $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
-          $self->{'STATUS'} = $value;
+          #$self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
+          #$self->{STATUS} = $value;
+          $changes_info{CHG_STATUS}= $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
+          $changes_info{STATUS} = $value;
         }
         elsif ( $k eq 'DISABLE' ){
           if ( defined( $value ) && $value == 0 || !defined( $value ) ){
-            if ( $self->{DISABLE} != 0 ){
-              $self->{ENABLE} = 1;
-              $self->{DISABLE} = undef;
+            if ( $changes_info{DISABLE} != 0 ){
+              $changes_info{ENABLE} = 1;
+              $changes_info{DISABLE} = undef;
             }
           }
           elsif ( $value > 1 ){
-            $self->{'STATUS'} = $value;
+            $changes_info{STATUS} = $value;
           }
           else{
-            $self->{DISABLE_ACTION} = 1;
+            $changes_info{DISABLE_ACTION} = 1;
           }
 
-          $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
+          $changes_info{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
         }
         elsif ( $k eq 'DOMAIN_ID' && $OLD_DATA->{$k} == 0 && !$value ){
         }
         elsif ( $k eq 'TP_ID' ){
           #$self->{CHG_TP} = $OLD_DATA->{$k} . '->' . $DATA{$k};
-          $self->{CHG_TP} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
+          $changes_info{CHG_TP} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
         }
         elsif ( $k eq 'GID' ){
-          $self->{CHG_GID} = $OLD_DATA->{$k} . '->' . $value;
+          $changes_info{CHG_GID} = $OLD_DATA->{$k} . '->' . $value;
         }
         elsif ( $k eq 'CREDIT' ){
-          $self->{CHG_CREDIT} = $OLD_DATA->{$k} . '->' . $value;
+          $changes_info{CHG_CREDIT} = $OLD_DATA->{$k} . '->' . $value;
         }
         elsif ( $k eq 'REDUCTION' ){
-          $self->{CHG_REDUCTION} = $OLD_DATA->{$k} . '->' . $value;
+          $changes_info{CHG_REDUCTION} = $OLD_DATA->{$k} . '->' . $value;
         }
         else{
           push @change_log, "$k $OLD_DATA->{$k}->$value";
@@ -1650,7 +1668,7 @@ sub changes{
     return $self->{result};
   }
   else{
-    $self->{CHANGES_LOG} = join( ';', @change_log );
+    $changes_info{CHANGES_LOG} = join( ';', @change_log );
   }
 
   my $extended = ($attr->{EXTENDED}) ? $attr->{EXTENDED} : '';
@@ -1674,73 +1692,74 @@ sub changes{
   }
 
   if ( $attr->{EXT_CHANGE_INFO} ){
-    $self->{CHANGES_LOG} = $attr->{EXT_CHANGE_INFO} . ' ' . $self->{CHANGES_LOG};
+    $changes_info{CHANGES_LOG} = $attr->{EXT_CHANGE_INFO} . ' ' . $changes_info{CHANGES_LOG};
   }
   else{
     $attr->{EXT_CHANGE_INFO} = '';
   }
 
-  if ( defined( $DATA->{UID} ) && $DATA->{UID} > 0 && defined( $admin ) ){
-    if ( $attr->{'ACTION_ID'} ){
+  if ( $DATA->{UID} && $DATA->{UID} =~ /^\d+$/ && $DATA->{UID} > 0 && defined( $admin ) ){
+    if ( $attr->{ACTION_ID} ){
       my $action_comments = ($attr->{ACTION_COMMENTS}) ? ' '.$attr->{ACTION_COMMENTS}: q{};
       $admin->action_add( $DATA->{UID}, $attr->{EXT_CHANGE_INFO}.$action_comments, { TYPE => $attr->{'ACTION_ID'} } );
       return $self->{result};
     }
 
-    if ( $self->{CHANGES_LOG} ne '' && ($self->{CHANGES_LOG} ne $attr->{EXT_CHANGE_INFO} . ' ') ){
-      $admin->action_add( $DATA->{UID}, $self->{CHANGES_LOG}, { TYPE => 2 } );
+    if ( $changes_info{CHANGES_LOG} ne '' && ($changes_info{CHANGES_LOG} ne $attr->{EXT_CHANGE_INFO} . ' ') ){
+      $admin->action_add( $DATA->{UID}, $changes_info{CHANGES_LOG}, { TYPE => 2 } );
     }
 
-    if ( $self->{'DISABLE_ACTION'} ){
-      $admin->action_add( $DATA->{UID}, $self->{CHG_STATUS},
+    if ( $changes_info{DISABLE_ACTION} ){
+      $admin->action_add( $DATA->{UID}, $changes_info{CHG_STATUS},
         { TYPE => 9, ACTION_COMMENTS => $DATA->{ACTION_COMMENTS} } );
       return $self->{result};
     }
 
-    if ( $self->{'ENABLE'} ){
-      $admin->action_add( $DATA->{UID}, $self->{CHG_STATUS}, { TYPE => 8 } );
+    if ( $changes_info{ENABLE} ){
+      $admin->action_add( $DATA->{UID}, $changes_info{CHG_STATUS}, { TYPE => 8 } );
       return $self->{result};
     }
 
-    if ( $self->{'CHG_TP'} ){
-      $admin->action_add( $DATA->{UID}, $self->{'CHG_TP'}, { TYPE => 3 } );
+    if ( $changes_info{CHG_TP} ){
+      $admin->action_add( $DATA->{UID}, $changes_info{CHG_TP}, { TYPE => 3 } );
     }
 
-    if ( $self->{CHG_GID} ){
-      $admin->action_add( $DATA->{UID}, $self->{CHG_GID}, { TYPE => 26 } );
+    if ( $changes_info{CHG_GID} ){
+      $admin->action_add( $DATA->{UID}, $changes_info{CHG_GID}, { TYPE => 26 } );
     }
 
-    if ( $self->{CHG_STATUS} ){
+    if ( $changes_info{CHG_STATUS} ){
       #if (! $admin) {
-      #  print " $DATA{UID}, (($self->{CHG_STATUS}) ? $self->{CHG_STATUS} : $self->{'STATUS'}), { TYPE => ($self->{'STATUS'} == 3) ? 14 : 4 }); ";
+      #  print " $DATA{UID}, (($changes_info{CHG_STATUS}) ? $changes_info{CHG_STATUS} : $changes_info{STATUS}), { TYPE => ($changes_info{STATUS} == 3) ? 14 : 4 }); ";
       #}
-      $admin->action_add( $DATA->{UID}, (($self->{CHG_STATUS}) ? $self->{CHG_STATUS} : $self->{'STATUS'}),
-        { TYPE => ($self->{'STATUS'} == 3) ? 14 : 4 } );
+      $admin->action_add( $DATA->{UID}, (($changes_info{CHG_STATUS}) ? $changes_info{CHG_STATUS} : $changes_info{STATUS}),
+        { TYPE => ($changes_info{STATUS} == 3) ? 14 : 4 } );
     }
 
-    if ( $self->{CHG_CREDIT} ){
-      $admin->action_add( $DATA->{UID}, $self->{CHG_CREDIT}, { TYPE => 5 } );
+    if ( $changes_info{CHG_CREDIT} ){
+      $admin->action_add( $DATA->{UID}, $changes_info{CHG_CREDIT}, { TYPE => 5 } );
     }
 
-    if ( $self->{CHG_REDUCTION} ){
-      $admin->action_add( $DATA->{UID}, $self->{CHG_REDUCTION}, { TYPE => 32 } );
+    if ( $changes_info{CHG_REDUCTION} ){
+      $admin->action_add( $DATA->{UID}, $changes_info{CHG_REDUCTION}, { TYPE => 32 } );
     }
 
   }
   elsif ( defined( $admin ) ){
-    if ( $self->{'DISABLE'} ){
-      $admin->system_action_add( $self->{CHANGES_LOG}, { TYPE => 9 } );
+    if ( $changes_info{DISABLE} ){
+      $admin->system_action_add( $changes_info{CHANGES_LOG}, { TYPE => 9 } );
     }
-    elsif ( $self->{'ENABLE'} ){
-      $admin->system_action_add( $self->{CHANGES_LOG}, { TYPE => 8 } );
+    elsif ( $changes_info{ENABLE} ){
+      $admin->system_action_add( $changes_info{CHANGES_LOG}, { TYPE => 8 } );
     }
     else{
-      $admin->system_action_add( $self->{CHANGES_LOG}, { TYPE => 2 } );
+      $admin->system_action_add( $changes_info{CHANGES_LOG}, { TYPE => 2 } );
     }
   }
 
   return $self->{result};
 }
+
 
 #**********************************************************
 =head2 _crypt_field($field)

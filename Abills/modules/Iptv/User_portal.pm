@@ -107,6 +107,7 @@ sub iptv_user_info {
     }
   }
 
+  my $Shedule = Shedule->new( $db, $admin, \%conf );
   my %PORTAL_ACTIONS = ();
   my $service_list = $Iptv->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
 
@@ -183,7 +184,6 @@ sub iptv_user_info {
     $Iptv->user_info( $FORM{ID}, { UID => $user->{UID} } );
     my $disable_date = next_month();
     my ($year, $month, $day) = split( /-/, $disable_date, 3 );
-    my $Shedule = Shedule->new( $db, $admin, \%conf );
     $Shedule->add({
       UID          => $user->{UID},
       TYPE         => 'status',
@@ -233,6 +233,26 @@ sub iptv_user_info {
     }
 
     $Iptv->{DISABLE} = $html->color_mark($service_status->{ $Iptv->{STATUS} });
+
+    my $sheduled_actions_list = $Shedule->list({
+      UID       => $user->{UID},
+      TYPE      => 'status',
+      MODULE    => 'Iptv',
+      COLS_NAME => 1
+    });
+
+    if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0){
+      my $shedule_action = $sheduled_actions_list->[0];
+      my $action_ = $shedule_action->{action};
+      my $service_id = 0;
+      if ($action_ =~ /:/) {
+        ($service_id, $action_) = split(/:/, $action_);
+      }
+      #if($action_ eq "0") {
+        $Iptv->{DISABLE_BTN} = $html->badge("$lang{DISABLE_SERVICE_DATE}: $shedule_action->{y}-$shedule_action->{m}-$shedule_action->{d}");
+      #}
+    }
+
 
     if ( $conf{IPTV_CLIENT_M3U} ){
       iptv_m3u( { SERVICE_INFO => $Iptv } );
@@ -526,33 +546,43 @@ sub iptv_user_chg_tp{
 #**********************************************************
 =head2 iptv_m3u($attr) - iptv_m3u
 
+  Arguments:
+    $attr
+      SERVICE_INFO
+
 =cut
 #**********************************************************
 sub iptv_m3u {
-  my ($tp_id) = @_;
+  my ($attr) = @_;
+
+  my $tp_id = $attr->{SERVICE_INFO}->{TP_ID} || 0;
 
   #Show
-  my $err_message;
+  #my $err_message;
   my %hash = ();
   if ( $FORM{m3u_download} ){
     my $m3u = '#EXTM3U';
     if ( !$Iptv->{STATUS} ){
+
       my $list = $Tariffs->ti_list(
         {
           TP_ID     => $tp_id,
           COLS_NAME => 1
         }
       );
+
       if ( $Tariffs->{TOTAL} > 0 ){
         my $interval_id = $list->[0]->{id};
         $list = $Iptv->channel_ti_list(
           {
             %LIST_PARAMS,
             USER_INTERVAL_ID => $interval_id,
+            STREAM           => '_SHOW',
             COLS_NAME        => 1,
             SORT             => 2,
           }
         );
+
         if ( $Iptv->{TOTAL} > 0 ){
           foreach my $line ( @{$list} ){
             $m3u .= "\n#EXTINF:-1 group-title=\"". ($line->{group_title} || q{}) ."\", ". ($line->{name} || q{}) ."\n". ($line->{stream} || q{});
@@ -569,20 +599,23 @@ sub iptv_m3u {
             m3u       => $m3u,
           );
         }
-        else{
-          $hash{err_message} = "����������� ������ �������.";
-          $err_message = "����������� ������ �������.";
-        }
+#        else{
+#          $hash{err_message} = "����������� ������ �������.";
+#          $err_message = "����������� ������ �������.";
+#        }
       }
-      else{
-        $hash{err_message} = "����������� ������ �������.";
-        $err_message = "����������� ������ �������.";
-      }
+#      else{
+#        $hash{err_message} = "����������� ������ �������.";
+#        $err_message = "����������� ������ �������.";
+#      }
     }
+
     my $file_size = length( $m3u );
     my $file_name = $FORM{m3u_download};
+
     print "Content-Type: video/mpeg;  filename=\"$file_name\"\n" . "Content-Disposition:  attachment;  filename=\"$file_name\"; " . "size=$file_size" . "\n\n";
     print "$m3u";
+
     exit 1;
   }
 

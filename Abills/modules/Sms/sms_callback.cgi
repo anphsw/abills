@@ -69,26 +69,26 @@ for my $param_name ('apikey', 'sender', 'text') {
 $admin->info(undef, { API_KEY => $FORM{apikey} });
 exit_with_error(401, "Invalid apikey") unless $admin->{AID};
 
-my $msg_id = $FORM{msgid} || 'No message ID';
+#my $msg_id = $FORM{msgid} || 'No message ID';
 my ($uid, $command, $additional_info) = split('\+', $FORM{text});
 
 # Find user
-my $user = check_user($FORM{sender}, $uid);
+my $user_object = check_user($FORM{sender}, $uid);
 
 if ($command == 1) {
-  send_user_memo($user);
+  send_user_memo($user_object);
 }
 elsif ($command == 2) {
-  send_internet_info($user);
+  send_internet_info($user_object);
 }
 elsif ($command == 3) {
-  start_external_command($user);
+  start_external_command($user_object);
 }
 elsif ($command == 4) {
-  hold_up_user($user)
+  hold_up_user($user_object)
 }
 elsif ($command == 5) {
-  activate_user($user);
+  activate_user($user_object);
 }
 
 exit 0;
@@ -262,7 +262,7 @@ sub start_external_command {
   my $message = $html->tpl_show('', { %$user, PASSWORD => $additional_info },
     { TPL => 'sms_callback_change_wifi_password', MODULE => 'Sms', OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
 
-  my $startup_files = startup_files();
+#  my $startup_files = startup_files();
   if(!$additional_info || length($additional_info) < 8){
     $message = "Password length should be 8 symbols";
     load_module('Sms');
@@ -306,6 +306,11 @@ sub start_external_command {
         NAS_MNG_USER    => "abills_admin",
         SSH_KEY         => "",  # path_to_rsa_key
       });
+
+    $users->pi_change({
+      UID         => $user->{uid},
+      _CPE_SERIAL => $additional_info,
+    });
 
     load_module('Sms');
 
@@ -353,6 +358,39 @@ sub check_user {
       UID       => $uid,
       PAGE_ROWS => 1,
     });
+
+    if ($Contacts->{errno} || ref $users_list ne 'ARRAY' || !$users_list->[0]) {
+      show_result(1, "User not found");
+      exit 0;
+    }
+    my $users_list_by_uid = $users->list({
+      LOGIN          => '_SHOW',
+      FIO            => '_SHOW',
+      DEPOSIT        => '_SHOW',
+      CREDIT         => '_SHOW',
+      PHONE          => '_SHOW',
+      ADDRESS_FULL   => '_SHOW',
+      GID            => '_SHOW',
+      DOMAIN_ID      => '_SHOW',
+      DISABLE_PAYSYS => '_SHOW',
+      GROUP_NAME     => '_SHOW',
+      COMPANY_ID     => '_SHOW',
+      DISABLE        => '_SHOW',
+      CONTRACT_ID    => '_SHOW',
+      ACTIVATE       => '_SHOW',
+      REDUCTION      => '_SHOW',
+      PASSWORD       => '_SHOW',
+      #    %EXTRA_FIELDS,
+      UID            => $uid,
+      COLS_NAME      => 1,
+      COLS_UPPER     => 1,
+      PAGE_ROWS      => 1,
+    });
+
+    $user = $users_list_by_uid->[0];
+
+    show_result(0, "User found");
+    return $user;
   }
   else {
     my $users_list = $users->list({

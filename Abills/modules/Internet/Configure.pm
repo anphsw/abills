@@ -67,6 +67,11 @@ sub internet_tp {
 
   if ($FORM{ADD_TP}) {
     $FORM{TP_ID} = $FORM{CHG_TP_ID};
+    if ($FORM{create_fees_type}) {
+      my $Fees = Finance->fees($db, $admin, \%conf);
+      $Fees->fees_type_add({ NAME => $FORM{NAME}});
+      $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
+    }
     $Tariffs->add({ %FORM, MODULE => 'Internet' });
     if (!$Tariffs->{errno}) {
       $html->message('info', $lang{ADDED}, "$lang{NAME}: $FORM{NAME}\n".
@@ -216,17 +221,17 @@ sub internet_tp {
     $tarif_info->{ACTIVE_DAY_FEE}     = ($tarif_info->{ACTIVE_DAY_FEE})     ? 'checked' : '';
     $tarif_info->{FIXED_FEES_DAY}     = ($tarif_info->{FIXED_FEES_DAY})     ? 'checked' : '';
 
-    my %FEES_METHODS = %{ get_fees_types() };
-    $FEES_METHODS{0} = '';
-
     $tarif_info->{SEL_METHOD} = $html->form_select(
       'FEES_METHOD',
       {
-        SELECTED => $tarif_info->{FEES_METHOD} || 1,
-        SEL_HASH => \%FEES_METHODS,
-        NO_ID    => 1,
-        SORT_KEY => 1,
-        MAIN_MENU => get_function_index('form_fees_types'),
+        SELECTED    => $tarif_info->{FEES_METHOD} || 1,
+        SEL_HASH    => get_fees_types(),
+        NO_ID       => 1,
+        SORT_KEY    => 1,
+        SEL_OPTIONS => { 0 => '' },
+        MAIN_MENU   => get_function_index('form_fees_types'),
+        CHECKBOX    => 'create_fees_type',
+        CHECKBOX_TITLE => $lang{CREATE}
       }
     );
 
@@ -246,8 +251,8 @@ sub internet_tp {
     if ($conf{BONUS_EXT_FUNCTIONS}) {
       my @BILL_ACCOUNT_PRIORITY = (
         "$lang{PRIMARY} $lang{BILL_ACCOUNT}",
-        "$lang{EXTRA} $lang{BILL_ACCOUNT}, $lang{PRIMARY} $lang{BILL_ACCOUNT}",
-        "$lang{EXTRA} $lang{BILL_ACCOUNT}"
+        "$lang{EXT_BILL_ACCOUNT}, $lang{PRIMARY} $lang{BILL_ACCOUNT}",
+        "$lang{EXT_BILL_ACCOUNT}"
       );
 
       $tarif_info->{BILLS_PRIORITY_SEL} = $html->form_select(
@@ -264,7 +269,7 @@ sub internet_tp {
 
     if ($conf{EXT_BILL_ACCOUNT}) {
       my $checked = ($tarif_info->{EXT_BILL_ACCOUNT}) ? ' checked' : '';
-      $tarif_info->{EXT_BILL_ACCOUNT} = "<tr><td>$lang{EXTRA} $lang{BILL}:</td><td><input type='checkbox' name='EXT_BILL_ACCOUNT' value='1' $checked></td></tr>\n";
+      $tarif_info->{EXT_BILL_ACCOUNT} = "<tr><td>$lang{EXTRA_BILL}:</td><td><input type='checkbox' name='EXT_BILL_ACCOUNT' value='1' $checked></td></tr>\n";
     }
     else {
       $tarif_info->{EXT_BILL_ACCOUNT} = '';
@@ -289,6 +294,8 @@ sub internet_tp {
   $LIST_PARAMS{MODULE}='Dv;Internet';
   delete $Tariffs->{COL_NAMES_ARR};
   delete $LIST_PARAMS{TP_ID};
+
+  my $tp_list = sel_tp();
 
   my %ext_titles = (
     id                      => $lang{NUM},
@@ -336,12 +343,12 @@ sub internet_tp {
     fine                    => $lang{FINE},
     next_tarif_plan         => "$lang{TARIF_PLAN} $lang{NEXT_PERIOD}",
     rad_pairs               => "RADIUS Parameters (,)",
-    comments                => "$lang{DESCRIBE}",
+    comments                => $lang{DESCRIBE},
     inner_tp_id             => 'ID',
 
     in_speed                =>  "$lang{SPEED} $lang{RECV}",
     out_speed               =>  "$lang{SPEED} $lang{SENT}",
-    prepaid                 =>  "$lang{PREPAID}",
+    prepaid                 =>  $lang{PREPAID},
     in_price                =>  "$lang{PRICE} $lang{RECV}",
     out_price               =>  "$lang{PRICE} $lang{SENT}",
     intervals               =>  $lang{INTERVALS}
@@ -374,13 +381,13 @@ sub internet_tp {
     },
     TABLE           => {
       width      => '100%',
-      caption    => "$lang{TARIF_PLAN}",
+      caption    => $lang{TARIF_PLAN},
       border     => 1,
       qs         => $pages_qs,
       ID         => 'INTERNET_TARIF_PLANS',
       MENU       => "$lang{ADD}:index=$index&add_form=1:add",
       EXPORT     => 1,
-      IMPORT  => "$SELF_URL?get_index=internet_tp&import=1&header=2",
+      IMPORT     => "$SELF_URL?get_index=internet_tp&import=1&header=2",
       recs_on_page => 60000
     },
     MODULE       => 'Internet',
@@ -409,7 +416,7 @@ sub internet_tp {
         $line->{$col_name} = $bool_hash{$line->{$col_name}};
       }
       elsif ($col_name =~ /small_deposit_action/) {
-        $line->{$col_name} = ($line->{$col_name} == -1) ? $lang{HOLD_UP} : $payment_types{$line->{$col_name}};
+        $line->{$col_name} = ($line->{$col_name} == -1) ? $lang{HOLD_UP} : ($tp_list->{$line->{$col_name}} || q{});
       }
       elsif($col_name =~ /name/) {
         $line->{name} = $html->button($line->{name}, "index=$index&TP_ID=$line->{tp_id}");
@@ -641,6 +648,78 @@ sub internet_import_tp {
       CALLBACK_FUNC     => 'internet_tp',
 #      IMPORT_FIELDS_SEL => $import_fields,
 #      EXTRA_ROWS        => $extra_row
+    });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 internet_filters($attr)
+
+=cut
+#**********************************************************
+sub internet_filters {
+
+  $Internet->{ACTION} = 'add';
+  $Internet->{BTN}    = $lang{ADD};
+
+  if($FORM{add}) {
+    $Internet->filters_add({ %FORM });
+
+    if (! _error_show($Internet)) {
+      $html->message('info', $lang{INFO}, "$lang{ADDED}");
+    }
+  }
+  elsif($FORM{change}) {
+    $Internet->filters_change({ %FORM });
+
+    if (! _error_show($Internet)) {
+      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+    }
+  }
+  elsif($FORM{chg}) {
+    $Internet->filters_info($FORM{chg});
+
+    if (! _error_show($Internet)) {
+      $Internet->{ACTION} = 'change';
+      $Internet->{BTN}    = $lang{CHANGE};
+    }
+
+    $html->tpl_show(_include('internet_filters_form', 'Internet'), $Internet);
+  }
+  elsif($FORM{del} && $FORM{COMMENTS}) {
+    $Internet->filters_del({ID => $FORM{del}});
+    if (!$Internet->{errstr}) {
+      $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{del}] ");
+    }
+  }
+
+  if($FORM{add_form}){
+    $html->tpl_show(_include('internet_filters_form', 'Internet'), $Internet);
+  }
+
+
+  result_former({
+     INPUT_DATA      => $Internet,
+     FUNCTION        => 'filters_list',
+     DEFAULT_FIELDS  => 'ID, FILTER,PARAMS,DESCR',
+     FUNCTION_FIELDS => 'change,del',
+     EXT_TITLES      => {
+        ID      => 'ID',
+        FILTER  => $lang{NAME},
+        PARAMS  => $lang{PARAMS},
+        DESCR   => $lang{DESCRIBE},
+     },
+     SKIP_USER_TITLE => 1,
+     TABLE           => {
+       width      => '100%',
+       caption    => $lang{FILTERS},
+       qs         => $pages_qs,
+       MENU       => "$lang{ADD}:index=$index&add_form=1:add",
+       ID         => 'FILTERS_LIST',
+     },
+     MAKE_ROWS    => 1,
+     TOTAL        => 1
     });
 
   return 1;

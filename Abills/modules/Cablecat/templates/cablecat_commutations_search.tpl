@@ -3,7 +3,7 @@
     <div class='box-header with-border'><h4 class='box-title'>_{COMMUTATION}_ _{SEARCH}_</h4></div>
     <div class='box-body'>
 
-      <input type='hidden' name='index' value='$index'/>
+      <!--<input type='hidden' name='index' value='$index'/>-->
 
       <div class='form-group'>
         <label class='control-label col-md-3' for='ID_ID'>ID</label>

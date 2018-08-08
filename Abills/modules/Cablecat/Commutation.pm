@@ -13,6 +13,8 @@ use warnings FATAL => 'all';
 =cut
 our (%lang, $html, %permissions, $Cablecat, $Maps, $Equipment, %MAP_LAYER_ID);
 use Abills::Base qw/in_array/;
+use Cablecat::Cable_blank;
+require Cablecat::Cable_blank;
 
 #**********************************************************
 =head2 cablecat_commutation()
@@ -47,12 +49,18 @@ sub cablecat_commutation {
 
   my $cable_ids = $TEMPLATE_ARGS{CABLE_IDS} || $FORM{CABLE_IDS};
 
-  if ( $show_add_form && $cable_ids ) {
+  if ( $show_add_form ) {
 
     if ( defined $TEMPLATE_ARGS{ID} ) {
 
-      my $cables = _cablecat_commutation_cables_prepare_json($cable_ids, { COMMUTATION_ID => $TEMPLATE_ARGS{ID} });
-      return 0 if (!$cables);
+      my $cables = '';
+      if ($cable_ids){
+        $cables = _cablecat_commutation_cables_prepare_json($cable_ids, { COMMUTATION_ID => $TEMPLATE_ARGS{ID} });
+        return 0 if (!$cables);
+      }
+      else {
+        $html->message('warn', $lang{WARNING}, "No cables defined for this comutation");
+      }
 
       my $splitters = _cablecat_commutation_splitters(undef, { COMMUTATION_ID => $TEMPLATE_ARGS{ID} });
       return 0 if (!$splitters);
@@ -92,6 +100,7 @@ sub cablecat_commutation {
       $TEMPLATE_ARGS{SPLITTERS} = JSON::to_json($splitters);
       $TEMPLATE_ARGS{EQUIPMENT} = JSON::to_json($equipment);
       $TEMPLATE_ARGS{CROSSES} = JSON::to_json($crosses);
+      $TEMPLATE_ARGS{BTN} = $html->button($lang{PRINT_SCHEME}, "header=2&qindex=" . get_function_index('show_box')."&print=1&ID=".$FORM{ID}, { target => '_new', class => 'btn btn-default' });
     }
 
     $html->tpl_show(_include('cablecat_commutation', 'Cablecat'), \%TEMPLATE_ARGS);
@@ -202,16 +211,18 @@ sub cablecat_commutation_operations {
 
     my $cable_1_select = make_select_from_list("CABLE_1", $cables_list,
       {
-        SELECTED  => $selected_1,
-        SEL_KEY   => 'cable_id',
-        SEL_VALUE => 'cable_name'
+        SELECTED     => $selected_1,
+        SEL_KEY      => 'cable_id',
+        SEL_VALUE    => 'cable_name',
+        NORMAL_WIDTH => 1,
       }
     );
     my $cable_2_select = make_select_from_list("CABLE_2", $cables_list,
       {
-        SELECTED  => $selected_2,
-        SEL_KEY   => 'cable_id',
-        SEL_VALUE => 'cable_name'
+        SELECTED     => $selected_2,
+        SEL_KEY      => 'cable_id',
+        SEL_VALUE    => 'cable_name',
+        NORMAL_WIDTH => 1,
       }
     );
 
@@ -246,7 +257,7 @@ sub cablecat_commutation_cables {
     my $cables_inputs = _cablecat_well_cables_checkbox_form(
       $FORM{WELL_ID},
       {
-        SKIP => [ split(',\s?', $commutation->{CABLE_IDS}) ]
+        SKIP => [ split(',\s?', $commutation->{CABLE_IDS} || '') ]
       }
     );
 
@@ -265,8 +276,9 @@ sub cablecat_commutation_cables {
   }
   elsif ( $FORM{operation} eq 'ADD' ) {
     my $info = $Cablecat->commutations_info($FORM{COMMUTATION_ID});
-    my $current_cable_ids = [ split(',\s?', $info->{CABLE_IDS}) ];
 
+    # Will compare given in $FORM{CABLE_IDS} to already existing cables $info->{CABLE_IDS};
+    my $current_cable_ids = [ split(',\s?', $info->{CABLE_IDS} || '') ];
     foreach my $cable_id ( split(',\s?', $FORM{CABLE_IDS}) ) {
 
       # Already exists
@@ -369,6 +381,13 @@ sub cablecat_commutation_equipment {
   if ( !in_array('Equipment', \@MODULES) ) {
     $html->message('warn', $lang{WARNING}, "$lang{MODULE} $lang{DISABLED} : 'Equipment'");
     return 0;
+  }
+
+  if (!$Equipment){
+    our ($db, $admin, %conf);
+    require Equipment;
+    Equipment->import();
+    $Equipment = Equipment->new($db, $admin, \%conf);
   }
 
   if ( $FORM{operation} eq 'LIST' ) {

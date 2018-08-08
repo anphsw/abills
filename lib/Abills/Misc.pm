@@ -8,6 +8,10 @@
 use strict;
 no strict 'vars';
 use warnings FATAL => 'all';
+
+# To allow state
+use v5.16;
+
 use Abills::Defs;
 use Abills::Base qw(ip2int date_diff mk_unique_value convert in_array
   days_in_month startup_files cfg2hash urlencode cmd check_time gen_time
@@ -558,6 +562,11 @@ sub get_function_index {
   my ($function_name, $attr) = @_;
   my $function_index = 0;
 
+  state $index_cache = {};
+  if ($function_name && $index_cache->{$function_name}){
+    return $index_cache->{$function_name};
+  };
+
   foreach my $k (sort keys (%functions)) {
     my $v = $functions{$k};
     if ($v && $v eq $function_name && $k =~ /^\d+$/) {
@@ -698,6 +707,8 @@ sub fees_dsc_former {
          [ ACTIVATE  => 0 ]
          [ MONTH_FEE => 0 ]
 
+      @{ $Service->{FEES_ID} }
+
 =cut
 #**********************************************************
 sub service_get_month_fee {
@@ -713,6 +724,7 @@ sub service_get_month_fee {
 
   $conf{START_PERIOD_DAY} = 1 if (!$conf{START_PERIOD_DAY});
   $DATE=$attr->{DATE} if ($attr->{DATE});
+  delete $Service->{FEES_ID};
 
   my %total_sum = (
     ACTIVATE  => 0,
@@ -795,6 +807,10 @@ sub service_get_month_fee {
       );
       $total_sum{ACTIVATE} = $tp->{ACTIV_PRICE};
       $html->message('info', $lang{INFO}, "$lang{ACTIVATE_TARIF_PLAN}") if ($html && ! $attr->{QUITE});
+
+      if($Fees->{FEES_ID}) {
+        push @{$Service->{FEES_ID}}, $Fees->{FEES_ID};
+      }
     }
   }
 
@@ -1155,6 +1171,10 @@ sub service_get_month_fee {
             $Fees->take($Users, $user->{EXT_BILL_DEPOSIT}, \%FEES_PARAMS);
             $user->{BILL_ID} = $user->{MAIN_BILL_ID};
             $user->{MAIN_BILL_ID} = undef;
+
+            if($Fees->{FEES_ID}) {
+              push @{$Service->{FEES_ID}}, $Fees->{FEES_ID};
+            }
           }
         }
 
@@ -1167,6 +1187,10 @@ sub service_get_month_fee {
           else {
             $html->message('info', $lang{INFO},
               $message."\n $lang{SUM}: ".sprintf("%.2f", $sum)) if ($html && !$attr->{QUITE});
+
+            if($Fees->{FEES_ID}) {
+              push @{$Service->{FEES_ID}}, $Fees->{FEES_ID};
+            }
           }
         }
       }
@@ -1289,15 +1313,16 @@ sub get_fees_types {
   my %FEES_METHODS = ();
 
   my $Fees         = Finance->fees($db, $admin, \%conf);
-  my $list         = $Fees->fees_type_list({ PAGE_ROWS => 10000 });
-  foreach my $line (@$list) {
-    if ($FORM{METHOD} && $FORM{METHOD} == $line->[0]) {
-      $FORM{SUM}      = $line->[3] if ($line->[3] && $line->[3] > 0);
-      $FORM{DESCRIBE} = $line->[2] if ($line->[2]);
-    }
-    my $sum_show = ($line->[3] && $line->[3] > 0) ? ($attr->{SHORT}) ? ":$line->[3]" : " ($lang{SERVICE} $lang{PRICE}: $line->[3])" : q{};
+  my $list         = $Fees->fees_type_list({ PAGE_ROWS => 10000, COLS_NAME => 1 });
 
-    $FEES_METHODS{ $line->[0] } = (($line->[1] && $line->[1] =~ /\$/) ? _translate($line->[1]) : ($line->[1] || '')) . $sum_show;
+  foreach my $line (@$list) {
+    if ($FORM{METHOD} && $FORM{METHOD} == $line->{id}) {
+      $FORM{SUM}      = $line->{sum} if ($line->{sum} && $line->{sum} > 0);
+      $FORM{DESCRIBE} = $line->{default_describe} if ($line->{default_describe});
+    }
+    my $sum_show = ($line->{sum} && $line->{sum} > 0) ? ($attr->{SHORT}) ? ":$line->{sum}" : " ($lang{SERVICE} $lang{PRICE}: $line->{sum})" : q{};
+
+    $FEES_METHODS{ $line->{id} } = (($line->{name} && $line->{name} =~ /\$/) ? _translate($line->{name}) : ($line->{name} || '')) . $sum_show;
   }
 
   return \%FEES_METHODS;
@@ -2118,14 +2143,13 @@ sub mk_menu {
     if($attr->{EXTRA_MENU}) {
       foreach my $extra_menu ( @{ $attr->{EXTRA_MENU} } ) {
         foreach my $mod ( keys %{ $extra_menu  } ) {
-          mk_menu_extra($extra_menu->{$mod}, $maxnumber, $mod);
+          $maxnumber = mk_menu_extra($extra_menu->{$mod}, $maxnumber, $mod);
         }
       }
     }
 
     return 1;
   }
-
   #Add modules
   foreach my $mod (@MODULES) {
     next if ($admin->{MODULES} && !$admin->{MODULES}{$mod});

@@ -107,6 +107,7 @@ sub info {
 
   $self->query("SELECT internet.*,
    internet.login AS internet_login,
+   internet.comments AS internet_comment,
    tp.name AS tp_name,
    tp.id AS tp_num,
    INET_NTOA(internet.ip) AS ip,
@@ -187,6 +188,10 @@ sub add {
   if (! $attr->{INTERNET_SKIP_FEE} && $attr->{TP_ID} > 0 && !$attr->{STATUS}) {
     my $Tariffs = Tariffs->new($self->{db}, $self->{conf}, $admin);
 
+    if($self->{debug}) {
+      $Tariffs->{debug}=1;
+    }
+
     $self->{TP_INFO} = $Tariffs->info(0, {
       TP_ID     => $attr->{TP_ID},
       DOMAIN_ID => $admin->{DOMAIN_ID} || undef
@@ -208,8 +213,8 @@ sub add {
       }
 
       if ($user->{DEPOSIT} + $user->{CREDIT} < $Tariffs->{ACTIV_PRICE} && $Tariffs->{PAYMENT_TYPE} == 0) {
-        $self->{errno} = 15;
-        $self->{errstr} = "ACTIVE_PRICE_TOO_HIGHT";
+        $self->{errno}  = 15;
+        $self->{errstr} = "ERR_ACTIVE_PRICE_TOO_HIGHT";
         return $self;
       }
 
@@ -394,7 +399,7 @@ sub change {
     }
   );
 
-  $self->{TP_INFO}->{ACTIV_PRICE} = 0 if ($self->{OLD_STATUS} != 2);
+  $self->{TP_INFO}->{ACTIV_PRICE} = 0 if (! $self->{OLD_STATUS} || $self->{OLD_STATUS} != 2);
 
   if($self->{AFFECTED}) {
     $self->info($attr->{UID}, { ID => $attr->{ID} || undef });
@@ -445,8 +450,14 @@ sub list {
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : 'u.uid';
-  if ($attr->{CID}) {
+  my $GROUP_BY = 'u.uid';
+
+  if ($attr->{GROUP_BY}) {
+    $GROUP_BY = $attr->{GROUP_BY};
+    delete $attr->{GROUP_BY};
+  }
+
+  if ($attr->{CID} && $attr->{CID} !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
     $attr->{CID}=~s/[\:\-\.]/\*/g;
   }
 
@@ -461,6 +472,7 @@ sub list {
       ['NETMASK',           'IP',  'internet.netmask', 'INET_NTOA(internet.netmask) AS netmask' ],
       ['CID',               'STR', 'internet.cid',                           1 ],
       ['CPE_MAC',           'STR', 'internet.cpe_mac',                       1 ],
+      ['INTERNET_COMMENTS', 'STR', 'internet.comments', 'internet.comments AS internet_comments' ],
       ['VLAN',              'INT', 'internet.vlan',                          1 ],
       ['SERVER_VLAN',       'INT', 'internet.server_vlan',                   1 ],
       ['JOIN_SERVICE',      'INT', 'internet.join_service',                  1 ],
@@ -471,14 +483,17 @@ sub list {
       ['ALL_FILTER_ID',     'STR', 'IF(internet.filter_id<>\'\', internet.filter_id, tp.filter_id) AS filter_id', 1 ],
       ['FILTER_ID',         'STR', 'internet.filter_id',                     1 ],
       ['TP_ID',             'INT', 'internet.tp_id',                         1 ],
+      ['TP_NUM',            'INT', 'tp.id', 'tp.id AS tp_num',               1 ],
       ['TP_NAME',           'STR', 'tp.name AS tp_name',                     1 ],
       ['TP_COMMENTS',       'STR', 'tp.comments', 'tp.comments AS tp_comments' ],
       ['TP_CREDIT',         'INT', 'tp.credit',       'tp.credit AS tp_credit' ],
+      ['TP_FIXED_FEES_DAY', 'INT', 'tp.fixed_fees_day', 'tp.fixed_fees_day AS tp_fixed_fees_day' ],
       ['ONLINE',            'INT', 'c.uid',                  'c.uid AS online' ],
       ['ONLINE_IP',         'INT', 'INET_NTOA(c.framed_ip_address)', 'INET_NTOA(c.framed_ip_address) AS online_ip' ],
-      ['ONLINE_DURATION',   'INT', 'c.uid',  'if(c.lupdated>UNIX_TIMESTAMP(c.started), c.lupdated - UNIX_TIMESTAMP(c.started), 0) AS online_duration' ],
+      ['ONLINE_DURATION',   'INT', 'c.uid',  'IF(c.lupdated>UNIX_TIMESTAMP(c.started), c.lupdated - UNIX_TIMESTAMP(c.started), 0) AS online_duration' ],
       ['ONLINE_CID',        'INT', 'c.cid',              'c.cid AS online_cid' ],
       ['ONLINE_TP_ID',      'INT', 'c.tp_id',        'c.tp_id AS online_tp_id' ],
+      ['ONLINE_NAS_ID',     'INT', 'c.nas_id',     'c.nas_id AS online_nas_id' ],
       ['MONTH_FEE',         'INT', 'tp.month_fee',                           1 ],
       ['ABON_DISTRIBUTION', 'INT', 'tp.abon_distribution',                   1 ],
       ['DAY_FEE',           'INT', 'tp.day_fee',                             1 ],
@@ -497,6 +512,7 @@ sub list {
         ORDER BY aa.datetime DESC LIMIT 1) AS internet_status_date'            ],
       ['MONTH_TRAFFIC_IN',  'INT', '', "SUM(l.recv) AS month_traffic_in"       ],
       ['MONTH_TRAFFIC_OUT', 'INT', '', "SUM(l.sent) AS month_traffic_out"      ],
+      ['LAST_ACTIVITY',     'DATE', 'l.start + INTERVAL duration SECOND', "MAX(l.start + INTERVAL duration SECOND) AS last_activity"  ],
 
       ['MONTH_IPN_TRAFFIC_IN',  'INT', '', "SUM(ipn_l.traffic_in) AS month_ipn_traffic_in"   ],
       ['MONTH_IPN_TRAFFIC_OUT', 'INT', '', "SUM(ipn_l.traffic_out) AS month_ipn_traffic_out" ],
@@ -508,7 +524,8 @@ sub list {
       ['MONTH_TRAF_LIMIT',  'INT', 'tp.month_traf_limit',                    1 ],
       ['TOTAL_TRAF_LIMIT',  'INT', 'tp.total_traf_limit',                    1 ],
       ['SERVICE_COUNT',     'INT', '', 'COUNT(internet.id) AS service_count '  ] ,
-      ['SHEDULE',           'INT', '', "CONCAT(s.y,'-', s.m, '-', s.d, ' ', s.action) AS shedule" ]
+      ['SHEDULE',           'INT', '', "CONCAT(s.y,'-', s.m, '-', s.d, ' ', s.action) AS shedule" ],
+      ['FEES_METHOD',       'INT', 'tp.fees_method',                         1 ],
     ],
     { WHERE            => 1,
       USERS_FIELDS_PRE => 1,
@@ -751,13 +768,14 @@ sub report_tp {
     }
   );
 
-  $self->query("SELECT internet.tp_id AS id, tp.id, tp.name, COUNT(DISTINCT internet.uid) AS counts,
+  $self->query("SELECT tp.id, tp.name, COUNT(DISTINCT internet.uid) AS counts,
       COUNT(DISTINCT CASE WHEN internet.disable=0 AND u.disable=0 THEN internet.uid ELSE NULL END) AS active,
       COUNT(DISTINCT CASE WHEN internet.disable=1 AND u.disable=1 THEN internet.uid ELSE NULL END) AS disabled,
       SUM(IF(IF(u.company_id > 0, cb.deposit, b.deposit) < 0, 1, 0)) AS debetors,
       ROUND(SUM(p.sum) / COUNT(DISTINCT internet.uid), 2) AS arpu,
       ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
-      tp.tp_id
+      tp.tp_id,
+      internet.tp_id AS id
     FROM users u
     INNER JOIN internet_main internet ON (u.uid=internet.uid)
     LEFT JOIN tarif_plans tp ON (tp.tp_id=internet.tp_id)
@@ -784,6 +802,13 @@ sub report_tp {
   Arguments:
     $attr
        DOMAIN_ID
+       UID
+       TP_ID
+       TP_NUM
+       LOGIN
+
+  Result:
+    $list
 
 =cut
 #**********************************************************
@@ -834,11 +859,10 @@ sub get_speed {
     push @WHERE_RULES, @{ $self->search_expr($attr->{TP_NUM}, 'STR', 'tp.id') };
   }
 
-
   my $WHERE = ($#WHERE_RULES > -1) ? "AND " . join(' and ', @WHERE_RULES) : '';
 
   $self->query("SELECT tp.tp_id, tp.id AS tp_num, tt.id AS tt_id, tt.in_speed,
-    tt.out_speed, tt.net_id, tt.expression
+    tt.out_speed, tt.net_id, tt.expression, intv.id AS interval_id
   $self->{SEARCH_FIELDS}
 FROM trafic_tarifs tt
 LEFT JOIN intervals intv ON (tt.interval_id = intv.id)
@@ -879,6 +903,109 @@ sub account_check {
 
   return $self;
 }
+
+#**********************************************************
+=head2 filters_add()
+
+=cut
+#**********************************************************
+sub filters_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('filters', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 filters_del()
+
+=cut
+#**********************************************************git 
+sub filters_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('filters', undef, $attr);
+
+  return $self->{result};
+}
+
+#**********************************************************
+=head2 filters_list($attr)
+
+=cut
+#**********************************************************
+sub filters_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+#  my $PG        = ($attr->{PG})        ? $attr->{PG}             : 0;
+#  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
+
+  my $WHERE = $self->search_former( $attr, [
+      [ 'ID', 'INT', 'id', 1],
+      [ 'FILTER', 'STR', 'filter', 1 ],
+      [ 'DESCR', 'STR', 'descr', 1],
+      [ 'PARAMS', 'STR', 'params', 1 ],
+
+    ],
+    { WHERE => 1,
+    }
+  );
+
+  $self->query(
+    "SELECT id, filter, params, descr
+     FROM filters $WHERE ORDER BY $SORT $DESC;",
+    undef,
+    { COLS_NAME => 1}
+  );
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 filters_info($attr)
+
+=cut
+#**********************************************************
+sub filters_info{
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query( "SELECT * FROM filters WHERE id = ? ;",
+    undef,
+    { INFO => 1,
+      Bind => [ $id ] }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 filters_change($attr)
+
+=cut
+#**********************************************************
+sub filters_change{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM    => 'ID',
+      TABLE           => 'filters',
+      DATA            => $attr
+    }
+  );
+
+  return $self->{result};
+}
+
 
 1
 

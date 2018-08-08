@@ -9,10 +9,10 @@
                 <legend>_{SERVICES}_</legend>
                 <div class='form-group'>
                     <label class='control-label col-md-3' for='NUM'>_{NUM}_:</label>
-                    <div class='col-md-5'>
+                    <div class='col-md-4'>
                         <input id='NUM' name='NUM' value='%ID%' placeholder='%ID%' class='form-control' type='text' disabled>
                     </div>
-                    <label class='control-label col-md-4'>%MODULE_VERSION%</label>
+                    <label class='control-label col-md-5'>_{PLUGIN_VERSION}_: %MODULE_VERSION%</label>
                 </div>
 
                 <div class='form-group'>
@@ -23,7 +23,7 @@
                 </div>
 
                 <div class='form-group'>
-                    <label class='control-label col-md-3' for='MODULE'>_{MODULE}_:</label>
+                    <label class='control-label col-md-3' for='MODULE'>Plug-in:</label>
                     <div class='col-md-9'>
                         <input id='MODULE' name='MODULE' value='%MODULE%' placeholder='%MODULE%' class='form-control' type='text'>
                     </div>
@@ -113,14 +113,13 @@
                 %EXTRA_PARAMS%
 
                 <div class='form-group'>
-                    <label class='control-label col-md-3' for='COMMENT'>_{COMMENTS}_:</label>
-                    <div class='col-md-9'>
-                       <textarea id='COMMENT' name='COMMENT' cols='50' rows='5' class='form-control'>%COMMENT%</textarea>
+                    <div class='col-md-12'>
+                       <textarea id='COMMENT' name='COMMENT' cols='50' rows='4' class='form-control' placeholder='_{COMMENTS}_'>%COMMENT%</textarea>
                     </div>
                 </div>
 
                 <div class='form-group text-center'>
-                    %SERVICE_TEST% %TP_IMPORT%
+                    %SERVICE_TEST% %TP_IMPORT% %CONSOLE%
                 </div>
 
                 <div class='box-footer'>
