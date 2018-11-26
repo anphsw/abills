@@ -7,6 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(cmd);
+use Dhcphosts;
 
 our (
   $db,

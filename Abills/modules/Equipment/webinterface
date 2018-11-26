@@ -42,6 +42,8 @@ require Equipment::Grabbers;
 require Equipment::Backup;
 require Equipment::Netmap;
 require Equipment::Tr_069;
+require Equipment::Reports;
+
 
 my $Nas = Nas->new($db, \%conf, $admin);
 #my @ports_state = ('', $lang{ACTIV}, $lang{DISABLE}, 'Damage', 'Corp vlan', 'Dormant', 'Not Present', 'lowerLayerDown');
@@ -68,8 +70,8 @@ our %PORT_STATUS = (
 
 my $debug = 0;
 my $used_ports;
-my @service_status_colors = ("$_COLORS[9]", "840000", '#808080', '#0000FF', "$_COLORS[6]", '#009999');
-our @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{ERROR}, $lang{BREAKING});
+my @service_status_colors = ("$_COLORS[9]", "840000", '#808080', '#0000FF', "$_COLORS[6]", '#009999', '#0099ee');
+our @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{ERROR}, $lang{BREAKING}, $lang{NOT_MONITORING});
 our $SNMP_TPL_DIR = "../../Abills/modules/Equipment/snmp_tpl/";
 our %html_color = (
   'red'       => '#f56954',
@@ -197,19 +199,21 @@ sub equipment_info {
     return;
   }
 
-  $Nas->info({ NAS_ID => $FORM{NAS_ID} });
+  my $nas_id = $FORM{NAS_ID};
+
+  $Nas->info({ NAS_ID => $nas_id });
   my $SNMP_COMMUNITY = '';
 
-  if ($Nas->{TOTAL} == 0) {
+  if ($Nas->{TOTAL} < 1) {
     $html->message('err', $lang{ERROR}, "$lang{DELETED} NAS_ID: " . ($Nas->{NAS_ID} || q{}));
   }
   else {
     $SNMP_COMMUNITY = ($Nas->{NAS_MNG_PASSWORD} || '') . '@' . (($Nas->{NAS_MNG_IP_PORT}) ? $Nas->{NAS_MNG_IP_PORT} : $Nas->{NAS_IP});
-    $Equipment->{NAS_MNG_IP_PORT} = $Nas->{NAS_MNG_IP_PORT};
-    $Equipment->{NAS_MNG_USER} = $Nas->{NAS_MNG_USER};
+    $Equipment->{NAS_MNG_IP_PORT}  = $Nas->{NAS_MNG_IP_PORT};
+    $Equipment->{NAS_MNG_USER}     = $Nas->{NAS_MNG_USER};
     $Equipment->{NAS_MNG_PASSWORD} = $Nas->{NAS_MNG_PASSWORD};
   }
-  $Equipment->_info($FORM{NAS_ID});
+  $Equipment->_info($nas_id);
 
   #  my $ports = $FORM{PORTS} || $Equipment->{PORTS};
 
@@ -244,7 +248,7 @@ sub equipment_info {
 
     if (!$Equipment->{errno}) {
       $html->message('info', $lang{INFO},
-        "$lang{ADDED} # $FORM{NAS_ID} \n"
+        "$lang{ADDED} # $nas_id \n"
           . $html->button("$lang{MANAGE}", "index=$index&NAS_ID=" . ($Nas->{NAS_ID} || q{}), { BUTTON => 1 }));
     }
   }
@@ -280,14 +284,14 @@ sub equipment_info {
       $FORM{COMMENTS} = $snmp_result->{$key} if ($key eq 'SYSTEM_DESCR');
     }
 
-    #$Equipment->_info( $FORM{NAS_ID} );
+    #$Equipment->_info( $nas_id );
     if (!$Equipment->{errno} || $Equipment->{errno} != '2') {
       $Equipment->{ACTION} = 'change';
       $Equipment->{ACTION_LNG} = $lang{CHANGE};
     }
   }
   elsif ($FORM{del} && $FORM{del} eq 'nas_id' && defined($FORM{COMMENTS}) && !defined($FORM{visual})) {
-    $Equipment->_del($FORM{NAS_ID});
+    $Equipment->_del($nas_id);
     if (!$Equipment->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{DELETED} [" . ($Nas->{NAS_ID} || q{}) . "]");
     }
@@ -313,7 +317,7 @@ sub equipment_info {
   if (!defined($FORM{visual})) {
 
     if (($FORM{TYPE_ID} && $FORM{TYPE_ID} != 4) || ($Equipment->{TYPE_ID} && $Equipment->{TYPE_ID} != 4)) {
-      $used_ports = equipments_get_used_ports({ NAS_ID => $FORM{NAS_ID}, PORTS_ONLY => 1 });
+      $used_ports = equipments_get_used_ports({ NAS_ID => $nas_id, PORTS_ONLY => 1 });
       $Equipment->{FREE_PORTS} = ($Equipment->{PORTS} || 0) - scalar(keys %{$used_ports});
     }
 
@@ -364,7 +368,8 @@ sub equipment_info {
           1 => $lang{DISABLE},
           2 => $lang{NOT_ACTIVE},
           3 => $lang{ERROR},
-          4 => $lang{BREAKING}
+          4 => $lang{BREAKING},
+          5 => $lang{NOT_MONITORING}
         },
         NO_ID    => 1,
         STYLE    => \@service_status_colors,
@@ -422,8 +427,10 @@ sub equipment_info {
     my $visual = $FORM{visual} || 0;
     my %attr = (
       NAS_INFO       => $Equipment,
-      SNMP_COMMUNITY => $SNMP_COMMUNITY
+      SNMP_COMMUNITY => $SNMP_COMMUNITY,
+      DEBUG          => $FORM{DEBUG}
     );
+
     if ($visual == 6) {
       equipment_fdb({
         %attr,
@@ -1349,6 +1356,9 @@ sub equipment_fdb {
         if ($used_info->{ $mac }) {
           $info .= show_used_info($used_info->{ $mac });
         }
+        elsif ($used_info->{ uc $mac }) {
+          $info .= show_used_info($used_info->{ uc $mac });
+        }
 
         $macs .= $html->br();
         $table->addrow($port, $port_name, $html->color_mark($mac, 'code'), $vlan, $info);
@@ -1804,6 +1814,31 @@ sub equipment_vlan {
 }
 
 #**********************************************************
+=head2 equipment_user_graph($attr)
+
+  Arguments:
+    $attr
+
+  Returns:
+
+    $information_table
+
+=cut
+#**********************************************************
+sub equipment_user_graph {
+  my ($attr) = @_;
+  if($FORM{GRAPH}) {
+    $html->tpl_show(_include('equipment_graph', 'Equipment'), $attr);
+  }
+  else {
+    return $html->button('', "index=$index&UID=$attr->{UID}&NAS_ID=$attr->{NAS_ID}&SERVICE_ID=&GRAPH=1", { class => 'glyphicon glyphicon-stats' });
+  }
+
+  return '';
+}
+
+
+#**********************************************************
 =head2 equipment_user_info($attr)
 
   Arguments:
@@ -1846,7 +1881,7 @@ sub equipment_user_info {
 
     if ($Equipment->{TOTAL} && $Equipment->{TOTAL} > 0) {
       my $Nas_info = $list->[0];
-      if ($Nas_info->{status}) {
+      if ($Nas_info->{status} && $Nas_info->{status} != 5) {
         return 123;
       }
 
@@ -1875,6 +1910,7 @@ sub equipment_user_info {
         . $html->button('MAC log', "index=" . get_function_index('equipment_info')
         . "&visual=6&search=1&NAS_ID=$nas_id&PORT=" . ($attr->{PORT} || q{}) . "&VLAN=" . ($attr->{VLAN} || q{}),
         { class => 'btn btn-xs btn-default' })
+        . equipment_user_graph($attr)
       ];
 
       foreach my $snmp_id (@sequence) {
@@ -2252,6 +2288,57 @@ sub equipment_add_color {
   }
 
   return $data;
+}
+
+#**********************************************************
+=head2 equipment_graph_info()
+
+=cut
+#**********************************************************
+sub equipment_graph_info {
+
+  return 0 if (!$FORM{NAS_ID} || ! $FORM{PORT});
+
+  $Nas->info({NAS_ID => $FORM{NAS_ID}});
+  return 0 if ($Nas->{errno});
+
+  my $nas_community = $Nas->{NAS_MNG_PASSWORD} || 'public';
+  my $nas_ip = $Nas->{NAS_IP} || '';
+  my $time = time();
+
+  my $snmp_result1 = snmp_get({
+    SNMP_COMMUNITY => $nas_community. "@" .$nas_ip,
+    OID            => "1.3.6.1.2.1.31.1.1.1.10",
+    SILENT         => 1,
+    VERSION        => 2,
+    WALK           => 1,
+  });
+  # my $local_time = strftime "%H:%M:%S",localtime;
+  my ($port, $cout, $cin);
+  foreach my $line (@$snmp_result1) {
+    ($port, $cout) = split(':', $line);
+    last if ($port == $FORM{PORT});
+  }
+
+
+  my $snmp_result2 = snmp_get({
+    SNMP_COMMUNITY => $nas_community. "@" .$nas_ip,
+    OID            => "1.3.6.1.2.1.31.1.1.1.6",
+    SILENT         => 1,
+    VERSION        => 2,
+    WALK           => 1,
+  });
+
+  foreach my $line (@$snmp_result2) {
+    ($port, $cin) = split(':', $line);
+    last if ($port == $FORM{PORT});
+  }
+
+  return 0 if(!$cin || !$cout);
+
+  print "$cout:$cin:$time";
+
+  return 1;
 }
 
 1;

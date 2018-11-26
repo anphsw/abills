@@ -1045,6 +1045,10 @@ ElementWithFibers.prototype = {
         continue;
       }
 
+
+        if (fiber.color.length === 8) {
+            fiber.color = fiber.color.substring(0, 7);
+        }
       var circle = paper
         .circle(fiber.edge.x, fiber.edge.y, SCHEME_OPTIONS.FIBER_WIDTH)
         .attr({
@@ -1130,6 +1134,10 @@ Drawable.prototype = {
     this.drawConnectedCircles();
   },
   drawFiber              : function (fiber, index) {
+
+    if (this.type === "SPLITTER") {
+        this.fiber_attr.fill = fiber.color !== undefined ? fiber.color.substring(0, 7) : "lightgray";
+    }
     var fiber_rect = paper.rect(
       fiber.x,
       fiber.y,
@@ -1137,9 +1145,17 @@ Drawable.prototype = {
       SCHEME_OPTIONS.FIBER_HEIGHT * (this['height-fiber'] || 1 / 2)
     ).attr(this.fiber_attr);
 
+    if (this.type === "SPLITTER") {
+      if (fiber.marked) {
+          fiber.x = fiber.x + 4;
+          drawLine(fiber.edge, fiber, fiber.color.substring(0, 7));
+      }
+    }
+
     $(fiber_rect.node)
       .data('fiber-id', this.type + '_' + this.id + '_' + index);
 
+    this.fiber_attr.class = 'fiber';
     return fiber_rect;
   },
   drawConnectedCircles   : function () {
@@ -1884,6 +1900,11 @@ function Splitter(splitter_raw) {
   }
 
   this.fibers = new Array(this.inputs + this.outputs);
+  var color_arr = this.raw.fibers_colors.split(',');
+
+  var fibersColorPalette = new AColorPalette(color_arr);
+  this.fibers_colors = fibersColorPalette;
+
   this.calculateFiberPositions();
 
   Splitter.prototype.num += 1;
@@ -1906,7 +1927,6 @@ $.extend(Splitter.prototype, {
     this.height = SCHEME_OPTIONS.CABLE_SHELL_HEIGHT / 2;
   },
   calculateFiberPositions: function () {
-
     // Calculate inputs params
     this.inputs_start_x = this.getCenteredFibersStartX(this.inputs);
     this.inputs_edge_y  = SCHEME_OPTIONS.FIBER_HEIGHT / 2;
@@ -1914,25 +1934,37 @@ $.extend(Splitter.prototype, {
     this.outputs_start_x = this.getCenteredFibersStartX(this.outputs);
     this.outputs_edge_y  = this.height;
 
+
+    var count_color = 0;
+
     // Input fibers
     for (var i = 0; i < this.inputs; i++) {
-      var fiber_x    = this.x + this.inputs_start_x + SCHEME_OPTIONS.FIBER_FULL_WIDTH * i;
-      var fiber_y    = this.y - this.inputs_edge_y;
+      if (count_color >= this.fibers_colors.array.length) {
+        count_color = 0;
+        this.fibers_colors.counter = 0;
+      }
+      var fiber_x = this.x + this.inputs_start_x + SCHEME_OPTIONS.FIBER_FULL_WIDTH * i;
+      var fiber_y = this.y - this.inputs_edge_y;
       this.fibers[i] = $.extend(this.fibers[i] || {}, {
-        num     : i,
-        x       : fiber_x,
-        y       : fiber_y,
+        num: i,
+        x: fiber_x,
+        y: fiber_y,
         vertical: true,
-        edge    : {
+        edge: {
           x: fiber_x + SCHEME_OPTIONS.FIBER_WIDTH / 2,
           y: fiber_y
-        },
-        color   : this.fiber_attr.fill
+          },
+        marked: this.fibers_colors.array[count_color].length === 7 ? 1 : '',
+        color: this.fibers_colors ? "#".concat(this.fibers_colors.array[count_color++]) : this.fiber_attr.fill
       });
     }
 
     // Output fibers
     for (var i = 0; i < this.outputs; i++) {
+      if (count_color >= this.fibers_colors.array.length) {
+        count_color = 0;
+        this.fibers_colors.counter = 0;
+      }
       var fiber_x              = this.x + this.outputs_start_x + SCHEME_OPTIONS.FIBER_FULL_WIDTH * i;
       var fiber_y              = this.y + this.outputs_edge_y;
       var fiber_index          = this.inputs + i;
@@ -1944,7 +1976,8 @@ $.extend(Splitter.prototype, {
           x: fiber_x + SCHEME_OPTIONS.FIBER_WIDTH / 2,
           y: fiber_y + SCHEME_OPTIONS.FIBER_HEIGHT / 2
         },
-        color: this.fiber_attr.fill
+        marked: this.fibers_colors.array[count_color].length === 7 ? 1 : '',
+        color: this.fibers_colors ? "#".concat(this.fibers_colors.array[count_color++]) : this.fiber_attr.fill
       });
     }
 
@@ -2755,7 +2788,12 @@ function initContextMenus() {
             full_name += " (" + COLORS_NAME[fiber.color] + " +)";
         }
         else {
-            full_name += " (" + COLORS_NAME[fiber.color] + " )";
+          if (fiber.color.length === 8) {
+              full_name += " (" + COLORS_NAME[fiber.color.substring(0, 7)] + " +)";
+          }
+          else {
+              full_name += " (" + COLORS_NAME[fiber.color] + " )";
+          }
         }
 
       return {
@@ -3233,8 +3271,6 @@ function computePath(start, end) {
 
   var startPoint = startFiber.edge;
   var endPoint   = endFiber.edge;
-
-  console.log(startPoint, endPoint);
 
   result[result.length] = (startPoint);
 

@@ -68,6 +68,7 @@
 <script>
   jQuery(function () {
     var removeBtns = jQuery('.removeIpBtn');
+    var saveBtn    = jQuery('.export-btn');
 
     function removeAddress(context) {
       var cont = jQuery(context);
@@ -92,9 +93,32 @@
 
     }
 
+    function exportText() {
+      var fullText = "";
+      var rows = jQuery('#CONSOLE_RESULT_ > tbody > tr > td');
+      jQuery.each(rows, function( index, value ) {
+        fullText = fullText + jQuery(value).text() + "\n";
+      });
+
+      var blob = new Blob([fullText], {type: "text/plain;charset=utf-8"});
+      var link = window.URL.createObjectURL(blob);
+      // window.location = link;
+      var a = document.createElement("a");
+      a.href = link;
+      a.download = "mikrotik.txt";
+      document.body.appendChild(a);
+      a.click();
+    };
+
     removeBtns.on('click', function () {
       removeAddress(this);
-    })
+    });
+
+    saveBtn.on('click', function (e) {
+      e.preventDefault();
+      exportText();
+    });
+
   })
 </script>
 

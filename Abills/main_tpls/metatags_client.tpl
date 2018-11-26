@@ -64,12 +64,15 @@
   <script src='/styles/default_adm/js/modals.js'></script>
 
   <script src='/styles/lte_adm/plugins/moment/moment.min.js'></script>
+  <script src='/styles/lte_adm/plugins/datatables/jquery.dataTables.min.js'></script>
+  <script src='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.min.js'></script>
   <!--<script src='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.min.js'></script>-->
   <script src='/styles/lte_adm/plugins/daterangepicker/daterangepicker.js'></script>
   <script src='/styles/lte_adm/plugins/datetimepicker/datetimepicker.min.js'></script>
 
   <script src="/styles/lte_adm/plugins/datepicker/bootstrap-datepicker.js"></script>
   <script src="/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.js"></script>
+  <script src='/styles/lte_adm/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
   <script>
     window['IS_ADMIN_INTERFACE'] = false;
     window['IS_CLIENT_INTERFACE'] = true;
@@ -95,6 +98,8 @@
     jQuery(function () {
       jQuery('select:not(#type)').chosen(CHOSEN_PARAMS);
     });
+
+    var CONTENT_LANGUAGE = '%CONTENT_LANGUAGE%';
 
     var DATERANGEPICKER_LOCALE = {
       separator       : '/',

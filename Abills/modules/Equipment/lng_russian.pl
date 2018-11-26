@@ -56,3 +56,29 @@ $lang{BRANCH}='Ветка';
 $lang{SELECT_OLT}='Выберите OLT';
 $lang{PORT_SHIFT}='Сдвиг портов';
 $lang{FIRMWARE}='Прошивка';
+
+$lang{FREE_ONU}='Свободных';
+$lang{NOT_MONITORING}='Не мониторить';
+$lang{REPORT_EQUIPMENT}='Отчет об оборудовании';
+$lang{TOTAL_COUNT}='Количество устройств';
+$lang{ACTIVE_COUNT}='Количество активных устройств';
+$lang{PING_COUNT}='Количество ping';
+$lang{SNMP_COUNT}='Количество snmp';
+$lang{INACTIVE_COUNT}='Количество неактивных устройств';
+$lang{UNIQ_MAC_COUNT}='Количество устройств с уникальним маком';
+
+$lang{REPORT_PON}='Отчет по PON';
+$lang{OLT_COUNT}='Количество OLT';
+$lang{BRANCH_COUNT}='Количество веток';
+$lang{ONU_COUNT}='Количество ONU';
+$lang{ACTIVE_ONU_COUNT}='Количество активных ONU';
+$lang{INACTIVE_ONU_COUNT}='Количество неактивных ONU';
+$lang{BAD_ONU_COUNT}='Количество сбойных ONU';
+$lang{NOTREGISTRED_ONU_COUNT}='Количество незарегистрированных ONU';
+
+$lang{SPEED_CHARTS}='Графики скорости';
+$lang{SPEED_IN}='Входная скорость(Mb/s)';
+$lang{SPEED_OUT}='Исходящая скорость(Mb/s)';
+
+
+1

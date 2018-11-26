@@ -106,7 +106,7 @@ $lang{RELATED_WORK} = "Пов'язані роботи";
 $lang{OPERATOR_STATISTICS} = 'Cтатистика оператора техпідтримки';
 $lang{NUMBER_OF_PROCESSED_REQUESTS} = 'Кількість оброблених заявок';
 $lang{TIME_SPENT_ON_APPLICATIONS} = 'Час витрачений на заявки';
-$lang{AVERAGE_SCORE_FOR_CLOSED_BIDS} = 'Середній бал за закриті заявки';
+$lang{AVERAGE_SCORE_FOR_CLOSED_BIDS} = 'Оцінка виконання (середня)';
 $lang{RELATIVE_INDICATORS} = 'Відносні показники';
 $lang{GROWTH_OF_CHIEVEMENT} = 'Приріст успішності';
 $lang{ADMINISTRATORS_RANK} = 'Рейтинг серед інших адміністраторів';
@@ -124,6 +124,11 @@ $lang{NO_RESPONSIBLE} = "Немає відповідального";
 $lang{PERIODICALLY} = "Періодично";
 $lang{TASK}='Завдання';
 $lang{USER_CONNECTION}='Підключення абонента';
+$lang{CLOSED_RATIO} = 'Процент виконаних повідомлень';
+$lang{REPLYS_AND_TIME} = 'Відповіді та час';
+$lang{REPLYS_COUNT} = 'Кількість відповідей адміністратора';
+$lang{REPLYS_AVERAGE} = 'Відповіді (в середньому)';
+$lang{TIME_AVERAGE} = 'Час (середній)';
 
 
 1

@@ -74,6 +74,7 @@ sub user_info {
    service.disable AS status,
    tp.gid AS tp_gid,
    tp.month_fee,
+   tp.month_fee AS month_abon,
    tp.abon_distribution,
    tp.day_fee,
    tp.postpaid_monthly_fee,
@@ -84,6 +85,7 @@ sub user_info {
    tp.credit AS tp_credit,
    tp.period_alignment AS tp_period_alignment,
    service.expire AS iptv_expire,
+   service.activate AS iptv_activate,
    tv_services.module AS service_module,
    service.*
      FROM iptv_main service
@@ -149,7 +151,7 @@ sub user_add {
   return $self if ($self->{errno});
   $admin->{MODULE}=$MODULE;
 
-  my @info = ('SERVICE_ID', 'ID', 'TP_ID', 'STATUS', 'EXPIRE', 'CID');
+  my @info = ('SERVICE_ID', 'ID', 'TP_ID', 'STATUS', 'IPTV_EXPIRE', 'IPTV_ACTIVATE', 'CID');
   my @actions_history = ();
 
   foreach my $param (@info) {
@@ -175,6 +177,7 @@ sub user_change{
   my ($attr) = @_;
 
   $attr->{EXPIRE} = $attr->{IPTV_EXPIRE};
+  $attr->{ACTIVATE} = $attr->{IPTV_ACTIVATE};
   $attr->{VOD} = (!defined( $attr->{VOD} )) ? 0 : 1;
   $attr->{DISABLE} = $attr->{STATUS};
   my $old_info = $self->user_info( $attr->{ID} );
@@ -273,7 +276,12 @@ sub user_list{
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $GROUP_BY = '';
 
+  if ($attr->{GROUP_BY}) {
+    $GROUP_BY = $attr->{GROUP_BY};
+    delete $attr->{GROUP_BY};
+  }
   my $EXT_TABLE = '';
   $self->{EXT_TABLES} = '';
 
@@ -288,12 +296,14 @@ sub user_list{
       #[ 'STATUS',         'INT',  'service.disable AS service_status',                                         1 ],
       [ 'CID',          'STR', 'service.cid',                    1 ],
       [ 'PIN',          'STR', 'service.pin',                    1 ],
-      [ 'ALL_FILTER_ID','STR', 'if(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id', 1 ],
+      [ 'ALL_FILTER_ID','STR', 'IF(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id', 1 ],
       [ 'FILTER_ID',    'STR', 'service.filter_id',              1 ],
       [ 'DVCRYPT_ID',   'INT', 'service.dvcrypt_id',             1 ],
       [ 'MONTH_FEE',    'INT', 'tp.month_fee',                   1 ],
       [ 'DAY_FEE',      'INT', 'tp.day_fee',                     1 ],
       [ 'TP_ID',        'INT', 'service.tp_id',                  1 ],
+      [ 'TV_SERVICE_ID','INT', 'tp.service_id', 'tp.service_id AS tv_service_id'],
+      [ 'TV_SERVICE_NAME','INT', 'tv_service.name', 'tv_service.name AS tv_service_name'],
       [ 'TP_CREDIT',    'INT', 'tp.credit:',           'tp_credit' ],
       [ 'TP_FILTER',    'INT', 'tp.filter_id',                   1 ],
       [ 'PAYMENT_TYPE', 'INT', 'tp.payment_type',                1 ],
@@ -302,8 +312,10 @@ sub user_list{
       [ 'SUBSCRIBE_ID', 'INT', 'service.subscribe_id',           1 ],
       [ 'SERVICE_ID',   'INT', 'service.service_id',             1 ],
       [ 'EMAIL',        'STR', 'service.email',                  1 ],
+      ['SERVICE_COUNT', 'INT', '', 'COUNT(service.id) AS service_count'  ] ,
       [ 'ID',           'INT', 'service.id',                     1 ],
       [ 'UID',          'INT', 'service.uid',                      ],
+#      [ 'GID',          'INT', 'u.gid',                    'u.gid' ],
     ],
     {
       WHERE             => 1,
@@ -321,6 +333,10 @@ sub user_list{
     $self->{SEARCH_FIELDS} .= "INET_NTOA(nas.ip) AS nas_ip, dhcp.ports, nas.nas_type, nas.mng_user,
       DECODE(nas.mng_password, '$CONF->{secretkey}') AS mng_password, nas.mng_host_port, nas.id AS nas_id, ";
     $self->{SEARCH_FIELDS_COUNT} += 7;
+  }
+
+  if($attr->{TV_SERVICE_NAME}) {
+    $EXT_TABLE .= "LEFT JOIN iptv_services tv_service ON (tv_service.id=tp.service_id)";
   }
 
   my $list;
@@ -365,6 +381,7 @@ ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
      LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id)
      $EXT_TABLE
      $WHERE
+     $GROUP_BY
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
       undef,
       $attr
@@ -398,7 +415,7 @@ sub user_tp_channels_list{
   my ($attr) = @_;
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'STATUS', 'INT', 'service.disable' ],
+      [ 'STATUS',       'INT', 'service.disable' ],
       [ 'LOGIN_STATUS', 'INT', 'u.disable', ],
     ], { WHERE => 1, } );
 
@@ -406,7 +423,7 @@ sub user_tp_channels_list{
   return [ ] if ($self->{errno});
 
   if ( $self->{TOTAL} >= 0 ){
-    $self->query( "SELECT count(u.id) AS total FROM (users u, iptv_main service) $WHERE", undef, { INFO => 1 } );
+    $self->query( "SELECT COUNT(u.id) AS total FROM (users u, iptv_main service) $WHERE", undef, { INFO => 1 } );
   }
 
   return $list;
@@ -666,7 +683,7 @@ sub channel_ti_change{
 }
 
 #**********************************************************
-=head2 channel_ti_list()
+=head2 channel_ti_list($attr)
 
 =cut
 #**********************************************************
@@ -816,7 +833,7 @@ sub reports_channels_use2{
               LEFT JOIN bills cb ON  (company.bill_id=cb.id)
 
               ORDER BY $SORT $DESC";
-  
+
   $self->query( $sql, undef, $attr );
 
   return [ ] if ($self->{errno});
@@ -1710,7 +1727,10 @@ sub services_del{
 }
 
 #**********************************************************
-=head2 screen_info($id, $attr)
+=head2 screen_info($id)
+
+  Arguments:
+    $id  - Service ID
 
 =cut
 #**********************************************************
@@ -1769,5 +1789,251 @@ sub services_reports{
   return $list;
 }
 
+#**********************************************************
+=head2 device_add($attr) - Add user
+
+=cut
+#**********************************************************
+sub device_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'iptv_devices', $attr );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 device_info($attr)
+
+=cut
+#**********************************************************
+sub device_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query( "SELECT * FROM iptv_devices
+    WHERE service_id=$attr->{SERVICE_ID} AND dev_id=\"$attr->{DEVICE_ID}\"",
+    undef,
+    {
+      INFO => 1,
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 device_list($attr)
+
+=cut
+#**********************************************************
+sub device_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'UID',          'INT',  'd.uid',         1 ],
+      [ 'DEV_ID',       'INT',  'dev_id',        1 ],
+      [ 'ENABLE',       'INT',  'enable',        1 ],
+      [ 'DATE_ACTIVITY','DATE', 'date_activity', 1 ],
+      [ 'IP_ACTIVITY',  'STR',  'ip_activity',   1 ],
+      [ 'CODE',         'STR',  'code',          1 ],
+      [ 'ID',           'INT',  'd.id',            ],
+      [ 'SERVICE_ID',   'INT',  'service_id',    1 ],
+    ],
+    {
+      WHERE => 1,
+    }
+  );
+
+  if ($attr->{USERS}) {
+    $self->query( "SELECT $self->{SEARCH_FIELDS} d.id,
+    u.id as LOGIN
+   FROM iptv_main d
+    LEFT JOIN users u ON (d.uid=u.uid)
+    $WHERE
+    GROUP BY d.uid
+    ORDER BY $SORT $DESC",
+      undef,
+      {%$attr, COLS_NAME => 1, COLS_UPPER => 1}
+    );
+  }
+  else {
+    $self->query( "SELECT $self->{SEARCH_FIELDS} d.id,
+    s.name,
+    u.id as LOGIN
+   FROM iptv_devices d
+    INNER JOIN iptv_services s ON (d.service_id=s.id)
+    LEFT JOIN users u ON (d.uid=u.uid)
+    $WHERE
+    GROUP BY d.id
+    ORDER BY $SORT $DESC",
+      undef,
+      {%$attr, COLS_NAME => 1, COLS_UPPER => 1}
+    );
+  }
+
+  my $list = $self->{list} || [];
+
+  return $list;
+}
+
+#**********************************************************
+=head2 device_del($id, $attr)
+
+=cut
+#**********************************************************
+sub device_del{
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  $self->query_del( 'iptv_devices', $attr, { ID => $id } );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 device_change($attr)
+
+=cut
+#**********************************************************
+sub device_change{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'iptv_devices',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 extra_params_add($attr) - Add user
+
+=cut
+#**********************************************************
+sub extra_params_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'iptv_extra_params', $attr );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 extra_params_info($attr)
+
+=cut
+#**********************************************************
+sub extra_params_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query( "SELECT * FROM iptv_extra_params
+    WHERE service_id=$attr->{SERVICE_ID}",
+    undef,
+    {
+      INFO => 1,
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 extra_params_list($attr)
+
+=cut
+#**********************************************************
+sub extra_params_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'BALANCE',      'DOUBLE',  'e.balance',     1 ],
+      [ 'SEND_SMS',     'INT',     'e.send_sms',    1 ],
+      [ 'SMS_TEXT',     'STR',     'e.sms_text',    1 ],
+      [ 'IP_MAC',       'STR',     'e.ip_mac',      1 ],
+      [ 'ID',           'INT',     'e.id',          1 ],
+      [ 'SERVICE_ID',   'INT',     'e.service_id',  1 ],
+      [ 'GROUP_ID',     'INT',     'e.group_id',    1 ],
+      [ 'TP_ID',        'INT',     'e.tp_id',       1 ],
+      [ 'MAX_DEVICE',   'INT',     'e.max_device',  1 ],
+      [ 'PIN',          'STR',     'e.pin',         1 ],
+    ],
+    {
+      WHERE => 1,
+    }
+  );
+
+  $self->query("SELECT $self->{SEARCH_FIELDS}
+    s.name as SERVICE_NAME,
+    g.name as GROUP_NAME,
+    t.name as TP_NAME
+   FROM iptv_extra_params e
+    LEFT JOIN iptv_services s ON (e.service_id=s.id)
+    LEFT JOIN groups g ON (e.group_id=g.gid)
+    LEFT JOIN tarif_plans t ON (e.tp_id=t.tp_id)
+    $WHERE
+    ORDER BY $SORT $DESC",
+    undef,
+    { %$attr, COLS_NAME => 1, COLS_UPPER => 1 }
+  );
+
+  my $list = $self->{list} || [];
+
+  return $list;
+}
+
+#**********************************************************
+=head2 extra_params_del($id, $attr)
+
+=cut
+#**********************************************************
+sub extra_params_del{
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  $self->query_del( 'iptv_extra_params', $attr, { ID => $id } );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 extra_params_change($attr)
+
+=cut
+#**********************************************************
+sub extra_params_change{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'iptv_extra_params',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
+}
 
 1

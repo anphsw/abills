@@ -37,6 +37,34 @@
     if (typeof EVENT_PARAMS !== 'undefined') {
       AMessageChecker.start(EVENT_PARAMS);
     }
+
+    var ConfirmChanges = '%CONFIRM_CHANGES%' || false;
+    if (ConfirmChanges) {
+      var ButtonName  = '';
+      var ButtonValue = '';
+      var ButtonText  = '';
+      jQuery(".pswd-confirm [type=submit]").click(function(e) {
+        ButtonName  = jQuery(this).attr('name');
+        ButtonValue = jQuery(this).attr('value');
+      });
+
+      jQuery('.pswd-confirm').on('submit', function(e) {
+        var formId = jQuery(this).attr('id');
+        if (typeof(formId) === 'undefined') {
+          formId = 'undefid';
+          jQuery(this).attr('id', formId);
+        }
+        if (jQuery('#modal_password').val() == '') {
+          e.preventDefault();
+          jQuery('#modal_password').attr('form', formId);
+          jQuery('#modal_submit').attr('form', formId);
+          jQuery('#modal_submit').attr('name', ButtonName);
+          jQuery('#modal_submit').attr('value', ButtonValue);
+          jQuery('.modal').modal('hide');
+          jQuery('#passwordModal').modal('show');
+        }
+      });
+    };
   });
 </script>
 <!--Color-->
@@ -64,17 +92,36 @@
   </form>
 </div>
 
+<!-- Password modal -->
+<div id="passwordModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">_{CONFIRM_CHANGES}_</h4>
+      </div>
+      <div class="modal-body">
+        <div class='form-group'>
+          <input type='text' name="PASSWORD" id="modal_password" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <input type="submit" class="btn btn-primary" id="modal_submit">
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <div class='wrapper'>
-
   <!-- Main Header -->
-  <header class='main-header'>
-  <!-- client_start -->
-  <a href='index.cgi' class='logo'>
-    <!-- mini logo for sidebar mini 50x50 pixels -->
-    <span class='logo-mini'><b><span style='color: red;'>A</span></b></span>
-    <!-- logo for regular state and mobile devices -->
-    <span class='logo-lg'><b><span style='color: red;'>A</span></b>BillS</span>
-  </a>
+  <header class='main-header' >
+    <!-- client_start -->
+    <a href='index.cgi' class='logo' %S_MENU%>
+      <!-- mini logo for sidebar mini 50x50 pixels -->
+      <span class='logo-mini'><b><span style='color: red;'>A</span></b></span>
+      <!-- logo for regular state and mobile devices -->
+      <span class='logo-lg'><b><span style='color: red;'>A</span></b>BillS</span>
+    </a>
 
   %BODY%

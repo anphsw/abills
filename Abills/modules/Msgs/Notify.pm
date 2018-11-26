@@ -26,6 +26,11 @@ my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
     $attr
       STATE
       MSGS
+      MSG_ID
+      SENDER_AID
+      SENDER_UID
+      SKIP_TELEGRAM
+      AID
 
   Results:
 
@@ -33,37 +38,38 @@ my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 #**********************************************************
 sub msgs_notify_admins {
   my ($attr) = @_;
-  
+
   my $admins_resposible_for_chapter = $Msgs->admins_list({
     EMAIL_NOTIFY => 1,
     DISABLE      => 0,
+    AID          => $attr->{AID},
     CHAPTER_ID   => $FORM{CHAPTER},
     COLS_NAME    => 1
   });
-  
+
   my $message_id = $attr->{MSG_ID} || $Msgs->{INSERT_ID} || '--';
-  my $reply_id = $Msgs->{REPLY_ID} || '--';
-  my $Msgs_ = $attr->{MSGS};
-  my $subject = ($Msgs_->{SUBJECT} || $FORM{SUBJECT} || q{}) . ($FORM{REPLY_SUBJECT}
+  my $reply_id   = $Msgs->{REPLY_ID} || '--';
+  my $Msgs_      = $attr->{MSGS};
+  my $subject    = ($Msgs_->{SUBJECT} || $FORM{SUBJECT} || q{}) . ($FORM{REPLY_SUBJECT}
                                                                  ? ' / ' . $FORM{REPLY_SUBJECT}
                                                                  : '');
-  
-  
+
   my $site = '';
   my $referer = ($conf{BILLING_URL} || $ENV{HTTP_REFERER} || '');
   if ( $referer && $referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/g ) {
     $site = $1;
   }
+
   foreach my $line ( @{$admins_resposible_for_chapter} ) {
     next if ( !$line->{email_notify} );
-    
+
     my $RESPOSIBLE = ($FORM{RESPOSIBLE} && $FORM{RESPOSIBLE} eq $line->{aid}) ? $lang{YES} : $lang{NO};
     my $message = $html->tpl_show(
       _include('msgs_email_notify', 'Msgs'),
       {
         SITE       => $site,
         LOGIN      => $Msgs->{LOGIN} || $FORM{LOGIN} || $ui->{LOGIN} || $user->{LOGIN} || '',
-        ADMIN      => ($FORM{INNER_MSG}) ? "$lang{ADMIN}:  $admin->{A_LOGIN}  (" . ($admin->{A_FIO} || q{}) . '}' : '',
+        ADMIN      => ($FORM{INNER_MSG}) ? "$lang{ADMIN}: $admin->{A_LOGIN} (" . ($admin->{A_FIO} || q{}) . '}' : '',
         UID        => $Msgs->{UID} || $FORM{UID} || $LIST_PARAMS{UID} || '',
         DATE       => $DATE,
         TIME       => $TIME,
@@ -76,7 +82,7 @@ sub msgs_notify_admins {
       },
       { OUTPUT2RETURN => 1 }
     );
-    
+
     sendmail($conf{ADMIN_MAIL},
       $line->{email},
       "$conf{WEB_TITLE}  -  $lang{NEW_MESSAGE} " . $subject,
@@ -84,44 +90,47 @@ sub msgs_notify_admins {
       $conf{MAIL_CHARSET} || 'utf-8', undef,
       { MAIL_HEADER => [ "X-ABillS-Msg-ID: $message_id", "X-ABillS-Reply-ID: $reply_id" ] });
   }
-  
-  if ( $conf{TELEGRAM_TOKEN} ) {
-    
+
+  if ( $conf{TELEGRAM_TOKEN} && ! $attr->{SKIP_TELEGRAM} ) {
     # Get resposible admin
     my $message_info = $Msgs->messages_list({
       MSG_ID     => $message_id,
       RESPOSIBLE => '_SHOW',
       COLS_NAME  => 1
     });
-    
-    return 0 if (
+
+    if (
       # Error
       $Msgs->{errno}
         # Broken response
         || (!$message_info || ref $message_info ne 'ARRAY' || !$message_info->[0] || ref $message_info->[0] ne 'HASH')
         # If no resposible, don't need to notify
         || !$message_info->[0]->{resposible}
-    );
-    
-    my $resposible_aid = $message_info->[0]->{resposible};
-    
+    ) {
+      return 0;
+    }
+
+    my $resposible_aid = $message_info->[0]->{resposible} || q{};
+
     # If he has sent a message, he knows about it
-    return 1 if ( $attr->{SENDER_AID} && $attr->{SENDER_AID} eq $resposible_aid );
-    
+    if ( $attr->{SENDER_AID} && $attr->{SENDER_AID} eq $resposible_aid ) {
+      return 1;
+    }
+
     #my $link = $site . "/admin/index.cgi?get_index=msgs_admin&full=1&chg=" . ($message_id || '');
     my $message = $FORM{MESSAGE} || $FORM{REPLY_TEXT} || $Msgs->{MESSAGE} || '';
-    
+
     require Msgs::Messaging;
     msgs_send_via_telegram($message_id, {
-        AID         => $resposible_aid,
-        SUBJECT     => $lang{YOU_HAVE_NEW_REPLY} . " '". $html->b($subject) ."'",
-        SENDER_UID  => $attr->{SENDER_UID},
-        MESSAGE     => $message,
-        SENDER_TYPE => $Contacts::TYPES{TELEGRAM},
-        PARSE_MODE  => 'HTML'
-      });
+      AID         => $resposible_aid,
+      SUBJECT     => $lang{YOU_HAVE_NEW_REPLY} . " '". $html->b($subject) ."'",
+      SENDER_UID  => $attr->{SENDER_UID},
+      MESSAGE     => $message,
+      SENDER_TYPE => $Contacts::TYPES{TELEGRAM},
+      PARSE_MODE  => 'HTML'
+    });
   }
-  
+
   return 1;
 }
 
@@ -153,14 +162,14 @@ sub msgs_notify_admins {
 #**********************************************************
 sub msgs_notify_user {
   my ($attr) = @_;
-  
+
   return 0 if ($attr->{INNER_MSG} || $attr->{REPLY_INNER_MSG} || $FORM{INNER_MSG} || $FORM{REPLY_INNER_MSG});
-  
+
   if ( $attr->{MESSAGES_BATCH} && ref $attr->{MESSAGES_BATCH} ) {
     # Call self for each message id
-    
+
     my %msg_id_for_user = %{ $attr->{MESSAGES_BATCH} };
-    
+
     foreach my $_uid  ( sort keys %msg_id_for_user ) {
       msgs_notify_user({
         UID            => $_uid,
@@ -169,19 +178,18 @@ sub msgs_notify_user {
         MESSAGES_BATCH => undef,
       });
     }
-    
+
     return 1;
   }
-  
+
   my $message_id = $attr->{MSG_ID};
   my $reply_id = $attr->{REPLY_ID} || 0;
-  
+
   my $message_params = _msgs_notify_user_collect_message_content($message_id, $attr);
   return 0 if (!$message_params);
-
   my $message = $message_params->{MESSAGE};
   my $subject = $message_params->{SUBJECT};
-  my $state = $message_params->{STATE};
+  my $state   = $message_params->{STATE};
 
   my $users_list = $users->list({
     LOGIN     => '_SHOW',
@@ -190,11 +198,11 @@ sub msgs_notify_user {
     UID       => $attr->{UID} || '-1',
     COLS_NAME => 1
   });
-  
+
   my $message_tpl = ($attr->{SEND_TYPE} && $attr->{SEND_TYPE} == 1)
                       ? 'msgs_email_delivery'
                       : 'msgs_email_notify';
-  
+
   # Make view url
   my $preview_url_without_message_id = '';
   my $site = $conf{CLIENT_INTERFACE_URL} || $conf{BILLING_URL} || $ENV{HTTP_REFERER};
@@ -202,17 +210,17 @@ sub msgs_notify_user {
     $site = $1 || '';
     $preview_url_without_message_id = $site . "/index.cgi?get_index=msgs_user&ID=";
   }
-  
+
   # Make atachments
   my $ATTACHMENTS = $attr->{ATTACHMENTS} || [];
-  
+
   foreach my $user_info  ( @{$users_list} ) {
-  
+
     my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
       ? $preview_url_without_message_id . $message_id
       : undef;
-    
-    
+
+
     my $mail_message = $html->tpl_show(
       _include($message_tpl, 'Msgs'),
       {
@@ -224,9 +232,9 @@ sub msgs_notify_user {
         ID          => $message_id,
         ATTACHMENT  => $attr->{FILE_UPLOAD}->{filename} || '',
         SUBJECT_URL => $preview_url,
-        
+
         %$message_params,
-        
+
         SUBJECT     => $subject,
         STATUS      => $state,
         MESSAGE     => $message,
@@ -256,38 +264,45 @@ sub msgs_notify_user {
         });
     }
   }
-  
+
   return 1;
 }
 
 #**********************************************************
-=head2 _msgs_notify_user_collect_message_content($attr)
+=head2 _msgs_notify_user_collect_message_content($message_id, $attr)
+
+   Arguments:
+     $message_id
+     $attr
+
+   Returns:
+
 
 =cut
 #**********************************************************
 sub _msgs_notify_user_collect_message_content {
   my ($message_id, $attr) = @_;
-  
+
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
-  
+
   my $subject = ($attr->{SUBJECT} || '') . (($FORM{REPLY_SUBJECT}) ? ' / ' . $FORM{REPLY_SUBJECT} : '');
   my $message = $attr->{MESSAGE} || $attr->{REPLY_TEXT};
   my $state = $attr->{STATE} || ($attr->{STATE_ID} && $msgs_status->{$attr->{STATE_ID}}
     ? $msgs_status->{$attr->{STATE_ID}}
     : ''
   );
-  
+
   my $responsible_name = $attr->{RESPOSIBLE_ADMIN_LOGIN};
-  
+
   my $uid = $attr->{UID};
-  
+
   my $is_inner_msg = $attr->{INNER_MSG};
   return 0 if ( $is_inner_msg );
-  
+
   my $reply_id = $attr->{REPLY_ID};
-  
+
   my $got_required_fields_from_attr = ($subject && $message && defined($state) && $uid && defined $responsible_name);
-  
+
   # If no message id, check for required fields
   if ( !$message_id ) {
     if ( $got_required_fields_from_attr ) {
@@ -305,7 +320,7 @@ sub _msgs_notify_user_collect_message_content {
     my $msg = Msgs->new($db, $admin, \%conf);
     $msg->message_info($message_id);
     return 0 if ( $msg->{errno} || $msg->{INNER_MSG} );
-    
+
     $subject = $msg->{SUBJECT};
     $message = $msg->{MESSAGE};
     $uid = $msg->{UID};
@@ -320,11 +335,11 @@ sub _msgs_notify_user_collect_message_content {
         my $adm = ($admin->{TOTAL} && $list)
           ? $list->[0]->{name} || $list->[0]->{login}
           : '';
+        $adm;
       }
       : '';
-    
+
     if ( $reply_id ) {
-      
       my $replies_for_id = $Msgs->messages_reply_list({
         ID        => $reply_id,
         MSG_ID    => $message_id,
@@ -332,40 +347,36 @@ sub _msgs_notify_user_collect_message_content {
         PAGE_ROWS => 1,
         COLS_NAME => 1,
       });
-      
+
       my $reply = $replies_for_id->[0];
-      
+
       if ( $reply && ref $reply ) {
         return 0 if ( $reply->{inner_msg} );
         $message = $reply->{text};
       }
     }
-    
   }
-  
+
   if ( !$uid ) {
     _bp('msgs_notify_user', "don't have enough params") if ( $attr->{DEBUG} );
     return 0;
   };
-  
+
   if ( $attr->{SURVEY_ID} ) {
-    
     $message = msgs_survey_show({
       SURVEY_ID        => $attr->{SURVEY_ID},
       MSG_ID           => $message_id,
       SHOW_SURVAY_TEXT => 1,
       MAIN_MSG         => 1,
     });
-    
   }
-  
+
   return {
     MESSAGE    => $message,
     SUBJECT    => $subject,
     STATE      => $state,
     RESPOSIBLE => $responsible_name
   };
-  
 }
 
 #**********************************************************

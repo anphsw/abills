@@ -17,7 +17,6 @@ $lang{ERR_NO_ORDERS}='No orders';
 @hundred          = ('', 'one hundred', 'two hundred', 'three hundred', 'four hundred', 'five hundred', 'six hundred', 'seven hundred', 'eight hundred', 'nine hundred');
 @money_unit_names = ('dollars','cents');
 
-$lang{PAID}='Paid invoice';
 $lang{PARTLY_PAID}='Partly paid';
 $lang{UNPAID}='UnPaid invoice';
 $lang{VAT_INCLUDE}='Vat include';
@@ -50,4 +49,5 @@ $lang{SKIP_PAY_ADD}='Skip invoices';
 $lang{CONNECT_TO} = 'Connect to';
 $lang{PAYMENTS_NOT_EQUAL_DOC}='Payments sum not equal invoice sum';
 $lang{PRINT_TERMO_PRINTER} = 'Termo-printer check';
+$lang{UNPAID_INVOICES} = 'Unpaid invoices';
 

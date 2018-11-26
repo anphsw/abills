@@ -184,6 +184,8 @@ sub pi_add {
   my $self = shift;
   my ($attr) = @_;
 
+  $self->_space_trim($attr);
+
   if ($attr->{EMAIL} && ! $attr->{SKIP_EMAIL_CHECK}) {
     if ($attr->{EMAIL} !~ /(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/) {
       $self->{errno}  = 11;
@@ -206,6 +208,17 @@ sub pi_add {
 
     $Address->build_add($attr);
     $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
+  }
+
+  if ( $self->{conf}->{CONTACTS_NEW} && $attr->{PHONE}) {
+    require Contacts;
+    Contacts->import();
+    my $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
+    $Contacts->contacts_add({
+      TYPE_ID => 2,
+      VALUE   => $attr->{PHONE},
+      UID     => $attr->{UID},
+    });
   }
 
   $self->query_add('users_pi', { %$attr });
@@ -373,6 +386,8 @@ sub pi {
 sub pi_change {
   my $self = shift;
   my ($attr) = @_;
+
+  $self->_space_trim($attr);
 
   if($attr->{PHONE} && $CONF->{PHONE_FORMAT}){
     if ($attr->{PHONE} !~ /$CONF->{PHONE_FORMAT}/) {
@@ -882,7 +897,8 @@ sub list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE (" . join($where_delimeter, @WHERE_RULES) .')' : '';
 
-  if (! $attr->{GID} && $admin->{GID}) {
+  #if (! $attr->{GID} && $admin->{GID}) {
+  if ($admin->{GID}) {
     $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." u.gid IN ($admin->{GID})";
   }
 
@@ -897,8 +913,6 @@ sub list {
   if($self->{SORT_BY}) {
     $SORT=$self->{SORT_BY};
   }
-
- #FIXME Need use GROUP by u.uid and change WHERE to HAVING
 
   $self->query("SELECT u.id AS login,
       $self->{SEARCH_FIELDS}
@@ -946,6 +960,8 @@ sub list {
 sub add {
   my $self = shift;
   my ($attr) = @_;
+
+  $self->_space_trim($attr);
 
   $self->{PRE_ADD}=1;
   if (! $self->check_params()) {
@@ -1072,6 +1088,8 @@ sub login_create {
 sub change {
   my $self = shift;
   my ($uid, $attr) = @_;
+
+  $self->_space_trim($attr);
 
   if ($attr->{CREATE_BILL}) {
     use Bills;

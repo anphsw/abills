@@ -1238,35 +1238,38 @@ sub vlan_list {
   my @WHERE_RULES = ();
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
 
   $self->query("SELECT *
     FROM equipment_vlans
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
 
   my $list = $self->{list};
 
-  return $self->{list} if (defined($attr->{TOTAL}) && $attr->{TOTAL} < 1);
-
-  $self->query(
-    "SELECT COUNT(*) AS total
+  if($self->{TOTAL} && $self->{TOTAL} > 0) {
+    $self->query(
+      "SELECT COUNT(*) AS total
      FROM equipment_vlans",
-    undef,
-    { INFO => 1 }
-  );
+      undef,
+      { INFO => 1 }
+    );
+  }
 
   return $list;
 }
 
 #**********************************************************
-# trap_add
+=head2 trap_add
+
+=cut
 #**********************************************************
 sub trap_add {
   my $self = shift;
@@ -1385,7 +1388,7 @@ sub CVLAN_list {
     [ 'DOMAIN_ID', 'INT', 'nas.domain_id' ],
     [ 'STATUS', 'INT', 'i.status', 1 ],
     [ 'DISABLE', 'INT', 'nas.disable', 1 ],
-    [ 'TYPE_NAME', 'INT', 'm.type_id', 't.name AS type_name', 1],
+    [ 'TYPE_NAME', 'INT', 'm.type_id', 't.name AS type_name', 1 ],
     [ 'NAME_TYPE', 'STR', 't.name', 1 ],
     [ 'PORTS', 'INT', 'm.ports', 1 ],
     [ 'MAC', 'INT', 'nas.mac', 1 ],
@@ -1501,7 +1504,7 @@ sub CVLAN_SVLAN_list {
 
   my $WHERE = $self->search_former($attr, [
     [ 'PORT', 'INT', 'p.port', 1 ],
-    [ 'NAS_NAME',      'STR',      'n.name',         1 ],
+    [ 'NAS_NAME', 'STR', 'n.name', 1 ],
     [ 'VLAN', 'INT', 'p.vlan', 1 ],
     [ 'NAS_ID', 'INT', 'i.nas_id', ],
     [ 'SERVER_VLAN', 'STR', 'i.server_vlan', 1 ],
@@ -1696,6 +1699,7 @@ sub mac_log_list {
     [ 'NAME', 'INT', 'name', 1 ],
     [ 'NAS_ID', 'INT', 'nas_id', 1 ],
     [ 'MAC_COUNT', 'STR', '', 'COUNT(ml.mac) AS mac_count' ],
+    [ 'MAC_UNIQ_COUNT', 'STR', '', 'COUNT(DISTINCT ml.mac) AS mac_uniq_count' ],
   ],
     { WHERE => 1,
     }
@@ -2536,6 +2540,26 @@ sub tr_069_settings_change {
   }
 
   return $self;
+}
+#**********************************************************
+=head2 tr_069_settings_change() -
+
+  Arguments:
+     -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub equipment_all_info {
+  my $self = shift;
+
+  $self->query("
+    SELECT COUNT(name) as total_count FROM nas;");
+
+  return $self->{list};
+  # _bp('', $self);
 }
 
 1

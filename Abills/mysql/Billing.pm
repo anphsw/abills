@@ -519,8 +519,8 @@ sub session_sum {
   my ($USER_NAME, $SESSION_START, $SESSION_DURATION, $RAD, $attr) = @_;
 
   my $sum = 0;
-  $attr->{DOMAIN_ID}  = 0     if (!$attr->{DOMAIN_ID});
-  $CONF->{rt_billing} = undef if ($attr->{disable_rt_billing});
+  $attr->{DOMAIN_ID}  = 0    if (!$attr->{DOMAIN_ID});
+  delete $CONF->{rt_billing} if ($attr->{disable_rt_billing});
   $self->{TI_ID}      = 0;
   if(! $SESSION_START) {
     $SESSION_START = 'UNIX_TIMESTAMP()';
@@ -777,11 +777,11 @@ sub session_sum {
     u.ext_bill_id,
     tp.bills_priority,
     tp.credit AS tp_credit
-   FROM (users u,
-      dv_main dv)
+   FROM users u
+   INNER JOIN dv_main dv ON (dv.uid=u.uid)
    LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id AND tp.domain_id='$attr->{DOMAIN_ID}')
-   WHERE dv.uid=u.uid AND u.domain_id='$attr->{DOMAIN_ID}'
-   and u.id='$USER_NAME';",
+   WHERE u.domain_id='$attr->{DOMAIN_ID}'
+     AND u.id='$USER_NAME';",
    undef,
    { INFO => 1 }
     );
@@ -1045,6 +1045,7 @@ sub session_splitter {
     delete $self->{NO_TPINTERVALS};
   }
 
+  $duration //= 0;
   my %holidays = ();
 
   if (defined($time_intervals->{8})) {
@@ -1245,7 +1246,7 @@ sub time_calculation {
 sub get_timeinfo {
   my $self = shift;
 
-  $self->query2("select
+  $self->query2("SELECT
     UNIX_TIMESTAMP() AS session_start,
     UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP()), '%Y-%m-%d')) AS day_begin,
     DAYOFWEEK(FROM_UNIXTIME(UNIX_TIMESTAMP())) AS day_of_week,

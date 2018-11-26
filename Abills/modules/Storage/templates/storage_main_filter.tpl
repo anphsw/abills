@@ -20,6 +20,13 @@
                 </div>
                 <div class='box-body'>
                     <div class='form-group'>
+                        <label class='control-label col-md-3'>_{CONSINGMENT}_:</label>
+
+                        <div class='col-md-'>
+                            %MAIN_ID_SELECT%
+                        </div>
+                    </div>
+                    <div class='form-group'>
                         <label class='control-label col-md-3'>_{TYPE}_:</label>
 
                         <div class='col-md-9'>

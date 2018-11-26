@@ -25,6 +25,7 @@
     <!-- Navbar Right Menu -->
     <div class='navbar-custom-menu'>
       <ul class='nav navbar-nav'>
+        %GLOBAL_CHAT%
         <!-- Messages: style can be found in dropdown.less-->
         <li class='dropdown messages-menu hidden' id='messages-menu' data-meta='{%ADMIN_MSGS%}'>
           <!-- Menu toggle button -->
@@ -81,7 +82,6 @@
           </ul>
         </li>
         <!--/.messages-menu-->
-
         <!-- Messages: style can be found in dropdown.less-->
         <li class='dropdown messages-menu hidden' id='responsible-menu' data-meta='{%ADMIN_RESPONSIBLE%}'>
           <!-- Menu toggle button -->
@@ -159,24 +159,25 @@
           <a href='#' class='dropdown-toggle' data-toggle='dropdown'>
             <i class='fa fa-search'></i>
           </a>
-            <ul class='dropdown-menu' onClick='cancelEvent(event)' >
-              <li>
-                <div class='search_selector'>
-                  %SEL_TYPE_SM%
-                </div>
-              </li>
-              <li>
-                <div class='input-group margin'>
-                  <input type='text' name='LOGIN' class='form-control UNIVERSAL_SEARCH'
-                         placeholder='_{SEARCH}_...' form='SMALL_SEARCH_FORM'>
-                  <span class='input-group-btn'>
-                    <button type='submit' name='search' class='btn btn-flat' onclick=jQuery('form#SMALL_SEARCH_FORM').submit()>
+          <ul class='dropdown-menu' onClick='cancelEvent(event)'>
+            <li>
+              <div class='search_selector'>
+                %SEL_TYPE_SM%
+              </div>
+            </li>
+            <li>
+              <div class='input-group margin'>
+                <input type='text' name='LOGIN' class='form-control UNIVERSAL_SEARCH'
+                       placeholder='_{SEARCH}_...' form='SMALL_SEARCH_FORM'>
+                <span class='input-group-btn'>
+                    <button type='submit' name='search' class='btn btn-flat'
+                            onclick=jQuery('form#SMALL_SEARCH_FORM').submit()>
                       <i class='fa fa-search'></i>
                     </button>
                   </span>
-                </div>
-              </li>
-            </ul>
+              </div>
+            </li>
+          </ul>
         </li>
 
         <li class='search_form'>
@@ -187,7 +188,7 @@
             <div class='search_input'>
               <div class='input-group margin search'>
                 <input name='LOGIN' type='text' placeholder='_{SEARCH}_...' required='required'
-                       class='form-control input-sm UNIVERSAL_SEARCH' />
+                       class='form-control input-sm UNIVERSAL_SEARCH'/>
                 <span class='input-group-btn'>
                   <button type='submit' id='search-btn' class='btn btn-sm btn-flat'>
                     <i class='fa fa-search'></i>

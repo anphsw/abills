@@ -419,7 +419,22 @@ sub help_callback {
   $message .= "/credit  - _{CREDIT}_\n\n" if ($conf{user_credit_change});
   $message .= "/tarif   - _{CHANGE_}_ _{TARIF_PLAN}_\n\n" if ($conf{INTERNET_USER_CHG_TP});
 
-  $Telegram_Bot->send_text($message, $chat_id);
+  my @inline_keyboard = ();
+  my $info_button = {text => "/info"};
+  my $msg_button = {text => "/message"};
+  push (@inline_keyboard, [$info_button, $msg_button]);
+  my $credit_button = {text => "/credit"};
+  my $tarif_button = {text => "/tarif"};
+  push (@inline_keyboard, [$credit_button, $tarif_button]);
+
+  $Telegram_Bot->send_text($message, $chat_id, {
+    # reply_markup => { 
+    #   keyboard => \@inline_keyboard,
+    #   one_time_keyboard => \1,
+    #   resize_keyboard   => \1
+    # },
+    parse_mode   => 'HTML'
+  });
 }
 
 #**********************************************************

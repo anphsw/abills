@@ -42,6 +42,19 @@ sub new {
 
   bless($self, $class);
 
+  #alternative host for detail
+  if($CONF->{IPN_DBHOST}) {
+    require Abills::SQL;
+    Abills::SQL->import();
+
+    my $sql = Abills::SQL->connect('mysql', $CONF->{IPN_DBHOST}, $CONF->{IPN_DBNAME}, $CONF->{IPN_DBUSER}, $CONF->{IPN_DBPASSWD}, { CHARSET => ($CONF->{IPN_DBCHARSET}) ? $CONF->{IPN_DBCHARSET} : 'utf8' });
+
+    if (! $sql->{db}) {
+      exit;
+    }
+    $self->{db2} = $sql->{db};
+  }
+
   return $self;
 }
 
@@ -145,6 +158,7 @@ sub user_status {
       PERIOD
       DETAIL
       LOG
+      LOG_KEEP_PERIOD - LOg keep period (default 1 month)
 
   Returns:
     $self
@@ -159,7 +173,7 @@ sub log_rotate {
   #my $DATE = (strftime("%Y_%m_%d", localtime(time - 86400)));
   #my ($Y, $M, $D) = split(/_/, $DATE);
   my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
-  my ($Y, $M, $D) = split(/-/, $DATE, 3);
+  my ($Y, $M, undef) = split(/-/, $DATE, 3);
 
   $DATE =~ s/\-/\_/g;
 
@@ -249,6 +263,17 @@ sub log_rotate {
 #      GROUP BY 2, traffic_class, ip, session_id;";
 #   }
 
+  if($attr->{LOG_KEEP_PERIOD}) {
+    my $log_period = $attr->{LOG_KEEP_PERIOD} || 1;
+    if($log_period > 1) {
+      $M-=$log_period;
+      if ($M < 0) {
+        $M=$M+12;
+        $Y--;
+      }
+      $M = sprintf("%02d", $M);
+    }
+  }
 
   if ($attr->{LOG}) {
     push @rq, 'DROP TABLE IF EXISTS ipn_log_new;',
@@ -273,8 +298,9 @@ sub log_rotate {
         SUM(traffic_in), SUM(traffic_out),
         nas_id, ip, interval_id, SUM(sum), session_id
         FROM ipn_log_backup
-        WHERE DATE_FORMAT(start, '%Y-%m')='$Y-$M'
-        GROUP BY 2, traffic_class, ip, session_id;", "INSERT INTO ipn_log (
+        WHERE DATE_FORMAT(start, '%Y-%m')<='$Y-$M'
+        GROUP BY 2, traffic_class, ip, session_id;",
+      "INSERT INTO ipn_log (
         uid,
         start,
         stop,
@@ -291,13 +317,12 @@ sub log_rotate {
         SUM(traffic_in), SUM(traffic_out),
         nas_id, ip, interval_id, SUM(sum), session_id
         FROM ipn_log_backup
-        WHERE DATE_FORMAT(start, '%Y-%m')>'$Y-$M'
+        WHERE DATE_FORMAT(start, '%Y-%m')>='$Y-$M'
         GROUP BY 2, traffic_class, ip, session_id;";
   }
 
-
   foreach my $query (@rq) {
-    $self->query("$query", 'do');
+    $self->query($query, 'do');
   }
 
   return $self;
@@ -317,7 +342,7 @@ sub user_detail {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  my $debug = $attr->{DEBUG} || 0;
+  my $debug     = $attr->{DEBUG} || 0;
 
   my @WHERE_RULES = ();
   my @GROUP_RULES = ();

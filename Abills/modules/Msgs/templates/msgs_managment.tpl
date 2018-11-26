@@ -55,17 +55,23 @@
 
     <div class='form-group'>
       <div class='col-md-12'>
+        <div class="btn-group" role="group" aria-label="Basic example">
         %WATCH_BTN% %EXPORT_BTN% %HISTORY_BTN%
         <a href='$SELF_URL?index=$index&deligate=$FORM{chg}&level=%DELIGATED_DOWN%'
-           class='btn btn-default glyphicon glyphicon-hand-down' TITLE='_{COMPETENCE}_ _{DOWN}_ (%DELIGATED_DOWN%)'></a>
+           class='btn btn-default ' TITLE='_{COMPETENCE}_ _{DOWN}_ (%DELIGATED_DOWN%)'>
+          <span class="glyphicon glyphicon-hand-down"></span>
+        </a>
         <a href='$SELF_URL?index=$index&deligate=$FORM{chg}&level=%DELIGATED%'
-           class='btn btn-default glyphicon glyphicon-hand-up' TITLE='_{COMPETENCE}_ _{UP}_ (%DELIGATED%)'></a>
+           class='btn btn-default ' TITLE='_{COMPETENCE}_ _{UP}_ (%DELIGATED%)'>
+          <span class="glyphicon glyphicon-hand-up"></span>
+        </a>
         %INNER_MSG_TEXT%
         %WORK_BTN%
         %MSG_PRINT_BTN%
         %ADD_TAGS_BTN%
         %WORKPLANNING_BTN%
         %MSGS_TASK_BTN%
+        </div>
       </div>
     </div>
 

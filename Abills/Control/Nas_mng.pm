@@ -203,6 +203,11 @@ sub form_nas {
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Nas->del($FORM{del});
+    if (in_array('Equipment', \@MODULES)) {
+    use Equipment;
+    my $Equipment = Equipment->new($db, $admin, \%conf);
+    $Equipment->_del($FORM{del});
+    }
     if (!$Nas->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{DELETED} [$FORM{del}]");
     }
@@ -390,9 +395,12 @@ sub form_nas_add {
       ARRAY_NUM_ID => 1
     }
   );
-
   $Nas->{NAS_DISABLE}    = ($Nas->{NAS_DISABLE} && $Nas->{NAS_DISABLE} > 0) ? ' checked' : '';
-  $Nas->{ADDRESS_FORM}   = form_address({ LOCATION_ID => $Nas->{LOCATION_ID} });
+  $Nas->{ADDRESS_FORM}   = form_address({
+    LOCATION_ID => $Nas->{LOCATION_ID},
+    FLOOR       => $Nas->{FLOOR},
+    ENTRANCE    => $Nas->{ENTRANCE}
+  });
   $Nas->{NAS_GROUPS_SEL} = sel_nas_groups({ GID => $Nas->{GID} });
 
   if ($Nas->{NAS_ID}) {
@@ -472,6 +480,7 @@ sub form_nas_console {
   _error_show($Nas_);
 
   if ($FORM{ACTION}) {
+    $pages_qs = "&console=1&NAS_ID=$FORM{NAS_ID}&full=1&ACTION=1&CMD=$FORM{CMD}";
     $Nas_->{NAS_MNG_IP_PORT} = $FORM{NAS_MNG_IP_PORT} if ($FORM{NAS_MNG_IP_PORT});
     $Nas_->{NAS_MNG_USER}    = $FORM{NAS_MNG_USER}    if ($FORM{NAS_MNG_USER});
 
@@ -492,10 +501,12 @@ sub form_nas_console {
 
     my $table = $html->table(
       {
-        width   => '500',
-        caption => "$lang{RESULT}: $FORM{CMD}",
-        ID      => 'CONSOLE_RESULT',
-        EXPORT  => 1,
+        width    => '500',
+        caption  => "$lang{RESULT}: $FORM{CMD}",
+        ID       => 'CONSOLE_RESULT',
+        qs       => $pages_qs,
+        EXPORT   => 1,
+        MENU     => "$lang{SAVE}::btn bg-olive margin export-btn",
       }
     );
 
@@ -534,10 +545,10 @@ sub form_nas_console {
     elsif ($type eq 'rsh') {
       $result = Abills::Nas::Control::rsh_cmd($FORM{CMD}, { DEBUG => $FORM{DEBUG} || undef, %$Nas_ });
     }
-    elsif ($Nas_->{NAS_TYPE} =~ 'mikrotik') {
+    elsif ($Nas_->{NAS_TYPE} =~ 'mikrotik' && $FORM{CMD} ne "export compact") {
       require Abills::Nas::Mikrotik;
       Abills::Nas::Mikrotik->import();
-      my $mikrotik = Abills::Nas::Mikrotik->new(
+      my $Mikrotik = Abills::Nas::Mikrotik->new(
         $Nas_,
         \%conf,
         {
@@ -547,9 +558,13 @@ sub form_nas_console {
           DEBUG => $FORM{DEBUG} || 0
         }
       );
-      
-      if (!$mikrotik->has_access() eq 1){
-        $html->message('err', $lang{ERROR}, "No access to $mikrotik->{ip_address}:$mikrotik->{port} ($mikrotik->{backend})");
+
+      if(! $Mikrotik) {
+        $html->message('err', $lang{ERROR}, "Not defined NAS IP address and Port");
+        return 0;
+      }
+      elsif (! $Mikrotik->has_access() eq 1){
+        $html->message('err', $lang{ERROR}, "No access to $Mikrotik->{ip_address}:$Mikrotik->{port} ($Mikrotik->{backend})");
         return 0;
       }
       
@@ -572,13 +587,14 @@ sub form_nas_console {
         '/queue simple print'             => 'queue_simple',
         '/ip firewall filter print'       => 'firewall_filter_list',
         '/ip firewall address-list print' => 'firewall_address__list',
+        '/ip dhcp-server lease print'     => 'dhcp_leases',
+        '/log print'                      => 'log_print'
       );
 
-      if (exists $cmd_list{$cmd} && $cmd_list{$cmd} && $mikrotik->has_list_command($cmd_list{$cmd})) {
-        $result = $mikrotik->get_list($cmd_list{$cmd});
+      if (exists $cmd_list{$cmd} && $cmd_list{$cmd} && $Mikrotik->has_list_command($cmd_list{$cmd})) {
+        $result = $Mikrotik->get_list($cmd_list{$cmd});
 
         if ($result && ref $result eq 'ARRAY' && scalar @$result) {
-
           $total_rows = scalar @$result;
 
           ## We need get all keys, but id and flag should stay first
@@ -654,7 +670,6 @@ sub form_nas_console {
           #            ID          => 'CONSOLE_RESULT',
           #            EXPORT      => 1,
           #          });
-
           foreach my $row (@$result) {
             # Using hash slice to get ordered values
             $table->addrow(@$row{@columns});
@@ -663,15 +678,41 @@ sub form_nas_console {
       }
       else {
         $cmd =~ s/ +/\//g;
-        $result = $mikrotik->execute([ [$cmd] ], { SHOW_RESULT => 1 });
-
-        print $html->br() . $result;
+        $result = $Mikrotik->execute([ [$cmd] ], { SHOW_RESULT => 1 });
+        $html->pre($result);
       }
       $result = [];
     }
     else {
+      $table->{table} .= $table->table_title_plain(["result"]);
       $FORM{CMD} =~ s/\\\"/\"/g;
-      $result = ssh_cmd($FORM{CMD}, { %$Nas_, DEBUG => 1 });
+      $result = ssh_cmd($FORM{CMD}, { %$Nas_ });
+      my @result2 = ();
+      my $half_string = "";
+      foreach my $line (@$result) {
+        if ($half_string) {
+          if ($half_string =~ m/\=$/) {
+            $line =~ s/^\s+//;
+          }
+          else {
+            $line =~ s/^\s+/ /;
+          }
+          push (@result2, $half_string . $line);
+          $half_string = "";
+          next;
+        }
+        if ($line =~ m/\\/) {
+          $half_string = $line;
+          $half_string =~ s/\\//;
+          $half_string =~ s/\s+$//;
+          next;
+        }
+        else {
+          push (@result2, $line);
+        }
+      }
+
+      $result = \@result2;
 
       if (!$result) {
         $result = [];
@@ -688,6 +729,9 @@ sub form_nas_console {
 
       if ($col_delimeter) {
         @row = split(/$col_delimeter/, $line || q{});
+      }
+      elsif ($FORM{CMD} =~ /compact/) {
+        push @row, $line;
       }
       else {
         $line =~ s/\s/\&nbsp;/g;
@@ -727,7 +771,15 @@ sub form_nas_console {
     @quick_cmd = ('show sessions', 'reload');
   }
   elsif ($Nas_->{NAS_TYPE} =~ /mikrotik/) {
-    @quick_cmd = ('export compact', '/ip firewall filter print', '/ip firewall nat print', '/queue tree print', '/queue type print', '/queue simple print', '/ip firewall address-list print');
+    @quick_cmd = ('export compact',
+      '/ip firewall filter print',
+      '/ip firewall nat print',
+      '/queue tree print',
+      '/queue type print',
+      '/queue simple print',
+      '/ip firewall address-list print',
+      '/ip dhcp-server lease print',
+      '/log print');
   }
   elsif ($Nas_->{NAS_TYPE} =~ /cisco/) {
     @quick_cmd = ('rsh:show run', 'rsh:sh sss session', 'rsh:show log', 'rsh:show interf', 'rsh:show arp', 'rsh:show radius statistics', 'show radius server-group all', 'rsh:sh ver');
@@ -1627,12 +1679,14 @@ sub form_nas_stats {
 
   my $list = $Nas->stats({%LIST_PARAMS, INTERNET => in_array('Internet', \@MODULES)});
 
-  foreach my $line (@{$list}) {
-    $table->addrow($html->button($line->[0], "index=62&NAS_ID=$line->[7]"), $line->[1], $line->[2],
-      $line->[3], $line->[4], $line->[5], $line->[6]);
-  }
+  if($Nas->{TOTAL} && $Nas->{TOTAL} > 0) {
+    foreach my $line (@{$list}) {
+      $table->addrow($html->button($line->[0], "index=62&NAS_ID=$line->[7]"), $line->[1], $line->[2],
+        $line->[3], $line->[4], $line->[5], $line->[6]);
+    }
 
-  print $table->show();
+    print $table->show();
+  }
 
   return 1;
 }

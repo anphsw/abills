@@ -5,6 +5,7 @@
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='action' value='%ACTION%'>
     <input type='hidden' name='MERCHANT' value='%MERCHANT%'>
+    <input type='hidden' name='NAME' value='%NAME%'>
 
     <div class='box box-primary'>
         <div class='box-header with-border'>%PAYSYS_NAME%</div>

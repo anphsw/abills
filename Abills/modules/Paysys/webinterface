@@ -20,7 +20,7 @@ use Abills::Misc;
 if (form_purchase_module({
 	HEADER          => $user->{UID},
 	MODULE          => 'Paysys',
-	REQUIRE_VERSION => 7.13
+	REQUIRE_VERSION => 7.14
   })) {
   exit;
 }
@@ -448,94 +448,23 @@ sub paysys_periodic_new {
     print "Already exist payments - $already_exist_payments\n";
   }
 
-  if($conf{PAYSYS_CONCORD_PRIVATE_KEY} && $conf{PAYSYS_CONCORD_PUBLIC_KEY}){
-    use Users;
-    my $users = Users->new($db);
-    require Paysys::systems::Concord;
-    Paysys::systems::Concord->import();
-    my $Concord = Paysys::systems::Concord->new($db, $admin, \%conf, {USER => $users});
+  my $connected_systems_list = $Paysys->paysys_connect_system_list({
+    SHOW_ALL_COLUMNS => 1,
+    STATUS           => 1,
+    COLS_NAME        => 1,
+  });
 
-    my $statements = $Concord->get_statements({
-      DATE_FROM => $attr->{DATE_FROM} || 0,
-      DATE_TO   => $attr->{DATE_TO}   || 0,
-    });
+  use Users;
+  my $users = Users->new($db);
 
-    my $not_success_statements_reports = "|id\t\t|EDRPOU\t\t|RS\t\t|\n";
-    my $not_success_statements = 0;
-    if($statements){
-      # DebitState - ЕДРПОУ  - кастомное поле 1
-      # DebitCode - расчетный счет - кастомное поле 2
-      # Prpose - вытягивать 7 цифр
-      print "Start provide statements\n";
-      foreach my $statement (@$statements){
-        print "----- $statement->{id} -----\n";
-#        use Encode;
-#        Encode::_utf8_off($statement->{Purpose});
-#        Encode::_utf8_off($statement->{ActionName});
-#        Encode::_utf8_off($statement->{DebitName});
-#        $statement->{Purpose} = convert($statement->{Purpose}, {utf82win => 1});
-#        $statement->{ActionName} = convert($statement->{ActionName}, {utf82win => 1});
-#        $statement->{DebitName} = convert($statement->{DebitName}, {utf82win => 1});
-        $statement->{Purpose}    =_utf8_encode($statement->{Purpose});
-        $statement->{CreditName} =_utf8_encode($statement->{CreditName});
-        $statement->{DebitName}  =_utf8_encode($statement->{DebitName});
-        $statement->{ActionName} =_utf8_encode($statement->{ActionName});
-        my $edrpou_search_result = '';
-        my $user_info            = '';
-        ($edrpou_search_result, $user_info) = $Concord->user_search_by_edrpou($statement->{DebitState}, {CHECK_FIELD => '_EGRPOU'});
-        if($edrpou_search_result == 0){
-          my ($paysys_status) = $Concord->proccess('_EGRPOU', $user_info, $statement);
+  foreach my $connected_system (@$connected_systems_list){
+    my $module    = $connected_system->{module};
+    my $name      = $connected_system->{name};
 
-          print "Paysys status by EDRPOU - $paysys_status\n";
-          if($paysys_status == 0 || $paysys_status == 13){
-            next;
-          }
-        }
-        elsif($edrpou_search_result == 3){
-          my $paysys_status = 99;
-          foreach my $u (@$user_info){
-            if($u->{_SHCHET} && $u->{_SHCHET} eq $statement->{DebitCode}){
-              ($paysys_status) = $Concord->proccess('_EDRPOU', $u, $statement);
-
-              print "Paysys status by EDRPOU - $paysys_status\n";
-            }
-          }
-          if($paysys_status == 0 || $paysys_status == 13){
-            next;
-          }
-        }
-
-        my $rs_search_result = '';
-        ($rs_search_result, $user_info) = $Concord->user_search_by_rs($statement->{DebitCode}, {CHECK_FIELD => '_SHCHET'});
-        if($rs_search_result == 0) {
-          my ($paysys_status) = $Concord->proccess('_SHCHET', $user_info, $statement);
-
-          print "Paysys status by RS - $paysys_status\n";
-          if($paysys_status == 0 || $paysys_status == 13){
-            next;
-          }
-        }
-
-        my $bill_search_result = '';
-        my ($bill) = $statement->{Purpose} =~ /^(\d{6,6})\D|\D(\d{6})\D|\D(\d{6})$/g;
-        ($bill_search_result, $user_info) = $Concord->user_search_by_bill($bill, {CHECK_FIELD => '_PIN_ABS'});
-        if ($bill_search_result == 0) {
-          my ($paysys_status) = $Concord->proccess('_PIN_ABS', $user_info, $statement);
-
-          print "Paysys status by bill - $paysys_status\n";
-          if($paysys_status == 0 || $paysys_status == 13){
-            next;
-          }
-        }
-
-        $not_success_statements++;
-        $not_success_statements_reports .= "|$statement->{id}\t|$statement->{DebitState}\t|$statement->{DebitCode}\t|$statement->{Purpose}\n";
-      }
-
-      if($not_success_statements > 0){
-        print $not_success_statements_reports;
-        sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "Conncord fail payments", "<pre>$not_success_statements_reports</pre>", "$conf{MAIL_CHARSET}", "2 (High)", {CONTENT_TYPE => 'text/html'});
-      }
+    my $Module = _configure_load_payment_module($module);
+    if ($Module->can('periodic')) {
+      my $PAYSYS_OBJECT = $Module->new($db, $admin, \%conf, {USER => $users, NAME => $name});
+      $PAYSYS_OBJECT->periodic({%$attr});
     }
   }
 

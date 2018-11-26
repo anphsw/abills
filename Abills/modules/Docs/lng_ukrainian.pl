@@ -21,7 +21,7 @@ $lang{ERR_NO_ORDERS}='Не выбрані замовлення';
 
 
 $lang{PAID}='Оплаченний';
-$lang{PARTLY_PAID}='Частично оплачений';
+$lang{PARTLY_PAID}='Частково оплачений';
 $lang{UNPAID}='Не оплаченний';
 $lang{VAT_INCLUDE}='З урахуванням податку';
 $lang{AMOUNT_FOR_PAY}='Сума для оплати';
@@ -57,3 +57,4 @@ $lang{CONNECT_TO} = 'Підключіться до';
 
 $lang{PAYMENTS_NOT_EQUAL_DOC}='Сума документа відрізняэться від суми платежу';
 $lang{PRINT_TERMO_PRINTER} = 'Чек для термо-прінтера';
+$lang{UNPAID_INVOICES} = 'Неоплачені рахунки';

@@ -1,11 +1,7 @@
 package Abills::Nas::Mikrotik::SSH;
+
 use strict;
 use warnings FATAL => 'all';
-#
-#BEGIN{
-#  unshift ( @INC, "../../../../" );
-#}
-
 use Abills::Base qw(cmd _bp ssh_cmd);
 
 use constant {
@@ -32,7 +28,8 @@ use constant {
     'queue_type'             => '/queue type print' . parseable_postfix,
     'queue_simple'           => '/queue simple print' . parseable_postfix,
     'firewall_address__list' => '/ip firewall address-list print' . parseable_postfix,
-    'firewall_filter_list'   => '/ip firewall filter print' . parseable_postfix
+    'firewall_filter_list'   => '/ip firewall filter print' . parseable_postfix,
+    #'log_print'              => '/log print' . parseable_postfix
   }
 };
 
@@ -143,7 +140,6 @@ sub has_list_command {
 #**********************************************************
 sub execute {
   my $self = shift;
-
   my ($commands_input, $attr) = @_;
 
   $attr->{SSH_COMMAND_BASE} = $self->_form_ssh_command_args($attr);
@@ -153,7 +149,6 @@ sub execute {
   }
   else {
     foreach my $command (@{$commands_input}) {
-
       my $result = $self->_ssh_single($command, $attr);
       # Handle result
       if (!$result) {
@@ -163,11 +158,11 @@ sub execute {
         $self->{had_err} ||= 1;
         return 0;
       }
+      return $result;
     }
-
     return 1;
-
   }
+
   return 0;
 }
 
@@ -285,7 +280,6 @@ sub _ssh_single {
 
     $remote_command .= $ssh_arguments;
     $remote_command .= $query_string;
-
   }
   else {
     $remote_command = $command;
@@ -303,17 +297,14 @@ sub _ssh_single {
   $remote_command =~ s/[\r\n]+/ /g;
 
   $result = ssh_cmd($remote_command, {
-      NAS_MNG_IP_PORT => $self->{host} . '::' . $self->{ssh_port},
-      NAS_MNG_USER    => $self->{admin},
-      SSH_PORT        => $self->{ssh_port},
-      BASE_DIR        => $base_dir,
-      DEBUG           => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : undef
-    });
+    NAS_MNG_IP_PORT => $self->{host} . '::' . $self->{ssh_port},
+    NAS_MNG_USER    => $self->{admin},
+    SSH_PORT        => $self->{ssh_port},
+    BASE_DIR        => $base_dir,
+    DEBUG           => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : undef
+  });
 
   $result = join("\n", @{$result});
-
-  #  $result = cmd( $com, { timeout => 30, %{$attr}, SHOW_RESULT => 1 } );
-
   # Omit openssh warning
   $result =~ s/^\s?Warning: Permanently added .*//;
 
@@ -321,7 +312,14 @@ sub _ssh_single {
 
   # Handle result;
   if ($result ne '') {
-    if ($result =~ /error|failure|missing|ambiguos|not match|Permission denied|expected|invalid value|bad command|no such item|syntax error/i) {
+    my $skip = 0;
+
+    if($remote_command =~ /\/log print/) {
+      $skip=1;
+      $attr->{SHOW_RESULT}=1;
+    }
+
+    if (! $skip && $result =~ /(error|failure|missing|ambiguos|not match|Permission denied|expected|invalid value|bad command|no such item|syntax error)/i) {
       $self->{error_cb}->($result, $remote_command) if ($self->{debug} || $attr->{SHOW_RESULT});
       return 0;
     }
@@ -419,7 +417,7 @@ sub get_list {
 =cut
 #**********************************************************
 sub parse_terse_list {
-  my ($self, $raw_input) = @_;
+  my (undef, $raw_input) = @_;
 
   my @rows = split("\n", $raw_input);
 

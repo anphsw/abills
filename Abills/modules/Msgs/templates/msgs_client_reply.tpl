@@ -17,6 +17,11 @@
     var stars           = jQuery('.rating-star');
     var rating_input    = jQuery('#rating');
     var state_select    = jQuery('#STATE');
+    var btn_name        = "";
+
+    jQuery('.btn').on('click', function(e) {
+      btn_name = e.target.id;
+    });
 
     var force_submit = function () {
       form.off('submit');
@@ -73,6 +78,9 @@
     };
 
     var check_values_and_submit_form = function (e) {
+      if (btn_name == 'change') {
+        return true;
+      }
       cancelEvent(e);
 
       // Submit if going to close
@@ -87,13 +95,7 @@
     };
 
     // Before sending show rating form
-//    form.on('submit', check_values_and_submit_form);
-    jQuery('#go').on('click', function () {
-      var message_state = state_select.val();
-      if ((+message_state === 1) || (+message_state === 2)) {
-        check_values_and_submit_form();
-      }
-    });
+   form.on('submit', check_values_and_submit_form);
   });
 
 </script>

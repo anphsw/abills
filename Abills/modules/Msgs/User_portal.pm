@@ -70,7 +70,7 @@ sub msgs_user {
   $Msgs->{PRIORITY_SEL} = msgs_sel_priority();
 
   if ($FORM{send}) {
-    
+
     if ($conf{MSGS_USER_REPLY_SECONDS_LIMIT}){
       my $fresh_messages = $Msgs->messages_list({
         UID       => $user->{UID},
@@ -78,13 +78,13 @@ sub msgs_user {
         GET_NEW   => $conf{MSGS_USER_REPLY_SECONDS_LIMIT},
         COLS_NAME => 1
       });
-      
+
       if ($Msgs->{TOTAL} > 0){
         my $message_sent = $fresh_messages->[0] || {};
         my $message_sent_id = $message_sent->{id} || 0;
-        
+
         my $header_message = "$lang{MESSAGE} $message_sent_id. $lang{EXIST} ";
-        
+
         $html->redirect(
           "?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
           . "&ID=$message_sent_id#last_msg",
@@ -93,11 +93,11 @@ sub msgs_user {
             MESSAGE => $header_message
           }
         );
-        
+
         exit 0;
       }
     }
-  
+
     $Msgs->message_add(
       {
         UID       => $user->{UID},
@@ -108,32 +108,32 @@ sub msgs_user {
         USER_SEND => 1,
       }
     );
-  
+
     if ( !$Msgs->{errno} ) {
 
       #Add attachment
       if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{MSG_ID} ) {
-        
+
         my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID}, {
             MSG_INFO => {
               UID => $user->{UID}
             }
         });
-        
+
         if (!$attachment_saved){
           _error_show($Msgs);
           $html->message('err', $lang{ERROR}, "Can't save attachment");
         }
       }
-      
+
       $html->message('info', $lang{INFO}, "$lang{MESSAGE} # $Msgs->{MSG_ID}.  $lang{MSG_SENDED} ");
       msgs_notify_admins();
-  
+
       my $message_added_text = "$lang{MESSAGE} " . ($Msgs->{MSG_ID} ? " #$Msgs->{MSG_ID} " : '') . $lang{MSG_SENDED};
       my $header_message = urlencode($message_added_text);
       my $message_link = "?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
         . "&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || q{}) . '#last_msg';
-      
+
       $html->redirect( $message_link,
         {
           MESSAGE_HTML => $html->message(
@@ -147,7 +147,7 @@ sub msgs_user {
       );
       exit 0;
     }
-  
+
     return 1;
   }
   elsif ($FORM{ATTACHMENT}) {
@@ -159,7 +159,7 @@ sub msgs_user {
       $params{CLOSED_DATE} = $DATE if ($FORM{STATE} && $FORM{STATE} > 0);
       $params{DONE_DATE}   = $DATE if ($FORM{STATE} && $FORM{STATE} > 1);
       $params{ADMIN_READ}  = "0000-00-00  00:00:00" if (! $FORM{INNER});
-      
+
       $Msgs->message_change({
         UID            => $LIST_PARAMS{UID},
         ID             => $FORM{ID},
@@ -191,7 +191,7 @@ sub msgs_user {
                   UID => $user->{UID}
                 }
               });
-    
+
             if ( !$attachment_saved ) {
               _error_show($Msgs);
               $html->message('err', $lang{ERROR}, "Can't save attachment");
@@ -274,17 +274,18 @@ sub msgs_user {
           SURVEY_ID => $Msgs->{SURVEY_ID},
           MSG_ID    => $Msgs->{ID},
           MAIN_MSG  => 1,
+          NOTIFICATION_MSG => ($Msgs->{STATE} && $Msgs->{STATE} == 9) ? 1 : 0,
         });
 
         if($main_message_survey){
           push @REPLIES, $main_message_survey;
         }
       }
-      
+
       foreach my $line (@$replies_list) {
-        
+
         $FORM{REPLY_ID} = $line->{id};
-        
+
         if ($line->{survey_id}) {
           push @REPLIES, msgs_survey_show({
               SURVEY_ID => $line->{survey_id},
@@ -296,7 +297,7 @@ sub msgs_user {
           if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id}) {
             $reply = $line->{text} if (! $FORM{json});
           }
-          
+
           # Should check multiple attachments if got at least one
           my $attachment_html = '';
           if ($line->{attachment_id}){
@@ -308,7 +309,7 @@ sub msgs_user {
               COORDX       => '_SHOW',
               COORDY       => '_SHOW',
             });
-            
+
             $attachment_html = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
           }
 
@@ -327,7 +328,7 @@ sub msgs_user {
               );
             }
           }
-          
+
           push @REPLIES, $html->tpl_show(
               _include('msgs_reply_show', 'Msgs'),
               {
@@ -361,7 +362,7 @@ sub msgs_user {
 
       $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
       $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
-      
+
       if ($Msgs->{FILENAME}) {
         # Should check multiple attachments if got at least one
           my $attachments_list = $Msgs->attachments_list({
@@ -372,13 +373,13 @@ sub msgs_user {
             COORDX       => '_SHOW',
             COORDY       => '_SHOW',
           });
-  
+
           $Msgs->{ATTACHMENT} = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
       }
 
       if ($Msgs->{STATE} == 9) {
         push @REPLIES, $html->button( "$lang{CLOSE}", "index=$index&STATE=10&ID=$FORM{ID}&change=1&sid=$sid",
-            { BUTTON => 1 } );
+            { class => 'btn btn-primary' } );
       }
 
       $Msgs->{REPLY} = join(($FORM{json}) ? ',' : '', @REPLIES);
@@ -576,9 +577,56 @@ sub msgs_user {
 
   delete $LIST_PARAMS{SORT};
 
+   show_user_chat();
+
   return 1;
 }
+#**********************************************************
+=head2 show_user_chat() - Shows chat at the user side
 
+  Arguments:
+
+  Returns:
+    true
+=cut
+#**********************************************************
+sub show_user_chat {
+  require Msgs::Tickets;
+  if ($FORM{ADD}) {
+    msgs_chat_add();
+    return 1;
+  }
+  if ($FORM{SHOW}) {
+    msgs_chat_show();
+    return 1;
+  }
+  if ($FORM{COUNT}) {
+    my $count = $Msgs->chat_count({ Msg_ID => $FORM{MSG_ID}, SENDER => 'uid' });
+    print $count;
+    return 1;
+  }
+  if ($FORM{CHANGE}) {
+    $Msgs->chat_change({ Msg_ID => $FORM{MSG_ID}, SENDER => 'uid'});
+    return 1;
+  }
+  if ($FORM{INFO}) {
+    header_online_chat({UID => $FORM{UID}});
+    return 1;
+  }
+  if ($FORM{US_MS_LIST}) {
+    header_online_chat({US_MS_LIST => $FORM{US_MS_LIST}});
+    return 1;
+  }
+  if ($FORM{ID} && $conf{MSGS_CHAT}) {
+    my $fn_index = get_function_index('show_user_chat');
+    $html->tpl_show(_include('msgs_user_chat', 'Msgs'), {
+      F_INDEX  => $fn_index,
+      UID      => $user->{UID},
+      NUM_TICKET  => $Msgs->{ID}
+    });
+  }
+  return 1;
+}
 #**********************************************************
 =head2 msgs_user_search_table() - Create table with find msgs
 

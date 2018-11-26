@@ -22,6 +22,10 @@ our %FUNCTIONS_LIST = (
 
 );
 
+if ($permissions{0} && $permissions{0}{16}) {
+    $FUNCTIONS_LIST{"25:2:$lang{RECALCULATE}:voip_recalculate:UID"} = 11;
+  }
+
 our %USER_FUNCTION_LIST = ("01:0:VoIP:voip_user_info:" => 0,
   "02:1:$lang{STATS}:voip_user_stats:"             => 0,
   "03:1:$lang{ROUTES}:voip_user_routes:"           => 0

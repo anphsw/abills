@@ -18,6 +18,12 @@ package Abills::Sender::Core;
     MESSAGE => 'Hello John'
   });
 
+=head1 ERROR CODES
+
+   1 => "Can't load plugin $send_type \n";
+   2 => "No contact",
+   3 =>
+
 =cut
 
 use strict;
@@ -59,10 +65,16 @@ my @special_contact_types = qw(
 =head2 new($db, $admin, $CONF, $attr)
 
   Arguments:
+    $db
+    $admin
+    $CONF
+
     $attr
       SENDER_TYPE - preloads given sender plugin
       SELF_URL
       DOMAIN_ID
+      BASE_DIR
+
 
 =cut
 #**********************************************************
@@ -83,6 +95,10 @@ sub new {
 
   if ( $attr->{SENDER_TYPE} && $self->sender_load($attr->{SENDER_TYPE}, $attr) ) {
     $self->{SENDER_TYPE} = $attr->{SENDER_TYPE};
+  }
+
+  if($attr->{BASE_DIR}) {
+    $base_dir = $attr->{BASE_DIR};
   }
 
   if ( $db ) {
@@ -196,7 +212,7 @@ sub send_message {
 
   if ( !@contacts || !$contacts[0] ) {
     $self->{errstr} = "No contact";
-    $self->{errno} = 1;
+    $self->{errno}  = 2;
     print $self->{errstr} if ( $self->{debug} );
     return 0;
   }
@@ -221,6 +237,8 @@ sub send_message {
   }
 
   my Abills::Sender::Plugin $plugin = $self->{$send_type};
+
+  $plugin->{db} = $self->{db};
 
   if ( scalar @contacts > 1 && $plugin->support_batch() ) {
     return $plugin->send_message({

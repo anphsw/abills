@@ -116,7 +116,12 @@ sub json_return {
 }
 
 #**********************************************************
-=head2 _curl_request()
+=head2 _curl_request($request_url, $attr)
+
+  Arguments:
+     CURL_OPTIONS
+
+  Results:
 
 =cut
 #**********************************************************

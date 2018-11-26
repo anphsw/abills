@@ -22,7 +22,7 @@ exit if (
     {
       HEADER          => $user->{UID},
       MODULE          => 'Cablecat',
-      REQUIRE_VERSION => 7.61,
+      REQUIRE_VERSION => 7.65,
     }
   )
 );
@@ -810,7 +810,7 @@ sub _cablecat_cable_links_table {
   foreach my $fiber_num ( 0 .. $fibers_count - 1 ) {
     my $module_num = int($fiber_num / $fibers_in_module);
     
-    my $fiber_color = $colors[$fiber_num % $fibers_in_module];
+    my $fiber_color = $colors[$fiber_num % $fibers_in_module] || "";
     my $module_color = $module_colors[ $module_num ];
     #
     my $info_left = $sub_get_info_for_fiber->(int ($fiber_num + 1), 1);

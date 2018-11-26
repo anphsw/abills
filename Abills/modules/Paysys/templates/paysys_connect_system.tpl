@@ -1,13 +1,15 @@
 <form name='PAYSYS_CONNECT_SYSTEM' id='form_PAYSYS_CONNECT_SYSTEM' method='post' class='form form-horizontal'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='ID' value='%ID%'>
+  <input type='hidden' name='OLD_NAME' value='%NAME%'>
+
   <div class='box big-box'>
     <div class='box-header'>
       <h4>_{ADD}_ _{PAY_SYSTEM}_</h4>
     </div>
 
     <div class='box-body'>
-      <div class='form-group'>
+      <div class='form-group %HIDE_SELECT%'>
         <label class='control-label col-md-3'>_{PAY_SYSTEM}_</label>
         <div class='col-md-9'>
           %PAYSYS_SELECT%
@@ -25,7 +27,7 @@
       <div class='form-group'>
         <label class='control-label col-md-3'>_{NAME}_:</label>
         <div class='col-md-9'>
-          <input type='text' class='form-control' name='NAME' value='%NAME%' id='paysys_name' required>
+          <input type='text' class='form-control' name='NAME' value='%NAME%' id='paysys_name' required pattern='[A-Za-z0-9_]{1,30}' data-tooltip="Только лат. буквы, цифры и подчеркивание">
         </div>
       </div>
       <div class='form-group'>
@@ -38,6 +40,12 @@
         <label class='control-label col-md-3'>_{PAYMENT_TYPE}_</label>
         <div class='col-md-9'>
           %PAYMENT_METHOD_SEL%
+        </div>
+      </div>
+      <div class='form-group'>
+        <label class='control-label col-md-3'>_{PRIORITY}_</label>
+        <div class='col-md-9'>
+          <input type='text' class='form-control' name='PRIORITY' value='%PRIORITY%' >
         </div>
       </div>
       <div class='checkbox'>

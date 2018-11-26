@@ -29,13 +29,13 @@
       </tr>
 
       <tr>
-        <th>_{PHONE_</th>
-        <td>%HOME_PHONE_1%</td>
+        <th>_{PHONE}_</th>
+        <td>%PHONE_ALL%</td>
       </tr>
 
       <tr>
         <th>_{CELL_PHONE}_</th>
-        <td>%CELL_PHONE_1%</td>
+        <td>%CELL_PHONE_ALL%</td>
       </tr>
 
       <tr>

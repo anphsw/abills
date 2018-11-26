@@ -113,3 +113,12 @@ $lang{IN_STORAGE} = 'In storage';
 
 $lang{BY_INSTALLMENTS} = 'By installments';
 $lang{PROPERTY}='Property';
+$lang{CONSINGMENT}='Consingment';
+$lang{ACTIONS_LIST}='Actions on items';
+$lang{REMNANTS}='Remnants';
+$lang{OF_REMNANTS}='of remnants';
+$lang{PRINT_INCOMING_INVOICE}='Print incoming invoice';
+$lang{PRINT_MOVE_INVOICE}='Print move invoice';
+$lang{TRANSFER_ITEM}='Transfer';
+$lang{OUT_STORAGE}='Out storage';
+$lang{IN_STORAGE}='In storage';

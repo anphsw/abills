@@ -123,5 +123,8 @@ $lang{BEIGE} = 'Beige';
 $lang{NATURAL} = 'Natural';
 $lang{LEMON} = 'Lemon';
 $lang{CHERRY} = 'Cherry';
+$lang{CABLE_RESERVE} = 'Cable reserve';
+$lang{CAT_CABLE} = 'Cat cable';
+$lang{RESERVE} = 'Reserve';
 
 1;

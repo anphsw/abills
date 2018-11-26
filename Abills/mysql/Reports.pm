@@ -83,6 +83,10 @@ sub list {
   if (defined($attr->{QUICK_REPORT})) {
     push @WHERE_RULES, "rw.quick_report='1'";
   }
+  if (defined($attr->{SEND_MAIL})) {
+    push @WHERE_RULES, "rw.send_mail='1'";
+  }
+
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
@@ -123,7 +127,7 @@ sub mk {
 
   $attr->{QUERY}=~s/%PG%/$PG/;
   $attr->{QUERY}=~s/%PAGE_ROWS%/$PAGE_ROWS/;
-  $attr->{QUERY}=~s/%SORT%/$SORT/;
+  $attr->{QUERY}=~s/%SORT%/$SORT/g;
   $attr->{QUERY}=~s/%DESC%/$DESC/;
   $attr->{QUERY}=~s/%PAGES%/LIMIT $PG, $PAGE_ROWS/;
 
@@ -217,7 +221,7 @@ sub list_groups {
   my $WHERE;
   my $list;
 
-  $self->query("SELECT id, name, comments
+  $self->query("SELECT id, name, comments, admins
     FROM reports_groups
     $WHERE
     ORDER BY $SORT $DESC

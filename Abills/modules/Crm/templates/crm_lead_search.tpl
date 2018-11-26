@@ -4,9 +4,9 @@
   <div class='box-body'>
         <form name='CRM_LEAD_SEARCH' id='form_CRM_LEAD_SEARCH' method='post' class='form form-horizontal %AJAX_SUBMIT_FORM%'>
         
-        <input type='hidden' name='index' value='$index' />
+        <input type='hidden' name='index' value='%INDEX%' />
         <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1' />
-        <input type='hidden' name='ID' value='%ID%' />
+        <input type='hidden' name='ID' value='%LEAD_ID%' />
 
       <div class='form-group %HIDE_ID%'>
         <label class='control-label col-md-3' for='LEAD_ID_ID'>ID</label>
@@ -64,10 +64,18 @@
         </div>
       </div>
 
+          <div class='form-group %HIDE_ID%'>
+            <label class='control-label col-md-3'>_{STEP}_</label>
+            <div class='col-md-9'>
+              %CURRENT_STEP_SELECT%
+            </div>
+          </div>
+
     <div class='form-group'>
       <label class='control-label col-md-3'>_{DATE}_</label>
       <div class='col-md-9'>
-        <input type='text' name='DATE' value='%DATE%' placeholder='%DATE%' class='form-control datepicker' >
+        <!--<input type='text' name='DATE' value='%DATE%' placeholder='%DATE%' class='form-control daterange' >-->
+        %DATE%
       </div>
     </div>
 

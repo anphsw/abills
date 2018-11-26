@@ -41,7 +41,7 @@ our %connect_errors_ids = (
   9 => 'TRAFFIC_EXPIRED',
   10=> 'TIME_EXPIRED',
   11=> 'NOT_ALLOW_TIME',
-  12=> 'WRONG_IP',
+  12=> 'WRONG_IP', # WRONG_REQUEST_IP
   13=> 'SERVICE_DISABLE',
   14=> 'ACCOUNT_DISABLE'
 );
@@ -174,7 +174,8 @@ sub auth {
   internet.id AS service_id,
   internet.cid,
   internet.speed AS user_speed,
-  internet.port
+  internet.port,
+  UNIX_TIMESTAMP(internet.expire) AS internet_expire
   $ipv6
      FROM internet_main internet
      LEFT JOIN tarif_plans tp ON (internet.tp_id=tp.tp_id)
@@ -239,7 +240,7 @@ sub auth {
 #    $RAD_PAIRS->{'Reply-Message'} = "No Tarif Selected";
 #    return 1, $RAD_PAIRS;
 #  }
-  elsif (!defined($self->{PAYMENT_TYPE}) && !$self->{JOIN_SERVICE}) {
+  elsif (!defined($self->{PAYMENT_TYPE})) {
     $RAD_PAIRS->{'Reply-Message'} = "SERVICE_NOT_ALLOW";
     return 1, $RAD_PAIRS;
   }
@@ -258,7 +259,7 @@ sub auth {
 
     $self->query2($sql);
     if ($self->{TOTAL} < 1) {
-      $RAD_PAIRS->{'Reply-Message'} = "You are not authorized to log in $NAS->{NAS_ID} (". $RAD->{'NAS-IP-Address'} .")";
+      $RAD_PAIRS->{'Reply-Message'} = "NOT_ALLOW_NAS: $NAS->{NAS_ID} (". $RAD->{'NAS-IP-Address'} .")";
       return 1, $RAD_PAIRS;
     }
   }
@@ -293,7 +294,7 @@ sub auth {
 
   #Check CID (MAC)
   if ($self->{CID} ne '' && $self->{CID} !~ /ANY/i) {
-    if ($NAS->{NAS_TYPE} eq 'cisco' && !$cid) {
+    if ($NAS->{NAS_TYPE} eq 'cisco' && !$cid || $CONF->{INTERNET_CID_SKIP}) {
     }
     elsif (! $ignore_cid) {
       my $ERR_RAD_PAIRS;
@@ -304,8 +305,9 @@ sub auth {
 
   #Check  simultaneously logins if needs
   if ($self->{LOGINS} > 0) {
-    $self->query2("SELECT cid, INET_NTOA(framed_ip_address) AS ip, nas_id, status FROM internet_online WHERE user_name= ?
-     AND (status <> 2);", undef, { Bind => [ $RAD->{'User-Name'} ] });
+    # SELECT cid, INET_NTOA(framed_ip_address) AS ip, nas_id, status FROM internet_online WHERE user_name= ? AND (status <> 2)
+    $self->query2("SELECT cid, INET_NTOA(framed_ip_address) AS ip, nas_id, status FROM internet_online
+    WHERE user_name= ? AND (status <> 2) AND guest=0;", undef, { Bind => [ $RAD->{'User-Name'} ] });
 
     my ($active_logins)  = $self->{TOTAL};
     if (length($cid) > 20) {
@@ -326,7 +328,7 @@ sub auth {
           && $NAS->{NAS_TYPE} ne 'ipcad'
           )
         {
-          $self->query2("UPDATE internet_online SET status=6 WHERE user_name= ? and cid= ? and status <> 2;",
+          $self->query2("UPDATE internet_online SET status=6 WHERE user_name= ? AND cid= ? AND status <> 2;",
            'do',
           { Bind => [
              $RAD->{'User-Name'} || '',
@@ -445,7 +447,7 @@ sub auth {
     TOTAL => '',
     DAY   => "AND (start >= CONCAT(CURDATE(), ' 00:00:00') AND start<=CONCAT(CURDATE(), ' 24:00:00'))",
     WEEK  => "AND (YEAR(CURDATE())=YEAR(start)) AND (WEEK(CURDATE()) = WEEK(start))",
-    MONTH => "AND (start >= DATE_FORMAT(curdate(), '%Y-%m-01 00:00:00') AND start<=DATE_FORMAT(curdate(), '%Y-%m-31 24:00:00'))"
+    MONTH => "AND (start >= DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00') AND start<=DATE_FORMAT(CURDATE(), '%Y-%m-31 24:00:00'))"
   );
 
   $WHERE = "uid='$self->{UID}'";
@@ -516,8 +518,8 @@ sub auth {
     }
   }
 
-  if ($self->{ACCOUNT_EXPIRE} && $self->{ACCOUNT_EXPIRE} != 0) {
-    my $to_expire = $self->{ACCOUNT_EXPIRE} - $self->{SESSION_START};
+  if ($self->{INTERNET_EXPIRE}) {
+    my $to_expire = $self->{INTERNET_EXPIRE} - $self->{SESSION_START};
     if ($to_expire < $time_limit) {
       $time_limit = $to_expire;
     }
@@ -538,10 +540,10 @@ sub auth {
 
   if ($NAS->{NAS_TYPE} && $NAS->{NAS_TYPE} eq 'ipcad') {
     # SET ACCOUNT expire date
-    if ($self->{ACCOUNT_AGE} > 0 && $self->{INTERNET_EXPIRE} eq '0000-00-00') {
-      $self->query2("UPDATE internet_main SET expire=curdate() + INTERVAL $self->{ACCOUNT_AGE} day
-      WHERE uid='$self->{UID}';", 'do'
-      );
+    if ($self->{ACCOUNT_AGE} > 0 && ! $self->{INTERNET_EXPIRE}) {
+       $self->query2("UPDATE internet_main SET expire=CURDATE() + INTERVAL $self->{ACCOUNT_AGE} day
+       WHERE uid='$self->{UID}';", 'do'
+       );
     }
     return 0, $RAD_PAIRS, '';
   }
@@ -578,7 +580,7 @@ sub auth {
   else {
     my $ip = $self->get_ip($NAS->{NAS_ID}, $RAD->{'NAS-IP-Address'}, { TP_IPPOOL => $self->{TP_IPPOOL} });
     if ($ip eq '-1') {
-      $RAD_PAIRS->{'Reply-Message'} = "Rejected! There is no free IPs in neg address pools (USED: $self->{USED_IPS})";
+      $RAD_PAIRS->{'Reply-Message'} = "NO_FREE_POOL_IP: (USED: $self->{USED_IPS})";
       return 1, $RAD_PAIRS;
     }
     elsif ($ip eq '0') {
@@ -614,7 +616,7 @@ sub auth {
   }
 
   # SET ACCOUNT expire date
-  if ($self->{ACCOUNT_AGE} > 0 && $self->{INTERNET_EXPIRE} eq '0000-00-00') {
+  if ($self->{ACCOUNT_AGE} > 0 && ! $self->{INTERNET_EXPIRE}) {
     $self->query2("UPDATE internet_main SET expire=CURDATE() + INTERVAL $self->{ACCOUNT_AGE} day
       WHERE uid='$self->{UID}';", 'do'
     );
@@ -637,9 +639,10 @@ sub auth {
 }
 
 #*********************************************************
-=head2 nas_pair_former($RAD) - Auth_mac
+=head2 nas_pair_former($attr) - NAS pair formers
 
-  Mac auth function
+  Arguments:
+
 
 =cut
 #*********************************************************
@@ -1167,6 +1170,10 @@ sub authentication {
     }
   }
   elsif ($RAD->{'Tunnel-Client-Endpoint:0'}) {
+    if($RAD->{'Calling-Station-Id'}) {
+      $self->{INFO} = $RAD->{'Calling-Station-Id'};
+    }
+
     $RAD->{'Calling-Station-Id'} = $RAD->{'Tunnel-Client-Endpoint:0'};
   }
 
@@ -1220,7 +1227,7 @@ sub internet_auth {
   }
   else {
     my $user_auth_params = $self->opt82_parse($RAD);
-    $user_auth_params->{USER_MAC} = $RAD->{'Calling-Station-Id'};
+    $user_auth_params->{USER_MAC} = $RAD->{'Calling-Station-Id'} if (! $user_auth_params->{USER_MAC});
     $user_auth_params->{IP}       = $RAD->{'Framed-IP-Address'} if($RAD->{'Framed-IP-Address'});
     $user_auth_params->{USER_NAME}= $RAD->{'User-Name'};
     $self->dhcp_info($user_auth_params, $NAS);
@@ -1475,6 +1482,7 @@ sub ex_traffic_params {
       $start_period = "DATE_FORMAT(start, '%Y-%m-%d')>='$self->{ACCOUNT_ACTIVATE}'";
     }
 
+    $Billing->{INTERNET}=1;
     my $used_traffic = $Billing->get_traffic(
       {
         UID    => $self->{UID},
@@ -2369,7 +2377,7 @@ sub neg_deposit_filter_former {
         });
 
       if ($ip eq '-1') {
-        $RAD_PAIRS->{'Reply-Message'} = "Rejected! There is no free IPs in address pools (USED: $self->{USED_IPS}) " . (($self->{TP_IPPOOL}) ? " TP_IPPOOL: $self->{TP_IPPOOL}" : '');
+        $RAD_PAIRS->{'Reply-Message'} = "NO_FREE_NEG_POOL_IP (USED: $self->{USED_IPS}) " . (($self->{TP_IPPOOL}) ? " TP_IPPOOL: $self->{TP_IPPOOL}" : '');
         return 1, $RAD_PAIRS;
       }
       elsif ($ip eq '0') {
@@ -2507,7 +2515,7 @@ sub opt82_parse {
   my ($RAD_REQUEST, $attr) = @_;
 
   my %result      =  ();
-  my $hex2ansii   = '';
+  #my $hex2ansii   = '';
   my @o82_expr_arr = ();
 
   if($self->{conf}) {
@@ -2532,7 +2540,7 @@ sub opt82_parse {
 
         my $input_value = $RAD_REQUEST->{$parse_param};
         if ($attribute && $attribute eq 'hex2ansii') {
-          $hex2ansii   = 1;
+          #$hex2ansii   = 1;
           $input_value =~ s/^0x//;
           $input_value = pack 'H*', $input_value;
         }
@@ -2544,14 +2552,13 @@ sub opt82_parse {
         if (my @res = ($input_value =~ /$expr_/i)) {
           for (my $i=0; $i <= $#res ; $i++) {
             if ($CONF->{AUTH_EXPR_DEBUG} && $CONF->{AUTH_EXPR_DEBUG} > 3) {
-              $expr_debug .= "$EXPR_IDS[$i] / $res[$i]\n";
+              $expr_debug .= "  $EXPR_IDS[$i] / $res[$i]\n";
             }
 
             $result{$EXPR_IDS[$i]}=$res[$i];
           }
           #last;
         }
-        print $expr_debug;
       }
 
 #      if ($parse_param eq 'DHCP-Relay-Agent-Information') {
@@ -2659,9 +2666,9 @@ sub dhcp_info {
   elsif ($CONF->{INTERNET_LOGIN}) {
     push @WHERE_RULES, "internet.login='". $attr->{'User-Name'} ."'";
   }
-  elsif($CONF->{AUTH_INTERNET_CID}) {
-    push @WHERE_RULES, "internet.cid='". $attr->{USER_MAC} ."'";
-  }
+  # elsif($CONF->{AUTH_INTERNET_CID}) {
+  #   push @WHERE_RULES, "internet.cid='". $attr->{USER_MAC} ."'";
+  # }
   elsif (($CONF->{NAS_PORT_AUTH} || $attr->{NAS_PORT_AUTH}) && ! $attr->{MAC_AUTH}) {
     push @WHERE_RULES, "n.mac='$attr->{NAS_MAC}' AND internet.port='$attr->{PORT}'";
     $self->{INFO} = "NAS_MAC: $attr->{NAS_MAC} PORT: $attr->{PORT} VLAN: $attr->{VLAN} MAC: $attr->{USER_MAC}";
@@ -2701,7 +2708,6 @@ sub dhcp_info {
       u.reduction,
       u.ext_bill_id,
       UNIX_TIMESTAMP(u.expire) AS account_expire,
-      UNIX_TIMESTAMP(internet.expire) AS internet_expire,
       internet.tp_id,
       internet.disable AS internet_disable,
       IF(internet.ip>0, INET_NTOA(internet.ip), 0) AS ip,
@@ -2747,6 +2753,10 @@ sub dhcp_info {
       WHERE ip<=INET_ATON('$self->{IP}') AND INET_ATON('$self->{IP}')<=ip+counts
       ORDER BY netmask
       LIMIT 1", undef, { INFO => 1 });
+          #Remove error records if not exist pool
+          if($self->{errno}==2) {
+            delete $self->{errno};
+          }
         }
         return $self;
       }

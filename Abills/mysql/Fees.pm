@@ -267,8 +267,8 @@ sub list {
       ['FROM_DATE|TO_DATE','DATE', 'DATE_FORMAT(f.date, \'%Y-%m-%d\')'  ],
       ['MONTH',          'DATE', "DATE_FORMAT(f.date, '%Y-%m')"      ],
       ['REG_DATE',       'DATE', "f.reg_date", "f.reg_date",       1 ],
-      ['TAX',            'INT',  'ft.tax',                          1 ],
-      ['TAX_SUM',        'INT',  '', 'if(ft.tax>0, SUM(f.sum) / 100 * ft.tax, 0) AS tax_sum'  ],
+      ['TAX',            'INT',  'ft.tax',                         1 ],
+      ['TAX_SUM',        'INT',  '', 'IF(ft.tax>0, SUM(f.sum) / 100 * ft.tax, 0) AS tax_sum'  ],
 
     ],
     { WHERE       => 1,
@@ -329,7 +329,7 @@ sub reports {
   my ($attr) = @_;
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $PG   = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PG   = ($attr->{PG})   ? $attr->{PG}   : 0;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $date = '';
   my @WHERE_RULES = ();
@@ -353,34 +353,59 @@ sub reports {
   }
 
   my $GROUP = 1;
-  $attr->{TYPE} = '' if (!$attr->{TYPE});
+  my $report_type = ($attr->{TYPE}) ? $attr->{TYPE} : q{};
 
-  if ($attr->{TYPE} eq 'HOURS') {
+  if ($report_type eq 'HOURS') {
     $date = "DATE_FORMAT(f.date, '%H') AS hour";
   }
-  elsif ($attr->{TYPE} eq 'DAYS') {
+  elsif ($report_type eq 'DAYS') {
     $date = "DATE_FORMAT(f.date, '%Y-%m-%d') AS date";
   }
-  elsif ($attr->{TYPE} eq 'METHOD') {
+  elsif ($report_type eq 'METHOD') {
     $date = "f.method";
     $EXT_TABLE_JOINS_HASH{fees_types}=1;
     $attr->{TAX_SUM}='_SHOW';
   }
-  elsif ($attr->{TYPE} eq 'ADMINS') {
+  elsif ($report_type eq 'ADMINS') {
     $date = "a.id AS admin_login";
     $EXT_TABLE_JOINS_HASH{admins} = 1;
   }
-  elsif ($attr->{TYPE} eq 'PER_MONTH') {
+  elsif ($report_type eq 'PER_MONTH') {
     $date = "DATE_FORMAT(f.date, '%Y-%m') AS date";
   }
-  elsif ($attr->{TYPE} eq 'FIO') {
+  elsif ($report_type eq 'FIO') {
     $EXT_TABLE_JOINS_HASH{users_pi} = 1;
     $date       = "pi.fio";
     $GROUP      = 5;
   }
-  elsif ($attr->{TYPE} eq 'COMPANIES') {
+  elsif ($report_type eq 'COMPANIES') {
     $EXT_TABLE_JOINS_HASH{companies}=1;
     $date       = "c.name AS company_name";
+  }
+  elsif ($report_type eq 'DISTRICT') {
+    $date = "districts.name AS district_name";
+    $self->{SEARCH_FIELDS} = 'districts.id AS district_id,';
+    $EXT_TABLE_JOINS_HASH{users}=1;
+    $EXT_TABLE_JOINS_HASH{users_pi}=1;
+    $EXT_TABLE_JOINS_HASH{builds}=1;
+    $EXT_TABLE_JOINS_HASH{streets}=1;
+    $EXT_TABLE_JOINS_HASH{districts}=1;
+  }
+  elsif ($report_type eq 'STREET') {
+    $date = "streets.name AS street_name";
+    $self->{SEARCH_FIELDS} = 'streets.id AS street_id,';
+    $EXT_TABLE_JOINS_HASH{users}=1;
+    $EXT_TABLE_JOINS_HASH{users_pi}=1;
+    $EXT_TABLE_JOINS_HASH{builds}=1;
+    $EXT_TABLE_JOINS_HASH{streets}=1;
+  }
+  elsif ($report_type eq 'BUILD') {
+    $date = "CONCAT(streets.name, '$CONF->{BUILD_DELIMITER}', builds.number) AS build";
+    $self->{SEARCH_FIELDS} = 'builds.id AS location_id,';
+    $EXT_TABLE_JOINS_HASH{users}=1;
+    $EXT_TABLE_JOINS_HASH{users_pi}=1;
+    $EXT_TABLE_JOINS_HASH{builds}=1;
+    $EXT_TABLE_JOINS_HASH{streets}=1;
   }
   elsif ($date eq '') {
     $date = "u.id AS login";
@@ -393,7 +418,7 @@ sub reports {
       ['MONTH',             'DATE', "DATE_FORMAT(f.date, '%Y-%m')"     ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(f.date, '%Y-%m-%d')"  ],
       ['DATE',              'DATE', "DATE_FORMAT(f.date, '%Y-%m-%d')"  ],
-      ['TAX_SUM',           'INT',  '', 'if(ft.tax>0, SUM(f.sum) / 100 * ft.tax, 0) AS tax_sum'  ],
+      ['TAX_SUM',           'INT',  '', 'IF(ft.tax>0, (SUM(f.sum) / (100 + ft.tax) * ft.tax), 0) AS tax_sum'  ],
     ],
     {
       WHERE             => 1,
@@ -405,6 +430,11 @@ sub reports {
 
   if ($self->{EXT_TABLES} || $date =~ /u\.|pi\./ || $WHERE =~ /u\.|pi\./) {
     $EXT_TABLE_JOINS_HASH{users}=1;
+  }
+
+  if($WHERE =~ /ft\./ || $self->{SEARCH_FIELDS} =~ /ft\./){
+    $EXT_TABLE_JOINS_HASH{fees_types}=1;
+    $attr->{TAX_SUM}='_SHOW';
   }
 
   my $EXT_TABLES = $self->mk_ext_tables({

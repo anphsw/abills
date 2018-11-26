@@ -361,7 +361,7 @@ sub _function {
     # Will show stacktrace on fail, but can be not installed
     require Carp::Always;
   };
-  my $returns = eval { &{ \&$function_name }($attr) };
+  my @returns = eval { &{ \&$function_name }($attr) };
 
   if($@) {
     my $inputs = '';
@@ -419,7 +419,7 @@ $inputs
 #    my $rr = `echo "$function_name" >> /tmp/fe`;
   }
 
-  return $returns;
+  return @returns;
 }
 
 #**********************************************************
@@ -653,32 +653,32 @@ sub get_period_dates {
 #**********************************************************
 sub fees_dsc_former {
   my ($attr) = @_;
-  
+
   my $template_key_name = $attr->{TEMPLATE_KEY_NAME} || 'DV_FEES_DSC';
-  
-  if ( !defined($attr->{SERVICE_NAME}) ) {
+
+  if (!defined($attr->{SERVICE_NAME})) {
     $attr->{SERVICE_NAME} = 'Internet';
   }
-  
+
   my $text = (exists $conf{$template_key_name} && $conf{$template_key_name})
     ? $conf{$template_key_name}
     : '%SERVICE_NAME%: %FEES_PERIOD_MONTH%%FEES_PERIOD_DAY% %TP_NAME% (%TP_ID%)%EXTRA%%PERIOD%';
-  
-  while ( $text =~ /\%(\w+)\%/g ) {
+
+  while ($text =~ /\%(\w+)\%/g) {
     my $var = $1;
-    if ( !defined($attr->{$var}) ) {
+    if (!defined($attr->{$var})) {
       $attr->{$var} = '';
     }
     $text =~ s/\%$var\%/$attr->{$var}/g;
   }
-  
-  while ( $text =~ /\$lang\{([A-Z_]+)\}/ ) {
+
+  while ($text =~ /\$lang\{([A-Z_]+)\}/) {
     my $lang_name = $1;
-    if ($lang_name && defined $lang{$lang_name}){
+    if ($lang_name && defined $lang{$lang_name}) {
       $text =~ s/\$lang\{$lang_name\}/$lang{$lang_name}/;
     }
   }
-  
+
   return $text;
 }
 
@@ -735,7 +735,7 @@ sub service_get_month_fee {
   my $tp = $Service->{TP_INFO};
   my $uid = $Service->{UID} || 0;
 
-  $Users = $user if ($user && $user->{UID});
+  $Users = $user if ($user && $user->{UID} && !$attr->{DO_NOT_USE_GLOBAL_USER_PLS});
   if (! $Users->{BILL_ID}) {
     $user  = $Users->info($uid);
   }
@@ -1525,6 +1525,7 @@ sub get_oui_info {
   $mac = uc($mac);
   $mac =~ /^([0-9A-F]{6})/;
   my $mac_prefix = $1;
+  return '' unless ($mac_prefix);
 
   my $content = '';
   open(my $fh, '<', "$base_dir/misc/oui.txt") or die "Can't open file 'oui.txt' $!";
@@ -1917,6 +1918,7 @@ sub sel_status {
     $attr
       STREETS - if given will not display BUILD level
       NAME    - Name for a first level. Default is $lang{ADDRESS}
+      COL_SIZE - width of menu. Default is 3
       OUTPUT2RETURN
 
   Returns:
@@ -1938,14 +1940,14 @@ sub address_list_tree_menu{
   #
 
   my ($list, $parentness_hash) = Address->new($db, $admin, \%conf)->address_parentness(\&in_array, $attr);
-
+  
   #Now build a tree menu for this structure
   my $level_name_keys = ['DISTRICT_NAME','STREET_NAME', 'BUILD_NAME'];
   my $level_id_keys = ['DISTRICT_ID','STREET_ID', 'BUILD_ID'];
 
   my $checkbox_name = ($attr->{STREETS}) ? "STREET_ID" : "BUILD_ID";
   my $first_level_name = ($attr->{NAME}) ? $attr->{NAME} : $lang{ADDRESS};
-
+  my $col_size = $attr->{COL_SIZE} ? $attr->{COL_SIZE} : '3';
   my $menu = $html->tree_menu($list, $first_level_name,
     {
       PARENTNESS_HASH => $parentness_hash,
@@ -1957,6 +1959,8 @@ sub address_list_tree_menu{
       LEVEL_VALUE_KEYS  => $level_id_keys,
       LEVEL_ID_KEYS  => $level_id_keys,
       LEVEL_CHECKBOX_NAME => $level_id_keys,
+      
+      COL_SIZE => $col_size, 
 
       CHECKBOX_STATE     => $attr->{CHECKED}
     }
@@ -2517,6 +2521,38 @@ sub recomended_pay {
   }
 
   return $user_->{TOTAL_DEBET};
+}
+
+#**********************************************************
+=head1 format_sum($sum, $attr) - Format sum
+
+  Arguments:
+    $attr
+      DEPOSIT_FORMAT - use $conf{DEPOSIT_FORMAT}
+      ...
+      TODO - more formats
+
+  Results:
+    well formated number
+
+=cut
+#**********************************************************
+sub format_sum {
+  my ($sum, $attr) = @_;
+  my $result = $sum;
+
+  if ($attr->{DEPOSIT_FORMAT}) {
+    $result = sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $sum);
+  }
+  else {
+    my $integer  = int($sum);
+    my $fraction = int(($sum*100) - ($integer*100));
+    my $rev = scalar reverse ($integer);
+    $result = scalar reverse (join (' ', $rev =~ m/\d{1,3}/g));
+    $result .= ".$fraction";
+  }
+  
+  return $result;
 }
 
 1

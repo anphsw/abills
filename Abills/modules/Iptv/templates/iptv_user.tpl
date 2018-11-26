@@ -18,7 +18,7 @@
     <input type=hidden name='add_form' value=''>
 
     <fieldset>
-
+%NEXT_FEES_WARNING%
         <div class='box box-theme box-form box-big-form'>
             <div class='box-header with-border'><h4 class='box-title'>_{TV}_: %ID%</h4></div>
             <div class='box-body'>

@@ -1,4 +1,4 @@
-<FORM ACTION='https://www.portmone.com.ua/secure/gate/pay.php' method='POST' >
+<FORM ACTION='https://www.portmone.com.ua/gateway/' method='POST' >
 <INPUT TYPE='HIDDEN' NAME='PAYEE_ID' VALUE='$conf{PAYSYS_PORTMONE_PAYEE_ID}' />
 <INPUT TYPE='HIDDEN' NAME='PAYEE_NAME' VALUE='$conf{WEB_TITLE}'>
 <INPUT TYPE='HIDDEN' NAME='PAYEE_HOME_PAGE_URL' VALUE='$conf{PAYSYS_PORTMONE_HOME_PAGE_URL}'>

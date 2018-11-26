@@ -8,6 +8,7 @@
     <div class='timeline-footer'>
       <div class="row">
         <div class="col-md-12">
+          %ATTACHMENT%
           <span class='pull-left'><small>%RUN_TIME%</small></span>
           <span class='pull-right'>
       %QUOTING% %DELETE% %NEW_TOPIC%

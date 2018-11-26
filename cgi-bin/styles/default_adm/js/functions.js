@@ -1088,6 +1088,7 @@ function initDatepickers(context) {
     clearBtn      : true,
     forceParse    : false,
     weekStart     : 1,
+    language      : CONTENT_LANGUAGE,
     // container     : 'section#main-content'
   })
       .on('show', cancelEvent)

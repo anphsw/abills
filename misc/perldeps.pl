@@ -21,7 +21,7 @@ Arguments:
 my $action = q{};
 
 if($ARGV[0]) {
-  my $action = $ARGV[0];
+  $action = $ARGV[0];
 }
 else {
   print $usage;

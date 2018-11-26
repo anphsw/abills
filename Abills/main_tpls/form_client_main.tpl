@@ -9,7 +9,9 @@
   <!--</a>-->
   <!-- Navbar Right Menu -->
   <div class='navbar-custom-menu'>
-
+    <ul class="nav navbar-nav">
+      %GLOBAL_CHAT%
+    </ul>
     <ul class='nav navbar-nav hidden-xs hidden-sm hidden-md'>
       <li>
         <a href="#">
@@ -39,7 +41,6 @@
         </a>
       </li>
     </ul>
-
     <ul class='nav navbar-nav visible-xs visible-sm'>
       <li class="dropdown">
         <a href="#" class="dropdown-toggle" data-toggle="dropdown">
@@ -56,18 +57,13 @@
 
       </li>
     </ul>
-
   </div>
-
 </nav>
 </header>
-
-
 <!-- menu -->
   <aside id='main-sidebar' class='main-sidebar sidebar'>
     %MENU%
   </aside>
-
   <div class='content-wrapper'>
     <section class="content" id='main-content'>
     %BODY%
@@ -81,6 +77,7 @@
 
 <!-- AdminLTE App -->
 <script src="/styles/lte_adm/dist/js/app.js"></script>
+
 <script>
   jQuery('#language').on('change', selectLanguage);
 </script>

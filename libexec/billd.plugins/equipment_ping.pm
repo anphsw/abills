@@ -61,7 +61,7 @@ sub equipment_ping {
     %LIST_PARAMS,
     COLS_NAME => 1,
     PAGE_ROWS => 100000,
-    STATUS    => '0;1',
+    STATUS    => '0;3',
     NAS_NAME  => '_SHOW',
   } );
 
@@ -128,7 +128,7 @@ sub equipment_ping {
       sleep(1);
       $ping_icmp->close();
 
-      $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 1 } );
+      $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 3 } );
       $message .= "$ips{$host}{NAS_NAME}($host) _{UNAVAILABLE}_\n";
     }
 

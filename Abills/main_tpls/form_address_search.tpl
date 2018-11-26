@@ -2,6 +2,7 @@
   <input type='hidden' name='DISTRICT_ID' value='%DISTRICT_ID%' class='HIDDEN-DISTRICT'>
   <input type='hidden' name='STREET_ID' value='%STREET_ID%' class='HIDDEN-STREET'>
   <input type='hidden' name='LOCATION_ID' value='%LOCATION_ID%' class='HIDDEN-BUILD'>
+  <input type='hidden' name='ADDRESS_FULL' value='_SHOW'>
 
   <div class='form-group'>
     <label class='control-label col-xs-3 col-md-2 LABEL-DISTRICT'>_{DISTRICTS}_</label>

@@ -14,13 +14,15 @@ use Abills::Filters qw(bin2mac bin2hex _mac_former);
 
 our (
   %lang,
-  $html
+  $html,
+  %conf
 );
 
 my %type_name = (
   1 => 'epon_olt_virtualIfBER',
   3 => 'epon-onu',
   6 => 'type6',
+  9 => 'epon_onu',
   10=> 'gpon_onu'
 );
 
@@ -717,7 +719,10 @@ sub _zte {
       #.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.5.ID - уровень сигнала (только через snmpget)
       #.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.5 - модель ОНУ
       #.1.3.6.1.4.1.3902.1015.1010.1.1.1.1.1.2 - производитель ОНУ
-    });
+      #.1.3.6.1.4.1.3902.1015.1010.1.1.1.19.1.1 - Vlan
+    },
+    "FDB_OID" => ".1.3.6.1.4.1.3902.1015.6.1.3.1.5.1",
+  );
 
   if ($attr->{TYPE}) {
     return $snmp{$attr->{TYPE}};
@@ -790,11 +795,12 @@ sub _zte_set_desc {
       }
   );
 }
+
 #**********************************************************
 =head2 decode_onu($dec, $attr) - Decode onu int
 
   Arguments:
-    $dec
+    $dec    - Deciamal port ID
     $attr
        MODEUL_NAME
        TYPE        - dhcp
@@ -818,6 +824,7 @@ sub decode_onu {
   my $model_name = $attr->{MODEL_NAME} || q{};
   my $result_type = $attr->{TYPE} || q{};
 
+  #epon-onu
   if ( $type == 3 ) {
     @result{'type', 'shelf', 'slot', 'olt',
       'onu'} = map { oct( "0b$_" ) } $bin =~ /^(\d{4})(\d{4})(\d{5})(\d{3})(\d{8})(\d{8})/;
@@ -846,9 +853,11 @@ sub decode_onu {
   }
   elsif ( $type == 1 ) {
     @result{'type', 'shelf', 'slot', 'olt'} = map { oct( "0b$_" ) } $bin =~ /^(\d{4})(\d{4})(\d{8})(\d{8})(\d{8})/;
+    my $shelf_inc = 0;
 
     if ($result_type eq 'dhcp') {
       $result{slot} = ($model_name =~ /C220/i ) ? sprintf("%02d", $result{slot}) : sprintf("%02d", $result{slot});
+
       if ($model_name =~ /C220|C320/i) {
         if ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum') {
           $result{slot} =~ s/^0/ /g;
@@ -856,8 +865,12 @@ sub decode_onu {
       }
     }
 
+    if($model_name =~ /C3/i) {
+      $shelf_inc = 1;
+    }
+
     return (($attr->{DEBUG}) ? $type .'#'. $type_name{$result{type}} . '_' : '')
-      . ($result{shelf} + ($attr->{SHELF_INC} || 0))
+      . ($result{shelf} + $shelf_inc)
       . '/' . $result{slot}
       . '/' . $result{olt};
   }
@@ -866,6 +879,17 @@ sub decode_onu {
     return $type .'#'. $type_name{$result{type}}
       . '_' . $result{shelf}
       . '/' . $result{slot};
+  }
+  #epon-onu
+  elsif ( $type == 9 ) {
+    @result{'type', 'shelf', 'slot', 'olt', 'onu_num', } = map { oct( "0b$_" ) } $bin =~ /^(\d{4})(\d{4})(\d{4})(\d{4})(\d{8})/;
+
+    return $type_name{$result{type}}
+      . '_'
+      . ($result{shelf}+1)
+      . '/'. ($result{slot})
+      . '/'. ($result{olt}+1)
+      . ':'. ($result{onu_num});
   }
   #gpon_onu
   elsif ( $type == 10 ) {
@@ -1123,7 +1147,7 @@ sub _zte_unregister {
   #my $unreg_type = ($attr->{NAS_INFO}->{MODEL_NAME} && $attr->{NAS_INFO}->{MODEL_NAME} eq 'C320') ? 'unregister_c320' : 'unregister';
   my $unreg_type = 'unregister_gpon';
   my $snmp = _zte({ TYPE => $unreg_type });
-  my $nas_model = $attr->{NAS_INFO}->{MODEL_NAME};
+  #my $nas_model = $attr->{NAS_INFO}->{MODEL_NAME};
 
   #if(($attr->{NAS_INFO}->{MODEL_NAME} && $attr->{NAS_INFO}->{MODEL_NAME} eq 'C320')) {
   # GPON unreg
@@ -1156,7 +1180,7 @@ sub _zte_unregister {
 
       #print "$num TYPE: $oid_type // $id, $value //<br>";
       $unregister[$num - 1]->{$oid_type}    = $value;
-      $unregister[$num - 1]->{'branch'}     = decode_onu($branch, { SHELF_INC => ($nas_model eq 'C320') ? 1 : 0 });
+      $unregister[$num - 1]->{'branch'}     = decode_onu($branch);
       $unregister[$num - 1]->{'branch_num'} = $branch;
       $unregister[$num - 1]->{'pon_type'}   = $snmp->{$oid_type}->{TYPE} if ($snmp->{$oid_type}->{TYPE});
     }
@@ -1271,6 +1295,8 @@ sub _zte_mac_serial {
   Arguments:
     $attr
       BRANCH_NUM
+      PON_TYPE
+      LLID
       DEBUG
 
 =cut
@@ -1281,35 +1307,57 @@ sub _zte_unregister_form {
   my $snmp_oids = _zte();
   my $debug  = $attr->{DEBUG} || 0;
 
-  if($attr->{PON_TYPE} && $attr->{PON_TYPE} eq 'epon') {
-    my $onu_count = snmp_get({
-      %{$attr},
-      OID  => '.1.3.6.1.4.1.3902.1015.1010.1.7.16.1.7' . '.' . $attr->{BRANCH_NUM}
-    });
+  if($attr->{PON_TYPE}) {
+    if ($attr->{PON_TYPE} eq 'epon') {
+      my $onu_count = snmp_get({
+        %{$attr},
+        OID => '.1.3.6.1.4.1.3902.1015.1010.1.7.16.1.7' . '.' . $attr->{BRANCH_NUM}
+      });
 
-    if ($onu_count =~ m/\-(\d+)/g) {
-      $attr->{LLID} = $1 + 1;
-    }
-  }
-  elsif ($attr->{PON_TYPE} && $attr->{PON_TYPE} eq 'epon' && $snmp_oids->{$attr->{PON_TYPE}}{LLID}{OIDS}) {
-    my $result = snmp_get({
-      %{$attr},
-      OID  => $snmp_oids->{$attr->{PON_TYPE}}{LLID}{OIDS} . '.' . $attr->{BRANCH_NUM},
-      WALK => 1,
-    });
-
-    my $next_llid = 1;
-
-    foreach my $line (@$result) {
-      print "$line<br>\n" if ($debug > 3);
-      my ($id) = split(/:/, $line);
-      if ($next_llid != $id) {
-        last;
+      if ($onu_count =~ m/\-(\d+)/g) {
+        $attr->{LLID} = $1 + 1;
       }
-      $next_llid++;
     }
+    # elsif ($attr->{PON_TYPE} eq 'epon' && $snmp_oids->{$attr->{PON_TYPE}}{LLID}{OIDS}) {
+    #   my $result = snmp_get({
+    #     %{$attr},
+    #     OID  => $snmp_oids->{$attr->{PON_TYPE}}{LLID}{OIDS} . '.' . $attr->{BRANCH_NUM},
+    #     WALK => 1,
+    #   });
+    #
+    #   my $next_llid = 1;
+    #
+    #   foreach my $line (@$result) {
+    #     print "$line<br>\n" if ($debug > 3);
+    #     my ($id) = split(/:/, $line);
+    #     if ($next_llid != $id) {
+    #       last;
+    #     }
+    #     $next_llid++;
+    #   }
+    #
+    #   $attr->{LLID} = $next_llid;
+    # }
+    elsif($snmp_oids->{$attr->{PON_TYPE}}{LLID}) {
+      my $result = snmp_get({
+        %{$attr},
+        OID  => $snmp_oids->{$attr->{PON_TYPE}}{LLID}{OIDS} . '.' . $attr->{BRANCH_NUM},
+        WALK => 1,
+      });
 
-    $attr->{LLID}       = $next_llid;
+      my $next_llid = 1;
+
+      foreach my $line (@$result) {
+        print "$line<br>\n" if ($debug > 3);
+        my ($id) = split(/:/, $line);
+        if ($next_llid != $id) {
+          last;
+        }
+        $next_llid++;
+      }
+
+      $attr->{LLID} = $next_llid;
+    }
   }
 
   my $vlan_hash = get_vlans( $attr );

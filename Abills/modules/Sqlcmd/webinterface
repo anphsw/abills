@@ -271,12 +271,18 @@ sub sqlcmd {
         $FORM{COLUMN_LENGTH} = "($FORM{COLUMN_LENGTH})" if ($FORM{COLUMN_LENGTH});
         $FORM{DEFAULT} = "''" if (!$FORM{DEFAULT});
 
-        my $query = "ALTER TABLE $FORM{TABLE_INFO} CHANGE COLUMN $FORM{FIELD} $FORM{NAME} "
-        . ($FORM{COLUMN_TYPE} || ''). ($FORM{COLUMN_LENGTH} || 0) .' '. ($FORM{AUTO_INCREMENT} || '')
+        my $query = "ALTER TABLE $FORM{TABLE_INFO} CHANGE COLUMN `$FORM{FIELD}` `$FORM{NAME}` "
+        . ($FORM{COLUMN_TYPE} || ''). ($FORM{COLUMN_LENGTH} || '') .' '. ($FORM{AUTO_INCREMENT} || '')
         . ' ' . ($FORM{COLLATION} || '').' '. ($FORM{ATTRIBUTE_TYPE} || '') ." DEFAULT $FORM{DEFAULT} ";
 
-        print $query;
-        $Sqlcmd->list({ QUERY => $query });
+        $html->message('info', '', $query);
+
+        if(! $FORM{SHOW}) {
+          $Sqlcmd->list({ QUERY => $query });
+          if ($Sqlcmd->{errno}) {
+            $html->message('err', '', $query);
+          }
+        }
       }
 
       $list = $Sqlcmd->list({ QUERY => "SHOW FULL COLUMNS FROM $conf{dbname}.$FORM{TABLE_INFO} LIKE '$FORM{FIELD}' " });

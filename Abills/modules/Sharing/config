@@ -35,7 +35,7 @@
   "6:1:$lang{ADD} $lang{GROUP}:sharing_add_group:"  => 5,
   "3:0:$lang{FILES}:sharing_user_service:UID"          => 20,
   "4:0:Sharing $lang{LOG}:null:"                  => 4,
-  "5:4:$lang{LOG} $lang{DOWNLOAD}:sharing_download_log:"  => 4,
+  "5:4:$lang{LOG} $lang{DOWNLOADS}:sharing_download_log:"  => 4,
 );
 
 %USER_FUNCTION_LIST = (

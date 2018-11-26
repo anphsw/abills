@@ -19,7 +19,6 @@ $lang{ERR_NO_ORDERS}='Не выбраны заказы';
 @hundred          = ('', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот', 'шестьсот', 'семьсот', 'восемьсот', 'девятьсот');
 @money_unit_names = ('руб','коп');
 
-$lang{PAID}='Оплаченый';
 $lang{PARTLY_PAID}='Частично оплаченый';
 $lang{UNPAID}='Не оплаченый';
 $lang{VAT_INCLUDE}='С учётом НДС';
@@ -51,3 +50,4 @@ $lang{SKIP_PAY_ADD}='Пропущенно счетов';
 $lang{CONNECT_TO} = 'Подключайтесь к';
 $lang{PAYMENTS_NOT_EQUAL_DOC}='Сума документа отличается от сумы платежа';
 $lang{PRINT_TERMO_PRINTER} = 'Чек для термо-принтера';
+$lang{UNPAID_INVOICES} = 'Неоплаченные счета';

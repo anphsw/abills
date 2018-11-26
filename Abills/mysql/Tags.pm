@@ -201,6 +201,7 @@ sub tags_user_change{
   my $self = shift;
   my ($attr) = @_;
 
+  $self->{admin}->{MODULE}=$MODULE;
   $self->user_del( $attr );
 
   if ( $attr->{IDS} ){
@@ -217,12 +218,12 @@ sub tags_user_change{
     }
 
     $self->query( "INSERT INTO tags_users (uid, tag_id, date)
-        VALUES (?, ?, curdate());",
+        VALUES (?, ?, CURDATE());",
       undef,
       { MULTI_QUERY => \@MULTI_QUERY } );
   }
 
-  $self->{admin}->action_add( $attr->{UID}, "$attr->{IDS}", { TYPE => 1 } );
+  $self->{admin}->action_add( $attr->{UID}, $attr->{IDS}, { TYPE => 1 } );
 
   return $self;
 }

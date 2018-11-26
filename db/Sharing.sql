@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS `sharing_files` (
   `file_time` smallint(3) NOT NULL default 0,
   `group_id` int(2) NOT NULL DEFAULT 0,
   `version` VARCHAR(32) NOT NULL DEFAULT '',
+  `remind_for` int(10) NOT NULL DEFAULT 0,
   `comment` text NOT NULL,
   PRIMARY KEY (`id`)
 )

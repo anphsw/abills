@@ -521,7 +521,7 @@ sub voip_tp_routes{
   my ($attr) = @_;
 
   my $Voip_tp;
-  my @caption       = ($lang{PREFIX}, $lang{ROUTES}, "$lang{STATUS}", "$lang{EXTRA_TARIFICATION}", 'TRUNK');
+  my @caption       = ($lang{PREFIX}, $lang{ROUTES}, $lang{STATUS}, $lang{EXTRA_TARIFICATION}, 'TRUNK');
   my @interval_ids  = ();
   my $intervals     = 0;
   my $exchange_rate = 1;
@@ -979,7 +979,7 @@ sub voip_intervals{
         $tdcolor = $_COLORS[1];
       }
 
-      push( @hours, $table->td( "$link", { align => 'center', bgcolor => $tdcolor } ) );
+      push( @hours, $table->td( $link, { align => 'center', bgcolor => $tdcolor } ) );
     }
 
     $table->addtd( $table->td( $DAY_NAMES[$i] ), @hours );
@@ -1008,13 +1008,14 @@ sub voip_intervals{
 =cut
 #***********************************************************
 sub voip_extra_tarification{
-  my ($type, $attr) = @_;
+  # my (undef, $attr) = @_;
+  #
+  # %LIST_PARAMS = %{ $attr->{LIST_PARAMS} } if (defined( $attr->{LIST_PARAMS} ));
 
-  %LIST_PARAMS = %{ $attr->{LIST_PARAMS} } if (defined( $attr->{LIST_PARAMS} ));
   $Voip->{ACTION} = 'add';
   $Voip->{LNG_ACTION} = $lang{ADD};
 
-  if ( $FORM{add} ){
+  if ( $FORM{add} && $FORM{NAME} ){
     $Voip->extra_tarification_add( { %FORM } );
     if ( !$Voip->{errno} ){
       $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
@@ -1045,49 +1046,28 @@ sub voip_extra_tarification{
 
   $html->tpl_show( _include( 'voip_extra_tarification', 'Voip' ), $Voip );
 
-  my $list = $Voip->extra_tarification_list( {
-    %LIST_PARAMS,
-    COLS_NAME => 1
-  } );
-
-  if ( _error_show( $Voip ) ){
-    return 0;
-  }
-
-  my $table = $html->table(
-    {
+  result_former({
+    INPUT_DATA      => $Voip,
+    FUNCTION        => 'extra_tarification_list',
+    BASE_FIELDS     => 3,
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      name         => $lang{NAME},
+      prepaid_time => "$lang{PREPAID} $lang{TIME}"
+    },
+    TABLE           => {
       width      => '100%',
-      title      => [ 'id', "$lang{NAME}", "$lang{PREPAID} $lang{TIME}", '-', '-' ],
+      caption    => "$lang{PREPAID} $lang{TIME}",
       qs         => $pages_qs,
-      pages      => $Voip->{TOTAL}
-    }
-  );
-
-  foreach my $line ( @{$list} ){
-    my $delete = $html->button( $lang{DEL}, "index=$index&del=$line->{id}",
-      { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' } );
-    my $change = $html->button( $lang{DEL}, "index=$index&chg=$line->{id}", { class => 'change' } );
-
-    $table->{rowcolor} = ($FORM{chg} && $FORM{chg} == $line->{id}) ? $_COLORS[0] : undef;
-
-    $table->addrow(
-      $line->{id},
-      $line->{name},
-      $line->{prepaid_time},
-      $change,
-      $delete,
-
-    );
-  }
-  print $table->show();
-
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b( $Voip->{TOTAL} ) ] ]
-    }
-  );
-  print $table->show();
+      ID         => 'EXTRA_TARIFICATION',
+      EXPORT     => 1,
+      MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS    => 1,
+    SEARCH_FORMER=> 1,
+    TOTAL        => 1
+  });
 
   return 1;
 }

@@ -377,7 +377,6 @@ sub form_builds{
   _error_show( $Address );
 
   if ( $FORM{add_form} ){
-
     if ( $maps_enabled && $FORM{chg} ) {
       $Address->{MAP_BLOCK_VISIBLE} = 1;
 
@@ -393,7 +392,6 @@ sub form_builds{
       }
 
     }
-    # _bp('', $Address);
     $Address->{STREET_SEL} = sel_streets($Address);
     $html->tpl_show( templates( 'form_build' ), $Address );
   }
@@ -435,18 +433,18 @@ sub form_builds{
     'NUMBER,BLOCK,FLORS,ENTRANCES,FLATS,STREET_NAME,USERS_COUNT,USERS_CONNECTIONS,ADDED' . ($maps_enabled ? ',COORDX' : ''),
     FUNCTION_FIELDS => 'msgs_admin:$lang{MESSAGE}:location_id:&add_form=1,change,del',
     EXT_TITLES      => {
-      number              => "$lang{NUM}",
-      flors               => "$lang{FLORS}",
-      entrances           => "$lang{ENTRANCES}",
-      flats               => "$lang{FLATS}",
-      street_name         => "$lang{STREET}",
-      users_count         => "$lang{USERS}",
+      number              => $lang{NUM},
+      flors               => $lang{FLORS},
+      entrances           => $lang{ENTRANCES},
+      flats               => $lang{FLATS},
+      street_name         => $lang{STREET},
+      users_count         => $lang{USERS},
       users_connections   => "$lang{DENSITY_OF_CONNECTIONS} %",
-      added               => "$lang{ADDED}",
+      added               => $lang{ADDED},
       location_id         => 'LOCATION ID',
       coordx              => $lang{MAP} . ' X',
       coordy              => $lang{MAP} . ' Y',
-      planned_to_connect  =>"$lang{PLANNED_TO_CONNECT}",
+      planned_to_connect  => $lang{PLANNED_TO_CONNECT},
       block               => $lang{BLOCK}
     },
     SKIP_USER_TITLE => 1,
@@ -901,7 +899,7 @@ sub short_address_name {
 
 
 #**********************************************************
-=head2 form_address($attr)
+=head2 form_address($attr) - shows form for adding nas addrress
 
   Arguments:
     $attr
@@ -909,16 +907,28 @@ sub short_address_name {
       FLAT_CHECK_FREE     => 1
       FLAT_CHECK_OCCUPIED => 1
       SHOW                => 1
+      FLOOR               => value    - Shows Extra fields entrance and floor at the address box
+        and add value into floor input
+      ENTRANCE            => value    - Shows Extra fields entrance and floor at the address box
+        and add value into entrance input
 
   Results:
+    return $result
 
+  Example:
+
+    $Nas->{ADDRESS_FORM}   = form_address({
+      LOCATION_ID => $Nas->{LOCATION_ID},
+      FLOOR       => $Nas->{FLOOR},
+      ENTRANCE    => $Nas->{ENTRANCE}
+    });
 
 =cut
 #**********************************************************
 sub form_address {
   my ($attr) = @_;
-
   my %params = ();
+
 
   if(! $attr->{SHOW}) {
     $params{PARAMS}='collapsed-box';
@@ -953,21 +963,24 @@ sub form_address {
     $Address->{HIDE_ADD_ADDRESS_BUTTON} = "style='display:none;'";
   }
 
-  my $result = $html->tpl_show(
-    templates('form_show_hide'),
-    {
-      CONTENT =>
-      $html->tpl_show(templates('form_address_sel'), {%$Address, %$attr}, {
-          OUTPUT2RETURN => 1,
-          ID => 'form_address_sel',
-          %{ ($attr) ? $attr : {} }
-      }),
-      NAME    => $lang{ADDRESS},
-      ID      => 'ADDRESS_FORM',
-      %params
-    },
-    { OUTPUT2RETURN => 1 }
-  );
+  if (defined($attr->{FLOOR}) || defined($attr->{ENTRANCE})) {
+    $Address->{EXT_ADDRESS} = $html->tpl_show(templates('form_ext_address'), { ENTRANCE => $attr->{ENTRANCE}, FLOOR => $attr->{FLOOR} }, { OUTPUT2RETURN => 1 });
+  }
+    my $result = $html->tpl_show(
+      templates('form_show_hide'),
+      {
+        CONTENT =>
+          $html->tpl_show(templates('form_address_sel'), { %$Address, %$attr }, {
+            OUTPUT2RETURN => 1,
+            ID            => 'form_address_sel',
+            %{($attr) ? $attr : {}}
+          }),
+        NAME    => $lang{ADDRESS},
+        ID      => 'ADDRESS_FORM',
+        %params
+      },
+      { OUTPUT2RETURN => 1 }
+    );
 
   return $result;
 }

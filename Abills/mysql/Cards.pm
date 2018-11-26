@@ -191,11 +191,12 @@ sub cards_add {
   my ($attr) = @_;
 
   if ($attr->{MULTI_ADD}) {
+    $self->{debug}=1;
     $self->query("INSERT INTO cards_users (
        serial, number, login, pin, status, expire,aid,
        diller_id, diller_date, sum, uid, domain_id, created, commission)
-     VALUES (?,?,?,ENCODE(?, '$CONF->{secretkey}'),?,?,?,?,if (? > 0, now(), '0000-00-00'),
-       ?,?,?,now(),?);",
+     VALUES (?,?,?,ENCODE(?, '$CONF->{secretkey}'),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),
+       ?,?,?,NOW(),?);",
      undef,
      { MULTI_QUERY =>  $attr->{MULTI_ADD} }
     );

@@ -515,7 +515,7 @@ sub internet_monthly_next_tp {
 
   my %tp_ages = ();
   foreach my $tp_info (@$tp_list) {
-    $tp_ages{$tp_info->{id}}=$tp_info->{age};
+    $tp_ages{$tp_info->{tp_id}}=$tp_info->{age};
   }
 
   foreach my $tp_info (@$tp_list) {
@@ -523,21 +523,21 @@ sub internet_monthly_next_tp {
     my $internet_list = $Internet->list({
       INTERNET_ACTIVATE  => "<=$ADMIN_REPORT{DATE}",
       INTERNET_EXPIRE    => "0000-00-00,>$ADMIN_REPORT{DATE}",
-      INTERNET_STATUS    => "0",
-      LOGIN_STATUS => 0,
-      TP_ID        => $tp_info->{tp_id},
-      SORT         => 1,
-      PAGE_ROWS    => 1000000,
-      DELETED      => 0,
-      LOGIN        => '_SHOW',
-      REDUCTION    => '_SHOW',
-      DEPOSIT      => '_SHOW',
-      CREDIT       => '_SHOW',
-      COMPANY_ID   => '_SHOW',
+      INTERNET_STATUS    => "0;5",
+      LOGIN_STATUS       => 0,
+      TP_ID              => $tp_info->{tp_id},
+      SORT               => 1,
+      PAGE_ROWS          => 1000000,
+      DELETED            => 0,
+      LOGIN              => '_SHOW',
+      REDUCTION          => '_SHOW',
+      DEPOSIT            => '_SHOW',
+      CREDIT             => '_SHOW',
+      COMPANY_ID         => '_SHOW',
       INTERNET_EXPIRE    => '_SHOW',
-      BILL_ID      => '_SHOW',
-      COLS_NAME    => 1,
-      GROUP_BY     => 'internet.id',
+      BILL_ID            => '_SHOW',
+      COLS_NAME          => 1,
+      GROUP_BY           => 'internet.id',
       %USERS_LIST_PARAMS
     });
 
@@ -548,6 +548,7 @@ sub internet_monthly_next_tp {
         BILL_ID    => $u->{bill_id},
         REDUCTION  => $u->{reduction},
         ACTIVATE   => $u->{internet_activate},
+        EXPIRE     => $u->{internet_expire},
         DEPOSIT    => $u->{deposit},
         CREDIT     => ($u->{credit} > 0) ? $u->{credit} :  $tp_info->{credit},
         COMPANY_ID => $u->{company_id},
@@ -563,11 +564,15 @@ sub internet_monthly_next_tp {
 
         if($user{EXPIRE} ne '0000-00-00') {
           if($user{EXPIRE} eq $ADMIN_REPORT{DATE}) {
-            if (!$tp_ages{$tp_info->{id}}) {
+            # if (!$tp_ages{$tp_info->{tp_id}}) {
+            #   $expire = '0000-00-00';
+            # }
+            # els
+            if(!$tp_ages{$tp_info->{next_tp_id}}) {
               $expire = '0000-00-00';
             }
             else {
-              my $next_age = $tp_ages{$tp_info->{id}};
+              my $next_age = $tp_ages{$tp_info->{next_tp_id}};
               $expire = POSIX::strftime("%Y-%m-%d",
                 localtime(POSIX::mktime(0, 0, 0, $d, ($m-1), ($y - 1900), 0, 0, 0) + $next_age * 86400));
               #print " // $expire //\n ";
@@ -597,10 +602,10 @@ sub internet_monthly_next_tp {
 
         if($debug < 8) {
           $Internet->change({
-            UID             => $user{UID},
-            STATUS          => $status,
-            TP_ID           => $tp_info->{next_tp_id},
-            INTERNET_EXPIRE => $expire
+            UID            => $user{UID},
+            STATUS         => $status,
+            TP_ID          => $tp_info->{next_tp_id},
+            SERVICE_EXPIRE => $expire
           });
         }
 
@@ -650,7 +655,7 @@ sub internet_monthly_fees {
   my $START_PERIOD_DAY = ($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} : 1;
 
   #Change TP to next TP
-  #$debug_output .= internet_monthly_next_tp($attr);
+  $debug_output .= internet_monthly_next_tp($attr);
   $DEBUG .= $debug_output;
 
   my %FEES_METHODS = %{ get_fees_types({ SHORT => 1 }) };
@@ -878,7 +883,9 @@ sub internet_monthly_fees {
               }
 
               if ($debug < 8) {
-                $Fees->take(\%user, $sum, {%FEES_PARAMS});
+                if($sum > 0) {
+                  $Fees->take(\%user, $sum, { %FEES_PARAMS });
+                }
 
                 $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n" if ($debug > 0);
                 if ($user{ACTIVATE} ne '0000-00-00') {
@@ -942,7 +949,9 @@ sub internet_monthly_fees {
 
                   $FEES_PARAMS{DESCRIBE} = fees_dsc_former(\%FEES_DSC);
 
-                  $Fees->take(\%user, $ext_deposit_sum, { %FEES_PARAMS });
+                  if($ext_deposit_sum > 0) {
+                    $Fees->take(\%user, $ext_deposit_sum, { %FEES_PARAMS });
+                  }
                   $sum = $sum - $user{EXT_DEPOSIT};
                   $user{BILL_ID} = $user{MAIN_BILL_ID};
                 }
@@ -1055,7 +1064,9 @@ sub internet_monthly_fees {
                 if ($debug < 8) {
                   $FEES_PARAMS{DESCRIBE} .= " ($ADMIN_REPORT{DATE}-" . (POSIX::strftime("%Y-%m-%d", localtime($date_unixtime + 86400 * 30))) . ')' if (!$TP_INFO->{ABON_DISTRIBUTION});
 
-                  $Fees->take(\%user, $sum, \%FEES_PARAMS);
+                  if( $sum > 0 ) {
+                    $Fees->take(\%user, $sum, \%FEES_PARAMS);
+                  }
                   $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION} CHANGE ACTIVATE\n" if ($debug > 0);
                   if ($Fees->{errno}) {
                     print "Internet Error: [ $user{UID} ] $user{LOGIN} SUM: $sum [$Fees->{errno}] $Fees->{errstr} ";
@@ -1119,7 +1130,9 @@ sub internet_monthly_fees {
 
             if ($debug < 8) {
               $FEES_PARAMS{DESCRIBE} .= " ($cure_month_begin-$cure_month_end)" if (!$TP_INFO->{ABON_DISTRIBUTION});
-              $Fees->take(\%user, $sum, {%FEES_PARAMS});
+              if($sum > 0) {
+                $Fees->take(\%user, $sum, { %FEES_PARAMS });
+              }
               $debug_output .= " $user{LOGIN}  UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION} $EXT_INFO\n" if ($debug > 0);
             }
           }
@@ -1137,7 +1150,9 @@ sub internet_monthly_fees {
 
               $sum      = $TP_INFO->{FINE};
               $EXT_INFO = "FINE";
+
               $Fees->take(\%user, $sum, {%FEES_PARAMS});
+
               $debug_output .= " $user{LOGIN}  UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION} FINE\n" if ($debug > 0);
             }
 
@@ -1303,7 +1318,9 @@ sub internet_monthly_fees {
             $sum = $RESULT->{TRAFFIC_SUM} * $RESULT->{PRICE};
           }
 
-          $Fees->take(\%user, $sum, {%FEES_PARAMS});
+          if($sum > 0) {
+            $Fees->take(\%user, $sum, { %FEES_PARAMS });
+          }
         }
 
       }

@@ -76,6 +76,8 @@ sub list {
       ['NAS_RAD_PAIRS',    'STR', 'nas.rad_pairs', 'nas.rad_pairs AS nas_rad_pairs' ],
       ['SHOW_MAPS_GOOGLE', 'SHOW_MAPS_GOOGLE', 'builds.coordx, builds.coordy'      ],
       ['NAS_IDS',          'INT', 'nas.id'                               ],
+      ['NAS_FLOOR',            'STR', 'nas.floor',          'nas.floor AS nas_floor'        ],
+      ['NAS_ENTRANCE',         'STR', 'nas.entrance',      'nas.entrance AS nas_entrance'     ],
       ['ADDRESS_FULL',     'STR', "CONCAT(streets.name, ' ', builds.number)",
         "CONCAT(streets.name, ' ', builds.number) AS address_full" ]
     ],
@@ -115,7 +117,6 @@ sub list {
   nas.ext_acct,
   nas.auth_type,";
   }
-
   $self->query2("SELECT $ext_fields
   $self->{SEARCH_FIELDS}
   nas.mac,
@@ -187,16 +188,9 @@ sub info {
     descr AS nas_describe,
     mng_host_port as nas_mng_ip_port,
     mng_user AS nas_mng_user,
-    DECODE(mng_password, '$SECRETKEY') AS nas_mng_password,
-    gid,
-    address_build,
-    address_street,
-    address_flat,
-    zip,
-    city,
-    country,
-    changed,
-    location_id";
+    nas.*,
+    DECODE(mng_password, '$SECRETKEY') AS nas_mng_password
+  ";
   }
 
   $self->query2("SELECT id as nas_id,
@@ -235,7 +229,6 @@ sub info {
     	delete $self->{errno};
     }
   }
-
   return $self;
 }
 
@@ -275,7 +268,9 @@ sub change {
     GID              => 'gid',
     MAC              => 'mac',
     CHANGED          => 'changed',
-    LOCATION_ID      => 'location_id'
+    LOCATION_ID      => 'location_id',
+    FLOOR            => 'floor',
+    ENTRANCE         => 'entrance',
   );
 
   $attr->{CHANGED} = 1;
@@ -388,14 +383,15 @@ sub users_list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   
   my $WHERE =  $self->search_former($attr, [
-      ['NAS_ID',   'INT',     'np.nas_id'   ],
+      ['NAS_ID',   'INT',     'nas_id'   ],
+      ['UID',   'INT',     'uid'   ],
     ],{
       WHERE => 1
     }
   );
   
   $self->query2("SELECT uid, nas_id
-    FROM users_nas
+    FROM users_nas 
     $WHERE
     ORDER BY $SORT $DESC",
     undef,
@@ -437,7 +433,7 @@ sub nas_ip_pools_list {
     [ 'LAST_IP_NUM',  'INT', '(pool.ip + pool.counts) AS last_ip_num',              1],
     [ 'IP_COUNT',     'INT', 'pool.counts AS ip_count',                             1],
     #[ 'IP_FREE',      'INT', '(pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts )) AS ip_free', 1],
-    [ 'INTERNET_IP_FREE',  'INT', '(pool.counts - (SELECT COUNT(*) FROM internet_main internet WHERE internet.ip > pool.ip AND internet.ip <= pool.ip + pool.counts )) AS ip_free', 1],
+    [ 'INTERNET_IP_FREE',  'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet WHERE internet.ip > pool.ip AND internet.ip <= pool.ip + pool.counts )) AS ip_free', 1],
     [ 'PRIORITY',     'INT', 'pool.priority',                                       1],
     [ 'SPEED',        'INT', 'pool.speed',                                          1],
     [ 'NAME',         'STR', 'pool.name AS name',                                   1],
@@ -683,7 +679,7 @@ sub stats {
    ORDER BY $SORT $DESC;"
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************

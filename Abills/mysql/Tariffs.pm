@@ -511,14 +511,14 @@ sub change {
       CHANGE_PARAM    => 'TP_ID',
       TABLE           => 'tarif_plans',
       FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->info($tp_id, { MODULE => $attr->{MODULE} }),
+      OLD_INFO        => $self->info($tp_id),
       DATA            => $attr,
       EXTENDED        => ($attr->{MODULE}) ? "and module='$attr->{MODULE}'" : undef,
       EXT_CHANGE_INFO => "TP_ID:$tp_id"
     }
   );
 
-  $self->info($attr->{TP_ID}, { MODULE => $attr->{MODULE} });
+  $self->info($tp_id);
 
   return $self;
 }
@@ -543,6 +543,17 @@ sub del {
 
 #**********************************************************
 =head2 info($id, $attr) - Info
+
+  Arguments:
+    $id
+    $attr
+      TP_ID
+      MODULES
+      ID      - TP num
+      NAME
+
+  Results:
+    $self
 
 =cut
 #**********************************************************

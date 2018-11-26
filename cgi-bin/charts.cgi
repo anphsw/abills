@@ -342,7 +342,7 @@ sub build_graphics {
       $bind_values = [ $key ];
     }
 
-    my @chart_periods = (exists $conf{IPN_DETAIL_CLEAN_PERIOD} && $conf{IPN_DETAIL_CLEAN_PERIOD} >= 90)
+    my @chart_periods = ($conf{IPN_DETAIL_CLEAN_PERIOD} && $conf{IPN_DETAIL_CLEAN_PERIOD} >= 90)
       ? (1 ... 4)
       : (1 ... 3);
 

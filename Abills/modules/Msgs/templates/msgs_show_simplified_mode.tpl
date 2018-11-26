@@ -83,6 +83,7 @@
                                     <span class='time'>%DATE%</span>
                                     <h3 class='timeline-header'>%LOGIN%</h3>
                                     <div class='timeline-body'>%MESSAGE%</div>
+                                    %ATTACHMENT%
                                   </div>
                                 </li>
                                 %REPLY%

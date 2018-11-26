@@ -39,6 +39,7 @@
   var _EQUIPMENT  = '_{EQUIPMENT}_' || 'Equipment';
   var _SEARCH     = '_{SEARCH}_' || 'Search';
   var _BY_QUERY   = '_{BY_QUERY}_' || 'By Query';
+  var _QUERY      = '_{QUERY}_' || 'Query';
   var _BY_TYPE    = '_{BY_TYPE}_' || 'By Types';
   var _TOGGLE     = '_{TOGGLE}_' || 'Toggle';
   var _POLYGONS   = '_{POLYGONS}_' || 'Polygons';

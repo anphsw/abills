@@ -92,13 +92,15 @@ function ABillingLinkManager() {
         '&SHOW_ADDRESS=1&SHOW_UNREG=1&header=2';
   };
   
-  this.removeObject = function (layer_id, object_id, emulate) {
+  this.removeObject = function (layer_id, object_id, emulate, cable_id, well_id) {
 
     return 'index.cgi?get_index=maps_edit&header=2'
         + '&LAYER_ID=' + layer_id
         + '&OBJECT_ID=' + object_id
         + '&del=' + 1
-        + (emulate ? '&emulate=1' : '');
+        + (emulate ? '&emulate=1' : '')
+        + (cable_id ? ('&cable_id=' + cable_id) : '')
+        + (well_id ? ('&well_id=' + well_id) : '');
   };
   
   this.getMarkersForLayer = function (TYPE) {

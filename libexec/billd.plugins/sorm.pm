@@ -24,7 +24,7 @@ our (
 );
 
 use Time::Piece;
-use Abills::Base qw/cmd _bp/;
+use Abills::Base qw/cmd _bp in_array/;
 use Abills::Misc qw/translate_list/;
 use Users;
 use Internet;
@@ -32,6 +32,7 @@ use Abon;
 use Companies;
 use Finance;
 use Nas;
+use Hotspot;
 
 my $User = Users->new($db, $Admin, \%conf);
 my $Company = Companies->new($db, $Admin, \%conf);
@@ -39,6 +40,7 @@ my $Payments = Finance->payments($db, $Admin, \%conf);
 my $Internet = Internet->new($db, $Admin, \%conf);
 my $Nas = Nas->new($db, $Admin, \%conf);
 my $Abon = Abon->new($db, $Admin, \%conf);
+my $Hotspot = Hotspot->new( $db, $Admin, \%conf );
 my $start_date = "01.08.2017 12:00:00";
 my $isp_id    = $conf{SORM_ISP_ID} || 1;
 my $server_ip = $conf{SORM_SERVER} || '127.0.0.1';
@@ -64,6 +66,9 @@ elsif ($argv->{START}) {
   foreach (@$users_list) {
     user_info_report($_->{uid});
   }
+}
+elsif ($argv->{WIFI}) {
+  check_wifi();
 }
 else {
   check_admin_actions();
@@ -171,6 +176,46 @@ sub check_payments {
   open ($fh, '>', $filename) or die "Could not open file '$filename' $!";
   print $fh $last_payment_date;
   close $fh;
+
+  return 1;
+}
+
+#**********************************************************
+=head2 check_wifi()
+
+=cut
+#**********************************************************
+sub check_wifi {
+
+  my $filename = $var_dir . "sorm/last_wifi_action";
+  open (my $fh, '<', $filename) or die "Could not open file '$filename' $!";
+  my $last_wifi_date = <$fh>;
+  chomp $last_wifi_date;
+  close $fh;
+
+  my $wifi_list = $Hotspot->log_list({ 
+    DATE        => ">$last_wifi_date",
+    ACTION      => '_SHOW',
+    PHONE       => '_SHOW',
+    CID         => '_SHOW',
+    ACTION      => "2,3,5",
+    COLS_NAME   => 1,
+    PAGE_ROWS   => 99999,
+    SORT        => 'date', 
+    DESC        => 'DESC',
+  });
+
+  foreach my $line (@$wifi_list) {
+    wifi_report($line);
+  }
+
+  return 1 if ($Hotspot->{TOTAL} < 1);
+
+  $last_wifi_date = $wifi_list->[0]->{date} . "\n";
+
+  # open ($fh, '>', $filename) or die "Could not open file '$filename' $!";
+  # print $fh $last_wifi_date;
+  # close $fh;
 
   return 1;
 }
@@ -490,13 +535,97 @@ sub payment_report {
 }
 
 #**********************************************************
-=head2 _add_user_change($type, $string)
+=head2 wifi_report($attr)
+
+=cut
+#**********************************************************
+sub wifi_report {
+  my ($attr) = @_;
+
+  my $Sessions =();
+  if (in_array( 'Internet', \@MODULES )) {
+    require Internet::Sessions;
+    $Sessions = Internet::Sessions->new($db, $Admin, \%conf);
+  }
+  else {
+    $Sessions = Dv_Sessions->new($db, $Admin, \%conf);
+  }
+
+  my $online_list = $Sessions->online({ 
+    CLIENT_IP   => '_SHOW',
+    UID         => '_SHOW',
+    STARTED     => ">$attr->{date}",
+    CID         => $attr->{CID},
+    COLS_NAME   => 1,
+    COLS_UPPER  => 1,
+    SORT        => 'started',
+    PAGE_ROWS   => 1
+  });
+
+  if ($Sessions->{TOTAL}) {
+    $attr->{uid}  = $online_list->[0]->{uid};
+    $attr->{ip}   = $online_list->[0]->{client_ip};
+    $attr->{date} = $online_list->[0]->{started};
+  }
+  else {
+    my $sessions_list = $Sessions->list({
+      IP          => '_SHOW',
+      UID         => '_SHOW',
+      DATE        => ">$attr->{date}",
+      CID         => $attr->{CID},
+      COLS_NAME   => 1,
+      COLS_UPPER  => 1,
+      SORT        => 1,
+      PAGE_ROWS   => 1
+    });
+
+    if ($Sessions->{TOTAL}) {
+      $attr->{uid}  = $sessions_list->[0]->{uid};
+      $attr->{ip}   = $sessions_list->[0]->{ip};
+      $attr->{date} = $sessions_list->[0]->{date};
+    }
+    else {
+      print "Can't find session info for $attr->{CID}, $attr->{id} line, hotspot_log\n";
+      return 1;
+    }
+  }
+
+  if (!$attr->{phone}) {
+    $User->pi({ UID => $attr->{uid} });
+    $attr->{phone} = $User->{PHONE};
+  }
+
+  if (!$attr->{phone}) {
+    print "Can't find phone for $attr->{CID} Skip line $attr->{id}.\n";
+    return 1;
+  }
+
+  if (!$attr->{login}) {
+    print "Can't find user with $attr->{CID} Skip line $attr->{id}.\n";
+    return 1;
+  }
+
+  my $string = '"' . $isp_id .'";';                             # идентификатор филиала из справочника
+  $string   .= '"' . $attr->{phone} . '";';                     # телефон
+  $string   .= '"' . $attr->{login} . '";';                     # логин
+  $string   .= '"' . $attr->{ip} . '";';                        # IP
+  $string   .= '"' . $attr->{CID} . '";';                       # МАС-адрес
+  $string   .= '"' . $attr->{date} . '";';                      # дата и время подключения
+  $string   .= '"1"' . "\n";                                    # номер антены (из справочника)
+
+  _add_report('wifi', $string);
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _add_report($type, $string)
 
 =cut
 #**********************************************************
 sub _add_report {
   my ($type, $string) = @_;
-print "$type : $string";
+# print "$type : $string";
   my %reports = (
     user    => "$var_dir/sorm/abonents/abonents.csv.utf",
     abon    => "$var_dir/sorm/abonents/services.csv.utf",
@@ -506,6 +635,7 @@ print "$type : $string";
     gates   => "$var_dir/sorm/dictionaries/gates.csv.utf",
     pool    => "$var_dir/sorm/dictionaries/ip-numbering-plan.csv.utf",
     sup_s   => "$var_dir/sorm/dictionaries/supplement-services.csv.utf",
+    wifi    => "$var_dir/sorm/wi-fi/wifi.csv.utf",
   );
 
   my $filename = $reports{$type};
@@ -559,7 +689,7 @@ sub send_changes {
     $ftp->put($file) or die "$file put failed ", $ftp->message;
     print $ftp->message;
     $ftp->quit;
-    unlink $file;
+    # unlink $file;
     unlink '/usr/abills/var/sorm/abonents/abonents.csv.utf';
   }
 
@@ -576,7 +706,7 @@ sub send_changes {
     $ftp->put($file) or die "$file put failed ", $ftp->message;
     print $ftp->message;
     $ftp->quit;
-    unlink $file;
+    # unlink $file;
     unlink '/usr/abills/var/sorm/payments/payments.csv.utf';
   }
 
@@ -593,7 +723,7 @@ sub send_changes {
     $ftp->put($file) or die "$file put failed ", $ftp->message;
     print $ftp->message;
     $ftp->quit;
-    unlink $file;
+    # unlink $file;
     unlink '/usr/abills/var/sorm/services/services.csv.utf';
   }
 
@@ -610,7 +740,7 @@ sub send_changes {
     $ftp->put($file) or die "$file put failed ", $ftp->message;
     print $ftp->message;
     $ftp->quit;
-    unlink $file;
+    # unlink $file;
     unlink '/usr/abills/var/sorm/dictionaries/gates.csv.utf';
   }
 
@@ -627,7 +757,7 @@ sub send_changes {
     $ftp->put($file) or die "$file put failed ", $ftp->message;
     print $ftp->message;
     $ftp->quit;
-    unlink $file;
+    # unlink $file;
     unlink '/usr/abills/var/sorm/dictionaries/doc-types.csv.utf';
   }
 
@@ -644,7 +774,7 @@ sub send_changes {
     $ftp->put($file) or die "$file put failed ", $ftp->message;
     print $ftp->message;
     $ftp->quit;
-    unlink $file;
+    # unlink $file;
     unlink '/usr/abills/var/sorm/dictionaries/pay-types.csv.utf';
   }
 
@@ -661,7 +791,7 @@ sub send_changes {
     $ftp->put($file) or die "$file put failed ", $ftp->message;
     print $ftp->message;
     $ftp->quit;
-    unlink $file;
+    # unlink $file;
     unlink '/usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf';
   }
 
@@ -678,12 +808,28 @@ sub send_changes {
     $ftp->put($file) or die "$file put failed ", $ftp->message;
     print $ftp->message;
     $ftp->quit;
-    unlink $file;
+    # unlink $file;
     unlink '/usr/abills/var/sorm/dictionaries/supplement-services.csv.utf';
+  }
+
+  if (-e "/usr/abills/var/sorm/wi-fi/wifi.csv.utf") {
+    my $file = join('_', 
+      "/usr/abills/var/sorm/wi-fi/wifi",
+      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+    $file .= ".csv";
+    print "Send $file\n";
+    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/wi-fi/wifi.csv.utf > $file");
+    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+    $ftp->cwd("/wi-fi") or die "Cannot change working directory ", $ftp->message;
+    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    print $ftp->message;
+    $ftp->quit;
+    # unlink $file;
+    unlink '/usr/abills/var/sorm/wi-fi/wifi.csv.utf';
   }
   
   return 1;
 }
-
 
 1

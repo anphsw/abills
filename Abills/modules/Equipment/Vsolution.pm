@@ -25,13 +25,13 @@ sub _vsolution_get_ports {
     PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT'
   });
 
-  foreach my $key ( keys %{ $ports_info } ) {
+  foreach my $key (keys %{$ports_info}) {
     if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} =~ /^1$/ && $ports_info->{$key}{PORT_NAME} =~ /(.PON)(\d+\/\d+)$/) {
       my $type = lc($1);
       #my $branch = decode_port($key);
-      $ports_info->{$key}{BRANCH}      = $2;
-      $ports_info->{$key}{PON_TYPE}    = $type;
-      $ports_info->{$key}{SNMP_ID}     = $key;
+      $ports_info->{$key}{BRANCH} = $2;
+      $ports_info->{$key}{PON_TYPE} = $type;
+      $ports_info->{$key}{SNMP_ID} = $key;
       $ports_info->{$key}{BRANCH_DESC} = $ports_info->{$key}{PORT_DESCR};
     }
     else {
@@ -54,10 +54,10 @@ sub _vsolution_get_ports {
 
 =cut
 #**********************************************************
-sub _vsolution_onu_list{
+sub _vsolution_onu_list {
   my ($port_list, $attr) = @_;
 
-  #my $cols = ['PORT_ID', 'ONU_ID', 'ONU_SNMP_ID', 'PON_TYPE', 'ONU_DHCP_PORT'];
+  my @cols      = ('PORT_ID', 'ONU_ID', 'ONU_SNMP_ID', 'PON_TYPE', 'ONU_DHCP_PORT');
   my $debug     = $attr->{DEBUG} || 0;
   my @all_rows  = ();
   my %pon_types = ();
@@ -70,59 +70,70 @@ sub _vsolution_onu_list{
     TEST_OID => 'PORTS,UPTIME'
   });
 
-  if(! $snmp_info->{UPTIME}) {
+  if (!$snmp_info->{UPTIME}) {
     print "$attr->{SNMP_COMMUNITY} Not response\n";
     return [];
   }
 
-  my $ether_ports = $snmp_info->{PORTS};
-
-  if($port_list) {
-    foreach my $snmp_id (keys %{ $port_list }) {
+  #my $ether_ports = $snmp_info->{PORTS};
+  if ($port_list) {
+    foreach my $snmp_id (keys %{$port_list}) {
       $pon_types{ $port_list->{$snmp_id}{PON_TYPE} } = 1;
       $port_ids{$port_list->{$snmp_id}{BRANCH}} = $port_list->{$snmp_id}{ID};
     }
   }
   else {
-    %pon_types = ( epon => 1, gpon => 1 );
+    %pon_types = (epon => 1, gpon => 1);
   }
 
-  my $ports_descr = snmp_get({ %$attr,
+  my $pon_ports_descr = snmp_get({
+    %$attr,
     WALK    => 1,
     OID     => '.1.3.6.1.4.1.37950.1.1.5.10.1.2.1.1.2',
     VERSION => 2,
     TIMEOUT => $attr->{TIMEOUT} || 2
   });
 
-  if (! $ports_descr || $#{$ports_descr} < 1) {
+  if (!$pon_ports_descr || $#{$pon_ports_descr} < 1) {
     return [];
   }
 
   foreach my $pon_type (keys %pon_types) {
-    my $snmp = _vsolution({TYPE => $pon_type});
+    my $snmp = _vsolution({ TYPE => $pon_type });
 
-    if(! $snmp->{ONU_STATUS}->{OIDS}) {
-      print "$pon_type: no oids\n" if($debug > 0);
+    if (!$snmp->{ONU_STATUS}->{OIDS}) {
+      print "$pon_type: no oids\n" if ($debug > 0);
       next;
     }
+    else {
+      if($debug > 3) {
+        print "PON TYPE: $pon_type\n";
+      }
+    }
 
-#    my $onu_status_list = snmp_get({ %$attr,
-#      WALK    => 1,
-#      OID     => $snmp->{ONU_STATUS}->{OIDS},
-#    });
+    #    my $onu_status_list = snmp_get({ %$attr,
+    #      WALK    => 1,
+    #      OID     => $snmp->{ONU_STATUS}->{OIDS},
+    #    });
 
-#    my %onu_cur_status = ();
-#    foreach my $line ( @$onu_status_list ) {
-#      my($port_index, $status)=split(/:/, $line);
-#      $onu_cur_status{$port_index}=$status;
-#    }
+    #    my %onu_cur_status = ();
+    #    foreach my $line ( @$onu_status_list ) {
+    #      my($port_index, $status)=split(/:/, $line);
+    #      $onu_cur_status{$port_index}=$status;
+    #    }
 
     #Get info
     my %onu_snmp_info = ();
-    foreach my $oid_name ( keys %{ $snmp } ) {
+    foreach my $oid_name (keys %{$snmp}) {
       if ($snmp->{$oid_name}->{OIDS}) {
         my $oid = $snmp->{$oid_name}->{OIDS};
-        print ">> $oid\n" if ($debug > 3);
+
+        if($oid_name eq 'reset') {
+          next
+        }
+
+        push @cols, $oid_name;
+        print "PON ONU INFO $oid_name: $oid\n" if ($debug > 3);
         my $result = snmp_get({
           %{$attr},
           OID     => $oid,
@@ -132,94 +143,63 @@ sub _vsolution_onu_list{
         });
 
         foreach my $line (@$result) {
-          next if (! $line);
-          my ($interface_index, $value)=split(/:/, $line, 2);
+          next if (!$line);
+          my ($interface_index, $value) = split(/:/, $line, 2);
           my $function = $snmp->{$oid_name}->{PARSER};
 
-          if(! defined($value)) {
+          if (!defined($value)) {
             print ">> $line\n";
           }
-
-          if ($function && defined( &{$function} ) ) {
-            ($value) = &{ \&$function }($value);
+          elsif($debug > 4) {
+            print " IF_INDEX: $interface_index RESULT: $line\n";
           }
 
-          $onu_snmp_info{$interface_index}{$oid_name}=$value;
+          if ($function && defined(&{$function})) {
+            ($value) = &{\&$function}($value);
+          }
+
+          if($interface_index =~ /^\d+$/) {
+            print "$oid_name: Index: $interface_index OID: $oid VALUE: $value\n";
+            next;
+          }
+
+          $onu_snmp_info{$oid_name}{$interface_index} = $value;
         }
       }
     }
 
-    foreach my $line (@$ports_descr) {
-      next if (! $line);
-      my ($interface_index, $type) = split( /:/, $line, 2 );
-      if ($type && $type =~ /(.+):(.+)/) {
-        $type =~ /(\d+)\/(\d+):(\d+)/;
-        my $device_index = $3;
-        my $brench_index = $2;
-        my %onu_info     = ();
+    my $onu_count = 0;
+    foreach my $key (sort keys %{ $onu_snmp_info{ONU_MAC_SERIAL} }) {
+      my %onu_info = ();
+      $onu_count++;
+      my ($branch, $onu_id) = split(/\./, $key, 2);
 
-        if($onu_snmp_info{$interface_index}) {
-          %onu_info = %{ $onu_snmp_info{$interface_index} };
+      for (my $i = 0; $i <= $#cols; $i++) {
+        my $value = '';
+        my $oid_name = $cols[$i];
+        if ($oid_name eq 'ONU_ID') {
+          $value = $onu_id;
         }
-
-        $onu_info{PORT_ID}    = $port_ids{$1 . '/' . $brench_index};
-        $onu_info{ONU_ID}     = $device_index;
-        $onu_info{ONU_SNMP_ID}= $interface_index;
-        $onu_info{PON_TYPE}   = $pon_type;
-
-        my $port_id;
-
-        # option 82 - hn-type
-        if ($conf{DHCP_O82_VSOLUTION_TYPE} && $conf{DHCP_O82_VSOLUTION_TYPE} eq 'hn-type') {
-          $type =~ /\/(\d+)/;
-          my $olt_num = $1 + $ether_ports;
-          $port_id = sprintf( "%02x%02x", $olt_num, $device_index );
+        elsif ($oid_name eq 'PORT_ID') {
+          #$value = $port_list->{$snmp_id}->{ID};
+          $value = $port_ids{'0/'.$branch} ;
         }
-        # option 82 - cm-type
+        elsif ($oid_name eq 'PON_TYPE') {
+          $value = $pon_type;
+        }
+        elsif ($oid_name eq 'ONU_DHCP_PORT') {
+          $value = $branch . ':' . $onu_id;
+        }
+        elsif ($oid_name eq 'ONU_SNMP_ID') {
+          $value = $key;
+        }
         else {
-          $type =~ /\/(\d+)/;
-          my $olt_num = $1 + $ether_ports;
-          $port_id = sprintf( "%02x%02x", $olt_num, $device_index );
-          #$port_id = sprintf( "%02d%02x", $brench_index, $interface_index );
+          $value = $onu_snmp_info{$cols[$i]}{$key};
         }
-
-#        #if($debug > 1) {
-#          my $olt_num = $1 + 6;
-#          my $hn_type = sprintf( "%02x%02x", $olt_num, $device_index );
-#          print "$port_id '$conf{DHCP_O82_VSOLUTION_TYPE}' // cm-type: $port_id hn-type: $hn_type / Olt_num: $olt_num BRanch index: $brench_index Int_index: $interface_index Device: $device_index ($type) ----> $onu_info{ONU_MAC_SERIAL}\n";
-#        #}
-#        print "?? $attr->{SNMP_COMMUNITY}\n\n";
-        $onu_info{ONU_DHCP_PORT} = $port_id;
-
-        foreach my $oid_name ( keys %{ $snmp } ){
-          print "$oid_name -- ". ($snmp->{$oid_name}->{NAME}  || 'Unknow oid') .'--'. ($snmp->{$oid_name}->{OIDS} || 'unknown') ." \n"  if ($debug > 1);
-          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' ){
-            next;
-          }
-          elsif ( $oid_name =~ /POWER|TEMPERATURE/ && $onu_snmp_info{$interface_index}{STATUS} && $onu_snmp_info{$interface_index}{STATUS} ne '3' ){
-            $onu_info{$oid_name} = '';
-            next;
-          }
-          elsif ( $oid_name eq 'STATUS' ){
-            $onu_info{$oid_name} = $onu_snmp_info{$interface_index}{STATUS};
-            next;
-          }
-
-#          my $oid_value = '';
-#          if ($snmp->{$oid_name}->{OIDS}) {
-#            my $oid = $snmp->{$oid_name}->{OIDS}.'.'.$interface_index;
-#            $oid_value = snmp_get( { %{$attr}, OID => $oid, SILENT => 1 } );
-#          }
-#
-#          my $function = $snmp->{$oid_name}->{PARSER};
-#          if ($function && defined( &{$function} ) ) {
-#            ($oid_value) = &{ \&$function }($oid_value);
-#          }
-#
-#          $onu_info{$oid_name} = $oid_value;
-        }
-        push @all_rows, {%onu_info};
+        $onu_info{$oid_name}=$value;
       }
+
+      push @all_rows, \%onu_info;
     }
   }
 
@@ -235,87 +215,88 @@ sub _vsolution_onu_list{
 
 =cut
 #**********************************************************
-sub _vsolution{
+sub _vsolution {
   my ($attr) = @_;
 
   my %snmp = (
     epon => {
       'ONU_MAC_SERIAL' => {
         NAME   => 'Mac/Serial',
-        OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.2.1.5',
-        PARSER => 'bin2mac'
-      },
-      'ONU_STATUS' => {
-        NAME   => 'STATUS',
-        OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.12.1.5',
+        OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.5', #'.1.3.6.1.4.1.37950.1.1.5.12.2.1.2.1.5',
         PARSER => ''
       },
-      'ONU_TX_POWER' => {
+      'ONU_STATUS'     => {
+        NAME   => 'STATUS',
+        OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.4', #'.1.3.6.1.4.1.37950.1.1.5.12.1.12.1.5',
+        PARSER => ''
+      },
+      'ONU_TX_POWER'   => {
         NAME   => 'ONU_TX_POWER',
         OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.8.1.6',
         PARSER => '_vsolution_convert_power'
       }, #tx_power = tx_power * 0.1;
-      'ONU_RX_POWER' => {
+      'ONU_RX_POWER'   => {
         NAME   => 'ONU_RX_POWER',
         OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.8.1.7',
         PARSER => '_vsolution_convert_power'
       }, #tx_power = tx_power * 0.1;
-      'ONU_DESC' => {
+      'ONU_DESC'       => {
         NAME   => 'DESCRIBE',
-        OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.12.1.10',
+        OIDS   => 'iso.3.6.1.4.1.37950.1.1.5.12.1.25.1.9',
+		  #'.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.6', #'.1.3.6.1.4.1.37950.1.1.5.12.1.12.1.10',
         PARSER => ''
       },
-      'ONU_IN_BYTE' => {
-       NAME   => 'PORT_IN',
-        OIDS   => '.1.3.6.1.4.1.37950.1.1.5.10.1.2.2.1.44',
+      'ONU_IN_BYTE'    => {
+        NAME   => 'PORT_IN',
+        OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.20.1.3', #'.1.3.6.1.4.1.37950.1.1.5.10.1.2.2.1.44',
         PARSER => ''
       },
-      'ONU_OUT_BYTE' => {
+      'ONU_OUT_BYTE'   => {
         NAME   => 'PORT_OUT',
-        OIDS   => '.1.3.6.1.4.1.37950.1.1.5.10.1.2.2.1.45',
+        OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.20.1.10', #'.1.3.6.1.4.1.37950.1.1.5.10.1.2.2.1.45',
         PARSER => ''
       },
-      'TEMPERATURE' => {
+      'TEMPERATURE'    => {
         NAME   => 'TEMPERATURE',
         OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.8.1.3',
         PARSER => '_vsolution_convert_temperature'
-      }, #temperature = temperature / 256;
-      'reset' => {
-        NAME  => '',
-        OIDS  => '.1.3.6.1.4.1.37950.1.1.5.12.1.15',
+      }, #@remared -> temperature = temperature / 256;
+      'reset'          => {
+        NAME        => '',
+        OIDS        => '.1.3.6.1.4.1.37950.1.1.5.12.1.15',
         RESET_VALUE => 0,
-        PARSER => ''
+        PARSER      => ''
       },
-      main_onu_info => {
-        'HARD_VERSION' => {
-          NAME => 'VERSION',
-          OIDS => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.2.1.6',
+      main_onu_info    => {
+        'HARD_VERSION'     => {
+          NAME   => 'VERSION',
+          OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.2.1.6',
           PARSER => ''
         },
-        'FIRMWARE' => {
-          NAME => 'FIRMWARE',
-          OIDS => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.2.1.7',
+        'FIRMWARE'         => {
+          NAME   => 'FIRMWARE',
+          OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.2.1.7',
           PARSER => ''
         },
-        'VOLTAGE' => {
-          NAME => 'VOLTAGE',
-          OIDS => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.8.1.4',
+        'VOLTAGE'          => {
+          NAME   => 'VOLTAGE',
+          OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.2.1.8.1.4',
           PARSER => '_vsolution_convert_voltage'
         }, #voltage = voltage * 0.0001;
-        'MAC' => {
+        'MAC'              => {
           NAME   => 'MAC',
           OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.9.1.5',
           PARSER => '_vsolution_mac_list',
           WALK   => 1
         },
-        'VLAN' => {
+        'VLAN'             => {
           NAME   => 'VLAN',
           OIDS   => '.1.3.6.1.4.1.37950.1.1.5.10.2.6.1.5',
           PARSER => '',
           WALK   => 1
         },
         # 0-1 - Active
-       # 2 - Not connected
+        # 2 - Not connected
         'ONU_PORTS_STATUS' => {
           NAME   => 'ONU_PORTS_STATUS',
           OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.4',
@@ -342,9 +323,9 @@ sub _vsolution{
 =cut
 #**********************************************************
 sub _vsolution_mac_list {
-  my($value) = @_;
+  my ($value) = @_;
 
-  my(undef, $v)=split(/:/, $value);
+  my (undef, $v) = split(/:/, $value);
   $v = bin2mac($v) . ';';
 
   return '', $v;
@@ -355,7 +336,7 @@ sub _vsolution_mac_list {
 
 =cut
 #**********************************************************
-sub _vsolution_onu_status{
+sub _vsolution_onu_status {
   #  my %status = (
   #    0  => 'free',
   #    1  => 'allocated:text-success',
@@ -375,10 +356,10 @@ sub _vsolution_onu_status{
   #    15 => 'unconfigured',
   #  );
   my %status = (
-      0 => 'Authenticated:text-green',
-      1 => 'Registered:text-green',
-      2 => 'Deregistered:text-red',
-      3 => 'Auto_config:text-green'
+    0 => 'Authenticated:text-green',
+    1 => 'Registered:text-green',
+    2 => 'Deregistered:text-red',
+    3 => 'Auto_config:text-green'
   );
   return \%status;
 }
@@ -390,10 +371,10 @@ sub _vsolution_onu_status{
 sub _vsolution_set_desc {
   my ($attr) = @_;
 
-  my $oid = $attr->{OID} || '' ;
+  my $oid = $attr->{OID} || '';
 
   if ($attr->{PORT}) {
-#    $oid = '1.3.6.1.2.1.31.1.1.1.18.'.$attr->{PORT};
+    #    $oid = '1.3.6.1.2.1.31.1.1.1.18.'.$attr->{PORT};
   }
 
   snmp_set({
@@ -405,13 +386,18 @@ sub _vsolution_set_desc {
 }
 
 #**********************************************************
-=head2 _vsolution_convert_power();
+=head2 _vsolution_convert_power($power);
+
+  Arguments:
+    $power
 
 =cut
 #**********************************************************
-sub _vsolution_convert_power{
+sub _vsolution_convert_power {
   my ($power) = @_;
-  $power //= 0;
+
+  $power =~ /\s\([0-9\.]+\s/;
+  $power = $1 || 0;
 
   if (-65535 == $power) {
     $power = '';
@@ -428,11 +414,14 @@ sub _vsolution_convert_power{
 
 =cut
 #**********************************************************
-sub _vsolution_convert_temperature{
+sub _vsolution_convert_temperature {
   my ($temperature) = @_;
 
-  $temperature //= 0;
-  $temperature = ($temperature / 256);
+  $temperature ||= 0;
+
+  $temperature =~ s/\s+C//;
+
+#@  $temperature = ($temperature / 256);
   $temperature = sprintf("%.2f", $temperature);
 
   return $temperature;
@@ -443,7 +432,7 @@ sub _vsolution_convert_temperature{
 
 =cut
 #**********************************************************
-sub _vsolution_convert_voltage{
+sub _vsolution_convert_voltage {
   my ($voltage) = @_;
 
   $voltage //= 0;
@@ -459,7 +448,7 @@ sub _vsolution_convert_voltage{
 
 =cut
 #**********************************************************
-sub _vsolution_convert_distance{
+sub _vsolution_convert_distance {
   my ($distance) = @_;
 
   $distance //= 0;
@@ -489,20 +478,20 @@ sub _vsolution_get_fdb {
 
   my $debug = $attr->{DEBUG} || 0;
 
-  print "vsolution mac " if($debug > 1);
-  my $perl_scalar = _get_snmp_oid( $attr->{SNMP_TPL} || 'vsolution.snmp', $attr);
- my $oid = '.1.3.6.1.4.1.37950.1.1.5.10.3.2.1.3';
-  if ($perl_scalar && $perl_scalar->{FDB_OID}){
+  print "vsolution mac " if ($debug > 1);
+  my $perl_scalar = _get_snmp_oid($attr->{SNMP_TPL} || 'vsolution.snmp', $attr);
+  my $oid = '.1.3.6.1.4.1.37950.1.1.5.10.3.2.1.3';
+  if ($perl_scalar && $perl_scalar->{FDB_OID}) {
     $oid = $perl_scalar->{FDB_OID};
   }
 
   my ($expr_, $values, $attribute);
   my @EXPR_IDS = ();
 
-  if ($perl_scalar && $perl_scalar->{FDB_EXPR} ){
+  if ($perl_scalar && $perl_scalar->{FDB_EXPR}) {
     $perl_scalar->{FDB_EXPR} =~ s/\%\%/\\/g;
-    ($expr_, $values, $attribute) = split( /\|/, $perl_scalar->{FDB_EXPR} || '' );
-    @EXPR_IDS = split( /,/, $values );
+    ($expr_, $values, $attribute) = split(/\|/, $perl_scalar->{FDB_EXPR} || '');
+    @EXPR_IDS = split(/,/, $values);
   }
 
   #Get port name list
@@ -518,18 +507,18 @@ sub _vsolution_get_fdb {
     });
   }
 
-  next if(! $ports_name);
+  return {} if (!$ports_name);
 
   my $count = 0;
   foreach my $iface (@$ports_name) {
     print "Iface: $iface \n" if ($debug > 1);
-    my($id, $port_name)=split(/:/, $iface, 2);
+    my ($id, $port_name) = split(/:/, $iface, 2);
 
     #get macs
     my $mac_list = snmp_get({
       %$attr,
       WALK    => 1,
-      OID     => '.1.3.6.1.4.1.37950.1.1.5.10.3.2.1.3'.$id,
+      OID     => '.1.3.6.1.4.1.37950.1.1.5.10.3.2.1.3' . $id,
       VERSION => 2,
       TIMEOUT => $attr->{TIMEOUT} || 4
     });
@@ -537,41 +526,41 @@ sub _vsolution_get_fdb {
     foreach my $line (@$mac_list) {
       #print "$line <br>";
       #my ($oid, $value);
-      next if (! $line);
+      next if (!$line);
       my $vlan;
       my $mac_dec;
       my $port = $id;
 
-      if ($perl_scalar && $perl_scalar->{FDB_EXPR} ){
+      if ($perl_scalar && $perl_scalar->{FDB_EXPR}) {
         my %result = ();
 
-        if ( my @res = ($line =~ /$expr_/g) ){
-          for ( my $i = 0; $i <= $#res; $i++ ){
+        if (my @res = ($line =~ /$expr_/g)) {
+          for (my $i = 0; $i <= $#res; $i++) {
             $result{$EXPR_IDS[$i]} = $res[$i];
           }
         }
 
-        if ( $result{MAC_HEX} ){
-          $result{MAC} = _mac_former( $result{MAC_HEX}, { BIN => 1 } );
+        if ($result{MAC_HEX}) {
+          $result{MAC} = _mac_former($result{MAC_HEX}, { BIN => 1 });
         }
 
-        if ( $result{PORT_DEC} ){
+        if ($result{PORT_DEC}) {
           $result{PORT} = dec2hex($result{PORT_DEC});
         }
 
-        $vlan    = $result{VLAN} || 0;
+        $vlan = $result{VLAN} || 0;
         $mac_dec = $result{MAC} || '';
       }
 
-      my $mac = _mac_former( $mac_dec );
+      my $mac = _mac_former($mac_dec);
 
-      if ( $attr->{FILTER} ){
-        $attr->{FILTER} = lc( $attr->{FILTER} );
-        if ( $mac =~ m/($attr->{FILTER})/ ){
+      if ($attr->{FILTER}) {
+        $attr->{FILTER} = lc($attr->{FILTER});
+        if ($mac =~ m/($attr->{FILTER})/) {
           my $search = $1;
           $mac =~ s/$search/<b>$search<\/>/g;
         }
-        else{
+        else {
           next;
         }
       }
@@ -590,9 +579,9 @@ sub _vsolution_get_fdb {
       $count++;
     }
 
-#    if($count > 3) {
-#      last;
-#    }
+    #    if($count > 3) {
+    #      last;
+    #    }
   }
 
   return %fdb_hash;

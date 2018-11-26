@@ -59,6 +59,10 @@ sub microimpuls_online {
     }
 
     my $Microimpuls_api = tv_load_service('', { SERVICE_ID => $service->{id} });
+    if ($argv->{PASSWORD_CHANGE}) {
+      change_users_password($service->{id}, $Microimpuls_api);
+      return 1;
+    }
     synchronization_tariffs($service->{id}, $Microimpuls_api);
   }
 
@@ -86,12 +90,13 @@ sub synchronization_tariffs {
   my %Billing_tarrifs = ();
 
   my $Users = $Iptv->user_list({
-    SERVICE_ID => $Service_id,
-    TP_ID      => '_SHOW',
-    PIN        => '_SHOW',
-    TP_FILTER  => '_SHOW',
-    COLS_NAME  => 1,
-    PAGE_ROWS  => 99999,
+    SERVICE_ID    => $Service_id,
+    TP_ID         => '_SHOW',
+    PIN           => '_SHOW',
+    TP_FILTER     => '_SHOW',
+    PASSWORD      => '_SHOW',
+    COLS_NAME     => 1,
+    PAGE_ROWS     => 99999,
   });
 
   foreach my $User (@$Users) {
@@ -106,8 +111,10 @@ sub synchronization_tariffs {
         $Micro_tariffs = $Microimpuls_api->user_add({
           TP_ID        => $User->{tp_id},
           UID          => $User->{uid},
+          password     => $User->{password} || '',
           PIN          => $User->{pin},
           TP_FILTER_ID => $User->{filter_id},
+          BILLD        => 1,
         });
       }
       else {
@@ -148,6 +155,47 @@ sub synchronization_tariffs {
           }
         }
       }
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 synchronization_tariffs($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+
+=cut
+#**********************************************************
+sub change_users_password {
+
+  my $Service_id = shift;
+  my $Microimpuls_api = shift;
+
+  my $Users = $Iptv->user_list({
+    SERVICE_ID    => $Service_id,
+    TP_ID         => '_SHOW',
+    PIN           => '_SHOW',
+    UID           => $argv->{UID} || '_SHOW',
+    TP_FILTER     => '_SHOW',
+    PASSWORD      => '_SHOW',
+    COLS_NAME     => 1,
+    PAGE_ROWS     => 99999,
+  });
+
+  foreach my $User (@$Users) {
+    if ($User->{tp_id}) {
+      print "Change user password - $User->{uid}...\n";
+
+      $Microimpuls_api->_account_modify_pin({
+        password    => $User->{password} || '',
+        parent_code => $User->{pin} || '',
+        abonement   => $User->{uid} || 0,
+      });
     }
   }
 

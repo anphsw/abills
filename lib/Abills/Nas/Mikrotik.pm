@@ -20,73 +20,73 @@ my %BP_ARGS = (TO_CONSOLE => 1);
 sub new($;$) {
   my $class = shift;
   my ($host, $CONF, $attr) = @_;
-  
+
   my $self = {};
   bless($self, $class);
-  
+
   $self->{nas_id} = $host->{NAS_ID} || $host->{nas_id};
-  
+
   $self->{nas_mng_password} = $host->{NAS_MNG_PASSWORD} || $host->{nas_mng_password};
-  
+
   my $nas_ip_mng_port = $host->{NAS_MNG_IP_PORT} || $host->{nas_mng_ip_port} || return 0;
   my ($nas_ip, $coa_port, $management_port) = split(":", $nas_ip_mng_port);
   $management_port ||= $coa_port || '22';
-  
+
   $self->{backend} = $attr->{backend} || (($management_port eq '8728') ? 'api' : 'ssh');
-  
+
   $self->{ip_address} = $nas_ip || $host->{NAS_IP};
   $self->{port} = $management_port;
   $self->{coa_port} = (!defined $coa_port || $coa_port eq $management_port)
     ? '1700'
     : $coa_port;
-  
+
   $self->{admin} = $host->{nas_mng_user} || $host->{NAS_MNG_USER} || '';
-  
-  if ( $self->{backend} eq 'ssh' ) {
+
+  if ($self->{backend} eq 'ssh') {
     require Abills::Nas::Mikrotik::SSH;
     Abills::Nas::Mikrotik::SSH->import();
     $self->{executor} = Abills::Nas::Mikrotik::SSH->new($host, $CONF, $attr);
   }
-  elsif ( $self->{backend} eq 'api' ) {
+  elsif ($self->{backend} eq 'api') {
     require Abills::Nas::Mikrotik::API;
     Abills::Nas::Mikrotik::API->import();
     $self->{executor} = Abills::Nas::Mikrotik::API->new($host, $CONF, $attr);
   }
   else {
-    return 0;
+    return $self;
   }
-  
+
   $self->{nas_type} = $host->{nas_type} || $host->{NAS_TYPE};
-  
+
   # Allowing to use custom message functions
-  if ( $attr->{MESSAGE_CALLBACK} && ref $attr->{MESSAGE_CALLBACK} eq 'CODE' ) {
+  if ($attr->{MESSAGE_CALLBACK} && ref $attr->{MESSAGE_CALLBACK} eq 'CODE') {
     $self->{message_cb} = $attr->{MESSAGE_CALLBACK};
   }
   else {
     $self->{message_cb} = sub {print shift};
   }
   # Allowing to use custom error message functions
-  if ( $attr->{ERROR_CALLBACK} && ref $attr->{ERROR_CALLBACK} eq 'CODE' ) {
+  if ($attr->{ERROR_CALLBACK} && ref $attr->{ERROR_CALLBACK} eq 'CODE') {
     $self->{error_cb} = $attr->{ERROR_CALLBACK};
   }
   else {
     $self->{error_cb} = sub {print shift};
   }
-  
+
   # Configuring debug options
   $self->{debug} = 0;
-  if ( $attr->{DEBUG} ) {
+  if ($attr->{DEBUG}) {
     $self->{debug} = $attr->{DEBUG};
-    if ( $attr->{FROM_WEB} ) {
+    if ($attr->{FROM_WEB}) {
       delete $BP_ARGS{TO_CONSOLE};
       $BP_ARGS{TO_WEB_CONSOLE} = 1;
     }
   }
-  
-  if ( !ref($self->{executor}) && !$self->{executor} ) {
-    return 0;
+
+  if (!ref($self->{executor}) && !$self->{executor}) {
+    return $self;
   }
-  
+
   return $self;
 }
 
@@ -103,8 +103,8 @@ sub new($;$) {
 #**********************************************************
 sub execute {
   my $self = shift;
-  _bp("DEBUG", ("Was called from " . join(", ", caller) . "\n"), \%BP_ARGS) if ( $self->{debug} );
-  
+  _bp("DEBUG", ("Was called from " . join(", ", caller) . "\n"), \%BP_ARGS) if ($self->{debug});
+
   return $self->{executor}->execute(@_);
 }
 
@@ -115,12 +115,12 @@ sub execute {
 #**********************************************************
 sub has_access {
   my $self = shift;
-  
+
   my $has_access = $self->{executor}->check_access();
-  if ( $has_access == - 5 && $self->{backend} eq 'ssh' ) {
+  if ($has_access == -5 && $self->{backend} eq 'ssh') {
     $self->generate_key($self->{admin});
   }
-  
+
   return $has_access;
 }
 
@@ -137,13 +137,13 @@ sub has_access {
 #**********************************************************
 sub generate_key {
   my $self = shift;
-  my ( $admin_name ) = @_;
-  
+  my ($admin_name) = @_;
+
   our $base_dir;
   $base_dir ||= '/usr/abills';
-  
-  cmd(qq { $base_dir/misc/certs_create.sh ssh $admin_name SKIP_CERT_UPLOAD -silent }, { SHOW_RESULT => 1 });
-  
+
+  cmd(qq{ $base_dir/misc/certs_create.sh ssh $admin_name SKIP_CERT_UPLOAD -silent }, { SHOW_RESULT => 1 });
+
   return 1;
 }
 
@@ -164,12 +164,12 @@ sub generate_key {
 sub upload_key {
   my $self = shift;
   my ($attr) = @_;
-  
-  if ( !$self->{backend} eq 'api' ) {
+
+  if (!$self->{backend} eq 'api') {
     print " !!! Only API supported \n";
     return 0;
   }
-  
+
   return $self->{executor}->upload_key($attr);
 }
 
@@ -180,7 +180,7 @@ sub upload_key {
 #**********************************************************
 sub get_error {
   my $self = shift;
-  
+
   return $Abills::Nas::Mikrotik::API::errstr || $self->{executor}->{errstr} || '';
 }
 
@@ -197,6 +197,7 @@ sub get_error {
 #**********************************************************
 sub has_list_command {
   my ($self, $list_name) = @_;
+
   return $self->{executor}->has_list_command($list_name);
 }
 
@@ -230,10 +231,10 @@ sub get_list {
 sub interfaces_list {
   my $self = shift;
   my ($filter) = @_;
-  
+
   my $interfaces_list = $self->get_list('interfaces', { FILTER => $filter });
-  return [] unless ( $interfaces_list );
-  
+  return [] unless ($interfaces_list);
+
   #  Moved to mikrotik query
   #  if ( defined $filter && ref $filter eq 'HASH' ) {
   #
@@ -244,7 +245,7 @@ sub interfaces_list {
   #
   #    return \@result_list;
   #  }
-  
+
   return $interfaces_list;
 }
 
@@ -255,7 +256,7 @@ sub interfaces_list {
 #**********************************************************
 sub addresses_list {
   my $self = shift;
-  
+
   return $self->get_list('addresses');
 }
 
@@ -283,10 +284,10 @@ sub adverts_list {
 #**********************************************************
 sub leases_list {
   my ($self, $attr) = @_;
-  
+
   my $mikrotik_leases_list = $self->{executor}->get_list('dhcp_leases_generated', $attr);
-  _bp("leases arr", $mikrotik_leases_list, \%BP_ARGS) if ( $attr->{DEBUG} );
-  
+  _bp("leases arr", $mikrotik_leases_list, \%BP_ARGS) if ($attr->{DEBUG});
+
   return $mikrotik_leases_list;
 }
 
@@ -304,16 +305,16 @@ sub leases_list {
 #**********************************************************
 sub leases_remove {
   my ($self, $leases_ids_list, $attr) = @_;
-  
-  return 1 if ( scalar (@{$leases_ids_list} == 0) );
-  
+
+  return 1 if (scalar(@{$leases_ids_list} == 0));
+
   my @cmd_arr = ();
   my $del_cmd_chapter = 'ip dhcp-server lease remove';
-  foreach my $lease_id ( @{$leases_ids_list} ) {
-    print "Removing lease id $lease_id \n" if ( $attr->{VERBOSE} );
-    push (@cmd_arr, [ $del_cmd_chapter, undef, { numbers => $lease_id } ]);
+  foreach my $lease_id (@{$leases_ids_list}) {
+    print "Removing lease id $lease_id \n" if ($attr->{VERBOSE});
+    push(@cmd_arr, [ $del_cmd_chapter, undef, { numbers => $lease_id } ]);
   }
-  
+
   return $self->{executor}->execute(\@cmd_arr, { CHAINED => 1, SKIP_ERROR => 1, DEBUG => $attr->{DEBUG} });
 }
 
@@ -343,48 +344,47 @@ sub leases_remove {
 #**********************************************************
 sub leases_add {
   my ($self, $leases_list, $attr) = @_;
-  
-  return 1 if ( scalar (@{$leases_list} == 0) );
-  
+
+  return 1 if (scalar(@{$leases_list} == 0));
+
   my @cmd_arr = ();
-  
-  foreach my $lease ( @{$leases_list} ) {
-    
+
+  foreach my $lease (@{$leases_list}) {
+
     my $address_list_arg = "";
     #    if ( !$lease->{active} || $lease->{active} != 1 ){
     #      $address_list_arg .= "negative";
     #    }
-    if ( !$lease->{tp_tp_id} ) {
+    if (!$lease->{tp_tp_id}) {
       print " !!! Tarriff plan not selected for $lease->{login}. Skipping \n";
       next;
     }
     else {
       $address_list_arg = "address-list=CLIENTS_$lease->{tp_tp_id}";
     }
-    
+
     my $dhcp_server_name = "dhcp_abills_network_$lease->{network}";
-    
-    if ( $attr->{SKIP_DHCP_NAME} ) {
+
+    if ($attr->{SKIP_DHCP_NAME}) {
       $dhcp_server_name = 'all';
     }
     else {
-      if ( $attr->{USE_NETWORK_NAME} ) {
+      if ($attr->{USE_NETWORK_NAME}) {
         $dhcp_server_name = $lease->{network_name};
       }
-      elsif ( $attr->{DHCP_NAME_PREFIX} ) {
+      elsif ($attr->{DHCP_NAME_PREFIX}) {
         $dhcp_server_name = "$attr->{DHCP_NAME_PREFIX}_$lease->{network}";
       }
     }
-#    use Data::Dumper;
-#    print Dumper($lease);
-    
-    
-    print "Adding new lease address=$lease->{ip} mac-address=$lease->{mac} \n" if ( $attr->{VERBOSE} );
-    
+    #    use Data::Dumper;
+    #    print Dumper($lease);
+
+    print "Adding new lease address=$lease->{ip} mac-address=$lease->{mac} \n" if ($attr->{VERBOSE});
+
     my $cmd = "/ip dhcp-server lease add address=$lease->{ip} mac-address=$lease->{mac} server=$dhcp_server_name disabled=no $address_list_arg comment=\"ABillS generated\"";
-    push (@cmd_arr, $cmd);
+    push(@cmd_arr, $cmd);
   }
-  
+
   return $self->{executor}->execute(\@cmd_arr, { CHAINED => 1, DEBUG => $attr->{DEBUG} });
 }
 
@@ -402,18 +402,18 @@ sub leases_add {
 #**********************************************************
 sub leases_remove_all_generated {
   my ($self, $attr) = @_;
-  
+
   # Skipping non-mikrotik NASes
-  return 0 unless ( $self->{nas_type} =~ /mikrotik/ );
-  
+  return 0 unless ($self->{nas_type} =~ /mikrotik/);
+
   my $mikrotik_leases = $self->leases_list($attr);
-  _bp("Leases to delete", $mikrotik_leases, \%BP_ARGS) if ( $attr->{DEBUG} );
-  
+  _bp("Leases to delete", $mikrotik_leases, \%BP_ARGS) if ($attr->{DEBUG});
+
   my @leases_to_delete_ids = ();
-  foreach my $lease ( @{$mikrotik_leases} ) {
-    push (@leases_to_delete_ids, $lease->{id});
+  foreach my $lease (@{$mikrotik_leases}) {
+    push(@leases_to_delete_ids, $lease->{id});
   }
-  
+
   return $self->leases_remove(\@leases_to_delete_ids, $attr);
 }
 
@@ -429,7 +429,7 @@ sub leases_remove_all_generated {
 =cut
 #**********************************************************
 sub ppp_accounts_list {
-  my ( $self ) = @_;
+  my ($self) = @_;
   return $self->get_list('ppp_accounts');
 }
 
@@ -450,9 +450,9 @@ sub ppp_accounts_list {
 #**********************************************************
 sub ppp_accounts_add {
   my ($self, $account) = @_;
-  
+
   my @accounts_add_commands = ();
-  if ( ref $account eq 'ARRAY' ) {
+  if (ref $account eq 'ARRAY') {
     @accounts_add_commands = map {
       [ '/ppp/secret/add', $_ ]
     } @{$account};
@@ -462,10 +462,8 @@ sub ppp_accounts_add {
       [ '/ppp/secret/add', $account ]
     );
   }
-  
-  return $self->execute(\@accounts_add_commands, {
-    
-    });
+
+  return $self->execute(\@accounts_add_commands, {});
 }
 
 #**********************************************************
@@ -481,7 +479,7 @@ sub ppp_accounts_add {
 #**********************************************************
 sub ppp_accounts_remove {
   my ($self, $query) = @_;
-  
+
   return $self->execute([
     [ '/ppp/secret/remove', $query ]
   ]);
@@ -501,11 +499,11 @@ sub ppp_accounts_remove {
 #**********************************************************
 sub ppp_accounts_change {
   my ($self, $id, $key_values) = @_;
-  
+
   return $self->execute([
     [ '/ppp/secret/set', $key_values, { numbers => $id } ]
   ]);
-  
+
   return 1;
 }
 
@@ -524,25 +522,25 @@ sub ppp_accounts_change {
 sub dhcp_servers_check {
   my $self = shift;
   my ($networks, $attr) = @_;
-  
-  return $networks if ( $attr->{SKIP_DHCP_NAME} );
+
+  return $networks if ($attr->{SKIP_DHCP_NAME});
   my $DHCP_server_name_prefix = ($attr->{DHCP_NAME_PREFIX}) ? $attr->{DHCP_NAME_PREFIX} : "dhcp_abills_network_";
-  
+
   my $servers_list = $self->{executor}->get_list('dhcp_servers');
-  
+
   my %servers_by_name = ();
-  foreach my $server ( @{$servers_list} ) {
+  foreach my $server (@{$servers_list}) {
     $servers_by_name{ lc $server->{name}} = $server;
   }
-  
-  for ( my $i = 0; $i < scalar @{$networks}; $i++ ) {
+
+  for (my $i = 0; $i < scalar @{$networks}; $i++) {
     my $network = $networks->[$i];
-    
+
     my $network_identifier = ($attr->{USE_NETWORK_NAME}) ? $network->{name} : "$DHCP_server_name_prefix$network->{id}";
-    
-    print "Checking for existence of $network_identifier \n" if ( $attr->{VERBOSE} && $attr->{VERBOSE} > 1 );
-    
-    unless ( defined $servers_by_name{lc $network_identifier} ) {
+
+    print "Checking for existence of $network_identifier \n" if ($attr->{VERBOSE} && $attr->{VERBOSE} > 1);
+
+    unless (defined $servers_by_name{lc $network_identifier}) {
       print " !!! You should add '$network_identifier' DHCP server at mikrotik or use SKIP_DHCP_NAME=1
                 You also can use DHCP_NAME_PREFIX=\"\" to specify prefix
                 or use USE_NETWORK_NAME=1 to use network names as identifier
@@ -551,50 +549,50 @@ sub dhcp_servers_check {
       $i--;
     }
   }
-  
-  if ( $attr->{USE_ARP} || $attr->{DISABLE_ARP} ) {
+
+  if ($attr->{USE_ARP} || $attr->{DISABLE_ARP}) {
     my $numbers = '';
-    
-    if ( $attr->{USE_NETWORK_NAME} ) {
+
+    if ($attr->{USE_NETWORK_NAME}) {
       $numbers = join(',', map {$_->{name}} @{$networks});
     }
     else {
-      foreach my $network ( @{$networks} ) {
+      foreach my $network (@{$networks}) {
         $numbers .= $servers_by_name{"$DHCP_server_name_prefix$network->{id}"}->{number};
       }
     }
-    
+
     my $set_value = ($attr->{USE_ARP}) ? 'yes' : 'no';
-    
+
     my $command = "/ip dhcp-server set add-arp=$set_value numbers=$numbers";
-    
-    if ( my $result = $self->{executor}->execute($command) ) {
+
+    if (my $result = $self->{executor}->execute($command)) {
       print "  add-arp set to: $set_value \n";
     }
     else {
       print "  !!! add-arp set failed : $result";
     };
   }
-  
-  _bp("size of network list", scalar @{$networks}, \%BP_ARGS) if ( $attr->{DEBUG} );
-  
+
+  _bp("size of network list", scalar @{$networks}, \%BP_ARGS) if ($attr->{DEBUG});
+
   return $networks;
 }
 
 sub check_defined_networks {
   my ($self, $networks, $attr) = @_;
-  
+
   my $mikrotik_networks = $self->{executor}->get_list('dhcp_servers');
-  
+
   #Sort by network address
   my %networks_by_address = ();
-  foreach my $network ( @{$mikrotik_networks} ) {
+  foreach my $network (@{$mikrotik_networks}) {
     $networks_by_address{$network->{address}} = $network;
   }
-  
-  for ( my $i = 0; $i < scalar @{$networks}; $i++ ) {
+
+  for (my $i = 0; $i < scalar @{$networks}; $i++) {
     my $network = $networks->[$i];
-    
+
     #    unless ( defined $servers_by_name{lc "dhcp_abills_network_$network->{id}"} ){
     #      print " !!! You should add 'dhcp_abills_network_$network->{id}' DHCP server at mikrotik or use SKIP_DHCP_NAME=1 \n     Leases for this network will be skipped!\n";
     #      splice @{$networks}, $i, 1;
@@ -623,7 +621,7 @@ sub check_defined_networks {
 sub hotspot_configure {
   my $self = shift;
   my ($arguments) = @_;
-  
+
   my $interface = $arguments->{INTERFACE};
   my $range = $arguments->{DHCP_RANGE};
   my $address = $arguments->{ADDRESS};
@@ -631,87 +629,87 @@ sub hotspot_configure {
   my $netmask = $arguments->{NETMASK};
   my $gateway = $arguments->{GATEWAY};
   my $dns_server = $arguments->{DNS};
-  
+
   my $dns_name = $arguments->{DNS_NAME};
   my $pool_name = "hotspot-pool-1";
-  
+
   my $radius_address = $arguments->{BILLING_IP_ADDRESS};
   my $radius_secret = $arguments->{RADIUS_SECRET};
-  
+
   $self->execute(
     [
       # Configure WAN
       [
         '/ip/address/add', {
-          address   => "$address/$netmask",
-          comment   => "HOTSPOT",
-          disabled  => "no",
-          interface => $interface,
-          network   => $network
-        }
+        address   => "$address/$netmask",
+        comment   => "HOTSPOT",
+        disabled  => "no",
+        interface => $interface,
+        network   => $network
+      }
       ],
-      
+
       [
         '/ip/route/add', {
-          disabled       => "no",
-          distance       => 1,
-          'dst-address'  => '0.0.0.0/0',
-          gateway        => $gateway,
-          scope          => 30,
-          'target-scope' => 10
-        }
+        disabled       => "no",
+        distance       => 1,
+        'dst-address'  => '0.0.0.0/0',
+        gateway        => $gateway,
+        scope          => 30,
+        'target-scope' => 10
+      }
       ],
-      
+
       # ADD IP pool for hotspot users
       [
         '/ip/pool/add',
         { name => 'hotspot-pool-1', ranges => $range }
       ],
-      
+
       # Add DNS for resolving
       [ '/ip/dns/set', {
-          'allow-remote-requests' => 'yes',
-          'cache-max-ttl'         => "1w",
-          'cache-size'            => '10000KiB',
-          'max-udp-packet-size'   => 512,
-          'servers'               => "$address,$dns_server"
-        }
+        'allow-remote-requests' => 'yes',
+        'cache-max-ttl'         => "1w",
+        'cache-size'            => '10000KiB',
+        'max-udp-packet-size'   => 512,
+        'servers'               => "$address,$dns_server"
+      }
       ],
       [
         '/ip/dns/static/add', {
-          name    => "$dns_name",
-          address => $address
-        }
+        name    => "$dns_name",
+        address => $address
+      }
       ],
-      
+
       # Add DHCP Server
       [
         '/ip/dhcp-server/add', {
-          'address-pool'  => 'hotspot-pool-1',
-          authoritative   => 'after-2sec-delay',
-          'bootp-support' => 'static',
-          'disabled'      => 'no',
-          interface       => $interface,
-          'lease-time'    => '1h',
-          name            => 'hotspot_dhcp'
-        }
+        'address-pool'  => 'hotspot-pool-1',
+        authoritative   => 'after-2sec-delay',
+        'bootp-support' => 'static',
+        'disabled'      => 'no',
+        interface       => $interface,
+        'lease-time'    => '1h',
+        name            => 'hotspot_dhcp'
+      }
       ],
-      
+
       [ '/ip/dhcp-server/config/set', { 'store-leases-disk' => '5m' } ],
-      
+
       [ '/ip/dhcp-server/network/add', {
-          address => "$network/$netmask",
-          comment => "Hotspot network",
-          gateway => $address
-        }
+        address => "$network/$netmask",
+        comment => "Hotspot network",
+        gateway => $address
+      }
       ],
       # Prevent blocking ABillS Server
       #      qq{/ip hotspot ip-binding add address=$radius_address type=bypassed},
       [ '/ip/firewall/nat/add', {
-          chain         => 'pre-hotspot',
-          'dst-address' => $radius_address,
-          action        => 'accept'
-        }
+        chain         => 'pre-hotspot',
+        'dst-address' => $radius_address,
+        action        => 'accept'
+      }
       ],
     ],
     {
@@ -720,9 +718,9 @@ sub hotspot_configure {
       CHAINED     => 1
     }
   );
-  
+
   $self->show_message("\n Configuring Hotspot \n");
-  
+
   $self->execute(
     [
       # Add HOTSPOT profile
@@ -772,27 +770,27 @@ sub hotspot_configure {
         }
       ],
       [ '/ip hotspot walled-garden ip add', {
-          action        => "accept",
-          disabled      => "no",
-          'dst-address' => $address
-        }
+        action        => "accept",
+        disabled      => "no",
+        'dst-address' => $address
+      }
       ],
       [ '/ip hotspot walled-garden ip add', {
-          action        => 'accept',
-          disabled      => "no",
-          'dst-address' => $radius_address
-        }
+        action        => 'accept',
+        disabled      => "no",
+        'dst-address' => $radius_address
+      }
       ],
       [ '/ip hotspot set', {
-          numbers        => 'hotspot1',
-          'address-pool' => 'none'
-        }
+        numbers        => 'hotspot1',
+        'address-pool' => 'none'
+      }
       ],
       [ '/ip firewall nat add', {
-          action   => "masquerade",
-          chain    => "srcnat",
-          disabled => "no"
-        }
+        action   => "masquerade",
+        chain    => "srcnat",
+        disabled => "no"
+      }
       ]
     ],
     {
@@ -800,9 +798,9 @@ sub hotspot_configure {
       SKIP_ERROR  => 1,
     }
   );
-  
+
   $self->show_message("\n  Configuring RADIUS\n");
-  
+
   $self->execute(
     [
       [ "/radius add", { address => $radius_address, secret => $radius_secret, service => "hotspot" } ],
@@ -814,23 +812,23 @@ sub hotspot_configure {
       SKIP_ERROR  => 1,
     }
   );
-  
+
   $self->show_message("\n Configuring Hotspot walled-garden \n");
-  
+
   my @walled_garden_hosts = (
     $radius_address,
     $dns_server
   );
-  
-  if ( $arguments->{WALLED_GARDEN} && ref $arguments->{WALLED_GARDEN} eq 'ARRAY' ) {
-    push(@walled_garden_hosts, @{ $arguments->{WALLED_GARDEN} });
+
+  if ($arguments->{WALLED_GARDEN} && ref $arguments->{WALLED_GARDEN} eq 'ARRAY') {
+    push(@walled_garden_hosts, @{$arguments->{WALLED_GARDEN}});
   };
-  
+
   my @walled_garden_commands = ();
-  foreach ( @walled_garden_hosts ) {
+  foreach (@walled_garden_hosts) {
     push(@walled_garden_commands, [ '/ip hotspot walled-garden add', { 'dst-host' => $_ } ]);
   }
-  
+
   $self->execute(
     \@walled_garden_commands,
     {
@@ -838,71 +836,71 @@ sub hotspot_configure {
       SKIP_ERROR  => 1,
     }
   );
-  
+
   $self->show_message("\n Uploading custom captive portal \n");
-  
+
   #First of all we need move files to /tmp to prevent access restrictions
-  
+
   my $hotspot_temp_dir = '/tmp/abills_';
   cmd("mkdir $hotspot_temp_dir");
-  
+
   my $command = "/bin/cp $main::base_dir/misc/hotspot/hotspot.tar.gz $hotspot_temp_dir/hotspot.tar.gz";
   $command .= " && cd $hotspot_temp_dir && /bin/tar -xvf hotspot.tar.gz;";
-  
-  _bp("Unpacking portal files", "$command", \%BP_ARGS) if ( $self->{debug} > 1 );
-  
-  cmd ($command);
-  
-  if ( $radius_address ne '10.0.0.2' ) {
-    
+
+  _bp("Unpacking portal files", "$command", \%BP_ARGS) if ($self->{debug} > 1);
+
+  cmd($command);
+
+  if ($radius_address ne '10.0.0.2') {
+
     $self->show_message("\n  Renaming Billing URL \n");
-    
+
     my $temp_file = '/tmp/hotspot_temp';
     my $login_page = "$hotspot_temp_dir/hotspot/login.html";
-    
+
     # Cat and sed to temp file
     $command = "cat $login_page | sed 's/10\.0\.0\.2/$radius_address/g' > $temp_file";
-    _bp("renaming 1", "$command", \%BP_ARGS) if ( $self->{debug} > 1 );
+    _bp("renaming 1", "$command", \%BP_ARGS) if ($self->{debug} > 1);
     print cmd($command);
-    
+
     # Cat back to normal file
     $command = "cat $temp_file > $login_page";
-    _bp("Renaming 2", "$command", \%BP_ARGS) if ( $self->{debug} > 1 );
+    _bp("Renaming 2", "$command", \%BP_ARGS) if ($self->{debug} > 1);
     print cmd($command);
   }
-  
+
   my $ssh_remote_admin = $self->{executor}->{admin} || 'abills_admin';
   my $ssh_remote_host = $self->{executor}->{host};
   my $ssh_remote_port = $self->{executor}->{ssh_port} || 22;
   my $ssh_cert = $self->{executor}->{ssh_key} || '';
-  
+
   my $scp_file = $arguments->{SCP_FILE};
-  unless ( $scp_file ) {
-    $scp_file = cmd ("which scp");
+  unless ($scp_file) {
+    $scp_file = cmd("which scp");
     chomp($scp_file);
   }
-  
+
   my $port_option = '';
-  if ( $ssh_remote_port != 22 ) {
+  if ($ssh_remote_port != 22) {
     $port_option = "-P $ssh_remote_port";
   }
-  
+
   my $cert_option = '';
-  if ( $ssh_cert ne '' ) {
+  if ($ssh_cert ne '') {
     $cert_option = "-i $ssh_cert -o StrictHostKeyChecking=no";
   }
-  
+
   $command = "cd $hotspot_temp_dir && ";
   $command .= "$scp_file $port_option $cert_option -B -r hotspot $ssh_remote_admin\@$ssh_remote_host:/ && rm -rf hotspot";
-  
+
   $self->show_message("\n  Uploading captive portal files \n");
-  
-  _bp("Upload files", "Executing cmd : $command \n", \%BP_ARGS) if ( $self->{debug} > 1 );
-  
+
+  _bp("Upload files", "Executing cmd : $command \n", \%BP_ARGS) if ($self->{debug} > 1);
+
   cmd($command);
-  
+
   return 1;
-  
+
 }
 
 #**********************************************************
@@ -924,24 +922,24 @@ sub hotspot_configure {
 sub radius_add {
   my $self = shift;
   my ($host, $attr) = @_;
-  
-  return 0 if ( !$host );
-  
+
+  return 0 if (!$host);
+
   # Check if there's no radius servers yet
   my $existing_servers = $self->get_list('radius');
-  
+
   my @same = grep {$_->{address} && $_->{address} eq $host} @{$existing_servers};
-  
-  if ( @same ) {
+
+  if (@same) {
     # Already exists
-    return 1 if ( !$attr->{REPLACE} );
-    
+    return 1 if (!$attr->{REPLACE});
+
     # Delete all
     my @delete_radius_commands = ();
-    foreach ( @same ) {
-      push (@delete_radius_commands, [ '/radius remove', { numbers => $_->{id} } ]);
+    foreach (@same) {
+      push(@delete_radius_commands, [ '/radius remove', { numbers => $_->{id} } ]);
     }
-    
+
     $self->execute(
       \@delete_radius_commands,
       {
@@ -949,11 +947,11 @@ sub radius_add {
       }
     );
   }
-  
+
   my $secret = $attr->{RADIUS_SECRET} || $self->{nas_mng_password} || 'secretpass';
   my $coa = $attr->{COA} || 3799;
   my $services = $attr->{SERVICES} || 'hotspot,ppp,dhcp';
-  
+
   $self->execute(
     [
       [ "/radius add", { address => $host, secret => $secret, service => $services } ],
@@ -964,7 +962,7 @@ sub radius_add {
       SKIP_ERROR  => 1,
     }
   );
-  
+
   return 1;
 }
 
@@ -982,8 +980,8 @@ sub radius_add {
 #**********************************************************
 sub dns_set {
   my ($self, $new_dns, $attr) = @_;
-  return 0 if ( !$new_dns );
-  
+  return 0 if (!$new_dns);
+
   $self->execute(
     [
       [ "/ip dns set", { servers => $new_dns } ]
@@ -993,7 +991,7 @@ sub dns_set {
       SKIP_ERROR  => 1,
     }
   );
-  
+
   return 1;
 }
 
@@ -1007,7 +1005,7 @@ sub dns_set {
 #**********************************************************
 sub routes_list {
   my ($self) = @_;
-  
+
   return $self->get_list('routes');
 }
 
@@ -1024,12 +1022,12 @@ sub routes_list {
 #**********************************************************
 sub firewall_address_list_list {
   my ($self, $query) = @_;
-  
+
   my Abills::Nas::Mikrotik::SSH $exec = $self->{executor};
-  
+
   return $exec->get_list('firewall_address__list', {
-      FILTER => $query
-    });
+    FILTER => $query
+  });
 }
 
 #**********************************************************
@@ -1045,7 +1043,7 @@ sub firewall_address_list_list {
 #**********************************************************
 sub firewall_address_list_add {
   my ($self, $ip, $list, $timeout) = @_;
-  
+
   return 0;
 }
 
@@ -1062,7 +1060,7 @@ sub firewall_address_list_add {
 #**********************************************************
 sub firewall_address_list_del {
   my ($self, $id) = @_;
-  
+
   return $self->execute([
     [ '/ip/firewall/address-list/remove', { numbers => $id } ]
   ]);
@@ -1083,7 +1081,7 @@ sub add_firewall_rule {
   my ($self, $rule_params) = @_;
   return 0 unless $rule_params;
 
-  return $self->execute([['/ip firewall filter add', $rule_params]]);
+  return $self->execute([ [ '/ip firewall filter add', $rule_params ] ]);
 }
 
 #**********************************************************
@@ -1101,7 +1099,7 @@ sub add_nat_rule {
   my ($self, $rule_params) = @_;
   return 0 unless $rule_params;
 
-  return $self->execute([['/ip firewall nat add', $rule_params]]);
+  return $self->execute([ [ '/ip firewall nat add', $rule_params ] ]);
 }
 
 #**********************************************************
@@ -1116,7 +1114,7 @@ sub add_nat_rule {
 =cut
 #**********************************************************
 sub add_ssh_bruteforce_protection {
-  my ($self, $allowed_ips ) = @_;
+  my ($self, $allowed_ips) = @_;
 
   my %similar_params = (
     'connection-state' => 'new',
@@ -1128,37 +1126,37 @@ sub add_ssh_bruteforce_protection {
 
   $self->add_firewall_rule({
     %similar_params,
-    'src-address'      => "!$allowed_ips",
-    'address-list'     => 'ssh_stage_1'
+    'src-address'  => "!$allowed_ips",
+    'address-list' => 'ssh_stage_1'
   });
 
   $self->add_firewall_rule({
     %similar_params,
-    'src-address-list' => 'ssh_stage_1',
-    'address-list'     => 'ssh_stage_2',
+    'src-address-list'     => 'ssh_stage_1',
+    'address-list'         => 'ssh_stage_2',
     'address-list-timeout' => '20s',
   });
 
   $self->add_firewall_rule({
     %similar_params,
-    'src-address-list' => 'ssh_stage_2',
-    'address-list'     => 'ssh_stage_3',
+    'src-address-list'     => 'ssh_stage_2',
+    'address-list'         => 'ssh_stage_3',
     'address-list-timeout' => '20s',
   });
 
   $self->add_firewall_rule({
     %similar_params,
-    'src-address-list' => 'ssh_stage_3',
-    'address-list'     => 'ssh_blacklist',
+    'src-address-list'     => 'ssh_stage_3',
+    'address-list'         => 'ssh_blacklist',
     'address-list-timeout' => '20s',
   });
 
   $self->add_firewall_rule({
     %similar_params,
     'connection-state' => undef,
-    'src-address-list'=> 'ssh_blacklist',
-    action => 'drop',
-    comment=> "ABillS. Drop ssh bruteforces"
+    'src-address-list' => 'ssh_blacklist',
+    action             => 'drop',
+    comment            => "ABillS. Drop ssh bruteforces"
   });
 
   return 1;
@@ -1205,12 +1203,12 @@ sub show_error {
 #**********************************************************
 sub debug {
   my ($self, $value) = @_;
-  
-  if ( defined $value ) {
+
+  if (defined $value) {
     $self->{debug} = $value;
     $self->{executor}->{debug} = $value;
   }
-  
+
   return $self->{debug};
 }
 

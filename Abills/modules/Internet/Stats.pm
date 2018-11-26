@@ -6,7 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(int2byte sec2time);
+use Abills::Base qw(int2byte sec2time days_in_month);
 
 our(
   $db,
@@ -904,5 +904,58 @@ sub internet_get_chart_query {
 
   return "/charts.cgi?$query&periods=$periods&SHOW_GRAPH=1$chart_dimensions";
 }
+
+#**********************************************************
+=head2 internet_user_add($attr)
+
+  Arguments:
+    $Internet_
+    $users_
+    $attr
+      NO_PAYMENT_BTN
+
+=cut
+#**********************************************************
+sub internet_payment_message {
+  my ($Internet_, $users_, $attr) = @_;
+
+  my $total_fee = ($Internet_->{MONTH_ABON} || 0) + ($Internet_->{DAY_ABON} || 0);
+
+  if ($users_->{REDUCTION}) {
+    $total_fee = $total_fee * (100 - $users_->{REDUCTION}) / 100;
+  }
+
+  my $uid = $users_->{UID};
+
+  if ($Internet_->{STATUS} && $total_fee > $users_->{DEPOSIT}) {
+    my $sum = 0;
+    if ($Internet_->{ABON_DISTRIBUTION} && !$conf{INTERNET_FULL_MONTH}) {
+      my $days_in_month = days_in_month({ DATE => $DATE });
+      my $month_fee = ($total_fee / $days_in_month); # * ($days_in_month - $d);
+      if ($month_fee > $users_->{DEPOSIT}) {
+        my $full_sum = abs($month_fee - $users_->{DEPOSIT});
+        $sum = sprintf("%.2f", $full_sum);
+        if ($sum - $full_sum < 0) {
+          $sum = sprintf("%.2f", int($sum + 1));
+        }
+      }
+    }
+    else {
+      $sum = sprintf("%.2f", abs($total_fee - $users_->{DEPOSIT}));
+      if ($sum < abs($total_fee - $users_->{DEPOSIT})) {
+        $sum = sprintf("%.2f", int($sum + 1));
+      }
+    }
+
+    if ($sum > 0) {
+      $Internet_->{PAYMENT_MESSAGE} = $html->message('warn', '',
+        "$lang{ACTIVATION_PAYMENT} $sum " . ((! $attr->{NO_PAYMENT_BTN}) ? $html->button($lang{PAYMENTS},
+          "UID=$uid&index=2&SUM=$sum", { class => 'payments' }) : ''), { OUTPUT2RETURN => 1 });
+
+      $Internet_->{HAS_PAYMENT_MESSAGE} = 1;
+    }
+  }
+}
+
 
 1;

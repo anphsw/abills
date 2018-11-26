@@ -28,6 +28,13 @@
         </div>
       </div>
 
+      <div class='form-group'>
+        <label class='control-label col-md-3 required' for='COLOR_SCHEME_ID_SELECT'>_{COLOR_SCHEME}_</label>
+        <div class='col-md-9'>
+          %COLOR_SCHEME_ID_SELECT%
+        </div>
+      </div>
+
 
       %OBJECT_INFO%
 

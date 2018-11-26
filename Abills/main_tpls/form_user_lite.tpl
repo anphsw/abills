@@ -36,7 +36,7 @@
   
   
   <!-- General panel -->
-  <div class='box box-theme box-big-form'>
+  <div id='form_1' class='box box-theme box-big-form for_sort'>
     <div class='box-header with-border'><h3 class='box-title'>_{USER_ACCOUNT}_ %DISABLE_MARK%</h3>
       <div class='box-tools pull-right'>
       <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
@@ -143,20 +143,20 @@
       <div class='col-md-4 col-xs-4'>%PASSWORD%</div>
       </div>    
       
-      <div class='col-md-4 col-xs-4'>
+      <div class='col-md-4 col-xs-4' %DISABLE_HIDEN%>
           <label class='btn btn-default'>
-            <input id='DISABLE' name='DISABLE' value='1' %DISABLE% type='checkbox' onClick='add_comments();'>
+            <input id='DISABLE' name='DISABLE' value='1' %DISABLE_CHECKBOX% type='checkbox' onClick='add_comments();'>
           _{DISABLE}_
         </label>
       </div>
         
               
-            <div class='col-md-8 col-xs-8 %DISABLE_COLOR%'>
-              %DISABLE_COMMENTS%
-              <input class='form-control' type=text name=ACTION_COMMENTS value='%DISABLE_COMMENTS%' size=30
-                     style='visibility: hidden;'>%ACTION_COMMENTS%
-            </div>
-            %DEL_FORM%
+      <div class='col-md-8 col-xs-8 %DISABLE_COLOR%' %DISABLE_HIDEN%>
+        %DISABLE_COMMENTS%
+        <input class='form-control' type=text name=ACTION_COMMENTS value='%DISABLE_COMMENTS%' size=30
+               style='visibility: hidden;'>%ACTION_COMMENTS%
+      </div>
+      %DEL_FORM%
     
     
     

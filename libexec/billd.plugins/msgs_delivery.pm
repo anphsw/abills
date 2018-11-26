@@ -1,16 +1,18 @@
-=head NAME
+=head1 NAME
 
   Msgs delivery
 
 
+ Arguments:
   CUSTOM_DELIVERY=message_file
   ADDRESS_LIST=address_list
   SLEEP= Sleep after message send
+  LOGIN=
+  UID=
 
-  Examples:
+=head1  EXAMPLES
 
     billd msgs_delivery CUSTOM_DELIVERY=message_file ADDRESS_LIST=address_list
-
 
 =cut
 
@@ -27,7 +29,8 @@ our (
   $Admin,
   $var_dir,
   $db,
-  $argv
+  $argv,
+  %LIST_PARAMS
 );
 
 
@@ -36,7 +39,9 @@ my $Sender = Abills::Sender::Core->new({
   SENDER_TYPE => 'Mail'
 });
 my $Log     = Log->new($db, $Admin);
+my %list_params = %LIST_PARAMS;
 our $html = Abills::HTML->new( { CONF => \%conf } );
+%LIST_PARAMS = %list_params;
 
 if($debug > 2) {
   $Log->{PRINT}=1;
@@ -144,17 +149,15 @@ sub msgs_delivery {
     $Msgs_delivery->{debug}=1;
   }
 
-  my $delivery_list = $Msgs_delivery->msgs_delivery_list({%LIST_PARAMS, COLS_NAME => 1});
-  my $users = Users->new($db, $Admin, \%conf);
+  my $delivery_list = $Msgs_delivery->msgs_delivery_list({
+    %LIST_PARAMS,
+    COLS_NAME => 1
+  });
 
-  #my $dv_info = ();
+  my $users = Users->new($db, $Admin, \%conf);
   my $Internet;
 
-  if (in_array('Dv', \@MODULES)) {
-    require Dv;
-    $Internet = Dv->new($db, $Admin, \%conf);
-  }
-  elsif (in_array('Internet', \@MODULES)) {
+  if (in_array('Internet', \@MODULES)) {
     require Internet;
     $Internet = Internet->new($db, $Admin, \%conf);
   }

@@ -94,7 +94,7 @@ if(! auth_admin() ) {
 our @default_search  = ( 'UID', 'LOGIN', 'FIO', 'CONTRACT_ID',
   'EMAIL', 'PHONE', 'COMMENTS', 'ADDRESS_FULL', 'CITY' );
 
-$html->set_cookies('sid', $admin->{SID}, '', '/');
+$html->set_cookies('admin_sid', $admin->{SID}, '', '/');
 
 #Operation system ID
 if ($FORM{OP_SID}) {
@@ -865,7 +865,9 @@ sub form_changes {
     29 => "$lang{SHEDULE} $lang{EXECUTED}",
     31 => "$lang{ICARDS} $lang{USED}",
     32 => "$lang{CHANGED} $lang{REDUCTION}",
-    40 => "$lang{BILL} $lang{CHANGED}"
+    40 => "$lang{BILL} $lang{CHANGED}",
+    43 => "$lang{SHEDULE} $lang{TARIF_PLAN}",
+    43 => "$lang{SHEDULE} $lang{STATUS}",
   );
 
   my $pages_qs2 = q{};
@@ -948,18 +950,18 @@ sub form_changes {
 
   $pages_qs .= $pages_qs2;
 
-  require Tariffs;
-  Tariffs->import();
-  my $Tariffs = Tariffs->new($db, \%conf, $admin);
-  $Tariffs->list({LIST2HASH => 'tp_id,id,name'});
-
-  my $tps_hash = $Tariffs->{list_hash};
+  # require Tariffs;
+  # Tariffs->import();
+  # my $Tariffs = Tariffs->new($db, \%conf, $admin);
+  # $Tariffs->list({LIST2HASH => 'tp_id,id,name'});
+  require Control::Services;
+  my $tps_hash = sel_tp();
 
   my $table = $html->table({
     width      => '100%',
     title      =>
     [ '#', $lang{LOGIN}, $lang{DATE}, $lang{CHANGED}, $lang{ADMIN}, 'IP', $lang{MODULES}, $lang{TYPE}, '-' ],
-    qs         => $pages_qs, #$pages_qs2,
+    qs         => $pages_qs2, # $pages_qs
     caption    => $lang{LOG},
     pages      => $admin->{TOTAL},
     ID         => 'ADMIN_ACTIONS',
@@ -1283,6 +1285,7 @@ sub fl {
 
     "30:15:$lang{USER_INFO}:user_pi:UID::",
     "31:15:$lang{SEARCH}:user_modal_search:user_search_form::",
+    "32:15:$lang{LOGIN}:check_login_availability:AJAX::",
     #"31:15:Send e-mail:form_sendmail:UID::",
     "2:0:<i class='fa fa-plus-square-o'></i><span>$lang{PAYMENTS}</span>:form_payments:::",
     "3:0:<i class='fa fa-minus-square-o'></i><span>$lang{FEES}</span>:form_fees:::",
@@ -1322,7 +1325,10 @@ sub fl {
   #Reports
   if($permissions{3}){
     require Control::Reports;
-    push @m, "122:4:$lang{LIST_OF_LOGS}:logs_list:::";
+    if($permissions{3}{7}) {
+      push @m, "76:4:WEB server:report_webserver:::",
+               "122:4:$lang{LIST_OF_LOGS}:logs_list:::";
+    }
 
     if($conf{AUTH_FACEBOOK_ID}){
       push @m, "127:4:$lang{SOCIAL_NETWORKS}:null:::";
@@ -1346,7 +1352,6 @@ sub fl {
 
     if ($permissions{3}{5}) {
       push @m, "68:4:$lang{CONFIG}:form_system_changes:::",
-               "76:4:WEB server:report_webserver:::",
                "86:4:User portal:report_bruteforce:::",
                "87:86:$lang{SESSIONS}:report_ui_last_sessions:::",
                "123:86:$lang{USER_STATISTIC}:analiz_user_statistic:::";
@@ -2397,6 +2402,20 @@ sub quick_functions {
 =cut
 #**********************************************************
 sub set_admin_params {
+  if ($FORM{RSCHEMA}) {
+    $Conf->config_add({
+      PARAM   => 'RSCHEMA_FOR_' . $admin->{AID},
+      VALUE   => $FORM{VALUE_RIGHT} || '',
+      REPLACE => 1
+    });
+  }
+  if ($FORM{LSCHEMA}) {
+    $Conf->config_add({
+      PARAM   => 'LSCHEMA_FOR_' . $admin->{AID},
+      VALUE   => $FORM{VALUE_LEFT} || '',
+      REPLACE => 1
+    });
+  }
 
   #Admin Web_options
   if ($FORM{AWEB_OPTIONS}) {
@@ -2531,6 +2550,7 @@ sub set_admin_params {
     $admin->{TECHWORK} = $html->message('err', $conf{tech_works}, '');
   }
 
+
   return 1;
 }
 
@@ -2614,7 +2634,16 @@ sub pre_page {
   if ($admin->{SETTINGS} && !$FORM{xml}) {
     form_admin_qm();
   }
+  my $global_chat = '';
+  if ($conf{MSGS_CHAT}) {
+    $global_chat .= $html->tpl_show(templates('msgs_global_chat'), {
+      FN_INDEX => get_function_index('header_online_chat'),
+      SIDE_ID  => 'aid=' . $admin->{AID},
+      SCRIPT   => 'chat_admin_notification.js',
 
+    },
+      { OUTPUT2RETURN => 1 });
+  }
   my $selected_search_type = ( $SEARCH_TYPES{ $FORM{type} } )
     ? $FORM{type}
     : $conf{DEFAULT_LIVE_SEARCH_TYPE} || 10;
@@ -2643,14 +2672,14 @@ sub pre_page {
   );
 
   print $html->tpl_show(templates('header'), {
-      %$admin,
-      HEADER_FIXED_CLASS  => $admin->{SETTINGS}{HEADER_FIXED} ? 'navbar-fixed-top' : '',
-      MENU          => $menu_text,
-      BREADCRUMB    => $navigat_menu,
-      FUNCTION_NAME => "$module_name$function_name"
-    },
+    %$admin,
+    HEADER_FIXED_CLASS => $admin->{SETTINGS}{HEADER_FIXED} ? 'navbar-fixed-top' : '',
+    MENU               => $menu_text,
+    BREADCRUMB         => $navigat_menu,
+    GLOBAL_CHAT        => $global_chat || '',
+    FUNCTION_NAME      => "$module_name$function_name"
+  },
     { OUTPUT2RETURN => 1 });
-
   return 1;
 }
 

@@ -54,3 +54,11 @@ $lang{BRANCH}='Гілка';
 $lang{SELECT_OLT}='Виберіть OLT';
 $lang{PORT_SHIFT}='Зсування портів';
 $lang{FIRMWARE}='Прошивка';
+
+$lang{FREE_ONU}='Вільних';
+
+$lang{NOT_MONITORING}='Не моніторити';
+$lang{SPEED_CHARTS}='Графіки швидкості';
+$lang{SPEED_IN}='Вхідна швидкість(Mb/s)';
+$lang{SPEED_OUT}='Вихідна швидкість(Mb/s)';
+1

@@ -1013,7 +1013,7 @@ sub log_list {
   );
 
   my $EXT_TABLES = $self->{EXT_TABLES};
-
+  
   if ($WHERE =~ / u\./) {
     $EXT_TABLES .= "LEFT JOIN users u ON  (u.uid=l.uid)";
   }

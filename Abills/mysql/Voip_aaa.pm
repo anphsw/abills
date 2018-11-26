@@ -123,7 +123,8 @@ sub user_info {
    tp.payment_type,
    tp.uplimit,
    tp.age AS account_age,
-   voip.expire AS voip_expire
+   voip.expire AS voip_expire,
+   tp.max_session_duration
    FROM voip_main voip 
    INNER JOIN users u ON (u.uid=voip.uid)
    LEFT JOIN tarif_plans tp ON (tp.tp_id=voip.tp_id)
@@ -347,6 +348,9 @@ sub auth {
       );
 
       if ($session_timeout > 0) {
+        if($self->{MAX_SESSION_DURATION} && $session_timeout > $self->{MAX_SESSION_DURATION}) {
+          $session_timeout = $self->{MAX_SESSION_DURATION};
+        }
         $RAD_PAIRS{'Session-Timeout'} = $session_timeout;
         #$RAD_PAIRS{'h323-credit-time'}=$session_timeout;
       }
@@ -357,7 +361,7 @@ sub auth {
       }
 
       #Make trunk data for asterisk
-      if ($NAS->{NAS_TYPE} eq 'asterisk' and $self->{TRUNK_PROTOCOL}) {
+      if ($NAS->{NAS_TYPE} eq 'asterisk' && $self->{TRUNK_PROTOCOL}) {
         $self->{prepend} = '';
 
         my $number = $RAD->{'Called-Station-Id'};

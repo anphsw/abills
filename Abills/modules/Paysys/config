@@ -13,7 +13,8 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
 
 
     # Reports 21-40
-    "21:0:Paysys:paysys_log" => 4,
+    "21:0:Paysys:paysys_log"             => 4,
+    "22:21:Custom Report:paysys_reports" => 4,
   );
 
   %USER_FUNCTION_LIST = (

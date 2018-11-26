@@ -39,7 +39,7 @@ BEGIN {
   unshift(@INC,
     $libpath . 'lib/',
     '/usr/abills/lib',
-    $libpath .'/../'
+    $libpath . '/../'
   );
 }
 
@@ -79,12 +79,28 @@ sub register_eltex {
   my $mac = $argv->{MAC} || q{};
   my $type = $argv->{TYPE} || '';
 
+  if ($argv->{del_onu}) {
+    $mac = $argv->{ONU_SNMP_ID};
+    my $status_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.20." . $mac;
+
+    my $result = snmp_set({
+      SNMP_COMMUNITY => $argv->{SNMP_COMMUNITY},
+      OID => [
+        $status_oid, 'integer', 6,
+      ],
+#      DEBUG          => 3,
+      VERSION        => '2',
+    });
+
+    return 1;
+  }
+
   my $status_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.20." . $mac;
   my $port_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.3." . $mac;
-  my $slot_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.4." .$mac;
-  my $vlan_oid = ".1.3.6.1.4.1.35265.1.22.3.14.1.5." .$mac;
-  my $service_oid = ".1.3.6.1.4.1.35265.1.22.3.14.1.4." .$mac;
-  my $template_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.43." .$mac;
+  my $slot_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.4." . $mac;
+  my $vlan_oid = ".1.3.6.1.4.1.35265.1.22.3.14.1.5." . $mac . ".1";
+  my $service_oid = ".1.3.6.1.4.1.35265.1.22.3.14.1.4." . $mac . ".1";
+  my $template_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.43." . $mac;
 
   if (($argv->{VLAN} ne '') && ($argv->{PORT} ne '')) {
     if ($type eq "gpon") {
@@ -96,20 +112,21 @@ sub register_eltex {
       my $result = snmp_set({
         SNMP_COMMUNITY => $argv->{SNMP_COMMUNITY},
         OID            => \@snmp_oids,
-        DEBUG          => $debug
+#        DEBUG          => 3,
+        VERSION        => '2',
       });
 
       @snmp_oids = ();
-      push @snmp_oids, $vlan_oid, 'gauge32', "$argv->{VLAN}";
+      push @snmp_oids, $template_oid, 'gauge32', "1";
       push @snmp_oids, $service_oid, 'integer', "1";
-      push @snmp_oids, $template_oid, 'integer', "1";
+      push @snmp_oids, $vlan_oid, 'integer', "$argv->{VLAN}";
 
       $result = snmp_set({
         SNMP_COMMUNITY => $argv->{SNMP_COMMUNITY},
-        OID            => \@snmp_oids
+        OID            => \@snmp_oids,
+#        DEBUG          => 3,
+        VERSION        => '2',
       });
-#      _bp('', \$result, {HEADER=>1});
-
 
       return 1;
     }
@@ -118,4 +135,20 @@ sub register_eltex {
   return 0;
 }
 
-1
+#**********************************************************
+=head2 unregister_eltex($attr)
+
+  Arguments:
+     $attr
+
+  Returns:
+
+=cut
+#**********************************************************
+sub unregister_eltex {
+  my ($attr) = @_;
+
+  print "okkk";
+}
+
+1;

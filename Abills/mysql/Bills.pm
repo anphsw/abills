@@ -106,6 +106,9 @@ sub change {
     DEPOSIT    => 'deposit'
   );
 
+  my $bills_old_info = $self->info({ BILL_ID => $attr->{BILL_ID} });
+
+  delete $admin->{MODULE};
   $self->changes(
     {
       CHANGE_PARAM => 'BILL_ID',
@@ -113,7 +116,7 @@ sub change {
       FIELDS       => \%FIELDS,
       OLD_INFO     => $self->info({ BILL_ID => $attr->{BILL_ID} }),
       DATA         => $attr,
-      EXT_CHANGE_INFO => "BILL_ID: $attr->{BILL_ID} DEPOSIT: $attr->{DEPOSIT}",
+      EXT_CHANGE_INFO => "BILL_ID: $attr->{BILL_ID} DEPOSIT: $bills_old_info->{DEPOSIT} -> $attr->{DEPOSIT}",
       ACTION_ID    => 40
     }
   );

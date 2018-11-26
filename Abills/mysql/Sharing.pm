@@ -1959,6 +1959,7 @@ sub file_list {
       [ 'GROUP_NAME',  'STR', 'sg.name as group_name',  1 ],
       [ 'LINK_TIME', 'INT', 'sf.link_time', 1 ],
       [ 'FILE_TIME', 'INT', 'sf.file_time', 1 ],
+      [ 'REMIND_FOR', 'INT', 'sf.remind_for', 1 ],
     ],
     {
       WHERE => 1,
@@ -2471,6 +2472,35 @@ sub group_change {
   );
 
   return $self;
+}
+#*******************************************************************
+
+=head2 get_remind_date() - get info for reminding
+
+  Arguments:
+    $attr
+
+  Returns:
+
+=cut
+
+#*******************************************************************
+sub get_remind_date {
+  my $self = shift;
+  my($attr)=@_;
+  my $WHERE = "datediff(su.date_to, curdate())=sf.remind_for";
+  if ($attr->{LOGIN}) {
+    $WHERE = "u.id='$attr->{LOGIN}' AND datediff(su.date_to, curdate())=sf.remind_for"
+  }
+  $self->query("
+    SELECT *
+    FROM sharing_users su
+    JOIN sharing_files sf ON (sf.id=su.file_id)
+    JOIN users u ON (su.uid=u.uid)
+    WHERE $WHERE;
+  ", undef, {COLS_NAME => 1});
+
+  return $self->{list};
 }
 
 1

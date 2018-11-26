@@ -500,6 +500,13 @@ sub mail_users_list {
     mail_user_boxes();
   }
 
+  if ($FORM{del} && $FORM{COMMENTS} && !$user->{UID} ) {
+    $Mail->mbox_del($FORM{del}, {UID => $user->{UID}});
+    if (!$Mail->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{DELETED}");
+    }
+  }
+
   my $list = $Mail->mbox_list({%LIST_PARAMS, COLS_NAME => 1 });
 
   if (_error_show($Mail)) {
@@ -510,10 +517,39 @@ sub mail_users_list {
     #return 0;
   }
 
+  if ($FORM{newpassword}) {
+    if ($FORM{newpassword} eq $FORM{confirm}) {
+      my %change_params = ();
+      $change_params{PASSWORD} = $FORM{newpassword};
+      $change_params{UID}      = $user->{UID};
+      $change_params{MBOX_ID}  = $FORM{MBOX_ID};
+      $Mail->mbox_change({%change_params});
+      if (!$Mail->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+      }
+    }
+    else {
+      $html->message('err', $lang{ERROR}, $err_strs{5});
+    }
+  }
+  elsif ($FORM{MBOX_ID} && $FORM{UID} && $user->{UID} && $FORM{UID} == $user->{UID}) {
+    $Mail->mbox_info({%FORM});
+    my %password_form = ();
+    $password_form{PW_CHARS}      = $conf{PASSWD_SYMBOLS};
+    $password_form{PW_LENGTH}     = $conf{PASSWD_LENGTH} || 6;
+    $password_form{ACTION}        = 'change';
+    $password_form{LNG_ACTION}    = $lang{CHANGE};
+    $password_form{HIDDDEN_INPUT} = $html->form_input('MBOX_ID', $FORM{MBOX_ID}, {TYPE => 'hidden', OUTPUT2RETURN => 1});
+    $password_form{HIDDDEN_INPUT} .= $html->form_input('UID', $FORM{UID}, {TYPE => 'hidden', OUTPUT2RETURN => 1});
+    $password_form{ID}            = join('@', ($Mail->{USERNAME}, $Mail->{DOMAIN}));;
+
+    $html->tpl_show(templates('form_password'), \%password_form);
+  }
+
   my $table = $html->table({
     width      => '100%',
     caption    => 'E-mail',
-    title      => [ $lang{LOGIN}, $lang{DOMAIN}, $lang{USER}, $lang{COMMENTS},
+    title      => [ $lang{LOGIN}, $lang{USER}, $lang{DOMAIN}, $lang{COMMENTS},
           "$lang{LIMIT} $lang{COUNT}", "$lang{LIMIT} $lang{SIZE}", $lang{ANTIVIRUS}, $lang{ANTISPAM}, $lang{STATUS}, '-' ],
     qs         => $pages_qs,
     pages      => $Mail->{TOTAL},

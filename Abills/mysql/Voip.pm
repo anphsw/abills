@@ -30,15 +30,15 @@ my $PAGE_ROWS = 25;
 #**********************************************************
 sub new {
   my $class = shift;
-  my $db    = shift;
+  my $db = shift;
 
   ($admin, $CONF) = @_;
   $admin->{MODULE} = $MODULE;
 
   my $self = {
-    db   => $db,
-    admin=> $admin,
-    conf => $CONF
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
   };
   bless($self, $class);
 
@@ -63,7 +63,7 @@ sub user_info {
     my $users = Users->new($self->{db}, $admin, $CONF);
     $users->info(0, { LOGIN => "$attr->{LOGIN}" });
     if ($users->{errno}) {
-      $self->{errno}  = 2;
+      $self->{errno} = 2;
       $self->{errstr} = 'ERROR_NOT_EXIST';
       return $self;
     }
@@ -110,8 +110,8 @@ sub user_info {
      LEFT JOIN voip_tps tp ON (voip.tp_id=tp.id)
      LEFT JOIN tarif_plans ON (tarif_plans.tp_id=voip.tp_id)
    $WHERE;",
-  undef,
-  { INFO => 1 } 
+    undef,
+    { INFO => 1 }
   );
 
   return $self;
@@ -146,14 +146,14 @@ sub user_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $attr->{CID} = lc($attr->{CID}) if($attr->{CID});
+  $attr->{CID} = lc($attr->{CID}) if ($attr->{CID});
 
   $self->query_add('voip_main', $attr);
 
   $self->{TP_INFO} = $Tariffs->info($attr->{TP_ID});
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
-  $admin->{MODULE}=$MODULE;
+  $admin->{MODULE} = $MODULE;
 
   $admin->action_add($attr->{UID}, "", {
     TYPE    => 1,
@@ -173,18 +173,18 @@ sub user_change {
   my $self = shift;
   my ($attr) = @_;
 
-  if (! $attr->{TP_ID}) {
+  if (!$attr->{TP_ID}) {
     $attr->{ALLOW_ANSWER} = ($attr->{ALLOW_ANSWER}) ? 1 : 0;
-    $attr->{ALLOW_CALLS}  = ($attr->{ALLOW_CALLS})  ? 1 : 0;
+    $attr->{ALLOW_CALLS} = ($attr->{ALLOW_CALLS}) ? 1 : 0;
   }
   else {
     $self->{TP_INFO} = $Tariffs->info($attr->{TP_ID});
   }
 
-  $attr->{EXPIRE}= $attr->{VOIP_EXPIRE};
-  $attr->{LOGINS}= $attr->{SIMULTANEOUSLY};
+  $attr->{EXPIRE} = $attr->{VOIP_EXPIRE};
+  $attr->{LOGINS} = $attr->{SIMULTANEOUSLY};
 
-  $admin->{MODULE}=$MODULE;
+  $admin->{MODULE} = $MODULE;
   $self->changes(
     {
       CHANGE_PARAM => 'UID',
@@ -216,17 +216,17 @@ sub user_del {
 =cut
 #**********************************************************
 sub user_list {
-  my $self   = shift;
+  my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my @WHERE_RULES = ( "u.uid = service.uid" );
+  my @WHERE_RULES = ("u.uid = service.uid");
   my $EXT_TABLES = '';
-  $self->{EXT_TABLES}='';
+  $self->{EXT_TABLES} = '';
 
   if ($attr->{USERS_WARNINGS}) {
     $self->query(" SELECT u.id, pi.email, dv.tp_id, u.credit, b.deposit, tp.name, tp.uplimit
@@ -266,37 +266,39 @@ sub user_list {
     return $list;
   }
 
-
   if ($attr->{TP_FREE_TIME}) {
-    push @WHERE_RULES, @{ $self->search_expr($attr->{CID}, 'INT', 'tp.free_time AS tp_free_time', { EXT_FIELD => 1 }) };
+    push @WHERE_RULES, @{$self->search_expr($attr->{CID}, 'INT', 'tp.free_time AS tp_free_time', { EXT_FIELD => 1 })};
     $EXT_TABLES .= "LEFT JOIN voip_tps voip_tp ON (voip_tp.id=tp.tp_id) ";
   }
   if ($attr->{ONLINE}) {
-  	push @WHERE_RULES, "service.location!=''";
+    push @WHERE_RULES, "service.location!=''";
   }
 
-  my $WHERE =  $self->search_former($attr, [
-      ['NUMBER',         'INT', 'service.number',                   1 ],
-      ['TP_NAME',        'STR', 'tp.name AS tp_name',               1 ],
-      ['IP',             'IP',  'service.ip',                 'INET_NTOA(service.ip) AS ip' ],
-      ['CID',            'STR', 'service.cid',                      1 ],
-      ['SERVICE_STATUS', 'INT', 'service.disable AS voip_status',   1 ],
-      ['SIMULTANEONSLY', 'INT', 'service.logins',                   1 ],
-      ['FILTER_ID',      'STR', 'service.filter_id',                1 ],
-      ['TP_ID',          'INT', 'service.tp_id',                    1 ],
-      ['TP_CREDIT',      'INT', 'tp.credit',                       'tp.credit AS tp_credit' ],
-      ['VOIP_EXPIRE',    'DATE','service.expire AS voip_expire',    1 ],
-      ['PROVISION_PORT', 'INT', 'service.provision_port',           1 ],
-      ['PROVISION_NAS_ID','INT','service.provision_nas_id',         1 ],
-      ['LOCATIONS',       'STR','service.location',                 1 ],
-      ['EXPIRES',         'DATE','service.expires',                 1 ],
-    ],
+  my $WHERE = $self->search_former($attr, [
+    [ 'NUMBER',           'INT', 'service.number',           1 ],
+    [ 'TP_NAME',          'STR', 'tp.name AS tp_name',       1 ],
+    [ 'IP',               'IP',  'service.ip', 'INET_NTOA(service.ip) AS ip' ],
+    [ 'CID',              'STR', 'service.cid',              1 ],
+    [ 'SERVICE_STATUS',   'INT', 'service.disable AS voip_status', 1 ],
+    [ 'SIMULTANEONSLY',   'INT', 'service.logins',           1 ],
+    [ 'FILTER_ID',        'STR', 'service.filter_id',        1 ],
+    [ 'TP_ID',            'INT', 'service.tp_id',            1 ],
+    [ 'TP_CREDIT',        'INT', 'tp.credit', 'tp.credit AS tp_credit' ],
+    [ 'VOIP_EXPIRE',      'DATE','service.expire AS voip_expire', 1 ],
+    [ 'PROVISION_PORT',   'INT', 'service.provision_port',   1 ],
+    [ 'PROVISION_NAS_ID', 'INT', 'service.provision_nas_id', 1 ],
+    [ 'LOCATIONS',        'STR', 'service.location',         1 ],
+    [ 'EXPIRES',          'DATE','service.expires',          1 ],
+    [ 'MONTH_FEE',        'INT', 'tp.month_fee',             1 ],
+    [ 'ABON_DISTRIBUTION','INT', 'tp.abon_distribution',     1 ],
+    [ 'DAY_FEE',          'INT', 'tp.day_fee',               1 ],
+  ],
     { WHERE            => 1,
-    	WHERE_RULES      => \@WHERE_RULES,
-    	USERS_FIELDS_PRE => 1,
-    	USE_USER_PI      => 1
+      WHERE_RULES      => \@WHERE_RULES,
+      USERS_FIELDS_PRE => 1,
+      USE_USER_PI      => 1
     }
-    );
+  );
 
   $EXT_TABLES = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
@@ -310,11 +312,11 @@ sub user_list {
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;";
 
   $self->query($sql,
-     undef,
-     $attr
+    undef,
+    $attr
   );
 
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -322,7 +324,7 @@ sub user_list {
     $self->query("SELECT count(u.id) AS total FROM (users u, voip_main service)
     $EXT_TABLES
      $WHERE",
-    undef, { INFO => 1 });
+      undef, { INFO => 1 });
   }
 
   return $list;
@@ -365,17 +367,17 @@ sub route_add {
   $self->query("$action INTO voip_routes (prefix, parent, name, disable, date,
         descr) 
         VALUES (?, ?, ?, ?, now(), ?);", 'do',
-    { Bind => 
-       [ $attr->{ROUTE_PREFIX} || '', 
-         $attr->{PARENT_ID} || 0,
-         $attr->{ROUTE_NAME} || '',
-         $attr->{DISABLE} || 0,
-         $attr->{DESCRIBE} || ''
-       ] 
+    { Bind =>
+      [ $attr->{ROUTE_PREFIX} || '',
+        $attr->{PARENT_ID} || 0,
+        $attr->{ROUTE_NAME} || '',
+        $attr->{DISABLE} || 0,
+        $attr->{DESCRIBE} || ''
+      ]
     }
   );
 
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   $admin->system_action_add("ROUTES: $attr->{ROUTE_PREFIX}", { TYPE => 1 });
   return $self;
@@ -400,9 +402,9 @@ sub route_info {
    descr AS `describe`
      FROM voip_routes
    WHERE id= ? ;",
-   undef,
-   { INFO => 1,
-     Bind => [ $id ] }
+    undef,
+    { INFO => 1,
+      Bind => [ $id ] }
   );
 
   return $self;
@@ -425,11 +427,11 @@ sub route_del {
   }
   elsif ($attr->{ALL}) {
     $WHERE = "id > '0'";
-    $id    = 'ALL';
+    $id = 'ALL';
   }
 
   $self->query("DELETE FROM voip_routes WHERE $WHERE;", 'do');
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   $admin->system_action_add("ROUTES: $id", { TYPE => 10 });
 
@@ -454,7 +456,7 @@ sub route_change {
     DESCRIBE     => 'descr',
   );
 
-  $attr->{DISABLE}=(! defined($attr->{DISABLE})) ? 0 : 1;
+  $attr->{DISABLE} = (!defined($attr->{DISABLE})) ? 0 : 1;
 
   $self->changes(
     {
@@ -473,22 +475,22 @@ sub route_change {
 # route_list()
 #**********************************************************
 sub routes_list {
-  my $self   = shift;
+  my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE =  $self->search_former($attr, [
-      ['ROUTE_NAME',     'STR', 'r.name',     ],
-      ['DESCRIBE',       'STR', 'r.descr',    ],
-      ['ROUTE_PREFIX',   'STR', 'r.prefix'    ],
-    ],
+  my $WHERE = $self->search_former($attr, [
+    [ 'ROUTE_NAME', 'STR', 'r.name', ],
+    [ 'DESCRIBE', 'STR', 'r.descr', ],
+    [ 'ROUTE_PREFIX', 'STR', 'r.prefix' ],
+  ],
     { WHERE => 1,
     }
-    );
+  );
 
   $self->query("SELECT r.prefix, r.name, r.disable, r.date, r.id, r.parent
      FROM voip_routes r
@@ -498,13 +500,13 @@ sub routes_list {
     $attr
   );
 
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
     $self->query("SELECT count(r.id) AS total FROM voip_routes r $WHERE",
-    undef, { INFO => 1 });
+      undef, { INFO => 1 });
   }
 
   return $list;
@@ -524,9 +526,9 @@ sub rp_add {
     if ($k =~ /^p_/) {
       my (undef, $route, $interval) = split(/_/, $k, 3);
 
-      my $trunk       = $attr->{ "t_" . $route . "_" . $interval }  || 0;
+      my $trunk = $attr->{ "t_" . $route . "_" . $interval } || 0;
       my $extra_tarif = $attr->{ "et_" . $route . "_" . $interval } || 0;
-      my $unit_price  = 0;
+      my $unit_price = 0;
       if ($CONF->{VOIP_UNIT_TARIFICATION}) {
         $unit_price = $v;
         $v = $v * $attr->{EXCHANGE_RATE} if ($attr->{EXCHANGE_RATE} && $attr->{EXCHANGE_RATE} > 0);
@@ -540,7 +542,7 @@ sub rp_add {
   $self->query("REPLACE INTO voip_route_prices (route_id, interval_id, price, date, trunk, extra_tarification, unit_price) VALUES
   $value;", 'do'
   );
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   return $self;
 }
@@ -555,7 +557,7 @@ sub rp_change_exhange_rate {
 
   if ($attr->{EXCHANGE_RATE} > 0) {
     $self->query("UPDATE voip_route_prices SET price = unit_price * $attr->{EXCHANGE_RATE};", 'do');
-    return [ ] if ($self->{errno});
+    return [] if ($self->{errno});
   }
 
   return $self;
@@ -567,10 +569,10 @@ sub rp_change_exhange_rate {
 =cut
 #**********************************************************
 sub rp_list {
-  my $self   = shift;
+  my $self = shift;
   my ($attr) = @_;
 
-  my @WHERE_RULES   = ();
+  my @WHERE_RULES = ();
 
   if ($attr->{PRICE}) {
     my $value = $self->search_expr($attr->{PRICE}, 'INT');
@@ -590,8 +592,8 @@ sub rp_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query("SELECT count(route_id) AS total FROM voip_route_prices rp $WHERE", 
-    undef, { INFO => 1 });
+    $self->query("SELECT count(route_id) AS total FROM voip_route_prices rp $WHERE",
+      undef, { INFO => 1 });
   }
 
   return $list;
@@ -608,14 +610,14 @@ sub tp_list {
   $SORT = (defined($attr->{SORT})) ? $attr->{SORT} : 1;
   $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
 
-  my $WHERE =  $self->search_former($attr, [
-      ['FREE_TIME',     'INT', 'voip.free_time',    1 ],
-      ['TIME_DIVISION', 'STR', 'voip.time_division',1 ],
-    ],
-    { WHERE => 1,
-    	WHERE_RULES => \@WHERE_RULES
+  my $WHERE = $self->search_former($attr, [
+    [ 'FREE_TIME', 'INT', 'voip.free_time', 1 ],
+    [ 'TIME_DIVISION', 'STR', 'voip.time_division', 1 ],
+  ],
+    { WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES
     }
-    );
+  );
 
   $self->query("SELECT tp.id, tp.name, 
     if(sum(i.tarif) is NULL or sum(i.tarif)=0, 0, 1) AS time_tarifs, 
@@ -690,7 +692,7 @@ sub tp_add {
   $Tariffs->add($attr);
 
   $Tariffs->{TP_ID} = $Tariffs->{INSERT_ID};
-  $self->{TP_ID}=$Tariffs->{INSERT_ID};
+  $self->{TP_ID} = $Tariffs->{INSERT_ID};
 
   if ($Tariffs->{errno}) {
     $self->{errno} = $Tariffs->{errno};
@@ -787,7 +789,7 @@ sub tp_info {
     return $self;
   }
 
-  while(my($k, $v)=each %{ $self->{TP_INFO} }) {
+  while (my ($k, $v) = each %{$self->{TP_INFO}}) {
     if (ref $v eq '') {
       $self->{$k} = $v;
     }
@@ -802,7 +804,7 @@ sub tp_info {
     voip.id= ? ;",
     undef,
     { INFO => 1,
-      Bind => [ $id ] 
+      Bind => [ $id ]
     }
   );
 
@@ -820,7 +822,7 @@ sub trunk_add {
 
   $self->query_add('voip_trunks', $attr);
 
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   #  $admin->action_add($attr->{UID}, "ADDED", { MODULE => 'voip'});
   return $self;
@@ -837,10 +839,10 @@ sub trunk_info {
 
   $self->query("SELECT * FROM voip_trunks
    WHERE id= ? ;",
-  undef,
-  { INFO => 1,
-    Bind => [ $id ]
-  }
+    undef,
+    { INFO => 1,
+      Bind => [ $id ]
+    }
   );
 
   return $self;
@@ -886,22 +888,22 @@ sub trunk_change {
 =cut
 #**********************************************************
 sub trunk_list {
-  my $self   = shift;
+  my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE =  $self->search_former($attr, [
-      ['ID',        'STR', 'id',             1 ],
-      ['NAME',      'STR', 'name',           1 ],
-      ['PROTOCOL',  'STR', 'protocol',       1 ],
-      ['PROVNAME',  'STR', 'provider_name',  1 ],
-      ['FAILTRUNK', 'STR', 'failover_trunk', 1 ],
-      ['STATUS',    'STR', 'status as state',1 ],
-    ],
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID', 'STR', 'id', 1 ],
+    [ 'NAME', 'STR', 'name', 1 ],
+    [ 'PROTOCOL', 'STR', 'protocol', 1 ],
+    [ 'PROVNAME', 'STR', 'provider_name', 1 ],
+    [ 'FAILTRUNK', 'STR', 'failover_trunk', 1 ],
+    [ 'STATUS', 'STR', 'status as state', 1 ],
+  ],
     { WHERE => 1,
     }
   );
@@ -915,13 +917,13 @@ sub trunk_list {
     $attr
   );
 
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL}) {
     $self->query("SELECT COUNT(id) AS total FROM voip_trunks $WHERE",
-    undef, { INFO => 1 });
+      undef, { INFO => 1 });
   }
 
   return $list;
@@ -939,8 +941,8 @@ sub extra_tarification_info {
   $self->query("SELECT id, name, prepaid_time
      FROM voip_route_extra_tarification
   WHERE id='$attr->{ID}';",
-  undef,
-  { INFO => 1 }
+    undef,
+    { INFO => 1 }
   );
 
   return $self;
@@ -995,20 +997,20 @@ sub extra_tarification_del {
 =cut
 #**********************************************************
 sub extra_tarification_list {
-  my $self   = shift;
+  my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE =  $self->search_former($attr, [
-      ['ID',   'INT', 'et.id',    1 ],
-      ['NAME', 'STR', 'et.name',  1 ],
-    ],
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID', 'INT', 'et.id', 1 ],
+    [ 'NAME', 'STR', 'et.name', 1 ],
+  ],
     { WHERE => 1 }
-    );
+  );
 
   $self->query("SELECT id, name, prepaid_time
      FROM voip_route_extra_tarification
@@ -1018,12 +1020,12 @@ sub extra_tarification_list {
     $attr
   );
 
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL}) {
     $self->query("SELECT COUNT(id) AS total FROM voip_route_extra_tarification $WHERE",
-    undef, { INFO => 1 });
+      undef, { INFO => 1 });
   }
 
   return $list;
@@ -1035,33 +1037,33 @@ sub extra_tarification_list {
 =cut
 #**********************************************************
 sub voip_yate_cdr {
-  my $self   = shift;
+  my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
   if ($attr->{NOW}) {
-  	push @WHERE_RULES, "ended!=1";
+    push @WHERE_RULES, "ended!=1";
   }
-  my $WHERE =  $self->search_former($attr, [
-      ['DATETIME',   'DATA', 'datetime',       1 ],
-      ['CALLER',     'STR', 'caller',          1 ],
-      ['CALLED',     'STR', 'called',          1 ],
-      ['BILLTIME',   'STR', 'billtime',        1 ],
-      ['RINGTIME',   'STR', 'ringtime',        1 ],
-      ['DURATION',   'STR', 'duration',        1 ],
-      ['DIRECTION',  'STR', 'direction',       1 ],
-      ['STATUS',     'STR', 'status as state', 1 ],
-      ['REASON',     'STR', 'reason',          1 ],
-      ['ID',         'INT', 'id',                ],
-    ],
-    { 
-    	WHERE            => 1,
-    	WHERE_RULES      => \@WHERE_RULES,
+  my $WHERE = $self->search_former($attr, [
+    [ 'DATETIME', 'DATA', 'datetime', 1 ],
+    [ 'CALLER', 'STR', 'caller', 1 ],
+    [ 'CALLED', 'STR', 'called', 1 ],
+    [ 'BILLTIME', 'STR', 'billtime', 1 ],
+    [ 'RINGTIME', 'STR', 'ringtime', 1 ],
+    [ 'DURATION', 'STR', 'duration', 1 ],
+    [ 'DIRECTION', 'STR', 'direction', 1 ],
+    [ 'STATUS', 'STR', 'status as state', 1 ],
+    [ 'REASON', 'STR', 'reason', 1 ],
+    [ 'ID', 'INT', 'id', ],
+  ],
+    {
+      WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES,
     }
   );
 
@@ -1069,18 +1071,18 @@ sub voip_yate_cdr {
      FROM voip_cdr
      $WHERE 
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-     undef,
-     $attr
+    undef,
+    $attr
   );
 
-  return [ ] if ($self->{errno});
+  return [] if ($self->{errno});
 
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
     $self->query("SELECT count(id) AS total FROM voip_cdr
      $WHERE",
-    undef, { INFO => 1 });
+      undef, { INFO => 1 });
   }
 
   return $list;

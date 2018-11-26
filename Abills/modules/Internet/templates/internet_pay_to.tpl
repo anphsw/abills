@@ -24,7 +24,7 @@
         <label class='control-label col-md-3' for='DATE'>_{DATE}_</label>
         <div class='col-md-9'>
           <input id='DATE' name='DATE' value='%DATE%' data-date-orientation='bottom' placeholder='%DATE%'
-                 class='form-control datepicker' type='text'>
+                 class='form-control datepicker' type='text' %DATE_READONLY%>
         </div>
       </div>
 

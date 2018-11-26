@@ -188,7 +188,7 @@ sub internet_multiuser {
     $params{TP_ID} = $FORM{INTERNET_MU_TP};
   }
   if ($FORM{MU_DATE}) {
-    $params{INTERNET_EXPIRE} = $FORM{INTERNET_MU_DATEPICKER};
+    $params{SERVICE_EXPIRE} = $FORM{INTERNET_MU_DATEPICKER};
   }
   if ($FORM{MU_STATUS}) {
     $params{STATUS} = $FORM{INTERNET_MU_STATUS};
@@ -379,8 +379,8 @@ sub internet_users_list {
       'month_fee'             => $lang{MONTH_FEE},
       'day_fee'               => $lang{DAY_FEE},
       'internet_expire'       => "Internet $lang{EXPIRE}",
-      'internet_login'        => "$lang{SERVICE} $lang{LOGIN}",
-      'internet_password'     => "$lang{SERVICE} $lang{PASSWD}",
+      'internet_login'        => "Internet $lang{LOGIN}",
+      'internet_password'     => "Internet $lang{PASSWD}",
       'month_traffic_in'      => "$lang{MONTH} $lang{RECV}",
       'month_traffic_out'     => "$lang{MONTH} $lang{SENT}",
       'month_ipn_traffic_in'  => "$lang{MONTH} IPN $lang{RECV}",
@@ -722,64 +722,64 @@ sub internet_payments_maked {
   $user=$attr->{USER_INFO} if ($attr->{USER_INFO});
   return '' if ($FORM{DISABLE});
 
-  $Internet->info($attr->{USER_INFO}->{UID});
+  my $service_list = $Internet->list({
+    UID         => $user->{UID},
+    TP_NUM      => '>0',
+    GROUP_BY    => 'internet.id',
+    COLS_NAME   => 1
+  });
 
-  if ($Internet->{TOTAL} < 1) {
-    return 0;
-  }
-  #User without TP
-  elsif(! $Internet->{TP_NUM}) {
-    return 0;
-  }
+  foreach my $service (@$service_list) {
+    $Internet->info($user->{UID}, { ID => $service->{id} });
 
-  if($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
-    $Internet->{MONTH_ABON} = $Internet->{PERSONAL_TP};
-  }
+    if ($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
+      $Internet->{MONTH_ABON} = $Internet->{PERSONAL_TP};
+    }
 
-  my $deposit = (defined($attr->{USER_INFO}->{DEPOSIT})) ? $attr->{USER_INFO}->{DEPOSIT} + (($attr->{USER_INFO}->{CREDIT} > 0) ? $attr->{USER_INFO}->{CREDIT} : $Internet->{TP_CREDIT} ) : 0;
+    my $deposit = (defined($user->{DEPOSIT})) ? $user->{DEPOSIT} + (($user->{CREDIT} > 0) ? $user->{CREDIT} : $Internet->{TP_CREDIT}) : 0;
 
-  my $abon_fees = ($attr->{USER_INFO}->{REDUCTION}==0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON}) * (100 - $attr->{USER_INFO}->{REDUCTION}) / 100;
+    my $abon_fees = ($user->{REDUCTION} == 0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON}) * (100 - $user->{REDUCTION}) / 100;
 
-  if($conf{INTERNET_FULL_MONTH}) {
-    $abon_fees = ($attr->{USER_INFO}->{REDUCTION}==0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON}*30 : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON}*30) * (100 - $attr->{USER_INFO}->{REDUCTION}) / 100;
-  }
-  elsif($Internet->{ABON_DISTRIBUTION}) {
-    $abon_fees = ($Internet->{MONTH_ABON} / 30) + $Internet->{DAY_ABON};
-  }
+    if ($conf{INTERNET_FULL_MONTH}) {
+      $abon_fees = ($user->{REDUCTION} == 0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} * 30 : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON} * 30) * (100 - $user->{REDUCTION}) / 100;
+    }
+    elsif ($Internet->{ABON_DISTRIBUTION}) {
+      $abon_fees = ($Internet->{MONTH_ABON} / 30) + $Internet->{DAY_ABON};
+    }
 
-  if ($Internet->{STATUS} > 3 && $deposit > $abon_fees) {
-    $Internet->change(
-      {
-        UID    => $attr->{USER_INFO}->{UID},
-        ID     => $Internet->{ID},
-        STATUS => 0
-      }
-    );
-    #$Internet->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE} || '0000-00-00';
-    service_get_month_fee($Internet, $attr);
-
-    if($conf{INTERNET_PAY_ACTIVATE}) {
-      my $sum = $attr->{SUM} || 0;
-      if( $Internet->{SERVICE_ACTIVATE} ne '0000-00-00' && date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30
-        && $deposit - $sum <= 0 && $deposit > $abon_fees) {
-        #&& $deposit - $sum <= 0 && $deposit > 0) {
-
-        my %service_params = (
-          UID    => $attr->{USER_INFO}->{UID},
+    if ($Internet->{STATUS} > 3 && $deposit > $abon_fees) {
+      $Internet->change(
+        {
+          UID    => $user->{UID},
           ID     => $Internet->{ID},
-          STATUS => 0,
-          SERVICE_ACTIVATE => $DATE
-        );
-
-        if($Internet->{STATUS}) {
-          $service_params{STATUS}=0;
+          STATUS => 0
         }
+      );
+      #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
+      service_get_month_fee($Internet, $attr);
 
-        $Internet->change(\%service_params);
+      if ($conf{INTERNET_PAY_ACTIVATE}) {
+        my $sum = $attr->{SUM} || 0;
+        if ($Internet->{SERVICE_ACTIVATE} ne '0000-00-00' && date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30
+          && $deposit - $sum <= 0 && $deposit > $abon_fees) {
+          #&& $deposit - $sum <= 0 && $deposit > 0) {
+
+          my %service_params = (
+            UID              => $user->{UID},
+            ID               => $Internet->{ID},
+            STATUS           => 0,
+            SERVICE_ACTIVATE => $DATE
+          );
+
+          if ($Internet->{STATUS}) {
+            $service_params{STATUS} = 0;
+          }
+
+          $Internet->change(\%service_params);
+        }
       }
     }
   }
-
 
   return 1;
 }
@@ -1169,6 +1169,7 @@ sub internet_quick_info {
       QUICK_TPL => 'internet_qi_box',
       FIELDS => {
         TP_NAME     => $lang{TARIF_PLAN},
+        CID         => 'CID',
         IP          => 'IP',
         STATUS      => $lang{STATUS},
         MONTH_FEE   => $lang{MONTH_FEE},

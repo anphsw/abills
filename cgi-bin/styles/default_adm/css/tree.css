@@ -6,7 +6,7 @@ ul.tree {
 }
 
 ul.tree li {
-    list-style-type: none;
+    /*list-style-type: none;*/
     margin: 0;
     padding: 10px 5px 0 5px;
     position: relative
@@ -29,7 +29,7 @@ ul.tree li::before {
 
 ul.tree li::after {
     border-top: 1px solid #999;
-    height: 20px;
+    height: 15px;
     top: 25px;
     width: 25px
 }
@@ -52,6 +52,17 @@ ul.tree.clickable li span {
 
 label.tree-toggler {
     cursor: pointer;
+}
+.tree-toggler {
+    /*text-decoration: underline;*/
+    border: 2px outset;
+    border-radius: 5px;
+     padding: 3px 8px;
+}
+.tree-item {
+     padding: 3px 8px;
+    border: 2px outset;
+    border-radius: 5px;
 }
 
 ul.tree li:last-child::before {

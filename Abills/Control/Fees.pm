@@ -323,7 +323,7 @@ sub form_fees_list {
         }
         # old. remove if everything ok.
         # $line->{dsc} = $line->{dsc}.$html->br().$html->b($line->{inner_describe}) if ($line->{inner_describe});
-        $line->{dsc} = ($line->{dsc} || q{}) . $html->b("($line->{inner_describe})") if ($line->{inner_describe});
+        $line->{dsc} = ($line->{dsc} || q{}) . $html->b(" ($line->{inner_describe})") if ($line->{inner_describe});
       }
       elsif($field_name =~ /deposit/ && defined($line->{$field_name})) {
         $line->{$field_name} = ($line->{$field_name} < 0) ? $html->color_mark($line->{$field_name}, $_COLORS[6]) : $line->{$field_name};

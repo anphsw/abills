@@ -20,6 +20,7 @@
 
 
 <script id='maps_general' src='/styles/default_adm/js/maps/general.js?v=7.61'></script>
+<script id='maps_dynamic_forms' src='/styles/default_adm/js/dynamicForms.js'></script>
 <script id='maps_request' src='/styles/default_adm/js/maps/general-request.js?v=7.61'></script>
 
 <!--Google maps specific logic-->

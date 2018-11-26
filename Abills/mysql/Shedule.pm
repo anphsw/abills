@@ -167,6 +167,16 @@ sub list{
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
 
+  if ($attr->{SERVICE_ID}) {
+    if ($WHERE) {
+      $WHERE .= " AND s.action LIKE '$attr->{SERVICE_ID}:%'";
+    }
+    else {
+      $WHERE .= " WHERE s.action LIKE '$attr->{SERVICE_ID}:%'";
+    }
+    
+  }
+  
   $self->query( "SELECT s.h, s.d, s.m, s.y, s.counts,
       u.id AS login,
       s.type,

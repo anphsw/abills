@@ -31,7 +31,7 @@
                 </div>
                 <div class='form-group'>
                     <label class='font-weight-bold text-center col-md-6 form-control-label'>_{TOTAL}__{SUM}_:</label>
-                    <label class='font-weight-bold col-md-6 form-control-label'>$FORM{TOTAL_SUM}</label>
+                    <label class='font-weight-bold col-md-6 form-control-label'>%TOTAL_SUM%</label>
                 </div>
             </div>
             <div class='box-footer'>

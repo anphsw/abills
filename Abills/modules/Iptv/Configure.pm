@@ -157,7 +157,7 @@ sub iptv_tp{
     $tarif_info->{NEXT_TARIF_PLAN_SEL} = sel_tp({
       SELECT          => 'NEXT_TARIF_PLAN',
       NEXT_TARIF_PLAN => $tarif_info->{NEXT_TARIF_PLAN},
-      SKIP_TP         => $tarif_info->{TP_ID},
+      #SKIP_TP         => $tarif_info->{TP_ID},
       MODULE          => 'Iptv'
     });
 
@@ -539,7 +539,7 @@ sub iptv_channels{
     }
   }
   if ( $FORM{message} ){
-    $html->message( 'info', $lang{INFO}, "$FORM{message}" );
+    $html->message( 'info', $lang{INFO}, $FORM{message} );
   }
   $Iptv->{ACTION} = 'add';
   $Iptv->{LNG_ACTION} = $lang{ADD};
@@ -606,7 +606,7 @@ sub iptv_channels{
     $Iptv->{ACTION_STALKER} = 'stalker_change';
     $Iptv->{ACTION_LNG_STALKER} = $lang{CHANGE};
     #$Iptv->stalker_channel_info( { NAME => $FORM{stalker_chg}, } );
-    foreach my $line ( %{$Iptv} ){
+    foreach my $line ( keys %{$Iptv} ){
       if ( $line eq 'WOWZA_TMP_LINK'
         || $line eq 'CENSORED'
         || $line eq 'HD'

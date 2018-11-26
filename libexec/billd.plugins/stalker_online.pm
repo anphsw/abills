@@ -434,7 +434,6 @@ sub stalker_online_check {
     foreach my $mac ( keys %USERS_ONLINE_LIST ) {
       my ($uid, $id, $acct_session_id)=split(/:/, $USERS_ONLINE_LIST{$mac});
       #Hangup stb box
-      $Stalker_api->{debug}=1;
       $Stalker_api->_send_request({
         ACTION  => "send_event/".$id,
         event   => 'cut_off',

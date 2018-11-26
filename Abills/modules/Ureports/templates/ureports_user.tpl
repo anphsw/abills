@@ -31,6 +31,7 @@
 <form action='$SELF_URL' method='post' class='form-horizontal'>
   <input type=hidden name='index' value='$index'>
   <input type=hidden name='UID' value='$FORM{UID}'>
+  <input type=hidden name='step' value='$FORM{step}'>
 
   <fieldset>
 

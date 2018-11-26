@@ -54,7 +54,6 @@ $lang{SCREENS}='Screens';
 $lang{SCREEN}='Screen';
 
 $lang{UPLOAD_CHANNELS}='Import channels';
-$lang{NO_CHANGES}='Without changes';
 $lang{DELETE_EXIST}='Delete existing';
 $lang{CHANGE_EXIST}='Change existing';
 $lang{DOWNLOAD_CHANNELS}='Export channels';
@@ -70,3 +69,7 @@ $lang{PROVIDER_PORTAL_URL}='Provider portal url';
 
 $lang{ERR_NO_AVAILABLE_TP}='There are no available tariff plans';
 $lang{DISABLE_SERVICE_DATE}='Disable date';
+
+$lang{ADDED_TP}='Added tarif plan';
+
+$lang{MAX_DEVICES} = 'Max devices';

@@ -9,6 +9,14 @@ SED=sed
 SSH=ssh
 SSH_PORT=22
 SSH_KEY_TYPE=rsa
+MIKROTIK_SSH_PORT=${SSH_PORT}
+MIKROTIK_CONTROL_USER=""
+USE_NAT=""
+CONTROL_USER=""
+
+RADIUS_SECRET=""
+
+id_rsa_file=""
 
 #while [ "${NAS_ID}" = "" ]; do
 #  read -p "Nas ID:" NAS_ID
@@ -64,7 +72,7 @@ get_value () {
   DESCRIBE=$2
   DEFAULT_VALUE=$3
 
-  if [ x${DEFAULT_VALUE} != x ]; then
+  if [ "${DEFAULT_VALUE}" != "" ]; then
     DEFAULT_VALUE_INFO="(${DEFAULT_VALUE})"
   fi;
 
@@ -310,7 +318,6 @@ save_config () {
 }
 
 
-
 #**********************************************************
 #
 #**********************************************************
@@ -355,9 +362,6 @@ save_mikrotik_config () {
 help () {
   echo "Mikrotik autoconfigure program"
   echo "Version: ${VERSION}"
-
-
-
 }
 
 #**********************************************************

@@ -295,7 +295,7 @@ sub ipoe_start_active{
     return $debug_output;
   }
 
-  my @nas_types = ('ipcad', 'dhcp');
+  my @nas_types = ('ipcad', 'dhcp', 'ipn');
 
   if ( $attr->{NAS_TYPES} ){
     @nas_types = split( /,/, $attr->{NAS_TYPES} );
@@ -565,6 +565,7 @@ sub ipoe_detail_rotate{
       DETAIL    => 1,
       LOG       => ($d == 1) ? 1 : undef,
       PERIOD    => $conf{IPN_DETAIL_CLEAN_PERIOD} || 180,
+      LOG_KEEP_PERIOD => $conf{IPN_LOG_KEEP_PERIOD} || 1,
       DAILY_LOG => $conf{IPN_DAILY_LOG_ROTATE} || 0,
     }
   );

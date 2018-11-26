@@ -21,7 +21,7 @@ BEGIN {
     $Bin . '/../Abills/modules' );
 }
 
-my $version = 0.73;
+my $version = 0.74;
 my $debug = 0;
 our (
   $db,
@@ -35,7 +35,7 @@ our (
 );
 
 use Abills::Defs;
-use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd);
+use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd date_diff);
 use Abills::Templates;
 use Abills::Misc;
 
@@ -188,6 +188,7 @@ sub ureports_periodic_reports{
     if(in_array('Internet', \@MODULES)) {
       $users_params{INTERNET_TP} = 1;
       $users_params{INTERNET_STATUS} = '_SHOW';
+      $users_params{INTERNET_EXPIRE} = '_SHOW';
     }
     else {
       $users_params{DV_TP} = 1;
@@ -201,6 +202,7 @@ sub ureports_periodic_reports{
       my %PARAMS = ();
       $user->{TP_ID} = $tp->{tp_id};
       my $internet_status = $user->{DV_STATUS} || $user->{INTERNET_STATUS} || 0;
+      my $internet_expire = $user->{INTERNET_EXPIRE} || 0;
       #Skip disabled user
       next if ($internet_status == 1 || $internet_status == 2 || $internet_status == 3);
       $user->{VALUE} =~ s/,/\./s;
@@ -264,7 +266,6 @@ sub ureports_periodic_reports{
         }
 
         $user->{DEPOSIT} = sprintf( "%.2f", $user->{DEPOSIT} );
-
         if ( $total_daily_fee > 0 ){
           $user->{EXPIRE_DAYS} = int( $user->{DEPOSIT} / $reduction_division / $total_daily_fee );
         }
@@ -315,16 +316,34 @@ sub ureports_periodic_reports{
             #my $rest_traffic = '';
             my $rest = 0;
             foreach my $line ( @{$list} ){
+              $rest = ($conf{INTERNET_INTERVAL_PREPAID}) ? $Sessions->{REST}->{ $line->{interval_id} }->{ $line->{traffic_class} }  :  $Sessions->{REST}->{ $line->{traffic_class} };
+              #$rest = 0;
+              # if ($line->{prepaid} && $line->{prepaid} > 0
+              #    && defined($line->{traffic_class})
+              #    && $Sessions->{REST}
+              #    && $Sessions->{REST}->{ $line->{traffic_class} }
+              #    && $Sessions->{REST}->{ $line->{traffic_class} } > 0) {
+              #   $rest = $Sessions->{REST}->{ $line->{traffic_class} };
+              # }
+              $PARAMS{REST}=$rest;
+              $PARAMS{REST_DIMENSION}=int2byte($rest);
+              $PARAMS{PREPAID}=$line->{prepaid};
 
-              $rest = 0;
-              if ($line->{prepaid} && $line->{prepaid} > 0
-                 && defined($line->{traffic_class}) && $Sessions->{REST} && $Sessions->{REST}->{ $line->{traffic_class} } && $Sessions->{REST}->{ $line->{traffic_class} } > 0) {
-                $rest = $Sessions->{REST}->{ $line->{traffic_class} };
-              }
+              $PARAMS{'REST_'.($line->{traffic_class} || 0)}=$rest;
+              $PARAMS{'REST_DIMENSION_'. ($line->{traffic_class} || 0)}=int2byte($rest);
+              $PARAMS{'PREPAID_'.($line->{traffic_class} || 0)}=$line->{prepaid} || 0;
 
               if ( $rest < $user->{VALUE} ){
-                $PARAMS{MESSAGE} .= "================\n $lang{TRAFFIC} $lang{TYPE}: $line->{traffic_class}\n$lang{BEGIN}: $line->{interval_begin}\n" . "$lang{END}: $line->{interval_end}\n" . "$lang{TOTAL}: $line->{prepaid}\n" . "\n $lang{REST}: " . $rest . "\n================";
+                $PARAMS{MESSAGE} .= "================\n $lang{TRAFFIC} $lang{TYPE}: $line->{traffic_class}\n$lang{BEGIN}: $line->{interval_begin}\n"
+                  . "$lang{END}: $line->{interval_end}\n"
+                  . "$lang{TOTAL}: $line->{prepaid}\n"
+                  . "\n $lang{REST}: "
+                  . $rest . "\n================";
               }
+            }
+
+            if(! $PARAMS{MESSAGE}) {
+              next;
             }
           }
         }
@@ -410,22 +429,20 @@ sub ureports_periodic_reports{
             next;
           }
         }
-
-        #Report 11 - Small deposit fo next month activation
-        elsif ( $user->{REPORT_ID} == 11 ){
+        #Report 11 - Small deposit for next month activation with predays XX trigger
+        elsif ( $user->{REPORT_ID} == 11 && $internet_expire < $user->{VALUE}){
           if ( $user->{TP_MONTH_FEE} && $user->{TP_MONTH_FEE} > $user->{DEPOSIT} ){
             my $recharge = $user->{TP_MONTH_FEE} + (($user->{DEPOSIT} < 0) ? abs($user->{DEPOSIT}) : 0) ;
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
               MESSAGE  => "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH} $lang{BALANCE_RECHARCHE} $recharge",
-              SUBJECT  => "$lang{DEPOSIT_BELOW}"
+              SUBJECT  => $lang{DEPOSIT_BELOW}
             );
           }
           else{
             next;
           }
         }
-
         #Report 13 All service expired throught
         elsif ( $user->{REPORT_ID} == 13 && !$internet_status ){
           if ($user->{EXPIRE_DAYS} && $user->{EXPIRE_DAYS} <= $user->{VALUE}){

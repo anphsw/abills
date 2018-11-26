@@ -90,7 +90,7 @@
         .append("<button type='button' class='btn btn-default btn-xs reply-cancel'>" + cancelStr + "</button>");
       replyElement.children().first().focus();
       
-      jQuery(".reply-save").click(function(){
+      jQuery(".reply-save").click(function(event){
         event.preventDefault();
         save_reply(this);
         replyId = 0;
@@ -104,7 +104,7 @@
     }
   };
 
-  jQuery(function(){
+  jQuery(function(event){
     jQuery(".reply-edit-btn").click(function(event){
       event.preventDefault();
       edit_reply(this);

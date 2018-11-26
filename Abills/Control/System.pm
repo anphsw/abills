@@ -326,8 +326,8 @@ sub form_templates {
   if ($admin->{DOMAIN_ID}) {
     $domain_path = "$admin->{DOMAIN_ID}/";
     $conf{TPL_DIR} = "$conf{TPL_DIR}/$domain_path";
-    if (!-d "$conf{TPL_DIR}") {
-      if (!mkdir("$conf{TPL_DIR}")) {
+    if (!-d $conf{TPL_DIR}) {
+      if (!mkdir($conf{TPL_DIR})) {
         $html->message('err', $lang{ERROR}, "$lang{ERR_CANT_CREATE_FILE} '$conf{TPL_DIR}' $lang{ERROR}: $!\n");
       }
     }
@@ -338,14 +338,17 @@ sub form_templates {
   if ($FORM{create}) {
     my ($module, $file, $lang) = split(/:/, $FORM{create}, 3);
 
+    if($file !~ /\.tpl$/) {
+      $file .= ".tpl";
+    }
+
     $info{TEMPLATE} = file_op({
       FILENAME => $file,
       PATH     => ($module) ? "$sys_templates/$module/templates/" : "$main_templates_dir/"
     });
 
     my $filename = ($module) ? "$sys_templates/$module/templates/$file" : "$main_templates_dir/$file";
-
-    if ( $lang && $lang ne '' ){
+    if ( $lang  ){
       $file =~ s/\.tpl/_$lang/;
       $file .= '.tpl';
     }
@@ -1995,7 +1998,7 @@ sub form_fees_types {
 }
 
 #**********************************************************
-=head2 get_checksum();
+=head2 get_checksum($dir, $file_check_sum) - Get file checksum;
 
 =cut
 #**********************************************************
@@ -2005,8 +2008,6 @@ sub get_checksum {
   opendir my $dh, $dir or return;
     my @contents = grep !/^\.\.?$/, readdir $dh;
   closedir $dh;
-
-  my %file_check_sum = ();
 
   foreach my $f (@contents) {
     my $filename = $dir.'/'.$f;
@@ -2018,7 +2019,7 @@ sub get_checksum {
     if (-d $filename) {
       &get_checksum($filename, $file_check_sum);
     }
-    elsif($filename =~ /webinterface|\.pm|billd|periodic|rlm_perl.pl|index.cgi/) {
+    elsif($filename =~ /webinterface$|\.pm|billd$|periodic$|rlm_perl.pl|index.cgi|\.js$/) {
       my $file_content = '';
       if (open(my $fh, '<', $filename)) {
          while(<$fh>) {
@@ -2031,7 +2032,7 @@ sub get_checksum {
       my $mtime = (stat($filename))[9];
       my $date = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime($mtime));
       $filename =~ s/$base_dir\///g;
-      $file_check_sum{$filename}="$digest:$date";
+      $file_check_sum->{$filename}="$digest:$date";
     }
   }
 

@@ -48,7 +48,7 @@ $users //= $user;
 exit if form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Maps',
-  REQUIRE_VERSION => 7.61,
+  REQUIRE_VERSION => 7.62,
 });
 
 our $Maps = Maps->new($db, $admin, \%conf);
@@ -213,6 +213,39 @@ sub maps_edit {
         }
       }
 
+      use Cablecat;
+      my $Cablecat = Cablecat->new($db, $admin, \%conf);
+      #Delete cable links
+      if ($FORM{LAYER_ID} == 10 && $FORM{cable_id}) {
+        $Cablecat->delete_links_for_element('CABLE', $FORM{cable_id});
+        $Cablecat->cables_del({ ID => $FORM{cable_id} });
+      }
+      #Delete well
+      elsif ($FORM{LAYER_ID} == 11 && $FORM{well_id}) {
+        $Cablecat->wells_del({ ID => $FORM{well_id} });
+      }
+      elsif ($FORM{LAYER_ID} == 10 && $FORM{OBJECT_ID}) {
+        my $del_cable = $Cablecat->cables_list({
+          POINT_ID => $FORM{OBJECT_ID},
+          ID       => '_SHOW',
+        });
+
+        if ($Cablecat->{TOTAL}) {
+          $Cablecat->delete_links_for_element('CABLE', $del_cable->[0]{id});
+          $Cablecat->cables_del({ ID => $del_cable->[0]{id} });
+        }
+      }
+      elsif ($FORM{LAYER_ID} == 11 && $FORM{OBJECT_ID}) {
+        my $del_well = $Cablecat->wells_list({
+          POINT_ID => $FORM{OBJECT_ID},
+          ID       => '_SHOW',
+        });
+
+        if ($Cablecat->{TOTAL}) {
+          $Cablecat->wells_del({ ID => $del_well->[0]{id} });
+        }
+      }
+
       show_result($Maps, $lang{DELETED});
       print CLOSE_OUTER_MODAL_SCRIPT;
       return 1;
@@ -224,7 +257,9 @@ sub maps_edit {
 
   # Every object linked to address can add new address
   if ($FORM{ADD_ADDRESS_BUILD} && $FORM{STREET_ID}) {
-    # Swapping coordinates (it's a long-long story)
+    if ($FORM{NUMBER}) {
+      $FORM{ADD_ADDRESS_BUILD} = $FORM{NUMBER};
+    }
     $Address->build_add({ %FORM, COORDY => $FORM{COORDX}, COORDX => $FORM{COORDY} });
     if (!_error_show($Address)) {
       $FORM{LOCATION_ID} = $Address->{INSERT_ID};
@@ -276,14 +311,6 @@ sub maps_edit {
       }
       else {
         $Address->address_info($FORM{LOCATION_ID});
-        # my $maybe_object_exists = $Maps->points_info(undef, {
-        # LOCATION_ID => $FORM{LOCATION_ID},
-        # TYPE_ID     => '3'
-        # });
-        # if ($maybe_object_exists) {
-        # $object_id = $maybe_object_exists->{id};
-        # }
-        # else {
         $object_id = $Maps->points_add({ %FORM, TYPE_ID => 3, NAME =>
           "$Address->{ADDRESS_STREET}, $Address->{ADDRESS_BUILD}" });
         # }

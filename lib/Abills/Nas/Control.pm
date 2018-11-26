@@ -137,8 +137,17 @@ sub hangup {
       hangup_ipoe($Nas, \%params);
     }
     else {
+      $params{RAD_PAIRS} = {
+        'User-Name'        => $USER_NAME,
+        'Framed-IP-Address'=> $attr->{FRAMED_IP_ADDRESS},
+        'Acct-Session-Id'  => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
+      };
+
       hangup_radius($Nas, \%params);
     }
+  }
+  elsif ($nas_type eq 'huawei_me60') {
+    hangup_radius($Nas, \%params);
   }
   elsif ($nas_type eq 'chillispot') {
     $Nas->{NAS_MNG_IP_PORT} = "$Nas->{NAS_IP}:3799" if (!$Nas->{NAS_MNG_IP_PORT});

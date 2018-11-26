@@ -205,4 +205,51 @@ sub paysys_log {
   return 1;
 }
 
+#**********************************************************
+=head2 paysys_reports()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_reports {
+  my ($attr) = @_;
+  print "Hello, World";
+  my $select = _paysys_select_connected_systems();
+  my $systems = $html->form_main(
+    {
+      CONTENT => $select,
+      HIDDEN  => { index => $index },
+      SUBMIT  => { show  => $lang{SHOW} },
+      class   => 'navbar-form navbar-right',
+    }
+  );
+
+  func_menu({ $lang{NAME} => $systems });
+
+  if($FORM{SYSTEM_ID}){
+    my $system_info = $Paysys->paysys_connect_system_info({
+      ID               => $FORM{SYSTEM_ID},
+      SHOW_ALL_COLUMNS => 1,
+      COLS_NAME        => 1
+    });
+
+    my $REQUIRE_OBJECT = _configure_load_payment_module($system_info->{module});
+    my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {
+        CUSTOM_NAME => $system_info->{name},
+        CUSTOM_ID   => $system_info->{paysys_id}});
+    if($PAYSYS_OBJECT->can('report')){
+      $PAYSYS_OBJECT->report(\%FORM);
+    }
+    else{
+      $html->message("warn", "No sub report", "This module doesnt have report sub");
+    }
+  }
+
+  return 1;
+}
+
 1;

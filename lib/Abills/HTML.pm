@@ -188,7 +188,7 @@ sub new {
   );
 
   $index = 0;
-  if($FORM{index} && $FORM{index} =~ /^\d+$/) {
+  if ($FORM{index} && $FORM{index} =~ /^\d+$/) {
     $index = $FORM{index};
   }
 
@@ -903,7 +903,7 @@ sub form_select {
         if ($attr->{SORT_VALUE}) {
           @sorted_list = sort {
             length($attr->{SEL_HASH}->{$k}->{$a} || '') <=> length($attr->{SEL_HASH}->{$k}->{$b} || '')
-            || $attr->{SEL_HASH}->{$k}->{$a} cmp $attr->{SEL_HASH}->{$k}->{$b}
+              || $attr->{SEL_HASH}->{$k}->{$a} cmp $attr->{SEL_HASH}->{$k}->{$b}
           } keys %{$attr->{SEL_HASH}->{$k}};
         }
         else {
@@ -976,17 +976,17 @@ sub form_select {
 
   if ($attr->{MAIN_MENU}) {
     my $input = q{};
-    if($attr->{CHECKBOX}) {
+    if ($attr->{CHECKBOX}) {
       my $checkbox_name = $attr->{CHECKBOX};
       my $checkbox_title = $attr->{CHECKBOX_TITLE} || q{};
       my $state = $FORM{$checkbox_name} || $attr->{CHECKBOX_STATE};
       $input = $self->form_input($checkbox_name, '1', {
-        TYPE       => 'checkbox',
-        EX_PARAMS  => "NAME='$checkbox_name' data-tooltip='$checkbox_title'",
-        ID         => 'DATE',
-        STATE      => $state
+        TYPE      => 'checkbox',
+        EX_PARAMS => "NAME='$checkbox_name' data-tooltip='$checkbox_title'",
+        ID        => 'DATE',
+        STATE     => $state
       },
-      { OUTPUT2RETURN => 1 });
+        { OUTPUT2RETURN => 1 });
     }
 
     $self->{SELECT} = "
@@ -1530,8 +1530,7 @@ sub header {
   $info{TITLE} = $CONF->{WEB_TITLE} || "~AsmodeuS~ Billing System";
   $info{HTML_STYLE} = $self->{HTML_STYLE};
 
-
-  if($FORM{REFRESH}) {
+  if ($FORM{REFRESH}) {
     my $text = $ENV{REQUEST_URI};
     $text =~ s/\%([A-Fa-f0-9]{2})/pack('C', hex($1))/seg;
     $info{REFRESH} = "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"$FORM{REFRESH}; URL=$text\"/>\n";
@@ -1540,7 +1539,16 @@ sub header {
   $info{CHARSET} = $self->{CHARSET};
   $info{CONTENT_LANGUAGE} = $attr->{CONTENT_LANGUAGE} || $self->{content_language} || 'ru';
   $info{CALLCENTER_MENU} = $self->{CALLCENTER_MENU};
-  $info{WEBSOCKET_URL} = ($CONF->{WEBSOCKET_URL} || $CONF->{WEBSOCKET_ENABLED}) ? ($ENV{HTTP_HOST} || '') . "/admin/wss/" : '';
+
+  $info{WEBSOCKET_URL} = '';
+  if ($CONF->{WEBSOCKET_URL} || $CONF->{WEBSOCKET_ENABLED}) {
+    if (!$CONF->{WEBSOCKET_URL}) {
+      $info{WEBSOCKET_URL} = ($ENV{HTTP_HOST} || '') . "/admin/wss/";
+    }
+    else {
+      $info{WEBSOCKET_URL} = $CONF->{WEBSOCKET_URL};
+    }
+  }
 
   $info{SIDEBAR_HIDDEN} = (exists $COOKIES{menuHidden})
     ? ($COOKIES{menuHidden} eq 'true') ? 'sidebar-collapse' : ''
@@ -1576,6 +1584,7 @@ sub header {
       EXPORT      - show button for exporting table
       DATA_TABLE  - create table with data table plugin
       IMPORT      - Show import form
+      summary     - Count elements and sum feess or sum payments
       NOT_RESPONSIVE
       SHOW_COLS_HIDDEN - Hidden columns for gum fields
       SKIP_TOP_PAGES - Skip top pages
@@ -1653,7 +1662,9 @@ sub table {
 
   my ($attr) = @_;
   $self->{before_table} = '';
+  $self->{table_caption} = '';
   $self->{rows} = '';
+  $self->{summary} = '';
 
   #  my $width       = (defined($attr->{width}))  ? " width=\"$attr->{width}\""   : '';
   my $table_responsive = (($attr->{NOT_RESPONSIVE}) ? '' : ' table-responsive');
@@ -1773,12 +1784,12 @@ sub table {
   </div>
 </div>\n";
 
-      $show_cols_button = "<button title='Extra fields' class='btn btn-default btn-xs' data-toggle='modal' data-target='#" . $attr->{ID} . "_cols_modal'><span class='glyphicon glyphicon-option-horizontal'></span></button>";
+      $show_cols_button = "<button title='Extra fields' class='btn btn-box-tool' data-toggle='modal' data-target='#" . $attr->{ID} . "_cols_modal'><span class='glyphicon glyphicon-option-horizontal'></span></button>";
     }
 
     my $collapse_icon = ($attr->{HIDE_TABLE}) ? 'fa-plus' : 'fa-minus';
     $self->{table_caption} .= ""
-      . (($attr->{ID}) ? "<button type='button' title='Show/Hide' class='btn btn-default btn-xs ' data-widget='collapse'><i class='fa $collapse_icon'></i></button>" : '')
+      . (($attr->{ID}) ? "<button type='button' title='Show/Hide' class='btn btn-box-tool' data-widget='collapse'><i class='fa $collapse_icon'></i></button>" : '')
       . $show_cols_button;
   }
 
@@ -1834,7 +1845,7 @@ sub table {
       push @export_formats, 'xls';
     }
     #instantiate new dropdown menu
-    $export_obj .= "<button title='Export' role='button' class='dropdown-toggle btn btn-default btn-xs' data-toggle='dropdown'" .
+    $export_obj .= "<button title='Export' role='button' class='dropdown-toggle btn btn-box-tool' data-toggle='dropdown'" .
       " aria-haspopup='true' aria-expanded='false'>" .
       "<span class='glyphicon glyphicon-export'></span>" .
       "</button>" .
@@ -1870,7 +1881,7 @@ sub table {
   push @header_obj, $self->{EXPORT_OBJ} if ($self->{EXPORT_OBJ});
 
   if ($attr->{IMPORT}) {
-    $self->{table_caption} = qq{<a role='button' title='Import' class='btn btn-default btn-xs' onclick='loadToModal("$attr->{IMPORT}")'>
+    $self->{table_caption} = qq{<a role='button' title='Import' class='btn btn-box-tool' onclick='loadToModal("$attr->{IMPORT}")'>
       <span class='glyphicon glyphicon-import'></span>
     </a>
     } . $self->{table_caption};
@@ -1971,7 +1982,7 @@ sub table {
   if ($attr->{caption_icon}) {
     $caption_icon = "<i class='" . $attr->{caption_icon} . "' style='font-size:18px; margin-right: 5px'></i>";
   }
-  if ($self->{table_caption}) {
+  if ($attr->{caption} || $self->{table_caption}) {
     $self->{table} .= "<div class='box-header with-border hidden-print text-center'>
     <div class='row'>
       <div class='col-md-$table_caption_size pull-left text-left'>
@@ -2011,8 +2022,29 @@ sub table {
   elsif (defined($attr->{title_plain})) {
     $self->{table} .= $self->table_title_plain($attr->{title_plain});
   }
-
+  if ($attr->{summary}) {
+    $self->{summary} = $self->table_summary($attr->{summary})
+  }
   return $self;
+}
+#**********************************************************
+=head2 table_summary($attr) - Add summary in footer box table
+
+  Arguments:
+   $attr     - summary content
+
+  Results:
+  $self->{summary} - summamry
+
+=cut
+#**********************************************************
+sub table_summary {
+  my ($self, $attr) = @_;
+  if ($attr) {
+    $self->{summary} .= $attr;
+  }
+
+  return $self->{summary};
 }
 
 #**********************************************************
@@ -2574,11 +2606,15 @@ sub show {
     . $self->{rows}
     . "</TABLE>\n";
 
-  if ($self->{pagination}) {
-    $self->{show} .= "<hr/><div class='row'><div class='col-md-3 pull-right text-right'>$self->{pagination}</div></div>"
-  }
+  #  if ($self->{pagination}) {
+  #    $self->{show} .= "<hr/><div class='row'><div class='col-md-3 pull-right text-right'>$self->{pagination}</div></div>"
+  #  }
+  $self->{show} .= (($self->{ID}) ? "</div>\n" : '</div>');
 
-  $self->{show} .= (($self->{ID}) ? "</div>\n" : '</div>') . '</div>';
+  if ($self->{summary} || $self->{pagination}) {
+    $self->{show} .= $self->{summary};
+  }
+  $self->{show} .= '</div>';
 
   if (!$attr->{NO_DEBUG_MARKERS}) {
     $self->{show} = "<!-- $self->{ID} start table  -->"
@@ -2865,17 +2901,17 @@ sub message {
   my $icon = '';
   my $class = '';
 
-  if ($type eq 'err') {
+  if ($type eq 'err' || $type eq 'error' || $type eq 'danger') {
     $class = 'callout-danger';
-    $icon = "<span class='glyphicon glyphicon glyphicon-warning-sign' aria-hidden='true'></span> ";
+    $icon = "<span class='glyphicon glyphicon-remove-sign'></span>";
   }
   elsif ($type eq 'info') {
     $class = 'callout-success';
-    $icon = "<span class='glyphicon glyphicon-ok-sign' aria-hidden='true'></span> ";
+    $icon = "<span class='glyphicon glyphicon-ok-sign'></span>";
   }
-  elsif ($type eq 'warn') {
+  elsif ($type eq 'warn' || $type eq 'warning') {
     $class = 'callout-warning';
-    $icon = "<span class='glyphicon glyphicon-warning-sign' aria-hidden='true'></span> ";
+    $icon = "<span class='glyphicon glyphicon-exclamation-sign'></span>";
   }
   else {
     $class = 'callout-' . $type;
@@ -3014,8 +3050,10 @@ sub pages {
   }
 
   return qq{
-  <div class='rules hidden-print'>
-      <ul class='pagination pagination-sm'><li><a data-toggle='modal'  data-target='#gotopage' ><span class="glyphicon glyphicon-chevron-down"></span></a></li> $self->{pages}</ul>
+  <div class='hidden-print'>
+    <ul class='pagination pagination-sm'><li><a data-toggle='modal' data-target='#gotopage'>
+      <span class="glyphicon glyphicon-chevron-down"></span></a></li>$self->{pages}
+    </ul>
   </div>
 
 
@@ -3029,7 +3067,7 @@ sub pages {
             <div class="modal-body text-left">
             <div class='row'>
               <div class='col-md-9'>
-                <input class='form-control' id='pagevalue' type='text'  size='9' maxlength=4/>
+                <input class='form-control' id='pagevalue' type='text'  size='9' maxlength=8/>
               </div>
               <div class='col-md-3'>
                 <button type="button"  class="btn btn-primary pull-right" data-dismiss="modal" onclick="checkval('index.cgi?$argument&pg=')">OK</button>
@@ -4087,9 +4125,8 @@ sub progress_bar {
   if ($attr->{TOTAL} && $attr->{TOTAL} =~ /\d+/ && $attr->{COMPLETE}) {
     $one_percent = $attr->{TOTAL} / 100;
     $attr->{COMPLETE} =~ s/\%//;
-    $complete = ($one_percent > 0) ? int($attr->{COMPLETE} / $one_percent) : 0;
+    $complete = ($one_percent > 0) ? sprintf('%.f', $attr->{COMPLETE} / $one_percent) : 0;
   }
-
   my ($first_step, $second_step, $third_step) = ($complete, 0, 0);
 
   if ($complete > 50) {
@@ -4160,7 +4197,7 @@ sub progress_bar {
     }
 
     $ret = qq{<div class="row">
-                <div class="col-md-9">
+                <div class="col-md-8">
                  <div class="progress progress-xs progress-striped $active">
                    <div class="progress-bar progress-bar-$bar_color" style="width: $complete%"></div>
                  </div>
@@ -5174,5 +5211,44 @@ sub chart {
 
 =cut
 
+#**********************************************************
+=head2 html_tree($list, $keys) - creates tree for DB list
+
+  Arguments:
+    $list - DB list
+    $keys - levels for tree
+
+  Returns:
+    HTML code
+
+  Example:
+    my $list = $Address->build_list();
+    my $keys = "city,street_name,number";
+    The key value can be changed as you need
+    foreach my $line (@$list) {
+      $line->{number} = $html->b("$lang{ADDRESS_BUILD} $line->{number}");
+    }
+    my $tree = $html->html_tree($list, $keys);
+
+=cut
+#**********************************************************
+sub html_tree {
+  my $self = shift;
+  my ($list, $keys) = @_;
+  my $DATA = JSON->new->encode($list);
+  my $result .= qq(
+     <div id="show_tree" style="text-align: left;"> </div>
+    <link rel='stylesheet' href='/styles/default_adm/css/new_tree.css'>
+    <script type='text/javascript' src='/styles/default_adm/js/tree/tree.js'></script>
+    <script>
+      jQuery(function() {
+      var keys = '$keys';
+      var list = $DATA;
+      var name;
+      make_tree(list, keys);
+      });
+	  </script> );
+  return $result;
+}
 
 1

@@ -33,7 +33,7 @@ sub quick_info_user {
 
   $users->info($attr->{UID});
 
-  if ($permissions{0} && $permissions{0}{12}) {
+  if ($permissions{0} && !$permissions{0}{12}) {
     $users->{DEPOSIT} = '--';
   }
 
@@ -213,6 +213,7 @@ sub form_slides_info {
     my $fn = lc($module) . '_quick_info';
     if (defined(&$fn)) {
       my $slide_info = &{ \&$fn }({ GET_PARAMS => 1 });
+
       $slide_info->{FN} = $fn;
       $slide_info->{ID} = uc($module);
       $slide_info->{MODULE} = $module;
@@ -253,6 +254,7 @@ sub form_slides_info {
   Arguments:
     $attr
       SHOW_ID   -
+      UID
 
 =cut
 #**********************************************************
@@ -263,7 +265,7 @@ sub user_full_info {
   my $content;
   my $info     = '';
   my @info_arr = ();
-  my $uid      = $FORM{UID} || $LIST_PARAMS{UID};
+  my $uid      = $attr->{UID} || $FORM{UID} || $LIST_PARAMS{UID};
 
   if(! $uid) {
     push @info_arr, q/{ "ERROR" : 'Undefined UID' }/;

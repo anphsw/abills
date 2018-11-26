@@ -99,7 +99,7 @@ $lang{SUBJECT_CHANGED} = "Тема изменена с";
 $lang{OPERATOR_STATISTICS} = 'Cтатистика оператора техподдержки';
 $lang{NUMBER_OF_PROCESSED_REQUESTS} = 'Количество обработанных заявок';
 $lang{TIME_SPENT_ON_APPLICATIONS} = 'Время потраченное на заявки';
-$lang{AVERAGE_SCORE_FOR_CLOSED_BIDS} = 'Средний бал за закрытые заявки';
+$lang{AVERAGE_SCORE_FOR_CLOSED_BIDS} = 'Оценка выполнения (средняя)';
 $lang{RELATIVE_INDICATORS} = 'Относительные показатели';
 $lang{GROWTH_OF_CHIEVEMENT} = 'Прирост успеваемости';
 $lang{ADMINISTRATORS_RANK} = 'Рейтинг среди других администраторов';
@@ -118,6 +118,11 @@ $lang{PERIODICALLY} = "Периодически";
 
 $lang{TASK}='Задание';
 $lang{USER_CONNECTION}='Подключение абонента';
+$lang{CLOSED_RATIO} = 'Процент выполненных сообщений';
+$lang{REPLYS_AND_TIME} = 'Ответы и время';
+$lang{REPLYS_COUNT} = 'Количество ответов администратора';
+$lang{REPLYS_AVERAGE} = 'Ответы (в среднем)';
+$lang{TIME_AVERAGE} = 'Время (в среднем)';
 
 1
 

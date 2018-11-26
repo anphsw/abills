@@ -261,7 +261,7 @@ my %request_list = (
               "floor": { "type": "integer" },
               "entrance": { "type": "integer" },
               "full_name": { "type": "string" },
-              "number": { "type": "integer" },
+              "number": { "type": "string" },
               "street_id": { "type": "integer" }
             },
             "required": [
@@ -404,7 +404,7 @@ my %request_list = (
           "os": {
             "type": "string"
           },
-          "erp": {
+          "billing": {
             "type": "object",
             "properties": {
               "name": {
@@ -938,7 +938,8 @@ sub get_json {
     'max_rows=s'   => \$opts{max_rows},
     'start_page=s' => \$opts{start_page},
     'uid=s'        => \$opts{uid},
-    'help'         => \$opts{help}
+    'help'         => \$opts{help},
+    'skip_traffic=s' => \$opts{skip_traffic},
   );
 
   if ($opts{help}) {
@@ -946,10 +947,11 @@ sub get_json {
   }
 
   %LIST_PARAMS = (
-    MAX_ROWS   => $opts{max_rows},
-    START_PAGE => $opts{start_page} || 0,
-    DEBUG      => $opts{debug} || 0,
-    UID        => $opts{uid}
+    MAX_ROWS     => $opts{max_rows},
+    START_PAGE   => $opts{start_page} || 0,
+    DEBUG        => $opts{debug} || 0,
+    UID          => $opts{uid},
+    SKIP_TRAFFIC => $opts{skip_traffic},
   );
 
   my $count = 0;
@@ -974,7 +976,7 @@ sub get_json {
       $json = web_request($request_url, { CURL => 1, TIMEOUT => 300 });
     }
     else {
-      userside_api($request, { %LIST_PARAMS });
+      userside_api($request, { %opts, %LIST_PARAMS });
       $json = $html->{RESULT};
     }
 
@@ -1036,15 +1038,16 @@ sub get_remote_request {
 sub help {
 
   print qq{
-  local
-  userside
-  remote=
-  debug
-  request=
-  max_rows=
-  start_page=
-  uid=
-  help
+  -local
+  -userside
+  -remote=
+  -debug
+  -request=
+  -max_rows=
+  -start_page=
+  -uid=
+  -skip_traffic=
+  -help
 };
 
   exit;

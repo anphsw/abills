@@ -419,7 +419,7 @@ sub payment_add {
           Crm->import();
           my $Crm = Crm->new($db, $admin, \%conf);
           $Crm->add_coming({
-            DATE           => $FORM{DATE},
+            DATE           => $FORM{DATE} || $DATE,
             AMOUNT         => $FORM{SUM},
             CASHBOX_ID     => $FORM{CASHBOX_ID},
             COMING_TYPE_ID => 2,

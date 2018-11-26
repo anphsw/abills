@@ -59,6 +59,17 @@
   </div>
 
   <div class='form-group'>
+  <label class='col-md-3 control-label'>_{TIME_FOR_REMIND}_</label>
+    <div class='col-md-9'>
+      <div class='input-group'>
+        <input type='number' name='REMIND_FOR' value='%REMIND_FOR%' class='form-control'>
+        <span class='input-group-addon' id='basic-addon2'>_{DAYS}_</span>
+      </div>
+      <!-- <input type='number' name='FILE_TIME' value='%FILE_TIME%' class='form-control'> -->
+    </div>
+  </div>
+
+  <div class='form-group'>
   <label class='col-md-3 control-label'>_{COMMENTS}_</label>
     <div class='col-md-9'>
       <textarea class='form-control' name='COMMENT'>%COMMENT%</textarea>

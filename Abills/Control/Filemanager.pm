@@ -27,12 +27,12 @@ my $FROM_DIR = $conf{TPL_DIR} . "/attach";
 #**********************************************************
 sub file_tree {
   if($FORM{TREE}){
-    $FORM{TREE} =~ s/\.\.\///g;
+    $FORM{TREE} =~ s/\.{1,}\///g;
     $FORM{TREE} =~ s/\;//g;
   }
 
   if($FORM{del}){
-    $FORM{del} =~ s/\.\.\///g;
+    $FORM{del} =~ s/\.{1,}\///g;
     $FORM{del} =~ s/\;//g;
     my $file_name = $FROM_DIR . '/' . $FORM{del};
 

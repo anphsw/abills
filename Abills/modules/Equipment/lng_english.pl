@@ -54,3 +54,10 @@ $lang{BRANCH}='Branch';
 $lang{SELECT_OLT}='Select OLT';
 $lang{PORT_SHIFT}='Port Shift';
 $lang{FIRMWARE}='Firmware';
+
+$lang{FREE_ONU}='Free';
+$lang{NOT_MONITORING}='Not monitoring';
+$lang{SPEED_CHARTS}='Speed charts';
+$lang{SPEED_IN}='In-speed(Mb/s)';
+$lang{SPEED_OUT}='Out speed(Mb/s)';
+1

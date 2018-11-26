@@ -257,8 +257,8 @@ CREATE TABLE IF NOT EXISTS `companie_admins` (
   COMMENT = 'Companie Super Users';
 
 CREATE TABLE IF NOT EXISTS `config` (
-  `param`     VARCHAR(30)          NOT NULL DEFAULT '',
-  `value`     VARCHAR(200)         NOT NULL DEFAULT '',
+  `param`     VARCHAR(50)          NOT NULL DEFAULT '',
+  `value`     VARCHAR(250)         NOT NULL DEFAULT '',
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   UNIQUE KEY `param` (`domain_id`, `param`)
 )
@@ -267,7 +267,7 @@ CREATE TABLE IF NOT EXISTS `config` (
 
 
 CREATE TABLE IF NOT EXISTS `config_variables` (
-  `param`    VARCHAR(30)         NOT NULL DEFAULT '',
+  `param`    VARCHAR(50)         NOT NULL DEFAULT '',
   `type`     TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
   `value`    VARCHAR(250)        NOT NULL DEFAULT '',
   `comments` TEXT,
@@ -559,7 +559,7 @@ CREATE TABLE IF NOT EXISTS `internet_online` (
   `started`                    DATETIME             NOT NULL,
   `nas_ip_address`             INT(11) UNSIGNED     NOT NULL DEFAULT '0',
   `nas_port_id`                INT(6) UNSIGNED      NOT NULL DEFAULT '0',
-  `acct_session_id`            VARCHAR(32)          NOT NULL DEFAULT '',
+  `acct_session_id`            VARCHAR(40)          NOT NULL DEFAULT '',
   `acct_session_time`          INT(11) UNSIGNED     NOT NULL DEFAULT '0',
   `acct_input_octets`          BIGINT(14) UNSIGNED  NOT NULL DEFAULT '0',
   `acct_output_octets`         BIGINT(14) UNSIGNED  NOT NULL DEFAULT '0',
@@ -598,6 +598,7 @@ CREATE TABLE IF NOT EXISTS `internet_online` (
   KEY `acct_session_id` (`acct_session_id`),
   KEY `framed_ip_address` (`framed_ip_address`),
   KEY `service_id` (`service_id`),
+  KEY `nas_id` (`nas_id`),
   KEY `uid` (`uid`)
 )
   DEFAULT CHARSET = utf8
@@ -1068,6 +1069,8 @@ CREATE TABLE IF NOT EXISTS `nas` (
   `mac`            VARCHAR(17)          NOT NULL  DEFAULT '',
   `changed`        DATETIME             NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   `location_id`    INTEGER(11) UNSIGNED NOT NULL  DEFAULT '0',
+  `floor`          VARCHAR(10)          NOT NULL DEFAULT '',
+  `entrance`       VARCHAR(10)          NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `mac` (`mac`),
   UNIQUE KEY `domain_id` (`domain_id`, `ip`, `nas_identifier`)
@@ -1505,6 +1508,8 @@ CREATE TABLE IF NOT EXISTS `users_pi` (
   `pasport_grant`  VARCHAR(100)         NOT NULL DEFAULT '',
   `birth_date`     DATE                 NOT NULL DEFAULT '0000-00-00',
   `reg_address`    TEXT                 NOT NULL,
+  `floor`          SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `entrance`       SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
   `zip`            VARCHAR(7)           NOT NULL DEFAULT '',
   `city`           VARCHAR(20)          NOT NULL DEFAULT '',
   `accept_rules`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
@@ -1734,6 +1739,8 @@ INSERT INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
   (1, 0, 9, ''),
   (1, 0, 10, ''),
   (1, 0, 11, ''),
+  (1, 0, 12, ''),
+  (1, 0, 13, ''),
   (1, 0, 14, ''),
   (1, 0, 16, ''),
   (1, 0, 17, ''),
@@ -1751,6 +1758,8 @@ INSERT INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
   (1, 3, 1, ''),
   (1, 3, 2, ''),
   (1, 3, 3, ''),
+  (1, 3, 6, ''),
+  (1, 3, 7, ''),
   (1, 4, 0, ''),
   (1, 4, 1, ''),
   (1, 4, 2, ''),
@@ -1776,9 +1785,12 @@ REPLACE INTO `admin_type_permits` (`type`, `section`, `actions`, `module`) VALUE
   ('$lang{ALL} $lang{PERMISSION}', 0, 9, ''),
   ('$lang{ALL} $lang{PERMISSION}', 0, 10, ''),
   ('$lang{ALL} $lang{PERMISSION}', 0, 11, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0, 12, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0, 13, ''),
   ('$lang{ALL} $lang{PERMISSION}', 0, 14, ''),
   ('$lang{ALL} $lang{PERMISSION}', 0, 16, ''),
   ('$lang{ALL} $lang{PERMISSION}', 0, 17, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 0, 18, ''),
   ('$lang{ALL} $lang{PERMISSION}', 1, 0, ''),
   ('$lang{ALL} $lang{PERMISSION}', 1, 1, ''),
   ('$lang{ALL} $lang{PERMISSION}', 1, 2, ''),
@@ -1792,6 +1804,8 @@ REPLACE INTO `admin_type_permits` (`type`, `section`, `actions`, `module`) VALUE
   ('$lang{ALL} $lang{PERMISSION}', 3, 1, ''),
   ('$lang{ALL} $lang{PERMISSION}', 3, 2, ''),
   ('$lang{ALL} $lang{PERMISSION}', 3, 3, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 3, 6, ''),
+  ('$lang{ALL} $lang{PERMISSION}', 3, 7, ''),
   ('$lang{ALL} $lang{PERMISSION}', 4, 0, ''),
   ('$lang{ALL} $lang{PERMISSION}', 4, 1, ''),
   ('$lang{ALL} $lang{PERMISSION}', 4, 2, ''),
@@ -2007,3 +2021,16 @@ CREATE TABLE IF NOT EXISTS `taxes` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Tax Magazine';
+
+CREATE TABLE IF NOT EXISTS `msgs_chat`(
+  `id`         INT        UNSIGNED NOT NULL AUTO_INCREMENT,
+  `message`    VARCHAR(100)           NOT NULL DEFAULT '',
+  `uid`        INT(11) UNSIGNED       NOT NULL DEFAULT '0',
+  `aid`        SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
+  `date`       DATETIME               NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `num_ticket` INT UNSIGNED           NOT NULL DEFAULT '0',
+  `msgs_unread`       TINYINT(1) UNSIGNED    NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Chat Messages';

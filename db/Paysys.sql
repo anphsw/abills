@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS paysys_connect (
   `status` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `paysys_ip` TEXT NOT NULL,
   `payment_method` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+  `priority` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   UNIQUE KEY `id`(`id`)
 )
   CHARSET = 'utf8'

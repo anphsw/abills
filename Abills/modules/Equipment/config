@@ -23,6 +23,8 @@
   "19:0:$lang{EQUIPMENT}:equipment_monitor:"                      => 6,
   #"15:6:NetMap:network_map:"                                      => 8,
   "17:0:UserRoute:user_route:UID"                                   => 15,
+    "12:1:$lang{EQUIPMENT}:equipment_graph_info:AJAX"             => 5,    
+
 );
 
 #%PERIODIC = (daily   => [ 'equipment_traps_clean', 'equipment_graph_clean' ]);

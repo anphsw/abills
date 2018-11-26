@@ -181,6 +181,8 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
 
+  $self->_space_trim($attr);
+
   $attr->{LOGIN} = $attr->{INTERNET_LOGIN} if($attr->{INTERNET_LOGIN});
   $attr->{EXPIRE}  = $attr->{SERVICE_EXPIRE};
   $attr->{ACTIVATE}= $attr->{SERVICE_ACTIVATE} if(defined($attr->{SERVICE_ACTIVATE}));
@@ -258,6 +260,8 @@ sub add {
 sub change {
   my $self = shift;
   my ($attr) = @_;
+
+  $self->_space_trim($attr);
 
   $attr->{LOGIN} = $attr->{INTERNET_LOGIN} if(defined($attr->{INTERNET_LOGIN}));
   if (!$attr->{NAS_ID}) {
@@ -513,7 +517,7 @@ sub list {
       ['MONTH_TRAFFIC_IN',  'INT', '', "SUM(l.recv) AS month_traffic_in"       ],
       ['MONTH_TRAFFIC_OUT', 'INT', '', "SUM(l.sent) AS month_traffic_out"      ],
       ['LAST_ACTIVITY',     'DATE', 'l.start + INTERVAL duration SECOND', "MAX(l.start + INTERVAL duration SECOND) AS last_activity"  ],
-
+      ['LAST_UPDATED',      'DATE', 'FROM_UNIXTIME(l.lupdated)', 'FROM_UNIXTIME(l.lupdated) AS last_updated'],
       ['MONTH_IPN_TRAFFIC_IN',  'INT', '', "SUM(ipn_l.traffic_in) AS month_ipn_traffic_in"   ],
       ['MONTH_IPN_TRAFFIC_OUT', 'INT', '', "SUM(ipn_l.traffic_out) AS month_ipn_traffic_out" ],
       ['UID',               'INT', 'internet.uid',                           1 ],
@@ -630,7 +634,7 @@ sub list {
     return $list;
   }
 
-  if ($attr->{MONTH_TRAFFIC_IN} || $attr->{MONTH_TRAFFIC_OUT}) {
+  if ($attr->{MONTH_TRAFFIC_IN} || $attr->{MONTH_TRAFFIC_OUT} || $attr->{LAST_ACTIVITY}) {
     $EXT_TABLE .= "
      LEFT JOIN internet_log l ON (l.uid=internet.uid AND DATE_FORMAT(l.start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')) ";
   }
@@ -774,8 +778,7 @@ sub report_tp {
       SUM(IF(IF(u.company_id > 0, cb.deposit, b.deposit) < 0, 1, 0)) AS debetors,
       ROUND(SUM(p.sum) / COUNT(DISTINCT internet.uid), 2) AS arpu,
       ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
-      tp.tp_id,
-      internet.tp_id AS id
+      tp.tp_id
     FROM users u
     INNER JOIN internet_main internet ON (u.uid=internet.uid)
     LEFT JOIN tarif_plans tp ON (tp.tp_id=internet.tp_id)

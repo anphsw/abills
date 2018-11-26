@@ -1,6 +1,7 @@
 $lang{CASHBOX}='Cashbox';
 $lang{ADD_CASHBOX}='Add cashbox';
 $lang{CASHBOX_ADDED}='Cashbox added';
+$lang{IN_CASHBOX}='in cashbox';
 $lang{CASHBOX_NOT_ADDED}='Cashbox not added';
 $lang{CASHBOX_DELETED}='Cashbox deleted';
 $lang{CASHBOX_NOT_DELETED}='Cashbox not deleted';
@@ -13,6 +14,12 @@ $lang{SPENDING_REPORT}='Spending report';
 $lang{COMING_REPORT}='Coming report';
 $lang{SALARY}='Salary';
 $lang{NOT_ADDED}='Not edded';
+$lang{SALES_FUNNEL}='Sales funnel';
+$lang{NUMBER_LEADS}='Number of leads';
+$lang{LEADS_PERCENTAGE}='Percentage of all leads';
+$lang{NUMBER_LEADS_ON_STEP}='Number of leads on step';
+$lang{LEADS_PERCENTAGE_ON_STEP}='Percentage of all leads on step';
+$lang{ALL_LEADS}='All leads';
 
 $lang{UNITS}='Units';
 
@@ -53,5 +60,10 @@ $lang{PROGRESS_BAR}='Progress Bar';
 
 $lang{PLANNED}='Planned';
 $lang{NO_TYPE}='No Type';
+$lang{TAKE_FEE}='Take fee';
+$lang{FEE_TAKEN}='Fee is taken';
+$lang{WORKING_TIME_NORMS}='Working time norms';
+$lang{WORKING_TIME_NORMS_EMPTY}='Working time norms are empty';
+$lang{MONTHLY_BET_WILL_NOT_CALC}='Monthly bet will not calculate';
 
 1

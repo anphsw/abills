@@ -1,3 +1,4 @@
+#!perl
 =head1 NAME
 
   Voip web functions
@@ -44,7 +45,7 @@ use Nas;
 use Log;
 use Fees;
 use Tariffs;
-use Abills::Base qw(in_array sendmail sec2time show_log int2byte cmd);
+use Abills::Base qw(in_array sendmail sec2time show_log int2byte cmd next_month days_in_month);
 
 our ($db,
   $admin,
@@ -561,7 +562,14 @@ sub voip_user{
     %params = %{ $attr };
   }
 
-  $html->tpl_show( _include( 'voip_user', 'Voip' ), { %params, %{$user} }, { ID => 'voip_user' } );
+  my $service_info = $html->tpl_show( _include( 'voip_user', 'Voip' ), { %params, %{$user} },
+    { ID => 'voip_user', OUTPUT2RETURN => 1 });
+
+  if($attr->{PROFILE_MODE}) {
+    return '', $service_info;
+  }
+
+  print $service_info;
 
   return 1;
 }
@@ -914,6 +922,9 @@ sub voip_sessions{
   _error_show($Sessions);
 
   my Abills::HTML $table;
+  if ($FORM{FROM_DATE} && $FORM{TO_DATE}) {
+    $LIST_PARAMS{INTERVAL}="$FORM{FROM_DATE}/$FORM{TO_DATE}";
+  }
   ($table, $list) = result_former({
     INPUT_DATA      => $Sessions,
     FUNCTION        => 'list',
@@ -1548,8 +1559,7 @@ sub voip_user_stats{
   }
 
   #Session List
-  $list = $Sessions->list( { %LIST_PARAMS } );
-
+  $list = $Sessions->list( { %LIST_PARAMS, FROM_DATE => $FORM{FROM_DATE}, TO_DATE => $FORM{TO_DATE} } );
   $table = $html->table(
     {
       width       => '640',
@@ -2565,5 +2575,194 @@ sub voip_quick_info {
   return ($Voip->{TOTAL} > 0) ? $Voip->{TOTAL} : '';
 }
 
-1
+#**********************************************************
+=head voip_recalculate - Recalculate sessions sum
+
+
+=cut
+#**********************************************************
+sub voip_recalculate {
+
+  return 1 unless ($FORM{UID});
+
+  if (!$FORM{recalc}) {
+    my $params = ();
+    $params->{UID} = $FORM{UID};
+
+    $params->{FROM_DATE} = $html->date_fld2( 'FROM_DATE', { MONTHES => \@MONTHES } );
+    $params->{TO_DATE} = $html->date_fld2( 'TO_DATE', { MONTHES => \@MONTHES } );
+
+    $html->tpl_show(_include('voip_recalculate', 'Voip'), $params);
+
+    return 1;
+  }
+
+  my $sessions_list = $Sessions->list({
+    LOGIN            => '_SHOW',
+    START            => '_SHOW',
+    START_UNIXTIME   => '_SHOW',
+    ASSTART_UNIXTIME => '_SHOW',
+    DURATION         => '_SHOW',
+    DURATION_SEC     => '_SHOW',
+    SUM              => '_SHOW',
+    TP_ID            => '_SHOW',
+    ROUTE_ID         => '_SHOW',
+    CALL_ORIGIN      => '_SHOW',
+    PAGE_ROWS        => 1000000,
+    COLS_NAME        => 1,
+    %FORM,
+    # UID              => '_SHOW',
+  });
+
+  use Finance;
+  my $Payments = Finance->payments($db, $admin, \%conf);
+  use Billing;
+  my $Billing = Billing->new($db, \%conf);
+  require Voip_aaa;
+  Voip_aaa->import();
+  my $Voip_aaa = Voip_aaa->new( $db, \%conf );
+  my $user = $Voip->user_info( $FORM{UID} );
+  my $params = ();
+  $params->{NEWSUM} = 0;
+  $params->{OLDSUM} = 0;
+  
+  foreach my $line (@$sessions_list) {
+    $Voip_aaa->{TP_ID} = $line->{tp_id};
+    $Voip_aaa->{ROUTE_ID} = $line->{route_id};
+    $Voip_aaa->get_intervals();
+
+    if ($line->{call_origin} == 1 ) {
+      $Billing->time_calculation({
+        REDUCTION          => $user->{REDUCTION},
+        TIME_INTERVALS     => $Voip_aaa->{TIME_PERIODS},
+        PERIODS_TIME_TARIF => $Voip_aaa->{PERIODS_TIME_TARIF},
+        SESSION_START      => $line->{asstart_unixtime},
+        ACCT_SESSION_TIME  => $line->{duration_sec},
+        DAY_BEGIN          => $line->{day_begin},
+        DAY_OF_WEEK        => $line->{day_of_week},
+        DAY_OF_YEAR        => $line->{day_of_year},
+        PRICE_UNIT         => 'Min',
+        DEBUG              => 1,
+      });
+      my $newsum = sprintf("%.6f", $Billing->{SUM});
+      $params->{NEWSUM} += $newsum;
+      $params->{OLDSUM} += $line->{sum};
+
+      if ( $line->{sum} != $newsum ) {
+        $Sessions->change_sum({
+          SUM             => $newsum,
+          ACCT_SESSION_ID => $line->{acct_session_id},
+          UID             => $user->{UID}
+        });
+      }
+    }
+  }
+
+  if ($params->{NEWSUM} == $params->{OLDSUM}) {
+    $html->message('info', $html->b($lang{NO_CHANGES}));
+  }
+  elsif ($params->{NEWSUM} > $params->{OLDSUM}) {
+    $Fees->take(
+      $users,
+      sprintf("%.2f", $params->{NEWSUM} - $params->{OLDSUM}),
+      {
+        DESCRIBE => "Voip $lang{RECALCULATE}: $FORM{FROM_DATE}/$FORM{TO_DATE}"
+      }
+    );
+    if (!_error_show($Fees)) {
+      $html->message('info', "$lang{RECALCULATE}", "$lang{GETED}: " . sprintf("%.2f", $params->{NEWSUM} - $params->{OLDSUM}));
+    }
+    $admin->action_add($users->{UID}, "$lang{RECALCULATE} Voip: $FORM{FROM_DATE}/$FORM{TO_DATE}, $lang{GETED}: "
+       . sprintf("%.2f", $params->{NEWSUM} - $params->{OLDSUM}), {});
+  }
+  elsif ($params->{NEWSUM} < $params->{OLDSUM}) {
+    $Payments->add(
+      {
+        BILL_ID => $users->{BILL_ID} || $user->{BILL_ID},
+        UID     => $users->{UID} || $FORM{UID},
+      },
+      {
+        SUM            => sprintf("%.2f", $params->{OLDSUM} - $params->{NEWSUM}),
+        METHOD         => 6,
+        DESCRIBE       => "Voip $lang{COMPENSATION}: $FORM{FROM_DATE}/$FORM{TO_DATE}",
+      }
+    );
+    if (!_error_show($Payments)) {
+      $html->message('info', "$lang{COMPENSATION}", "$lang{COMPENSATION} $lang{SUM}: " . sprintf("%.2f", $params->{OLDSUM} - $params->{NEWSUM}));
+    }
+    $admin->action_add($users->{UID}, "Voip : $FORM{FROM_DATE}/$FORM{TO_DATE}, $lang{COMPENSATION}: "
+       . sprintf("%.2f", $params->{OLDSUM} - $params->{NEWSUM}), {});
+  }
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 voip_docs($attr) - get services for invoice
+
+  Arguments:
+    $attr
+
+  Results:
+
+
+=cut
+#**********************************************************
+sub voip_docs{
+  my ($attr) = @_;
+
+  my $uid = $attr->{UID};
+  my @services = ();
+  my %info = ();
+
+  my $list = $Voip->user_list(
+    {
+      UID             => $uid,
+      SERVICE_DISABLE => 0,
+      ACCOUN_DISABLE  => 0,
+      MONTH_FEE       => '_SHOW',
+      DAY_FEE         => '_SHOW',
+      TP_ID           => '_SHOW',
+      TP_NAME         => '_SHOW',
+      FEES_METHOD     => '_SHOW',
+      COLS_NAME       => 1
+    }
+  );
+
+  foreach my $line ( @{$list} ){
+    if(! defined($line->{month_fee})) {
+      next;
+    }
+
+    if ( $line->{month_fee} > 0 ){
+      my %FEES_DSC = (
+        MODULE          => "Voip",
+        SERVICE_NAME    => 'Voip',
+        TP_ID           => $line->{tp_id},
+        TP_NAME         => $line->{tp_name},
+        FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
+        #        FEES_METHOD     => $FEES_METHODS{ $line->{fees_method} },
+      );
+
+      push @services, fees_dsc_former( \%FEES_DSC ) . "||$line->{month_fee}||$line->{tp_name}";
+    }
+
+    if ( $line->{day_fee} && $line->{day_fee} > 0 ){
+      my $next_month = next_month( { DATE => $DATE } );
+      my $days_in_month = days_in_month( { DATE => $next_month } );
+      push @services,
+        "Voip: $lang{MONTH_FEE_SHORT}: $line->{tp_name} ($line->{tp_id})|$days_in_month $lang{DAY}|" . sprintf( "%.2f",
+          ($line->{day_fee} * $days_in_month) ) . "||$line->{tp_name}";
+    }
+  }
+
+  if ( $attr->{FEES_INFO} ){
+    return \%info;
+  }
+
+  return \@services;
+}
+
+
+1;
 

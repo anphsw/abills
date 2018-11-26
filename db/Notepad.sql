@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS `notepad` (
   `create_date` DATETIME    DEFAULT CURRENT_TIMESTAMP,
   `status`      INT(3)      UNSIGNED NOT NULL DEFAULT 0,
   `subject`     VARCHAR(60) NOT NULL DEFAULT '',
-  `text`        VARCHAR(200),
+  `text`        TEXT,
   `aid`         SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
   UNIQUE `subject_text` (`subject`, `aid`, `status`),
   PRIMARY KEY (`id`)

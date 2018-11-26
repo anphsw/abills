@@ -24,7 +24,7 @@
 
 <div class='modal fade' id='changeCreditModal' data-open='%OPEN_CREDIT_MODAL%'>
   <div class='modal-dialog modal-sm'>
-    <form action=$SELF_URL class='form form-horizontal text-center' id='changeCreditForm'>
+    <form action=$SELF_URL class='form form-horizontal text-center pswd-confirm' id='changeCreditForm'>
       <div class='modal-content'>
         <div class='modal-header'>
           <button type='button' class='close' data-dismiss='modal' aria-label='Close'><span

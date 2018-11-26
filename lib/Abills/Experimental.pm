@@ -83,7 +83,7 @@ sub show_result {
   }
   
   if ($FORM{ID} && $FORM{change}){
-    $message .= $html->button($lang{SHOW}, "index=$index&chg=$FORM{ID}", { BUTTON => 1} ) if ($html->{TYPE} && $html->{TYPE} eq 'html');
+    $message .= $html->button($lang{SHOW}, "index=$index&chg=$FORM{ID}", { BUTTON => 2} ) if ($html->{TYPE} && $html->{TYPE} eq 'html');
   }
   
   $html->message('info', $caption, $message, $attr) if ($caption || $message);

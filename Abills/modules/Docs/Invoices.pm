@@ -504,7 +504,7 @@ sub docs_invoices_list{
     HIDDEN_FIELDS   => 'CURRENCY',
     FUNCTION_FIELDS =>
       (!$user->{UID}) ? (($conf{DOCS_INVOICE_ALT_TPL}) ? 'print,' : '') . 'print,payment,show,send,del' : 'print',
-    MULTISELECT     => 'UID:uid',
+    MULTISELECT     => ($FORM{UID}) ? 'UID:uid' : '',
     EXT_TITLES      => {
       invoice_num    => '#',
       date           => $lang{DATE},
@@ -520,7 +520,7 @@ sub docs_invoices_list{
       currency       => "$lang{CURRENCY}",
       alt_sum        => "$lang{ALT} $lang{SUM}",
       exchange_rate  => "$lang{EXCHANGE_RATE}",
-      payment_sum    => "$lang{PAYMENTS} $lang{SUM}",
+      payment_sum    => "$lang{SUM} $lang{PAYMENTS}",
       docs_deposit   => "$lang{OPERATION_DEPOSIT}",
       deposit        => "$lang{CURRENT_DEPOSIT}"
     },
@@ -1305,14 +1305,13 @@ sub docs_invoice_period {
         PERIOD => $FORM{NEXT_PERIOD},
         DATE   => $date
       });
-
       my $period_from = $FORM{FROM_DATE};
       my $period_to   = $FORM{FROM_DATE};
 
       foreach my $module ( sort keys %{$cross_modules_return} ){
         if ( ref $cross_modules_return->{$module} eq 'ARRAY' ){
           next if ($#{ $cross_modules_return->{$module} } == -1);
-          $table->{extra} = "colspan='5' ";
+          $table->{extra} = "colspan='6' ";
           $table->addrow( $module );
           delete $table->{extra};
 
@@ -1321,6 +1320,7 @@ sub docs_invoice_period {
 
             next if ($sum < 0);
             $period_from = $FORM{FROM_DATE};
+            $period_from =~ s/\d+$/01/;
             my $module_service_activate = $service_activate;
 
             if($activate) {
@@ -1534,7 +1534,7 @@ sub _next_payment_period {
 
   my $next_period = $attr->{PERIOD} || 1;
   my $service_activate = $attr->{SERVICE_ACTIVATE} || q{};
-  my $date = $attr->{DATE} || $DATE;
+  my $date = ($attr->{DATE} && $attr->{DATE} ne '0000-00-00') ? $attr->{DATE} : $DATE;
 
   my($Y, $M, $D)=split(/-/, $date);
 
@@ -1557,13 +1557,12 @@ sub _next_payment_period {
       $Y++;
     }
 
-    $from_date = sprintf("%d-%02d-%02d", $Y, $M, $D);
-
-    $M += $next_period - 0; # - 1
-    if ( $M > 12 ){
-      $M = $M - 12;
-      $Y++;
-    }
+    $from_date = sprintf("%d-%02d-%02d", $Y, $M, 1);
+    # $M += $next_period - 0; # - 1
+    # if ( $M > 12 ){
+    #   $M = $M - 12;
+    #   $Y++;
+    # }
 
     if ( $service_activate eq '0000-00-00' ){
       $TO_D = days_in_month({ DATE => "$Y-$M" });
@@ -1573,7 +1572,7 @@ sub _next_payment_period {
         $TO_D = ($D > 1) ? ($D - 1) : days_in_month({ DATE => "$Y-$M" });
       }
       else{
-        $TO_D = $D;
+        $TO_D = days_in_month({ DATE => "$Y-$M" });
       }
     }
 

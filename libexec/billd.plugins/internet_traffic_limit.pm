@@ -96,6 +96,7 @@ sub compare_start_activate {
 
       if(date_diff($online->{activate}, $start_date) < 0) {
         print "$uid ACTIVATE: $online->{activate} STARTED: $online->{started}\n";
+        $online->{user_service_state}=0;
         session_hangup($nas, $online, "HANGUP WRONG START UID: $uid");
       }
     }
@@ -124,6 +125,7 @@ sub internet_traffic_limit_block {
     DAY_TRAF_LIMIT   => '_SHOW',
     MONTH_TRAF_LIMIT => '_SHOW',
     TOTAL_TRAF_LIMIT => '_SHOW',
+    PREPAID          => '_SHOW',
     DAY_TIME_LIMIT   => '_SHOW',
     WEEK_TIME_LIMIT  => '_SHOW',
     MONTH_TIME_LIMIT => '_SHOW',
@@ -135,12 +137,17 @@ sub internet_traffic_limit_block {
   });
 
   foreach my $tp ( @$tp_list ) {
-    if($tp->{WEEK_TRAF_LIMIT}
+    if( ($tp->{PREPAID} || 0)
+        + $tp->{WEEK_TRAF_LIMIT}
         + $tp->{DAY_TRAF_LIMIT}
         + $tp->{MONTH_TRAF_LIMIT}
         + $tp->{TOTAL_TRAF_LIMIT}
         + $tp->{DAY_TIME_LIMIT} == 0) {
       next;
+    }
+
+    if($tp->{PREPAID}) {
+      $tp->{PREPAID_TRAF_LIMIT} = $tp->{PREPAID};
     }
 
     if($debug > 1) {
@@ -175,7 +182,7 @@ sub internet_traffic_limit_block {
 
       #my $credit = ($u->{tp_credit} > 0) ? $u->{tp_credit} : $u->{credit};
 
-      my @periods = ('TOTAL', 'DAY', 'WEEK', 'MONTH');
+      my @periods = ('TOTAL', 'DAY', 'WEEK', 'MONTH', 'PREPAID');
       my $session_time_limit = 0;
       my @time_limits = ();
 
@@ -187,10 +194,11 @@ sub internet_traffic_limit_block {
 
       my $month_start = ($u->{internet_activate} && $u->{internet_activate} eq '0000-00-00') ? q/DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00')/ : "'$u->{internet_activate} 00:00:00'";
       my %SQL_params = (
-        TOTAL => '',
-        DAY   => "AND (start >= CONCAT(CURDATE(), ' 00:00:00') AND start<=CONCAT(CURDATE(), ' 24:00:00'))",
-        WEEK  => "AND (YEAR(CURDATE())=YEAR(start)) AND (WEEK(CURDATE()) = WEEK(start))",
-        MONTH => "AND (start >= $month_start) " #AND start<=DATE_FORMAT($month_start, '%Y-%m-31 24:00:00'))"
+        TOTAL   => '',
+        DAY     => "AND (start >= CONCAT(CURDATE(), ' 00:00:00') AND start<=CONCAT(CURDATE(), ' 24:00:00'))",
+        WEEK    => "AND (YEAR(CURDATE())=YEAR(start)) AND (WEEK(CURDATE()) = WEEK(start))",
+        MONTH   => "AND (start >= $month_start) ", #AND start<=DATE_FORMAT($month_start, '%Y-%m-31 24:00:00'))"
+        PREPAID => "AND (start >= $month_start) "
       );
 
       my $WHERE = "uid='$u->{uid}' AND tp_id='$tp->{tp_id}'";
@@ -198,7 +206,7 @@ sub internet_traffic_limit_block {
       my $online_time = 0;
 
       foreach my $period (@periods) {
-        if (($tp->{ $period . '_TIME_LIMIT' } > 0) || ($tp->{ $period . '_TRAF_LIMIT' } > 0)) {
+        if (($tp->{ $period . '_TIME_LIMIT' } && $tp->{ $period . '_TIME_LIMIT' } > 0) || ($tp->{ $period . '_TRAF_LIMIT' } && $tp->{ $period . '_TRAF_LIMIT' } > 0)) {
           #my $session_time_limit = $time_limit;
           my $session_traf_limit        = 0;
 
@@ -232,7 +240,7 @@ sub internet_traffic_limit_block {
 
           my $traffic_use = $Internet->{list}->[0]->[0];
 
-          $Internet->query("SELECT IF(" . $tp->{ $period . '_TIME_LIMIT' } . " > 0, " . $tp->{ $period . '_TIME_LIMIT' } . "- $online_time - SUM(duration), 0),
+          $Internet->query("SELECT IF(" . ($tp->{ $period . '_TIME_LIMIT' } || 0) . " > 0, " . ($tp->{ $period . '_TIME_LIMIT' } || 0) . "- $online_time - SUM(duration), 0),
           IF(" . $tp->{ $period . '_TRAF_LIMIT' } . " > 0, ". $direction_sum[$tp->{OCTETS_DIRECTION}] .", 0) AS used_log_traffic,
           1
          FROM internet_log
@@ -279,6 +287,7 @@ sub internet_traffic_limit_unblock {
     DAY_TRAF_LIMIT   => '_SHOW',
     MONTH_TRAF_LIMIT => '_SHOW',
     TOTAL_TRAF_LIMIT => '_SHOW',
+    PREPAID          => '_SHOW',
     DAY_TIME_LIMIT   => '_SHOW',
     WEEK_TIME_LIMIT  => '_SHOW',
     MONTH_TIME_LIMIT => '_SHOW',
@@ -290,7 +299,8 @@ sub internet_traffic_limit_unblock {
   });
 
   foreach my $tp ( @$tp_list ) {
-    if($tp->{WEEK_TRAF_LIMIT}
+    if($tp->{PREPAID}
+      + $tp->{WEEK_TRAF_LIMIT}
       + $tp->{DAY_TRAF_LIMIT}
       + $tp->{MONTH_TRAF_LIMIT}
       + $tp->{TOTAL_TRAF_LIMIT}

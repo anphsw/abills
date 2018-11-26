@@ -28,7 +28,7 @@ sub auth_admin {
   #Cookie auth
   if ($conf{AUTH_METHOD}) {
     if ($index == 10) {
-      $admin->online_del({ SID => $COOKIES{sid} });
+      $admin->online_del({ SID => $COOKIES{admin_sid} });
     }
     if (! $html || ! $html->{language}) {
       $html->{language}='english';
@@ -47,12 +47,12 @@ sub auth_admin {
       exit;
     }
 
-    my $res = check_permissions($FORM{user}, $FORM{passwd}, $COOKIES{sid}, \%FORM);
+    my $res = check_permissions($FORM{user}, $FORM{passwd}, $COOKIES{admin_sid}, \%FORM);
 
     if (! $res) {
       if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/ && $FORM{REFERER} !~ /index=10/) {
-        $html->set_cookies('sid', $admin->{SID}, '', '/');
-        $COOKIES{sid} = $admin->{SID};
+        $html->set_cookies('admin_sid', $admin->{SID}, '', '/');
+        $COOKIES{admin_sid} = $admin->{SID};
         $admin->online({ SID => $admin->{SID}, TIMEOUT => $conf{web_session_timeout} });
         print "Location: $FORM{REFERER}\n\n";
       }
@@ -64,7 +64,7 @@ sub auth_admin {
       #      }
     }
     else {
-      my $cookie_sid = ($COOKIES{sid} || '');
+      my $cookie_sid = ($COOKIES{admin_sid} || '');
       my $admin_sid = ($admin->{SID} || '');
 
       if ($FORM{AJAX} || $FORM{json}){
@@ -386,7 +386,7 @@ sub check_permissions {
   else {
     if (! $session_sid) {
       Abills::HTML::get_cookies();
-      $admin->{SID} = $COOKIES{sid};
+      $admin->{SID} = $COOKIES{admin_sid};
     }
     else {
       $admin->{SID} = mk_unique_value(14);
@@ -796,6 +796,16 @@ sub passwordless_access {
     $user->info($ret);
 
     $user->{REMOTE_ADDR} = $remote_addr;
+    $user->web_session_add({
+      UID         => $ret,
+      SID         => $session_id,
+      LOGIN       => $login,
+      REMOTE_ADDR => $remote_addr,
+      EXT_INFO    => $ENV{HTTP_USER_AGENT},
+      COORDX      => $FORM{coord_x} || '',
+      COORDY      => $FORM{coord_y} || ''
+    });
+
     return ($ret, $session_id, $login);
   }
   else {

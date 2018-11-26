@@ -127,7 +127,10 @@ sub equipment_test{
           });
         }
 
-        next if($ports_info{$port}{PORT_STATUS} != 1 || $ports_info{$port}{PORT_TYPE} != 6);
+        if((! defined($ports_info{$port}{PORT_STATUS}) || $ports_info{$port}{PORT_STATUS} != 1)
+          || (! defined($ports_info{$port}{PORT_TYPE}) || $ports_info{$port}{PORT_TYPE} != 6)) {
+          next
+        }
 
         if($attr->{TEST_DISTANCE}) {
           my $result = snmp_set({
@@ -334,6 +337,48 @@ sub get_vlans{
   Arguments:
     $attr
       NAS_INFO
+      SNMP_TPL
+      VERSION
+      DEBUG
+
+  Returns:
+    {
+    }
+
+=cut
+#********************************************************
+sub get_port_vlans {
+  my($attr) = @_;
+
+  my %ports_vlans = ();
+
+  my $oid = $attr->{PORT_VLAN_OID};
+
+  my $port_vlan_list = snmp_get({
+    TIMEOUT => 10,
+    DEBUG   => $debug || 2,
+    %{($attr) ? $attr : {}},
+    OID     => $oid,
+    WALK    => 1
+  });
+
+  foreach my $line (@$port_vlan_list) {
+    my ($port, $vlan)=split(/:/, $line);
+    $ports_vlans{$port}=$vlan;
+  }
+
+  return \%ports_vlans;
+}
+
+#********************************************************
+=head2 get_fdb($attr) - Show FDB table
+
+  Arguments:
+    $attr
+      NAS_INFO
+      SNMP_TPL
+      VERSION
+      DEBUG
 
   Returns:
     {
@@ -393,7 +438,7 @@ sub get_fdb {
     $attr->{SNMP_TPL} //=$attr->{NAS_INFO}->{SNMP_TPL};
   }
 
-  my $perl_scalar;
+  my $snmp_oids;
   $debug = $attr->{DEBUG} || 0;
   my $nas_type = '';
   my $vendor_name = $attr->{NAS_INFO}->{VENDOR_NAME} || $attr->{NAS_INFO}->{NAME} || q{};
@@ -407,8 +452,10 @@ sub get_fdb {
     $nas_type = 'cisco';
   }
 
-  my $get_fdb = $nas_type.'_get_fdb';
-  my %fdb_hash = ();
+  my $get_fdb   = $nas_type.'_get_fdb';
+  my %fdb_hash  = ();
+  my $port_vlans;
+
 
   if($debug > 3) {
     print "VENDOR: $vendor_name-- $get_fdb\n";
@@ -422,20 +469,26 @@ sub get_fdb {
     %fdb_hash = &{ \&$get_fdb }( $attr );
   }
   else {
-    if(! $perl_scalar) {
-      $perl_scalar = _get_snmp_oid($attr->{NAS_INFO}{SNMP_TPL}, $attr);
+    my $oid = '.1.3.6.1.2.1.17.7.1.2.2.1.2';
+    if(! $snmp_oids) {
+      $snmp_oids = _get_snmp_oid($attr->{NAS_INFO}{SNMP_TPL}, $attr);
     }
 
-    my $oid = '.1.3.6.1.2.1.17.7.1.2.2.1.2';
-    if ($perl_scalar && $perl_scalar->{FDB_OID}) {
-      $oid = $perl_scalar->{FDB_OID};
+    if($snmp_oids) {
+      if ($snmp_oids->{PORT_VLAN_UNTAGGED}) {
+        $attr->{PORT_VLAN_OID}=$snmp_oids->{PORT_VLAN_UNTAGGED};
+        $port_vlans = get_port_vlans($attr);
+      }
+      if ($snmp_oids->{FDB_OID}) {
+        $oid = $snmp_oids->{FDB_OID};
+      }
     }
 
     if ($debug > 1) {
       print "OID: $oid\n";
     }
 
-    my $value = snmp_get({
+    my $mac_port_list = snmp_get({
       TIMEOUT => 10,
       DEBUG   => $debug || 2,
       %{($attr) ? $attr : {}},
@@ -446,14 +499,14 @@ sub get_fdb {
     my ($expr_, $values, $attribute);
     my @EXPR_IDS = ();
 
-    if ($perl_scalar && $perl_scalar->{FDB_EXPR}) {
-      $perl_scalar->{FDB_EXPR} =~ s/\%\%/\\/g;
-      ($expr_, $values, $attribute) = split( /\|/, $perl_scalar->{FDB_EXPR} || '' );
+    if ($snmp_oids && $snmp_oids->{FDB_EXPR}) {
+      $snmp_oids->{FDB_EXPR} =~ s/\%\%/\\/g;
+      ($expr_, $values, $attribute) = split( /\|/, $snmp_oids->{FDB_EXPR} || '' );
       @EXPR_IDS = split( /,/, $values );
     }
 
     my %ports_index = ();
-    my $port_index_oid = $perl_scalar->{PORT_INDEX} || '';
+    my $port_index_oid = $snmp_oids->{PORT_INDEX} || '';
     if ($port_index_oid) {
       my $value_ = snmp_get({
         TIMEOUT => 10,
@@ -469,7 +522,7 @@ sub get_fdb {
     }
 
     my %ports_name = ();
-    my $port_name_oid = $perl_scalar->{ports}->{PORT_NAME}->{OIDS} || '';
+    my $port_name_oid = $snmp_oids->{ports}->{PORT_NAME}->{OIDS} || '';
     if ($port_name_oid) {
       my $value_ = snmp_get({
         TIMEOUT => 10,
@@ -485,14 +538,14 @@ sub get_fdb {
       }
     }
 
-    foreach my $line (@{ $value }) {
+    foreach my $line (@{ $mac_port_list }) {
       next if (!$line);
       my $vlan      = 0;
       my $mac_dec;
       my $port      = 0;
       my $port_name = '';
 
-      if ($perl_scalar && $perl_scalar->{FDB_EXPR}) {
+      if ($snmp_oids && $snmp_oids->{FDB_EXPR}) {
         my %result = ();
         if (my @res = ($line =~ /$expr_/g)) {
           for (my $i = 0; $i <= $#res; $i++) {
@@ -508,13 +561,13 @@ sub get_fdb {
           $result{PORT} = dec2hex($result{PORT_DEC});
         }
 
-        $vlan = $result{VLAN} || 0;
+        $vlan      = $result{VLAN} || 0;
         $mac_dec   = $result{MAC} || '';
         $port      = $ports_index{ $result{PORT} } || $result{PORT} || '';
-        $port_name =  $ports_name{ $port } || '';
+        $port_name = $ports_name{ $port } || '';
       }
       else {
-        ($oid, $value) = split( /:/, $line, 2 );
+        ($oid, $mac_port_list) = split( /:/, $line, 2 );
 
         $oid =~ /(\d+)\.(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})$/;
         my $record_type = $1;
@@ -523,7 +576,7 @@ sub get_fdb {
           #$vlan = $value;
         }
         elsif($record_type == 2) {
-          $port      = $value;
+          $port      = $mac_port_list;
           $port_name =  $ports_name{ $port } || '';
         }
       }
@@ -552,6 +605,11 @@ sub get_fdb {
       if($vlan) {
         $fdb_hash{$mac_dec}{4} = $vlan;
       }
+
+      if($port_vlans && $port_vlans->{$port}) {
+        $fdb_hash{$mac_dec}{4} = $port_vlans->{$port};
+      }
+
       # 5 port name
       if($port_name) {
         $fdb_hash{$mac_dec}{5} = $port_name;

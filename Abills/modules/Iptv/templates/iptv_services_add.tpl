@@ -119,7 +119,7 @@
                 </div>
 
                 <div class='form-group text-center'>
-                    %SERVICE_TEST% %TP_IMPORT% %CONSOLE%
+                    %SERVICE_TEST% %TP_IMPORT% %CHANNEL_IMPORT% %CONSOLE% %SERVICE_PARAMS%
                 </div>
 
                 <div class='box-footer'>

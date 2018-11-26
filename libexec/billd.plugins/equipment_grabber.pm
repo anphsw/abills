@@ -352,13 +352,14 @@ sub equipment_scan_equipment {
     NAS_MNG_PASSWORD => '_SHOW',
     PORTS            => '_SHOW',
     PAGE_ROWS        => 65000,
+    STATUS           => '!5;!1;!4'
   });
 
   my %Port_id = ();
 
   foreach my $element (@$Equipment_List) {
-    print "Сканируем коммутатор: $element->{nas_id}\n";
-    my $Ports_List = $Equipment->port_list({
+    print "Scanning devices: $element->{nas_id}\n";
+    my $ports_list = $Equipment->port_list({
       COLS_NAME => 1,
       ID        => '_SHOW',
       NAS_ID    => $element->{nas_id},
@@ -367,21 +368,21 @@ sub equipment_scan_equipment {
 
     my $snmp_com = "$element->{nas_mng_password}" . "@" . "$element->{nas_mng_ip_port}";
 #    my $snmp_com = "snmppass" . "@" . "$element->{nas_mng_ip_port}";
-    my $All_ports = snmp_get({
+    my $all_ports = snmp_get({
       SNMP_COMMUNITY => $snmp_com,
       OID            => ".1.3.6.1.2.1.2.2.1.8",
       WALK           => 1,
-      VERSION        => $argv->{SNMP_VERSION} || 1
+      VERSION        => $argv->{SNMP_VERSION} || 2,
     });
 
-    if (@$All_ports) {
+    if (@$all_ports) {
       my @exPorts = ();
-      foreach my $port (@$Ports_List) {
+      foreach my $port (@$ports_list) {
         push @exPorts, $port->{port};
         $Port_id{"$port->{port}"} = $port->{id};
       }
 
-      foreach my $port (@$All_ports) {
+      foreach my $port (@$all_ports) {
         my ($port_number, $port_status) = split(/:/, $port);
         if (!in_array($port_number, \@exPorts)) {
           $Equipment->port_add({
@@ -399,20 +400,22 @@ sub equipment_scan_equipment {
       }
     }
 
-    $Ports_List = $Equipment->port_list({
+    $ports_list = $Equipment->port_list({
       COLS_NAME => 1,
       ID        => '_SHOW',
       NAS_ID    => $element->{nas_id},
       PAGE_ROWS => 65000,
     });
 
-    foreach my $port (@$Ports_List) {
+    foreach my $port (@$ports_list) {
       $Port_id{"$port->{port}"} = $port->{id};
     }
 
     _equipment_port_vlan($snmp_com, \%Port_id);
     _equipment_port_description($snmp_com, \%Port_id);
   }
+
+  return 1;
 }
 
 
@@ -432,7 +435,7 @@ sub _equipment_port_vlan {
     SNMP_COMMUNITY => $snmp_com,
     OID            => ".1.3.6.1.2.1.17.7.1.4.5.1.1",
     WALK           => 1,
-    VERSION        => $argv->{SNMP_VERSION} || 1
+    VERSION        => $argv->{SNMP_VERSION} || 2,
   });
 
   if (@$All_ports) {
@@ -463,7 +466,7 @@ sub _equipment_port_description {
     SNMP_COMMUNITY => $snmp_com,
     OID            => ".1.3.6.1.2.1.2.2.1.2",
     WALK           => 1,
-    VERSION        => $argv->{SNMP_VERSION} || 1
+    VERSION        => $argv->{SNMP_VERSION} || 2,
   });
 
   if (@$All_ports) {

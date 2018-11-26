@@ -183,8 +183,9 @@ sub reports{
         );
       }
       push @rows, "$lang{GROUP}: " . sel_groups();
-      push @rows, " $lang{TYPE}: ";
-      push @rows, $html->form_select(
+      if ($attr->{EXT_TYPE} || %select_types) {
+        push @rows, " $lang{TYPE}: ";
+        push @rows, $html->form_select(
           'TYPE',
           {
             SELECTED => $FORM{TYPE} || 'DAYS',
@@ -194,7 +195,8 @@ sub reports{
             },
             NO_ID    => 1
           }
-      );
+        );
+      } 
     }
 
     #Show extra select form
@@ -352,13 +354,17 @@ sub report_fees{
       REPORT      => '',
       PERIOD_FORM => 1,
         DATE_RANGE => 1,
-      FIELDS      => { %METHODS_HASH },
+      FIELDS      => \%METHODS_HASH,
       EXT_TYPE    => {
         METHOD    => $lang{TYPE},
         ADMINS    => $lang{ADMINS},
         FIO       => $lang{FIO},
         COMPANIES => $lang{COMPANIES},
-        PER_MONTH => $lang{PER_MONTH}
+        PER_MONTH => $lang{PER_MONTH},
+        DISTRICT  => $lang{DISTRICT},
+        STREET    => $lang{STREET},
+        BUILD     => $lang{BUILD},
+        GID       => $lang{GROUPS},
       }
     }
   );
@@ -882,7 +888,7 @@ sub form_system_changes{
 
 
 #**********************************************************
-=head2 reports_webserver()
+=head2 report_webserver()
 
 =cut
 #**********************************************************

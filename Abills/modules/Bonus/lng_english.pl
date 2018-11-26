@@ -7,3 +7,4 @@ $lang{BONUS_TP_USING}='Bonus tarif using';
 $lang{SCORES}='Scores';
 $lang{ERR_SMALL_SUM}='Too small sum';
 $lang{BONUS_DISABLED_FOR_GROUP}='Bonus disable for groups';
+$lang{ONETIME_PAYMENT_SUM}='One time payment';

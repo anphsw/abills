@@ -9,7 +9,6 @@ use warnings FATAL => 'all';
 use Abills::Base qw(date_diff days_in_month in_array int2byte int2ip cmd sendmail
   mk_unique_value clearquotes _bp);
 require Internet::Stats;
-#require Equipment;
 
 our (
   $db,
@@ -122,7 +121,6 @@ sub internet_user {
   if (!$permissions{0}{20}) {
     $Internet->{EXPIRE_DISABLE} = 'disabled';
   }
-
 
   if (!$Internet->{TOTAL} || $Internet->{TOTAL} < 1) {
     $Internet->{TP_ADD} = $html->form_select(
@@ -404,42 +402,10 @@ sub internet_user {
     }
   );
 
-  my $total_fee = ($Internet->{MONTH_ABON} || 0) + ($Internet->{DAY_ABON} || 0);
-
-  if ($users->{REDUCTION}) {
-    $total_fee = $total_fee * (100 - $users->{REDUCTION}) / 100;
-  }
-
-  if ($Internet->{STATUS} && $total_fee > $users->{DEPOSIT}) {
-    my $sum = 0;
-    if ($Internet->{ABON_DISTRIBUTION} && !$conf{INTERNET_FULL_MONTH}) {
-      my $days_in_month = days_in_month({ DATE => $DATE });
-      my $month_fee = ($total_fee / $days_in_month); # * ($days_in_month - $d);
-      if ($month_fee > $users->{DEPOSIT}) {
-        my $full_sum = abs($month_fee - $users->{DEPOSIT});
-        $sum = sprintf("%.2f", $full_sum);
-        if ($sum - $full_sum < 0) {
-          $sum = sprintf("%.2f", int($sum + 1));
-        }
-      }
-    }
-    else {
-      $sum = sprintf("%.2f", abs($total_fee - $users->{DEPOSIT}));
-      if ($sum < abs($total_fee - $users->{DEPOSIT})) {
-        $sum = sprintf("%.2f", int($sum + 1));
-      }
-    }
-
-    if ($sum > 0) {
-      $Internet->{PAYMENT_MESSAGE} = $html->message('warn', '',
-        "$lang{ACTIVATION_PAYMENT} $sum " . $html->button($lang{PAYMENTS},
-          "UID=$uid&index=2&SUM=$sum", { class => 'payments' }), { OUTPUT2RETURN => 1 });
-      $Internet->{HAS_PAYMENT_MESSAGE} = 1;
-    }
-  }
+  internet_payment_message($Internet, $users);
 
   if ($Internet->{NEXT_FEES_WARNING}) {
-    $Internet->{NEXT_FEES_WARNING} = $html->message("$Internet->{NEXT_FEES_MESSAGE_TYPE}", "",
+    $Internet->{NEXT_FEES_WARNING} = $html->message($Internet->{NEXT_FEES_MESSAGE_TYPE}, $Internet->{TP_NAME},
       $Internet->{NEXT_FEES_WARNING}, { OUTPUT2RETURN => 1 });
   }
 
@@ -568,22 +534,38 @@ sub internet_user {
     });
   }
 
-  if ($conf{INTERNER_CID_FORMAT}) {
-    $Internet->{CID_PATTERN} = "pattern='" . $conf{INTERNER_CID_FORMAT} . "|ANY|Any|any'";
+  if ($conf{INTERNET_CID_FORMAT}) {
+    $Internet->{CID_PATTERN} = "pattern='" . $conf{INTERNET_CID_FORMAT} . "|ANY|Any|any'";
   }
 
-  $html->tpl_show(_include('internet_user', 'Internet'), {
+  my $service_info2 = q{};
+
+  if($attr->{PROFILE_MODE}) {
+    $service_info2 = $Internet->{EQUIPMENT_FORM};
+    delete $Internet->{EQUIPMENT_FORM};
+  }
+
+  my $service_info1 = $html->tpl_show(_include('internet_user', 'Internet'), {
     %$admin,
     %$attr,
     %$Internet,
-    UID  => $uid,
-    MENU => $menu
+    UID           => $uid,
+    MENU          => $menu,
   },
-    { ID => 'internet_user' });
+    { ID => 'internet_user',
+      OUTPUT2RETURN => 1
+    });
 
+  my $service_info_subscribes = q{};
   if ($user_service_count > 1) {
-    internet_user_subscribes($Internet);
+    $service_info_subscribes .= internet_user_subscribes($Internet);
   }
+
+  if($attr->{PROFILE_MODE}) {
+    return '', $service_info1, $service_info2, $service_info_subscribes;
+  }
+
+  print $service_info1 . $service_info2 . $service_info_subscribes;
 
   return 1;
 }
@@ -1189,8 +1171,11 @@ sub internet_user_online {
         }
       }
 
+      my $vendor_info = get_oui_info($line->{cid});
       my @row = (
-        $html->element('abbr', $alive_check . $line->{client_ip}, { title => $line->{cid} }),
+        $html->element('abbr', $alive_check . $line->{client_ip}, {
+          'data-tooltip-position' => 'top',
+          'data-tooltip' => "$line->{cid}<br>$vendor_info" }),
         _sec2time_str($line->{duration_sec2}),
         int2byte($line->{acct_input_octets}),
         int2byte($line->{acct_output_octets}),
@@ -1267,6 +1252,7 @@ sub internet_user_subscribes {
         'tp_name'              => "$lang{TARIF_PLAN}",
         'internet_status'      => "Internet $lang{STATUS}",
         'internet_status_date' => "$lang{STATUS} $lang{DATE}",
+        'internet_comments'    => "Internet $lang{COMMENTS}",
         'online'               => 'Online',
         'online_ip'            => 'Online IP',
         'online_cid'           => 'Online CID',
@@ -1275,8 +1261,8 @@ sub internet_user_subscribes {
         'day_fee'              => $lang{DAY_FEE},
         'internet_expire'      => "Internet $lang{EXPIRE}",
         'internet_activate'    => "Internet $lang{ACTIVATE}",
-        'internet_login'       => "$lang{SERVICE} $lang{LOGIN}",
-        'internet_password'    => "$lang{SERVICE} $lang{PASSWD}",
+        'internet_login'       => "Internet $lang{LOGIN}",
+        'internet_password'    => "Internet $lang{PASSWD}",
         'month_traffic_in'     => "$lang{MONTH} $lang{RECV}",
         'month_traffic_out'    => "$lang{MONTH} $lang{SENT}",
         'id',                  => 'ID'
@@ -1308,7 +1294,7 @@ sub internet_user_subscribes {
       OUTPUT2RETURN   => 1
     });
 
-    print $table->show();
+    return $table->show();
   }
 
   return 1;
@@ -1325,6 +1311,10 @@ sub internet_pay_to {
   my $Internet_ = $attr->{Internet};
 
   if ($FORM{DATE}) {
+    if($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
+      $Internet_->{MONTH_ABON} = $Internet->{PERSONAL_TP};
+    }
+
     my ($from_year, $from_month, $from_day) = split(/-/, $DATE, 3);
     my ($to_year, $to_month, $to_day) = split(/-/, $FORM{DATE}, 3);
     $Internet_->{ACTION_LNG} = "$lang{PAYMENTS}";
@@ -1806,7 +1796,7 @@ sub internet_chg_tp {
   }
 
   if (!$permissions{0}{10}) {
-    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
     return 1;
   }
 
@@ -1852,11 +1842,6 @@ sub internet_chg_tp {
 
   my $message = '';
   if ($FORM{set}) {
-    if (!$permissions{0}{4}) {
-      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
-      return 0;
-    }
-
     my ($year, $month, $day) = split(/-/, $DATE, 3);
     if ($period > 0) {
       if ($period == 1) {
@@ -2025,10 +2010,7 @@ sub internet_chg_tp {
 
     $Tariffs->{PARAMS} .= form_period($period, { ABON_DATE => $Internet->{ABON_DATE} });
 
-    if ($permissions{0}{4}) {
-      $Tariffs->{ACTION} = 'set';
-    }
-
+    $Tariffs->{ACTION} = 'set';
     $Tariffs->{LNG_ACTION} = $lang{CHANGE};
   }
 
@@ -2073,7 +2055,7 @@ sub internet_user_del {
 sub internet_compensation {
   my ($attr) = @_;
 
-  if ($FORM{ID}) {
+  if ($FORM{ID} && !$user) {
     print user_service_menu({
       SERVICE_FUNC_INDEX => get_function_index('internet_user'),
       PAGES_QS           => "&ID=$FORM{ID}",
@@ -2108,9 +2090,15 @@ sub internet_compensation {
     $Internet->{DAY_ABON} //= 0;
     $Internet->{MONTH_ABON} //= 0;
 
+    my $month_abon = $Internet->{MONTH_ABON} || 0;
+
+    if($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
+      $month_abon = $Internet->{PERSONAL_TP};
+    }
+
     if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00') {
       $days = date_diff($FORM{FROM_DATE}, $FORM{TO_DATE});
-      $sum = $days * ($Internet->{MONTH_ABON} / 30);
+      $sum = $days * ($month_abon / 30);
       if ($Internet->{DAY_ABON} > 0 && !$attr->{HOLD_UP}) {
         $sum += $days * $Internet->{DAY_ABON};
       }
@@ -2119,7 +2107,7 @@ sub internet_compensation {
       if ("$FROM_Y-$FROM_M" eq "$TO_Y-$TO_M") {
         $days = $TO_D - $FROM_D + 1;
         $days_in_month = days_in_month({ DATE => "$FROM_Y-$FROM_M-01" });
-        $sum = sprintf("%.2f", $days * ($Internet->{DAY_ABON}) + $days * (($Internet->{MONTH_ABON} || 0) / $days_in_month));
+        $sum = sprintf("%.2f", $days * ($Internet->{DAY_ABON}) + $days * (($month_abon || 0) / $days_in_month));
         $table->addrow("$FROM_Y-$FROM_M", $days, $sum);
       }
       elsif ("$FROM_Y-$FROM_M" ne "$TO_Y-$TO_M") {
@@ -2129,7 +2117,7 @@ sub internet_compensation {
           my $month_days = ($FROM_M == $TO_M) ? $TO_D : $days_in_month - $FROM_D;
           $FROM_D = 0;
           my $month_sum = sprintf("%.2f",
-            $month_days * $Internet->{DAY_ABON} + $month_days * ($Internet->{MONTH_ABON} / $days_in_month));
+            $month_days * $Internet->{DAY_ABON} + $month_days * ($month_abon / $days_in_month));
           $sum += $month_sum;
           $days += $month_days;
           $table->addrow("$FROM_Y-$FROM_M", $month_days, $month_sum);
@@ -2599,7 +2587,7 @@ sub internet_wizard_add {
   # Password
   $add_values{1}{GID} = $admin->{GID} if ($admin->{GID});
 
-  if ($permissions{0}{13}) {
+  if (!$permissions{0}{13} && $admin->{AID} != 2) {
     $add_values{1}{DISABLE} = 2;
   }
 

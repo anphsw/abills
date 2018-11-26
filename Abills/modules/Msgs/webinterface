@@ -13,7 +13,7 @@ use strict;
 use Abills::Defs;
 use Abills::Base qw(tpl_parse cmd in_array
   int2byte convert sendmail mk_unique_value
-  sec2time time2sec urlencode load_pmodule);
+  sec2time time2sec urlencode load_pmodule decode_base64);
 use Msgs;
 use POSIX qw(strftime mktime);
 use Encode;
@@ -797,7 +797,7 @@ sub msgs_survey_show {
 
       $Msgs->{TPL} = convert($Msgs->{TPL}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
     }
-    
+
     return $html->tpl_show(
       _include('msgs_survey', 'Msgs'),
       {
@@ -809,6 +809,8 @@ sub msgs_survey_show {
         SURVEY    => $survey_questions,
         DELETE    => ($user->{UID}) ? '' : $del_button,
         REPLY_ID  => ($survey_questions)              ? $html->form_input('REPLY_ID', $attr->{REPLY_ID},
+            { TYPE => 'hidden', OUTPUT2RETURN => 1 }) : undef,
+        NOTIFICATION_MSG => $attr->{NOTIFICATION_MSG} ? $html->form_input('STATE', 10,
             { TYPE => 'hidden', OUTPUT2RETURN => 1 }) : undef,
         %params,
       },
@@ -1351,9 +1353,6 @@ sub msgs_ticket_form {
   my $user_main_info = $users->info($FORM{UID}, { SHOW_PASSWORD => 1 });
   $users->pi({ UID => $FORM{UID} });
   
-  #User Contacts info
-  my $contacts = _msgs_user_contacts_info({ UID => $FORM{UID}, });
-  
   #User Msg info
   my $msg_info = _msgs_user_msg_info(
     {
@@ -1418,7 +1417,7 @@ sub msgs_ticket_form {
     )
   }
   
-  $attr = { %{$contacts}, %{$msg_info}, %{$user_main_info}, %{ ($attr) ? $attr : {}  } };
+  $attr = { %{$msg_info}, %{$user_main_info}, %{ ($attr) ? $attr : {}  } };
 
   print $html->tpl_show(
     _include(
@@ -1433,59 +1432,6 @@ sub msgs_ticket_form {
   );
   
   return 1;
-}
-
-#**********************************************************
-=head2 _msgs_user_contacts_info() Get information tags about user phones for docs
-
-  Arguments:
-    $attr
-      UID
-      TYPE  - Contacts type; default '1;2' Cell phone and home phone
-
-  Returns:
-    $attr
-      CELL_PHONE_1 = User cell phone number
-      HOME_PHONE_1 = User home phone number
-      CELL_PHONE_2++
-      HOME_PHONE_2++
-=cut
-#**********************************************************
-sub _msgs_user_contacts_info {
-  my ($attr) = @_;
-  
-  if ( $attr->{UID} ) {
-    
-    my %result_hash = ();
-    
-    require Contacts;
-    Contacts->import();
-    my $Contacts = Contacts->new($db, $admin, \%conf);
-    
-    my $contacts_info = $Contacts->contacts_list(
-      {
-        UID   => $attr->{UID},
-        VALUE => '_SHOW',
-        TYPE  => $attr->{TYPE} ? $attr->{TYPE} : '1;2',
-      }
-    );
-    
-    my $cell_phone_num = 0;
-    my $home_phone_num = 0;
-    
-    foreach my $user_contact_info ( @{$contacts_info} ) {
-      if ( $user_contact_info->{type_id} == 1 ) {
-        $result_hash{"CELL_PHONE_" . ++$cell_phone_num} = $user_contact_info->{value};
-      }
-      elsif ( $user_contact_info->{type_id} == 2 ) {
-        $result_hash{"HOME_PHONE_" . ++$home_phone_num} = $user_contact_info->{value};
-      }
-    }
-    
-    return \%result_hash;
-  }
-  
-  return 0;
 }
 
 #**********************************************************
@@ -1533,7 +1479,6 @@ sub _msgs_user_msg_info {
   );
   
   foreach my $admin_info ( @{$admin_list} ) {
-    # FIXME: WTF?
     $result_hash{RESPOSIBLE} = $admin_info->{login};
   }
   
@@ -1610,7 +1555,7 @@ sub _quick_replys_tags_table {
   
   my $type_name = '';
   
-  foreach my $line ( keys %{$info} ) {
+  foreach my $line ( sort keys %{$info} ) {
     
     $table->addrow(
       $html->form_input(
@@ -1881,12 +1826,12 @@ sub msgs_operator_statistics {
   }
 
   #calculate time spent by all administrators per month
-  foreach my $time (%time_applications_per_month) {
+  foreach my $time (keys %time_applications_per_month) {
     $spent_time_administrators_per_month += $time;
   }
 
   #calculate time spent by all administrators per all time
-  foreach my $time (%time_applications_per_all_time) {
+  foreach my $time (keys %time_applications_per_all_time) {
     $spent_time_administrators_per_all_time += $time;
   }
 
@@ -2059,7 +2004,7 @@ sub msgs_receive_attachments {
   my ($msg_id, $attr) = @_;
 
   if (!$msg_id) {
-    return undef;
+    return 0;
   }
   
   my $message = $attr->{MSG_INFO} || do {
@@ -2127,7 +2072,7 @@ sub msgs_get_attachments_view {
   my ($attachments_attr, $attr) = @_;
 
   if (!$attachments_attr) {
-    return undef;
+    return 0;
   }
   
   # Receiving search params in same attribute
@@ -2202,10 +2147,10 @@ sub msgs_receive_signature {
   
   my $sig_img = "$conf{TPL_DIR}/attach/msgs/$uid/$msg_id" . "_sig.png";
   open( my $fh, '>', $sig_img);
-  binmode $fh;
-  $imgdata =~ s/data:image\/png;base64,//;
-  print $fh decode_base64($imgdata);
-  close $fh;
+    binmode $fh;
+    $imgdata =~ s/data:image\/png;base64,//;
+    print $fh decode_base64($imgdata);
+    close $fh;
   return 1;
 }
 

@@ -1,10 +1,10 @@
-<button type='button' class='btn btn-primary btn-xs pull-right' data-toggle='modal' data-target='#holdupModal'>
+<button type='button' class='btn btn-primary btn-xs pull-right' data-toggle='modal' data-target='#holdupModal_%ID%'>
     _{HOLD_UP}_
 </button>
 
 <div id='form_holdup' class='text-center'>
 
-    <div class='modal fade' id='holdupModal'>
+    <div class='modal fade' id='holdupModal_%ID%'>
         <div class='modal-dialog modal-sm'>
             <div class='modal-content'>
                 <div class='modal-header text-center'>
@@ -15,7 +15,7 @@
                 </div>
 
                 <div class='modal-body form form-horizontal'>
-                    <form action='$SELF_URL' METHOD='GET' id='holdup'>
+                    <form action='$SELF_URL' METHOD='GET' id='holdup_%ID%'>
                         <fieldset>
                             <input type='hidden' name='index' value='$index'>
                             <input type='hidden' name='sid' value='$sid'>
@@ -51,7 +51,7 @@
                     </form>
                 </div>
                 <div class='modal-footer text-center'>
-                    <input type='submit' value='_{HOLD_UP}_' name='add' form='holdup' class='btn btn-primary'>
+                    <input type='submit' value='_{HOLD_UP}_' name='add' form='holdup_%ID%' class='btn btn-primary'>
                 </div>
             </div>
         </div>

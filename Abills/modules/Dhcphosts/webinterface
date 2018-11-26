@@ -2077,7 +2077,7 @@ sub dhcphosts_log{
         { OUTPUT2RETURN => 1 } )
       } );
 
-  if ( $FORM{search} ){
+  if ( $FORM{search} && $FORM{MESSAGE} ){
     $FORM{MESSAGE} =~ s/\-/:/g;
     $FORM{MESSAGE} =~ s/\*//g;
     push @{ $Dhcphosts->{IDS} }, $FORM{MESSAGE};

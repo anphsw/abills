@@ -1,12 +1,13 @@
 #!/bin/sh
 #**********************************************************
 # AbillS updater
-# LIcense fetcher
+# License fetcher
 # Amon update
 #
+# UPDATED: 20181124
 #**********************************************************
 
-VERSION=2.25;
+VERSION=2.30;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -32,7 +33,7 @@ AMON_FILE=""
 
 SYSBENCH_DIR=/tmp
 if [ -f ${BILLING_DIR} ]; then
-  SYSBENCH_DIR=${BILLING_DIR};
+  SYSBENCH_DIR="${BILLING_DIR}";
 fi;
 
 
@@ -44,7 +45,7 @@ check_perl () {
 
   NEED_PERL_VERSION=512
   PERL=/usr/bin/perl
-  if [ ! -f ${PERL} ]; then
+  if [ ! -f "${PERL}" ]; then
     echo "perl not instaled '${PERL}' "
     exit;
   fi;
@@ -139,7 +140,7 @@ fi
 #
 #**********************************************************
 _install () {
-	
+
   for pkg in $@; do
     if [ "${OS_NAME}" = "CentOS" ]; then
       test_program="rpm -q"
@@ -177,7 +178,7 @@ _install () {
         echo " ${res}"
       fi;
     fi;
-    
+
   done;
 }
 
@@ -327,7 +328,7 @@ if [ "${OS}" = "FreeBSD" ]; then
   if [ "${HDD}" = "" ]; then
     HDD=`grep -i ^ada[0-9]: /var/run/dmesg.boot | tail -1`
   fi;
-  
+
   hdd_model=${HDD}
   hdd_serial=`echo ${HDD} | sed 's/.*<\(.*\)>.*/\1/g'`
   hdd_size=`echo ${HDD} | awk '{ print $2 }'`
@@ -403,7 +404,7 @@ if [ "${REGISTRATION}" != "" ]; then
     echo "Registration failed"
     exit;
   fi;
-  
+
   return 0;
 fi;
 
@@ -449,7 +450,7 @@ update_self () {
   get_sys_id
   SIGN=${UPDATE_CHECKSUM}
   echo "Verifing please wait..."
-  
+
   if [ -f ~/.updater ]; then
     SIGN=`cat ~/.updater`"&hn="`hostname`;
   else
@@ -484,9 +485,9 @@ if [ -f "${TMP_DIR}/update.sh" ]; then
     if [ "${VERSION_OLD}" -lt "${VERSION_NEW}" ] > /dev/null 2>&1; then
       echo " "
       echo -n "!!! New version '${NEW}' of update.sh available update it [Y/n]: "
-    
+
       read update_confirm
-  
+
       if [ "${update_confirm}" != n ]; then
 
         #CUR_FILE=`pwd`"/update.sh"
@@ -507,29 +508,29 @@ fi;
 #**********************************************
 check_mysql_version () {
   sql_get_conf
-  
+
   if [ "${DB_NAME}" = "" ]; then
     return 0;
   fi;
-  
+
   EXIST_MYSQL=`which ${MYSQL}`;
-  
+
   if [ "${EXIST_MYSQL}" = "" ]; then
     echo "Mysql client '${MYSQL}' not exist";
     return 0;
   fi;
-  
+
   if [ "${SKIP_CHECK_SQL}" != 1 ]; then
     #Check MySQL Version
     MYSQL_VERSION=`${MYSQL} -N -u ${DB_USER} -p"${DB_PASSWD}" -h ${DB_HOST} -D ${DB_NAME} -e "SELECT version()"`
     echo "MySQL: Version: ${MYSQL_VERSION}"
-    
+
     MYSQL_VERSION=`echo ${MYSQL_VERSION} | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1\2/'`;
-  
+
     if [ "${MYSQL_VERSION}" = "" ]; then
       MYSQL_VERSION=0;
     fi;
-  
+
     if [ "${MYSQL_VERSION}" -lt 56 ]; then
       echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
       echo "! Please Update Mysql Server to version 5.6 or higher                        !"
@@ -555,12 +556,18 @@ get_current_version () {
   else
     UPDATE_DATE=0;
   fi;
-  
+
   if [ -f ${BILLING_DIR}/libexec/config.pl -a -f ${BILLING_DIR}/VERSION ]; then
+    UPDATE_VERSION=`cat ${BILLING_DIR}/VERSION | awk '{ print $1 }' | cut -c1-3`
     UPDATE_DATE=`cat ${BILLING_DIR}/VERSION | awk '{ print $2 }'`
     GIT_UPDATE=1;
-    
-    CHANGELOG_URL="http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.7x&do=export_raw"
+
+    if [ ${UPDATE_VERSION} = "0.8" ];
+        then
+          CHANGELOG_URL="http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.8x&do=export_raw"
+        else
+          CHANGELOG_URL="http://abills.net.ua/wiki/doku.php?id=abills:changelogs:0.7x&do=export_raw"
+    fi;
   else
     if [ "${UPDATE_DATE}" = '$conf{version}='  ]; then
       UPDATE_DATE=99999999
@@ -1167,8 +1174,9 @@ git_update () {
         AUTH_KEY=${DEFAULT_AUTH_KEY};
       fi;
 
-      DEFAULT_AUTH_USER=`echo "${AUTH_KEY}" | awk -F\. '{print $2}'`
-      
+      #DEFAULT_AUTH_USER=`echo "${AUTH_KEY}" | awk -F\. '{print $2}'`
+      DEFAULT_AUTH_USER=`echo "${AUTH_KEY}" | sed  's/^[a-z\_]*\.//'`
+
       echo -n "Enter auth login [${DEFAULT_AUTH_USER}]: ";
       read AUTH_USER
       
@@ -1568,13 +1576,13 @@ else
   find ${work_copy} | grep .git | xargs rm -Rf
 
   for dir in "${work_copy}/var" "${work_copy}/var/log" "${work_copy}/var/q" "${work_copy}/var/log/ipn"; do
-    if [ ! -d ${dir} ]; then
+    if [ ! -d "${dir}" ]; then
       mkdir ${dir};
     fi;
   done;
   
-  if [ w${UPDATE_MODULE} != w ]; then
-    if [ w${DEBUG} != w ] ; then
+  if [ "${UPDATE_MODULE}" != "" ]; then
+    if [ "${DEBUG}" != "" ] ; then
       echo "cp -Rf ${TMP_DIR}/${work_copy}/Abills/modules/${UPDATE_MODULE}/* ${BILLING_DIR}/Abills/modules/${UPDATE_MODULE}/"
     fi;
 

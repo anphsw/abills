@@ -53,7 +53,6 @@ $lang{SCREENS}='Екрани';
 $lang{SCREEN}='Екран';
 
 $lang{UPLOAD_CHANNELS}='Імпорт каналів';
-$lang{NO_CHANGES}='Без змін';
 $lang{DELETE_EXIST}='Видалити існуючі';
 $lang{CHANGE_EXIST}='Замінити існуючі';
 $lang{DOWNLOAD_CHANNELS}='Экспорт каналів';
@@ -68,3 +67,6 @@ $lang{PROVIDER_PORTAL_URL}='Портал продавця послуги';
 
 $lang{ERR_NO_AVAILABLE_TP}='Нема доступних тарифних планів';
 $lang{DISABLE_SERVICE_DATE}='Дата відключення';
+
+
+$lang{MAX_DEVICES} = 'Максимально девайсів';

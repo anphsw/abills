@@ -107,14 +107,14 @@ sub internet_online {
     }
 
     $Nas->info({ NAS_ID => $nas_id });
-    $message = "\n$lang{NAS} ID:   $nas_id\n $lang{NAS} IP: $Nas->{NAS_IP}\n $lang{PORT}: $nas_port_id\n SESSION_ID: $acct_session_id\n\n";
+    $message = "\n$lang{NAS} ID: $nas_id\n $lang{NAS} IP: ". ($Nas->{NAS_IP} || q{}) ."\n $lang{PORT}: $nas_port_id\n SESSION_ID: $acct_session_id\n\n";
     my ($Y, $M, undef) = split(/-/, $DATE, 3);
     $Sessions->list({
       UID             => $uid,
       DATE            => ">=$Y-$M-01",
       ACCT_SESSION_ID => $acct_session_id,
       NAS_PORT        => $nas_port_id,
-      NAS_ID          => $Nas->{NAS_ID},
+      NAS_ID          => $nas_id,
       PAGE_ROWS       => 1
     });
 
@@ -332,50 +332,51 @@ sub internet_online {
   );
 
   my %EXT_TITLES = (
-    'fio'          => $lang{FIO},
-    'user_name'    => "RAD User-Name",
-    'login'        => $lang{LOGIN},
-    'nas_port_id'  => $lang{PORT},
-    'client_ip_num'=> 'IP',
-    'duration_sec2'=> $lang{DURATION},
-    'acct_input_octets'    => $lang{RECV},
-    'acct_output_octets'   => $lang{SENT},
-    'ex_input_octets'      => "Ex_IN",
-    'ex_output_octets'     => "Ex_OUT",
-    'nas_name'             => $lang{NAS},
-    'acct_session_id'      => "SESSION_ID",
-    'connect_info' => "CONNECT_INFO",
-    'guest'        => $lang{GUEST},
-    'turbo'        => 'TURBO',
-    'ip'           => "$lang{STATIC} IP",
-    'netmask'      => 'NETMASK',
-    'speed'        => $lang{SPEED},
-    'calls_tp_id'  => 'Online TP_ID',
-    'tp_id',       => 'TP_ID',
+    'fio'                 => $lang{FIO},
+    'user_name'           => "RAD User-Name",
+    'login'               => $lang{LOGIN},
+    'nas_port_id'         => $lang{PORT},
+    'client_ip_num'       => 'IP',
+    'duration_sec2'       => $lang{DURATION},
+    'acct_input_octets'   => $lang{RECV},
+    'acct_output_octets'  => $lang{SENT},
+    'ex_input_octets'     => "Ex_IN",
+    'ex_output_octets'    => "Ex_OUT",
+    'nas_name'            => $lang{NAS},
+    'acct_session_id'     => "SESSION_ID",
+    'connect_info'        => "CONNECT_INFO",
+    'guest'               => $lang{GUEST},
+    'turbo'               => 'TURBO',
+    'ip'                  => "$lang{STATIC} IP",
+    'netmask'             => 'NETMASK',
+    'speed'               => $lang{SPEED},
+    'calls_tp_id'         => 'Online TP_ID',
+    'tp_id',              => 'TP_ID',
     #'port'        => "$lang{USER_PORT}",
-    'cid'          => 'CID',
-    'filter_id'    => 'Filter ID',
-    'tp_name'      => $lang{TARIF_PLAN},
-    'last_alive'   => $lang{LAST_UPDATE},
-    'internet_status' => "Internet $lang{STATUS}",
-    'internet_expire' => "Internet $lang{EXPIRE}",
-    'session_sum'  => "$lang{SESSIONS} $lang{SUM}",
-    'status'       => "Online $lang{STATUS}",
-    'remote_id'    => 'REMOTE_ID',
-    'circuit_id'   => 'CIRCUIT_ID',
-    'hostname'     => 'HOSTNAME',
-    'switch_port'  => "$lang{SWITCH} $lang{PORT}",
-    'vlan'         => 'vlan',
-    'server_vlan'  => 'server_vlan',
-    'switch_mac'   => $lang{SWITCH} ." MAC",
-    'switch_name'  => $lang{SWITCH},
-    'switch_id'    => "$lang{SWITCH} ID",
-    'dhcp_id'      => 'dhcp_id',
-    'dhcp_ends'    => 'dhcp_ends',,
-    'service_id'   => '# SERVICE_ID',
-    framed_ipv6_prefix => 'IPV6',
-    framed_interface_id => 'FRAMED_INTERFACE_ID',
+    'cid'                 => 'CID',
+    'filter_id'           => 'Filter ID',
+    'tp_name'             => $lang{TARIF_PLAN},
+    'last_alive'          => $lang{LAST_UPDATE},
+    'internet_status'     => "Internet $lang{STATUS}",
+    'internet_expire'     => "Internet $lang{EXPIRE}",
+    'session_sum'         => "$lang{SESSIONS} $lang{SUM}",
+    'status'              => "Online $lang{STATUS}",
+    'remote_id'           => 'REMOTE_ID',
+    'circuit_id'          => 'CIRCUIT_ID',
+    'hostname'            => 'HOSTNAME',
+    'switch_port'         => "$lang{SWITCH} $lang{PORT}",
+    'vlan'                => 'vlan',
+    'server_vlan'         => 'server_vlan',
+    'switch_mac'          => $lang{SWITCH} . " MAC",
+    'switch_name'         => $lang{SWITCH},
+    'switch_id'           => "$lang{SWITCH} ID",
+    'dhcp_id'             => 'dhcp_id',
+    'dhcp_ends'           => 'dhcp_ends',,
+    'service_id'          => '# SERVICE_ID',
+    framed_ipv6_prefix    => 'IPV6',
+    framed_interface_id   => 'FRAMED_INTERFACE_ID',
     delegated_ipv6_prefix => 'DELEGATED_IPV6_PREFIX',
+    'cpe_mac'             => 'CPE MAC'
   );
 
   my Abills::HTML $table;
@@ -637,6 +638,7 @@ sub internet_online_search {
     DURATION       => $lang{DURATION},
     CLIENT_IP      => 'IP',
     CID            => 'CID',
+    CPE_MAC        => 'CPE_MAC',
     TP_ID          => $lang{TARIF_PLAN},
     CONNECT_INFO   => 'CONNECT_INFO',
     GUEST          => $lang{GUEST},
@@ -646,7 +648,8 @@ sub internet_online_search {
     ACCT_SESSION_ID=> 'SESSION_ID',
     UID            => 'UID',
     LAST_ALIVE     => $lang{LAST_UPDATE},
-    GID            => "$lang{GROUP} ID"
+    GID            => "$lang{GROUP} ID",
+    TAGS           => "$lang{TAGS}",
   );
 
   my $FIELDS_SEL = $html->form_select(

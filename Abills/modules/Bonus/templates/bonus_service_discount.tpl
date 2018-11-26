@@ -9,6 +9,14 @@
         </div>
         <div class='box-body'>
             <div class='form-group'>
+                <label class='control-label col-md-3' for='NAME'>_{NAME}_:</label>
+
+                <div class='col-md-9'>
+                    <input type=text name='NAME' class='form-control' value='%NAME%'>
+                </div>
+            </div>
+
+            <div class='form-group'>
                 <label class='control-label col-md-3'>_{SERVICE}_ _{PERIOD}_ (_{MONTH}_):</label>
 
                 <div class='col-md-9'>
@@ -29,6 +37,17 @@
                     <input type=text name='TOTAL_PAYMENTS_SUM' class='form-control' value='%TOTAL_PAYMENTS_SUM%'>
                 </div>
             </div>
+
+            <div class='form-group'>
+                <label class='control-label col-md-3'>_{ONETIME_PAYMENT_SUM}_:</label>
+
+                <div class='col-md-9'>
+                    <input type=text name='ONETIME_PAYMENT_SUM' class='form-control'
+                    value='%ONETIME_PAYMENT_SUM%'>
+                </div>
+            </div>
+
+
             <div class='form-group'>
                 <label class='control-label col-md-3'>_{PAYMENTS}_ _{TYPE}_:</label>
 

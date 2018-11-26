@@ -5,6 +5,7 @@
 <div class='alert alert-info' role='alert'>
   <h3>Вы будете перенаправлены на сервис банка Privat - Быстрая оплата.</h3>
 </div>
+  <img src="%IMG_DATA%" alt="Red dot" />
 </div>
 <div class='form-group text-center'>
   <a href='%LINK%' class='btn btn-primary btn-lg' role='button' name='FASTPAY'>Начать оплату</a>

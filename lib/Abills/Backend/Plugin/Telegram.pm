@@ -875,7 +875,7 @@ sub authenticate {
     return 0;
   }
   elsif ( $type eq 'a' ) {
-    $admin->online_info($sid);
+    $admin->online_info({SID => $sid});
 
     my $aid = $admin->{AID};
 

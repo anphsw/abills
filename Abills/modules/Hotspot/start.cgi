@@ -135,7 +135,7 @@ our $DOMAIN_ID = 0;
 our $users = Users->new( $db, $admin, \%conf );
 our $Dv = Dv->new( $db, $admin, \%conf );
 my $Log = Log->new($db, \%conf);
-my $Hotspot = Hotspot->new( $db, \%conf, $admin );
+my $Hotspot = Hotspot->new( $db, $admin, \%conf, );
 $user = $users;
 
 if (in_array( 'Internet', \@MODULES )){
@@ -857,6 +857,7 @@ sub buy_cards{
         OUTPUT2RETURN     => 1,
         QUITE             => 1,
         REGISTRATION_ONLY => 1,
+        UID               => $FORM{UID},
         SUS_URL_PARAMS    => ($FORM{UNIFI_SITENAME}) ? "&UNIFI_SITENAME=$FORM{UNIFI_SITENAME}" : q{},
         #RETURN_URL    => $ENV{PROT}.'://'. $ENV{SERVER_NAME}.':'. $ENV{SERVER_PORT} . '/start.cgi'
       } );
@@ -1030,7 +1031,6 @@ sub buy_cards{
       OUT_SPEED        => '_SHOW',
       %LIST_PARAMS,
       TP_ID            => $conf{HOTSPOT_TPS},
-      MODULE           => 'Dv',
       COLS_NAME        => 1,
     }
   );
@@ -1188,7 +1188,7 @@ sub _send_sms_with_pin {
 #**********************************************************
 sub fast_login {
 
-  # print "Content-Type:text/html\n\n";
+# print "Content-Type:text/html\n\n";
   if ($FORM{error}) {
     if ($conf{HOTSPOT_USE_PIN}) {
       #ask user for card pin
@@ -1198,7 +1198,7 @@ sub fast_login {
       print $html->tpl_show( templates( $use_card_tpl ), \%FORM);
       exit;
     }
-    elsif ($FORM{error} =~ /Negativ/) {
+    elsif ($FORM{error} =~ /NEG_DEPOSIT/) {
       my $list = $Dv->list({
         LOGIN     => ($COOKIES{hotspot_username} || $FORM{username}),
         UID       => '_SHOW',
@@ -1248,24 +1248,16 @@ sub fast_login {
 
   if ($FORM{TRUE}) {
     # Online payment success, looking for confirm
-    load_module('Paysys', $html);
-    my $uid = 0;
-    if ($COOKIES{hotspot_username}) {
-      my $list = $Dv->list({
-        LOGIN     => ($COOKIES{hotspot_username} || $FORM{username}),
-        UID       => '_SHOW',
-
-        COLS_NAME => 1,
-      });
-      $uid = $list->[0]->{uid};
+    if (!$FORM{OPERATION_ID}) {
+      delete $FORM{TRUE};
     }
     else {
-      $uid = $FORM{OPERATION_ID};
-    }
-    unless (paysys_show_result({ TRANSACTION_ID => "YK:$FORM{OPERATION_ID}", UID => $uid })) {
-      print $html->header();
-      print $html->{OUTPUT};
-      exit;
+      load_module('Paysys', $html);
+      unless (paysys_show_result({ TRANSACTION_ID => $FORM{OPERATION_ID} })) {
+        print $html->header();
+        print $html->{OUTPUT};
+        exit;
+      }
     }
   }
 
@@ -1359,28 +1351,11 @@ sub fast_login {
     });
 
     if ($Hotspot->{TOTAL} > 0) {
-      if ($conf{HOTSPOT_MAC_CHANGE} && $hot_log->[0]->{phone}) {
-        #Update MAC for existing user.
-        my $list = $Dv->list({
-          PASSWORD     => '_SHOW',
-          LOGIN        => '_SHOW',
-          UID          => '_SHOW',
-          PHONE        => $hot_log->[0]->{phone},
-          CID          => '_SHOW',
-          PAYMENT_TYPE => 2,
-          COLS_NAME    => 1,
-        });
-
-        if ( $Dv->{TOTAL} > 0 && $list->[0]->{cid} ne $FORM{mac}){
-          $Dv->change({
-            UID => $list->[0]->{uid},
-            CID => $FORM{mac},
-          });
-        }
-      }
-      #User with this mac already identify today.
-      $conf{HOTSPOT_MAC_LOGIN} = 1;
+      #User with this mac already virifed phone today.
       $FORM{PHONE} ||= $hot_log->[0]->{phone};
+      if ($conf{HOTSPOT_MAC_CHANGE} && $FORM{PHONE} && $FORM{mac}) {
+        change_user_mac();
+      }
       $FORM{'3.PHONE'} = $FORM{PHONE};
     }
     else {
@@ -1410,6 +1385,9 @@ sub fast_login {
     });
     exit;
   }
+  elsif ($conf{HOTSPOT_PHONE_LOGIN} && $FORM{PHONE}) {
+    phone_login();
+  }
   elsif ($conf{HOTSPOT_MAC_LOGIN} && $FORM{mac}) {
     fast_mac_login();
   }
@@ -1433,6 +1411,32 @@ sub fast_login {
 
 #===== BUY CARDS =====
 if ($conf{HOTSPOT_BUY_CARDS}) {
+  if (!$FORM{TRUE}) {
+    my $hot_log = $Hotspot->log_list({
+      CID       => $FORM{mac},
+      INTERVAL  => "$DATE/$DATE",
+      ACTION    => 21,
+      PHONE     => $FORM{PHONE},
+      COMMENTS  => '_SHOW',
+      COLS_NAME => 1,
+    });
+    if ($Hotspot->{TOTAL} > 0) {
+      my ($op_id) = $hot_log->[0]->{comments} =~ m/op_id\:\'(.*)\'/;
+      use Paysys;
+      my $Paysys = Paysys->new($db, $admin, \%conf);
+      my $list = $Paysys->list({
+        TRANSACTION_ID => "Liqpay:$op_id",
+        STATUS         => 2,
+        SKIP_DEL_CHECK => 1,
+        COLS_NAME      => 1,
+      });
+      if ($Paysys->{TOTAL} > 0 ) {
+        $FORM{TRUE} = 1;
+        $FORM{OPERATION_ID} = "Liqpay:$op_id";
+      }
+    }
+  }
+
   if ($FORM{TRUE}) {
     $conf{HOTSPOT_REGISTRATION} = 'YES';
   }
@@ -1442,6 +1446,16 @@ if ($conf{HOTSPOT_BUY_CARDS}) {
     my $output = buy_cards();
     print $html->header();
     print $output;
+
+    if ($FORM{OPERATION_ID}) {
+      $Hotspot->log_add({
+        HOTSPOT  => $COOKIES{server_name},
+        CID      => $FORM{mac},
+        PHONE    => $FORM{PHONE},
+        ACTION   => 21,
+        COMMENTS => "New user initiate online payment op_id:'$FORM{OPERATION_ID}' tp_id:$FORM{TP_ID}",
+      });
+    }
     exit;
   }
 }
@@ -1465,36 +1479,52 @@ if ($conf{HOTSPOT_BUY_CARDS}) {
 
 sub hotspot_registration {
   my $Tariffs = Tariffs->new( $db, \%conf, $admin );
-  my $tp_list = $Tariffs->list({
-    TP_ID        => '_SHOW',
-    PAGE_ROWS    => 1,
-    SORT         => 1,
-    NAME         => '_SHOW',
-    DOMAIN_ID    => $DOMAIN_ID,
-    PAYMENT_TYPE => 2,
-    COLS_NAME    => 1,
-    NEW_MODEL_TP => 1,
-
-  });
 
   if ( $FORM{TRUE} ) {
     # Online payments success.
+    unless ( $FORM{TP_ID} && $FORM{'3.PHONE'} ) {
+      my $hot_log = $Hotspot->log_list({
+        CID       => $FORM{mac},
+        INTERVAL  => "$DATE/$DATE",
+        ACTION    => 21,
+        PHONE     => '_SHOW',
+        COMMENTS  => '_SHOW',
+        COLS_NAME => 1,
+      });
+      if ($Hotspot->{TOTAL} > 0) {
+        ($FORM{TP_ID})   = $hot_log->[0]->{comments} =~ m/tp_id\:(\d+)/;
+        $FORM{"3.PHONE"} = $hot_log->[0]->{phone};
+      }
+    }
     $Tariffs->info( $FORM{TP_ID} );
-    $FORM{'4.TP_ID'}    = $Tariffs->{ID};
+    $FORM{'4.TP_ID'}    = $Tariffs->{TP_ID};
     $FORM{'5.SUM'}      = $Tariffs->{ACTIV_PRICE} || $FORM{PAYSYS_SUM};
     $FORM{'5.DESCRIBE'} = ($FORM{SYSTEM_SHORT_NAME} || q{}) ."# $FORM{OPERATION_ID}";
     $FORM{'5.EXT_ID'}   = ($FORM{SYSTEM_SHORT_NAME} || q{}) .":$FORM{OPERATION_ID}";
     $FORM{'5.METHOD'}   = 2;
   }
   elsif ($conf{HOTSPOT_TPS}) {
-    $FORM{'4.TP_ID'} = $conf{HOTSPOT_TPS};
-  }
-  elsif ($Tariffs->{TOTAL} < 1) {
-    print $html->header();
-    print $html->message( 'err', "$lang{ERROR}", "No guest tp" );
-    exit;
+    my ($tp_id) = split('\,', $conf{HOTSPOT_TPS});
+    $Tariffs->info( '', { ID => $tp_id} );
+    $FORM{'4.TP_ID'} = $Tariffs->{TP_ID};
   }
   else {
+    my $tp_list = $Tariffs->list({
+      TP_ID        => '_SHOW',
+      PAGE_ROWS    => 1,
+      SORT         => 1,
+      NAME         => '_SHOW',
+      DOMAIN_ID    => $DOMAIN_ID,
+      MODULE       => 'Internet,Dv',
+      PAYMENT_TYPE => 2,
+      COLS_NAME    => 1,
+      NEW_MODEL_TP => 1,
+    });
+    if ($Tariffs->{TOTAL} < 1) {
+      print $html->header();
+      print $html->message( 'err', "$lang{ERROR}", "No guest tp" );
+      exit;
+    }
     $FORM{'4.TP_ID'} = $tp_list->[0]->{tp_id};
   }
 
@@ -1513,6 +1543,10 @@ sub hotspot_registration {
   $FORM{'1.PASSWORD'}    = $return->[0]->{PASSWORD};
   $FORM{'4.CID'}         = $FORM{mac};
   $FORM{'1.CREATE_BILL'} = 1;
+
+  if ($conf{HOTSPOT_PHONE_LOGIN}) {
+    $FORM{'4.CID'} = 'ANY';
+  }
 
   if ( $conf{HOTSPOT_GUESTS_GROUP} && $conf{HOTSPOT_GUESTS_GID} ) {
     my $group_name = $conf{HOTSPOT_GUESTS_GROUP} . '_' . $DOMAIN_ID;
@@ -1576,12 +1610,13 @@ sub fast_mac_login {
   }
 
   my $list = $Dv->list({
-    PASSWORD     => '_SHOW',
-    LOGIN        => '_SHOW',
-    PHONE        => '_SHOW',
-    CID          => $FORM{mac},
-    ($conf{HOTSPOT_TPS} ? '' : PAYMENT_TYPE => 2),
-    COLS_NAME    => 1,
+    PASSWORD       => '_SHOW',
+    LOGIN          => '_SHOW',
+    PHONE          => '_SHOW',
+    SERVICE_EXPIRE => "0000-00-00,>$DATE",
+    CID            => $FORM{mac},
+    $conf{HOTSPOT_TPS} ? (TP_NUM => $conf{HOTSPOT_TPS}) : (PAYMENT_TYPE => 2),
+    COLS_NAME      => 1,
   });
 
   if ( $Dv->{TOTAL} > 0 ){
@@ -1611,6 +1646,57 @@ sub fast_mac_login {
     });
     exit;
   }
+  return 1;
+}
+
+#**********************************************************
+=head2 phone_login()
+  Search user with PHONE = $FORM{PHONE} and redirect to 
+  Hotspot login page.
+=cut
+#**********************************************************
+sub phone_login {
+  if ($FORM{PHONE} !~ /^\+?[0-9]+$/) {
+    print $html->header();
+    print $html->message( 'err', "$lang{ERROR}", "Wrong PHONE." );
+    exit;
+  }
+  my $list = $Dv->list({
+    PASSWORD       => '_SHOW',
+    LOGIN          => '_SHOW',
+    PHONE          => $FORM{PHONE},
+    SERVICE_EXPIRE => "0000-00-00,>$DATE",
+    ($conf{HOTSPOT_TPS} ? (TP_NUM => $conf{HOTSPOT_TPS}) : (PAYMENT_TYPE => 2)),
+    COLS_NAME      => 1,
+  });
+  if ( $Dv->{TOTAL} > 0 ){
+    $Hotspot->log_add({
+      HOTSPOT  => $COOKIES{server_name},
+      CID      => $FORM{mac},
+      ACTION   => 5,
+      PHONE    => $FORM{PHONE},
+      COMMENTS => "$list->[0]->{login} $FORM{PHONE} PHONE login"
+    });
+
+    if($conf{HOTSPOT_LOG}) {
+      $Log->log_print('LOG_INFO', $list->[0]->{login}, "$FORM{PHONE} PHONE login", { LOG_FILE => "$conf{HOTSPOT_LOG}" });
+    }
+
+    mk_cookie({
+      hotspot_username=> $list->[0]->{login},
+      hotspot_password=> $list->[0]->{password},
+    });
+
+    print $html->header();
+    print $html->tpl_show( templates( 'hotspot_auto_login' ), {
+      LOGIN              => $list->[0]->{login},
+      PASSWORD           => $list->[0]->{password},
+      HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
+      DST                => redirect_page(),
+    });
+    exit;
+  }
+
   return 1;
 }
 
@@ -1684,7 +1770,12 @@ sub phone_verifycation {
     my $reload_btn = $html->button( $lang{CONTINUE}, '',
           { GLOBAL_URL => "$COOKIES{link_login}", class => 'btn btn-success' } );
     print $html->header();
-    print $html->tpl_show( templates( 'form_client_hotspot_call_auth' ), { AUTH_NUMBER => $conf{HOTSPOT_AUTH_NUMBER}, BUTTON => $reload_btn });
+    print $html->tpl_show( templates( 'form_client_hotspot_call_auth' ), { 
+      AUTH_NUMBER => $conf{HOTSPOT_AUTH_NUMBER},
+      mac         => $FORM{mac},
+      PHONE       => $FORM{PHONE},
+      BUTTON      => $reload_btn,
+    });
     exit;
   }
   elsif (!$FORM{PIN}) {
@@ -1743,28 +1834,10 @@ sub phone_verifycation {
         PHONE    => $FORM{PHONE},
         COMMENTS => 'Phone confirmed.'
       });
-      if ($conf{HOTSPOT_MAC_CHANGE} && $FORM{PHONE}) {
-        #Update MAC for existing user.
-        my $list = $Dv->list({
-          PASSWORD     => '_SHOW',
-          LOGIN        => '_SHOW',
-          UID          => '_SHOW',
-          PHONE        => $FORM{PHONE},
-          CID          => '_SHOW',
-          PAYMENT_TYPE => 2,
-          COLS_NAME    => 1,
-        });
-
-        if ( $Dv->{TOTAL} > 0 && $list->[0]->{cid} ne $FORM{mac}){
-          $Dv->change({
-            UID => $list->[0]->{uid},
-            CID => $FORM{mac},
-          });
-        }
+      if ($conf{HOTSPOT_MAC_CHANGE} && $FORM{PHONE} && $FORM{mac}) {
+        change_user_mac();
       }
       $FORM{'3.PHONE'} = $PHONE_PREFIX . $FORM{PHONE};
-      $conf{HOTSPOT_MAC_LOGIN} = 1;
-
     }
     else {
       if($conf{HOTSPOT_LOG}) {
@@ -1958,6 +2031,31 @@ sub check_auth {
   }
   else {
     print 1;
+  }
+  return 1;
+}
+
+#**********************************************************
+=head2 check_auth()
+    Update MAC for existing user.
+=cut
+#**********************************************************
+sub change_user_mac {
+  my $list = $Dv->list({
+    LOGIN          => '_SHOW',
+    UID            => '_SHOW',
+    PHONE          => $FORM{PHONE},
+    CID            => '_SHOW',
+    SERVICE_EXPIRE => "0000-00-00,>$DATE",
+    ($conf{HOTSPOT_TPS} ? (TP_NUM => $conf{HOTSPOT_TPS}) : (PAYMENT_TYPE => 2)),
+    COLS_NAME    => 1,
+  });
+
+  if ( $Dv->{TOTAL} > 0 && $list->[0]->{cid} ne $FORM{mac}){
+    $Dv->change({
+      UID => $list->[0]->{uid},
+      CID => $FORM{mac},
+    });
   }
   return 1;
 }

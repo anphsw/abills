@@ -497,3 +497,17 @@ ATTRIBUTE	FreeRADIUS-Stats-HUP-Time		177	date FreeRADIUS
 ATTRIBUTE	FreeRADIUS-Server-EMA-Window		178	integer FreeRADIUS
 ATTRIBUTE	FreeRADIUS-Server-EMA-USEC-Window-1	179	integer FreeRADIUS
 ATTRIBUTE	FreeRADIUS-Server-EMA-USEC-Window-10	180	integer FreeRADIUS
+
+#Accel pairs
+ATTRIBUTE DHCP-Router-IP-Address 241 ipaddr
+ATTRIBUTE DHCP-Mask              242 integer
+ATTRIBUTE L4-Redirect      243 integer
+ATTRIBUTE L4-Redirect-ipset      244 string
+ATTRIBUTE DHCP-Option82          245 octets
+
+
+#Huawai ME60
+VENDOR          Huawei        2011
+ATTRIBUTE  Huawei-Qos-Profile-Name	     31  string Huawei
+
+

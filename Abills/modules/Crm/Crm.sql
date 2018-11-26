@@ -175,3 +175,13 @@ CREATE TABLE IF NOT EXISTS `crm_actions` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Entity ACTION';
+
+CREATE TABLE IF NOT EXISTS `crm_working_time_norms` (
+  `year` SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0,
+  `month` SMALLINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  `hours` SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0,
+  `days`SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0,
+  UNIQUE KEY `year_month` (`year`, `month`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Entity working time norms';

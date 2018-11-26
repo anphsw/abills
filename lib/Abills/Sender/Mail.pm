@@ -1,4 +1,11 @@
 package Abills::Sender::Mail;
+=head1 NAME
+
+  Send E-mail message
+
+=cut
+
+
 use strict;
 use warnings FATAL => 'all';
 
@@ -6,12 +13,6 @@ use Abills::Sender::Plugin;
 use parent 'Abills::Sender::Plugin';
 
 use Abills::Base qw(sendmail _bp);
-
-=head1 NAME
-
-  Send E-mail message
-
-=cut
 
 
 #**********************************************************

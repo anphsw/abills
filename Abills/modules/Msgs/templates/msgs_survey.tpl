@@ -10,6 +10,7 @@
 %SURVEY%
 %SURVEY_ID%
 %REPLY_ID%
+  %NOTIFICATION_MSG%
 <!--  <input type='text' name='STATE' value='0'/> -->
 %ACTION%
 </div>

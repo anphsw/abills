@@ -6,8 +6,11 @@
 
 use strict;
 use warnings FATAL => 'all';
+use Encode qw(_utf8_on);
+
 use Abills::Base qw(urlencode in_array int2byte convert);
 use Msgs::Misc::Attachments;
+use Shedule;
 
 our(
   $db,
@@ -323,8 +326,8 @@ sub msgs_ticket_change {
     # We skip changing inside to avoid unnecessary queries
     if ( defined $FORM{RESPOSIBLE} ) {
       _msgs_change_responsible($FORM{ID}, $FORM{RESPOSIBLE}, {
-          SKIP_CHANGE => 1
-        });
+        SKIP_CHANGE => 1
+      });
     }
     $Msgs->message_change({ %FORM, USER_READ => "0000-00-00  00:00:00" });
   }
@@ -381,10 +384,10 @@ sub msgs_admin_add {
 
 
     for ( my $i = 0; $i <= 2; $i++ ) {
-      
+
       # First input will come without underscore
       my $input_name = 'FILE_UPLOAD' . (($i > 0) ? "_$i" : '');
-      
+
       if ( $FORM{ $input_name }->{filename} ) {
         push @ATTACHMENTS,
           {
@@ -429,6 +432,7 @@ sub msgs_admin_add {
     if ( $FORM{PREVIEW} ) {
       $html->message('info', $lang{INFO}, "$lang{PRE}\n $lang{TOTAL}: $users->{TOTAL}");
       my Abills::HTML $table;
+      $users->{TOTAL} = '';
       ($table) = result_former({
         INPUT_DATA      => $users,
         LIST            => $users_list,
@@ -504,13 +508,12 @@ sub msgs_admin_add {
 
         if ($FORM{DAY}) {
           require JSON;
-          use Encode qw(_utf8_on);
 
           _utf8_on($FORM{SUBJECT});
           _utf8_on($message);
 
           my $args = {
-            UID        => "$user_info->{uid}",
+            UID        => $user_info->{uid},
             CHAPTER    => $FORM{CHAPTER},
             SUBJECT    => $FORM{SUBJECT},
             PRIORITY   => $FORM{PRIORITY},
@@ -528,8 +531,6 @@ sub msgs_admin_add {
           );
 
           my $json_action = JSON::to_json(\%action_hash);
-
-          use Shedule;
           my $Shedule = Shedule->new($db, $admin, \%conf);
 
           $FORM{DAY} = sprintf("%02d", $FORM{DAY}) unless($FORM{DAY} eq '*');
@@ -862,7 +863,7 @@ sub msgs_admin_add_form {
   $tpl_info{PAR}        = $attr->{PAR} if ($attr->{PAR});
 
   my $add_tpl_form = ($attr->{TASK_ADD}) ? 'msgs_task' : 'msgs_send_form';
-  
+
   if ($FORM{MESSAGE}) {
     $Msgs->{TPL_MESSAGE} = $FORM{MESSAGE} || '';
     $Msgs->{TPL_MESSAGE} =~ s/\%/&#37/g;
@@ -1280,7 +1281,7 @@ sub msgs_ticket_show {
   $params{LOGIN}        = ($Msgs->{AID}) ? $html->b($Msgs->{A_NAME}) . " ($lang{ADMIN})" : $html->button($Msgs->{LOGIN},
       "index=15&UID=$uid");
   $params{ADMIN_LOGIN} = $admin->{A_LOGIN};
-  
+
   $html->tpl_show(_include($msgs_show_tpl, 'Msgs'), { %{$Msgs}, %params });
 
   if ( !$FORM{quick}
@@ -1294,10 +1295,156 @@ sub msgs_ticket_show {
       SKIP_LOG   => 1
     });
   }
+  show_admin_chat();
 
   return 1;
 }
+#**********************************************************
+=head2 header_online_chat() Shows chats at the header main page
 
+  Arguments:
+
+  Returns:
+    true
+=cut
+#**********************************************************
+sub header_online_chat {
+  my ($attr) = @_;
+  my $list = '';
+  if ($FORM{AID}) {
+    my $count_messages = $Msgs->chat_count({ AID => $FORM{AID} });
+    print $count_messages;
+  }
+  if ($attr->{UID}) {
+    my $count_user_messages = $Msgs->chat_count({ UID => $attr->{UID} || '' });
+    print $count_user_messages;
+  }
+  if ($attr->{US_MS_LIST}) {
+    my $messages = $Msgs->chat_message_info({ UID => $attr->{US_MS_LIST} });
+    foreach my $item (@$messages) {
+      $list .= $html->tpl_show(_include('msgs_chat_header', 'Msgs'), {
+        SUBJECT => $item->{subject},
+        LINK    => 'index.cgi?get_index=msgs_user&ID=' . $item->{id} . '&sid=' . $user->{SID}
+      }, { OUTPUT2RETURN => 1 });
+    }
+    print $list;
+  }
+  if ($FORM{SH_MS_LIST}) {
+    my $messages = $Msgs->chat_message_info({ AID => $FORM{SH_MS_LIST} });
+    foreach my $item (@$messages) {
+      $list .= $html->tpl_show(_include('msgs_chat_header', 'Msgs'), {
+        SUBJECT => $item->{subject},
+        LINK    => 'index.cgi?get_index=msgs_admin&full=1&UID=' . $item->{uid} . '&chg=' . $item->{num_ticket}
+      }, { OUTPUT2RETURN => 1 });
+    }
+    print $list;
+  }
+  return 1;
+}
+#**********************************************************
+=head2 show_admin_chat() Shows chat at the admin side
+
+  Arguments:
+
+  Returns:
+    ''
+=cut
+#**********************************************************
+sub show_admin_chat {
+  if ($FORM{ADD}) {
+    msgs_chat_add();
+    return 1;
+  }
+  if ($FORM{SHOW}) {
+    msgs_chat_show();
+    return 1;
+  }
+  if ($FORM{COUNT}) {
+    my $count = $Msgs->chat_count({ Msg_ID => $FORM{MSG_ID}, SENDER => 'aid' });
+    print $count;
+    return 1;
+  }
+  if ($FORM{CHANGE}) {
+    $Msgs->chat_change({ Msg_ID => $FORM{MSG_ID}, SENDER => 'aid'});
+    return 1;
+  }
+  if ($conf{MSGS_CHAT}) {
+    my $fn_index = get_function_index('show_admin_chat');
+    $html->tpl_show(_include('msgs_admin_chat', 'Msgs'), {
+      F_INDEX    => $fn_index,
+      AID        => $admin->{AID},
+      NUM_TICKET => $Msgs->{ID}
+    });
+  }
+  return '';
+}
+#**********************************************************
+=head2 msgs_chat_add() Add chat message to db
+
+  Arguments:
+
+  Returns:
+    true
+=cut
+#**********************************************************
+sub msgs_chat_add {
+  if ($FORM{MESSAGE}) {
+    $Msgs->chat_add({
+      MESSAGE     => $FORM{MESSAGE},
+      UID         => $FORM{UID} || '0',
+      AID         => $FORM{AID} || '0',
+      NUM_TICKET  => $FORM{MSG_ID} || '0',
+      MSGS_UNREAD => '0',
+    });
+    if (!$Msgs->{errno}) {
+      $html->message('info', $lang{INFO}, $lang{ADDED});
+    }
+  }
+  return '';
+}
+#**********************************************************
+=head2 msgs_chat_show() - Shows chat messages
+
+  Arguments:
+
+  Returns:
+    true
+=cut
+#**********************************************************
+sub msgs_chat_show {
+  my $list = $Msgs->chat_list({Msg_ID => $FORM{MSG_ID}});
+  foreach my $line (@$list) {
+    if ($FORM{ADMIN} && $line->{uid} eq '0') {
+      $html->tpl_show(_include('msgs_chat_to', 'Msgs'), {
+        MESSAGE => $line->{message},
+        DATE    => $line->{date},
+        SENDER  => 'You',
+      });
+    }
+    elsif ($FORM{ADMIN} && $line->{aid} eq '0') {
+      $html->tpl_show(_include('msgs_chat_from', 'Msgs'), {
+        MESSAGE => $line->{message},
+        DATE    => $line->{date},
+        SENDER  => 'User',
+      });
+    }
+    if ($FORM{USER} && $line->{uid}eq'0') {
+      print $html->tpl_show(_include('msgs_chat_from', 'Msgs'), {
+        MESSAGE => $line->{message},
+        DATE    => $line->{date},
+        SENDER  => 'Admin',
+      }, {OUTPUT2RETURN => 1});
+    }
+    elsif ($FORM{USER} && $line->{aid}eq'0') {
+      print $html->tpl_show(_include('msgs_chat_to', 'Msgs'), {
+        MESSAGE => $line->{message},
+        DATE    => $line->{date},
+        SENDER  => 'You',
+      }, {OUTPUT2RETURN => 1});
+    }
+  }
+  return '';
+}
 
 #**********************************************************
 =head2 msgs_ticket_reply
@@ -1466,7 +1613,12 @@ sub msgs_ticket_reply {
 
 
 #**********************************************************
-=head2 _msgs_change_responsible()
+=head2 _msgs_change_responsible($message_id, $new_responsible_aid, $attr)
+
+  Arguments:
+    $message_id
+    $new_responsible_aid
+    $attr
 
 =cut
 #**********************************************************
@@ -1503,7 +1655,9 @@ sub _msgs_change_responsible {
   my $previous_responsible_aid = $message_info->{resposible} || 0;
 
   # Check if it's really changed
-  return 1 if ( $previous_responsible_aid eq $new_responsible_aid );
+  if ( $previous_responsible_aid eq $new_responsible_aid ) {
+    return 1
+  }
 
   # Change resposible in DB
   if ( !$attr->{SKIP_CHANGE} ) {
@@ -1526,19 +1680,25 @@ sub _msgs_change_responsible {
       my $first_message_for_mess = $message_info->{message} || '';
 
       return msgs_send_via_telegram($message_id, {
-          AID         => $new_responsible_aid,
-          SUBJECT     => $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} . " <b>'$subject'</b>",
-          MESSAGE     => $first_message_for_mess || '',
-          SENDER_UID  => $message_info->{uid},
-          SENDER_TYPE => $Contacts::TYPES{TELEGRAM},
-          PARSE_MODE  => 'HTML'
-        });
-
+        AID         => $new_responsible_aid,
+        SUBJECT     => $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} . " <b>'$subject'</b>",
+        MESSAGE     => $first_message_for_mess || '',
+        SENDER_UID  => $message_info->{uid},
+        SENDER_TYPE => $Contacts::TYPES{TELEGRAM},
+        PARSE_MODE  => 'HTML'
+      });
     };
     #    if ($@) {
     # Do nothing
     # TODO: show webinterface independent message or write to log
     #    }
+  }
+  else {
+    msgs_notify_admins({
+      MSGS_ID       => $message_id,
+      SKIP_TELEGRAM => 1,
+      AID           => $new_responsible_aid
+    });
   }
 
   return 1;

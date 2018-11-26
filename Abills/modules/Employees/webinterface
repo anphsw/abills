@@ -24,9 +24,10 @@ our (
 
 require Abills::Misc;
 use Employees;
+use Address;
 
 my $Employees = Employees->new($db, $admin, \%conf);
-
+my $Address = Address->new($db, $admin, \%conf);
 #**************************************************
 =head employees_main() -
 
@@ -170,7 +171,7 @@ sub employees_main {
       'POSITION',
       {
         SELECTED    => $FORM{POSITION} || $admin_form->{POSITION},
-        SEL_LIST    => $Employees->position_list({ COLS_NAME => 1 }),
+        SEL_LIST    => translate_list($Employees->position_list({ COLS_NAME => 1 }), "position"),
         SEL_KEY     => 'id',
         SEL_VALUE   => 'position',
         NO_ID       => 1,
@@ -308,11 +309,11 @@ sub employees_main {
 }
 
 #**************************************************
-=head employees_geolocation() - choose geo-data for employee
+=head employees_geolocation_old() - choose geo-data for employee
 
 =cut
 #**************************************************
-sub employees_geolocation{
+sub employees_geolocation_old{
 
   # adding employee geo-data to table
   if (($FORM{STREET_ID} || $FORM{BUILD_ID} || $FORM{DISTRICT_ID} ) && $FORM{EID} && !$FORM{CLEAR}) {
@@ -356,9 +357,109 @@ sub employees_geolocation{
       $html->message('info', "$lang{GEO}", "$lang{DELETED}");
     }
   }
-
+  
   my $geolist = $Employees->geo_list({EMPLOYEE_ID => $FORM{eid}, COLS_NAME => 1});
+  my @streets;
+  my @builds;
+  my @districts;
+  my %address = ();
+  foreach my $data (@$geolist){
+    if($data->{street_id}){
+      push(@streets, $data->{street_id});
+      $address{"STREET_ID_$data->{street_id}"} = 1;
+    }
+    elsif($data->{build_id}){
+      push(@builds, $data->{build_id});
+      $address{"BUILD_ID_$data->{build_id}"} = 1;
+    }
+    elsif($data->{district_id}){
+      push(@districts, $data->{district_id});
+      $address{"DISTRICT_ID_$data->{district_id}"} = 1;
+    }
+  }
+  my $admin_form = Admins->new($db, \%conf);
+  $admin_form->info($FORM{eid});
+  # _bp('', \%address);
+#  my %address = ( 'street_id' => \@streets, 'build_id' => \@builds, 'district_id' => \@districts );
 
+  $html->tpl_show(_include('employees_geolocation_add', 'Employees'),{
+                  GEOLOCATION_TREE => address_list_tree_menu({ CHECKED => \%address, COL_SIZE => '12', OUTPUT2RETURN => 1}),
+                  BTN_NAME         => $lang{CHANGE},
+                  index            => $index,
+                  EID              => $FORM{eid} || $FORM{EID},
+                  A_FIO            => $admin_form->{A_FIO},
+                  A_LOGIN          => $admin_form->{A_LOGIN},
+                  });
+
+  return 1;
+}
+#**************************************************
+=head employees_geolocation() - shows address tree for employees
+
+  Arguments:
+
+  Returns:
+    True
+=cut
+#**************************************************
+sub employees_geolocation{
+  $FORM{EID} = $FORM{EID} ? $FORM{EID} : $FORM{eid};
+  my $admin_form = Admins->new($db, \%conf);
+  $admin_form->info($FORM{EID});
+  my $list = $Address->build_list({
+    ID            => '_SHOW',
+    STREET_NAME   => '_SHOW',
+    DISTRICT_NAME => '_SHOW',
+    DISTRICT_ID   => '_SHOW',
+    NUMBER        => '_SHOW',
+    COLS_NAME     => 1,
+    SORT          => 'district_name,street_name,number+0',
+    PAGE_ROWS     => 999999
+  });
+
+  # adding employee geo-data to table
+  if (($FORM{STREET_ID} || $FORM{BUILD_ID} || $FORM{DISTRICT_ID} ) && $FORM{EID} && !$FORM{CLEAR}) {
+
+    my @streets   = split(', ', $FORM{STREET_ID}) if (defined $FORM{STREET_ID});
+    my @builds    = split(', ', $FORM{BUILD_ID}) if ( defined $FORM{BUILD_ID});
+    my @districts = split(', ', $FORM{DISTRICT_ID}) if (defined $FORM{DISTRICT_ID});
+
+    foreach my $st (@streets) {
+      $Employees->add_geo(
+        {
+          EMPLOYEE_ID => $FORM{EID},
+          STREET_ID   => $st,
+        }
+      );
+    }
+
+    foreach my $bd (@builds) {
+      $Employees->add_geo(
+        {
+          EMPLOYEE_ID => $FORM{EID},
+          BUILD_ID    => $bd,
+        }
+      );
+    }
+
+    foreach my $ds (@districts) {
+      $Employees->add_geo(
+        {
+          EMPLOYEE_ID => $FORM{EID},
+          DISTRICT_ID => $ds,
+        }
+      )
+    }
+
+  }
+  # clear all geo-data for employee
+  elsif ($FORM{CLEAR}) {
+    $Employees->del_geo({ EMPLOYEE_ID => $FORM{EID} });
+    if (!$Employees->{errno}) {
+      $html->message('info', "$lang{GEO}", "$lang{DELETED}");
+    }
+  }
+  my $geolist = $Employees->geo_list( {EMPLOYEE_ID => $FORM{EID}, COLS_NAME => 1});
   my @streets;
   my @builds;
   my @districts;
@@ -378,18 +479,40 @@ sub employees_geolocation{
     }
   }
 
-#  my %address = ( 'street_id' => \@streets, 'build_id' => \@builds, 'district_id' => \@districts );
+  my $keys = "district_name_check,street_name_check,number_check";
+  foreach my $line (@$list) {
+    my $input1 = $html->form_input("BUILD_ID", $line->{id}, {
+      TYPE      => 'checkbox',
+      EX_PARAMS => $address{"BUILD_ID_$line->{id}"} ? 'checked' : ''
+    });
+    my $item1 = $html->element('label', $input1 . ' ' . $line->{number});
+    $line->{number_check} = $item1;
+    my $input2 = $html->form_input("STREET_ID", $line->{street_id}, {
+      TYPE      => 'checkbox',
+      EX_PARAMS => $address{"STREET_ID_$line->{street_id}"} ? 'checked' : ''
+    });
+    my $item2 = $html->element('label', $input2 . ' ' . $line->{street_name});
+    $line->{street_name_check} = $item2;
+    my $input3 = $html->form_input("DISTRICT_ID", $line->{district_id}, {
+      TYPE      => 'checkbox',
+      EX_PARAMS => $address{"DISTRICT_ID_$line->{district_id}"} ? 'checked' : '',
+      ID        => $line->{district_id} });
+    my $item3 = $html->element('label', $input3 . ' ' . $line->{district_name});
+    $line->{district_name_check} = $item3;
+  }
+  my $tree = $html->html_tree($list, $keys, { OUTPUT2RETURN => 1 });
 
   $html->tpl_show(_include('employees_geolocation_add', 'Employees'),{
-                  GEOLOCATION_TREE => address_list_tree_menu({ CHECKED => \%address, OUTPUT2RETURN => 1}),
-                  BTN_NAME         => $lang{CHANGE},
-                  index            => $index,
-                  EID              => $FORM{eid} || $FORM{EID},
-                  });
+    GEOLOCATION_TREE => $tree,
+    BTN_NAME         => $lang{CHANGE},
+    index            => $index,
+    EID              => $FORM{eid} || $FORM{EID},
+    A_FIO            => $admin_form->{A_FIO},
+    A_LOGIN          => $admin_form->{A_LOGIN},
+  });
 
   return 1;
 }
-
 #**************************************************
 =head employees_positions() - add, change or delete positions
 
@@ -529,28 +652,26 @@ sub employees_positions {
 #**********************************************************
 sub employees_positions_tree {
   my $positions_major_list =translate_list($Employees->position_list({ COLS_NAME => 1 }), 'position');
-  
   foreach my $position (@$positions_major_list){
     if($position->{subordination} == 0){
       $position->{subordinated} = 0;
     }
   }
-
   my $positions_tree = $html->tree_menu($positions_major_list, "$lang{SUBORDINATION_TREE}",
    {
     ID_KEY      => 'id',
     PARENT_KEY  => 'subordination',
     LABEL_KEY   => 'position',
     # ROOT_VALUE => '0',
-    #CHECKBOX    => 1,
-    #NAME        => 'position_id',
+    # CHECKBOX    => 1,
+    # NAME        => 'position_id',
     COL_SIZE    => 6,
+    SHOW_OPEN_TREE  => 1,
   });
 
   $html->tpl_show(_include('employees_position_tree', 'Employees'),{
                   POSITION_TREE => $positions_tree,
                   });
-
   return 1;
 }
 
@@ -563,6 +684,10 @@ sub employees_positions_tree {
 sub form_admins_time_sheet {
   if(! $permissions{4}) {
     require Control::System;
+  }
+  if (!$permissions{7}{3}) {
+    $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
+    return 1;
   }
 
   if ($FORM{day}) {
@@ -580,7 +705,8 @@ sub form_admins_time_sheet {
     { 
       target => '_new', 
       class  => 'btn btn-default', 
-      ICON   => 'fa fa-print'
+      ICON   => 'fa fa-print',
+      ex_params => 'data-toggle="tooltip" data-placement="bottom"'
     });
 
   my @day_types = (
@@ -809,19 +935,21 @@ sub form_admins_time_sheet {
   }
 
   # button for add vacations in modal
-  my $load_to_modal_btn = $html->button( '', 'get_index=employees_vacations&header=2',
+  my $load_to_modal_btn = $html->button( "$lang{ADDING_VACATION}", 'get_index=employees_vacations&header=2',
     {
       LOAD_TO_MODAL  => 1,
       class          => 'btn  btn-default',
       ICON           => 'fa fa-calendar-plus-o',
+      ex_params => 'data-toggle="tooltip" data-placement="bottom"'
     } );
 
   # button for show charts for each admin
-  my $charts_btn = $html->button( '', "index=" . get_function_index('employees_time_sheet_charts') . "&DATE=" . ($FORM{DATE} ? $FORM{DATE} : $DATE),
+  my $charts_btn = $html->button( "$lang{_GRAPH}", "index=" . get_function_index('employees_time_sheet_charts') . "&DATE=" . ($FORM{DATE} ? $FORM{DATE} : $DATE),
     {
       class          => 'btn  btn-default',
       target         => '_blank',
-      ICON           => 'fa fa-bar-chart'
+      ICON           => 'fa fa-bar-chart',
+      ex_params      => 'data-toggle="tooltip" data-placement="bottom"'
     } );
 
   my $position_select = $html->form_select(
@@ -837,9 +965,43 @@ sub form_admins_time_sheet {
     }
   );
 
+  my $work_time_norms_table_show = '';
+  if(in_array('Crm', \@MODULES)){
+    use Crm::db::Crm;
+    Crm->import();
+    my $Crm = Crm->new($db, $admin, \%conf);
+
+    my $work_time_norms = $Crm->crm_time_norms_list({
+      YEAR      => $start_y,
+      MONTH     => $start_m,
+      HOURS     => '_SHOW',
+      DAYS      => '_SHOW',
+      COLS_NAME => 1,
+    });
+
+    my $work_time_norms_table = $html->table(
+      {
+        width => '100%',
+        rows  => [ [
+          "$lang{WORKING_TIME_NORMS} $lang{HOURS}:", $html->b($work_time_norms->[0]{hours}),
+          "$lang{WORKING_TIME_NORMS} $lang{DAYS}:", $html->b($work_time_norms->[0]{days}),
+        ] ]
+      }
+    );
+
+    $work_time_norms_table_show = $work_time_norms_table->show();
+  }
+
   print $html->form_main(
     {
-      CONTENT => "$lang{POSITION}:$position_select" . $load_to_modal_btn . $charts_btn . $print_btn . "<hr>" . $table->show({ OUTPUT2RETURN => 1 }),
+      CONTENT => "$lang{POSITION}:$position_select"
+        . $load_to_modal_btn
+        . $charts_btn
+        . $print_btn
+        . $html->element('hr')
+        . $work_time_norms_table_show
+        . $html->element('hr')
+        . $table->show({ OUTPUT2RETURN => 1 }),
       HIDDEN  => {
         DATE  => $JOB_DATE,
         index => $index,
@@ -1773,18 +1935,18 @@ sub employees_time_sheet_charts {
     # рисуем графики с нашими данными
     $admins_chart .= $html->chart(
     {
-      # TRANSITION    => 1,
-      TYPE         => "bar",
-      X_LABELS        => \@dates,
-      DATA          => { "$lang{WORK_TIME}" => \@work_time, 
+      # TRANSITION      => 1,
+      TYPE              => "bar",
+      X_LABELS          => \@dates,
+      DATA              => { "$lang{WORK_TIME}" => \@work_time, 
                           $lang{OVERTIME}   => \@over_time, 
                           $lang{EXTRA_FEE}  => \@extra_fee },
-      #GRAPH_ID      => "ADMIN_$admin_->{aid}",
-      TITLE         => $admin_->{login},
+      #GRAPH_ID         => "ADMIN_$admin_->{aid}",
+      TITLE             => "$lang{WORK_GRAPH_EMPLOYEE} $admin_->{login} $lang{_FOR} $MONTHES[$month -1] $year $lang{YEAR_SHORT}.",    
       BACKGROUND_COLORS => {
-          $lang{WORK_TIME} =>  'rgba(2, 99, 2, 0.5)', 
-          $lang{OVERTIME}  => 'rgba(255, 99, 255, 0.5)',
-          $lang{EXTRA_FEE} =>  'rgba(5, 99, 132, 0.5)'
+      $lang{WORK_TIME}  =>  'rgba(2, 99, 2, 0.5)', 
+      $lang{OVERTIME}   => 'rgba(255, 99, 255, 0.5)',
+      $lang{EXTRA_FEE}  =>  'rgba(5, 99, 132, 0.5)'
         },
       OUTPUT2RETURN => 1,
       # PERIOD => 'month',
@@ -1815,7 +1977,15 @@ sub employees_timesheet_print {
   my $all_days_in_month;
   my $all_days_in_month_to_table;
   my ($y, $m, $d) = split('-', $DATE);
-
+  my @types_in_letter = (
+    '',
+    $lang{VACATIONS_SHORT},        
+    $lang{HOSPITAL_SHORT},         
+    $lang{BUSINESS_TRIP_SHORT}, 
+    # $lang{DAY_OFF_SHORT}, 
+    # $lang{SLACK_SHORT},   
+    # $lang{DUTY_SHORT},    
+  );
   if($FORM{DATE}){
     ($y, $m, $d) = split('-', $FORM{DATE});
 
@@ -1830,18 +2000,46 @@ sub employees_timesheet_print {
     }
   }
 
+  my %work_time_norms = ('HOURS' => 0, 'DAYS' => 0);
+  if(in_array('Crm', \@MODULES)) {
+    use Crm::db::Crm;
+    Crm->import();
+    my $Crm = Crm->new($db, $admin, \%conf);
+
+    my $work_time_norms = $Crm->crm_time_norms_list({
+      YEAR      => $y,
+      MONTH     => $m,
+      HOURS     => '_SHOW',
+      DAYS      => '_SHOW',
+      COLS_NAME => 1,
+    });
+    $work_time_norms{HOURS} = $work_time_norms->[0]{hours};
+    $work_time_norms{DAYS}  = $work_time_norms->[0]{days};
+  }
+
   my $time_sheet_list = $Employees->time_sheet_list({ DATE_START => $date_start, 
                                                       DATE_END   => $date_end,
                                                       POSITION   => '_SHOW',
                                                       COLS_NAME  => 1,});
-    
+
   my %admins_work_time;
   my %admins_positions;
 
   foreach my $one_day (@$time_sheet_list){
-    $admins_work_time{$one_day->{name}}{$one_day->{date}} = $one_day->{work_time};
+    if ($one_day->{day_type} == 0 || '') {
+      $admins_work_time{$one_day->{name}}{$one_day->{date}} = $one_day->{work_time};
+      $admins_work_time{$one_day->{name}}{total_time} += $one_day->{work_time};
+      $admins_work_time{$one_day->{name}}{total_days} += 1 if ($one_day->{work_time} && $one_day->{work_time} != 0);
+    }
+    else {
+      if($one_day->{day_type} == 3){
+        $admins_work_time{$one_day->{name}}{total_time} += $one_day->{work_time};
+        $admins_work_time{$one_day->{name}}{total_days} += 1 if ($one_day->{work_time} && $one_day->{work_time} != 0);
+      }
+      $admins_work_time{$one_day->{name}}{$one_day->{date}} = $types_in_letter[$one_day->{day_type}] ;
+    }
     my $position_info = $Employees->position_info({ID => $one_day->{position}, COLS_NAME => 1,});
-      
+ 
     if(!(exists $admins_positions{$one_day->{name}})){
       $admins_positions{$one_day->{name}} = $position_info->{POSITION};
     }
@@ -1850,23 +2048,23 @@ sub employees_timesheet_print {
   my $table_rows = '';
   my $num = 1;
 
-  foreach my $fio_key ( keys %admins_work_time){
-    my $full_time;
+  foreach my $fio_key ( sort {uc($a) cmp uc($b)} keys %admins_work_time){
+    my $full_time = $admins_work_time{$fio_key}{total_time};
+    my $full_days =  $admins_work_time{$fio_key}{total_days};
     #$table_rows .= "<tr><td>$num</td><td>$fio_key</td><td>$admins_positions{$fio_key}</td>";
-    $table_rows .= $html->element('td', $num, {OUTPUT2RETURN=>1});
+    $table_rows .= $html->element('td', $num, {align=> 'center', OUTPUT2RETURN=>1});
     $table_rows .= $html->element('td', $fio_key, {OUTPUT2RETURN => 1});
-    $table_rows .= $html->element('td', $admins_positions{$fio_key}, {OUTPUT2RETURN => 1});
-
+    $table_rows .= $html->element('td', _translate($admins_positions{$fio_key}), {OUTPUT2RETURN => 1});
     for(my $i=1; $i <= days_in_month( {DATE => "$y-$m-01"} ); $i++){
       if($i < 10){
         $i = sprintf '%.2d', $i;
       }
-
       my $date_key = "$y-$m-$i";
       if( defined $admins_work_time{$fio_key}{$date_key}){
         # $table_rows .= qq{<td align="center">$admins_work_time{$fio_key}{$date_key}</td>};
         $table_rows .= $html->element('td', $admins_work_time{$fio_key}{$date_key} || '0', {align=>'center', OUTPUT2RETURN=>1});
-        $full_time += $admins_work_time{$fio_key}{$date_key};
+#        $full_time += $admins_work_time{$fio_key}{$date_key};
+#        $full_days += 1 if ($admins_work_time{$fio_key}{$date_key} && $admins_work_time{$fio_key}{$date_key} != 0);
       }
       else{
        # $table_rows .= qq{<td align="center">0</td>};
@@ -1874,7 +2072,8 @@ sub employees_timesheet_print {
       }
     }
     # $table_rows .= "<td>$full_time</td>";
-    $table_rows .= $html->element('td', $full_time, {OUTPUT2RETURN => 1});
+    $table_rows .= $html->element('td', $full_days, {align=> 'center', OUTPUT2RETURN => 1});
+    $table_rows .= $html->element('td', $full_time, {align=> 'center', OUTPUT2RETURN => 1});
     # $table_rows .= "</tr>";
     $table_rows = $html->element('tr', $table_rows, {OUTPUT2RETURN => 1});
     $num++;
@@ -1886,9 +2085,11 @@ sub employees_timesheet_print {
   $head_th   .= $html->element('th', "$lang{FIO}", {rowspan => '2', colspan => 1, OUTPUT2RETURN=>1});
   $head_th   .= $html->element('th', "$lang{POSITION}", {rowspan => '2', colspan => 1, OUTPUT2RETURN=>1});
   $head_th   .= $html->element('th', "$lang{WORKED_HOURS_BY_MONTH}", {rowspan => '1', colspan => $all_days_in_month, OUTPUT2RETURN=>1});
-  $head_th   .= $html->element('th', "$lang{TOTAL_WORKED_HOURS_BY_MONTH}", {rowspan => '2', colspan => 1, OUTPUT2RETURN=>1});
+  $head_th   .= $html->element('th', "$lang{TOTAL_WORKED_BY_MONTH}", {rowspan => '1', colspan => 2, OUTPUT2RETURN=>1});
 
   my $head_tr = $html->element('tr', $head_th, {OUTPUT2RETURN=>1});
+  $all_days_in_month_to_table .= $html->element('td', $lang{PERSON_DAYS},  {align=> 'center', rowspan => '1', colspan => 1, OUTPUT2RETURN=>1});
+  $all_days_in_month_to_table .= $html->element('td', $lang{PERSON_HOURS}, {align=> 'center', rowspan => '1', colspan => 1, OUTPUT2RETURN=>1});
   my $head_tr_with_days = $html->element('tr', $all_days_in_month_to_table,{OUTPUT2RETURN=>1});
 
   my $head_full = $html->element('thead', ($head_tr . $head_tr_with_days), {OUTPUT2RETURN=>1});
@@ -1906,9 +2107,10 @@ sub employees_timesheet_print {
   if($FORM{print} && $FORM{print} == 1){
     $html->tpl_show(_include('employees_timesheet_print', 'Employees'),
     {
-      TABLE => $table,
-      MONTH => $MONTHES[$m - 1],
-      YEAR  => $y,
+      TABLE     => $table,
+      MONTH     => $MONTHES[$m - 1],
+      YEAR      => $y,
+      %work_time_norms
     });
 
     return 1;

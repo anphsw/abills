@@ -6,7 +6,7 @@
 <tr>
   <th>_{VARIABLE}_:</th>
   <th>_{TYPE}_</th>
-  <th>_{VALUE}_</th>
+  <th>_{DEFAULT_VALUE}_</th>
   <th>_{DESCRIBE}_</th>
 </tr>
 <tr>

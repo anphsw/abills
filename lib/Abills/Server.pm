@@ -46,30 +46,30 @@ our @EXPORT_OK = qw(
 
 =cut
 #**********************************************************
-sub make_pid{
+sub make_pid {
   my ($pid_file, $attr) = @_;
 
-  if ( !$pid_file ){
-    $pid_file = _get_pid_filename( $attr );
+  if (!$pid_file) {
+    $pid_file = _get_pid_filename($attr);
   }
 
-  if ( $attr && $attr eq 'clean' ){
-    unlink( $pid_file );
+  if ($attr && $attr eq 'clean') {
+    unlink($pid_file);
     return 0;
   }
 
-  if ( -f $pid_file ){
+  if (-f $pid_file) {
     my $pid = _read_pid($pid_file);
-    if ( verify_pid( $pid ) ){
+    if (verify_pid($pid)) {
       print "Process running, PID: $pid\n";
       return 1;
     }
   }
 
   my $pid_name = $$;
-  open( my $ph, '>', "$pid_file" ) || die "Can't open pid file '$pid_file' $!\n";
-    print $ph $pid_name;
-  close( $ph );
+  open(my $ph, '>', "$pid_file") || die "Can't open pid file '$pid_file' $!\n";
+  print $ph $pid_name;
+  close($ph);
 
   return 0;
 }
@@ -85,19 +85,19 @@ sub make_pid{
 
 =cut
 #**********************************************************
-sub verify_pid{
+sub verify_pid {
   my ($pid) = @_;
 
-  return 0 if (! $pid);
+  return 0 if (!$pid);
 
   #my $me = $$;
 
   my @ps = split m|$/|, qx/ps -fp $pid/
-      || die "ps utility not available: $!";
-  s/^\s+// for (@ps);    # leading spaces confuse us
+    || die "ps utility not available: $!";
+  s/^\s+// for (@ps); # leading spaces confuse us
 
-  no warnings;         # hate that deprecated @_ thing
-  my $n = split( /\s+/, $ps[0] );
+  no warnings; # hate that deprecated @_ thing
+  my $n = split(/\s+/, $ps[0]);
   @ps = split /\s+/, $ps[1], $n;
 
   return ($ps[0]) ? 1 : 0;
@@ -115,33 +115,33 @@ sub verify_pid{
 
 =cut
 #**********************************************************
-sub daemonize{
+sub daemonize {
   my ($attr) = @_;
 
   chdir '/';
   umask 0;
 
-  my $pid_file = _get_pid_filename( $attr );
+  my $pid_file = _get_pid_filename($attr);
 
   #Save old out
   my $SAVEOUT;
-  open( $SAVEOUT, '>&', \*STDOUT ) or die "Save STDOUT error: $!";
+  open($SAVEOUT, '>&', \*STDOUT) or die "Save STDOUT error: $!";
 
   #Reset out
-  open STDIN,  '>', '/dev/null';
+  open STDIN, '>', '/dev/null';
   open STDOUT, '>', '/dev/null';
   open STDERR, '>', '/dev/null';
-  if ( fork() ){
+  if (fork()) {
     exit;
   }
-  else{
+  else {
     #setsid;
-    if ( make_pid( $pid_file ) == 1 ){
+    if (make_pid($pid_file) == 1) {
       #Close new out
-      close( STDOUT );
+      close(STDOUT);
 
       #Open old out
-      open( STDOUT, ">&", $SAVEOUT );
+      open(STDOUT, ">&", $SAVEOUT);
       print "Already running!\n";
       exit;
     }
@@ -161,16 +161,16 @@ sub daemonize{
 
 =cut
 #**********************************************************
-sub stop_server{
+sub stop_server {
   my ($pid_file, $attr) = @_;
 
-  if ( !$pid_file ){
-    $pid_file = _get_pid_filename( $attr );
+  if (!$pid_file) {
+    $pid_file = _get_pid_filename($attr);
   }
 
   my $res = `kill \`cat $pid_file\``;
 
-  if ( $attr->{DEBUG} ){
+  if ($attr->{DEBUG}) {
     print "Res: $res\n";
   }
 
@@ -194,11 +194,11 @@ sub stop_server{
 #**********************************************************
 sub is_running {
   my ($attr) = @_;
-  
+
   my $pid_file = $attr->{PID_FILE} || _get_pid_filename($attr);
-  
+
   my $pid = _read_pid($pid_file);
-  
+
   # verify_pid() returns inverted boolean value
   return !verify_pid($pid)
 }
@@ -214,16 +214,16 @@ sub is_running {
 
 =cut
 #**********************************************************
-sub _get_pid_filename{
+sub _get_pid_filename {
   my ($attr) = @_;
 
   my $program_name = $0;
 
-  if ( $attr->{PROGRAM_NAME} ){
+  if ($attr->{PROGRAM_NAME}) {
     $program_name = $attr->{PROGRAM_NAME};
   }
-  else{
-    if ( $program_name =~ /\/?([a-zA-Z\.\_\-]+)$/ ){
+  else {
+    if ($program_name =~ /\/?([a-zA-Z\.\_\-]+)$/) {
       $program_name = $1;
     }
     $program_name =~ s/\.[a-zA-Z0-9]+$//;
@@ -242,11 +242,11 @@ sub _get_pid_filename{
 #**********************************************************
 sub _read_pid {
   my ($pid_file) = @_;
-  
-  open( my $ph, '<', "$pid_file" ) || die "Can't open pid file '$pid_file' $!\n";
+
+  open(my $ph, '<', "$pid_file") || die "Can't open pid file '$pid_file' $!\n";
   my @pids = <$ph>;
-  close( $ph );
-  
+  close($ph);
+
   return $pids[0];
 }
 

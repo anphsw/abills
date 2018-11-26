@@ -344,6 +344,7 @@ sub online {
 
   $attr->{SKIP_DEL_CHECK}=1;
   $attr->{SORT_SHIFT}=1;
+
   $WHERE = $self->search_former($attr, [
       ['LOGIN',             'STR', 'IF(c.uid>0, u.id, c.user_name) AS login',      1 ],
       ['USER_NAME',         'STR', 'c.user_name',                                  1 ],
@@ -415,6 +416,7 @@ sub online {
       ['CIRCUIT_ID',        'STR', 'c.circuit_id',                                 1 ],
       ['NAS_ID',            'INT', 'c.nas_id',                                     1 ],
       ['NAS_TYPE',          'INT', 'nas.nas_type',                                 1 ],
+      ['CPE_MAC',           'STR', 'service.cpe_mac',                              1 ],
       #['GID',               'INT', 'u.gid',                                        1 ],
       ['ACCT_SESSION_ID',   'STR', 'c.acct_session_id',                            1 ],
       ['SERVICE_ID',        'INT', 'c.service_id',                                 1 ],

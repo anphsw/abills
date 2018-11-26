@@ -14,3 +14,7 @@ $lang{DATE_TO}          = 'Download available to ';
 $lang{SECONDS}          = 'Seconds';
 $lang{NOT_ENOUGH_MONEY} = 'Not enough money';
 $lang{VERSION}          = 'Version';
+$lang{DOWNLOADS}        = 'Downloads';
+$lang{TIME_FOR_REMIND}  = 'Remind for';
+
+1

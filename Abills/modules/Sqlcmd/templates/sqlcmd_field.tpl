@@ -35,30 +35,30 @@
 	  </div>
 	</div>
 	<div class='form-group'>
-	  <label class='control-label col-md-3'>Сравнение:</label>
+	  <label class='control-label col-md-3'>COLLATION:</label>
 	  <div class='col-md-9'>
 	  	%COLLATION_SEL%
 	  </div>
 	</div>
 	<div class='form-group'>
-	  <label class='control-label col-md-3'>Атрибуты:</label>
+	  <label class='control-label col-md-3'>ATTRIBUTE:</label>
 	  <div class='col-md-9'>
 	  	%ATTRIBUTE_TYPE_SEL%
 	  </div>
 	</div>
 	<div class='form-group'>
-		<div class='checkbox'>
-    	<label>
-      	<input type='checkbox' name='NULL' value='1' %NULL%><strong>Null</strong>
-    	</label>
-  	</div>
+    	<label class='control-label col-md-3' for='NULL'>Null:</label>
+    	<div class='col-md-9'>
+      	<input type='checkbox' name='NULL' value='1' %NULL%>
+        </div>
 	</div>
 	<div class='form-group'>
-		<div class='checkbox'>
-    	<label>
-      	<input type='checkbox' name='AUTO_INCREMENT' value='1' %AUTO_INCREMENT%><strong>AUTO_INCREMENT</strong>
-    	</label>
-  	</div>
+    	<label class='control-label col-md-3' for='AUTO_INCREMENT'>AUTO_INCREMENT:</label>
+
+	  <div class='col-md-9'>
+	  	<input type='checkbox' name='AUTO_INCREMENT' value='1' %AUTO_INCREMENT%>
+	  </div>
+
 	</div>
 	<div class='form-group'>
 	  <label class='control-label col-md-3'>_{COMMENTS}_:</label>
@@ -66,6 +66,14 @@
 	  	<input class='form-control' type=text name=COMMENTS value='%COMMENTS%'>
 	  </div>
 	</div>
+
+	<div class='form-group'>
+	  <label class='control-label col-md-3'>_{SHOW}_:</label>
+	  <div class='col-md-9'>
+	  	<input type=checkbox name=SHOW value='1' %SHOW% >
+	  </div>
+	</div>
+
 </div>
 <div class='box-footer'>
 	<input class='btn btn-primary' type=submit name=change value=_{CHANGE}_ class='btn btn-primary'>

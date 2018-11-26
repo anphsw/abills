@@ -36,17 +36,17 @@ sub cablecat_maps_layers {
           CALCULATE_PARAMS_JS_FUNCTION => 'findClosestWellsForCable'
         }
       }, {
-        id            => 11,
-        name          => 'WELLS',
-        lang_name     => $lang{WELLS},
-        module        => 'Cablecat',
-        structure     => 'MARKER',
-        clustering    => 1,
-        add_func      => 'cablecat_wells',
-        custom_params => {
-          OBJECT_TYPE_ID => $MAP_TYPE_ID{WELL}
-        }
+      id            => 11,
+      name          => 'WELLS',
+      lang_name     => $lang{WELLS},
+      module        => 'Cablecat',
+      structure     => 'MARKER',
+      clustering    => 1,
+      add_func      => 'cablecat_wells',
+      custom_params => {
+        OBJECT_TYPE_ID => $MAP_TYPE_ID{WELL}
       }
+    }
     ],
     SCRIPTS     => [ '/styles/default_adm/js/maps/modules/cablecat.js' ],
     EXPORT_FUNC => {
@@ -82,7 +82,7 @@ sub cablecat_maps_cables {
   _error_show($Cablecat);
 
   # Get all current active objects that cables are linked to
-  my @object_ids = map {+ $_->{point_id}} @{$cables_list};
+  my @object_ids = map {+$_->{point_id}} @{$cables_list};
 
   # Joining for DB searching
   my $point_ids = join(';', @object_ids);
@@ -101,15 +101,15 @@ sub cablecat_maps_cables {
 
   my @objects_to_show = ();
   # Apply cable_info to geometric figures
-  foreach ( @object_ids ) {
+  foreach (@object_ids) {
     my $cable = $cable_by_point_id->{$_};
-    next if ( !$cable->{point_id} || !$cable->{id} );
+    next if (!$cable->{point_id} || !$cable->{id});
 
     my $polyline = $layer_objects_by_point_id->{$_}->{POLYLINE};
-    next if ( !$polyline->{id} );
+    next if (!$polyline->{id});
 
     my $point = $points_by_id->{$_};
-    next if ( !$point );
+    next if (!$point);
 
     $layer_objects_by_point_id->{$_}->{OBJECT_ID} = $point->{id};
 
@@ -117,20 +117,20 @@ sub cablecat_maps_cables {
       [ $lang{CABLE}, $html->button($cable->{name}, "index=$cables_index&chg=$cable->{id}", { target => '_blank' }) ],
       [ $lang{CABLE_TYPE}, $cable->{cable_type} ],
       [ "$lang{WELL} 1", ($cable->{well_1} && $cable->{well_1_id})
-          ? $html->button($cable->{well_1}, "index=$well_index&chg=$cable->{well_1_id}", { target => '_blank' })
-            . maps_show_object_button(11, $cable->{well_1_id})
-          : $lang{NO}
+        ? $html->button($cable->{well_1}, "index=$well_index&chg=$cable->{well_1_id}", { target => '_blank' })
+        . maps_show_object_button(11, $cable->{well_1_id})
+        : $lang{NO}
       ],
       [ "$lang{WELL} 2", ($cable->{well_2} && $cable->{well_2_id})
-          ? $html->button($cable->{well_2}, "index=$well_index&chg=$cable->{well_2_id}", { target => '_blank' })
-            . maps_show_object_button(11, $cable->{well_2_id})
-          : $lang{NO}
+        ? $html->button($cable->{well_2}, "index=$well_index&chg=$cable->{well_2_id}", { target => '_blank' })
+        . maps_show_object_button(11, $cable->{well_2_id})
+        : $lang{NO}
       ],
       [ $lang{LENGTH}, "$cable->{length}, ( $cable->{length_calculated} )" ],
       [ $lang{COMMENTS}, $point->{comments} ],
     ]);
 
-    if ( $point->{planned} ) {
+    if ($point->{planned}) {
       $polyline->{strokeOpacity} = '0.5';
     }
 
@@ -145,11 +145,12 @@ sub cablecat_maps_cables {
     $polyline->{strokeColor} = $cable->{outer_color};
     $polyline->{strokeWeight} = $cable->{line_width} || 1;
 
-    $polyline->{INFOWINDOW} = $line_info;;
+    $polyline->{INFOWINDOW} = $line_info;
 
     if ($FORM{EDIT_MODE}) {
+      my $add_inside_link = "$SELF_URL?get_index=cablecat_wells&header=2&add_reserve_form=1";
       my $split_btn = '';
-      if ( $cable->{can_be_splitted} ) {
+      if ($cable->{can_be_splitted}) {
         $split_btn = qq{<button class="btn btn-default" title="$lang{ADD} $lang{WELL}" onclick="insert_well_on_cable($cable->{id})">
         <span class="glyphicon glyphicon-sound-stereo"></span>
       </button>
@@ -163,11 +164,20 @@ sub cablecat_maps_cables {
       }
       my $edit_buttons = qq{
       $split_btn
-      <button class="btn btn-danger" onclick="showRemoveConfirmModal({ layer_id : 10, id : $polyline->{object_id} })">
+      <button class="btn btn-danger" onclick="showRemoveConfirmModal({ layer_id : 10, object_id : $polyline->{object_id}, cable_id : $cable->{id} })">
         <span class="glyphicon glyphicon-remove"></span><span>$lang{DEL}</span>
       </button>
     };
+
+      my $add_well_link = "$SELF_URL?get_index=cablecat_cables&header=2&add_well=1";
+      $polyline->{ADD_WELL_LINK} = $add_well_link;
+      $polyline->{CABLE_ID} = $cable->{id};
+      $polyline->{CABLE_CAT} = "<span class='glyphicon glyphicon-scissors'></span><span> $lang{CAT_CABLE}</span>";
+
       $polyline->{INFOWINDOW} .= $edit_buttons;
+      $polyline->{LAYER_ID} = 10;
+      $polyline->{ADD_RESERVER} = $lang{ADD} . " " . $lang{CABLE_RESERVE};
+      $polyline->{INSIDE_LINK} = $add_inside_link;
     }
 
     push @objects_to_show, $layer_objects_by_point_id->{$_};
@@ -185,15 +195,15 @@ sub cablecat_maps_cables_geometry_filter {
   my ($object_id, $geometry) = @_;
 
   # Sanitize input
-  if ( !$object_id
+  if (!$object_id
     || !ref $geometry eq 'ARRAY'
-    || !scalar(@{ $geometry })
+    || !scalar(@{$geometry})
     || !$geometry->[0]->{TYPE}
     || !$geometry->[0]->{TYPE} eq 'polyline'
     || !$geometry->[0]->{OBJECT}
     || !$geometry->[0]->{OBJECT}->{POINTS}
     || !ref $geometry->[0]->{OBJECT}->{POINTS} eq 'ARRAY'
-    || !scalar (@{ $geometry->[0]->{OBJECT}->{POINTS} })
+    || !scalar(@{$geometry->[0]->{OBJECT}->{POINTS}})
   ) {
     return $geometry;
   };
@@ -207,7 +217,7 @@ sub cablecat_maps_cables_geometry_filter {
     WELL_2_ID => '_SHOW',
   });
 
-  if ( $cables_list && ref $cables_list eq 'ARRAY' && scalar @{$cables_list} ) {
+  if ($cables_list && ref $cables_list eq 'ARRAY' && scalar @{$cables_list}) {
 
     # Caching well_id_coords
     my %well_coords = ();
@@ -215,7 +225,7 @@ sub cablecat_maps_cables_geometry_filter {
     my $get_cached_coords_for_well = sub {
       my ($well_id) = @_;
 
-      if (! exists $well_coords{$well_id}){
+      if (!exists $well_coords{$well_id}) {
         my $coords = $Cablecat->wells_coords($well_id);
         $well_coords{$well_id} = [ $coords->{coordx}, $coords->{coordy} ];
       }
@@ -224,12 +234,12 @@ sub cablecat_maps_cables_geometry_filter {
     };
 
     # Normally, there should be only one object, but should be ready
-    foreach my $cable ( @{$cables_list} ) {
-      if ( $cable->{well_1_id} ) {
+    foreach my $cable (@{$cables_list}) {
+      if ($cable->{well_1_id}) {
         $polyline_points[0] = $get_cached_coords_for_well->($cable->{well_1_id});
       }
 
-      if ( $cable->{well_2_id} ) {
+      if ($cable->{well_2_id}) {
         $polyline_points[$#polyline_points] = $get_cached_coords_for_well->($cable->{well_2_id});
       }
     }
@@ -252,6 +262,15 @@ sub cablecat_maps_wells {
     TYPE_ID   => '_SHOW',
     ICON      => '_SHOW',
     COMMENTS  => '_SHOW',
+    PAGE_ROWS => 10000
+  });
+  _error_show($Cablecat);
+
+  my $coils_list = $Cablecat->coil_list({
+    POINT_ID  => '_SHOW',
+    NAME      => '_SHOW',
+    CABLE_ID  => '_SHOW',
+    ID        => '_SHOW',
     PAGE_ROWS => 10000
   });
   _error_show($Cablecat);
@@ -283,27 +302,28 @@ sub cablecat_maps_wells {
 
   # Apply cable_info to geometric figures
 
-  foreach ( @object_ids ) {
+  foreach (@object_ids) {
     my $well = $well_by_point_id->{$_};
     my $point = $points_by_id->{$_};
 
     my $icon_name = $well->{icon} || $point->{icon} || 'well_green';
 
-    next if ( !($point->{coordx} && $point->{coordy}) );
+    next if (!($point->{coordx} && $point->{coordy}));
 
-    my $marker_info = arrays_array2table([
+    my $marker_info = '';
+    my $edit_buttons = '';
+    $marker_info = arrays_array2table([
       [ $lang{WELL}, $html->button($well->{name}, "index=$wells_index&chg=$well->{id}", { target => '_blank' }) ],
       [ $lang{INSTALLED}, $point->{planned} ? $lang{NO} : $lang{YES} ],
       [ $lang{COMMENTS}, $point->{comments} ],
     ]);
 
-    my $edit_buttons = '';
     if ($permissions{5} && $FORM{EDIT_MODE}) {
       my $add_inside_link = "$SELF_URL?get_index=cablecat_wells&header=2"
         . "&add_form=1&PARENT_ID=$well->{id}&POINT_ID=$point->{id}&TEMPLATE_ONLY=1";
 
       $edit_buttons = qq{
-          <button class="btn btn-danger" onclick="showRemoveConfirmModal({ layer_id : 11, id : $point->{id} })">
+          <button class="btn btn-danger" onclick="showRemoveConfirmModal({ layer_id : 11, id : $point->{id}, well_id : $well->{id} })">
             <span class="glyphicon glyphicon-remove"></span><span>$lang{DEL}</span>
           </button>
           <button class="btn btn-success"
@@ -316,24 +336,92 @@ sub cablecat_maps_wells {
     $marker_info .= $edit_buttons;
 
     push @layer_objects, {
-        ID        => +$well->{id},
+      ID        => +$well->{id},
+      OBJECT_ID => $point->{id},
+      MARKER    => {
         OBJECT_ID => $point->{id},
-        MARKER    => {
-          OBJECT_ID => $point->{id},
-          NAME      => $well->{name},
-          ID        => +$well->{id},
-          COORDX    => $point->{coordx},
-          COORDY    => $point->{coordy},
-          INFO      => "$marker_info",
-          TYPE      => "$icon_name",
-          SIZE      => [25, 25],
-          CENTERED  => 1,
-        },
-        LAYER_ID  => 11
-      }
+        NAME      => $well->{name},
+        ID        => +$well->{id},
+        COORDX    => $point->{coordx},
+        COORDY    => $point->{coordy},
+        INFO      => "$marker_info",
+        TYPE      => "$icon_name",
+        SIZE      => [ 25, 25 ],
+        CENTERED  => 1,
+      },
+      LAYER_ID  => 11
+    }
   }
 
-  return join (',', map {JSON::to_json($_, { utf8 => 0 })} @layer_objects);
+  # Coil information
+  @object_ids = map {$_->{point_id}} @{$coils_list};
+
+  $point_ids = join(';', @object_ids);
+
+  $points_list = $Maps->points_list({
+    ID               => $point_ids,
+    SHOW_ALL_COLUMNS => 1,
+    NAME             => '_SHOW',
+    ICON             => '_SHOW',
+    TYPE             => '_SHOW',
+    TYPE_ID          => '_SHOW',
+    COORDX           => '!',
+    COORDY           => '!',
+    COLS_NAME        => 1,
+    ADDRESS_FULL     => '_SHOW',
+    EXTERNAL         => 1,
+  });
+  _error_show($Maps);
+
+  $points_by_id = sort_array_to_hash($points_list);
+  my $coil_by_point_id = sort_array_to_hash($coils_list, 'point_id');
+  foreach (@object_ids) {
+    my $coil = $coil_by_point_id->{$_};
+    my $point = $points_by_id->{$_};
+
+    my $icon_name = 'coil';
+
+    next if (!($point->{coordx} && $point->{coordy}));
+
+    my $marker_info = '';
+    my $edit_buttons = '';
+    $marker_info = arrays_array2table([
+      [ $lang{CABLE_RESERVE}, $html->button($coil->{name}, "index=$wells_index&chg=$coil->{id}", { target => '_blank' }) ],
+      [ $lang{INSTALLED}, $point->{planned} ? $lang{NO} : $lang{YES} ],
+      [ $lang{CABLE} . " Id", $coil->{cable_id} ],
+      [ $lang{COMMENTS}, $point->{comments} ],
+    ]);
+
+    if ($permissions{5} && $FORM{EDIT_MODE}) {
+
+      $edit_buttons = qq{
+          <button class="btn btn-danger" onclick="showRemoveConfirmModal({ layer_id : 11, id : $point->{id} })">
+            <span class="glyphicon glyphicon-remove"></span><span>$lang{DEL}</span>
+          </button>
+        };
+    }
+
+    $marker_info .= $edit_buttons;
+
+    push @layer_objects, {
+      ID        => 9999 + $coil->{id},
+      OBJECT_ID => $point->{id},
+      MARKER    => {
+        OBJECT_ID => $point->{id},
+        NAME      => $coil->{name},
+        ID        => +$coil->{id},
+        COORDX    => $point->{coordx},
+        COORDY    => $point->{coordy},
+        INFO      => "$marker_info",
+        TYPE      => "$icon_name",
+        SIZE      => [ 25, 25 ],
+        CENTERED  => 1,
+      },
+      LAYER_ID  => 11
+    }
+  }
+
+  return join(',', map {JSON::to_json($_, { utf8 => 0 })} @layer_objects);
 }
 
 #**********************************************************
@@ -343,8 +431,8 @@ sub cablecat_maps_wells {
 #**********************************************************
 sub cablecat_maps_ajax {
 
-  if ( $FORM{SPLIT_CABLE} && $FORM{CABLE_ID} ) {
-    push (@{$html->{JSON_OUTPUT}},
+  if ($FORM{SPLIT_CABLE} && $FORM{CABLE_ID}) {
+    push(@{$html->{JSON_OUTPUT}},
       {
         result => _cablecat_break_cable_in_two_parts($FORM{CABLE_ID})
       }

@@ -3355,7 +3355,15 @@ sub paysys_liqpay {
     }
     $user->pi({ UID => $LIST_PARAMS{UID} || $user->{UID} });
   }
-  my $description = "\n$lang{FIO} : " . ($user->{FIO} || $attr->{FIO} || '') . ";\n Лицевой счет: " . ($user->{UID} || $attr->{UID}) . ";";
+
+  if($conf{PAYSYS_LIQPAY_DESCRIPTION}){
+    my @vars = $conf{PAYSYS_LIQPAY_DESCRIPTION} =~ /\%(.+?)\%/g;
+    foreach my $var (@vars){
+      $conf{PAYSYS_LIQPAY_DESCRIPTION} =~ s/\%$var\%/($user->{$var} || '')/ge;
+    }
+  }
+
+  my $description = $conf{PAYSYS_LIQPAY_DESCRIPTION} || "\n$lang{FIO} : " . ($user->{FIO} || $attr->{FIO} || '') . ";\n Лицевой счет: " . ($user->{UID} || $attr->{UID}) . ";\n";
   use Encode qw(decode);
   $description = decode('UTF-8', $description);
 
@@ -3371,7 +3379,7 @@ sub paysys_liqpay {
       %FORM });
   }
 
-  return $html->tpl_show(_include('paysys_liqpay_add', 'Paysys'), { %{ ($attr) ? $attr : {}}, %info, %$user });
+  return $html->tpl_show(_include('paysys_liqpay_add', 'Paysys'), { %{ ($attr) ? $attr : {}}, %info, %$user, TOTAL_SUM => $FORM{TOTAL_SUM} });
 }
 
 #**********************************************************
@@ -5588,7 +5596,7 @@ sub terminals_type_add {
   $TERMINALS{ACTION} = 'add';      # action on page
   $TERMINALS{BTN}    = "$lang{ADD}";    # button name
 
-  if($FORM{ACTION} eq 'add'){
+  if($FORM{ACTION} && $FORM{ACTION} eq 'add'){
     $Paysys->terminals_type_add({%FORM});
 
     if(!$Paysys->{errno}){
@@ -5603,7 +5611,7 @@ sub terminals_type_add {
       $html->message('err', $lang{ERROR});
     }
   }
-  elsif($FORM{ACTION} eq 'change'){
+  elsif($FORM{ACTION} && $FORM{ACTION} eq 'change'){
     $Paysys->terminal_type_change({%FORM});
 
     if(!$Paysys->{errno}){
@@ -6025,6 +6033,9 @@ sub paysys_bss {
   if($FORM{del_sum}){
     $Paysys->bss_sum_delete({ID => $FORM{del_sum}});
   }
+  if($FORM{MAKE_PAYMENTS}){
+    my $result = cmd('/usr/abills/Abills/modules/Paysys/paysys_cons TYPE=PAYMENTS EMAIL_CHECK=1 DEBUG=1 IMPORT_RULE=1 METHOD=113');
+  }
 
   # import payments
 
@@ -6066,7 +6077,7 @@ sub paysys_bss {
       $Paysys->bss_delete({ ID => $id });
 
       if (!$Paysys->{errno}) {
-        my $ext_id = $FORM{"EXT_ID_$id"};
+        my $ext_id = $FORM{"EXT_ID_$id"} || '';
         $html->message( "success", "ID $id $lang{DELETED}", "$lang{SUCCESS} $ext_id" );
       }
       else {
@@ -6238,6 +6249,31 @@ sub paysys_bss {
 
   $report_sums->addrow( "$lang{MONTH}", $bank_std_month, $local_std_month, $bank_nstd_month, $local_nstd_month, $std_count, $nstd_count, '');
 
+  load_pmodule('Net::POP3');
+
+  # Constructors
+  my @mailboxes = split(/;/, $conf{PAYSYS_EMAIL_CHECK});
+  my %read_messages_from_mail_btn = ();
+  foreach my $mailbox (@mailboxes) {
+    my ($host, $username, $password) = split(/:/, $mailbox, 3);
+
+    my $pop = Net::POP3->new($host, Timeout => 60);
+    if (!$pop) {
+      print "POP3 Error: Can't connect '$host' $!\n";
+      exit;
+    }
+
+    if ($pop->login($username, $password)) {
+      my $msgnums = $pop->list;       # hashref of msgnum => size
+      my $total = keys %$msgnums;
+      if($total > 0){
+        $read_messages_from_mail_btn{MAKE_PAYMENTS} = $lang{RUN_PAYSYS_CONS};
+      }
+    }
+  }
+
+
+
   #if($UNPAID_USERS > 0){
   #  use Events;
   #  my $Event = Events->new($db, $admin, \%conf);
@@ -6252,7 +6288,7 @@ sub paysys_bss {
         OP_SID      => $op_sid,
         IMPORT_TYPE => $FORM{IMPORT_TYPE},
       },
-      SUBMIT  => { IMPORT => "$lang{IMPORT}", DELETE => "$lang{DEL}" },
+      SUBMIT  => { IMPORT => "$lang{IMPORT}", DELETE => "$lang{DEL}", %read_messages_from_mail_btn},
       NAME    => 'FORM_IMPORT'
     }
   );
@@ -6327,9 +6363,34 @@ sub paysys_privat_fastpay {
     $user->pi();
   }
 
+  Abills::Base::load_pmodule('Imager::QRCode');
+
+  # Create Imager::QRCode instance
+  my $qr = Imager::QRCode->new(
+    size          => 8,
+    margin        => 1,
+    version       => 1,
+    level         => 'M',
+    casesensitive => 1,
+    lightcolor    => Imager::Color->new(255, 255, 255),
+    darkcolor     => Imager::Color->new(0, 0, 0),
+  );
+
+  # Create image from data
+  my $img = $qr->plot("EK_billidentifier_$user->{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}}_$conf{PAYSYS_PRIVAT_TERMINAL_QR_ID}");
+
+  # Save image to scalar
+  my $result = '';
+  # MAYBE:: write errstr to $result?
+  $img->write( data => \$result, type => 'jpeg' ) or print $img->errstr;
+
+  # making blob image for template
+  my $base64_result = Abills::Base::encode_base64($result);
+  my $img_src_data = "data:image/jpg;base64, $base64_result";
+
   my $link = $conf{PAYSYS_PRIVAT_TERMINAL_FAST_PAY} . "&acc=" . ($user->{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}} || $FORM{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}}) . "&amount=" . ($FORM{SUM} || 0);
 
-  $html->tpl_show(_include('paysys_privat_terminal_fastpay', 'Paysys'), {LINK => $link});
+  $html->tpl_show(_include('paysys_privat_terminal_fastpay', 'Paysys'), {LINK => $link, IMG_DATA => $img_src_data});
 
 }
 

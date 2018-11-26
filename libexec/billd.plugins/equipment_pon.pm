@@ -143,17 +143,16 @@ sub _equipment_pon_load {
 
   my $nas_info = $Equipment_list->[0];
   $Equipment->model_info($nas_info->{model_id});
-  if (!$nas_info->{nas_mng_password}) {
+  if (!$nas_info->{nas_ip}) {
+    print "NAS_ID: $nas_info->{nas_id} deleted\n";
+    next;
+  }
+  elsif (!$nas_info->{nas_mng_password}) {
     print "NAS_ID: $nas_info->{nas_id} COMMINITY not defined\n";
     $nas_info->{nas_mng_password} = 'public';
     #next;
   }
-  elsif (!$nas_info->{nas_ip}) {
-    print "NAS_ID: $nas_info->{nas_id} deleted\n";
-    next;
-  }
 
-  $nas_info->{nas_mng_password} //= 'public';
   my $SNMP_COMMUNITY = "$nas_info->{nas_mng_password}\@" . (($nas_info->{nas_mng_ip_port}) ? $nas_info->{nas_mng_ip_port} : $nas_info->{nas_ip});
   my $onu_counts = 0;
 
@@ -164,9 +163,9 @@ sub _equipment_pon_load {
       return 0;
     }
 
-    my $get_list_fn = $nas_type . '_onu_list';
+    my $onu_list_fn = $nas_type . '_onu_list';
 
-    if (defined(&{$get_list_fn})) {
+    if (defined(&{$onu_list_fn})) {
       my $olt_ports = ();
       my $port_list = $Equipment->pon_port_list({
         COLS_NAME  => 1,
@@ -213,7 +212,7 @@ sub _equipment_pon_load {
       }
 
       #my $olt_ports = equipment_pon_get_ports({SNMP_COMMUNITY => $SNMP_COMMUNITY, NAS_ID => $nas_id, NAS_TYPE => $nas_type, MODEL_NAME => $Equipment->{MODEL_NAME}, SNMP_TPL => $Equipment->{SNMP_TPL}});
-      my $onu_list = &{\&$get_list_fn}($olt_ports, {
+      my $onu_snmp_list = &{\&$onu_list_fn}($olt_ports, {
         VERSION        => $nas_info->{snmp_version} || 1,
         SNMP_COMMUNITY => $SNMP_COMMUNITY,
         TIMEOUT        => $argv->{TIMEOUT} || 5,
@@ -223,7 +222,7 @@ sub _equipment_pon_load {
         TYPE           => 'dhcp'
       });
 
-      $onu_counts = $#{$onu_list} + 1;
+      $onu_counts = $#{$onu_snmp_list} + 1;
 
       my $onu_database_list = $Equipment->onu_list({
         NAS_ID     => $nas_id,
@@ -236,16 +235,16 @@ sub _equipment_pon_load {
 
       my $created_onu = ();
       foreach my $onu (@$onu_database_list) {
-        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_GRAPH} = $onu->{onu_graph};
-        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_DESC} = $onu->{comments} || '';
-        $created_onu->{ $onu->{onu_snmp_id} }->{ID} = $onu->{id};
+        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_GRAPH}  = $onu->{onu_graph};
+        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_DESC}   = $onu->{comments} || '';
+        $created_onu->{ $onu->{onu_snmp_id} }->{ID}         = $onu->{id};
         $created_onu->{ $onu->{onu_snmp_id} }->{ONU_STATUS} = $onu->{onu_status};
       }
 
       my @MULTI_QUERY = ();
       my @ONU_ADD = ();
       #print Dumper $onu_list;
-      foreach my $onu (@$onu_list) {
+      foreach my $onu (@$onu_snmp_list) {
         if ($created_onu->{ $onu->{ONU_SNMP_ID} }) {
           #          if($debug > 6) {
           #            print "$nas_type TYPE => $onu->{PON_TYPE} \n";

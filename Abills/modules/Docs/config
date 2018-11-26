@@ -30,6 +30,7 @@ our %FUNCTIONS_LIST = (
   "24:21:$lang{ACTS}:docs_acts_list:"                        => 4,
   "25:21:$lang{INVOICES}:docs_invoices_list:"                => 4,
   "26:21:$lang{RECEIPTS}:docs_receipt_list:"                 => 4,
+  "27:21:$lang{UNPAID_INVOICES}:docs_unpaid_invoices:"       => 4,
 
   #                   "13:11:$lang{CONTRACTS}:docs_contractst:"           => 8
 

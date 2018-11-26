@@ -1,38 +1,27 @@
 #!/usr/bin/perl -w
+
 =head1 NAME
 
  Paysys tests
 
 =cut
+
 use strict;
 use warnings;
-use Test::More;
+use Test::More tests => 12;
 use Data::Dumper;
 
-our (
-  %FORM,
-  %LIST_PARAMS,
-  %functions,
-  %conf,
-  $html,
-  %lang,
-  @_COLORS,
-);
+our (%FORM, %LIST_PARAMS, %functions, %conf, $html, %lang, @_COLORS,);
 
 BEGIN {
-  our $Bin;
-  use FindBin '$Bin';
-  if ($Bin =~ m/\/abills(\/)/) {
-    my $libpath = substr($Bin, 0, $-[1]);
-    unshift (@INC, "$libpath/lib");
-  }
-  else {
-    die " Should be inside /usr/abills dir \n";
-  }
+  our $libpath = '../../../../';
+  unshift(@INC, $libpath);
+  unshift(@INC, $libpath . 'lib/');
+  unshift(@INC, $libpath . 'libexec/');
+  unshift(@INC, $libpath . 'Abills/');
+  unshift(@INC, $libpath . 'Abills/modules/');
+  unshift(@INC, $libpath . "Abills/mysql/");
 }
-
-use Abills::Init qw/$db $admin $users/;
-
 require "libexec/config.pl";
 $conf{language} = 'english';
 do "language/$conf{language}.pl";
@@ -41,73 +30,130 @@ use_ok('Paysys');
 use_ok('Paysys::systems::Osmp');
 use_ok('Conf');
 use_ok('Abills::Base', qw/mk_unique_value /);
-new_ok("Conf", [ $db, $admin, \%conf ]);
-new_ok("Paysys::systems::Osmp", [ $db, $admin, \%conf ]);
+use Abills::Init qw/$db $admin $users/;
+use Paysys;
+my $Conf = Conf->new($db, $admin, \%conf);
+my $user_id = $ARGV[0] || '1';
 
-my $txn_id  = Abills::Base::mk_unique_value(8, { SYMBOLS => '1234567890' });
-my $user_id = $ARGV[0] || 1;
-my $prv_txn = '';
+my $random_number = int(rand(1000));
+my $Osmp = Paysys::systems::Osmp->new($db, $admin, \%conf, {
+        CUSTOM_NAME => $ARGV[1] || '',
+        CUSTOM_ID   => $ARGV[2] || '',
+      });
+# _bp('', $Osmp, {HEADER => 1, TO_CONSOLE => 1});
+# checking function check with valid account
+my $result = $Osmp->proccess(
+  {
+    account => "$user_id",
+    command => 'check',
+    sum     => '1.00',
+    txn_id  => "$random_number",
+    test    => 1,
+  }
+);
+my $res = '';
+($res) = ($result =~ /\<result\>(\d+)\<\/result\>/g);
+ok($res eq '0', 'User Exist(function check)');
 
-subtest 'check user' => sub {
-    my $Osmp = Paysys::systems::Osmp->new($db, $admin, \%conf);
+# checking function check with invalid account
+$result = $Osmp->proccess(
+  {
+    account => '1232124',
+    command => 'check',
+    sum     => '1.00',
+    txn_id  => "$random_number",
+    test    => 1,
+  }
+);
+$res = '';
+($res) = ($result =~ /\<result\>(\d+)\<\/result\>/g);
+ok($res eq '5', 'User not Exist(function check)');
 
-    my $result = $Osmp->check({
-      account => $user_id,
-      action  => 'check',
-      sum     => 1.00,
-      txn_id  => $txn_id,
-      prv_txn => $prv_txn,
-    });
-    ok(ref $result eq 'HASH' && $result->{result} == 0, 'User found');
+# checking function check without one parameter
+$result = $Osmp->proccess(
+  {
+    account => "$user_id",
+    command => 'check',
+    txn_id  => "$random_number",
+    test    => 1,
+  }
+);
+$res = '';
+($res) = ($result =~ /\<result\>(\d+)\<\/result\>/g);
+ok($res eq '300', "There isn't attr summ(function check)");
 
-    my $result2 = $Osmp->check({
-      account => 'user_12345678',
-      action  => 'check',
-      sum     => 1.00,
-      txn_id  => $txn_id,
-      prv_txn => $prv_txn,
-    });
-    ok(ref $result2 eq 'HASH' && $result2->{result} == 5, 'User not found');
-  };
+# checking function pay with valid account
+$result = $Osmp->proccess(
+  {
+    account => "$user_id",
+    command => 'pay',
+    txn_id  => "$random_number",
+    sum     => '1.00',
+    test    => 1,
+  }
+);
+$res = '';
+my $prv_txn_id1 = '';
+($res)         = ($result =~ /\<result\>(\d+)\<\/result\>/g);
+($prv_txn_id1) = ($result =~ /\<prv_txn\>(\d+)\<\/prv_txn\>/g);
+ok($res eq '0', "Payment completed(function pay)");
 
-subtest 'success pay' => sub {
-    my $Osmp = Paysys::systems::Osmp->new($db, $admin, \%conf);
-    my $result = $Osmp->pay({
-      account => $user_id,
-      action  => 'pay',
-      sum     => 1.00,
-      txn_id  => $txn_id,
-      prv_txn => 1,
-    });
+# checking function pay with invalid account
+$result = $Osmp->proccess(
+  {
+    account => '1232124',
+    command => 'pay',
+    txn_id  => "$random_number",
+    sum     => '1.00',
+    test    => 1,
+  }
+);
+$res = '';
+($res) = ($result =~ /\<result\>(\d+)\<\/result\>/g);
+ok($res eq '5', "Not exist user(function pay)checking with not existed account");
 
-    ok(ref $result eq 'HASH' && $result->{result} == 0, 'Success pay');
-  };
+# checking function pay without one parameter
+$result = $Osmp->proccess(
+  {
+    account => "$user_id",
+    command => 'pay',
+    txn_id  => "$random_number",
+    test    => 1,
+  }
+);
+$res = '';
+($res) = ($result =~ /\<result\>(\d+)\<\/result\>/g);
+ok($res eq '300', "There isn't attr sum(function pay)");
 
-subtest 'cancel pay' => sub {
-    my $Osmp = Paysys::systems::Osmp->new($db, $admin, \%conf);
-    my $cancel_txn_id  = Abills::Base::mk_unique_value(8, { SYMBOLS => '1234567890' });
+# checking function pay with valid account again
+$result = $Osmp->proccess(
+  {
+    account => "$user_id",
+    command => 'pay',
+    txn_id  => "$random_number",
+    sum     => '1.00',
+    test    => 1,
+  }
+);
+$res = '';
+my $prv_txn_id2 = '';
+($res)         = ($result =~ /\<result\>(\d+)\<\/result\>/g);
+($prv_txn_id2) = ($result =~ /\<prv_txn\>(\d+)\<\/prv_txn\>/g);
+ok($prv_txn_id1 && $prv_txn_id2 &&"$prv_txn_id1" eq "$prv_txn_id2", "Payment exist (function pay) checking with same Transaction");
 
-    my $pay_result = $Osmp->pay({
-      account => $user_id,
-      action  => 'pay',
-      sum     => 1.00,
-      txn_id  => $cancel_txn_id,
-      prv_txn => 1,
-    });
-
-    ok(ref $pay_result eq 'HASH' && $pay_result->{result} == 0, 'Success pay before cancel');
-
-    $prv_txn = $pay_result->{prv_txn};
-
-    my $result = $Osmp->cancel({
-      account => $user_id,
-      action  => 'cancel',
-      sum     => 1.00,
-      txn_id  => $cancel_txn_id,
-      prv_txn => $prv_txn,
-    });
-
-    ok(ref $result eq 'HASH' && $result->{result} == 0, 'Success cancel');
-  };
-
-done_testing;
+# checking function cancel
+if ($prv_txn_id1) { 
+$result = $Osmp->proccess(
+  {
+    command => 'cancel',
+    prv_txn => "$prv_txn_id1",
+    test    => 1,
+  }
+);
+$res = '';
+($res) = ($result =~ /\<result\>(\d+)\<\/result\>/g);
+ok($res eq '0', 'Transaction was canceled(function cancel)');
+}
+else {
+  print "You entered incorrect parameter!!!!!!!!!!!\n";
+}

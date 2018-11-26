@@ -800,20 +800,32 @@ sub service_discount_list {
   $self->{SEARCH_FIELDS_COUNT}= 0;
 
   my $WHERE =  $self->search_former($attr, [
-      ['TP_ID',             'INT', 'tp_id'                ], 
-      ['REGISTRATION_DAYS', 'INT', 'registration_days'    ], 
-      ['PERIODS',           'INT', 'service_period'       ],
-      ['TOTAL_PAYMENTS_SUM','INT', 'total_payments_sum'   ],
-      ['PAY_METHOD',        'INT', 'pay_method'           ],
-      ['COMMENTS',          'STR', 'comments',          1 ],
-      ['TP_ID',             'STR', 'tp_id',             1 ],
+      ['NAME',              'STR', 'name',               1 ],
+      ['TP_ID',             'INT', 'tp_id'                 ],
+      ['REGISTRATION_DAYS', 'INT', 'registration_days'     ],
+      ['PERIODS',           'INT', 'service_period'        ],
+      ['TOTAL_PAYMENTS_SUM','INT', 'total_payments_sum'    ],
+      ['PAY_METHOD',        'INT', 'pay_method'            ],
+      ['COMMENTS',          'STR', 'comments',           1 ],
+      ['TP_ID',             'STR', 'tp_id',              1 ],
+      ['ONETIME_PAYMENT_SUM','INT','onetime_payment_sum',1 ],
     ],
-    { WHERE       => 1,
-    }
-    );
+    { WHERE => 1 }
+  );
 
-  $self->query("SELECT service_period, registration_days, total_payments_sum,
-  discount, discount_days,  bonus_sum,  bonus_percent, ext_account, pay_method, $self->{SEARCH_FIELDS} id
+  $self->query("SELECT
+  name,
+  service_period,
+  registration_days,
+  total_payments_sum,
+  discount,
+  discount_days,
+  bonus_sum,
+  bonus_percent,
+  ext_account,
+  pay_method,
+  $self->{SEARCH_FIELDS}
+  id
      FROM bonus_service_discount
      $WHERE 
      ORDER BY $SORT $DESC
@@ -1075,15 +1087,26 @@ sub accomulation_scores_change {
   my ($attr) = @_;
 
   my $tp_id = $attr->{DV_TP_ID} || 0;
+  $self->query("SELECT uid FROM  bonus_rules_accomulation_scores WHERE uid = '$attr->{UID}' ");
 
-  $self->query("REPLACE INTO bonus_rules_accomulation_scores (uid, dv_tp_id, cost)
+  if($self->{TOTAL} && $self->{TOTAL} > 0) {
+    $self->query("UPDATE bonus_rules_accomulation_scores SET
+         cost='$attr->{SCORE}',
+         dv_tp_id='$tp_id'
+      WHERE uid='$attr->{UID}';", 'do'
+    );
+  }
+  else {
+    $self->query("INSERT INTO bonus_rules_accomulation_scores (uid, dv_tp_id, cost)
         VALUES ('$attr->{UID}', '$tp_id', '$attr->{SCORE}');", 'do'
-  );
+    );
+  }
 
-  
   $admin->{MODULE} = $MODULE;
 
-  $admin->action_add($attr->{UID}, "SCORE:$attr->{SCORE}", { TYPE => 2 });
+  if ($self->{AFFECTED} && $self->{AFFECTED} > 0) {
+    $admin->action_add($attr->{UID}, "SCORE: ". $attr->{SCORE}, { TYPE => 2 });
+  }
 
   return $self;
 }
@@ -1091,6 +1114,12 @@ sub accomulation_scores_change {
 
 #**********************************************************
 =head2 accomulation_scores_add($attr)
+
+  Arguments:
+    $attr
+      DV_TP_ID
+      UID
+      SCORE
 
 =cut
 #**********************************************************
@@ -1115,7 +1144,9 @@ sub accomulation_scores_add {
   }
 
   $admin->{MODULE} = $MODULE;
-  $admin->action_add($attr->{UID}, "SCORE:$attr->{SCORE}", { TYPE => 1 });
+  if ($self->{AFFECTED} && $self->{AFFECTED} > 0) {
+    $admin->action_add($attr->{UID}, "SCORE:$attr->{SCORE}", { TYPE => 1 });
+  }
 
   return $self;
 }

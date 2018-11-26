@@ -2,7 +2,7 @@
 
 <form action='$SELF_URL' method='post' class='form-horizontal'>
   <input class='form-control' type='hidden' name='index' value='$index' />
-  <input class='form-control' type='hidden' name='ABON_ID' value='$FORM{ABON_ID}' /> %EXT_BILL_ACCOUNT%
+  <input class='form-control' type='hidden' name='ABON_ID' value='$FORM{ABON_ID}' />
 
   <div class='box box-form box-theme'>
    <div class='box-header with-border'>
@@ -91,9 +91,12 @@
 		</div>
       </div>
 
+		<div class='form-group'>
+			<div class='col-md-7'>
 
-	  <!---->									<!---->
-
+		%EXT_BILL_ACCOUNT%
+			</div>
+		</div>
 
       <div class='form-group'>
 	  	<div class='col-md-3'>

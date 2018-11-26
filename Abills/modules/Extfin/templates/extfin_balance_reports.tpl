@@ -20,6 +20,13 @@
   </div>
 </div>
 
+  <div class='box-body'>
+    <div class='form-group'>
+      <label class='col-md-3 control-label'>_{GROUP}_</label>
+      <div class='col-md-9'>%GROUPS_SELECT%</div>
+    </div>
+  </div>
+
 <div class='box-footer'>
   <input type='submit' class='btn btn-primary' value='_{SHOW}_' name='show'>
 </div>

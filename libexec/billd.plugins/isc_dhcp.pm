@@ -14,9 +14,9 @@ use strict;
 use warnings FATAL => 'all';
 
 use Socket;
-use Abills::Base qw(_bp int2ip);
+use Abills::Base qw(int2ip);
 use Abills::HTML;
-use Abills::Misc;
+require Abills::Misc;
 
 our (
   $db,
@@ -48,8 +48,8 @@ sub isc_dhcp_config {
 
   my $static_networks;
 
-  if($argv->{STATIC_ONLY}) {
-    $static_networks=1;
+  if ($argv->{STATIC_ONLY}) {
+    $static_networks = 1;
   }
 
   $html->{language} = '';
@@ -60,8 +60,8 @@ sub isc_dhcp_config {
 
   if ($argv->{DEBUG}) {
     $debug = $argv->{DEBUG};
-    if($debug > 6) {
-      $Nas->{debug}=1;
+    if ($debug > 6) {
+      $Nas->{debug} = 1;
     }
   }
 
@@ -107,7 +107,8 @@ sub isc_dhcp_config {
     INTERNET_LOGIN => '_SHOW',
     CID            => '*',
     IP_NUM         => '>0',
-    PAGE_ROWS      => 60000,
+    GROUP_BY       => 'internet.id',
+    PAGE_ROWS      => 100000,
   });
   _error_show($Internet);
 
@@ -127,12 +128,12 @@ sub isc_dhcp_config {
     { OUTPUT2RETURN => 1 }
   ) . "\n";
 
-  if($debug > 7) {
+  if ($debug > 7) {
     print $conf_main;
   }
   else {
     open(my $fh, '>', $filename) or die "ERROR: Can`t open filename. Edit " . '$conf{INTERNET_ISC_DHCP_CONFIG}.' . " $!\n";
-      print $fh $conf_main;
+    print $fh $conf_main;
     close $fh;
   }
 

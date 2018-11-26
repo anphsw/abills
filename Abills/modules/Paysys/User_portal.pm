@@ -90,6 +90,7 @@ sub paysys_payment {
     MODULE    => '_SHOW',
     STATUS    => 1,
     COLS_NAME => 1,
+    SORT      => 'priority',
   });
 
   $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });

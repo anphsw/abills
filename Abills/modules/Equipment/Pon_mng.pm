@@ -702,40 +702,43 @@ sub equipment_register_onu {
       BRANCH     => $FORM{BRANCH},
       NAS_ID     => $nas_id
     });
-    $attr->{DEF_VLAN} = $port_list->[0]->{VLAN_ID} || $list->[0]->{internet_vlan};
-    $attr->{PORT_VLAN} = $attr->{DEF_VLAN};
+
+    $attr->{DEF_VLAN}    = $port_list->[0]->{VLAN_ID} || $list->[0]->{internet_vlan};
+    $attr->{PORT_VLAN}   = $attr->{DEF_VLAN};
     $attr->{TR_069_VLAN} = $list->[0]->{tr_069_vlan} || '';
-    $attr->{IPTV_VLAN} = $list->[0]->{iptv_vlan} || '';
+    $attr->{IPTV_VLAN}   = $list->[0]->{iptv_vlan} || '';
 
     my $result = q{};
     my $result_code = '';
     my $unregister_form_fn = $nas_type . '_unregister_form';
 
     if ($FORM{reg_onu} && defined(&$unregister_form_fn) && !$FORM{onu_registration}) {
-      &{\&$unregister_form_fn}({ %$attr });
+      &{\&$unregister_form_fn}({ %FORM, %$attr });
       return 1;
     }
     else {
       my $parse_line_profile = $nas_type . '_prase_line_profile';
       if (defined(&$parse_line_profile)) {
-        my $hash = &{\&$parse_line_profile}({ %$attr });
-        foreach my $key (keys %$hash) {
+        my $line_profiles = &{\&$parse_line_profile}({ %FORM, %$attr });
+        foreach my $key (keys %$line_profiles) {
           $FORM{LINE_PROFILE_DATA} .= "$key:";
-          foreach my $vlan (@{$hash->{$key}}) {
-            $FORM{LINE_PROFILE_DATA} .= "$vlan";
-            if ($hash->{$key}->[ $#{$hash->{$key}} ] ne $vlan) {
-              $FORM{LINE_PROFILE_DATA} .= ",";
-            }
-          }
+          $FORM{LINE_PROFILE_DATA} .= join(',', @{$line_profiles->{$key}});
+          # foreach my $vlan (@{$line_profiles->{$key}}) {
+          #   $FORM{LINE_PROFILE_DATA} .= "$vlan";
+          #   if ($line_profiles->{$key}->[ $#{$line_profiles->{$key}} ] ne $vlan) {
+          #     $FORM{LINE_PROFILE_DATA} .= ",";
+          #   }
+          # }
           $FORM{LINE_PROFILE_DATA} .= ";";
         }
       }
 
       if (-x $cmd) {
-        $attr->{TR_069_PROFILE} = $conf{TR_069_PROFILE} || 'ACS';
+        $attr->{TR_069_PROFILE}     = $conf{TR_069_PROFILE} || 'ACS';
         $attr->{INTERNET_USER_VLAN} = $conf{INTERNET_USER_VLAN} || '101';
-        $attr->{TR_069_USER_VLAN} = $conf{TR_069_USER_VLAN} || '102';
-        $attr->{IPTV_USER_VLAN} = $conf{IPTV_USER_VLAN} || '103';
+        $attr->{TR_069_USER_VLAN}   = $conf{TR_069_USER_VLAN} || '102';
+        $attr->{IPTV_USER_VLAN}     = $conf{IPTV_USER_VLAN} || '103';
+        $attr->{VLAN_ID}            = $FORM{VLAN_ID_HIDE} || '';
 
         delete $attr->{NAS_INFO}->{ACTION_LNG};
         $result = cmd($cmd, {
@@ -748,19 +751,19 @@ sub equipment_register_onu {
       }
 
       if ($result_code) {
-        $html->message('info', $lang{INFO}, "$result");
+        $html->message('info', $lang{INFO}, $result);
         $result =~ s/\n/ /g;
         if ($result =~ /ONU: \d+\/\d+\/\d+\:(\d+) ADDED/) {
           my $onu = ();
-          $onu->{NAS_ID} = $nas_id;
-          $onu->{ONU_ID} = $1;
-          $onu->{ONU_DHCP_PORT} = $port_list->[0]->{BRANCH} . ':' . $onu->{ONU_ID};
-          $onu->{PORT_ID} = $port_list->[0]->{ID};
+          $onu->{NAS_ID}       = $nas_id;
+          $onu->{ONU_ID}       = $1;
+          $onu->{ONU_DHCP_PORT}= $port_list->[0]->{BRANCH} . ':' . $onu->{ONU_ID};
+          $onu->{PORT_ID}      = $port_list->[0]->{ID};
           $onu->{ONU_MAC_SERIAL} = $FORM{MAC_SERIAL};
-          $onu->{ONU_DESC} = $FORM{ONU_DESC};
-          $onu->{ONU_SNMP_ID} = $port_list->[0]->{SNMP_ID} . '.' . $onu->{ONU_ID};
+          $onu->{ONU_DESC}     = $FORM{ONU_DESC};
+          $onu->{ONU_SNMP_ID}  = $port_list->[0]->{SNMP_ID} . '.' . $onu->{ONU_ID};
           $onu->{LINE_PROFILE} = $FORM{LINE_PROFILE};
-          $onu->{SRV_PROFILE} = $FORM{SRV_PROFILE};
+          $onu->{SRV_PROFILE}  = $FORM{SRV_PROFILE};
 
           my $onu_list = $Equipment->onu_list({ COLS_NAME => 1, PORT_ID => $onu->{PORT_ID}, ONU_SNMP_ID => $onu->{ONU_SNMP_ID} });
           if ($onu_list->[0]->{id}) {
@@ -1149,10 +1152,10 @@ sub pon_onu_state {
       COLS_NAME   => 1
     });
 
-    $attr->{BRANCH} = $onu_list->[0]{branch} || q{};
+    $attr->{BRANCH}     = $onu_list->[0]{branch} || q{};
     $attr->{ONU_SERIAL} = $onu_list->[0]{mac_serial} || q{};
-    $attr->{ONU_ID} = $onu_list->[0]{onu_id} || '0';
-    $attr->{NAS_NAME} = $onu_list->[0]{nas_name} || q{};
+    $attr->{ONU_ID}     = $onu_list->[0]{onu_id} || '0';
+    $attr->{NAS_NAME}   = $onu_list->[0]{nas_name} || q{};
   }
 
   my @show_fields = ();
@@ -1534,7 +1537,7 @@ sub equipment_pon_ports {
     my %vlans = ();
 
     foreach my $vlan_id (keys %{$vlan_hash}) {
-      $vlans{ $vlan_id } = "Vlan$vlan_id ($vlan_hash->{ $vlan_id }->{NAME})";
+      $vlans{ $vlan_id } = "Vlan$vlan_id (". (($vlan_hash->{ $vlan_id }->{NAME}) ? $vlan_hash->{ $vlan_id }->{NAME} : q{}) .")";
     }
 
     $Equipment->{VLAN_SEL} = $html->form_select('VLAN_ID', {
@@ -1571,9 +1574,22 @@ sub equipment_pon_ports {
     MODEL_NAME => $Equipment->{MODEL_NAME}
   });
 
+  foreach my $key (keys %$olt_ports)
+  {
+    if ($olt_ports->{$key}{pon_type} eq "epon") {
+      $olt_ports->{$key}{FREE_ONU} = 64 - $olt_ports->{$key}{onu_count};
+    }
+    if ($olt_ports->{$key}{pon_type} eq "gpon") {
+      $olt_ports->{$key}{FREE_ONU} = 128 - $olt_ports->{$key}{onu_count};
+    }
+    if ($olt_ports->{$key}{pon_type} eq "gepon") {
+      $olt_ports->{$key}{FREE_ONU} = 128 - $olt_ports->{$key}{onu_count};
+    }
+  }
+
   $pages_qs = "&visual=$FORM{visual}&NAS_ID=$nas_id&TYPE=PON";
   my ($table) = result_former({
-    DEFAULT_FIELDS => 'PON_TYPE,BRANCH,PORT_ALIAS,VLAN_ID,ONU_COUNT,PORT_STATUS,TRAFFIC',
+    DEFAULT_FIELDS => 'PON_TYPE,BRANCH,PORT_ALIAS,VLAN_ID,ONU_COUNT,FREE_ONU,PORT_STATUS,TRAFFIC',
     BASE_PREFIX    => 'ID',
     TABLE          => {
       width            => '100%',
@@ -1589,6 +1605,7 @@ sub equipment_pon_ports {
         PORT_STATUS => $lang{STATUS},
         PORT_SPEED  => $lang{SPEED},
         ONU_COUNT   => "ONU $lang{COUNT}",
+        FREE_ONU    => "$lang{COUNT} $lang{FREE_ONU} ONU",
         PORT_NAME   => "BRANCH_NAME",
         PORT_ALIAS  => $lang{COMMENTS}
       },

@@ -7,3 +7,4 @@ $lang{BONUS_TP_USING}='Акционный тарифный план';
 $lang{SCORES}='Балы';
 $lang{ERR_SMALL_SUM}='Слишком маленькая сума';
 $lang{BONUS_DISABLED_FOR_GROUP}='Бонус отключено для группы';
+$lang{ONETIME_PAYMENT_SUM}='Одноразовый платеж';

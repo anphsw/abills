@@ -66,6 +66,7 @@ my $items;
 
       COL_SIZE - width of menu. Default is 3 if LEVELS <= 6, and 6 otherwise
 
+      SHOW_OPEN_TREE - show opened tree. Default is none, if value => 1 tree opened.
   Returns:
     HTML code for a menu
 
@@ -165,14 +166,14 @@ sub render_tree {
     }
   }
   else {
-    for (my $i = 0; $i < $levels; $i++) {
+    for (my $i = 0; $i <= $levels; $i++) {
       my $key = @{ $attr->{LEVEL_ID_KEYS} }[$i];
 
       foreach my $item (@{$list}) {
         $items_->{$i}->{ $item->{ $key } } = {
-          $id_key    => $item->{ @{$attr->{LEVEL_ID_KEYS}}[$i] },
-          $name_key  => $item->{ @{$attr->{LEVEL_LABEL_KEYS}}[$i] },
-          $value_key => $item->{ @{$attr->{LEVEL_VALUE_KEYS}}[$i] },
+          $id_key    => $item->{ lc(@{$attr->{LEVEL_ID_KEYS}}[$i]) },
+          $name_key  => $item->{ lc(@{$attr->{LEVEL_LABEL_KEYS}}[$i])},
+          $value_key => $item->{ lc(@{$attr->{LEVEL_VALUE_KEYS}}[$i]) },
         };
       }
     }
@@ -218,7 +219,8 @@ sub render_branch {
 
   my $result = '';
   $result .= "<li>$checkbox_for_label<label class='tree-toggler'>$menu_name</label>\n";
-  $result .= "<ul class='nav tree' style='display: none;'>\n";
+  my $ul_display = ($attr->{SHOW_OPEN_TREE}) ? "block" : "none";
+  $result .= "<ul class='nav tree' style='display: $ul_display;'>\n";
 
   my ($current_item_name, $current_item_value);
   foreach my $item_key (sort keys %{$menu_list}) {
@@ -261,6 +263,7 @@ sub render_branch {
 
   $result .= "</ul>\n";
   return $result;
+
 }
 
 

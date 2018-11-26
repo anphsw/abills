@@ -7,7 +7,7 @@
     <fieldset>
         <div class='box box-theme'>
             <div class='box-body'>
-                Перезвоните на номер %AUTH_NUMBER%
+                Перезвоните на номер <a href="tel:%AUTH_NUMBER%">%AUTH_NUMBER%</a>
             </div>
         </div>
         %BUTTON%

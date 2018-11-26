@@ -351,7 +351,7 @@ sub rwizard_old {
 
     my $payment_methods = get_payment_methods();
     if ($Reports->{QUERY} =~ /%PAYMENT_METHODS%/g) {
-      push @rows, "$lang{PAYMENT_METHODS}: " . $html->form_select(
+      push @rows, "$lang{PAYMENT_METHOD}: " . $html->form_select(
       'PAYMENT_METHODS',
         {
           SELECTED => (defined($FORM{PAYMENT_METHODS}) && $FORM{PAYMENT_METHODS} ne '') ? $FORM{PAYMENT_METHODS} : 0,
@@ -624,6 +624,7 @@ sub rwizard_old {
 sub rwizard_groups {
   $Reports->{ACTION_LNG} = $lang{ADD};
   $Reports->{ACTION} = 'add';
+  $Reports->{ADMINS_LIST} = _rw_admins_list();
 
   if($FORM{add}){
     $Reports->add_group({%FORM});
@@ -1129,7 +1130,7 @@ sub rwizard {
       });
       print $table->show();
     }
-    if (scalar keys %$DATA_HASH > 1) {
+    if (scalar keys %$DATA_HASH > 0) {
     #Show charts
     $html->make_charts({
       DATA          => $DATA_HASH,
@@ -1149,7 +1150,8 @@ sub rwizard {
 #**********************************************************
 sub _report_sel {
   my ($attr) = @_;
-  my $list = $Reports->list({ COLS_NAME => 1, PAGE_ROWS => 10000, GID => $attr->{GID} });
+  $attr->{RWGID} //= 0;
+  my $list = $Reports->list({ COLS_NAME => 1, PAGE_ROWS => 10000, GID => $attr->{RWGID} });
   my $report_sel = $html->form_select(
     'REPORT',
     {
@@ -1172,11 +1174,26 @@ sub _report_sel {
 sub _group_sel {
   my ($attr) = @_;
 
+  my $list = $Reports->list_groups({ COLS_NAME => 1});
+
+  my @group_list = ();
+
+  foreach my $line (@$list) {
+    if ($line->{admins}) {
+      my @a_list = split(',', $line->{admins});
+      if (in_array($admin->{AID}, \@a_list)) {
+        push @group_list, $line;
+      }
+      next;
+    }
+    push @group_list, $line;
+  }
+
   my $group_sel = $html->form_select(
-    'GID',
+    'RWGID',
     {
-      SELECTED       => $attr->{GID},
-      SEL_LIST       => $Reports->list_groups({ COLS_NAME => 1}),
+      SELECTED       => $attr->{RWGID},
+      SEL_LIST       => \@group_list,
       NO_ID          => 1,
       EX_PARAMS      => "onchange='autoReload()'",
       SEL_OPTIONS    => { '' => '--' },
@@ -1222,7 +1239,7 @@ sub _make_report_menu {
   }
 
   if ($Reports->{QUERY} =~ /%PAYMENT_METHODS%/) {
-    push @rows, "$lang{PAYMENT_METHODS}: " . $html->form_select(
+    push @rows, "$lang{PAYMENT_METHOD}: " . $html->form_select(
       'PAYMENT_METHODS',
       {
         SELECTED => (defined($attr->{PAYMENT_METHODS}) && $attr->{PAYMENT_METHODS} ne '') ? $attr->{PAYMENT_METHODS} : 0,
@@ -1267,6 +1284,7 @@ sub _make_report_menu {
     NAME    => 'rwizard',
     HIDDEN  => {
       'index' => "$index",
+      'RWGID' => "$FORM{RWGID}",
     },
     ID   => 'form_reports_panel',
     NAME => 'form_reports_panel',
@@ -1320,7 +1338,6 @@ sub _read_titles {
 
 =cut
 #**********************************************************
-
 sub _make_report_query {
   my ($attr) = @_;
 
@@ -1344,12 +1361,18 @@ sub _make_report_query {
 
   if ($Reports->{QUERY} =~ /%GID%/g) {
     if (! defined($attr->{GID}) || $attr->{GID} eq '') {
-      $Reports->{QUERY}       =~ s/and [a-z0-9\.\_]+\=\'%GID%\'//ig;
-      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\=\'%GID%\'//ig;
+      $Reports->{QUERY}       =~ s/and [a-z0-9\.\_]+\s?\=\s?\'?%GID%\'?//ig;
+      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\s?\=\s?\'?%GID%\'?//ig;
     }
     else {
-      $Reports->{QUERY}       =~ s/%GID%/$attr->{GID}/g;
-      $Reports->{QUERY_TOTAL} =~ s/%GID%/$attr->{GID}/g;
+      if($attr->{GID} =~ /,\s?/) {
+        $Reports->{QUERY}       =~ s/([a-z0-9\.\_]+)\s?\=\s?\'?%GID%\'?/$1 IN ($attr->{GID})/ig;
+        $Reports->{QUERY_TOTAL} =~ s/([a-z0-9\.\_]+)\s?\=\s?\'?%GID%\'?/$1 IN ($attr->{GID})/ig;
+      }
+      else {
+        $Reports->{QUERY} =~ s/%GID%/$attr->{GID}/g;
+        $Reports->{QUERY_TOTAL} =~ s/%GID%/$attr->{GID}/g;
+      }
     }
   }
 
@@ -1417,15 +1440,22 @@ sub _make_report_query {
 
   if ($Reports->{QUERY} =~ /%ADMIN_ID%/) {
     if (! defined($attr->{ADMIN_ID}) || $attr->{ADMIN_ID} eq '') {
-      $Reports->{QUERY}       =~ s/and [a-z0-9\.\_]+\=\'%ADMIN_ID%\'//ig;
-      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\=\'%ADMIN_ID%\'//ig;
+      $Reports->{QUERY}       =~ s/and [a-z0-9\.\_]+\s?\=\s?\'?%ADMIN_ID%\'?//ig;
+      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\s?\=\s?\'?%ADMIN_ID%\'?//ig;
     }
     else {
-      $Reports->{QUERY}       =~ s/%ADMIN_ID%/$attr->{ADMIN_ID}/g;
-      $Reports->{QUERY_TOTAL} =~ s/%ADMIN_ID%/$attr->{ADMIN_ID}/g;
+      if($attr->{ADMIN_ID} =~ /,\s?/) {
+        $Reports->{QUERY}       =~ s/([a-z0-9\.\_]+)\s?\=\s?\'?%ADMIN_ID%\'?/$1 IN ($attr->{ADMIN_ID})/ig;
+        $Reports->{QUERY_TOTAL} =~ s/([a-z0-9\.\_]+)\s?\=\s?\'?%ADMIN_ID%\'?/$1 IN ($attr->{ADMIN_ID})/ig;
+      }
+      else {
+        $Reports->{QUERY}       =~ s/%ADMIN_ID%/$attr->{ADMIN_ID}/g;
+        $Reports->{QUERY_TOTAL} =~ s/%ADMIN_ID%/$attr->{ADMIN_ID}/g;
+      }
     }
   }
-
+  
+  $Reports->{QUERY_TOTAL} //= "";
   $Reports->{QUERY_TOTAL} =~ s/^[\n\r]+$//g;
 
   return 1;
@@ -1461,7 +1491,7 @@ sub _print_report_table {
     if (_include('rwizard_print_rows_' . $Reports->{ID}, 'Rwizard', { CHECK_ONLY => 1  })) {
       foreach my $line ( @$list ) {
         if (defined($line->{payment_method})) {
-          $line->{payment_method}=$payment_methods->{$line->{payment_method}};
+          $line->{payment_method} = $payment_methods->{$line->{payment_method}};
         }
 
         $Reports->{REPORT_ROWS} .= $html->tpl_show(_include('rwizard_print_rows_' . $Reports->{ID}, 'Rwizard'),
@@ -1583,7 +1613,7 @@ sub _make_report_chart {
   my %CHART     = ();
   my %DATA_HASH = ();
 
-  my $num = -1;
+  my $num = 0;
   foreach my $line (@$list) {
     my @tr_arr = ();
     $num++;
@@ -1614,6 +1644,32 @@ sub _make_report_chart {
   }
 
   return (\%CHART, \%DATA_HASH);
+}
+
+#**********************************************************
+=head2 _rw_admins_list()
+
+=cut
+#**********************************************************
+sub _rw_admins_list {
+  my $admins_list = $admin->list({ COLS_NAME => 1, PAGE_ROWS => 9999});
+
+  my $table = $html->table({
+    width               => '100%',
+    title_plain         => [ '#', $lang{ADMIN}, $lang{FIO}],
+  });
+
+  foreach my $line (@$admins_list) {
+    next if ($line->{aid} == 2 || $line->{aid} == 3);
+    my $checkbox = $html->form_input('', '', { TYPE => 'checkbox', class => 'admin_checkbox', EX_PARAMS => "aid=$line->{aid}" });
+    $table->addrow(
+      $checkbox,
+      $line->{login},
+      $line->{name}
+    );
+  }
+
+  return $table->show({OUTPUT_TO_RETURN => 1});
 }
 
 1;

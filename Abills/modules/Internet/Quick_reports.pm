@@ -49,8 +49,8 @@ sub internet_sp_online {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "Internet - Online",
-      ID         => 'DV_ONLINE',
+      caption    => "$lang{INTERNET} - Online",
+      ID         => 'INTERNET_ONLINE',
       rows       => [
         [$html->button('Online', "index=$internet_online_index"   ),
           $Sessions->{ONLINE_COUNT}  ],
@@ -76,7 +76,6 @@ sub internet_sp_online {
 =cut
 #***************************************************************
 sub internet_sp_errors {
-  #my ($attr)=@_;
 
   my $Log     = Log->new($db, \%conf);
   my $list = $Log->log_reports({
@@ -87,9 +86,9 @@ sub internet_sp_errors {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "DV $lang{ERROR}",
-      ID         => 'DV_ERRORS',
-      title_plain=> [ "$lang{USER}", "$lang{COUNT}" ],
+      caption    => "$lang{INTERNET} $lang{ERROR}",
+      ID         => 'INTERNET_ERRORS',
+      title_plain=> [ $lang{USER}, $lang{COUNT} ],
     }
   );
 

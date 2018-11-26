@@ -31,13 +31,47 @@ my $Nas      = Nas->new($db, \%conf, $admin);
 my $Shedule  = Shedule->new($db, $admin, \%conf);
 my $Log      = Log->new($db, \%conf);
 
-
 #**********************************************************
 =head2 internet_user_info()
 
 =cut
 #**********************************************************
 sub internet_user_info {
+  my $uid = $LIST_PARAMS{UID};
+  if (!$FORM{ID}) {
+    my $list = $Internet->list({
+      GROUP_BY  => 'internet.id',
+      UID       => $uid,
+      DOMAIN_ID => $user->{DOMAIN_ID},
+      COLS_NAME => 1,
+    });
+
+    if ($Internet->{TOTAL_SERVICES} > 1) {
+      foreach my $line (@$list) {
+        # $Internet = Internet->new($db, $admin, \%conf);
+        $FORM{ID} = $line->{id};
+        $Internet->{PAYMENT_MESSAGE} = '';
+        $Internet->{NEXT_FEES_WARNING} = '';
+        $Internet->{TP_CHANGE_WARNING} = '';
+        $Internet->{SERVICE_EXPIRE_DATE} = '';
+        internet_user_info_proceed();
+      }
+      return 1;
+    }
+  }
+  internet_user_info_proceed();
+  return 1;
+} 
+
+
+#**********************************************************
+=head2 internet_user_info_proceed()
+
+=cut
+#**********************************************************
+sub internet_user_info_proceed {
+
+  my $uid = $LIST_PARAMS{UID};
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
   our $Isg;
@@ -117,8 +151,6 @@ sub internet_user_info {
       return 0;
     }
   }
-
-  my $uid = $LIST_PARAMS{UID};
 
   $Internet->info($uid, {
     ID        => $FORM{ID},
@@ -211,16 +243,20 @@ sub internet_user_info {
   });
 
   if ($Internet->{NEXT_FEES_WARNING}) {
-    $Internet->{NEXT_FEES_WARNING}=$html->message("$Internet->{NEXT_FEES_MESSAGE_TYPE}", "", $Internet->{NEXT_FEES_WARNING}, { OUTPUT2RETURN => 1 }) ;
-  }
+    $Internet->{NEXT_FEES_WARNING}=$html->message("$Internet->{NEXT_FEES_MESSAGE_TYPE}", 
+      $Internet->{TP_NAME}, 
+      $Internet->{NEXT_FEES_WARNING}, 
+      { OUTPUT2RETURN => 1 }) ;  }
+
+  internet_payment_message($Internet, $user, { NO_PAYMENT_BTN => 1 });
 
   # Check for sheduled tp change
-
   my $sheduled_tp_actions_list = $Shedule->list({
-    UID       => $user->{UID},
-    TYPE      => 'tp',
-    MODULE    => 'Internet',
-    COLS_NAME => 1
+    SERVICE_ID => $FORM{ID},
+    UID        => $user->{UID},
+    TYPE       => 'tp',
+    MODULE     => 'Internet',
+    COLS_NAME  => 1
   });
 
   if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0){
@@ -242,10 +278,11 @@ sub internet_user_info {
 
     if ($Tariffs->{TOTAL} && $Tariffs->{TOTAL} > 0){
       my $next_tp_name = $tp_list->[0]{name};
-      $Internet->{TP_CHANGE_WARNING} = $html->reminder($lang{TP_CHANGE_SHEDULED}, "$next_tp_name ($next_tp_date)", {
-        OUTPUT2RETURN => 1,
-        class         => 'info'
-      });
+      #$Internet->{TP_CHANGE_WARNING} = $html->reminder($lang{TP_CHANGE_SHEDULED}, "$next_tp_name ($next_tp_date)", {
+      #  OUTPUT2RETURN => 1,
+      #  class         => 'info'
+      #});
+      $Internet->{TP_CHANGE_WARNING} = $html->message("info", $lang{TP_CHANGE_SHEDULED}." ($next_tp_date)", $next_tp_name, { OUTPUT2RETURN => 1 });
     }
   }
 
@@ -460,12 +497,25 @@ sub internet_service_info {
 
 
 #**********************************************************
-=head2 internet_discovery($attr)
+=head2 internet_discovery($user_ip)
+
+  Arguments:
+    $user_ip
+
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
 sub internet_discovery {
   my ($user_ip)=@_;
+
+  if($conf{INTERNET_IP_DISCOVERY_IP}) {
+    my ($user_name, $discovery_user_ip) = split(/:/, $conf{INTERNET_IP_DISCOVERY_IP});
+    if($user_name eq $user->{LOGIN}) {
+      $user_ip = $discovery_user_ip;
+    }
+  }
 
   $conf{INTERNET_IP_DISCOVERY}=~s/[\r\n ]//g;
   my @dhcp_nets         = split(/;/, $conf{INTERNET_IP_DISCOVERY});
@@ -489,7 +539,9 @@ sub internet_discovery {
       #USER_NAME => $user->{LOGIN},
       ACCT_SESSION_ID => '_SHOW',
       NAS_ID    => '_SHOW',
-      GUEST     => '_SHOW'
+      GUEST     => '_SHOW',
+      SORT      => 'guest',
+      DESC      => 'DESC',
     }
   );
 
@@ -645,6 +697,14 @@ sub internet_user_chg_tp {
   $Internet->{ABON_DATE} = $Service_mng->{ABON_DATE};
 
   if ($FORM{set} && $FORM{ACCEPT_RULES}) {
+    if ($conf{user_confirm_changes}) {
+      return 1 unless ($FORM{PASSWORD});
+      $user->info($user->{UID}, {SHOW_PASSWORD => 1});
+      if ($FORM{PASSWORD} ne $user->{PASSWORD}) {
+        $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD});
+        return 1;
+      }
+    }
     if (!$FORM{TP_ID} || $FORM{TP_ID} < 1) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}: $lang{TARIF_PLAN}", { ID => 141 });
     }
@@ -801,6 +861,14 @@ sub internet_user_chg_tp {
     }
   }
   elsif ($FORM{del}) {
+    if ($conf{user_confirm_changes}) {
+      return 1 unless ($FORM{PASSWORD});
+      $user->info($user->{UID}, {SHOW_PASSWORD => 1});
+      if ($FORM{PASSWORD} ne $user->{PASSWORD}) {
+        $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD});
+        return 1;
+      }
+    }
     $Shedule->del({
       UID => $uid || '-',
       ID  => $FORM{SHEDULE_ID}
@@ -1224,7 +1292,7 @@ sub internet_dhcp_get_mac_add {
   $conf{INTERNET_IP_DISCOVERY}=~s/[\r\n ]//g;
   my @dhcp_nets         = split(/;/, $conf{INTERNET_IP_DISCOVERY});
   my $default_params    = "IP,MAC";
-  #load_module('Dhcphosts', $html);
+
 
   foreach my $nets (@dhcp_nets) {
     my %PARAMS_HASH = ();
@@ -1246,15 +1314,22 @@ sub internet_dhcp_get_mac_add {
 
     if (ip2int($ip) >= ip2int($start_ip) && ip2int($ip) <= ip2int($start_ip) + $address_count) {
       require Internet::User_ips;
-      $PARAMS_HASH{IP} = get_static_ip($net_id);
 
-      if($PARAMS_HASH{IP} !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
-        if ($PARAMS_HASH{IP} == -1) {
-          return 0;
+      if($net_id) {
+        $PARAMS_HASH{IP} = get_static_ip($net_id);
+
+        if ($PARAMS_HASH{IP} !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
+          if ($PARAMS_HASH{IP} == -1) {
+            return 0;
+          }
+          elsif ($PARAMS_HASH{IP} == 0) {
+            $PARAMS_HASH{IP} = '0.0.0.0';
+          }
         }
-        elsif ($PARAMS_HASH{IP} == 0) {
-          $PARAMS_HASH{IP} = '0.0.0.0';
-        }
+      }
+
+      if ($PARAMS_HASH{MAC}) {
+        $PARAMS_HASH{CID} = $PARAMS_HASH{MAC};
       }
 
       my $list = $Internet->list({
@@ -1270,6 +1345,7 @@ sub internet_dhcp_get_mac_add {
           {
             %PARAMS_HASH,
             ID     => $list->[0]->{id},
+            UID    => $list->[0]->{uid},
             NETWORK=> $net_id,
             #MAC    => $PARAMS_HASH{MAC}
           }
@@ -1521,7 +1597,7 @@ sub internet_holdup_service {
   if ($Shedule->{TOTAL}) {
     $html->message('info', $lang{INFO}, "$lang{HOLD_UP}: ". ($shedule_date{3} || '-') ." $lang{TO} ". ($shedule_date{0} || '-') .
         (($Shedule->{TOTAL} > 1) ? $html->br() .
-          $html->button($lang{DEL}, "index=$index&del=$del_ids". (($sid) ? "&sid=$sid" : q{}),
+          $html->button($lang{DEL}, "index=$index&ID=$FORM{ID}&del=$del_ids". (($sid) ? "&sid=$sid" : q{}),
             { class => 'btn btn-primary', MESSAGE => "$lang{DEL} $lang{HOLD_UP}?" }) : ''));
     return '';
   }
@@ -1599,16 +1675,16 @@ sub internet_holdup_service {
     }
   }
 
-  if (($user->{INTERNET_STATUS} && $user->{INTERNET_STATUS} == 3) || $user->{DISABLE}) {
+  if (($Internet->{STATUS} && $Internet->{STATUS} == 3) || $Internet->{DISABLE}) {
     $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .
-      $html->button($lang{ACTIVATE}, "index=$index&del=1&sid=$sid", { BUTTON => 1, MESSAGE => "$lang{ACTIVATE}?" }) );
+      $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=$FORM{ID}sid=$sid", { BUTTON => 1, MESSAGE => "$lang{ACTIVATE}?" }) );
     return '';
   }
 
   $Internet->{DATE_FROM} = $html->date_fld2(
     'FROM_DATE',
     {
-      FORM_NAME => 'holdup',
+      FORM_NAME => 'holdup_' . $Internet->{ID},
       WEEK_DAYS => \@WEEKDAYS,
       MONTHES   => \@MONTHES,
       NEXT_DAY  => 1
@@ -1618,13 +1694,13 @@ sub internet_holdup_service {
   $Internet->{DATE_TO} = $html->date_fld2(
     'TO_DATE',
     {
-      FORM_NAME => 'holdup',
+      FORM_NAME => 'holdup_' . $Internet->{ID},
       WEEK_DAYS => \@WEEKDAYS,
       MONTHES   => \@MONTHES,
     }
   );
 
-  return (! $user->{INTERNET_STATUS}) ? $html->tpl_show(_include('internet_hold_up', 'Internet'), $Internet, { OUTPUT2RETURN => 1 }) : q{};
+  return (! $Internet->{STATUS}) ? $html->tpl_show(_include('internet_hold_up', 'Internet'), $Internet, { OUTPUT2RETURN => 1 }) : q{};
 }
 
 #**********************************************************

@@ -15,13 +15,13 @@ use JSON;
 use Contacts;
 
 our ($db,
- $admin,
- $html,
- %lang,
- %permissions,
- @WEEKDAYS,
- @MONTHES,
- @status
+  $admin,
+  $html,
+  %lang,
+  %permissions,
+  @WEEKDAYS,
+  @MONTHES,
+  @status
 );
 
 #**********************************************************
@@ -33,16 +33,16 @@ sub form_admins {
 
   my $Employees;
 
-  if( in_array('Employees', \@MODULES) ){
+  if (in_array('Employees', \@MODULES)) {
     load_module("Employees", $html);
     $Employees = Employees->new($db, $admin, \%conf);
   }
   my $admin_form = Admins->new($db, \%conf);
-  $admin_form->{ACTION}     = 'add';
+  $admin_form->{ACTION} = 'add';
   $admin_form->{LNG_ACTION} = $lang{ADD};
 
   # Should be sent with another name to prevent authorization
-  if (defined $FORM{API_KEY_NEW}){
+  if (defined $FORM{API_KEY_NEW}) {
     $FORM{API_KEY} = $FORM{API_KEY_NEW};
   }
 
@@ -55,52 +55,51 @@ sub form_admins {
       $admin_form->add({ %FORM, DOMAIN_ID => $FORM{DOMAIN_ID} || $admin->{DOMAIN_ID} });
       if (!$admin_form->{errno}) {
         $html->message('info', $lang{INFO}, "$lang{ADDED}: $FORM{A_LOGIN}");
-        $FORM{AID}=$admin_form->{AID};
+        $FORM{AID} = $admin_form->{AID};
       }
     }
 
     delete $admin_form->{AID};
   }
 
-
   if ($FORM{AID}) {
     $admin_form->info($FORM{AID});
     _error_show($admin_form);
 
-    if(! $FORM{DOMAIN_ID}) {
-      $FORM{DOMAIN_ID}  = $admin_form->{DOMAIN_ID} if($admin_form->{DOMAIN_ID});
+    if (!$FORM{DOMAIN_ID}) {
+      $FORM{DOMAIN_ID} = $admin_form->{DOMAIN_ID} if ($admin_form->{DOMAIN_ID});
     }
 
-    $pages_qs        = "&AID=$admin_form->{AID}". (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
+    $pages_qs = "&AID=$admin_form->{AID}" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
     my $A_LOGIN = $html->form_main({
       CONTENT => sel_admins(),
-      HIDDEN => {
+      HIDDEN  => {
         index => $index,
         subf  => $FORM{subf}
       },
-      SUBMIT => { show => $lang{SHOW} },
-      class  => 'navbar-form navbar-right',
+      SUBMIT  => { show => $lang{SHOW} },
+      class   => 'navbar-form navbar-right',
     });
 
     $LIST_PARAMS{AID} = $admin_form->{AID};
     my @admin_menu = (
-      $lang{INFO}       . "::AID=$admin_form->{AID}:change",
-      $lang{LOG}        . ':'. get_function_index('form_changes') . ":AID=$admin_form->{AID}:history",
-      $lang{FEES}       . ":3:AID=$admin_form->{AID}:fees",
-      $lang{PAYMENTS}   . ":2:AID=$admin_form->{AID}:payments",
+      $lang{INFO} . "::AID=$admin_form->{AID}:change",
+      $lang{LOG} . ':' . get_function_index('form_changes') . ":AID=$admin_form->{AID}:history",
+      $lang{FEES} . ":3:AID=$admin_form->{AID}:fees",
+      $lang{PAYMENTS} . ":2:AID=$admin_form->{AID}:payments",
       $lang{PERMISSION} . ":52:AID=$admin_form->{AID}:permissions",
-      $lang{PASSWD}     . ":54:AID=$admin_form->{AID}:password"
+      $lang{PASSWD} . ":54:AID=$admin_form->{AID}:password"
     );
 
-    push @admin_menu, $lang{GROUP} . ":58:AID=$admin_form->{AID}:users" if (! $admin->{GID});
+    push @admin_menu, $lang{GROUP} . ":58:AID=$admin_form->{AID}:users" if (!$admin->{GID});
     push @admin_menu, $lang{ACCESS} . ":59:AID=$admin_form->{AID}:",
-    'Paranoid'   . ':'. get_function_index('form_admins_full_log_analyze') .":AID=$admin_form->{AID}:",
-    $lang{CONTACTS}   . ":61:AID=$admin_form->{AID}:contacts";
-    if(in_array('Multidoms', \@MODULES)) {
+      'Paranoid' . ':' . get_function_index('form_admins_full_log_analyze') . ":AID=$admin_form->{AID}:",
+      $lang{CONTACTS} . ":61:AID=$admin_form->{AID}:contacts";
+    if (in_array('Multidoms', \@MODULES)) {
       push @admin_menu, $lang{DOMAINS} . ":113:AID=$admin_form->{AID}:domains";
     }
-    if(in_array('Msgs', \@MODULES)) {
-      push @admin_menu, "$lang{MESSAGES}:".get_function_index('msgs_admin') .":AID=$admin_form->{AID}:msgs";
+    if (in_array('Msgs', \@MODULES)) {
+      push @admin_menu, "$lang{MESSAGES}:" . get_function_index('msgs_admin') . ":AID=$admin_form->{AID}:msgs";
     }
 
     func_menu(
@@ -112,7 +111,7 @@ sub form_admins {
     );
 
     if (defined $FORM{newpassword}) {
-      if(! form_passwd({ ADMIN => $admin_form })) {
+      if (!form_passwd({ ADMIN => $admin_form })) {
         delete $FORM{change};
       }
     }
@@ -124,18 +123,18 @@ sub form_admins {
       $admin_form->{MAIN_SESSION_IP} = $admin->{SESSION_IP};
 
       # Check it was default password
-      if ($FORM{newpassword} && !$conf{DEFAULT_PASSWORD_CHANGED} && $FORM{AID} == 1 && $FORM{newpassword} ne 'abills'){
-        $Conf->config_add({ PARAM => 'DEFAULT_PASSWORD_CHANGED', VALUE => 1, REPLACE => 1});
+      if ($FORM{newpassword} && !$conf{DEFAULT_PASSWORD_CHANGED} && $FORM{AID} == 1 && $FORM{newpassword} ne 'abills') {
+        $Conf->config_add({ PARAM => 'DEFAULT_PASSWORD_CHANGED', VALUE => 1, REPLACE => 1 });
         _error_show($Conf);
         $conf{DEFAULT_PASSWORD_CHANGED} = 1;
       }
 
-      $admin_form->change({%FORM});
+      $admin_form->change({ %FORM });
       if (!$admin_form->{errno}) {
         $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ");
       }
     }
-    $admin_form->{ACTION}     = 'change';
+    $admin_form->{ACTION} = 'change';
     $admin_form->{LNG_ACTION} = $lang{CHANGE};
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
@@ -150,8 +149,8 @@ sub form_admins {
       }
     }
   }
-  elsif($FORM{REGISTER_TELEGRAM}){
-    $admin_form->change({AID => $admin->{AID}, TELEGRAM_ID => $FORM{telegram_id}});
+  elsif ($FORM{REGISTER_TELEGRAM}) {
+    $admin_form->change({ AID => $admin->{AID}, TELEGRAM_ID => $FORM{telegram_id} });
     $html->message("info", $lang{SUCCESS}, "Telegram ID $lang{ADDED}");
     return 1;
   }
@@ -168,7 +167,7 @@ sub form_admins {
     }
   );
 
-  if( in_array('Employees', \@MODULES)){
+  if (in_array('Employees', \@MODULES)) {
     $admin_form->{POSITIONS} = $html->form_select(
       'POSITION',
       {
@@ -190,13 +189,13 @@ sub form_admins {
     });
   }
 
-  $admin_form->{FULL_LOG}  = ($admin_form->{FULL_LOG}) ? 'checked' : '';
-  $admin_form->{DISABLE}   = ( defined($admin_form->{DISABLE}) && $admin_form->{DISABLE} > 0) ? 'checked' : '';
+  $admin_form->{FULL_LOG} = ($admin_form->{FULL_LOG}) ? 'checked' : '';
+  $admin_form->{DISABLE} = (defined($admin_form->{DISABLE}) && $admin_form->{DISABLE} > 0) ? 'checked' : '';
   $admin_form->{GROUP_SEL} = sel_groups({ GID => $admin_form->{GID}, SKIP_MULTISELECT => 1 });
 
   if ($admin_form->{DOMAIN_ID}) {
     $admin_form->{DOMAIN_SEL} = $html->button($admin_form->{DOMAIN_NAME},
-      'index='.get_function_index('multidoms_domains'). "&chg=$admin_form->{DOMAIN_ID}", { BUTTON => 1 });
+      'index=' . get_function_index('multidoms_domains') . "&chg=$admin_form->{DOMAIN_ID}", { BUTTON => 1 });
   }
   elsif (in_array('Multidoms', \@MODULES)) {
     load_module('Multidoms', $html);
@@ -207,25 +206,25 @@ sub form_admins {
   }
 
   #check if have GPS modules and position. If so, show a link to map
-  if (in_array('Maps', \@MODULES) && $admin_form->{GPS_IMEI} && $admin_form->{GPS_IMEI} ne ''){
+  if (in_array('Maps', \@MODULES) && $admin_form->{GPS_IMEI} && $admin_form->{GPS_IMEI} ne '') {
     my $maps_index = get_function_index('maps_show_map');
     my $link = "?index=$maps_index&show_gps=$admin_form->{AID}";
     $admin_form->{GPS_ROUTE_BTN} = $html->button('', '', {
-      GLOBAL_URL => $link,
-      target     => '_blank',
-      class      => 'btn btn-info',
-      INCON      => 'glyphicon glyphicon-globe',
+      GLOBAL_URL     => $link,
+      target         => '_blank',
+      class          => 'btn btn-info',
+      INCON          => 'glyphicon glyphicon-globe',
       NO_LINK_FORMER => 1
     });
 
     $admin_form->{GPS_ICON_BTN} = $html->button('', '', {
-       GLOBAL_URL     => $link,
-       class          => 'btn btn-default',
-       ICON           => 'glyphicon glyphicon-picture',
-       NO_LINK_FORMER => 1,
-       JAVASCRIPT     => '#',
-       ex_params      => qq/onclick='loadToModal("?get_index=gps_add_thumbnail&header=2&AID=$FORM{AID}")'/,
-       SKIP_HREF      => 1
+      GLOBAL_URL     => $link,
+      class          => 'btn btn-default',
+      ICON           => 'glyphicon glyphicon-picture',
+      NO_LINK_FORMER => 1,
+      JAVASCRIPT     => '#',
+      ex_params      => qq/onclick='loadToModal("?get_index=gps_add_thumbnail&header=2&AID=$FORM{AID}")'/,
+      SKIP_HREF      => 1
     });
   }
 
@@ -241,7 +240,7 @@ sub form_admins {
   delete($LIST_PARAMS{AID});
   delete $admin_form->{COL_NAMES_ARR};
 
-  if(in_array('Employees', \@MODULES)){
+  if (in_array('Employees', \@MODULES)) {
     $admin_form->{SHOW_EMPLOYEES} = 1;
   }
 
@@ -254,38 +253,38 @@ sub form_admins {
     FUNCTION_FIELDS => 'permission,log,passwd,info,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
-      name           => $lang{FIO},
-      position       => $lang{POSITION},
-      regdate 	     => $lang{REGISTRATION},
-      disable        => $lang{STATUS},
-      aid            => '#',
-      g_name         => $lang{GROUPS},
-      domain_name    => 'Domain',
-      start_work     => $lang{BEGIN},
-      gps_imei       => 'GPS IMEI',
-      birthday       => $lang{BIRTHDAY},
-      api_key        => 'API_KEY',
-      telegram_id    => 'Telegram ID',
+      name        => $lang{FIO},
+      position    => $lang{POSITION},
+      regdate     => $lang{REGISTRATION},
+      disable     => $lang{STATUS},
+      aid         => '#',
+      g_name      => $lang{GROUPS},
+      domain_name => 'Domain',
+      start_work  => $lang{BEGIN},
+      gps_imei    => 'GPS IMEI',
+      birthday    => $lang{BIRTHDAY},
+      api_key     => 'API_KEY',
+      telegram_id => 'Telegram ID',
     },
-    TABLE => {
-      width      => '100%',
-      caption    => $lang{ADMINS},
-      qs         => $pages_qs,
-      ID         => 'ADMINS_LIST',
+    TABLE           => {
+      width          => '100%',
+      caption        => $lang{ADMINS},
+      qs             => $pages_qs,
+      ID             => 'ADMINS_LIST',
       SHOW_FULL_LIST => 1,
-      MENU       => "$lang{ADD}:index=$index&show_add_form=1:add;$lang{SEARCH}:search_form=1&index=$index:search"
+      MENU           => "$lang{ADD}:index=$index&show_add_form=1:add;$lang{SEARCH}:search_form=1&index=$index:search"
     }
   });
 
   foreach my $line (@$admins_list) {
     my @fields_array = ();
-    for (my $i = 0; $i < 4+$admin_form->{SEARCH_FIELDS_COUNT}; $i++) {
+    for (my $i = 0; $i < 4 + $admin_form->{SEARCH_FIELDS_COUNT}; $i++) {
       my $field_name = $admin_form->{COL_NAMES_ARR}->[$i] || '';
 
-      if ( $field_name eq 'disable' && $line->{disable} =~ /\d+/ ){
+      if ($field_name eq 'disable' && $line->{disable} =~ /\d+/) {
         $line->{disable} = $status[ $line->{disable} ];
       }
-      elsif($field_name eq 'gname') {
+      elsif ($field_name eq 'gname') {
         $line->{gname} .= $admin_groups{ $line->{aid} },
       }
 
@@ -293,17 +292,17 @@ sub form_admins {
     }
 
     my $geo_button = '';
-    if(in_array('Employees', \@MODULES)){
-      $geo_button = $html->button($lang{GEO}, "index=" . get_function_index('employees_geolocation') ."&eid=$line->{aid}",{ICON => 'glyphicon glyphicon-map-marker'})
+    if (in_array('Employees', \@MODULES)) {
+      $geo_button = $html->button($lang{GEO}, "index=" . get_function_index('employees_geolocation') . "&eid=$line->{aid}", { ICON => 'glyphicon glyphicon-map-marker' })
     }
 
     $table->addrow(@fields_array,
       $html->button($lang{PERMISSION}, "index=$index&subf=52&AID=$line->{aid}", { class => 'permissions', ICON => 'glyphicon glyphicon-check' })
-      . $geo_button
-      . $html->button($lang{LOG},        "index=$index&subf=51&AID=$line->{aid}", { class => 'history' })
-      . $html->button($lang{PASSWD},     "index=$index&subf=54&AID=$line->{aid}", { class => 'password' })
-      . $html->button($lang{INFO},       "index=$index&AID=$line->{aid}",         { class => 'change' })
-      . $html->button($lang{DEL},        "index=$index&del=$line->{aid}", { MESSAGE => "$lang{DEL} $line->{aid}?", class => 'del' })
+        . $geo_button
+        . $html->button($lang{LOG}, "index=$index&subf=51&AID=$line->{aid}", { class => 'history' })
+        . $html->button($lang{PASSWD}, "index=$index&subf=54&AID=$line->{aid}", { class => 'password' })
+        . $html->button($lang{INFO}, "index=$index&AID=$line->{aid}", { class => 'change' })
+        . $html->button($lang{DEL}, "index=$index&del=$line->{aid}", { MESSAGE => "$lang{DEL} $line->{aid}?", class => 'del' })
     );
   }
 
@@ -311,8 +310,8 @@ sub form_admins {
 
   $table = $html->table(
     {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b($admin_form->{TOTAL}) ] ]
+      width => '100%',
+      rows  => [ [ "$lang{TOTAL}:", $html->b($admin_form->{TOTAL}) ] ]
     }
   );
   print $table->show();
@@ -339,7 +338,7 @@ sub form_admins_groups {
   my Admins $admin_ = $attr->{ADMIN};
 
   if ($FORM{change}) {
-    $admin_->admin_groups_change({%FORM});
+    $admin_->admin_groups_change({ %FORM });
     if (_error_show($admin_)) {
       $html->message('info', $lang{CHANGED}, "$lang{CHANGED} GID: [$FORM{GID}]");
     }
@@ -347,9 +346,9 @@ sub form_admins_groups {
 
   my $table = $html->table(
     {
-      width      => '100%',
-      caption    => $lang{GROUP},
-      title      => [ 'ID', $lang{NAME} ],
+      width   => '100%',
+      caption => $lang{GROUP},
+      title   => [ 'ID', $lang{NAME} ],
     }
   );
 
@@ -374,7 +373,7 @@ sub form_admins_groups {
         AID   => $FORM{AID},
         subf  => $FORM{subf}
       },
-      SUBMIT => { change => "$lang{CHANGE}" }
+      SUBMIT  => { change => "$lang{CHANGE}" }
     }
   );
 
@@ -400,29 +399,29 @@ sub form_admins_full_log {
   $admin_->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
-    $admin_->full_log_add( { %FORM } );
+    $admin_->full_log_add({ %FORM });
     if (!$admin_->{errno}) {
-      $html->message( 'info', $lang{ADDED}, "$lang{ADDED} $FORM{IP}" );
+      $html->message('info', $lang{ADDED}, "$lang{ADDED} $FORM{IP}");
     }
   }
   elsif ($FORM{change}) {
-    $admin_->full_log_change( { %FORM } );
+    $admin_->full_log_change({ %FORM });
     if (!$admin_->{errno}) {
-      $html->message( 'info', $lang{ADDED}, "$lang{CHANGED} $FORM{IP}" );
+      $html->message('info', $lang{ADDED}, "$lang{CHANGED} $FORM{IP}");
     }
   }
   elsif ($FORM{chg}) {
-    $admin_->full_log_info( $FORM{chg}, { %FORM } );
+    $admin_->full_log_info($FORM{chg}, { %FORM });
     if (!$admin_->{errno}) {
-      $html->message( 'info', $lang{ADDED}, "$lang{INFO} $FORM{IP}" );
+      $html->message('info', $lang{ADDED}, "$lang{INFO} $FORM{IP}");
       $admin_->{ACTION} = 'change';
       $admin_->{LNG_ACTION} = $lang{CHANGE};
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $admin_->full_log_del( { ID => $FORM{del} } );
+    $admin_->full_log_del({ ID => $FORM{del} });
     if (!$admin_->{errno}) {
-      $html->message( 'info', $lang{INFO}, "$lang{DELETED} [$FORM{del}]" );
+      $html->message('info', $lang{INFO}, "$lang{DELETED} [$FORM{del}]");
     }
   }
 
@@ -437,9 +436,9 @@ sub form_admins_full_log {
     });
   }
 
-  if (! $FORM{sort}) {
-    $LIST_PARAMS{SORT}=1;
-    $LIST_PARAMS{DESC}='desc';
+  if (!$FORM{sort}) {
+    $LIST_PARAMS{SORT} = 1;
+    $LIST_PARAMS{DESC} = 'desc';
   }
 
   result_former({
@@ -448,14 +447,14 @@ sub form_admins_full_log {
     DEFAULT_FIELDS  => 'DATETIME,FUNCTION_NAME,PARAMS,IP,SID',
     FUNCTION_FIELDS => 'change,del',
     SELECT_VALUE    => {
-                         disable => { 0 => $lang{ENABLE}, 1 => $lang{DISABLE} }  },
-    TABLE => {
-      width    => '100%',
-      caption  => "Paranoid log",
-      ID       => 'ADMIN_PARANOID_LOG',
-      qs       => "&AID=$FORM{AID}&subf=$FORM{subf}",
-      EXPORT   => 1,
-      MENU     => "$lang{SEARCH}:search_form=1&index=$index&AID=$FORM{AID}&subf=$FORM{subf}:search"
+      disable => { 0 => $lang{ENABLE}, 1 => $lang{DISABLE} } },
+    TABLE           => {
+      width   => '100%',
+      caption => "Paranoid log",
+      ID      => 'ADMIN_PARANOID_LOG',
+      qs      => "&AID=$FORM{AID}&subf=$FORM{subf}",
+      EXPORT  => 1,
+      MENU    => "$lang{SEARCH}:search_form=1&index=$index&AID=$FORM{AID}&subf=$FORM{subf}:search"
     },
     MAKE_ROWS       => 1,
     TOTAL           => 1
@@ -471,8 +470,8 @@ sub form_admins_full_log {
 #**********************************************************
 sub form_admins_full_log_analyze {
 
-  if (! $permissions{4}{4}) {
-    $html->message( 'err', $lang{ERROR} , $lang{ERR_ACCESS_DENY} );
+  if (!$permissions{4}{4}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
     return 1;
   };
 
@@ -480,19 +479,19 @@ sub form_admins_full_log_analyze {
   _error_show($admin_);
 
   my $date_picker = $html->form_daterangepicker({
-    NAME      => 'FROM_DATE/TO_DATE'
+    NAME => 'FROM_DATE/TO_DATE'
   });
 
   my $A_LOGIN = $html->form_main({
-    CONTENT => $date_picker.sel_admins(),
+    CONTENT => $date_picker . sel_admins(),
     HIDDEN  => { index => $index },
     SUBMIT  => { show => $lang{SHOW} },
     class   => 'navbar-form navbar-right',
   });
   delete $FORM{subf};
-  func_menu({ $lang{NAME} => $A_LOGIN }, { }, { } );
+  func_menu({ $lang{NAME} => $A_LOGIN }, {}, {});
 
-  if (! $FORM{AID}) {
+  if (!$FORM{AID}) {
     return 1;
   }
 
@@ -500,56 +499,56 @@ sub form_admins_full_log_analyze {
   $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE};
   $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE};
 
-  if($FORM{details}) {
+  if ($FORM{details}) {
     $LIST_PARAMS{FUNCTION_NAME} = $FORM{details};
   }
   else {
-   $LIST_PARAMS{FUNCTION_NAME} = "!msgs_admin";
+    $LIST_PARAMS{FUNCTION_NAME} = "!msgs_admin";
   }
 
   if ($FORM{list}) {
     result_former({
-      INPUT_DATA      => $admin_,
-      FUNCTION        => 'full_log_list',
-      DEFAULT_FIELDS  => 'DATETIME,FUNCTION_NAME,PARAMS',
+      INPUT_DATA     => $admin_,
+      FUNCTION       => 'full_log_list',
+      DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS',
       # SKIP_PAGES      => 1,
-      FILTER_COLS => {
-        function_name    => '_paranoid_log_function_filter',
-        params           => '_paranoid_log_params_filter'
+      FILTER_COLS    => {
+        function_name => '_paranoid_log_function_filter',
+        params        => '_paranoid_log_params_filter'
       },
-      TABLE => {
-        width    => '100%',
-        caption  => "Paranoid log",
-        ID       => 'ADMIN_PARANOID_LOG',
-        MENU     => "$lang{STATS}:index=60&AID=$FORM{AID}:btn bg-olive margin;",
-        qs       => "&AID=$FORM{AID}&list=1",
+      TABLE          => {
+        width   => '100%',
+        caption => "Paranoid log",
+        ID      => 'ADMIN_PARANOID_LOG',
+        MENU    => "$lang{STATS}:index=60&AID=$FORM{AID}:btn bg-olive margin;",
+        qs      => "&AID=$FORM{AID}&list=1",
       },
-      MAKE_ROWS       => 1,
-      SKIP_TOTAL      => 1,
-      TOTAL           => 1
+      MAKE_ROWS      => 1,
+      SKIP_TOTAL     => 1,
+      TOTAL          => 1
     });
     return 1;
   }
 
   my (undef, $list) = result_former({
-    INPUT_DATA      => $admin_,
-    FUNCTION        => 'full_log_analyze',
-    DEFAULT_FIELDS  => 'DATETIME,FUNCTION_NAME,PARAMS,COUNT',
-    SKIP_PAGES      => 1,
-    FILTER_COLS => {
-      function_name    => '_paranoid_log_function_filter',
-      params           => '_paranoid_log_params_filter'
+    INPUT_DATA     => $admin_,
+    FUNCTION       => 'full_log_analyze',
+    DEFAULT_FIELDS => 'DATETIME,FUNCTION_NAME,PARAMS,COUNT',
+    SKIP_PAGES     => 1,
+    FILTER_COLS    => {
+      function_name => '_paranoid_log_function_filter',
+      params        => '_paranoid_log_params_filter'
     },
-    TABLE => {
-      width    => '100%',
-      caption  => "Paranoid log",
-      ID       => 'ADMIN_PARANOID_LOG',
-      MENU     => "$lang{LIST}:index=60&AID=$FORM{AID}&list=1&sort=1&desc=DESC:btn bg-olive margin;",
-      qs       => "&AID=$FORM{AID}",
+    TABLE          => {
+      width   => '100%',
+      caption => "Paranoid log",
+      ID      => 'ADMIN_PARANOID_LOG',
+      MENU    => "$lang{LIST}:index=60&AID=$FORM{AID}&list=1&sort=1&desc=DESC:btn bg-olive margin;",
+      qs      => "&AID=$FORM{AID}",
     },
-    MAKE_ROWS       => 1,
-    SKIP_TOTAL      => 1,
-    TOTAL           => 1
+    MAKE_ROWS      => 1,
+    SKIP_TOTAL     => 1,
+    TOTAL          => 1
   });
 
   my %chartdata = ();
@@ -557,7 +556,7 @@ sub form_admins_full_log_analyze {
   foreach (@$list) {
     push @{$chartdata{count}}, $_->{count};
     if ($FORM{details}) {
-      $_->{params} =~s/\n/&/g;
+      $_->{params} =~ s/\n/&/g;
       push @xtext, $_->{params};
     }
     else {
@@ -569,10 +568,10 @@ sub form_admins_full_log_analyze {
     {
       DATA         => \%chartdata,
       X_TEXT       => \@xtext,
-      TYPES        => { count => 'bar'},
+      TYPES        => { count => 'bar' },
       SKIP_COMPARE => 1,
-      }
-    );
+    }
+  );
 
   return 1;
 }
@@ -691,33 +690,42 @@ sub form_admin_permissions {
   my ($attr) = @_;
 
   my @actions = (
-    [ $lang{INFO}, $lang{ADD}, $lang{LIST}, $lang{PASSWD}, $lang{CHANGE}, $lang{DEL}, $lang{ALL}, $lang{MULTIUSER_OP}, "$lang{SHOW} $lang{DELETED}",
-     $lang{CREDIT},
-     $lang{TARIF_PLANS},
-     $lang{REDUCTION},
-     "$lang{DISABLE} $lang{DEPOSIT}",
-     "$lang{CONFIRM} $lang{ACTION}",
-     "$lang{DELETED} $lang{SERVICE}",
-     "$lang{CHANGE} $lang{BILL}",
-     $lang{COMPENSATION},
-     $lang{EXPORT},
-     $lang{STATUS}, # 18
-     "$lang{ACTIVATE} $lang{DATE}", # 19
-     "$lang{EXPIRE} $lang{DATE}", # 20
-     $lang{BONUS},
-     "PORT CONTROL", # 22
-     "DEVICE REBOOT",
-     "EXTENDED INFO", # 24 user extended info form
-     "$lang{PERSONAL} $lang{TARIF_PLAN}"
-    ],    # Users
-    [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ],   # Payments
-    [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],           # Fees
-    [ $lang{LIST}, $lang{DEL}, $lang{PAYMENTS}, $lang{FEES}, $lang{EVENTS}, $lang{SYSTEM}, $lang{LAST_LOGIN}],     # reports view
+    [ $lang{INFO},
+      $lang{ADD},
+      $lang{LIST},
+      $lang{PASSWD},
+      $lang{CHANGE},
+      $lang{DEL},
+      $lang{ALL},
+      $lang{MULTIUSER_OP},
+      "$lang{SHOW} $lang{DELETED}",
+      $lang{CREDIT},
+      $lang{TARIF_PLANS},
+      $lang{REDUCTION},
+      "$lang{SHOW} $lang{DEPOSIT}",
+      "$lang{WITHOUT_CONFIRM}",
+      "$lang{DELETED} $lang{SERVICE}",
+      "$lang{CHANGE} $lang{BILL}",
+      $lang{COMPENSATION},
+      $lang{EXPORT},
+      $lang{STATUS},                 # 18
+      "$lang{ACTIVATE} $lang{DATE}", # 19
+      "$lang{EXPIRE} $lang{DATE}",   # 20
+      $lang{BONUS},
+      "PORT CONTROL", # 22
+      "DEVICE REBOOT",
+      "EXTENDED INFO", # 24 user extended info form
+      "$lang{PERSONAL} $lang{TARIF_PLAN}",
+      "SHOW PERSONAL INFO"
+    ],                                                                                                                            # Users
+    [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ],                                              # Payments
+    [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],                                                                          # Fees
+    [ $lang{LIST}, $lang{DEL}, $lang{PAYMENTS}, $lang{FEES}, $lang{EVENTS}, $lang{SETTINGS}, $lang{LAST_LOGIN}, $lang{ERROR_LOG} ], # reports view
     [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL}, $lang{ADMINS},
-   "$lang{SYSTEM} $lang{LOG}", $lang{DOMAINS}, "$lang{TEMPLATES} $lang{CHANGE}", 'REBOOT SERVICE', "$lang{SHOW} PIN $lang{ICARDS}" ],            # system magment
+      "$lang{SYSTEM} $lang{LOG}", $lang{DOMAINS}, "$lang{TEMPLATES} $lang{CHANGE}", 'REBOOT SERVICE', "$lang{SHOW} PIN $lang{ICARDS}" ], # system magment
     [ $lang{MONITORING}, 'ZAP', $lang{HANGUP} ],
-    [ $lang{SEARCH} ],                                # Search
-    [ $lang{ALL}, "$lang{EDIT} $lang{MESSAGE}", "$lang{ADD} CRM $lang{STEP}" ],                                   # Modules managments
+    [ $lang{SEARCH} ],                                                          # Search
+    [ $lang{ALL}, "$lang{EDIT} $lang{MESSAGE}", "$lang{ADD} CRM $lang{STEP}", $lang{TIME_SHEET} ], # Modules managments
     [ $lang{PROFILE}, "$lang{SHOW_ADMINS_ONLINE}" ],
     [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL} ],
   );
@@ -732,13 +740,13 @@ sub form_admin_permissions {
 
   my Admins $admin_ = $attr->{ADMIN};
 
-  if($FORM{del_permits} && $FORM{COMMENTS}){
+  if ($FORM{del_permits} && $FORM{COMMENTS}) {
     $admin_->del_type_permits($FORM{del_permits}, COMMENTS => $FORM{COMMENTS});
-    if (! _error_show($admin_)) {
+    if (!_error_show($admin_)) {
       $html->message("info", $lang{DELETED}, $lang{TPL_DELETED});
     }
   }
-  elsif($FORM{add_permits} && $FORM{TYPE}){
+  elsif ($FORM{add_permits} && $FORM{TYPE}) {
     while (my ($k, $v) = each(%FORM)) {
       if ($v eq '1') {
         my ($section_index, $action_index) = split(/_/, $k, 2);
@@ -746,11 +754,11 @@ sub form_admin_permissions {
       }
     }
 
-    $admin_->{MAIN_AID}        = $admin->{AID}; 
+    $admin_->{MAIN_AID} = $admin->{AID};
     $admin_->{MAIN_SESSION_IP} = $admin->{SESSION_IP};
     $admin_->set_type_permits(\%permits, $FORM{TYPE});
 
-    if (! _error_show($admin_)) {
+    if (!_error_show($admin_)) {
       $html->message('info', $lang{INFO}, "$lang{CHANGED}");
     }
   }
@@ -759,14 +767,14 @@ sub form_admin_permissions {
       if ($v && $v eq '1') {
         my ($section_index, $action_index) = split(/_/, $k, 2);
         $permits{$section_index}{$action_index} = 1 if (defined($section_index) && defined($action_index));
-          #if ($section_index =~ /^\d+$/ && $section_index >= 0);
+        #if ($section_index =~ /^\d+$/ && $section_index >= 0);
       }
     }
-    $admin_->{MAIN_AID}        = $admin->{AID};
+    $admin_->{MAIN_AID} = $admin->{AID};
     $admin_->{MAIN_SESSION_IP} = $admin->{SESSION_IP};
     $admin_->set_permissions(\%permits);
 
-    if (! _error_show($admin_)) {
+    if (!_error_show($admin_)) {
       $html->message('info', $lang{INFO}, "$lang{CHANGED}");
     }
   }
@@ -785,19 +793,19 @@ sub form_admin_permissions {
 
   foreach my $item (@$admins_type_permits_list) {
     $item->{type} = _translate($item->{type});
-    $ADMIN_TYPES{$item->{type}}=$item->{type} if(!$ADMIN_TYPES{$item->{type}});
+    $ADMIN_TYPES{$item->{type}} = $item->{type} if (!$ADMIN_TYPES{$item->{type}});
   }
 
   if ($FORM{ADMIN_TYPE}) {
     my %admins_type_permits = ();
-    my %admins_modules      = ();
+    my %admins_modules = ();
 
     foreach my $item (@$admins_type_permits_list) {
       $admins_type_permits{$item->{type}}->{$item->{section}}->{$item->{actions}} = 1;
       $admins_modules{$item->{type}}->{$item->{module}} = 1 if ($item->{module});
     }
 
-    %permits = %{ $admins_type_permits{ $FORM{ADMIN_TYPE} } };
+    %permits = %{$admins_type_permits{ $FORM{ADMIN_TYPE} }};
     $admin_->{MODULES} = $admins_modules{ $FORM{ADMIN_TYPE} };
 
   }
@@ -805,37 +813,36 @@ sub form_admin_permissions {
     %permits = %$p;
   }
 
+  if ($FORM{ADMIN_TYPE} && $FORM{ADMIN_TYPE} ne $lang{ACCOUNTANT}
+    && $FORM{ADMIN_TYPE} ne $lang{SUPPORT}
+    && $FORM{ADMIN_TYPE} ne $lang{MANAGER}
+    && $FORM{ADMIN_TYPE} ne "$lang{ALL} $lang{PERMISSION}") {
 
-    if($FORM{ADMIN_TYPE} && $FORM{ADMIN_TYPE} ne $lang{ACCOUNTANT} 
-        && $FORM{ADMIN_TYPE} ne $lang{SUPPORT}
-        && $FORM{ADMIN_TYPE} ne $lang{MANAGER} 
-        && $FORM{ADMIN_TYPE} ne "$lang{ALL} $lang{PERMISSION}") {
+    foreach my $k (sort keys(%ADMIN_TYPES)) {
 
-      foreach my $k (sort keys(%ADMIN_TYPES)) {
+      my $button = ($FORM{ADMIN_TYPE} eq $k) ? $html->b($ADMIN_TYPES{$k} . ' ') : $html->button($ADMIN_TYPES{$k}, "index=$index" .
+        (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k", { BUTTON => 1 }) . '  ';
 
-        my $button = ($FORM{ADMIN_TYPE} eq $k) ? $html->b($ADMIN_TYPES{$k} . ' ') : $html->button($ADMIN_TYPES{$k}, "index=$index" .
-        ( ($FORM{subf}) ? "&subf=$FORM{subf}" : '' ) ."&AID=$FORM{AID}&ADMIN_TYPE=$k", { BUTTON => 1 }) . '  ';
+      my $button_del = ($FORM{ADMIN_TYPE} eq $k)
+        ? $html->button("", "index=$index" .
+        (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&del_permits=$k",
+        { ADD_ICON => "glyphicon glyphicon-remove", MESSAGE => "$lang{DEL} $ADMIN_TYPES{$k}" }) : '';
 
-        my $button_del = ($FORM{ADMIN_TYPE} eq $k)
-          ? $html->button("", "index=$index" .
-          ( ($FORM{subf}) ? "&subf=$FORM{subf}" : '' ) ."&AID=$FORM{AID}&del_permits=$k", 
-          { ADD_ICON => "glyphicon glyphicon-remove", MESSAGE => "$lang{DEL} $ADMIN_TYPES{$k}"}) : '';
+      print $button;
+      print $button_del;
 
-        print $button;
-        print $button_del;
-
-      }
     }
-    else {
-      foreach my $k (sort keys(%ADMIN_TYPES)) {
+  }
+  else {
+    foreach my $k (sort keys(%ADMIN_TYPES)) {
 
       my $button = ($FORM{ADMIN_TYPE} && $FORM{ADMIN_TYPE} eq $k) ? $html->b($ADMIN_TYPES{$k} . ' ') : $html->button($ADMIN_TYPES{$k}, "index=$index" .
-        ( ($FORM{subf}) ? "&subf=$FORM{subf}" : '' ) ."&AID=$FORM{AID}&ADMIN_TYPE=$k", { BUTTON => 1 }) . '  ';
+        (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k", { BUTTON => 1 }) . '  ';
 
-        print $button;
-        
-      }
+      print $button;
+
     }
+  }
 
   my $table = $html->table(
     {
@@ -848,12 +855,12 @@ sub form_admin_permissions {
 
   my %describe = ();
   my $content = file_op({
-    FILENAME  => 'permissions.info',
-    PATH      => $conf{base_dir} . "/Abills/main_tpls/",
-    ROWS      => 1
+    FILENAME => 'permissions.info',
+    PATH     => $conf{base_dir} . "/Abills/main_tpls/",
+    ROWS     => 1
   });
 
-  if($content) {
+  if ($content) {
     foreach (@$content) {
       chomp;
       if ((my ($perm1, $perm2, $desc) = split(/:/)) == 3) {;
@@ -937,8 +944,8 @@ sub form_admin_permissions {
   foreach my $name (sort @MODULES) {
     $table2->addrow(
       $html->button("$name", '',
-         { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php?id=abills:docs:modules:'. $name .':ru',
-           ex_params  => 'target='.$name } ),
+        { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php?id=abills:docs:modules:' . $name . ':ru',
+          ex_params  => 'target=' . $name }),
       $version,
       $html->form_input(
         "9_" . $i . "_" . $name,
@@ -953,12 +960,12 @@ sub form_admin_permissions {
     $i++;
   }
 
-  $html->tpl_show( templates( 'admin_add_permits' ), 
+  $html->tpl_show(templates('admin_add_permits'),
     {
       TABLE1 => $table->show({ OUTPUT2RETURN => 1 }),
       TABLE2 => $table2->show({ OUTPUT2RETURN => 1 }),
-      AID   => $FORM{AID},
-      subf  => $FORM{subf} 
+      AID    => $FORM{AID},
+      subf   => $FORM{subf}
     }
   );
 
@@ -983,17 +990,17 @@ sub form_admins_contacts {
     return 1;
   }
 
-#  if ( $FORM{CONTACTS} ){
-#    return admin_contacts_renew();
-#  }
+  #  if ( $FORM{CONTACTS} ){
+  #    return admin_contacts_renew();
+  #  }
 
   my $list = $admin->admins_contacts_list(
     {
-      AID       => $FORM{AID},
-      VALUE     => '_SHOW',
-      PRIORITY  => '_SHOW',
-      TYPE      => '_SHOW',
-      HIDDEN    => '0'
+      AID      => $FORM{AID},
+      VALUE    => '_SHOW',
+      PRIORITY => '_SHOW',
+      TYPE     => '_SHOW',
+      HIDDEN   => '0'
     }
   );
 
@@ -1005,9 +1012,9 @@ sub form_admins_contacts {
     }
   );
 
-  map {$_->{name} = $lang{$_->{name}} || $_->{name} }@{$contacts_type_list};
+  map {$_->{name} = $lang{$_->{name}} || $_->{name}} @{$contacts_type_list};
 
-  $admin->{CONTACTS} = _build_admin_contacts_form( $list, $contacts_type_list );
+  $admin->{CONTACTS} = _build_admin_contacts_form($list, $contacts_type_list);
 
   return 1;
 }
@@ -1024,7 +1031,7 @@ sub form_admins_contacts_save {
 
   return 0 unless ($FORM{AID} && $FORM{CONTACTS});
 
-  if ( my $error = load_pmodule( "JSON", { RETURN => 1 } ) ){
+  if (my $error = load_pmodule("JSON", { RETURN => 1 })) {
     print $error;
     return 0;
   }
@@ -1033,28 +1040,28 @@ sub form_admins_contacts_save {
 
   $FORM{CONTACTS} =~ s/\\\"/\"/g;
 
-  my $contacts = $json->decode( $FORM{CONTACTS} );
+  my $contacts = $json->decode($FORM{CONTACTS});
   my DBI $db_ = $admin->{db}->{db};
-  if ( ref $contacts eq 'ARRAY' ){
+  if (ref $contacts eq 'ARRAY') {
     $db_->{AutoCommit} = 0;
 
-    $admin->admin_contacts_del( { AID => $FORM{AID} } );
-    if ( $admin->{errno} ){
+    $admin->admin_contacts_del({ AID => $FORM{AID} });
+    if ($admin->{errno}) {
       $db_->rollback();
       $status = $admin->{errno};
       $message = $admin->{sql_errstr};
     }
-    else{
-      foreach my $contact ( @{$contacts} ){
-        $admin->admin_contacts_add( { %{$contact}, AID => $FORM{AID} } );
+    else {
+      foreach my $contact (@{$contacts}) {
+        $admin->admin_contacts_add({ %{$contact}, AID => $FORM{AID} });
       }
 
-      if ( $admin->{errno} ){
+      if ($admin->{errno}) {
         $db_->rollback();
         $status = $admin->{errno};
         $message = $admin->{sql_errstr};
       }
-      else{
+      else {
         $db_->commit();
         $db_->{AutoCommit} = 1;
       }
@@ -1084,19 +1091,19 @@ sub form_admins_contacts_save {
 
 =cut
 #**********************************************************
-sub _build_admin_contacts_form{
+sub _build_admin_contacts_form {
   my ($admin_contacts_list, $admin_contacts_types_list) = @_;
   my $json = JSON->new()->utf8(0);
 
-  $html->tpl_show( templates( 'form_contacts_admin' ), {
-    JSON => $json->encode( {
-        contacts => $admin_contacts_list,
-        options  => {
-          callback_index => get_function_index('form_admins_contacts_save'),
-          types          => $admin_contacts_types_list,
-          AID            => $FORM{AID},
-        }
-      }),
+  $html->tpl_show(templates('form_contacts_admin'), {
+    JSON       => $json->encode({
+      contacts => $admin_contacts_list,
+      options  => {
+        callback_index => get_function_index('form_admins_contacts_save'),
+        types          => $admin_contacts_types_list,
+        AID            => $FORM{AID},
+      }
+    }),
     SIZE_CLASS => 'col-md-6 col-md-push-3'
   });
 
@@ -1123,7 +1130,7 @@ sub form_admins_domains {
   my $Domains = Multidoms->new($db, $admin, \%conf);
 
   if ($FORM{change}) {
-    $Domains->admin_change({%FORM, DOMAIN_ID => $FORM{NEW_DOMAIN} });
+    $Domains->admin_change({ %FORM, DOMAIN_ID => $FORM{NEW_DOMAIN} });
     if (_error_show($Domains)) {
       $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
     }
@@ -1131,9 +1138,9 @@ sub form_admins_domains {
 
   my $table = $html->table(
     {
-      width      => '100%',
-      caption    => $lang{GROUP},
-      title      => [ 'ID', $lang{NAME} ],
+      width   => '100%',
+      caption => $lang{GROUP},
+      title   => [ 'ID', $lang{NAME} ],
     }
   );
 
@@ -1158,7 +1165,7 @@ sub form_admins_domains {
         AID   => $FORM{AID},
         subf  => $FORM{subf}
       },
-      SUBMIT => { change => $lang{CHANGE} }
+      SUBMIT  => { change => $lang{CHANGE} }
     }
   );
 

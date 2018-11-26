@@ -2,7 +2,7 @@ $lang{DESTINATION} = "Адрес получателя";
 $lang{MSG_PRICE} = "Цена сообщения";
 
 $lang{DEPOSIT_BELOW} = 'Депозит ниже';
-$lang{PREPAID_TRAFFIC_BELOW} = 'Предоплаченный трафик закончился';
+$lang{PREPAID_TRAFFIC_BELOW} = 'Остаток предоплаченного трафика ниже';
 $lang{TRAFFIC_BELOW} = 'Месячный трафик';
 $lang{MONTH_REPORT} = 'Месячный Отчёт';
 $lang{ACTIVATED_MSG_SENDED} = 'Сообщение об активации отправлено на Ваш адрес';

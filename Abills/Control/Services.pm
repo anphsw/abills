@@ -105,5 +105,51 @@ sub sel_tp {
   return \%tp_list;
 }
 
+#**********************************************************
+=head get_services($user_info)
+
+  Arguments:
+    $user_info
+
+  Returns:
+    \%services
+       list
+         SERVICE_NAME
+         SERVICE_DESC
+         SUM
+       total_sum
+
+=cut
+#**********************************************************
+sub get_services {
+  my ($user_info) = @_;
+
+  my $result;
+
+  my $cross_modules_return = cross_modules_call('_docs', {
+    UID          => $user_info->{UID},
+    REDUCTION    => $user_info->{REDUCTION},
+    #PAYMENT_TYPE => 0
+  });
+
+  foreach my $module (sort keys %$cross_modules_return) {
+    if (ref $cross_modules_return->{$module} eq 'ARRAY') {
+      next if ($#{$cross_modules_return->{$module}} == -1);
+      foreach my $module_return (@{$cross_modules_return->{$module}}) {
+        my ($service_name, $service_desc, $sum) = split(/\|/, $module_return);
+        #$table->addrow($line->{LOGIN}, $serv_name, $serv_desc, $sum);
+        push @{ $result->{list} }, {
+          MODULE       => $module,
+          SERVICE_NAME => $service_name,
+          SERVICE_DESC => $service_desc,
+          SUM          => $sum
+        };
+        $result->{total_sum} += $sum;
+      }
+    }
+  }
+
+  return $result;
+}
 
 1;

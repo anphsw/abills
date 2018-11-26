@@ -197,7 +197,7 @@ sub msgs_list {
       },
       deposit  => sub {
         my ($deposit, $line) = @_;
-        ($permissions{0} && $permissions{0}->{12})
+        ($permissions{0} && !$permissions{0}{12})
           ? '--'
           : (($deposit || 0) + ($line->{credit} || 0) < 0)
           ? $html->color_mark($deposit, 'text-danger')

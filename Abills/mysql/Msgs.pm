@@ -336,7 +336,7 @@ sub messages_list {
   );
 
   my $list = $self->{list};
-  
+
   $self->query("SELECT COUNT(DISTINCT m.id) AS total,
   COUNT(DISTINCT IF(m.admin_read = '0000-00-00 00:00:00', m.id, 0)) AS in_work,
   COUNT(DISTINCT IF(m.state = 0, m.id, 0)) AS open,
@@ -616,7 +616,9 @@ sub chapter_change {
 }
 
 #**********************************************************
-# accounts_list
+=head2 admins_list($attr)
+
+=cut
 #**********************************************************
 sub admins_list {
   my $self = shift;
@@ -782,7 +784,7 @@ sub message_reply_del {
 sub messages_reply_list {
   my $self = shift;
   my ($attr) = @_;
-  
+
 #  $PAGE_ROWS = ($attr->{PAGE_ROWS})     ? $attr->{PAGE_ROWS} : 25;
 #  $SORT      = ($attr->{SORT})          ? $attr->{SORT}      : 1;
 #  $DESC      = (defined($attr->{DESC})) ? $attr->{DESC}      : 'DESC';
@@ -921,18 +923,18 @@ sub message_reply_change {
 #**********************************************************
 sub attachments_list{
   my ($self, $attr) = @_;
-  
+
   $SORT = $attr->{SORT} || 'id';
   $DESC = ($attr->{DESC}) ? '' : 'DESC';
   $PG   = $attr->{PG} || '0';
   $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
-  
+
   # Both values are stored in single column
   if ( $attr->{REPLY_ID} ){
     $attr->{MESSAGE_ID}   = $attr->{REPLY_ID};
     $attr->{MESSAGE_TYPE} = 1;
   }
-  
+
   my $search_columns = [
     ['ID',             'INT',    'ma.id'            ,1 ],
     ['MESSAGE_ID',     'INT',    'ma.message_id'    ,1 ],
@@ -948,12 +950,12 @@ sub attachments_list{
     ['COORDX',         'INT',    'ma.coordx'        ,1 ],
     ['COORDY',         'INT',    'ma.coordy'        ,1 ],
   ];
-  
+
   if ($attr->{SHOW_ALL_COLUMNS}){
     map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
   }
   my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1 });
-  
+
   $self->query( "SELECT $self->{SEARCH_FIELDS} ma.id
    FROM msgs_attachments ma
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
@@ -974,14 +976,14 @@ sub attachments_list{
 sub attachment_add {
   my $self = shift;
   my ($attr) = @_;
-  
+
   # Message type and reply id are stored in single column ( Curious )
   my @msgs_ids = ($attr->{REPLY_ID})
                    ? $attr->{REPLY_ID}
                    : (ref $attr->{MSG_ID} eq 'ARRAY') ? @{ $attr->{MSG_ID} } : ($attr->{MSG_ID});
-  
+
   foreach my $id ( @msgs_ids ) {
-    
+
     $self->query(
       "INSERT INTO msgs_attachments
       (message_id, filename, content_type, content_size, content,
@@ -1003,7 +1005,7 @@ sub attachment_add {
         ] }
     );
   }
-  
+
   return $self;
 }
 
@@ -1065,11 +1067,11 @@ sub attachment_info {
    undef,
    { INFO => 1 }
   );
-  
+
   if ($self->{errno} && $self->{errno} == 2) {
     $self->{errno} = undef;
   }
-  
+
 #  if ($self->{conf}{MSGS_ATTACH2FILE} && $self->{CONTENT} && $self->{CONTENT} =~ /^FILE: (..\/)*([a-zA-Z0-9_\-.]+)/){
 #    require Attach;
 #    Attach->import();
@@ -1102,9 +1104,9 @@ sub attachment_info {
 #**********************************************************
 sub attachment_del {
   my ($self, $attachment_id) =  @_;
-  
+
   $self->query_del('msgs_attachments', { ID => $attachment_id });
-  
+
   return 1;
 }
 
@@ -2561,11 +2563,11 @@ sub status_list {
   );
 
   my $list = $self->{list};
-  
+
   if ($attr->{STATUS_ONLY} || !$self->{TOTAL} < 1) {
     return $list;
   }
-  
+
   $self->query(
     "SELECT COUNT(*) AS total
      FROM msgs_status",
@@ -3228,7 +3230,6 @@ sub messages_quick_replys_list {
 
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : 'DESC';
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
@@ -3251,8 +3252,7 @@ sub messages_quick_replys_list {
   LEFT JOIN msgs_quick_replys_types qrt ON (qrt.id=qr.type_id)
   $WHERE
   GROUP BY qr.id
-  ORDER BY $SORT $DESC
-  LIMIT $PG, $PAGE_ROWS;",
+  ORDER BY $SORT $DESC;",
     undef,
     $attr
   );
@@ -3440,5 +3440,181 @@ sub messages_report_closed {
   return $self->{list};
 }
 
+#**********************************************************
+=head2 messages_report_per_month($attr)
+
+=cut
+#**********************************************************
+sub messages_report_tags_count {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [
+      ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(mm.date, '%Y-%m-%d')" ],
+      ['SUBTAG',            'INT',  "mt2.quick_reply_id"               ],
+      ['TAG_ID',            'INT',  "mt1.quick_reply_id"               ],
+    ],
+    { WHERE => 1}
+  );
+  my $EXT_TABLES = "";
+
+  if ($attr->{SUBTAG}) {
+    $EXT_TABLES = "LEFT JOIN msgs_quick_replys_tags mt2 ON (mt1.msg_id = mt2.msg_id)";
+  }
+
+  $self->query("SELECT count(mt1.msg_id) as count
+    FROM msgs_quick_replys_tags mt1
+    LEFT JOIN msgs_messages mm ON (mt1.msg_id = mm.id)
+    $EXT_TABLES
+    $WHERE;",
+  undef,
+  { COLS_NAME => 1}
+  );
+  return $self->{list}->[0]->{count} || 0;
+}
+
+#**********************************************************
+=head2 messages_report_per_month($attr)
+
+=cut
+#**********************************************************
+sub messages_tags_total_count {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [
+      ['FROM_DATE|TO_DATE','DATE',      "DATE_FORMAT(mm.date, '%Y-%m-%d')"        ],
+    ],
+    { WHERE => 1}
+  );
+
+  $self->query("SELECT count(*) as total
+    FROM msgs_quick_replys_tags mt
+    LEFT JOIN msgs_messages mm ON (mt.msg_id = mm.id)
+    $WHERE;",
+  undef,
+  {COLS_NAME => 1}
+  );
+
+  return $self->{list}->[0]->{total};
+}
+
+#**********************************************************
+=head2 messages_report_replys($attr)
+
+=cut
+#**********************************************************
+sub messages_report_replys_time {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [
+      ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(mr.datetime, '%Y-%m-%d')" ],
+      ['AID',               'INT',  "mr.aid" ],
+    ],
+    { WHERE => 1}
+  );
+
+  $self->query("SELECT 
+    DATE_FORMAT(mr.datetime, '%Y-%m') AS month,
+    SUM(mr.run_time) as run_time,
+    COUNT(mr.id) as replys
+    FROM msgs_reply mr
+    $WHERE
+    GROUP BY month;",
+  undef,
+  { COLS_NAME => 1}
+  );
+
+  return $self->{list};
+}
+#**************************************************************
+=head2 chat_add()  -ADD user to DB
+
+=cut
+#**************************************************************
+sub chat_add {
+  my $self = shift;
+  my ($attr) = @_;
+  $self->query_add('msgs_chat', $attr);
+  return $self;
+}
+#**************************************************************
+=head2 chat_list()  -Get chat messages
+
+=cut
+#**************************************************************
+sub chat_list {
+  my $self = shift;
+  my ($attr) = @_;
+  my $msg_id = $attr->{Msg_ID};
+  $self->query("SELECT * FROM msgs_chat WHERE num_ticket=$msg_id;", undef, { COLS_NAME => 1 });
+  return $self->{list};
+}
+#**************************************************************
+=head2 chat_count()  -Get count of unread messages
+
+=cut
+#**************************************************************
+sub chat_count {
+  my $self = shift;
+  my ($attr) = @_;
+  my $msg_id = $attr->{Msg_ID};
+  my $sender = $attr->{SENDER};
+  my $WHERE = '';
+  if ($attr->{SENDER}) {
+    $WHERE = "mc.num_ticket=$msg_id AND mc.msgs_unread=0 AND mc.$sender=0";
+  }
+  elsif ($attr->{AID}) {
+    my $aid = $attr->{AID};
+    $WHERE = "mc.msgs_unread=0 AND mc.aid=0 AND mm.resposible=$aid";
+  }
+  elsif ($attr->{UID}) {
+    $WHERE = "mc.msgs_unread=0 AND mm.uid=$attr->{UID} AND mc.uid=0";
+  }
+  $self->query("SELECT COUNT(*) as count
+    FROM msgs_chat mc
+    JOIN msgs_messages mm
+    ON mc.num_ticket=mm.id
+    WHERE $WHERE;", undef, { COLS_NAME => 1 });
+  return $self->{list}[0]{count} || '0';
+}
+#**************************************************************
+=head2 chat_count()  -Get count of unread messages
+
+=cut
+#**************************************************************
+sub chat_change {
+  my $self = shift;
+  my ($attr) = @_;
+  my $msg_id = $attr->{Msg_ID};
+  my $sender = $attr->{SENDER};
+  $self->query("UPDATE msgs_chat SET msgs_unread = 1 WHERE num_ticket=$msg_id AND msgs_unread=0 AND $sender=0;", undef, { COLS_NAME => 1 });
+  return 1;
+}
+#**************************************************************
+=head2 chat_message_info()  -Get info of unread messages for admin and user
+
+=cut
+#**************************************************************
+sub chat_message_info {
+  my $self = shift;
+  my ($attr) = @_;
+  my $WHERE = '';
+  if ($attr->{AID}) {
+    my $aid = $attr->{AID};
+    $WHERE = "mc.msgs_unread=0 AND mc.aid=0 AND mm.resposible=$aid";
+  }
+  if ($attr->{UID}) {
+  my $uid = $attr->{UID};
+  $WHERE = "mc.msgs_unread=0 AND mc.uid=0 AND mm.uid=$uid";
+  }
+  $self->query("SELECT DISTINCT mc.num_ticket,mm.uid, mm.subject, mm.id
+    FROM msgs_chat mc
+    JOIN msgs_messages mm
+    ON mc.num_ticket=mm.id
+    WHERE  $WHERE ;", undef, { COLS_NAME => 1 });
+  return $self->{list};
+}
 1;
 

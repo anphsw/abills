@@ -41,7 +41,7 @@ $lang{STOLEN}='Украдена';
 $lang{DEMAGED}='Повреждена';
 $lang{UNUSED}='Еще не использовалась';
 $lang{SUBSCRIBES}='Подписки';
-$lang{DEVICE}='Устройства';
+$lang{DEVICE}='Устройство';
 $lang{GENDER}='Пол';
 
 $lang{MALE}='Мужской';
@@ -53,7 +53,6 @@ $lang{SCREENS}='Экраны';
 $lang{SCREEN}='Экран';
 
 $lang{UPLOAD_CHANNELS}='Импорт каналов';
-$lang{NO_CHANGES}='Без изменений';
 $lang{DELETE_EXIST}='Удалить существующие';
 $lang{CHANGE_EXIST}='Заменить существующие';
 $lang{DOWNLOAD_CHANNELS}='Экспорт каналов';
@@ -69,3 +68,8 @@ $lang{PROVIDER_PORTAL_URL}='Портал продавца услуги';
 
 $lang{ERR_NO_AVAILABLE_TP}='Нет доступных тарифных планов';
 $lang{DISABLE_SERVICE_DATE}='Дата отключения';
+
+$lang{ADDED_TP}='Дополнительные тарифные планы';
+
+
+$lang{MAX_DEVICES} = 'Максимально девайсов';

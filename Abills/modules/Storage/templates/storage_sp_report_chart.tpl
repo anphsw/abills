@@ -9,7 +9,7 @@
       <div class="col-md-3 pull-right text-right">
 
         <div class="btn-group">
-          <button type="button" title="Show/Hide" class="btn btn-default btn-xs " data-widget="collapse"><i
+          <button type="button" title="Show/Hide" class="btn btn-box-tool" data-widget="collapse"><i
             class="fa fa-minus"></i></button>
         </div>
       </div>

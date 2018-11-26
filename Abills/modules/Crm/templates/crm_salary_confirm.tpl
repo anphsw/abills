@@ -1,6 +1,6 @@
 <form method='POST'>
 
-<input type='hidden' name='index' value='$index'>
+<input type='hidden' name='index' value='%INDEX%'>
 <input type='hidden' name='AID' value='%AID%'>
 <input type='hidden' name='YEAR' value='%YEAR%'>
 <input type='hidden' name='MONTH' value='%MONTH%'>
@@ -39,7 +39,7 @@
 </div>
 
 <div class='box-footer'>
-  <input type='submit' name='confirm' value='_{CONFIRM}_' class='btn btn-primary'>
+  <input type='submit' name='confirm' value='_{ADD}_' class='btn btn-primary'>
 </div>
 
 </div>

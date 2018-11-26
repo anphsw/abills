@@ -754,7 +754,12 @@ sub search_expr{
       @val_arr = ('');
     }
     else{
-      @val_arr = split( /,/, $value )
+      if($value =~ /^\*.+\*$/) {
+        push @val_arr, $value;
+      }
+      else {
+        @val_arr = split(/,/, $value);
+      }
     }
   }
 
@@ -827,6 +832,9 @@ sub search_expr{
         $v = "INET_ATON('$v')";
       }
     }
+    elsif($expr eq ' LIKE ' && $v eq '%') {
+      next;
+    }
     else{
       $v = "'$v'";
     }
@@ -844,8 +852,9 @@ sub search_expr{
     }
 
     $value = $expr . $v;
-
-    push @result_arr, "$field$value" if ($field);
+    if ($field) {
+      push @result_arr, "$field$value";
+    }
   }
 
   if ( $field ){
@@ -1145,20 +1154,29 @@ sub search_expr_users{
     $EXT_TABLE_JOINS_HASH{streets} = 1;
     $self->{SEARCH_FIELDS_COUNT} += 1;
   }
-  elsif ( $attr->{DISTRICT_ID} ){
-    push @fields, @{ $self->search_expr( $attr->{DISTRICT_ID}, 'INT', 'streets.district_id',
-        { EXT_FIELD => 1 } ) }; # 'districts.name AS district_name' }) };
-
-    $EXT_TABLE_JOINS_HASH{users_pi} = 1;
-    $EXT_TABLE_JOINS_HASH{builds} = 1;
-    $EXT_TABLE_JOINS_HASH{streets} = 1;
-    $EXT_TABLE_JOINS_HASH{districts} = 1;
-  }
+  # elsif ( $attr->{DISTRICT_ID} ){
+  #   push @fields, @{ $self->search_expr( $attr->{DISTRICT_ID}, 'INT', 'streets.district_id',
+  #       { EXT_FIELD => 1 } ) }; # 'districts.name AS district_name' }) };
+  #
+  #   $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+  #   $EXT_TABLE_JOINS_HASH{builds} = 1;
+  #   $EXT_TABLE_JOINS_HASH{streets} = 1;
+  #   $EXT_TABLE_JOINS_HASH{districts} = 1;
+  # }
   else{
     if ( $CONF->{ADDRESS_REGISTER} ){
-
       if ( $attr->{CITY} ){
         push @fields, @{ $self->search_expr( $attr->{CITY}, 'STR', 'districts.city', { EXT_FIELD => 1 } ) };
+        $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+        $EXT_TABLE_JOINS_HASH{builds} = 1;
+        $EXT_TABLE_JOINS_HASH{streets} = 1;
+        $EXT_TABLE_JOINS_HASH{districts} = 1;
+      }
+
+      if ( $attr->{DISTRICT_ID} ){
+        push @fields, @{ $self->search_expr( $attr->{DISTRICT_ID}, 'INT', 'streets.district_id',
+          { EXT_FIELD => 1 } ) }; # 'districts.name AS district_name' }) };
+
         $EXT_TABLE_JOINS_HASH{users_pi} = 1;
         $EXT_TABLE_JOINS_HASH{builds} = 1;
         $EXT_TABLE_JOINS_HASH{streets} = 1;
@@ -1783,5 +1801,29 @@ sub _decrypt_field {
 
   return $field;
 }
+
+#**********************************************************
+=head2 _space_trim($attr)
+
+  Arguments:
+    $attr - List of attributes for trim
+
+=cut
+#**********************************************************
+sub _space_trim {
+  shift;
+  my ($attr) = @_;
+
+  if(ref $attr eq 'HASH') {
+    foreach my $key ( keys %$attr ) {
+      next if (!$attr->{$key});
+      $attr->{$key} =~ s/^\s+//;
+      $attr->{$key} =~ s/\s+$//;
+    }
+  }
+
+  return $attr;
+}
+
 
 1

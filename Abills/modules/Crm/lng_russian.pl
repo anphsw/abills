@@ -1,6 +1,7 @@
 $lang{CASHBOX}='Касса';
 $lang{ADD_CASHBOX}='Добавить кассу';
 $lang{CASHBOX_ADDED}='Касса добавлена';
+$lang{IN_CASHBOX}='в кассе';
 $lang{CASHBOX_NOT_ADDED}='Касса не добавлена';
 $lang{CASHBOX_DELETED}='Касса удалена';
 $lang{CASHBOX_NOT_DELETED}='Касса не удалена';
@@ -14,6 +15,12 @@ $lang{COMING}='Приход';
 $lang{SPENDING_REPORT}='Отчет по расходам';
 $lang{COMING_REPORT}='Отчет по приходам';
 $lang{SALARY}='Зарплаты';
+$lang{SALES_FUNNEL}='Воронка продаж';
+$lang{NUMBER_LEADS}='Количество лидов';
+$lang{LEADS_PERCENTAGE}='Процент от всех лидов';
+$lang{NUMBER_LEADS_ON_STEP}='Количество лидов на шаге';
+$lang{LEADS_PERCENTAGE_ON_STEP}='Процент лидов на шаге';
+$lang{ALL_LEADS}='Все лиды';
 
 $lang{UNITS}='Единиц';
 
@@ -55,4 +62,9 @@ $lang{PROGRESS_BAR}='Шкала выполнения';
 
 $lang{PLANNED}='Запланированная';
 $lang{NO_TYPE}='Без типа';
+$lang{TAKE_FEE}='Снять оплату с абонента';
+$lang{FEE_TAKEN}='Оплата списана с абонента';
+$lang{WORKING_TIME_NORMS}='Нормы рабочего времени';
+$lang{WORKING_TIME_NORMS_EMPTY}='Не заполненные нормы рабочего времени';
+$lang{MONTHLY_BET_WILL_NOT_CALC}='Помесячная ставка подсчитываться не будет';
 1

@@ -1,3 +1,5 @@
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 CREATE TABLE IF NOT EXISTS `iptv_main` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Billing service ID',
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
@@ -5,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `iptv_main` (
   `filter_id` VARCHAR(100) NOT NULL DEFAULT '',
   `cid` VARCHAR(35) NOT NULL DEFAULT '',
   `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `registration` DATE DEFAULT '0000-00-00',
+  `registration` DATE NOT NULL,
   `pin` BLOB NOT NULL,
   `vod` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `dvcrypt_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
@@ -160,4 +162,32 @@ CREATE TABLE IF NOT EXISTS `iptv_services` (
   UNIQUE KEY `name` (`name`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'IPTV Services';
+
+CREATE TABLE IF NOT EXISTS `iptv_devices` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `uid` int(11) unsigned NOT NULL DEFAULT '0',
+  `dev_id` varchar(50) NOT NULL DEFAULT '',
+  `enable` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT '0 - enable, 1 - disable',
+  `date_activity` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ip_activity` int(11) unsigned NOT NULL DEFAULT '0',
+  `service_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'IPTV devices';
+
+CREATE TABLE `iptv_extra_params` (
+  `id` smallint(6) unsigned NOT NULL AUTO_INCREMENT,
+  `balance` double(14, 2) NOT NULL DEFAULT '0.00',
+  `send_sms` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT '1 - yes, 0 - no',
+  `sms_text` TEXT,
+  `ip_mac` varchar(15) NOT NULL DEFAULT '',
+  `service_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `group_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `max_device` smallint(6) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'IPTV extra_params';
 

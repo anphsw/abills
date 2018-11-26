@@ -73,7 +73,6 @@ sub events_profile_configure {
       
       my $new_value = $FORM{'SEND_TYPES_' . $priority->{id}} || '';
       my $current_row = $aid_send_types_by_priority->{$priority->{id}};
-      $Events->{debug} = 1;
       
       if ( !$current_row->{send_types} || $new_value ne $current_row->{send_types} ) {
         my %new_row = (
@@ -139,10 +138,11 @@ sub events_profile_configure {
     );
     
   }
-  
   my @priority_tabs_lis = map {
     my $active = ($_->{id} == 3) ? q{class='active'} : ''; # Open NORMAL tab first
-    "<li $active><a href='#priority_$_->{id}_tab' data-toggle='pill'>" . _translate($_->{name}) . "</a></li>"
+    $_->{name} =~ s/^_//g;
+    $_->{name} =~ s/_$//g;
+    "<li $active><a href='#priority_$_->{id}_tab' data-toggle='pill'>" . _translate('$lang' . uc($_->{name}) ) . "</a></li>"
   } @{$priorities};
   
   # Form tabs menu

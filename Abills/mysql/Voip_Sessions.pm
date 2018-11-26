@@ -356,7 +356,10 @@ sub list{
   #    $EXT_TABLES  .= 'LEFT JOIN users_pi pi ON (u.uid=pi.uid)';
   #  }
 
-  $self->query( "SELECT $self->{SEARCH_FIELDS} l.acct_session_id, l.uid, l.nas_id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} l.acct_session_id, l.uid, l.nas_id, l.route_id, l.call_origin,
+    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP(l.start)), '%Y-%m-%d')) AS day_begin,
+    DAYOFWEEK(FROM_UNIXTIME(UNIX_TIMESTAMP(l.start))) AS day_of_week,
+    DAYOFYEAR(FROM_UNIXTIME(UNIX_TIMESTAMP(l.start))) AS day_of_year
   FROM (voip_log l, users u)
   $EXT_TABLES
   $WHERE
@@ -377,6 +380,25 @@ sub list{
   }
 
   return $list;
+}
+
+#**********************************************************
+=head2 change_sum($attr)
+
+=cut
+#**********************************************************
+sub change_sum {
+  my ($self) = shift;
+  my ($attr) = @_;
+
+  if ($attr->{SUM} && $attr->{ACCT_SESSION_ID} && $attr->{UID}) {
+    $self->query( "UPDATE voip_log SET sum=? WHERE acct_session_id=? AND uid=?;",
+      'do',
+      { Bind => [ $attr->{SUM}, $attr->{ACCT_SESSION_ID}, $attr->{UID} ] }
+    );
+  }
+
+  return $self;
 }
 
 #**********************************************************

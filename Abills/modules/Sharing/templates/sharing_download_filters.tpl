@@ -23,7 +23,7 @@
 </div>
 
 <div class='box-footer'>
-  <button type='submit' class='btn btn-primary'>_{FILTER}_</button>
+  <button type='submit' class='btn btn-primary'>_{SHOW}_</button>
 </div>
 </div>
 </form>

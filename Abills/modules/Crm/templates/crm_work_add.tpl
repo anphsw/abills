@@ -58,6 +58,10 @@ function enable_input(what) {
                 </div>
 
                 <div class='form-group'>
+                    %TAKE_FEES%
+                </div>
+
+                <div class='form-group'>
                     <label class='control-label col-md-3' for='COMMENTS'>_{COMMENTS}_:</label>
                     <div class='col-md-9'>
                         <textarea name='COMMENTS' rows='5' col='60' class='form-control'>%COMMENTS%</textarea>

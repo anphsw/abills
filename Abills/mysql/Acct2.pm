@@ -84,8 +84,8 @@ sub accounting {
 
   $RAD->{'Framed-IP-Address'}     = '0.0.0.0' if (!$RAD->{'Framed-IP-Address'});
   $RAD->{'Acct-Session-Time'}     = 0         if (!defined($RAD->{'Acct-Session-Time'}));
-  if (length($RAD->{'Acct-Session-Id'}) > 32) {
-    $RAD->{'Acct-Session-Id'} = substr($RAD->{'Acct-Session-Id'}, 0, 32);
+  if (length($RAD->{'Acct-Session-Id'}) > 36) {
+    $RAD->{'Acct-Session-Id'} = substr($RAD->{'Acct-Session-Id'}, 0, 36);
   }
 
   if ($NAS->{NAS_TYPE} eq 'cid_auth') {
@@ -148,8 +148,8 @@ sub accounting {
            lupdated=UNIX_TIMESTAMP(),
            nas_port_id= ? ,
            acct_session_id= ? ,
-           CID= ? ,
-           CONNECT_INFO= ?
+           cid= ? ,
+           connect_info= ?
            WHERE user_name= ?
              AND nas_id= ?
              AND (acct_session_id='IP' OR acct_session_id= ? )
@@ -187,6 +187,7 @@ sub accounting {
         { Bind => [ $RAD->{'User-Name'} ] }
       );
 
+      my $guest_mode = '';
       if ($self->{TOTAL} > 0) {
         ($self->{UID},
          $self->{TP_ID},
@@ -204,7 +205,8 @@ sub accounting {
         }
       }
       else {
-        $RAD->{'User-Name'} = '! ' . $RAD->{'User-Name'};
+        #$RAD->{'User-Name'} = '! ' . $RAD->{'User-Name'};
+        $guest_mode=', guest=1';
       }
 
       my $sql = "REPLACE INTO internet_online SET
@@ -216,12 +218,12 @@ sub accounting {
         nas_port_id= ? ,
         acct_session_id= ? ,
         framed_ip_address=INET_ATON( ? ),
-        CID= ? ,
-        CONNECT_INFO= ? ,
+        cid= ? ,
+        connect_info= ? ,
         nas_id= ? ,
         tp_id= ? ,
         uid= ? ,
-        service_id = ?";
+        service_id = ? $guest_mode";
 
       $self->query2($sql, 'do', { Bind =>
           [ $acct_status_type,
@@ -589,13 +591,18 @@ sub accounting {
            WHERE u.id= ? ;",
             undef,
             { INFO  => 1,
-              Bind  => [ $RAD->{'User-Name'} ] });
+              Bind  => [ $RAD->{'User-Name'} ]
+            });
 
           my $ipv6 = '';
           if($conf->{IPV6}) {
             my $interface_id = $RAD->{'Framed-Interface-Id'} || q{};
             $interface_id =~ s/\/\d+//g;
             $ipv6 =  ", framed_ipv6_prefix =INET6_ATON('". $RAD->{'Framed-IPv6-Prefix'}.'::'.$interface_id ."')";
+          }
+
+          if(! $self->{UID}) {
+            $ipv6 .= ", guest=1";
           }
 
           $self->query2("REPLACE INTO internet_online SET
@@ -666,9 +673,9 @@ sub accounting {
       acct_input_gigawords= ? ,
       acct_output_gigawords= ?
     WHERE
-      acct_session_id= ? AND
-      user_name= ? AND
-      nas_id= ? ;", 'do',
+      acct_session_id= ?
+      AND user_name= ?
+      AND nas_id= ? ;", 'do',
       { Bind => [
           $acct_status_type,
           $RAD->{'INBYTE'},
@@ -679,7 +686,7 @@ sub accounting {
           $RAD->{$output_gigawords},
           $RAD->{'Acct-Session-Id'},
           $RAD->{'User-Name'} || '',
-          $NAS->{'NAS_ID'}
+          $NAS->{'NAS_ID'} || 0
         ]}
     );
   }

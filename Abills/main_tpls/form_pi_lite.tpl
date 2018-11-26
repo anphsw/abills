@@ -5,7 +5,7 @@
   <input type=hidden name=UID value='%UID%'>
 
   <!-- General panel -->
-  <div class='box box-theme box-big-form'>
+  <div id='form_2' class='box box-theme box-big-form for_sort'>
     <div class='box-header with-border'><h3 class='box-title'>_{INFO}_</h3>
       <div class='box-tools pull-right'>
         %EDIT_BUTTON%
@@ -35,7 +35,7 @@
         <div class='input-group' style='margin-bottom: -1px;'>
           <span class='input-group-addon'><span class='glyphicon glyphicon-earphone'></span></span>
           <input class='form-control' type='text' readonly value='%PHONE%' placeholder='_{PHONE}_'>
-          <span class='input-group-addon'><a href='#' class='fa fa-list'></a></span>
+          <span class='input-group-addon'><a href='%CALLTO_HREF%' class='fa fa-list'></a></span>
         </div>
       </div>
       <div class='col-md-12 col-xs-12'>

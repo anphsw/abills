@@ -15,6 +15,7 @@ use Encode;
 use Fees;
 use Sms;
 use Abills::Filters;
+use Abills::Defs;
 use Abills::Base qw(convert);
 
 our ($db,
@@ -22,7 +23,15 @@ our ($db,
   %conf,
   $html,
   %lang,
-  %err_strs
+  %err_strs,
+  $index,
+  $user,
+  $users,
+  $DATE,
+  $TIME,
+  $pages_qs,
+  %LIST_PARAMS,
+  %FORM
 );
 
 
@@ -195,7 +204,7 @@ sub sms_send {
       print "[$Sms_service->{errno}] $err_strs{$Sms_service->{errno}} $Sms_service->{errstr}\n";
     }
     else {
-      $html->message('err', "SMS: $Sms_service->{SERVICE_NAME} : $lang{ERROR}",
+      $html->message('err', "SMS: $Sms_service->{SERVICE_NAME} : ". ($lang{ERROR} || q{}),
         "[$Sms_service->{errno}] ". (($sms_status{$Sms_service->{errno}}) ? $sms_status{$Sms_service->{errno}} : '' )
         . " ". ($Sms_service->{errstr} || q{}), { ID => 1603 });
     }
@@ -232,6 +241,9 @@ sub sms_send {
   if ($attr->{NUMBERS} && ! $attr->{NUMBER}) {
     $attr->{NUMBER} = (keys %{ $attr->{NUMBERS} })[0];
   }
+
+  $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
+  $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
 
   $Sms->add({
     UID          => $attr->{UID},

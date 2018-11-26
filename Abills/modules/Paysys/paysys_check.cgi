@@ -140,7 +140,9 @@ if($conf{PAYSYS_NEW_SCHEME}){
       mk_log("$module loaded\n", {
           PAYSYS_ID => $module
         });
-      my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf);
+      my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {
+        CUSTOM_NAME => $connected_system->{name},
+        CUSTOM_ID   => $connected_system->{paysys_id}});
       mk_log("$module object created\n", {
           PAYSYS_ID => $module
         });
@@ -312,9 +314,9 @@ my %ip_binded_system = (
   => 'Deltapay',
   '193.110.17.230'
   => 'Zaplati_sumy',
-  '91.229.115.11'
-  => 'Ipay',
-  '62.149.8.166,82.207.125.57,62.149.15.210,212.42.94.154,212.42.94.131'#
+#  '91.229.115.11'
+#  => 'Ipay',
+  '62.149.8.166,82.207.125.57,62.149.15.210,212.42.94.154,212.42.94.131,89.184.66.69'#
   #212.42.93.154 - 24 non stop IP
   => 'Platezhka',
   '213.230.106.112/28,213.230.65.85/28'
@@ -477,9 +479,10 @@ elsif ($FORM{command}) {
   osmp_payments();
 }
 #ipay new load
-elsif ($FORM{xml} && $conf{PAYSYS_IPAY_FAST_PAY}) {
+elsif (($FORM{xml} && $conf{PAYSYS_IPAY_FAST_PAY}) || check_ip($ENV{REMOTE_ADD}, '91.229.115.11')) {
   require Paysys::systems::Ipay;
-  my $Ipay = Paysys::systems::Ipay->new(\%conf, \%FORM, undef, undef, $users,
+  Paysys::systems::Ipay->import();
+  my $Ipay = Paysys::systems::Ipay->new2(\%conf, \%FORM, undef, undef, $users,
     { HTML => $html, SELF_URL => $SELF_URL, DATETIME => "$DATE $TIME" });
   $Ipay->ipay_check_payments();
   exit;
@@ -949,36 +952,43 @@ sub osmp_payments {
     my $prv_txn = $FORM{prv_txn};
     $RESULT_HASH{prv_txn} = $prv_txn;
 
-    my $list = $payments->list({ ID => "$prv_txn",
-      EXT_ID                        => "$payment_system:*",
-      BILL_ID                       => '_SHOW',
-      COLS_NAME                     => 1 });
+    my $cancel_result = paysys_pay_cancel({
+      PAYSYS_ID      => $prv_txn,
+      TRANSACTION_ID => "$payment_system:*"
+    });
 
-    if ($payments->{errno} && $payments->{errno} != 7) {
-      $RESULT_HASH{result} = 1;
-    }
-    elsif ($payments->{TOTAL} < 1) {
-      if ($conf{PAYSYS_PEGAS}) {
-        $RESULT_HASH{result} = 0;
-      }
-      else {
-        $RESULT_HASH{result} = 79;
-      }
-    }
-    else {
-      my %user = (
-        BILL_ID => $list->{bill_id},
-        UID     => $list->{uid}
-      );
+    $RESULT_HASH{result} = $cancel_result;
 
-      $payments->del(\%user, $prv_txn);
-      if (!$payments->{errno}) {
-        $RESULT_HASH{result} = 0;
-      }
-      else {
-        $RESULT_HASH{result} = 1;
-      }
-    }
+#    my $list = $payments->list({ ID => "$prv_txn",
+#      EXT_ID                        => "$payment_system:*",
+#      BILL_ID                       => '_SHOW',
+#      COLS_NAME                     => 1 });
+#
+#    if ($payments->{errno} && $payments->{errno} != 7) {
+#      $RESULT_HASH{result} = 1;
+#    }
+#    elsif ($payments->{TOTAL} < 1) {
+#      if ($conf{PAYSYS_PEGAS}) {
+#        $RESULT_HASH{result} = 0;
+#      }
+#      else {
+#        $RESULT_HASH{result} = 79;
+#      }
+#    }
+#    else {
+#      my %user = (
+#        BILL_ID => $list->{bill_id},
+#        UID     => $list->{uid}
+#      );
+#
+#      $payments->del(\%user, $prv_txn);
+#      if (!$payments->{errno}) {
+#        $RESULT_HASH{result} = 0;
+#      }
+#      else {
+#        $RESULT_HASH{result} = 1;
+#      }
+#    }
   }
   # ?command=verify&date=20050815
   elsif ($command eq 'verify') {

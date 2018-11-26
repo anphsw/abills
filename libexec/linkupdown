@@ -692,10 +692,11 @@ sub user_info{
   my ($attr) = @_;
 
   my $list = $Internet->get_speed( { %{$attr},
-      TP_ID => $ARGV->{OLD_TP},
-      LOGIN => ($ARGV->{OLD_TP}) ? undef : $attr->{LOGIN},
-      UID   => ($ARGV->{OLD_TP}) ? undef : $attr->{UID},
-    } );
+    TP_ID     => $ARGV->{OLD_TP},
+    LOGIN     => ($ARGV->{OLD_TP}) ? undef : $attr->{LOGIN},
+    UID       => ($ARGV->{OLD_TP}) ? undef : $attr->{UID},
+    COLS_NAME => 1
+  } );
 
   if ( $Internet->{errno} ){
     print "Error: User not exist '$USER' IP: $CLIENT_IP ([$Internet->{errno}] $Internet->{errstr})\n";
@@ -708,28 +709,28 @@ sub user_info{
     exit 0;
   }
   else{
-    $user->{TP_NUM} = $list->[0]->[0];
-    $user->{SPEED} = $list->[0]->[7];
-    $user->{ACCOUNT_ACTIVATE} = $list->[0]->[8];
-    $user->{NETMASK} = $list->[0]->[9];
-    $user->{JOIN_SERVICE} = $list->[0]->[10];
-    $user->{UID} = $list->[0]->[11];
+    $user->{TP_NUM} = $list->[0]->{tp_id};
+    $user->{SPEED} = $list->[0]->{speed};
+    $user->{ACCOUNT_ACTIVATE} = $list->[0]->{activate};
+    $user->{NETMASK} = $list->[0]->{netmask};
+    $user->{JOIN_SERVICE} = $list->[0]->{join_service};
+    $user->{UID} = $list->[0]->{uid};
 
     if ( $user->{SPEED} == 0 ){
       foreach my $line ( @{$list} ){
-        $speeds{ $line->[2] }{IN} = "$line->[3]";
-        $speeds{ $line->[2] }{OUT} = "$line->[4]";
-        $nets_id{ $line->[2] } = $line->[5] if ($line->[5]);
-        $expr{ $line->[2] } = "$line->[6]";
+        $speeds{ $line->{tt_id} }{IN} = $line->{in_speed};
+        $speeds{ $line->{tt_id} }{OUT} = $line->{out_speed};
+        $nets_id{ $line->{tt_id} } = $line->{net_id} if ($line->{net_id});
+        $expr{ $line->{tt_id} } = $line->{expression};
 
-        print "Class: $line->[2] IN: $line->[3] OUT: $line->[4]\n" if ($debug > 3);
+        print "Class: $line->{tt_id} IN: $line->{in_speed} OUT: $line->{out_speed}\n" if ($debug > 3);
       }
 
       if ( $Internet->{TOTAL} > 1 ){
         $list = $Tariffs->traffic_class_list();
         my %nets_id_rev = reverse %nets_id;
         foreach my $line ( @{$list} ){
-          $nets{ $nets_id_rev{ $line->[0] } } = $line->[2] if ($nets_id_rev{ $line->[0] });
+          $nets{ $nets_id_rev{ $line->{tp_id} } } = $line->{tt_id} if ($nets_id_rev{ $line->{tp_id} });
         }
       }
     }

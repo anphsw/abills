@@ -3,6 +3,16 @@
 **В системе изменился тип ssh ключей для управления оборудованием с DSA на RSA. Для коректной работы обновите все ключи (/usr/abills/Certs/id_dsa.*) при помощи утилиты misc/certs_create.sh ssh [user_name]**
 
 ====0.78====
+13.08.2018
+  * ''Bonus''. Скидки и бонусы от одноразовой суммы оплаты.
+  * ''Paysys''. Добавлена возможность задавать тип оплаты для платежного модуля.
+
+<accordion title="20180813"><panel title="MySQL"><code mysql>
+ALTER TABLE paysys_connect ADD COLUMN payment_method INT(11) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE bonus_service_discount ADD COLUMN onetime_payment_sum DOUBLE(10, 2) NOT NULL DEFAULT '0.00';
+ALTER TABLE `bonus_service_discount` ADD COLUMN `name` VARCHAR(100) NOT NULL default '';
+</code></panel></accordion>
+
 07.08.2018
   * ''Internet''. Добавлена возможность оставлять комментарий к каждому сервису абонента.
   * ''Internet''. При создании тарифного плана можно создать новый тип снятия.

@@ -1,4 +1,4 @@
-
+package Crm;
 =head1 NAME
 
   Cashbox - module for CRM
@@ -10,10 +10,8 @@
 
 =cut
 
-package Crm;
-
 use strict;
-use parent qw(main);
+use parent qw(dbcore);
 
 my ($admin, $CONF);
 
@@ -87,11 +85,17 @@ sub list_cashbox {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = $self->search_former($attr, [ [ 'ID', 'INT', 'id', 1 ], [ 'NAME', 'STR', 'name', 1 ], [ 'COMMENTS', 'STR', 'comments', 1 ], ], { WHERE => 1, });
+  my $WHERE = $self->search_former($attr, [
+      [ 'ID',       'INT', 'id',       1 ],
+      [ 'NAME',     'STR', 'name',     1 ],
+      [ 'COMMENTS', 'STR', 'comments', 1 ],
+    ],
+    { WHERE => 1, }
+  );
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM cashbox_cashboxes
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -103,7 +107,7 @@ sub list_cashbox {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT count(*) AS total
    FROM cashbox_cashboxes",
     undef,
@@ -157,7 +161,7 @@ sub info_cashbox {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM cashbox_cashboxes
       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
   );
@@ -189,7 +193,7 @@ sub change_cashbox {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'cashbox_cashboxes',
@@ -258,11 +262,16 @@ sub list_spending_type {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = $self->search_former($attr, [ [ 'ID', 'INT', 'id', 1 ], [ 'NAME', 'STR', 'name', 1 ], [ 'COMMENTS', 'STR', 'comments', 1 ], ], { WHERE => 1, });
+  my $WHERE = $self->search_former($attr, [
+      [ 'ID',       'INT', 'id',       1 ],
+      [ 'NAME',     'STR', 'name',     1 ],
+      [ 'COMMENTS', 'STR', 'comments', 1 ],
+    ],
+    { WHERE => 1, });
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM cashbox_spending_types
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -274,7 +283,7 @@ sub list_spending_type {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT count(*) AS total
    FROM cashbox_spending_types",
     undef,
@@ -337,14 +346,14 @@ sub info_type {
   my ($attr) = @_;
 
   if ($attr->{SPENDING}) {
-    $self->query2(
+    $self->query(
       "SELECT * FROM cashbox_spending_types
        WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
     );
   }
 
   if ($attr->{COMING}) {
-    $self->query2(
+    $self->query(
       "SELECT * FROM cashbox_coming_types
        WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
     );
@@ -375,7 +384,7 @@ sub change_type {
   my ($attr) = @_;
 
   if ($attr->{SPENDING}) {
-    $self->changes2(
+    $self->changes(
       {
         CHANGE_PARAM => 'ID',
         TABLE        => 'cashbox_spending_types',
@@ -385,7 +394,7 @@ sub change_type {
   }
 
   if ($attr->{COMING}) {
-    $self->changes2(
+    $self->changes(
       {
         CHANGE_PARAM => 'ID',
         TABLE        => 'cashbox_coming_types',
@@ -423,11 +432,18 @@ sub list_coming_type {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  my $WHERE = $self->search_former($attr, [ [ 'ID', 'INT', 'id', 1 ], [ 'NAME', 'STR', 'name', 1 ], [ 'COMMENTS', 'STR', 'comments', 1 ], ], { WHERE => 1, });
+  my $WHERE = $self->search_former($attr, [
+      [ 'ID',       'INT', 'id',       1 ],
+      [ 'NAME',     'STR', 'name',     1 ],
+      [ 'COMMENTS', 'STR', 'comments', 1 ],
+    ],
+    {
+      WHERE => 1,
+    });
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM cashbox_coming_types
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -439,7 +455,7 @@ sub list_coming_type {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT count(*) AS total
    FROM cashbox_coming_types",
     undef,
@@ -515,7 +531,7 @@ sub info_spending {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM cashbox_spending
       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
   );
@@ -547,7 +563,7 @@ sub change_spending {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'cashbox_spending',
@@ -586,19 +602,19 @@ sub list_spending {
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 50;
 
   if ($attr->{CASHBOX_ID}) {
-    push @WHERE_RULES, "CASHBOX_ID = $attr->{CASHBOX_ID}";
+    push @WHERE_RULES, "cashbox_id = $attr->{CASHBOX_ID}";
   }
 
   if ($attr->{FROM_DATE}) {
-    push @WHERE_RULES, "DATE >= '$attr->{FROM_DATE}'";
+    push @WHERE_RULES, "date >= '$attr->{FROM_DATE}'";
   }
 
   if ($attr->{TO_DATE}) {
-    push @WHERE_RULES, "DATE <= '$attr->{TO_DATE}'";
+    push @WHERE_RULES, "date <= '$attr->{TO_DATE}'";
   }
 
   if($attr->{SPENDING_TYPE_ID}){
-    push @WHERE_RULES, "SPENDING_TYPE_ID = '$attr->{SPENDING_TYPE_ID}'";
+    push @WHERE_RULES, "spending_type_id = '$attr->{SPENDING_TYPE_ID}'";
   }
 
   my $WHERE = $self->search_former(
@@ -617,7 +633,7 @@ sub list_spending {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT
     cs.id,
     cs.amount,
@@ -642,7 +658,7 @@ sub list_spending {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT count(*) AS total
    FROM cashbox_spending",
     undef,
@@ -719,7 +735,7 @@ sub info_coming {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM cashbox_coming
       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
   );
@@ -751,7 +767,7 @@ sub change_coming {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'cashbox_coming',
@@ -789,19 +805,19 @@ sub list_coming {
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   if ($attr->{CASHBOX_ID}) {
-    push @WHERE_RULES, "CASHBOX_ID = $attr->{CASHBOX_ID}";
+    push @WHERE_RULES, "cashbox_id = $attr->{CASHBOX_ID}";
   }
 
   if ($attr->{FROM_DATE}) {
-    push @WHERE_RULES, "DATE >= '$attr->{FROM_DATE}'";
+    push @WHERE_RULES, "date >= '$attr->{FROM_DATE}'";
   }
 
   if ($attr->{TO_DATE}) {
-    push @WHERE_RULES, "DATE <= '$attr->{TO_DATE}'";
+    push @WHERE_RULES, "date <= '$attr->{TO_DATE}'";
   }
 
   if($attr->{COMING_TYPE_ID}){
-    push @WHERE_RULES, "COMING_TYPE_ID = '$attr->{COMING_TYPE_ID}'";
+    push @WHERE_RULES, "coming_type_id = '$attr->{COMING_TYPE_ID}'";
   }
 
   my $WHERE = $self->search_former(
@@ -820,7 +836,7 @@ sub list_coming {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT
     cac.id,
     cac.amount,
@@ -845,7 +861,7 @@ sub list_coming {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT count(*) AS total
    FROM cashbox_coming",
     undef,
@@ -875,16 +891,16 @@ sub crm_list_coming_report {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   if ($attr->{FROM_DATE}) {
-    push @WHERE_RULES, "DATE >= '$attr->{FROM_DATE}'";
+    push @WHERE_RULES, "date >= '$attr->{FROM_DATE}'";
   }
 
   if ($attr->{TO_DATE}) {
-    push @WHERE_RULES, "DATE <= '$attr->{TO_DATE}'";
+    push @WHERE_RULES, "date <= '$attr->{TO_DATE}'";
   }
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT date, count(id) as total_count, sum(amount) as total_sum FROM cashbox_coming
     $WHERE
     GROUP BY date
@@ -916,16 +932,16 @@ sub crm_list_spending_report {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   if ($attr->{FROM_DATE}) {
-    push @WHERE_RULES, "DATE >= '$attr->{FROM_DATE}'";
+    push @WHERE_RULES, "date >= '$attr->{FROM_DATE}'";
   }
 
   if ($attr->{TO_DATE}) {
-    push @WHERE_RULES, "DATE <= '$attr->{TO_DATE}'";
+    push @WHERE_RULES, "date <= '$attr->{TO_DATE}'";
   }
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT date, count(id) as total_count, sum(amount) as total_sum FROM cashbox_spending
     $WHERE
     GROUP BY date
@@ -977,7 +993,7 @@ sub info_bet {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM crm_bet
       WHERE aid = $attr->{AID};", undef, {COLS_NAME => 1, COLS_UPPER => 1}
   );
@@ -1050,7 +1066,7 @@ sub info_payed_salary {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT
     csp.aid,
     csp.month,
@@ -1103,7 +1119,7 @@ sub change_reference_works {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'crm_reference_works',
@@ -1129,7 +1145,7 @@ sub info_reference_works {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM crm_reference_works
       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
   );
@@ -1195,7 +1211,7 @@ sub list_reference_works {
     { WHERE => 1, }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT
     crw.id,
     crw.name,
@@ -1215,7 +1231,7 @@ sub list_reference_works {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT COUNT(*) AS total
    FROM cashbox_coming",
     undef,
@@ -1247,22 +1263,23 @@ sub works_list{
       [ 'EMPLOYEE',   'STR', 'employee.name', 'employee.name AS employee' ],
       [ 'WORK_ID',    'INT', 'w.work_id',   1 ],
       [ 'WORK',       'INT', 'crw.name',   'crw.name AS work' ],
-      [ 'RATIO',      'STR', 'w.ratio',     1 ],
-      [ 'EXTRA_SUM',  'INT', 'w.extra_sum', 1 ],
-      [ 'SUM',        'INT', 'w.sum', 'if(w.extra_sum > 0, w.extra_sum, w.sum * w.ratio) AS sum' ],
-      [ 'COMMENTS',   'INT', 'w.comments',  1 ],
-      [ 'PAID',       'INT', 'w.paid',      1 ],
+      [ 'RATIO',      'STR', 'w.ratio',      ],
+      [ 'EXTRA_SUM',  'INT', 'w.extra_sum',  ],
+      [ 'SUM',        'INT', 'w.sum', 'if(w.extra_sum > 0, w.extra_sum, w.sum) AS sum' ],
+      [ 'COMMENTS',   'INT', 'w.comments',   1],
+      [ 'PAID',       'INT', 'w.paid',       ],
       [ 'ADMIN_NAME', 'STR', 'a.login',     'a.name AS admin_name' ],
-      [ 'EXT_ID',     'INT', 'w.ext_id',    1  ],
-      [ 'EMPLOYEE_ID','INT', 'w.employee_id', 1 ],
-      [ 'FROM_DATE|TO_DATE','DATE', "DATE_FORMAT(w.date, '%Y-%m-%d')", 1 ],
+      [ 'EXT_ID',     'INT', 'w.ext_id',     1 ],
+      [ 'EMPLOYEE_ID','INT', 'w.employee_id',  ],
+      [ 'FROM_DATE|TO_DATE','DATE', "DATE_FORMAT(w.date, '%Y-%m-%d')",  ],
+      [ 'FEES_ID',    'INT', 'w.fees_id',    1],
     ],
     {
       WHERE => 1,
     }
   );
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} w.aid, w.id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} w.aid, w.id
    FROM crm_works w
    LEFT JOIN admins a ON (a.aid=w.aid)
    LEFT JOIN admins employee ON (employee.aid=w.employee_id)
@@ -1276,7 +1293,7 @@ sub works_list{
 
   my $list = $self->{list};
 
-  $self->query2( "SELECT COUNT(*) AS total, SUM(if(w.extra_sum > 0, w.extra_sum, w.sum * w.ratio)) AS total_sum
+  $self->query( "SELECT COUNT(*) AS total, SUM(if(w.extra_sum > 0, w.extra_sum, w.sum * w.ratio)) AS total_sum
    FROM crm_works w
    LEFT JOIN admins a ON (a.aid=w.aid)
    LEFT JOIN crm_reference_works AS crw ON (crw.id = w.work_id)
@@ -1326,7 +1343,7 @@ sub works_change{
     }
   }
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'crm_works',
@@ -1360,7 +1377,7 @@ sub works_info{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2( "SELECT * FROM crm_works
+  $self->query( "SELECT * FROM crm_works
     WHERE id= ? ;",
     undef,
     {
@@ -1407,7 +1424,7 @@ sub crm_lead_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'crm_leads',
@@ -1453,9 +1470,10 @@ sub crm_lead_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
-    "SELECT * FROM crm_leads
-      WHERE id = ?;", undef, {COLS_NAME => 1, COLS_UPPER=> 1, Bind => [ $attr->{ID} ] }
+  $self->query(
+    "SELECT *, cl.id as lead_id FROM crm_leads cl
+    LEFT JOIN users u ON (u.uid = cl. uid)
+      WHERE cl.id = ?;", undef, {COLS_NAME => 1, COLS_UPPER=> 1, Bind => [ $attr->{ID} ] }
   );
 
   return $self->{list}->[0] || {};
@@ -1481,58 +1499,67 @@ sub crm_lead_list {
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
-      [ 'LEAD_ID',               'INT',   'cl.id as lead_id',               1 ],
-      [ 'FIO',              'STR',   'cl.fio',                         1 ],
-      [ 'PHONE',            'STR',   'cl.phone',                       1 ],
-      [ 'EMAIL',            'STR',   'cl.email',                       1 ],
-      [ 'COMPANY',          'STR',   'cl.company',                     1 ],
-      [ 'CITY',             'STR',   'cl.city',                        1 ],
-      [ 'RESPONSIBLE',      'INT',   'cl.responsible',                 1 ],
-      [ 'ADMIN_NAME',       'STR',   'a.name as admin_name',           1 ],
-      [ 'SOURCE',           'INT',   'cl.source',                      1 ],
-      [ 'SOURCE_NAME',      'STR',   'cls.name as source_name',        1 ],
-      [ 'DATE',             'DATE',  'cl.date',                        1 ],
-      [ 'CURRENT_STEP',     'INT',   'cl.current_step',                1 ],
-      [ 'CURRENT_STEP_NAME','STR',   'cps.name as current_step_name',  1 ],
-      [ 'STEP_COLOR',       'STR',   'cps.color as step_color',        1 ],
-      [ 'ADDRESS',          'STR',   'cl.address',                     1 ],
-      [ 'LAST_ACTION',      'STR',   'cl.id as last_action',           1 ],
-      [ 'PRIORITY' ,        'STR',   'cl.priority',                    1 ],
-      [ 'COMMENTS',         'STR',   'cl.comments',                      ],
-    ],
-    { WHERE => 1, }
-  );
   my @WHERE_RULES = ();
 
   if($attr->{FROM_DATE}){
-    push @WHERE_RULES, "DATE >= '$attr->{FROM_DATE}'";
+    push @WHERE_RULES, "date >= '$attr->{FROM_DATE}'";
   }
 
   if($attr->{TO_DATE}){
-    push @WHERE_RULES, "DATE <= '$attr->{TO_DATE}'";
+    push @WHERE_RULES, "date <= '$attr->{TO_DATE}'";
   }
 
   if($attr->{SOURCE_ID}){
-    push @WHERE_RULES, "SOURCE = '$attr->{SOURCE_ID}'";
+    push @WHERE_RULES, "source = '$attr->{SOURCE_ID}'";
   }
 
   if($attr->{PHONE_SEARCH}){
     push @WHERE_RULES, "cl.phone LIKE '\%$attr->{PHONE_SEARCH}\%'";
   }
 
-  $WHERE .= ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'LEAD_ID',          'INT',   'cl.id as lead_id',               1 ],
+      [ 'FIO',              'STR',   'cl.fio',                         1 ],
+      [ 'PHONE',            'STR',   'cl.phone',                       1 ],
+      [ 'EMAIL',            'STR',   'cl.email',                       1 ],
+      [ 'COMPANY',          'STR',   'cl.company',                     1 ],
+      [ 'LEAD_CITY',        'STR',   'cl.city as lead_city',           1 ],
+      [ 'RESPONSIBLE',      'INT',   'cl.responsible',                 1 ],
+      [ 'ADMIN_NAME',       'STR',   'a.name as admin_name',           1 ],
+      [ 'SOURCE',           'INT',   'cl.source',                      1 ],
+      [ 'SOURCE_NAME',      'STR',   'cls.name as source_name',        1 ],
+      [ 'DATE',             'DATE',  'cl.date',                        1 ],
+      [ 'CURRENT_STEP',     'INT',   'cl.current_step',                0 ],
+      [ 'CURRENT_STEP_NAME','STR',   'cps.name as current_step_name',  1 ],
+      [ 'STEP_COLOR',       'STR',   'cps.color as step_color',        1 ],
+      [ 'ADDRESS',          'STR',   'cl.address',                     1 ],
+      [ 'LAST_ACTION',      'STR',   'cl.id as last_action',           1 ],
+      [ 'PRIORITY' ,        'STR',   'cl.priority',                    1 ],
+      [ 'PERIOD',           'DATE',  'cl.date',                        1 ],
+      [ 'COMMENTS',         'STR',   'cl.comments',                      ],
+    ],
+    {
+      WHERE             => 1,
+      USERS_FIELDS_PRE  => 1,
+      SKIP_USERS_FIELDS => ['FIO', 'PHONE', 'EMAIL', 'COMMENTS', 'DOMAIN_ID'],
+      WHERE_RULES       => \@WHERE_RULES,
+    }
+  );
 
-  $self->query2(
+
+#  $WHERE .= ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+
+  $self->query(
     "SELECT
     $self->{SEARCH_FIELDS}
-    cl.id as lead_id,cl.id
+    cl.id as lead_id, cl.uid, cl.id
     FROM crm_leads as cl
     LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
     LEFT JOIN crm_progressbar_steps cps ON (cps.step_number = cl.current_step)
     LEFT JOIN admins a ON (a.aid = cl.responsible)
+    LEFT JOIN users u ON (u.uid = cl.uid)
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -1542,16 +1569,19 @@ sub crm_lead_list {
   my $list = $self->{list};
 
   return $self->{list} if ($self->{TOTAL} < 1);
-    
-  $self->query2(
+
+  $self->query(
     "SELECT COUNT(*) AS total
    FROM crm_leads as cl
    LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
+    LEFT JOIN crm_progressbar_steps cps ON (cps.step_number = cl.current_step)
+    LEFT JOIN admins a ON (a.aid = cl.responsible)
+    LEFT JOIN users u ON (u.uid = cl.uid)
    $WHERE",
     undef,
     { INFO => 1 }
   );
-  
+
   return $list;
 }
 
@@ -1596,7 +1626,7 @@ sub crm_progressbar_step_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM crm_progressbar_steps
       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
   );
@@ -1652,7 +1682,7 @@ sub crm_progressbar_step_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'crm_progressbar_steps',
@@ -1665,7 +1695,7 @@ sub crm_progressbar_step_change {
 
 #*******************************************************************
 
-=head2 function list_coming() - get list of all comings
+=head2 crm_progressbar_step_list() - get list of all comings
 
   Arguments:
     $attr
@@ -1674,7 +1704,7 @@ sub crm_progressbar_step_change {
     @list
 
   Examples:
-    my @list = $Cashbox->list_coming({ COLS_NAME => 1});
+    my @list = $Cashbox->crm_progressbar_step_list({ COLS_NAME => 1});
 
 =cut
 
@@ -1703,7 +1733,7 @@ sub crm_progressbar_step_list {
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
-  $self->query2(
+  $self->query(
     "SELECT
     id,
     step_number,
@@ -1721,7 +1751,7 @@ sub crm_progressbar_step_list {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT count(*) AS total
    FROM crm_progressbar_steps",
     undef,
@@ -1766,7 +1796,7 @@ sub leads_source_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'crm_leads_sources',
@@ -1812,7 +1842,7 @@ sub leads_source_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2(
+  $self->query(
     "SELECT * FROM crm_leads_sources
       WHERE id = ?;", undef, { COLS_NAME=>1, COLS_UPPER=> 1, Bind => [ $attr->{ID} ] }
   );
@@ -1850,7 +1880,7 @@ sub leads_source_list {
     { WHERE => 1, }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT
     cls.id,
     cls.name,
@@ -1866,7 +1896,7 @@ sub leads_source_list {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT COUNT(*) AS total
    FROM crm_leads_sources",
     undef,
@@ -1952,7 +1982,7 @@ sub progressbar_comment_list  {
     { WHERE => 1, }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT
     $self->{SEARCH_FIELDS}
     cpsc.id
@@ -1970,7 +2000,7 @@ sub progressbar_comment_list  {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT COUNT(*) AS total
    FROM crm_progressbar_step_comments",
     undef,
@@ -2027,7 +2057,7 @@ sub crm_actions_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'crm_actions',
@@ -2092,7 +2122,7 @@ sub crm_actions_list {
     { WHERE => 1, }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT
     $self->{SEARCH_FIELDS}
     ca.id
@@ -2107,7 +2137,7 @@ sub crm_actions_list {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
+  $self->query(
     "SELECT COUNT(*) AS total
    FROM crm_actions",
     undef,
@@ -2139,6 +2169,230 @@ sub crm_actions_info {
   else{
     return ();
   }
+}
+
+#**********************************************************
+=head2 crm_time_norms_add() - add new norms for year
+
+  Arguments:
+    WORKING_NORMS - ref array of hashes
+       [{
+        MONTH => 1,
+        HOURS => 10,
+        DAYS  => 1
+        }]
+     YEAR - year of data set
+
+  Returns:
+    $self
+
+  Examples:
+    $Crm->crm_time_norms_add({
+    YEAR => 2018,
+    WORKING_NORMS => [
+    {MONTH => 1, HOURS => 10, DAYS => 2},
+    {MONTH => 2, HOURS => 10, DAYS => 2},
+    ]
+    });
+
+=cut
+#**********************************************************
+sub crm_time_norms_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $working_norms_arr = $attr->{WORKING_NORMS};
+  my @MULTI_QUERY = ();
+
+  foreach my $working_norm (@$working_norms_arr) {
+    push @MULTI_QUERY, [ $attr->{YEAR},
+      $working_norm->{MONTH},
+      $working_norm->{HOURS},
+      $working_norm->{DAYS},
+      ];
+  }
+
+  $self->query("REPLACE INTO crm_working_time_norms (year, month, hours, days)
+     VALUES (?, ?, ?, ?);",
+    undef,
+    { MULTI_QUERY => \@MULTI_QUERY });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_time_norms_list() - list of data sets
+
+  Arguments:
+    YEAR  - sets of data for year
+    MONTH - sets of data for month
+
+  Returns:
+    $self
+
+  Examples:
+  my $working_time_norms = $Crm->crm_time_norms_list({
+    YEAR      => 2018,
+    MONTH     => '_SHOW',
+    HOURS     => '_SHOW',
+    DAYS      => '_SHOW',
+    COLS_NAME => 1,
+  });
+
+=cut
+#**********************************************************
+sub crm_time_norms_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'YEAR',   'INT',    'cwtn.year',  1 ],
+      [ 'MONTH',  'INT',    'cwtn.month', 1 ],
+      [ 'HOURS',  'INT',    'cwtn.hours', 1 ],
+      [ 'DAYS',   'INT',    'cwtn.days',  1 ],
+    ],
+    { WHERE => 1, }
+  );
+
+  $self->query(
+    "SELECT
+    $self->{SEARCH_FIELDS}
+     cwtn.year
+    FROM crm_working_time_norms as cwtn
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query(
+    "SELECT COUNT(*) AS total
+   FROM crm_working_time_norms",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list || [];
+}
+
+#**********************************************************
+=head2 crm_payed_salaries_list()
+
+  Arguments:
+     attr -  hash with arguments
+     {
+       ID    - salarie's identifier
+       BET   - salarie's payment amount
+       YEAR  - salarie's payment year
+       MONTH - salarie's payment month
+       DATE  - date, when payment created
+       ADMIN_NAME - admin's name
+       AID        - admin's indetifier
+       SHOW_ALL_COLUMNS - return list with all columns
+     }
+
+  Returns:
+    list - list of payed salaries
+
+  Example:
+    Return list of all salaries with all columns
+    $Crm->crm_payed_salaries_list({COLS_NAME => 1, SHOW_ALL_COLUMNS => 1});
+
+    Return list of all salaries in first month in 2018 year
+    $Crm->crm_payed_salaries_list({COLS_NAME => 1, YEAR => 2018, MONTH => 1});
+
+=cut
+#**********************************************************
+sub crm_payed_salaries_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG          = ($attr->{PG})   ? $attr->{PG}   : 0;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $search_columns =  [
+    [ 'ID',         'INT',  'csp.id',               1 ],
+    [ 'ADMIN_NAME', 'STR',  'a.name as admin_name', 1 ],
+    [ 'BET',        'INT',  'csp.bet',              1 ],
+    [ 'YEAR',       'INT',  'csp.year',             1 ],
+    [ 'MONTH',      'INT',  'csp.month',            1 ],
+    [ 'DATE',       'DATE', 'csp.date',             1 ],
+    [ 'AID',        'INT',  'csp.aid',              1 ],
+  ];
+
+  if ($attr->{SHOW_ALL_COLUMNS}){
+    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+  }
+
+  my $WHERE =  $self->search_former($attr, $search_columns,
+    {
+      WHERE => 1
+    }
+  );
+
+  $self->query(
+    "SELECT
+    $self->{SEARCH_FIELDS}
+     csp.id
+    FROM crm_salaries_payed as csp
+    LEFT JOIN admins a ON (a.aid = csp.aid)
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query(
+    "SELECT COUNT(*) AS total
+   FROM crm_working_time_norms",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list || [];
+}
+
+#**********************************************************
+=head2 crm_delete_payed_salary()
+
+  Arguments:
+     attr -  with arguments hash
+     {
+       ID  - delete salary by ID
+     }
+
+  Returns:
+    self
+
+  Example:
+    $Crm->crm_delete_payed_salary({ ID => 1 });
+
+=cut
+#**********************************************************
+sub crm_delete_payed_salary {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_salaries_payed', $attr);
+
+  return $self;
 }
 
 1

@@ -209,7 +209,7 @@ $lang{SERVICE} = 'Услуга';
 $lang{HOLIDAYS} = 'Праздничные';
 $lang{PRICE} = 'Цена';
 $lang{SHORT_NAME} = 'Короткое название';
-$lang{TIME_SHEET} = 'Журнал Работ';
+$lang{TIME_SHEET} = 'Табель Работ';
 $lang{INN} = 'ИНН';
 $lang{ACCOUNTS} = 'Счета';
 $lang{MAX_SESSION_DURATION} = 'Макc. время сессии';
@@ -411,6 +411,8 @@ $lang{PRIMARY} = 'Основной';
 $lang{PRIORITY} = 'Приоритет';
 $lang{TARIF_PLAN} = 'Тарифный план';
 $lang{NEG_DEPOSIT_FILTER_ID} = 'Фильтр негативного Депозита';
+$lang{NEGATIVE} = 'Негативный';
+$lang{SWITCHBOARDS} = 'Коммутаторы';
 $lang{USED} = 'Использовано';
 $lang{ACT} = 'Акт';
 $lang{TRAFFIC} = 'Трафик';
@@ -789,6 +791,14 @@ $lang{CREDIT_PRICE} = 'Стоимость услуги';
 $lang{TRANSFER} = 'Перевод';
 $lang{MODULE_VERSION}='Версия модуля';
 $lang{PLUGIN_VERSION}='Версия плагина';
+$lang{APPEND}='Дополнить';
+$lang{WITHOUT_CONFIRM}='Без подтверждения';
 
+$lang{CONFIRM_CHANGES} = 'Введите пароль для подтверждения изменений';
+$lang{NO_CHANGES} = 'Без изменений';
+$lang{LOGIN_LESS_ACCESS_MSG} = 'Введите пароль для получения доступа';
+$lang{LOGIN_LESS_ACCESS_DEFAULT} = 'Или войдите как другой пользователь';
+$lang{LOGIN_LESS_ACCESS_SYSTEM_PICK} = 'Вы идентифицированы как';
+$lang{CHAT} = 'Чат';
 
 1

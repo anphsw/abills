@@ -7,7 +7,7 @@ package Address;
 =cut
 
 use strict;
-use parent 'main';
+use parent 'dbcore';
 use Conf;
 
 our $VERSION = 2.05;
@@ -64,7 +64,7 @@ sub address_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query2("SELECT d.id AS district_id,
+  $self->query("SELECT d.id AS district_id,
       d.city,
       d.name AS address_district,
       s.name AS address_street,
@@ -111,20 +111,20 @@ sub address_info {
 sub address_list {
   my $self = shift;
 
-  $self->query2("SELECT
-      d.id            AS     DISTRICT_ID,
-      d.name          AS     DISTRICT_NAME,
-      s.id            AS     STREET_ID,
-      s.name          AS     STREET_NAME,
-      s.district_id   AS     STREET_DISTRICT_ID,
-      b.id            AS     BUILD_ID,
-      b.number        AS     BUILD_NAME,
-      b.street_id     AS     BUILD_STREET_ID
+  $self->query("SELECT
+      d.id            AS district_id,
+      d.name          AS district_name,
+      s.id            AS street_id,
+      s.name          AS street_name,
+      s.district_id   AS street_district_id,
+      b.id            AS build_id,
+      b.number        AS build_name,
+      b.street_id     AS build_street_id
     FROM districts d
     LEFT JOIN streets s ON (d.id = s.district_id)
     LEFT JOIN builds b ON (s.id = b.street_id)
     WHERE b.id IS NOT NULL
-    ORDER BY DISTRICT_NAME;",
+    ORDER BY district_name;",
     undef,
     { COLS_NAME => 1 }
   );
@@ -234,7 +234,7 @@ sub district_list {
     }
   );
 
-  $self->query2("SELECT d.id,
+  $self->query("SELECT d.id,
        d.name,
        d.country,
        d.city,
@@ -257,7 +257,7 @@ sub district_list {
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT count(*) AS total FROM districts d $WHERE", undef, { INFO => 1 });
+    $self->query("SELECT COUNT(*) AS total FROM districts d $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -272,7 +272,7 @@ sub district_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT id, name, country,
+  $self->query("SELECT id, name, country,
  city, zip, comments, coordx, coordy, zoom
   FROM districts WHERE id= ? ;",
   undef,
@@ -292,7 +292,7 @@ sub district_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'districts',
@@ -397,7 +397,7 @@ sub street_list {
   ORDER BY $SORT $DESC
   LIMIT $PG, $PAGE_ROWS;";
 
-  $self->query2($sql, undef, $attr);
+  $self->query($sql, undef, $attr);
 
   return [] if $self->{errno};
 
@@ -407,7 +407,7 @@ sub street_list {
     $sql = "SELECT COUNT(DISTINCT s.id) $EXT_FIELDS_TOTAL FROM streets s
       LEFT JOIN districts d ON (s.district_id=d.id)
       $EXT_TABLE_TOTAL  $WHERE";
-    $self->query2($sql);
+    $self->query($sql);
 
     if($self->{TOTAL} > 0) {
       ($self->{TOTAL}, $self->{TOTAL_BUILDS}, $self->{TOTAL_USERS},
@@ -431,7 +431,7 @@ sub street_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM streets WHERE id= ? ;",
+  $self->query("SELECT * FROM streets WHERE id= ? ;",
     undef,
     { INFO => 1,
       Bind => [ $attr->{ID} ]
@@ -449,7 +449,7 @@ sub street_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'streets',
@@ -528,10 +528,10 @@ sub build_list {
       ['FLATS',             'INT', 'b.flats',        1 ],
       ['SCHEMA',            'INT', 'b.schema',       1 ],
       ['DISTRICT_ID',       'INT', 's.district_id',  1 ],
-      ['DISTRICT_NAME',     'INT', 'd.name AS district_name',1 ],
+      ['DISTRICT_NAME',     'INT', 'd.name AS district_name',       1 ],
       ['STREET_NAME',       'INT', 's.name', 's.name AS street_name'  ],
       ['USERS_COUNT',       'INT', '', 'COUNT(pi.uid) AS users_count' ],
-      ['USERS_CONNECTIONS', 'INT', '', 'ROUND((count(pi.uid) / b.flats * 100), 0) AS users_connections' ],
+      ['USERS_CONNECTIONS', 'INT', '', 'ROUND((COUNT(pi.uid) / b.flats * 100), 0) AS users_connections' ],
       ['ADDED',             'DATE','b.added',        1 ],
       ['YANDEX_0',          'INT', 'yandex_0',       1 ],
       ['YANDEX_1',          'INT', 'yandex_1',       1 ],
@@ -541,7 +541,7 @@ sub build_list {
       ['COORDX',            'INT', 'b.coordx',       1 ],
       ['COORDY',            'INT', 'b.coordy',       1 ],
       ['ZOOM',              'INT', 'd.zoom',         1 ],
-      ['STREET_ID',         'INT', 'b.street_id',     ],
+      ['STREET_ID',         'INT', 'b.street_id',      ],
       ['ZIP',               'INT', 'b.zip',    'b.zip' ],
       ['PUBLIC_COMMENTS',   'STR', 'b.public_comments',    1 ],
       ['PLANNED_TO_CONNECT','STR', 'b.planned_to_connect', 1 ],
@@ -558,7 +558,13 @@ sub build_list {
   my $EXT_TABLES = '';
 
   if ($self->{SEARCH_FIELDS} =~ /s\.|d\./) {
-    $EXT_TABLES = 'LEFT JOIN streets s ON (s.id=b.street_id)';
+    if($attr->{WITH_STREETS_ONLY}) {
+      $EXT_TABLES = 'INNER JOIN streets s ON (s.id=b.street_id)';
+    }
+    else {
+      $EXT_TABLES = 'LEFT JOIN streets s ON (s.id=b.street_id)';
+    }
+
     if ($self->{SEARCH_FIELDS} =~ /d\./) {
       $EXT_TABLES .= 'LEFT JOIN districts d ON (d.id=s.district_id)';
     }
@@ -568,9 +574,9 @@ sub build_list {
     $EXT_TABLES .= 'LEFT JOIN users_pi pi ON (b.id=pi.location_id)';
   }
 
-  $self->query2("SELECT b.number, $self->{SEARCH_FIELDS} b.id, b.street_id
+  $self->query("SELECT b.number, $self->{SEARCH_FIELDS} b.id, b.street_id
       FROM builds b
-      $EXT_TABLES
+     $EXT_TABLES
      $WHERE
      GROUP BY b.id
      ORDER BY $SORT $DESC
@@ -578,8 +584,8 @@ sub build_list {
 
   my $list = $self->{list};
 
-  if ($self->{TOTAL} > 0) {
-    $self->query2("SELECT COUNT(*) AS total FROM builds b
+  if ($self->{TOTAL} && $self->{TOTAL} > 0) {
+    $self->query("SELECT COUNT(*) AS total FROM builds b
     $EXT_TABLES
     $WHERE",
     undef,
@@ -599,7 +605,7 @@ sub build_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM builds WHERE id= ? ;",
+  $self->query("SELECT * FROM builds WHERE id= ? ;",
     undef,
    {
      INFO => 1,
@@ -618,7 +624,7 @@ sub build_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'builds',
@@ -692,7 +698,7 @@ sub location_media_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM location_media WHERE location_id= ? ;",
+  $self->query("SELECT * FROM location_media WHERE location_id= ? ;",
     undef,
    {
      Bind => [ $attr->{LOCATION_ID} ],
@@ -714,7 +720,7 @@ sub location_media_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM location_media WHERE id= ? ;",
+  $self->query("SELECT * FROM location_media WHERE id= ? ;",
     undef,
    {
      INFO => 1,
@@ -733,7 +739,7 @@ sub location_media_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'location_media',

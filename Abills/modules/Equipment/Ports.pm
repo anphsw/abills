@@ -81,7 +81,7 @@ sub equipment_ports_full {
     if ( $perl_scalar && $perl_scalar->{ports} ){
       $ports_tpl = $perl_scalar->{ports};
 
-      foreach my $key ( %{ $perl_scalar->{ports} } ){
+      foreach my $key ( keys %{ $perl_scalar->{ports} } ){
         next if (ref $key eq 'HASH');
         if($perl_scalar->{ports}->{$key}->{PARSER} ne 'hidden') {
           $tpl_fields{$key} = $key;
@@ -90,7 +90,7 @@ sub equipment_ports_full {
     }
   }
 
-  $tpl_fields{PORT_DESCR} = "Description";
+  $tpl_fields{PORT_DESCR}  = "Description";
   $tpl_fields{NATIVE_VLAN} = "Native VLAN dynamic";
 
   #New
@@ -165,18 +165,20 @@ sub equipment_ports_full {
   }
 
   my $port_shift = 0;
-  if($Equipment_->{MODEL_ID} && $Equipment_->{MODEL_ID} == 185) {
-    $port_shift = 4;
+  #if($Equipment_->{MODEL_ID} && $Equipment_->{MODEL_ID} == 185) {
+  if($Equipment_->{PORT_SHIFT}) {
+    $port_shift = $Equipment_->{PORT_SHIFT};
   }
 
   #ports Autoshift
   foreach my $key (keys %{$ports_info}){
-    if ($#skip_ports_types > -1 && in_array($ports_info->{$key}{PORT_TYPE}, \@skip_ports_types)){
+    if ($#skip_ports_types > -1 && in_array($ports_info->{$key}{PORT_TYPE}, \@skip_ports_types) || ! $ports_info->{$key}{PORT_TYPE}){
       delete $ports_info->{$key};
     }
   }
 
   my @ports_arr = keys %{ $ports_info };
+
   $used_ports = equipments_get_used_ports({
     NAS_ID     => $nas_id,
     PORTS_ONLY => 1,
@@ -235,12 +237,13 @@ sub equipment_ports_full {
       }
       elsif ( $col_id eq 'IP' || $col_id eq 'LOGIN' || $col_id eq 'ADDRESS_FULL' || $col_id eq 'FIO' ||  $col_id eq 'TP_NAME'){
         my $value = '';
-        if ($used_ports->{$port}) {
+        my $snmp_port = $port - $port_shift;
+        if ($used_ports->{$snmp_port}) {
           if ($col_id eq 'LOGIN') {
-            $value .= show_used_info( $used_ports->{ $port } );
+            $value .= show_used_info( $used_ports->{ $snmp_port } );
           }
           else {
-            foreach my $uinfo (@{ $used_ports->{$port} }) {
+            foreach my $uinfo (@{ $used_ports->{$snmp_port} }) {
               $value .= $html->br() if ($value);
 
               if ($col_id eq 'IP') {
@@ -290,6 +293,14 @@ sub equipment_ports_full {
             $value .= show_used_info( $used_ports->{ 'sw:' . $ports_info->{$port}->{UPLINK} } );
           }
           push @row, $value;
+        }
+        elsif($col_id eq 'VLAN' || $col_id eq 'NATIVE_VLAN') {
+          if (defined($ports_info->{$port-$port_shift})) {
+            push @row, $ports_info->{$port - $port_shift}->{$col_id};
+          }
+          else {
+            push @row, q{};
+          }
         }
         else{
           push @row, $ports_info->{$port}->{$col_id};
@@ -806,13 +817,13 @@ sub equipments_get_used_ports{
     }
   }
   if ($attr->{PORTS_ONLY} && !$attr->{FULL_LIST}) {
-    my $list = $Equipment->port_list({
+    my $port_list = $Equipment->port_list({
       NAS_ID     => $attr->{NAS_ID},
       UPLINK     => '_SHOW',
       PAGE_ROWS  => 1000,
       COLS_NAME  => 1
     });
-    foreach my $line ( @{$list} ) {
+    foreach my $line ( @{$port_list} ) {
       if ($line->{uplink}) {
         push @{ $used_ports{ $line->{port} } }, $line;
       }
@@ -924,8 +935,10 @@ sub equipment_port_panel{
   my $server_vlan_name = (in_array('Internet', \@MODULES)) ? 'SERVER_VLAN' : 'SERVER_VID';
 
   foreach my $line (@$port_list) {
+    next if(! $line->{port});
+
     $Equipment->{SEARCH_RESULT}{$line->{port}}
-      = $ports_name . "::" . $line->{port}
+      = $ports_name . "::" . ($line->{port} || q{})
       . '#@#' . $vlan_name . "::" . ($line->{vlan} || '')
       . '#@#' . $server_vlan_name . "::" . ($Equipment->{SERVER_VLAN} || '')
   }

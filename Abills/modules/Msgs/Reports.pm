@@ -886,66 +886,84 @@ Returns : 1
 #**********************************************************
 sub msgs_report_tags {
 
-  my %report_date;
-  my $list_tags         = $Msgs->quick_replys_tags_list({ COLS_NAME => 1, PAGE_ROWS => 10000 });
-  _error_show($Msgs);
+  reports(
+    {
+      DATE_RANGE  => 1,
+      DATE        => $FORM{DATE},
+      PERIOD_FORM => 1,
+      NO_TAGS     => 1,
+      NO_GROUP    => 1
+    }
+  );
   
-  my $tags_total        = $Msgs->{TOTAL};
-  my $list_quick_replys = $Msgs->messages_quick_replys_list({
-    ID      => '_SHOW',
-    REPLY   => '_SHOW',
-    TYPE_ID => '_SHOW',
-    COLOR   => '_SHOW',
-    COLS_NAME => 1, PAGE_ROWS => 10000
-  });
+  my %span_hash;
+  my $list_tags = $Msgs->messages_quick_replys_list({REPLY => '_SHOW', ID => '_SHOW', COLS_NAME => 1});
   _error_show($Msgs);
+  my $total_tags_used = $Msgs->messages_tags_total_count(\%FORM);
   
   my $tags_table = $html->table(
     {
-      caption    => "Tags",
-      width      => '100%',
-      title      => [ "$lang{NAME}", "$lang{TOTAL}", "$lang{PERCENTAGE}" ],
-      cols_align => [ 'right', 'left', 'center', 'center', 'center' ],
-      ID         => 'MSGS_TAGS_REPORTS',
-      DATA_TABLE => 1,
+      caption     => $lang{MSGS_TAGS},
+      width       => '100%',
+      title_plain => [ "", "$lang{NAME}", "$lang{PERCENTAGE}", "$lang{TOTAL}" ],
+      ID          => 'MSGS_TAGS_REPORTS',
+      # DATA_TABLE => 1,
     }
   );
-
-  foreach my $line (@$list_quick_replys) {
-    $report_date{$line->{id}}{sum}   = 0;
-    $report_date{$line->{id}}{color} = $line->{color};
-    $report_date{$line->{id}}{reply} = $line->{reply};
-  }
-
   foreach my $line (@$list_tags) {
-    if (defined($report_date{$line->{quick_reply_id}}{sum})) {
-      $report_date{$line->{quick_reply_id}}{sum} += 1;
-    }
+    my $count = $Msgs->messages_report_tags_count({ TAG_ID => $line->{id}, %FORM});
+    $line->{count} = $count;
+    $span_hash{$line->{id}} = $html->element('span', $line->{reply}, {
+      class => 'label',
+      style => "background-color:$line->{color};",
+    });
   }
+  my $plus_button = $html->element('i', "", {
+      class => 'fa fa-fw fa-plus-circle tree-button',
+      style => 'font-size:16px;color:green;',
+    });
 
-  foreach my $line (sort keys %report_date) {
-    $tags_table->addrow(
-      $html->button(
-        $html->element('span', $report_date{$line}{reply}, {
-            class => "label",
-            'style' => "background-color:". ($report_date{$line}{color} || q{}) .";border-color:white;font-weight: bold" }),
-        "index=" . get_function_index('msgs_admin') . "&search_form=1&MSGS_TAGS=$line&STATE=&search=1",
-        { class => 'button button-default' }
-      ),
-
-      $report_date{$line}{sum},
-      $html->progress_bar(
-        {
-          TOTAL        => $tags_total,
-          COMPLETE     => $report_date{$line}{sum},
-          PERCENT_TYPE => 1,
-          COLOR        => 'MAX_COLOR',
-        },
-      )
+  foreach my $line (sort { $b->{count} <=> $a->{count} } @$list_tags) {
+    next unless($line->{count});
+    my %hash = ();
+    foreach my $tag (@$list_tags) {
+      next if ($tag->{id} eq $line->{id});
+      my $sub_count = $Msgs->messages_report_tags_count({ TAG_ID => $line->{id}, SUBTAG => $tag->{id}, %FORM});
+      next unless ($sub_count);
+      $hash{$tag->{id}} = $sub_count;
+    }
+    my $tree = $span_hash{$line->{id}} .
+               '<div style="display:none;">' .
+               '<div class="panel panel-default">' .
+               '<div class="panel-heading">' .
+               $span_hash{$line->{id}} .
+               ' используется с:</div>' .
+               "<table class='table'><tr><th>$lang{NAME}</th><th>$lang{PERCENTAGE}</th></tr>";
+    foreach my $k (sort { $hash{$b} <=> $hash{$a} } keys %hash) {
+      $tree .= "<tr><td>$span_hash{$k}</td><td>" . 
+               $html->progress_bar({
+                   TOTAL        => $line->{count},
+                   COMPLETE     => $hash{$k},
+                   PERCENT_TYPE => 1,
+                   COLOR        => 'MAX_COLOR',
+                 }) . 
+               "</td></tr>";
+    }
+    $tree .= '</table></div></div>';
+    $tags_table->addrow( $plus_button, $tree,
+      $html->progress_bar({
+        TOTAL        => $total_tags_used,
+        COMPLETE     => $line->{count},
+        PERCENT_TYPE => 1,
+        COLOR        => 'MAX_COLOR',
+      }),
+      $line->{count}
     );
   }
 
-  print $tags_table->show();
+  my $table = $tags_table->show();
+
+  $html->tpl_show(_include('msgs_tags_report', 'Msgs'), { TABLE => $table });
 
   return 1;
 }
@@ -1256,6 +1274,16 @@ sub report_per_month {
 
   $FORM{TYPE} = 'PER_MONTH';
 
+  if ($FORM{FROM_DATE} eq $FORM{TO_DATE}) {
+    my ($y) = $FORM{FROM_DATE} =~ m/(\d{4})/;
+    $y--;
+    $FORM{FROM_DATE} =~ s/(\d{4})/$y/;
+  }
+  my @x_column_name;
+  my $date_num = 0;
+  my %column_date = ();
+  my %column_date2 = ();
+
   my $closed_list = $Msgs->messages_report_closed({
     F_DATE => $FORM{FROM_DATE},
     T_DATE => $FORM{TO_DATE},
@@ -1272,9 +1300,9 @@ sub report_per_month {
   foreach my $line (@$closed_list) {
     $result{$line->{month}} = {
       closed_msgs    => $line->{total_msgs},
-      average_replys => ($line->{total_msgs} ? $line->{total_replys} / $line->{total_msgs} : 0),
-      average_time   => sec2time(($line->{total_msgs} ? $line->{run_time} / $line->{total_msgs} : 0), {str => 1}),
-      average_rating => ($line->{total_msgs} ? $line->{total_rating} / $line->{total_msgs} : 0),
+      average_replys => (($line->{total_msgs} && $line->{total_replys} ) ? $line->{total_replys} / $line->{total_msgs} : 0),
+      average_time   => sec2time((($line->{total_msgs} && $line->{run_time} )? $line->{run_time} / $line->{total_msgs} : 0), {str => 1}),
+      average_rating => (($line->{total_msgs} && $line->{total_rating}) ? $line->{total_rating} / $line->{total_msgs} : 0),
     };
   }
 
@@ -1285,7 +1313,7 @@ sub report_per_month {
   my $table = $html->table({
     width       => '100%',
     caption     => $lang{MESSAGES},
-    title_plain => [$lang{DATE}, $lang{NEW}, $lang{CLOSED}, "$lang{REPLYS} ($lang{AVERAGE_PER_APPLICATION})", "$lang{RUN_TIME} ($lang{AVERAGE_PER_APPLICATION})", $lang{AVERAGE_SCORE_FOR_CLOSED_BIDS} ],
+    title_plain => [$lang{DATE}, $lang{NEW}, $lang{CLOSED}, $lang{REPLYS_AVERAGE}, $lang{TIME_AVERAGE}, $lang{AVERAGE_SCORE_FOR_CLOSED_BIDS}, $lang{CLOSED_RATIO} ],
     qs          => $pages_qs,
     ID          => 'MSGS_REPORT',
     EXPORT      => 1,
@@ -1293,6 +1321,7 @@ sub report_per_month {
   });
 
   foreach my $month (sort keys %result) {
+    my $succ_perc = ($result{$month}{closed_msgs} && $result{$month}{total_msgs}) ? (100 * $result{$month}{closed_msgs} / $result{$month}{total_msgs}) : 0;
     $table->addrow(
       $month,
       $result{$month}{total_msgs},
@@ -1300,10 +1329,35 @@ sub report_per_month {
       sprintf("%.2f", $result{$month}{average_replys} || 0),
       $result{$month}{average_time} || 0,
       sprintf("%.2f", $result{$month}{average_rating} || 0),
+      sprintf("%.2f", $succ_perc),
     );
+    push @x_column_name, $month;
+    $column_date{$lang{NEW}}[$date_num] = $result{$month}{total_msgs};
+    $column_date{$lang{CLOSED}}[$date_num] = $result{$month}{closed_msgs};
+    $column_date2{$lang{CLOSED_RATIO}}[$date_num++] = sprintf("%.2f", $succ_perc);
+
   }
 
   print $table->show();
+
+  $html->make_charts_simple(
+    {
+      TRANSITION    => 1,
+      TYPES         => { $lang{NEW} => 'LINE', $lang{CLOSED} => 'LINE'},
+      X_TEXT        => \@x_column_name,
+      DATA          => \%column_date,
+      TITLE         => "$lang{MESSAGES}, $lang{COUNT}",
+    }
+  );
+  $html->make_charts_simple(
+    {
+      TRANSITION    => 1,
+      TYPES         => { $lang{CLOSED_RATIO} => 'LINE'},
+      X_TEXT        => \@x_column_name,
+      DATA          => \%column_date2,
+      TITLE         => $lang{CLOSED_RATIO},
+    }
+  );
 
   return 1;
 }
@@ -1347,6 +1401,98 @@ sub msgs_templates_report {
   }
 
   print $table->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 report_replys_and_time()
+
+=cut
+#**********************************************************
+sub report_replys_and_time {
+
+  my $date_num = 0;
+  my %column_date = ();
+  my %column_date2 = ();
+  my @x_column_name;
+
+  my %admin_name;
+
+  my $admins_list = $Msgs->admins_list({
+    AID                     => '_SHOW',
+    PAGE_ROWS               => 10000,
+    COLS_NAME               => 1,
+    DISABLE                 => '0',
+  });
+
+  foreach my $line (@{$admins_list}) {
+    $admin_name{$line->{aid}}      = $line->{admin_login};
+  }
+
+  my $admin_select = $html->form_select(
+    'AID',
+    {
+      SEL_HASH    => \%admin_name,
+      SELECTED    => $FORM{AID} || '',
+    }
+  );
+
+  reports(
+    {
+      DATE_RANGE        => 1,
+      REPORT            => '',
+      NO_GROUP          => 1,
+      NO_STANDART_TYPES => 1,
+      NO_TAGS           => 1,
+      EXT_SELECT_NAME   => $lang{ADMIN},
+      EXT_SELECT        => $admin_select,
+      PERIOD_FORM       => 1,
+      EXT_TYPE          => { ADMINS => $lang{ADMINS} },
+    }
+  );
+
+  return 1 unless ($FORM{AID});
+
+  my $table = $html->table({ 
+    caption     => $admin_name{$FORM{AID}},
+    width       => '100%',
+    title_plain => [$lang{MONTH}, $lang{REPLYS}, $lang{TIME}],
+    ID          => "replys_and_time_report"
+  });
+
+  my $reply_list = $Msgs->messages_report_replys_time(\%FORM);
+  foreach my $line (@$reply_list) {
+    push @x_column_name, $line->{month};
+    $table->addrow(
+      $line->{month},
+      $line->{replys},
+      sec2time($line->{run_time}, {str => 1})
+    );
+    $column_date{$lang{REPLYS}}[$date_num] = $line->{replys};
+    $column_date2{$lang{TIME}}[$date_num++] = $line->{run_time};
+  }
+
+  print $table->show();
+
+  $html->make_charts_simple(
+    {
+      TRANSITION    => 1,
+      TYPES         => { $lang{REPLYS} => 'LINE' },
+      X_TEXT        => \@x_column_name,
+      DATA          => \%column_date,
+      TITLE         => $lang{REPLYS_COUNT},
+    }
+  );
+    $html->make_charts_simple(
+    {
+      TRANSITION    => 1,
+      TYPES         => { $lang{TIME} => 'LINE' },
+      X_TEXT        => \@x_column_name,
+      DATA          => \%column_date2,
+      TITLE         => $lang{TIME_SPENT_ON_APPLICATIONS},
+    }
+  );
 
   return 1;
 }

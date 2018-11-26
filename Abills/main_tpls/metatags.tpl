@@ -101,6 +101,8 @@
 
   <script src='/styles/lte_adm/dist/js/app.js'></script>
 
+  <script src='/styles/lte_adm/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
+
   <script>
     window['IS_ADMIN_INTERFACE'] = true;
     window['IS_CLIENT_INTERFACE'] = false;
@@ -136,6 +138,8 @@
       'Last Month'    : '_{PREVIOUS}_ _{MONTH}_',
       customRangeLabel: '_{OTHER}_'
     };
+
+    var CONTENT_LANGUAGE = '%CONTENT_LANGUAGE%';
 
     /*
     AdminLTEOptions = {

@@ -430,10 +430,15 @@ sub create_request_params_in_json {
   $REQUEST_HASH{request}{auth}{login} = $merchant_key;    # login from Ipay
 
   # TODO: заменить добавление количество часов на правильное время таймзоны Киева
-    my $time = time();
-    $time = $time + 3 * 60 * 60;
-    my $date = POSIX::strftime("%F %X", gmtime($time));
-  $REQUEST_HASH{request}{auth}{time}  = $date;                                    # now time
+#    my $time = time();
+#    $time = $time + 2 * 60 * 60;
+#    my $date = POSIX::strftime("%F %X", gmtime($time));
+#  $REQUEST_HASH{request}{auth}{time}  = $date;                                    # now time
+  use Time::Piece;
+  my $t = localtime;
+  my $time = $t->epoch + (($t->isdst) ? 3 : 2) * 60 * 60;
+  my $date = POSIX::strftime("%F %X", gmtime($time));
+  $REQUEST_HASH{request}{auth}{time}  = $date;
 
   # create a sign string which became a signature
   my $sign_string = $REQUEST_HASH{request}{auth}{time} . $sign_key;
@@ -471,7 +476,13 @@ sub create_request_params_in_json {
     $REQUEST_HASH{request}{body}{invoice}    = $attr->{INVOICE} * 100;
 
     # $REQUEST_HASH{request}{body}{guid}=$attr->{GUID};
-    $REQUEST_HASH{request}{body}{pmt_desc}          = "Оплата услуг согласно счету " . ($user->{_PIN_ABS} || $user->{BILL_ID} || '');
+    if($self->{conf}{PAYSYS_IPAY_DESC}){
+      $self->{conf}{PAYSYS_IPAY_DESC} =~ s/\%([^\%]+)\%/($user->{$1} || '')/g;
+      $REQUEST_HASH{request}{body}{pmt_desc}          = $self->{conf}{PAYSYS_IPAY_DESC};
+    }
+    else{
+      $REQUEST_HASH{request}{body}{pmt_desc}          = "Оплата услуг согласно счету " . ($user->{_PIN_ABS} || $user->{BILL_ID} || '');
+    }
     $REQUEST_HASH{request}{body}{pmt_info}{invoice} = $attr->{INVOICE} * 100;
     $REQUEST_HASH{request}{body}{pmt_info}{acc}     = $user->{UID};
   }
@@ -490,7 +501,13 @@ sub create_request_params_in_json {
     $REQUEST_HASH{request}{body}{error_url}   = "$SELF_URL?qindex=$self->{index}&ipay_purchase=2&header=1&invoice=" . ($attr->{INVOICE} * 100) . "&pmt_id=$attr->{ACC}&UID=$user->{UID}";;                                                                           # url after fail registration
 
     $REQUEST_HASH{request}{body}{invoice}           = $attr->{INVOICE} * 100;
-    $REQUEST_HASH{request}{body}{pmt_desc}          = "Оплата услуг согласно счету " . ($user->{_PIN_ABS} || $user->{BILL_ID} || '');
+    if($self->{conf}{PAYSYS_IPAY_DESC}){
+      $self->{conf}{PAYSYS_IPAY_DESC} =~ s/\%([^\%]+)\%/($user->{$1} || '')/eg;
+      $REQUEST_HASH{request}{body}{pmt_desc}          = $self->{conf}{PAYSYS_IPAY_DESC};
+    }
+    else{
+      $REQUEST_HASH{request}{body}{pmt_desc}          = "Оплата услуг согласно счету " . ($user->{_PIN_ABS} || $user->{BILL_ID} || '');
+    }
     $REQUEST_HASH{request}{body}{pmt_info}{invoice} = $attr->{INVOICE} * 100;
     $REQUEST_HASH{request}{body}{pmt_info}{acc}     = $user->{UID};
   }

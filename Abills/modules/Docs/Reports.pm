@@ -159,4 +159,58 @@ sub docs_reports{
   return 1;
 }
 
+#**********************************************************
+=head2 docs_unpaid_invoices()
+
+=cut
+#**********************************************************
+sub docs_unpaid_invoices {
+
+  my %invoices_type = (
+    ALL      => $lang{ALL},
+    UNPAID   => $lang{UNPAID},
+    PAID     => $lang{PAID}
+  );
+
+  my $type_select = $html->form_select(
+    'INVOICES_TYPES',
+    {
+      NO_ID       => 1,
+      SEL_HASH    => \%invoices_type,
+      SELECTED    => $FORM{INVOICES_TYPES} || 'UNPAID',
+    }
+  );
+
+  reports({
+    DATE_RANGE        => 1,
+    REPORT            => '',
+    NO_STANDART_TYPES => 1,
+    EXT_SELECT        => $type_select,
+    EXT_SELECT_NAME   => $lang{INVOICES},
+    PERIOD_FORM       => 1,
+  });
+
+  my $list = $Docs->docs_invoice_reports({
+    LOGIN => '_SHOW',
+    %FORM,
+  });
+
+  my $table = $html->table({
+    caption     => $lang{INVOICES},
+    width       => '100%',
+    qs          => $pages_qs,
+    pages       => $Docs->{TOTAL},
+    title       => [ $lang{NUMBER}, $lang{DATE}, $lang{USER}, $lang{SUM}, $lang{PAID} ],
+    ID          => 'INVOICES_REPORT',
+  });
+
+  foreach my $line (@$list) {
+    $table->addrow($line->{invoice_num}, $line->{date}, $line->{customer}, $line->{total_sum}, $line->{payment_sum} || 0);
+  }
+
+  print $table->show();
+
+  return 1;
+}
+
 1;

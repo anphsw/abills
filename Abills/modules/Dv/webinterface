@@ -2939,7 +2939,7 @@ sub dv_wizard_user {
     # Password
     $add_values{1}{GID} = $admin->{GID} if ($admin->{GID});
 
-    if ($permissions{0}{13}) {
+    if (!$permissions{0}{13}) {
       $add_values{1}{DISABLE}=2;
     }
     my $login = $add_values{1}{LOGIN} || q{};

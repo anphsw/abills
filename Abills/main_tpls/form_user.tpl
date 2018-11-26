@@ -61,7 +61,7 @@
       jQuery('#LOGIN').parent().parent().removeClass('has-success').addClass('has-error');
       return 1;
     }
-    jQuery.post('$SELF_URL', 'header=2&get_index=' + 'msgs_unreg_requests_list' + '&login_check=' + val, function (data) {
+    jQuery.post('$SELF_URL', 'header=2&get_index=' + 'check_login_availability' + '&login_check=' + val, function (data) {
       console.log(data);
       if(data === 'success'){
         jQuery('#LOGIN').parent().parent().removeClass('has-error').addClass('has-success');
@@ -83,7 +83,7 @@
   <input type=hidden name=NOTIFY_ID value='%NOTIFY_ID%'>
   <input type=hidden name=TP_ID value='%TP_ID%'>
 
-  <div class='box box-theme box-big-form'>
+  <div id='form_1' class='box box-theme box-big-form for_sort'>
     <div class='box-header with-border'><h3 class='box-title'>_{USER_ACCOUNT}_</h3>
       <div class='box-tools pull-right'>
         <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-minus'></i>
@@ -140,7 +140,7 @@
       <div class='row'>
         <!-- DISABLE -->
         <div class='col-md-6'>
-          <div class='checkbox text-center %DISABLE_COLOR%'>
+          <div class='checkbox text-center %DISABLE_COLOR%' %DISABLE_HIDEN%>
             <label for='ACTION_COMMENTS'>
               <input type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' /> %DISABLE%
               <strong>_{DISABLE}_</strong>

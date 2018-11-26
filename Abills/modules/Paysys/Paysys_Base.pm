@@ -302,6 +302,10 @@ sub paysys_pay {
       $paysys_id = $Paysys->{INSERT_ID};
     }
 
+    if($attr->{PAYMENT_ID}){
+      return $error_code, $paysys_id;
+    }
+
     return $error_code;
   }
 
@@ -329,7 +333,7 @@ sub paysys_pay {
   #Sucsess
   cross_modules_call('_pre_payment', {
     USER_INFO   => $user,
-    SKIP_MODULES=> 'Sqlcmd',
+    SKIP_MODULES=> 'Sqlcmd, Cards',
     SILENT      => 1,
     SUM         => $PAYMENT_SUM || $amount,
     AMOUNT      => $amount || $PAYMENT_SUM,
@@ -388,6 +392,7 @@ sub paysys_pay {
           SILENT     => 1,
           QUITE      => 1,
           timeout    => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
+          SKIP_MODULES => 'Cards',
         });
       }
 
@@ -601,6 +606,7 @@ sub paysys_check_user {
     $attr
       PAYSYS_ID      - Paysys ID (unique number of operation);
       TRANSACTION_ID - Paysys Transaction identifier
+      RETURN_CANCELED_ID - 1
       DEBUG
 
   Returns:
@@ -623,6 +629,8 @@ sub paysys_pay_cancel {
   my $debug  = $attr->{DEBUG};
   my $result = 0;
   my $status = 0;
+  my $canceled_payment_id = 0;
+  my $cancel_status = $attr->{CANCEL_STATUS} || 3;
 
   if($debug > 6) {
     $users->{debug}=1;
@@ -657,7 +665,7 @@ sub paysys_pay_cancel {
         $Paysys->change(
             {
               ID     => $paysys_list->[0]->{id},
-              STATUS => 3
+              STATUS => $cancel_status
             }
           );
       }
@@ -677,15 +685,20 @@ sub paysys_pay_cancel {
           $Paysys->change(
             {
               ID     => $paysys_list->[0]->{id},
-              STATUS => 3
+              STATUS => $cancel_status
             }
           );
+          $canceled_payment_id = $paysys_list->[0]->{id};
         }
       }
     }
   }
   else {
     $result = 8;
+  }
+
+  if($attr->{RETURN_CANCELED_ID}){
+    return $result, $canceled_payment_id;
   }
 
   return $result;

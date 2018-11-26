@@ -253,7 +253,6 @@ sub _eltex_onu_list {
         }
         $onu_info{$oid_name} = $oid_value;
       }
-      _bp('', \@all_rows, { TO_CONSOLE => 1 });
       push @all_rows, { %onu_info };
     }
   }

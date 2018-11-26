@@ -1317,31 +1317,45 @@ sub extfin_report_balance_list {
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'ID',      'INT',  'id',      1 ],
-      [ 'PERIOD',  'STR',  'period',  1 ],
-      [ 'SUM',     'STR',  'sum',     1 ],
-      [ 'BILL_ID', 'STR',  'bill_id', 1 ],
-      [ 'AID',     'STR',  'aid',     1 ],
-      [ 'DATE',    'STR',  'date',    1 ],
+      [ 'ID',      'INT',  'ebr.id',      1 ],
+      [ 'PERIOD',  'STR',  'ebr.period',  1 ],
+      [ 'SUM',     'STR',  'ebr.sum',     1 ],
+      [ 'BILL_ID', 'STR',  'ebr.bill_id', 1 ],
+      [ 'AID',     'STR',  'ebr.aid',     1 ],
+      [ 'DATE',    'STR',  'ebr.date',    1 ],
     ],
     { WHERE => 1, }
   );
 
   if($attr->{PERIOD}){
-    push @WHERE_RULES, "period = '$attr->{PERIOD}'";
+    push @WHERE_RULES, "ebr.period = '$attr->{PERIOD}'";
+  }
+
+  if($attr->{GID}){
+    my @groups = split(',', $attr->{GID});
+    push @WHERE_RULES, '(u.gid =' . join(" or u.gid =", @groups) . ')';
   }
 
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query2(
     "SELECT
-    id,
-    period,
-    sum,
-    bill_id,
-    aid,
-    date
-    FROM extfin_balance_reports 
+    ebr.id,
+    ebr.period,
+    ebr.sum,
+    ebr.bill_id,
+    ebr.aid,
+    ebr.date,
+    b.uid,
+    pi.fio,
+    pi.contract_id,
+    u.gid,
+    (select SUM(p.sum) FROM payments p WHERE p.uid = b.uid AND p.date>='$attr->{PERIOD}-01 00:00:00' AND p.date<='$attr->{PERIOD}-31 23:59:59')  as payments_sum,
+    (select SUM(f.sum) FROM fees f WHERE f.uid = b.uid AND f.date>='$attr->{PERIOD}-01 00:00:00' AND f.date<='$attr->{PERIOD}-31 23:59:59')  as fees_sum
+    FROM extfin_balance_reports ebr
+    LEFT JOIN bills b ON (b.id = ebr.bill_id)
+    LEFT JOIN users_pi pi ON (pi.uid = b.uid)
+    LEFT JOIN users u ON (u.uid = b.uid)
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,

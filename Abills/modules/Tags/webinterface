@@ -68,7 +68,7 @@ sub tags_user {
     {
       width      => '100%',
       caption    => "Tags",
-      title      => [ '-', "$lang{NAME}", $lang{DATE}, $lang{COMMENTS} ],
+      title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS} ],
       FIELDS_IDS => $Tags->{COL_NAMES_ARR},
       cols_align => [ 'left', 'left', 'left', 'left' ],
       qs         => $pages_qs,
@@ -95,18 +95,18 @@ sub tags_user {
 
   my $action = '';
   if ($attr && $attr->{ACTION}) {
-    $action = $html->form_input('finish', "$lang{REGISTRATION_COMPLETE}", { TYPE => 'submit' })
-      . ' ' . $html->form_input('back', "$lang{BACK}", { TYPE => 'submit' })
-      . ' ' . $html->form_input('next', "$lang{NEXT}", { TYPE => 'submit' });
+    $action = $html->form_input('finish', $lang{REGISTRATION_COMPLETE}, { TYPE => 'submit' })
+      . ' ' . $html->form_input('back', $lang{BACK}, { TYPE => 'submit' })
+      . ' ' . $html->form_input('next', $lang{NEXT}, { TYPE => 'submit' });
   }
   else {
     $action = $html->form_input('change', "$lang{CHANGE}", { TYPE => 'submit' });
   }
 
-  $table->{extra} = 'colspan=4 align=\'center\'';
+  $table->{extra} = 'colspan=4';
   $table->addrow($action);
 
-  print $html->form_main(
+  my $service_info1 = $html->form_main(
     {
       CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
       HIDDEN  => {
@@ -119,6 +119,12 @@ sub tags_user {
       ID       => $FORM{FORM_NAME} || 'TAGS_USER'
     }
   );
+
+  if($attr->{PROFILE_MODE}) {
+    return '', $service_info1;
+  }
+
+  print $service_info1;
 
   return 1;
 }

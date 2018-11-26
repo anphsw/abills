@@ -169,7 +169,7 @@ $lang{ERR_WRONG_NAME}='Недопустиме ім&#39;я';
 $lang{DEFAULT_GATEWAY}='Роутер по замовчуванню';
 $lang{TYPE}='Тип';
 $lang{CONTINUE}='Продовжити';
-$lang{TIME_SHEET}='Журнал робіт';
+$lang{TIME_SHEET}='Табель робіт';
 $lang{PORT}='Порт';
 $lang{DAY_DURATION}='Денний час';
 $lang{LANGUAGE}='Мова';
@@ -413,6 +413,8 @@ $lang{INVOICE_CREATE}='Виписати рахунок';
 $lang{DUNES}='Коди комутованого підключенн Windows (DUNES)';
 $lang{CUSTOMER}='Клієнт';
 $lang{ERR_NAME_TOOLONG}='Логін користувача довший за допущену межу';
+$lang{NEGATIVE} = 'Негативний';
+$lang{SWITCHBOARDS} = 'Комутатори';
 $lang{ZIP}='Індекс';
 $lang{DISPATCH}='Наряди робіт';
 $CHARSET='utf-8';
@@ -783,6 +785,16 @@ $lang{CREDIT_SUM} = 'Сумма кредита';
 $lang{CREDIT_PRICE} = 'Стоимость услуги';
 $lang{MODULE_VERSION}='Версія модуля';
 $lang{PLUGIN_VERSION}='Версія плагіна';
+$lang{APPEND}='Доповнити';
+$lang{WITHOUT_CONFIRM}='Без підтвердження';
+
+$lang{CONFIRM_CHANGES} = 'Введіть пароль для підтвердження змін';
+$lang{NO_CHANGES}='Без змін';
+
+$lang{LOGIN_LESS_ACCESS_MSG} = 'Введіть свій пароль, щоб отримати доступ';
+$lang{LOGIN_LESS_ACCESS_DEFAULT} = 'Або ввійдіть як інший користувач';
+$lang{LOGIN_LESS_ACCESS_SYSTEM_PICK} = 'Ви визначені як';
+$lang{CHAT} = 'Чат';
 
 1;
 

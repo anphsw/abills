@@ -631,75 +631,22 @@ sub paysys_import_pop3 {
         }
 
         # BSS paysys
-        my $total_sum_day = 0;
-        my $nst_content;
-        my $go_to_next_message = 0;
-        my $delete_nst_msg = 0;
+        my $delete_this_message = 0;
+        my $do_not_import_content = 0;
         if($argv->{METHOD} == 113){
           $content = convert($content, {cp8662utf8 => 1});
           @lines = split('\n', $content);    # split content per lane
           $content = '';
 
-          foreach my $line (@lines){
-            if($line =~ /^"\d+/){
-              my ($uid) = $line =~ /"(\d+)","\d+|\d+[.]\d+","\d+","\d+","","","\d+"/;
-              my $user_pi = $Users->pi({UID => $uid});
-              my $comment = "Услуги связи от $user_pi->{FIO}. Лицевой счет $uid. По адресу $user_pi->{ADDRESS_FULL}";
-              $content .= $line .
-              ",\"$comment\"" .
-              "\n";
-            }
-            elsif($line =~ /^!/){
-              $nst_content .= $line . "\n";
-              bss_log({NST_OPL => $line});
-              $delete_nst_msg = 1;
-            }
-            elsif($line =~ /^\*"(\d+.\d+)",/ || $line =~ /^\*"(\d+)",/){
-              $total_sum_day = $1;
-              my $sum_date;
-              ($sum_date) = $filename =~ /sum_(.+).\d+/;
+          ($content, $delete_this_message, $do_not_import_content) = bss_content_parse(\@lines, {
+              FILE_NAME => $filename,
+            });
 
-              my ($year, undef, undef) = split('-', $DATE);
-              my ($day, $month) = $sum_date =~ /(\d{2})(\d{2})/;
-              $sum_date = "$year-$month-$day";
-              # $Paysys->bss_sum_delete({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date});
-              my $list_of_sums = $Paysys->bss_sum_list({DATE => $sum_date, COLS_NAME => 1});
-
-              if($list_of_sums->[0]){
-                print "CHANGED\n";
-                # OLD CODE
-                #$Paysys->bss_sum_change({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date, BANK_STD_SUM => $total_sum_day});
-
-                if($list_of_sums->[0]->{bank_std_sum} == $total_sum_day || $total_sum_day == 0){
-
-                }
-                else{
-                  $Paysys->bss_sum_change({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date, BANK_STD_SUM => $total_sum_day});
-                }
-              }
-              else{
-                print "ADDED\n";
-                $Paysys->bss_sum_add({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date,
-                                       BANK_STD_SUM => $total_sum_day});
-              }
-
-              $pop->delete($msgnum);
-              $go_to_next_message = 1;
-            }
-            elsif($line =~ /^Всего за день : (\d+.\d+)/){
-              $total_sum_day = $1;
-              $Paysys->bss_sum_change({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $DATE,
-                                       BANK_NSTD_SUM => $total_sum_day});
-            }
+          if ($delete_this_message) {
+            print "Marking to delete this message\n";
+            $pop->delete($msgnum);
+            next if ($do_not_import_content);
           }
-        }
-        if($go_to_next_message == 1){
-          next;
-        }
-        if($delete_nst_msg == 1){
-          print "Here";
-          $pop->delete($msgnum);
-          next;
         }
 
         my $check = paysys_import_form_cons(
@@ -1343,6 +1290,103 @@ sub bss_log {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 bss_content_parse()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub bss_content_parse {
+  my ($lines, $attr) = @_;
+  my $filename = $attr->{FILE_NAME};
+  my $content = $attr->{CONTENT} || '';
+
+  my $nst_content;
+  my $total_sum_day      = 0;
+  my $go_to_next_message = 0;
+  my $delete_message     = 0;
+
+  foreach my $line (@$lines) {
+    next if $line eq '';
+
+    if ($line =~ /^"\d+/) {
+      print "Standart payment line\n$line\n\n" if ($debug > 1);
+
+      my ($uid) = $line =~ /"(\d+)","\d+|\d+[.]\d+","\d+","\d+","","","\d+"/;
+      my $user_pi = $Users->pi({ UID => $uid });
+      my $comment = "Услуги связи от $user_pi->{FIO}. Лицевой счет $uid. По адресу $user_pi->{ADDRESS_FULL}";
+      $content .= $line .
+        ",\"$comment\"" .
+        "\n";
+
+      $delete_message = 1;
+    }
+    elsif ($line =~ /^!/) {
+      print "Not Standart payment line\n$line\n\n" if ($debug > 1);
+
+      $nst_content .= $line . "\n";
+      bss_log({ NST_OPL => $line });
+
+      $delete_message     = 1;
+      $go_to_next_message = 1;
+    }
+    elsif ($line =~ /^\*"(\d+.\d+)",/ || $line =~ /^\*"(\d+)",/) {
+      $total_sum_day = $1;
+      my ($sum_date) = $filename =~ /sum_(.+).\d+/;
+
+      my ($year, undef, undef) = split('-', $DATE);
+      my ($day, $month) = $sum_date =~ /(\d{2})(\d{2})/;
+      $sum_date = "$year-$month-$day";
+      # $Paysys->bss_sum_delete({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date});
+      my $list_of_sums = $Paysys->bss_sum_list({ DATE => $sum_date, COLS_NAME => 1 });
+
+      print "Total sum day - $total_sum_day; Date - $sum_date \n" if ($debug > 1);
+
+      if ($list_of_sums->[0]) {
+        print "Total sum changed.\n" if ($debug > 1);
+        # OLD CODE
+        #$Paysys->bss_sum_change({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date, BANK_STD_SUM => $total_sum_day});
+
+        if ($list_of_sums->[0]->{bank_std_sum} == $total_sum_day || $total_sum_day == 0) {
+        }
+        else {
+          $Paysys->bss_sum_change({
+            DATE         => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date,
+            BANK_STD_SUM => $total_sum_day
+          });
+        }
+      }
+      else {
+        print "Total sum added\n" if ($debug > 1);
+        $Paysys->bss_sum_add({
+          DATE         => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date,
+          BANK_STD_SUM => $total_sum_day
+        });
+      }
+
+      $delete_message     = 1;
+      $go_to_next_message = 1;
+    }
+    elsif ($line =~ /^Нестандартные : (\d+.\d+)/) {
+      print "Total sum for not standart payments\n" if ($debug > 1);
+
+      $total_sum_day = $1;
+      $Paysys->bss_sum_change({
+        DATE          => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $DATE,
+        BANK_NSTD_SUM => $total_sum_day });
+
+      $delete_message     = 1;
+      $go_to_next_message = 1;
+    }
+
+  }
+  return $content, $delete_message, $go_to_next_message;
 }
 
 #**********************************************************

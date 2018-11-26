@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS `ureports_users_reports` (
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `report_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `date` DATE NOT NULL,
-  `value` VARCHAR(10) NOT NULL DEFAULT ''
+  `value` VARCHAR(10) NOT NULL DEFAULT '',
+  UNIQUE KEY uid_reports_id (`uid`, `report_id`)
 )
   COMMENT = 'Ureports users reports';

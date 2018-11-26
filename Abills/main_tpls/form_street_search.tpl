@@ -1,5 +1,5 @@
 <form action="$SELF_URL">
-    <input type=hidden name=index value=$index>
+    <!-- <input type=hidden name=index value=$index> -->
     <div class='box box-form'>
         <div class='box-header'>_{STREETS}_ _{SEARCH}_</div>
         <div class='box-body'>

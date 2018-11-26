@@ -1,5 +1,6 @@
 <div class='row'>
-<div class='col-md-3'></div>
-	%POSITION_TREE%
-<div class='col-md-3'></div>
+<div class='col-sm-12 col-md-12'>
+  %POSITION_TREE%
+</div>
+<div class='col-md-12'></div>
 </div>

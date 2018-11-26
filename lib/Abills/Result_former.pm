@@ -554,7 +554,11 @@ sub result_former {
       my $brake = $html->br();
       my $chart_num   = 0;
 
-      if ( ref $data->{list} ne 'ARRAY' ){
+      if($data->{errno}) {
+        _error_show($data, { MESSAGE => 'RESULT_FORMER: '. ($attr->{TABLE}->{caption} || q{}) });
+        return 0;
+      }
+      elsif ( ref $data->{list} ne 'ARRAY' ){
         print "<br></hr> ERROR: " . q{ ref $data->{list} ne 'ARRAY' };
         return 0;
       }
@@ -628,7 +632,7 @@ sub result_former {
               ( defined $line->{$col_name} ? $service_status[$line->{$col_name}] : '');
           }
           elsif($col_name =~ /deposit/) {
-            if ($permissions{0}{12}) {
+            if (!$permissions{0}{12}) {
               $val = '--';
             }
             else {
@@ -841,7 +845,7 @@ sub _datahash2table {
         push @row, &{ \&$filter_fn }($col_data, { PARAMS => \@arr });
       }
       elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$field_name}) {
-        if($attr->{SELECT_VALUE}->{$field_name}->{$col_data}) {
+        if($col_data && $attr->{SELECT_VALUE}->{$field_name}->{$col_data}) {
           my($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$field_name}->{$col_data});
           push @row, ($color) ? $html->color_mark($value, $color) : $value;
         }
@@ -1060,10 +1064,11 @@ sub table_function_fields {
       if ($param) {
         foreach my $l (split(/;/, $param)) {
           if ( $line->{$l} ) {
-            #my $is_utf = Encode::is_utf8($line->{$l});
-            #if(! $is_utf) {
-            Encode::_utf8_off($line->{$l});
-            #}
+            #Fixme Uncoment for omega
+            my $is_utf = Encode::is_utf8($line->{$l});
+            if(! $is_utf) {
+              Encode::_utf8_off($line->{$l});
+            }
 
             $qs .= '&' . uc($l) . "=$line->{$l}";
           }

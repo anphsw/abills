@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS `bonus_log` (
 
 CREATE TABLE IF NOT EXISTS `bonus_service_discount` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(100) NOT NULL default '',
   `service_period` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
   `registration_days` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
   `discount` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',

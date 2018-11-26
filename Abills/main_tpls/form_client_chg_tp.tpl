@@ -1,4 +1,4 @@
-<form action='$SELF_URL' METHOD='POST' name='user' ID='user'>
+<form action='$SELF_URL' METHOD='POST' name='user' ID='user' class='pswd-confirm'>
     <input type=hidden name=sid value='$sid'>
     <input type=hidden name=ID value='%ID%'>
     <input type=hidden name=UID value='%UID%'>

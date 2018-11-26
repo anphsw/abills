@@ -14,7 +14,14 @@
         <div class='col-xs-9'>
           <input name='LOGIN' class='form-control' id='LOGIN' value='%LOGIN%'>
         </div>
-      </div>  
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-xs-3' for='PASSWORD'>_{PASSWD}_</label>
+        <div class='col-xs-9'>
+          <input name='PASSWORD' class='form-control' id='PASSWORD' value='%RND_PSWD%'>
+        </div>
+      </div>
 
       <div class='form-group'>
         <label class='control-label col-xs-3' for='FIO'>_{FIO}_</label>
@@ -38,18 +45,45 @@
       </div>
 
       <div class='form-group'>
-        <label class='control-label col-md-3' for='CID'>MAC (Modem):</label>
-        <div class='col-md-9'>
-          <input id='CID' name='CID' value='%CID%' placeholder='%CID%' class='form-control' type='text'>
+        <label class='control-label col-md-3' for='IPTV_ACTIVATE'>_{ACTIVATE}_:</label>
+        <div class='col-md-3'>
+          <input id='IPTV_ACTIVATE' name='IPTV_ACTIVATE' value='%IPTV_ACTIVATE%'
+                 placeholder='%IPTV_ACTIVATE%' class='datepicker form-control' type='text'>
+        </div>
+        <label class='control-label col-md-2' for='IPTV_EXPIRE'>_{EXPIRE}_:</label>
+        <div class='col-md-4'>
+          <input id='IPTV_EXPIRE' name='IPTV_EXPIRE' value='%IPTV_EXPIRE%'
+                 placeholder='%IPTV_EXPIRE%' class='datepicker form-control' type='text'>
         </div>
       </div>
 
-      <div class='form-group'>
+     <!--  <div class='form-group' >
+        <label class='control-label col-xs-3' for='SUM'>_{BALANCE_RECHARCHE}_</label>
+        <div class='col-xs-9'>
+          <input id='SUM' name='SUM' value='%SUM%' class='form-control' type='number' step='0.01'/>
+        </div>
+      </div> -->
+
+
+     <!--  <div class='form-group'>
+          <label class='control-label col-md-3' for='IPTV_ACTIVATE'>_{ACTIVATE}_:</label>
+          <div class='col-md-3'>
+              <input id='IPTV_ACTIVATE' name='IPTV_ACTIVATE' value='%IPTV_ACTIVATE%'
+                     placeholder='%IPTV_ACTIVATE%' class='datepicker form-control' type='text'>
+          </div>
+          <label class='control-label col-md-3' for='IPTV_EXPIRE'>_{EXPIRE}_:</label>
+          <div class='col-md-3'>
+              <input id='IPTV_EXPIRE' name='IPTV_EXPIRE' value='%IPTV_EXPIRE%'
+                     placeholder='%IPTV_EXPIRE%' class='datepicker form-control' type='text'>
+          </div>
+      </div> -->
+
+     <!--  <div class='form-group'>
         <label class='control-label col-md-3' for='STATUS_SEL'>_{STATUS}_:</label>
         <div class='col-md-9' style='background: %STATUS_COLOR%;'>
           %STATUS_SEL%
         </div>
-      </div>
+      </div> -->
 
       <div class='form-group'>
         <label class='control-label col-sm-2 col-md-3' for='COMMENTS'>_{COMMENTS}_</label>

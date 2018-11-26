@@ -120,5 +120,8 @@ $lang{BEIGE} = 'Бежевий';
 $lang{NATURAL} = 'Природній';
 $lang{LEMON} = 'Лимонний';
 $lang{CHERRY} = 'Вишневий';
+$lang{CABLE_RESERVE} = 'Запас кабеля';
+$lang{CAT_CABLE} = 'Розрізати кабель';
+$lang{RESERVE} = 'Запас';
 
 1;

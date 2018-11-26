@@ -130,7 +130,7 @@
               <label class='control-label col-md-5' for='PORT_SHIFT'>_{PORT_SHIFT}_ SNMP</label>
 
               <div class='col-md-7'>
-                <input class='form-control' type='number' min='1' id='PORT_SHIFT' name='PORT_SHIFT'
+                <input class='form-control' type='number' min='0' id='PORT_SHIFT' name='PORT_SHIFT'
                        value='%PORT_SHIFT%'>
               </div>
             </div>

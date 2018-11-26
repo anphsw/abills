@@ -141,6 +141,8 @@ sub position_list {
                 ORDER BY $SORT $DESC;", undef, $attr
   );
 
+  return $self->{list_hash} if $attr->{LIST2HASH};
+
   return $self->{list};
 }
 
@@ -302,7 +304,8 @@ sub geo_list {
   });
 
   $self->query2(
-    "SELECT   eg.employee_id,
+    "SELECT   DISTINCT
+              eg.employee_id,
               eg.street_id,
               eg.build_id,
               eg.district_id
@@ -333,6 +336,10 @@ sub time_sheet_list {
 
   if($attr->{BY_AID}){
    push @WHERE_RULES, "ts.aid = '$attr->{BY_AID}'"; 
+  }
+
+  if($attr->{POSITION} && $attr->{POSITION} ne '_SHOW'){
+    push @WHERE_RULES, "a.position = '$attr->{POSITION}'";
   }
 
   my $WHERE = $self->search_former($attr, [

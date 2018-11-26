@@ -135,19 +135,28 @@ sub stalker_console{
       $FORM{ID} = $FORM{EXTERNAL_ID};
     }
 
-    $Tariffs->add( { %FORM, MODULE => 'Iptv' } );
-    if ( !_error_show( $Tariffs, { MESSAGE => "ID: ". $FORM{EXTERNAL_ID} } ) ){
-      $html->message( 'info', "Stalker",
-        "$lang{TARIF_PLAN} $lang{ADDED} [ $Tariffs->{INSERT_ID} ]\n " . $html->button( "$lang{CONFIG}",
-          "index=" . get_function_index( 'iptv_tp' ) . "&TP_ID=$Tariffs->{INSERT_ID}", { BUTTON => 1 } ) );
-      $tp_list{ $FORM{ID} } = $Tariffs->{INSERT_ID};
+    if($FORM{ID}) {
+      $Tariffs->add({ %FORM, MODULE => 'Iptv' });
+      if (!_error_show($Tariffs, { MESSAGE => "ID: " . ($FORM{EXTERNAL_ID} || q{}) })) {
+        $html->message('info', "Stalker",
+          "$lang{TARIF_PLAN} $lang{ADDED} [ $Tariffs->{INSERT_ID} ]\n " . $html->button("$lang{CONFIG}",
+            "index=" . get_function_index('iptv_tp') . "&TP_ID=$Tariffs->{INSERT_ID}", { BUTTON => 1 }));
+        $tp_list{ $FORM{ID} } = $Tariffs->{INSERT_ID};
+      }
     }
   }
+
   if ( $FORM{list} ){
     iptv_stalker_show_list( $FORM{list} );
     return 0;
   }
   elsif ( $FORM{del} ){
+    if(! $FORM{list}) {
+      $Tv_service->user_del({ ID => $FORM{ID}, CID => $FORM{MAC} });
+      if(! _error_show($Tv_service)) {
+        $html->message('info', $lang{INFO}, $lang{DELETED});
+      }
+    }
     return 0;
   }
 
@@ -184,7 +193,7 @@ sub stalker_console{
     caption => $lang{ACCOUNTS},
     ID      => 'STALKER_CONSOLE'
   });
-
+  my $total_records=0;
   foreach my $account_info ( @{ $Tv_service->{RESULT}->{results} } ){
     next if (! $account_info);
     my @row = ();
@@ -238,15 +247,21 @@ sub stalker_console{
             . "&CREATE_BILL=1"
             . "&ID=$account_info->{account_number}"
             . "&CID=". $stb_mac
+            . (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : q{})
           , { class => 'add' } );
     }
 
-    push @row, $html->button( $lang{DEL}, "index=$index&list=". ($FORM{list} || '') ."&MAC=$stb_mac&del=1",
+    push @row, $html->button( $lang{DEL}, "index=$index". (($FORM{list}) ? "&list=$FORM{list}" : q{})
+      ."&MAC=$stb_mac&ID=$account_info->{account_number}&del=1". (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : q{}),
         { MESSAGE => "$lang{DEL} $stb_mac ?", class => 'del' } );
 
     $table->addrow( @row );
+    $total_records++;
   }
 
+  print $table->show();
+
+  $table = $html->table({ rows => [ [ $lang{TOTAL}, $total_records ] ] });
   print $table->show();
 
   return 1;
@@ -342,7 +357,6 @@ sub iptv_stalker_show_list{
   my $FUNCTION_FIELDS = "iptv_console:del:mac;serial_number:&list=$list_type&del=1&COMMENTS=1&SERVICE_ID=".$FORM{SERVICE_ID};    #":$lang{DEL}:MAC:&del=1&COMMENTS=del",
 
   if ( $list_type eq 'tariffs' ){
-    #print "!!!!!!!/ $FORM{ID} || ! $tp_list{ $FORM{ID} } /";
     if (! $FORM{ID} || ! $tp_list{ $FORM{ID} }) {
       $FUNCTION_FIELDS = "iptv_console:add:external_id;name:&list=$list_type&tp_add=1&SERVICE_ID=" . $FORM{SERVICE_ID};
     }

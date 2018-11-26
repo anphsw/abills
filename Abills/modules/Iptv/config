@@ -8,6 +8,7 @@
   "08:7:$lang{ADD}:iptv_tp:"                     => 5,
   "09:7:$lang{INTERVALS}:iptv_intervals:TP_ID"   => 5,
   "11:7:$lang{SCREENS}:iptv_screens:TP_ID"       => 5,
+  "12:6:$lang{DEVICE}:iptv_devices:"              => 5,
 
   "10:7:$lang{GROUPS}:form_tp_groups:"           => 5,
 #                   "10:7:$lang{NASS}:iptv_nas:TP_ID"             => 5,

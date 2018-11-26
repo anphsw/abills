@@ -114,3 +114,12 @@ $lang{IN_STORAGE} = 'На складі';
 
 $lang{BY_INSTALLMENTS} = 'В розстрочку';
 $lang{PROPERTY}='Властивість';
+$lang{CONSINGMENT}='Партія';
+$lang{ACTIONS_LIST}='Дії з товаром';
+$lang{REMNANTS}='Залишки';
+$lang{OF_REMNANTS}='залишків';
+$lang{PRINT_INCOMING_INVOICE}='Роздрукувати прихідну накладну';
+$lang{PRINT_MOVE_INVOICE}='Роздрукувати наклудну переміщення';
+$lang{TRANSFER_ITEM}='Переміщення';
+$lang{OUT_STORAGE}='Зі складу';
+$lang{IN_STORAGE}='На склад';

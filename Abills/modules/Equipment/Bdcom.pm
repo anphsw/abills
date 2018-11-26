@@ -524,9 +524,9 @@ sub _bdcom_onu_status {
   #  );
   my %status = (
     0 => 'Authenticated:text-green',
-    1 => 'Registered:text-green',
-    2 => 'Deregistered:text-red',
-    3 => 'Auto_config:text-green'
+    1 => 'Registered:text-green', #work
+    2 => 'Deregistered:text-red', #not work
+    3 => 'Auto_config:text-green' #not work
   );
   return \%status;
 }

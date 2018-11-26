@@ -857,7 +857,13 @@ sub docs_user{
   #    }
   #  );
 
-  $html->tpl_show( _include( 'docs_user', 'Docs' ), { %{$attr}, %{$Docs} }, { ID => 'docs_user' } );
+  my $user_service_form = $html->tpl_show( _include( 'docs_user', 'Docs' ), { %{$attr}, %{$Docs} }, { ID => 'docs_user', OUTPUT2RETURN => 1 } );
+
+  if($attr->{PROFILE_MODE}) {
+    return $user_service_form;
+  }
+
+  print $user_service_form;
 
   return 1;
 }

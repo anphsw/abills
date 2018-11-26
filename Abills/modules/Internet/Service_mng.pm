@@ -229,14 +229,15 @@ sub service_warning {
     }
 
     if ($days_to_fee && $days_to_fee < 5) {
-      $message_type = 'warn'
-    }
-    if ($days_to_fee eq 0) {
-      $message_type = 'err'
-    }
-
+      $message_type = 'warn';
+    } elsif ($days_to_fee eq 0) {
+      $message_type = 'err';
+    } else {
+      $message_type = 'success';
+     }
+     
     $self->{DAYS_TO_FEE} = $days_to_fee;
-    
+
     if ($days_to_fee > 0) {
       #Calculate days from net day
       my $expire_date = POSIX::strftime("%Y-%m-%d", localtime(POSIX::mktime(0, 0, 12, $from_day, ($from_month - 1), ($from_year - 1900))

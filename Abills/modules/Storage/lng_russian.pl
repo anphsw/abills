@@ -114,3 +114,12 @@ $lang{IN_STORAGE} = 'На складе';
 
 $lang{BY_INSTALLMENTS} = 'В рассрочку';
 $lang{PROPERTY}='Качество';
+$lang{CONSINGMENT}='Партия';
+$lang{ACTIONS_LIST}='Действия с товаром';
+$lang{REMNANTS}='Остатки';
+$lang{OF_REMNANTS}='остатков';
+$lang{PRINT_INCOMING_INVOICE}='Печать приходной накладной';
+$lang{PRINT_MOVE_INVOICE}='Печать накладной перемещения';
+$lang{TRANSFER_ITEM}='Перемещение';
+$lang{OUT_STORAGE}='Со склада';
+$lang{IN_STORAGE}='На склад';

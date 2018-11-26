@@ -25,12 +25,25 @@ $lang{SLACK} = 'Бездіяльність';
 $lang{DUTY} = 'Черговий';
 $lang{TIME_TRACKING_EMPLOYEE} = 'обліку робочого часу працівника ';
 $lang{WORKED_HOURS_BY_MONTH} = 'Відроблено людино-годин(по днях місяця)';
-$lang{TOTAL_WORKED_HOURS_BY_MONTH} = 'Всього відроблено люд. дні';
+$lang{TOTAL_WORKED_BY_MONTH} = 'Всього відроблено';
 $lang{EMPLOYEE_HEAD} = 'Керівник';
 $lang{RESPONSIBLE_FOR_MAINTAINING_TIMESHEET} = 'Відповідальний за ведення табеля';
 $lang{DAILY_NOTES} = 'Нотатки';
 $lang{SENT_MASSAGE} = 'Відправлено';
 $lang{APPLIED_MASSAGE} = 'Ви успішно подали заявку';
 $lang{CONNECT_W_U} = "Найближчим часом ми зв'яжемося з вами";
+$lang{VACATIONS_SHORT} = "В";       
+$lang{HOSPITAL_SHORT} = "Л";         
+$lang{BUSINESS_TRIP_SHORT} = "ВД"; 
+$lang{DAY_OFF_SHORT} = "Відпросився"; 
+$lang{SLACK_SHORT} = "Бездіяльність";   
+$lang{DUTY_SHORT} = "Черговий"; 
+$lang{NOTATION} = "Примітка";
+$lang{_FOR} = "за";
+$lang{_GRAPH} = "Графік";
+$lang{ADDING_VACATION} = "Задати відпустку";
+$lang{YEAR_SHORT} = "р";
+$lang{PERSON_DAYS}='люд.-дні';
+$lang{PERSON_HOURS}='люд.-години';
 
 1

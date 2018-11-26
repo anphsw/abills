@@ -18,6 +18,8 @@ var aDrawController;
 var drawing_last_overlay = null;
 
 var confirmModal = new AModal();
+var latitude;
+var longitude;
 
 function AMap(callback) {
   
@@ -429,18 +431,53 @@ var PolylineBuilder = (function () {
   function build(object) {
     //noinspection JSUnresolvedFunction
     var polyline = new google.maps.Polyline(object);
-    
+    var First_infowindow = '';
+    var Main_info = '';
     if (isDefined(polyline['INFOWINDOW'])) {
-      
+        // onclick='addNewSomething({ layer_id : 10, object_id : $polyline->{object_id} })'>
       google.maps.event.addListener(polyline, 'click', function (event) {
         closeInfoWindows();
-        
+
+
+        if (!polyline['RESEARVE']) {
+          First_infowindow = polyline['INFOWINDOW'];
+        }
+        var onClick = '';
+        if (!polyline['RESEARVE']) {
+            latitude = event.latLng.lat();
+            longitude = event.latLng.lng();
+            onClick = "onclick='addNewReserver({ layer_id :" + polyline['LAYER_ID'] + ", object_id :" + polyline['OBJECT_ID'] +
+                ", lat :" + latitude + ", lng :" + longitude + ", link :\"" + polyline['INSIDE_LINK'] + "\"})'";
+            polyline['INFOWINDOW'] += "<button class='btn btn-success'" + onClick + ">" + polyline['ADD_RESERVER'] + "</button>";
+            polyline['RESEARVE'] = 1;
+        }
+        else {
+            polyline['INFOWINDOW'] = First_infowindow;
+            latitude = event.latLng.lat();
+            longitude = event.latLng.lng();
+            onClick = "onclick='addNewReserver({ layer_id :" + polyline['LAYER_ID'] + ", object_id :" + polyline['OBJECT_ID'] +
+                ", lat :" + latitude + ", lng :" + longitude + ", link :\"" + polyline['INSIDE_LINK'] + "\"})'";
+            polyline['INFOWINDOW'] += "<button class='btn btn-success'" + onClick + ">" + polyline['ADD_RESERVER'] + "</button>";
+            polyline['RESEARVE'] = 1;
+        }
+
+        Main_info = polyline['INFOWINDOW'];
+
+        if (polyline['ADD_WELL_LINK']) {
+          latitude = event.latLng.lat();
+          longitude = event.latLng.lng();
+          var add_click = "onclick='catCableToWell({ layer_id :" + polyline['LAYER_ID'] + ", cable_id :" + polyline['CABLE_ID'] +
+              ", lat :" + latitude + ", lng :" + longitude + ", link :\"" + polyline['ADD_WELL_LINK'] + "\"})'";
+          polyline['INFOWINDOW'] = Main_info + " <button class='btn btn-danger'" + add_click + ">" + polyline['CABLE_CAT'] + "</button>";
+        }
+
+
         var infowindow = new InfoWindowBuilder(object)
             .setPosition(event.latLng)
             .setContent(this['INFOWINDOW'])
             // Build returns maps.google.InfoWindow
             .build();
-        
+
         openedInfoWindows.push(infowindow);
         infowindow.open(map);
       });
@@ -973,3 +1010,36 @@ function DrawController() {
   }
 }
 
+function addNewReserver(marker) {
+    var id       = marker.object_id || marker.OBJECT_ID;
+    var layer_id = marker.layer_id || marker.LAYER_ID;
+    var lng = marker.lng;
+    var lat = marker.lat;
+
+    if (!(layer_id && id && lng && lat)) {
+        console.warn('No layer id or id or lng or lat', layer_id, id, marker, lng, lat);
+        return false;
+    }
+
+    marker.link += "&object_id=" + id + "&layer_id=" + layer_id + "&lng=" + lng + "&lat=" + lat;
+    loadToModal(marker.link);
+    MapLayers.refreshLayer(WELL_LAYER_ID);
+    MapLayers.refreshLayer(CABLE_LAYER_ID);
+}
+
+function catCableToWell(marker) {
+    var id       = marker.cable_id || marker.CABLE_ID;
+    var layer_id = marker.layer_id || marker.LAYER_ID;
+    var lng = marker.lng;
+    var lat = marker.lat;
+
+    if (!(layer_id && id && lng && lat)) {
+        console.warn('No layer id or id or lng or lat', layer_id, id, marker, lng, lat);
+        return false;
+    }
+
+    marker.link += "&object_id=" + id + "&layer_id=" + layer_id + "&lng=" + lng + "&lat=" + lat;
+    loadToModal(marker.link);
+    MapLayers.refreshLayer(WELL_LAYER_ID);
+    MapLayers.refreshLayer(CABLE_LAYER_ID);
+}

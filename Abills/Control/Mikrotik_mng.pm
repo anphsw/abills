@@ -669,7 +669,7 @@ sub _mikrotik_init_and_check_access {
       my $wiki_mikrotik_ssh_access_link = $html->button( $lang{HELP}, undef, {
           GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:docs:nas:mikrotik:ssh:key_upload',
           target     => '_blank',
-          BUTTON     => 1
+          BUTTON     => 2
         } );
       
       $html->message( 'warn', $lang{ERR_ACCESS_DENY},

@@ -8,16 +8,91 @@ our (
   %lang,
   $admin,
   $db,
+  %conf,
 );
 
-our Crm $Crm;
-our Admins $Admins;
-
+#our Crm $Crm;
+#our Admins $Admins;
+my $Crm = Crm->new($db, $admin, \%conf);
+my $Admins = Admins->new($db, \%conf);
 use Abills::Base qw/in_array mk_unique_value/;
 
+
+#**********************************************************
+=head2 crm_lead_search()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub crm_lead_search {
+  # добавляет нового лида и перенаправляет на страницу профиля
+  if ($FORM{add}) {
+    $Crm->crm_lead_add({ %FORM });
+
+    _error_show($Crm);
+
+    $html->message('success', $lang{ADDED}, $lang{LEAD_ADDED_MESSAGE} . $html->button("тут",
+        "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$Crm->{INSERT_ID}"));
+
+    return 1;
+  }
+
+  my $submit_button_name = $lang{SEARCH};
+  my $submit_button_action = 'search';
+  my $id_disabled = '';
+  my $id_hidden = '';
+
+  my $lead_source_select = $html->form_select(
+    'SOURCE',
+    {
+      SELECTED    => $FORM{SOURCE} || q{},
+      SEL_LIST    => translate_list($Crm->leads_source_list({ COLS_NAME => 1 }), 'name'),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { "" => "" },
+      MAIN_MENU   => get_function_index('crm_source_types'),
+    }
+  );
+
+  my $responsible_admin = sel_admins({ NAME => 'RESPONSIBLE' });
+
+  my $date_range = $html->form_daterangepicker(
+    {
+      NAME      => 'PERIOD',
+#      FORM_NAME => 'report_panel',
+#      WITH_TIME => $FORM{TIME_FORM} || 0
+    }
+  );
+
+  my $current_step_select = _progress_bar_step_sel();
+
+  my $tpl = $html->tpl_show(
+    _include('crm_lead_search', 'Crm'),
+    {
+      SUBMIT_BTN_NAME   => $submit_button_name,
+      SUBMIT_BTN_ACTION => $submit_button_action,
+      DISABLE_ID        => $id_disabled,
+      HIDE_ID           => $id_hidden,
+      LEAD_SOURCE       => $lead_source_select,
+      RESPONSIBLE_ADMIN => $responsible_admin,
+      DATE              => $date_range,
+      CURRENT_STEP_SELECT => $current_step_select,
+      INDEX               => get_function_index('crm_leads'),
+      %FORM
+    }, {OUTPUT2RETURN => 1}
+  );
+
+
+  form_search({TPL => $tpl});
+}
 #**********************************************************
 
-=head2 crm_lead_search() - search leads
+=head2 crm_lead_search_old() - search leads
 
   Arguments:
     $attr -
@@ -29,7 +104,7 @@ use Abills::Base qw/in_array mk_unique_value/;
 =cut
 
 #**********************************************************
-sub crm_lead_search {
+sub crm_lead_search_old {
 
   my $submit_button_name = $lang{SEARCH};
   my $submit_button_action = 'search';
@@ -52,6 +127,7 @@ sub crm_lead_search {
   if ($FORM{search}) {
 
     # поиск лида по параметрам с формы
+
     my $leads_list = $Crm->crm_lead_list(
       {
         FIO         => $FORM{FIO} || '_SHOW',
@@ -64,7 +140,7 @@ sub crm_lead_search {
         DATE        => $FORM{DATE} || '_SHOW',
         RESPONSIBLE => $FORM{RESPONSIBLE} || '_SHOW',
         ADDRESS     => $FORM{ADDRESS} || '_SHOW',
-        CITY        => $FORM{CITY} || '_SHOW',
+#        CITY        => $FORM{CITY} || '_SHOW',
         BUILD       => $FORM{ADDRESS_BUILD} || '_SHOW',
         FLAT        => $FORM{ADDRESS_FLAT} || '_SHOW',
         COLS_NAME   => 1,
@@ -169,6 +245,7 @@ sub crm_leads {
         SEL_ARRAY   => \@PRIORITY,
         NO_ID       => 1,
         SEL_OPTIONS => { "" => "" },
+        ARRAY_NUM_ID=> 1,
       }
     );
 
@@ -184,8 +261,9 @@ sub crm_leads {
         HIDE_ID           => $id_hidden,
         LEAD_SOURCE       => $lead_source_select,
         RESPONSIBLE_ADMIN => $responsible_admin,
-        DATE              => $DATE,
+        DATE              => $html->form_datepicker('DATE', $DATE),
         PRIORITY_SEL      => $priority_select,
+        INDEX             => get_function_index('crm_leads'),
         # AJAX_SUBMIT_FORM  => 'ajax-submit-form',
         # %$lead_info
       }
@@ -239,6 +317,7 @@ sub crm_leads {
         RESPONSIBLE_ADMIN => $responsible_admin,
         AJAX_SUBMIT_FORM  => 'ajax-submit-form',
         PRIORITY_SEL      => $priority_select,
+        INDEX             => get_function_index('crm_leads'),
         %$lead_info
       }
     );
@@ -248,7 +327,7 @@ sub crm_leads {
     }
   }
   elsif ($FORM{add}) {
-    $Crm->crm_lead_add({ %FORM });
+    $Crm->crm_lead_add({ %FORM, CURRENT_STEP => 1 });
 
     if (!_error_show($Crm)) {
       $html->message('info', $lang{ADDED},);
@@ -256,7 +335,7 @@ sub crm_leads {
   }
   elsif ($FORM{del}) {
     $Crm->crm_lead_delete({ ID => $FORM{del} });
-
+    delete $FORM{COMMENTS};
     if (!_error_show($Crm)) {
       $html->message('info', $lang{DELETED},);
     }
@@ -273,13 +352,16 @@ sub crm_leads {
   return 1 if $FORM{MESSAGE_ONLY};
   $LIST_PARAMS{PAGE_ROWS} = 1000000000;
   my Abills::HTML $table;
-  ($table, undef) = result_former(
+
+  %LIST_PARAMS = %FORM if ($FORM{search});
+
+  result_former(
     {
       INPUT_DATA      => $Crm,
       FUNCTION        => 'crm_lead_list',
       BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => "ID, FIO, PHONE, EMAIL, COMPANY, ADMIN_NAME, DATE, CURRENT_STEP_NAME, LAST_ACTION, PRIORITY",
-      HIDDEN_FIELDS   => 'STEP_COLOR',
+      DEFAULT_FIELDS  => "ID, FIO, PHONE, EMAIL, COMPANY, ADMIN_NAME, DATE, CURRENT_STEP_NAME, LAST_ACTION, PRIORITY, UID, LOGIN",
+      HIDDEN_FIELDS   => 'STEP_COLOR,CURRENT_STEP',
       FUNCTION_FIELDS => 'crm_lead_info:$lang{INFO}:lead_id,change, del',
       FILTER_COLS     => {
         current_step_name => '_crm_current_step_color::STEP_COLOR,',
@@ -297,6 +379,7 @@ sub crm_leads {
         'current_step_name' => "$lang{STEP}",
         'last_action'       => "$lang{LAST} $lang{ACTION}",
         'priority'          => "$lang{PRIORITY}",
+        'login'             => "$lang{LOGIN}",
         # 'comments'  => $lang{COMMENTS},
       },
       SKIP_PAGES      => 1,
@@ -306,7 +389,7 @@ sub crm_leads {
         qs          => $pages_qs,
         ID          => 'CRM_LEADS',
         MENU        => "$lang{ADD}:index=$index&add_form=1:add",
-        DATA_TABLE  => 1,
+        DATA_TABLE  => { "order"=> [[ 6, "desc" ]]},
         title_plain => 1,
         #EXPORT  => 1,
       },
@@ -324,17 +407,12 @@ sub crm_leads {
       MAKE_ROWS       => 1,
       SEARCH_FORMER   => 1,
       MODULE          => 'Crm',
-      OUTPUT2RETURN   => 1,
-      #      TOTAL         => "TOTAL:$lang{TOTAL}",
+      TOTAL           => 1,
+      SKIP_TOTAL_FORM => 1
+
     }
   );
 
-  print $table->show();
-
-  #   print '<script>$(document).ready(function() {
-  #     $("#CRM_LEADS__").DataTable();
-  #     console.log("HEllo");
-  # } );</script>';
 
   return 1;
 }
@@ -387,6 +465,37 @@ sub crm_lead_info {
     return 1;
   }
 
+  if($FORM{add_uid}){
+    $Crm->crm_lead_change({
+      ID  => $FORM{LEAD_ID},
+      UID => $FORM{add_uid},
+    });
+
+    if(!_error_show($Crm)){
+      my $lead_button = $html->button("$lang{LEAD}", "index=" . get_function_index("crm_lead_info") . "&LEAD_ID=$FORM{LEAD_ID}");
+      $html->message('info', "$lang{SUCCESS}", "$lang{GO2PAGE} $lead_button");
+    }
+  }
+
+  my $user_button = $lang{NOT_EXIST};
+
+  require Control::Users_mng;
+  my $user_search = user_modal_search({
+#    EXTRA_BTN_PARAMS => "&TO_LEAD_ID=" . ($lead_id),
+    #    CALLBACK_FN => 'crm_lead_info',
+  });
+
+  return 1 if ($FORM{user_search_form} && $FORM{user_search_form}==1);
+
+    $user_button = $html->tpl_show(
+      _include('crm_lead_add_user', 'Crm'),
+      {
+        USER_SEARCH => $user_search,
+        LEAD_ID     => $lead_id,
+        INDEX       => get_function_index('crm_lead_info'),
+      }, {OUTPUT2RETURN => 1}
+    );
+
   if (defined $FORM{STEP_ID} && defined $FORM{add_message}) {
 
     $Crm->progressbar_comment_add({ %FORM, DATE => "$DATE $TIME" });
@@ -401,16 +510,16 @@ sub crm_lead_info {
 
   my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
 
-  my $user_button = $lang{NOT_EXIST};
+
   my $delete_user_button = '';
 
   if($lead_info->{UID} && $lead_info->{UID} > 0){
-    $user_button = $html->button("", "index=15&UID=$lead_info->{UID}",{
-        ICON  => 'fa fa-user',
+    $user_button = $html->button("$lead_info->{ID}", "index=15&UID=$lead_info->{UID}",{
+        ADD_ICON  => 'fa fa-user',
         class => 'btn btn-default',
       });
 
-    $delete_user_button = $html->button("", "index=$index&delete_uid=1&LEAD_ID=$lead_info->{ID}",{
+    $delete_user_button = $html->button("", "index=$index&delete_uid=1&LEAD_ID=$lead_info->{LEAD_ID}",{
         ICON  => 'fa fa-trash',
         class => 'btn btn-default',
       });
@@ -437,9 +546,10 @@ sub crm_lead_info {
 
   my $add_user_button = $html->button(
     "$lang{ADD} $lang{USER}",
-    "index=" . get_function_index("crm_lead_add_user") . "&TO_LEAD_ID=$lead_id",
+    "qindex=" . get_function_index("crm_lead_info") . "&TO_LEAD_ID=$lead_id&header=2",
     {
       class         => 'btn btn-warning btn-block',
+      LOAD_TO_MODAL => 1,
     }
   );
 
@@ -1333,7 +1443,7 @@ sub crm_lead_convert {
 sub crm_search {
   my ($attr) = @_;
 
-  my @default_search = ('FIO', 'PHONE', 'EMAIL', 'COMPANY', 'CITY', 'ADDRESS', '_MULTI_HIT');
+  my @default_search = ('FIO', 'PHONE', 'EMAIL', 'COMPANY', 'LEAD_CITY', 'ADDRESS', '_MULTI_HIT');
 
   my @qs = ();
   foreach my $field (@default_search) {
@@ -1652,7 +1762,8 @@ sub crm_lead_add_user {
   # Check for search form request
   require Control::Users_mng;
   my $user_search = user_modal_search({
-    EXTRA_BTN_PARAMS => ""
+    EXTRA_BTN_PARAMS => "",
+    CALLBACK_FN => 'crm_lead_info',
   });
   return 1 if ($user_search && $user_search eq 2);
 
@@ -1661,9 +1772,152 @@ sub crm_lead_add_user {
     {
       USER_SEARCH => $user_search,
       LEAD_ID     => $lead_id,
+      INDEX       => get_function_index('crm_lead_info'),
     }
   );
   return 1;
+}
+#**********************************************************
+=head2 crm_sales_funnel() - Shows sales funnel for leads
+
+=cut
+#**********************************************************
+sub crm_sales_funnel {
+  reports(
+    {
+      DATE_RANGE       => 1,
+      DATE             => $FORM{DATE},
+      REPORT           => '',
+      EX_PARAMS        => {
+      },
+      PERIOD_FORM      => 1,
+      PERIODS          => 1,
+      NO_TAGS          => 1,
+      NO_GROUP         => 1,
+      NO_ACTIVE_ADMINS => 1
+    }
+  );
+  my ($y, $m, $d) = split('-', $DATE);
+  my $from_date = "$y-$m-01";
+  my $to_date = "$y-$m-" . days_in_month({ DATE => $DATE });
+  my @leads_array = ();
+  if ($FORM{FROM_DATE} && $FORM{TO_DATE}) {
+    $from_date = $FORM{FROM_DATE};
+    $to_date = $FORM{TO_DATE};
+  }
+  my $period = "$from_date/$to_date";
+  my $list = $Crm->crm_progressbar_step_list({
+    STEP_NUMBER => '_SHOW',
+    NAME        => '_SHOW',
+    SORT        => 2,
+    COLS_NAME   => 1
+  });
+  my $table = $html->table(
+    {
+      width   => '100%',
+      caption => $lang{SALES_FUNNEL},
+      title   => [
+        "$lang{STEP}",
+        "$lang{NAME}",
+        "$lang{NUMBER_LEADS}",
+        "$lang{LEADS_PERCENTAGE}",
+        "$lang{NUMBER_LEADS_ON_STEP}",
+        "$lang{LEADS_PERCENTAGE_ON_STEP}"
+      ],
+      ID      => 'SALES_FUNNEL_ID'
+    }
+  );
+  $Crm->crm_lead_list({
+    PERIOD => "$from_date/$to_date",
+    CURRENT_STEP => ">=1",
+  });
+  my $full_count = $Crm->{TOTAL};
+  my $i=1;
+  foreach my $item (@$list) {
+    $Crm->crm_lead_list({
+      PERIOD => "$from_date/$to_date",
+      CURRENT_STEP => ">=$i"
+    });
+    my $count_for_step = $Crm->{TOTAL};
+    $Crm->crm_lead_list({
+      PERIOD => "$from_date/$to_date",
+      CURRENT_STEP => $i
+    });
+    my $step_count = $Crm->{TOTAL};
+    my $item_name = _translate($item->{name});
+    $table->addrow(
+      $item->{step_number},
+      $item_name,
+      $html->button( $count_for_step,
+        "index=" . get_function_index('crm_leads') . "&PERIOD=$period&CURRENT_STEP=>=$item->{step_number}&search=1" ),
+      $html->progress_bar({
+        TEXT         => '123',
+        TOTAL        => $full_count,
+        COMPLETE     => $count_for_step,
+        COLOR        => 'light-blue',
+        PERCENT_TYPE => 1
+      }),
+      $html->button( $step_count,
+        "index=" . get_function_index('crm_leads') . "&PERIOD=$period&CURRENT_STEP=$item->{step_number}&search=1" ),
+      $html->progress_bar({
+        TEXT         => '123',
+        TOTAL        => $full_count,
+        COMPLETE     => $step_count,
+        COLOR        => 'yellow',
+        PERCENT_TYPE => 1
+      })
+    );
+    push @leads_array, {
+      value     => $count_for_step + 0,
+      title => $item_name,
+    };
+    $i++;
+  }
+  print $table->show();
+  my $json = JSON->new()->utf8(0);
+  my $data = $json->encode(\@leads_array);
+  $html->tpl_show(_include('sales_funnel_chart', 'Crm'), { DATA => $data });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _actions_sel()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _progress_bar_step_sel {
+  my ($attr) = @_;
+
+  my $progress_bar_steps_list = $Crm->crm_progressbar_step_list({
+    ID        => '_SHOW',
+    NAME      => '_SHOW',
+    COLS_NAME => 1,
+  });
+
+  my @PB_STEPS_LSIT = ();
+
+  my $id=1;
+  foreach my $step (@$progress_bar_steps_list){
+    $step->{id}= $id++;
+    $step->{name} = _translate($step->{name});
+  }
+
+  return $html->form_select('CURRENT_STEP',
+    {
+      SELECTED    => $attr->{SELECTED} || q{},
+      SEL_LIST    => $progress_bar_steps_list,
+#      ARRAY_NUM_ID => 1,
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '--' },
+    });
 }
 
 1;

@@ -467,8 +467,9 @@ sub cards_add {
           $FORM{DILLER_ID},
           $sum,
           0,
-          $admin->{DOMAIN_ID},
-          $FORM{COMMISSION} ];
+          $admin->{DOMAIN_ID} || 0,
+          $FORM{COMMISSION}
+        ];
 
         if (defined($FORM{EXPORT}) && $FORM{EXPORT} eq 'XML') {
           $export .= "<CARD SERIA='$serial' PIN='$pin' SUM='$sum'";
@@ -839,7 +840,7 @@ sub cards_user_payment  {
     my $BRUTE_LIMIT = ($conf{CARDS_BRUTE_LIMIT}) ? $conf{CARDS_BRUTE_LIMIT} : 5;
     $Cards->bruteforce_list({ UID => $LIST_PARAMS{UID} });
     if ($Cards->{BRUTE_COUNT} && $Cards->{BRUTE_COUNT} >= $BRUTE_LIMIT) {
-      $html->message('err', $lang{ERROR}, "$lang{BRUTE_ATACK} $Cards->{BRUTE_COUNT}) >= $BRUTE_LIMIT", { ID => 601 });
+      $html->message('err', $lang{ERROR}, "$lang{BRUTE_ATACK} $Cards->{BRUTE_COUNT} >= $BRUTE_LIMIT", { ID => 601 });
       return 0;
     }
 

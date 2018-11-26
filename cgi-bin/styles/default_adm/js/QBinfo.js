@@ -89,7 +89,7 @@ function QBinfo(title, msg, group_id, event_id, seen_url) {
   }
   
   // check for line breaks
-  msg = msg.replace(/\n/g, '<br>');
+  msg = msg.toString().replace(/\n/g, '<br>');
   
   
   codeInput += '<td valign="middle" align="right" class="qb_title_btn qb_close_btn" width="10%">'
