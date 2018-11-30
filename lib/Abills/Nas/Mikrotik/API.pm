@@ -69,6 +69,7 @@ use constant {
     'queue_simple'           => [ '/queue/simple/print' ],
     'firewall_address__list' => [ '/ip/firewall/address-list/print' ],
     'firewall_filter_list'   => [ '/ip/firewall/filter/print' ],
+    'log_print'              => [ '/log/print' ],
     
   }
 };

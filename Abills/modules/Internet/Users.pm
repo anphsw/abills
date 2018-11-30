@@ -546,6 +546,7 @@ sub internet_user {
   }
 
   my $service_info1 = $html->tpl_show(_include('internet_user', 'Internet'), {
+    %$users,
     %$admin,
     %$attr,
     %$Internet,

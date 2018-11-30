@@ -236,7 +236,7 @@ sub msgs_user {
       return 1;
     }
 
-    $Msgs->{ACTION} = 'reply';
+    $Msgs->{ACTION}        = 'reply';
     $Msgs->{LNG_ACTION}    = $lang{REPLY};
     $Msgs->{STATE_NAME}    = $html->color_mark($msgs_status->{$Msgs->{STATE}}) if(defined($Msgs->{STATE}) && $msgs_status->{$Msgs->{STATE}});
     $Msgs->{PRIORITY_TEXT} = $html->color_mark($priority[ $Msgs->{PRIORITY} ], $priority_colors[ $Msgs->{PRIORITY} ]);
@@ -459,10 +459,12 @@ sub msgs_user {
   $pages_qs .= "&SEARCH_MSG_TEXT=$FORM{SEARCH_MSG_TEXT}" if( $FORM{SEARCH_MSG_TEXT});
 
   my $status_bar = msgs_status_bar({ MSGS_STATUS => \%statusbar_status, USER_UNREAD => 1, SHOW_ONLY => 3 });
-
-  if (! $FORM{SORT}){
+  if (! $FORM{sort}){
     $LIST_PARAMS{SORT} = '5 DESC, 4';
     delete $LIST_PARAMS{DESC};
+    if(! defined($FORM{STATE})) {
+      $LIST_PARAMS{STATE} = '!1,!2';
+    }
   }
 
   $LIST_PARAMS{INNER_MSG} = 0;
@@ -516,25 +518,23 @@ sub msgs_user {
     );
   }
   else {
-
     my $list = $Msgs->messages_list({
-      SUBJECT             => '_SHOW',
-      CHAPTER_NAME        => '_SHOW',
-      DATETIME            => '_SHOW',
-      STATE               => '_SHOW',
-      USER_READ           => '_SHOW',
+      SUBJECT        => '_SHOW',
+      DATETIME       => '_SHOW',
+      STATE          => '_SHOW',
+      USER_READ      => '_SHOW',
       %LIST_PARAMS,
-      COLS_NAME           => 1
+      COLS_NAME      => 1
     });
 
     $table = $html->table({
-      width       => '100%',
-      caption     => $lang{MESSAGES},
-      title_plain => [ '#', $lang{SUBJECT}, $lang{DATE}, $lang{STATUS}, '-' ],
-      qs          => $pages_qs,
-      pages       => $Msgs->{TOTAL},
-      ID          => 'MSGS_LIST',
-      header      => $status_bar,
+      width   => '100%',
+      caption => $lang{MESSAGES},
+      title   => [ '#', $lang{SUBJECT}, $lang{DATE}, $lang{STATUS}, '-' ],
+      qs      => $pages_qs,
+      pages   => $Msgs->{TOTAL},
+      ID      => 'MSGS_LIST',
+      header  => $status_bar,
     });
 
     foreach my $line (@$list) {
@@ -577,7 +577,7 @@ sub msgs_user {
 
   delete $LIST_PARAMS{SORT};
 
-   show_user_chat();
+  show_user_chat();
 
   return 1;
 }

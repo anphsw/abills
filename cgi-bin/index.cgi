@@ -1544,9 +1544,10 @@ sub form_payments_list {
     pages       => $Payments->{TOTAL},
     ID          => 'PAYMENTS'
   });
+
   my $summary = {
     TOTAL      => $Payments->{TOTAL},
-    SUM        => sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $Payments->{SUM}),
+    SUM        => sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $Payments->{SUM} || 0),
     PAGINATION => $attr->{pagination} eq 0 ? '' : $table->{pagination}
   };
 
@@ -1556,8 +1557,8 @@ sub form_payments_list {
     $table->addrow(
       $line->{datetime},
       $line->{dsc},
-      sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $line->{sum}),
-      sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $line->{last_deposit}),
+      sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $line->{sum} || 0),
+      sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $line->{last_deposit} || 0),
     );
   }
 

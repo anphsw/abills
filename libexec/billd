@@ -2179,7 +2179,6 @@ sub check_speed{
 
     #Make speed
     while (my ($user, $other_info) = each %USER_IFACES) {
-      print "111111111111111\n";
       foreach my $other ( @{$other_info} ){
         #$IFACE, $TP, $SPEED, $JOIN_SERVICE, $IP, $uid, $DURATION, $CONNECT_INFO, $STARTED
         my ($IFACE, $TP, $SPEED, $JOIN_SERVICE, $IP, $uid) = split( /:/, $other);

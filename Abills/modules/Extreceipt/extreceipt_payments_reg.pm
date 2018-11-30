@@ -42,9 +42,14 @@ unless ($Receipt_api->init()) {
   return 1;
 }
 
-check_receipts();
-check_payments();
-send_payments();
+if ($argv->{CANCEL}) {
+  cancel_payments($argv->{CANCEL});
+}
+else {
+  check_receipts();
+  check_payments();
+  send_payments();
+}
 
 #**********************************************************
 =head2 check_payments()
@@ -72,15 +77,25 @@ sub check_payments {
 sub send_payments {
   my $list = $Receipt->list({ STATUS => 0 });
   foreach my $line (@$list) {
-    # if (!$line->{phone} && !$line->{mail}) {
-    #   print "Skip payment $line->{payments_id}, can'f find phone or mail!\n";
-    #   $Receipt->change({ PAYMENTS_ID => $line->{payments_id}, STATUS => 10 });
-    #   next;
-    # }
     my $command_id = $Receipt_api->payment_register($line);
     if ($command_id) {
       $Receipt->change({ PAYMENTS_ID => $line->{payments_id}, COMMAND_ID => $command_id, STATUS => 1 });
     }
+  }
+  return 1;
+}
+
+#**********************************************************
+=head2 cancel_payments()
+  Cancel payment, set status 3
+=cut
+#**********************************************************
+sub cancel_payments {
+  my ($id) = @_;
+  my $info = $Receipt->info($id);
+  my $command_id = $Receipt_api->payment_cancel($info->[0]);
+  if ($command_id) {
+    $Receipt->change({ PAYMENTS_ID => $id, CANCEL_ID => $command_id, STATUS => 3 });
   }
   return 1;
 }
@@ -94,9 +109,17 @@ sub send_payments {
 sub check_receipts {
   my $list = $Receipt->list({ STATUS => 1 });
   foreach my $line (@$list) {
-    my $receipt_id = $Receipt_api->get_info($line->{command_id});
-    if ($receipt_id) {
-      $Receipt->change({ PAYMENTS_ID => $line->{payments_id}, RECEIPT_ID => $receipt_id, STATUS => 2 });
+    my ($fdn, $fda, $date) = $Receipt_api->get_info($line->{command_id});
+    $date =~ s/T/ /;
+    $date =~ s/\+.*//;
+    if ($fda) {
+      $Receipt->change({
+        PAYMENTS_ID  => $line->{payments_id},
+        FDN          => $fdn,
+        FDA          => $fda,
+        RECEIPT_DATE => $date,
+        STATUS       => 2,
+      });
     }
   }
   return 1;

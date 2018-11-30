@@ -20,7 +20,7 @@ use Tariffs;
 use Users;
 use Shedule;
 
-our(
+our (
   $argv,
   $db,
   $Admin,
@@ -36,10 +36,11 @@ our(
 my $main_file = $base_dir . '/language/english.pl';
 require $main_file;
 
-our $Iptv    = Iptv->new($db, $Admin, \%conf);
+our $Iptv = Iptv->new($db, $Admin, \%conf);
 require Iptv::Services;
 
 stalker_online();
+
 
 #**********************************************************
 =head2 stalker_online($attr)
@@ -50,8 +51,8 @@ sub stalker_online {
 
   my %PARAMS = ();
 
-  if($argv->{SERVICE_ID}) {
-    $PARAMS{ID}=$argv->{SERVICE_ID};
+  if ($argv->{SERVICE_ID}) {
+    $PARAMS{ID} = $argv->{SERVICE_ID};
   }
 
   my $service_list = $Iptv->services_list({
@@ -64,12 +65,17 @@ sub stalker_online {
   });
 
   foreach my $service (@$service_list) {
-    if($debug > 3) {
+    if ($debug > 3) {
       print "Service ID: $service->{id} NAME: $service->{name}\n";
     }
 
     my $Stalker_api = tv_load_service('', { SERVICE_ID => $service->{id} });
-    stalker_online_check($Stalker_api);
+    if ($argv->{BALANCE}) {
+      stalker_balance($Stalker_api);
+    }
+    else {
+      stalker_online_check($Stalker_api);
+    }
   }
 
   return 1;
@@ -85,25 +91,25 @@ sub stalker_online_check {
 
   my $Tariffs = Tariffs->new($db, \%conf, $Admin);
   my $Shedule = Shedule->new($db, $Admin);
-  my $Log     = Log->new($db, $Admin);
+  my $Log = Log->new($db, $Admin);
 
-  if($debug > 2) {
-    $Log->{PRINT}=1;
+  if ($debug > 2) {
+    $Log->{PRINT} = 1;
   }
   else {
-    $Log->{LOG_FILE} = $var_dir.'/log/stalker_online.log';
+    $Log->{LOG_FILE} = $var_dir . '/log/stalker_online.log';
   }
 
   my %hangup_desr = ();
   print "Stalker STB online\n" if ($debug > 1);
 
   if ($debug > 7) {
-    $nas->{debug}= 1 ;
-    $Dv->{debug} = 1 ;
-    $Stalker_api->{DEBUG}=1;
+    $nas->{debug} = 1;
+    $Dv->{debug} = 1;
+    $Stalker_api->{DEBUG} = 1;
   }
 
-  $Admin->{MODULE}='Iptv';
+  $Admin->{MODULE} = 'Iptv';
   #Get tp
   my %TP_INFO = ();
   my $list = $Tariffs->list({
@@ -114,41 +120,41 @@ sub stalker_online_check {
   });
 
   foreach my $line (@$list) {
-    $TP_INFO{$line->{TP_ID}}=$line;
+    $TP_INFO{$line->{TP_ID}} = $line;
   }
 
   $LIST_PARAMS{LOGIN} = $argv->{LOGINS} if ($argv->{LOGINS});
 
   # Get accounts
   my %USERS_LIST = ();
-  $Iptv->{debug}=1 if ($debug > 6);
+  $Iptv->{debug} = 1 if ($debug > 6);
   $list = $Iptv->user_list({
-    COLS_NAME      => 1,
-    LOGIN          => '_SHOW',
-    CID            => '_SHOW',
-    ACTIVATE       => '_SHOW',
-    EXPIRE         => '_SHOW',
-    LOGIN_STATUS   => '_SHOW',
-    SERVICE_STATUS => '_SHOW',
-    NEXT_TARIF_PLAN=> '_SHOW',
-    IPTV_EXPIRE    => '_SHOW',
-    TP_ID          => '_SHOW',
-    CREDIT         => '_SHOW',
-    DEPOSIT        => '_SHOW',
-    ID             => '_SHOW',
+    COLS_NAME       => 1,
+    LOGIN           => '_SHOW',
+    CID             => '_SHOW',
+    ACTIVATE        => '_SHOW',
+    EXPIRE          => '_SHOW',
+    LOGIN_STATUS    => '_SHOW',
+    SERVICE_STATUS  => '_SHOW',
+    NEXT_TARIF_PLAN => '_SHOW',
+    IPTV_EXPIRE     => '_SHOW',
+    TP_ID           => '_SHOW',
+    CREDIT          => '_SHOW',
+    DEPOSIT         => '_SHOW',
+    ID              => '_SHOW',
     %LIST_PARAMS,
-    PAGE_ROWS      => 1000000,
+    PAGE_ROWS       => 1000000,
   });
 
   foreach my $line (@$list) {
     $line->{cid} =~ s/[\n\r ]//g;
     foreach my $cid (split(/;/, $line->{cid})) {
-      $USERS_LIST{$cid}=$line;
+      $USERS_LIST{$cid} = $line;
     }
   }
 
   my %USERS_ONLINE_LIST = ();
-  $Iptv->{debug}=1 if ($debug > 6);
+  $Iptv->{debug} = 1 if ($debug > 6);
   $list = $Iptv->online({
     COLS_NAME       => 1,
     CID             => '_SHOW',
@@ -159,8 +165,8 @@ sub stalker_online_check {
   });
 
   foreach my $line (@$list) {
-    if(! $line->{id}) {
-      print "ID no defined for UID: ". ($line->{uid} || 0) ." CID: ". ($line->{CID} || q{N/D}) . "\n";
+    if (!$line->{id}) {
+      print "ID no defined for UID: " . ($line->{uid} || 0) . " CID: " . ($line->{CID} || q{N/D}) . "\n";
       $line->{id} //= 0;
     }
 
@@ -168,14 +174,14 @@ sub stalker_online_check {
       print "$line->{CID} -> $line->{uid}:$line->{id}:$line->{acct_session_id}\n";
     }
 
-    if(! $line->{uid}) {
+    if (!$line->{uid}) {
       if ($debug > 0) {
         print "Skip user: No uid, sid: $line->{acct_session_id}\n";
       }
       #next;
     }
 
-    $USERS_ONLINE_LIST{$line->{CID}}=($line->{uid} || 0).":". ($line->{id} || '0') .":$line->{acct_session_id}\n";
+    $USERS_ONLINE_LIST{$line->{CID}} = ($line->{uid} || 0) . ":" . ($line->{id} || '0') . ":$line->{acct_session_id}\n";
   }
 
   #Get stalker info
@@ -189,16 +195,16 @@ sub stalker_online_check {
     return 0;
   }
 
-  foreach my $stalker_account_info ( @{ $Stalker_api->{RESULT}->{results} } ) {
+  foreach my $stalker_account_info (@{$Stalker_api->{RESULT}->{results}}) {
     my @row = ();
-    while( my(undef, $val)=each %{ $stalker_account_info } ) {
+    while (my (undef, $val) = each %{$stalker_account_info}) {
       Encode::_utf8_off($stalker_account_info->{name}) if ($stalker_account_info->{name});
 
-      if ( ref $val eq 'ARRAY') {
+      if (ref $val eq 'ARRAY') {
         my $col_values = '';
         foreach my $v (@$val) {
           if (ref $v eq 'HASH') {
-            while(my($k, $v2) = each %$v) {
+            while (my ($k, $v2) = each %$v) {
               $col_values .= " $k - $v2\n";
             }
           }
@@ -209,9 +215,9 @@ sub stalker_online_check {
 
         push @row, $col_values;
       }
-      elsif ( ref $val eq 'HASH') {
+      elsif (ref $val eq 'HASH') {
         my $col_values = '';
-        while(my($k, $v) = each %$val) {
+        while (my ($k, $v) = each %$val) {
           $col_values .= " $k - $v\n";
         }
         push @row, $col_values;
@@ -223,10 +229,10 @@ sub stalker_online_check {
 
     $Log->log_print('LOG_DEBUG', '', "Stalker ls: $stalker_account_info->{ls} IP: $stalker_account_info->{ip} MAC: $stalker_account_info->{mac} Online: $stalker_account_info->{online} Status: $stalker_account_info->{status}");
 
-    if (! $stalker_account_info->{online}) {
-      my $user            = $USERS_LIST{$stalker_account_info->{mac}};
-      $hangup_desr{$user->{id}}='User log off' if ($user->{id});
-      if($debug > 2) {
+    if (!$stalker_account_info->{online}) {
+      my $user = $USERS_LIST{$stalker_account_info->{mac}};
+      $hangup_desr{$user->{id}} = 'User log off' if ($user->{id});
+      if ($debug > 2) {
         print "To hangup: MAC: " . ($stalker_account_info->{mac} || 'NO_MAC')
           . ' ACCOUNT_NUMBER: ' . ($stalker_account_info->{account_number} || q{})
           #   . ' STB_SN: ' . ($stalker_account_info->{stb_sn} || q{})
@@ -245,12 +251,12 @@ sub stalker_online_check {
 
     #block with negative deposite
     #Hangup modem
-    if (! $stalker_account_info->{mac}) {
+    if (!$stalker_account_info->{mac}) {
       #$Stalker_api->send_request({ ACTION => "STB",
       #                     });
       print "SKIP: No MAC STB_SN: $stalker_account_info->{stb_sn}\n" if ($debug > 1);
     }
-    elsif (! $USERS_LIST{$stalker_account_info->{mac}}) {
+    elsif (!$USERS_LIST{$stalker_account_info->{mac}}) {
       $Log->log_print('LOG_WARNING', '', "UNKNOWN MAC: '$stalker_account_info->{mac}' add mac to account '$stalker_account_info->{login}'");
 
       #Add mac to account
@@ -275,26 +281,26 @@ sub stalker_online_check {
     elsif ($USERS_ONLINE_LIST{$stalker_account_info->{mac}}) {
       $Log->log_print('LOG_DEBUG', '', "UPDATE online: $USERS_ONLINE_LIST{$stalker_account_info->{mac}} mac: $stalker_account_info->{mac}");
 
-      my $user            = $USERS_LIST{$stalker_account_info->{mac}};
+      my $user = $USERS_LIST{$stalker_account_info->{mac}};
       my $expire_unixdate = 0;
       if ($user->{expire} ne '0000-00-00') {
-        my ($expire_y, $expire_m, $expire_d)=split(/\-/, $user->{expire}, 3);
-        $expire_unixdate = mktime(0, 0, 0, $expire_d, ($expire_m-1), ($expire_y - 1900));
+        my ($expire_y, $expire_m, $expire_d) = split(/\-/, $user->{expire}, 3);
+        $expire_unixdate = mktime(0, 0, 0, $expire_d, ($expire_m - 1), ($expire_y - 1900));
         $expire_unixdate = ($expire_unixdate < time) ? 1 : 0;
       }
       elsif ($user->{iptv_expire} ne '0000-00-00') {
-        my ($expire_y, $expire_m, $expire_d)=split(/\-/, $user->{iptv_expire}, 3);
-        $expire_unixdate = mktime(0, 0, 0, $expire_d, ($expire_m-1), ($expire_y - 1900));
+        my ($expire_y, $expire_m, $expire_d) = split(/\-/, $user->{iptv_expire}, 3);
+        $expire_unixdate = mktime(0, 0, 0, $expire_d, ($expire_m - 1), ($expire_y - 1900));
         $expire_unixdate = ($expire_unixdate < time) ? 1 : 0;
       }
 
       my $credit = ($user->{credit} > 0) ? $user->{credit} : $TP_INFO{$user->{tp_id}}->{CREDIT};
-      if (($TP_INFO{$user->{tp_id}}->{PAYMENT_TYPE}==0 && $user->{deposit}+$credit <= 0)
-          || $user->{login_status}
-          || $user->{iptv_status}
-          || $expire_unixdate
+      if (($TP_INFO{$user->{tp_id}}->{PAYMENT_TYPE} == 0 && $user->{deposit} + $credit <= 0)
+        || $user->{login_status}
+        || $user->{iptv_status}
+        || $expire_unixdate
       ) {
-        $hangup_desr{$user->{uid}}="NEG_DEPOSIT ". sprintf("%.2f Credit: %.2f", $user->{deposit}, $credit);
+        $hangup_desr{$user->{uid}} = "NEG_DEPOSIT " . sprintf("%.2f Credit: %.2f", $user->{deposit}, $credit);
         if ($stalker_account_info->{status} == 0) {
           delete($USERS_ONLINE_LIST{$stalker_account_info->{mac}});
           next;
@@ -302,17 +308,17 @@ sub stalker_online_check {
         $Admin->action_add($user->{uid}, $stalker_account_info->{mac}, { TYPE => 15 });
 
         print "Disable STB LOGIN: $user->{login} ID: $user->{id}"
-         . " MAC: $stalker_account_info->{mac} ACCOUNT_NUMBER: ". ($stalker_account_info->{account_number} || 'n/d')
-         . " STALKER: $stalker_account_info->{login}"
-         . " Expire: $expire_unixdate "
-         . " DEPOSIT: $user->{deposit}+$credit STATUS: $user->{login_status}/$user->{service_status}\n";
+          . " MAC: $stalker_account_info->{mac} ACCOUNT_NUMBER: " . ($stalker_account_info->{account_number} || 'n/d')
+          . " STALKER: $stalker_account_info->{login}"
+          . " Expire: $expire_unixdate "
+          . " DEPOSIT: $user->{deposit}+$credit STATUS: $user->{login_status}/$user->{service_status}\n";
 
-        if(! $conf{IPTV_STALKER_SINGLE_ACCOUNT} && $user->{login} && $user->{id}) {
-          $user->{login} = $user->{id}.'_'.$user->{id};
+        if (!$conf{IPTV_STALKER_SINGLE_ACCOUNT} && $user->{login} && $user->{id}) {
+          $user->{login} = $user->{id} . '_' . $user->{id};
         }
 
         my $login = $stalker_account_info->{login} || $user->{login};
-        my $id    = $stalker_account_info->{ls} || $user->{id};
+        my $id = $stalker_account_info->{ls} || $user->{id};
 
         $Stalker_api->user_action({
           ID     => $id,
@@ -327,7 +333,7 @@ sub stalker_online_check {
         }
       }
       else {
-        my ($uid, $id, $acct_session_id)=split(/:/, $USERS_ONLINE_LIST{$stalker_account_info->{mac}});
+        my ($uid, $id, $acct_session_id) = split(/:/, $USERS_ONLINE_LIST{$stalker_account_info->{mac}});
 
         $Iptv->online_update({
           ACCT_SESSION_ID => $acct_session_id,
@@ -337,12 +343,12 @@ sub stalker_online_check {
           GUEST           => ($stalker_account_info->{status} == 0) ? 1 : 0
         });
 
-        if($user->{login} && $user->{id}) {
-          $user->{login} = $user->{id}.'_'.$user->{id};
+        if ($user->{login} && $user->{id}) {
+          $user->{login} = $user->{id} . '_' . $user->{id};
         }
 
         if ($stalker_account_info->{status} == 0) {
-          $Stalker_api->{debug}=1;
+          $Stalker_api->{debug} = 1;
           $Stalker_api->user_action({
             ID     => $user->{id},
             FIO    => $user->{fio},
@@ -361,20 +367,20 @@ sub stalker_online_check {
     else {
       my $user = $USERS_LIST{$stalker_account_info->{mac}};
 
-      if (! $user->{tp_id}) {
+      if (!$user->{tp_id}) {
         $Log->log_print('LOG_WARNING', $USERS_LIST{$stalker_account_info->{mac}}->{login}, "ADD online: MAC: $stalker_account_info->{mac} Unknown TP");
       }
       else {
         $Iptv->online_add({
-          UID    => $user->{uid},
-          ID     => $user->{id},
-          IP     => $stalker_account_info->{ip} || '0.0.0.0',
-          NAS_ID => 0,
-          STATUS => 1,
-          TP_ID  => $user->{tp_id},
-          CID    => $stalker_account_info->{mac},
-          ACCT_SESSION_ID=> mk_unique_value(12),
-          GUEST  => ($stalker_account_info->{status} == 0) ? 1 : 0
+          UID             => $user->{uid},
+          ID              => $user->{id},
+          IP              => $stalker_account_info->{ip} || '0.0.0.0',
+          NAS_ID          => 0,
+          STATUS          => 1,
+          TP_ID           => $user->{tp_id},
+          CID             => $stalker_account_info->{mac},
+          ACCT_SESSION_ID => mk_unique_value(12),
+          GUEST           => ($stalker_account_info->{status} == 0) ? 1 : 0
         });
 
         $Log->log_print('LOG_NOTICE', $user->{login}, "ADD online: MAC: $stalker_account_info->{mac} Online: $stalker_account_info->{online}");
@@ -385,7 +391,7 @@ sub stalker_online_check {
           $Log->log_print('LOG_DEBUG', $user->{login}, "ADD EXPIRE: $expire_date TP_AGE: $TP_INFO{$user->{tp_id}}->{AGE}");
 
           if ($TP_INFO{$user->{tp_id}}->{NEXT_TP_ID}) {
-            my ($year, $month, $day)=split(/\-/, $expire_date, 3);
+            my ($year, $month, $day) = split(/\-/, $expire_date, 3);
 
             print "
             UID          => $user->{uid},
@@ -414,7 +420,7 @@ sub stalker_online_check {
           else {
             $Iptv->user_change({
               ID     => $user->{id},
-#              UID    => $user->{uid},
+              #              UID    => $user->{uid},
               EXPIRE => $expire_date,
             });
           }
@@ -426,21 +432,21 @@ sub stalker_online_check {
   }
 
   #Del old sessions
-  if (scalar %USERS_ONLINE_LIST ) {
-    my $del_list = join(',', keys %USERS_ONLINE_LIST) ;
+  if (scalar %USERS_ONLINE_LIST) {
+    my $del_list = join(',', keys %USERS_ONLINE_LIST);
     $Iptv->online_del({ CID => [ keys %USERS_ONLINE_LIST ] });
     $Log->log_print('LOG_DEBUG', undef, "Delete: $del_list");
 
-    foreach my $mac ( keys %USERS_ONLINE_LIST ) {
-      my ($uid, $id, $acct_session_id)=split(/:/, $USERS_ONLINE_LIST{$mac});
+    foreach my $mac (keys %USERS_ONLINE_LIST) {
+      my ($uid, $id, $acct_session_id) = split(/:/, $USERS_ONLINE_LIST{$mac});
       #Hangup stb box
       $Stalker_api->_send_request({
-        ACTION  => "send_event/".$id,
-        event   => 'cut_off',
+        ACTION => "send_event/" . $id,
+        event  => 'cut_off',
       });
 
       if ($Stalker_api->{errno}) {
-        print "ERROR: HANGUP STB LOGIN: ". ($user->{login} || q{-}) ." [$Stalker_api->{errno}] $Stalker_api->{errstr}\n";
+        print "ERROR: HANGUP STB LOGIN: " . ($user->{login} || q{-}) . " [$Stalker_api->{errno}] $Stalker_api->{errstr}\n";
       }
 
       #Disable account
@@ -454,10 +460,58 @@ sub stalker_online_check {
         $Log->log_print('LOG_ERR', $uid, "Hangup Error: UID: $uid ID: $id MAC: $mac [$Stalker_api->{errno}] $Stalker_api->{errstr}");
       }
       else {
-     	  $Log->log_print('LOG_INFO', $uid, "Hangup: $mac ("
+        $Log->log_print('LOG_INFO', $uid, "Hangup: $mac ("
           . (($uid && $hangup_desr{$uid}) ? $hangup_desr{$uid} : $uid || q{--})
-          . ") Session: ". ($acct_session_id || 'No session ID')
+          . ") Session: " . ($acct_session_id || 'No session ID')
           . "ID: $id");
+      }
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 stalker_balance($attr)
+
+=cut
+#**********************************************************
+sub stalker_balance {
+  my $Stalker_api = shift;
+
+  my $users = $Stalker_api->get_users();
+  my $user_deposit = "";
+  require Users;
+  Users->import();
+
+  my $Users = Users->new($db, $Admin, \%conf);
+
+  foreach my $user ($users->{RESULT}{results}){
+    foreach my $some_user (@$user) {
+      if ($some_user->{account_number}) {
+        my $Iptv_user = $Iptv->user_list({
+          ID         => $some_user->{account_number},
+          LOGIN      => '_SHOW',
+          SERVICE_ID => '_SHOW',
+          UID        => '_SHOW',
+          COLS_NAME  => 1,
+          PAGE_ROWS  => 99999,
+        });
+        $Iptv->services_list({
+          ID        => $Iptv_user->[0]{service_id},
+          NAME      => '_SHOW',
+          MODULE    => 'Stalker_api',
+          COLS_NAME => 1,
+        });
+
+        $user_deposit = $Users->info($Iptv_user->[0]{uid});
+        if ($Iptv->{TOTAL}) {
+          $Stalker_api->user_action({
+            ID              => $some_user->{account_number},
+            ACCOUNT_BALANCE => $user_deposit->{DEPOSIT},
+            change          => 1
+          });
+        }
       }
     }
   }

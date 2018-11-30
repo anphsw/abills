@@ -9,7 +9,7 @@
 =cut
 
 use strict;
-# use warnings FATAL => 'all';
+use warnings FATAL => 'all';
 use Abills::Defs;
 use Abills::Base qw(tpl_parse cmd in_array
   int2byte convert sendmail mk_unique_value
@@ -35,7 +35,6 @@ our Admins $admin;
 
 our $Msgs = Msgs->new($db, $admin, \%conf);
 my $users = Users->new($db, $admin, \%conf);
-#my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 my $Attachments = Msgs::Misc::Attachments->new($db, $admin, \%conf);
 
 my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
@@ -1686,7 +1685,7 @@ sub msgs_operator_statistics {
     }
   );
 
-  if (!$FORM{YEAR} && !$FORM{MONTH}) {
+  if (!$FORM{YEAR} || !$FORM{MONTH}) {
     ($FORM{YEAR}, $FORM{MONTH}) = split('-', $DATE);
   }
 
@@ -1755,7 +1754,7 @@ sub msgs_operator_statistics {
   my $growth_of_chievement = 0;
   my $number_of_months_worked = 0;
   my $number_processed_applications_per_month;
-  my $todays_date_without_day = ($FORM{MONTH} < 10) ? "$FORM{YEAR}-0$FORM{MONTH}" : "$FORM{YEAR}-$FORM{MONTH}";
+  my $todays_date_without_day = ($FORM{MONTH} =~ /^\d+$/ && $FORM{MONTH} < 10) ? "$FORM{YEAR}-0$FORM{MONTH}" : "$FORM{YEAR}-$FORM{MONTH}";
 
   foreach my $item (@$operator_statistics_list) {
     $item->{done_date} =~ s/-\d\d$//;

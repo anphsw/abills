@@ -443,9 +443,6 @@ sub form_nas_add {
 sub form_nas_console {
   my ($Nas_) = @_;
 
-  my $result;
-  my $col_delimeter = '';
-
   if ($FORM{SAVE} && !$FORM{change}) {
     $Nas_->nas_cmd_add({%FORM});
 
@@ -480,287 +477,7 @@ sub form_nas_console {
   _error_show($Nas_);
 
   if ($FORM{ACTION}) {
-    $pages_qs = "&console=1&NAS_ID=$FORM{NAS_ID}&full=1&ACTION=1&CMD=$FORM{CMD}";
-    $Nas_->{NAS_MNG_IP_PORT} = $FORM{NAS_MNG_IP_PORT} if ($FORM{NAS_MNG_IP_PORT});
-    $Nas_->{NAS_MNG_USER}    = $FORM{NAS_MNG_USER}    if ($FORM{NAS_MNG_USER});
-
-    my $wait_char = ']';
-
-    require Log;
-    Log->import('log_print');
-    my $Log = Log->new($db, \%conf);
-    $Log->{PRINT} = 1;
-    require Abills::Nas::Control;
-    Abills::Nas::Control->import(qw/telnet_cmd3 rsh_cmd/);
-    Abills::Nas::Control->new($db, \%conf);
-
-    if ($FORM{CMD} =~ /^([a-z]+):(.+)/) {
-      $FORM{TYPE} = $1 || q{};
-      $FORM{CMD}  = $2 || q{};
-    }
-
-    my $table = $html->table(
-      {
-        width    => '500',
-        caption  => "$lang{RESULT}: $FORM{CMD}",
-        ID       => 'CONSOLE_RESULT',
-        qs       => $pages_qs,
-        EXPORT   => 1,
-        MENU     => "$lang{SAVE}::btn bg-olive margin export-btn",
-      }
-    );
-
-    my $total_rows = 0;
-
-    my $type = $FORM{TYPE} || '';
-    if ($Nas_->{NAS_TYPE} =~ /mpd|accel/ || ($type eq 'telnet')) {
-
-      if ($Nas_->{NAS_TYPE} =~ /accel/) {
-        $wait_char     = '#';
-        $col_delimeter = '\||\+';
-      }
-
-      my ($nas_ip, $nas_rad_port, $nas_telnet_port, undef) = split(/:/, $Nas_->{NAS_MNG_IP_PORT} || q{});
-
-      if (!$nas_telnet_port) {
-        $nas_telnet_port = $nas_rad_port || 23;
-      }
-      my @exec_cmd = ();
-
-      if ($Nas_->{NAS_MNG_USER}) {
-        push @exec_cmd, "sername\t$Nas_->{NAS_MNG_USER}";
-      }
-
-      if ($Nas_->{NAS_MNG_PASSWORD}) {
-        push @exec_cmd, "assword\t$Nas_->{NAS_MNG_PASSWORD}";
-      }
-
-      push @exec_cmd, "$wait_char\t$FORM{CMD}", "$wait_char\texit";
-
-      my $res = Abills::Nas::Control::telnet_cmd3("$nas_ip:$nas_telnet_port", \@exec_cmd, {
-        debug => $FORM{DEBUG}, LOG => $Log });
-
-      $result = [ split(/\n/, $res || q{}) ];
-    }
-    elsif ($type eq 'rsh') {
-      $result = Abills::Nas::Control::rsh_cmd($FORM{CMD}, { DEBUG => $FORM{DEBUG} || undef, %$Nas_ });
-    }
-    elsif ($Nas_->{NAS_TYPE} =~ 'mikrotik' && $FORM{CMD} ne "export compact") {
-      require Abills::Nas::Mikrotik;
-      Abills::Nas::Mikrotik->import();
-      my $Mikrotik = Abills::Nas::Mikrotik->new(
-        $Nas_,
-        \%conf,
-        {
-          FROM_WEB         => 1,
-          MESSAGE_CALLBACK => sub { $html->message('info', $_[0], $_[1]) },
-          ERROR_CALLBACK   => sub { $html->message('err', $_[0], $_[1]) },
-          DEBUG => $FORM{DEBUG} || 0
-        }
-      );
-
-      if(! $Mikrotik) {
-        $html->message('err', $lang{ERROR}, "Not defined NAS IP address and Port");
-        return 0;
-      }
-      elsif (! $Mikrotik->has_access() eq 1){
-        $html->message('err', $lang{ERROR}, "No access to $Mikrotik->{ip_address}:$Mikrotik->{port} ($Mikrotik->{backend})");
-        return 0;
-      }
-      
-      my $cmd = $FORM{CMD};
-      if (!$cmd){
-        $html->message('err', $lang{ERROR}, "Need command to execute");
-        return 0;
-      }
-      ######## IMPORTANT ########
-      # You can't JUST add new entry
-      # List command should be defined both in
-      #   Nas::Mikrotik::SSH LIST_REFS
-      # and
-      #   Nas::Mikrotik::API LIST_REFS
-      # Otherwise result will not be parseable
-      my %cmd_list = (
-        '/ip firewall nat print'          => 'firewall_nat',
-        '/queue tree print'               => 'queue_tree',
-        '/queue type print'               => 'queue_type',
-        '/queue simple print'             => 'queue_simple',
-        '/ip firewall filter print'       => 'firewall_filter_list',
-        '/ip firewall address-list print' => 'firewall_address__list',
-        '/ip dhcp-server lease print'     => 'dhcp_leases',
-        '/log print'                      => 'log_print'
-      );
-
-      if (exists $cmd_list{$cmd} && $cmd_list{$cmd} && $Mikrotik->has_list_command($cmd_list{$cmd})) {
-        $result = $Mikrotik->get_list($cmd_list{$cmd});
-
-        if ($result && ref $result eq 'ARRAY' && scalar @$result) {
-          $total_rows = scalar @$result;
-
-          ## We need get all keys, but id and flag should stay first
-          # So here we get all keys
-          my $first_hash = $result->[0];
-          my %hash_copy  = %$first_hash;
-
-          # Delete what we don't need to see in keys %()
-          delete $hash_copy{id};
-          delete $hash_copy{flag};
-
-          # And write columns in order we want
-          my @columns = ('id', 'flag', sort keys %hash_copy);
-
-          if ($cmd_list{$cmd} eq 'firewall_address__list') {
-            push(@columns, $lang{USER}, $lang{DEL});
-  
-            # Get Online
-            my $users_online_list = undef;
-            if ( in_array('Internet', \@MODULES) ) {
-              require Internet::Sessions;
-              Internet::Sessions->import();
-              my Internet::Sessions $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-              $users_online_list = $Sessions->online({
-                COLS_NAME => 1,
-                NAS_ID    => $FORM{NAS_ID},
-                CLIENT_IP => '_SHOW',
-                LOGIN     => '_SHOW'
-              });
-              _error_show($Sessions);
-            }
-            else {
-              require Dv_Sessions;
-              Dv_Sessions->import();
-              my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
-              $users_online_list = $Dv_Sessions->online({
-                COLS_NAME => 1,
-                NAS_ID    => $FORM{NAS_ID},
-                CLIENT_IP => '_SHOW',
-                LOGIN     => '_SHOW'
-              });
-              _error_show($Dv_Sessions);
-            }
-  
-            require Abills::Experimental;
-            my $users_online_hash = sort_array_to_hash($users_online_list, 'client_ip');
-  
-            foreach my $line ( @{$result} ) {
-              $line->{ $lang{USER} } =
-                  ($line->{address} && exists $users_online_hash->{ $line->{address} })
-                     ? user_ext_menu($users_online_hash->{ $line->{address} }->{uid},
-                       $users_online_hash->{ $line->{address} }->{login})
-                     : '';
-    
-              $line->{ $lang{DEL} } = $html->button(
-                "", undef,
-                {
-                  class     => 'btn btn-xs btn-danger removeIpBtn',
-                  ex_params => "data-address-number='" . ($line->{id} || $line->{'.id'} || q{}) . "'",
-                  SKIP_HREF => 1,
-                  ICON      => 'glyphicon glyphicon-remove'
-                }
-              );
-            }
-          }
-  
-          $table->{table} .= $table->table_title_plain(\@columns);
-
-          #          $table = $html->table({
-          #            width       => '500',
-          #            caption     => "$lang{RESULT}: $FORM{CMD}",
-          #            title_plain => \@columns,
-          #            ID          => 'CONSOLE_RESULT',
-          #            EXPORT      => 1,
-          #          });
-          foreach my $row (@$result) {
-            # Using hash slice to get ordered values
-            $table->addrow(@$row{@columns});
-          }
-        }
-      }
-      else {
-        $cmd =~ s/ +/\//g;
-        $result = $Mikrotik->execute([ [$cmd] ], { SHOW_RESULT => 1 });
-        $html->pre($result);
-      }
-      $result = [];
-    }
-    else {
-      $table->{table} .= $table->table_title_plain(["result"]);
-      $FORM{CMD} =~ s/\\\"/\"/g;
-      $result = ssh_cmd($FORM{CMD}, { %$Nas_ });
-      my @result2 = ();
-      my $half_string = "";
-      foreach my $line (@$result) {
-        if ($half_string) {
-          if ($half_string =~ m/\=$/) {
-            $line =~ s/^\s+//;
-          }
-          else {
-            $line =~ s/^\s+/ /;
-          }
-          push (@result2, $half_string . $line);
-          $half_string = "";
-          next;
-        }
-        if ($line =~ m/\\/) {
-          $half_string = $line;
-          $half_string =~ s/\\//;
-          $half_string =~ s/\s+$//;
-          next;
-        }
-        else {
-          push (@result2, $line);
-        }
-      }
-
-      $result = \@result2;
-
-      if (!$result) {
-        $result = [];
-      }
-    }
-
-    if ($FORM{CMD} =~ /^sh sss session$/) {
-      $col_delimeter = '\s+';
-    }
-
-    foreach my $line (@{$result}) {
-      next if (!$line);
-      my @row = ();
-
-      if ($col_delimeter) {
-        @row = split(/$col_delimeter/, $line || q{});
-      }
-      elsif ($FORM{CMD} =~ /compact/) {
-        push @row, $line;
-      }
-      else {
-        $line =~ s/\s/\&nbsp;/g;
-        push @row, $html->color_mark($line, 'code');
-      }
-
-      if ($FORM{CMD} =~ /^sh sss session$/) {
-        if ($#row > 6) {
-          next;
-        }
-        if ($row[0] !~ /^Current/) {
-          push @row, $html->button($lang{SHOW}, "index=$index&console=1&NAS_ID=$FORM{NAS_ID}&full=1&CMD=rsh:sh sss session uid $row[0]&ACTION=1");
-        }
-      }
-
-      $table->addrow(@row);
-      $total_rows++;
-    }
-
-    print $table->show();
-
-    $table = $html->table(
-      {
-        width => '100%',
-        rows  => [ [ "$lang{TOTAL}:", $html->b($total_rows) ] ]
-      }
-    );
-
-    print $table->show();
+    form_nas_console_command($Nas_);
   }
 
   my @quick_cmd = ();
@@ -825,7 +542,298 @@ sub form_nas_console {
   print $table->show();
   return 1;
 }
+#**********************************************************
+=head2 form_nas_console_command($Nas_)
 
+=cut
+#***********************************************************
+sub form_nas_console_command {
+  my ($Nas_) = @_;
+  my $result;
+  my $col_delimeter = '';
+  $pages_qs = "&console=1&NAS_ID=$FORM{NAS_ID}&full=1&ACTION=1&CMD=$FORM{CMD}";
+  $Nas_->{NAS_MNG_IP_PORT} = $FORM{NAS_MNG_IP_PORT} if ($FORM{NAS_MNG_IP_PORT});
+  $Nas_->{NAS_MNG_USER}    = $FORM{NAS_MNG_USER}    if ($FORM{NAS_MNG_USER});
+
+  my $wait_char = ']';
+
+  require Log;
+  Log->import('log_print');
+  my $Log = Log->new($db, \%conf);
+  $Log->{PRINT} = 1;
+  require Abills::Nas::Control;
+  Abills::Nas::Control->import(qw/telnet_cmd3 rsh_cmd/);
+  Abills::Nas::Control->new($db, \%conf);
+
+  if ($FORM{CMD} =~ /^([a-z]+):(.+)/) {
+    $FORM{TYPE} = $1 || q{};
+    $FORM{CMD}  = $2 || q{};
+  }
+
+  my $table = $html->table(
+    {
+      width      => '500',
+      caption    => "$lang{RESULT}: $FORM{CMD}",
+      ID         => 'CONSOLE_RESULT',
+      qs         => $pages_qs,
+      DATA_TABLE => 1,
+      EXPORT     => 1,
+      MENU       => "$lang{SAVE}::btn bg-olive margin export-btn",
+    }
+  );
+
+  my $total_rows = 0;
+
+  my $type = $FORM{TYPE} || '';
+  if ($Nas_->{NAS_TYPE} =~ /mpd|accel/ || ($type eq 'telnet')) {
+
+    if ($Nas_->{NAS_TYPE} =~ /accel/) {
+      $wait_char     = '#';
+      $col_delimeter = '\||\+';
+    }
+
+    my ($nas_ip, $nas_rad_port, $nas_telnet_port, undef) = split(/:/, $Nas_->{NAS_MNG_IP_PORT} || q{});
+
+    if (!$nas_telnet_port) {
+      $nas_telnet_port = $nas_rad_port || 23;
+    }
+    my @exec_cmd = ();
+
+    if ($Nas_->{NAS_MNG_USER}) {
+      push @exec_cmd, "sername\t$Nas_->{NAS_MNG_USER}";
+    }
+
+    if ($Nas_->{NAS_MNG_PASSWORD}) {
+      push @exec_cmd, "assword\t$Nas_->{NAS_MNG_PASSWORD}";
+    }
+
+    push @exec_cmd, "$wait_char\t$FORM{CMD}", "$wait_char\texit";
+
+    my $res = Abills::Nas::Control::telnet_cmd3("$nas_ip:$nas_telnet_port", \@exec_cmd, {
+      debug => $FORM{DEBUG}, LOG => $Log });
+
+    $result = [ split(/\n/, $res || q{}) ];
+  }
+  elsif ($type eq 'rsh') {
+    $result = Abills::Nas::Control::rsh_cmd($FORM{CMD}, { DEBUG => $FORM{DEBUG} || undef, %$Nas_ });
+  }
+  elsif ($Nas_->{NAS_TYPE} =~ 'mikrotik' && $FORM{CMD} ne "export compact") {
+    require Abills::Nas::Mikrotik;
+    Abills::Nas::Mikrotik->import();
+    my $Mikrotik = Abills::Nas::Mikrotik->new(
+      $Nas_,
+      \%conf,
+      {
+        FROM_WEB         => 1,
+        MESSAGE_CALLBACK => sub { $html->message('info', $_[0], $_[1]) },
+        ERROR_CALLBACK   => sub { $html->message('err', $_[0], $_[1]) },
+        DEBUG => $FORM{DEBUG} || 0
+      }
+    );
+
+    if(! $Mikrotik) {
+      $html->message('err', $lang{ERROR}, "Not defined NAS IP address and Port");
+      return 0;
+    }
+    elsif (! $Mikrotik->has_access() eq 1){
+      $html->message('err', $lang{ERROR}, "No access to $Mikrotik->{ip_address}:$Mikrotik->{port} ($Mikrotik->{backend})");
+      return 0;
+    }
+
+    my $cmd = $FORM{CMD};
+    if (!$cmd){
+      $html->message('err', $lang{ERROR}, "Need command to execute");
+      return 0;
+    }
+    ######## IMPORTANT ########
+    # You can't JUST add new entry
+    # List command should be defined both in
+    #   Nas::Mikrotik::SSH LIST_REFS
+    # and
+    #   Nas::Mikrotik::API LIST_REFS
+    # Otherwise result will not be parseable
+    my %cmd_list = (
+      '/ip firewall nat print'          => 'firewall_nat',
+      '/queue tree print'               => 'queue_tree',
+      '/queue type print'               => 'queue_type',
+      '/queue simple print'             => 'queue_simple',
+      '/ip firewall filter print'       => 'firewall_filter_list',
+      '/ip firewall address-list print' => 'firewall_address__list',
+      '/ip dhcp-server lease print'     => 'dhcp_leases',
+      '/log print'                      => 'log_print'
+    );
+
+    if (exists $cmd_list{$cmd} && $cmd_list{$cmd} && $Mikrotik->has_list_command($cmd_list{$cmd})) {
+      $result = $Mikrotik->get_list($cmd_list{$cmd});
+      if ($result && ref $result eq 'ARRAY' && scalar @$result) {
+        $total_rows = scalar @$result;
+
+        ## We need get all keys, but id and flag should stay first
+        # So here we get all keys
+        my $first_hash = $result->[0];
+        my %hash_copy  = %$first_hash;
+
+        # Delete what we don't need to see in keys %()
+        delete $hash_copy{id};
+        delete $hash_copy{flag};
+
+        # And write columns in order we want
+        my @columns = ('id', 'flag', sort keys %hash_copy);
+
+        if ($cmd_list{$cmd} eq 'firewall_address__list') {
+          push(@columns, $lang{USER}, $lang{DEL});
+
+          # Get Online
+          my $users_online_list = undef;
+          if ( in_array('Internet', \@MODULES) ) {
+            require Internet::Sessions;
+            Internet::Sessions->import();
+            my Internet::Sessions $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+            $users_online_list = $Sessions->online({
+              COLS_NAME => 1,
+              NAS_ID    => $FORM{NAS_ID},
+              CLIENT_IP => '_SHOW',
+              LOGIN     => '_SHOW'
+            });
+            _error_show($Sessions);
+          }
+          else {
+            require Dv_Sessions;
+            Dv_Sessions->import();
+            my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
+            $users_online_list = $Dv_Sessions->online({
+              COLS_NAME => 1,
+              NAS_ID    => $FORM{NAS_ID},
+              CLIENT_IP => '_SHOW',
+              LOGIN     => '_SHOW'
+            });
+            _error_show($Dv_Sessions);
+          }
+
+          require Abills::Experimental;
+          my $users_online_hash = sort_array_to_hash($users_online_list, 'client_ip');
+
+          foreach my $line ( @{$result} ) {
+            $line->{ $lang{USER} } =
+              ($line->{address} && exists $users_online_hash->{ $line->{address} })
+                ? user_ext_menu($users_online_hash->{ $line->{address} }->{uid},
+                $users_online_hash->{ $line->{address} }->{login})
+                : '';
+
+            $line->{ $lang{DEL} } = $html->button(
+              "", undef,
+              {
+                class     => 'btn btn-xs btn-danger removeIpBtn',
+                ex_params => "data-address-number='" . ($line->{id} || $line->{'.id'} || q{}) . "'",
+                SKIP_HREF => 1,
+                ICON      => 'glyphicon glyphicon-remove'
+              }
+            );
+          }
+        }
+
+        $table->{table} .= $table->table_title_plain(\@columns);
+
+        #          $table = $html->table({
+        #            width       => '500',
+        #            caption     => "$lang{RESULT}: $FORM{CMD}",
+        #            title_plain => \@columns,
+        #            ID          => 'CONSOLE_RESULT',
+        #            EXPORT      => 1,
+        #          });
+        foreach my $row (@$result) {
+          # Using hash slice to get ordered values
+          $table->addrow(@$row{@columns});
+        }
+      }
+    }
+    else {
+      $cmd =~ s/ +/\//g;
+      $result = $Mikrotik->execute([ [$cmd] ], { SHOW_RESULT => 1 });
+      $html->pre($result);
+    }
+    $result = [];
+  }
+  else {
+    $table->{table} .= $table->table_title_plain(["result"]);
+    $FORM{CMD} =~ s/\\\"/\"/g;
+    $result = ssh_cmd($FORM{CMD}, { %$Nas_ });
+    my @result2 = ();
+    my $half_string = "";
+    foreach my $line (@$result) {
+      if ($half_string) {
+        if ($half_string =~ m/\=$/) {
+          $line =~ s/^\s+//;
+        }
+        else {
+          $line =~ s/^\s+/ /;
+        }
+        push (@result2, $half_string . $line);
+        $half_string = "";
+        next;
+      }
+      if ($line =~ m/\\/) {
+        $half_string = $line;
+        $half_string =~ s/\\//;
+        $half_string =~ s/\s+$//;
+        next;
+      }
+      else {
+        push (@result2, $line);
+      }
+    }
+
+    $result = \@result2;
+
+    if (!$result) {
+      $result = [];
+    }
+  }
+
+  if ($FORM{CMD} =~ /^sh sss session$/) {
+    $col_delimeter = '\s+';
+  }
+
+  foreach my $line (@{$result}) {
+    next if (!$line);
+    my @row = ();
+
+    if ($col_delimeter) {
+      @row = split(/$col_delimeter/, $line || q{});
+    }
+    elsif ($FORM{CMD} =~ /compact/) {
+      push @row, $line;
+    }
+    else {
+      $line =~ s/\s/\&nbsp;/g;
+      push @row, $html->color_mark($line, 'code');
+    }
+
+    if ($FORM{CMD} =~ /^sh sss session$/) {
+      if ($#row > 6) {
+        next;
+      }
+      if ($row[0] !~ /^Current/) {
+        push @row, $html->button($lang{SHOW}, "index=$index&console=1&NAS_ID=$FORM{NAS_ID}&full=1&CMD=rsh:sh sss session uid $row[0]&ACTION=1");
+      }
+    }
+
+    $table->addrow(@row);
+    $total_rows++;
+  }
+
+  print $table->show();
+
+  $table = $html->table(
+    {
+      width => '100%',
+      rows  => [ [ "$lang{TOTAL}:", $html->b($total_rows) ] ]
+    }
+  );
+
+  #    print $table->show();
+  return 1;
+}
 #**********************************************************
 
 =head2 form_nas_test($Nas, $attr)

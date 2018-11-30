@@ -1,27 +1,14 @@
 <!-- STATUS COLOR -->
 <style>
-  .alert-
-
-  %
-  STATUS
-
-  %
-  {
+  .alert-%STATUS% {
   /*color : %STATUS_COLOR%;*/
-    background-image: -webkit-linear-gradient(top, % STATUS_COLOR_GR_S% 0, % STATUS_COLOR_GR_F% 100%)
-  ;
-    background-image: -o-linear-gradient(top, % STATUS_COLOR_GR_S% 0, % STATUS_COLOR_GR_F% 100%)
-  ;
-    background-image: -webkit-gradient(linear, left top, left bottom, from(% STATUS_COLOR_GR_S%), to(% STATUS_COLOR_GR_F%))
-  ;
-    background-image: linear-gradient(to bottom, % STATUS_COLOR_GR_S% 0, % STATUS_COLOR_GR_F% 100%)
-  ;
-    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='%STATUS_COLOR_GR_S%', endColorstr='%STATUS_COLOR_GR_F%', GradientType=0)
-  ;
-    background-repeat: repeat-x
-  ;
-    border-color:% STATUS_COLOR%
-  ;
+    background-image: -webkit-linear-gradient(top, %STATUS_COLOR_GR_S% 0, %STATUS_COLOR_GR_F% 100%);
+    background-image: -o-linear-gradient(top, %STATUS_COLOR_GR_S% 0, %STATUS_COLOR_GR_F% 100%);
+    background-image: -webkit-gradient(linear, left top, left bottom, from(%STATUS_COLOR_GR_S%), to(%STATUS_COLOR_GR_F%));
+    background-image: linear-gradient(to bottom, %STATUS_COLOR_GR_S% 0, %STATUS_COLOR_GR_F% 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='%STATUS_COLOR_GR_S%', endColorstr='%STATUS_COLOR_GR_F%', GradientType=0);
+    background-repeat: repeat-x;
+    border-color:%STATUS_COLOR%;
   }
 
   div.input-group > span.clear_button {

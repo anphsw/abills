@@ -2497,15 +2497,21 @@ sub organization_info {
   my %info;
 
   my %name_form = (
-    ORGANIZATION_ADDRESS         => 0,
-    ORGANIZATION_FAX             => 0,
-    ORGANIZATION_MAIL            => 0,
-    ORGANIZATION_NAME            => 0,
-    ORGANIZATION_PHONE           => 0,
-    ORGANIZATION_CURENT_ACCOUNT  => 0,
-    ORGANIZATION_ID_CODE         => 0,
-    ORGANIZATION_BANK_NAME       => 0,
-    ORGANIZATION_BANK_NUM        => 0,
+    ORGANIZATION_ADDRESS                        => 0,
+    ORGANIZATION_FAX                            => 0,
+    ORGANIZATION_MAIL                           => 0,
+    ORGANIZATION_NAME                           => 0,
+    ORGANIZATION_PHONE                          => 0,
+    ORGANIZATION_CURRENT_ACCOUNT                => 0,
+    ORGANIZATION_ID_CODE                        => 0,
+    ORGANIZATION_BANK_NAME                      => 0,
+    ORGANIZATION_BANK_NUM                       => 0,
+    ORGANIZATION_SUPPORT_TECH                   => 0,
+    ORGANIZATION_SUPPORT_INFO                   => 0,
+    ORGANIZATION_CUSTOM_DEPART_LEGAL_ENTITIES   => 0,
+    ORGANIZATION_CUSTOM_DEPART_PHYS_PERSON      => 0,
+    ORGANIZATION_WEB_SITE                       => 0,
+    ORGANIZATION_ADDITIONAL_INFO                => 0,
   );
 
 if ($FORM{chg_form}) {
@@ -2594,7 +2600,7 @@ if ($FORM{chg_form}) {
       }
     );
 
-    print $html->tpl_show(templates('form_information_about_organization'), \%info);
+    $html->tpl_show(templates('form_information_about_organization'), \%info);
   }
 
   if ($FORM{del}) {

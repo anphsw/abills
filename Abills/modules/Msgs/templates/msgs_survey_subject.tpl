@@ -8,7 +8,7 @@
 
 <div class='form-group'>
     <label class='control-label col-md-3'>_{NAME}_ (_{SUBJECT}_):</label>
-	<div class='col-md-9'><input type=text name=NAME value='%NAME%' class='form-control'></div>
+	<div class='col-md-9'><input type=text name=NAME value='%NAME%' class='form-control' required></div>
 </div>
 
 <div class='form-group'>

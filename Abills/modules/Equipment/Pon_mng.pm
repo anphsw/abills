@@ -756,7 +756,7 @@ sub equipment_register_onu {
         if ($result =~ /ONU: \d+\/\d+\/\d+\:(\d+) ADDED/) {
           my $onu = ();
           $onu->{NAS_ID}       = $nas_id;
-          $onu->{ONU_ID}       = $1;
+          $onu->{ONU_ID}       = $1 || 0;
           $onu->{ONU_DHCP_PORT}= $port_list->[0]->{BRANCH} . ':' . $onu->{ONU_ID};
           $onu->{PORT_ID}      = $port_list->[0]->{ID};
           $onu->{ONU_MAC_SERIAL} = $FORM{MAC_SERIAL};
@@ -1203,8 +1203,8 @@ sub pon_onu_state {
       { MESSAGE => "$lang{DEL} ONU $attr->{BRANCH}:$attr->{ONU_ID}?", class => 'btn btn-sm btn-danger', ICON => 'glyphicon glyphicon-ban-circle', TITLE => "$lang{DEL} ONU" })
       . "($id)"
   ]);
-  if ($FORM{tr_069_id}) {
 
+  if ($FORM{tr_069_id}) {
     my $table = $html->table({
       width => '100%',
       qs    => $pages_qs,

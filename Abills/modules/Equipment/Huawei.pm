@@ -544,7 +544,7 @@ sub _huawei {
         'MAC/SERIAL' => {
           NAME   => 'MAC/SERIAL',
           OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.58.1.2',
-          PARSER => '',
+          PARSER => 'bin2mac',
           WALK   => '1'
         },
         UNREGISTER => {
@@ -580,6 +580,7 @@ sub _huawei {
       'ONU_MAC_SERIAL' => {
         NAME   => 'Mac/Serial',
         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3',
+        PARSER => 'bin2mac'
       },
       'ONU_STATUS'     => {
         NAME   => 'STATUS',

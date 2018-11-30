@@ -1894,6 +1894,22 @@ INSERT INTO `admin_actions` VALUES ('LOGIN:test', '2009-08-03 11:42:53', 1534854
   ('ADD PI', '2009-08-03 11:42:53', 1534854767, 1, 1, 4, '', 0),
   ('ACTIVE', '2009-08-03 11:42:53', 1534854767, 1, 1, 5, 'Internet', 1);
 
+INSERT INTO `config` (`param`, `value`, `domain_id`) VALUES  ('ORGANIZATION_ADDRESS', '', 0),
+  ('ORGANIZATION_FAX', '', 0),
+  ('ORGANIZATION_MAIL', '', 0),
+  ('ORGANIZATION_NAME', '', 0),
+  ('ORGANIZATION_PHONE', '', 0),
+  ('ORGANIZATION_CURRENT_ACCOUNT', '', 0),
+  ('ORGANIZATION_ID_CODE', '', 0),
+  ('ORGANIZATION_BANK_NAME', '', 0),
+  ('ORGANIZATION_BANK_NUM', '', 0),
+  ('ORGANIZATION_SUPPORT_TECH', '', 0),
+  ('ORGANIZATION_SUPPORT_INFO', '', 0),
+  ('ORGANIZATION_CUSTOM_DEPART_LEGAL_ENTITIES', '', 0),
+  ('ORGANIZATION_CUSTOM_DEPART_PHYS_PERSON', '', 0),
+  ('ORGANIZATION_WEB_SITE', '', 0),
+  ('ORGANIZATION_ADDITIONAL_INFO', '', 0);
+
 INSERT INTO `nas` (`id`, `name`, `nas_identifier`, `descr`, `ip`, `nas_type`, `auth_type`, `mng_host_port`, `mng_user`, `mng_password`, `alive`, `rad_pairs`)
 VALUES (1, 'NAS_Server', '', 'NAS_Server', INET_ATON('127.0.0.1'), 'mpd5', 0, '127.0.0.1:3799:5005', 'admin',
            ENCODE('secretpass', 'test12345678901234567890'), 300, '');

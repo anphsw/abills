@@ -1732,6 +1732,8 @@ sub phone_verifycation {
 
   my $phone_tpl = advert_page('phone');
   my $phone_replace_tpl = advert_page('phone_replace');
+  my $auth_tpl = advert_page('call_auth');
+  my $auth_replace_tpl = advert_page('call_auth_replace');
 
   if($FORM{PHONE} && $conf{PHONE_FORMAT} && $FORM{PHONE} !~ /$conf{PHONE_FORMAT}/ ) {
     print $html->header();
@@ -1770,12 +1772,23 @@ sub phone_verifycation {
     my $reload_btn = $html->button( $lang{CONTINUE}, '',
           { GLOBAL_URL => "$COOKIES{link_login}", class => 'btn btn-success' } );
     print $html->header();
-    print $html->tpl_show( templates( 'form_client_hotspot_call_auth' ), { 
-      AUTH_NUMBER => $conf{HOTSPOT_AUTH_NUMBER},
-      mac         => $FORM{mac},
-      PHONE       => $FORM{PHONE},
-      BUTTON      => $reload_btn,
-    });
+    if ($auth_replace_tpl) {
+      print $html->tpl_show( templates( $auth_replace_tpl ), { 
+        AUTH_NUMBER => $conf{HOTSPOT_AUTH_NUMBER},
+        mac         => $FORM{mac},
+        PHONE       => $FORM{PHONE},
+        BUTTON      => $reload_btn,
+      });
+    }
+    else {
+      print $html->tpl_show( templates( $auth_tpl )) if ($auth_tpl);
+      print $html->tpl_show( templates( 'form_client_hotspot_call_auth' ), { 
+        AUTH_NUMBER => $conf{HOTSPOT_AUTH_NUMBER},
+        mac         => $FORM{mac},
+        PHONE       => $FORM{PHONE},
+        BUTTON      => $reload_btn,
+      });
+    }
     exit;
   }
   elsif (!$FORM{PIN}) {

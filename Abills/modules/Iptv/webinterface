@@ -129,6 +129,10 @@ sub iptv_users_search{
 #**********************************************************
 =head2 iptv_users_list($attr)
 
+  Arguments:
+    $attr
+      USER_ACCOUNT
+
 =cut
 #**********************************************************
 sub iptv_users_list{
@@ -214,7 +218,7 @@ sub iptv_users_list{
       },
     MAKE_ROWS       => 1,
     MODULE          => 'Iptv',
-    TOTAL           => ($attr->{USER_ACCOUNT} && $attr->{USER_ACCOUNT} < 2) ? 0 : 1,
+    TOTAL           => ($attr->{USER_ACCOUNT} && $attr->{USER_ACCOUNT} < 5) ? 0 : 1,
     SHOW_MORE_THEN  => ($FORM{search}) ? 1 : 0
   });
 
@@ -233,6 +237,9 @@ sub iptv_users_list{
       print $ui->{TABLE_SHOW};
       form_users( { USER_INFO => $ui } );
     }
+  }
+  elsif ( $attr->{USER_ACCOUNT} ) {
+    return $table->show();
   }
 
   return 1;

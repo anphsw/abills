@@ -112,5 +112,6 @@ $lang{REPLYS_AND_TIME} = 'Replys and time';
 $lang{REPLYS_COUNT} = 'Number of replys';
 $lang{REPLYS_AVERAGE} = 'Replys (average)';
 $lang{TIME_AVERAGE} = 'Run time (average)';
+$lang{SITE}='Site';
 
 1;

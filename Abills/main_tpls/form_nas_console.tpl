@@ -1,4 +1,7 @@
-%QUICK_CMD%
+<div class="btn-group">
+    %QUICK_CMD%
+</div>
+
 
 <form action=$SELF_URL METHOD=post name=FORM_NAS class='form-horizontal'>
     <input type=hidden name='index' value='$index'>

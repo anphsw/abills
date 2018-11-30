@@ -129,6 +129,6 @@ $lang{REPLYS_AND_TIME} = 'Відповіді та час';
 $lang{REPLYS_COUNT} = 'Кількість відповідей адміністратора';
 $lang{REPLYS_AVERAGE} = 'Відповіді (в середньому)';
 $lang{TIME_AVERAGE} = 'Час (середній)';
-
+$lang{SITE}='Сайт';
 
 1

@@ -2737,7 +2737,7 @@ sub post_page {
       $output =~ s/\d+\.(\d+\.\d+)//;
       $output = $1 || 0;
       if($output && $output > $cur_version) {
-        $admin->{VERSION} .= $html->button("NEW VERSION: 0.$output", "", { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:changelogs:0.7x', class => 'btn btn-xs btn-success', ex_params => ' target=_blank' });
+        $admin->{VERSION} .= $html->button("NEW VERSION: 0.$output", "", { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:changelogs:0.8x', class => 'btn btn-xs btn-success', ex_params => ' target=_blank' });
       }
     }
   }

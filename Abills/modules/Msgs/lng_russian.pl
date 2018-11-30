@@ -123,6 +123,7 @@ $lang{REPLYS_AND_TIME} = 'Ответы и время';
 $lang{REPLYS_COUNT} = 'Количество ответов администратора';
 $lang{REPLYS_AVERAGE} = 'Ответы (в среднем)';
 $lang{TIME_AVERAGE} = 'Время (в среднем)';
+$lang{SITE}='Сайт';
 
 1
 

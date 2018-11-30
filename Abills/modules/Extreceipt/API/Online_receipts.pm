@@ -26,7 +26,7 @@ my $debug = 0;
 sub new {
   my ($class, $conf) = @_;
 
-  # $debug   = 1;
+  $debug   = 1;
   $api_url = $conf->{EXTRECEIPT_API_URL};
   
   my $self = {
@@ -103,7 +103,7 @@ sub payment_register {
         sum   => $attr->{sum},
         name  => $self->{goods},
         # nds_value       => 0, 
-        # nds_not_apply   => 'false',
+        nds_not_apply   => 'true',
       }]
     }
   );
@@ -114,18 +114,11 @@ sub payment_register {
   my $params = qq(-d '$p_data' -H "sign: $sign" -H "Content-Type: application/json");
   my $url = $api_url . "Command";
   my $result = `curl $params -s -X POST "$url"`;
-  # my $perl_hash = JSON->new->decode($result);
   my $perl_hash = decode_json($result);
   if ($debug) {
     print "CMD: curl $params -s -X POST '$url'\n";
     print "RESULT: $result\n";
-    # my $str = $perl_hash->{errors}->{'command.payed_cash'}->[0];
-    # utf8::encode($str);
-    # print "MESSAGE: $str\n";
   }
-  # print "COMMAND:curl $params -s -X POST '$url'\n";
-  # print "RESULT:$result\n";
-  # _bp('1', $perl_hash, {TO_CONSOLE => 1});
 
   return $perl_hash->{command_id} || 0;
 }
@@ -156,7 +149,11 @@ sub get_info {
   }
   my $perl_hash = decode_json($result);
 
-  return $perl_hash->{fiscal_document_attribute} || 0;
+  if ($perl_hash->{fiscal_document_number} && $perl_hash->{fiscal_document_attribute} && $perl_hash->{receipt_datetime}) {
+    return ($perl_hash->{fiscal_document_number}, $perl_hash->{fiscal_document_attribute}, $perl_hash->{receipt_datetime});
+  }
+
+  return (0, 0, 0);
 }
 
 #**********************************************************
@@ -169,8 +166,6 @@ sub get_sign {
   my ($data) = @_;
 
   my $json_str = $self->perl2json($data);
-  # print "JSON:$json_str\n";
-  # my $json_str = encode_json($data);
   my $data_str = $json_str . $self->{SECRET};
   my $sign = md5_hex($data_str);
 
@@ -239,7 +234,54 @@ sub perl2json {
   }
 }
 
+#**********************************************************
+=head2 payment_cancel($attr)
+  Регистрирует отмену чека в онлайн-кассе
+=cut
+#**********************************************************
+sub payment_cancel {
+  my $self = shift;
+  my ($attr) = @_;
 
+  if ($debug) {
+    print "\nTry \\printPurchaseReturn for payment $attr->{payments_id}\n";
+  }
+  
+  my %data = (
+    nonce          => $self->get_nonce(),
+    app_id         => $self->{APP_ID},
+    token          => $self->{TOKEN},
+    type           => "printPurchaseReturn",
+    command => {
+      smsEmail54FZ   => ($attr->{phone} || $attr->{mail} || ''),
+      payed_cash     => '0',
+      payed_cashless => $attr->{sum},
+      author         => $self->{author},
+      c_num          => "n" . $attr->{payments_id},
+      goods  => [{
+        count => 1,
+        price => $attr->{sum},
+        sum   => $attr->{sum},
+        name  => $self->{goods},
+        nds_not_apply   => 'true',
+      }]
+    }
+  );
+
+  my $sign  = $self->get_sign(\%data);
+  my $p_data = $self->perl2json(\%data);
+
+  my $params = qq(-d '$p_data' -H "sign: $sign" -H "Content-Type: application/json");
+  my $url = $api_url . "Command";
+  my $result = `curl $params -s -X POST "$url"`;
+  my $perl_hash = decode_json($result);
+  if ($debug) {
+    print "CMD: curl $params -s -X POST '$url'\n";
+    print "RESULT: $result\n";
+  }
+
+  return $perl_hash->{command_id} || 0;
+}
 
 
 #**********************************************************

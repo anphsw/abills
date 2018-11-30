@@ -35,7 +35,7 @@ sub new {
 }
 
 #**********************************************************
-=head2 list($db, $admin, \%conf)
+=head2 list($attr)
 
 =cut
 #**********************************************************
@@ -54,6 +54,31 @@ sub list {
       WHERE e.status = ?;",
     undef,
     { Bind => [ $attr->{STATUS} ], COLS_NAME => 1 }
+  );
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 info($payments_id)
+
+=cut
+#**********************************************************
+sub info {
+  my $self = shift;
+  my ($id) = @_;
+  $self->query("SELECT
+      e.*,
+      p.sum,
+      ucp.value as phone,
+      ucm.value as mail
+      FROM extreceipts e
+      LEFT JOIN payments p ON (p.id = e.payments_id)
+      LEFT JOIN users_contacts ucp ON (ucp.uid = p.uid AND ucp.type_id=2)
+      LEFT JOIN users_contacts ucm ON (ucm.uid = p.uid AND ucm.type_id=9)
+      WHERE e.payments_id = ?;",
+    undef,
+    { Bind => [ $id ], COLS_NAME => 1 }
   );
 
   return $self->{list};

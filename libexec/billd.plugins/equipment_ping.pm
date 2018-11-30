@@ -120,13 +120,45 @@ sub equipment_ping {
     delete $syn{$host};
   }
 
-  foreach my $host (keys %syn) {
-    if ($ips{$host}{STATUS} == 0) {
-
+  my $fping_installed = qx/which fping/;
+  my $host_fping = '';
+  if ( $fping_installed ne "" ) {
+    foreach $host_fping (keys %syn) {
+      print "$host_fping status 0. start fping if exist\n" if ( $debug > 1 );
+      my $fping = system "fping -C 2 -q $host_fping";
+      print "FPING return status = $fping for HOST $host_fping\n" if ( $debug > 1 );
+      if ( $fping != 0 ) {
+        print "$host_fping do not response\n" if ( $debug > 1 );
+        $Equipment->_change( { NAS_ID => $ips{$host_fping}{NAS_ID}, STATUS => 3 } );
+        $message .= "$ips{$host_fping}{NAS_NAME}($host_fping) _{UNAVAILABLE}_\n";
+        $Equipment->ping_log_add({
+          DATE     => $datetime,
+          NAS_ID   => $ips{$host_fping}{NAS_ID},
+          STATUS   => 0,
+          DURATION => $timeout,
+        });
+      }
+      else {
+        print "Updating host $host_fping STATUS to AVAILABLE\n" if ( $debug > 1 );
+        $Equipment->_change( { NAS_ID => $ips{$host_fping}{NAS_ID}, STATUS => 0 } );
+        $message .= "$ips{$host_fping}{NAS_NAME}($host_fping) _{AVAILABLE}_\n";
+        $Equipment->ping_log_add({
+          DATE     => $datetime,
+          NAS_ID   => $ips{$host_fping}{NAS_ID},
+          STATUS   => 1,
+          DURATION => $timeout,
+        });
+      }
+     }
+    }
+  else {
+   foreach my $host (keys %syn) {
+      if ($ips{$host}{STATUS} == 0) {
       my $ping_icmp = Net::Ping->new("icmp");
       next if $ping_icmp->ping($host, 2);
       sleep(1);
       $ping_icmp->close();
+	    print "$host do not response\n";
 
       $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 3 } );
       $message .= "$ips{$host}{NAS_NAME}($host) _{UNAVAILABLE}_\n";
@@ -138,11 +170,10 @@ sub equipment_ping {
       STATUS   => 0,
       DURATION => $timeout,
     });
-
     print " $host is unreachable\n" if ( $debug > 1);
+    $ping->close;
   }
-
-  $ping->close;
+}
 
   if ($message) {
     ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();

@@ -29,7 +29,7 @@ use constant {
     'queue_simple'           => '/queue simple print' . parseable_postfix,
     'firewall_address__list' => '/ip firewall address-list print' . parseable_postfix,
     'firewall_filter_list'   => '/ip firewall filter print' . parseable_postfix,
-    #'log_print'              => '/log print' . parseable_postfix
+    'log_print'              => '/log print' . parseable_postfix
   }
 };
 

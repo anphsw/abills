@@ -205,13 +205,14 @@ sub msgs_notify_user {
 
   # Make view url
   my $preview_url_without_message_id = '';
-  my $site = $conf{CLIENT_INTERFACE_URL} || $conf{BILLING_URL} || $ENV{HTTP_REFERER};
+  my $site = $conf{CLIENT_INTERFACE_URL} || $conf{BILLING_URL} || $ENV{HTTP_REFERER} || q{};
+  $site =~ s/admin\/?//;
   if ($site && $site =~ m/(https?:\/\/[a-zA-Z0-9:\.\-]+)\//g ) {
     $site = $1 || '';
     $preview_url_without_message_id = $site . "/index.cgi?get_index=msgs_user&ID=";
   }
 
-  # Make atachments
+  # Make attachments
   my $ATTACHMENTS = $attr->{ATTACHMENTS} || [];
 
   foreach my $user_info  ( @{$users_list} ) {
@@ -224,7 +225,7 @@ sub msgs_notify_user {
     my $mail_message = $html->tpl_show(
       _include($message_tpl, 'Msgs'),
       {
-        SITE        => $html->button($lang{GO}, $site),
+        SITE        => $site,
         DATE        => $DATE,
         TIME        => $TIME,
         LOGIN       => $user_info->{login},
