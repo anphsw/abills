@@ -15,6 +15,7 @@
 
   <title>%TITLE%</title>
   <!-- CSS -->
+  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/select2.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap.min.css'>
   <link rel='stylesheet' href='/styles/lte_adm/dist/css/AdminLTE.css'>
 
@@ -25,7 +26,7 @@
 
   <link rel='stylesheet' href='/styles/lte_adm/plugins/pace/pace.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datepicker/datepicker3.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/chosen.min.css'>
+  <!--<link rel='stylesheet' type='text/css' href='/styles/default_adm/css/chosen.min.css'>-->
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/QBInfo.css'>
 
   <!-- Ionicons -->
@@ -57,7 +58,7 @@
   <script src='/styles/default_adm/js/navBarCollapse.js'></script>
 
   <!-- Custom <select> design -->
-  <script src='/styles/default_adm/js/chosen.jquery.min.js'></script>
+  <!--<script src='/styles/default_adm/js/chosen.jquery.min.js'></script>-->
 
   <!--Javascript template engine-->
   <script src='/styles/default_adm/js/mustache.min.js'></script>
@@ -84,38 +85,11 @@
   <script src='/styles/lte_adm/plugins/datatables/jquery.dataTables.min.js'></script>
   <script src='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.min.js'></script>
   <script src='/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.js'></script>
+  <script src='/styles/default_adm/js/select2.min.js'></script>
 
   <script>
     var SELF_URL = '$SELF_URL';
-
-    var CHOSEN_PARAMS = {
-      no_results_text      : '_{NOT_EXIST}_',
-      allow_single_deselect: true,
-      placeholder_text     : '--'
-    };
-
-    jQuery(function () {
-
-
-      jQuery('select:not(#type)').chosen(CHOSEN_PARAMS);
-
-      //Date picker
-      jQuery('.datepicker').datepicker({
-        autoclose     : true,
-        format        : 'yyyy-mm-dd',
-        startDate     : '-100y',
-        todayHighlight: true,
-        clearBtn      : true
-      });
-
-//      jQuery('input').iCheck({
-//        checkboxClass: 'icheckbox_square-blue',
-//        radioClass   : 'iradio_square-blue',
-//        increaseArea : '20%' // optional
-//      });
-
-    });
-
+    var CONTENT_LANGUAGE = '%CONTENT_LANGUAGE%';
   </script>
 
 </head>
@@ -132,24 +106,4 @@
 </div>
 </body>
 
-<div class='modal fade' id='checkAddress' tabindex='-1' role='dialog' aria-labelledby='myModalLabel'>
-  <div class='modal-dialog modal-lg' role='document'>
-  <form action=$SELF_URL METHOD=POST class='form-horizontal'>
-  <input type='hidden' name='check_address' value='1'>
-    <div class='modal-content'>
-      <div class='modal-header'>
-        <button type='button' class='close' data-dismiss='modal' aria-label='Close'><span aria-hidden='true'>&times;</span></button>
-        <h4 class='modal-title'>_{CHECK_ADDRESS}_</h4>
-      </div>
-      <div class='modal-body'>
-      <div class='callout callout-info'>_{CHECK_ADDRESS_MESAGE}_</div>
-       %ADDRESS%
-      </div>
-      <div class='modal-footer'>
-        <button type='button' class='btn btn-default' data-dismiss='modal'>_{CLOSE}_</button>
-        <button type='submit' class='btn btn-primary'>_{CHECK_ADDRESS}_</button>
-      </div>
-    </div>
-    </form>
-  </div>
-</div>
+%CHECK_ADDRESS_MODAL%

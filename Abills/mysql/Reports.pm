@@ -10,8 +10,6 @@ use strict;
 use parent qw(dbcore);
 our $VERSION = 2.01;
 
-my ($SORT, $DESC, $PG, $PAGE_ROWS);
-
 #**********************************************************
 # Init
 #**********************************************************
@@ -40,9 +38,9 @@ sub add {
   my ($attr) = @_;
 
   $self->query_add('reports_wizard', { %$attr,
-  	                                   DATE => 'NOW()',
-      AID                                   => $self->{admin}->{AID}
-  	                                  });
+    DATE => 'NOW()',
+    AID  => $self->{admin}->{AID}
+  });
   return $self;
 }
 
@@ -69,12 +67,11 @@ sub list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my @WHERE_RULES = ();
-  my $WHERE;
   my $list;
 
   if (defined($attr->{GID})) {
@@ -87,9 +84,7 @@ sub list {
     push @WHERE_RULES, "rw.send_mail='1'";
   }
 
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
-
+  my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
   $self->query("SELECT rw.id, rw.name, rw.comments, rw.quick_report,
     rg.name as  group_name
     FROM reports_wizard rw
@@ -97,13 +92,13 @@ sub list {
     $WHERE
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",
-  undef,
-  $attr
+    undef,
+    $attr
   );
 
   $list = $self->{list};
-  $self->query("SELECT count(id) AS total FROM reports_wizard rw $WHERE",
-  undef, { INFO => 1 });
+  $self->query("SELECT COUNT(id) AS total FROM reports_wizard rw $WHERE",
+    undef, { INFO => 1 });
 
   return $list;
 }
@@ -117,19 +112,19 @@ sub mk {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $list;
-  delete ($self->{COL_NAMES_ARR});
+  delete($self->{COL_NAMES_ARR});
 
-  $attr->{QUERY}=~s/%PG%/$PG/;
-  $attr->{QUERY}=~s/%PAGE_ROWS%/$PAGE_ROWS/;
-  $attr->{QUERY}=~s/%SORT%/$SORT/g;
-  $attr->{QUERY}=~s/%DESC%/$DESC/;
-  $attr->{QUERY}=~s/%PAGES%/LIMIT $PG, $PAGE_ROWS/;
+  $attr->{QUERY} =~ s/%PG%/$PG/;
+  $attr->{QUERY} =~ s/%PAGE_ROWS%/$PAGE_ROWS/;
+  $attr->{QUERY} =~ s/%SORT%/$SORT/g;
+  $attr->{QUERY} =~ s/%DESC%/$DESC/;
+  $attr->{QUERY} =~ s/%PAGES%/LIMIT $PG, $PAGE_ROWS/;
 
   $self->query("$attr->{QUERY};", undef, $attr);
   $list = $self->{list};
@@ -140,8 +135,8 @@ sub mk {
   if ($attr->{QUERY_TOTAL}) {
     delete $self->{COL_NAMES_ARR};
     $self->query($attr->{QUERY_TOTAL},
-    undef,
-    { INFO => 1 }
+      undef,
+      { INFO => 1 }
     );
   }
 
@@ -160,8 +155,8 @@ sub info {
   $self->query("SELECT *
      FROM reports_wizard
      WHERE id= ? ;",
-   undef,
-   { INFO => 1, Bind => [ $attr->{ID} ] }
+    undef,
+    { INFO => 1, Bind => [ $attr->{ID} ] }
   );
 
   return $self;
@@ -174,7 +169,7 @@ sub info {
 =cut
 #**********************************************************
 sub change {
-  my $self   = shift;
+  my $self = shift;
   my ($attr) = @_;
 
   $attr->{QUERY} =~ s/\\\'/\'/g;
@@ -182,9 +177,9 @@ sub change {
 
   $self->changes(
     {
-      CHANGE_PARAM    => 'ID',
-      TABLE           => 'reports_wizard',
-      DATA            => $attr,
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'reports_wizard',
+      DATA         => $attr,
     }
   );
 
@@ -214,10 +209,10 @@ sub list_groups {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my $WHERE;
   my $list;
 
@@ -226,13 +221,13 @@ sub list_groups {
     $WHERE
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",
-  undef,
-  $attr
+    undef,
+    $attr
   );
 
   $list = $self->{list};
   $self->query("SELECT count(id) AS total FROM reports_groups $WHERE",
-  undef, { INFO => 1 });
+    undef, { INFO => 1 });
 
   return $list;
 }
@@ -263,8 +258,8 @@ sub info_group {
   $self->query("SELECT *
      FROM reports_groups
      WHERE id= ? ;",
-   undef,
-   { INFO => 1, Bind => [ $attr->{ID} ] }
+    undef,
+    { INFO => 1, Bind => [ $attr->{ID} ] }
   );
 
   return $self;
@@ -276,14 +271,14 @@ sub info_group {
 =cut
 #**********************************************************
 sub change_group {
-  my $self   = shift;
+  my $self = shift;
   my ($attr) = @_;
 
   $self->changes(
     {
-      CHANGE_PARAM    => 'ID',
-      TABLE           => 'reports_groups',
-      DATA            => $attr,
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'reports_groups',
+      DATA         => $attr,
     }
   );
 

@@ -14,14 +14,21 @@
           </div>
         </div>
 
-        <div class='form-group'>
-          <label class='col-md-3 control-label'>_{ADMIN}_</label>
-          <div class='col-md-9'>%AID%</div>
-        </div>
+        <!--<div class='form-group'>-->
+          <!--<label class='col-md-3 control-label'>_{ADMIN}_</label>-->
+          <!--<div class='col-md-9'>%AID%</div>-->
+        <!--</div>-->
 
         <div class='form-group'>
           <label class='col-md-3 control-label'>_{INSTALLED}_</label>
           <div class='col-md-9'>%INSTALLED_AID%</div>
+        </div>
+
+        <div class='form-group'>
+          <label class='col-md-3 control-label'>_{RESPOSIBLE}_ _{FOR_INSTALLATION}_</label>
+          <div class='col-md-9'>
+            %INSTALLED_AID_SEL%
+          </div>
         </div>
 
         <div class='form-group'>
@@ -63,33 +70,70 @@
 </form>
 
 <script>
-  jQuery.getScript('/styles/default_adm/js/ajax-chosen.jquery.min.js', function () {
-    jQuery('select#ARTICLE_SEARCH_id').ajaxChosen({
-          jsonTermKey: 'quick_search',
-          type       : 'GET',
-          url        : '/admin/index.cgi',
-          dataType   : 'json',
-          data       : {
-            qindex           : '$index',
-            header           : 2,
-            show_installation: 1,
-            search_type      : 1
-          }
-        },
-        function (data) {
-          var results = [];
+//  jQuery.getScript('/styles/default_adm/js/ajax-chosen.jquery.min.js', function () {
+//    jQuery('select#ARTICLE_SEARCH_id').ajaxChosen({
+//          jsonTermKey: 'quick_search',
+//          type       : 'GET',
+//          url        : '/admin/index.cgi',
+//          dataType   : 'json',
+//          data       : {
+//            qindex           : '$index',
+//            header           : 2,
+//            show_installation: 1,
+//            search_type      : 1
+//          }
+//        },
+//        function (data) {
+//          var results = [];
+//          console.log(data);
+//
+//          if (data) {
+//            jQuery.each(data, function (i, val) {
+//              results.push({
+//                value: val.id,
+//                text : val.type_name + ' : ' + val.name
+//              });
+//            });
+//          }
+//
+//          return results;
+//        });
+//  });
+
+jQuery(document).ready(function() {
+
+  jQuery('select#ARTICLE_SEARCH_id').select2({
+    ajax: {
+      url        : '/admin/index.cgi',
+      dataType   : "json",
+      type       : "POST",
+      quietMillis: 50,
+      data: function(term) {
+        return {
+          quick_search: term.term,
+          qindex: '$index',
+          header: 2,
+          show_installation: 1,
+          search_type: 1
+        }
+    },
+    processResults : function(data) {
+      var results = [];
           console.log(data);
 
           if (data) {
             jQuery.each(data, function (i, val) {
               results.push({
-                value: val.id,
+                id: val.id,
                 text : val.type_name + ' : ' + val.name
               });
             });
           }
 
-          return results;
-        });
+          return {results: results};
+    }
+      // Additional AJAX parameters go here; see the end of this chapter for the full code of this example
+    }
   });
+});
 </script>

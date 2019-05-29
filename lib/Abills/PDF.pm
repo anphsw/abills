@@ -721,7 +721,9 @@ sub show{
 }
 
 #**********************************************************
-#
+=head2 link_former($params)
+
+=cut
 #**********************************************************
 sub link_former{
   my ($self) = shift;
@@ -876,6 +878,10 @@ sub get_pdf{
 sub tpl_show{
   my $self = shift;
   my ($filename, $variables_ref, $attr) = @_;
+
+  if ($attr->{TPL} && $attr->{MODULE}) {
+    $filename = $self->get_tpl($attr->{TPL}, $attr->{MODULE}, {pdf => 1});
+  }
 
   $filename =~ s/\.[a-z]{3}$//;
   my $tpl_describe = tpl_describe( $filename, { debug => $self->{debug} } );

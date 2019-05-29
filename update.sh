@@ -4,10 +4,10 @@
 # License fetcher
 # Amon update
 #
-# UPDATED: 20181124
+# UPDATED: 20190410
 #**********************************************************
 
-VERSION=2.30;
+VERSION=2.36;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -32,7 +32,7 @@ ROLLBACK=""
 AMON_FILE=""
 
 SYSBENCH_DIR=/tmp
-if [ -f ${BILLING_DIR} ]; then
+if [ -f "${BILLING_DIR}" ]; then
   SYSBENCH_DIR="${BILLING_DIR}";
 fi;
 
@@ -213,7 +213,9 @@ sql_get_conf () {
     return 0;
   fi;
 
-  echo "Get conf date";
+  if [ "${DEBUG}" != "" ]; then
+    echo "Get conf date";
+  fi;
 
   DB_USER=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbuser}' |awk -F\' '{print $2}'`
   DB_PASSWD=`cat ${BILLING_DIR}/libexec/config.pl |grep '^$conf{dbpasswd}' |awk -F\' '{print $2}'`
@@ -241,13 +243,12 @@ mk_sysbench() {
 
 is_sysbench=`which sysbench`;
 
-if [ x"${is_sysbench}" = x ]; then
+if [ "${is_sysbench}" = "" ]; then
   if [ "${OS}" = Linux ]; then
     if [ "${OS_NAME}" = "CentOS" ]; then
-      yum install http://www.percona.com/downloads/percona-release/percona-release-0.0-1.x86_64.rpm
-    else
-      _install sysbench
+      _install epel-release
     fi;
+    _install sysbench
   else
     cd /usr/ports/benchmarks/sysbench && make && make install clean
   fi;
@@ -352,7 +353,7 @@ elif [ x"${OS}" = xLinux ]; then
    CPU_COUNT=" ("`expr \`cat /proc/cpuinfo | grep '^processor' | tail -1 | sed 's/.*\: //'\` + 1`")";
    CPU=`cat /proc/cpuinfo |egrep '(model name)' | tail -1 |sed 's/.*\: //'|paste -s`
 
-   _install pciutils hdparm bc
+   _install pciutils bc
 
    INTERFACES=`lspci -mm |grep Ethernet |cut -f4- -d " "`
    RAM=`free -m |grep Mem |awk '{print $2}'`
@@ -361,8 +362,19 @@ elif [ x"${OS}" = xLinux ]; then
    #Serial number
    # smartctl -a /dev/sdb
    hdd_system_name=`fdisk -l | head -2 | tail -1 |awk '{ print $2 }' | sed 's/://'`
-   hdd_model=`hdparm -I ${hdd_system_name} |grep Model |awk -F ":" '{print $2}' |tr -cs -`
-   hdd_serial=`hdparm -I ${hdd_system_name} |grep Serial |awk -F ":" '{print $2}' |tr -cs -`
+
+   udevadm_program=`which udevadm`;
+
+   if [ "${udevadm_program}" != "" ]; then
+     hdd_model=`udevadm info --query=all --name=${hdd_system_name} | grep ID_MODEL= | cut -d '=' -f 2`
+     hdd_model=${hdd_model:-Virtual_Disk} # Virtual Disks don't have the property
+     hdd_serial=`udevadm info --query=all --name=${hdd_system_name} | grep ID_SERIAL= | cut -d '=' -f 2`
+   else
+     _install hdparm
+     hdd_model=`hdparm -I ${hdd_system_name} |grep Model |awk -F ":" '{print $2}' |tr -cs -`
+     hdd_serial=`hdparm -I ${hdd_system_name} |grep Serial |awk -F ":" '{print $2}' |tr -cs -`
+   fi;
+
 fi;
 
 sys_info="${CPU}${CPU_COUNT}^${RAM}^${VGA}^${hdd_model}^${hdd_serial}^${hdd_size}^${OS}^${OS_VERSION}^${OS_NAME}^${INTERFACES}"
@@ -662,7 +674,7 @@ update_sql () {
 
 
 #**********************************************
-# Restart system servers
+# Restart system servers radius
 #**********************************************
 restart_servers () {
 
@@ -670,9 +682,18 @@ restart_servers () {
  if [ -x /usr/local/etc/rc.d/radiusd ]; then
    /usr/local/etc/rc.d/radiusd restart
    echo "RADIUS restarted"
- #Ubuntu radius restart
+  #Ubuntu radius restart
  elif [ -x /etc/init.d/freeradius  ]; then
    /etc/init.d/freeradius restart
+   echo "RADIUS restarted"
+ #RHEL radius restart
+ elif [ -f /etc/redhat-release ]; then
+   RHVER=$(grep -o '[0-9]' /etc/redhat-release | head -n 1)
+   if (( $RHVER < 7 )); then
+     service radiusd restart
+   else
+     systemctl restart radiusd.service
+   fi
    echo "RADIUS restarted"
  fi;
 
@@ -1153,13 +1174,15 @@ git_update () {
     start_dir=${KEY_DIR};
   fi;
 
-  SEARCH_KEY=`ls ${start_dir}/id_rsa.* | head -1;`
-
-  BASEDIR=$(dirname $0)
-  echo "Found key: ${SEARCH_KEY} (${BASEDIR} ${KEY_DIR})";
+  #SEARCH_KEY=`ls ${start_dir}/id_rsa.* | head -1;`
+  #BASEDIR=$(dirname $0)
+  #echo "Found key: ${SEARCH_KEY} (${BASEDIR} ${KEY_DIR})";
+  SEARCH_KEY=`ls ${start_dir}/id_rsa.* 2> /dev/null | head -1;`
 
   if [ "${SEARCH_KEY}" != "" ]; then
     DEFAULT_AUTH_KEY=${SEARCH_KEY};
+    BASEDIR=$(dirname $0)
+    echo "Found key: ${SEARCH_KEY} (${BASEDIR} ${KEY_DIR})";
   fi;
 
   if [ ! -f ~/.ssh/config ]; then
@@ -1175,7 +1198,7 @@ git_update () {
       fi;
 
       #DEFAULT_AUTH_USER=`echo "${AUTH_KEY}" | awk -F\. '{print $2}'`
-      DEFAULT_AUTH_USER=`echo "${AUTH_KEY}" | sed  's/^[a-z\_]*\.//'`
+      DEFAULT_AUTH_USER=`echo "${AUTH_KEY}" | sed  's/^[a-z\_\/]*\.//'`
 
       echo -n "Enter auth login [${DEFAULT_AUTH_USER}]: ";
       read AUTH_USER

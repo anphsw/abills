@@ -4,6 +4,9 @@
 
 =cut
 
+use warnings;
+use strict;
+
 our %iface_type = (
   1 => 'other',
   2 => 'regular1822',
@@ -279,3 +282,4 @@ our %iface_type = (
   272 => 'vmwareNicTeam'
 );
 
+1;

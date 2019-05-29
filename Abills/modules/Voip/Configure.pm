@@ -256,7 +256,7 @@ sub voip_trunks{
     'PROTOCOL',
     {
       SELECTED  => $Voip->{PROTOCOL},
-      SEL_ARRAY => [ 'SIP', 'IAX2', 'ZAP', 'H323' ],
+      SEL_ARRAY => [ 'SIP', 'IAX2', 'ZAP', 'H323', 'local' ],
     }
   );
 
@@ -277,7 +277,7 @@ sub voip_trunks{
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "Trunks",
+      caption    => "$lang{TRUNKS}",
       title      => [ 'ID', $lang{NAME}, $lang{PROTOCOL}, "VOIP $lang{PROVIDER}", "$lang{FAILOVER_TRUNK}", '-', '-' ],
       qs         => $pages_qs,
       pages      => $Voip->{TOTAL},

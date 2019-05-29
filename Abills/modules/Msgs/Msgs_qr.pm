@@ -189,11 +189,14 @@ sub msgs_dispatch_quick_report {
   
   my $list = $Msgs->dispatch_list(
     {
-      COLS_NAME => 1,
-      PAGE_ROWS => 5,
-      MSGS_DONE => '_SHOW',
-      SORT      => 'created',
-      DESC      => 'DESC'
+      COLS_NAME     => 1,
+      PAGE_ROWS     => 5,
+      MSGS_DONE     => '_SHOW',
+      CREATED       => '_SHOW',
+      COMMENTS      => '_SHOW',
+      MESSAGE_COUNT => '_SHOW',
+      SORT          => 'created',
+      DESC          => 'DESC'
     }
   );
   

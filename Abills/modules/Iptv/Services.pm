@@ -190,7 +190,7 @@ sub tv_service_info {
     }
   }
 
-  $Iptv->{USER_PORTAL} = ($Iptv->{USER_PORTAL}) ? 'checked' : '';
+  #$Iptv->{USER_PORTAL} = ($Iptv->{USER_PORTAL}) ? 'checked' : '';
   $Iptv->{STATUS} = ($Iptv->{STATUS}) ? 'checked' : '';
 
   return 1;
@@ -386,6 +386,7 @@ sub tv_service_export_form {
      USER_PORTAL
      HASH_RESULT
      ALL
+     SKIP_DEF_SERVICE
      UNKNOWN
 
   Returns:
@@ -425,9 +426,17 @@ sub tv_services_sel {
     return \%service_name;
   }
 
-  if ($Iptv->{TOTAL} && $Iptv->{TOTAL} == 1) {
-    delete $params{SEL_OPTIONS};
-    $Iptv->{SERVICE_ID} = $service_list->[0]->{id};
+  if ($Iptv->{TOTAL} && $Iptv->{TOTAL} > 0) {
+    if($Iptv->{TOTAL} == 1) {
+      delete $params{SEL_OPTIONS};
+      $Iptv->{SERVICE_ID} = $service_list->[0]->{id};
+    }
+    else {
+      if (!$FORM{SERVICE_ID} && !$active_service) {
+        $FORM{SERVICE_ID} = $service_list->[0]->{id};
+        $active_service = $service_list->[0]->{id};
+      }
+    }
   }
 
   my $result = $html->form_select(
@@ -442,7 +451,7 @@ sub tv_services_sel {
     }
   );
 
-  if (!$active_service && $service_list->[0] && !$FORM{search_form}) {
+  if (!$active_service && $service_list->[0] && !$FORM{search_form} && ! $attr->{SKIP_DEF_SERVICE}) {
     $FORM{SERVICE_ID} = $service_list->[0]->{id};
   }
 

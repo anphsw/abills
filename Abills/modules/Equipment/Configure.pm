@@ -314,6 +314,7 @@ sub equipment_model{
   $Equipment->{ADD_BUTTON_INDEX} = get_function_index( 'equipment_model' );
   $html->tpl_show( _include( 'equipment_model', 'Equipment' ), { %{$Equipment}, %FORM } );
   $LIST_PARAMS{PAGE_ROWS} = '100000';
+
   result_former({
     INPUT_DATA      => $Equipment,
     FUNCTION        => 'model_list',
@@ -322,15 +323,16 @@ sub equipment_model{
     DEFAULT_FIELDS  => 'VENDOR_NAME,MODEL_NAME,TYPE_NAME,PORTS',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
-      vendor_name => $lang{VENDOR},
-      model_name  => $lang{NAME},
-      type_name   => $lang{TYPE},
-      ports       => $lang{PORTS},
-#      site        => $lang{SITE},
-      manage_web  => 'web',
-      manage_ssh  => 'ssh',
-      snmp_tpl    => 'SNMP tpl',
-      comments    => $lang{COMMENTS},
+      vendor_name    => $lang{VENDOR},
+      model_name     => $lang{NAME},
+      type_name      => $lang{TYPE},
+      ports          => $lang{PORTS},
+#      site           => $lang{SITE},
+      manage_web     => 'web',
+      manage_ssh     => 'ssh',
+      snmp_tpl       => 'SNMP tpl',
+      comments       => $lang{COMMENTS},
+      electric_power => $lang{ELECTRIC_POWER},
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {

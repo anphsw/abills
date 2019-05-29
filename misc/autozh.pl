@@ -50,8 +50,9 @@ autozap.pl Version: $VERSION
   LAST_ACTIONS_COUNT= - last history actions. default 250.
   NEGATIVE_DEPOSIT=1  - Hangup only with negtive deposit
   DAYS2FINISH="x,x"   -  Hangup when les then xx days to finich (Only for days or distributed tarrifs)
-  PAYMENT_METHOD     -  FIlter only payment type user
-  SLEEP=COUNT:TIME -  - Sleep after count of actions      -
+  PAYMENT_METHOD      -  FIlter only payment type user
+  SLEEP=COUNT:TIME    -  Sleep after count of actions
+  GUEST=1        - Select only guest session
   HANGUP=1       - Make Hangup
   LOGIN=...      - login for hangup
   COUNT=         - Hangup or zap records (Default: infinity)
@@ -110,6 +111,10 @@ elsif ($argv->{UID}) {
   $LIST_PARAMS{UID} = $argv->{UID};
 }
 
+if(defined($argv->{GUEST})) {
+  $LIST_PARAMS{GUEST}=$argv->{GUEST};
+}
+
 if ($argv->{DURATION}) {
   $LIST_PARAMS{DURATION_SEC} = $argv->{DURATION};
 }
@@ -130,6 +135,12 @@ if ($argv->{COUNT}) {
   $LIST_PARAMS{PAGE_ROWS} = $argv->{COUNT};
   $LIST_PARAMS{LIMIT}     = $LIST_PARAMS{PAGE_ROWS};
 }
+
+if ($argv->{LIMIT}) {
+  $LIST_PARAMS{PAGE_ROWS} = $argv->{LIMIT};
+  $LIST_PARAMS{LIMIT}     = $LIST_PARAMS{PAGE_ROWS};
+}
+
 
 $LIST_PARAMS{NAS_ID} = $argv->{NAS_ID} if ($argv->{NAS_ID});
 my %ACCT_INFO = ();
@@ -227,7 +238,8 @@ if ($argv->{HANGUP}) {
             ACCT_SESSION_ID   => $ACCT_INFO{ACCT_SESSION_ID},
             FRAMED_IP_ADDRESS => $ACCT_INFO{FRAMED_IP_ADDRESS},
             UID               => $ACCT_INFO{UID},
-            DEBUG             => ($debug > 1) ? $debug : 0
+            DEBUG             => ($debug > 1) ? $debug : 0,
+            INTERNET          => in_array('Internet', \@MODULES)
           }
         );
 

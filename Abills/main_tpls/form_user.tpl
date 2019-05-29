@@ -208,7 +208,7 @@
           </div>
           <line class='visible-xs visible-sm dashed'></line>
           <!-- ACTIVATION / EXPIRED -->
-          <div class='form-group'>
+          <div class='form-group' style="%ACT_EXP_BTN_HIDE%">
             <label class='control-label col-xs-4 col-md-2' for='ACTIVATE'>_{ACTIVATE}_</label>
             <div class='col-xs-8 col-md-4'>
               <input id='ACTIVATE' name='ACTIVATE' value='%ACTIVATE%' placeholder='%ACTIVATE%'

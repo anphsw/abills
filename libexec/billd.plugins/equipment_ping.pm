@@ -103,11 +103,13 @@ sub equipment_ping {
     if ($ips{$host}{STATUS} == 1) {
       $message .= "$ips{$host}{NAS_NAME}($host) _{AVAILABLE}_\n";
     }
-    $Equipment->_change({
-      NAS_ID        => $ips{$host}{NAS_ID},
-      STATUS        => 0,
-      LAST_ACTIVITY => $datetime
-    });
+    if ($ips{$host}{STATUS}) {
+      $Equipment->_change({
+        NAS_ID        => $ips{$host}{NAS_ID},
+        STATUS        => 0,
+        LAST_ACTIVITY => $datetime
+      });
+    }
 
     $Equipment->ping_log_add({
       DATE     => $datetime,
@@ -121,9 +123,9 @@ sub equipment_ping {
   }
 
   my $fping_installed = qx/which fping/;
-  my $host_fping = '';
+  #my $host_fping = '';
   if ( $fping_installed ne "" ) {
-    foreach $host_fping (keys %syn) {
+    foreach my $host_fping (keys %syn) {
       print "$host_fping status 0. start fping if exist\n" if ( $debug > 1 );
       my $fping = system "fping -C 2 -q $host_fping";
       print "FPING return status = $fping for HOST $host_fping\n" if ( $debug > 1 );
@@ -150,7 +152,7 @@ sub equipment_ping {
         });
       }
      }
-    }
+  }
   else {
    foreach my $host (keys %syn) {
       if ($ips{$host}{STATUS} == 0) {

@@ -59,7 +59,13 @@
             </div>
           </div>
         </div>
-
+        <div class='form-group'>
+          <label class='control-label col-md-3' for='ELECTRIC_POWER'>_{ELECTRIC_POWER}_</label>
+          <div class='col-md-9'>
+            <input type=number class='form-control' id='ELECTRIC_POWER' placeholder='%ELECTRIC_POWER%'
+                   name='ELECTRIC_POWER' value='%ELECTRIC_POWER%'>
+          </div>
+        </div>
 
         <div class='box box-default box-big-form collapsed-box'>
           <div class='box-header with-border'>

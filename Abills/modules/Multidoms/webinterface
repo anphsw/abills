@@ -742,10 +742,10 @@ sub multidoms_reseller_nas {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "$lang{NAS}",
-      title      => [ "ID", "$lang{NAME}", "NAS-Identifier", "IP", "$lang{TYPE}", "$lang{GROUP}", "$lang{STATUS}", '-', '-' ],
+      caption    => $lang{NAS},
+      title      => [ "ID", $lang{NAME}, "NAS-Identifier", "IP", $lang{TYPE}, $lang{GROUP}, $lang{STATUS}, '-' ],
       ID         => 'NAS_LIST',
-      header => $html->button("$lang{ADD}", "index=$index#FORM_NAS", { BUTTON => 1 })
+      header     => $html->button($lang{ADD}, "index=$index#FORM_NAS", { BUTTON => 1 })
     }
   );
 
@@ -759,8 +759,7 @@ sub multidoms_reseller_nas {
       $line->[3], $line->[4],
       $line->[5],
       $status[ $line->[6] ],
-      $html->button("$lang{INFO}", "index=$index&NAS_ID=$line->[0]", { BUTTON => 1 }),
-
+      $html->button("$lang{INFO}", "index=$index&NAS_ID=$line->[0]", { BUTTON => 1 }) .
       #$html->button("$lang{TARIF_PLANS}", "index=$index&NAS_ID=$line->[0]&NAS_TPS=1", { BUTTON => 1 }),
       $delete
     );

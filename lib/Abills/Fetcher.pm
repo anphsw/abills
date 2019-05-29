@@ -59,6 +59,26 @@ our %conf;
 
   Examples:
 
+    JSON Send
+
+    $self->_send_request({
+       POST => qq/
+     {
+       \\\"messages\\\": [{
+       \\\"recipient\\\": \\\"$number\\\",
+       \\\"message-id\\\": \\\"$message_id\\\",
+       \\\"sms\\\": {
+         \\\"originator\\\": \\\"3700\\\",
+         \\\"content\\\": {
+            \\\"text\\\": \\\"$attr->{MESSAGE}\\\"
+          }
+        }
+       }]
+      }/,
+      ACTION => '/send'
+    });
+
+
 =cut
 #**********************************************************
 sub web_request {

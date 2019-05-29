@@ -30,99 +30,101 @@ use Data::Dumper;
 
 my $ARGS = parse_arguments(\@ARGV);
 
+# User search
+# index.cgi?qindex=7&search_form=1&search=1&type=11&header=1&xml=1&PHONE=12345654321
 my @test_list = (
-  {
-    name   => 'functions_list',
-    params => {
-      xml => '1',
-    },
-    xsd => q{
-      <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="INFO">
-          <xs:complexType>
-            <xs:sequence>
-              <xs:element type="xs:string" name="HEADER_FIXED_CLASS"/>
-              <xs:element type="xs:string" name="ADMIN_MSGS"/>
-              <xs:element type="xs:string" name="ADMIN_RESPONSIBLE"/>
-              <xs:element type="xs:byte" name="AID"/>
-              <xs:element type="xs:byte" name="EVENTS_ENABLED"/>
-              <xs:element name="SEL_TYPE_SM">
-                <xs:complexType>
-                  <xs:sequence>
-                    <xs:element name="select">
-                      <xs:complexType>
-                        <xs:sequence>
-                          <xs:element name="option" maxOccurs="unbounded" minOccurs="0">
-                            <xs:complexType>
-                              <xs:simpleContent>
-                                <xs:extension base="xs:string">
-                                  <xs:attribute type="xs:short" name="value" use="optional"/>
-                                  <xs:attribute type="xs:byte" name="selected" use="optional"/>
-                                </xs:extension>
-                              </xs:simpleContent>
-                            </xs:complexType>
-                          </xs:element>
-                        </xs:sequence>
-                        <xs:attribute type="xs:string" name="name"/>
-                      </xs:complexType>
-                    </xs:element>
-                  </xs:sequence>
-                </xs:complexType>
-              </xs:element>
-              <xs:element name="SEL_TYPE">
-                <xs:complexType>
-                  <xs:sequence>
-                    <xs:element name="select">
-                      <xs:complexType>
-                        <xs:sequence>
-                          <xs:element name="option" maxOccurs="unbounded" minOccurs="0">
-                            <xs:complexType>
-                              <xs:simpleContent>
-                                <xs:extension base="xs:string">
-                                  <xs:attribute type="xs:short" name="value" use="optional"/>
-                                  <xs:attribute type="xs:byte" name="selected" use="optional"/>
-                                </xs:extension>
-                              </xs:simpleContent>
-                            </xs:complexType>
-                          </xs:element>
-                        </xs:sequence>
-                        <xs:attribute type="xs:string" name="name"/>
-                      </xs:complexType>
-                    </xs:element>
-                  </xs:sequence>
-                </xs:complexType>
-              </xs:element>
-              <xs:element type="xs:string" name="FUNCTION_NAME"/>
-              <xs:element type="xs:string" name="TECHWORK"/>
-              <xs:element type="xs:string" name="ONLINE_USERS"/>
-              <xs:element type="xs:string" name="ONLINE_COUNT"/>
-              <xs:element name="MENU">
-                <xs:complexType>
-                  <xs:sequence>
-                    <xs:element name="MENU" maxOccurs="unbounded" minOccurs="0">
-                      <xs:complexType>
-                        <xs:simpleContent>
-                          <xs:extension base="xs:string">
-                            <xs:attribute type="xs:string" name="NAME" use="optional"/>
-                            <xs:attribute type="xs:short" name="ID" use="optional"/>
-                            <xs:attribute type="xs:string" name="DESCRIBE" use="optional"/>
-                            <xs:attribute type="xs:string" name="TYPE" use="optional"/>
-                            <xs:attribute type="xs:short" name="PARENT" use="optional"/>
-                          </xs:extension>
-                        </xs:simpleContent>
-                      </xs:complexType>
-                    </xs:element>
-                  </xs:sequence>
-                </xs:complexType>
-              </xs:element>
-              <xs:element type="xs:string" name="BREADCRUMB"/>
-            </xs:sequence>
-            <xs:attribute type="xs:string" name="name"/>
-          </xs:complexType>
-        </xs:element>
-      </xs:schema>
-    }
-  },
+  # {
+  #   name   => 'functions_list',
+  #   params => {
+  #     xml => '1',
+  #   },
+  #   xsd => q{
+  #     <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  #       <xs:element name="INFO">
+  #         <xs:complexType>
+  #           <xs:sequence>
+  #             <xs:element type="xs:string" name="HEADER_FIXED_CLASS"/>
+  #             <xs:element type="xs:string" name="ADMIN_MSGS"/>
+  #             <xs:element type="xs:string" name="ADMIN_RESPONSIBLE"/>
+  #             <xs:element type="xs:byte" name="AID"/>
+  #             <xs:element type="xs:byte" name="EVENTS_ENABLED"/>
+  #             <xs:element name="SEL_TYPE_SM">
+  #               <xs:complexType>
+  #                 <xs:sequence>
+  #                   <xs:element name="select">
+  #                     <xs:complexType>
+  #                       <xs:sequence>
+  #                         <xs:element name="option" maxOccurs="unbounded" minOccurs="0">
+  #                           <xs:complexType>
+  #                             <xs:simpleContent>
+  #                               <xs:extension base="xs:string">
+  #                                 <xs:attribute type="xs:short" name="value" use="optional"/>
+  #                                 <xs:attribute type="xs:byte" name="selected" use="optional"/>
+  #                               </xs:extension>
+  #                             </xs:simpleContent>
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                       </xs:sequence>
+  #                       <xs:attribute type="xs:string" name="name"/>
+  #                     </xs:complexType>
+  #                   </xs:element>
+  #                 </xs:sequence>
+  #               </xs:complexType>
+  #             </xs:element>
+  #             <xs:element name="SEL_TYPE">
+  #               <xs:complexType>
+  #                 <xs:sequence>
+  #                   <xs:element name="select">
+  #                     <xs:complexType>
+  #                       <xs:sequence>
+  #                         <xs:element name="option" maxOccurs="unbounded" minOccurs="0">
+  #                           <xs:complexType>
+  #                             <xs:simpleContent>
+  #                               <xs:extension base="xs:string">
+  #                                 <xs:attribute type="xs:short" name="value" use="optional"/>
+  #                                 <xs:attribute type="xs:byte" name="selected" use="optional"/>
+  #                               </xs:extension>
+  #                             </xs:simpleContent>
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                       </xs:sequence>
+  #                       <xs:attribute type="xs:string" name="name"/>
+  #                     </xs:complexType>
+  #                   </xs:element>
+  #                 </xs:sequence>
+  #               </xs:complexType>
+  #             </xs:element>
+  #             <xs:element type="xs:string" name="FUNCTION_NAME"/>
+  #             <xs:element type="xs:string" name="TECHWORK"/>
+  #             <xs:element type="xs:string" name="ONLINE_USERS"/>
+  #             <xs:element type="xs:string" name="ONLINE_COUNT"/>
+  #             <xs:element name="MENU">
+  #               <xs:complexType>
+  #                 <xs:sequence>
+  #                   <xs:element name="MENU" maxOccurs="unbounded" minOccurs="0">
+  #                     <xs:complexType>
+  #                       <xs:simpleContent>
+  #                         <xs:extension base="xs:string">
+  #                           <xs:attribute type="xs:string" name="NAME" use="optional"/>
+  #                           <xs:attribute type="xs:short" name="ID" use="optional"/>
+  #                           <xs:attribute type="xs:string" name="DESCRIBE" use="optional"/>
+  #                           <xs:attribute type="xs:string" name="TYPE" use="optional"/>
+  #                           <xs:attribute type="xs:short" name="PARENT" use="optional"/>
+  #                         </xs:extension>
+  #                       </xs:simpleContent>
+  #                     </xs:complexType>
+  #                   </xs:element>
+  #                 </xs:sequence>
+  #               </xs:complexType>
+  #             </xs:element>
+  #             <xs:element type="xs:string" name="BREADCRUMB"/>
+  #           </xs:sequence>
+  #           <xs:attribute type="xs:string" name="name"/>
+  #         </xs:complexType>
+  #       </xs:element>
+  #     </xs:schema>
+  #   }
+  # },
   {
     name   => 'form_users_list',
     params => {
@@ -246,54 +248,54 @@ my @test_list = (
       </xs:schema>
     }
   },
-  {
-    name   => 'form_wizard',
-    params => {
-      xml         => '1',
-      get_index   => 'form_wizard',
-      header      => '1',
-      add         => '1',
-      LOGIN       => 'test_user',
-      CREATE_BILL => '1',
-      FIO         => 'Test',
-    },
-    xsd => q{
-      <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="info">
-          <xs:complexType>
-            <xs:sequence>
-              <xs:element name="BUTTON" maxOccurs="unbounded" minOccurs="0">
-                <xs:complexType>
-                  <xs:simpleContent>
-                    <xs:extension base="xs:string">
-                      <xs:attribute type="xs:string" name="VALUE" use="optional"/>
-                    </xs:extension>
-                  </xs:simpleContent>
-                </xs:complexType>
-              </xs:element>
-              <xs:element name="MESSAGE">
-                <xs:complexType mixed="true">
-                  <xs:sequence>
-                    <xs:element name="BUTTON">
-                      <xs:complexType>
-                        <xs:simpleContent>
-                          <xs:extension base="xs:string">
-                            <xs:attribute type="xs:string" name="VALUE"/>
-                          </xs:extension>
-                        </xs:simpleContent>
-                      </xs:complexType>
-                    </xs:element>
-                  </xs:sequence>
-                  <xs:attribute type="xs:string" name="TYPE"/>
-                  <xs:attribute type="xs:string" name="CAPTION"/>
-                </xs:complexType>
-              </xs:element>
-            </xs:sequence>
-          </xs:complexType>
-        </xs:element>
-      </xs:schema>
-    }
-  },
+  # {
+  #   name   => 'form_wizard',
+  #   params => {
+  #     xml         => '1',
+  #     get_index   => 'form_wizard',
+  #     header      => '1',
+  #     add         => '1',
+  #     LOGIN       => 'test_user',
+  #     CREATE_BILL => '1',
+  #     FIO         => 'Test',
+  #   },
+  #   xsd => q{
+  #     <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  #       <xs:element name="info">
+  #         <xs:complexType>
+  #           <xs:sequence>
+  #             <xs:element name="BUTTON" maxOccurs="unbounded" minOccurs="0">
+  #               <xs:complexType>
+  #                 <xs:simpleContent>
+  #                   <xs:extension base="xs:string">
+  #                     <xs:attribute type="xs:string" name="VALUE" use="optional"/>
+  #                   </xs:extension>
+  #                 </xs:simpleContent>
+  #               </xs:complexType>
+  #             </xs:element>
+  #             <xs:element name="MESSAGE">
+  #               <xs:complexType mixed="true">
+  #                 <xs:sequence>
+  #                   <xs:element name="BUTTON">
+  #                     <xs:complexType>
+  #                       <xs:simpleContent>
+  #                         <xs:extension base="xs:string">
+  #                           <xs:attribute type="xs:string" name="VALUE"/>
+  #                         </xs:extension>
+  #                       </xs:simpleContent>
+  #                     </xs:complexType>
+  #                   </xs:element>
+  #                 </xs:sequence>
+  #                 <xs:attribute type="xs:string" name="TYPE"/>
+  #                 <xs:attribute type="xs:string" name="CAPTION"/>
+  #               </xs:complexType>
+  #             </xs:element>
+  #           </xs:sequence>
+  #         </xs:complexType>
+  #       </xs:element>
+  #     </xs:schema>
+  #   }
+  # },
   {
     name   => 'form_users_add',
     params => {
@@ -1540,300 +1542,300 @@ my @test_list = (
     
   #   }
   # },
-  {
-    name   => 'docs_invoices_list',
-    params => {
-      xml            => '1',
-      full           => '1',
-      sort           => '1',
-      EXPORT_CONTENT => 'DOCS_INVOICES_LIST',
-      get_index      => 'docs_invoices_list',
-      PAGE_ROWS      => '1000000',
-      header         => '1',
-    },
-    xsd => q{
-      <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="FORM">
-          <xs:complexType>
-            <xs:sequence>
-              <xs:choice maxOccurs="unbounded">
-                <xs:element maxOccurs="unbounded" name="input">
-                  <xs:complexType>
-                    <xs:attribute name="name" type="xs:string" use="required" />
-                    <xs:attribute name="value" type="xs:string" use="required" />
-                    <xs:attribute name="type" type="xs:string" use="optional" />
-                  </xs:complexType>
-                </xs:element>
-                <xs:element name="TABLE">
-                  <xs:complexType>
-                    <xs:sequence>
-                      <xs:element name="TITLE">
-                        <xs:complexType>
-                          <xs:sequence>
-                            <xs:element name="COLUMN_1">
-                              <xs:complexType>
-                                <xs:attribute name="NAME" type="xs:string" use="required" />
-                                <xs:attribute name="ID" type="xs:string" use="required" />
-                              </xs:complexType>
-                            </xs:element>
-                            <xs:element name="COLUMN_2">
-                              <xs:complexType>
-                                <xs:attribute name="NAME" type="xs:string" use="required" />
-                                <xs:attribute name="ID" type="xs:string" use="required" />
-                              </xs:complexType>
-                            </xs:element>
-                            <xs:element name="COLUMN_3">
-                              <xs:complexType>
-                                <xs:attribute name="NAME" type="xs:string" use="required" />
-                                <xs:attribute name="ID" type="xs:string" use="required" />
-                              </xs:complexType>
-                            </xs:element>
-                            <xs:element name="COLUMN_4">
-                              <xs:complexType>
-                                <xs:attribute name="NAME" type="xs:string" use="required" />
-                                <xs:attribute name="ID" type="xs:string" use="required" />
-                              </xs:complexType>
-                            </xs:element>
-                            <xs:element name="COLUMN_5">
-                              <xs:complexType>
-                                <xs:attribute name="NAME" type="xs:string" use="required" />
-                                <xs:attribute name="ID" type="xs:string" use="required" />
-                              </xs:complexType>
-                            </xs:element>
-                            <xs:element name="COLUMN_6">
-                              <xs:complexType>
-                                <xs:attribute name="NAME" type="xs:string" use="required" />
-                                <xs:attribute name="ID" type="xs:string" use="required" />
-                              </xs:complexType>
-                            </xs:element>
-                            <xs:element name="COLUMN_7">
-                              <xs:complexType>
-                                <xs:attribute name="NAME" type="xs:string" use="required" />
-                                <xs:attribute name="ID" type="xs:string" use="required" />
-                              </xs:complexType>
-                            </xs:element>
-                            <xs:element name="COLUMN_8">
-                              <xs:complexType>
-                                <xs:attribute name="NAME" type="xs:string" use="required" />
-                                <xs:attribute name="ID" type="xs:string" use="required" />
-                              </xs:complexType>
-                            </xs:element>
-                          </xs:sequence>
-                          <xs:attribute name="columns" type="xs:unsignedByte" use="required" />
-                        </xs:complexType>
-                      </xs:element>
-                      <xs:element name="DATA">
-                        <xs:complexType>
-                          <xs:sequence>
-                            <xs:element maxOccurs="unbounded" name="ROW">
-                              <xs:complexType>
-                                <xs:sequence>
-                                  <xs:element maxOccurs="unbounded" name="TD" type="xs:string" />
-                                </xs:sequence>
-                              </xs:complexType>
-                            </xs:element>
-                          </xs:sequence>
-                        </xs:complexType>
-                      </xs:element>
-                    </xs:sequence>
-                    <xs:attribute name="CAPTION" type="xs:string" use="required" />
-                    <xs:attribute name="ID" type="xs:string" use="required" />
-                  </xs:complexType>
-                </xs:element>
-                <xs:element name="select">
-                  <xs:complexType>
-                    <xs:sequence>
-                      <xs:element maxOccurs="unbounded" name="option">
-                        <xs:complexType>
-                          <xs:simpleContent>
-                            <xs:extension base="xs:string">
-                              <xs:attribute name="value" type="xs:string" use="required" />
-                              <xs:attribute name="selected" type="xs:unsignedByte" use="optional" />
-                            </xs:extension>
-                          </xs:simpleContent>
-                        </xs:complexType>
-                      </xs:element>
-                    </xs:sequence>
-                    <xs:attribute name="name" type="xs:string" use="required" />
-                  </xs:complexType>
-                </xs:element>
-              </xs:choice>
-            </xs:sequence>
-            <xs:attribute name="action" type="xs:string" use="required" />
-          </xs:complexType>
-        </xs:element>
-      </xs:schema>
-    }
-  },
-  {
-    name   => 'form_nas',
-    params => {
-      add       => '1',
-      NAS_NAME  => 'test_geo2',
-      xml       => '1',
-      get_index => 'form_nas',
-      header    => '1',
-      IP        => '22.11.11.11',
-    },
-    xsd => q{
-      <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="info">
-          <xs:complexType>
-            <xs:sequence>
-              <xs:element name="MESSAGE">
-                <xs:complexType>
-                  <xs:simpleContent>
-                    <xs:extension base="xs:string">
-                      <xs:attribute name="TYPE" type="xs:string" use="required" />
-                      <xs:attribute name="CAPTION" type="xs:string" use="required" />
-                    </xs:extension>
-                  </xs:simpleContent>
-                </xs:complexType>
-              </xs:element>
-              <xs:element name="FORM">
-                <xs:complexType mixed="true">
-                  <xs:sequence>
-                    <xs:choice maxOccurs="unbounded">
-                      <xs:element name="input">
-                        <xs:complexType>
-                          <xs:attribute name="name" type="xs:string" use="required" />
-                          <xs:attribute name="value" type="xs:string" use="required" />
-                          <xs:attribute name="type" type="xs:string" use="optional" />
-                        </xs:complexType>
-                      </xs:element>
-                      <xs:element name="select">
-                        <xs:complexType>
-                          <xs:sequence>
-                            <xs:element name="option">
-                              <xs:complexType>
-                                <xs:attribute name="value" type="xs:string" use="required" />
-                                <xs:attribute name="selected" type="xs:unsignedByte" use="required" />
-                              </xs:complexType>
-                            </xs:element>
-                          </xs:sequence>
-                          <xs:attribute name="name" type="xs:string" use="required" />
-                        </xs:complexType>
-                      </xs:element>
-                    </xs:choice>
-                  </xs:sequence>
-                  <xs:attribute name="action" type="xs:string" use="required" />
-                </xs:complexType>
-              </xs:element>
-              <xs:element name="table_header">
-                <xs:complexType>
-                  <xs:sequence>
-                    <xs:element maxOccurs="unbounded" name="BUTTON">
-                      <xs:complexType>
-                        <xs:simpleContent>
-                          <xs:extension base="xs:string">
-                            <xs:attribute name="VALUE" type="xs:string" use="required" />
-                          </xs:extension>
-                        </xs:simpleContent>
-                      </xs:complexType>
-                    </xs:element>
-                  </xs:sequence>
-                </xs:complexType>
-              </xs:element>
-              <xs:element maxOccurs="unbounded" name="TABLE">
-                <xs:complexType>
-                  <xs:sequence>
-                    <xs:element minOccurs="0" name="TITLE">
-                      <xs:complexType>
-                        <xs:sequence>
-                          <xs:element name="COLUMN_1">
-                            <xs:complexType>
-                              <xs:attribute name="NAME" type="xs:string" use="required" />
-                              <xs:attribute name="ID" type="xs:string" use="required" />
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="COLUMN_2">
-                            <xs:complexType>
-                              <xs:attribute name="NAME" type="xs:string" use="required" />
-                              <xs:attribute name="ID" type="xs:string" use="required" />
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="COLUMN_3">
-                            <xs:complexType>
-                              <xs:attribute name="NAME" type="xs:string" use="required" />
-                              <xs:attribute name="ID" type="xs:string" use="required" />
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="COLUMN_4">
-                            <xs:complexType>
-                              <xs:attribute name="NAME" type="xs:string" use="required" />
-                              <xs:attribute name="ID" type="xs:string" use="required" />
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="COLUMN_5">
-                            <xs:complexType>
-                              <xs:attribute name="NAME" type="xs:string" use="required" />
-                              <xs:attribute name="ID" type="xs:string" use="required" />
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="COLUMN_6">
-                            <xs:complexType>
-                              <xs:attribute name="NAME" type="xs:string" use="required" />
-                              <xs:attribute name="ID" type="xs:string" use="required" />
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="COLUMN_7">
-                            <xs:complexType>
-                              <xs:attribute name="NAME" type="xs:string" use="required" />
-                              <xs:attribute name="ID" type="xs:string" use="required" />
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="COLUMN_8">
-                            <xs:complexType>
-                              <xs:attribute name="NAME" type="xs:string" use="required" />
-                              <xs:attribute name="ID" type="xs:string" use="required" />
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="COLUMN_9">
-                            <xs:complexType>
-                              <xs:attribute name="NAME" type="xs:string" use="required" />
-                              <xs:attribute name="ID" type="xs:string" use="required" />
-                            </xs:complexType>
-                          </xs:element>
-                          <xs:element name="COLUMN_10">
-                            <xs:complexType>
-                              <xs:attribute name="NAME" type="xs:string" use="required" />
-                              <xs:attribute name="ID" type="xs:string" use="required" />
-                            </xs:complexType>
-                          </xs:element>
-                        </xs:sequence>
-                        <xs:attribute name="columns" type="xs:unsignedByte" use="required" />
-                      </xs:complexType>
-                    </xs:element>
-                    <xs:element name="DATA">
-                      <xs:complexType>
-                        <xs:sequence>
-                          <xs:element maxOccurs="unbounded" name="ROW">
-                            <xs:complexType>
-                              <xs:sequence>
-                                <xs:element maxOccurs="unbounded" name="TD" type="xs:string" />
-                              </xs:sequence>
-                            </xs:complexType>
-                          </xs:element>
-                        </xs:sequence>
-                      </xs:complexType>
-                    </xs:element>
-                  </xs:sequence>
-                  <xs:attribute name="CAPTION" type="xs:string" use="optional" />
-                  <xs:attribute name="ID" type="xs:string" use="required" />
-                </xs:complexType>
-              </xs:element>
-            </xs:sequence>
-          </xs:complexType>
-        </xs:element>
-      </xs:schema>                      
-    } 
-  },
+  # {
+  #   name   => 'docs_invoices_list',
+  #   params => {
+  #     xml            => '1',
+  #     full           => '1',
+  #     sort           => '1',
+  #     EXPORT_CONTENT => 'DOCS_INVOICES_LIST',
+  #     get_index      => 'docs_invoices_list',
+  #     PAGE_ROWS      => '1000000',
+  #     header         => '1',
+  #   },
+  #   xsd => q{
+  #     <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  #       <xs:element name="FORM">
+  #         <xs:complexType>
+  #           <xs:sequence>
+  #             <xs:choice maxOccurs="unbounded">
+  #               <xs:element maxOccurs="unbounded" name="input">
+  #                 <xs:complexType>
+  #                   <xs:attribute name="name" type="xs:string" use="required" />
+  #                   <xs:attribute name="value" type="xs:string" use="required" />
+  #                   <xs:attribute name="type" type="xs:string" use="optional" />
+  #                 </xs:complexType>
+  #               </xs:element>
+  #               <xs:element name="TABLE">
+  #                 <xs:complexType>
+  #                   <xs:sequence>
+  #                     <xs:element name="TITLE">
+  #                       <xs:complexType>
+  #                         <xs:sequence>
+  #                           <xs:element name="COLUMN_1">
+  #                             <xs:complexType>
+  #                               <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                               <xs:attribute name="ID" type="xs:string" use="required" />
+  #                             </xs:complexType>
+  #                           </xs:element>
+  #                           <xs:element name="COLUMN_2">
+  #                             <xs:complexType>
+  #                               <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                               <xs:attribute name="ID" type="xs:string" use="required" />
+  #                             </xs:complexType>
+  #                           </xs:element>
+  #                           <xs:element name="COLUMN_3">
+  #                             <xs:complexType>
+  #                               <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                               <xs:attribute name="ID" type="xs:string" use="required" />
+  #                             </xs:complexType>
+  #                           </xs:element>
+  #                           <xs:element name="COLUMN_4">
+  #                             <xs:complexType>
+  #                               <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                               <xs:attribute name="ID" type="xs:string" use="required" />
+  #                             </xs:complexType>
+  #                           </xs:element>
+  #                           <xs:element name="COLUMN_5">
+  #                             <xs:complexType>
+  #                               <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                               <xs:attribute name="ID" type="xs:string" use="required" />
+  #                             </xs:complexType>
+  #                           </xs:element>
+  #                           <xs:element name="COLUMN_6">
+  #                             <xs:complexType>
+  #                               <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                               <xs:attribute name="ID" type="xs:string" use="required" />
+  #                             </xs:complexType>
+  #                           </xs:element>
+  #                           <xs:element name="COLUMN_7">
+  #                             <xs:complexType>
+  #                               <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                               <xs:attribute name="ID" type="xs:string" use="required" />
+  #                             </xs:complexType>
+  #                           </xs:element>
+  #                           <xs:element name="COLUMN_8">
+  #                             <xs:complexType>
+  #                               <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                               <xs:attribute name="ID" type="xs:string" use="required" />
+  #                             </xs:complexType>
+  #                           </xs:element>
+  #                         </xs:sequence>
+  #                         <xs:attribute name="columns" type="xs:unsignedByte" use="required" />
+  #                       </xs:complexType>
+  #                     </xs:element>
+  #                     <xs:element name="DATA">
+  #                       <xs:complexType>
+  #                         <xs:sequence>
+  #                           <xs:element maxOccurs="unbounded" name="ROW">
+  #                             <xs:complexType>
+  #                               <xs:sequence>
+  #                                 <xs:element maxOccurs="unbounded" name="TD" type="xs:string" />
+  #                               </xs:sequence>
+  #                             </xs:complexType>
+  #                           </xs:element>
+  #                         </xs:sequence>
+  #                       </xs:complexType>
+  #                     </xs:element>
+  #                   </xs:sequence>
+  #                   <xs:attribute name="CAPTION" type="xs:string" use="required" />
+  #                   <xs:attribute name="ID" type="xs:string" use="required" />
+  #                 </xs:complexType>
+  #               </xs:element>
+  #               <xs:element name="select">
+  #                 <xs:complexType>
+  #                   <xs:sequence>
+  #                     <xs:element maxOccurs="unbounded" name="option">
+  #                       <xs:complexType>
+  #                         <xs:simpleContent>
+  #                           <xs:extension base="xs:string">
+  #                             <xs:attribute name="value" type="xs:string" use="required" />
+  #                             <xs:attribute name="selected" type="xs:unsignedByte" use="optional" />
+  #                           </xs:extension>
+  #                         </xs:simpleContent>
+  #                       </xs:complexType>
+  #                     </xs:element>
+  #                   </xs:sequence>
+  #                   <xs:attribute name="name" type="xs:string" use="required" />
+  #                 </xs:complexType>
+  #               </xs:element>
+  #             </xs:choice>
+  #           </xs:sequence>
+  #           <xs:attribute name="action" type="xs:string" use="required" />
+  #         </xs:complexType>
+  #       </xs:element>
+  #     </xs:schema>
+  #   }
+  # },
+  # {
+  #   name   => 'form_nas',
+  #   params => {
+  #     add       => '1',
+  #     NAS_NAME  => 'test_geo2',
+  #     xml       => '1',
+  #     get_index => 'form_nas',
+  #     header    => '1',
+  #     IP        => '22.11.11.11',
+  #   },
+  #   xsd => q{
+  #     <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  #       <xs:element name="info">
+  #         <xs:complexType>
+  #           <xs:sequence>
+  #             <xs:element name="MESSAGE">
+  #               <xs:complexType>
+  #                 <xs:simpleContent>
+  #                   <xs:extension base="xs:string">
+  #                     <xs:attribute name="TYPE" type="xs:string" use="required" />
+  #                     <xs:attribute name="CAPTION" type="xs:string" use="required" />
+  #                   </xs:extension>
+  #                 </xs:simpleContent>
+  #               </xs:complexType>
+  #             </xs:element>
+  #             <xs:element name="FORM">
+  #               <xs:complexType mixed="true">
+  #                 <xs:sequence>
+  #                   <xs:choice maxOccurs="unbounded">
+  #                     <xs:element name="input">
+  #                       <xs:complexType>
+  #                         <xs:attribute name="name" type="xs:string" use="required" />
+  #                         <xs:attribute name="value" type="xs:string" use="required" />
+  #                         <xs:attribute name="type" type="xs:string" use="optional" />
+  #                       </xs:complexType>
+  #                     </xs:element>
+  #                     <xs:element name="select">
+  #                       <xs:complexType>
+  #                         <xs:sequence>
+  #                           <xs:element name="option">
+  #                             <xs:complexType>
+  #                               <xs:attribute name="value" type="xs:string" use="required" />
+  #                               <xs:attribute name="selected" type="xs:unsignedByte" use="required" />
+  #                             </xs:complexType>
+  #                           </xs:element>
+  #                         </xs:sequence>
+  #                         <xs:attribute name="name" type="xs:string" use="required" />
+  #                       </xs:complexType>
+  #                     </xs:element>
+  #                   </xs:choice>
+  #                 </xs:sequence>
+  #                 <xs:attribute name="action" type="xs:string" use="required" />
+  #               </xs:complexType>
+  #             </xs:element>
+  #             <xs:element name="table_header">
+  #               <xs:complexType>
+  #                 <xs:sequence>
+  #                   <xs:element maxOccurs="unbounded" name="BUTTON">
+  #                     <xs:complexType>
+  #                       <xs:simpleContent>
+  #                         <xs:extension base="xs:string">
+  #                           <xs:attribute name="VALUE" type="xs:string" use="required" />
+  #                         </xs:extension>
+  #                       </xs:simpleContent>
+  #                     </xs:complexType>
+  #                   </xs:element>
+  #                 </xs:sequence>
+  #               </xs:complexType>
+  #             </xs:element>
+  #             <xs:element maxOccurs="unbounded" name="TABLE">
+  #               <xs:complexType>
+  #                 <xs:sequence>
+  #                   <xs:element minOccurs="0" name="TITLE">
+  #                     <xs:complexType>
+  #                       <xs:sequence>
+  #                         <xs:element name="COLUMN_1">
+  #                           <xs:complexType>
+  #                             <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                             <xs:attribute name="ID" type="xs:string" use="required" />
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                         <xs:element name="COLUMN_2">
+  #                           <xs:complexType>
+  #                             <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                             <xs:attribute name="ID" type="xs:string" use="required" />
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                         <xs:element name="COLUMN_3">
+  #                           <xs:complexType>
+  #                             <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                             <xs:attribute name="ID" type="xs:string" use="required" />
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                         <xs:element name="COLUMN_4">
+  #                           <xs:complexType>
+  #                             <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                             <xs:attribute name="ID" type="xs:string" use="required" />
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                         <xs:element name="COLUMN_5">
+  #                           <xs:complexType>
+  #                             <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                             <xs:attribute name="ID" type="xs:string" use="required" />
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                         <xs:element name="COLUMN_6">
+  #                           <xs:complexType>
+  #                             <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                             <xs:attribute name="ID" type="xs:string" use="required" />
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                         <xs:element name="COLUMN_7">
+  #                           <xs:complexType>
+  #                             <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                             <xs:attribute name="ID" type="xs:string" use="required" />
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                         <xs:element name="COLUMN_8">
+  #                           <xs:complexType>
+  #                             <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                             <xs:attribute name="ID" type="xs:string" use="required" />
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                         <xs:element name="COLUMN_9">
+  #                           <xs:complexType>
+  #                             <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                             <xs:attribute name="ID" type="xs:string" use="required" />
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                         <xs:element name="COLUMN_10">
+  #                           <xs:complexType>
+  #                             <xs:attribute name="NAME" type="xs:string" use="required" />
+  #                             <xs:attribute name="ID" type="xs:string" use="required" />
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                       </xs:sequence>
+  #                       <xs:attribute name="columns" type="xs:unsignedByte" use="required" />
+  #                     </xs:complexType>
+  #                   </xs:element>
+  #                   <xs:element name="DATA">
+  #                     <xs:complexType>
+  #                       <xs:sequence>
+  #                         <xs:element maxOccurs="unbounded" name="ROW">
+  #                           <xs:complexType>
+  #                             <xs:sequence>
+  #                               <xs:element maxOccurs="unbounded" name="TD" type="xs:string" />
+  #                             </xs:sequence>
+  #                           </xs:complexType>
+  #                         </xs:element>
+  #                       </xs:sequence>
+  #                     </xs:complexType>
+  #                   </xs:element>
+  #                 </xs:sequence>
+  #                 <xs:attribute name="CAPTION" type="xs:string" use="optional" />
+  #                 <xs:attribute name="ID" type="xs:string" use="required" />
+  #               </xs:complexType>
+  #             </xs:element>
+  #           </xs:sequence>
+  #         </xs:complexType>
+  #       </xs:element>
+  #     </xs:schema>                      
+  #   } 
+  # },
 );
   
 xml_test(\@test_list, { TEST_NAME => 'XML TEST API' });
 
 sub xml_test{
-  my ($test_list, $attr) = @_;
+  my ($test_list) = @_;
 
   my $count = 1;
 
@@ -1858,7 +1860,8 @@ sub xml_test{
         DEBUG          => $ARGS->{DEBUG},
       } 
     );
-
+# print $xml;
+# next;
     my $xml_doc = XML::LibXML->load_xml(string  => $xml);
     my $xsd_doc = XML::LibXML::Schema->new(string => $function->{xsd});
 

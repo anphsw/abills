@@ -43,7 +43,26 @@ our(
 
   Results:
 
-    TRUE or FALSE
+    if PERIOD_FORM - return html form
+    else TRUE
+  Examples:
+  For get fileter only with extra input or select use this:
+   reports({
+    PERIOD_FORM => 1,
+    NO_PERIOD   => 1,
+    NO_GROUP   => 1,
+    NO_TAGS     => 1,
+    EXT_SELECT        => sel_nas_groups(),
+    EXT_SELECT_NAME   => $lang{GROUPS},
+  });
+
+  With period range
+  reports({
+    PERIODS     => 1,
+    NO_TAGS     => 1,
+    NO_GROUP    => 1,
+    PERIOD_FORM => 1,
+  });
 
 =cut
 #**********************************************************
@@ -124,7 +143,7 @@ sub reports{
     foreach my $line ( sort keys %{ $attr->{FIELDS} } ){
       my (undef, $k, undef) = split( /:/, $line );
       push @arr, $html->form_input( "FIELDS", $k, { TYPE => 'checkbox', STATE =>
-              (defined( $fields_hash{$k} )) ? 'checked' : undef } ) . " $attr->{FIELDS}{$line}";
+              (defined( $fields_hash{$k} )) ? 'checked' : undef } ) . " ". ($attr->{FIELDS}{$line} || q{});
       $i++;
       if ( $#arr > 1 ){
         $table2->addrow( @arr );
@@ -140,35 +159,38 @@ sub reports{
   }
 
   if ( $attr->{PERIOD_FORM} ){
-    if ($attr->{DATE_RANGE}){
-      @rows = (
-        $html->element( 'label', "$lang{DATE}: ")
-        . $html->form_daterangepicker({
-            NAME      => 'FROM_DATE/TO_DATE',
-            FORM_NAME => 'report_panel',
-            VALUE     => $attr->{DATE} || $FORM{'FROM_DATE_TO_DATE'},
-            WITH_TIME => $attr->{TIME_FORM} || 0
-          })
-      );
-    }
-    else {
-      @rows = (
-        "$lang{DATE}: "
-        . $html->date_fld2('FROM_DATE', { FORM_NAME => 'report_panel' })
-        . " - "
-        . $html->date_fld2('TO_DATE', { FORM_NAME => 'report_panel' } )
-      );
+    if (!$attr->{NO_PERIOD}) {
+      if ($attr->{DATE_RANGE}) {
+        push @rows, $html->element('label', "$lang{DATE}: ", { class => 'col-md-2 control-label' })
+          . $html->element('div', $html->form_daterangepicker({
+          NAME      => 'FROM_DATE/TO_DATE',
+          FORM_NAME => 'report_panel',
+          VALUE     => $attr->{DATE} || $FORM{'FROM_DATE_TO_DATE'},
+          WITH_TIME => $attr->{TIME_FORM} || 0,
+        }), { class => 'col-md-8' });
+      }
+      else {
+        #      @rows = (
+        #        push @rows, $html->element('label', "$lang{DATE}: ", {class => 'col-md-2 control-label'});
+        push @rows, $html->element('label', "$lang{DATE}: ", { class => 'col-md-1 control-label' })
+          . $html->element('label', "$lang{FROM}: ", { class => 'col-md-1 control-label' })
+          . $html->element('div', $html->date_fld2('FROM_DATE', { FORM_NAME => 'report_panel' }), { class => 'col-md-8' });
+        #        . " - "
+        push @rows, $html->element('label', "$lang{TO}: ", { class => 'col-md-2 control-label' })
+          . $html->element('div', $html->date_fld2('TO_DATE', { FORM_NAME => 'report_panel' }), { class => 'col-md-8' });
+        #      );
 
-      if ( $attr->{TIME_FORM} ){
-        push @rows, '&nbsp;' . ("$lang{TIME}: " . $html->form_input( 'FROM_TIME',
-            (($FORM{FROM_TIME}) ? $FORM{FROM_TIME} : '00:00:00'), { SIZE => 10 } ) . " - " . $html->form_input( 'TO_TIME',
-            (($FORM{TO_TIME}) ? $FORM{TO_TIME} : '24:00:00'), { SIZE => 10 } ));
+        if ($attr->{TIME_FORM}) {
+          push @rows, '&nbsp;' . ($html->element('label', "$lang{TIME}: ", { class => 'col-md-2 control-label' }) . $html->form_input('FROM_TIME',
+            (($FORM{FROM_TIME}) ? $FORM{FROM_TIME} : '00:00:00'), { SIZE => 10 }) . " - " . $html->form_input('TO_TIME',
+            (($FORM{TO_TIME}) ? $FORM{TO_TIME} : '24:00:00'), { SIZE => 10 }));
 
-        $LIST_PARAMS{FROM_TIME} = $FORM{FROM_TIME};
-        $LIST_PARAMS{TO_TIME} = $FORM{TO_TIME};
+          $LIST_PARAMS{FROM_TIME} = $FORM{FROM_TIME};
+          $LIST_PARAMS{TO_TIME} = $FORM{TO_TIME};
 
-        if ( $FORM{FROM_TIME} && $FORM{TO_TIME} && ($FORM{FROM_TIME} ne '00:00:00' || $FORM{TO_TIME} ne '24:00:00') ){
-          $pages_qs .= "&FROM_TIME=$FORM{FROM_TIME}&TO_TIME=$FORM{TO_TIME}";
+          if ($FORM{FROM_TIME} && $FORM{TO_TIME} && ($FORM{FROM_TIME} ne '00:00:00' || $FORM{TO_TIME} ne '24:00:00')) {
+            $pages_qs .= "&FROM_TIME=$FORM{FROM_TIME}&TO_TIME=$FORM{TO_TIME}";
+          }
         }
       }
     }
@@ -182,10 +204,11 @@ sub reports{
           HOURS => $lang{HOURS},
         );
       }
-      push @rows, "$lang{GROUP}: " . sel_groups();
+      push @rows, $html->element('label', "$lang{GROUP}: ", {class => 'col-md-2 control-label'})
+        . $html->element('div', sel_groups(), {class => 'col-md-8'});
       if ($attr->{EXT_TYPE} || %select_types) {
-        push @rows, " $lang{TYPE}: ";
-        push @rows, $html->form_select(
+        push @rows, $html->element('label', " $lang{TYPE}: ", {class => 'col-md-2 control-label'})
+          . $html->element('div', $html->form_select(
           'TYPE',
           {
             SELECTED => $FORM{TYPE} || 'DAYS',
@@ -195,50 +218,63 @@ sub reports{
             },
             NO_ID    => 1
           }
-        );
-      } 
+        ), {class => 'col-md-8 '});
+      }
     }
 
     #Show extra select form
     if($attr->{EXT_SELECT}){
-      push @rows, "$attr->{EXT_SELECT_NAME}: " if ($attr->{EXT_SELECT_NAME});
-      push @rows,$attr->{EXT_SELECT};
+      push @rows, $html->element('label', $attr->{EXT_SELECT_NAME} ? "$attr->{EXT_SELECT_NAME}: ": " ", {class => 'col-md-2 control-label'})
+        . $html->element('div', $attr->{EXT_SELECT}, {class => 'col-md-8'});
     }
-
-    #SHow tags
-    #my $TAGS = '';
-    if ( !$attr->{NO_TAGS} && in_array( 'Tags', \@MODULES ) ){
-      load_module( 'Tags', $html );
-      push @rows, tags_sel();
-    }
-
-
     if ( $attr->{EX_INPUTS} ){
       foreach my $line ( @{ $attr->{EX_INPUTS} } ){
         push @rows, $line;
       }
     }
-
-    push @rows, $html->form_input( 'show', $lang{SHOW}, { TYPE => 'submit', FORM_ID => 'report_panel' } );
-
-    my %info = ();
-    foreach my $val ( @rows ){
-      $info{ROWS} .= $html->element( 'div', ($val || q{}), { class => 'form-group' } );
+    #SHow tags
+    #my $TAGS = '';
+    if ( !$attr->{NO_TAGS} && in_array( 'Tags', \@MODULES ) ){
+      load_module( 'Tags', $html );
+      push @rows, $html->element('label', "$lang{TAGS}: ", {class => 'col-md-2 control-label'})
+        . $html->element('div', tags_sel(), {class => 'col-md-8'});
     }
 
-    my $report_form = $html->element( 'div', $info{ROWS}, {
-      class => 'well well-sm',
+
+
+    my %info = ();
+    my $info_rows = '';
+    foreach my $val ( @rows ){
+      $info{ROWS} = $html->element( 'div', ($val || q{}), { class => 'form-group', style => 'height: 44px' } );
+      $info_rows .= $html->element( 'div', ($info{ROWS} || q{}), { class => 'col-md-6 no-padding' } );
+    }
+    my $row_body = $html->element( 'div', $info_rows, {
+      class => 'row',
+    } );
+    my $box_body = $html->element( 'div', $row_body . $FIELDS, {
+      class => 'box-body',
+    } );
+    my $box_footer = $html->element( 'div', $html->form_input( 'show', $lang{SHOW}, { class => 'btn btn-primary btn-block', TYPE => 'submit', FORM_ID => 'report_panel' } ), {
+      class => 'box-footer',
+    } );
+    my $box_header = $html->element( 'div', $html->element('h4', $lang{FILTERS}, {class => 'box-title table-caption'})
+      . '<div class="box-tools pull-right">
+      <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+      <i class="fa fa-minus"></i></button></div>',
+      { class => 'box-header with-border'} );
+    my $report_form = $html->element( 'div', $box_header . $box_body . $box_footer, {
+      class => 'box box-theme',
     } );
 
     print $html->form_main({
-      CONTENT => $report_form . $FIELDS,
+      CONTENT => $report_form,
       HIDDEN  => {
         'index' => "$index",
         %{ ($attr->{HIDDEN}) ? $attr->{HIDDEN} : {} }
       },
       NAME    => 'report_panel',
       ID      => 'report_panel',
-      class   => 'form form-inline hidden-print',
+      class   => 'form form-horizontal hidden-print',
     });
 
     if ( $FORM{show} && $FORM{FROM_DATE} ){
@@ -631,6 +667,9 @@ sub report_payments{
     elsif ($type eq 'DAYS'){
       $x_text = 'month';
     }
+    elsif ($type eq 'GID'){
+      $x_text = 'gid';
+    }
     
     %CHARTS = (
       TYPES => {
@@ -668,8 +707,8 @@ sub report_payments{
         street_name   => $lang{ADDRESS_STREET},
         method        => $lang{PAYMENT_METHOD},
         admin_name    => $lang{ADMIN},
-        login_count   => $lang{USERS},
-        count         => $lang{COUNT},
+        login_count   => $lang{COUNT} . $lang{USERS},
+        count         => $lang{COUNT} . $lang{PAYMENTS},
         sum           => $lang{SUM}
       },
       FILTER_COLS     => {
@@ -681,6 +720,7 @@ sub report_payments{
         build         => "search_link:report_payments:LOCATION_ID,LOCATION_ID,TYPE=USER,$pages_qs",
         district_name => "search_link:report_payments:DISTRICT_ID,DISTRICT_ID,TYPE=USER,$pages_qs",
         street_name   => "search_link:report_payments:STREET_ID,STREET_ID,TYPE=USER,$pages_qs",
+        sum           => "_format_sum_for_payments::sum",
       },
       TABLE           => {
         width   => '100%',
@@ -694,9 +734,17 @@ sub report_payments{
     } );
   }
 
+  my $legend_names = ();
+  $legend_names = {
+    sum         => $lang{SUM},
+    login_count => $lang{COUNT} . $lang{USERS},
+    count       => $lang{COUNT} . $lang{PAYMENTS},
+  };
+
   print $html->make_charts({
     PERIOD        => $graph_type,
     DATA          => \%DATA_HASH,
+    LEGEND        => $legend_names,
     OUTPUT2RETURN => 1,
     %CHARTS
   });
@@ -767,6 +815,7 @@ sub form_system_changes{
     10 => "$lang{DELETED}",
     11 => "$lang{ERR_WRONG_PASSWD}",
     13 => "Online $lang{DEL}",
+    14 => "$lang{COMMAND} $lang{USED}",
     27 => "$lang{SHEDULE} $lang{ADDED}",
     28 => "$lang{SHEDULE} $lang{DELETED}",
     29 => "$lang{SHEDULE} $lang{EXECUTED}",
@@ -1088,7 +1137,7 @@ sub form_changes_summary {
     31 => "$lang{ICARDS} $lang{USED}"
   );
 
-  reports({
+   reports({
     PERIODS     => 1,
     NO_TAGS     => 1,
     NO_GROUP    => 1,
@@ -1107,12 +1156,16 @@ sub form_changes_summary {
     $stats_summary{$line->{action_type}}=$line->{total};
   }
 
+  if(!$FORM{show}) {
+    $pages_qs .= "&FROM_DATE=" . ($FORM{FROM_DATE} ? $FORM{FROM_DATE} : q{});
+    $pages_qs .= "&TO_DATE=" . ($FORM{TO_DATE} ? $FORM{TO_DATE} : q{});
+  }
   my $table = $html->table({
     width  => '300',
     cation => "$lang{REPORTS}",
     qs     => $pages_qs,
     ID     => 'ADMIN_ACTIONS_SUMMARY',
-    EXPORT => 1,
+    EXPORT => 1
   });
 
   foreach my $key ( sort keys %action_types ) {
@@ -1469,6 +1522,25 @@ sub reports_facebook_users_info {
   );
 
   return 1;
+}
+
+#**********************************************************
+=head2 _format_sum_for_payments() - format sum to sum with spaces
+
+  Arguments:
+
+  Returns:
+    $new_sum
+=cut
+#**********************************************************
+
+sub _format_sum_for_payments {
+  my ($attr) = @_;
+  my $new_sum = q{};
+
+  $new_sum = format_sum($attr);
+
+  return $new_sum;
 }
 
 1

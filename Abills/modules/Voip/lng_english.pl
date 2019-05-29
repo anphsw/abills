@@ -57,3 +57,4 @@ $lang{CALL_OPERATOR} = 'Call operator';
 $lang{NAS_DISABLED} = 'Nas disabled';
 $lang{NAS_TECH_WORK} = 'Nas maintenice';
 $lang{ASTERISK} = 'Astrisk';
+$lang{TRUNKS} = 'Trunks';

@@ -1,7 +1,7 @@
 <form action='$SELF_URL' id='storage_installation_form' name='storage_installation_name' class='form form-horizontal'>
   <input type='hidden' name='index' value='$index'/>
   <input type='hidden' name='ID' value='%ID%'/>
-  <input type='hidden' name='INSTALLED_AID' value='%INSTALLED_AID%'/>
+  <!--<input type='hidden' name='INSTALLED_AID' value='%INSTALLED_AID%'/>-->
   <!--
       <input type=hidden name=STREET_ID value='%STREET_ID%' ID='STREET_ID'>
       <input type=hidden name=LOCATION_ID value='%LOCATION_ID%' ID='LOCATION_ID'>
@@ -41,6 +41,13 @@
       <div class='form-group'>
         <label class='col-md-3 control-label'>_{SERIAL}_:</label>
         <div class='col-md-8'><textarea class='form-control' name='SERIAL'>%SERIAL%</textarea></div>
+      </div>
+
+      <div class='form-group'>
+        <label class='col-md-3 control-label'>_{RESPOSIBLE}_ _{FOR_INSTALLATION}_:</label>
+        <div class='col-md-8'>
+          %INSTALLED_AID_SEL%
+        </div>
       </div>
 
       <div class='form-group'>

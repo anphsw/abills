@@ -1794,6 +1794,82 @@ sub cablecat_crosses {
 }
 
 #**********************************************************
+=head2 cablecat_reserve()
+
+=cut
+#**********************************************************
+sub cablecat_reserve {
+
+  if ($FORM{chg}) {
+    my $reserve_info = $Cablecat->coil_list({
+      ID     => $FORM{chg},
+      NAME   => '_SHOW',
+      LENGTH => '_SHOW',
+    });
+
+    $html->tpl_show(
+      _include('cablecat_reserve', 'Cablecat'),
+      {
+        %FORM,
+        ID                => $FORM{chg},
+        NAME              => $reserve_info->[0]{name} || "",
+        LENGTH            => $reserve_info->[0]{length} || "",
+        SUBMIT_BTN_ACTION => "change",
+        SUBMIT_BTN_NAME   => $lang{CHANGE},
+      }
+    );
+  }
+
+  if ($FORM{change}) {
+    $Cablecat->coil_change({
+      ID     => $FORM{ID},
+      NAME   => $FORM{NAME},
+      LENGTH => $FORM{LENGTH},
+    });
+    show_result($Cablecat, $lang{CHANGED});
+  }
+
+  if ($FORM{del} && $FORM{COMMENTS}) {
+    $Cablecat->coil_del({ ID => $FORM{del}, COMMENTS => $FORM{COMMENTS} });
+    show_result($Cablecat, $lang{DELETED});
+  }
+
+  my Abills::HTML $table;
+  result_former(
+    {
+      INPUT_DATA      => $Cablecat,
+      FUNCTION        => 'coil_list',
+      BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => 'ID,NAME,LENGTH',
+      HIDDEN_FIELDS   => 'CABLE_ID,POINT_ID',
+      FUNCTION_FIELDS => 'change,del',
+      SKIP_USER_TITLE => 1,
+      EXT_FIELDS      => 0,
+      EXT_TITLES      => {
+        id             => '#',
+        name           => $lang{NAME},
+        length         => $lang{LENGTH},
+      },
+      TABLE           => {
+        width   => '100%',
+        caption => $lang{CABLE_RESERVE},
+        ID      => 'RESERVE_TABLE',
+        EXPORT  => 1,
+#        MENU    => "$lang{ADD}:index=$index&add_form=1:add;$lang{SEARCH}:index=$index&search_form=1:search"
+      },
+      MAKE_ROWS       => 1,
+      TOTAL           => 1,
+      SEARCH_FORMER   => 1,
+      MODULE          => 'Cablecat',
+    }
+  );
+
+#  $table ? print $table->show() : return 0;
+
+  return 0;
+}
+
+#**********************************************************
 =head2 _cablecat_cross_links($cross_id, $port_num)
 
 =cut

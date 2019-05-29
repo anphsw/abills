@@ -5,6 +5,11 @@
  DOCS:
    http://eltex.nsk.ru/support/knowledge/upravlenie-po-snmp.php
 
+=head1 VERSION
+
+  VERSION: 0.01
+  UPDATED: 20190128
+
 =cut
 
 use strict;
@@ -16,7 +21,6 @@ our (
   $debug,
   %lang,
   $html
-
 );
 
 #**********************************************************
@@ -67,17 +71,19 @@ sub _eltex_get_ports {
         $ports_info->{$i}->{$type} = $speed_type{ $ports_info->{$i}->{$type} };
       }
     }
-    $ports_info->{$i}{BRANCH} = "0/$i";
+    $ports_info->{$i}{BRANCH}   = "0/$i";
     $ports_info->{$i}{PON_TYPE} = 'gepon';
-    $ports_info->{$i}{SNMP_ID} = $i;
+    $ports_info->{$i}{SNMP_ID}  = $i;
   }
-  $ports_info->{255}{BRANCH} = 'ANY';
+  $ports_info->{255}{BRANCH}   = 'ANY';
   $ports_info->{255}{PON_TYPE} = 'gepon';
-  $ports_info->{255}{SNMP_ID} = 255;
+  $ports_info->{255}{SNMP_ID}  = 255;
   $ports_info->{255}{BRANCH_DESC} = 'Not assigned to any tree';
 
   return \%{$ports_info};
 }
+
+
 #**********************************************************
 =head2 _eltex_ltp_get_ports($attr) - Get OLT ports
 
@@ -124,11 +130,12 @@ sub _eltex_onu_list {
   my ($port_list, $attr) = @_;
 
   #my $debug     = $attr->{DEBUG} || 0;
-  my @all_rows = ();
+  my @all_rows  = ();
   my %pon_types = ();
-  my %port_ids = ();
+  my %port_ids  = ();
   my $type = '';
   my $port_list_2 = ();
+  my $list_ont_id = ();
 
   if ($port_list) {
     foreach my $snmp_id (keys %{$port_list}) {
@@ -144,15 +151,19 @@ sub _eltex_onu_list {
       WALK => 1,
       OID  => '.1.3.6.1.4.1.35265.1.21.6.10.1.8',
     });
-    $onu_status_list = snmp_get({ %$attr,
-      WALK => 1,
-      OID  => '.1.3.6.1.4.1.35265.1.22.3.1.1.5',
-    }) if (!@$onu_status_list);
+
+    if (!@$onu_status_list) {
+      $onu_status_list = snmp_get({ %$attr,
+        WALK => 1,
+        OID  => '.1.3.6.1.4.1.35265.1.22.3.1.1.5',
+      })
+    }
 
     my $onu_mac_list = snmp_get({ %$attr,
       WALK => 1,
       OID  => '.1.3.6.1.4.1.35265.1.21.16.2.1.3',
     });
+
     if (!@$onu_mac_list) {
       $onu_mac_list = snmp_get({ %$attr,
         WALK => 1,
@@ -165,35 +176,46 @@ sub _eltex_onu_list {
     if ($type ne '') {
       $port_list_2 = snmp_get({ %$attr,
         WALK => 1,
-        OID  => '1.3.6.1.4.1.35265.1.22.3.1.1.3',
+        OID  => '1.3.6.1.4.1.35265.1.22.3.1.1.3', #ltp8xONTStateChannel
       });
 
-      #      foreach my $line (@$port_list_2) {
-      #        next if (!$line);
-      #        my ($index, $port) = split(/:/, $line);
-      #        my ($status, $onu_id) = split(/\./, $index);
-      #
-      #        _bp('', $onu_id, {TO_CONSOLE=>1});
-      #        $onu_cur_status{$onu_id}{PORT} = '0';
-      #        _bp('', $onu_cur_status{$onu_id}{PORT}, {TO_CONSOLE=>1});
-      #      }
-      #    }
+      foreach my $line (@$port_list_2) {
+        next if (!$line);
+        my ($index, $port) = split(/:/, $line);
+        # $status, $onu_id
+        my @oid_octets = split(/\./, $index);
+        my $onu_id = $oid_octets[$#oid_octets];
+        $onu_cur_status{$onu_id}{PORT} = ($port) ? $port + 1 : 0;
+      }
+
+      $list_ont_id = snmp_get({ %$attr,
+        WALK => 1,
+        OID  => '1.3.6.1.4.1.35265.1.22.3.1.1.4', #ltp8xONTStateID
+      });
+
+      foreach my $line (@$list_ont_id) {
+        next if (!$line);
+        my ($index, $onu_id2) = split(/:/, $line);
+        my @oid_octets2 = split(/\./, $index);
+
+        my $onu_id = $oid_octets2[$#oid_octets2];
+        $onu_cur_status{$onu_id}{ONU_ID2} = ($onu_id2) ? $onu_id2 : 0;
+      }
+
     }
 
     foreach my $line (@$onu_status_list) {
       next if (!$line);
       my ($index, $status) = split(/:/, $line);
-      my ($port, $onu_id) = split(/\./, $index);
+      my ($port, $onu_id)  = split(/\./, $index);
 
       if ($type ne '') {
-        ($port, $onu_id) = split(/\./, $index);
-
         $onu_id = $index;
         $onu_id =~ s/\d+\.//g;
       }
 
       $onu_cur_status{$onu_id}{STATUS} = $status;
-      $onu_cur_status{$onu_id}{PORT} = $port;
+      $onu_cur_status{$onu_id}{PORT}   = $port if (! $onu_cur_status{$onu_id}{PORT});
     }
 
     foreach my $line (@{$onu_mac_list}) {
@@ -216,11 +238,12 @@ sub _eltex_onu_list {
       }
 
       $onu_info{PORT_ID} = (defined($onu_cur_status{$onu_id}{PORT})) ? $port_ids{'0/' . $onu_cur_status{$onu_id}{PORT}} : $port_ids{ANY};
-      $onu_info{ONU_ID} = $onu_id;
-      $onu_info{ONU_SNMP_ID} = $onu_snmp_id;
-      $onu_info{PON_TYPE} = $pon_type;
+
+      $onu_info{ONU_ID}         = $onu_cur_status{$onu_id}{ONU_ID2}; #$onu_id;
+      $onu_info{ONU_SNMP_ID}    = $onu_snmp_id;
+      $onu_info{PON_TYPE}       = $pon_type;
       $onu_info{ONU_MAC_SERIAL} = $onu_mac;
-      $onu_info{ONU_DHCP_PORT} = $onu_id;
+      $onu_info{ONU_DHCP_PORT}  = $onu_id;
 
       foreach my $oid_name (keys %{$snmp}) {
         if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'ONU_MAC_SERIAL' || !$onu_cur_status{$onu_id}{STATUS} && $oid_name ne 'ONU_DESC') {
@@ -305,44 +328,44 @@ sub _eltex {
         PARSER => 'bin2mac'
       },
       'ONU_STATUS'     => {
-        NAME   => 'Status',
+        NAME   => 'STATUS',
         OIDS   => '.1.3.6.1.4.1.35265.1.21.6.1.1.6.6',
         PARSER => ''
       },
       'ONU_RX_POWER'   => {
-        NAME   => 'Rx_Power',
+        NAME   => 'RX_POWER',
         OIDS   => '.1.3.6.1.4.1.35265.1.21.6.1.1.15.6',
         PARSER => '_eltex_convert_power'
       }, # tx_power = tx_power * 0.1;
       'ONU_TX_POWER'   => {
-        NAME   => 'Tx_Power',
+        NAME   => 'TX_POWER',
         OIDS   => '',
         PARSER => ''
       },
       'OLT_RX_POWER'   => {
-        NAME   => 'Olt_Rx_Power',
+        NAME   => 'OLT_RX_POWER',
         OIDS   => '',
         PARSER => ''
       },
       'ONU_DESC'       => {
-        NAME   => 'Description',
+        NAME   => 'DESCRIPTION',
         OIDS   => '.1.3.6.1.4.1.35265.1.21.16.1.1.8.6',
         PARSER => ''
       },
       'ONU_IN_BYTE'    => {
-        NAME   => 'In',
+        NAME   => 'PORT_IN',
         OIDS   => '',
         PARSER => ''
       },
       'ONU_OUT_BYTE'   => {
-        NAME   => 'Out',
+        NAME   => 'PORT_OUT',
         OIDS   => '',
         PARSER => ''
       },
       'TEMPERATURE'    => {
-        NAME   => 'Temperature',
+        NAME   => 'TEMPERATURE',
         OIDS   => '',
-        PARSER => ''
+        PARSER => '_dec_div'
       },
       'reset'          => {
         NAME   => '',
@@ -351,22 +374,22 @@ sub _eltex {
       },
       main_onu_info    => {
         'ONU_TYPE'     => {
-          NAME   => 'Onu_Type',
+          NAME   => 'TYPE',
           OIDS   => '.1.3.6.1.4.1.35265.1.21.6.1.1.2.6',
           PARSER => '_eltex_convert_onu_type'
         },
         'SOFT_VERSION' => {
-          NAME   => 'Soft_Version',
+          NAME   => 'FIRMWARE',
           OIDS   => '',
           PARSER => ''
         },
         'VOLTAGE'      => {
-          NAME   => 'Voltage',
+          NAME   => 'VOLTAGE',
           OIDS   => '',
           PARSER => ''
         },
         'DISATNCE'     => {
-          NAME   => 'Distance',
+          NAME   => 'DISTANCE',
           OIDS   => '',
           PARSER => ''
         }
@@ -384,39 +407,39 @@ sub _eltex {
         PARSER => ''
       },
       'ONU_RX_POWER'   => {
-        NAME   => 'Rx_Power',
+        NAME   => 'ONU_RX_POWER',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.14',
         PARSER => '_eltex_convert_power'
       }, # tx_power = tx_power * 0.1;
       'ONU_TX_POWER'   => {
-        NAME   => 'Tx_Power',
+        NAME   => 'ONU_TX_POWER',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.13',
-        PARSER => ''
+        PARSER => '_eltex_convert_power'
       },
       'OLT_RX_POWER'   => {
-        NAME   => 'Olt_Rx_Power',
-        OIDS   => '',
-        PARSER => ''
+        NAME   => 'OLT_RX_POWER',
+        OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.11',
+        PARSER => '_dec_div'
       },
       'ONU_DESC'       => {
-        NAME   => 'Description',
+        NAME   => 'DESCRIPTION',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.4.1.8',
         PARSER => ''
       },
       'ONU_IN_BYTE'    => {
-        NAME   => 'In',
+        NAME   => 'PORT_IN',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.6',
         PARSER => ''
       },
       'ONU_OUT_BYTE'   => {
-        NAME   => 'Out',
+        NAME   => 'PORT_OUT',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.10',
         PARSER => ''
       },
       'TEMPERATURE'    => {
-        NAME   => 'Temperature',
+        NAME   => 'TEMPERATURE',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.15',
-        PARSER => ''
+        PARSER => '_dec_div'
       },
       'reset'          => {
         NAME   => '',
@@ -425,23 +448,23 @@ sub _eltex {
       },
       main_onu_info    => {
         'ONU_TYPE'     => {
-          NAME   => 'Onu_Type',
+          NAME   => 'TYPE',
           OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.12',
           PARSER => '',
           #          WALK   => '1',
         },
         'SOFT_VERSION' => {
-          NAME   => 'Soft_Version',
+          NAME   => 'FIRMWARE',
           OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.17',
           PARSER => ''
         },
         'VOLTAGE'      => {
-          NAME   => 'Voltage',
+          NAME   => 'VOLTAGE',
           OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.25',
-          PARSER => ''
+          PARSER => '_eltex_convert_volt'
         },
         'DISATNCE'     => {
-          NAME   => 'Distance',
+          NAME   => 'DISTANCE',
           OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.10',
           PARSER => ''
         }
@@ -455,12 +478,15 @@ sub _eltex {
       },
     },
     'FDB' => {
-      NAME   => 'Onu_Type',
+      NAME   => 'TYPE',
       OIDS   => '.1.3.6.1.4.1.35265.1.22.9.6',
       PARSER => ''
     },
-
   );
+
+  #
+  #1.3.6.1.4.1.35265.1.21.25  - Mac Table
+  # где 2.0.94.0.0.32 - мас адрес ОНТ в десятичной системе. Последняя единица - это порядковый номер.
 
   if ($attr->{TYPE}) {
     return $snmp{$attr->{TYPE}};
@@ -469,21 +495,55 @@ sub _eltex {
   return \%snmp;
 }
 
+
 #**********************************************************
-=head2 _eltex_convert_power();
+=head2 _dec_div($value);
+
+  Arguments:
+    $value
+
+=cut
+#**********************************************************
+sub _dec_div {
+  my ($value) = @_;
+
+  $value = $value * 0.1 if ($value);
+
+  return $value;
+}
+
+
+#**********************************************************
+=head2 _eltex_convert_volt($volt);
+
+  Arguments:
+    $volt
+
+=cut
+#**********************************************************
+sub _eltex_convert_volt {
+  my ($volt) = @_;
+
+  $volt = $volt * 0.01 if ($volt);
+
+  return $volt;
+}
+
+#**********************************************************
+=head2 _eltex_convert_power($power);
 
 =cut
 #**********************************************************
 sub _eltex_convert_power {
   my ($power) = @_;
 
-  $power = $power * 0.1 if ($power);
+  $power = $power * 0.001 if ($power);
 
   return $power;
 }
 
 #**********************************************************
-=head2 _eltex_convert_onu_type();
+=head2 _eltex_convert_onu_type($id);
 
 =cut
 #**********************************************************
@@ -551,14 +611,19 @@ sub _eltex_unregister {
     my $snmp = _eltex({ TYPE => $type });
     my $all_result = ();
     my @unreg_result = ();
-    $all_result = snmp_get({
-      SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
-      WALK           => 1,
-      OID            => $snmp->{unregister}->{'ONU_STATUS'}->{OIDS},
-    }) if $snmp->{unregister}->{'ONU_STATUS'}->{OIDS};
+
+    if ($snmp->{unregister}->{'ONU_STATUS'}->{OIDS}) {
+      $all_result = snmp_get({
+        SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
+        WALK           => 1,
+        OID            => $snmp->{unregister}->{'ONU_STATUS'}->{OIDS},
+        TIMEOUT        => 5
+      });
+    }
 
     foreach my $line (@$all_result) {
-      my ($id, $value) = split(/:/, $line);
+      #$id, $value
+      my (undef, $value) = split(/:/, $line);
 
       if ($value eq '13') {
         push @unreg_result, $line;
@@ -566,8 +631,10 @@ sub _eltex_unregister {
     }
 
     foreach my $line (@unreg_result) {
-      my ($mac_serial, $mac_bin) = split(/:/, $line);
-      my ($snmp_port_id, $onu_id) = split(/\./, $mac_serial, 2);
+      #$mac_serial, $mac_bin
+      my ($mac_serial, undef) = split(/:/, $line);
+      #$snmp_port_id, $onu_id
+      my ($snmp_port_id, undef) = split(/\./, $mac_serial, 2);
       my $branch = $snmp_port_id;
 
       push @unregister, {
@@ -580,8 +647,6 @@ sub _eltex_unregister {
   }
   return \@unregister;
 }
-#**********************************************************
-
 
 #**********************************************************
 =head2 _eltex_unregister_form($attr) - Pre register form
@@ -596,17 +661,19 @@ sub _eltex_unregister {
 sub _eltex_unregister_form {
   my ($attr) = @_;
 
-  my $snmp_oids = _eltex();
+  #my $snmp_oids = _eltex();
   $debug = $attr->{DEBUG} || 0;
 
-  $attr->{PON_TYPE} = $attr->{TYPE} || qq{};
-  $attr->{MAC} = $attr->{MAC_SERIAL} || qq{};
-  $attr->{ACTION} = 'onu_registration';
+  $attr->{PON_TYPE}   = $attr->{TYPE} || qq{};
+  $attr->{MAC}        = $attr->{MAC_SERIAL} || qq{};
+  $attr->{ACTION}     = 'onu_registration';
   $attr->{ACTION_LNG} = $lang{ADD};
   $attr->{MODEL_NAME} = $attr->{NAS_INFO}{MODEL_NAME} || qq{};
-  $attr->{BRANCH} = $attr->{BRANCH} || 0;
+  $attr->{BRANCH}     = $attr->{BRANCH} || 0;
 
   $html->tpl_show(_include('equipment_registred_onu_eltex', 'Equipment'), $attr);
+
+  return 1;
 }
 
 1

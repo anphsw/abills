@@ -12,7 +12,8 @@
 <div class='form-group'>
   <label class='control-label col-md-3' for='NUM'>_{NUM}_:</label>
   <div class='col-md-9'>
-      %NUM% %NAME%
+      <span class='label label-primary'>%NUM%</span>
+      %NAME%
     </div>
    </div>
 

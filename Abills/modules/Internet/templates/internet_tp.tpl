@@ -45,13 +45,21 @@
                     </div>
 
                     <div class='form-group'>
-                        <div class='form-group'>
-                            <label class='col-sm-offset-2 col-sm-8'>_{DESCRIBE}_</label>
-                            <div class='col-sm-offset-2 col-sm-8'>
-                                <textarea cols='40' rows='4' name='COMMENTS' class='form-control'>%COMMENTS%</textarea>
-                            </div>
-                        </div>
+                      <label class='control-label col-md-3'>_{DESCRIBE}_</label>
+                      <div class='col-md-9'>
+                        <textarea cols='40' rows='4' name='COMMENTS' class='form-control'>%COMMENTS%</textarea>
+                      </div>
                     </div>
+
+                    <div class="form-group">
+                      <div class="checkbox">
+                        <label>
+                          <input type="checkbox" name="TP_STATUS" value="1" id="TP_STATUS" %TP_STATUS%>
+                          <b>_{HIDE_TP}_</b>
+                        </label>
+                      </div>
+                    </div>
+
                 </div>
             </div>
         </div>

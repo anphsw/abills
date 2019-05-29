@@ -47,4 +47,61 @@ $lang{FOR_TIME} = "за период";
 $lang{YEAR_SHORT} = "г";
 $lang{PERSON_DAYS}='чел.-дни';
 $lang{PERSON_HOURS}='чел.-часы';
+$lang{DEPARTMENT}='Отдел';
+
+$lang{MOBILE_PAY_ID_MERCHANT}='ID мерчанта';
+$lang{MOBILE_PAY_PASS_MERCHANT}='Пароль мерчанта';
+$lang{MOBILE_PAY_SET}='Настройка пополнения';
+$lang{TRANSACTION_ID}='Номер транзакции';
+$lang{REJECTED}='Платеж забракован';
+$lang{NOT_FOUND}='Платеж не найден';
+$lang{SEND_SMS_TO_ANYONE}='Отправка смс сообщения сотруднику, который не зарегистрирован в системе.';
+
+#Работа с кассами
+$lang{CASHBOX_WORK}='Работа с кассами';
+$lang{CASHBOX}='Касса';
+$lang{CASHBOXS}='Кассы';
+$lang{ADD_CASHBOX}='Добавить кассу';
+$lang{CASHBOX_ADDED}='Касса добавлена';
+$lang{IN_CASHBOX}='в кассе';
+$lang{CASHBOX_NOT_ADDED}='Касса не добавлена';
+$lang{CASHBOX_DELETED}='Касса удалена';
+$lang{CASHBOX_NOT_DELETED}='Касса не удалена';
+$lang{CHANGED}='Изменения внесены';
+$lang{NOT_CHANGED}='Изменения не внесены';
+$lang{CHANGE_DATA}='Внесите изменения';
+$lang{NOT_ADDED}='Не добавлено';
+$lang{NOT_DELETED}='Не удалено';
+$lang{SPENDING}='Расход';
+$lang{COMING}='Приход';
+$lang{SPENDING_REPORT}='Отчет по расходам';
+$lang{COMING_REPORT}='Отчет по приходам';
+$lang{SALARY}='Зарплаты';
+$lang{PLANNED}='Запланированная';
+$lang{NO_TYPE}='Без типа';
+$lang{TAKE_FEE}='Снять оплату с абонента';
+$lang{FEE_TAKEN}='Оплата списана с абонента';
+$lang{WORK_DONE}='Работа выполнена';
+$lang{WORKING_TIME_NORMS}='Нормы рабочего времени';
+$lang{WORKING_TIME_NORMS_EMPTY}='Не заполненные нормы рабочего времени';
+$lang{MONTHLY_BET_WILL_NOT_CALC}='Помесячная ставка подсчитываться не будет';
+$lang{BET}='Ставка';
+$lang{BET_PER_HOUR}='Ставка за час';
+$lang{MONTHLY}='Помесячная';
+$lang{HOURLY}='Почасовая';
+$lang{BET_OVERTIME}='Ставка за екстра час';
+$lang{CHECK_DATA_AND_CHOOSE_CASHBOX}='Проверьте правильнось данных, выберите кассу и подтвердите форму';
+$lang{PAYED}='Оплачено';
+$lang{SUM_TO_PAY}='Сумма к оплате';
+$lang{REFERENCE_WORKS}='Справочник работ';
+$lang{RATIO}='Коэфициент';
+$lang{WORK}='Работы';
+$lang{MINUTES}='Минуты';
+$lang{CHOOSE}='Выберите';
+$lang{TYPE_IN_CASHBOX_NAME}='Введите название кассы';
+$lang{TYPE_IN_SPENDING_TYPE}='Введите тип расхода по кассе';
+$lang{TYPE_IN_COMING_TYPE}='Введите тип прихода по кассе';
+$lang{UNITS_}='Единицы измерения';
+
+
 1

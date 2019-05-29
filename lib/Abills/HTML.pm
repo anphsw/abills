@@ -25,6 +25,7 @@ Abills::HTML - HTML visualisation functions with bootstrap support
 
 use strict;
 use warnings;
+use JSON;
 
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
@@ -94,6 +95,7 @@ my %button_class_icons = (
     CONF
     LANG
     ADMIN
+    HTML_STYLE
 
 =cut
 #**********************************************************
@@ -124,7 +126,7 @@ sub new {
   }
 
   $self->{OUTPUT} = '';
-  $self->{COLORS} = $attr->{COLORS} if ($attr->{COLORS});
+  #$self->{COLORS} = $attr->{COLORS} if ($attr->{COLORS});
   %FORM = form_parse();
   get_cookies();
   $self->{HTML_FORM} = \%FORM;
@@ -132,7 +134,15 @@ sub new {
   $DESC = ($FORM{desc}) ? 'DESC' : '';
   $PG = $FORM{pg} || 0;
   $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'utf8';
-  $self->{HTML_STYLE} = ($CONF->{HTML_STYLE}) ? $CONF->{HTML_STYLE} : 'default_adm';
+
+  $self->{HTML_STYLE} = 'lte_adm';
+  if ($attr->{HTML_STYLE}) {
+    $self->{HTML_STYLE} = $attr->{HTML_STYLE};
+  }
+  elsif ($CONF->{HTML_STYLE}) {
+    $self->{HTML_STYLE} = $CONF->{HTML_STYLE};
+  }
+
   $CONF->{base_dir} = '/usr/abills' if (!$CONF->{base_dir});
 
   if ($FORM{PAGE_ROWS}) {
@@ -621,7 +631,9 @@ sub form_main {
   }
 
   if (defined($attr->{CONTENT})) {
+    #    $self->{FORM} .= $attr->{INP_GROUP}? " <div class='input-group' style='width: $attr->{IN_WIDTH}'>" : '';
     $self->{FORM} .= $attr->{CONTENT};
+    #    $self->{FORM} .= $attr->{INP_GROUP}? " </div>" : '';
   }
 
   if ($attr->{SUBMIT}) {
@@ -636,6 +648,7 @@ sub form_main {
   }
 
   $self->{FORM} .= "</form>\n";
+  delete($self->{FORM_ID});
 
   if ($attr->{OUTPUT2RETURN}) {
     return $self->{FORM};
@@ -644,8 +657,6 @@ sub form_main {
     $self->{OUTPUT} .= $self->{FORM};
     $self->{FORM} = '';
   }
-
-  delete($self->{FORM_ID});
 
   return $self->{FORM};
 }
@@ -675,6 +686,7 @@ sub form_main {
       EXT_BUTTON     - Allow second button next to MAIN_MENU
       WRITE_TO_DATA  - Writes to HTML5 attr 'data-' named values from list
       STYLE          - Array of element style
+      SEL_WIDTH      - Select width
       SEL_OPTIONS    - Extra sel options HASH_REF { key => value, ... }
       EXPORT_CONTENT - Export content
       USE_COLORS     - Use color for hash value
@@ -697,12 +709,14 @@ sub form_main {
 sub form_select {
   my $self = shift;
   my ($name, $attr) = @_;
+  my $input_group = 0;
 
   if ($attr->{POPUP_WINDOW}) {
     return $self->form_window($name, $attr);
   }
 
   my $ex_params = ($attr->{EX_PARAMS}) ? $attr->{EX_PARAMS} : '';
+  my $sel_width = ($attr->{SEL_WIDTH}) ? $attr->{SEL_WIDTH} : '100%';
   my $css_class = q{ class='};
   $css_class .= ($attr->{class}) ? $attr->{class} : 'form-control';
   $css_class .= ' normal-width' if ($attr->{NORMAL_WIDTH});
@@ -730,7 +744,7 @@ sub form_select {
 
   my $element_id = ($attr->{ID}) ? $attr->{ID} : $name;
 
-  $self->{SELECT} = "<select name='$name' $ex_params ID='$element_id'$css_class style='max-width: 300px;'$form>\n";
+  $self->{SELECT} = "<select name='$name' $ex_params style='width:$sel_width' ID='$element_id'$css_class $form>\n";
 
   if (defined($attr->{SEL_OPTIONS})) {
     foreach my $k (keys(%{$attr->{SEL_OPTIONS}})) {
@@ -988,9 +1002,9 @@ sub form_select {
       },
         { OUTPUT2RETURN => 1 });
     }
-
+    $input_group = 1;
     $self->{SELECT} = "
-      <div class='input-group'>
+      <div class='input-group select'>
       $self->{SELECT}
       <span class='input-group-addon'> $input"
       . $self->button('info', "index=$attr->{MAIN_MENU}" . (($attr->{MAIN_MENU_ARGV}) ? "&$attr->{MAIN_MENU_ARGV}" : ''), { class => 'show' })
@@ -998,14 +1012,19 @@ sub form_select {
       . "</span></div>\n";
   }
   elsif ($attr->{EXT_BUTTON}) {
+    $input_group = 1;
     $self->{SELECT} = "
-      <div class='input-group'>
+      <div class='input-group select'>
       $self->{SELECT}
       <span class='input-group-addon'>"
       . ($attr->{EXT_BUTTON} || '')
       . "</span></div>\n";
   }
 
+  if (!$input_group) {
+    $self->{SELECT} = "<div class='input-group select'>" . $self->{SELECT} . "</div>";
+
+  }
   return $self->{SELECT};
 }
 
@@ -1494,6 +1513,9 @@ sub mk_menu {
   Arguments:
 
     $attr
+      header
+      CONTENT_LANGUAGE
+
 
   Examples:
 
@@ -1539,6 +1561,7 @@ sub header {
   $info{CHARSET} = $self->{CHARSET};
   $info{CONTENT_LANGUAGE} = $attr->{CONTENT_LANGUAGE} || $self->{content_language} || 'ru';
   $info{CALLCENTER_MENU} = $self->{CALLCENTER_MENU};
+  $info{CURRENCY_ICON} = $CONF->{CURRENCY_ICON};
 
   $info{WEBSOCKET_URL} = '';
   if ($CONF->{WEBSOCKET_URL} || $CONF->{WEBSOCKET_ENABLED}) {
@@ -1912,7 +1935,7 @@ sub table {
         >rtip'
       };
     }
-    $attr->{DATA_TABLE}->{language} = { url => "/styles/lte_adm/plugins/datatables/lang/" . $self->{prototype}{content_language} . ".json" };
+    $attr->{DATA_TABLE}->{language} = { url => "/styles/$self->{HTML}{HTML_STYLE}/plugins/datatables/lang/" . $self->{prototype}{content_language} . ".json" };
     my $ATTR = ($attr) ? JSON->new->indent->encode($attr->{DATA_TABLE}) : '';
     if ($attr->{DT_CLICK}) {
       $show_cols = qq(
@@ -1955,6 +1978,7 @@ sub table {
   # Form fist row
   my $table_caption_size = 9;
   my $table_filters = '';
+  my $table_ext_but_size = 3;
   if ($self->{table_status_bar}) {
     $table_caption_size = 3;
     $table_filters = qq{
@@ -1990,7 +2014,7 @@ sub table {
         <h4 class='box-title table-caption'>$attr->{caption}</h4>
       </div>
       $table_filters
-      <div class='col-md-3 pull-right text-right'>
+      <div class='col-md-$table_ext_but_size pull-right text-right'>
         $extra_btn
         $table_management_buttons
       </div>
@@ -2017,7 +2041,7 @@ sub table {
   if (defined($attr->{title})) {
     $SORT = $LIST_PARAMS{SORT};
     $self->{table} .= $self->table_title($SORT, $FORM{desc}, $PG, $attr->{title}, $attr->{qs});
-    $self->{title_arr} = $attr->{title};
+    $self->{title_arr} = $attr->{title} || q{};
   }
   elsif (defined($attr->{title_plain})) {
     $self->{table} .= $self->table_title_plain($attr->{title_plain});
@@ -2480,7 +2504,7 @@ sub table_select_all_checkbox {
         });
       });
     </script>
-    <input type='checkbox' id='$self->{ID}_checkAll'/>
+    <input type='checkbox' id='$self->{ID}_checkAll' data-tooltip='$lang->{CHECK_ALL}'/>
   };
 }
 
@@ -3592,6 +3616,7 @@ sub letters_list {
        DEBUG   - Enable debug for function
        SKIP_COMPARE - Skip compare mode
        SINGLE_COMPARE -  Single cross year compare. Use column name
+       LEGEND  - gegend names hash
 
    Result:
      TRUE or FALSE
@@ -3670,6 +3695,7 @@ sub make_charts {
 
     my $values_text = join('", "', @{$series_values});
     my $chart_type = ($chart_types->{$series_name}) ? lc $chart_types->{$series_name} : 'line';
+    $series_name = $attr->{LEGEND}{$series_name} ? $attr->{LEGEND}{$series_name} : $series_name;
     push @result_arr, qq{["$series_name", "$chart_type", ["$values_text"] ]};
   }
 
@@ -3915,9 +3941,9 @@ sub make_charts3 {
   my $result = $self->element('div', $self->element('h5', $name, { class => 'text-center' }) . $chart, { class => 'span6' });
 
   $result .= qq(
-  	<link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/morris/morris.css'>
+  	<link rel='stylesheet' type='text/css' href='/styles/$self->{HTML_STYLE}/plugins/morris/morris.css'>
     <script type='text/javascript' src='/styles/default_adm/js/raphael.min.js'></script>
-	  <script type='text/javascript' src='/styles/lte_adm/plugins/morris/morris.min.js'></script>
+	  <script type='text/javascript' src='/styles/$self->{HTML_STYLE}/plugins/morris/morris.min.js'></script>
     <script>
 	    Morris.$type($ATTR);
 	  </script> );
@@ -4083,8 +4109,9 @@ sub badge {
   my ($text, $attr) = @_;
 
   my $type = ($attr->{TYPE}) ? "$attr->{TYPE}" : 'bg-gray-active';
+  my $style = ($attr->{STYLE}) ? "$attr->{STYLE}" : "";
 
-  return "<span class='label $type'>" . ($text || '') . "</span>";
+  return "<span class='label $type'$style>" . ($text || '') . "</span>";
 }
 
 #***********************************************************
@@ -4139,7 +4166,7 @@ sub progress_bar {
     }
   }
   my %progress_bar;
-  my $text_color = ($complete < 10) ? 'text-success' : '';
+  my $text_color = ($complete < 10) ? 'black' : '';
   my $ret = '';
   my $bar_color = '';
   my $bage_color = '';
@@ -4212,7 +4239,7 @@ sub progress_bar {
     $bage_color = $attr->{COLOR} ? $attr->{COLOR} : 'green';
     $ret = qq{
    <div class="progress-bar progress-bar-success" style="width: $first_step%">
-     <p class="$text_color"> $attr->{TEXT} </p> <span class="sr-only">$first_step% Complete (success)</span>
+     <p style="color: $text_color"> $attr->{TEXT} </p> <span class="sr-only">$first_step% Complete (success)</span>
    </div> };
 
     if ($second_step) {
@@ -4803,7 +4830,7 @@ sub form_datetimepicker {
     $event_scripts .= qq{
       jQuery('#$name').on('dp.change', function(e){
         if (e.date){
-          jQuery('#$attr->{TIME_HIDDEN_ID}').val(e.date.format('h:m'));
+          jQuery('#$attr->{TIME_HIDDEN_ID}').val(e.date.format('HH:mm'));
         }
       });
     };
@@ -5001,7 +5028,7 @@ sub form_blocks_togglable {
 }
 
 #**********************************************************
-=head2 charts_js() -
+=head2 chart() - create chart
 
   Arguments:
     $attr:
@@ -5013,7 +5040,10 @@ sub form_blocks_togglable {
       OUTPUT2RETURN - return result, BOOL
       FILL          - turn off filling under line(only for LINE chart), BOOL
       HIDE_LEGEND   - do not show chart legend
-
+      For chart with customer axes and options:
+        DATA_CHART    - Chart data with data? label and other(see Example for custom chart or manual)
+        OPTIONS       - Options for chart(see Example for custom chart or manual)
+        manual and options - https://www.chartjs.org/docs/latest/axes/
   Returns:
     $result - chart with data
   Examples:
@@ -5064,6 +5094,40 @@ sub form_blocks_togglable {
         },
         OUTPUT2RETURN => 1,
     });
+    Example for custom chart with 2 y axes:
+      my $chart3 = $html->chart({
+    TYPE     => 'line',
+    DATA_CHART => {
+      datasets => [ {
+        data        => [1,2,3,4,5,6,7,8,9,10],
+        label       => "NEW",
+        yAxisID     => 'left-y-axis',
+        borderColor => 'red',
+      }, {
+        data        => [1,2,3,4,5,6,7,8,9,10],
+        label       => "ALL",
+        yAxisID     => 'right-y-axis',
+        borderColor => 'black',
+      } ],
+      labels   => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+    },
+    OPTIONS  => {
+      scales => {
+        yAxes => [ {
+          id       => 'left-y-axis',
+          type     => 'linear',
+          position => 'left',
+          ticks    => {
+            stepSize => 1
+          }
+        }, {
+          id       => 'right-y-axis',
+          type     => 'linear',
+          position => 'right'
+        } ]
+      }
+    }
+  });
 =cut
 #**********************************************************
 sub chart {
@@ -5085,15 +5149,33 @@ sub chart {
 
   # loading chart plugin and autincrement id for more then one chart
   if (!$self->{CHART_LOADED}) {
-    $result .= q{<script src="/styles/lte_adm/plugins/chartjs/Chart.min.js"></script>};
     $self->{CHART_LOADED} = 1;
-    $canvas_id .= $self->{CHART_LOADED}
   }
   else {
-    $result .= q{<script src="/styles/lte_adm/plugins/chartjs/Chart.min.js"></script>};
     $self->{CHART_LOADED}++;
-    $canvas_id .= $self->{CHART_LOADED};
   }
+
+  $result .= qq{<script src="/styles/$self->{HTML_STYLE}/plugins/chartjs/Chart.min.js"></script>};
+  $canvas_id .= $self->{CHART_LOADED};
+
+  if ($attr->{DATA_CHART} && $attr->{OPTIONS}) {
+    my $chart_data1 = JSON->new->encode($attr->{DATA_CHART});
+    my $chart_options1 = JSON->new->encode($attr->{OPTIONS});
+    $result .= qq{
+    <canvas id="$canvas_id" class="chartjs" style="display: block; min-height: 250px"></canvas>
+    <script>
+       var c = document.getElementById("$canvas_id");
+       var ctx = c.getContext("2d");
+       var myChart = new Chart(ctx, {
+         type: '$chart_type',
+         data: $chart_data1,
+         options: $chart_options1
+      });
+    </script>
+  };
+    return $result;
+  }
+
   # hash which will be encode to json
   my %data = ();
 
@@ -5115,20 +5197,15 @@ sub chart {
   }
 
   my $json_data = JSON->new->encode(\%data);
-
   my $hide_legend_option = ($attr->{HIDE_LEGEND}) ? 'legend : { display : false },' : '';
-
   my $scales = $attr->{Y_BEGIN_ZERO} ? 'scales: { yAxes: [{ ticks: {beginAtZero: true,} }] },' : '';
 
   # create canvas
   $result .= qq{
     <canvas id="$canvas_id" class="chartjs" style="display: block; min-height: 250px"></canvas>
     <script>
-
        var c = document.getElementById("$canvas_id");
-
        var ctx = c.getContext("2d");
-
        var myChart = new Chart(ctx, {
          type: '$chart_type',
          data: $json_data,
@@ -5241,10 +5318,10 @@ sub html_tree {
     <link rel='stylesheet' href='/styles/default_adm/css/new_tree.css'>
     <script type='text/javascript' src='/styles/default_adm/js/tree/tree.js'></script>
     <script>
+      var htmlTree = "";
       jQuery(function() {
       var keys = '$keys';
       var list = $DATA;
-      var name;
       make_tree(list, keys);
       });
 	  </script> );

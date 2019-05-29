@@ -16,7 +16,7 @@ our ($db,
   %permissions,
 );
 
-# my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
+ my @priority_lit = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 
 my @priority = ();
 if ($html) {
@@ -80,8 +80,8 @@ sub msgs_form_search {
     'PRIORITY',
     {
       SELECTED     => $FORM{PRIORITY} || 5,
-      SEL_OPTIONS  => { '' => $lang{ALL} },
-      SEL_ARRAY    => \@priority,
+      SEL_OPTIONS  => { '_SHOW' => $lang{ALL} },
+      SEL_ARRAY    => \@priority_lit,
       STYLE        => \@priority_colors,
       ARRAY_NUM_ID => 1
     }
@@ -125,6 +125,15 @@ sub msgs_form_search {
 #**********************************************************
 =head2 msgs_list($attr) - Message list and filters
 
+  Arguments:
+    SELECT_ALL_ON
+    ALLOW_TO_CLEAR_DISPATCH
+    DISPATCH_ID
+    LIST_ID               - Msgs list ID
+
+  Results:
+
+
 =cut
 #**********************************************************
 sub msgs_list {
@@ -142,6 +151,12 @@ sub msgs_list {
     $pages_qs .= "&RESPOSIBLE=$admin->{AID}";
     $LIST_PARAMS{STATE} = $FORM{STATE};
   }
+
+  $pages_qs .= "&STATE=$FORM{STATE}" if ( $FORM{STATE} && !$FORM{search_form} );
+  $pages_qs .= "&STATE=0" if ( defined($FORM{STATE}) && !$FORM{STATE} );
+  $pages_qs .= "&ALL_MSGS=$FORM{ALL_MSGS}" if ( $FORM{ALL_MSGS} );
+  $pages_qs .= "&ALL_OPENED=$FORM{ALL_OPENED}" if ( $FORM{ALL_OPENED} );
+
   my $table_add_msg_btn = !(defined($FORM{CHAPTER})) ||
       (
         $attr->{A_PRIVILEGES} &&
@@ -151,10 +166,11 @@ sub msgs_list {
       !(defined($attr->{A_PRIVILEGES}->{$FORM{CHAPTER}})) ? "$lang{ADD}:add_form=1&UID=" . ($FORM{UID} || '') . "&index=$index:add" : '';
 
   $attr->{MODULE} = 'Msgs';
-  my Abills::HTML $table; my $list;
+  my Abills::HTML $table;
+  my $list;
 
   # state for watching messages
-  if($FORM{STATE} && $FORM{STATE} == 12){
+  if($FORM{STATE} && $FORM{STATE} =~ /^\d+$/ && $FORM{STATE} == 12){
     my $watched_links = $Msgs->msg_watch_list({
       COLS_NAME => 1,
       AID       => $admin->{AID}
@@ -255,9 +271,9 @@ sub msgs_list {
       width      => '100%',
       caption    => $lang{MESSAGES},
       qs         => $pages_qs
-        . (defined($FORM{STATE}) ? "&STATE=$FORM{STATE}" : '&ALL_MSGS=1')
+#        . (defined($FORM{STATE}) ? "&STATE=$FORM{STATE}" : '&ALL_MSGS=1')
         . (!$FORM{UID} ? '&UID=' : ''),
-      ID         => 'MSGS_LIST',
+      ID         => $attr->{LIST_ID} || 'MSGS_LIST',
       header     => msgs_status_bar({ MSGS_STATUS => $msgs_status, NEXT => 1 }),
       SELECT_ALL =>
         ($attr->{CHAPTERS_DELIGATION} && scalar keys %{ $attr->{CHAPTERS_DELIGATION} } == 0) || $attr->{SELECT_ALL_ON} ? "MSGS_LIST:del:$lang{SELECT_ALL}" : ''
@@ -284,28 +300,30 @@ sub msgs_list {
   }
 
   my $total_msgs = $Msgs->{TOTAL};
+  my $info = '';
 
-  my $dispatch_arr = msgs_dispatch_sel(
-    $attr->{ALLOW_TO_CLEAR_DISPATCH}
-    ? {
+  if(! $FORM{EXPORT_CONTENT}) {
+    my $dispatch_arr = msgs_dispatch_sel(
+      $attr->{ALLOW_TO_CLEAR_DISPATCH}
+        ? {
         SELECTED    => $attr->{DISPATCH_ID},
         SEL_OPTIONS => { '' => '' },
       }
-    : undef
-  );
+        : undef
+    );
 
-  if($A_CHAPTER && $#{ $A_CHAPTER } == - 1) {
-    push @$dispatch_arr, $html->form_input('COMMENTS', "$lang{DEL} $lang{MESSAGES}",
+    if ($A_CHAPTER && $#{$A_CHAPTER} == -1) {
+      push @$dispatch_arr, $html->form_input('COMMENTS', "$lang{DEL} $lang{MESSAGES}",
         { TYPE => 'submit', class => 'btn btn-danger', FORM_ID => 'MSGS_LIST' });
-  }
+    }
 
-  my $info = '';
-  foreach my $val ( @$dispatch_arr ) {
-    $info .= $html->element('div', $val, { class => 'form-group' });
-  }
+    foreach my $val (@$dispatch_arr) {
+      $info .= $html->element('div', $val, { class => 'form-group' });
+    }
 
-  if($info) {
-    $info = $html->element('div', $info, { class => 'well well-sm form-inline' })
+    if ($info) {
+      $info = $html->element('div', $info, { class => 'well well-sm form-inline' })
+    }
   }
 
   my $table2 = $html->table({
@@ -374,12 +392,13 @@ sub msgs_dispatch_sel {
       'DISPATCH_ID',
       {
         SELECTED       => $Msgs->{DISPATCH_ID} || '',
-        SEL_LIST       => $Msgs->dispatch_list({ STATE => 0, COLS_NAME => 1 }),
+        SEL_LIST       => $Msgs->dispatch_list({ COMMENTS => '_SHOW', PLAN_DATE => '_SHOW', MESSAGE_COUNT => '_SHOW', STATE => 0, COLS_NAME => 1 }),
         SEL_KEY        => 'id',
         SEL_VALUE      => 'plan_date,comments,message_count',
         MAIN_MENU      => get_function_index('msgs_dispatch'),
         MAIN_MENU_ARGV => ($Msgs->{DISPATCH_ID}) ? "chg=$Msgs->{DISPATCH_ID}" : '',
         FORM_ID        => 'MSGS_LIST',
+        SEL_WIDTH      => '300px', #TODO: Change after fixing report form
         %{ $attr // {} }
       }
     ),
@@ -474,6 +493,14 @@ sub _msgs_list_plan_date_time_form {
 #**********************************************************
 =head2 _msgs_list_state_form($attr) - Message list and filters
 
+  Arguments:
+    $state_id
+    $attr
+    $status
+    $deligation
+
+  Results:
+
 =cut
 #**********************************************************
 sub _msgs_list_state_form {
@@ -485,7 +512,7 @@ sub _msgs_list_state_form {
     $state = $html->b($state) || $state_id;
   }
 
-  if ($attr->{admin_read} eq '0000-00-00 00:00:00' || ($state_id eq '0' && !$attr->{replies_counts})){
+  if (($attr->{admin_read} && $attr->{admin_read} eq '0000-00-00 00:00:00') || ($state_id eq '0' && !$attr->{replies_counts})){
     my $icon = $html->element('span', '', { class => 'glyphicon glyphicon-flag text-danger' });
     $state = $icon . ($state || '');
   }

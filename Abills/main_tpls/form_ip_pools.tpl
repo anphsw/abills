@@ -161,7 +161,7 @@
                 <label class='control-label col-md-4 required' for='NAME_id'>_{NAME}_</label>
 
                 <div class='col-md-8'>
-                    <input class='form-control' name='NAME' required value='%NAME%' id='NAME_id' maxlength='15'/>
+                    <input class='form-control' name='NAME' required value='%NAME%' id='NAME_id' maxlength='50'/>
                 </div>
             </div>
             <div class='form-group'>

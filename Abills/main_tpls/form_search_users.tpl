@@ -60,11 +60,11 @@
                        class='form-control' type='text'/>
             </div>
         </div>
-        <div class='form-group'>
-            <label class='control-label col-xs-4'>_{GROUP}_:</label>
+        <!--<div class='form-group'>-->
+            <!--<label class='control-label col-xs-4'>_{GROUP}_:</label>-->
 
-            <div class='col-xs-8'>%GROUPS_SEL%</div>
-        </div>
+            <!--<div class='col-xs-8'>%GROUPS_SEL%</div>-->
+        <!--</div>-->
         <div class='form-group'>
             <label class='control-label col-xs-4' for='DEPOSIT'>_{DEPOSIT}_ (&gt;, &lt;):</label>
 
@@ -249,6 +249,15 @@
                 <div class='col-xs-8'>
                     <input id='PASPORT_GRANT' name='PASPORT_GRANT' value='%PASPORT_GRANT%'
                            placeholder='%PASPORT_GRANT%'
+                           class='form-control' type='text'/>
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-xs-4' for='BIRTH_DATE'>_{BIRTH_DATE}_:</label>
+
+                <div class='col-xs-8'>
+                    <input id='BIRTH_DATE' name='BIRTH_DATE' value='%BIRTH_DATE%'
+                           placeholder='%BIRTH_DATE%'
                            class='form-control' type='text'/>
                 </div>
             </div>

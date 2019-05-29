@@ -12,6 +12,8 @@
    SKIP_RRD - Skip gen rrd
    NAS_IDS
    multi
+   CPE_CHECK - 
+   CPE_FILL
 
 =cut
 
@@ -24,7 +26,9 @@ use Equipment;
 use Events;
 use Events::API;
 use Data::Dumper;
-use Abills::Base qw(load_pmodule in_array check_time gen_time);
+use Abills::Base qw(load_pmodule in_array check_time gen_time in_array);
+use FindBin '$Bin';
+
 use threads;
 our (
   $argv,
@@ -39,6 +43,7 @@ our (
 my $running_threads = 10;
 our $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Events = Events::API->new($db, $Admin, \%conf);
+my $Sender = Abills::Sender::Core->new($db, $Admin, \%conf);
 
 do 'Abills/Misc.pm';
 
@@ -46,7 +51,7 @@ require Equipment::Grabbers;
 require Equipment::Pon_mng;
 require Equipment::Graph;
 
-if ($argv->{NAS_IDS}) {
+if ($argv->{NAS_IDS} && !$argv->{CPE_FILL}) {
   _equipment_pon_load($argv->{NAS_IDS});
 }
 elsif ($argv->{multi}) {
@@ -54,6 +59,15 @@ elsif ($argv->{multi}) {
 }
 elsif ($argv->{SERIAL_SCAN}) {
   _scan_mac_serial();
+}
+elsif ($argv->{SNMP_SERIAL_SCAN_ALL}) {
+  _scan_mac_serial_on_all_nas();
+}
+elsif ($argv->{CPE_FILL}) {
+  _save_port_and_nas_to_internet_main();
+}
+elsif ($argv->{CPE_CHECK}) {
+  _check_port_and_nas_from_internet_main();
 }
 else {
   _equipment_pon();
@@ -98,7 +112,9 @@ sub _equipment_pon_load {
   my ($nas_id) = @_;
 
   my $pon_begin_time = check_time();
-  our $SNMP_TPL_DIR = "/usr/abills/Abills/modules/Equipment/snmp_tpl/";
+  our $SNMP_TPL_DIR = $Bin . "/../Abills/modules/Equipment/snmp_tpl/";
+  #"/usr/abills/Abills/modules/Equipment/snmp_tpl/";
+
   $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef }, \%conf);
   if (!$db->{db}) {
     print "Error: SQL connect error\n";
@@ -235,9 +251,9 @@ sub _equipment_pon_load {
 
       my $created_onu = ();
       foreach my $onu (@$onu_database_list) {
-        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_GRAPH}  = $onu->{onu_graph};
-        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_DESC}   = $onu->{comments} || '';
-        $created_onu->{ $onu->{onu_snmp_id} }->{ID}         = $onu->{id};
+        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_GRAPH} = $onu->{onu_graph};
+        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_DESC} = $onu->{comments} || '';
+        $created_onu->{ $onu->{onu_snmp_id} }->{ID} = $onu->{id};
         $created_onu->{ $onu->{onu_snmp_id} }->{ONU_STATUS} = $onu->{onu_status};
       }
 
@@ -279,6 +295,9 @@ sub _equipment_pon_load {
             }
 
             if ($#onu_graph_data > -1 && !$argv->{SKIP_RRD}) {
+              if ($debug > 3) {
+                print "NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => " . join(',', @onu_graph_data) . " STEP => $argv->{STEP} || '300'\n";
+              }
               add_graph({ NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300' });
             }
           }
@@ -347,6 +366,14 @@ sub _equipment_pon_load {
         print "ADD ONU." if ($debug > 2);
         $Equipment->onu_add({ MULTI_QUERY => \@ONU_ADD });
         print " " . gen_time($time) . "\n" if ($debug > 2);
+        my $serials = join(', ', map {$_->[8]} @ONU_ADD);
+        $Sender->send_message({
+          TO_ADDRESS  => $conf{ADMIN_MAIL},
+          MESSAGE     => "Add " . ($#ONU_ADD + 1) . " new onu on NAS_ID: $nas_id (" . ($nas_info->{NAME} || q{}) . ") Serials: $serials\n",
+          SUBJECT     => "Add new ONU",
+          SENDER_TYPE => 'Mail',
+          DEBUG       => 5,
+        });
       }
       if ($#MULTI_QUERY > -1) {
         $time = check_time() if ($debug > 2);
@@ -499,7 +526,6 @@ sub _scan_mac_serial {
     ID         => "_SHOW",
   });
 
-  use Abills::Base qw(_bp);
   foreach my $pon (@$equipment_list) {
     my $onu_list = $Equipment->onu_list({
       COLS_NAME  => 1,
@@ -558,6 +584,147 @@ sub _generate_new_event {
     COMMENTS    => $comments,
   });
 
+  return 1;
+}
+
+#**********************************************************
+=head2 _scan_mac_serial_on_all_nas($comments)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _scan_mac_serial_on_all_nas {
+
+  my $Equipment_list = $Equipment->_list({
+    NAS_ID           => '_SHOW',
+    NAS_NAME         => '_SHOW',
+    MODEL_ID         => '_SHOW',
+    REVISION         => '_SHOW',
+    TYPE             => '_SHOW',
+    SYSTEM_ID        => '_SHOW',
+    NAS_TYPE         => '_SHOW',
+    MODEL_NAME       => '_SHOW',
+    VENDOR_NAME      => '_SHOW',
+    STATUS           => '_SHOW',
+    NAS_IP           => '_SHOW',
+    MNG_HOST_PORT    => '_SHOW',
+    NAS_MNG_USER     => '_SHOW',
+    NAS_MNG_PASSWORD => '_SHOW',
+    SNMP_TPL         => '_SHOW',
+    LOCATION_ID      => '_SHOW',
+    VENDOR_NAME      => '_SHOW',
+    SNMP_VERSION     => '_SHOW',
+    TYPE_NAME        => '4',
+    COLS_NAME        => 1,
+    COLS_UPPER       => 1,
+  });
+
+  my %Nas_macs = ();
+
+  foreach my $nas (@$Equipment_list) {
+    my $port_type = $Equipment->pon_port_list({
+      NAS_ID    => $nas->{NAS_ID},
+      COLS_NAME => 1,
+    });
+
+    my $oids = '';
+    my $nas_type = equipment_pon_init({ VENDOR_NAME => $nas->{VENDOR_NAME} });
+    if ($nas_type eq "_zte") {
+      $oids = _zte({ TYPE => $port_type->[0]{pon_type} });
+    }
+    elsif ($nas_type eq "_eltex") {
+      $oids = _eltex({ TYPE => $port_type->[0]{pon_type} });
+    }
+    elsif ($nas_type eq "_bdcom") {
+      $oids = _bdcom({ TYPE => $port_type->[0]{pon_type} });
+    }
+    elsif ($nas_type eq "_huawei") {
+      $oids = _huawei({ TYPE => $port_type->[0]{pon_type} });
+    }
+    elsif ($nas_type eq "_vsolution") {
+      $oids = _vsolution({ TYPE => $port_type->[0]{pon_type} });
+    }
+    else {
+      next;
+    }
+
+    my $SNMP_COMMUNITY = $nas->{NAS_MNG_PASSWORD} . '@' . $nas->{NAS_MNG_IP_PORT};
+
+    my $mac_serials = snmp_get({
+      %$nas,
+      SNMP_COMMUNITY => $SNMP_COMMUNITY,
+      WALK           => 1,
+      OID            => $oids->{ONU_MAC_SERIAL}{OIDS},
+      VERSION        => 2,
+      TIMEOUT        => 2
+    });
+
+    foreach my $mac (@$mac_serials) {
+      if ($Nas_macs{$mac}) {
+        my $message = "You have mac_serial duplicate in $Nas_macs{$mac} and $nas->{NAS_ID} $nas->{NAS_NAME} ($mac)\n";
+        _generate_new_event($message);
+      }
+      else {
+        $Nas_macs{$mac} = $nas->{NAS_ID} . " " . $nas->{NAS_NAME};
+      }
+    }
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _save_port_and_nas_to_internet_main()
+
+=cut
+#**********************************************************
+sub _save_port_and_nas_to_internet_main {
+  my $onu_list = $Equipment->onu_and_internet_cpe_list();
+  require Internet;
+  use Abills::Base;
+  _bp('asd', $onu_list, {TO_CONSOLE => 1});
+  my @ids = split ';', $argv->{NAS_IDS} || '';
+  my $Internet = Internet->new($db, $Admin, \%conf);
+  foreach my $line (@$onu_list) {
+    if ($argv->{NAS_IDS} && !in_array($line->{onu_nas}, \@ids)) {
+      next;
+    }
+    if (!$line->{user_port} && !$line->{user_nas}) {
+      $Internet->change({
+        UID    => $line->{uid},
+        ID     => $line->{service_id},
+        NAS_ID => $line->{onu_nas},
+        PORT   => $line->{onu_port},
+      });
+      print "User:$line->{uid} add port ($line->{onu_port}) and nas ($line->{onu_nas})\n";
+    }
+    else {
+      print "Port or nas already set\n";
+      return 1;
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _check_port_and_nas_in_internet_main()
+
+=cut
+#**********************************************************
+sub _check_port_and_nas_from_internet_main {
+  my $onu_list = $Equipment->onu_and_internet_cpe_list();
+  foreach my $line (@$onu_list) {
+    if ($line->{onu_port} ne $line->{user_port}) {
+      print "User:$line->{uid},  port does not match user_port:'$line->{user_port}'/onu_port:'$line->{onu_port}'\n";
+    }
+    if ($line->{onu_nas} ne $line->{user_nas}) {
+      print "User:$line->{uid},  nas does not match user_nas:'$line->{user_nas}'/onu_nas:'$line->{onu_nas}'\n";
+    }
+  }
   return 1;
 }
 

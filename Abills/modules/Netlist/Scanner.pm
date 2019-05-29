@@ -150,7 +150,10 @@ sub scan {
   }
   
   my $sudo_name = $start_programs->{SUDO};
-  $parser->parsescan( "$sudo_name $self->{nmap}", $command, $self->{target} );
+  eval{  $parser->parsescan( "$sudo_name $self->{nmap}", $command, $self->{target} ) };
+  if ($@) {
+    return {errstr => "$@", errno=>2301};
+  }
 
   # Saving reference to save scan results
   $self->{parser} = $parser;

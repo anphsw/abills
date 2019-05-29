@@ -2,13 +2,15 @@
 use strict;
 use warnings FATAL => 'all';
 
-our(
+our (
   $html,
   %lang,
   @status,
   @status_color,
   $admin,
   $db,
+  @MONTHES,
+  @WEEKDAYS,
 
 );
 
@@ -34,7 +36,7 @@ sub paysys_log {
     PAYSYS_ID => '_SHOW',
     NAME      => '_SHOW',
     MODULE    => '_SHOW',
-    STATUS    => 1,
+#    STATUS    => 1,
     COLS_NAME => 1,
   });
 
@@ -57,7 +59,7 @@ sub paysys_log {
         width   => '500',
         caption => $lang{INFO},
         rows    => [
-          [ "ID",            $Paysys->{ID}        ],
+          [ "ID", $Paysys->{ID} ],
           [ "$lang{LOGIN}", $Paysys->{LOGIN} ],
           [ "$lang{DATE}", $Paysys->{DATETIME} ],
           [ "$lang{SUM}", $Paysys->{SUM} ],
@@ -65,7 +67,7 @@ sub paysys_log {
           [ "$lang{PAY_SYSTEM}", $PAY_SYSTEMS{ $Paysys->{SYSTEM_ID} } ],
           [ "$lang{TRANSACTION}", $Paysys->{TRANSACTION_ID} ],
           [ "$lang{USER} IP", $Paysys->{CLIENT_IP} ],
-          [ "PAYSYS IP",     $Paysys->{PAYSYS_IP} ],
+          [ "PAYSYS IP", $Paysys->{PAYSYS_IP} ],
           [ "$lang{INFO}", $Paysys->{INFO} ],
           [ "$lang{ADD_INFO}", $Paysys->{USER_INFO} ],
           [ "$lang{STATUS}", $status[ $Paysys->{STATUS} ] ],
@@ -76,11 +78,11 @@ sub paysys_log {
 
     print $table->show();
   }
-  elsif (defined($FORM{del}) && ($FORM{COMMENTS} || $FORM{is_js_confirmed} )) {
+  elsif (defined($FORM{del}) && ($FORM{COMMENTS} || $FORM{is_js_confirmed})) {
     $Paysys->del($FORM{del});
 
     if (!$Paysys->{errno}) {
-      $html->message( 'info', $lang{DELETED}, "$lang{DELETED} $FORM{del}" );
+      $html->message('info', $lang{DELETED}, "$lang{DELETED} $FORM{del}");
     }
   }
 
@@ -91,11 +93,11 @@ sub paysys_log {
   if ($FORM{search_form} && !$user->{UID}) {
     my %ACTIVE_SYSTEMS = %PAY_SYSTEMS;
 
-#    while (my ($k, $v) = each %CONF_OPTIONS) {
-#      if (!$conf{$k}) {
-#        delete $ACTIVE_SYSTEMS{$v};
-#      }
-#    }
+    #    while (my ($k, $v) = each %CONF_OPTIONS) {
+    #      if (!$conf{$k}) {
+    #        delete $ACTIVE_SYSTEMS{$v};
+    #      }
+    #    }
 
     $info{PAY_SYSTEMS_SEL} = $html->form_select(
       'PAYMENT_SYSTEM',
@@ -117,15 +119,15 @@ sub paysys_log {
     );
 
     $info{DATERANGE_PICKER} = $html->form_daterangepicker({
-      NAME      => 'FROM_DATE/TO_DATE',
+      NAME  => 'FROM_DATE/TO_DATE',
       #      FORM_NAME => 'invoice_add',
-      VALUE     => $FORM{'FROM_DATE_TO_DATE'},
+      VALUE => $FORM{'FROM_DATE_TO_DATE'},
     });
 
     form_search({ SEARCH_FORM => $html->tpl_show(_include('paysys_search', 'Paysys'),
         { %info, %FORM },
         { OUTPUT2RETURN => 1 }),
-      ADDRESS_FORM  => 1 });
+      ADDRESS_FORM            => 1 });
   }
 
   if (!defined($FORM{sort})) {
@@ -149,7 +151,7 @@ sub paysys_log {
       status         => $lang{STATUS},
       date           => $lang{DATE},
       month          => $lang{MONTH},
-      datetime        => $lang{DATE},
+      datetime       => $lang{DATE},
     },
     TABLE           => {
       width      => '100%',
@@ -158,8 +160,8 @@ sub paysys_log {
       qs         => $pages_qs,
       pages      => $Paysys->{TOTAL},
       ID         => 'PAYSYS_LOG',
-      EXPORT    => "$lang{EXPORT} XML:&xml=1",
-      MENU      => "$lang{SEARCH}:index=$index&search_form=1:search;",
+      EXPORT     => "$lang{EXPORT} XML:&xml=1",
+      MENU       => "$lang{SEARCH}:index=$index&search_form=1:search;",
     },
   });
 
@@ -168,21 +170,21 @@ sub paysys_log {
       $html->button($line->{login}, "index=15&UID=$line->{uid}"),
       $line->{datetime},
       $line->{sum},
-      (($PAY_SYSTEMS{$line->{system_id}}) ? $PAY_SYSTEMS{$line->{system_id}} : "Unknown: ". $line->{system_id}),
+      (($PAY_SYSTEMS{$line->{system_id}}) ? $PAY_SYSTEMS{$line->{system_id}} : "Unknown: " . $line->{system_id}),
       $html->button("$line->{transaction_id}", "index=2&EXT_ID=$line->{transaction_id}&search=1"),
       #"$line->{status}:$status[$line->{status}]"
       "$line->{status}:" . $html->color_mark($status[$line->{status}], $status_color[$line->{status}]),
     );
 
-    for (my $i = 7; $i < 7+$Paysys->{SEARCH_FIELDS_COUNT}; $i++) {
+    for (my $i = 7; $i < 7 + $Paysys->{SEARCH_FIELDS_COUNT}; $i++) {
       push @fields_array, $line->{$Paysys->{COL_NAMES_ARR}->[$i]};
     }
 
     $table->addrow(
       @fields_array,
-      $html->button( $lang{INFO}, "index=$index&info=$line->{id}", { class => 'show' } )
-        .' '.  ($user->{UID} ? '-' : $html->button( $lang{DEL}, "index=$index&del=$line->{id}",
-          { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' } ))
+      $html->button($lang{INFO}, "index=$index&info=$line->{id}", { class => 'show' })
+        . ' ' . ($user->{UID} ? '-' : $html->button($lang{DEL}, "index=$index&del=$line->{id}",
+          { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' }))
     );
   }
   print $table->show();
@@ -191,13 +193,13 @@ sub paysys_log {
     {
       width      => '100%',
       cols_align => [ 'right', 'right', 'right', 'right' ],
-      rows       => [ [ "$lang{TOTAL}:", $html->b( $Paysys->{TOTAL} ), "$lang{SUM}", $html->b( $Paysys->{SUM} ) ],
-        [ "$lang{TOTAL} $lang{COMPLETE}:", $html->b( $Paysys->{TOTAL_COMPLETE} ), "$lang{SUM} $lang{COMPLETE}:",
-          $html->b( $Paysys->{SUM_COMPLETE} ) ]
+      rows       => [ [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL}), "$lang{SUM}", $html->b($Paysys->{SUM}) ],
+        [ "$lang{TOTAL} $lang{COMPLETE}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM} $lang{COMPLETE}:",
+          $html->b($Paysys->{SUM_COMPLETE}) ]
       ]
     }
   );
-  if(!$admin->{MAX_ROWS}){
+  if (!$admin->{MAX_ROWS}) {
     print $table->show();
   }
   # print $table->show();
@@ -208,29 +210,25 @@ sub paysys_log {
 #**********************************************************
 =head2 paysys_reports()
 
-  Arguments:
-     -
-
-  Returns:
-
 =cut
 #**********************************************************
 sub paysys_reports {
   my ($attr) = @_;
-  print "Hello, World";
+
   my $select = _paysys_select_connected_systems();
+  my $selectingroup = $html->element( 'div', $select, { class => 'input-group' } );
   my $systems = $html->form_main(
     {
-      CONTENT => $select,
-      HIDDEN  => { index => $index },
-      SUBMIT  => { show  => $lang{SHOW} },
-      class   => 'navbar-form navbar-right',
+      CONTENT   => $selectingroup,
+      HIDDEN    => { index => $index },
+      SUBMIT    => { show => $lang{SHOW} },
+      class     => 'navbar-form ',
     }
   );
 
   func_menu({ $lang{NAME} => $systems });
 
-  if($FORM{SYSTEM_ID}){
+  if ($FORM{SYSTEM_ID}) {
     my $system_info = $Paysys->paysys_connect_system_info({
       ID               => $FORM{SYSTEM_ID},
       SHOW_ALL_COLUMNS => 1,
@@ -240,11 +238,23 @@ sub paysys_reports {
     my $REQUIRE_OBJECT = _configure_load_payment_module($system_info->{module});
     my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {
         CUSTOM_NAME => $system_info->{name},
-        CUSTOM_ID   => $system_info->{paysys_id}});
-    if($PAYSYS_OBJECT->can('report')){
-      $PAYSYS_OBJECT->report(\%FORM);
+        CUSTOM_ID   => $system_info->{paysys_id},
+        DATE        => $DATE
+      });
+
+    if ($PAYSYS_OBJECT->can('report')) {
+      $PAYSYS_OBJECT->report({
+        FORM     => \%FORM,
+        LANG     => \%lang,
+        HTML     => $html,
+        INDEX    => $index,
+        OP_SID   => '',
+        MONTHES  => \@MONTHES,
+        WEEKDAYS => \@WEEKDAYS,
+        DATE     => $DATE,
+      });
     }
-    else{
+    else {
       $html->message("warn", "No sub report", "This module doesnt have report sub");
     }
   }

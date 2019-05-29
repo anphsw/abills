@@ -578,7 +578,7 @@ sub stats_ppp {
   my $port = 30006;
 
   my %stats = ();
-  my ($ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
+  my ($ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
   $port = $mng_port || 0;
 
   my $remote = IO::Socket::INET->new(
@@ -836,6 +836,7 @@ sub hangup_ipoe {
     $ENV{NAS_MNG_IP_PORT} = $NAS->{NAS_MNG_IP_PORT};
     $ENV{NAS_ID} = $NAS->{NAS_ID};
     $ENV{NAS_TYPE} = $NAS->{NAS_TYPE};
+    $ENV{NAS_MNG_PORT} ||= 22;
   }
 
   my $uid = $attr->{UID};
@@ -991,10 +992,10 @@ sub hangup_cisco {
   my $user = $attr->{USER};
   my $PORT = $attr->{PORT};
 
-  my ($nas_mng_ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
+  my ($nas_mng_ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
 
   #POD Version
-  if ($mng_port && $mng_port == 1700) {
+  if ($mng_port) {
     hangup_radius($NAS, $attr);
   }
   #Rsh version
@@ -1095,7 +1096,7 @@ sub hangup_mpd5 {
 
   my ($hostname, $radius_port, $telnet_port) = ('127.0.0.1', '3799', '5005');
 
-  ($hostname, $radius_port, $telnet_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT});
+  ($hostname, $radius_port, $telnet_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 4);
 
   if (!$attr->{LOCAL_HANGUP}) {
     $NAS->{NAS_MNG_IP_PORT} = "$hostname:$radius_port";
@@ -1199,7 +1200,7 @@ sub hangup_pppd {
   my $result = '';
 
   if ($NAS->{NAS_MNG_IP_PORT} =~ /:/) {
-    my ($ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
+    my ($ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 4);
     use IO::Socket;
 
     my $remote = IO::Socket::INET->new(
@@ -1309,7 +1310,7 @@ sub stats_patton29xx {
 sub hangup_pppd_coa {
   my ($NAS, $PORT, $attr) = @_;
 
-  my ($ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 2);
+  my ($ip, $mng_port) = split(/:/, $NAS->{NAS_MNG_IP_PORT}, 3);
   $Log->log_print('LOG_DEBUG', '', " HANGUP: NAS_MNG: $ip:$mng_port '$NAS->{NAS_MNG_PASSWORD}'", { ACTION => 'CMD' });
 
   my $type;
@@ -1454,7 +1455,7 @@ sub rsh_cmd {
   my $mng_port;
   my $mng_user = $attr->{NAS_MNG_USER} || '';
   my $ip;
-  ($ip, undef, $mng_port) = split(/:/, $attr->{NAS_MNG_IP_PORT}, 2);
+  ($ip, undef, $mng_port) = split(/:/, $attr->{NAS_MNG_IP_PORT}, 4);
 
   $cmd =~ s/\\\"/\"/g;
 

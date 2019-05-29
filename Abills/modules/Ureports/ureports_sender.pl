@@ -21,7 +21,7 @@ BEGIN {
     $Bin . '/../Abills/modules' );
 }
 
-my $version = 0.74;
+my $version = 0.80;
 my $debug = 0;
 our (
   $db,
@@ -43,9 +43,7 @@ use Ureports::Send qw/ureports_send_reports/;
 
 use Admins;
 use Shedule;
-#use Dv;
 use Dv_Sessions;
-#use Internet;
 use Internet::Sessions;
 use Finance;
 use Fees;
@@ -188,7 +186,7 @@ sub ureports_periodic_reports{
     if(in_array('Internet', \@MODULES)) {
       $users_params{INTERNET_TP} = 1;
       $users_params{INTERNET_STATUS} = '_SHOW';
-      $users_params{INTERNET_EXPIRE} = '_SHOW';
+      #$users_params{INTERNET_EXPIRE} = '_SHOW';
     }
     else {
       $users_params{DV_TP} = 1;
@@ -202,7 +200,7 @@ sub ureports_periodic_reports{
       my %PARAMS = ();
       $user->{TP_ID} = $tp->{tp_id};
       my $internet_status = $user->{DV_STATUS} || $user->{INTERNET_STATUS} || 0;
-      my $internet_expire = $user->{INTERNET_EXPIRE} || 0;
+      #my $internet_expire = $user->{INTERNET_EXPIRE} || 0;
       #Skip disabled user
       next if ($internet_status == 1 || $internet_status == 2 || $internet_status == 3);
       $user->{VALUE} =~ s/,/\./s;
@@ -266,12 +264,13 @@ sub ureports_periodic_reports{
         }
 
         $user->{DEPOSIT} = sprintf( "%.2f", $user->{DEPOSIT} );
+        $user->{EXPIRE_DAYS}=0;
         if ( $total_daily_fee > 0 ){
           $user->{EXPIRE_DAYS} = int( $user->{DEPOSIT} / $reduction_division / $total_daily_fee );
         }
         else{
           #Internet expire
-          $user->{EXPIRE_DAYS} = $user->{TP_EXPIRE};
+          $user->{EXPIRE_DAYS} = $user->{TP_EXPIRE} || 0;
         }
 
         $user->{EXPIRE_DATE} = POSIX::strftime( "%Y-%m-%d", localtime( time + $user->{EXPIRE_DAYS} * 86400 ) );
@@ -325,9 +324,13 @@ sub ureports_periodic_reports{
               #    && $Sessions->{REST}->{ $line->{traffic_class} } > 0) {
               #   $rest = $Sessions->{REST}->{ $line->{traffic_class} };
               # }
-              $PARAMS{REST}=$rest;
-              $PARAMS{REST_DIMENSION}=int2byte($rest);
-              $PARAMS{PREPAID}=$line->{prepaid};
+
+              #REST MB
+              $PARAMS{REST}          = $rest;
+              #REST GB
+              $PARAMS{REST_GB}       = sprintf("%.2f", ($rest/1024));
+              $PARAMS{REST_DIMENSION}= int2byte($rest);
+              $PARAMS{PREPAID}       = $line->{prepaid};
 
               $PARAMS{'REST_'.($line->{traffic_class} || 0)}=$rest;
               $PARAMS{'REST_DIMENSION_'. ($line->{traffic_class} || 0)}=int2byte($rest);
@@ -405,7 +408,7 @@ sub ureports_periodic_reports{
           if ( $user->{EXPIRE_DAYS} == $user->{VALUE} ){
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE  => "$lang{DAYS_TO_EXPIRE}: $user->{TP_EXPIRE}",
+              MESSAGE  => "$lang{DAYS_TO_EXPIRE}: ". ($user->{TP_EXPIRE} || q{}),
               SUBJECT  => "$lang{TARIF_PLAN} $lang{EXPIRE}"
             );
           }
@@ -420,9 +423,10 @@ sub ureports_periodic_reports{
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
               MESSAGE  =>
-              "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH}. $lang{DEPOSIT}: $user->{DEPOSIT} $lang{TARIF_PLAN} $user->{TP_MONTH_FEE}"
+              "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH}. $lang{DEPOSIT}: $user->{DEPOSIT} $lang{TARIF_PLAN} $user->{TP_MONTH_FEE} $lang{RECOMMENDED_PAYMENT}: $user->{RECOMMENDED_PAYMENT}"
               ,
-              SUBJECT  => $lang{ERR_SMALL_DEPOSIT}
+              SUBJECT  => $lang{ERR_SMALL_DEPOSIT},
+              RECOMMENDED_PAYMENT => $user->{RECOMMENDED_PAYMENT}
             );
           }
           else{
@@ -430,7 +434,7 @@ sub ureports_periodic_reports{
           }
         }
         #Report 11 - Small deposit for next month activation with predays XX trigger
-        elsif ( $user->{REPORT_ID} == 11 && $internet_expire < $user->{VALUE}){
+        elsif ( $user->{REPORT_ID} == 11 && $user->{EXPIRE_DAYS} <= $user->{VALUE} && !$internet_status ){
           if ( $user->{TP_MONTH_FEE} && $user->{TP_MONTH_FEE} > $user->{DEPOSIT} ){
             my $recharge = $user->{TP_MONTH_FEE} + (($user->{DEPOSIT} < 0) ? abs($user->{DEPOSIT}) : 0) ;
             %PARAMS = (
@@ -456,9 +460,10 @@ sub ureports_periodic_reports{
               $message .= "\n $lang{RECOMMENDED_PAYMENT}:  $user->{RECOMMENDED_PAYMENT}\n";
 
               %PARAMS = (
-                DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-                MESSAGE  => $message,
-                SUBJECT  => $lang{ALL_SERVICE_EXPIRE},
+                DESCRIBE            => "$lang{REPORTS} ($user->{REPORT_ID}) ",
+                MESSAGE             => $message,
+                SUBJECT             => $lang{ALL_SERVICE_EXPIRE},
+                RECOMMENDED_PAYMENT => $user->{RECOMMENDED_PAYMENT}
               );
             }
             else{
@@ -472,7 +477,8 @@ sub ureports_periodic_reports{
             %PARAMS = (
               DESCRIBE => $lang{REPORTS},
               MESSAGE  => "",
-              SUBJECT  => $lang{DEPOSIT}
+              SUBJECT  => $lang{CURRENT_DEPOSIT},
+              TP_NAME  => $user->{TP_NAME}
             );
           }
           else{
@@ -563,12 +569,13 @@ sub ureports_periodic_reports{
 
       #Send reports section
       if ( scalar keys %PARAMS > 0 ){
-        ureports_send_reports(
+        my $send_status = ureports_send_reports(
           $user->{DESTINATION_TYPE},
           $user->{DESTINATION_ID},
           $PARAMS{MESSAGE},
           {
             %{$user},
+            %PARAMS,
             SUBJECT   => $PARAMS{SUBJECT},
             REPORT_ID => $user->{REPORT_ID},
             UID       => $user->{UID},
@@ -581,7 +588,7 @@ sub ureports_periodic_reports{
           }
         );
 
-        if ( $debug < 5 && ! $PARAMS{SKIP_UPDATE_REPORT}){
+        if ( $debug < 5 && ! $PARAMS{SKIP_UPDATE_REPORT} && $send_status){
           $Ureports->tp_user_reports_update(
             {
               UID       => $user->{UID},

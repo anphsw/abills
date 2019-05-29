@@ -238,7 +238,10 @@ sub info {
      a.api_key,
      a.sip_number,
      a.gps_imei,
+     a.rfid_number,
      a.telegram_id,
+     a.department,
+     a.start_work,
      ";
   }
 
@@ -340,6 +343,10 @@ sub list {
     push @WHERE_RULES, "a.position = '$attr->{POSITION}'";
   }
 
+  if ($attr->{DEPARTMENT} && $attr->{DEPARTMENT} ne '_SHOW') {
+    push @WHERE_RULES, "a.department = '$attr->{DEPARTMENT}'";
+  }
+
   if ($attr->{GID}) {
     $EXT_TABLES .= 'LEFT JOIN admins_groups ag ON (a.aid=ag.aid) ';
     $GROUP_BY = 'GROUP BY a.aid';
@@ -355,7 +362,9 @@ sub list {
       #['GID',          'INT',  'ag.gid',          1 ],
       #['GID',          'INT',  'a.gid',           1 ],
       ['GPS_IMEI',     'STR',  'a.gps_imei',      1 ],
+      ['RFID_NUMBER',   'STR',  'a.rfid_number',  1 ],
       ['DISABLE',      'INT',  "a.disable",       1 ],
+      ['CELL_PHONE',   'INT',  "a.cell_phone",    1 ],
       ['BIRTHDAY',     'DATE', 'a.birthday',      1 ],
       ['API_KEY',      'STR',  'a.api_key',       1 ],
       ['DOMAIN_NAME',  'STR',  'a.name', 'd.name AS domain_name' ],
@@ -364,6 +373,20 @@ sub list {
       ['SIP_NUMBER',   'INT',  'a.sip_number',    1 ],
       ['TELEGRAM_ID',  'STR',  'a.telegram_id',   1 ],
       ['EMAIL',        'STR',  'a.email',         1 ],
+      ['DEPARTMENT_NAME', 'STR',  'ed.name as department_name',         1 ],
+      ['ID',              'INT',  'a.id',         1 ],
+      ['PHONE',           'STR',  'a.phone',      1 ],
+      ['ADMIN_EXPIRE',    'DATE', 'a.expire AS admin_expire',     1 ],
+      ['ADDRESS',       'STR',    'a.address',        1 ],
+      ['PASPORT_NUM',   'STR',    'a.pasport_num',    1 ],
+      ['PASPORT_DATE',  'STR',    'a.pasport_date',   1 ],
+      ['PASPORT_GRANT', 'STR',    'a.pasport_grant',  1 ],
+      ['INN',           'STR',    'a.inn',            1 ],
+      ['MAX_ROWS',      'INT',    'a.max_rows',       1 ],
+      ['MIN_SEARCH_CHARS', 'INT',    'a.min_search_chars', 1 ],
+      ['MAX_CREDIT',       'INT',    'a.max_credit',       1 ],
+      ['CREDIT_DAYS',      'INT',    'a.credit_days',      1 ],
+      ['COMMENTS',      'STR',    'a.comments',            1 ],
     ],
     {
       WHERE_RULES => \@WHERE_RULES,
@@ -375,9 +398,12 @@ sub list {
   my $EMPLOYEE_COLS = '';
   #use Abills::Base;
   #FIXME: CHECK MODULE
-  if ($self->{SHOW_EMPLOYEES} && $self->{SHOW_EMPLOYEES} == 1) {
-    $EMPLOYEE_JOIN = " LEFT JOIN employees_positions ep ON (ep.id=a.position) ";
-    $EMPLOYEE_COLS = ' ep.position as position, ';
+  if (($self->{SHOW_EMPLOYEES} && $self->{SHOW_EMPLOYEES} == 1) || ($attr->{SHOW_EMPLOYEES})) {
+    $EMPLOYEE_JOIN .= " LEFT JOIN employees_positions ep ON (ep.id=a.position) ";
+    $EMPLOYEE_COLS .= ' ep.position as position, ';
+
+    $EMPLOYEE_JOIN .= " LEFT JOIN employees_department ed ON (ed.id=a.department) ";
+#    $EMPLOYEE_COLS .= ' ed.name as department_name, ';
   }
 
   $self->query("SELECT a.aid, a.id AS login,
@@ -669,6 +695,11 @@ sub action_list {
     );
 
   my $EXT_TABLES = $self->{EXT_TABLES} || '';
+  my $GROUP_BY = q{};
+  if($attr->{TAGS}) {
+    $GROUP_BY = 'GROUP BY aa.id';
+  }
+
   $self->query("SELECT aa.id,
       u.id AS login,
       aa.datetime,
@@ -683,12 +714,15 @@ sub action_list {
       LEFT JOIN admins a ON (aa.aid=a.aid)
       LEFT JOIN users u ON (aa.uid=u.uid)
       $EXT_TABLES
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+   $WHERE
+   $GROUP_BY
+   ORDER BY $SORT $DESC
+   LIMIT $PG, $PAGE_ROWS;",
    undef,
    $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $self->query("SELECT COUNT(*) AS total FROM admin_actions aa
     LEFT JOIN users u ON (aa.uid=u.uid)
@@ -713,7 +747,7 @@ sub system_action_add {
 
   $self->query_add('admin_system_actions', {
     AID         => $self->{AID},
-    IP          => "$IP",
+    IP          => $IP,
     DATETIME    => 'NOW()',
     ACTIONS     => $actions,
     MODULE      => ($self->{MODULE}) ? $self->{MODULE} : '',
@@ -752,7 +786,8 @@ sub system_action_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-      ['RESPOSIBLE',   'INT',  'm.resposible',    ],
+      # Fixme remove if no needed
+      # ['RESPOSIBLE',   'INT',  'm.resposible',    ],
       ['ACTION',       'INT',  'aa.actions',      ],
       ['TYPE',         'INT',  'aa.action_type',  ],
       ['MODULE',       'STR',  'aa.module',       ],
@@ -1285,7 +1320,6 @@ sub admins_contacts_list {
   $self->{errstr} = '';
 
   return [] if (!$attr->{AID});
-
   $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
   $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;

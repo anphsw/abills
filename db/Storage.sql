@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS `storage_accountability` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `aid` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `added_by_aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `storage_incoming_articles_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `count` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `date` DATETIME NOT NULL,
@@ -46,6 +47,7 @@ CREATE TABLE IF NOT EXISTS `storage_discard` (
 
 CREATE TABLE IF NOT EXISTS `storage_incoming` (
   `id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `invoice_number` VARCHAR(60) DEFAULT '',
   `date` DATETIME NOT NULL,
   `aid` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `ip` INT(10) UNSIGNED NOT NULL DEFAULT '0',
@@ -142,7 +144,7 @@ CREATE TABLE IF NOT EXISTS `storage_suppliers` (
   `fax` VARCHAR(16) NOT NULL DEFAULT '',
   `url` VARCHAR(100) NOT NULL DEFAULT '',
   `email` VARCHAR(250) NOT NULL DEFAULT '',
-  `icq` VARCHAR(12) NOT NULL DEFAULT '',
+  `telegram` VARCHAR(30) NOT NULL DEFAULT '',
   `accountant` VARCHAR(150) NOT NULL DEFAULT '',
   `director` VARCHAR(150) NOT NULL DEFAULT '',
   `managment` VARCHAR(150) NOT NULL DEFAULT '',
@@ -156,7 +158,9 @@ CREATE TABLE IF NOT EXISTS `storage_sn` (
   `storage_incoming_articles_id` SMALLINT(6) NOT NULL DEFAULT 0,
   `storage_installation_id` SMALLINT(6) NOT NULL DEFAULT 0,
   `serial` TEXT CHARACTER SET utf8 NOT NULL,
-  PRIMARY KEY (`id`)
+  `sn_comments` TEXT,
+  PRIMARY KEY (`id`),
+  KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Storage serial numbers';
 
@@ -214,3 +218,13 @@ REPLACE INTO `storage_measure` (`id`, `name`) VALUES (2, '$lang{SM}');
 REPLACE INTO `storage_measure` (`id`, `name`) VALUES (3, '$lang{MM}');
 REPLACE INTO `storage_measure` (`id`, `name`) VALUES (4, '$lang{LITERS}');
 REPLACE INTO `storage_measure` (`id`, `name`) VALUES (5, '$lang{BOXES}');
+
+CREATE TABLE IF NOT EXISTS  `storage_admins` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `percent` SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` TEXT,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `aid` (`aid`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage admins settings';

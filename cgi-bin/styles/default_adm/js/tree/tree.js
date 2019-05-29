@@ -1,7 +1,8 @@
 function make_tree(data, keys) {
   jQuery('#show_tree').on("click", ".children-toggle" , function() {
     jQuery(this).siblings('.ul-list').slideToggle();
-    jQuery(this).children().siblings().toggle();
+    jQuery(this).children().toggleClass("glyphicon-minus-sign");
+    jQuery(this).children().toggleClass("glyphicon-plus-sign");
   });
 
   var keysArray = keys.split(',');
@@ -21,23 +22,29 @@ function make_tree(data, keys) {
     }
   });
   // console.log(TreeHash);
-  drawTree(TreeHash);
-  jQuery('#show_tree').html(name);
-  name = "";
+  jQuery.when(drawTree(TreeHash, 1)).then(jQuery('#show_tree').html(htmlTree));
+  htmlTree = "";
 }
-function drawTree(treeData) {
-  name += "<ul class='ul-list'>";
+
+function drawTree(treeData, i) {
+  if (i == 1) {
+    htmlTree += "<ul class='ul-list'>";
+  }
+  else {
+    htmlTree += "<ul class='ul-list' style='display: none'>";
+  }
+
   for (const key of Object.keys(treeData)) {
     if (key != "") {
       if (treeData[key] && treeData[key] != 1) {
-        name += "<li class='ul-item '><a class='children-toggle' class='btn btn-lg'><i class='glyphicon glyphicon-plus-sign pl' style='display: none;'></i><i class='glyphicon glyphicon-minus-sign mn'></i></a><span class='parent'>" + key + "</span>";
+        htmlTree += "<li class='ul-item '><a class='children-toggle' class='btn btn-lg'><i class='glyphicon glyphicon-plus-sign mn'></i></a><span class='parent'>" + key + "</span>";
         drawTree(treeData[key]);
       }
       else {
-        name += "<li class='ul-item'><span class='parent'>" + key + "</span>";
+        htmlTree += "<li class='ul-item'><span class='parent'>" + key + "</span>";
       }
-      name += "</li>";
+      htmlTree += "</li>";
     }
   }
-  name += "</ul>";
+  htmlTree += "</ul>";
 }

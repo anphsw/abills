@@ -30,12 +30,13 @@
 
 
 %FUNCTIONS_LIST = (
-  "1:0:Sharing:null:"                             => 5,
-  "2:1:$lang{ADD} $lang{FILE}:sharing_add_file:"  => 5,
-  "6:1:$lang{ADD} $lang{GROUP}:sharing_add_group:"  => 5,
-  "3:0:$lang{FILES}:sharing_user_service:UID"          => 20,
-  "4:0:Sharing $lang{LOG}:null:"                  => 4,
-  "5:4:$lang{LOG} $lang{DOWNLOADS}:sharing_download_log:"  => 4,
+  "1:0:Sharing:null:"                               => 5,
+  "2:1:$lang{ADD} $lang{FILE}:sharing_add_file:"    => 5,
+  "3:1:$lang{ADD} $lang{GROUP}:sharing_add_group:"  => 5,
+  "4:0:$lang{FILES}:sharing_user_service:UID"              => 20,
+  "5:0:Sharing $lang{LOG}:null:"                           => 4,
+  "6:5:$lang{LOG} $lang{DOWNLOADS}:sharing_download_log:"  => 4,
+  "7:5:$lang{STATS}:sharing_report:"                       => 4,
 );
 
 %USER_FUNCTION_LIST = (

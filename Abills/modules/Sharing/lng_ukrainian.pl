@@ -15,5 +15,6 @@ $lang{SECONDS}          = 'Секунд';
 $lang{NOT_ENOUGH_MONEY} = 'Недостатньо коштів';
 $lang{VERSION}          = 'Версія';
 $lang{DOWNLOADS}        = 'Скачувань';
+$lang{PURCHASES}        = 'Покупок';
 $lang{TIME_FOR_REMIND}  = 'Попереджувати за';
 1

@@ -28,10 +28,13 @@ sub buttons_list {
   foreach my $file (@buttons_files) {
     my (undef, $button) = $file =~ m/(.*)\/(.*)\.pm/;
     if (eval { require "buttons-enabled/$button.pm"; 1; }) {
-      my $obj = $button->new($db, $admin, \%conf, $attr->{bot});
+      my $obj = $button->new($db, $admin, \%conf, $attr->{bot}, $attr->{bot_db});
       if ($obj->can('btn_name')) {
         $BUTTONS{$button} = $obj->btn_name();
       }
+    }
+    else {
+      print $@;
     }
   }
 
@@ -49,7 +52,7 @@ sub telegram_button_fn {
   my ($attr) = @_;
   my $ret = '';
   if (eval { require "buttons-enabled/$attr->{button}.pm"; 1; }) {
-    my $obj = $attr->{button}->new($db, $admin, \%conf, $attr->{bot});
+    my $obj = $attr->{button}->new($db, $admin, \%conf, $attr->{bot}, $attr->{bot_db});
     my $fn = $attr->{fn};
     if ($obj->can($fn)) {
       $ret = $obj->$fn($attr);

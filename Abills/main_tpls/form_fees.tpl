@@ -58,7 +58,7 @@
 
                     %SHEDULE_FORM%
 
-
+                %DOCS_FEES_ELEMENT%
             </div>
 
             <div class='box-footer'>

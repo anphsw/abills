@@ -12,7 +12,7 @@
 <div class='form-group'>
     <label class='control-label col-md-3' for='NAME'>_{NAME}_</label>
   <div class='col-md-9'>
- 	  <input type='text' name='NAME' value='%NAME%' placeholder='%NAME%' class='form-control'>
+ 	  <input type='text' name='NAME' value='%NAME%' placeholder='%NAME%' class='form-control' required>
  	</div>
 </div>
 

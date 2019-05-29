@@ -95,7 +95,7 @@ if ( !$db->{db} ){
 
 our $Admin = Admins->new( $db, \%conf );
 
-$Admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.3' } );
+$Admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.3', SHORT => 1 } );
 if ( $Admin->{errno} ){
   print "AID: $conf{SYSTEM_ADMIN_ID} [$Admin->{errno}] $Admin->{errstr}\n";
   exit 0;
@@ -315,7 +315,9 @@ sub check_lines{
 
   my $Acct;
 
+  my $Billing = Billing->new( $db, \%conf );
   if(in_array('Internet', \@MODULES)) {
+    $Billing->{INTERNET}=1;
     require Acct2;
     Acct2->import();
     $Acct = Acct2->new( $db, \%conf );
@@ -325,8 +327,6 @@ sub check_lines{
     Acct->import();
     $Acct = Acct->new( $db, \%conf );
   }
-
-  my $Billing = Billing->new( $db, \%conf );
 
   my %JOIN_SERVICE_STATS = ();
   my @time = localtime();
@@ -2709,6 +2709,9 @@ sub get_mpd_info {
   Arguments:
     $attr
       TYPE - NAS type
+         accel_ppp, accel_ipoe
+      accel_ppp
+      mpd5
 
   Returns:
 
@@ -2738,22 +2741,20 @@ sub check_nas_ifaces{
   } );
 
   foreach my $nas_info ( @{$list} ){
-    #my %info_hash = ();
-
     $nas_info->{NAS_MNG_USER} //= '';
     $nas_info->{NAS_MNG_IP_PORT} //= '';
     $debug_output .= "NAS ID: $nas_info->{NAS_ID} MNG_INFO: $nas_info->{NAS_MNG_USER}\@$nas_info->{NAS_MNG_IP_PORT} $nas_info->{NAS_ALIVE}\n" if ($debug > 2);
 
-    if (! $nas_info->{NAS_MNG_USER} ){
-      $debug_output .= "Skiped Not defined control user NAS_ID: $nas_info->{NAS_ID}\n" if ($debug > 1);
-      next;
-    }
+    # if (! $nas_info->{NAS_MNG_USER} ){
+    #   $debug_output .= "Skiped Not defined control user NAS_ID: $nas_info->{NAS_ID}\n" if ($debug > 1);
+    #   next;
+    # }
 
     my $info_hash;
-    if($attr->{mpd5}) {
+    if($attr->{TYPE} && $attr->{TYPE} =~ /mpd5/) {
       $info_hash = get_mpd_info($nas_info, { GET_IP => 1 });
     }
-    elsif($attr->{accel_ppp}) {
+    elsif($attr->{TYPE} && $attr->{TYPE} =~ /accel/) {
       $info_hash = get_accel_ppp_info($nas_info, { GET_IP => 1 });
     }
 
@@ -3278,7 +3279,7 @@ sub get_accel_ppp_info {
     next if ($nas_info_ !~ /^\s/);
     my ($ifname, $username, $calling_cid, $ip, $rate_limit, $type, $comp, $state, $uptime) = split( /\s+\|\s+/,
       $nas_info_ );
-    print "> $ifname, $username, $calling_cid, $ip, $rate_limit,  $type,  $comp, $state, $uptime //\n" if ($debug > 3);
+    print "> $ifname, $username, $calling_cid, $ip, $rate_limit,  $type,  $comp, ". ($state || q{}). ', '. ($uptime || q{}). "\n" if ($debug > 3);
     my ($out, $in) = split( /\//, $rate_limit );
 
     if($attr->{GET_IP}) {
@@ -3363,6 +3364,11 @@ sub check_speed_linux_new{
 #*****************************************************
 =head2 get_mikrotik_value($cmd, $attr)
 
+  Arguments:
+    $cmd    - Ccommnds array
+    $attr
+      EXPORT_FILE - Export filename
+
 =cut
 #*****************************************************
 sub get_mikrotik_value{
@@ -3370,7 +3376,8 @@ sub get_mikrotik_value{
 
   if($attr->{EXPORT_FILE}) {
     if(open(my $fh, '>', $attr->{EXPORT_FILE})) {
-      print $fh join("; \n", @$cmd);
+      my $value = (ref $cmd eq 'ARRAY') ? join("; \n", @$cmd) : $cmd;
+      print $fh $value;
       close($fh);
     }
     else {
@@ -3380,6 +3387,8 @@ sub get_mikrotik_value{
   else {
     return ssh_cmd( $cmd, { %{$attr}, BASE_DIR => $base_dir } );
   }
+
+  return 1;
 }
 
 #**************************************************

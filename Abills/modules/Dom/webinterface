@@ -16,7 +16,7 @@ our (
 
 my $Address = Address->new($db, $admin, \%conf);
 my $Dom = Dom->new($db, $admin, \%conf);
-my $Nas = Nas->new($db, $admin, \%conf);
+my $Nas = Nas->new($db, \%conf, $admin);
 #**********************************************************
 =head2 dom_info() Create 2D build model
   Returns:
@@ -100,9 +100,9 @@ sub dom_info {
   $info{BUILD_FLATS} = 0;
   for (my $i = 1; $i <= $build_info->{ENTRANCES}; $i++) {
     for (my $j = 1; $j <= $build_info->{FLORS}; $j++) {
-      my ($flats) = $build_info->{BUILD_SCHEMA} =~ /$i:$j:(\d+)/;
+      my (undef,$flats) = $build_info->{BUILD_SCHEMA} =~ /(^|[^\d])$i:$j:(\d+)/;
       if (!defined($flats) || $flats eq '') {
-        ($flats) = $build_info->{BUILD_SCHEMA} =~ /$i\:\:(\d+)/;
+        (undef,$flats) = $build_info->{BUILD_SCHEMA} =~ /(^|[^\d])$i\:\:(\d+)/;
       }
       if (!defined($flats) || $flats eq '') {
         ($flats) = $build_info->{BUILD_SCHEMA} =~ /\D\:$j\:(\d+)/;

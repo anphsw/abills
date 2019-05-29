@@ -81,7 +81,7 @@ $(function () {
         '</div>');
 
       $selectDiv.find('select').html(portTypesHTML);
-      $selectDiv.find('select').chosen(CHOSEN_PARAMS);
+      $selectDiv.find('select').select2(CHOSEN_PARAMS);
 
       return $selectDiv;
     }
@@ -137,7 +137,7 @@ $(function () {
       var optionToSelect = $select.children('option')[portType];
       $(optionToSelect).prop('selected', true);
 
-      $select.chosen(CHOSEN_PARAMS);
+      $select.select2(CHOSEN_PARAMS);
 
       return $selectDiv;
     }

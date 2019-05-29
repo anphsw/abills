@@ -52,7 +52,7 @@ require $Bin . '/../../../libexec/config.pl';
 
 
 use Abills::Templates;
-use Abills::Base qw(convert decode_base64 sendmail days_in_month parse_arguments in_array);
+use Abills::Base qw(convert decode_base64 sendmail days_in_month parse_arguments in_array load_pmodule);
 use Abills::SQL;
 use Abills::HTML;
 use Users;
@@ -60,6 +60,7 @@ use Paysys;
 use Finance;
 use Admins;
 use Customers;
+require Paysys::Configure;
 
 our $html = Abills::HTML->new();
 our $db   = Abills::SQL->connect($conf{dbtype},
@@ -99,7 +100,7 @@ if ($argv->{DEBUG}) {
 
 my DBI $db_ = $db->{db};
 
-require "language/$conf{default_language}.pl";
+do "language/$conf{default_language}.pl";
 
 do('Abills/modules/Paysys/Paysys_Base.pm');
 
@@ -131,7 +132,16 @@ elsif ($argv->{TYPE}) {
   }
 }
 elsif($argv->{MAIL} && $argv->{MAIL} ne '') {
-  bss_users_list();
+  if($conf{PAYSYS_NEW_SCHEME}){
+    my $module = 'Bss.pm';
+    my $REQUIRE_OBJECT = _configure_load_payment_module($module);
+    my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
+
+    $PAYSYS_OBJECT->get_users_list({MAIL => $argv->{MAIL}});
+  }
+  else{
+      bss_users_list();
+  }
 }
 elsif($argv->{TYME}){
   tyme_import();
@@ -311,25 +321,57 @@ sub paysys_import_form_cons {
           # adding standart payment to bss-table
           if(!$Payments->{errno} && $argv->{METHOD} && $argv->{METHOD}==113){
             $bss_date = $DATA_ARR->[$i]->{DATE};
-            bss_log({
-              AFTER_PAYMENT  =>1,
-              UID     => $user->{UID},
-              SUM     => $DATA_ARR->[$i]->{SUM},
-              DATE    => $DATA_ARR->[$i]->{DATE},
-              EXT_ID  => $ext_id,
-              STATUS  => 1
-            });
+            if($conf{PAYSYS_NEW_SCHEME}){
+              my $module = 'Bss.pm';
+              my $REQUIRE_OBJECT = _configure_load_payment_module($module);
+              my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {USERS => $Users, DATE => $DATE});
+
+              $PAYSYS_OBJECT->bss_log({
+                AFTER_PAYMENT  =>1,
+                UID     => $user->{UID},
+                SUM     => $DATA_ARR->[$i]->{SUM},
+                DATE    => $DATA_ARR->[$i]->{DATE},
+                EXT_ID  => $ext_id,
+                STATUS  => 1
+              });
+            }
+            else{
+              bss_log({
+                AFTER_PAYMENT  =>1,
+                UID     => $user->{UID},
+                SUM     => $DATA_ARR->[$i]->{SUM},
+                DATE    => $DATA_ARR->[$i]->{DATE},
+                EXT_ID  => $ext_id,
+                STATUS  => 1
+              });
+            }
           }
           elsif($Payments->{errno} && $argv->{METHOD} && $argv->{METHOD}==113){
             $bss_date = $DATA_ARR->[$i]->{DATE};
-            bss_log({
-              AFTER_PAYMENT  =>1,
-              UID     => $user->{UID},
-              SUM     => $DATA_ARR->[$i]->{SUM},
-              DATE    => $DATA_ARR->[$i]->{DATE},
-              EXT_ID  => $ext_id,
-              STATUS  => 2
-            });
+            if($conf{PAYSYS_NEW_SCHEME}){
+              my $module = 'Bss.pm';
+              my $REQUIRE_OBJECT = _configure_load_payment_module($module);
+              my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
+
+              $PAYSYS_OBJECT->bss_log({
+                AFTER_PAYMENT  =>1,
+                UID     => $user->{UID},
+                SUM     => $DATA_ARR->[$i]->{SUM},
+                DATE    => $DATA_ARR->[$i]->{DATE},
+                EXT_ID  => $ext_id,
+                STATUS  => 2
+              });
+            }
+            else{
+              bss_log({
+                AFTER_PAYMENT  =>1,
+                UID     => $user->{UID},
+                SUM     => $DATA_ARR->[$i]->{SUM},
+                DATE    => $DATA_ARR->[$i]->{DATE},
+                EXT_ID  => $ext_id,
+                STATUS  => 2
+              });
+            }
           }
         }
 
@@ -637,10 +679,21 @@ sub paysys_import_pop3 {
           $content = convert($content, {cp8662utf8 => 1});
           @lines = split('\n', $content);    # split content per lane
           $content = '';
+          if($conf{PAYSYS_NEW_SCHEME}){
+            my $module = 'Bss.pm';
+            my $REQUIRE_OBJECT = _configure_load_payment_module($module);
+            my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
 
-          ($content, $delete_this_message, $do_not_import_content) = bss_content_parse(\@lines, {
-              FILE_NAME => $filename,
-            });
+            ($content, $delete_this_message, $do_not_import_content) = $PAYSYS_OBJECT->bss_content_parse(\@lines, {
+                FILE_NAME => $filename,
+              });
+          }
+          else{
+            print "$filename \n";
+            ($content, $delete_this_message, $do_not_import_content) = bss_content_parse(\@lines, {
+                FILE_NAME => $filename,
+              });
+          }
 
           if ($delete_this_message) {
             print "Marking to delete this message\n";
@@ -740,7 +793,7 @@ sub paysys_import_ftp {
 
         $filename =~ /\/?([a-zA-Z0-9\.\-\_\?]+)$/;
         my $local_filename = $1;
-        open(my $fh, "$local_filename") || die "Can't open file '$filename' $!\n";
+        open(my $fh,'<', "$local_filename") || die "Can't open file '$filename' $!\n";
         while (<$fh>) {
           $content .= $_;
         }
@@ -897,7 +950,7 @@ sub eript_202 {
     );
   }
   else{
-    $Paysys->query2("SELECT $account_key AS account_key, pi.fio,
+    $Paysys->query("SELECT $account_key AS account_key, pi.fio,
       concat(pi.address_street, ', ', pi.address_build, ', ', pi.address_flat) AS full_address, u.credit, internet.tp_id, tp.month_fee
     FROM users u, users_pi pi, internet_main internet, tarif_plans tp
     WHERE u.uid=pi.uid AND u.deleted=0
@@ -1145,7 +1198,7 @@ sub bss_users_list {
 
 
   $users_data = convert($users_data, { utf82cp866 => 1 });
-  
+
   if( -d "$conf{TPL_DIR}/BSS"){
     if( open(my $fh, '+>', "$conf{TPL_DIR}/BSS/$conf{PAYSYS_BSS_CODE}.dat") ) {
       print $fh $users_data;
@@ -1196,7 +1249,8 @@ sub bss_log {
     #$attr->{NST_OPL} = convert($attr->{NST_OPL}, { cp8662utf8 => 1 });
 
     my %BUILDS_LETTERS = (1 => "А", 2 => "Б", 3 => "В", 4 => "Г", 5 => "Д", 6 => "Е");
-    my ($uid, $sum, $date, $code, $fio, $street_sn, $build, $flat, $ext_id) = $attr->{NST_OPL} =~ /^!"(\d+|)","(\d+|\d+[.]\d+)","(\d+)","(\d+)","(.+)","(\d+)","(.+)","(.+)","(\d+)"/;
+    # ($uid, $sum, $date, $code, $fio, $street_sn, $build, $flat, $ext_id)
+    my ($uid, $sum, $date, undef, $fio, $street_sn, $build, $flat, $ext_id) = $attr->{NST_OPL} =~ /^!"(\d+|)","(\d+|\d+[.]\d+)","(\d+)","(\d+)","(.+)","(\d+)","(.+)","(.+)","(\d+)"/;
     use Address;
     my $address = Address->new($db, $admin, \%conf);
     my $street_info = $address->street_list({ COLS_NAME => 1, STREET_NAME => '_SHOW', SECOND_NAME => $street_sn });
@@ -1331,7 +1385,16 @@ sub bss_content_parse {
       print "Not Standart payment line\n$line\n\n" if ($debug > 1);
 
       $nst_content .= $line . "\n";
-      bss_log({ NST_OPL => $line });
+      if($conf{PAYSYS_NEW_SCHEME}){
+        my $module = 'Bss.pm';
+        my $REQUIRE_OBJECT = _configure_load_payment_module($module);
+        my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
+
+        $PAYSYS_OBJECT->bss_log({ NST_OPL => $line });
+      }
+      else{
+        bss_log({ NST_OPL => $line });
+      }
 
       $delete_message     = 1;
       $go_to_next_message = 1;
@@ -1455,7 +1518,7 @@ sub tyme_import {
       $ftp->get("$filename")
       or die "Ftp get failed '$filename' ", $ftp->message;
 
-      open(my $fh, "$filename") || die "Can't open file '$filename' $!\n";
+      open(my $fh, '<', "$filename") || die "Can't open file '$filename' $!\n";
       my @lanes = <$fh>;
       close($fh);
 

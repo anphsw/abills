@@ -17,7 +17,7 @@ our $VERSION = 2.06;
 my $Bill;
 my $MODULE = 'Bonus';
 my ($admin, $CONF);
-my ($SORT, $DESC, $PG, $PAGE_ROWS);
+#my ($SORT, $DESC, $PG, $PAGE_ROWS);
 
 #**********************************************************
 # Init
@@ -109,10 +109,10 @@ sub list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  #my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  #my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
@@ -223,10 +223,8 @@ sub tp_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
 
   my @WHERE_RULES = ();
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
@@ -326,8 +324,8 @@ sub rule_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my @WHERE_RULES = ();
   if ($attr->{TP_ID}) {
@@ -446,10 +444,10 @@ sub user_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ("bu.uid = u.uid");
   $self->{EXT_TABLES}='';
@@ -467,15 +465,17 @@ sub user_list {
     USE_USER_PI       => 1
   });
 
-  my $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
+  my $EXT_TABLE = q{};
+
+  $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
   if ($CONF->{BONUS_ACCOMULATION}){
     $EXT_TABLE .= "LEFT JOIN bonus_rules_accomulation_scores ras ON (ras.uid = u.uid)";
   }
 
   if ($attr->{DV_TP_ID}) {
-    $EXT_TABLE .= "LEFT JOIN dv_main dv ON (dv.uid = u.uid)
-      LEFT JOIN tarif_plans tp  ON (tp.id = dv.tp_id)
+    $EXT_TABLE .= "LEFT JOIN internet_main internet ON (internet.uid = u.uid)
+      LEFT JOIN tarif_plans tp  ON (tp.tp_id = internet.tp_id)
     ";
   }
 
@@ -524,7 +524,7 @@ sub bonus_operation {
     $self->query("SELECT id, date FROM bonus_log WHERE ext_id='$attr->{CHECK_EXT_ID}';");
     if ($self->{TOTAL} > 0) {
       $self->{errno}  = 7;
-      $self->{errstr} = 'ERROR_DUBLICATE';
+      $self->{errstr} = 'ERROR_DUPLICATE';
       $self->{ID}     = $self->{list}->[0][0];
       $self->{DATE}   = $self->{list}->[0][1];
       return $self;
@@ -626,10 +626,10 @@ sub bonus_operation_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   $self->{SEARCH_FIELDS} = '';
   my @WHERE_RULES = ();
 
@@ -791,10 +791,10 @@ sub service_discount_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   $self->{SEARCH_FIELDS}      = '';
   $self->{SEARCH_FIELDS_COUNT}= 0;
@@ -924,10 +924,10 @@ sub bonus_turbo_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
 
@@ -1013,8 +1013,8 @@ sub accomulation_rule_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my @WHERE_RULES = ("tp.module='Dv'");
  
@@ -1161,10 +1161,10 @@ sub accomulation_scores_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
 
@@ -1239,10 +1239,12 @@ sub accomulation_reset_list {
   my $self   = shift;
   my ($attr) = @_;
 
-  $self->query( "SELECT b.cost, MAX(l.start) AS last_connect, b.uid, COUNT(c.uid) AS online
+
+
+  $self->query( "SELECT b.cost, MAX(l.start) AS last_connect, b.uid, COUNT(online.uid) AS online
     FROM bonus_rules_accomulation_scores b
-    LEFT JOIN dv_log l ON (l.uid=b.uid)
-    LEFT JOIN dv_calls c ON (c.uid=b.uid)
+    LEFT JOIN internet_log l ON (l.uid=b.uid)
+    LEFT JOIN internet_online online ON (online.uid=b.uid)
     WHERE b.cost > 0
     GROUP BY b.uid
     HAVING last_connect < CURDATE() - INTERVAL $attr->{RESET_PERIOD} DAY AND online < 1;",
@@ -1327,19 +1329,19 @@ sub tp_using_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  #my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  #my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE =  $self->search_former($attr, [
     ['LOGIN',          'STR', 'u.id',               'u.id AS login'    ],
-    ['TP_ID',          'INT', 'dv.tp_id',                        1     ],
+    ['TP_ID',          'INT', 'internet.tp_id',                        1     ],
     ['AGE',            'INT', 'aa.date', '(SELECT DATEDIFF(curdate(), max(datetime)) FROM admin_actions
-      WHERE uid=dv.uid AND action_type=3 GROUP BY uid ORDER BY 1) AS age' ],
+      WHERE uid=internet.uid AND action_type=3 GROUP BY uid ORDER BY 1) AS age' ],
     ['MONTH_FEE',      'INT', 'tp.month_fee',                    1     ],
     ['FROM_DATE|TO_DATE','INT', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
-    ['UID',            'INT', 'dv.uid',                          1     ],
+    ['UID',            'INT', 'internet.uid',                          1     ],
   ],
   { WHERE        => 1,
     USERS_FIELDS => 1,
@@ -1349,18 +1351,18 @@ sub tp_using_list {
 
   my $EXT_TABLES = '';
 
-  if ($self->{SEARCH_FIELDS} =~ /dv\./) {
-    $EXT_TABLES = " LEFT JOIN dv_main dv ON (dv.tp_id=bonus.tp_id_bonus)";
+  if ($self->{SEARCH_FIELDS} =~ /internet\./) {
+    $EXT_TABLES = " LEFT JOIN internet_main internet ON (internet.tp_id=bonus.tp_id_bonus)";
     if ($self->{SEARCH_FIELDS}  =~ /u\./) {
-      $EXT_TABLES .= " LEFT JOIN users u ON (u.uid=dv.uid)";
+      $EXT_TABLES .= " LEFT JOIN users u ON (u.uid=internet.uid)";
     }
     if ($self->{SEARCH_FIELDS}  =~ /tp\./) {
-      $EXT_TABLES .= " LEFT JOIN tarif_plans tp ON (tp.id=dv.tp_id)";
+      $EXT_TABLES .= " LEFT JOIN tarif_plans tp ON (tp.id=internet.tp_id)";
     }
   }
 
   if ($self->{SEARCH_FIELDS} =~ /aa\./ || $WHERE =~ /aa\./) {
-    $EXT_TABLES .= " LEFT JOIN admin_actions aa ON (aa.uid=dv.uid)";
+    $EXT_TABLES .= " LEFT JOIN admin_actions aa ON (aa.uid=internet.uid)";
   }
 
   $EXT_TABLES .= $self->{EXT_TABLES};

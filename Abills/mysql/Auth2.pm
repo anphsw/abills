@@ -63,7 +63,6 @@ sub new {
 
   $self->{db} = $db;
   $self->{conf} = $CONF;
-
   $CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
   $Billing = Billing->new($db, $CONF);
 
@@ -110,8 +109,6 @@ sub auth {
   if ($ret == 1) {
     return 1, $RAD_PAIRS;
   }
-
-  #my $MAX_SESSION_TRAFFIC = $CONF->{MAX_SESSION_TRAFFIC} || 0;
 
   if(! $NAS->{NAS_ID}) {
   	`echo "$NAS->{NAS_ID} / $RAD->{'NAS-IP-Address'} / $RAD->{'User-Name'}" >> /tmp/nas_error`;
@@ -194,12 +191,17 @@ sub auth {
       $RAD_PAIRS->{'Reply-Message'} = 'NOT_ALLOW_SERVICE_EXPIRE';
     }
     else {
-      $RAD_PAIRS->{'Reply-Message'} = 'SQL error';
+      $RAD_PAIRS->{'Reply-Message'} = 'SQL_ERROR';
     }
     return 1, $RAD_PAIRS;
   }
 
   $self->{USER_NAME}=$RAD->{'User-Name'};
+
+  if ($attr->{GET_USER}) {
+    return $self;
+  }
+
   #DIsable
   if ($self->{INTERNET_DISABLE}) {
     #Change status from not active to active
@@ -870,7 +872,6 @@ sub nas_pair_former {
       {
         traf_limit          => $traf_limit,
         deposit             => $self->{DEPOSIT},
-        #MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC
       }
     );
 
@@ -913,7 +914,6 @@ sub nas_pair_former {
       {
         traf_limit          => $traf_limit,
         deposit             => $self->{DEPOSIT},
-        #MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC
       }
     );
 
@@ -948,7 +948,6 @@ sub nas_pair_former {
       {
         traf_limit => $traf_limit,
         deposit    => $self->{DEPOSIT},
-        #MAX_SESSION_TRAFFIC => $MAX_SESSION_TRAFFIC
       }
     );
 
@@ -1483,11 +1482,13 @@ sub ex_traffic_params {
     }
 
     $Billing->{INTERNET}=1;
+    $Billing->{TI_ID}=$self->{TT_INTERVAL};
     my $used_traffic = $Billing->get_traffic(
       {
         UID    => $self->{UID},
         UIDS   => $self->{UIDS},
-        PERIOD => $start_period
+        PERIOD => $start_period,
+        TI_ID  => $self->{TT_INTERVAL}
       }
     );
 
@@ -1527,8 +1528,10 @@ sub ex_traffic_params {
           INTERVAL => $interval,
           TP_ID    => $self->{TP_ID},
           TP_NUM   => $self->{TP_NUM},
+          TI_ID    => $self->{TT_INTERVAL}
         }
       );
+
 
       if ($Billing->{TOTAL} > 0) {
         if ($self->{OCTETS_DIRECTION} == 1) {
@@ -1553,7 +1556,6 @@ sub ex_traffic_params {
       $trafic_limits{1} = $prepaids{1} || 0;
     }
     else {
-
       #Check global traffic
       if ($used_traffic->{TRAFFIC_COUNTER} < $prepaids{0}) {
         $trafic_limits{0} = $prepaids{0} - $used_traffic->{TRAFFIC_COUNTER};
@@ -1591,7 +1593,8 @@ sub ex_traffic_params {
       \%expr,
       {
         START_PERIOD => $self->{ACCOUNT_ACTIVATE},
-        debug        => 0
+        debug        => 0,
+        TI_ID        => $self->{TT_INTERVAL}
       }
     );
 
@@ -1675,6 +1678,7 @@ sub ex_traffic_params {
      TP_IPPOOL - TP ip pool id
      GUEST
      SERVER_VLAN
+     VLAN
 
   Returns:
 
@@ -1695,6 +1699,11 @@ sub get_ip {
   }
 
   my $guest = ($guest_mode) ? "AND guest=1" : "AND guest=0" ;
+  my $extra_params = '';
+  if($attr->{SERVER_VLAN} && $attr->{VLAN}) {
+    $extra_params = " AND (server_vlan='$attr->{SERVER_VLAN}' AND vlan='$attr->{VLAN}') ";
+  }
+
   #Get reserved IP with status 11
   my $user_name = $self->{USER_NAME} || '';
   if (! $self->{LOGINS} || ($guest_mode && $user_name)) {
@@ -1705,7 +1714,7 @@ sub get_ip {
          $status
          AND nas_id='$nas_num'
          AND framed_ip_address > 0
-         $guest;");
+         $guest $extra_params;");
 
     if ($self->{TOTAL} > 0) {
       my $ip = $self->{list}->[0]->[0];
@@ -1887,7 +1896,7 @@ sub get_ip {
       return -1;
     }
   }
-  return 0;
+  #return 0;
 }
 
 
@@ -2126,7 +2135,8 @@ sub get_ip2 {
       return -1;
     }
   }
-  return 0;
+
+  #return 0;
 }
 
 
@@ -2341,9 +2351,9 @@ sub neg_deposit_filter_former {
   $RAD_PAIRS->{'Acct-Interim-Interval'} = $NAS->{NAS_ALIVE} if ($NAS->{NAS_ALIVE});
 
   #Fixme remove on 0.8
-  if ($CONF->{NEG_DEPOSIT_USER_IP}) {
-    $CONF->{INTERNET_GUEST_STATIC_IP} = $CONF->{NEG_DEPOSIT_USER_IP};
-  }
+  #if ($CONF->{NEG_DEPOSIT_USER_IP}) {
+  #  $CONF->{INTERNET_GUEST_STATIC_IP} = $CONF->{NEG_DEPOSIT_USER_IP};
+  #}
 
   $self->{IP} //= 0;
 
@@ -2373,6 +2383,7 @@ sub neg_deposit_filter_former {
           TP_IPPOOL    => $self->{NEG_DEPOSIT_IPPOOL} || $self->{TP_IPPOOL},
           GUEST        => 1,
           SERVER_VLAN  => $self->{SERVER_VLAN}, #$self->{VLAN}
+          VLAN         => $self->{VLAN},
           CONNECT_INFO => $self->{IP}
         });
 
@@ -2618,6 +2629,7 @@ sub opt82_parse {
     $attr
       MAC_AUTH
       IP
+      USER_NAME
 
     $NAS
 
@@ -2634,7 +2646,7 @@ sub dhcp_info {
   my $self = shift;
   my ($attr, $NAS) = @_;
 
-  my @WHERE_RULES = ();
+  my @WHERE_RULES = ("u.deleted='0'");
   my $pass_fields = q{};
   # Do nothing if port is magistral, i.e. 25.26.27.28
   # Apply only for reserv ports
@@ -2664,7 +2676,7 @@ sub dhcp_info {
     $self->{INFO} = "NAS_MAC: $attr->{NAS_MAC} PORT: $attr->{PORT} VLAN: $attr->{VLAN} MAC: $attr->{USER_MAC}";
   }
   elsif ($CONF->{INTERNET_LOGIN}) {
-    push @WHERE_RULES, "internet.login='". $attr->{'User-Name'} ."'";
+    push @WHERE_RULES, "internet.login='". $attr->{USER_NAME} ."'";
   }
   # elsif($CONF->{AUTH_INTERNET_CID}) {
   #   push @WHERE_RULES, "internet.cid='". $attr->{USER_MAC} ."'";
@@ -2694,7 +2706,7 @@ sub dhcp_info {
     push @WHERE_RULES,  "u.domain_id='$NAS->{DOMAIN_ID}'";
   }
 
-  my $WHERE = ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
+  my $WHERE = join(' AND ', @WHERE_RULES);
 
   $self->query2("SELECT
       u.uid,

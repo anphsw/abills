@@ -27,7 +27,7 @@ BEGIN {
 die "No \$libpath \n" if ( !$libpath );
 
 our (%conf);
-require "$libpath/libexec/config.pl";
+do "$libpath/libexec/config.pl";
 
 use Admins;
 require Abills::SQL;

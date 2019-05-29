@@ -5,7 +5,7 @@
 
   <div class='box box-form box-primary'>
 
-    <div class='box-header with-border'><h4>_{VACATIONS}_</h4></div>
+    <div class='box-header with-border'><h4 class='box-title table-caption'>_{VACATIONS}_</h4></div>
 
     <div class='box-body'>
       <div class='form-group'>

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS `ureports_log` (
   UNIQUE KEY `id` (`id`),
   KEY `uid` (`uid`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Ureports log';
 
 CREATE TABLE IF NOT EXISTS `ureports_main` (
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS `ureports_main` (
   PRIMARY KEY (`uid`),
   KEY `tp_id` (`tp_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Ureports user account';
 
 
@@ -37,13 +39,16 @@ CREATE TABLE IF NOT EXISTS `ureports_spool` (
   UNIQUE KEY `id` (`id`),
   KEY `uid` (`uid`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Ureports spool';
 
 
 CREATE TABLE IF NOT EXISTS `ureports_tp` (
   `msg_price` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
-  `tp_id` SMALLINT(5) UNSIGNED DEFAULT '0'
+  `tp_id` SMALLINT(5) UNSIGNED DEFAULT '0',
+  KEY `tp_id` (`tp_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Ureports tariff plans';
 
 
@@ -58,14 +63,16 @@ CREATE TABLE IF NOT EXISTS `ureports_tp_reports` (
   PRIMARY KEY (`id`),
   KEY `tp_id` (`tp_id`, `report_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Ureports users Tarif plans';
-
 
 CREATE TABLE IF NOT EXISTS `ureports_users_reports` (
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
   `report_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `date` DATE NOT NULL,
   `value` VARCHAR(10) NOT NULL DEFAULT '',
+  `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   UNIQUE KEY uid_reports_id (`uid`, `report_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Ureports users reports';

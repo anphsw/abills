@@ -79,7 +79,7 @@
         </div>
       </div>
         <!-- ACTIVATION / EXPIRED -->
-        <div class='row' style='margin-bottom: 15px;'>
+        <div class='row' style='margin-bottom: 15px;%ACT_EXP_BTN_HIDE%'>
           <label class='control-label col-xs-3 col-md-3' for='ACTIVATE'>_{ACTIVATE}_</label>
           <div class='col-xs-9 col-md-3' style='margin-bottom: -1px;'>
             <input id='ACTIVATE' name='ACTIVATE' value='%ACTIVATE%' placeholder='%ACTIVATE%'

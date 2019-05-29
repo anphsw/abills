@@ -14,5 +14,6 @@ $lang{INTERRUPTED}='Interrupted';
 $lang{ANSWERPHONE}='Answerphone';
 $lang{NOT_AVAILABLE}='Not Available';
 $lang{EVERY_MONTH}='Every month';
-
+$lang{UPDATE_DAY} = 'Update day';
+$lang{SQL_QUERY} = 'Sql query';
 1

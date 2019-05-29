@@ -38,6 +38,8 @@ $lang{CANT_DELETE}='Cant delete';
 $lang{CANT_DELETE_ERROR1}='You can not delete, there are items in storage with the given name';
 $lang{CANT_DELETE_ERROR2}='Unable to remove linked to this type of goods';
 $lang{CANT_DELETE_ERROR3}='It is impossible to remove the supplier use on storage';
+$lang{CANT_DELETE_ERROR5} = 'It is impossible to remove the measure use on storage';
+$lang{CANT_DELETE_ERROR6} = 'It is impossible to remove the property use on storage';
 $lang{FIELDS_FOR_STREET_DISTRICT_HOUSE_ARE_REQUIRED}='Fields for street district house are required';
 $lang{FIELDS_FOR_ARTICLE_TYPE_SUM_COUNT_ARE_REQUIRED}='Fields for article type sum count are required';
 $lang{FIELDS_FOR_COMMENTS_ARE_REQUIRED}='Fields for comments are required';
@@ -122,3 +124,7 @@ $lang{PRINT_MOVE_INVOICE}='Print move invoice';
 $lang{TRANSFER_ITEM}='Transfer';
 $lang{OUT_STORAGE}='Out storage';
 $lang{IN_STORAGE}='In storage';
+
+$lang{FOR_INSTALLATION}=' for installation';
+$lang{INVOICE_NUMBER}='Invoice number';
+$lang{MOST_CASH_ITEMS}='Most cash items';

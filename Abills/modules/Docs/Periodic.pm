@@ -77,8 +77,6 @@ sub docs_unpaid_invoice_del {
     return 0;
   }
 
-  print 'Total = '. $Docs->{TOTAL}. "\n";
-
   my %infoce_id = ();
   my $infoce_id_string = ();
 
@@ -107,7 +105,9 @@ sub docs_unpaid_invoice_del {
     return 0;
   }
 
-  print 'Total = '. $Docs->{TOTAL}. "\n";
+  if($debug) {
+    print 'Total = ' . $Docs->{TOTAL} . "\n";
+  }
 
   #if hash have invoce2pey_list id initialize undef
   foreach my $invioce_paid_info (@$inv2pey_list){
@@ -121,7 +121,9 @@ sub docs_unpaid_invoice_del {
   foreach my $invioce_id_info (keys %infoce_id){
     if($infoce_id{$invioce_id_info}){
       $Docs->invoice_del( $invioce_id_info );
-      print  'Invoice del result ID '. $invioce_id_info. ' = '. $infoce_id{$invioce_id_info}. "\n";
+      if($debug) {
+        print 'Invoice del result ID ' . $invioce_id_info . ' = ' . $infoce_id{$invioce_id_info} . "\n";
+      }
     }
   }
 

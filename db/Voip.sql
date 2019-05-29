@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS `voip_calls` (
   `calling_station_id` VARCHAR(32) NOT NULL DEFAULT '',
   `called_station_id` VARCHAR(32) NOT NULL DEFAULT '',
   `lupdated` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `started` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `started` DATETIME NOT NULL ,
   `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `client_ip_address` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `conf_id` VARCHAR(64) NOT NULL DEFAULT '',
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS `voip_calls` (
 
 CREATE TABLE IF NOT EXISTS `voip_log` (
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
-  `start` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+  `start` DATETIME NOT NULL ,
   `duration` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `calling_station_id` VARCHAR(16) NOT NULL DEFAULT '',
   `called_station_id` VARCHAR(16) NOT NULL DEFAULT '',
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS `voip_main` (
   `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `number` VARCHAR(16) NOT NULL DEFAULT '',
-  `registration` DATE NOT NULL DEFAULT '0000-00-00',
+  `registration` DATE NOT NULL,
   `ip` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `cid` VARCHAR(35) NOT NULL DEFAULT '',
   `filter_id` VARCHAR(150) NOT NULL DEFAULT '',
@@ -54,16 +54,17 @@ CREATE TABLE IF NOT EXISTS `voip_main` (
   `provision_nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `provision_port` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `nat` TINYINT(1) UNSIGNED NOT NULL DEFAULT '1',
-  `expire` DATE NOT NULL DEFAULT '0000-00-00',
+  `expire` DATE NOT NULL,
   PRIMARY KEY (`number`),
-  KEY `uid` (`uid`)
+  KEY `uid` (`uid`),
+  KEY `tp_id` (`tp_id`)
 )
   COMMENT = 'Voip users accounts';
 
 CREATE TABLE IF NOT EXISTS `voip_route_extra_tarification` (
   `id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(32) NOT NULL DEFAULT '',
-  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `date` DATE NOT NULL DEFAULT CURRENT_DATE,
   `prepaid_time` INT UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE (`name`)
@@ -84,7 +85,7 @@ CREATE TABLE IF NOT EXISTS `voip_route_prices` (
   `price` DOUBLE(15, 5) UNSIGNED NOT NULL DEFAULT '0.00000',
   `unit_price` DOUBLE(15, 5) UNSIGNED NOT NULL DEFAULT '0.00000',
   `extra_tarification` SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
-  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `date` DATE NOT NULL DEFAULT CURRENT_DATE,
   `trunk` SMALLINT UNSIGNED NOT NULL DEFAULT '0',
   UNIQUE KEY `route_id` (`route_id`, `interval_id`)
 );
@@ -94,7 +95,7 @@ CREATE TABLE IF NOT EXISTS `voip_routes` (
   `prefix` VARCHAR(14) NOT NULL DEFAULT '',
   `name` VARCHAR(100) NOT NULL DEFAULT '',
   `disable` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `date` DATE NOT NULL DEFAULT CURRENT_DATE,
   `parent` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `descr` VARCHAR(120) NOT NULL DEFAULT '',
   `gateway_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',

@@ -4,9 +4,10 @@ package Botapi;
 use strict;
 use warnings FATAL => 'all';
 
-# use JSON;
+use JSON;
 
-my $debug = 1;
+my $debug = 0;
+my $curl = '';
 
 #**********************************************************
 =head2 new($token)
@@ -14,13 +15,15 @@ my $debug = 1;
 =cut
 #**********************************************************
 sub new {
-  my ($class, $token, $chat_id) = @_;
+  my ($class, $token, $chat_id, $curl_path) = @_;
 
   $chat_id //= "";
+  $curl = $curl_path;
 
   my $self = {
-    api_url => "https://api.telegram.org/bot$token/sendMessage",
-    chat_id => $chat_id,
+    api_url  => "https://api.telegram.org/bot$token/",
+    file_url => "https://api.telegram.org/file/bot$token/",
+    chat_id  => $chat_id,
   };
   
   bless($self, $class);
@@ -43,8 +46,8 @@ sub send_message {
   # $params .= qq/ -F "text=$attr->{text}"/;
   my $json_str = $self->perl2json($attr);
   my $params   = qq(-d '$json_str' -H "Content-Type: application/json");
-  my $url      = $self->{api_url};
-  my $result   = `curl $params -s -X POST "$url"`;
+  my $url      = $self->{api_url} . 'sendMessage';
+  my $result   = `$curl $params -s -X POST "$url"`;
 
   if ($debug > 0) {
     `echo 'COMMAND: curl $params -s -X POST "$url"' >> /tmp/telegram.log`;
@@ -52,6 +55,38 @@ sub send_message {
   }
   
   return 1;
+}
+
+#**********************************************************
+=head2 get_file($file_id)
+  
+=cut
+#**********************************************************
+sub get_file {
+  my $self = shift;
+  my ($file_id) = @_;
+
+  my $json_str = qq({\"file_id\":\"$file_id\"});
+  my $params   = qq(-d '$json_str' -H "Content-Type: application/json");
+  my $url      = $self->{api_url} . 'getFile';
+  my $result   = `$curl $params -s -X POST "$url"`;
+
+  # result {"ok":true,"result":{"file_id":"AgADAgADXKoxG4gfmUgruv78JsXopm-4UQ8ABJ5-3HxAVpDBO1EBAAEC","file_size":25011,"file_path":"photos/file_0.jpg"}}
+  # or {"ok":false,"error_code":404,"description":"Not Found"}
+
+  if ($debug > 0) {
+    `echo 'COMMAND: curl $params -s -X POST "$url"' >> /tmp/telegram.log`;
+    `echo 'RESULT: $result' >> /tmp/telegram.log`;
+  }
+
+  my $hash_result = from_json($result);
+  return '' unless ($hash_result && ref $hash_result eq 'HASH' && $hash_result->{result});
+  my $file_path = $hash_result->{result}->{file_path};
+  my $file_size = $hash_result->{result}->{file_size};
+  my $file_url = $self->{file_url} . $file_path;
+  my $file_content = `$curl -s "$file_url"`;
+
+  return ($file_path, $file_size, $file_content);
 }
 
 #**********************************************************
@@ -79,6 +114,7 @@ sub perl2json {
   }
   else {
     $data //='';
+    return "true" if ($data eq "true");
     return qq{\"$data\"};
   }
 }

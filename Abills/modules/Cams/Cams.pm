@@ -30,7 +30,7 @@ use Digest::MD5 qw / md5_base64 /;
 sub new {
   my $class = shift;
   my ($Cams, $CONF) = @_;
-  
+
   my $self = {
     cams => $Cams,
     conf  => $CONF,

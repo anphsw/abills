@@ -34,18 +34,18 @@ sub send_message {
   my $self = shift;
   my ($attr) = @_;
 
-  unless ($attr->{TO_ADDRESS}){
-    print "No recipient address given \n" if($self->{debug});
+  unless ($attr->{TO_ADDRESS}) {
+    print "No recipient address given \n" if ($self->{debug});
     return;
   };
 
   my $sender = $attr->{SENDER} || $self->{conf}->{ADMIN_MAIL} || 'abills_admin';
 
-  if($attr->{MAIL_TPL}) {
-    $attr->{MESSAGE}=$attr->{MAIL_TPL};
+  if ($attr->{MAIL_TPL}) {
+    $attr->{MESSAGE} = $attr->{MAIL_TPL};
   }
-  
-  if ($attr->{TO_ADDRESS} =~ ','){
+
+  if ($attr->{TO_ADDRESS} =~ ',') {
     # Change all comma to semicolon ( for sendmail function )
     $attr->{TO_ADDRESS} = join(';', split(',\s?', $attr->{TO_ADDRESS}));
   }
@@ -63,7 +63,9 @@ sub send_message {
     }
   );
 
-  print "Sending E-mail\n Subject: $attr->{SUBJECT}\n $attr->{MESSAGE}\n" if($self->{debug});
+  print "Sending E-mail\n Subject: $attr->{SUBJECT}\n $attr->{MESSAGE}\n" if ($self->{debug});
+  $self->{status} = $sent || 0;
+  $self->{STATUS} = $sent || 0;
 
   return $sent;
 }

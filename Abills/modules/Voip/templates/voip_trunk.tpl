@@ -7,12 +7,6 @@
         <div class='box-header with-border'>_{TRUNKS}_</div>
         <div class='box-body'>
             <div class='form-group'>
-                <label for='DISABLE' class='control-label col-md-9'>_{DISABLE}_:</label>
-                <div class='col-md-3'>
-                   <input type='checkbox' value='1' name='DISABLE'  id='DISABLE' %DISABLE%/>
-                </div>
-            </div>
-            <div class='form-group'>
                 <label class='col-md-3 control-label'>VOIP _{PROVIDER}_</label>
                 <div class='col-md-9'>
                     <input class='form-control' type=text name=PROVIDER_NAME value='%PROVIDER_NAME%'>
@@ -70,6 +64,12 @@
                 <label class='col-md-3 control-label'>_{FAILOVER_TRUNK}_</label>
                 <div class='col-md-9'>
                     %FAILOVER_TRUNK_SEL%
+                </div>
+            </div>
+            <div class='form-group'>
+                <label for='DISABLE' class='control-label col-md-9'>_{DISABLE}_:</label>
+                <div class='col-md-3'>
+                    <input type='checkbox' value='1' name='DISABLE'  id='DISABLE' %DISABLE%/>
                 </div>
             </div>
         </div>

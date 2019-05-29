@@ -16,21 +16,22 @@
   <title>%TITLE%</title>
   <!-- Bootstrap -->
   <!--<link href='/styles/default_adm/css/bootstrap.min.css' rel='stylesheet'>-->
+  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/select2.css'>
   <link rel="stylesheet" href="/styles/default_adm/css/bootstrap.min.css">
   <link rel="stylesheet" href="/styles/default_adm/css/ionicons.min.css">
-  <link rel="stylesheet" href="/styles/lte_adm/dist/css/AdminLTE.css">
-  <link rel="stylesheet" href="/styles/lte_adm/dist/css/skins/_all-skins.css">
-  <link rel="stylesheet" href="/styles/lte_adm/plugins/pace/pace.min.css">
+  <link rel="stylesheet" href="/styles/%HTML_STYLE%/dist/css/AdminLTE.css">
+  <link rel="stylesheet" href="/styles/%HTML_STYLE%/dist/css/skins/_all-skins.css">
+  <link rel="stylesheet" href="/styles/%HTML_STYLE%/plugins/pace/pace.min.css">
   <link rel="stylesheet" href="/styles/default_adm/css/font-awesome.min.css">
-  <link rel='stylesheet' href='/styles/default_adm/css/chosen.min.css'>
+  <!--<link rel='stylesheet' href='/styles/default_adm/css/chosen.min.css'>-->
   <link rel='stylesheet' href='/styles/default_adm/css/QBInfo.css'>
 
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/currencies.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datepicker/datepicker3.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/daterangepicker/daterangepicker.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datetimepicker/datetimepicker.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datepicker/datepicker3.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datatables/dataTables.bootstrap.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.css'>
 
   <link href='/styles/default_adm/css/client.css' rel='stylesheet'>
 
@@ -41,7 +42,7 @@
   <script src='/styles/default_adm/js/jquery-1.11.3.min.js' type='text/javascript'></script>
   <![endif]-->
   <script src='/styles/default_adm/js/bootstrap.min.js'></script>
-  <script src='/styles/lte_adm/plugins/pace/pace.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/pace/pace.js'></script>
 
   <script src='/styles/default_adm/js/js.cookies.js'></script>
   <script src='/styles/default_adm/js/permanent_data.js'></script>
@@ -57,22 +58,24 @@
 
   <script src='/styles/default_adm/js/navBarCollapse.js' language='javascript'></script>
 
-  <script src='/styles/default_adm/js/chosen.jquery.min.js'></script>
+  <!--<script src='/styles/default_adm/js/chosen.jquery.min.js'></script>-->
 
 
   <!-- Modal popup windows management -->
   <script src='/styles/default_adm/js/modals.js'></script>
 
-  <script src='/styles/lte_adm/plugins/moment/moment.min.js'></script>
-  <script src='/styles/lte_adm/plugins/datatables/jquery.dataTables.min.js'></script>
-  <script src='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.min.js'></script>
-  <!--<script src='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.min.js'></script>-->
-  <script src='/styles/lte_adm/plugins/daterangepicker/daterangepicker.js'></script>
-  <script src='/styles/lte_adm/plugins/datetimepicker/datetimepicker.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/moment/moment.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/datatables/jquery.dataTables.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/datatables/dataTables.bootstrap.min.js'></script>
+  <!--<script src='/styles/%HTML_STYLE%/plugins/datatables/dataTables.bootstrap.min.js'></script>-->
+  <script src='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.js'></script>
 
-  <script src="/styles/lte_adm/plugins/datepicker/bootstrap-datepicker.js"></script>
-  <script src="/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.js"></script>
-  <script src='/styles/lte_adm/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
+  <script src="/styles/%HTML_STYLE%/plugins/datepicker/bootstrap-datepicker.js"></script>
+  <script src="/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.js"></script>
+  <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
+  <script src='/styles/default_adm/js/select2.min.js'></script>
+
   <script>
     window['IS_ADMIN_INTERFACE'] = false;
     window['IS_CLIENT_INTERFACE'] = true;
@@ -82,11 +85,11 @@
     var NO_DESIGN = '$FORM{NO_DESIGN}';
 
     var _COMMENTS_PLEASE = '_{COMMENTS_PLEASE}_' || 'Comment please';
-    var CHOSEN_PARAMS    = {
-      no_results_text      : '_{NOT_EXIST}_',
-      allow_single_deselect: true,
-      placeholder_text     : '--'
-    };
+    // var CHOSEN_PARAMS    = {
+    //   no_results_text      : '_{NOT_EXIST}_',
+    //   allow_single_deselect: true,
+    //   placeholder_text     : '--'
+    // };
 
       var EVENT_PARAMS = {
         portal  : 'client',
@@ -95,11 +98,12 @@
         interval: 30000
       };
 
-    jQuery(function () {
-      jQuery('select:not(#type)').chosen(CHOSEN_PARAMS);
-    });
+    // jQuery(function () {
+    //   jQuery('select:not(#type)').chosen(CHOSEN_PARAMS);
+    // });
 
     var CONTENT_LANGUAGE = '%CONTENT_LANGUAGE%';
+    var CURRENCY_ICON = '%CURRENCY_ICON%';
 
     var DATERANGEPICKER_LOCALE = {
       separator       : '/',

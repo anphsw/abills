@@ -35,7 +35,7 @@ sub internet_periodic_logrotate {
   my ($attr) = @_;
   my $debug = $attr->{DEBUG} || 0;
 
-  return '' if ($attr->{SKIP_ROTATE} || $attr->{LOGON_ACTIVE_USERS} );
+  return '' if ($attr->{SKIP_ROTATE} || $attr->{LOGON_ACTIVE_USERS} || $attr->{LOGIN} || $attr->{SRESTART});
 
   # Clean s_detail table
   my (undef, undef, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
@@ -92,9 +92,10 @@ sub internet_daily_fees {
 
   my $list = $Tariffs->list({
     %LIST_PARAMS,
-    MODULE     => 'Dv;Internet',
-    COLS_NAME  => 1,
-    COLS_UPPER => 1
+    EXT_BILL_ACCOUNT=>'_SHOW',
+    MODULE          => 'Dv;Internet',
+    COLS_NAME       => 1,
+    COLS_UPPER      => 1
   });
 
   my %FEES_METHODS = %{ get_fees_types({ SHORT => 1 }) };
@@ -122,6 +123,11 @@ sub internet_daily_fees {
         foreach my $l (@$report_list) {
           $active_logins{ $l->{id} } = $l->{uid};
         }
+      }
+
+      if($TP_INFO->{EXT_BILL_ACCOUNT}) {
+        $USERS_LIST_PARAMS{EXT_BILL_ID} = '_SHOW';
+        $USERS_LIST_PARAMS{EXT_DEPOSIT} = '_SHOW';
       }
 
       $Internet->{debug} = 1 if ($debug > 6);
@@ -154,6 +160,7 @@ sub internet_daily_fees {
         my %user = (
           LOGIN     => $u->{login},
           UID       => $u->{uid},
+          ID        => $u->{id},
           #Check ext deposit
           BILL_ID   => ($TP_INFO->{EXT_BILL_ACCOUNT} > 0) ? $u->{ext_bill_id} : $u->{bill_id},
           REDUCTION => $u->{reduction},
@@ -226,7 +233,7 @@ sub internet_daily_fees {
             }
 
             %FEES_PARAMS = (
-              DESCRIBE => "$lang{FINE}",
+              DESCRIBE => $lang{FINE},
               METHOD   => 2,
               DATE     => $ADMIN_REPORT{DATE},
             );
@@ -488,7 +495,7 @@ sub internet_monthly_next_tp {
 
   my $debug         = $attr->{DEBUG} || 0;
   my $debug_output = '';
-  $debug_output  = "DV: Next tp\n" if ($debug > 1);
+  $debug_output  = "Internet: Next tp\n" if ($debug > 1);
   $Tariffs->{debug}=1 if ($debug > 6);
 
   my %USERS_LIST_PARAMS = ();
@@ -543,6 +550,7 @@ sub internet_monthly_next_tp {
 
     foreach my $u (@$internet_list) {
       my %user = (
+        ID         => $u->{id},
         LOGIN      => $u->{login},
         UID        => $u->{uid},
         BILL_ID    => $u->{bill_id},
@@ -602,6 +610,7 @@ sub internet_monthly_next_tp {
 
         if($debug < 8) {
           $Internet->change({
+            ID             => $user{ID},
             UID            => $user{UID},
             STATUS         => $status,
             TP_ID          => $tp_info->{next_tp_id},
@@ -628,6 +637,9 @@ sub internet_monthly_next_tp {
 #**********************************************************
 =head2 internet_monthly_fees($attr) - Monthly fees
 
+  Arguments:
+    $attr
+
 =cut
 #**********************************************************
 sub internet_monthly_fees {
@@ -636,7 +648,7 @@ sub internet_monthly_fees {
   my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
 
-  if($attr->{LOGON_ACTIVE_USERS}) {
+  if($attr->{LOGON_ACTIVE_USERS} || $attr->{SRESTART}) {
     return $debug_output;
   }
 
@@ -664,11 +676,12 @@ sub internet_monthly_fees {
   $Tariffs->{debug} = 1 if ($debug > 6);
   my $list = $Tariffs->list({
     %LIST_PARAMS,
-    MODULE         => 'Dv;Internet',
-    DOMAIN_ID      => '_SHOW',
-    FIXED_FEES_DAY => '_SHOW',
-    COLS_NAME      => 1,
-    COLS_UPPER     => 1
+    MODULE          => 'Dv;Internet',
+    EXT_BILL_ACCOUNT=> '_SHOW',
+    DOMAIN_ID       => '_SHOW',
+    FIXED_FEES_DAY  => '_SHOW',
+    COLS_NAME       => 1,
+    COLS_UPPER      => 1
   });
 
   my ($y, $m, $d)      = split(/-/, $ADMIN_REPORT{DATE}, 3);
@@ -693,12 +706,13 @@ sub internet_monthly_fees {
   foreach my $TP_INFO (@$list) {
     my $month_fee           = $TP_INFO->{MONTH_FEE};
     my $activate_date       = "<=$ADMIN_REPORT{DATE}";
+    my $postpaid            = $TP_INFO->{POSTPAID_MONTHLY_FEE} || $TP_INFO->{PAYMENT_TYPE} || 0;
     $USERS_LIST_PARAMS{DOMAIN_ID} = $TP_INFO->{DOMAIN_ID};
     my %used_traffic = ();
 
     #Monthfee & min use
     if ($month_fee > 0 || $TP_INFO->{MIN_USE} > 0) {
-      $debug_output .= "TP ID: $TP_INFO->{ID} MF: $TP_INFO->{MONTH_FEE} POSTPAID: $TP_INFO->{POSTPAID_MONTHLY_FEE} "
+      $debug_output .= "TP ID: $TP_INFO->{ID} MF: $TP_INFO->{MONTH_FEE} POSTPAID: $postpaid "
         . "REDUCTION: $TP_INFO->{REDUCTION_FEE} EXT_BILL_ID: $TP_INFO->{EXT_BILL_ACCOUNT} CREDIT: $TP_INFO->{CREDIT} "
         . "MIN_USE: $TP_INFO->{MIN_USE} ABON_DISTR: $TP_INFO->{ABON_DISTRIBUTION}\n" if ($debug > 1);
 
@@ -725,6 +739,11 @@ sub internet_monthly_fees {
       }
       if ($TP_INFO->{ABON_DISTRIBUTION}) {
         $month_fee = $month_fee / $days_in_month;
+      }
+
+      if($TP_INFO->{EXT_BILL_ACCOUNT}) {
+        $USERS_LIST_PARAMS{EXT_BILL_ID} = '_SHOW';
+        $USERS_LIST_PARAMS{EXT_BILL_DEPOSIT} = '_SHOW';
       }
 
       $Internet->{debug} = 1 if ($debug > 5);
@@ -760,8 +779,9 @@ sub internet_monthly_fees {
         my %user           = (
           LOGIN        => $u->{login},
           UID          => $u->{uid},
-          BILL_ID      => ($ext_deposit_op > 0) ? $u->{ext_billd_id} : $u->{bill_id},
-          MAIN_BILL_ID => ($ext_deposit_op > 0) ? $u->{bill_id} : 0,
+          ID           => $u->{id},
+          BILL_ID      => ($ext_deposit_op) ? $u->{ext_bill_id} : $u->{bill_id},
+          MAIN_BILL_ID => ($ext_deposit_op) ? $u->{bill_id} : 0,
           REDUCTION    => $u->{reduction},
           ACTIVATE     => $u->{internet_activate},
           DEPOSIT      => $u->{deposit},
@@ -855,7 +875,7 @@ sub internet_monthly_fees {
               {
                 UID     => $user{UID},
                 DATE    => ($user{ACTIVATE} ne '0000-00-00') ? ">=$user{ACTIVATE}" : $DATE,
-                METHODS => "$conf{MIN_USE_FEES_CONSIDE}",
+                METHODS => $conf{MIN_USE_FEES_CONSIDE},
               }
             );
             $used += $Fees->{SUM} if ($Fees->{SUM});
@@ -876,7 +896,7 @@ sub internet_monthly_fees {
             $sum = $sum * (100 - $user{REDUCTION}) / 100;
           }
 
-          if ($TP_INFO->{PAYMENT_TYPE} == 1 || $user{DEPOSIT} + $user{CREDIT} > 0 || $TP_INFO->{POSTPAID_MONTHLY_FEE} == 1) {
+          if ($postpaid == 1 || $user{DEPOSIT} + $user{CREDIT} > 0) {
             if ($d == $START_PERIOD_DAY) {
               if ($debug > 4) {
                 $debug_output .= " UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n";
@@ -890,6 +910,7 @@ sub internet_monthly_fees {
                 $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n" if ($debug > 0);
                 if ($user{ACTIVATE} ne '0000-00-00') {
                   $Internet->change({
+                    ID       => $user{ID},
                     UID      => $user{UID},
                     ACTIVATE => '0000-00-00'
                   });
@@ -934,7 +955,12 @@ sub internet_monthly_fees {
               if (($user{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY)
                 || $TP_INFO->{ABON_DISTRIBUTION}
                 || ($user{ACTIVATE} ne '0000-00-00' && $date_unixtime - $active_unixtime < 30 * 86400)) {
-                goto SMALL_DEPOSIT_LABEL;
+                $debug_output .= internet_small_deposit_action({
+                  TP_INFO   => $TP_INFO,
+                  USER_INFO => \%user,
+                  DEBUG     => $debug
+                });
+                next;
               }
             }
             elsif ($sum > $user{EXT_DEPOSIT} && $user{EXT_DEPOSIT} > 0) {
@@ -976,6 +1002,7 @@ sub internet_monthly_fees {
             my $credit_period = int($user{DEPOSIT} /  ($sum / $days_in_month));
             if ($credit_period > 0) {
               $users->change($user{UID}, {
+                ID          => $user{ID},
                 UID         => $user{UID},
                 CREDIT_DATE => sprintf("%04d-%02d-%02d", (($m < 12) ? $y : $y+1), (($m < 12) ? $m+1 : 1),  $credit_period),
                 CREDIT      => $sum
@@ -987,7 +1014,7 @@ sub internet_monthly_fees {
 
 
           #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID
-          if ($TP_INFO->{PAYMENT_TYPE} == 1 || $user{DEPOSIT} + $user{CREDIT} > 0 || $TP_INFO->{POSTPAID_MONTHLY_FEE} == 1) {
+          if ($postpaid || $user{DEPOSIT} + $user{CREDIT} > 0) {
             #*******************************************
             #Unblock Small deposit status
             if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $month_fee < $user{DEPOSIT}) {
@@ -996,6 +1023,7 @@ sub internet_monthly_fees {
               }
               if ($debug < 8) {
                 $Internet->change({
+                  ID     => $user{ID},
                   UID    => $user{UID},
                   STATUS => 0
                 });
@@ -1023,34 +1051,12 @@ sub internet_monthly_fees {
                 && (($TP_INFO->{FIXED_FEES_DAY} && ($d == $activate_d || ($d == $START_PERIOD_DAY && $activate_d > 28)))
                 || ($date_unixtime - $active_unixtime > 30 * 86400))
               ) {
-                SMALL_DEPOSIT_LABEL:
+                $debug_output .= internet_small_deposit_action({
+                  TP_INFO   => $TP_INFO,
+                  USER_INFO => \%user,
+                  DEBUG     => $debug
+                });
 
-                if ($TP_INFO->{SMALL_DEPOSIT_ACTION} == -1) {
-                  if ($debug < 8) {
-                    if ($user{INTERNET_STATUS} != 5) {
-                      $Internet->change({
-                        UID    => $user{UID},
-                        STATUS => 5
-                      });
-                    }
-                  }
-                }
-                else {
-                  if ($debug < 8) {
-                    $Internet->change({
-                      UID   => $user{UID},
-                      TP_ID => $TP_INFO->{SMALL_DEPOSIT_ACTION}
-                    });
-                  }
-                }
-
-                #Change activation to cure date
-                # !!! We need change activation only if payments add
-                #                 $users->change($user{UID}, {
-                #                                UID      => $user{UID},
-                #                                ACTIVATE => $ADMIN_REPORT{DATE} });
-
-                $debug_output .= " SMALL_DEPOSIT_BLOCK." if ($debug > 3);
                 next;
               }
               #Static day
@@ -1331,6 +1337,56 @@ sub internet_monthly_fees {
   return $debug_output;
 }
 
+
+#**********************************************************
+=head2 internet_small_deposit_action($attr)
+
+  Arguments:
+    $attr
+      TP_INFO
+      USER_INFO
+      DEBUG
+
+=cut
+#**********************************************************
+sub internet_small_deposit_action {
+  my ($attr)=@_;
+
+  my $debug_output = q{};
+  my $TP_INFO = $attr->{TP_INFO};
+  my $user_info = $attr->{USER_INFO};
+  my $debug = $attr->{DEBUG} || 0;
+
+  if ($TP_INFO->{SMALL_DEPOSIT_ACTION} == -1) {
+    if ($debug < 8) {
+      if ($user_info->{INTERNET_STATUS} != 5) {
+        $Internet->change({
+          ID     => $user_info->{ID},
+          UID    => $user_info->{UID},
+          STATUS => 5
+        });
+      }
+    }
+  }
+  else {
+    if ($debug < 8) {
+      $Internet->change({
+        UID   => $user_info->{UID},
+        TP_ID => $TP_INFO->{SMALL_DEPOSIT_ACTION}
+      });
+    }
+  }
+
+  #Change activation to cure date
+  # !!! We need change activation only if payments add
+  #                 $users->change($user{UID}, {
+  #                                UID      => $user{UID},
+  #                                ACTIVATE => $ADMIN_REPORT{DATE} });
+
+  $debug_output .= " SMALL_DEPOSIT_BLOCK." if ($debug > 3);
+  return $debug_output;
+}
+
 #**********************************************************
 =head2 internet_users_warning_messages($attr)
 
@@ -1347,6 +1403,16 @@ sub internet_users_warning_messages {
   my $debug = $attr->{DEBUG} //= 0;
   my $debug_output = '';
   $debug_output .= "Internet: Daily warning messages\n" if ($debug > 1);
+
+  #Get next abon day
+  require Internet::Service_mng;
+  my $Service_mng = Internet::Service_mng->new({
+    lang  => \%lang,
+    admin => $admin,
+    conf  => \%conf,
+    db    => $db,
+    html  => $html
+  });
 
   use Internet::Negative_deposit;
 
@@ -1409,11 +1475,15 @@ sub internet_users_warning_messages {
       }
     }
 
+    if($u->{DEPOSIT}) {
+      $u->{DEPOSIT} = format_sum($u->{DEPOSIT});
+    }
+
     if($conf{INTERNET_ALERT_REDIRECT_FILTER} && in_array($u->{to_next_period}, \@allert_redirect_days)) {
-      $debug_output .= "  $u->{login} Redirect\n";
+      $debug_output .= "  $u->{LOGIN} Redirect\n";
       $type='redirect';
       $Internet->change({
-        UID       => $u->{uid},
+        UID       => $u->{UID},
         FILTER_ID => $conf{INTERNET_ALERT_REDIRECT_FILTER}
       });
 
@@ -1421,6 +1491,13 @@ sub internet_users_warning_messages {
         mk_redirect({ IP => $u->{client_ip} });
       }
     }
+
+    $Internet->info($u->{client_ip} , { ID => $u->{id}});
+    $Service_mng->get_next_abon_date({
+      SERVICE => $Internet
+    });
+
+    $u->{ABON_DATE} = $Service_mng->{ABON_DATE};
 
     if(in_array('Sms', \@MODULES) && $conf{INTERNET_USER_WARNING_SMS} && $u->{PHONE}){
       load_module('Sms', $html);
@@ -1450,7 +1527,7 @@ sub internet_users_warning_messages {
     my $info = sprintf("%-14s| %4d|%-20s| %9.4f| %8.2f| %6s|\n", $u->{login},
       $u->{tp_num},
       $u->{tp_name},
-      $u->{deposit},
+      format_sum($u->{deposit}),
       $u->{credit},
       $type
     );

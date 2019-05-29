@@ -11,7 +11,6 @@ package Tariffs;
 
 use strict;
 use parent 'dbcore';
-
 my $CONF;
 my $admin;
 
@@ -492,7 +491,8 @@ sub change {
     NEXT_TARIF_PLAN         => 'next_tp_id',
     FEES_METHOD             => 'fees_method',
     USER_CREDIT_LIMIT       => 'user_credit_limit',
-    SERVICE_ID              => 'service_id'
+    SERVICE_ID              => 'service_id',
+    TP_STATUS               => 'status'
   );
 
   $attr->{REDUCTION_FEE}        = 0 if (!$attr->{REDUCTION_FEE});
@@ -505,6 +505,7 @@ sub change {
   $attr->{BILLS_PRIORITY}       = 0 if (!$attr->{BILLS_PRIORITY});
   $attr->{ACTIVE_DAY_FEE}       = 0 if (!$attr->{ACTIVE_DAY_FEE});
   $attr->{FIXED_FEES_DAY}       = 0 if (!$attr->{FIXED_FEES_DAY});
+  $attr->{TP_STATUS}            = 0 if (!$attr->{TP_STATUS});
 
   $self->changes(
     {
@@ -618,6 +619,7 @@ sub info {
   Arguments:
     $attr
       NEW_MODEL_TP - Short base field input
+      SHOW_DISABLED - Show all tp, by default show only enabled tp.
 
 =cut
 #**********************************************************
@@ -704,6 +706,7 @@ sub list {
     [ 'SERVICE_ID',          'INT', 'tp.service_id',               1 ],
     [ 'SERVICE_NAME',        'INT', 'tp.service_id', 'tp.service_id AS service_name' ],
     [ 'INTERVALS',           'INT', 'ti.id',   'COUNT(i.id) AS intervals' ],
+    [ 'TP_STATUS',           'INT', 'tp.status', 'tp.status AS tp_status' ],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}){
@@ -783,7 +786,9 @@ sub nas_list {
 }
 
 #**********************************************************
-# list_allow nass
+=head2 nas_add($nas)
+
+=cut
 #**********************************************************
 sub nas_add {
   my $self = shift;
@@ -809,7 +814,9 @@ sub nas_add {
 }
 
 #**********************************************************
-# nas_del
+=head2 nas_del()
+
+=cut
 #**********************************************************
 sub nas_del {
   my $self = shift;
@@ -939,41 +946,6 @@ sub tt_change {
 }
 
 #**********************************************************
-=head2 create_nets($attr)
-
-=cut
-#**********************************************************
-sub create_nets {
-  my $self   = shift;
-  my ($attr) = @_;
-  my $body   = '';
-
-  my $list = $self->tt_list({ TI_ID => $attr->{TI_ID}, SHOW_NETS => 1 });
-
-  $/ = chr(0x0d);
-
-  foreach my $line (@$list) {
-    my @n = split(/\n|;/, $line->[10]);
-    foreach my $ip (@n) {
-      chomp($ip);
-      $ip =~ s/ //g;
-      if ($ip eq '') {
-        next;
-      }
-      elsif ($ip !~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/) {
-        $self->{errno} = 1;
-        $self->{errstr} .= "Wrong Exppp date '$ip';\n";
-        next;
-      }
-
-      $body .= "$ip $line->[0]\n";
-    }
-  }
-
-  $self->create_tt_file("$attr->{TI_ID}.nets", "$body");
-}
-
-#**********************************************************
 =head2 tt_del($attr)
 
 =cut
@@ -987,22 +959,6 @@ sub tt_del {
                                             });
 
   $self->{admin}->system_action_add("TT:$attr->{TT_ID} TI:$attr->{TI_ID}", { TYPE => 10 });
-
-  return $self;
-}
-
-#**********************************************************
-# create_tt_file()
-#**********************************************************
-sub create_tt_file {
-  my ($self, $file_name, $body) = @_;
-
-  open(my $fh, '>', "$CONF->{DV_EXPPP_NETFILES}/$file_name") || print "Can't create file '$CONF->{DV_EXPPP_NETFILES}/$file_name' $!\n";
-    print $fh "$body";
-  close($fh);
-
-  print "Created '$CONF->{DV_EXPPP_NETFILES}/$file_name'
- <pre>$body</pre>";
 
   return $self;
 }
@@ -1043,7 +999,9 @@ sub holidays_list {
 }
 
 #**********************************************************
-# holidays_change
+=head2 holidays_change($attr)
+
+=cut
 #**********************************************************
 sub holidays_change {
   my $self = shift;
@@ -1061,7 +1019,9 @@ sub holidays_change {
 }
 
 #**********************************************************
-# holiday_info
+=head2 holiday_info($attr)
+
+=cut
 #**********************************************************
 sub holidays_info {
   my $self = shift;
@@ -1124,7 +1084,9 @@ sub holidays_del {
 }
 
 #**********************************************************
-# add()
+=head2 traffic_class_add($attr)
+
+=cut
 #**********************************************************
 sub traffic_class_add {
   my $self = shift;
@@ -1222,6 +1184,98 @@ sub traffic_class_info {
   );
 
   return $self;
+}
+
+#*******************************************************************
+=head2 add_tp_geo($attr) - add tp geo info
+
+  Arguments:
+    %$attr
+      NAME             - position's name;
+
+  Returns:
+    $self object
+
+  Examples:
+    $Internet->add_tp_geo({
+      STREET_ID          => 1,
+      GID        => 2,
+
+    });
+
+=cut
+#*******************************************************************
+sub add_tp_geo {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('tp_geolocation', { %$attr });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 del_tp_geo() - delete tp geolocation from db
+
+  Arguments:
+    $attr
+
+  Returns:
+
+  Examples:
+    $Internet->del_tp_geo( {GID => 1} );
+
+=cut
+#*******************************************************************
+sub del_tp_geo {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('tp_geolocation', undef, { tp_gid => $attr->{TP_GID} });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 tp_geo_list() - get geo list
+
+  Arguments:
+    $attr
+  Returns:
+    @list
+
+  Examples:
+    my $list = $Internet->tp_geo_list({COLS_NAME=>1});
+
+=cut
+#**********************************************************
+sub tp_geo_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'TP_GID', 'INT', 'tpg.tp_gid', 1 ],
+    [ 'STREET_ID', 'INT', 'tpg.street_id', 1 ],
+    [ 'BUILD_ID', 'INT', 'tpg.build_id', 1 ],
+    [ 'DISTRICT_ID', 'INT', 'tpg.district_id', 1 ],
+  ],
+    { WHERE       => 1,
+    });
+
+  $self->query(
+    "SELECT   tpg.tp_gid,
+              tpg.street_id,
+              tpg.build_id,
+              tpg.district_id
+              FROM tp_geolocation AS tpg
+              $WHERE
+              ORDER BY $SORT $DESC;", undef, $attr
+  );
+
+  return $self->{list};
 }
 
 1

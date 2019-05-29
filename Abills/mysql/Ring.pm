@@ -196,13 +196,9 @@ sub list_rule {
     push @WHERE_RULES, "DATE_START <= '$attr->{DATE_NOW}' and DATE_END >= '$attr->{DATE_NOW}'";
   }
 
-  if($attr->{EVERY_MONTH}){
-    push @WHERE_RULES, "EVERY_MONTH = 1";
-  }
-
   my $WHERE = $self->search_former( $attr, [
       [ 'ID',          'INT',  'id',          1],
-      [ 'AID',         'STR',  'name',        1],
+      [ 'NAME',         'STR',  'name',       1],
       [ 'DATE_START',  'DATE', 'date_start',  1],
       [ 'DATE_END',    'DATE', 'date_end',    1],
       [ 'TIME_START',  'STR',  'time_start',  1],
@@ -210,7 +206,9 @@ sub list_rule {
       [ 'FILE',        'STR',  'file',        1],
       [ 'MESSAGE',     'STR',  'message',     1],
       [ 'COMMENT',     'STR',  'comment',     1],
-      [ 'EVERY_MONTH', 'INT',  'every_month', 1]
+      [ 'EVERY_MONTH', 'INT',  'every_month', 1],
+      [ 'UPDATE_DAY',  'INT',  'update_day',  1],
+      [ 'SQL_QUERY',   'STR',  'sql_query',   1],
     ],
     {
       WHERE => 1,
@@ -220,7 +218,7 @@ sub list_rule {
   $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query2(
-    "SELECT * FROM ring_rules
+    "SELECT $self->{SEARCH_FIELDS} id FROM ring_rules
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -399,6 +397,30 @@ sub del_user {
   $self->query_del('ring_users_filters', $attr, { UID => $attr->{UID}, R_ID => $attr->{R_ID} });
 
   return $self;
+}
+
+#**********************************************************
+=head2 add_users_by_rule($attr)
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub add_users_by_rule {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query2("$attr->{SQL_QUERY}", undef, {COLS_NAME => 1});
+  my $list = $self->{list};
+
+  foreach my $item (@$list) {
+    $self->query_add('ring_users_filters', {UID => $item->{uid}, R_ID => $attr->{R_ID}});
+  }
+
+  return 1;
 }
 
 1

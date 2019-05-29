@@ -27,9 +27,12 @@ our %FUNCTIONS_LIST = (
   "36:0:$lang{INTERNET}:internet_online:"           => 6,
   "37:0:$lang{BUILDS}:internet_online_builds:"      => 6,
   "30:19:IP Pools:internet_pools_report:"           => 4,
+  "31:17:$lang{GEOLOCATION_TP}:geolocation_group_tp:ID"     => 5,
 #  "38:0:$lang{INTERNET} $lang{STATS}:internet_use:COMPANY_ID"  => 13
 );
-
+if ($conf{INTERNET_USERS_POOL}) {
+  $FUNCTIONS_LIST{"68:2:$lang{NETWORKS}:internet_users_pools:UID"} = 11;
+}
 if ($permissions{0}) {
   if ($permissions{0}{1}) {
     #$FUNCTIONS_LIST{"20:1:$lang{USERS} $lang{ADD}:dv_wizard_user:"} = 11;

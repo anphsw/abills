@@ -1352,7 +1352,7 @@ sub fast_login {
 
     if ($Hotspot->{TOTAL} > 0) {
       #User with this mac already virifed phone today.
-      $FORM{PHONE} ||= $hot_log->[0]->{phone};
+      $FORM{PHONE} = $hot_log->[0]->{phone};
       if ($conf{HOTSPOT_MAC_CHANGE} && $FORM{PHONE} && $FORM{mac}) {
         change_user_mac();
       }
@@ -2049,7 +2049,7 @@ sub check_auth {
 }
 
 #**********************************************************
-=head2 check_auth()
+=head2 change_user_mac()
     Update MAC for existing user.
 =cut
 #**********************************************************

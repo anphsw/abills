@@ -39,3 +39,19 @@ CREATE TABLE IF NOT EXISTS `netblock_url` (
   KEY `id` (`id`),
   FOREIGN KEY (`id`) REFERENCES `netblock_main` (`id`) ON DELETE CASCADE
 ) COMMENT='Netblock url table';
+
+CREATE TABLE IF NOT EXISTS `netblock_ssl` (
+  `id` int(10) unsigned NOT NULL DEFAULT 0,
+  `ssl_name` varchar(255) NOT NULL DEFAULT '',
+  `skip` tinyint(1) NOT NULL DEFAULT '0',
+  KEY `id` (`id`),
+  FOREIGN KEY (`id`) REFERENCES `netblock_main` (`id`) ON DELETE CASCADE
+) COMMENT='Netblock ssl table';
+
+CREATE TABLE IF NOT EXISTS `netblock_ports` (
+  `id` int(10) unsigned NOT NULL DEFAULT 0,
+  `ports` varchar(255) NOT NULL DEFAULT '',
+  `skip` tinyint(1) NOT NULL DEFAULT '0',
+  KEY `id` (`id`),
+  FOREIGN KEY (`id`) REFERENCES `netblock_main` (`id`) ON DELETE CASCADE
+) COMMENT='Netblock ports table';

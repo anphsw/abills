@@ -118,11 +118,13 @@
         jQuery(this).hide();
       }
     });
+
     var selected = adminsList[0] || 1;
-    if (adminsList.indexOf(oldresponsible) >= 0 || adminsList == '') {
+    
+    if (oldresponsible && adminsList.indexOf(oldresponsible) >= 0) {
       selected = oldresponsible;
     }
-    jQuery("#RESPONSIBLE").val(selected).trigger("chosen:updated");
+    jQuery("#RESPONSIBLE").val(selected).trigger("change");
 
     // additional fields
     jQuery.each(arr[type_num], function(field, element) {

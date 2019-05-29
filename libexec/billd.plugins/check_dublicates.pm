@@ -7,12 +7,18 @@
 =cut
 #**********************************************************
 
+use strict;
+use warnings;
+
 our (
-$debug,
-%conf,
-$admin,
-$db,
+  $debug,
+  %conf,
+  $admin,
+  $db,
+  @MODULES
 );
+
+our Nas $Nas;
 
 check_dublicates();
 
@@ -28,9 +34,32 @@ sub check_dublicates {
   # TOTAL : SAME CID
   $conf{DV_SIM_CONTROL} = "1:2" if (!$conf{DV_SIM_CONTROL});
 
-  my ($UNIQUE_CIDS, $SAME_CIDS) = split(/:/, $conf{DV_SIM_CONTROL});
+  my ($unique_cid, $same_cids) = split(/:/, $conf{DV_SIM_CONTROL});
 
-  $Nas->query2("SELECT c.user_name, INET_NTOA(framed_ip_address), c.nas_port_id, 
+  my $sql = q{};
+  if(in_array('Internet', \@MODULES)) {
+    $sql = "SELECT online.user_name, INET_NTOA(framed_ip_address) AS ip,  online.nas_port_id,
+   IF (internet.logins > 0, internet.logins, tp.logins), online.acct_session_id, online.uid,
+   nas.id,
+   nas.ip,
+   nas.nas_type,
+   mng_host_port,
+   mng_user,
+   mng_password,
+   online.cid
+   FROM internet_online online,
+     internet_main internet,
+     tarif_plans tp,
+     nas
+   WHERE online.uid=internet.uid
+     AND online.status<11
+     AND internet.tp_id=tp.id AND tp.domain_id=0
+     AND online.nas_id=nas.id
+     ORDER BY online.user_name, online.cid
+   ;";
+  }
+  else {
+    $sql = "SELECT c.user_name, INET_NTOA(framed_ip_address),  c.nas_port_id,
    if (dv.logins > 0, dv.logins, tp.logins), c.acct_session_id, c.uid,
    nas.id,
    nas.ip,
@@ -39,14 +68,19 @@ sub check_dublicates {
    mng_user,
    mng_password,
    c.CID
-   FROM dv_calls c, dv_main dv, tarif_plans tp, nas
+   FROM dv_calls online,
+     dv_main internet,
+     tarif_plans tp,
+     nas
    WHERE c.uid=dv.uid
      AND c.status<11
      AND dv.tp_id=tp.id AND tp.domain_id=0
      AND c.nas_id=nas.id
      ORDER BY c.user_name, c.CID
-   ;"
-  );
+   ;";
+  }
+
+  $Nas->query2($sql);
 
   my %logins = ();
   my %CIDS   = ();
@@ -74,7 +108,7 @@ sub check_dublicates {
     $CIDS{ $line->[0] }{ $line->[12] }++;
 
     #if ($logins{$line->[0]} > $line->[3] || $CIDS{$line->[0]}{$line->[12]} > $conf{DV_SIM_CID}) {
-    if (int($logins{ $line->[0] }{UNIQUE_CID}) > $UNIQUE_CIDS || int($CIDS{ $line->[0] }{ $line->[12] }) > $SAME_CIDS) {
+    if (int($logins{ $line->[0] }{UNIQUE_CID}) > $unique_cid || int($CIDS{ $line->[0] }{ $line->[12] }) > $same_cids) {
       print "Hangap dublicate '$line->[0]'\n";
       hangup(
         \%NAS,
@@ -91,6 +125,7 @@ sub check_dublicates {
 
   }
 
+  return 1;
 }
 
 1

@@ -16,7 +16,8 @@ use Abills::Base qw(in_array int2byte ip2int mk_unique_value
   load_pmodule date_format _bp int2ip);
 use Abills::Filters qw(_mac_former dec2hex);
 use Nas;
-#hjfjhgjg
+use Internet;
+
 our (
   $db,
   $admin,
@@ -43,9 +44,12 @@ require Equipment::Backup;
 require Equipment::Netmap;
 require Equipment::Tr_069;
 require Equipment::Reports;
-
+require Equipment::Json_conf;
+require Equipment::Calculator;
 
 my $Nas = Nas->new($db, \%conf, $admin);
+my $Internet = Internet->new($db, $admin, \%conf);
+
 #my @ports_state = ('', $lang{ACTIV}, $lang{DISABLE}, 'Damage', 'Corp vlan', 'Dormant', 'Not Present', 'lowerLayerDown');
 #my @ports_state_color = ('', '#008000', '#FF0000');
 
@@ -90,6 +94,7 @@ if ($permissions{4}) {
 }
 
 my $EQUIPMENT_MAPS_LAYER_ID = 7;
+my $PON_MAPS_LAYER_ID = 20;
 
 #********************************************************
 =head2 equipment_panel($attr)
@@ -168,7 +173,7 @@ sub equipment_panel {
         },
         NAME    => 'equipment_nas_panel',
         ID      => 'equipment_nas_panel',
-        class   => 'navbar-form navbar-right form-group',
+        class   => 'navbar-form navbar-right form-inline',
       }
     );
 
@@ -191,6 +196,7 @@ sub equipment_panel {
 =cut
 #********************************************************
 sub equipment_info {
+
   $Equipment->{ACTION} = 'add';
   $Equipment->{ACTION_LNG} = $lang{ADD};
 
@@ -204,13 +210,13 @@ sub equipment_info {
   $Nas->info({ NAS_ID => $nas_id });
   my $SNMP_COMMUNITY = '';
 
-  if ($Nas->{TOTAL} < 1) {
+  if (! $Nas->{NAS_ID}) {
     $html->message('err', $lang{ERROR}, "$lang{DELETED} NAS_ID: " . ($Nas->{NAS_ID} || q{}));
   }
   else {
     $SNMP_COMMUNITY = ($Nas->{NAS_MNG_PASSWORD} || '') . '@' . (($Nas->{NAS_MNG_IP_PORT}) ? $Nas->{NAS_MNG_IP_PORT} : $Nas->{NAS_IP});
-    $Equipment->{NAS_MNG_IP_PORT}  = $Nas->{NAS_MNG_IP_PORT};
-    $Equipment->{NAS_MNG_USER}     = $Nas->{NAS_MNG_USER};
+    $Equipment->{NAS_MNG_IP_PORT} = $Nas->{NAS_MNG_IP_PORT};
+    $Equipment->{NAS_MNG_USER} = $Nas->{NAS_MNG_USER};
     $Equipment->{NAS_MNG_PASSWORD} = $Nas->{NAS_MNG_PASSWORD};
   }
   $Equipment->_info($nas_id);
@@ -710,7 +716,7 @@ sub equipment_search_vlan {
       );
       foreach my $Nas_element (@$Nas_with_SVLAN) {
         if ($Nas_element->{TYPE_NAME} eq "Switch") {
-          my $C_VLANS_LIST = $Equipment->CVLAN_list({
+          my $C_VLANS_LIST = $Equipment->cvlan_list({
             NAS_IP        => '_SHOW',
             SERVER_VLAN   => $FORM{S_VLAN} || "_SHOW",
             NAS_NAME      => '_SHOW',
@@ -816,17 +822,22 @@ sub equipment_add_form {
 
   if ($FORM{add}) {
     $FORM{NAS_TYPE} = 'other';
-    $Nas->add({ %FORM, DOMAIN_ID => $admin->{DOMAIN_ID} });
-
-    if (!$Nas->{errno}) {
-      #$html->message('info', $lang{INFO}, $lang{ADDED} .' #'. $Nas->{NAS_ID} );
-      $FORM{NAS_ID} = $Nas->{NAS_ID};
-      $index = get_function_index('equipment_info');
-      equipment_info();
-      return 1;
+    if($admin->{DOMAIN_ID} && $admin->{DOMAIN_ID} !~ /^\d+$/) {
+      $html->message('err', $lang{ERROR}, 'Select domain', { ID => 461 });
     }
     else {
-      _error_show($Nas);
+      $Nas->add({ %FORM, DOMAIN_ID => $admin->{DOMAIN_ID} });
+
+      if (!$Nas->{errno}) {
+        #$html->message('info', $lang{INFO}, $lang{ADDED} .' #'. $Nas->{NAS_ID} );
+        $FORM{NAS_ID} = $Nas->{NAS_ID};
+        $index = get_function_index('equipment_info');
+        equipment_info();
+        return 1;
+      }
+      else {
+        _error_show($Nas);
+      }
     }
   }
 
@@ -881,6 +892,10 @@ sub equipment_list {
     return 1;
   }
 
+  $LIST_PARAMS{MAC} = $FORM{EQUIPMENT_MAC} if ($FORM{EQUIPMENT_MAC});
+  if (defined($LIST_PARAMS{DISTRICT_ID}) && !$LIST_PARAMS{DISTRICT_ID}) {
+    delete $LIST_PARAMS{DISTRICT_ID};
+  }
   result_former({
     INPUT_DATA      => $Equipment,
     FUNCTION        => '_list',
@@ -888,6 +903,7 @@ sub equipment_list {
     FUNCTION_FIELDS => 'equipment_traps:show:nas_id,equipment_info:change:nas_id,equipment_info:del:nas_id;&del=nas_id',
     MAP             => 1,
     EXTRA_TABS      => { 'Netmaps:network_map' => "index=" . $index . "&NET_MAP=1" },
+    STATUS_VALS     => \@service_status,
     EXT_TITLES      => {
       nas_ip         => 'IP',
       nas_name       => $lang{NAME},
@@ -902,7 +918,9 @@ sub equipment_list {
       type_name      => $lang{TYPE},
       ports          => $lang{PORTS},
       nas_group_name => $lang{GROUPS},
-      last_activity  => $lang{LAST_ACTIVITY}
+      last_activity  => $lang{LAST_ACTIVITY},
+      domain_id      => 'DOMAIN_ID',
+      domain_name    => 'DOMAIN_NAME',
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {
@@ -1814,27 +1832,54 @@ sub equipment_vlan {
 }
 
 #**********************************************************
-=head2 equipment_user_graph($attr)
+=head2 equipment_user_graph($attr) - Shows equipment user graph for nas port
 
   Arguments:
     $attr
+      ID - service id from internet
 
   Returns:
-
-    $information_table
+    true
 
 =cut
 #**********************************************************
 sub equipment_user_graph {
   my ($attr) = @_;
-  if($FORM{GRAPH}) {
-    $html->tpl_show(_include('equipment_graph', 'Equipment'), $attr);
+  if ($FORM{GRAPH}) {
+    return 0 if (!$FORM{SERVICE_ID});
+
+    my $service_info = $Internet->list({
+      ID        => $FORM{SERVICE_ID},
+      NAS_ID    => '_SHOW',
+      PORT      => '_SHOW',
+      COLS_NAME => 1 });
+    return 0 if ($Internet->{errno});
+    return 0 if (!$service_info->[0]->{nas_id} || !$service_info->[0]->{port});
+
+    $Nas->info({
+      NAS_ID    => $service_info->[0]->{nas_id},
+      COLS_NAME => 1 });
+    return 0 if ($Nas->{errno});
+
+    my $nas_community = $Nas->{NAS_MNG_PASSWORD} || 'public';
+    my $nas_ip = $Nas->{NAS_IP} || '';
+    my $nas_port = $service_info->[0]->{port} || '';
+
+    $html->tpl_show(_include('equipment_graph', 'Equipment'), {
+      %$attr,
+      NAS_COMMUNITY => $nas_community,
+      NAS_IP        => $nas_ip,
+      PORT          => $nas_port
+    });
   }
   else {
-    return $html->button('', "index=$index&UID=$attr->{UID}&NAS_ID=$attr->{NAS_ID}&SERVICE_ID=&GRAPH=1", { class => 'glyphicon glyphicon-stats' });
+    return $html->button('',
+      "index=$index&UID=$attr->{UID}&SERVICE_ID=$attr->{ID}&GRAPH=1",
+      { class => 'glyphicon glyphicon-stats' }
+    );
   }
 
-  return '';
+  return 1;
 }
 
 
@@ -2019,9 +2064,18 @@ sub equipment_maps_layers {
       module     => 'Equipment',
       structure  => 'MARKER',
       clustering => 1
-    } ],
+    }, {
+      id         => 20,
+      name       => 'PON',
+      lang_name  => "PON",
+      module     => 'Equipment',
+      structure  => 'MARKER',
+      clustering => 1
+    }
+    ],
     EXPORT_FUNC => {
       $EQUIPMENT_MAPS_LAYER_ID => 'equipment_equipment_maps',
+      $PON_MAPS_LAYER_ID       => 'equipment_pon_maps',
     }
   }
 }
@@ -2072,6 +2126,172 @@ sub equipment_equipment_maps {
                   "COUNT"    :  $count
                 },
              "LAYER_ID" : $EQUIPMENT_MAPS_LAYER_ID
+            }
+    };
+
+    push @export_arr, $tpl;
+  }
+
+  if ($FORM{EXPORT_LIST}) {
+    return join(", ", @export_arr);
+  }
+
+  return join(";", map {"ObjectsArray[ObjectsArray.length] = $_ ;"} @export_arr);
+}
+
+#**********************************************************
+=head2 equipment_equipment_maps()
+
+=cut
+#**********************************************************
+sub equipment_pon_maps {
+  my $equipment_list = $Equipment->onu_list({
+    LOCATION_ID => '_SHOW',
+    LOGIN       => '_SHOW',
+    RX_POWER    => '_SHOW',
+    NAS_NAME    => '_SHOW',
+    MAPS_COORDS => '_SHOW',
+
+    COLS_NAME   => 1,
+    PAGE_ROWS   => 100000,
+  });
+  _error_show($Equipment);
+
+  # Tell Maps we want to get infowindow from Equipment module
+  $FORM{INFO_MODULE} = 'Equipment';
+
+  # To prevent showing few points on same position, we are stacking info in one single block
+  my %showed_equipment = ();
+
+  my @export_arr = ();
+  my $count = 0;
+  foreach my $point (@{$equipment_list}) {
+    next if (!($point->{build_id} && $point->{maps_coords}));
+    my ($coordy, $coordx) = split(/:/, $point->{maps_coords});
+
+    if (!($coordx eq "0.00000000000000" && $coordy eq "0.00000000000000")) {
+
+      if ($showed_equipment{$point->{maps_coords}}) {
+        $coordx = $coordx + 0.000005 * + +$showed_equipment{$point->{maps_coords}};
+      }
+      else {
+        $showed_equipment{$point->{maps_coords}} = 1;
+      }
+
+      my $color = 'normal';
+      my $panel_color = "success";
+      if (!$point->{rx_power} || $point->{rx_power} == 65535) {
+        $color = "off";
+        $panel_color = "default";
+      }
+      elsif ($point->{rx_power} > 0) {
+        $color = "off";
+        $panel_color = "default";
+      }
+      elsif ($point->{rx_power} < -8 || $point->{rx_power} > -27) {
+        $color = "normal";
+        $panel_color = "success";
+      }
+      elsif ($point->{rx_power} > -8 || $point->{rx_power} < -30) {
+        $color = "not_normal";
+        $panel_color = "danger";
+      }
+      else {
+        $color = "off";
+        $panel_color = "default";
+      }
+
+      my $user = $users->info(0, { LOGIN => "$point->{login}" });
+      my $link = "$lang{LOGIN}:<a href='index.cgi?index=15&UID=" . ($user->{UID} || "") . "' target='_blank'>" . ($point->{login} || "") . "</a>";
+      my $tb = "<div class='panel panel-$panel_color'>" .
+        "<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>" .
+        "<ul class='list-group'>" .
+        "<li class='list-group-item'>$lang{SIGNAL}: $point->{rx_power}</li>" .
+        "<li class='list-group-item'>$lang{ADDRESS}: $point->{address_street},$point->{address_build}</li>" .
+        "</ul>" .
+        "</div>";
+      my $info = "<div class='panel-group'>$tb</div>";
+
+      $count++;
+
+      my $tpl = qq{
+            {
+             "MARKER": {
+                  "ID"       : $point->{nas_id}$count,
+                  "COORDX"   : $coordx,
+                  "COORDY"   : $coordy,
+                  "INFO"     : "$info",
+                  "TYPE"     : "pon_$color"
+                },
+             "LAYER_ID" : $PON_MAPS_LAYER_ID
+            }
+    };
+
+      push @export_arr, $tpl;
+    }
+  }
+
+  $equipment_list = $Equipment->_list({
+    MODEL_NAME => '_SHOW',
+    NAS_NAME   => '_SHOW',
+    NAS_IP     => '_SHOW',
+    COORDX     => '!',
+    COORDY     => '!',
+    TYPE_ID    => '4',
+    COLS_NAME  => 1,
+    PAGE_ROWS  => 100000,
+  });
+  _error_show($Equipment);
+
+  foreach my $point (@{$equipment_list}) {
+    my $ports = "";
+    my $equipment_ports_list = $Equipment->pon_port_list({
+      NAS_ID    => $point->{nas_id},
+      COLS_NAME => 1,
+      PAGE_ROWS => 100000,
+      SORT      => 1,
+    });
+    foreach my $item (@{$equipment_ports_list}) {
+      $ports .= $html->badge($item->{branch}) . " ";
+    }
+
+    my $coordx = $point->{coordx};
+    my $coordy = $point->{coordy};
+    if ($showed_equipment{$point->{coordy} . ":" . $point->{coordx}}) {
+      $coordx = $coordx + 0.000005 * + +$showed_equipment{$point->{maps_coords}};
+    }
+    else {
+      $showed_equipment{$point->{coordy} . ":" . $point->{coordx}} = 1;
+    }
+
+    my $color = 'olt';
+    my $panel_color = "success";
+
+    #    my $user = $users->info(0, { LOGIN => "$point->{login}" });
+    my $index = get_function_index('equipment_info');
+    my $link = "OLT:<a href='index.cgi?index=$index&NAS_ID=$point->{nas_id}' target='_blank'> $point->{nas_name}</a>";
+    my $tb = "<div class='panel panel-$panel_color'>" .
+      "<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>" .
+      "<ul class='list-group'>" .
+      "<li class='list-group-item'>IP: $point->{nas_ip}</li>" .
+      "<li class='list-group-item'>$lang{MODEL}: $point->{model_name}</li>" .
+      "<li class='list-group-item'>$lang{PORTS}: $ports</li>" .
+      "</ul>" .
+      "</div>";
+    my $info = "<div class='panel-group'>$tb</div>";
+
+    $count++;
+
+    my $tpl = qq{
+            {
+             "MARKER": {
+                  "ID"       : $point->{nas_id}$count,
+                  "COORDX"   : $coordy,
+                  "COORDY"   : $coordx,
+                  "INFO"     : "$info",
+                  "TYPE"     : "$color"
+                },
+             "LAYER_ID" : $PON_MAPS_LAYER_ID
             }
     };
 
@@ -2291,23 +2511,15 @@ sub equipment_add_color {
 }
 
 #**********************************************************
-=head2 equipment_graph_info()
+=head2 equipment_graph_info($attr) - Get info from nas for graph
 
 =cut
 #**********************************************************
 sub equipment_graph_info {
-
-  return 0 if (!$FORM{NAS_ID} || ! $FORM{PORT});
-
-  $Nas->info({NAS_ID => $FORM{NAS_ID}});
-  return 0 if ($Nas->{errno});
-
-  my $nas_community = $Nas->{NAS_MNG_PASSWORD} || 'public';
-  my $nas_ip = $Nas->{NAS_IP} || '';
+  return 0 if (!$FORM{NAS_COMMUNITY} || !$FORM{NAS_IP} || !$FORM{PORT});
   my $time = time();
-
   my $snmp_result1 = snmp_get({
-    SNMP_COMMUNITY => $nas_community. "@" .$nas_ip,
+    SNMP_COMMUNITY => $FORM{NAS_COMMUNITY} . "@" . $FORM{NAS_IP},
     OID            => "1.3.6.1.2.1.31.1.1.1.10",
     SILENT         => 1,
     VERSION        => 2,
@@ -2320,9 +2532,8 @@ sub equipment_graph_info {
     last if ($port == $FORM{PORT});
   }
 
-
   my $snmp_result2 = snmp_get({
-    SNMP_COMMUNITY => $nas_community. "@" .$nas_ip,
+    SNMP_COMMUNITY => $FORM{NAS_COMMUNITY} . "@" . $FORM{NAS_IP},
     OID            => "1.3.6.1.2.1.31.1.1.1.6",
     SILENT         => 1,
     VERSION        => 2,
@@ -2334,7 +2545,7 @@ sub equipment_graph_info {
     last if ($port == $FORM{PORT});
   }
 
-  return 0 if(!$cin || !$cout);
+  return 0 if (!$cin || !$cout);
 
   print "$cout:$cin:$time";
 

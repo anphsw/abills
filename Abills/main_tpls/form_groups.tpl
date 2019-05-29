@@ -10,7 +10,7 @@
 <div class='form-group'>
     <label class='control-label col-md-3 required' for='GID'>GID:</label>
   <div class='col-md-9'>
-      <input id='GID' name='GID' value='%GID%' required placeholder='%GID%' class='form-control' type='text'>
+      <input id='GID' name='GID' value='%GID%' required placeholder='%GID%' class='form-control' type='text' disabled>
    </div>
 </div>
 

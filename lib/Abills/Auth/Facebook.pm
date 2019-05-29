@@ -18,7 +18,7 @@ my $get_me_url       = 'https://graph.facebook.com/';
 # https://developers.facebook.com/docs/facebook-login/permissions#reference-user_likes
 # read_stream
 # user_hometown
-my $facebook_scope   = 'public_profile,email,user_birthday,user_likes,user_friends,user_location,user_posts';
+my $facebook_scope   = 'public_profile,email';
 
 #**********************************************************
 =head2  get_token() - Get token
@@ -79,10 +79,13 @@ sub check_access {
   $redirect_uri    =~ s/\%SELF_URL\%/$self->{self_url}/g;
 
   if($self->{domain_id}) {
-    $redirect_uri .= "%26DOMAIN_ID=$self->{domain_id}";
+    $redirect_uri .= "%26DOMAIN_ID%3D$self->{domain_id}";
   }
   if($attr->{user_registration}) {
-    $redirect_uri .= "%26user_registration=$attr->{user_registration}";
+    $redirect_uri .= "%26user_registration%3D$attr->{user_registration}";
+  }
+  if($attr->{module}) {
+    $redirect_uri .= "%26module%3D$attr->{module}";
   }
 
   if($self->{debug}) {

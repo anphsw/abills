@@ -9,9 +9,12 @@
   "07:3:$lang{STORAGES}:storage_storages:"    => 5,
   "09:3:$lang{MEASURE}:storage_measure:"      => 5,
   "10:3:$lang{PROPERTY}:storage_properties:"  => 5,
+  "11:3:$lang{ADMINS}:storage_admins:"        => 5,
 
   "01:0:$lang{HARDWARE}:storage_hardware:UID" => 20,
-  "08:0:$lang{STORAGE}:storage_main_report:"     => 4,
+  "50:0:$lang{STORAGE}:storage_main_report:"       => 4,
+  "51:50:$lang{REMNANTS} $lang{REPORTS}:storage_remnants_report:" => 4,
+  "52:50:$lang{MOST_CASH_ITEMS}:storage_statistics:"       => 4,
 );
 
 %PERIODIC = (

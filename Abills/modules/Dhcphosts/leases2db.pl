@@ -240,7 +240,7 @@ sub leases2db {
   my $Dhcphosts = Dhcphosts->new($db, undef, \%conf);
   $Dhcphosts->{debug} = 1 if ($debug > 7);
 
-  my $Nas = Nas->new($db, undef, \%conf);
+  my $Nas = Nas->new($db, \%conf, undef);
   $Nas->{debug} = 1 if ($debug > 7);
 
   my $list2 = $Nas->list({ PAGE_ROWS  => 1,

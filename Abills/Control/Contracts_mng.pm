@@ -15,7 +15,8 @@ our (
   %lang,
   $users,
   $html,
-  %conf
+  %conf,
+  @MONTHES_LIT,
 );
 
 #**********************************************************
@@ -30,14 +31,38 @@ sub user_contract {
 
   if ($FORM{print_add_contract}) {
     my $list = $users->contracts_list({ UID => $uid, ID => $FORM{print_add_contract}, COLS_UPPER => 1 });
-    $users->info($uid);
+    $users->info($uid, {SHOW_PASSWORD => 1});
     $users->pi({ UID => $uid });
+    my $contract_info = {};
+    my ($y, $m, $d) = split( /-/, $list->[0]->{DATE} || $DATE, 3 );
+    $contract_info->{DATE_LIT} = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
     my $company_info = {};
 
     if($users->{COMPANY_ID}){
       use Companies;
       my $Company = Companies->new($db, $admin, \%conf);
       $company_info = $Company->info($users->{COMPANY_ID});
+    }
+
+  #Modules info
+    my $cross_modules_return = cross_modules_call('_docs', { UID => $uid });
+    my $service_num = 1;
+    foreach my $module (sort keys %$cross_modules_return) {
+      if (ref $cross_modules_return->{$module} eq 'ARRAY') {
+        next if ($#{$cross_modules_return->{$module}} == -1);
+        my $module_num = 1;
+        foreach my $line (@{$cross_modules_return->{$module}}) {
+          #$name, $describe, sum, $tp_id, tp_name
+          my (undef, undef, $sum, undef, $tp_name) = split(/\|/, $line);
+          my $module_info = uc($module) . (($module_num) ? "_$module_num" : '');
+          $contract_info->{ "SUM_" . $module_info }   = $sum || 0;
+          $contract_info->{ "NAME_" . $module_info } = $tp_name || q{};
+          $contract_info->{ "SERVICE_SUM_" . $service_num } = $sum || 0;
+          $contract_info->{ "SERVICE_NAME_" . $service_num } = $tp_name || q{};
+          $service_num++;
+          $module_num++;
+        }
+      }
     }
     if ($FORM{pdf}) {
       my $sig_img = "$conf{TPL_DIR}/sig.png";
@@ -52,11 +77,11 @@ sub user_contract {
         # open( my $fh, '>', $sig_img);
         # close $fh;
       }
-      $html->tpl_show("$conf{TPL_DIR}/$list->[0]->{template}", { %$users, %$company_info, %{$list->[0]}, FIO_S => $users->{FIO} }, { TITLE => "Contract" });
+      $html->tpl_show("$conf{TPL_DIR}/$list->[0]->{template}", { %$contract_info, %$users, %$company_info, %{$list->[0]}, FIO_S => $users->{FIO} }, { TITLE => "Contract" });
       unlink $sig_img;
     }
     else {
-      $html->tpl_show(templates($list->[0]->{template}), { %$users, %$company_info, %{$list->[0]} });
+      $html->tpl_show(templates($list->[0]->{template}), { %$contract_info, %$users, %$company_info, %{$list->[0]} });
     }
     return 1;
   }

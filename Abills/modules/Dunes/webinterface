@@ -63,7 +63,7 @@ my $table = $html->table( { width        => '100%',
 
 foreach my $line (@$list) {
   $table->addrow(
-    $html->button($line->{err_id},  "index=$index&ID=$line->{$line->{err_id}}"),
+    $html->button($line->{err_id},  "index=$index&ID=$line->{err_id}"),
     $line->{error_text},
     $line->{translate},
    );

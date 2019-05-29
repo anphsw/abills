@@ -1,7 +1,7 @@
 package Sms;
 =head1 NAME
 
-  Dialup & Vpn  managment functions
+  Sms  managment functions
 
 =cut
 
@@ -11,11 +11,6 @@ use parent qw(dbcore);
 
 my $MODULE = 'Sms';
 my ($admin, $CONF);
-my $SORT      = 1;
-my $DESC      = '';
-my $PG        = 0;
-my $PAGE_ROWS = 25;
-
 
 #**********************************************************
 # Init
@@ -114,10 +109,10 @@ sub list {
   my $self   = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   $self->{EXT_TABLES}     = '';
   $self->{SEARCH_FIELDS}  = '';

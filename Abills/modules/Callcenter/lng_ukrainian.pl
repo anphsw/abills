@@ -1,16 +1,23 @@
-$lang{CALLS_HANDLER}='Обрабник дзвінків';
+$lang{CALLS_HANDLER}='Обробник дзвінків';
 $lang{CALL_CENTER}='Call-центр';
 $lang{RINGING}='Йде дзвінок';
-$lang{IN_PROCESSING}='В оборбці';
+$lang{IN_PROCESSING}='В обробці';
 $lang{PROCESSED}='Оброблено';
 $lang{NOT_PROCESSED}='Не оброблено';
-$lang{FILLING_DATA}='Роспизнати абонентів';
+$lang{FILLING_DATA}='Роспізнати абонентів';
 $lang{NOT_FOUND}='Не знайдено ';
 $lang{FILTER}='Фільтр';
 $lang{NO_CALLS_FOR_DATE_OR_OPERATOR}='Немає дзвінків за вибрану дату або вибраного оператора';
 $lang{ANSWERED}='Відповіли';
 $lang{NO_ANSWER}='Не відповіли';
 $lang{BUSY}='Зайнято';
+$lang{CALLS_REPORT}='Звіт по дзвінках';
+$lang{CALLS_}='Графік дзвінків';
+$lang{ALL_CALLS}='Всі дзвінки';
+$lang{CALLS_SOUNDS}='Записи дзвінків';
+$lang{CALL_FROM}='Дзвінок з номера';
+$lang{CALL_TO}='Дзвінок на номер';
+$lang{LISTEN}='Слухати';
 
 ###################################################
 $lang{INVALID_LOOPS}='Попыток повтора';

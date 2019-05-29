@@ -10,6 +10,7 @@ use strict;
 use Finance;
 use parent qw(dbcore Finance);
 use Abills::Base qw(date_diff);
+use Conf;
 use Bills;
 my $Bill;
 
@@ -88,7 +89,7 @@ sub add {
     elsif ($self->{TOTAL} > 0) {
       $self->{db}{db}->{AutoCommit} = 1 if(! $self->{db}{db}->{AutoCommit});
       $self->{errno}  = 7;
-      $self->{errstr} = 'ERROR_DUBLICATE '.$attr->{CHECK_EXT_ID};
+      $self->{errstr} = 'ERROR_DUPLICATE '.$attr->{CHECK_EXT_ID};
       return $self;
     }
   }
@@ -251,20 +252,23 @@ sub list {
   }
 
   my $WHERE =  $self->search_former($attr, [
-      ['DATETIME',       'DATE','p.date',                       ], #'p.date AS datetime'],
-      ['SUM',            'INT', 'p.sum',                        ],
-      ['PAYMENT_METHOD', 'INT', 'p.method',                     ],
+      ['DATETIME',       'DATE','p.date',   'p.date AS datetime'],
+      ['LOGIN',          'STR', 'u.id',         'u.id AS login' ],
+      ['PAYMENT_METHOD', 'INT', 'p.method',                   1 ],
+      ['DSC',            'STR', 'p.dsc',                      1 ],
+      ['INNER_DESCRIBE', 'STR', 'p.inner_describe'              ],
+      ['SUM',            'INT', 'p.sum',                      1 ],
+      ['LAST_DEPOSIT',   'INT', 'p.last_deposit',             1 ],
+      ['METHOD',         'INT', 'p.method',                   1 ],
+      ['AMOUNT',         'INT', 'p.amount',                   1 ],
+      ['CURRENCY',       'INT', 'p.currency',                 1 ],
       ['A_LOGIN',        'STR', 'a.id'                          ],
       ['ADMIN_NAME',     'STR', 'a.id'                          ],
-      ['DESCRIBE',       'STR', 'p.dsc'                         ],
-      ['INNER_DESCRIBE', 'STR', 'p.inner_describe'              ],
-      ['AMOUNT',         'INT', 'p.amount',                    1],
-      ['CURRENCY',       'INT', 'p.currency',                  1],
-      ['METHOD',         'INT', 'p.method'                      ],
-      ['BILL_ID',        'INT', 'p.bill_id',                   1],
+      ['PAYMENT_METHOD_ID','INT', 'p.method', 'p.method AS payment_method_id' ],
+      ['BILL_ID',        'INT', 'p.bill_id',                  1 ],
       ['AID',            'INT', 'p.aid',                        ],
       ['IP',             'INT', 'INET_NTOA(p.ip)',  'INET_NTOA(p.ip) AS ip'],
-      ['EXT_ID',         'STR', 'p.ext_id',                                ],
+      ['EXT_ID',         'STR', 'p.ext_id',                   1 ],
       ['ADMIN_NAME',     'STR', '', "IF(a.name is null, 'Unknown', a.name) AS admin_name" ],
       ['INVOICE_NUM',    'INT', 'd.invoice_num',                          1],
       ['DATE',           'DATE','DATE_FORMAT(p.date, \'%Y-%m-%d\')'        ],
@@ -295,13 +299,6 @@ sub list {
   my $list;
   if (!$attr->{TOTAL_ONLY}) {
     $self->query("SELECT p.id,
-      u.id AS login,
-      p.date AS datetime,
-      p.dsc,
-      p.sum,
-      p.last_deposit,
-      p.method,
-      p.ext_id,
       $self->{SEARCH_FIELDS}
       p.inner_describe,
       p.uid
@@ -645,4 +642,27 @@ sub payment_type_change {
   return $self;
 }
 
+#**********************************************************
+=head2 payment_report_admin($attr)
+
+=cut
+#**********************************************************
+sub payment_report_admin {
+  my $self = shift;
+  my ($attr) = @_;
+  my $aid = $attr->{AID} || '';
+  my $date = $attr->{DATE} || '';
+
+  $self->query("SELECT p.method, COUNT(p.id) AS total, SUM(p.sum) AS sum, COUNT(DISTINCT p.uid) AS total_users
+    FROM payments p
+    LEFT JOIN users u ON (u.uid=p.uid)
+    LEFT JOIN admins a ON (a.aid=p.aid)
+    WHERE p.aid='$aid' AND (DATE_FORMAT(p.date, '%Y-%m-%d')='$date')
+    GROUP BY 1;
+    ",
+    undef,
+    $attr
+  );
+  return $self->{list};
+}
 1

@@ -71,7 +71,12 @@ sub form_mikrotik_configure {
       MESSAGE_CB => sub { $html->message('info', $_[0], $_[1]) },
       ERROR_CB   => sub { $html->message('err' , $_[0], $_[1]) },
   });
-  
+
+  if (!$Configuration) {
+    $html->message('err', $lang{ERROR}, "No connection to : " . $Nas_->{NAS_NAME});
+    return 0;
+  }
+
   if ( $FORM{clean} ) {
     if ( $Configuration->clear() ) {
       $html->message('info', $lang{SUCCESS}, $lang{DELETED});

@@ -137,11 +137,11 @@ sub msgs_reports {
     }
 
     $table_sessions = $html->table({
-      width      => '100%',
-      caption    => $lang{MESSAGES},
-      title      => \@caption,
-      qs         => $pages_qs,
-      ID         => 'MSGS_REPORT'
+      width   => '100%',
+      caption => $lang{MESSAGES},
+      title   => \@caption,
+      qs      => $pages_qs,
+      ID      => 'MSGS_REPORT',
     });
 
     my $num = -1;
@@ -234,7 +234,7 @@ sub msgs_reports {
       $html->color_mark( $msgs_status->{0} || '' ) . ': ' . $html->b( $Msgs->{OPEN} ),
       $html->color_mark( $msgs_status->{1} || '' ) . ": " . $html->b( $Msgs->{UNMAKED} ),
       $html->color_mark( $msgs_status->{2} || '' ) . ': ' . $html->b( $Msgs->{MAKED} ),
-      
+
       "$lang{OTHER}: " . $html->b( $Msgs->{OTHER} ),
       "$lang{COUNT}: " . $html->b( $Msgs->{TOTAL} ),
       "$lang{RUN_TIME}: " . $html->b( $Msgs->{RUN_TIME} )
@@ -418,13 +418,12 @@ sub msgs_report_menu {
       NO_GROUP          => 1,
       NO_STANDART_TYPES => 1,
       NO_TAGS           => 1,
-      EXT_SELECT_NAME   => $lang{ADMINS},
+      EXT_SELECT_NAME   => $lang{SHORT_ADMINS},
       EXT_SELECT        => $admin_select,
       PERIOD_FORM       => 1,
       EXT_TYPE          => { ADMINS => $lang{ADMINS} },
     }
   );
-
   return 1;
 }
 
@@ -1238,9 +1237,9 @@ sub msgs_admin_statistics {
   }
 
   my $table = $html->table({
-    caption    => "$lang{REPORTS} $from_date - $to_date",
-    title      => [ "$lang{RESPOSIBLE} $lang{ADMIN}", $lang{NEW}, $lang{CLOSED}, $lang{OPEN}, $lang{AVERAGE_RATING} ],
-    ID         => 'MSGS_REPORT'
+    caption => "$lang{REPORTS} $from_date - $to_date",
+    title   => [ "$lang{RESPOSIBLE} $lang{ADMIN}", $lang{NEW}, $lang{CLOSED}, $lang{OPEN}, $lang{AVERAGE_RATING} ],
+    ID      => 'MSGS_REPORT',
   });
 
   my $admin_names = sel_admins({ HASH => 1 });

@@ -19,7 +19,8 @@ our(
   $index,
   @MODULES,
   %conf,
-  %CHARTS
+  %CHARTS,
+  $SELF_URL
 );
 
 #**********************************************************
@@ -357,7 +358,6 @@ sub result_former {
     'expire'        => "$lang{EXPIRE}",
     'credit_date'   => "$lang{CREDIT} $lang{DATE}",
     'reduction'     => "$lang{REDUCTION}",
-    'domain_id'     => 'DOMAIN ID',
 
     'district_name' => "$lang{DISTRICTS}",
     'address_full'  => "$lang{FULL} $lang{ADDRESS}",
@@ -373,10 +373,16 @@ sub result_former {
     'group_name'    => "$lang{GROUP} $lang{NAME}",
     #    'build_id'      => 'Location ID',
     'uid'           => 'UID',
+    'birth_date'    => "$lang{BIRTH_DATE}",
   );
 
   if(in_array('Tags', \@MODULES)) {
     $SEARCH_TITLES{tags}=$lang{TAGS};
+  }
+
+  if(in_array('Multidoms', \@MODULES) && (! $admin->{DOMAIN_ID} || $admin->{DOMAIN_ID} =~ /[,;]+/ )) {
+    $SEARCH_TITLES{domain_id}  = 'DOMAIN ID';
+    $SEARCH_TITLES{domain_name}= $lang{DOMAIN};
   }
 
   if ($conf{ACCEPT_RULES}) {
@@ -652,6 +658,22 @@ sub result_former {
           elsif($col_name eq 'color'){
             $val = ($line->{$col_name}) ? $html->color_mark($line->{$col_name}, $line->{$col_name}) : '';
           }
+          elsif ($col_name eq 'tags') {
+            my @priority_colors = ('btn-default', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
+            if ($line->{tags} && $line->{tags} ne '') {
+              my @tags_name = split(/,/, $line->{tags});
+              my @tags_priority = split(/,/, $line->{priority});
+              $line->{$col_name} = q{};
+              for (my $tags_count = 0; $tags_count < scalar @tags_name; $tags_count++) {
+                my $priority_color = ($tags_priority[$tags_count] && $priority_colors[$tags_priority[$tags_count]]) ? $priority_colors[$tags_priority[$tags_count]] : q{};
+                $line->{$col_name} .= ' ' . $html->element('span', $tags_name[$tags_count], { class => "btn btn-xs $priority_color" });
+              }
+              $val = $line->{$col_name};
+            }
+            else {
+              $val = $line->{$col_name};
+            }
+          }
           elsif ($attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{$col_name} && defined($line->{$col_name})) {
             my($value, $color) = split(/:/, $attr->{SELECT_VALUE}->{$col_name}->{$line->{$col_name}} || '');
 
@@ -675,7 +697,7 @@ sub result_former {
             );
           }
 
-          if($search_color_mark) {
+          if($search_color_mark && $val) {
             $val =~ s/(.*)$FORM{_MULTI_HIT}(.*)/$1$search_color_mark$2/g;
           }
 
@@ -1008,6 +1030,15 @@ sub table_function_fields {
       $html->button($lang{CHANGE}, "index=$index&COMPANY_ID=$line->{id}"
           . ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}" : '')
           . $query_string, { class => 'change' });
+    }
+    elsif ( $function_fields->[$i] eq 'print_in_new_tab') {
+      push @fields_array,
+      $html->button($lang{PRINT}, "#",
+                    {
+                      NEW_WINDOW      => "$SELF_URL?qindex=$index&print=$line->{id}",
+                      NEW_WINDOW_SIZE => "640:750",
+                      class           => 'print'
+                    });
     }
     elsif ($function_fields->[$i] eq 'del') {
       push @fields_array,

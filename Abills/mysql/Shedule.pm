@@ -166,6 +166,10 @@ sub list{
   );
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
+  my $GROUP_BY = q{};
+  if($attr->{TAGS}) {
+    $GROUP_BY = 'GROUP BY s.id';
+  }
 
   if ($attr->{SERVICE_ID}) {
     if ($WHERE) {
@@ -194,6 +198,7 @@ sub list{
     LEFT JOIN admins a ON (a.aid=s.aid)
     $EXT_TABLE
     $WHERE
+    $GROUP_BY
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS",
     undef,

@@ -9,6 +9,7 @@
 use SNMP_Session;
 use SNMP_util;
 use BER;
+#use Abills::Base;
 
 load_module('Snmputils', $html);
 
@@ -314,7 +315,7 @@ my $CMTS_prompt = (defined($conf{BSR1000_PROMPT})) ? $conf{BSR1000_PROMPT} : 'ca
 my $CMTS_terminal_lines = 100;
 
 use Nas;
-my $nas = Nas->new($db, \%conf);
+my $nas = Nas->new($db, \%conf, $admin);
 
 my %bsr1000_commands = (
   'show cable modem'                  => '',
@@ -336,7 +337,7 @@ my %bsr1000_commands = (
 #**********************************************************
 #
 #**********************************************************
-sub Bsr1000_online () {
+sub Bsr1000_online {
 
   if ($FORM{NAS_ID}) {
     $nas->info({ NAS_ID => $FORM{NAS_ID} });
@@ -642,7 +643,7 @@ sub Bsr1000_Docsis_modems {
 
     #last;
 
-    $table = $html->table(
+    my $table = $html->table(
       {
         width      => '100%',
         caption    => "$lang{SESSIONS}",

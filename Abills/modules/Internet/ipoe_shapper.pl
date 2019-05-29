@@ -2,12 +2,14 @@
 
 =head1 NAME
 
-   IPoE Shapper
+   IPoE Shapper starter
+
+   Check online sessions and up shapper rules
 
 =head1 VERSION
 
-  VERSION: 0.34
-  UPDATE: 20180415
+  VERSION: 0.35
+  UPDATE: 20190415
 
 =cut
 #**********************************************************
@@ -33,7 +35,7 @@ BEGIN {
     $Bin . '/../lib/');
 }
 
-our $VERSION = 0.34;
+our $VERSION = 0.35;
 
 use POSIX qw(strftime);
 use Abills::Base qw(check_time parse_arguments ip2int cmd in_array);
@@ -58,30 +60,30 @@ $prog_name_short =~ s/\.[a-zA-Z0-9]+$//;
 
 my $log_dir = $var_dir . '/log';
 
-my $UPDATE_TIME = $argv->{UPDATE_TIME} || 10;                                        # In Seconds
+my $UPDATE_TIME = $argv->{UPDATE_TIME} || 10; # In Seconds
 #my $AUTO_VERIFY = 0;
-my $debug       = $argv->{DEBUG} || 3;
-my $logfile     = $argv->{LOG_FILE} || $log_dir . '/' . $prog_name_short . '.log';
+my $debug = $argv->{DEBUG} || 3;
+my $logfile = $argv->{LOG_FILE} || $log_dir . '/' . $prog_name_short . '.log';
 
 #my $oldstat     = 0;
 #my $check_count = 0;
 #my $NAS_ID      = $argv->{NAS_IDS} || 0;
-my $check_time  = ($argv->{RECONFIG_PERIOD}) ? time - $argv->{RECONFIG_PERIOD} : 0;
+my $check_time = ($argv->{RECONFIG_PERIOD}) ? time - $argv->{RECONFIG_PERIOD} : 0;
 
 my @START_FW = (5000, 3000, 1000);
 
 if ($conf{FW_START_RULES}) {
-	@START_FW = split(/,\s?/, $conf{FW_START_RULES});
+  @START_FW = split(/,\s?/, $conf{FW_START_RULES});
 }
 
-my $BIT_MASK='32';
+my $BIT_MASK = '32';
 my $users_table_number = $conf{FW_TABLE_USERS} || 10;
-my $IPFW   = '/sbin/ipfw';
+my $IPFW = '/sbin/ipfw';
 
-my $Log          = Log->new(undef, \%conf);
+my $Log = Log->new(undef, \%conf);
 $Log->{LOG_FILE} = $logfile;
 
-if (! $argv->{LOG_FILE} && ! defined($argv->{'-d'})) {
+if (!$argv->{LOG_FILE} && !defined($argv->{'-d'})) {
   $Log->{PRINT} = 1;
 }
 
@@ -129,7 +131,6 @@ sub get_tp_classes {
   my $db = db_connect();
   my %TP_TRAFFIC_CLASSES = ();
 
-
   my $Internet = Internet->new($db, undef, \%conf);
   # Get tp traffic classe
   $Internet->query("SELECT tp.tp_id, COUNT(DISTINCT tt.id) AS classes_count
@@ -139,20 +140,19 @@ sub get_tp_classes {
      WHERE tp.module IN ('Dv', 'Internet')
      GROUP BY tp.tp_id", undef, { COLS_NAME => 1 });
 
-  foreach my $tp (@{ $Internet->{list} }) {
-  	$TP_TRAFFIC_CLASSES{$tp->{tp_id}}=$tp->{classes_count};
+  foreach my $tp (@{$Internet->{list}}) {
+    $TP_TRAFFIC_CLASSES{$tp->{tp_id}} = $tp->{classes_count};
   }
 
   return \%TP_TRAFFIC_CLASSES;
 }
 
 #**********************************************************
-=head2 db_connect()
+=head2 db_connect() - Db connector
 
 =cut
 #**********************************************************
 sub db_connect {
-
   return Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd});
 }
 
@@ -172,13 +172,13 @@ sub check_activity {
   if ($check_time > 0 && time - $check_time > $UPDATE_TIME) {
     $period = time - $check_time;
   }
-  $Log->{db}=$db;
+  $Log->{db} = $db;
   $Log->log_print('LOG_DEBUG', '', "Start check online period: $period");
 
   $check_time = time;
   my $WHERE = '';
   if ($argv->{NAS_IDS}) {
-    $WHERE = ' AND ' . join(' or ', @{  $Internet->search_expr($argv->{NAS_IDS}, 'INT', 'online.nas_id') });
+    $WHERE = ' AND ' . join(' OR ', @{$Internet->search_expr($argv->{NAS_IDS}, 'INT', 'online.nas_id')});
   }
   if (!$attr->{ALL}) {
     $WHERE .= " AND UNIX_TIMESTAMP() - UNIX_TIMESTAMP(started) <= $period";
@@ -189,7 +189,7 @@ sub check_activity {
     LEFT JOIN tarif_plans tp  ON (tp.tp_id=internet.tp_id)
   };
 
-  if(in_array('Internet', \@MODULES)) {
+  if (in_array('Internet', \@MODULES)) {
     $internet_tables = q{  FROM internet_online online
       LEFT JOIN internet_main internet  ON (internet.id=online.service_id)
       LEFT JOIN tarif_plans tp  ON (tp.tp_id=internet.tp_id)
@@ -215,10 +215,10 @@ sub check_activity {
     online.guest
     $internet_tables
     INNER JOIN nas n ON (n.id=online.nas_id)
-    WHERE (status=1 OR status=3 OR status=10) $WHERE; ";
+    WHERE (online.status=1 OR online.status=3 OR online.status=10) $WHERE; ";
 
   if ($debug > 7) {
-  	$Log->log_print('LOG_SQL', '', $sql);
+    $Log->log_print('LOG_SQL', '', $sql);
   }
 
   $Internet->query($sql,
@@ -226,11 +226,11 @@ sub check_activity {
     { COLS_NAME => 1 }
   );
 
-  my $fw_step   = 1000;
+  my $fw_step = 1000;
 
-  foreach my $line (@{ $Internet->{list} }) {
+  foreach my $line (@{$Internet->{list}}) {
     my $tp_id = $line->{tp_id};
-    my $ip    = $line->{ip};
+    my $ip = $line->{ip};
 
     if ($ip eq '0.0.0.0') {
       $Log->log_print('LOG_EMERG', $line->{user_name}, "DURATION: $line->{duration} TP: $tp_id IP: $ip STATUS: $line->{status} WRONG_IP");
@@ -239,7 +239,7 @@ sub check_activity {
 
     my $TRAFFIC_CLASSES = $TP_TRAFFIC_CLASSES->{$tp_id} || 1;
 
-    $Log->log_print('LOG_INFO', $line->{user_name}, "DURATION: $line->{duration} TP: $tp_id IP: $ip STATUS: $line->{status} TC: $TRAFFIC_CLASSES GUEST: ". $line->{guest});
+    $Log->log_print('LOG_INFO', $line->{user_name}, "DURATION: $line->{duration} TP: $tp_id IP: $ip STATUS: $line->{status} TC: $TRAFFIC_CLASSES GUEST: " . $line->{guest});
     my $cmd = '';
 
     if ($line->{netmask} ne '32') {
@@ -248,7 +248,7 @@ sub check_activity {
     }
 
     if (defined($argv->{IPN_SHAPPER})) {
-    	$cmd = $conf{IPN_FW_START_RULE} || $conf{INTERNET_IPOE_START} ;
+      $cmd = $conf{IPN_FW_START_RULE} || $conf{INTERNET_IPOE_START};
       $cmd =~ s/\%IP/$ip/g;
       $cmd =~ s/\%MASK/$line->{netmask}/g;
       #$cmd =~ s/\%NUM/$rule_num/g;
@@ -260,7 +260,7 @@ sub check_activity {
       $cmd =~ s/\%STATUS/ONLINE_ENABLE/g;
 
       if ($line->{filter_id} && $conf{IPN_FILTER}) {
-      	my $f_cmd = $conf{IPN_FILTER};
+        my $f_cmd = $conf{IPN_FILTER};
         $f_cmd =~ s/\%STATUS/ONLINE_ENABLE/g;
         $f_cmd =~ s/\%IP/$line->{ip}/g;
         $f_cmd =~ s/\%MASK/$line->{netmask}/g;
@@ -274,22 +274,22 @@ sub check_activity {
         $cmd .= "; $f_cmd";
       }
 
-      $ENV{NAS_IP_ADDRESS}  = $line->{nas_ip};
-      $ENV{NAS_MNG_USER}    = $line->{mng_user};
-      $ENV{NAS_MNG_PASSWORD}= $line->{mng_password};
+      $ENV{NAS_IP_ADDRESS} = $line->{nas_ip};
+      $ENV{NAS_MNG_USER} = $line->{mng_user};
+      $ENV{NAS_MNG_PASSWORD} = $line->{mng_password};
       $ENV{NAS_MNG_IP_PORT} = $line->{mng_host_port};
-      $ENV{NAS_ID}          = $line->{nas_id};
-      $ENV{NAS_TYPE}        = $line->{nas_type} || '';
+      $ENV{NAS_ID} = $line->{nas_id};
+      $ENV{NAS_TYPE} = $line->{nas_type} || '';
     }
     else {
-    	
-   	  if ($conf{INTERNET_TURBO_MODE}) {
+
+      if ($conf{INTERNET_TURBO_MODE}) {
         $Turbo = Turbo->new($db, undef, \%conf);
         $Turbo->list(
-        {
-         UID    => $line->{UID},
-         ACTIVE => 1,
-        }
+          {
+            UID    => $line->{UID},
+            ACTIVE => 1,
+          }
         );
       }
 
@@ -307,14 +307,14 @@ sub check_activity {
           $table_class = $SPEED;
         }
 
-        $cmd = "$IPFW table $users_table_number add $ip/$BIT_MASK $table_class;".
-               "$IPFW table " . ($users_table_number + 1) . " add $ip/$BIT_MASK $table_class";
+        $cmd = "$IPFW table $users_table_number add $ip/$BIT_MASK $table_class;" .
+          "$IPFW table " . ($users_table_number + 1) . " add $ip/$BIT_MASK $table_class";
       }
-    	else {
-        for (my $traf_type = 0;$traf_type < $TRAFFIC_CLASSES; $traf_type++) {
-          if($line->{guest}) {
-            $cmd = "$IPFW -q table ".(10 + $traf_type * 2)." delete $ip; ";
-            $cmd .= "$IPFW -q table ".(11 + $traf_type * 2)." delete $ip; ";
+      else {
+        for (my $traf_type = 0; $traf_type < $TRAFFIC_CLASSES; $traf_type++) {
+          if ($line->{guest}) {
+            $cmd = "$IPFW -q table " . (10 + $traf_type * 2) . " delete $ip; ";
+            $cmd .= "$IPFW -q table " . (11 + $traf_type * 2) . " delete $ip; ";
             $cmd .= "$IPFW -q table $fw_guest_table add $ip;";
           }
           else {
@@ -322,10 +322,10 @@ sub check_activity {
             my $pipe_rule_out = int($START_FW[$traf_type] + $fw_step + $tp_id);
 
             $cmd = " $IPFW -q table $fw_guest_table delete $ip; "
-              . " $IPFW -q table ".(10 + $traf_type * 2)." delete $ip; "
-              . " $IPFW table ".(10 + $traf_type * 2)." add $ip $pipe_rule_in;"
-              . " $IPFW -q table ".(11 + $traf_type * 2)." delete $ip; "
-              . " $IPFW table ".(11 + $traf_type * 2)." add $ip $pipe_rule_out";
+              . " $IPFW -q table " . (10 + $traf_type * 2) . " delete $ip; "
+              . " $IPFW table " . (10 + $traf_type * 2) . " add $ip $pipe_rule_in;"
+              . " $IPFW -q table " . (11 + $traf_type * 2) . " delete $ip; "
+              . " $IPFW table " . (11 + $traf_type * 2) . " add $ip $pipe_rule_out";
           }
         }
       }
@@ -335,10 +335,14 @@ sub check_activity {
 
     cmd($cmd);
   }
+
+  return 1;
 }
 
 #**********************************************************
-# help
+=head2 usage() - help
+
+=cut
 #**********************************************************
 sub usage {
   print <<EOF;
@@ -359,6 +363,8 @@ IPN_SHAPPER     Enable IPN shapper rules
 Please edit the config vaiables befoe unning!
 
 EOF
+
+  return 1;
 }
 
 

@@ -17,7 +17,7 @@ use warnings FATAL => 'all';
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Ureports',
-  REQUIRE_VERSION => 7.37,
+  REQUIRE_VERSION => 7.51,
 })) {
 
   exit;
@@ -222,12 +222,50 @@ sub ureports_user {
   if (form_purchase_module({
     HEADER          => $user->{UID},
     MODULE          => 'Ureports',
-    REQUIRE_VERSION => 7.37
+    REQUIRE_VERSION => 7.51
   })) {
     return 0;
   }
+  if ($FORM{UR_MODAL_AJAX} && defined($FORM{TP_ID})) {
+      return '' if ($FORM{TP_ID} eq '');
 
-  $Ureports->{UID} = $FORM{UID} || $LIST_PARAMS{UID};
+    my $table = $html->table({
+      width   => '100%',
+      caption => $lang{REPORTS},
+      title   => [ '#', $lang{NAME}, $lang{VALUE}, $lang{PRICE}, $lang{SENDED} ],
+      qs      => $pages_qs,
+      ID      => 'REPORTS_TP'
+    });
+
+    $Ureports->{TP_ID} = ($FORM{UR_MODAL_AJAX} && $FORM{TP_ID}) ? $FORM{TP_ID} : $Ureports->{TP_ID};
+
+    my $list = $Ureports->tp_reports_list({
+      %LIST_PARAMS,
+      COMMENTS  => '_SHOW',
+      TP_ID     => $Ureports->{TP_ID},
+      COLS_NAME => 1
+    });
+
+    foreach my $line (@{$list}) {
+      $table->addrow(
+        $html->form_input("R_IDS", "$line->{report_id}",
+          { TYPE => 'checkbox', FORM_ID => 'users_list', STATE => ($line->{date}) ? 1 : undef, OUTPUT2RETURN => 1 }),
+        ($line->{comments}) ? $line->{comments} : $REPORTS{ $line->{report_id} },
+        $html->form_input("VALUE_$line->{report_id}", (($line->{value}) ? $line->{value} : 0),
+          { OUTPUT2RETURN => 1, SIZE => 6, EX_PARAMS => 'pattern="[.0-9]+"',  FORM_ID => 'users_list', TYPE => 'number' }),
+        (($line->{msg_price}) ? $line->{msg_price} : '0.00'),
+        ($line->{date} || '') . (($line->{date} && $line->{date} ne '0000-00-00') ? $html->button($lang{RESET},
+          "index=$index&UID=$line->{uid}&REPORT_ID=$line->{report_id}&reset_date=1",
+          { MESSAGE => "$lang{RESET}", class => 'del' }) : '')
+      );
+    }
+
+    print $table->show();
+    return 1;
+
+  }
+
+  $Ureports->{UID} = $FORM{UID} || $LIST_PARAMS{UID} || q{};
   my $report_type = $FORM{TYPE} || 0;
   if ($FORM{add}) {
     if (!$permissions{0}{1}) {
@@ -351,6 +389,8 @@ sub ureports_user {
           { MESSAGE => "$lang{RESET}", class => 'del' }) : '')
       );
     }
+
+
     $Ureports->{REPORTS_LIST} = $table->show({ OUTPUT2RETURN => 1 })
       . $html->form_input('set', $lang{SET}, { TYPE => 'submit', SUCCESS => 1 });
   }
@@ -385,8 +425,8 @@ sub ureports_user {
 
   $Ureports->{TP_NAME} = '';
   if ($Ureports->{TP_ID}) {
-    $Ureports->{CHANGE_TP_BUTTON} = $html->button($lang{TARIF_PLAN},
-      "TP_ID=$Ureports->{TP_ID}&index=" . get_function_index('ureports_tp'), { class => 'change' });
+    $Ureports->{CHANGE_TP_BUTTON} = $html->element('span', $html->button($lang{TARIF_PLAN},
+      "TP_ID=$Ureports->{TP_ID}&index=" . get_function_index('ureports_tp'), { class => 'change' }), {class => 'input-group-addon'});
   }
 
   $Ureports->{TP_ID} = $html->form_select(
@@ -673,24 +713,49 @@ sub ureports_stats {
     $LIST_PARAMS{DESC} = 'desc';
   }
 
-  my @rows = (
-    "$lang{FROM}: ",
-    $html->date_fld2('FROM_DATE', { MONTHES => \@MONTHES, EEK_DAYS => \@WEEKDAYS }),
-    "$lang{TO}: ",
-    $html->date_fld2('TO_DATE', { MONTHES => \@MONTHES, WEEK_DAYS => \@WEEKDAYS }),
-    "$lang{ROWS}: ",
-    $html->form_input('rows', int($conf{list_max_recs}), { SIZE => 4, OUTPUT2RETURN => 1 }),
-    $html->form_input('show', $lang{SHOW}, { TYPE => 'submit', OUTPUT2RETURN => 1 })
-  );
+  my @rows = ();
+
+  push @rows, $html->element('label', "$lang{FROM}: ", { class => 'col-md-2 control-label' })
+    . $html->element('div', $html->date_fld2('FROM_DATE', {
+    MONTHES  => \@MONTHES,
+    EEK_DAYS => \@WEEKDAYS
+  }), { class => 'col-md-9' });
+
+  push @rows, $html->element('label', "$lang{TO}: ", { class => 'col-md-2 control-label' })
+    . $html->element('div', $html->date_fld2('TO_DATE', {
+    MONTHES   => \@MONTHES,
+    WEEK_DAYS => \@WEEKDAYS
+  }), { class => 'col-md-9' });
+
+  push @rows, $html->element('label', "$lang{ROWS}: ", { class => 'col-md-2 control-label' })
+    . $html->element('div', $html->form_input('rows', int($conf{list_max_recs}), {
+    SIZE          => 4,
+    OUTPUT2RETURN => 1
+  }), { class => 'col-md-9' });
 
   my $ROWS;
   foreach my $val (@rows) {
-    $ROWS .= $html->element('div', $val, { class => 'form-group', OUTPUT2RETURN => 1 });
+    $ROWS .= $html->element( 'div', $html->element('div', $val, {
+      class => 'form-group',
+      OUTPUT2RETURN => 1
+    }), { class => 'col-md-6 no-padding' } );
   }
-
-  my $report_form = $html->element('div', $ROWS, {
-    class => 'well well-sm sticky',
-  });
+  my $row_body = $html->element( 'div', $ROWS, {
+    class => 'row',
+  } );
+  my $box_body = $html->element( 'div', $row_body, {
+    class => 'box-body',
+  } );
+  my $box_footer = $html->element( 'div', $html->form_input( 'show', $lang{SHOW}, { class => 'btn btn-primary btn-block', TYPE => 'submit', OUTPUT2RETURN => 1 } ), {
+    class => 'box-footer',
+  } );
+  my $box_header = $html->element( 'div', $lang{FILTERS} . '<div class="box-tools pull-right">
+      <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+      <i class="fa fa-minus"></i></button></div>',
+    { class => 'box-header with-border'} );
+  my $report_form = $html->element( 'div', $box_header . $box_body . $box_footer, {
+    class => 'box box-theme',
+  } );
 
   print $html->form_main(
     {
@@ -703,7 +768,7 @@ sub ureports_stats {
       },
       #NAME => 'stats',
       ID      => 'stats',
-      class   => 'form-inline'
+      class   => 'form-horizontal'
     }
   );
 
@@ -729,7 +794,7 @@ sub ureports_stats {
       qs           => $pages_qs,
       pages        => $Ureports->{TOTAL},
       recs_on_page => $LIST_PARAMS{PAGE_ROWS},
-      ID           => 'REPORTS_LOG'
+      ID           => 'REPORTS_LOG',
     }
   );
 
@@ -767,7 +832,8 @@ sub ureports_user_info {
   my $report_type = $FORM{TYPE} || 0;
 
   if ($FORM{add}) {
-    if ($report_type == 0 && $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
+    if ($report_type == 0
+      && (!$FORM{DESTINATION} || $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/)) {
       $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_EMAIL});
     }
     elsif ($report_type == 1 && $conf{PHONE_FORMAT} && $FORM{DESTINATION} !~ /$conf{PHONE_FORMAT}/) {
@@ -794,7 +860,7 @@ sub ureports_user_info {
   }
   elsif ($FORM{set}) {
     # TODO: change ID for check
-    if (!$report_type && $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
+    if (!$report_type && $FORM{DESTINATION} && $FORM{DESTINATION} !~ /^(([^<>()[\]\\.,;:\s\@\"]+(\.[^<>()[\]\\.,;:\s\@\"]+)*)|(\".+\"))\@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) {
       $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_EMAIL});
     }
     elsif ($report_type == 1 && $conf{PHONE_FORMAT} && $FORM{DESTINATION} !~ /$conf{PHONE_FORMAT}/) {
@@ -964,7 +1030,7 @@ sub ureports_daily_resets {
   if ($d == 1) {
     my $list = $Ureports->tp_user_reports_list(
       {
-        REPORT_ID => "13;14",
+        REPORT_ID => "13;14;3;11",
         DATE      => '>0000-00-00',
         %LIST_PARAMS,
         COLS_NAME => 1,
@@ -988,8 +1054,10 @@ sub ureports_daily_resets {
   my $list = $Ureports->tp_user_reports_list(
     {
       RESET     => 1,
-      REPORT_ID => "1",
+      REPORT_ID => 1,
       DATE      => '>0000-00-00',
+      DISABLE   => 0,
+      DEPOSIT   => '>0',
       %LIST_PARAMS,
       COLS_NAME => 1,
       PAGE_ROWS => 1000000
@@ -1325,6 +1393,7 @@ sub ureports_tp_reports {
     $attr
       USER_INFO
 
+
   Results:
 
 
@@ -1442,6 +1511,7 @@ sub ureports_payments_maked {
 
     $lang{ALL_SERVICE_EXPIRE} =~ s/XX/ $info{EXPIRE_DAYS} /;
     $info{MESSAGE} = $lang{ALL_SERVICE_EXPIRE};
+    $info{PAYMENT_ID} = $attr->{PAYMENT_ID};
 
     if ($user->{DEPOSIT} + $user->{CREDIT} > 0) {
       $info{RECOMMENDED_PAYMENT} = sprintf("%.2f", ($info{RECOMMENDED_PAYMENT} || 0) - ($user->{DEPOSIT} + $user->{CREDIT}));
@@ -1476,12 +1546,15 @@ sub ureports_payments_maked {
       $html->tpl_show(_include('ureports_report_12', 'Ureports'), { %{$user}, %{$user_info}, %info }, { OUTPUT2RETURN => 1 }),
       {
         %info,
+        %{$user},
+        %{$user_info},
         SUBJECT   => $lang{ACCOUNT_REPLENISHMENT},
         UID       => $user->{UID},
         TP_ID     => $user_info->{TP_ID},
+        DATE      => $DATE,
         REPORT_ID => 12,
       },
-      DEBUG => 5
+      DEBUG => 0
     );
 
     if ($user_info->{MSG_PRICE} > 0) {
@@ -1591,6 +1664,28 @@ sub _ureports_get_user_contacts {
     VALUE => '_SHOW'
   });
   _error_show($Contacts);
+
+  my $phone_exist = 0;
+  my $i = 0;
+  foreach my $item (@{$contacts_list}) {
+    if ($item->{value} eq "") {
+      splice(@{$contacts_list}, $i, 1);
+    }
+    $i++
+  }
+
+  $i = 0;
+  foreach my $item (@{$contacts_list}) {
+    if ($item->{type_id} eq '2') {
+      $item->{type_id} = '1';
+      $phone_exist = 1;
+      next;
+    }
+    elsif ($item->{type_id} eq '1' && $phone_exist == 1) {
+      $item->{type_id} = '2';
+    }
+    $i++;
+  }
 
   if (!$conf{CONTACTS_NEW}) {
     my $pi = Users->new($db, $admin, \%conf);

@@ -20,13 +20,15 @@ our (
   %lang,
   $debug,
   $argv,
-  $libpath
+  $libpath,
+  $DATE,
 );
 
 require Abills::Misc;
 require Abills::Base;
 use Users;
 $admin = $Admin;
+
 $debug = $argv->{DEBUG} || 1;
 
 our $users = Users->new($db, $admin, \%conf);
@@ -38,6 +40,6 @@ my $version = 7.0;
 
 print "Billd plugin for paysys peridic starting. \n\n";
 
-paysys_periodic_new({DEBUG => $debug});
+paysys_periodic_new({DEBUG => $debug, DATE => $DATE, %$argv});
 
 print "Billd plugin for paysys peridic stoped. \n\n";

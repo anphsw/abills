@@ -47,7 +47,6 @@ $lang{DEVICE}='Device';
 $lang{GENDER}='Gender';
 $lang{MALE}='Male';
 $lang{FEMALE}='Female';
-$lang{BIRTH_DATE}='BIrth date';
 $lang{SEND_NEWS}='Send news';
 $lang{ERR_NOT_REGISTERED}='Not registred';
 $lang{SCREENS}='Screens';
@@ -73,3 +72,33 @@ $lang{DISABLE_SERVICE_DATE}='Disable date';
 $lang{ADDED_TP}='Added tarif plan';
 
 $lang{MAX_DEVICES} = 'Max devices';
+$lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS} = "You have exceeded the number of subscriptions for this service";
+$lang{THIS_TARIFF_PLAN_IS_ALREADY_CONNECTED} = "This tariff plan is already connected";
+
+$lang{PLAYLISTS} = "Playlists";
+$lang{CREATE_PLAYLIST} = "Create playlist";
+$lang{ACTIVATION_DATA} = "Activation data";
+$lang{SET_FILTER_ID_IN_TARIFF} = "Set Filter id in tariff";
+$lang{WATCH_NOW} = "Watch now";
+$lang{ACTIVATION_CODE} = "Activation code";
+$lang{ADD_DEVICE_BY_UNIQ} = "Add Device by Uniq";
+
+$lang{PROCESSING_ERROR} = "Processing error";
+$lang{ACCOUNT_NOT_ACTIVATED} = "Account not activated";
+$lang{ERROR_CARD} = "Card must have 12 characters";
+$lang{UNSUBSCRIBE_CARD_ERROR} = "Unsubscribe card error";
+$lang{IMPOSSIBLE_TO_ADD_CARD} = "You have disabled the service, it is impossible to add a card";
+$lang{CARD_SUCCESSFULLY_SIGNED} = "Card successfully signed";
+$lang{CARD_SUBSCRIPTION_FAILED} = "Card subscription failed";
+$lang{CARD_UNSUBSCRIBED} = "Сard was successfully unsubscribed";
+$lang{CARD_NUMBER} = "Card number";
+$lang{AUTHORISATION_END} = "Authorisation end";
+$lang{UNBLOCK} = "Unblock";
+$lang{BLOCK} = "Block";
+$lang{CARD_LOCKED} = "Card locked";
+$lang{CARD_EXIST} = "Card already exist";
+$lang{NO_CARDS} = "There are no cards (either blocked or missing)";
+$lang{INTERNAL_URL} = "Internal url";
+$lang{EXTERNAL_URL} = "External url";
+
+1;

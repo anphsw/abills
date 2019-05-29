@@ -16,11 +16,12 @@ our (
   $admin, $db, %conf,
   %permissions,
   @DEFAULT_SEND_TYPES,
-  @PRIORITY_SEND_TYPES
+#  @PRIORITY_SEND_TYPES
 );
 
 
 use Events;
+use JSON;
 our Events $Events = Events->new($db, $admin, \%conf);
 
 require Events::Selects;

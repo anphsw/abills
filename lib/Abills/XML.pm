@@ -466,6 +466,7 @@ sub addrow {
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
   for (my $i=0; $i<=$#row; $i++) {
     my $val = $row[$i+$select_present];
+    $val = normalize_str($val || q{});
     $self->{rows} .= "<TD>" . (($self->{SKIP_FORMER}) ? $val : $self->link_former($val, { SKIP_SPACE => 1 })) . "</TD>";
   }
 
@@ -511,7 +512,7 @@ sub th {
 =cut
 #**********************************************************
 sub td {
-  my $self = shift;
+  shift;
   my ($value, $attr) = @_;
   my $extra = '';
 
@@ -524,7 +525,7 @@ sub td {
   }
   else {
     $td = "<TD$extra>";
-    $td .= $value if (defined($value));
+    $td .= normalize_str($value) if (defined($value));
     $td .= "</TD>";
   }
   return $td;
@@ -804,6 +805,10 @@ sub tpl_show {
     return '';
   }
 
+  if ($attr->{TPL} && $attr->{MODULE}) {
+    $tpl = $self->get_tpl($attr->{TPL}, $attr->{MODULE});
+  }
+
   my $xml_tpl = "<INFO name=\"$tpl_name\">\n";
 
   if ($self->{new_model}) {
@@ -916,6 +921,19 @@ sub table_header {
   $header = "<table_header>$header</table_header>";
 
   return $header;
+}
+
+#**********************************************************
+=head2  normalize_str($text)
+
+=cut
+#**********************************************************
+sub normalize_str {
+  my ($text) = @_;
+
+  $text =~ s/\&#37/\%/g;
+
+  return $text;
 }
 
 #**********************************************************

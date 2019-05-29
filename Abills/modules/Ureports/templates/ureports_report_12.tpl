@@ -1,4 +1,4 @@
-Hello, %FIO%
+_{DEAR}_, %FIO%
 
 _{PAYMENTS_INFO}_
 _{PAYMENT_MAKED}_
@@ -6,6 +6,7 @@ _{PAYMENT_MAKED}_
 ---------------------------------------------
 _{SUM}_: %SUM%
 _{DATE}_: %DATE%
+#: %PAYMENT_ID%
 
 _{DEPOSIT}_: %DEPOSIT%
 _{CREDIT}_: %CREDIT%

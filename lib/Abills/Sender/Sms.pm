@@ -1,7 +1,7 @@
 package Abills::Sender::Sms;
 =head1 NAME
 
-  Send E-mail message
+  Send Sms message
 
 =cut
 
@@ -20,9 +20,9 @@ use parent 'Abills::Sender::Plugin';
     MESSAGE
     SUBJECT
     PRIORITY_ID
-    TO_ADDRESS   - Email addess
-    MAIL_TPL
+    TO_ADDRESS   - Sms address
     UID
+    debug
 
   Returns:
     result_hash_ref
@@ -39,6 +39,7 @@ sub send_message {
   };
 
   our $html = Abills::HTML->new();
+  our $admin= $self->{admin};
   our %conf = %{ $self->{conf} };
   our $db   = $self->{db};
 
@@ -57,7 +58,9 @@ sub send_message {
   $self->{status}=$status;
   $self->{message_id}=$status;
 
-  print "Start send smss $attr->{UID} //";
+  my $uid = $attr->{UID} || 0;
+
+  print "Start send sms: $uid //\n";
 
   return 1;
 }
@@ -70,7 +73,5 @@ sub send_message {
 sub support_batch {
   return 1;
 }
-
-1;
 
 1;

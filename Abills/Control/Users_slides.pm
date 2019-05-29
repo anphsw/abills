@@ -313,7 +313,9 @@ sub user_full_info {
         $field_name //= '';
         my $field_value = ($base_slides->[$slide_num]{FIELDS}->{$field_name}) ? $base_slides->[$slide_num]{FIELDS}->{$field_name} : q{};
         if($conf{DEPOSIT_FORMAT} && $field_name eq 'DEPOSIT') {
-          $field_info->{$field_name} = sprintf("$conf{DEPOSIT_FORMAT}", $field_info->{$field_name}) if ($field_info->{$field_name} =~ /\d+/);
+          if (defined($field_info->{$field_name}) && $field_info->{$field_name} =~ /\d+/) {
+            $field_info->{$field_name} = sprintf($conf{DEPOSIT_FORMAT}, $field_info->{$field_name});
+          }
         }
 
         my $information = (($attr->{SHOW_ID}) ? qq{"$field_name" : "} : qq{"$field_value" : "});

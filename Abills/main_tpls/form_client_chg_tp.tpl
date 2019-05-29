@@ -35,14 +35,17 @@
     <div class='modal fade' id='changeTPModal'>
         <div class='modal-dialog'>
             <div class='modal-content'>
-                <div class='modal-header text-center'>
+                <div class='modal-header'>
                     <button type='button' class='close' data-dismiss='modal' aria-label='Close'><span
                             aria-hidden='true'>&times;</span></button>
                     <h4>_{CHANGE}_ _{TARIF_PLAN}_</h4>
                 </div>
-                <div class='modal-body' style='padding:20px;'>
+                <div class='modal-body'>
                     <div class='form-group text-center'>
-                        <label class='control-label text-center'>_{ACCEPT}_:</label>
+                        %CHG_TP_RULES%
+                    </div>
+                    <div class='form-group text-center'>
+                        <label class='control-label text-center' for='ACCEPT_RULES'>_{ACCEPT}_:</label>
                         %ACTION_FLAG%
                         <input type=checkbox value='_{HOLD_UP}_' id='ACCEPT_RULES' name='ACCEPT_RULES'>
                     </div>

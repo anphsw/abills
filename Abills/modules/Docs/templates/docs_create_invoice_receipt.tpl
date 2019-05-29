@@ -12,7 +12,7 @@
     <div class='form-group'>
       <label class='control-label col-md-4' for='APPLY_TO_INVOICE'>_{APPLY_TO_INVOICE}_</label>
       <div class='col-md-8'>
-        <select name='APPLY_TO_INVOICE' ID='APPLY_TO_INVOICE' class='form-control'>
+        <select name='APPLY_TO_INVOICE' ID='APPLY_TO_INVOICE' class='form-control' style="width: 100%">
           <option value=1>_{YES}_</option>
           <option value=0>_{NO}_</option>
 		</select>

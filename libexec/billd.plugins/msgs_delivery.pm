@@ -30,18 +30,20 @@ our (
   $var_dir,
   $db,
   $argv,
-  %LIST_PARAMS
+  %LIST_PARAMS,
+  %lang
 );
 
+my $Sender = Abills::Sender::Core->new(
+  $db,
+  $Admin,
+  \%conf
+);
 
-my $Sender = Abills::Sender::Core->new({
-  CONF => \%conf,
-  SENDER_TYPE => 'Mail'
-});
-my $Log     = Log->new($db, $Admin);
+my $Log         = Log->new($db, $Admin);
 my %list_params = %LIST_PARAMS;
-our $html = Abills::HTML->new( { CONF => \%conf } );
-%LIST_PARAMS = %list_params;
+our $html       = Abills::HTML->new( { CONF => \%conf } );
+%LIST_PARAMS    = %list_params;
 
 if($debug > 2) {
   $Log->{PRINT}=1;
@@ -208,7 +210,7 @@ sub msgs_delivery {
 
       my $user_pi = $users->pi({ UID => $u->{uid} });
       my $internet_info = {};
-      if (in_array('Dv', \@MODULES)) {
+      if (in_array('Internet', \@MODULES)) {
         $internet_info = $Internet->info($u->{uid});
       }
 
@@ -220,17 +222,22 @@ sub msgs_delivery {
       if($debug < 6) {
         $Sender->send_message({
           SENDER      => $Msgs_delivery->{SENDER},
-          TO_ADDRESS  => $email,
+          TO_ADDRESS  => ($Msgs_delivery->{SEND_METHOD} && $Msgs_delivery->{SEND_METHOD} == 1) ? $email : undef,
           MESSAGE     => $message,
           SUBJECT     => $Msgs_delivery->{SUBJECT},
           SENDER_TYPE => $send_methods[$Msgs_delivery->{SEND_METHOD} || 1],
           ATTACHMENTS => ($#ATTACHMENTS > -1) ? \@ATTACHMENTS : undef,
-          #UID       => 1
+          UID         => $user_pi->{UID}
         });
 
         if($argv->{SLEEP}) {
           sleep int($argv->{SLEEP});
         }
+      }
+      elsif($debug > 7) {
+        $debug_output .= "TYPE: $Msgs_delivery->{SEND_METHOD} TO: "
+          . (($Msgs_delivery->{SEND_METHOD} && $Msgs_delivery->{SEND_METHOD} == 1) ? $email : '')
+          . "$message\n";
       }
     }
 

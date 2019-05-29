@@ -777,7 +777,7 @@ sub show_log {
   Arguments:
     $size  - Size of result string
     $attr
-      SYMBOLS     -
+      SYMBOLS     -  string with symbols, that will be used for generation, Ex: SYMBOLS => '1234567890'
       EXTRA_RULES - '$chars:$case' (0 - num, 1 - special, 2 - both):(0 - lower, 1 - upper, 2 - both)
 
   Results:
@@ -1496,6 +1496,7 @@ sub cmd {
       SSH_CMD          - ssh command (Default: /usr/bin/ssh -p $nas_port -o StrictHostKeyChecking=no -i $base_dir/Certs/id_rsa.$nas_admin)
       SSH_KEY          - (optional) custom certificate file
       SSH_PORT         - Custom ssh port
+      SINGLE_THREAD    - Make all command in one thread
       DEBUG            - Debug mode
 
   Returns:
@@ -1551,7 +1552,12 @@ sub ssh_cmd {
   
   my @cmd_arr = ();
   if (ref $cmd eq 'ARRAY') {
-    @cmd_arr = @{ $cmd };
+    if($attr->{SINGLE_THREAD}) {
+      push @cmd_arr, join('; ', @{$cmd});
+    }
+    else {
+      @cmd_arr = @{$cmd};
+    }
   }
   else {
     push @cmd_arr, $cmd ;
@@ -1564,6 +1570,9 @@ sub ssh_cmd {
       sleep $1;
       next;
     }
+    elsif(! $nas_host) {
+      next;
+    }
 
     my $cmds = "$SSH $nas_admin\@$nas_host '$run_cmd'";
 
@@ -1571,9 +1580,11 @@ sub ssh_cmd {
       print "$cmds\n";
     }
 
-    open(my $ph, '-|', "$cmds") || die "Can't open '$cmds' $!\n";
+    if($debug < 8) {
+      open(my $ph, '-|', "$cmds") || die "Can't open '$cmds' $!\n";
       @value = <$ph>;
-    close($ph);
+      close($ph);
+    }
 
     if ($debug > 2) {
       print join("\n", @value);
@@ -1834,7 +1845,7 @@ sub urlencode {
 
   #$s =~ s/ /+/g;
   #$s =~ s/([^A-Za-z0-9\+-])/sprintf("%%%02X", ord($1))/seg;
-  $text =~ s/([^A-Za-z0-9\_.-])/sprintf("%%%2.2X", ord($1))/ge;
+  $text =~ s/([^A-Za-z0-9\_\.\-])/sprintf("%%%2.2X", ord($1))/ge;
 
   return $text;
 }

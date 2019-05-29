@@ -882,6 +882,8 @@ sub auth_sql {
   }
   elsif (_error_show($user)) {
   }
+  elsif ($user->{DELETED}) {
+  }
   else {
     $ret = $user->{UID} || $user->{list}->[0]->{uid};
   }

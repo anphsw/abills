@@ -2,7 +2,7 @@
 
 var MainModal;
 var modalContent;
-
+$.fn.modal.Constructor.prototype.enforceFocus = function() {};
 var spinner = '<div class="text-center"><i class="fa fa-spinner fa-pulse fa-2x"></i></div>';
 var aModal  = new AModal();
 

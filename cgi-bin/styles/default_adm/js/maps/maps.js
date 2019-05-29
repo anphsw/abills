@@ -109,6 +109,7 @@ function initialize() {
         Events.on('mapsloaded', function () {
             // ParseLayers
             $.each(LAYERS, function (i, layer_obj) {
+                // console.log(layer_obj);
                 MapLayers.createLayer(layer_obj);
             });
 
@@ -739,6 +740,15 @@ var SettingsSaver = (function () {
             console.warn('[ SettingsSaver ] Failed to parse config :', JSONParseError);
             return false;
         }
+
+        if (FORM['only_one_layer']) {
+            $.each(config.layers, function (index, value) {
+                if (index !== FORM['show_layer']) {
+                    config.layers[index] = false;
+                }
+            });
+        }
+
         return config;
     }
 

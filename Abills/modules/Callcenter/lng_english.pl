@@ -11,7 +11,13 @@ $lang{NO_CALLS_FOR_DATE_OR_OPERATOR}='No calls for date or operator';
 $lang{ANSWERED}='Anwered';
 $lang{NO_ANSWER}='No Answer';
 $lang{BUSY}='Busy';
-
+$lang{CALLS_REPORT}='Calls report';
+$lang{CALLS_}='Calls chart';
+$lang{ALL_CALLS}='All calls';
+$lang{CALLS_SOUNDS}='Call records';
+$lang{CALL_FROM}='Call from number';
+$lang{CALL_TO}='Call to number';
+$lang{LISTEN}='Listen';
 ###################################################
 $lang{INVALID_LOOPS}='Попыток повтора';
 $lang{TIMEOUT}='Таймаут повтора';

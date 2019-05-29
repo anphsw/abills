@@ -113,5 +113,12 @@ $lang{REPLYS_COUNT} = 'Number of replys';
 $lang{REPLYS_AVERAGE} = 'Replys (average)';
 $lang{TIME_AVERAGE} = 'Run time (average)';
 $lang{SITE}='Site';
+$lang{DISPATCH_NUMBER}='Number of dispatch';
+$lang{HEAD}='Head';
+$lang{TIME_START_WORK}='The time to start work';
+$lang{TIME_END_WORK}='The time to finish work';
+$lang{ACTUAL_TIME_END}='The actual time to finish';
+$lang{BRIGADE}='Brigade';
+$lang{D_ACTIVE}='Active';
 
 1;

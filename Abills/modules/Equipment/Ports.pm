@@ -17,7 +17,7 @@ our(
 );
 
 my @service_status_colors = ($_COLORS[9], "840000", '#808080', '#0000FF', $_COLORS[6], '#009999');
-my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{ERROR}, $lang{BREAKING});
+my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{ERROR}, $lang{BREAKING}, $lang{NOT_MONITORING});
 our @port_types = ('', 'RJ45', 'GBIC', 'Gigabit', 'SFP');
 our @skip_ports_types = [
   135,
@@ -1140,7 +1140,7 @@ sub equipment_port_info {
   my $info_fields = 'PORT_STATUS,PORT_IN,PORT_OUT,PORT_IN_ERR,PORT_OUT_ERR,DISTANCE';
 
   if($FORM{PORT_STATUS}) {
-    $html->message('info', $lang{INFO}, "Port status");
+    $html->message('info', $lang{INFO}, "$lang{PORT} $lang{STATUS}");
     $attr->{PORT_STATUS}="$attr->{PORT}:$FORM{PORT_STATUS}";
   }
 
@@ -1156,9 +1156,9 @@ sub equipment_port_info {
   }
 
   push @$info, @{ port_result_former($test_result, {
-        PORT        => $attr->{PORT},
-        INFO_FIELDS => $info_fields
-      }) };
+    PORT        => $attr->{PORT},
+    INFO_FIELDS => $info_fields
+  }) };
 
   return $info;
 }
@@ -1210,7 +1210,7 @@ sub port_result_former {
 
       if($permissions{0}{22}) {
         $FORM{chg} //= q{};
-        $value .= $html->button($lang{DISABLE}, "index=$index&UID=$FORM{UID}&chg=$FORM{chg}&PORT_STATUS=1",
+        $value .= $html->button($lang{DISABLE}, "index=$index&UID=". ($FORM{UID} || q{}) ."&chg=$FORM{chg}&PORT_STATUS=1",
           { ICON => 'glyphicon glyphicon-off' }
         );
       }
@@ -1227,7 +1227,7 @@ sub port_result_former {
         . $html->br()
         . $lang{SENDED} .': '. int2byte($port_info->{$port_id}->{PORT_OUT});
     }
-    elsif ( $key eq 'ONU_RX_POWER' ){
+    elsif($key eq 'ONU_RX_POWER'){
       $key = $lang{POWER} || q{POWER};
       if($port_info->{$port_id}->{ONU_RX_POWER}) {
         $value = 'ONU_RX_POWER: ' .  pon_tx_alerts( $value );

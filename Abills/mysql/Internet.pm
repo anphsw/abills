@@ -19,11 +19,6 @@ my $MODULE = 'Internet';
 
 my ($admin, $CONF);
 
-my $SORT      = 1;
-my $DESC      = '';
-my $PG        = 0;
-my $PAGE_ROWS = 25;
-
 #**********************************************************
 =head2 new($db, $admin, \%conf)
 
@@ -183,7 +178,7 @@ sub add {
 
   $self->_space_trim($attr);
 
-  $attr->{LOGIN} = $attr->{INTERNET_LOGIN} if($attr->{INTERNET_LOGIN});
+  $attr->{LOGIN}   = $attr->{INTERNET_LOGIN} if($attr->{INTERNET_LOGIN});
   $attr->{EXPIRE}  = $attr->{SERVICE_EXPIRE};
   $attr->{ACTIVATE}= $attr->{SERVICE_ACTIVATE} if(defined($attr->{SERVICE_ACTIVATE}));
 
@@ -338,18 +333,7 @@ sub change {
     }
 
     if ($Tariffs->{AGE} > 0) {
-      $attr->{EXPIRE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $Tariffs->{AGE}));
-
-      eval { require Date::Calc };
-      if (!$@) {
-        Date::Calc->import( qw/Add_Delta_Days/ );
-
-        my (undef, undef, undef,$mday,$mon,$year,undef,undef,undef) = localtime(time);
-        $year += 1900;
-        $mon++;
-        ($year,$mon,$mday) = Date::Calc::Add_Delta_Days($year, $mon, $mday, $Tariffs->{AGE});
-        $attr->{EXPIRE} ="$year-$mon-$mday";
-      }
+      $self->expire_date($attr, $Tariffs);
     }
 #    else {
 #      $attr->{EXPIRE} = "0000-00-00";
@@ -413,6 +397,38 @@ sub change {
 }
 
 #**********************************************************
+=head2 expire_date(attr); - Get expire date
+
+  Arguments:
+    $attr,
+    $Tariffs
+
+  Result:
+    $self
+
+=cut
+#**********************************************************
+sub expire_date {
+  my $self = shift;
+  my ($attr, $Tariffs) = @_;
+
+  $attr->{EXPIRE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $Tariffs->{AGE}));
+
+  eval { require Date::Calc };
+  if (!$@) {
+    Date::Calc->import( qw/Add_Delta_Days/ );
+
+    my (undef, undef, undef,$mday,$mon,$year,undef,undef,undef) = localtime(time);
+    $year += 1900;
+    $mon++;
+    ($year,$mon,$mday) = Date::Calc::Add_Delta_Days($year, $mon, $mday, $Tariffs->{AGE});
+    $attr->{EXPIRE} ="$year-$mon-$mday";
+  }
+
+  return $self;
+}
+
+#**********************************************************
 =head2 del(attr); Delete user service
 
   Arguments:
@@ -432,7 +448,20 @@ sub del {
   $self->query_del('internet_log', undef, { uid => $uid });
 
   $admin->{MODULE}=$MODULE;
-  $admin->action_add($uid, "ID: $attr->{ID} COMMENTS: $attr->{COMMENTS}", { TYPE => 10 });
+  my @del_descr = ();
+  if($attr->{UID}) {
+    push @del_descr, "UID: $attr->{UID}";
+  }
+
+  if ($attr->{ID}) {
+    push @del_descr, "ID: $attr->{ID}";
+  }
+
+  if($attr->{COMMENTS}) {
+    push @del_descr, "COMMENTS: $attr->{COMMENTS}";
+  }
+
+  $admin->action_add($uid, join(' ', @del_descr), { TYPE => 10 });
 
   return $self->{result};
 }
@@ -442,6 +471,7 @@ sub del {
 
   Arguments:
     GROUP_BY
+    UNIVERSAL_SEARCH
 
 =cut
 #**********************************************************
@@ -449,10 +479,10 @@ sub list {
   my $self   = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $GROUP_BY = 'u.uid';
 
@@ -463,6 +493,10 @@ sub list {
 
   if ($attr->{CID} && $attr->{CID} !~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/) {
     $attr->{CID}=~s/[\:\-\.]/\*/g;
+  }
+
+  if ($attr->{UNIVERSAL_SEARCH}) {
+    $attr->{SKIP_DEL_CHECK}=1;
   }
 
   $self->{EXT_TABLES}     = '';
@@ -477,6 +511,7 @@ sub list {
       ['CID',               'STR', 'internet.cid',                           1 ],
       ['CPE_MAC',           'STR', 'internet.cpe_mac',                       1 ],
       ['INTERNET_COMMENTS', 'STR', 'internet.comments', 'internet.comments AS internet_comments' ],
+      ['INTERNET_REGISTRATION', 'DATE', 'internet.registration AS internet_registration',      1 ],
       ['VLAN',              'INT', 'internet.vlan',                          1 ],
       ['SERVER_VLAN',       'INT', 'internet.server_vlan',                   1 ],
       ['JOIN_SERVICE',      'INT', 'internet.join_service',                  1 ],
@@ -530,6 +565,7 @@ sub list {
       ['SERVICE_COUNT',     'INT', '', 'COUNT(internet.id) AS service_count '  ] ,
       ['SHEDULE',           'INT', '', "CONCAT(s.y,'-', s.m, '-', s.d, ' ', s.action) AS shedule" ],
       ['FEES_METHOD',       'INT', 'tp.fees_method',                         1 ],
+      ['NAS_IP',            'IP',  'INET_NTOA(nas.ip) AS nas_ip',            1 ],
     ],
     { WHERE            => 1,
       USERS_FIELDS_PRE => 1,
@@ -552,8 +588,16 @@ sub list {
        AND (c.service_id=internet.id OR c.service_id=0)) ";
   }
 
+  if ( ! $admin->{permissions}->{0}->{8} ) {
+    $WHERE .= " AND u.deleted=0";
+  }
+
   if($attr->{SHEDULE}) {
     $EXT_TABLE .= "LEFT JOIN shedule s ON (s.uid=internet.uid AND s.module='Internet') ";
+  }
+
+  if($attr->{NAS_IP}) {
+    $EXT_TABLE .= "LEFT JOIN nas ON (nas.id=internet.nas_id)";
   }
 
   if ($attr->{USERS_WARNINGS}) {
@@ -687,10 +731,10 @@ sub report_debetors {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE =  $self->search_former($attr, [
       ['UID',            'INT', 'internet.uid',                           1 ],
@@ -754,10 +798,8 @@ sub report_tp {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
 
   $self->{EXT_TABLES}     = '';
   $self->{SEARCH_FIELDS}  = '';
@@ -825,8 +867,8 @@ sub get_speed {
   $self->{SEARCH_FIELDS}       = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'tp.tp_id, tt.id';
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'tp.tp_id, tt.id';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   if ($attr->{LOGIN}) {
     push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'u.id') };
@@ -944,8 +986,8 @@ sub filters_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
 #  my $PG        = ($attr->{PG})        ? $attr->{PG}             : 0;
 #  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
@@ -1008,7 +1050,90 @@ sub filters_change{
 
   return $self->{result};
 }
+#**********************************************************
+=head2 report_user_statuses($attr) - Get sum deposits, users count for statuses
 
+  Arguments:
+     -
+
+  Returns:
+  $self->{list}->[0]
+=cut
+#**********************************************************
+sub report_user_statuses {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT COUNT(i.uid) AS COUNT,SUM(i.deposit) AS deposit,i.disable AS status
+    FROM (SELECT DISTINCT inter.uid, bill.deposit, inter.disable
+    FROM internet_main AS inter
+    LEFT JOIN bills AS bill
+    ON inter.uid=bill.uid) AS i
+    WHERE i.disable=$attr->{STATUS}
+    GROUP BY status;",
+    undef,
+    $attr
+  );
+  return $self->{list}->[0];
+
+}
+#**********************************************************
+=head2 add_user_ippool($attr) - Add ip pool to user
+
+  Arguments:
+    $attr - info for adding
+
+  Returns:
+    $self
+=cut
+#**********************************************************
+sub add_user_ippool {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('internet_users_pool', $attr);
+  return $self;
+}
+#**********************************************************
+=head2 info_user_ippool($attr) - Get info about users ip pool
+
+  Arguments:
+    $attr - info for condition
+
+  Returns:
+    $self->{list}[0] || ()
+=cut
+#**********************************************************
+sub info_user_ippool {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT service_id,pool_id,comments
+    FROM internet_users_pool
+    WHERE service_id= ? ;",
+    undef,
+    { Bind => [ $attr->{SERVICE_ID}],
+      COLS_NAME => 1
+    });
+  return $self->{list}[0] || ();
+}
+#**********************************************************
+=head2 del_user_ippool($attr) - Delete users ip pool
+
+  Arguments:
+    $attr - delete condition
+
+  Returns:
+    $self
+=cut
+#**********************************************************
+sub del_user_ippool {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('internet_users_pool', {}, $attr);
+  return $self;
+}
 
 1
 

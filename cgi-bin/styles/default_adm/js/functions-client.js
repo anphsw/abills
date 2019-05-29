@@ -16,8 +16,8 @@ function setIcons() {
   
   var menu_icons = {
     form_info                    : 'glyphicon glyphicon-user',
-    form_payments                : 'glyphicon glyphicon-euro',
-    form_finance                 : 'glyphicon glyphicon-euro',
+    form_payments                :  CURRENCY_ICON,
+    form_finance                 :  CURRENCY_ICON,
     dv_user_info                 : 'glyphicon glyphicon-globe',
     docs_invoices_list           : 'glyphicon glyphicon-briefcase',
     msgs_user                    : 'glyphicon glyphicon-comment',

@@ -27,7 +27,7 @@
                     </div>
                 </div>
                 <div class='form-group'>
-                    <label class='control-label col-md-3' for='DEFAULT_DESCRIBE'>_{DESCRIBE}_: _{USER}_:</label>
+                    <label class='control-label col-md-3' for='DEFAULT_DESCRIBE'>_{DESCRIBE}_ _{USER}_:</label>
                     <div class='col-md-9'>
                         <input type=text class='form-control' ID='DEFAULT_DESCRIBE' name=DEFAULT_DESCRIBE value='%DEFAULT_DESCRIBE%'>
                     </div>

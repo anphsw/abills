@@ -1,11 +1,11 @@
 <div class='btn-group btn-group-xs'>
-  <a role='button' class='btn btn-default btn-xs btn-primary' data-toggle='modal' data-target='#info_comments_modal'>
+  <a role='button' class='btn btn-xs btn-primary' data-toggle='modal' data-target='#info_comments_modal' title='_{ADD}_ _{COMMENTS}_'>
     <span class='glyphicon glyphicon-plus'></span>
   </a>
 
-  <button role='button' class='btn btn-default btn-xs btn-success' id='info_comments_refresh'
+  <button role='button' class='btn btn-xs btn-success' id='info_comments_refresh'
           data-object_id='%OBJECT_ID%' data-object_type='%TABLE_NAME%'
-          data-renews="#commentsBlock" data-source="info_comments_renew">
+          data-renews="#commentsBlock" data-source="info_comments_renew" title='_{REFRESH}_'>
     <span class='glyphicon glyphicon-refresh'></span>
   </button>
 </div>

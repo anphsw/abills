@@ -1,5 +1,6 @@
 use strict;
 use warnings FATAL => 'all';
+use Tags;
 
 our (
   @PRIORITY,
@@ -16,7 +17,7 @@ our (
 my $Crm = Crm->new($db, $admin, \%conf);
 my $Admins = Admins->new($db, \%conf);
 use Abills::Base qw/in_array mk_unique_value/;
-
+my $Tags = Tags->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 crm_lead_search()
@@ -350,7 +351,8 @@ sub crm_leads {
   }
 
   return 1 if $FORM{MESSAGE_ONLY};
-  $LIST_PARAMS{PAGE_ROWS} = 1000000000;
+  $LIST_PARAMS{PAGE_ROWS}      = 1000000000;
+  $LIST_PARAMS{SKIP_DEL_CHECK} = 1;
   my Abills::HTML $table;
 
   %LIST_PARAMS = %FORM if ($FORM{search});
@@ -360,12 +362,13 @@ sub crm_leads {
       INPUT_DATA      => $Crm,
       FUNCTION        => 'crm_lead_list',
       BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => "ID, FIO, PHONE, EMAIL, COMPANY, ADMIN_NAME, DATE, CURRENT_STEP_NAME, LAST_ACTION, PRIORITY, UID, LOGIN",
+      DEFAULT_FIELDS  => "ID, FIO, PHONE, EMAIL, COMPANY, ADMIN_NAME, DATE, CURRENT_STEP_NAME, LAST_ACTION, PRIORITY, UID, LOGIN, TAG_IDS",
       HIDDEN_FIELDS   => 'STEP_COLOR,CURRENT_STEP',
       FUNCTION_FIELDS => 'crm_lead_info:$lang{INFO}:lead_id,change, del',
       FILTER_COLS     => {
         current_step_name => '_crm_current_step_color::STEP_COLOR,',
         last_action       => '_crm_last_action::LEAD_ID',
+        tag_ids           => '_crm_tags_name::TAG_IDS',
       },
       SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
@@ -380,6 +383,7 @@ sub crm_leads {
         'last_action'       => "$lang{LAST} $lang{ACTION}",
         'priority'          => "$lang{PRIORITY}",
         'login'             => "$lang{LOGIN}",
+        'tag_ids'           => "$lang{TAGS}"
         # 'comments'  => $lang{COMMENTS},
       },
       SKIP_PAGES      => 1,
@@ -430,6 +434,10 @@ sub crm_leads {
 #**********************************************************
 sub crm_lead_info {
   my ($lead_id) = @_;
+
+  if ($FORM{SAVE_TAGS}) {
+    _crm_tags(\%FORM);
+  }
 
   if($FORM{delete_uid}){
     $Crm->crm_lead_change({
@@ -556,15 +564,27 @@ sub crm_lead_info {
   my $source_info = $Crm->leads_source_info({ ID => $lead_info->{SOURCE}, COLS_NAME => 1 });
   $lead_info->{SOURCE} = _crm_name_translate($source_info->{NAME});
 
+  my $lead_tags = q{};
+  my $tags_table = q{};
+  my $tags_button = q{none};
+  if(in_array('Tags', \@MODULES)) {
+    $lead_tags = _crm_tags({ LEAD => $lead_id, SHOW_TAGS => 1 });
+    $tags_table = _crm_tags({ LEAD => $lead_id, SHOW => 1 });
+    $tags_button = q{inline};
+  }
+
   my $lead_profile_panel = $html->tpl_show(_include('crm_lead_profile_panel', 'Crm'),
-    { %$lead_info,
-      CHANGE_BUTTON => $change_button,
+  { %$lead_info,
+      CHANGE_BUTTON       => $change_button,
       CONVERT_DATA_BUTTON => $convert_data_button,
-      ADD_USER_BUTTON => $add_user_button,
-      USER_BUTTON => $user_button,
-      DELETE_USER_BUTTON => $delete_user_button,
+      ADD_USER_BUTTON     => $add_user_button,
+      USER_BUTTON         => $user_button,
+      DELETE_USER_BUTTON  => $delete_user_button,
+      TAGS                => $lead_tags,
+      TAGS_BUTTON         => $tags_button,
     },
-    { OUTPUT2RETURN => 1, });
+  { OUTPUT2RETURN => 1, });
+
 
   # progressbar
   my $lead_progress_bar = crm_progressbar_show($lead_id);
@@ -574,6 +594,8 @@ sub crm_lead_info {
     {
       LEAD_PROFILE_PANEL => $lead_profile_panel,
       PROGRESSBAR        => $lead_progress_bar,
+      LEAD               => $lead_id,
+      MODAL_TAGS         => $tags_table || q{},
     }
   );
 
@@ -970,16 +992,17 @@ sub crm_reports_leads {
     }
   );
 
-  $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE} || $DATE;
-  $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE} || $DATE;
-  $LIST_PARAMS{SOURCE_ID} = $FORM{SOURCE_ID} || '';
+#  $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE} || $DATE;
+#  $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE} || $DATE;
+  $LIST_PARAMS{SOURCE} = $FORM{SOURCE_ID} || '';
+  $LIST_PARAMS{PERIOD} = ($FORM{FROM_DATE} || $DATE) . "/" . ($FORM{TO_DATE} || $DATE);
 
   result_former(
     {
       INPUT_DATA      => $Crm,
       FUNCTION        => 'crm_lead_list',
       BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => "ID, FIO, DATE, SOURCE_NAME",
+      DEFAULT_FIELDS  => "ID, FIO, PERIOD, SOURCE_NAME",
       FILTER_COLS     => {
         fio => '_crm_leads_filter::lead_id,'
       },
@@ -987,8 +1010,8 @@ sub crm_reports_leads {
       SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
         'lead_id'     => "ID",
-        'FIO'         => $lang{FIO},
-        'date'        => $lang{DATE},
+        'fio'         => $lang{FIO},
+        'PERIOD'        => $lang{DATE},
         'source_name' => $lang{SOURCE},
       },
       TABLE           => {
@@ -1210,11 +1233,13 @@ sub crm_leads_progress_report {
     }
   );
 
-  $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE} || $DATE;
-  $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE} || $DATE;
-  $LIST_PARAMS{SOURCE_ID} = $FORM{SOURCE_ID} || '';
+#  $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE} || $DATE;
+#  $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE} || $DATE;
+#  $LIST_PARAMS{SOURCE_ID} = $FORM{SOURCE_ID} || '';
 
-  my $leads_list = $Crm->crm_lead_list({ %LIST_PARAMS, COLS_NAME => 1, DATE => '_SHOW', CURRENT_STEP => '_SHOW' });
+    my $period = ($FORM{FROM_DATE} || $DATE) . "/" . ($FORM{TO_DATE} || $DATE);
+
+  my $leads_list = $Crm->crm_lead_list({ PERIOD => $period, SOURCE => ($FORM{SOURCE_ID} || '_SHOW'), COLS_NAME => 1, CURRENT_STEP => '_SHOW' });
   _error_show($Crm);
   my $steps_list = $Crm->crm_progressbar_step_list({ COLS_NAME => 1 });
   _error_show($Crm);
@@ -1228,20 +1253,19 @@ sub crm_leads_progress_report {
   my %HASH_BY_DATES;
 
   foreach my $lead (@$leads_list) {
-
-    if (defined $HASH_BY_DATES{ $lead->{date} }{leads_comes}) {
-      $HASH_BY_DATES{ $lead->{date} }{leads_comes}++;
+    if (defined $HASH_BY_DATES{ $lead->{period} }{leads_comes}) {
+      $HASH_BY_DATES{ $lead->{period} }{leads_comes}++;
     }
     else {
-      $HASH_BY_DATES{ $lead->{date} }{leads_comes} = 1;
+      $HASH_BY_DATES{ $lead->{period} }{leads_comes} = 1;
     }
 
     if ($last_step == $lead->{current_step}) {
-      if (defined $HASH_BY_DATES{ $lead->{date} }{leads_finished}) {
-        $HASH_BY_DATES{ $lead->{date} }{leads_finished}++;
+      if (defined $HASH_BY_DATES{ $lead->{period} }{leads_finished}) {
+        $HASH_BY_DATES{ $lead->{period} }{leads_finished}++;
       }
       else {
-        $HASH_BY_DATES{ $lead->{date} }{leads_finished} = 1;
+        $HASH_BY_DATES{ $lead->{period} }{leads_finished} = 1;
       }
     }
   }
@@ -1918,6 +1942,124 @@ sub _progress_bar_step_sel {
       NO_ID       => 1,
       SEL_OPTIONS => { '' => '--' },
     });
+}
+
+#**********************************************************
+=head2 _crm_tags($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _crm_tags {
+  my ($attr) = @_;
+
+  if ($attr->{SHOW}) {
+    my $list = $Tags->list({
+        NAME      => '_SHOW',
+        LIST2HASH => 'id,name'
+      });
+
+    my $lead_info = $Crm->crm_lead_list({
+      LEAD_ID   => $attr->{LEAD} || 0,
+      COLS_NAME => 1,
+      TAG_IDS   => '_SHOW'
+    });
+    my @lead_checked = split(/, /, ($lead_info->[0]{tag_ids} || '') );
+    my %checked_tags = ();
+    foreach my $item (@lead_checked) {
+      $checked_tags{$item} = $item;
+    }
+
+    my $table = $html->table({ width => '100%' });
+    foreach my $item (sort keys %{$list}) {
+      $table->addrow(
+        $html->form_input('TAG_IDS', $item, { TYPE => 'checkbox', ID => $item, STATE => $checked_tags{$item} ? 'checked' : '' }),
+        $list->{$item}
+      );
+    }
+
+    return $table->show({ OUTPUT2RETURN => 1 });
+  }
+  elsif ($attr->{SAVE_TAGS}) {
+    $Crm->crm_update_lead_tags({LEAD_ID => $attr->{LEAD_ID}, TAG_IDS => $attr->{TAG_IDS}});
+  }
+  elsif ($attr->{SHOW_TAGS}) {
+    my $tags = qq{};
+    my @priority_colors = ('', 'btn-default', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
+    my $list = $Tags->list({
+      NAME      => '_SHOW',
+      PRIORITY  => '_SHOW',
+      COLS_NAME => 1
+    });
+
+    my $lead_info = $Crm->crm_lead_list({
+      LEAD_ID   => $attr->{LEAD} || 0,
+      COLS_NAME => 1,
+      TAG_IDS   => '_SHOW'
+    });
+
+    my @lead_checked = split(/, /, ($lead_info->[0]{tag_ids} || '') );
+    my %checked_tags = ();
+    foreach my $item (@lead_checked) {
+      $checked_tags{$item} = $item;
+    }
+
+
+    foreach my $item (@$list) {
+      if ( $checked_tags{$item->{id}} ) {
+        my $priority_color = ( $priority_colors[$item->{priority}]) ? $priority_colors[$item->{priority}] : $priority_colors[1];
+        $tags .= ' ' . $html->element('span', $item->{name}, { class => "btn btn-xs $priority_color" });
+      }
+    }
+    return $tags || q{};
+  }
+
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _crm_tags_name($tags)
+
+  Arguments:
+    $tags -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _crm_tags_name {
+  my ($tags) = @_;
+
+  return '' if $tags eq '';
+
+  my $tags_named = qq{};
+  my @priority_colors = ('', 'btn-default', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
+  my $list = $Tags->list({
+    NAME      => '_SHOW',
+    PRIORITY  => '_SHOW',
+    COLS_NAME => 1
+  });
+
+  my @lead_checked = split(/, /, ($tags || '') );
+  my %checked_tags = ();
+  foreach my $item (@lead_checked) {
+    $checked_tags{$item} = $item;
+  }
+
+
+  foreach my $item (@$list) {
+    if ( $checked_tags{$item->{id}} ) {
+      my $priority_color = ( $priority_colors[$item->{priority}]) ? $priority_colors[$item->{priority}] : $priority_colors[1];
+      $tags_named .= ' ' . $html->element('span', $item->{name}, { class => "btn btn-xs $priority_color" });
+    }
+  }
+  return $tags_named || q{};
+
 }
 
 1;

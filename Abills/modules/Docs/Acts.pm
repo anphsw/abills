@@ -115,7 +115,7 @@ sub docs_acts_list{
       $html->button( $line->{admin_name}, "index=11&UID=$line->{uid}" ),
       "$line->{start_period}/$line->{end_period}",
       $line->{created},
-      (($conf{DOCS_CERT_CMD}) ? $html->button( $lang{CERT},
+      (($conf{DOCS_CERT_CMD}) ? $html->button( $lang{SAVE_CONTROL_SUM},
         "qindex=$index&cert=$line->{id}&COMPANY_ID=". ($line->{company_id} || q{}) . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') . (($pages_qs) ? $pages_qs : ""),
           { ex_params => 'target=_new', ICON => 'glyphicon glyphicon-certificate' } ) : q{})
         . $html->button( $lang{PRINT},

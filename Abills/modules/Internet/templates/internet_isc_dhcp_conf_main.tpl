@@ -12,8 +12,10 @@ lease-file-name "/var/lib/dhcp/dhcpd.leases";
 option ms-classless-static-routes code 249 = array of integer 8;
 
 
+shared-network DHCP_NET {
 #List of subnets
 %SUBNETS%
+}
 
 #List of hosts
 %HOSTS%

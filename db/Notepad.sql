@@ -7,8 +7,10 @@ CREATE TABLE IF NOT EXISTS `notepad` (
   `text`        TEXT,
   `aid`         SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
   UNIQUE `subject_text` (`subject`, `aid`, `status`),
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `aid` (`aid`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Notepad';
 
 
@@ -23,9 +25,9 @@ CREATE TABLE IF NOT EXISTS `notepad_reminders` (
   `month`     SMALLINT(2) NOT NULL DEFAULT '0',
   `year`      SMALLINT(6) NOT NULL DEFAULT '0',
   `holidays`  TINYINT(1)  NOT NULL DEFAULT '0',
-  UNIQUE `_unique_note_id` (`id`)
+  PRIMARY KEY (`id`)
 )
-  COMMENT = 'Periodic reminders';
+ DEFAULT CHARSET = utf8  COMMENT = 'Periodic reminders';
 
 CREATE TABLE IF NOT EXISTS `notepad_checklist_rows` (
   `id`       INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
@@ -33,6 +35,7 @@ CREATE TABLE IF NOT EXISTS `notepad_checklist_rows` (
   ON DELETE CASCADE,
   `name`     VARCHAR(255) NOT NULL DEFAULT '',
   `state`    TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  `datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY `note_id` (`note_id`)
 )
-  COMMENT = 'Notepad checklists rows';
+ DEFAULT CHARSET = utf8 COMMENT = 'Notepad checklists rows';

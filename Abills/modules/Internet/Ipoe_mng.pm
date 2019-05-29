@@ -204,7 +204,7 @@ sub internet_ipoe_activate{
           NAS_MNG_USER       => $Nas->{NAS_MNG_USER},
           NAS_MNG_IP_PORT    => $Nas->{NAS_MNG_IP_PORT},
           NAS_MNG_IP         => $Nas->{NAS_MNG_IP},
-          NAS_MNG_PORT       => $Nas->{NAS_MNG_PORT},
+          NAS_MNG_PORT       => $Nas->{NAS_MNG_PORT} || 22,
           TP_ID              => $Internet->{TP_ID},
           CALLING_STATION_ID => $ip,
           NAS_PORT           => $Internet->{PORT},
@@ -499,7 +499,7 @@ sub internet_ipoe_change_status{
         LOG_TYPE  => $Log::log_levels{'LOG_INFO'},
         ACTION    => 'AUTH',
         USER_NAME => $USER_NAME || '-',
-        MESSAGE   => "IP: $ip",
+        MESSAGE   => "IPN IP: $ip",
         NAS_ID    => $attr->{NAS_ID}
       }
     );
@@ -564,6 +564,7 @@ sub internet_ipoe_change_status{
       $ENV{NAS_ID}          = $attr->{NAS_ID};
       $ENV{NAS_TYPE}        = $attr->{NAS_TYPE} || '';
       ($ENV{NAS_MNG_IP}, undef, $ENV{NAS_MNG_PORT}) = split(/:/, $attr->{NAS_MNG_IP_PORT}, 4);
+      $ENV{NAS_MNG_PORT} ||= 22;
     }
 
     print "IPN: $cmd\n" if ($DEBUG > 4);
@@ -1111,7 +1112,8 @@ sub ipoe_use{
       DATE_RANGE  => 1,
       #FIELDS      => {%CAPTIONS_HASH},
       EX_INPUTS   => [
-        $html->form_select(
+        $html->element('label', " $lang{DIMENSION}: ", {class => 'col-md-2 control-label'})
+        . $html->element('div', $html->form_select(
           'DIMENSION',
           {
             SELECTED => $FORM{DIMENSION},
@@ -1124,7 +1126,7 @@ sub ipoe_use{
             },
             NO_ID    => 1
           }
-        )
+        ), {class => 'col-md-9 '})
       ]
     }
   );
@@ -1517,6 +1519,7 @@ sub ipoe_use{
         caption          => "$lang{REPORTS}",
         qs               => $pages_qs,
         ID               => 'IPN_REPORTS_' . ($FORM{TYPE} || ''),
+
         SHOW_COLS_HIDDEN => {
           TYPE => $FORM{TYPE}
         },

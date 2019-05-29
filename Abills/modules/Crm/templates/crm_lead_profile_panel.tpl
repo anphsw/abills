@@ -1,13 +1,20 @@
 <div class='col-md-3'>
-    <div class='box box-primary'>
-      <!-- <img class="profile-user-img img-responsive img-circle" src="https://68.media.tumblr.com/avatar_1fdf491cc31a_12.png" alt="User profile picture"> -->
-      <div class='box-header with-border'>
-      <h3 class='profile-username text-center'>%FIO%</h3>
-      
-      <p class='text-muted text-center'>%COMPANY%</p>
+  <div class='box box-primary'>
+    <div class='box-header with-border'>
+      <h3 class='profile-username text-center'>
+        %FIO%
+        <button type="button" id='addTag' data-toggle="modal" data-target="#leadTags"
+                class="btn btn-primary btn-sm glyphicon glyphicon-tags" style="display: %TAGS_BUTTON%"></button>
+      </h3>
+
+      <div class="col-md-12">
+        %TAGS%
       </div>
-      <div class='box-body '>
-      
+
+      <p class='text-muted text-center'>%COMPANY%</p>
+    </div>
+    <div class='box-body '>
+
       <strong><i class='glyphicon glyphicon-earphone'></i> _{PHONE}_</strong>
       <p class='muted'>%PHONE%</p>
       <hr>
@@ -25,14 +32,15 @@
       <hr>
       <strong><i class='glyphicon glyphicon-envelope'></i> _{USER}_</strong>
       <p class='muted'>%USER_BUTTON% %DELETE_USER_BUTTON%</p>
-        <hr>
-        <hr>
-      <div class='' data-tooltip='_{COMMENTS}_'><textarea class='form-control' rows=5 readonly="" >%COMMENTS%</textarea></div>
-      <div class='box-footer'>
-      %CHANGE_BUTTON%
-      %BUTTON_TO_LEAD_INFO%
-      %CONVERT_DATA_BUTTON%
+      <hr>
+      <hr>
+      <div class='' data-tooltip='_{COMMENTS}_'><textarea class='form-control' rows=5 readonly="">%COMMENTS%</textarea>
       </div>
+      <div class='box-footer'>
+        %CHANGE_BUTTON%
+        %BUTTON_TO_LEAD_INFO%
+        %CONVERT_DATA_BUTTON%
       </div>
     </div>
   </div>
+</div>

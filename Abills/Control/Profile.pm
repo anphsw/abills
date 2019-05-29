@@ -67,7 +67,7 @@ sub admin_profile {
   }
   
   my $subscribe_mng_block = profile_get_admin_sender_subscribe_block($admin->{AID}, 6);
-  
+
   $html->tpl_show(templates('form_admin_profile'), {
       QUICK_REPORTS        => $quick_reports,
       SEL_LANGUAGE         => $SEL_LANGUAGE,
@@ -75,7 +75,7 @@ sub admin_profile {
       NO_EVENT_SOUND       => $admin->{SETTINGS}->{NO_EVENT_SOUND},
       CONF_PUSH_ENABLED    => $conf{PUSH_ENABLED},
       PUSH_ENABLED         => $admin->{SETTINGS}->{PUSH_ENABLED},
-    
+      RIGHT_MENU_HIDDEN    => $admin->{SETTINGS}->{RIGHT_MENU_HIDDEN},
       SUBSCRIBE_BLOCK => $subscribe_mng_block,
       
       EVENT_GROUPS_SELECT  => $events_groups_select,
@@ -535,7 +535,15 @@ sub admin_info_change {
 
     $html->message("info", "$lang{SUCCESS}");
   }
-
+  if ($FORM{reset_schema}) {
+    use Conf;
+    my $Config = Conf->new($db, $admin, \%conf);
+    my $left_key = 'LSCHEMA_FOR_' . $admin->{AID};
+    $Config->config_del($left_key);
+    my $right_key = 'RSCHEMA_FOR_' . $admin->{AID};
+    $Config->config_del($right_key);
+    $html->message("info", "$lang{SUCCESS}");
+  }
   my $passwd_btn = $html->button($lang{CHANGE_PASSWORD}, "index=$index&chg_pswd=1", { class => 'btn btn-xs btn-primary' });
   my $clear_settings_btn = $html->button($lang{CLEAR_SETTINGS}, "index=$index&clear_settings=1", { class => 'btn btn-xs btn-danger' });
 

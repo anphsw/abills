@@ -37,6 +37,12 @@
               <input class='form-control' type=text name=SIMULTANEOUSLY value='%SIMULTANEOUSLY%'>
             </div>
           </div>
+          <div class='form-group'>
+            <label class='col-md-6 control-label'>_{HOUR_TARIF}_ (1 Hour):</label>
+            <div class='col-md-6'>
+              <input class='form-control' type=text name=TIME_TARIF value='%TIME_TARIF%'>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -92,12 +98,6 @@
         </div>
         <div id='_t3' class='box-body'>
           <div class='form-group'>
-            <label class='col-md-6 control-label'>_{HOUR_TARIF}_ (1 Hour):</label>
-            <div class='col-md-6'>
-              <input class='form-control' type=text name=TIME_TARIF value='%TIME_TARIF%'>
-            </div>
-          </div>
-          <div class='form-group'>
             <label class='col-md-6 control-label'>_{DAY}_:</label>
             <div class='col-md-6'>
               <input class='form-control' type=text name=DAY_TIME_LIMIT value='%DAY_TIME_LIMIT%'>
@@ -113,24 +113,6 @@
             <label class='col-md-6 control-label'>_{MONTH}_</label>
             <div class='col-md-6'>
               <input class='form-control' type=text name=MONTH_TIME_LIMIT value='%MONTH_TIME_LIMIT%'>
-            </div>
-          </div>
-          <div class='form-group'>
-            <label class='col-md-6 control-label'>_{ACTIVATE}_:</label>
-            <div class='col-md-6'>
-              <input class='form-control' type=text name=ACTIV_PRICE value='%ACTIV_PRICE%'>
-            </div>
-          </div>
-          <div class='form-group'>
-            <label class='col-md-6 control-label'>_{CHANGE}_:</label>
-            <div class='col-md-6'>
-              <input class='form-control' type=text name=CHANGE_PRICE value='%CHANGE_PRICE%'>
-            </div>
-          </div>
-          <div class='form-group'>
-            <label class='col-md-6 control-label'>_{CREDIT_TRESSHOLD}_:</label>
-            <div class='col-md-6'>
-              <input class='form-control' type=text name=CREDIT_TRESSHOLD value='%CREDIT_TRESSHOLD%'>
             </div>
           </div>
         </div>
@@ -174,6 +156,24 @@
             <label class='col-md-6 control-label'>FILTER_ID:</label>
             <div class='col-md-6'>
               <input class='form-control' type=text name=FILTER_ID value='%FILTER_ID%'>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='col-md-6 control-label'>_{ACTIVATE}_:</label>
+            <div class='col-md-6'>
+              <input class='form-control' type=text name=ACTIV_PRICE value='%ACTIV_PRICE%'>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='col-md-6 control-label'>_{CHANGE}_:</label>
+            <div class='col-md-6'>
+              <input class='form-control' type=text name=CHANGE_PRICE value='%CHANGE_PRICE%'>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='col-md-6 control-label'>_{CREDIT_TRESSHOLD}_:</label>
+            <div class='col-md-6'>
+              <input class='form-control' type=text name=CREDIT_TRESSHOLD value='%CREDIT_TRESSHOLD%'>
             </div>
           </div>
         </div>

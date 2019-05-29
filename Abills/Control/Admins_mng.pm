@@ -37,6 +37,7 @@ sub form_admins {
     load_module("Employees", $html);
     $Employees = Employees->new($db, $admin, \%conf);
   }
+
   my $admin_form = Admins->new($db, \%conf);
   $admin_form->{ACTION} = 'add';
   $admin_form->{LNG_ACTION} = $lang{ADD};
@@ -64,9 +65,11 @@ sub form_admins {
 
   if ($FORM{AID}) {
     $admin_form->info($FORM{AID});
-    _error_show($admin_form);
+    if(_error_show($admin_form)) {
+      return 0;
+    }
 
-    if (!$FORM{DOMAIN_ID}) {
+    if (!defined($FORM{DOMAIN_ID})) {
       $FORM{DOMAIN_ID} = $admin_form->{DOMAIN_ID} if ($admin_form->{DOMAIN_ID});
     }
 
@@ -78,7 +81,7 @@ sub form_admins {
         subf  => $FORM{subf}
       },
       SUBMIT  => { show => $lang{SHOW} },
-      class   => 'navbar-form navbar-right',
+      class   => 'navbar-form navbar-right form-inline',
     });
 
     $LIST_PARAMS{AID} = $admin_form->{AID};
@@ -163,7 +166,8 @@ sub form_admins {
       FORM_NAME => 'admin_form',
       WEEK_DAYS => \@WEEKDAYS,
       MONTHES   => \@MONTHES,
-      DATE      => $admin->{PASPORT_DATE}
+      DATE      => $admin_form->{PASPORT_DATE},
+      NO_DEFAULT_DATE => 1,
     }
   );
 
@@ -176,9 +180,20 @@ sub form_admins {
         SEL_KEY     => 'id',
         SEL_VALUE   => 'position',
         NO_ID       => 1,
-        SEL_OPTIONS => { '' => '--' },
+        SEL_OPTIONS => { '0' => '--' },
         MAIN_MENU   => get_function_index('employees_positions'),
+      }
+    );
 
+    $admin_form->{DEPARTMENTS} = $html->form_select(
+      'DEPARTMENT',
+      {
+        SELECTED    => $FORM{DEPARTMENT} || $admin_form->{DEPARTMENT},
+        SEL_LIST    => $Employees->employees_department_list({ NAME => '_SHOW', COLS_NAME => 1 }),
+        SEL_KEY     => 'id',
+        SEL_VALUE   => 'name',
+        NO_ID       => 1,
+        SEL_OPTIONS => { '0' => '--' },
       }
     );
 
@@ -190,16 +205,29 @@ sub form_admins {
   }
 
   $admin_form->{FULL_LOG} = ($admin_form->{FULL_LOG}) ? 'checked' : '';
-  $admin_form->{DISABLE} = (defined($admin_form->{DISABLE}) && $admin_form->{DISABLE} > 0) ? 'checked' : '';
+#  $admin_form->{DISABLE} = (defined($admin_form->{DISABLE}) && $admin_form->{DISABLE} > 0) ? 'checked' : '';
+  my %admin_statuses_select = (0 => "$lang{ACTIV}", 1 => "$lang{DISABLE}", 2 => "$lang{FIRED}");
+  if($FORM{search_form}){
+    $admin_statuses_select{'>=0'} = $lang{ALL};
+  }
+
+  $admin_form->{DISABLE_SELECT} = $html->form_select("DISABLE", {
+      SELECTED  => $admin_form->{DISABLE},
+      SEL_HASH => \%admin_statuses_select,
+      #      ARRAY_NUM_ID => 1,
+      NO_ID => 1,
+    });
   $admin_form->{GROUP_SEL} = sel_groups({ GID => $admin_form->{GID}, SKIP_MULTISELECT => 1 });
 
-  if ($admin_form->{DOMAIN_ID}) {
+  if ($admin_form->{DOMAIN_ID} && $admin->{DOMNAIN_ID}) {
     $admin_form->{DOMAIN_SEL} = $html->button($admin_form->{DOMAIN_NAME},
       'index=' . get_function_index('multidoms_domains') . "&chg=$admin_form->{DOMAIN_ID}", { BUTTON => 1 });
   }
   elsif (in_array('Multidoms', \@MODULES)) {
     load_module('Multidoms', $html);
-    $admin_form->{DOMAIN_SEL} = multidoms_domains_sel({ SHOW_ID => 1 });
+    $admin_form->{DOMAIN_SEL} = multidoms_domains_sel({
+      SHOW_ID => 1, DOMAIN_ID => $admin_form->{DOMAIN_ID}
+    });
   }
   else {
     $admin_form->{DOMAIN_SEL} = '';
@@ -229,7 +257,25 @@ sub form_admins {
   }
 
   $admin_form->{INDEX} = 50;
-  $html->tpl_show(templates('form_admin'), $admin_form);
+  $admin_form->{HEADER_NAME} = $lang{ADMINS};
+
+  if($FORM{show_add_form} || $FORM{AID}){
+    $html->tpl_show(templates('form_admin'), $admin_form);
+  }
+  elsif($FORM{search_form}){
+    $admin_form->{DOMAIN_HIDDEN} = 'hidden'; # hide domain div from search template
+    $admin_form->{DOMAIN_SEL} = '';          # remove domain select from search template
+
+    form_search({
+      TPL => $html->tpl_show(templates('form_admin_search'), {%FORM, %$admin_form,}, {OUTPUT2RETURN => 1}),
+    })
+  }
+
+  if($FORM{search}){
+    %LIST_PARAMS = %FORM;
+    $LIST_PARAMS{API_KEY} = $FORM{API_KEY_NEW};
+    $LIST_PARAMS{ADMIN_NAME} = $FORM{A_FIO};
+  }
 
   my $list = $admin_form->admins_groups_list({ ALL => 1, COLS_NAME => 1 });
   my %admin_groups = ();
@@ -244,27 +290,54 @@ sub form_admins {
     $admin_form->{SHOW_EMPLOYEES} = 1;
   }
 
+  my @status_bar = ("$lang{ALL}:index=$index&SHOW_ALL=1&$pages_qs", "$lang{ACTIV}:index=$index&$pages_qs");
+
+  if(!$FORM{search}) {
+    if (!$FORM{SHOW_ALL}) {
+      $LIST_PARAMS{DISABLE} = 0;
+    }
+    else {
+      $pages_qs .= "&SHOW_ALL=1";
+    }
+  }
+
   my Abills::HTML $table;
   my $admins_list;
   ($table, $admins_list) = result_former({
-    INPUT_DATA      => $admin_form,
+    INPUT_DATA      => $admin,
     FUNCTION        => 'list',
     BASE_FIELDS     => 4,
     FUNCTION_FIELDS => 'permission,log,passwd,info,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
-      name        => $lang{FIO},
-      position    => $lang{POSITION},
-      regdate     => $lang{REGISTRATION},
-      disable     => $lang{STATUS},
-      aid         => '#',
-      g_name      => $lang{GROUPS},
-      domain_name => 'Domain',
-      start_work  => $lang{BEGIN},
-      gps_imei    => 'GPS IMEI',
-      birthday    => $lang{BIRTHDAY},
-      api_key     => 'API_KEY',
-      telegram_id => 'Telegram ID',
+      name            => $lang{FIO},
+      position        => $lang{POSITION},
+      regdate         => $lang{REGISTRATION},
+      disable         => $lang{STATUS},
+      aid             => '#',
+      g_name          => $lang{GROUPS},
+      domain_name     => 'Domain',
+      start_work      => $lang{BEGIN},
+      gps_imei        => 'GPS IMEI',
+      birthday        => $lang{BIRTHDAY},
+      api_key         => 'API_KEY',
+      telegram_id     => 'Telegram ID',
+      rfid_number     => "RFID $lang{NUMBER}",
+      department_name => "$lang{DEPARTMENT}",
+      pasport_num     => "$lang{PASPORT} $lang{NUM}",
+      pasport_date    => "$lang{PASPORT} $lang{DATE}",
+      pasport_grant   => "$lang{PASPORT} $lang{GRANT}",
+      inn             => $lang{INN},
+      max_rows        => $lang{MAX_ROWS},
+      min_search_chars => $lang{MIN_SEARCH_CHARS},
+      max_credit       => "$lang{MAX} $lang{CREDIT}",
+      credit_days      => "$lang{MAX} $lang{CREDIT} $lang{DAYS}",
+      comments         => $lang{COMMENTS},
+      phone            => $lang{PHONE},
+      cell_phone       => $lang{CELL_PHONE},
+      email            => 'Email',
+      sip_number       => 'SIP',
+      address          => $lang{ADDRESS},
     },
     TABLE           => {
       width          => '100%',
@@ -272,20 +345,31 @@ sub form_admins {
       qs             => $pages_qs,
       ID             => 'ADMINS_LIST',
       SHOW_FULL_LIST => 1,
+      header         => \@status_bar,
       MENU           => "$lang{ADD}:index=$index&show_add_form=1:add;$lang{SEARCH}:search_form=1&index=$index:search"
-    }
+    },
   });
 
   foreach my $line (@$admins_list) {
     my @fields_array = ();
-    for (my $i = 0; $i < 4 + $admin_form->{SEARCH_FIELDS_COUNT}; $i++) {
-      my $field_name = $admin_form->{COL_NAMES_ARR}->[$i] || '';
+    for (my $i = 0; $i < 4 + $admin->{SEARCH_FIELDS_COUNT}; $i++) {
+      my $field_name = $admin->{COL_NAMES_ARR}->[$i] || '';
 
       if ($field_name eq 'disable' && $line->{disable} =~ /\d+/) {
-        $line->{disable} = $status[ $line->{disable} ];
+#        $line->{disable} = $status[ $line->{disable} ];
+        my %disable_status = (
+          '0'  => "$lang{ACTIV}:text-success",
+          '1'  => "$lang{DISABLE}:text-danger",
+          '2'  => "$lang{FIRED}:text-warning",
+        );
+        my($value, $color) = split(/:/, $disable_status{$line->{disable}} || ":");
+        $line->{disable} = $html->color_mark($value, $color);
       }
       elsif ($field_name eq 'gname') {
         $line->{gname} .= $admin_groups{ $line->{aid} },
+      }
+      elsif($field_name eq 'position'){
+        $line->{position} = _translate($line->{position});
       }
 
       push @fields_array, $line->{$field_name};
@@ -486,7 +570,7 @@ sub form_admins_full_log_analyze {
     CONTENT => $date_picker . sel_admins(),
     HIDDEN  => { index => $index },
     SUBMIT  => { show => $lang{SHOW} },
-    class   => 'navbar-form navbar-right',
+    class   => 'navbar-form navbar-right form-inline',
   });
   delete $FORM{subf};
   func_menu({ $lang{NAME} => $A_LOGIN }, {}, {});
@@ -716,13 +800,18 @@ sub form_admin_permissions {
       "DEVICE REBOOT",
       "EXTENDED INFO", # 24 user extended info form
       "$lang{PERSONAL} $lang{TARIF_PLAN}",
-      "SHOW PERSONAL INFO"
+      "SHOW PERSONAL INFO",
+      "$lang{CHANGE} $lang{LOGIN}",
+      "$lang{SHOW} $lang{GROUPS}",
+      "$lang{SHOW} $lang{COMPANIES}",
+      "$lang{SHOW} $lang{LOG}",
+      "$lang{DEL} $lang{COMMENTS}"
     ],                                                                                                                            # Users
     [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ],                                              # Payments
     [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],                                                                          # Fees
     [ $lang{LIST}, $lang{DEL}, $lang{PAYMENTS}, $lang{FEES}, $lang{EVENTS}, $lang{SETTINGS}, $lang{LAST_LOGIN}, $lang{ERROR_LOG} ], # reports view
     [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL}, $lang{ADMINS},
-      "$lang{SYSTEM} $lang{LOG}", $lang{DOMAINS}, "$lang{TEMPLATES} $lang{CHANGE}", 'REBOOT SERVICE', "$lang{SHOW} PIN $lang{ICARDS}" ], # system magment
+      "$lang{SYSTEM} $lang{LOG}", $lang{DOMAINS}, "$lang{TEMPLATES} $lang{CHANGE}", 'REBOOT SERVICE', "$lang{SHOW} PIN $lang{ICARDS}", $lang{MOBILE_PAY}, "$lang{SEND} Sms" ], # system magment
     [ $lang{MONITORING}, 'ZAP', $lang{HANGUP} ],
     [ $lang{SEARCH} ],                                                          # Search
     [ $lang{ALL}, "$lang{EDIT} $lang{MESSAGE}", "$lang{ADD} CRM $lang{STEP}", $lang{TIME_SHEET} ], # Modules managments
@@ -1139,7 +1228,7 @@ sub form_admins_domains {
   my $table = $html->table(
     {
       width   => '100%',
-      caption => $lang{GROUP},
+      caption => $lang{DOMAINS},
       title   => [ 'ID', $lang{NAME} ],
     }
   );

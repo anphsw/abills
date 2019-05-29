@@ -9,9 +9,7 @@ package Notepad;
 use strict;
 use warnings 'FATAL' => 'all';
 
-use parent 'main';
-
-my $debug = 0;
+use parent 'dbcore';
 
 use constant {
   MONTH_DAY => 'MONTH_DAY',
@@ -89,9 +87,9 @@ sub notes_list{
   my $WHERE =  $self->search_former($attr, $search_columns, {  WHERE => 1 } );
   
   
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} n.id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} n.id
               FROM notepad n
-              LEFT JOIN notepad_reminders nr ON ( n.id = nr.id )
+              LEFT JOIN notepad_reminders nr FORCE INDEX FOR JOIN (`PRIMARY`) ON ( n.id = nr.id )
               LEFT JOIN notepad_checklist_rows ncl ON (n.id = ncl.note_id)
               LEFT JOIN admins adm ON ( adm.aid = n.aid )
    $WHERE
@@ -162,7 +160,7 @@ sub notes_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'notepad',
@@ -232,7 +230,7 @@ sub periodic_rules_list{
     }
   );
   
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id FROM notepad_reminders
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id FROM notepad_reminders
    $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
       COLS_NAME => 1,
@@ -343,7 +341,7 @@ sub periodic_rules_change{
     $attr->{$_} = (defined $attr->{$_}) ? "$attr->{$_}" : 0;
   };
   
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'notepad_reminders',
@@ -384,7 +382,7 @@ sub checklist_rows_list{
   }
   my $WHERE =  $self->search_former($attr, $search_columns, { WHERE => 1 });
   
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} ncl.id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} ncl.id
    FROM notepad_checklist_rows ncl
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
     COLS_NAME => 1,
@@ -472,7 +470,7 @@ sub checklist_rows_change{
   
   $attr->{STATE} = (defined $attr->{STATE} && $attr->{STATE}) ? 1 : '0';
   
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'notepad_checklist_rows',
@@ -491,8 +489,8 @@ sub notepad_get_active_count{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "SELECT sum(if(DATE_FORMAT(show_at, '%Y-%m-%d') = curdate(), 1, 0)) AS today,
-    sum(if(status = 0, 1, 0)) AS active
+  $self->query( "SELECT SUM(IF(DATE_FORMAT(show_at, '%Y-%m-%d') = CURDATE(), 1, 0)) AS today,
+    SUM(IF(status = 0, 1, 0)) AS active
     FROM notepad n
     WHERE n.aid= ?;",
     undef,

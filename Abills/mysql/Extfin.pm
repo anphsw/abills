@@ -201,11 +201,11 @@ sub payment_deed{
     push @WHERE_RULES,
       "DATE_FORMAT(f.date, '%Y-%m-%d')>='$attr->{FROM_DATE}' AND DATE_FORMAT(f.date, '%Y-%m-%d')<='$attr->{TO_DATE}'";
     push @WHERE_RULES_DV,
-      "DATE_FORMAT(dv.start, '%Y-%m-%d')>='$attr->{FROM_DATE}' AND DATE_FORMAT(dv.start, '%Y-%m-%d')<='$attr->{TO_DATE}'";
+      "DATE_FORMAT(internet.start, '%Y-%m-%d')>='$attr->{FROM_DATE}' AND DATE_FORMAT(internet.start, '%Y-%m-%d')<='$attr->{TO_DATE}'";
   }
   elsif ( $attr->{MONTH} ){
     push @WHERE_RULES, "DATE_FORMAT(f.date, '%Y-%m')='$attr->{MONTH}'";
-    push @WHERE_RULES_DV, "DATE_FORMAT(dv.start, '%Y-%m')='$attr->{MONTH}'";
+    push @WHERE_RULES_DV, "DATE_FORMAT(internet.start, '%Y-%m')='$attr->{MONTH}'";
   }
 
   # Show groups
@@ -279,14 +279,14 @@ sub payment_deed{
   #Get Dv use
   $self->query2( "SELECT
    IF(u.company_id > 0, company.bill_id, u.bill_id) AS bill_id,
-   SUM(dv.sum) AS sum,
+   SUM(internet.sum) AS sum,
    IF(u.company_id > 0, company.name, IF(pi.fio<>'', pi.fio, u.id)) AS fio,
    IF(u.company_id > 0, 1, 0) AS is_company,
    IF(u.company_id > 0, company.vat, 0) AS vat,
   u.uid 
   $info_fields
      FROM users u
-     INNER JOIN dv_log dv ON (u.uid=dv.uid)
+     INNER JOIN internet_log internet ON (u.uid=internet.uid)
      LEFT JOIN users_pi pi ON (u.uid = pi.uid)
      LEFT JOIN companies company ON  (u.company_id=company.id)
      WHERE $WHERE_DV
@@ -972,7 +972,7 @@ sub extfin_debetors{
    pi.fio,
    IF(pi.contract_date = '0000-00-00', u.registration, pi.contract_date) AS start_date,
    u.disable,
-   dv.tp_id,
+   internet.tp_id,
    $ext_field
    IF(DATEDIFF($attr->{DATE}, f.date) < 32, \@A, ''),
    IF(DATEDIFF($attr->{DATE}, f.date) > 33 AND DATEDIFF($attr->{DATE}, f.date) < 54 , \@A, ''),
@@ -988,7 +988,7 @@ sub extfin_debetors{
      LEFT JOIN bills b ON (u.bill_id = b.id)
      LEFT JOIN companies company ON  (u.company_id=company.id)
      LEFT JOIN bills cb ON  (company.bill_id=cb.id)
-     LEFT JOIN dv_main dv ON  (u.uid=dv.uid)
+     LEFT JOIN internet_main internet ON  (u.uid=internet.uid)
 $WHERE
 GROUP BY f.uid
 HAVING debet < 0
@@ -1308,12 +1308,16 @@ sub extfin_report_balance_list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-
   my @WHERE_RULES = ();
+  if($attr->{PERIOD}){
+    push @WHERE_RULES, "ebr.period = '$attr->{PERIOD}'";
+  }
+
+  if($attr->{GID}){
+    my @groups = split(',', $attr->{GID});
+    push @WHERE_RULES, '(u.gid =' . join(" or u.gid =", @groups) . ')';
+  }
+
   my $WHERE = $self->search_former(
     $attr,
     [
@@ -1324,19 +1328,10 @@ sub extfin_report_balance_list {
       [ 'AID',     'STR',  'ebr.aid',     1 ],
       [ 'DATE',    'STR',  'ebr.date',    1 ],
     ],
-    { WHERE => 1, }
+    { WHERE => 1,
+      WHERE_RULES => \@WHERE_RULES
+    }
   );
-
-  if($attr->{PERIOD}){
-    push @WHERE_RULES, "ebr.period = '$attr->{PERIOD}'";
-  }
-
-  if($attr->{GID}){
-    my @groups = split(',', $attr->{GID});
-    push @WHERE_RULES, '(u.gid =' . join(" or u.gid =", @groups) . ')';
-  }
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query2(
     "SELECT
@@ -1367,8 +1362,8 @@ sub extfin_report_balance_list {
   return $self->{list} if ($self->{TOTAL} < 1);
 
   $self->query2(
-    "SELECT COUNT(*) AS total, SUM(sum) AS total_sum
-   FROM extfin_balance_reports
+    "SELECT COUNT(*) AS total, SUM(ebr.sum) AS total_sum
+   FROM extfin_balance_reports ebr
    $WHERE",
     undef,
     { INFO => 1 }

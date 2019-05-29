@@ -175,7 +175,7 @@ sub paysys_configure_main {
       caption => "",
       width   => '100%',
       title   =>
-        [ '#', $lang{PAY_SYSTEM}, $lang{MODULE}, $lang{VERSION}, $lang{STATUS}, 'IP', $lang{PRIORITY}, $lang{TEST}, '', '' ],
+        [ '#', $lang{PAY_SYSTEM}, $lang{MODULE}, $lang{VERSION}, $lang{STATUS}, 'IP', $lang{PRIORITY}, $lang{PERIODIC}, $lang{REPORT}, $lang{TEST}, '', '' ],
       MENU    => "$lang{ADD}:index=$index&add_form=1:add",
       DATA_TABLE => 1,
     }
@@ -227,6 +227,8 @@ sub paysys_configure_main {
         $status,
         $paysys_ip,
         $priority,
+        $require_module->can('periodic') ? $html->color_mark("$lang{YES}", 'success') : $html->color_mark("$lang{NO}",'#f04'),
+        $require_module->can('report')   ? $html->color_mark("$lang{YES}", 'success') : $html->color_mark("$lang{NO}",'#f04'),
         $test_button,
         $change_button,
         $delete_button,
@@ -336,6 +338,7 @@ sub paysys_configure_groups {
     GID       => '_SHOW',
     PAYSYS_ID => '_SHOW',
     COLS_NAME => 1,
+    PAGE_ROWS => 99999,
   });
 
   my %groups_settings = ();

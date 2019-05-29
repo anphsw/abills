@@ -95,7 +95,7 @@
                                            class='form-control' type='text'>
                                     <span class='input-group-addon'>
                     <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&create=1&ssh_key=1'
-                       class='fa fa-key' target='_new' title='_{DOWNLOAD}_ SSH public key'></a>
+                       class='fa fa-key' target='_new' title='_{CREATE}_ SSH public key'></a>
                                     </span>
                                     <span class='input-group-addon'>
                     <a href='$SELF_URL?qindex=$index&NAS_ID=%NAS_ID%&download=1&ssh_key=1'

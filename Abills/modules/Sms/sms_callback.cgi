@@ -30,6 +30,9 @@ use Abills::HTML;
 use Abills::Base qw/_bp startup_files cmd ssh_cmd int2byte/;
 use Abills::Misc;
 use Abills::Defs;
+use Companies;
+use Internet;
+use Internet::Sessions;
 use Log;
 
 our %lang;
@@ -130,12 +133,10 @@ sub send_user_memo {
   my ($user) = @_;
   my $code   = 0;
 
-  use Internet;
   my $Internet = Internet->new($db, $admin, \%conf);
   my $company_info = {};
 
   if ($user->{COMPANY_ID}) {
-    use Companies;
     my $Company = Companies->new($db, $admin, \%conf);
     $company_info = $Company->info($user->{company_id});
   }
@@ -184,11 +185,8 @@ sub send_internet_info {
   my %INFO_HASH;
   my $code = 0;
 
-  use Internet;
   my $Internet = Internet->new($db, $admin, \%conf);
   my $internet_info = $Internet->info($user->{uid});
-
-  use Internet::Sessions;
   my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
   $Sessions->prepaid_rest(
@@ -205,8 +203,9 @@ sub send_internet_info {
 
 
   my $hash_statuses = sel_status({ HASH_RESULT => 1 });
+  my $status_describe;
 
-  my $status_describe = $hash_statuses->{$internet_info->{STATUS}} if ($hash_statuses->{$internet_info->{STATUS}});
+  $status_describe = $hash_statuses->{$internet_info->{STATUS}} if ($hash_statuses->{$internet_info->{STATUS}});
   my ($status, undef) = split('\:', $status_describe);
 
   $INFO_HASH{DEPOSIT}      = sprintf("%.3f", $user->{deposit});
@@ -282,7 +281,6 @@ sub start_external_command {
     show_result(5, $message);
   }
 
-  use Internet::Sessions;
   my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
   my $online_info = $Sessions->online_info({
     UID => $user->{uid}
@@ -448,10 +446,18 @@ sub hold_up_user {
 
   load_module('Sms');
 
-  use Internet;
   my $Internet = Internet->new($db, $admin, \%conf);
 
-  $Internet->change({ UID => $user->{uid}, STATUS => 3 });
+  my $user_services = $Internet->list({UID => $user->{uid}, INTERNET_STATUS => '0', COLS_NAME => 1});
+
+  if($Internet->{TOTAL} == 0){
+    show_result(6, "All user servicecs not active. UID: $user->{uid}");
+    exit 0;
+  }
+
+  foreach my $service (@$user_services){
+    $Internet->change({ UID => $user->{uid}, ID => $service->{id}, STATUS => 3 });
+  }
 
   if($Internet->{errno}){
     my $sms_id = sms_send(
@@ -501,13 +507,23 @@ sub activate_user {
 
   load_module('Sms');
 
-  use Internet;
   my $Internet = Internet->new($db, $admin, \%conf);
 
-  $Internet->change({ UID => $user->{uid}, STATUS => 0 });
+  my $user_services = $Internet->list({UID => $user->{uid}, INTERNET_STATUS => 3, COLS_NAME => 1});
+
+  if($Internet->{TOTAL} == 0){
+    show_result(7, "All user servicecs not holding up. UID: $user->{uid}");
+    exit 0;
+  }
+
+  foreach my $service (@$user_services){
+    $Internet->change({ UID => $user->{uid}, ID => $service->{id}, STATUS => 0 });
+  }
+
+#  $Internet->change({ UID => $user->{uid}, STATUS => 0 });
 
   if($Internet->{errno}){
-    _bp("", $Internet);
+#    _bp("", $Internet);
     my $sms_id = sms_send(
       {
         NUMBER  => $user->{phone},
@@ -559,3 +575,5 @@ sub show_result {
 
   return 1;
 }
+
+1;

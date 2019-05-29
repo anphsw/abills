@@ -11,14 +11,14 @@
                     <div class='form-group'>
                         <label class='control-label col-md-3' for='FROM'>_{FROM}_</label>
                         <div class='col-md-9'>
-                            <input id='FROM' name='FROM_DATE' value='%FROM_DATE%' class='form-control datepicker' type='text'>
+                            <input id='FROM' name='FROM_DATE' value='%FROM_DATE%' class='form-control datepicker' type='text' autocomplete="off">
                         </div>
                     </div>
 
                     <div class='form-group'>
                         <label class='control-label col-md-3' for='TO'>_{TO}_</label>
                         <div class='col-md-9'>
-                            <input id='TO' name='TO_DATE' value='%TO_DATE%' class='form-control datepicker' type='text'>
+                            <input id='TO' name='TO_DATE' value='%TO_DATE%' class='form-control datepicker' type='text' autocomplete="off">
                         </div>
                     </div>
 

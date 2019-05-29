@@ -385,6 +385,9 @@ sub auth {
         elsif ($self->{TRUNK_PROTOCOL} eq "SIP") {
           $RAD_PAIRS{'next-hop-ip'} = "SIP/" . $self->{prepend} . $number . "\@" . $self->{TRUNK_PROVIDER};
         }
+        elsif ($self->{TRUNK_PROTOCOL} eq "local") {
+          $RAD_PAIRS{'next-hop-ip'} = "local/" . $self->{prepend} . $number . "\@" . $self->{TRUNK_PROVIDER};
+        }
         elsif ($self->{TRUNK_PROTOCOL} eq "OH323") {
           $RAD_PAIRS{'next-hop-ip'} = "OH323/" . $self->{TRUNK_PROVIDER} . "/" . $self->{prepend} . $number;
         }

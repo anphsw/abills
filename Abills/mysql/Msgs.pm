@@ -277,6 +277,7 @@ sub messages_list {
       ['DOWNTIME',         '','',       "TIMEDIFF(IF(r.datetime <> '0000-00-00 00:00:00', r.datetime, NOW()), m.date) AS downtime"],
       ['REPLY_TEXT',       'STR',       'r.text', 'GROUP_CONCAT(r.text) AS reply_text'],
       ['MONTH',            'DATE',      'DATE_FORMAT(m.date, \'%Y-%m\')'         ],
+      ['USER_NAME',        'STR',       'u.id',               'u.id AS user_name']
     ],
     { WHERE             => 1,
       WHERE_RULES       => \@WHERE_RULES,
@@ -288,8 +289,13 @@ sub messages_list {
 
   my $EXT_TABLES = $self->{EXT_TABLES};
 
+
+  if ($self->{SEARCH_FIELDS} =~ /u\./ || $EXT_TABLES =~ /u\./ || $WHERE =~ /u\./) {
+    $EXT_TABLES = "LEFT JOIN users u ON (m.uid=u.uid) ". $EXT_TABLES;
+  }
+
   if ($self->{SEARCH_FIELDS} =~ /r\./ || $WHERE =~ /r\./) {
-    $EXT_TABLES .= "LEFT JOIN msgs_reply r ON (m.id=r.main_msg)";
+    $EXT_TABLES .= "LEFT JOIN msgs_reply r FORCE INDEX FOR JOIN (`main_msg`) ON (m.id=r.main_msg)";
   }
 
   if ($self->{SEARCH_FIELDS} =~ /qrt\./ || $WHERE =~ /qrt\./) {
@@ -319,10 +325,8 @@ sub messages_list {
        m.deligation,
        m.inner_msg,
        m.plan_time,
-       m.resposible,
-       u.id AS user_name
+       m.resposible
       FROM msgs_messages m
-      LEFT JOIN users u ON (m.uid=u.uid)
       $EXT_TABLES
       LEFT JOIN admins a ON (m.aid=a.aid)
       LEFT JOIN groups mg ON (m.gid=mg.gid)
@@ -343,7 +347,6 @@ sub messages_list {
   COUNT(DISTINCT IF(m.state = 1, m.id, 0)) AS unmaked,
   COUNT(DISTINCT IF(m.state = 2, m.id, 0)) AS closed
     FROM msgs_messages m
-    LEFT JOIN users u ON (m.uid=u.uid)
     $EXT_TABLES
     $WHERE",
     undef,
@@ -454,7 +457,7 @@ sub message_info {
     LEFT JOIN users u ON (m.uid=u.uid)
     LEFT JOIN admins a ON (m.aid=a.aid)
     LEFT JOIN groups g ON (m.gid=g.gid)
-    LEFT JOIN msgs_reply r ON (m.id=r.main_msg)
+    LEFT JOIN msgs_reply r FORCE INDEX FOR JOIN (`main_msg`) ON (m.id=r.main_msg)
   WHERE m.id= ? $WHERE
   GROUP BY m.id;",
   undef,
@@ -823,12 +826,12 @@ sub messages_reply_list {
     }
     );
 
-
   $self->query("SELECT mr.id,
     $self->{SEARCH_FIELDS}
     mr.datetime,
     mr.text,
     if(mr.aid>0, a.id, u.id) AS creator_id,
+    if(mr.aid>0, a.name, u.id) AS creator_fio,
     mr.status,
     mr.caption,
     INET_NTOA(mr.ip) AS ip,
@@ -1224,7 +1227,7 @@ sub messages_reports {
       'users:LEFT JOIN users u ON (m.uid=u.uid)',
       'admins:LEFT JOIN admins a ON (m.resposible=a.aid)',
       'chapters:LEFT JOIN msgs_chapters c ON (m.chapter=c.id)',
-      'reply:LEFT JOIN msgs_reply r ON (m.id=r.main_msg)',
+      'reply:LEFT JOIN msgs_reply r FORCE INDEX FOR JOIN (`main_msg`) ON (m.id=r.main_msg)',
     ]
   });
 
@@ -1298,29 +1301,38 @@ sub dispatch_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['NAME',        'STR',  'd.name'           ],
-      ['CHAPTER',     'INT',  'd.id'             ],
-      ['PLAN_DATE',   'DATE', 'd.plan_date'      ],
-      ['MSGS_DONE',   'INT',  'SUM(IF(m.state=2, 1, 0))', 'SUM(IF(m.state=2, 1, 0)) AS msgs_done' ],
-      ['CLOSED_DATE', 'DATE', 'd.closed_date', 1 ],
-      ['RESPOSIBLE',  'INT',  'd.resposible',  1 ],
-      ['AID',         'INT',  'd.aid',         1 ]
-    ],
+    ['ID',               'INT',   'd.id',                         1 ],
+    ['COMMENTS',         'STR',   'd.comments',                   1 ],
+    ['CREATED',          'STR',   'd.created',                    1 ],
+    ['PLAN_DATE',        'DATE',  'd.plan_date',                  1 ],
+    ['MESSAGE_COUNT',    'INT',   'COUNT(m.id) AS message_count', 1 ],
+    ['CREATED_ADMIN',    'STR',   'a.name AS created_admin',      1 ],
+    ['RESPOSIBLE_ADMIN', 'STR',   'ad.name AS resposible_admin',  1 ],
+    ['DS_STATUS',        'INT',   'd.state AS ds_status',         1 ],
+    ['START_DATE',       'DATE',  'd.start_date',                 1 ],
+    ['END_DATE',         'DATE',  'd.end_date',                   1 ],
+    ['ACTUAL_END_DATE',  'DATE',  'd.actual_end_date',            1 ],
+    ['CATEGORY',         'STR',   'dc.name AS category',          1 ],
+    ['CREATED_BY',       'INT',   'd.created_by',                   ],
+    ['RESPOSIBLE',       'INT',   'd.resposible',                   ],
+    ['AID',              'INT',   'd.aid',                          ],
+    ['CHAPTER',          'INT',   'd.id'                            ],
+    ['MSGS_DONE',        'INT',   'SUM(IF(m.state=2, 1, 0))', 'SUM(IF(m.state=2, 1, 0)) AS msgs_done' ],
+    ['CLOSED_DATE',      'DATE',  'd.closed_date',                  ],
+  ],
     { WHERE => 1,
       WHERE_RULES => \@WHERE_RULES
     }
   );
 
-  $self->query("SELECT d.id,
-     d.comments,
-     d.plan_date,
-     d.created,
-     dc.name,
+  $self->query("SELECT
      $self->{SEARCH_FIELDS}
-     COUNT(m.id) AS message_count
+     d.id
   FROM msgs_dispatch d
-  LEFT JOIN msgs_dispatch_category dc ON (d.category=dc.id)
+  LEFT JOIN msgs_dispatch_category dc FORCE INDEX FOR JOIN (`PRIMARY`) ON (d.category=dc.id)
   LEFT JOIN msgs_messages m ON (d.id=m.dispatch_id)
+  LEFT JOIN admins a ON (d.created_by=a.aid)
+  LEFT JOIN admins ad ON (d.resposible=ad.aid)
   $WHERE
   GROUP BY d.id
   ORDER BY $SORT $DESC
@@ -1390,11 +1402,13 @@ sub dispatch_info {
   a.aid,
   ra.aid AS resposible_id,
   a.name AS admin_fio,
-  ra.name AS resposible_fio
-    FROM msgs_dispatch md
-    LEFT JOIN admins a ON (a.aid=md.aid)
-    LEFT JOIN admins ra ON (ra.aid=md.resposible)
-  WHERE md.id= ? ",
+  ra.name AS resposible_fio,
+  cra.name AS admin_create
+FROM msgs_dispatch md
+  LEFT JOIN admins a ON (a.aid=md.aid)
+  LEFT JOIN admins ra ON (ra.aid=md.resposible)
+  LEFT JOIN admins cra ON (cra.aid=md.created_by)
+WHERE md.id= ?",
   undef,
   { INFO => 1,
     Bind => [ $id ] }
@@ -1461,7 +1475,11 @@ sub dispatch_admins_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT dispatch_id, aid FROM msgs_dispatch_admins WHERE dispatch_id= ? ;",
+  $self->query("SELECT  mda.dispatch_id, mda.aid, a.name
+      FROM msgs_dispatch_admins mda
+      LEFT JOIN admins a
+      ON mda.aid = a.aid
+      WHERE dispatch_id= ?;",
     undef,
     { %$attr, Bind => [ $attr->{DISPATCH_ID} ] });
 
@@ -2925,6 +2943,7 @@ sub delivery_user_list_del {
   my $self = shift;
   my ($attr) = @_;
 
+  $admin->{MODULE} = $MODULE;
   $self->query_del('msgs_delivery_users', $attr);
 
   return $self;
@@ -3566,8 +3585,7 @@ sub chat_count {
     $WHERE = "mc.num_ticket=$msg_id AND mc.msgs_unread=0 AND mc.$sender=0";
   }
   elsif ($attr->{AID}) {
-    my $aid = $attr->{AID};
-    $WHERE = "mc.msgs_unread=0 AND mc.aid=0 AND mm.resposible=$aid";
+    $WHERE = "mc.msgs_unread=0 AND mc.aid=0 AND mm.resposible=$attr->{AID}";
   }
   elsif ($attr->{UID}) {
     $WHERE = "mc.msgs_unread=0 AND mm.uid=$attr->{UID} AND mc.uid=0";

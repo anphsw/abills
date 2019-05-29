@@ -30,10 +30,10 @@ our ($db,
   %BONUS_METHODS
 );
 
-my $Bonus = Bonus->new($db, $admin, \%conf);
+my $Bonus    = Bonus->new($db, $admin, \%conf);
 my $Payments = Payments->new($db, $admin, \%conf);
-my $Tariffs = Tariffs->new($db, \%conf, $admin);
-my @status = ($lang{DISABLE}, $lang{ENABLE});
+my $Tariffs  = Tariffs->new($db, \%conf, $admin);
+my @status   = ($lang{DISABLE}, $lang{ENABLE});
 
 #*******************************************************************
 =head2 bonus_user_log($attr) bonus user log
@@ -517,7 +517,7 @@ sub bonus_rules {
 }
 
 #*******************************************************************
-=head2 bonus_user()
+=head2 bonus_user($attr)
 
 =cut
 #*******************************************************************
@@ -541,13 +541,25 @@ sub bonus_user {
     }
   }
 
-  my $Dv = Dv->new($db, $admin, \%conf);
-  $Dv->info($FORM{UID});
-  $FORM{DV_TP_ID} = $Dv->{TP_ID};
+  my $Internet;
+  if (in_array('Internet', \@MODULES)) {
+    require Internet;
+    Internet->import();
+    $Internet = Internet->new($db, $admin, \%conf);
+    $Internet->info($FORM{UID});
+  }
+  else {
+    require Dv;
+    Dv->import();
+    $Internet = Dv->new($db, $admin, \%conf);
+    $Internet->info($FORM{UID});
+  }
+
+  $FORM{DV_TP_ID} = $Internet->{TP_ID};
 
   if ($FORM{add} && $FORM{ACCEPT_RULES}) {
-    if (!$user->{UID} && $permissions{0}{21}) {
-      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+    if (!$user->{UID} && ! $permissions{0}{21}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 1930 });
       return 0;
     }
 
@@ -629,7 +641,7 @@ sub bonus_user {
     else {
       $Bonus->{ACCEPT_RULES} = $html->form_input('ACCEPT_RULES', '1',
         { STATE => $Bonus->{ACCEPT_RULES}, TYPE => 'checkbox', OUTPUT2RETURN => 1 });
-      $Bonus->{ACTION} = $html->form_input('change', "$lang{ACTIVATE}", { TYPE => 'submit', OUTPUT2RETURN => 1 });
+      $Bonus->{ACTION} = $html->form_input('change', $lang{ACTIVATE}, { TYPE => 'submit', OUTPUT2RETURN => 1 });
     }
 
     $Bonus->{STATE} = $status[$Bonus->{STATE}]; # . '  '. (($Bonus->{STATE}==1) ?  $html->button("$lang{DISABLE}", "index=$index&change=1&STATE=0", { MESSAGE => "$lang{DISABLE} $lang{BONUS} ?", BUTTON => 1 }) : '');
@@ -657,8 +669,8 @@ sub bonus_user {
       $Bonus->{COST} = '0.00';
     }
     else {
-      if ($Bonus->{DV_TP_ID} = $Dv->{TP_ID}) {
-        my $tp_list = $Tariffs->list({ ID => "$Bonus->{DV_TP_ID}, $Dv->{TP_ID}", COLS_NAME => 1, PRIORITY => '_SHOW' });
+      if ($Bonus->{DV_TP_ID} = $Internet->{TP_ID}) {
+        my $tp_list = $Tariffs->list({ ID => "$Bonus->{DV_TP_ID}, $Internet->{TP_ID}", COLS_NAME => 1, PRIORITY => '_SHOW' });
         my %tp_priority = ();
         foreach my $line (@$tp_list) {
           $tp_priority{$line->{id}} = $line->{priority};
@@ -666,7 +678,7 @@ sub bonus_user {
 
         if (defined($Bonus->{DV_TP_ID})
           && defined($tp_priority{$Bonus->{DV_TP_ID}})
-          && $tp_priority{$Bonus->{DV_TP_ID}} > $tp_priority{$Dv->{TP_ID}}) {
+          && $tp_priority{$Bonus->{DV_TP_ID}} > $tp_priority{$Internet->{TP_ID}}) {
           $Bonus->{COST} = 0;
         }
       }
@@ -682,7 +694,9 @@ sub bonus_user {
       $Bonus->{COST_FORM} = $bonus_cost;
     }
 
-    $user_form = $html->tpl_show(_include('bonus_user_accomulation', 'Bonus'), $Bonus, { OUTPUT2RETUN => 1 });
+    $user_form = $html->tpl_show(_include('bonus_user_accomulation', 'Bonus'), $Bonus, {
+      OUTPUT2RETURN => ($user) ? undef : 1
+    });
 
     if ($bonus_cost > 0 && $Bonus->{UID} && $allow_transfer && $active_status) {
       $user_form .= bonus_accomulation_transfer()
@@ -692,7 +706,7 @@ sub bonus_user {
     $user_form = $html->tpl_show(_include('bonus_user', 'Bonus'), $Bonus, { OUTPUT2RETURN => 1 });
   }
 
-  if ($attr->{PROFILE_MODE}) {
+  if ($attr->{PROFILE_MODE} || $user) {
     return '', $user_form;
   }
 
@@ -775,7 +789,6 @@ sub bonus_periodic_daily {
   # Accomulation reset
   elsif ($conf{BONUS_ACCOMULATION}) {
     $debug_output .= "Bonus - BONUS_ACCOMULATION\n" if ($debug > 1);
-    $users->{debug}=1;
     my $reset_list = $users->list({
       DEPOSIT        => '<0',
       DISABLE        => '1',
@@ -975,7 +988,7 @@ sub bonus_payments_maked {
       #PERIODS           => "<=$periods",
       #PAY_METHOD        => "$FORM{METHOD};-1",
       PAGE_ROWS         => 20,
-      SORT              => "1 DESC, 2 DESC, pay_method DESC",
+      SORT              => "registration_days DESC, 1 DESC, 2 DESC, pay_method DESC",
       COLS_NAME         => 1
     }
   );
@@ -1083,13 +1096,16 @@ sub bonus_service_discount_client {
 
   my $service_info = $html->tpl_show(_include('bonus_service_discount_client', 'Bonus'),
     { %{$Bonus}, %RESULT },
-    { OUTPUT2RETURN => 1 });
+    { OUTPUT2RETURN => ($user) ? 0 : 1 }
+  );
 
   if ($attr->{PROFILE_MODE}) {
     return '', $service_info;
   }
 
-  print $service_info;
+  if(! $user) {
+    print $service_info;
+  }
 
   return 1;
 }
@@ -1246,18 +1262,30 @@ sub bonus_service_discount_mk {
     $list = $Bonus->service_discount_list({ %get_bonus });
 
     if ($Bonus->{TOTAL} > 0) {
-      my @pay_methods = split(/,\s?/, $list->[0]{pay_method});
-      if ($#pay_methods > -1 && !in_array($pay_method, \@pay_methods)) {
+      my @pay_methods = ();
+
+      if($list->[0]{pay_method} && $list->[0]{pay_method} ne '-1') {
+        @pay_methods = split(/,\s?/, $list->[0]{pay_method});
       }
-      elsif (!$list->[0]->{tp_id}
-        || ($Internet->{TP_ID} && in_array($Internet->{TP_ID}, [ grep {$_ ne ''} split(',\s?', $list->[0]->{tp_id}) ]))
-      ) {
-        $RESULT{DISCOUNT} = $list->[0]->{discount};
-        $RESULT{DISCOUNT_PERIOD} = $list->[0]->{discount_days};
-        $RESULT{BONUS_SUM} = $list->[0]->{bonus_sum};
-        $RESULT{BONUS_PERCENT} = $list->[0]->{bonus_percent};
+
+      my $fill_bonus = 0;
+      if (!$list->[0]->{tp_id}) {
+        $fill_bonus = 1;
+      }
+      elsif($Internet->{TP_ID} && in_array($Internet->{TP_ID}, [ grep {$_ ne ''} split(',\s?', $list->[0]->{tp_id}) ])) {
+        $fill_bonus = 1;
+      }
+
+      if ($#pay_methods > -1 && !in_array($pay_method, \@pay_methods)) {
+
+      }
+      elsif ($fill_bonus) {
+        $RESULT{DISCOUNT}          = $list->[0]->{discount};
+        $RESULT{DISCOUNT_PERIOD}   = $list->[0]->{discount_days};
+        $RESULT{BONUS_SUM}         = $list->[0]->{bonus_sum};
+        $RESULT{BONUS_PERCENT}     = $list->[0]->{bonus_percent};
         $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->{ext_account};
-        $RESULT{ID} = $list->[0]->{id};
+        $RESULT{ID}                = $list->[0]->{id};
 
         if ($RESULT{DISCOUNT_PERIOD} > 0) {
           $RESULT{DISCOUNT_PERIOD} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
@@ -1532,15 +1560,25 @@ sub bonus_turbo_mk {
     return 0;
   }
 
-  use Dv;
-  my $Dv = Dv->new($db, $admin, \%conf);
-  $Dv->info($attr->{USER_INFO}->{UID});
+  my $Internet;
+  if (in_array('Internet', \@MODULES)) {
+    require Internet;
+    Internet->import();
+    $Internet = Internet->new($db, $admin, \%conf);
+    $Internet->info($attr->{USER_INFO}->{UID});
+  }
+  else {
+    require Dv;
+    Dv->import();
+    $Internet = Dv->new($db, $admin, \%conf);
+    $Internet->info($attr->{USER_INFO}->{UID});
+  }
 
   my $periods = 0;
   my $registration_days = 0;
 
-  if ($Dv->{MONTH_ABON} > 0) {
-    $periods = int($FORM{SUM} / $Dv->{MONTH_ABON});
+  if ($Internet->{MONTH_ABON} > 0) {
+    $periods = int($FORM{SUM} / $Internet->{MONTH_ABON});
   }
 
   my %RESULT = ();
@@ -1564,7 +1602,7 @@ sub bonus_turbo_mk {
 
     #Result
     if ($RESULT{TURBO_COUNT} && $RESULT{TURBO_COUNT} > 0) {
-      $Dv->change(
+      $Internet->change(
         {
           UID             => $attr->{USER_INFO}->{UID},
           FREE_TURBO_MODE => $RESULT{TURBO_COUNT}
@@ -1750,13 +1788,12 @@ sub bonus_accomulation_transfer {
         });
 
         $html->message('info', $lang{INFO}, "$lang{ADDED} $rechange_sum");
+        return '';
       }
     }
   }
 
-  return $html->tpl_show(_include('bonus_accomulation_transfer', 'Bonus'), $Bonus, { OUTPUT2RETURN => 1 });
-
-  return 1;
+  return  $html->tpl_show(_include('bonus_accomulation_transfer', 'Bonus'), $Bonus, { OUTPUT2RETURN => $user ? undef : 1 });
 }
 
 
@@ -1779,9 +1816,18 @@ sub bonus_tp_using_periodic {
     return $debug_output;
   }
 
-  require Dv;
-  Dv->import();
-  my $Dv = Dv->new($db, $admin, \%conf);
+
+  my $Internet;
+  if (in_array('Internet', \@MODULES)) {
+    require Internet;
+    Internet->import();
+    $Internet = Internet->new($db, $admin, \%conf);
+  }
+  else {
+    require Dv;
+    Dv->import();
+    $Internet = Dv->new($db, $admin, \%conf);
+  }
 
   my %LIST_PARAMS = (
     LOGIN     => '_SHOW',
@@ -1813,12 +1859,12 @@ sub bonus_tp_using_periodic {
     ) {
       $debug_output .= "$line->{login} [$line->{uid}] $line->{tp_id_bonus} -> $line->{tp_id_main} AGE: $line->{age} DEPOSIT: $line->{deposit}\n" if ($debug > 0);
       if ($debug < 6) {
-        $Dv->change({
+        $Internet->change({
           UID   => $line->{uid},
           TP_ID => $line->{tp_id_main}
         });
-        if ($Dv->{errno}) {
-          print "[$Dv->{errno}] $Dv->{errstr}\n";
+        if ($Internet->{errno}) {
+          print "[$Internet->{errno}] $Internet->{errstr}\n";
         }
       }
     }
@@ -1970,5 +2016,48 @@ sub bonus_likes {
 
   return 1;
 }
+
+#**********************************************************
+=head2 bonus_multi_add($attr) - add bonus to user deposit
+
+  Arguments:
+    $attr -
+      IDS - Users IDS
+      BONUS - money sum
+
+  Returns:
+    True
+=cut
+#**********************************************************
+sub bonus_multi_add {
+  my ($attr) = @_;
+
+  if ($attr->{BONUS} && $attr->{BONUS} != 0) {
+    my @ids = split(/, /, $attr->{IDS});
+
+    foreach my $id (@ids) {
+      my $user = $users->info($id);
+
+      $Payments->add(
+        $user,
+        {
+          UID      => $id,
+          SUM      => $attr->{BONUS} || 0,
+          METHOD   => 4,
+          DESCRIBE => "$lang{BONUS} $lang{FOR} $lang{USER}: $user->{LOGIN}",
+        }
+      );
+      if (!$Payments->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{ADDED} $lang{BONUS} $lang{FOR} ID: $user->{LOGIN}");
+      }
+    }
+  }
+  else {
+    $html->message('err', $lang{ERROR}, "$lang{BONUS} $lang{ERR_WRONG_SUM}");
+  }
+
+  return 1;
+}
+
 1
 

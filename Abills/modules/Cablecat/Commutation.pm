@@ -30,31 +30,40 @@ sub cablecat_commutation {
   my $show_add_form = $FORM{add_form} || 0;
 
   # Handling AJAX requests
-  if ( $FORM{commutation} ) {
+  if ($FORM{commutation}) {
     return &cablecat_commutation_ajax;
   }
-  elsif ( $FORM{operation} ) {
+  elsif ($FORM{operation}) {
     return &cablecat_commutation_operations;
   }
 
-  if ( $FORM{ID} ) {
+  if ($FORM{ID}) {
     my $tp_info = $Cablecat->commutations_info($FORM{ID});
-    if ( !_error_show($Cablecat) ) {
+    if (!_error_show($Cablecat)) {
       %TEMPLATE_ARGS = %{$tp_info};
       $show_add_form = 1;
     }
   }
 
-  return 1 if ( $FORM{MESSAGE_ONLY} );
+  return 1 if ($FORM{MESSAGE_ONLY});
 
   my $cable_ids = $TEMPLATE_ARGS{CABLE_IDS} || $FORM{CABLE_IDS};
 
-  if ( $show_add_form ) {
+  if ($show_add_form) {
+    my $id = $FORM{ID} || "";
+    my $com_scheme = $lang{COMMUTATION_SCHEME} || "";
+    my $table_links = $html->table({
+      width      => '100%',
+      caption    => $com_scheme . ": " . $id,
+      title      => [ $lang{PORT}, $lang{MODULE}, $lang{FIBER}, $lang{LINK}, $lang{PORT}, $lang{MODULE}, $lang{FIBER}, $lang{ATTENUATION} ],
+      ID         => 'CABLECAT_ITEMS',
+      DATA_TABLE => 1,
+    });
 
-    if ( defined $TEMPLATE_ARGS{ID} ) {
+    if (defined $TEMPLATE_ARGS{ID}) {
 
       my $cables = '';
-      if ($cable_ids){
+      if ($cable_ids) {
         $cables = _cablecat_commutation_cables_prepare_json($cable_ids, { COMMUTATION_ID => $TEMPLATE_ARGS{ID} });
         return 0 if (!$cables);
       }
@@ -85,25 +94,79 @@ sub cablecat_commutation {
       $TEMPLATE_ARGS{LINKS} = JSON::to_json(
         [
           map {
-            $_->{geometry} = JSON::from_json($_->{geometry}) if ( $_->{geometry} );
+            $_->{geometry} = JSON::from_json($_->{geometry}) if ($_->{geometry});
 
             # Commutation works with indexes
-            $_->{fiber_num_1} -= 1 if ( $_->{fiber_num_1} );
-            $_->{fiber_num_2} -= 1 if ( $_->{fiber_num_2} );
+            $_->{fiber_num_1} -= 1 if ($_->{fiber_num_1});
+            $_->{fiber_num_2} -= 1 if ($_->{fiber_num_2});
 
             $_;
           } @{$com_links_list}
         ]
       );
 
-      $TEMPLATE_ARGS{CABLES} = JSON::to_json($cables);
+      foreach my $link (@$com_links_list) {
+        my %first_element = ();
+        my %second_element = ();
+
+        if ($link->{element_1_type} eq "CABLE") {
+          %first_element = _cablecat_cable_element($link->{element_1_id}, $link->{fiber_num_1});
+        }
+        elsif ($link->{element_1_type} eq "SPLITTER") {
+          %first_element = _cablecat_splitter_element($link->{element_1_id}, $link->{fiber_num_1});
+        }
+        elsif ($link->{element_1_type} eq "EQUIPMENT") {
+          %first_element = _cablecat_equipment_element($link->{element_1_id});
+        }
+        elsif ($link->{element_1_type} eq "CROSS") {
+          %first_element = _cablecat_cross_element($link->{element_1_id});
+        }
+        else {
+          $first_element{NAME} = "";
+          $first_element{MODULE} = "";
+        }
+
+        if ($link->{element_2_type} eq "CABLE") {
+          %second_element = _cablecat_cable_element($link->{element_2_id}, $link->{fiber_num_2});
+        }
+        elsif ($link->{element_2_type} eq "SPLITTER") {
+          %second_element = _cablecat_splitter_element($link->{element_2_id}, $link->{fiber_num_2});
+        }
+        elsif ($link->{element_2_type} eq "EQUIPMENT") {
+          %second_element = _cablecat_equipment_element($link->{element_2_id});
+        }
+        elsif ($link->{element_2_type} eq "CROSS") {
+          %second_element = _cablecat_cross_element($link->{element_2_id});
+        }
+        else {
+          $second_element{NAME} = "";
+          $second_element{MODULE} = "";
+        }
+
+        $first_element{COLOR} = $first_element{COLOR} ? $first_element{COLOR} : "cccccc";
+        $second_element{COLOR} = $second_element{COLOR} ? $second_element{COLOR} : "cccccc";
+
+        $first_element{MODULE_COLOR} = $first_element{MODULE_COLOR} ? $first_element{MODULE_COLOR} : "cccccc";
+        $second_element{MODULE_COLOR} = $second_element{MODULE_COLOR} ? $second_element{MODULE_COLOR} : "cccccc";
+
+        $table_links->addrow($first_element{NAME}, $html->badge($first_element{MODULE}, {STYLE => "style=\"background-color: #$first_element{MODULE_COLOR} !important;\""}),
+          $html->badge($link->{fiber_num_1} + 1, {STYLE => "style=\"background-color: #$first_element{COLOR} !important;\""}), '',
+          $second_element{NAME}, $html->badge($second_element{MODULE}, {STYLE => "style=\"background-color: #$second_element{MODULE_COLOR} !important;\""}),
+          $html->badge($link->{fiber_num_2} + 1, {STYLE => "style=\"background-color: #$second_element{COLOR} !important;\""}), '');
+      }
+
+      $TEMPLATE_ARGS{CABLES} = JSON::to_json($cables || []);
       $TEMPLATE_ARGS{SPLITTERS} = JSON::to_json($splitters);
       $TEMPLATE_ARGS{EQUIPMENT} = JSON::to_json($equipment);
       $TEMPLATE_ARGS{CROSSES} = JSON::to_json($crosses);
-      $TEMPLATE_ARGS{BTN} = $html->button($lang{PRINT_SCHEME}, "header=2&qindex=" . get_function_index('show_box')."&print=1&ID=".$FORM{ID}, { target => '_new', class => 'btn btn-default' });
+      $TEMPLATE_ARGS{BTN} = $html->button($lang{PRINT_SCHEME}, "header=2&qindex=" . get_function_index('show_box') . "&print=1&ID=" . $FORM{ID}, { target => '_new', class => 'btn btn-default' });
     }
 
     $html->tpl_show(_include('cablecat_commutation', 'Cablecat'), \%TEMPLATE_ARGS);
+
+    print $html->br();
+
+    print $table_links->show();
   }
 
   return 1;
@@ -115,19 +178,19 @@ sub cablecat_commutation {
 =cut
 #**********************************************************
 sub cablecat_commutation_ajax {
-  return unless ( $FORM{commutation} );
+  return unless ($FORM{commutation});
 
   my @link_required_params = qw/
     COMMUTATION_ID
     ELEMENT_1_TYPE ELEMENT_1_ID
     ELEMENT_2_TYPE ELEMENT_2_ID
     FIBER_NUM_1 FIBER_NUM_2
-    /;
+  /;
 
   # Add link
-  if ( $FORM{add} ) {
+  if ($FORM{add}) {
     # Check we have all arguments to add link
-    if ( grep {!$FORM{$_}} @link_required_params ) {
+    if (grep {!$FORM{$_}} @link_required_params) {
       $html->message('err', 'No param', $_);
       return 0;
     }
@@ -139,14 +202,14 @@ sub cablecat_commutation_ajax {
     show_result($Cablecat, $lang{ADDED}, '', { ID => 'LINK_ADDED', RESPONCE_PARAMS => { LINK_ID => $link_id } });
   }
 
-  if ( $FORM{del} ) {
+  if ($FORM{del}) {
     $Cablecat->links_del({ ID => $FORM{del} });
-    show_result($Cablecat, $lang{DEL}, '', { ID => 'LINK_REMOVED',  RESPONCE_PARAMS => { LINK_ID => $FORM{del} } });
+    show_result($Cablecat, $lang{DEL}, '', { ID => 'LINK_REMOVED', RESPONCE_PARAMS => { LINK_ID => $FORM{del} } });
   }
 
-  if ( $FORM{change} ) {
+  if ($FORM{change}) {
     $Cablecat->links_change({ %FORM, ID => $FORM{change} });
-    show_result($Cablecat, $lang{CHANGED}, '', { ID => 'LINK_CHANGED',  RESPONCE_PARAMS => { LINK_ID => $FORM{change} }});
+    show_result($Cablecat, $lang{CHANGED}, '', { ID => 'LINK_CHANGED', RESPONCE_PARAMS => { LINK_ID => $FORM{change} } });
   }
 
   return 1;
@@ -158,41 +221,41 @@ sub cablecat_commutation_ajax {
 =cut
 #**********************************************************
 sub cablecat_commutation_operations {
-  return 0 unless ( $FORM{COMMUTATION_ID} );
+  return 0 unless ($FORM{COMMUTATION_ID});
 
   my $info = $Cablecat->commutations_info($FORM{COMMUTATION_ID});
 
-  if ( !$FORM{entity} ) {
+  if (!$FORM{entity}) {
 
   }
-  elsif ( $FORM{entity} eq 'CABLE' ) {
+  elsif ($FORM{entity} eq 'CABLE') {
     return cablecat_commutation_cables($info);
   }
-  elsif ( $FORM{entity} eq 'SPLITTER' ) {
+  elsif ($FORM{entity} eq 'SPLITTER') {
     return cablecat_commutation_splitters($info);
   }
-  elsif ( $FORM{entity} eq 'EQUIPMENT' ) {
+  elsif ($FORM{entity} eq 'EQUIPMENT') {
     return cablecat_commutation_equipment($info);
   }
-  elsif ( $FORM{entity} eq 'CROSS' ) {
+  elsif ($FORM{entity} eq 'CROSS') {
     return cablecat_commutation_crosses($info);
   }
 
-  if ( $FORM{operation} eq 'CLEAR_COMMUTATION' ) {
+  if ($FORM{operation} eq 'CLEAR_COMMUTATION') {
     $Cablecat->links_del({}, {
-        COMMUTATION_ID => $FORM{COMMUTATION_ID},
-      });
+      COMMUTATION_ID => $FORM{COMMUTATION_ID},
+    });
     _error_show($Cablecat);
     $Cablecat->commutation_equipment_del({}, {
-        COMMUTATION_ID => $FORM{COMMUTATION_ID},
-      });
+      COMMUTATION_ID => $FORM{COMMUTATION_ID},
+    });
     _error_show($Cablecat);
     $Cablecat->splitters_del({
       COMMUTATION_ID => $FORM{COMMUTATION_ID},
     });
-    show_result($Cablecat, "$lang{DELETED} $lang{ALL}",  '', { ID => 'COMMUTATION_CLEARED' });
+    show_result($Cablecat, "$lang{DELETED} $lang{ALL}", '', { ID => 'COMMUTATION_CLEARED' });
   }
-  elsif ( $FORM{operation} eq 'CONNECT_BY_NUMBERS' ) {
+  elsif ($FORM{operation} eq 'CONNECT_BY_NUMBERS') {
     # Get cables for commutation
     my $cables_list = $Cablecat->commutation_cables_list({
       COMMUTATION_ID => $FORM{COMMUTATION_ID},
@@ -204,7 +267,7 @@ sub cablecat_commutation_operations {
     my $has_only_to_cables = $Cablecat->{TOTAL} == 2;
     my $selected_1 = '';
     my $selected_2 = '';
-    if ( $has_only_to_cables ) {
+    if ($has_only_to_cables) {
       $selected_1 = $cables_list->[0]->{cable_id};
       $selected_2 = $cables_list->[1]->{cable_id};
     }
@@ -253,7 +316,7 @@ sub cablecat_commutation_operations {
 sub cablecat_commutation_cables {
   my ($commutation) = @_;
 
-  if ( $FORM{operation} eq 'LIST' && $FORM{WELL_ID} ) {
+  if ($FORM{operation} eq 'LIST' && $FORM{WELL_ID}) {
     my $cables_inputs = _cablecat_well_cables_checkbox_form(
       $FORM{WELL_ID},
       {
@@ -261,28 +324,28 @@ sub cablecat_commutation_cables {
       }
     );
 
-    if ( !$cables_inputs || (ref $cables_inputs eq 'ARRAY' && !scalar @{$cables_inputs}) ) {
+    if (!$cables_inputs || (ref $cables_inputs eq 'ARRAY' && !scalar @{$cables_inputs})) {
       $html->message('err', $lang{CABLES} . ' ' . $lang{WELL} . '_#' . $FORM{WELL_ID}, $lang{NO_DATA});
       return 0;
     }
 
     $html->tpl_show(_include('cablecat_commutation_cable_add_modal', 'Cablecat'), {
-        CABLES_CHECKBOXES => join($FORM{json} ? ', ' : '', @{$cables_inputs}),
-        SUBMIT_BTN_NAME   => $lang{ADD},
-        SUBMIT_BTN_ACTION => 'change',
-        %FORM
-      }
+      CABLES_CHECKBOXES => join($FORM{json} ? ', ' : '', @{$cables_inputs}),
+      SUBMIT_BTN_NAME   => $lang{ADD},
+      SUBMIT_BTN_ACTION => 'change',
+      %FORM
+    }
     );
   }
-  elsif ( $FORM{operation} eq 'ADD' ) {
+  elsif ($FORM{operation} eq 'ADD') {
     my $info = $Cablecat->commutations_info($FORM{COMMUTATION_ID});
 
     # Will compare given in $FORM{CABLE_IDS} to already existing cables $info->{CABLE_IDS};
     my $current_cable_ids = [ split(',\s?', $info->{CABLE_IDS} || '') ];
-    foreach my $cable_id ( split(',\s?', $FORM{CABLE_IDS}) ) {
+    foreach my $cable_id (split(',\s?', $FORM{CABLE_IDS})) {
 
       # Already exists
-      next if ( in_array($cable_id, $current_cable_ids) );
+      next if (in_array($cable_id, $current_cable_ids));
 
       $Cablecat->commutation_cables_add({
         CABLE_ID       => $cable_id,
@@ -295,14 +358,14 @@ sub cablecat_commutation_cables {
       $html->redirect('?index=' . (get_function_index('cablecat_commutation') . '&ID=' . $FORM{COMMUTATION_ID}));
     }
   }
-  elsif ( $FORM{operation} eq 'DELETE' && $FORM{ID} ) {
+  elsif ($FORM{operation} eq 'DELETE' && $FORM{ID}) {
     $Cablecat->delete_links_for_element('CABLE', $FORM{ID});
 
     $Cablecat->commutation_cables_del({}, {
-        commutation_id => $FORM{COMMUTATION_ID},
-        connecter_id   => $FORM{CONNECTER_ID},
-        cable_id       => $FORM{ID}
-      });
+      commutation_id => $FORM{COMMUTATION_ID},
+      connecter_id   => $FORM{CONNECTER_ID},
+      cable_id       => $FORM{ID}
+    });
 
     show_result($Cablecat, $lang{DEL}, '', { ID => 'ELEMENT_DELETED' });
   }
@@ -316,7 +379,7 @@ sub cablecat_commutation_cables {
 =cut
 #**********************************************************
 sub cablecat_commutation_splitters {
-  if ( $FORM{operation} eq 'LIST' ) {
+  if ($FORM{operation} eq 'LIST') {
     my $splitters_for_well = $Cablecat->splitters_list({
       ID         => '_SHOW',
       TYPE       => '_SHOW',
@@ -326,26 +389,26 @@ sub cablecat_commutation_splitters {
     });
 
     my $splitters_select = $html->form_select('SPLITTER_ID', {
-        SEL_LIST    => [ map {$_->{name} = $_->{type} . '_#' . $_->{id};
-          $_} @{$splitters_for_well} ],
-        SEL_OPTIONS => { '' => '' }
-      });
+      SEL_LIST    => [ map {$_->{name} = $_->{type} . '_#' . $_->{id};
+        $_} @{$splitters_for_well} ],
+      SEL_OPTIONS => { '' => '' }
+    });
 
     $html->tpl_show(_include('cablecat_commutation_splitter_add_modal', 'Cablecat'), {
-        SPLITTERS_SELECT  => $splitters_select,
-        SUBMIT_BTN_NAME   => $lang{ADD},
-        SUBMIT_BTN_ACTION => 'change',
-        %FORM
-      }
+      SPLITTERS_SELECT  => $splitters_select,
+      SUBMIT_BTN_NAME   => $lang{ADD},
+      SUBMIT_BTN_ACTION => 'change',
+      %FORM
+    }
     );
   }
-  elsif ( $FORM{operation} eq 'ADD' ) {
+  elsif ($FORM{operation} eq 'ADD') {
     # Do splitter adding logic
     my $splitter_info = $Cablecat->splitters_info($FORM{SPLITTER_ID});
     _error_show($Cablecat);
 
     # Set splitter commutation
-    if ( !$splitter_info->{commutation_id} || $splitter_info->{commutation_id} ne $FORM{COMMUTATION_ID} ) {
+    if (!$splitter_info->{commutation_id} || $splitter_info->{commutation_id} ne $FORM{COMMUTATION_ID}) {
       $Cablecat->splitters_change({
         ID             => $FORM{SPLITTER_ID},
         COMMUTATION_ID => $FORM{COMMUTATION_ID}
@@ -354,13 +417,13 @@ sub cablecat_commutation_splitters {
 
     show_result($Cablecat, $lang{ADDED}, '', { ID => 'SPLITTER_ADDED' });
   }
-  elsif ( $FORM{operation} eq 'DELETE' && $FORM{ID} ) {
+  elsif ($FORM{operation} eq 'DELETE' && $FORM{ID}) {
     $Cablecat->delete_links_for_element('SPLITTER', $FORM{ID});
-    $Cablecat->splitters_del({ID => $FORM{ID}});
+    $Cablecat->splitters_del({ ID => $FORM{ID} });
 
     show_result($Cablecat, $lang{DEL}, '', { ID => 'ELEMENT_DELETED' });
   }
-  elsif ( $FORM{operation} eq 'SAVE_COORDS' ) {
+  elsif ($FORM{operation} eq 'SAVE_COORDS') {
     $Cablecat->splitters_change({
       ID                   => $FORM{ID},
       COMMUTATION_X        => $FORM{X},
@@ -378,19 +441,19 @@ sub cablecat_commutation_splitters {
 =cut
 #**********************************************************
 sub cablecat_commutation_equipment {
-  if ( !in_array('Equipment', \@MODULES) ) {
+  if (!in_array('Equipment', \@MODULES)) {
     $html->message('warn', $lang{WARNING}, "$lang{MODULE} $lang{DISABLED} : 'Equipment'");
     return 0;
   }
 
-  if (!$Equipment){
+  if (!$Equipment) {
     our ($db, $admin, %conf);
     require Equipment;
     Equipment->import();
     $Equipment = Equipment->new($db, $admin, \%conf);
   }
 
-  if ( $FORM{operation} eq 'LIST' ) {
+  if ($FORM{operation} eq 'LIST') {
 
     # Will remove equipment that already is on another commutations
     my @equipment_on_commutation_ids = $Cablecat->commutation_equipment_ids();
@@ -398,34 +461,34 @@ sub cablecat_commutation_equipment {
 
     my $equipment_list = $Equipment->_list({
       NAS_NAME  => '_SHOW',
-      NAS_ID    => join(',', map {"!$_"}  @equipment_on_commutation_ids),
+      NAS_ID    => join(',', map {"!$_"} @equipment_on_commutation_ids),
       COLS_NAME => 1,
       PAGE_ROWS => 10000
     });
     _error_show($Equipment) and return 0;
 
-    if ( !$equipment_list || ref($equipment_list) ne 'ARRAY' || !scalar(@{$equipment_list}) ) {
+    if (!$equipment_list || ref($equipment_list) ne 'ARRAY' || !scalar(@{$equipment_list})) {
       $html->message("warn", $lang{WARNING}, $lang{NO_FREE_EQUIPMENT});
       print function_button("$lang{GO_TO} $lang{EQUIPMENT}", 'equipment_list');
       return 0;
     }
 
     my $equipment_select = make_select_from_list('EQUIPMENT_ID', $equipment_list, {
-        NO_ID     => 0,
-        SEL_KEY   => 'nas_id',
-        SEL_VALUE => 'nas_name',
-        MAIN_MENU => get_function_index('equipment_list')
-      });
+      NO_ID     => 0,
+      SEL_KEY   => 'nas_id',
+      SEL_VALUE => 'nas_name',
+      MAIN_MENU => get_function_index('equipment_list')
+    });
 
     $html->tpl_show(_include('cablecat_commutation_equipment_add_modal', 'Cablecat'), {
-        EQUIPMENT_SELECT  => $equipment_select,
-        SUBMIT_BTN_NAME   => $lang{ADD},
-        SUBMIT_BTN_ACTION => 'change',
-        %FORM
-      }
+      EQUIPMENT_SELECT  => $equipment_select,
+      SUBMIT_BTN_NAME   => $lang{ADD},
+      SUBMIT_BTN_ACTION => 'change',
+      %FORM
+    }
     );
   }
-  elsif ( $FORM{operation} eq 'ADD' ) {
+  elsif ($FORM{operation} eq 'ADD') {
     # Do equipment adding logic
     my $commutation_info = $Cablecat->commutation_equipment_info(undef, { NAS_ID => $FORM{EQUIPMENT_ID} });
 
@@ -435,13 +498,13 @@ sub cablecat_commutation_equipment {
         || $commutation_info->{commutation_id} ne $FORM{COMMUTATION_ID};
 
     # Set splitter commutation
-    if ( $not_added_to_commutation ) {
+    if ($not_added_to_commutation) {
 
       # Check if have ports count defined
       my $equipment_info = $Equipment->_info($FORM{EQUIPMENT_ID});
       my $ports_count = $equipment_info->{PORTS};
 
-      if ( !$ports_count || $ports_count eq '0' ) {
+      if (!$ports_count || $ports_count eq '0') {
         $html->message('err', $lang{ERROR}, $lang{NO_PORTS_COUNT});
         return 0;
       }
@@ -450,20 +513,20 @@ sub cablecat_commutation_equipment {
         NAS_ID         => $FORM{EQUIPMENT_ID},
         COMMUTATION_ID => $FORM{COMMUTATION_ID}
       });
-      show_result($Cablecat, $lang{ADDED}, '', { ID => 'EQUIPMENT_ADDED'} );
+      show_result($Cablecat, $lang{ADDED}, '', { ID => 'EQUIPMENT_ADDED' });
     }
     else {
       $html->message('err', $lang{ERROR}, $lang{ALREADY_ON_ANOTHER_COMMUTATION});
       return 0;
     }
   }
-  elsif ( $FORM{operation} eq 'DELETE' ) {
-    $Cablecat->delete_links_for_element('EQUIPMENT', $FORM{ID}, {commutation_id => $FORM{COMMUTATION_ID}});
+  elsif ($FORM{operation} eq 'DELETE') {
+    $Cablecat->delete_links_for_element('EQUIPMENT', $FORM{ID}, { commutation_id => $FORM{COMMUTATION_ID} });
 
-    $Cablecat->commutation_equipment_del({}, { NAS_ID => $FORM{ID}});
+    $Cablecat->commutation_equipment_del({}, { NAS_ID => $FORM{ID} });
     show_result($Cablecat, $lang{DEL}, '', { ID => 'ELEMENT_DELETED' });
   }
-  elsif ( $FORM{operation} eq 'SAVE_COORDS' ) {
+  elsif ($FORM{operation} eq 'SAVE_COORDS') {
     $Cablecat->commutation_equipment_change({
       _CHANGE_PARAM => 'NAS_ID',
 
@@ -482,21 +545,21 @@ sub cablecat_commutation_equipment {
 #**********************************************************
 sub cablecat_commutation_crosses {
 
-  if ( $FORM{operation} eq 'LIST' ) {
+  if ($FORM{operation} eq 'LIST') {
 
     _error_show($Cablecat) and return 0;
 
     my $crosses_list = $Cablecat->crosses_list({
-      NAME           => '_SHOW',
-      TYPE           => '_SHOW',
-      PORTS_COUNT    => '_SHOW',
-      CROSS_ID       => '_SHOW',
-      COLS_NAME      => 1,
-      PAGE_ROWS      => 10000
+      NAME        => '_SHOW',
+      TYPE        => '_SHOW',
+      PORTS_COUNT => '_SHOW',
+      CROSS_ID    => '_SHOW',
+      COLS_NAME   => 1,
+      PAGE_ROWS   => 10000
     });
     _error_show($Cablecat) and return 0;
 
-    if ( !$crosses_list || ref($crosses_list) ne 'ARRAY' || !scalar(@{$crosses_list}) ) {
+    if (!$crosses_list || ref($crosses_list) ne 'ARRAY' || !scalar(@{$crosses_list})) {
       $html->message("warn", $lang{WARNING}, $lang{NO_FREE_EQUIPMENT});
       print function_button("$lang{GO_TO} $lang{CROSSES}", 'cablecat_crosses');
       return 0;
@@ -511,13 +574,13 @@ sub cablecat_commutation_crosses {
       PAGE_ROWS   => 10000
     });
     _error_show($Cablecat) and return 0;
-    foreach my $cross_range (@$cross_ranges){
+    foreach my $cross_range (@$cross_ranges) {
       my %range_hash = (
         start  => $cross_range->{port_start},
         finish => $cross_range->{port_finish},
       );
-      if (exists $cross_used_ports{$cross_range->{cross_id}}){
-        push (@{$cross_used_ports{$cross_range->{cross_id}}}, \%range_hash );
+      if (exists $cross_used_ports{$cross_range->{cross_id}}) {
+        push(@{$cross_used_ports{$cross_range->{cross_id}}}, \%range_hash);
       }
       else {
         $cross_used_ports{$cross_range->{cross_id}} = [ \%range_hash ];
@@ -525,25 +588,25 @@ sub cablecat_commutation_crosses {
     }
 
     my $cross_select = make_select_from_list('CROSS_ID', $crosses_list, {
-        NO_ID         => 0,
-        SEL_KEY       => 'id',
-        SEL_VALUE     => 'type,name',
-        WRITE_TO_DATA => 'ports_count',
-        MAIN_MENU     => get_function_index('cablecat_crosses')
-      });
+      NO_ID         => 0,
+      SEL_KEY       => 'id',
+      SEL_VALUE     => 'type,name',
+      WRITE_TO_DATA => 'ports_count',
+      MAIN_MENU     => get_function_index('cablecat_crosses')
+    });
 
     $html->tpl_show(_include('cablecat_commutation_cross_add_modal', 'Cablecat'), {
-        CROSS_SELECT       => $cross_select,
-        PORT_START_SELECT  => $html->form_select('PORT_START'),
-        PORT_FINISH_SELECT => $html->form_select('PORT_FINISH'),
-        USED_PORTS         => JSON::to_json(\%cross_used_ports),
-        SUBMIT_BTN_NAME    => $lang{ADD},
-        SUBMIT_BTN_ACTION  => 'change',
-        %FORM
-      }
+      CROSS_SELECT       => $cross_select,
+      PORT_START_SELECT  => $html->form_select('PORT_START'),
+      PORT_FINISH_SELECT => $html->form_select('PORT_FINISH'),
+      USED_PORTS         => JSON::to_json(\%cross_used_ports),
+      SUBMIT_BTN_NAME    => $lang{ADD},
+      SUBMIT_BTN_ACTION  => 'change',
+      %FORM
+    }
     );
   }
-  elsif ( $FORM{operation} eq 'ADD' ) {
+  elsif ($FORM{operation} eq 'ADD') {
     # Do equipment adding logic
     my $commutation_info = $Cablecat->commutation_crosses_info(undef, { CROSS_ID => $FORM{CROSS_ID} });
 
@@ -553,13 +616,13 @@ sub cablecat_commutation_crosses {
         || $commutation_info->{commutation_id} ne $FORM{COMMUTATION_ID};
 
     # Set splitter commutation
-    if ( $not_added_to_commutation ) {
+    if ($not_added_to_commutation) {
 
       # Check if have ports count defined
       my $cross_info = $Cablecat->crosses_info($FORM{CROSS_ID});
       my $ports_count = $cross_info->{PORTS_COUNT};
 
-      if ( !$ports_count || $ports_count eq '0' ) {
+      if (!$ports_count || $ports_count eq '0') {
         $html->message('err', $lang{ERROR}, $lang{NO_PORTS_COUNT});
         return 0;
       }
@@ -576,30 +639,30 @@ sub cablecat_commutation_crosses {
       return 0;
     }
   }
-  elsif ( $FORM{operation} eq 'DELETE' ) {
-    $Cablecat->delete_links_for_element('CROSS', $FORM{ID}, {commutation_id => $FORM{COMMUTATION_ID}});
+  elsif ($FORM{operation} eq 'DELETE') {
+    $Cablecat->delete_links_for_element('CROSS', $FORM{ID}, { commutation_id => $FORM{COMMUTATION_ID} });
 
     $Cablecat->commutation_crosses_del({}, { cross_id => $FORM{ID}, commutation_id => $FORM{COMMUTATION_ID} });
     show_result($Cablecat, $lang{DEL}, '', { ID => 'ELEMENT_DELETED' });
   }
-  elsif ( $FORM{operation} eq 'SAVE_COORDS' ) {
+  elsif ($FORM{operation} eq 'SAVE_COORDS') {
     $Cablecat->commutation_crosses_change({
-      _CHANGE_PARAM => 'CROSS_ID',
+      _CHANGE_PARAM        => 'CROSS_ID',
 
-      CROSS_ID      => $FORM{ID},
-      COMMUTATION_X => $FORM{X},
-      COMMUTATION_Y => $FORM{Y},
+      CROSS_ID             => $FORM{ID},
+      COMMUTATION_X        => $FORM{X},
+      COMMUTATION_Y        => $FORM{Y},
       COMMUTATION_ROTATION => $FORM{COMMUTATION_ROTATION},
     });
     show_result($Cablecat, $lang{CHANGED}, '', { ID => 'COORDS_CHANGED' });
   }
-  elsif ( $FORM{operation} eq 'SAVE_PORTS' ) {
+  elsif ($FORM{operation} eq 'SAVE_PORTS') {
 
     my $check_if_have_links_in_range = sub {
       my ($range_start, $range_finish) = @_;
 
       my $range_minimized = 0;
-      if ($range_finish < $range_start){
+      if ($range_finish < $range_start) {
         $range_minimized = 1;
         # Swap (sort)
         ($range_start, $range_finish) = ($range_finish, $range_start);
@@ -612,7 +675,7 @@ sub cablecat_commutation_crosses {
 
       my @links_in_range = grep {
         my $is_in_range = 0;
-        if ($range_minimized){
+        if ($range_minimized) {
           $is_in_range = $_->{fiber_num_1} > $range_start && $_->{fiber_num_1} <= $range_finish;
         }
         else {
@@ -659,21 +722,21 @@ sub cablecat_commutation_crosses {
 
     # Delete old info
     $Cablecat->commutation_crosses_del(undef, {
-        commutation_id => $FORM{COMMUTATION_ID},
-        cross_id       => $FORM{ID},
-        port_start     => $prev_start,
-        port_finish    => $prev_finish
-      });
+      commutation_id => $FORM{COMMUTATION_ID},
+      cross_id       => $FORM{ID},
+      port_start     => $prev_start,
+      port_finish    => $prev_finish
+    });
 
     # Insert new info
     $Cablecat->commutation_crosses_add({
-        %$old_info,
-        PORT_START     => $new_start,
-        PORT_FINISH    => $new_finish,
-      });
+      %$old_info,
+      PORT_START  => $new_start,
+      PORT_FINISH => $new_finish,
+    });
     show_result($Cablecat, $lang{SUCCESS}, "$lang{CHANGED}", { ID => 'CROSS_CHANGED' });
   }
-  elsif ( $FORM{operation} eq 'CHANGE_PORTS' ) {
+  elsif ($FORM{operation} eq 'CHANGE_PORTS') {
     # Get current info
     my $cross = $Cablecat->crosses_info($FORM{ID});
     _error_show($Cablecat) and return 0;
@@ -690,7 +753,7 @@ sub cablecat_commutation_crosses {
     _error_show($Cablecat) and return 0;
 
     # Prepare allowed ranges
-    foreach my $cross_range (@$cross_ranges){
+    foreach my $cross_range (@$cross_ranges) {
       my %range_hash = (
         start  => $cross_range->{port_start},
         finish => $cross_range->{port_finish},
@@ -699,8 +762,8 @@ sub cablecat_commutation_crosses {
       # Skip current range
       next if ($cross_range->{port_start} eq $FORM{PORT_START} && $cross_range->{port_finish} eq $FORM{PORT_FINISH});
 
-      if (exists $cross_used_ports{$cross_range->{cross_id}}){
-        push (@{$cross_used_ports{$cross_range->{cross_id}}}, \%range_hash );
+      if (exists $cross_used_ports{$cross_range->{cross_id}}) {
+        push(@{$cross_used_ports{$cross_range->{cross_id}}}, \%range_hash);
       }
       else {
         $cross_used_ports{$cross_range->{cross_id}} = [ \%range_hash ];
@@ -709,17 +772,16 @@ sub cablecat_commutation_crosses {
 
     # Show template
     $html->tpl_show(_include('cablecat_commutation_cross_change_modal', 'Cablecat'), {
-        TOTAL_PORTS        => $cross->{ports_count},
-        NAME               => $cross->{name},
-        PORT_START_SELECT  => $html->form_select('PORT_START', { SELECTED => $FORM{PORT_START} }),
-        PORT_FINISH_SELECT => $html->form_select('PORT_FINISH', { SELECTED => $FORM{PORT_FINISH} }),
-        USED_PORTS         => JSON::to_json(\%cross_used_ports),
-        SUBMIT_BTN_NAME    => $lang{CHANGE},
-        SUBMIT_BTN_ACTION  => 'change',
-        %FORM
-      }
+      TOTAL_PORTS        => $cross->{ports_count},
+      NAME               => $cross->{name},
+      PORT_START_SELECT  => $html->form_select('PORT_START', { SELECTED => $FORM{PORT_START} }),
+      PORT_FINISH_SELECT => $html->form_select('PORT_FINISH', { SELECTED => $FORM{PORT_FINISH} }),
+      USED_PORTS         => JSON::to_json(\%cross_used_ports),
+      SUBMIT_BTN_NAME    => $lang{CHANGE},
+      SUBMIT_BTN_ACTION  => 'change',
+      %FORM
+    }
     );
-
 
   }
 }
@@ -733,10 +795,10 @@ sub _cablecat_commutation_info_table {
   my ($commutation_id, $attr) = @_;
 
   my $commutation;
-  if ( $attr->{ID} ) {
+  if ($attr->{ID}) {
     $commutation = $attr;
   }
-  elsif ( $commutation_id ) {
+  elsif ($commutation_id) {
     $commutation = $Cablecat->commutations_info($commutation_id);
     _error_show($Cablecat);
   }
@@ -752,7 +814,7 @@ sub _cablecat_commutation_info_table {
     ID          => 'CABLECAT_COMMUTATION_INFO_ID',
   });
 
-  if ( $commutation->{WELL_ID} ) {
+  if ($commutation->{WELL_ID}) {
     $commutation->{ADDRESS} = _cablecat_address_for_well_id($commutation->{WELL_ID});
   }
 
@@ -763,19 +825,19 @@ sub _cablecat_commutation_info_table {
       $commutation->{ID},
       { ID_PARAM => 'ID' }),
     _cablecat_result_former_named_chg_link_filter($commutation->{WELL}, {
-        VALUES => {
-          FUNCTION   => 'cablecat_wells',
-          PARAM_NAME => 'WELL_ID',
-          WELL_ID    => $commutation->{WELL_ID}
-        }
-      }),
+      VALUES => {
+        FUNCTION   => 'cablecat_wells',
+        PARAM_NAME => 'WELL_ID',
+        WELL_ID    => $commutation->{WELL_ID}
+      }
+    }),
     _cablecat_result_former_named_chg_link_filter($commutation->{CONNECTER}, {
-        VALUES => {
-          FUNCTION     => 'cablecat_connecters',
-          PARAM_NAME   => 'CONNECTER_ID',
-          CONNECTER_ID => $commutation->{CONNECTER_ID}
-        }
-      }),
+      VALUES => {
+        FUNCTION     => 'cablecat_connecters',
+        PARAM_NAME   => 'CONNECTER_ID',
+        CONNECTER_ID => $commutation->{CONNECTER_ID}
+      }
+    }),
     $commutation->{ADDRESS} || '',
     $commutation->{CREATED} || '!',
   );
@@ -797,19 +859,19 @@ sub _cablecat_commutation_info_table {
 #**********************************************************
 sub _cablecat_commutation_cables_prepare_json {
   my ($cable_id, $attr) = @_;
-  $cable_id =~ s/,/;/g if ( $cable_id );
+  $cable_id =~ s/,/;/g if ($cable_id);
 
   my $cables_list = [];
 
-  if ( $attr->{COMMUTATION_ID} ) {
+  if ($attr->{COMMUTATION_ID}) {
     # Return info for all cables on commutation
     my $commutation_info = $Cablecat->commutations_info($attr->{COMMUTATION_ID}, {
-        SHOW_ALL_COLUMNS => 0,
-        CABLE_IDS        => '_SHOW',
-        COLS_UPPER       => 0
-      });
+      SHOW_ALL_COLUMNS => 0,
+      CABLE_IDS        => '_SHOW',
+      COLS_UPPER       => 0
+    });
     $cable_id = $commutation_info->{cable_ids};
-    $cable_id =~ s/,/;/g if ( $cable_id );
+    $cable_id =~ s/,/;/g if ($cable_id);
 
     $cables_list = $Cablecat->cables_list({
       ID               => $cable_id || '_SHOW',
@@ -821,7 +883,7 @@ sub _cablecat_commutation_cables_prepare_json {
     _error_show($Cablecat);
 
   }
-  elsif ( $cable_id ) {
+  elsif ($cable_id) {
     # Return info for cable ( cables ) specified by $cable_id
     $cables_list = $Cablecat->cables_list({
       ID               => $cable_id,
@@ -836,9 +898,9 @@ sub _cablecat_commutation_cables_prepare_json {
   }
 
   my @result_list = ();
-  foreach my $cable ( @{$cables_list} ) {
+  foreach my $cable (@{$cables_list}) {
 
-    if ( !defined $cable->{modules_count} || !defined $cable->{fibers_count} ) {
+    if (!defined $cable->{modules_count} || !defined $cable->{fibers_count}) {
       my $cable_link = _cablecat_get_cable_button($cable->{id});
       $html->message('warn', $lang{ERROR},
         "Modules or fibers count is not defined. Can't display cable $cable_link ($cable->{id})");
@@ -846,10 +908,10 @@ sub _cablecat_commutation_cables_prepare_json {
     }
     _error_show($Cablecat);
 
-    if ( !$cable->{modules_colors} || !$cable->{fibers_colors} ) {
+    if (!$cable->{modules_colors} || !$cable->{fibers_colors}) {
       $html->message('err', $lang{ERROR}, "$lang{NO} $lang{COLOR_SCHEME} $lang{FOR} "
-          . _cablecat_get_cable_button($cable->{id}, { NAME => $cable->{name} })
-          . " ( $cable->{id} )"
+        . _cablecat_get_cable_button($cable->{id}, { NAME => $cable->{name} })
+        . " ( $cable->{id} )"
       );
       return 0;
     }
@@ -866,34 +928,34 @@ sub _cablecat_commutation_cables_prepare_json {
 
     $cable->{outer_color} //= '#000000';
     push @result_list, {
-        id    => + $cable->{id},
-        image => {
-          modules              => + $cable->{modules_count},
-          fibers               => + $cable->{fibers_count},
-          color                => $cable->{outer_color},
-          color_scheme         => [ map {'#' . $_} split ',', $cable->{fibers_colors} ],
-          modules_color_scheme => [ map {'#' . $_} split ',', $cable->{modules_colors} ],
-        },
-        meta  => {
-          name               => $cable->{name},
-          #      position => $position,
-          #      fibers   => \%fibers,
-          well_1_id          => $cable->{well_1_id},
-          well_2_id          => $cable->{well_2_id},
-          well_1             => $cable->{well_1},
-          well_2             => $cable->{well_2},
-          map_btn            => maps_show_object_button(
-            $MAP_LAYER_ID{CABLE},
-            $cable->{id}, {
-              GO_TO_MAP   => 1,
-              POINT_ID    => $cable->{point_id},
-              SINGLE      => $cable->{point_id},
-              RETURN_HREF => 1
-            }
-          ),
-          other_commutations => \%other_commutation_hash
+      id    => +$cable->{id},
+      image => {
+        modules              => +$cable->{modules_count},
+        fibers               => +$cable->{fibers_count},
+        color                => $cable->{outer_color},
+        color_scheme         => [ map {'#' . $_} split ',', $cable->{fibers_colors} ],
+        modules_color_scheme => [ map {'#' . $_} split ',', $cable->{modules_colors} ],
+      },
+      meta  => {
+        name               => $cable->{name},
+        #      position => $position,
+        #      fibers   => \%fibers,
+        well_1_id          => $cable->{well_1_id},
+        well_2_id          => $cable->{well_2_id},
+        well_1             => $cable->{well_1},
+        well_2             => $cable->{well_2},
+        map_btn            => maps_show_object_button(
+          $MAP_LAYER_ID{CABLE},
+          $cable->{id}, {
+          GO_TO_MAP   => 1,
+          POINT_ID    => $cable->{point_id},
+          SINGLE      => $cable->{point_id},
+          RETURN_HREF => 1
         }
-      };
+        ),
+        other_commutations => \%other_commutation_hash
+      }
+    };
   }
 
   return \@result_list;
@@ -910,7 +972,7 @@ sub _cablecat_commutation_splitters {
   my ($splitter_id, $attr) = @_;
 
   my $splitters_list = [];
-  if ( $attr->{COMMUTATION_ID} ) {
+  if ($attr->{COMMUTATION_ID}) {
     $splitters_list = $Cablecat->splitters_list({
       ID               => $splitter_id || '_SHOW',
       COMMUTATION_ID   => $attr->{COMMUTATION_ID},
@@ -920,7 +982,7 @@ sub _cablecat_commutation_splitters {
     });
     _error_show($Cablecat);
   }
-  elsif ( $splitter_id ) {
+  elsif ($splitter_id) {
     $splitters_list = $Cablecat->splitters_list({
       ID               => $splitter_id,
       SHOW_ALL_COLUMNS => 1,
@@ -950,7 +1012,7 @@ sub _cablecat_commutation_splitters {
 sub _cablecat_commutation_equipment {
   my ($equipment_id, $attr) = @_;
 
-  return '' unless ( defined $equipment_id || defined $attr->{COMMUTATION_ID} );
+  return '' unless (defined $equipment_id || defined $attr->{COMMUTATION_ID});
 
   my $equipment_list = [];
   $equipment_list = $Cablecat->commutation_equipment_list({
@@ -965,7 +1027,7 @@ sub _cablecat_commutation_equipment {
   return [
     map {
       $_->{commutation_equipment_id} = $_->{id};
-      $_->{id} = $_->{nas_id} if ( $_->{nas_id} );
+      $_->{id} = $_->{nas_id} if ($_->{nas_id});
       $_
     } @{$equipment_list}
   ];
@@ -979,7 +1041,7 @@ sub _cablecat_commutation_equipment {
 sub _cablecat_commutation_crosses {
   my ($cross_id, $attr) = @_;
 
-  return '' unless ( defined $cross_id || defined $attr->{COMMUTATION_ID} );
+  return '' unless (defined $cross_id || defined $attr->{COMMUTATION_ID});
 
   my $crosses_list = [];
   $crosses_list = $Cablecat->commutation_crosses_list({
@@ -994,13 +1056,157 @@ sub _cablecat_commutation_crosses {
   return [
     map {
       $_->{commutation_cross_id} = $_->{commutation_id};
-      $_->{id}    = $_->{cross_id} if ( $_->{cross_id} );
+      $_->{id} = $_->{cross_id} if ($_->{cross_id});
       $_->{ports} = ($_->{port_finish} - $_->{port_start}) + 1;
-      $_->{name}  = ($_->{name} || q{}) . " (" . ($_->{port_start} || q{} ) . "-" . ($_->{port_finish} || q{} ). ")";
+      $_->{name} = ($_->{name} || q{}) . " (" . ($_->{port_start} || q{}) . "-" . ($_->{port_finish} || q{}) . ")";
       $_
     } @{$crosses_list}
   ];
 }
 
+#**********************************************************
+=head2 _cablecat_cable_element()
+
+=cut
+#**********************************************************
+sub _cablecat_cable_element {
+  my ($element_id, $fiber_num) = @_;
+
+  my %cable = ();
+  our ($db, $admin, %conf);;
+  my $Commutation_blank = Commutation_blank->new($db, $admin, \%conf);
+
+  my $cable_info = $Cablecat->cables_info($element_id);
+  if ($Cablecat->{TOTAL}) {
+    my $cable_type = $Commutation_blank->select_cable_types({ COLS_NAME => 1, ID => $cable_info->{TYPE_ID} });
+    my $color = $Commutation_blank->select_color_schemes({ COLS_NAME => 1, ID => $cable_type->{color_scheme_id} });
+    my @colors = split(',', $color->{colors});
+    my $colors_count = @colors;
+
+    while ($fiber_num >= $colors_count) {
+      $fiber_num -= $colors_count;
+    }
+
+    $cable{NAME} = $cable_info->{NAME};
+    $cable{MODULES_COUNT} = $cable_info->{MODULES_COUNT};
+    $cable{FIBERS_COUNT} = $cable_info->{FIBERS_COUNT};
+    $cable{COLOR} = $colors[$fiber_num];
+
+    if (length($cable{COLOR}) > 6) {
+      $cable{COLOR} = substr($cable{COLOR}, 0, 6);
+    }
+
+    $color = $Commutation_blank->select_color_schemes({ COLS_NAME => 1, ID => $cable_type->{modules_color_scheme_id} });
+    @colors = split(',', $color->{colors});
+    $colors_count = @colors;
+
+    $fiber_num = $fiber_num ? $fiber_num : 1;
+    my $cur_module_first = $fiber_num / ($cable{FIBERS_COUNT} / $cable{MODULES_COUNT});
+    $cur_module_first += 1;
+    $cable{MODULE} = $cable{MODULES_COUNT} == 1 ? 1 : int $cur_module_first;
+    my $module = $cable{MODULE};
+
+    while ($module > $colors_count) {
+      $module -= $colors_count;
+    }
+
+    $cable{MODULE_COLOR} = $colors[$module - 1];
+    if (length($cable{MODULE_COLOR}) > 6) {
+      $cable{MODULE_COLOR} = substr($cable{MODULE_COLOR}, 0, 6);
+    }
+  }
+
+  return %cable;
+}
+
+#**********************************************************
+=head2 _cablecat_splitter_element()
+
+=cut
+#**********************************************************
+sub _cablecat_splitter_element {
+  my ($element_id, $fiber_num) = @_;
+
+  my %splitter = ();
+  my $splitter_info = $Cablecat->splitters_info($element_id);
+
+  if ($Cablecat->{TOTAL}) {
+    my @colors = split(',', $splitter_info->{FIBERS_COLORS});
+    my $colors_count = @colors;
+
+    while ($fiber_num > $colors_count) {
+      $fiber_num -= $colors_count;
+    }
+
+    $splitter{COLOR} = $colors[$fiber_num];
+    if (length($splitter{COLOR}) > 6) {
+      $splitter{COLOR} = substr($splitter{COLOR}, 0, 6);
+    }
+    $splitter{NAME} = $splitter_info->{TYPE} . "#" . $splitter_info->{ID};
+    $splitter{MODULE} = $lang{SPLITTER};
+  }
+  else {
+    $splitter{NAME} = "";
+    $splitter{MODULE} = "";
+  }
+
+  return %splitter;
+}
+
+#**********************************************************
+=head2 _cablecat_equipment_element()
+
+=cut
+#**********************************************************
+sub _cablecat_equipment_element {
+  my ($element_id) = @_;
+
+  if (!$Equipment) {
+    our ($db, $admin, %conf);
+    require Equipment;
+    Equipment->import();
+    $Equipment = Equipment->new($db, $admin, \%conf);
+  }
+
+  my %equipment = ();
+  my $equipment_info = $Equipment->_list({
+    NAS_ID    => $element_id,
+    NAS_NAME  => '_SHOW',
+    COLS_NAME => 1,
+  });
+
+  if ($Equipment->{TOTAL}) {
+    $equipment{NAME} = $equipment_info->[0]{nas_name};
+    $equipment{MODULE} = $lang{EQUIPMENT};
+  }
+  else {
+    $equipment{NAME} = "";
+    $equipment{MODULE} = "";
+  }
+
+  return %equipment;
+}
+
+#**********************************************************
+=head2 _cablecat_cross_element()
+
+=cut
+#**********************************************************
+sub _cablecat_cross_element {
+  my ($element_id) = @_;
+
+  my %cross = ();
+  my $cross_info = $Cablecat->crosses_info($element_id);
+  if ($Cablecat->{TOTAL}) {
+    $cross{NAME} = $cross_info->{NAME};
+    $cross{MODULE} = $lang{CROSS};
+  }
+  else {
+    $cross{NAME} = "";
+    $cross{MODULE} = "";
+  }
+
+  return %cross;
+}
 
 1;

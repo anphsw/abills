@@ -1,10 +1,10 @@
-<form action='$SELF_URL' METHOD='POST' class='form-horizontal' name=admin_form>
+<form action='$SELF_URL' METHOD='POST' class='form-horizontal' id='admin_form' name='admin_form'>
     <input type=hidden name='index' value='%INDEX%'>
     <input type=hidden name='AID' value='%AID%'>
     <fieldset>
         <div class='col-md-6'>
             <div class='box box-theme'>
-                <div class='box-header with-border'><h4 class='box-title'>_{ADMINS}_</h4></div>
+                <div class='box-header with-border'><h4 class='box-title'>%HEADER_NAME%</h4></div>
                 <div class='box-body' style='padding: 0'>
                     <div style='padding: 10px'>
                         <div class='form-group'>
@@ -30,11 +30,18 @@
                                 %POSITIONS%
                             </div>
                         </div>
+                        <div class='form-group'>
+                            <label class='control-label col-md-3'>_{DEPARTMENT}_</label>
+                            <div class='col-md-9'>
+                                %DEPARTMENTS%
+                            </div>
+                        </div>
 
                         <div class='form-group'>
-                            <label class='control-label col-md-3' for='DISABLE'>_{DISABLE}_:</label>
+                            <label class='control-label col-md-3' for='DISABLE'>_{STATUS}_:</label>
                             <div class='col-md-9'>
-                                <input id='DISABLE' name='DISABLE' value='1' %DISABLE% type='checkbox'>
+                                <!--<input id='DISABLE' name='DISABLE' value='1' %DISABLE% type='checkbox'>-->
+                                %DISABLE_SELECT%
                             </div>
                         </div>
 
@@ -236,6 +243,14 @@
                             %GPS_ICON_BTN%
                         </div>
                     </div>
+
+                    <div class='form-group'>
+                        <label class='control-label col-md-3' for='RFID_NUMBER'>RFID _{NUMBER}_:</label>
+                        <div class='col-md-9'>
+                            <input id='RFID_NUMBER' name='RFID_NUMBER' value='%RFID_NUMBER%' type='text' class='form-control'>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>

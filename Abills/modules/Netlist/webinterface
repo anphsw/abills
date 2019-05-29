@@ -7,6 +7,8 @@
   IPAM
   IP calc
 
+  Error ID: 23xx
+  2301: Wrong xml response
 =cut
 
 use Netlist;
@@ -979,7 +981,7 @@ sub netlist_ip_scan_exec {
 
   my $results = $scanner->scan();
   if ($results->{errno}){
-    _error_show($results, {MESSAGE => $results->{errstr}});
+    _error_show($results, {MESSAGE => $results->{errstr}, ID => $results->{errno}});
     return 0;
   }
 

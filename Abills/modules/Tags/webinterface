@@ -33,10 +33,10 @@ my @priority_colors = ('bg-muted', "bg-info", "bg-success", 'bg-warning', "bg-da
 =cut
 #*******************************************************************
 sub tags_user_del {
-  my ($uid) = @_;
+  my ($uid, $attr) = @_;
 
   $Tags->{UID} = $uid;
-  $Tags->user_del({ UID => $uid });
+  $Tags->user_del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
 
   return 0;
 }

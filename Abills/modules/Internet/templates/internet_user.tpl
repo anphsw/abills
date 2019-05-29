@@ -144,7 +144,7 @@
         <h3 class='box-title'>IPoE / DHCP Option 82</h3>
         <div class='box-tools pull-right'>
           <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
-            <i class='fa fa-minus'></i>
+            <i class='fa fa-plus'></i>
           </button>
         </div>
       </div>
@@ -158,28 +158,28 @@
         </div>
 
         <div class='form-group grpstyle'>
-          <label class='control-label col-md-3' for='PORT'>_{PORT}_:</label>
-          <div class='col-md-6'>
+          <label class='control-label col-sm-3 col-md-3' for='PORT'>_{PORT}_:</label>
+          <div class='col-sm-9 col-md-9'>
             %PORT_SEL%
           </div>
         </div>
 
         <div class='form-group grpstyle'>
-          <label class='control-label col-md-3' for='VLAN'>VLAN ID:</label>
-          <div class='col-md-3'>
+        <div class="col-sm-12 col-md-6">
+          <label class='control-label col-sm-3 col-md-3' for='VLAN'>VLAN ID:</label>
+          <div class='col-sm-9 col-md-9'>
             <div class='input-group'>
               <input type='text' id='VLAN' name='VLAN' value='%VLAN%' placeholder='%VLAN%'
                      class='form-control'/>
               <span class='input-group-addon clear_button'><span class='glyphicon glyphicon-remove'></span></span>
             </div>
           </div>
-
-          <label class='control-label col-md-2' for='SERVER_VLAN'>Server:</label>
-          <div class='col-md-4'>
-            <div class='input-group'>
+        </div>
+          <div class="col-sm-12 col-md-6">
+          <label class='control-label col-sm-3 col-md-3' for='SERVER_VLAN'>Server:</label>
+          <div class='col-sm-9 col-md-9'>
               %VLAN_SEL%
-              <span class='input-group-addon clear_button'><span class='glyphicon glyphicon-remove'></span></span>
-            </div>
+          </div>
           </div>
         </div>
 
@@ -213,27 +213,27 @@
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-xs-4 col-md-3' for='IPV6'>_{STATIC}_ IPv6</label>
-          <div class='col-xs-6 col-md-7'>
+          <label class='control-label col-xs-3 col-md-3' for='IPV6'>_{STATIC}_ IPv6</label>
+          <div class='col-xs-5 col-md-6'>
             <input id='IPV6' name='IPV6' value='%IPV6%' placeholder='%IPV6%' class='form-control'
                    type='text'>
           </div>
 
-          <div class='col-xs-2 col-md-2'>
+          <div class='col-xs-3 col-md-3'>
             %IPV6_MASK_SEL%
           </div>
 
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-xs-4 col-md-3' for='IPV6_PREFIX'>_{PREFIX}_ IPv6</label>
-          <div class='col-xs-6 col-md-7'>
+          <label class='control-label col-xs-3 col-md-3' for='IPV6_PREFIX'>_{PREFIX}_ IPv6</label>
+          <div class='col-xs-5 col-md-6'>
             <input id='IPV6_PREFIX' name='IPV6_PREFIX' value='%IPV6_PREFIX%' placeholder='%IPV6_PREFIX%'
                    class='form-control'
                    type='text'>
           </div>
 
-          <div class='col-xs-2 col-md-2'>
+          <div class='col-xs-3 col-md-3'>
             %IPV6_PREFIX_MASK_SEL%
           </div>
 

@@ -106,7 +106,7 @@ sub add_event {
     $Events->events_add({%$event_params, AID => $aid});
   }
   
-  if ( $event_params->{PRIORITY_ID} >= 2 ) {
+  if ( $event_params->{PRIORITY_ID} && $event_params->{PRIORITY_ID} >= 2 ) {
     $self->notify($event_params, @admins_to_generate_event_for);
   }
   

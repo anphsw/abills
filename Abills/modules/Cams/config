@@ -1,17 +1,24 @@
 %FUNCTIONS_LIST = (
-  "1:0:$lang{CAMERAS}:null"             => 5,
-  "2:1:$lang{USERS}:cams_main"          => 5,
-  "3:1:$lang{TARIF_PLANS}:cams_tp_main" => 5,
-  "4:0:$lang{CAMERAS}:cams_user_main"   => 20,
+  "1:0:$lang{CAMERAS}:null"           => 5,
+  "2:1:$lang{SERVICES}:cams_services" => 5,
+  "3:1:$lang{TARIF_PLANS}:cams_tp"    => 5,
+  "4:1:$lang{GROUPS}:cams_groups"     => 5,
+  "5:1:$lang{CAMERAS}:cams_main"      => 5,
+  "6:0:$lang{TP_CAMERAS}:cams_user"   => 20,
+  "7:0:$lang{CAMERAS}:cams_cameras"   => 20,
 
 );
 
 %USER_FUNCTION_LIST = (
-  "01:0:$lang{CAMERAS}:cams_client_main"             => 0,
-  "02:1:$lang{CHANGE}:cams_client_streams_management"   => 0,
-  "03:1:$lang{TARIF_PLAN}:cams_client_tp_management" => 0,
-  "04:1:$lang{CAMERAS}:cams_client_streams"          => 0
-  #  "01:0:Cams:cams_user_cams"             => 0
+  "01:0:$lang{CAMERAS}:null"                        => 0,
+  "04:1:$lang{CHANGE}:cams_user_streams_management" => 0,
+  "03:1:$lang{TARIF_PLAN}:cams_user_info"           => 0,
+  "02:1:$lang{CAMERAS}:cams_clients_streams"        => 0,
+  "05:1:$lang{CAMS_ARCHIVE}:cams_archives"          => 0
+);
+
+our %PERIODIC = (
+  monthly => [ 'cams_monthly_fees' ]
 );
 
 1;

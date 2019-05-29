@@ -1,6 +1,8 @@
 #package Paysys::PaysysOld;
 use strict;
 use warnings FATAL => 'all';
+use Abills::Filters qw(_utf8_encode);
+use Abills::Base qw(ip2int cmd);
 #use v5.20.2;
 # FIXME remove this and remove goto
 no warnings 'deprecated';
@@ -29,7 +31,7 @@ our ($db,
 );
 
 our Paysys $Paysys;
-our Finance $Payments;
+our Payments $Payments;
 our Finance $Fees;
 
 my %PAY_SYSTEMS = (
@@ -387,11 +389,14 @@ sub paysys_import_form {
               $bank_flat = $num . "-" . $BUILDS_LETTERS{$letter_num};
             }
 
-            my $user_info = $users->list({ COLS_NAME       => 1,
+            my $user_info = $users->list({
+              COLS_NAME       => 1,
               FIO             => '_SHOW',
               ADDRESS_STREET  => $street_info->[0]->{street_name},
               ADDRESS_FLAT    => $bank_flat,
-              ADDRESS_BUILD   => $bank_build});
+              ADDRESS_BUILD   => $bank_build
+            });
+
             if($#{$user_info} == 0){
               $DATA_ARR->[$i]->{UID} = $user_info->[0]->{uid};
               $DATA_ARR->[$i]->{ADDRESS} = "$bank_street $bank_build, $bank_flat";
@@ -439,23 +444,43 @@ sub paysys_import_form {
       return 0;
     }
 
-    my $users = Users->new($db, $admin, \%conf);
-    my $list = $users->list(
-      {
+    my $accounts_list;
+    if(in_array($BINDING_FIELD, [ 'BANK_ACCOUNT', 'TAX_NUMBER' ])) {
+      print "Companyy ids: $BINDING_FIELD IDS:$ids\n" if($debug > 4);
+      my $Customer = Customers->new($db, $admin, \%conf);
+      my $Company  = $Customer->company();
+
+      $accounts_list = $Company->list({
         FIO            => '_SHOW',
+        LOGIN          => '_SHOW',
+        BILL_ID        => '_SHOW',
         $BINDING_FIELD => $ids,
         PAGE_ROWS      => 1000000,
-        COLS_NAME      => 1
-      }
-    );
+        COLS_NAME      => 1,
+        COMPANY_ADMIN  => '_SHOW'
+      });
+    }
+    else {
+      my $users = Users->new($db, $admin, \%conf);
+      $accounts_list = $users->list(
+        {
+          FIO            => '_SHOW',
+          $BINDING_FIELD => $ids,
+          PAGE_ROWS      => 1000000,
+          COLS_NAME      => 1
+        }
+      );
+    }
 
     if (_error_show($users, { ID => 1719 })) {
       return 0;
     }
 
-    foreach my $line (@$list) {
+    foreach my $line (@$accounts_list) {
       if ($line->{lc($BINDING_FIELD)}) {
-        $binding_hash{ lc($line->{lc($BINDING_FIELD)}) } = $line->{uid}.':'.$line->{login}.':'. ($line->{fio} || '');
+        $binding_hash{ lc($line->{lc($BINDING_FIELD)}) } = ($line->{uid} || 0)
+          .':'.($line->{login} || q{})
+          .':'.($line->{fio} || q{});
       }
     }
 
@@ -576,7 +601,7 @@ sub paysys_import_form {
         return 0;
       }
 
-      $list = $Payments->list(
+      my $list = $Payments->list(
         {
           EXT_ID    => join(';', @payments_arr),
           PAGE_ROWS => 1000000,
@@ -1411,6 +1436,7 @@ sub paysys_log {
     },
   });
 
+  $PAY_SYSTEMS{72}='Ipay';
   foreach my $line (@$list) {
     my @fields_array = ($line->{id},
       $html->button($line->{login}, "index=15&UID=$line->{uid}"),
@@ -1596,7 +1622,8 @@ sub paysys_webmoney {
   $info{DESCRIBE}              = $pay_describe;
   $info{LMI_PAYMENT_DESC}      = ($conf{dbcharset} eq 'utf8') ? convert($pay_describe, { utf82win => 1 }) : $pay_describe;
   $conf{PAYSYS_LMI_RESULT_URL} = "http://$ENV{SERVER_NAME}" . (($ENV{SERVER_PORT} != 80) ? ":$ENV{SERVER_PORT}" : '') . "/paysys_check.cgi" if (!$conf{PAYSYS_LMI_RESULT_URL});
-  $info{ACTION_URL}            = ($conf{PAYSYS_WEBMONEY_UA}) ? 'https://lmi.PayMaster.ua/' : 'https://merchant.webmoney.ru/lmi/payment.asp'.($info{AT} || '');
+  # Action URL: с https://lmi.paymaster.ua на https://lmi.paysoft.solutions/
+  $info{ACTION_URL}            = ($conf{PAYSYS_WEBMONEY_UA}) ? 'https://lmi.paysoft.solutions/' : 'https://merchant.webmoney.ru/lmi/payment.asp'.($info{AT} || '');
 
   $html->tpl_show(_include('paysys_webmoney_add', 'Paysys'), \%info);
 
@@ -1786,15 +1813,19 @@ sub paysys_periodic {
     my $year = $y - 1900;
     my $timestamp = POSIX::mktime(0, 0, 0, $mday, $mon, $year, 0, 0, -1);
     my $DATE      = POSIX::strftime('%Y-%m-%d', localtime($timestamp - 86400));
-    my $res_arr   = paysys_portmone_result(0, { DEBUG => $debug, DATE => $DATE });
+    my $res_arr   = paysys_portmone_result(0, { DEBUG => $debug, DATE => $DATE, FILE => ($attr->{FILE} || '') });
 
-    if ( ref $res_arr ne 'ARRAY' || $#{$res_arr}  == 0){
+    if ( ref $res_arr ne 'ARRAY' || scalar @$res_arr  == 0){
       return 0;
     }
 
     my %res_hash = ();
-    for (my $i = 0 ; $i <= $#{$res_arr} ; $i++) {
-      $res_hash{ 'PM:'.$res_arr->[$i]{ordernumber} } = $i;
+    if($res_arr) {
+      for (my $i = 0; $i <= $#{$res_arr}; $i++) {
+        if($res_arr->[$i]{ordernumber}) {
+          $res_hash{ 'PM:' . $res_arr->[$i]{ordernumber} } = $i;
+        }
+      }
     }
 
     my $list = $Paysys->list({ DATE           => $DATE,
@@ -1821,7 +1852,7 @@ sub paysys_periodic {
             $user_,
             {
               SUM          => $sum,
-              DESCRIBE     => 'PORTMONE',
+              DESCRIBE     => 'PORTMONE' . ($attr->{FILE} ? " From file $attr->{FILE}" : ''),
               METHOD       => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2',
               EXT_ID       => "PM:$order_num",
               CHECK_EXT_ID => "PM:$order_num"
@@ -1916,8 +1947,8 @@ sub paysys_periodic {
   }
 
   if($conf{PAYSYS_PLATEGKA_MERCHANT_ID}){
-    my $payment_system_id = 126;
-    my $payment_system = 'Plategka';
+    # my $payment_system_id = 126;
+    # my $payment_system = 'Plategka';
 
     require Paysys::systems::Plategka;
     Paysys::systems::Plategka->import();
@@ -2056,10 +2087,11 @@ sub paysys_portmone {
   my $payment_system = 'PM';
 
   if ($FORM{RESULT}) {
-    paysys_show_result({ TRANSACTION_ID => "$payment_system:$FORM{OPERATION_ID}", FALSE => 1 });
+    paysys_show_result({ TRANSACTION_ID => "$payment_system:$FORM{SHOPORDERNUMBER}", FALSE => 1 });
+    return 0;
   }
   elsif ($FORM{SHOPORDERNUMBER}) {
-    paysys_show_result({ TRANSACTION_ID => "$payment_system:$FORM{OPERATION_ID}" });
+    paysys_show_result({ TRANSACTION_ID => "$payment_system:$FORM{SHOPORDERNUMBER}" });
     return 0;
   }
   else {
@@ -4059,7 +4091,7 @@ sub paysys_yandex {
     }
   }
   else {
-    $Ym->query2("SELECT DECODE(ym_token, '$conf{secretkey}') AS ym_token FROM users_pi WHERE uid='$LIST_PARAMS{UID}';", undef, { INFO => 1 });
+    $Ym->query("SELECT DECODE(ym_token, '$conf{secretkey}') AS ym_token FROM users_pi WHERE uid='$LIST_PARAMS{UID}';", undef, { INFO => 1 });
     if ($Ym->{TOTAL} > 0 && $Ym->{YM_TOKEN}  ne '') {
       $ym_token  = $Ym->{YM_TOKEN};
     }
@@ -4074,7 +4106,7 @@ sub paysys_yandex {
 
     if($Ym->{error}) {
       if ($Ym->{error} == 2) {
-        $Ym->query2("UPDATE users_pi SET ym_token='' WHERE uid='$LIST_PARAMS{UID}';", 'do');
+        $Ym->query("UPDATE users_pi SET ym_token='' WHERE uid='$LIST_PARAMS{UID}';", 'do');
       }
 
       if ($YANDEX_ERR{$Ym->{error_str}}) {
@@ -4155,7 +4187,7 @@ sub paysys_yandex {
 
     if($Ym->{error}) {
       if ($Ym->{error} == 2) {
-        $Ym->query2("UPDATE users_pi SET ym_token='' WHERE uid='$LIST_PARAMS{UID}';", 'do');
+        $Ym->query("UPDATE users_pi SET ym_token='' WHERE uid='$LIST_PARAMS{UID}';", 'do');
       }
 
       if ($YANDEX_ERR{$Ym->{error_str}}) {
@@ -6362,35 +6394,38 @@ sub paysys_privat_fastpay {
   if($conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY} eq 'CONTRACT_ID' && !$user->{CONTRACT_ID}){
     $user->pi();
   }
+  my $qr_code_image = '';
+  if($conf{PAYSYS_PRIVAT_TERMINAL_QR_ID}){
+    Abills::Base::load_pmodule('Imager::QRCode');
 
-  Abills::Base::load_pmodule('Imager::QRCode');
+    # Create Imager::QRCode instance
+    my $qr = Imager::QRCode->new(
+      size          => 8,
+      margin        => 1,
+      version       => 1,
+      level         => 'M',
+      casesensitive => 1,
+      lightcolor    => Imager::Color->new(255, 255, 255),
+      darkcolor     => Imager::Color->new(0, 0, 0),
+    );
 
-  # Create Imager::QRCode instance
-  my $qr = Imager::QRCode->new(
-    size          => 8,
-    margin        => 1,
-    version       => 1,
-    level         => 'M',
-    casesensitive => 1,
-    lightcolor    => Imager::Color->new(255, 255, 255),
-    darkcolor     => Imager::Color->new(0, 0, 0),
-  );
+    # Create image from data
+    my $img = $qr->plot("EK_billidentifier_$user->{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}}_$conf{PAYSYS_PRIVAT_TERMINAL_QR_ID}");
 
-  # Create image from data
-  my $img = $qr->plot("EK_billidentifier_$user->{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}}_$conf{PAYSYS_PRIVAT_TERMINAL_QR_ID}");
+    # Save image to scalar
+    my $result = '';
+    # MAYBE:: write errstr to $result?
+    $img->write( data => \$result, type => 'jpeg' ) or print $img->errstr;
 
-  # Save image to scalar
-  my $result = '';
-  # MAYBE:: write errstr to $result?
-  $img->write( data => \$result, type => 'jpeg' ) or print $img->errstr;
-
-  # making blob image for template
-  my $base64_result = Abills::Base::encode_base64($result);
-  my $img_src_data = "data:image/jpg;base64, $base64_result";
+    # making blob image for template
+    my $base64_result = Abills::Base::encode_base64($result);
+    my $img_src_data = "data:image/jpg;base64, $base64_result";
+    $qr_code_image = $html->element('img', '', {scr => "$img_src_data", alt=>'', OUTPUT2RETURN => 1});
+  }
 
   my $link = $conf{PAYSYS_PRIVAT_TERMINAL_FAST_PAY} . "&acc=" . ($user->{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}} || $FORM{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}}) . "&amount=" . ($FORM{SUM} || 0);
 
-  $html->tpl_show(_include('paysys_privat_terminal_fastpay', 'Paysys'), {LINK => $link, IMG_DATA => $img_src_data});
+  $html->tpl_show(_include('paysys_privat_terminal_fastpay', 'Paysys'), {LINK => $link, IMG_DATA => $qr_code_image});
 
 }
 

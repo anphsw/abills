@@ -48,9 +48,9 @@ my $cmd = "/usr/bin/pw useradd -n $USER_NAME -c \"$FIO\" \
             -g $GROUP\
             -s $SHELL -h -; /usr/bin/passwd $USER_NAME $PASSWORD";
 
- print $cmd if ($debug > 0);
+  print $cmd if ($debug > 0);
 
- print "1:User Added";
+  print "1:User Added";
 }
 
 #**********************************************************
@@ -58,14 +58,17 @@ my $cmd = "/usr/bin/pw useradd -n $USER_NAME -c \"$FIO\" \
 #**********************************************************
 sub maildrop_dir {
 
- my $DOMAIN_NAME = $args->{DOMAINNAME} || '';
+  my $DOMAIN_NAME = $args->{DOMAINNAME} || '';
 #Make maildrop dir
- $cmd = "/usr/bin/su -u vmail -fm vmail -c 'maildirmake /var/spool/virtual/$DOMAIN_NAME/$USER_NAME'; 
+  $cmd = "/usr/bin/su -u vmail -fm vmail -c 'maildirmake /var/spool/virtual/$DOMAIN_NAME/$USER_NAME'; 
   /usr/bin/su -u vmail -fm vmail -c 'maildirmake -f Spam /var/spool/virtual/$DOMAIN_NAME/$USER_NAME';";
 
- print $cmd if ($debug > 0);
- my $result = `$cmd`;
+  print $cmd if ($debug > 0);
+  my $result = `$cmd`;
 
- print "1:Dir maked '/var/spool/virtual/$USER_NAME\@$DOMAIN_NAME'";
+  print "1:Dir maked '/var/spool/virtual/$USER_NAME\@$DOMAIN_NAME'";
 
+  return 1;
 }
+
+1;

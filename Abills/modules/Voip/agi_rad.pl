@@ -5,6 +5,11 @@
   Asterisk AGI support for radius Auth and Accounting
   b2bua client
 
+=head1 VERSION
+
+  VERSION: 1.01
+  UPDATED: 20190314
+
 =cut
 
 use strict;
@@ -48,7 +53,7 @@ $conf{'VOIP_DEFAULTDIALTIMEOUT'} = 120 if (!$conf{'VOIP_DEFAULTDIALTIMEOUT'});
 #Max session time (sec)
 #default 10800 (3hrs)
 $conf{'VOIP_MAX_SESSION_TIME'}   = 10800 if (!$conf{'VOIP_MAX_SESSION_TIME'});
-$conf{'timeshift'}               = 0     if (!exists($conf{'VOIP_TIMESHIFT'}));
+$conf{'VOIP_TIMESHIFT'}          = 0     if (!$conf{'VOIP_TIMESHIFT'});
 $conf{'VOIP_ASTERISK_IVR_DIR'}   = '/usr/local/share/asterisk/sounds/' if (! $conf{'VOIP_ASTERISK_IVR_DIR'});
 $conf{'VOIP_ASTERISK_IVR_LANG'}  = 'ru,en';
 
@@ -228,30 +233,30 @@ my $dialstring      = '';
 #374832595002 = 3;
 #";
 
-my %extNums = ();
+my %ext_nums = ();
 if ($conf{VOIP_MULTIPLE_NUMS}) {
   $conf{VOIP_MULTIPLE_NUMS} =~ s/[\n ]+//g;
   my @arr = split(/;/, $conf{VOIP_MULTIPLE_NUMS});
 
   foreach my $line (@arr) {
     my ($key, $val) = split(/=/, $line);
-    $extNums{$key} = $val;
+    $ext_nums{$key} = $val;
   }
 }
 
-if (defined $extNums{$rewrittennumber}) {
-  $agi->verbose("EXTENDED NUMBER: $rewrittennumber; EXTENDED LINES:$extNums{$rewrittennumber}");
-  my @dialnums;
-  push(@dialnums, "$protocol/$rewrittennumber");
-  for (my $i = 1 ; $i <= $extNums{$rewrittennumber} ; $i++) {
+if (defined $ext_nums{$rewrittennumber}) {
+  $agi->verbose("EXTENDED NUMBER: $rewrittennumber; EXTENDED LINES:$ext_nums{$rewrittennumber}");
+  my @dialnums = ("$protocol/$rewrittennumber");
+
+  for (my $i = 1 ; $i <= $ext_nums{$rewrittennumber} ; $i++) {
     push(@dialnums, "$protocol/" . $rewrittennumber . "l$i");
   }
   $dialstring = join('&', @dialnums);
 }
-elsif (($data{'caller'} == '0074832599178') && ($rewrittennumber =~ /^8/) && (length($rewrittennumber) > 6)) {
-  $rewrittennumber = ('0008' . substr $rewrittennumber, 1, length($rewrittennumber) - 1);
-  $dialstring = "$protocol/" . $rewrittennumber . '@cisco-out';
-}
+# elsif (($data{'caller'} == '0074832599178') && ($rewrittennumber =~ /^8/) && (length($rewrittennumber) > 6)) {
+#   $rewrittennumber = ('0008' . substr $rewrittennumber, 1, length($rewrittennumber) - 1);
+#   $dialstring = "$protocol/" . $rewrittennumber . '@cisco-out';
+# }
 else {
   $dialstring = "$protocol/" . $rewrittennumber;                                  #."\@";
   $dialstring = $rad_response{'next-hop-ip'} if ($rad_response{'next-hop-ip'});
@@ -307,8 +312,8 @@ $agi->exec('Dial', $dialstring);
 
 #$agi->hangup();
 
-my $session_length   = $agi->get_variable('ANSWEREDTIME') + 0 + $conf{'VOIP_TIMESHIFT'};
-my $call_length      = $agi->get_variable('DIALEDTIME') + 0 + $conf{'VOIP_TIMESHIFT'};
+my $session_length   = $agi->get_variable('ANSWEREDTIME') + $conf{'VOIP_TIMESHIFT'};
+my $call_length      = $agi->get_variable('DIALEDTIME') + $conf{'VOIP_TIMESHIFT'};
 my $delay_time       = $call_length - $session_length;
 my $sip_msg_code     = $agi->get_variable('SIPLASTERRORCODE') + 0;
 my $channel_state    = '';                                                                 #$agi->exec('GetChannelState','');
@@ -358,7 +363,6 @@ sub send_radius_request {
   	}
   }
 
-
   $r = Radius->new(
     Host    => "$radius_host:$port",
     Secret  => "$conf{VOIP_RADIUS_SERVER_SECRET}",
@@ -402,7 +406,7 @@ sub send_radius_request {
   }
 
   my $get_attr = '';
-  undef %rad_response;
+  %rad_response = ();
 
   for my $pair ($r->get_attributes()) {
     $rad_response{"$pair->{'Name'}"} = $pair->{'Value'};

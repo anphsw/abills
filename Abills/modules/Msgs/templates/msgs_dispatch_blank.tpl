@@ -24,14 +24,15 @@ table.naryad td {
 </style>
 <table border=0>
 <tr><td>$PROGRAM</td><td>Форма А-2</td></tr>
+<tr><td>_{DISPATCH_NUMBER}_: %ID%</td>
 <tr><td>_{NAME}_: %ORGANIZATION_NAME%</td><td>_{PHONE}_: %ORGANIZATION_PHONE%</td></tr>
 <tr><td>_{MAIL_BOX}_: %ORGANIZATION_MAIL%</td><td>_{FAX}_: %ORGANIZATION_FAX%</td></tr>
 <tr><td>_{ADDRESS}_: %ORGANIZATION_ADDRESS%</td><td>г. xxxxx</td></tr>
 
 <tr><th colspan=2>_{DISPATCH_PASS}_</th></tr>
     <tr>
-        <td>_{IN_DISPATCH}_:</td>
-        <td>_{DATE}_: %PLAN_DATE%</td>
+        <td>_{HEAD}_: %RESPOSIBLE_FIO%</td>
+        <td>_{DATE}_: %PLAN_DATE_LIT%</td>
     </tr>
 
 <tr><td colspan=2>
@@ -68,8 +69,9 @@ table.naryad td {
 </table>
 </td></tr>
 <tr><td>
-<tr><td>_{DISPATCH_CREATE}_:</td><td>%ADMIN_FIO%</td></tr>
+<tr><td>_{DISPATCH_CREATE}_:</td><td>%ADMIN_CREATE%</td></tr>
 <tr><td>_{DISPATCH_TAKE}_:</td><td>%RESPOSIBLE_FIO%</td></tr>
+<tr><td>_{BRIGADE}_:</td><td>%BRIGADE%</td></tr>
 
 
 </table>

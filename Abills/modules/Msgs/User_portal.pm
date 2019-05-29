@@ -201,8 +201,9 @@ sub msgs_user {
         $html->message( 'info', $lang{INFO}, "$lang{REPLY}" );
 
         msgs_notify_admins({
-          MSG_ID     => $FORM{ID},
-          SENDER_UID => $user->{UID}
+          MSG_ID        => $FORM{ID},
+          SENDER_UID    => $user->{UID},
+          MESSAGE_STATE => $FORM{STATE},
         });
 
         # Instant redirect
@@ -336,7 +337,7 @@ sub msgs_user {
                 REPLY_ID   => $line->{id},
                 DATE       => $line->{datetime},
                 CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
-                PERSON     => $line->{creator_id},
+                PERSON     => ($line->{creator_fio} || $line->{creator_id}),
                 MESSAGE    => msgs_text_quoting($line->{text}),
                 COLOR      => (($line->{aid} > 0) ? 'box-success' : 'box-theme'),
                 QUOTING    => $quoting_button,
@@ -460,7 +461,7 @@ sub msgs_user {
 
   my $status_bar = msgs_status_bar({ MSGS_STATUS => \%statusbar_status, USER_UNREAD => 1, SHOW_ONLY => 3 });
   if (! $FORM{sort}){
-    $LIST_PARAMS{SORT} = '5 DESC, 4';
+    $LIST_PARAMS{SORT} = '4, 1';
     delete $LIST_PARAMS{DESC};
     if(! defined($FORM{STATE})) {
       $LIST_PARAMS{STATE} = '!1,!2';
@@ -576,55 +577,9 @@ sub msgs_user {
   print $table->show();
 
   delete $LIST_PARAMS{SORT};
-
+  require Msgs::Chat;
   show_user_chat();
 
-  return 1;
-}
-#**********************************************************
-=head2 show_user_chat() - Shows chat at the user side
-
-  Arguments:
-
-  Returns:
-    true
-=cut
-#**********************************************************
-sub show_user_chat {
-  require Msgs::Tickets;
-  if ($FORM{ADD}) {
-    msgs_chat_add();
-    return 1;
-  }
-  if ($FORM{SHOW}) {
-    msgs_chat_show();
-    return 1;
-  }
-  if ($FORM{COUNT}) {
-    my $count = $Msgs->chat_count({ Msg_ID => $FORM{MSG_ID}, SENDER => 'uid' });
-    print $count;
-    return 1;
-  }
-  if ($FORM{CHANGE}) {
-    $Msgs->chat_change({ Msg_ID => $FORM{MSG_ID}, SENDER => 'uid'});
-    return 1;
-  }
-  if ($FORM{INFO}) {
-    header_online_chat({UID => $FORM{UID}});
-    return 1;
-  }
-  if ($FORM{US_MS_LIST}) {
-    header_online_chat({US_MS_LIST => $FORM{US_MS_LIST}});
-    return 1;
-  }
-  if ($FORM{ID} && $conf{MSGS_CHAT}) {
-    my $fn_index = get_function_index('show_user_chat');
-    $html->tpl_show(_include('msgs_user_chat', 'Msgs'), {
-      F_INDEX  => $fn_index,
-      UID      => $user->{UID},
-      NUM_TICKET  => $Msgs->{ID}
-    });
-  }
   return 1;
 }
 #**********************************************************

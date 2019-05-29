@@ -1,13 +1,31 @@
-<div class='well well-sm'>
-  <form class='form form-inline form-main' role='form' action='$SELF_URL' method='POST'>
-    <input type='hidden' name='index' value='$index'>
+<form action='$SELF_URL' METHOD=POST>
+  <input type='hidden' name='index' value='$index'>
 
-    <div class='form-group'><label class='control-label col-md-3'>_{ADMIN}_</label>
-      <div class='col-md-9'>
-        %AID_SELECT%
+  <div class='box box-theme form-horizontal '>
+    <div class='box-header with-border'>
+      <h4 class="box-title table-caption">_{FILTERS}_</h4>
+      <div class="box-tools pull-right">
+        <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+          <i class="fa fa-minus"></i></button>
       </div>
     </div>
 
-    <input type='submit' name='show' value='_{SHOW}_' class='btn btn-primary'>
-  </form>
-</div>
+    <div class='box-body'>
+      <div class="row align-items-center">
+
+        <div class="col-sm-12 col-md-6">
+          <div class='form-group' >
+            <label class='col-md-3 control-label'>_{ADMIN}_</label>
+            <div class='col-md-9'>
+              %AID_SELECT%
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class='box-footer'>
+      <input type='submit' class='btn btn-primary btn-block' value='_{SHOW}_' name='show'>
+    </div>
+  </div>
+</form>

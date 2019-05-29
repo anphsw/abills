@@ -306,12 +306,12 @@ sub _get_info {
   });
   utf8::encode($result);
   
-  $result =~ s/[\n|\r]//g;
-  $result =~ s/<[^"]+>//g;
-  $result =~ s/{[^}]{/{ "test": {/;
-  $result =~ s/,,/,/;
-  $result =~ s/,\{/, "test1": {/;
-  print $result;
+  # $result =~ s/[\n|\r]//g;
+  # $result =~ s/<[^"]+>//g;
+  # $result =~ s/{[^}]{/{ "test": {/;
+  # $result =~ s/,,/,/;
+  # $result =~ s/,\{/, "test1": {/;
+  # print $result;
 
   my $hash_result = decode_json($result);
 

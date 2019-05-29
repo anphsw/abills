@@ -1,9 +1,9 @@
+%DASHBOARD%
 <div class='row'>
-  <section id='left-column' class='ui-sortable col-sm-12 col-md-12 col-lg-6' style="min-height: 500px">
-    %DASHBOARD%
+  <section id='left-column' class='ui-sortable-forms col-sm-12 col-md-12 col-lg-6' style="min-height: 500px">
     %LEFT_PANEL%
   </section>
-  <section id='right-column' class='ui-sortable col-sm-12 col-md-12 col-lg-6 ' style="min-height: 500px">
+  <section id='right-column' class='ui-sortable-forms col-sm-12 col-md-12 col-lg-6 ' style="min-height: 500px">
     %RIGHT_PANEL%
   </section>
   <div class='col-md-12 col-lg-12'>
@@ -12,8 +12,8 @@
 </div>
 <script>
   jQuery( function() {
-    jQuery( ".ui-sortable" ).sortable({
-      connectWith: ".ui-sortable",
+    jQuery( ".ui-sortable-forms" ).sortable({
+      connectWith: ".ui-sortable-forms",
       handle: ".box-header",
       cursor: "move",
       placeholder: "portlet-placeholder ui-corner-all"

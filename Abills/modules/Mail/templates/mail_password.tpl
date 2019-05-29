@@ -20,12 +20,12 @@
       password_config_params.CHARS = password_params_arr[2] || 0;
     }
 
-    var gen_btn = jQuery('#GENERATE_BTN');
-    var gen_psw = jQuery('#GENERATED_PW');
-    var cp_btn  = jQuery('#COPY_BTN');
+    var gen_btn = jQuery('#GENERATE_BUTTON');
+    var gen_psw = jQuery('#GENERATED_PSW');
+    var cp_btn  = jQuery('#COPY_BUTTON');
 
-    var passw_field1 = jQuery('#FIRST_PASSWORD_INPUT');
-    var passw_field2 = jQuery('#SECOND_PASSWORD_INPUT');
+    var passw_field1 = jQuery('#FIRST_PASSWORD_INPT');
+    var passw_field2 = jQuery('#SECOND_PASSWORD_INPT');
 
     gen_btn.on('click', function () {
       var password = generatePassword(password_config_params);
@@ -42,30 +42,30 @@
 </script>
 
 <div class='form-group'>
-  <label class='control-label col-md-4' for='FIRST_PASSWORD_INPUT'>_{PASSWD}_</label>
+  <label class='control-label col-md-4' for='FIRST_PASSWORD_INPT'>_{PASSWD}_</label>
 
   <div class='col-md-8'>
-    <input type='password' class='form-control' id='FIRST_PASSWORD_INPUT' name='newpassword' title='_{PASSWD}_'/>
+    <input type='password' class='form-control' id='FIRST_PASSWORD_INPT' name='newpassword' title='_{PASSWD}_'/>
   </div>
 </div>
 
 <div class='form-group'>
-  <label class='control-label col-md-4' for='SECOND_PASSWORD_INPUT'>_{CONFIRM_PASSWD}_</label>
+  <label class='control-label col-md-4' for='SECOND_PASSWORD_INPT'>_{CONFIRM_PASSWD}_</label>
 
   <div class='col-md-8'>
-    <input type='password' class='form-control' name='confirm' id='SECOND_PASSWORD_INPUT' title='_{CONFIRM}_'/>
+    <input type='password' class='form-control' name='confirm' id='SECOND_PASSWORD_INPT' title='_{CONFIRM}_'/>
   </div>
 </div>
 
 
 <div class='form-group'>
-  <label class='control-label col-md-6' for='GENERATED_PW'>
-    <input type='button' id='GENERATE_BTN' class='btn btn-info btn-xs' value='_{GENERED_PARRWORD}_'>
-    <input type='button' id='COPY_BTN' class='btn btn-info btn-xs' value='Copy'>
+  <label class='control-label col-md-6' for='GENERATED_PSW'>
+    <input type='button' id='GENERATE_BUTTON' class='btn btn-info btn-xs' value='_{GENERED_PARRWORD}_'>
+    <input type='button' id='COPY_BUTTON' class='btn btn-info btn-xs' value='Copy'>
 
   </label>
 
   <div class='col-md-6'>
-    <input type='text' class='form-control' name='generated_pw' id='GENERATED_PW' autocomplete='off'/>
+    <input type='text' class='form-control' name='generated_pw' id='GENERATED_PSW' autocomplete='off'/>
   </div>
 </div>

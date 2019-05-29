@@ -29,7 +29,12 @@ my $Tariffs = Tariffs->new($db, \%conf, $admin);
 #**********************************************************
 sub iptv_subcribe_add {
 
-  my $services = tv_services_sel({ USER_PORTAL => 2, STATUS => 0 });
+  my $services = tv_services_sel({
+    USER_PORTAL      => 2,
+    STATUS           => 0,
+    FORM_ROW         => 1,
+    SKIP_DEF_SERVICE => 1
+  });
 
   my $tp_list = $Tariffs->list(
     {
@@ -69,7 +74,10 @@ sub iptv_subcribe_add {
     $user->{CREDIT} = ($user->{CREDIT} > 0) ? $user->{CREDIT} : (($tp->{credit} > 0) ? $tp->{credit} : 0);
 
     if ($tp->{day_fee} + $tp->{month_fee} < $user->{DEPOSIT} + $user->{CREDIT} || $tp->{abon_distribution}) {
-      $tp->{RADIO_BUTTON} = $html->form_input('TP_ID', $tp->{tp_id}, { TYPE => 'radio', OUTPUT2RETURN => 1 });
+      $tp->{RADIO_BUTTON} = $html->form_input('TP_ID', $tp->{tp_id}, {
+        TYPE          => 'radio',
+        STATE         => ($Tariffs->{TOTAL} == 1) ? 'checked' : '',
+        OUTPUT2RETURN => 1 });
     }
     else {
       $tp->{RADIO_BUTTON} = $lang{ERR_SMALL_DEPOSIT};
@@ -82,10 +90,17 @@ sub iptv_subcribe_add {
     $tp_list_show .= $html->tpl_show(_include('iptv_tp_info_panel', 'Iptv'), $tp, { OUTPUT2RETURN => 1 });
   }
 
+  $user->pi({ UID => $user->{UID} });
+  my ($subscribe_id, $subscribe_name, $subscribe_describe) = split(/:/, $conf{IPTV_SUBSCRIBE_ID} || q{});
+
   $html->tpl_show(_include('iptv_subscribes', 'Iptv'), {
-    TP_SEL      => $tp_list_show,
-    SERVICE_SEL => $services,
-    EMAIL       => $user->{EMAIL}
+    TP_SEL                   => $tp_list_show,
+    SERVICE_SEL              => $services,
+    SUBSCRIBE_PARAM_NAME     => $subscribe_name || 'E-mail',
+    SUBSCRIBE_PARAM_ID       => $subscribe_id || 'EMAIL',
+    SUBSCRIBE_PARAM_DESCRIBE => $subscribe_describe || '',
+    SUBSCRIBE_PARAM_VALUE    => ($subscribe_id) ? $user->{$subscribe_id} : $user->{EMAIL},
+    EMAIL                    => $user->{EMAIL}
   });
 
   return 1;
@@ -116,7 +131,6 @@ sub iptv_user_info {
     return 1;
   }
 
-  my $service_status = sel_status({ HASH_RESULT => 1 });
   foreach my $service (@$service_list) {
     $PORTAL_ACTIONS{$service->{id}} = $service->{user_portal};
   }
@@ -125,6 +139,33 @@ sub iptv_user_info {
     if ($FORM{add}) {
       $Iptv->{db}{db}->{AutoCommit} = 0;
       $Iptv->{db}->{TRANSACTION} = 1;
+
+      my $service_info = $Iptv->services_info($FORM{SERVICE_ID});
+      $Iptv->user_list({
+        SERVICE_ID => $FORM{SERVICE_ID},
+        UID        => $user->{UID},
+        COLS_NAME  => 1,
+        PAGE_ROWS  => 99999,
+      });
+
+      if ($service_info && $service_info->{SUBSCRIBE_COUNT} <= $Iptv->{TOTAL}) {
+        $html->message("err", $lang{ERROR}, "$lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS}: $service_info->{SUBSCRIBE_COUNT}");
+        return 0;
+      }
+
+      if ($conf{IPTV_USER_UNIQUE_TP}) {
+        $Iptv->user_list({
+          SERVICE_ID => $FORM{SERVICE_ID},
+          UID        => $user->{UID},
+          TP_ID      => $FORM{TP_ID},
+          COLS_NAME  => 1,
+        });
+
+        if ($Iptv->{TOTAL}) {
+          $html->message("err", $lang{ERROR}, $lang{THIS_TARIFF_PLAN_IS_ALREADY_CONNECTED});
+          return 0;
+        }
+      }
 
       $Iptv->user_add({ %FORM, UID => $user->{UID} });
       if (!$Iptv->{errno}) {
@@ -199,104 +240,20 @@ sub iptv_user_info {
     $html->message('info', $lang{INFO}, "$lang{DISABLED_WILL} $disable_date");
   }
   elsif ($FORM{chg}) {
-    $FORM{ID} = $FORM{chg} if (!$FORM{ID});
-
-    $Iptv->user_info($FORM{chg}, { UID => $user->{UID} });
-    $Tv_service = undef;
-    if ($Iptv->{SERVICE_ID}) {
-      $Tv_service = tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} });
-    }
-
-    if ($FORM{activ_code}) {
-      iptv_activation();
-      return 1;
-    }
-    if ($FORM{watch_now}) {
-      iptv_watch();
-      return 1;
-    }
-
-    if ($Iptv->{TOTAL} < 1) {
-      $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 801 });
-      return 0;
-    }
-    elsif ($FORM{ACTIVATE}) {
-      iptv_user_activate($Iptv, { USER => $user });
-      return 0;
-    }
-    elsif ($Iptv->{STATUS} && $Iptv->{STATUS} == 5) {
-      $html->message('err', $lang{INFO},
-        ((defined($Iptv->{STATUS}) && $service_status->{ $Iptv->{STATUS} }) ? $service_status->{ $Iptv->{STATUS} } : q{})
-          . "\n" . $html->button($lang{ACTIVATE}, "index=$index&ACTIVATE=1&chg=$FORM{chg}",
-          { class => 'btn btn-primary' }), { ID => 802 });
-      return 0;
-    }
-    if ($FORM{UID} && $FORM{ID} && ! $FORM{change_now} && ! $FORM{change_shedule}) {
-      if ($Tv_service && $Tv_service->can('get_code')) {
-        $Iptv->{ACTIVE_CODE} = $html->button("Activation code",
-          "qindex=$index&activ_code=1&chg=$FORM{chg}&header=2",
-          {
-            class         => 'btn btn-success',
-            LOAD_TO_MODAL => 1,
-          });
-      }
-
-      if ($Tv_service && $Tv_service->can('get_url')) {
-        $Iptv->{WATCH_NOW} = $html->button("Watch now",
-          "qindex=$index&watch_now=1&UID=$FORM{UID}&chg=$FORM{chg}&MODULE=$FORM{MODULE}&sid=$FORM{sid}&header=2",
-          {
-            class  => 'btn btn-success',
-            target => '_new',
-          });
-      }
-    }
-
-    if ($conf{IPTV_USER_CHG_TP}) {
-      $Iptv->{TP_CHANGE_BTN} = $html->button($lang{CHANGE},
-        'index=' . get_function_index('iptv_user_chg_tp')
-          . '&ID=' . $FORM{chg}
-          . '&sid=' . $sid, { class => 'change' });
-    }
-
-    if (in_array(2, [ values %PORTAL_ACTIONS ])) {
-      $Iptv->{DISABLE_BTN} = $html->button($lang{DISABLE_SERVICE},
-        'index=' . $index . '&sid=' . $sid . "&ID=$Iptv->{ID}&disable=1", { class => 'btn btn-default btn-danger' });
-      $conf{IPTV_USER_CHG_CHANNELS} = 1;
-    }
-
-    $Iptv->{DISABLE} = $html->color_mark($service_status->{ $Iptv->{STATUS} });
-
-    my $sheduled_actions_list = $Shedule->list({
-      UID       => $user->{UID},
-      TYPE      => 'status',
-      MODULE    => 'Iptv',
-      COLS_NAME => 1
+    my $return = iptv_user_service({
+      PORTAL_ACTIONS => \%PORTAL_ACTIONS,
+      ID             => $FORM{chg}
     });
 
-    if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0) {
-      my $shedule_action = $sheduled_actions_list->[0];
-      my $action_ = $shedule_action->{action};
-      my $service_id = 0;
-      if ($action_ =~ /:/) {
-        ($service_id, $action_) = split(/:/, $action_);
-      }
-      #if($action_ eq "0") {
-      $Iptv->{DISABLE_BTN} = $html->badge("$lang{DISABLE_SERVICE_DATE}: $shedule_action->{y}-$shedule_action->{m}-$shedule_action->{d}");
-      #}
+    if ($return && $return == 2) {
+      return 1;
     }
-
-    if ($conf{IPTV_CLIENT_M3U}) {
-      iptv_m3u({ SERVICE_INFO => $Iptv });
-    }
-
-    $html->tpl_show(_include('iptv_user_info', 'Iptv'), $Iptv);
-    iptv_users_screens($Iptv, { SHOW_FULL => $PORTAL_ACTIONS{$Iptv->{SERVICE_ID}} });
-    iptv_user_channels({ SERVICE_INFO => $Iptv, SHOW_ONLY => (!$conf{IPTV_USER_CHG_CHANNELS}) ? 1 : undef });
   }
 
   delete($LIST_PARAMS{LOGIN});
-
-  result_former({
+  my Abills::HTML $table;
+  my $list;
+  ($table, $list) = result_former({
     INPUT_DATA      => $Iptv,
     FUNCTION        => 'user_list',
     BASE_FIELDS     => 0,
@@ -325,6 +282,170 @@ sub iptv_user_info {
     TOTAL           => 1
   });
 
+  if ($Iptv->{TOTAL} == 1 && !$FORM{chg}) {
+    iptv_user_service({
+      PORTAL_ACTIONS => \%PORTAL_ACTIONS,
+      ID             => $list->[0]->{id}
+    });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 iptv_user_service($attr)
+
+  $attr
+    ID    - Service ID
+    PORTAL_ACTIONS
+
+=cut
+#**********************************************************
+sub iptv_user_service {
+  my ($attr) = @_;
+
+  my $Shedule = Shedule->new($db, $admin, \%conf);
+  my $PORTAL_ACTIONS = $attr->{PORTAL_ACTIONS};
+  my $user_service_id = $attr->{ID} || 0;
+  $FORM{ID} = $user_service_id;
+  my $service_status = sel_status({ HASH_RESULT => 1 });
+
+  my Abills::HTML $playlist_table;
+  my Abills::HTML  $devices_table;
+
+  $Iptv->user_info($user_service_id, { UID => $user->{UID} });
+  $Tv_service = undef;
+  if ($Iptv->{SERVICE_ID}) {
+    $Tv_service = tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} });
+  }
+
+  if ($FORM{additional_functions}) {
+    iptv_additional_functions();
+    return 1;
+  }
+  if ($FORM{activ_code}) {
+    iptv_activation();
+    return 2;
+  }
+  if ($FORM{watch_now}) {
+    iptv_watch();
+    return 2;
+  }
+  if ($FORM{get_status}) {
+    iptv_conax_get_status();
+    return 1;
+  }
+
+  if ($Iptv->{TOTAL} < 1) {
+    $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 801 });
+    return 0;
+  }
+  elsif ($FORM{ACTIVATE}) {
+    iptv_user_activate($Iptv, { USER => $user });
+    return 0;
+  }
+  elsif ($Iptv->{STATUS} && $Iptv->{STATUS} == 5) {
+    $html->message('err', $lang{INFO},
+      ((defined($Iptv->{STATUS}) && $service_status->{ $Iptv->{STATUS} }) ? $service_status->{ $Iptv->{STATUS} } : q{})
+        . "\n" . $html->button($lang{ACTIVATE}, "index=$index&ACTIVATE=1&chg=$user_service_id",
+        { class => 'btn btn-primary' }), { ID => 802 });
+    return 0;
+  }
+  if ($FORM{UID} && $FORM{ID} && !$FORM{change_now} && !$FORM{change_shedule}) {
+    if ($Tv_service && $Tv_service->can('get_code')) {
+      $Iptv->{ACTIVE_CODE} = $html->button($lang{ACTIVATION_CODE},
+        "qindex=$index&activ_code=1&chg=$user_service_id&header=2",
+        {
+          class         => 'btn btn-success',
+          LOAD_TO_MODAL => 1,
+        });
+    }
+
+    if ($Tv_service && $Tv_service->can('get_url')) {
+      $Iptv->{WATCH_NOW} = $html->button($lang{WATCH_NOW},
+        "qindex=$index&watch_now=1&UID=" . ($FORM{UID} || "") . "&chg=" . $user_service_id . "&MODULE=" .
+          ($FORM{MODULE} || "") . "&sid=" . ($FORM{sid} || "") . "&header=2",
+        {
+          class  => 'btn btn-success',
+          target => '_new',
+        });
+    }
+
+    if ($Tv_service && $Tv_service->can('get_user_status')) {
+      if ($Tv_service && $Tv_service->can('get_user_status')) {
+        $Iptv->{CONAX_STATUS} = $html->button("get status",
+          "qindex=$index&get_status=1&chg=$user_service_id&header=2",
+          {
+            class         => 'btn btn-success',
+            LOAD_TO_MODAL => 1,
+          });
+      }
+    }
+    if ($Tv_service && $Tv_service->can('additional_functions') && !$attr->{additional_functions}) {
+      my $result = $Tv_service->additional_functions({ %FORM, %$attr, %$Iptv });
+      if ($result->{FIRST} && $result->{SECOND}) {
+        $Iptv->{WATCH_NOW} = $result->{FIRST};
+        $Iptv->{ACTIVE_CODE} = $result->{SECOND};
+      }
+    }
+
+    if ($Tv_service && $Tv_service->can('get_playlist')) {
+      $playlist_table = iptv_get_playlists();
+    }
+    if ($Tv_service && $Tv_service->can('get_devices')) {
+      $devices_table = iptv_get_devices();
+    }
+  }
+
+  if ($conf{IPTV_USER_CHG_TP}) {
+    $Iptv->{TP_CHANGE_BTN} = $html->button($lang{CHANGE},
+      'index=' . get_function_index('iptv_user_chg_tp')
+        . '&ID=' . $user_service_id
+        . '&sid=' . $sid, { class => 'btn btn-primary' });
+  }
+
+  if (in_array(2, [ values %$PORTAL_ACTIONS ])) {
+    $Iptv->{DISABLE_BTN} = $html->button($lang{DISABLE_SERVICE},
+      'index=' . $index . '&sid=' . $sid . "&ID=$Iptv->{ID}&disable=1", { class => 'btn btn-danger' });
+    $conf{IPTV_USER_CHG_CHANNELS} = 1;
+  }
+
+  $Iptv->{DISABLE} = $html->color_mark($service_status->{ $Iptv->{STATUS} });
+
+  my $sheduled_actions_list = $Shedule->list({
+    UID       => $user->{UID},
+    TYPE      => 'status',
+    MODULE    => 'Iptv',
+    COLS_NAME => 1
+  });
+
+  if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0) {
+    my $shedule_action = $sheduled_actions_list->[0];
+    my $action_ = $shedule_action->{action};
+    my $service_id = 0;
+    if ($action_ =~ /:/) {
+      ($service_id, $action_) = split(/:/, $action_);
+    }
+    #if($action_ eq "0") {
+    $Iptv->{DISABLE_BTN} = $html->badge("$lang{DISABLE_SERVICE_DATE}: $shedule_action->{y}-$shedule_action->{m}-$shedule_action->{d}");
+    #}
+  }
+
+  if ($conf{IPTV_CLIENT_M3U}) {
+    iptv_m3u({ SERVICE_INFO => $Iptv });
+  }
+
+  $html->tpl_show(_include('iptv_user_info', 'Iptv'), $Iptv);
+  iptv_users_screens($Iptv, { SHOW_FULL => $PORTAL_ACTIONS->{$Iptv->{SERVICE_ID}} });
+  iptv_user_channels({ SERVICE_INFO => $Iptv, SHOW_ONLY => (!$conf{IPTV_USER_CHG_CHANNELS}) ? 1 : undef });
+
+  if ($playlist_table) {
+    $playlist_table->show();
+  }
+  if ($devices_table) {
+    $devices_table->show();
+  }
+
   return 1;
 }
 
@@ -346,7 +467,7 @@ sub iptv_user_chg_tp {
   }
 
   if ($LIST_PARAMS{UID}) {
-    if(! $FORM{ID}) {
+    if (!$FORM{ID}) {
       iptv_user_info();
       return 1;
     }
@@ -365,7 +486,7 @@ sub iptv_user_chg_tp {
   #Get TP groups
   $Tariffs->tp_group_info($Iptv->{TP_GID});
   if (!$Tariffs->{USER_CHG_TP}) {
-    $html->message('err', $lang{ERROR}, "$lang{NOT_ALLOW}", { ID => 803 });
+    $html->message('err', $lang{ERROR}, $lang{NOT_ALLOW}, { ID => 803 });
     return 0;
   }
 
@@ -698,5 +819,170 @@ sub iptv_activation {
   return 1;
 }
 
+#**********************************************************
+=head2 iptv_get_playlists($attr)
+
+=cut
+#**********************************************************
+sub iptv_get_playlists {
+
+  if ($FORM{action_playlist} && $FORM{action_playlist} eq "del" && $FORM{uniq}) {
+    if ($Tv_service && $Tv_service->can('del_playlist')) {
+      my $result = $Tv_service->del_playlist({ %FORM, %LIST_PARAMS });
+      if ($result->{status} && $result->{status} eq 'ok') {
+        $html->message('info', $lang{INFO}, "Playlist deleted: " . ($result->{result}{uniq} || ""));
+      }
+      else {
+        $html->message('err', $lang{ERROR}, "Can't delete playlist");
+      }
+    }
+    else {
+      $html->message('err', $lang{ERROR}, "Can't delete playlist");
+    }
+  }
+  elsif ($FORM{action_playlist} && $FORM{action_playlist} eq "add") {
+    if ($Tv_service && $Tv_service->can('add_playlist')) {
+      my $result = $Tv_service->add_playlist({ %FORM, %LIST_PARAMS });
+      if ($result->{status} && $result->{status} eq 'ok') {
+        $html->message('info', $lang{INFO}, "Playlist added: " . ($result->{result}{uniq} || ""));
+      }
+      else {
+        $html->message('err', $lang{ERROR}, "Can't add playlist") if !$result->{err_str};
+        $html->message('err', $lang{ERROR}, $result->{err_str} || "") if $result->{err_str};
+      }
+    }
+    else {
+      $html->message('err', $lang{ERROR}, "Can't add playlist");
+    }
+  }
+
+  if ($Tv_service && $Tv_service->can('get_playlist')) {
+    my $result = $Tv_service->get_playlist({ %FORM, %LIST_PARAMS, INDEX => $index, DEVICE => 1, });
+
+    if ($result->{result}{playlists}) {
+      my $res_array = $result->{result}{playlists};
+      my @table_titles = ();
+
+      foreach my $key (keys %{$res_array->[0]}) {
+        if ($lang{uc $key}) {
+          $key = $lang{uc $key};
+        }
+        if ($key eq "uniq") {
+          $key = "UNIQ";
+        }
+        push @table_titles, $key if ($key ne "url" && $key ne "user_agent" && $key ne "$lang{ACTIVATION_DATA}");
+      }
+
+      @table_titles = sort @table_titles;
+
+      my $table = $html->table(
+        {
+          width      => '100%',
+          caption    => $lang{PLAYLISTS},
+          title      => \@table_titles,
+          ID         => 'PLAYLIST_ITEMS',
+          DATA_TABLE => 1,
+        }
+      );
+
+      my $sid = $FORM{sid} || "";
+      my $module = $FORM{MODULE} || "";
+      my $form_chg = $FORM{chg} || "";
+      my $form_uid = $FORM{UID} || "";
+      foreach my $item (@{$res_array}) {
+        if (!$item->{url}) {
+          last;
+        }
+        my $dwn_btn = $html->button($lang{DOWNLOAD} . " M3U", '', {
+          GLOBAL_URL => $item->{url} || "",
+          target     => '_new',
+          class      => 'btn btn-info',
+        });
+        my $del_btn = $html->button($lang{DEL}, "index=$index&action_playlist=del&sid=$sid&MODULE=$module&chg=$form_chg&UID=$form_uid&uniq=" . ($item->{uniq} || ""), {
+          class => 'btn btn-info',
+        });
+        $table->addrow(($item->{uniq} || ""), ($item->{model} || ""), $dwn_btn, $del_btn);
+      }
+
+      if ($Tv_service->can('add_playlist')) {
+        my $add_btn = $html->button($lang{CREATE_PLAYLIST}, "index=$index&action_playlist=add&sid=$sid&MODULE=$module&chg=$form_chg&UID=$form_uid", {
+          class => 'btn btn-danger',
+        });
+        $table->addrow($add_btn);
+      }
+      return $table;
+    }
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 iptv_get_devices($attr)
+
+=cut
+#**********************************************************
+sub iptv_get_devices {
+
+  if ($FORM{action_device} && $FORM{action_device} eq "del" && $FORM{uniq}) {
+    if ($Tv_service && $Tv_service->can('del_devices')) {
+      my $result = $Tv_service->del_devices({ %FORM, %LIST_PARAMS });
+      if ($result->{status} && $result->{status} eq 'ok') {
+        $html->message('info', $lang{INFO}, "Device deleted: " . ($result->{result}{uniq} || ""));
+      }
+      else {
+        $html->message('err', $lang{ERROR}, "Can't delete device");
+      }
+    }
+    else {
+      $html->message('err', $lang{ERROR}, "Can't delete device");
+    }
+  }
+
+  if ($Tv_service && $Tv_service->can('get_devices')) {
+    my $result = $Tv_service->get_devices({ %FORM, %LIST_PARAMS, INDEX => $index, DEVICE => 1, });
+
+    if ($result->{result}{devices}) {
+      my $res_array = $result->{result}{devices};
+      my @table_titles = ();
+
+      foreach my $key (keys %{$res_array->[0]}) {
+        if ($lang{uc $key}) {
+          $key = $lang{uc $key};
+        }
+        if ($key eq "uniq") {
+          $key = "UNIQ";
+        }
+        push @table_titles, $key if ($key ne "$lang{ACTIVATION_DATA}");
+      }
+
+      @table_titles = sort @table_titles;
+
+      my $table = $html->table(
+        {
+          width      => '100%',
+          caption    => $lang{DEVICE},
+          title      => \@table_titles,
+          ID         => 'DEVICE_ITEMS',
+          DATA_TABLE => 1,
+        }
+      );
+
+      my $sid = $FORM{sid} || "";
+      my $module = $FORM{MODULE} || "";
+      my $form_chg = $FORM{chg} || "";
+      my $form_uid = $FORM{UID} || "";
+      foreach my $item (@{$res_array}) {
+        my $del_btn = $html->button($lang{DEL}, "index=$index&action_device=del&sid=$sid&MODULE=$module&chg=$form_chg&UID=$form_uid&uniq=" . ($item->{uniq} || ""), {
+          class => 'btn btn-info',
+        });
+        $table->addrow(($item->{uniq} || ""), ($item->{model} || ""), $del_btn) if $item->{uniq};
+      }
+      return $table;
+    }
+  }
+
+  return 0;
+}
 
 1;

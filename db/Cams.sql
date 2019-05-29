@@ -1,29 +1,102 @@
 CREATE TABLE IF NOT EXISTS `cams_tp` (
-  `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `name` VARCHAR(32) NOT NULL,
-  `abon_id` SMALLINT(6) UNSIGNED UNIQUE NOT NULL REFERENCES `abon_tariffs` (`id`) ON DELETE RESTRICT,
-  `streams_count` SMALLINT(6) UNSIGNED
+  `tp_id` SMALLINT(5) UNSIGNED DEFAULT '0',
+  `streams_count` smallint(6) unsigned DEFAULT 0,
+  `dvr` smallint(6) unsigned DEFAULT 0,
+  `ptz` smallint(6) unsigned DEFAULT 0,
+  `service_id` tinyint(1) unsigned NOT NULL DEFAULT 0,
+  KEY `tp_id` (`tp_id`)
 )
-  COMMENT = 'Cams use Abon module subscribes';
+  DEFAULT CHARSET=utf8 COMMENT='Cams tariff plans';
 
 CREATE TABLE IF NOT EXISTS `cams_main` (
-  `uid` INT(11) UNSIGNED PRIMARY KEY REFERENCES `users` (`uid`) ON DELETE CASCADE,
-  `tp_id` INT(11) UNSIGNED REFERENCES `cams_tp` (`id`) ON DELETE RESTRICT,
-  `created` DATETIME
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `uid` int(11) unsigned DEFAULT 0,
+  `tp_id` smallint(6) unsigned DEFAULT 0,
+  `activate` datetime DEFAULT NULL,
+  `status` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  KEY `uid` (`uid`), 
+  PRIMARY KEY (`id`)
 )
-  COMMENT = 'Users subscribed to cams';
+  DEFAULT CHARSET=utf8 COMMENT='Users subscribed to cams';
 
 CREATE TABLE IF NOT EXISTS `cams_streams` (
-  `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `uid` INT(11) UNSIGNED NOT NULL REFERENCES `users` (`uid`),
-  `disabled` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  `name` VARCHAR(32) NOT NULL,
-  `host` VARCHAR(255) NOT NULL DEFAULT '0.0.0.0',
-  `rtsp_path` TEXT,
-  `rtsp_port` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 554,
-  `login` VARCHAR(32) NOT NULL,
-  `password` BLOB NOT NULL,
-  `zoneminder_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
-  `orientation` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `uid` int(11) unsigned NOT NULL,
+  `disabled` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `name` varchar(32) NOT NULL DEFAULT '',
+  `title` varchar(32) NOT NULL DEFAULT '',
+  `host` varchar(128) NOT NULL DEFAULT '0.0.0.0',
+  `rtsp_path` text,
+  `rtsp_port` smallint(6) unsigned NOT NULL DEFAULT '554',
+  `login` varchar(32) NOT NULL DEFAULT '',
+  `password` blob NOT NULL,
+  `orientation` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `type` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `group_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `extra_url` varchar(64) NOT NULL DEFAULT '',
+  `screenshot_url` varchar(64) NOT NULL DEFAULT '',
+  `pre_image_url` varchar(128) NOT NULL DEFAULT '',
+  `coordx` double(20,14) NOT NULL DEFAULT '0.00000000000000',
+  `coordy` double(20,14) NOT NULL DEFAULT '0.00000000000000',
+  `transport` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `sound` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `limit_archive` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `pre_image` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `constantly_working` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `archive` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `only_video` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `point_id` int(11) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`)
 )
-  COMMENT = 'Storing all streams';
+  DEFAULT CHARSET=utf8 COMMENT='Storing all streams';
+
+CREATE TABLE IF NOT EXISTS `cams_services` (
+  `id` tinyint(2) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL DEFAULT '',
+  `module` varchar(24) NOT NULL DEFAULT '',
+  `status` tinyint(2) unsigned NOT NULL DEFAULT '0',
+  `comment` varchar(250) DEFAULT '',
+  `login` VARCHAR(72) NOT NULL DEFAULT '',
+  `password` BLOB,
+  `url` varchar(120) NOT NULL DEFAULT '',
+  `user_portal` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `debug` tinyint(2) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+)
+  DEFAULT CHARSET=utf8 COMMENT='Cams Services';
+
+CREATE TABLE IF NOT EXISTS `cams_groups` (
+  `id` tinyint(2) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL DEFAULT '',
+  `location_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `district_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `street_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `build_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `comment` varchar(250) DEFAULT '',
+  `max_users` smallint(6) unsigned DEFAULT 0,
+  `max_cameras` smallint(6) unsigned DEFAULT 0,
+  `service_id` tinyint(1) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+)
+  DEFAULT CHARSET=utf8 COMMENT='Cams Groups';
+
+CREATE TABLE IF NOT EXISTS `cams_users_groups` (
+  `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `group_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `changed` DATETIME NOT NULL,
+  UNIQUE KEY `id` (`id`, `group_id`, `tp_id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Cams users groups';
+
+CREATE TABLE IF NOT EXISTS `cams_users_cameras` (
+  `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `camera_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `changed` DATETIME NOT NULL,
+  UNIQUE KEY `id` (`id`, `tp_id`, `camera_id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Cams users cameras';
+

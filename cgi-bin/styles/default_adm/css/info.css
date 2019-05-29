@@ -1,24 +1,31 @@
-.comments-wrapper {
-    border: 1px solid silver;
-    padding: 10px;
-}
-
 .comment-wrapper {
-    padding: 5px;
-    margin-bottom: 5px;
-    border: 1px solid silver;
-
+    position: relative;
+    width: 100%;
+    padding: 8px;
+    float: left;
+    display: inline-block;
+    vertical-align: middle;
+    word-wrap: break-word;
+    font-size: 13px;
+    color: #333;
+    text-align: left;
+    background-color: whitesmoke;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
     border-radius: 5px;
+    margin-bottom: 10px
 }
 
 .comment-text {
-    font-weight: 600;
     font-size: 1.2em;
 }
 
-.comment-info {
-    font-weight: 400;
-    font-size: 0.9em;
+.com_line {
+    height: 1px;
+    color: black;
+    background-color: darkgray;
+    border: none;
+    margin: 0 0 10px 0;
 }
 
 .glyphicon {

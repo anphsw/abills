@@ -161,8 +161,10 @@
           </a>
           <ul class='dropdown-menu' onClick='cancelEvent(event)'>
             <li>
-              <div class='search_selector'>
-                %SEL_TYPE_SM%
+              <div class="input_group margin">
+                <!--<div class='search_selector'>-->
+                  %SEL_TYPE_SM%
+                <!--</div>-->
               </div>
             </li>
             <li>
@@ -184,13 +186,13 @@
           <form class='no-live-select UNIVERSAL_SEARCH_FORM' action='$SELF_URL'>
             <input type='hidden' name='index' value='7'>
             <input type='hidden' name='search' value='1'>
-            <div class='search_selector'>%SEL_TYPE%</div>
+            <div class='search_selector margin'>%SEL_TYPE%</div>
             <div class='search_input'>
               <div class='input-group margin search'>
                 <input name='LOGIN' type='text' placeholder='_{SEARCH}_...' required='required'
-                       class='form-control input-sm UNIVERSAL_SEARCH'/>
+                       class='form-control UNIVERSAL_SEARCH'/>
                 <span class='input-group-btn'>
-                  <button type='submit' id='search-btn' class='btn btn-sm btn-flat'>
+                  <button type='submit' id='search-btn' class='btn btn-flat'>
                     <i class='fa fa-search'></i>
                   </button>
                 </span>

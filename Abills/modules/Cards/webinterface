@@ -493,7 +493,7 @@ sub cards_add {
 
       if ($FORM{qindex}) {
         $export = ($FORM{EXPORT} eq 'XML') ? "Content-Type: text/xml\n\n$export" : "Content-Type: text/plain\n\n$export";
-        print "$export";
+        print $export;
         return 0;
       }
       else {
@@ -676,6 +676,11 @@ sub cards_users_add {
 
         for (my $i = 2 ; $i <= $#params ; $i++) {
           my ($k, $v) = split(/=/, $params[$i], 2);
+
+          if(! $k) {
+            next;
+          }
+
           $v //= q{};
 
           $v =~ s/\"//g;
@@ -838,6 +843,10 @@ sub cards_user_payment  {
     $_db->{AutoCommit} = 0;
 
     my $BRUTE_LIMIT = ($conf{CARDS_BRUTE_LIMIT}) ? $conf{CARDS_BRUTE_LIMIT} : 5;
+    if(! $user->{UID}) {
+      $LIST_PARAMS{UID}  = $FORM{UID}
+    }
+
     $Cards->bruteforce_list({ UID => $LIST_PARAMS{UID} });
     if ($Cards->{BRUTE_COUNT} && $Cards->{BRUTE_COUNT} >= $BRUTE_LIMIT) {
       $html->message('err', $lang{ERROR}, "$lang{BRUTE_ATACK} $Cards->{BRUTE_COUNT} >= $BRUTE_LIMIT", { ID => 601 });
@@ -853,7 +862,7 @@ sub cards_user_payment  {
         $_db->commit();
       }
       else {
-        $html->message('err', $lang{ERROR}, "$lang{ERR_SUPPORT} / $lang{ERR_SUPPORT} ($Cards->{errstr})", { ID => 600 });
+        $html->message('err', $lang{ERROR}, "$lang{ERR_SUPPORT} ($Cards->{errstr})", { ID => 600 });
       }
       return 0;
     }
@@ -876,10 +885,10 @@ sub cards_user_payment  {
     }
     elsif ($Cards->{STATUS} != 0) {
       if ($Cards->{STATUS} == 5) {
-        $html->message('info', $lang{INFO}, "$status[$Cards->{STATUS}]");
+        $html->message('info', $lang{INFO}, $status[$Cards->{STATUS}]);
       }
       else {
-        $html->message('err', $lang{ERROR}, "$status[$Cards->{STATUS}]", { ID => 606 });
+        $html->message('err', $lang{ERROR}, $status[$Cards->{STATUS}], { ID => 606 });
       }
 
       return 0;
@@ -925,7 +934,8 @@ sub cards_user_payment  {
         SKIP_MODULES => 'Cards,Sqlcmd',
         QUITE        => 1,
         SILENT       => 1,
-        METHOD       => 2
+        METHOD       => 2,
+        timeout      => 8
       });
 
       my $cards_number_length = $conf{CARDS_NUMBER_LENGTH} || 11;
@@ -1006,7 +1016,7 @@ sub cards_user_payment  {
               $user_new,
               $diller_fees,
               {
-                DESCRIBE => "CARD_ACTIVATE: $Cards->{ID}",
+                DESCRIBE => "CARD_ACTIVATE: $Cards->{ID} CARD: $Cards->{SERIAL}$Cards->{NUMBER}",
                 METHOD   => 0,
                 #                                  EXT_ID       => "$Cards->{SERIAL}$Cards->{NUMBER}",
                 #                                  CHECK_EXT_ID => "$Cards->{SERIAL}$Cards->{NUMBER}"
@@ -1016,7 +1026,7 @@ sub cards_user_payment  {
         }
 
         # Check if not card exist
-        $payments->list({ EXT_ID => "$Cards->{SERIAL}$Cards->{NUMBER}" });
+        $payments->list({ EXT_ID => "$Cards->{SERIAL}$Cards->{NUMBER}", TOTAL_ONLY => 1 });
         if ($payments->{TOTAL} <= 1) {
           $_db->commit();
         }
@@ -1037,7 +1047,8 @@ sub cards_user_payment  {
           SKIP_MODULES => 'Cards,Sqlcmd',
           QUITE        => 1,
           SILENT       => 1,
-          METHOD       => 2
+          METHOD       => 2,
+          timeout      => 8
         });
 
         return 0;
@@ -1137,9 +1148,9 @@ sub cards_report {
 
     my $table = $html->table(
       {
-        width      => '100%',
-        caption    => "$lang{SERIAL} : " . ($FORM{SERIAL} || q{}),
-        qs         => $pages_qs
+        width   => '100%',
+        caption => "$lang{SERIAL} : " . ($FORM{SERIAL} || q{}),
+        qs      => $pages_qs,
       }
     );
 
@@ -1267,11 +1278,11 @@ sub cards_report_dillers {
   my $list = $Cards->cards_report_dillers({%LIST_PARAMS});
   my $table = $html->table(
     {
-      width      => '100%',
-      caption    => $attr->{CAPTION} || $lang{DILLERS},
-      qs         => $pages_qs,
-      pages      => $Cards->{TOTAL},
-      ID         => 'CARDS_REPORT_DILLERS'
+      width   => '100%',
+      caption => $attr->{CAPTION} || $lang{DILLERS},
+      qs      => $pages_qs,
+      pages   => $Cards->{TOTAL},
+      ID      => 'CARDS_REPORT_DILLERS',
     }
   );
 
@@ -1457,21 +1468,41 @@ sub cards_print {
 #**********************************************************
 sub cards_report_payments {
 
-  my $table = $html->table(
-    {
-      width    => '100%',
-      rows     => [
-        [
-          "$lang{FROM}: ",
-          $html->date_fld2('FROM_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'cards_list', WEEK_DAYS => \@WEEKDAYS }),
-          "$lang{TO}: ",
-          $html->date_fld2('TO_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'cards_list', WEEK_DAYS => \@WEEKDAYS }),
-          "$lang{ROWS}: " . $html->form_input('rows', ($FORM{rows} || int($conf{list_max_recs})), { SIZE => 4, OUTPUT2RETURN => 1 }),
-          $html->form_input('show', $lang{SHOW}, { TYPE => 'submit', OUTPUT2RETURN => 1 })
-        ]
-      ],
-    }
-  );
+
+  my @rows = ();
+
+  push @rows, $html->element('label', "$lang{FROM}: ", { class => 'col-md-2 control-label' })
+    . $html->element('div', $html->date_fld2('FROM_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'cards_list', WEEK_DAYS => \@WEEKDAYS }), { class => 'col-md-9' });
+
+  push @rows, $html->element('label', "$lang{TO}: ", { class => 'col-md-2 control-label' })
+    . $html->element('div',  $html->date_fld2('TO_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'cards_list', WEEK_DAYS => \@WEEKDAYS }), { class => 'col-md-9' });
+
+  push @rows, $html->element('label', "$lang{ROWS}: ", { class => 'col-md-2 control-label' })
+    . $html->element('div', $html->form_input('rows', ($FORM{rows} || int($conf{list_max_recs})), { SIZE => 4, OUTPUT2RETURN => 1 }), { class => 'col-md-9' });
+
+  my $ROWS;
+  foreach my $val (@rows) {
+    $ROWS .= $html->element( 'div', $html->element('div', $val, {
+      class => 'form-group',
+      OUTPUT2RETURN => 1
+    }), { class => 'col-md-6 no-padding' } );
+  }
+  my $row_body = $html->element( 'div', $ROWS, {
+    class => 'row',
+  } );
+  my $box_body = $html->element( 'div', $row_body, {
+    class => 'box-body',
+  } );
+  my $box_footer = $html->element( 'div', $html->form_input( 'show', $lang{SHOW}, { class => 'btn btn-primary btn-block', TYPE => 'submit', OUTPUT2RETURN => 1 } ), {
+    class => 'box-footer',
+  } );
+  my $box_header = $html->element( 'div', $lang{FILTERS} . '<div class="box-tools pull-right">
+      <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+      <i class="fa fa-minus"></i></button></div>',
+    { class => 'box-header with-border'} );
+  my $report_form = $html->element( 'div', $box_header . $box_body . $box_footer, {
+    class => 'box box-theme',
+  } );
 
   if ($FORM{show}) {
     $LIST_PARAMS{PAGE_ROWS} = $FORM{rows} || q{};
@@ -1483,7 +1514,7 @@ sub cards_report_payments {
 
   print $html->form_main(
     {
-      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+      CONTENT => $report_form,
       HIDDEN  => {
         index => "$index",
         SERIA => '',
@@ -1494,8 +1525,8 @@ sub cards_report_payments {
     }
   );
 
-  my $list;
-  ($table, $list) = result_former({
+#  my $list;
+  my ($table, $list) = result_former({
      INPUT_DATA      => $Cards,
      FUNCTION        => 'cards_report_payments',
      #MAP             => 1,

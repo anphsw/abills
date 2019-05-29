@@ -7,6 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(cmd in_array);
+use Address;
 
 our(
   $db,
@@ -20,6 +21,8 @@ our(
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Nas      = Nas->new($db, \%conf, $admin);
+my $Address  = Address->new($db, $admin, \%conf);
+
 
 #**********************************************************
 =head2 internet_tp() - Tarif plans
@@ -88,8 +91,8 @@ sub internet_tp {
       return 0;
     }
 
-    $pages_qs   .= "&TP_ID=$tarif_info->{TP_ID}". (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
-    my %F_ARGS   = (TP => $tarif_info);
+    $pages_qs  .= "&TP_ID=$tarif_info->{TP_ID}". (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
+    my %F_ARGS = (TP => $tarif_info);
 
     $Tariffs->{NAME_SEL} = $html->form_main(
       {
@@ -105,7 +108,7 @@ sub internet_tp {
         ),
         HIDDEN => { index => $index },
         SUBMIT => { show  => $lang{SHOW} },
-        class  => 'navbar-form navbar-right',
+        class  => 'navbar-form navbar-right form-inline',
       }
     );
 
@@ -220,6 +223,7 @@ sub internet_tp {
     $tarif_info->{ABON_DISTRIBUTION}  = ($tarif_info->{ABON_DISTRIBUTION})  ? 'checked' : '';
     $tarif_info->{ACTIVE_DAY_FEE}     = ($tarif_info->{ACTIVE_DAY_FEE})     ? 'checked' : '';
     $tarif_info->{FIXED_FEES_DAY}     = ($tarif_info->{FIXED_FEES_DAY})     ? 'checked' : '';
+    $tarif_info->{TP_STATUS}          = ($tarif_info->{TP_STATUS})          ? 'checked' : '';
 
     $tarif_info->{SEL_METHOD} = $html->form_select(
       'FEES_METHOD',
@@ -395,7 +399,7 @@ sub internet_tp {
 
   foreach my $line (@$list) {
     my @function_fileds = (
-      $html->button($lang{INTERVALS}, "index=". get_function_index('form_intervals') ."&TP_ID=$line->{tp_id}", { class => 'interval' }),
+      $html->button('', "index=". get_function_index('form_intervals') ."&TP_ID=$line->{tp_id}", { class => 'interval', TITLE => $lang{INTERVALS}, ADD_ICON =>' glyphicon glyphicon-align-left' }),
     );
     if ($permissions{4}{1}) {
       push @function_fileds, $html->button($lang{CHANGE}, "index=$index&TP_ID=$line->{tp_id}", { class => 'change' });
@@ -725,5 +729,135 @@ sub internet_filters {
   return 1;
 }
 
+#**********************************************************
+=head2 geolocation_tp($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub geolocation_group_tp {
+
+  my $list = $Address->build_list({
+    ID                => '_SHOW',
+    STREET_NAME       => '_SHOW',
+    DISTRICT_NAME     => '_SHOW',
+    DISTRICT_ID       => '_SHOW',
+    NUMBER            => '_SHOW',
+    COLS_NAME         => 1,
+    WITH_STREETS_ONLY => 1,
+    SORT              => 'district_name,street_name,number+0',
+    PAGE_ROWS         => 999999
+  });
+
+  # adding tp geo-data to table
+  if (($FORM{STREET_ID} || $FORM{BUILD_ID} || $FORM{DISTRICT_ID}) && $FORM{TP_GID} && !$FORM{CLEAR}) {
+    my @streets   = ();
+    my @builds    = ();
+    my @districts = ();
+
+    @streets = split(', ', $FORM{STREET_ID}) if (defined $FORM{STREET_ID});
+    @builds = split(', ', $FORM{BUILD_ID}) if (defined $FORM{BUILD_ID});
+    @districts = split(', ', $FORM{DISTRICT_ID}) if (defined $FORM{DISTRICT_ID});
+
+    $Tariffs->del_tp_geo({ TP_GID => $FORM{TP_GID} });
+
+    foreach my $st (@streets) {
+      $Tariffs->add_tp_geo(
+        {
+          TP_GID     => $FORM{TP_GID},
+          STREET_ID => $st,
+        }
+      );
+    }
+
+    foreach my $bd (@builds) {
+      $Tariffs->add_tp_geo(
+        {
+          TP_GID    => $FORM{TP_GID},
+          BUILD_ID => $bd,
+        }
+      );
+    }
+
+    foreach my $ds (@districts) {
+      $Tariffs->add_tp_geo(
+        {
+          TP_GID       => $FORM{TP_GID},
+          DISTRICT_ID => $ds,
+        }
+      )
+    }
+
+  }
+
+  # clear all geo-data for tp
+  elsif ($FORM{CLEAR}) {
+    $Tariffs->del_tp_geo({ TP_GID => $FORM{TP_GID} });
+    if (!$Internet->{errno}) {
+      $html->message('info', "$lang{GEO}", "$lang{DELETED}");
+    }
+  }
+
+  my $geolist   = $Tariffs->tp_geo_list({ TP_GID => $FORM{ID} || $FORM{TP_GID}, COLS_NAME => 1 });
+  my @streets   = ();
+  my @builds    = ();
+  my @districts = ();
+  my %address   = ();
+
+  foreach my $data (@$geolist) {
+    if ($data->{street_id}) {
+      push(@streets, $data->{street_id});
+      $address{"STREET_ID_$data->{street_id}"} = 1;
+    }
+    elsif ($data->{build_id}) {
+      push(@builds, $data->{build_id});
+      $address{"BUILD_ID_$data->{build_id}"} = 1;
+    }
+    elsif ($data->{district_id}) {
+      push(@districts, $data->{district_id});
+      $address{"DISTRICT_ID_$data->{district_id}"} = 1;
+    }
+  }
+
+  my $input1 = q{};
+  my $input2 = q{};
+  my $input3 = q{};
+  my $keys = "district_name_check,street_name_check,number_check";
+
+  foreach my $line (@$list) {
+    $input1 = $html->form_input("BUILD_ID", $line->{id}, {
+      TYPE      => 'checkbox',
+      class     => 'tree_box',
+      EX_PARAMS => $address{"BUILD_ID_$line->{id}"} ? 'checked' : ''
+    });
+    $line->{number_check} = $html->element('label', ($input1 || q{}) . ' ' . ($line->{number} || q{}));
+    $input2 = $html->form_input("STREET_ID", $line->{street_id}, {
+      TYPE      => 'checkbox',
+      class     => 'tree_box',
+      EX_PARAMS => $address{"STREET_ID_$line->{street_id}"} ? 'checked' : ''
+    });
+    $line->{street_name_check} = $html->element('label', ($input2 || q{}) . ' ' . ($line->{street_name} || q{}));
+    $input3 = $html->form_input("DISTRICT_ID", $line->{district_id}, {
+      TYPE      => 'checkbox',
+      class     => 'tree_box',
+      EX_PARAMS => $address{"DISTRICT_ID_$line->{district_id}"} ? 'checked' : '',
+      ID        => $line->{district_id} });
+    $line->{district_name_check} = $html->element('label', ($input3 || q{}) . ' ' . ($line->{district_name} || q{}));
+  }
+
+  my $tree = $html->html_tree($list, $keys);
+
+  $html->tpl_show(_include('geolocation_tp', 'Internet'), {
+    GEOLOCATION_TREE => $tree,
+    BTN_NAME         => $lang{CHANGE},
+    index            => $index,
+    TP_GID           => $FORM{ID} || $FORM{TP_GID} || '',
+  });
+  return 1;
+}
 
 1;

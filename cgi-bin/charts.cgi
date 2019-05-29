@@ -1160,7 +1160,8 @@ sub print_head {
 
     <script src='/styles/lte_adm/plugins/moment/moment.min.js'></script>
     <script src="/styles/default_adm/js/charts/highcharts.js"></script>
-
+    <script src='/styles/default_adm/js/select2.min.js'></script>
+    <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/select2.css'>
     <title>ABillS Users Traffic</title>
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->

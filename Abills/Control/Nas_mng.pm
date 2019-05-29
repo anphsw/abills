@@ -24,11 +24,9 @@ our Admins $admin;
 my $Nas = Nas->new($db, \%conf, $admin);
 
 #**********************************************************
-
 =head2 form_nas() - Nas managment
 
 =cut
-
 #**********************************************************
 sub form_nas {
 
@@ -45,7 +43,7 @@ sub form_nas {
     $LIST_PARAMS{NAS_ID} = $nas_id;
     my %F_ARGS = (NAS => $Nas);
 
-    my @nas_menu = ($lang{INFO} . "::NAS_ID=$nas_id", 'IP Pools' . ":63:NAS_ID=$nas_id", $lang{STATS} . ":64:NAS_ID=$nas_id", 'RADIUS Test' . "::NAS_ID=$nas_id&radtest=1", 'Console' . "::NAS_ID=$nas_id&console=1&full=1",);
+    my @nas_menu = ($lang{INFO} . "::NAS_ID=$nas_id", 'IP Pools' . ":63:NAS_ID=$nas_id", $lang{STATS} . ":64:NAS_ID=$nas_id", 'RADIUS Test' . "::NAS_ID=$nas_id&radtest=1", 'Console' . "::NAS_ID=$nas_id&console=1&full=1",'MRTG' . "::NAS_ID=$nas_id&mrtg_cfg=1",);
 
     if ($FORM{ext_info}) {
       load_module('Equipment', $html);
@@ -95,7 +93,7 @@ sub form_nas {
           subf  => $FORM{subf}
         },
         SUBMIT => { show => "$lang{SHOW}" },
-        class  => 'navbar-form navbar-right',
+        class  => 'navbar-form navbar-right form-inline',
       }
     );
 
@@ -139,6 +137,10 @@ sub form_nas {
       require Control::Mikrotik_mng;
       return form_mikrotik_check_access($Nas);
     }
+    elsif ($FORM{mrtg_cfg}) {
+      return form_mrtg_cfg($Nas);
+    }
+
 
     elsif ($FORM{change} && $permissions{4} && $permissions{4}{2}) {
       if ($FORM{MAC} && $FORM{MAC} !~ /^[a-f0-9\-\.:]+$/i) {
@@ -184,20 +186,26 @@ sub form_nas {
     elsif (!$FORM{NAS_NAME}) {
       $FORM{NAS_NAME} = 'NAS_' . ($FORM{NAS_IP} || q{});
     }
+    elsif(! $FORM{IP}) {
+      $html->message('err', $lang{ERROR}, "No NAS IP");
+    }
+    else {
+      $FORM{NAS_NAME} = "NAS_". $FORM{IP};
+      $FORM{NAS_MNG_IP_PORT} = ($FORM{NAS_MNG_IP} || '') . ":" . ($FORM{COA_PORT} || '') . ":" . ($FORM{SSH_PORT} || '') . ":" . ($FORM{SNMP_PORT} || '');
 
-    $FORM{NAS_MNG_IP_PORT} = ($FORM{NAS_MNG_IP} || '') . ":" . ($FORM{COA_PORT} || '') . ":" . ($FORM{SSH_PORT} || '') . ":" . ($FORM{SNMP_PORT} || '');
+      $Nas->add({ %FORM, DOMAIN_ID => $admin->{DOMAIN_ID} });
 
-    $Nas->add({ %FORM, DOMAIN_ID => $admin->{DOMAIN_ID} });
-
-    if (!$Nas->{errno}) {
-      $html->message('info', $lang{INFO},
+      if (!$Nas->{errno}) {
+        my $nas_id = $Nas->{INSERT_ID} || 0;
+        $html->message('info', $lang{INFO},
           "$lang{ADDED} $lang{NAS}\n IP: '$FORM{IP}'\n $lang{NAME}: '$FORM{NAS_NAME}'\n"
-        . $html->button($lang{MANAGE}, "index=$index&NAS_ID=$Nas->{INSERT_ID}", { BUTTON => 2 }) . ' '
-        . (($FORM{NAS_TYPE} && $FORM{NAS_TYPE} =~ /mikrotik/) ? $html->button($lang{CONFIGURATION}, "index=$index&NAS_ID=$Nas->{INSERT_ID}&mikrotik_configure=1", { BUTTON => 2 }) : q{}));
+            . $html->button($lang{MANAGE}, "index=$index&NAS_ID=$Nas->{INSERT_ID}", { BUTTON => 2 }) . ' '
+            . (($FORM{NAS_TYPE} && $FORM{NAS_TYPE} =~ /mikrotik/) ? $html->button($lang{CONFIGURATION}, "index=$index&NAS_ID=$nas_id&mikrotik_configure=1", { BUTTON => 2 }) : q{}));
 
-      #Restart Section
-      if ($conf{RESTART_RADIUS}) {
-        cmd($conf{RESTART_RADIUS});
+        #Restart Section
+        if ($conf{RESTART_RADIUS}) {
+          cmd($conf{RESTART_RADIUS});
+        }
       }
     }
   }
@@ -219,21 +227,6 @@ sub form_nas {
 
   _error_show($Nas);
 
-  my %info = ();
-  my @rows = ("$lang{GROUPS}:", sel_nas_groups(), $html->form_input("1", "$lang{SHOW}", { TYPE => 'submit' }));
-
-  foreach my $val (@rows) {
-    $info{ROWS} .= $html->element('div', $val, { class => 'form-group ' });
-  }
-
-  my $report_form = $html->element(
-    'div',
-    $info{ROWS},
-    {
-      class => 'navbar-form navbar-right'
-    }
-  );
-
   my %equipment_filter = ();
   if (in_array('Equipment', \@MODULES)) {
     require Equipment;
@@ -245,13 +238,17 @@ sub form_nas {
     }
   }
 
-  print $html->form_main(
-    {
-      CONTENT => $report_form,
-      HIDDEN  => { index => "$index", },
-      class   => 'form-inline'
-    }
-  );
+  unless ($FORM{add_form} || $FORM{NAS_ID} || $FORM{search_form}) {
+    require Control::Reports;
+    reports({
+      PERIOD_FORM     => 1,
+      NO_PERIOD       => 1,
+      NO_GROUP        => 1,
+      NO_TAGS         => 1,
+      EXT_SELECT      => sel_nas_groups(),
+      EXT_SELECT_NAME => $lang{GROUPS},
+    });
+  }
 
   if ($FORM{search}) {
     form_search({ CONTROL_FORM => 1 });
@@ -485,7 +482,7 @@ sub form_nas_console {
     @quick_cmd = ('show radsrv', 'show sessions');
   }
   elsif ($Nas_->{NAS_TYPE} =~ /accel/) {
-    @quick_cmd = ('show sessions', 'reload');
+    @quick_cmd = ('show sessions', 'show stat', 'reload');
   }
   elsif ($Nas_->{NAS_TYPE} =~ /mikrotik/) {
     @quick_cmd = ('export compact',
@@ -564,6 +561,8 @@ sub form_nas_console_command {
   require Abills::Nas::Control;
   Abills::Nas::Control->import(qw/telnet_cmd3 rsh_cmd/);
   Abills::Nas::Control->new($db, \%conf);
+
+  $admin->system_action_add("NAS_Command:$FORM{CMD}", { TYPE => 14 });
 
   if ($FORM{CMD} =~ /^([a-z]+):(.+)/) {
     $FORM{TYPE} = $1 || q{};
@@ -832,6 +831,67 @@ sub form_nas_console_command {
   );
 
   #    print $table->show();
+  return 1;
+}
+
+#**********************************************************
+
+=head2 form_mrtg_cfg($Nas)
+
+  Arguments:
+    $Nas
+  Returns:
+
+=cut
+
+#**********************************************************
+sub form_mrtg_cfg {
+  my Nas $Nas_ = shift;
+  my ($attr) = @_;
+
+  if (!$Nas_) {
+    $Nas_ = Nas->new($db, \%conf, $admin);
+    $Nas_->info({ NAS_ID => $attr->{NAS_ID} }) if ($attr->{NAS_ID});
+  };
+
+  my $comments;
+  $FORM{query_type} //= 1;
+
+  my $mrtg_cfgmaker = cmd("which cfgmaker");
+  $mrtg_cfgmaker =~ s/[\r\n]+$//;
+#  print $mrtg_cfgmaker;
+  if ($mrtg_cfgmaker) {
+    my @SELECT_DATA = `ls /usr/abills/misc/mrtg/templates/`;
+    my $select = $html->form_select(
+      'SELECT_NAME',
+      {
+        SELECTED     => $FORM{SELECT_NAME},
+        SEL_ARRAY    => \@SELECT_DATA,
+        ARRAY_NUM_ID => 1
+      }
+    );
+    my $nas_name = $Nas->{NAS_NAME};
+    if ( $FORM{confirm} ) {
+      my $mrtg_template = $SELECT_DATA[$FORM{SELECT_NAME}];
+      $mrtg_template =~ s/\s//g;;
+      $html->message('info', "$lang{INFO}", "$mrtg_cfgmaker --nointerfaces \ <br>--global \"WorkDir: $FORM{WORK_DIR}\" \ <br>--host-template /usr/abills/misc/mrtg/templates/$SELECT_DATA[$FORM{SELECT_NAME}] $FORM{COMMUNITY}\@$Nas->{NAS_IP}");
+      my $mrtg_make_cfg = "$mrtg_cfgmaker --global=\'WorkDir: $FORM{WORK_DIR}\' --nointerfaces --host-template=\'/usr/abills/misc/mrtg/templates/$mrtg_template\' $FORM{COMMUNITY}\@$Nas->{NAS_IP}";
+      print $mrtg_make_cfg;
+      my $result = cmd("$mrtg_make_cfg");
+      my $strings_num = $result =~ tr/\n//;
+      if ($strings_num == 0) {
+        $html->message('error', "$lang{ERROR}", "No SNMP data received from $Nas->{NAS_IP}");
+        return 1;
+        }
+      print "<textarea readonly cols=120 rows=$strings_num>$result</textarea>";
+    }
+    $html->tpl_show(templates('form_mrtg'), {SELECT => $select, NAME => $nas_name, %FORM});
+   }
+  else {
+    $html->message('error', "$lang{ERROR}", "No cfgmaker found. Is MRTG installed ?");
+    return 1;
+  }
+ 
   return 1;
 }
 #**********************************************************
@@ -1389,9 +1449,9 @@ sub form_ip_pools {
 
   if ($FORM{add}) {
     if ($FORM{POOL_SPEED} && !$FORM{BIT_MASK}) {
-      $html->message('err', "$lang{ERROR}", "Select Mask");
+      $html->message('err', $lang{ERROR}, "SELECT_MASK");
     }
-    else {
+    elsif($FORM{NAME} || $FORM{IP}) {
       $Nas->ip_pools_add({ %FORM, GATEWAY => ip2int($FORM{GATEWAY}) });
       if (!$Nas->{errno}) {
         $FORM{chg} = $Nas->{INSERT_ID} || 0;
@@ -1414,7 +1474,7 @@ sub form_ip_pools {
       );
 
       if (!$Nas->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+        $html->message('info', $lang{INFO}, $lang{CHANGED});
       }
     }
   }

@@ -203,9 +203,24 @@ sub user_change {
 #**********************************************************
 sub user_del {
   my $self = shift;
+  my ($attr) = @_;
 
   $self->query("DELETE from voip_main WHERE uid='$self->{UID}';", 'do');
-  $admin->action_add($self->{UID}, $self->{UID}, { TYPE => 10 });
+
+  $admin->{MODULE}=$MODULE;
+
+  my @del_descr = ();
+  if($attr->{UID}) {
+    push @del_descr, "UID: $attr->{UID}";
+  }
+  if ($attr->{ID}) {
+    push @del_descr, "ID: $attr->{ID}";
+  }
+  if($attr->{COMMENTS}) {
+    push @del_descr, "COMMENTS: $attr->{COMMENTS}";
+  }
+
+  $admin->action_add($self->{UID}, join(' ', @del_descr), { TYPE => 10 });
 
   return $self->{result};
 }
@@ -413,6 +428,10 @@ sub route_info {
 #**********************************************************
 =head2 route_del($id, $attr) - Delete route
 
+  Arguments:
+    $id
+    $attr
+
 =cut
 #**********************************************************
 sub route_del {
@@ -422,7 +441,7 @@ sub route_del {
   my $WHERE = '';
 
   if ($id > 0) {
-    #$WHERE = "id='$id'";
+    $WHERE = "id = '$id'";
     $self->query_del('voip_route_prices', undef, { route_id => $id });
   }
   elsif ($attr->{ALL}) {

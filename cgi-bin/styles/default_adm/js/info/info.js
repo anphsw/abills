@@ -123,7 +123,7 @@ if (typeof info_script_loaded === 'undefined') {
         var $commentDiv = $(this).parent().parent().parent();
 
         var $icon = $(this).find('.glyphicon');
-        $icon.removeClass('glyphicon-remove glyphicon');
+        $icon.removeClass('glyphicon-trash ');
         $icon.addClass('fa fa-spinner fa-3x fa-pulse');
 
         var url = $(this).data('url');

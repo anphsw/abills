@@ -21,6 +21,40 @@
     }
   }
 
+  function disableInputs(context) {
+    var j_context = jQuery(jQuery(context).attr('href'));
+
+    j_context.find('input').prop('disabled', true);
+    j_context.find('select').prop('disabled', true);
+
+    updateChosen();
+  }
+
+  function enableInputs(context) {
+    var j_context = jQuery(jQuery(context).attr('href'));
+
+    j_context.find('input').prop('disabled', false);
+    j_context.find('select').prop('disabled', false);
+
+
+  }
+
+  jQuery(document).ready(function() {
+    console.log("HEEEE");
+    jQuery('#menu1').find('input').prop('disabled', true);
+    jQuery('#menu1').find('select').prop('disabled', true);
+    updateChosen();
+    console.log("HEEEE1");
+  });
+
+  jQuery(function () {
+    jQuery('a[data-toggle=\"tab\"]').on('shown.bs.tab', function (e) {
+      enableInputs(e.target);
+      disableInputs(e.relatedTarget);
+    })
+  });
+
+
   jQuery(function () {
     if(jQuery('#STATUS').val()) {
       rebuild_form(jQuery('#STATUS').val());
@@ -35,7 +69,7 @@
 
 <form action=$SELF_URL name='storage_hardware_form' method=POST class='form-horizontal'>
   <input type=hidden name=index value=$index>
-  <input type=hidden name=ID value=%ID%>
+
   <input type=hidden name='type' value='prihod2'>
   <input type=hidden name=ajax_index value=$index>
   <input type=hidden name=UID value=$FORM{UID}>
@@ -48,18 +82,40 @@
       <div class='box-body form'>
 
         <legend>_{STORAGE}_</legend>
-        <div class='form-group'>
-          <label class='col-md-3 control-label'>_{TYPE}_:</label>
-          <div class='col-md-9'>%ARTICLE_TYPES%</div>
+
+        <ul class="nav nav-tabs" role="tablist">
+          <li class="active"><a data-toggle="tab" href="#home">_{STORAGE}_</a></li>
+          <li><a data-toggle="tab" href="#menu1">_{ACCOUNTABILITY}_</a></li>
+        </ul>
+
+        <div class="tab-content">
+          <div id="home" class="tab-pane fade in active">
+            <input type=hidden name=ID value=%ID%>
+            <div class='form-group'>
+              <label class='col-md-3 control-label'>_{TYPE}_:</label>
+              <div class='col-md-9'>%ARTICLE_TYPES%</div>
+            </div>
+            <div class='form-group'>
+              <label class='col-md-3 control-label'>_{NAME}_:</label>
+              <div class='col-md-9'>%ARTICLE_ID%</div>
+            </div>
+            <div class='form-group'>
+              <label class='col-md-3 control-label'>_{COUNT}_:</label>
+              <div class='col-md-9'><input class='form-control' name='COUNT' type='text' value='%COUNT%' %DISABLE%/></div>
+            </div>
+          </div>
+          <div id="menu1" class="tab-pane fade ">
+            <div class='form-group'>
+              <label class='col-md-3 control-label'>_{NAME}_:</label>
+              <div class='col-md-9'>%IN_ACCOUNTABILITY_SELECT%</div>
+            </div>
+            <div class='form-group'>
+              <label class='col-md-3 control-label'>_{COUNT}_:</label>
+              <div class='col-md-9'><input class='form-control' name='COUNT_ACCOUNTABILITY' type='text' value='%COUNT%' %DISABLE%/></div>
+            </div>
+          </div>
         </div>
-        <div class='form-group'>
-          <label class='col-md-3 control-label'>_{NAME}_:</label>
-          <div class='col-md-9'>%ARTICLE_ID%</div>
-        </div>
-        <div class='form-group'>
-          <label class='col-md-3 control-label'>_{COUNT}_:</label>
-          <div class='col-md-9'><input class='form-control' name='COUNT' type='text' value='%COUNT%' %DISABLE%/></div>
-        </div>
+
         <div class='form-group'>
           <label class='col-md-3 control-label'>_{ACTION}_:</label>
           <div class='col-md-9'>%STATUS% %STORAGE_DOC_CONTRACT% %STORAGE_DOC_RECEIPT%</div>

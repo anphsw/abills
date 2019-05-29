@@ -503,25 +503,25 @@ function fixCheckboxSendValue(context) {
 
 function renewChosenValue($select, value) {
   var $options = $select.find('option[value="' + value + '"]');
-  
+
   if ($options.length) {
     $select.val(value);
   }
-  
+
   updateChosen();
 }
 
 function updateChosen(callback, instant) {
-  
+
   var update = function () {
-    $('select').trigger('chosen:updated');
+    $('select').trigger('select2:updated');
     if (callback) callback();
   };
-  
+
   if (instant) {
     return update();
   }
-  
+
   setTimeout(update, 100);
 }
 
@@ -1122,10 +1122,10 @@ function initDatepickers(context) {
   if ($daterangepickers.length) {
     
     var ranges                                     = {};
-    ranges[DATERANGEPICKER_LOCALE['Today']]        = [moment(), moment()];
-    ranges[DATERANGEPICKER_LOCALE['Yesterday']]    = [moment().subtract(1, 'days'), moment().subtract(1, 'days')];
-    ranges[DATERANGEPICKER_LOCALE['Last 7 Days']]  = [moment().subtract(6, 'days'), moment()];
-    ranges[DATERANGEPICKER_LOCALE['Last 30 Days']] = [moment().subtract(29, 'days'), moment()];
+    ranges[DATERANGEPICKER_LOCALE['Today']]        = [moment().startOf('day'), moment().endOf('day')];
+    ranges[DATERANGEPICKER_LOCALE['Yesterday']]    = [moment().subtract(1, 'days').startOf('day'), moment().subtract(1, 'days').endOf('day')];
+    ranges[DATERANGEPICKER_LOCALE['Last 7 Days']]  = [moment().subtract(6, 'days').startOf('day'), moment().endOf('day')];
+    ranges[DATERANGEPICKER_LOCALE['Last 30 Days']] = [moment().subtract(29, 'days').startOf('day'), moment().endOf('day')];
     ranges[DATERANGEPICKER_LOCALE['This Month']]   = [moment().startOf('month'), moment().endOf('month')];
     ranges[DATERANGEPICKER_LOCALE['Last Month']]   = [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')];
     
@@ -1133,7 +1133,7 @@ function initDatepickers(context) {
       var $e = $(e);
       
       var with_time                    = $e.hasClass('with-time');
-      DATERANGEPICKER_LOCALE['format'] = (with_time) ? 'YYYY-MM-DD hh:mm' : 'YYYY-MM-DD';
+      DATERANGEPICKER_LOCALE['format'] = (with_time) ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD';
       
       var has_hidden = $e.data('has-hidden');
       var callback   = undefined;
@@ -1162,36 +1162,50 @@ function initDatepickers(context) {
   
 }
 
-function initChosen(context) {
-  if (typeof(CHOSEN_PARAMS) === 'undefined') {
-    return false
-  }
-  var $selects = $('select:not(.not-chosen)', context);
-  
-  $selects.chosen(CHOSEN_PARAMS);
-  
-  // Make selects that would be opened outside body open to up
-  $selects.on('chosen:showing_dropdown', function (event) {
-    setTimeout(function(){
-      var $select = $(event.target);
-      var $chosen_container = $select.next();
-  
-      var top = $chosen_container.offset().top,
-          sctop = $(this).scrollTop(),
-          winh = $(this).height(),
-          y = top - sctop - winh + 100;
-      
-      if (y > 0 || -y > winh) {
-        $select.addClass('chosen-up');
+function initSelect2(context) {
+    if (typeof(SELECT2_PARAMS) === 'undefined') {
+        var SELECT2_PARAMS = {
+            // width: 'auto',
+            placeholder: '',
+            dropdownAutoWidth: true,
+            allowClear: true
+        };
       }
-      
-    }, 100);
-    
-  });
-  
-  $selects.on('chosen:hiding_dropdown', function(event){
-    $(event.target).removeClass('chosen-up');
-  })
+    var $selects = $('select:not(.not-select2)', context);
+    $selects.select2(SELECT2_PARAMS);
+  }
+
+function initChosen(context) {
+  initSelect2(context);
+  // if (typeof(CHOSEN_PARAMS) === 'undefined') {
+  //   return false
+  // }
+  // var $selects = $('select:not(.not-chosen)', context);
+  //
+  // $selects.chosen(CHOSEN_PARAMS);
+  //
+  // // Make selects that would be opened outside body open to up
+  // $selects.on('chosen:showing_dropdown', function (event) {
+  //   setTimeout(function(){
+  //     var $select = $(event.target);
+  //     var $chosen_container = $select.next();
+  //
+  //     var top = $chosen_container.offset().top,
+  //         sctop = $(this).scrollTop(),
+  //         winh = $(this).height(),
+  //         y = top - sctop - winh + 100;
+  //
+  //     if (y > 0 || -y > winh) {
+  //       $select.addClass('chosen-up');
+  //     }
+  //
+  //   }, 100);
+  //
+  // });
+  //
+  // $selects.on('chosen:hiding_dropdown', function(event){
+  //   $(event.target).removeClass('chosen-up');
+  // })
   
 }
 
@@ -1420,8 +1434,11 @@ function pageInit(context) {
   context = context || document;
   
   // init chosen
-  initChosen(context);
-  
+  // initChosen(context);
+
+  // init select2
+  initSelect2(context);
+
   // Allow auto opening of modals
   openModals(context);
   

@@ -89,7 +89,7 @@ sub ureports_send_reports {
     }
   }
   else {
-    $Sender->send_message({
+    $status = $Sender->send_message({
       UID         => $attr->{UID},
       TO_ADDRESS  => $destination,
       SENDER_TYPE => $type,
@@ -97,8 +97,6 @@ sub ureports_send_reports {
       SUBJECT     => $attr->{SUBJECT} || '',
       DEBUG       => ($debug > 2) ? $debug - 2 : undef
     });
-
-    $status = $Sender->{STATUS};
   }
 
   if ( $debug < 5 ){
@@ -115,7 +113,7 @@ sub ureports_send_reports {
     );
   }
 
-  return 1;
+  return $status;
 }
 
 

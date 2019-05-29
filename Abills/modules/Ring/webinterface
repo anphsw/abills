@@ -43,8 +43,8 @@ sub ring_main {
       _include('ring_add_rule', 'Ring'),
       {
         NAME        => $rule_info->{NAME},
-        TIME_START  => "$rule_info->{DATE_START} $rule_info->{TIME_START}",
-        TIME_END    => "$rule_info->{DATE_END} $rule_info->{TIME_END}",
+        TIME_START  => $html->form_datetimepicker('TIME_START', "$rule_info->{DATE_START} $rule_info->{TIME_START}"),
+        TIME_END    => $html->form_datetimepicker('TIME_END', "$rule_info->{DATE_END} $rule_info->{TIME_END}"),
         FILE_SELECT => @files_select,
         MESSAGE     => $rule_info->{MESSAGE},
         COMMENTS    => $rule_info->{COMMENT},
@@ -54,6 +54,8 @@ sub ring_main {
         UPLOAD_FILE => $file_upload_link,
         INDEX       => get_function_index('ring_rule_add'),
         EVERY_MONTH => $rule_info->{EVERY_MONTH} ? 'checked' : '',
+        UPDATE_DAY  => $rule_info->{UPDATE_DAY},
+        SQL_QUERY   => $rule_info->{SQL_QUERY},
       }
     );
   }
@@ -69,20 +71,23 @@ sub ring_main {
     {
       INPUT_DATA      => $Ring,
       FUNCTION        => 'list_rule',
-      BASE_FIELDS     => 10,
-      DEFAULT_FIELDS  => "id, name, date_start, date_end, time_start, time_end, every_month, file, message, comment",
+      BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => "ID, NAME, DATE_START, DATE_END, TIME_START, TIME_END, EVERY_MONTH, FILE, MESSAGE, COMMENT, UPDATE_DAY, SQL_QUERY",
       FUNCTION_FIELDS => 'ring_user_filters:$lang{FILTER}:id, change, del',
+      SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
-        'name'          => "$lang{NAME}",
-        'id'            => "ID",
-        'date_start'    => "$lang{DATE} $lang{START}",
-        'date_end'      => "$lang{DATE} $lang{END}",
-        'time_start'    => "$lang{TIME} $lang{START}",
-        'time_end'      => "$lang{TIME} $lang{END}",
-        'every_month'   => "$lang{EVERY_MONTH}",
-        'file'          => "$lang{FILE}",
-        'message'       => "$lang{MESSAGE}",
-        'comment'       => "$lang{COMMENTS}"
+        'name'        => "$lang{NAME}",
+        'id'          => "ID",
+        'date_start'  => "$lang{DATE} $lang{START}",
+        'date_end'    => "$lang{DATE} $lang{END}",
+        'time_start'  => "$lang{TIME} $lang{START}",
+        'time_end'    => "$lang{TIME} $lang{END}",
+        'every_month' => "$lang{EVERY_MONTH}",
+        'file'        => "$lang{FILE}",
+        'message'     => "$lang{MESSAGE}",
+        'comment'     => "$lang{COMMENTS}",
+        'update_day'  => "$lang{UPDATE_DAY}",
+        'sql_query'   => "$lang{SQL_QUERY}",
       },
       TABLE => {
         width   => '100%',
@@ -91,13 +96,15 @@ sub ring_main {
         ID      => 'RING_RULE',
         header  => '',
         EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search;",
+        MENU    => "$lang{ADD}:index=" . get_function_index('ring_rule_add') . ':add',
+#          . ";$lang{SEARCH}:index=$index&search_form=1:search;",
       },
-      SELECT_VALUE    => {
-         every_month => { 0 => "$lang{NO}:text-danger",
-                          1 => "$lang{YES}:text-primary"
-                        },
-     },
+      SELECT_VALUE => {
+        every_month => {
+          0 => "$lang{NO}:text-danger",
+          1 => "$lang{YES}:text-primary"
+        },
+      },
       MAKE_ROWS     => 1,
       SEARCH_FORMER => 1,
       MODULE        => 'Ring',
@@ -141,15 +148,17 @@ sub ring_rule_add {
 
     $Ring->add_rule(
       {
-        NAME          => $FORM{NAME},
-        DATE_START    => $date_start,
-        DATE_END      => $date_end,
-        TIME_START    => $time_start,
-        TIME_END      => $time_end,
-        EVERY_MONTH   => $FORM{EVERY_MONTH} ? 1 : 0,
-        FILE          => $FORM{FILE_SELECT},
-        MESSAGE       => $FORM{MESSAGE},
-        COMMENT       => $FORM{COMMENTS}
+        NAME        => $FORM{NAME},
+        DATE_START  => $date_start,
+        DATE_END    => $date_end,
+        TIME_START  => $time_start,
+        TIME_END    => $time_end,
+        EVERY_MONTH => $FORM{EVERY_MONTH} ? 1 : 0,
+        FILE        => $FORM{FILE_SELECT},
+        MESSAGE     => $FORM{MESSAGE},
+        COMMENT     => $FORM{COMMENTS},
+        UPDATE_DAY  => $FORM{UPDATE_DAY},
+        SQL_QUERY   => $FORM{SQL_QUERY},
       }
     );
 
@@ -195,6 +204,8 @@ sub ring_rule_add {
         EVERY_MONTH   => $FORM{EVERY_MONTH} ? 1 : 0,
         MESSAGE       => $FORM{MESSAGE},
         COMMENT       => $FORM{COMMENTS},
+        UPDATE_DAY    => $FORM{UPDATE_DAY},
+        SQL_QUERY     => $FORM{SQL_QUERY},
       }
     );
 
@@ -204,8 +215,21 @@ sub ring_rule_add {
 
   # загрузка файла на сервер
   if ($FORM{FILE}) {
-
     upload_file($FORM{FILE}, { PREFIX => 'ring' });
+      if ($conf{ASTERISK_AMI_REMOTE} && ($conf{ASTERISK_AMI_REMOTE} eq 'yes')) {
+        my $scp_result = qx/scp -o StrictHostKeyChecking=no -i \/usr\/abills\/Certs\/id_rsa.abills_admin $ring_path$FORM{FILE}{filename} abills_admin\@$conf{ASTERISK_AMI_IP}:\/$ring_path/;
+        if ($? != 0) {
+          $html->message('error', $lang{ERROR}, "scp to $conf{ASTERISK_AMI_IP} failed.\n"
+           . "Check configuration.\n");
+        }
+        else {
+          $html->message('success', $lang{INFO}, "$lang{ADDED} $FORM{FILE}{filename} :   $ring_path  @  $conf{ASTERISK_AMI_IP}");
+        }
+        my $ssh_result = qx/ssh -o StrictHostKeyChecking=no -i \/usr\/abills\/Certs\/id_rsa.abills_admin abills_admin\@$conf{ASTERISK_AMI_IP} "chown abills_admin:asterisk $ring_path$FORM{FILE}{filename}"/;
+        if ($? != 0) {
+          $html->message('error', $lang{ERROR}, "chown abills_admin:asterisk $ring_path  @  $conf{ASTERISK_AMI_IP} FAILED\n");
+        }
+      }
   }
 
   my @files_select = files_list();
@@ -216,6 +240,8 @@ sub ring_rule_add {
     {
       ACTION_TYPE => $action_type,
       BUTTON      => $button,
+      TIME_START  => $html->form_datetimepicker('TIME_START'),
+      TIME_END    => $html->form_datetimepicker('TIME_END'),
       FILE_SELECT => @files_select,
       UPLOAD_FILE => $file_upload_link,
       INDEX       => get_function_index('ring_rule_add'),
@@ -285,7 +311,6 @@ sub ring_user_filters {
   }
 
   my $group_select = sel_groups();
-
 
   # добавить пользователей к правилу, если у него есть уже добавленные пользователи
   if ($FORM{action} && $FORM{action} eq 'addmore') {
@@ -381,7 +406,6 @@ sub ring_user_filters {
         FUNCTION_FIELDS => '',
         TABLE           => {
           width => '100%',
-
           #caption    => "$lang{PRE} - $lang{USERS}",
           qs         => $pages_qs,
           ID         => 'USERS_FILTER',
@@ -431,7 +455,7 @@ sub ring_user_filters {
     'ID',
     {
       SELECTED  => $FORM{RULE_ID},
-      SEL_LIST  => $Ring->list_rule({ MODULE => 'Ring', COLS_NAME => 1 }),
+      SEL_LIST  => $Ring->list_rule({ MODULE => 'Ring', NAME => '_SHOW', COLS_NAME => 1 }),
       SEL_KEY   => 'id',
       SEL_VALUE => 'name',
       NO_ID     => 1,
@@ -450,7 +474,7 @@ sub ring_user_filters {
         _include('ring_filters', 'Ring'),
         {
           ADDRESS_FORM => $html->tpl_show(templates('form_address_search'), {}, { OUTPUT2RETURN => 1 }),
-          TAGS         => $Tags,
+          TAGS         => $Tags_info,
           GROUPS       => $group_select,
         }
       );

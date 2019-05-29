@@ -690,6 +690,19 @@ my @test_list = (
       }
     )
   },
+  {
+    name   => 'SUMMARY_SHOW',
+    params => {
+      qindex      => 15,
+      UID         => 112,
+      SUMMARY_SHOW=> 1,
+      EXPORT      => 1,
+      API_KEY     => $api_key
+    },
+    result     => '',
+    valid_json => 1,
+    schema     => qq()
+  }
 );
 
 json_test(\@test_list, { TEST_NAME => 'Api JSON test' });

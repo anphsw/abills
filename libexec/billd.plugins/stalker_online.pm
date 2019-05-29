@@ -1,7 +1,10 @@
 # billd plugin
 =head1 NAME
 
-  DESCRIBE: Add active users to online list
+  DESCRIBE:
+    Add active users to online list
+    hangup debetors
+    block debetors
 
 =head1 OPTIONS
 
@@ -181,7 +184,7 @@ sub stalker_online_check {
       #next;
     }
 
-    $USERS_ONLINE_LIST{$line->{CID}} = ($line->{uid} || 0) . ":" . ($line->{id} || '0') . ":$line->{acct_session_id}\n";
+    $USERS_ONLINE_LIST{$line->{CID}} = ($line->{uid} || 0) . ":" . ($line->{id} || '0') . ":$line->{acct_session_id}"; #\n";
   }
 
   #Get stalker info
@@ -283,18 +286,25 @@ sub stalker_online_check {
 
       my $user = $USERS_LIST{$stalker_account_info->{mac}};
       my $expire_unixdate = 0;
-      if ($user->{expire} ne '0000-00-00') {
-        my ($expire_y, $expire_m, $expire_d) = split(/\-/, $user->{expire}, 3);
-        $expire_unixdate = mktime(0, 0, 0, $expire_d, ($expire_m - 1), ($expire_y - 1900));
-        $expire_unixdate = ($expire_unixdate < time) ? 1 : 0;
+      if($user) {
+        if ($user->{expire} ne '0000-00-00') {
+          my ($expire_y, $expire_m, $expire_d) = split(/\-/, $user->{expire}, 3);
+          $expire_unixdate = mktime(0, 0, 0, $expire_d, ($expire_m - 1), ($expire_y - 1900));
+          $expire_unixdate = ($expire_unixdate < time) ? 1 : 0;
+        }
+        elsif ($user->{iptv_expire} ne '0000-00-00') {
+          my ($expire_y, $expire_m, $expire_d) = split(/\-/, $user->{iptv_expire}, 3);
+          $expire_unixdate = mktime(0, 0, 0, $expire_d, ($expire_m - 1), ($expire_y - 1900));
+          $expire_unixdate = ($expire_unixdate < time) ? 1 : 0;
+        }
       }
-      elsif ($user->{iptv_expire} ne '0000-00-00') {
-        my ($expire_y, $expire_m, $expire_d) = split(/\-/, $user->{iptv_expire}, 3);
-        $expire_unixdate = mktime(0, 0, 0, $expire_d, ($expire_m - 1), ($expire_y - 1900));
-        $expire_unixdate = ($expire_unixdate < time) ? 1 : 0;
+      else {
+        print "ERROR NO USER: $stalker_account_info->{mac} // $user \n";
       }
 
       my $credit = ($user->{credit} > 0) ? $user->{credit} : $TP_INFO{$user->{tp_id}}->{CREDIT};
+
+      #Neg deposit
       if (($TP_INFO{$user->{tp_id}}->{PAYMENT_TYPE} == 0 && $user->{deposit} + $credit <= 0)
         || $user->{login_status}
         || $user->{iptv_status}
@@ -335,10 +345,17 @@ sub stalker_online_check {
       else {
         my ($uid, $id, $acct_session_id) = split(/:/, $USERS_ONLINE_LIST{$stalker_account_info->{mac}});
 
+        if (! $uid ) {
+          $uid ||= $user->{uid};
+          $id ||= $user->{id};
+          $USERS_ONLINE_LIST{$stalker_account_info->{mac}}="$uid:$id:$acct_session_id";
+          next;
+        }
+
         $Iptv->online_update({
           ACCT_SESSION_ID => $acct_session_id,
-          UID             => $uid,
-          ID              => $id,
+          UID             => $uid || $user->{uid},
+          ID              => $id || $user->{id},
           CID             => $stalker_account_info->{mac},
           GUEST           => ($stalker_account_info->{status} == 0) ? 1 : 0
         });
@@ -440,14 +457,11 @@ sub stalker_online_check {
     foreach my $mac (keys %USERS_ONLINE_LIST) {
       my ($uid, $id, $acct_session_id) = split(/:/, $USERS_ONLINE_LIST{$mac});
       #Hangup stb box
-      $Stalker_api->_send_request({
-        ACTION => "send_event/" . $id,
-        event  => 'cut_off',
-      });
-
-      if ($Stalker_api->{errno}) {
-        print "ERROR: HANGUP STB LOGIN: " . ($user->{login} || q{-}) . " [$Stalker_api->{errno}] $Stalker_api->{errstr}\n";
-      }
+      $Stalker_api->hangup({ ID => $id });
+      # $Stalker_api->_send_request({
+      #   ACTION => "send_event/" . $id,
+      #   event  => 'cut_off',
+      # });
 
       #Disable account
       #$Stalker_api->user_action({ UID    => $uid,
@@ -457,7 +471,8 @@ sub stalker_online_check {
       #                            change => 1 });
 
       if ($Stalker_api->{errno}) {
-        $Log->log_print('LOG_ERR', $uid, "Hangup Error: UID: $uid ID: $id MAC: $mac [$Stalker_api->{errno}] $Stalker_api->{errstr}");
+        $Log->log_print('LOG_ERR', $uid, "HANGUP STB LOGIN: UID: $uid STB ID: $id MAC: $mac SESSION_ID: $acct_session_id [$Stalker_api->{errno}] $Stalker_api->{errstr}");
+        print "ERROR: HANGUP STB LOGIN: " . ($user->{login} || q{-}) . "UID: $uid STB ID: $id MAC: $mac [$Stalker_api->{errno}] $Stalker_api->{errstr}\n";
       }
       else {
         $Log->log_print('LOG_INFO', $uid, "Hangup: $mac ("
@@ -508,7 +523,7 @@ sub stalker_balance {
         if ($Iptv->{TOTAL}) {
           $Stalker_api->user_action({
             ID              => $some_user->{account_number},
-            ACCOUNT_BALANCE => $user_deposit->{DEPOSIT},
+            DEPOSIT         => $user_deposit->{DEPOSIT},
             change          => 1
           });
         }

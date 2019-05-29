@@ -119,6 +119,9 @@ sub _list {
       [ 'INCTIME',   'DATE', 'inctime',                  1 ],
       [ 'DBTIME',    'DATE', 'dbtime',                   1 ],
       [ 'URL',       'STR',  'url',                      1 ],
+      [ 'MASK',      'STR',  'mask',                     1 ],
+      [ 'SSL',       'STR',  'ssl_name',                 1 ],
+      [ 'PORTS',     'STR',  'ports',                    1 ],
       [ 'NAME',      'STR',  'name',                     1 ],
       [ 'IP',        'IP',   'ip',   'INET_NTOA(ip) AS ip' ],
       [ 'SKIP',      'INT',  'skip',                     1 ],
@@ -225,6 +228,34 @@ sub add_url {
 }
 
 #**********************************************************
+=head2 add_ssl($attr)
+
+=cut
+#**********************************************************
+sub add_ssl {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('netblock_ssl', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 add_ports($attr)
+
+=cut
+#**********************************************************
+sub add_ports {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('netblock_ports', $attr);
+
+  return $self;
+}
+
+#**********************************************************
 =head2 change_blocklist($attr)
 
 =cut
@@ -252,10 +283,12 @@ sub change_blocklist {
 sub change {
   my $self = shift;
   my ($attr) = @_;
+  my $table = $attr->{TABLE} || 'netblock_main';
 
   $self->changes2(
     {
-      TABLE        => 'netblock_main',
+      CHANGE_PARAM => 'ID',
+      TABLE        => $table,
       DATA         => $attr
     }
   );
@@ -290,9 +323,10 @@ sub info {
 #**********************************************************
 sub del {
   my $self = shift;
-  my ($id) = @_;
+  my ($attr) = @_;
+  my $table = $attr->{TABLE} || 'netblock_main';
 
-  $self->query_del('netblock_main', { ID => $id });
+  $self->query_del($table, { ID => $attr->{ID} });
   
   return $self->{result};
 }

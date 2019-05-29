@@ -270,6 +270,7 @@ sub cablecat_maps_wells {
     POINT_ID  => '_SHOW',
     NAME      => '_SHOW',
     CABLE_ID  => '_SHOW',
+    LENGTH    => '_SHOW',
     ID        => '_SHOW',
     PAGE_ROWS => 10000
   });
@@ -292,11 +293,13 @@ sub cablecat_maps_wells {
     COLS_NAME        => 1,
     ADDRESS_FULL     => '_SHOW',
     EXTERNAL         => 1,
+    PAGE_ROWS        => 65000
   });
 
   my $points_by_id = sort_array_to_hash($points_list);
   my $well_by_point_id = sort_array_to_hash($wells_list, 'point_id');
   my $wells_index = get_function_index('cablecat_wells');
+  my $reserve_index = get_function_index('cablecat_reserve');
 
   my @layer_objects = ();
 
@@ -386,10 +389,10 @@ sub cablecat_maps_wells {
     my $marker_info = '';
     my $edit_buttons = '';
     $marker_info = arrays_array2table([
-      [ $lang{CABLE_RESERVE}, $html->button($coil->{name}, "index=$wells_index&chg=$coil->{id}", { target => '_blank' }) ],
+      [ $lang{CABLE_RESERVE}, $html->button($coil->{name}, "index=$reserve_index&chg=$coil->{id}", { target => '_blank' }) ],
       [ $lang{INSTALLED}, $point->{planned} ? $lang{NO} : $lang{YES} ],
       [ $lang{CABLE} . " Id", $coil->{cable_id} ],
-      [ $lang{COMMENTS}, $point->{comments} ],
+      [ $lang{LENGTH}, $coil->{length} ],
     ]);
 
     if ($permissions{5} && $FORM{EDIT_MODE}) {

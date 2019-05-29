@@ -217,8 +217,15 @@
                         </div>
                     </div>
 
+                  <div class='form-group'>
+                    <label class='col-md-3 control-label' for='INTERNET_REGISTRATION'>Internet _{DATE}_ _{REGISTRATION}_</label>
+                    <div class='col-md-9'>
+                      <input id='INTERNET_REGISTRATION' name='INTERNET_REGISTRATION' value='%INTERNET_REGISTRATION%' class='form-control datepicker'
+                             type='text'>
+                    </div>
+                  </div>
 
-                    <div class='form-group'>
+                  <div class='form-group'>
                         <label class='col-md-3 control-label' for='IP_POOL'>IP_POOL</label>
                         <div class='col-md-9'>
                             %IP_POOL_SEL%

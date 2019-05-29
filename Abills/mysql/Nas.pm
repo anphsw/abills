@@ -93,7 +93,7 @@ sub list {
     }
   }
   elsif ($attr->{DISTRICT_ID} || $attr->{ADDRESS_FULL}) {
-    $EXT_TABLES = "INNER JOIN builds ON (builds.id=nas.location_id)";
+    $EXT_TABLES = "LEFT JOIN builds ON (builds.id=nas.location_id)";
     $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=builds.street_id)
       LEFT JOIN districts ON (districts.id=streets.district_id) ";
   }
@@ -383,8 +383,8 @@ sub users_list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   
   my $WHERE =  $self->search_former($attr, [
-      ['NAS_ID',   'INT',     'nas_id'   ],
-      ['UID',   'INT',     'uid'   ],
+      ['NAS_ID',  'INT',     'nas_id'   ],
+      ['UID',     'INT',     'uid'      ],
     ],{
       WHERE => 1
     }
@@ -489,7 +489,10 @@ sub nas_ip_pools_set {
       undef,
       { MULTI_QUERY =>  \@MULTI_QUERY });
 
-  $admin->system_action_add("NAS_ID:$self->{NAS_ID} POOLS:" . (join(',', split(/, /, $attr->{ids}))), { TYPE => 2 });
+  if($admin) {
+    $admin->system_action_add("NAS_ID:$self->{NAS_ID} POOLS:" . (join(',', split(/, /, $attr->{ids}))), { TYPE => 2 });
+  }
+
   return $self->{list};
 }
 
@@ -617,7 +620,9 @@ sub ip_pools_add {
   	                            NAS      => undef,
  	                           });
 
-  $admin->system_action_add("NAS_ID:$attr->{NAS_ID} POOLS:" . (join(',', split(/, /, $attr->{ids}))), { TYPE => 1 });
+  if($admin) {
+    $admin->system_action_add("NAS_ID:$attr->{NAS_ID} POOLS:" . (join(',', split(/, /, $attr->{ids}))), { TYPE => 1 });
+  }
 
   return $self;
 }

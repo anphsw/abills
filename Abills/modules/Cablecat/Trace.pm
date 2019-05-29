@@ -947,7 +947,7 @@ sub get_user_services {
     if ( $attr->{NAS_NAME} && $attr->{NAS_NAME} eq '_SHOW' ) {
       # Should get names for nases
       require Nas;
-      my $Nas = Nas->new(@{$self}{qw/db admin conf/});
+      my $Nas = Nas->new(@{$self}{qw/db conf admin/});
       $Nas->list({
         NAS_ID    => join(';', map {$_->{nas_id}} @$services_list),
         LIST2HASH => 'nas_id,nas_name'

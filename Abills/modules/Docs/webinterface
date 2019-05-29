@@ -62,15 +62,15 @@ require Docs::Tax;
 require Docs::Acts;
 
 #***********************************************************
-=head2 docs_user_del() - Delete user from module
+=head2 docs_user_del($uid, $attr) - Delete user from module
 
 =cut
 #***********************************************************
 sub docs_user_del{
-  my ($uid) = @_;
+  my ($uid, $attr) = @_;
 
   $Docs->{UID} = $uid;
-  $Docs->del( { UID => $uid } );
+  $Docs->del( { UID => $uid, COMMENTS => $attr->{COMMENTS} } );
 
   return 1;
 }
@@ -294,6 +294,23 @@ sub docs_print{
 
   if ( $Docs->{ORDER_TOTAL_SUM_VAT} ){
     $attr->{ORDER_TOTAL_SUM_VAT_LIT} = int2ml( $attr->{ORDER_TOTAL_SUM_VAT},
+      {
+        ONES             => \@ones,
+        TWOS             => \@twos,
+        FIFTH            => \@fifth,
+        ONE              => \@one,
+        ONEST            => \@onest,
+        TEN              => \@ten,
+        TENS             => \@tens,
+        HUNDRED          => \@hundred,
+        MONEY_UNIT_NAMES => $MONEY_UNIT_NAMES,
+        LOCALE           => $conf{LOCALE}
+      }
+    );
+  }
+
+  if ( $attr->{TOTAL_SUM_WITHOUT_VAT} ){
+    $attr->{TOTAL_SUM_WITHOUT_VAT_LIT} = int2ml( $attr->{TOTAL_SUM_WITHOUT_VAT},
       {
         ONES             => \@ones,
         TWOS             => \@twos,
@@ -952,6 +969,7 @@ sub docs_statement_of_account{
     DEPOSIT     => '_SHOW',
     INVOICE_NUM => '_SHOW',
     LAST_DEPOSIT=> '_SHOW',
+    SUM         => '_SHOW',
     %LIST_PARAMS,
     COLS_NAME   => 1,
     COLS_UPPER  => 1
@@ -983,11 +1001,11 @@ sub docs_statement_of_account{
           login       => ($money_operation->{FEES}) ? $users->{LOGIN} : $html->b($users->{LOGIN}),
           invoice_num => $html->b($money_operation->{invoice_num}),
           fio         => ($money_operation->{FEES}) ? $users->{FIO} : $html->b($users->{FIO}),
-          fees_sum    => ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum}) : '',
-          payment_sum => ($money_operation->{FEES}) ? '' : $html->b(sprintf("%.2f", $money_operation->{sum})),
-          describe    => ($money_operation->{FEES}) ? $money_operation->{dsc} : $html->b($money_operation->{dsc}),
+          fees_sum    => ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : '',
+          payment_sum => ($money_operation->{FEES}) ? '' : $html->b(sprintf("%.2f", $money_operation->{sum} || 0)),
+          describe    => ($money_operation->{FEES}) ? $money_operation->{dsc} : $html->b($money_operation->{dsc} || q{}),
           deposit     =>
-            ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{last_deposit}) : $html->b(sprintf("%.2f", $money_operation->{last_deposit}))
+            ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{last_deposit} || 0) : $html->b(sprintf("%.2f", $money_operation->{last_deposit} || 0))
           ,
         },
         { OUTPUT2RETURN => 1 } );

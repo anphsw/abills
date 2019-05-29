@@ -28,8 +28,8 @@ sub form_quick_reports{
     'add_users'      => $lang{REGISTRATION},
     'fin_summary'    => $lang{DEBETORS},
     'users_summary'  => $lang{USERS},
-    'payments_types' => "$lang{TODAY} $lang{PAYMENT_TYPE}",
-    'payments_self'  => "$lang{ADDED} $lang{PAYMENTS}",
+    'payments_types' => "$lang{PAYMENTS} $lang{TODAY}",
+    'payments_self'  => "$lang{PAYMENTS} $lang{ADDED} ",
   );
 
   foreach my $mod_name ( @MODULES ){
@@ -147,7 +147,7 @@ sub start_page_last_payments{
 
   my $list = $Payments->list( {
       LOGIN      => '_SHOW',
-      DATE       => '_SHOW',
+      DATETIME   => '_SHOW',
       SUM        => '_SHOW',
       ADMIN_NAME => '_SHOW',
       SORT       => 'date',
@@ -278,31 +278,41 @@ sub start_page_users_summary{
 =cut
 #**********************************************************
 sub start_page_payments_self{
-  #my ($attr) = @_;
+  my $PAYMENT_METHODS = get_payment_methods();
+  my $count = 0;
+  my $all_sum = 0;
 
-  my $Payments = Finance->payments( $db, $admin, \%conf );
-  $Payments->list( { AID => $admin->{AID},
-      DATE                          => $DATE,
-      PAGE_ROWS                     => 2,
-      COLS_NAME                     => 1
-    } );
+  my $Payments = Finance->payments($db, $admin, \%conf);
+  my $list = $Payments->payment_report_admin({
+    AID       => $admin->{AID},
+    DATE      => $DATE,
+    COLS_NAME => 1
+  });
 
-  $admin->info( $admin->{AID} );
+  $admin->info($admin->{AID});
 
   my $table = $html->table(
     {
-      width      => '100%',
-      caption    => "$lang{PAYMENTS} $lang{ADDED}",
-      ID         => 'TODAY_PAYMENTS',
-      EXPORT     => 1,
-      rows       => [
-        [ $lang{DATE}, $DATE ],
-        [ $lang{ADMIN}, $admin->{A_FIO} ],
-        [ $lang{COUNT}, ($Payments->{TOTAL} || 0) ],
-        [ $lang{TOTAL}, ($Payments->{SUM} || '0.00') ],
-      ]
+      width   => '100%',
+      caption => "$lang{PAYMENTS} $lang{ADDED}",
+      ID      => 'TODAY_PAYMENTS',
+      EXPORT  => 1,
     }
   );
+
+  $table->addrow($lang{DATE}, $DATE);
+  $table->addrow($lang{ADMIN}, $admin->{A_FIO});
+  $table->addrow(
+    $html->b($lang{PAYMENT_TYPE}),
+    $html->b($lang{SUM})
+  );
+  foreach (@$list) {
+    $table->addrow(($PAYMENT_METHODS->{$_->{method}} || ''), ($_->{sum} || ''));
+  $count += $_->{total} || 0;
+  $all_sum += $_->{sum} || 0;
+  }
+  $table->addrow($lang{COUNT}, $count);
+  $table->addrow( $lang{TOTAL}, $all_sum);
 
   return $table->show();
 }

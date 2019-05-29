@@ -88,4 +88,7 @@ $lang{CLOSEST} = 'Closest';
 
 $lang{WELL} = 'Well';
 $lang{WELLS} = 'Wells';
+
+$lang{DISPLAYED_ITEMS} = "Displayed items";
+
 1;

@@ -30,7 +30,7 @@
                     <label class='font-weight-bold col-md-6 form-control-label'>%COMMISSION_SUM%</label>
                 </div>
                 <div class='form-group'>
-                    <label class='font-weight-bold text-center col-md-6 form-control-label'>_{TOTAL}__{SUM}_:</label>
+                    <label class='font-weight-bold text-center col-md-6 form-control-label'>_{TOTAL}_ _{SUM}_:</label>
                     <label class='font-weight-bold col-md-6 form-control-label'>%TOTAL_SUM%</label>
                 </div>
             </div>

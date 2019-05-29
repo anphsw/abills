@@ -111,6 +111,7 @@ sub form_groups {
       return 0;
     }
 
+
     $users->{ACTION}        = 'change';
     $users->{LNG_ACTION}    = $lang{CHANGE};
     $users->{SEPARATE_DOCS} = ($users->{SEPARATE_DOCS})  ? 'checked' : '';
@@ -165,21 +166,51 @@ sub form_groups {
     }
   );
 
+  if ($admin->{MAX_ROWS}) {
+    $table = $html->table(
+      {
+        width      => '100%',
+        caption    => $lang{GROUPS},
+        title      => [ '#', $lang{NAME}, $lang{DESCRIBE}, "$lang{ALLOW} $lang{CREDIT}",
+          "$lang{DISABLE} Paysys", "$lang{DISABLE} $lang{USER_CHG_TP}", '-' ],
+        qs         => $pages_qs,
+        pages      => $users->{TOTAL},
+        ID         => 'GROUPS',
+        FIELDS_IDS => $users->{COL_NAMES_ARR},
+        EXPORT     => 1,
+        MENU       => "$lang{ADD}:index=$index&add_form=1:add"
+      }
+    );
+  }
+
   foreach my $line (@$list) {
     my $delete = (defined( $permissions{0}{5} )) ? $html->button( $lang{DEL},
         "index=" . get_function_index( 'form_groups' ) . "$pages_qs&del=$line->{gid}",
         { MESSAGE => "$lang{DEL} [$line->{gid}] $line->{name}?", class => 'del' } ) : '';
 
-    $table->addrow($html->b($line->{gid}),
-      $line->{name},
-      $line->{descr},
-      $html->button($line->{users_count}, "index=7&GID=$line->{gid}&search_form=1&search=1&type=11"),
-      $bool_vals[$line->{allow_credit}],
-      $bool_vals[$line->{disable_paysys}],
-      $bool_vals[$line->{disable_chg_tp}],
-      $html->button( $lang{INFO}, "index=" . get_function_index( 'form_groups' ) . "&GID=$line->{gid}",
-        { class => 'change' } )
-        .' '.$delete );
+    if (!$admin->{MAX_ROWS}) {
+      $table->addrow($html->b($line->{gid}),
+        $line->{name},
+        $line->{descr},
+        $html->button($line->{users_count}, "index=7&GID=$line->{gid}&search_form=1&search=1&type=11"),
+        $bool_vals[$line->{allow_credit}],
+        $bool_vals[$line->{disable_paysys}],
+        $bool_vals[$line->{disable_chg_tp}],
+        $html->button($lang{INFO}, "index=" . get_function_index('form_groups') . "&GID=$line->{gid}",
+          { class => 'change' })
+          . ' ' . $delete);
+    }
+    else {
+      $table->addrow($html->b($line->{gid}),
+        $line->{name},
+        $line->{descr},
+        $bool_vals[$line->{allow_credit}],
+        $bool_vals[$line->{disable_paysys}],
+        $bool_vals[$line->{disable_chg_tp}],
+        $html->button($lang{INFO}, "index=" . get_function_index('form_groups') . "&GID=$line->{gid}",
+          { class => 'change' })
+          . ' ' . $delete);
+    }
   }
   print $table->show();
 

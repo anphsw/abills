@@ -34,7 +34,7 @@ $lang{REVISION} = 'Ревізія (версія)';
 $lang{SELECT_TYPE} = 'Виберіть тип';
 $lang{SELECT_PORT} = 'Виберіть порт';
 $lang{REGISTERED} = 'Зареєстровано';
-$lang{HOURS} = 'годин';
+$lang{HOURS_} = 'годин';
 
 $lang{REBOOT}='Перезавантажити';
 $lang{REBOOTED}='Перезавантажена';
@@ -56,9 +56,63 @@ $lang{PORT_SHIFT}='Зсування портів';
 $lang{FIRMWARE}='Прошивка';
 
 $lang{FREE_ONU}='Вільних';
+$lang{REPORT_EQUIPMENT}='Звіт про обладнання';
+$lang{TOTAL_COUNT}='Кількість пристроїв';
+$lang{ACTIVE_COUNT}='Кількість активних пристроїв';
+$lang{PING_COUNT}='Кількість ping';
+$lang{SNMP_COUNT}='Кількість snmp';
+$lang{INACTIVE_COUNT}='Кількість неактивних пристроїв';
+$lang{UNIQ_MAC_COUNT}='Кількість пристроїв з унікальним маком';
+
+$lang{REPORT_PON}='Звіт по PON';
+$lang{OLT_COUNT}='Кількість OLT';
+$lang{BRANCH_COUNT}='Кількість гілок';
+$lang{ONU_COUNT}='Кількість ONU';
+$lang{ACTIVE_ONU_COUNT}='Кількість активних ONU';
+$lang{INACTIVE_ONU_COUNT}='Кількість неактивних ONU';
+$lang{BAD_ONU_COUNT}='Кількість збійних ONU';
+$lang{NOTREGISTRED_ONU_COUNT}='Кількість незареєстрованих ONU';
 
 $lang{NOT_MONITORING}='Не моніторити';
 $lang{SPEED_CHARTS}='Графіки швидкості';
 $lang{SPEED_IN}='Вхідна швидкість(Mb/s)';
 $lang{SPEED_OUT}='Вихідна швидкість(Mb/s)';
+$lang{SIGNAL} = 'Сигнал';
+
+$lang{REPORT_ON_UNREGISTERED_ONU} = "Звіт по незареєстрованим ONU";
+$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS} = "Звіт по кількості зайнятих і вільних портів";
+$lang{TOTAL_ALL_PORTS} = "Загальна кількість портів";
+$lang{TOTAL_BUSY_PORTS} = "Кількість зайнятих портів";
+$lang{TOTAL_FREE_PORTS} = "Кількість вільних портів";
+
+$lang{ELECTRIC_POWER} = "Електрична потужність";
+
+$lang{ERROR_DIR} = 'Не вийшло відкрити папку:';
+$lang{ERROR_FILE} = "Не вийшло відкрити файл: ";
+$lang{EDIT_SUCCESS} = 'Шаблон змінено';
+$lang{INVALID_JSON} = 'Невірний формат файла';
+$lang{FILES_TITLE} = 'Шаблони';
+$lang{FIELD} = 'поле';
+$lang{GROUP} = 'групу';
+$lang{FILE_REMOVED} = 'Файл видалено';
+$lang{FILE_NOT_REMOVED} = "Файл не був видалений";
+$lang{JSON_CONF} = 'SNMP Шаблони';
+$lang{REMOVE} = 'Видалити';
+$lang{TITLE} = 'Заголовок';
+
+
+$lang{GOOD_SIGNAL} = 'Хороший сигнал';
+$lang{BAD_SIGNAL} = 'Поганий сигнал';
+$lang{WORTH_SIGNAL} = 'Средній сигнал';
+$lang{BUSY} = 'заповнено на';
+
+$lang{ONU_PROFILE} = 'Профайл';
+$lang{CALCULATOR} = 'Калькулятор';
+$lang{CABLE_LENGTH} = 'Довжина опт. кабеля, км.';
+$lang{CON_COUNT} = 'Кільк. мех. зєдн., шт.';
+$lang{DIVIDER} = 'Дільник';
+$lang{CALCULATE} = 'Підрахувати';
+$lang{COUPLER} = 'Відгалужувач';
+$lang{PASS} = 'Прохід';
+$lang{BEND} = 'Відведення';
 1

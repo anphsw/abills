@@ -85,4 +85,7 @@ $lang{CLOSEST} = 'Ближайшие';
 
 $lang{WELL} = 'Узел связи';
 $lang{WELLS} = 'Узлы связи';
+
+$lang{DISPLAYED_ITEMS} = "Отображено элементов";
+
 1;

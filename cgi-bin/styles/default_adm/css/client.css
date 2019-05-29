@@ -205,3 +205,25 @@ div.input-group > span.input-group-addon.glyphicon {
 .box-footer .pull-right .pagination {
     margin: 2px 0;
 }
+.form-inline .input-group.select{
+    min-width: 20%;
+}
+.input-group.select {
+    width: 100%;
+    margin-bottom: 0;
+}
+.input-group {
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .form-inline .input-group.select {
+        display: inline-block;
+        width: auto;
+        vertical-align: middle;
+    }
+}
+
+.form-inline .form-group .select2-container {
+    display: block;
+}

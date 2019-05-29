@@ -58,8 +58,8 @@ sub storage_articles{
   }
   elsif ( $FORM{del} ) {
     my $list = $Storage->storage_incoming_articles_list( { ARTICLE_ID => $FORM{del}, COLS_NAME => 1 } );
-    if ( defined( $list->[0]->{id} ) ) {
-      $html->message( 'info', $lang{INFO}, "$lang{CANT_DELETE_ERROR1} " );
+    if($Storage->{TOTAL} > 0){
+      $html->message( 'warning', $lang{INFO}, "$lang{CANT_DELETE_ERROR1} " );
     }
     else {
       $Storage->storage_articles_del( { ID => $FORM{del} } );
@@ -172,8 +172,14 @@ sub storage_measure {
     _error_show($Storage);
   }
   elsif ($FORM{del}) {
-    $Storage->storage_measure_delete({ ID => $FORM{del} });
-    _error_show($Storage);
+    $Storage->storage_articles_list({MEASURE => $FORM{del}, COLS_NAME => 1});
+    if($Storage->{TOTAL} > 0){
+      $html->message('warn', "$lang{ERROR}", $lang{CANT_DELETE_ERROR5});
+    }
+    else{
+      $Storage->storage_measure_delete({ ID => $FORM{del} });
+      _error_show($Storage);
+    }
   }
 
   if ($FORM{chg}) {
@@ -210,6 +216,7 @@ sub storage_measure {
       DEFAULT_FIELDS  => "ID, NAME, COMMENTS",
       FUNCTION_FIELDS => 'change,del',
       FILTER_COLS     => {name => "_storage_translate_measure::NAME,"},
+      SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
         'id'     => "ID",
         'name'   => $lang{NAME},
@@ -288,10 +295,16 @@ sub storage_articles_types{
     }
   }
   elsif ( $FORM{del} && $FORM{COMMENTS} ) {
-    $Storage->storage_types_del( { ID => $FORM{del} } );
+    my $list_in_use = $Storage->storage_articles_list({ARTICLE_TYPE => $FORM{del}});
+    if($Storage->{TOTAL} > 0){
+      $html->message('warn', "$lang{ERROR}", "$lang{CANT_DELETE_ERROR2}");
+    }
+    else{
+      $Storage->storage_types_del( { ID => $FORM{del} } );
 
-    if ( !$Storage->{errno} ) {
-      $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
+      if ( !$Storage->{errno} ) {
+        $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
+      }
     }
   }
   elsif ( $FORM{change} ) {
@@ -373,7 +386,7 @@ sub suppliers_main{
     _error_show( $Storage );
 
     if ( defined( $list->[0]->{id} ) ) {
-      $html->message( 'info', $lang{INFO}, "$lang{CANT_DELETE_ERROR3}" );
+      $html->message( 'warn', $lang{INFO}, "$lang{CANT_DELETE_ERROR3}" );
     }
     else {
       $Storage->suppliers_del( { ID => $FORM{del} } );
@@ -443,26 +456,64 @@ sub suppliers_main{
     }
   );
 
-  my $list = $Storage->suppliers_list( { COLS_NAME => 1 } );
-  _error_show( $Storage );
-
-  foreach my $line ( @{$list} ) {
-    $table->addrow(
-      $line->{name},
-      $line->{phone},
-      $line->{email},
-      $line->{icq},
-      $line->{site},
-      $line->{director},
-      $line->{mfo},
-      $html->button( $lang{INFO}, "index=$index&chg=$line->{id}", { class => 'change' } )
-        . ' ' . ((defined( $permissions{0}->{5} ))                                     ? $html->button( $lang{DEL},
-          "index=$index&del=$line->{id}",
-          { MESSAGE => "$lang{DEL} $lang{SUPPLIER} $line->{name}?", class => 'del' } ) : '')
-    );
-  }
-
-  print $table->show();
+#  my $list = $Storage->suppliers_list( { COLS_NAME => 1 } );
+#  _error_show( $Storage );
+#
+#  foreach my $line ( @{$list} ) {
+#    $table->addrow(
+#      $line->{name},
+#      $line->{phone},
+#      $line->{email},
+#      $line->{icq},
+#      $line->{site},
+#      $line->{director},
+#      $line->{account},
+#      $html->button( $lang{INFO}, "index=$index&chg=$line->{id}", { class => 'change' } )
+#        . ' ' . ((defined( $permissions{0}->{5} ))                                     ? $html->button( $lang{DEL},
+#          "index=$index&del=$line->{id}",
+#          { MESSAGE => "$lang{DEL} $lang{SUPPLIER} $line->{name}?", class => 'del' } ) : '')
+#    );
+#  }
+#
+#  print $table->show();
+  result_former( {
+    INPUT_DATA      => $Storage,
+    FUNCTION        => 'suppliers_list_new',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,PHONE,EMAIL,DIRECTOR,ACCOUNT',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id        => '#',
+      name      => $lang{NAME},
+      date      => $lang{DATE},
+      okpo      => $lang{OKPO},
+      inn       => $lang{INN},
+      inn_svid  => $lang{CERTIFICATE_OF_INDIVIDUAL_TAX_NUMBER},
+      account   => $lang{ACCOUNT},
+      mfo       => $lang{MFO},
+      phone     => "$lang{PHONE} 1",
+      phone2    => "$lang{PHONE} 2",
+      fax       => $lang{FAX},
+      url       => $lang{SITE},
+      email     => 'EMAIL',
+      telegram  => 'Telegram',
+      accountant => $lang{POSITION_MANAGER},
+      director   => $lang{DIRECTOR},
+      managment  => $lang{ACCOUNTANT},
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{SUPPLIERS}",
+      qs      => $pages_qs,
+      ID      => 'SUPPLIERS_LIST',
+      EXPORT  => 1,
+      #MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -504,8 +555,8 @@ sub storage_storages{
   }
   elsif ( $FORM{del} && $FORM{COMMENTS} ) {
     $Storage->storage_incoming_articles_list( { STORAGE_ID => $FORM{del}, COLS_NAME => 1 } );
-    if ( $Storage->{total} ) {
-      $html->message( 'info', $lang{INFO}, "$lang{CANT_DELETE_ERROR1} " );
+    if ( $Storage->{TOTAL} ) {
+      $html->message( 'warn', $lang{INFO}, "$lang{CANT_DELETE_ERROR1} " );
     }
     else {
       $Storage->storage_del( { ID => $FORM{del} } );
@@ -591,8 +642,15 @@ sub storage_properties {
     _error_show($Storage);
   }
   elsif ($FORM{del}) {
-    $Storage->storage_property_delete({ ID => $FORM{del} });
-    _error_show($Storage);
+    $Storage->storage_property_value_list({PROPERTY_ID => $FORM{del}});
+
+    if($Storage->{TOTAL} > 0){
+      $html->message( 'warning', $lang{INFO}, "$lang{CANT_DELETE_ERROR6} " );
+    }
+    else{
+      $Storage->storage_property_delete({ ID => $FORM{del} });
+      _error_show($Storage);
+    }
   }
 
   if ($FORM{chg}) {
@@ -627,6 +685,7 @@ sub storage_properties {
       BASE_FIELDS     => 0,
       DEFAULT_FIELDS  => "ID, NAME, COMMENTS",
       FUNCTION_FIELDS => 'change,del',
+      SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
         'id'     => "ID",
         'name'   => $lang{NAME},
@@ -695,6 +754,97 @@ sub _property_list_html {
   }
 
   return $properties_html;
+}
+
+#**********************************************************
+=head2 storage_admins()
+
+=cut
+#**********************************************************
+sub storage_admins {
+  my %STORAGE_ADMINS_TEMPLATE = (
+    BTN_NAME  => "add",
+    BTN_VALUE => $lang{ADD}
+  );
+
+  if ($FORM{add}) {
+    $Storage->storage_admin_add({ %FORM });
+    if(!_error_show($Storage)){
+      $html->message('success', "$lang{SUCCESS}", $lang{ADDED});
+    }
+  }
+  elsif ($FORM{change}) {
+    $Storage->storage_admin_change({ %FORM });
+    if(!_error_show($Storage)){
+      $html->message('success', "$lang{SUCCESS}", $lang{CHANGED});
+    }
+  }
+  elsif ($FORM{del}) {
+    $Storage->storage_admin_delete({ ID => $FORM{del} });
+    if(!_error_show($Storage)){
+      $html->message('success', "$lang{SUCCESS}", $lang{DELETED});
+    }
+  }
+
+  if ($FORM{chg}) {
+    $STORAGE_ADMINS_TEMPLATE{BTN_NAME} = "change";
+    $STORAGE_ADMINS_TEMPLATE{BTN_VALUE} = $lang{CHANGE};
+
+    my $admin_settings_info = $Storage->storage_admin_info({
+      ID         => $FORM{chg},
+      AID        => '_SHOW',
+      PERCENT    => '_SHOW',
+      COMMENTS   => '_SHOW',
+      NAME       => '_SHOW',
+      COLS_NAME  => 1,
+      COLS_UPPER => 1,
+    });
+    if(!_error_show($Storage)){
+      $html->message('success', "$lang{SUCCESS}", $lang{CHANGE_DATA});
+    }
+
+    if ($admin_settings_info) {
+      @STORAGE_ADMINS_TEMPLATE{keys %$admin_settings_info} = values %$admin_settings_info;
+    }
+  }
+
+  $STORAGE_ADMINS_TEMPLATE{ADMINS_SELECT} = sel_admins({
+    SELECTED => $STORAGE_ADMINS_TEMPLATE{AID} || '',
+  });
+
+  $html->tpl_show(
+    _include('storage_admins', 'Storage'),
+    {
+      %STORAGE_ADMINS_TEMPLATE
+    }
+  );
+
+  result_former(
+    {
+      INPUT_DATA      => $Storage,
+      FUNCTION        => 'storage_admins_list',
+      BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => "ID, ADMIN_NAME, PERCENT, COMMENTS",
+      FUNCTION_FIELDS => 'change,del',
+      SKIP_USER_TITLE => 1,
+      EXT_TITLES      => {
+        'id'         => "ID",
+        'percent'    => "$lang{PERCENT}, %",
+        'admin_name' => $lang{ADMIN},
+        'comments'   => $lang{COMMENTS},
+      },
+      TABLE           => {
+        width   => '100%',
+        caption => $lang{ADMINS},
+        qs      => $pages_qs,
+        ID      => 'STORAGE_PROPERTY',
+      },
+      MAKE_ROWS       => 1,
+      SEARCH_FORMER   => 1,
+      MODULE          => 'Storage',
+      TOTAL           => "TOTAL:$lang{TOTAL}",
+    }
+  );
 }
 
 1;

@@ -18,17 +18,18 @@
   <title>%TITLE% %BREADCRUMB%</title>
   <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   <!-- CSS -->
+  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/select2.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/dist/css/AdminLTE.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/dist/css/AdminLTE.css'>
 
   <!-- Theme style -->
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/dist/css/skins/_all-skins.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/dist/css/skins/_all-skins.css'>
 
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/currencies.css'>
 
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/pace/pace.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datepicker/datepicker3.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/chosen.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/pace/pace.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datepicker/datepicker3.css'>
+  <!--<link rel='stylesheet' type='text/css' href='/styles/default_adm/css/chosen.min.css'>-->
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/QBInfo.css'>
 
   <!-- Ionicons -->
@@ -37,10 +38,10 @@
   <!-- Pace style -->
 
   <!-- DataTables -->
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/daterangepicker/daterangepicker.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/lte_adm/plugins/datetimepicker/datetimepicker.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datatables/dataTables.bootstrap.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/style.css'>
 
   <!-- Bootstrap -->
@@ -65,7 +66,7 @@
   <script  src='/styles/default_adm/js/navBarCollapse.js'></script>
 
   <!-- Custom <select> design -->
-  <script src='/styles/default_adm/js/chosen.jquery.min.js'></script>
+  <!--<script src='/styles/default_adm/js/chosen.jquery.min.js'></script>-->
 
   <!--Javascript template engine-->
   <script src='/styles/default_adm/js/mustache.min.js'></script>
@@ -86,23 +87,23 @@
   <script src='/styles/default_adm/js/msgs/jquery-ui.min.js'></script>
 
   <!-- date-range-picker -->
-  <script src='/styles/lte_adm/plugins/moment/moment.min.js'></script>
-  <script src='/styles/lte_adm/plugins/datepicker/bootstrap-datepicker.js'></script>
-  <script src='/styles/lte_adm/plugins/pace/pace.js'></script>
-  <script src='/styles/lte_adm/plugins/datatables/jquery.dataTables.min.js'></script>
-  <script src='/styles/lte_adm/plugins/datatables/dataTables.bootstrap.min.js'></script>
-  <script src='/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.js'></script>
-  <script src='/styles/lte_adm/plugins/daterangepicker/daterangepicker.js'></script>
-  <script src='/styles/lte_adm/plugins/datetimepicker/datetimepicker.min.js'></script>
-  <!--<script src='/styles/lte_adm/plugins/slimScroll/jquery.slimscroll.min.js'></script>-->
-  <!--<script src='/styles/lte_adm/plugins/input-mask/jquery.inputmask.js'></script>-->
-  <!--<script src='/styles/lte_adm/plugins/input-mask/jquery.inputmask.date.ex ensions.js'></script>-->
-  <!--<script src='/styles/lte_adm/plugins/input-mask/jquery.inputmask.extensions.js'></script>-->
+  <script src='/styles/%HTML_STYLE%/plugins/moment/moment.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/datepicker/bootstrap-datepicker.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/pace/pace.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/datatables/jquery.dataTables.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/datatables/dataTables.bootstrap.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.js'></script>
+  <script src='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.js'></script>
+  <!--<script src='/styles/%HTML_STYLE%/plugins/slimScroll/jquery.slimscroll.min.js'></script>-->
+  <!--<script src='/styles/%HTML_STYLE%/plugins/input-mask/jquery.inputmask.js'></script>-->
+  <!--<script src='/styles/%HTML_STYLE%/plugins/input-mask/jquery.inputmask.date.ex ensions.js'></script>-->
+  <!--<script src='/styles/%HTML_STYLE%/plugins/input-mask/jquery.inputmask.extensions.js'></script>-->
 
-  <script src='/styles/lte_adm/dist/js/app.js'></script>
+  <script src='/styles/%HTML_STYLE%/dist/js/app.js'></script>
 
-  <script src='/styles/lte_adm/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
-
+  <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
+  <script src='/styles/default_adm/js/select2.min.js'></script>
   <script>
     window['IS_ADMIN_INTERFACE'] = true;
     window['IS_CLIENT_INTERFACE'] = false;

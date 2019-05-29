@@ -425,19 +425,28 @@ sub pi_change {
 
   if ( $self->{conf}->{CONTACTS_NEW} ) {
     my $phone_changed = defined $self->{PHONE} && $attr->{PHONE} && $self->{PHONE} ne $attr->{PHONE};
+    my $cell_phone_changed = defined $self->{CELL_PHONE} && $attr->{CELL_PHONE} && $self->{CELL_PHONE} ne $attr->{CELL_PHONE};
     my $mail_changed = defined $self->{EMAIL} && $attr->{EMAIL} && $self->{EMAIL} ne $attr->{EMAIL};
 
-    if ( $phone_changed || $mail_changed ) {
+    if ( $phone_changed || $mail_changed || $cell_phone_changed) {
       require Contacts;
       Contacts->import();
       my $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
 
-      if ( $phone_changed ) {
+      if ( $cell_phone_changed ) {
         # MAYBE check it is really a cell phone via regexp
         $Contacts->contacts_change_all_of_type($Contacts->contact_type_id_for_name('CELL_PHONE'), {
           UID   => $self->{UID},
-          VALUE => $attr->{PHONE}
+          VALUE => $attr->{CELL_PHONE}
         });
+        delete $attr->{CELL_PHONE};
+      }
+      if ( $phone_changed ) {
+        # MAYBE check it is really a cell phone via regexp
+        $Contacts->contacts_change_all_of_type($Contacts->contact_type_id_for_name('PHONE'), {
+            UID   => $self->{UID},
+            VALUE => $attr->{PHONE}
+          });
         delete $attr->{PHONE};
       }
       if ( $mail_changed ) {
@@ -506,8 +515,9 @@ sub groups_list {
 
   my $USERS_WHERE = '';
   if ($admin->{DOMAIN_ID}) {
-    push @WHERE_RULES, @{ $self->search_expr( $admin->{DOMAIN_ID}, 'INT', 'g.domain_id' ) };
-    $USERS_WHERE = "AND ". join('AND', @{ $self->search_expr( $admin->{DOMAIN_ID}, 'INT', 'u.domain_id' ) });
+    $admin->{DOMAIN_ID} =~ s/,/;/g;
+    #push @WHERE_RULES, @{ $self->search_expr( $admin->{DOMAIN_ID}, 'INT', 'g.domain_id' ) };
+    $USERS_WHERE = "AND (". join('AND', @{ $self->search_expr($admin->{DOMAIN_ID}, 'INT', 'u.domain_id' ) }) .')';
   }
 
   my $WHERE = $self->search_former($attr, [
@@ -525,7 +535,7 @@ sub groups_list {
         $self->{SEARCH_FIELDS}
         g.domain_id
         FROM groups g
-        LEFT JOIN users u ON  (u.gid=g.gid $USERS_WHERE)
+        LEFT JOIN users u ON (u.gid=g.gid $USERS_WHERE)
         $WHERE
         GROUP BY g.gid
         ORDER BY $SORT $DESC",
@@ -573,6 +583,8 @@ sub group_change {
   $attr->{DISABLE_PAYSYS}= ($attr->{DISABLE_PAYSYS}) ? 1 : 0;
   $attr->{DISABLE_CHG_TP}= ($attr->{DISABLE_CHG_TP}) ? 1 : 0;
   $attr->{BONUS}         = ($attr->{BONUS}) ? 1 : 0;
+
+  $attr->{GID}=$gid;
 
   $self->changes(
     {
@@ -647,17 +659,13 @@ sub list {
     delete ($attr->{TAGS});
   }
 
-  if($admin->{DOMAIN_ID}) {
-    $attr->{SKIP_DOMAIN}=1;
-    delete $attr->{DOMAIN_ID};
-  }
-
   my @ext_fields = (
     'FIO',
     'FIO2',
     'FIO3',
     'DEPOSIT',
     'EXT_DEPOSIT',
+    'EXT_BILL_ID',
     'CREDIT',
     'CREDIT_DATE',
     'LOGIN_STATUS',
@@ -686,8 +694,17 @@ sub list {
     'ACCEPT_RULES',
 #    'DOMAIN_ID',
     'UID',
-    'PASSWORD'
+    'PASSWORD',
+    'BIRTH_DATE'
   );
+
+  if($admin->{DOMAIN_ID}) {
+    $attr->{SKIP_DOMAIN}=1;
+    delete $attr->{DOMAIN_ID};
+  }
+  else {
+    push @ext_fields, 'DOMAIN_ID';
+  }
 
   if ($self->{conf}{CONTACTS_NEW}){
     push (@ext_fields, 'CELL_PHONE');
@@ -728,7 +745,7 @@ sub list {
     my @HAVING_RULES = @WHERE_RULES;
     if ($attr->{PAYMENTS}) {
       my $value = @{ $self->search_expr($attr->{PAYMENTS}, 'INT') }[0];
-      push @WHERE_RULES,  "p.date$value";
+      push @WHERE_RULES,  "DATE_FORMAT(p.date,'%Y-%m-%d')$value";
       push @HAVING_RULES, "MAX(p.date)$value";
       $self->{SEARCH_FIELDS} .= 'MAX(p.date) AS last_payment, ';
       $self->{SEARCH_FIELDS_COUNT}++;
@@ -742,7 +759,7 @@ sub list {
         my $value = "NOW() - INTERVAL $payment_days DAY";
         $value =~ s/([<>=]{1,2})//g;
         $value = $1 . $value;
-        push @where_, "p.date$value";
+        push @where_, "DATE_FORMAT(p.date, '%Y-%m-%d')$value";
         push @having_, "MAX(p.date)$value";
 
       }
@@ -817,7 +834,7 @@ sub list {
     my @HAVING_RULES = @WHERE_RULES;
     if ($attr->{FEES}) {
       my $value = @{ $self->search_expr($attr->{FEES}, 'INT') }[0];
-      push @WHERE_RULES,  "f.date$value";
+      push @WHERE_RULES,  "DATE_FORMAT(f.date, '%Y-%m-%d')$value";
       push @HAVING_RULES, "MAX(f.date)$value";
       $self->{SEARCH_FIELDS} .= 'MAX(f.date) AS last_fees, ';
       $self->{SEARCH_FIELDS_COUNT}++;
@@ -829,7 +846,7 @@ sub list {
         my $value = "NOW() - INTERVAL $operation_days DAY";
         $value =~ s/([<>=]{1,2})//g;
         $value = $1 . $value;
-        push @WHERE_RULES,  "p.date$value";
+        push @WHERE_RULES,  "DATE_FORMAT(p.date, '%Y-%m-%d')$value";
         push @HAVING_RULES, "MAX(f.date)$value";
       }
 
@@ -903,6 +920,7 @@ sub list {
   }
 
   if ($admin->{DOMAIN_ID}) {
+    $admin->{DOMAIN_ID} =~ s/;/,/g;
     $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." u.domain_id IN ($admin->{DOMAIN_ID})";
   }
 
@@ -913,6 +931,10 @@ sub list {
   if($self->{SORT_BY}) {
     $SORT=$self->{SORT_BY};
   }
+  my $GROUP_BY = q{};
+    if($attr->{TAGS}) {
+    $GROUP_BY = 'GROUP BY u.id';
+  }
 
   $self->query("SELECT u.id AS login,
       $self->{SEARCH_FIELDS}
@@ -920,6 +942,7 @@ sub list {
     FROM users u
     $EXT_TABLES
     $WHERE
+    $GROUP_BY
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -1173,8 +1196,9 @@ sub del {
   my ($attr) = @_;
 
   my $comments = ($attr->{COMMENTS}) ? ' '.$attr->{COMMENTS}: q{};
+  $admin->{MODULE} = '';
   if ($attr->{FULL_DELETE}) {
-    my @clear_db = ('admin_actions', 'fees', 'payments', 'users_nas', 'users', 'users_pi', 'shedule', 'msgs_messages');
+    my @clear_db = ('admin_actions', 'fees', 'payments', 'users_nas', 'users', 'users_pi', 'shedule', 'msgs_messages', 'web_users_sessions');
 
     $self->{info} = '';
     foreach my $table (@clear_db) {
@@ -1190,8 +1214,6 @@ sub del {
 
     my $Attach = Attach->new($self->{db}, $admin, $CONF);
     $Attach->attachment_del({ UID => $self->{UID}, FULL_DELETE => 1 });
-
-    $admin->{MODULE} = '';
     $admin->action_add($self->{UID}, "DELETE $self->{UID}:$self->{LOGIN}$comments", { TYPE => 12 });
   }
   else {
@@ -1250,6 +1272,7 @@ sub nas_add {
       undef,
       { MULTI_QUERY =>  \@MULTI_QUERY });
 
+  $admin->{MODULE}='';
   $admin->action_add($self->{UID}, "NAS " . join(',', @$nas));
   return $self;
 }
@@ -1265,6 +1288,7 @@ sub nas_del {
   $self->query_del('users_nas', undef, { uid => $self->{UID} });
   return $self if ($self->{error} > 0);
 
+  $admin->{MODULE}='';
   $admin->action_add($self->{UID}, "DELETE NAS");
   return $self;
 }
@@ -1707,6 +1731,7 @@ sub info_field_add {
     " varchar(120) not null default ''",
     " varchar(120) not null default ''",
     " tinyint(2) not null default '0' ",
+    " DATE not null default '0000-00-00' ",
   );
 
   $attr->{FIELD_TYPE} = 0 if (!$attr->{FIELD_TYPE});
@@ -2232,6 +2257,90 @@ sub contracts_type_del {
 
   return $self;
 }
+#**********************************************************
+=head2 info_user_reports() - Get info for user reports
 
+  Arguments:
+     YEAR - year for search
+     PAY_SUM - sum payments for users
+  Returns:
+    $list
+=cut
+#**********************************************************
+sub info_user_reports {
+  my $self = shift;
+  my ($attr) = @_;
+  my $list = '';
+  if ($attr->{USER_NEW_COUNT}) {
+    $self->query("
+      SELECT
+        COUNT(*) AS count,
+        DATE_FORMAT(registration, '%m') AS reg_month
+      FROM users
+      WHERE DATE_FORMAT(registration, '%Y')='$attr->{YEAR}'
+      GROUP BY reg_month;",
+      undef,
+      $attr
+    );
+    $list = $self->{list_hash};
+  }
+  elsif ($attr->{PAY_SUM}) {
+    $self->query("
+      SELECT SUM(p.sum) as sum
+      FROM users u
+      JOIN payments p
+      ON p.uid=u.uid
+      WHERE (DATE_FORMAT(p.date, '%Y-%m')>='$attr->{YEAR}-$attr->{MONTH}' and DATE_FORMAT(p.date, '%Y-%m')<='$attr->{YEAR}-$attr->{MONTH}' AND NOT p.method='4');",
+      undef,
+      $attr
+    );
+    $list = $self->{list}[0] || 0;
+  }
+  elsif ($attr->{INFO_STATUS}) {
+    $self->query("
+      SELECT SUM(sum) as sum
+      FROM users u
+      JOIN payments p
+      ON p.uid=u.uid
+      WHERE DATE_FORMAT(u.registration, '%Y-%m');",
+      undef,
+      $attr
+    );
+    $list = $self->{list}[0] || 0;
+  }
+  elsif ($attr->{FEES_PER_MONTH}) {
+    $self->query("SELECT SUM(f.sum) as sum
+      FROM (SELECT DISTINCT internet.uid
+      FROM internet_main internet
+      JOIN  users u ON u.uid=internet.uid) as uids
+      JOIN fees f ON f.uid=uids.uid
+      WHERE (DATE_FORMAT(f.date, '%Y-%m')='$attr->{YEAR}-$attr->{MONTH}' );",
+      undef,
+      $attr
+    );
+    $list = $self->{list}[0] || 0;
+  }
+  elsif ($attr->{SUM_AND_TOTAL_SERVICES}) {
+    $self->query("SELECT COUNT(internet.id) as total_active_services,SUM(tr.month_fee) AS month_fee_sum
+      FROM internet_main internet
+      JOIN tarif_plans tr ON internet.tp_id=tr.tp_id
+      WHERE (DATE_FORMAT(internet.registration, '%Y-%m')<='$attr->{YEAR}-$attr->{MONTH}' AND internet.disable=0);",
+      undef,
+      $attr
+    );
+    $list = $self->{list}[0] || 0;
+  }
+  elsif ($attr->{MIN_TARIFF_AMOUNT}) {
+    $self->query("SELECT MIN(tr.month_fee) as min_t
+      FROM internet_main internet
+      JOIN tarif_plans tr ON internet.tp_id=tr.tp_id
+      WHERE (internet.disable=0);",
+      undef,
+      $attr
+    );
+    $list = $self->{list}[0] || 0;
+  }
+return $list;
+}
 
 1;

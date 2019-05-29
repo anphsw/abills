@@ -134,5 +134,9 @@ our $TIME    = strftime "%H:%M:%S", localtime(time);
 our $curtime = strftime("%F %H.%M.%S", localtime(time));
 our $year    = strftime("%Y", localtime(time));
 
+$conf{info_fields_new}=1;
+$conf{CONTACTS_NEW}=1;
+
+$conf{INTERNET_CID_AUTO_FORMAT} = 1;
 
 1

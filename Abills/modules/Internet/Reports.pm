@@ -20,7 +20,11 @@ my $Internet = Internet->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
-require Internet::Traffic_detail;
+if($conf{INTERNET_TRAFFIC_DETAIL}) {
+  require Internet::Traffic_detail;
+}
+
+require Internet::Ipoe_reports;
 
 #**********************************************************
 =head2 internet_use_all_monthes()
@@ -150,16 +154,16 @@ sub internet_report_use {
       street_name     => "search_link:internet_report_use:STREET_ID,STREET_ID,TYPE=USER,$pages_qs",
     },
     TABLE   => {
-      width      => '100%',
-      caption    => "$lang{REPORTS}",
-      qs         => $pages_qs,
-      ID         => 'REPORTS_DV_USE',
-      EXPORT     => 1,
-      SHOW_COLS_HIDDEN => { TYPE      => $FORM{TYPE},
-        show      => 1,
-        FROM_DATE => $FORM{FROM_DATE},
-        TO_DATE   => $FORM{TO_DATE},
-      }
+      width            => '100%',
+      caption          => "$lang{REPORTS}",
+      qs               => $pages_qs,
+      ID               => 'REPORTS_DV_USE',
+      EXPORT           => 1,
+      SHOW_COLS_HIDDEN => { TYPE => $FORM{TYPE},
+        show                     => 1,
+        FROM_DATE                => $FORM{FROM_DATE},
+        TO_DATE                  => $FORM{TO_DATE},
+      },
     },
     MAKE_ROWS    => 1,
     SEARCH_FORMER=> 1,
@@ -280,16 +284,18 @@ sub internet_report_tp {
   my $internet_users_list_index = get_function_index('internet_users_list') || 0;
 
   my ($total_users, $totals_active, $total_disabled, $total_debetors)=(0,0,0,0);
+
   foreach my $line (@$list) {
     $line->{id} = 0 if (! defined($line->{id}));
     $line->{tp_id} = 0 if (! defined($line->{tp_id}));
+    my $main_link = "search=1&index=$internet_users_list_index&TP_ID=$line->{tp_id}";
     $table->addrow(
       $line->{id},
-      $html->button($line->{name}, "index=$internet_users_list_index&TP_ID=$line->{tp_id}"),
-      $html->button($line->{counts}, "index=$internet_users_list_index&TP_ID=$line->{tp_id}"),
-      $html->button($line->{active}, "index=$internet_users_list_index&TP_ID=$line->{tp_id}&INTERNET_STATUS=0"),
-      $html->button($line->{disabled}, "index=$internet_users_list_index&TP_ID=$line->{tp_id}&INTERNET_STATUS=1"),
-      $html->button($line->{debetors}, "index=$internet_users_list_index&TP_ID=$line->{tp_id}&DEPOSIT=<0&search=1"),
+      $html->button($line->{name}, "$main_link"),
+      $html->button($line->{counts}, "$main_link"),
+      $html->button($line->{active}, "$main_link&INTERNET_STATUS=0"),
+      $html->button($line->{disabled}, "$main_link&INTERNET_STATUS=1"),
+      $html->button($line->{debetors}, "$main_link&DEPOSIT=<0&search=1"),
       sprintf('%.2f', $line->{arppu} || 0),
       sprintf('%.2f', $line->{arpu} || 0)
     );

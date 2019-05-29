@@ -54,6 +54,26 @@ sub msgs_notify_admins {
                                                                  ? ' / ' . $FORM{REPLY_SUBJECT}
                                                                  : '');
 
+  # Get status name
+  my $state_msg = '';
+  if (defined $attr->{MESSAGE_STATE}) {
+    $Msgs->status_list({
+      ID          => '_SHOW',
+      NAME        => '_SHOW',
+      LIST2HASH   => 'id,name',
+      STATUS_ONLY => 1
+    });
+
+    if (!$Msgs->{errno}) {
+      my $status_hash = $Msgs->{list_hash};
+      my $status_name = $status_hash->{$attr->{MESSAGE_STATE}} || '';
+      if ($status_name =~ /\$lang\{([a-zA-Z\_]+)\}/) {
+        $status_name = "_{$1}_";
+      }
+      $state_msg = "\n (_{STATE}_ : $status_name)";
+    }
+  }
+
   my $site = '';
   my $referer = ($conf{BILLING_URL} || $ENV{HTTP_REFERER} || '');
   if ( $referer && $referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/g ) {
@@ -123,7 +143,7 @@ sub msgs_notify_admins {
     require Msgs::Messaging;
     msgs_send_via_telegram($message_id, {
       AID         => $resposible_aid,
-      SUBJECT     => $lang{YOU_HAVE_NEW_REPLY} . " '". $html->b($subject) ."'",
+      SUBJECT     => $lang{YOU_HAVE_NEW_REPLY} . " '" . $html->b($subject) . "'" . $state_msg,
       SENDER_UID  => $attr->{SENDER_UID},
       MESSAGE     => $message,
       SENDER_TYPE => $Contacts::TYPES{TELEGRAM},

@@ -129,6 +129,11 @@ sub next_payments {
 sub message_callback {
   my ($first_message, $chat_id, $client_type, $client_id) = @_;
 
+  if ($client_type eq 'AID') {
+    $Telegram_Bot->send_text("Sorry, only for users.", $chat_id);
+    return 1;
+  };
+
   my $operation = Abills::Backend::Plugin::Telegram::Operation->new({
     CHAT_ID    => $chat_id,
     TYPE       => $client_type,

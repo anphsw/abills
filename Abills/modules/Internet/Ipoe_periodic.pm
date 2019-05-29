@@ -450,7 +450,7 @@ sub ipoe_start_active{
       print "$login $ip Online\n" if ($debug > 3);
       next;
     }
-    elsif ( !$deposit ){
+    elsif ( !defined($deposit) ){
       print "Error: Can't finde bills  UID: '$uid'\n";
       next;
     }

@@ -23,7 +23,7 @@ our (
 my $Address   = Address->new($db, $admin, \%conf);
 my $Marketing = Marketing->new($db, $admin, \%conf);
 my $tariffs   = Tariffs->new($db, \%conf, $admin);
-my $Nas       = Nas->new($db, $admin, \%conf);
+my $Nas       = Nas->new($db, \%conf, $admin);
 my @service_status        = ("$lang{ENABLE}", "$lang{DISABLE}", "$lang{NOT_ACTIVE}", "$lang{HOLD_UP}", "$lang{DISABLE}: $lang{NON_PAYMENT}", "$lang{ERR_SMALL_DEPOSIT}");
 my @service_status_colors = ($_COLORS[9], $_COLORS[6], '#808080', '#0000FF', '#FF8000');
 

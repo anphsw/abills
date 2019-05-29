@@ -253,7 +253,7 @@ my %request_list = (
       {
         "type": "object",
         "patternProperties": {
-          "^[0-9]+$": {
+          "^.+$": {
             "type": "object",
             "properties": {
               "id": { "type": "integer" },
@@ -277,6 +277,44 @@ my %request_list = (
       }
     ),
   },
+
+
+  # 'get_house_list'                      => {
+  #   params => {
+  #     get_index => 'us_api',
+  #     key       => '1523615231263123',
+  #     cat       => 'module',
+  #     json      => 1,
+  #   },
+  #   schema => q(
+  #     {
+  #       "type": "object",
+  #       "patternProperties": {
+  #         "^[0-9]+$": {
+  #           "type": "object",
+  #           "properties": {
+  #             "id": { "type": "integer" },
+  #             "street_id": { "type": "integer" },
+  #             "floor": { "type": "integer" },
+  #             "entrance": { "type": "integer" },
+  #             "full_name": { "type": "string" },
+  #             "number": { "type": "string" },
+  #             "street_id": { "type": "integer" }
+  #           },
+  #           "required": [
+  #             "id",
+  #             "street_id",
+  #             "floor",
+  #             "entrance",
+  #             "full_name"
+  #           ]
+  #         }
+  #       },
+  #       "additionalProperties": false
+  #     }
+  #   ),
+  # },
+
   'get_services_list'                   => {
     params => {
       get_index => 'us_api',
@@ -293,7 +331,7 @@ my %request_list = (
             "properties": {
               "id": { "type": "integer" },
               "name": { "type": "string" },
-              "cost": { "type": "string" }
+              "cost": { "type": "integer" }
             },
             "required": [
               "name",
@@ -423,7 +461,7 @@ my %request_list = (
         "required": [
           "date",
           "os",
-          "erp"
+          "billing"
         ]
       }
     ),

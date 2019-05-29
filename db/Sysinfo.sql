@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS `sysinfo_server_services` (
   `id` SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `name` VARCHAR(64) NOT NULL DEFAULT '',
   `check_command` TEXT,
-  `last_update` TIMESTAMP,
+  `last_update` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `status` TINYINT(1) NOT NULL DEFAULT 0,
   `comments` TEXT
 )

@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS `hotspot_visits` (
   `os_id` SMALLINT(6) NOT NULL DEFAULT 0,
   `language` VARCHAR(32) NOT NULL DEFAULT '',
   `country` VARCHAR(32) NOT NULL DEFAULT ''
-);
+) COMMENT = 'Visitors';
 
 CREATE TABLE IF NOT EXISTS `hotspot_oses` (
   `id` SMALLINT(6) PRIMARY KEY AUTO_INCREMENT,
@@ -26,14 +26,14 @@ CREATE TABLE IF NOT EXISTS `hotspot_browsers` (
   `id` SMALLINT(6) PRIMARY KEY AUTO_INCREMENT,
   `name` VARCHAR(32) NOT NULL DEFAULT 'UNKNOWN',
   `version` SMALLINT(6) NOT NULL DEFAULT 0
-);
+)
+  COMMENT = 'Hotspot user browsers';
 
 CREATE TABLE IF NOT EXISTS `hotspot_logins` (
   `id` INT(11) UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
-  `visit_id` VARCHAR(32) NOT NULL REFERENCES `hotspot_visits` (`id`)
-    ON DELETE CASCADE,
+  `visit_id` VARCHAR(32) NOT NULL REFERENCES `hotspot_visits` (`id`) ON DELETE CASCADE,
   `uid` INT(11) UNSIGNED NOT NULL REFERENCES `users` (`uid`),
-  `login_time` DATETIME NOT NULL DEFAULT NOW()
+  `login_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 )
   COMMENT = 'Hotspot visitors browsers';
 
@@ -41,12 +41,13 @@ CREATE TABLE IF NOT EXISTS `hotspot_adverts` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
   `name` VARCHAR(50) NOT NULL DEFAULT '',
   `comments` TEXT,
-  `price_per_show` DOUBLE(11, 2) NOT NULL DEFAULT 0,
-  `price_per_period` DOUBLE(11, 2) NOT NULL DEFAULT 0,
+  `price_per_show` DOUBLE(11,2) NOT NULL DEFAULT 0,
+  `price_per_period` DOUBLE(11,2) NOT NULL DEFAULT 0,
   `period` ENUM ('month', 'week', 'day', 'year') NOT NULL DEFAULT 'month',
   `url` TEXT,
-  `nas_id` SMALLINT(5) UNSIGNED NOT NULL REFERENCES `nas` (`id`)
-) COMMENT = "Hotspot advert";
+  `nas_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0 REFERENCES `nas` (`id`)
+)
+  COMMENT = 'Hotspot advert';
 
 CREATE TABLE IF NOT EXISTS `hotspot_advert_shows` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT NOT NULL  PRIMARY KEY,
@@ -63,7 +64,6 @@ CREATE TABLE IF NOT EXISTS `hotspot_log` (
   `action` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `hotspot` VARCHAR(20) NOT NULL DEFAULT '',
   `comments` TEXT NOT NULL,
-
   PRIMARY KEY (`id`)
 ) 
   COMMENT = 'Hotspot log';
@@ -73,7 +73,6 @@ CREATE TABLE IF NOT EXISTS `hotspot_advert_pages` (
   `hostname` VARCHAR(20) NOT NULL DEFAULT '',
   `page` TEXT,
   `action` VARCHAR(20) NOT NULL DEFAULT '0',
-
   PRIMARY KEY (`id`)
 ) 
   COMMENT = 'Hotspot advert pages';

@@ -668,7 +668,7 @@ sub internet_user_chg_tp {
     #Get user groups
     $user->group_info($user->{GID});
     if ($user->{DISABLE_CHG_TP}) {
-      $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", "$lang{NOT_ALLOW}", { ID => 143 });
+      $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 143 });
       return 0;
     }
   }
@@ -773,13 +773,16 @@ sub internet_user_chg_tp {
     #Imidiatly change TP
     else {
       if ($user->{CREDIT} + $user->{DEPOSIT} < 0) {
-        $html->message('err', "$lang{ERROR}", "$lang{ERR_SMALL_DEPOSIT} - $lang{DEPOSIT}: $user->{DEPOSIT} $lang{CREDIT}: $user->{CREDIT}", { ID => 15 });
+        $html->message('err', $lang{ERROR}, "$lang{ERR_SMALL_DEPOSIT} - $lang{DEPOSIT}: $user->{DEPOSIT} $lang{CREDIT}: $user->{CREDIT}", { ID => 15 });
         return 0;
       }
       $FORM{UID} = $uid;
 
-      $Internet->{ABON_DATE} = undef;
-      if ($Internet->{MONTH_ABON} > 0 && !$Internet->{STATUS} && !$user->{DISABLE}) {
+      delete $Internet->{ABON_DATE};
+      if ($Internet->{MONTH_ABON} > 0
+        && !$Internet->{STATUS}
+        && !$user->{DISABLE}
+        && ! $Internet->{ABON_DISTRIBUTION}) {
         if ($Internet->{ACTIVATE} ne '0000-00-00') {
           my ($Y, $M, $D) = split(/-/, $Internet->{ACTIVATE}, 3);
           $M--;
@@ -926,6 +929,7 @@ sub internet_user_chg_tp {
             TP_GID       => $Internet->{TP_GID},
             CHANGE_PRICE => '<=' . ($user->{DEPOSIT} + $user->{CREDIT}),
             MODULE       => 'Dv;Internet',
+            HIDE_HIDDEN  => 1,
             NEW_MODEL_TP => 1,
             TP_CHG_PRIORITY => $Internet->{TP_PRIORITY},
             COLS_NAME    => 1
@@ -943,6 +947,7 @@ sub internet_user_chg_tp {
       TP_GID       => $Internet->{TP_GID},
       CHANGE_PRICE => '<=' . ($user->{DEPOSIT} + $user->{CREDIT}),
       MODULE       => 'Dv;Internet',
+      HIDE_HIDDEN  => 1,
       MONTH_FEE    => '_SHOW',
       DAY_FEE      => '_SHOW',
       CREDIT       => '_SHOW',
@@ -983,7 +988,7 @@ sub internet_user_chg_tp {
         $radio_but = $lang{ERR_SMALL_DEPOSIT};
       }
 
-      $table->addrow($tp->{id}, $html->b($tp->{name}) . $html->br() . convert($tp->{comments}, { text2html => 1 }), $radio_but);
+      $table->addrow($tp->{id}, $html->b($tp->{name}) . $html->br() . $tp->{comments}, $radio_but);
     }
     $Tariffs->{TARIF_PLAN_TABLE} = $table->show({ OUTPUT2RETURN => 1 });
 
@@ -1002,6 +1007,9 @@ sub internet_user_chg_tp {
   $Tariffs->{UID}     = $attr->{USER_INFO}->{UID};
   $Tariffs->{TP_ID}   = $Internet->{TP_ID};
   $Tariffs->{TP_NAME} = "$Internet->{TP_NUM}:$Internet->{TP_NAME}";
+
+  $Tariffs->{CHG_TP_RULES} = $html->tpl_show(_include('internet_chg_tp_rule', 'Internet'), {}, { OUTPUT2RETURN => 1 });
+
   $html->tpl_show(templates('form_client_chg_tp'),
     { %$Tariffs, ID => $Internet->{ID} });
 
@@ -1647,7 +1655,7 @@ sub internet_holdup_service {
       if (!_error_show($Shedule)) {
         #compensate period
         if ($conf{INTERNET_HOLDUP_COMPENSATE}) {
-          internet_compensation({ QUITE => 1, HOLD_UP => 1 });
+          internet_compensation({ QUITE => 1, HOLD_UP => 1, UP => 1 });
         }
 
         if($active_fees) {

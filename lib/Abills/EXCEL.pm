@@ -380,8 +380,10 @@ sub addrow {
 
   $worksheet->set_column(0, 3, 25);
 
+  my $col_shift = ($self->{SELECT_ALL}) ? 1 : 0;
+
   for( my $col_num=0; $col_num <= $#row ; $col_num++) {
-    my $val = $row[$col_num];
+    my $val = $row[$col_num+$col_shift];
     if(! $self->{title}->[$col_num] || ($self->{title}->[$col_num] && $self->{title}->[$col_num] eq '-')) {
       next;
     }
@@ -470,7 +472,7 @@ sub addtd {
 #**********************************************************
 sub table_title {
   my $self = shift;
-  my ($sort, $desc, $pg, $caption, $qs) = @_;
+  my (undef, undef, undef, $caption, undef) = @_;
 
   my $title_format = $workbook->add_format(
     color   => 'black',
@@ -479,7 +481,8 @@ sub table_title {
     bg_color=> 'silver',
   );
 
-  my $i = 0;
+  my $i=0;
+
   foreach my $line (@$caption) {
     $worksheet->write(0, $i, decode('utf8', $line), $title_format);
     $i++;

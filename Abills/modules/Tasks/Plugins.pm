@@ -134,7 +134,7 @@ sub plugins_fn_loader {
   }
   elsif ($attr->{ID}) {
     my $task_info = $Tasks->info({ ID => $attr->{ID} });
-    @task_plugins = split(',', $task_info->{PLUGINS});
+    @task_plugins = split(',', $task_info->{PLUGINS} || q{});
   }
 
   foreach my $plugin (@task_plugins) {

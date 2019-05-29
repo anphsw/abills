@@ -36,7 +36,7 @@ my @status = ("$lang{UNKNOWN}", #0
   "$lang{EXPIRED}", #4
   "$lang{INCORRECT_CHECKSUM}", #5
   "$lang{PAYMENT_ERROR}", #6
-  "$lang{DUBLICATE}", #7
+  "$lang{DUPLICATE}", #7
   "$lang{USER_ERROR}", #8
   "$lang{USER_NOT_EXIST}", #9
   "$lang{SMALL_PAYMENT_SUM}", #10
@@ -87,7 +87,7 @@ my @status = ("$lang{UNKNOWN}", #0
       9   Payments already exists
       10  This payment is not found in the system
       11  For this group of users not allowed to use external payment (Paysys)
-      12  An unknown SQL error payment
+      12  An unknown SQL error payment, happends when deadlock
       13  Error logging external payments (Paysys list exist transaction)
       14  User withot bill account
       15
@@ -125,7 +125,23 @@ my @status = ("$lang{UNKNOWN}", #0
     MK_LOG            => 1,
     PAYMENT_ID        => 1,
     DEBUG             => $debug
-});
+    });
+
+    Payment by ORDER_ID (without check field) Example from Lifecell:
+      Most be ORDER_ID and EXT_ID.
+     my $status_code = main::paysys_pay({
+      PAYMENT_SYSTEM    => $PAYSYSTEM_SHORT_NAME,
+      PAYMENT_SYSTEM_ID => $PAYSYSTEM_ID,
+      SUM               => $FORM->{sum},
+      ORDER_ID          => "$PAYSYSTEM_SHORT_NAME:$order_id",
+      EXT_ID            => "$order_id",
+      DATA              => $FORM,
+      DATE              => "$date $time",
+      MK_LOG            => 1,
+      DEBUG             => $self->{DEBUG},
+      PAYMENT_DESCRIBE  => $FORM->{desc} || "$PAYSYSTEM_NAME payment",
+    });
+
 =cut
 
 #**********************************************************
@@ -427,6 +443,7 @@ sub paysys_pay {
       $status = 14;
     }
     else {
+      # happends if deadlock
       $status = 12;
     }
   }
@@ -1016,7 +1033,7 @@ sub paysys_import_parse {
     #next if ($#params < $#EXPR_IDS);
     if (my @res = ($line =~ /$expration/)) {
       for (my $i = 0 ; $i <= $#res ; $i++) {
-        print "$EXPR_IDS[$i] / $res[$i]\n" if ($debug > 5);
+        print "$EXPR_IDS[$i] => $res[$i]\n".$html->br() if ($debug > 5);
         next if ($EXPR_IDS[$i] eq 'UNDEF');
 
         $DATA_HASH{ $EXPR_IDS[$i] } = $res[$i];
@@ -1043,7 +1060,7 @@ sub paysys_import_parse {
         }
       }
 
-      push @DATA_ARR, {%DATA_HASH};
+      push @DATA_ARR, \%DATA_HASH;
       push @BINDING_IDS, $DATA_HASH{$BINDING_FIELD} if ($DATA_HASH{$BINDING_FIELD});
     }
     elsif ($line ne '') {

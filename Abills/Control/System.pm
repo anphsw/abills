@@ -774,7 +774,9 @@ sub tpl_describe {
 sub form_dictionary {
   my $sub_dict = $FORM{SUB_DICT} || '';
 
-  ($sub_dict, undef) = split(/\./, $sub_dict, 2);
+  if($sub_dict =~ /\D\.\D/){
+    ($sub_dict, undef) = split(/\./, $sub_dict, 2);
+  }
 
   if ($FORM{add_form}) {
      print $html->form_main(
@@ -1322,14 +1324,14 @@ sub form_holidays {
     LAST_YEAR  => $last_year,
     NEXT_YEAR  => $next_year,
     DAYS       => $week_row,
-    WEEKDAYS_1 => $MONTHES[1],
-    WEEKDAYS_2 => $MONTHES[2],
-    WEEKDAYS_3 => $MONTHES[3],
-    WEEKDAYS_4 => $MONTHES[4],
-    WEEKDAYS_5 => $MONTHES[5],
-    WEEKDAYS_6 => $MONTHES[6],
-    WEEKDAYS_7 => $MONTHES[7],
-    WEEKDAYS_8 => $MONTHES[8],
+    WEEKDAYS_1 => $WEEKDAYS[1],
+    WEEKDAYS_2 => $WEEKDAYS[2],
+    WEEKDAYS_3 => $WEEKDAYS[3],
+    WEEKDAYS_4 => $WEEKDAYS[4],
+    WEEKDAYS_5 => $WEEKDAYS[5],
+    WEEKDAYS_6 => $WEEKDAYS[6],
+    WEEKDAYS_7 => $WEEKDAYS[7],
+    WEEKDAYS_8 => $WEEKDAYS[8],
   });
 
   my $table = $html->table({
@@ -2091,7 +2093,7 @@ sub form_tp_groups {
      FUNCTION        => 'tp_group_list',
      BASE_FIELDS     => 4,
 #     DEFAULT_FIELDS  => 'NUMBER,FLORS,ENTRANCES,FLATS,STREET_NAME,USERS_COUNT,USERS_CONNECTIONS,ADDED'. (in_array('Maps', \@MODULES) ? ',COORDX' : ''),
-     FUNCTION_FIELDS => 'change,del',
+     FUNCTION_FIELDS => 'geolocation_group_tp:$lang{GEOLOCATION_TP}:id:,change,del',
      EXT_TITLES      => {
        id          => '#',
        name        => $lang{NAME},
@@ -2346,7 +2348,7 @@ sub form_intervals {
     $tarif_plan->{NETS_SEL} =  $html->form_select(
       'NET_ID',
       {
-        SELECTED       => $tarif_plan->{NET_ID} || 1 || 0,
+        SELECTED       => $tarif_plan->{NET_ID} // 1 // 0,
         SEL_LIST       => $tarif_plan->traffic_class_list({%LIST_PARAMS, COLS_NAME => 1 }),
         MAIN_MENU      => get_function_index( (in_array('Internet', \@MODULES)) ? 'internet_traffic_classes' : 'dv_traffic_classes'),
         SEL_OPTIONS    => { '' => '--' },

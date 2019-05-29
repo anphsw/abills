@@ -48,6 +48,11 @@ sub new{
 #**********************************************************
 =head2 user_info($id, $attr) - User information
 
+  Arguments:
+    $id
+    $attr
+      LOGIN
+
 =cut
 #**********************************************************
 sub user_info {
@@ -57,7 +62,7 @@ sub user_info {
   if ( defined( $attr->{LOGIN} ) ){
     use Users;
     my $users = Users->new( $self->{db}, $admin, $CONF );
-    $users->info( 0, { LOGIN => "$attr->{LOGIN}" } );
+    $users->info( 0, { LOGIN => $attr->{LOGIN} } );
     if ( $users->{errno} ){
       $self->{errno} = 2;
       $self->{errstr} = 'ERROR_NOT_EXIST';
@@ -118,23 +123,28 @@ sub user_add {
   }
 
   if ( $attr->{TP_ID} && $attr->{TP_ID} > 0 && !$attr->{STATUS} ){
-    my $tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
-    $self->{TP_INFO} = $tariffs->info( $attr->{TP_ID} );
-    $self->{TP_NUM} = $tariffs->{ID};
+    my $Tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
+    $self->{TP_INFO} = $Tariffs->info( $attr->{TP_ID} );
+    $self->{TP_NUM} = $Tariffs->{ID};
 
     #Take activation price
-    if ( $tariffs->{ACTIV_PRICE} > 0 ){
-      my $user = Users->new( $self->{db}, $admin, $CONF );
-      $user->info( $attr->{UID} );
+    if ( $Tariffs->{ACTIV_PRICE} > 0 ){
+      my $User = Users->new( $self->{db}, $admin, $CONF );
+      $User->info( $attr->{UID} );
 
-      if ( $user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE} && $tariffs->{PAYMENT_TYPE} == 0 ){
+      if ( $User->{DEPOSIT} + $User->{CREDIT} < $Tariffs->{ACTIV_PRICE} && $Tariffs->{PAYMENT_TYPE} == 0 ){
         $self->{errno} = 15;
+        $self->{errstr} = 'TOO_SMALL_DEPOSIT';
         return $self;
       }
 
       my $fees = Fees->new( $self->{db}, $admin, $CONF );
-      $fees->take( $user, $tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV TP" } );
-      $tariffs->{ACTIV_PRICE} = 0;
+      $fees->take( $User, $Tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV TP" } );
+      $Tariffs->{ACTIV_PRICE} = 0;
+    }
+
+    if ( $Tariffs->{AGE} > 0 ){
+      $self->expire_date($attr, $Tariffs);
     }
   }
 
@@ -151,7 +161,7 @@ sub user_add {
   return $self if ($self->{errno});
   $admin->{MODULE}=$MODULE;
 
-  my @info = ('SERVICE_ID', 'ID', 'TP_ID', 'STATUS', 'IPTV_EXPIRE', 'IPTV_ACTIVATE', 'CID');
+  my @info = ('SERVICE_ID', 'ID', 'TP_ID', 'STATUS', 'IPTV_EXPIRE', 'IPTV_ACTIVATE', 'CID', 'EMAIL');
   my @actions_history = ();
 
   foreach my $param (@info) {
@@ -170,57 +180,59 @@ sub user_add {
 #**********************************************************
 =head2 user_change($attr) - Change users
 
+  Arguments:
+
+
 =cut
 #**********************************************************
 sub user_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $attr->{EXPIRE} = $attr->{IPTV_EXPIRE};
-  $attr->{ACTIVATE} = $attr->{IPTV_ACTIVATE};
+  $attr->{EXPIRE} = $attr->{SERVICE_EXPIRE} || $attr->{IPTV_EXPIRE};
+  $attr->{ACTIVATE} = $attr->{SERVICE_ACTIVATE} || $attr->{IPTV_ACTIVATE};
   $attr->{VOD} = (!defined( $attr->{VOD} )) ? 0 : 1;
   $attr->{DISABLE} = $attr->{STATUS};
   my $old_info = $self->user_info( $attr->{ID} );
   $self->{OLD_STATUS} = $old_info->{STATUS};
 
   if ( $attr->{TP_ID} && $attr->{TP_ID} && $old_info->{TP_ID} != $attr->{TP_ID} ){
-    my $tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
+    my $Tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
 
-    $tariffs->info( $old_info->{TP_ID} );
-    %{ $self->{TP_INFO_OLD} } = %{$tariffs};
-    $self->{TP_INFO} = $tariffs->info( $attr->{TP_ID} );
-    my $user = Users->new( $self->{db}, $admin, $CONF );
+    $Tariffs->info( $old_info->{TP_ID} );
+    %{ $self->{TP_INFO_OLD} } = %{$Tariffs};
+    $self->{TP_INFO} = $Tariffs->info( $attr->{TP_ID} );
+    my $User = Users->new( $self->{db}, $admin, $CONF );
 
-    $user->info( $attr->{UID} );
+    $User->info( $attr->{UID} );
     if ( ( $old_info->{STATUS} && $old_info->{STATUS} == 2 )
       && (defined( $attr->{STATUS} ) && $attr->{STATUS} == 0)
-      && $tariffs->{ACTIV_PRICE} > 0 ){
-      if ( $user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{ACTIV_PRICE} && $tariffs->{PAYMENT_TYPE} == 0 && $tariffs->{POSTPAID_FEE} == 0 ){
+      && $Tariffs->{ACTIV_PRICE} > 0 ){
+      if ( $User->{DEPOSIT} + $User->{CREDIT} < $Tariffs->{ACTIV_PRICE} && $Tariffs->{PAYMENT_TYPE} == 0 && $Tariffs->{POSTPAID_FEE} == 0 ){
         $self->{errno} = 15;
+        $self->{errstr} = 'TOO_SMALL_DEPOSIT';
         return $self;
       }
 
       my $fees = Fees->new( $self->{db}, $admin, $CONF );
-      $fees->take( $user, $tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV_TP" } );
+      $fees->take( $User, $Tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV_TP" } );
 
-      $tariffs->{ACTIV_PRICE} = 0;
+      $Tariffs->{ACTIV_PRICE} = 0;
     }
-    elsif ( $tariffs->{CHANGE_PRICE} > 0 ){
+    elsif ( $Tariffs->{CHANGE_PRICE} > 0 ){
 
-      if ( $user->{DEPOSIT} + $user->{CREDIT} < $tariffs->{CHANGE_PRICE} ){
+      if ( $User->{DEPOSIT} + $User->{CREDIT} < $Tariffs->{CHANGE_PRICE} ){
         $self->{errno} = 15;
+        $self->{errstr} = 'TOO_SMALL_DEPOSIT';
         return $self;
       }
 
-      my $fees = Fees->new( $self->{db}, $admin, $CONF );
-      $fees->take( $user, $tariffs->{CHANGE_PRICE}, { DESCRIBE => "CHANGE TP" } );
+      my $Fees = Fees->new( $self->{db}, $admin, $CONF );
+      $Fees->take( $User, $Tariffs->{CHANGE_PRICE}, { DESCRIBE => "CHANGE_TP" } );
     }
 
-    if ( $tariffs->{AGE} > 0 ){
-      #my $user = Users->new( $self->{db}, $admin, $CONF );
-      use POSIX qw(strftime);
-      my $EXPITE_DATE = POSIX::strftime( "%Y-%m-%d", localtime( time + 86400 * $tariffs->{AGE} ) );
-      $attr->{EXPIRE} = $EXPITE_DATE;
+    if ( $Tariffs->{AGE} > 0 ){
+      $self->expire_date($attr, $Tariffs);
     }
   }
   elsif ( ($old_info->{STATUS} == 1
@@ -258,7 +270,18 @@ sub user_del{
   $self->query_del( 'iptv_main', $attr, { uid => $self->{UID} } );
 
   $admin->{MODULE}=$MODULE;
-  $admin->action_add( $self->{UID}, "UID: $self->{UID} ID: $attr->{ID}", { TYPE => 10 } );
+  my @del_descr = ();
+  if($attr->{UID}) {
+    push @del_descr, "UID: $attr->{UID}";
+  }
+  if ($attr->{ID}) {
+    push @del_descr, "ID: $attr->{ID}";
+  }
+  if($attr->{COMMENTS}) {
+    push @del_descr, "COMMENTS: $attr->{COMMENTS}";
+  }
+
+  $admin->action_add($self->{UID}, join(' ', @del_descr), { TYPE => 10 });
 
   return $self->{result};
 }
@@ -278,7 +301,7 @@ sub user_list{
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   my $GROUP_BY = '';
 
-  if ($attr->{GROUP_BY}) {
+  if ($attr->{GROUP_BY} && $attr->{GROUP_BY} =~ /GROUP/i) {
     $GROUP_BY = $attr->{GROUP_BY};
     delete $attr->{GROUP_BY};
   }
@@ -292,7 +315,7 @@ sub user_list{
       [ 'TP_NAME',      'STR', 'tp.name', 'tp.name AS tp_name'     ],
       [ 'TP_COMMENTS',  'STR', 'tp.comments', 'tp.comments AS tp_comments' ],
       #      ['IPTV_STATUS',    'INT', 'service.disable AS iptv_status',   1 ],
-      [ 'SERVICE_STATUS', 'INT', 'service.disable AS service_status', 1 ],
+      [ 'SERVICE_STATUS', 'INT', 'service.disable', 'service.disable AS service_status' ],
       #[ 'STATUS',         'INT',  'service.disable AS service_status',                                         1 ],
       [ 'CID',          'STR', 'service.cid',                    1 ],
       [ 'PIN',          'STR', 'service.pin',                    1 ],
@@ -300,6 +323,7 @@ sub user_list{
       [ 'FILTER_ID',    'STR', 'service.filter_id',              1 ],
       [ 'DVCRYPT_ID',   'INT', 'service.dvcrypt_id',             1 ],
       [ 'MONTH_FEE',    'INT', 'tp.month_fee',                   1 ],
+      [ 'ABON_DISTRIBUTION', 'INT', 'tp.abon_distribution',      1 ],
       [ 'DAY_FEE',      'INT', 'tp.day_fee',                     1 ],
       [ 'TP_ID',        'INT', 'service.tp_id',                  1 ],
       [ 'TV_SERVICE_ID','INT', 'tp.service_id', 'tp.service_id AS tv_service_id'],
@@ -308,11 +332,12 @@ sub user_list{
       [ 'TP_FILTER',    'INT', 'tp.filter_id',                   1 ],
       [ 'PAYMENT_TYPE', 'INT', 'tp.payment_type',                1 ],
       [ 'MONTH_PRICE',  'INT', 'ti_c.month_price',               1 ],
-      [ 'IPTV_EXPIRE',  'DATE', 'service.expire as iptv_expire', 1 ],
+      [ 'IPTV_ACTIVATE','DATE','service.activate', 'service.expire AS iptv_activate' ],
+      [ 'IPTV_EXPIRE',  'DATE','service.expire', 'service.expire AS iptv_expire' ],
       [ 'SUBSCRIBE_ID', 'INT', 'service.subscribe_id',           1 ],
       [ 'SERVICE_ID',   'INT', 'service.service_id',             1 ],
       [ 'EMAIL',        'STR', 'service.email',                  1 ],
-      ['SERVICE_COUNT', 'INT', '', 'COUNT(service.id) AS service_count'  ] ,
+      [ 'SERVICE_COUNT','INT', '', 'COUNT(service.id) AS service_count'  ] ,
       [ 'ID',           'INT', 'service.id',                     1 ],
       [ 'UID',          'INT', 'service.uid',                      ],
 #      [ 'GID',          'INT', 'u.gid',                    'u.gid' ],
@@ -1453,6 +1478,13 @@ sub screens_info{
 #**********************************************************
 =head2 users_screens_add($attr)
 
+  Arguments:
+    $attr
+      CID
+      PIN
+      SERIAL
+      HARDWARE_ID
+
 =cut
 #**********************************************************
 sub users_screens_add{
@@ -1467,7 +1499,7 @@ sub users_screens_add{
       REPLACE => 1
     } );
 
-  my @info = ('CID', 'PIN', 'SERIAL');
+  my @info = ('CID', 'PIN', 'SERIAL', 'HARDWARE_ID');
   my @actions_history = ();
   foreach my $param (@info) {
     if(defined($attr->{$param})) {
@@ -1475,9 +1507,11 @@ sub users_screens_add{
     }
   }
 
-
   $admin->action_add( $attr->{UID}, "SERVICE_ID: $attr->{SERVICE_ID} SCREEN_ID: $attr->{SCREEN_ID}"
     .  join(', ', @actions_history), { TYPE => 1 } );
+
+  $self->{SERVICE_ID}=$attr->{SERVICE_ID};
+  $self->{SCREEN_ID}=$attr->{SCREEN_ID};
 
   return $self;
 }
@@ -1573,6 +1607,7 @@ sub users_screens_list{
       [ 'HARDWARE_ID', 'INT',  'us.hardware_id',     1 ],
       [ 'DATE',        'DATE', 'us.date',            1 ],
       [ 'UID',         'DATE', 'service.uid',        1 ],
+      [ 'SCREEN_ID',   'INT',  'us.screen_id',        1 ],
     ],
     {
       WHERE => 1,
@@ -1622,6 +1657,31 @@ sub users_screens_list{
   }
 
   return $list;
+}
+
+#**********************************************************
+=head2 users_active_screens_list($attr)
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub users_active_screens_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT us.*,
+    s.filter_id
+     FROM iptv_users_screens us
+    LEFT JOIN iptv_main service  ON (service.id=us.service_id)
+    LEFT JOIN iptv_screens s ON  (s.tp_id=service.tp_id AND s.num=us.screen_id)
+    WHERE us.service_id = ?;",
+    undef,
+    { %{$attr}, Bind => [ $attr->{SERVICE} ] }
+  );
+
+  return $self->{list};
 }
 
 #**********************************************************
@@ -2035,5 +2095,39 @@ sub extra_params_change{
 
   return $self;
 }
+
+
+#**********************************************************
+=head2 expire_date(attr); - Get expire date
+
+  Arguments:
+    $attr,
+    $Tariffs
+
+  Result:
+    $self
+
+=cut
+#**********************************************************
+sub expire_date {
+  my $self = shift;
+  my ($attr, $Tariffs) = @_;
+
+  $attr->{IPTV_EXPIRE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $Tariffs->{AGE}));
+
+  eval { require Date::Calc };
+  if (!$@) {
+    Date::Calc->import( qw/Add_Delta_Days/ );
+
+    my (undef, undef, undef,$mday,$mon,$year,undef,undef,undef) = localtime(time);
+    $year += 1900;
+    $mon++;
+    ($year,$mon,$mday) = Date::Calc::Add_Delta_Days($year, $mon, $mday, $Tariffs->{AGE});
+    $attr->{IPTV_EXPIRE} ="$year-$mon-$mday";
+  }
+
+  return $self;
+}
+
 
 1

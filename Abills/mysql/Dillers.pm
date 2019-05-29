@@ -232,6 +232,7 @@ sub diller_del {
 
   $self->query_del('cards_dillers', $attr, { uid => $attr->{UID} });
 
+  $admin->{MODULE}=$MODULE;
   $admin->action_add($attr->{UID}, $attr->{UID}, { TYPE => 10 });
 
   return $self->{result};

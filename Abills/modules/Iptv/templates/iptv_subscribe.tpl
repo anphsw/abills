@@ -1,7 +1,7 @@
 <form class='form-horizontal' action='$SELF_URL' method='post' ENCTYPE='multipart/form-data'>
   <div class='box box-theme box-form'>
     <div class='box-header'>
-      <h4>Subsribes</h4>
+      <h4>_{SUBSCRIBES}_</h4>
     </div>
     <div class='box-body'>
 <form class='form-horizontal' action='$SELF_URL' method='post' ENCTYPE='multipart/form-data'>

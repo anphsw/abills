@@ -28,11 +28,19 @@ my $Netblock = Netblock->new( $db, $admin, \%conf );
 =cut
 #**********************************************************
 sub netblock_main {
-
   my $FIELDS = 'BLOCKTYPE,HASH,INCTIME,DBTIME';
   $LIST_PARAMS{ID} = $FORM{ID};
   $pages_qs .= ($FORM{PARAM}) ? "&PARAM=$FORM{PARAM}" : q{};
   my $param = $FORM{PARAM} || 'netblock_main';
+  my %block_types = (
+    'ip'          => 'IP',
+    'url'         => 'URL',
+    'domain'      => 'DOMAIN',
+    'domain_mask' => 'DOMAIN_MASK',
+    'ssl'         => 'SSL',
+    'ports'       => 'PORTS'
+  );
+
   if ($param) {
     $LIST_PARAMS{TABLE} = $param;
     if ($param eq 'netblock_ip') {
@@ -56,6 +64,14 @@ sub netblock_main {
       #if ($FORM{NAME}){$LIST_PARAMS{URL} = $FORM{NAME}};
       $FIELDS = 'URL';
     }
+    elsif ($param eq 'netblock_ssl') {
+      $LIST_PARAMS{SSL} = $FORM{NAME} || '_SHOW';
+      $FIELDS = 'SSL';
+    }
+    elsif ($param eq 'netblock_ports') {
+      $LIST_PARAMS{PORTS} = $FORM{NAME} || '_SHOW';
+      $FIELDS = 'PORTS';
+    }
     #$FIELDS .= 'SKIP';
   }
 
@@ -64,14 +80,96 @@ sub netblock_main {
 
   if($FORM{add}) {
     $Netblock->add(\%FORM);
+    my $id = $Netblock->{INSERT_ID};
+    my $block_type = $FORM{BLOCKTYPE} || q{};
+    my $value = $FORM{HASH} || q{};
     if(! $Netblock->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+      if ($block_type eq 'ip') {
+        $Netblock->add_ip({ ID => $id, IP => $value });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{ADDED}");
+        }
+      }
+      elsif ($block_type eq 'url') {
+        $Netblock->add_url({ ID => $id, URL => $value });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{ADDED}");
+        }
+      }
+      elsif ($block_type eq 'domain') {
+        $Netblock->add_domain({ ID => $id, NAME => $value });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{ADDED}");
+        }
+      }
+      elsif ($block_type eq 'domain_mask') {
+        $Netblock->add_domain_mask({ ID => $id, MASK => $value });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{ADDED}");
+        }
+      }
+      elsif ($block_type eq 'ssl') {
+        $Netblock->add_ssl({ ID => $id, SSL_NAME => $value });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{ADDED}");
+        }
+      }
+      elsif ($block_type eq 'ports') {
+        $Netblock->add_ports({ ID => $id, PORTS => $value });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{ADDED}");
+        }
+      }
+      else {
+        $html->message('info', $lang{INFO}, "$lang{ADDED}");
+      }
     }
   }
   elsif($FORM{change}) {
-    $Netblock->change(\%FORM);
+    my $id = $FORM{chg};
+    my $block_type = $FORM{BLOCKTYPE} || q{};
+    my $value = $FORM{HASH} || q{};
+    $Netblock->change({%FORM, ID =>$id});
     if(! $Netblock->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+      if ($block_type eq 'ip') {
+        $Netblock->change({ ID => $id, IP => $value, TABLE => 'netblock_ip' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+        }
+      }
+      elsif ($block_type eq 'url') {
+        $Netblock->change({ ID => $id, URL => $value, TABLE => 'netblock_url' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+        }
+      }
+      elsif ($block_type eq 'domain') {
+        $Netblock->change({ ID => $id, NAME => $value, TABLE => 'netblock_domain' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+        }
+      }
+      elsif ($block_type eq 'domain_mask') {
+        $Netblock->change({ ID => $id, MASK => $value, TABLE => 'netblock_domain_mask' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+        }
+      }
+      elsif ($block_type eq 'ssl') {
+        $Netblock->change({ ID => $id, SSL_NAME => $value, TABLE => 'netblock_ssl' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+        }
+      }
+      elsif ($block_type eq 'ports') {
+        $Netblock->change({ ID => $id, PORTS => $value, TABLE => 'netblock_ports' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+        }
+      }
+      else {
+        $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+      }
     }
   }
   elsif($FORM{chg}) {
@@ -84,20 +182,63 @@ sub netblock_main {
     }
   }
   elsif($FORM{del} && $FORM{COMMENTS}) {
-    $Netblock->del(\%FORM);
+    my $id = $FORM{del};
+    $Netblock->del({ID => $id});
     if(! $Netblock->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{DELETED}");
+      my $b_type = $FORM{PARAM} || q{};
+      my ($block_type) = $b_type=~ /netblock_(\w+)/;
+      if ($block_type eq 'ip') {
+        $Netblock->del({ ID => $id, TABLE => 'netblock_ip' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{DELETED}");
+        }
+      }
+      elsif ($block_type eq 'url') {
+        $Netblock->del({ ID => $id, TABLE => 'netblock_url' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{DELETED}");
+        }
+      }
+      elsif ($block_type eq 'domain') {
+        $Netblock->del({ ID => $id, TABLE => 'netblock_domain' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{DELETED}");
+        }
+      }
+      elsif ($block_type eq 'domain_mask') {
+        $Netblock->del({ ID => $id, TABLE => 'netblock_domain_mask' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{DELETED}");
+        }
+      }
+      elsif ($block_type eq 'ssl') {
+        $Netblock->del({ ID => $id, TABLE => 'netblock_ssl' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{DELETED}");
+        }
+      }
+      elsif ($block_type eq 'ports') {
+        $Netblock->del({ ID => $id, TABLE => 'netblock_ports' });
+        unless ($Netblock->{errno}) {
+          $html->message('info', $lang{INFO}, "$lang{DELETED}");
+        }
+      }
+      else {
+        $html->message('info', $lang{INFO}, "$lang{DELETED}");
+      }
     }
   }
 
   _error_show($Netblock);
 
   if($FORM{add_form}) {
+    my $s_type = $FORM{TYPE} || $FORM{PARAM} || q{};
+    my ($selected_type) = $s_type=~ /netblock_(\w+)/;
     $Netblock->{BLOCKTYPE_SEL} = $html->form_select(
       'BLOCKTYPE',
       {
-        SELECTED => $FORM{FILTER_FIELD},
-        SEL_HASH => { 'domain' => 'domain' },
+        SELECTED => $selected_type || $FORM{FILTER_FIELD},
+        SEL_HASH => \%block_types,
         NO_ID    => 1,
       }
     );
@@ -109,9 +250,12 @@ sub netblock_main {
     my @header_arr = (
       "$lang{MAIN}:index=$index",
       "IP:index=$index&PARAM=netblock_ip",
+      "URL_DPI:index=$index&PARAM=netblock_url",
       "DOMAIN:index=$index&PARAM=netblock_domain",
-      "URL:index=$index&PARAM=netblock_url",
-      "DOMAIN-MASK:index=$index&PARAM=netblock_domain_mask"
+      "DOMAIN-MASK:index=$index&PARAM=netblock_domain_mask",
+      "SSL_DPI:index=$index&PARAM=netblock_ssl",
+      "PORTS_DPI:index=$index&PARAM=netblock_ports",
+
     );
     my $buttons_list = $html->table_header(\@header_arr, { TABS => 1 });
 
@@ -152,15 +296,21 @@ sub netblock_main {
     SKIP_USER_TITLE => 1,
     EXT_FIELDS      => 0,
     EXT_TITLES      => {
-      id        => 'ID',
-      blocktype => $lang{BLOCKTYPE},
-      inctime   => $lang{DATE},
-      dbtime    => $lang{LOCK_DATE},
-      hash      => 'HASH'
+      id          => 'ID',
+      blocktype   => $lang{BLOCKTYPE},
+      inctime     => $lang{DATE},
+      dbtime      => $lang{LOCK_DATE},
+      hash        => 'HASH',
+      url         => 'URL',
+      ssl         => 'SSL',
+      ports       => 'PORTS',
+      name        => 'DOMAIN',
+      mask        => 'DOMAIN_MASK',
+      ip          => 'IP'
     },
     FILTER_COLS => {
       hash => 'netblock_filter',
-    id   => 'search_link:netblock_main:,id',
+      id   => 'search_link:netblock_main:,id',
     },
     TABLE           => {
       width   => '100%',
@@ -168,7 +318,7 @@ sub netblock_main {
       ID      => 'NETBLOCK_LIST',
       qs      => $pages_qs,
       EXPORT  => 1,
-      MENU    => "$lang{ADD}:index=$index&add_form=1:add",
+      MENU    => "$lang{ADD}:index=$index&add_form=1&TYPE=$param:add",
       SHOW_FULL_LIST => 1,
     },
     MAKE_ROWS       => 1,

@@ -137,9 +137,17 @@ sub internet_online {
   }
   elsif ($FORM{tolog}) {
     $FORM{IDS}=~s/\s+//g if ($FORM{IDS});
-    require Acct;
-    Acct->import();
-    my $Acct = Acct->new($db, \%conf);
+    my $Acct;
+    if(in_array('Internet', \@MODULES)) {
+      require Acct2;
+      Acct2->import();
+      $Acct = Acct2->new($db, \%conf);
+    }
+    else {
+      require Acct;
+      Acct->import();
+      $Acct = Acct->new($db, \%conf);
+    }
 
     $Sessions->online({
       ACCT_SESSION_ID   => '_SHOW',
@@ -157,6 +165,7 @@ sub internet_online {
       CID               => '_SHOW',
       USER_NAME         => '_SHOW',
       SESSION_START     => '_SHOW',
+      TP_NUM            => '_SHOW',
       NAS_ID            => $FORM{nas_id},
     });
 
@@ -239,7 +248,14 @@ sub internet_online {
   # online count
   my $list     = $Sessions->online_count({ %LIST_PARAMS, COLS_NAME => 1 });
 
-  my $nas_list = $Nas->list({ COLS_NAME => 1, PAGE_ROWS => 50000 });
+  my $nas_list = $Nas->list({
+    COLS_NAME => 1,
+    SHORT     => 1,
+    NAS_IP    => '_SHOW',
+    NAS_TYPE  => '_SHOW',
+    NAS_NAME  => '_SHOW',
+    PAGE_ROWS => 50000
+  });
 
   my $cure = '';
   if ($FORM{ZAPED}) {
@@ -304,9 +320,10 @@ sub internet_online {
     }
   }
 
-  if ($FORM{FILTER}) {
+  if ($FORM{FILTER} && $FORM{FILTER_FIELD}) {
     $LIST_PARAMS{FILTER_FIELD}=$FORM{FILTER_FIELD};
     $LIST_PARAMS{FILTER}=$FORM{FILTER};
+    $pages_qs .= "&FILTER_FIELD=$FORM{FILTER_FIELD}&$LIST_PARAMS{FILTER}"
   }
 
   if($FORM{NAS_ERROR_SESSIONS}) {
@@ -412,29 +429,30 @@ sub internet_online {
   my $dub_ips    = ($Sessions->{dub_ips}) ? $Sessions->{dub_ips} : undef;
   my $online     = $Sessions->{nas_sorted};
 
-  foreach my $nas_row (@$nas_list) {
-    next if (!defined($online->{ $nas_row->{nas_id} }));
-    next if (($FORM{NAS_ID} && $FORM{NAS_ID} != $nas_row->{nas_id}) && !$FORM{ZAPED});
+  foreach my $_nas (@$nas_list) {
+    my $nas_id = $_nas->{id};
+    next if (!defined($online->{ $nas_id }));
+    next if (($FORM{NAS_ID} && $FORM{NAS_ID} != $nas_id) && !$FORM{ZAPED});
 
-    my $l     = $online->{ $nas_row->{nas_id} };
+    my $l     = $online->{ $nas_id };
     my $total = $#{$l} + 1;
     if(! $FORM{json}) {
       $table->{rowcolor} = 'bg-info';
       $table->{extra} = "colspan='" . ($Sessions->{SEARCH_FIELDS_COUNT}) . "'";
-      $table->addrow("$nas_row->{nas_id}:"
-        . $html->button($html->b($nas_row->{nas_name}),
-        "index=" . get_function_index('form_nas') . "&NAS_ID=$nas_row->{nas_id}")
-        . ":$nas_row->{nas_ip}:$lang{TOTAL}: $total "
-        . ($permissions{5}{1} ? $html->button("Zap $lang{SESSIONS}", "index=$index&zapall=1&NAS_ID=$nas_row->{nas_id}",
-        { MESSAGE => "Do you realy want zap all sessions on NAS '$nas_row->{nas_id}' ?", class => 'btn btn-default' }) : '')
-        . $html->button("$lang{ERROR}",
-        "index=" . get_function_index('internet_error') . "&NAS_ID=$nas_row->{nas_id}&search_form=1&search=1",
+      $table->addrow("$nas_id:"
+        . $html->button($html->b($_nas->{nas_name}),
+        "index=" . get_function_index('form_nas') . "&NAS_ID=$nas_id")
+        . ":$_nas->{ip}:$lang{TOTAL}: $total "
+        . ($permissions{5}{1} ? $html->button("Zap $lang{SESSIONS}", "index=$index&zapall=1&NAS_ID=$nas_id",
+        { MESSAGE => "Do you realy want zap all sessions on NAS '$nas_id' ?", class => 'btn btn-default' }) : '')
+        . $html->button($lang{ERROR},
+        "index=" . get_function_index('internet_error') . "&NAS_ID=$nas_id&search_form=1&search=1",
         { class => 'btn btn-default' })
-        . $html->button("", "#",
+        . $html->button('', "#",
         { class                                                      => 'btn btn-default', ICON =>
           'glyphicon glyphicon-stats', TITLE                         => "$lang{GRAPH} $lang{NAS}",
           NEW_WINDOW                                                 =>
-          internet_get_chart_query("NAS_ID=$nas_row->{nas_id}", '1',
+          internet_get_chart_query("NAS_ID=$nas_id", '1',
             $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" })
       );
     }
@@ -446,15 +464,15 @@ sub internet_online {
       if (defined($dub_logins->{ $line->{user_name} }) && $dub_logins->{ $line->{user_name} } > 1) {
         $table->{rowcolor} = '#FFFF00';
       }
-      elsif ($nas_row->{nas_type} ne 'ipcad'
-        && $nas_row->{nas_type} ne 'dhcp'
+      elsif ($_nas->{nas_type} ne 'ipcad'
+        && $_nas->{nas_type} ne 'dhcp'
         && defined($line->{nas_port_id})
-        && defined($nas_row->{nas_id})
-        && defined($dub_ports->{ $nas_row->{nas_id} }{ $line->{nas_port_id} })
-        && $dub_ports->{ $nas_row->{nas_id} }{ $line->{nas_port_id} } > 1) {
+        && defined($nas_id)
+        && defined($dub_ports->{ $nas_id }{ $line->{nas_port_id} })
+        && $dub_ports->{ $nas_id }{ $line->{nas_port_id} } > 1) {
         $table->{rowcolor} = '#00FF40';
       }
-      elsif ($line->{client_ip} && defined($dub_ips->{ $nas_row->{nas_id} }{ $line->{client_ip} }) && $dub_ips->{ $nas_row->{nas_id} }{ $line->{client_ip} } > 1) {
+      elsif ($line->{client_ip} && defined($dub_ips->{ $nas_id }{ $line->{client_ip} }) && $dub_ips->{ $nas_id }{ $line->{client_ip} } > 1) {
         $table->{rowcolor} = '#0080C0';
       }
 
@@ -556,7 +574,7 @@ sub internet_online {
       );
 
       if ($permissions{5}{1}) {
-        push @function_fields, $html->button('Z', "index=$index&zap=$line->{uid}+$nas_row->{nas_id}+"
+        push @function_fields, $html->button('Z', "index=$index&zap=$line->{uid}+$nas_id+"
               .($line->{nas_port_id} || q{})."+$line->{acct_session_id}$pages_qs",
             { TITLE => 'Zap', class => 'del', NO_LINK_FORMER => 1 });
       }
@@ -564,7 +582,7 @@ sub internet_online {
       if ($permissions{5}{2}) {
         push @function_fields, ($FORM{ZAPED}) ? '' : $html->button('H', "index=$index&FRAMED_IP_ADDRESS="
                 .($line->{client_ip} || q{0.0.0.0})
-                ."&hangup=$nas_row->{nas_id}+".($line->{nas_port_id} || q{})
+                ."&hangup=$nas_id+".($line->{nas_port_id} || q{})
                 ."+$line->{acct_session_id}+$line->{user_name}&UID=$line->{uid}$pages_qs",
               { TITLE => 'Hangup', class => 'off' });
       }
@@ -639,7 +657,7 @@ sub internet_online_search {
     CLIENT_IP      => 'IP',
     CID            => 'CID',
     CPE_MAC        => 'CPE_MAC',
-    TP_ID          => $lang{TARIF_PLAN},
+    TP_NUM         => $lang{TARIF_PLAN},
     CONNECT_INFO   => 'CONNECT_INFO',
     GUEST          => $lang{GUEST},
     TURBO_MODE     => $lang{TURBO_MODE},
@@ -738,9 +756,12 @@ sub internet_online_builds {
   
   my $online_count_for_build = $Sessions->users_online_count_by_builds();
   _error_show($Sessions) and return 0;
-  
   my %online_for_location_id = map { $_->{id} => $_->{online_count} } @$online_count_for_build ;
-  
+
+  my $online_has_guest = $Sessions->users_online_count_by_builds({GUEST => 1});
+  _error_show($Sessions) and return 0;
+  my %online_for_guest_location_id = map { $_->{id} => $_->{online_count} } @$online_has_guest ;
+
   my $districts_list = $Address->district_list( {
     COLS_NAME => 1,
     SORT      => 'd.name',
@@ -786,9 +807,14 @@ sub internet_online_builds {
         $street_users{total} += $build->{users_count};
         
         my $has_online = ($online_for_location_id{$build->{id}});
+        my $has_guest = ($online_for_guest_location_id{$build->{id}});
         if ($has_online) {
           $street_users{online} += $online_for_location_id{$build->{id}};
           $btn_class = 'btn-success';
+        }
+        elsif ($has_guest) {
+          $street_users{online} += $online_for_guest_location_id{$build->{id}};
+          $btn_class = 'btn-warning';
         }
         elsif ($build->{users_count}){
           $btn_class = 'btn-danger';
@@ -811,7 +837,7 @@ sub internet_online_builds {
         $html->element('span', $offline_users || '0', { class => 'text-danger', title => $lang{ONLY_OFFLINE} }),
       );
       
-      $streets_content .= $html->tpl_show(templates('form_show_hide'), {
+      $streets_content .= $html->tpl_show(templates('form_show_not_hide'), {
           NAME    => $street->{street_name}
             . ($street->{second_name}
               ? " ( $street->{second_name} ) "
@@ -826,7 +852,7 @@ sub internet_online_builds {
         });
     }
   
-    $districts_content .= $html->tpl_show( templates('form_show_hide'), {
+    $districts_content .= $html->tpl_show( templates('form_show_not_hide'), {
         NAME    => $lang{DISTRICT} . ' ' . $district->{name} . ' ( ' . (scalar @{$streets_list}) . ' )',
         CONTENT => $streets_content,
         PARAMS  => 'collapsed-box'

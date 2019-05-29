@@ -48,6 +48,7 @@ sub new {
   }
 
   $self->{CHARSET} = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : 'utf8';
+  $self->{content_language} = $attr->{content_language} || 'en';
 
   if ($attr->{language}) {
     $self->{language} = $attr->{language};
@@ -561,6 +562,7 @@ sub td{
   my $td = '';
   if ( defined( $value ) ){
     $td .= $value;
+    $td =~ s/\\/\\\\/g;
     $td =~ s/\"/\\\"/g;
     $td =~ s/\t/ /g;
   }
@@ -630,12 +632,12 @@ sub table_title {
 #**********************************************************
 sub img {
   shift;
-  my ($img, $name) = @_;
+  #my ($img, $name) = @_;
 
-  my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
-  $img =~ s/\&/\&amp;/g;
+  #my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
+  #$img =~ s/\&/\&amp;/g;
 
-  return "<img alt='$name' src='$img_path$img'/>";
+  return ''; #"<img alt='$name' src='$img_path$img'/>";
 }
 
 #**********************************************************
@@ -881,6 +883,10 @@ sub tpl_show {
     return $CONFIG_TPL_SHOW->($self, $tpl, $variables_ref, $attr);
   }
 
+  if ($attr->{TPL} && $attr->{MODULE}) {
+    $tpl = $self->get_tpl($attr->{TPL}, $attr->{MODULE});
+  }
+
   my $tpl_name = $attr->{ID} || "";
   my $tpl_id = $tpl_name || "_INFO";
 
@@ -911,6 +917,8 @@ sub tpl_show {
     }
     elsif ($variables_ref->{$var}) {
       if ($variables_ref->{$var} !~ m/\{/g) {
+        $variables_ref->{$var} =~ s/\\/\\\\/g;
+        $variables_ref->{$var} =~ s/\"/\\\"/g;
         my $value = "\"$var\" : \"$variables_ref->{$var}\"";
         if(! grep { $_ eq $value } @val_arr) {
           push @val_arr, $value;

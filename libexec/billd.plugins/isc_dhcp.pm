@@ -14,7 +14,8 @@ use strict;
 use warnings FATAL => 'all';
 
 use Socket;
-use Abills::Base qw(int2ip);
+use FindBin '$Bin';
+use Abills::Base qw(int2ip ip2int);
 use Abills::HTML;
 require Abills::Misc;
 
@@ -25,11 +26,13 @@ our (
   %lang,
   %permissions,
   %FORM,
-  $argv
+  $argv,
+  $Bin
 );
 
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
+push @INC, $Bin.'/../';
 
 isc_dhcp_config();
 
@@ -90,20 +93,36 @@ sub isc_dhcp_config {
   _error_show($Nas);
 
   my $subnet_tpls //= '';
+  my %subnet_params = ();
 
   foreach my $subnet (@{$networks}) {
     $subnet->{RANGE} = 'range ' . $subnet->{FIRST_IP} . ' ' . $subnet->{LAST_IP} . ';';
+    my $mask_num = $subnet->{NETMASK};
+    my $address_int = 0 + $subnet->{IP} & 0 + $mask_num;
 
-    my $address_int = 0 + $subnet->{IP} & 0 + $subnet->{NETMASK};
-    $subnet->{SUBNET} = int2ip($address_int);
-    $subnet->{NETMASK} = int2ip($subnet->{NETMASK});
+    $subnet->{SUBNET}  = int2ip($address_int);
+    $subnet->{NETMASK} = int2ip($mask_num);
     $subnet->{GATEWAY} = int2ip($subnet->{GATEWAY}) if ($subnet->{GATEWAY});
+    $subnet_params{$subnet->{ID}}{FIRST_IP}=$subnet->{IP};
+    $subnet_params{$subnet->{ID}}{LAST_IP}=ip2int($subnet->{LAST_IP});
+    $subnet_params{$subnet->{ID}}{NETMASK}=$subnet->{NETMASK};
+    $subnet_params{$subnet->{ID}}{GATEWAY}=$subnet->{GATEWAY};
+    $subnet_params{$subnet->{ID}}{SUBNET_ID}=$subnet->{ID};
+
+    if($mask_num == 4294967295) {
+      next;
+    }
+    if($debug > 1) {
+      print "SUBNET: " . int2ip($address_int) . " MASK: " . $subnet->{NETMASK} . "\n";
+    }
+
     $subnet_tpls .= $html->tpl_show(_include('internet_isc_dhcp_conf_subnet', 'Internet'), { %$subnet }, { OUTPUT2RETURN => 1 }) . "\n";
   }
 
   my $hosts = $Internet->list({
     COLS_NAME      => 1,
     COLS_UPPER     => 1,
+    LOGIN          => '_SHOW',
     INTERNET_LOGIN => '_SHOW',
     CID            => '*',
     IP_NUM         => '>0',
@@ -115,8 +134,14 @@ sub isc_dhcp_config {
   my $hosts_tpls //= '';
 
   foreach my $host (@{$hosts}) {
+    if($host->{CID} !~ /^[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}$/i) {
+      next;
+    }
     $host->{IP} = int2ip($host->{IP_NUM});
-    $hosts_tpls .= $html->tpl_show(_include('internet_isc_dhcp_conf_host', 'Internet'), { %$host }, { OUTPUT2RETURN => 1 });
+    my $subnet_info = subnet_params($host->{IP}, \%subnet_params);
+    $hosts_tpls .= $html->tpl_show(_include('internet_isc_dhcp_conf_host', 'Internet'),
+      { %$subnet_info, %$host },
+      { OUTPUT2RETURN => 1 });
   }
 
   my $conf_main = $html->tpl_show(_include('internet_isc_dhcp_conf_main', 'Internet'),
@@ -142,6 +167,41 @@ sub isc_dhcp_config {
   }
 
   return 1;
+}
+
+
+#**********************************************************
+=head2 subnet_params($ip, $subnets_hash) - make_config
+
+  Arguments:
+    $ip
+    $subnets_hash
+
+  Results:
+    subnet_info
+
+=cut
+#**********************************************************
+sub subnet_params {
+  my($ip, $subnet)=@_;
+
+  my $id = 0;
+  my $ip_num = ip2int($ip);
+
+  foreach my $subnet_id ( keys %$subnet ) {
+    my $first_ip = $subnet->{$subnet_id}->{FIRST_IP};
+    my $last_ip  = $subnet->{$subnet_id}->{LAST_IP};
+    if($first_ip <= $ip_num && $ip_num <= $last_ip) {
+      $id = $subnet_id;
+      last;
+    }
+  }
+
+  if (! $id) {
+    print "$id - $ip\n";
+  }
+
+  return ($id)  ? $subnet->{$id} : {};
 }
 
 1;

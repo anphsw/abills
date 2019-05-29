@@ -2503,5 +2503,118 @@ sub get_remind_date {
   return $self->{list};
 }
 
+#*******************************************************************
+=head2 sharing_get_bought_files_count() -
+
+  Arguments:
+    $attr
+
+  Returns:
+
+=cut
+#*******************************************************************
+sub sharing_get_bought_files_count {
+  my $self = shift;
+  my($attr)=@_;
+
+  $self->query("
+    select su.file_id, COUNT(*) as count, sf.name from sharing_users as su
+LEFT JOIN sharing_files sf ON (sf.id=su.file_id)
+GROUP BY file_id
+ORDER BY count DESC;
+  ", undef, {COLS_NAME => 1});
+
+  return $self->{list};
+}
+
+#*******************************************************************
+=head2 sharing_get_bought_files_count() -
+
+  Arguments:
+    $attr
+
+  Returns:
+
+=cut
+#*******************************************************************
+sub sharing_get_subscriptions {
+  my $self = shift;
+  my($attr)=@_;
+
+  $self->query("SELECT
+  (SELECT COUNT(*)
+   FROM sharing_users
+   WHERE '$attr->{DATE}' < sharing_users.date_to) AS active_subscriptions,
+  COUNT(*)                                     AS not_active_subscriptions
+FROM sharing_users
+WHERE '$attr->{DATE}' > sharing_users.date_to;", undef, {COLS_NAME => 1});
+
+  return $self->{list};
+}
+
+#*******************************************************************
+=head2 sharing_get_downloaded_files_count() -
+
+  Arguments:
+    $attr
+
+  Returns:
+
+=cut
+#*******************************************************************
+sub sharing_get_downloaded_files_count {
+  my $self = shift;
+  my($attr)=@_;
+
+  $self->query("
+    select sdl.file_id, COUNT(*) as count, sf.name from sharing_download_log as sdl
+  LEFT JOIN sharing_files sf ON (sf.id=sdl.file_id)
+GROUP BY file_id
+ORDER BY count DESC;
+  ", undef, {COLS_NAME => 1});
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 callcenter_data_report($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub sharing_download_dynamic {
+  my $self = shift;
+  my ($attr) = @_;
+  my $param = $attr->{PARAM} || "'%H'";
+  delete($self->{list_hash});
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'DATE' , 'DATE', "DATE_FORMAT(date, '%Y-%m-%d')",  ],
+    ],
+    {
+      WHERE => 1
+    }
+  );
+
+  $self->query(
+    "SELECT DATE_FORMAT(date, $param) as my_data, COUNT(*) as count
+    FROM sharing_download_log
+    $WHERE
+    GROUP BY my_data;",
+    undef,
+    $attr
+  );
+
+  return $self->{list_hash} if $attr->{LIST2HASH};
+
+  return $self->{list};
+}
+
 1
 

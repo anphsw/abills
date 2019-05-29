@@ -26,3 +26,4 @@ internet_user_rating.tpl:russian:Форма велдения рейтинга п
 internet_user_rating_pre.tpl:russian:Предварительный просмотр рейтинга
 
 internet_user_memo.tpl:russian:Памятка абонента в  HTML виде:
+internet_chg_tp_rule.tpl:russian:Условия изменения тарифного плана:

@@ -15,7 +15,6 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Dv;
 use Nas;
 use Abills::Base qw(int2ip _bp in_array);
 
@@ -26,22 +25,23 @@ our (
   $db,
   $OS,
   $argv,
-  %LIST_PARAMS
+  %LIST_PARAMS,
+  $Dv,
+  $Nas
 );
 
 _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } });
 
-if ( $argv->{NAS_IDS} ) {
-  
+if ($argv->{NAS_IDS}) {
+
   my @nas_ids = split(',\s?', $argv->{NAS_IDS});
-  
-  foreach my $nas_id ( @nas_ids ) {
-    my $Nas = Nas->new($db, $admin, \%conf);
+
+  foreach my $nas_id (@nas_ids) {
     $Nas->info({ NAS_ID => $nas_id });
-  
+
     $Nas->{NAS_TYPE} //= '';
-    
-    if (  $Nas->{NAS_TYPE} =~ 'mikrotik' ) {
+
+    if ($Nas->{NAS_TYPE} =~ 'mikrotik') {
       $LIST_PARAMS{NAS_ID} = $nas_id;
       mikrotik_user_sync($Nas, get_user_accounts());
     }
@@ -50,36 +50,37 @@ if ( $argv->{NAS_IDS} ) {
       next;
     }
   }
-  
+
 }
 else {
-  die "Usage: ./billd auth_export NAS_IDS=<NAS_ID>"
+  print "Usage: ./billd auth_export NAS_IDS=<NAS_ID>";
+  exit;
 }
 
 
 #**********************************************************
-=head2 mikrotik_user_sync() - Mikrotik
+=head2 mikrotik_user_sync($Nas, $user_accounts) - Mikrotik
 
 =cut
 #**********************************************************
 sub mikrotik_user_sync {
-  my ($Nas, $user_accounts) = @_;
-  
+  my ($Nas_, $user_accounts) = @_;
+
   require Abills::Nas::Mikrotik;
   Abills::Nas::Mikrotik->import();
-  
-  my $mikrotik = Abills::Nas::Mikrotik->new($Nas, \%conf, {
+
+  my $mikrotik = Abills::Nas::Mikrotik->new($Nas_, \%conf, {
     DEBUG => $argv->{MIKROTIK_DEBUG} || 0
   });
-  
-  if ( !$mikrotik->has_access() ) {
-    print "No access to $Nas->{NAS_NAME} ($Nas->{NAS_IP}) \n";
+
+  if (!$mikrotik || !$mikrotik->has_access()) {
+    print "No access to $Nas_->{NAS_NAME} ($Nas_->{NAS_IP}) \n";
     return 0;
   }
-  
+
   # Compare remote and local users to prevent deletening/adding correct rows
   my $current_accounts_list = $mikrotik->ppp_accounts_list();
-  
+
   # Transform to array of refs with same keys as user_accounts
   my @filtered_current_accounts_list = map {
     {
@@ -90,66 +91,66 @@ sub mikrotik_user_sync {
       ID       => $_->{id}
     }
   } @$current_accounts_list;
-  
+
   my $get_different_rows_from_two_lists = sub {
     my ($fresh, $checked, $compare_keys) = @_;
-    
+
     # Build hash for both lists to find nonexisting rows
     my $unique_key = $compare_keys->[0];
-    
-    my %fresh_list_by_key = map { $_->{$unique_key} => $_ } @{$fresh};
-    my %checked_list_by_key = map { $_->{$unique_key} => $_ } @{$checked};
-    
+
+    my %fresh_list_by_key = map {$_->{$unique_key} => $_} @{$fresh};
+    my %checked_list_by_key = map {$_->{$unique_key} => $_} @{$checked};
+
     # Check for existance of entries in both lists
-    my @removed_keys = grep { !exists $fresh_list_by_key{$_} } keys %checked_list_by_key;
-    my @removed = map { $checked_list_by_key{$_} } @removed_keys;
-    
-    my @created_keys = grep { !exists $checked_list_by_key{$_} } keys %fresh_list_by_key;
-    my @created = map { $fresh_list_by_key{$_} } @created_keys;
-    
+    my @removed_keys = grep {!exists $fresh_list_by_key{$_}} keys %checked_list_by_key;
+    my @removed = map {$checked_list_by_key{$_}} @removed_keys;
+
+    my @created_keys = grep {!exists $checked_list_by_key{$_}} keys %fresh_list_by_key;
+    my @created = map {$fresh_list_by_key{$_}} @created_keys;
+
     # No necessary to compare what is new or will be removed
-    my @do_not_compare = ( @removed, @created );
-    my @should_be_checked = grep { !in_array($_, \@do_not_compare) } @{$checked};
-    
-    my %entries_to_compare = map { $_->{$unique_key} => 1 } @should_be_checked;
+    my @do_not_compare = (@removed, @created);
+    my @should_be_checked = grep {!in_array($_, \@do_not_compare)} @{$checked};
+
+    my %entries_to_compare = map {$_->{$unique_key} => 1} @should_be_checked;
     my @changed = ();
-    foreach my $entry_key ( keys %entries_to_compare ) {
+    foreach my $entry_key (keys %entries_to_compare) {
       my $checked_entry = $checked_list_by_key{$entry_key};
       my $fresh_entry = $fresh_list_by_key{$entry_key};
-      
-      foreach my $key ( @{$compare_keys} ) {
-        if ( $checked_entry->{$key} ne $fresh_entry->{$key} ) {
+
+      foreach my $key (@{$compare_keys}) {
+        if ($key && $checked_entry->{$key} && $checked_entry->{$key} ne $fresh_entry->{$key}) {
           $fresh_entry->{ID} = $checked_entry->{ID} if (defined $checked_entry->{ID});
-  
-          push (@changed, $fresh_entry);
+
+          push(@changed, $fresh_entry);
           last;
         }
       }
     }
-    
-    ( \@removed, \@created, \@changed );
+
+    (\@removed, \@created, \@changed);
   };
-  
+
   my ($to_remove, $to_create, $to_change) = $get_different_rows_from_two_lists->(
     $user_accounts,
     \@filtered_current_accounts_list,
     [ 'LOGIN', 'PASSWORD', 'IP', 'CID' ]
   );
-  
-  foreach my $user_account ( @{$to_remove} ) {
-    if ( $debug ) {
+
+  foreach my $user_account (@{$to_remove}) {
+    if ($debug) {
       print "Removing: $user_account->{LOGIN} \n";
     }
-    
+
     $mikrotik->ppp_accounts_remove({
       numbers => $user_account->{LOGIN}
     });
   }
-  
+
   $mikrotik->ppp_accounts_add([
     map {
       print "Adding: $_->{LOGIN} PASSWORD: $_->{PASSWORD} IP: $_->{IP} CID: $_->{CID}\n" if ($debug);
-      
+
       {
         'name'           => $_->{LOGIN},
         'password'       => $_->{PASSWORD},
@@ -160,9 +161,8 @@ sub mikrotik_user_sync {
       }
     } @{$to_create}
   ]);
-    
-  
-  foreach my $user_account ( @{$to_change} ) {
+
+  foreach my $user_account (@{$to_change}) {
     print "Changed: $user_account->{LOGIN} PASSWORD: $user_account->{PASSWORD} IP: $user_account->{IP} CID: $user_account->{CID}\n" if ($debug);
     $mikrotik->debug(3);
     $mikrotik->ppp_accounts_change($user_account->{ID}, {
@@ -172,7 +172,7 @@ sub mikrotik_user_sync {
       'caller-id'      => $user_account->{CID}
     });
   }
-  
+
   return 1;
 }
 
@@ -183,35 +183,33 @@ sub mikrotik_user_sync {
 =cut
 #**********************************************************
 sub get_user_accounts {
-  
+
   my @accounts = ();
-  my $Dv = Dv->new($db, $admin, \%conf);
-  my $Nas = Nas->new($db, $admin, \%conf);
-  
-  if ( $debug > 6 ) {
+
+  if ($debug > 6) {
     $Nas->{debug} = 1;
     $Dv->{debug} = 1;
   }
-  
+
   my %nas_pool_ips = ();
   my %pool_used = ();
-  
-  if ( $LIST_PARAMS{NAS_ID} ) {
+
+  if ($LIST_PARAMS{NAS_ID}) {
     my $pool_list = $Nas->ip_pools_list({
       COLS_NAME => 1,
       NAS_ID    => $LIST_PARAMS{NAS_ID}
     });
-    
-    foreach my $line ( @{$pool_list} ) {
-      push @{ $nas_pool_ips{$LIST_PARAMS{NAS_ID} } }, {
-          ID    => $line->{id},
-          FIRST => $line->{ip},
-          COUNT => $line->{counts}
-        }
+
+    foreach my $line (@{$pool_list}) {
+      push @{$nas_pool_ips{$LIST_PARAMS{NAS_ID} }}, {
+        ID    => $line->{id},
+        FIRST => $line->{ip},
+        COUNT => $line->{counts}
+      }
     }
   }
-  
-  my $dv_list = $Dv->list({
+
+  my $internet_list = $Dv->list({
     LOGIN     => '_SHOW',
     PASSWORD  => '_SHOW',
     CID       => '_SHOW',
@@ -220,38 +218,38 @@ sub get_user_accounts {
     PAGE_ROWS => 1000000,
     COLS_NAME => 1
   });
-  
-  foreach my $user_info ( @{ $dv_list } ) {
+
+  foreach my $user_info (@{$internet_list}) {
     my $ip = $user_info->{ip} || '0.0.0.0';
-    if ( $LIST_PARAMS{NAS_ID} && $nas_pool_ips{ $LIST_PARAMS{NAS_ID} } ) {
-      foreach my $pool_info ( @{ $nas_pool_ips{ $LIST_PARAMS{NAS_ID} } } ) {
+    if ($LIST_PARAMS{NAS_ID} && $nas_pool_ips{ $LIST_PARAMS{NAS_ID} }) {
+      foreach my $pool_info (@{$nas_pool_ips{ $LIST_PARAMS{NAS_ID} }}) {
         print "$pool_info->{ID} $pool_info->{FIRST} $pool_info->{COUNT}\n" if ($debug > 1);
-        
-        if ( !$pool_used{$pool_info->{ID}} ) {
+
+        if (!$pool_used{$pool_info->{ID}}) {
           $pool_used{$pool_info->{ID}} = $pool_info->{FIRST};
         }
-        elsif ( $pool_used{$pool_info->{ID}} < $pool_info->{FIRST} + $pool_info->{COUNT} ) {
+        elsif ($pool_used{$pool_info->{ID}} < $pool_info->{FIRST} + $pool_info->{COUNT}) {
           $pool_used{$pool_info->{ID}}++;
         }
         else {
           next;
         }
-        
+
         print "Pool ip: $pool_used{$pool_info->{ID}}\n" if ($debug > 1);
         $ip = int2ip($pool_used{$pool_info->{ID}});
         last;
       }
     }
-    
+
     push @accounts, {
-        LOGIN    => $user_info->{login} || q{},
-        PASSWORD => $user_info->{password} || q{},
-        IP       => $ip,
-        CID      => $user_info->{CID} || q{},
-        TP_ID    => $user_info->{TP_ID} || 0,
-      };
+      LOGIN    => $user_info->{login} || q{},
+      PASSWORD => $user_info->{password} || q{},
+      IP       => $ip,
+      CID      => $user_info->{CID} || q{},
+      TP_ID    => $user_info->{TP_ID} || 0,
+    };
   }
-  
+
   return \@accounts;
 }
 

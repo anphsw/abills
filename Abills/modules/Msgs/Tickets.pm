@@ -20,7 +20,8 @@ our(
   $html,
   %permissions,
   @WEEKDAYS,
-  @MONTHES
+  @MONTHES,
+  @MONTHES_LIT,
 );
 
 
@@ -284,7 +285,7 @@ sub msgs_admin {
   }
 
   $LIST_PARAMS{STATE} = undef if ( $FORM{STATE} && $FORM{STATE} =~ /^\d+$/ && $FORM{STATE} == 3 );
-  $LIST_PARAMS{PRIORITY} = undef if ( $FORM{PRIORITY} && $FORM{PRIORITY} == 5 );
+  $LIST_PARAMS{PRIORITY} = undef if ( $FORM{PRIORITY} && $FORM{PRIORITY} =~ /^\d+$/ && $FORM{PRIORITY} == 5 );
   $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER} if ( $FORM{CHAPTER} );
   $LIST_PARAMS{DESC} = 'DESC' if ( !$FORM{sort} );
   $LIST_PARAMS{RESPOSIBLE} = $attr->{ADMIN}->{AID} if ( $attr->{ADMIN}->{AID} );
@@ -730,7 +731,7 @@ sub msgs_admin_add_form {
     'DISPATCH_ID',
     {
       SELECTED    => $Msgs->{DISPATCH_ID} || '',
-      SEL_LIST    => $Msgs->dispatch_list({ STATE => 0, COLS_NAME => 1 }),
+      SEL_LIST    => $Msgs->dispatch_list({ COMMENTS => '_SHOW', PLAN_DATE => '_SHOW', STATE => 0, COLS_NAME => 1 }),
       SEL_OPTIONS => { '' => '--' },
       SEL_KEY     => 'id',
       SEL_VALUE   => 'plan_date,comments'
@@ -802,10 +803,10 @@ sub msgs_admin_add_form {
     %send_types,
     %$sender_send_types
   );
-
-  if ( in_array('Sms', \@MODULES) ) {
-    $send_types{2} = "$lang{SEND} SMS";
-  }
+#FIXME: This type works for sending sms via Msgs
+   if ( in_array('Sms', \@MODULES) ) {
+     $send_types{2} = "$lang{SEND} SMS";
+   }
 
   if ( $conf{MSGS_REDIRECT_FILTER_ADD} ) {
     $send_types{3} = 'Msgs redirect';
@@ -1022,7 +1023,7 @@ sub msgs_ticket_show {
   $Msgs->{DISPATCH_ID} //= 0;
   $Msgs->{DISPATCH_SEL} = $html->form_select('DISPATCH_ID', {
     SELECTED       => $Msgs->{DISPATCH_ID} || 0,
-    SEL_LIST       => $Msgs->dispatch_list({ STATE => 0, COLS_NAME => 1 }),
+    SEL_LIST       => $Msgs->dispatch_list({ COMMENTS => '_SHOW', STATE => 0, COLS_NAME => 1 }),
     SEL_KEY        => 'id',
     SEL_VALUE      => 'comments',
     MAIN_MENU      => get_function_index('msgs_dispatch'),
@@ -1256,7 +1257,7 @@ sub msgs_ticket_show {
     $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
   }
 # Button for subject chaning
-  if ( scalar keys %{ $A_PRIVILEGES } == 0 || $A_PRIVILEGES->{$Msgs->{CHAPTER}} == 3 ) {
+  if ( scalar keys %{ $A_PRIVILEGES } == 0 || ($Msgs->{CHAPTER}  && $A_PRIVILEGES->{$Msgs->{CHAPTER}} == 3 )) {
     $params{CHANGE_SUBJECT_BUTTON} = $html->button("$lang{CHANGE} $lang{SUBJECT}",
       "qindex=" . get_function_index('_msgs_show_change_subject_template') . "&header=2&subject=". ($Msgs->{SUBJECT} || q{}). "&msg_id=$Msgs->{ID}",
       {
@@ -1295,157 +1296,12 @@ sub msgs_ticket_show {
       SKIP_LOG   => 1
     });
   }
+
+  require Msgs::Chat;
   show_admin_chat();
 
   return 1;
 }
-#**********************************************************
-=head2 header_online_chat() Shows chats at the header main page
-
-  Arguments:
-
-  Returns:
-    true
-=cut
-#**********************************************************
-sub header_online_chat {
-  my ($attr) = @_;
-  my $list = '';
-  if ($FORM{AID}) {
-    my $count_messages = $Msgs->chat_count({ AID => $FORM{AID} });
-    print $count_messages;
-  }
-  if ($attr->{UID}) {
-    my $count_user_messages = $Msgs->chat_count({ UID => $attr->{UID} || '' });
-    print $count_user_messages;
-  }
-  if ($attr->{US_MS_LIST}) {
-    my $messages = $Msgs->chat_message_info({ UID => $attr->{US_MS_LIST} });
-    foreach my $item (@$messages) {
-      $list .= $html->tpl_show(_include('msgs_chat_header', 'Msgs'), {
-        SUBJECT => $item->{subject},
-        LINK    => 'index.cgi?get_index=msgs_user&ID=' . $item->{id} . '&sid=' . $user->{SID}
-      }, { OUTPUT2RETURN => 1 });
-    }
-    print $list;
-  }
-  if ($FORM{SH_MS_LIST}) {
-    my $messages = $Msgs->chat_message_info({ AID => $FORM{SH_MS_LIST} });
-    foreach my $item (@$messages) {
-      $list .= $html->tpl_show(_include('msgs_chat_header', 'Msgs'), {
-        SUBJECT => $item->{subject},
-        LINK    => 'index.cgi?get_index=msgs_admin&full=1&UID=' . $item->{uid} . '&chg=' . $item->{num_ticket}
-      }, { OUTPUT2RETURN => 1 });
-    }
-    print $list;
-  }
-  return 1;
-}
-#**********************************************************
-=head2 show_admin_chat() Shows chat at the admin side
-
-  Arguments:
-
-  Returns:
-    ''
-=cut
-#**********************************************************
-sub show_admin_chat {
-  if ($FORM{ADD}) {
-    msgs_chat_add();
-    return 1;
-  }
-  if ($FORM{SHOW}) {
-    msgs_chat_show();
-    return 1;
-  }
-  if ($FORM{COUNT}) {
-    my $count = $Msgs->chat_count({ Msg_ID => $FORM{MSG_ID}, SENDER => 'aid' });
-    print $count;
-    return 1;
-  }
-  if ($FORM{CHANGE}) {
-    $Msgs->chat_change({ Msg_ID => $FORM{MSG_ID}, SENDER => 'aid'});
-    return 1;
-  }
-  if ($conf{MSGS_CHAT}) {
-    my $fn_index = get_function_index('show_admin_chat');
-    $html->tpl_show(_include('msgs_admin_chat', 'Msgs'), {
-      F_INDEX    => $fn_index,
-      AID        => $admin->{AID},
-      NUM_TICKET => $Msgs->{ID}
-    });
-  }
-  return '';
-}
-#**********************************************************
-=head2 msgs_chat_add() Add chat message to db
-
-  Arguments:
-
-  Returns:
-    true
-=cut
-#**********************************************************
-sub msgs_chat_add {
-  if ($FORM{MESSAGE}) {
-    $Msgs->chat_add({
-      MESSAGE     => $FORM{MESSAGE},
-      UID         => $FORM{UID} || '0',
-      AID         => $FORM{AID} || '0',
-      NUM_TICKET  => $FORM{MSG_ID} || '0',
-      MSGS_UNREAD => '0',
-    });
-    if (!$Msgs->{errno}) {
-      $html->message('info', $lang{INFO}, $lang{ADDED});
-    }
-  }
-  return '';
-}
-#**********************************************************
-=head2 msgs_chat_show() - Shows chat messages
-
-  Arguments:
-
-  Returns:
-    true
-=cut
-#**********************************************************
-sub msgs_chat_show {
-  my $list = $Msgs->chat_list({Msg_ID => $FORM{MSG_ID}});
-  foreach my $line (@$list) {
-    if ($FORM{ADMIN} && $line->{uid} eq '0') {
-      $html->tpl_show(_include('msgs_chat_to', 'Msgs'), {
-        MESSAGE => $line->{message},
-        DATE    => $line->{date},
-        SENDER  => 'You',
-      });
-    }
-    elsif ($FORM{ADMIN} && $line->{aid} eq '0') {
-      $html->tpl_show(_include('msgs_chat_from', 'Msgs'), {
-        MESSAGE => $line->{message},
-        DATE    => $line->{date},
-        SENDER  => 'User',
-      });
-    }
-    if ($FORM{USER} && $line->{uid}eq'0') {
-      print $html->tpl_show(_include('msgs_chat_from', 'Msgs'), {
-        MESSAGE => $line->{message},
-        DATE    => $line->{date},
-        SENDER  => 'Admin',
-      }, {OUTPUT2RETURN => 1});
-    }
-    elsif ($FORM{USER} && $line->{aid}eq'0') {
-      print $html->tpl_show(_include('msgs_chat_to', 'Msgs'), {
-        MESSAGE => $line->{message},
-        DATE    => $line->{date},
-        SENDER  => 'You',
-      }, {OUTPUT2RETURN => 1});
-    }
-  }
-  return '';
-}
-
 #**********************************************************
 =head2 msgs_ticket_reply
 
@@ -1719,17 +1575,17 @@ sub _msgs_change_responsible {
 sub msgs_work {
   my ($attr) = @_;
 
-  if ( !in_array('Crm', \@MODULES) ) {
+  if ( !in_array('Employees', \@MODULES) ) {
     return q{};
   }
 
   if ( $attr->{WORK_LIST} ) {
-    load_module('Crm', $html);
+    load_module('Employees', $html);
     if ( $attr->{MNG} ) {
-      return crm_works({ EXT_ID => $attr->{MESSAGE_ID}, UID => $attr->{UID} });
+      return employees_works({ EXT_ID => $attr->{MESSAGE_ID}, UID => $attr->{UID} });
     }
     else {
-      return crm_works_list({ EXT_ID => $attr->{MESSAGE_ID}, UID => $attr->{UID} });
+      return employees_works_list({ EXT_ID => $attr->{MESSAGE_ID}, UID => $attr->{UID} });
     }
   }
 
@@ -1755,8 +1611,10 @@ sub msgs_export {
     $Export_redmine->export_task(\%FORM);
     _error_show($Export_redmine);
 
-    if ( $Export_redmine->{RESULT}->{"issue"}->{"id"} ) {
-      $html->message('info', $lang{ADDED}, "$lang{ADDED}: $Export_redmine->{RESULT}->{issue}->{id} ");
+    if ( $Export_redmine->{TASK_ID} ) {
+      $html->message('info', $lang{ADDED}, "$lang{ADDED}: $Export_redmine->{TASK_ID} "
+        . ($Export_redmine->{TASK_LINK}) ? $html->button($Export_redmine->{TASK_ID}, '', { GLOBAL_URL => $Export_redmine->{TASK_LINK} }) : q{}
+        );
     }
 
     my $list = $Export_redmine->task_list();
@@ -1915,17 +1773,28 @@ sub msgs_dispatch {
 
   require Contacts;
   my $Contacts = Contacts->new($db, $admin, \%conf);
+  my $disabled_actual_time = 'disabled';
+  my $dispatch_admins = q{};
 
   $Msgs->{ACTION} = 'add';
   $Msgs->{LNG_ACTION} = $lang{ADD};
 
   if ( $FORM{add} ) {
     $Msgs->dispatch_add({ %FORM });
+    msgs_dispatch_admins({ AIDS => $FORM{AIDS}, DISPATCH_ID => $Msgs->{DISPATCH_ID}, ADD => 1 });
     $html->message('info', $lang{INFO}, "$lang{ADDED}") if ( !$Msgs->{errno} );
   }
   elsif ( $FORM{print} ) {
     print $html->header();
     $Msgs->dispatch_info($FORM{print});
+
+    $dispatch_admins = $Msgs->dispatch_admins_list({DISPATCH_ID => $FORM{print}, COLS_NAME => 1});
+    my $brigade = q{};
+
+    foreach my $line (@$dispatch_admins) {
+      $brigade .= "$line->{name}";
+      $brigade .= $html->br();
+    }
 
     my $value_list = $Conf->config_list({
       CUSTOM    => 1,
@@ -1936,6 +1805,7 @@ sub msgs_dispatch {
       DISPATCH_ID    => $FORM{print},
       LOGIN          => '_SHOW',
       PLAN_DATE      => '_SHOW',
+      PLAN_TIME      => '_SHOW',
       DESC           => (!$FORM{sort}) ? 'DESC' : $FORM{desc},
       ADDRESS_FULL   => '_SHOW',
       ADDRESS_STREET => '_SHOW',
@@ -1951,7 +1821,13 @@ sub msgs_dispatch {
       PHONE          => '_SHOW',
       COLS_NAME      => 1
     });
-
+    if (in_array('Docs', \@MODULES)) {
+      ($Msgs->{Y}, $Msgs->{M}, $Msgs->{D}) = split(/-/, ($Msgs->{PLAN_DATE}) || '');
+      $Msgs->{PLAN_DATE_LIT} = "$Msgs->{D} " . $MONTHES_LIT[ int($Msgs->{M}) - 1 ] . " $Msgs->{Y} $lang{YEAR}";
+    }
+    else {
+      $Msgs->{PLAN_DATE_LIT} = '';
+    }
     my %ORDERS = ();
     my $i = 1;
 
@@ -1973,7 +1849,7 @@ sub msgs_dispatch {
       my $address_full = ($line->{city} || q{})
         . ' ' . ($line->{address_street} || q{})
         . ' ' . ($line->{address_build} || q{})
-        . ' ' . ($line->{address_flat} || q{});
+        . ', ' . ($line->{address_flat} || q{});
 
       $ORDERS{ 'ORDER_NUM_' . $i } = $i;
       $ORDERS{ 'ORDER_PERSONAL_INFO_' . $i } = ($line->{fio} || q{}) . ', ' . $address_full;
@@ -1987,10 +1863,11 @@ sub msgs_dispatch {
       $ORDERS{ 'ORDER_CHAPTER_' . $i } = $line->{chapter_name};
       $ORDERS{ 'ORDER_DATE_' . $i } = $line->{date};
       $ORDERS{ 'PLAN_DATE_' . $i } = $line->{plan_date};
+      $ORDERS{ 'PLAN_TIME_' . $i } = $line->{plan_time};
       $i++;
     }
 
-    $html->tpl_show(_include('msgs_dispatch_blank', 'Msgs'), { %{$Msgs}, %ORDERS });
+    $html->tpl_show(_include('msgs_dispatch_blank', 'Msgs'), { %{$Msgs}, %ORDERS, BRIGADE => $brigade });
 
     return 0;
   }
@@ -2001,6 +1878,7 @@ sub msgs_dispatch {
     }
 
     $Msgs->dispatch_change({ %FORM });
+    msgs_dispatch_admins({ AIDS => $FORM{AIDS}, DISPATCH_ID => $FORM{ID}, CHANGE => 1 });
     $html->message('info', $lang{INFO}, $lang{CHANGED}) if ( !$Msgs->{errno} );
   }
   elsif ( $FORM{chg} ) {
@@ -2009,6 +1887,7 @@ sub msgs_dispatch {
     $Msgs->{ACTION} = 'change';
     $Msgs->{LNG_ACTION} = $lang{CHANGE};
     $FORM{add_form} = 1;
+    $disabled_actual_time = '';
     # $html->message( 'info', $lang{INFO}, "$lang{CHANGING}" ) if (!$Msgs->{errno});
   }
   elsif ( $FORM{del} && $FORM{COMMENTS} ) {
@@ -2030,9 +1909,15 @@ sub msgs_dispatch {
 
   if ( $FORM{add_form} ) {
 
-    $Msgs->{STATE_SEL} = msgs_sel_status({ ALL => 1 });
+    $Msgs->{STATE_SEL} = msgs_sel_status({ ALL => 0 });
     $Msgs->{RESPOSIBLE_SEL} = sel_admins({ NAME => 'RESPOSIBLE', RESPOSIBLE => $Msgs->{RESPOSIBLE} });
     $Msgs->{PLAN_DATE} = $Msgs->{PLAN_DATE} || $DATE;
+    $Msgs->{CREATED_BY_SEL} = sel_admins({ NAME => 'CREATED_BY', SELECTED => ($Msgs->{CREATED_BY} && $Msgs->{CREATED_BY} >'0')?$Msgs->{CREATED_BY}:$admin->{AID} });
+    $Msgs->{START_DATE} = $html->form_datetimepicker('START_DATE', ($Msgs->{START_DATE} || ''));
+    $Msgs->{END_DATE} = $html->form_datetimepicker('END_DATE', ($Msgs->{END_DATE} || ''));
+    $Msgs->{ACTUAL_END_DATE} = $html->form_datetimepicker('ACTUAL_END_DATE', ($Msgs->{ACTUAL_END_DATE} || '0000-00-00 00:00:00'), {EX_PARAMS => $disabled_actual_time});
+
+    $Msgs->{AIDS} = msgs_dispatch_admins();
 
     $Msgs->{CATEGORY_SEL} = $html->form_select(
       'CATEGORY',
@@ -2042,8 +1927,7 @@ sub msgs_dispatch {
         SEL_LIST    => $Msgs->dispatch_category_list({ COLS_NAME => 1 }),
       }
     );
-
-    $html->tpl_show(_include('msgs_dispatch', 'Msgs'), $Msgs);
+    $html->tpl_show(_include('msgs_dispatch', 'Msgs'),{ %{$Msgs}, AID => $admin->{AID}});
   }
 
   if ( $FORM{chg} ) {
@@ -2055,12 +1939,13 @@ sub msgs_dispatch {
     msgs_list({
       SELECT_ALL_ON           => 1,
       ALLOW_TO_CLEAR_DISPATCH => 1,
-      DISPATCH_ID             => $LIST_PARAMS{DISPATCH_ID}
+      DISPATCH_ID             => $LIST_PARAMS{DISPATCH_ID},
+      LIST_ID                 => 'MSGS_LIST_DISPATCH'
     });
 
     $index = get_function_index('msgs_dispatch');
 
-    msgs_dispatch_admins({ DISPATCH_ID => $LIST_PARAMS{DISPATCH_ID} });
+#    msgs_dispatch_admins({ DISPATCH_ID => $LIST_PARAMS{DISPATCH_ID} });
 
     return 0;
   }
@@ -2084,22 +1969,27 @@ sub msgs_dispatch {
   }
 
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
-  my Abills::HTML $table;
-  my $list;
-  ($table, $list) = result_former({
+
+    result_former({
     INPUT_DATA      => $Msgs,
     FUNCTION        => 'dispatch_list',
-    BASE_FIELDS     => 6,
-    FUNCTION_FIELDS => 'null',
-    DEFAULT_FIELDS  => '',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,COMMENTS,CREATED,PLAN_DATE,MESSAGE_COUNT,CREATED_ADMIN',
+    FUNCTION_FIELDS => 'print_in_new_tab,change,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
-      id            => '#',
-      plan_date     => $lang{EXECUTION},
-      created       => $lang{CREATED},
-      message_count => $lang{MESSAGES},
-      comments      => $lang{COMMENTS},
-      name          => $lang{CATEGORY}
+      id              => '#',
+      plan_date       => $lang{EXECUTION},
+      created         => $lang{CREATED},
+      message_count   => $lang{MESSAGES},
+      comments        => $lang{COMMENTS},
+      created_admin   => $lang{DISPATCH_CREATE},
+      resposible_admin => $lang{HEAD},
+      ds_status       => $lang{STATUS},
+      start_date      => $lang{TIME_START_WORK},
+      end_date        => $lang{TIME_END_WORK},
+      actual_end_date => $lang{ACTUAL_TIME_END},
+      category        => $lang{CATEGORY},
     },
     TABLE           => {
       width   => '100%',
@@ -2109,45 +1999,106 @@ sub msgs_dispatch {
       header  => msgs_status_bar({ MSGS_STATUS => $msgs_status }),
       EXPORT  => 1,
       MENU    => "$lang{ADD}:add_form=1&index=$index:add"
-    }
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Msgs',
+    TOTAL           => 1
   });
 
-  if ( $list && $list == - 1 ) {
-    return 0;
-  }
+#FIXME: Delete after 25.03.2019(if it works)
+#  my Abills::HTML $table;
+#  my $list;
+#  ($table, $list) = result_former({
+#    INPUT_DATA      => $Msgs,
+#    FUNCTION        => 'dispatch_list',
+#    BASE_FIELDS     => 6,
+#    FUNCTION_FIELDS => '',
+#    DEFAULT_FIELDS  => '',
+#    SKIP_USER_TITLE => 1,
+#    EXT_TITLES      => {
+#      id              => '#',
+#      plan_date       => $lang{EXECUTION},
+#      created         => $lang{CREATED},
+#      message_count   => $lang{MESSAGES},
+#      comments        => $lang{COMMENTS},
+#      created_by      => $lang{DISPATCH_CREATE},
+#      resposible      => $lang{HEAD},
+#      start_date      => $lang{TIME_START_WORK},
+#      end_date        => $lang{TIME_END_WORK},
+#      actual_end_date => $lang{ACTUAL_TIME_END},
+#      ds_status       => $lang{STATUS},
+#      name            => $lang{CATEGORY},
+#    },
+#    TABLE           => {
+#      width   => '100%',
+#      caption => $lang{DISPATCH},
+#      qs      => $pages_qs,
+#      ID      => 'MSGS_DISPATCH',
+#      header  => msgs_status_bar({ MSGS_STATUS => $msgs_status }),
+#      EXPORT  => 1,
+#      MENU    => "$lang{ADD}:add_form=1&index=$index:add"
+#    }
+#  });
+#
+#  if ( $list && $list == - 1 ) {
+#    return 0;
+#  }
+#
+#  foreach my $line ( @{$list} ) {
+#    my @fields_array = ();
+#    my $name = ();
+#    for (my $i = 0; $i < $Msgs->{SEARCH_FIELDS_COUNT} + 6; $i++) {
+#      my $val = '';
+#      my $field_name = $Msgs->{COL_NAMES_ARR}->[$i] || q{};
+#      if ($field_name eq 'resposible') {
+#        $name = $admin->list({ AID => $line->{ $field_name}, ADMIN_NAME => '_SHOW', COLS_NAME => 1 });
+#        unless ($admin->{errno}) {
+#          $val = $name->[0]{admin_name};
+#        }
+#      }
+#      elsif ($field_name eq 'created_by') {
+#        $name = $admin->list({ AID => $line->{ $field_name}, ADMIN_NAME => '_SHOW', COLS_NAME => 1 });
+#        unless ($admin->{errno}) {
+#          $val = $name->[0]{admin_name};
+#        }
+#      }
+#      elsif ($field_name eq 'ds_status') {
+#        $name = $Msgs->status_list({ ID => $line->{ $field_name}, NAME => '_SHOW', COLS_NAME => 1 });
+#        unless ($admin->{errno}) {
+#          $name->[0]{name} = _translate($name->[0]{name});
+#          $val = $name->[0]{name};
+#        }
+#      }
+#      else {
+#        $val = $line->{ $field_name };
+#      }
+#      push @fields_array, $val;
+#    }
+#
+#    push @fields_array,
+#      $html->button(
+#        $lang{PRINT}, "#",
+#        {
+#          NEW_WINDOW      => "$SELF_URL?qindex=$index&print=$line->{id}",
+#          NEW_WINDOW_SIZE => "640:750",
+#          class           => 'print'
+#        }
+#      )
+#        . ' ' . $html->button($lang{CHANGE}, "index=$index&chg=$line->{id}&ALL_MSGS=1", { class => 'change' })
+#        . ' ' . $html->button($lang{DEL}, "index=$index&del=$line->{id}",
+#        { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' });
+#
+#    $table->addrow(@fields_array);
+#  }
+#
+#  print $table->show();
+#  $table = $html->table({
+#    width => '100%',
+#    rows  => [ [ "  $lang{TOTAL}: ", $html->b($Msgs->{TOTAL}) ] ]
+#  });
 
-  foreach my $line ( @{$list} ) {
-    my @fields_array = ();
-    for ( my $i = 0; $i < $Msgs->{SEARCH_FIELDS_COUNT} + 6; $i++ ) {
-      my $val = '';
-      my $field_name = $Msgs->{COL_NAMES_ARR}->[$i] || q{};
-      $val = $line->{ $field_name };
-      push @fields_array, $val;
-    }
-
-    push @fields_array,
-      $html->button(
-        $lang{PRINT}, "#",
-        {
-          NEW_WINDOW      => "$SELF_URL?qindex=$index&print=$line->{id}",
-          NEW_WINDOW_SIZE => "640:750",
-          class           => 'print'
-        }
-      )
-        . ' ' . $html->button($lang{CHANGE}, "index=$index&chg=$line->{id}&ALL_MSGS=1", { class => 'change' })
-        . ' ' . $html->button($lang{DEL}, "index=$index&del=$line->{id}",
-        { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' });
-
-    $table->addrow(@fields_array);
-  }
-
-  print $table->show();
-  $table = $html->table({
-    width => '100%',
-    rows  => [ [ "  $lang{TOTAL}: ", $html->b($Msgs->{TOTAL}) ] ]
-  });
-
-  print $table->show();
+#  print $table->show();
 
   return 1;
 }
@@ -2505,16 +2456,23 @@ sub _msgs_reply_admin {
 }
 
 #**********************************************************
-=head2 msgs_dispatch_admins($attr) - dispatch admins
+=head2 msgs_dispatch_admins($attr) - dispatch admins for adding dispatch
+
+  Arguments:
+    DISPATCH_ID - Dispatch id at msgs_dispatch_admins
+
+  Returns:
+    true or html code
 
 =cut
 #**********************************************************
 sub msgs_dispatch_admins {
   my ($attr) = @_;
+  my $admins_list = '';
 
-  if ($FORM{change_admins}) {
-    $Msgs->dispatch_admins_change({%FORM});
-    $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" ) if (!$Msgs->{errno});
+  if ($attr->{ADD} || $attr->{CHANGE}) {
+    $Msgs->dispatch_admins_change($attr);
+    return 1;
   }
 
   my $list = $Msgs->dispatch_admins_list({
@@ -2529,17 +2487,12 @@ sub msgs_dispatch_admins {
 
   $list = $admin->list({ %LIST_PARAMS, DISABLE => 0, COLS_NAME => 1, PAGE_ROWS => 1000 });
 
-  my $table = $html->table({
-    width      => '100%',
-    caption    => $lang{ADMINS},
-    title      => [ '#', $lang{ADMIN}, $lang{FIO} ],
-    qs         => $pages_qs,
-    ID         => 'MSGS_ADMINS'
-  });
+  my $checkbox = '';
+  my $label = '';
+  my $div_checkbox = '';
 
   foreach my $line (@$list) {
-    $table->addrow(
-      $html->form_input(
+    $checkbox = $html->form_input(
         'AIDS',
         $line->{aid},
         {
@@ -2547,24 +2500,14 @@ sub msgs_dispatch_admins {
           STATE => ($active_admins{ $line->{aid} }) ? 1 : undef
         }
       )
-        . $line->{aid},
-      $line->{login},
-      $line->{name}
-    );
+        . ($line->{name} || q{}) . ' : ' . ($line->{login} || q{});
+
+    $label = $html->element('label', $checkbox);
+    $div_checkbox = $html->element('div', $checkbox, { class => 'checkbox col-md-4' } );
+    $admins_list .= $div_checkbox;
   }
 
-  print $html->form_main({
-    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-    HIDDEN  => {
-      index       => $index,
-      DISPATCH_ID => $FORM{chg},
-      chg         => $FORM{chg},
-    },
-    SUBMIT  => { change_admins => $lang{CHANGE} },
-    NAME    => 'admins_list'
-  });
-
-  return 1;
+  return $admins_list;
 }
 
 1

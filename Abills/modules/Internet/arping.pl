@@ -24,6 +24,7 @@ use v5.16;
 BEGIN {
   our $Bin;
   use FindBin '$Bin';
+
   if ( $Bin =~ m/\/abills(\/)/ ){
     my $libpath = substr($Bin, 0, $-[1]);
     unshift (@INC, "$libpath/lib");
@@ -33,7 +34,7 @@ BEGIN {
   }
 }
 
-our $base_dir;
+our $base_dir = "/usr/abills";
 
 # Setting autoflush
 $| = 1;
@@ -59,6 +60,7 @@ my $Nas = Nas->new($db, \%conf, $admin);
 my %ARGS = %{ parse_arguments(\@ARGV) };
 
 my $DEBUG = $ARGS{DEBUG} || 0;
+my $NO_ARP = $ARGS{NO_ARP} || 0;
 my $SESSION_ID = $ARGS{ACCT_SESSION_ID} or die usage();
 
 my %TYPE_PING_TABLE = (
@@ -81,6 +83,7 @@ sub usage {
   print qq{
   Usage: ./arping.pl ACCT_SESSION_ID=81809614 [DEBUG=1] [ L2=1 [ NAS_TYPES=mikrotik,mikrotik_dhcp ]]
     DEBUG     - be verbose
+    NO_ARP    - use ping, not arpping
     L2        - find NAS, that can make arping
     NAS_TYPES - types that will be treated as smart enough to make arping
     
@@ -95,9 +98,14 @@ sub usage {
 #**********************************************************
 sub get_session_info {
   my $session_id = shift;
-  
+
+  require Abills::Misc;
+
   print "Session id : $session_id \n" if ($DEBUG);
-  
+  my ($first, $vendor, $second) = split(/_/, $session_id);
+  eval {$vendor = get_oui_info($vendor);};
+  print "Vendor:" . ($vendor || "") . "\n";
+
   my $session = $Sessions->online_info({
     ACCT_SESSION_ID => $session_id,
     NAS_ID          => '_SHOW',
@@ -158,16 +166,22 @@ sub mikrotik_arping {
   my ($Nas_, $session_info) = @_;
   print "mikrotik_arping called \n" if ($DEBUG);
   
-  print "Will arping $session_info->{FRAMED_IP_ADDRESS} \n" if ($DEBUG);
-  
-  my $ssh_cmd = "ping arp-ping=yes interface=[put [ip arp get [find address=$session_info->{FRAMED_IP_ADDRESS}] interface]]"
-    . " $session_info->{FRAMED_IP_ADDRESS} count=3";
+  my $ssh_cmd = '';
+  if ($NO_ARP) {
+    print "*** Will ping $session_info->{FRAMED_IP_ADDRESS} \n" if ($DEBUG);
+    #$ssh_cmd = "ping interface=[put [ip arp get [find address=$session_info->{FRAMED_IP_ADDRESS}] interface]]" . " $session_info->{FRAMED_IP_ADDRESS} count=3";
+    $ssh_cmd = "ping $session_info->{FRAMED_IP_ADDRESS} count=3";
+  }
+  else {
+    print "Will arping $session_info->{FRAMED_IP_ADDRESS} \n" if ($DEBUG);
+    $ssh_cmd = "ping arp-ping=yes interface=[put [ip arp get [find address=$session_info->{FRAMED_IP_ADDRESS}] interface]]" . " $session_info->{FRAMED_IP_ADDRESS} count=3";
+  }
   
   my $res = ssh_cmd($ssh_cmd, {
       BASE_DIR        => $base_dir,
       NAS_MNG_IP_PORT => $Nas_->{NAS_MNG_IP_PORT},
       NAS_MNG_USER    => $Nas_->{NAS_MNG_USER},
-      #    DEBUG           => $DEBUG
+      #DEBUG           => $DEBUG
     });
   
   if ( $res && ref $res eq 'ARRAY' ) {

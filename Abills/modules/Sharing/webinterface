@@ -2818,6 +2818,7 @@ sub sharing_user_service {
   # );
   my @own_files;
   my @not_own_files;
+  my @expired_files;
 
   foreach my $file (@$files_list) {
     my $user_sharing_info = $Sharing->info_user({ UID => $FORM{UID}, FILE_ID => $file->{id} });
@@ -2825,10 +2826,21 @@ sub sharing_user_service {
     my $checkbox = q{};
     my $date = $lang{NOT_AVAILABLE};
 
-    if (!$user_sharing_info || $DATE gt $user_sharing_info->{date_to}) {
-      $button = $html->button($lang{BUY}, "BUY_FILE=$file->{id}&index=$index&UID=" . ($FORM{UID} || 0), { ex_params => "class = 'btn btn-primary'" });
+    if (!$user_sharing_info ) {
+      $date .= $user_sharing_info->{date_to} ? "($user_sharing_info->{date_to})" : '';
+      my $btn_name = $lang{BUY};
+      my $btn_class = 'btn btn-primary';
 
+      $button = $html->button($btn_name, "BUY_FILE=$file->{id}&index=$index&UID=" . ($FORM{UID} || 0), { ex_params => "class = '$btn_class'" });
       push @not_own_files, [ $checkbox, $file->{name}, $file->{comment}, $file->{file_time}, $date, $button ];
+    }
+    elsif ($DATE gt $user_sharing_info->{date_to}) {
+      $date .= $user_sharing_info->{date_to} ? "($user_sharing_info->{date_to})" : '';
+      my $btn_name = $user_sharing_info->{date_to} ? $lang{CONTINUE} : $lang{BUY};
+      my $btn_class = $user_sharing_info->{date_to} ? 'btn btn-info' : 'btn btn-primary';
+
+      $button = $html->button($btn_name, "BUY_FILE=$file->{id}&index=$index&UID=" . ($FORM{UID} || 0), { ex_params => "class = '$btn_class'" });
+      push @expired_files, [ $checkbox, $file->{name}, $file->{comment}, $file->{file_time}, $date, $button ];
     }
     else {
       $date = "$lang{TO} $user_sharing_info->{date_to}";
@@ -2852,7 +2864,7 @@ sub sharing_user_service {
       ID         => 'SHARING_USER_FILES_',
       SELECT_ALL => "files_list:ID:ID",
       MENU       => "$lang{ADD}:index=" . get_function_index('sharing_add_file') . ':add',
-      rows       => [ @own_files, @not_own_files ]
+      rows       => [ @own_files, @expired_files, @not_own_files ]
     }
   );
 
@@ -2915,15 +2927,22 @@ sub sharing_download_log {
   # _bp("total", $download_list, );
 
 
-  $html->tpl_show(_include('sharing_download_filters', 'Sharing'),
-    {
-      DATE_START => $FORM{DATE_START} || $DATE,
-      DATE_END   => $FORM{DATE_END} || $DATE,
-    },);
+#  $html->tpl_show(_include('sharing_download_filters', 'Sharing'),
+#    {
+#      DATE_START => $FORM{DATE_START} || $DATE,
+#      DATE_END   => $FORM{DATE_END} || $DATE,
+#    },);
 
-  $LIST_PARAMS{DATE_START} = $FORM{DATE_START} ? $FORM{DATE_START} : $DATE;
-  $LIST_PARAMS{DATE_END} = $FORM{DATE_END} ? $FORM{DATE_END} : $DATE;
-  $pages_qs = $pages_qs . "&DATE_END=$LIST_PARAMS{DATE_END}&DATE_START=$LIST_PARAMS{DATE_START}";
+  reports({
+    PERIOD_FORM=>1,
+    DATE_RANGE=>1,
+    NO_GROUP => 1,
+    NO_TAGS=>1,
+  });
+
+  $LIST_PARAMS{DATE_START} = $FORM{FROM_DATE} ? $FORM{FROM_DATE} : $DATE;
+  $LIST_PARAMS{DATE_END} = $FORM{TO_DATE} ? $FORM{TO_DATE} : $DATE;
+  $pages_qs = $pages_qs . "&TO_DATE=$LIST_PARAMS{DATE_END}&FROM_DATE=$LIST_PARAMS{DATE_END}";
 
   result_former(
     {
@@ -2954,6 +2973,98 @@ sub sharing_download_log {
       SKIP_USER_TITLE => 1
     }
   );
+
+  my ($ys,$ms,$ds) = split(/-/, $LIST_PARAMS{DATE_START});
+  my ($ye,$me,$de) = split(/-/, $LIST_PARAMS{DATE_END});
+  my $date_param = '';
+  my @array = ();
+  my $chart_name = '';
+
+  if ( ($ys == $ye) && ($ms == $me) && ($ds == $de) ) {
+    $date_param = "'%H'";
+    @array = (0...23);
+  }
+  elsif ( ($ys == $ye) && ($ms == $me) && ($ds != $de) ) {
+    $date_param = "'%d'";
+    @array = (1...Abills::Base::days_in_month( { DATE => $ms} ));
+    $chart_name = "$PERIODS[3] $MONTHES[$ms-1]";
+  }
+  elsif ( ($ys == $ye) && ($ms != $me) ) {
+    $date_param = "'%m'";
+    @array = (1...12);
+    $chart_name = "$lang{PER_MONTH} $ys";
+  }
+  elsif ( ($ys != $ye) ) {
+    $date_param = "'%Y'";
+    @array = ($ys...$ye);
+    $chart_name = "$lang{YEAR} $ys - $ye";
+  }
+  my %result = ();
+  my @array_y = ();
+  my @array_x = ();
+
+  my $data = $Sharing->sharing_download_dynamic({
+    DATE       => "$LIST_PARAMS{DATE_START}/$LIST_PARAMS{DATE_END}",
+    PARAM      => $date_param,
+    LIST2HASH  => 'my_data,count',
+  });
+
+  foreach my $item (keys %$data) {
+    $data->{int $item} = delete $data->{$item}
+  }
+
+  foreach my $item (@array) {
+    push @array_x, $item;
+    if ($data->{$item}) {
+      push @array_y, $data->{$item};
+    }
+    else {
+      push @array_y, 0;
+    }
+  }
+
+  if ( ($ys == $ye) && ($ms != $me) ) {
+    $result{ARRAY_X} = \@main::MONTHES;
+  }
+  else {
+    $result{ARRAY_X} = \@array_x;
+  }
+
+  $result{ARRAY_Y} = \@array_y;
+
+  my $chart = $html->chart({
+    TYPE       => 'bar',
+    DATA_CHART => {
+      datasets => [ {
+          data            => \@array_y,
+          label           => $lang{DOWNLOADS},
+          borderColor     => '#e54',
+          fill            => 'false',
+          backgroundColor => '#e54',
+          lineTension     => 0
+        }
+      ],
+      labels   => $result{ARRAY_X}
+    },
+    OPTIONS    => {
+      bezierCurve   => 'false',
+      scales => {
+        yAxes => [ {
+          type  => 'linear',
+          ticks => {
+            min  => 0,
+            beginAtZero => 'true'
+          }
+        } ]
+      }
+    }
+  });
+
+  $html->tpl_show(_include('sharing_download_filters', 'Sharing'),
+        {
+          CHART => $chart,
+          NAME  => $chart_name,
+        },);
 
   return 1
 }
@@ -3059,7 +3170,120 @@ sub sharing_add_group {
   return 1;
 }
 
+#**********************************************************
+=head2 sharing_report()
 
+
+=cut
+#**********************************************************
+sub sharing_report {
+  my $bought_files_count     = $Sharing->sharing_get_bought_files_count();
+  my $downloaded_files_count = $Sharing->sharing_get_downloaded_files_count();
+  my $subscriptions_count    = $Sharing->sharing_get_subscriptions({DATE => $DATE});
+
+  my %table_info = ();
+
+  my @popular_data   = ();
+  my @popular_labels = ();
+  my @popular_colors = ();
+
+  foreach my $file (@$bought_files_count) {
+    push @popular_labels, $file->{name};
+    push @popular_data,   $file->{count};
+    push @popular_colors, 'rgba(120, 99, 132, 0.6)';
+    $table_info{$file->{name}}{bought_info} = $file->{count};
+  }
+
+  my $popular_chart = $html->chart({
+    TYPE       => 'bar',
+    DATA_CHART => {
+      labels => \@popular_labels,
+      datasets => [{
+        label           => $lang{PURCHASES},
+        data            => \@popular_data,
+        borderWidth     => 2,
+        borderColor     => \@popular_colors,
+        backgroundColor => \@popular_colors,
+      }]
+    },
+    OPTIONS    => {
+      scales => {
+        yAxes => [ {
+          ticks => {
+            beginAtZero => "true",
+          }
+        }
+        ]
+      }
+    }
+  });
+
+  my @download_data   = ();
+  my @download_labels = ();
+  my @download_colors = ();
+
+  foreach my $file (@$downloaded_files_count) {
+    push @download_labels, $file->{name};
+    push @download_data,   $file->{count};
+    push @download_colors, 'rgba(99, 120, 50, 0.6)';
+
+    $table_info{($file->{name} || $file->{file_id})}{download_info} = $file->{count};
+  }
+
+  my $download_chart = $html->chart({
+    TYPE       => 'bar',
+    DATA_CHART => {
+      labels => \@download_labels,
+      datasets => [{
+        label           => $lang{DOWNLOADS},
+        data            => \@download_data,
+        borderWidth     => 2,
+        borderColor     => \@download_colors,
+        backgroundColor => \@download_colors,
+      }]
+    },
+    OPTIONS    => {
+      scales => {
+        yAxes => [ {
+          ticks => {
+            beginAtZero => "true",
+          }
+        }
+        ]
+      }
+    }
+  });
+
+
+  my $table = $html->table(
+  {
+    width      => '100%',
+      caption    => $lang{INFO},
+      title      => [ $lang{NAME}, $lang{PURCHASES}, $lang{DOWNLOADS}],
+      cols_align => [ 'left', 'right', 'right', 'right', 'center', 'center' ],
+      ID         => 'SHARING_INFO',
+      DATA_TABLE => { "order"=> [[ 1, "desc" ], [2, "desc"]]},
+  }
+  );
+
+  foreach my $file (keys %table_info){
+    $table->addrow($file, ($table_info{$file}{bought_info} || 0), ($table_info{$file}{download_info} || 0));
+  }
+
+
+
+  $html->tpl_show(_include('sharing_reports', 'Sharing'),
+    {
+      POPULAR_CHART    => $popular_chart,
+      DOWNLOAD_CHART   => $download_chart,
+      ACTIVE_COUNT     => $subscriptions_count->[0]{active_subscriptions},
+      NOT_ACTIVE_COUNT => $subscriptions_count->[0]{not_active_subscriptions},
+      TABLE => $table->show()
+    },
+  );
+
+  return 1;
+}
 
 
 1

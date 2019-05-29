@@ -41,6 +41,15 @@ sub paysys_payment {
     }
   }
 
+  if ($conf{PAYSYS_MIN_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}  ) {
+    $html->message( 'err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $conf{PAYSYS_MIN_SUM}" );
+    delete $FORM{PAYMENT_SYSTEM};
+  }
+  elsif ($conf{PAYSYS_MAX_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MAX_SUM} < $FORM{SUM}  ) {
+    $html->message( 'err', $lang{ERROR}, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}" );
+    delete $FORM{PAYMENT_SYSTEM};
+  }
+
   if ($user->{GID}) {
     $user->group_info($user->{GID});
     if ($user->{DISABLE_PAYSYS}) {
@@ -102,6 +111,7 @@ sub paysys_payment {
     PAYSYS_ID => '_SHOW',
     GID       => '_SHOW',
     COLS_NAME => 1,
+    PAGE_ROWS => 9999,
   });
 
   my %group_to_paysys_id = ();
@@ -138,6 +148,10 @@ sub paysys_payment {
       my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
       $TEMPLATES_ARGS{IPAY_HTML} = $Paysys_Object->user_portal_special($user, { %FORM });
     }
+  }
+
+  if($attr->{HOTSPOT}){
+    return $TEMPLATES_ARGS{PAY_SYSTEM_SEL};
   }
 
   return $html->tpl_show(_include('paysys_main', 'Paysys'), \%TEMPLATES_ARGS,
@@ -275,6 +289,21 @@ sub paysys_user_log {
   print $table->show();
 
   return 1;
+}
+
+#**********************************************************
+=head2 paysys_system_sel()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_system_sel {
+  my ($attr) = @_;
+  return paysys_payment({HOTSPOT => 1});
 }
 
 1;

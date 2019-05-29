@@ -119,9 +119,9 @@ $(function () {
 
     var clearSelect = function (elem_id) {
       getSelect(elem_id).val('')
-        .chosen(CHOSEN_PARAMS)
+        .select2(CHOSEN_PARAMS)
         .prop('disabled', true)
-        .trigger("chosen:updated");
+        .trigger("select2:updated");
 
       $form.find('input.HIDDEN-' + elem_id).val('');
 

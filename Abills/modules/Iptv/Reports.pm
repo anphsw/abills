@@ -220,7 +220,7 @@ sub iptv_console {
           #            account              => 'search_link:iptv_users_list:ID',
           #          },
           DATAHASH      => $Tv_service->{REPORT},
-          SKIPP_UTF_OFF => 1,
+          SKIPP_UTF_OFF => ($Tv_service && $Tv_service->{SERVICE_NAME} eq 'Smotreshka') ? undef : 1,
           TOTAL         => 1
         });
       }

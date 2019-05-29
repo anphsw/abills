@@ -50,7 +50,7 @@ sub new{
   $self->{db}   = $db;
   $self->{conf} = $CONF;
 
-  $CONF->{IPN_DETAIL_MIN_SIZE} = 0 if (!$CONF->{IPN_DETAIL_MIN_SIZE});
+  $CONF->{INTERNET_DETAIL_MIN_SIZE} = 0 if (!$CONF->{INTERNET_DETAIL_MIN_SIZE});
   $CONF->{MB_SIZE} = $CONF->{KBYTE_SIZE} * $CONF->{KBYTE_SIZE};
   $self->{TRAFFIC_ROWS} = 0;
   $self->{UNKNOWN_TRAFFIC_ROWS} = 0;
@@ -135,7 +135,7 @@ sub user_ips{
 #  }
 #  els
 
-  if ( $self->{conf}->{IPN_DEPOSIT_OPERATION} ){
+  if ( $self->{conf}->{INTERNET_IPOE_DEPOSIT_OPERATION} ){
     $sql = "SELECT u.uid, online.framed_ip_address AS ip,
       online.user_name AS login,
       online.acct_session_id,
@@ -158,7 +158,7 @@ sub user_ips{
       online.service_id
     FROM internet_online online
     INNER JOIN users u ON (u.uid=online.uid)
-    LEFT JOIN companies c ON (u.company_id=c.id)
+    LEFT JOIN companies c FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=c.id)
     LEFT JOIN bills b ON (u.bill_id=b.id)
     LEFT JOIN bills cb ON (c.bill_id=cb.id)
     LEFT JOIN internet_main internet ON (u.uid=internet.uid)
@@ -375,9 +375,20 @@ sub traffic_agregate_users{
 
   #Make user detalization
   if ( $traffic_details && $DATA->{UID} > 0 ){
-    return $self if ($self->{conf}->{IPN_DETAIL_MIN_SIZE} > $DATA->{SIZE});
-    #$self->{debug}=1;
-    $self->traffic_add( $DATA );
+    return $self if ($self->{conf}->{INTERNET_IPOE_DETAIL_MIN_SIZE} > $DATA->{SIZE});
+
+    push @{ $self->{USERS_TRAFFIC} }, [
+      $DATA->{SRC_IP},
+      $DATA->{DST_IP},
+      $DATA->{SRC_PORT} || 0,
+      $DATA->{DST_PORT} || 0,
+      $DATA->{PROTOCOL} || 0,
+      $DATA->{SIZE} || 0,
+      $DATA->{NAS_ID} || 0,
+      $DATA->{UID} || 0
+    ];
+
+    #$self->traffic_add_details( $DATA );
   }
 
   return $self;
@@ -394,6 +405,13 @@ sub traffic_agregate_nets{
 
   my $AGREGATE_USERS = $self->{AGREGATE_USERS};
   #Get user and session TP
+
+  $Billing->get_timeinfo();
+  my $session_start = $Billing->{SESSION_START};
+  my $day_begin     = $Billing->{DAY_BEGIN};
+  my $day_of_week   = $Billing->{DAY_OF_WEEK};
+  my $day_of_year   = $Billing->{DAY_OF_YEAR};
+
   while (my ($uid, $session_tp) = each( %{ $self->{USERS_INFO}->{TPS} } )) {
     my $TP_ID = $session_tp;
 
@@ -409,10 +427,10 @@ sub traffic_agregate_nets{
           TIME_INTERVALS      => $TIME_INTERVALS,
           INTERVAL_TIME_TARIF => $INTERVAL_TIME_TARIF,
           INTERVAL_TRAF_TARIF => $INTERVAL_TRAF_TARIF,
-          SESSION_START       => $user->{SESSION_START},
-          DAY_BEGIN           => $user->{DAY_BEGIN},
-          DAY_OF_WEEK         => $user->{DAY_OF_WEEK},
-          DAY_OF_YEAR         => $user->{DAY_OF_YEAR},
+          SESSION_START       => $session_start,
+          DAY_BEGIN           => $day_begin ,
+          DAY_OF_WEEK         => $day_of_week,
+          DAY_OF_YEAR         => $day_of_year,
           REDUCTION           => $user->{REDUCTION} || 0,
           POSTPAID            => 1
         }
@@ -536,7 +554,9 @@ sub get_zone{
     my $zoneid = $line->[0];
     $zones{$zoneid}{PriceIn}       = $line->[1] + 0;
     $zones{$zoneid}{PriceOut}      = $line->[2] + 0;
-    $zones{$zoneid}{PREPAID_TSUM}  = $line->[3] + 0;
+    if($line->[3]) {
+      $zones{$zoneid}{PREPAID_TSUM} = $line->[3] + 0;
+    }
     $zones{$zoneid}{TRAFFIC_CLASS} = $line->[9];
     push @zoneids, $zoneid;
   }
@@ -695,6 +715,7 @@ sub traffic_add_user{
       TRAFFIC_ID
       ACCT_SESSION_ID
       ACTIVATE - Activate service
+      START    - Start Session
 
   Returns:
     $self
@@ -720,17 +741,21 @@ sub traffic_user_get2{
       { Bind => [ $attr->{ACCT_SESSION_ID}, $attr->{INTERVAL_ID}, $attr->{UID}  ] }
     );
 
-    my %intrval_traffic = ();
+    my $store_record = 0;
     foreach my $line (@{ $self->{list} }) {
-      $intrval_traffic{ $line->[0] } = 1;
       #Traffic class
       $result{ $line->[0] }{TRAFFIC_IN} = $line->[2];
       $result{ $line->[0] }{TRAFFIC_OUT} = $line->[1];
+
+      if($attr->{TRAFFIC_ID} == $line->[0]) {
+        $store_record = 1;
+      }
     }
 
-    if (! $self->{TOTAL}) {
+    if (! $store_record) {
+      my $added = ($attr->{START}) ? "'$attr->{START}'" : 'NOW()';
       $self->query("INSERT INTO internet_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
-        VALUES ( ? , ? , ? , ? , ? , ? , ? , ?, NOW());", 'do',
+        VALUES ( ? , ? , ? , ? , ? , ? , ? , ?, $added);", 'do',
         { Bind => [
           $attr->{INTERVAL_ID},
           $attr->{TRAFFIC_OUT},
@@ -741,7 +766,6 @@ sub traffic_user_get2{
           $attr->{ACCT_SESSION_ID},
           $self->{UID} || $attr->{UID}
         ] });
-
     }
     else {
       $self->query("UPDATE internet_log_intervals SET
@@ -769,24 +793,24 @@ sub traffic_user_get2{
     return \%result;
   }
 
-  if ( $attr->{JOIN_SERVICE} ){
-    my @uids_arr = ();
-    if ( $attr->{JOIN_SERVICE} == 1 ){
-      push @uids_arr, $uid;
-      $attr->{JOIN_SERVICE} = $uid;
-    }
-
-    $self->query( "SELECT uid FROM internet_main WHERE join_service='$attr->{JOIN_SERVICE}'" );
-
-    foreach my $line ( @{ $self->{list} } ){
-      push @uids_arr, $line->[0];
-    }
-
-    $WHERE = "uid IN (" . join( ', ', @uids_arr ) . ") AND ";
-  }
-  else{
+  # if ( $attr->{JOIN_SERVICE} ){
+  #   my @uids_arr = ();
+  #   if ( $attr->{JOIN_SERVICE} == 1 ){
+  #     push @uids_arr, $uid;
+  #     $attr->{JOIN_SERVICE} = $uid;
+  #   }
+  #
+  #   $self->query( "SELECT uid FROM internet_main WHERE join_service='$attr->{JOIN_SERVICE}'" );
+  #
+  #   foreach my $line ( @{ $self->{list} } ){
+  #     push @uids_arr, $line->[0];
+  #   }
+  #
+  #   $WHERE = "uid IN (" . join( ', ', @uids_arr ) . ") AND ";
+  # }
+  # else{
     $WHERE = " uid='$uid' AND ";
-  }
+#  }
 
   if ( $attr->{DATE_TIME} ){
     $WHERE .= "start>=$attr->{DATE_TIME}";
@@ -874,25 +898,25 @@ sub traffic_user_get{
   my $WHERE = '';
   my $GROUP_BY = 'traffic_class';
 
-  if ( $attr->{JOIN_SERVICE} ){
-    my @uids_arr = ();
-    if ( $attr->{JOIN_SERVICE} == 1 ){
-      push @uids_arr, $uid;
-      $attr->{JOIN_SERVICE} = $uid;
-    }
-
-    $self->query( "SELECT uid FROM internet_main WHERE join_service='$attr->{JOIN_SERVICE}'" );
-
-    foreach my $line ( @{ $self->{list} } ){
-      push @uids_arr, $line->[0];
-    }
-
-    $WHERE = " uid IN (" . join( ', ', @uids_arr ) . ") AND ";
-    $GROUP_BY = 'uid, traffic_class';
-  }
-  else{
+  # if ( $attr->{JOIN_SERVICE} ){
+  #   my @uids_arr = ();
+  #   if ( $attr->{JOIN_SERVICE} == 1 ){
+  #     push @uids_arr, $uid;
+  #     $attr->{JOIN_SERVICE} = $uid;
+  #   }
+  #
+  #   $self->query( "SELECT uid FROM internet_main WHERE join_service='$attr->{JOIN_SERVICE}'" );
+  #
+  #   foreach my $line ( @{ $self->{list} } ){
+  #     push @uids_arr, $line->[0];
+  #   }
+  #
+  #   $WHERE = " uid IN (" . join( ', ', @uids_arr ) . ") AND ";
+  #   $GROUP_BY = 'uid, traffic_class';
+  # }
+  # else{
     $WHERE = " uid='$uid' AND ";
-  }
+  #}
 
   if ( $attr->{DATE_TIME} ){
     $WHERE .= "start>=$attr->{DATE_TIME}";
@@ -927,7 +951,7 @@ sub traffic_user_get{
 }
 
 #**********************************************************
-=head2 traffic_add($DATA) - Add traffic to DB
+=head2 traffic_add_details($DATA, $attr) - Add traffic to DB
 
   Arguments:
     $DATA  - Data hash_ref
@@ -941,15 +965,30 @@ sub traffic_user_get{
       UID
       START
       STOP
+    $attr
+      USERS_TRAFFIC - Multiuser array
 
   Returns:
     Object
 
 =cut
 #**********************************************************
-sub traffic_add{
+sub traffic_add_details{
   my $self = shift;
-  my ($DATA) = @_;
+  my ($DATA, $attr) = @_;
+
+  if(! $attr->{USERS_TRAFFIC}) {
+    push @{ $attr->{USERS_TRAFFIC} }, [
+      $DATA->{SRC_IP},
+      $DATA->{DST_IP},
+      $DATA->{SRC_PORT} || 0,
+      $DATA->{DST_PORT} || 0,
+      $DATA->{PROTOCOL} || 0,
+      $DATA->{SIZE} || 0,
+      $DATA->{NAS_ID} || 0,
+      $DATA->{UID} || 0
+    ];
+  }
 
   $self->query( "INSERT INTO ipn_traf_detail (src_addr,
        dst_addr,
@@ -963,23 +1002,17 @@ sub traffic_add{
        uid)
      VALUES (
         ?, ?, ?, ?, ?, ?,
-        if('$DATA->{START}' = '', NOW(), '$DATA->{START}'),
-        if('$DATA->{STOP}' = '', NOW(), '$DATA->{STOP}'),
+        IF('$DATA->{START}' = '', NOW(), '$DATA->{START}'),
+        IF('$DATA->{STOP}' = '', NOW(), '$DATA->{STOP}'),
         ?,
-        ?);", 'do',
-    { Bind   => [
-        $DATA->{SRC_IP},
-        $DATA->{DST_IP},
-        $DATA->{SRC_PORT} || 0,
-        $DATA->{DST_PORT} || 0,
-        $DATA->{PROTOCOL} || 0,
-        $DATA->{SIZE},
-        $DATA->{NAS_ID} || 0,
-        $DATA->{UID} || 0,
-      ],
+        ?);",
+    undef,
+    { MULTI_QUERY => $attr->{USERS_TRAFFIC},
       DB_REF => $self->{db2}
     }
   );
+
+  delete $attr->{USERS_TRAFFIC};
 
   return $self;
 }
@@ -1182,7 +1215,7 @@ sub unknown_add{
   }
 
   $self->query( "INSERT INTO ipn_unknow_ips (src_ip, dst_ip, size, nas_id, datetime)
-        VALUES (?, ?, ?, ?, now());",
+        VALUES (?, ?, ?, ?, NOW());",
     undef,
     { MULTI_QUERY => \@MULTI_QUERY } );
 

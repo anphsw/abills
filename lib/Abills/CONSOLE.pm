@@ -83,31 +83,42 @@ sub new {
   return $self;
 }
 
-
 #**********************************************************
-# form_input
+=head2 link_former($text, $attr) - Format link
+
+  Arguments:
+    $text   -  Text for format
+
+  Returns:
+    $text  -  Formated text
+
+=cut
 #**********************************************************
-sub form_input {
-  my $self = shift;
-  my ($name, $value, $attr) = @_;
+sub link_former {
+  shift;
+  my ($text) = @_;
 
-  my $type  = (defined($attr->{TYPE}))  ? $attr->{TYPE}             : 'text';
-  my $state = (defined($attr->{STATE})) ? ' checked="1"'            : '';
-  my $size  = (defined($attr->{SIZE}))  ? " SIZE=\"$attr->{SIZE}\"" : '';
-  return $value;
+  #$text =~ s/\n/\\n/g;
 
-  $self->{FORM_INPUT} = "<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size/>";
-
-  if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
-    $self->{OUTPUT} .= $self->{FORM_INPUT};
-    $self->{FORM_INPUT} = '';
-  }
-
-  return $self->{FORM_INPUT};
+  return $text;
 }
 
 #**********************************************************
-# HTML Input form
+=head2 form_input()
+
+=cut
+#**********************************************************
+sub form_input {
+  shift;
+  my (undef, $value, undef) = @_;
+
+  return $value;
+}
+
+#**********************************************************
+=head2 form_main($attr) HTML Input form
+
+=cut
 #**********************************************************
 sub form_main {
   my $self   = shift;
@@ -416,7 +427,11 @@ sub addrow {
       next;
     }
 
-    $self->{rows} .= $self->link_former($val, { SKIP_SPACE => 1 }) . "$COLS_SEPARATOR";
+    $val =~ s/\n/\\n/g;
+    $val =~ s/\r//g;
+    #$self->{rows} .= $self->link_former($val) . "$COLS_SEPARATOR";
+
+    $self->{rows} .= $val . "$COLS_SEPARATOR";
     $col_num++;
   }
 
@@ -610,9 +625,11 @@ sub button {
 }
 
 #**********************************************************
-# Show message box
-# message($self, $type, $caption, $message)
-# $type - info, err
+=head2 message($self, $type, $caption, $message) - Show message box
+
+ $type - info, err
+
+=cut
 #**********************************************************
 sub message {
   my $self = shift;
@@ -916,7 +933,7 @@ sub element {
 =cut
 #**********************************************************
 sub pre {
-  my $self = shift;
+  shift;
   my ($text) = @_;
 
   return "\n====\n$text\n====\n\n";

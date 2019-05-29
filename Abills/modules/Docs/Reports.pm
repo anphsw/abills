@@ -54,7 +54,6 @@ sub docs_reports{
       EXT_TYPE          => { DOCS => $lang{DOCS} },
     }
   );
-
   my $doc_list;
 
   my $field_date_name = 'date';
@@ -196,12 +195,12 @@ sub docs_unpaid_invoices {
   });
 
   my $table = $html->table({
-    caption     => $lang{INVOICES},
-    width       => '100%',
-    qs          => $pages_qs,
-    pages       => $Docs->{TOTAL},
-    title       => [ $lang{NUMBER}, $lang{DATE}, $lang{USER}, $lang{SUM}, $lang{PAID} ],
-    ID          => 'INVOICES_REPORT',
+    caption => $lang{INVOICES},
+    width   => '100%',
+    qs      => $pages_qs,
+    pages   => $Docs->{TOTAL},
+    title   => [ $lang{NUMBER}, $lang{DATE}, $lang{USER}, $lang{SUM}, $lang{PAID} ],
+    ID      => 'INVOICES_REPORT',
   });
 
   foreach my $line (@$list) {

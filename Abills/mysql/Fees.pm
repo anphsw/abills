@@ -71,10 +71,7 @@ sub take {
 
   $sum = sprintf("%.4f", $sum);
   $self->{db}{db}->{AutoCommit} = 0;
-  if ($attr->{BILL_ID}) {
-    $user->{BILL_ID} = $attr->{BILL_ID};
-  }
-  elsif ($CONF->{FEES_PRIORITY}) {
+  if ($CONF->{FEES_PRIORITY}) {
     if ($CONF->{FEES_PRIORITY} =~ /^bonus/ && $user->{EXT_BILL_ID}) {
       if ($user->{EXT_BILL_ID} && !defined($self->{EXT_BILL_DEPOSIT})) {
         $user->info($user->{UID});
@@ -148,6 +145,10 @@ sub take {
       }
       return $self;
     }
+  }
+
+  if ($attr->{BILL_ID} && ! $user->{BILL_ID}) {
+    $user->{BILL_ID} = $attr->{BILL_ID};
   }
 
   if ($user->{BILL_ID} && $user->{BILL_ID} > 0) {

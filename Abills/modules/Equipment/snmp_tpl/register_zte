@@ -91,6 +91,7 @@ sub register_zte {
   my $pon_type  = $argv->{PON_TYPE} || 'gpon';
   my $onu_comments = $argv->{ONU_DESC} || q{};
   my $llid      = $argv->{LLID};
+  my $template  = $argv->{TEMPLATE};
 
   my ($ip, undef, $mng_port, undef) = split(/:/, $host, 4);
   my $port = $mng_port || 23;
@@ -193,16 +194,17 @@ sub register_zte {
     print "Reg NUM: $max_onu_id  \n" if($debug > 3);
 
     register_onu({
-      TELNET     => $Telnet,
-      BRANCH     => $branch,
-      MAC        => $mac,
-      PROFILE    => $profile,
-      VLAN       => $vlan,
-      ONU_TYPE   => $onu_type,
-      ONU_SERIAL => $sn,
-      PON_TYPE   => $pon_type,
-      ONU_ID     => $max_onu_id,
+      TELNET       => $Telnet,
+      BRANCH       => $branch,
+      MAC          => $mac,
+      PROFILE      => $profile,
+      VLAN         => $vlan,
+      ONU_TYPE     => $onu_type,
+      ONU_SERIAL   => $sn,
+      PON_TYPE     => $pon_type,
+      ONU_ID       => $max_onu_id,
       ONU_COMMENTS => $onu_comments,
+      TEMPLATE     => $template
       #REG_IFACE  => $reg_iface
     });
   }
@@ -239,16 +241,17 @@ sub register_zte {
     }
 
     register_onu({
-      TELNET     => $Telnet,
-      BRANCH     => $branch,
-      ONU_ID     => $max_onu_id,
-      MAC        => $mac,
-      PROFILE    => $profile,
-      VLAN       => $vlan,
-      ONU_TYPE   => $onu_type,
-      ONU_SERIAL => $sn,
-      REG_IFACE  => $reg_iface,
+      TELNET       => $Telnet,
+      BRANCH       => $branch,
+      ONU_ID       => $max_onu_id,
+      MAC          => $mac,
+      PROFILE      => $profile,
+      VLAN         => $vlan,
+      ONU_TYPE     => $onu_type,
+      ONU_SERIAL   => $sn,
+      REG_IFACE    => $reg_iface,
       ONU_COMMENTS => $onu_comments,
+      TEMPLATE     => $template
     });
   }
 
@@ -276,6 +279,7 @@ sub get_tpl {
   my $vlan       = $attr->{VLAN};
   my $reg_iface  = $attr->{REG_IFACE} || q{};
   my $pon_type   = $attr->{PON_TYPE} || 'gpon';
+  my $template   = $attr->{TEMPLATE};
 
   if($attr->{MAC} && $attr->{MAC} =~ /([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2})/) {
     $attr->{MAC} = "$1$2.$3$4.$5$6";
@@ -301,12 +305,12 @@ sub get_tpl {
     "exit"
   );
 
-  if(-f $Bin. '/zte_registration_'. $pon_type .'.tpl') {
+  if(-f $Bin. '/'.$template) {
     my $content = '';
     if($debug > 3) {
-      print "Tpl: ". $Bin. '/zte_registration_'. $pon_type .'.tpl'."\n";
+      print "Tpl: ". $Bin. '/'.$template."\n";
     }
-    open(my $fh, '<', $Bin. '/zte_registration_'. $pon_type .'.tpl') || die "Can;t open '". $Bin. '/zte_registration_'. $pon_type .'.tpl' . "' $!";
+    open(my $fh, '<', $Bin. '/'.$template) || die "Can;t open '". $Bin. '/'.$template . "' $!";
       while(<$fh>) {
         my $line = $_;
         if($line && $line !~ /#/) {

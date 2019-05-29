@@ -267,7 +267,8 @@ sub form_payment_add {
           },
           NO_ID            => 1,
           MAIN_MENU        => get_function_index('docs_invoices_list'),
-          MAIN_MENU_ARGV   => "UID=$FORM{UID}&INVOICE_ID=". ($FORM{INVOICE_ID} || q{})
+          MAIN_MENU_ARGV   => "UID=$FORM{UID}&INVOICE_ID=". ($FORM{INVOICE_ID} || q{}),
+          EX_PARAMS =>  "style='width:100%'",
         }
       );
       delete($FORM{pdf});
@@ -295,20 +296,20 @@ sub form_payment_add {
       $Payments->{LNG_ACTION} = $lang{ADD};
     }
 
-    if( in_array('Crm', \@MODULES)){
-      require Crm::db::Crm;
-      Crm->import();
-      my $Crm = Crm->new($db, $admin, \%conf);
+    if( in_array('Employees', \@MODULES)){
+      require Employees::Salary;
+      Employees->import();
+      my $Employees = Employees->new($db, $admin, \%conf);
       $attr->{CASHBOX_SELECT} = $html->form_select(
         'CASHBOX_ID',
         {
-          SELECTED    => $conf{CRM_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{CASHBOX_ID},
-          SEL_LIST    => $Crm->list_cashbox({ COLS_NAME => 1 }),
+          SELECTED    => $conf{EMPLOYEES_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{CASHBOX_ID},
+          SEL_LIST    => $Employees->employees_list_cashbox({ COLS_NAME => 1 }),
           SEL_KEY     => 'id',
           SEL_VALUE   => 'name',
           NO_ID       => 1,
           SEL_OPTIONS => {"" => ""},
-          MAIN_MENU     => get_function_index('crm_cashbox_main'),
+          MAIN_MENU     => get_function_index('employees_cashbox_main'),
         }
       );
     }
@@ -414,20 +415,21 @@ sub payment_add {
         return 0 if ($attr->{REGISTRATION});
       }
       else {
-        if( in_array('Crm', \@MODULES) && $FORM{CASHBOX_ID}){
-          require Crm::db::Crm;
-          Crm->import();
-          my $Crm = Crm->new($db, $admin, \%conf);
-          $Crm->add_coming({
+        if( in_array('Employees', \@MODULES) && $FORM{CASHBOX_ID}){
+          require Employees::Salary;
+          Employees->import();
+          my $Employees = Employees->new($db, $admin, \%conf);
+          $Employees->employees_add_coming({
             DATE           => $FORM{DATE} || $DATE,
             AMOUNT         => $FORM{SUM},
             CASHBOX_ID     => $FORM{CASHBOX_ID},
             COMING_TYPE_ID => 2,
             COMMENTS       => $FORM{DESCRIBE},
             AID            => $admin->{AID},
+            UID            => $user->{UID},
           });
 
-          _error_show($Crm);
+          _error_show($Employees);
         }
 
         $FORM{SUM} = $Payments->{SUM};
@@ -495,13 +497,18 @@ sub form_payments_list {
     $LIST_PARAMS{INVOICE_NUM} = $FORM{INVOICE_NUM};
   }
 
+  if ($FORM{DESCRIBE}) {
+    $LIST_PARAMS{DSC} = $FORM{DESCRIBE};
+  }
+
   my Abills::HTML $table;
   my $payments_list;
 
   ($table, $payments_list) = result_former({
     INPUT_DATA      => $Payments,
     FUNCTION        => 'list',
-    BASE_FIELDS     => 8,
+    BASE_FIELDS     => 1,
+    DEFAULT_FIELDS  => 'DATETIME,LOGIN,DSC,SUM,LAST_DEPOSIT,METHOD,EXT_ID',
     FUNCTION_FIELDS => 'del',
     EXT_TITLES      => {
       'id'           => $lang{NUM},
@@ -560,8 +567,8 @@ sub form_payments_list {
         { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' } ) : '';
 
     my @fields_array = ();
-    for (my $i = 0; $i < 8+$Payments->{SEARCH_FIELDS_COUNT}; $i++) {
-      my $field_name = $Payments->{COL_NAMES_ARR}->[$i];
+    for (my $i = 0; $i < 1+$Payments->{SEARCH_FIELDS_COUNT}; $i++) {
+      my $field_name = $Payments->{COL_NAMES_ARR}->[$i] || q{};
 
       if ($conf{EXT_BILL_ACCOUNT} && $field_name eq 'ext_bill_deposit') {
         $line->{ext_bill_deposit} = ($line->{ext_bill_deposit} < 0) ? $html->color_mark($line->{ext_bill_deposit}, $_COLORS[6]) : $line->{ext_bill_deposit};

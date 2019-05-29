@@ -146,7 +146,16 @@ sub contacts_add{
   my $self = shift;
   my ($attr) = @_;
 
+
   $self->query_add('users_contacts', $attr, { REPLACE => 1 });
+
+  if (!$self->{errno}) {
+    if ($attr->{VALUE} ne $self->{OLD_INFO}{$attr->{TYPE_ID}}) {
+      $self->{admin}->action_add($attr->{UID},
+        "CONTACTS_CHANGED. " .  $self->contact_name_for_type_id($attr->{TYPE_ID}) . ": $self->{OLD_INFO}{$attr->{TYPE_ID}} -> $attr->{VALUE}", {TYPE=> 2});
+    }
+  }
+
 
   return 1;
 }
@@ -166,6 +175,25 @@ sub contacts_del{
   my $self = shift;
   my ($attr) = @_;
 
+  my $old_info = {};
+  if($attr->{TYPE_ID}){
+    $old_info = $self->contacts_list({
+      UID  => $attr->{UID},
+      TYPE => $attr->{TYPE_ID},
+      VALUE => '_SHOW',
+    });
+  }
+  else{
+    $old_info = $self->contacts_list({
+      UID  => $attr->{UID},
+      TYPE => join(';', map {$TYPES{$_}} keys %TYPES),
+      VALUE => '_SHOW',
+    });
+  }
+
+  foreach my $old_ (@$old_info){
+    $self->{OLD_INFO}{$old_->{type_id}} = $old_->{value};
+  }
   $self->query_del('users_contacts', undef, $attr);
 
   return 1;
@@ -223,7 +251,6 @@ sub contacts_change_all_of_type {
   
   
   if ( $attr->{VALUE} ) {
-    
     # Check if have multiple values in a row
     foreach ( split(/,\s/, $attr->{VALUE}) ) {
       $self->contacts_add({

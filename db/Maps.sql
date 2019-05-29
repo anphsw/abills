@@ -52,6 +52,7 @@ REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (6, '$lang{SPLITTE
 REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (7, '$lang{CABLE}', 'cable_green');
 REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (8, '$lang{EQUIPMENT}', 'nas_green');
 REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (9, '$lang{PILLAR}', 'route_green');
+REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (33, '$lang{CAMERAS}', 'cams');
 
 
 CREATE TABLE IF NOT EXISTS `maps_coords` (

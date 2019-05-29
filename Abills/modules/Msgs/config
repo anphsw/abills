@@ -23,11 +23,14 @@ our %FUNCTIONS_LIST = (
   "19:8:$lang{TEMPLATES}:msgs_templates_report:"                     => 4,
   "20:8:$lang{ADMIN_STATISTICS}:msgs_admin_statistics:"              => 4,
   "20:8:$lang{REPLYS_AND_TIME}:report_replys_and_time:"              => 4,
-  "21:1:Msgs:show_admin_chat:AJAX"                                   => 5,
+
 );
-%USER_FUNCTION_LIST = (
-  "01:1:Msgs:show_user_chat:AJAX"          => 0,
-);
+
+%USER_FUNCTION_LIST = ();
+if($conf{MSGS_CHAT}) {
+  $USER_FUNCTION_LIST{"01:1:Msgs:show_user_chat:AJAX"} = 0;
+}
+
 load_module("Msgs", $html);
 
 if ( defined($user->{UID}) ) {
@@ -52,7 +55,11 @@ elsif ( defined($admin->{AID}) ) {
   $FUNCTIONS_LIST{"34:33:$lang{ADD}:msgs_unreg_requests:"} = 8;
   $FUNCTIONS_LIST{"39:10:$lang{DELIVERY}:msgs_delivery_main:"} = 8;
   $FUNCTIONS_LIST{"40:01::msgs_admin_quick_message:IN_MODAL"} = 8;
-  $FUNCTIONS_LIST{"44:01::header_online_chat:AJAX"} = 8;
+
+  if($conf{MSGS_CHAT}) {
+    $FUNCTIONS_LIST{"21:1:Msgs:show_admin_chat:AJAX"} = 5;
+    $FUNCTIONS_LIST{"44:01::header_online_chat:AJAX"} = 8;
+  }
 
   my $tags_root_index = ($conf{MSGS_TAGS_NON_PRIVILEGED}) ? 8 : 5;
   $FUNCTIONS_LIST{"41:10:$lang{TAGS}:msgs_quick_replys_tags:MSGS_TAGS_ID:IN_MODAL"} = $tags_root_index;

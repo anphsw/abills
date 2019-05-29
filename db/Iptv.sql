@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS `iptv_main` (
   `dvcrypt_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `expire` DATE NOT NULL DEFAULT '0000-00-00',
   `activate` DATE NOT NULL DEFAULT '0000-00-00',
-  `subscribe_id` INT(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'External service ID for syncronization',
-  `email` VARCHAR(100) NOT NULL DEFAULT '',
+  `subscribe_id` VARCHAR(32) NOT NULL DEFAULT '' COMMENT 'External service ID for syncronization',
+  `email` VARCHAR(100) NOT NULL DEFAULT '' COMMENT 'Extra email for service',
   `service_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Service id for plugin connections',
   PRIMARY KEY (`id`),
   KEY `tp_id` (`tp_id`)
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `iptv_tps` (
   `next_period` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `next_period_step` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `free_time` INT(10) UNSIGNED NOT NULL DEFAULT '0',
-  `service_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0,
+  `service_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Service id for plugin connections',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`)
 )
@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS `iptv_ti_channels` (
   `month_price` DOUBLE(15, 2) NOT NULL DEFAULT '0.00',
   `day_price` DOUBLE(15, 2) NOT NULL DEFAULT '0.00',
   `mandatory` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  UNIQUE KEY `channel_id` (`channel_id`, `interval_id`)
+  UNIQUE KEY `channel_id` (`channel_id`, `interval_id`),
+  KEY interval_id (`interval_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'IPTV channels prices';
 
@@ -74,7 +75,8 @@ CREATE TABLE IF NOT EXISTS `iptv_users_channels` (
   `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `channel_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `changed` DATETIME NOT NULL,
-  UNIQUE KEY `id` (`id`, `channel_id`, `tp_id`)
+  UNIQUE KEY `id` (`id`, `channel_id`, `tp_id`),
+  KEY `uid` (`uid`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Iptv users channels';
 
@@ -159,7 +161,8 @@ CREATE TABLE IF NOT EXISTS `iptv_services` (
   `subscribe_count` TINYINT(2) UNSIGNED NOT NULL DEFAULT 1,
   `provider_portal_url` VARCHAR(200) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`)
+  UNIQUE KEY `name` (`name`),
+  KEY `status` (`status`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'IPTV Services';
 

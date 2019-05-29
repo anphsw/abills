@@ -127,7 +127,7 @@ if($conf{PAYSYS_NEW_SCHEME}){
 
   foreach my $connected_system (@$connected_systems_list){
     my $remote_ip = $ENV{REMOTE_ADDR};
-    my $paysys_ip = $connected_system->{paysys_ip};
+    my $paysys_ip = $connected_system->{paysys_ip} || '';
     my $module    = $connected_system->{module};
 
     if(check_ip($remote_ip, $paysys_ip)){

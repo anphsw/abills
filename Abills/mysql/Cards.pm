@@ -191,7 +191,6 @@ sub cards_add {
   my ($attr) = @_;
 
   if ($attr->{MULTI_ADD}) {
-    $self->{debug}=1;
     $self->query("INSERT INTO cards_users (
        serial, number, login, pin, status, expire,aid,
        diller_id, diller_date, sum, uid, domain_id, created, commission)
@@ -1094,7 +1093,8 @@ sub cards_report_payments {
   LEFT JOIN cards_dillers cd ON (c.diller_id=cd.id)
   LEFT JOIN users_pi pi_d ON (pi_d.uid=cd.uid)
   WHERE $WHERE
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+  ORDER BY $SORT $DESC
+  LIMIT $PG, $PAGE_ROWS;",
    undef,
    $attr
   );
@@ -1113,7 +1113,9 @@ sub cards_report_payments {
 }
 
 #**********************************************************
-#
+=head2 cards_report_seria($attr)
+
+=cut
 #**********************************************************
 sub cards_report_seria {
   my $self = shift;

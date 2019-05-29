@@ -802,26 +802,27 @@ sub parse {
     return $translator->error("Error instantiating Parse::RecDescent ".
       "instance: Bad grammer");
   }
-  
+
   # Preprocess for MySQL-specific and not-before-version comments
   # from mysqldump
   my $parser_version = parse_mysql_version(
     $translator->parser_args->{mysql_parser_version}, 'mysql'
   ) || DEFAULT_PARSER_VERSION;
-  
+
   while ( $data =~
     s#/\*!(\d{5})?(.*?)\*/#($1 && $1 > $parser_version ? '' : $2)#es
   ) {
     # do nothing; is there a better way to write this? -- ky
   }
-  
+
   my $result = $parser->startrule($data);
+
   return $translator->error( "Parse failed." ) unless defined $result;
   warn "Parse result:".Dumper( $result ) if $DEBUG;
-  
+
   my $schema = $translator->schema;
   $schema->name($result->{'database_name'}) if $result->{'database_name'};
-  
+
   my @tables = sort {
     $result->{'tables'}{ $a }{'order'}
       <=>

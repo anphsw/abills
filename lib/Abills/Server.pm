@@ -67,7 +67,7 @@ sub make_pid {
   }
 
   my $pid_name = $$;
-  open(my $ph, '>', "$pid_file") || die "Can't open pid file '$pid_file' $!\n";
+  open(my $ph, '>', "$pid_file") || die "Can't write pid file '$pid_file' $!\n";
   print $ph $pid_name;
   close($ph);
 

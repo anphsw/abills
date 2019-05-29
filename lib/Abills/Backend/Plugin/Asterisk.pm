@@ -499,7 +499,7 @@ sub _create_user_info_notification {
     . ' )';
   
   #TODO: localization
-  my $text = 'Deposit : ' . $user_info->{DEPOSIT} . '<br/>' . Encode::decode('utf8', ($user_info->{ADDRESS_FULL} || '')) . "<br/>" . $tp_name;
+  my $text = 'Deposit : ' . $user_info->{DEPOSIT} . '<br/>' . Encode::decode('utf8', ($user_info->{ADDRESS_FULL} || '')) . "<br/>" . Encode::decode('utf8', ($tp_name || ''));
   
   my $result = {
     TITLE  => Encode::decode('utf8', $title),

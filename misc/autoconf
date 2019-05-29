@@ -113,7 +113,7 @@ if (!-f $config_file) {
   #Open config
   my $config_text = '';
 
-  open(my $fh, "< $config_file".'.default') || die "Can't open file '$config_file.default' $!\n";
+  open(my $fh, '<', "$config_file".'.default') || die "Can't open file '$config_file.default' $!\n";
   while (<$fh>) {
     $config_text .= $_;
   }
@@ -297,7 +297,7 @@ sub programs_info {
   my $install_file = $Bin . "/$program/install";
 
   my @files = ();
-  open(my $fh, "< $install_file") || die "Can't open file '$install_file'  $!";
+  open(my $fh, '<', $install_file) || die "Can't open file '$install_file'  $!";
     while (<$fh>) {
       next if (/^#/);
       push @files, $_;

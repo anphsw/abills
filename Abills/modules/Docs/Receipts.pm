@@ -143,7 +143,12 @@ sub docs_receipt_add {
 
     $PAYMENTS_METHODS = get_payment_methods();
 
-    $list = $Payments->list( { ID => $Docs->{PAYMENT_ID}, COLS_NAME => 1 } );
+    $list = $Payments->list( {
+      METHOD    => '_SHOW',
+      ID        => $Docs->{PAYMENT_ID},
+      COLS_NAME => 1
+    } );
+
     if ( $Payments->{TOTAL} > 0 ){
       $Docs->{PAYMENT_METHOD_ID} = $list->[0]->{method};
       my $PAYMENT_METHODS = get_payment_methods();
@@ -151,7 +156,7 @@ sub docs_receipt_add {
       if ( $conf{DOCS_PAYMENT_METHODS} ){
         my %methods_hash = %{ cfg2hash( $conf{DOCS_PAYMENT_METHODS} ) };
 
-        if ( $methods_hash{ $Docs->{PAYMENT_METHOD_ID} } ){
+        if ( $Docs->{PAYMENT_METHOD_ID} && $methods_hash{ $Docs->{PAYMENT_METHOD_ID} } ){
           $Docs->{PAYMENT_METHOD} = $methods_hash{ $Docs->{PAYMENT_METHOD_ID} };
         }
         else{
@@ -755,7 +760,11 @@ sub docs_receipt_print {
     }
     $Docs->{INVOICE_ID} = $Docs->{INVOICE_ID};
 
-    $list = $Payments->list( { ID => $Docs->{PAYMENT_ID}, COLS_NAME => 1 } );
+    $list = $Payments->list({
+      ID        => $Docs->{PAYMENT_ID},
+      METHOD    => '_SHOW',
+      COLS_NAME => 1
+    });
 
     if ( $Payments->{TOTAL} > 0 ){
       $Docs->{PAYMENT_METHOD_ID} = $list->[0]->{method};

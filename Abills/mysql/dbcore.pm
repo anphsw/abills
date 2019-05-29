@@ -209,7 +209,11 @@ sub query{
       elsif ( $self->{db}->{db_debug} > 2 ){
         require Log;
         Log->import( 'log_print' );
-        Log::log_print( undef, 'LOG_ERR', '', "\n-----". ($self->{queries_count} || q{}) ."------\n$query\n",
+        my $arguments = '';
+        if($attr->{Bind}) {
+          $arguments .= join(', ', @{ $attr->{Bind} });
+        }
+        Log::log_print( undef, 'LOG_ERR', '', "\n-----". ($self->{queries_count} || q{}) ."------\n$query\n------\n$arguments\n",
           { NAS => 0, LOG_FILE => "/tmp/sql_debug" } );
       }
       #sequence
@@ -291,7 +295,7 @@ sub query{
   if ( $db->err ){
     if ( $db->err == 1062 ){
       $self->{errno} = 7;
-      $self->{errstr} = 'ERROR_DUBLICATE';
+      $self->{errstr} = 'ERROR_DUPLICATE';
     }
     else{
       $self->{sql_errno} = $db->err;
@@ -615,12 +619,16 @@ sub search_former{
     'BILL_ID',
     'LOGIN_STATUS',
     'DOMAIN_ID',
+    'DOMAIN_NAME',
     'PASSWORD',
     'ACCEPT_RULES',
     'ACTIVATE',
     'EXPIRE',
     'REGISTRATION',
     'LAST_PAYMENT',
+    'EXT_BILL_ID',
+    'EXT_DEPOSIT',
+    'BIRTH_DATE',
   );
 
   if ( $attr->{USERS_FIELDS_PRE} ){
@@ -939,7 +947,7 @@ sub search_expr_users{
     LOGIN_STATUS   => 'INT:u.disable AS login_status',
     REGISTRATION   => 'DATE:u.registration',
     COMMENTS       => 'STR:pi.comments',
-    FIO            => 'STR:CONCAT_WS(" ", pi.fio, pi.fio2, pi.fio3) as fio',
+    FIO            => 'STR:CONCAT_WS(" ", pi.fio, pi.fio2, pi.fio3) AS fio',
     PHONE          => ($self && $self->{conf} && $self->{conf}{CONTACTS_NEW})
                         ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2)) AS phone/
                         : 'STR:pi.phone',
@@ -961,15 +969,17 @@ sub search_expr_users{
     EXPIRE         => 'DATE:u.expire',
 
     #CREDIT        => 'INT:u.credit',
-    CREDIT         => 'INT:if(u.credit > 0, u.credit, if(company.id IS NULL, 0, company.credit)) AS credit',
+    CREDIT         => 'INT:IF(u.credit > 0, u.credit, IF(company.id IS NULL, 0, company.credit)) AS credit',
     CREDIT_DATE    => 'DATE:u.credit_date',
     REDUCTION      => 'INT:u.reduction',
     REDUCTION_DATE => 'INT:u.reduction_date',
     COMMENTS       => 'STR:pi.comments',
-    BILL_ID        => 'INT:if(company.id IS NULL,b.id,cb.id) AS bill_id',
+    BILL_ID        => 'INT:IF(company.id IS NULL,b.id,cb.id) AS bill_id',
     PASSWORD       => "STR:DECODE(u.password, '". ($CONF->{secretkey} || q{}) ."') AS password",
-    EXT_DEPOSIT    => 'INT:if(company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit',
-    LAST_PAYMENT   => 'INT:(SELECT max(p.date) FROM payments p WHERE p.uid=u.uid) AS last_payment'
+    EXT_DEPOSIT    => 'INT:IF(company.id IS NULL, ext_b.deposit, ext_cb.deposit) AS ext_deposit',
+    EXT_BILL_ID    => 'INT:IF(company.id IS NULL, u.ext_bill_id, company.ext_bill_id) AS ext_bill_id',
+    LAST_PAYMENT   => 'INT:(SELECT MAX(p.date) FROM payments p WHERE p.uid=u.uid) AS last_payment',
+    BIRTH_DATE     => 'DATE:pi.birth_date',
     #ADDRESS_FLAT  => 'STR:pi.address_flat',
   );
 
@@ -1144,6 +1154,11 @@ sub search_expr_users{
       $EXT_TABLE_JOINS_HASH{streets} = 1;
       $self->{SEARCH_FIELDS_COUNT} += 3;
     }
+    if ( $attr->{MAPS_COORDS} ){
+      push @fields, @{ $self->search_expr( $attr->{MAPS_COORDS}, 'INT', '',
+        { EXT_FIELD => 'CONCAT(builds.coordx, ":", builds.coordy) AS maps_coords' } ) };
+      $EXT_TABLE_JOINS_HASH{builds} = 1;
+    }
   }
   elsif ( $attr->{STREET_ID} ){
     push @fields, @{ $self->search_expr( $attr->{STREET_ID}, 'INT', 'builds.street_id',
@@ -1253,6 +1268,13 @@ sub search_expr_users{
             { EXT_FIELD => 'builds.number AS address_build' } ) };
         $EXT_TABLE_JOINS_HASH{builds} = 1;
       }
+
+#      if ( $attr->{MAP_COORDS} ){
+#        $self->{debug}=1;
+#        push @fields, @{ $self->search_expr( $attr->{MAP_COORDS}, 'INT', '',
+#           { EXT_FIELD => 'CONCAT(builds.coordx, ":", builds.coordy) AS map_coords' } ) };
+#        $EXT_TABLE_JOINS_HASH{builds} = 1;
+#      }
     }
     else{
       my $f_count = $self->{SEARCH_FIELDS_COUNT};
@@ -1290,7 +1312,8 @@ sub search_expr_users{
   }
 
   if ( $attr->{ADDRESS_FLAT} ){
-    push @fields, @{ $self->search_expr( $attr->{ADDRESS_FLAT}, 'STR', 'pi.address_flat', { EXT_FIELD => 1 } ) };
+    push @fields, @{ $self->search_expr( $attr->{ADDRESS_FLAT}, 'STR', 'pi.address_flat',
+      { EXT_FIELD => ($self->{SEARCH_FIELDS_ARR} && in_array('pi.address_flat', $self->{SEARCH_FIELDS_ARR})) ? 0 : 1 } ) };
   }
 
   if ( $attr->{ACTION_TYPE} ){
@@ -1314,10 +1337,16 @@ sub search_expr_users{
   if ( $attr->{TAGS} ){
     $attr->{TAGS} =~ s/,\s?/\;/g;
     push @fields, @{ $self->search_expr( $attr->{TAGS}, 'INT', "tags_users.tag_id",
-        { EXT_FIELD => 'tags.name AS tags, tags.priority' } ) };
+        { EXT_FIELD => 'GROUP_CONCAT(DISTINCT tags.name ORDER BY tags.name SEPARATOR ", ") AS tags,
+         GROUP_CONCAT(tags.priority ORDER BY tags.name SEPARATOR ", ") AS priority' } ) };
 
     $self->{EXT_TABLES} .= " LEFT JOIN tags_users ON (u.uid=tags_users.uid)
                              LEFT JOIN tags ON (tags_users.tag_id=tags.id)",
+  }
+
+  if($attr->{DOMAIN_NAME}) {
+    push @fields, @{ $self->search_expr( $attr->{DOMAIN_NAME}, 'STR', 'domains.name', { EXT_FIELD => 'domains.name AS domain_name' } ) };
+    $EXT_TABLE_JOINS_HASH{domain_name}=1;
   }
 
   if ( defined( $attr->{DEPOSIT} ) || ($attr->{BILL_ID} && !in_array( 'BILL_ID', $attr->{SKIP_USERS_FIELDS} )) ){
@@ -1336,7 +1365,11 @@ sub search_expr_users{
     push @fields, @{ $self->search_expr( $attr->{DELETED}, 'INT', 'u.deleted', { EXT_FIELD => 1 } ) };
   }
 
-  if ( $attr->{EXT_DEPOSIT} ){
+  if($attr->{EXT_BILL_ID}) {
+    $EXT_TABLE_JOINS_HASH{companies} = 1;
+  }
+
+  if ( $attr->{EXT_DEPOSIT}){
     $EXT_TABLE_JOINS_HASH{companies} = 1;
     $EXT_TABLE_JOINS_HASH{ext_bills} = 1;
   }
@@ -1412,16 +1445,17 @@ sub mk_ext_tables{
 
   my @EXT_TABLES_JOINS = (
     'groups:LEFT JOIN groups g ON (g.gid=u.gid)',
-    'companies:LEFT JOIN companies company ON (u.company_id=company.id)',
+    'companies:LEFT JOIN companies company FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=company.id)',
     "bills:LEFT JOIN bills b ON (u.bill_id = b.id)\n" .
       " LEFT JOIN bills cb ON (company.bill_id=cb.id)",
     "ext_bills:LEFT JOIN bills ext_b ON (u.ext_bill_id = ext_b.id)\n" .
       " LEFT JOIN bills ext_cb ON  (company.ext_bill_id=ext_cb.id)",
-    'users_pi:LEFT JOIN users_pi pi ON (u.uid=pi.uid)',
+    'users_pi:LEFT JOIN users_pi pi FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.uid=pi.uid)',
     'builds:LEFT JOIN builds ON (builds.id=pi.location_id)',
     'streets:LEFT JOIN streets ON (streets.id=builds.street_id)',
     'districts:LEFT JOIN districts ON (districts.id=streets.district_id)',
-    'admin_actions:LEFT JOIN admin_actions aa ON (u.uid=aa.uid)'
+    'admin_actions:LEFT JOIN admin_actions aa ON (u.uid=aa.uid)',
+    'domain_name:LEFT JOIN domains ON (u.domain_id=domains.id)'
   );
 
   if ( $attr->{EXTRA_PRE_JOIN} ){

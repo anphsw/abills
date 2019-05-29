@@ -57,3 +57,4 @@ $lang{CALL_OPERATOR} = 'зєднати з оператором';
 $lang{NAS_DISABLED} = 'Сервер доступу відлючено';
 $lang{NAS_TECH_WORK} = 'Ведуться технічні роботи';
 $lang{ASTERISK} = 'Зірочка';
+$lang{TRUNKS} = 'Транки';

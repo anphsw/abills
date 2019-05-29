@@ -214,4 +214,144 @@ sub storage_main_report_charts {
   );
 }
 
+
+#**********************************************************
+=head2 storage_remnants_report()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub storage_remnants_report {
+   reports({
+     PERIOD_FORM=>1,
+     DATE_RANGE=>1,
+     NO_GROUP => 1,
+    NO_TAGS=>1,
+   });
+
+    my $list = $Storage->storage_remnants_list({
+      FROM_DATE => $FORM{FROM_DATE} || $DATE,
+      TO_DATE   => $FORM{TO_DATE} || $DATE,
+      COLS_NAME => 1
+    });
+
+  my $report_table = $html->table({
+    title      => [ $lang{NAME}, $lang{MEASURE}, $lang{TOTAL}, $lang{ACCOUNTABILITY}, $lang{DISCARDED}, $lang{INSTALLED}, $lang{RESERVED}, $lang{INNER_USE}, $lang{REST} ],
+    width      => '100%',
+    caption    => $lang{REMNANTS},
+    qs         => $pages_qs,
+    ID         => 'REMNANTS_REPORT',
+    DATA_TABLE => 1,
+  });
+
+  foreach my $item (@$list){
+    $report_table->addrow(
+      ($item->{name} || "$lang{NOT_EXIST}"),
+      _translate($item->{measure_name}),
+      ($item->{total_count} || 0),
+      ($item->{accountability_count} || 0),
+      ($item->{discard_count} || 0),
+      ($item->{installation_count} || 0),
+      ($item->{reserve_count} || 0),
+      ($item->{inner_use_count} || 0),
+      ($item->{main_article_id} == 0 ? $item->{count}  - ($item->{accountability_count} || 0) : $item->{count} ),
+    );
+  }
+    print $report_table->show();
+    return 1;
+
+}
+
+#**********************************************************
+=head2 storage_statistics()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub storage_statistics {
+  reports({
+    PERIOD_FORM => 1,
+    DATE_RANGE  => 1,
+    NO_GROUP    => 1,
+    NO_TAGS     => 1,
+  });
+
+  my $installed_items = $Storage->storage_install_stats({
+    DATE        => $FORM{FROM_DATE_TO_DATE},
+    STA_NAME    => '_SHOW',
+    SAT_NAME    => '_SHOW',
+    COUNT       => '_SHOW',
+    ARTICLE_ID  => '_SHOW',
+    TYPE_ID     => '_SHOW',
+    SELL_PRICE  => '_SHOW',
+    GROUP_BY    => 'sta.id',
+    SORT        => 'sell_price',
+    COLS_NAME   => 1
+  });
+
+  my $table = $html->table(
+    {
+      width      => '100%',
+      caption    => $lang{INFO},
+      title      => [ $lang{NAME}, $lang{COUNT}, $lang{MONEY}],
+      ID         => 'STORAGE_SELL_PRICE',
+      DATA_TABLE => { "order"=> [[ 2, "desc" ], [1, "desc"]]},
+    }
+  );
+
+  my @popular_count   = ();
+  my @popular_price   = ();
+  my @popular_labels = ();
+  my @popular_colors = ();
+
+  foreach my $item (@$installed_items) {
+    push @popular_labels, (($item->{sat_name} || '') . " " . ($item->{sta_name} || ''));
+    push @popular_count,   $item->{count};
+    push @popular_price,   $item->{sell_price};
+    push @popular_colors, 'rgba(120, 99, 132, 0.6)';
+    $table->addrow((($item->{sat_name} || '') . " " . ($item->{sta_name} || '')), $item->{count}, $item->{sell_price});
+  }
+
+
+  my $popular_chart = $html->chart({
+    TYPE       => 'bar',
+    DATA_CHART => {
+      labels => \@popular_labels,
+      datasets => [
+        {
+          label           => "$lang{TOTAL}",
+          data            => \@popular_price,
+          borderWidth     => 2,
+          borderColor     => \@popular_colors,
+          backgroundColor => \@popular_colors,
+        }]
+    },
+    OPTIONS    => {
+      scales => {
+        yAxes => [ {
+          ticks => {
+            beginAtZero => "true",
+          }
+        }
+        ]
+      }
+    }
+  });
+
+  $html->tpl_show(_include('storage_reports_installation', 'Storage'),
+    {
+      POPULAR_CHART    => $popular_chart,
+      TABLE => $table->show()
+    },
+  );
+}
+
 1;

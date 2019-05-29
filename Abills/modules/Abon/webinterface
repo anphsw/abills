@@ -33,23 +33,20 @@ my @PERIODS = ($lang{DAY}, $lang{MONTH}, $lang{QUARTER}, $lang{SIX_MONTH}, $lang
 $conf{ABON_FEES_DSC} //= '%SERVICE_NAME%: %PERIOD% %TP_NAME% (%TP_ID%) %EXTRA%';
 
 #*******************************************************************
-
 =head2 abon_user_del($uid, $attr) - Delete user from module
 
 =cut
-
 #*******************************************************************
 sub abon_user_del {
-  my ($uid) = @_;
+  my ($uid, $attr) = @_;
 
   $Abon->{UID} = $uid;
-  $Abon->del({ UID => $uid });
+  $Abon->del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
 
   return 0;
 }
 
 #*******************************************************************
-
 =head2 abon_quick_info($attr) - Abon user quick info
 
   Arguments:
@@ -59,7 +56,6 @@ sub abon_user_del {
   Returns:
 
 =cut
-
 #*******************************************************************
 sub abon_quick_info {
   my ($attr) = @_;
@@ -233,6 +229,11 @@ sub abon_user {
           $Abon->{TP_INFO}->{PRICE} = $Abon->{TP_INFO}->{PRICE} * ((100 - $users->{REDUCTION}) / 100);
         }
 
+        if(! defined($users->{DEPOSIT})) {
+          $html->message('err', "$lang{ABON} : $lang{ERROR}", $lang{ERR_SMALL_DEPOSIT}, { ID => 240 });
+          return 0;
+        }
+
         my $deposit = $users->{CREDIT} + $users->{DEPOSIT};
 
         if ($Abon->{TP_INFO}->{EXT_BILL_ACCOUNT}) {
@@ -375,7 +376,7 @@ sub abon_user {
           push @add_arr, $line->{tp_id};
         }
         else {
-          $html->message('err', "$lang{ABON} : $lang{ERROR}", "$lang{TARIF_PLAN}: [$line->{tp_id}] $line->{name}\n $lang{ERR_SMALL_DEPOSIT}");
+          $html->message('err', "$lang{ABON} : $lang{ERROR}", "$lang{TARIF_PLAN}: [$line->{tp_id}] $line->{name}\n $lang{ERR_SMALL_DEPOSIT}", { ID => 241 });
           delete $FORM{ACTIVATE};
           $FORM{ 'error_' . $line->{tp_id} } = 1;
           $FORM{ 'error_comments_' . $line->{tp_id} } = $lang{ERR_SMALL_DEPOSIT};
@@ -1232,11 +1233,15 @@ sub abon_get_month_fee {
 }
 
 #**********************************************************
-
 =head2 abon_docs($attr) - get services for invoice
 
-=cut
+  Arguments:
+    $attr
+      FULL_INFO
+      PAYMENT_TYPE
+      FEES_INFO
 
+=cut
 #**********************************************************
 sub abon_docs {
   my ($attr) = @_;
@@ -1251,9 +1256,10 @@ sub abon_docs {
       COLS_NAME    => 1
     }
   );
-  my %info = ();
 
+  my %info = ();
   foreach my $line (@{$list}) {
+    %info = ();
     if ($line->{date}) {
       if ($line->{discount} > 0) {
         $line->{price} = $line->{price} * ((100 - $line->{discount}) / 100);
@@ -1263,14 +1269,21 @@ sub abon_docs {
         $line->{price} = $line->{price} * $line->{service_count};
       }
 
-      # NAME| ID | SUM
-      push @services, "$lang{ABON}: ($line->{id}) " . "$line->{name}" . "|$line->{comments} |$line->{price}|$line->{id}";
+      $info{service_name} = "$lang{ABON}: ($line->{id}) " . "$line->{name}";
 
       if ($line->{period} == 1) {
         $info{month} += $line->{price};
       }
       elsif ($line->{period} == 0) {
         $info{day} += $line->{price};
+      }
+
+      if($attr->{FULL_INFO}) {
+        push @services, { %info };
+      }
+      else {
+        # NAME| ID | SUM
+        push @services, "$lang{ABON}: ($line->{id}) " . "$line->{name}" . "|$line->{comments} |$line->{price}|$line->{id}";
       }
     }
   }

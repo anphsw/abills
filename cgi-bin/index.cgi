@@ -49,10 +49,11 @@ $conf{web_session_timeout} = ($conf{web_session_timeout}) ? $conf{web_session_ti
 
 our $html = Abills::HTML->new(
   {
-    IMG_PATH => 'img/',
-    NO_PRINT => 1,
-    CONF     => \%conf,
-    CHARSET  => $conf{default_charset},
+    IMG_PATH  => 'img/',
+    NO_PRINT  => 1,
+    CONF      => \%conf,
+    CHARSET   => $conf{default_charset},
+    HTML_STYLE=> $conf{UP_HTML_STYLE}
   }
 );
 
@@ -341,16 +342,18 @@ if ($uid > 0) {
   );
 
   my $global_chat = '';
-  my $fn_index = get_function_index('show_user_chat');
+  my $fn_index = 0;
   if ($conf{MSGS_CHAT}) {
+    $fn_index = get_function_index('show_user_chat');
     $global_chat .= $html->tpl_show(templates('msgs_global_chat'), {
       FN_INDEX => $fn_index,
       SCRIPT   => 'chat_user_notification.js',
       SIDE_ID  => 'uid=' . $user->{UID},
     },
       { OUTPUT2RETURN => 1 });
+    $OUTPUT{GLOBAL_CHAT} = $global_chat || '';
   }
-  $OUTPUT{GLOBAL_CHAT} = $global_chat || '';
+
   $OUTPUT{USER_SID} = $user->{SID};
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT, {
     MAIN               => 1,
@@ -665,22 +668,36 @@ sub form_info {
   }
 
   if ($conf{user_chg_pi}) {
-    $user->{ADDRESS_SEL} = $html->tpl_show(
-      templates('form_client_address_search'),
-      {
-        ADDRESS_DISTRICT => $user->{ADDRESS_DISTRICT},
-        DISTRICT_ID      => $user->{DISTRICT_ID},
-        STREET_ID        => $user->{STREET_ID},
-        ADDRESS_STREET   => $user->{ADDRESS_STREET},
-        ADDRESS_BUILD    => $user->{ADDRESS_BUILD},
-        LOCATION_ID      => $user->{LOCATION_ID},
-        ADDRESS_FLAT     => $user->{ADDRESS_FLAT},
-      }, {
-      OUTPUT2RETURN      => 1,
-      SKIP_DEBUG_MARKERS => 1,
-      ID                 => 'form_client_address_search'
+    if($conf{ADDRESS_REGISTER}){
+      $user->{ADDRESS_SEL} = $html->tpl_show(
+        templates('form_client_address_search'),
+        {
+          ADDRESS_DISTRICT => $user->{ADDRESS_DISTRICT},
+          DISTRICT_ID      => $user->{DISTRICT_ID},
+          STREET_ID        => $user->{STREET_ID},
+          ADDRESS_STREET   => $user->{ADDRESS_STREET},
+          ADDRESS_BUILD    => $user->{ADDRESS_BUILD},
+          LOCATION_ID      => $user->{LOCATION_ID},
+          ADDRESS_FLAT     => $user->{ADDRESS_FLAT},
+        }, {
+          OUTPUT2RETURN      => 1,
+          SKIP_DEBUG_MARKERS => 1,
+          ID                 => 'form_client_address_search'
+        }
+      );
     }
-    );
+    else{
+      require Control::Address_mng;
+      my $countries_hash;
+
+      ($countries_hash, $user->{COUNTRY_SEL}) = sel_countries({
+        NAME    => 'COUNTRY_ID',
+        COUNTRY => $user->{COUNTRY_ID},
+        });
+
+      $user->{ADDRESS_SEL} = $html->tpl_show(templates('form_address'), { %$user,  }, { OUTPUT2RETURN => 1 });
+    }
+
 
     if ($FORM{chg}) {
       my $user_pi = $user->pi();
@@ -699,10 +716,12 @@ sub form_info {
       my %contacts = ();
       if ($conf{CONTACTS_NEW}) {
         # Show all contacts of this type in one field
-        $contacts{PHONE} =
-          ($user_pi->{PHONE_ALL} ? ($user_pi->{PHONE_ALL} . ', ') : '')
-            . ($user_pi->{CELL_PHONE_ALL} || '');
+        $contacts{PHONE} = $user_pi->{PHONE_ALL};
+        $contacts{CELL_PHONE} = $user_pi->{CELL_PHONE_ALL};
         $contacts{EMAIL} = $user_pi->{EMAIL_ALL};
+      }
+      else{
+        $contacts{CELL_PHONE_HIDDEN} = 'hidden';
       }
 
       if ($user_pi->{FIO2} && $user_pi->{FIO3}) {
@@ -826,6 +845,15 @@ sub form_info {
       }
       if ($FORM{FIO1}) {
         $FORM{FIO} = $FORM{FIO1};
+      }
+
+      if($conf{CHECK_CHANGE_PI}){
+        my @fields_allow_to_change = split(',\s?', $conf{CHECK_CHANGE_PI});
+        foreach my $key (keys %FORM){
+          if(!(in_array($key, \@fields_allow_to_change))){
+            delete $FORM{$key};
+          }
+        }
       }
 
       $user->pi_change({ %FORM, UID => $user->{UID} });
@@ -1085,7 +1113,7 @@ sub form_login_clients {
   my %first_page = ();
 
   $first_page{LOGIN_ERROR_MESSAGE} = $OUTPUT{LOGIN_ERROR_MESSAGE} || '';
-  $first_page{HAS_REGISTRATION_PAGE} = (-f 'registration.cgi');
+  $first_page{PASSWORD_RECOVERY} = $conf{PASSWORD_RECOVERY};
   $first_page{FORGOT_PASSWD_LINK} = '/registration.cgi&FORGOT_PASSWD=1';
 
   if (!$conf{REGISTRATION_PORTAL_SKIP}) {
@@ -1489,7 +1517,7 @@ sub form_fees {
   my $summary = {
     TOTAL      => $Fees->{TOTAL},
     SUM        => sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $Fees->{SUM}),
-    PAGINATION => $attr->{pagination} eq 0 ? '' : $table->{pagination}
+    PAGINATION => $attr->{pagination} && $attr->{pagination} == 0 ? '' : $table->{pagination}
   };
 
   $table->table_summary($html->tpl_show(templates('form_table_summary'), $summary, { OUTPUT2RETURN => 1 }));
@@ -1527,8 +1555,11 @@ sub form_payments_list {
 
   my $list = $Payments->list({
     %LIST_PARAMS,
-    DATETIME  => '_SHOW',
-    COLS_NAME => 1
+    DATETIME     => '_SHOW',
+    DSC          => '_SHOW',
+    SUM          => '_SHOW',
+    LAST_DEPOSIT => '_SHOW',
+    COLS_NAME    => 1
   });
 
   my $table = $html->table({
@@ -1548,7 +1579,7 @@ sub form_payments_list {
   my $summary = {
     TOTAL      => $Payments->{TOTAL},
     SUM        => sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $Payments->{SUM} || 0),
-    PAGINATION => $attr->{pagination} eq 0 ? '' : $table->{pagination}
+    PAGINATION => $attr->{pagination} && $attr->{pagination} == 0 ? '' : $table->{pagination}
   };
 
   $table->table_summary($html->tpl_show(templates('form_table_summary'), $summary, { OUTPUT2RETURN => 1 }));
@@ -2349,8 +2380,10 @@ sub form_company_list {
 
   my $table = $html->table({
     width       => '100%',
-    title_plain => [ $lang{USER}, $lang{SERVICE}, $lang{DESCRIBE}, $lang{SUM} ]
+    title_plain => [ $lang{USER}, $lang{SERVICE}, $lang{DESCRIBE}, $lang{SUM}, $lang{STATUS} ]
   });
+  my $statuses = sel_status({HASH_RESULT => 1});
+  my $sum_for_pay = 0;
 
   foreach my $line (@$users_list) {
     my $service_info = get_services({
@@ -2360,14 +2393,23 @@ sub form_company_list {
      });
 
     foreach my $service ( @{ $service_info->{list} } ) {
+      my ($status_name, $color_status) = split(/:/, $statuses->{$service->{STATUS}});
       $table->addrow($line->{LOGIN},
         $service->{SERVICE_NAME},
         $service->{SERVICE_DESC},
-        sprintf("%.2f", $service->{SUM})
+        sprintf("%.2f", $service->{SUM}),
+        $html->color_mark($status_name, $color_status)
       );
       $sum_total += $service->{SUM};
       $total++;
+      if ($service->{STATUS} eq '5') {
+        $sum_for_pay += $service->{SUM};
+      }
     }
+  }
+
+  if (defined($user->{DEPOSIT}) && $user->{DEPOSIT} != 0) {
+    $sum_for_pay = $sum_for_pay - $user->{DEPOSIT};
   }
 
   $table->table_summary($html->tpl_show(templates('form_table_summary'), {
@@ -2375,6 +2417,10 @@ sub form_company_list {
     SUM   => sprintf("%.2f", $sum_total),
   },
   { OUTPUT2RETURN => 1 }));
+
+  if ($sum_for_pay > 0) {
+    $html->message('warn', $lang{WARNING}, "$lang{ACTIVATION_PAYMENT}" . sprintf("%.2f", $sum_for_pay) . ".");
+  }
 
   print $table->show();
 
@@ -2394,7 +2440,7 @@ sub form_company_list {
 sub change_pi_popup {
 
   my @check_fields = split(/,[\r\n\s]?/, $conf{CHECK_CHANGE_PI});
-  my @all_fields = ('FIO', 'PHONE', 'ADDRESS', 'EMAIL');
+  my @all_fields = ('FIO', 'PHONE', 'ADDRESS', 'EMAIL', 'CELL_PHONE');
 
   $user->{PINFO} = 0; # param wich show modal window
   $user->{ACTION} = 'change';

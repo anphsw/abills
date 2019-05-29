@@ -28,7 +28,8 @@ sub add_company {
   $Company->{ACTION}         = 'add';
   $Company->{LNG_ACTION}     = $lang{ADD};
   $Company->{BILL_ID}        = $html->form_input( 'CREATE_BILL', 1, { TYPE => 'checkbox', STATE => 1 } ) . ' ' . $lang{CREATE};
-  $Company->{ADDRESS_SELECT} = _form_company_address();
+#  $Company->{ADDRESS_SELECT} = _form_company_address();
+  $Company->{ADDRESS_SELECT} = form_address_select2();
 
   $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1 });
 
@@ -85,6 +86,13 @@ sub form_companies {
     if (!$permissions{0}{1}) {
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}" );
       return 0;
+    }
+    if ($FORM{STREET_ID} && $FORM{ADD_ADDRESS_BUILD} && !$FORM{LOCATION_ID}) {
+      require Address;
+      Address->import();
+      my $Address = Address->new($db, $admin, \%conf);
+      $Address->build_add(\%FORM);
+      $FORM{LOCATION_ID} = $Address->{LOCATION_ID};
     }
 
     if($FORM{LOCATION_ID}){
@@ -146,6 +154,13 @@ sub form_companies {
       $html->message( 'err', $lang{ERROR}, "$lang{ERR_ACCESS_DENY}" );
       return 0;
     }
+    if ($FORM{ADD_ADDRESS_BUILD}) {
+      require Address;
+      Address->import();
+      my $Address = Address->new($db, $admin, \%conf);
+      $Address->build_add({STREET_ID => $FORM{STREET_ID}, NUMBER => $FORM{ADD_ADDRESS_BUILD}});
+      $FORM{LOCATION_ID} = $Address->{LOCATION_ID};
+    }
 
     if($FORM{LOCATION_ID}){
       #require Address;
@@ -164,13 +179,25 @@ sub form_companies {
       $html->message( 'info', $lang{INFO}, $lang{CHANGED} . " # $Company->{NAME}" );
     }
   }
-  elsif ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{5} && ! $FORM{subf}) {
-    $Company->del($FORM{del});
-    $html->message( 'info', $lang{INFO}, "$lang{DELETED} # $FORM{del}" );
+  elsif ($FORM{del} && $FORM{COMMENTS} && $permissions{0}{5} && !$FORM{subf}) {
+    $Company->list({ COMPANY_ID => $FORM{del}, USERS_COUNT => '_SHOW', COLS_NAME => 1, });
+
+    if ($Company->{TOTAL} > 0) {
+      $html->message('err', $lang{WARNING}, "$lang{COMPANY} # $FORM{del} : $lang{NO_DELETE_COMPANY}!");
+    }
+    else {
+      $Company->del($FORM{del});
+      unless ($Company->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{DELETED} # $FORM{del}");
+      }
+    }
   }
+
+  _error_show($Company);
 
   if ($FORM{COMPANY_ID}) {
     $Company->info($FORM{COMPANY_ID} || $FORM{ID});
+
     if(_error_show($Company)) {
       return 1;
     }
@@ -255,7 +282,8 @@ sub form_companies {
       }
 
       $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, VALUES  => $Company });
-      $Company->{ADDRESS_SELECT}= _form_company_address($Company);
+#     $Company->{ADDRESS_SELECT}= _form_company_address($Company);
+      $Company->{ADDRESS_SELECT}= form_address_select2($Company);
 
       if (in_array('Docs', \@MODULES)) {
         if ($conf{DOCS_CONTRACT_TYPES}) {
@@ -297,14 +325,16 @@ sub form_companies {
       FUNCTION        => 'list',
       DEFAULT_FIELDS  => 'NAME,DEPOSIT,CREDIT,USERS_COUNT,DISABLE',
       BASE_FIELDS     => 1,
-      FUNCTION_FIELDS => 'company_id,del',
+      FUNCTION_FIELDS => defined( $permissions{0}{5} ) ? 'company_id,del' : 'company_id',
       EXT_TITLES      => {
         'name'        => $lang{NAME},
         'users_count' => $lang{USERS},
         'status'      => $lang{STATUS},
+        'tax_number'  => $lang{TAX_NUMBER},
       },
       FILTER_COLS   => {
-        users_count      => ($FORM{json}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
+        users_count => ($FORM{json}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
+        users_count => ($admin->{MAX_ROWS}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
       },
       TABLE           => {
         width   => '100%',
@@ -347,8 +377,15 @@ sub _company_user_link{
   my ($params, $attr) = @_;
 
   return $html->button($params, "index=11&COMPANY_ID=$attr->{VALUES}->{ID}" );
+}
 
-  return $params;
+#**********************************************************
+=head2 _company_users_count()
+
+=cut
+#**********************************************************
+sub _company_users_count{
+  return "";
 }
 
 #**********************************************************
@@ -366,7 +403,7 @@ sub form_companie_admins {
     #ADD_ADMIN:
     $Company->admins_change({%FORM});
     if (!$Company->{errno}) {
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
+      $html->message( 'info', $lang{INFO}, $lang{CHANGED} );
     }
     if ($attr->{REGISTRATION}) {
       return 0;

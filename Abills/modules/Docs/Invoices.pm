@@ -7,6 +7,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(int2ml mk_unique_value in_array days_in_month);
 use Customers;
+use Fees;
 
 our (
   $db,
@@ -36,6 +37,7 @@ my $Docs     = Docs->new( $db, $admin, \%conf );
 my $Payments = Payments->new( $db, $admin, \%conf );
 my @service_status_colors = ($_COLORS[9], $_COLORS[6]);
 my @service_status = ($lang{ENABLE}, $lang{DISABLE});
+my $Fees = Fees->new($db, $admin, \%conf);
 
 my $debug    = $FORM{debug} || 0;
 
@@ -117,6 +119,17 @@ sub docs_invoices_add_payments{
 #**********************************************************
 sub docs_invoices_list{
   my ($attr) = @_;
+
+  if ($FORM{GET_FEES_INFO}) {
+    my $fees_info = $Fees->fees_type_info({ID => $FORM{ID}});
+    my $info = {
+      SUM => $fees_info->{SUM},
+      NAME => _translate(dynamic_types({FEES_METHODS_STR => $fees_info->{DEFAULT_DESCRIBE}}))
+    };
+    my $json = JSON->new->utf8(0);
+    print $json->encode($info);
+    return 1;
+  }
 
   if($attr->{USER_INFO}) {
     $FORM{UID}        = $attr->{USER_INFO}->{UID} ;
@@ -290,7 +303,18 @@ sub docs_invoices_list{
         SORT_KEY => 1
       }
     );
-
+    my $my_charges = $html->form_select(
+      'TYPE_FEES',
+      {
+        SELECTED    => '',
+        SEL_HASH    => get_fees_types(),
+        #        NO_ID       => 1,
+        NORMAL_WIDTH => 1,
+        SEL_OPTIONS => { '' => '--' },
+      }
+    );
+    $my_charges =~ s/\n//g;
+    $info{TYPES_FEES} = $my_charges;
     form_search( { SEARCH_FORM =>
         ($FORM{pdf}) ? '' : $html->tpl_show( _include( 'docs_invoice_search', 'Docs' ), { %info, %FORM },
           { notprint => 1 } ), SHOW_PERIOD => 1 } );
@@ -1048,6 +1072,7 @@ sub docs_invoice{
     if ( $Docs->{TOTAL} > 0 ){
       my $list = $Docs->{ORDERS};
       my $i=0;
+      my $name_fees_type;
       foreach my $line ( @{$list} ){
         $i++;
         $table->addrow(
@@ -1170,7 +1195,6 @@ sub docs_invoice_period {
     }
 
     my %fees_tax = ();
-    my $Fees = Fees->new($db, $admin, \%conf);
     my $fees_type_list = $Fees->fees_type_list({
       COLS_NAME => 1,
       TAX       => '_SHOW',
@@ -1497,7 +1521,18 @@ sub docs_invoice_period {
       },
       { OUTPUT2RETURN => 1 }
     );
-
+    my $myf = $html->form_select(
+      'TYPE_FEES_1',
+      {
+        SELECTED    => '',
+        SEL_HASH    => get_fees_types(),
+#        NO_ID       => 1,
+        NORMAL_WIDTH => 1,
+        SEL_OPTIONS => { '' => '--' },
+      }
+    );
+    $myf =~ s/\n//g;
+    $Docs->{TYPES_FEES} = $myf;
     if ( $user && $user->{UID} ){
       $html->tpl_show( _include( 'docs_invoice_client_add', 'Docs' ), { %{$Docs}, %{$users}, %FORM } );
     }
@@ -1715,7 +1750,6 @@ sub docs_invoice_print {
           { OUTPUT2RETURN => 1 }
         );
       }
-
       my $count = $line->[2] || 1;
       my $sum = sprintf( "%.2f", $count * $line->[4] );
 

@@ -15,6 +15,9 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
     # Reports 21-40
     "21:0:Paysys:paysys_log"             => 4,
     "22:21:Custom Report:paysys_reports" => 4,
+
+    # Import Fees 60-70
+    "60:0:Import:paysys_import_fees_new:" => 3,
   );
 
   %USER_FUNCTION_LIST = (
@@ -30,6 +33,10 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
 
   %PERIODIC = (daily => [ 'paysys_periodic_new' ],
   );
+
+  if ($permissions{1} && $permissions{1}{5}) {
+    $FUNCTIONS_LIST{"05:0:Import:paysys_import_payments_new:"} = 2;
+  }
 }
 else{
   %FUNCTIONS_LIST = (

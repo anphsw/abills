@@ -91,7 +91,9 @@ sub AUTOLOAD {
   }
   if ( $operation eq 'info' ) {
     my $list_func_name = $entity_name . '_list';
-    return undef if ( !$self->can($list_func_name) );
+    if ( !$self->can($list_func_name) ) {
+      return ;
+    }
   
     my $list = $self->$list_func_name({
       ID               => $data,
@@ -207,9 +209,9 @@ sub events_list {
   $self->query(
     "SELECT $self->{SEARCH_FIELDS} e.id
     FROM events e
-    LEFT JOIN events_privacy epriv ON (e.privacy_id = epriv.id)
-    LEFT JOIN events_priority eprio ON (e.priority_id = eprio.id)
-    LEFT JOIN events_state es ON (e.state_id = es.id)
+    LEFT JOIN events_privacy epriv FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.privacy_id = epriv.id)
+    LEFT JOIN events_priority eprio FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.priority_id = eprio.id)
+    LEFT JOIN events_state es FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.state_id = es.id)
     LEFT JOIN events_group eg ON (e.group_id = eg.id)
      $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -223,9 +225,9 @@ sub events_list {
   $self->query(
     "SELECT COUNT(*) AS total
     FROM events e
-    LEFT JOIN events_privacy epriv ON (e.privacy_id = epriv.id)
-    LEFT JOIN events_priority eprio ON (e.priority_id = eprio.id)
-    LEFT JOIN events_state es ON (e.state_id = es.id)
+    LEFT JOIN events_privacy epriv FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.privacy_id = epriv.id)
+    LEFT JOIN events_priority eprio FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.priority_id = eprio.id)
+    LEFT JOIN events_state es FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.state_id = es.id)
     LEFT JOIN events_group eg ON (e.group_id = eg.id)
     $WHERE;",
     undef,

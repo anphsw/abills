@@ -6,9 +6,9 @@
   %HIDDEN_FIELDS%
   <fieldset>
 
-    <!--        <button class='btn btn-primary btn-block' type='submit' name='search' value=1>
-                <i class='glyphicon glyphicon-search'></i> _{SEARCH}_
-            </button>-->
+    <button class='btn btn-primary btn-block' type='submit' name='search' value=1 style="margin-bottom: 10px;">
+      <i class='glyphicon glyphicon-search'></i> _{SEARCH}_
+    </button>
 
     <div class='col-xs-12 col-md-6'>
       <div class='box box-theme box-big-form'>

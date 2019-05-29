@@ -6,7 +6,7 @@ $(function () {
   "use strict";
   
   function renderContactsBlock(contacts_array) {
-    
+
     // Sort contacts by priority
     contacts_raw.sort(function (a, b) {
       return (a.priority - b.priority);
@@ -30,7 +30,7 @@ $(function () {
         setContactsChangedStatus(true);
       }
     });
-  
+
     $contacts_wrapper.find('.contact-remove-btn').on('click', function (e) {
       cancelEvent(e);
       var $btn = $(this);
@@ -122,7 +122,7 @@ $(function () {
     var setupAddContactModalForm = function (add_contact_form) {
       // Init chosen for select
       CHOSEN_PARAMS.width = '100%';
-      $('#contacts_type_select').chosen(CHOSEN_PARAMS);
+      $('#contacts_type_select').select2(CHOSEN_PARAMS);
       
       
       // Button handlers
@@ -318,7 +318,7 @@ $(function () {
   showDefaultTypesIfNotPresent(contacts_raw, options.types);
   
   renderContactsBlock(contacts_raw);
-  
+
   // Attach handlers
   $add_btn.on('click', addNewContact);
   $sub_btn.on('click', submitContacts);

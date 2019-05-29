@@ -22,12 +22,13 @@ sub cablecat_cable_reports {
   
   my %ADDRESS_PARAMS = _get_address_named_params(\%FORM);
 
-  my $choose_address_form = $html->tpl_show(_include('cablecat_reports_address_form', 'Cablecat'),
-    {
-      %FORM,
-      %ADDRESS_PARAMS,
-      FORM_ID => 'report_panel',
-    }, { OUTPUT2RETURN => 1 });
+  my $choose_address_form = form_address_select2({HIDE_FLAT => 1, HIDE_ADD_BUILD_BUTTON => 1});
+#    $html->tpl_show(_include('cablecat_reports_address_form', 'Cablecat'),
+#    {
+#      %FORM,
+#      %ADDRESS_PARAMS,
+#      FORM_ID => 'report_panel',
+#    }, { OUTPUT2RETURN => 1 });
   
   my $planned_input = $html->tpl_show( templates('form_row_checkbox'), {
       INPUT => $html->form_input('PLANNED', '', { TYPE => 'checkbox', STATE => $FORM{planned} }),
@@ -36,9 +37,9 @@ sub cablecat_cable_reports {
       OUTPUT2RETURN => 1
     }
   );
-  
+
   reports({
-    EX_INPUTS       => [ $planned_input ],
+    EX_INPUTS       => [ $choose_address_form, $planned_input ],
     EXT_SELECT      => $cable_types_select,
     EXT_SELECT_NAME => $lang{CABLE_TYPE},
     PERIOD_FORM     => 1,
@@ -47,8 +48,7 @@ sub cablecat_cable_reports {
   });
   
   delete $LIST_PARAMS{DISTRICT_ID};
-  
-  print $choose_address_form;
+
   
   $LIST_PARAMS{TYPE_ID} = $FORM{TYPE_ID} || '_SHOW';
   $LIST_PARAMS{CREATED} = ($FORM{FROM_DATE} && $FORM{TO_DATE}) ? "$FORM{FROM_DATE}/$FORM{TO_DATE}" : '_SHOW';
@@ -126,9 +126,9 @@ sub cablecat_cable_reports {
 #**********************************************************
 sub _get_address_named_params {
   my ($attr) = @_;
-  
+
   my %result = ();
-  
+
   if ( $attr->{ADDRESS_DISTRICT} ) {
     my $districts_list = $Address->district_list({
       ID        => $attr->{ADDRESS_DISTRICT},
@@ -136,13 +136,13 @@ sub _get_address_named_params {
       COLS_NAME => 1,
       PAGE_ROWS => 1
     });
-    
+
     if ( $districts_list && ref $districts_list eq 'ARRAY' && scalar @{$districts_list} ) {
       $result{ADDRESS_DISTRICT} = $districts_list->[0]->{name};
     }
-    
+
   }
-  
+
   if ( $attr->{ADDRESS_STREET} ) {
     my $streets_list = $Address->street_list({
       ID          => $attr->{ADDRESS_STREET},
@@ -150,13 +150,13 @@ sub _get_address_named_params {
       COLS_NAME   => 1,
       PAGE_ROWS   => 1
     });
-    
+
     if ( $streets_list && ref $streets_list eq 'ARRAY' && scalar @{$streets_list} ) {
       $result{ADDRESS_STREET} = $streets_list->[0]->{street_name};
     }
-    
+
   }
-  
+
   if ( $attr->{ADDRESS_BUILD} ) {
     my $builds_list = $Address->build_list({
       LOCATION_ID        => $attr->{ADDRESS_BUILD},
@@ -164,11 +164,11 @@ sub _get_address_named_params {
       COLS_NAME => 1,
       PAGE_ROWS => 1
     });
-    
+
     if ( $builds_list && ref $builds_list eq 'ARRAY' && scalar @{$builds_list} ) {
       $result{ADDRESS_BUILD} = $builds_list->[0]->{number};
     }
-    
+
   }
   return %result;
 }

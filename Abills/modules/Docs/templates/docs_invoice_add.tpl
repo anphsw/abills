@@ -52,8 +52,11 @@
               <th class='text-center col-md-1'>
                 #
               </th>
-              <th class='text-center'>
+              <th class='text-center col-md-5'>
                 _{NAME}_
+              </th>
+              <th class='text-center col-md-3'>
+                _{LIST_OF_CHARGES}_
               </th>
               <th class='text-center col-md-1'>
                 _{COUNT}_
@@ -71,13 +74,16 @@
                 1
               </td>
               <td>
-                <input type='text' name='ORDER_1' value='%ORDER_1%' placeholder='_{ORDER}_' class='form-control'/>
+                <input type='text' name='ORDER_1' id='ORDER_1' value='%ORDER_1%' placeholder='_{ORDER}_' class='form-control'/>
+              </td>
+              <td>
+                %TYPES_FEES%
               </td>
               <td>
                 <input type='text' name='COUNTS_1' value='%COUNTS_1%' placeholder='1' class='form-control'/>
               </td>
               <td>
-                <input type='text' name='SUM_1' value='%SUM_1%' placeholder='0.00' class='form-control'/>
+                <input type='text' name='SUM_1' id='SUM_1' value='%SUM_1%' placeholder='0.00' class='form-control'/>
               </td>
             </tr>
             <tr id='addr2'></tr>
@@ -106,11 +112,15 @@
 
 <script>
   jQuery(document).ready(function () {
-
+    checkSelect();
     var i = 2;
+    var tp_fs = "%TYPES_FEES%";
     jQuery('#add_row').click(function () {
-      jQuery('#addr' + i).html("<td>" + i + " <input type=hidden name=IDS value='" + i + "'>" + "</td><td><input name='ORDER_" + i + "' type='text' placeholder='_{ORDER}_' class='form-control input-md'  /> </td><td><input  name='COUNTS_" + i + "' type='text' placeholder='1'  class='form-control input-md'></td><td><input  name='SUM_" + i + "' type='text' placeholder='0.00'  class='form-control input-md'></td>");
+      var tp_fs_new = tp_fs.replace(/TYPE_FEES_1/g, "TYPE_FEES_" + i);
+      jQuery('#addr' + i).html("<td>" + i + " <input type=hidden name=IDS value='" + i + "'>" + "</td><td><input id='ORDER_" + i + "' name='ORDER_" + i + "' type='text' placeholder='_{ORDER}_' class='form-control input-md'  /> </td><td>" + tp_fs_new + "</td><td><input  name='COUNTS_" + i + "' type='text' placeholder='1'  class='form-control input-md'></td><td><input  name='SUM_" + i + "' id='SUM_" + i + "' type='text' placeholder='0.00'  class='form-control input-md'></td>");
       jQuery('#tab_logic').append('<tr id="addr' + (i + 1) + '"></tr>');
+      initChosen();
+      checkSelect();
       i++;
     });
 
@@ -120,6 +130,21 @@
         i--;
       }
     });
+    function checkSelect() {
+      jQuery("select[name^='TYPE_FEES_']").on('change', (function () {
+        var changedId = jQuery(this).attr('name');
+        var patt1 = /(\d+)/g;
+        var selId = changedId.match(patt1);
+        jQuery.post('/admin/index.cgi', 'header=2&get_index=docs_invoices_list&GET_FEES_INFO=1&ID=' + this.value, function (result) {
+          var myFeesData = JSON.parse(result);
+          jQuery("input#SUM_" + selId).val(myFeesData.SUM);
+          jQuery("input#ORDER_" + selId).val(myFeesData.NAME);
+          // console.log(myFeesData.SUM);
+          // console.log(result);
+        });
+
+      }));
+    }
   });
 
 </script>

@@ -163,7 +163,7 @@ $conf{JOIN_SERVICE_FW_FIRST_RULE} = 40000 if (!$conf{JOIN_SERVICE_FW_FIRST_RULE}
 
 my $admin = Admins->new( $db, \%conf );
 
-$admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' } );
+$admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1', SHORT => 1 } );
 
 my $Internet;
 
@@ -190,11 +190,11 @@ else{
   $LIST_PARAMS{LOGIN} = "$USER";
 }
 
-my %speeds = ();
-my %nets = ();
+my %speeds  = ();
+my %nets    = ();
 my %nets_id = ();
-my %expr = ();
-my $user = user_info( { LOGIN => $USER } );
+my %expr    = ();
+my $user    = user_info( { LOGIN => $USER } );
 
 # Mask
 my $BIT_MASK = 32;
@@ -636,6 +636,7 @@ sub ng_car_shape {
       SPEEDS
       NETS
       CLIENT_IP
+      DEBUG
 
   Returns:
     command output
@@ -644,6 +645,10 @@ sub ng_car_shape {
 #**********************************************************
 sub mikrotik {
   my ($attr) = @_;
+
+  if($attr->{DEBUG}) {
+    $debug = $attr->{DEBUG};
+  }
 
   if ( $attr->{NAS_HOST} && !$attr->{NAS_MNG_IP_PORT} ){
     my @mng_info = split(/:/, $attr->{NAS_HOST});
@@ -668,7 +673,10 @@ sub mikrotik {
   push @commands, qq{/ip firewall address-list remove [find address=$attr->{CLIENT_IP}] };
 
   if ( $ACTION eq 'up' ){
-    push @commands, qq{/ip firewall address-list add list=CLIENTS_$tp_id  address=$attr->{CLIENT_IP} };
+    push @commands, qq{/ip firewall address-list add list=CLIENTS_$tp_id address=$attr->{CLIENT_IP} };
+  }
+  elsif( $ACTION eq 'guest') {
+    push @commands, qq{/ip firewall address-list add list=negative address=$attr->{CLIENT_IP} };
   }
 
   my $result = ssh_cmd( \@commands, { %{$attr}, BASE_DIR => $base_dir } );
@@ -724,13 +732,13 @@ sub user_info{
         $expr{ $line->{tt_id} } = $line->{expression};
 
         print "Class: $line->{tt_id} IN: $line->{in_speed} OUT: $line->{out_speed}\n" if ($debug > 3);
-      }
 
-      if ( $Internet->{TOTAL} > 1 ){
-        $list = $Tariffs->traffic_class_list();
-        my %nets_id_rev = reverse %nets_id;
-        foreach my $line ( @{$list} ){
-          $nets{ $nets_id_rev{ $line->{tp_id} } } = $line->{tt_id} if ($nets_id_rev{ $line->{tp_id} });
+        if ( $Internet->{TOTAL} > 1 ){
+          my $traffic_class_list = $Tariffs->traffic_class_list();
+          my %nets_id_rev = reverse %nets_id;
+          foreach my $traffic_class ( @{$traffic_class_list} ){
+            $nets{ $nets_id_rev{ $line->{tp_id} } } = $traffic_class->{id} if ($nets_id_rev{ $line->{tp_id} });
+          }
         }
       }
     }

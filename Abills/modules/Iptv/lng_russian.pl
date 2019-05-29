@@ -46,7 +46,6 @@ $lang{GENDER}='Пол';
 
 $lang{MALE}='Мужской';
 $lang{FEMALE}='Женский';
-$lang{BIRTH_DATE}='Дата рождения';
 $lang{SEND_NEWS}='Отправлять новости';
 $lang{ERR_NOT_REGISTERED}='Не зарегистрировано';
 $lang{SCREENS}='Экраны';
@@ -73,3 +72,34 @@ $lang{ADDED_TP}='Дополнительные тарифные планы';
 
 
 $lang{MAX_DEVICES} = 'Максимально девайсов';
+
+$lang{EXCEEDED_THE_NUMBER_OF_SUBSCRIPTIONS} = "Вы превысили количество подписок на эту услугу";
+$lang{THIS_TARIFF_PLAN_IS_ALREADY_CONNECTED} = "Этот тарифный план уже подключен";
+
+$lang{PLAYLISTS} = "Плейлисты";
+$lang{CREATE_PLAYLIST} = "Создать плейлист";
+$lang{ACTIVATION_DATA} = "Дата активации";
+$lang{SET_FILTER_ID_IN_TARIFF} = "Установите Filter id в тарифе";
+$lang{WATCH_NOW} = "Смотреть сейчас";
+$lang{ACTIVATION_CODE} = "Код активации";
+$lang{ADD_DEVICE_BY_UNIQ} = "Добавить устройство по UNIQ";
+
+$lang{PROCESSING_ERROR} = "Ошибка при обработке";
+$lang{ACCOUNT_NOT_ACTIVATED} = "Аккаунт не активирован";
+$lang{ERROR_CARD} = "Карта должна иметь 12 символов";
+$lang{UNSUBSCRIBE_CARD_ERROR} = "Ошибка отписки карты";
+$lang{IMPOSSIBLE_TO_ADD_CARD} = "У вас отключен сервис, невозможно добавить карту";
+$lang{CARD_SUCCESSFULLY_SIGNED} = "Карта успешно подписана";
+$lang{CARD_SUBSCRIPTION_FAILED} = "Ошибка подписки карты";
+$lang{CARD_UNSUBSCRIBED} = "Карта успешно отписана";
+$lang{CARD_NUMBER} = "Номер карты";
+$lang{AUTHORISATION_END} = "Конец авторизации";
+$lang{UNBLOCK} = "Разблокировать";
+$lang{BLOCK} = "Заблокировать";
+$lang{CARD_LOCKED} = "Карта заблокирована";
+$lang{CARD_EXIST} = "Карта уже существует";
+$lang{NO_CARDS} = "Нет карт (или заблокированы или отстутствуют)";
+$lang{INTERNAL_URL} = "Внутренняя ссылка";
+$lang{EXTERNAL_URL} = "Внешняя ссылка";
+
+1;

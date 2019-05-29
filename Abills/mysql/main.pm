@@ -287,7 +287,7 @@ sub query2{
   if ( $db->err ){
     if ( $db->err == 1062 ){
       $self->{errno} = 7;
-      $self->{errstr} = 'ERROR_DUBLICATE';
+      $self->{errstr} = 'ERROR_DUPLICATE';
     }
     else{
       $self->{sql_errno} = $db->err;
@@ -595,6 +595,8 @@ sub search_former{
     'EXPIRE',
     'REGISTRATION',
     'LAST_PAYMENT',
+    'EXT_BILL_ID',
+    'EXT_DEPOSIT',
   );
 
   if ( $attr->{USERS_FIELDS_PRE} ){
@@ -931,6 +933,7 @@ sub search_expr_users{
     BILL_ID        => 'INT:if(company.id IS NULL,b.id,cb.id) AS bill_id',
     PASSWORD       => "STR:DECODE(u.password, '$CONF->{secretkey}') AS password",
     EXT_DEPOSIT    => 'INT:if(company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit',
+    EXT_BILL_ID    => 'INT:IF(company.id IS NULL, u.ext_bill_id, company.ext_bill_id) AS ext_bill_id',
     LAST_PAYMENT   => 'INT:(SELECT max(p.date) FROM payments p WHERE p.uid=u.uid) AS last_payment'
     #ADDRESS_FLAT  => 'STR:pi.address_flat',
   );

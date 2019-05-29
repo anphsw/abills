@@ -77,7 +77,7 @@ our $html = Abills::HTML->new(
     NO_PRINT => 0,
     PATH     => $conf{WEB_IMG_SCRIPT_PATH} || '../',
     CHARSET  => $conf{default_charset},
-    COLORS   => $conf{DEFAULT_ADMIN_WEBCOLORS},
+    #COLORS   => $conf{DEFAULT_ADMIN_WEBCOLORS},
     LANG     => \%lang,
   }
 );
@@ -166,11 +166,10 @@ if ($conf{CALLCENTER_MENU}) {
 }
 
 $html->{METATAGS} = templates('metatags');
-if ((($FORM{UID} && $FORM{UID} =~ /^(\d+)$/
+if ($permissions{0} && (($FORM{UID} && $FORM{UID} =~ /^(\d+)$/
    && $FORM{UID} > 0)
    || ($FORM{LOGIN} && $FORM{LOGIN} !~ /\*/
      && !$FORM{add} && !$FORM{next} ))
-     && $permissions{0}
    ) {
 
   if (! $FORM{type} || $FORM{type} ne 10){
@@ -212,7 +211,6 @@ my %SEARCH_TYPES = (
 
 my $function_name = $functions{$index} || q{};
 my $module_name   = ($module{$index}) ? "$module{$index}:" : '';
-
 pre_page();
 
 admin_quick_setting();
@@ -273,7 +271,7 @@ sub form_admin_qm {
   $admin->{QUICK_MENU} .= $html->li( $html->button( $lang{ADD}, "index=110",
       { class => "btn bg-green btn-block btn-flat" } ) );
   $admin->{QUICK_MENU} .= $quick_menu_script . "</script>";
-  
+
   if ($qm_btns_counter){
     $admin->{QUICK_MENU} .= '<script src="/styles/default_adm/js/dynamicForms.js"></script>';
   }
@@ -318,25 +316,27 @@ sub form_start {
     @qr_arr = split(/, /, $quick_reports) if ($quick_reports);
   }
 
-  if (in_array('Rwizard', \@MODULES)) {
-    use Reports;
-    my $Reports = Reports->new($db, $admin, \%conf);
-    my $quick_rwizard_reports = $Reports->list({
-      QUICK_REPORT => 1,
-      COLS_NAME => 1
-    });
+  if ($#qr_arr > -1) {
+    if (in_array('Rwizard', \@MODULES)) {
+      require Reports;
+      Reports->import();
+      my $Reports = Reports->new($db, $admin, \%conf);
+      my $quick_rwizard_reports = $Reports->list({
+        QUICK_REPORT => 1,
+        COLS_NAME    => 1
+      });
 
-    if ($Reports->{TOTAL} > 0){
-      foreach (@$quick_rwizard_reports) {
-        push @qr_arr, "Rwizard:quick_report:$_->{id}";
+      if ($Reports->{TOTAL} > 0){
+        foreach (@$quick_rwizard_reports) {
+          push @qr_arr, "Rwizard:quick_report:$_->{id}";
+        }
       }
     }
-  }
 
-  if ($#qr_arr > -1) {
     require Control::Quick_reports;
   }
-  my %start_panels;
+
+  my %start_panels = ();
   #my $filled_panels_counter = 0;
   my %loaded_modules = ();
   for(my $i=0; $i<=$#qr_arr; $i++) {
@@ -624,7 +624,7 @@ sub form_nas_allow{
 
   if ($attr->{USER_INFO}) {
     my Users $user = $attr->{USER_INFO};
-    if ($FORM{change} && $permissions{0}{4}) {
+    if ($FORM{change} && $permissions{0} && $permissions{0}{4}) {
       $user->nas_add(\@allow);
       if (!$user->{errno}) {
         $html->message( 'info', $lang{INFO}, "$lang{ALLOW} $lang{NAS}: ". ($FORM{ids} || '') );
@@ -868,6 +868,7 @@ sub form_changes {
     40 => "$lang{BILL} $lang{CHANGED}",
     43 => "$lang{SHEDULE} $lang{TARIF_PLAN}",
     43 => "$lang{SHEDULE} $lang{STATUS}",
+    50 => "Send registration pin",
   );
 
   my $pages_qs2 = q{};
@@ -942,20 +943,26 @@ sub form_changes {
     form_changes_summary();
   }
 
+  my $service_status = sel_status({ HASH_RESULT => 1 });
+  require Control::Services;
+  my $tps_hash = sel_tp();
+
+  $pages_qs .= $pages_qs2;
+  if($FORM{FROM_DATE}) {
+    $pages_qs2 .= "&FROM_DATE=" . $FORM{FROM_DATE};
+    $LIST_PARAMS{FROM_DATE}=$FORM{FROM_DATE};
+  }
+
+  if($FORM{TO_DATE}) {
+    $pages_qs2 .= "&TO_DATE=" . $FORM{TO_DATE};
+    $LIST_PARAMS{TO_DATE}=$FORM{TO_DATE};
+  }
+
   my $list = $admin->action_list({
     %LIST_PARAMS,
     IP        => '_SHOW',
     COLS_NAME => 1
   });
-
-  $pages_qs .= $pages_qs2;
-
-  # require Tariffs;
-  # Tariffs->import();
-  # my $Tariffs = Tariffs->new($db, \%conf, $admin);
-  # $Tariffs->list({LIST2HASH => 'tp_id,id,name'});
-  require Control::Services;
-  my $tps_hash = sel_tp();
 
   my $table = $html->table({
     width      => '100%',
@@ -968,8 +975,6 @@ sub form_changes {
     EXPORT     => 1,
     MENU       => "$lang{SEARCH}:search_form=1&index=$index$pages_qs2:search;"
   });
-
-  my $service_status = sel_status({ HASH_RESULT => 1 });
 
   foreach my $line (@$list) {
     my $delete = ($permissions{4} && $permissions{4}{3}) ? $html->button( $lang{DEL}, "index=$index$pages_qs2&del=$line->{id}",
@@ -999,8 +1004,7 @@ sub form_changes {
       my $from_status = $1;
       my $to_status   = $2;
       my $text        = $3 || '';
-      $message =~ s/</&lt;/g;
-      $message =~ s/>/&gt;/g;
+      $message        = $html->link_former($message);
 
       if($service_status->{$from_status}) {
         ($value, $color) = split(/:/, $service_status->{$from_status});
@@ -1015,13 +1019,12 @@ sub form_changes {
 
     if($message) {
       my $br = $html->br();
-
-      while($message =~ /([A-Z\_]+)[:|\s]{1}/g) {
+      my $action_text = $message;
+      while($action_text =~ /([A-Z\_]+)[:|\s]{1}/g) {
         my $marker = $1;
         my $colorstring = $html->b($marker).':';
         $message =~ s/$marker:?/$colorstring/g
       }
-
       $message =~ s/;/$br/g;
     }
 
@@ -1054,15 +1057,20 @@ sub form_changes {
 =cut
 #**********************************************************
 sub form_events {
-  #my ($attr) =@_;
-
   my @result_array = ();
 
-  #Fix me
-  $conf{CROSS_MODULES_DEBUG}='/tmp/cross_modules';
+  if($conf{SKIP_EVENTS}) {
+    print "Content-Type: application/json;\n\n";
+    print "[ " . join(", ", @result_array) . " ]";
+    return 1;
+  }
+
+  #Fixme
+  #$conf{CROSS_MODULES_DEBUG}='/tmp/cross_modules';
 
   print "Content-Type: text/html\n\n" if ($FORM{DEBUG});
   my $cross_modules_return = cross_modules_call('_events', {
+    SKIP_MODULES => 'Sqlcmd,Sysinfo',
     UID => $user->{UID},
   });
 
@@ -1251,26 +1259,15 @@ sub form_passwd {
 =cut
 #**********************************************************
 sub fl {
-  if ($permissions{0}) {
-    require Control::Users_mng;
-    require Control::Companies_mng;
-    require Control::Groups_mng;
-    require Control::Contracts_mng;
-  }
-
-  require Control::Payments;
-  require Control::Fees;
 
   # ID:PARENT:NAME:FUNCTION:SHOW SUBMENU:module:
   my @m = (
     #"0:0::null:::",
     "1:0:<i class='fa fa-user'></i><span>$lang{CUSTOMERS}</span>:null:::",
     "11:1:$lang{LOGINS}:form_users_list:::",
-    "13:1:$lang{COMPANY}:form_companies:::",
     "16:13:$lang{ADMIN}:form_companie_admins:COMPANY_ID::",
 
     "15:11:$lang{INFO}:form_users:UID::",
-    "22:15:$lang{LOG}:form_changes:UID::",
     "17:15:$lang{PASSWD}:form_passwd:UID::",
     "18:15:$lang{NAS}:form_nas_allow:UID::",
     "19:15:$lang{BILL}:form_bills:UID::",
@@ -1281,7 +1278,6 @@ sub fl {
     "103:15:$lang{SHEDULE}:form_shedule:UID::",
     "12:15:$lang{GROUP}:user_group:UID::",
     "125:15:$lang{ADDITION}:user_contract:UID::",
-    "27:1:$lang{GROUPS}:form_groups:::",
 
     "30:15:$lang{USER_INFO}:user_pi:UID::",
     "31:15:$lang{SEARCH}:user_modal_search:user_search_form::",
@@ -1295,6 +1291,27 @@ sub fl {
     "8:0:<i class='fa fa-flag'></i><span>$lang{MAINTAIN}</span>:null:::",
     "9:0:<i class='fa fa-wrench'></i><span>$lang{PROFILE}</span>:admin_profile:::",
   );
+
+  if ($permissions{0}) {
+    require Control::Users_mng;
+    require Control::Companies_mng;
+    require Control::Groups_mng;
+    require Control::Contracts_mng;
+
+    if ($permissions{0}{28}) {
+      push @m, "27:1:$lang{GROUPS}:form_groups:::";
+    }
+
+    if ($permissions{0}{29}) {
+      push @m, "13:1:$lang{COMPANY}:form_companies:::";
+    }
+    if ($permissions{0}{30}) {
+      push @m, "22:15:$lang{LOG}:form_changes:UID::";
+    }
+  }
+
+  require Control::Payments;
+  require Control::Fees;
 
   #Monitoring
   if ($permissions{5} && $permissions{5}{0}){
@@ -1313,10 +1330,13 @@ sub fl {
   if ($conf{NON_PRIVILEGES_LOCATION_OPERATION}) {
     require Control::Address_mng;
     push @m, "70:8:$lang{LOCATIONS}:form_districts:::", "71:70:$lang{STREETS}:form_streets::";
+    push @m, "135:70:Address update:form_address_select2:AJAX::";
+
   }
   else {
     require Control::Address_mng;
     push @m, "70:5:$lang{LOCATIONS}:form_districts:::", "71:70:$lang{STREETS}:form_streets::";
+    push @m, "135:70:Address update:form_address_select2:AJAX::";
   }
 
   #Reports
@@ -1325,10 +1345,15 @@ sub fl {
   #Reports
   if($permissions{3}){
     require Control::Reports;
+    require Control::User_reports;
     if($permissions{3}{7}) {
       push @m, "76:4:WEB server:report_webserver:::",
                "122:4:$lang{LIST_OF_LOGS}:logs_list:::";
     }
+    push @m, "131:4:$lang{USERS}:null:::";
+    push @m, "132:131:$lang{REPORT_NEW_ALL_USERS}:report_new_all_customers:::";
+    push @m, "133:131:$lang{REPORT_NEW_ARPU_USERS}:report_new_arpu:::";
+    push @m, "134:131:$lang{REPORT_BALANCE_BY_STATUS}:report_balance_by_status:::";
 
     if($conf{AUTH_FACEBOOK_ID}){
       push @m, "127:4:$lang{SOCIAL_NETWORKS}:null:::";
@@ -1441,7 +1466,7 @@ sub mk_navigator {
 
   if ($html->{ERROR}) {
     $html->message( 'err', $lang{ERROR}, $html->{ERROR} );
-    die "$html->{ERROR}";
+    die $html->{ERROR};
   }
 
   return $menu_text_, " " . $menu_navigator;
@@ -1540,7 +1565,7 @@ sub form_search {
       if (! $return) {
         return 0;
       }
-      elsif($FORM{json}) {
+      elsif($FORM{json} || $FORM{xml}) {
         return 1;
       }
     }
@@ -1712,7 +1737,7 @@ sub form_search {
         $info{EXPIRE}       = $html->date_fld2('EXPIRE',       { NO_DEFAULT_DATE => 1, MONTHES => \@MONTHES, FORM_NAME => 'form_search', WEEK_DAYS => \@WEEKDAYS, TABINDEX => 18 });
       }
 
-      $SEARCH_DATA{SEARCH_FORM} = $html->tpl_show(templates($search_form{ $search_type }), { %FORM, %info, GROUPS_SEL => $group_sel }, { OUTPUT2RETURN => 1 });
+      $SEARCH_DATA{SEARCH_FORM} = $html->tpl_show(templates($search_form{ $search_type }), { %FORM, %info }, { OUTPUT2RETURN => 1 });
       $SEARCH_DATA{SEARCH_FORM} .= $html->form_input('type', $search_type, { TYPE => 'hidden', FORM_ID => 'SKIP' });
     }
 
@@ -1733,7 +1758,8 @@ sub form_search {
             ADDRESS_BUILD    => $Address->{ADDRESS_BUILD}
           );
         }
-        $address_form =  $html->tpl_show(templates('form_address_search'), { %FORM, %$users, %address_info }, { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
+#        $address_form =  $html->tpl_show(templates('form_address_search2'), { %FORM, %$users, %address_info }, { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
+        $address_form = form_address_select2({HIDE_ADD_BUILD_BUTTON => 1});
       }
       else {
         my $countries_hash;
@@ -1791,6 +1817,9 @@ sub form_search {
 #**********************************************************
 =head2 form_search_all($search_text)
 
+  Arguments:
+    $search_text
+
 =cut
 #**********************************************************
 sub form_search_all {
@@ -1808,7 +1837,8 @@ sub form_search_all {
   #main user_search
   $cross_modules_return->{main}=form_users_search({
     SEARCH_TEXT => $search_text,
-    DEBUG       => $FORM{DEBUG}
+    DEBUG       => $FORM{DEBUG},
+
   });
 
   foreach my $module ( sort keys %{$cross_modules_return} ) {
@@ -2114,7 +2144,7 @@ $form_period .= "<!-- period begin -->
 }
 
 #**********************************************************
-=head2 get_popup_info
+=head2 get_popup_info()
 
 =cut
 #**********************************************************
@@ -2151,28 +2181,31 @@ sub form_monitoring {
 #**********************************************************
 sub admin_quick_setting {
 
+  #Fixme
+  # Skip this futures
+  #return 1;
   return 1 unless ($html && $html->{TYPE} && $html->{TYPE} eq 'html');
-
-  my $SEL_LANGUAGE = $html->form_select(
-    'language',
-    {
-      NO_ID    => 1,
-      SELECTED => $html->{language},
-      SEL_HASH => \%LANG,
-      ID       => 'type',
-      class    => 'form-control margin'
-    }
-  );
-
-  require Control::Profile;
-  my $html_content = $html->tpl_show(templates('form_admin_quick_setting'), {
-      INDEX           => get_function_index('admin_profile'),
-      SEL_LANGUAGE    => $SEL_LANGUAGE,
-      SUBSCRIBE_BLOCK => profile_get_admin_sender_subscribe_block($admin->{AID}, 0),
-        %{ $admin->{SETTINGS} }
-    },
-    { OUTPUT2RETURN => 1 }
-  );
+  my $html_content = q{};
+  # my $SEL_LANGUAGE = $html->form_select(
+  #   'language',
+  #   {
+  #     NO_ID    => 1,
+  #     SELECTED => $html->{language},
+  #     SEL_HASH => \%LANG,
+  #     ID       => 'type',
+  #     class    => 'form-control margin'
+  #   }
+  # );
+  #
+  # require Control::Profile;
+  # $html_content = $html->tpl_show(templates('form_admin_quick_setting'), {
+  #     INDEX           => get_function_index('admin_profile'),
+  #     SEL_LANGUAGE    => $SEL_LANGUAGE,
+  #     SUBSCRIBE_BLOCK => profile_get_admin_sender_subscribe_block($admin->{AID}, 0),
+  #       %{ $admin->{SETTINGS} }
+  #   },
+  #   { OUTPUT2RETURN => 1 }
+  # );
 
   $html->{_RIGHT_MENU} = $html->menu_right("<i class='fa fa-wrench'></i>", "admin_setting", $html_content,
     { SKIN => $admin->{SETTINGS}->{RIGHT_MENU_SKIN} });
@@ -2203,7 +2236,8 @@ sub sel_admins {
     GID       => $admin->{GID},
     COLS_NAME => 1,
     DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
-    PAGE_ROWS => 10000
+    PAGE_ROWS => 10000,
+    POSITION  => ($attr->{POSITION} ? $attr->{POSITION} : undef),
   } );
 
   if($attr->{HASH}) {
@@ -2256,7 +2290,8 @@ sub form_users_search {
 
   $users->list({
     %LIST_PARAMS,
-    _MULTI_HIT => $search_string
+    _MULTI_HIT => $search_string,
+    UNIVERSAL_SEARCH => $search_string,
   });
 
   my @info = ();
@@ -2347,8 +2382,12 @@ sub quick_functions {
         $xml_start_teg = 'user_info';
         print "<$xml_start_teg>";
       }
+      elsif($FORM{PHONE}) {
+        $xml_start_teg = 'user_info';
+        print "<$xml_start_teg>";
+      }
     }
-    else{
+    else {
       if ($FORM{xml}) {
         $xml_start_teg = 'info';
         print "<$xml_start_teg>"
@@ -2372,6 +2411,9 @@ sub quick_functions {
   print "</$xml_start_teg>" if ($FORM{xml} && $xml_start_teg);
 
   if ($admin->{FULL_LOG} && $functions{$index} && $functions{$index} ne 'form_events') {
+    if($begin_time) {
+      $admin->{GT} = gen_time($begin_time);
+    }
     $admin->full_log_add({
       FUNCTION_INDEX => $index,
       AID            => $admin->{AID},
@@ -2379,7 +2421,7 @@ sub quick_functions {
       DATETIME       => 'NOW()',
       IP             => $admin->{SESSION_IP},
       SID            => $admin->{SID},
-      PARAMS         => $FORM{__BUFFER}
+      PARAMS         => ($FORM{__BUFFER} || q{}) . (($admin->{GT}) ? ' '.$admin->{GT} : q{})
     });
   }
 
@@ -2389,7 +2431,7 @@ sub quick_functions {
 
   if($ENV{DEBUG}) {
     return 0;
-    die;
+    #die 0;
   }
   else {
     exit;
@@ -2517,19 +2559,22 @@ sub set_admin_params {
   if (in_array('Multidoms', \@MODULES) && $permissions{10}) {
     load_module('Multidoms', $html);
     $FORM{DOMAIN_ID}        = $COOKIES{DOMAIN_ID};
-    $admin->{DOMAIN_ID}     = $FORM{DOMAIN_ID};
+    $admin->{DOMAIN_ID}     = $FORM{DOMAIN_ID} if($FORM{DOMAIN_ID});
     $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} if($admin->{DOMAIN_ID} && $admin->{DOMAIN_ID} =~ /\d+/);
-    $admin->{SEL_DOMAINS} = "$lang{DOMAINS}:"
-      . $html->form_main(
+
+    $admin->{SEL_DOMAINS} = $html->element( 'div', $html->form_main(
       {
-        CONTENT => multidoms_domains_sel(),
-        HIDDEN  => {
+        CONTENT       => $html->element('label', "$lang{DOMAINS}: ", { class => 'col-md-1 ' })
+                           . $html->element('div', multidoms_domains_sel(), {class => 'col-md-4'}),
+        HIDDEN        => {
           index      => $index,
           COMPANY_ID => $FORM{COMPANY_ID}
         },
-        SUBMIT  => { action => $lang{CHANGE} }
+        SUBMIT        => { action => $lang{CHANGE} },
+        ID            => 'MULTIDOMS_LIST',
+        OUTPUT2RETURN => 1
       }
-    );
+    ), { class => 'form-group' } );
   }
 
 
@@ -2587,7 +2632,7 @@ sub main_function {
     }
     elsif ($admin->{GID} && $ui && $ui->{GID} && $admin->{GID} !~ /$ui->{GID}/) {
       $html->message('err', $lang{ERROR},
-        "[$FORM{UID}] $lang{USER_NOT_EXIST} GID: $admin->{GID} / " . ($ui->{GID} || '-'));
+        "[$FORM{UID}] $lang{USER_NOT_EXIST} GID: $admin->{GID} / " . ($ui->{GID} || '-'), { ID => '002' });
     }
     else {
       _function($index, { USER_INFO => $ui });
@@ -2662,12 +2707,13 @@ sub pre_page {
   $admin->{SEL_TYPE_SM} = $html->form_select(
     'type',
     {
-      SELECTED => $selected_search_type,
-      SEL_HASH => \%SEARCH_TYPES,
-      NO_ID    => 1,
-      FORM_ID  => 'SMALL_SEARCH_FORM',
-      ID       => 'search_type_small',
-      class    => 'form-control input-sm margin search-type-select not-chosen'
+      SELECTED  => $selected_search_type,
+      SEL_HASH  => \%SEARCH_TYPES,
+      NO_ID     => 1,
+      FORM_ID   => 'SMALL_SEARCH_FORM',
+      ID        => 'search_type_small',
+      class     => 'form-control margin search-type-select not-chosen',
+      EX_PARAMS => 'style="width: 100%"',
     }
   );
 
@@ -2689,58 +2735,6 @@ sub pre_page {
 =cut
 #**********************************************************
 sub post_page {
-  if ($admin->{FULL_LOG}) {
-    $admin->full_log_add( {
-      FUNCTION_INDEX => $index,
-      AID            => $admin->{AID},
-      FUNCTION_NAME  => $function_name,
-      DATETIME       => 'NOW()',
-      IP             => $admin->{SESSION_IP},
-      SID            => $admin->{SID},
-      PARAMS         => $FORM{__BUFFER}
-    });
-  }
-
-  if ($begin_time > 0) {
-    $conf{VERSION} = get_version();
-
-    my $debug_mode = ($^D) ? "Debug: $^D" : '';
-
-    $admin->{VERSION} = ($admin->{SEL_DOMAINS} || q{}) . $conf{VERSION} . ' ('. gen_time($begin_time) . ") $debug_mode";
-
-    if (defined($permissions{4})) {
-      my $output = '';
-      if(-f "$conf{TPL_DIR}/NEW_VERSION") {
-        my ($ctime) = (stat("$conf{TPL_DIR}/NEW_VERSION"))[10];
-        if (time - $ctime < 166000) {
-          open(my $fh, '<', "$conf{TPL_DIR}/NEW_VERSION");
-          $output = <$fh>;
-          close($fh);
-        }
-      }
-
-      if(! $output) {
-        #Get new version
-        $output = web_request('http://abills.net.ua/misc/checksum/VERSION', { BODY_ONLY => 1, TIMEOUT => 1 });
-        if(! $output) {
-          $output = $conf{VERSION};
-        }
-
-        if (open(my $fh, '>', "$conf{TPL_DIR}/NEW_VERSION")) {
-          print $fh $output;
-          close($fh);
-        }
-      }
-
-      $conf{VERSION}=~/\d+\.(\d+\.\d+)/;
-      my $cur_version = $1 || 0;
-      $output =~ s/\d+\.(\d+\.\d+)//;
-      $output = $1 || 0;
-      if($output && $output > $cur_version) {
-        $admin->{VERSION} .= $html->button("NEW VERSION: 0.$output", "", { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:changelogs:0.8x', class => 'btn btn-xs btn-success', ex_params => ' target=_blank' });
-      }
-    }
-  }
 
   if ($conf{dbdebug} && $admin->{db}->{queries_count}) {
     $admin->{VERSION} .= " q: $admin->{db}->{queries_count}";
@@ -2802,6 +2796,62 @@ sub post_page {
     }
   }
 
+  if ($begin_time > 0) {
+    $conf{VERSION} = get_version();
+
+    my $debug_mode = ($^D) ? "Debug: $^D" : '';
+    $admin->{GT}= gen_time($begin_time);
+    $admin->{VERSION} .= $conf{VERSION} . ' ('. $admin->{GT} .") $debug_mode ". ($admin->{SEL_DOMAINS} || q{});
+
+    if (defined($permissions{4})) {
+      my $output = '';
+      if(-f "$conf{TPL_DIR}/NEW_VERSION") {
+        my ($ctime) = (stat("$conf{TPL_DIR}/NEW_VERSION"))[10];
+        if (time - $ctime < 166000) {
+          open(my $fh, '<', "$conf{TPL_DIR}/NEW_VERSION");
+          $output = <$fh>;
+          close($fh);
+        }
+      }
+
+      if(! $output && -w "$conf{TPL_DIR}/NEW_VERSION") {
+        #Get new version
+        $output = web_request('http://abills.net.ua/misc/checksum/VERSION', { BODY_ONLY => 1, TIMEOUT => 1 });
+        if(! $output) {
+          $output = $conf{VERSION};
+        }
+
+        if (open(my $fh, '>', "$conf{TPL_DIR}/NEW_VERSION")) {
+          print $fh $output;
+          close($fh);
+        }
+        # else {
+        #   print "$conf{TPL_DIR}/NEW_VERSION $!";
+        # }
+      }
+
+      $conf{VERSION}=~/\d+\.(\d+\.\d+)/;
+      my $cur_version = $1 || 0;
+      $output =~ s/\d+\.(\d+\.\d+)//;
+      $output = $1 || 0;
+      if($output && $output > $cur_version) {
+        $admin->{VERSION} .= $html->button("NEW VERSION: 0.$output", "", { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:changelogs:0.8x', class => 'btn btn-xs btn-success', ex_params => ' target=_blank' });
+      }
+    }
+  }
+
+  if ($admin->{FULL_LOG}) {
+    $admin->full_log_add( {
+      FUNCTION_INDEX => $index,
+      AID            => $admin->{AID},
+      FUNCTION_NAME  => $function_name,
+      DATETIME       => 'NOW()',
+      IP             => $admin->{SESSION_IP},
+      SID            => $admin->{SID},
+      PARAMS         => ($FORM{__BUFFER} || q{}) . (($admin->{GT}) ? $admin->{GT} : q{})
+    });
+  }
+
   if(! $FORM{xml}) {
     $html->{_RIGHT_MENU} = $html->menu_right($html->element('i', '', { class=>'fa fa-th-list' }), "quick_menu", $admin->{QUICK_MENU}, { HTML => $html->{_RIGHT_MENU} } );
     $html->{_RIGHT_MENU} = $html->menu_right($html->element('i', '', { class=>'fa fa-user' }), "user_menu", $admin->{USER_MENU}, { HTML => $html->{_RIGHT_MENU} } ) if (defined($admin->{USER_MENU}));
@@ -2821,7 +2871,6 @@ sub post_page {
   $html->test();
   return 1;
 }
-
 
 
 1;

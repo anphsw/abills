@@ -20,7 +20,7 @@
             </div>
             <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
             <div class='form-group'>
-                <label class='control-label col-md-5' for='COMMENTS'>_{DESCRIBE}_:</label>
+                <label class='control-label col-md-5' for='BRANCH_DESC'>_{DESCRIBE}_:</label>
 
                 <div class='col-md-7 control-element'>
                     <input type='text' name='BRANCH_DESC' value='%BRANCH_DESC%' class='form-control' ID='BRANCH_DESC'/>

@@ -15,6 +15,7 @@
     <input type=hidden name=index value=$index>
     <input type=hidden name=DOMAIN_ID value=$FORM{DOMAIN_ID}>
     <input type=hidden name=module value=Internet>
+    <input type=hidden name=_FACEBOOK value='%USER_ID%'>
 
     <div class='box box-theme box-form center-block'>
 
@@ -85,6 +86,7 @@
         </div>
 
         <div class='box-footer text-right'>
+            %FB_INFO%
             <input type=submit name=reg value='_{REGISTRATION}_' class='btn btn-primary'>
         </div>
 

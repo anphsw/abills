@@ -906,7 +906,8 @@ sub dv_user {
     $Dv->{NETMASK_COLOR} = ($Dv->{NETMASK} ne '255.255.255.255') ? 'bg-warning' : '';
 
     my $shedule_index    = get_function_index('dv_sheduler');
-    if ($permissions{0}{4}) {
+    $FORM{UID} //= 0;
+    if ($permissions{0} && $permissions{0}{4}) {
       $Dv->{SHEDULE} = $html->button( "",
         "UID=$FORM{UID}&Shedule=status&index=".(($shedule_index) ? $shedule_index : $index + 4),
         { ICON => 'glyphicon glyphicon-calendar', TITLE => $lang{SHEDULE} } );
@@ -3247,7 +3248,7 @@ sub dv_wizard_user {
         $uid = $list->[0]->{uid};
       }
       elsif ($users->{errno} == 10) {
-        $html->message('err', $lang{ERROR}, "'$login' $lang{ERR_WRONG_NAME}", { ID => 951 });
+        $html->message('err', $lang{ERROR}, "'$login' $lang{ERR_WRONG_NAME} ($conf{USERNAMEREGEXP})", { ID => 951 });
       }
       else {
         _error_show($users, { MESSAGE => "$lang{LOGIN}: '$login'" });

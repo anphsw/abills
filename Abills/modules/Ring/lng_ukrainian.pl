@@ -14,5 +14,6 @@ $lang{INTERRUPTED}='Перервано';
 $lang{ANSWERPHONE}='Автовідповідач';
 $lang{NOT_AVAILABLE}='Не доступний';
 $lang{EVERY_MONTH}='Кожен місяць';
-
+$lang{UPDATE_DAY} = 'День оновлення';
+$lang{SQL_QUERY} = 'Sql запит';
 1

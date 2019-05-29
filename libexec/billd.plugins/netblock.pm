@@ -32,6 +32,8 @@ load_pmodule('SOAP::Lite');
 load_pmodule('XML::LibXML');
 use XML::Simple qw(:strict);
 
+#use Abills::Base qw/_bp/;
+
 $SOAP::Constants::PREFIX_ENV = 'SOAP-ENV';
 
 our (
@@ -385,7 +387,7 @@ sub parse_xml {
     $inctime =~ s/T/ /g;
     if (!exists $tmp_hash{$id} || $hash ne $tmp_hash{$id}) {
       if ($tmp_hash{$id} && $hash ne $tmp_hash{$id}) {
-        $Netblock->del($id);
+        $Netblock->del({ID => $id});
         unblock($id) if $debug < 4;
         delete $tmp_hash{$id};
         $Log->log_print('LOG_INFO', "Rkn", "Changed $id, $hash, $inctime");
@@ -417,7 +419,7 @@ sub parse_xml {
   #    }
 
   foreach my $key (keys %tmp_hash) {
-    $Netblock->del($key);
+    $Netblock->del({ID => $key});
     unblock($key) if $debug < 4;
     print "Delete $key \n" if ($debug > 5);
   }
@@ -725,6 +727,7 @@ sub active_block {
     }
   }
 
+  # DNS
   if (scalar keys %block_domains > 0) {
     $attr->{DOMAIN_LIST} = \%block_domains;
   }
@@ -737,6 +740,7 @@ sub active_block {
     print join("\n", keys %{ resolv_list($attr) });
   }
 
+  # Mikrotik
   my $nas_type = $attr->{NAS_TYPE} || q{};
   if ($nas_type =~ /mikrotik/) {
     add_2_mikrotik({
@@ -745,11 +749,17 @@ sub active_block {
     });
   }
 
+  # IPFW
   if ($attr->{IPFW_BLOCK}) {
     add_2_ipfw({
       EXPORT_LIST => \@block_ips,
       DOMAIN_LIST => \%block_domains
     });
+  }
+
+  # DPI
+  if ($attr->{DPI_BLOCK}) {
+    add_2_dpi();
   }
 
   return 1;
@@ -892,6 +902,90 @@ sub add_2_mikrotik {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 add_2_dpi($attr)
+
+=cut
+#**********************************************************
+sub add_2_dpi {
+  my ($attr) = @_;
+
+  if ($debug > 2) {
+    print "*** Activating DPI\n";
+  }
+
+  # get all data from netblock_{domain,ip,ssl,etc} tables
+  my $dpi_domains = $Netblock->_list({
+      TABLE => 'netblock_domain',
+      GROUP => 'name',
+      NAME  => '_SHOW',
+      SKIP  => 0
+    });
+  my $dpi_ips = $Netblock->_list({
+      TABLE => 'netblock_ip',
+      GROUP => 'ip',
+      IP  => '_SHOW',
+      SKIP  => 0
+    });
+  my $dpi_urls = $Netblock->_list({
+      TABLE => 'netblock_url',
+      GROUP => 'url',
+      URL  => '_SHOW',
+      SKIP  => 0
+    });
+  my $dpi_ssl = $Netblock->_list({
+      TABLE => 'netblock_ssl',
+      GROUP => 'ssl_name',
+      SSL  => '_SHOW',
+      SKIP  => 0
+    });
+  my $dpi_ports = $Netblock->_list({
+      TABLE => 'netblock_ports',
+      GROUP => 'ports',
+      PORTS  => '_SHOW',
+      SKIP  => 0
+    });
+
+  # save all data to nfq config files
+  my $filename = $conf{NETBLOCK_NFQ_ETC} . "domains" || qq{"/etc/nfq/domains"};
+  open(my $FH, '>', $filename) or die "Can't create file '$filename' $!\n";
+  foreach my $dpi_domain (@$dpi_domains) {
+    print $FH "$dpi_domain->[0]\n";
+  }
+  close($FH);
+  $filename = $conf{NETBLOCK_NFQ_ETC} . "hosts" || qq{"/etc/nfq/hosts"};
+  open($FH, '>', $filename) or die "Can't create file '$filename' $!\n";
+  foreach my $dpi_ip (@$dpi_ips) {
+    print $FH "$dpi_ip->[0]\n";
+  }
+  close($FH);
+  $filename = $conf{NETBLOCK_NFQ_ETC} . "urls" || qq{"/etc/nfq/urls"};
+  open($FH, '>', $filename) or die "Can't create file '$filename' $!\n";
+  foreach my $dpi_url (@$dpi_urls) {
+    print $FH "$dpi_url->[0]\n";
+  }
+  close($FH);
+  $filename = $conf{NETBLOCK_NFQ_ETC} . "ssl_host" || qq{"/etc/nfq/ssl_host"};
+  open($FH, '>', $filename) or die "Can't create file '$filename' $!\n";
+  foreach my $dpi_sslstr (@$dpi_ssl) {
+    print $FH "$dpi_sslstr->[0]\n";
+  }
+  close($FH);
+  $filename = $conf{NETBLOCK_NFQ_ETC} . "protos" || qq{"/etc/nfq/protos"};
+  open($FH, '>', $filename) or die "Can't create file '$filename' $!\n";
+  foreach my $dpi_port (@$dpi_ports) {
+    print $FH "$dpi_port->[0]\n";
+  }
+  close($FH);
+
+
+  #restart nfqfilter
+  cmd ("kill -9 `cat /var/run/nfqfilter.pid`");
+  my $nfq_restart = ($conf{NETBLOCK_NFQ_RESTART}) ? $conf{NETBLOCK_NFQ_RESTART} : "/usr/local/sbin/nfqfilter --daemon --pidfile=/var/run/nfqfilter.pid -c /etc/nfq/nfq.ini";
+  cmd ("$nfq_restart");
+  
 }
 
 #**********************************************************

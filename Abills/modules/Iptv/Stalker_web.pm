@@ -15,7 +15,12 @@ our(
   $admin,
   %lang,
   %tp_list,
-  %channel_list
+  %channel_list,
+  %conf,
+  %FORM,
+  $index,
+  $users,
+  $pages_qs
 );
 
 my $Tariffs = Tariffs->new( $db, \%conf, $admin );

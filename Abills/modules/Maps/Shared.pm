@@ -27,6 +27,8 @@ use constant {
     'GPS'          => 8,
     'GPS_ROUTE'    => 9,
     'BUILD2'       => 12,
+    'PON'          => 20,
+    'CAMS'         => 33,
   },
   MAPS_ICONS_DIR_WEB_PATH => '/images/maps/icons/',
   MAPS_ICONS_DIR          => '/Abills/templates/maps/icons/',

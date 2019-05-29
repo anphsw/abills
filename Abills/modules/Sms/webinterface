@@ -80,6 +80,7 @@ sub sms_service_connect {
     { SMS_SMSEAGLE_USER      => 'Smseagle'   },
     { SMS_BULKSMS_LOGIN      => 'Bulksms'    },
     { SMS_IDM_LOGIN          => 'IDM'        },
+    { SMS_TERRA_USER         => 'Sms_terra'  },
   );
 
   foreach my $sms_system ( @sms_systems ) {
@@ -120,6 +121,7 @@ sub sms_service_connect {
       NUMBER   - User number
       MESSAGE  - Message
       UID      - User iD
+      RIZE_ERROR - Rize arror and stop
 
    Multi send sms
     NUMBERS  - Hash of NUMBER => UID
@@ -162,7 +164,9 @@ sub sms_send {
     $html->message('err', $lang{ERROR}, "$lang{ERR_PHONE_NOT_DEFINED}", { ID => 1601 });
   }
   elsif (! $attr->{NUMBERS} && $conf{SMS_NUMBER} && $attr->{NUMBER} !~ /$conf{SMS_NUMBER}/) {
-    $html->message('warn', $lang{ERROR}, "$lang{ERR_WRONG_PHONE} '$attr->{NUMBER}' ". ((! $user->{UID}) ? "\n $lang{OPTIONS} \$conf{SMS_NUMBER}" : ''), { ID => 1602 });
+    $html->message('warn', $lang{ERROR}, ($lang{ERR_WRONG_PHONE} || q{})
+      . " '$attr->{NUMBER}' ". ((! $user->{UID}) ? "\n "
+      . ($lang{OPTIONS} || q{}). " \$conf{SMS_NUMBER}" : ''), { ID => 1602 });
     if($attr->{RIZE_ERROR}) {
       return 0;
     }
@@ -444,7 +448,7 @@ sub sms_reports {
     result_former({
       INPUT_DATA      => $Sms,
       FUNCTION        => 'list',
-      DEFAULT_FIELDS  => 'DATETIME,LOGIN,STATUS,PHONE',
+      DEFAULT_FIELDS  => 'DATETIME,LOGIN,SMS_STATUS,SMS_PHONE',
       #FUNCTION_FIELDS => 'change,del',
       #SKIP_USER_TITLE => 1,
       SELECT_VALUE  => {

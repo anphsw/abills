@@ -99,6 +99,10 @@ sub service_warning {
       $message_type ='err';
       return $warning, $message_type;
     }
+
+    $message_type='warn';
+    $warning = "$lang{EXPIRE}: $Service->{EXPIRE}";
+    #return $warning, $message_type;
   }
   elsif($Service->{JOIN_SERVICE} && $Service->{JOIN_SERVICE} > 1) {
     $message_type ='warn';
@@ -230,11 +234,13 @@ sub service_warning {
 
     if ($days_to_fee && $days_to_fee < 5) {
       $message_type = 'warn';
-    } elsif ($days_to_fee eq 0) {
-      $message_type = 'err';
-    } else {
+    }
+    elsif ($days_to_fee eq 0) {
+      $message_type = 'err' if (! $message_type);
+    }
+    else {
       $message_type = 'success';
-     }
+    }
      
     $self->{DAYS_TO_FEE} = $days_to_fee;
 

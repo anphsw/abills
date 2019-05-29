@@ -4,15 +4,8 @@
 
 <fieldset>
 <div class='box box-theme box-form'>
+  <div class='box-header with-border'><h4 class='box-title'>_{SUPPLIERS}_</h4></div>
 <div class='box-body form form-horizontal'>
-	
-  <div class='form-group'><label class='col-md-12'> _{SUPPLIERS}_</label></div>
-<!-- 
-  <tr>
-    <td>TESTING:</td>
-    <td>%WND%</td>
-  </tr>
--->
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{NAME}_:</label>
     <div class='col-md-9'><input class='form-control' name='NAME' type='text' value='%NAME%' /></div>
@@ -72,8 +65,8 @@
     <div class='col-md-9'><input class='form-control' name='EMAIL' type='text' value='%EMAIL%' /></div>
   </div>
   <div class='form-group'>
-    <label class='col-md-3 control-label'>ICQ:</label>
-    <div class='col-md-9'><input class='form-control' name='ICQ' type='text' value='%ICQ%' /></div>
+    <label class='col-md-3 control-label'>Telegram:</label>
+    <div class='col-md-9'><input class='form-control' name='TELEGRAM' type='text' value='%TELEGRAM%' /></div>
   </div>
   <div class='form-group'>
     <label class='col-md-12'>_{GUIDANCE}_:</label>

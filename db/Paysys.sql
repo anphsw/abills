@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS `paysys_terminals` (
   `status` SMALLINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `location_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
   `comment` TEXT,
-  UNIQUE KEY `id` (`id`)
+  PRIMARY KEY `id` (`id`)
 )
   CHARSET = 'utf8'
   COMMENT = 'Table for paysys terminals';
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS `paysys_terminals_types` (
   `id` INT(3) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(40) NOT NULL DEFAULT '',
   `comment` TEXT,
-  UNIQUE KEY `id` (`id`)
+  PRIMARY KEY `id` (`id`)
 )
   CHARSET = 'utf8'
   COMMENT = 'Table for paysys terminals types';
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS `paysys_tyme_report` (
   `user` VARCHAR(20) NOT NULL DEFAULT '',
   `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `terminal` INT(10) UNSIGNED NOT NULL DEFAULT '0',
-  UNIQUE KEY `id` (`id`),
+  PRIMARY KEY `id` (`id`),
   UNIQUE KEY `txn_id` (`txn_id`)
 )
   CHARSET = 'utf8'
@@ -72,13 +72,13 @@ CREATE TABLE IF NOT EXISTS `paysys_groups_settings` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `gid` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
   `paysys_id` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  UNIQUE KEY `id` (`id`)
+  PRIMARY KEY `id` (`id`)
 )
   CHARSET = 'utf8'
   COMMENT = 'Settings for each group';
 
 CREATE TABLE IF NOT EXISTS paysys_connect (
-  `id` TINYINT UNSIGNED AUTO_INCREMENT,
+  `id` TINYINT(4) UNSIGNED NOT NULL AUTO_INCREMENT,
   `paysys_id` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `name` VARCHAR(40) NOT NULL DEFAULT '',
   `module` VARCHAR(40) NOT NULL DEFAULT '',
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS paysys_connect (
   `paysys_ip` TEXT NOT NULL,
   `payment_method` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `priority` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  UNIQUE KEY `id`(`id`)
+  PRIMARY KEY `id`(`id`)
 )
   CHARSET = 'utf8'
   COMMENT = 'Paysys connected systems';

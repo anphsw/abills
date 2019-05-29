@@ -470,7 +470,7 @@ sub snmputils_periodic {
       next;
     }
     elsif( !$line->{nas_mng_ip_port}) {
-      print "NAS_ID: $line->{nas_id} Not defined managment IP\n";
+      print "Snmputils NAS_ID: $line->{nas_id} Not defined managment IP\n";
       next;
     }
 
@@ -3258,7 +3258,9 @@ sub snmputils_multioid_view {
       my @arr = ();
       foreach my $ft (@default_fields) {
         $result{$ft}{$k} = data_convert($ft, $result{$ft}{$k}, { OIDS_EXINFO => $OIDS_EXINFO });
-        push @arr, ($OIDS_EXINFO->{$ft}{ACCESS} eq 'read-write') ? $html->button($result{$ft}{$k}, "index=$index&change=y&SNMP_INDEX=$inst&SNMP_OID=$OIDS_HASH{$ft}$pages_qs") : $result{$ft}{$k};
+        push @arr, ($ft && $OIDS_EXINFO->{$ft}{ACCESS} eq 'read-write')
+          ? $html->button($result{$ft}{$k}, "index=$index&change=y&SNMP_INDEX=$inst&SNMP_OID=$OIDS_HASH{$ft}$pages_qs")
+          : $result{$ft}{$k};
       }
 
       $table->addrow(@arr, $html->button('H', "index=$index&hangup=$k", { TITLE => 'Hangup', BUTTON => 1 }));

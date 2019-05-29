@@ -10,7 +10,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(load_pmodule);
 
-load_pmodule('Net::LDAP');
+load_pmodule('Net::LDAP', { HEADER => 1 });
 
 #**********************************************************
 =head2 check_access($attr)
@@ -73,12 +73,14 @@ sub ldap_get_objects {
     filter => "(&(cn=*b*))"
   );
 
-  die $result->error if ($result->{code});
+  if ($result->{code}) {
+    die $result->error;
+  }
 
   printf "COUNT: %s\n", $result->{count};
 
-  foreach my $entry ($result->{entries}) {
-    $entry->{dump};
+  foreach my $entry (@{ $result->{entries} }) {
+    print $entry->{dump};
   }
 
   print "===============================================\n";

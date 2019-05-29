@@ -70,18 +70,20 @@ if ( $permissions{3} ) {
 if ( $permissions{4} ) {
   require Msgs::Configure;
 }
-
+if ($conf{MSGS_CHAT}) {
+  require Msgs::Chat;
+}
 require Msgs::Reg_request;
 
 #**********************************************************
-=head2 msgs_user_del() - Delete user  from module
+=head2 msgs_user_del($uid, $attr) - Delete user  from module
 
 =cut
 #**********************************************************
 sub msgs_user_del {
-  my ($uid) = @_;
+  my ($uid, $attr) = @_;
   
-  $Msgs->message_del({ UID => $uid });
+  $Msgs->message_del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
   
   return 0;
 }
@@ -126,7 +128,13 @@ sub msgs_status_bar {
   
   $pages_qs =~ s/\&ALL_OPENED=1|\&ALL_MSGS=1//;
   $pages_qs =~ s/\&?STATE=\d+//;
+  $pages_qs =~ s/\&?sort=\d+//;
+  $pages_qs =~ s/\&?desc=DESC//;
   $pages_qs .= "&CHAPTER=$FORM{CHAPTER}" if ( $FORM{CHAPTER} );
+
+  my $sort_qs = "";
+  $sort_qs .= "&sort=$FORM{sort}" if ($FORM{sort});
+  $sort_qs .= "&desc=DESC" if ($FORM{desc});
   
   foreach my $id ( sort {$a <=> $b}  keys %{$msgs_status} ) {
     my ($name, undef) = split(/:/, $msgs_status->{$id} || q{});
@@ -134,7 +142,7 @@ sub msgs_status_bar {
       $LIST_PARAMS{STATE} = $state;
     }
     $name //= q{};
-    push @header_arr, "$name:index=$index&STATE=$id$pages_qs";
+    push @header_arr, "$name:index=$index&STATE=$id$pages_qs$sort_qs";
   }
   
   if ( $FORM{CHAPTER} ) {
@@ -146,30 +154,30 @@ sub msgs_status_bar {
   #}
   
   if ( $FORM{ALL_OPENED} || $state eq '0;3;4;5;6;7' ) {
-    @header_arr = ("$lang{ALL}:index=$index&ALL_MSGS=1$pages_qs", @header_arr);
+    @header_arr = ("$lang{ALL}:index=$index&ALL_MSGS=1$pages_qs$sort_qs", @header_arr);
     $LIST_PARAMS{STATE} = "0;3;4;5;6;7";
     $pages_qs .= "&ALL_OPENED=1";
   }
   elsif ( $FORM{ALL_MSGS} ) {
-    @header_arr = ("$lang{ALL}:index=$index&ALL_OPENED=1$pages_qs", @header_arr);
+    @header_arr = ("$lang{ALL}:index=$index&ALL_OPENED=1$pages_qs$sort_qs", @header_arr);
     $pages_qs .= "&ALL_MSGS=1";
   }
   else {
-    @header_arr = ("$lang{ALL}:index=$index&ALL_MSGS=1$pages_qs", @header_arr);
+    @header_arr = ("$lang{ALL}:index=$index&ALL_MSGS=1$pages_qs$sort_qs", @header_arr);
     $pages_qs .= "&STATE=$state";
   }
   if ( $FORM{EVERYTHING_EXCEPT_DONE} ) {
     $LIST_PARAMS{STATE} = "!2";
-    $pages_qs .= "&EVERYTHING_EXCEPT_DONE=1";
+    $pages_qs .= "&EVERYTHING_EXCEPT_DONE=1$sort_qs";
   }
   
-  push @header_arr, "$lang{EVERYTHING_EXCEPT_DONE}:index=$index&EVERYTHING_EXCEPT_DONE=1";
+  push @header_arr, "$lang{EVERYTHING_EXCEPT_DONE}:index=$index&EVERYTHING_EXCEPT_DONE=1$sort_qs";
 
   # state for watching messages
-  push @header_arr, "$lang{WATCH}:index=$index&ALL_MSGS=1&STATE=12";
+  push @header_arr, "$lang{WATCH}:index=$index&ALL_MSGS=1&STATE=12$sort_qs";
   
   if ( $attr->{NEXT} ) {
-    push @header_arr, "$lang{NEXT}:index=$index&NEXT_MSG=" . ($FORM{chg} || $attr->{ID} || 1); #."$pages_qs";
+    push @header_arr, "$lang{NEXT}:index=$index&NEXT_MSG=" . ($FORM{chg} || $attr->{ID} || 1) . $sort_qs; #."$pages_qs";
   }
   
   my $status_bar = $html->table_header(\@header_arr, {
@@ -536,7 +544,7 @@ sub msgs_task_info {
   $result->{CREATION_TIME} = $task_info->{DATE};
   
   # Responsible info
-  my $admin_info = $admin->info($task_info->{RESPOSIBLE}, { COLS_NAME => 1 });
+  my $admin_info = $admin->info($task_info->{RESPOSIBLE}, { SHORT => 1 });
   $result->{RESPONSIBLE} = $admin_info->{A_FIO} || $admin_info->{A_LOGIN};
   
   # User info
@@ -1015,7 +1023,9 @@ sub msgs_event_to_json {
 #**********************************************************
 sub msgs_text_quoting {
   my ($input_text, $is_admin) = @_;
-  
+
+  $input_text //= '';
+
   $input_text = convert($input_text, { text2html => 1, json => $FORM{json} });
   my $text = '';
   my $quote = '';
@@ -1250,7 +1260,7 @@ sub msgs_sel_status {
         #USE_COLOR      => 1,
         SORT_KEY_NUM => 1,
         NO_ID        => 1,
-        SEL_OPTIONS  => ($attr->{ALL}) ? { '' => "$lang{ALL}" } : undef,
+        SEL_OPTIONS  => ($attr->{ALL}) ? { '_SHOW' => "$lang{ALL}" } : undef,
         EX_PARAMS    => ($attr->{MULTI_SEL}) ? 'multiple="multiple"' : undef
         #MAIN_MENU      => get_function_index('form_status'),
         #MAIN_MENU_ARGV => "chg=$status_id"
@@ -2133,8 +2143,13 @@ sub msgs_get_attachments_view {
 }
 
 #**********************************************************
-=head2 msgs_receive_signature($msg_id, $imgdata) 
-  
+=head2 msgs_receive_signature($uid, $msg_id, $imgdata)
+
+  Arguments:
+    $uid,
+    $msg_id,
+    $imgdata
+
 =cut
 #**********************************************************
 sub msgs_receive_signature {
@@ -2145,13 +2160,14 @@ sub msgs_receive_signature {
   }
   
   my $sig_img = "$conf{TPL_DIR}/attach/msgs/$uid/$msg_id" . "_sig.png";
-  open( my $fh, '>', $sig_img);
+  if(open( my $fh, '>', $sig_img)) {
     binmode $fh;
     $imgdata =~ s/data:image\/png;base64,//;
     print $fh decode_base64($imgdata);
     close $fh;
+  }
+
   return 1;
 }
-
 
 1;

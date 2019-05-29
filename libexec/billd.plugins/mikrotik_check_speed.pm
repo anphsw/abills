@@ -9,6 +9,8 @@
    EXPORT_FILE=export.rsh - Export rules to file
    SHOW_SPEED  - Show list ips
    SKIP_NAT_IPS="xxx,xxx"
+   NAT_LIST="xx.xx.xx.xx-xx.xx.xx.xx"
+   SINGLE_THREAD - Make all commands in one connection
 
    SSH_CMD
    SSH_PORT
@@ -83,7 +85,7 @@ sub mikrotik_check_speed {
       print "NAS: ($nas_info->{NAS_ID}) $nas_info->{NAS_IP} NAS_TYPE: $nas_info->{NAS_TYPE} STATUS: $nas_info->{NAS_DISABLE} Alive: $nas_info->{NAS_ALIVE}\n";
       $nas_info->{DEBUG} = $debug;
     }
-    
+
     #Get TP speed
     my ($TARIF_SPEEDS, $class2nets) = get_tp_cure_speed({
       %{ ($attr) ? $attr : {} },
@@ -323,8 +325,16 @@ Flags: X - disabled, I - invalid
       #Add nat rules
       if ( $argv->{NAT} && !-f "$base_dir/libexec/mikrotik.nat" ) {
         my $skip_nat_ips = ($argv->{SKIP_NAT_IPS}) ? " dst-address=!$argv->{SKIP_NAT_IPS}" : '';
+        my $nat_ips = q{};
+        my $action = q{masquerade};
+
+        if($argv->{NAT_LIST}) {
+          $nat_ips = " to-addresses=$argv->{NAT_LIST}";
+          $action = 'same';
+        }
+
         push @commands,
-          qq{/ip firewall nat add chain=srcnat action=masquerade $skip_nat_ips comment="ABillS Masquerade TP_$tp_id" src-address-list=CLIENTS_$tp_id };
+          qq{/ip firewall nat add chain=srcnat action=$action $skip_nat_ips comment="ABillS Masquerade TP_$tp_id" src-address-list=CLIENTS_$tp_id $nat_ips };
       }
     }
     
@@ -398,6 +408,11 @@ Flags: X - disabled, I - invalid
     
     push @commands, qq{/queue tree disable [find name~"^TP"]};
     push @commands, qq{/queue tree enable [find name~"^TP"]};
+
+    if($argv->{SINGLE_THREAD}) {
+      $nas_info->{SINGLE_THREAD}=1;
+    }
+
     #Make ssh command
     get_mikrotik_value(\@commands, $nas_info);
     if ( $nas_info->{EXPORT_FILE} ) {

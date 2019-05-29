@@ -9,8 +9,8 @@
   <legend>_{COMPANY}_</legend>
 
   <div class='form-group'>
-    <label for='COMPANY_NAME' class='control-label col-md-3'>_{NAME}_:</label>
-    <div class='col-md-9'>
+    <label for='COMPANY_NAME' class='control-label col-md-2'>_{NAME}_:</label>
+    <div class='col-md-10'>
       <input class='form-control' id='NAME' placeholder='%NAME%' name='NAME' value='%NAME%'>
     </div>
   </div>

@@ -6,28 +6,6 @@
     }
 </script>
 
-<style>
-    .paysys-chooser{
-        background-color: white;
-    }
-
-    input:checked + .paysys-chooser-box  {
-        transform: scale(1.01,1.01);
-        box-shadow: 8px 8px 3px #AAAAAA;
-        z-index: 100;
-    }
-
-    input:checked + .paysys-chooser-box > .box-footer{
-        background-color: lightblue;
-    }
-
-    .paysys-chooser:hover{
-        transform: scale(1.05,1.05);
-        box-shadow: 10px 10px 5px #AAAAAA;
-        z-index: 101;
-    }
-</style>
-
 <form method='POST' action='$SELF_URL' class='form form-horizontal' id='iptv_user_info' name='iptv_user_info'>
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='sid' value='$sid'>
@@ -47,9 +25,9 @@
             </div>
 
             <div class='form-group text-center'>
-                <label class='col-md-3 bg-primary'>E-Mail</label>
+                <label class='col-md-3 bg-primary' for='%SUBSCRIBE_PARAM_ID%'>%SUBSCRIBE_PARAM_NAME% %SUBSCRIBE_PARAM_DESCRIBE%</label>
                 <div class='col-md-9'>
-                <input type='text' name='EMAIL' value='%EMAIL%' class='form-control'>
+                <input type='text' name='%SUBSCRIBE_PARAM_ID%' value='%SUBSCRIBE_PARAM_VALUE%' class='form-control' id='%SUBSCRIBE_PARAM_ID%'>
                 </div>
             </div>
         </div>

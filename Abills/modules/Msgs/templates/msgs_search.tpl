@@ -74,7 +74,7 @@
 
 
             <div class='form-group'>
-                <label class='control-label col-md-2' for='RESPOSIBLE'>_{RESPOSIBLE}_:</label>
+                <label class='control-label col-md-4' for='RESPOSIBLE'>_{RESPOSIBLE}_:</label>
                 <div class='col-md-8'>
                     %RESPOSIBLE_SEL%
                 </div>

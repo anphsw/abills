@@ -58,3 +58,5 @@ $lang{CONNECT_TO} = 'Підключіться до';
 $lang{PAYMENTS_NOT_EQUAL_DOC}='Сума документа відрізняэться від суми платежу';
 $lang{PRINT_TERMO_PRINTER} = 'Чек для термо-прінтера';
 $lang{UNPAID_INVOICES} = 'Неоплачені рахунки';
+$lang{SAVE_CONTROL_SUM}='Завантажити контрольну суму документа';
+$lang{LIST_OF_CHARGES}='Список нарахувань';

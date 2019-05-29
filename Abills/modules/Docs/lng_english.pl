@@ -50,4 +50,5 @@ $lang{CONNECT_TO} = 'Connect to';
 $lang{PAYMENTS_NOT_EQUAL_DOC}='Payments sum not equal invoice sum';
 $lang{PRINT_TERMO_PRINTER} = 'Termo-printer check';
 $lang{UNPAID_INVOICES} = 'Unpaid invoices';
-
+$lang{SAVE_CONTROL_SUM}='Download document checksum';
+$lang{LIST_OF_CHARGES}='List of charges';

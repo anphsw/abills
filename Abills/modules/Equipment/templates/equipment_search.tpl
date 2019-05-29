@@ -96,6 +96,14 @@
                            value='%USER_MAC%'>
                 </div>
             </div>
+
+            <div class='form-group'>
+                <label class='control-label col-sm-3' for='EQUIPMENT_MAC'>_{EQUIPMENT}_ MAC:</label>
+                <div class='col-md-9'>
+                    <input type=text class='form-control' id='EQUIPMENT_MAC' placeholder='%EQUIPMENT_MAC%' name='EQUIPMENT_MAC'
+                           value='%EQUIPMENT_MAC%'>
+                </div>
+            </div>
         </div>
     </div>
     <div class='box box-theme box-form'>

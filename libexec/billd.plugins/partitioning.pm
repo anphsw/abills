@@ -14,8 +14,8 @@ use warnings FATAL => 'all';
 
 use DBI;
 use Sys::Syslog qw(:standard :macros);
-use DateTime;
 use POSIX qw(strftime);
+use Abills::Base qw(load_pmodule);
 
 our (
   $Admin,
@@ -35,6 +35,10 @@ my %tables = (
   'internet_log'    => { 'period' => 'month', 'keep_history' => '30', main_field => 'start' },
   'dv_log'          => { 'period' => 'month', 'keep_history' => '100', main_field => 'start' },
 );
+
+if (! load_pmodule('DateTime')) {
+  exit;
+}
 
 my $query_cmd='query2';
 if($Admin->can('query')) {
@@ -196,7 +200,7 @@ sub create_next_partition {
 sub remove_old_partitions {
   my ($table_name, $table_part, $period, $keep_history) = @_;
 
-  my DateTime $curr_date = DateTime->now();
+  my $curr_date = DateTime->now();
   $curr_date->set_time_zone( $curr_tz );
 
   if ( $period eq 'day' ) {
@@ -241,7 +245,7 @@ sub name_next_part {
 
   my $name_template;
 
-  my DateTime $curr_date = DateTime->now;
+  my $curr_date = DateTime->now;
   $curr_date->set_time_zone( $curr_tz );
 
   if ( $period eq 'day' ) {
@@ -277,7 +281,7 @@ sub date_next_part {
 
   my $period_date;
 
-  my DateTime $curr_date = DateTime->now;
+  my $curr_date = DateTime->now;
   $curr_date->set_time_zone( $curr_tz );
 
   if ( $period eq 'day' ) {

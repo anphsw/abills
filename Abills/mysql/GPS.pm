@@ -5,7 +5,7 @@ GPS - module for DB support `gps_locations` table
 
 =head1 VERSION
 
-  Version 0.1
+  Version 1.02
 
 =head1 SYNOPSIS
 
@@ -19,10 +19,10 @@ use Admins;
 use Time::Local qw ( timelocal );
 use Abills::Base qw/days_in_month date_inc/;
 
-our $VERSION = 1.00;
-use parent qw(main);
+our $VERSION = 1.03;
+use parent qw(dbcore);
 
-my $Admins;
+my $admin;
 
 # Singleton reference;
 my $instance;
@@ -38,7 +38,9 @@ sub new {
 
   unless ( defined $instance ){
     my $class = shift;
-    my ($db, $admin, $CONF) = @_;
+    my ($db) = shift;
+    $admin   = shift;
+    my $CONF = shift;
 
     my $self = { };
     bless( $self, $class );
@@ -48,8 +50,8 @@ sub new {
 
     $instance = $self;
     
-    $Admins = Admins->new( $db, $CONF );
-    $Admins->info( $CONF->{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' } );
+    #$Admins = Admins->new( $db, $CONF );
+    #$Admins->info( $CONF->{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1', SHORT => 1 } );
   }
 
   return $instance;
@@ -90,9 +92,6 @@ sub location_info{
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? 'DESC' : '';
-
   my $WHERE = $self->search_former( $attr, [
       [ 'ID', 'INT', 'gtl.id', 1 ],
       [ 'AID', 'INT', 'gtl.aid', 1 ],
@@ -109,7 +108,7 @@ sub location_info{
     }
   );
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} gtl.id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} gtl.id
       FROM gps_tracker_locations gtl
       $WHERE ORDER BY gtl.gps_time DESC LIMIT 1;",
     undef,
@@ -181,7 +180,7 @@ sub locations_list{
       ? "WHERE"
       : '' );
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} gtl.id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} gtl.id
       FROM gps_tracker_locations gtl
       $WHERE $WHERE_CONCAT $WHERE_TIME ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -190,7 +189,7 @@ sub locations_list{
 
   my $list = $self->{list};
 
-  #  $self->query2("SELECT *
+  #  $self->query("SELECT *
   #      FROM gps_tracker_locations gtl
   #      $WHERE",
   #    undef,
@@ -231,7 +230,7 @@ sub tracked_admins_list{
     $list_options->{AID} = $admin_id;
   }
 
-  return $Admins->list( $list_options );
+  return $admin->list( $list_options );
 };
 
 #**********************************************************
@@ -261,7 +260,7 @@ sub tracked_admin_info {
   
   if ( ref $location eq 'ARRAY' ) {
     my $result = $location->[0];
-    my $admin_info = $Admins->info($admin_id, { COLS_NAME => 1 });
+    my $admin_info = $admin->info($admin_id);
     
     $result = { %{$result}, %{$admin_info} };
     return $result;
@@ -326,7 +325,7 @@ sub tracked_admin_route_info {
   if ( ref $route_list eq 'ARRAY' ) {
     return {
       list  => $route_list,
-      admin => $Admins->info($aid, { COLS_NAME => 1 })
+      admin => $admin->info($aid)
     };
   }
   
@@ -343,7 +342,7 @@ sub tracked_admin_id_by_imei{
   my $self = shift;
   my ($gps_id) = @_;
 
-  $self->query2( "SELECT a.aid FROM admins a WHERE a.gps_imei= ?", undef,
+  $self->query( "SELECT a.aid FROM admins a WHERE a.gps_imei= ?", undef,
     { Bind => [ $gps_id ], COLS_NAME => 1, INFO => 1 } );
 
   if ( $self->{errno} ){
@@ -392,7 +391,7 @@ sub thumbnail_get{
   my $self = shift;
   my ($aid) = (@_);
 
-  $self->query2( "SELECT thumbnail_path FROM gps_admins_thumbnails WHERE aid= ? ", undef,
+  $self->query( "SELECT thumbnail_path FROM gps_admins_thumbnails WHERE aid= ? ", undef,
     { Bind => [ $aid ], COLS_NAME => 1 } );
 
   my $list = $self->{list};
@@ -466,17 +465,17 @@ sub unregistered_trackers_list{
   my $self = shift;
   my ($attr) = @_;
 
-  my $WHERE = $self->search_former( $attr, [
-      [ 'IP', 'INT', 'INET_NTOA(gut.ip)' ],
-      [ 'GPS_IMEI', 'STR', 'gut.gps_imei', ],
-      [ 'GPS_TIME', 'DATE', 'gut.gps_time', ],
-    ],
-    {
-      WHERE => 1
-    }
-  );
+  # my $WHERE = $self->search_former( $attr, [
+  #     [ 'IP', 'INT', 'INET_NTOA(gut.ip)' ],
+  #     [ 'GPS_IMEI', 'STR', 'gut.gps_imei', ],
+  #     [ 'GPS_TIME', 'DATE', 'gut.gps_time', ],
+  #   ],
+  #   {
+  #     WHERE => 1
+  #   }
+  # );
 
-  $self->query2( "SELECT *, INET_NTOA(gut.ip) as ip FROM gps_unregistered_trackers gut ORDER BY gut.gps_time", undef,
+  $self->query( "SELECT *, INET_NTOA(gut.ip) as ip FROM gps_unregistered_trackers gut ORDER BY gut.gps_time", undef,
     $attr );
 
   my $list = $self->{list};
@@ -520,7 +519,7 @@ sub unregistered_trackers_info{
   my ($attr) = @_;
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'IP', 'INT', 'INET_NTOA(gut.ip)' ],
+      [ 'IP',       'INT', 'INET_NTOA(gut.ip)' ],
       [ 'GPS_IMEI', 'STR', 'gut.gps_imei', ],
       [ 'GPS_TIME', 'DATE', 'gut.gps_time', ],
     ],
@@ -529,7 +528,7 @@ sub unregistered_trackers_info{
     }
   );
 
-  $self->query2( "SELECT * FROM gps_unregistered_trackers gut $WHERE ORDER BY gut.gps_time LIMIT 1", undef, $attr );
+  $self->query( "SELECT * FROM gps_unregistered_trackers gut $WHERE ORDER BY gut.gps_time LIMIT 1", undef, $attr );
 
   return $self->{list}->[0];
 }

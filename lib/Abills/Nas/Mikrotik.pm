@@ -28,7 +28,12 @@ sub new($;$) {
 
   $self->{nas_mng_password} = $host->{NAS_MNG_PASSWORD} || $host->{nas_mng_password};
 
-  my $nas_ip_mng_port = $host->{NAS_MNG_IP_PORT} || $host->{nas_mng_ip_port} || return 0;
+  my $nas_ip_mng_port = $host->{NAS_MNG_IP_PORT} || $host->{nas_mng_ip_port} || q{};
+
+  if(! $nas_ip_mng_port) {
+    return 0;
+  }
+
   my ($nas_ip, $coa_port, $management_port) = split(":", $nas_ip_mng_port);
   $management_port ||= $coa_port || '22';
 
@@ -504,7 +509,7 @@ sub ppp_accounts_change {
     [ '/ppp/secret/set', $key_values, { numbers => $id } ]
   ]);
 
-  return 1;
+#  return 1;
 }
 
 #**********************************************************

@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS `equipment_types` (
   `name` VARCHAR(50) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
-  DEFAULT CHARSET=utf8 COMMENT = 'Netlist equipment type';
+  DEFAULT CHARSET=utf8
+  COMMENT = 'Netlist equipment type';
 
 INSERT INTO `equipment_types` VALUES (1, 'Switch'),
   (2, 'WiFi'),
@@ -63,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `comments` TEXT NOT NULL,
   `rows_count` INT(11) UNSIGNED NOT NULL DEFAULT '1',
   `block_size` INT(11) UNSIGNED DEFAULT '0',
-  `snmp_port_shift` tinyint(2) UNSIGNED NOT NULL DEFAULT '0'
+  `snmp_port_shift` smallint(4) UNSIGNED NOT NULL DEFAULT '0'
   COMMENT 'Shift user ports via snmp',
   `test_firmware` VARCHAR(20) NOT NULL DEFAULT ''
   COMMENT 'Test equipment firmware',
@@ -76,13 +77,14 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `extra_port3` SMALLINT(6) UNSIGNED DEFAULT '0',
   `extra_port4` SMALLINT(6) UNSIGNED DEFAULT '0',
   `ports_type` SMALLINT(5) UNSIGNED DEFAULT '1',
-  `port_shift` TINYINT(2) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
+  `port_shift` smallint(4) NOT NULL DEFAULT '0',
+  `electric_power` INT(6) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY type_id (`type_id`)
 )
-  ENGINE = InnoDB
   AUTO_INCREMENT = 1000
   DEFAULT CHARSET = utf8
-  DEFAULT CHARSET=utf8 COMMENT = 'Equipment models';
+  COMMENT = 'Equipment models';
 
 
 CREATE TABLE IF NOT EXISTS `equipment_infos` (
@@ -103,19 +105,20 @@ CREATE TABLE IF NOT EXISTS `equipment_infos` (
   `internet_vlan` smallint(6) unsigned NOT NULL DEFAULT '0',
   `tr_069_vlan` smallint(6) unsigned NOT NULL DEFAULT '0',
   `iptv_vlan` smallint(6) unsigned NOT NULL DEFAULT '0',
-  UNIQUE (`nas_id`)
+  PRIMARY KEY (`nas_id`),
+  KEY model_id (model_id)
 )
-  DEFAULT CHARSET=utf8 COMMENT = 'Equipment info';
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Equipment info';
 
 CREATE TABLE IF NOT EXISTS `equipment_ports` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-  `port` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'PORT NAS',
+  `port` INT(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'SWITCH PORT NUM',
   `status` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  `uplink` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `uplink` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'NAS ID',
   `comments` VARCHAR(250) NOT NULL DEFAULT '',
-  `vlan` smallint(2) unsigned NOT NULL DEFAULT 0,
---   `last_update` ...
+  `vlan` smallint(2) unsigned NOT NULL DEFAULT 0 COMMENT 'PORT VLAN',
   PRIMARY KEY (`id`),
   UNIQUE KEY `nas_port` (`nas_id`, `port`)
 )
@@ -127,7 +130,7 @@ CREATE TABLE IF NOT EXISTS `pon_onus` (
   `datetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   `status` TINYINT(1) NOT NULL DEFAULT 0
 )
-  DEFAULT CHARSET=utf8 COMMENT = 'PON onu list';
+  DEFAULT CHARSET = utf8 COMMENT = 'PON onu list';
 
 
 CREATE TABLE IF NOT EXISTS `equipment_box_types` (
@@ -252,9 +255,11 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_onu` (
   `srv_profile` VARCHAR(50) NOT NULL DEFAULT 'ALL',
   `deleted` INT(1) UNSIGNED NOT NULL DEFAULT '0',
   `vlan` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY onu_dhcp_port (`onu_dhcp_port`),
+  KEY onu_status (`onu_status`),
+  KEY port_id (`port_id`)
 )
-  DEFAULT CHARSET = utf8
   DEFAULT CHARSET=utf8 COMMENT = 'Equipment ONU';
 
 CREATE TABLE IF NOT EXISTS `equipment_pon_ports` (
@@ -290,7 +295,8 @@ CREATE TABLE IF NOT EXISTS `equipment_snmp_params` (
   `acccess` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) DEFAULT CHARSET = utf8 COMMENT = 'Equipment snmp params list';
+)
+  DEFAULT CHARSET = utf8 COMMENT = 'Equipment snmp params list';
 
 CREATE TABLE IF NOT EXISTS `equipment_ping_log` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
@@ -298,7 +304,8 @@ CREATE TABLE IF NOT EXISTS `equipment_ping_log` (
   `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `status` TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
   `duration` DOUBLE(12, 4) NOT NULL DEFAULT '0.0000'
-) DEFAULT CHARSET=utf8 COMMENT = 'Equipment ping';
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Equipment ping';
 
 CREATE TABLE IF NOT EXISTS `equipment_tr_069_settings` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -307,4 +314,5 @@ CREATE TABLE IF NOT EXISTS `equipment_tr_069_settings` (
   `changetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   `settings` TEXT,
   PRIMARY KEY (`id`)
-)  DEFAULT CHARSET = utf8 COMMENT = 'Equipment TR-069 Settings';
+)
+  DEFAULT CHARSET = utf8 COMMENT = 'Equipment TR-069 Settings';

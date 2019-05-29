@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `msgs_chat`
 )
   ENGINE = InnoDB;
 
-ALTER TABLE `iptv_device` ADD COLUMN `code` VARCHAR(10) NOT NULL DEFAULT '';
+ALTER TABLE `iptv_devices` ADD COLUMN `code` VARCHAR(10) NOT NULL DEFAULT '';
 
 CREATE TABLE `cablecat_coil` (
   `id` int(11) NOT NULL AUTO_INCREMENT,

@@ -14,10 +14,11 @@ our (
   %conf,
   $html,
   %lang,
-  $db
+  $db,
+  $admin
 );
 
-my $Nas   = Nas->new($db, \%conf);
+my $Nas   = Nas->new($db, \%conf, $admin);
 my $Unifi = Unifi->new( \%conf );
 
 if($FORM{DEBUG}) {

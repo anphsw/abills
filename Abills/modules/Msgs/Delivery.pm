@@ -39,7 +39,13 @@ my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[
 =cut
 #**********************************************************
 sub msgs_delivery_main {
-  my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
+#  my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
+  my $msgs_status = {
+    0 => "$lang{D_ACTIVE}:#0000FF",
+    1 => "$lang{DEFERRED}:#ff0638",
+    2 => "$lang{DONE}:#009D00",
+  };
+
   my @send_methods = ($lang{MESSAGE}, 'E-MAIL');
 
   if (in_array('Sms', \@MODULES)) {
@@ -93,7 +99,19 @@ sub msgs_delivery_main {
   if ($FORM{add_form} || $FORM{chg} || $FORM{show}) {
     $Msgs->{DATE_PIKER} = $html->form_datepicker('SEND_DATE', $Msgs->{SEND_DATE});
     $Msgs->{TIME_PIKER} = $html->form_timepicker('SEND_TIME', $Msgs->{SEND_TIME});
-    $Msgs->{STATUS_SELECT} = msgs_sel_status({ NAME => 'STATUS', STATUS => 9 });
+#    $Msgs->{STATUS_SELECT} = msgs_sel_status({ NAME => 'STATUS', STATUS => 9 });
+    $Msgs->{STATUS_SELECT} = $html->form_select('STATUS',
+      {
+        SELECTED => 0,
+        SEL_HASH => {
+          0 => $lang{D_ACTIVE},
+          1 => $lang{DEFERRED},
+          2 => $lang{DONE},
+        },
+        NO_ID    => 1,
+        SELECTED  => $Msgs->{STATUS} || 0,
+      }
+    );
 
     $Msgs->{PRIORITY_SELECT} = $html->form_select(
       'PRIORITY',

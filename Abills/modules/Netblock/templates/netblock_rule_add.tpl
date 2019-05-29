@@ -4,7 +4,7 @@
 
     <fieldset>
         <div class='box box-theme box-form'>
-            <div class='box-header with-border'><h4 class='box-title'>_{RULE}_</h4></div>
+            <div class='box-header with-border'><h4 class='box-title'>_{RULES}_</h4></div>
             <div class='box-body'>
 
                 <div class='form-group'>

@@ -39,12 +39,12 @@
       <div class='box-body'>
 
         <div class='form-group'>
-          <label class='control-label col-md-3' for='TP_ID'>_{TARIF_PLAN}_</label>
-          <div class='col-md-9'>
+          <label class='control-label col-md-4' for='TP_ID'>_{TARIF_PLAN}_</label>
+          <div class='col-md-8'>
             <div class='input-group'>
-              <span class='input-group-addon bg-primary'>%TP_ID%</span>
-              %TP_NAME%
-              <span class='input-group-addon'>%CHANGE_TP_BUTTON%</span>
+             %TP_ID%  %TP_NAME%
+
+             %CHANGE_TP_BUTTON%
             </div>
           </div>
         </div>

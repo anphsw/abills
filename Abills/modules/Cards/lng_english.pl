@@ -7,3 +7,4 @@ $lang{ACTIVATION_PAYMENTS}='After activation payment';
 $lang{ERR_TRY_AGAIN}='Try again';
 $lang{DILLERS_USE}='Dillers use';
 $lang{TRANSFERRED_TO_PRODUCTION}='Transferred to production';
+$lang{ERR_SUPPORT}='Make request to support';

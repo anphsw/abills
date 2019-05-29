@@ -21,9 +21,9 @@ sub new{
   bless( $self, $class );
 
   $admin->{MODULE} = $MODULE;
-  $self->{db} = $db;
-  $self->{admin} = $admin;
-  $self->{conf} = $CONF;
+  $self->{db}      = $db;
+  $self->{admin}   = $admin;
+  $self->{conf}    = $CONF;
 
   return $self;
 }
@@ -99,7 +99,9 @@ sub del{
 }
 
 #**********************************************************
-# list()
+=head2 list()
+
+=cut
 #**********************************************************
 sub list{
   my $self = shift;
@@ -127,6 +129,8 @@ sub list{
     undef,
     $attr
   );
+
+  return $self->{list_hash} if ($attr->{LIST2HASH});
 
   return $self->{list};
 }
@@ -231,16 +235,22 @@ sub tags_user_change{
 #**********************************************************
 =head2 user_del($attr)
 
+  Arguments:
+    $attr
+      UID
+
 =cut
 #**********************************************************
 sub user_del{
   my $self = shift;
   my ($attr) = @ _;
 
-  $self->query_del( 'tags_users', undef, { uid => $attr->{UID},
-    } );
+  $self->query_del( 'tags_users', undef, { uid => $attr->{UID} } );
 
-  $self->{admin}->action_add( $attr->{UID}, "", { TYPE => 10 } );
+  if($self->{AFFECTED} && $self->{AFFECTED} > 0) {
+    $self->{admin}->{MODULE}=$MODULE;
+    $self->{admin}->action_add($attr->{UID}, "", { TYPE => 10 });
+  }
 
   return $self;
 }

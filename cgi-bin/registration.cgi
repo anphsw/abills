@@ -67,6 +67,7 @@ if(-f $libpath . "/language/$html->{language}.pl") {
 
 require Abills::Templates;
 require Abills::Misc;
+require Control::Address_mng;
 
 $INFO_HASH{SEL_LANGUAGE} = $html->form_select(
   'language',
@@ -78,19 +79,28 @@ $INFO_HASH{SEL_LANGUAGE} = $html->form_select(
   }
 );
 
-if($FORM{external_auth}) {
-  get_sn_info();
+get_sn_info() if ($FORM{external_auth});
+
+$INFO_HASH{CHECKED_ADDRESS_MESSAGE} = get_address_connected_message() if ($FORM{check_address});
+
+if ($conf{REGISTRATION_VERIFY_PHONE}) {
+  $html->tpl_show(templates('modal_form'));
+  if ($FORM{PHONE} && $FORM{PIN}) {
+    verify_phone($FORM{PHONE}, $FORM{PIN});
+  }
+  elsif ($FORM{reg} || $FORM{add}) {
+    $html->message('err', "Для регистрации необходимо подтвердить телефон.");
+    delete $FORM{reg};
+    delete $FORM{add};
+  }
 }
 
-if($conf{FB_REGISTRATION}) {
+if($conf{FB_REGISTRATION} && !$FORM{LOCATION_ID}) {
   my $log_url = "external_auth=Facebook";
+  $log_url .= "&module=$FORM{module}" if ($FORM{module});
   $log_url .= "&user_registration=1" if ($FORM{user_registration});
-  $INFO_HASH{FB_INFO} = $html->button("Facebook", $log_url, { class => 'btn btn-primary' });
+  $INFO_HASH{FB_INFO} = $html->button("<i class='fa fa-facebook'></i>Facebook", $log_url, { class => 'btn btn-social btn-facebook'});
   $INFO_HASH{FB_INFO_BLOCK} = $html->button("Facebook", $log_url, { class => 'btn btn-primary btn-block' });
-}
-
-if($FORM{check_address}) {
-  $INFO_HASH{CHECKED_ADDRESS_MESSAGE} = get_address_connected_message();
 }
 
 # Check modules for registration are enabled
@@ -98,7 +108,10 @@ if (@REGISTRATION){
   @REGISTRATION = grep {in_array($_, \@MODULES) } @REGISTRATION;
 }
 
-if ($FORM{FORGOT_PASSWD}) {
+if ($FORM{send_pin}) {
+  send_pin();
+}
+elsif ($FORM{FORGOT_PASSWD}) {
   password_recovery();
 }
 elsif (!@REGISTRATION){
@@ -106,29 +119,42 @@ elsif (!@REGISTRATION){
   print "Can't find modules services for registration";
   exit;
 }
-elsif ($FORM{qindex} && $FORM{qindex} =~ /^\d+$/ && $FORM{qindex} == 30 && !$conf{REGISTRATION_NO_ADDRESS_REGISTER}) {
-  require Control::Address_mng;
-  form_address_sel();
+elsif ($FORM{get_index} && $FORM{get_index} eq 'form_address_select2') {
+  print "Content-Type: text/html\n\n";
+  form_address_select2(\%FORM);
+  exit 1;
+}
+elsif ( !$FORM{no_addr} 
+     && !$FORM{LOCATION_ID} 
+     && $conf{REGISTRATION_REQUEST}
+     && (in_array('Internet', \@MODULES) || in_array('Iptv', \@MODULES))) {
+    my $address_buttons .= "<button type='button' class='btn btn-lg btn-success' data-toggle='modal' data-target='#checkAddress'>" . $lang{CHECK_ADDRESS} . "</button>";
+    $html->{HEADER_ROW} = $html->element('div', $address_buttons, { class => 'row'});
 }
 elsif ($#REGISTRATION > -1) {
+  @REGISTRATION = ('Msgs') if ($FORM{no_addr} && $conf{REGISTRATION_REQUEST});
+  @REGISTRATION = ('Internet') if ($FORM{LOCATION_ID} && $conf{REGISTRATION_REQUEST} && in_array('Internet', \@MODULES));
+  @REGISTRATION = ('Iptv') if ($FORM{LOCATION_ID} && $conf{REGISTRATION_REQUEST} && in_array('Iptv', \@MODULES));
   my $m = ($FORM{module} && $FORM{module} =~ /^[a-z\_0-9]+$/i && in_array($FORM{module}, \@MODULES))
   ? $FORM{module}
   : $REGISTRATION[0];
   
-  if ($m ne 'Osbb' && $m ne 'Vacations' && $m ne 'Expert') {
+  if ($m eq 'Osbb' || $m eq 'Vacations' || $m eq 'Expert') {
+    $INFO_HASH{user_registration} = $FORM{user_registration} || '';
+  }
+  else {
     my $choose_module_buttons = '';
     if ($#REGISTRATION > 0 && !$FORM{registration}) {
       foreach my $registration_module (@REGISTRATION) {
         $choose_module_buttons .= $html->button($registration_module, "module=$registration_module", { class => 'btn btn-lg btn-default' }) . ' ';
       }
     }
-    # check address button
-    $choose_module_buttons .= "<button type='button' class='btn btn-lg btn-success' data-toggle='modal' data-target='#checkAddress'>" . $lang{CHECK_ADDRESS} . "</button>";
+    if (!$FORM{LOCATION_ID} && !$FORM{no_addr}) {
+      $choose_module_buttons .= "<button type='button' class='btn btn-lg btn-success' data-toggle='modal' data-target='#checkAddress'>" . $lang{CHECK_ADDRESS} . "</button>";
+    }
     $html->{HEADER_ROW} = $html->element('div', $choose_module_buttons, { class => 'row'});
   }
-  else {
-    $INFO_HASH{user_registration} = $FORM{user_registration} || '';
-  }
+
   $INFO_HASH{CAPTCHA} = get_captcha();
 
   $INFO_HASH{RULES} = $html->tpl_show(templates('form_accept_rules'), {}, { OUTPUT2RETURN => 1 });
@@ -202,11 +228,11 @@ $admin->{RIGHT_MENU_OPEN}          = '';
 
 if (!($FORM{header} && $FORM{header} == 2)) {
   print $html->header();
+  my $address_modal_form = form_address_select2({ REGISTRATION_MODAL => 1});
 
   $OUTPUT{HTML_STYLE} = 'default_adm';
   $OUTPUT{BODY}       = $html->{OUTPUT};
-  # check address form
-  $OUTPUT{ADDRESS}    = $html->tpl_show(templates('form_address_build_sel'), { HIDE_ADD_BUILD_BUTTON => "style='display:none;'"  }, {OUTPUT2RETURN => 1});
+  $OUTPUT{CHECK_ADDRESS_MODAL} = $html->tpl_show(templates('form_address_modal'), { ADDRESS => $address_modal_form }, {OUTPUT2RETURN => 1});
   $OUTPUT{TITLE}      = "$conf{WEB_TITLE} - $lang{REGISTRATION}";
   
   print $html->tpl_show(templates('registration'), { %OUTPUT, TITLE_TEXT => $lang{REGISTRATION} });
@@ -251,7 +277,7 @@ sub password_recovery_process {
   #   uid + mail
   #   uid + phone
   unless ( ($FORM{LOGIN} || $FORM{UID} || $FORM{CONTRACT_ID}) && ($FORM{EMAIL} || $FORM{PHONE}) ) {
-    $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}");
+    $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}", { ID => '0010' });
     return 0;
   }
 
@@ -492,5 +518,54 @@ sub get_sn_info {
   return 1;
 }
 
+#**********************************************************
+=head2 send_pin()
+
+=cut
+#**********************************************************
+sub send_pin {
+  print "Content-Type: text/html\n\n";
+  my $list = $admin->action_list({
+    FROM_DATE      => $DATE,
+    TO_DATE        => $DATE,
+    TYPE           => 50,
+    ACTION         => "*$FORM{send_pin}*",
+    SKIP_DEL_CHECK => 1,
+  });
+  exit 0 if ($admin->{TOTAL} > 0);
+  if (in_array('Sms', \@MODULES)) {
+    load_module('Sms', $html);
+    my $pin = int(rand(900)) + 100;
+    sms_send({
+      NUMBER  => $FORM{send_pin},
+      MESSAGE => $pin,
+    });
+    $admin->action_add(0, "Send registration pin $pin to phone $FORM{send_pin}", { TYPE => 50 });
+  }
+  exit 0;
+}
+
+#**********************************************************
+=head2 verify_phone(phone, pin)
+
+=cut
+#**********************************************************
+sub verify_phone {
+  my ($phone, $pin) = @_;
+  my $list = $admin->action_list({
+    FROM_DATE      => $DATE,
+    TO_DATE        => $DATE,
+    TYPE           => 50,
+    ACTION         => "Send registration pin $pin to phone $phone",
+    SKIP_DEL_CHECK => 1,
+  });
+
+  if ($admin->{TOTAL} < 1) {
+    $html->message('err', "Wrong pin.");
+    delete $FORM{reg};
+    delete $FORM{add};
+  }
+  return 1;
+}
 
 1

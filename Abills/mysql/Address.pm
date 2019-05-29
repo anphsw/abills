@@ -29,7 +29,7 @@ sub new {
 
   if(ref $admin eq 'HASH') {
     print ref $admin;
-    print "Address ADMIN NOT FOUND//// $admin ///";
+    print "Address ADMIN_NOT_FOUND//// $admin ///";
     exit;
   }
 

@@ -26,21 +26,36 @@ require "libexec/config.pl";
 $conf{language} = 'english';
 do "language/$conf{language}.pl";
 do "/usr/abills/Abills/modules/Paysys/lng_$conf{language}.pl";
+
+if (scalar @ARGV == 0) {
+  print " help - man\n\n KEY= - enter pay_system account key or default(UID)\n\n  NAME= - enter pay_system name or default(OSMP)\n\n ID= - enter pay_system id or default\n\n URL= - enter IP:PORT for web_requests or default(127.0.0.1:9443)\n\n";
+  exit;
+}
+
+if ($ARGV[0] eq 'help') {
+  print " help - man\n\n KEY= - enter pay_system account key or default(UID)\n\n  NAME= - enter pay_system name or default(OSMP)\n\n ID= - enter pay_system id or default\n\n URL= - enter IP:PORT for web_requests or default(127.0.0.1:9443)\n\n";
+  exit;
+}
+my $begin_time = Abills::Base::check_time();
+
 use_ok('Paysys');
 use_ok('Paysys::systems::Osmp');
 use_ok('Conf');
-use_ok('Abills::Base', qw/mk_unique_value /);
+use_ok('Abills::Base', qw/mk_unique_value parse_arguments/);
+use_ok('XML::Simple');
+
 use Abills::Init qw/$db $admin $users/;
 use Paysys;
 my $Conf = Conf->new($db, $admin, \%conf);
-my $user_id = $ARGV[0] || '1';
+my $attr = parse_arguments(\@ARGV);
+my $url = $attr->{URL} || '127.0.0.1:9443';
+my $user_id = $attr->{USER} || '1';
 
 my $random_number = int(rand(1000));
 my $Osmp = Paysys::systems::Osmp->new($db, $admin, \%conf, {
-        CUSTOM_NAME => $ARGV[1] || '',
-        CUSTOM_ID   => $ARGV[2] || '',
-      });
-# _bp('', $Osmp, {HEADER => 1, TO_CONSOLE => 1});
+    CUSTOM_NAME => $attr->{NAME} || '',
+    CUSTOM_ID   => $attr->{ID} || '',
+   });
 # checking function check with valid account
 my $result = $Osmp->proccess(
   {
@@ -157,3 +172,38 @@ ok($res eq '0', 'Transaction was canceled(function cancel)');
 else {
   print "You entered incorrect parameter!!!!!!!!!!!\n";
 }
+
+
+
+#Web test
+print "________________\nWeb test\n\n";
+#Web test check
+$result = Abills::Fetcher::web_request("https://$url/paysys_check.cgi?command=check&txn_id=$random_number&account=$user_id&sum=1.00", {
+  INSECURE => 1,
+});
+my $req_xml_check = XML::Simple::XMLin($result, ForceArray => 0, KeyAttr => 1);
+ok(defined($req_xml_check->{result}) && $req_xml_check->{result} == 0, "Function check - ok, User exist.");
+#Web test pay
+my $txn_num = int(rand(10000));
+$result = Abills::Fetcher::web_request("https://$url/paysys_check.cgi?command=pay&txn_id=$txn_num&account=$user_id&sum=1.00&txn_date=20050815120133", {
+  INSECURE => 1,
+});
+my $req_xml_pay = XML::Simple::XMLin($result, ForceArray => 0, KeyAttr => 1);
+ok(defined($req_xml_pay->{result}) && $req_xml_pay->{result} == 0, "Function pay - ok, Payment is maked for Payment_id:"
+  . $req_xml_pay->{prv_txn} || '' . ".");
+
+#Web pay for cancel
+my $txn_number = int(rand(10000));
+my $response = Abills::Fetcher::web_request("https://$url/paysys_check.cgi?command=pay&txn_id=$txn_number&account=$user_id&sum=1.00&txn_date=20050815120133", {
+  INSECURE => 1,
+});
+my $req_xml_pyament_id = XML::Simple::XMLin($response, ForceArray => 0, KeyAttr => 1);
+#Web cancel check
+$result = Abills::Fetcher::web_request("https://$url/paysys_check.cgi?command=cancel&prv_txn=$req_xml_pyament_id->{prv_txn}", {
+  INSECURE => 1,
+});
+my $req_xml_cancel = XML::Simple::XMLin($result, ForceArray => 0, KeyAttr => 1);
+ok(defined($req_xml_cancel->{result}) && $req_xml_cancel->{result} == 0, "Function cancel - ok, Payment is canceled for Payment_id:"
+  . $req_xml_pyament_id->{prv_txn} || '' . ".");
+
+print "\nTest time: "  . Abills::Base::gen_time($begin_time) . "\n\n";

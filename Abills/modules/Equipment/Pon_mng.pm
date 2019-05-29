@@ -15,6 +15,11 @@ our (
   $SNMP_TPL_DIR,
 );
 
+our %signals = (
+  'BAD'   => { 'MIN' => -30, 'MAX' => -8 },
+  'WORTH' => { 'MIN' => -27, 'MAX' => -10 }
+);
+
 our Equipment $Equipment;
 require Equipment::Grabbers;
 
@@ -63,7 +68,7 @@ sub equipment_pon_init {
     require Equipment::Vsolution;
     $nas_type = '_vsolution';
   }
-  elsif($vendor_name =~ /STELS/i) {
+  elsif ($vendor_name =~ /STELS/i) {
     require Equipment::Stels;
     $nas_type = '_stels';
   }
@@ -243,6 +248,10 @@ sub equipment_pon {
     $attr->{VENDOR_NAME} = $Equipment->{NAME};
   }
 
+  if ($attr->{NAS_INFO}) {
+    $attr->{VERSION} //= $attr->{NAS_INFO}->{SNMP_VERSION};
+  }
+
   if ($FORM{DEBUG}) {
     $attr->{DEBUG} = $FORM{DEBUG};
   }
@@ -263,8 +272,13 @@ sub equipment_pon {
     if ($snmp->{reset} && $snmp->{reset}->{OIDS}) {
       my $reset_value = (defined($snmp->{reset}->{RESET_VALUE})) ? $snmp->{reset}->{RESET_VALUE} : 1;
 
-      if (snmp_set({ SNMP_COMMUNITY => $SNMP_COMMUNITY, OID =>
-        [ $snmp->{reset}->{OIDS} . '.' . $FORM{onuReset}, "integer", $reset_value ] })) {
+      my $reset_result = snmp_set({
+        SNMP_COMMUNITY => $SNMP_COMMUNITY,
+        VERSION        => $attr->{VERSION},
+        OID            => [ $snmp->{reset}->{OIDS} . '.' . $FORM{onuReset}, "integer", $reset_value ]
+      });
+
+      if ($reset_result) {
         $html->message('info', $lang{INFO}, "ONU " . $lang{REBOOTED});
       }
     }
@@ -375,7 +389,7 @@ sub equipment_pon {
   #    $info{ROWS} .= $html->element( 'ul', $buttons, { class => 'nav navbar-nav' } );
   #  }
   foreach my $val (@rows) {
-    $info{ROWS} .= $html->element('div', $val, { class => 'navbar-form navbar-right form-group' });
+    $info{ROWS} .= $html->element('div', $val, { class => 'navbar-form form-group' });
   }
 
   #Get users mac
@@ -412,6 +426,7 @@ sub equipment_pon {
   $LIST_PARAMS{NAS_ID} = $nas_id;
   $LIST_PARAMS{PON_TYPE} = $FORM{PON_TYPE} || '';
   $LIST_PARAMS{OLT_PORT} = $FORM{OLT_PORT} || '';
+  $LIST_PARAMS{BRANCH} = '_SHOW';
 
   my %EXT_TITLES = (
     onu_snmp_id   => "SNMP ID",
@@ -423,6 +438,7 @@ sub equipment_pon {
     tx_power      => "TX $lang{POWER}",
     olt_rx_power  => "OLT RX $lang{POWER}",
     comments      => $lang{COMMENTS},
+    onu_desc      => "ONU $lang{COMMENTS}",
     address_full  => $lang{ADDRESS},
     login         => $lang{LOGIN},
     traffic       => $lang{TRAFFIC},
@@ -436,7 +452,7 @@ sub equipment_pon {
 
   my ($table, $list) = result_former({
     INPUT_DATA      => $Equipment,
-    FUNCTION        => 'onu_list_vlan',
+    FUNCTION        => 'onu_list',
     DEFAULT_FIELDS  => 'BRANCH,ONU_ID,MAC_SERIAL,STATUS,RX_POWER',
     HIDDEN_FIELDS   => 'DELETED',
     SKIP_PAGES      => 1,
@@ -523,7 +539,6 @@ sub equipment_pon {
         push @row, $br;
       }
       elsif ($col_id eq 'user_mac') {
-        #onu_dhcp_port;
         my $macs;
         if ($users_mac{$line->{$col_id}}) {
           $macs = $users_mac{$line->{$col_id}};
@@ -554,6 +569,7 @@ sub equipment_pon {
       "NAS_ID=$FORM{NAS_ID}&index=" . get_function_index('equipment_info')
         . "&visual=$FORM{visual}&ONU_TYPE=$line->{pon_type}&del_onu=$line->{id}&clear_in_db=$line->{deleted}",
       { MESSAGE => "$lang{DEL} ONU: $line->{branch}:$line->{onu_id}?", class => 'del' });
+
     push @row, join(' ', @control_row);
     push @all_rows, \@row;
   }
@@ -572,10 +588,10 @@ sub equipment_pon {
       .DataTable({
         "language": {
           paginate: {
-              first:    "«",
-              previous: "‹",
-              next:     "›",
-              last:     "»",
+              first:    "?",
+              previous: "?",
+              next:     "?",
+              last:     "?",
           },
           "zeroRecords":    "' . $lang{NOT_EXIST} . '",
           "lengthMenu":     "' . $lang{SHOW} . ' _MENU_",
@@ -703,10 +719,10 @@ sub equipment_register_onu {
       NAS_ID     => $nas_id
     });
 
-    $attr->{DEF_VLAN}    = $port_list->[0]->{VLAN_ID} || $list->[0]->{internet_vlan};
-    $attr->{PORT_VLAN}   = $attr->{DEF_VLAN};
+    $attr->{DEF_VLAN} = $port_list->[0]->{VLAN_ID} || $list->[0]->{internet_vlan};
+    $attr->{PORT_VLAN} = $attr->{DEF_VLAN};
     $attr->{TR_069_VLAN} = $list->[0]->{tr_069_vlan} || '';
-    $attr->{IPTV_VLAN}   = $list->[0]->{iptv_vlan} || '';
+    $attr->{IPTV_VLAN} = $list->[0]->{iptv_vlan} || '';
 
     my $result = q{};
     my $result_code = '';
@@ -734,11 +750,11 @@ sub equipment_register_onu {
       }
 
       if (-x $cmd) {
-        $attr->{TR_069_PROFILE}     = $conf{TR_069_PROFILE} || 'ACS';
+        $attr->{TR_069_PROFILE} = $conf{TR_069_PROFILE} || 'ACS';
         $attr->{INTERNET_USER_VLAN} = $conf{INTERNET_USER_VLAN} || '101';
-        $attr->{TR_069_USER_VLAN}   = $conf{TR_069_USER_VLAN} || '102';
-        $attr->{IPTV_USER_VLAN}     = $conf{IPTV_USER_VLAN} || '103';
-        $attr->{VLAN_ID}            = $FORM{VLAN_ID_HIDE} || '';
+        $attr->{TR_069_USER_VLAN} = $conf{TR_069_USER_VLAN} || '102';
+        $attr->{IPTV_USER_VLAN} = $conf{IPTV_USER_VLAN} || '103';
+        $attr->{VLAN_ID} = $FORM{VLAN_ID_HIDE} || '';
 
         delete $attr->{NAS_INFO}->{ACTION_LNG};
         $result = cmd($cmd, {
@@ -755,15 +771,15 @@ sub equipment_register_onu {
         $result =~ s/\n/ /g;
         if ($result =~ /ONU: \d+\/\d+\/\d+\:(\d+) ADDED/) {
           my $onu = ();
-          $onu->{NAS_ID}       = $nas_id;
-          $onu->{ONU_ID}       = $1 || 0;
-          $onu->{ONU_DHCP_PORT}= $port_list->[0]->{BRANCH} . ':' . $onu->{ONU_ID};
-          $onu->{PORT_ID}      = $port_list->[0]->{ID};
+          $onu->{NAS_ID} = $nas_id;
+          $onu->{ONU_ID} = $1 || 0;
+          $onu->{ONU_DHCP_PORT} = $port_list->[0]->{BRANCH} . ':' . $onu->{ONU_ID};
+          $onu->{PORT_ID} = $port_list->[0]->{ID};
           $onu->{ONU_MAC_SERIAL} = $FORM{MAC_SERIAL};
-          $onu->{ONU_DESC}     = $FORM{ONU_DESC};
-          $onu->{ONU_SNMP_ID}  = $port_list->[0]->{SNMP_ID} . '.' . $onu->{ONU_ID};
+          $onu->{ONU_DESC} = $FORM{ONU_DESC};
+          $onu->{ONU_SNMP_ID} = $port_list->[0]->{SNMP_ID} . '.' . $onu->{ONU_ID};
           $onu->{LINE_PROFILE} = $FORM{LINE_PROFILE};
-          $onu->{SRV_PROFILE}  = $FORM{SRV_PROFILE};
+          $onu->{SRV_PROFILE} = $FORM{SRV_PROFILE};
 
           my $onu_list = $Equipment->onu_list({ COLS_NAME => 1, PORT_ID => $onu->{PORT_ID}, ONU_SNMP_ID => $onu->{ONU_SNMP_ID} });
           if ($onu_list->[0]->{id}) {
@@ -784,6 +800,7 @@ sub equipment_register_onu {
 
   return 0;
 }
+
 #********************************************************
 =head2 equipment_delete_onu($attr) - Delete PON ONU
 
@@ -842,9 +859,8 @@ sub equipment_delete_onu {
     $html->message('err', $lang{ERROR}, "$result");
     return 0;
   }
-
-  return 0;
 }
+
 #********************************************************
 =head2 equipment_pon_onu($attr) - Show PON ONU information
 
@@ -881,13 +897,14 @@ sub equipment_pon_onu {
       PORTS_ONLY => 1,
     });
     _error_show($Equipment);
-
   }
 
   my $page_gs = "&visual=$FORM{visual}&NAS_ID=$nas_id";
   $LIST_PARAMS{NAS_ID} = $nas_id;
   $LIST_PARAMS{PON_TYPE} = $FORM{PON_TYPE} || '';
   $LIST_PARAMS{OLT_PORT} = $FORM{OLT_PORT} || '';
+  $LIST_PARAMS{BRANCH} = $FORM{BRANCH} || '_SHOW' || '';
+  delete($LIST_PARAMS{GROUP_BY}) if ($LIST_PARAMS{GROUP_BY});
 
   my ($table, $list) = result_former({
     INPUT_DATA     => $Equipment,
@@ -925,6 +942,8 @@ sub equipment_pon_onu {
       EXPORT           => 1,
     },
   });
+
+  #  _bp('', $list);
 
   my $search_result_input_name = $FORM{PORT_INPUT_NAME} || 'PORTS';
   my $server_vlan = $attr->{NAS_INFO}->{SERVER_VLAN};
@@ -1028,10 +1047,10 @@ sub equipment_pon_onu {
       .DataTable({
         "language": {
           paginate: {
-              first:    "«",
-              previous: "‹",
-              next:     "›",
-              last:     "»",
+              first:    "?",
+              previous: "?",
+              next:     "?",
+              last:     "?",
           },
           "zeroRecords":    "$lang{NOT_EXIST}",
           "lengthMenu":     "$lang{SHOW} _MENU_",
@@ -1148,14 +1167,15 @@ sub pon_onu_state {
       NAS_NAME    => '_SHOW',
       ONU_ID      => '_SHOW',
       MAC_SERIAL  => '_SHOW',
+      BRANCH      => '_SHOW',
       #ONU_SNMP_ID     => '_SHOW',
       COLS_NAME   => 1
     });
 
-    $attr->{BRANCH}     = $onu_list->[0]{branch} || q{};
+    $attr->{BRANCH} = $onu_list->[0]{branch} || q{};
     $attr->{ONU_SERIAL} = $onu_list->[0]{mac_serial} || q{};
-    $attr->{ONU_ID}     = $onu_list->[0]{onu_id} || '0';
-    $attr->{NAS_NAME}   = $onu_list->[0]{nas_name} || q{};
+    $attr->{ONU_ID} = $onu_list->[0]{onu_id} || '0';
+    $attr->{NAS_NAME} = $onu_list->[0]{nas_name} || q{};
   }
 
   my @show_fields = ();
@@ -1176,8 +1196,10 @@ sub pon_onu_state {
   $page_gs .= "&PON_TYPE=$pon_type";
   $page_gs .= "&OLT_PORT=$FORM{OLT_PORT}" if ($FORM{OLT_PORT});
 
-  my $tr_069_data = tr_069_get_data({ QUERY => { 'InternetGatewayDevice.DeviceInfo.SerialNumber' => $attr->{ONU_SERIAL},
-    'InternetGatewayDevice.ManagementServer.Username'                                            => $attr->{NAS_NAME} }, PROJECTION => [ '_id' ], DEBUG => ($FORM{DEBUG} || 0) });
+  my $tr_069_data = tr_069_get_data({ QUERY                                              => {
+    'InternetGatewayDevice.DeviceInfo.SerialNumber'   => $attr->{ONU_SERIAL},
+    'InternetGatewayDevice.ManagementServer.Username' => $attr->{NAS_NAME} }, PROJECTION => [ '_id' ], DEBUG => ($FORM{DEBUG} || 0)
+  });
 
   my $tr_069_button = ($tr_069_data->[0]->{_id}) ? $html->button('',
     "NAS_ID=$nas_id&index=" . get_function_index('equipment_info')
@@ -1260,75 +1282,83 @@ sub pon_onu_state {
     $port_info{$id}{$oid_name} = $value;
   }
 
-  foreach my $oid_name (sort keys %{$snmp_info->{main_onu_info}}) {
-    if ($attr->{QUICK} && !in_array($oid_name, \@quick_info)) {
-      next;
-    }
+  my @status_port = ();
 
-    my $oid = $snmp_info->{main_onu_info}->{$oid_name}->{OIDS};
+  if ($port_info{$id}{STATUS}) {
+    @status_port = $port_info{$id}{STATUS} =~ />(\w*)</;
+  }
 
-    if (!$oid) {
-      next;
-    }
+  if (@status_port && $status_port[0] ne "Deregistered") {
+    foreach my $oid_name (sort keys %{$snmp_info->{main_onu_info}}) {
+      if ($attr->{QUICK} && !in_array($oid_name, \@quick_info)) {
+        next;
+      }
 
-    my $value = q{};
+      my $oid = $snmp_info->{main_onu_info}->{$oid_name}->{OIDS};
 
-    if ($snmp_info->{main_onu_info}->{$oid_name}->{WALK}) {
-      my $value_list = snmp_get({
-        %{$attr},
-        OID     => $oid . '.' . $id,
-        TIMEOUT => 3,
-        WALK    => 1,
-      });
+      if (!$oid) {
+        next;
+      }
 
-      if ($value_list) {
-        foreach my $line (@{$value_list}) {
-          my ($oid_, $val) = split(/:/, $line, 2);
-          my $function = $snmp_info->{main_onu_info}->{$oid_name}->{PARSER};
-          if ($function && defined(&{$function})) {
-            ($oid_, $val) = &{\&$function}($line);
-          }
+      my $value = q{};
 
-          if (in_array($oid_name, \@data2hash_param)) {
-            #$port_info{$id}{$oid_name}{$oid_} = $val;
-            if(ref $port_info{$id}{$oid_name} eq 'HASH') {
-              $port_info{$id}{$oid_name}{$oid_} = $val;
+      if ($snmp_info->{main_onu_info}->{$oid_name}->{WALK}) {
+        my $value_list = snmp_get({
+          %{$attr},
+          OID     => $oid . '.' . $id,
+          TIMEOUT => 3,
+          WALK    => 1,
+        });
+
+        if ($value_list) {
+          foreach my $line (@{$value_list}) {
+            my ($oid_, $val) = split(/:/, $line, 2);
+            my $function = $snmp_info->{main_onu_info}->{$oid_name}->{PARSER};
+            if ($function && defined(&{$function})) {
+              ($oid_, $val) = &{\&$function}($line);
+            }
+
+            if (in_array($oid_name, \@data2hash_param)) {
+              #$port_info{$id}{$oid_name}{$oid_} = $val;
+              if (ref $port_info{$id}{$oid_name} eq 'HASH') {
+                $port_info{$id}{$oid_name}{$oid_} = $val;
+              }
+              else {
+                $port_info{$id}{$oid_name} = { $oid_ => $val };
+              }
             }
             else {
-              $port_info{$id}{$oid_name} = { $oid_ => $val };
+              $value .= $oid_ . ' ' . $val . "\n"; #. $html->br();
             }
-          }
-          else {
-            $value .= $oid_.' '.$val."\n"; #. $html->br();
           }
         }
       }
-    }
-    else {
-      my $add_2_oid = $snmp_info->{main_onu_info}->{$oid_name}->{ADD_2_OID} || '';
+      else {
+        my $add_2_oid = $snmp_info->{main_onu_info}->{$oid_name}->{ADD_2_OID} || '';
 
-      $value = snmp_get({
-        %{$attr},
-        OID => $oid . '.' . $id . $add_2_oid
-      });
+        $value = snmp_get({
+          %{$attr},
+          OID => $oid . '.' . $id . $add_2_oid
+        });
 
-      my $function = $snmp_info->{main_onu_info}->{$oid_name}->{PARSER};
-      if ($function && defined(&{$function})) {
-        ($value) = &{\&$function}($value);
+        my $function = $snmp_info->{main_onu_info}->{$oid_name}->{PARSER};
+        if ($function && defined(&{$function})) {
+          ($value) = &{\&$function}($value);
+        }
       }
-    }
 
-    if ($snmp_info->{main_onu_info}->{$oid_name}->{NAME}) {
-      $oid_name = $snmp_info->{main_onu_info}->{$oid_name}->{NAME};
-    }
+      if ($snmp_info->{main_onu_info}->{$oid_name}->{NAME}) {
+        $oid_name = $snmp_info->{main_onu_info}->{$oid_name}->{NAME};
+      }
 
-    if ($value) {
-      $port_info{$id}{$oid_name} = $value;
+      if ($value) {
+        $port_info{$id}{$oid_name} = $value;
+      }
     }
   }
 
   $FORM{TEST_DISTANCE} = 1 if (!$attr->{SHOW_FILEDS});
-  push @info, @{ port_result_former(\%port_info, {
+  push @info, @{port_result_former(\%port_info, {
     PORT => $id,
     #INFO_FIELDS => $info_fields
   })};
@@ -1463,21 +1493,26 @@ sub pon_onu_state {
 =cut
 #********************************************************
 sub pon_tx_alerts {
-  my ($tx) = @_;
+  my ($tx, $returns) = @_;
 
   if (!$tx || $tx == 65535) {
+    return 0 if ($returns);
     $tx = '';
   }
   elsif ($tx > 0) {
+    return 1 if ($returns);
     $tx = $html->color_mark($tx, 'text-green');
   }
-  elsif ($tx > -8 || $tx < -30) {
+  elsif ($tx > $signals{BAD}{MAX} || $tx < $signals{BAD}{MIN}) {
+    return 2 if ($returns);
     $tx = $html->color_mark($tx, 'text-red');
   }
-  elsif ($tx > -10 || $tx < -27) {
+  elsif ($tx > $signals{WORTH}{MAX} || $tx < $signals{WORTH}{MIN}) {
+    return 3 if ($returns);
     $tx = $html->color_mark($tx, 'text-yellow');
   }
   else {
+    return 1 if ($returns);
     $tx = $html->color_mark($tx, 'text-green');
   }
 
@@ -1537,7 +1572,7 @@ sub equipment_pon_ports {
     my %vlans = ();
 
     foreach my $vlan_id (keys %{$vlan_hash}) {
-      $vlans{ $vlan_id } = "Vlan$vlan_id (". (($vlan_hash->{ $vlan_id }->{NAME}) ? $vlan_hash->{ $vlan_id }->{NAME} : q{}) .")";
+      $vlans{ $vlan_id } = "Vlan$vlan_id (" . (($vlan_hash->{ $vlan_id }->{NAME}) ? $vlan_hash->{ $vlan_id }->{NAME} : q{}) . ")";
     }
 
     $Equipment->{VLAN_SEL} = $html->form_select('VLAN_ID', {
@@ -1574,15 +1609,15 @@ sub equipment_pon_ports {
     MODEL_NAME => $Equipment->{MODEL_NAME}
   });
 
-  foreach my $key (keys %$olt_ports)
-  {
+  foreach my $key (keys %$olt_ports) {
+    next if (!$olt_ports->{$key}{pon_type});
     if ($olt_ports->{$key}{pon_type} eq "epon") {
       $olt_ports->{$key}{FREE_ONU} = 64 - $olt_ports->{$key}{onu_count};
     }
-    if ($olt_ports->{$key}{pon_type} eq "gpon") {
+    elsif ($olt_ports->{$key}{pon_type} eq "gpon") {
       $olt_ports->{$key}{FREE_ONU} = 128 - $olt_ports->{$key}{onu_count};
     }
-    if ($olt_ports->{$key}{pon_type} eq "gepon") {
+    elsif ($olt_ports->{$key}{pon_type} eq "gepon") {
       $olt_ports->{$key}{FREE_ONU} = 128 - $olt_ports->{$key}{onu_count};
     }
   }
@@ -1793,7 +1828,7 @@ sub equipment_pon_onu_graph {
         DS_NAMES   => \@onu_ds_names,
         START_TIME => $start_time
       });
-      $graph_hash{TEMPERATURE}{DIMENSION} = '°C' if $graph_hash{TEMPERATURE};
+      $graph_hash{TEMPERATURE}{DIMENSION} = '?C' if $graph_hash{TEMPERATURE};
     }
     elsif ($graph_type eq 'SPEED' && ($snmp_info->{ONU_IN_BYTE}->{OIDS} || $snmp_info->{ONU_OUT_BYTE}->{OIDS})) {
       push @onu_ds_names, $snmp_info->{ONU_IN_BYTE}->{NAME};
@@ -1845,6 +1880,7 @@ sub equipment_pon_onu_graph {
   #_error_show($Equipment);
   print "<div class=row>";
   foreach my $graph (@graphs) {
+    Encode::_utf8_off($graph);
     print "<div class='col-md-" . (12 / ($#graphs + 1)) . "'>" . ($graph || q{}) . "</div>";
   }
   print "</div>";

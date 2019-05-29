@@ -1,7 +1,9 @@
 #!/usr/bin/perl
-#
-# Transfer attachments from base to disk
-#
+=head1
+
+ Transfer attachments from base to disk
+
+=cut
 
 use strict;
 use warnings FATAL => 'all';
@@ -69,32 +71,57 @@ if(!$attachments_list){
 }
 
 my $count = 0;
-foreach my $data (@$attachments_list){
-  next if ($data->{content} =~ /^FILE: $conf{TPL_DIR}/);
+foreach my $attach (@$attachments_list){
+  next if ($attach->{content} =~ /^FILE: $conf{TPL_DIR}/);
 
   my $messages_reply_list = $Msgs->messages_reply_list(
     {
-      ID        => $data->{message_id},
+      ID        => $attach->{message_id},
       MSG_ID    => '_SHOW',
       UID       => '_SHOW',
       COLS_NAME => '_SHOW',
       PAGE_ROWS => 10000000
     }
   );
-  _error_show($Msgs) and next;
+
+  if(_error_show($Msgs)) {
+    next;
+  }
 
   if ($messages_reply_list && ref $messages_reply_list eq 'ARRAY' && !scalar(@$messages_reply_list)){
     next;
   }
 
   my $message_reply = $messages_reply_list->[0];
-  next if(!$message_reply->{uid} || !$message_reply->{main_msg});
+  if(!$message_reply->{uid} || !$message_reply->{main_msg}) {
+    if($debug) {
+      print "ERROR: Can't find user for $attach->{id} : $attach->{filename}\n";
+    }
+
+    $messages_reply_list = $Msgs->messages_list(
+      {
+        MSG_ID    => $attach->{message_id},
+        UID       => '_SHOW',
+        COLS_NAME => '_SHOW',
+        PAGE_ROWS => 10000000
+      }
+    );
+
+    if($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0) {
+      $message_reply = $messages_reply_list->[0];
+      #print "/ $attach->{filename} / $message_reply->{uid} //\n";
+      $message_reply->{main_msg} = '';
+    }
+    else {
+      next;
+    }
+  }
 
   if(!$message_reply->{filename}){
-    my (undef, $content_type) =  split(/\//, $data->{content_type} || q{});
+    my (undef, $content_type) =  split(/\//, $attach->{content_type} || q{});
     $content_type //= q{};
     $content_type =~ s/plain/txt/;
-    $message_reply->{filename} = $message_reply->{id} . 'm' . $data->{message_id} . '.' . $content_type;
+    $message_reply->{filename} = $message_reply->{id} . 'm' . $attach->{message_id} . '.' . $content_type;
   }
   
   my $path = $ATTACH_DIR . '/' . $message_reply->{uid};
@@ -114,12 +141,12 @@ foreach my $data (@$attachments_list){
   my $filename = $path . '/' . $message_reply->{main_msg} . '_' . $message_reply->{id} . '_' . $message_reply->{filename};
 
   open(my $fh, '>', $filename) or die "Can`t open '$filename' $!";
-    print $fh $data->{content};
+    print $fh $attach->{content};
   close $fh;
 
   $Msgs->attachment_change(
     {
-      ID      => $data->{id},
+      ID      => $attach->{id},
       CONTENT => "FILE: " . $filename,
     }
   );
@@ -129,10 +156,5 @@ foreach my $data (@$attachments_list){
 }
 
 print 'Number of migrated files: ' . $count . "\n";
-
-
-
-
-
 
 1

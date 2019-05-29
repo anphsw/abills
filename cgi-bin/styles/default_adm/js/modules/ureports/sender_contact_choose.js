@@ -108,7 +108,7 @@ function ContactChooser(admin_mode, contacts_list, type_select, value_wrapper) {
 }
 
 function ContactValueView(contacts_for_type, selected_type, value) {
-  
+
   // Save args
   this.contacts_for_type = contacts_for_type;
   this.type              = selected_type;
@@ -138,7 +138,10 @@ function ContactValueView(contacts_for_type, selected_type, value) {
     
     for (var i = 0; i < contacts_for_type_id.length; i++) {
       var cont = contacts_for_type_id[i];
-      destination_select.append('<option value="' + cont.value + '">' + cont.value + '</option>');
+      if (cont.value === "") {
+        continue;
+      }
+      destination_select.append('<option value="' + cont.value + '" selected>' + cont.value + '</option>');
     }
     
     return destination_select;
@@ -181,7 +184,7 @@ function ContactValueView(contacts_for_type, selected_type, value) {
       var select = this.makeSelect(this.contacts_for_type);
       
       jquery_element.html(select);
-      select.chosen(CHOSEN_PARAMS);
+      select.select2(CHOSEN_PARAMS);
       
       if (typeof (this.value) !== 'undefined') {
         this.selectValue(select, this.value)

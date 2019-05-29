@@ -5,7 +5,9 @@
 <input type='hidden' name='ID' value=%ID%>
 
 <div class='box box-theme box-form'>
-<div class='box-header with-border text-primary'>_{RULE}_</div>
+<div class='box-header with-border text-primary'>
+	<h4 class='box-title table-caption'>_{RULE}_</h4>
+</div>
 
 <div class='box-body'>
 
@@ -19,14 +21,14 @@
 	<div class='form-group'>
 		<label class='control-label col-md-3 required'>_{TIME}_ _{BEGIN}_</label>
 		<div class='col-md-9'>
-	 	  <input type='text' name='TIME_START' required value='%TIME_START%' placeholder='%TIME_START%' class='form-control datepicker with-time' >
+			%TIME_START%
 	 </div>
 	</div>
 
 	<div class='form-group'>
 		<label class='control-label col-md-3 required'>_{TIME}_ _{END}_</label>
 		<div class='col-md-9'>
-	 	  <input type='text' name='TIME_END' required value='%TIME_END%' placeholder='%TIME_END%' class='form-control datepicker with-time' >
+			%TIME_END%
 	 </div>
 	</div>
 
@@ -62,6 +64,20 @@
 		</div>
 	</div>
 
+	<div class='form-group'>
+		<label class='control-label col-md-3'>_{UPDATE_DAY}_</label>
+		<div class='col-md-9'>
+			<input type='text' class='form-control' name='UPDATE_DAY' value='%UPDATE_DAY%'>
+
+		</div>
+	</div>
+
+	<div class='form-group'>
+		<label class='control-label col-md-3'>_{SQL_QUERY}_</label>
+		<div class='col-md-9'>
+			<textarea class='form-control' placeholder='_{SQL_QUERY}_' name='SQL_QUERY'>%SQL_QUERY%</textarea>
+		</div>
+	</div>
 
 </div>
 

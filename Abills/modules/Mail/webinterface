@@ -517,7 +517,7 @@ sub mail_users_list {
     #return 0;
   }
 
-  if ($FORM{newpassword}) {
+  if ($FORM{newpassword} && !$FORM{add}) {
     if ($FORM{newpassword} eq $FORM{confirm}) {
       my %change_params = ();
       $change_params{PASSWORD} = $FORM{newpassword};
@@ -573,7 +573,7 @@ sub mail_users_list {
       $line->{box_size},
       $status[$line->{antivirus}],
       $status[$line->{antispam}],
-      $status[$line->{antispam}],
+      $status[$line->{status}],
       $html->button($lang{CHANGE}, "index=$index&MBOX_ID=$line->{id}&UID=$line->{uid}", { class => 'change' })
       .' '. $delete
     );
@@ -672,9 +672,9 @@ sub mail_user_boxes {
   #  mail_users_list();
   # }
 
-  $Mail->{ANTIVIRUS} = ' checked' if ($Mail->{ANTIVIRUS} && $Mail->{ANTIVIRUS} == 0);
-  $Mail->{ANTISPAM}  = ' checked' if ($Mail->{ANTISPAM} && $Mail->{ANTISPAM} == 0);
-  $Mail->{DISABLE}   = ' checked' if ($Mail->{DISABLE} && $Mail->{DISABLE} == 1);
+  $Mail->{ANTIVIRUS} = ' checked' if (defined($Mail->{ANTIVIRUS}) && $Mail->{ANTIVIRUS} == 0);
+  $Mail->{ANTISPAM}  = ' checked' if (defined($Mail->{ANTISPAM}) && $Mail->{ANTISPAM} == 0);
+  $Mail->{DISABLE}   = ' checked' if (defined($Mail->{DISABLE}) && $Mail->{DISABLE} == 1);
 
   $Mail->{DOMAINS_SEL} = $html->form_select(
     'MAIL_DOMAIN_ID',

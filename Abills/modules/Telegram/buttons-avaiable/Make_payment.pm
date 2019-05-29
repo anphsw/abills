@@ -1,0 +1,56 @@
+package Make_payment;
+
+use strict;
+use warnings FATAL => 'all';
+
+#**********************************************************
+=head2 new($Botapi)
+
+=cut
+#**********************************************************
+sub new {
+  my $class = shift;
+  my ($db, $admin, $conf, $bot) = @_;
+  
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $conf,
+    bot   => $bot,
+  };
+  
+  bless($self, $class);
+  
+  return $self;
+}
+
+#**********************************************************
+=head2 btn_name()
+
+=cut
+#**********************************************************
+sub btn_name {
+  return "Пополнить счет";
+}
+
+#**********************************************************
+=head2 click()
+
+=cut
+#**********************************************************
+sub click {
+  my $self = shift;
+  my ($attr) = @_;
+
+  use Users;
+  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
+  $Users->info($self->{bot}->{uid});
+
+  $self->{bot}->send_message({
+    text         => "Ваш ID для пополнения счета:$Users->{LOGIN}",
+  }); 
+
+  return 1;
+}
+
+1;

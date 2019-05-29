@@ -6,7 +6,7 @@
 
     <div class='box box-primary'>
         <div class='box-header with-border'>
-            <h3 class='box-title'>_{BONUS}_</h3>
+            <h3 class='box-title'>_{ACCOUMULATION}_ _{BONUS}_</h3>
         </div>
         <div class='box-body form form-horizontal'>
             <div class='form-group'>

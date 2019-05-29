@@ -1587,6 +1587,10 @@ sub expression {
 
     my %ex = ();
     my $counters;
+    if($attr->{TI_ID}) {
+      $self->{TI_ID} = $attr->{TI_ID};
+    }
+
     while (my ($id, $expresion_text) = each %{$expr}) {
       $expresion_text =~ s/\n|[\r]//g;
       my @expresions_array = split(/;/, $expresion_text);

@@ -4,6 +4,8 @@
         document.depot_form.submit();
     }
 </script>
+
+<script src='/styles/default_adm/js/storage.js'></script>
 <div class='row'>
     <form class='form form-horizontal' action='$SELF_URL?index=$index\&storage_status=1' name='depot_form' method=POST>
         <fieldset>
@@ -22,7 +24,7 @@
                     <div class='form-group'>
                         <label class='control-label col-md-3'>_{CONSINGMENT}_:</label>
 
-                        <div class='col-md-'>
+                        <div class='col-md-9'>
                             %MAIN_ID_SELECT%
                         </div>
                     </div>
@@ -37,7 +39,9 @@
                         <label class='control-label col-md-3'>_{NAME}_:</label>
 
                         <div class='col-md-9'>
+                            <div class="ARTICLES_S">
                             %ARTICLE_ID%
+                            </div>
                         </div>
                     </div>
                     <div class='form-group'>

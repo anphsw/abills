@@ -145,7 +145,8 @@ CREATE TABLE IF NOT EXISTS `cablecat_splitters` (
     ON DELETE RESTRICT,
   `commutation_x` DOUBLE(5, 2) NULL,
   `commutation_y` DOUBLE(5, 2) NULL,
-  `commutation_rotation` SMALLINT NOT NULL DEFAULT 0
+  `commutation_rotation` SMALLINT NOT NULL DEFAULT 0,
+  `color_scheme_id` INT(11) UNSIGNED NOT NULL DEFAULT '1'
 )
   CHARSET = 'utf8'
   COMMENT = 'Dividers of fiber signals (PON)';
@@ -274,3 +275,12 @@ CREATE TABLE IF NOT EXISTS `cablecat_cross_links` (
   UNIQUE `_cross_port` (`cross_id`, `cross_port`)
 )
   COMMENT = 'Logical values for port connection';
+
+CREATE TABLE cablecat_coil (
+  id int(11) unsigned NOT NULL AUTO_INCREMENT,
+  name varchar(32) NOT NULL DEFAULT '',
+  point_id int(11) unsigned NOT NULL DEFAULT 0,
+  cable_id int(11) unsigned NOT NULL DEFAULT '1',
+  length INT NOT NULL DEFAULT 30,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Cablecat coil';

@@ -624,7 +624,7 @@ $lang{ALWAYS_HIDE_RIGHT_MENU} = 'Always hide right menu';
 $lang{MODULE} = 'Module';
 $lang{PLANNED_TO_CONNECT} = 'Planned to connect';
 $lang{COPY} = 'Copy';
-
+$lang{RESET_SCHEMA} = 'Reset placement information panels';
 $lang{INSTALLED} = 'Installed';
 $lang{CHECK_ADDRESS} = 'Check Address';
 $lang{CHECK_ADDRESS_PLANNED_TO_CONNECT_MSG} = 'Your address planed to connect';
@@ -636,6 +636,7 @@ $lang{REMINDER} = 'Reminder';
 $lang{PLEASE_CHANGE_DEFAULT_PASSWORD} = 'Please change default password';
 $lang{LAST} = 'Last';
 $lang{PREVIOUS} = 'Previous';
+$lang{YESTERDAY} = 'Yesterday';
 
 $lang{GUIDE_WELCOME} = 'Interface tutorial';
 $lang{GUIDE_WELCOME_TEXT} = 'Welcome to ABillS. This guide will show you main interface features.';
@@ -794,6 +795,7 @@ $lang{SIGNATURE}='Signature';
 $lang{SIGNED}='Signed';
 $lang{STREET_SHORT}='st.';
 $lang{CREATE_COMPANY}='Create company';
+$lang{NO_DELETE_COMPANY}='Unable to delete, users are tied to the company';
 
 $lang{CLEAR_SETTINGS}='Clear settings';
 $lang{ENTRANCE}='Entrance';
@@ -830,4 +832,19 @@ $lang{LOGIN_LESS_ACCESS_MSG} = 'Enter your password to retrieve your session';
 $lang{LOGIN_LESS_ACCESS_DEFAULT} = 'Or sign in as a different user';
 $lang{LOGIN_LESS_ACCESS_SYSTEM_PICK} = 'You are identified as';
 $lang{CHAT} = 'Chat';
+$lang{REPORT_NEW_ALL_USERS} = 'Chart new+all';
+$lang{REPORT_NEW_ARPU_USERS} = 'Chart new+ARPU';
+$lang{REPORT_BALANCE_BY_STATUS} = 'Balances by status';
+$lang{NEW_CUST} = 'New';
+$lang{CHECK_ALL} = 'Check all (on screen)';
+$lang{BIRTH_DATE}='Birth date';
+$lang{FIRED}='Fired';
+$lang{DEPARTMENT}='Department';
+$lang{DEPARTMENTS}='Departments';
+$lang{MOBILE_PAY}='Mobile replenishment';
+$lang{SHORT_ADMINS}='Admins';
+$lang{AVR_FEES_AUTHORIZED}='Average removal by authorized subscribers';
+$lang{AVR_AMOUNT_ACTIVE_SERV}='Average cost of active services';
+$lang{ARPU_FUTURE}='Predicted ARPU';
+
 1;

@@ -841,6 +841,8 @@ $sysinfo_hash{'Linux'}{'disk'} = sub {
       my $size  = $2 || 0;
       my $used  = $3 || 0;
       my $avail = $4 || 0;
+      my $capacity = $5 || 0;
+      my $mount_point = $6 || '';
 
       if( $size !~ /\d/) {
         next;
@@ -860,8 +862,8 @@ $sysinfo_hash{'Linux'}{'disk'} = sub {
       push @{ $info{Used} },       $used;
       push @{ $info{Avail} },      $avail;
       
-      push @{ $info{Capacity} },   $5;
-      push @{ $info{Mounted} },    $6;
+      push @{ $info{Capacity} },   $capacity;
+      push @{ $info{Mounted} },    $mount_point;
     }
   }
   
@@ -1760,7 +1762,7 @@ sub sysinfo_sp_ps {
     
     my @extra_btns = ();
     if ( $admin_has_restart_permission && $services_init_scripts{$ps_name} && -f $services_init_scripts{$ps_name} ) {
-      
+
       my $disabled = ($ps_name =~ /apache|httpd/) ? 'disabled' : '';
       my $restart_btn = $html->button( 'R', "index=$restart_index&SERVICE=$ps_name&RESTART=1&action=1",
         {

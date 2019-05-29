@@ -50,6 +50,12 @@
 			<input class='form-control' type=text name=CONTRACT_ID value='%CONTRACT_ID%'>
 		</div>
 	</div>
+		<div class='form-group'>
+			<label class='col-md-3 control-label'>_{LIST_OF_CHARGES}_:</label>
+			<div class='col-md-9'>
+				%TYPES_FEES%
+			</div>
+		</div>
 </div>
 </div>
 </div>

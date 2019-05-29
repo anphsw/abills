@@ -211,7 +211,7 @@ sub send_message {
   }
 
   if ( !@contacts || !$contacts[0] ) {
-    $self->{errstr} = "No contact";
+    $self->{errstr} = "NO_CONTACT";
     $self->{errno}  = 2;
     print $self->{errstr} if ( $self->{debug} );
     return 0;
@@ -256,6 +256,7 @@ sub send_message {
         CONTACT    => $contact
       });
     }
+
     return $at_least_once_successful;
   }
 }

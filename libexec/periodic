@@ -337,25 +337,7 @@ elsif ( defined( $argv->{SET_FULL_CREDIT} ) ){
   credit_full_set();
 }
 else{
-  print "Arguments (daily|monthly|backup)
-   Optional arguments
-   DATE=2005-10-01            - Date for periodic process
-   NO_USERS_WARNINGS          - Don't send user warning messages
-   MODULES=[modules_list,...] - Make periodic process only for this modules
-   FN                         - Run sperified function
-   SKIP_MODULES=[modules_list]- Skip this module in periodic proccess
-   NO_ADM_REPORT              - Don't send report to admin via e-mail
-   SHEDULE                    - Make Shedule
-   SET_FULL_CREDIT            - Set credit for all services
-     FULL_CREDIT_PERIOD       - Period for full credit in days
-     COMPANY_ID=\"0\"           - Company ID. All Companies '>0', Non company users '0'
-
-Extra params
-   LOGIN                      - Periodic action for some login
-   GID                        - Periodic action for some user groups
-   TP_ID                      - Periodic action for some TP_ID (If user separate modules)
-   DEBUG                      - Show debug output\n";
-  exit;
+  help();
 }
 
 if ( $debug ){
@@ -552,6 +534,10 @@ sub sheduler{
 #**********************************************************
 sub admin_report_daily{
 
+  if(! $conf{p_admin_mails}) {
+    return 1;
+  }
+
   #Payments
   my $Payments = Finance->payments( $db, $admin, \%conf );
 
@@ -593,9 +579,9 @@ sub admin_report_daily{
       $line->{login} || '',
       $line->{fio} || '',
       $line->{dsc} || '',
-      $line->{sum} || '',
+      $line->{sum} || 0,
       $line->{admin_name} || '',
-      $line->{ip} || '',
+      $line->{ip} || '127.0.0.1',
       $line->{date} || ''
     );
   }
@@ -615,7 +601,7 @@ sub admin_report_daily{
     $lang{LOGIN},
     $lang{FIO},
     $lang{DESCRIBE},
-    $lang{SUM},
+    $lang{SUM} || 0,
     $lang{TYPE},
     $lang{ADMINS},
     'IP',
@@ -779,6 +765,10 @@ sub admin_report_daily{
 #**********************************************************
 sub admin_report_monthly{
 
+  if(! $conf{p_admin_mails}) {
+    return 1;
+  }
+
   #Payments
   my $Payments = Finance->payments( $db, $admin, \%conf );
   if ( $debug > 6 ){
@@ -862,7 +852,8 @@ sub logrotate{
   my $rotate_level = 5;
 
   if ( $D == 1 ){
-    my $logfile = "$conf{LOGFILE}";
+    my $logfile = $conf{LOGFILE} || '/usr/abills/var/log/abills.log';
+
     my $cmd = '';
     for ( my $i = $rotate_level; $i > 0; $i-- ){
       if ( -f $logfile . '.' . ($i - 1) . '.gz' ){
@@ -1079,6 +1070,10 @@ sub credit_operation{
 #*******************************************************************
 =head2 credit_full_set() - Set full credit
 
+  Argv:
+    DEPOSIT="<10"
+    GID=
+
 =cut
 #*******************************************************************
 sub credit_full_set{
@@ -1089,6 +1084,14 @@ sub credit_full_set{
   if ( $FULL_CREDIT_PERIOD ){
     $CREDIT_EXPIRE_DATE = POSIX::strftime("%Y-%m-%d",
       localtime( (POSIX::mktime( 0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0 ) + $FULL_CREDIT_PERIOD * 86400) ));
+  }
+
+  if($argv->{DEPOSIT}) {
+    $LIST_PARAMS{DEPOSIT}=$argv->{DEPOSIT};
+  }
+
+  if($argv->{GID}) {
+    $LIST_PARAMS{GID}=$argv->{GID};
   }
 
   if ( $argv->{TRANSACTION} ){
@@ -1450,5 +1453,33 @@ sub debetors_group_create{
   return 1;
 }
 
+
+#*******************************************************************
+=head2 help()
+
+=cut
+#*******************************************************************
+sub help {
+
+  print "Arguments (daily|monthly|backup)
+   Optional arguments
+   DATE=2005-10-01            - Date for periodic process
+   NO_USERS_WARNINGS          - Don't send user warning messages
+   MODULES=[modules_list,...] - Make periodic process only for this modules
+   FN                         - Run sperified function
+   SKIP_MODULES=[modules_list]- Skip this module in periodic proccess
+   NO_ADM_REPORT              - Don't send report to admin via e-mail
+   SHEDULE                    - Make Shedule
+   SET_FULL_CREDIT            - Set credit for all services
+     FULL_CREDIT_PERIOD       - Period for full credit in days
+     COMPANY_ID=\"0\"           - Company ID. All Companies '>0', Non company users '0'
+
+Extra params
+   LOGIN                      - Periodic action for some login
+   GID                        - Periodic action for some user groups
+   TP_ID                      - Periodic action for some TP_ID (If user separate modules)
+   DEBUG                      - Show debug output\n";
+  exit;
+}
 
 1

@@ -1,8 +1,9 @@
 CREATE TABLE IF NOT EXISTS `events_state` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
-  `name` VARCHAR(30) NOT NULL,
+  `name` VARCHAR(30) NOT NULL DEFAULT '',
   PRIMARY KEY `event_state_id` (`id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Events_state and name';
 
 CREATE TABLE IF NOT EXISTS `events_priority` (
@@ -11,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `events_priority` (
   `value` SMALLINT(6) NOT NULL DEFAULT 2 COMMENT 'NORMAL',
   PRIMARY KEY `event_priority_id` (`id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Events priorities name';
 
 CREATE TABLE IF NOT EXISTS `events_priority_send_types` (
@@ -21,24 +23,25 @@ CREATE TABLE IF NOT EXISTS `events_priority_send_types` (
   `send_types` VARCHAR(255) NOT NULL DEFAULT '',
   UNIQUE `aid_priority` (`aid`, `priority_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Defines how each admin will recieve notifications for defined priority';
 
 CREATE TABLE IF NOT EXISTS `events_privacy` (
-  `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
-  `name` VARCHAR(40) NOT NULL,
-  `value` SMALLINT(6) NOT NULL DEFAULT 0,
-  PRIMARY KEY `event_privacy_id` (`id`)
+  `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(40) NOT NULL DEFAULT '',
+  `value` SMALLINT(6) NOT NULL DEFAULT 0
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Events privacy settings';
-
 
 CREATE TABLE IF NOT EXISTS `events_group` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
-  `name` VARCHAR(40) NOT NULL,
+  `name` VARCHAR(40) NOT NULL DEFAULT '',
   `modules` TEXT NOT NULL,
   PRIMARY KEY `event_groups_id` (`id`),
   UNIQUE `event_group_name` (`name`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Events privacy settings';
 
 CREATE TABLE IF NOT EXISTS `events_admin_group`(
@@ -47,7 +50,8 @@ CREATE TABLE IF NOT EXISTS `events_admin_group`(
   `group_id` SMALLINT(6) UNSIGNED NOT NULL
   REFERENCES `events_group` (`id`),
   UNIQUE `_aid_group` (`aid`, `group_id`)
-);
+)
+ DEFAULT CHARSET = utf8 COMMENT = 'Events admin group';
 
 CREATE TABLE IF NOT EXISTS `events` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT,
@@ -65,9 +69,15 @@ CREATE TABLE IF NOT EXISTS `events` (
     ON DELETE RESTRICT,
   `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `aid` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
-  `domain_id` SMALLINT NOT NULL DEFAULT 0,
-  PRIMARY KEY `event_id` (`id`)
+  `domain_id` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY `event_id` (`id`),
+  KEY `group_id` (`group_id`),
+  KEY `privacy_id` (`privacy_id`),
+  KEY `priority_id` (`priority_id`),
+  KEY `aid` (`aid`),
+  KEY `state_id` (`state_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Events is some information that admin have to see';
 
 

@@ -48,7 +48,7 @@ $users //= $user;
 exit if form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Maps',
-  REQUIRE_VERSION => 7.62,
+  REQUIRE_VERSION => 7.63,
 });
 
 our $Maps = Maps->new($db, $admin, \%conf);
@@ -68,6 +68,7 @@ if ($permissions{5}) {
 }
 
 require Maps::Layers;
+require Maps::Reports;
 
 #***************************************************************
 
@@ -1523,7 +1524,12 @@ sub maps_show_object_button {
 
   if ($attr->{GO_TO_MAP}) {
     my $maps_index = get_function_index('maps_show_map');
-    $params = "index=$maps_index&show_layer=$layer_id&OBJECT_ID=$object_id";
+    if ($layer_id && !$object_id) {
+      $params = "index=$maps_index&show_layer=$layer_id&only_one_layer=1";
+    }
+    else {
+      $params = "index=$maps_index&show_layer=$layer_id&OBJECT_ID=$object_id";
+    }
 
     if ($attr->{SINGLE}) {
       $params .= "&SINGLE=1&LAYER_ID=$layer_id&POINT_ID=$attr->{SINGLE}";
@@ -1749,7 +1755,7 @@ sub _maps_object_types_select {
 =cut
 #**********************************************************
 sub _maps_btn_for_build {
-  my ($location_id) = @_;
+  my ($location_id, $attr) = @_;
 
   my $map_btn = '';
 
@@ -1762,6 +1768,11 @@ sub _maps_btn_for_build {
       { target => '_map', ex_params => "data-tooltip-position='top' data-tooltip='$lang{MAP}'", ICON =>
         'glyphicon glyphicon-globe' });
   }
+  elsif ($attr->{MAP_BTN}) {
+    $map_btn = $html->button("", "get_index=maps_edit&LOCATION_ID=$location_id&header=1&LOCATION_TYPE=12",
+      { class => 'btn btn-success btn-sm', target => '_map', ex_params => "data-tooltip-position='top' data-tooltip='$lang{MAP} $lang{ADD}'", ICON =>
+        'glyphicon glyphicon-plus' });
+  }
   else {
     $map_btn = $html->button("", "get_index=maps_edit&LOCATION_ID=$location_id&header=1&LOCATION_TYPE=12",
       { target => '_map', ex_params => "data-tooltip-position='top' data-tooltip='$lang{MAP} $lang{ADD}'", ICON =>
@@ -1771,5 +1782,34 @@ sub _maps_btn_for_build {
   return $map_btn;
 }
 
+##**********************************************************
+#=head2 maps_builds_reports()
+#
+#=cut
+##**********************************************************
+#sub maps_builds_reports {
+#  my $attr = @_;
+#
+#  my $builds_list = $Address->build_list(
+#    {
+#      DISTRICT_ID        => $FORM{DISTRICT_ID} || '>0',
+#      DISTRICT_NAME      => '_SHOW',
+#      NUMBER             => '_SHOW',
+#      PUBLIC_COMMENTS    => '_SHOW',
+#      PLANNED_TO_CONNECT => '_SHOW',
+#      STREET_NAME        => '_SHOW',
+#      COORDX             => '!',
+#      COORDY             => '!',
+#      ZOOM               => '_SHOW',
+#      COLS_NAME          => 1,
+#      PAGE_ROWS          => 10000,
+#      LOCATION_ID        => '_SHOW'
+#    }
+#  );
+#
+#
+#
+#  return 1;
+#}
 
 1;

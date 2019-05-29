@@ -5,7 +5,7 @@ use Dv_Sessions;
 
 our Equipment $Equipment;
 
-our(
+our (
   $db,
   $html,
   %conf,
@@ -21,58 +21,58 @@ our(
 #********************************************************
 sub network_map {
 
+  my $Internet = Internet->new($db, undef, \%conf);
   my %nodes = ();
   my %edges = ();
 
   my $nas_list = $Equipment->_list({
-    NAS_IP    => '_SHOW',
-    NAS_NAME  => '_SHOW',
-    NAS_ID    => '_SHOW',
-    STATUS    => '_SHOW',
-    PORTS     => '_SHOW',
-    PAGE_ROWS => 9999,
-    COLS_NAME => 1
+    NAS_IP      => '_SHOW',
+    NAS_NAME    => '_SHOW',
+    NAS_ID      => '_SHOW',
+    STATUS      => '_SHOW',
+    PORTS       => '_SHOW',
+    TYPE_ID     => '_SHOW',
+    VENDOR_NAME => '_SHOW',
+    MODEL_NAME  => '_SHOW',
+    PAGE_ROWS   => 9999,
+    COLS_NAME   => 1
   });
   _error_show($Equipment);
 
-  foreach my $line (@$nas_list){
-    my $linked = $nodes{$line->{nas_id}}->{'linked'};
-    $nodes{$line->{nas_id}} = {
-      'name'      => $line->{nas_name},
-      'ip'        => $line->{nas_ip},
-      'state'     => $line->{status},
-      'ports'     => $line->{ports},
-      'type'      => 'server',
-    };
-    if ($linked) {$nodes{$line->{nas_id}}->{'linked'} = 1};
+  foreach my $line (@$nas_list) {
+    my $online = $Internet->list({
+      NAS_ID    => $line->{nas_id},
+      ONLINE    => '_SHOW',
+      COLS_NAME => 1
+    });
 
+    $nodes{$line->{nas_id}} = {
+      'name'    => ($line->{nas_name} || '') . " ($line->{nas_id})",
+      'ip'      => $line->{nas_ip},
+      'state'   => $line->{status},
+      'ports'   => $line->{ports},
+      'type_id' => $line->{type_id},
+      'vendor'  => $line->{vendor_name},
+      'model'   => $line->{model_name},
+      'online'  => $online->[0]->{online},
+    };
 
     my $uplink_ports = $Equipment->port_list({
       NAS_ID    => $line->{nas_id},
       UPLINK    => '!0',
+      PORT      => '_SHOW',
       COLS_NAME => 1
     });
     _error_show($Equipment);
 
-    if ($uplink_ports && ref $uplink_ports eq 'ARRAY'){
-      foreach (@$uplink_ports){
-        $edges{$line->{nas_id}}->{$_->{uplink}} = {'length' => '3'};
-        $nodes{$line->{nas_id}}->{'linked'} = 1;
-        $nodes{$_->{uplink}}->{'linked'} = 1;
+    if ($uplink_ports && ref $uplink_ports eq 'ARRAY') {
+      foreach (@$uplink_ports) {
+        $Equipment->_info($_->{uplink});
+        if (!$Equipment->{TOTAL}) {
+          next;
+        }
+        $edges{$line->{nas_id}} = { source => $_->{uplink}, target => $line->{nas_id}, name => $_->{port} };
       }
-    }
-  }
-
-  my $Sessions = Dv_Sessions->new($db, $admin, \%conf);
-  my $list = $Sessions->online_count({ COLS_NAME => 1 });
-  foreach my $line (@$list) {
-    $nodes{$line->{nas_id}}->{'online'} = $line->{nas_total_sessions};
-    $nodes{$line->{nas_id}}->{'zapped'} = $line->{nas_zaped};
-  }
-
-  foreach (keys %nodes) {
-    unless ($nodes{$_}->{'linked'}) {
-    delete $nodes{$_}
     }
   }
 
@@ -83,17 +83,17 @@ sub network_map {
   my $json_string = JSON::to_json(\%rec_hash);
 
   my $status_hash = JSON::to_json({
-          0 => $lang{ENABLE},
-          1 => $lang{DISABLE},
-          2 => $lang{NOT_ACTIVE},
-          3 => $lang{ERROR},
-          4 => $lang{BREAKING}
+    0 => $lang{ENABLE},
+    1 => $lang{DISABLE},
+    2 => $lang{NOT_ACTIVE},
+    3 => $lang{ERROR},
+    4 => $lang{BREAKING}
   });
 
-  $html->tpl_show( _include( 'netmap', 'Equipment'), {
-                  DATA              => $json_string,
-                  STATUS_LANG_HASH  => $status_hash
-                  },
+  $html->tpl_show(_include('equipment_netmap', 'Equipment'), {
+    DATA             => $json_string,
+    STATUS_LANG_HASH => $status_hash
+  },
   );
 
   return 1;
@@ -122,7 +122,7 @@ sub user_route {
   });
   _error_show($Equipment);
 
-  unless ( $user_node && ref $user_node eq 'ARRAY' ) {
+  unless ($Equipment->{TOTAL} > 0) {
     $html->message('err', $lang{ERROR}, "user is not assigned to any port");
     return 1;
   };
@@ -135,7 +135,7 @@ sub user_route {
   };
   $edges{'0'}->{$user_nas} = { 'length' => '0.5' };
 
-  while ( 42 ) {
+  while (42) {
     my $nas_info = $Equipment->_list({
       NAS_ID    => $current_nas,
       NAS_NAME  => '_SHOW',
@@ -144,34 +144,46 @@ sub user_route {
       COLS_NAME => 1
     });
 
-    unless ( $nas_info && ref $nas_info eq 'ARRAY' ) {
+    unless ($Equipment->{TOTAL} > 0) {
       $html->message('err', $lang{ERROR}, "NAS_NOT_FOUND");
       return 1;
     }
 
-    if ($nas_info->[0] && $nodes{$nas_info->[0]->{nas_id}} ) {
+    if ($nas_info->[0] && $nodes{$nas_info->[0]->{nas_id}}) {
       last;
     }
 
-    if($nas_info->[0]->{nas_id}) {
+    if ($nas_info->[0]->{nas_id}) {
+      my $Internet = Internet->new($db, undef, \%conf);
+      my $online = $Internet->list({
+        NAS_ID    => $nas_info->[0]->{nas_id},
+        ONLINE    => '_SHOW',
+        COLS_NAME => 1
+      });
+
       $nodes{$nas_info->[0]->{nas_id}} = {
-        'name'  => $nas_info->[0]->{nas_name},
-        'ip'    => $nas_info->[0]->{nas_ip},
-        'state' => $nas_info->[0]->{status},
-        'type'  => 'server',
+        'name'    => ($nas_info->[0]->{nas_name} || '') . " ($nas_info->[0]->{nas_id})",
+        'ip'      => $nas_info->[0]->{nas_ip},
+        'state'   => $nas_info->[0]->{status},
+        'ports'   => $nas_info->[0]->{ports},
+        'type_id' => $nas_info->[0]->{type_id},
+        'vendor'  => $nas_info->[0]->{vendor_name},
+        'model'   => $nas_info->[0]->{model_name},
+        'online'  => $online->[0]->{online},
       };
     }
 
     my $uplink_port = $Equipment->port_list({
       NAS_ID    => $current_nas,
       UPLINK    => '!0',
+      PORT      => '_SHOW',
       COLS_NAME => 1
     });
 
-    unless ( $uplink_port && ref $uplink_port eq 'ARRAY' ) {last;}
+    unless ($uplink_port && ref $uplink_port eq 'ARRAY') {last;}
 
-    if($current_nas && $uplink_port->[0] && $uplink_port->[0]->{uplink}) {
-      $edges{$current_nas}->{$uplink_port->[0]->{uplink}} = { 'length' => '1' };
+    if ($current_nas && $uplink_port->[0] && $uplink_port->[0]->{uplink}) {
+      $edges{$current_nas} = {source => $uplink_port->[0]->{uplink}, target => $current_nas, name => $uplink_port->[0]->{port} };
     }
 
     $current_nas = $uplink_port->[0]->{uplink};
@@ -190,7 +202,7 @@ sub user_route {
     4 => $lang{BREAKING}
   });
 
-  $html->tpl_show(_include('netmap', 'Equipment'), {
+  $html->tpl_show(_include('equipment_netmap', 'Equipment'), {
     DATA             => $json_string,
     STATUS_LANG_HASH => $status_hash
   });

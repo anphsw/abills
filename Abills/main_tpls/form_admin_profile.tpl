@@ -59,6 +59,10 @@
           %EVENT_GROUPS_SELECT%
         </div>
       </div>
+      <div class='form-group'>
+        <legend>_{DEFAULT}_</legend>
+        <a href='$SELF_URL?index=$index&reset_schema=1' type='button' class='btn btn-warning'>_{RESET_SCHEMA}_</a>
+      </div>
 
       <div class='form-group'>
         <legend>_{COLOR}_</legend>
@@ -224,6 +228,15 @@
           </a>
           <p class="text-center no-margin" style="font-size: 12px;">Yellow Light</p></li>
       </ul>
+
+      <div class='form-group'>
+        <div class="checkbox col-md-6">
+          <label>
+            <input type="checkbox" data-return="1" name="RIGHT_MENU_HIDDEN" value="1" data-checked="%RIGHT_MENU_HIDDEN%">
+            <strong>_{ALWAYS_HIDE_RIGHT_MENU}_</strong>
+          </label>
+        </div>
+      </div>
     </div>
 
     <div class='box-footer'>

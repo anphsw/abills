@@ -15,6 +15,7 @@ our(
   %conf,
   %permissions,
   %lang,
+  @MONTHES,
   $html,
   @bool_vals,
   @state_colors
@@ -94,6 +95,8 @@ sub form_fees {
       #take now
       else {
         delete $FORM{DATE};
+        $FORM{DESCRIBE} = dynamic_types({FEES_METHODS_STR => $FORM{DESCRIBE}});
+        $FORM{DSC} = dynamic_types({FEES_METHODS_STR => $FORM{DSC}});
         $Fees->take($user, $FORM{SUM}, \%FORM);
         if (! _error_show($Fees)) {
           $html->message( 'info', $lang{FEES}, "$lang{TAKE} $lang{SUM}: $Fees->{SUM}" );
@@ -104,6 +107,16 @@ sub form_fees {
               return 0;
             }
           }
+        }
+      }
+      if ($FORM{CREATE_FEES_INVOICE} && in_array('Docs', \@MODULES)) {
+        require Docs;
+        Docs->import();
+        my $Docs = Docs->new($db, $admin, \%conf);
+        $FORM{FEES_ID} = $Fees->{INSERT_ID};
+        $Docs->invoice_add({%FORM, ORDER => $FORM{DESCRIBE}});
+        if (! _error_show($Docs)) {
+          $html->message('info', $lang{CREATED} . $lang{INVOICE} . $lang{FEES}, "$lang{CREATED}: $Docs->{DATE}  $lang{INVOICE}: $Docs->{INVOICE_NUM}");
         }
       }
     }
@@ -178,12 +191,15 @@ sub form_fees {
               NO_ID    => 1
             }) }, { OUTPUT2RETURN => 1 });
       }
+      if (in_array('Docs', \@MODULES) ) {
+        $Fees->{DOCS_FEES_ELEMENT} = $html->tpl_show(_include('docs_create_fees', 'Docs'), {},{ OUTPUT2RETURN => 1 });
+      }
 
       $Fees->{SEL_METHOD} = $html->form_select(
         'METHOD',
         {
           SELECTED      => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : 0,
-          SEL_HASH      => $FEES_METHODS,
+          SEL_HASH      => dynamic_types({FEES_METHODS_HASH => $FEES_METHODS}),
           NO_ID         => 1,
           SORT_KEY_NUM  => 1,
           MAIN_MENU     => get_function_index('form_fees_types'),
@@ -383,5 +399,48 @@ sub form_fees_list {
   return 1;
 }
 
+#**********************************************************
+=head2 dynamic_types($attr) - change {TEXT} to current value
+
+  Arguments:
+    $attr:
+      FEES_METHODS_HASH - hash of fees types
+      FEES_METHODS_STR - string(one fees type)
+    
+  Returns:
+    return $attr or true
+
+  Example:
+    dynamic_types({FEES_METHODS_STR => $fees_info->{DEFAULT_DESCRIBE}})
+=cut
+#**********************************************************
+sub dynamic_types {
+  my ($attr) = @_;
+
+  my ($y, $m, $d) = split(/-/, $DATE, 3);
+  my $m_lit = $MONTHES[ int($m) - 1 ];
+  my $y_lit = "$y $lang{YEAR_SHORT}";
+
+  my $my_dynamic_types = {
+    MONTH => $m_lit,
+    DAY   => $d,
+    YEAR  => $y_lit,
+    ADMIN => $admin->{ADMIN}
+  };
+
+  if ($attr->{FEES_METHODS_HASH}) {
+    foreach my $item (values %{$attr->{FEES_METHODS_HASH}}) {
+      $item =~ s/\{(\w+)\}/($my_dynamic_types->{$1} || $1)/ge;
+    }
+    return $attr->{FEES_METHODS_HASH};
+  }
+
+  if ($attr->{FEES_METHODS_STR}) {
+    $attr->{FEES_METHODS_STR} =~ s/\{(\w+)\}/($my_dynamic_types->{$1} || $1)/ge;
+  return $attr->{FEES_METHODS_STR};
+  }
+
+  return 1;
+}
 
 1;

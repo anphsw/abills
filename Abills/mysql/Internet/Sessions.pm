@@ -307,9 +307,9 @@ sub online {
   }
   elsif ($attr->{STATUS_COUNT}) {
     $self->query("SELECT SUM(IF ((c.status=1 OR c.status>=3) AND c.status<11, 1, 0)) AS online_count,
-      SUM(IF (status=2, 1, 0)) AS zapped_count,
-      SUM(IF (status=6, 1, 0)) AS reconnect_count,
-      SUM(IF (status=9, 1, 0)) AS recover_count
+      SUM(IF (c.status=2, 1, 0)) AS zapped_count,
+      SUM(IF (c.status=6, 1, 0)) AS reconnect_count,
+      SUM(IF (c.status=9, 1, 0)) AS recover_count
     FROM internet_online c $WHERE;", undef, { INFO => 1  });
 
     return $self;
@@ -423,7 +423,8 @@ sub online {
       ['UID',               'INT', 'c.uid'                                           ],
       ['LAST_ALIVE',        'INT', 'UNIX_TIMESTAMP() - c.lupdated', 'IF(UNIX_TIMESTAMP() > c.lupdated, UNIX_TIMESTAMP() - c.lupdated, 0) AS last_alive', 1 ],
       ['ONLINE_BASE',       '',    '', 'c.cid, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ],
-      ['SHOW_TP_ID',        'INT', 'tp.tp_id', 'tp.tp_id AS real_tp_id' ]
+      ['SHOW_TP_ID',        'INT', 'tp.tp_id', 'tp.tp_id AS real_tp_id' ],
+      ['TP_NUM',            'INT', 'tp.id   AS tp_num',                             1],
 
     ],
     { WHERE             => 1,
@@ -1851,17 +1852,21 @@ sub log_rotate{
 #**********************************************************
 sub users_online_count_by_builds {
   my ($self, $attr) = @_;
-  
+  my $WHERE = '';
   #  my $search_columns = [
   #    [ 'BUILD_ID', 'INT', 'b.id', 1 ],
   #    [ 'USERS_COUNT', 'INT', 'COUNT(pi.uid)']
   #  ];
-  
+  if ($attr->{GUEST}) {
+    $WHERE = qq{WHERE pi.uid IN ( SELECT uid FROM internet_online WHERE guest>0)};
+  }
+  else {
+    $WHERE = qq{WHERE pi.uid IN ( SELECT uid FROM internet_online WHERE guest=0)};
+  }
   $self->query("SELECT b.id, COUNT(pi.uid) as online_count
     FROM builds b
       LEFT JOIN users_pi pi ON (b.id = pi.location_id)
-    WHERE
-      pi.uid IN ( SELECT uid FROM internet_online )
+    $WHERE
     GROUP BY b.id",
     undef,
     {

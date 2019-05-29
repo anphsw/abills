@@ -33,6 +33,7 @@ sub dv_periodic_logrotate {
   my $debug = $attr->{DEBUG} || 0;
 
   return '' if ($attr->{SKIP_ROTATE});
+  return '' if ($attr->{LOGIN});
 
   # Clean s_detail table
   my (undef, undef, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
@@ -623,6 +624,7 @@ sub dv_monthly_fees {
   my $list = $Tariffs->list({
     %LIST_PARAMS,
     MODULE         => 'Dv',
+    EXT_BILL_ACCOUNT=>'_SHOW',
     DOMAIN_ID      => '_SHOW',
     FIXED_FEES_DAY => '_SHOW',
     COLS_NAME      => 1,
@@ -681,14 +683,20 @@ sub dv_monthly_fees {
           $used_traffic{ $l->{uid} } = $l->{sum};
         }
       }
+
       if ($TP_INFO->{ABON_DISTRIBUTION}) {
         $month_fee = $month_fee / $days_in_month;
+      }
+
+      if($TP_INFO->{EXT_BILL_ACCOUNT}) {
+        $USERS_LIST_PARAMS{EXT_BILL_ID} = '_SHOW';
+        $USERS_LIST_PARAMS{EXT_DEPOSIT} = '_SHOW';
       }
 
       $Dv->{debug} = 1 if ($debug > 5);
       my $ulist = $Dv->list(
         {
-          ACTIVATE     => "$activate_date",
+          ACTIVATE     => $activate_date,
           EXPIRE       => "0000-00-00,>$ADMIN_REPORT{DATE}",
           DV_EXPIRE    => "0000-00-00,>$ADMIN_REPORT{DATE}",
           DV_STATUS    => "0;5",
@@ -713,12 +721,12 @@ sub dv_monthly_fees {
 
       foreach my $u (@$ulist) {
         my $EXT_INFO       = '';
-        my $ext_deposit_op = $TP_INFO->{EXT_BILL_ACCOUNT};
+        my $ext_deposit_op = $TP_INFO->{EXT_BILL_ACCOUNT} || 0;
         my %user           = (
           LOGIN        => $u->{login},
           UID          => $u->{uid},
-          BILL_ID      => ($ext_deposit_op > 0) ? $u->{ext_billd_id} : $u->{bill_id},
-          MAIN_BILL_ID => ($ext_deposit_op > 0) ? $u->{bill_id} : 0,
+          BILL_ID      => ($ext_deposit_op) ? $u->{ext_bill_id} : $u->{bill_id},
+          MAIN_BILL_ID => ($ext_deposit_op) ? $u->{bill_id} : 0,
           REDUCTION    => $u->{reduction},
           ACTIVATE     => $u->{activate},
           DEPOSIT      => $u->{deposit},
@@ -877,7 +885,12 @@ sub dv_monthly_fees {
               if (($user{ACTIVATE} eq '0000-00-00' and $d == $START_PERIOD_DAY)
                 || $TP_INFO->{ABON_DISTRIBUTION}
                 || ($user{ACTIVATE} ne '0000-00-00' && $date_unixtime - $active_unixtime < 30 * 86400)) {
-                goto SMALL_DEPOSIT_LABEL;
+                $debug_output .= small_deposit_action({
+                  TP_INFO   => $TP_INFO,
+                  USER_INFO => \%user,
+                  DBEUG     => $debug
+                });
+                next;
               }
             }
             elsif ($sum > $user{EXT_DEPOSIT} && $user{EXT_DEPOSIT} > 0) {
@@ -966,38 +979,12 @@ sub dv_monthly_fees {
                 && (($TP_INFO->{FIXED_FEES_DAY} && ($d == $activate_d || ($d == $START_PERIOD_DAY && $activate_d > 28)))
                 || ($date_unixtime - $active_unixtime > 30 * 86400))
               ) {
-                SMALL_DEPOSIT_LABEL:
+                $debug_output .= small_deposit_action({
+                  TP_INFO   => $TP_INFO,
+                  USER_INFO => \%user,
+                  DBEUG     => $debug
+                });
 
-                if ($TP_INFO->{SMALL_DEPOSIT_ACTION} == -1) {
-                  if ($debug < 7) {
-                    if ($user{DV_STATUS} != 5) {
-                      $Dv->change(
-                        {
-                          UID    => $user{UID},
-                          STATUS => 5
-                        }
-                      );
-                    }
-                  }
-                }
-                else {
-                  if ($debug < 7) {
-                    $Dv->change(
-                      {
-                        UID   => $user{UID},
-                        TP_ID => $TP_INFO->{SMALL_DEPOSIT_ACTION}
-                      }
-                    );
-                  }
-                }
-
-                #Change activation to cure date
-                # !!! We need change activation only if payments add
-                #                 $users->change($user{UID}, {
-                #                                UID      => $user{UID},
-                #                                ACTIVATE => $ADMIN_REPORT{DATE} });
-
-                $debug_output .= " SMALL_DEPOSIT_BLOCK." if ($debug > 3);
                 next;
               }
               #Static day
@@ -1271,6 +1258,53 @@ sub dv_monthly_fees {
   }
 
   $DEBUG .= $debug_output;
+  return $debug_output;
+}
+
+#**********************************************************
+=head2 small_deposit_action($attr)
+
+  Arguments:
+    $attr
+      TP_INFO
+      USER_INFO
+      DEBUG
+
+=cut
+#**********************************************************
+sub small_deposit_action {
+  my ($attr) = @_;
+
+  my $TP_INFO      = $attr->{TP_INFO};
+  my $user_info    = $attr->{USER_INFO};
+  my $debug_output = q{};
+  my $debug        = $attr->{DEBUG} || 0;
+
+  if ($TP_INFO->{SMALL_DEPOSIT_ACTION} == -1) {
+    if ($debug < 7) {
+      if ($user_info->{DV_STATUS} != 5) {
+        $Dv->change(
+          {
+            UID    => $user_info->{UID},
+            STATUS => 5
+          }
+        );
+      }
+    }
+  }
+  else {
+    if ($debug < 7) {
+      $Dv->change(
+        {
+          UID   => $user_info->{UID},
+          TP_ID => $TP_INFO->{SMALL_DEPOSIT_ACTION}
+        }
+      );
+    }
+  }
+
+  $debug_output .= " SMALL_DEPOSIT_BLOCK." if ($debug > 3);
+
   return $debug_output;
 }
 

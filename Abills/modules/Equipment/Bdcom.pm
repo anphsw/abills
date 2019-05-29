@@ -13,6 +13,12 @@ our %lang;
 #**********************************************************
 =head2 _bdcom_get_ports($attr) - Get OLT slots and connect ONU
 
+  Arguments:
+    $attr
+
+  Results:
+    $ports_info_hash_ref
+
 =cut
 #**********************************************************
 sub _bdcom_get_ports {
@@ -43,14 +49,18 @@ sub _bdcom_get_ports {
 }
 
 #**********************************************************
-=head2 _bdcom_onu_list($attr)
+=head2 _bdcom_onu_list($port_list, $attr)
 
   Arguments:
+    $port_list  - OLT ports list
     $attr
       COLS       - ARRAY refs
       INFO_OIDS  - Hash refs
       NAS_ID
       TIMEOUT
+
+  Returns:
+    $onu_list [arra_of_hash]
 
 =cut
 #**********************************************************
@@ -59,7 +69,7 @@ sub _bdcom_onu_list {
 
   #my $cols = ['PORT_ID', 'ONU_ID', 'ONU_SNMP_ID', 'PON_TYPE', 'ONU_DHCP_PORT'];
   my $debug = $attr->{DEBUG} || 0;
-  my @all_rows = ();
+  my @onu_list = ();
   my %pon_types = ();
   my %port_ids = ();
 
@@ -224,12 +234,12 @@ sub _bdcom_onu_list {
           #
           #          $onu_info{$oid_name} = $oid_value;
         }
-        push @all_rows, { %onu_info };
+        push @onu_list, { %onu_info };
       }
     }
   }
 
-  return \@all_rows;
+  return \@onu_list;
 }
 
 #**********************************************************
@@ -524,9 +534,10 @@ sub _bdcom_onu_status {
   #  );
   my %status = (
     0 => 'Authenticated:text-green',
-    1 => 'Registered:text-green', #work
-    2 => 'Deregistered:text-red', #not work
-    3 => 'Auto_config:text-green' #not work
+    1 => 'Registered:text-green',  #work
+    2 => 'Deregistered:text-red',  #not work
+    3 => 'Auto_config:text-green', #not work
+#    4 => 'Unknown status'
   );
   return \%status;
 }
@@ -629,19 +640,21 @@ sub _bdcom_convert_distance {
 =head2 _bdcom_get_fdb($attr);
 
   Arguments:
-    SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
-    NAS_INFO       => $attr->{NAS_INFO},
-    SNMP_TPL       => $attr->{SNMP_TPL},
-    FILTER         => $attr->{FILTER} || ''
+    $attr
+      SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
+      NAS_INFO       => $attr->{NAS_INFO},
+      SNMP_TPL       => $attr->{SNMP_TPL},
+      FILTER         => $attr->{FILTER} || ''
 
   Results:
-
+    $fdb_list (hash)
+       { mac } -> { params }
 
 =cut
 #**********************************************************
 sub _bdcom_get_fdb {
   my ($attr) = @_;
-  my %fdb_hash = ();
+  my %fdb_list = ();
 
   my $debug = $attr->{DEBUG} || 0;
 
@@ -735,14 +748,14 @@ sub _bdcom_get_fdb {
       $mac_dec //= $count;
 
       # 1 mac
-      $fdb_hash{$mac_dec}{1} = $mac;
+      $fdb_list{$mac_dec}{1} = $mac;
       # 2 port
-      $fdb_hash{$mac_dec}{2} = $port;
+      $fdb_list{$mac_dec}{2} = $port;
       # 3 status
       # 4 vlan
-      $fdb_hash{$mac_dec}{4} = $vlan;
+      $fdb_list{$mac_dec}{4} = $vlan;
       # 5 port name
-      $fdb_hash{$mac_dec}{5} = $port_name;
+      $fdb_list{$mac_dec}{5} = $port_name;
       $count++;
     }
 
@@ -751,7 +764,7 @@ sub _bdcom_get_fdb {
     #    }
   }
 
-  return %fdb_hash;
+  return %fdb_list;
 }
 
 1

@@ -430,7 +430,7 @@ $inputs
     $attr           - Extra attributes
       SILENT       - silent mode without output (Default: enable)
       SKIP_MODULES - Skip modules
-      timeout      - Max timeout for function execute
+      timeout      - Max timeout for function execute (Default: 4 sec)
       DEBUG        - Debug mode
       USER_INFO    - User information hash
       HTML         - $html object
@@ -561,6 +561,10 @@ sub cross_modules_call {
 sub get_function_index {
   my ($function_name, $attr) = @_;
   my $function_index = 0;
+
+  if(! $function_name) {
+    return 0;
+  }
 
   state $index_cache = {};
   if ($function_name && $index_cache->{$function_name}){
@@ -836,13 +840,10 @@ sub service_get_month_fee {
     return \%total_sum;
   }
 
-#  if($tp->{MONTH_FEE}) {
-#    print "1111111111// Ctive price// $tp->{ACTIV_PRICE} !! $service_activate  // $tp->{MONTH_FEE} ";
-#  }
-  #Get back month fee
   if (($tp->{MONTH_FEE} && $tp->{MONTH_FEE} > 0) ||
       ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} > 0)
       ) {
+    #Get back month fee
     if ( $FORM{RECALCULATE} || $attr->{RECALCULATE}) {
       my $rest_days     = 0;
       my $rest_day_sum2 = 0;
@@ -895,6 +896,10 @@ sub service_get_month_fee {
         }
       }
 
+      if ($Users->{REDUCTION} && $Users->{REDUCTION} > 0 && $tp->{REDUCTION_FEE}) {
+        $sum = $sum * (100 - $Users->{REDUCTION}) / 100;
+      }
+
       #Compensation
       if (defined($sum) && $sum > 0) {
         $Payments->add($Users, {
@@ -926,7 +931,7 @@ sub service_get_month_fee {
     my %FEES_DSC = (
       SERVICE_NAME    => $service_name,
       MODULE          => $service_name.':',
-      TP_ID           => $tp->{ID},
+      TP_ID           => $tp->{TP_ID},
       TP_NAME         => $tp->{NAME} || '',
       FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
       FEES_METHOD     => ($tp->{FEES_METHOD} && $FEES_METHODS{$tp->{FEES_METHOD}}) ? $FEES_METHODS{$tp->{FEES_METHOD}} : 0,
@@ -943,7 +948,10 @@ sub service_get_month_fee {
       return \%total_sum if (! $attr->{REGISTRATION} );
     }
 
-    if ($tp->{PERIOD_ALIGNMENT} && !$tp->{ABON_DISTRIBUTION}) {
+    if($attr->{FULL_MONTH_FEE}) {
+
+    }
+    elsif ($tp->{PERIOD_ALIGNMENT} && !$tp->{ABON_DISTRIBUTION}) {
       $FEES_DSC{EXTRA} = " $lang{MONTH_ALIGNMENT},";
 
       if ($account_activate ne '0000-00-00') {
@@ -1036,11 +1044,20 @@ sub service_get_month_fee {
           $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)";
 
           if(in_array('Internet', \@MODULES)) {
-            $Service->change({
-              ACTIVATE => $DATE,
-              UID      => $uid,
-              ID       => $Service->{ID}
-            });
+            my $change_function = '';
+            if($Service->can('change')) {
+              $change_function = 'change';
+            }
+            elsif($Service->can('user_change')) {
+              $change_function = 'user_change';
+            }
+            if($change_function) {
+              $Service->$change_function({
+                ACTIVATE => $DATE,
+                UID      => $uid,
+                ID       => $Service->{ID}
+              });
+            }
           }
           else {
             $Users->change(
@@ -1152,7 +1169,7 @@ sub service_get_month_fee {
       }
       else {
         $days_in_month = days_in_month({ DATE => "$y-$m" });
-        my $start_date = ($tp->{PERIOD_ALIGNMENT}) ? (($account_activate ne '0000-00-00') ? $account_activate : $DATE) : "$y-$m-01";
+        my $start_date = ($tp->{5180447114}) ? (($account_activate ne '0000-00-00') ? $account_activate : $DATE) : "$y-$m-01";
         $FEES_DSC{PERIOD} = ($tp->{ABON_DISTRIBUTION}) ? '' : "($start_date-$y-$m-$days_in_month)";
       }
 
@@ -1283,11 +1300,11 @@ sub _external {
   my $error = $!;
   my ($num, $message) = split(/:/, $result, 2);
   if ($num && $num =~ /^\d+$/ && $num == 1) {
-    $html->message('info', "_EXTERNAL $lang{ADDED}", "$message") if (!$attr->{QUITE});;
+    $html->message('info', "_EXTERNAL $lang{ADDED}", $message) if (!$attr->{QUITE});;
     return 1;
   }
   else {
-    $html->message('err', "_EXTERNAL $lang{ERROR}", "[". ($num || '') ."] ". ($message || q{}) ." $error"); # if (!$attr->{QUITE});;
+    $html->message('err', "_EXTERNAL $lang{ERROR}", "[". ($num || '') ."] ". ($message || q{}) ." ERROR: ". ($error || q{})); # if (!$attr->{QUITE});;
     return 0;
   }
 }
@@ -1534,13 +1551,15 @@ sub get_oui_info {
     }
   close($fh);
 
-  my @content_arr = split(/\n\n/, $content);
+  my @content_arr = split(/\n\r?\n\r?/, $content);
   my %vendors_hash = ();
   foreach my $section (@content_arr) {
     my @rows = split(/\n/, $section);
     if ($#rows > 0){
       $rows[1] =~ /([A-F0-9]{6})\s+\(base 16\)\s+(.+)/;
-      $vendors_hash{$1} = $2;
+      my $db_mac_prefix = $1;
+      my $vendor_info = $2;
+      $vendors_hash{$db_mac_prefix} = $vendor_info;
     }
   }
 
@@ -2335,7 +2354,7 @@ sub system_info {
       v    => $version,
       info => join('_', @info_data)
     },
-    TIMEOUT => 2
+    TIMEOUT => 1
   });
 
   return $version;
@@ -2527,6 +2546,7 @@ sub recomended_pay {
 =head1 format_sum($sum, $attr) - Format sum
 
   Arguments:
+    $sum
     $attr
       DEPOSIT_FORMAT - use $conf{DEPOSIT_FORMAT}
       ...
@@ -2545,11 +2565,18 @@ sub format_sum {
     $result = sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $sum);
   }
   else {
+    my $negative = '';
+    if ($sum < 0) {
+      $sum = 0 - $sum;
+      $negative = '-';
+    }
+
     my $integer  = int($sum);
     my $fraction = int(($sum*100) - ($integer*100));
+    $fraction = sprintf('%02d', $fraction);
     my $rev = scalar reverse ($integer);
     $result = scalar reverse (join (' ', $rev =~ m/\d{1,3}/g));
-    $result .= ".$fraction";
+    $result = $negative . $result . "." . $fraction;
   }
   
   return $result;

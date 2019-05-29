@@ -26,11 +26,12 @@ my $PAYSYSTEM_ID         = 72;
 
 my $DEBUG = 1;
 my %PAYSYSTEM_CONF = (
-  PAYSYS_IPAY_LANGUAGE => '',
-  PAYSYS_IPAY_FAST_PAY => '',
-  PAYSYS_IPAY_REQUEST_URL => '',
-  PAYSYS_IPAY_SIGN_KEY => '',
+  PAYSYS_IPAY_LANGUAGE     => '',
+  PAYSYS_IPAY_FAST_PAY     => '',
+  PAYSYS_IPAY_REQUEST_URL  => '',
+  PAYSYS_IPAY_SIGN_KEY     => '',
   PAYSYS_IPAY_MERCHANT_KEY => '',
+  PAYSYS_IPAY_ACCOUNT_KEY  => '',
 );
 
 my %MERCHANT_CONF = (
@@ -39,7 +40,7 @@ my %MERCHANT_CONF = (
 );
 
 my ($json, $html, $user, $SELF_URL, $DATETIME, $OUTPUT2RETURN);
-our $users;
+our ($users, @payments);
 
 #**********************************************************
 =head2 new() -
@@ -451,27 +452,27 @@ sub create_request_params_in_json {
 
   if ($action eq 'Check') {
     $REQUEST_HASH{request}{body}{msisdn}  = $user->{PHONE};                           # user phone
-    $REQUEST_HASH{request}{body}{user_id} = $user->{UID};                             # user id in abills
+    $REQUEST_HASH{request}{body}{user_id} = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} || $user->{UID}; # user id in abills
   }
   elsif ($action eq 'RegisterByURL') {
     $REQUEST_HASH{request}{body}{msisdn}      = $user->{PHONE};                                   # user phone
-    $REQUEST_HASH{request}{body}{user_id}     = $user->{UID};                                     # user id in abills
+    $REQUEST_HASH{request}{body}{user_id}     = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} ||$user->{UID};                                     # user id in abills
     $REQUEST_HASH{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ru';    # lang: ua/ru/en
     $REQUEST_HASH{request}{body}{success_url} = "$SELF_URL?index=$self->{index}";                 # url after success registration
     $REQUEST_HASH{request}{body}{error_url}   = "$SELF_URL?index=$self->{index}";                 # url after fail registration
   }
   elsif ($action eq 'List') {
     $REQUEST_HASH{request}{body}{msisdn}  = $user->{PHONE};                                       # user phone
-    $REQUEST_HASH{request}{body}{user_id} = $user->{UID};                                         # user id in abills
+    $REQUEST_HASH{request}{body}{user_id} = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} || $user->{UID}; # user id in abills
   }
   elsif ($action eq 'DeleteCard') {
     $REQUEST_HASH{request}{body}{msisdn}     = $user->{PHONE};                                    # user phone
-    $REQUEST_HASH{request}{body}{user_id}    = $user->{UID};                                      # user id in abills
+    $REQUEST_HASH{request}{body}{user_id}    = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} || $user->{UID}; # user id in abills
     $REQUEST_HASH{request}{body}{card_alias} = $attr->{CARD_ALIAS};
   }
   elsif ($action eq 'PaymentCreate') {
     $REQUEST_HASH{request}{body}{msisdn}     = $user->{PHONE};                                    # user phone
-    $REQUEST_HASH{request}{body}{user_id}    = $user->{UID};                                      # user id in abills
+    $REQUEST_HASH{request}{body}{user_id}    = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} || $user->{UID};  # user id in abills
     $REQUEST_HASH{request}{body}{card_alias} = $attr->{CARD_ALIAS};
     $REQUEST_HASH{request}{body}{invoice}    = $attr->{INVOICE} * 100;
 
@@ -484,18 +485,18 @@ sub create_request_params_in_json {
       $REQUEST_HASH{request}{body}{pmt_desc}          = "Оплата услуг согласно счету " . ($user->{_PIN_ABS} || $user->{BILL_ID} || '');
     }
     $REQUEST_HASH{request}{body}{pmt_info}{invoice} = $attr->{INVOICE} * 100;
-    $REQUEST_HASH{request}{body}{pmt_info}{acc}     = $user->{UID};
+    $REQUEST_HASH{request}{body}{pmt_info}{acc}     = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} || $user->{UID};
   }
   elsif ($action eq 'AddcardByURL') {
     $REQUEST_HASH{request}{body}{msisdn}      = $user->{PHONE};                                   # user phone
-    $REQUEST_HASH{request}{body}{user_id}     = $user->{UID};                                     # user id in abills
+    $REQUEST_HASH{request}{body}{user_id}     = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} || $user->{UID};                                     # user id in abills
     $REQUEST_HASH{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ru';    # lang: ua/ru/en
     $REQUEST_HASH{request}{body}{success_url} = "$SELF_URL?index=$self->{index}";                 # url after success registration
     $REQUEST_HASH{request}{body}{error_url}   = "$SELF_URL?index=$self->{index}";                 # url after fail registration
   }
   elsif ($action eq 'RegisterPurchaseByURL') {
     $REQUEST_HASH{request}{body}{msisdn}      = $user->{PHONE};                                                                                                                              # user phone
-    $REQUEST_HASH{request}{body}{user_id}     = $user->{UID};                                                                                                                                # user id in abills
+    $REQUEST_HASH{request}{body}{user_id}     = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} || $user->{UID}; # user id in abills
     $REQUEST_HASH{request}{body}{lang}        = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ru';                                                                                               # lang: ua/ru/en
     $REQUEST_HASH{request}{body}{success_url} = "$SELF_URL?qindex=$self->{index}&ipay_purchase=1&header=1&invoice=" . ($attr->{INVOICE} * 100) . "&pmt_id=$attr->{ACC}&UID=$user->{UID}";    # url after success registration
     $REQUEST_HASH{request}{body}{error_url}   = "$SELF_URL?qindex=$self->{index}&ipay_purchase=2&header=1&invoice=" . ($attr->{INVOICE} * 100) . "&pmt_id=$attr->{ACC}&UID=$user->{UID}";;                                                                           # url after fail registration
@@ -509,18 +510,18 @@ sub create_request_params_in_json {
       $REQUEST_HASH{request}{body}{pmt_desc}          = "Оплата услуг согласно счету " . ($user->{_PIN_ABS} || $user->{BILL_ID} || '');
     }
     $REQUEST_HASH{request}{body}{pmt_info}{invoice} = $attr->{INVOICE} * 100;
-    $REQUEST_HASH{request}{body}{pmt_info}{acc}     = $user->{UID};
+    $REQUEST_HASH{request}{body}{pmt_info}{acc}     = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} || $user->{UID};
   }
   elsif ($action eq 'InviteByURL') {
     $REQUEST_HASH{request}{body}{msisdn}      = $user->{PHONE};                                                                                                                              # user phone
-    $REQUEST_HASH{request}{body}{user_id}     = $user->{UID};                                                                                                                                # user id in abills
+    $REQUEST_HASH{request}{body}{user_id}     = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} || $user->{UID}; # user id in abills
     $REQUEST_HASH{request}{body}{lang}        = 'ua';                                                                                                                                        # lang: ua/ru/en
     $REQUEST_HASH{request}{body}{success_url} = "$SELF_URL?index=$self->{index}";                                                                                                            # url after success registration
     $REQUEST_HASH{request}{body}{error_url}   = "$SELF_URL?index=$self->{index}";                                                                                                            # url after fail registration
   }
   elsif ($action eq 'TestInvite') {
     $REQUEST_HASH{request}{body}{msisdn}  = $user->{PHONE};                                                                                                                                  # user phone
-    $REQUEST_HASH{request}{body}{user_id} = $user->{UID};                                                                                                                                    # user id in abills
+    $REQUEST_HASH{request}{body}{user_id} = $user->{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID'} || $user->{UID}; # user id in abills
     $REQUEST_HASH{request}{body}{lang}    = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ru';
   }
 
@@ -828,6 +829,9 @@ sub user_portal_special {
     #        }
     #    };
     my $card_checked = 0;
+    if ($RESULT_HASH eq '') {
+      return $html->message("err", "$self->{lang}->{ERROR}", "$self->{lang}->{ERR_WRONG_DATA}.\n $self->{lang}->{TRY_AGAIN}", { OUTPUT2RETURN => 1 });
+    }
     foreach my $card (keys %{$RESULT_HASH}) {
 
       my $button_delete_card = $html->button("$self->{lang}->{DEL}", "index=$self->{index}&DeleteCard=$RESULT_HASH->{$card}->{card_alias}", { ICON => 'fa fa-trash fa-2x' });
@@ -905,7 +909,13 @@ sub user_portal_special {
       { OUTPUT2RETURN => 1 }
     );
   }
-  $OUTPUT2RETURN = "<label class='col-md-12 bg-success text-center'>Оплата в один клик</label>" . ($OUTPUT2RETURN || '');
+  my $one_click_line = $html->tpl_show(
+    main::_include('paysys_ipay_oneclick', 'Paysys'),
+    {},
+    { OUTPUT2RETURN => 1 }
+  );
+
+  $OUTPUT2RETURN = $one_click_line . ($OUTPUT2RETURN || '');
   return $OUTPUT2RETURN;
 
 }
@@ -924,7 +934,6 @@ sub proccess {
   my $self = shift;
   my ($FORM) = @_;
 
-  print "Content-Type: text/html\n\n";
   my $buffer = $FORM->{__BUFFER};
   my ($xml) = $buffer =~ /xml\=(<.+>)/gms;
   main::mk_log($xml, {PAYSYS_ID => 'Ipay', REQUEST => 'Request'});
@@ -970,6 +979,43 @@ sub proccess {
   my $xs = XML::Simple->new(ForceArray => 1, KeepRoot => 1);
   my $ref = $xs->XMLin($xml);
 
+  if($ref->{check}){
+#    xml=<?xml version="1.0" encoding="utf-8"?><check>
+#      <mch_id>3152312312</mch_id>
+#<srv_id>0</srv_id>
+#      <pay_account>1</pay_account>
+#<salt>21321412315123vqweweb</salt>
+#      <sign>3124iuvy1oivio13</sign>
+#</check>
+    print "Content-Type: text/xml\n\n";
+
+    my ($check_status, $user_object) = main::paysys_check_user({
+      CHECK_FIELD => $self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID',
+      USER_ID     => $ref->{check}[0]{pay_account}[0],
+    });
+
+    if($check_status == 0){
+      print qq{<response>
+<check_code>0</check_code>
+<desc>ok</desc>
+<datetime>$main::DATE $main::TIME</datetime>
+<info>{"name":"$user_object->{fio}","balance":"$user_object->{deposit}"}</info>
+</response>};
+    }
+    else{
+      print qq{<response>
+<check_code>1</check_code>
+<desc>Inside Error: $check_status</desc>
+<datetime>$main::DATE $main::TIME</datetime>
+<info></info>
+</response>};
+    }
+
+    return 1;
+  }
+
+  print "Content-Type: text/html\n\n";
+
   my $payment = $ref->{payment};
   my ($payment_id) = keys %$payment;
 
@@ -989,7 +1035,7 @@ sub proccess {
   my $account = $hash_transaction_info->{acc};
 
   my %DATA;
-  $DATA{UID} = $account;
+  $DATA{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY}} = $account;
   $DATA{amount} = $payment_amount;
   $DATA{payment_status} = $payment_status;
   $DATA{transaction_id} = $transaction_id;
@@ -998,7 +1044,7 @@ sub proccess {
     my ($status_code) = main::paysys_pay( {
       PAYMENT_SYSTEM    => $PAYSYSTEM_SHORT_NAME,
       PAYMENT_SYSTEM_ID => $PAYSYSTEM_ID,
-      CHECK_FIELD       => 'UID',
+      CHECK_FIELD       => $self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID',
       USER_ID           => $account,
       SUM               => $payment_amount,
       EXT_ID            => $payment_id,
@@ -1016,6 +1062,145 @@ sub proccess {
 
   return 1;
 
+}
+
+#**********************************************************
+=head2 periodic()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub periodic {
+#  my $self   = shift;
+#  my ($attr) = @_;
+#  return 1;
+#  use Paysys;
+#  my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
+#
+#  main::load_pmodule('Net::FTPSSL');
+#  #  main::load_pmodule('Net::FTP');
+#
+#  my $host  = "89.21.77.1";#$self->{conf}{PAYSYS_EASYPAY_HOST};
+#  my $login = "ipay";#$self->{conf}{PAYSYS_EASYPAY_LOGIN};
+#  my $pass  = "ipay8480";#$self->{conf}{PAYSYS_EASYPAY_PASSWORD};
+#  my $DATE  = $attr->{DATE};
+#
+#  use Net::SFTP;
+#  my %configuration = (
+#    ssh_args  => [ port => 29280 ] , user => $login, password => $pass, debug => 0
+#  );
+#  my $ftp = Net::SFTP->new($host, %configuration);
+#  #  my $ftp = Net::FTPSSL->new("$host", useSSL => 0, Timeout => 10, Debug => 10, Port => 29280, SSL_Client_Certificate => {
+#  #      SSL_version   => 'TLSv1',
+#  #    },       )
+#  #    or die "Cannot connect to '$host': $@";
+#  #  my $ftp = Net::FTP->new("$host", Debug => 10, Port => 29280)
+#  #    or die "Cannot connect to $host: $@";
+#  #  $ftp->login("$login", "$pass");
+#  my @files = $ftp->ls("/reports/");
+#
+#  foreach my $file (@files){
+#    my $file_name = $file->{filename};
+#    my $data;
+#    if ($file_name =~ /$main::DATE/){
+#      $ftp->get("/reports/$file_name", "/usr/$file_name", \&_r_file);
+#      foreach my $payment (@payments) {
+#        my @data = split('\;', $payment);
+#        Abills::Base::_bp("", \@data, {TO_CONSOLE => 1});
+#        my ($date) = split(' ',$data[0]);
+#        my $id   = $data[1];
+#        my $sum  = $data[2];
+#        $Paysys->paysys_report_add({
+#          SUM        => $sum,
+#          DATE       => $date,
+#          PAYMENT_ID => $id,
+#          TABLE => 'paysys_ipay_report',
+#        });
+#      }
+#    }
+#  }
+#  #    or die "Ftp get failed '$file' ", $ftp->message;
+#  #
+#  #    my @csv_data = ();
+#  #    open( my $fh, '<', "$file" ) or print "Can't open '$file'. $!";
+#  #    while (<$fh>) {
+#  #      push (@csv_data, $_);
+#  #    }
+#  #
+#  #    foreach my $payment ( @csv_data ) {
+#  #      my ($uid, $sum, undef, undef, undef, undef, undef, undef, $date) = split(';', $payment);
+#  #      print "$uid - $sum - $date\n";
+#  #      $Paysys->{debug}=1;
+#  #      $Paysys->paysys_report_add({
+#  #        TABLE => 'paysys_easypay_report',
+#  #        UID   => $uid,
+#  #        SUM   => $sum,
+#  #        DATE  => $date,
+#  #      });
+#  #
+#  #    }
+
+
+  return 1;
+}
+
+#**********************************************************
+=head2 ()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _r_file{
+  my($sftp, $data, $offset, $size) = @_;
+  my @data = split("\n", $data);
+
+  foreach my $line (@data){
+    push (@payments, $line);
+  }
+}
+
+#**********************************************************
+=head2 reports()
+
+=cut
+#**********************************************************
+sub report {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $html = $attr->{HTML};
+  my $lang = $attr->{LANG};
+
+  use Paysys;
+  my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
+  my $ls = $Paysys->paysys_report_list({TABLE => 'paysys_ipay_report', COLS_NAME => 1});
+
+  my $table = $html->table(
+    {
+      width      => '100%',
+      caption    => "Easypay",
+      cols_align => [ 'right', 'right', 'right', 'right' ],
+      title      =>
+      [ "#", "$lang->{SUM}", "$lang->{DATE}", "ID" ],
+      DATA_TABLE => 1,
+    }
+  );
+
+  foreach my $payment (@$ls){
+    $table->addrow($payment->{id}, $payment->{sum}, $payment->{date}, $payment->{payment_id},);
+  }
+
+  print $table->show();
+
+  return 1;
 }
 
 1

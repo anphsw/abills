@@ -709,6 +709,241 @@ sub _callcenter_user_btn {
   return $html->button("$u_info->{LOGIN}", "index=15&UID=$uid", {class=>'user'}) . $html->button("$u_info->{LOGIN}", "index=15&UID=$uid", {});
 }
 
+#**********************************************************
+=head2 callcenter_report()
+
+  Arguments:
+     -
+   my @STATUSES = ('', $lang{RINGING}, $lang{IN_PROCESSING}, $lang{PROCESSED}, $lang{NOT_PROCESSED});
+  Returns:
+
+=cut
+#**********************************************************
+sub callcenter_report {
+  reports({
+    PERIOD_FORM=>1,
+    DATE_RANGE=>1,
+    NO_GROUP => 1,
+    NO_TAGS=>1,
+  });
+
+  my %info = ();
+  my %data_status_1 = q{};
+  my %data_status_2 = q{};
+  my %data_status_3 = q{};
+  my %data_status_4 = q{};
+
+#  Count calls for info-boxes
+  $Callcenter->callcenter_list_calls({DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE )});
+  $info{ALL_CALLS} = $Callcenter->{TOTAL};
+
+  $Callcenter->callcenter_list_calls({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 1 });
+  $info{RINGING} = $Callcenter->{TOTAL};
+
+  $Callcenter->callcenter_list_calls({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 2 });
+  $info{IN_PROCESSING} = $Callcenter->{TOTAL};
+
+  $Callcenter->callcenter_list_calls({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 3 });
+  $info{PROCESSED} = $Callcenter->{TOTAL};
+
+  $Callcenter->callcenter_list_calls({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 4 });
+  $info{NOT_PROCESSED} = $Callcenter->{TOTAL};
+
+#  DATA for chart
+  %data_status_1 = _callcenter_convert_data_for_chart({
+    DATE      => $FORM{FROM_DATE_TO_DATE},
+    STATUS    => 1,
+    FROM_DATE => $FORM{FROM_DATE},
+    TO_DATE => $FORM{TO_DATE},
+  });
+
+  %data_status_2 = _callcenter_convert_data_for_chart({
+    DATE      => $FORM{FROM_DATE_TO_DATE},
+    STATUS    => 2,
+    FROM_DATE => $FORM{FROM_DATE},
+    TO_DATE => $FORM{TO_DATE},
+  });
+
+  %data_status_3 = _callcenter_convert_data_for_chart({
+    DATE      => $FORM{FROM_DATE_TO_DATE},
+    STATUS    => 3,
+    FROM_DATE => $FORM{FROM_DATE},
+    TO_DATE => $FORM{TO_DATE},
+  });
+
+  %data_status_4 = _callcenter_convert_data_for_chart({
+    DATE      => $FORM{FROM_DATE_TO_DATE},
+    STATUS    => 4,
+    FROM_DATE => $FORM{FROM_DATE},
+    TO_DATE => $FORM{TO_DATE},
+  });
+
+  $info{CHART} = $html->chart({
+    TYPE       => 'line',
+    DATA_CHART => {
+      datasets => [ {
+        data            => $data_status_1{ARRAY_Y},
+        label           => $lang{RINGING},
+        borderColor     => '#e54',
+        fill            => 'false',
+        backgroundColor => '#e54',
+        lineTension     => 0
+      }, {
+        data        => $data_status_2{ARRAY_Y},
+        label       => $lang{IN_PROCESSING},
+        borderColor     => '#0a6',
+        fill            => 'false',
+        backgroundColor => '#0a6',
+        lineTension     => 0
+      }, {
+        data        => $data_status_3{ARRAY_Y},
+        label       => $lang{PROCESSED},
+        borderColor     => '#0cf',
+        fill            => 'false',
+        backgroundColor => '#0cf',
+        lineTension     => 0
+      }, {
+        data        => $data_status_4{ARRAY_Y},
+        label       => $lang{NOT_PROCESSED},
+        borderColor     => '#fa1',
+        fill            => 'false',
+        backgroundColor => '#fa1',
+        lineTension     => 0
+      }
+      ],
+      labels   => $data_status_1{ARRAY_X}
+    },
+    OPTIONS    => {
+      bezierCurve   => 'false',
+      scales => {
+        yAxes => [ {
+          type  => 'linear',
+          ticks => {
+            min  => 0,
+            stepSize => 1
+          }
+        } ]
+      }
+    }
+  });
+
+  $html->tpl_show(_include('callcenter_reports_items', 'Callcenter'), {%info});
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _callcenter_convert_data_for_chart($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _callcenter_convert_data_for_chart {
+  my ($attr) = @_;
+  my $start_date = $attr->{FROM_DATE} || $DATE;
+  my $end_date = $attr->{TO_DATE} || $DATE;
+  my $period = $attr->{DATE} || "$DATE/$DATE";
+  my $date_param = qq{};
+  my $data = qq{};
+  my @array = ();
+  my @array_x = ();
+  my @array_y = ();
+  my %result = ();
+  my ($ys,$ms,$ds) = split(/-/, $start_date);
+  my ($ye,$me,$de) = split(/-/, $end_date);
+
+  if ( ($ys == $ye) && ($ms == $me) && ($ds == $de) ) {
+    $date_param = "'%H'";
+    @array = (0...23);
+  }
+  elsif ( ($ys == $ye) && ($ms == $me) && ($ds != $de) ) {
+    $date_param = "'%d'";
+    @array = (1...Abills::Base::days_in_month( { DATE => $ms} ));
+  }
+  elsif ( ($ys == $ye) && ($ms != $me) ) {
+    $date_param = "'%m'";
+    @array = (1...12);
+  }
+  elsif ( ($ys != $ye) ) {
+    $date_param = "'%Y'";
+    @array = ($ys...$ye);
+  }
+
+  $data = $Callcenter->callcenter_data_report({
+    DATE      => $period,
+    STATUS    => $attr->{STATUS},
+    PARAM     => $date_param,
+    LIST2HASH => 'my_data,count',
+  });
+
+  foreach my $item (keys %$data) {
+    $data->{int $item} = delete $data->{$item}
+  }
+
+  foreach my $item (@array) {
+    push @array_x, $item;
+    if ($data->{$item}) {
+      push @array_y, $data->{$item};
+    }
+    else {
+      push @array_y, 0;
+    }
+  }
+
+  if ( ($ys == $ye) && ($ms != $me) ) {
+    $result{ARRAY_X} = \@main::MONTHES;
+  }
+  else {
+    $result{ARRAY_X} = \@array_x;
+  }
+
+  $result{ARRAY_Y} = \@array_y;
+
+  return %result;
+}
+
+#**********************************************************
+=head2 callcenter_sound($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub callcenter_sound {
+  my ($attr) = @_;
+
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{CALLS_SOUNDS},
+    title_plain => [ $lang{CALL_FROM}, $lang{CALL_TO}, $lang{DATE}, $lang{LISTEN} ],
+    DATA_TABLE  => 1
+  });
+
+  my $result_cmd =  Abills::Base::cmd("ls /usr/abills/Abills/templates/asterisk/");
+
+foreach my $file ( split(/\s/, $result_cmd) ) {
+  my ($date,$call_from,$call_to) = $file =~ /^(\d+)\-(\d+)\-(\d+)/;
+  $table->addrow(
+    $call_from || '',
+    $call_to || '',
+    $date || '',
+    qq{<audio controls style="width: 200px;height: 25px;"><source src="/images/asterisk/$file" type="audio/wav"</audio>},
+  );
+}
+
+  print $table->show();
+
+  return 1;
+
+}
+
 1
 
 ##############################################################

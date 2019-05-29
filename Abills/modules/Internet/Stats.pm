@@ -108,21 +108,16 @@ sub internet_stats {
       $Sessions->del($uid, $session_id, $nas_id, $session_info->{start});
 
       if (! _error_show($Sessions)) {
-        my $table = $html->table(
-          {
-            width => '100%',
-            rows  => [
-              [ $lang{LOGIN},    $session_info->{login} ],
-              [ 'SESSION_ID',    $session_id            ],
-              [ 'NAS_ID',        $nas_id                ],
-              [ $lang{START},    $session_info->{start} ],
-              [ $lang{DURATION}, $session_info->{duration} ],
-              [ $lang{SUM},      $session_info->{sum}   ]
-            ]
-          }
-        );
+        my $info = qq{
+          $lang{LOGIN}:    $session_info->{login}
+          SESSION_ID:      $session_id
+          NAS_ID:          $nas_id
+          $lang{START}:    $session_info->{start}
+          $lang{DURATION}: $session_info->{duration}
+          $lang{SUM}:      $session_info->{sum}
+        };
 
-        $html->message( 'info', $lang{DELETED}, $table->show() );
+        $html->message( 'info', $lang{DELETED}, $info);
         form_back_money( 'log', $session_info->{sum}, { UID => $uid } );    #
         return 0;
       }

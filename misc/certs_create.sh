@@ -161,7 +161,7 @@ x509_cert () {
     exit;
   fi;
  
-  if [ x${PUBLIC_KEY} != x ]; then
+  if [ "${PUBLIC_KEY}" != "" ]; then
     EASYSOFT_PUBLIC_KEY=${PUBLIC_KEY};
     cp ${PUBLIC_KEY} ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem
     chown ${APACHE_USER} ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem
@@ -331,8 +331,8 @@ ssh_key () {
     fi;
   fi;
 
-  if [ x${UPLOAD} = xy ]; then
-    if [ x${_HOSTNAME} = x ]; then
+  if [ "${UPLOAD}" = "y" ]; then
+    if [ "${_HOSTNAME}" = "x" ]; then
       echo -n "Enter host: "
       read _HOSTNAME
       SSH_PORT=`echo ${_HOSTNAME} | awk -F: '{ print $2 }'`
@@ -342,7 +342,7 @@ ssh_key () {
       fi;
     fi;
 
-    if [ x${UPLOAD_FTP} = xy ]; then
+    if [ "${UPLOAD_FTP}" = "y" ]; then
       FTP_PORT=21
       
       FTP=`which ftp`
@@ -362,7 +362,7 @@ ssh_key () {
       fi;
 
       CHECK_USER=`echo ${_HOSTNAME} | grep @`;
-      if [ x${CHECK_USER} != x ]; then
+      if [ "${CHECK_USER}" != "" ]; then
         USER=`echo ${_HOSTNAME} | awk -F@ '{ print $1 }'`
         _HOSTNAME=`echo ${_HOSTNAME} | awk -F@ '{ print $2 }'`
       fi;
@@ -370,12 +370,11 @@ ssh_key () {
       echo -n "Enter ftp password: "
       read FTP_PASSWD
 
-      if [ x${OS} = xFreeBSD ] ; then
+      if [ "${OS}" = "FreeBSD" ] ; then
          ${FTP} -u ftp://${USER}:${FTP_PASSWD}@${_HOSTNAME}:${FTP_PORT}/${id_cert_file}.pub ${CERT_PATH}${id_cert_file}.pub
       else
         (echo user ${USER} "${FTP_PASSWD}"; echo "cd /"; echo "ls"; echo "lcd ${CERT_PATH}";  echo "put ${id_cert_file}.pub"; ) | ${FTP} -ivn ${_HOSTNAME}
       fi;
-
 
       _HOSTNAME=`echo ${_HOSTNAME} | awk -F@ '{print $2}'`;
       exit;
@@ -388,7 +387,7 @@ ssh_key () {
     
     echo -n "Connect to remote host: ${_HOSTNAME} [y/n]: "
     read CONNECT
-    if [ w${CONNECT} = wy ]; then
+    if [ "${CONNECT}" = "y" ]; then
       ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -i ${CERT_PATH}${id_cert_file}  ${USER}@${_HOSTNAME}
       exit;
     fi;

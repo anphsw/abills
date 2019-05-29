@@ -3,13 +3,6 @@
     <div class='box-body'>
 
       <div class='form-group'>
-        <label class='control-label col-md-3' for='GROUP_SEL'>_{GROUP}_:</label>
-        <div class='col-md-9'>
-          %GROUP_SEL%
-        </div>
-      </div>
-
-      <div class='form-group'>
         <label class='control-label col-md-3' for='SERVICE_ID'>_{SERVICE}_:</label>
         <div class='col-md-9'>
           %SERVICE_SEL%
@@ -24,7 +17,7 @@
       </div>
 
       <div class='form-group'>
-        <label class='control-label col-md-3' for='STATUS_SEL'>_{STATUS}_:</label>
+        <label class='control-label col-md-3' for='SERVICE_STATUS'>_{STATUS}_:</label>
         <div class='col-md-9'>
           %STATUS_SEL%
         </div>

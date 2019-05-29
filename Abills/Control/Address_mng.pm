@@ -499,8 +499,6 @@ sub form_show_link{
   my ($params, $attr) = @_;
 
   return $html->button( $params, "index=$index&BUILDS=$attr->{VALUES}->{ID}" );
-
-  return $params;
 }
 
 #**********************************************************
@@ -549,6 +547,7 @@ sub form_location_media{
       {
         MESSAGE => "$lang{DEL} [$line->{id}] $line->{comments}?", class => 'del' } );
 
+    #Fixme mktpl
     print "<div class='row'>
     <div class='col-md-4'>
     ID: $line->{id} <br>
@@ -610,7 +609,7 @@ sub form_add_map{
       { class => 'glyphicon glyphicon-globe', target => '_blank' } );
   }
 
-  return $coordx;
+  #return $coordx;
 }
 
 #**********************************************************
@@ -947,13 +946,13 @@ sub form_address {
     $Address->address_info($attr->{LOCATION_ID});
     if (in_array('Maps', \@MODULES)) {
       load_module('Maps');
-      $Address->{MAP_BTN} = _maps_btn_for_build($attr->{LOCATION_ID});
+      $Address->{MAP_BTN} = _maps_btn_for_build($attr->{LOCATION_ID}, {MAP_BTN => 1});
     }
     if (in_array('Dom', \@MODULES)) {
       $Address->{DOM_BTN} = $html->button("", 'index=' . get_function_index('dom_info') . "&LOCATION_ID=$attr->{LOCATION_ID}",
-        { class                                                                   => 'btn btn-default btn-sm',
+        { class                                                                   => 'btn btn-success btn-sm',
           ex_params                                                               =>
-          "data-tooltip-position='top' data-tooltip='$lang{ADDRESS_BUILD}'", ICON => 'fa fa-building-o ' });
+          "data-tooltip-position='top' data-tooltip='$lang{BUILD_SCHEMA}'", ICON => 'fa fa-building-o ' });
     }
     $Address->{FLAT_CHECK_FREE} = 1;
   }
@@ -969,12 +968,12 @@ sub form_address {
     my $result = $html->tpl_show(
       templates('form_show_hide'),
       {
-        CONTENT =>
-          $html->tpl_show(templates('form_address_sel'), { %$Address, %$attr }, {
-            OUTPUT2RETURN => 1,
-            ID            => 'form_address_sel',
-            %{($attr) ? $attr : {}}
-          }),
+        CONTENT => form_address_select2({ %$Address, %$attr }),
+#          $html->tpl_show(templates('form_address_sel'), { %$Address, %$attr }, {
+#            OUTPUT2RETURN => 1,
+#            ID            => 'form_address_sel',
+#            %{($attr) ? $attr : {}}
+#          }),
         NAME    => $lang{ADDRESS},
         ID      => 'ADDRESS_FORM',
         %params
@@ -1006,5 +1005,182 @@ sub _street_type_select {
 
   return $result;
 }
+#**********************************************************
+=head2 form_address_select2($attr)
 
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub form_address_select2 {
+  my ($attr) = @_;
+  my $district_id = q{DISTRICT_ID};
+  my $street_id = q{STREET_ID};
+  my $build_id = q{BUILD_ID};
+  my $form = q{};
+
+  if ($attr->{REGISTRATION_MODAL}) {
+    $district_id = q{REG_DISTRICT_ID};
+    $street_id = q{REG_STREET_ID};
+    $build_id = q{REG_BUILD_ID};
+  }
+
+  if ($attr->{LOCATION_ID} && $attr->{LOCATION_ID} != 0) {
+    my $full_address = $Address->build_list({
+      LOCATION_ID => $attr->{LOCATION_ID},
+      DISTRICT_ID => '_SHOW',
+      STREET_ID   => '_SHOW',
+      COLS_NAME   => 1 });
+    $attr->{DISTRICT_ID} = $full_address->[0]->{district_id};
+    $attr->{STREET_ID} = $full_address->[0]->{street_id};
+    $attr->{BUILD_ID} = $full_address->[0]->{id};
+  }
+
+  #  Districts
+  my $districts = $Address->district_list({
+    COLS_NAME => 1,
+    PAGE_ROWS => 999999,
+    SORT      => 'd.name'
+  });
+  my $d = $html->form_select(
+    $district_id,
+    {
+      SELECTED    => $attr->{DISTRICT_ID} || 0,
+      SEL_LIST    => $districts,
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { 0 => '--' },
+    }
+  );
+  my $st_emp = '';
+  my $bd_emp = '';
+
+  #Streets
+  if ($FORM{STREET}) {
+    my $streets = $Address->street_list({
+      DISTRICT_ID => $FORM{DISTRICT_ID},
+      STREET_NAME => '_SHOW',
+      SORT        => 's.name',
+      COLS_NAME   => 1,
+      PAGE_ROWS   => 999999
+    });
+
+    my $s = $html->form_select(
+      $street_id,
+      {
+        SELECTED    => 0,
+        SEL_LIST    => $streets,
+        SEL_KEY     => 'id',
+        SEL_VALUE   => 'street_name',
+        NO_ID       => 1,
+        SEL_OPTIONS => { 0 => '--' },
+      }
+    );
+    print $s;
+    return 1;
+  }
+  else {
+      my $d_name = $attr->{DISTRICT_ID} || '';
+      my $streets = $Address->street_list({
+        DISTRICT_ID => $d_name,
+        STREET_NAME => '_SHOW',
+        SORT        => 's.name',
+        COLS_NAME   => 1,
+        PAGE_ROWS   => 999999
+      });
+
+    $st_emp = $html->form_select(
+      $street_id,
+      {
+        SELECTED    => $attr->{STREET_ID} || 0,
+        SEL_LIST    => $streets,
+        SEL_KEY     => 'id',
+        SEL_VALUE   => 'street_name',
+        NO_ID       => 1,
+        SEL_OPTIONS => { 0 => '--' },
+      }
+    );
+  }
+  #Builds
+  if ($FORM{BUILD}) {
+    my $builds = $Address->build_list({
+      STREET_ID => $FORM{STREET_ID},
+      NUMBER    => '_SHOW',
+      COLS_NAME => 1,
+      SORT      => 'b.number+0',
+      PAGE_ROWS => 999999
+    });
+    my $bu = $html->form_select(
+      $build_id,
+      {
+        SELECTED    => 0,
+        NO_ID       => 1,
+        SEL_LIST    => $builds,
+        SEL_KEY     => 'id',
+        SEL_VALUE   => 'number',
+        SEL_OPTIONS => { 0 => '--' },
+      }
+    );
+    print $bu;
+    return 1;
+  }
+  else {
+    my $builds;
+    if ($attr->{STREET_ID}) {
+      $builds = $Address->build_list({
+        STREET_ID   => $attr->{STREET_ID},
+        NUMBER      => '_SHOW',
+        LOCATION_ID => '_SHOW',
+        COLS_NAME   => 1,
+        SORT        => 'b.number+0',
+        PAGE_ROWS   => 999999
+      });
+    }
+
+    $bd_emp = $html->form_select(
+       $build_id,
+       {
+         SELECTED    => $attr->{LOCATION_ID} || 0,
+         SEL_LIST    => $builds,
+         SEL_KEY     => 'id',
+         SEL_VALUE   => 'number',
+         NO_ID       => 1,
+         SEL_OPTIONS => { 0 => '--' },
+       }
+     );
+  }
+
+  if ($attr->{REGISTRATION_MODAL}) {
+    $form = $html->tpl_show(templates('registration_modal_address'), {
+      ADD_BUILD_HIDE   => $attr->{HIDE_ADD_BUILD_BUTTON} ? "style='display:none;'" : '',
+      ADDRESS_DISTRICT => $d,
+      ADDRESS_STREET   => $st_emp,
+      ADDRESS_BUILD    => $bd_emp,
+      LOCATION_ID      => $attr->{LOCATION_ID} || '',
+      EXT_SEL_STYLE    => $attr->{EXT_SEL_STYLE} ? $attr->{EXT_SEL_STYLE} : q{},
+    },
+      { OUTPUT2RETURN => 1 });
+  }
+  else {
+    $form = $html->tpl_show(templates('form_address_search2'), {
+      ADD_BUILD_HIDE   => $attr->{HIDE_ADD_BUILD_BUTTON} ? "style='display:none;'" : '',
+      ADDRESS_DISTRICT => $d,
+      ADDRESS_STREET   => $st_emp,
+      ADDRESS_BUILD    => $bd_emp,
+      ADDRESS_FLAT     => $attr->{ADDRESS_FLAT} || '',
+      LOCATION_ID      => $attr->{LOCATION_ID} || '',
+      HIDE_FLAT        => $attr->{HIDE_FLAT} ? 'display: none' : '',
+      EXT_ADDRESS      => $attr->{EXT_ADDRESS} ? $attr->{EXT_ADDRESS} : q{},
+      MAP_BTN          => $attr->{MAP_BTN} ? $attr->{MAP_BTN} : q{},
+      DOM_BTN          => $attr->{DOM_BTN} ? $attr->{DOM_BTN} : q{},
+      EXT_SEL_STYLE    => $attr->{EXT_SEL_STYLE} ? $attr->{EXT_SEL_STYLE} : q{},
+    },
+      { OUTPUT2RETURN => 1, ID => 'form_address_sel2' });
+  }
+  return $form;
+}
 1;

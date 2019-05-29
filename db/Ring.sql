@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS `ring_rules` (
   `time_end` TIME NOT NULL DEFAULT '00:00:00',
   `every_month` SMALLINT(1) NOT NULL DEFAULT 0,
   `file` CHAR(40) NOT NULL DEFAULT '',
+  `update_day` VARCHAR(25) NOT NULL DEFAULT '',
+  `sql_query` VARCHAR(200) NOT NULL DEFAULT '',
   `message` TEXT NULL,
   `comment` TEXT NULL,
   UNIQUE (`id`)

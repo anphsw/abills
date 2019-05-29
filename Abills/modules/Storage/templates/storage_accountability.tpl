@@ -1,6 +1,7 @@
 <form action=$SELF_URL name='storage_form_subreport' method=POST>
     <input type=hidden name=index value=$index>
     <input type=hidden name=STORAGE_INCOMING_ARTICLES_ID value=%STORAGE_INCOMING_ARTICLES_ID%>
+    <input type=hidden name=ADDED_BY_AID value=%ADDED_BY_AID%>
 
     <fieldset>
         <div class='box box-theme box-form'>

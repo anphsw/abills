@@ -73,7 +73,7 @@
         </button>
       </div>
     </form>
-    <a data-visible='%HAS_REGISTRATION_PAGE%' style="float: right" href='/registration.cgi?FORGOT_PASSWD=1'>_{FORGOT_PASSWORD}_</a>
+    <a data-visible='%PASSWORD_RECOVERY%' style="float: right" href='/registration.cgi?FORGOT_PASSWD=1'>_{FORGOT_PASSWORD}_</a>
     <a data-visible='%REGISTRATION_ENABLED%' href='/registration.cgi'>_{REGISTRATION}_</a>
     <div class='row'>
       <div class='col-xs-12 text-center' id='social_network_block'>
