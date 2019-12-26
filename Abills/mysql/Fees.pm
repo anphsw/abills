@@ -40,6 +40,8 @@ sub new {
     $user
     $sum
     $attr
+      SKIP_PRIORITY
+      BILL_ID
 
   Resturn:
     $self
@@ -61,8 +63,15 @@ sub take {
     return $self;
   }
 
+  my $fees_priority = $CONF->{FEES_PRIORITY} || q{};
+
+  if($attr->{SKIP_PRIORITY}) {
+    $fees_priority = q{};
+    $user->{BILL_ID} = $attr->{BILL_ID} if($attr->{BILL_ID});
+  }
+
   $attr->{UID}     = $user->{UID};
-  $attr->{BILL_ID} = $user->{BILL_ID};
+  $attr->{BILL_ID} = $user->{BILL_ID} if(! $attr->{BILL_ID});
   $attr->{DATE}    = ($attr->{DATE}) ? $attr->{DATE} : 'NOW()';
   $attr->{DSC}     = $attr->{DESCRIBE} || '';
   $attr->{IP}      = $admin->{SESSION_IP};
@@ -71,13 +80,13 @@ sub take {
 
   $sum = sprintf("%.4f", $sum);
   $self->{db}{db}->{AutoCommit} = 0;
-  if ($CONF->{FEES_PRIORITY}) {
-    if ($CONF->{FEES_PRIORITY} =~ /^bonus/ && $user->{EXT_BILL_ID}) {
+  if ($fees_priority) {
+    if ($fees_priority =~ /^bonus/ && $user->{EXT_BILL_ID}) {
       if ($user->{EXT_BILL_ID} && !defined($self->{EXT_BILL_DEPOSIT})) {
         $user->info($user->{UID});
       }
 
-      if ($CONF->{FEES_PRIORITY} =~ /main/ && $user->{EXT_BILL_DEPOSIT} < $sum) {
+      if ($fees_priority =~ /main/ && $user->{EXT_BILL_DEPOSIT} < $sum) {
         if ($user->{EXT_BILL_DEPOSIT} > 0) {
           $Bill->action('take', $user->{EXT_BILL_ID}, $user->{EXT_BILL_DEPOSIT});
           if ($Bill->{errno}) {
@@ -101,7 +110,7 @@ sub take {
         $user->{BILL_ID} = $user->{EXT_BILL_ID};
       }
     }
-    elsif ($CONF->{FEES_PRIORITY} =~ /^main,bonus/) {
+    elsif ($fees_priority =~ /^main,bonus/) {
       if (! $user->{EXT_BILL_ID} || ! defined($self->{EXT_BILL_DEPOSIT})) {
         my $uid = $user->{UID}; 
         my $fn  = 'user::info';
@@ -270,6 +279,7 @@ sub list {
       ['REG_DATE',       'DATE', "f.reg_date", "f.reg_date",       1 ],
       ['TAX',            'INT',  'ft.tax',                         1 ],
       ['TAX_SUM',        'INT',  '', 'IF(ft.tax>0, SUM(f.sum) / 100 * ft.tax, 0) AS tax_sum'  ],
+      ['ADMIN_DISABLE',  'INT', 'a.disable', 'a.disable AS admin_disable',               1 ],
 
     ],
     { WHERE       => 1,

@@ -57,8 +57,16 @@ sub equipment_test{
     my ($port, $status) = split( /:/, $attr->{PORT_STATUS} );
 #print $attr->{PORT_STATUS} . "<br>";
     # status
-    # 0 - active
-    # 1 - disable
+    # 1 - active
+    # 2 - disable
+    # 3 - test
+
+    if($status == 1){
+      $status = 2;
+    } else {
+      $status = 1;
+    }
+
     snmp_set({
       SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
       OID            => [ $snmp_ports_info{ADMIN_PORT_STATUS}{OIDS} . '.' . $port, "integer", "$status" ]
@@ -332,18 +340,7 @@ sub get_vlans{
 }
 
 #********************************************************
-=head2 get_fdb($attr) - Show FDB table
-
-  Arguments:
-    $attr
-      NAS_INFO
-      SNMP_TPL
-      VERSION
-      DEBUG
-
-  Returns:
-    {
-    }
+=head2 get_port_vlans($attr)
 
 =cut
 #********************************************************

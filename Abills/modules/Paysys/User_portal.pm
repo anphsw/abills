@@ -40,6 +40,65 @@ sub paysys_payment {
       $FORM{SUM} = recomended_pay($user);
     }
   }
+  # EXTERNAL COMMANDS CODE BEGIN
+  if ($FORM{PAYMENT_SYSTEM} && $user->{UID} && $conf{PAYSYS_EXTERNAL_START_COMMAND}) {
+    my $start_command = $conf{PAYSYS_EXTERNAL_START_COMMAND} || q{};
+    my $attempts = $conf{PAYSYS_EXTERNAL_ATTEMPTS} || 0;
+    my $main_user_information = $Paysys->paysys_user_info({ UID => $user->{UID} });
+
+    if ($main_user_information->{TOTAL} == 0) {
+      $Paysys->paysys_user_add({ ATTEMPTS => 1,
+        UID                               => $user->{UID},
+        EXTERNAL_USER_IP                  => $ENV{REMOTE_ADDR} });
+    }
+    else {
+      if ($main_user_information->{ATTEMPTS} && (!$attempts || $main_user_information->{ATTEMPTS} < $attempts)) {
+        my (undef, $now_month) = split('-', $DATE);
+        my (undef, $last_month) = split('-', $main_user_information->{EXTERNAL_LAST_DATE});
+        my $paysys_id = $main_user_information->{PAYSYS_ID};
+        if (int($now_month) != int($last_month)) {
+          $Paysys->paysys_user_change({
+            ATTEMPTS           => 1,
+            UID                => $user->{UID},
+            PAYSYS_ID          => $paysys_id,
+            EXTERNAL_LAST_DATE => "$DATE $TIME",
+            EXTERNAL_USER_IP   => ip2int($ENV{REMOTE_ADDR}),
+          });
+        }
+        else {
+          my $user_attempts = $main_user_information->{ATTEMPTS} + 1;
+          $Paysys->paysys_user_change({
+            ATTEMPTS           => $user_attempts,
+            UID                => $user->{UID},
+            PAYSYS_ID          => $paysys_id,
+            CLOSED             => 0,
+            EXTERNAL_LAST_DATE => "$DATE $TIME",
+            EXTERNAL_USER_IP   => ip2int($ENV{REMOTE_ADDR}),
+          });
+        }
+      }
+    }
+
+    my $result = cmd($start_command, {
+      PARAMS => { %$user, IP => $ENV{REMOTE_ADDR} }
+    });
+
+    if ($result && $result =~ /(\d+):(.+)/) {
+      my $code = $1;
+      my $text = $2;
+
+      if ($code == 1) {
+        my $button = $html->button("$lang{SET} $lang{CREDIT}", "OPEN_CREDIT_MODAL=1", { class => 'btn btn-success' });
+        $html->message('warn', $text, $button,);
+        return 1;
+      }
+
+      if ($code) {
+        $html->message('warn', $lang{INFO}, $text, { ID => 1730 });
+        return 1;
+      }
+    }
+  }
 
   if ($conf{PAYSYS_MIN_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}  ) {
     $html->message( 'err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $conf{PAYSYS_MIN_SUM}" );
@@ -67,6 +126,13 @@ sub paysys_payment {
         return 1;
       }
 
+      if ($conf{PAYSYS_MIN_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MIN_SUM} > $FORM{SUM}  ) {
+        return $html->message( 'err', $lang{ERROR}, "$lang{PAYSYS_MIN_SUM_MESSAGE} $conf{PAYSYS_MIN_SUM}" );
+      }
+      elsif ($conf{PAYSYS_MAX_SUM} && $FORM{SUM}>0 && $conf{PAYSYS_MAX_SUM} < $FORM{SUM} ) {
+        return $html->message( 'err', $lang{ERROR}, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}" );
+      }
+
       my $Module = _configure_load_payment_module('Ipay.pm');
       my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
       $TEMPLATES_ARGS{IPAY_HTML} = $Paysys_Object->user_portal_special($user, { %FORM });
@@ -86,7 +152,7 @@ sub paysys_payment {
     }
     else{
       my $Module = _configure_load_payment_module($payment_system_info->{module});
-      my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html });
+      my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html, lang => \%lang });
       return  $Paysys_Object->user_portal($user, {
           %FORM,
         });
@@ -104,7 +170,7 @@ sub paysys_payment {
 
   $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });
   if (in_array('Maps', \@MODULES)) {
-#    $TEMPLATES_ARGS{MAP} = paysys_maps();
+    $TEMPLATES_ARGS{MAP} = paysys_maps_new();
   }
 
   my $groups_settings = $Paysys->groups_settings_list({
@@ -120,12 +186,11 @@ sub paysys_payment {
   }
 
   my $count = 1;
+  my @payment_systems = ();
   foreach my $payment_system (@$connected_systems) {
-
     if( $user->{GID}
         && exists $group_to_paysys_id{$user->{GID}}
-        && !( in_array($payment_system->{paysys_id}, $group_to_paysys_id{$user->{GID}}) )
-    ){
+        && !( in_array($payment_system->{paysys_id}, $group_to_paysys_id{$user->{GID}}) ) ) {
       next;
     }
 
@@ -135,8 +200,7 @@ sub paysys_payment {
     my $Module = _configure_load_payment_module($payment_system->{module});
 
     if ($Module->can('user_portal')) {
-
-      $TEMPLATES_ARGS{PAY_SYSTEM_SEL} .= _paysys_system_radio({
+      push @payment_systems, _paysys_system_radio({
         NAME    => $payment_system->{name},
         MODULE  => $payment_system->{module},
         ID      => $payment_system->{paysys_id},
@@ -150,16 +214,34 @@ sub paysys_payment {
     }
   }
 
+  if($#payment_systems > -1) {
+    my $delimiter = q{};
+    if($FORM{json}) {
+      $delimiter = ',';
+    }
+    $TEMPLATES_ARGS{PAY_SYSTEM_SEL}=join($delimiter, @payment_systems);
+  }
+
   if($attr->{HOTSPOT}){
     return $TEMPLATES_ARGS{PAY_SYSTEM_SEL};
   }
 
   return $html->tpl_show(_include('paysys_main', 'Paysys'), \%TEMPLATES_ARGS,
-    { OUTPUT2RETURN => $attr->{OUTPUT2RETURN} });
+    { OUTPUT2RETURN => $attr->{OUTPUT2RETURN},
+      ID            => 'PAYSYS_FORM'
+    });
 }
 
 #**********************************************************
 =head2 _paysys_system_radio($attr) - Show availeble payment system
+
+  Arguments:
+    $attr
+      ID
+      NAME
+      MODULE
+
+  Return:
 
 =cut
 #**********************************************************
@@ -170,8 +252,8 @@ sub _paysys_system_radio {
   my $paysys_logo_path = $base_dir . 'cgi-bin/styles/default_adm/img/paysys_logo/';
   my $file_path = q{};
 
-  my $paysys_name   = $attr->{NAME};
-  my ($paysys_module) = $attr->{MODULE} =~ /(.+)\.pm$/ ;
+  my $paysys_name = $attr->{NAME};
+  my ($paysys_module) = $attr->{MODULE} =~ /(.+)\.pm$/;
   $paysys_module =~ s/ /_/g;
   $paysys_module = lc($paysys_module);
 
@@ -188,9 +270,11 @@ sub _paysys_system_radio {
       PAY_SYSTEM_LC   => $file_path,
       PAY_SYSTEM      => $attr->{ID},
       PAY_SYSTEM_NAME => $paysys_name,
-      CHECKED         => $attr->{CHECKED}
+      CHECKED         => $attr->{CHECKED},
     },
-    { OUTPUT2RETURN => 1 }
+    { OUTPUT2RETURN => 1,
+      ID            => 'PAYSYS_' . $attr->{ID}
+    }
   );
 
   return $radio_paysys;
@@ -234,15 +318,15 @@ sub paysys_user_log {
       {
         width => '500',
         rows  =>
-        [ [ "ID", $Paysys->{ID} ],
-          [ "$lang{LOGIN}", $Paysys->{LOGIN} ],
-          [ "$lang{DATE}", $Paysys->{DATETIME} ],
-          [ "$lang{SUM}", $Paysys->{SUM} ],
-          [ "$lang{PAY_SYSTEM}", $PAY_SYSTEMS{ $Paysys->{SYSTEM_ID} } ],
-          [ "$lang{TRANSACTION}", $Paysys->{TRANSACTION_ID} ],
-          [ "$lang{USER} IP", $Paysys->{CLIENT_IP} ],
-          [ "$lang{ADD_INFO}", $Paysys->{USER_INFO} ],
-          [ "$lang{INFO}", $Paysys->{INFO} ] ],
+          [ [ "ID", $Paysys->{ID} ],
+            [ "$lang{LOGIN}", $Paysys->{LOGIN} ],
+            [ "$lang{DATE}", $Paysys->{DATETIME} ],
+            [ "$lang{SUM}", $Paysys->{SUM} ],
+            [ "$lang{PAY_SYSTEM}", $PAY_SYSTEMS{ $Paysys->{SYSTEM_ID} } ],
+            [ "$lang{TRANSACTION}", $Paysys->{TRANSACTION_ID} ],
+            [ "$lang{USER} IP", $Paysys->{CLIENT_IP} ],
+            [ "$lang{ADD_INFO}", $Paysys->{USER_INFO} ],
+            [ "$lang{INFO}", $Paysys->{INFO} ] ],
       }
     );
 
@@ -260,7 +344,7 @@ sub paysys_user_log {
       width   => '100%',
       caption => "Paysys",
       title   =>
-      [ 'ID', "$lang{DATE}", "$lang{SUM}", "$lang{PAY_SYSTEM}", "$lang{TRANSACTION}", "$lang{STATUS}", '-' ],
+        [ 'ID', "$lang{DATE}", "$lang{SUM}", "$lang{PAY_SYSTEM}", "$lang{TRANSACTION}", "$lang{STATUS}", '-' ],
       qs      => $pages_qs,
       pages   => $Paysys->{TOTAL},
       ID      => 'PAYSYS'
@@ -283,7 +367,7 @@ sub paysys_user_log {
     {
       width => '100%',
       rows  =>
-      [ [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM}:", $html->b($Paysys->{SUM_COMPLETE}) ] ]
+        [ [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM}:", $html->b($Paysys->{SUM_COMPLETE}) ] ]
     }
   );
   print $table->show();
@@ -302,8 +386,67 @@ sub paysys_user_log {
 =cut
 #**********************************************************
 sub paysys_system_sel {
-  my ($attr) = @_;
   return paysys_payment({HOTSPOT => 1});
 }
 
+#**********************************************************
+=head2 paysys_recurrent_payment()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_recurrent_payment {
+  my %data = ();
+
+  if ($FORM{RECURRENT_CANCEL}) {
+    my $Module = _configure_load_payment_module("$FORM{PAYSYSTEM_NAME}.pm");
+    my $result_code = q{};
+    my $result = q{};
+    if ($Module->can('recurrent_cancel')) {
+      my $PAYSYS_OBJECT = $Module->new($db, $admin, \%conf);
+      ($result_code, $result) = $PAYSYS_OBJECT->recurrent_cancel({ %FORM });
+    }
+    if ($result_code eq '200') {
+      $html->message('info', $lang{INFO}, "The regular payment is canceled!");
+      return 1;
+    }
+    else {
+      $html->message('err', $lang{ERROR}, "The regular payment can not be canceled!");
+      return 1;
+    }
+  }
+
+
+  my $info = $Paysys->paysys_user_info({
+    UID       => $user->{UID},
+    COLS_NAME => 1
+  });
+  if (!$info->{RECURRENT_ID}) {
+    $html->message('err', $lang{ERROR}, "No regular payment");
+    return 0;
+  }
+
+  if ($Paysys->{errno}) {
+    $html->message('err', $lang{ERROR}, "Error Paysys: $Paysys->{errstr}");
+    return 0;
+  }
+
+  if (!$info->{RECURRENT_MODULE}) {
+    $html->message('err', $lang{ERROR}, "No paysys system");
+    return 0;
+  }
+
+  my ($recurrent_day) = $info->{RECURRENT_CRON} =~ /\d+\s\d+\s(\d+)/g;
+  $data{MESSAGE} = qq{$lang{RECURRENT_MESSAGE} $recurrent_day $lang{RECURRENT_MESSAGE2}};
+  $data{PAYSYSTEM_NAME} = qq{$info->{RECURRENT_MODULE}};
+  $data{RECURRENT_ID} = qq{$info->{RECURRENT_ID}};
+  $data{INDEX} = get_function_index('paysys_recurrent_payment');
+
+  $html->tpl_show(_include('paysys_recurrent_payment', 'Paysys'), \%data);
+  return 1;
+}
 1;

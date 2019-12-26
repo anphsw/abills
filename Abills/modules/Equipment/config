@@ -28,6 +28,7 @@
   "21:0:$lang{EQUIPMENT}:null"             => 4,
   "22:21:PON:equipment_onu_report"             => 4,
   "23:6:$lang{CALCULATOR}:calculator_main:"                                  => 8,
+  "24:6:$lang{SNMP_INFO}:snmp_info_form:"                                  => 8,
 
 );
 

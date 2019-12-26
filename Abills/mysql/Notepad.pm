@@ -25,7 +25,7 @@ use constant {
 
 =cut
 #**********************************************************
-sub new{
+sub new {
   my $class = shift;
   my ($db, $admin, $CONF) = @_;
 
@@ -69,6 +69,7 @@ sub notes_list{
     [ 'ID',                  'INT',   'n.id'                            ,1],
     [ 'SUBJECT',             'STR',   'n.subject'                       ,1],
     [ 'STATUS',              'INT',   'n.status'                        ,1],
+    [ 'STATUS_ST',           'INT',   'n.status_st'                     ,1],
     [ 'SHOW_AT',             'DATE',  'n.show_at'                       ,1],
     [ 'NEW',                 'DATE',  'IF(n.show_at < NOW(), 1, 0) AS new', '(n.show_at < NOW()) AS new' ,1],
     [ 'TEXT',                'STR',   'n.text'                          ,1],
@@ -667,6 +668,38 @@ sub _now_is{
   return $self->_date_is( time, @_ );
 }
 
+#**********************************************************
+=head2 function get_sticker() - get sticker data
 
+  Arguments:
+    $attr
+      AID
+
+  Returns:
+    @list
+
+  Examples:
+    my $list = $Notepad->get_sticker({COLS_NAME=>1});
+
+=cut
+#**********************************************************
+sub get_sticker {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{AID} //= 0;
+  $self->query(
+    "SELECT id,status,subject,text,status_st,aid
+    FROM notepad
+    WHERE aid = ?
+    AND status <> 2",
+    undef, {
+      COLS_NAME => 1,
+      Bind      => [ $attr->{AID} ]
+    }
+  );
+
+  return $self->{list};
+}
 
 1

@@ -5,6 +5,7 @@
       <input type='hidden' name='ID' value='%ID%'/>
       <input type=hidden name=module value=Msgs>
       <input type=hidden name=REGISTRATION_REQUEST value=1>
+      <input type=hidden name='DOMAIN_ID' value='%DOMAIN_ID%'>
 
       <div class='box box-theme box-form center-block'>
         <div class='box-header with-border'><h4 class='box-title'>_{REGISTRATION}_</h4></div>

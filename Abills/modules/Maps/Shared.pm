@@ -16,7 +16,7 @@ use Exporter;
 use parent 'Exporter';
 
 use constant {
-  LAYER_ID_BY_NAME        => {
+  LAYER_ID_BY_NAME         => {
     'BUILD'        => 1,
     'WIFI'         => 2,
     'ROUTE'        => 3,
@@ -29,9 +29,10 @@ use constant {
     'BUILD2'       => 12,
     'PON'          => 20,
     'CAMS'         => 33,
+    'CAMS_REVIEW'  => 34,
   },
-  MAPS_ICONS_DIR_WEB_PATH => '/images/maps/icons/',
-  MAPS_ICONS_DIR          => '/Abills/templates/maps/icons/',
+  MAPS_ICONS_DIR_WEB_PATH  => '/images/maps/icons/',
+  MAPS_ICONS_DIR           => '/Abills/templates/maps/icons/',
   CLOSE_OUTER_MODAL_SCRIPT => q\
   <script>
     setTimeout(function(){aModal.hide()}, 2000);
@@ -48,12 +49,12 @@ our @EXPORT = qw/
   MAPS_ICONS_DIR_WEB_PATH
   MAPS_ICONS_DIR
   CLOSE_OUTER_MODAL_SCRIPT
-  /;
+/;
 
 our @EXPORT_OK = qw/LAYER_ID_BY_NAME $MAPS_ENABLED_LAYERS/;
 
 our %EXPORT_TAGS = (
   all => \@EXPORT
-    );
+);
 
 1;

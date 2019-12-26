@@ -287,7 +287,7 @@ sub form_admins {
   delete $admin_form->{COL_NAMES_ARR};
 
   if (in_array('Employees', \@MODULES)) {
-    $admin_form->{SHOW_EMPLOYEES} = 1;
+    $admin->{SHOW_EMPLOYEES} = 1;
   }
 
   my @status_bar = ("$lang{ALL}:index=$index&SHOW_ALL=1&$pages_qs", "$lang{ACTIV}:index=$index&$pages_qs");
@@ -805,11 +805,12 @@ sub form_admin_permissions {
       "$lang{SHOW} $lang{GROUPS}",
       "$lang{SHOW} $lang{COMPANIES}",
       "$lang{SHOW} $lang{LOG}",
-      "$lang{DEL} $lang{COMMENTS}"
+      "$lang{DEL} $lang{COMMENTS}",
+      "$lang{ADD} $lang{SERVICE}",
     ],                                                                                                                            # Users
     [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ],                                              # Payments
     [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],                                                                          # Fees
-    [ $lang{LIST}, $lang{DEL}, $lang{PAYMENTS}, $lang{FEES}, $lang{EVENTS}, $lang{SETTINGS}, $lang{LAST_LOGIN}, $lang{ERROR_LOG} ], # reports view
+    [ $lang{LIST}, $lang{DEL}, $lang{PAYMENTS}, $lang{FEES}, $lang{EVENTS}, $lang{SETTINGS}, $lang{LAST_LOGIN}, $lang{ERROR_LOG}, $lang{USERS} ], # reports view
     [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL}, $lang{ADMINS},
       "$lang{SYSTEM} $lang{LOG}", $lang{DOMAINS}, "$lang{TEMPLATES} $lang{CHANGE}", 'REBOOT SERVICE', "$lang{SHOW} PIN $lang{ICARDS}", $lang{MOBILE_PAY}, "$lang{SEND} Sms" ], # system magment
     [ $lang{MONITORING}, 'ZAP', $lang{HANGUP} ],

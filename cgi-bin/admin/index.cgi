@@ -90,6 +90,7 @@ if(! auth_admin() ) {
   }
   exit;
 }
+$html->{admin} = $admin;
 
 our @default_search  = ( 'UID', 'LOGIN', 'FIO', 'CONTRACT_ID',
   'EMAIL', 'PHONE', 'COMMENTS', 'ADDRESS_FULL', 'CITY' );
@@ -268,8 +269,18 @@ sub form_admin_qm {
     $admin->{QUICK_MENU} .= $html->li( $button, { class => $active } );
   }
 
+  if ($admin->{SETTINGS}{ql}) {
+    foreach my $ql (split(/,/, $admin->{SETTINGS}->{ql})) {
+      my ($ql_name, $ql_url) = split(/\|/, $ql, 2);
+      my $custom_button = $html->button( $html->element( 'i', '', { class => 'fa fa-external-link' } ) 
+        . $ql_name, "", { GLOBAL_URL => $ql_url, ex_params => ' target=_blank' } );
+      $admin->{QUICK_MENU} .= $html->li( $custom_button, { } );
+    }
+  }
+
   $admin->{QUICK_MENU} .= $html->li( $html->button( $lang{ADD}, "index=110",
       { class => "btn bg-green btn-block btn-flat" } ) );
+
   $admin->{QUICK_MENU} .= $quick_menu_script . "</script>";
 
   if ($qm_btns_counter){
@@ -831,6 +842,11 @@ sub form_bills {
    Arguments:
      $attr
        ADMIN
+       SEARCH_PARAMS
+       PAGES_QS
+
+   Results:
+     TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -841,21 +857,21 @@ sub form_changes {
 
   my %action_types = (
     0  => 'Unknown',
-    1  => "$lang{ADDED}",
-    2  => "$lang{CHANGED}",
+    1  => $lang{ADDED},
+    2  => $lang{CHANGED},
     3  => "$lang{CHANGED} $lang{TARIF_PLAN}",
-    4  => "$lang{STATUS}",
+    4  => $lang{STATUS},
     5  => "$lang{CHANGED} $lang{CREDIT}",
-    6  => "$lang{INFO}",
-    7  => "$lang{REGISTRATION}",
-    8  => "$lang{ENABLE}",
-    9  => "$lang{DISABLE}",
-    10 => "$lang{DELETED}",
+    6  => $lang{INFO},
+    7  => $lang{REGISTRATION},
+    8  => $lang{ENABLE},
+    9  => $lang{DISABLE},
+    10 => $lang{DELETED},
     11 => '-',
     12 => "$lang{DELETED} $lang{USER}",
     13 => "Online $lang{DELETED}",
-    14 => "$lang{HOLD_UP}",
-    15 => "$lang{HANGUP}",
+    14 => $lang{HOLD_UP},
+    15 => $lang{HANGUP},
     16 => "$lang{PAYMENTS} $lang{DELETED}",
     17 => "$lang{FEES} $lang{DELETED}",
     18 => "$lang{INVOICE} $lang{DELETED}",
@@ -935,6 +951,7 @@ sub form_changes {
       SEARCH_FORM   => $html->tpl_show(templates('form_history_search'), \%search_params, { OUTPUT2RETURN => 1 }),
       SHOW_PERIOD   => 1
     });
+    $pages_qs2 .= $pages_qs;
   }
   elsif($attr->{SEARCH_PARAMS}) {
     %LIST_PARAMS = %{ $attr->{SEARCH_PARAMS} };
@@ -958,11 +975,17 @@ sub form_changes {
     $LIST_PARAMS{TO_DATE}=$FORM{TO_DATE};
   }
 
+  $LIST_PARAMS{IP} //= '_SHOW';
+
   my $list = $admin->action_list({
     %LIST_PARAMS,
-    IP        => '_SHOW',
-    COLS_NAME => 1
+    ADMIN_DISABLE => '_SHOW',
+    COLS_NAME     => 1
   });
+
+  if($attr->{PAGES_QS}) {
+    $pages_qs2 .= $attr->{PAGES_QS};
+  }
 
   my $table = $html->table({
     width      => '100%',
@@ -1032,7 +1055,7 @@ sub form_changes {
       $html->button($line->{login}, "index=15&UID=$line->{uid}"),
       ($color) ? $html->color_mark($line->{datetime}, $color) : $line->{datetime},
       $html->color_mark($message, $color),
-      $line->{admin_login},
+      _status_color_state($line->{admin_login}, $line->{admin_disable}),
       $line->{ip},
       $line->{module},
       $html->color_mark($action_types{ $line->{action_type} }, $color),
@@ -1268,18 +1291,12 @@ sub fl {
     "16:13:$lang{ADMIN}:form_companie_admins:COMPANY_ID::",
 
     "15:11:$lang{INFO}:form_users:UID::",
-    "17:15:$lang{PASSWD}:form_passwd:UID::",
-    "18:15:$lang{NAS}:form_nas_allow:UID::",
-    "19:15:$lang{BILL}:form_bills:UID::",
     "20:15:$lang{SERVICES}:null:UID::",
-    "21:15:$lang{COMPANY}:user_company:UID::",
     "101:15:$lang{PAYMENTS}:form_payments:UID::",
     "102:15:$lang{FEES}:form_fees:UID::",
     "103:15:$lang{SHEDULE}:form_shedule:UID::",
-    "12:15:$lang{GROUP}:user_group:UID::",
     "125:15:$lang{ADDITION}:user_contract:UID::",
 
-    "30:15:$lang{USER_INFO}:user_pi:UID::",
     "31:15:$lang{SEARCH}:user_modal_search:user_search_form::",
     "32:15:$lang{LOGIN}:check_login_availability:AJAX::",
     #"31:15:Send e-mail:form_sendmail:UID::",
@@ -1298,12 +1315,24 @@ sub fl {
     require Control::Groups_mng;
     require Control::Contracts_mng;
 
+    if ($permissions{0}{3}) {
+      push @m, "17:15:$lang{PASSWD}:form_passwd:UID::";
+    }
+
+    if ($permissions{0}{4}) {
+      push @m, "30:15:$lang{USER_INFO}:user_pi:UID::";
+      push @m, "18:15:$lang{NAS}:form_nas_allow:UID::";
+      push @m, "19:15:$lang{BILL}:form_bills:UID::";
+    }
+
     if ($permissions{0}{28}) {
+      push @m, "12:15:$lang{GROUP}:user_group:UID::";
       push @m, "27:1:$lang{GROUPS}:form_groups:::";
     }
 
     if ($permissions{0}{29}) {
       push @m, "13:1:$lang{COMPANY}:form_companies:::";
+      push @m, "21:15:$lang{COMPANY}:user_company:UID::";
     }
     if ($permissions{0}{30}) {
       push @m, "22:15:$lang{LOG}:form_changes:UID::";
@@ -1350,10 +1379,12 @@ sub fl {
       push @m, "76:4:WEB server:report_webserver:::",
                "122:4:$lang{LIST_OF_LOGS}:logs_list:::";
     }
-    push @m, "131:4:$lang{USERS}:null:::";
-    push @m, "132:131:$lang{REPORT_NEW_ALL_USERS}:report_new_all_customers:::";
-    push @m, "133:131:$lang{REPORT_NEW_ARPU_USERS}:report_new_arpu:::";
-    push @m, "134:131:$lang{REPORT_BALANCE_BY_STATUS}:report_balance_by_status:::";
+    if($permissions{3}{8}) {
+      push @m, "131:4:$lang{USERS}:null:::";
+      push @m, "132:131:$lang{REPORT_NEW_ALL_USERS}:report_new_all_customers:::";
+      push @m, "133:131:$lang{REPORT_NEW_ARPU_USERS}:report_new_arpu:::";
+      push @m, "134:131:$lang{REPORT_BALANCE_BY_STATUS}:report_balance_by_status:::";
+    }
 
     if($conf{AUTH_FACEBOOK_ID}){
       push @m, "127:4:$lang{SOCIAL_NETWORKS}:null:::";
@@ -1537,7 +1568,7 @@ sub form_search {
 
         $FORM{UNIVERSAL_SEARCH} = $search_string;
       }
-      elsif($search_type == 13 && $FORM{LOGIN} && ! $FORM{COMPANY_NAME}) {
+      elsif($search_type == 13 && $FORM{LOGIN}) {
         $FORM{COMPANY_NAME}=$FORM{LOGIN};
         delete $FORM{LOGIN};
       }
@@ -1624,7 +1655,7 @@ sub form_search {
       return '';
     }
 
-    my $group_sel   = sel_groups();
+    my $group_sel   = sel_groups({FILTER_SEL => 1});
     my %search_form = (
       2  => 'form_search_payments',
       3  => 'form_search_fees',
@@ -1730,11 +1761,6 @@ sub form_search {
       }
       elsif ($search_type == 13) {
         $info{INFO_FIELDS}  = form_info_field_tpl({ COMPANY => 1 });
-        $info{CREDIT_DATE}  = $html->date_fld2('CREDIT_DATE',  { NO_DEFAULT_DATE => 1, MONTHES => \@MONTHES, FORM_NAME => 'form_search', WEEK_DAYS => \@WEEKDAYS, TABINDEX => 12 });
-        $info{PAYMENTS}     = $html->date_fld2('PAYMENTS',     { NO_DEFAULT_DATE => 1, MONTHES => \@MONTHES, FORM_NAME => 'form_search', WEEK_DAYS => \@WEEKDAYS, TABINDEX => 14 });
-        $info{REGISTRATION} = $html->date_fld2('REGISTRATION', { NO_DEFAULT_DATE => 1, MONTHES => \@MONTHES, FORM_NAME => 'form_search', WEEK_DAYS => \@WEEKDAYS, TABINDEX => 16 });
-        $info{ACTIVATE}     = $html->date_fld2('ACTIVATE',     { NO_DEFAULT_DATE => 1, MONTHES => \@MONTHES, FORM_NAME => 'form_search', WEEK_DAYS => \@WEEKDAYS, TABINDEX => 17 });
-        $info{EXPIRE}       = $html->date_fld2('EXPIRE',       { NO_DEFAULT_DATE => 1, MONTHES => \@MONTHES, FORM_NAME => 'form_search', WEEK_DAYS => \@WEEKDAYS, TABINDEX => 18 });
       }
 
       $SEARCH_DATA{SEARCH_FORM} = $html->tpl_show(templates($search_form{ $search_type }), { %FORM, %info }, { OUTPUT2RETURN => 1 });
@@ -1759,7 +1785,7 @@ sub form_search {
           );
         }
 #        $address_form =  $html->tpl_show(templates('form_address_search2'), { %FORM, %$users, %address_info }, { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
-        $address_form = form_address_select2({HIDE_ADD_BUILD_BUTTON => 1});
+        $address_form = form_address_select2({%FORM, HIDE_ADD_BUILD_BUTTON => 1});
       }
       else {
         my $countries_hash;
@@ -1769,9 +1795,10 @@ sub form_search {
 
       $SEARCH_DATA{ADDRESS_FORM} = $html->tpl_show(templates('form_show_hide'),
          {
-           CONTENT => $address_form,
-           NAME    => $lang{ADDRESS},
-           ID      => 'ADDRESS_FORM'
+           CONTENT     => $address_form,
+           NAME        => $lang{ADDRESS},
+           ID          => 'ADDRESS_FORM',
+           BUTTON_ICON => 'minus'
           },
          { OUTPUT2RETURN => 1 });
     }
@@ -1963,6 +1990,8 @@ sub form_shedule {
     $html->tpl_show(templates("form_shedule"), {%$Shedule},);
   }
   elsif ($FORM{add}) {
+    $FORM{D} = sprintf("%02d", $FORM{D}) if($FORM{D});
+    $FORM{M} = sprintf("%02d", $FORM{M}) if($FORM{M});
     $Shedule->add( \%FORM );
 
     if (!$Shedule->{errno}) {
@@ -2054,7 +2083,7 @@ sub form_shedule {
       elsif($line->{type} eq 'tp') {
         my ($service_id, $action) = split(/:/, $line->{action});
         $action //= q{};
-        $value = (($tp_list->{$action}) ? $tp_list->{$action} : $action). " ($service_id) TP_ID: $action";
+        $value = (($tp_list->{$action}) ? $tp_list->{$action} : $action). " (". ( $service_id || q{}) .") TP_ID: $action";
       }
     }
 
@@ -2221,6 +2250,7 @@ sub admin_quick_setting {
     SELECTED - value
     REQUIRED - Required optins
     HASH     - Hash return
+    DISABLE  - 0 = Active; 1 = Disable; 2 = Fired;
 
   Returns:
     Select element
@@ -2238,6 +2268,7 @@ sub sel_admins {
     DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
     PAGE_ROWS => 10000,
     POSITION  => ($attr->{POSITION} ? $attr->{POSITION} : undef),
+    DISABLE   => (defined $attr->{DISABLE} ? $attr->{DISABLE} : undef),
   } );
 
   if($attr->{HASH}) {
@@ -2406,7 +2437,9 @@ sub quick_functions {
     load_module($module{$index}, $html);
   }
 
-  _function($index, { USER_INFO => $ui });
+  if(! $ui || ! $ui->{errno}) {
+    _function($index, { USER_INFO => $ui });
+  }
 
   print "</$xml_start_teg>" if ($FORM{xml} && $xml_start_teg);
 
@@ -2512,9 +2545,18 @@ sub set_admin_params {
         $web_options .= (defined($FORM{ 'qm_name_' . $line })) ? "$line:" . $FORM{ 'qm_name_' . $line } . "," : "$line:,";
       }
       chop($web_options);
+      my $i = 1;
+      my $ql = '';
+      while ($FORM{"ql_name_$i"} && $FORM{"ql_url_$i"}) {
+        $ql .= $FORM{"ql_name_$i"} . "|" . $FORM{"ql_url_$i"} . ",";
+        $i++;
+      }
+      chop($ql);
+      $web_options .= ";ql=$ql" if ($ql);
     }
     else {
       $web_options .= ($admin->{SETTINGS} && $admin->{SETTINGS}{qm}) ? "qm=$admin->{SETTINGS}{qm};" : q{};
+      $web_options .= ($admin->{SETTINGS} && $admin->{SETTINGS}{ql}) ? "ql=$admin->{SETTINGS}{ql};" : q{};
     }
 
     $admin->change({ AID => $admin->{AID}, WEB_OPTIONS => $web_options });
@@ -2757,7 +2799,8 @@ sub post_page {
           CONTENT => $queries_list,
           NAME    => 'Queries: '.$i,
           ID      => 'QUERIES',
-          PARAMS  => 'collapsed-box'
+          PARAMS  => 'collapsed-box',
+          BUTTON_ICON => 'plus'
         },
         { OUTPUT2RETURN => 1 } );
     }
@@ -2872,5 +2915,28 @@ sub post_page {
   return 1;
 }
 
+
+#**********************************************************
+=head2 _status_color_state($status)
+
+  Arguments:
+    $status -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _status_color_state {
+  my ($login_admin, $status_admin) = @_;
+  my @STATUSES_COLORS = ('text-primary', 'text-danger', 'text-warning');
+
+  $status_admin //= 0;
+
+  my $status_color = ($status_admin >= 0 && $login_admin)
+    ? $html->color_mark($login_admin, $STATUSES_COLORS[ $status_admin ])
+    : $login_admin;
+
+  return $status_color;
+}
 
 1;

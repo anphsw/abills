@@ -7,4 +7,7 @@ $lang{DISCOUNT_CHANGED}='Changes added';
 $lang{DISCOUNT_NOT_CHANGED}='Changes not added';
 $lang{DISCOUNT_DELETED}='Discount deleted';
 $lang{DISCOUNT_NOT_DELETED}='Discount not deleted';
+$lang{CARD_ABON}='Subscriber card';
+$lang{WARR_DEPOSIT}='You must be a subscriber to use the card. Fill in your account';
+
 1

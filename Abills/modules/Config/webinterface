@@ -39,7 +39,7 @@ sub config_main {
     $pages_qs .= "&MODULE=$FORM{MODULE}";
   }
 
-  if ($FORM{change}) {
+  if ($FORM{change} && !$conf{PUBLIC_MODE}) {
     my %pre_conf  = ();
     my %post_conf = ();
     my $list      = $Config->list({ PAGE_ROWS => 10000, COLS_NAME => 1 });
@@ -83,6 +83,9 @@ sub config_main {
     if (!_error_show($Config)) {
       $html->message('info', $lang{INFO}, $html->pre($debug_out, { OUTPUT2RETURN => 1 }));
     }
+  }
+  elsif ($FORM{change} && $conf{PUBLIC_MODE}) {
+    $html->message('err', $lang{ERROR}, $lang{ERROR_PUBLIC_MODE});
   }
 
   form_search(
@@ -251,7 +254,10 @@ sub config_manage {
   #my @types_colors = (
   #);
 
-  if ($FORM{add}) {
+  if($conf{PUBLIC_MODE}&&($FORM{add}||$FORM{change}||$FORM{del})){
+    $html->message('err', $lang{ERROR}, $lang{ERROR_PUBLIC_MODE});
+  }
+  elsif ($FORM{add}) {
     $Config->add({%FORM});
 
     if (!_error_show($Config)) {

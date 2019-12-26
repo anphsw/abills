@@ -1138,7 +1138,7 @@ sub _cablecat_splitter_element {
       $fiber_num -= $colors_count;
     }
 
-    $splitter{COLOR} = $colors[$fiber_num];
+    $splitter{COLOR} = $colors[$fiber_num - 1];
     if (length($splitter{COLOR}) > 6) {
       $splitter{COLOR} = substr($splitter{COLOR}, 0, 6);
     }

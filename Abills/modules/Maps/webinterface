@@ -208,6 +208,13 @@ sub maps_edit {
       elsif ($FORM{LAYER_ID} == LAYER_ID_BY_NAME->{CUSTOM_POINT}) { # Custom point
         $Maps->points_del({ ID => $FORM{OBJECT_ID} });
       }
+      elsif ($FORM{LAYER_ID} == LAYER_ID_BY_NAME->{CAMS}) {
+        $Maps->points_change({
+          ID     => $FORM{OBJECT_ID},
+          COORDX => "0.0000",
+          COORDY => "0.0000",
+        });
+      }
       else {
         if (!_maps_remove_layer_objects($FORM{LAYER_ID}, $FORM{OBJECT_ID})) {
           $html->message('err', $lang{ERROR});
@@ -535,6 +542,21 @@ sub maps_show_map {
   return '' unless ($html->{TYPE} && $html->{TYPE} eq 'html');
 
   my $objects_info = $attr->{DATA};
+  my %info_list = ();
+
+  if (ref $objects_info eq 'HASH') {
+    foreach my $key (keys %{$objects_info}) {
+      my $objects = $objects_info->{$key};
+
+      foreach my $object (@{$objects}) {
+        $object->{build_id} = $object->{location_id} if !$object->{build_id};
+        if ($object->{map_custom_info}) {
+          $info_list{$object->{build_id}} = $object->{map_custom_info};
+          delete $object->{map_custom_info} if $object->{map_custom_info};
+        }
+      }
+    }
+  }
 
   # Initialize max(min) with opposite min(max) value
   my ($max_y, $min_y, $max_x, $min_x) = (-100, 100, -100, 100);
@@ -622,10 +644,12 @@ sub maps_show_map {
         else {
           $location_id = join(';', sort keys %{$objects_info});
           $objects_list = $Address->build_list({
-            LOCATION_ID => $location_id,
-            COORDX      => '_SHOW',
-            COORDY      => '_SHOW',
-            COLS_NAME   => 1
+            LOCATION_ID   => $location_id,
+            COORDX        => '_SHOW',
+            COORDY        => '_SHOW',
+            STREET_NAME   => '_SHOW',
+            DISTRICT_NAME => '_SHOW',
+            COLS_NAME     => 1
           });
         }
 
@@ -645,6 +669,12 @@ sub maps_show_map {
 
     foreach my $line (@{$objects_list}) {
       my $point_count = 0;
+
+      if ($line->{coordy} eq "0.00000000000000" || $line->{coordx} eq "0.00000000000000" || $line->{coordy} eq "0" || $line->{coordx} eq "0") {
+        my $polygon = _maps_polygon_builds_in_msgs($line);
+        $tpl_obj .= $polygon if $polygon;
+        next;
+      }
 
       # Update bounds
       $max_y = $line->{coordy} if ($line->{coordy} > $max_y);
@@ -684,7 +714,9 @@ sub maps_show_map {
       my $address_full = ($line->{district_name} || q{}) . ", $street_build";
       my $district_id = $line->{district_id} || 0;
 
-      my $info = "<h5>$street_build</h5><table class=table> $user_info </table>";
+      my $new_user_info = $info_list{$line->{id}} ? $info_list{$line->{id}} : "";
+
+      my $info = $new_user_info || "<h5>$street_build</h5><table class=table> $user_info </table>";
       my $type = $attr->{POINT_TYPE} || $conf{MAPS_LAYER_1_ICON_PREFIX} || 'build';
 
       my $size = \0;
@@ -697,6 +729,17 @@ sub maps_show_map {
       }
 
       my $color = $line->{color} || 'green';
+      my $icon = "$type\_$color";
+
+      if ($attr->{MAP_TYPE_ICON} && ref $attr->{MAP_TYPE_ICON} eq "HASH" && $attr->{MAP_TYPE_ICON}{ICON_PATH} && $attr->{MAP_TYPE_ICON}{ICON_FIELD}) {
+        if ($objects_info->{$line->{id}}[0]{$attr->{MAP_TYPE_ICON}{ICON_FIELD}} && $attr->{MAP_TYPE_ICON}{ICON_EXIST_PATH}) {
+          my $file_path = "$conf{TPL_DIR}/" . $attr->{MAP_TYPE_ICON}{ICON_EXIST_PATH} . $objects_info->{$line->{id}}[0]{$attr->{MAP_TYPE_ICON}{ICON_FIELD}} . ".png";
+          if (-e $file_path) {
+            $icon = $attr->{MAP_TYPE_ICON}{ICON_PATH} . $objects_info->{$line->{id}}[0]{$attr->{MAP_TYPE_ICON}{ICON_FIELD}} . ".png";
+          }
+        }
+      }
+
       #Make location point
       my $encoded = JSON::to_json({
         "MARKER"   => {
@@ -704,15 +747,14 @@ sub maps_show_map {
           "NAME"   => "$address_full",
           "COORDX" => $line->{coordy},
           "COORDY" => $line->{coordx},
-          "TYPE"   => "$type\_$color",
+          "TYPE"   => $icon,
           "SIZE"   => $size,
           "INFO"   => "$info",
-          "COUNT"  => $point_count
+          "COUNT"  => $objects_info->{$line->{id}}[0]{count} || $point_count
         },
         "ADDRESS"  => "$address_full",
         "DISTRICT" => $district_id,
         "LAYER_ID" => LAYER_ID_BY_NAME->{BUILD}
-
       });
 
       $tpl_obj .= "ObjectsArray[ObjectsArray.length] = $encoded;";
@@ -1765,7 +1807,7 @@ sub _maps_btn_for_build {
 
     my $layer = ($map_object_list->[0]->{coordx}) ? 'BUILD' : 'BUILD2';
     $map_btn = $html->button("", "get_index=maps_show_map&show=$layer&OBJECT_ID=$map_object_list->[0]->{id}&header=1",
-      { target => '_map', ex_params => "data-tooltip-position='top' data-tooltip='$lang{MAP}'", ICON =>
+      { class => 'btn btn-success btn-sm', target => '_map', ex_params => "data-tooltip-position='top' data-tooltip='$lang{MAP}'", ICON =>
         'glyphicon glyphicon-globe' });
   }
   elsif ($attr->{MAP_BTN}) {
@@ -1780,6 +1822,90 @@ sub _maps_btn_for_build {
   }
 
   return $map_btn;
+}
+
+#**********************************************************
+=head2 _maps_polygon_builds_in_msgs($location_id)
+
+=cut
+#**********************************************************
+sub _maps_polygon_builds_in_msgs {
+  my ($attr) = @_;
+
+  my $count_array = 0;
+  my @export_arr = ();
+
+  my $points_list = $Maps->points_list({
+    LOCATION_ID => $attr->{id},
+    PAGE_ROWS   => 10000
+  });
+
+  return 0 if !$Maps->{TOTAL};
+
+  my $list_builds_objects = _maps_get_layer_objects(12, {
+    ID          => $points_list->[0]{id} || '_SHOW',
+    OBJECT_ID   => '_SHOW',
+    LOCATION_ID => '_SHOW',
+    COLS_NAME   => 1
+  });
+
+  foreach my $build (@{$list_builds_objects}) {
+    my $build_info = $Maps->points_info($build->{OBJECT_ID}, {
+      ADDRESS_FULL => '_SHOW',
+      STREET_NAME  => '_SHOW',
+      BUILD_NUMBER => '_SHOW',
+      LOCATION_ID  => '_SHOW',
+    });
+    unless ($build->{OBJECT_ID}) {
+      next;
+    }
+
+    if ($FORM{OBJECT_ID} && $FORM{OBJECT_ID} != $build_info->{LOCATION_ID}) {
+      next;
+    }
+
+    my $info_hash = {};
+    my $point_count = 0;
+    #    my $address = '';
+    unless ($attr->{CLIENT_MAP}) {
+      $info_hash = maps_load_info({ LOCATION_ID => $build_info->{LOCATION_ID} });
+      $point_count = $info_hash->{COUNT} || (($count_array && ref $count_array eq 'ARRAY') ? scalar @{$count_array} : 0);
+    }
+
+    my $color = $info_hash->{COLOR} || _maps_point_color($point_count);
+    my $info_table = $info_hash->{HTML} || q{};
+
+    $build_info->{address_full} //= '';
+    $info_table //= '';
+
+    my $points_json = JSON::to_json($build->{POLYGON}->{POINTS});
+
+    my $info = qq{
+            {
+                "ID"        : $build->{OBJECT_ID},
+                "OBJECT_ID" : $build->{OBJECT_ID},
+                "POLYGON"   : {
+                    "OBJECT_ID" : $build->{OBJECT_ID},
+                    "ID"        : $build->{OBJECT_ID},
+                    "LAYER_ID"  : 12,
+                    "POINTS"    : $points_json,
+                    "INFO"      : "$info_table",
+                    "COUNT"     : $point_count,
+                    "NAME"      : "$build_info->{address_full}",
+                    "COLOR"     : "$color"
+                },
+                "LAYER_ID"  : 12,
+            }
+    };
+
+    push @export_arr, $info;
+
+    $MAPS_ENABLED_LAYERS->{ LAYER_ID_BY_NAME->{BUILD} } = 'BUILD';
+    $MAPS_ENABLED_LAYERS->{ LAYER_ID_BY_NAME->{BUILD2} } = 'BUILD2';
+    return join(";", map {"ObjectsArray[ObjectsArray.length] = $_;"} @export_arr);
+  }
+
+  return "";
 }
 
 ##**********************************************************

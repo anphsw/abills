@@ -8,12 +8,12 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(mk_unique_value int2ip int2byte cmd);
 
-my $chart_height           = 350;
+my $chart_height = 350;
 my $chart_new_window_width = 450;
 
 my $new_window_size = ($chart_new_window_width * 1.2) . ":" . ($chart_height * 1.35);
 
-our(
+our (
   $db,
   %conf,
   $admin,
@@ -25,7 +25,7 @@ our(
 );
 
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-my $Nas      = Nas->new($db, \%conf, $admin);
+my $Nas = Nas->new($db, \%conf, $admin);
 
 #**********************************************************
 =head2 internet_online() - Show online sessions
@@ -34,18 +34,18 @@ my $Nas      = Nas->new($db, \%conf, $admin);
 #**********************************************************
 sub internet_online {
 
-  $Sessions->{debug}=1 if ($FORM{DEBUG} && $FORM{DEBUG} > 5);
+  $Sessions->{debug} = 1 if ($FORM{DEBUG} && $FORM{DEBUG} > 5);
 
   my $message;
   if ($FORM{ping}) {
     if ($FORM{ping} eq '0.0.0.0' && $FORM{SESSION_ID}) {
-      $Sessions->online_info( { ACCT_SESSION_ID  => $FORM{SESSION_ID}, NAS_ID => $FORM{NAS_ID} });
+      $Sessions->online_info({ ACCT_SESSION_ID => $FORM{SESSION_ID}, NAS_ID => $FORM{NAS_ID} });
       $FORM{ping} = $Sessions->{FRAMED_IP_ADDRESS};
     }
 
     host_diagnostic($FORM{ping});
   }
-  elsif($FORM{mac_info}) {
+  elsif ($FORM{mac_info}) {
     my $result = get_oui_info($FORM{mac_info});
     $html->message('info', $lang{INFO}, "MAC: $FORM{mac_info}\n $result");
   }
@@ -58,7 +58,7 @@ sub internet_online {
       return 0;
     }
 
-    $Sessions->online_info( { ACCT_SESSION_ID  => $acct_session_id, NAS_ID => $nas_id });
+    $Sessions->online_info({ ACCT_SESSION_ID => $acct_session_id, NAS_ID => $nas_id });
 
     _error_show($Sessions);
 
@@ -82,7 +82,7 @@ sub internet_online {
     if ($ret == 0) {
       $message = "$lang{NAS} ID: $nas_id\n $lang{NAS} IP: $Nas->{NAS_IP}\n $lang{PORT}: $nas_port_id\n SESSION_ID: $acct_session_id\n\n Return: $ret";
       sleep 3;
-      $admin->{MODULE}='Internet';
+      $admin->{MODULE} = 'Internet';
       $admin->action_add($FORM{UID}, $user_name, { MODULE => 'Internet', TYPE => 15 });
     }
     elsif ($ret == 1) {
@@ -92,7 +92,10 @@ sub internet_online {
     $html->message('info', $lang{INFO}, "$message $ret");
   }
   elsif ($FORM{diagnostic}) {
-    internet_diagnostic($FORM{diagnostic});
+    my $res = internet_diagnostic($FORM{diagnostic});
+    if ($res == 0){
+      return 0;
+    }
   }
   elsif ($FORM{zapall}) {
     $Sessions->zap(0, 0, 0, { ALL => 1, %FORM });
@@ -107,7 +110,7 @@ sub internet_online {
     }
 
     $Nas->info({ NAS_ID => $nas_id });
-    $message = "\n$lang{NAS} ID: $nas_id\n $lang{NAS} IP: ". ($Nas->{NAS_IP} || q{}) ."\n $lang{PORT}: $nas_port_id\n SESSION_ID: $acct_session_id\n\n";
+    $message = "\n$lang{NAS} ID: $nas_id\n $lang{NAS} IP: " . ($Nas->{NAS_IP} || q{}) . "\n $lang{PORT}: $nas_port_id\n SESSION_ID: $acct_session_id\n\n";
     my ($Y, $M, undef) = split(/-/, $DATE, 3);
     $Sessions->list({
       UID             => $uid,
@@ -136,9 +139,9 @@ sub internet_online {
     $html->message('info', $lang{INFO}, $message);
   }
   elsif ($FORM{tolog}) {
-    $FORM{IDS}=~s/\s+//g if ($FORM{IDS});
+    $FORM{IDS} =~ s/\s+//g if ($FORM{IDS});
     my $Acct;
-    if(in_array('Internet', \@MODULES)) {
+    if (in_array('Internet', \@MODULES)) {
       require Acct2;
       Acct2->import();
       $Acct = Acct2->new($db, \%conf);
@@ -150,60 +153,60 @@ sub internet_online {
     }
 
     $Sessions->online({
-      ACCT_SESSION_ID   => '_SHOW',
-      ACCT_SESSION_ID   => $FORM{IDS} || $FORM{tolog},
-      ZAPED             => 1,
-      ACCT_INPUT_OCTETS => '_SHOW',
-      ACCT_OUTPUT_OCTETS=> '_SHOW',
-      EX_INPUT_OCTETS   => '_SHOW',
-      EX_OUTPUT_OCTETS  => '_SHOW',
-      ACCT_SESSION_TIME => '_SHOW',
-      NAS_PORT_ID       => $FORM{nas_port_id} || '_SHOW',
-      NAS_IP            => '_SHOW',
-      CLIENT_IP         => '_SHOW',
-      CONNECT_INFO      => '_SHOW',
-      CID               => '_SHOW',
-      USER_NAME         => '_SHOW',
-      SESSION_START     => '_SHOW',
-      TP_NUM            => '_SHOW',
-      NAS_ID            => $FORM{nas_id},
+      ACCT_SESSION_ID    => '_SHOW',
+      ACCT_SESSION_ID    => $FORM{IDS} || $FORM{tolog},
+      ZAPED              => 1,
+      ACCT_INPUT_OCTETS  => '_SHOW',
+      ACCT_OUTPUT_OCTETS => '_SHOW',
+      EX_INPUT_OCTETS    => '_SHOW',
+      EX_OUTPUT_OCTETS   => '_SHOW',
+      ACCT_SESSION_TIME  => '_SHOW',
+      NAS_PORT_ID        => $FORM{nas_port_id} || '_SHOW',
+      NAS_IP             => '_SHOW',
+      CLIENT_IP          => '_SHOW',
+      CONNECT_INFO       => '_SHOW',
+      CID                => '_SHOW',
+      USER_NAME          => '_SHOW',
+      SESSION_START      => '_SHOW',
+      TP_NUM             => '_SHOW',
+      NAS_ID             => $FORM{nas_id},
     });
 
     my $online_list = $Sessions->{nas_sorted};
-    my $nas_list    = $Nas->list({
+    my $nas_list = $Nas->list({
       COLS_NAME  => 1,
       COLS_UPPER => 1,
       DOMAIN_ID  => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef
     });
 
-    my @results     = ();
-    my @added       = ();
+    my @results = ();
+    my @added = ();
     my $ACCT_INFO;
 
     foreach my $nas_row (@$nas_list) {
       next if (!defined($online_list->{ $nas_row->{NAS_ID} }));
-      foreach my $line (@{ $online_list->{ $nas_row->{NAS_ID} } }) {
+      foreach my $line (@{$online_list->{ $nas_row->{NAS_ID} }}) {
         push @added, $line->{acct_session_id};
 
-        $ACCT_INFO->{INBYTE}               = $line->{acct_input_octets};
-        $ACCT_INFO->{OUTBYTE}              = $line->{acct_output_octets};
-        $ACCT_INFO->{INBYTE2}              = $line->{ex_input_octets};
-        $ACCT_INFO->{OUTBYTE2}             = $line->{ex_output_octets};
-        $ACCT_INFO->{'Acct-Session-Time'}  = $line->{acct_session_time};
-        $ACCT_INFO->{'Acct-Session-Id'}    = $line->{acct_session_id};
-        $ACCT_INFO->{'NAS-Port'}           = $line->{nas_port_id};
-        $ACCT_INFO->{'Nas-IP-Address'}     = $nas_row->{nas_ip};
-        $ACCT_INFO->{'Framed-IP-Address'}  = $line->{client_ip};
-        $ACCT_INFO->{'Connect-Info'}       = $line->{connect_info};
+        $ACCT_INFO->{INBYTE} = $line->{acct_input_octets};
+        $ACCT_INFO->{OUTBYTE} = $line->{acct_output_octets};
+        $ACCT_INFO->{INBYTE2} = $line->{ex_input_octets};
+        $ACCT_INFO->{OUTBYTE2} = $line->{ex_output_octets};
+        $ACCT_INFO->{'Acct-Session-Time'} = $line->{acct_session_time};
+        $ACCT_INFO->{'Acct-Session-Id'} = $line->{acct_session_id};
+        $ACCT_INFO->{'NAS-Port'} = $line->{nas_port_id};
+        $ACCT_INFO->{'Nas-IP-Address'} = $nas_row->{nas_ip};
+        $ACCT_INFO->{'Framed-IP-Address'} = $line->{client_ip};
+        $ACCT_INFO->{'Connect-Info'} = $line->{connect_info};
         $ACCT_INFO->{'Calling-Station-Id'} = $line->{calling_station_id} || $line->{CID};
-        $ACCT_INFO->{'User-Name'}          = $line->{user_name};
-        $ACCT_INFO->{SESSION_START}        = $line->{session_start};
+        $ACCT_INFO->{'User-Name'} = $line->{user_name};
+        $ACCT_INFO->{SESSION_START} = $line->{session_start};
         $ACCT_INFO->{'Acct-Terminate-Cause'} = 3;
-        $ACCT_INFO->{'Acct-Status-Type'}     = 'Stop';
+        $ACCT_INFO->{'Acct-Status-Type'} = 'Stop';
 
         $Acct->accounting($ACCT_INFO, $nas_row);
 
-        push @results, "$ACCT_INFO->{'User-Name'} ($line->{acct_session_id}) ". (($Acct->{errno}) ? $lang{ERROR} : $lang{ADDED});
+        push @results, "$ACCT_INFO->{'User-Name'} ($line->{acct_session_id}) " . (($Acct->{errno}) ? $lang{ERROR} : $lang{ADDED});
       }
     }
 
@@ -227,26 +230,26 @@ sub internet_online {
     }
 
     if (!_error_show($Sessions)) {
-      $message = "$lang{NAS}: ". ($FORM{nas_id} || '') ."\n"
-        . "$lang{PORT}: ". ($FORM{nas_port_id} || '') ." \n"
-        . "ACCT_SESSION_ID:  ". ($FORM{del} || '');
+      $message = "$lang{NAS}: " . ($FORM{nas_id} || '') . "\n"
+        . "$lang{PORT}: " . ($FORM{nas_port_id} || '') . " \n"
+        . "ACCT_SESSION_ID:  " . ($FORM{del} || '');
 
       $html->message('info', $lang{DELETED}, $message);
     }
   }
-  elsif($FORM{search}) {
-    foreach my $key ( keys %FORM ) {
-      $LIST_PARAMS{$key}=$FORM{$key};
+  elsif ($FORM{search}) {
+    foreach my $key (keys %FORM) {
+      $LIST_PARAMS{$key} = $FORM{$key};
     }
-    $LIST_PARAMS{ALL}=1;
+    $LIST_PARAMS{ALL} = 1;
     delete $LIST_PARAMS{DOMAIN_ID};
-    $LIST_PARAMS{SKIP_DOMAIN}=1;
+    $LIST_PARAMS{SKIP_DOMAIN} = 1;
   }
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
 
   # online count
-  my $list     = $Sessions->online_count({ %LIST_PARAMS, COLS_NAME => 1 });
+  my $list = $Sessions->online_count({ %LIST_PARAMS, COLS_NAME => 1 });
 
   my $nas_list = $Nas->list({
     COLS_NAME => 1,
@@ -260,7 +263,7 @@ sub internet_online {
   my $cure = '';
   if ($FORM{ZAPED}) {
     $LIST_PARAMS{ZAPED} = 1;
-    $LIST_PARAMS{ACCT_SESSION_ID} = '_SHOW' if (! $LIST_PARAMS{ACCT_SESSION_ID});
+    $LIST_PARAMS{ACCT_SESSION_ID} = '_SHOW' if (!$LIST_PARAMS{ACCT_SESSION_ID});
     $cure = 'Zap';
     $pages_qs .= "&ZAPED=1";
   }
@@ -272,39 +275,39 @@ sub internet_online {
   $html->short_info_panels_row(
     [
       {
-        ID     => mk_unique_value(10),
-        NUMBER => $Sessions->{ONLINE} || ' 0',
+        ID          => mk_unique_value(10),
+        NUMBER      => $Sessions->{ONLINE} || ' 0',
         NUMBER_SIZE => '40px',
-        ICON   => 'plane',
-        TEXT   => $html->button("Online", "index=$index"),
-        COLOR  => 'green',
-        SIZE   => 3
+        ICON        => 'plane',
+        TEXT        => $html->button("Online", "index=$index"),
+        COLOR       => 'green',
+        SIZE        => 3
       },
       {
-        ID          => mk_unique_value( 10 ),
+        ID          => mk_unique_value(10),
         NUMBER      => $Sessions->{ZAPED} || ' 0',
         NUMBER_SIZE => '40px',
         ICON        => 'remove',
-        TEXT        => $html->button( "$lang{ZAPED}", "index=$index&ZAPED=1" ),
+        TEXT        => $html->button("$lang{ZAPED}", "index=$index&ZAPED=1"),
         COLOR       => 'orange',
         SIZE        => 3
       }
     ]
   );
 
-  if($FORM{NAS_ID}) {
+  if ($FORM{NAS_ID}) {
     $pages_qs .= "&NAS_ID=$FORM{NAS_ID}";
     $LIST_PARAMS{NAS_ID} = $FORM{NAS_ID};
   }
-  elsif ($Sessions->{TOTAL} && $Sessions->{TOTAL} > 500 && ! $FORM{show_columns}){
-    if(!($FORM{ZAPED} || $FORM{FILTER})) {
+  elsif ($Sessions->{TOTAL} && $Sessions->{TOTAL} > 500 && !$FORM{show_columns}) {
+    if (!($FORM{ZAPED} || $FORM{FILTER})) {
       print internet_online_search();
       my $table = $html->table({
-        width      => '100%',
-        caption    => "Online $lang{TOTAL} ($lang{NAS}: $Sessions->{TOTAL_NAS})",
-        title      => [ "NAS ID", "NAS $lang{NAME}", "NAS IP", $lang{TYPE}, $lang{SESSIONS}, $lang{USERS}, "ZAPPED", $lang{ERROR}, $lang{GUEST}, "-" ],
-        qs         => $pages_qs,
-        ID         => 'ONLINE'
+        width   => '100%',
+        caption => "Online $lang{TOTAL} ($lang{NAS}: $Sessions->{TOTAL_NAS})",
+        title   => [ "NAS ID", "NAS $lang{NAME}", "NAS IP", $lang{TYPE}, $lang{SESSIONS}, $lang{USERS}, "ZAPPED", $lang{ERROR}, $lang{GUEST}, "-" ],
+        qs      => $pages_qs,
+        ID      => 'ONLINE'
       });
 
       foreach my $line (@$list) {
@@ -315,37 +318,44 @@ sub internet_online {
           $html->button($lang{SHOW}, "index=$index&NAS_ID=$line->{nas_id}", { class => 'show' }));
       }
 
+      if (Abills::Base::in_array('Maps', \@MODULES)) {
+        _internet_map_menu({
+          TABLE   => $table->show(),
+        });
+        return 1;
+      }
+
       print $table->show();
       return 0;
     }
   }
 
   if ($FORM{FILTER} && $FORM{FILTER_FIELD}) {
-    $LIST_PARAMS{FILTER_FIELD}=$FORM{FILTER_FIELD};
-    $LIST_PARAMS{FILTER}=$FORM{FILTER};
+    $LIST_PARAMS{FILTER_FIELD} = $FORM{FILTER_FIELD};
+    $LIST_PARAMS{FILTER} = $FORM{FILTER};
     $pages_qs .= "&FILTER_FIELD=$FORM{FILTER_FIELD}&$LIST_PARAMS{FILTER}"
   }
 
-  if($FORM{NAS_ERROR_SESSIONS}) {
+  if ($FORM{NAS_ERROR_SESSIONS}) {
     $LIST_PARAMS{NAS_ERROR_SESSIONS} = $FORM{NAS_ERROR_SESSIONS};
   }
 
-  if(-f '/usr/abills/webreports/internet_online_count.log') {
+  if (-f '/usr/abills/webreports/internet_online_count.log') {
     print $html->button($html->img('/reports/internet_online_count-day.png', 'online',
-      { EX_PARAMS => q{class="img-responsive" width="380" height="125"}  }),
+      { EX_PARAMS => q{class="img-responsive" width="380" height="125"} }),
       '', { GLOBAL_URL => '/reports/' });
   }
 
   my %online_status = (
-    0 => "(1) $lang{START}",
-    1 => "(1) $lang{START}",
-    2 => '(2) Zapped',
-    3 => '(3) Alive',
-    5 => '(5) Error 5',
-    6 => '(6) Error 6',
-    9 => '(9) Renew Session',
-    10=> '(10) IPN without accounting',
-    11=> '(11) IP reserved'
+    0  => "(1) $lang{START}",
+    1  => "(1) $lang{START}",
+    2  => '(2) Zapped',
+    3  => '(3) Alive',
+    5  => '(5) Error 5',
+    6  => '(6) Error 6',
+    9  => '(9) Renew Session',
+    10 => '(10) IPN without accounting',
+    11 => '(11) IP reserved'
   );
 
   my %EXT_TITLES = (
@@ -382,8 +392,8 @@ sub internet_online {
     'circuit_id'          => 'CIRCUIT_ID',
     'hostname'            => 'HOSTNAME',
     'switch_port'         => "$lang{SWITCH} $lang{PORT}",
-    'vlan'                => 'vlan',
-    'server_vlan'         => 'server_vlan',
+    'vlan'                => 'CVLAN',
+    'server_vlan'         => 'SVLAN',
     'switch_mac'          => $lang{SWITCH} . " MAC",
     'switch_name'         => $lang{SWITCH},
     'switch_id'           => "$lang{SWITCH} ID",
@@ -405,7 +415,7 @@ sub internet_online {
     BASE_FIELDS     => 0,
     FUNCTION_FIELDS => 'ping, zap, hangup, graphics',
     EXT_TITLES      => \%EXT_TITLES,
-    FILTER_COLS  => {
+    FILTER_COLS     => {
       duration_sec    => '_sec2time_str',
       online_duration => '_sec2time_str',
       client_ip_num   => 'int2ip',
@@ -421,22 +431,22 @@ sub internet_online {
       ID         => 'INTERNET_ONLINE',
       EXPORT     => 1,
     },
-    SKIP_PAGES   => 1
+    SKIP_PAGES      => 1
   });
 
-  my $dub_ports  = ($Sessions->{dub_ports}) ? $Sessions->{dub_ports} : undef;
+  my $dub_ports = ($Sessions->{dub_ports}) ? $Sessions->{dub_ports} : undef;
   my $dub_logins = ($Sessions->{dub_logins}) ? $Sessions->{dub_logins} : undef;
-  my $dub_ips    = ($Sessions->{dub_ips}) ? $Sessions->{dub_ips} : undef;
-  my $online     = $Sessions->{nas_sorted};
+  my $dub_ips = ($Sessions->{dub_ips}) ? $Sessions->{dub_ips} : undef;
+  my $online = $Sessions->{nas_sorted};
 
   foreach my $_nas (@$nas_list) {
     my $nas_id = $_nas->{id};
     next if (!defined($online->{ $nas_id }));
     next if (($FORM{NAS_ID} && $FORM{NAS_ID} != $nas_id) && !$FORM{ZAPED});
 
-    my $l     = $online->{ $nas_id };
+    my $l = $online->{ $nas_id };
     my $total = $#{$l} + 1;
-    if(! $FORM{json}) {
+    if (!$FORM{json}) {
       $table->{rowcolor} = 'bg-info';
       $table->{extra} = "colspan='" . ($Sessions->{SEARCH_FIELDS_COUNT}) . "'";
       $table->addrow("$nas_id:"
@@ -449,11 +459,11 @@ sub internet_online {
         "index=" . get_function_index('internet_error') . "&NAS_ID=$nas_id&search_form=1&search=1",
         { class => 'btn btn-default' })
         . $html->button('', "#",
-        { class                                                      => 'btn btn-default', ICON =>
-          'glyphicon glyphicon-stats', TITLE                         => "$lang{GRAPH} $lang{NAS}",
-          NEW_WINDOW                                                 =>
-          internet_get_chart_query("NAS_ID=$nas_id", '1',
-            $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" })
+        { class                                                        => 'btn btn-default', ICON =>
+          'glyphicon glyphicon-stats', TITLE                           => "$lang{GRAPH} $lang{NAS}",
+          NEW_WINDOW                                                   =>
+            internet_get_chart_query("NAS_ID=$nas_id", '1',
+              $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" })
       );
     }
 
@@ -487,11 +497,11 @@ sub internet_online {
         my $col_name = $Sessions->{COL_NAMES_ARR}->[$i];
         if ($conf{EXT_BILL_ACCOUNT} && $Sessions->{COL_NAMES_ARR}->[$i] eq 'ext_bill_deposit') {
           $val = ($line->{ext_bill_deposit} < 0) ? $html->color_mark($line->{ext_bill_deposit},
-              $_COLORS[6])                       : $line->{ext_bill_deposit};
+            $_COLORS[6]) : $line->{ext_bill_deposit};
         }
         elsif ($col_name eq 'deleted') {
           $val = $html->color_mark($bool_vals[ $line->{deleted} ],
-              ($line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : '');
+            ($line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : '');
         }
         elsif ($col_name eq 'status') {
           $val = $online_status{  $line->{status} };
@@ -503,15 +513,15 @@ sub internet_online {
           $val = int2ip($line->{client_ip_num});
           $line->{client_ip} = $val;
         }
-        elsif($col_name eq 'switch_id' && $line->{switch_id}) {
+        elsif ($col_name eq 'switch_id' && $line->{switch_id}) {
           my $nas_index = get_function_index('equipment_info');
 
-          if(! $nas_index) {
+          if (!$nas_index) {
             $nas_index = get_function_index('form_nas');
           }
 
-          if($nas_index) {
-            $val = $html->button($line->{switch_id}, "index=$nas_index&NAS_ID=". $line->{switch_id});
+          if ($nas_index) {
+            $val = $html->button($line->{switch_id}, "index=$nas_index&NAS_ID=" . $line->{switch_id});
           }
           else {
             $val = $line->{switch_id};
@@ -519,8 +529,8 @@ sub internet_online {
         }
         elsif ($col_name eq 'internet_status') {
           if (defined($line->{internet_status})) {
-            my ($status, $color) = split( /:/, $service_status->{ $line->{internet_status} || 0 } || '' );
-            $val = $html->color_mark( $status, $color );
+            my ($status, $color) = split(/:/, $service_status->{ $line->{internet_status} || 0 } || '');
+            $val = $html->color_mark($status, $color);
           }
           else {
             $val = '-';
@@ -540,9 +550,9 @@ sub internet_online {
         elsif ($col_name eq 'cid') {
           if ($line->{$col_name}) {
             $val = $html->color_mark($line->{$col_name}, 'code');
-            if ($line->{$col_name} =~ /$Abills::Filters::MAC/ && ! $FORM{json}) {
-              $val .= ' '.$html->button( $lang{INFO}, "index=$index&mac_info=$line->{cid}&UID=$line->{uid}",
-                { class => 'info' } );
+            if ($line->{$col_name} =~ /$Abills::Filters::MAC/ && !$FORM{json}) {
+              $val .= ' ' . $html->button($lang{INFO}, "index=$index&mac_info=$line->{cid}&UID=$line->{uid}",
+                { class => 'info' });
             }
           }
         }
@@ -564,27 +574,27 @@ sub internet_online {
       }
 
       my @function_fields = (
-        $html->button('P', "index=$index&ping=". int2ip($line->{ client_ip_num })."&SESSION_ID=$line->{acct_session_id}$pages_qs",
+        $html->button('P', "index=$index&ping=" . int2ip($line->{ client_ip_num }) . "&SESSION_ID=$line->{acct_session_id}$pages_qs",
           { TITLE => 'ping', BUTTON => 1 }),
         $html->button("$lang{GRAPH} $lang{USER}", "#", {
-            class      => 'stats',
-            NEW_WINDOW =>  internet_get_chart_query("UID=$line->{uid}", '1', $chart_new_window_width, $chart_height),
-            NEW_WINDOW_SIZE => $new_window_size
-          })
+          class           => 'stats',
+          NEW_WINDOW      => internet_get_chart_query("UID=$line->{uid}", '1', $chart_new_window_width, $chart_height),
+          NEW_WINDOW_SIZE => $new_window_size
+        })
       );
 
       if ($permissions{5}{1}) {
         push @function_fields, $html->button('Z', "index=$index&zap=$line->{uid}+$nas_id+"
-              .($line->{nas_port_id} || q{})."+$line->{acct_session_id}$pages_qs",
-            { TITLE => 'Zap', class => 'del', NO_LINK_FORMER => 1 });
+          . ($line->{nas_port_id} || q{}) . "+$line->{acct_session_id}$pages_qs",
+          { TITLE => 'Zap', class => 'del', NO_LINK_FORMER => 1 });
       }
 
       if ($permissions{5}{2}) {
         push @function_fields, ($FORM{ZAPED}) ? '' : $html->button('H', "index=$index&FRAMED_IP_ADDRESS="
-                .($line->{client_ip} || q{0.0.0.0})
-                ."&hangup=$nas_id+".($line->{nas_port_id} || q{})
-                ."+$line->{acct_session_id}+$line->{user_name}&UID=$line->{uid}$pages_qs",
-              { TITLE => 'Hangup', class => 'off' });
+          . ($line->{client_ip} || q{0.0.0.0})
+          . "&hangup=$nas_id+" . ($line->{nas_port_id} || q{})
+          . "+$line->{acct_session_id}+$line->{user_name}&UID=$line->{uid}$pages_qs",
+          { TITLE => 'Hangup', class => 'off' });
       }
 
       $table->addrow(@fields_array, join(' ', @function_fields));
@@ -592,6 +602,9 @@ sub internet_online {
   }
 
   my $output = $table->show();
+  my $output_map = $table->show();
+  my $output_zaped = "";
+  my $output_filters = "";
 
   if ($FORM{ZAPED}) {
     $output = $html->form_main(
@@ -602,21 +615,22 @@ sub internet_online {
           ZAPED  => 1,
           NAS_ID => $FORM{NAS_ID}
         },
-        SUBMIT => {
+        SUBMIT  => {
           del   => "$lang{DEL}",
           tolog => "$lang{ADD} to LOG"
         },
-        METHOD => 'POST',
-        NAME   => 'users_list',
-        ID     => 'users_list',
+        METHOD  => 'POST',
+        NAME    => 'users_list',
+        ID      => 'users_list',
       }
     );
   }
   else {
-    $output = internet_online_search() . $output;
+    $output_filters = internet_online_search() ;
+    $output = $output_filters . $output;
 
     #TODO MOreelegent solution
-    if(! $FORM{json}) {
+    if (!$FORM{json}) {
       $output .=
         ($permissions{5}{1} ? $html->button('Zap All', "index=$index&zapall=1",
           { class   => 'btn btn-default btn-danger', ICON => 'glyphicon glyphicon-trash',
@@ -636,6 +650,15 @@ sub internet_online {
     }
   }
 
+  if (Abills::Base::in_array('Maps', \@MODULES) && !$FORM{ZAPED}) {
+    _internet_map_menu({
+      TABLE   => $output_map,
+      FILTERS => $output_filters,
+      ZAPED   => $output_zaped,
+    });
+    return 1;
+  }
+
   print $output;
 
   return 1;
@@ -650,24 +673,26 @@ sub internet_online {
 sub internet_online_search {
 
   my %FILTER_FIELDS = (
-    USER_NAME      => $lang{LOGIN},
-    FIO            => $lang{FIO},
-    NAS_PORT_ID    => $lang{PORT},
-    DURATION       => $lang{DURATION},
-    CLIENT_IP      => 'IP',
-    CID            => 'CID',
-    CPE_MAC        => 'CPE_MAC',
-    TP_NUM         => $lang{TARIF_PLAN},
-    CONNECT_INFO   => 'CONNECT_INFO',
-    GUEST          => $lang{GUEST},
-    TURBO_MODE     => $lang{TURBO_MODE},
-    JOIN_SERVICE   => $lang{JOIN_SERVICE},
-    ADDRESS_FULL   => $lang{ADDRESS},
-    ACCT_SESSION_ID=> 'SESSION_ID',
-    UID            => 'UID',
-    LAST_ALIVE     => $lang{LAST_UPDATE},
-    GID            => "$lang{GROUP} ID",
-    TAGS           => "$lang{TAGS}",
+    USER_NAME       => $lang{LOGIN},
+    FIO             => $lang{FIO},
+    NAS_PORT_ID     => $lang{PORT},
+    DURATION        => $lang{DURATION},
+    CLIENT_IP       => 'IP',
+    CID             => 'CID',
+    CPE_MAC         => 'CPE_MAC',
+    TP_NUM          => $lang{TARIF_PLAN},
+    CONNECT_INFO    => 'CONNECT_INFO',
+    GUEST           => $lang{GUEST},
+    TURBO_MODE      => $lang{TURBO_MODE},
+    JOIN_SERVICE    => $lang{JOIN_SERVICE},
+    ADDRESS_FULL    => $lang{ADDRESS},
+    ACCT_SESSION_ID => 'SESSION_ID',
+    UID             => 'UID',
+    LAST_ALIVE      => $lang{LAST_UPDATE},
+    GID             => "$lang{GROUP} ID",
+    TAGS            => "$lang{TAGS}",
+    VLAN            => 'Client VLAN',
+    SERVER_VLAN     => 'Server VLAN',
   );
 
   my $FIELDS_SEL = $html->form_select(
@@ -680,12 +705,12 @@ sub internet_online_search {
     }
   );
 
-  my $report_form = $html->element( 'div', "$lang{FILTERS}: ". $html->form_input('FILTER', $FORM{FILTER}). " $lang{FIELDS}: ".
-      $FIELDS_SEL
-      . " $lang{REFRESH} (sec): ". $html->form_input('REFRESH', int($FORM{REFRESH} || 0), { SIZE => 4 })
-      . $html->form_input('SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' }), {
-      class => 'well well-sm',
-    } );
+  my $report_form = $html->element('div', "$lang{FILTERS}: " . $html->form_input('FILTER', $FORM{FILTER}) . " $lang{FIELDS}: " .
+    $FIELDS_SEL
+    . " $lang{REFRESH} (sec): " . $html->form_input('REFRESH', int($FORM{REFRESH} || 0), { SIZE => 4 })
+    . $html->form_input('SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' }), {
+    class => 'well well-sm',
+  });
 
   return $html->form_main(
     {
@@ -694,8 +719,8 @@ sub internet_online_search {
         index  => "$index",
         NAS_ID => $FORM{NAS_ID}
       },
-      METHOD => 'GET',
-      class  => 'form-inline'
+      METHOD  => 'GET',
+      class   => 'form-inline'
     }
   );
 }
@@ -714,13 +739,19 @@ sub internet_online_search {
 sub internet_diagnostic {
   my ($diagnostic) = @_;
 
-  my ($diag_num,$diag_params) = split(/:/, $diagnostic, 2);
-  my ($ip, $uid, $nas_id, undef, $acct_session_id) = split(/ /, $diag_params);
+  my ($diag_num, $diag_params) = split(/:/, $diagnostic, 2);
+  my ($ip, $uid, $nas_id, undef, $acct_session_id, $extra_param) = split(/ /, $diag_params);
 
-  my ($name, $cmd);
+  my ($name, $cmd, $package);
   my @diagnostic_rules = split(/;/, $conf{INTERNET_EXTERNAL_DIAGNOSTIC});
-  for(my $i=0; $i<=$#diagnostic_rules; $i++) {
-    ($name, $cmd)=split(/:/, $diagnostic_rules[$i]);
+  for (my $i = 0; $i <= $#diagnostic_rules; $i++) {
+    my @rule = split(/:/, $diagnostic_rules[$i]);
+    if($rule[1] eq 'package'){
+      ($name, undef, $package) = @rule;
+    }
+    else {
+      ($name, $cmd) = @rule;
+    }
     if ($i == $diag_num) {
       last;
     }
@@ -734,12 +765,32 @@ sub internet_diagnostic {
     FRAMED_IP_ADDRESS => $ip
   });
 
-  my $res = cmd($cmd, {
-      PARAMS => $ACCT_INFO,
-      SET_ENV=> 1
+  if($package){
+    my $require_module = "Internet::$package";
+    eval {require "Internet/$package.pm";};
+    if (!$@) {
+      $require_module->import();
+      $require_module->new({conf => \%conf, html => $html});
+      return $require_module->action($diagnostic,$extra_param);
+    }
+    else {
+      print "Error loading\n";
+      print $@;
+    }
+  }
+  else{
+    my $res = cmd($cmd, {
+      PARAMS  => $ACCT_INFO,
+      timeout => 10,
+      SET_ENV => 1
     });
 
-  print $html->message('info', $lang{DIAGNOSTIC} .' '. ($name || q{}), $res);
+    my ($status);
+    if ($res) {
+      ($status) = ($res =~ m/STATUS: ([^\s]+)/);
+    }
+    print $html->message($status || 'info', $lang{DIAGNOSTIC} . ' ' . ($name || q{}), $res);
+  }
 
   return 1;
 }
@@ -751,39 +802,40 @@ sub internet_diagnostic {
 =cut
 #**********************************************************
 sub internet_online_builds {
-  require Address; Address->import();
+  require Address;
+  Address->import();
   my $Address = Address->new($db, $admin, \%conf);
-  
+
   my $online_count_for_build = $Sessions->users_online_count_by_builds();
   _error_show($Sessions) and return 0;
-  my %online_for_location_id = map { $_->{id} => $_->{online_count} } @$online_count_for_build ;
+  my %online_for_location_id = map {$_->{id} => $_->{online_count}} @$online_count_for_build;
 
-  my $online_has_guest = $Sessions->users_online_count_by_builds({GUEST => 1});
+  my $online_has_guest = $Sessions->users_online_count_by_builds({ GUEST => 1 });
   _error_show($Sessions) and return 0;
-  my %online_for_guest_location_id = map { $_->{id} => $_->{online_count} } @$online_has_guest ;
+  my %online_for_guest_location_id = map {$_->{id} => $_->{online_count}} @$online_has_guest;
 
-  my $districts_list = $Address->district_list( {
+  my $districts_list = $Address->district_list({
     COLS_NAME => 1,
     SORT      => 'd.name',
     PAGE_ROWS => 10000
-  } );
+  });
   return if (_error_show($Address));
-  
+
   my $districts_content = '';
-  foreach my $district ( @{$districts_list} ) {
+  foreach my $district (@{$districts_list}) {
     # Get all streets
-    my $streets_list = $Address->street_list( {
+    my $streets_list = $Address->street_list({
       DISTRICT_ID => $district->{id},
       STREET_NAME => '_SHOW',
       SECOND_NAME => '_SHOW',
       COLS_NAME   => 1,
       SORT        => 's.name',
       PAGE_ROWS   => 10000
-    } );
+    });
     return if (_error_show($Address));
-    
+
     my $streets_content = '';
-    foreach my $street ( @{$streets_list} ) {
+    foreach my $street (@{$streets_list}) {
       my $builds_list = $Address->build_list({
         STREET_ID   => $street->{id},
         COLS_NAME   => 1,
@@ -791,21 +843,21 @@ sub internet_online_builds {
         SORT        => 1,
         PAGE_ROWS   => 10000
       });
-      return if ( _error_show($Address) );
-  
+      return if (_error_show($Address));
+
       my %street_users = (
         total  => 0,
         online => 0,
       );
-  
+
       my $builds_content = '';
       my $builds_count = 0;
-      foreach my $build ( @{$builds_list} ) {
-    
+      foreach my $build (@{$builds_list}) {
+
         my $btn_class = 'btn-default';
-        
+
         $street_users{total} += $build->{users_count};
-        
+
         my $has_online = ($online_for_location_id{$build->{id}});
         my $has_guest = ($online_for_guest_location_id{$build->{id}});
         if ($has_online) {
@@ -816,10 +868,10 @@ sub internet_online_builds {
           $street_users{online} += $online_for_guest_location_id{$build->{id}};
           $btn_class = 'btn-warning';
         }
-        elsif ($build->{users_count}){
+        elsif ($build->{users_count}) {
           $btn_class = 'btn-danger';
         }
-  
+
         $builds_count += 1;
         $builds_content .= $html->button($build->{number},
           "index=7&type=11&search=1&search_form=1&LOCATION_ID=$build->{id}&BUILDS=$street->{id}", {
@@ -827,41 +879,41 @@ sub internet_online_builds {
             OUTPUT2RETURN => 1
           }
         );
-        
+
       }
-  
+
       my $offline_users = ($street_users{total} || 0) - ($street_users{online} || 0);
       my $street_online_text = join(' / ',
         $html->element('span', $street_users{total} || '0', { class => 'text-muted', title => $lang{TOTAL} }),
         $html->element('span', $street_users{online} || '0', { class => 'text-success', title => $lang{ONLY_ONLINE} }),
         $html->element('span', $offline_users || '0', { class => 'text-danger', title => $lang{ONLY_OFFLINE} }),
       );
-      
+
       $streets_content .= $html->tpl_show(templates('form_show_not_hide'), {
-          NAME    => $street->{street_name}
-            . ($street->{second_name}
-              ? " ( $street->{second_name} ) "
-              : '')
-            . " ( $street_online_text ) "
-            ,
-          CONTENT => '<div class="button-block">' . $builds_content . '</div>',
-          PARAMS  => 'collapsed-box'
-        },
+        NAME    => $street->{street_name}
+          . ($street->{second_name}
+          ? " ( $street->{second_name} ) "
+          : '')
+          . " ( $street_online_text ) "
+          ,
+        CONTENT => '<div class="button-block">' . $builds_content . '</div>',
+        PARAMS  => 'collapsed-box'
+      },
         {
           OUTPUT2RETURN => 1
         });
     }
-  
-    $districts_content .= $html->tpl_show( templates('form_show_not_hide'), {
-        NAME    => $lang{DISTRICT} . ' ' . $district->{name} . ' ( ' . (scalar @{$streets_list}) . ' )',
-        CONTENT => $streets_content,
-        PARAMS  => 'collapsed-box'
-      }, {
-        OUTPUT2RETURN => 1
-      } );
+
+    $districts_content .= $html->tpl_show(templates('form_show_not_hide'), {
+      NAME    => $lang{DISTRICT} . ' ' . $district->{name} . ' ( ' . (scalar @{$streets_list}) . ' )',
+      CONTENT => $streets_content,
+      PARAMS  => 'collapsed-box'
+    }, {
+      OUTPUT2RETURN => 1
+    });
   };
-  
-  
+
+
   $html->tpl_show(_include('internet_online_builds', 'Internet'),
     {
       DISTRICT_PANELS => $districts_content
@@ -871,5 +923,90 @@ sub internet_online_builds {
   return 1;
 }
 
+#**********************************************************
+=head2 _internet_map_menu() - show menu with map
+
+=cut
+#**********************************************************
+sub _internet_map_menu {
+  my ($attr) = @_;
+
+  load_module('Maps', $html);
+
+  my $info_table = "";
+  my %USERS_INFO = ();
+  # Get online
+  my $online_list = $Sessions->online({
+    UID       => '_SHOW',
+    COLS_NAME => 1
+  });
+  _error_show($Sessions) and return 0;
+
+  # Get location_ids for users
+  my $builds_for_users = $users->list({
+    FIO         => '_SHOW',
+    LOGIN       => '_SHOW',
+    DEPOSIT     => '_SHOW',
+    UID         => join(';', map {$_->{uid}} @{$online_list}),
+    LOCATION_ID => '!',
+    COLS_NAME   => 1
+  });
+  _error_show($users) and return 0;
+
+  my $online_block = $html->element('span', '', {
+    class => 'glyphicon glyphicon-ok-circle text-green',
+    title => $lang{ONLINE}
+  });
+
+  my $count_online = 0;
+  foreach my $build (@{$builds_for_users}) {
+    my $user_flat = $build->{address_flat} || " - ";
+    my $user_link = $html->button($build->{login}, "index=" . get_function_index("form_users") . "&UID=$build->{uid}");
+    my $user_deposit = $build->{deposit} < 0 ? $html->color_mark($build->{deposit}, 'text-danger') : $build->{deposit};
+
+    my $info_for_table .= qq(<td>$online_block</td>);
+    $info_for_table .= qq(<td>$user_link</td>);
+    $info_for_table .= qq(<td>$user_deposit</td>);
+    $info_for_table .= qq(<td>$build->{fio}</td>);
+    $info_for_table .= qq(<td>$user_flat</td>);
+
+    if ($USERS_INFO{ $build->{build_id} || $build->{location_id} }) {
+      $count_online++;
+
+      $info_table = $info_for_table;
+      $info_table .= qq(</tr>);
+      $build->{map_custom_info} = $info_table;
+      $USERS_INFO{ $build->{build_id} || $build->{location_id} }[0]{count} = $count_online;
+      $USERS_INFO{ $build->{build_id} || $build->{location_id} }[0]{map_custom_info} .= $build->{map_custom_info};
+      next;
+    }
+
+    $count_online = 1;
+    $build->{count} = $count_online;
+
+    $info_table = qq(<table class="table table-bordered"><thead><tr>);
+    $info_table .= qq(<th>$lang{ONLINE}</th><th>$lang{LOGIN}</th><th>$lang{DEPOSIT}</th><th>$lang{USER}</th><th>$lang{FLAT}</th>);
+    $info_table .= qq(</thead><tr>);
+    $info_table .= $info_for_table;
+    $info_table .= qq(</tr>);
+
+    $build->{map_custom_info} = $info_table;
+    push @{$USERS_INFO{ $build->{build_id} || $build->{location_id} }}, $build;
+  }
+
+  $FORM{MAPS} = maps_show_map({
+    DATA          => \%USERS_INFO,
+    OUTPUT2RETURN => 1,
+    QUICK         => 1,
+  });
+
+  $html->tpl_show(_include('internet_online_map', 'Internet'), {
+    FILTERS => $attr->{FILTERS},
+    TABLE   => $attr->{TABLE},
+    MAPS    => $FORM{MAPS}
+  });
+
+  return 1;
+}
 
 1;

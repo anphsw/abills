@@ -79,14 +79,14 @@
         </div>
         <div class='form-group'>
           <div class='box box-theme'>
-            <div class='box-header with-border bg-info' role='tab' id='burstlimit'>
-              <h4 class='box-title'>
-                <a role='button' data-toggle='collapse' data-parent='#accordion' href='#burstModeCollapse'
-                   aria-expanded='false' aria-controls='collapseOne'>
-                  Burst Mode
-                </a>
-              </h4>
-
+            <div class="box-header with-border">
+              <h3 class="box-title">Burst Mode</h3>
+              <div class="box-tools pull-right">
+                <button type="button" class="btn btn-default btn-xs" data-widget="collapse" data-toggle='collapse' data-parent='#accordion' href='#burstModeCollapse'
+                        aria-expanded='false' aria-controls='collapseOne'>
+                  <i class="fa fa-plus"></i>
+                </button>
+              </div>
             </div>
             <div id='burstModeCollapse' class='box-collapse collapse collapsing' role='tabpanel'
                  aria-labelledby='burstLimit'>

@@ -31,6 +31,7 @@ $lang{MESSAGES} = 'Help Desk';
 $lang{SUBJECT} = 'Subject';
 $lang{DEPOSIT} = 'Deposit';
 $lang{OPERATION_DEPOSIT} = 'Operation Deposit';
+$lang{AFTER_OPERATION_DEPOSIT} = 'Deposit after operation';
 $lang{CURRENT_DEPOSIT} = 'Current Deposit';
 $lang{ACTIVATE} = 'Activation';
 $lang{ACTIV} = 'Active';
@@ -846,5 +847,25 @@ $lang{SHORT_ADMINS}='Admins';
 $lang{AVR_FEES_AUTHORIZED}='Average removal by authorized subscribers';
 $lang{AVR_AMOUNT_ACTIVE_SERV}='Average cost of active services';
 $lang{ARPU_FUTURE}='Predicted ARPU';
+$lang{SET_PARAMS}='Set parameters';
+$lang{SECONDS} = 'seconds';
+$lang{WAIT} = 'Wait';
+$lang{ERROR_DEL_SHEDULE_CHG_TP} = 'The schedule added by the administrator cannot be deleted, please contact tech support to delete';
 
+$lang{ERROR_PUBLIC_MODE} = 'You cannot do this in public demonstration mode';
+$lang{CHANGE_ADMIN_PERMITS} = 'Change permits';
+
+$lang{IP_SKIP}='IP skip';
+
+$lang{SEARCH_ABON}='Search for subscribers';
+
+$lang{JOBS}='Jobs';
+$lang{INTERNET}='Internet';
+$lang{IPTV}='Iptv';
+$lang{APPLICATIONS}='Connection Applications';
+$lang{REG_PHONE}='To register, you must confirm the phone.';
+$lang{REG_SUCCESS}='Congratulation! Registration Complete';
+$lang{REG_SEND_EMAIL}='All information has been sent to your E-mail';
+
+$lang{EXTRA_FIELDS}='Extra fields';
 1;

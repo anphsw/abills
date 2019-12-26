@@ -31,14 +31,12 @@ my $curr_tz = 'Europe/London';
 my %tables = (
   'ipn_traf_detail' => { 'period' => 'day', 'keep_history' => '30', main_field => 's_time' },
   's_detail'        => { 'period' => 'day', 'keep_history' => '30', main_field => 'start' },
-  'errors_log'      => { 'period' => 'day', 'keep_history' => '3', main_field  => 'date' },
+  'errors_log'      => { 'period' => 'day', 'keep_history' => '7', main_field  => 'date' },
   'internet_log'    => { 'period' => 'month', 'keep_history' => '30', main_field => 'start' },
   'dv_log'          => { 'period' => 'month', 'keep_history' => '100', main_field => 'start' },
 );
 
-if (! load_pmodule('DateTime')) {
-  exit;
-}
+load_pmodule('DateTime');
 
 my $query_cmd='query2';
 if($Admin->can('query')) {

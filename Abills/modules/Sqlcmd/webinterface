@@ -244,6 +244,11 @@ sub sqlcmd {
     }
     print $table->show();
 
+    if(! $Sqlcmd->{db}->{db}) {
+      $html->message('err', $lang{ERROR}, "CANT_CONNECT");
+      return 1;
+    }
+
     $table = $html->table(
       {
         width      => '100%',
@@ -484,8 +489,20 @@ sub sqlcmd_tables {
     }
   }
 
-  $html->tpl_show(_include('sqlcmd_search_tables', 'Sqlcmd'), { %$Sqlcmd, %FORM });
+  $html->short_form({
+    METHOD => 'GET',
+    LABELED_FIELDS => {
+      "$lang{TABLES}: " => $html->form_input('TABLES', $FORM{TABLES}),
+    },
+    FIELDS         => [
+      $html->form_input('search', $lang{SEARCH}, { TYPE => 'submit' }),
+      $html->form_input('index', $index, {TYPE => 'hidden'})],
+    'class'        => 'form-inline',
+    IN_BOX         => 1,
+    NO_BOX_HEADER      => 1,
+  });
 
+  # $html->tpl_show(_include('sqlcmd_search_tables', 'Sqlcmd'), { %$Sqlcmd, %FORM });
   my $list = $Sqlcmd->info({ TYPE => 'showtables', %LIST_PARAMS, %FORM });
 
   if (_error_show($Sqlcmd)) {

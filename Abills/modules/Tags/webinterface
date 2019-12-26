@@ -41,6 +41,33 @@ sub tags_user_del {
   return 0;
 }
 
+
+#**********************************************************
+=head2 tags_user_add($attr)
+
+  Arguments:
+    $attr
+      UID
+      ID
+      IDS
+
+  Results:
+    TRUE/FALSE
+
+=cut
+#**********************************************************
+sub tags_user_add {
+  my ($attr) = @_;
+
+  $Tags->tags_user_change($attr);
+
+  if (!_error_show($Tags, { ID => 2102 })) {
+    $html->message('info', $lang{INFO}, $lang{CHANGED});
+  }
+
+  return 1;
+}
+
 #**********************************************************
 =head2 tags_user($attr)
 
@@ -50,15 +77,12 @@ sub tags_user {
   my ($attr) = @_;
 
   if ($FORM{change}) {
-    $Tags->tags_user_change(\%FORM);
-    if (!_error_show($Tags, { ID => 2102 })) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
-    }
+    tags_user_add(\%FORM);
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Tags->user_del({ ID => $FORM{del} });
     if (!_error_show($Tags, { ID => 2104 })) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+      $html->message('info', $lang{INFO}, $lang{CHANGED});
     }
   }
 
@@ -70,7 +94,6 @@ sub tags_user {
       caption    => "Tags",
       title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS} ],
       FIELDS_IDS => $Tags->{COL_NAMES_ARR},
-      cols_align => [ 'left', 'left', 'left', 'left' ],
       qs         => $pages_qs,
       ID         => 'TAG_USER',
     }
@@ -303,8 +326,7 @@ sub reports_user_tags {
     {
       caption    => "Tags",
       width      => '100%',
-      title      => [ "$lang{NAME}", "$lang{ENABLE}", "$lang{DISABLE}", "$lang{TOTAL}", "$lang{PERCENTAGE}" ],
-      cols_align => [ 'right', 'left', 'center', 'center', 'center' ],
+      title      => [ $lang{NAME}, $lang{ENABLE}, $lang{DISABLE}, $lang{TOTAL}, $lang{PERCENTAGE} ],
       ID         => 'USER_TAGS_REPORTS'
     }
   );
@@ -341,9 +363,8 @@ sub tags_multiuser_form {
   my $table = $html->table(
     {
       width      => '100%',
-      title      => [ '-', "$lang{NAME}", $lang{DATE}, $lang{COMMENTS} ],
+      title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS} ],
       FIELDS_IDS => $Tags->{COL_NAMES_ARR},
-      cols_align => [ 'left', 'left', 'left', 'left' ],
       qs         => $pages_qs,
       ID         => 'TAG_USER',
     }

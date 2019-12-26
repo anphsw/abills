@@ -51,6 +51,31 @@ div > .equipment-panel {
     background: url("/styles/default_adm/img/equipment/sfp-used.png") no-repeat center;
 }
 
+.port.port-QSFP-free {
+    background: url("/styles/default_adm/img/equipment/sfp-free.png") no-repeat center;
+}
+
+.port.port-QSFP-used {
+    background: url("/styles/default_adm/img/equipment/sfp-used.png") no-repeat center;
+}
+
+.port.port-EPON-free {
+    background: url("/styles/default_adm/img/equipment/sfp-free.png") no-repeat center;
+}
+
+.port.port-EPON-used {
+    background: url("/styles/default_adm/img/equipment/sfp-used.png") no-repeat center;
+}
+
+.port.port-GPON-free {
+    background: url("/styles/default_adm/img/equipment/sfp-free.png") no-repeat center;
+}
+
+.port.port-GPON-used {
+    background: url("/styles/default_adm/img/equipment/sfp-used.png") no-repeat center;
+}
+
+
 .port.port-used {
     cursor: not-allowed;
 }

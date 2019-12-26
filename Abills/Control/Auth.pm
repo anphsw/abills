@@ -369,6 +369,10 @@ sub check_permissions {
     SHORT => 1
   );
 
+  if($PARAMS{IP} eq '::1') {
+    $PARAMS{IP} = '0.0.0.1';
+  }
+
   $login    =~ s/"/\\"/g;
   $login    =~ s/'/\\'/g;
   $password =~ s/"/\\"/g;
@@ -445,6 +449,11 @@ sub check_permissions {
     $admin->{errstr} = 'DISABLED';
     return 2;
   }
+  elsif ($admin->{EXPIRE} && $admin->{EXPIRE} ne '0000-00-00 00:00:00' && $admin->{EXPIRE} lt $DATE ) {
+    $admin->{errno}  = 2;
+    $admin->{errstr} = 'EXPIRED';
+    return 2;
+  } 
 
   if ($admin->{WEB_OPTIONS}) {
     my @WO_ARR = split(/;/, $admin->{WEB_OPTIONS});
@@ -553,6 +562,7 @@ sub auth_user {
       $user->list({
         $Auth->{CHECK_FIELD} => $Auth->{USER_ID},
         LOGIN                => '_SHOW',
+        DELETED              => 0,
         COLS_NAME            => 1
       });
 
@@ -585,7 +595,7 @@ sub auth_user {
   }
 
   #Passwordless Access
-  if ($conf{PASSWORDLESS_ACCESS}) {
+  if ($conf{PASSWORDLESS_ACCESS} && !$login && !$password && !$session_id) {
     ($ret, $session_id, $login) = passwordless_access($REMOTE_ADDR, $session_id, $login,
       { PASSWORDLESS_GUEST_ACCESS => $conf{PASSWORDLESS_GUEST_ACCESS} });
 
@@ -866,6 +876,7 @@ sub auth_sql {
       $user->list({
         $auth_param => $user_name,
         PASSWORD    => $password,
+        DELETED     => 0,
         DOMAIN_ID   => $FORM{DOMAIN_ID} || 0,
         COLS_NAME   => 1
       });

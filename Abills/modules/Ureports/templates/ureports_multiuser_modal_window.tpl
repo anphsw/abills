@@ -1,21 +1,21 @@
 <div form='users_list'>
   <div class='form-group'>
-    <label class='control-label col-md-3' for='TYPE'>_{TARIF_PLAN}_</label>
-    <div class='col-md-9'>
+    <label class='control-label col-md-4 col-sm-3' for='TYPE'>_{TARIF_PLAN}_</label>
+    <div class='col-md-8 col-sm-9'>
       %UREPORTS_TP%
     </div>
   </div>
 
   <div class='form-group'>
-    <label class='control-label col-md-3' for='TYPE'>_{TYPE}_</label>
-    <div class='col-md-9'>
+    <label class='control-label col-md-4 col-sm-3' for='TYPE'>_{TYPE}_</label>
+    <div class='col-md-8 col-sm-9'>
       %UREPORTS_TYPE%
     </div>
   </div>
 
   <div class='form-group'>
-    <label class='control-label col-md-3' for='TYPE'>_{STATUS}_</label>
-    <div class='col-md-9'>
+    <label class='control-label col-md-4 col-sm-3' for='TYPE'>_{STATUS}_</label>
+    <div class='col-md-8 col-sm-9'>
       %UREPORTS_STATUS%
     </div>
   </div>

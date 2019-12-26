@@ -40,3 +40,11 @@ $lang{ERROR_API_KEY} = 'The APIKEY does not have permission to view users or the
 Edit: $conf{TIMETRACKER_REDMINE_APIKEY} & $conf{TIMETRACKER_REDMINE_APIURL}';
 $lang{ERROR_EMAIL} = "Can\'t find user with email";
 $lang{NO_FIELD} = 'no field for dev';
+$lang{DATE} = 'Date';
+$lang{SEARCH} = 'Search';
+$lang{SUPPORT} = 'Support';
+$lang{REDMINE} = 'Redmine';
+$lang{TASK_EXECUTION} = 'Closed Tasks';
+$lang{NOT_CONFIGURED} = 'The module is not configured';
+$lang{NOT_FOUND} = 'Not found configuration: ';
+$lang{ALL_TIME} = 'Total time, hours'

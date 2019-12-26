@@ -805,6 +805,50 @@ Link.prototype = {
       })
     }
 
+    if (this.comments) {
+      var vertical = this.startFiber.vertical && this.startFiber.height ? this.startFiber :
+        this.endFiber.vertical && this.endFiber.height ? this.endFiber : '';
+      var comment = this.comments;
+      if (vertical) {
+        if (this.comments.length > 24) {
+          comment = this.comments.substring(0, 20);
+          comment += "...";
+        }
+        var el = paper.text(vertical.x - 6, vertical.y + 55, comment).attr({
+          'font-size': 11
+        });
+        el.transform("r90");
+      }
+      else {
+        vertical = !this.startFiber.vertical && this.startFiber.height && this.startFiber.x === 60 ? this.startFiber :
+          !this.endFiber.vertical && this.endFiber.height && this.endFiber.x === 60 ? this.endFiber : '';
+        if (vertical) {
+          if (this.comments.length > 24) {
+            comment = this.comments.substring(0, 20);
+            comment += "...";
+          }
+          paper.text(vertical.x + 5, vertical.y + 14, comment).attr({
+            'text-anchor': 'start',
+            'font-size': 11
+          });
+        }
+        else {
+          vertical = !this.startFiber.vertical && this.startFiber.height ? this.startFiber :
+              !this.endFiber.vertical && this.endFiber.height ? this.endFiber : '';
+          if (vertical) {
+            if (this.comments.length > 24) {
+              comment = this.comments.substring(0, 20);
+              comment += "...";
+            }
+            paper.text(vertical.x + 40, vertical.y + 14, comment).attr({
+              'text-anchor': 'end',
+              'font-size': 11
+            });
+          }
+        }
+      }
+    }
+
     this.path = new EditablePath(this.geometry, path_attr, {
       color_left : this.startFiber.color,
       color_right: this.endFiber.color,
@@ -843,6 +887,7 @@ Link.prototype = {
     //this.saveGeometry();
   },
   editAttribute   : function (attr_name) {
+
     var self  = this;
     var value = self[attr_name.toLowerCase()] || '';
 
@@ -854,8 +899,8 @@ Link.prototype = {
     );
 
     aModal.clear()
-      .setSmall(true)
-      .setBody(form_group[0].innerHTML)
+      // .setSmall(true)
+      .setBody(form_group[0].innerHTML + '</br>')
       .addButton(_translate('Set'), 'modalSetBtn', 'default')
       .show(function () {
         $('#modalSetBtn').on('click', function () {

@@ -29,7 +29,6 @@ sub json_conf_main {
   }
   if ($FORM{remove_file}) {
     remove_file({ FILE => $FORM{remove_file} });
-    return 1;
   }
   if ($FORM{file}) {
     if ($FORM{save}) {
@@ -61,8 +60,7 @@ sub json_conf_main {
     MENU    => $add_button
   });
 
-  opendir my $dir, $TEMPLATE_DIR or
-    die($html->message('err', $lang{ERROR}, "$lang{ERROR_DIR} $!"));
+  opendir my $dir, $TEMPLATE_DIR or $html->message('err', $lang{ERROR}, "$lang{ERROR_DIR} $!");
   my @files = readdir $dir;
   closedir $dir;
   foreach my $file (@files) {
@@ -96,19 +94,17 @@ sub view_file {
 
   my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
 
-  open(my $file, '<', $TEMPLATE_DIR . $attr->{FILE});
-  my $file_content = do {
-    local $/;
-    <$file>
-  };
-  close $file;
-
-  my $attributes = eval {decode_json($file_content)};
-
-  if ($@) {
-    $html->message('err', $lang{ERROR}, $lang{INVALID_JSON});
+  if ($attr->{FILE} =~ /\.\.\//) {
+    $html->message('err', $lang{ERROR}, "Security error '$attr->{FILE}'.\n");
     return 1;
   }
+
+  my $file_content = file_op({
+    FILENAME   => $attr->{FILE},
+    PATH       => $TEMPLATE_DIR
+  });
+
+  my $attributes = eval {decode_json($file_content)};
 
   my $text_area = $html->form_textarea('json_string', $file_content, { ROWS => 15 });
   my $json_form_content = $html->tpl_show(_include('equipment_json_conf_json_form', 'Equipment'), { TEXT_AREA => $text_area }, { OUTPUT2RETURN => 1 });
@@ -120,6 +116,10 @@ sub view_file {
 
   print $json_form;
 
+  if ($@) {
+    $html->message('err', $lang{ERROR}, $lang{INVALID_JSON}.' '.$TEMPLATE_DIR . $attr->{FILE});
+    return 1;
+  }
   my $add_main = $html->button('', undef,
     {
       JAVASCRIPT     => '',
@@ -249,16 +249,23 @@ sub view_file {
 sub write_file {
   my ($attr) = @_;
 
-  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
-  open(my $file, '>', $TEMPLATE_DIR . $attr->{FILE}) or
-    die($html->message('err', $lang{ERROR}, "$lang{ERROR_DIR} $!"));
+  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl';
+
+  if ($attr->{FILE} =~ /\.\.\//) {
+    $html->message('err', $lang{ERROR}, "Security error '$attr->{FILE}'.\n");
+    return 1;
+  }
 
   $attr->{JSON} =~ s/\\"/"/g;
-  print $file $attr->{JSON};
 
-  close $file;
+  file_op({
+    FILENAME   => $attr->{FILE},
+    PATH       => $TEMPLATE_DIR,
+    WRITE      => 1,
+    CONTENT    => $attr->{JSON},
+  });
 
-  $html->message('info', $lang{SUCCESS}, $lang{EDIT_SUCCESS});
+  view_file({ FILE => $attr->{FILE} });
 
   return 1;
 }
@@ -279,12 +286,19 @@ sub write_file {
 sub add_file {
   my ($attr) = @_;
 
-  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
+  my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl';
 
-  open(my $file, '>', $TEMPLATE_DIR . $attr->{NAME} . '.snmp') or
-    die($html->message('err', $lang{ERROR}, "$lang{ERROR_DIR} $!"));
-  print $file '{}';
-  close($file);
+  if ($attr->{NAME} =~ /\.\.\//) {
+    $html->message('err', $lang{ERROR}, "Security error '$attr->{NAME}'.\n");
+    return 1;
+  }
+
+  file_op({
+    FILENAME   => $attr->{NAME} . '.snmp',
+    PATH       => $TEMPLATE_DIR,
+    WRITE      => 1,
+    CONTENT    => '{}',
+  });
 
   view_file({ FILE => $attr->{NAME} . '.snmp' });
 
@@ -308,6 +322,11 @@ sub remove_file {
   my ($attr) = @_;
 
   my $TEMPLATE_DIR = $base_dir . 'Abills/modules/Equipment/snmp_tpl/';
+
+  if ($attr->{FILE} =~ /\.\.\//) {
+    $html->message('err', $lang{ERROR}, "Security error '$attr->{FILE}'.\n");
+    return 1;
+  }
 
   if (unlink $TEMPLATE_DIR . $attr->{FILE}) {
     $html->message('info', $lang{SUCCESS}, $lang{FILE_REMOVED});

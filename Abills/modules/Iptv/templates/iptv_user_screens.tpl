@@ -13,9 +13,9 @@
                 <div class='form-group'>
                     %STORAGE_FORM%
 
-                    <label class='control-label col-md-3' for='NUM'>_{NUM}_:</label>
+                    <label class='control-label col-md-3'>_{NUM}_:</label>
                     <div class='col-md-9'>
-                        %NUM% %NAME%
+                        <label class='label label-primary'>%NUM% %NAME%</label>
                     </div>
                 </div>
 

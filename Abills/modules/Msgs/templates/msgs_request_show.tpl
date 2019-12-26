@@ -3,9 +3,11 @@
 	background-color:#fafafa;
 }
 </style>
-<div class='box box-theme'>
-<div class='box-body'>
 <FORM action='$SELF_URL' METHOD='POST'  enctype='multipart/form-data' class='form form-horizontal'>
+
+<div class='box box-theme'>
+<div class='box-header with-border'><h4 class='box-title'>%SUBJECT%</h4></div>
+<div class='box-body'>
 <input type='hidden' name='qindex' value='$index'/>
 <input type='hidden' name='UID' value='$FORM{UID}'/>
 <input type='hidden' name='ID' value='%ID%'/>
@@ -14,9 +16,6 @@
 <input type='hidden' name='DATETIME' value='%DATETIME%'/>
 <input type='hidden' name='OLD_PLANNED_CONTACT' value='%OLD_PLANNED_CONTACT%'/>
 <input type='hidden' name='header' value='1'/>
-<div class='form-group bg-success'>
-<p></p>>  %SUBJECT% </p>
-</div>
 
 <div class='form-group'>
 	<div class='col-xs-2'>
@@ -72,6 +71,15 @@
 		<input type='text' name='CONNECTION_TIME' value='%CONNECTION_TIME%' class='form-control' ID='CONNECTION_TIME'/>
 	</div>
 </div> <!--end row-->
+
+    <div class='form-group bg-info odd'>
+		<div class='col-xs-6'>
+			<label>_{RESPONSIBLE}_:</label>
+		</div>
+		<div class='col-xs-6'>
+            <label>%RESPOSIBLE_SEL%</label>
+		</div>
+	</div> <!--end row-->
 
 <div class='form-group'>
 	<div class='col-xs-3'>
@@ -157,29 +165,28 @@
 	<label> _{NOTE}_: </label>
 	</div>
 	<div class='col-md-12'>
-	<textarea cols=60 rows=2 name=CONTACT_NOTE class='form-control'>%CONTACT_NOTE%</textarea>
+	<textarea cols=60 ID=CONTACT_NOTE rows=2 name=CONTACT_NOTE class='form-control'>%CONTACT_NOTE%</textarea>
 	</div>
 </div>
+
+	<div class='form-group'>
+		<div class='col-md-12'>
+			<label> _{COMMENTS}_: </label>
+		</div>
+		<div class='col-md-12'>
+			<textarea cols=60 ID=COMMENTS rows=4 name=COMMENTS class='form-control'>%COMMENTS%</textarea>
+		</div>
+	</div> <!--end row-->
 
 </div><!--end row-->
 
-<div class='form-group'>
-	<div class='col-md-12'>
-        <label> _{COMMENTS}_: </label>
-	</div>
-	<div class='col-md-12'>
-		<textarea cols=60 rows=4 name=COMMENTS class='form-control'>%COMMENTS%</textarea>
-	</div>
-</div> <!--end row-->
 
-<div class='row text-center'>
+
+<div class='box-footer'>
     <input type=submit class='btn btn-primary' name=change value='_{CHANGE}_'>
 </div>
-</form>
-</div> <!--box-body-->
-
 </div> <!--box-->
-
+</form>
 
 
 <div class='noprint' align=center>

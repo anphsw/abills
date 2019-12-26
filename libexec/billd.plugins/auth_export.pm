@@ -86,7 +86,7 @@ sub mikrotik_user_sync {
     {
       LOGIN    => $_->{name},
       PASSWORD => $_->{password},
-      IP       => $_->{'remote-address'},
+#      IP       => $_->{'remote-address'},
       CID      => $_->{'caller-id'},
       ID       => $_->{id}
     }
@@ -119,7 +119,7 @@ sub mikrotik_user_sync {
       my $fresh_entry = $fresh_list_by_key{$entry_key};
 
       foreach my $key (@{$compare_keys}) {
-        if ($key && $checked_entry->{$key} && $checked_entry->{$key} ne $fresh_entry->{$key}) {
+        if ($key && $checked_entry->{$key} && $fresh_entry->{$key} && $checked_entry->{$key} ne $fresh_entry->{$key}) {
           $fresh_entry->{ID} = $checked_entry->{ID} if (defined $checked_entry->{ID});
 
           push(@changed, $fresh_entry);
@@ -137,30 +137,42 @@ sub mikrotik_user_sync {
     [ 'LOGIN', 'PASSWORD', 'IP', 'CID' ]
   );
 
-  foreach my $user_account (@{$to_remove}) {
-    if ($debug) {
-      print "Removing: $user_account->{LOGIN} \n";
+  for my $array_in_debug ( $to_create, $to_change ){
+    for my $entry (@$array_in_debug){
+      $entry->{$_} ||= '' for ('LOGIN', 'PASSWORD', 'IP', 'CID');
     }
-
-    $mikrotik->ppp_accounts_remove({
-      numbers => $user_account->{LOGIN}
-    });
   }
 
-  $mikrotik->ppp_accounts_add([
-    map {
-      print "Adding: $_->{LOGIN} PASSWORD: $_->{PASSWORD} IP: $_->{IP} CID: $_->{CID}\n" if ($debug);
+  foreach my $user_account (@{$to_remove}) {
+    if (!$argv->{NO_DELETE}) {
+      if ($debug) {
+        print "Removing: $user_account->{LOGIN} \n";
+      }
 
+      $mikrotik->ppp_accounts_remove({
+        numbers => $user_account->{LOGIN}
+      });
+    }
+    else {
+      $mikrotik->execute('/ppp secret remove [/ppp secret find  comment="ABillS Generated" &&  name="'.$user_account->{LOGIN}.'"]');
+    }
+  }
+
+  foreach (@{$to_create}){
+    print "Adding: $_->{LOGIN} PASSWORD: $_->{PASSWORD} IP: $_->{IP} CID: $_->{CID}\n" if ($debug);
+
+    $mikrotik->ppp_accounts_add([
       {
         'name'           => $_->{LOGIN},
         'password'       => $_->{PASSWORD},
-        'remote-address' => $_->{IP},
+        #'remote-address' => $_->{IP},
         'caller-id'      => $_->{CID},
+        'profile'        => $argv->{PROFILE} || 'default',
         'disabled'       => 'yes',
         'comment'        => 'ABillS Generated'
       }
-    } @{$to_create}
-  ]);
+    ]);
+  }
 
   foreach my $user_account (@{$to_change}) {
     print "Changed: $user_account->{LOGIN} PASSWORD: $user_account->{PASSWORD} IP: $user_account->{IP} CID: $user_account->{CID}\n" if ($debug);
@@ -168,7 +180,7 @@ sub mikrotik_user_sync {
     $mikrotik->ppp_accounts_change($user_account->{ID}, {
       name             => $user_account->{LOGIN},
       password         => $user_account->{PASSWORD},
-      'remote-address' => $user_account->{IP},
+      #'remote-address' => $user_account->{IP},
       'caller-id'      => $user_account->{CID}
     });
   }

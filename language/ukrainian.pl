@@ -516,6 +516,7 @@ $lang{ICON}='Піктограма';
 $lang{NAS_STATISTIC}='Статистика серверів доступу';
 $lang{PRINT}='Друк';
 $lang{OPERATION_DEPOSIT}='Депозит перед операцією';
+$lang{AFTER_OPERATION_DEPOSIT} = 'Депозит після операції';
 $lang{SUCCESS_CONNECTIONS}='Успішні підключення(користувачі)';
 $lang{TEXT}='Текст';
 $lang{END}='Кінець';
@@ -812,6 +813,26 @@ $lang{SHORT_ADMINS}='Адміни';
 $lang{AVR_FEES_AUTHORIZED}='Середнє зняття по авторизованих абонентах';
 $lang{AVR_AMOUNT_ACTIVE_SERV}='Середня вартість активних сервісів';
 $lang{ARPU_FUTURE}='Прогнозоване ARPU';
+$lang{SET_PARAMS}='Задати параметри';
+$lang{SECONDS} = 'секунд';
+$lang{WAIT} = 'Почекайте';
+$lang{ERROR_DEL_SHEDULE_CHG_TP} = 'Розклад доданий адміністратором неможливо видалити, для видалення зверніться в тех.підтримку';
+
+$lang{ERROR_PUBLIC_MODE} = 'Ви не можете виконати цю дію в режимі публічної демонстрації системи';
+$lang{CHANGE_ADMIN_PERMITS} = 'Зміна прав доступу';
+
+$lang{IP_SKIP}='Пропуск IP-адреси';
+$lang{SEARCH_ABON}='Пошук абонентів';
+
+$lang{JOBS}='Вакансії';
+$lang{INTERNET}='Інтернет';
+$lang{IPTV}='Телебачення';
+$lang{APPLICATIONS}='Заявки на підключення';
+$lang{REG_PHONE}='Для реєстрації необхідно підтвердити телефон.';
+$lang{REG_SUCCESS}='Вітаємо! Реєстрація завершена';
+$lang{REG_SEND_EMAIL}='Вся інформація була надіслана на ваш E-mail';
+
+$lang{EXTRA_FIELDS}='Додаткові поля';
 
 1;
 

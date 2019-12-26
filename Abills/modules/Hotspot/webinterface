@@ -562,15 +562,16 @@ sub hotspot_log {
   $FORM{FROM_DATE} //= sprintf("%04d-%02d-%02d", 1900+$year, $mon+1, 1);
   $FORM{TO_DATE} //= sprintf("%04d-%02d-%02d", 1900+$year, $mon+1, $mday);
 
-  $html->tpl_show(_include('hotspot_log', 'Hotspot'), {%FORM, %$Hotspot});
+  $html->tpl_show(_include('hotspot_log', 'Hotspot'), {%FORM, %$Hotspot, ACTION_SEL => hs_action_sel()});
 
 
   my $log_list = $Hotspot->log_list({
     INTERVAL  => "$FORM{FROM_DATE}/$FORM{TO_DATE}",
     CID       => '_SHOW',
     PHONE     => '_SHOW',
+    ACTION    => ($FORM{ACTION} || '_SHOW'),
     COMMENTS  => '_SHOW',
-    HOTSPOT   => ($FORM{HOSTNAME} || ''),
+    HOTSPOT   => ($FORM{HOSTNAME} || '_SHOW'),
     
     COLS_NAME => 1,
     PAGE_ROWS => 9999,
@@ -578,15 +579,15 @@ sub hotspot_log {
 
   my $table = $html->table({
     width         => '100%',
-    caption       => "Лог подключений",
+    caption       => $lang{LOG},
     border        => 1,
-    title_plain   => [ "Дата", "Телефон", "MAC-адрес", "Комментарий"],
+    title_plain   => [ $lang{DATE}, $lang{PHONE}, "MAC", $lang{ACTION}, $lang{COMMENTS}],
     ID            => 'log',
   });
 
 
   foreach (@$log_list) {
-    $table->addrow($_->{date}, $_->{phone}, $_->{CID}, $_->{comments});
+    $table->addrow($_->{date}, $_->{phone}, $_->{CID}, $_->{action}, $_->{comments});
   }
 
   print $table->show();
@@ -594,5 +595,34 @@ sub hotspot_log {
   return  1;
 }
 
+#**********************************************************
+=head2 hs_action_sel()
+
+=cut
+#**********************************************************
+sub hs_action_sel {
+  my %actions = (
+    1  => 'User registration',
+    2  => 'Mac login',
+    3  => 'Cookies login',
+    4  => 'User use pin-code',
+    5  => 'Phone login',
+    6  => 'Change trial tp',
+    11 => 'User start phone verification',
+    12 => 'Phone confirmed',
+    21 => 'User start online payment',
+    22 => 'User use free_sms_pay',
+    23 => 'User use sms_pay',
+  );
+
+  my $action_sel = $html->form_select( 'ACTION', {
+    SELECTED     => $FORM{ACTION} || '*',
+    SEL_HASH     => {%actions, '*' => $lang{ALL}},
+    SORT_KEY_NUM => 1,
+    # NO_ID    => 1
+  });
+
+  return $action_sel;
+}
 
 1;

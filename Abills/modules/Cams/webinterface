@@ -28,6 +28,7 @@ my $Cams = Cams->new($db, $admin, \%conf);
 my $Address = Address->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Users = Users->new($db, $admin, \%conf);
+my $Fees = Fees->new($db, $admin, \%conf);
 
 my $Cams_service;
 
@@ -43,6 +44,9 @@ sub cams_main {
   my $camera = ();
   my $service_id = '';
   my $user_list;
+
+  $Cams->{db}{db}->{AutoCommit} = 0;
+  $Cams->{db}->{TRANSACTION} = 1;
 
   if ($FORM{add_cam}) {
     if ($FORM{OWNER}) {
@@ -60,27 +64,41 @@ sub cams_main {
       }
     }
 
-    $FORM{HOST} = _cams_correct_host($FORM{HOST});
+    $FORM{HOST} = _cams_correct_host($FORM{HOST}) if !$conf{CAMS_SKIP_CHECK_HOST};
     if ($FORM{NAME} =~ /^[aA-zZ\d_-]+$/mg && $FORM{HOST}) {
       $correct_name = _cams_group_correct({
         GROUP_ID     => $FORM{GROUP_ID},
         CHECK_GROUPS => 1,
       });
       if ($correct_name) {
-        my $group = $Cams->group_info($FORM{GROUP_ID});
-        if ($Cams->{TOTAL}) {
-          $FORM{SERVICE_ID} = $group->{SERVICE_ID};
-          $FORM{GROUP_NAME} = $group->{NAME};
+        if ($conf{CAMS_FOLDER}) {
+          my $folder = $Cams->folder_info($FORM{FOLDER_ID});
+          if ($Cams->{TOTAL}) {
+            $FORM{SERVICE_ID} = $folder->{SERVICE_ID};
+          }
         }
+        else {
+          my $group = $Cams->group_info($FORM{GROUP_ID});
+          if ($Cams->{TOTAL}) {
+            $FORM{SERVICE_ID} = $group->{SERVICE_ID};
+            $FORM{GROUP_NAME} = $group->{NAME};
+          }
+        }
+
         if (in_array('Maps', \@MODULES)) {
           load_module('Maps');
           $FORM{POINT_ID} = maps_add_external_object(33, \%FORM);
         }
 
+        delete $FORM{GROUP_ID} if $FORM{FOLDER_ID};
+
         $Cams->stream_add(\%FORM);
         if (!_error_show($Cams)) {
           $FORM{CAM_ID} = $Cams->{INSERT_ID};
           show_result($Cams, $lang{ADDED});
+        }
+        else {
+          $correct_name = 0;
         }
       }
     }
@@ -92,6 +110,7 @@ sub cams_main {
   elsif ($FORM{chg_cam}) {
     $camera = $Cams->stream_info($FORM{chg_cam});
     $camera->{OWNER} = $camera->{USER_LOGIN};
+    $camera->{SERVICE_ID} = $camera->{SERVICE_ID_FOLDER} if $camera->{SERVICE_ID_FOLDER};
   }
   elsif ($FORM{change_cam}) {
     if ($FORM{OWNER}) {
@@ -109,12 +128,19 @@ sub cams_main {
       }
     }
 
-    $FORM{HOST} = _cams_correct_host($FORM{HOST});
+    my $camera_ = $Cams->stream_info($FORM{ID});
+    $FORM{SERVICE_ID} = $camera_->{SERVICE_ID_FOLDER} if $camera_->{SERVICE_ID_FOLDER};
+    $FORM{NUMBER_ID} = $camera_->{NUMBER_ID} if $Cams->{TOTAL};
+    $FORM{HOST} = _cams_correct_host($FORM{HOST}) if !$conf{CAMS_SKIP_CHECK_HOST};
     if ($FORM{NAME} =~ /^[aA-zZ\d_-]+$/mg && $FORM{HOST}) {
+      delete $FORM{GROUP_ID} if $FORM{FOLDER_ID};
       $Cams->stream_change(\%FORM);
       if (!_error_show($Cams)) {
         show_result($Cams, $lang{CHANGED});
         $show_add_form = 0;
+      }
+      else {
+        $correct_name = 0;
       }
     }
     else {
@@ -125,7 +151,8 @@ sub cams_main {
   elsif ($FORM{del_cam} && $FORM{COMMENTS}) {
     my $cam = $Cams->stream_info($FORM{del_cam});
     $FORM{CAM_NAME} = $cam->{NAME} || "";
-    $FORM{SERVICE_ID} = $cam->{SERVICE_ID} || "";
+    $FORM{SERVICE_ID} = $cam->{SERVICE_ID_FOLDER} || $cam->{SERVICE_ID} || "";
+    $FORM{NUMBER_ID} = $cam->{NUMBER_ID} || "";
     $Cams->stream_del({ ID => $FORM{del_cam} });
     show_result($Cams, $lang{DELETED});
     $show_add_form = 0;
@@ -137,20 +164,61 @@ sub cams_main {
     $FORM{SERVICE_ID} = $service_id;
     $Cams_service = cams_user_services(\%FORM);
   }
+  else {
+    my DBI $db_ = $Cams->{db}{db};
+    $db_->commit();
+    $db_->{AutoCommit} = 1;
+  }
 
   if ($show_add_form) {
-    $camera->{GROUPS_SELECT} = $html->form_select('GROUP_ID', {
-      SELECTED  => $camera->{GROUP_ID} || q{},
-      SEL_LIST  => $Cams->group_list({
-        NAME         => "_SHOW",
-        SERVICE_NAME => "_SHOW",
-        COLS_NAME    => 1,
-      }),
-      SEL_VALUE => 'service_name,name',
-      SEL_KEY   => 'id',
-      NO_ID     => 1,
-      EX_PARAMS => 'required="required"',
-    });
+    if (!$conf{CAMS_FOLDER}) {
+      $camera->{GROUPS_SELECT} = $html->form_select('GROUP_ID', {
+        SELECTED  => $camera->{GROUP_ID} || q{},
+        SEL_LIST  => $Cams->group_list({
+          NAME         => "_SHOW",
+          SERVICE_NAME => "_SHOW",
+          COLS_NAME    => 1,
+        }),
+        SEL_VALUE => 'service_name,name',
+        SEL_KEY   => 'id',
+        NO_ID     => 1,
+        EX_PARAMS => 'required="required"',
+      });
+    }
+    else {
+      $camera->{FOLDERS} = $camera->{FOLDER_ID} || -1;
+      $camera->{FOLDER_SELECT} = $html->form_select('FOLDER_ID', {
+        SELECTED  => $camera->{FOLDER_ID} || q{},
+        SEL_LIST  => $Cams->folder_list({
+          ID          => '_SHOW',
+          PARENT_NAME => '_SHOW',
+          COLS_NAME   => 1,
+        }),
+        SEL_VALUE => 'parent_name,title',
+        SEL_KEY   => 'id',
+        NO_ID     => 1,
+        EX_PARAMS => 'required="required"',
+      });
+
+      my $group_info = $camera;
+
+      if ($camera->{FOLDER_ID}) {
+        $group_info = $Cams->folder_info($camera->{FOLDER_ID});
+      }
+
+      $camera->{GROUPS_SELECT} = $html->form_select('GROUP_ID', {
+        SELECTED  => $group_info->{GROUP_ID} || q{},
+        SEL_LIST  => $Cams->group_list({
+          NAME         => "_SHOW",
+          SERVICE_NAME => "_SHOW",
+          COLS_NAME    => 1,
+        }),
+        SEL_VALUE => 'service_name,name',
+        SEL_KEY   => 'id',
+        NO_ID     => 1,
+        EX_PARAMS => "required='required' onchange='autoReload()'",
+      });
+    }
 
     $camera->{ORIENTATION_SELECT} = _cams_orientation_select({ SELECTED => ($camera->{ORIENTATION} || 0) });
     $camera->{ARCHIVE_SELECT} = _cams_archive_select({ SELECTED => $camera->{ARCHIVE} });
@@ -177,10 +245,11 @@ sub cams_main {
     });
   }
 
+  my $group_folder = $conf{CAMS_FOLDER} ? $lang{FOLDER} : $lang{GROUP};
   my $cameras_table = $html->table({
     width      => '100%',
     caption    => $lang{CAMERAS},
-    title      => [ "#", $lang{SERVICE}, $lang{OWNER}, $lang{GROUP}, $lang{NAME}, $lang{CAM_TITLE},
+    title      => [ "#", $lang{SERVICE}, $lang{OWNER}, $group_folder, $lang{NAME}, $lang{CAM_TITLE},
       "Host", "RTSP Path", "RTSP Port", "$lang{LOCATION}", "", "" ],
     ID         => 'CAMERAS_ITEMS',
     DATA_TABLE => 1,
@@ -203,7 +272,7 @@ sub cams_main {
 
     $change_button = $html->button('', "index=$index&chg_cam=$one_camera->{ID}", { class => 'change' });
     $delete_button = $html->button('', "index=$index&del_cam=$one_camera->{ID}", { MESSAGE => "$lang{DEL} $one_camera->{NAME}?", class => 'del' });
-    $cameras_table->addrow($one_camera->{ID}, $one_camera->{SERVICE_NAME}, $one_camera->{USER_LOGIN}, $one_camera->{GROUP_NAME}, $one_camera->{NAME},
+    $cameras_table->addrow($one_camera->{ID}, $one_camera->{SERVICE_NAME}, $one_camera->{USER_LOGIN}, $one_camera->{GROUP_NAME} || $one_camera->{FOLDER_NAME}, $one_camera->{NAME},
       $one_camera->{TITLE}, $one_camera->{HOST}, $one_camera->{RTSP_PATH}, $one_camera->{RTSP_PORT}, $maps_btn, $change_button, $delete_button);
   }
 
@@ -319,6 +388,21 @@ sub _cams_transport_select {
 sub _cams_groups_select {
   my ($attr) = @_;
 
+  if ($attr->{ONLY_SERVICE} && defined $attr->{SERVICE_ID}) {
+    my $current_user_group = $Cams->group_list({
+      SERVICE_ID => $attr->{SERVICE_ID} || 0,
+      NAME       => '_SHOW',
+      PAGE_ROWS  => 10000,
+      COLS_NAME  => 1
+    });
+
+    return $html->form_select('GROUP_ID', {
+      SELECTED => $attr->{SELECTED} || $FORM{SELECTED} || 1,
+      SEL_LIST => $current_user_group,
+      NO_ID    => 1
+    });
+  }
+
   my $user_groups = '';
   my @active_groups = ();
   my $current_user_group = $Cams->user_groups_list({
@@ -358,6 +442,66 @@ sub _cams_groups_select {
 }
 
 #**********************************************************
+=head2 _cams_groups_select()
+
+=cut
+#**********************************************************
+sub _cams_folders_select {
+  my ($attr) = @_;
+
+  if ($attr->{ONLY_SERVICE} && defined $attr->{SERVICE_ID}) {
+    my $current_user_folder = $Cams->folder_list({
+      SERVICE_ID => $attr->{SERVICE_ID} || 0,
+      NAME       => '_SHOW',
+      PAGE_ROWS  => 10000,
+      COLS_NAME  => 1
+    });
+
+    return $html->form_select('FOLDER_ID', {
+      SELECTED => $attr->{SELECTED} || $FORM{SELECTED} || 1,
+      SEL_LIST => $current_user_folder,
+      NO_ID    => 1
+    });
+  }
+
+  my $user_folder = '';
+  my @active_folder = ();
+  my $current_user_folder = $Cams->user_folders_list({
+    TP_ID     => $attr->{TP_ID},
+    ID        => $attr->{ID},
+    PAGE_ROWS => 10000,
+    COLS_NAME => 1
+  });
+
+  foreach my $folder (@$current_user_folder) {
+    push @active_folder, $folder->{folder_id};
+  }
+
+  if ($attr->{UID} && $attr->{SERVICE_ID}) {
+    $user = $Users->pi({ UID => $attr->{UID} });
+    if ($Users->{TOTAL}) {
+      my $user_address = $Address->address_info($user->{LOCATION_ID});
+      $user_folder = $Cams->access_folder_list({
+        STREET_ID   => $user_address->{STREET_ID} || 0,
+        DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
+        LOCATION_ID => $user->{LOCATION_ID} || 0,
+        SERVICE_ID  => $attr->{SERVICE_ID},
+        COLS_NAME   => 1,
+      });
+
+      return $html->form_select('FOLDER_ID', {
+        SELECTED  => $attr->{SELECTED} || $FORM{SELECTED} || 0,
+        SEL_LIST  => $user_folder,
+        SEL_VALUE => 'parent_name,title',
+        NO_ID     => 1
+      });
+    }
+  }
+
+  return $user_folder;
+}
+
+#**********************************************************
 =head2 cams_groups($attr)
 
 =cut
@@ -369,10 +513,13 @@ sub cams_groups {
   my $service_id = '';
   my $errors = 0;
 
+  $Cams->{db}{db}->{AutoCommit} = 0;
+  $Cams->{db}->{TRANSACTION} = 1;
+
   if ($FORM{add_group}) {
     if (!$FORM{NAME} && !$FORM{DISTRICT_ID} && !$FORM{STREET_ID} && !$FORM{BUILD_ID}) {
       $errors = 1;
-      $html->message("err", "$lang{ERROR}", "Укажыте название группы или адрес");
+      $html->message("err", "$lang{ERROR}", $lang{ENTER_GROUP_NAME_OR_ADDRESS});
     }
     else {
       $FORM{NAME} = $FORM{NAME} ? $FORM{NAME} : _cams_show_location('', \%FORM);
@@ -382,9 +529,16 @@ sub cams_groups {
     }
   }
   elsif ($FORM{change_group}) {
-    $Cams->group_change({ %FORM });
-    show_result($Cams, $lang{CHANGED});
-    $show_add_form = 1;
+    if (!$FORM{NAME} && !$FORM{DISTRICT_ID} && !$FORM{STREET_ID} && !$FORM{BUILD_ID}) {
+      $errors = 1;
+      $html->message("err", "$lang{ERROR}", $lang{ENTER_GROUP_NAME_OR_ADDRESS});
+    }
+    else {
+      $FORM{NAME} = $FORM{NAME} ? $FORM{NAME} : _cams_show_location('', \%FORM);
+      $Cams->group_change({ %FORM });
+      show_result($Cams, $lang{CHANGED});
+      $show_add_form = 1;
+    }
   }
   elsif ($FORM{chg}) {
     $FORM{chg_group} = $FORM{chg};
@@ -405,6 +559,7 @@ sub cams_groups {
     my $group = $Cams->group_info($FORM{del_group});
     $FORM{SERVICE_ID} = $group->{SERVICE_ID} || "";
     $FORM{GROUP_ID} = $group->{ID} || "";
+    $FORM{SUBGROUP_ID} = $group->{SUBGROUP_ID} || "";
 
     $Cams->group_del($FORM{del_group});
     show_result($Cams, $lang{DELETED});
@@ -438,14 +593,11 @@ sub cams_groups {
       STREET_ID             => $TEMPLATE_CAMS_TP{STREET_ID} || 0,
     });
 
-    $html->tpl_show(
-      _include('cams_groups', 'Cams'),
-      {
-        %TEMPLATE_CAMS_TP,
-        BTN_ACTION => ($FORM{chg_group}) ? 'change_group' : 'add_group',
-        BTN_LNG    => ($FORM{chg_group}) ? $lang{CHANGE} : $lang{ADD},
-      }
-    );
+    $html->tpl_show(_include('cams_groups', 'Cams'), {
+      %TEMPLATE_CAMS_TP,
+      BTN_ACTION => ($FORM{chg_group}) ? 'change_group' : 'add_group',
+      BTN_LNG    => ($FORM{chg_group}) ? $lang{CHANGE} : $lang{ADD},
+    });
   }
 
   result_former({
@@ -610,8 +762,113 @@ sub cams_user_groups {
     METHOD  => 'get',
     SUBMIT  => \%submit_h
   });
+}
 
-  return $groups_table->show();
+#**********************************************************
+=head2 cams_user_folders$attr)
+
+  Arguments:
+    $attr
+      SERVICE_INFO
+      SHOW_ONLY     - Show only info
+      UID
+
+
+  Results:
+
+=cut
+#**********************************************************
+sub cams_user_folders {
+  my ($attr) = @_;
+
+  my $user = '';
+  my $user_groups = '';
+  my $current_user_folders = '';
+  my @active_folders = ();
+  my $folders_table = $html->table({
+    width   => '100%',
+    caption => $lang{FOLDERS},
+    title   => [ "#", $lang{NAME}, $lang{LOCATION}, $lang{PARENT}, $lang{COMMENTS} ],
+    ID      => 'CAMERAS_FOLDERS_ID',
+  });
+
+  if ($attr->{SERVICE_INFO}) {
+    $Cams = $attr->{SERVICE_INFO};
+  }
+
+  if ($FORM{change_now}) {
+    $Cams->user_folders(\%FORM);
+    $FORM{FOLDER_CHANGE} = 1;
+  }
+
+  $current_user_folders = $Cams->user_folders_list({
+    TP_ID     => $Cams->{TP_ID},
+    ID        => $FORM{ID} || $FORM{chg},
+    PAGE_ROWS => 10000,
+    COLS_NAME => 1
+  });
+
+  foreach my $folder (@$current_user_folders) {
+    push @active_folders, $folder->{folder_id};
+  }
+
+  if ($attr->{UID} && $attr->{SERVICE_ID}) {
+    $user = $Users->pi({ UID => $attr->{UID} });
+    if ($Users->{TOTAL}) {
+      my $user_address = $Address->address_info($user->{LOCATION_ID});
+      $user_groups = $Cams->access_group_list({
+        NAME        => "_SHOW",
+        STREET_ID   => $user_address->{STREET_ID} || 0,
+        DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
+        LOCATION_ID => $user->{LOCATION_ID} || 0,
+        SERVICE_ID  => $attr->{SERVICE_ID},
+        COMMENT     => "_SHOW",
+        COLS_NAME   => 1,
+      });
+
+      foreach my $group (@{$user_groups}) {
+        my $user_main_folders = $Cams->access_folder_list({
+          NAME        => '_SHOW',
+          STREET_ID   => $user_address->{STREET_ID} || 0,
+          DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
+          LOCATION_ID => $user->{LOCATION_ID} || 0,
+          SERVICE_ID  => $attr->{SERVICE_ID},
+          GROUP_ID    => $group->{id},
+          COMMENT     => '_SHOW',
+          PARENT_NAME => '_SHOW',
+          COLS_NAME   => 1,
+        });
+
+        foreach my $folder (@{$user_main_folders}) {
+          my $location = _cams_show_location('', $folder);
+
+          my $checkbox = $html->form_input('IDS', $folder->{id}, {
+            TYPE          => 'checkbox',
+            STATE         => (in_array($folder->{id}, \@active_folders) ? 1 : undef),
+            OUTPUT2RETURN => 1,
+          });
+
+          $folders_table->addrow($checkbox, $folder->{title}, $location, $folder->{parent_name} || " ", $folder->{comment});
+        }
+      }
+    }
+  }
+
+  my %submit_h = ();
+  $submit_h{change_now} = "$lang{CHANGE}";
+
+  return $html->form_main({
+    CONTENT => $folders_table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      UID   => $FORM{UID},
+      ID    => $FORM{chg} || $FORM{ID},
+      TP_ID => $Cams->{TP_ID},
+      index => $index,
+      chg   => $FORM{chg},
+    },
+    METHOD  => 'get',
+    SUBMIT  => \%submit_h
+  });
 }
 
 #**********************************************************
@@ -629,6 +886,10 @@ sub cams_monthly_fees {
 
   my $debug_output = '';
   $debug_output .= "Cams - Monthly periodic fees\n" if ($debug > 1);
+
+  $debug_output .= cams_monthly_next_tp($attr);
+
+  my $START_PERIOD_DAY = ($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} : 1;
 
   $LIST_PARAMS{TP_ID} = $attr->{TP_ID} if ($attr->{TP_ID});
   my %USERS_LIST_PARAMS = (
@@ -665,12 +926,15 @@ sub cams_monthly_fees {
     ABON_DISTRIBUTION    => '_SHOW',
     SMALL_DEPOSIT_ACTION => '_SHOW',
     CREDIT               => '_SHOW',
+    SERVICE_ID           => '_SHOW',
     COLS_NAME            => 1,
     NEW_MODEL_TP         => 1
   });
 
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
-  my ($y, $m, undef) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+  my ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+
+  return 0 if ($d != $START_PERIOD_DAY);
   $m--;
 
   #Get Preview month begin end
@@ -700,6 +964,7 @@ sub cams_monthly_fees {
       LOGIN          => '_SHOW',
       ID             => '_SHOW',
       STATUS         => '_SHOW',
+      ACTIVATE       => '_SHOW',
       SERVICE_STATUS => "0;5",
       TP_ID          => $TP_ID,
       SORT           => 1,
@@ -709,21 +974,24 @@ sub cams_monthly_fees {
     });
 
     foreach my $some_user (@{$users_main}) {
-      my $user_info = $Users->info($some_user->{uid});
+      my $user_info = $Users->info($some_user->{uid}, { SHOW_PASSWORD => 1 });
       next if !$Users->{TOTAL};
 
       $debug_output .= " Login: $user_info->{LOGIN} ($some_user->{uid})  TP_ID: $some_user->{tp_id} " .
         "Fees: $tp->{month_fee} REDUCTION: $user_info->{REDUCTION}  $user_info->{DEPOSIT} $user_info->{CREDIT}\n" if ($debug > 3);
+
+      ($some_user->{activate}, undef) = split('\s', $some_user->{activate});
       my %user = (
         ID          => $some_user->{id},
         LOGIN       => $user_info->{LOGIN},
         UID         => $some_user->{uid},
         BILL_ID     => ($tp->{ext_bill_account} > 0) ? $user_info->{EXT_BILL_ID} : $user_info->{BILL_ID},
         REDUCTION   => ($tp->{reduction_fee}) ? $user_info->{REDUCTION} : 0,
-        ACTIVATE    => $user_info->{ACTIVATE},
+        ACTIVATE    => $some_user->{activate},
         DEPOSIT     => $user_info->{DEPOSIT},
         CREDIT      => ($user_info->{CREDIT} > 0) ? $user_info->{CREDIT} : $tp->{credit},
         CAMS_STATUS => $some_user->{status},
+        PASSWORD    => $user_info->{PASSWORD},
       );
 
       my $total_sum = 0;
@@ -745,16 +1013,59 @@ sub cams_monthly_fees {
 
         #Month Fee ====
         delete $users_services{ $some_user->{uid} };
-        push @{$users_services{ $some_user->{uid} }},
-          {
-            SUM      => $month_fee,
-            DESCRIBE => fees_dsc_former(\%FEES_DSC),
-            ID       => $user{ID}
-          };
+        push @{$users_services{ $some_user->{uid} }}, {
+          SUM      => $month_fee,
+          DESCRIBE => fees_dsc_former(\%FEES_DSC),
+          ID       => $user{ID}
+        };
+
+        #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID
+        if ($postpaid == 1 || $user{DEPOSIT} + $user{CREDIT} > $month_fee) {
+          if ($user{ACTIVATE} eq '0000-00-00' && $d != $START_PERIOD_DAY && !$tp->{abon_distribution}) {
+            next;
+          }
+          # If activation set to monthly Fees taken throught 30 days
+          elsif ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
+            my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
+            # my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
+
+            #Block small deposit
+            if ($tp->{FIXED_FEES_DAY} && ($d != $activate_d || ($d != $START_PERIOD_DAY && $activate_d > 28))) {
+              next;
+            }
+            else {
+              next;
+            }
+          }
+        }
+        #Block negative
+        else {
+          my $cams_service_info = $Cams->services_info($tp->{service_id});
+          $debug_output .= "Block negative Login: $some_user->{login} ($user{ID}) // $user{DEPOSIT} + $user{CREDIT} > 0\n";
+          cams_account_action(
+            {
+              NEGDEPOSIT   => 1,
+              FILTER_ID    => $tp->{filter_id},
+              ID           => $user{ID},
+              UID          => $user{UID},
+              LOGIN        => $user{LOGIN},
+              SUBSCRIBE_ID => $user{SUBSCRIBE_ID},
+              PASSWORD     => $user{PASSWORD},
+              SERVICE_ID   => $tp->{service_id},
+              MODULE       => $cams_service_info->{MODULE} || "",
+            }
+          );
+
+          $Cams->user_change({
+            STATUS => 5,
+            ID     => $user{ID},
+          });
+          next;
+        }
       }
 
       #Get fees
-      my $ret = get_service_fee(\%user, \%users_services, {
+      my $ret = get_service_fee_(\%user, \%users_services, {
         DATE   => $ADMIN_REPORT{DATE},
         METHOD => 1,
         DEBUG  => $debug
@@ -769,6 +1080,104 @@ sub cams_monthly_fees {
   }
 
   return $debug_output;
+}
+
+#**********************************************************
+=head2 get_service_fee($attr)
+
+  Arguments:
+    $user      - User object
+    $services  - Service hash
+    $attr      - Extra attr
+      GET_SUM  - Get total sum
+      DATE
+      DEBUG
+      PERIOD_ALIGNMENT -
+      ABON_DISTRIBUTION -
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub get_service_fee_ {
+  my ($user, $users_services, $attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  my $total_sum = 0;
+  my $debug_output = '';
+  my $d = (split(/-/, $DATE))[2];
+
+  my %FEES_PARAMS = (
+    DATE   => $attr->{DATE} || $DATE,
+    METHOD => 1
+  );
+
+  my @uids = ();
+
+  if ($user->{UID}) {
+    push @uids, $user->{UID};
+  }
+  else {
+    @uids = sort keys %{$users_services};
+  }
+
+  foreach my $uid (@uids) {
+    my $service_count = $#{$users_services->{$uid}} + 1;
+    print "UID: $uid Service: $service_count\n" if ($debug > 0);
+    for (my $i = 0; $i < $service_count; $i++) {
+      my $service = $users_services->{$uid}->[$i];
+      my $sum = $conf{CAMS_CUSTOM_PERIOD} && $user->{DEPOSIT} + $user->{CREDIT} >= $service->{CHANGE_PRICE}
+        && $service->{TP_AGE} ? $service->{CHANGE_PRICE} : $service->{SUM};
+      if ($user->{REDUCTION} > 0) {
+        $sum = $sum * (100 - $user->{REDUCTION}) / 100;
+      }
+
+      if ($attr->{ABON_DISTRIBUTION}) {
+        my $days_in_month = days_in_month();
+        $sum = sprintf("%.6f", $sum / $days_in_month);
+      }
+      elsif ($attr->{PERIOD_ALIGNMENT}) {
+        my $days_in_month = days_in_month({ DATE => $DATE });
+        $sum = ($sum / $days_in_month) * ($days_in_month - $d + 1);
+        $service->{DESCRIBE} .= ', ' . $lang{MONTH_ALIGNMENT};
+      }
+
+      print "  $i. SUM: $sum DECRRIBE: $service->{DESCRIBE} ID: " . ($service->{ID} || 0) . "\n" if ($debug > 0);
+      $total_sum += $sum;
+
+      if ($attr->{GET_SUM}) {
+        next;
+      }
+
+      if ($debug > 4) {
+        $debug_output .= " UID: $user->{UID} SUM: $sum REDUCTION: $user->{REDUCTION}\n";
+      }
+      else {
+        $FEES_PARAMS{DESCRIBE} = $service->{DESCRIBE};
+        if ($sum && $sum > 0) {
+          $Fees->take($user, $sum, \%FEES_PARAMS);
+        }
+
+        if ($Fees->{errno}) {
+          print "Error: [$Fees->{errno}] $Fees->{errstr} ";
+          if ($Fees->{errno} == 14) {
+            print "[ $uid ] - Don't have money account";
+          }
+          print "\n";
+          return 0;
+        }
+      }
+    }
+  }
+
+  print "==> SUM: $total_sum\n" if ($debug > 0);
+
+  if ($attr->{GET_SUM}) {
+    return $total_sum;
+  }
+
+  return 1;
 }
 
 #**********************************************************
@@ -798,7 +1207,7 @@ sub _cams_correct_host {
 }
 
 #**********************************************************
-=head2 _cams_correct_host($attr
+=head2 _cams_group_correct
 
   Arguments:
 
@@ -852,14 +1261,21 @@ sub cams_maps_layers {
       module     => 'Cams',
       structure  => 'MARKER',
       clustering => 1,
-      add_func   => 'cams_main',
+    }, {
+      id         => 34,
+      name       => 'CAMS_REVIEW',
+      lang_name  => $lang{CAMS_REVIEW},
+      module     => 'Cams',
+      structure  => 'POLYGON',
+      clustering => 1,
     } ],
     EXPORT_FUNC => {
       "33" => 'cams_cams_maps',
+      "34" => 'cams_cams_maps_review'
     }
   }
 }
-#
+
 #**********************************************************
 =head2 cams_cams_maps()
 
@@ -925,6 +1341,88 @@ sub cams_cams_maps {
 
     push @export_arr, $tpl;
   }
+
+  if ($FORM{EXPORT_LIST}) {
+    return join(", ", @export_arr);
+  }
+
+  return join(";", map {"ObjectsArray[ObjectsArray.length] = $_ ;"} @export_arr);
+}
+
+#**********************************************************
+=head2 cams_cams_maps_review()
+
+=cut
+#**********************************************************
+sub cams_cams_maps_review {
+  my $cameras = $Cams->streams_list({
+    POINT_ID       => $FORM{OBJECT_ID} || $FORM{POINT_ID} || '!',
+    NAME           => '_SHOW',
+    TITLE          => '_SHOW',
+    GROUP_NAME     => '_SHOW',
+    SERVICE_NAME   => '_SHOW',
+    HOST           => '_SHOW',
+    LENGTH         => '_SHOW',
+    ANGEL          => '_SHOW',
+    LOCATION_ANGEL => '_SHOW',
+    PAGE_ROWS      => 10000
+  });
+
+  require Maps;
+  Maps->import();
+  my $Maps = Maps->new($db, $admin, \%conf);
+
+  my @object_ids = map {+$_->{point_id}} @{$cameras};
+
+  my $point_ids = join(';', @object_ids);
+
+  my $points_list = $Maps->points_list({ ID => $point_ids, SHOW_ALL_COLUMNS => 1, EXTERNAL => 1, PAGE_ROWS => 10000 });
+
+  my %point_id_to_id = ();
+  foreach my $camera (@{$cameras}) {
+    $point_id_to_id{$camera->{point_id}} = $camera;
+  }
+
+  my @export_arr = ();
+
+  foreach my $point (@{$points_list}) {
+    next if (!$point->{coordy} || !$point->{coordx} || !$point_id_to_id{$point->{id}}{angel} || !$point_id_to_id{$point->{id}}{length});
+
+    my $location_angel = $point_id_to_id{$point->{id}}{location_angel} || 0;
+    my @routes_coord_arr = ();
+    push @routes_coord_arr, '["' . $point->{coordx} . '","' . $point->{coordy} . '"]';
+
+    my $min_angel = $location_angel - $point_id_to_id{$point->{id}}{angel} / 2;
+    my $max_angel = $location_angel + $point_id_to_id{$point->{id}}{angel} / 2;
+
+    for (my $i = $min_angel; $i <= $max_angel; $i++) {
+      my $first_line = _cams_metres_to_mercator({
+        coordx => $point->{coordx},
+        coordy => $point->{coordy},
+        angel  => $i,
+        length => $point_id_to_id{$point->{id}}{length} || 0,
+      });
+      push @routes_coord_arr, '["' . $first_line->{COORDX} . '","' . $first_line->{COORDY} . '"]' if $first_line->{COORDY};
+    }
+
+    my $points_json = join(',', @routes_coord_arr);
+
+    my $tpl = qq{
+            {
+                "ID"        : $point->{id},
+                "OBJECT_ID" : $point->{id},
+                "POLYGON"   : {
+                    "ID"        : $point->{id},
+                    "LAYER_ID"  : 34,
+                    "POINTS"    : [$points_json]
+                },
+                "LAYER_ID"  : 34
+            }
+    };
+
+    push @export_arr, $tpl;
+  }
+
   if ($FORM{EXPORT_LIST}) {
     return join(", ", @export_arr);
   }
@@ -981,7 +1479,479 @@ sub _cams_result_former_point_id_filter {
   else {
     return '';
   }
+}
 
+#**********************************************************
+=head2 _cams_metres_to_mercator()
+
+=cut
+#**********************************************************
+sub _cams_metres_to_mercator {
+  my ($attr) = @_;
+
+  use Math::Trig;
+  return {} if !$attr->{coordy} || !$attr->{coordx} || !$attr->{angel} || !$attr->{length};
+  $attr->{angel} = 90 - $attr->{angel};
+
+  my $pi = Math::Trig::pi;
+  my $coordx = $attr->{coordx} + (360 * sin(($attr->{angel} * $pi) / 180) * $attr->{length}) / 40000000;
+  my $coordy = $attr->{coordy} + (360 * cos(($attr->{angel} * $pi) / 180) * $attr->{length}) / (40075696 * cos($coordx * ($pi / 180)));
+
+  return { COORDX => $coordx, COORDY => $coordy };
+}
+
+#**********************************************************
+=head2 cams_payments_maked($attr) - Cross module payment maked
+
+=cut
+#**********************************************************
+sub cams_payments_maked {
+  my ($attr) = @_;
+
+  my $user;
+  $user = $attr->{USER_INFO} if ($attr->{USER_INFO});
+
+  my $list = $Cams->users_list({
+    UID        => $user->{UID},
+    STATUS     => '_SHOW',
+    SERVICE_ID => '_SHOW',
+    ID         => '_SHOW',
+    COLS_NAME  => 1,
+  });
+
+  if ($Cams->{TOTAL} < 1) {
+    return 0;
+  }
+
+  my $users_disable = $users->{DISABLE};
+  foreach my $service_user (@{$list}) {
+
+    my $cams_service_info = $Cams->services_info($service_user->{service_id});
+    my $cams_info_ = $Cams->_info($service_user->{id});
+
+    if ($FORM{newpassword}) {
+      cams_account_action({
+        %{($Cams && ref $Cams eq 'HASH') ? $Cams : {}},
+        NEW_PASSWORD => $FORM{newpassword},
+        change       => 1,
+        USER_INFO    => $user,
+        SILENT       => 1,
+        MODULE       => $cams_service_info->{MODULE} || "",
+        SERVICE_ID   => $service_user->{service_id}
+      });
+
+      next;
+    }
+
+    if (defined $service_user->{status} && $service_user->{status} != 5) {
+      next;
+    }
+
+    if (!$cams_info_->{TP_ID}) {
+      return 0;
+    }
+
+    if ($FORM{DISABLE} && !$users_disable) {
+      $Cams->{STATUS} = 1;
+      cams_account_action({
+        %{($Cams && ref $Cams eq 'HASH') ? $Cams : {}},
+        change    => 1,
+        USER_INFO => $user,
+        STATUS    => 1,
+        SILENT    => 1,
+        MODULE    => $cams_service_info->{MODULE} || "",
+      });
+    }
+    else {
+      cams_user_activate($Cams, {
+        %{$cams_info_},
+        USER       => $user,
+        SILENT     => 0,
+        MODULE     => $cams_service_info->{MODULE} || "",
+        REACTIVATE => $users_disable ? 1 : 0,
+        MODULE     => $cams_service_info->{MODULE} || "",
+        SERVICE_ID => $service_user->{service_id}
+      });
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 cams_user_activate($Cams_info, $attr) - User Service activate
+
+  Arguments:
+    $Cams_info
+    $attr
+      USER
+      REACTIVATE  - Reactivate service
+      ACCOUNT_DISABLE
+      SILENT    - Silent mode
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub cams_user_activate {
+  my ($Cams_info, $attr) = @_;
+
+  $Cams_info->{STATUS} = $Cams_info->{STATUS} || $attr->{STATUS};
+  my $user = $attr->{USER};
+  my %users_services = ();
+  my $debug = 0;
+  my $d = (split(/-/, $DATE))[2];
+
+  my %FEES_DSC = (
+    MODULE            => "Cams",
+    SERVICE_NAME      => $lang{CAM},
+    TP_ID             => $Cams_info->{TP_ID} || $attr->{TP_ID},
+    TP_NAME           => $Cams_info->{TP_NAME} || $attr->{TP_NAME},
+    FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
+  );
+
+  my $uid = $attr->{UID} || $FORM{UID} || $Cams_info->{UID};
+  push @{$users_services{$uid}}, {
+    SUM          => $Cams_info->{MONTH_FEE} || $attr->{MONTH_FEE},
+    DESCRIBE     => fees_dsc_former(\%FEES_DSC),
+    ID           => $Cams_info->{ID} || $attr->{ID},
+    CHANGE_PRICE => $Cams_info->{TP_CHANGE_PRICE} || 0,
+    TP_AGE       => $Cams_info->{TP_AGE} || 0
+  };
+
+  my @result_message = ();
+
+  my $total_sum = 0;
+  foreach my $service (@{$users_services{$uid}}) {
+    $total_sum += $service->{SUM};
+  }
+
+  if ((($Cams_info->{STATUS} && $Cams_info->{STATUS} == 5) || ($Cams_info->{OLD_STATUS} && $Cams_info->{OLD_STATUS} == 5))
+    && $user->{DEPOSIT} + $user->{CREDIT} < $total_sum) {
+    if (!$attr->{SILENT}) {
+      $html->message('err', "$lang{CAMS} $lang{ERROR}",
+        $lang{NEGATIVE_DEPOSIT} . "\n $lang{DEPOSIT}: $user->{DEPOSIT}\n$lang{SUM}: " . sprintf("%.2f", $total_sum), { ID => 810 });
+    }
+    return 1;
+  }
+  elsif ($Cams_info->{STATUS} == 0 && !$attr->{REACTIVATE}) {
+    if (!$attr->{SILENT}) {
+      $html->message('info', $lang{INFO}, "$lang{CAMS} $lang{ACTIVATE}");
+    }
+    return 0;
+  }
+
+  foreach my $service (@{$users_services{$uid}}) {
+    cams_account_action({
+      %{$attr},
+      add       => 1,
+      UID       => $uid,
+      ID        => $service->{ID} || $Cams_info->{ID} || $attr->{ID},
+      USER_INFO => $user,
+      DEBUG     => $debug
+    });
+
+    my $sum = $conf{CAMS_CUSTOM_PERIOD} && $user->{DEPOSIT} + $user->{CREDIT} >= $Cams_info->{TP_CHANGE_PRICE}
+      && $Cams_info->{TP_AGE} ? $Cams_info->{TP_CHANGE_PRICE} : $service->{SUM};
+
+    if ($attr->{PERIOD_ALIGNMENT} || $Cams_info->{PERIOD_ALIGNMENT}) {
+      my $days_in_month = days_in_month({ DATE => $DATE });
+      $sum = sprintf("%.6f", ($sum / $days_in_month) * ($days_in_month - $d + 1));
+      $service->{DESCRIBE} .= ', ' . $lang{MONTH_ALIGNMENT};
+    }
+
+    push @result_message, "$service->{DESCRIBE} $lang{SUM}: $sum";
+
+    print qq{
+      $sum
+      $service->{DESCRIBE}
+      $service->{FILTER_ID}
+      <br>
+    } if ($debug);
+  }
+
+  #Get fees
+  get_service_fee_(
+    $user,
+    \%users_services,
+    {
+      DATE             => $DATE,
+      METHOD           => 1,
+      DEBUG            => $debug,
+      PERIOD_ALIGNMENT => $attr->{PERIOD_ALIGNMENT},
+    }
+  );
+
+  $Cams->user_change({
+    ID     => $attr->{ID},
+    STATUS => 0
+  });
+
+  if (!$attr->{SILENT}) {
+    $html->message('info', $lang{CAM}, "$lang{ACTIVATE} \n" . join("\n", @result_message), { ID => 803 });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 cams_monthly_next_tp($attr) Change tp in next period
+
+=cut
+#**********************************************************
+sub cams_monthly_next_tp {
+  my ($attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  my $debug_output = '';
+  $debug_output = "Cams: Next tp\n" if ($debug > 1);
+  $Tariffs->{debug} = 1 if ($debug > 6);
+
+  my %USERS_LIST_PARAMS = ();
+  $USERS_LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
+  $USERS_LIST_PARAMS{REGISTRATION} = "<$ADMIN_REPORT{DATE}";
+  $USERS_LIST_PARAMS{GID} = $attr->{GID} if ($attr->{GID});
+
+  my $tp_list = $Tariffs->list({
+    NEXT_TARIF_PLAN => '>0',
+    CREDIT          => '_SHOW',
+    AGE             => '_SHOW',
+    NEXT_TP_ID      => '_SHOW',
+    CHANGE_PRICE    => '_SHOW',
+    NEW_MODEL_TP    => 1,
+    MODULE          => 'Cams',
+    SERVICE_ID      => '_SHOW',
+    COLS_NAME       => 1
+  });
+
+  my ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+  my $date_unixtime = POSIX::mktime(0, 0, 0, $d, ($m - 1), $y - 1900, 0, 0, 0);
+  my $START_PERIOD_DAY = ($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} : 1;
+  my %CHANGED_TPS = ();
+
+  my %tp_ages = ();
+  foreach my $tp_info (@$tp_list) {
+    $tp_ages{$tp_info->{tp_id}} = $tp_info->{age};
+  }
+
+  foreach my $tp_info (@$tp_list) {
+    $Cams->{debug} = 1 if ($debug > 6);
+    my $cams_list = $Cams->_list({
+      ACTIVATE        => "<=$ADMIN_REPORT{DATE}",
+      EXPIRE          => "0000-00-00,>=$ADMIN_REPORT{DATE}",
+      STATUS          => "0;5",
+      LOGIN_STATUS    => 0,
+      TP_ID           => $tp_info->{tp_id},
+      SORT            => 1,
+      PAGE_ROWS       => 1000000,
+      DELETED         => 0,
+      LOGIN           => '_SHOW',
+      REDUCTION       => '_SHOW',
+      DEPOSIT         => '_SHOW',
+      CREDIT          => '_SHOW',
+      COMPANY_ID      => '_SHOW',
+      INTERNET_EXPIRE => '_SHOW',
+      BILL_ID         => '_SHOW',
+      ID              => '_SHOW',
+      COLS_NAME       => 1,
+      GROUP_BY        => 'cams.id',
+      %USERS_LIST_PARAMS
+    });
+
+    foreach my $u (@$cams_list) {
+      my %user = (
+        ID          => $u->{id},
+        LOGIN       => $u->{login},
+        UID         => $u->{uid},
+        BILL_ID     => $u->{bill_id},
+        REDUCTION   => $u->{reduction},
+        ACTIVATE    => $u->{activate},
+        EXPIRE      => $u->{expire},
+        DEPOSIT     => $u->{deposit},
+        CREDIT      => ($u->{credit} > 0) ? $u->{credit} : $tp_info->{credit},
+        COMPANY_ID  => $u->{company_id},
+        STATUS      => $u->{status},
+        EXT_DEPOSIT => ($u->{ext_deposit}) ? $u->{ext_deposit} : 0,
+      );
+
+      my $expire = undef;
+      if (!$CHANGED_TPS{$user{UID}} && ((!$tp_info->{age} && ($d == $START_PERIOD_DAY) || $user{ACTIVATE} ne '0000-00-00')
+        || ($tp_info->{age} && $user{EXPIRE} && $user{EXPIRE} eq $ADMIN_REPORT{DATE}))) {
+
+        if ($user{EXPIRE} && $user{EXPIRE} ne '0000-00-00') {
+          if ($user{EXPIRE} eq $ADMIN_REPORT{DATE}) {
+            if (!$tp_ages{$tp_info->{next_tp_id}}) {
+              $expire = '0000-00-00';
+            }
+            else {
+              my $next_age = $tp_ages{$tp_info->{next_tp_id}};
+              $expire = POSIX::strftime("%Y-%m-%d",
+                localtime(POSIX::mktime(0, 0, 0, $d, ($m - 1), ($y - 1900), 0, 0, 0) + $next_age * 86400));
+            }
+          }
+          else {
+            next;
+          }
+        }
+        elsif ($user{ACTIVATE} ne '0000-00-00') {
+
+          my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
+          my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, $activate_m - 1, $activate_y - 1900, 0, 0, 0);
+          my $days_alive = $tp_info->{age} || 31;
+          if ($date_unixtime - $active_unixtime < $days_alive * 86400) {
+            next;
+          }
+
+          if (!$tp_ages{$tp_info->{next_tp_id}}) {
+            $expire = '0000-00-00';
+          }
+          else {
+            my $next_age = $tp_ages{$tp_info->{next_tp_id}};
+            $expire = POSIX::strftime("%Y-%m-%d",
+              localtime(POSIX::mktime(0, 0, 0, $d, ($m - 1), ($y - 1900), 0, 0, 0) + $next_age * 86400));
+          }
+        }
+
+        $CHANGED_TPS{ $user{UID} } = 1;
+
+        my $status = 0;
+        if ($conf{CAMS_CUSTOM_PERIOD} && $u->{deposit} < $tp_info->{change_price}) {
+          $status = 5;
+          $expire = "0000-00-000";
+
+          cams_account_action({
+            NEGDEPOSIT   => 1,
+            FILTER_ID    => $tp_info->{filter_id},
+            ID           => $user{ID},
+            UID          => $user{UID},
+            LOGIN        => $user{LOGIN},
+            SUBSCRIBE_ID => $user{SUBSCRIBE_ID},
+            PASSWORD     => $user{PASSWORD},
+            SERVICE_ID   => $tp_info->{service_id},
+            MODULE       => $tp_info->{module} || "",
+          });
+        }
+
+        if ($debug < 8) {
+          $Cams->user_change({
+            ID             => $user{ID},
+            UID            => $user{UID},
+            STATUS         => $status,
+            TP_ID          => $tp_info->{next_tp_id},
+            SERVICE_EXPIRE => $expire
+          });
+        }
+
+        if ($tp_info->{change_price}
+          && $tp_info->{change_price} > 0
+          && $tp_info->{next_tp_id} == $tp_info->{tp_id}
+          && !$status) {
+          $debug_output .= " Login: $user{LOGIN} ($user{UID}) ACTIVATE $user{ACTIVATE} TP_ID: $tp_info->{tp_id} -> $tp_info->{next_tp_id}\n";
+          $Fees->take(\%user, $tp_info->{change_price}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
+          if ($Fees->{errno}) {
+            print "Error: $Fees->{errno} $Fees->{errstr}\n";
+          }
+        }
+      }
+    }
+  }
+
+  print $debug_output;
+}
+
+#*******************************************************************
+=head2 cams_get_group_folders($attr)
+
+  Arguments:
+    $attr
+
+=cut
+#*******************************************************************
+sub cams_get_group_folders {
+
+  print $html->form_select('FOLDER_ID', {
+    SELECTED  => $FORM{FOLDER_ID} || q{},
+    SEL_LIST  => $Cams->folder_list({
+      ID          => '_SHOW',
+      PARENT_NAME => '_SHOW',
+      GROUP_ID    => $FORM{GROUP_ID},
+      COLS_NAME   => 1,
+    }),
+    SEL_VALUE => 'parent_name,title',
+    SEL_KEY   => 'id',
+    NO_ID     => 1,
+    EX_PARAMS => 'required="required"',
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 cams_docs($attr) - get services for invoice
+
+  Arguments:
+    UID
+  Results:
+
+=cut
+#**********************************************************
+sub cams_docs {
+  my ($attr) = @_;
+
+  my $uid = $attr->{UID};
+  my @services = ();
+  my %info = ();
+
+  my $list = $Cams->_list({
+    UID             => $uid,
+    ACCOUNT_DISABLE => 0,
+    TP_ID           => '_SHOW',
+    STATUS          => '_SHOW',
+    COLS_NAME       => 1,
+  });
+
+  foreach my $service_info (@{$list}) {
+    my $tp_info = $Cams->tp_list({ COLS_NAME => 1, TP_ID => $service_info->{tp_id}, SHOW_ALL_COLUMNS => 1 });
+
+    next unless $Cams->{TOTAL} || defined($tp_info->[0]{month_fee});
+
+    if ($tp_info->[0]{month_fee} > 0) {
+      my %FEES_DSC = (
+        MODULE          => "Cams",
+        SERVICE_NAME    => $lang{CAMERAS},
+        TP_ID           => $tp_info->[0]{tp_id},
+        TP_NAME         => $tp_info->[0]{name},
+        FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
+      );
+
+      $info{service_name} = fees_dsc_former(\%FEES_DSC);
+      $info{service_desc} = q{};
+      $info{tp_name} = $tp_info->[0]{tp_name};
+      $info{status} = $service_info->{status};
+      $info{day} = $tp_info->[0]{day_fee};
+      $info{month} = $tp_info->[0]{month_fee};
+
+      if ($service_info->{status} && $service_info->{status} != 5 && $attr->{SKIP_DISABLED}) {
+        $info{day} = 0;
+        $info{month} = 0;
+        $info{abon_distribution} = 0;
+      }
+
+      if ($attr->{FULL_INFO}) {
+        push @services, { %info };
+      }
+      else {
+        push @services, fees_dsc_former(\%FEES_DSC) . "||$tp_info->[0]{month_fee}||$tp_info->[0]{name}";
+      }
+    }
+  }
+
+  if ($attr->{FEES_INFO}) {
+    return \%info;
+  }
+
+  return \@services;
 }
 
 1;

@@ -17,21 +17,13 @@
 
     <div class='box box-theme box-form center-block'>
         <div class='box-header with-border '>
-            <h4>_{REGISTRATION}_</h4>
+            <h4 class='box-title'>_{REGISTRATION}_</h4>
         </div>
         <div class='box-body'>
 
-
             <div class='form-group'>
-                <label class='control-label col-md-4' for='LANGUAGE'>_{LANGUAGE}_</label>
-                <div class='col-md-8'>
-                    %SEL_LANGUAGE%
-                </div>
-            </div>
-
-            <div class='form-group'>
-                <label class='control-label required col-md-4' for='LOGIN'>_{LOGIN}_</label>
-                <div class='col-md-8'>
+                <label class='control-label required col-md-4 col-sm-3' for='LOGIN'>_{LOGIN}_:</label>
+                <div class='col-md-8 col-sm-9'>
                     <input id='LOGIN' name='LOGIN' value='%LOGIN%' required='required' placeholder='_{LOGIN}_'
                            class='form-control'
                            type='text'>
@@ -39,8 +31,8 @@
             </div>
 
             <div class='form-group'>
-                <label class='control-label required col-md-4' for='FIO'>_{FIO}_</label>
-                <div class='col-md-8'>
+                <label class='control-label required col-md-4 col-sm-3' for='FIO'>_{FIO}_:</label>
+                <div class='col-md-8 col-sm-9'>
                     <input id='FIO' name='FIO' value='%FIO%' required='required' placeholder='_{FIO}_'
                            class='form-control'
                            type='text'>
@@ -48,8 +40,8 @@
             </div>
 
             <div class='form-group'>
-                <label class='control-label required col-md-4' for='PHONE'>_{PHONE}_</label>
-                <div class='col-md-8'>
+                <label class='control-label required col-md-4 col-sm-3' for='PHONE'>_{PHONE}_:</label>
+                <div class='col-md-8 col-sm-9'>
                     <input id='PHONE' name='PHONE' value='%PHONE%' required='required' placeholder='_{PHONE}_'
                            class='form-control'
                            type='text'>
@@ -57,8 +49,8 @@
             </div>
 
             <div class='form-group'>
-                <label class='control-label col-md-3' for='EMAIL'>E-MAIL</label>
-                <div class='col-md-9'>
+                <label class='control-label col-md-4 col-sm-3' for='EMAIL'>E-MAIL:</label>
+                <div class='col-md-8 col-sm-9'>
                     <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='E-mail' class='form-control'
                            type='text'>
                 </div>
@@ -66,38 +58,38 @@
 
             <hr/>
             <div class='form-group'>
-                <label class='control-label col-md-3' for='CITY'>_{CITY}_</label>
-                <div class='col-md-9'>
+                <label class='control-label col-md-4 col-sm-3' for='CITY'>_{CITY}_:</label>
+                <div class='col-md-8 col-sm-9'>
                     <input id='CITY' name='CITY' value='%CITY%' placeholder='_{CITY}_' class='form-control' type='text'>
                 </div>
             </div>
 
             <div class='form-group'>
-                <label class='control-label col-md-3' for='ZIP'>_{ZIP}_</label>
-                <div class='col-md-9'>
+                <label class='control-label col-md-4 col-sm-3' for='ZIP'>_{ZIP}_:</label>
+                <div class='col-md-8 col-sm-9'>
                     <input id='ZIP' name='ZIP' value='%ZIP%' placeholder='_{ZIP}_' class='form-control' type='text'>
                 </div>
             </div>
 
             <div class='form-group'>
-                <label class='control-label col-md-3' for='ADDRESS_STREET'>_{ADDRESS_STREET}_</label>
-                <div class='col-md-9'>
+                <label class='control-label col-md-4 col-sm-3' for='ADDRESS_STREET'>_{ADDRESS_STREET}_:</label>
+                <div class='col-md-8 col-sm-9'>
                     <input id='ADDRESS_STREET' name='ADDRESS_STREET' value='%ADDRESS_STREET%'
                            placeholder='_{ADDRESS_STREET}_' class='form-control' type='text'>
                 </div>
             </div>
 
             <div class='form-group'>
-                <label class='control-label col-md-3' for='ADDRESS_BUILD'>_{ADDRESS_BUILD}_</label>
-                <div class='col-md-3'>
+                <label class='control-label col-md-4' for='ADDRESS_BUILD'>_{ADDRESS_BUILD}_:</label>
+                <div class='col-md-2'>
                     <input id='ADDRESS_BUILD' name='ADDRESS_BUILD' value='%ADDRESS_BUILD%'
                            placeholder='_{ADDRESS_BUILD}_'
                            class='form-control' type='text'>
                 </div>
 
-                <label class='control-label col-md-2  pull-left ' for='ADDRESS_FLAT'>_{ADDRESS_FLAT}_</label>
-                <div class='col-md-3'>
-                    <input type=text name=ADDRESS_FLAT value='%ADDRESS_FLAT%' class='form-control' id='ADDRESS_FLAT'>
+                <label class='control-label col-md-2 pull-left' for='ADDRESS_FLAT'>_{ADDRESS_FLAT}_:</label>
+                <div class='col-md-4'>
+                    <input type=text name=ADDRESS_FLAT value='%ADDRESS_FLAT%'placeholder="_{ADDRESS_FLAT}_" class='form-control' id='ADDRESS_FLAT'>
                 </div>
             </div>
 
@@ -123,8 +115,8 @@
 
         </div>
         <div class='box-footer'>
-            <div class='col-md-12 text-center'>
-                <input type='submit' name='reg' value='_{SEND}_' class='btn btn-lg btn-primary'>
+            <div class='box-footer text-right'>
+                <input type='submit' name='reg' value='_{SEND}_' class='btn btn-primary'>
             </div>
         </div>
 

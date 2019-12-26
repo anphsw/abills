@@ -1,22 +1,25 @@
+=head1 NAME
+
+ Lead functions
+
+=cut
+
 use strict;
 use warnings FATAL => 'all';
 use Tags;
+use Crm::db::Crm;
+use Abills::Base qw/in_array mk_unique_value/;
 
 our (
   @PRIORITY,
-
-  $html,
   %lang,
   $admin,
   $db,
   %conf,
 );
 
-#our Crm $Crm;
-#our Admins $Admins;
+our Abills::HTML $html;
 my $Crm = Crm->new($db, $admin, \%conf);
-my $Admins = Admins->new($db, \%conf);
-use Abills::Base qw/in_array mk_unique_value/;
 my $Tags = Tags->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -30,13 +33,13 @@ my $Tags = Tags->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub crm_lead_search {
-  # добавляет нового лида и перенаправляет на страницу профиля
+  # Add new lead and redirect to profile page
   if ($FORM{add}) {
     $Crm->crm_lead_add({ %FORM });
 
     _error_show($Crm);
 
-    $html->message('success', $lang{ADDED}, $lang{LEAD_ADDED_MESSAGE} . $html->button("тут",
+    $html->message('success', $lang{ADDED}, $lang{LEAD_ADDED_MESSAGE} . $html->button($lang{GO},
         "index=" . get_function_index('crm_lead_info') . "&LEAD_ID=$Crm->{INSERT_ID}"));
 
     return 1;
@@ -46,12 +49,15 @@ sub crm_lead_search {
   my $submit_button_action = 'search';
   my $id_disabled = '';
   my $id_hidden = '';
+  my $source_list = translate_list($Crm->leads_source_list({
+    NAME => '_SHOW',
+    COLS_NAME => 1 }));
 
   my $lead_source_select = $html->form_select(
     'SOURCE',
     {
       SELECTED    => $FORM{SOURCE} || q{},
-      SEL_LIST    => translate_list($Crm->leads_source_list({ COLS_NAME => 1 }), 'name'),
+      SEL_LIST    => $source_list,
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -70,29 +76,42 @@ sub crm_lead_search {
     }
   );
 
+  my $priority_select = $html->form_select(
+    'PRIORITY',
+    {
+      SELECTED    => $FORM{PRIORITY} || q{},
+      SEL_ARRAY   => \@PRIORITY,
+      NO_ID       => 1,
+      SEL_OPTIONS => { "" => "" },
+      ARRAY_NUM_ID=> 1,
+    }
+  );
+
   my $current_step_select = _progress_bar_step_sel();
 
   my $tpl = $html->tpl_show(
     _include('crm_lead_search', 'Crm'),
     {
-      SUBMIT_BTN_NAME   => $submit_button_name,
-      SUBMIT_BTN_ACTION => $submit_button_action,
-      DISABLE_ID        => $id_disabled,
-      HIDE_ID           => $id_hidden,
-      LEAD_SOURCE       => $lead_source_select,
-      RESPONSIBLE_ADMIN => $responsible_admin,
-      DATE              => $date_range,
+      SUBMIT_BTN_NAME     => $submit_button_name,
+      SUBMIT_BTN_ACTION   => $submit_button_action,
+      DISABLE_ID          => $id_disabled,
+      HIDE_ID             => $id_hidden,
+      LEAD_SOURCE         => $lead_source_select,
+      RESPONSIBLE_ADMIN   => $responsible_admin,
+      DATE                => $date_range,
       CURRENT_STEP_SELECT => $current_step_select,
+      PRIORITY_SEL        => $priority_select,
       INDEX               => get_function_index('crm_leads'),
       %FORM
-    }, {OUTPUT2RETURN => 1}
+    }, { OUTPUT2RETURN => 1 }
   );
 
-
   form_search({TPL => $tpl});
-}
-#**********************************************************
 
+  return 1;
+}
+
+#**********************************************************
 =head2 crm_lead_search_old() - search leads
 
   Arguments:
@@ -101,9 +120,7 @@ sub crm_lead_search {
   Returns:
 
   Examples:
-
 =cut
-
 #**********************************************************
 sub crm_lead_search_old {
 
@@ -111,12 +128,15 @@ sub crm_lead_search_old {
   my $submit_button_action = 'search';
   my $id_disabled = '';
   my $id_hidden = '';
+  my $source_list = translate_list($Crm->leads_source_list({
+    NAME => '_SHOW',
+    COLS_NAME => 1 }));
 
   my $lead_source_select = $html->form_select(
     'SOURCE',
     {
       SELECTED    => $FORM{SOURCE} || q{},
-      SEL_LIST    => translate_list($Crm->leads_source_list({ COLS_NAME => 1 }), 'name'),
+      SEL_LIST    => $source_list,
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -126,9 +146,6 @@ sub crm_lead_search_old {
   );
 
   if ($FORM{search}) {
-
-    # поиск лида по параметрам с формы
-
     my $leads_list = $Crm->crm_lead_list(
       {
         FIO         => $FORM{FIO} || '_SHOW',
@@ -206,7 +223,6 @@ sub crm_lead_search_old {
 }
 
 #**********************************************************
-
 =head2 crm_leads() -
 
   Arguments:
@@ -216,9 +232,14 @@ sub crm_lead_search_old {
   Examples:
 
 =cut
-
 #**********************************************************
 sub crm_leads {
+  if ($FORM{ID} && $FORM{send}) {
+    _crm_send_lead_mess({ %FORM });
+  }
+  elsif (!$FORM{ID} && $FORM{send}) {
+    $html->message('warn', $lang{ERROR}, $lang{NO_CLICK_USER});
+  }
 
   if ($FORM{add_form}) {
     my $submit_button_name = "$lang{ADD}";
@@ -226,11 +247,15 @@ sub crm_leads {
     my $id_disabled = 'disabled';
     my $id_hidden = 'hidden';
 
+    my $source_list = translate_list($Crm->leads_source_list({
+      NAME => '_SHOW',
+      COLS_NAME => 1 }));
+
     my $lead_source_select = $html->form_select(
       'SOURCE',
       {
         SELECTED    => $FORM{SOURCE} || q{},
-        SEL_LIST    => translate_list($Crm->leads_source_list({ COLS_NAME => 1 }), 'name'),
+        SEL_LIST    => $source_list,
         SEL_KEY     => 'id',
         SEL_VALUE   => 'name',
         NO_ID       => 1,
@@ -292,11 +317,15 @@ sub crm_leads {
       }
     );
 
+    my $source_list = translate_list($Crm->leads_source_list({
+      NAME => '_SHOW',
+      COLS_NAME => 1 }));
+
     my $lead_source_select = $html->form_select(
       'SOURCE',
       {
         SELECTED    => $FORM{SOURCE} || $lead_info->{SOURCE},
-        SEL_LIST    => translate_list($Crm->leads_source_list({ COLS_NAME => 1 }), 'name'),
+        SEL_LIST    => $source_list,
         SEL_KEY     => 'id',
         SEL_VALUE   => 'name',
         NO_ID       => 1,
@@ -328,7 +357,7 @@ sub crm_leads {
     }
   }
   elsif ($FORM{add}) {
-    $Crm->crm_lead_add({ %FORM, CURRENT_STEP => 1 });
+    $Crm->crm_lead_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0), CURRENT_STEP => 1 });
 
     if (!_error_show($Crm)) {
       $html->message('info', $lang{ADDED},);
@@ -347,7 +376,6 @@ sub crm_leads {
     if (!_error_show($Crm)) {
       $html->message('info', $lang{CHANGED},);
     }
-
   }
 
   return 1 if $FORM{MESSAGE_ONLY};
@@ -355,15 +383,42 @@ sub crm_leads {
   $LIST_PARAMS{SKIP_DEL_CHECK} = 1;
   my Abills::HTML $table;
 
+  my @header_arr = (
+    "$lang{ALL}:index=$index&ALL_LEADS=1",
+    "$lang{POTENTIAL_LEADS}:index=$index&POTENTIAL=1",
+    "$lang{CONVERT_LEADS}:index=$index&CONVERTED=1",
+  );
+
+  my $header = $html->table_header(\@header_arr, {
+    SHOW_ONLY => 3
+  });
+
+  if ($FORM{ALL_LEADS}) {
+#    $LIST_PARAMS{'CL_UID'} = '0';
+  }
+  elsif ($FORM{CONVERTED}) {
+    $LIST_PARAMS{'CL_UID'} = '!0';
+  }
+  elsif ( ($FORM{POTENTIAL})
+    || !$FORM{CONVERTED}
+    || !$FORM{ALL_LEADS}
+    || !$FORM{POTENTIAL} )
+  {
+    $LIST_PARAMS{'CL_UID'} = '0';
+  }
+
   %LIST_PARAMS = %FORM if ($FORM{search});
 
-  result_former(
+  my $list;
+
+  ($table, $list) = result_former(
     {
       INPUT_DATA      => $Crm,
       FUNCTION        => 'crm_lead_list',
       BASE_FIELDS     => 0,
       DEFAULT_FIELDS  => "ID, FIO, PHONE, EMAIL, COMPANY, ADMIN_NAME, DATE, CURRENT_STEP_NAME, LAST_ACTION, PRIORITY, UID, LOGIN, TAG_IDS",
       HIDDEN_FIELDS   => 'STEP_COLOR,CURRENT_STEP',
+      MULTISELECT     => 'ID:lead_id:CRM_LEADS',
       FUNCTION_FIELDS => 'crm_lead_info:$lang{INFO}:lead_id,change, del',
       FILTER_COLS     => {
         current_step_name => '_crm_current_step_color::STEP_COLOR,',
@@ -384,39 +439,35 @@ sub crm_leads {
         'priority'          => "$lang{PRIORITY}",
         'login'             => "$lang{LOGIN}",
         'tag_ids'           => "$lang{TAGS}"
-        # 'comments'  => $lang{COMMENTS},
       },
       SKIP_PAGES      => 1,
       TABLE           => {
         width       => '100%',
         caption     => $lang{LEADS},
         qs          => $pages_qs,
-        ID          => 'CRM_LEADS',
         MENU        => "$lang{ADD}:index=$index&add_form=1:add",
-        DATA_TABLE  => { "order"=> [[ 6, "desc" ]]},
+        DATA_TABLE  => { "order" => [ [ 6, "desc" ] ] },
         title_plain => 1,
-        #EXPORT  => 1,
+        header      => $header,
+        SELECT_ALL  => "CRM_LEADS:ID:$lang{SELECT_ALL}",
       },
       SELECT_VALUE    => {
-        priority => { 0 => "$PRIORITY[0]:text-default",
-          1             => "$PRIORITY[1]:text-warning",
-          2             => "$PRIORITY[2]:text-danger" }
+        priority => {
+          0 => "$PRIORITY[0]:text-default",
+          1 => "$PRIORITY[1]:text-warning",
+          2 => "$PRIORITY[2]:text-danger"
+        }
       },
-      # SELECT_VALUE    => {
-      #   paid  => {
-      #     0 => "$lang{NO}:text-danger",
-      #     1 => "$lang{YES}:text-primary",
-      #   }
-      # },
       MAKE_ROWS       => 1,
       SEARCH_FORMER   => 1,
-      MODULE          => 'Crm',
-      TOTAL           => 1,
-      SKIP_TOTAL_FORM => 1
-
+      MODULE          => 'Crm'
     }
   );
 
+  $html->tpl_show(_include('crm_send_mess', 'Crm'), {
+    INDEX => $index,
+    TABLE => $table->show()
+  });
 
   return 1;
 }
@@ -468,7 +519,7 @@ sub crm_lead_info {
   }
 
   if (defined $FORM{CUR_STEP}) {
-    $Crm->crm_lead_change({ ID => $FORM{LEAD_ID}, CURRENT_STEP => $FORM{CUR_STEP} + 1 || '0' });
+    $Crm->crm_lead_change({ ID => $FORM{LEAD_ID}, CURRENT_STEP => $FORM{CUR_STEP} || '1' });
 
     return 1;
   }
@@ -506,7 +557,7 @@ sub crm_lead_info {
 
   if (defined $FORM{STEP_ID} && defined $FORM{add_message}) {
 
-    $Crm->progressbar_comment_add({ %FORM, DATE => "$DATE $TIME" });
+    $Crm->progressbar_comment_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0) , DATE => "$DATE $TIME" });
 
     _error_show($Crm);
   }
@@ -517,8 +568,6 @@ sub crm_lead_info {
   }
 
   my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
-
-
   my $delete_user_button = '';
 
   if($lead_info->{UID} && $lead_info->{UID} > 0){
@@ -534,7 +583,7 @@ sub crm_lead_info {
   }
 
   my $change_button = $html->button(
-    "$lang{CHANGE}",
+    $lang{CHANGE},
     "get_index=crm_leads&header=2&chg=$lead_id&TEMPLATE_ONLY=1",
     {
       # ICON          => 'glyphicon glyphicon-edit',
@@ -544,7 +593,7 @@ sub crm_lead_info {
   );
 
   my $convert_data_button = $html->button(
-    "$lang{IMPORT}",
+    $lang{IMPORT},
     "get_index=crm_lead_convert&header=2&FROM_LEAD_ID=$lead_id",
     {
       LOAD_TO_MODAL => 1,
@@ -585,7 +634,6 @@ sub crm_lead_info {
     },
   { OUTPUT2RETURN => 1, });
 
-
   # progressbar
   my $lead_progress_bar = crm_progressbar_show($lead_id);
 
@@ -603,7 +651,6 @@ sub crm_lead_info {
 }
 
 #**********************************************************
-
 =head2 crm_lead_panels() -
 
   Arguments:
@@ -613,7 +660,6 @@ sub crm_lead_info {
   Examples:
 
 =cut
-
 #**********************************************************
 sub crm_lead_panels {
   my (@leads) = @_;
@@ -635,7 +681,6 @@ sub crm_lead_panels {
 }
 
 #**********************************************************
-
 =head2 crm_progressbar_steps() -
 
   Arguments:
@@ -645,7 +690,6 @@ sub crm_lead_panels {
   Examples:
 
 =cut
-
 #**********************************************************
 sub crm_progressbar_steps {
 
@@ -654,7 +698,7 @@ sub crm_progressbar_steps {
   my $step_info = {};
 
   if ($FORM{add}) {
-    $Crm->crm_progressbar_step_add({ %FORM });
+    $Crm->crm_progressbar_step_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0) });
   }
   elsif ($FORM{chg}) {
 
@@ -707,7 +751,6 @@ sub crm_progressbar_steps {
         # MENU    => "$lang{ADD}:index=$index&add=1:add",
         #EXPORT  => 1,
       },
-
       # SELECT_VALUE    => {
       #   paid  => {
       #     0 => "$lang{NO}:text-danger",
@@ -732,27 +775,35 @@ sub crm_progressbar_steps {
 sub crm_progressbar_show {
   my ($lead_id) = @_;
 
-  my $pb_list = translate_list($Crm->crm_progressbar_step_list({ COLS_NAME => 1 }), 'name');
+  my $pb_list = translate_list($Crm->crm_progressbar_step_list({
+    STEP_NUMBER => '_SHOW',
+    NAME        => '_SHOW',
+    COLOR       => '_SHOW',
+    DESCRIPTION => '_SHOW',
+    COLS_NAME   => 1
+  }));
+
   my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
 
   _error_show($Crm);
 
   if ($Crm->{TOTAL} > 0) {
     my $progress_name = '';
-    my $cur_step = $lead_info->{CURRENT_STEP} - 1;
+    my $cur_step = $lead_info->{CURRENT_STEP};
     my $steps_comments = '';
     my $timeline = '';
 
     my $tips = '';
     my $css;
     foreach my $line (@$pb_list) {
-      $css .= "li.step" . ($line->{step_number} - 1) . "{border-bottom: 12px solid $line->{color} !important;}\n";
 
-      $css .= "li.step" . ($line->{step_number} - 1) . ":before{background-color: $line->{color} !important;}\n";
+      $css .= "li.step" . ($line->{step_number}) . "{border-bottom: 12px solid $line->{color} !important;}\n";
+
+      $css .= "li.step" . ($line->{step_number}) . ":before{background-color: $line->{color} !important;}\n";
 
       my $step_map = $line->{description} || '';
 
-      $progress_name .= "['" . ($line->{name} || $line->{step_number}) . "', '$step_map' ], ";
+      $progress_name .= "['" . ($line->{name} || $line->{step_number}) . "', '$step_map', '$line->{step_number}'  ], ";
 
       my $active_element = '';
       my $active_element_data = '';
@@ -782,6 +833,7 @@ sub crm_progressbar_show {
             MESSAGE => $message->{MESSAGE},
             DATE    => $message->{DATE},
             STEP_ID => $message->{STEP_ID},
+            DOMAIN_ID => ($admin->{DOMAIN_ID} || 0)
           });
         }
       }
@@ -805,7 +857,6 @@ sub crm_progressbar_show {
           $TIMELIINE_ITEM_TEMPLATE{ICON} = 'glyphicon glyphicon-wrench ' . $ACTION_STATUSES{$message->{status} || 0};
           $TIMELIINE_ITEM_TEMPLATE{HEADER} = "$lang{ACTION}: $message->{action} [ $lang{PLANNED} $lang{DATE}:" . ($message->{planned_date} || '') . " ]";
         };
-
 
         $timeline_items .= $html->tpl_show(
           _include('crm_timeline_item', 'Crm'),
@@ -836,10 +887,6 @@ sub crm_progressbar_show {
         { OUTPUT2RETURN => 1 }
       );
 
-      # if ($line->{step_date}) {
-      #   $cur_step = $line->{step_number};
-      #   $tips = $line->{description};
-      # }
     }
 
     $steps_comments = $html->tpl_show(
@@ -855,7 +902,7 @@ sub crm_progressbar_show {
       _include('crm_progressbar', 'Crm'),
       {
         PROGRESS_NAMES => $progress_name,
-        CUR_STEP       => $cur_step || 0,
+        CUR_STEP       => $cur_step || 1,
         TIPS           => $tips,
         STEPS_COMMENTS => $steps_comments,
         CSS            => $css,
@@ -885,7 +932,7 @@ sub crm_source_types {
   my %source_info = ();
 
   if ($FORM{add}) {
-    $Crm->leads_source_add({ %FORM });
+    $Crm->leads_source_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0)  });
   }
   elsif ($FORM{chg}) {
     %source_info = %{$Crm->leads_source_info({ ID => $FORM{chg} })};
@@ -970,12 +1017,15 @@ sub crm_reports_leads {
       WITH_TIME => $FORM{TIME_FORM} || 0
     }
   );
+  my $source_list = translate_list($Crm->leads_source_list({
+    NAME => '_SHOW',
+    COLS_NAME => 1 }));
 
   my $source_select = $html->form_select(
     'SOURCE_ID',
     {
       SELECTED    => $FORM{SOURCE_ID} || q{},
-      SEL_LIST    => translate_list($Crm->leads_source_list({ COLS_NAME => 1 }), 'name'),
+      SEL_LIST    => $source_list,
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -992,8 +1042,6 @@ sub crm_reports_leads {
     }
   );
 
-#  $LIST_PARAMS{FROM_DATE} = $FORM{FROM_DATE} || $DATE;
-#  $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE} || $DATE;
   $LIST_PARAMS{SOURCE} = $FORM{SOURCE_ID} || '';
   $LIST_PARAMS{PERIOD} = ($FORM{FROM_DATE} || $DATE) . "/" . ($FORM{TO_DATE} || $DATE);
 
@@ -1003,6 +1051,7 @@ sub crm_reports_leads {
       FUNCTION        => 'crm_lead_list',
       BASE_FIELDS     => 0,
       DEFAULT_FIELDS  => "ID, FIO, PERIOD, SOURCE_NAME",
+      HIDDEN_FIELDS   => "SOURCE",
       FILTER_COLS     => {
         fio => '_crm_leads_filter::lead_id,'
       },
@@ -1011,7 +1060,7 @@ sub crm_reports_leads {
       EXT_TITLES      => {
         'lead_id'     => "ID",
         'fio'         => $lang{FIO},
-        'PERIOD'        => $lang{DATE},
+        'period'      => $lang{DATE},
         'source_name' => $lang{SOURCE},
       },
       TABLE           => {
@@ -1019,17 +1068,7 @@ sub crm_reports_leads {
         caption => $lang{LEADS},
         qs      => $pages_qs,
         ID      => 'CRM_LEADS',
-
-        # MENU    => "$lang{ADD}:index=$index&add=1:add",
-        #EXPORT  => 1,
       },
-
-      # SELECT_VALUE    => {
-      #   paid  => {
-      #     0 => "$lang{NO}:text-danger",
-      #     1 => "$lang{YES}:text-primary",
-      #   }
-      # },
       MAKE_ROWS       => 1,
       SEARCH_FORMER   => 1,
       MODULE          => 'Crm',
@@ -1090,7 +1129,7 @@ sub crm_short_info {
     require Callcenter;
     Callcenter->import();
     my $Callcenter = Callcenter->new($db, $admin, \%conf);
-    my $admin_info = $Admins->info($admin->{AID});
+    my $admin_info = $admin->info($admin->{AID});
 
     $Callcenter->callcenter_add_cals({
       USER_PHONE     => $lead_phone,
@@ -1153,7 +1192,8 @@ sub crm_short_info {
       STEP_ID => $lead_info->[0]{current_step} || 1,
       MESSAGE => "Aengine call",
       LEAD_ID => $lead_info->[0]{id},
-      DATE => "$DATE $TIME"
+      DATE => "$DATE $TIME",
+      DOMAIN_ID => ($admin->{DOMAIN_ID} || 0)
     });
 
     my $lead_link = $html->button(($lead_info->[0]->{fio} || "$lang{NO} $lang{FIO}"),
@@ -1169,8 +1209,6 @@ sub crm_short_info {
     );
 
     print $json_lead_info;
-
-    # return 1;
   }
   elsif (defined $Crm->{TOTAL} && $Crm->{TOTAL} < 1) {
     $FORM{COMMENTS} = "$DATE $TIME - lead called through AEngineer";
@@ -1194,8 +1232,6 @@ sub crm_short_info {
     else {
       print qq{ { "ERROR" : 2, "CANT ADD NEW LEAD" } };
     }
-
-    # return 1;
   }
   elsif(defined $Crm->{TOTAL} && $Crm->{TOTAL} > 1){
     print qq{ { "ERROR" : 3, "DESCRIPTION" : "MORE THEN 1 LEAD FOUND" } };
@@ -1237,17 +1273,23 @@ sub crm_leads_progress_report {
 #  $LIST_PARAMS{TO_DATE} = $FORM{TO_DATE} || $DATE;
 #  $LIST_PARAMS{SOURCE_ID} = $FORM{SOURCE_ID} || '';
 
-    my $period = ($FORM{FROM_DATE} || $DATE) . "/" . ($FORM{TO_DATE} || $DATE);
+  my $period = ($FORM{FROM_DATE} || $DATE) . "/" . ($FORM{TO_DATE} || $DATE);
 
   my $leads_list = $Crm->crm_lead_list({ PERIOD => $period, SOURCE => ($FORM{SOURCE_ID} || '_SHOW'), COLS_NAME => 1, CURRENT_STEP => '_SHOW' });
   _error_show($Crm);
-  my $steps_list = $Crm->crm_progressbar_step_list({ COLS_NAME => 1 });
+  my $steps_list = $Crm->crm_progressbar_step_list({
+    STEP_NUMBER => '_SHOW',
+    NAME        => '_SHOW',
+    COLOR       => '_SHOW',
+    DESCRIPTION => '_SHOW',
+    COLS_NAME   => 1
+  });
   _error_show($Crm);
 
   my $last_step = 0;
 
   foreach my $step (@$steps_list) {
-    $last_step = $step->{step_number};
+    $last_step = $step->{STEP_NUMBER};
   }
 
   my %HASH_BY_DATES;
@@ -1260,7 +1302,7 @@ sub crm_leads_progress_report {
       $HASH_BY_DATES{ $lead->{period} }{leads_comes} = 1;
     }
 
-    if ($last_step == $lead->{current_step}) {
+    if (defined($last_step) && $last_step == $lead->{current_step}) {
       if (defined $HASH_BY_DATES{ $lead->{period} }{leads_finished}) {
         $HASH_BY_DATES{ $lead->{period} }{leads_finished}++;
       }
@@ -1285,12 +1327,11 @@ sub crm_leads_progress_report {
       ID      => 'LEADS_PROGRESS_TABLE',
       width   => '100%',
       caption => "$lang{LEADS} $lang{PROGRESS}",
-      title   => [ "$lang{DATE}", "$lang{LEADS_COMES}", "$lang{LEADS_FINISHED}", $lang{PROGRESS} ]
+      title   => [ $lang{DATE}, $lang{LEADS_COMES}, $lang{LEADS_FINISHED}, $lang{PROGRESS} ]
     }
   );
 
   foreach my $date (reverse sort keys %HASH_BY_DATES) {
-
     $leads_progress_table->addrow(
       $html->button("$date", "index=" . get_function_index('crm_reports_leads') . "&FROM_DATE=$date&TO_DATE=$date", {
 
@@ -1391,7 +1432,6 @@ sub _crm_last_action {
 sub crm_lead_convert {
 
   if ($FORM{TO_LEAD_ID}) {
-
     my $from_lead_info = $Crm->crm_lead_info({ ID => $FORM{FROM_LEAD_ID} });
     my $to_lead_info = $Crm->crm_lead_info({ ID => $FORM{TO_LEAD_ID} });
 
@@ -1528,27 +1568,24 @@ sub crm_search {
 =cut
 #**********************************************************
 sub crm_user_service {
-  #my ($attr) = @_;
 
-  my $uid = $FORM{UID};
-
-  require Control::Users_mng;
-  use Users;
-  my Users $user_info = $users->info($uid, { SHOW_PASSWORD => 1 });
+  my $uid = $FORM{UID} || 0;
+  my $msgs_box = qq{};
+  my $callcenter_box = qq{};
   $FORM{NEWFORM} = 1;
 
-  if ($FORM{json}) {
-    #    user_form({ USER_INFO => $user_info });
-    #    user_pi();
-  }
-  else {
-    print "<div class='row'><div class='col-md-12 col-lg-6'>";
-    user_form({ USER_INFO => $user_info });
-    print "</div>"
-      . "<div class='col-md-12 col-lg-6'>";
-    user_pi();
-    print "</div></div>";
-  }
+#  if ($FORM{json}) {
+#    #    user_form({ USER_INFO => $user_info });
+#    #    user_pi();
+#  }
+#  else {
+#    print "<div class='row'><div class='col-md-12 col-lg-6'>";
+#    user_form({ USER_INFO => $user_info });
+#    print "</div>"
+#      . "<div class='col-md-12 col-lg-6'>";
+#    user_pi();
+#    print "</div></div>";
+#  }
 
   if (in_array('Msgs', \@MODULES)) {
     my @msgs_rows;
@@ -1574,7 +1611,7 @@ sub crm_user_service {
     my $msgs_table = $html->table(
       {
         width   => '100%',
-        caption => "$lang{MESSAGES}",
+        caption => $lang{MESSAGES},
         ID      => 'CRM_MSGS_LITE',
         title   => [ '#', $lang{SUBJECT}, $lang{DATE}, $lang{RESPOSIBLE} ],
         rows    => [ @msgs_rows ]
@@ -1582,7 +1619,7 @@ sub crm_user_service {
       }
     );
 
-    print $msgs_table->show();
+    $msgs_box = $msgs_table->show();
   }
   else {
     $html->message("warning", "$lang{MODULE} Msgs $lang{NOT_ADDED}");
@@ -1611,28 +1648,26 @@ sub crm_user_service {
     my $calls_table = $html->table(
       {
         width   => '100%',
-        caption => "$lang{CALLS_HANDLER}",
+        caption => $lang{CALLS_HANDLER},
         ID      => 'CRM_CALLS_LITE',
         title   => [ '#', $lang{DATE}, $lang{STATUS} ],
-        rows    => [ @calls_rows ],
-
-        #      EXPORT  => 1,
+        rows    => \@calls_rows
       }
     );
-    print $calls_table->show();
+    $callcenter_box = $calls_table->show();
   }
   else {
     $html->message("warning", "$lang{MODULE} Callcenter $lang{NOT_ADDED}");
   }
 
-  return 1;
+  return $msgs_box, $callcenter_box;
 }
 
 #**********************************************************
-=head2 ()
+=head2 _crm_name_translate($name)
 
   Arguments:
-     -
+     $name
 
   Returns:
 
@@ -1662,7 +1697,7 @@ sub crm_actions_main {
   );
 
   if ($FORM{add}) {
-    $Crm->crm_actions_add({ %FORM });
+    $Crm->crm_actions_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0)   });
     _error_show($Crm);
   }
   elsif ($FORM{change}) {
@@ -1690,7 +1725,6 @@ sub crm_actions_main {
     if ($action_info) {
       @CRM_ACTIONS_TEMPLATE{keys %$action_info} = values %$action_info;
     }
-
   }
 
   $html->tpl_show(
@@ -1724,13 +1758,15 @@ sub crm_actions_main {
       TOTAL           => "TOTAL:$lang{TOTAL}",
     }
   );
+
+  return 1;
 }
 
 #**********************************************************
-=head2 _actions_sel()
+=head2 _actions_sel($attr)
 
   Arguments:
-     -
+    $attr
 
   Returns:
 
@@ -1759,9 +1795,6 @@ sub _actions_sel {
 
 #**********************************************************
 =head2 crm_lead_add_user()
-
-  Arguments:
-     -
 
   Returns:
 
@@ -1801,26 +1834,31 @@ sub crm_lead_add_user {
   );
   return 1;
 }
+
 #**********************************************************
-=head2 crm_sales_funnel() - Shows sales funnel for leads
+=head2 crm_sales_funnel($attr) - Shows sales funnel for leads
 
 =cut
 #**********************************************************
 sub crm_sales_funnel {
-  reports(
-    {
-      DATE_RANGE       => 1,
-      DATE             => $FORM{DATE},
-      REPORT           => '',
-      EX_PARAMS        => {
-      },
-      PERIOD_FORM      => 1,
-      PERIODS          => 1,
-      NO_TAGS          => 1,
-      NO_GROUP         => 1,
-      NO_ACTIVE_ADMINS => 1
-    }
-  );
+  my ($attr) = @_;
+
+  if (!$attr->{RETURN_TABLE}) {
+    reports(
+      {
+        DATE_RANGE       => 1,
+        DATE             => $FORM{DATE},
+        REPORT           => '',
+        EX_PARAMS        => {
+        },
+        PERIOD_FORM      => 1,
+        PERIODS          => 1,
+        NO_TAGS          => 1,
+        NO_GROUP         => 1,
+        NO_ACTIVE_ADMINS => 1
+      }
+    );
+  }
   my ($y, $m, $d) = split('-', $DATE);
   my $from_date = "$y-$m-01";
   my $to_date = "$y-$m-" . days_in_month({ DATE => $DATE });
@@ -1833,13 +1871,14 @@ sub crm_sales_funnel {
   my $list = $Crm->crm_progressbar_step_list({
     STEP_NUMBER => '_SHOW',
     NAME        => '_SHOW',
-    SORT        => 2,
+    SORT        => 1,
     COLS_NAME   => 1
   });
   my $table = $html->table(
     {
       width   => '100%',
-      caption => $lang{SALES_FUNNEL},
+      caption => (!$attr->{RETURN_TABLE}) ? $lang{SALES_FUNNEL} :
+        $html->button($lang{SALES_FUNNEL}, 'index=' . get_function_index('crm_sales_funnel') ),
       title   => [
         "$lang{STEP}",
         "$lang{NAME}",
@@ -1856,46 +1895,56 @@ sub crm_sales_funnel {
     CURRENT_STEP => ">=1",
   });
   my $full_count = $Crm->{TOTAL};
-  my $i=1;
+
   foreach my $item (@$list) {
     $Crm->crm_lead_list({
       PERIOD => "$from_date/$to_date",
-      CURRENT_STEP => ">=$i"
+      CURRENT_STEP => ">=$item->{step_number}"
     });
     my $count_for_step = $Crm->{TOTAL};
     $Crm->crm_lead_list({
       PERIOD => "$from_date/$to_date",
-      CURRENT_STEP => $i
+      CURRENT_STEP => $item->{step_number}
     });
     my $step_count = $Crm->{TOTAL};
     my $item_name = _translate($item->{name});
+
+    my $count_step = sprintf('%.2f',($count_for_step/(($full_count || 1)/100)));
+    my $complete_count_step = sprintf('%.2f',($step_count/(($full_count || 1)/100)));
+
     $table->addrow(
       $item->{step_number},
       $item_name,
       $html->button( $count_for_step,
         "index=" . get_function_index('crm_leads') . "&PERIOD=$period&CURRENT_STEP=>=$item->{step_number}&search=1" ),
       $html->progress_bar({
-        TEXT         => '123',
+        TEXT         => $attr->{RETURN_TABLE} ? $html->color_mark(($count_step ? $count_step : 0),
+            (($count_step ? $count_step : 0) > 50 ? '#fff' : '#000')) : '123',
         TOTAL        => $full_count,
         COMPLETE     => $count_for_step,
         COLOR        => 'light-blue',
-        PERCENT_TYPE => 1
+        PERCENT_TYPE => $attr->{RETURN_TABLE} ? 0 : 1,
       }),
       $html->button( $step_count,
         "index=" . get_function_index('crm_leads') . "&PERIOD=$period&CURRENT_STEP=$item->{step_number}&search=1" ),
       $html->progress_bar({
-        TEXT         => '123',
+        TEXT         => $attr->{RETURN_TABLE} ? $html->color_mark(($complete_count_step ? $complete_count_step : 0),
+            (($complete_count_step ? $complete_count_step : 0) > 50 ? '#fff' : '#000')) : '123',
         TOTAL        => $full_count,
         COMPLETE     => $step_count,
         COLOR        => 'yellow',
-        PERCENT_TYPE => 1
+        PERCENT_TYPE => $attr->{RETURN_TABLE} ? 0 : 1
       })
     );
+
+    next if $attr->{RETURN_TABLE};
     push @leads_array, {
       value     => $count_for_step + 0,
       title => $item_name,
     };
-    $i++;
+  }
+  if ($attr->{RETURN_TABLE}) {
+    return $table->show();
   }
   print $table->show();
   my $json = JSON->new()->utf8(0);
@@ -1906,10 +1955,10 @@ sub crm_sales_funnel {
 }
 
 #**********************************************************
-=head2 _actions_sel()
+=head2 _progress_bar_step_sel($attr)
 
   Arguments:
-     -
+    $attr
 
   Returns:
 
@@ -1923,8 +1972,6 @@ sub _progress_bar_step_sel {
     NAME      => '_SHOW',
     COLS_NAME => 1,
   });
-
-  my @PB_STEPS_LSIT = ();
 
   my $id=1;
   foreach my $step (@$progress_bar_steps_list){
@@ -2008,7 +2055,6 @@ sub _crm_tags {
       $checked_tags{$item} = $item;
     }
 
-
     foreach my $item (@$list) {
       if ( $checked_tags{$item->{id}} ) {
         my $priority_color = ( $priority_colors[$item->{priority}]) ? $priority_colors[$item->{priority}] : $priority_colors[1];
@@ -2017,7 +2063,6 @@ sub _crm_tags {
     }
     return $tags || q{};
   }
-
 
   return 1;
 }
@@ -2051,15 +2096,55 @@ sub _crm_tags_name {
     $checked_tags{$item} = $item;
   }
 
-
   foreach my $item (@$list) {
     if ( $checked_tags{$item->{id}} ) {
       my $priority_color = ( $priority_colors[$item->{priority}]) ? $priority_colors[$item->{priority}] : $priority_colors[1];
       $tags_named .= ' ' . $html->element('span', $item->{name}, { class => "btn btn-xs $priority_color" });
     }
   }
-  return $tags_named || q{};
 
+  return $tags_named || q{};
+}
+
+#**********************************************************
+=head2 _crm_send_lead_mess()
+
+  Arguments:
+    $tags -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _crm_send_lead_mess {
+  my ($attr) = @_;
+  my @id_leads = split(/, /, $FORM{ID});
+
+  my $list = $Crm->crm_lead_list({
+    LEAD_ID      => '_SHOW',
+    CURRENT_STEP => '_SHOW',
+    COLS_NAME    => 1
+  });
+
+  foreach my $element (@id_leads) {
+    foreach my $iter (@$list) {
+      if ($iter->{lead_id} == $element) {
+        $Crm->progressbar_comment_add({
+          LEAD_ID   => $element,
+          MESSAGE   => $attr->{MSGS},
+          DATE      => "$DATE $TIME",
+          STEP_ID   => $iter->{current_step},
+          DOMAIN_ID => ($admin->{DOMAIN_ID} || 0)
+        });
+      }
+    }
+  }
+
+  if (!_error_show($Crm)) {
+    $html->message('info', $lang{SUCCESS}, $lang{EXECUTED});
+  }
+
+  return 0;
 }
 
 1;

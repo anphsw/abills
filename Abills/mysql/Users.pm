@@ -210,15 +210,24 @@ sub pi_add {
     $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
   }
 
-  if ( $self->{conf}->{CONTACTS_NEW} && $attr->{PHONE}) {
+  if ( $self->{conf}->{CONTACTS_NEW} && ($attr->{PHONE} || $attr->{EMAIL}) ) {
     require Contacts;
     Contacts->import();
     my $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
-    $Contacts->contacts_add({
-      TYPE_ID => 2,
-      VALUE   => $attr->{PHONE},
-      UID     => $attr->{UID},
-    });
+    if($attr->{PHONE}) {
+      $Contacts->contacts_add({
+        TYPE_ID => 2,
+        VALUE   => $attr->{PHONE},
+        UID     => $attr->{UID},
+      });
+    }
+    if($attr->{EMAIL}) {
+      $Contacts->contacts_add({
+        TYPE_ID => 9,
+        VALUE   => $attr->{EMAIL},
+        UID     => $attr->{UID},
+      });
+    }
   }
 
   $self->query_add('users_pi', { %$attr });
@@ -287,10 +296,14 @@ sub pi {
     $self->{errstr} = 'ERROR_NOT_EXIST';
     return $self;
   }
-
-  if ($self->{FIO} && $self->{FIO2} && $self->{FIO3}) {
+#TODO:If it works delete comment in a month (Created 25.10.2019)
+  # if ($self->{FIO} && $self->{FIO2} && $self->{FIO3}) {
+  #   $self->{FIO1} = $self->{FIO};
+  #   $self->{FIO} = join (' ', $self->{FIO1}, $self->{FIO2}, $self->{FIO3});
+  # }
+  if ( ($self->{FIO} || $self->{FIO} eq '' ) && ($self->{FIO2} || $self->{FIO3} )) {
     $self->{FIO1} = $self->{FIO};
-    $self->{FIO} = join (' ', $self->{FIO1}, $self->{FIO2}, $self->{FIO3});
+    $self->{FIO} = join (' ', ($self->{FIO1} || q{}), ($self->{FIO2} || q{}), ($self->{FIO3} || q{}));
   }
 
   if (!$self->{errno} && $self->{LOCATION_ID}) {
@@ -389,22 +402,26 @@ sub pi_change {
 
   $self->_space_trim($attr);
 
-  if($attr->{PHONE} && $CONF->{PHONE_FORMAT}){
-    if ($attr->{PHONE} !~ /$CONF->{PHONE_FORMAT}/) {
-      $self->{errno}=21;
-      $self->{errstr}='Wrong phone';
-      return $self;
-    }
+#FIXME:Commented 30.05.2019. It is used new contacts validation(Users_mng.pm). Delete 30.06.2019.
+#  if($attr->{PHONE} && $CONF->{PHONE_FORMAT}){
+#    if ($attr->{PHONE} !~ /$CONF->{PHONE_FORMAT}/) {
+#      $self->{errno}=21;
+#      $self->{errstr}='Wrong phone';
+#      return $self;
+#    }
+#  }
+
+  $self->user_contacts_validation($attr);
+
+  if ($self->{errno}) {
+    return $self;
   }
 
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD}) {
     require Address;
     Address->import();
     my $Address = Address->new($self->{db}, $admin, $self->{conf});
-    $Address->build_add({
-      STREET_ID => $attr->{STREET_ID},
-      NUMBER    => $attr->{ADD_ADDRESS_BUILD}
-    });
+    $Address->build_add($attr);
     $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
   }
 
@@ -424,9 +441,9 @@ sub pi_change {
   $admin->{MODULE} = '';
 
   if ( $self->{conf}->{CONTACTS_NEW} ) {
-    my $phone_changed = defined $self->{PHONE} && $attr->{PHONE} && $self->{PHONE} ne $attr->{PHONE};
-    my $cell_phone_changed = defined $self->{CELL_PHONE} && $attr->{CELL_PHONE} && $self->{CELL_PHONE} ne $attr->{CELL_PHONE};
-    my $mail_changed = defined $self->{EMAIL} && $attr->{EMAIL} && $self->{EMAIL} ne $attr->{EMAIL};
+    my $phone_changed = defined $self->{PHONE_ALL} && defined $attr->{PHONE} && ($self->{PHONE_ALL} ne $attr->{PHONE});
+    my $cell_phone_changed = defined $self->{CELL_PHONE_ALL} && defined $attr->{CELL_PHONE} && ($self->{CELL_PHONE_ALL} ne $attr->{CELL_PHONE} );
+    my $mail_changed = defined $self->{EMAIL} && defined $attr->{EMAIL} && ($self->{EMAIL} ne $attr->{EMAIL});
 
     if ( $phone_changed || $mail_changed || $cell_phone_changed) {
       require Contacts;
@@ -770,6 +787,15 @@ sub list {
       $self->{SEARCH_FIELDS_COUNT}++;
     }
 
+
+    if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
+      $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit, ';
+      $self->{SEARCH_FIELDS_COUNT}++;
+      foreach my $rule (@HAVING_RULES) {
+        $rule =~ s/IF\(company\.id IS NULL, b\.deposit, cb\.deposit\)/deposit/;
+      }
+    }
+
     my $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(' AND ', @HAVING_RULES) : '';
     $self->query("SELECT u.id AS login,
        $self->{SEARCH_FIELDS}
@@ -778,10 +804,7 @@ sub list {
        u.activate,
        u.expire,
        u.gid,
-       b.deposit,
        u.domain_id,
-       company.id,
-       cb.deposit,
        u.deleted
      FROM users u
      LEFT JOIN payments p ON (u.uid = p.uid)
@@ -797,7 +820,7 @@ sub list {
 
     my $list = $self->{list};
 
-    # Totas Records
+    # Total Records
     if ($self->{TOTAL} > 0) {
       if ($attr->{PAYMENT}) {
         $WHERE_RULES[$#WHERE_RULES] = @{ $self->search_expr($attr->{PAYMENTS}, 'INT', 'p.date') };
@@ -854,6 +877,14 @@ sub list {
       $self->{SEARCH_FIELDS_COUNT}++;
     }
 
+    if ($attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW') {
+      $self->{SEARCH_FIELDS} .= 'IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit, ';
+      $self->{SEARCH_FIELDS_COUNT}++;
+      foreach my $rule (@HAVING_RULES) {
+        $rule =~ s/IF\(company\.id IS NULL, b\.deposit, cb\.deposit\)/deposit/;
+      }
+    }
+
     my $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(' AND ', @HAVING_RULES) : '';
 
     $self->query("SELECT u.id AS login,
@@ -863,7 +894,6 @@ sub list {
        u.activate,
        u.expire,
        u.gid,
-       b.deposit,
        u.domain_id,
        u.deleted
      FROM users u
@@ -1223,6 +1253,8 @@ sub del {
       ACTION_COMMENTS => $comments,
       UID       => $self->{UID}
     });
+
+    $self->query_del('web_users_sessions', undef, { uid => $self->{UID} });
   }
 
   return $self->{result};
@@ -2258,89 +2290,178 @@ sub contracts_type_del {
   return $self;
 }
 #**********************************************************
-=head2 info_user_reports() - Get info for user reports
+=head2 min_tarif_val() - Get minimum value for internet tarif
 
   Arguments:
-     YEAR - year for search
-     PAY_SUM - sum payments for users
+
   Returns:
     $list
 =cut
 #**********************************************************
-sub info_user_reports {
+sub min_tarif_val {
   my $self = shift;
   my ($attr) = @_;
-  my $list = '';
-  if ($attr->{USER_NEW_COUNT}) {
-    $self->query("
-      SELECT
-        COUNT(*) AS count,
-        DATE_FORMAT(registration, '%m') AS reg_month
-      FROM users
-      WHERE DATE_FORMAT(registration, '%Y')='$attr->{YEAR}'
-      GROUP BY reg_month;",
-      undef,
-      $attr
-    );
-    $list = $self->{list_hash};
-  }
-  elsif ($attr->{PAY_SUM}) {
-    $self->query("
-      SELECT SUM(p.sum) as sum
-      FROM users u
-      JOIN payments p
-      ON p.uid=u.uid
-      WHERE (DATE_FORMAT(p.date, '%Y-%m')>='$attr->{YEAR}-$attr->{MONTH}' and DATE_FORMAT(p.date, '%Y-%m')<='$attr->{YEAR}-$attr->{MONTH}' AND NOT p.method='4');",
-      undef,
-      $attr
-    );
-    $list = $self->{list}[0] || 0;
-  }
-  elsif ($attr->{INFO_STATUS}) {
-    $self->query("
-      SELECT SUM(sum) as sum
-      FROM users u
-      JOIN payments p
-      ON p.uid=u.uid
-      WHERE DATE_FORMAT(u.registration, '%Y-%m');",
-      undef,
-      $attr
-    );
-    $list = $self->{list}[0] || 0;
-  }
-  elsif ($attr->{FEES_PER_MONTH}) {
-    $self->query("SELECT SUM(f.sum) as sum
-      FROM (SELECT DISTINCT internet.uid
-      FROM internet_main internet
-      JOIN  users u ON u.uid=internet.uid) as uids
-      JOIN fees f ON f.uid=uids.uid
-      WHERE (DATE_FORMAT(f.date, '%Y-%m')='$attr->{YEAR}-$attr->{MONTH}' );",
-      undef,
-      $attr
-    );
-    $list = $self->{list}[0] || 0;
-  }
-  elsif ($attr->{SUM_AND_TOTAL_SERVICES}) {
-    $self->query("SELECT COUNT(internet.id) as total_active_services,SUM(tr.month_fee) AS month_fee_sum
-      FROM internet_main internet
-      JOIN tarif_plans tr ON internet.tp_id=tr.tp_id
-      WHERE (DATE_FORMAT(internet.registration, '%Y-%m')<='$attr->{YEAR}-$attr->{MONTH}' AND internet.disable=0);",
-      undef,
-      $attr
-    );
-    $list = $self->{list}[0] || 0;
-  }
-  elsif ($attr->{MIN_TARIFF_AMOUNT}) {
+  my $value = '';
+
     $self->query("SELECT MIN(tr.month_fee) as min_t
-      FROM internet_main internet
-      JOIN tarif_plans tr ON internet.tp_id=tr.tp_id
-      WHERE (internet.disable=0);",
+      FROM tarif_plans tr
+      WHERE (tr.module='Internet');",
       undef,
       $attr
     );
-    $list = $self->{list}[0] || 0;
+    $value = $self->{list}[0] || 0;
+
+  return $value;
+}
+
+#**********************************************************
+=head2 all_data_for_report($attr) - get all data per month
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub all_data_for_report {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT
+    months.month  as month,
+    IFNULL((SELECT COUNT(u.uid)
+      FROM users u
+      WHERE DATE_FORMAT(u.registration, '%Y-%m') <= CONCAT(?,'-', months.month)),0) AS count_all_users,
+    IFNULL((SELECT COUNT(u.uid)
+      FROM users u
+      WHERE DATE_FORMAT(u.registration, '%Y-%m') = CONCAT(?,'-', months.month)),0)  AS count_new_users,
+    IFNULL((SELECT SUM(p.sum)
+      FROM payments p
+      WHERE DATE_FORMAT(p.date, '%Y-%m') = CONCAT(?, '-', months.month)
+      AND NOT p.method = '4'), 0)                AS payments_for_every_month,
+    IFNULL((SELECT COUNT(distinct internet.uid)
+      FROM internet_main internet
+      WHERE DATE_FORMAT(internet.registration, '%Y-%m') <= CONCAT(?, '-', months.month)), 0) AS count_activated_users,
+    IFNULL((SELECT SUM(f.sum)
+      FROM  fees f
+      WHERE (DATE_FORMAT(f.date, '%Y-%m')=CONCAT(?, '-', months.month))),0) as fees_sum,
+    IFNULL(( SELECT COUNT(internet2.id)
+      FROM internet_main internet2
+      JOIN tarif_plans tr ON internet2.tp_id=tr.tp_id
+      WHERE (DATE_FORMAT(internet2.registration, '%Y-%m')<=CONCAT(?, '-', months.month) AND internet2.disable=0)),0) AS total_active_services,
+    IFNULL(( SELECT SUM(tr.month_fee)
+      FROM internet_main internet2
+      JOIN tarif_plans tr ON internet2.tp_id=tr.tp_id
+      WHERE (DATE_FORMAT(internet2.registration, '%Y-%m')<=CONCAT(?, '-', months.month) AND internet2.disable=0)),0) AS month_fee_sum
+    FROM (SELECT '01' AS month
+      UNION SELECT '02' AS month
+      UNION SELECT '03' AS month
+      UNION SELECT '04' AS month
+      UNION SELECT '05' AS month
+      UNION SELECT '06' AS month
+      UNION SELECT '07' AS month
+      UNION SELECT '08' AS month
+      UNION SELECT '09' AS month
+      UNION SELECT '10' AS month
+      UNION SELECT '11' AS month
+      UNION SELECT '12' AS month) as months
+    GROUP BY month;",
+    undef,
+    { %{$attr}, Bind => [ $attr->{YEAR}, $attr->{YEAR}, $attr->{YEAR}, $attr->{YEAR}, $attr->{YEAR}, $attr->{YEAR}, $attr->{YEAR} ] }
+  );
+
+  return $self->{list} || {};
+}
+#**********************************************************
+=head2 all_new_report($attr) - get all data per month
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub all_new_report {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT
+    months.month  as month,
+    IFNULL((SELECT COUNT(u.uid)
+      FROM users u
+      WHERE DATE_FORMAT(u.registration, '%Y-%m') <= CONCAT(?,'-', months.month)),0) AS count_all_users,
+    IFNULL((SELECT COUNT(u.uid)
+      FROM users u
+      WHERE DATE_FORMAT(u.registration, '%Y-%m') = CONCAT(?,'-', months.month)),0)  AS count_new_users
+    FROM (SELECT '01' AS month
+      UNION SELECT '02' AS month
+      UNION SELECT '03' AS month
+      UNION SELECT '04' AS month
+      UNION SELECT '05' AS month
+      UNION SELECT '06' AS month
+      UNION SELECT '07' AS month
+      UNION SELECT '08' AS month
+      UNION SELECT '09' AS month
+      UNION SELECT '10' AS month
+      UNION SELECT '11' AS month
+      UNION SELECT '12' AS month) as months
+    GROUP BY month;",
+    undef,
+    { %{$attr}, Bind => [ $attr->{YEAR}, $attr->{YEAR} ] }
+  );
+
+  return $self->{list} || {};
+}
+#**********************************************************
+=head2 contacts_validation($attr)
+
+  Status:
+    1 - valid contacts
+    2 - invalid contacts
+  Arguments:
+    PHONE
+    CELL_PHONE
+    EMAIL
+
+  Returns:
+
+=cut
+#**********************************************************
+sub user_contacts_validation {
+  my $self = shift;
+  my ($attr) = @_;
+
+  if ($attr->{PHONE} && $self->{conf}{PHONE_FORMAT}) {
+    foreach my $item (split(/,\s?/, $attr->{PHONE})) {
+      if ($item !~ /$self->{conf}{PHONE_FORMAT}/) {
+        $self->{errno} = 21;
+        $self->{errstr} = "WRONG_PHONE" . " " . $item . '. ';
+        return 0;
+      }
+    }
   }
-return $list;
+
+  if ($attr->{CELL_PHONE} && $self->{conf}{CELL_PHONE_FORMAT}) {
+    foreach my $item (split(/,\s?/, $attr->{CELL_PHONE})) {
+      if ($item !~ /$self->{conf}{CELL_PHONE_FORMAT}/) {
+        $self->{errno} = 21;
+        $self->{errstr} = "WRONG_CELL_PHONE" . " " . $item . '. ';
+        return 0;
+      }
+    }
+  }
+
+  if ($attr->{EMAIL}) {
+    if ($attr->{EMAIL} !~ /$Abills::Filters::EMAIL_EXPR/) {
+      $self->{errno} = 11;
+      $self->{errstr} = "WRONG_EMAIL" . " " . $attr->{EMAIL} . '. ';
+      return 0;
+    }
+  }
+
+  return $self;
 }
 
 1;

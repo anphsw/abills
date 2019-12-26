@@ -95,9 +95,9 @@ sub mac_auth{
     print "Mac_auth2\n";
     require Mac_auth2;
   }
-  else {
-    require Mac_auth;
-  }
+  # else {
+  #   require Mac_auth;
+  # }
 
   do "rlm_perl.pl";
 

@@ -25,7 +25,7 @@ BEGIN {
   }
 }
 
-use Abills::Init qw/$db $admin %conf $users/;
+use Abills::Init qw/$db $admin %conf $users @MODULES $DATE $TIME/;
 use Abills::HTML;
 use Abills::Base qw/_bp startup_files cmd ssh_cmd int2byte/;
 use Abills::Misc;
@@ -51,9 +51,10 @@ if($conf{SMS_CALLBACK_LANGUAGE}){
   $html->{language} = $conf{SMS_CALLBACK_LANGUAGE};
 }
 
+do "../language/english.pl";
 do "../language/$html->{language}.pl";
 
-my $Log = Log->new($db, \%conf, {LOG_FILE => '/usr/abills/var/log/sms_callback.log'});
+my $Log = Log->new($db, \%conf, {LOG_FILE => '/usr/abills/var/log/sms_callback.log', SILENT => 1});
 
 my %STATUSES = (
   '0' => 'active',
@@ -62,6 +63,8 @@ my %STATUSES = (
 
 our %FORM;
 %FORM = form_parse();
+$FORM{text} //= $FORM{content};
+$FORM{sender} //= $FORM{from};
 
 # Check required params
 for my $param_name ('apikey', 'sender', 'text') {
@@ -72,26 +75,68 @@ for my $param_name ('apikey', 'sender', 'text') {
 $admin->info(undef, { API_KEY => $FORM{apikey} });
 exit_with_error(401, "Invalid apikey") unless $admin->{AID};
 
-#my $msg_id = $FORM{msgid} || 'No message ID';
-my ($uid, $command, $additional_info) = split('\+', $FORM{text});
+my @sms_args = split('\+', $FORM{text});
+
+#Hotspot
+if ($sms_args[0] eq "ICNFREEHS" || $sms_args[0] eq "ICNHS") {
+  my $cid = $sms_args[1];
+  if ($cid !~ /^[0-9A-F]{12}$/) {
+    show_command_result(0, '');
+    exit;
+  }
+  $cid =~ s/(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})/$1:$2:$3:$4:$5:$6/;
+  my ($uid, $phone) = get_user_info($cid);
+  use Hotspot;
+  my $Hotspot = Hotspot->new($db, $admin, \%conf);
+  if ($sms_args[0] eq "ICNFREEHS" && $uid && !$phone) {
+    set_user_phone($uid, $FORM{sender});
+    sms_payment($uid, 1);
+    $Hotspot->log_add({
+      HOTSPOT  => '',
+      CID      => $cid,
+      ACTION   => 22,
+      PHONE    => $FORM{sender},
+      COMMENTS => "User $uid use $sms_args[0]"
+    });
+  }
+  elsif ($sms_args[0] eq "ICNHS" && $uid) {
+    sms_payment($uid, 2);
+    $Hotspot->log_add({
+      HOTSPOT  => '',
+      CID      => $cid,
+      ACTION   => 23,
+      PHONE    => $FORM{sender},
+      COMMENTS => "User $uid use $sms_args[0]"
+    });
+  }
+  show_command_result(0, '');
+  exit;
+}
+
+my $uid = $sms_args[0];
+my $additional_info = $sms_args[2];
 
 # Find user
-my $user_object = check_user($FORM{sender}, $uid);
+my $user_object = check_user($FORM{sender}, $sms_args[0]);
 
-if ($command == 1) {
+if ($sms_args[1] eq '01') {
   send_user_memo($user_object);
 }
-elsif ($command == 2) {
+elsif ($sms_args[1] eq '02') {
   send_internet_info($user_object);
 }
-elsif ($command == 3) {
+elsif ($sms_args[1] eq '03') {
   start_external_command($user_object);
 }
-elsif ($command == 4) {
+elsif ($sms_args[1] eq '04') {
   hold_up_user($user_object)
 }
-elsif ($command == 5) {
+elsif ($sms_args[1] eq '05') {
   activate_user($user_object);
+}
+elsif ($sms_args[1] eq '06') {
+  money_transfer($user_object, $sms_args[2], $sms_args[3]);
+  show_command_result(0, '');
 }
 
 exit 0;
@@ -103,6 +148,10 @@ exit 0;
 #**********************************************************
 sub exit_with_error {
   my ($code, $string) = @_;
+  if ($conf{SMS_UNIVERSAL_URL}) {
+    print "ACK/Jasmin\n";
+    exit 0;
+  }
 
   my %error_explanation = (
     400 => 'Bad request',
@@ -164,7 +213,7 @@ sub send_user_memo {
     $message = 'User memo didnt send'
   }
 
-  show_result($code, $message);
+  show_command_result($code, $message);
 
   exit 0;
 }
@@ -239,7 +288,7 @@ sub send_internet_info {
     $message = 'User internet info didnt send'
   }
 
-  show_result($code, $message);
+  show_command_result($code, $message);
 
   exit 0;
 }
@@ -278,7 +327,7 @@ sub start_external_command {
       $message = 'Sms didnt sent'
     }
 
-    show_result(5, $message);
+    show_command_result(5, $message);
   }
 
   my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
@@ -290,7 +339,7 @@ sub start_external_command {
     $code = 1;
     $message = 'Something goes wrong';
 
-    show_result($code, $message);
+    show_command_result($code, $message);
   }
 
   my $user_ip = $online_info->{FRAMED_IP_ADDRESS};
@@ -324,7 +373,7 @@ sub start_external_command {
       $message = 'Sms with changed password didnt sent'
     }
 
-    show_result($code, $message);
+    show_command_result($code, $message);
     exit 0;
   }
 
@@ -358,7 +407,7 @@ sub check_user {
     });
 
     if ($Contacts->{errno} || ref $users_list ne 'ARRAY' || !$users_list->[0]) {
-      show_result(1, "User not found");
+      show_command_result(1, "User not found");
       exit 0;
     }
     my $users_list_by_uid = $users->list({
@@ -387,7 +436,7 @@ sub check_user {
 
     $user = $users_list_by_uid->[0];
 
-    show_result(0, "User found");
+    # show_command_result(0, "User found");
     return $user;
   }
   else {
@@ -417,14 +466,14 @@ sub check_user {
     });
 
     if ($users->{errno} || ref $users_list ne 'ARRAY' || !$users_list->[0]) {
-      show_result(1, "User not found");
+      show_command_result(1, "User not found");
       exit 0;
     }
 
     $user = $users_list->[0];
   }
 
-  show_result(0, "User found");
+  # show_command_result(0, "User found");
   return $user;
 }
 
@@ -451,7 +500,7 @@ sub hold_up_user {
   my $user_services = $Internet->list({UID => $user->{uid}, INTERNET_STATUS => '0', COLS_NAME => 1});
 
   if($Internet->{TOTAL} == 0){
-    show_result(6, "All user servicecs not active. UID: $user->{uid}");
+    show_command_result(6, "All user servicecs not active. UID: $user->{uid}");
     exit 0;
   }
 
@@ -467,7 +516,7 @@ sub hold_up_user {
         UID     => $user->{uid},
       });
 
-    show_result(4, 'Service is not holding up');
+    show_command_result(4, 'Service is not holding up');
     exit 0;
   }
 
@@ -483,7 +532,7 @@ sub hold_up_user {
     $message = 'Service is holding up but sms not sent'
   }
 
-  show_result($code, $message);
+  show_command_result($code, $message);
 
   exit 0;
 }
@@ -512,7 +561,7 @@ sub activate_user {
   my $user_services = $Internet->list({UID => $user->{uid}, INTERNET_STATUS => 3, COLS_NAME => 1});
 
   if($Internet->{TOTAL} == 0){
-    show_result(7, "All user servicecs not holding up. UID: $user->{uid}");
+    show_command_result(7, "All user servicecs not holding up. UID: $user->{uid}");
     exit 0;
   }
 
@@ -520,10 +569,7 @@ sub activate_user {
     $Internet->change({ UID => $user->{uid}, ID => $service->{id}, STATUS => 0 });
   }
 
-#  $Internet->change({ UID => $user->{uid}, STATUS => 0 });
-
   if($Internet->{errno}){
-#    _bp("", $Internet);
     my $sms_id = sms_send(
       {
         NUMBER  => $user->{phone},
@@ -531,7 +577,7 @@ sub activate_user {
         UID     => $user->{uid},
       });
 
-    show_result(4, 'Service is not active');
+    show_command_result(4, 'Service is not active');
     exit 0;
   }
 
@@ -547,13 +593,207 @@ sub activate_user {
     $message = 'Service is active but sms not sent'
   }
 
-  show_result($code, $message);
+  show_command_result($code, $message);
 
   exit 0;
 }
 
 #**********************************************************
-=head2 show_result($message)
+=head2 get_user_info ($mac)
+
+=cut
+#**********************************************************
+sub get_user_info {
+  my ($cid) = @_;
+
+  my $Internet = Internet->new($db, $admin, \%conf);
+  my $list = $Internet->list({
+    PHONE          => '_SHOW',
+    CID            => $cid,
+    # DOMAIN_ID      => 4,
+    COLS_NAME      => 1,
+  });
+  
+  if ( $Internet->{TOTAL} < 1 ){
+    return (0, 0);
+  }
+
+  return ($list->[0]{uid}, $list->[0]{phone});
+}
+
+#**********************************************************
+=head2 set_user_phone ($uid, $phone)
+
+=cut
+#**********************************************************
+sub set_user_phone {
+  my ($uid, $phone) = @_;
+  require Contacts;
+  my $Contacts = Contacts->new($db, $admin, \%conf);
+  $Contacts->contacts_add({
+    TYPE_ID => 2,
+    VALUE   => $phone,
+    UID     => $uid,
+  });
+  return 1;
+}
+
+#**********************************************************
+=head2 sms_payment ($uid, $sum)
+
+=cut
+#**********************************************************
+sub sms_payment {
+  my ($uid, $sum) = @_;
+
+  use Finance;
+  my $Payments = Finance->payments($db, $admin, \%conf);
+  my $user = Users->new($db, $admin, \%conf);
+  $user->info($uid);
+
+  $Payments->add($user, { 
+    SUM      => $sum,
+    METHOD   => 11,
+    DESCRIBE => "Public hotspot SMS",
+  });
+
+  load_module('Sms');
+  my $message = $html->tpl_show('', { UID => $uid, SUM => $sum, PAYMENT_ID => $Payments->{PAYMENT_ID} },
+    { TPL => 'sms_callback_sms_pay_complete', MODULE => 'Sms', OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+  sms_send({
+    NUMBER  => $FORM{sender},
+    MESSAGE => $message,
+    UID     => $uid,
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 money_transfer($user, $target_uid, $sum)
+
+=cut
+#**********************************************************
+sub money_transfer {
+  my ($user, $target_uid, $sum) = @_;
+  load_module('Sms');
+
+  my $error = 0;
+  my $percentage = 0;
+  my $user1 = Users->new($db, $admin, \%conf);
+  my $user2 = Users->new($db, $admin, \%conf);
+  $user1->info($user->{uid});
+  $user2->info($target_uid);
+  $error = 2 if ($user2->{errno});
+
+  require Dillers;
+  my $Diller = Dillers->new($db, $admin, \%conf);
+
+  $Diller->diller_info({ UID => $target_uid });
+  $error = 2 if ($Diller->{TOTAL} > 0);
+
+  $Diller->diller_info({ UID => $user->{uid} });
+  $error = 3 if ($Diller->{TOTAL} < 1 && $user1->{GID} != $user2->{GID});
+  
+  if ($error) {
+    my $message = $html->tpl_show('', { UID => $target_uid },
+      { TPL => 'sms_callback_user_not_exist', MODULE => 'Sms', OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+    sms_send({
+      NUMBER  => $user->{phone},
+      MESSAGE => $message,
+      UID     => $user->{uid},
+    });
+    return 1;
+  }
+
+  use Finance;
+  my $Fees     = Finance->fees($db, $admin, \%conf);
+  my $Payments = Finance->payments($db, $admin, \%conf);
+  
+  my $last_payments = $Payments->list({
+    DATETIME  => '_SHOW',
+    SUM       => '_SHOW',
+    DESCRIBE  => '_SHOW',
+    UID       => $user->{uid},
+    DESC      => 'desc',
+    SORT      => 1,
+    PAGE_ROWS => 1,
+    COLS_NAME => 1
+  });
+
+  my $last_sum = $last_payments->[0]->{sum} || 0;
+
+  if ($Diller->{TOTAL} < 1) {
+    $percentage = 0;
+  }
+  elsif ($user1->{GID} && $user1->{GID} == $user2->{GID}) {
+    $percentage = $Diller->{DILLER_PERCENTAGE} || 10;
+  }
+  elsif ($last_sum > 6000) {
+    $percentage = 6;
+  }
+  elsif ($last_sum > 4000) {
+    $percentage = 5;
+  }
+  elsif ($last_sum > 2000) {
+    $percentage = 4;
+  }
+  elsif ($last_sum > 1000) {
+    $percentage = 3;
+  }
+  else {
+    $percentage = 0;
+  }
+
+  my $dillers_fee = $sum * (100 - $percentage) / 100;
+
+  if ($user->{deposit} < $dillers_fee) {
+    my $message = $html->tpl_show('', { DEPOSIT => $user->{deposit} },
+      { TPL => 'sms_callback_not_enough_money', MODULE => 'Sms', OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+    sms_send({
+      NUMBER  => $user->{phone},
+      MESSAGE => $message,
+      UID     => $user->{uid},
+    });
+    return 1;
+  }
+
+  $Fees->take($user1, $dillers_fee, {
+    DESCRIBE => "Transfer '$sum' -> '$user2->{LOGIN}'",
+    METHOD   => 10,
+  });
+  
+  $Payments->add($user2, { 
+    SUM      => $sum,
+    METHOD    => 10,
+    DESCRIBE => "User '$user1->{LOGIN}' add payment sum:'$sum' for user:'$user2->{LOGIN}' $DATE $TIME",
+  });
+  
+  if (!$Payments->{errno}) {
+    cross_modules_call('_payments_maked', {
+      USER_INFO   => $user2,
+      SUM         => $sum,
+      SILENT      => 1,
+      QUITE       => 1,
+      timeout     => 4,
+    });
+  }
+
+  my $deposit = sprintf("%.3f", ($user1->{DEPOSIT} - $dillers_fee));
+
+  my $message = $html->tpl_show('', { %$user1, SUM => $sum, TARGET_UID => $target_uid, DEPOSIT => $deposit},
+    { TPL => 'sms_callback_money_transfer', MODULE => 'Sms', OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+  sms_send({
+    NUMBER  => $user->{phone},
+    MESSAGE => $message,
+    UID     => $user->{uid},
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 show_command_result($message)
 
   Arguments:
      $message - what will show on screen
@@ -562,8 +802,12 @@ sub activate_user {
 
 =cut
 #**********************************************************
-sub show_result {
+sub show_command_result {
   my ($code, $message) = @_;
+  if ($conf{SMS_UNIVERSAL_URL}) {
+    print "ACK/Jasmin\n";
+    exit 1;
+  }
   print "$message<br>";
 
   if($code == 0){

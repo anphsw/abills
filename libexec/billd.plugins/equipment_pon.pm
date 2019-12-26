@@ -63,7 +63,7 @@ elsif ($argv->{SERIAL_SCAN}) {
 elsif ($argv->{SNMP_SERIAL_SCAN_ALL}) {
   _scan_mac_serial_on_all_nas();
 }
-elsif ($argv->{CPE_FILL}) {
+elsif ($argv->{CPE_FILL} || $argv->{FORCE_FILL}) {
   _save_port_and_nas_to_internet_main();
 }
 elsif ($argv->{CPE_CHECK}) {
@@ -161,10 +161,11 @@ sub _equipment_pon_load {
   $Equipment->model_info($nas_info->{model_id});
   if (!$nas_info->{nas_ip}) {
     print "NAS_ID: $nas_info->{nas_id} deleted\n";
-    next;
+    # next;
+    return 1;
   }
   elsif (!$nas_info->{nas_mng_password}) {
-    print "NAS_ID: $nas_info->{nas_id} COMMINITY not defined\n";
+    print "NAS_ID: $nas_info->{nas_id} COMMUNITY not defined\n";
     $nas_info->{nas_mng_password} = 'public';
     #next;
   }
@@ -243,6 +244,7 @@ sub _equipment_pon_load {
       my $onu_database_list = $Equipment->onu_list({
         NAS_ID     => $nas_id,
         COLS_NAME  => 1,
+        SKIP_DOMAIN=> 1,
         PAGE_ROWS  => 100000,
         ONU_GRAPH  => '_SHOW',
         COMMENTS   => '_SHOW',
@@ -260,13 +262,17 @@ sub _equipment_pon_load {
       my @MULTI_QUERY = ();
       my @ONU_ADD = ();
       #print Dumper $onu_list;
+      my %pon_types_oids = ();
       foreach my $onu (@$onu_snmp_list) {
         if ($created_onu->{ $onu->{ONU_SNMP_ID} }) {
           #          if($debug > 6) {
           #            print "$nas_type TYPE => $onu->{PON_TYPE} \n";
           #          }
 
-          my $snmp = &{\&{$nas_type}}({ TYPE => $onu->{PON_TYPE} });
+          if (! $pon_types_oids{$onu->{PON_TYPE}}) {
+            $pon_types_oids{$onu->{PON_TYPE}} = &{\&{$nas_type}}({ TYPE => $onu->{PON_TYPE}, MODEL => ($nas_info->{model_name} || '') });
+          }
+          my $snmp = $pon_types_oids{$onu->{PON_TYPE}};
           #          if ($created_onu->{ $onu->{ONU_SNMP_ID} }->{ONU_DESC} && $created_onu->{ $onu->{ONU_SNMP_ID} }->{ONU_DESC} ne $onu->{ONU_DESC}){
           #            my $set_desc_fn = $nas_type . '_set_desc';
           #            if ( defined( &{$set_desc_fn} ) ){
@@ -296,7 +302,7 @@ sub _equipment_pon_load {
 
             if ($#onu_graph_data > -1 && !$argv->{SKIP_RRD}) {
               if ($debug > 3) {
-                print "NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => " . join(',', @onu_graph_data) . " STEP => $argv->{STEP} || '300'\n";
+                print "NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => " . join(',', @onu_graph_data) . " STEP => ". ($argv->{STEP} || '300'). "\n";
               }
               add_graph({ NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300' });
             }
@@ -525,19 +531,20 @@ sub _scan_mac_serial {
     MAC_SERIAL => "_SHOW",
     ID         => "_SHOW",
   });
-
+  
+  my @mac_array = ();
+  my @dublicate = ();
   foreach my $pon (@$equipment_list) {
     my $onu_list = $Equipment->onu_list({
       COLS_NAME  => 1,
       PAGE_ROWS  => 100000,
-      STATUS     => '0',
-      TYPE_NAME  => '4',
+      GROUP_BY   => 'onu.id',
+      # STATUS     => '0',
+      # TYPE_NAME  => '4',
       MAC_SERIAL => "_SHOW",
       NAS_ID     => $pon->{nas_id},
     });
 
-    my @mac_array = ();
-    my @dublicate = ();
     foreach my $onu (@$onu_list) {
       if ($onu->{mac_serial} && !in_array($onu->{mac_serial}, \@mac_array)) {
         push @mac_array, $onu->{mac_serial};
@@ -546,14 +553,14 @@ sub _scan_mac_serial {
         push @dublicate, $onu;
       }
     }
+  }
 
-    if (scalar @dublicate != 0) {
-      my $message = "";
+  if (scalar @dublicate != 0) {
+    my $message = "";
 
-      foreach my $element (@dublicate) {
-        $message = "Nas (id)" . $element->{nas_id} . " has " . $element->{mac_serial} . " mac_serial duplicate\n";
-        _generate_new_event($message);
-      }
+    foreach my $element (@dublicate) {
+      $message = "Nas (id)" . $element->{nas_id} . " has " . $element->{mac_serial} . " mac_serial duplicate\n";
+      _generate_new_event($message);
     }
   }
 
@@ -647,6 +654,9 @@ sub _scan_mac_serial_on_all_nas {
     elsif ($nas_type eq "_vsolution") {
       $oids = _vsolution({ TYPE => $port_type->[0]{pon_type} });
     }
+    elsif ($nas_type eq "_cdata") {
+      $oids = _cdata({ TYPE => $port_type->[0]{pon_type} });
+    }
     else {
       next;
     }
@@ -684,15 +694,13 @@ sub _scan_mac_serial_on_all_nas {
 sub _save_port_and_nas_to_internet_main {
   my $onu_list = $Equipment->onu_and_internet_cpe_list();
   require Internet;
-  use Abills::Base;
-  _bp('asd', $onu_list, {TO_CONSOLE => 1});
   my @ids = split ';', $argv->{NAS_IDS} || '';
   my $Internet = Internet->new($db, $Admin, \%conf);
   foreach my $line (@$onu_list) {
     if ($argv->{NAS_IDS} && !in_array($line->{onu_nas}, \@ids)) {
       next;
     }
-    if (!$line->{user_port} && !$line->{user_nas}) {
+    if ($argv->{FORCE_FILL} || !$line->{user_port} || !$line->{user_nas}) {
       $Internet->change({
         UID    => $line->{uid},
         ID     => $line->{service_id},
@@ -700,10 +708,6 @@ sub _save_port_and_nas_to_internet_main {
         PORT   => $line->{onu_port},
       });
       print "User:$line->{uid} add port ($line->{onu_port}) and nas ($line->{onu_nas})\n";
-    }
-    else {
-      print "Port or nas already set\n";
-      return 1;
     }
   }
 
@@ -719,6 +723,7 @@ sub _check_port_and_nas_from_internet_main {
   my $onu_list = $Equipment->onu_and_internet_cpe_list();
   foreach my $line (@$onu_list) {
     if ($line->{onu_port} ne $line->{user_port}) {
+      $line->{onu_port} //= '';
       print "User:$line->{uid},  port does not match user_port:'$line->{user_port}'/onu_port:'$line->{onu_port}'\n";
     }
     if ($line->{onu_nas} ne $line->{user_nas}) {

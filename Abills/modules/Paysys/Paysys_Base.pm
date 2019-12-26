@@ -237,8 +237,8 @@ sub paysys_pay {
       (undef, $ext_id)=split(/:/, $list->[0]->{transaction_id});
     }
 
-    $uid       = $list->[0]->{uid};
-    $paysys_id = $list->[0]->{id};
+    $uid        = $list->[0]->{uid};
+    $paysys_id  = $list->[0]->{id};
     $amount    = $list->[0]->{sum};
 
     if ($amount && $list->[0]->{sum} != $amount) {
@@ -285,6 +285,10 @@ sub paysys_pay {
   }
 
   my $user = $users->info($uid);
+
+  # delete param for cross modules
+  delete $user->{PAYMENTS_ADDED};
+
   #Error
   if($attr->{ERROR}) {
     my $error_code = ($attr->{ERROR} == 35) ? 5 : $attr->{ERROR};
@@ -345,6 +349,13 @@ sub paysys_pay {
       $PAYMENT_SUM = sprintf("%.2f", $amount / $er);
     }
   }
+  my $system_info = $Paysys->paysys_connect_system_list({
+    PAYSYS_ID      => $payment_system_id,
+    PAYMENT_METHOD => '_SHOW',
+    COLS_NAME      => 1,
+  });
+
+  my $method = $system_info->[0]{payment_method} || 0;
 
   #Sucsess
   cross_modules_call('_pre_payment', {
@@ -354,7 +365,7 @@ sub paysys_pay {
     SUM         => $PAYMENT_SUM || $amount,
     AMOUNT      => $amount || $PAYMENT_SUM,
     EXT_ID      => "$payment_system:$ext_id",
-    METHOD      => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2',
+    METHOD      => $method || (($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2'),
     timeout     => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
     #DEBUG => 5,
     #SILENT => 0
@@ -367,7 +378,7 @@ sub paysys_pay {
       SUM          => $amount,
       DATE         => $attr->{DATE},
       DESCRIBE     => $attr->{PAYMENT_DESCRIBE} || "$payment_system",
-      METHOD       => ($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2',
+      METHOD       => $method || (($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2'),
       EXT_ID       => "$payment_system:$ext_id",
       CHECK_EXT_ID => "$payment_system:$ext_id",
       ER           => $er,
@@ -535,6 +546,7 @@ sub paysys_pay {
       1  - User not exist;
       2  - SQL error;
       11 - Disable paysys for group
+      14 - No bill_id
 
   Examples:
     my ($result, $list) = paysys_check_user({
@@ -591,6 +603,7 @@ sub paysys_check_user {
     CONTRACT_ID    => '_SHOW',
     ACTIVATE       => '_SHOW',
     REDUCTION      => '_SHOW',
+    BILL_ID        => '_SHOW',
     %EXTRA_FIELDS,
     $CHECK_FIELD   => $user_account,
     COLS_NAME      => 1,
@@ -607,7 +620,10 @@ sub paysys_check_user {
   elsif ($list->[0]->{disable_paysys}) {
     return 11;
   }
-  
+  elsif (!$list->[0]->{bill_id}) {
+    return 14;
+  }
+
   if( $conf{PAYSYS_OSMP_EXTRA_INFO} ){
     use Abills::Misc;
     my $recomended_pay = recomended_pay($list->[0], { SKIP_DEPOSIT_CHECK => ($attr->{SKIP_DEPOSIT_CHECK} || 0) });
@@ -623,12 +639,16 @@ sub paysys_check_user {
     $attr
       PAYSYS_ID      - Paysys ID (unique number of operation);
       TRANSACTION_ID - Paysys Transaction identifier
-      RETURN_CANCELED_ID - 1
+      RETURN_CANCELED_ID - 1 (return $result, $paysys_canceled_id)
       DEBUG
 
   Returns:
     Cancel code.
     All codes:
+      0  - Success Delete
+      2  - Error with mysql
+      8  - Paysys not exist
+      10 - Payments not exist
 
   Examples:
 
@@ -787,6 +807,63 @@ sub paysys_info {
 }
 
 #**********************************************************
+=head2 paysys_get_full_info() -
+  Arguments:
+    $attr
+      PAYSYS_ID - Payment system identifier;
+
+  Returns:
+
+    Paysys object
+
+=cut
+#**********************************************************
+sub paysys_get_full_info {
+  my ($attr) = @_;
+
+  my $list = $Paysys->list({
+    ID             => $attr->{PAYSYS_ID} || '_SHOW',
+    TRANSACTION_ID => $attr->{TRANSACTION_ID} || '_SHOW',
+    STATUS         => '_SHOW',
+    PAYMENT_SYSTEM => '_SHOW',
+    COLS_NAME      => 1,
+  });
+
+  if ($Paysys->{TOTAL} == 1) {
+    return $list->[0];
+  }
+
+  return {};
+}
+
+#**********************************************************
+=head2 paysys_payment_list() -
+  Arguments:
+    $attr
+      PAYMENT_SYSTEM - Payment system identifier;
+      FROM_DATE      - Payment from date;
+      TO_DATE        - Payment to date;
+
+  Returns:
+
+    Payment list
+
+=cut
+#**********************************************************
+sub paysys_payment_list {
+  my ($attr) = @_;
+
+  my $list = $Paysys->list({
+    PAYMENT_SYSTEM => $attr->{PAYMENT_SYSTEM} || '_SHOW',
+    FROM_DATE      => $attr->{FROM_DATE} || '_SHOW',
+    TO_DATE        => $attr->{TO_DATE} || '_SHOW',
+    COLS_NAME      => 1
+  });
+
+  return $list;
+}
+
+#**********************************************************
 =head2 conf_gid_split() - Find payment system paramerts for some user group (GID)
 
   Arguments:
@@ -890,7 +967,7 @@ sub mk_log {
     print "Error:\n";
     print "================\n$message================\n";
     die "Can't open log file '$paysys_log_file' $!\n";
-    return 0;
+    #return 0;
   }
 
 

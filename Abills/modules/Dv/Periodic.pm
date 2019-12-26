@@ -113,7 +113,7 @@ sub dv_daily_fees {
         );
 
         foreach my $l (@$report_list) {
-          $active_logins{ $l->[0] } = $l->[6];
+          $active_logins{ $l->[0] } = $l->[7];
         }
       }
 

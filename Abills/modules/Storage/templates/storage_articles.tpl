@@ -8,15 +8,15 @@
 	<legend>_{ARTICLE}_</legend>
 <div class='table'>
   <div class='form-group'>
-    <label class='col-md-3 control-label'>_{NAME}_:</label>
-    <div class='col-md-9'><input class='form-control' name='NAME' type='text' value='%NAME%' /></div>
+    <label class='col-md-3 control-label required'>_{NAME}_:</label>
+    <div class='col-md-9'><input class='form-control' name='NAME' type='text' value='%NAME%' required/></div>
   </div>
   <div class='form-group'>
-    <label class='col-md-3 control-label'>_{TYPE}_:</label>
+    <label class='col-md-3 control-label required'>_{TYPE}_:</label>
     <div class='col-md-9'>%ARTICLE_TYPES%</div>
   </div>
   <div class='form-group'>
-    <label class='col-md-3 control-label'>_{MEASURE}_:</label>
+    <label class='col-md-3 control-label required'>_{MEASURE}_:</label>
     <div class='col-md-9'>%MEASURE_SEL%</div>
   </div>
   <div class='form-group'>

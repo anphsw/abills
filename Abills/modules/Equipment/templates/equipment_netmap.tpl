@@ -70,7 +70,6 @@
 
 <script>
   var data = JSON.parse('%DATA%');
-
   var nodes = [];
   var edges = [];
   var nodes_count = 0;
@@ -119,6 +118,8 @@
                   return '/img/netmap/router.svg';
                 case 4:
                   return '/img/netmap/pon.svg';
+                case 0:
+                  return '/img/netmap/user.svg';
                 default:
                   return '/img/netmap/switch.svg';
               }
@@ -161,11 +162,18 @@
 
       layout: {
         name: 'breadthfirst',
+        fit: true,
+        avoidOverlap: true,
+        avoidOverlapPadding: 100,
+        animate: false,
         padding: 100,
-        minNodeSpacing: 150,
+        spacingFactor: 1.5,
+        nodeDimensionsIncludeLabels: true,
+        minNodeSpacing: 10,
         startAngle: 0
       }
     });
+
 
 
     var makeTippy = function (node, text) {

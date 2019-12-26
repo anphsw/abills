@@ -28,6 +28,8 @@ sub new {
   $CONF->{BUILD_DELIMITER} = ',' if (! defined($CONF->{BUILD_DELIMITER})) ;
 
   if(ref $admin eq 'HASH') {
+    my ($package, $filename, $line) = caller;
+    print "file: $filename\nline: $line\n";
     print ref $admin;
     print "Address ADMIN_NOT_FOUND//// $admin ///";
     exit;

@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS `cams_main` (
   `tp_id` smallint(6) unsigned DEFAULT 0,
   `activate` datetime DEFAULT NULL,
   `status` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `subscribe_id` VARCHAR(32) NOT NULL DEFAULT '',
+  `expire` DATE NOT NULL DEFAULT '0000-00-00',
   KEY `uid` (`uid`), 
   PRIMARY KEY (`id`)
 )
@@ -32,21 +34,26 @@ CREATE TABLE IF NOT EXISTS `cams_streams` (
   `password` blob NOT NULL,
   `orientation` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `type` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `group_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `group_id` int(11) unsigned NOT NULL DEFAULT '0',
   `extra_url` varchar(64) NOT NULL DEFAULT '',
   `screenshot_url` varchar(64) NOT NULL DEFAULT '',
   `pre_image_url` varchar(128) NOT NULL DEFAULT '',
   `coordx` double(20,14) NOT NULL DEFAULT '0.00000000000000',
   `coordy` double(20,14) NOT NULL DEFAULT '0.00000000000000',
   `transport` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `sound` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `limit_archive` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `pre_image` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `constantly_working` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `archive` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `only_video` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `point_id` int(11) unsigned DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  `angel` int(11) unsigned NOT NULL DEFAULT '0',
+  `length` int(11) unsigned NOT NULL DEFAULT '0',
+  `location_angel` int(11) unsigned NOT NULL DEFAULT '0',
+  `number_id` VARCHAR(32) NOT NULL DEFAULT '',
+  `folder_id` int(11) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
 )
   DEFAULT CHARSET=utf8 COMMENT='Storing all streams';
 
@@ -67,16 +74,17 @@ CREATE TABLE IF NOT EXISTS `cams_services` (
   DEFAULT CHARSET=utf8 COMMENT='Cams Services';
 
 CREATE TABLE IF NOT EXISTS `cams_groups` (
-  `id` tinyint(2) NOT NULL AUTO_INCREMENT,
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL DEFAULT '',
-  `location_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `district_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `street_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `build_id` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `location_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `district_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `street_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `build_id` int(11) unsigned NOT NULL DEFAULT '0',
   `comment` varchar(250) DEFAULT '',
   `max_users` smallint(6) unsigned DEFAULT 0,
   `max_cameras` smallint(6) unsigned DEFAULT 0,
-  `service_id` tinyint(1) unsigned NOT NULL DEFAULT 0,
+  `service_id` int(6) unsigned NOT NULL DEFAULT 0,
+  `subgroup_id` VARCHAR(32) NOT NULL DEFAULT '' COMMENT 'External group ID for syncronization',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 )
@@ -100,3 +108,28 @@ CREATE TABLE IF NOT EXISTS `cams_users_cameras` (
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Cams users cameras';
 
+CREATE TABLE IF NOT EXISTS `cams_users_folders` (
+  `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `folder_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `changed` DATETIME NOT NULL,
+  UNIQUE KEY `id` (`id`, `folder_id`, `tp_id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Cams users folders';
+
+CREATE TABLE IF NOT EXISTS `cams_folder` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `title` varchar(64) NOT NULL DEFAULT '',
+  `comment` varchar(250) DEFAULT '',
+  `parent_id` int(6) unsigned NOT NULL DEFAULT 0,
+  `group_id` int(6) unsigned NOT NULL DEFAULT 0,
+  `service_id` int(6) unsigned NOT NULL DEFAULT 0,
+  `location_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `district_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `street_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `build_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `subfolder_id` VARCHAR(32) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `title` (`title`)
+)
+  DEFAULT CHARSET=utf8 COMMENT='Cams Folder';

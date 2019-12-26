@@ -246,6 +246,24 @@ sub docs_print{
     $attr->{DATE_EURO_STANDART} = "$d.$m.$y";
   }
 
+  my @lit_arr = (
+    'PASPORT_DATE',
+    'ACTIVATE',
+    'BIRTH_DATE',
+    'CREDIT_DATE',
+    'EXPIRE',
+    'REGISTRATION',
+    'REDUCTION_DATE',
+  );
+
+  foreach my $attr_name (@lit_arr) {
+    next if (!$attr->{$attr_name} || $attr->{$attr_name} eq '0000-00-00');
+    my ($y, $m, $d) = $attr->{$attr_name} =~ m/(\d{4})-(\d{2})-(\d{2})/;
+    next if (!$y);
+    $attr->{$attr_name . '_LIT'}  = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
+    $attr->{$attr_name . '_EURO'} = "$d.$m.$y";
+  }
+
   $attr->{A_FIO} = $admin->{A_FIO} if ($admin->{A_FIO});
   my $MONEY_UNIT_NAMES = [];
   if ( $conf{MONEY_UNIT_NAMES} ){
@@ -643,7 +661,7 @@ sub docs_payments_maked{
 
   if ( $FORM{CREATE_RECEIPT} ){
     docs_receipt_add({
-      DATE         => $DATE,
+      DATE         => $FORM{DATE} || $DATE,
       CUSTOMER   => '-',
       PHONE      => '',
       UID        => $FORM{UID},

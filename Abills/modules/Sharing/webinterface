@@ -2553,7 +2553,7 @@ sub sharing_user_main {
         $Fees->take($user, $file_info->{AMOUNT}, { DESCRIBE => "Sharing $file_info->{NAME}" });
       }
       else {
-        $Sharing->change_user({ UID => $user->{UID}, FILE_ID => $FORM{BUY}, DATE_TO => $date_to });
+        $Sharing->change_user({ UID => $user->{UID}, FILE_ID => $FORM{BUY}, DATE_TO => $date_to, DEMO => 0 });
         if (!$Sharing->{errno}) {
           $html->message('info', "$lang{SUCCESS}", "$lang{SUCCESS_BUY} $date_to");
           $Fees->take($user, $file_info->{AMOUNT}, { DESCRIBE => "Sharing $file_info->{NAME}" });
@@ -2592,10 +2592,14 @@ sub sharing_user_main {
   }
 
   my @file_panels = ();
+  my @demo_file_panels = ();
+  my @bought_file_panels = ();
+  my @expired_file_panels = ();
+  my @not_bought_file_panels = ();
+
   my $sharing_user_main_index = get_function_index('sharing_user_main');
   my $purchased_button_name = $lang{GET_LINK};
   my $purchased_button_link = 'GET_LINK';
-  my $purchased_panel_type = 'success';
 
   my $available_button_name = $lang{BUY};
   my $available_button_link = 'BUY';
@@ -2604,9 +2608,16 @@ sub sharing_user_main {
   foreach my $file (@$files_list) {
     # MAYBE: should change to list
     my $user_sharing_info = $Sharing->info_user({ UID => $user->{UID}, FILE_ID => $file->{id} });
+    my $purchased_panel_type = 'success';
+
+    my $basename = $file->{name};
+    $basename =~ s/.*\///;
 
     # User has access to module
     if ($user_sharing_info && $user_sharing_info->{date_to} ge $DATE) {
+      if($user_sharing_info->{demo}) {
+        $purchased_panel_type = 'warning';
+      }
 
       my $get_link = "?qindex=$sharing_user_main_index&$purchased_button_link=$file->{id}&header=2&link_time=$file->{link_time}";
       my $button = $html->button("$purchased_button_name", undef, {
@@ -2619,20 +2630,28 @@ sub sharing_user_main {
         ex_params      => qq/onclick=loadToModal('$get_link')/
       });
 
-      push(@file_panels, $html->tpl_show(
+      my $file_panel = $html->tpl_show(
         _include('sharing_file_body', 'Sharing'),
         {
-          FILE_NAME  => $file->{name},
-          COMMENT    => $file->{comment},
-          AMOUNT     => $file->{amount},
-          VERSION    => $file->{version},
-          DATE_TO    => $user_sharing_info ? "$lang{DATE_TO} $user_sharing_info->{date_to}" : '',
-          FILE_TIME  => $file->{file_time} . " $lang{DAYS}",
-          PANEL_TYPE => $purchased_panel_type,
-          BUTTON     => $button,
+          FILE_NAME         => $basename,
+          COMMENT           => $file->{comment},
+          AMOUNT            => $file->{amount},
+          VERSION           => $file->{version},
+          DATE_TO           => $user_sharing_info ? "$lang{DATE_TO} $user_sharing_info->{date_to}" : '',
+          AVAILABLE_AS_DEMO => $user_sharing_info->{demo} ? $lang{AVAILABLE_AS_DEMO} : '',
+          FILE_TIME         => $file->{file_time} . " $lang{DAYS}",
+          PANEL_TYPE        => $purchased_panel_type,
+          BUTTON            => $button,
         },
         { OUTPUT2RETURN => 1 }
-      ));
+      );
+
+      if ($user_sharing_info->{demo}) {
+        push(@demo_file_panels, $file_panel);
+      }
+      else {
+        push(@bought_file_panels, $file_panel);
+      }
     }
     else {
       my $button = $html->button("$available_button_name", "$available_button_link=$file->{id}&index=$index", {
@@ -2640,10 +2659,10 @@ sub sharing_user_main {
         class   => "btn btn-$available_panel_type full-width"
       });
 
-      push(@file_panels, $html->tpl_show(
+      my $file_panel = $html->tpl_show(
         _include('sharing_file_body', 'Sharing'),
         {
-          FILE_NAME  => $file->{name},
+          FILE_NAME  => $basename,
           COMMENT    => $file->{comment},
           AMOUNT     => $file->{amount},
           VERSION    => $file->{version},
@@ -2653,9 +2672,18 @@ sub sharing_user_main {
           BUTTON     => $button,
         },
         { OUTPUT2RETURN => 1 }
-      ));
+      );
+
+      if ($user_sharing_info && $user_sharing_info->{date_to} lt $DATE){
+        push(@expired_file_panels, $file_panel);
+      }
+      else {
+        push(@not_bought_file_panels, $file_panel);
+      }
     }
   }
+
+  push (@file_panels, @demo_file_panels, @bought_file_panels, @expired_file_panels, @not_bought_file_panels);
 
   my $group_select = $html->form_select(
     'GROUP_ID',
@@ -2697,6 +2725,26 @@ sub file_download {
   my $file_path = $conf{SHARING_DOWNLOAD_PATH};
   my $file_info = $Sharing->file_info({ ID => $file_id });
   my $filename = $file_info->{NAME};
+  my $basename = $filename;
+
+  if($filename =~ m/\//){
+    $basename =~ s/(.*\/)//;
+    $file_path .= $1;
+  }
+
+  if($file_path =~ /\.\.\//){ #file_op allows '../' in file path, which allows to access any file in system
+    print "Content-Type: text/html;\n\n";
+    print "Path can't contain '../'\n\n";
+    exit(1);
+  }
+
+  my $user_sharing_info = $Sharing->info_user({ UID => $user->{UID}, FILE_ID => $file_id});
+  # User has not access to module
+  if (!($user_sharing_info && $user_sharing_info->{date_to} ge $DATE)) {
+    print "Content-Type: text/html;\n\n";
+    print "Wrong user\n\n";
+    exit(1);
+  }
 
   load_pmodule('Digest::MD5');
   my $md5 = Digest::MD5->new();
@@ -2714,7 +2762,7 @@ sub file_download {
     # Read file
     my $content = '';
     $content = file_op({
-      FILENAME   => $filename,
+      FILENAME   => $basename,
       PATH       => $file_path,
       SKIP_CHECK => 1
     });
@@ -2728,7 +2776,7 @@ sub file_download {
 
     # Retrive file size
     my $size_header = ($size) ? "  size=$size" : '';
-    print "Content-Type: text/plain;  filename=\"$filename\"\n" . "Content-Disposition:  attachment;  filename=\"$filename\";$size_header\n\n";
+    print "Content-Type: text/plain;  filename=\"$basename\"\n" . "Content-Disposition:  attachment;  filename=\"$basename\";$size_header\n\n";
     print $content;
 
     # End of download
@@ -2768,27 +2816,31 @@ sub sharing_user_service {
     use POSIX qw(strftime);
 
     my $file_info = $Sharing->file_info({ ID => $FORM{BUY_FILE} });
+    if ($file_info->{TOTAL} > 0) {
+      my $time_to = time() + ($file_info->{FILE_TIME} * 24 * 60 * 60);
 
-    my $time_to = time() + ($file_info->{FILE_TIME} * 24 * 60 * 60);
+      my $date_to = strftime("%Y-%m-%d", localtime($time_to));
 
-    my $date_to = strftime("%Y-%m-%d", localtime($time_to));
+      my $demo = $FORM{DEMO};
 
-    $Sharing->add_user({ UID => $FORM{UID}, FILE_ID => $FORM{BUY_FILE}, DATE_TO => $date_to });
+      $Sharing->add_user({ UID => $FORM{UID}, FILE_ID => $FORM{BUY_FILE}, DATE_TO => $date_to, DEMO => $demo });
 
-    if (!$Sharing->{errno}) {
-      $html->message('success', "$lang{SUCCESS}", "$lang{SUCCESS_BUY} $date_to");
-    }
-    else {
-      $Sharing->change_user({ UID => $FORM{UID}, FILE_ID => $FORM{BUY_FILE}, DATE_TO => $date_to });
+      my $success = $demo ? $lang{SUCCESS_DEMO} : $lang{SUCCESS_BUY};
+
       if (!$Sharing->{errno}) {
-        $html->message('success', "$lang{SUCCESS}", "$lang{SUCCESS_BUY} $date_to");
+        $html->message('success', "$lang{SUCCESS}", "$success $date_to");
       }
       else {
-        # _bp("sharing", $Sharing, );
+        $Sharing->change_user({ UID => $FORM{UID}, FILE_ID => $FORM{BUY_FILE}, DATE_TO => $date_to, DEMO => $demo });
+        if (!$Sharing->{errno}) {
+          $html->message('success', "$lang{SUCCESS}", "$success $date_to");
+        }
+        else {
+          # _bp("sharing", $Sharing, );
 
+        }
       }
     }
-
   }
   elsif ($FORM{DEL_FILE}) {
     $Sharing->del_user({ UID => $FORM{UID}, FILE_ID => $FORM{DEL_FILE} });
@@ -2796,7 +2848,7 @@ sub sharing_user_service {
       $html->message('success', "$lang{SUCCESS}", "$lang{DELETED}");
     }
   }
-  elsif ($FORM{CONTINUE}) {
+  elsif ($FORM{CONTINUE}&&$FORM{ID}) {
     my @ids = split(',', $FORM{ID});
     foreach my $id (@ids) {
       $Sharing->change_user({ UID => $FORM{UID}, FILE_ID => $id, DATE_TO => $FORM{DATE} });
@@ -2817,37 +2869,114 @@ sub sharing_user_service {
   #   }
   # );
   my @own_files;
-  my @not_own_files;
   my @expired_files;
+  my @demo_files;
+  my @demo_expired_files;
+  my @not_own_files;
 
   foreach my $file (@$files_list) {
     my $user_sharing_info = $Sharing->info_user({ UID => $FORM{UID}, FILE_ID => $file->{id} });
     my $button = q{};
     my $checkbox = q{};
     my $date = $lang{NOT_AVAILABLE};
+    my $demo;
+
+    if($user_sharing_info){
+      $demo = $user_sharing_info->{demo} ? $lang{YES} : '';
+    }
 
     if (!$user_sharing_info ) {
       $date .= $user_sharing_info->{date_to} ? "($user_sharing_info->{date_to})" : '';
-      my $btn_name = $lang{BUY};
-      my $btn_class = 'btn btn-primary';
+      my $btn_class = 'primary';
 
-      $button = $html->button($btn_name, "BUY_FILE=$file->{id}&index=$index&UID=" . ($FORM{UID} || 0), { ex_params => "class = '$btn_class'" });
+      my $url = "?BUY_FILE=$file->{id}&index=$index&UID=" . ($FORM{UID} || 0);
+      $button = $html->tpl_show(_include('sharing_dropdown_button_split','Sharing'),
+        {
+          BUTTON_CLASS   => $btn_class,
+          TITLE          => $lang{BUY},
+          URL            => $url,
+          DROPDOWN_TITLE => $lang{DEMO},
+          DROPDOWN_URL   => $url . "&DEMO=1"
+        },
+        {
+          OUTPUT2RETURN => 1
+        }
+      );
+
       push @not_own_files, [ $checkbox, $file->{name}, $file->{comment}, $file->{file_time}, $date, $button ];
     }
     elsif ($DATE gt $user_sharing_info->{date_to}) {
       $date .= $user_sharing_info->{date_to} ? "($user_sharing_info->{date_to})" : '';
-      my $btn_name = $user_sharing_info->{date_to} ? $lang{CONTINUE} : $lang{BUY};
-      my $btn_class = $user_sharing_info->{date_to} ? 'btn btn-info' : 'btn btn-primary';
 
-      $button = $html->button($btn_name, "BUY_FILE=$file->{id}&index=$index&UID=" . ($FORM{UID} || 0), { ex_params => "class = '$btn_class'" });
-      push @expired_files, [ $checkbox, $file->{name}, $file->{comment}, $file->{file_time}, $date, $button ];
+      my $btn_name;
+      if ($user_sharing_info->{date_to}) {
+        if ($user_sharing_info->{demo}) {
+          $btn_name = $lang{CONTINUE_DEMO};
+        }
+        else {
+          $btn_name = $lang{CONTINUE};
+        }
+      }
+      else {
+        $btn_name = $lang{BUY};
+      }
+
+      my $btn_class = $user_sharing_info->{date_to} ? 'info' : 'primary';
+
+      if ($user_sharing_info->{demo}) {
+        $button = $html->tpl_show(_include('sharing_dropdown_button_split','Sharing'),
+          {
+            BUTTON_CLASS => $btn_class,
+            TITLE => $btn_name,
+            URL => "?BUY_FILE=$file->{id}&index=$index&DEMO=1&UID=$FORM{UID}",
+            DROPDOWN_TITLE => $lang{BUY},
+            DROPDOWN_URL => "?BUY_FILE=$file->{id}&index=$index&DEMO=0&UID=" . ($FORM{UID} || 0)
+          },
+          {
+            OUTPUT2RETURN => 1
+          }
+        );
+      }
+      else {
+        $button = $html->button($btn_name, "BUY_FILE=$file->{id}&index=$index&UID=" . ($FORM{UID} || 0), { ex_params => "class = 'btn btn-$btn_class'" });
+      }
+      if ($user_sharing_info->{demo}) {
+        push @demo_expired_files, [ $checkbox, $file->{name}, $file->{comment}, $file->{file_time}, $date, $button ];
+      }
+      else {
+        push @expired_files, [ $checkbox, $file->{name}, $file->{comment}, $file->{file_time}, $date, $button ];
+      }
     }
     else {
       $date = "$lang{TO} $user_sharing_info->{date_to}";
-      $button = $html->button("$lang{DEL}", "DEL_FILE=$file->{id}&index=$index&UID=$FORM{UID}", { ex_params => "class = 'btn btn-danger'" });
+
+      if($user_sharing_info->{demo}) {
+        $button = $html->tpl_show(_include('sharing_dropdown_button','Sharing'),
+          {
+            BUTTON_CLASS     => 'warning',
+            TITLE            => $lang{DEMO},
+            DROPDOWN_TITLE1  => $lang{DEL},
+            DROPDOWN_URL1    => "?DEL_FILE=$file->{id}&index=$index&UID=$FORM{UID}",
+            DROPDOWN_TITLE2  => $lang{BUY},
+            DROPDOWN_URL2    => "?BUY_FILE=$file->{id}&index=$index&DEMO=0&UID=" . ($FORM{UID} || 0)
+          },
+          {
+            OUTPUT2RETURN => 1
+          }
+        );
+      }
+      else {
+        $button = $html->button("$lang{DEL}", "DEL_FILE=$file->{id}&index=$index&UID=$FORM{UID}", { ex_params => "class = 'btn btn-danger'" });
+      }
+
       $checkbox = $html->form_input("ID", $file->{id}, { TYPE => 'checkbox', FORM_ID => "SHARING_CONTINUE" });
 
-      push @own_files, [ $checkbox, $file->{name}, $file->{comment}, $file->{file_time}, $date, $button ];
+      if($user_sharing_info->{demo}) {
+        push @demo_files, [ $checkbox, $file->{name}, $file->{comment}, $file->{file_time}, $date, $button ];
+      }
+      else {
+        push @own_files, [ $checkbox, $file->{name}, $file->{comment}, $file->{file_time}, $date, $button ];
+      }
     }
 
     # $files_table->addrow($checkbox,$file->{name}, $file->{comment}, $file->{file_time}, $date, $button);
@@ -2864,7 +2993,7 @@ sub sharing_user_service {
       ID         => 'SHARING_USER_FILES_',
       SELECT_ALL => "files_list:ID:ID",
       MENU       => "$lang{ADD}:index=" . get_function_index('sharing_add_file') . ':add',
-      rows       => [ @own_files, @expired_files, @not_own_files ]
+      rows       => [ @demo_files, @demo_expired_files, @own_files, @expired_files, @not_own_files ]
     }
   );
 
@@ -2986,18 +3115,18 @@ sub sharing_download_log {
   }
   elsif ( ($ys == $ye) && ($ms == $me) && ($ds != $de) ) {
     $date_param = "'%d'";
-    @array = (1...Abills::Base::days_in_month( { DATE => $ms} ));
-    $chart_name = "$PERIODS[3] $MONTHES[$ms-1]";
+    @array = (1...Abills::Base::days_in_month( { DATE  => $ms} ));
+    $chart_name = "$lang{GRAPH_DOWNLOAD_DYNAMICS} $PERIODS[3] $MONTHES[$ms-1]";
   }
   elsif ( ($ys == $ye) && ($ms != $me) ) {
     $date_param = "'%m'";
     @array = (1...12);
-    $chart_name = "$lang{PER_MONTH} $ys";
+    $chart_name = "$lang{GRAPH_DOWNLOAD_DYNAMICS} $lang{PER_MONTH} $ys";
   }
   elsif ( ($ys != $ye) ) {
     $date_param = "'%Y'";
     @array = ($ys...$ye);
-    $chart_name = "$lang{YEAR} $ys - $ye";
+    $chart_name = "$lang{GRAPH_DOWNLOAD_DYNAMICS} $lang{PER_YEAR} $ys - $ye";
   }
   my %result = ();
   my @array_y = ();
@@ -3285,6 +3414,33 @@ sub sharing_report {
   return 1;
 }
 
+#**********************************************************
+=head2 sharing_demo_report()
+
+
+=cut
+#**********************************************************
+sub sharing_demo_report {
+  my $demo_files = $Sharing->sharing_get_demo_files();
+
+  my $table = $html->table(
+  {
+    width      => '100%',
+    caption    => $lang{FILES_DEMO},
+    title      => [ $lang{USER}, $lang{DATE_TO}, $lang{FILE} ],
+  }
+  );
+
+  foreach my $file (@$demo_files){
+    my $user_button = $html->button($file->{id},"index=15&UID=$file->{uid}", {BUTTON => 1, ICON => "fa fa-user"});
+    $user_button .= $html->button($file->{id},"index=15&UID=$file->{uid}");
+    $table->addrow($user_button, $file->{date_to}, $file->{name});
+  }
+
+  print $table->show();
+
+  return 1;
+}
 
 1
 

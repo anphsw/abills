@@ -9,16 +9,16 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array);
 
 our ($db,
- %lang,
- $html,
- $admin);
+  %lang,
+  $html,
+  $admin);
 
 #**********************************************************
 =head2 form_quick_reports($attr)
 
 =cut
 #**********************************************************
-sub form_quick_reports{
+sub form_quick_reports {
   #my ($attr) = @_;
 
   my %START_PAGE_F = ();
@@ -28,31 +28,31 @@ sub form_quick_reports{
     'add_users'      => $lang{REGISTRATION},
     'fin_summary'    => $lang{DEBETORS},
     'users_summary'  => $lang{USERS},
-    'payments_types' => "$lang{PAYMENTS} $lang{TODAY}",
+    'payments_types' => "$lang{PAYMENTS} $lang{TODAY}, $lang{YESTERDAY}",
     'payments_self'  => "$lang{PAYMENTS} $lang{ADDED} ",
   );
 
-  foreach my $mod_name ( @MODULES ){
-    load_module( $mod_name, $html );
-    my $check_function = lc( $mod_name ) . '_start_page';
+  foreach my $mod_name (@MODULES) {
+    load_module($mod_name, $html);
+    my $check_function = lc($mod_name) . '_start_page';
 
-    if ( defined( &{$check_function} ) ){
-      my $START_PAGE_F = &{ \&$check_function }();
-      while(my ($k, $v) = each %{$START_PAGE_F}) {
+    if (defined(&{$check_function})) {
+      my $START_PAGE_F = &{\&$check_function}();
+      while (my ($k, $v) = each %{$START_PAGE_F}) {
         $quick_reports{"$mod_name:$k"} = $v if ($k);
       }
       %START_PAGE_F = ();
     }
   }
 
-  if ( $FORM{show_reports} ){
-    $html->{METATAGS} = templates( 'metatags' );
+  if ($FORM{show_reports}) {
+    $html->{METATAGS} = templates('metatags');
     print $html->header();
 
-    if ( $quick_reports{$FORM{show_reports}} ){
-      my ($mod, $fn) = split( /:/, $FORM{show_reports} );
+    if ($quick_reports{$FORM{show_reports}}) {
+      my ($mod, $fn) = split(/:/, $FORM{show_reports});
       $fn = 'start_page_' . $mod if (!$fn);
-      print &{ \&$fn }();
+      print &{\&$fn}();
     }
 
     return 0;
@@ -60,25 +60,25 @@ sub form_quick_reports{
 
   my $table = $html->table(
     {
-      width      => '640',
-      caption    => "$lang{QUICK} $lang{REPORTS}",
-      title      => [ ' ', "$lang{NAME}", '-', "$lang{SHOW}" ],
-      ID         => 'QR_LIST'
+      width   => '640',
+      caption => "$lang{QUICK} $lang{REPORTS}",
+      title   => [ ' ', "$lang{NAME}", '-', "$lang{SHOW}" ],
+      ID      => 'QR_LIST'
     }
   );
 
   my @qr_arr = ();
-  if ($admin->{SETTINGS} && $admin->{SETTINGS}{QUICK_REPORTS}){
-    @qr_arr = split( /, /, $admin->{SETTINGS}{QUICK_REPORTS} );
+  if ($admin->{SETTINGS} && $admin->{SETTINGS}{QUICK_REPORTS}) {
+    @qr_arr = split(/, /, $admin->{SETTINGS}{QUICK_REPORTS});
   }
 
-  foreach my $key ( sort keys %quick_reports ){
+  foreach my $key (sort keys %quick_reports) {
     $table->addrow(
-      $html->form_input( 'QUICK_REPORTS', "$key",
-        { TYPE => 'checkbox', STATE => (in_array( $key, \@qr_arr )) ? 'checked' : undef } ),
+      $html->form_input('QUICK_REPORTS', "$key",
+        { TYPE => 'checkbox', STATE => (in_array($key, \@qr_arr)) ? 'checked' : undef }),
       $key,
       $quick_reports{$key},
-      $html->button( "$lang{SHOW}", "qindex=4&show_reports=$key", { class => 'show' } )
+      $html->button("$lang{SHOW}", "qindex=4&show_reports=$key", { class => 'show' })
     );
   }
 
@@ -90,7 +90,7 @@ sub form_quick_reports{
 
 =cut
 #**********************************************************
-sub start_page_add_users{
+sub start_page_add_users {
   #my ($attr) = @_;
 
   my $table = $html->table(
@@ -102,20 +102,20 @@ sub start_page_add_users{
     }
   );
 
-  my $list = $users->list( {
-      LOGIN        => '_SHOW',
-      REGISTRATION => '_SHOW',
-      ADDRESS_FULL => '_SHOW',
-      DEPOSIT      => '_SHOW',
-      SORT         => 'uid',
-      DESC         => 'desc',
-      PAGE_ROWS    => 5,
-      COLS_NAME    => 1
-    } );
+  my $list = $users->list({
+    LOGIN        => '_SHOW',
+    REGISTRATION => '_SHOW',
+    ADDRESS_FULL => '_SHOW',
+    DEPOSIT      => '_SHOW',
+    SORT         => 'uid',
+    DESC         => 'desc',
+    PAGE_ROWS    => 5,
+    COLS_NAME    => 1
+  });
 
-  foreach my $line ( @{$list} ){
+  foreach my $line (@{$list}) {
     $table->addrow(
-      $html->button( $line->{login}, "index=11&UID=$line->{uid}" ),
+      $html->button($line->{login}, "index=11&UID=$line->{uid}"),
       $line->{registration},
       $line->{address_full},
       $line->{deposit}
@@ -131,7 +131,7 @@ sub start_page_add_users{
 
 =cut
 #**********************************************************
-sub start_page_last_payments{
+sub start_page_last_payments {
   #my ($attr) = @_;
 
   my $table = $html->table(
@@ -143,22 +143,22 @@ sub start_page_last_payments{
     }
   );
 
-  my $Payments = Finance->payments( $db, $admin, \%conf );
+  my $Payments = Finance->payments($db, $admin, \%conf);
 
-  my $list = $Payments->list( {
-      LOGIN      => '_SHOW',
-      DATETIME   => '_SHOW',
-      SUM        => '_SHOW',
-      ADMIN_NAME => '_SHOW',
-      SORT       => 'date',
-      DESC       => 'desc',
-      PAGE_ROWS  => 5,
-      COLS_NAME  => 1
-    } );
+  my $list = $Payments->list({
+    LOGIN      => '_SHOW',
+    DATETIME   => '_SHOW',
+    SUM        => '_SHOW',
+    ADMIN_NAME => '_SHOW',
+    SORT       => 'date',
+    DESC       => 'desc',
+    PAGE_ROWS  => 5,
+    COLS_NAME  => 1
+  });
 
-  foreach my $line ( @{$list} ){
+  foreach my $line (@{$list}) {
     $table->addrow(
-      $html->button( $line->{login}, "index=11&UID=$line->{uid}" ),
+      $html->button($line->{login}, "index=11&UID=$line->{uid}"),
       $line->{datetime},
       $line->{sum},
       $line->{admin_name}
@@ -174,11 +174,11 @@ sub start_page_last_payments{
 
 =cut
 #**********************************************************
-sub start_page_fin_summary{
+sub start_page_fin_summary {
   #my ($attr) = @_;
 
-  my $Payments = Finance->payments( $db, $admin, \%conf );
-  $Payments->reports_period_summary( );
+  my $Payments = Finance->payments($db, $admin, \%conf);
+  $Payments->reports_period_summary();
 
   my $table = $html->table(
     {
@@ -187,7 +187,7 @@ sub start_page_fin_summary{
       title_plain => [ "$lang{PERIOD}", "$lang{COUNT}", "$lang{SUM}" ],
       ID          => 'FIN_SUMMARY',
       rows        => [
-        [ $html->button( $lang{DAY}, "index=2&DATE=$DATE&search=1" ),
+        [ $html->button($lang{DAY}, "index=2&DATE=$DATE&search=1"),
           $Payments->{DAY_COUNT}, $Payments->{DAY_SUM} ],
         [ $lang{WEEK}, $Payments->{WEEK_COUNT}, $Payments->{WEEK_SUM} ],
         [ $lang{MONTH}, $Payments->{MONTH_COUNT}, $Payments->{MONTH_SUM} ],
@@ -204,30 +204,38 @@ sub start_page_fin_summary{
 
 =cut
 #**********************************************************
-sub start_page_payments_types{
-  #my ($attr) = @_;
+sub start_page_payments_types {
 
   my $PAYMENT_METHODS = get_payment_methods();
 
-  my $Payments = Finance->payments( $db, $admin, \%conf );
-  my $list = $Payments->reports( { TYPE => 'PAYMENT_METHOD',
-      INTERVAL                          => "$DATE/$DATE",
-      GID                               => $admin->{GID} || undef,
-      COLS_NAME                         => 1
-    } );
+  my $Payments = Finance->payments($db, $admin, \%conf);
+
+  my $date_ = $FORM{yesterday} ? POSIX::strftime("%Y-%m-%d", localtime(time - int(1) * 86400)) : $DATE;
+
+  my $list = $Payments->reports({ TYPE => 'PAYMENT_METHOD',
+    INTERVAL                           => "$date_/$date_",
+    GID                                => $admin->{GID} || undef,
+    COLS_NAME                          => 1
+  });
+
+  my $today_class = "btn btn-primary " . ($FORM{today} ? "active" : "") . " btn-xs";
+  my $yesterday_class = "btn btn-primary " . ($FORM{yesterday} ? "active" : "") . " btn-xs";
+
+  my $today_btn = $html->button($lang{TODAY}, "today=1", { class => "$today_class" });
+  my $yesterday_btn = $html->button($lang{YESTERDAY}, "yesterday=1", { class => "$yesterday_class" });
 
   my $table = $html->table(
     {
       width       => '100%',
-      caption     => "$lang{PAYMENT_TYPE} $DATE",
+      caption     => "$lang{PAYMENT_TYPE} " . $today_btn . " " . $yesterday_btn,
       title_plain => [ "$lang{TYPE}", "$lang{COUNT}", "$lang{SUM}" ],
       ID          => 'PAYMENTS_TYPES',
     }
   );
 
-  foreach my $line ( @{$list} ){
+  foreach my $line (@{$list}) {
     $table->addrow(
-      $html->button( $PAYMENT_METHODS->{$line->{method}}, "index=2&METHOD=$line->{method}&search=1" ),
+      $html->button($PAYMENT_METHODS->{$line->{method}}, "index=2&METHOD=$line->{method}&search=1"),
       $line->{count},
       $line->{sum},
     );
@@ -243,26 +251,26 @@ sub start_page_payments_types{
 
 =cut
 #**********************************************************
-sub start_page_users_summary{
+sub start_page_users_summary {
   #my ($attr) = @_;
 
-  $users->report_users_summary( { } );
+  $users->report_users_summary({});
 
   my $table = $html->table(
     {
-      width      => '100%',
-      caption    => "$lang{USERS}",
-      ID         => 'USERS_SUMMARY',
-      rows       => [
-        [ $html->button( $lang{TOTAL}, "index=11" ),
+      width   => '100%',
+      caption => "$lang{USERS}",
+      ID      => 'USERS_SUMMARY',
+      rows    => [
+        [ $html->button($lang{TOTAL}, "index=11"),
           $users->{TOTAL_USERS}, '' ],
 
-        [ $html->button( $lang{DISABLE}, "index=11" ),
+        [ $html->button($lang{DISABLE}, "index=11"),
           $users->{DISABLED_USERS}, '' ],
 
-        [ $html->button( $lang{DEBETORS}, "index=11&USERS_STATUS=2" ),
+        [ $html->button($lang{DEBETORS}, "index=11&USERS_STATUS=2"),
           $users->{DEBETORS_COUNT}, $users->{DEBETORS_SUM} ],
-        [ $html->button( $lang{CREDIT}, "index=11&USERS_STATUS=5" ),
+        [ $html->button($lang{CREDIT}, "index=11&USERS_STATUS=5"),
           $users->{CREDITORS_COUNT}, $users->{CREDITORS_SUM} ],
       ]
     }
@@ -277,7 +285,7 @@ sub start_page_users_summary{
 
 =cut
 #**********************************************************
-sub start_page_payments_self{
+sub start_page_payments_self {
   my $PAYMENT_METHODS = get_payment_methods();
   my $count = 0;
   my $all_sum = 0;
@@ -308,11 +316,11 @@ sub start_page_payments_self{
   );
   foreach (@$list) {
     $table->addrow(($PAYMENT_METHODS->{$_->{method}} || ''), ($_->{sum} || ''));
-  $count += $_->{total} || 0;
-  $all_sum += $_->{sum} || 0;
+    $count += $_->{total} || 0;
+    $all_sum += $_->{sum} || 0;
   }
   $table->addrow($lang{COUNT}, $count);
-  $table->addrow( $lang{TOTAL}, $all_sum);
+  $table->addrow($lang{TOTAL}, $all_sum);
 
   return $table->show();
 }

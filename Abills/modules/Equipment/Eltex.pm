@@ -7,8 +7,8 @@
 
 =head1 VERSION
 
-  VERSION: 0.01
-  UPDATED: 20190128
+  VERSION: 0.02
+  UPDATED: 20191205
 
 =cut
 
@@ -34,6 +34,10 @@ sub _eltex_get_ports {
   my $ports_info = ();
   if ($attr->{MODEL_NAME} =~ /^LTP-[8,4]X/) {
     $ports_info = _eltex_ltp_get_ports($attr);
+    return \%{$ports_info};
+  }
+  if ($attr->{MODEL_NAME} =~ /MA4000/) {
+    $ports_info = _eltex_ma4000_get_ports($attr);
     return \%{$ports_info};
   }
   my $count_oid = '.1.3.6.1.4.1.35265.1.21.1.8.0';
@@ -115,6 +119,70 @@ sub _eltex_ltp_get_ports {
 
   return $ports_info;
 }
+
+#**********************************************************
+=head2 _eltex_ma4000_get_ports($attr) - Get OLT ports
+
+=cut
+#**********************************************************
+sub _eltex_ma4000_get_ports {
+  my ($attr) = @_;
+  my $ports_info = ();
+  my $ports_tmp = ();
+
+  my $ports = snmp_get({
+    %{$attr},
+    OID => '1.3.6.1.4.1.35265.1.22.2.1.1.1', #ltp8xPONChannelSlot
+    WALK => 1
+  });
+  foreach my $key (@$ports) {
+    my ($snmp_id, $value) = split(/:/, $key, 2);
+    $ports_tmp->{$snmp_id}{SNMP_ID} = $snmp_id;
+    $ports_tmp->{$snmp_id}{CHANNEL_SLOT} = $value;
+  }
+
+  my $ports_channel_id = snmp_get({
+    %{$attr},
+    OID => '1.3.6.1.4.1.35265.1.22.2.1.1.2', #ltp8xPONChannelID
+    WALK => 1
+  });
+  foreach my $key (@$ports_channel_id) {
+    my ($snmp_id, $value) = split(/:/, $key, 2);
+    $ports_tmp->{$snmp_id}{CHANNEL_ID} = $value;
+  }
+
+  my $ports_ont_count = snmp_get({
+    %{$attr},
+    OID => '1.3.6.1.4.1.35265.1.22.2.1.1.4', #ltp8xPONChannelONTCount
+    WALK => 1
+  });
+  foreach my $key (@$ports_ont_count) {
+    my ($snmp_id, $value) = split(/:/, $key, 2);
+    $ports_tmp->{$snmp_id}{ONU_COUNT} = $value;
+  }
+
+  my $ports_status = snmp_get({
+    %{$attr},
+    OID => '1.3.6.1.4.1.35265.1.22.2.1.1.5', #ltp8xPONChannelEnabled
+    WALK => 1
+  });
+  foreach my $key (@$ports_status) {
+    my ($snmp_id, $value) = split(/:/, $key, 2);
+    $ports_tmp->{$snmp_id}{PORT_STATUS} = $value;
+  }
+
+  foreach my $key (sort keys %{$ports_tmp}) {
+    my $id = $ports_tmp->{$key}{CHANNEL_SLOT}*8 + $ports_tmp->{$key}{CHANNEL_ID} + 1;
+    $ports_info->{$id}{BRANCH} = $ports_tmp->{$key}{CHANNEL_SLOT} . '/' . $ports_tmp->{$key}{CHANNEL_ID};
+    $ports_info->{$id}{ONU_COUNT} = $ports_tmp->{$key}{ONU_COUNT};
+    $ports_info->{$id}{onu_count} = $ports_tmp->{$key}{ONU_COUNT};
+    $ports_info->{$id}{PON_TYPE} = 'gpon';
+    $ports_info->{$id}{PORT_STATUS} = $ports_tmp->{$key}{PORT_STATUS};
+  }
+
+  return $ports_info;
+}
+
 #**********************************************************
 =head2 _eltex_onu_list($attr)
 
@@ -143,6 +211,7 @@ sub _eltex_onu_list {
       $port_ids{$port_list->{$snmp_id}{BRANCH}} = $port_list->{$snmp_id}{ID};
     }
   }
+  if ($attr->{MODEL_NAME} =~ /MA4000/) { %pon_types = ('gpon' => 1); }
 
   foreach my $pon_type (keys %pon_types) {
     my $snmp = _eltex({ TYPE => $pon_type });
@@ -182,10 +251,17 @@ sub _eltex_onu_list {
       foreach my $line (@$port_list_2) {
         next if (!$line);
         my ($index, $port) = split(/:/, $line);
-        # $status, $onu_id
         my @oid_octets = split(/\./, $index);
-        my $onu_id = $oid_octets[$#oid_octets];
-        $onu_cur_status{$onu_id}{PORT} = ($port) ? $port + 1 : 0;
+
+        my $onu_id;
+        if ($attr->{MODEL_NAME} =~ /MA4000/) {
+          $onu_id = $index;
+          $onu_cur_status{$onu_id}{PORT} = (defined $port) ? $oid_octets[0]-1 . '/' . $port : 0;
+        }
+        else {
+          $onu_id = $oid_octets[$#oid_octets];
+          $onu_cur_status{$onu_id}{PORT} = ($port) ? $port + 1 : 0;
+        }
       }
 
       $list_ont_id = snmp_get({ %$attr,
@@ -196,9 +272,14 @@ sub _eltex_onu_list {
       foreach my $line (@$list_ont_id) {
         next if (!$line);
         my ($index, $onu_id2) = split(/:/, $line);
-        my @oid_octets2 = split(/\./, $index);
-
-        my $onu_id = $oid_octets2[$#oid_octets2];
+        my $onu_id;
+        if ($attr->{MODEL_NAME} =~ /MA4000/) {
+          $onu_id = $index;
+        }
+        else {
+          my @oid_octets2 = split(/\./, $index);
+          my $onu_id = $oid_octets2[$#oid_octets2];
+        }
         $onu_cur_status{$onu_id}{ONU_ID2} = ($onu_id2) ? $onu_id2 : 0;
       }
 
@@ -211,7 +292,9 @@ sub _eltex_onu_list {
 
       if ($type ne '') {
         $onu_id = $index;
-        $onu_id =~ s/\d+\.//g;
+        if ($attr->{MODEL_NAME} !~ /MA4000/) {
+          $onu_id =~ s/\d+\.//g;
+        }
       }
 
       $onu_cur_status{$onu_id}{STATUS} = $status;
@@ -222,8 +305,9 @@ sub _eltex_onu_list {
       next if (!$line);
       my ($onu_id, $mac) = split(/:/, $line, 2);
       $type = $onu_id;
-      #      $type = $onu_id =~ m/(\.\d+\.\d+)$/;
-      $onu_id =~ s/\d+\.//g;
+      if ($attr->{MODEL_NAME} !~ /MA4000/) {
+        $onu_id =~ s/\d+\.//g;
+      }
       my $onu_mac = '';
       my $onu_snmp_id = '';
       my %onu_info = ();
@@ -237,7 +321,8 @@ sub _eltex_onu_list {
         $onu_snmp_id = $type;
       }
 
-      $onu_info{PORT_ID} = (defined($onu_cur_status{$onu_id}{PORT})) ? $port_ids{'0/' . $onu_cur_status{$onu_id}{PORT}} : $port_ids{ANY};
+      my $port_prefix = ($attr->{MODEL_NAME} =~ /MA4000/) ? '' : '0/';
+      $onu_info{PORT_ID} = (defined($onu_cur_status{$onu_id}{PORT})) ? $port_ids{$port_prefix . $onu_cur_status{$onu_id}{PORT}} : $port_ids{ANY};
 
       $onu_info{ONU_ID}         = $onu_cur_status{$onu_id}{ONU_ID2}; #$onu_id;
       $onu_info{ONU_SNMP_ID}    = $onu_snmp_id;

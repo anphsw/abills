@@ -15,7 +15,6 @@ package Voip;
 
 use strict;
 use parent qw(dbcore Tariffs);
-use Tariffs;
 
 my $Tariffs;
 my $MODULE = 'Voip';
@@ -285,6 +284,7 @@ sub user_list {
     push @WHERE_RULES, @{$self->search_expr($attr->{CID}, 'INT', 'tp.free_time AS tp_free_time', { EXT_FIELD => 1 })};
     $EXT_TABLES .= "LEFT JOIN voip_tps voip_tp ON (voip_tp.id=tp.tp_id) ";
   }
+
   if ($attr->{ONLINE}) {
     push @WHERE_RULES, "service.location!=''";
   }
@@ -299,11 +299,12 @@ sub user_list {
     [ 'FILTER_ID',        'STR', 'service.filter_id',        1 ],
     [ 'TP_ID',            'INT', 'service.tp_id',            1 ],
     [ 'TP_CREDIT',        'INT', 'tp.credit', 'tp.credit AS tp_credit' ],
-    [ 'VOIP_EXPIRE',      'DATE','service.expire AS voip_expire', 1 ],
+    [ 'VOIP_EXPIRE',      'DATE','service.expire AS voip_expire',     1 ],
+    #[ 'VOIP_ACTIVATE',    'DATE','service.activate AS voip_activate', 1 ],
     [ 'PROVISION_PORT',   'INT', 'service.provision_port',   1 ],
     [ 'PROVISION_NAS_ID', 'INT', 'service.provision_nas_id', 1 ],
     [ 'LOCATIONS',        'STR', 'service.location',         1 ],
-    [ 'EXPIRES',          'DATE','service.expires',          1 ],
+    #[ 'EXPIRES',          'DATE','service.expires',          1 ],
     [ 'MONTH_FEE',        'INT', 'tp.month_fee',             1 ],
     [ 'ABON_DISTRIBUTION','INT', 'tp.abon_distribution',     1 ],
     [ 'DAY_FEE',          'INT', 'tp.day_fee',               1 ],
@@ -324,7 +325,8 @@ sub user_list {
      LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id) 
      $EXT_TABLES
      $WHERE 
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;";
+     ORDER BY $SORT $DESC
+     LIMIT $PG, $PAGE_ROWS;";
 
   $self->query($sql,
     undef,
@@ -336,9 +338,9 @@ sub user_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0) {
-    $self->query("SELECT count(u.id) AS total FROM (users u, voip_main service)
+    $self->query("SELECT COUNT(u.id) AS total FROM (users u, voip_main service)
     $EXT_TABLES
-     $WHERE",
+    $WHERE",
       undef, { INFO => 1 });
   }
 

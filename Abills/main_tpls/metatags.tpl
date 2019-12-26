@@ -44,6 +44,9 @@
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/style.css'>
 
+  <!-- Admin's permissions clases-->
+  %PERM_CLASES%
+
   <!-- Bootstrap -->
   <script src='/styles/default_adm/js/jquery.min.js'></script>
   <script src='/styles/default_adm/js/bootstrap.min.js'></script>
@@ -85,6 +88,9 @@
   <script src='/styles/default_adm/js/messageChecker.js?v=0.77.26'></script>
 
   <script src='/styles/default_adm/js/msgs/jquery-ui.min.js'></script>
+
+  <!-- Textarea autosize -->
+  %AUTOSIZE_INCLUDE%
 
   <!-- date-range-picker -->
   <script src='/styles/%HTML_STYLE%/plugins/moment/moment.min.js'></script>
@@ -169,6 +175,9 @@
         initFavicon();
       }
 
+      if (typeof autosize === 'function') {
+        autosize(document.querySelectorAll('textarea'));
+      }
     });
   </script>
 

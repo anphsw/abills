@@ -1,6 +1,6 @@
 <style type="text/css">
   .box-body{
-    min-height: 200px;
+    min-height: 300px;
   }
 </style>
 
@@ -26,6 +26,9 @@
   </div>
   <div class='form-group'>
     <label class='col-md-12'>%DATE_TO%</label>
+  </div>
+  <div class='form-group'>
+    <label class='col-md-12'>%AVAILABLE_AS_DEMO%</label>
   </div>
 </div>
 <div class='box-footer'>%BUTTON%</div>

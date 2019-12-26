@@ -166,6 +166,7 @@ my $admin = Admins->new( $db, \%conf );
 $admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1', SHORT => 1 } );
 
 my $Internet;
+my %LIST_PARAMS = ();
 
 if(in_array('Dv', \@MODULES)) {
   require Dv;
@@ -176,10 +177,13 @@ else {
   require Internet;
   Internet->import();
   $Internet = Internet->new( $db, $admin, \%conf );
+  $Billing->{INTERNET}=1;
+
+  if($argv->{SERVICE_ID}) {
+    $LIST_PARAMS{SERVICE_ID}=$argv->{SERVICE_ID};
+  }
 }
 
-
-my %LIST_PARAMS = ();
 my @FW_ACTIONS = ();
 my $users_table_number = $conf{FW_TABLE_USERS} || 10;
 
@@ -263,6 +267,7 @@ if ( $ACTION eq 'up' || $OS eq 'linux' ){
   }
   else{
     print "Expresion:================================\n" if ($debug > 0);
+    $Billing->{TI_ID} = $user->{INTERVAL_ID};
     $Billing->expression(
       $user->{UID},
       \%expr,
@@ -668,15 +673,28 @@ sub mikrotik {
 
   my $tp_id = $attr->{TP_NUM};
   my @commands = ();
-
-  # ADD client to address-list
   push @commands, qq{/ip firewall address-list remove [find address=$attr->{CLIENT_IP}] };
 
-  if ( $ACTION eq 'up' ){
-    push @commands, qq{/ip firewall address-list add list=CLIENTS_$tp_id address=$attr->{CLIENT_IP} };
+  if ($conf{MIKROTIK_QUEUES}) {
+    if ($ACTION eq 'up') {
+      push @commands, qq{/queue simple add name=$attr->{USER} target=$attr->{CLIENT_IP} max-limit=$attr->{SPEEDS}->{0}{IN}000/$attr->{SPEEDS}->{0}{OUT}000 };
+    }
+    elsif ($ACTION eq 'down') {
+      push @commands, qq{/queue simple remove [find name=$attr->{USER}] };
+    }
+    elsif ($ACTION eq 'guest') {
+      push @commands, qq{/queue simple remove [find name=$attr->{USER}] };
+      push @commands, qq{/ip firewall address-list add list=negative address=$attr->{CLIENT_IP} };
+    }
   }
-  elsif( $ACTION eq 'guest') {
-    push @commands, qq{/ip firewall address-list add list=negative address=$attr->{CLIENT_IP} };
+  else {
+    # ADD client to address-list
+    if ($ACTION eq 'up') {
+      push @commands, qq{/ip firewall address-list add list=CLIENTS_$tp_id address=$attr->{CLIENT_IP} };
+    }
+    elsif ($ACTION eq 'guest') {
+      push @commands, qq{/ip firewall address-list add list=negative address=$attr->{CLIENT_IP} };
+    }
   }
 
   my $result = ssh_cmd( \@commands, { %{$attr}, BASE_DIR => $base_dir } );
@@ -694,15 +712,22 @@ sub mikrotik {
 #************************************************
 =head2 user_info($attr) - Get user speed information
 
+  Arguments:
+    $attr
+      LOGIN
+      UID
+      SERVICE_ID
+
 =cut
 #************************************************
 sub user_info{
   my ($attr) = @_;
 
-  my $list = $Internet->get_speed( { %{$attr},
-    TP_ID     => $ARGV->{OLD_TP},
-    LOGIN     => ($ARGV->{OLD_TP}) ? undef : $attr->{LOGIN},
-    UID       => ($ARGV->{OLD_TP}) ? undef : $attr->{UID},
+  my $internet_list = $Internet->get_speed( { %{$attr},
+    TP_ID     => $argv->{OLD_TP},
+    LOGIN     => ($argv->{OLD_TP}) ? undef : $attr->{LOGIN},
+    UID       => ($argv->{OLD_TP}) ? undef : $attr->{UID},
+    SERVICE_ID=> $argv->{SERVICE_ID},
     COLS_NAME => 1
   } );
 
@@ -717,15 +742,16 @@ sub user_info{
     exit 0;
   }
   else{
-    $user->{TP_NUM} = $list->[0]->{tp_id};
-    $user->{SPEED} = $list->[0]->{speed};
-    $user->{ACCOUNT_ACTIVATE} = $list->[0]->{activate};
-    $user->{NETMASK} = $list->[0]->{netmask};
-    $user->{JOIN_SERVICE} = $list->[0]->{join_service};
-    $user->{UID} = $list->[0]->{uid};
+    $user->{TP_NUM} = $internet_list->[0]->{tp_id};
+    $user->{SPEED} = $internet_list->[0]->{speed};
+    $user->{ACCOUNT_ACTIVATE} = $internet_list->[0]->{activate};
+    $user->{NETMASK} = $internet_list->[0]->{netmask};
+    $user->{JOIN_SERVICE} = $internet_list->[0]->{join_service};
+    $user->{UID} = $internet_list->[0]->{uid};
+    $user->{INTERVAL_ID} = $internet_list->[0]->{interval_id};
 
-    if ( $user->{SPEED} == 0 ){
-      foreach my $line ( @{$list} ){
+    if ( ! $user->{SPEED} || $user->{SPEED} == 0 ){
+      foreach my $line ( @{$internet_list} ){
         $speeds{ $line->{tt_id} }{IN} = $line->{in_speed};
         $speeds{ $line->{tt_id} }{OUT} = $line->{out_speed};
         $nets_id{ $line->{tt_id} } = $line->{net_id} if ($line->{net_id});
@@ -901,6 +927,7 @@ For IPN
 
   /usr/abills/libexec/linkupdown mikrotik up INTERFACE USER HISADD NAS_MNG_IP_PORT=192.168.1.1 NAS_MNG_USER=admin [SSH_CMD=.., debug]
   /usr/abills/libexec/linkupdown mikrotik down INTERFACE USER HISADD NAS_MNG_IP_PORT=192.168.1.1 NAS_MNG_USER=admin [SSH_CMD=.., debug]
+  /usr/abills/libexec/linkupdown mikrotik guest INTERFACE USER HISADD NAS_MNG_IP_PORT=192.168.1.1 NAS_MNG_USER=admin [SSH_CMD=.., debug]
 
 DEBUG: $debug
 };

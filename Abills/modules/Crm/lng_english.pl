@@ -9,6 +9,8 @@ $lang{UNITS}='Units';
 $lang{CHOOSE}='Choose';
 $lang{LEAD}='Lead';
 $lang{LEADS}='Leads';
+$lang{POTENTIAL_LEADS}='Potential';
+$lang{CONVERT_LEADS}='Converted';
 $lang{LEAD_NOT_FOUND}='Lead not found';
 $lang{INPUT_DATA_TO_ADD_LEAD}='Input data to add lead';
 $lang{SOURCE}='Source';
@@ -26,7 +28,8 @@ $lang{LEAD_ADDED_MESSAGE}='Lead added';
 $lang{BIND_USER}='Bind user';
 $lang{PROGRESS_BAR}='Progress Bar';
 $lang{MINUTES}='Minutes';
-
+$lang{PLANNED}='Planned';
 $lang{ADD_TAGS}='Add tags';
+$lang{NO_CLICK_USER}='No user selected for distribution';
 
 1

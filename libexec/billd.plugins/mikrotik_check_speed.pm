@@ -405,7 +405,25 @@ Flags: X - disabled, I - invalid
       
       @commands = (@nat_cmd, @commands);
     }
-    
+
+    if (-f "$base_dir/libexec/mikrotik.fw") {
+
+      if (open(my $fh, '<', "$base_dir/libexec/mikrotik.fw")) {
+        my $content = '';
+
+        while (<$fh>) {
+          $content .= $_;
+        }
+
+        my @rows = split(/[\r\n]+/, $content);
+        foreach my $line (@rows) {
+          chomp($line);
+          push @commands, $line;
+        }
+        close($fh);
+      }
+    }
+
     push @commands, qq{/queue tree disable [find name~"^TP"]};
     push @commands, qq{/queue tree enable [find name~"^TP"]};
 

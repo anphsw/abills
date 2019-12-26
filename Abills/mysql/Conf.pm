@@ -399,6 +399,24 @@ sub check_password {
   return 0;
 }
 
+#**********************************************************
+=head2 config_del_by_part_of_param()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub config_del_by_part_of_param {
+  my $self = shift;
+  my ($param) = @_;
+
+  $self->query("DELETE FROM config WHERE param LIKE '$param%';", 'do');
+
+  return $self;
+}
 
 
 1

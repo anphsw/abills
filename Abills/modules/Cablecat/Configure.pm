@@ -247,6 +247,7 @@ sub cablecat_cables {
   };
 
   if ($FORM{add}) {
+    $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
     $FORM{NAME} ||= do {
       $lang{CABLE} . '_' . ($Cablecat->connecters_count() + 1);
     };
@@ -268,6 +269,7 @@ sub cablecat_cables {
     };
   }
   elsif ($FORM{change}) {
+    $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
     $Cablecat->cables_change({ %FORM });
     show_result($Cablecat, $lang{CHANGED});
   }
@@ -649,6 +651,7 @@ sub cablecat_wells {
   }
 
   if ($FORM{add}) {
+    $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
     my $new_point_id = maps_add_external_object($MAP_TYPE_ID{WELL}, \%FORM);
     show_result($Maps, $lang{SUCCESS}, $lang{ADDED} . ' ' . $lang{OBJECT}, { ID => 'OBJECT_ADDED' });
     $FORM{POINT_ID} = $new_point_id;
@@ -665,6 +668,7 @@ sub cablecat_wells {
     $show_add_form = !show_result($Cablecat, $lang{ADDED}, $lang{WELL});
   }
   elsif ($FORM{change}) {
+    $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
     $Cablecat->wells_change({ %FORM });
 
     # Update underlying object
@@ -1672,10 +1676,12 @@ sub cablecat_crosses {
   }
 
   if ($FORM{add}) {
+    $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
     $Cablecat->crosses_add({ %FORM });
     $show_add_form = !show_result($Cablecat, $lang{ADDED});
   }
   elsif ($FORM{change}) {
+    $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
     $Cablecat->crosses_change({ %FORM });
     show_result($Cablecat, $lang{CHANGED});
     $show_add_form = 1;

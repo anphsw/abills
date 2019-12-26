@@ -29,7 +29,7 @@ sub add_company {
   $Company->{LNG_ACTION}     = $lang{ADD};
   $Company->{BILL_ID}        = $html->form_input( 'CREATE_BILL', 1, { TYPE => 'checkbox', STATE => 1 } ) . ' ' . $lang{CREATE};
 #  $Company->{ADDRESS_SELECT} = _form_company_address();
-  $Company->{ADDRESS_SELECT} = form_address_select2();
+  $Company->{ADDRESS_SELECT} = form_address_select2(\%FORM);
 
   $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1 });
 
@@ -283,7 +283,7 @@ sub form_companies {
 
       $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, VALUES  => $Company });
 #     $Company->{ADDRESS_SELECT}= _form_company_address($Company);
-      $Company->{ADDRESS_SELECT}= form_address_select2($Company);
+      $Company->{ADDRESS_SELECT}= form_address_select2({ %FORM, %$Company });
 
       if (in_array('Docs', \@MODULES)) {
         if ($conf{DOCS_CONTRACT_TYPES}) {

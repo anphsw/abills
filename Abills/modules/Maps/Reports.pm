@@ -31,6 +31,7 @@ my %LAYER_ID_BY_NAME = (
   'BUILD2'        => 12,
   'PON'           => 20,
   'CAMS'          => 33,
+  'CAMS_REVIEW'   => 34,
 );
 
 #**********************************************************
@@ -86,7 +87,7 @@ sub maps_builds_reports {
   });
 
   my $count_object = 0;
-  foreach my $point ( @{$custom_points_list} ) {
+  foreach my $point (@{$custom_points_list}) {
     next if (!($point->{coordy} && $point->{coordx}) || (!$point->{icon}));
     $count_object++;
   }
@@ -149,10 +150,10 @@ sub maps_builds_reports {
 
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => "Maps: " . $lang{DISPLAYED_ITEMS},
-      title   => [ $lang{TYPE}, $lang{COUNT}, "Maps" ],
-      ID      => 'MAPS_ITEMS',
+      width      => '100%',
+      caption    => "Maps: " . $lang{DISPLAYED_ITEMS},
+      title      => [ $lang{TYPE}, $lang{COUNT}, "Maps" ],
+      ID         => 'MAPS_ITEMS',
       DATA_TABLE => 1,
     }
   );

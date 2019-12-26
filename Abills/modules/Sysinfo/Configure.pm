@@ -439,7 +439,7 @@ sub list_private_keys {
 
   my @available_keys = grep {-r $_} @{$files_list};
 
-  return wantarray ? @available_keys : \@available_keys;
+  return \@available_keys;
 }
 
 #**********************************************************

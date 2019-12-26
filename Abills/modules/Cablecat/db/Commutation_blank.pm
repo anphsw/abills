@@ -127,6 +127,55 @@ sub select_cross_types {
 }
 
 #**********************************************************
+=head2 select_splitter($attr) - list of splitters
+
+  Arguments:
+    $attr
+      ID
+
+  Results:
+
+=cut
+#**********************************************************
+sub select_splitter {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query(
+    "SELECT id, type_id, color_scheme_id FROM cablecat_splitters WHERE id = ?;",
+    undef,
+    { COLS_NAME => 1, Bind => [ $attr->{ID} ] }
+  );
+
+  return $self->{list}->[0];
+}
+
+#**********************************************************
+=head2 select_splitter_types($attr) - list of splitter_types
+
+  Arguments:
+    $attr
+      ID
+
+  Results:
+
+=cut
+#**********************************************************
+sub select_splitter_types {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query(
+    "SELECT id, name, fibers_in, fibers_out
+    FROM cablecat_splitter_types WHERE id = ?;",
+    undef,
+    { COLS_NAME => 1, Bind => [ $attr->{ID} ] }
+  );
+
+  return $self->{list}->[0];
+}
+
+#**********************************************************
 =head2 select_links_info($attr) - list of links
 
   Arguments:
@@ -271,6 +320,36 @@ sub select_cablecat_well {
   );
 
   return $self->{list}->[0];
+}
+
+#**********************************************************
+=head2 select_cablecat_well($attr) -
+
+  Arguments:
+    $attr
+      ID
+
+  Results:
+
+=cut
+#**********************************************************
+sub get_commutation_elements {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return 0 if !$attr->{ID};
+
+  $self->query(
+    "SELECT  element_1_id as element_id, element_1_type AS element_type FROM cablecat_links
+     WHERE commutation_id=$attr->{ID}
+     UNION
+     SELECT element_2_id, element_2_type FROM cablecat_links
+     WHERE commutation_id=$attr->{ID};",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  return $self->{list} || [];
 }
 
 1;

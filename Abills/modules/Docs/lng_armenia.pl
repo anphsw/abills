@@ -47,3 +47,6 @@ $lang{PRINT_EXT}='Ընդանուր տպել';
 $lang{PRINT_EXT_LIST}='Տպել ընդանուր ձևանմուշը';
 $lang{NEXT_PERIOD_INVOICE}='Հաշիվները ընկած ժամանակահատվածում';
 $lang{STATEMENT_OF_ACCOUNT}='Հաշվի քաղվածք';
+$lang{DELETED_GROUP}="Նջել";
+$lang{NO_CHECK_DOCUMENT}="Ընտրեք փաստաթղթերը ջնջելու համար";
+$lang{OPERATION}="Գործողությունը հաջողությամբ ավարտվեց";

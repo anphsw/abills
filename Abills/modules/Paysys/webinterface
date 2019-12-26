@@ -20,7 +20,7 @@ use Abills::Misc;
 if (form_purchase_module({
 	HEADER          => $user->{UID},
 	MODULE          => 'Paysys',
-	REQUIRE_VERSION => 7.15
+	REQUIRE_VERSION => 8.02
   })) {
   exit;
 }
@@ -102,6 +102,7 @@ if($conf{PAYSYS_NEW_SCHEME}){
   require Paysys::Configure;
   require Paysys::User_portal;
   require Paysys::Reports;
+  require Paysys::t::Paysys_Test;
 }
 else{
   require Paysys::PaysysOld;
@@ -182,7 +183,7 @@ sub paysys_periodic_new {
     %PAYSYS_PAYMENT_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
   }
 
-  if ($conf{PAYSYS_PORTMONE_PAYEE_ID}) {
+  if ($conf{PAYSYS_PORTMONE_PAYEE_ID_OLD}) {
     paysys_load('Portmone');
 
     #my $payment_system    = 'PM';
@@ -199,7 +200,7 @@ sub paysys_periodic_new {
     my $DATE      = POSIX::strftime('%Y-%m-%d', localtime($timestamp - 86400));
     my $res_arr   = paysys_portmone_result(0, { DEBUG => $debug, DATE => $DATE });
 
-    if ( ref $res_arr ne 'ARRAY' || $#{$res_arr}  == 0){
+    if ( ref $res_arr ne 'ARRAY' || $#{$res_arr}  == -1){
       return 0;
     }
 
@@ -452,6 +453,7 @@ sub paysys_periodic_new {
     SHOW_ALL_COLUMNS => 1,
     STATUS           => 1,
     COLS_NAME        => 1,
+    PAYSYS_ID        => $attr->{PAYSYS_ID} ? $attr->{PAYSYS_ID} : '_SHOW',
   });
 
   use Users;

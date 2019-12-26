@@ -9,7 +9,7 @@
  <div class='box-header with-border'>
    <h4 class='box-title'>_{DELIVERY}_</h4>
    <div class='box-tools pull-right'>
-     <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
+     <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-plus'></i>
      </button>
    </div>
  </div>

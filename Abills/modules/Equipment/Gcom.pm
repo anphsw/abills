@@ -1,0 +1,355 @@
+=head1 GCOM
+
+  GCOM
+  MODEL:
+    epon
+      EL5610-04P
+      EL5610-08P
+      EL5610-16P
+
+    gpon
+      GL5610-04P
+      GL5610-08P
+      GL5610-16P
+
+
+  DATE: 18.11.2019
+  UPDATE: 26.11.2019
+
+=cut
+
+use strict;
+use warnings;
+use Abills::Base qw(in_array);
+use Abills::Filters qw(bin2mac);
+
+our (
+  %lang,
+  %conf,
+  %FORM
+);
+
+#**********************************************************
+=head2 _gcom_get_ports($attr) - Get OLT slots and connect ONU
+
+  Arguments:
+    $attr
+
+  Results:
+    $ports_info_hash_ref
+
+=cut
+#**********************************************************
+sub _gcom_get_ports {
+  my ($attr) = @_;
+  my $res = ();
+
+  my $ports_info = equipment_test({
+    %{$attr},
+    TIMEOUT   => 5,
+    VERSION   => 2,
+    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,PORT_ALIAS,TRAFFIC,PORT_INFO'
+  });
+
+  if ($attr->{MODEL_NAME} =~ 'EL5610') {
+    foreach my $key (sort keys %{$ports_info}) {
+      if ($ports_info->{$key}{PORT_NAME} && $ports_info->{$key}{PORT_NAME} =~ /^p((\d+)\/(\d+))$/) {
+        $ports_info->{$key}{PON_TYPE} = 'epon';
+        $ports_info->{$key}{BRANCH} = $1;
+        $ports_info->{$key}{BRANCH_DESC} = $ports_info->{$key}{PORT_NAME};
+        my $onus = snmp_get({
+          %{$attr},
+          OID => "1.3.6.1.4.1.13464.1.13.3.1.1.1.$2.$3",
+          WALK => 1
+        });
+        $ports_info->{$key}{onu_count} = scalar @$onus;
+        $ports_info->{$key}{ONU_COUNT} = $ports_info->{$key}{onu_count};
+      }
+      else {
+        delete($ports_info->{$key});
+      }
+    }
+  }
+  elsif ($attr->{MODEL_NAME} =~ 'GL5610') {
+    foreach my $key (sort keys %{$ports_info}) {
+      if ($ports_info->{$key}{PORT_NAME} && $ports_info->{$key}{PORT_NAME} =~ /^g((\d+)\/(\d+))$/) {
+        $ports_info->{$key}{PON_TYPE} = 'gpon';
+        $ports_info->{$key}{BRANCH} = $1;
+        $ports_info->{$key}{BRANCH_DESC} = $ports_info->{$key}{PORT_NAME};
+        my $onus = snmp_get({
+          %{$attr},
+          OID => "1.3.6.1.4.1.13464.1.14.2.4.1.1.1.1.$2.$3",
+          WALK => 1
+        });
+        $ports_info->{$key}{onu_count} = scalar @$onus;
+        $ports_info->{$key}{ONU_COUNT} = $ports_info->{$key}{onu_count};
+
+      }
+      else {
+        delete($ports_info->{$key});
+      }
+    }
+  }
+
+  return $ports_info;
+}
+
+
+#**********************************************************
+=head2 _gcom_onu_list($port_list, $attr)
+
+  Arguments:
+    $port_list  - OLT ports list
+    $attr
+      COLS       - ARRAY refs
+      INFO_OIDS  - Hash refs
+      NAS_ID
+      TIMEOUT
+
+  Returns:
+    $onu_list [array_of_hash]
+
+=cut
+#**********************************************************
+sub _gcom_onu_list {
+  my ($port_list, $attr) = @_;
+  my @onu_list = ();
+  my %port_ids = ();
+
+  my $snmp_info = equipment_test({
+    %{$attr},
+    TIMEOUT  => 5,
+    VERSION  => 2,
+    TEST_OID => 'PORTS,UPTIME'
+  });
+
+  if (!$snmp_info->{UPTIME}) {
+    print "$attr->{SNMP_COMMUNITY} Not response\n";
+    return [];
+  }
+
+  if ($port_list) {
+    foreach my $snmp_id (keys %{$port_list}) {
+      $port_ids{$port_list->{$snmp_id}{BRANCH}} = $port_list->{$snmp_id}{ID};
+    }
+  }
+
+  my $snmp;
+  if ($attr->{MODEL_NAME} =~ 'EL5610') {
+    $snmp = _gcom({TYPE => "epon"});
+  }
+  elsif ($attr->{MODEL_NAME} =~ 'GL5610') {
+    $snmp = _gcom({TYPE => "gpon"});
+  }
+  my %onu_snmp_info = ();
+  foreach my $oid_name (keys %{$snmp}) {
+    next if ($oid_name eq 'main_onu_info' || $oid_name eq 'reset');
+    if ($snmp->{$oid_name}->{OIDS}) {
+      my $oid = $snmp->{$oid_name}->{OIDS};
+
+      sleep 1;
+      my $result = snmp_get ({
+        %{$attr},
+        OID => $oid,
+        WALK => 1,
+        VERSION => 2
+      });
+
+      foreach my $line (@$result) {
+        my (undef, $value) = split(/:/, $line, 2);
+        my ($port_index, $onu_index) = $line =~ /(\d+\.\d+)\.(\d+)/;
+        my $function = $snmp->{$oid_name}->{PARSER};
+
+        if ($function && defined(&{$function})){
+          ($value) = &{\&$function}($value);
+        }
+
+        $onu_snmp_info{$port_index}{$onu_index}{$oid_name} = $value;
+      }
+    }
+  };
+
+  my %onu_info = ();
+  foreach my $port_index (keys %onu_snmp_info) {
+    next if(!$port_index);
+
+    my $port = $onu_snmp_info{$port_index};
+    foreach my $onu_index (keys %$port){
+      next if(!$onu_index);
+
+      my $onu = $port->{$onu_index};
+      $onu_info{ONU_ID} = $onu_index;
+      $onu_info{ONU_SNMP_ID} = "$port_index.$onu_index";
+      $port_index =~ s/\./\//;
+      $onu_info{PORT_ID} = $port_ids{$port_index};
+      foreach my $oid_name (keys %{$onu}){
+        next if (!$oid_name);
+        $onu_info{$oid_name} = $onu->{$oid_name};
+      }
+      push @onu_list, { %onu_info };
+    }
+  }
+
+  return \@onu_list;
+}
+
+#**********************************************************
+=head2 _gcom($attr)
+
+  Arguments:
+    $attr
+      TYPE - PON type. If set, returns only that OID's
+
+=cut
+#**********************************************************
+sub _gcom {
+    my ($attr) = @_;
+
+    my %snmp = (
+      epon       => {
+        'ONU_MAC_SERIAL' => {
+          NAME   => 'Mac/Serial',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.9',
+          PARSER => 'bin2mac',
+        },
+        'ONU_STATUS'     => {
+          NAME   => 'STATUS',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.4',
+        },
+        'ONU_TX_POWER'   => {
+          NAME   => 'ONU_TX_POWER',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.7',
+        },
+        'ONU_RX_POWER'   => {
+          NAME   => 'ONU_RX_POWER',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.8',
+        },
+        'ONU_DESC'       => {
+          NAME   => 'ONU_DESC',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.10',
+        },
+        'TEMPERATURE'    => {
+          NAME   => 'TEMPERATURE',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.4',
+        },
+        'DISTANCE'       => {
+          NAME   => 'DISTANCE',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.18',
+          PARSER => '_gcom_convert_distance',
+        },
+        'VOLTAGE'        => {
+          NAME   => 'VOLTAGE',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.5',
+          PARSER => '_gcom_convert_voltage',
+        },
+        'SOFT_VERSION'   => {
+          NAME   => 'FIRMWARE',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.10',
+        },
+      },
+      gpon       => {
+        'ONU_MAC_SERIAL' => {
+          NAME   => 'Mac/Serial',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.1.1.8',
+        },
+        'ONU_STATUS'     => {
+          NAME   => 'STATUS',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.1.1.6',
+        },
+        'ONU_TX_POWER'   => {
+          NAME   => 'ONU_TX_POWER',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.6',
+        },
+        'ONU_RX_POWER'   => {
+          NAME   => 'ONU_RX_POWER',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.5',
+        },
+        'ONU_DESC'       => {
+          NAME   => 'ONU_DESC',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.1.1.4',
+        },
+        'TEMPERATURE'    => {
+          NAME   => 'TEMPERATURE',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.8',
+        },
+        'DISTANCE'       => {
+          NAME   => 'DISTANCE',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.1.1.7',
+          PARSER => '_gcom_convert_distance',
+        },
+        'VOLTAGE'        => {
+          NAME   => 'VOLTAGE',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.4',
+          PARSER => '_gcom_convert_voltage',
+        },
+        'ONU_IN_BYTE'    => {
+          NAME   => 'PORT_IN',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.7.1.7',
+        },
+        'ONU_OUT_BYTE'   => {
+          NAME   => 'PORT_OUT',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.7.1.5',
+        },
+        'SOFT_VERSION'   => {
+          NAME   => 'FIRMWARE',
+          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.2.1.7',
+        },
+      },
+    );
+
+  if ($attr->{TYPE}) {
+    return $snmp{$attr->{TYPE}};
+  }
+
+  return \%snmp;
+}
+
+#**********************************************************
+=head2 _gcom_onu_status()
+
+=cut
+#**********************************************************
+sub _gcom_onu_status {
+  my %status = (
+    0 => 'down:text-red',
+    1 => 'up:text-green',
+  );
+
+  return \%status;
+}
+
+#**********************************************************
+=head2 _gcom_convert_distance($distance)
+
+=cut
+#**********************************************************
+sub _gcom_convert_distance {
+  my ($distance) = @_;
+
+  $distance //= 0;
+
+  if ($distance =~ /<(\d+)/) {
+    $distance = '<' . $1 * 0.001 . ' km';
+    return $distance;
+  }
+
+  $distance = $distance * 0.001;
+  $distance .= ' km';
+  return $distance;
+}
+
+#**********************************************************
+=head2 _gcom_convert_voltage($voltage)
+
+=cut
+#**********************************************************
+sub _gcom_convert_voltage {
+  my ($voltage) = @_;
+
+  $voltage //= 0;
+
+  $voltage .= ' V';
+  return $voltage;
+}
+
+1

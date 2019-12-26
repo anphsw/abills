@@ -7,6 +7,7 @@
 
 <div class='box box-theme'>
 	<div class='box-header with-border text-primary'><h3>%SUBJECT%</h3></div>
+	<div class='box-header with-border text-primary'><h3>%EXPIRATION_DATE%</h3></div>
 	<div class='box-body text-left'>
 		%MESSAGE%
 	</div>

@@ -7,6 +7,8 @@ $lang{ALL_LEADS}='Все лиды';
 $lang{UNITS}='Единиц';
 $lang{LEAD}='Потенциальный клиент';
 $lang{LEADS}='Потенциальные клиенты';
+$lang{POTENTIAL_LEADS}='Потенциальные';
+$lang{CONVERT_LEADS}='Конвертированные';
 $lang{LEAD_NOT_FOUND}='Потенциальный клиент не найден';
 $lang{INPUT_DATA_TO_ADD_LEAD}='Введите данные чтоб добавить клиента';
 $lang{LEAD_ADDED_MESSAGE}='Вы можете перейти на страницу потенциального клиента. Нажмите ';
@@ -23,6 +25,7 @@ $lang{THE_WORKS}='Ведутся работы';
 $lang{CONVERSION}='Конвертация';
 $lang{BIND_USER}='Связь с пользователем';
 $lang{PROGRESS_BAR}='Шкала выполнения';
+$lang{PLANNED}='Запланированная';
 
 
 $lang{CHANGED}='Изменения внесены';
@@ -34,5 +37,6 @@ $lang{MINUTES}='Минуты';
 $lang{CHOOSE}='Выберите';
 
 $lang{ADD_TAGS}='Добавить теги';
+$lang{NO_CLICK_USER}='Не выбрано ни одного пользователя для рассылки';
 
 1

@@ -100,7 +100,7 @@ sub internet_tp {
           'TP_ID',
           {
             SELECTED  => $tarif_info->{TP_ID},
-            SEL_LIST  => $Tariffs->list({%LIST_PARAMS, MODULE => 'Dv;Internet', NEW_MODEL_TP => 1, COLS_NAME => 1 }),
+            SEL_LIST  => $Tariffs->list({%LIST_PARAMS, MODULE => 'Dv;Internet', NEW_MODEL_TP => 1, SORT => 2, COLS_NAME => 1 }),
             SEL_KEY   => 'tp_id',
             SEL_VALUE => 'id,name',
             NO_ID     => 1
@@ -223,7 +223,7 @@ sub internet_tp {
     $tarif_info->{ABON_DISTRIBUTION}  = ($tarif_info->{ABON_DISTRIBUTION})  ? 'checked' : '';
     $tarif_info->{ACTIVE_DAY_FEE}     = ($tarif_info->{ACTIVE_DAY_FEE})     ? 'checked' : '';
     $tarif_info->{FIXED_FEES_DAY}     = ($tarif_info->{FIXED_FEES_DAY})     ? 'checked' : '';
-    $tarif_info->{TP_STATUS}          = ($tarif_info->{TP_STATUS})          ? 'checked' : '';
+    $tarif_info->{STATUS}             = ($tarif_info->{STATUS})             ? 'checked' : '';
 
     $tarif_info->{SEL_METHOD} = $html->form_select(
       'FEES_METHOD',
@@ -249,7 +249,7 @@ sub internet_tp {
     $tarif_info->{NEXT_TARIF_PLAN_SEL} = sel_tp({
       SELECT          => 'NEXT_TARIF_PLAN',
       NEXT_TARIF_PLAN => $tarif_info->{NEXT_TARIF_PLAN},
-      SKIP_TP         => $tarif_info->{TP_ID}
+      # SKIP_TP         => $tarif_info->{TP_ID}
     });
 
     if ($conf{BONUS_EXT_FUNCTIONS}) {

@@ -179,7 +179,7 @@ sub accounting {
     }
     # If not found auth records and session > 2 sec
     else { #if($RAD->{'Acct-Session-Time'} && $RAD->{'Acct-Session-Time'} > 2) {
-      $self->add_unknown_session($RAD, $NAS, { ACCT_STATUS_TYPE => $acct_status_type  });
+      $self->add_unknown_session($RAD, $NAS, { ACCT_STATUS_TYPE => $acct_status_type });
     }
     # Ignoring quick alive rad packets
     #else {
@@ -522,69 +522,7 @@ sub accounting {
       #add unknown session
       if ($self->{errno}) {
         if ($self->{errno}  == 2 && ($RAD->{'Acct-Session-Time'} && $RAD->{'Acct-Session-Time'} > 2)) {
-          $self->query2("SELECT u.uid, internet.tp_id, internet.join_service, internet.id AS service_id
-           FROM users u
-           INNER JOIN internet_main internet ON (u.uid=internet.uid)
-           WHERE u.id= ? ;",
-            undef,
-            { INFO  => 1,
-              Bind  => [ $RAD->{'User-Name'} ]
-            });
-
-          my $ipv6 = '';
-          if($conf->{IPV6}) {
-            my $interface_id = $RAD->{'Framed-Interface-Id'} || q{};
-            $interface_id =~ s/\/\d+//g;
-            $ipv6 =  ", framed_ipv6_prefix =INET6_ATON('". $RAD->{'Framed-IPv6-Prefix'}.'::'.$interface_id ."')";
-          }
-
-          if(! $self->{UID}) {
-            $ipv6 .= ", guest=1";
-          }
-
-          $self->query2("REPLACE INTO internet_online SET
-              status= ? ,
-              user_name= ? ,
-              started=NOW() - INTERVAL ? SECOND,
-              lupdated=UNIX_TIMESTAMP(),
-              nas_ip_address=INET_ATON( ? ),
-              nas_port_id= ? ,
-              acct_session_id= ? ,
-              framed_ip_address=INET_ATON( ? ),
-              cid= ? ,
-              connect_info= ? ,
-              acct_input_octets= ? ,
-              acct_output_octets= ? ,
-              acct_input_gigawords= ? ,
-              acct_output_gigawords= ? ,
-              nas_id= ? ,
-              tp_id= ? ,
-              uid= ? ,
-              acct_session_time= ?,
-              service_id = ?
-              $ipv6
-              ;",
-            'do',
-            { Bind => [
-                $acct_status_type,
-                $RAD->{'User-Name'} || '',
-                $RAD->{'Acct-Session-Time'} || 0,
-                $RAD->{'NAS-IP-Address'},
-                $RAD->{'NAS-Port'} || 0,
-                $RAD->{'Acct-Session-Id'},
-                $RAD->{'Framed-IP-Address'},
-                $RAD->{'Calling-Station-Id'} || '',
-                $RAD->{'Connect-Info'},
-                $RAD->{'INBYTE'},
-                $RAD->{'OUTBYTE'},
-                $RAD->{$input_gigawords},
-                $RAD->{$output_gigawords},
-                $NAS->{NAS_ID},
-                $self->{TP_ID} || 0,
-                $self->{UID} || 0,
-                $RAD->{'Acct-Session-Time'} || 0,
-                $self->{SERVICE_ID} || 0
-              ]});
+          $self->add_unknown_session($RAD, $NAS, { ACCT_STATUS_TYPE => $acct_status_type });
           return $self;
         }
         #else {
@@ -676,13 +614,14 @@ sub rt_billing {
     return $self;
   }
 
-  $self->query2("SELECT lupdated, UNIX_TIMESTAMP()-lupdated,
+  $self->query2("SELECT IF(UNIX_TIMESTAMP() > lupdated, lupdated, 0), UNIX_TIMESTAMP()-lupdated,
    IF($RAD->{INBYTE}   >= acct_input_octets AND ". $RAD->{$input_gigawords} ."=acct_input_gigawords,
         $RAD->{INBYTE} - acct_input_octets,
-        IF(". $RAD->{$input_gigawords} ." > acct_input_gigawords, 4294967296 * (". $RAD->{$input_gigawords} ." - acct_input_gigawords) - acct_input_octets + $RAD->{INBYTE}, 0)),
+        IF(". $RAD->{$input_gigawords} ." > acct_input_gigawords, 4294967296 * (". $RAD->{$input_gigawords} ." - acct_input_gigawords) + $RAD->{INBYTE} - acct_input_octets, 0)),
+
    IF($RAD->{OUTBYTE}  >= acct_output_octets AND ". $RAD->{$output_gigawords} ."=acct_output_gigawords,
         $RAD->{OUTBYTE} - acct_output_octets,
-        IF(". $RAD->{$output_gigawords} ." > acct_output_gigawords, 4294967296 * (". $RAD->{$output_gigawords} ." - acct_output_gigawords) - acct_output_octets + $RAD->{OUTBYTE}, 0)),
+        IF(". $RAD->{$output_gigawords} ." > acct_output_gigawords, 4294967296 * (". $RAD->{$output_gigawords} ." - acct_output_gigawords) + $RAD->{OUTBYTE} - acct_output_octets, 0)),
    IF($RAD->{INBYTE2}  >= ex_input_octets, $RAD->{INBYTE2}  - ex_input_octets, ex_input_octets),
    IF($RAD->{OUTBYTE2} >= ex_output_octets, $RAD->{OUTBYTE2} - ex_output_octets, ex_output_octets),
    sum,

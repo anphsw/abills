@@ -213,20 +213,17 @@ sub list_groups {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  my $WHERE;
-  my $list;
 
-  $self->query("SELECT id, name, comments, admins
+  $self->query("SELECT *
     FROM reports_groups
-    $WHERE
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
 
-  $list = $self->{list};
-  $self->query("SELECT count(id) AS total FROM reports_groups $WHERE",
+  my $list = $self->{list};
+  $self->query("SELECT count(id) AS total FROM reports_groups",
     undef, { INFO => 1 });
 
   return $list;

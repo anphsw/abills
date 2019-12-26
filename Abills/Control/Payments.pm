@@ -393,6 +393,7 @@ sub payment_add {
       }
     }
 
+    $attr->{AMOUNT} = $FORM{SUM};
     if ($FORM{ER} && $FORM{ER} != 1 && $FORM{ER} > 0) {
       $FORM{PAYMENT_SUM} = sprintf("%.2f", $FORM{SUM} / $FORM{ER});
     }
@@ -443,13 +444,14 @@ sub payment_add {
 
         #Make cross modules Functions
         $FORM{PAYMENTS_ID} = $Payments->{PAYMENT_ID};
-        #print "// $FORM{CREATE_RECEIPT} //////";
         cross_modules_call('_payments_maked', {
-            %$attr,
-            SUM          => $FORM{SUM},
-            PAYMENT_ID   => $Payments->{PAYMENT_ID},
-            SKIP_MODULES => 'Sqlcmd',
-          });
+          %$attr,
+          METHOD       => $FORM{METHOD},
+          SUM          => $FORM{SUM},
+          AMOUNT       => $attr->{AMOUNT},
+          PAYMENT_ID   => $Payments->{PAYMENT_ID},
+          SKIP_MODULES => 'Sqlcmd',
+        });
       }
     }
   }
@@ -505,35 +507,37 @@ sub form_payments_list {
   my $payments_list;
 
   ($table, $payments_list) = result_former({
-    INPUT_DATA      => $Payments,
-    FUNCTION        => 'list',
-    BASE_FIELDS     => 1,
-    DEFAULT_FIELDS  => 'DATETIME,LOGIN,DSC,SUM,LAST_DEPOSIT,METHOD,EXT_ID',
-    FUNCTION_FIELDS => 'del',
-    EXT_TITLES      => {
-      'id'           => $lang{NUM},
-      'datetime'     => $lang{DATE},
-      'dsc'          => $lang{DESCRIBE},
-      'sum'          => $lang{SUM},
-      'last_deposit' => $lang{OPERATION_DEPOSIT},
-      'deposit'      => $lang{CURRENT_DEPOSIT},
-      'method'       => $lang{PAYMENT_METHOD},
-      'ext_id'       => 'EXT ID',
-      'reg_date'     => "$lang{PAYMENTS} $lang{REGISTRATION}",
-      'ip'           => 'IP',
-      'admin_name'   => $lang{ADMIN},
-      'invoice_num'  => $lang{INVOICE},
-      amount         => "$lang{ALT} $lang{SUM}",
-      currency       => $lang{CURRENCY}
-    },
-    TABLE => {
-      width   => '100%',
-      caption => $lang{PAYMENTS},
-      qs      => $pages_qs,
-      EXPORT  => 1,
-      ID      => 'PAYMENTS',
-      MENU    => "$lang{SEARCH}:search_form=1&index=2:search"
-    }
+      INPUT_DATA      => $Payments,
+      FUNCTION        => 'list',
+      BASE_FIELDS     => 1,
+      HIDDEN_FIELDS   => 'ADMIN_DISABLE',
+      DEFAULT_FIELDS  => 'DATETIME,LOGIN,DSC,SUM,LAST_DEPOSIT,METHOD,EXT_ID',
+      FUNCTION_FIELDS => 'del',
+      EXT_TITLES      => {
+          'id'           => $lang{NUM},
+          'datetime'     => $lang{DATE},
+          'dsc'          => $lang{DESCRIBE},
+          'sum'          => $lang{SUM},
+          'last_deposit' => $lang{OPERATION_DEPOSIT},
+          'deposit'      => $lang{CURRENT_DEPOSIT},
+          'method'       => $lang{PAYMENT_METHOD},
+          'ext_id'       => 'EXT ID',
+          'reg_date'     => "$lang{PAYMENTS} $lang{REGISTRATION}",
+          'ip'           => 'IP',
+          'admin_name'   => $lang{ADMIN},
+          'invoice_num'  => $lang{INVOICE},
+          amount         => "$lang{ALT} $lang{SUM}",
+          currency       => $lang{CURRENCY},
+          after_deposit  => $lang{AFTER_OPERATION_DEPOSIT}
+      },
+      TABLE           => {
+          width   => '100%',
+          caption => $lang{PAYMENTS},
+          qs      => $pages_qs,
+          EXPORT  => 1,
+          ID      => 'PAYMENTS',
+          MENU    => "$lang{SEARCH}:search_form=1&index=2:search"
+      },
   });
 
   $table->{SKIP_FORMER}=1;
@@ -561,6 +565,7 @@ sub form_payments_list {
   }
 
   $pages_qs .= "&subf=2" if (!$FORM{subf});
+
   foreach my $line (@$payments_list) {
     my $delete = ($permissions{1}{2}) ? $html->button( $lang{DEL},
         "index=2&del=$line->{id}$pages_qs". (($pages_qs !~ /UID=/) ? "&UID=$line->{uid}" : q{} ),
@@ -590,7 +595,7 @@ sub form_payments_list {
         $line->{dsc} = ($line->{dsc} || q{}) . $html->b("($line->{inner_describe})") if ($line->{inner_describe});
       }
       elsif($field_name =~ /deposit/ && defined($line->{$field_name})) {
-        $line->{$field_name} = ($line->{$field_name} < 0) ? $html->color_mark( $line->{$field_name}, $_COLORS[6] ) : $line->{$field_name};
+        $line->{$field_name} = ($line->{$field_name} < 0) ? $html->color_mark( format_sum($line->{$field_name}), $_COLORS[6] ) :  format_sum($line->{$field_name});
       }
       elsif($field_name eq 'method') {
         $line->{method} = ($FORM{METHOD_NUM}) ? $line->{method} : ($PAYMENTS_METHODS{ $line->{method} }) ? $PAYMENTS_METHODS{ $line->{method} } : $line->{method};
@@ -623,6 +628,10 @@ sub form_payments_list {
           $line->{invoice_num} = $i2p;
         }
       }
+      elsif($field_name eq 'admin_name') {
+         $line->{admin_name} = _status_color_state($line->{admin_name}, $line->{admin_disable});
+        delete $line->{admin_disable};
+      }
 
       push @fields_array, $line->{$field_name};
     }
@@ -630,23 +639,17 @@ sub form_payments_list {
     $table->addrow(@fields_array, $delete);
   }
 
-  print $table->show();
-
   if (!$admin->{MAX_ROWS}) {
-    $table = $html->table(
-      {
-        width      => '100%',
-        rows       =>
-        [ [ "$lang{TOTAL}:", $html->b( $Payments->{TOTAL} ), "$lang{USERS}:", $html->b( $Payments->{TOTAL_USERS} ),
-          "$lang{SUM}", $html->b( $Payments->{SUM} ) ] ],
-        rowcolor   => 'even'
-      }
+    $table->addfooter(
+       '',
+       "$lang{TOTAL}: " .  $Payments->{TOTAL} . $html->br()
+       . (($Payments->{TOTAL_USERS} && $Payments->{TOTAL_USERS} > 1) ? "$lang{USERS}: " .  ($Payments->{TOTAL_USERS}) .$html->br() : q{})
+       . "$lang{SUM}: " . format_sum($Payments->{SUM})
     );
-    print $table->show();
   }
 
+  print $table->show();
   return 1;
 }
-
 
 1;

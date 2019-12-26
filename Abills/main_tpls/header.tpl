@@ -228,16 +228,31 @@
 <script>
   jQuery(function () {
     var EVENT_PARAMS = {
-      portal        : 'admin',
-      link          : '/admin/index.cgi?get_index=form_events&even_show=1&AID=$admin->{AID}',
+      portal: 'admin',
+      link: '/admin/index.cgi?get_index=form_events&even_show=1&AID=$admin->{AID}',
       soundsDisabled: ('$admin->{SETTINGS}{NO_EVENT_SOUND}' == '1'),
-      disabled      : ('$admin->{SETTINGS}{NO_EVENT}' == '1'),
-      interval      : parseInt('$conf{EVENTS_REFRESH_INTERVAL}') || 30000
+      disabled: ('$admin->{SETTINGS}{NO_EVENT}' == '1'),
+      interval: parseInt('$conf{EVENTS_REFRESH_INTERVAL}') || 30000
     };
-
     AMessageChecker.start(EVENT_PARAMS);
   });
+
+
+  jQuery(function () {
+    jQuery("#Search_menus").on("keyup", function () {
+      if (this.value.length > 0) {
+        jQuery("li.for_search").hide().filter(function () {
+          return jQuery(this).text().toLowerCase().indexOf(jQuery("#Search_menus").val().toLowerCase()) != -1;
+        }).show();
+      }
+      else {
+        jQuery("li.for_search").show();
+      }
+    });
+  });
+
 </script>
+
 <!-- END header -->
 %TECHWORK%
 <!-- Left side column. contains the logo and sidebar -->
@@ -258,6 +273,15 @@
         <!-- Status -->
         <a href='#' id='admin-status' data-tooltip='%ONLINE_USERS%'>Online&nbsp;<span class='label label-success'>%ONLINE_COUNT%</span></a>
       </div>
+    </div>
+    <!--search by menu-->
+    <div class="input-group sidebar-form">
+      <input type="text" class="form-control" placeholder="_{SEARCH}_..." id="Search_menus" autocomplete="off">
+      <span class="input-group-btn">
+                <button type="submit" name="search" class="btn btn-flat">
+                  <i class="fa fa-search"></i>
+                </button>
+              </span>
     </div>
     <!-- Sidebar Menu -->
     %MENU%

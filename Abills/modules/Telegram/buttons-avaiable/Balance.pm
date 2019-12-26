@@ -53,13 +53,14 @@ sub click {
     DATETIME  => '_SHOW',
     SUM       => '_SHOW',
     DESCRIBE  => '_SHOW',
+    UID       => $uid,
     DESC      => 'desc',
     SORT      => 1,
     PAGE_ROWS => 1,
     COLS_NAME => 1
   });
 
-  Abills::Base::_bp('1',$last_payments,{TO_CONSOLE => 1});
+  # Abills::Base::_bp('1',$last_payments,{TO_CONSOLE => 1});
 
   use Fees;
   my $Fees = Fees->new($self->{db}, $self->{admin}, $self->{conf});
@@ -67,6 +68,7 @@ sub click {
     DATETIME  => '_SHOW',
     SUM       => '_SHOW',
     DESCRIBE  => '_SHOW',
+    UID       => $uid,
     DESC      => 'desc',
     SORT      => 1,
     PAGE_ROWS => 1,

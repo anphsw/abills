@@ -62,6 +62,7 @@ my %ARGS = %{ parse_arguments(\@ARGV) };
 my $DEBUG = $ARGS{DEBUG} || 0;
 my $NO_ARP = $ARGS{NO_ARP} || 0;
 my $SESSION_ID = $ARGS{ACCT_SESSION_ID} or die usage();
+my $EXTENDED = $ARGS{EXTENDED} || 0;
 
 my %TYPE_PING_TABLE = (
   'mikrotik_dhcp' => \&mikrotik_arping,
@@ -81,8 +82,9 @@ if ( $sess_info ) {
 #**********************************************************
 sub usage {
   print qq{
-  Usage: ./arping.pl ACCT_SESSION_ID=81809614 [DEBUG=1] [ L2=1 [ NAS_TYPES=mikrotik,mikrotik_dhcp ]]
+  Usage: ./arping.pl ACCT_SESSION_ID=81809614 [DEBUG=1] [EXTENDED=1] [ L2=1 [ NAS_TYPES=mikrotik,mikrotik_dhcp ]]
     DEBUG     - be verbose
+    EXTENDED  - Mikrotik extended diagnostics
     NO_ARP    - use ping, not arpping
     L2        - find NAS, that can make arping
     NAS_TYPES - types that will be treated as smart enough to make arping
@@ -136,6 +138,7 @@ sub arping {
     $nas_id = find_nas_to_make_arping($session_info, $nas_id);
     
     if (!$nas_id){
+      print "STATUS: err\n";
       print "Failed to get NAS to ping \n";
       exit 1;
     }
@@ -151,6 +154,7 @@ sub arping {
     
   }
   else {
+    print "STATUS: err\n";
     print "Don't know how to arping for $Nas_->{NAS_TYPE} \n" if ($DEBUG);
     exit 1;
   }
@@ -174,7 +178,38 @@ sub mikrotik_arping {
   }
   else {
     print "Will arping $session_info->{FRAMED_IP_ADDRESS} \n" if ($DEBUG);
-    $ssh_cmd = "ping arp-ping=yes interface=[put [ip arp get [find address=$session_info->{FRAMED_IP_ADDRESS}] interface]]" . " $session_info->{FRAMED_IP_ADDRESS} count=3";
+    if($EXTENDED){
+      $ssh_cmd = "/local IP $session_info->{FRAMED_IP_ADDRESS}; \\ \n" .
+                 '/local foundAddressList [/ip firewall address-list find address=$IP]; \\' . "\n" .
+                 'if ([len $foundAddressList] != 0) do={ \\' . "\n" .
+                 '  /local foundAddressListName [ip firewall address-list get $foundAddressList list]; \\' .  "\n" .
+                 '  /local negativ "NO"; \\' . "\n" .
+                 '  if ($foundAddressListName="negative") do={ \\' . "\n" .
+                 '    /set negativ "YES" \\' . "\n" .
+                 '  }; \\' . "\n" .
+                 '  /put "User IP: $IP\r\nnegativ - $negativ\r\nAddress list $foundAddressListName\r\n" \\' . "\n" .
+                 '} \\' . "\n" .
+                 'else={ \\' . "\n" .
+                 '  /put "Address list not found" \\' . "\n" .
+                 '}; \\' . "\n" .
+                 'ping $IP count=3; \\' . "\n" .
+                 '/local foundArp [/ip arp find address=$IP]; \\' . "\n" .
+                 'if ([len $foundArp] != 0) do={ \\' . "\n" .
+                 '  /local foundMac [/ip arp get $foundArp mac]; \\' . "\n" .
+                 '  /local foundInterface [/ip arp get $foundArp interface]; \\' . "\n" .
+                 '  put "arp record: $IP $foundMac $foundInterface\r\n"; \\' . "\n" .
+                 '  ping arp-ping=yes interface=$foundInterface $IP count=3; \\' . "\n" .
+                 '} \\' . "\n" .
+                 'else={ \\' . "\n" .
+                 '  put "arp record not found"; \\' . "\n" .
+                 '}';
+                 if ($DEBUG){ print "Will run $ssh_cmd\n"};
+
+    }
+    else{
+      $ssh_cmd = "ping arp-ping=yes interface=[put [ip arp get [find address=$session_info->{FRAMED_IP_ADDRESS}] interface]]" . " $session_info->{FRAMED_IP_ADDRESS} count=3";
+    }
+
   }
   
   my $res = ssh_cmd($ssh_cmd, {
@@ -187,7 +222,11 @@ sub mikrotik_arping {
   if ( $res && ref $res eq 'ARRAY' ) {
     $res = join ('', @{$res});
   }
-  
+
+  if($res =~ /received=0/){print "STATUS: err\n"}
+  elsif($res =~ /received=3/){print "STATUS: info\n"}
+  elsif($res !~ /received/){print "STATUS: err\n"}
+  else{print "STATUS: warn\n"};
   print $res;
 }
 
@@ -238,6 +277,7 @@ sub find_nas_to_make_arping {
     my $lease = $leases_list->[0];
 
     if (!$lease->{vlan}) {
+      print "STATUS: err\n";
       print "Lease don't have VLAN to get IP Pool for \n";
       return 0;
     }
@@ -258,12 +298,14 @@ sub find_nas_to_make_arping {
     });
 
     if ( $Dhcphosts->{errno} || !$leases_list || ref $leases_list ne 'ARRAY' || !(scalar @{$leases_list}) ) {
+      print "STATUS: err\n";
       print "Failed to get VLAN for host \n";
       return 0;
     }
     my $lease = $leases_list->[0];
 
     if ( !$lease->{vid} ) {
+      print "STATUS: err\n";
       print "Lease don't have VLAN to get IP Pool for \n";
       return 0;
     }
@@ -273,6 +315,7 @@ sub find_nas_to_make_arping {
 
   $Nas->query2("SELECT id, name FROM ippools WHERE vlan=?", undef, { Bind => [ $lease_vlan ], COLS_NAME => 1 });
   if ($Nas->{errno} || !$Nas->{list} || !(ref $Nas->{list} eq 'ARRAY' && scalar (@{$Nas->{list}}))) {
+    print "STATUS: err\n";
     print "Failed to find ip pool for VLAN $lease_vlan \n";
     return 0;
   }
@@ -293,11 +336,13 @@ sub find_nas_to_make_arping {
   $Nas->query2("SELECT id FROM nas WHERE id IN (SELECT nas_id FROM nas_ippools WHERE pool_id=?) $by_nas_type;", undef,
     { Bind => \@BIND_VARS, COLS_NAME => 1 });
   if ($Nas->{errno} || !$Nas->{list} || !(ref $Nas->{list} eq 'ARRAY')) {
+    print "STATUS: err\n";
     print "Failed to find NAS_ID for pool $pool->{name} # $pool->{id} \n";
     return 0;
   }
 
   if (scalar (@{$Nas->{list}}) > 1) {
+    print "STATUS: err\n";
     print "Pool is linked to more than one NAS. TOTAL : " . scalar (@{$Nas->{list}}) . " \n";
     return 0;
   }

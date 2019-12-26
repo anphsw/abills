@@ -79,7 +79,7 @@ my @modules = (
     port => "/usr/ports/devel/p5-Devel-NYTProf",
     pkg => "p5-Devel-NYTProf",
     apt => "libdevel-nytprof-perl",
-    rpm => "perlperf"                # FIXME
+    rpm => "perl-Devel-NYTProf"
   },
   {
     cpan => "Digest::MD4",
@@ -99,7 +99,7 @@ my @modules = (
     cpan => "Digest::SHA1",
     port => "/usr/ports/security/p5-Digest-SHA1",
     pkg => "p5-Digest-SHA1",
-    apt => "libdigest-sha-perl", # FIXME
+    apt => "libdigest-sha-perl",
     rpm => "perl-Digest-SHA1"
   },
   {

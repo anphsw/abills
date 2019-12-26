@@ -267,18 +267,32 @@ sub flist {
       delete($new_hash{0}{$parent});
     }
   }
-
-  print $html->form_main(
-      {
-        CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
-        HIDDEN  => {
-          index        => $index,
-          AWEB_OPTIONS => 1,
-        },
-        SUBMIT => {
-              quick_set => $lang{SET} }
-      }
+  $admin->{SETTINGS}->{ql} //= '';
+  my $i = 1;
+  foreach my $ql (split(/,/, $admin->{SETTINGS}->{ql})) {
+    my ($ql_name, $ql_url) = split(/\|/, $ql, 2);
+    $table->addrow(
+      '',
+      $html->form_input("ql_url_$i", $ql_url, { OUTPUT2RETURN => 1 }),
+      $html->form_input("ql_name_$i", $ql_name, { OUTPUT2RETURN => 1 })
     );
+    $i++;
+  }
+  $table->addrow(
+    '',
+    $html->form_input("ql_url_$i", '', { EX_PARAMS => "placeholder='External link'", OUTPUT2RETURN => 1 }),
+    $html->form_input("ql_name_$i", '', { EX_PARAMS => "placeholder='Link name'", OUTPUT2RETURN => 1 })
+  );
+  print $html->form_main({
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index        => $index,
+      AWEB_OPTIONS => 1,
+    },
+    SUBMIT => {
+          quick_set => $lang{SET}
+    }
+  });
 
   return 1;
 }
@@ -297,9 +311,9 @@ sub form_slides_create {
   my $content = '';
 
   for(my $slide_num=0;  $slide_num <=  $#{ $base_slides }; $slide_num++  ) {
-    my $slide_name   = $base_slides->[$slide_num]->{ID};
+    my $slide_name   = $base_slides->[$slide_num]->{ID} || q{};
     my $table = $html->table({
-        caption => "$slide_name - $base_slides->[$slide_num]{HEADER}",
+        caption => "$slide_name - ". ($base_slides->[$slide_num]{HEADER} || q{}),
         ID      => $slide_name,
         width   => '300',
       }

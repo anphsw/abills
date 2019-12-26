@@ -380,9 +380,10 @@ sub voip_yate_user {
   $user->{PROVISION} = $html->tpl_show(
     templates('form_show_hide'),
     {
-      CONTENT => $html->tpl_show(_include('voip_provision_user', 'Voip'), $user, { OUTPUT2RETURN => 1 }),
-      NAME    => 'Provision',
-      ID      => 'PROVISION',
+      CONTENT     => $html->tpl_show(_include('voip_provision_user', 'Voip'), $user, { OUTPUT2RETURN => 1 }),
+      NAME        => 'Provision',
+      ID          => 'PROVISION',
+      BUTTON_ICON => 'minus'
     },
     { OUTPUT2RETURN => 1 }
   );

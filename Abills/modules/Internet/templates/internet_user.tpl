@@ -44,9 +44,9 @@
     <div class='box-header with-border'>
       <h4 class='box-title'>_{INTERNET}_: %ID%</h4>
       <div class='box-tools pull-right'>
-        <a href='$SELF_URL?get_index=internet_user&full=1&UID=%UID%&add_form=1' class='btn btn-xs btn-success'
+        <a href='$SELF_URL?get_index=internet_user&full=1&UID=%UID%&add_form=1' class='btn btn-xs btn-success h-0-32'
            title='_{ADD_SERVICE}_'>_{ADD_SERVICE}_</a>
-        <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+        <button type='button' class='btn btn-box-tool' data-widget='collapse'>
           <i class='fa fa-minus'></i>
         </button>
       </div>
@@ -63,6 +63,8 @@
         %PAYMENT_MESSAGE%
 
         %NEXT_FEES_WARNING%
+
+        %TP_CHANGE_WARNING%
 
         %LAST_LOGIN_MSG%
 
@@ -143,7 +145,7 @@
       <div class='box-header with-border'>
         <h3 class='box-title'>IPoE / DHCP Option 82</h3>
         <div class='box-tools pull-right'>
-          <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+          <button type='button' class='btn btn-box-tool' data-widget='collapse'>
             <i class='fa fa-plus'></i>
           </button>
         </div>
@@ -199,7 +201,7 @@
       <div class='box-header with-border'>
         <h3 class='box-title'>_{EXTRA}_</h3>
         <div class='box-tools pull-right'>
-          <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+          <button type='button' class='btn btn-box-tool' data-widget='collapse'>
             <i class='fa fa-plus'></i>
           </button>
         </div>
@@ -258,13 +260,13 @@
           <div class='col-md-3 %EXPIRE_COLOR%'>
             <input id='SERVICE_ACTIVATE' name='SERVICE_ACTIVATE' value='%SERVICE_ACTIVATE%'
                    placeholder='%SERVICE_ACTIVATE%'
-                   class='form-control datepicker' rel='tcal' type='text' %ACTIVATE_DISABLE%>
+                   class='form-control datepicker d-0-19' rel='tcal' type='text'>
           </div>
 
           <label class='control-label col-md-3' for='SERVICE_EXPIRE'>_{EXPIRE}_</label>
           <div class='col-md-3 %EXPIRE_COLOR%'>
             <input id='SERVICE_EXPIRE' name='SERVICE_EXPIRE' value='%SERVICE_EXPIRE%' placeholder='%SERVICE_EXPIRE%'
-                   class='form-control datepicker' rel='tcal' type='text' %EXPIRE_DISABLE%>
+                   class='form-control datepicker d-0-20' rel='tcal' type='text'>
           </div>
         </div>
 
@@ -288,7 +290,7 @@
         <div class='form-group'>
           <label class='control-label col-md-3 pull-left'>_{PERSONAL}_ _{TARIF_PLAN}_</label>
           <div class='col-md-9'>
-            <input type='text' class='form-control' name='PERSONAL_TP' value='%PERSONAL_TP%' %PERSONAL_TP_DISABLE%>
+            <input type='text' class='form-control r-0-25' name='PERSONAL_TP' value='%PERSONAL_TP%'>
           </div>
         </div>
 

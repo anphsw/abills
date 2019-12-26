@@ -1,4 +1,15 @@
 $lang{REFERRER} = 'Запросив';
 $lang{REFERRAL} = 'Реферал';
 $lang{REFERRAL_SYSTEM} = 'Реферальна система';
+$lang{REFERRAL_TP} = 'Реферальний тариф';
 $lang{REFERRALS_LIST} = 'Список рефералів';
+$lang{BONUS_AMOUNT} = 'Кількість бонусів';
+$lang{BONUS_DESC} = 'Бонус за реферала';
+$lang{PAYMENT_ARREARS} = 'Заборгованість в оплатах';
+$lang{ACCRUALS} = 'нарахування';
+$lang{PAY_NOW} = '0 - нараховувати відразу';
+$lang{PAY_X_MONTH} = 'X - нараховувати в продовж Х місяців';
+$lang{NO_ARREARS} = '0 - не враховувати заборгованість';
+$lang{X_ARREARS} = 'X - якщо заборгованість більше X місяця';
+$lang{REPL_PERCENT} = '% від поповнення';
+$lang{REQUESTS_REFERRAL} = 'Заявки підключення реферал';

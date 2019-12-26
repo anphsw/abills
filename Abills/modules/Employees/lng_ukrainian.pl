@@ -101,4 +101,6 @@ $lang{TYPE_IN_SPENDING_TYPE}='Введіть тип разходу по касі
 $lang{TYPE_IN_COMING_TYPE}='Введіть тип приходу по касі';
 $lang{UNITS_}='Одиниці виміру';
 
+$lang{VACATION}='Відпустка';
+
 1

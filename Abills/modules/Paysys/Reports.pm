@@ -262,4 +262,89 @@ sub paysys_reports {
   return 1;
 }
 
+#**********************************************************
+=head2 paysys_nbu_exchange_rates($attr) - get exchange rates from nbu
+
+  Arguments:
+
+
+  Returns:
+    $table
+
+=cut
+#**********************************************************
+sub paysys_nbkr_exchange_rates {
+
+  my $nbkr_xml_data = web_request(
+    "http://www.nbkr.kg/XML/daily.xml",
+    {
+      CURL        => 1,
+    }
+  );
+
+  load_pmodule('XML::Simple');
+
+  my $nbkr_data = eval { XML::Simple::XMLin("$nbkr_xml_data", forcearray => 1) };
+
+  if ($@) {
+    return 0;
+  }
+
+  my $exchange_rate_date = $nbkr_data->{Date};
+
+  my $nkbr_table = $html->table(
+    {
+      width   => '100%',
+      caption => "$lang{NBKR} $lang{EXCHANGE_RATE}",
+      title   => [ $lang{CURRENCY}, "$exchange_rate_date" ],
+      ID      => 'NBKR_CURRENCY',
+      #EXPORT  => 1
+    }
+  );
+
+  foreach my $currency (@ {$nbkr_data->{Currency} }){
+    $nkbr_table->addrow("$currency->{ISOCode}/KGS", $html->b($currency->{Value}->[0]));
+  }
+
+  return $nkbr_table->show();
+}
+
+#**********************************************************
+=head2 paysys_nbu_ex_rates_print($attr) - print table for nbu exchange rates
+
+  Arguments:
+
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_nbkr_ex_rates_print {
+
+  print paysys_nbkr_exchange_rates;
+
+  return 1;
+}
+
+#**********************************************************
+=head2 paysys_start_page($attr)
+
+  Arguments:
+
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_start_page {
+  #my ($attr) = @_;
+
+  my %START_PAGE_F = (
+#    'paysys_nbu_exchange_rates' => "$lang{EXCHANGE_RATE} ". ($lang{NBU} || q{}),
+#    'paysys_p24_exchange_rates' => "$lang{EXCHANGE_RATE} Privat",
+    'paysys_nbkr_exchange_rates'=> "$lang{EXCHANGE_RATE} $lang{NBKR}");
+
+  return \%START_PAGE_F;
+}
+
 1;

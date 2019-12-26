@@ -80,6 +80,7 @@ $(function () {
         '</div>' +
         '</div>');
 
+      $selectDiv.find('input').attr('max', $rowsNumInput.val());
       $selectDiv.find('select').html(portTypesHTML);
       $selectDiv.find('select').select2(CHOSEN_PARAMS);
 
@@ -106,16 +107,17 @@ $(function () {
     }
 
     function appendRow(rowNumber, row) {
-      for (var portNumber in row) {
-        if (!row.hasOwnProperty(portNumber)) continue;
+        if (!row.hasOwnProperty('portNumber')) return;
 
-        var portType = row[portNumber];
+        var rowNumber  = row.rowNumber;
+        var portNumber = row.portNumber;
+        var portType   = row.portType;
+
         $wrapper.append(getFilledExtraPortGroup(rowNumber, portNumber, portType));
 
         //renewChosenValue($('#EXTRA_PORT_' + portNumber), portType);
 
-        portCounter++;
-      }
+        if(portNumber > portCounter) portCounter = portNumber;
     }
 
     function getFilledExtraPortGroup(rowNumber, number, portType) {

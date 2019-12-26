@@ -12,6 +12,12 @@
         <label class='col-md-3 control-label required'>_{COUNT}_:</label>
         <div class='col-md-9'><input required class='form-control' name='COUNT' type='number' value='%COUNT%'/></div>
       </div>
+
+      <div class='form-group'>
+        <label class='col-md-3 control-label required'>_{RESPOSIBLE}_:</label>
+        <div class='col-md-9'>%RESPONSIBLE_SEL%</div>
+      </div>
+
       <div class='form-group'>
         <label class='col-md-3 control-label required'>_{COMMENTS}_</label>
         <div class='col-md-9'><textarea required class='form-control col-xs-12' name='COMMENTS'>%COMMENTS%</textarea>

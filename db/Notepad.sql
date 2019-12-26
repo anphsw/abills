@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS `notepad` (
   `subject`     VARCHAR(60) NOT NULL DEFAULT '',
   `text`        TEXT,
   `aid`         SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
+  `status_st`   TINYINT(1)  UNSIGNED NOT NULL DEFAULT 0,
   UNIQUE `subject_text` (`subject`, `aid`, `status`),
   PRIMARY KEY (`id`),
   KEY `aid` (`aid`)

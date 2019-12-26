@@ -1,4 +1,15 @@
 $lang{REFERRER} = 'Referrer';
 $lang{REFERRAL} = 'Referral';
 $lang{REFERRAL_SYSTEM} = 'Refferal system';
+$lang{REFERRAL_TP} = 'Refferal tariff';
 $lang{REFERRALS_LIST} = 'Refferal list';
+$lang{BONUS_AMOUNT} = 'Amount of bonuses';
+$lang{BONUS_DESC} = 'Referral bonus';
+$lang{PAYMENT_ARREARS} = 'Payment arrears';
+$lang{ACCRUALS} = 'accrual';
+$lang{PAY_NOW} = '0 - charge immediately';
+$lang{PAY_X_MONTH} = 'X - charge in X months';
+$lang{NO_ARREARS} = '0 - do not take into account debt';
+$lang{X_ARREARS} = 'X - if the debt is more than X month';
+$lang{REPL_PERCENT} = 'Replenishment percentage';
+$lang{REQUESTS_REFERRAL} = 'Referral requests';

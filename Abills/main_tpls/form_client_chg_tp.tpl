@@ -6,7 +6,7 @@
     <input type=hidden name='index' value='$index'>
 
     <div class='box box-primary'>
-        <div class='box-header with-border text-center'>
+        <div class='box-header with-border'>
             <h4>_{TARIF_PLANS}_</h4>
         </div>
         <div class='box-body form form-horizontal'>
@@ -16,7 +16,6 @@
             </div>
             <div class='form-group'>
                 <label class='col-md-2 control-label'>_{CHANGE}_ _{ON}_:</label>
-
                 <div class='col-md-10'>%TARIF_PLAN_TABLE%</div>
             </div>
             <div class='form-group'>
@@ -25,10 +24,12 @@
             <div class='form-group'>
                 %SHEDULE_LIST%
             </div>
+
         </div>
         <div class='box-footer'>
             <div name='modalOpen_TP_CHG' class='btn btn-primary' id='modalOpen_TP_CHG'
                    data-toggle='modal' data-target='#changeTPModal'>%LNG_ACTION%</div>
+            <h5>%ERROR_DEL_SHEDULE%</h5>
         </div>
     </div>
 
@@ -40,22 +41,28 @@
                             aria-hidden='true'>&times;</span></button>
                     <h4>_{CHANGE}_ _{TARIF_PLAN}_</h4>
                 </div>
+
                 <div class='modal-body'>
-                    <div class='form-group text-center'>
+                    <div class='form-group'>
                         %CHG_TP_RULES%
                     </div>
                     <div class='form-group text-center'>
                         <label class='control-label text-center' for='ACCEPT_RULES'>_{ACCEPT}_:</label>
                         %ACTION_FLAG%
-                        <input type=checkbox value='_{HOLD_UP}_' id='ACCEPT_RULES' name='ACCEPT_RULES'>
+                        <input type=checkbox value='1' id='ACCEPT_RULES' name='ACCEPT_RULES'>
                     </div>
                 </div>
+
                 <div class='modal-footer'>
                     <input type='submit' value='_{SET}_' name='%ACTION%' class='btn btn-primary' form='user'>
                 </div>
             </div>
         </div>
     </div>
-
-
 </form>
+
+<script>
+    if (!'%ACTION%') {
+        jQuery("#modalOpen_TP_CHG").hide();
+    }
+</script>

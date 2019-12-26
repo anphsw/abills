@@ -1,4 +1,6 @@
-
+<script type="text/javascript">
+  window.print();
+</script>
 
 <h2>Накладная № %NUMBER% от %FROM_DATE_LIT% (%DATE%)</h2>
  

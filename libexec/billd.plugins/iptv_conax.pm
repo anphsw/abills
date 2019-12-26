@@ -11,6 +11,7 @@
 use strict;
 use warnings;
 use Iptv;
+use Users;
 use Tariffs;
 use Abills::Base qw(load_pmodule in_array _bp);
 use threads;
@@ -29,8 +30,8 @@ our (
 );
 
 our $Iptv = Iptv->new($db, $Admin, \%conf);
+my $Users = Users->new($db, $Admin, \%conf);
 require Iptv::Services;
-
 
 my $ftp = Net::FTP->new($conf{CONAX_FTP_HOST}, Timeout => 5, Debug => ($argv->{DEBUG} || 0)) or die print "Cannot connect to some.host.name: $@\n";
 
@@ -77,12 +78,12 @@ sub conax_load_to_server {
       });
 
       my $count = 0;
-      if( ref $screens eq 'ARRAY' ) {
+      if (ref $screens eq 'ARRAY') {
         $count = @$screens;
       }
 
       if ($user->{subscribe_id}) {
-        _additional_cards({%$user, CARDS => $screens, COUNT => $count});
+        _additional_cards({ %$user, CARDS => $screens, COUNT => $count });
         $Iptv->user_change({
           ID           => $user->{id},
           SUBSCRIBE_ID => "99999",
@@ -326,11 +327,11 @@ sub _additional_cards {
 
     close FILE;
 
-      $ftp->cwd('/autreq/req') or die print "Cannot change directory $ftp->message";
+    $ftp->cwd('/autreq/req') or die print "Cannot change directory $ftp->message";
 
-      $ftp->put("/usr/abills/Abills/modules/Iptv/Conax/$file_name") or die print "Cannot put file" . $ftp->message;
+    $ftp->put("/usr/abills/Abills/modules/Iptv/Conax/$file_name") or die print "Cannot put file" . $ftp->message;
 
-      unlink "/usr/abills/Abills/modules/Iptv/Conax/$file_name";
+    unlink "/usr/abills/Abills/modules/Iptv/Conax/$file_name";
   }
 
   return 0;
@@ -363,6 +364,9 @@ sub users_oversubscription {
     });
 
     foreach my $user (@$users_) {
+      $Users->info($user->{uid});
+      next if ($Users->{DISABLE});
+
       print "Oversubscribe user uid - $user->{uid}, TP - $user->{tp_name}...\n";
       my $screens = $Iptv->users_active_screens_list({
         SERVICE   => $user->{id},
@@ -375,7 +379,7 @@ sub users_oversubscription {
       }
 
       $user->{status} = $user->{service_status};
-      if (_subscribe_user({ %$user, CARDS => $screens, COUNT => $count })){
+      if (_subscribe_user({ %$user, CARDS => $screens, COUNT => $count })) {
         print "Successfully oversub.\n";
       }
       else {
@@ -397,7 +401,7 @@ sub _subscribe_user {
 
   my @filter_ids = split(",", $attr->{filter_id});
 
-  if (!$attr->{id} || !$attr->{filter_id}){
+  if (!$attr->{id} || !$attr->{filter_id}) {
     print "Set Filter id in tariff\n";
     return 0;
   }
@@ -602,7 +606,7 @@ sub _get_date {
     }
   }
   else {
-    $current_year = int $current_year + int ($conf{CONAX_DATE} / 12);
+    $current_year = int $current_year + int($conf{CONAX_DATE} / 12);
     my $temp = int($conf{CONAX_DATE} % 12) + $month;
     if (int $temp > 12) {
       $month = $temp % 12;
@@ -623,7 +627,7 @@ sub _get_date {
     $days_number = 31;
   }
 
-  return ($current_year, $month, $days_number);
+  return($current_year, $month, $days_number);
 }
 
 

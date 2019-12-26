@@ -276,11 +276,11 @@ CREATE TABLE IF NOT EXISTS `cablecat_cross_links` (
 )
   COMMENT = 'Logical values for port connection';
 
-CREATE TABLE cablecat_coil (
-  id int(11) unsigned NOT NULL AUTO_INCREMENT,
-  name varchar(32) NOT NULL DEFAULT '',
-  point_id int(11) unsigned NOT NULL DEFAULT 0,
-  cable_id int(11) unsigned NOT NULL DEFAULT '1',
-  length INT NOT NULL DEFAULT 30,
+CREATE TABLE IF NOT EXISTS `cablecat_coil` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(32) NOT NULL DEFAULT '',
+  `point_id` int(11) unsigned NOT NULL DEFAULT 0,
+  `cable_id` int(11) unsigned NOT NULL DEFAULT '1',
+  `length` INT NOT NULL DEFAULT 30,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Cablecat coil';

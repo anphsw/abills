@@ -265,14 +265,36 @@ sub msgs_chapters {
   }
   elsif ($FORM{add}) {
     $Msgs->chapter_add({%FORM});
+    if (!$Msgs->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{ADDED}" ) if (!$Msgs->{errno});
 
-    $html->message( 'info', $lang{INFO}, "$lang{ADDED}" ) if (!$Msgs->{errno});
+      if ($FORM{UPLOAD_FILE}) {
+        upload_file($FORM{UPLOAD_FILE}, {
+          PREFIX    => '/chapters/',
+          FILE_NAME => 'chapter_' . $Msgs->{INSERT_ID} . '.png',
+        });
+      }
+    }
+    else {
+      $html->message('err', $lang{ERROR});
+    }
   }
   elsif ($FORM{change}) {
-
     $Msgs->chapter_change({%FORM});
 
-    $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" ) if (!$Msgs->{errno});
+    if (!$Msgs->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{CHANGED}" ) if (!$Msgs->{errno});
+      if ($FORM{UPLOAD_FILE}) {
+        upload_file($FORM{UPLOAD_FILE}, {
+          PREFIX    => '/chapters/',
+          FILE_NAME => 'chapter_' . $FORM{ID} . '.png',
+          REWRITE   => 1
+        });
+      }
+    }
+    else {
+      $html->message('err', $lang{ERROR});
+    }
   }
   elsif ($FORM{chg}) {
     $Msgs->chapter_info($FORM{chg});
@@ -306,6 +328,7 @@ sub msgs_chapters {
   my $list = $Msgs->chapters_list(
     {
       %LIST_PARAMS,
+      COLOR      => '_SHOW',
       MSG_COUNTS => '_SHOW',
       COLS_NAME  => 1
     }
@@ -315,7 +338,7 @@ sub msgs_chapters {
     {
       width      => '100%',
       caption    => $lang{CHAPTERS},
-      title      => [ '#', $lang{NAME}, $lang{PRIVATE}, $lang{MESSAGES}, $lang{RESPOSIBLE}, $lang{AUTO_CLOSE}, "-", "-" ],
+      title      => [ '#', $lang{NAME}, $lang{PRIVATE}, $lang{MESSAGES}, $lang{RESPOSIBLE}, $lang{COLOR}, $lang{AUTO_CLOSE}, "-", "-" ],
       qs         => $pages_qs,
       MENU       => "$lang{ADD}:add_form=1&index=$index:add",
       ID         => 'MSGS_CHAPTERS'
@@ -324,18 +347,20 @@ sub msgs_chapters {
 
   foreach my $line (@$list) {
     $table->{rowcolor} = ($FORM{chg} && $FORM{chg} eq $line->{id}) ? $table->{rowcolor} = 'bg-success' : undef;
-  
+
     $line->{id} //= 0;
     $line->{name} //= '';
     $line->{inner_chapter} //= 0;
     $line->{msg_counts} //= 0;
-  
+    $line->{color} //= "";
+
     $table->addrow(
       $line->{id},
       $line->{name},
         defined($line->{inner_chapter}) ? $bool_vals[ $line->{inner_chapter} ] : '',
       $html->button($line->{msg_counts}, "index=". get_function_index('msgs_admin')."&CHAPTER=$line->{id}&ALL_MSGS=1"),
       $line->{admin_login} || '',
+      $html->color_mark($line->{color},$line->{color}),
       $line->{autoclose},
       $html->button( "$lang{PROGRESS_BAR}", "index=$index&PROGRES_BAR=$line->{id}",
         { TITLE => $lang{PROGRESS_BAR}, ICON => 'glyphicon glyphicon-tasks' } ),

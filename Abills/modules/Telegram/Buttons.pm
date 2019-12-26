@@ -42,15 +42,21 @@ sub buttons_list {
 }
 
 #**********************************************************
-=head2 _task_plugin_call($attr)
-  button - button pm file
-  fn     - button function
-  
+=head2 telegram_button_fn($attr)
+
+  Arguments:
+     $attr
+       button - button pm file
+       fn     - button function
+
+  Return:
+    1 or 0
+
 =cut
 #**********************************************************
 sub telegram_button_fn {
   my ($attr) = @_;
-  my $ret = '';
+  my $ret = 0;
   if (eval { require "buttons-enabled/$attr->{button}.pm"; 1; }) {
     my $obj = $attr->{button}->new($db, $admin, \%conf, $attr->{bot}, $attr->{bot_db});
     my $fn = $attr->{fn};

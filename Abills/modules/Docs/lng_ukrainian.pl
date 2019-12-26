@@ -60,3 +60,6 @@ $lang{PRINT_TERMO_PRINTER} = 'Чек для термо-прінтера';
 $lang{UNPAID_INVOICES} = 'Неоплачені рахунки';
 $lang{SAVE_CONTROL_SUM}='Завантажити контрольну суму документа';
 $lang{LIST_OF_CHARGES}='Список нарахувань';
+$lang{DELETED_GROUP}="Видалити групою";
+$lang{NO_CHECK_DOCUMENT}="Виберіть документи, які потрібно видалити";
+$lang{OPERATION}="Операція успішно виконана";

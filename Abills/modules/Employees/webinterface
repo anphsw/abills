@@ -562,13 +562,17 @@ sub employees_geolocation{
       TYPE      => 'checkbox',
       EX_PARAMS => $address{"STREET_ID_$line->{street_id}"} ? 'checked' : ''
     });
-    my $item2 = $html->element('label', $input2 . ' ' . $line->{street_name});
+
+    my $item2 = $html->element('label', $input2 . ' ' . ($line->{street_name} || q{}));
     $line->{street_name_check} = $item2;
+
     my $input3 = $html->form_input("DISTRICT_ID", $line->{district_id}, {
       TYPE      => 'checkbox',
-      EX_PARAMS => $address{"DISTRICT_ID_$line->{district_id}"} ? 'checked' : '',
-      ID        => $line->{district_id} });
-    my $item3 = $html->element('label', $input3 . ' ' . $line->{district_name});
+      EX_PARAMS => $address{'DISTRICT_ID_'. ($line->{district_id} || q{}) } ? 'checked' : '',
+      ID        => $line->{district_id}
+    });
+
+    my $item3 = $html->element('label', $input3 . ' ' . ($line->{district_name} || q{}));
     $line->{district_name_check} = $item3;
   }
   my $tree = $html->html_tree($list, $keys, { OUTPUT2RETURN => 1 });
@@ -891,11 +895,14 @@ sub form_admins_time_sheet {
   $work_hours_norm = $work_time_norms->[0]{hours} || 0;
   $work_time_norms_table_show = $work_time_norms_table->show();
 
+  #Fixme
+  my $tooltip_info = qq{$lang{WORKING_TIME_NORMS} $lang{HOURS}: $work_time_norms->[0]{hours}<br>$lang{WORKING_TIME_NORMS} $lang{DAYS}: $work_time_norms->[0]{days}};
+  my $info_button = qq{<a href="#" data-tooltip="$tooltip_info" data-tooltip-position='top'><i class="fa fa-info-circle"></i></a>};
 
   my $table = $html->table(
     {
       width       => '100%',
-      caption     => $lang{TIME_SHEET},
+      caption     => $lang{TIME_SHEET} . ' ' . $info_button,
       title_plain => \@title_days,
       class       => 'table table-hover table-condensed table-striped table-bordered',
       ID          => 'ADMINS_WORKS_LIST',
@@ -1625,11 +1632,12 @@ sub employees_rfid_log {
   
   my $admins_list = $admin->list(
     {
-      %LIST_PARAMS,
-      DOMAIN_ID     => $admin->{DOMAIN_ID},
-      COLS_NAME     => 1,
-      RFID_NUMBER   => '_SHOW',
-      FIO => '_SHOW',
+        %LIST_PARAMS,
+        DOMAIN_ID   => $admin->{DOMAIN_ID},
+        COLS_NAME   => 1,
+        RFID_NUMBER => '_SHOW',
+        FIO         => '_SHOW',
+        PAGE_ROWS   => 1000
     }
   );
   
@@ -1921,6 +1929,7 @@ sub employees_rfid_log_to_timesheet {
     SORT      => 'datetime',
     DESC      => 'desc',
     DATE      => $day_before,
+    PAGE_ROWS => 999999
   });
 
   my %admins_times;
@@ -2616,7 +2625,7 @@ sub employees_duty {
   }
 
   else {
-    $html->message('warn', 'shit', "/styles/lte_adm/plugins/fullcalendar/locale/$locale_code.js")
+    $html->message('warn', 'File not found', "/styles/lte_adm/plugins/fullcalendar/locale/$locale_code.js")
   }
 
   my $events_list = $Employees->employees_duty_list({

@@ -1809,13 +1809,13 @@ sub paysys_periodic {
     my ($y, $m, $mday) = split(/-/, $ADMIN_REPORT{DATE});
 
     #replace the parameters with your own values..
-    my $mon  = $m - 1;
-    my $year = $y - 1900;
+    my $mon       = $m - 1;
+    my $year      = $y - 1900;
     my $timestamp = POSIX::mktime(0, 0, 0, $mday, $mon, $year, 0, 0, -1);
     my $DATE      = POSIX::strftime('%Y-%m-%d', localtime($timestamp - 86400));
     my $res_arr   = paysys_portmone_result(0, { DEBUG => $debug, DATE => $DATE, FILE => ($attr->{FILE} || '') });
 
-    if ( ref $res_arr ne 'ARRAY' || scalar @$res_arr  == 0){
+    if ( ref $res_arr ne 'ARRAY' || scalar @$res_arr  == -1){
       return 0;
     }
 
@@ -6423,9 +6423,16 @@ sub paysys_privat_fastpay {
     $qr_code_image = $html->element('img', '', {scr => "$img_src_data", alt=>'', OUTPUT2RETURN => 1});
   }
 
-  my $link = $conf{PAYSYS_PRIVAT_TERMINAL_FAST_PAY} . "&acc=" . ($user->{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}} || $FORM{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}}) . "&amount=" . ($FORM{SUM} || 0);
+  my $user_account_id = ($user->{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}} || $FORM{$conf{PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY}});
+  my $sum = ($FORM{SUM} || 0);
+  my $link = $conf{PAYSYS_PRIVAT_TERMINAL_FAST_PAY} . "&acc=" . $user_account_id . "&amount=" . $sum ;
 
-  $html->tpl_show(_include('paysys_privat_terminal_fastpay', 'Paysys'), {LINK => $link, IMG_DATA => $qr_code_image});
+  $html->tpl_show(_include('paysys_privat_terminal_fastpay', 'Paysys'), {
+    LINK       => $link,
+    IMG_DATA   => $qr_code_image,
+    ACCOUNT_ID => $user_account_id,
+    SUM        => $sum
+  });
 
 }
 

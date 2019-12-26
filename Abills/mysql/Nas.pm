@@ -78,8 +78,9 @@ sub list {
       ['NAS_IDS',          'INT', 'nas.id'                               ],
       ['NAS_FLOOR',            'STR', 'nas.floor',          'nas.floor AS nas_floor'        ],
       ['NAS_ENTRANCE',         'STR', 'nas.entrance',      'nas.entrance AS nas_entrance'     ],
-      ['ADDRESS_FULL',     'STR', "CONCAT(streets.name, ' ', builds.number)",
-        "CONCAT(streets.name, ' ', builds.number) AS address_full" ]
+      ['ADDRESS_FULL',     'STR', "CONCAT(districts.name, ', ', streets.name, ' ', builds.number)",
+        "CONCAT(streets.name, ' ', builds.number) AS address_full" ],
+      ['ZABBIX_HOSTID',  'INT', 'nas.zabbix_hostid', 1 ]
     ],
     { WHERE => 1,
     }
@@ -206,8 +207,7 @@ sub info {
     domain_id
     $fields
  FROM nas
- WHERE $WHERE
- ORDER BY nas_identifier DESC;",
+ WHERE $WHERE;",
  undef,
  { INFO => 1 }
   );
@@ -271,6 +271,7 @@ sub change {
     LOCATION_ID      => 'location_id',
     FLOOR            => 'floor',
     ENTRANCE         => 'entrance',
+    ZABBIX_HOSTID    => 'zabbix_hostid',
   );
 
   $attr->{CHANGED} = 1;
@@ -428,9 +429,9 @@ sub nas_ip_pools_list {
     [ 'NAS_NAME',     'STR', 'n.name AS nas_name',                                  1],
     [ 'POOL_NAME',    'STR', 'pool.name AS pool_name',                              1],
     [ 'FIRST_IP',     'IP',  'INET_NTOA(pool.ip) AS first_ip',                      1],
-    [ 'LAST_IP',      'IP',  'INET_NTOA(pool.ip + pool.counts) AS last_ip',         1],
+    [ 'LAST_IP',      'IP',  'INET_NTOA(pool.ip + pool.counts - 1) AS last_ip',     1],
     [ 'IP',           'INT', 'pool.ip',                                             1],
-    [ 'LAST_IP_NUM',  'INT', '(pool.ip + pool.counts) AS last_ip_num',              1],
+    [ 'LAST_IP_NUM',  'INT', '(pool.ip + pool.counts - 1) AS last_ip_num',              1],
     [ 'IP_COUNT',     'INT', 'pool.counts AS ip_count',                             1],
     #[ 'IP_FREE',      'INT', '(pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts )) AS ip_free', 1],
     [ 'INTERNET_IP_FREE',  'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet WHERE internet.ip > pool.ip AND internet.ip <= pool.ip + pool.counts )) AS ip_free', 1],
@@ -444,6 +445,7 @@ sub nas_ip_pools_list {
     #    [ 'NAS_ID',       'INT', 'np.nas_id',                                      1],
     [ 'STATIC',       'INT', 'pool.static',                                         1],
     [ 'ACTIVE_NAS_ID','INT', 'IF(np.nas_id IS NULL, 0, np.nas_id) AS active_nas_id',1],
+    [ 'IP_SKIP',      'STR', 'pool.ip_skip'                                        ,1],
   ];
   
   if ($attr->{SHOW_ALL_COLUMNS}){
@@ -573,7 +575,7 @@ sub ip_pools_list {
 
     my $WHERE = ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
     $self->query2("SELECT '', pool.name,
-   pool.ip, pool.ip + pool.counts AS last_ip_num, pool.counts, pool.priority,
+   pool.ip, pool.ip + pool.counts - 1 AS last_ip_num, pool.counts, pool.priority,
     INET_NTOA(pool.ip) AS first_ip, INET_NTOA(pool.ip + pool.counts) AS last_ip,
     pool.id, pool.nas, pool.netmask as netmask, pool.gateway, pool.dns
     FROM ippools pool
@@ -592,8 +594,8 @@ sub ip_pools_list {
   my $WHERE = ($#WHERE_RULES > -1) ? "and " . join(' AND ', @WHERE_RULES) : '';
 
   $self->query2("SELECT nas.name, pool.name,
-   pool.ip, pool.ip + pool.counts AS last_ip_num, pool.counts, pool.priority,
-    INET_NTOA(pool.ip) AS first_ip, INET_NTOA(pool.ip + pool.counts) AS last_ip,
+   pool.ip, pool.ip + pool.counts - 1 AS last_ip_num, pool.counts, pool.priority,
+    INET_NTOA(pool.ip) AS first_ip, INET_NTOA(pool.ip + pool.counts - 1) AS last_ip,
     pool.id, pool.nas, pool.gateway, pool.netmask as netmask
     FROM ippools pool, nas
     WHERE pool.nas=nas.id
@@ -660,7 +662,7 @@ sub stats {
   my ($attr) = @_;
 
   my $WHERE = "WHERE DATE_FORMAT(start, '%Y-%m')=DATE_FORMAT(CURDATE(), '%Y-%m')";
-  my $SORT  = ($attr->{SORT} == 1) ? "1,2"         : $attr->{SORT};
+  my $SORT  = ($attr->{SORT} && $attr->{SORT} == 1) ? "1,2" : ($attr->{SORT} || 1);
   my $DESC  = ($attr->{DESC})      ? $attr->{DESC} : '';
 
   if (defined($attr->{NAS_ID})) {
@@ -1094,6 +1096,85 @@ sub nas_cmd_change {
 
   return $self;
 }
+
+
+#*******************************************************************
+=head2 divide_ips($attr) - divide ip pool to ips
+
+  Arguments:
+   $attr:
+    FIRST - start of ip pool
+    COUNT - count of ips
+    POOL_ID - id of ip pool
+
+  Returns:
+    1
+=cut
+#*******************************************************************
+sub divide_ips{
+  my $self = shift;
+  my ($attr) = (@_);
+
+  $self->query2("INSERT INTO ippools_ips (ip, ippool_id)
+  SELECT
+    (?+TWO_1.SeqValue + TWO_2.SeqValue + TWO_4.SeqValue + TWO_8.SeqValue + TWO_16.SeqValue + TWO_32.SeqValue + TWO_64.SeqValue + TWO_128.SeqValue + TWO_256.SeqValue + TWO_512.SeqValue + TWO_1024.SeqValue + TWO_2048.SeqValue + TWO_4096.SeqValue + TWO_8192.SeqValue + TWO_16384.SeqValue + TWO_32768.SeqValue+ TWO_65536.SeqValue) SeqValue, ?
+  FROM
+    (SELECT 0 SeqValue UNION ALL SELECT 1 SeqValue) TWO_1
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 2 SeqValue) TWO_2
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 4 SeqValue) TWO_4
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 8 SeqValue) TWO_8
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 16 SeqValue) TWO_16
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 32 SeqValue) TWO_32
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 64 SeqValue) TWO_64
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 128 SeqValue) TWO_128
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 256 SeqValue) TWO_256
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 512 SeqValue) TWO_512
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 1024 SeqValue) TWO_1024
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 2048 SeqValue) TWO_2048
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 4096 SeqValue) TWO_4096
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 8192 SeqValue) TWO_8192
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 16384 SeqValue) TWO_16384
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 32768 SeqValue) TWO_32768
+    CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 65536 SeqValue) TWO_65536
+  ORDER BY 1 LIMIT ?;", 'do', {
+    Bind => [$attr->{FIRST}, $attr->{POOL_ID}, $attr->{COUNT}],
+  });
+
+  return 1;
+}
+
+
+#*******************************************************************
+=head2 remove_ippools_ips($POLL_ID) - remove ippools_ips
+
+  Arguments:
+   POLL_ID - id of ip pool
+
+  Returns:
+    1
+=cut
+#*******************************************************************
+sub remove_ippools_ips{
+  my $self = shift;
+  my $POLL_ID = shift;
+
+  if ($POLL_ID->{CHG} || $POLL_ID->{DEL}) {
+    $self->query2("DELETE FROM ippools_ips WHERE ippool_id = ?",
+      undef,
+      {
+        Bind => [ ($POLL_ID->{CHG} ? $POLL_ID->{CHG} : $POLL_ID->{DEL}) ]
+      });
+  }
+  elsif ($POLL_ID->{IPPOOL_ID} && $POLL_ID->{IP}) {
+    $self->query2("DELETE FROM ippools_ips WHERE ippools_ips.ippool_id = ? AND ippools_ips.ip = ?",
+      undef,
+      {
+        Bind => [ $POLL_ID->{IPPOOL_ID}, $POLL_ID->{IP} ]
+      });
+  }
+  return 1;
+}
+
 
 1
 

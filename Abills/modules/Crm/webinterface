@@ -64,6 +64,20 @@ sub crm_today_actions {
 }
 
 #**********************************************************
+=head2 crm_sales_funnel_widget()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub crm_sales_funnel_widget {
+  return crm_sales_funnel({RETURN_TABLE => 1});
+}
+
+#**********************************************************
 =head2 paysys_start_page($attr)
 
   Arguments:
@@ -77,7 +91,8 @@ sub crm_start_page {
   #my ($attr) = @_;
 
   my %START_PAGE_F = (
-    'crm_today_actions' => "$lang{TODAY} $lang{ACTION}",
+    'crm_today_actions'       => "$lang{TODAY} $lang{ACTION}",
+    'crm_sales_funnel_widget' => $lang{SALES_FUNNEL},
   );
 
   return \%START_PAGE_F;

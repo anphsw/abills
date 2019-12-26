@@ -1,12 +1,12 @@
-<script language='JavaScript'>
-    function autoReload() {
-        document.iptv_user_info.add_form.value = '1';
-        document.iptv_user_info.TP_ID.value = '';
-        document.iptv_user_info.new.value = '$FORM{new}';
-        document.iptv_user_info.step.value = '$FORM{step}';
-        document.iptv_user_info.submit();
-    }
-</script>
+<!--<script language='JavaScript'>-->
+    <!--function autoReload() {-->
+        <!--// document.iptv_user_info.add_form.value = '1';-->
+        <!--// document.iptv_user_info.TP_ID.value = '';-->
+        <!--// document.iptv_user_info.new.value = '$FORM{new}';-->
+        <!--// document.iptv_user_info.step.value = '$FORM{step}';-->
+        <!--// document.iptv_user_info.submit();-->
+    <!--}-->
+<!--</script>-->
 
 <form action='$SELF_URL' method=post name='iptv_user_info' class='form-horizontal'>
     <input type=hidden name=index value=$index>
@@ -18,7 +18,7 @@
     <input type=hidden name='add_form' value=''>
 
     <fieldset>
-%NEXT_FEES_WARNING%
+        %NEXT_FEES_WARNING%
         <div class='box box-theme box-form box-big-form'>
             <div class='box-header with-border'><h4 class='box-title'>_{TV}_: %ID%</h4></div>
             <div class='box-body'>
@@ -26,7 +26,7 @@
                 %SUBSCRIBE_FORM%
                 %SERVICE_FORM%
                 <div class='form-group'>
-                    <label class='control-label col-md-3' for='TP_NUM'>_{TARIF_PLAN}_:</label>
+                    <label class='control-label col-md-3'>_{TARIF_PLAN}_:</label>
                     <div class='col-md-9'>
                         %TP_ADD%
                         <div class='input-group' %TP_DISPLAY_NONE%>
@@ -42,7 +42,7 @@
                 </div>
 
                 <div class='form-group'>
-                    <label class='control-label col-md-3' for='STATUS_SEL'>_{STATUS}_:</label>
+                    <label class='control-label col-md-3'>_{STATUS}_:</label>
                     <div class='col-md-9' style='background: %STATUS_COLOR%;'>
                         %STATUS_SEL%
                     </div>
@@ -66,82 +66,81 @@
                 </div>
 
 
-
-                    <div class='box box-default box-big-form collapsed-box'>
-                        <div class='box-header with-border'>
-                            <h3 class='box-title'>_{EXTRA}_</h3>
-                            <div class='box-tools pull-right'>
-                                <button type='button' class='btn btn-box-tool' data-widget='collapse'><i
-                                        class='fa fa-plus'></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class='box-body'>
-
-                            <div class='form-group'>
-                                <label class='control-label col-md-3' for='FILTER_ID'>Filter-ID:</label>
-                                <div class='col-md-9'>
-                                    <input id='FILTER_ID' name='FILTER_ID' value='%FILTER_ID%' placeholder='%FILTER_ID%'
-                                           class='form-control' type='text'>
-                                </div>
-                            </div>
-
-                            <div class='form-group'>
-                                <label class='control-label col-md-3' for='PIN'>PIN:</label>
-                                <div class='col-md-9'>
-                                    <input id='PIN' name='PIN' value='%PIN%' placeholder='%PIN%' class='form-control'
-                                           type='text'>
-                                </div>
-                            </div>
-
-                            <div class='form-group'>
-                                <label class='control-label col-md-3' for='DISABLE'>VoD:</label>
-                                <div class='col-md-9'>
-                                    <input id='VOD' name='VOD' value='1' %VOD% type='checkbox'>
-                                </div>
-                            </div>
-
-                            <div class='form-group'>
-                                <label class='control-label col-md-3' for='DVCRYPT_ID'>DvCrypt ID:</label>
-                                <div class='col-md-9'>
-                                    <input id='DVCRYPT_ID' name='DVCRYPT_ID' value='%DVCRYPT_ID%'
-                                           placeholder='%DVCRYPT_ID%' class='form-control' type='text'>
-                                </div>
-                            </div>
-
-                            %IPTV_MODEMS%
-
-                            <div class='form-group'>
-                                <label class='control-label col-md-3' for='IPTV_ACTIVATE'>_{ACTIVATE}_:</label>
-                                <div class='col-md-3'>
-                                    <input id='IPTV_ACTIVATE' name='IPTV_ACTIVATE' value='%IPTV_ACTIVATE%'
-                                           placeholder='%IPTV_ACTIVATE%' class='datepicker form-control' type='text'>
-                                </div>
-                                <label class='control-label col-md-2' for='IPTV_EXPIRE'>_{EXPIRE}_:</label>
-                                <div class='col-md-4'>
-                                    <input id='IPTV_EXPIRE' name='IPTV_EXPIRE' value='%IPTV_EXPIRE%'
-                                           placeholder='%IPTV_EXPIRE%' class='datepicker form-control' type='text'>
-                                </div>
-                            </div>
-
-                            <div class='form-group'>
-                                <label class='control-label col-md-3' for='ID'>ID:</label>
-                                <div class='col-md-3'>
-                                    <input value='%ID%' class='form-control' disabled>
-                                </div>
-                                <label class='control-label col-md-2' for='SERVICE_ID'>_{SERVICE}_:</label>
-                                <div class='col-md-4'>
-                                    <input value='%SUBSCRIBE_ID%' class='form-control' disabled>
-                                </div>
-
-                            </div>
-
-
-                            <div class='form-group'>
-                                %EXTERNAL_INFO%
-                            </div>
+                <div class='box box-default box-big-form collapsed-box'>
+                    <div class='box-header with-border'>
+                        <h3 class='box-title'>_{EXTRA}_</h3>
+                        <div class='box-tools pull-right'>
+                            <button type='button' class='btn btn-box-tool' data-widget='collapse'><i
+                                    class='fa fa-plus'></i>
+                            </button>
                         </div>
                     </div>
+                    <div class='box-body'>
+
+                        <div class='form-group'>
+                            <label class='control-label col-md-3' for='FILTER_ID'>Filter-ID:</label>
+                            <div class='col-md-9'>
+                                <input id='FILTER_ID' name='FILTER_ID' value='%FILTER_ID%' placeholder='%FILTER_ID%'
+                                       class='form-control' type='text'>
+                            </div>
+                        </div>
+
+                        <div class='form-group'>
+                            <label class='control-label col-md-3' for='PIN'>PIN:</label>
+                            <div class='col-md-9'>
+                                <input id='PIN' name='PIN' value='%PIN%' placeholder='%PIN%' class='form-control'
+                                       type='text'>
+                            </div>
+                        </div>
+
+                        <div class='form-group'>
+                            <label class='control-label col-md-3' for='VOD'>VoD:</label>
+                            <div class='col-md-9'>
+                                <input id='VOD' name='VOD' value='1' %VOD% type='checkbox'>
+                            </div>
+                        </div>
+
+                        <div class='form-group'>
+                            <label class='control-label col-md-3' for='DVCRYPT_ID'>DvCrypt ID:</label>
+                            <div class='col-md-9'>
+                                <input id='DVCRYPT_ID' name='DVCRYPT_ID' value='%DVCRYPT_ID%'
+                                       placeholder='%DVCRYPT_ID%' class='form-control' type='text'>
+                            </div>
+                        </div>
+
+                        %IPTV_MODEMS%
+
+                        <div class='form-group'>
+                            <label class='control-label col-md-3' for='IPTV_ACTIVATE'>_{ACTIVATE}_:</label>
+                            <div class='col-md-3'>
+                                <input id='IPTV_ACTIVATE' name='IPTV_ACTIVATE' value='%IPTV_ACTIVATE%'
+                                       placeholder='%IPTV_ACTIVATE%' class='datepicker form-control' type='text'>
+                            </div>
+                            <label class='control-label col-md-2' for='IPTV_EXPIRE'>_{EXPIRE}_:</label>
+                            <div class='col-md-4'>
+                                <input id='IPTV_EXPIRE' name='IPTV_EXPIRE' value='%IPTV_EXPIRE%'
+                                       placeholder='%IPTV_EXPIRE%' class='datepicker form-control' type='text'>
+                            </div>
+                        </div>
+
+                        <div class='form-group'>
+                            <label class='control-label col-md-3' for='ID'>ID:</label>
+                            <div class='col-md-3'>
+                                <input value='%ID%' ID='ID' class='form-control' disabled>
+                            </div>
+                            <label class='control-label col-md-2' for='SUBSCRIBE_ID'>_{SERVICE}_:</label>
+                            <div class='col-md-4'>
+                                <input value='%SUBSCRIBE_ID%' class='form-control' ID='SUBSCRIBE_ID' disabled>
+                            </div>
+
+                        </div>
+
+
+                        <div class='form-group'>
+                            %EXTERNAL_INFO%
+                        </div>
+                    </div>
+                </div>
 
 
                 <div class='box-footer'>
@@ -158,3 +157,20 @@
 
 </form>
 
+<script>
+    var tp_select = document.getElementById("TP_ID");
+    tp_select.textContent = "";
+    tp_select.value = "";
+
+    autoReload();
+
+    function autoReload() {
+        var services = document.getElementById("SERVICE_ID");
+        var result = services.value;
+        jQuery.post('$SELF_URL', 'header=2&get_index=iptv_get_service_tps&SERVICE_ID=' + result, function (data) {
+            tp_select.textContent = "";
+            tp_select.value = "";
+            tp_select.innerHTML = data;
+        });
+    }
+</script>

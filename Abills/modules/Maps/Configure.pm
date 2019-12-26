@@ -234,9 +234,10 @@ sub maps_show_custom_point_form {
   }
   
   my $address_sel = $html->tpl_show( templates('form_show_hide'), {
-      NAME    => $lang{ADDRESS},
-      CONTENT => $html->tpl_show( templates('form_address_build_sel'), { }, { OUTPUT2RETURN => 1 } ),
-      PARAMS  => $attrs{HAS_CLOSEST} ? 'collapsed-box' : ''
+    NAME        => $lang{ADDRESS},
+    CONTENT     => $html->tpl_show(templates('form_address_build_sel'), {}, { OUTPUT2RETURN => 1 }),
+    PARAMS      => $attrs{HAS_CLOSEST} ? 'collapsed-box' : '',
+    BUTTON_ICON => $attrs{HAS_CLOSEST} ? 'plus' : 'minus'
     }, { OUTPUT2RETURN => 1 });
   
   $html->tpl_show(
@@ -1158,11 +1159,12 @@ sub maps_builds_quick {
       }
       
       $streets_content .= $html->tpl_show( templates('form_show_hide'), {
-          NAME    => $street->{street_name}
-            . ( $street->{second_name} ? " ( $street->{second_name} ) " : '' )
-            . ' ( ' . (scalar @{$builds_list}) . ' )',
-          CONTENT => '<div class="button-block">' . $builds_content . '</div>',
-          PARAMS  => 'collapsed-box'
+        NAME        => $street->{street_name}
+          . ($street->{second_name} ? " ( $street->{second_name} ) " : '')
+          . ' ( ' . (scalar @{$builds_list}) . ' )',
+        CONTENT     => '<div class="button-block">' . $builds_content . '</div>',
+        PARAMS      => 'collapsed-box',
+        BUTTON_ICON => 'plus'
         },
         {
           OUTPUT2RETURN => 1
@@ -1170,9 +1172,10 @@ sub maps_builds_quick {
     }
     
     $html->tpl_show( templates('form_show_hide'), {
-        NAME    => $lang{DISTRICT} . ' ' . $district->{name} . ' ( ' . (scalar @{$streets_list}) . ' )',
-        CONTENT => $streets_content,
-        PARAMS  => 'collapsed-box'
+      NAME        => $lang{DISTRICT} . ' ' . $district->{name} . ' ( ' . (scalar @{$streets_list}) . ' )',
+      CONTENT     => $streets_content,
+      PARAMS      => 'collapsed-box',
+      BUTTON_ICON => 'plus'
       } )
   };
 

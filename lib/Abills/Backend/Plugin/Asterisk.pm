@@ -218,6 +218,10 @@ sub process_asterisk_newchannel {
     my $caller_number = $event->{CallerIDNum};
 
     return unless $caller_number && $called_number;
+
+    if($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}){
+      $caller_number =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
+    }
     
     # CALLCENTER CODE
     if ( in_array('Callcenter', \@MODULES) ) {
@@ -395,7 +399,7 @@ sub get_admin_by_sip_number {
 #**********************************************************
 sub notify_admin_about_new_call {
   my ($called_number, $caller_number) = @_;
-  
+
   my $aid = get_admin_by_sip_number($called_number);
   
   if ( !$aid ) {
@@ -415,6 +419,7 @@ sub notify_admin_about_new_call {
     FIO          => '_SHOW',
     DEPOSIT      => '_SHOW',
     ADDRESS_FULL => '_SHOW',
+    CITY         => '_SHOW',
     COMPANY_NAME => '_SHOW',
     COLS_UPPER   => 1,
     COLS_NAME    => 1 });
@@ -428,7 +433,7 @@ sub notify_admin_about_new_call {
   foreach my $user_info (@$search_list){
 
     my $notification = _create_user_info_notification({ %{$user_info}, });
-
+    # Notify admin by messageChecker.ParseMessage
     $websocket_api->notify_admin($aid, $notification);
   }
   
@@ -474,22 +479,25 @@ sub _create_user_info_notification {
   my $Internet = ();
   my $Sessions = ();
   my $tp_name  = '';
+  my $internet_status = '';
   if (in_array( 'Internet', \@MODULES )) {
     require Internet;
     require Internet::Sessions;
     $Internet = Internet->new($db, $admin, \%conf);
     $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
-    my $user_session = $Sessions->list({
+    my $user_internet_main = $Internet->list({
       UID        => $user_info->{UID},
       TP_NAME    => '_SHOW',
+      INTERNET_STATUS => '_SHOW',
       SORT       => 2,
       DESC       => 'DESC',
       COLS_NAME  => 1,
       COLS_UPPER => 1,
       PAGE_ROWS  => 1});
 
-    $tp_name = $user_session->[0]->{tp_name} || '';
+    $tp_name = $user_internet_main->[0]->{tp_name} || '';
+    $internet_status = $user_internet_main->[0]->{internet_status} || '0';
   }
 
   my $title = ($user_info->{FIO} || '')
@@ -499,11 +507,27 @@ sub _create_user_info_notification {
     . ' )';
   
   #TODO: localization
-  my $text = 'Deposit : ' . $user_info->{DEPOSIT} . '<br/>' . Encode::decode('utf8', ($user_info->{ADDRESS_FULL} || '')) . "<br/>" . Encode::decode('utf8', ($tp_name || ''));
+  our %lang;
+  do "$base_dir/language/" . ($conf{default_language} || 'english' ) . ".pl";
+  my @service_status        = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
+    "$lang{DISABLE}: $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT},
+    $lang{VIRUS_ALERT} );
+  my $money_name = '';
+  if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY'){
+    $money_name = $conf{MONEY_UNIT_NAMES}->[0] || '';
+  }
+  my $text = "$lang{DEPOSIT} : " . sprintf('%.2f', ($user_info->{DEPOSIT} || 0)) . " $money_name"
+    . '<br/>'
+    . "$lang{ADDRESS} : " . ($user_info->{CITY} || '') . ' ' . ($user_info->{ADDRESS_FULL} || '')
+    . "<br>"
+    . "$lang{TARIF_PLAN} : " . sprintf('%.25s', $tp_name)
+    . "<br>"
+  . "$lang{STATUS} : $service_status[$internet_status]";
+
   
   my $result = {
     TITLE  => Encode::decode('utf8', $title),
-    TEXT   => $text,
+    TEXT   => Encode::decode('utf8', $text),
     EXTRA  => '?index=15&UID=' . $user_info->{UID},
     CLIENT => {
       UID   => $user_info->{UID},

@@ -4,7 +4,7 @@
 
   <fieldset>
     <div class='box box-theme box-form'>
-      <div class='box-header with-border'>_{SEARCH}_</div>
+      <div class='box-header with-border'><h4 class='box-title'>_{SEARCH}_</h4></div>
       <div class='box-body form form-horizontal'>
 
         <div class='form-group'>
@@ -45,6 +45,13 @@
           <label class='col-md-3 control-label' for='ARTICLE_SEARCH_id'>SN</label>
           <div class='col-md-9'>
             <input class='form-control' type='text' name='SERIAL' value='%SERIAL%'>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label class='col-md-3 control-label'>_{STATUS}_</label>
+          <div class='col-md-9'>
+            %STATUS%
           </div>
         </div>
 

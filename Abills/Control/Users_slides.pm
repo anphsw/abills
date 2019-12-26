@@ -62,7 +62,7 @@ sub quick_info_portal_session {
 }
 
 #**********************************************************
-=head2 quick_info_pi() User personal  information for slides
+=head2 quick_info_pi($attr) User personal  information for slides
 
 =cut
 #**********************************************************
@@ -70,12 +70,15 @@ sub quick_info_pi {
   my ($attr)  = @_;
 
   $users->pi({ UID => $attr->{UID} });
+  # $users->{COMMENTS} =~ s/[\r\n]+/ /g;
+  # $users->{COMMENTS} =~ s/\\/\\\\/g;
+  # $users->{COMMENTS} =~ s/\"/\\\\\\\"/g;
 
   return $users;
 }
 
 #**********************************************************
-=head2 quick_info_payments() User personal  information for slides
+=head2 quick_info_payments($attr) User personal  information for slides
 
 =cut
 #**********************************************************
@@ -99,7 +102,6 @@ sub quick_info_payments {
 
   my $result = [];
   if($Payments->{TOTAL} && $Payments->{TOTAL} > 0) {
-    #_bp($Payments->{TOTAL}, $list);
     $result = $list->[0];
     my $payments_methods = get_payment_methods();
     $result->{METHOD} = $payments_methods->{$result->{METHOD}};
@@ -268,8 +270,8 @@ sub user_full_info {
   my $uid      = $attr->{UID} || $FORM{UID} || $LIST_PARAMS{UID};
 
   if(! $uid) {
-    push @info_arr, q/{ "ERROR" : 'Undefined UID' }/;
-    return $info = "[". join(",\n", @info_arr) ."]";
+    push @info_arr, q/{ "ERROR" : "Undefined UID" }/;
+    return $info = join(",\n", @info_arr);
   }
 
   for(my $slide_num=0; $slide_num <= $#{ $base_slides }; $slide_num++ ) {
@@ -323,7 +325,12 @@ sub user_full_info {
            $information .= '-';
          }
          elsif(defined($field_info->{$field_name})) {
-           $information .= $field_info->{$field_name};
+           my $value = $field_info->{$field_name} || q{};
+           $value =~ s/[\r\n]+/ /g;
+           $value =~ s/\\/\\\\/g;
+           $value =~ s/\"/\\\\\\\"/g;
+
+           $information .= $value;
          }
 
         $information .= qq{" };

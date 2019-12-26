@@ -68,11 +68,22 @@ sub new {
 #**********************************************************
 =head2 form_input()
 
+  Arguments:
+    $name,
+    $value
+
+  Results:
+    Input form
+
 =cut
 #**********************************************************
 sub form_input {
   my $self = shift;
   my ($name, $value) = @_;
+
+  $value //= q{};
+  $value =~ s/\\/\\\\/g;
+  $value =~ s/\"/\\\\\\\"/g;
 
   $self->{FORM_INPUT} = "\"$name\" : { \"value\" : \"$value\" }";
 
@@ -139,8 +150,8 @@ sub form_main {
   }
   elsif (! $attr->{OUTPUT2RETURN}) {
     push @{ $self->{JSON_OUTPUT} }, {
-        $tpl_id => $json_body
-      };
+      $tpl_id => $json_body
+    };
     return q{};
   }
 
@@ -347,7 +358,7 @@ sub menu {
 
   return ('', '');
 
-  return ($menu_navigator, $menu_text);
+  #return ($menu_navigator, $menu_text);
 }
 
 
@@ -408,9 +419,15 @@ sub table {
   }
 
   if ($attr->{rows}) {
-    foreach my $line (@{ $attr->{rows} }) {
-      $self->addrow(@$line);
-    }
+    # if( @{ $attr->{rows} } <= 1 && ! $attr->{ID}) {
+    #   $self->{table} = q{};
+    #   return $self;
+    # }
+    # else {
+      foreach my $line (@{$attr->{rows}}) {
+        $self->addrow(@$line);
+      }
+    #}
   }
 
   $self->{ID} = $attr->{ID} || q{};
@@ -419,7 +436,7 @@ sub table {
     $self->{SELECT_ALL}=$attr->{SELECT_ALL};
   }
 
-  if ($FORM{EXPORT_CONTENT} eq $self->{ID}) {
+  if ($self->{ID} && $FORM{EXPORT_CONTENT} eq $self->{ID}) {
     #$self->{table} .= "{";
   }
   else {
@@ -428,6 +445,10 @@ sub table {
 
   if (defined($attr->{caption})) {
     $self->{table} .= " \"CAPTION\" : \"$attr->{caption}\",\n";
+  }
+
+  if(defined $attr->{rows}) {
+
   }
 
   if (defined($self->{ID})) {
@@ -477,7 +498,6 @@ sub addrow {
 
   for (my $i=0; $i<=$#row; $i++) {
     my $val = $row[$i+$select_present];
-
     if ($self->{FIELDS_IDS}) {
       #if (! $self->{FIELDS_IDS}->[$i] || $self->{TABLE_TITLE}->[$i+$select_present]) {
       if ($self->{TABLE_TITLE}->[$i]) {
@@ -688,9 +708,24 @@ sub show {
 =cut
 #**********************************************************
 sub color_mark {
-#  my ($self,$text, $color) = @_;
   return $_[1] || '';
 }
+
+#**********************************************************
+=head2 b($text) - colors text
+
+  Arguments:
+    $text
+
+  Returns:
+    $text
+
+=cut
+#**********************************************************
+sub b {
+  return $_[1] || '';
+}
+
 
 #**********************************************************
 =head2 button($name, $params, $attr)
@@ -905,7 +940,6 @@ sub tpl_show {
     $self->{tpl_num}++;
   }
 
-  my $json_body = "{\n" ;
   while ($tpl =~ /\%(\w+)\%/g) {
     my $var = $1;
 
@@ -918,7 +952,7 @@ sub tpl_show {
     elsif ($variables_ref->{$var}) {
       if ($variables_ref->{$var} !~ m/\{/g) {
         $variables_ref->{$var} =~ s/\\/\\\\/g;
-        $variables_ref->{$var} =~ s/\"/\\\"/g;
+        $variables_ref->{$var} =~ s/\"/\\\\\\\"/g;
         my $value = "\"$var\" : \"$variables_ref->{$var}\"";
         if(! grep { $_ eq $value } @val_arr) {
           push @val_arr, $value;
@@ -941,14 +975,22 @@ sub tpl_show {
     }
   }
 
-  $json_body .= join(",\n  ", @val_arr);
-  $json_body .= "}\n" ;
+  my $json_body = q{};
+
+  if($#val_arr > -1) {
+    $json_body = "{\n";
+    $json_body .= '' . join(",\n  ", @val_arr);
+    $json_body .= "}\n";
+  }
+
   $xml_tpl .= $json_body."\n";
 
   if (! $attr->{OUTPUT2RETURN}) {
-    push @{ $self->{JSON_OUTPUT} }, {
+    if($json_body) {
+      push @{$self->{JSON_OUTPUT}}, {
         $tpl_id => $json_body
       };
+    }
     return ;
   }
   else {

@@ -34,35 +34,34 @@ sub send_message {
   my ($attr) = @_;
 
   unless ($attr->{TO_ADDRESS}){
-    print "No recipient address given \n" if($self->{debug});
+    print "No recipient address given \n" if ($self->{debug});
     return 0;
   };
+  
+  my $sms_pattern = $self->{conf}->{SMS_NUMBER} || "[0-9]{12}";
+  if ($attr->{TO_ADDRESS} !~ /$sms_pattern/) {
+    return 0;
+  }
 
-  our $html = Abills::HTML->new();
-  our $admin= $self->{admin};
-  our %conf = %{ $self->{conf} };
-  our $db   = $self->{db};
-
-  do 'Abills/Misc.pm';
-  load_module('Sms', $html);
-
-  my $status = sms_send(
-     {
-       NUMBER    => $attr->{TO_ADDRESS},
-       MESSAGE   => $attr->{MESSAGE},
-       DEBUG     => $attr->{debug},
-       UID       => $attr->{UID},
-       PERIODIC  => 1
-     }
-  );
-  $self->{status}=$status;
-  $self->{message_id}=$status;
-
-  my $uid = $attr->{UID} || 0;
-
-  print "Start send sms: $uid //\n";
+  use Sms::Init;
+  my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf});
+  my $sms_result = $Sms_service->send_sms({
+    NUMBER     => $attr->{TO_ADDRESS},
+    MESSAGE    => $attr->{MESSAGE}
+  });
 
   return 1;
+}
+
+#**********************************************************
+=head2 contact_types() -
+
+=cut
+#**********************************************************
+sub contact_types {
+  my $self = shift;
+
+  return $self->{conf}->{SMS_CONTACT_ID} || 1;
 }
 
 #**********************************************************

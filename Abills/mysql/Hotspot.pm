@@ -2,7 +2,7 @@ package Hotspot;
 
 use strict;
 use warnings FATAL => 'all';
-use parent "main";
+use parent 'dbcore';
 use POSIX;
 
 #**********************************************************
@@ -75,7 +75,7 @@ sub visits_list {
     }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} hv.id
     FROM hotspot_visits hv
     LEFT JOIN hotspot_oses ho ON (hv.os_id = ho.id)
@@ -103,7 +103,7 @@ sub visits_list {
 sub visits_count  {
   my $self = shift;
 
-  $self->query2("SELECT COUNT(*)FROM hotspot_visits");
+  $self->query("SELECT COUNT(*)FROM hotspot_visits");
 
   return -1 if $self->{errno};
 
@@ -186,7 +186,7 @@ sub visits_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
+  $self->changes(
     {
       CHANGE_PARAM => 'ID',
       TABLE        => 'hotspot_visits',
@@ -244,7 +244,7 @@ sub logins_list {
     }
   );
 
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} hv.id
      FROM hotspot_logins hl
      LEFT JOIN hotspot_visits hv ON (hl.visit_id = hv.id)
@@ -357,7 +357,7 @@ sub logins_change {
   my $self = shift;
   my ($attr) = @_;
   
-  $self->changes2( {
+  $self->changes( {
       CHANGE_PARAM => 'ID',
       TABLE        => 'hotspot_logins',
       DATA         => $attr,
@@ -403,7 +403,7 @@ sub user_agents_list{
     }
   );
   
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id FROM hotspot_user_agents $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id FROM hotspot_user_agents $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
     COLS_NAME => 1,
     %{ $attr ? $attr : {}}}
   );
@@ -492,7 +492,7 @@ sub oses_list{
     }
   );
   
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id FROM hotspot_oses $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id FROM hotspot_oses $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
     COLS_NAME => 1,
     COLS_UPPER => 1,
     %{ $attr ? $attr : {}}}
@@ -579,7 +579,7 @@ sub oses_change{
   my $self = shift;
   my ($attr) = @_;
   
-  $self->changes2({
+  $self->changes({
       CHANGE_PARAM => 'ID',
       TABLE        => 'hotspot_oses',
       DATA         => $attr,
@@ -625,7 +625,7 @@ sub browsers_list{
     }
   );
   
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id FROM hotspot_browsers $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id FROM hotspot_browsers $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
     COLS_NAME => 1,
     COLS_UPPER => 1,
     %{ $attr ? $attr : {}}}
@@ -712,7 +712,7 @@ sub browsers_change{
   my $self = shift;
   my ($attr) = @_;
   
-  $self->changes2({
+  $self->changes({
       CHANGE_PARAM => 'ID',
       TABLE        => 'hotspot_browsers',
       DATA         => $attr,
@@ -767,7 +767,7 @@ sub adverts_list{
     }
   );
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} ad.id
+  $self->query( "SELECT $self->{SEARCH_FIELDS} ad.id
    FROM hotspot_adverts ad
     LEFT JOIN nas n ON (ad.nas_id = n.id)
     LEFT JOIN hotspot_advert_shows ads ON (ad.id = ads.ad_id)
@@ -862,7 +862,7 @@ sub adverts_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2({
+  $self->changes({
       CHANGE_PARAM => 'ID',
       TABLE        => 'hotspot_adverts',
       DATA         => $attr,
@@ -908,7 +908,7 @@ sub advert_shows_list{
     }
   );
 
-  $self->query2( "SELECT $self->{SEARCH_FIELDS} id FROM hotspot_advert_shows $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
+  $self->query( "SELECT $self->{SEARCH_FIELDS} id FROM hotspot_advert_shows $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;", undef, {
     COLS_NAME => 1,
     COLS_UPPER => 1,
     %{ $attr ? $attr : {}}}
@@ -999,7 +999,7 @@ sub advert_shows_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2({
+  $self->changes({
       CHANGE_PARAM => 'ID',
       TABLE        => 'hotspot_advert_shows',
       DATA         => $attr,
@@ -1035,7 +1035,7 @@ sub advert_shows_count {
     }
   );
 
-  $self->query2("SELECT COUNT(*) AS TOTAL FROM hotspot_advert_shows $WHERE GROUP by id", undef, {
+  $self->query("SELECT COUNT(*) AS TOTAL FROM hotspot_advert_shows $WHERE GROUP by id", undef, {
     COLS_NAME => 1,
     %{ $attr ? $attr : {} }
   });
@@ -1057,9 +1057,9 @@ sub request_random_ad {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT id, url FROM hotspot_adverts ORDER BY RAND() LIMIT 1", undef, $attr);
+  $self->query("SELECT id, url FROM hotspot_adverts ORDER BY RAND() LIMIT 1", undef, $attr);
 
-  if ($self->{errno} || scalar( @{ $self->{list} } ) < 1){
+  if ($self->{errno} || $self->{TOTAL} < 1){
     return '';
   };
 
@@ -1102,7 +1102,7 @@ sub log_list {
     { WHERE => 1 }
   );
 
-  $self->query2("SELECT 
+  $self->query("SELECT 
       $self->{SEARCH_FIELDS}
       date,
       id
@@ -1118,7 +1118,7 @@ sub log_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} >= 0 && !$attr->{SKIP_TOTAL}) {
-    $self->query2("SELECT count( DISTINCT id) AS total FROM hotspot_log
+    $self->query("SELECT count( DISTINCT id) AS total FROM hotspot_log
     $WHERE",
       undef,
       { INFO => 1 }
@@ -1160,7 +1160,7 @@ sub advert_pages_list {
     { WHERE => 1 }
   );
 
-  $self->query2("SELECT 
+  $self->query("SELECT 
       $self->{SEARCH_FIELDS}
       id
       FROM hotspot_advert_pages
@@ -1197,7 +1197,7 @@ sub advert_pages_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2({
+  $self->changes({
       CHANGE_PARAM => 'ID',
       TABLE        => 'hotspot_advert_pages',
       DATA         => $attr,
@@ -1216,6 +1216,78 @@ sub advert_pages_del {
   my ($attr) = @_;
 
   $self->query_del( 'hotspot_advert_pages', $attr );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 load_conf($hotspot_name)
+
+=cut
+#**********************************************************
+sub load_conf {
+  my $self = shift;
+  my ($hotspot_name) = @_;
+
+  $self->query("SELECT action, page
+      FROM hotspot_advert_pages
+      WHERE hostname = ?;",
+    undef,
+    { Bind => [ $hotspot_name ], COLS_NAME => 1 }
+  );
+  
+  foreach my $line (@{$self->{list}}) {
+    $self->{hotspot_conf}->{$line->{action}} = $line->{page};
+  }
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 next_login
+
+=cut
+#**********************************************************
+sub next_login {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $login_regexp = '^' . $attr->{LOGIN_PREFIX} . '[0-9]{' . $attr->{LOGIN_LENGTH} . '}$';
+
+  $self->query("SELECT id
+      FROM users
+      WHERE id REGEXP '$login_regexp'
+      AND domain_id = ?
+      ORDER BY id DESC
+      LIMIT 1;",
+    undef,
+    { Bind => [ $attr->{DOMAIN_ID} ], COLS_NAME => 1 }
+  );
+
+  my $last_login = 0;
+
+  if ($self->{list}) {
+    $last_login = substr($self->{list}[0]{id}, -$attr->{LOGIN_LENGTH});
+  }
+
+  my $new_login = sprintf("%s%0*d", $attr->{LOGIN_PREFIX}, $attr->{LOGIN_LENGTH}, $last_login + 1);
+
+  return $new_login;
+}
+
+#**********************************************************
+=head2 change_tp
+
+=cut
+#**********************************************************
+sub change_tp {
+  my $self = shift;
+  my ($attr) = @_;
+  $self->changes({
+    CHANGE_PARAM => 'UID',
+    TABLE        => 'internet_main',
+    DATA         => $attr
+  });
 
   return 1;
 }

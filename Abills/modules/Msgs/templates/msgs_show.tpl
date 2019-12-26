@@ -53,9 +53,11 @@
                 </div>
                 <div class='box-body' style='text-align: left'>
                     %MESSAGE%
-                    <div class='pull-right'>%QUOTING% %DELETE%</div>
                 </div>
-                <div class='box-footer'>%RUN_TIME% %ATTACHMENT%</div>
+                <div class='box-footer'>
+                    %RUN_TIME% %ATTACHMENT%
+                    <div class='pull-right'>%QUOTING% %DELETE% %EDIT%</div>
+                </div>
             </div>
 
             %REPLY%
@@ -74,12 +76,13 @@
   var saveStr = '_{SAVE}_';
   var cancelStr = '_{CANCEL}_';
   var replyId = 0;
+  var editedStr = '_{CHANGED}_';
 
   function save_reply(element) {
     var replyText = jQuery('.reply-edit').val();
     var date = new Date();
     var dateStr = date.toISOString().slice(0,10) + " " + date.toTimeString().slice(0,9) + "(%ADMIN_LOGIN%)";
-    replyText = replyText + "\n\n\nEdited: " + dateStr;
+    replyText = replyText + "\n\n\n" + editedStr + ": " + dateStr;
     var replyHtml = replyText.replace(/\</g, "&lt")
                              .replace(/\>/g, "&gt")
                              .replace(/\n/g, "<br />");
@@ -101,7 +104,7 @@
         .append("<button type='button' class='btn btn-default btn-xs reply-cancel'>" + cancelStr + "</button>");
       replyElement.children().first().focus();
       
-      jQuery(".reply-save").click(function(){
+      jQuery(".reply-save").click(function(event){
         event.preventDefault();
         save_reply(this);
         replyId = 0;

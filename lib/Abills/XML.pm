@@ -935,6 +935,17 @@ sub normalize_str {
 
   return $text;
 }
+#**********************************************************
+=head2  b($text)
+
+=cut
+#**********************************************************
+sub b {
+   my $self = shift;
+   my ($text) = @_;
+
+  return $text;
+}
 
 #**********************************************************
 =head2  AUTOLOAD Autoload secondary funtions

@@ -8,6 +8,8 @@ $lang{UNITS}='Одиниць';
 $lang{CHOOSE}='Виберіть';
 $lang{LEAD}='Потенційний кліент';
 $lang{LEADS}='Потенційні кліенти';
+$lang{POTENTIAL_LEADS}='Потенційні';
+$lang{CONVERT_LEADS}='Конвертовані';
 $lang{MINUTES}='Хвилини';
 $lang{LEAD_NOT_FOUND}='Потенційний клієнт не знайдений';
 $lang{INPUT_DATA_TO_ADD_LEAD}='Введіть дані щоб добавити нового клієнта';
@@ -25,6 +27,7 @@ $lang{THE_WORKS}='Проводяться роботи';
 $lang{CONVERSION}='Конвертація';
 $lang{BIND_USER}='Привязати користувача';
 $lang{PROGRESS_BAR}='Лінійка виконання';
+$lang{PLANNED} = 'Запланована';
 
 $lang{CHANGED}='Зміни внесені';
 $lang{NOT_ADDED}='Не добавлено';
@@ -33,5 +36,6 @@ $lang{NOT_DELETED}='Не видалено';
 $lang{MINUTES}='Хвилини';
 $lang{CHOOSE}='Виберіть';
 $lang{ADD_TAGS}='Додати теги';
+$lang{NO_CLICK_USER}='Не вибрано жодного користувача для розсилки';
 
 1

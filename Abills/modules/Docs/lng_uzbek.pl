@@ -34,3 +34,6 @@ $lang{INCLUDE_DEPOSIT}="Depozitni hisobga olgan holda";
 $lang{APPLY_TO_INVOICE}="Hisoblar bo'yicha avtomatik taqsimot";
 $lang{PRINT_EXT}="Kengaytirib chop etish";
 $lang{PRINT_EXT_LIST}="Kengaytirilgan andozani chop etish";
+$lang{DELETED_GROUP}="Guruh bo'yicha o'chirish";
+$lang{NO_CHECK_DOCUMENT}="Yo'q qilish uchun hujjatlarni tanlang";
+$lang{OPERATION}="Operatsiya muvaffaqiyatli yakunlandi";

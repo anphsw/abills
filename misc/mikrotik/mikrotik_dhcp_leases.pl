@@ -33,7 +33,7 @@ use Abills::Base qw(parse_arguments _bp in_array);
 use Abills::Nas::Mikrotik;
 use Nas;
 
-use Dhcphosts;
+#use Dhcphosts;
 #use Internet::DhcphostsAdapter;
 
 # System initialization

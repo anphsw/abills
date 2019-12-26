@@ -1,10 +1,10 @@
 <div class='box box-success'>
 <div class='box-header with-border text-center'>
-    <h3 class='box-title'>Congratulation! Registration Complete</h3>
+    <h4 class='box-title'>_{REG_SUCCESS}_</h4>
   </div>
   <div class='box-body text-center'>
     <div class='form-group'>
-      <label class='control-label col-md-6 text-right'>LOGIN:</label>
+      <label class='control-label col-md-6 text-right'>_{LOGIN}_:</label>
       <label class='control-label col-md-6 text-left'>%LOGIN%</label>
     </div>
     <div class='form-group'>
@@ -22,7 +22,7 @@
   </div>
   <div class='box-footer'>
     <div class='alert alert-success' role='alert'>
-      All information has been sent to your E-mail
+      _{REG_SEND_EMAIL}_
     </div>
   </div>
 </div>

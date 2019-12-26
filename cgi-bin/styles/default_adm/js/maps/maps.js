@@ -90,7 +90,9 @@ function changeProgressBar(width) {
 
     function frame() {
         clearInterval(id);
-        elem.innerText = "Loading " + width + "%";
+        if (elem) {
+            elem.innerText = "Loading " + width + "%";
+        }
     }
 }
 

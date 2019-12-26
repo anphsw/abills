@@ -82,12 +82,16 @@ sub user_info {
    tp.month_fee AS month_abon,
    tp.abon_distribution,
    tp.day_fee,
+   tp.activate_price,
    tp.postpaid_monthly_fee,
    tp.payment_type,
    tp.period_alignment,
    tp.id AS tp_num,
    tp.filter_id AS tp_filter_id,
    tp.credit AS tp_credit,
+   tp.age AS tp_age,
+   tp.activate_price AS tp_activate_price,
+   tp.change_price AS tp_change_price,
    tp.period_alignment AS tp_period_alignment,
    service.expire AS iptv_expire,
    service.activate AS iptv_activate,
@@ -316,7 +320,6 @@ sub user_list{
       [ 'TP_COMMENTS',  'STR', 'tp.comments', 'tp.comments AS tp_comments' ],
       #      ['IPTV_STATUS',    'INT', 'service.disable AS iptv_status',   1 ],
       [ 'SERVICE_STATUS', 'INT', 'service.disable', 'service.disable AS service_status' ],
-      #[ 'STATUS',         'INT',  'service.disable AS service_status',                                         1 ],
       [ 'CID',          'STR', 'service.cid',                    1 ],
       [ 'PIN',          'STR', 'service.pin',                    1 ],
       [ 'ALL_FILTER_ID','STR', 'IF(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id', 1 ],
@@ -330,9 +333,11 @@ sub user_list{
       [ 'TV_SERVICE_NAME','INT', 'tv_service.name', 'tv_service.name AS tv_service_name'],
       [ 'TP_CREDIT',    'INT', 'tp.credit:',           'tp_credit' ],
       [ 'TP_FILTER',    'INT', 'tp.filter_id',                   1 ],
+      [ 'TP_REDUCTION_FEE', 'INT', 'tp.reduction_fee', 'tp.reduction_fee AS tp_reduction_fee' ],
       [ 'PAYMENT_TYPE', 'INT', 'tp.payment_type',                1 ],
       [ 'MONTH_PRICE',  'INT', 'ti_c.month_price',               1 ],
-      [ 'IPTV_ACTIVATE','DATE','service.activate', 'service.expire AS iptv_activate' ],
+      [ 'DAY_PRICE',    'INT', 'ti_c.day_price',                 1 ],
+      [ 'IPTV_ACTIVATE','DATE','service.activate', 'service.activate AS iptv_activate' ],
       [ 'IPTV_EXPIRE',  'DATE','service.expire', 'service.expire AS iptv_expire' ],
       [ 'SUBSCRIBE_ID', 'INT', 'service.subscribe_id',           1 ],
       [ 'SERVICE_ID',   'INT', 'service.service_id',             1 ],
@@ -340,6 +345,8 @@ sub user_list{
       [ 'SERVICE_COUNT','INT', '', 'COUNT(service.id) AS service_count'  ] ,
       [ 'ID',           'INT', 'service.id',                     1 ],
       [ 'UID',          'INT', 'service.uid',                      ],
+      [ 'IPTV_LOGIN',   'STR', 'service.iptv_login',                      1 ],
+      [ 'IPTV_PASSWORD', 'STR', 'service.iptv_password',                     1 ],
 #      [ 'GID',          'INT', 'u.gid',                    'u.gid' ],
     ],
     {
@@ -375,6 +382,7 @@ sub user_list{
         c.name AS channel_name,
         c.filter_id AS channel_filter,
         ti_c.month_price,
+        ti_c.day_price,
         service.id
    FROM intervals i
      INNER JOIN iptv_ti_channels ti_c ON (i.id=ti_c.interval_id)
@@ -386,9 +394,10 @@ sub user_list{
 
      INNER JOIN tarif_plans tp ON (tp.tp_id=i.tp_id)
      $EXT_TABLE
-  $WHERE
-GROUP BY uc.id, uc.channel_id
-ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+     $WHERE
+   GROUP BY uc.id, uc.channel_id
+   ORDER BY $SORT $DESC
+   LIMIT $PG, $PAGE_ROWS;",
       undef,
       $attr
     );
@@ -1213,7 +1222,7 @@ sub subscribe_list{
   my $list = $self->{list};
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query( "SELECT count(*) AS total
+    $self->query( "SELECT COUNT(*) AS total
     FROM iptv_subscribes s
     $WHERE;", undef, { INFO => 1 }
     );
@@ -1702,15 +1711,16 @@ sub services_list{
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'NAME',        'STR', 'name',        1 ],
-      [ 'MODULE',      'STR', 'module',      1 ],
-      [ 'STATUS',      'INT', 'status',      1 ],
-      [ 'COMMENT',     'STR', 'comment',     1 ],
-      [ 'PROVIDER_PORTAL_URL',     'STR', 'provider_portal_url',     1 ],
-      [ 'USER_PORTAL', 'INT', 'user_portal', 1 ],
-      [ 'LOGIN',       'INT', 'login',       1 ],
-      [ 'PASSWORD',    'INT', '', "DECODE(nas.mng_password, '$CONF->{secretkey}') AS nas_mng_password" ],
-      [ 'ID',          'INT', 'id',            ],
+      [ 'ID',                  'INT', 'id',                        ],
+      [ 'NAME',                'STR', 'name',                    1 ],
+      [ 'MODULE',              'STR', 'module',                  1 ],
+      [ 'STATUS',              'INT', 'status',                  1 ],
+      [ 'COMMENT',             'STR', 'comment',                 1 ],
+      [ 'PROVIDER_PORTAL_URL', 'STR', 'provider_portal_url',     1 ],
+      [ 'USER_PORTAL',         'INT', 'user_portal',             1 ],
+      [ 'SUBSCRIBE_COUNT',     'INT', 'subscribe_count',         1 ],
+      [ 'LOGIN',               'INT', 'login',                   1 ],
+      [ 'PASSWORD',            'INT', '', "DECODE(nas.mng_password, '$CONF->{secretkey}') AS nas_mng_password" ],
     ],
     {
       WHERE => 1,
@@ -2045,6 +2055,7 @@ sub extra_params_list {
 
   $self->query("SELECT $self->{SEARCH_FIELDS}
     s.name as SERVICE_NAME,
+    s.module as SERVICE_MODULE,
     g.name as GROUP_NAME,
     t.name as TP_NAME
    FROM iptv_extra_params e
@@ -2127,6 +2138,36 @@ sub expire_date {
   }
 
   return $self;
+}
+
+#**********************************************************
+=head2 users_fees($id)
+
+  Arguments:
+
+=cut
+#**********************************************************
+sub users_fees{
+  my $self = shift;
+  my ($attr) = @_;
+
+  return [] if !$attr->{FROM_DATE} || !$attr->{TP_NAME} || !$attr->{TP_ID} || !$attr->{TO_DATE};
+
+  $self->query("SELECT im.uid AS UID, u.id AS LOGIN, im.registration  AS Registration, COUNT(distinct case when date<'$attr->{TO_DATE}' then date end) AS Pays_date,
+    GROUP_CONCAT(DISTINCT DATE_FORMAT(f.date, '%Y-%m-%d')) AS Pays_dates,
+    TO_DAYS('$attr->{TO_DATE}') - TO_DAYS((case when (im.registration<'$attr->{FROM_DATE}') then '$attr->{FROM_DATE}' else im.registration end)) AS COUNT_DAYS_OF_REGISTRATION,
+    f.dsc
+    FROM iptv_main im
+    LEFT JOIN fees f ON(f.uid=im.uid)
+    LEFT JOIN users u ON(im.uid=u.uid)
+    WHERE im.tp_id=$attr->{TP_ID} AND f.date>=im.registration AND f.date>='$attr->{FROM_DATE}' AND im.disable=0 AND u.disable=0
+      AND f.dsc LIKE 'Телевидение:%$attr->{TP_NAME}%'
+    GROUP BY f.uid
+    HAVING Pays_date <> COUNT_DAYS_OF_REGISTRATION
+    ORDER BY im.registration", undef, { COLS_NAME => 1}
+  );
+
+  return $self->{list};
 }
 
 

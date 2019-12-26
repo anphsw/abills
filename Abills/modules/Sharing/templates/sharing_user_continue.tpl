@@ -19,7 +19,7 @@
           <div class='form-group'>
             <label class='col-md-3 control-label' for='DATE'>_{DATE}_</label>
             <div class='col-md-9'>
-              <input type='text' id='DATE' name='DATE' value='%DATE%' class='form-control datepicker'>
+              <input type='text' id='DATE' name='DATE' value='%DATE%' class='form-control datepicker' required>
             </div>
           </div>
 

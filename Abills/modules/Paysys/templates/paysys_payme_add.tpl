@@ -1,17 +1,12 @@
 <form action='%URL%' method='post'>
 
-
   <!-- Идентификатор WEB Кассы -->
   <input type="hidden" name="merchant" value="%MERCHANT_ID%"/>
-
   <!-- Сумма платежа в тийинах -->
   <input type="hidden" name="amount" value="%AMOUNT%"/>
-
   <!-- Поля Объекта Account -->
-  <input type="hidden" name="account[UID]" value="%UID%"/>
+  <input type="hidden" name="account[%CHECK_FIELD%]" value="%USER_ID%"/>
   <input type="hidden" name="account[TRANSACTION_ID]" value="%TRANSACTION_ID%"/>
-
-
   <!-- ==================== НЕОБЯЗАТЕЛЬНЫЕ ПОЛЯ ====================== -->
   <!-- Язык. Доступные значения: ru|uz|en
        Другие значения игнорируются
@@ -71,18 +66,23 @@
     <div class='box-header with-border'><h4>_{BALANCE_RECHARCHE}_</h4></div>
 
     <div class='box-body'>
+
+      <div class='form-group text-center'>
+        <img src='/styles/default_adm/img/paysys_logo/payme-logo.png' style="width: auto; max-height: 200px;">
+      </div>
+
       <div class='form-group'>
-        <label class='col-md-6 control-label text-right'>_{ORDER}_:</label>
+        <label class='col-md-6 control-label text-center'>_{ORDER}_:</label>
         <label class='col-md-6 control-label'>$FORM{OPERATION_ID}</label>
       </div>
 
       <div class='form-group'>
-        <label class='col-md-6 control-label text-right'> _{PAY_SYSTEM}_:</label>
+        <label class='col-md-6 control-label text-center'> _{PAY_SYSTEM}_:</label>
         <label class='col-md-6 control-label'>PayMe</label>
       </div>
 
       <div class='form-group'>
-        <label class='control-label col-md-6 text-right'>_{SUM}_:</label>
+        <label class='control-label col-md-6 text-center'>_{SUM}_:</label>
         <label class='control-label col-md-6'> $FORM{SUM} </label>
       </div>
     </div>

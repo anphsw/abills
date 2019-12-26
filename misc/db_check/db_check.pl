@@ -17,8 +17,9 @@ use warnings FATAL => 'all';
  ALLOW_DATA_STRIP=1     - Will show commands that can cause stripping current values ( use with caution )
  SHOW_CREATE=1          - Try to check enabled modules and tables that have module like name
  BATCH=1                - no confirm ( print all found ALTER and MODIFY statements to STDOUT )
- APPLY_ALL=1            - no confirm ( apply all found ALTER and MODIFY statements )
+ APPLY_ALL=1 -a         - no confirm ( apply all found ALTER and MODIFY statements )
  SKIP_DISABLED_MODULES  - skip comparing tables we know it's module specific and module is disabled
+ CREATE_NOT_EXIST_TABLES
  
  Debug options are used for debug only:
    DEBUG            - debug_level (0..5)
@@ -31,7 +32,7 @@ use warnings FATAL => 'all';
 
 =head1 AUTHORS
 
-  AnyKey, ABillS
+  ABillS Team
 
 =cut
 
@@ -88,10 +89,18 @@ if ($argv->{DEBUG}) {
 }
 
 my %cached = ();
+my %create_defined = ();
+my %tables_keys = ();
+my %tables_unique_keys = ();
+
 if ($argv->{FROM_CACHE}) {
   $cached{$base_dir . 'db'} = 1;
 
   #  map { $cached{$_} = 1; } split(',\s?', $ARGS->{FROM_CACHE});
+}
+
+if ($argv->{CREATE_NOT_EXIST_TABLES}) {
+  create_not_exist_tables();
 }
 
 db_check();
@@ -166,10 +175,14 @@ sub db_check {
     }
   }
 
+  # Get all tables from files
+  _get_tables_from_file();
+  # Get keys from files
+  get_table_keys_from_files();
+
   # Get all tables from DB
   my @existing_tables = sort keys %scheme_info;
   foreach my $table (@existing_tables) {
-
     # Filter tables with module name but not enabled
     if ($argv->{SKIP_DISABLED_MODULES} && $table =~ /^([a-z]+)\_/) {
       my $name = ucfirst $1;
@@ -179,22 +192,8 @@ sub db_check {
 
     if (exists $dump_info{$table}) {
       # Compare columns and types
-      compare_tables($table, $dump_info{$table}, $scheme_info{$table})
-    }
-  }
-
-  if ($argv->{SHOW_CREATE}) {
-    foreach my $table (sort keys %dump_info) {
-      if ($table =~ /^([a-z]+)\_/) {
-        my $name = ucfirst $1;
-        # Skip if it is module name and not enabled module
-
-        next if (is_disabled_module_name($name, $all_modules));
-      }
-
-      if (!exists $scheme_info{$table}) {
-        print "  You should possibly create table $table \n";
-      }
+      compare_tables($table, $dump_info{$table}, $scheme_info{$table});
+      check_table_keys($table, $scheme_info{$table}) if $debug;
     }
   }
 
@@ -389,7 +388,7 @@ sub show_tip {
     return 1;
   }
 
-  if ($argv->{APPLY_ALL}) {
+  if ($argv->{APPLY_ALL} || defined($argv->{'-a'})) {
     $Admin->query($tip, 'do', {});
     return 1;
   }
@@ -446,6 +445,162 @@ sub is_disabled_module_name {
   $name = 'Crm' if ($name eq 'Cashbox');
 
   return(in_array($name, $exisiting_modules) && !in_array($name, \@MODULES));
+}
+
+#**********************************************************
+=head2 _get_create_commands()
+
+=cut
+#**********************************************************
+sub _get_create_commands {
+  my $module_sql_name = shift;
+  my $module_sql_name_add = shift;
+
+  $module_sql_name = $module_sql_name_add if ($module_sql_name_add && !(-e $module_sql_name));
+  if (-e $module_sql_name) {
+    my $content = Parser::Dump::get_file_content($module_sql_name);
+    my @tables = $content =~ /((^|[^- ])CREATE TABLE [^;]*;)/sg;
+
+    foreach my $table (@tables) {
+      my $table_name = "";
+      if ($table =~ /((EXISTS|TABLE).+`.+`)/) {
+        (undef, $table_name, undef) = split('`', $1);
+        next if $table_name eq "id";
+        $create_defined{$table_name} = $table;
+      }
+    }
+  }
+}
+
+#**********************************************************
+=head2 create_not_exist_tables()
+
+=cut
+#**********************************************************
+sub create_not_exist_tables {
+
+  print "Create not exists tables...\n" if $debug;
+  my $scheme_parser = Parser::Scheme->new($db, $Admin, \%conf);
+  my %scheme_info = %{$scheme_parser->parse()};
+
+  _get_tables_from_file();
+
+  my $count_added_tables = 0;
+  foreach my $key (keys %create_defined) {
+    if (!exists $scheme_info{$key}) {
+      $Admin->query($create_defined{$key}, 'do', {});
+      if ($Admin->{errno}) {
+        print "\n Error happened : " . ($Admin->{errno} || '') . "\n";
+        return 0;
+      }
+      else {
+        $count_added_tables++;
+        print "Table `$key` successfully added\n" if ($debug);
+      }
+    }
+  }
+
+  if (!$count_added_tables) {
+    print "Nothing to create\n" if ($debug);
+  }
+
+  return 1;
+
+}
+
+#**********************************************************
+=head2 _get_tables_from_file()
+
+=cut
+#**********************************************************
+sub _get_tables_from_file {
+
+  my $base_db_dir = $base_dir . "db/";
+  _get_create_commands($base_db_dir . "abills.sql");
+  foreach my $module (@MODULES) {
+    next if $module eq "Multidoms";
+    my $module_sql_name = $base_db_dir . $module . ".sql";
+    _get_create_commands($module_sql_name, $base_dir . "Abills/modules/$module/$module.sql");
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 get_table_keys_from_files()
+
+=cut
+#**********************************************************
+sub get_table_keys_from_files {
+
+  foreach my $table_name (keys %create_defined) {
+    $tables_keys{$table_name} = [];
+    $tables_unique_keys{$table_name} = [];
+    my @table_keys = $create_defined{$table_name} =~ /(`.+UNIQUE.+|`.+PRIMARY KEY|.+KEY.+\)|.+INDEX.+\)|.+UNIQUE.+\))/g;
+    foreach my $key (@table_keys) {
+      $key =~ s/^\s+//;
+      push @{$tables_keys{$table_name}}, $key;
+
+      next;
+      # $key =~ s/^\s+//;
+      # $key =~ /`(.*?)`/;
+      # push @{$tables_keys{$table_name}}, $1 if $1;
+      # if ($key =~ /UNIQUE KEY/ || $key =~ /PRIMARY KEY/ || $key =~ /KEY/ || $key =~ /INDEX/) {
+      #   my @all_keys = $key =~ /(`\w+`)/g;
+      #
+      #   foreach my $key_ (@all_keys) {
+      #     $key_ =~ /`(.*?)`/;
+      #     push @{$tables_unique_keys{$table_name}}, $1 if $1;
+      #   }
+      # }
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 get_table_keys_from_files()
+
+=cut
+#**********************************************************
+sub check_table_keys {
+  my ($table_name, $sql_table) = @_;
+
+  my @db_keys;
+  foreach my $column (keys %{$sql_table->{columns}}) {
+    if ($sql_table->{columns}{$column}{_raw}{Key}) {
+      push @db_keys, $column;
+    }
+  }
+
+  print "Keys in table `" . lc $table_name . "` in file:\n";
+  foreach my $key (@{$tables_keys{$table_name}}) {
+    print "\t`$key`\n";
+  }
+
+  print "\nKeys in table `" . lc $table_name . "` in DB:\n";
+  foreach my $key (@db_keys) {
+    print "\t`$key`\n";
+  }
+
+  print "\n";
+
+  #  #Not exist keys
+  #  foreach my $key (@{$tables_keys{$table_name}}) {
+  #    if (!in_array($key, \@db_keys)) {
+  #      print "Table`" . lc $table_name . "` has no index `$key`\n";
+  #    }
+  #  }
+  #
+  #  #Custom keys
+  #  foreach my $key (@db_keys) {
+  #    if (!in_array($key, $tables_keys{$table_name}) && !in_array($key, $tables_unique_keys{$table_name})) {
+  #      print "Table`" . lc $table_name . "` has custom index `$key`\n";
+  #    }
+  #  }
+
+  return 1;
 }
 
 1;

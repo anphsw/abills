@@ -307,7 +307,7 @@ sub sysinfo_main {
   sysinfo_os();
   
   # Memory Usage
-  $sysinfo_hash{$os}{memory}->();
+  sysinfo_memory();
   
   # Mounted Filesystems
   sysinfo_disk();
@@ -361,7 +361,7 @@ sub sysinfo_disk {
   my $total_size = 0;
   my $total_used = 0;
   foreach my $line (@{ $info->{Filesystem} }) {
-    if ($line =~ /^\//) {
+    if ($line =~ /^\/|total/) {
       $total_size += $info->{Size}->[$i] || 0;
       $total_used += $info->{Used}->[$i] || 0;
       
@@ -370,31 +370,31 @@ sub sysinfo_disk {
         TOTAL    => $total_size,
         COMPLETE => $total_used
       });
-      
+      $line = $lang{TOTAL} if($line eq 'total');
       $table->addrow($line,
-        int2byte($info->{Size}->[$i]),
-        int2byte($info->{Used}->[$i]),
-        int2byte($info->{Avail}->[$i]),
+        int2byte($info->{Size}->[$i]*1024),
+        int2byte($info->{Used}->[$i]*1024),
+        int2byte($info->{Avail}->[$i]*1024),
         $progress,
         $info->{Mounted}->[$i]
       );
     }
     $i++;
   }
-  
-  $table->{rowcolor} = 'bg-info';
-  
-  my $progress = $html->progress_bar({
-    TEXT     => ($total_used / $total_size) * 100,
-    TOTAL    => $total_size,
-    COMPLETE => $total_used
-  });
-  
-  $table->addrow("$lang{TOTAL}:", int2byte($total_size),
-    int2byte($total_used),
-    int2byte($total_size - $total_used),
-    $progress,
-    '');
+  if($os eq 'FreeBSD') {
+    $table->{rowcolor} = 'bg-info';
+    my $progress = $html->progress_bar({
+      TEXT     => ($total_used / $total_size) * 100,
+      TOTAL    => $total_size,
+      COMPLETE => $total_used
+    });
+
+    $table->addrow("$lang{TOTAL}:", int2byte($total_size*1024),
+      int2byte($total_used*1024),
+      int2byte(($total_size - $total_used)*1024),
+      $progress,
+      '');
+  }
   
   print $table->show();
   
@@ -488,7 +488,7 @@ sub sysinfo_processes {
         my ($color, undef)=split(/:/, $watch_proccess{$proc_name});
         $table->{rowcolor}=$color || $_COLORS[0];
         if ($restart_defined_processes->{$proc_name} && ($permissions{4} && $permissions{4}->{8}) && -f $restart_defined_processes->{$proc_name}){
-          my $disabled = ($conf{SYSINFO_ALLOW_APACHE_RESTART} || $proc_name eq 'apache') ? 'disabled' : '';
+          my $disabled = ($proc_name eq 'apache' && !$conf{SYSINFO_ALLOW_APACHE_RESTART}) ? 'disabled' : '';
           
           my $restart_index = get_function_index('sysinfo_services');
           $restart_button = $html->button( 'R', "index=$restart_index&SERVICE=$proc_name&RESTART=1&action=1",
@@ -816,8 +816,7 @@ $sysinfo_hash{'FreeBSD'}{'swap'} = sub {
 =cut
 #**********************************************************
 $sysinfo_hash{'Linux'}{'disk'} = sub {
-  my $total_info = `/bin/df `;
-  
+  my $total_info = `/bin/df --total`;
   my @arr   = split(/\n/, $total_info);
   my %info  = ();
   
@@ -834,7 +833,7 @@ $sysinfo_hash{'Linux'}{'disk'} = sub {
   if ($total_info =~ /(\d+)-blocks/) {
     $block = $1;
   }
-  
+
   foreach my $line (@arr) {
     if ( $line =~ /(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)/ && $line !~ /Available/ ){
       my $file_system_point = $1 || q{};
@@ -866,7 +865,7 @@ $sysinfo_hash{'Linux'}{'disk'} = sub {
       push @{ $info{Mounted} },    $mount_point;
     }
   }
-  
+
   return \%info;
 };
 
@@ -1563,8 +1562,10 @@ sub sysinfo_sp_info {
   }
   
   my $swap_info = $sysinfo_hash{$os}{'swap'}->({ SHORT => 1 });
+  $swap_info->{swap_total} //= 0;
+  $swap_info->{swap_used}  //= 0;
   my $swap = $html->progress_bar({
-    TEXT     => int2byte($swap_info->{swap_total}) ." $lang{FREE}: ". int2byte($swap_info->{swap_used}),
+    TEXT     => int2byte($swap_info->{swap_total} * 1024) ." $lang{FREE}: ". int2byte(($swap_info->{swap_total} - $swap_info->{swap_used}) * 1024),
     TOTAL    => $swap_info->{swap_total},
     COMPLETE => $swap_info->{swap_used}
   });
@@ -1581,7 +1582,7 @@ sub sysinfo_sp_info {
     if ($line =~ /^\//) {
       if (in_array($info->{Mounted}->[$i], ['/', '/var', '/usr', @user_defined_mount_points ] )) {
         $hdd .= $html->progress_bar({
-          TEXT     => "$info->{Mounted}->[$i]:  " . int2byte($info->{Size}->[$i]) ." $lang{USED}: ". int2byte($info->{Used}->[$i]),
+          TEXT     => "$info->{Mounted}->[$i]:  " . int2byte(($info->{Size}->[$i] || 0) * 1024) ." $lang{USED}: ". int2byte(($info->{Used}->[$i] || 0) * 1024),
           TOTAL    => $info->{Size}->[$i],
           COMPLETE => $info->{Used}->[$i]
         });
@@ -1610,7 +1611,7 @@ sub sysinfo_sp_info {
   ($load) = $load =~ /([\d]+\.?[\d]?)/;
   
   $load = $html->progress_bar({
-    TEXT     => sprintf('%.2f', $load), #/$load_2/$load_3",
+    TEXT     => sprintf('%.2f%%', $load), #/$load_2/$load_3",
     TOTAL    => 100,
     COMPLETE => $load
   });
@@ -1740,7 +1741,7 @@ sub sysinfo_sp_ps {
         'index=' . get_function_index('sysinfo_processes'),
         {
           ICON=>'fa fa-fw fa-info',
-          class=>'btn btn-default btn-xs '
+          class=>'btn btn-box-tool '
         }
       ),
     }
@@ -1763,7 +1764,7 @@ sub sysinfo_sp_ps {
     my @extra_btns = ();
     if ( $admin_has_restart_permission && $services_init_scripts{$ps_name} && -f $services_init_scripts{$ps_name} ) {
 
-      my $disabled = ($ps_name =~ /apache|httpd/) ? 'disabled' : '';
+      my $disabled = ($ps_name =~ /apache|httpd/ && !$conf{SYSINFO_ALLOW_APACHE_RESTART}) ? 'disabled' : '';
       my $restart_btn = $html->button( 'R', "index=$restart_index&SERVICE=$ps_name&RESTART=1&action=1",
         {
           title   => 'restart',
@@ -1886,7 +1887,7 @@ sub sysinfo_services {
     
     next unless (-f $service_pathes->{$service});
     
-    my $disabled = ($conf{SYSINFO_ALLOW_APACHE_RESTART} || $service eq 'apache') ? 'disabled' : '';
+    my $disabled = ($service =~ /apache/ && !$conf{SYSINFO_ALLOW_APACHE_RESTART}) ? 'disabled' : '';
     my $restart_btn = $html->button( 'R', "index=$index&SERVICE=$service&RESTART=1&action=1",
       {
         title   => 'restart',

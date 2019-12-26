@@ -10,7 +10,9 @@
 
     <div class='container-fluid'>
         <div class='box box-primary'>
-            <div class='box-header with-border text-center'>Portmone</div>
+            <div class='box-header with-border text-center'>
+                <h4 class='box-title'>Portmone</h4>
+            </div>
             <div class='box-body'>
 
                 <div class='form-group'>
@@ -25,6 +27,16 @@
 
                 <div class='form-group'>
                     <label class='font-weight-bold text-center col-md-6 form-control-label col-xs-12'>_{BALANCE_RECHARCHE_SUM}_:</label>
+                    <label class='font-weight-bold col-md-6 form-control-label col-xs-12'>%SUM%</label>
+                </div>
+
+                <div class='form-group'>
+                    <label class='font-weight-bold text-center col-md-6 form-control-label col-xs-12'>_{COMMISSION}_:</label>
+                    <label class='font-weight-bold col-md-6 form-control-label col-xs-12'>%COMMISSION%</label>
+                </div>
+
+                <div class='form-group'>
+                    <label class='font-weight-bold text-center col-md-6 form-control-label col-xs-12'>_{SUM}_:</label>
                     <label class='font-weight-bold col-md-6 form-control-label col-xs-12'>%BILL_AMOUNT%</label>
                 </div>
 

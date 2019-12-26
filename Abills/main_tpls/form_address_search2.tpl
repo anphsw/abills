@@ -2,15 +2,15 @@
   <input type='hidden' name='LOCATION_ID' id="ADD_LOCATION_ID" value='%LOCATION_ID%' class='HIDDEN-BUILD'>
 
   <div class='form-group' style='%EXT_SEL_STYLE%'>
-    <label class='control-label col-sm-3 col-md-2 LABEL-DISTRICT'>_{DISTRICTS}_</label>
-    <div class='col-sm-9 col-md-10'>
+    <label class='control-label col-sm-4 col-md-4 LABEL-DISTRICT'>_{DISTRICTS}_</label>
+    <div class='col-sm-8 col-md-8'>
       %ADDRESS_DISTRICT%
     </div>
   </div>
 
   <div class='form-group' style='%EXT_SEL_STYLE%'>
-    <label class='control-label col-sm-3 col-md-2 LABEL-STREET'>_{ADDRESS_STREET}_</label>
-    <div class='col-sm-9 col-md-10' id="streets">
+    <label class='control-label col-sm-4 col-md-4 LABEL-STREET'>_{ADDRESS_STREET}_</label>
+    <div class='col-sm-8 col-md-8' id="%STREET_ID%_">
       %ADDRESS_STREET%
     </div>
   </div>
@@ -19,10 +19,10 @@
 
     <div class="col-md-6 ">
 
-      <label class='control-label col-sm-3 col-md-4 LABEL-BUILD'>_{ADDRESS_BUILD}_</label>
+      <label class='control-label col-sm-4 col-md-4 LABEL-BUILD'>_{ADDRESS_BUILD}_</label>
 
-      <div class='input-group col-sm-9 col-md-8 addBuildMenu' style="padding-left: 10px">
-        <div id="builds" class="col-md-12" style="padding: 0">
+      <div class='input-group col-sm-8 col-md-8 addBuildMenu' style="padding-left: 10px;width: auto;">
+        <div id="%BUILD_ID%_" class="col-md-12" style="padding: 0">
           %ADDRESS_BUILD%
         </div>
         <span class='input-group-addon' %ADD_BUILD_HIDE%>
@@ -32,7 +32,7 @@
         </span>
       </div>
 
-      <div class='col-sm-9 col-md-8 changeBuildMenu' style='display : none; padding-left: 10px; padding-right: 0'>
+      <div class='col-sm-8 col-md-8 changeBuildMenu' style='display : none; padding-left: 10px; padding-right: 0'>
         <div class='input-group'>
           <input type='text' name='ADD_ADDRESS_BUILD' class='form-control INPUT-ADD-BUILD'/>
           <span class='input-group-addon'>
@@ -44,12 +44,13 @@
       </div>
 
     </div>
+    <span class="visible-sm visible-sm col-sm-12" style="padding-top: 10px"> </span>
 
     <div class="col-md-6 no-padding" style=" %HIDE_FLAT%">
 
-      <label class='control-label col-sm-3 col-md-4'>_{ADDRESS_FLAT}_</label>
+      <label class='control-label col-sm-4 col-md-4'>_{ADDRESS_FLAT}_</label>
 
-      <div class='col-sm-9 col-md-8'>
+      <div class='col-sm-8 col-md-8'>
         <input type='text' name='ADDRESS_FLAT' value='%ADDRESS_FLAT%' class='form-control INPUT-FLAT'>
       </div>
 
@@ -60,10 +61,7 @@
     %EXT_ADDRESS%
   </div>
   <div class=' pull-right'>
-    <a href='$SELF_URL?get_index=form_districts&full=1&header=1' class='btn btn-success btn-sm'
-       data-tooltip-position='top' data-tooltip='_{ADD}_ _{DISTRICT}_'><i class='fa fa-street-view'></i></a>
-    <a href='$SELF_URL?get_index=form_streets&full=1&header=1' class='btn btn-success btn-sm'
-       data-tooltip-position='top' data-tooltip='_{ADD}_ _{STREET}_'><i class='fa fa-road'></i></a>
+    %ADDRESS_ADD_BUTTONS%
     %MAP_BTN%
     %DOM_BTN%
   </div>
@@ -73,59 +71,55 @@
   document['FLAT_CHECK_FREE']     = '%FLAT_CHECK_FREE%' || "1";
   document['FLAT_CHECK_OCCUPIED'] = '%FLAT_CHECK_OCCUPIED%' || "0";
 </script>
-<!--<script src='/styles/default_adm/js/searchLocation.js'></script>-->
 <script>
   jQuery(function () {
-    // Updating streets and builds
-      var distName = jQuery('#select2-DISTRICT_ID-container.select2-selection__rendered').text();
-      var strName = jQuery('#select2-STREET_ID-container.select2-selection__rendered').text();
-      var buildName = jQuery('#select2-BUILD_ID-container.select2-selection__rendered').text();
-    setInterval(function () {
-        var newD = jQuery('#select2-DISTRICT_ID-container.select2-selection__rendered').text();
-        var newS = jQuery('#select2-STREET_ID-container.select2-selection__rendered').text();
-        var newB = jQuery('#select2-BUILD_ID-container.select2-selection__rendered').text();
-        //Get streets after change district
-        if (distName !== newD) {
-          GetStreets();
-          distName = newD;
-        }
-        //Get builds after change street
-        if (strName !== newS) {
-          GetBuilds();
-          strName = newS;
-        }
-        //Get location_id after change build
-        if (buildName !== newB) {
-          GetLoc();
-          buildName = newB;
-        }
-      }, 1000);
+    jQuery(document).on('keypress', 'span.select2', function (e) {
+      if (e.originalEvent) {
+        jQuery(this).siblings('select').select2('open');
+      }
+    });
   });
 
-  function GetStreets(data) {
-    var d = jQuery("#DISTRICT_ID").val();
-    // console.log(d);
-    jQuery.post('$SELF_URL', 'header=2&get_index=form_address_select2&DISTRICT_ID=' + d + '&STREET=1', function (result) {
-      jQuery('#streets').html(result);
+  function GetStreets%DISTRICT_ID%(data) {
+    var distrId = jQuery("#" + data.id).val();
+    distrId = distrId ? distrId : '_SHOW';
+    // console.log(distrId);
+    jQuery.post('$SELF_URL', '%QINDEX%header=2&get_index=form_address_select2&DISTRICT_ID=' + distrId
+      + '&STREET=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%', function (result) {
+      // console.log(result);
+      jQuery('#%STREET_ID%_').html(result);
       initChosen();
+      jQuery("#%STREET_ID%").focus();
+      jQuery("#%STREET_ID%").select2('open');
     });
   }
-    function GetBuilds(data) {
-      var s = jQuery("#STREET_ID").val();
-      // console.log(s);
-      jQuery.post('$SELF_URL', 'header=2&get_index=form_address_select2&STREET_ID='+s+'&BUILD=1', function (result) {
-        jQuery('#builds').html(result);
-        initChosen();
-      });
+
+  function GetBuilds%STREET_ID%(data) {
+    var strId = jQuery("#" + data.id).val();
+    if (!strId || strId == 0) {
+      strId = 0;
+      jQuery('#ADD_LOCATION_ID').attr('value', '');
+    }
+    // console.log(strId);
+    jQuery.post('$SELF_URL', '%QINDEX%header=2&get_index=form_address_select2&STREET_ID=' + strId
+      + '&BUILD=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%', function (result) {
+      jQuery('#%BUILD_ID%_').html(result);
+      initChosen();
+      jQuery("#%BUILD_ID%").focus();
+      jQuery("#%BUILD_ID%").select2('open');
+    });
   }
   //Get location_id after change build
-  function GetLoc(data) {
-    var i = jQuery("#BUILD_ID").val();
-    if (i == '--') {
-      i = '';
+  function GetLoc%BUILD_ID%(data) {
+    var item = jQuery("#" + data.id).val();
+    if (item == '--') {
+      item = '';
     }
-    jQuery('#ADD_LOCATION_ID').attr('value', i);
-  };
+    jQuery('#ADD_LOCATION_ID').attr('value', item);
+    setTimeout(function () {
+      jQuery('.INPUT-FLAT').focus();
+    }, 100);
+  }
 
   //Changing select to input
   jQuery('.BUTTON-ENABLE-ADD').on('click', function () {

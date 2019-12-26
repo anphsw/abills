@@ -111,6 +111,7 @@ if ($FORM{SHOW_MESSAGE}) {
 
     print $html->header();
     $OUTPUT{BODY} = "$html->{OUTPUT}";
+    $OUTPUT{INDEX_NAME} = 'index.cgi';
     print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
       MAIN => 1,
       ID   => 'form_client_start' });
@@ -167,237 +168,12 @@ if (($conf{PORTAL_START_PAGE} && !$uid) || $FORM{article} || $FORM{menu_category
   }
   portal_s_page($wrong_auth);
 
-  $html->fetch();
+  $html->fetch({ DEBUG => $ENV{DEBUG} });
   exit;
 }
 
-if ($uid > 0) {
-  $default_index = 10;
+quick_functions();
 
-  #  #Quick Amon Alive Update
-  #  # $ENV{HTTP_USER_AGENT} =~ /^AMon /
-  #  if ($FORM{ALIVE}) {
-  #    load_module('Ipn', $html);
-  #    print $html->header();
-  #    $LIST_PARAMS{LOGIN} = $user->{LOGIN};
-  #    ipn_user_activate();
-  #    $OUTPUT{BODY} = $html->{OUTPUT};
-  #    print $html->tpl_show(templates('form_client_start'), \%OUTPUT, { MAIN => 1,
-  #                                                                      ID   => 'form_client_start' });
-  #    exit;
-  #  }
-
-  if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/ && $FORM{REFERER} !~ /index=1000/) {
-    print "Location: $FORM{REFERER}\n\n";
-    exit;
-  }
-
-  accept_rules() if ($conf{ACCEPT_RULES});
-
-  fl();
-
-  if (!$conf{PASSWORDLESS_ACCESS}) {
-    $menu_names{1000} = $lang{LOGOUT};
-    $functions{1000} = 'logout';
-    $menu_items{1000}{0} = $lang{LOGOUT};
-  }
-
-  if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY') {
-    $user->{MONEY_UNIT_NAMES} = $conf{MONEY_UNIT_NAMES}->[0] || '';
-  }
-
-  #  $OUTPUT{FORM_COLORS}=change_color();
-
-  if ($FORM{get_index}) {
-    $index = get_function_index($FORM{get_index});
-    $FORM{index} = $index;
-  }
-
-  if (!$FORM{pdf} && -f '../Abills/templates/_form_client_custom_menu.tpl') {
-    $OUTPUT{MENU} = $html->tpl_show(templates('form_client_custom_menu'), $user, {
-      OUTPUT2RETURN => 1,
-      ID            => 'form_client_custom_menu'
-    });
-  }
-  else {
-    $OUTPUT{MENU} = $html->menu2(
-      \%menu_items,
-      \%menu_args,
-      undef,
-      {
-        EX_ARGS         => "&sid=$sid",
-        ALL_PERMISSIONS => 1,
-        FUNCTION_LIST   => \%functions,
-        SKIP_HREF       => 1
-      }
-    );
-  }
-
-  if ($html->{ERROR}) {
-    $html->message('err', $lang{ERROR}, $html->{ERROR});
-    exit;
-  }
-
-  $OUTPUT{DATE} = $DATE;
-  $OUTPUT{TIME} = $TIME;
-  $OUTPUT{LOGIN} = $login;
-  $OUTPUT{IP} = $ENV{REMOTE_ADDR};
-  $pages_qs = "&UID=$user->{UID}&sid=$sid";
-  $OUTPUT{STATE} = ($user->{DISABLE}) ? $html->color_mark($lang{DISABLE}, $_COLORS[6]) : $lang{ENABLE};
-  $OUTPUT{STATE_CODE} = $user->{DISABLE};
-  $OUTPUT{SID} = $sid || '';
-
-  if ($COOKIES{lastindex}) {
-    $index = int($COOKIES{lastindex});
-    $html->set_cookies('lastindex', '', "Fri, 1-Jan-2038 00:00:01", $html->{web_path});
-  }
-
-  $LIST_PARAMS{UID} = $user->{UID};
-  $LIST_PARAMS{LOGIN} = $user->{LOGIN};
-
-  $index = int($FORM{qindex}) if ($FORM{qindex} && $FORM{qindex} =~ /^\d+$/);
-  print $html->header(\%FORM) if ($FORM{header});
-
-  if ($FORM{qindex}) {
-    if ($FORM{qindex} eq '100002') {
-      form_events();
-      exit(0);
-    }
-    elsif ($FORM{qindex} eq '100001') {
-      print "Content-Type:text/json;\n\n";
-      if (!$conf{PUSH_ENABLED} || !$conf{GOOGLE_API_KEY}) {
-        print qq{{"ERROR":"PUSH_DISABLED"}};
-        exit 0;
-      }
-
-      require Abills::Sender::Push;
-      my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
-
-      $Push->register_client({ UID => $user->{UID} }, \%FORM) if ($Push);
-      exit 0;
-    }
-    elsif ($FORM{qindex} eq '100003') {
-      print "Content-Type:text/json;\n\n";
-      if (!$conf{PUSH_ENABLED} || !$conf{GOOGLE_API_KEY}) {
-        print qq{{"ERROR":"PUSH_DISABLED"}};
-        exit 0;
-      }
-
-      require Abills::Sender::Push;
-      my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
-
-      $Push->message_request($FORM{contact_id}) if ($Push);
-      exit 0;
-    }
-    elsif ($FORM{qindex} eq '30') {
-      require Control::Address_mng;
-      our $users = $user;
-      form_address_sel();
-    }
-    else {
-      if (defined($module{ $FORM{qindex} })) {
-        load_module($module{ $FORM{qindex} }, $html);
-      }
-
-      _function($FORM{qindex});
-    }
-
-    print($html->{OUTPUT} || q{});
-    exit;
-  }
-
-  if (defined($functions{$index})) {
-    if ($default_index && $functions{$default_index} eq 'msgs_admin') {
-      $index = $default_index;
-    }
-  }
-  else {
-    $index = $default_index;
-  }
-
-  if (defined($module{$index})) {
-    load_module($module{$index}, $html);
-  }
-
-  _function($index || 10);
-
-  $OUTPUT{BODY} = $html->{OUTPUT};
-  $html->{OUTPUT} = '';
-  #  if ($conf{AMON_UPDATE} && $ENV{HTTP_USER_AGENT} =~ /AMon \[(\S+)\]/) {
-  #    my $user_version = $1;
-  #    my ($u_url, $u_version, $u_checksum) = split(/\|/, $conf{AMON_UPDATE}, 3);
-  #    if ($u_version > $user_version) {
-  #      $OUTPUT{BODY} = "<AMON_UPDATE url=\"$u_url\" version=\"$u_version\" checksum=\"$u_checksum\" />\n" . $OUTPUT{BODY};
-  #    }
-  #  }
-
-  $OUTPUT{STATE} = (!$user->{DISABLE} && $user->{SERVICE_STATUS}) ? $service_status[$user->{SERVICE_STATUS}] : $OUTPUT{STATE};
-
-  $OUTPUT{SELECT_LANGUAGE} = language_select();
-
-  $OUTPUT{PUSH_SCRIPT} = ($conf{PUSH_ENABLED}
-    ? "<script>window['GOOGLE_API_KEY']='" . ($conf{GOOGLE_API_KEY} // '') . "'</script>"
-    . "<script src='/styles/default_adm/js/push_subscribe.js'></script>"
-    : '<!-- PUSH DISABLED -->'
-  );
-
-  my $global_chat = '';
-  my $fn_index = 0;
-  if ($conf{MSGS_CHAT}) {
-    $fn_index = get_function_index('show_user_chat');
-    $global_chat .= $html->tpl_show(templates('msgs_global_chat'), {
-      FN_INDEX => $fn_index,
-      SCRIPT   => 'chat_user_notification.js',
-      SIDE_ID  => 'uid=' . $user->{UID},
-    },
-      { OUTPUT2RETURN => 1 });
-    $OUTPUT{GLOBAL_CHAT} = $global_chat || '';
-  }
-
-  $OUTPUT{USER_SID} = $user->{SID};
-  $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT, {
-    MAIN               => 1,
-    ID                 => 'form_client_main',
-    SKIP_DEBUG_MARKERS => 1,
-  });
-}
-else {
-  form_login_clients();
-}
-
-print $html->header();
-$OUTPUT{BODY} = $html->{OUTPUT};
-$OUTPUT{SIDEBAR_HIDDEN} = ($COOKIES{menuHidden} && $COOKIES{menuHidden} eq 'true')
-  ? 'sidebar-collapse'
-  : '';
-
-if ($conf{HOLIDAY_SHOW_BACKGROUND}) {
-  $OUTPUT{BACKGROUND_HOLIDAY_IMG} = user_login_background();
-}
-
-if (!$OUTPUT{BACKGROUND_HOLIDAY_IMG}) {
-  if ($conf{user_background}) {
-    $OUTPUT{BACKGROUND_COLOR} = $conf{user_background};
-  }
-  elsif ($conf{user_background_url}) {
-    $OUTPUT{BACKGROUND_URL} = $conf{user_background_url};
-  }
-}
-
-if ($conf{user_confirm_changes}) {
-  $OUTPUT{CONFIRM_CHANGES} = 1;
-}
-
-if (exists $conf{client_theme} && defined $conf{client_theme}) {
-  $OUTPUT{SKIN} = $conf{client_theme};
-}
-else {
-  $OUTPUT{SKIN} = 'skin-blue-light';
-}
-
-print $html->tpl_show(templates('form_client_start'), \%OUTPUT, { MAIN => 1, SKIP_DEBUG_MARKERS => 1 });
-
-$html->fetch();
 if ($conf{USER_FN_LOG}) {
   require Log;
   Log->import();
@@ -422,6 +198,248 @@ sub logout {
   return 1;
 }
 
+#**********************************************************
+=head2 quick_functions()
+
+=cut
+#**********************************************************
+sub quick_functions {
+
+  if ($uid > 0) {
+    $default_index = 10;
+    #  #Quick Amon Alive Update
+    #  # $ENV{HTTP_USER_AGENT} =~ /^AMon /
+    #  if ($FORM{ALIVE}) {
+    #    load_module('Ipn', $html);
+    #    print $html->header();
+    #    $LIST_PARAMS{LOGIN} = $user->{LOGIN};
+    #    ipn_user_activate();
+    #    $OUTPUT{BODY} = $html->{OUTPUT};
+    #    print $html->tpl_show(templates('form_client_start'), \%OUTPUT, { MAIN => 1,
+    #                                                                      ID   => 'form_client_start' });
+    #    exit;
+    #  }
+
+    if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/ && $FORM{REFERER} !~ /index=1000/) {
+      print "Location: $FORM{REFERER}\n\n";
+      exit;
+    }
+
+    accept_rules() if ($conf{ACCEPT_RULES});
+
+    fl();
+
+#    if (!$conf{PASSWORDLESS_ACCESS}) {
+      $menu_names{1000} = $lang{LOGOUT};
+      $functions{1000} = 'logout';
+      $menu_items{1000}{0} = $lang{LOGOUT};
+#    }
+
+    if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY') {
+      $user->{MONEY_UNIT_NAMES} = $conf{MONEY_UNIT_NAMES}->[0] || '';
+    }
+
+    if ($FORM{get_index}) {
+      $index = get_function_index($FORM{get_index});
+      $FORM{index} = $index;
+    }
+
+    if (!$FORM{pdf} && -f '../Abills/templates/_form_client_custom_menu.tpl') {
+      $OUTPUT{MENU} = $html->tpl_show(templates('form_client_custom_menu'), $user, {
+        OUTPUT2RETURN => 1,
+        ID            => 'form_client_custom_menu'
+      });
+    }
+    else {
+      $OUTPUT{MENU} = $html->menu2(
+        \%menu_items,
+        \%menu_args,
+        undef,
+        {
+          EX_ARGS         => "&sid=$sid",
+          ALL_PERMISSIONS => 1,
+          FUNCTION_LIST   => \%functions,
+          SKIP_HREF       => 1
+        }
+      );
+    }
+
+    if ($html->{ERROR}) {
+      $html->message('err', $lang{ERROR}, $html->{ERROR});
+      exit;
+    }
+
+    $OUTPUT{DATE} = $DATE;
+    $OUTPUT{TIME} = $TIME;
+    $OUTPUT{LOGIN} = $login;
+    $OUTPUT{IP} = $ENV{REMOTE_ADDR};
+    $pages_qs = "&UID=$user->{UID}&sid=$sid";
+    $OUTPUT{STATE} = ($user->{DISABLE}) ? $html->color_mark($lang{DISABLE}, $_COLORS[6]) : $lang{ENABLE};
+    $OUTPUT{STATE_CODE} = $user->{DISABLE};
+    $OUTPUT{SID} = $sid || '';
+
+    if ($COOKIES{lastindex}) {
+      $index = int($COOKIES{lastindex});
+      $html->set_cookies('lastindex', '', "Fri, 1-Jan-2038 00:00:01", $html->{web_path});
+    }
+
+    $LIST_PARAMS{UID} = $user->{UID};
+    $LIST_PARAMS{LOGIN} = $user->{LOGIN};
+
+    $index = int($FORM{qindex}) if ($FORM{qindex} && $FORM{qindex} =~ /^\d+$/);
+    print $html->header(\%FORM) if ($FORM{header});
+
+    if ($FORM{qindex}) {
+      if ($FORM{qindex} eq '100002') {
+        form_events();
+        exit(0);
+      }
+      elsif ($FORM{qindex} eq '100001') {
+        print "Content-Type:text/json;\n\n";
+        if (!$conf{PUSH_ENABLED} || !$conf{GOOGLE_API_KEY}) {
+          print qq{{"ERROR":"PUSH_DISABLED"}};
+          exit 0;
+        }
+
+        require Abills::Sender::Push;
+        my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
+
+        $Push->register_client({ UID => $user->{UID} }, \%FORM) if ($Push);
+        exit 0;
+      }
+      elsif ($FORM{qindex} eq '100003') {
+        print "Content-Type:text/json;\n\n";
+        if (!$conf{PUSH_ENABLED} || !$conf{GOOGLE_API_KEY}) {
+          print qq{{"ERROR":"PUSH_DISABLED"}};
+          exit 0;
+        }
+
+        require Abills::Sender::Push;
+        my Abills::Sender::Push $Push = Abills::Sender::Push->new(\%conf);
+
+        $Push->message_request($FORM{contact_id}) if ($Push);
+        exit 0;
+      }
+      elsif ($FORM{qindex} eq '30') {
+        require Control::Address_mng;
+        our $users = $user;
+        form_address_sel();
+      }
+      else {
+        if (defined($module{ $FORM{qindex} })) {
+          load_module($module{ $FORM{qindex} }, $html);
+        }
+
+        _function($FORM{qindex});
+      }
+
+      print($html->{OUTPUT} || q{});
+      exit;
+    }
+
+    if (defined($functions{$index})) {
+      if ($default_index && $functions{$default_index} eq 'msgs_admin') {
+        $index = $default_index;
+      }
+    }
+    else {
+      $index = $default_index;
+    }
+
+    if (defined($module{$index})) {
+      load_module($module{$index}, $html);
+    }
+
+    print "Quick// $index //" if ($ENV{DEBUG});
+    _function($index || 10);
+    print "Quick" if ($ENV{DEBUG});
+
+    $OUTPUT{BODY} = $html->{OUTPUT};
+    $html->{OUTPUT} = '';
+    #  if ($conf{AMON_UPDATE} && $ENV{HTTP_USER_AGENT} =~ /AMon \[(\S+)\]/) {
+    #    my $user_version = $1;
+    #    my ($u_url, $u_version, $u_checksum) = split(/\|/, $conf{AMON_UPDATE}, 3);
+    #    if ($u_version > $user_version) {
+    #      $OUTPUT{BODY} = "<AMON_UPDATE url=\"$u_url\" version=\"$u_version\" checksum=\"$u_checksum\" />\n" . $OUTPUT{BODY};
+    #    }
+    #  }
+
+    $OUTPUT{STATE} = (!$user->{DISABLE} && $user->{SERVICE_STATUS}) ? $service_status[$user->{SERVICE_STATUS}] : $OUTPUT{STATE};
+
+    $OUTPUT{SELECT_LANGUAGE} = language_select();
+
+    $OUTPUT{PUSH_SCRIPT} = ($conf{PUSH_ENABLED}
+      ? "<script>window['GOOGLE_API_KEY']='" . ($conf{GOOGLE_API_KEY} // '') . "'</script>"
+      . "<script src='/styles/default_adm/js/push_subscribe.js'></script>"
+      : '<!-- PUSH DISABLED -->'
+    );
+
+    my $global_chat = '';
+    my $fn_index = 0;
+    if ($conf{MSGS_CHAT}) {
+      $fn_index = get_function_index('show_user_chat');
+      $global_chat .= $html->tpl_show(templates('msgs_global_chat'), {
+        FN_INDEX => $fn_index,
+        SCRIPT   => 'chat_user_notification.js',
+        SIDE_ID  => 'uid=' . $user->{UID},
+      },
+        { OUTPUT2RETURN => 1 });
+      $OUTPUT{GLOBAL_CHAT} = $global_chat || '';
+    }
+
+    $OUTPUT{USER_SID} = $user->{SID};
+    $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT, {
+      MAIN               => 1,
+      ID                 => 'form_client_main',
+      SKIP_DEBUG_MARKERS => 1,
+    });
+  }
+  else {
+    form_login_clients();
+  }
+
+  print $html->header();
+  $OUTPUT{BODY} = $html->{OUTPUT};
+  $OUTPUT{SIDEBAR_HIDDEN} = ($COOKIES{menuHidden} && $COOKIES{menuHidden} eq 'true')
+    ? 'sidebar-collapse'
+    : '';
+  $OUTPUT{INDEX_NAME} = 'index.cgi';
+
+  if ($conf{HOLIDAY_SHOW_BACKGROUND}) {
+    $OUTPUT{BACKGROUND_HOLIDAY_IMG} = user_login_background();
+  }
+
+  if (!$OUTPUT{BACKGROUND_HOLIDAY_IMG}) {
+    if ($conf{user_background}) {
+      $OUTPUT{BACKGROUND_COLOR} = $conf{user_background};
+    }
+    elsif ($conf{user_background_url}) {
+      $OUTPUT{BACKGROUND_URL} = $conf{user_background_url};
+    }
+  }
+
+  if ($conf{user_confirm_changes}) {
+    $OUTPUT{CONFIRM_CHANGES} = 1;
+  }
+
+  if (exists $conf{client_theme} && defined $conf{client_theme}) {
+    $OUTPUT{SKIN} = $conf{client_theme};
+  }
+  else {
+    $OUTPUT{SKIN} = 'skin-blue-light';
+  }
+
+  print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
+    MAIN => 1,
+    SKIP_DEBUG_MARKERS => 1,
+    ID   => 'FORM_CLIENT_START'
+  });
+
+  $html->fetch({ DEBUG => $ENV{DEBUG} });
+
+  return 1;
+}
+
 
 #**********************************************************
 =head2 form_info($attr) User main information
@@ -432,6 +450,13 @@ sub form_info {
 
   $admin->{SESSION_IP} = $ENV{REMOTE_ADDR};
   require Control::Users_mng;
+
+  #  For address ajax
+  if ($FORM{get_index} && $FORM{get_index} eq 'form_address_select2') {
+    require Control::Address_mng;
+    form_address_select2(\%FORM);
+    exit 1;
+  }
 
   # TODO change to $module_user_info. if $conf{DEFAULT_USER_INFO}
   if (in_array('Vacations', \@MODULES)) {
@@ -669,22 +694,27 @@ sub form_info {
 
   if ($conf{user_chg_pi}) {
     if($conf{ADDRESS_REGISTER}){
-      $user->{ADDRESS_SEL} = $html->tpl_show(
-        templates('form_client_address_search'),
-        {
-          ADDRESS_DISTRICT => $user->{ADDRESS_DISTRICT},
-          DISTRICT_ID      => $user->{DISTRICT_ID},
-          STREET_ID        => $user->{STREET_ID},
-          ADDRESS_STREET   => $user->{ADDRESS_STREET},
-          ADDRESS_BUILD    => $user->{ADDRESS_BUILD},
-          LOCATION_ID      => $user->{LOCATION_ID},
-          ADDRESS_FLAT     => $user->{ADDRESS_FLAT},
-        }, {
-          OUTPUT2RETURN      => 1,
-          SKIP_DEBUG_MARKERS => 1,
-          ID                 => 'form_client_address_search'
-        }
-      );
+      require Control::Address_mng;
+      if (defined($user->{FLOOR}) || defined($user->{ENTRANCE})) {
+        $user->{EXT_ADDRESS} = $html->tpl_show(templates('form_ext_address'), { ENTRANCE => $user->{ENTRANCE} || '', FLOOR => $user->{FLOOR} || '' }, { OUTPUT2RETURN => 1 });
+      }
+      $user->{ADDRESS_SEL} = form_address_select2(${user},{ HIDE_ADD_BUILD_BUTTON => 1});
+#      $user->{ADDRESS_SEL} = $html->tpl_show(
+#        templates('form_client_address_search'),
+#        {
+#          ADDRESS_DISTRICT => $user->{ADDRESS_DISTRICT},
+#          DISTRICT_ID      => $user->{DISTRICT_ID},
+#          STREET_ID        => $user->{STREET_ID},
+#          ADDRESS_STREET   => $user->{ADDRESS_STREET},
+#          ADDRESS_BUILD    => $user->{ADDRESS_BUILD},
+#          LOCATION_ID      => $user->{LOCATION_ID},
+#          ADDRESS_FLAT     => $user->{ADDRESS_FLAT},
+#        }, {
+#          OUTPUT2RETURN      => 1,
+#          SKIP_DEBUG_MARKERS => 1,
+#          ID                 => 'form_client_address_search'
+#        }
+#      );
     }
     else{
       require Control::Address_mng;
@@ -857,7 +887,8 @@ sub form_info {
       }
 
       $user->pi_change({ %FORM, UID => $user->{UID} });
-      if (_error_show($user)) {
+      if ($user->{errno} == 21) {
+        $html->message('err', $user->{errstr});
         return 1;
       }
       $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
@@ -869,11 +900,12 @@ sub form_info {
     }
     elsif (!$user->{FIO}
       || !$user->{PHONE}
+      || !$user->{CELL_PHONE}
       || !$user->{ADDRESS_STREET}
       || !$user->{ADDRESS_BUILD}
       || !$user->{EMAIL}) {
       # scripts for address
-      $user->{ADDRESS_SEL} =~ s/\r\n||\n//g;
+#      $user->{ADDRESS_SEL} =~ s/\r\n||\n//g;
       $user->{MESSAGE_CHG} = $html->message('info', '', "$lang{INFO_CHANGE_MSG}", { OUTPUT2RETURN => 1 });
 
       $user->{PINFO} = 1;
@@ -881,9 +913,9 @@ sub form_info {
       $user->{LNG_ACTION} = $lang{CHANGE};
 
       #mark or disable input
-      $user->{FIO} eq '' ? ($user->{FIO_HAS_ERROR} = 'has-error') : ($user->{FIO_DISABLE} = 'disabled');
-      $user->{PHONE} eq '' ? ($user->{PHONE_HAS_ERROR} = 'has-error') : ($user->{PHONE_DISABLE} = 'disabled');
-      $user->{EMAIL} eq '' ? ($user->{EMAIL_HAS_ERROR} = 'has-error') : ($user->{EMAIL_DISABLE} = 'disabled');
+      (! $user->{FIO} || $user->{FIO} eq '') ? ($user->{FIO_HAS_ERROR} = 'has-error') : ($user->{FIO_DISABLE} = 'disabled');
+      (! $user->{PHONE} || $user->{PHONE} eq '') ? ($user->{PHONE_HAS_ERROR} = 'has-error') : ($user->{PHONE_DISABLE} = 'disabled');
+      (! $user->{EMAIL} || $user->{EMAIL} eq '') ? ($user->{EMAIL_HAS_ERROR} = 'has-error') : ($user->{EMAIL_DISABLE} = 'disabled');
 
       # Instead of hiding, just not printing address form
       if ($user->{ADDRESS_HIDDEN}) {
@@ -924,7 +956,9 @@ sub form_info {
 
   $user->{STATUS} = ($user->{DISABLE}) ? $html->color_mark("$lang{DISABLE}", $_COLORS[6]) : $lang{ENABLE};
   $deposit = sprintf("%.2f", $user->{DEPOSIT});
-  $user->{DEPOSIT} = ($deposit < $user->{DEPOSIT}) ? $deposit + 0.01 : $deposit;
+#  $user->{DEPOSIT} = ($deposit < $user->{DEPOSIT}) ?
+  #  + 0.01 : $deposit;
+  $user->{DEPOSIT} = $deposit;
   $sum = ($FORM{AMOUNT_FOR_PAY}) ? $FORM{AMOUNT_FOR_PAY} : ($user->{DEPOSIT} < 0) ? abs($user->{DEPOSIT} * 2) : 0;
   $pages_qs = "&SUM=$sum&sid=$sid";
 
@@ -934,16 +968,12 @@ sub form_info {
   }
 
   if (in_array('Paysys', \@MODULES)) {
-    if (defined $user->{GID}) {
+    if (defined $user->{GID} && !$conf{PAYMENT_HIDE_USER_MENU}) {
       my $group_info = $user->group_info($user->{GID});
-      if (!defined($group_info->{DISABLE_PAYSYS}) || $group_info->{DISABLE_PAYSYS} == 0) {
+      if (exists($group_info->{DISABLE_PAYSYS}) && $group_info->{DISABLE_PAYSYS} == 0) {
         my $fn_index = get_function_index('paysys_payment');
         $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
       }
-    }
-    else {
-      my $fn_index = get_function_index('paysys_payment');
-      $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
     }
   }
 
@@ -1069,8 +1099,13 @@ sub form_info {
   my %contacts = ();
   if ($conf{CONTACTS_NEW}) {
     # Show all contacts of this type in one field
-    $contacts{PHONE} = join(', ', $user->{PHONE_ALL}, $user->{CELL_PHONE_ALL});
-    $contacts{EMAIL} = $user->{EMAIL_ALL};
+    my @phones = ();
+
+    if($user->{PHONE_ALL}) { push @phones, $user->{PHONE_ALL}; }
+    if($user->{CELL_PHONE_ALL}) { push @phones, $user->{CELL_PHONE_ALL}; }
+
+    $contacts{PHONE} = ($#phones > -1) ?  join(', ', @phones) : q{};
+    $contacts{EMAIL} = $user->{EMAIL_ALL} || q{};
   }
 
   $html->tpl_show(templates('form_client_info'), { %$user, %contacts }, { ID => 'form_client_info' });
@@ -1601,21 +1636,48 @@ sub form_payments_list {
 #**********************************************************
 =head2 form_period($period, $attr)
 
+  Arguments:
+    $period
+    $attr
+      SHEDULE  - SHedule form input
+      NOW      - Now form input
+      PERIOD   - Select period
+
 =cut
 #**********************************************************
 sub form_period {
   my ($period, $attr) = @_;
 
-  my @periods = ("$lang{NEXT_PERIOD}", "$lang{DATE}");
+  my @periods = ($lang{NOW}, $lang{NEXT_PERIOD}, $lang{DATE});
   $attr->{TP}->{date_fld} = $html->date_fld2('DATE', { FORM_NAME => 'user', MONTHES => \@MONTHES, WEEK_DAYS => \@WEEKDAYS, NEXT_DAY => 1 });
   my $form_period = '';
   $form_period .= "<label class='control-label col-md-2'>$lang{DATE}:</label>";
-  $period = 1;
+  $period = $attr->{PERIOD} || 1;
+
+  if(! $attr->{SHEDULE}) {
+    pop @periods;
+  }
 
   $form_period .= "<div class='col-md-10'>";
 
-  for (my $i = $#periods; $i > -1; $i--) {
+  if($attr->{NOW}) {
+    $period = $attr->{PERIOD} || 0;
+    $form_period .= "<div class='row'><div class='control-element col-md-1'>" . $html->form_input(
+      'period', "0",
+      {
+        TYPE          => "radio",
+        STATE         => (0 eq $period) ? 1 : undef,
+        OUTPUT2RETURN => 1
+      }
+    )
+    . "</div>"
+    . "<div class='col-md-11 control-element text-left'>" . $lang{NOW} . '</div>'
+    . '</div>';
+  }
+
+  for (my $i = 1; $i <= $#periods; $i++) {
     my $t = $periods[$i];
+
     $form_period .= "<div class='row'><div class='control-element col-md-1'>" . $html->form_input(
       'period', "$i",
       {
@@ -1625,12 +1687,10 @@ sub form_period {
       }
     );
     $form_period .= "</div>"; #control-element (radio)
-    if ($i == 0) {
+
+    if ($i == 1) {
       if ($attr->{ABON_DATE}) {
         $form_period .= "<div class='col-md-11 text-left'><span class='control-element'>" . $t . "</span> ($attr->{ABON_DATE}) </div>";
-      }
-      else {
-        $form_period .= "<div class='col-md-11 control-element text-left'>" . "$lang{NOW}" . "</div>";
       }
     }
     else {
@@ -1640,11 +1700,14 @@ sub form_period {
   }
 
   $form_period .= "</div>";
+
   return $form_period;
 }
 
 #**********************************************************
-# transfer funds between users accounts
+=head2 form_money_transfer() transfer funds between users accounts
+
+=cut
 #**********************************************************
 sub form_money_transfer {
   my $deposit_limit = 0;
@@ -1801,16 +1864,19 @@ sub form_neg_deposit {
     #    $user_->{PAYMENT_BUTTON} = $html->button( "$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 } );
 
     # check if user group has Disable Paysys mode
-    if (defined $user->{GID}) {
-      my $group_info = $user->group_info($user->{GID});
-      if ($group_info->{DISABLE_PAYSYS} == 0) {
-        my $fn_index = get_function_index('paysys_payment');
-        $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
+    unless ($conf{PAYMENT_HIDE_USER_MENU}) {
+      if (defined $user->{GID}) {
+        my $group_info = $user->group_info($user->{GID});
+        #if ($group_info->{DISABLE_PAYSYS} == 0) {
+        if (!$group_info->{DISABLE_PAYSYS}) {
+          my $fn_index = get_function_index('paysys_payment');
+          $user->{PAYSYS_PAYMENTS} = $html->button($lang{BALANCE_RECHARCHE}, "index=$fn_index$pages_qs", { BUTTON => 2 });
+        }
       }
-    }
-    else {
-      my $fn_index = get_function_index('paysys_payment');
-      $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
+      else {
+        my $fn_index = get_function_index('paysys_payment');
+        $user->{PAYSYS_PAYMENTS} = $html->button($lang{BALANCE_RECHARCHE}, "index=$fn_index$pages_qs", { BUTTON => 2 });
+      }
     }
   }
 
@@ -1975,6 +2041,10 @@ sub form_custom {
 
   require Control::Users_slides;
 
+  if (in_array('Accident', \@MODULES)) {
+    accident_dashboard_mess();
+  }
+
   if (in_array('Portal', \@MODULES)) {
     load_module('Portal', $html);
     $info{NEWS} = portal_user_cabinet();
@@ -1993,8 +2063,16 @@ sub form_custom {
   load_pmodule('JSON');
 
   my $json = JSON->new()->utf8(0);
+  my $user_info = ();
+  eval {
+    $user_info = $json->decode($json_info);
+    1;
+  } or do {
+    my $e = $@;
+    $html->message('err', $lang{ERROR}, $e);
+  };
 
-  my $user_info = $json->decode($json_info);
+#  my $user_info = $json->decode($json_info);
 
   foreach my $key (@{$user_info}) {
     #$html->{OUTPUT} .= "$key->{NAME}<br>";
@@ -2021,21 +2099,24 @@ sub form_custom {
     }
   }
 
-  if ($user->{DEPOSIT} < 0) {
+  my $cca = check_credit_availability();
+  if (!$cca) {
+    $info{CREDIT_CHG_PRICE} = $user->{CREDIT_CHG_PRICE};
+    $info{CREDIT_SUM} = $user->{CREDIT_SUM};
     $info{SMALL_BOX} .= $html->tpl_show(templates('form_small_box'), \%info, { OUTPUT2RETURN => 1 });
   }
 
   if ($html->{NEW_MSGS}) {
     $info{SMALL_BOX} .= qq{<div class="callout callout-success">
-    <h4>Новое сообщение</h4>
-     <a href='$SELF_URL?get_index=msgs_user' class='btn btn-primary'>Читать !</a>
+    <h4>$lang{NEW} $lang{MESSAGE}</h4>
+     <a href='$SELF_URL?get_index=msgs_user' class='btn btn-primary'>$lang{GO} !</a>
     </div>};
   }
 
   if ($html->{HOLD_UP}) {
     $info{SMALL_BOX} .= qq{<div class="callout callout-success">
-    <h4>Новое сообщение</h4>
-     <a href='$SELF_URL?get_index=dv_user_info&del=1' class='btn btn-primary'>Читать !</a>
+    <h4>$lang{NEW} $lang{MESSAGE}</h4>
+     <a href='$SELF_URL?get_index=dv_user_info&del=1' class='btn btn-primary'>$lang{GO} !</a>
     </div>};
   }
 
@@ -2043,11 +2124,11 @@ sub form_custom {
     $info{SMALL_BOX} .= qq{<div class="callout callout-success">
       <h4>Подтвердить персональные данные</h4>
             <p>%PERSONAL_INFO_FIO%</p>
-        <p>Телефон: %PERSONAL_INFO_PHONE%</p>
+        <p>$lang{PHONE}: %PERSONAL_INFO_PHONE%</p>
             <label>
-                <input type="checkbox"> Подтвердить
+                <input type="checkbox"> $lang{CONFIRM}
             </label>
-      <a href='$SELF_URL?get_index=form_info&del=1' class='btn btn-primary'>ДА !</a>
+      <a href='$SELF_URL?get_index=form_info&del=1' class='btn btn-primary'>$lang{YES} !</a>
      </div>
     };
   }
@@ -2270,6 +2351,17 @@ sub make_sender_subscribe_buttons_block {
   }
   if ($conf{TELEGRAM_TOKEN}) {
     # Check if subscribed
+    require Contacts;
+    Contacts->import();
+    my $Contacts = Contacts->new($db, $admin, \%conf);
+    my $list = $Contacts->contacts_list({
+      TYPE  => 6,
+      VALUE => '_SHOW',
+      UID   => $user->{UID}
+    });
+
+    $user->{TELEGRAM} //= $list->[0]->{value};
+
     my $subscribed = (defined $user->{TELEGRAM} && $user->{TELEGRAM});
 
     if (!$subscribed) {
@@ -2299,7 +2391,7 @@ sub make_sender_subscribe_buttons_block {
         'fa fa-bell-slash',
         undef,
         {
-          HREF           => '/?change=1&REMOVE_SUBSCRIBE=Telegram',
+          HREF           => '/?index=10&change=1&REMOVE_SUBSCRIBE=Telegram',
           UNSUBSCRIBE    => 1,
           BUTTON_CLASSES => 'btn-success'
         }
@@ -2342,8 +2434,6 @@ sub language_select {
   return $html->form_select(
     'language',
     {
-      #Fixme need remove in next version
-      #EX_PARAMS    => 'style="width:99%"',
       SELECTED     => $html->{language},
       SEL_HASH     => \%LANG,
       NO_ID        => 1,
@@ -2486,6 +2576,52 @@ sub change_pi_popup {
   }
 
   return $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+}
+
+#**********************************************************
+=head2 check_credit_availability()
+
+  returns:
+  1: credit do not available (no need show box or button)
+  2: month changes limit (credit not available, show warning)
+
+
+=cut
+#**********************************************************
+sub check_credit_availability {
+  
+  return 1 if (!$conf{user_credit_change});
+  $user->group_info($user->{GID});
+  return 1 if ($user->{TOTAL} > 0 && !$user->{ALLOW_CREDIT});
+  my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $conf{user_credit_change});
+  
+  if ($month_changes) {
+    my ($y, $m) = split(/\-/, $DATE);
+    $admin->action_list({
+      UID       => $user->{UID},
+      TYPE      => 5,
+      AID       => $admin->{AID},
+      FROM_DATE => "$y-$m-01",
+      TO_DATE   => "$y-$m-31"
+    });
+
+    if ($admin->{TOTAL} >= $month_changes) {
+      return 2;
+    }
+  }
+
+  if (!$sum || $sum =~ /\d+/ && $sum == 0) {
+    load_module('Internet', $html);
+    my $Internet = Internet->new($db, $admin, \%conf);
+    $Internet->info($user->{UID});
+    if ($Internet->{USER_CREDIT_LIMIT} && $Internet->{USER_CREDIT_LIMIT} > 0) {
+      $sum = $Internet->{USER_CREDIT_LIMIT};
+    }
+  }
+  $user->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price);
+  $user->{CREDIT_SUM} = sprintf("%.2f", $sum);
+
+  return 0;
 }
 
 1

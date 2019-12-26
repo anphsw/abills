@@ -1,16 +1,28 @@
-#!perl
+=head1 Discounts
 
-=head1 NAME
+  Date: 2019-11-05
+  Change date: 2019-11-07
 
-  Discounts
+  Version: 8.01
 
 =cut
-my $VERSION = 0.01;
+
 use Discounts;
-use Abills::Base;
-require Abills::Defs;
-# use strict;
+use Abills::Base qw(load_pmodule);
+
+load_pmodule('HTML::Barcode::Code128');
+
+use strict;
 use warnings FATAL => 'all';
+
+require Abills::Defs;
+
+our ($db,
+  $admin,
+  %conf,
+  %lang,
+  $html
+);
 
 my $Discounts = Discounts->new($db, $admin, \%conf);
 
@@ -199,5 +211,47 @@ sub discounts_user_service {
   return 1;
 }
 
+#**********************************************************
+=head2 discounts_user($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+    -
+=cut
+#**********************************************************
+sub discounts_user {
+  my $qrcode_hash = sprintf("%0*d", 13, $user->{UID});
+
+  my $Bar_code = Barcode::Code128->new->FNC1;
+
+  my $text = $Bar_code . $qrcode_hash;
+  my $code = HTML::Barcode::Code128->new(
+    text      => $text,
+    show_text => 0
+  );
+
+  my $fio_user = $Discounts->discounts_user_query({
+    UID => $user->{UID}
+  });
+
+  my $logo = '<span style="color: red;">A</span>BillS';
+
+  if (sprintf("%.2f",$user->{DEPOSIT}) < 0.01) {
+    $html->message( 'err', $lang{ERROR}, $lang{WARR_DEPOSIT} );
+  }
+
+  $html->tpl_show(
+    _include('discounts_user_card', 'Discounts'), {
+    CARD_SIGN        => $lang{CARD_ABON},
+    FIO              => $fio_user->{list}->[0]->{fio},
+    UID              => $user->{UID},
+    CODE_SCAN        => $code->render,
+    LOGO             => $logo,
+  });
+
+  return 1;
+}
 
 1

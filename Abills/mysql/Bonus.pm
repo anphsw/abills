@@ -13,7 +13,7 @@ use Tariffs;
 use Users;
 use Fees;
 use Bills;
-our $VERSION = 2.06;
+our $VERSION = 2.07;
 my $Bill;
 my $MODULE = 'Bonus';
 my ($admin, $CONF);
@@ -754,6 +754,7 @@ sub service_discount_change {
   my ($attr) = @_;
 
   $attr->{STATE} = ($attr->{STATE}) ? 1 : 0;
+  $attr->{EXT_ACCOUNT} = ($attr->{EXT_ACCOUNT}) ? 1 : 0;
 
   $self->changes(
     {
@@ -978,7 +979,7 @@ sub accomulation_rule_info {
 }
 
 #**********************************************************
-=head2 accomulation_rule_add()
+=head2 accomulation_rule_add($attr)
 
 =cut
 #**********************************************************
@@ -1016,7 +1017,7 @@ sub accomulation_rule_list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my @WHERE_RULES = ("tp.module='Dv'");
+  my @WHERE_RULES = ("tp.module IN ('Internet', 'Dv')");
  
   my $JOIN_WHERE = '';
   if ($attr->{DV_TP_ID}) {
@@ -1238,8 +1239,6 @@ SELECT $attr->{UID}, IF((SELECT \@A:=MIN(last_deposit)
 sub accomulation_reset_list {
   my $self   = shift;
   my ($attr) = @_;
-
-
 
   $self->query( "SELECT b.cost, MAX(l.start) AS last_connect, b.uid, COUNT(online.uid) AS online
     FROM bonus_rules_accomulation_scores b

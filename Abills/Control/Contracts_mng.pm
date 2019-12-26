@@ -17,6 +17,7 @@ our (
   $html,
   %conf,
   @MONTHES_LIT,
+  %permissions,
 );
 
 #**********************************************************
@@ -29,7 +30,10 @@ sub user_contract {
   my $uid = $FORM{UID}; 
   return '' unless ($uid);
 
-  if ($FORM{print_add_contract}) {
+  if ($permissions{0} && !$permissions{0}{4}) {
+
+  }
+  elsif ($FORM{print_add_contract}) {
     my $list = $users->contracts_list({ UID => $uid, ID => $FORM{print_add_contract}, COLS_UPPER => 1 });
     $users->info($uid, {SHOW_PASSWORD => 1});
     $users->pi({ UID => $uid });

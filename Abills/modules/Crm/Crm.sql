@@ -1,3 +1,5 @@
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 CREATE TABLE IF NOT EXISTS `crm_leads` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `fio` VARCHAR(120) NOT NULL DEFAULT '',
@@ -10,19 +12,20 @@ CREATE TABLE IF NOT EXISTS `crm_leads` (
   `source` int(1) NOT NULL DEFAULT 0,
   `responsible` SMALLINT(4) NOT NULL DEFAULT 0,
   `date` date NOT NULL DEFAULT '0000-00-00',
-  `current_step` int NOT NULL DEFAULT 0,
+  `current_step` int NOT NULL DEFAULT 1,
   `priority` SMALLINT(1) NOT NULL DEFAULT 0,
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `tag_ids` VARCHAR(20) NOT NULL DEFAULT '',
   `comments` TEXT,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY uid (`uid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Crm leads';
 
 CREATE TABLE IF NOT EXISTS `crm_progressbar_steps` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `step_number` INT UNSIGNED NOT NULL DEFAULT 0,
+  `step_number` INT UNSIGNED NOT NULL DEFAULT 1,
   `name` CHAR(40) NOT NULL DEFAULT '',
   `color` VARCHAR(7) NOT NULL DEFAULT '',
   `description` TEXT NOT NULL,
@@ -63,7 +66,8 @@ CREATE TABLE IF NOT EXISTS `crm_progressbar_step_comments` (
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `planned_date` DATE NOT NULL DEFAULT '0000-00-00',
   PRIMARY KEY (`id`),
-  UNIQUE (`lead_id`, `date`)
+  UNIQUE (`lead_id`, `date`),
+  KEY aid (`aid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Comments for each step in progressbar';

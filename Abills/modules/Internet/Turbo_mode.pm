@@ -152,7 +152,7 @@ sub internet_turbo_control {
       $html->message('info', $lang{INFO}, $html->b("$turbo_mods_full[$FORM{MODE_ID}]") . "\n$lang{REMAIN} $lang{TIME}: $FORM{TIME} sec.");
     }
     else {
-      $html->message('err', "$lang{ERROR}:Turbo", "$lang{ERR_SMALL_DEPOSIT}");
+      $html->message('err', "$lang{ERROR}:Turbo", $lang{ERR_SMALL_DEPOSIT});
     }
   }
   else {
@@ -166,7 +166,7 @@ sub internet_turbo_control {
       }
     );
 
-    $html->tpl_show(_include('internet_user_speed', 'Internet'), $Internet_);
+    $html->tpl_show(_include('internet_user_speed', 'Internet'), $Internet_, { ID => 'INTERNET_TURBO_SPEED' });
   }
 
   return 1;

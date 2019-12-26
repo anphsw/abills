@@ -50,7 +50,7 @@ sub msgs_sp_show_new {
   my ($attr) = @_;
 
   $attr ||= {};
-  my $list = $Msgs->messages_list(
+  my $messages_list = $Msgs->messages_list(
     {
       LOGIN          => '_SHOW',
       CLIENT_ID      => '_SHOW',
@@ -59,6 +59,7 @@ sub msgs_sp_show_new {
       CHAPTER        => '_SHOW',
       CHAPTER_NAME   => '_SHOW',
       PRIORITY       => '_SHOW',
+      PRIORITY_ID    => '_SHOW',
       PLAN_DATE_TIME => '_SHOW',
       SORT           => 'id',
       DESC           => 'desc',
@@ -120,13 +121,13 @@ sub msgs_sp_show_new {
     $badge = $all_opend_messages . $opened_per_month_badge . $closed_per_month_badge;
   }
 
-  return msgs_sp_table($list, {
+  return msgs_sp_table($messages_list, {
     CAPTION      => ($attr->{STATE}) ? $lang{OVERDUE} : $lang{MESSAGES},
     SKIP_ICON => 1,
     DATE_KEY     => ($attr->{STATE}) ? 'plan_date_time' : 'datetime',
     DATA_CAPTION => ($lang{DATE}),
     BADGE        => $badge
-    });
+  });
 }
 
 #**********************************************************
@@ -149,7 +150,7 @@ sub msgs_user_watch {
       PAGE_ROWS  => 5,
       LOGIN      => '_SHOW',
       STATE      => '_SHOW',
-      PRIORITY   => '_SHOW',
+      PRIORITY_ID=> '_SHOW',
       LAST_REPLIE_DATE => '_SHOW',
       SORT             => 'last_replie_date',
     }
@@ -175,40 +176,37 @@ sub msgs_user_watch {
 =cut
 #**********************************************************
 sub msgs_dispatch_quick_report {
-  
-  my $table = $html->table(
-    {
-      width       => '100%',
-      caption     =>
-      $html->button($MESSAGE_ICON . $lang{DISPATCH}, "index=" . get_function_index('msgs_dispatch') . "&ALL_MSGS=1"),
-      title_plain => [ $lang{NAME}, $lang{CREATED}, $lang{EXECUTED}, $lang{TOTAL} ],
-      class       => 'table',
-      ID          => 'DISPATCH_QUIK_REPORT_LIST'
-    }
-  );
-  
-  my $list = $Msgs->dispatch_list(
-    {
-      COLS_NAME     => 1,
-      PAGE_ROWS     => 5,
-      MSGS_DONE     => '_SHOW',
-      CREATED       => '_SHOW',
-      COMMENTS      => '_SHOW',
-      MESSAGE_COUNT => '_SHOW',
-      SORT          => 'created',
-      DESC          => 'DESC'
-    }
-  );
-  
-  my $dispatch_index = get_function_index('msgs_dispatch');
-  
+
+  my $table = $html->table({
+    width         => '100%',
+    caption       =>
+      $html->button($MESSAGE_ICON . $lang{DISPATCH}, "index=" . get_function_index('msgs_dispatches') . "&ALL_MSGS=1"),
+    title_plain   => [ $lang{NAME}, $lang{CREATED}, $lang{EXECUTED}, $lang{TOTAL} ],
+    class         => 'table',
+    ID            => 'DISPATCH_QUIK_REPORT_LIST'
+  });
+
+  my $list = $Msgs->dispatch_list({
+    COLS_NAME     => 1,
+    PAGE_ROWS     => $conf{MSGS_QR_ROWS} || 5,
+    MSGS_DONE     => '_SHOW',
+    CREATED       => '_SHOW',
+    COMMENTS      => '_SHOW',
+    MESSAGE_COUNT => '_SHOW',
+    PLAN_DATE     => '_SHOW',
+    SORT          => 'd.plan_date',
+    DESC          => 'DESC'
+  });
+
+  my $dispatch_index = get_function_index('msgs_dispatches');
+
   foreach my $message ( @{$list} ) {
     my $dispatch_comments = $message->{comments} || $lang{NO_SUBJECT};
     my $done_count = $message->{message_count}
       ? (int(($message->{msgs_done} * 100) / $message->{message_count}))
       : 0;
-    my $dispatch_link = "index=$dispatch_index&chg=$message->{id}&ALL_MSGS=1";
-  
+    my $dispatch_link = "index=$dispatch_index";
+
     $table->addrow($html->button($dispatch_comments, $dispatch_link),
       $html->button($message->{created}, $dispatch_link),
       $html->progress_bar({
@@ -219,7 +217,7 @@ sub msgs_dispatch_quick_report {
       $html->button($message->{message_count}, $dispatch_link),
     );
   }
-  
+
   return $table->show();
 }
 
@@ -333,7 +331,7 @@ sub msgs_sp_table {
     my $state_icon = $statuses_by_id{$status_id}->{icon} || '';
     my $status_name = _translate($statuses_by_id{$status_id}->{name}) || $statuses_by_id{$status_id}->{name};
 
-    $table->{rowcolor} = $priority_colors_list[$msg_info->{priority}] || '';
+    $table->{rowcolor} = $priority_colors_list[$msg_info->{priority_id}] || '';
 
     my $chapter = ($msg_info->{chapter_name})
       ? ( length($msg_info->{chapter_name}) > 30)

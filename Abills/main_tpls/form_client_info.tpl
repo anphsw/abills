@@ -154,7 +154,11 @@
           </div>
           <div class='row'>
             <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{PHONE}_</div>
-            <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%PHONE%</div>
+            <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%PHONE_ALL%</div>
+          </div>
+          <div class='row'>
+            <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{CELL_PHONE}_</div>
+            <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%CELL_PHONE_ALL%</div>
           </div>
           <div class='row'>
             <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{ADDRESS}_</div>

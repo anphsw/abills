@@ -7,4 +7,7 @@ $lang{DISCOUNT_CHANGED}='Зміни внесені';
 $lang{DISCOUNT_NOT_CHANGED}='Зміни не внесені';
 $lang{DISCOUNT_DELETED}='Знижка видалена';
 $lang{DISCOUNT_NOT_DELETED}='Знижка не видалена';
+$lang{CARD_ABON}='Картка Абонента';
+$lang{WARR_DEPOSIT}='Для використання карти потрібно бути нашим абонентом. Будь ласка поповніть Ваш рахунок';
+
 1

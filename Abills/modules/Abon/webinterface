@@ -92,7 +92,6 @@ sub abon_quick_info {
 }
 
 #*******************************************************************
-
 =head2 abon_user($attr) - Change user tarif plan form
 
 Manage users periodic services
@@ -108,7 +107,6 @@ Manage users periodic services
     TRUE or FALSE
 
 =cut
-
 #*******************************************************************
 sub abon_user {
   my ($attr) = @_;
@@ -376,7 +374,7 @@ sub abon_user {
           push @add_arr, $line->{tp_id};
         }
         else {
-          $html->message('err', "$lang{ABON} : $lang{ERROR}", "$lang{TARIF_PLAN}: [$line->{tp_id}] $line->{name}\n $lang{ERR_SMALL_DEPOSIT}", { ID => 241 });
+          $html->message('err', "$lang{ABON} : $lang{ERROR}", "$lang{TARIF_PLAN}: [$line->{tp_id}] $line->{name}\n $lang{ERR_SMALL_DEPOSIT}\n $lang{SUM}: $Abon->{TP_INFO}->{PRICE}", { ID => 241 });
           delete $FORM{ACTIVATE};
           $FORM{ 'error_' . $line->{tp_id} } = 1;
           $FORM{ 'error_comments_' . $line->{tp_id} } = $lang{ERR_SMALL_DEPOSIT};
@@ -409,7 +407,6 @@ sub abon_user {
     $html->message('info', $lang{ABON}, $message) if ($message);
     return 1 if ($attr->{QUITE} || $attr->{REGISTRATION});
   }
-
   my $list = $Abon->user_tariff_list($uid, { COLS_NAME => 1 });
   my $table = $html->table(
     {
@@ -526,11 +523,9 @@ sub abon_user {
 }
 
 #**********************************************************
-
 =head2 abon_user_list($attr)
 
 =cut
-
 #**********************************************************
 sub abon_user_list {
   my ($attr) = @_;
@@ -543,6 +538,7 @@ sub abon_user_list {
     abon_tariffs();
     return 0;
   }
+
 
   if ($FORM{search_form}) {
     form_search(
@@ -586,11 +582,9 @@ sub abon_user_list {
 }
 
 #*******************************************************************
-
 =head2 abon_tariffs() - Change user tp form
 
 =cut
-
 #*******************************************************************
 sub abon_tariffs {
 
@@ -621,9 +615,13 @@ sub abon_tariffs {
       $Abon->{ACTION_LNG} = $lang{CHANGE};
     }
 
-    $pages_qs .= "&ABON_ID=$FORM{ABON_ID}";
+    $pages_qs .= "&ABON_ID=$FORM{ABON_ID}" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
+
     $LIST_PARAMS{ABON_ID} = $FORM{ABON_ID};
-    my %F_ARGS = (ABON_ID => $Abon);
+    $Abon->{ABON_ID} = $FORM{ABON_ID};
+    my %F_ARGS = (
+      ABON_ID => $Abon->{ID} || $FORM{ABON_ID}
+    );
 
     $Abon->{NAME_SEL} = $html->form_main(
       {
@@ -636,9 +634,11 @@ sub abon_tariffs {
             SEL_VALUE => 'name',
           }
         ),
-        HIDDEN  => { index => $index },
+        HIDDEN  => { index => $index,
+                     subf  => $FORM{subf}
+                    },
         SUBMIT  => { show => $lang{SHOW} },
-        class   => 'navbar-form navbar-right',
+        class   => 'navbar-form navbar-right form-inline',
       }
     );
 
@@ -646,7 +646,10 @@ sub abon_tariffs {
       {
         $lang{NAME} => $Abon->{NAME_SEL}
       },
-      {},
+      [
+        $lang{INFO}     . "::ABON_ID=$FORM{ABON_ID}",
+        $lang{USERS}    . ':'. get_function_index('abon_user_list').":ABON_ID=$FORM{ABON_ID}"
+      ],
       { f_args => { %F_ARGS } }
     );
 
@@ -656,14 +659,14 @@ sub abon_tariffs {
     elsif ($FORM{change}) {
       $Abon->tariff_change({ %FORM });
       if (!$Abon->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+        $html->message('info', $lang{INFO}, $lang{CHANGED});
       }
     }
   }
   elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
     $Abon->tariff_del($FORM{del});
     if (!$Abon->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{DELETED}");
+      $html->message('info', $lang{INFO}, $lang{DELETED});
     }
   }
 
@@ -755,6 +758,7 @@ sub abon_tariffs {
   );
 
   my $delete = '';
+  my $user_index = get_function_index('abon_user_list');
   foreach my $line (@{$list}) {
     if ($permissions{4}{1}) {
       $delete = $html->button($lang{DEL}, "index=$index&del=$line->[7]", { MESSAGE => "$lang{DEL} $line->[0]?", class => 'del' });
@@ -767,7 +771,9 @@ sub abon_tariffs {
       $Payment_Types[ $line->[3] ],
       $line->[4],
       $line->[13],
-      $html->button($line->[6], "index=" . get_function_index('abon_user_list') . "&ABON_ID=$line->[7]") . ' ' . $html->button($lang{CHANGE}, "index=$index&ABON_ID=$line->[7]", { class => 'change' }) . ' ' . $delete
+      $html->button($line->[6], "index=" . $index . "&ABON_ID=$line->[7]&subf=$user_index")
+        . ' ' . $html->button($lang{CHANGE}, "index=$index&ABON_ID=$line->[7]", { class => 'change' })
+        . ' ' . $delete
     );
   }
 
@@ -1296,17 +1302,13 @@ sub abon_docs {
 }
 
 #**********************************************************
-
 =head1 abon_client($attr) - client interface
 
   Attributes:
-    $attr
 
 =cut
-
 #**********************************************************
 sub abon_client {
-  #my ($attr) = @_;
 
   if ($FORM{ACTIVATE} || $FORM{add}) {
     $FORM{IDS} = $FORM{add};
@@ -1334,10 +1336,15 @@ sub abon_client {
     }
   );
 
+  if(! $Abon->{TOTAL}) {
+    $html->message('info', $lang{INFO}, $lang{NO_ACTIVE_SERVICE});
+    return 1;
+  }
+
   my $table = $html->table(
     {
       width   => '100%',
-      caption => "$lang{EXT_SERVICES}",
+      caption => $lang{EXT_SERVICES},
       title   => [ $lang{SERVICE}, $lang{DESCRIPTION}, $lang{SUM}, $lang{PERIOD}, $lang{START}, $lang{EXPIRE}, '-' ],
       qs      => $pages_qs,
       ID      => 'USER_ABON',

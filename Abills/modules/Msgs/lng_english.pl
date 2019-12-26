@@ -121,4 +121,28 @@ $lang{ACTUAL_TIME_END}='The actual time to finish';
 $lang{BRIGADE}='Brigade';
 $lang{D_ACTIVE}='Active';
 
+$lang{MONDAY_FULL}='Monday';
+$lang{TUESDAY_FULL}='Thursday';
+$lang{WEDNESDAY_FULL}='Wednesday';
+$lang{THURSDAY_FULL}='Thursday';
+$lang{FRIDAY_FULL}="Friday";
+$lang{SATURDAY_FULL}='Saturday';
+$lang{SUNDAY_FULL}='Sunday';
+
+$lang{ERR_NO_MESSAGE} = 'Message is not set';
+$lang{MASS_MAILING} = 'Mass mailing! Continue?';
+$lang{ATTACH_ADDRESS} = 'Attach to the address';
+$lang{FULL_MESSAGE_ADDRESS} = 'Full message address';
+$lang{TAKEN_TO_WORK} = 'Taken to work';
+
+$lang{REPEAT_MSG_USER} = 'A message from this user has already been accepted today!';
+$lang{REPEAT_MSG_LOCATION_1} = 'Message to address';
+$lang{REPEAT_MSG_LOCATION_2} = ' has already been accepted today!';
+$lang{ADD_ANOTHER_ONE} = 'Add another one?';
+
+$lang{ADMIN_UNREAD}='Admin Unread';
+$lang{TODAY_PLAN}='Today planing';
+$lang{UNREG_COUNT}='Unreg count';
+$lang{UNREPLY_MSGS}='Unreply message';
+
 1;

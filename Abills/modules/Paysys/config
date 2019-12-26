@@ -2,33 +2,54 @@
 if ($conf{PAYSYS_NEW_SCHEME}) {
   %FUNCTIONS_LIST = (
     # Configure 1-20
-    "01:0:Paysys:null"                                      => 5,
-    "02:1:$lang{SETTINGS}:paysys_configure_main:"           => 5,
-    "03:2:Paysys:paysys_configure_test:MODULE,PAYSYSTEM_ID" => 5,
-    "04:1:$lang{PAYSYS_SETTINGS_FOR_GROUPS}:paysys_configure_groups:"  => 5,
+    "01:0:Paysys:null"                                                 => 5,
     "05:2:Paysys:paysys_get_module_settings:MODULE,PAYSYSTEM_ID"       => 5,
     "06:1:$lang{EXTERNAL_COMMAND}:paysys_configure_external_commands:" => 5,
-    #07 termianls_add
-    #08 terminals_type_add
-
-
+    "80:2:Paysys_Test:paysys_main_test:MODULE,PAYSYSTEM_ID"            => 5,
+    "81:80:Paysys_Test:paysys_test:AJAX"                               => 5,
     # Reports 21-40
-    "21:0:Paysys:paysys_log"             => 4,
-    "22:21:Custom Report:paysys_reports" => 4,
-
+    "21:0:Paysys:paysys_log"                                           => 4,
+    "22:21:$lang{INTERNAL_REPORTS}:paysys_reports"                     => 4,
     # Import Fees 60-70
-    "60:0:Import:paysys_import_fees_new:" => 3,
+    "60:0:Import:paysys_import_fees_new:"                              => 3,
   );
 
-  %USER_FUNCTION_LIST = (
-    "01:0:$lang{BALANCE_RECHARCHE}:paysys_payment:" => 40,
-    "02:1:$lang{LOG}:paysys_user_log:"              => 40
-  );
+  if ($conf{PAYSYS_NEW_SETTINGS}) {
+    $FUNCTIONS_LIST{"02:1:$lang{SETTINGS}:paysys_configure_main_new:"} = 5;
+    $FUNCTIONS_LIST{"04:1:$lang{PAYSYS_SETTINGS_FOR_MERCHANTS}:paysys_add_configure_groups:"} = 5;
+    $FUNCTIONS_LIST{"10:1:PAYSYS_SETTINGS_FOR_GROUPS:paysys_configure_groups_new:AJAX"} = 5;
+  }
+  else {
+    $FUNCTIONS_LIST{"02:1:$lang{SETTINGS}:paysys_configure_main:"} = 5;
+    $FUNCTIONS_LIST{"04:1:$lang{PAYSYS_SETTINGS_FOR_GROUPS}:paysys_configure_groups:"} = 5;
+  }
 
+  unless ($conf{PAYMENT_HIDE_USER_MENU}) {
+    if (defined $user->{GID}) {
+      my $group_info = $user->group_info($user->{GID});
+      if (exists $group_info->{DISABLE_PAYSYS} && $group_info->{DISABLE_PAYSYS} == 0) {
+        %USER_FUNCTION_LIST = (
+          "01:0:$lang{BALANCE_RECHARCHE}:paysys_payment:" => 40,
+          "02:1:$lang{LOG}:paysys_user_log:"              => 40
+        );
+      }
+      else {
+        %USER_FUNCTION_LIST = (
+          "01:0:$lang{LOG}:paysys_user_log:" => 40
+        );
+      }
+    }
 
+    if ($conf{PAYSYS_RECURRENT_PAYMENT}) {
+      $USER_FUNCTION_LIST{"03:1:$lang{RECURRENT_PAYMENT}:paysys_recurrent_payment:"} = 40;
+    }
+  }
   if ($conf{PAYSYS_TERMINALS_ADD}) {
     $FUNCTIONS_LIST{"07:1:$lang{TERMINALS}:paysys_configure_terminals:"} = 5;
     $FUNCTIONS_LIST{"08:7:$lang{ADD} $lang{TYPE}:paysys_configure_terminals_type:"} = 5;
+  }
+  if ($conf{PAYSYS_EXCHANGE_RATES}) {
+    $FUNCTIONS_LIST{"23:21:$lang{NBKR}:paysys_nbkr_ex_rates_print:"} = 4;
   }
 
   %PERIODIC = (daily => [ 'paysys_periodic_new' ],
@@ -40,9 +61,7 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
 }
 else{
   %FUNCTIONS_LIST = (
-    #"01:0:Paysys:paysys_webmoney:UID"     => 2,
     "02:0:Paysys:paysys_log:"                                        => 4,
-
     "06:0:Import:paysys_import_fees:"                                => 3,
     "09:2:$lang{EXCHANGE_RATES}:null:"                               => 4,
     "50:9:Privat 24:paysys_p24_ex_rates_print:"                      => 4,
@@ -53,7 +72,6 @@ else{
     "19:7:$lang{SETTINGS}:paysys_systems_configuration:"             => 5,
     "20:7:$lang{PAYSYS_SETTINGS_FOR_GROUPS}:paysys_groups_settings:" => 5,
     "21:7:Paysys:paysys_test:PAYSYSTEM"                              => 5,
-
   );
 
   if ($conf{PAYSYS_QIWI_TERMINAL_ID}) {

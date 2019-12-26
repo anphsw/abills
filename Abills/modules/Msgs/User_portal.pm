@@ -25,6 +25,293 @@ my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{V
 my $Msgs = Msgs->new($db, $admin, \%conf);
 
 #**********************************************************
+=head2 msgs_user_show($attr) - Show message for client
+
+  Arguments:
+    $attr
+      MSGS_STATUS
+
+=cut
+#**********************************************************
+sub msgs_user_show {
+  my ($attr) = @_;
+
+  my $msgs_status = $attr->{MSGS_STATUS};
+
+  if ($FORM{reply}) {
+    my %params = ();
+    $params{CLOSED_DATE} = $DATE if ($FORM{STATE} && $FORM{STATE} > 0);
+    $params{DONE_DATE}   = $DATE if ($FORM{STATE} && $FORM{STATE} > 1);
+    $params{ADMIN_READ}  = "0000-00-00  00:00:00" if (! $FORM{INNER});
+
+    $Msgs->message_change({
+      UID            => $LIST_PARAMS{UID},
+      ID             => $FORM{ID},
+      STATE          => $FORM{STATE},
+      RATING         => $FORM{RATING}         ? $FORM{RATING}         : 0,
+      RATING_COMMENT => $FORM{RATING_COMMENT} ? $FORM{RATING_COMMENT} : '',
+      %params
+    });
+
+    if ($FORM{REPLY_SUBJECT} || $FORM{REPLY_TEXT} || $FORM{FILE_UPLOAD} || $FORM{SURVEY_ID}) {
+      $Msgs->message_reply_add({
+        %FORM,
+        AID => 0,
+        IP  => $admin->{SESSION_IP},
+        UID => $LIST_PARAMS{UID}
+      });
+
+      if (!$Msgs->{errno}) {
+        #Save signature
+        if ( $FORM{signature} && $FORM{ID} ) {
+          msgs_receive_signature($user->{UID}, $FORM{ID}, $FORM{signature});
+        }
+
+        #Add attachment
+        if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{REPLY_ID} ) {
+          my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID} || $FORM{ID}, {
+            REPLY_ID => $Msgs->{REPLY_ID},
+            MSG_INFO => {
+              UID => $user->{UID}
+            }
+          });
+
+          if ( !$attachment_saved ) {
+            _error_show($Msgs);
+            $html->message('err', $lang{ERROR}, "Can't save attachment");
+          }
+        }
+      }
+      $html->message( 'info', $lang{INFO}, "$lang{REPLY}" );
+
+      msgs_notify_admins({
+        MSG_ID        => $FORM{ID},
+        SENDER_UID    => $user->{UID},
+        MESSAGE_STATE => $FORM{STATE},
+      });
+
+      # Instant redirect
+      my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($Msgs->{INSERT_ID} ? " : $Msgs->{INSERT_ID}" : ''));
+      $html->redirect("?index=$index&sid=".( $sid || $user->{SID} || $user->{sid} )
+        ."&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || $FORM{ID} || q{}) . '#last_msg');
+      exit 0;
+    }
+    return 1;
+  }
+  elsif ($FORM{change}) {
+    $Msgs->message_change({
+      UID        => $LIST_PARAMS{UID},
+      ID         => $FORM{ID},
+      ADMIN_READ => "0000-00-00 00:00:00",
+      STATE      => $FORM{STATE} || 0,
+    });
+
+    if ($FORM{SURVEY_ANSWER}) {
+      msgs_survey_show({ SURVEY_ANSWER => $FORM{SURVEY_ANSWER} });
+    }
+  }
+
+  if ($Msgs->{LAST_ID}) {
+    $FORM{ID} = $Msgs->{LAST_ID};
+  }
+
+  $Msgs->message_info($FORM{ID}, { UID => $LIST_PARAMS{UID} });
+  _error_show($Msgs);
+  if ($Msgs->{errno}) {
+    return 1;
+  }
+
+  $Msgs->{ACTION}        = 'reply';
+  $Msgs->{LNG_ACTION}    = $lang{REPLY};
+  $Msgs->{STATE_NAME}    = $html->color_mark($msgs_status->{$Msgs->{STATE}}) if(defined($Msgs->{STATE}) && $msgs_status->{$Msgs->{STATE}});
+  $Msgs->{PRIORITY_TEXT} = $html->color_mark($priority[ $Msgs->{PRIORITY} ], $priority_colors[ $Msgs->{PRIORITY} ]);
+
+  if ($Msgs->{PRIORITY} == 4) {
+    $Msgs->{MAIN_PANEL_COLOR} = 'box-danger';
+  }
+  elsif ($Msgs->{PRIORITY} == 3) {
+    $Msgs->{MAIN_PANEL_COLOR} = 'box-warning';
+  }
+  elsif ($Msgs->{PRIORITY} >= 1) {
+    $Msgs->{MAIN_PANEL_COLOR} = 'box-info';
+  }
+  else {
+    $Msgs->{MAIN_PANEL_COLOR} = 'box-primary';
+  }
+
+  my @REPLIES = ();
+  if ($Msgs->{ID}) {
+    my $main_msgs_id = $Msgs->{ID};
+
+    my $replies_list = $Msgs->messages_reply_list({
+      MSG_ID       => $main_msgs_id,
+      CONTENT_SIZE => '_SHOW',
+      INNER_MSG    => 0,
+      CONTENT_TYPE => '_SHOW',
+      COLS_NAME    => 1
+    });
+
+    my $total_reply = $Msgs->{TOTAL};
+    my $reply = '';
+
+    if ($Msgs->{SURVEY_ID}) {
+      my $main_message_survey = msgs_survey_show({
+        SURVEY_ID => $Msgs->{SURVEY_ID},
+        MSG_ID    => $Msgs->{ID},
+        MAIN_MSG  => 1,
+        NOTIFICATION_MSG => ($Msgs->{STATE} && $Msgs->{STATE} == 9) ? 1 : 0,
+      });
+
+      if($main_message_survey){
+        push @REPLIES, $main_message_survey;
+      }
+    }
+
+    foreach my $line (@$replies_list) {
+
+      $FORM{REPLY_ID} = $line->{id};
+
+      if ($line->{survey_id}) {
+        push @REPLIES, msgs_survey_show({
+          SURVEY_ID => $line->{survey_id},
+          REPLY_ID  => $line->{id},
+          TEXT      => $line->{text}
+        });
+      }
+      else {
+        if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id}) {
+          $reply = $line->{text} if (! $FORM{json});
+        }
+
+        # Should check multiple attachments if got at least one
+        my $attachment_html = '';
+        if ($line->{attachment_id}){
+          my $attachments_list = $Msgs->attachments_list({
+            REPLY_ID     => $line->{id},
+            FILENAME     => '_SHOW',
+            CONTENT_SIZE => '_SHOW',
+            CONTENT_TYPE => '_SHOW',
+            COORDX       => '_SHOW',
+            COORDY       => '_SHOW',
+          });
+
+          $attachment_html = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
+        }
+
+        $FORM{ID} //= q{};
+        my $quoting_button = $html->button(
+          $lang{QUOTING}, "index=$index&QUOTING=$line->{id}&ID=$FORM{ID}&sid=". ($sid || q{}), { BUTTON => 1 }
+        );
+        my $edit_reply_button = '';
+        if ($line->{creator_id} && $line->{creator_id} eq $user->{LOGIN}) {
+          my $n = gmtime() + 3600 * 3;
+          my $d = Time::Piece->strptime($line->{datetime}, "%Y-%m-%d %H:%M:%S");
+          if (($n-$d)/60 < 5) {
+            $edit_reply_button = $html->button(
+              "$lang{EDIT}", "",
+              { class => 'btn btn-default btn-xs reply-edit-btn', ex_params => "reply_id='$line->{id}'"}
+            );
+          }
+        }
+
+        push @REPLIES, $html->tpl_show(
+          _include('msgs_reply_show', 'Msgs'),
+          {
+            LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
+            REPLY_ID   => $line->{id},
+            DATE       => $line->{datetime},
+            CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
+            PERSON     => ($line->{creator_fio} || $line->{creator_id}),
+            MESSAGE    => msgs_text_quoting($line->{text}),
+            COLOR      => (($line->{aid} > 0) ? 'box-success' : 'box-theme'),
+            QUOTING    => $quoting_button,
+            EDIT       => $edit_reply_button,
+            ATTACHMENT => $attachment_html,
+          },
+          { OUTPUT2RETURN => 1,
+            ID => 'REPLY_'.$line->{id}
+          }
+        );
+
+        if ($reply ne '') {
+          $reply =~ s/^/>  /g;
+          $reply =~ s/\n/> /g;
+        }
+      }
+    }
+
+    if (!$Msgs->{ACTIVE_SURWEY} && ($Msgs->{STATE} < 1 || $Msgs->{STATE} == 6)) {
+      push @REPLIES, $html->tpl_show(_include('msgs_client_reply', 'Msgs'), { %$Msgs, REPLY_TEXT => $reply },
+        { OUTPUT2RETURN => 1, ID => 'REPLY' });
+    }
+    else {
+      #$html->message('info',  $lang{INFO},  "$msg_status[$Msgs->{STATE}] $lang{DATE}: $Msgs->{CLOSED_DATE}");
+    }
+
+    $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
+    $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
+
+    if ($Msgs->{FILENAME}) {
+      # Should check multiple attachments if got at least one
+      my $attachments_list = $Msgs->attachments_list({
+        MESSAGE_ID     => $Msgs->{ID},
+        FILENAME     => '_SHOW',
+        CONTENT_SIZE => '_SHOW',
+        CONTENT_TYPE => '_SHOW',
+        COORDX       => '_SHOW',
+        COORDY       => '_SHOW',
+      });
+
+      $Msgs->{ATTACHMENT} = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
+    }
+
+    if ($Msgs->{STATE} == 9) {
+      push @REPLIES, $html->button( "$lang{CLOSE}", "index=$index&STATE=10&ID=$FORM{ID}&change=1&sid=$sid",
+        { class => 'btn btn-primary' } );
+    }
+
+    $Msgs->{REPLY} = join(($FORM{json}) ? ',' : '', @REPLIES);
+
+    while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
+      my $msg_button = $html->button( $1, "&index=$index&ID=$1",
+        { class => 'badge bg-blue'});
+      $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
+    }
+
+    if (my $last_reply_index = scalar (@$replies_list)){
+      $Msgs->{UPDATED} = $replies_list->[$last_reply_index - 1]->{datetime};
+    }
+    else {
+      $Msgs->{UPDATED} = '--';
+    }
+
+    $html->tpl_show(_include('msgs_client_show', 'Msgs'), {
+      %$Msgs,
+      ID => $main_msgs_id
+    }, { ID => 'MSGS_CLIENT_INFO' });
+
+    my %params = ();
+    my $state = $FORM{STATE};
+    $params{CLOSED_DATE} = $DATE if ($state && $state > 0);
+    $params{DONE_DATE} = $DATE if ($state && $state > 1);
+
+    $Msgs->message_change({
+      UID       => $LIST_PARAMS{UID},
+      ID        => $FORM{ID},
+      USER_READ => "$DATE $TIME",
+      %params
+    });
+
+    msgs_redirect_filter({
+      DEL => 1,
+      UID => $LIST_PARAMS{UID},
+    });
+  }
+
+  return 0;
+}
+
+#**********************************************************
 =head2 msgs_user() - Client web interface
 
 =cut
@@ -154,272 +441,7 @@ sub msgs_user {
     return msgs_attachment_show(\%FORM);
   }
   elsif ($FORM{ID} || $Msgs->{LAST_ID}) {
-    if ($FORM{reply}) {
-      my %params = ();
-      $params{CLOSED_DATE} = $DATE if ($FORM{STATE} && $FORM{STATE} > 0);
-      $params{DONE_DATE}   = $DATE if ($FORM{STATE} && $FORM{STATE} > 1);
-      $params{ADMIN_READ}  = "0000-00-00  00:00:00" if (! $FORM{INNER});
-
-      $Msgs->message_change({
-        UID            => $LIST_PARAMS{UID},
-        ID             => $FORM{ID},
-        STATE          => $FORM{STATE},
-        RATING         => $FORM{RATING}         ? $FORM{RATING}         : 0,
-        RATING_COMMENT => $FORM{RATING_COMMENT} ? $FORM{RATING_COMMENT} : '',
-        %params
-      });
-
-      if ($FORM{REPLY_SUBJECT} || $FORM{REPLY_TEXT} || $FORM{FILE_UPLOAD} || $FORM{SURVEY_ID}) {
-        $Msgs->message_reply_add({
-          %FORM,
-          AID => 0,
-          IP  => $admin->{SESSION_IP},
-          UID => $LIST_PARAMS{UID}
-        });
-
-        if (!$Msgs->{errno}) {
-          #Save signature
-          if ( $FORM{signature} && $FORM{ID} ) {
-            msgs_receive_signature($user->{UID}, $FORM{ID}, $FORM{signature});
-          }
-
-          #Add attachment
-          if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{REPLY_ID} ) {
-            my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID} || $FORM{ID}, {
-                REPLY_ID => $Msgs->{REPLY_ID},
-                MSG_INFO => {
-                  UID => $user->{UID}
-                }
-              });
-
-            if ( !$attachment_saved ) {
-              _error_show($Msgs);
-              $html->message('err', $lang{ERROR}, "Can't save attachment");
-            }
-          }
-        }
-        $html->message( 'info', $lang{INFO}, "$lang{REPLY}" );
-
-        msgs_notify_admins({
-          MSG_ID        => $FORM{ID},
-          SENDER_UID    => $user->{UID},
-          MESSAGE_STATE => $FORM{STATE},
-        });
-
-        # Instant redirect
-        my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($Msgs->{INSERT_ID} ? " : $Msgs->{INSERT_ID}" : ''));
-        $html->redirect("?index=$index&sid=".( $sid || $user->{SID} || $user->{sid} )
-          ."&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || $FORM{ID} || q{}) . '#last_msg');
-        exit 0;
-      }
-      return 1;
-    }
-    elsif ($FORM{change}) {
-      $Msgs->message_change({
-        UID        => $LIST_PARAMS{UID},
-        ID         => $FORM{ID},
-        ADMIN_READ => "0000-00-00 00:00:00",
-        STATE      => $FORM{STATE} || 0,
-      });
-
-      if ($FORM{SURVEY_ANSWER}) {
-        msgs_survey_show({ SURVEY_ANSWER => $FORM{SURVEY_ANSWER} });
-      }
-    }
-
-    if ($Msgs->{LAST_ID}) {
-      $FORM{ID} = $Msgs->{LAST_ID};
-    }
-
-    $Msgs->message_info($FORM{ID}, { UID => $LIST_PARAMS{UID} });
-    _error_show($Msgs);
-    if ($Msgs->{errno}) {
-      return 1;
-    }
-
-    $Msgs->{ACTION}        = 'reply';
-    $Msgs->{LNG_ACTION}    = $lang{REPLY};
-    $Msgs->{STATE_NAME}    = $html->color_mark($msgs_status->{$Msgs->{STATE}}) if(defined($Msgs->{STATE}) && $msgs_status->{$Msgs->{STATE}});
-    $Msgs->{PRIORITY_TEXT} = $html->color_mark($priority[ $Msgs->{PRIORITY} ], $priority_colors[ $Msgs->{PRIORITY} ]);
-
-    if ($Msgs->{PRIORITY} == 4) {
-      $Msgs->{MAIN_PANEL_COLOR} = 'box-danger';
-    }
-    elsif ($Msgs->{PRIORITY} == 3) {
-      $Msgs->{MAIN_PANEL_COLOR} = 'box-warning';
-    }
-    elsif ($Msgs->{PRIORITY} >= 1) {
-      $Msgs->{MAIN_PANEL_COLOR} = 'box-info';
-    }
-    else {
-      $Msgs->{MAIN_PANEL_COLOR} = 'box-primary';
-    }
-
-    my @REPLIES = ();
-    if ($Msgs->{ID}) {
-      my $main_msgs_id = $Msgs->{ID};
-
-      my $replies_list = $Msgs->messages_reply_list({
-        MSG_ID       => $main_msgs_id,
-        CONTENT_SIZE => '_SHOW',
-        INNER_MSG    => 0,
-        CONTENT_TYPE => '_SHOW',
-        COLS_NAME    => 1
-      });
-
-      my $total_reply = $Msgs->{TOTAL};
-      my $reply = '';
-
-      if ($Msgs->{SURVEY_ID}) {
-        my $main_message_survey = msgs_survey_show({
-          SURVEY_ID => $Msgs->{SURVEY_ID},
-          MSG_ID    => $Msgs->{ID},
-          MAIN_MSG  => 1,
-          NOTIFICATION_MSG => ($Msgs->{STATE} && $Msgs->{STATE} == 9) ? 1 : 0,
-        });
-
-        if($main_message_survey){
-          push @REPLIES, $main_message_survey;
-        }
-      }
-
-      foreach my $line (@$replies_list) {
-
-        $FORM{REPLY_ID} = $line->{id};
-
-        if ($line->{survey_id}) {
-          push @REPLIES, msgs_survey_show({
-              SURVEY_ID => $line->{survey_id},
-              REPLY_ID  => $line->{id},
-              TEXT      => $line->{text}
-            });
-        }
-        else {
-          if ($FORM{QUOTING} && $FORM{QUOTING} == $line->{id}) {
-            $reply = $line->{text} if (! $FORM{json});
-          }
-
-          # Should check multiple attachments if got at least one
-          my $attachment_html = '';
-          if ($line->{attachment_id}){
-            my $attachments_list = $Msgs->attachments_list({
-              REPLY_ID     => $line->{id},
-              FILENAME     => '_SHOW',
-              CONTENT_SIZE => '_SHOW',
-              CONTENT_TYPE => '_SHOW',
-              COORDX       => '_SHOW',
-              COORDY       => '_SHOW',
-            });
-
-            $attachment_html = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
-          }
-
-          $FORM{ID} //= q{};
-          my $quoting_button = $html->button(
-            $lang{QUOTING}, "index=$index&QUOTING=$line->{id}&ID=$FORM{ID}&sid=". ($sid || q{}), { BUTTON => 1 }
-          );
-          my $edit_reply_button = '';
-          if ($line->{creator_id} && $line->{creator_id} eq $user->{LOGIN}) {
-            my $n = gmtime() + 3600 * 3;
-            my $d = Time::Piece->strptime($line->{datetime}, "%Y-%m-%d %H:%M:%S");
-            if (($n-$d)/60 < 5) {
-              $edit_reply_button = $html->button(
-                "$lang{EDIT}", "",
-                { class => 'btn btn-default btn-xs reply-edit-btn', ex_params => "reply_id='$line->{id}'"}
-              );
-            }
-          }
-
-          push @REPLIES, $html->tpl_show(
-              _include('msgs_reply_show', 'Msgs'),
-              {
-                LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
-                REPLY_ID   => $line->{id},
-                DATE       => $line->{datetime},
-                CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
-                PERSON     => ($line->{creator_fio} || $line->{creator_id}),
-                MESSAGE    => msgs_text_quoting($line->{text}),
-                COLOR      => (($line->{aid} > 0) ? 'box-success' : 'box-theme'),
-                QUOTING    => $quoting_button,
-                EDIT       => $edit_reply_button,
-                ATTACHMENT => $attachment_html,
-              },
-              { OUTPUT2RETURN => 1 }
-            );
-
-          if ($reply ne '') {
-            $reply =~ s/^/>  /g;
-            $reply =~ s/\n/> /g;
-          }
-        }
-      }
-
-      if (!$Msgs->{ACTIVE_SURWEY} && ($Msgs->{STATE} < 1 || $Msgs->{STATE} == 6)) {
-        push @REPLIES, $html->tpl_show(_include('msgs_client_reply', 'Msgs'), { %$Msgs, REPLY_TEXT => $reply }, { OUTPUT2RETURN => 1 });
-      }
-      else {
-        #$html->message('info',  $lang{INFO},  "$msg_status[$Msgs->{STATE}] $lang{DATE}: $Msgs->{CLOSED_DATE}");
-      }
-
-      $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
-      $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
-
-      if ($Msgs->{FILENAME}) {
-        # Should check multiple attachments if got at least one
-          my $attachments_list = $Msgs->attachments_list({
-            MESSAGE_ID     => $Msgs->{ID},
-            FILENAME     => '_SHOW',
-            CONTENT_SIZE => '_SHOW',
-            CONTENT_TYPE => '_SHOW',
-            COORDX       => '_SHOW',
-            COORDY       => '_SHOW',
-          });
-
-          $Msgs->{ATTACHMENT} = msgs_get_attachments_view($attachments_list, { NO_COORDS => 1 });
-      }
-
-      if ($Msgs->{STATE} == 9) {
-        push @REPLIES, $html->button( "$lang{CLOSE}", "index=$index&STATE=10&ID=$FORM{ID}&change=1&sid=$sid",
-            { class => 'btn btn-primary' } );
-      }
-
-      $Msgs->{REPLY} = join(($FORM{json}) ? ',' : '', @REPLIES);
-      while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
-        my $msg_button = $html->button( $1, "&index=$index&ID=$1",
-                { class => 'badge bg-blue'});
-        $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
-      }
-
-      if (my $last_reply_index = scalar (@$replies_list)){
-        $Msgs->{UPDATED} = $replies_list->[$last_reply_index - 1]->{datetime};
-      }
-      else {
-        $Msgs->{UPDATED} = '--';
-      }
-
-      $html->tpl_show(_include('msgs_client_show', 'Msgs'), {
-          %$Msgs,
-          ID => $main_msgs_id
-        });
-
-      my %params = ();
-      my $state = $FORM{STATE};
-      $params{CLOSED_DATE} = $DATE if ($state && $state > 0);
-      $params{DONE_DATE} = $DATE if ($state && $state > 1);
-
-      $Msgs->message_change({
-        UID       => $LIST_PARAMS{UID},
-        ID        => $FORM{ID},
-        USER_READ => "$DATE  $TIME",
-        %params
-      });
-
-      msgs_redirect_filter({
-        DEL => 1,
-        UID => $LIST_PARAMS{UID},
-      });
-    }
-
+    msgs_user_show({ MSGS_STATUS => $msgs_status });
     #return  0;
   }
   elsif(!$FORM{SEARCH_MSG_TEXT}) {
@@ -477,11 +499,9 @@ sub msgs_user {
   }
 
   #===================================
-
-  $html->tpl_show(_include('msgs_user_search_form', 'Msgs'), {%$Msgs});
+  $html->tpl_show(_include('msgs_user_search_form', 'Msgs'), {%$Msgs}, { ID => 'MSGS_USER_SEARCH_FORM' });
 
   #If search messeges create custom table, else create deffult
-
   my $table;
 
   if ($FORM{SEARCH_MSG_TEXT}) {
@@ -523,6 +543,7 @@ sub msgs_user {
       SUBJECT        => '_SHOW',
       DATETIME       => '_SHOW',
       STATE          => '_SHOW',
+      RESPOSIBLE     => '_SHOW',
       USER_READ      => '_SHOW',
       %LIST_PARAMS,
       COLS_NAME      => 1
@@ -536,6 +557,7 @@ sub msgs_user {
       pages   => $Msgs->{TOTAL},
       ID      => 'MSGS_LIST',
       header  => $status_bar,
+      FIELDS_IDS => $Msgs->{COL_NAMES_ARR},
     });
 
     foreach my $line (@$list) {
@@ -548,7 +570,7 @@ sub msgs_user {
         ? $html->button((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT}), "index=$index&ID=$line->{id}&sid=$sid#last_msg")
         : $html->button($html->b((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT})), "index=$index&ID=$line->{id}&sid=$sid#last_msg"),
         $line->{datetime},
-        $html->color_mark($msgs_status->{ $line->{state} }),
+        $html->color_mark($msgs_status->{ $line->{state} }) . (($line->{resposible} && !$line->{state}) ? " ($lang{TAKEN_TO_WORK})" : ""),
         $html->button($lang{SHOW}, "index=$index&ID=$line->{id}&sid=$sid", { class => 'show' })
       );
     }
@@ -561,27 +583,31 @@ sub msgs_user {
 
   $table = $html->table(
     {
-      width      => '100%',
-      rows       => [
+      width => '100%',
+      rows  => [
         [
-          "$lang{TOTAL}:  " . $html->b( $Msgs->{TOTAL_MSG} ),
+          "$lang{TOTAL}:  " . $html->b($Msgs->{TOTAL_MSG}),
           #$html->color_mark( "$lang{IN_WORK}:  " . $html->b( $Msgs->{IN_WORK} ), $msgs_status_colors[3] ),
-          "$lang{OPEN}: " . $html->b( $Msgs->{OPEN} ),
+          "$lang{OPEN}: " . $html->b($Msgs->{OPEN}),
           #$html->color_mark( "$lang{CLOSED_UNSUCCESSFUL}:  " . $html->b( $Msgs->{UNMAKED} ), $msgs_status_colors[1] ),
           #$html->color_mark( "$lang{CLOSED_SUCCESSFUL}:  " . $html->b( $Msgs->{CLOSED} ), $msgs_status_colors[2] ),
         ]
       ],
-      rowcolor => 'total'
+      ID    => 'MSGS_LIST_TOTAL'
     }
   );
   print $table->show();
 
   delete $LIST_PARAMS{SORT};
-  require Msgs::Chat;
-  show_user_chat();
+  if($conf{MSGS_CHAT}) {
+    require Msgs::Chat;
+    show_user_chat();
+  }
 
   return 1;
 }
+
+
 #**********************************************************
 =head2 msgs_user_search_table() - Create table with find msgs
 

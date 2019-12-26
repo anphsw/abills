@@ -18,7 +18,10 @@ our(
   @WEEKDAYS,
   @MONTHES,
 );
-my $Msgs = Msgs->new($db, $admin, \%conf);
+
+require Chatdb;
+Chatdb->import();
+my $Chatdb = Chatdb->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 header_online_chat() Shows chats at the header main page
@@ -33,15 +36,15 @@ sub header_online_chat {
   my ($attr) = @_;
   my $list = '';
   if ($FORM{AID}) {
-    my $count_messages = $Msgs->chat_count({ AID => $FORM{AID} });
+    my $count_messages = $Chatdb->chat_count({ AID => $FORM{AID} });
     print $count_messages;
   }
   if ($attr->{UID}) {
-    my $count_user_messages = $Msgs->chat_count({ UID => $attr->{UID} || '' });
+    my $count_user_messages = $Chatdb->chat_count({ UID => $attr->{UID} || '' });
     print $count_user_messages;
   }
   if ($attr->{US_MS_LIST}) {
-    my $messages = $Msgs->chat_message_info({ UID => $attr->{US_MS_LIST} });
+    my $messages = $Chatdb->chat_message_info({ UID => $attr->{US_MS_LIST} });
     foreach my $item (@$messages) {
       $list .= $html->tpl_show(_include('msgs_chat_header', 'Msgs'), {
         SUBJECT => $item->{subject},
@@ -51,7 +54,7 @@ sub header_online_chat {
     print $list;
   }
   if ($FORM{SH_MS_LIST}) {
-    my $messages = $Msgs->chat_message_info({ AID => $FORM{SH_MS_LIST} });
+    my $messages = $Chatdb->chat_message_info({ AID => $FORM{SH_MS_LIST} });
     foreach my $item (@$messages) {
       $list .= $html->tpl_show(_include('msgs_chat_header', 'Msgs'), {
         SUBJECT => $item->{subject},
@@ -83,12 +86,12 @@ sub show_admin_chat {
     return 1;
   }
   if ($FORM{COUNT} && $FORM{MSG_ID}) {
-    my $count = $Msgs->chat_count({ Msg_ID => $FORM{MSG_ID}, SENDER => 'aid' });
+    my $count = $Chatdb->chat_count({ MSG_ID => $FORM{MSG_ID}, SENDER => 'aid' });
     print $count;
     return 1;
   }
   if ($FORM{CHANGE} && $FORM{MSG_ID}) {
-    $Msgs->chat_change({ Msg_ID => $FORM{MSG_ID}, SENDER => 'aid'});
+    $Chatdb->chat_change({ MSG_ID => $FORM{MSG_ID}, SENDER => 'aid'});
     return 1;
   }
   if ($conf{MSGS_CHAT} && $FORM{chg}) {
@@ -122,12 +125,12 @@ sub show_user_chat {
     return 1;
   }
   if ($FORM{COUNT} && $FORM{MSG_ID}) {
-    my $count = $Msgs->chat_count({ Msg_ID => $FORM{MSG_ID}, SENDER => 'uid' });
+    my $count = $Chatdb->chat_count({ MSG_ID => $FORM{MSG_ID}, SENDER => 'uid' });
     print $count;
     return 1;
   }
   if ($FORM{CHANGE} && $FORM{MSG_ID}) {
-    $Msgs->chat_change({ Msg_ID => $FORM{MSG_ID}, SENDER => 'uid'});
+    $Chatdb->chat_change({ MSG_ID => $FORM{MSG_ID}, SENDER => 'uid'});
     return 1;
   }
   if ($FORM{INFO} && $FORM{UID}) {
@@ -161,14 +164,14 @@ sub show_user_chat {
 sub msgs_chat_add {
   if ($FORM{MESSAGE} && $FORM{MSG_ID}) {
 
-    $Msgs->chat_add({
+    $Chatdb->chat_add({
       MESSAGE     => $FORM{MESSAGE},
       UID         => $FORM{UID} || '0',
       AID         => $FORM{AID} || '0',
       NUM_TICKET  => $FORM{MSG_ID} || '0',
       MSGS_UNREAD => '0',
     });
-    if (!$Msgs->{errno}) {
+    if (!$Chatdb->{errno}) {
       $html->message('info', $lang{INFO}, $lang{ADDED});
     }
   }
@@ -189,7 +192,7 @@ sub msgs_chat_show {
     return '';
   }
   my $list = '';
-  $list = $Msgs->chat_list({Msg_ID => $FORM{MSG_ID}});
+  $list = $Chatdb->chat_list({MSG_ID => $FORM{MSG_ID}});
 
   foreach my $line (@$list) {
     if ($FORM{ADMIN} && $line->{uid} eq '0') {

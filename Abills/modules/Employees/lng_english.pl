@@ -97,4 +97,7 @@ $lang{TYPE_IN_CASHBOX_NAME}='Type in cashbox name';
 $lang{TYPE_IN_SPENDING_TYPE}='Type in spending type';
 $lang{TYPE_IN_COMING_TYPE}='Type in coming type';
 $lang{UNITS_}='Units of measurement';
+
+$lang{VACATION}='Vacation';
+
 1

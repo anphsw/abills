@@ -138,7 +138,8 @@ function AMap(callback) {
   this.animatePolyline = function (setup, polyline) {
     
     var polylineColor = (polyline.COLOR) ? aColorPalette.getColorHex(polyline.COLOR) : aColorPalette.getNextColorHex();
-    
+    polylineColor = polyline.HEXCOLOR ? polyline.HEXCOLOR : polylineColor;
+
     if (setup) {
       //Process route polyline
       var lineSymbol = {
@@ -236,7 +237,7 @@ function MarkerBuilder(map) {
     return this;
   };
   
-  this.setIcon = function (fileName, sizeArr) {
+  this.setIcon = function (fileName, sizeArr, marker_color) {
     var width  = 32;
     var height = 37;
     var name   = '';
@@ -245,10 +246,19 @@ function MarkerBuilder(map) {
       width  = sizeArr[0];
       height = sizeArr[1];
     }
-    
+
     /* Strange piece of code TODO: Check if it is still required*/
-    if (fileName === 'default_green') {
-      name = null;
+    if (marker_color != null) {
+      let colorIcon = new google.maps.MarkerImage(
+        "http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|" + marker_color,
+        new google.maps.Size(width, height)
+      );
+
+      this._marker.icon = colorIcon;
+      return this;
+    }
+    else if (fileName === 'default_green') {
+      return this;
     }
     else if (fileName !== 'null') {
       this._marker.type = fileName;
@@ -1042,4 +1052,51 @@ function catCableToWell(marker) {
     loadToModal(marker.link);
     MapLayers.refreshLayer(WELL_LAYER_ID);
     MapLayers.refreshLayer(CABLE_LAYER_ID);
+}
+
+function drawDistanceGoogle (objects, lat, lng) {
+    var directionsService = new google.maps.DirectionsService;
+    var directionsDisplay = new google.maps.DirectionsRenderer;
+
+    var distance_main = {
+        'index': 0,
+        'distance': 0,
+        'routes': '',
+        'responce': ''
+    };
+
+    $.each(objects, function (i, mapObject) {
+        directionsService.route({
+            origin: new google.maps.LatLng(mapObject['MARKER'].COORDX, mapObject['MARKER'].COORDY),
+            destination: new google.maps.LatLng(lat,lng),
+            travelMode: 'WALKING'
+        }, function (response, status) {
+            if (status == google.maps.DirectionsStatus.OK) {
+                let distance_one = response.routes[0].legs[0].distance.value;
+                if (distance_one < distance_main.distance || !distance_main.distance){
+                    distance_main.distance = distance_one;
+                    distance_main.index = i;
+                    distance_main.routes = response.routes[0].legs[0];
+                    distance_main.responce = response;
+                }
+
+                if (i === objects.length - 1) {
+                    directionsDisplay.setDirections(distance_main.responce);
+                    directionsDisplay.setOptions({
+                        draggable: false,
+                        suppressInfoWindows: false,
+                        suppressMarkers: true
+                    });
+
+                    var infowindow = new google.maps.InfoWindow();
+                    infowindow.setContent(distance_main.routes.distance.text + "<br>" + distance_main.routes.duration.text + " ");
+                    infowindow.setPosition(distance_main.routes.steps[0].end_location);
+                    infowindow.open(aMap.map);
+
+                    directionsDisplay.setMap(aMap.map);
+                    directionsDisplay.setOptions( { suppressMarkers: true } );
+                }
+            }
+        });
+    });
 }

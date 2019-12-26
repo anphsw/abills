@@ -161,7 +161,7 @@ sub tr_069_faults {
     my @row = ();
     foreach my $key ( @key_names ) {
       if ($key eq 'Date') {
-        my $date_ = $line->{timestamp};
+        my $date_ = $line->{timestamp} || q{};
         $date_ =~ s/^([0-9]{4}-[0-9]{2}-[0-9]{2})T([0-9]{2}:[0-9]{2}:[0-9]{2}).*$/$1 $2/;
         push @row, $date_;
       }
@@ -198,15 +198,19 @@ sub tr_069_faults {
         }
       }
     } 
-    my $del_btn = $html->button('',
-    "index=$index&del=$line->{_id}",
-    { MESSAGE => "$lang{DEL} Fault?", ICON => 'glyphicon glyphicon-trash text-danger' });
+
+    my $del_btn = $html->button('', "index=$index&del=" . (($line->{_id}) ? $line->{_id} : q{} ),
+      { MESSAGE => "$lang{DEL} Fault?", ICON => 'glyphicon glyphicon-trash text-danger' });
+
     push @row, $del_btn;
     push @faults_rows, \@row;
   }
 
   my $table =  $html->table({ title => \@key_names, rows => \@faults_rows });
+
   print $table->show();
+
+  return 1;
 }
 #**********************************************************
 =head2 tr_069_main($attr)
@@ -214,7 +218,6 @@ sub tr_069_faults {
 =cut
 #**********************************************************
 sub tr_069_main {
-  my ($attr) = @_;
 
   if ($FORM{API_KEY} && ((!$FORM{json} && !$FORM{header}) || !$FORM{xml})) {
     tr_069_api();

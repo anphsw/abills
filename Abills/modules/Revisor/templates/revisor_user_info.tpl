@@ -22,6 +22,10 @@
           <span class='input-group-addon'><span class='glyphicon glyphicon-earphone'></span></span>
           <input class='form-control' type='text' readonly value='%PHONE%' placeholder='_{NO}_'>
         </div>
+        <div class='input-group' style='margin-top: 5px;'>
+          <span class='input-group-addon'><span class='align-middle glyphicon glyphicon-exclamation-sign'></span></span>
+          <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='2' readonly>%COMMENTS%</textarea>
+        </div>
       </div>
     
       <div class='box collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>

@@ -29,6 +29,7 @@ my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 my $Payments = Finance->payments($db, $admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
 my $Log = Log->new($db, \%conf);
+my $Shedule = Shedule->new( $db, $admin, \%conf );
 
 require Internet::Ipoe_mng;
 require Internet::User_ips;
@@ -63,7 +64,11 @@ sub internet_user {
 
   }
   elsif ($FORM{add}) {
-    if (!internet_user_add({ %FORM, %{($attr) ? $attr : {}} })) {
+    if (!$permissions{0}{32} && !$attr->{REGISTRATION}) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
+      return 1;
+    }
+    elsif (!internet_user_add({ %FORM, %{($attr) ? $attr : {}} })) {
       return 1;
     }
   }
@@ -97,15 +102,18 @@ sub internet_user {
     $FORM{chg} = $Internet->{ID};
   }
 
-  if (!$permissions{0}{25}) {
-    $Internet->{PERSONAL_TP_DISABLE} = 'readonly';
-  }
-  if (!$permissions{0}{19}) {
-    $Internet->{ACTIVATE_DISABLE} = 'disabled';
-  }
-  if (!$permissions{0}{20}) {
-    $Internet->{EXPIRE_DISABLE} = 'disabled';
-  }
+  # if (!$permissions{0}{25}) {
+  #   $Internet->{PERSONAL_TP_DISABLE} = 'readonly';
+  # }
+  # if (!$permissions{0}{19}) {
+  #   $Internet->{ACTIVATE_DISABLE} = 'disabled';
+  # }
+  # if (!$permissions{0}{20}) {
+  #   $Internet->{EXPIRE_DISABLE} = 'disabled';
+  # }
+  # if (!$permissions{0}{32}) {
+  #   $Internet->{ADD_SERVICE_HIDE} = "style='display:none'";;
+  # }
 
   if (!$Internet->{TOTAL} || $Internet->{TOTAL} < 1) {
     $Internet->{TP_ADD} = $html->form_select(
@@ -445,6 +453,7 @@ sub internet_user {
     $Internet->{PORT_SEL} = $html->form_select(
       'PORT',
       {
+        POPUP_SIZE        => 'lg',
         POPUP_WINDOW      => 'form_search_port',
         POPUP_WINDOW_TYPE => 'choose',
         SEARCH_STRING     => 'get_index=equipment_info&visual=0&header=2&PORT_SHOW=1&PORT_INPUT_NAME=PORT',
@@ -531,7 +540,39 @@ sub internet_user {
     delete $Internet->{EQUIPMENT_FORM};
   }
 
+  if ($Internet->{UID}) {
+    my $sheduled_tp_actions_list = $Shedule->list({
+      UID       => $Internet->{UID},
+      TYPE      => 'tp',
+      MODULE    => 'Internet',
+      COLS_NAME => 1
+    });
+
+    if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0) {
+      my $next_tp_action = $sheduled_tp_actions_list->[0];
+      my $next_tp_date = "$next_tp_action->{y}-$next_tp_action->{m}-$next_tp_action->{d}";
+
+      my $next_tp_id = $next_tp_action->{action};
+      my $service_id = 0;
+      if ($next_tp_id =~ /:/) {
+        ($service_id, $next_tp_id) = split(/:/, $next_tp_id);
+      }
+
+      my $tp_list = $Tariffs->list({
+        INNER_TP_ID => $next_tp_id,
+        NAME        => '_SHOW',
+        COLS_NAME   => 1
+      });
+
+      if ($Tariffs->{TOTAL} && $Tariffs->{TOTAL} > 0) {
+        my $next_tp_name = $tp_list->[0]{name};
+        $Internet->{TP_CHANGE_WARNING} = $html->message("info", $lang{TP_CHANGE_SHEDULED} . " ($next_tp_date)", $next_tp_name, { OUTPUT2RETURN => 1 });
+      }
+    }
+  }
+
   my $service_info1 = $html->tpl_show(_include('internet_user', 'Internet'), {
+    %FORM,
     %$users,
     %$admin,
     %$attr,
@@ -611,7 +652,7 @@ sub internet_user_add {
   }
 
   if (!$service_id) {
-    _error_show($Internet);
+    _error_show($Internet, { ID => 961 });
     return -1;
   }
 
@@ -689,8 +730,9 @@ sub internet_user_change {
     IPN_ACTIVATE => $attr->{IPN_ACTIVATE} || 0
   });
 
-  if (!$FORM{STATUS} || defined($FORM{STATUS}) && $FORM{STATUS} == 0) {
-    my $Shedule = Shedule->new($db, $admin, \%conf);
+  if (!$attr->{STATUS}
+    || (defined($attr->{STATUS}) && ($attr->{STATUS} == 0 || $attr->{STATUS} == 5))) {
+    $Shedule = Shedule->new($db, $admin, \%conf);
     my $list = $Shedule->list(
       {
         UID       => $uid,
@@ -722,7 +764,7 @@ sub internet_user_change {
     if (!$attr->{STATUS} && ($attr->{GET_ABON} || !$attr->{TP_ID})) {
       if ($attr->{PERSONAL_TP} &&
         $attr->{PERSONAL_TP} > 0
-        && $Internet->{OLD_PERSONAL_TP} == $attr->{PERSONAL_TP}) {
+        && $Internet->{OLD_PERSONAL_TP} == $attr->{PERSONAL_TP} && $Internet->{OLD_STATUS} == ($attr->{STATUS} || 0)) {
 
       }
       else {
@@ -905,9 +947,11 @@ sub internet_user_change_nas {
 sub internet_user_preproccess {
   my ($uid, $attr) = @_;
 
-  if (!$permissions{0}{18} && !$attr->{REGISTRATION}) {
-    delete $attr->{STATUS};
-  }
+  delete($attr->{TP_ID})            if (!$permissions{0}{10} && !$attr->{REGISTRATION});
+  delete($attr->{STATUS})           if (!$permissions{0}{18} && !$attr->{REGISTRATION});
+  delete($attr->{SERVICE_ACTIVATE}) if (!$permissions{0}{19} && !$attr->{REGISTRATION});
+  delete($attr->{SERVICE_EXPIRE})   if (!$permissions{0}{20} && !$attr->{REGISTRATION});
+  delete($attr->{PERSONAL_TP})      if (!$permissions{0}{25});
 
   if ((!$attr->{IP} || $attr->{IP} eq '0.0.0.0') && $attr->{STATIC_IP_POOL}) {
     $attr->{IP} = get_static_ip($attr->{STATIC_IP_POOL});
@@ -951,7 +995,7 @@ sub internet_user_preproccess {
   }
 
   #Format CPE_MAC
-  if ($attr->{CPE_MAC} && $attr->{CPE_MAC} !~ /ANY/i && $conf{INTERNET_CID_FORMAT}) {
+  if ($attr->{CPE_MAC} && $attr->{CPE_MAC} !~ /ANY/i && !$conf{INTERNET_CID_FORMAT}) {
     $attr->{CPE_MAC} = Abills::Filters::_mac_former($attr->{CPE_MAC});
   }
 
@@ -995,6 +1039,25 @@ sub internet_user_preproccess {
     }
   }
 
+  if ($attr->{NAS_ID} && $attr->{PORT}) {
+    my $list = $Internet->list({
+      NAS_ID    => $attr->{NAS_ID},
+      PORT      => $attr->{PORT},
+      LOGIN     => "_SHOW",
+      COLS_NAME => 1
+    });
+
+    if ($Internet->{TOTAL} > 0 &&  $list->[0]->{uid} && $list->[0]->{uid} != $uid) {
+      $html->message('warn', $lang{WARNING}, "NAS_ID & PORT already use. Login: "
+        . $html->button("$list->[0]{login}", "index=15&UID=" . $list->[0]->{uid}));
+
+      # if (!$attr->{SKIP_ERRORS}) {
+      #   $attr->{RETURN} = 1;
+      #   return $attr;
+      # }
+    }
+  }
+
   #Check duplicate CPE MAC
   if ($attr->{CPE_MAC}) {
     my $list = $Internet->list({
@@ -1012,10 +1075,6 @@ sub internet_user_preproccess {
         return $attr;
       }
     }
-  }
-
-  if (!$permissions{0}{25}) {
-    delete $attr->{PERSONAL_TP};
   }
 
   if ($attr->{RESET}) {
@@ -1249,14 +1308,16 @@ sub internet_user_online {
       if ($conf{INTERNET_EXTERNAL_DIAGNOSTIC}) {
         my @diagnostic_rules = split(/;/, $conf{INTERNET_EXTERNAL_DIAGNOSTIC});
         for (my $diag_num = 0; $diag_num <= $#diagnostic_rules; $diag_num++) {
-          my ($name) = split(/:/, $diagnostic_rules[$diag_num]);
+          my ($name,undef,undef,$qindex) = split(/:/, $diagnostic_rules[$diag_num]);
 
           if (!$name) {
             $name = 'Diagnostic ' . $diag_num;
           }
 
+          my $index = ($qindex && $qindex eq 'qindex') ? 'qindex' : 'index';
+
           push @function_fields, $html->button($name,
-            "index=$online_index&diagnostic=$diag_num:$line->{client_ip}+$uid+$line->{nas_id}+$line->{nas_port_id}+$line->{acct_session_id}$pages_qs",
+            "$index=$online_index&diagnostic=$diag_num:$line->{client_ip}+$uid+$line->{nas_id}+$line->{nas_port_id}+$line->{acct_session_id}$pages_qs",
             { TITLE => "$name", BUTTON => 1, NO_LINK_FORMER => 1 });
         }
       }
@@ -1347,7 +1408,8 @@ sub internet_user_subscribes {
         #SELECT_ALL => ($permissions{0}{7}) ? "internet_users_list:IDS:$lang{SELECT_ALL}" : undef,
         EXPORT  => 1,
         MENU    => "$lang{ADD}:index=" . get_function_index('internet_user')
-          . "&UID=$LIST_PARAMS{UID}&add_form=1"
+          . (($LIST_PARAMS{UID}) ? "&UID=$LIST_PARAMS{UID}" : q{})
+          . "&add_form=1"
           . ':add'
           #. ";$lang{SEARCH}:index=$index&search_form=1:search"
       },
@@ -1359,7 +1421,7 @@ sub internet_user_subscribes {
       OUTPUT2RETURN   => 1
     });
 
-    return $table->show();
+    return $table->show() if($table);
   }
 
   return '';
@@ -1428,6 +1490,19 @@ sub internet_pay_to {
 
     if ($users->{REDUCTION}) {
       $Internet_->{SUM} = $Internet_->{SUM} * (100 - $users->{REDUCTION}) / 100;
+    }
+
+    if($users->{DEPOSIT}) {
+      if($users->{DEPOSIT} > 0) {
+        $Internet_->{SUM} = $Internet_->{SUM} - $users->{DEPOSIT};
+      }
+      elsif($users->{DEPOSIT} < 0) {
+        $Internet_->{SUM} = $Internet_->{SUM} + abs($users->{DEPOSIT});
+      }
+
+      if($Internet_->{SUM} < 0) {
+        $Internet_->{SUM} = 0;
+      }
     }
   }
   else {
@@ -1521,9 +1596,11 @@ sub internet_test {
       'NAS_ID',
       {
         SELECTED    => $FORM{NAS_ID} || '',
-        SEL_LIST    => $Nas->list({ %LIST_PARAMS, COLS_NAME => 1, PAGE_ROWS => 10000, SHORT => 1 }),
-        SEL_KEY     => 'nas_id',
-        SEL_VALUE   => 'nas_name',
+        SEL_LIST    => $Nas->list({ %LIST_PARAMS, NAS_IP=>'_SHOW', NAS_NAME=> '_SHOW',
+          COLS_NAME => 1, PAGE_ROWS => 10000, SHORT => 1 }),
+        SEL_KEY     => 'id',
+        SEL_VALUE   => 'id,nas_name,ip',
+        NO_ID       => 1,
         SEL_OPTIONS => { '' => '== ' . $lang{NAS} . ' ==' },
       }
     ),
@@ -1998,11 +2075,11 @@ sub internet_chg_tp {
     MODULE        => 'Dv;Internet',
     DOMAIN_ID     => $users->{DOMAIN_ID} || $admin->{DOMAIN_ID},
     NEW_MODEL_TP  => 1,
-    HIDE_HIDDEN   => 1,
     COMMENTS      => '_SHOW',
     TP_GROUP_NAME => '_SHOW',
     MONTH_FEE     => '_SHOW',
     DAY_FEE       => '_SHOW',
+    STATUS        => '_SHOW',
     COLS_NAME     => 1
   });
 
@@ -2055,6 +2132,7 @@ sub internet_chg_tp {
   # GID:ID=>NAME
   my %TPS_HASH = ();
   foreach my $line (@$tp_list) {
+    next if ($line->{status});
     my $small_deposit = '';
 
     if (($users->{DEPOSIT} || 0) + $users->{CREDIT} < $line->{month_fee} + $line->{day_fee}) {
@@ -2119,9 +2197,13 @@ sub internet_user_del {
 =head2 internet_compensation($attr)
 
   Arguments:
-    UP - Do not show service menu
+    UP - (Usr Poratl) Do not show service menu
+    QUITE   = 1,
+    HOLD_UP = Don't compensate currenbt month
+
   Returns:
-    true
+    TRUE or FALSE
+
 =cut
 #**********************************************************
 sub internet_compensation {
@@ -2203,6 +2285,7 @@ sub internet_compensation {
           }
 
           if ($attr->{HOLD_UP}) {
+            print "HOLLDDDD;";
             return 1;
           }
         } while (($FROM_Y < $TO_Y) || ($FROM_M <= $TO_M && $FROM_Y == $TO_Y));
@@ -2215,25 +2298,44 @@ sub internet_compensation {
 
     $table->{color} = $_COLORS[3];
 
-    $table->addrow($html->b("$lang{TOTAL}:"), $html->b("$days"), $html->b("$sum"));
-    $Payments->add(
-      {
-        BILL_ID => $users->{BILL_ID} || $user->{BILL_ID},
-        UID     => $uid
-      },
-      {
-        SUM            => $sum,
-        METHOD         => 6,
-        DESCRIBE       =>
-          "$lang{COMPENSATION}. $lang{DAYS}: $FORM{FROM_DATE}/$FORM{TO_DATE} ($days)" . (($FORM{DESCRIBE}) ? ". $FORM{DESCRIBE}" : '')
-          ,
-        INNER_DESCRIBE => $FORM{INNER_DESCRIBE}
+    if( $Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' ) {
+      my $days_to_holdup = date_diff($DATE, $FORM{TO_DATE});
+      if($attr->{HOLD_UP} && $days_to_holdup > 30) {
+        $sum = 0;
       }
-    );
+    }
+    else {
+      $FORM{FROM_DATE} =~ m/(\d{2}\-\d{2})/;
+      my $from_date = $1 || '';
+      $DATE =~ m/(\d{2}\-\d{2})/;
+      my $cur_date = $1 || '';
 
-    if (!_error_show($Payments)) {
-      $html->message('info', "$lang{COMPENSATION}", "$lang{COMPENSATION} $lang{SUM}: $sum");
-      print $table->show();
+      if($from_date ne $cur_date && $attr->{HOLD_UP}) {
+        $sum = 0;
+      }
+    }
+
+    $table->addrow($html->b("$lang{TOTAL}:"), $html->b($days), $html->b($sum));
+    if($sum > 0) {
+      $Payments->add(
+        {
+          BILL_ID => $users->{BILL_ID} || $user->{BILL_ID},
+          UID     => $uid
+        },
+        {
+          SUM            => $sum,
+          METHOD         => 6,
+          DESCRIBE       =>
+            "$lang{COMPENSATION}. $lang{DAYS}: $FORM{FROM_DATE}/$FORM{TO_DATE} ($days)" . (($FORM{DESCRIBE}) ? ". $FORM{DESCRIBE}" : '')
+            ,
+          INNER_DESCRIBE => $FORM{INNER_DESCRIBE}
+        }
+      );
+
+      if (!_error_show($Payments)) {
+        $html->message('info', $lang{COMPENSATION}, "$lang{COMPENSATION} $lang{SUM}: $sum");
+        print $table->show();
+      }
     }
 
     if ($attr->{QUITE}) {
@@ -2502,9 +2604,10 @@ sub internet_user_wizard {
   );
 
   if ($conf{INTERNET_LOGIN}) {
-    $internet_defaults->{LOGIN_FORM} = $html->tpl_show(templates('form_row'), { ID => 'INTERNET_LOGIN',
-      NAME                                                                         => "Internet " . $lang{LOGIN},
-      VALUE                                                                        => $html->form_input('INTERNET_LOGIN', $FORM{INTERNET_LOGIN}, { ID => 'INTERNET_LOGIN' })
+    $internet_defaults->{LOGIN_FORM} = $html->tpl_show(templates('form_row'), {
+      ID    => 'INTERNET_LOGIN',
+      NAME  => "Internet " . $lang{LOGIN},
+      VALUE => $html->form_input('INTERNET_LOGIN', $FORM{INTERNET_LOGIN}, { ID => 'INTERNET_LOGIN' })
     }, { OUTPUT2RETURN => 1 });
   }
 
@@ -2660,7 +2763,7 @@ sub internet_wizard_add {
   # Password
   $add_values{1}{GID} = $admin->{GID} if ($admin->{GID});
 
-  if (!$permissions{0}{13} && $admin->{AID} != 2) {
+  if (!$permissions{0}{13} && $admin->{AID} != 2 && !$admin->{DOMAIN_ID}) {
     $add_values{1}{DISABLE} = 2;
   }
 
@@ -2709,8 +2812,8 @@ sub internet_wizard_add {
 
     #3 personal info
     $user->pi_add({
-      UID => $uid,
-      %{(defined($add_values{3})) ? $add_values{3} : {}}
+      %{(defined($add_values{3})) ? $add_values{3} : {}},
+      UID => $uid
     });
 
     _error_show($user, { MESSAGE => "LOGIN: " . ($add_values{2}{LOGIN} || q{}), ID => 922 });
@@ -2721,7 +2824,7 @@ sub internet_wizard_add {
       if ($attr->{'5.SUM'} > 0) {
         my $er = ($FORM{'5.ER'}) ? $Finance->exchange_info($FORM{'5.ER'}) : { ER_RATE => 1 };
         $Payments->add($user, { %{$add_values{5}}, ER => $er->{ER_RATE} });
-
+        $users->{DEPOSIT}=$attr->{'5.SUM'};
         if ($Payments->{errno}) {
           _error_show($Payments, { MODULE_NAME => $lang{PAYMENTS} });
           return 0;
@@ -2902,6 +3005,48 @@ sub internet_wizard_add {
 
       if (defined(&form_fees_wizard)) {
         form_fees_wizard({ USER_INFO => $user });
+      }
+    }
+    #Iptv
+    if (scalar keys %{$add_values{11}} > 0) {
+      load_module('Iptv', $html);
+      %FORM = %{$add_values{11}};
+      $FORM{UID} = $uid;
+      $FORM{add} = $uid;
+
+      if (defined(&iptv_user_add)) {
+        iptv_user_add(\%FORM);
+
+        if($FORM{SCREEN_IDS}) {
+          my @screens = split(/,\s?/, $FORM{SCREEN_IDS});
+          my @screen_cids = ();
+          if ($FORM{SCREEN_CIDS}) {
+            @screen_cids = split(/,\s?/, $FORM{SCREEN_CIDS});
+          }
+
+          my $i=0;
+          foreach my $screen ( @screens ) {
+            iptv_users_screen_add({
+              %FORM,
+              SERVICE_ID => $FORM{SERVICE_ID},
+              SCREEN_ID  => $screen,
+              CID        => $screen_cids[$i] || undef
+            });
+            $i++;
+          }
+        }
+      }
+    }
+
+    #Tags
+    if (scalar keys %{$add_values{12}} > 0) {
+      load_module('Tags', $html);
+      %FORM = %{$add_values{12}};
+      $FORM{UID} = $uid;
+      $FORM{add} = $uid;
+
+      if (defined(&tags_user_add)) {
+        tags_user_add(\%FORM);
       }
     }
 

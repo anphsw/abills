@@ -18,6 +18,7 @@ use JSON qw/encode_json decode_json/;
 
 my $Notepad = Notepad->new($db, $admin, \%conf);
 my @STATUS = ($lang{ACTIVE}, $lang{PAUSED}, $lang{CLOSED});
+my @STICKER_STATUS = ($lang{STICKER_HIDE},$lang{STICKER_DISPLAY});
 
 my @REAL_WEEKDAYS = ();
 ($lang{HOLIDAY}, @REAL_WEEKDAYS) = (@WEEKDAYS); # Removed confusing first element
@@ -66,7 +67,6 @@ sub notepad_main {
 
   if ($FORM{add}) {
     $check_notepad_form_params->();
-
     $Notepad->notes_add({ %FORM });
     $show_add_form = !show_result($Notepad, $lang{ADDED});
 
@@ -87,7 +87,6 @@ sub notepad_main {
   elsif ($FORM{chg}) {
 
     my $tp_info = $Notepad->notes_info($FORM{chg});
-
     if (!_error_show($Notepad)) {
       $html->message('info', $lang{INFO}, "$lang{CHANGING}");
       %TEMPLATE_NOTE = %{$tp_info};
@@ -135,6 +134,16 @@ sub notepad_main {
 
     $TEMPLATE_NOTE{CHECKLIST} = notepad_checklist({ OUTPUT2RETURN => 1, NOTE_ID => $TEMPLATE_NOTE{ID} });
 
+    $TEMPLATE_NOTE{STATUS_ST} //= 1;
+    $TEMPLATE_NOTE{STICKER_STATUS} = $html->form_select(
+      "STATUS_ST",
+      {
+        SELECTED     => $FORM{STATUS_ST}||$TEMPLATE_NOTE{STATUS_ST},
+        SEL_ARRAY    => \@STICKER_STATUS,
+        ARRAY_NUM_ID => 1,
+        NO_ID        => 1
+      }),
+
     $html->tpl_show(_include('notepad_main_form', 'Notepad'),
       {
         %TEMPLATE_NOTE,
@@ -145,7 +154,6 @@ sub notepad_main {
     );
 
   }
-
   if ($can_assign_note_to_other_admin) {
 
     $html->tpl_show(_include('notepad_manager_filter_panel', 'Notepad'), {
@@ -538,7 +546,7 @@ sub notepad_calendar {
     $locale_script_src = "/styles/lte_adm/plugins/fullcalendar/locale/$locale_code.js";
   }
   else {
-    $html->message('warn', 'shit', "/styles/lte_adm/plugins/fullcalendar/locale/$locale_code.js")
+    $html->message('warn', 'File not found', "/styles/lte_adm/plugins/fullcalendar/locale/$locale_code.js")
   }
 
   $html->tpl_show(_include('notepad_calendar', 'Notepad'),
@@ -764,7 +772,7 @@ sub _notepad_date_decr {
 #**********************************************************
 sub notepad_start_page {
   {
-    'notepad_notes_sp' => $lang{NOTES}
+    'notepad_notes_sp' => $lang{NOTES},
   };
 }
 
@@ -809,7 +817,58 @@ sub notepad_notes_sp {
     }
   }
 
+  $html->tpl_show(_include('notepad_sticker','Notepad'),{
+    ID            => $FORM{ID},
+    INDEX         => $index
+  });
+
   return $notepad_sp_table->show();
+}
+
+#**********************************************************
+=head2 notepad_show_sticker() - Show sticker for Notepad
+
+=cut
+#**********************************************************
+
+sub notepad_show_sticker {
+  my $list = $Notepad->get_sticker({AID => $admin->{AID}});
+  my $sticker_json;
+
+  if ($FORM{get_stickers} && $FORM{get_stickers}==1) {
+    foreach my $line (@$list) {
+      $line->{index} = get_function_index('notepad_main');
+      $line->{sticker_title} = $lang{STICKER_TITLE};
+    }
+    $sticker_json = JSON->new->encode($list);
+    print $sticker_json;
+    return 1;
+  }
+
+  my $table = $html->table( { width      => '100%',
+    caption    => $lang{NOTE},
+    border     => 1,
+    title      => [$lang{ST_TITLE},$lang{ST_TEXT}],
+    cols_align => ['center', 'center'],
+    pages      => 2,
+    ID         => 1
+  } );
+
+  foreach my $line (@$list) {
+
+    $table->addtd(
+      $table->td($line->{subject},{ID => 'sticker_title_td'}),
+      $table->td($line->{text},{ID => 'sticker_text_td'})
+    );
+  }
+
+  print $table->show();
+
+  $html->tpl_show(_include('notepad_sticker', 'Notepad'),{
+    ID              => $FORM{ID},
+    INDEX           => $index,
+  });
+
 }
 
 1;

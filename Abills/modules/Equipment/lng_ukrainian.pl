@@ -46,7 +46,7 @@ $lang{ONU_STATUS} = 'Статус приставки';
 $lang{POWER}='Сила сигнала';
 $lang{TEMPERATURE}='Температура';
 $lang{VOLTAGE}='Вольтаж';
-$lang{UNREGISTER}='Незареестровані';
+$lang{UNREGISTER}='Незареєстровані';
 $lang{UNREG_ONU}='Дереєструвати';
 $lang{DEVICE}='Пристрій';
 
@@ -92,19 +92,14 @@ $lang{ERROR_FILE} = "Не вийшло відкрити файл: ";
 $lang{EDIT_SUCCESS} = 'Шаблон змінено';
 $lang{INVALID_JSON} = 'Невірний формат файла';
 $lang{FILES_TITLE} = 'Шаблони';
-$lang{FIELD} = 'поле';
-$lang{GROUP} = 'групу';
 $lang{FILE_REMOVED} = 'Файл видалено';
 $lang{FILE_NOT_REMOVED} = "Файл не був видалений";
 $lang{JSON_CONF} = 'SNMP Шаблони';
-$lang{REMOVE} = 'Видалити';
-$lang{TITLE} = 'Заголовок';
-
 
 $lang{GOOD_SIGNAL} = 'Хороший сигнал';
 $lang{BAD_SIGNAL} = 'Поганий сигнал';
-$lang{WORTH_SIGNAL} = 'Средній сигнал';
-$lang{BUSY} = 'заповнено на';
+$lang{WORTH_SIGNAL} = 'Середній сигнал';
+$lang{OLT_BUSY} = 'заповнено на';
 
 $lang{ONU_PROFILE} = 'Профайл';
 $lang{CALCULATOR} = 'Калькулятор';
@@ -115,4 +110,11 @@ $lang{CALCULATE} = 'Підрахувати';
 $lang{COUPLER} = 'Відгалужувач';
 $lang{PASS} = 'Прохід';
 $lang{BEND} = 'Відведення';
+
+$lang{SNMP_INFO} = 'SNMP Інформація';
+$lang{PORT_UPTIME} = 'Час роботи порта';
+
+$lang{NO_ZABBIX_INFO} = 'Потрібно заповнити Zabbix hostid, а також $conf{ZABBIX_URL}';
+$lang{DUPLICATE_MAC} = 'MAC адреси, що повторюються';
+
 1

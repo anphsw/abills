@@ -492,7 +492,7 @@ sub change {
     FEES_METHOD             => 'fees_method',
     USER_CREDIT_LIMIT       => 'user_credit_limit',
     SERVICE_ID              => 'service_id',
-    TP_STATUS               => 'status'
+    STATUS                  => 'status'
   );
 
   $attr->{REDUCTION_FEE}        = 0 if (!$attr->{REDUCTION_FEE});
@@ -505,7 +505,7 @@ sub change {
   $attr->{BILLS_PRIORITY}       = 0 if (!$attr->{BILLS_PRIORITY});
   $attr->{ACTIVE_DAY_FEE}       = 0 if (!$attr->{ACTIVE_DAY_FEE});
   $attr->{FIXED_FEES_DAY}       = 0 if (!$attr->{FIXED_FEES_DAY});
-  $attr->{TP_STATUS}            = 0 if (!$attr->{TP_STATUS});
+  $attr->{STATUS}               = 0 if (!$attr->{STATUS});
 
   $self->changes(
     {
@@ -706,7 +706,7 @@ sub list {
     [ 'SERVICE_ID',          'INT', 'tp.service_id',               1 ],
     [ 'SERVICE_NAME',        'INT', 'tp.service_id', 'tp.service_id AS service_name' ],
     [ 'INTERVALS',           'INT', 'ti.id',   'COUNT(i.id) AS intervals' ],
-    [ 'TP_STATUS',           'INT', 'tp.status', 'tp.status AS tp_status' ],
+    [ 'STATUS',              'INT', 'tp.status',                   1 ],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}){

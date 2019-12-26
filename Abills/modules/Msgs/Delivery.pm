@@ -22,6 +22,7 @@ our ($db,
 );
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
+my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
 my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 
@@ -46,14 +47,24 @@ sub msgs_delivery_main {
     2 => "$lang{DONE}:#009D00",
   };
 
-  my @send_methods = ($lang{MESSAGE}, 'E-MAIL');
+  my %send_methods = (
+    0 => $lang{MESSAGE},
+    1 => 'E-MAIL'
+  );
 
-  if (in_array('Sms', \@MODULES)) {
-    $Msgs->{EXTRA_PARAMS} = '';
-    $send_methods[2] = "$lang{SEND} SMS";
-  }
+  my $sender_send_types = $Sender->available_types({ HASH_RETURN => 1, CLIENT => 1 });
+
+  %send_methods = (
+    %send_methods,
+    %$sender_send_types
+  );
+
+  # if (in_array('Sms', \@MODULES)) {
+  #   $Msgs->{EXTRA_PARAMS} = '';
+  #   $send_methods[2] = "$lang{SEND} SMS";
+  # }
   if ($conf{MSGS_REDIRECT_FILTER_ADD}) {
-    $send_methods[3] = 'Web  redirect';
+    $send_methods{3} = 'Web  redirect';
   }
 
   if ($FORM{add_form}) {
@@ -126,9 +137,9 @@ sub msgs_delivery_main {
     $Msgs->{SEND_METHOD_SELECT} = $html->form_select(
       'SEND_METHOD',
       {
-        SELECTED     => defined($Msgs->{SEND_METHOD}) ? $Msgs->{SEND_METHOD} : 2,
-        SEL_ARRAY    => \@send_methods,
-        ARRAY_NUM_ID => 1
+        SELECTED => defined($Msgs->{SEND_METHOD}) ? $Msgs->{SEND_METHOD} : 2,
+        SEL_HASH => \%send_methods,
+        NO_ID    => 1
       }
     );
 
@@ -189,7 +200,7 @@ sub msgs_delivery_main {
         my $val = '';
         my $field_name = $Msgs->{COL_NAMES_ARR}->[$i];
         if ($field_name eq 'send_method') {
-          $val = @send_methods[$line->{send_method}];
+          $val = $send_methods{$line->{send_method}};
         }
         elsif ($field_name eq 'priority') {
           $val = $html->color_mark($priority[ $line->{priority} ], $priority_colors[ $line->{priority} ]);

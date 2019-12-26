@@ -50,10 +50,13 @@ sub click {
   $message   .= "Нажмите <b>Отправить</b> когда сообщение готово или <b>Отменить</b> если вы передумали.";
   
   my @keyboard = ();
-  my $button = {
+  my $button1 = {
+    text => "Тема сообщения",
+  };
+  my $button2 = {
     text => "Отменить",
   };
-  push (@keyboard, [$button]);
+  push (@keyboard, [$button1], [$button2]);
 
   $self->{bot}->send_message({
     text         => $message,
@@ -124,6 +127,10 @@ sub add_to_msg {
       $self->send_msg($attr);
       return 0;
     }
+    elsif ($text eq "Тема сообщения") {
+      $self->add_title($attr);
+      return 1;
+    }
     $self->add_text_to_msg($attr);
   }
   elsif ($attr->{message}->{photo}) {
@@ -137,28 +144,7 @@ sub add_to_msg {
     return 1;
   }
 
-  my @keyboard = ();
-  my $button1 = {
-    text => "Отправить",
-  };
-  my $button2 = {
-    text => "Отменить",
-  };
-  push (@keyboard, [$button1]);
-  push (@keyboard, [$button2]);
-
-  my $message = "Сообщение обновлено.\n";
-  $message   .= "Нажмите <b>Отправить</b> когда сообщение будет готово или <b>Отменить</b> если вы передумали.\n";
-
-  $self->{bot}->send_message({
-    text         => $message,
-    reply_markup => { 
-      keyboard        => \@keyboard,
-      resize_keyboard => "true",
-    },
-    parse_mode   => 'HTML'
-  });
-
+  $self->send_msgs_main_menu();
   return 1;
 }
 
@@ -180,6 +166,84 @@ sub add_text_to_msg {
   $self->{bot}->send_message({
     text => "К сообщению добавлен текст.",
   });
+  return 1;
+}
+
+#**********************************************************
+=head2 add_title_to_msg()
+
+=cut
+#**********************************************************
+sub add_title_to_msg {
+  my $self = shift;
+  my ($attr) = @_;
+  my $info = $attr->{step_info};
+  
+  if ($attr->{message}->{text}) {
+    my $text = encode_utf8($attr->{message}->{text});
+    if ($text eq "Отменить") {
+      $self->cancel_msg();
+      return 0;
+    }
+    elsif ($text eq "Назад") {
+
+    }
+    else {
+      my $title = $attr->{message}->{text};
+      my $msg_hash = decode_json($info->{args});
+      $msg_hash->{message}->{title} = $title;
+      $info->{ARGS} = encode_json($msg_hash);
+      $self->{bot}->send_message({
+        text => "Тема сообщения изменена.",
+      });
+    }
+  }
+  else {
+    return 1;
+  }
+
+  $info->{FN} = "add_to_msg";
+  $self->{bot_db}->change($info);
+
+  $self->send_msgs_main_menu();
+  return 1;
+}
+
+#**********************************************************
+=head2 add_title()
+
+=cut
+#**********************************************************
+sub add_title {
+  my $self = shift;
+  my ($attr) = @_;
+  my $info = $attr->{step_info};
+  
+  my $message = "Напишите тему сообщения\n";
+  $message   .= "Нажмите <b>Назад</b> чтобы вернуться в предыдущее меню\n";
+  $message   .= "Нажмите <b>Отменить</b> если вы хотите отменить создание сообщения\n";
+  
+  my @keyboard = ();
+  my $button1 = {
+    text => "Назад",
+  };
+  my $button2 = {
+    text => "Отменить",
+  };
+  push (@keyboard, [$button1], [$button2]);
+
+  $self->{bot}->send_message({
+    text         => $message,
+    reply_markup => { 
+      keyboard        => \@keyboard,
+      resize_keyboard => "true",
+    },
+    parse_mode   => 'HTML'
+  });
+  
+  $info->{FN} = 'add_title_to_msg';
+  $self->{bot_db}->change($info);
+
   return 1;
 }
 
@@ -237,7 +301,7 @@ sub send_msg {
     return 1;
   }
   
-  my $subject = "Telegram Bot";
+  my $title = "Telegram Bot";
   my $chapter = 1;
 
   use Msgs;
@@ -249,7 +313,7 @@ sub send_msg {
     USER_SEND => 1,
     UID       => $self->{bot}->{uid},
     MESSAGE   => $msg_hash->{message}->{text},
-    SUBJECT   => $subject,
+    SUBJECT   => $msg_hash->{message}->{title} || $title,
     CHAPTER   => $chapter,
     PRIORITY  => 2,
   });
@@ -286,6 +350,40 @@ sub send_msg {
   $self->{bot}->send_message({
     text => "Сообщение отправлено.",
   });
+  return 1;
+}
+
+#**********************************************************
+=head2 send_msgs_main_menu()
+
+=cut
+#**********************************************************
+sub send_msgs_main_menu {
+  my $self = shift;
+
+  my @keyboard = ();
+  my $button1 = {
+    text => "Тема сообщения",
+  };
+  my $button2 = {
+    text => "Отправить",
+  };
+  my $button3 = {
+    text => "Отменить",
+  };
+  push (@keyboard, [$button1], [$button2], [$button3]);
+
+  my $message   .= "Нажмите <b>Отправить</b> когда сообщение будет готово или <b>Отменить</b> если вы передумали.\n";
+
+  $self->{bot}->send_message({
+    text         => $message,
+    reply_markup => { 
+      keyboard        => \@keyboard,
+      resize_keyboard => "true",
+    },
+    parse_mode   => 'HTML'
+  });
+  
   return 1;
 }
 

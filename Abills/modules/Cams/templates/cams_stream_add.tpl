@@ -18,10 +18,18 @@
                         </div>
                     </div>
                     <div class='box-body'>
-                        <div class='form-group'>
+                        <div id="group_form" class='form-group'>
                             <label class='control-label col-md-3 required'>_{CAMS_GROUP}_</label>
                             <div class='col-md-8'>
                                 %GROUPS_SELECT%
+                            </div>
+                            <a href="#" data-toggle="tooltip" title=""><span class="glyphicon glyphicon-question-sign"></span></a>
+                        </div>
+
+                        <div id="folder_form" class='form-group'>
+                            <label class='control-label col-md-3 required'>Каталог</label>
+                            <div class='col-md-8'>
+                                %FOLDER_SELECT%
                             </div>
                             <a href="#" data-toggle="tooltip" title=""><span class="glyphicon glyphicon-question-sign"></span></a>
                         </div>
@@ -191,17 +199,36 @@
                         </div>
 
                         <div class='form-group'>
-                            <label class='control-label col-md-3'>_{SOUND}_</label>
+                            <label class='control-label col-md-3'>_{TYPE_FOR_SERVICE}_</label>
                             <div class='col-md-8'>
-                                %SOUND_SELECT%
+                                %TYPE_SELECT%
                             </div>
                             <a href="#" data-toggle="tooltip" title=""><span class="glyphicon glyphicon-question-sign"></span></a>
                         </div>
 
                         <div class='form-group'>
-                            <label class='control-label col-md-3'>_{TYPE_FOR_SERVICE}_</label>
+                            <label class='control-label col-md-3'>_{CAMS_VISIBILITY}_</label>
                             <div class='col-md-8'>
-                                %TYPE_SELECT%
+                                <input type='text' class='form-control' name='LENGTH' value='%LENGTH%'
+                                       id='LENGTH'/>
+                            </div>
+                            <a href="#" data-toggle="tooltip" title=""><span class="glyphicon glyphicon-question-sign"></span></a>
+                        </div>
+
+                        <div class='form-group'>
+                            <label class='control-label col-md-3'>_{CAMERA_ANGLE}_</label>
+                            <div class='col-md-8'>
+                                <input type='number' class='form-control' name='ANGEL' value='%ANGEL%' max="360"
+                                       id='ANGEL'/>
+                            </div>
+                            <a href="#" data-toggle="tooltip" title=""><span class="glyphicon glyphicon-question-sign"></span></a>
+                        </div>
+
+                        <div class='form-group'>
+                            <label class='control-label col-md-3'>_{CAMERA_ANGLE_LOCATION}_</label>
+                            <div class='col-md-8'>
+                                <input type='number' class='form-control' name='LOCATION_ANGEL' value='%LOCATION_ANGEL%' max="360"
+                                       id='LOCATION_ANGEL'/>
                             </div>
                             <a href="#" data-toggle="tooltip" title=""><span class="glyphicon glyphicon-question-sign"></span></a>
                         </div>
@@ -217,7 +244,31 @@
 </form>
 
 <script>
-    $(document).ready(function(){
-        $('[data-toggle="tooltip"]').tooltip();
+  if ('%FOLDERS%') {
+    var folder_select = document.getElementById("FOLDER_ID");
+    folder_select.textContent = "";
+    folder_select.value = "";
+
+    autoReload();
+  } else {
+    jQuery('#folder_form').hide();
+  }
+
+  jQuery(document).ready(function () {
+    jQuery('[data-toggle="tooltip"]').tooltip();
+  });
+
+  function autoReload() {
+    var folder = 0;
+    if ('%FOLDERS%' && '%FOLDERS%' > 0)
+      folder = '%FOLDERS%';
+
+    var groups = document.getElementById("GROUP_ID");
+    var result = groups.value;
+    jQuery.post('$SELF_URL', 'header=2&get_index=cams_get_group_folders&GROUP_ID=' + result + '&FOLDER_ID=' + folder, function (data) {
+      folder_select.textContent = "";
+      folder_select.value = "";
+      folder_select.innerHTML = data;
     });
+  }
 </script>

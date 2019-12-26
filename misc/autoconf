@@ -153,7 +153,7 @@ if (!-f $config_file) {
       $mysql = '/usr/bin/mysql';
     }
 
-    print "Check DB configuretion\n";
+    print "Check DB configuration\n";
 
     my $read;
     my $res;
@@ -609,8 +609,8 @@ sub check_install {
         }
       }
       elsif (-e "$folder/$dest" && !defined($argv->{'-f'})) {
-        if (!confirm_yn("File: $folder/$dest exist oweride: ", "y")) {
-          print "Skiped...\n";
+        if (!confirm_yn("File: $folder/$dest exists, override: ", "y")) {
+          print "Skipped...\n";
           next;
         }
         elsif ($argv->{BACKUP}) {

@@ -1,41 +1,42 @@
-﻿<form action=$FORM{Action} method='post'>
+﻿<form action=%FORM_ACTION% method="POST" name="tocheckout">
+  <input type="hidden" name="server_callback_url" value=%SERVER_CALLBACK_URL%>
+  <!--<input type="hidden" name="response_url" value=%RESPONSE_URL%>-->
+  <input type="hidden" name="order_id" value="%ORDER_ID%">
+  <input type="hidden" name="order_desc" value="%ORDER_DESC%">
+  <input type="hidden" name="currency" value="%CURRENCY%">
+  <input type="hidden" name="amount" value="%AMOUNT%">
+  <input type="hidden" name="signature" value="%SIGNATURE%">
+  <input type="hidden" name="merchant_id" value="%MERCHANT_ID%">
+  <input type="hidden" name="merchant_data" value="%MERCHANT_DATA%">
 
-	<input type=hidden name=action value='create_payment'>
-	<input type=hidden name=index value='$index'>
-    <input type=hidden name=PAYMENT_SYSTEM value='109'>
-	<input type=hidden name=server_callback_url value=%Server_callback_url%>
-	<input type=hidden name=response_url value=%Response_url%>
-	<input type=hidden name=order_id value=%Order_id%>
-	<input type=hidden name=order_desc value=%Order_desc%>
-	<input type=hidden name=currency value=%Currency%>
-	<input type=hidden name=amount value=%Amount%>
-	<input type=hidden name=signature value=%Signature%>
-	<input type=hidden name=merchant_id value=%Merchant_id%>
-	<input type=hidden name=merchant_data value=%Merchant_data%>
-	<input type=hidden name=required_rectoken value=%Required_rectoken%>
-	
-<div class='box box-primary'>
-    <div class='box-header with-border text-center'>_{BALANCE_RECHARCHE}_</div>
 
-<div class='box-body'>
-    <div class='form-group'>
-        <label class='col-md-6 control-label text-center'>_{ORDER}_:</label>
-        <label class='col-md-6 control-label'>%Order_id%</label>
+    <div class='box box-primary'>
+      <div class='box-header with-border text-center'>
+        <h4 class='box-title'>Fondy</h4>
+      </div>
+      <div class='box-body'>
+
+        <div class='form-group text-center'>
+          <img src='/styles/default_adm/img/paysys_logo/fondy-logo.png' style="width: auto; max-height: 200px;">
+        </div>
+
+        <div class='form-group'>
+          <label class='font-weight-bold text-center col-md-6 form-control-label'>_{ORDER}_</label>
+          <label class='font-weight-bold col-md-6 form-control-label'>%ORDER_ID%</label>
+        </div>
+
+        <div class='form-group'>
+          <label class='font-weight-bold text-center col-md-6 form-control-label col-xs-12'>_{BALANCE_RECHARCHE_SUM}_:</label>
+          <label class='font-weight-bold col-md-6 form-control-label col-xs-12'>%SUM%</label>
+        </div>
+
+      </div>
+      <div class='box-footer'>
+        <input class='btn btn-primary' type='submit' value='_{PAY}_'>
+      </div>
+
     </div>
-    
-    <div class='form-group'>
-        <label class='col-md-6 control-label text-center'> _{PAY_SYSTEM}_:</label>
-        <label class='col-md-6 control-label'>FONDY</label>
-    </div>
-    
-    <div class='form-group'>
-        <label class='control-label col-md-6 text-center'>_{SUM}_:</label>
-        <label class='control-label col-md-6'> %Sum% </label>
-    </div>
-	%Checkbox%
-</div>
-    <div class='box-footer'>
-        <input class='btn btn-primary' type=submit value=$FORM{Confirm}>
-    </div>
-</div>    
+
+
+
 </form>

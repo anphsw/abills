@@ -516,8 +516,9 @@ sub form_input {
   }
 
   my $id = $attr->{ID} || $name;
-
-  $self->{FORM_INPUT} = "<input type='$type' name='$name' value=\"" . ($value // '') . "\"$state$size$css_class $ex_params$form ID='$id'/>";
+  $value //= '';
+  $value =~ s/\\\"/\&#34;/g;
+  $self->{FORM_INPUT} = "<input type='$type' name='$name' value=\"" . $value . "\"$state$size$css_class $ex_params$form ID='$id'/>";
 
   if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
     $self->{OUTPUT} .= $self->{FORM_INPUT};
@@ -567,7 +568,114 @@ sub form_textarea {
 
   return $self->{FORM_INPUT};
 }
+#**********************************************************
+=head2 short_form($attr) - Create input form container
 
+    Arguments:
+      LABELED_FIELDS - hash of fields with labels 'label' => input
+      FIELDS         - array of fields [input, input, select]
+      IN_BOX         - add content to box with header IN_BOX => 'title'
+      NO_BOX_HEADER  - remove header from box
+      ID             - Form id
+      ALIGN          - text-align of content (left,right,center)
+      TARGET
+      ENCTYPE
+      METHOD         - HTTP Method for submit
+      class
+      OUTPUT2RETURN
+
+
+    Results:
+      output result string
+
+    Examples:
+
+        $html->short_form({
+          METHOD => 'GET',
+           LABELED_FIELDS => {
+            "$lang{TABLES}: " => $html->form_input('TABLES', $FORM{TABLES}),
+           },
+          FIELDS         => [
+            $html->form_input('search', $lang{SEARCH}, { TYPE => 'submit' }),
+            $html->form_input('index', $index, {TYPE => 'hidden'})],
+          'class'        => 'form-inline',
+          IN_BOX         => 1,
+          NO_BOX_HEADER      => 1,
+        });
+
+=cut
+#**********************************************************
+
+sub short_form {
+  my $self = shift;
+  my ($attr) = @_;
+
+
+  my $METHOD = ($attr->{METHOD}) ? $attr->{METHOD} : 'POST';
+
+  $self->{FORM} = "<FORM ";
+  if ($attr->{ID}) {
+    $self->{FORM} .= "ID='$attr->{ID}' ";
+    $self->{FORM_ID} = $attr->{ID};
+  }
+
+  $self->{FORM} .= $attr->{class}
+    ? " class='$attr->{class} form-main' role='form' "
+    : " class='form form-horizontal form-main' role='form' ";
+  $self->{FORM} .= " name='$attr->{NAME}' " if ($attr->{NAME});
+  $self->{FORM} .= "style='text-align: $attr->{ALIGN}' " if ($attr->{ALIGN});
+  $self->{FORM} .= " enctype='$attr->{ENCTYPE}' " if ($attr->{ENCTYPE});
+  $self->{FORM} .= " target='$attr->{TARGET}' " if ($attr->{TARGET});
+  $self->{FORM} .= " action='$SELF_URL' METHOD='$METHOD'>\n";
+
+  if($attr->{LABELED_FIELDS}){
+    foreach my $label (sort keys %{$attr->{LABELED_FIELDS}}){
+      $self->{FORM} .= " <div class='form-group'>";
+      $self->{FORM} .= "<label>$label</label>";
+      $self->{FORM} .= $attr->{LABELED_FIELDS}->{$label};
+      $self->{FORM} .= "</div>";
+    }
+  }
+
+  if($attr->{FIELDS}){
+    foreach my  $field (@{$attr->{FIELDS}}){
+      $self->{FORM} .= " <div class='form-group'>";
+      $self->{FORM} .= $field;
+      $self->{FORM} .= "</div>";
+    }
+  }
+
+
+  $self->{FORM} .= "</form>\n";
+
+  if(defined $attr->{IN_BOX}){
+    my $box_header = $attr->{NO_BOX_HEADER} ? '' : $self->element( 'div', $self->element('h4', $attr->{IN_BOX}, {class => 'box-title table-caption'})
+      . '<div class="box-tools pull-right">
+      <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+      <i class="fa fa-minus"></i></button></div>',
+      { class => 'box-header with-border'} );
+
+    my $box_body = $self->element( 'div', $self->{FORM}, {
+      class => 'box-body',
+    } );
+
+    my $box = $self->element( 'div', $box_header . $box_body, {
+      class => 'box box-theme',
+    } );
+
+    $self->{FORM} = $box;
+  }
+
+  if ($attr->{OUTPUT2RETURN}) {
+    return $self->{FORM};
+  }
+  elsif (defined($self->{NO_PRINT})) {
+    $self->{OUTPUT} .= $self->{FORM};
+    $self->{FORM} = '';
+  }
+
+  print $self->{FORM}
+}
 #**********************************************************
 =head2 form_main($attr) - Create input form container
 
@@ -744,7 +852,7 @@ sub form_select {
 
   my $element_id = ($attr->{ID}) ? $attr->{ID} : $name;
 
-  $self->{SELECT} = "<select name='$name' $ex_params style='width:$sel_width' ID='$element_id'$css_class $form>\n";
+  $self->{SELECT} = "<select name='$name' $ex_params style='width:$sel_width' ID='$element_id'$css_class $form tabindex='0'>\n";
 
   if (defined($attr->{SEL_OPTIONS})) {
     foreach my $k (keys(%{$attr->{SEL_OPTIONS}})) {
@@ -881,7 +989,9 @@ sub form_select {
       @H = sort keys %{$attr->{SEL_HASH}};
     }
     elsif ($attr->{SORT_KEY_NUM}) {
-      @H = sort {$a <=> $b} keys %{$attr->{SEL_HASH}};
+      if($attr->{SEL_HASH}) {
+        @H = sort {$a <=> $b} keys %{$attr->{SEL_HASH}};
+      }
     }
     else {
       @H = sort {($attr->{SEL_HASH}->{$a} || '') cmp ($attr->{SEL_HASH}->{$b} || '')} keys %{$attr->{SEL_HASH}};
@@ -1323,20 +1433,20 @@ sub menu {
       #if ($ID == 1) {
       #  $link .= "<span>[+]</span>";
       #}
-      $menu_text .= "<li class='$class $active'>$link\n";
+      $menu_text .= "<li class='$class $active  for_search'>$link\n";
     }
     elsif (defined($menu{$ID})) {
-      $menu_text .= "<li class='$active'>$link\n\n";
+      $menu_text .= "<li class='$active  for_search'>$link\n\n";
     }
     else {
-      $menu_text .= "<li class='$active'>$link\n";
+      $menu_text .= "<li class='$active  for_search'>$link\n";
     }
 
     if (!$menu{$ID}) {
       $menu_text .= "</li>\n";
     }
     else {
-      $menu_text .= "<ul class='treeview-menu'>\n ";
+      $menu_text .= "<ul class='treeview-menu  for_search'>\n ";
     }
 
     if (defined($menu{$ID})) {
@@ -1578,6 +1688,11 @@ sub header {
     : '';
 
   $info{BREADCRUMB} = ($self->{BREADCRUMB}) ? '| ' . $self->{BREADCRUMB} : '';
+  $info{PERM_CLASES} = _make_perm_clases($self->{admin}{permissions});
+
+  if ($CONF->{AUTOSIZE_JS}) {
+    $info{AUTOSIZE_INCLUDE} = "<script src='/styles/default_adm/js/autosize.min.js'></script>";
+  }
 
   $self->{header} .= $self->tpl_show($self->{METATAGS} || '', \%info, {
     OUTPUT2RETURN      => 1,
@@ -1655,7 +1770,6 @@ sub header {
       width      => '100%',
       caption    => $lang{NOTEPAD},
       title      => [ $lang{DATE} . '/' . $lang{TIME}, $lang{ADDED}, $lang{STATUS}, $lang{SUBJECT}, '-', '-' ],
-      cols_align => [ 'left', 'right', 'right', 'right', 'center', 'center' ],
       pages      => $Notepad->{TOTAL},
       header     => $html->table_header(\@status_bar),
       ID         => 'NOTEPAD_ID',
@@ -1687,6 +1801,7 @@ sub table {
   $self->{before_table} = '';
   $self->{table_caption} = '';
   $self->{rows} = '';
+  $self->{footer} = '';
   $self->{summary} = '';
 
   #  my $width       = (defined($attr->{width}))  ? " width=\"$attr->{width}\""   : '';
@@ -1748,6 +1863,7 @@ sub table {
   <div class='modal-dialog modal-$modal_size'>
     <div class='modal-content'>
       <div class='modal-header'>
+      <h4 class='modal-title'>$lang->{EXTRA_FIELDS}</h4>
         <button type='button' class='close' data-dismiss='modal' aria-hidden='true'>&times;</button>
       </div>
       <div class='modal-body text-left' id='nestedform'>";
@@ -1807,7 +1923,7 @@ sub table {
   </div>
 </div>\n";
 
-      $show_cols_button = "<button title='Extra fields' class='btn btn-box-tool' data-toggle='modal' data-target='#" . $attr->{ID} . "_cols_modal'><span class='glyphicon glyphicon-option-horizontal'></span></button>";
+      $show_cols_button = "<button title='$lang->{EXTRA_FIELDS}' class='btn btn-box-tool' data-toggle='modal' data-target='#" . $attr->{ID} . "_cols_modal'><span class='glyphicon glyphicon-option-horizontal'></span></button>";
     }
 
     my $collapse_icon = ($attr->{HIDE_TABLE}) ? 'fa-plus' : 'fa-minus';
@@ -2127,6 +2243,42 @@ sub addrow {
 }
 
 #**********************************************************
+=head2 addfooter(@footer) - Add footer to table
+
+  Arguments:
+    @footer  - array of footer elements
+
+  Results:
+    $self->{footer} - Formed footer
+
+  Example:
+    $table->addfooter("Total", 100, 200);
+
+=cut
+#**********************************************************
+sub addfooter{
+  my ($self, @row) = @_;
+
+  $self->{footer} = "<tfoot><tr>";
+
+  if($self->{COL_NAMES_ARR} && ref $row[0] eq 'HASH') {
+    my $footer_info = $row[0];
+    foreach my $element (@{ $self->{COL_NAMES_ARR} }) {
+      $self->{footer} .= "<th>$footer_info->{$element}</th>";
+    }
+  }
+  else {
+    foreach my $element (@row) {
+      $self->{footer} .= "<th>$element</th>";
+    }
+  }
+
+  $self->{footer} .= "</tr></tfoot>";
+
+  return $self->{footer};
+}
+
+#**********************************************************
 =head2 addtd(@row) - Add rows to table form td objects
 
   Arguments:
@@ -2318,7 +2470,7 @@ sub table_header {
     }
     elsif ($i == $elements_before_dropdown && $#{$header_arr} > $elements_before_dropdown) {
       $header .= $self->button($name, $url, { class => "btn btn-default $active" });
-      $header .= "<button class='btn dropdown-toggle' data-toggle='dropdown'><span class='caret'></span></button>";
+      $header .= "<button class='btn btn-default dropdown-toggle' data-toggle='dropdown'><span class='caret'></span></button>";
     }
     elsif ($i > $elements_before_dropdown) {
       $drop_down .= $self->li($self->button($name, $url, { class => '' }))
@@ -2628,6 +2780,7 @@ sub show {
     : '')
     . $self->{table}
     . $self->{rows}
+    . $self->{footer}
     . "</TABLE>\n";
 
   #  if ($self->{pagination}) {
@@ -3008,10 +3161,10 @@ sub color_mark {
     $output = "<code>$text</code>";
   }
   elsif ($color && $color !~ m/[0-9A-F]{3,6}/i) {
-    $output = "<p class='$color'>$text</p>";
+    $output = (defined($text)) ? "<p class='$color'>$text</p>" : q{};
   }
   elsif ($color) {
-    $output = "<font color=$color>" . ($text || q{}) . "</font>";
+    $output = (defined($text)) ? "<font color=$color>$text</font>" : q{};
   }
   elsif (!$color && $text && $text =~ /(.+):([#A-F0-9]{3,10})$/i) {
     $output = "<font color=$2>$1</font>";
@@ -3682,7 +3835,7 @@ sub make_charts {
       }
     }
     # Compare hash action
-    if (scalar %compare > 1) {
+    if (scalar(%compare) > 1) {
       my @val_new = ();
       $CHART_OPTIONS{compare_enable} = 1;
       foreach my $month (sort keys (%compare)) {
@@ -5327,5 +5480,41 @@ sub html_tree {
 	  </script> );
   return $result;
 }
+
+#**********************************************************
+=head2 _make_perm_clases($perm)
+
+=cut
+#**********************************************************
+sub _make_perm_clases {
+  my ($perm) = @_;
+  my $class_list = '';
+
+  for (my $j=0; $j <= 40; $j++) {
+    $class_list .= ".h-0-$j, " if (!$perm->{0}->{$j});
+  }
+  for (my $i=1; $i <= 9; $i++) {
+    for (my $j=0; $j <= 15; $j++) {
+      $class_list .= ".h-$i-$j, " if (!$perm->{$i}->{$j});
+    }
+  }
+  return '' if (!$class_list);
+  chop($class_list);
+  chop($class_list);
+
+  my $style_str = "<style>\n";
+  $style_str .= "$class_list {display: none;}\n";
+  $style_str .= "</style>\n";
+
+  $class_list =~ s/h/r/g;
+  $style_str .= "<script>\n";
+  $style_str .= "var roClases='$class_list'\n";
+  $class_list =~ s/r/d/g;
+  $style_str .= "var diClases='$class_list'\n";
+  $style_str .= "</script>\n";
+
+  return $style_str;
+}
+
 
 1

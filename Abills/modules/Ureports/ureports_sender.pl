@@ -51,6 +51,8 @@ use Ureports;
 use Tariffs;
 use POSIX qw(strftime);
 
+require Control::Services;
+
 our $html = Abills::HTML->new(
   {
     IMG_PATH => 'img/',
@@ -217,34 +219,53 @@ sub ureports_periodic_reports{
 
         # Recomended payments
         my $total_daily_fee = 0;
-        my $cross_modules_return = cross_modules_call( '_docs', {
-          FEES_INFO     => 1,
-          UID           => $user->{UID},
-          SKIP_DISABLED => 1,
-          SKIP_MODULES  => 'Ureports,Sqlcmd',
-        } );
-
         $user->{RECOMMENDED_PAYMENT} = 0;
-        foreach my $module ( sort keys %{$cross_modules_return} ){
-          if ( ref $cross_modules_return->{$module} eq 'HASH' ){
-            if ( $cross_modules_return->{$module}{day} ){
-              $total_daily_fee += $cross_modules_return->{$module}{day};
-              $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{day} * 30;
-            }
 
-            if ( $cross_modules_return->{$module}{abon_distribution} ){
-              $total_daily_fee += ($cross_modules_return->{$module}{month} / 30);
-#              if($cross_modules_return->{$module}{abon_distribution} && ! $conf{INTERNET_FULL_MONTH}) {
-#                $user->{RECOMMENDED_PAYMENT} += ($cross_modules_return->{$module}{month} / 30);
-#              }
-#              else {
-               $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
-#              }
-            }
-            elsif ( $cross_modules_return->{$module}{month} ){
-              $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
-            }
-          }
+#         my $cross_modules_return = cross_modules_call( '_docs', {
+#           FEES_INFO     => 1,
+#           UID           => $user->{UID},
+#           SKIP_DISABLED => 1,
+#           SKIP_MODULES  => 'Ureports,Sqlcmd',
+#         } );
+#
+#         $user->{RECOMMENDED_PAYMENT} = 0;
+#         foreach my $module ( sort keys %{$cross_modules_return} ){
+#           if ( ref $cross_modules_return->{$module} eq 'HASH' ){
+#             if ( $cross_modules_return->{$module}{day} ){
+#               $total_daily_fee += $cross_modules_return->{$module}{day};
+#               $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{day} * 30;
+#             }
+#
+#             if ( $cross_modules_return->{$module}{abon_distribution} ){
+#               $total_daily_fee += ($cross_modules_return->{$module}{month} / 30);
+# #              if($cross_modules_return->{$module}{abon_distribution} && ! $conf{INTERNET_FULL_MONTH}) {
+# #                $user->{RECOMMENDED_PAYMENT} += ($cross_modules_return->{$module}{month} / 30);
+# #              }
+# #              else {
+#                $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
+# #              }
+#             }
+#             elsif ( $cross_modules_return->{$module}{month} ){
+#               $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
+#             }
+#           }
+#         }
+
+        my $service_info = get_services({
+          UID           => $user->{UID},
+          REDUCTION     => $user->{REDUCTION},
+          SKIP_DISABLED => 1,
+          PAYMENT_TYPE  => 0
+        },
+          { SKIP_MODULES  => 'Ureports,Sqlcmd' }
+        );
+
+        foreach my $service ( @{ $service_info->{list} } ) {
+          $user->{RECOMMENDED_PAYMENT} += $service->{SUM};
+        }
+
+        if($service_info->{distribution_fee}) {
+          $total_daily_fee = $service_info->{distribution_fee};
         }
 
         $user->{TOTAL_FEES_SUM} = $user->{RECOMMENDED_PAYMENT};
@@ -375,7 +396,7 @@ sub ureports_periodic_reports{
 
         # 7 - credit expired
         elsif ( $user->{REPORT_ID} == 7 ){
-          if ( $user->{CREDIT_EXPIRE} <= $user->{VALUE} ){
+          if ( defined($user->{CREDIT_EXPIRE}) && $user->{CREDIT_EXPIRE} <= $user->{VALUE} ){
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
               MESSAGE  => "$lang{CREDIT} $lang{EXPIRE}",
@@ -450,18 +471,13 @@ sub ureports_periodic_reports{
         #Report 13 All service expired throught
         elsif ( $user->{REPORT_ID} == 13 && !$internet_status ){
           if ($user->{EXPIRE_DAYS} && $user->{EXPIRE_DAYS} <= $user->{VALUE}){
-
             $debug_output .= "(Day fee: $total_daily_fee / $user->{EXPIRE_DAYS} -> $user->{VALUE} \n" if ($debug > 4);
 
-            if ( $user->{EXPIRE_DAYS} <= $user->{VALUE} && $user->{EXPIRE_DAYS}>=0 ){
+            if ( $user->{EXPIRE_DAYS} <= $user->{VALUE} && $user->{EXPIRE_DAYS}>=0 && $user->{RECOMMENDED_PAYMENT} > 0 ){
               $lang{ALL_SERVICE_EXPIRE} =~ s/XX/ $user->{EXPIRE_DAYS} /;
-
-              my $message = $lang{ALL_SERVICE_EXPIRE};
-              $message .= "\n $lang{RECOMMENDED_PAYMENT}:  $user->{RECOMMENDED_PAYMENT}\n";
-
               %PARAMS = (
                 DESCRIBE            => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-                MESSAGE             => $message,
+                MESSAGE             => "",
                 SUBJECT             => $lang{ALL_SERVICE_EXPIRE},
                 RECOMMENDED_PAYMENT => $user->{RECOMMENDED_PAYMENT}
               );
@@ -473,7 +489,7 @@ sub ureports_periodic_reports{
         }
         #Report 14. Notify before abon
         elsif ( $user->{REPORT_ID} == 14 ){
-          if ( $user->{EXPIRE_DAYS} <= $user->{VALUE} ){
+          if ( $user->{EXPIRE_DAYS} <= $user->{VALUE} && $user->{REDUCTION} < 100){
             %PARAMS = (
               DESCRIBE => $lang{REPORTS},
               MESSAGE  => "",
@@ -485,7 +501,7 @@ sub ureports_periodic_reports{
             next;
           }
         }
-        #Report 15 15 Dv change status
+        #Report 15: Internet change status
         elsif ( $user->{REPORT_ID} == 15 ){
           if ( $internet_status && $internet_status != 3 ){
             my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
@@ -500,7 +516,8 @@ sub ureports_periodic_reports{
             %PARAMS = (
               DESCRIBE => $lang{REPORTS},
               MESSAGE  => $message,
-              SUBJECT  => "Internet: $service_status[$internet_status]"
+              SUBJECT  => "Internet: $service_status[$internet_status]",
+              TP_NAME  => $user->{TP_NAME}
             );
           }
         }

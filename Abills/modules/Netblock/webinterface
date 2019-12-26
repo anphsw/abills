@@ -186,7 +186,7 @@ sub netblock_main {
     $Netblock->del({ID => $id});
     if(! $Netblock->{errno}) {
       my $b_type = $FORM{PARAM} || q{};
-      my ($block_type) = $b_type=~ /netblock_(\w+)/;
+      my $block_type = $b_type=~ /netblock_(\w+)/;
       if ($block_type eq 'ip') {
         $Netblock->del({ ID => $id, TABLE => 'netblock_ip' });
         unless ($Netblock->{errno}) {

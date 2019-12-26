@@ -10,10 +10,6 @@ use strict;
 use parent qw(dbcore);
 
 my $IP;
-my $SORT      = 1;
-my $DESC      = '';
-my $PG        = 0;
-my $PAGE_ROWS = 25;
 
 #**********************************************************
 #
@@ -97,6 +93,8 @@ sub get_permissions {
 
   $self->query("SELECT section, actions, module FROM admin_permits WHERE aid=?;", undef, { Bind => [ $self->{AID} ]});
 
+  delete $self->{MODULES};
+
   foreach my $line (@{ $self->{list} }) {
     my ($section, $action, $module) = @$line;
     $permissions{$section}{$action} = 1;
@@ -121,17 +119,48 @@ sub set_permissions {
   my $self = shift;
   my ($permissions) = @_;
 
-  $self->query("DELETE FROM admin_permits WHERE aid= ? ;", 'do', { Bind => [ $self->{AID} ] });
+  my $prev_permissions = get_permissions($self);
+  my $add;
+  my $del;
+
   my @MULTI_QUERY = ();
-  my @log = ();
-  while (my ($section, $actions_hash) = each %$permissions) {
-    while (my ($action, undef) = each %$actions_hash) {
+  foreach my $section (sort keys %$permissions) {
+    my $actions = $permissions->{$section};
+    foreach my $action (sort keys %$actions) {
       my ($perms, $module) = split(/_/, $action);
+      if (!$prev_permissions->{$section}->{$perms}) {
+        if ($module) {
+          $add .= " $module";
+        }
+        else {
+          $add .= " " . ($section+1) . ":$perms";
+        }
+      }
+      else {
+        delete $prev_permissions->{$section}->{$perms};
+        if ($module) {
+          delete $self->{MODULES}->{$module};
+        }
+      }
+
       next if ($section ne  int($section));
       push @MULTI_QUERY, [ $self->{AID}, $section, ($perms || 0), "$module" ];
-      push @log, "$section:". ($perms || 0). ":$module";
     }
   }
+
+  foreach my $section (sort keys %$prev_permissions) {
+    my $actions = $prev_permissions->{$section};
+    next if ($section == 9);
+    foreach my $action (sort keys %$actions) {
+      $del .= " " . ($section+1) . ":$action";
+    }
+  }
+
+  foreach my $module (sort keys %{$self->{MODULES}}) {
+    $del .= " $module";
+  }
+
+  $self->query("DELETE FROM admin_permits WHERE aid= ? ;", 'do', { Bind => [ $self->{AID} ] });
 
   $self->query("INSERT INTO admin_permits (aid, section, actions, module)
       VALUES (?, ?, ?, ?);",
@@ -142,11 +171,19 @@ sub set_permissions {
     return $self;
   }
 
+  my $perms_log = "PERMISSIONS:";
+  if ($add) {
+    $perms_log .= " ADDED:$add";
+  }
+  if ($del) {
+    $perms_log .= " REMOVED:$del";
+  }
+
   $self->{CHANGED_AID} = $self->{AID};
   $self->{AID}         = $self->{MAIN_AID};
   $IP                  = $self->{MAIN_SESSION_IP};
 
-  $self->system_action_add("AID:$self->{CHANGED_AID} PERMISION:". join(';', @log), { TYPE => 65 });
+  $self->system_action_add("AID:$self->{CHANGED_AID} $perms_log", { TYPE => 65 });
   $self->{AID} = $self->{CHANGED_AID};
 
   return $self->{permissions};
@@ -257,6 +294,7 @@ sub info {
       a.max_credit,
       a.max_rows,
       a.credit_days,
+      a.expire,
       COUNT(ag.aid) AS gids_,
       COUNT(aa.aid) AS admin_access,
       a.aid,
@@ -316,10 +354,10 @@ sub list {
   my @WHERE_RULES = ();
   my $EXT_TABLES  = '';
 
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  $SORT      = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC      = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC      = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $GROUP_BY = '';
 
   if ($attr->{GIDS}) {
@@ -387,6 +425,7 @@ sub list {
       ['MAX_CREDIT',       'INT',    'a.max_credit',       1 ],
       ['CREDIT_DAYS',      'INT',    'a.credit_days',      1 ],
       ['COMMENTS',      'STR',    'a.comments',            1 ],
+      ['LOGIN',          'STR',  'a.id'                      ],
     ],
     {
       WHERE_RULES => \@WHERE_RULES,
@@ -646,10 +685,10 @@ sub action_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
 
@@ -685,6 +724,7 @@ sub action_list {
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
       ['AID',          'INT',  'aa.aid'           ],
       ['ADMIN',        'STR',  'a.id', 'a.id as admin_login'],
+      ['ADMIN_DISABLE','INT',  'a.disable', 'a.disable AS admin_disable', 1 ],
     ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES,
@@ -737,7 +777,16 @@ sub action_list {
 }
 
 #**********************************************************
-=head2 system_action_add($actions, $attr)
+=head2 system_action_add($actions, $attr) - Add system actions
+
+  Arguments:
+    $actions - Action describe
+    $attr -
+      MODULE
+      TYPE
+
+  Results:
+    $self
 
 =cut
 #**********************************************************
@@ -747,7 +796,7 @@ sub system_action_add {
 
   $self->query_add('admin_system_actions', {
     AID         => $self->{AID},
-    IP          => $IP,
+    IP          => $IP || '0.0.0.0',
     DATETIME    => 'NOW()',
     ACTIONS     => $actions,
     MODULE      => ($self->{MODULE}) ? $self->{MODULE} : '',
@@ -780,10 +829,10 @@ sub system_action_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
       # Fixme remove if no needed
@@ -796,6 +845,7 @@ sub system_action_list {
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
       ['AID',          'INT',  'aa.aid'           ],
       ['ADMIN',        'STR',  'a.id', 'a.id'     ],
+      ['ADMIN_DISABLE','INT',  'a.disable', 'a.disable AS admin_disable', 1 ],
     ],
     { WHERE       => 1,
     }
@@ -804,7 +854,8 @@ sub system_action_list {
   $self->query(
      "SELECT aa.id, aa.datetime, aa.actions, a.id, INET_NTOA(aa.ip) AS ip, aa.module,
       aa.action_type,
-      aa.aid
+      aa.aid,
+      a.disable
    FROM admin_system_actions aa
       LEFT JOIN admins a ON (aa.aid=a.aid)
       $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -1044,6 +1095,9 @@ sub access_list {
 
   delete($self->{COL_NAMES_ARR});
 
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+
   my $WHERE = $self->search_former($attr, [
       ['ID',      'INT', 'a.id',     ],
       ['AID',     'INT', 'a.aid'     ],
@@ -1098,7 +1152,9 @@ sub access_del {
 }
 
 #**********************************************************
-# access_info
+=head2 access_info($id)
+
+=cut
 #**********************************************************
 sub access_info {
   my $self = shift;
@@ -1117,7 +1173,9 @@ sub access_info {
 }
 
 #**********************************************************
-# access_change
+=head2 access_change($attr)
+
+=cut
 #**********************************************************
 sub access_change {
   my $self = shift;
@@ -1146,10 +1204,10 @@ sub full_log_list {
 
   delete($self->{COL_NAMES_ARR});
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
       ['ID',      'INT', 'a.id',          ],
@@ -1250,15 +1308,15 @@ sub full_log_analyze {
 
   delete($self->{COL_NAMES_ARR});
 
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $GROUP = 'GROUP BY a.function_name';
   my @fields = [
-      ['FUNCTION_NAME', 'STR', 'a.function_name', 1],
-      ['COUNT',         'INT', 'COUNT(*) as count', 1],
-      ['AID',           'INT', 'a.aid'],
-	  ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(a.datetime, '%Y-%m-%d')" ],
+    ['FUNCTION_NAME', 'STR', 'a.function_name',   1],
+    ['COUNT',         'INT', 'COUNT(*) as count', 1],
+    ['AID',           'INT', 'a.aid'               ],
+    ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(a.datetime, '%Y-%m-%d')" ],
   ];
 
   if ($attr->{FUNCTION_NAME} ne "!msgs_admin") {
@@ -1320,13 +1378,8 @@ sub admins_contacts_list {
   $self->{errstr} = '';
 
   return [] if (!$attr->{AID});
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  my $WHERE = '';
 
-   $WHERE = $self->search_former($attr, [
+  my $WHERE = $self->search_former($attr, [
       ['ID',        'INT',  'ac.id',          1],
       ['AID',       'INT',  'ac.aid',         1],
       ['TYPE',      'INT',  'ac.type_id',     1],
@@ -1417,9 +1470,6 @@ sub admin_contacts_del{
 sub admin_type_permits_list {
   my $self = shift;
   my ($attr) = @_;
-
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former( $attr, [
       [ 'TYPE', 'STR', 'type', 1],

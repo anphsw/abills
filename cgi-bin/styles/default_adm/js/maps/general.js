@@ -549,12 +549,23 @@ var BillingObjectParser = (function () {
 
         var rendered_layer_ids = {};
 
-        $.each(data, function (i, mapObject) {
+        var distance_objects = [];
 
+        function drawDistance(position) {
+            var lat = position.coords.latitude;
+            var lng = position.coords.longitude;
+            drawDistanceGoogle(data, lat, lng);
+        }
+
+        $.each(data, function (i, mapObject) {
             var newObject = {
                 layer_id: 0,
                 types: []
             };
+
+            if (mapObject['MARKER'] && mapObject['MARKER']['PAYSYS']) {
+                distance_objects.push(mapObject['MARKER']);
+            }
 
             if (mapObject['LAYER_ID']) {
                 newObject.layer_id = mapObject['LAYER_ID'];
@@ -607,6 +618,10 @@ var BillingObjectParser = (function () {
             Events.emit('new_point_rendered_' + newObject.layer_id, newObject);
         });
 
+        if (distance_objects.length !== 0) {
+            navigator.geolocation.getCurrentPosition(drawDistance);
+        }
+
         // Iterate over hash keys
         $.each(Object.keys(rendered_layer_ids), function (i, id) {
             Events.emit(id + '_RENDERED');
@@ -633,12 +648,13 @@ var BillingObjectParser = (function () {
 
             var count = (object.COUNT) ? '' + object.COUNT : undefined;
             var id = object.ID;
+            var markerColor = object.COLOR || null;
 
             var mb = new MarkerBuilder(map);
             mb
                 .setPosition(aMap.createPosition(x, y))
                 .setType(type)
-                .setIcon(type, sizeArr)
+                .setIcon(type, sizeArr, markerColor)
                 .setIconOffset(offsetArr)
                 .setLabel(count)
                 .setId(id);
@@ -857,8 +873,6 @@ var MapLayers = (function () {
             loading: false
         };
 
-        // console.log(Layers);
-
         Events.on('new_point_rendered_' + layer_id, function (newObject) {
             var object_id =
                 newObject['raw']['ID']
@@ -902,7 +916,6 @@ var MapLayers = (function () {
         Layers_visible++;
 
         var layerObjects = layer.objects;
-        // console.log(layerOb / 100);
         var state = (boolean) ? map : null;
 
         var clusterer = layer.clusterer;
@@ -1323,7 +1336,7 @@ var MapLayers = (function () {
     function getObjectByPointId(layer_id, point_id) {
         var layer_objects = getLayerObjects(layer_id);
         for (var i = 0; i < layer_objects.length; i++) {
-            if (layer_objects[i].raw['OBJECT_ID'] === point_id) {
+            if (layer_objects[i].raw['OBJECT_ID'] === point_id || layer_objects[i].raw['MARKER']['ID'] == point_id) {
                 return layer_objects[i];
             }
         }
@@ -1572,7 +1585,6 @@ var ClustererControl = function (layer_id, id) {
 
     this.addMarkersToMap = function () {
         $.each(self.layerMarkers, function (i, marker) {
-            console.log(marker);
             aMap.addObjectToMap(marker);
         });
     };
@@ -1791,7 +1803,7 @@ Events.on('layersready', function () {
 
     var data_array = window['ObjectsArray'];
 
-    // Call parse function
+    // Call parse function;
     var layers = BillingObjectParser.render(data_array);
 
     var enableDefinedLayers = function () {

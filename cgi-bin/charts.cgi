@@ -524,9 +524,9 @@ sub get_speed_for_traffic {
       push(@speeds, $speed);
     }
 
-    push (@result_data_array, [ $timestamp, @speeds ]);
+    push(@result_data_array, [ $timestamp, @speeds ]);
 
-    @previous_row = @{ $line };
+    @previous_row = @{$line};
   }
 
   # Highcharts needs data to be sorted
@@ -578,7 +578,7 @@ sub get_speed_cached {
       my @ds_array = ();
       my @ar_array = ();
       foreach my $traffic_class_id (sort keys %$traffic_classes) {
-        push (@ds_array,
+        push(@ds_array,
           'data_source',
           {
             name => "$traffic_class_id\_in",
@@ -591,7 +591,7 @@ sub get_speed_cached {
           }
         );
 
-        push (@ar_array,
+        push(@ar_array,
           'archive',
           { rows => 105120 },
           'archive',
@@ -642,7 +642,7 @@ sub get_speed_cached {
     while ($time < $current_time) {
       my @values = ();
       ($time, @values) = $rrd->fetch_next;
-      push (@speed_list, [ $time, @values ]);
+      push(@speed_list, [ $time, @values ]);
     }
   }
   else {
@@ -659,7 +659,6 @@ sub get_speed_cached {
 }
 
 
-
 #**********************************************************
 =head2 make_chart($list, $title, $start, $end) - Convert list to chart
 
@@ -667,7 +666,6 @@ sub get_speed_cached {
 #**********************************************************
 sub make_chart {
   my ($speed_list, $title, $start, $end) = @_;
-
   if ($DEBUG >= 1) {
     print "<hr><b>$title</b>";
   }
@@ -675,11 +673,11 @@ sub make_chart {
   my $series = get_charts_series({
     LIST         => $speed_list,
     NAMES        => ($is_ipn) ? get_traffic_classes_names() : [
-        $RECV_TRAFF_NAME_GLOBAL,
-        $SENT_TRAFF_NAME_GLOBAL,
-        $RECV_TRAFF_NAME_LOCAL,
-        $SENT_TRAFF_NAME_LOCAL
-      ],
+      $RECV_TRAFF_NAME_GLOBAL,
+      $SENT_TRAFF_NAME_GLOBAL,
+      $RECV_TRAFF_NAME_LOCAL,
+      $SENT_TRAFF_NAME_LOCAL
+    ],
     PERIOD_START => $start,
     PERIOD_END   => $end
   });
@@ -764,6 +762,7 @@ sub get_highchart {
     $months_button = qq'<button type="button" class="btn btn-default" id="zoom_months_$buttonCounter">3 $lang{MONTHES_A}</button>';
   }
 
+  my $default_range = $conf{CHARTS_DEFAULT_USER_STATISTIC} || '';
   my $result = qq{
     <div class="btn-group">
       <button type="button" class="btn btn-default" id='zoom_day_$buttonCounter'>$lang{DAY}</button>
@@ -799,6 +798,17 @@ sub get_highchart {
         chart.xAxis[0].setExtremes($day_start, $current_time);
       });
 
+      var default_range = '$default_range';
+      if(default_range == 'day'){
+        var chart = jQuery('#$chartDivId').highcharts();
+        chart.xAxis[0].setExtremes($day_start, $current_time);
+      } else if(default_range == 'week'){
+        var chart = jQuery('#$chartDivId').highcharts();
+        chart.xAxis[0].setExtremes($week_start, $current_time);
+      } else if(default_range == 'month'){
+        var chart = jQuery('#$chartDivId').highcharts();
+        chart.xAxis[0].setExtremes($month_start, $current_time);
+      }
       jQuery('#zoom_week_$buttonCounter').click(function () {
         var chart = jQuery('#$chartDivId').highcharts();
         chart.xAxis[0].setExtremes($week_start, $current_time);
@@ -850,14 +860,14 @@ sub get_charts_series {
     return "Wrong input parameters.\n PERIOD_START and PERIOD_END are mandatory.";
   }
 
-  my @speed_list = @{ $attr->{LIST} };
-  my @names = @{ $attr->{NAMES} };
+  my @speed_list = @{$attr->{LIST}};
+  my @names = @{$attr->{NAMES}};
 
   my $start = $attr->{PERIOD_START};
   my $end = $attr->{PERIOD_END};
 
   #check input params
-  my $list_length = scalar @{ $speed_list[0] } || 0;
+  my $list_length = scalar @{$speed_list[0]} || 0;
   my $names_length = scalar @names || 0;
 
   my $series_count = $list_length - 1;
@@ -874,40 +884,39 @@ sub get_charts_series {
   my @previous_row = ($start);
 
   for (my $i = 1; $i <= $series_count; $i++) {
-    push (@previous_row, 0);
+    push(@previous_row, 0);
     # Start data array from timestamp that equal to period_start
     # Multiplying to 1000 because JavaScript timestamp uses milliseconds
-    $result_data_array[$i] = [ { x => + ($start * 1000), y => undef } ];
+    $result_data_array[$i] = [ { x => +($start * 1000), y => undef } ];
   }
-
 
   my $timestamp = 0;
   my $pause = 300;
 
   foreach my $line (@speed_list) {
-    $timestamp = + ($line->[0]);
+    $timestamp = +($line->[0]);
     next if ($timestamp < $start);
     last if ($timestamp > $end);
     $pause = ($timestamp - $previous_row[0]) || 300;
 
     # Ignore periods with more than 5 min pause
-    if (($pause > 600) && !$conf{CHARTS_LONG_PAUSE}) {
+    if (($pause > 300) && !$conf{CHARTS_LONG_PAUSE}) {
       for (my $i = 1; $i <= $series_count; $i++) {
-        push (@{$result_data_array[$i]},
-          { x => + ($previous_row[0] * 1000 + 2), y => undef },
-          { x => + ($timestamp * 1000 - 2), y => undef }
+        push(@{$result_data_array[$i]},
+          { x => +($previous_row[0] * 1000 + 2), y => undef },
+          { x => +($timestamp * 1000 - 2), y => undef }
         );
       }
     }
     else {
 
       for (my $i = 1; $i <= $series_count; $i++) {
-        push (@{$result_data_array[$i]}, { x => $timestamp * 1000, y => + ($line->[$i] || 0) });
+        push(@{$result_data_array[$i]}, { x => $timestamp * 1000, y => +($line->[$i] || 0) });
       }
 
     }
 
-    @previous_row = @{ $line };
+    @previous_row = @{$line};
   }
 
   my @series = ();
@@ -925,7 +934,6 @@ sub get_charts_series {
 }
 
 
-
 #**********************************************************
 =head2 get_traffic_classes()
 
@@ -941,7 +949,7 @@ sub get_traffic_classes {
   if (scalar keys %TRAFFIC_CLASSES <= 0) {
     $admin->query("SELECT id, name FROM traffic_classes ORDER BY id", undef, { COLS_NAME => 1 });
 
-    foreach my $traffic_class (@{ $admin->{list} }) {
+    foreach my $traffic_class (@{$admin->{list}}) {
       $TRAFFIC_CLASSES{$traffic_class->{id}} = $traffic_class->{name};
     }
   }
@@ -981,22 +989,22 @@ sub get_name_for {
 
   if (!$TYPE_NAMES_FOR{$key}) {
     if ($type eq 'TP') {
-      $TYPE_NAMES_FOR{$key} = @{ _get_tp_list($key) }[0]->[1];
+      $TYPE_NAMES_FOR{$key} = @{_get_tp_list($key)}[0]->[1];
     }
     elsif ($type eq 'NAS') {
-      $TYPE_NAMES_FOR{$key} = @{ _get_nas_list($key) }[0]->[1];
+      $TYPE_NAMES_FOR{$key} = @{_get_nas_list($key)}[0]->[1];
     }
     elsif ($type eq 'GROUP') {
-      $TYPE_NAMES_FOR{$key} = @{ _get_group_list($key) }[0]->[1];
+      $TYPE_NAMES_FOR{$key} = @{_get_group_list($key)}[0]->[1];
     }
     elsif ($type eq 'LOGIN') {
-      $TYPE_NAMES_FOR{$key} = @{ _get_login_list($key) }[0]->[1];
+      $TYPE_NAMES_FOR{$key} = @{_get_login_list($key)}[0]->[1];
     }
     elsif ($type eq 'TAG') {
-      $TYPE_NAMES_FOR{$key} = @{ _get_tags_list($key) }[0]->[1];
+      $TYPE_NAMES_FOR{$key} = @{_get_tags_list($key)}[0]->[1];
     }
     elsif ($type eq 'USER') {
-      $TYPE_NAMES_FOR{$key} = @{ _get_uid_list($key) }[0]->[1] || do {
+      $TYPE_NAMES_FOR{$key} = @{_get_uid_list($key)}[0]->[1] || do {
         print "$lang{USER} $lang{ERR_NOT_EXISTS}";
         exit 1;
       };
@@ -1136,7 +1144,7 @@ sub _get_tags_list {
 =cut
 #**********************************************************
 sub print_head {
-  print << '[END]';
+  print <<'[END]';
 <!DOCTYPE HTML>
 <HTML>
 <head>
@@ -1189,7 +1197,7 @@ sub print_footer {
 
   my $traffic_type_html = '';
 
-  if ( !$FORM{SHOW_GRAPH} ) {
+  if (!$FORM{SHOW_GRAPH}) {
     foreach my $name ('bits', 'bytes') {
       if ($FORM{type} && $FORM{type} eq "$name") {
         $traffic_type_html .= $html->b($name) . ' ';
@@ -1206,7 +1214,7 @@ sub print_footer {
     print "<hr><div class='row' id='footer'>" . "Version: $VERSION ( $gen_time )</div>";
   }
 
-  print << "[FOOTER]";
+  print <<"[FOOTER]";
     <div id='type' class='col-md-4 pull-right'>  $traffic_type_html </div>
 
   </div> <!--row-->
@@ -1237,7 +1245,7 @@ sub print_footer {
       type+='$FORM{type}';
 
        var time = moment(this.x).local().format('YYYY-MM-D, HH:mm:ss');
-      
+
       result = result.toFixed(2);
 
       return time + '<br>' + "<b>$lang{SPEED}</b> " + result + type + '/s' + '<br>';

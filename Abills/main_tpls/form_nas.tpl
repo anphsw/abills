@@ -221,6 +221,14 @@
                                     %NAS_GROUPS_SEL%
                                 </div>
                             </div>
+                            <div class='form-group'>
+                                <label for='ZABBIX_HOSTID' class='control-label col-sm-3'>Zabbix hostid</label>
+
+                                <div class='col-md-9'>
+                                    <input id='ZABBIX_HOSTID' name='ZABBIX_HOSTID' value='%ZABBIX_HOSTID%' class='form-control' type='text'>
+                                </div>
+                            </div>
+
 
                             <div class='form-group'>
                                 <label class='col-md-12'>RADIUS _{PARAMS}_ (,)</label>

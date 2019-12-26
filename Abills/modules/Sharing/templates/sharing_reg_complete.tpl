@@ -1,14 +1,14 @@
 <table width=400>
 <tr><th bgcolor=$_COLORS[0]>
-Congratulation
+_{REGISTRATION_COMPLETE}_
 </th></tr>
 <tr><td>
-<p>Registration Complete</p>
+<p>_{REG_SUCCESS}_</p>
 
-<p><b>LOGIN: %LOGIN%</b></p>
-<br><b>FIO:</b> %FIO%
+<p><b>_{LOGIN}_: %LOGIN%</b></p>
+<br><b>_{FIO}_:</b> %FIO%
 <br><b>EMAIL:</b> %EMAIL%
-<p>All information has been sent to your E-mail</p>
+<p>_{REG_SEND_EMAIL}_</p>
 </td>
 </tr>
 </table>

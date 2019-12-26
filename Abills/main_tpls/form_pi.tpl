@@ -22,7 +22,7 @@
   <div id='form_2' class='box box-theme box-big-form for_sort'>
     <div class='box-header with-border'><h3 class="box-title">_{INFO}_</h3>
       <div class="box-tools pull-right">
-        <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-minus"></i>
+        <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
         </button>
       </div>
     </div>
@@ -79,7 +79,7 @@
           <div class='col-xs-8'>
             <div class="input-group">
               <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%'
-                     class='form-control' type='text'
+                     class='form-control' type='text' %OLD_PHONE_VISIBLE%
                      data-inputmask='{"mask" : "(999) 999-9999", "removeMaskOnSubmit" : true}' />
 
               <div class="input-group-addon">
@@ -94,7 +94,7 @@
           <div class='col-xs-8'>
             <div class='input-group'>
               <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%'
-                     class='form-control' type="text">
+                     class='form-control' type="text" %OLD_PHONE_VISIBLE%>
               <span class='input-group-addon'>
                     <a href='$SELF_URL?UID=$FORM{UID}&get_index=msgs_admin&add_form=1&SEND_TYPE=1&header=1&full=1'
                        class='fa fa-envelope'></a>
@@ -120,7 +120,7 @@
         <div class="box-header with-border">
           <h3 class="box-title">_{PASPORT}_</h3>
           <div class="box-tools pull-right">
-            <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i>
             </button>
           </div>
         </div>
@@ -168,7 +168,7 @@
         <div class="box-header with-border">
           <h3 class="box-title">_{CONTRACT}_</h3>
           <div class="box-tools pull-right">
-            <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i>
             </button>
           </div>
         </div>
@@ -204,7 +204,7 @@
         <div class="box-header with-border">
           <h3 class="box-title">_{EXTRA_ABBR}_. _{FIELDS}_</h3>
           <div class="box-tools pull-right">
-            <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i>
             </button>
           </div>
         </div>

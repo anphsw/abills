@@ -267,14 +267,14 @@ sub log_rotate {
     my $log_period = $attr->{LOG_KEEP_PERIOD} || 1;
     if($log_period > 1) {
       $M-=$log_period;
-      if ($M < 0) {
+      while ($M < 0) {
         $M=$M+12;
         $Y--;
       }
-      $M = sprintf("%02d", $M);
     }
   }
 
+  $M = sprintf("%02d", $M);
   if ($attr->{LOG}) {
     push @rq, 'DROP TABLE IF EXISTS ipn_log_new;',
     'CREATE TABLE ipn_log_new LIKE ipn_log;',

@@ -9,7 +9,7 @@
     <div class='box-header with-border'><h3 class='box-title'>_{INFO}_</h3>
       <div class='box-tools pull-right'>
         %EDIT_BUTTON%
-        <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+        <button type='button' class='btn btn-box-tool' data-widget='collapse'>
           <i class='fa fa-minus'></i>
         </button>
       </div>
@@ -51,7 +51,7 @@
         <div class="box-header with-border">
           <h3 class="box-title">_{PASPORT}_</h3>
           <div class="box-tools pull-right">
-            <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i>
             </button>
           </div>
         </div>
@@ -98,7 +98,7 @@
       <div class="box-header with-border">
         <h3 class="box-title">_{CONTRACT}_</h3>
         <div class="box-tools pull-right">
-          <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+          <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i>
           </button>
         </div>
       </div>
@@ -134,7 +134,7 @@
       <div class="box-header with-border">
         <h3 class="box-title">_{EXTRA_ABBR}_. _{FIELDS}_</h3>
         <div class="box-tools pull-right">
-          <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+          <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i>
           </button>
         </div>
       </div>

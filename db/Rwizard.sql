@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS `reports_groups` (
   `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(40) NOT NULL DEFAULT '',
   `comments` TEXT NOT NULL,
+  `admins` VARCHAR(60) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
   COMMENT = 'Reports Groups';

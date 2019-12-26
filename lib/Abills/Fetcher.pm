@@ -125,6 +125,7 @@ sub json_return {
   if ( $@ ) {
     $perl_scalar->{errno} = 2;
     $perl_scalar->{errstr} = $@;
+    $perl_scalar->{result} = $result;
   }
   #Else other error
   elsif ( ref $perl_scalar eq 'HASH' && $perl_scalar->{status} && $perl_scalar->{status} eq 'error' ) {
@@ -140,7 +141,7 @@ sub json_return {
 
   Arguments:
      CURL_OPTIONS
-
+       STATUS_CODE - returns all headers with status code
   Results:
 
 =cut
@@ -229,8 +230,15 @@ sub _curl_request {
   $request_url =~ s/ /%20/g;
   $request_url =~ s/"/\\"/g;
   $request_url =~ s/\`/\\\`/g;
-  
-  my $request_cmd = qq{$CURL $curl_options -s "$request_url" $request_params };
+  my $request_cmd = qq{};
+
+  if ($attr->{STATUS_CODE}) {
+    $request_cmd = qq{$CURL $curl_options -I "$request_url" $request_params };
+  }
+  else {
+    $request_cmd = qq{$CURL $curl_options -s "$request_url" $request_params };
+  }
+
   $result = cmd($request_cmd, { timeout => defined($attr->{'TIMEOUT'}) ? $attr->{'TIMEOUT'} : 30 }) if ( $debug < 7 );
   
   if ( $? != 0 ) {

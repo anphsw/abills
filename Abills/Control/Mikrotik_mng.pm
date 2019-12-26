@@ -257,15 +257,22 @@ sub mikrotik_configure {
   }
   
   if ( $connection_type eq 'pppoe' || $connection_type eq 'pptp' ) {
-    
+
     $mikrotik->execute([
-        
-        # /radius incoming set accept=yes port=1700
-        [ '/radius/incoming/set', { accept => 'yes', port => $params->{RADIUS_HANGUP} } ],
-        
-        # /ppp aaa set accounting=yes use-radius=yes interim-update=${RAD_ACCT_ALIVE}
-        [ '/ppp/aaa/set', { accounting => 'yes', 'use-radius' => 'yes', 'interim-update' => $params->{ALIVE} } ],
-        
+      # /radius incoming set accept=yes port=1700
+      [ '/radius/incoming/set', { accept => 'yes', port => $params->{RADIUS_HANGUP} } ],
+
+    ], {
+      SHOW_RESULT => 1
+    });
+
+    $mikrotik->execute([
+      # /ppp aaa set accounting=yes use-radius=yes interim-update=${RAD_ACCT_ALIVE}
+      [ '/ppp/aaa/set', { accounting => 'yes', 'use-radius' => 'yes', 'interim-update' => $params->{ALIVE} } ],
+    ], {
+      SHOW_RESULT => 1
+    });
+    $mikrotik->execute([
         # /ppp profile set default local-address=${MIKROTIK_IP}
         [ '/ppp/profile/set', { 'local-address' => $mikrotik->{ip_address} }, { name => 'default' } ]
       
@@ -477,14 +484,15 @@ sub form_mikrotik_hotspot {
     });
   
   return 0 unless $mikrotik;
-  
+
+  my ($ip) = $ENV{HTTP_HOST} =~  /(.*):.*/;
   my %default_arguments = (
     #    'INTERFACE'        => 'wlan0',
-    BILLING_IP_ADDRESS => $ENV{HTTP_HOST},
+    BILLING_IP_ADDRESS => $ip,
     'ADDRESS'          => '192.168.4.1',
     'NETWORK'          => '192.168.4.0',
     'NETMASK'          => '24',
-    'MIKROTIK_GATEWAY' => '192.168.1.1',
+#    'MIKROTIK_GATEWAY' => '192.168.1.1',
     'DHCP_RANGE'       => '192.168.4.3-192.168.4.254',
     'MIKROTIK_DNS'     => '8.8.8.8',
     'HOTSPOT_DNS_NAME' => lc ($Nas_->{NAS_NAME}) || 'hotspot.abills.net'
@@ -500,7 +508,7 @@ sub form_mikrotik_hotspot {
         push (@walled_garden_hosts, $FORM{"WALLED_GARDEN_$i"}) if ($FORM{"WALLED_GARDEN_$i"});
       }
     }
-    
+    $mikrotik->{debug} = 9;
     my $result = $mikrotik->hotspot_configure({
       INTERFACE          => $FORM{INTERFACE},
       DHCP_RANGE         => $FORM{DHCP_RANGE},

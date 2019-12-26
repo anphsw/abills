@@ -41,4 +41,12 @@ $lang{NO_FIELD} = 'не заполнено';
 
 $lang{EXECUTOR} = 'Исполнитель';
 
+$lang{DATE} = 'Дата';
+$lang{SEARCH} = 'Поиск';
+$lang{SUPPORT} = 'Тех. поддержка';
+$lang{REDMINE} = 'Redmine';
+$lang{TASK_EXECUTION} = 'Закрытые задачи';
+$lang{NOT_CONFIGURED} = 'Модуль не настроен';
+$lang{NOT_FOUND} = 'Нет конфигурации: ';
+$lang{ALL_TIME} = 'Всего времени, часы'
 

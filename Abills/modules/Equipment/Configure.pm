@@ -320,7 +320,7 @@ sub equipment_model{
     FUNCTION        => 'model_list',
     BASE_FIELDS     => 2,
     SKIP_PAGES      => 1,
-    DEFAULT_FIELDS  => 'VENDOR_NAME,MODEL_NAME,TYPE_NAME,PORTS',
+    DEFAULT_FIELDS  => 'VENDOR_NAME,TYPE_NAME,PORTS',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
       vendor_name    => $lang{VENDOR},

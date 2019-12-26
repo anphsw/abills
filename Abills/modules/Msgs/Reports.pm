@@ -1193,6 +1193,7 @@ sub msgs_admin_statistics {
     CLOSED_DATE            => ">=$from_date;<=$to_date",
     RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
     RATING                 => '_SHOW',
+    STATE                  => '1;2',
     COLS_NAME              => 1,
     PAGE_ROWS              => 100000,
   });
@@ -1245,12 +1246,13 @@ sub msgs_admin_statistics {
   my $admin_names = sel_admins({ HASH => 1 });
 
   my $qs_period = "&search_form=1&search=1&FROM_DATE=$from_date&TO_DATE=$to_date&index=". get_function_index('msgs_admin');
+  my $qs_closed = "&search_form=1&search=1&CLOSED_DATE=>=$from_date;<=$to_date&index=". get_function_index('msgs_admin');
 
   foreach my $admin_id (sort {lc $a cmp lc $b} keys %$msgs_hash) {
     $table->addrow(
       $admin_names->{$admin_id} || $lang{NO_RESPONSIBLE},
       $html->button($msgs_hash->{$admin_id}->{NEW} || '0',  '&ALL_MSGS=1&RESPOSIBLE='.$admin_id . $qs_period),
-      $html->button($msgs_hash->{$admin_id}->{CLOSED} || '0', 'STATE=2&RESPOSIBLE='. $admin_id . $qs_period),
+      $html->button($msgs_hash->{$admin_id}->{CLOSED} || '0', 'STATE=1,2&RESPOSIBLE='. $admin_id . $qs_closed),
       $msgs_hash->{$admin_id}->{OPEN} || '0',
       ($msgs_hash->{$admin_id}->{RATING} && $msgs_hash->{$admin_id}->{CLOSED}
         ? sprintf("%.2f", $msgs_hash->{$admin_id}->{RATING} / $msgs_hash->{$admin_id}->{CLOSED})

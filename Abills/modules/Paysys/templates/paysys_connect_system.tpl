@@ -3,9 +3,9 @@
   <input type='hidden' name='ID' value='%ID%'>
   <input type='hidden' name='OLD_NAME' value='%NAME%'>
 
-  <div class='box big-box'>
-    <div class='box-header'>
-      <h4>_{ADD}_ _{PAY_SYSTEM}_</h4>
+  <div class='box big-box box-theme'>
+    <div class='box-header with-border'>
+      <h4 class="box-title">_{ADD}_ _{PAY_SYSTEM}_</h4>
     </div>
 
     <div class='box-body'>
@@ -48,10 +48,12 @@
           <input type='text' class='form-control' name='PRIORITY' value='%PRIORITY%' >
         </div>
       </div>
-      <div class='checkbox'>
-        <label>
-          <input type='checkbox' name='STATUS' data-return='1' value='1' data-checked='%ACTIVE%'> _{LOGON}_
-        </label>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3 col-sm-4 col-xs-6' for='STATUS'>_{LOGON}_:</label>
+        <div class='col-md-9 col-xs-4' style="padding-top: 7px">
+          <input id="STATUS" class="pull-left"  type='checkbox' name='STATUS' data-return='1' value='1' data-checked='%ACTIVE%'>
+        </div>
       </div>
 
     </div>

@@ -9,13 +9,6 @@
       <input type='hidden' name='mikrotik_hotspot' value='1'/>
       <input type='hidden' name='WALLED_GARDEN_ENTRIES' id='WALLED_GARDEN_ENTRIES' value='0'/>
 
-      <div class='form-group'>
-        <label class='control-label col-md-3 required' for='HOTSPOT_DNS_NAME_id'>DNS _{NAME}_</label>
-        <div class='col-md-9'>
-          <input type='text' class='form-control' required name='DNS_NAME' value='%HOTSPOT_DNS_NAME%'
-                 id='HOTSPOT_DNS_NAME_id'/>
-        </div>
-      </div>
 
       <div class='form-group'>
         <label class='control-label col-md-3 required' for='HOTSPOT_DNS_NAME_id'>ABillS IP _{ADDRESS}_</label>
@@ -67,14 +60,6 @@
       </div>
 
       <hr>
-
-      <div class='form-group'>
-        <label class='control-label col-md-3 required' for='MIKROTIK_GATEWAY_id'>_{DEFAULT_GATEWAY}_</label>
-        <div class='col-md-9'>
-          <input type='text' class='form-control ip-input' required name='GATEWAY' value='%MIKROTIK_GATEWAY%'
-                 id='MIKROTIK_GATEWAY_id'/>
-        </div>
-      </div>
 
       <div class='form-group'>
         <label class='control-label col-md-3 required' for='MIKROTIK_DNS_id'>DNS</label>

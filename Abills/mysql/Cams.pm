@@ -66,25 +66,38 @@ sub _list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
 
   my $search_columns = [
-    [ 'UID', 'INT', 'cm.uid', 1 ],
-    [ 'LOGIN', 'STR', 'u.id as login', 1 ],
-    [ 'ID', 'INT', 'cm.id', 1 ],
-    [ 'TARIFF_ID', 'INT', 'tp.id as tariff_id', 1 ],
-    [ 'ACTIVATE', 'DATE', 'cm.activate', 1 ],
-    [ 'TP_ID', 'INT', 'cm.tp_id', 1 ],
-    [ 'STATUS', 'INT', 'cm.status', 1 ],
-    [ 'TP_NAME', 'STR', 'tp.name as tp_name', 1 ],
-    [ 'TP_STREAMS_COUNT', 'INT', 'ctp.streams_count as tp_streams_count', 1 ],
-    [ 'USER_STREAMS_COUNT', 'INT', 'COUNT(*) as user_streams_count', 1 ],
-    [ 'SERVICE_ID', 'INT', 'ctp.service_id as service_id', 1 ],
-    [ 'SERVICE_NAME', 'STR', 's.name as service_name', 1 ],
+    [ 'UID',                'INT',  'cm.uid',                                1 ],
+    [ 'LOGIN',              'STR',  'u.id as login',                         1 ],
+    [ 'ID',                 'INT',  'cm.id',                                 1 ],
+    [ 'TARIFF_ID',          'INT',  'tp.id as tariff_id',                    1 ],
+    [ 'ACTIVATE',           'DATE', 'cm.activate',                           1 ],
+    [ 'EXPIRE',             'DATE', 'cm.expire',                             1 ],
+    [ 'TP_ID',              'INT',  'cm.tp_id',                              1 ],
+    [ 'STATUS',             'INT',  'cm.status',                             1 ],
+    [ 'TP_NAME',            'STR',  'tp.name as tp_name',                    1 ],
+    [ 'TP_STREAMS_COUNT',   'INT',  'ctp.streams_count as tp_streams_count', 1 ],
+    [ 'USER_STREAMS_COUNT', 'INT',  'COUNT(*) as user_streams_count',        1 ],
+    [ 'SERVICE_ID',         'INT',  'ctp.service_id as service_id',          1 ],
+    [ 'SERVICE_NAME',       'STR',  's.name as service_name',                1 ],
+    [ 'SUBSCRIBE_ID',       'STR',  'cm.subscribe_id',                       1 ]
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}) {
     map {$attr->{ $_->[0] } = '_SHOW' unless (exists $attr->{ $_->[0] })} @{$search_columns};
   }
 
-  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+  my $WHERE = $self->search_former($attr, $search_columns, {
+    WHERE             => 1,
+    USE_USER_PI       => 1,
+    USERS_FIELDS_PRE  => 1,
+    SKIP_USERS_FIELDS => [ 'UID', 'ACTIVE', 'EXPIRE' ]
+  });
+
+  if ( ! $admin->{permissions}->{0}->{8} ) {
+    $WHERE .= " AND u.deleted=0";
+  }
+
+  my $EXT_TABLE = $self->{EXT_TABLES} || '';
 
   $self->query2(
     "SELECT $self->{SEARCH_FIELDS} cm.uid
@@ -94,6 +107,7 @@ sub _list {
    LEFT JOIN cams_tp ctp       ON (cm.tp_id=ctp.tp_id)
    LEFT JOIN tarif_plans tp    ON (cm.tp_id=tp.tp_id)
    LEFT JOIN cams_services s   ON (ctp.service_id=s.id)
+   $EXT_TABLE
    $WHERE GROUP BY cm.id;",
     undef,
     {
@@ -123,14 +137,52 @@ sub _list {
 #**********************************************************
 sub _info {
   my $self = shift;
-  my ($id) = @_;
+  my ($id, $attr) = @_;
 
-  $self->query("SELECT *
-    FROM cams_main
-    WHERE id= ? ;",
+  if (defined($attr->{LOGIN})) {
+    use Users;
+    my $users = Users->new($self->{db}, $admin, $CONF);
+    $users->info(0, { LOGIN => $attr->{LOGIN} });
+    if ($users->{errno}) {
+      $self->{errno} = 2;
+      $self->{errstr} = 'ERROR_NOT_EXIST';
+      return $self;
+    }
+
+    $self->{DEPOSIT} = $users->{DEPOSIT};
+    $self->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
+  }
+
+  $self->query(
+    "SELECT
+   tp.name AS tp_name,
+   tp.gid AS tp_gid,
+   tp.month_fee,
+   tp.month_fee AS month_abon,
+   tp.abon_distribution,
+   tp.day_fee,
+   tp.activate_price,
+   tp.postpaid_monthly_fee,
+   tp.payment_type,
+   tp.period_alignment,
+   tp.id AS tp_num,
+   tp.filter_id AS tp_filter_id,
+   tp.credit AS tp_credit,
+   tp.age AS tp_age,
+   tp.activate_price AS tp_activate_price,
+   tp.change_price AS tp_change_price,
+   tp.period_alignment AS tp_period_alignment,
+   cs_services.module AS service_module,
+   service.*
+     FROM cams_main service
+     LEFT JOIN tarif_plans tp ON (service.tp_id=tp.tp_id)
+     LEFT JOIN cams_services cs_services ON (cs_services.id=tp.service_id)
+   WHERE service.id= ? ;",
     undef,
-    { INFO => 1,
-      Bind => [ $id ] }
+    {
+      INFO => 1,
+      Bind => [ $id ]
+    }
   );
 
   return $self;
@@ -177,16 +229,19 @@ sub users_list {
   }
 
   my $search_columns = [
-    [ 'UID', 'INT', 'cm.uid', ],
-    [ 'LOGIN', 'STR', 'u.id as login', 1 ],
-    [ 'ID', 'INT', 'cm.id', 1 ],
-    [ 'TP_ID', 'INT', 'cm.tp_id', 1 ],
-    [ 'STATUS', 'INT', 'cm.status', 1 ],
-    [ 'TP_NAME', 'STR', 'tp.name as tp_name', 1 ],
-    [ 'TP_STREAMS_COUNT', 'INT', 'ctp.streams_count as tp_streams_count', 1 ],
-    [ 'USER_STREAMS_COUNT', 'INT', 'COUNT(*) as user_streams_count', 1 ],
-    [ 'SERVICE_NAME', 'STR', 's.name as service_name', 1 ],
-    [ 'SERVICE_ID', 'INT', 'ctp.service_id', 1 ],
+    [ 'UID',                'INT', 'cm.uid',                                  ],
+    [ 'LOGIN',              'STR', 'u.id as login',                         1 ],
+    [ 'ID',                 'INT', 'cm.id',                                 1 ],
+    [ 'TP_ID',              'INT', 'cm.tp_id',                              1 ],
+    [ 'STATUS',             'INT', 'cm.status',                             1 ],
+    [ 'TP_NAME',            'STR', 'tp.name as tp_name',                    1 ],
+    [ 'TP_STREAMS_COUNT',   'INT', 'ctp.streams_count as tp_streams_count', 1 ],
+    [ 'USER_STREAMS_COUNT', 'INT', 'COUNT(*) as user_streams_count',        1 ],
+    [ 'SERVICE_NAME',       'STR', 's.name as service_name',                1 ],
+    [ 'SERVICE_ID',         'INT', 'ctp.service_id',                        1 ],
+    [ 'MONTH_FEE',          'INT', 'tp.month_fee',                          1 ],
+    [ 'PERIOD_ALIGNMENT',   'INT', 'tp.PERIOD_ALIGNMENT',                   1 ],
+    [ 'SUBSCRIBE_ID',       'STR', 'cm.subscribe_id',                       1 ],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}) {
@@ -201,9 +256,9 @@ sub users_list {
    LEFT JOIN users u           ON (cm.uid=u.uid)
    LEFT JOIN cams_streams cs   ON (cm.uid=cs.uid)
    LEFT JOIN cams_tp ctp       ON (cm.tp_id=ctp.tp_id)
-   LEFT JOIN tarif_plans tp  ON (cm.tp_id=tp.tp_id)
-   LEFT JOIN cams_services s ON (tp.service_id=s.id)
-   $WHERE LIMIT $PG, $PAGE_ROWS ;",
+   LEFT JOIN tarif_plans tp    ON (cm.tp_id=tp.tp_id)
+   LEFT JOIN cams_services s   ON (tp.service_id=s.id)
+   $WHERE GROUP BY cm.id LIMIT $PG, $PAGE_ROWS ;",
     undef,
     {
       COLS_NAME => 1,
@@ -255,29 +310,31 @@ sub user_add {
   my $self = shift;
   my ($attr) = @_;
 
-  if (!$attr->{ACTIVATE}) {$attr->{ACTIVATE} = 'NOW()'}
-
-  if ( $attr->{TP_ID} && $attr->{TP_ID} > 0 && !$attr->{STATUS} ) {
+  my $start_active = $attr->{ACTIVATE};
+  $attr->{ACTIVATE} = 'NOW()' if (!$start_active);
+  if ($attr->{TP_ID} && $attr->{TP_ID} > 0 && !$attr->{STATUS}) {
     $self->{TP_INFO} = $Tariffs->info($attr->{TP_ID});
+
     $self->{TP_NUM} = $Tariffs->{ID};
 
     #Take activation price
-    if ( $Tariffs->{ACTIV_PRICE} > 0 ){
-      my $User = Users->new( $self->{db}, $self->{admin}, $self->{conf} );
-      $User->info( $attr->{UID} );
+    if ($Tariffs->{ACTIV_PRICE} > 0) {
+      my $User = Users->new($self->{db}, $self->{admin}, $self->{conf});
+      $User->info($attr->{UID});
 
-      if ( $User->{DEPOSIT} + $User->{CREDIT} < $Tariffs->{ACTIV_PRICE} && $Tariffs->{PAYMENT_TYPE} == 0 ){
+      if ($User->{DEPOSIT} + $User->{CREDIT} < $Tariffs->{ACTIV_PRICE} && $Tariffs->{PAYMENT_TYPE} == 0) {
         $self->{errno} = 15;
         $self->{errstr} = 'TOO_SMALL_DEPOSIT';
         return $self;
       }
 
-      my $fees = Fees->new( $self->{db}, $self->{admin}, $self->{conf} );
-      $fees->take( $User, $Tariffs->{ACTIV_PRICE}, { DESCRIBE => "Cams. Active TP" } );
+      my $fees = Fees->new($self->{db}, $self->{admin}, $self->{conf});
+      $fees->take($User, $Tariffs->{ACTIV_PRICE}, { DESCRIBE => "Cams. Active TP" });
       $Tariffs->{ACTIV_PRICE} = 0;
     }
   }
 
+  $attr->{ACTIVATE} = '0000-00-00' if (!$start_active && !$Tariffs->{AGE});
   $self->query_add('cams_main', $attr);
 
   return $self->{INSERT_ID};
@@ -324,15 +381,19 @@ sub user_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'UID',
-      TABLE        => 'cams_main',
-      DATA         => $attr,
-    }
-  );
+  my $old_info = $self->_info($attr->{ID});
+  $self->{OLD_STATUS} = $old_info->{STATUS};
+  $attr->{EXPIRE}  = $attr->{SERVICE_EXPIRE};
 
-  return 1;
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'cams_main',
+    DATA         => $attr,
+  });
+
+  $self->_info($attr->{ID});
+
+  return $self;
 }
 
 #**********************************************************
@@ -358,35 +419,38 @@ sub tp_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $search_columns = [
-    [ 'TP_ID', 'INT', 'ctp.tp_id', 1 ],
-    [ 'ID', 'INT', 'tp.id', 1 ],
-    [ 'SERVICE_NAME', 'STR', 's.name as service_name', 1 ],
-    [ 'NAME', 'STR', 'tp.name', 1 ],
-    [ 'STREAMS_COUNT', 'INT', 'ctp.streams_count', 1 ],
-    [ 'PAYMENT_TYPE', 'INT', 'tp.payment_type', 1 ],
-    [ 'SERVICE_ID', 'INT', 'tp.service_id', 1 ],
-    [ 'MODULE', 'STR', 'tp.module', 1 ],
-    [ 'DAY_FEE', 'INT', 'tp.day_fee', 1 ],
-    [ 'ACTIVE_DAY_FEE', 'INT', 'tp.active_day_fee', 1 ],
-    [ 'POSTPAID_DAY_FEE', 'INT', 'tp.postpaid_daily_fee', 1 ],
-    [ 'MONTH_FEE', 'INT', 'tp.month_fee', 1 ],
-    [ 'COMMENTS', 'STR', 'tp.comments', 1 ],
-    [ 'FEES_METHOD', 'INT', 'tp.fees_method', 1 ],
-    [ 'DAY_TIME_LIMIT', 'INT', 'tp.day_time_limit', 1 ],
-    [ 'WEEK_TIME_LIMIT', 'INT', 'tp.week_time_limit', 1 ],
-    [ 'MONTH_TIME_LIMIT', 'INT', 'tp.month_time_limit', 1 ],
-    [ 'TOTAL_TIME_LIMIT', 'INT', 'tp.total_time_limit', 1 ],
-    [ 'DAY_TRAF_LIMIT', 'INT', 'tp.day_traf_limit', 1 ],
-    [ 'WEEK_TRAF_LIMIT', 'INT', 'tp.week_traf_limit', 1 ],
-    [ 'MONTH_TRAF_LIMIT', 'INT', 'tp.month_traf_limit', 1 ],
-    [ 'TOTAL_TRAF_LIMIT', 'INT', 'tp.total_traf_limit', 1 ],
-    [ 'OCTETS_DIRECTION', 'INT', 'tp.octets_direction', 1 ],
-    [ 'ACTIV_PRICE', 'INT', 'tp.activate_price', 1 ],
-    [ 'CHANGE_PRICE', 'INT', 'tp.change_price', 1 ],
-    [ 'CREDIT_TRESSHOLD', 'INT', 'tp.credit_tresshold', 1 ],
-    [ 'CREDIT', 'STR', 'tp.credit', 1 ],
-    [ 'DVR', 'INT', 'ctp.dvr', 1 ],
-    [ 'PTZ', 'INT', 'ctp.ptz', 1 ],
+    [ 'TP_ID',            'INT', 'ctp.tp_id',                        1 ],
+    [ 'ID',               'INT', 'tp.id',                            1 ],
+    [ 'SERVICE_NAME',     'STR', 's.name as service_name',           1 ],
+    [ 'NAME',             'STR', 'tp.name',                          1 ],
+    [ 'STREAMS_COUNT',    'INT', 'ctp.streams_count',                1 ],
+    [ 'PAYMENT_TYPE',     'INT', 'tp.payment_type',                  1 ],
+    [ 'SERVICE_ID',       'INT', 'tp.service_id',                    1 ],
+    [ 'MODULE',           'STR', 'tp.module',                        1 ],
+    [ 'DAY_FEE',          'INT', 'tp.day_fee',                       1 ],
+    [ 'ACTIVE_DAY_FEE',   'INT', 'tp.active_day_fee',                1 ],
+    [ 'POSTPAID_DAY_FEE', 'INT', 'tp.postpaid_daily_fee',            1 ],
+    [ 'MONTH_FEE',        'INT', 'tp.month_fee',                     1 ],
+    [ 'COMMENTS',         'STR', 'tp.comments',                      1 ],
+    [ 'FEES_METHOD',      'INT', 'tp.fees_method',                   1 ],
+    [ 'DAY_TIME_LIMIT',   'INT', 'tp.day_time_limit',                1 ],
+    [ 'WEEK_TIME_LIMIT',  'INT', 'tp.week_time_limit',               1 ],
+    [ 'MONTH_TIME_LIMIT', 'INT', 'tp.month_time_limit',              1 ],
+    [ 'TOTAL_TIME_LIMIT', 'INT', 'tp.total_time_limit',              1 ],
+    [ 'DAY_TRAF_LIMIT',   'INT', 'tp.day_traf_limit',                1 ],
+    [ 'WEEK_TRAF_LIMIT',  'INT', 'tp.week_traf_limit',               1 ],
+    [ 'MONTH_TRAF_LIMIT', 'INT', 'tp.month_traf_limit',              1 ],
+    [ 'TOTAL_TRAF_LIMIT', 'INT', 'tp.total_traf_limit',              1 ],
+    [ 'OCTETS_DIRECTION', 'INT', 'tp.octets_direction',              1 ],
+    [ 'ACTIV_PRICE',      'INT', 'tp.activate_price',                1 ],
+    [ 'CHANGE_PRICE',     'INT', 'tp.change_price',                  1 ],
+    [ 'CREDIT_TRESSHOLD', 'INT', 'tp.credit_tresshold',              1 ],
+    [ 'CREDIT',           'STR', 'tp.credit',                        1 ],
+    [ 'PERIOD_ALIGNMENT', 'INT', 'tp.period_alignment',              1 ],
+    [ 'DVR',              'INT', 'ctp.dvr',                          1 ],
+    [ 'PTZ',              'INT', 'ctp.ptz',                          1 ],
+    [ 'NEXT_TARIF_PLAN',  'INT', 'tp.next_tp_id as next_tarif_plan', 1 ],
+    [ 'AGE',              'INT', 'tp.age',                           1 ],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}) {
@@ -399,8 +463,8 @@ sub tp_list {
     "SELECT
     $self->{SEARCH_FIELDS} 1
    FROM cams_tp ctp
-   LEFT JOIN tarif_plans tp ON (ctp.tp_id=tp.tp_id)
-   LEFT JOIN cams_services s ON (ctp.service_id=s.id)
+   LEFT JOIN tarif_plans   tp ON (ctp.tp_id=tp.tp_id)
+   LEFT JOIN cams_services s  ON (ctp.service_id=s.id)
     $WHERE ORDER BY $SORT;",
     undef,
     {
@@ -555,36 +619,42 @@ sub streams_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : "65000";
 
   my $search_columns = [
-    [ 'ID', 'INT', 'cs.id', 1 ],
-    [ 'UID', 'INT', 'cs.uid', 1 ],
-    [ 'USER_LOGIN', 'STR', 'u.id AS user_login', 1 ],
-    [ 'DISABLED', 'INT', 'cs.disabled', 1 ],
-    [ 'NAME', 'STR', 'cs.name', 1 ],
-    [ 'TITLE', 'STR', 'cs.title', 1 ],
-    [ 'HOST', 'STR', 'cs.host', 1 ],
-    [ 'LOGIN', 'STR', 'cs.login', 1 ],
-    [ 'PASSWORD', 'STR', 'DECODE(cs.password, "' . $self->{conf}{secretkey} . '") as password', 1 ],
-    [ 'RTSP_PORT', 'INT', 'cs.rtsp_port', 1 ],
-    [ 'RTSP_PATH', 'STR', 'cs.rtsp_path', 1 ],
-    [ 'NAME_HASH', 'STR', qq{CONCAT (MD5( CONCAT (cs.host, cs.login, cs.password) ), '__', cs.id ) AS name_hash}, 1 ],
-    [ 'ORIENTATION', 'INT', 'cs.orientation', 1 ],
-    [ 'TYPE', 'INT', 'cs.type', 1 ],
-    [ 'GROUP_ID', 'INT', 'cs.group_id', 1 ],
-    [ 'GROUP_NAME', 'STR', 'g.name as group_name', 1 ],
-    [ 'SERVICE_ID', 'INT', 'g.service_id', 1 ],
-    [ 'SERVICE_MODULE', 'STR', 's.module', 1 ],
-    [ 'SERVICE_NAME', 'STR', 's.name as service_name', 1 ],
-    [ 'EXTRA_URL', 'STR', 'cs.extra_url', 1 ],
-    [ 'SCREENSHOT_URL', 'STR', 'cs.screenshot_url', 1 ],
-    [ 'PRE_IMAGE_URL', 'STR', 'cs.pre_image_url', 1 ],
-    [ 'LIMIT_ARCHIVE',  'INT', 'cs.limit_archive', 1 ],
-    [ 'ARCHIVE', 'INT', 'cs.archive', 1 ],
-    [ 'PRE_IMAGE', 'INT', 'cs.pre_image', 1 ],
-    [ 'TRANSPORT', 'INT', 'cs.transport', 1 ],
-    [ 'SOUND', 'INT', 'cs.sound', 1 ],
-    [ 'CONSTANTLY_WORKING', 'INT', 'cs.constantly_working', 1 ],
-    [ 'ONLY_VIDEO', 'INT', 'cs.only_video', 1 ],
-    [ 'POINT_ID', 'INT', 'cs.point_id', 1 ],
+    [ 'ID',                 'INT', 'cs.id',                                                                                1 ],
+    [ 'UID',                'INT', 'cs.uid',                                                                               1 ],
+    [ 'USER_LOGIN',         'STR', 'u.id AS user_login',                                                                   1 ],
+    [ 'DISABLED',           'INT', 'cs.disabled',                                                                          1 ],
+    [ 'NAME',               'STR', 'cs.name',                                                                              1 ],
+    [ 'TITLE',              'STR', 'cs.title',                                                                             1 ],
+    [ 'HOST',               'STR', 'cs.host',                                                                              1 ],
+    [ 'LOGIN',              'STR', 'cs.login',                                                                             1 ],
+    [ 'PASSWORD',           'STR', 'DECODE(cs.password, "' . $self->{conf}{secretkey} . '") as password',                  1 ],
+    [ 'RTSP_PORT',          'INT', 'cs.rtsp_port',                                                                         1 ],
+    [ 'RTSP_PATH',          'STR', 'cs.rtsp_path',                                                                         1 ],
+    [ 'NAME_HASH',          'STR', qq{CONCAT (MD5( CONCAT (cs.host, cs.login, cs.password) ), '__', cs.id ) AS name_hash}, 1 ],
+    [ 'ORIENTATION',        'INT', 'cs.orientation',                                                                       1 ],
+    [ 'TYPE',               'INT', 'cs.type',                                                                              1 ],
+    [ 'GROUP_ID',           'INT', 'cs.group_id',                                                                          1 ],
+    [ 'GROUP_NAME',         'STR', 'g.name as group_name',                                                                 1 ],
+    [ 'SERVICE_ID',         'INT', 'g.service_id',                                                                         1 ],
+    [ 'SERVICE_MODULE',     'STR', 's.module',                                                                             1 ],
+    [ 'SERVICE_NAME',       'STR', 's.name as service_name',                                                               1 ],
+    [ 'EXTRA_URL',          'STR', 'cs.extra_url',                                                                         1 ],
+    [ 'SCREENSHOT_URL',     'STR', 'cs.screenshot_url',                                                                    1 ],
+    [ 'PRE_IMAGE_URL',      'STR', 'cs.pre_image_url',                                                                     1 ],
+    [ 'LIMIT_ARCHIVE',      'INT', 'cs.limit_archive',                                                                     1 ],
+    [ 'ARCHIVE',            'INT', 'cs.archive',                                                                           1 ],
+    [ 'PRE_IMAGE',          'INT', 'cs.pre_image',                                                                         1 ],
+    [ 'TRANSPORT',          'INT', 'cs.transport',                                                                         1 ],
+    [ 'CONSTANTLY_WORKING', 'INT', 'cs.constantly_working',                                                                1 ],
+    [ 'ONLY_VIDEO',         'INT', 'cs.only_video',                                                                        1 ],
+    [ 'POINT_ID',           'INT', 'cs.point_id',                                                                          1 ],
+    [ 'LENGTH',             'INT', 'cs.length',                                                                            1 ],
+    [ 'ANGEL',              'INT', 'cs.angel',                                                                             1 ],
+    [ 'LOCATION_ANGEL',     'INT', 'cs.location_angel',                                                                    1 ],
+    [ 'NUMBER_ID',          'STR', 'cs.number_id',                                                                         1 ],
+    [ 'FOLDER_ID',          'INT', 'cs.folder_id',                                                                         1 ],
+    [ 'FOLDER_NAME',        'STR', 'f.title as folder_name',                                                               1 ],
+    [ 'SERVICE_ID_FOLDER',  'INT', 'f.service_id as service_id_folder',                                                    1 ],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}) {
@@ -593,12 +663,23 @@ sub streams_list {
 
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
 
+  my $EXTRA_JOIN = "LEFT JOIN cams_services s ON (g.service_id=s.id)";
+
+  if ($CONF->{CAMS_FOLDER}) {
+    $WHERE .= $WHERE ? " AND cs.group_id=0" : "WHERE cs.group_id=0";
+    $EXTRA_JOIN = "LEFT JOIN cams_services s ON (f.service_id=s.id)";
+  }
+  else {
+    $WHERE .= $WHERE ? " AND cs.folder_id=0" : "WHERE cs.folder_id=0";
+  }
+
   $self->query2(
     "SELECT $self->{SEARCH_FIELDS} cs.id, cs.coordx, cs.coordy
    FROM cams_streams cs
-   LEFT JOIN users u ON (cs.uid=u.uid)
+   LEFT JOIN users u       ON (cs.uid=u.uid)
    LEFT JOIN cams_groups g ON (cs.group_id=g.id)
-   LEFT JOIN cams_services s ON (g.service_id=s.id)
+   LEFT JOIN cams_folder f ON (cs.folder_id=f.id)
+   $EXTRA_JOIN
    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;"
     ,
     undef,
@@ -631,14 +712,12 @@ sub stream_info {
   my $self = shift;
   my ($id) = @_;
 
-  my $list = $self->streams_list(
-    {
-      COLS_NAME        => 1,
-      ID               => $id,
-      SHOW_ALL_COLUMNS => 1,
-      COLS_UPPER       => 1
-    }
-  );
+  my $list = $self->streams_list({
+    COLS_NAME        => 1,
+    ID               => $id,
+    SHOW_ALL_COLUMNS => 1,
+    COLS_UPPER       => 1
+  });
 
   return $list->[0] || {};
 }
@@ -708,18 +787,16 @@ sub stream_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'cams_streams',
-      DATA         => {
-        %{$attr ? $attr : {}},
-        PASSWORD => ($attr->{PASSWORD}) ? "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')" : ''
-      },
-    }
-  );
+  $attr->{USER_PORTAL} //= 0;
+  $attr->{DISABLE} //= 0;
 
-  return 1;
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'cams_streams',
+    DATA         => $attr
+  });
+
+  return $self;
 }
 
 
@@ -741,15 +818,15 @@ sub services_list {
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'NAME', 'STR', 'name', 1 ],
-      [ 'MODULE', 'STR', 'module', 1 ],
-      [ 'STATUS', 'INT', 'status', 1 ],
-      [ 'COMMENT', 'STR', 'comment', 1 ],
-      [ 'PROVIDER_PORTAL_URL', 'STR', 'provider_portal_url', 1 ],
-      [ 'USER_PORTAL', 'INT', 'user_portal', 1 ],
-      [ 'DEBUG', 'INT', 'debug', 1 ],
-      [ 'LOGIN',       'INT', 'login',       1 ],
-      [ 'PASSWORD',    'INT', '', "DECODE(password, '$CONF->{secretkey}') AS password" ],
+      [ 'NAME',                'STR', 'name',                                                1 ],
+      [ 'MODULE',              'STR', 'module',                                              1 ],
+      [ 'STATUS',              'INT', 'status',                                              1 ],
+      [ 'COMMENT',             'STR', 'comment',                                             1 ],
+      [ 'PROVIDER_PORTAL_URL', 'STR', 'provider_portal_url',                                 1 ],
+      [ 'USER_PORTAL',         'INT', 'user_portal',                                         1 ],
+      [ 'DEBUG',               'INT', 'debug',                                               1 ],
+      [ 'LOGIN',               'INT', 'login',                                               1 ],
+      [ 'PASSWORD',            'INT', '', "DECODE(password, '$CONF->{secretkey}') AS password" ],
     ],
     {
       WHERE => 1,
@@ -779,7 +856,7 @@ sub services_add {
   my $self = shift;
   my ($attr) = @_;
 
-  if($attr->{PASSWORD}) {
+  if ($attr->{PASSWORD}) {
     $attr->{PASSWORD} = "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')",
   }
 
@@ -837,7 +914,7 @@ sub services_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
+  $self->query("SELECT cams_services.*, DECODE(password, '$CONF->{secretkey}') AS password
     FROM cams_services
     WHERE id= ? ;",
     undef,
@@ -868,16 +945,17 @@ sub group_list {
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'NAME', 'STR', 'g.name', 1 ],
-      [ 'LOCATION_ID', 'INT', 'g.location_id', 1 ],
-      [ 'DISTRICT_ID', 'INT', 'g.district_id', 1 ],
-      [ 'STREET_ID', 'INT', 'g.street_id', 1 ],
-      [ 'BUILD_ID', 'INT', 'g.build_id', 1 ],
-      [ 'SERVICE_ID', 'INT', 'g.service_id', 1 ],
+      [ 'NAME',         'STR', 'g.name',                 1 ],
+      [ 'LOCATION_ID',  'INT', 'g.location_id',          1 ],
+      [ 'DISTRICT_ID',  'INT', 'g.district_id',          1 ],
+      [ 'STREET_ID',    'INT', 'g.street_id',            1 ],
+      [ 'BUILD_ID',     'INT', 'g.build_id',             1 ],
+      [ 'SERVICE_ID',   'INT', 'g.service_id',           1 ],
       [ 'SERVICE_NAME', 'INT', 's.name as service_name', 1 ],
-      [ 'MAX_USERS', 'INT', 'g.max_users', 1 ],
-      [ 'MAX_CAMERAS', 'INT', 'g.max_cameras', 1 ],
-      [ 'COMMENT', 'STR', 'g.comment', 1 ],
+      [ 'MAX_USERS',    'INT', 'g.max_users',            1 ],
+      [ 'MAX_CAMERAS',  'INT', 'g.max_cameras',          1 ],
+      [ 'COMMENT',      'STR', 'g.comment',              1 ],
+      [ 'SUBGROUP_ID',  'STR', 'g.subgroup_id',          1 ],
     ],
     {
       WHERE => 1,
@@ -925,13 +1003,11 @@ sub group_change {
   $attr->{USER_PORTAL} //= 0;
   $attr->{DISABLE} //= 0;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'cams_groups',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'cams_groups',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1052,6 +1128,98 @@ sub access_group_list {
 }
 
 #**********************************************************
+=head2 access_group_list($id)
+
+  Arguments:
+    $id  - Group ID
+
+=cut
+#**********************************************************
+sub access_folder_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $folders;
+  my @all_access_folders = ();
+
+  if ($attr->{LOCATION_ID}) {
+    $folders = $self->folder_list({
+      TITLE       => '_SHOW',
+      STREET_ID   => '_SHOW',
+      BUILD_ID    => '_SHOW',
+      DISTRICT_ID => '_SHOW',
+      LOCATION_ID => $attr->{LOCATION_ID},
+      SERVICE_ID  => $attr->{SERVICE_ID},
+      GROUP_ID    => $attr->{GROUP_ID} || '_SHOW',
+      PARENT_ID   => $attr->{PARENT_ID} || '_SHOW',
+      COMMENT     => '_SHOW',
+      PARENT_NAME => '_SHOW',
+      ID          => '_SHOW',
+      COLS_NAME   => 1,
+    });
+
+    @all_access_folders = (@all_access_folders, @$folders);
+  }
+
+  if ($attr->{STREET_ID}) {
+    $folders = $self->folder_list({
+      TITLE       => '_SHOW',
+      STREET_ID   => $attr->{STREET_ID},
+      LOCATION_ID => 0,
+      BUILD_ID    => '_SHOW',
+      DISTRICT_ID => '_SHOW',
+      SERVICE_ID  => $attr->{SERVICE_ID},
+      GROUP_ID    => $attr->{GROUP_ID} || '_SHOW',
+      PARENT_ID   => $attr->{PARENT_ID} || '_SHOW',
+      COMMENT     => '_SHOW',
+      PARENT_NAME => '_SHOW',
+      ID          => '_SHOW',
+      COLS_NAME   => 1,
+    });
+
+    @all_access_folders = (@all_access_folders, @$folders);
+  }
+
+  if ($attr->{DISTRICT_ID}) {
+    $folders = $self->folder_list({
+      TITLE       => '_SHOW',
+      DISTRICT_ID => $attr->{DISTRICT_ID},
+      STREET_ID   => 0,
+      LOCATION_ID => 0,
+      BUILD_ID    => '_SHOW',
+      SERVICE_ID  => $attr->{SERVICE_ID},
+      GROUP_ID    => $attr->{GROUP_ID} || '_SHOW',
+      PARENT_ID   => $attr->{PARENT_ID} || '_SHOW',
+      COMMENT     => '_SHOW',
+      PARENT_NAME => '_SHOW',
+      ID          => '_SHOW',
+      COLS_NAME   => 1,
+    });
+
+    @all_access_folders = (@all_access_folders, @$folders);
+  }
+
+  $folders = $self->folder_list({
+    TITLE       => '_SHOW',
+    DISTRICT_ID => 0,
+    STREET_ID   => 0,
+    LOCATION_ID => 0,
+    BUILD_ID    => '_SHOW',
+    SERVICE_ID  => $attr->{SERVICE_ID},
+    GROUP_ID    => $attr->{GROUP_ID} || '_SHOW',
+    PARENT_ID   => $attr->{PARENT_ID} || '_SHOW',
+    COMMENT     => '_SHOW',
+    PARENT_NAME => '_SHOW',
+    ID          => '_SHOW',
+    COLS_NAME   => 1,
+  });
+
+  @all_access_folders = (@all_access_folders, @$folders);
+
+  return \@all_access_folders;
+}
+
+#**********************************************************
 =head2 user_groups($attr) - Users groups
 
   Arguments:
@@ -1143,6 +1311,97 @@ sub users_group_count {
 }
 
 #**********************************************************
+=head2 user_folders($attr) - Users folders
+
+  Arguments:
+    $attr
+      IDS
+      ID
+      TP_ID
+
+  Results:
+    Objects
+
+=cut
+#**********************************************************
+sub user_folders {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('cams_users_folders', $attr);
+
+  return $self if !$attr->{IDS};
+
+  my @ids = split(/, /, $attr->{IDS});
+
+  my @MULTI_QUERY = ();
+
+  foreach my $id (@ids) {
+    push @MULTI_QUERY, [ $attr->{ID}, $attr->{TP_ID}, $id ];
+  }
+
+  $self->query(
+    "INSERT INTO cams_users_folders
+     (id, tp_id, folder_id, changed)
+        VALUES (?, ?, ?, NOW());",
+    undef,
+    { MULTI_QUERY => \@MULTI_QUERY }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 user_folders_list($attr)
+
+  Arguments:
+    $attr
+      TP_ID  - TP_ID
+      ID     - Service ID
+
+=cut
+#**********************************************************
+sub user_folders_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query(
+    "SELECT tp_id, folder_id, changed
+     FROM cams_users_folders
+     WHERE tp_id= ? AND id = ?;",
+    undef,
+    { %{$attr}, Bind => [ $attr->{TP_ID}, $attr->{ID} ] }
+  );
+
+  $self->{USER_FOLDERS} = $self->{TOTAL};
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 users_group_count($attr)
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub users_folder_count {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query(
+    "SELECT COUNT(*)
+     FROM cams_users_folders
+     WHERE folder_id = ?;",
+    undef,
+    { %{$attr}, Bind => [ $attr->{FOLDER_ID} ] }
+  );
+
+  return $self->{list}[0][0];
+}
+
+#**********************************************************
 =head2 user_cameras($attr) - Users cameras
 
   Arguments:
@@ -1183,7 +1442,6 @@ sub user_cameras {
   return $self;
 }
 
-
 #**********************************************************
 =head2 user_cameras_list($attr)
 
@@ -1199,7 +1457,8 @@ sub user_cameras_list {
   my ($attr) = @_;
 
   $self->query(
-    "SELECT uc.tp_id, uc.id, uc.camera_id, uc.changed, c.name as camera_name, c.title, s.name as service_name, s.id as service_id
+    "SELECT uc.tp_id, uc.id, uc.camera_id, uc.changed, c.name as camera_name, c.title,
+      s.name as service_name, s.id as service_id, c.number_id as number
      FROM cams_users_cameras uc
      LEFT JOIN cams_tp t ON (uc.tp_id=t.tp_id)
      LEFT JOIN cams_streams c ON (uc.camera_id=c.id)
@@ -1212,6 +1471,129 @@ sub user_cameras_list {
   $self->{USER_CAMERAS} = $self->{TOTAL};
 
   return $self->{list};
+}
+
+#**********************************************************
+=head2 folder_list($attr)
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub folder_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',           'INT', 'f.id',                    1 ],
+    [ 'TITLE',        'STR', 'f.title',                 1 ],
+    [ 'PARENT_ID',    'INT', 'f.parent_id',             1 ],
+    [ 'GROUP_ID',     'INT', 'f.group_id',              1 ],
+    [ 'GROUP_NAME',   'STR', 'g.name as group_name',    1 ],
+    [ 'SERVICE_ID',   'INT', 'f.service_id',            1 ],
+    [ 'SERVICE_NAME', 'STR', 's.name as service_name',  1 ],
+    [ 'COMMENT',      'STR', 'f.comment',               1 ],
+    [ 'PARENT_NAME',  'STR', 'fd.title as parent_name', 1 ],
+    [ 'LOCATION_ID',  'INT', 'f.location_id',           1 ],
+    [ 'DISTRICT_ID',  'INT', 'f.district_id',           1 ],
+    [ 'STREET_ID',    'INT', 'f.street_id',             1 ],
+    [ 'BUILD_ID',     'INT', 'f.build_id',              1 ],
+    [ 'SUBFOLDER_ID', 'STR', 'f.subfolder_id',          1 ],
+  ], { WHERE => 1, });
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} f.title
+   FROM cams_folder f
+   LEFT JOIN cams_groups g   ON(g.id=f.group_id)
+   LEFT JOIN cams_folder fd  ON(f.parent_id=fd.id)
+   LEFT JOIN cams_services s ON(f.service_id=s.id)
+    $WHERE
+    GROUP BY f.id
+    ORDER BY $SORT $DESC",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  return $list;
+}
+
+#**********************************************************
+=head2 folder_add($attr)
+
+=cut
+#**********************************************************
+sub folder_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('cams_folder', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 folder_change($attr)
+
+=cut
+#**********************************************************
+sub folder_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'cams_folder',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 group_del($id, $attr)
+
+=cut
+#**********************************************************
+sub folder_del {
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  $self->query_del('cams_folder', $attr, { ID => $id });
+  $self->query_del('cams_folder', $attr, { PARENT_ID => $id });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 folder_info($id)
+
+  Arguments:
+    $id  - Folder ID
+
+=cut
+#**********************************************************
+sub folder_info {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT f.*, g.name as group_name, f.service_id as service_id, s.name as service_name, g.subgroup_id as subgroup_id
+    FROM cams_folder f
+    LEFT JOIN cams_groups g   ON(g.id=f.group_id)
+    LEFT JOIN cams_services s ON(f.service_id=s.id)
+    WHERE f.id= ? ;",
+    undef,
+    {
+      INFO => 1,
+      Bind => [ $id ]
+    }
+  );
+
+  return $self;
 }
 
 1;

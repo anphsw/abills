@@ -211,7 +211,7 @@ sub ipoe_periodic_session_restart{
     }
     else{
       $Internet->info( $online->{uid} );
-      my %DATA = (
+      my %AUTH_REQUEST = (
         ACCT_STATUS_TYPE     => 1,
         'User-Name'          => $online->{user_name},
         USER_NAME            => $online->{user_name},
@@ -244,14 +244,23 @@ sub ipoe_periodic_session_restart{
       $Auth->{UID} = $online->{uid};
       $Auth->{IPOE_IP} = $online->{client_ip};
 
-      my ($r, $RAD_PAIRS) = $Auth->internet_auth( \%DATA, $nas_info{$nas_id}, { SECRETKEY => $conf{secretkey} } );
+      my ($r, $RAD_PAIRS) = $Auth->auth(\%AUTH_REQUEST, \%nas_info);
 
       if ( $r == 1 ){
         $debug_output .= "Hangup: LOGIN: $online->{user_name} $RAD_PAIRS->{'Reply-Message'}\n";
       }
       else{
-        $Internet_ipoe->user_status( { %DATA } );
-        internet_ipoe_change_status( { STATUS => 'ONLINE_ENABLE', %DATA } );
+        if ( $RAD_PAIRS->{'Filter-Id'} ){
+          $AUTH_REQUEST{FILTER_ID} = $RAD_PAIRS->{'Filter-Id'};
+        }
+        else{
+          while (my ($k, $v) = each %{$RAD_PAIRS}) {
+            $AUTH_REQUEST{FILTER_ID} .= "$k=$v, ";
+          }
+        }
+
+        $Internet_ipoe->user_status( { %AUTH_REQUEST } );
+        internet_ipoe_change_status( { STATUS => 'ONLINE_ENABLE', %AUTH_REQUEST } );
         $debug_output .= "ACTIVATE IP: $online->{client_ip}\n" if ($debug > 1);
       }
       $activated_ips{$online->{client_ip}} = 1;
@@ -400,13 +409,18 @@ sub ipoe_start_active{
 #  }
 
   $Internet->{debug} = 1 if ($debug > 5);
+
+  $LIST_PARAMS{INTERNET_STATUS}=0;
+  if($conf{INTERNET_IPOE_NEGATIVE}) {
+    $LIST_PARAMS{INTERNET_STATUS}='0;5';
+  }
+
   my $internet_list = $Internet->list(
     {
       INTERNET_ACTIVATE=> "<=$DATE",
       INTERNET_EXPIRE=> "0000-00-00,>$DATE",
       IP             => '>0.0.0.0',
       NETMASK        => '_SHOW',
-      INTERNET_STATUS=> 0,
       LOGIN_STATUS   => 0,
       ALL_FILTER_ID  => '_SHOW',
       PORT           => '_SHOW',
@@ -422,6 +436,10 @@ sub ipoe_start_active{
     }
   );
 
+  require Auth2;
+  Auth2->import();
+  my $Auth = Auth2->new( $db, \%conf );
+
   foreach my $internet ( @{$internet_list} ){
     my $filter_id    = $internet->{filter_id} || '';
     my $login        = $internet->{login};
@@ -435,11 +453,6 @@ sub ipoe_start_active{
     my $port         = $internet->{port};
     my $deposit      = $internet->{deposit};
     my $credit       = ($internet->{credit} && $internet->{credit} > 0) ? $internet->{credit} : ($internet->{tp_credit} || 0);
-
-    #DHCP_IP_ASSIGN:
-    #if ( $conf{IPN_DHCP_ACTIVE} && $#{ $DHCP_IPS{$uid} } > -1 ){
-    #  ($ip, $nas_id_switch) = @{ pop @{ $DHCP_IPS{$uid} } };
-    #}
 
     my $ip_num = ip2int($ip);
 
@@ -458,7 +471,7 @@ sub ipoe_start_active{
       print "Error: TP_NOT_DEFINED TP_ID: $tp_id UID: '$uid'\n";
       next;
     }
-    elsif ( sprintf( "%.2f", $deposit + $credit ) <= 0 && ! $TPS{$tp_id}) {
+    elsif (! $conf{INTERNET_IPOE_NEGATIVE} &&  sprintf( "%.2f", $deposit + $credit ) <= 0 && ! $TPS{$tp_id}) {
       print "$login SMALL_DEPOSIT DEPOSIT: $deposit CREDIT: $credit\n" if ($debug > 3);
       next;
     }
@@ -521,8 +534,41 @@ sub ipoe_start_active{
         SERVICE_ID         => $internet->{id},
       );
 
-      $Internet_ipoe->user_status( \%DATA );
+      my %RAD_REQUEST = (
+        'Acct-Status-Type'   => 1,
+        'User-Name'          => $login,
+        'Acct-Session-Id'    => $DATA{ACCT_SESSION_ID},
+        'Framed-IP-Address'  => $ip,
+        'Calling-Station-Id' => $ip,
+        'NAS-IP-Address'     => $nas_info{$nas_id}{NAS_IP},
+        'NAS-Port'           => $port,
+        'Filter-Id'          => $filter_id,
+        'Connect-Info'       => 'IPoE:'.$connect_info,
+      );
 
+      $Nas->{NAS_ID}=$nas_id;
+      $Auth->{UID}=$uid;
+      $Auth->{SERVICE_ID}=$internet->{id};
+      my ($r, $RAD_PAIRS) = $Auth->auth( \%RAD_REQUEST, $Nas);
+      delete ( $RAD_PAIRS->{'Session-Timeout'} );
+
+      if($debug) {
+        print "Result: $r\n";
+        while(my($k, $v)=each %$RAD_PAIRS ) {
+          print "  $k -> $v\n";
+        }
+      }
+
+      if ( $RAD_PAIRS->{'Filter-Id'} ){
+        $DATA{FILTER_ID} = $RAD_PAIRS->{'Filter-Id'};
+      }
+      else{
+        while (my ($k, $v) = each %{$RAD_PAIRS}) {
+          $DATA{FILTER_ID} .= "$k=$v, ";
+        }
+      }
+
+      $Internet_ipoe->user_status( \%DATA );
       internet_ipoe_change_status( { STATUS => 'ONLINE_ENABLE', %DATA } );
       $debug_output .= "$lang{ACTIVATE} IP: $ip\n" if ($debug > 1);
     }

@@ -199,17 +199,22 @@ sub equipment_unreg_report {
     elsif ($nas_type eq '_vsolution') {
       require Equipment::Vsolution;
     }
+    elsif ($nas_type eq '_cdata') {
+      require Equipment::Cdata;
+    }
 
     $nas->{SNMP_COMMUNITY} = $nas->{NAS_MNG_PASSWORD} . "@" . $nas->{NAS_MNG_IP_PORT};
     $nas->{FULL} = 1;
 
     my $unregister_fn = $nas_type . '_unregister';
-    $unregister_list = &{\&$unregister_fn}({ %$nas });
-    my $index = get_function_index('equipment_info');
-    $pages_qs = "index=$index&visual=4&NAS_ID=$nas_id&unregister_list=1";
-    my $count = @$unregister_list;
-    if ($count > 0) {
-      $table->addrow($nas->{NAS_NAME}, $count, $html->button('', $pages_qs, { class => "show", target => '_blank' }));
+    if(defined(&$unregister_fn)) {
+      $unregister_list = &{\&$unregister_fn}({ %$nas });
+      my $index = get_function_index('equipment_info');
+      $pages_qs = "index=$index&visual=4&NAS_ID=$nas_id&unregister_list=1";
+      my $count = @$unregister_list;
+      if ($count > 0) {
+        $table->addrow($nas->{NAS_NAME}, $count, $html->button('', $pages_qs, { class => "show", target => '_blank' }));
+      }
     }
   }
 
@@ -283,14 +288,16 @@ sub equipment_onu_report {
     COLS_NAME => 1,
   });
 
-  foreach (@$list) {
+  foreach my $line (@$list) {
     my $nas_info = $Nas->list({
-      NAS_ID    => $_->{nas_id},
+      NAS_ID    => $line->{nas_id},
       COLS_NAME => 1,
     });
 
-    my $ports = $Equipment->onu_list({
-      NAS_ID    => $_->{nas_id},
+    next if(!$nas_info->[0]);
+
+    my $onus = $Equipment->onu_list({
+      NAS_ID    => $line->{nas_id},
       RX_POWER  => '_SHOW',
       NAS_IP    => '_SHOW',
       PON_TYPE  => '_SHOW',
@@ -300,40 +307,45 @@ sub equipment_onu_report {
 
     my %branch_list = ();
 
-    foreach my $port (@$ports) {
-      if (!%branch_list || !in_array($port->{branch}, [ keys %branch_list ])) {
-        $branch_list{$port->{branch}} = { pon_type => $port->{pon_type} };
+    foreach my $onu (@$onus) {
+      if (!%branch_list || !in_array($onu->{branch}, [ keys %branch_list ])) {
+        $branch_list{$onu->{branch}} = { pon_type => $onu->{pon_type} };
       }
-      else {
-        $branch_list{$port->{branch}}{total_count} += 1;
-        if (pon_tx_alerts($port->{rx_power}, 1) == 1) {
-          $branch_list{$port->{branch}}{good_count} += 1;
-        }
-        elsif (pon_tx_alerts($port->{rx_power}, 1) == 2) {
-          $branch_list{$port->{branch}}{bad_count} += 1;
-        }
-        elsif (pon_tx_alerts($port->{rx_power}, 1) == 3) {
-          $branch_list{$port->{branch}}{worth_count} += 1;
-        }
+
+      $branch_list{$onu->{branch}}{total_count} += 1;
+      if (pon_tx_alerts($onu->{rx_power}, 1) == 1) {
+        $branch_list{$onu->{branch}}{good_count} += 1;
+      }
+      elsif (pon_tx_alerts($onu->{rx_power}, 1) == 2) {
+        $branch_list{$onu->{branch}}{bad_count} += 1;
+      }
+      elsif (pon_tx_alerts($onu->{rx_power}, 1) == 3) {
+        $branch_list{$onu->{branch}}{worth_count} += 1;
       }
     }
     my $total_count = 0;
-    my $total_count_good = 0;
-    my $total_count_worst = 0;
-    my $total_count_bad = 0;
+    my $total_possible = 0;
     my $busy = 0;
-    foreach (keys %branch_list) {
-      $total_count += $branch_list{$_}->{total_count};
-      $total_count_good += $branch_list{$_}->{good_count} || 0;
-      $total_count_worst += $branch_list{$_}->{worth_count} || 0;
-      $total_count_bad += $branch_list{$_}->{bad_count} || 0;
-      $busy = sprintf("%.2f", ($total_count_bad + $total_count_worst + $total_count_good) / $total_count * 100);
+    foreach my $key (keys %branch_list) {
+      if ($branch_list{$key}->{pon_type} eq 'epon') {
+        $total_possible += 64;
+      }
+      elsif ($branch_list{$key}->{pon_type} eq 'gpon') {
+        $total_possible += 128;
+      }
+      elsif ($branch_list{$key}->{pon_type} eq 'gepon') {
+        $total_possible += 128;
+      }
+      $total_count += $branch_list{$key}->{total_count} || 0;
+    }
+    if ($total_possible != 0) {
+      $busy = sprintf("%.2f", $total_count / $total_possible * 100);
     }
 
     my $table = $html->table({
-      ID      => 'info_' . $_->{nas_id},
+      ID      => 'info_' . $line->{nas_id},
       title   => [ $lang{INTERFACE}, $lang{COUNT}, $lang{GOOD_SIGNAL}, $lang{GOOD_SIGNAL} . ' %', $lang{WORTH_SIGNAL}, $lang{WORTH_SIGNAL} . ' %', $lang{BAD_SIGNAL}, $lang{BAD_SIGNAL} . ' %' ],
-      caption => $nas_info->[0]->{nas_ip} . ' - ' . $lang{BUSY} . ' ' . $busy . '% ( ' . $total_count . ' ONU ' . $lang{REGISTERED} . ' )',
+      caption => $nas_info->[0]->{nas_ip} . ' - ' . $lang{OLT_BUSY} . ' ' . $busy . '% ( ' . $total_count . ' ONU ' . $lang{REGISTERED} . ' )',
     });
 
     foreach my $key (sort keys %branch_list) {

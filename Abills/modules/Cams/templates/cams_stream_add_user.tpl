@@ -1,118 +1,3 @@
-<!--<div class='box box-theme box-form center-block'>-->
-    <!--<div class='box-header text-center'><h4>_{CAMERAS}_</h4></div>-->
-    <!--<div class='box-body'>-->
-
-        <!--<form name='CAMS_STREAM_ADD' id='form_CAMS_STREAM_ADD' method='post' class='form form-horizontal'>-->
-            <!--<input type='hidden' name='index' value='$index'/>-->
-            <!--<input type='hidden' name='ID' value='%ID%'/>-->
-            <!--<input type='hidden' name='UID' value='%UID%'/>-->
-            <!--<input type='hidden' name='sid' value='$sid'/>-->
-            <!--<input type='hidden' name='SERVICE_ID' value='%SERVICE_ID%'/>-->
-            <!--<input type='hidden' name='TP_ID' value='%TP_ID%'/>-->
-            <!--<input type='hidden' name='CAMS_TP_ID' value='%CAMS_TP_ID%'/>-->
-            <!--<input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>-->
-
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3 required'>_{GROUP}_</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--%GROUPS_SELECT%-->
-                <!--</div>-->
-            <!--</div>-->
-
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3 required' for='TITLE_id'>_{CAM_TITLE}_</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--<input type='text' class='form-control' required='required' name='TITLE' value='%TITLE%' id='TITLE_id'/>-->
-                <!--</div>-->
-            <!--</div>-->
-
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3 required' for='NAME_id'>_{NAME}_</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--<input type='text' class='form-control' required='required' name='NAME' value='%NAME%' id='NAME_id'/>-->
-                <!--</div>-->
-            <!--</div>-->
-
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3 required' for='HOST_id'>RTSP Host</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--<input type='text' class='form-control'-->
-                           <!--required='required' name='HOST' value='%HOST%' id='HOST_id'/>-->
-                <!--</div>-->
-            <!--</div>-->
-
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3 required' for='RTSP_PORT_id'>RTSP _{PORT}_</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--<input type='text' class='form-control'-->
-                           <!--required='required' name='RTSP_PORT' value='%RTSP_PORT%' id='RTSP_PORT_id'/>-->
-                <!--</div>-->
-            <!--</div>-->
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3 required' for='RTSP_PATH_id'>RTSP _{PATH}_</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--<input type='text' class='form-control'-->
-                           <!--required='required' name='RTSP_PATH' value='%RTSP_PATH%' id='RTSP_PATH_id'/>-->
-                <!--</div>-->
-            <!--</div>-->
-
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3' for='EXTRA_URL'>_{EXTRA}_ URL</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--<input type='text' class='form-control' name='EXTRA_URL' value='%EXTRA_URL%' id='EXTRA_URL'/>-->
-                <!--</div>-->
-            <!--</div>-->
-
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3' for='SCREENSHOT_URL'>_{URL_FOR_SCREENSHOTS}_</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--<input type='text' class='form-control' name='SCREENSHOT_URL' value='%SCREENSHOT_URL%' id='SCREENSHOT_URL'/>-->
-                <!--</div>-->
-            <!--</div>-->
-
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3'>_{ORIENTATION}_</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--%ORIENTATION_SELECT%-->
-                <!--</div>-->
-            <!--</div>-->
-
-            <!--<hr>-->
-
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3 required' for='LOGIN_id'>_{LOGIN}_</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--<input type='text' class='form-control' required='required' name='LOGIN' value='%LOGIN%' id='LOGIN_id'/>-->
-                <!--</div>-->
-            <!--</div>-->
-
-            <!--<div class='form-group'>-->
-                <!--<label class='control-label col-md-3 required' for='PASSWORD_id'>_{PASSWD}_</label>-->
-                <!--<div class='col-md-9'>-->
-                    <!--<input type='text' class='form-control' required='required' name='PASSWORD' value='%PASSWORD%' id='PASSWORD_id'/>-->
-                <!--</div>-->
-            <!--</div>-->
-
-            <!--<hr>-->
-
-            <!--<div class='checkbox text-center'>-->
-                <!--<label>-->
-                    <!--<input type='checkbox' %DISABLED_CHECKED% data-return='1' value='1' name='DISABLED'/>-->
-                    <!--<strong>_{DISABLED}_</strong>-->
-                <!--</label>-->
-            <!--</div>-->
-
-        <!--</form>-->
-
-    <!--</div>-->
-
-    <!--<div class='box-footer'>-->
-        <!--<input type='submit' form='form_CAMS_STREAM_ADD' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>-->
-    <!--</div>-->
-
-<!--</div>-->
-
-
 <form name='CAMS_STREAM_ADD' id='form_CAMS_STREAM_ADD' method='post' class='form-horizontal'>
     <input type='hidden' name='index' value='$index'/>
     <input type='hidden' name='ID' value='%ID%'/>
@@ -135,12 +20,20 @@
                         </div>
                     </div>
                     <div class='box-body'>
-                        <div class='form-group'>
+                        <div id="group_form" class='form-group'>
                             <label class='control-label col-md-3 required'>_{CAMS_GROUP}_</label>
                             <div class='col-md-8'>
                                 %GROUPS_SELECT%
                             </div>
                             <a href="#" data-toggle="tooltip" title=" "><span class="glyphicon glyphicon-question-sign"></span></a>
+                        </div>
+
+                        <div id="folder_form" class='form-group'>
+                            <label class='control-label col-md-3 required'>Каталог</label>
+                            <div class='col-md-8'>
+                                %FOLDERS_SELECT%
+                            </div>
+                            <a href="#" data-toggle="tooltip" title=""><span class="glyphicon glyphicon-question-sign"></span></a>
                         </div>
 
                         <div class='form-group'>
@@ -337,7 +230,15 @@
 </form>
 
 <script>
-    $(document).ready(function(){
-        $('[data-toggle="tooltip"]').tooltip();
+
+    if ('%FOLDERS%') {
+        jQuery('#group_form').hide();
+    }
+    else {
+        jQuery('#folder_form').hide();
+    }
+
+    jQuery(document).ready(function(){
+        jQuery('[data-toggle="tooltip"]').tooltip();
     });
 </script>

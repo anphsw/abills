@@ -20,9 +20,9 @@ our ($db,
 );
 
 use Paysys;
-
 our Paysys $Paysys;
-
+use Users;
+my $Users = Users->new($db, $admin, \%conf);
 #**********************************************************
 =head2 paysys_configure_main()
 
@@ -40,10 +40,10 @@ sub paysys_configure_main {
     $html->tpl_show(
       _include('paysys_connect_system', 'Paysys'),
       {
-        BTN_VALUE     => $btn_value,
-        BTN_NAME      => $btn_name,
-        PAYSYS_SELECT => $paysys_select,
-        JSON_LIST     => $json_list,
+        BTN_VALUE          => $btn_value,
+        BTN_NAME           => $btn_name,
+        PAYSYS_SELECT      => $paysys_select,
+        JSON_LIST          => $json_list,
         PAYMENT_METHOD_SEL => _paysys_select_payment_method(),
       },
     );
@@ -51,12 +51,26 @@ sub paysys_configure_main {
 
   # add system in paysys connection
   if ($FORM{add_paysys}) {
+    if ($FORM{create_payment_method}) {
+      require Payments;
+      Payments->import();
+      my $Payments   = Payments->new($db, $admin, \%conf);
+
+      $Payments->payment_type_add({
+        NAME  => $FORM{NAME} || '',
+        COLOR => '#000000'
+      });
+      $FORM{PAYMENT_METHOD} = $Payments->{INSERT_ID};
+    }
+
     $Paysys->paysys_connect_system_add({
-      PAYSYS_ID => $FORM{PAYSYS_ID},
-      NAME      => $FORM{NAME},
-      MODULE    => $FORM{MODULE},
-      PAYSYS_IP => $FORM{IP},
-      STATUS    => $FORM{STATUS},
+      PAYSYS_ID      => $FORM{PAYSYS_ID},
+      NAME           => $FORM{NAME},
+      MODULE         => $FORM{MODULE},
+      PAYSYS_IP      => $FORM{IP},
+      STATUS         => $FORM{STATUS},
+      PAYMENT_METHOD => $FORM{PAYMENT_METHOD},
+      PRIORITY       => $FORM{PRIORITY}
     });
 
     my $payment_system = $FORM{MODULE};
@@ -67,14 +81,15 @@ sub paysys_configure_main {
       my %settings = $require_module->get_settings();
 
       foreach my $key (sort keys %{$settings{CONF}}) {
-        if($key =~ /_NAME_/) {
+        if ($key =~ /_NAME_/) {
           my $new_key = $key;
           my $new_name = uc($FORM{NAME});
           $new_key =~ s/_NAME_/_$new_name\_/;
-
+          $FORM{$key} =~ s/"/\\"/g;
           $config->config_add({ PARAM => $new_key, VALUE => $FORM{$key}, REPLACE => 1 });
         }
-        else{
+        else {
+          $FORM{$key} =~ s/"/\\"/g;
           $config->config_add({ PARAM => $key, VALUE => $FORM{$key}, REPLACE => 1 });
         }
       }
@@ -85,11 +100,6 @@ sub paysys_configure_main {
       $html->message('info', $lang{SUCCESS}, $lang{ADDED});
     }
   }
-
-  #  if ($FORM{MERCHANT}) {
-  #    paysys_merchant_configuration();
-  #    return 1;
-  #  }
 
   # change %CONF params in db
   if ($FORM{change}) {
@@ -102,26 +112,40 @@ sub paysys_configure_main {
       my %settings = $require_module->get_settings();
 
       foreach my $key (sort keys %{$settings{CONF}}) {
-        if($key =~ /_NAME_/){
+        if ($key =~ /_NAME_/) {
           my $old_name = uc($FORM{OLD_NAME});
           $key =~ s/_NAME_/_$old_name\_/;
         }
         my $new_key = $key;
 
-        if($FORM{NAME} ne $FORM{OLD_NAME}){
+        if ($FORM{NAME} ne $FORM{OLD_NAME}) {
           my $old_name = uc($FORM{OLD_NAME});
           my $name = uc($FORM{NAME});
           $new_key =~ s/$old_name/$name/;
         }
 
-        if ($FORM{$key} && $FORM{$key} ne '') {
+        if (defined $FORM{$key} && $FORM{$key} ne '') {
+          $FORM{$key} =~ s/"/\\"/g;
           $config->config_add({ PARAM => $new_key, VALUE => $FORM{$key}, REPLACE => 1 });
         }
         else {
+          $FORM{$key} =~ s/"/\\"/g;
           $config->config_del($key);
         }
 
       }
+    }
+
+    if ($FORM{create_payment_method}) {
+      require Payments;
+      Payments->import();
+      my $Payments   = Payments->new($db, $admin, \%conf);
+
+      $Payments->payment_type_add({
+        NAME  => $FORM{NAME} || '',
+        COLOR => '#000000'
+      });
+      $FORM{PAYMENT_METHOD} = $Payments->{INSERT_ID};
     }
 
     $Paysys->paysys_connect_system_change({
@@ -148,23 +172,23 @@ sub paysys_configure_main {
       COLS_UPPER       => 1,
     });
 
-    my ($paysys_select, $json_list) = _paysys_select_systems($connect_system_info->{name}, $connect_system_info->{paysys_id});
+    my ($paysys_select, $json_list) = _paysys_select_systems($connect_system_info->{name}, $connect_system_info->{paysys_id}, {change => 1});
 
     $html->tpl_show(
       _include('paysys_connect_system', 'Paysys'),
       {
-        PAYSYS_SELECT => $paysys_select,
-        JSON_LIST     => $json_list,
-        BTN_VALUE     => $btn_value,
-        BTN_NAME      => $btn_name,
-        ($connect_system_info && ref $connect_system_info eq "HASH" ? %$connect_system_info : () ),
-#        %$connect_system_info,
-        ACTIVE        => $connect_system_info->{status},
-        IP            => $connect_system_info->{paysys_ip},
-        PRIORITY      => $connect_system_info->{priority},
-        HIDE_SELECT   => 'hidden',
-        ID            => $FORM{chg},
-        PAYMENT_METHOD_SEL => _paysys_select_payment_method({PAYMENT_METHOD => $connect_system_info->{payment_method}}),
+        PAYSYS_SELECT      => $paysys_select,
+        JSON_LIST          => $json_list,
+        BTN_VALUE          => $btn_value,
+        BTN_NAME           => $btn_name,
+        ($connect_system_info && ref $connect_system_info eq "HASH" ? %$connect_system_info : ()),
+        #        %$connect_system_info,
+        ACTIVE             => $connect_system_info->{status},
+        IP                 => $connect_system_info->{paysys_ip},
+        PRIORITY           => $connect_system_info->{priority},
+        HIDE_SELECT        => 'hidden',
+        ID                 => $FORM{chg},
+        PAYMENT_METHOD_SEL => _paysys_select_payment_method({ PAYMENT_METHOD => $connect_system_info->{payment_method} }),
       },
     );
   }
@@ -172,11 +196,11 @@ sub paysys_configure_main {
   # table to show all systems in folder
   my $table_for_systems = $html->table(
     {
-      caption => "",
-      width   => '100%',
-      title   =>
+      caption    => "",
+      width      => '100%',
+      title      =>
         [ '#', $lang{PAY_SYSTEM}, $lang{MODULE}, $lang{VERSION}, $lang{STATUS}, 'IP', $lang{PRIORITY}, $lang{PERIODIC}, $lang{REPORT}, $lang{TEST}, '', '' ],
-      MENU    => "$lang{ADD}:index=$index&add_form=1:add",
+      MENU       => "$lang{ADD}:index=$index&add_form=1:add",
       DATA_TABLE => 1,
     }
   );
@@ -184,6 +208,7 @@ sub paysys_configure_main {
   my $systems = $Paysys->paysys_connect_system_list({
     SHOW_ALL_COLUMNS => 1,
     COLS_NAME        => 1,
+    PAGE_ROWS        => 100,
   });
 
   foreach my $payment_system (@$systems) {
@@ -198,7 +223,7 @@ sub paysys_configure_main {
       my $id = $payment_system->{id} || 0;
       my $paysys_id = $payment_system->{paysys_id} || 0;
       my $paysys_ip = $payment_system->{paysys_ip} || '';
-      my $priority  = $payment_system->{priority} || 0;
+      my $priority = $payment_system->{priority} || 0;
 
       $status = (!($status) ? $html->color_mark("$lang{DISABLE}", 'danger') : $html->color_mark(
         "$lang{ENABLE}",
@@ -210,13 +235,18 @@ sub paysys_configure_main {
       my $delete_button = $html->button("$lang{DEL}",
         "index=$index&MODULE=$payment_system->{module}&del=$id&PAYSYSTEM_ID=$paysys_id",
         { class => 'del', MESSAGE => "$lang{DEL} $paysys_name", });
-
-      my $test_button = $lang{NOT_EXIST};
-      if ($require_module->can('has_test')) {
-        my $test_index = get_function_index('paysys_configure_test');
+      my $test_button = '';
+      if ($require_module->can('has_test') && $payment_system->{status} == 1) {
+        my $test_index = get_function_index('paysys_main_test');
         $test_button = $html->button("$lang{START_PAYSYS_TEST}",
           "index=$test_index&MODULE=$payment_system->{module}&PAYSYSTEM_ID=$paysys_id",
           { class => 'btn btn-success btn-xs' });
+      }
+      elsif ($require_module->can('has_test')) {
+        $test_button = $lang{PAYSYS_MODULE_NOT_TURNED_ON};
+      }
+      else {
+        $test_button = $lang{NOT_EXIST};
       }
 
       $table_for_systems->addrow(
@@ -227,8 +257,8 @@ sub paysys_configure_main {
         $status,
         $paysys_ip,
         $priority,
-        $require_module->can('periodic') ? $html->color_mark("$lang{YES}", 'success') : $html->color_mark("$lang{NO}",'#f04'),
-        $require_module->can('report')   ? $html->color_mark("$lang{YES}", 'success') : $html->color_mark("$lang{NO}",'#f04'),
+        $require_module->can('periodic') ? $html->color_mark("$lang{YES}", 'success') : $html->color_mark("$lang{NO}", '#f04'),
+        $require_module->can('report') ? $html->color_mark("$lang{YES}", 'success') : $html->color_mark("$lang{NO}", '#f04'),
         $test_button,
         $change_button,
         $delete_button,
@@ -238,48 +268,6 @@ sub paysys_configure_main {
   }
 
   print $table_for_systems->show();
-
-  return 1;
-}
-
-#**********************************************************
-=head2 paysys_configure_test()
-
-=cut
-#**********************************************************
-sub paysys_configure_test {
-  if (!$FORM{MODULE}) {
-    $html->message("err", "No such payment system ");
-    return 1;
-  }
-  elsif ($FORM{MODULE} !~ /^[A-za-z0-9\_]+\.pm$/) {
-    $html->message('err', "Permission denied");
-  }
-
-  my ($payment_system_name) = $FORM{MODULE} =~ /([A-za-z0-9\_]+)\.pm/;
-
-  my $html_for_user_id = $html->element('label', $lang{USER}, { class => 'col-md-3 control-label' })
-    . $html->element('div', $html->form_input("USER_ID", $FORM{USER_ID} || '', { TYPE => 'text', }),
-    { class => 'col-md-9' });
-
-  print $html->form_main(
-    {
-      CONTENT => $html->element('div', $html_for_user_id, { class => 'form-group' }),
-      HIDDEN  => {
-        index  => "$index",
-        MODULE => $FORM{MODULE},
-      },
-      SUBMIT  => { start_test => "$lang{START_PAYSYS_TEST}" },
-      NAME    => 'FORM_PAYSYS_TEST'
-    }
-  );
-
-  if ($FORM{start_test} && $FORM{USER_ID}) {
-    my $user_id = $FORM{USER_ID};
-    my $result = cmd("perl /usr/abills/Abills/modules/Paysys/t/$payment_system_name.t $user_id");
-
-    print $html->element('pre', $result);
-  }
 
   return 1;
 }
@@ -297,8 +285,6 @@ sub paysys_configure_groups {
     _error_show($Paysys);
   }
 
-  use Users;
-  my $Users = Users->new($db, $admin, \%conf);
   # get groups list
   my $groups_list = $Users->groups_list({
     COLS_NAME      => 1,
@@ -318,7 +304,7 @@ sub paysys_configure_groups {
     return 1;
   }
 
-  my @connected_payment_systems = ($lang{GROUPS});
+  my @connected_payment_systems = ('#', $lang{GROUPS});
   foreach my $system (sort @$connected_payment_systems) {
     push(@connected_payment_systems, $system->{name});
   }
@@ -372,7 +358,7 @@ sub paysys_configure_groups {
       push(@rows, "$lang{LOGON}" . $checkbox . "<br>" . $settings_button);
 
     }
-    $table->addrow($group->{name}, @rows);
+    $table->addrow($group->{gid}, $group->{name}, @rows);
   }
   _error_show($Paysys);
 
@@ -418,7 +404,7 @@ sub paysys_get_module_settings {
 
   my $input_html = '';
   foreach my $key (sort keys % {$settings{CONF}}) {
-    if($key =~ /_NAME_/ && $FORM{NAME}){
+    if ($key =~ /_NAME_/ && $FORM{NAME}) {
       my $name = uc($FORM{NAME});
       $key =~ s/_NAME_/_$name\_/;
     }
@@ -433,7 +419,7 @@ sub paysys_get_module_settings {
       next;
     }
     my $key_value = $conf{$key . $merchant} || $settings{CONF}{$key};
-
+    $key_value =~ s/\%/&#37;/g if $key_value;
     $input_html .= $html->tpl_show(
       _include('paysys_settings_input', 'Paysys'),
       {
@@ -477,7 +463,7 @@ sub paysys_get_module_settings {
 =cut
 #**********************************************************
 sub _paysys_select_systems {
-  my ($name, $id) = @_;
+  my ($name, $id, $attr) = @_;
   my $systems = _paysys_read_folder_systems();
 
   my %HASH_TO_JSON = ();
@@ -487,7 +473,7 @@ sub _paysys_select_systems {
       my %settings = $Module->get_settings();
 
       foreach my $key (keys %{$settings{CONF}}) {
-        if(defined $name && $name ne ''){
+        if (defined $name && $name ne '') {
           $name = uc($name);
           delete $settings{CONF}{$key} if $key =~ /_NAME_/;
           $key =~ s/_NAME_/_$name\_/;
@@ -496,8 +482,14 @@ sub _paysys_select_systems {
         }
       }
 
-      @{$settings{CONF}}{keys %{$settings{CONF}}} = @conf{keys %{$settings{CONF}}};
+      @{$settings{CONF}}{keys %{$settings{CONF}}} = @conf{keys %{$settings{CONF}}} if $attr->{change};
       $settings{ID} = $id if (defined $id);
+
+      foreach my $key (keys %{$settings{CONF}}) {
+        if ($settings{CONF}{$key}) {
+          $settings{CONF}{$key} =~ s/\%/&#37;/g;
+        }
+      }
       $HASH_TO_JSON{$system} = \%settings;
     }
   }
@@ -521,11 +513,10 @@ sub _paysys_select_systems {
 sub _paysys_select_connected_systems {
   my ($attr) = @_;
 
-
   return $html->form_select('SYSTEM_ID',
     {
       SELECTED    => $attr->{SYSTEM_ID} || $FORM{SYSTEM_ID} || '',
-      SEL_LIST    => $Paysys->paysys_connect_system_list({COLS_NAME => 1, ID => '_SHOW', NAME => '_SHOW'}),
+      SEL_LIST    => $Paysys->paysys_connect_system_list({ COLS_NAME => 1, ID => '_SHOW', NAME => '_SHOW', PAGE_ROWS => => 9999 }),
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
@@ -540,13 +531,21 @@ sub _paysys_select_connected_systems {
 #**********************************************************
 sub _paysys_select_payment_method {
   my ($attr) = @_;
+  my $checkbox = $html->form_input('create_payment_method', '1', {
+    TYPE      => 'checkbox',
+    EX_PARAMS => "data-tooltip='$lang{CREATE}'",
+    ID        => 'create_payment_method'
+  }, { OUTPUT2RETURN => 1 });
+
   return $html->form_select('PAYMENT_METHOD',
-      {
-        SELECTED    => $FORM{PAYMENT_METHOD} || $attr->{PAYMENT_METHOD} || '',
-        SEL_HASH   => \%PAYSYS_PAYMENTS_METHODS,
-        NO_ID       => 1,
-        SEL_OPTIONS => { '' => '--' },
-      });
+    {
+      SELECTED    => $FORM{PAYMENT_METHOD} || $attr->{PAYMENT_METHOD} || '',
+      SEL_HASH    => \%PAYSYS_PAYMENTS_METHODS,
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '--' },
+      SORT_KEY    => 1,
+      EXT_BUTTON  => $conf{PAYMENT_METHOD_NEW} ? $checkbox : '',
+    });
 }
 
 #**********************************************************
@@ -555,7 +554,6 @@ sub _paysys_select_payment_method {
 =cut
 #**********************************************************
 sub paysys_configure_external_commands {
-
   my $action = 'change';
   my $action_lang = "$lang{CHANGE}";
   my %EXTERNAL_COMMANDS_SETTINGS;
@@ -572,7 +570,6 @@ sub paysys_configure_external_commands {
 
   foreach my $conf_param (@conf_params) {
     my $param_information = $Config->config_info({ PARAM => $conf_param, DOMAIN_ID => 0 });
-
     $EXTERNAL_COMMANDS_SETTINGS{$conf_param} = $param_information->{VALUE};
   }
 
@@ -591,19 +588,27 @@ sub paysys_configure_external_commands {
 =cut
 #**********************************************************
 sub paysys_configure_terminals {
+
   my %TERMINALS;
 
   $TERMINALS{ACTION} = 'add';     # action on page
   $TERMINALS{BTN} = "$lang{ADD}"; # button name
 
+  $FORM{WORK_DAYS} = 0;
+  if ($FORM{WEEK_DAYS}) {
+    my @enabled_days = split(', ', $FORM{WEEK_DAYS});
+    foreach my $day (@enabled_days) {
+      $FORM{WORK_DAYS} += (64 / (2 ** ($day - 1)));
+    }
+  }
+
   # if we want to add new terminal
   if ($FORM{ACTION} && $FORM{ACTION} eq 'add') {
-    $Paysys->terminal_add(
-      {
-        %FORM,
-        TYPE => $FORM{TERMINAL},
-      }
-    );
+
+    $Paysys->terminal_add({
+      %FORM,
+      TYPE => $FORM{TERMINAL},
+    });
     if (!$Paysys->{errno}) {
       $html->message('success', $lang{ADDED}, "$lang{ADDED} $lang{TERMINAL}");
     }
@@ -611,12 +616,11 @@ sub paysys_configure_terminals {
 
   # if we want to change terminal
   elsif ($FORM{ACTION} && $FORM{ACTION} eq 'change') {
-    $Paysys->terminal_change(
-      {
-        %FORM,
-        TYPE => $FORM{TERMINAL},
-      }
-    );
+
+    $Paysys->terminal_change({
+      %FORM,
+      TYPE => $FORM{TERMINAL},
+    });
     if (!$Paysys->{errno}) {
       $html->message('success', $lang{CHANGED}, "$lang{CHANGED} $lang{TERMINAL}");
     }
@@ -628,7 +632,11 @@ sub paysys_configure_terminals {
 
     $TERMINALS{ACTION} = 'change';
     $TERMINALS{COMMENT} = $terminal_info->{COMMENT};
-    $TERMINALS{TYPE} = $terminal_info->{TYPE};
+    $TERMINALS{DESCRIPTION} = $terminal_info->{DESCRIPTION};
+    $TERMINALS{WORK_DAYS} = $terminal_info->{WORK_DAYS};
+    $TERMINALS{START_WORK} = $terminal_info->{START_WORK};
+    $TERMINALS{END_WORK} = $terminal_info->{END_WORK};
+    $TERMINALS{TYPE} = $terminal_info->{TYPE_ID};
     $TERMINALS{BTN} = "$lang{CHANGE}";
     $TERMINALS{ID} = $FORM{chg};
     $TERMINALS{STATUS} = $terminal_info->{STATUS};
@@ -644,41 +652,24 @@ sub paysys_configure_terminals {
     }
   }
 
-  # terminal's type select
-  # $TERMINALS{TERMINAL_TYPE} = $html->form_select(
-  #   'TERMINAL',
-  #   {
-  #     SELECTED     => $TERMINALS{TYPE},
-  #     SEL_ARRAY    => \@TERMINAL_TYPES,
-  #     ARRAY_NUM_ID => 1,
-  #     SEL_OPTIONS  => { '' => '--' },
-  #   }
-  # );
+  $TERMINALS{TERMINAL_TYPE} = $html->form_select('TERMINAL', {
+    SELECTED    => $TERMINALS{TYPE},
+    SEL_LIST    => $Paysys->terminal_type_list({ NAME => '_SHOW' }),
+    SEL_KEY     => 'id',
+    SEL_VALUE   => 'name',
+    # ARRAY_NUM_ID => 1,
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '--' },
+    MAIN_MENU   => get_function_index('terminals_type_add'),
+  });
 
-  $TERMINALS{TERMINAL_TYPE} = $html->form_select(
-    'TERMINAL',
-    {
-      SELECTED    => $TERMINALS{TYPE},
-      SEL_LIST    => $Paysys->terminal_type_list({ NAME => '_SHOW' }),
-      SEL_KEY     => 'id',
-      SEL_VALUE   => 'name',
-      # ARRAY_NUM_ID => 1,
-      NO_ID       => 1,
-      SEL_OPTIONS => { '' => '--' },
-      MAIN_MENU   => get_function_index('terminals_type_add'),
-    }
-  );
-
-  $TERMINALS{STATUS} = $html->form_select(
-    'STATUS',
-    {
-      SELECTED     => $TERMINALS{STATUS},
-      SEL_ARRAY    => \@TERMINAL_STATUS,
-      ARRAY_NUM_ID => 1,
-      SEL_OPTIONS  => { '' => '--' },
-      # MAIN_MENU    => get_function_index('terminals_type_add'),
-    }
-  );
+  $TERMINALS{STATUS} = $html->form_select('STATUS', {
+    SELECTED     => $TERMINALS{STATUS},
+    SEL_ARRAY    => \@TERMINAL_STATUS,
+    ARRAY_NUM_ID => 1,
+    SEL_OPTIONS  => { '' => '--' },
+    # MAIN_MENU    => get_function_index('terminals_type_add'),
+  });
 
   use Address;
   my $Address = Address->new($db, $admin, \%conf);
@@ -706,46 +697,59 @@ sub paysys_configure_terminals {
     { OUTPUT2RETURN => 1 }
   );
 
+  my @WEEKDAYS_WORK = ();
+  if ($TERMINALS{WORK_DAYS}) {
+    my $bin = sprintf ("%b", int $TERMINALS{WORK_DAYS});
+    @WEEKDAYS_WORK = split(//, $bin);
+  }
+
+  my $count = 1;
+  foreach my $day (@WEEKDAYS) {
+    next if (length $day > 4);
+    my $checkbox = $html->form_input('WEEK_DAYS', $count, {
+      class => 'list-checkbox',
+      TYPE  => 'checkbox',
+      STATE => $WEEKDAYS_WORK[$count - 1] ? $WEEKDAYS_WORK[$count - 1] : 0,
+    }) . " " . $day;
+
+    my $div_checkbox = $html->element('li', $checkbox, { class => 'list-group-item' });
+
+    $TERMINALS{WEEK_DAYS1} .= $div_checkbox if ($count < 5);
+    $TERMINALS{WEEK_DAYS2} .= $div_checkbox if ($count > 4);
+    $count++;
+  }
+
+  $TERMINALS{START_WORK} = $html->form_timepicker('START_WORK', $TERMINALS{START_WORK});
+  $TERMINALS{END_WORK} = $html->form_timepicker('END_WORK', $TERMINALS{END_WORK});
+
   $html->tpl_show(_include('paysys_terminals_add', 'Paysys'), \%TERMINALS);
-  result_former(
-    {
-      INPUT_DATA      => $Paysys,
-      FUNCTION        => 'terminal_list',
-      DEFAULT_FIELDS  => 'ID, TYPE, COMMENT, STATUS, DIS_NAME, ST_NAME, BD_NUMBER',
-      FUNCTION_FIELDS => 'change,del',
-      SKIP_USER_TITLE => 1,
-      EXT_TITLES      => {
-        id        => '#',
-        type      => $lang{TYPE},
-        comment   => $lang{COMMENTS},
-        status    => $lang{STATUS},
-        dis_name  => $lang{DISTRICT},
-        st_name   => $lang{STREET},
-        bd_number => $lang{BUILD},
-      },
-      #SELECT_VALUE => {
-      #  type => {
-      #    0 => $TERMINAL_TYPES[0],
-      #    1 => $TERMINAL_TYPES[1]
-      #  },
-      #  status => {
-      #    0 => $TERMINAL_STATUS[0],
-      #    1 => $TERMINAL_STATUS[1]
-      #  },
-      #},
-      TABLE           => {
-        width   => '100%',
-        caption => "$lang{TERMINALS}",
-        qs      => $pages_qs,
-        pages   => $Paysys->{TOTAL},
-        ID      => 'PAYSYS_TERMINLS',
-        MENU    => "$lang{ADD}:add_form=1&index=" . $index . ':add' . ";",
-        EXPORT  => 1
-      },
-      MAKE_ROWS       => 1,
-      TOTAL           => 1
-    }
-  );
+  result_former({
+    INPUT_DATA      => $Paysys,
+    FUNCTION        => 'terminal_list',
+    DEFAULT_FIELDS  => 'ID, TYPE, COMMENT, STATUS, DIS_NAME, ST_NAME, BD_NUMBER',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id        => '#',
+      type      => $lang{TYPE},
+      comment   => $lang{COMMENTS},
+      status    => $lang{STATUS},
+      dis_name  => $lang{DISTRICT},
+      st_name   => $lang{STREET},
+      bd_number => $lang{BUILD},
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{TERMINALS}",
+      qs      => $pages_qs,
+      pages   => $Paysys->{TOTAL},
+      ID      => 'PAYSYS_TERMINLS',
+      MENU    => "$lang{ADD}:add_form=1&index=" . $index . ':add' . ";",
+      EXPORT  => 1
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -756,8 +760,6 @@ sub paysys_configure_terminals {
 =cut
 #**********************************************************
 sub paysys_configure_terminals_type {
-  #my ($attr) = @_;
-
   my %TERMINALS;
 
   $TERMINALS{ACTION} = 'add';     # action on page
@@ -835,23 +837,12 @@ sub paysys_configure_terminals_type {
         comment => $lang{COMMENTS},
 
       },
-      #SELECT_VALUE => {
-      #  type => {
-      #    0 => $TERMINAL_TYPES[0],
-      #    1 => $TERMINAL_TYPES[1]
-      #  },
-      #  status => {
-      #    0 => $TERMINAL_STATUS[0],
-      #    1 => $TERMINAL_STATUS[1]
-      #  },
-      #},
       TABLE           => {
         width   => '100%',
         caption => "$lang{TERMINALS} $lang{TYPE}",
         qs      => $pages_qs,
         pages   => $Paysys->{TOTAL},
         ID      => 'PAYSYS_TERMINLS_TYPES',
-        #MENU    => "$lang{ADD}:add_form=1&index=" . $index . ':add' . ";",
         EXPORT  => 1
       },
       MAKE_ROWS       => 1,
@@ -889,6 +880,898 @@ sub _configure_load_payment_module {
   }
 
   return $require_module;
+}
+
+#**********************************************************
+=head2 paysys_maps_($attr)
+
+=cut
+#**********************************************************
+sub paysys_maps_new {
+
+  my %search_keys = (
+    PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY => 'Privatbank;privat;приват;Приватбанк:privat',
+    PAYSYS_EASYPAY_SERVICE_ID          => 'easypay:easypay',
+  );
+
+  my %search_on_map = ();
+
+  foreach my $key (keys %search_keys) {
+    if ($conf{$key}) {
+      $search_on_map{$key} = $search_keys{$key};
+    }
+  }
+
+  load_module('Maps', $html);
+
+  return maps_show_map(
+    {
+      QUICK             => 1,
+      GET_LOCATION      => 1,
+      PAYSYS            => 1,
+      OBJECTS           => \%search_on_map,
+      OUTPUT2RETURN     => 1,
+      SMALL             => 1,
+      GET_USER_POSITION => 1,
+      CLIENT_MAP        => 1,
+    }
+  );
+
+}
+
+#**********************************************************
+=head2 paysys_configure_main()
+
+=cut
+#**********************************************************
+sub paysys_configure_main_new {
+  # show form for paysys connection
+  if ($FORM{add_form}) {
+    my $btn_value = $lang{ADD};
+    my $btn_name = 'add_paysys';
+    my ($paysys_select, $json_list) = _paysys_select_systems();
+
+    $html->tpl_show(
+      _include('paysys_connect_system_new', 'Paysys'),
+      {
+        BTN_VALUE          => $btn_value,
+        BTN_NAME           => $btn_name,
+        PAYSYS_SELECT      => $paysys_select,
+        JSON_LIST          => $json_list,
+        PAYMENT_METHOD_SEL => _paysys_select_payment_method(),
+      },
+    );
+  }
+
+  # add system in paysys connection
+  if ($FORM{add_paysys}) {
+    if ($FORM{create_payment_method}) {
+      require Payments;
+      Payments->import();
+      my $Payments = Payments->new($db, $admin, \%conf);
+
+      $Payments->payment_type_add({
+        NAME  => $FORM{NAME} || '',
+        COLOR => '#000000'
+      });
+      $FORM{PAYMENT_METHOD} = $Payments->{INSERT_ID};
+    }
+
+    $Paysys->paysys_connect_system_add({
+      PAYSYS_ID      => $FORM{PAYSYS_ID},
+      NAME           => $FORM{NAME},
+      MODULE         => $FORM{MODULE},
+      PAYSYS_IP      => $FORM{IP},
+      STATUS         => $FORM{STATUS},
+      PAYMENT_METHOD => $FORM{PAYMENT_METHOD},
+      PRIORITY       => $FORM{PRIORITY}
+    });
+
+    if (!_error_show($Paysys)) {
+      $html->message('info', $lang{SUCCESS}, $lang{ADDED});
+    }
+  }
+
+  # change %CONF params in db
+  if ($FORM{change}) {
+    if ($FORM{create_payment_method}) {
+      require Payments;
+      Payments->import();
+      my $Payments = Payments->new($db, $admin, \%conf);
+
+      $Payments->payment_type_add({
+        NAME  => $FORM{NAME} || '',
+        COLOR => '#000000'
+      });
+      $FORM{PAYMENT_METHOD} = $Payments->{INSERT_ID};
+    }
+
+    $Paysys->paysys_connect_system_change({
+      %FORM,
+      PAYSYS_IP => $FORM{IP},
+    });
+  }
+  elsif ($FORM{del}) {
+    $Paysys->paysys_connect_system_delete({
+      ID => $FORM{del},
+      %FORM
+    });
+    _error_show($Paysys);
+  }
+
+  if ($FORM{chg}) {
+    my $btn_value = $lang{CHANGE};
+    my $btn_name = 'change';
+
+    my $connect_system_info = $Paysys->paysys_connect_system_info({
+      ID               => $FORM{chg},
+      SHOW_ALL_COLUMNS => 1,
+      COLS_NAME        => 1,
+      COLS_UPPER       => 1,
+    });
+
+    $html->tpl_show(
+      _include('paysys_connect_system_new', 'Paysys'),
+      {
+        BTN_VALUE          => $btn_value,
+        BTN_NAME           => $btn_name,
+        ($connect_system_info && ref $connect_system_info eq "HASH" ? %$connect_system_info : ()),
+        ACTIVE             => $connect_system_info->{status},
+        IP                 => $connect_system_info->{paysys_ip},
+        PRIORITY           => $connect_system_info->{priority},
+        HIDE_SELECT        => 'hidden',
+        ID                 => $FORM{chg},
+        PAYMENT_METHOD_SEL => _paysys_select_payment_method({ PAYMENT_METHOD => $connect_system_info->{payment_method} }),
+      },
+    );
+  }
+
+  # table to show all systems in folder
+  my $table_for_systems = $html->table(
+    {
+      caption    => "",
+      width      => '100%',
+      title      =>
+        [ '#', $lang{PAY_SYSTEM}, $lang{MODULE}, $lang{VERSION}, $lang{STATUS}, 'IP', $lang{PRIORITY}, $lang{PERIODIC}, $lang{REPORT}, $lang{TEST}, '', '' ],
+      MENU       => "$lang{ADD}:index=$index&add_form=1:add",
+      DATA_TABLE => 1,
+    }
+  );
+
+  my $systems = $Paysys->paysys_connect_system_list({
+    SHOW_ALL_COLUMNS => 1,
+    COLS_NAME        => 1,
+    PAGE_ROWS        => 100,
+  });
+
+  foreach my $payment_system (@$systems) {
+
+    my $require_module = _configure_load_payment_module($payment_system->{module});
+    # check if module already on new verision and has get_settings sub
+    if ($require_module->can('get_settings')) {
+      my %settings = $require_module->get_settings();
+
+      my $status = $payment_system->{status} || 0;
+      my $paysys_name = $payment_system->{name} || '';
+      my $id = $payment_system->{id} || 0;
+      my $paysys_id = $payment_system->{paysys_id} || 0;
+      my $paysys_ip = $payment_system->{paysys_ip} || '';
+      my $priority = $payment_system->{priority} || 0;
+
+      $status = (!($status) ? $html->color_mark("$lang{DISABLE}", 'danger') : $html->color_mark(
+        "$lang{ENABLE}",
+        'success'));
+
+      my $change_button = $html->button("$lang{CHANGE}",
+        "index=$index&MODULE=$payment_system->{module}&chg=$id&PAYSYSTEM_ID=$paysys_id",
+        { class => 'change' });
+      my $delete_button = $html->button("$lang{DEL}",
+        "index=$index&MODULE=$payment_system->{module}&del=$id&PAYSYSTEM_ID=$paysys_id",
+        { class => 'del', MESSAGE => "$lang{DEL} $paysys_name", });
+      my $test_button = '';
+      if ($require_module->can('has_test') && $payment_system->{status} == 1) {
+        my $test_index = get_function_index('paysys_main_test');
+        $test_button = $html->button("$lang{START_PAYSYS_TEST}",
+          "index=$test_index&MODULE=$payment_system->{module}&PAYSYSTEM_ID=$paysys_id",
+          { class => 'btn btn-success btn-xs' });
+      }
+      elsif ($require_module->can('has_test')) {
+        $test_button = $lang{PAYSYS_MODULE_NOT_TURNED_ON};
+      }
+      else {
+        $test_button = $lang{NOT_EXIST};
+      }
+
+      $table_for_systems->addrow(
+        $paysys_id,
+        $paysys_name,
+        $payment_system->{module},
+        $settings{VERSION},
+        $status,
+        $paysys_ip,
+        $priority,
+        $require_module->can('periodic') ? $html->color_mark("$lang{YES}", 'success') : $html->color_mark("$lang{NO}", '#f04'),
+        $require_module->can('report') ? $html->color_mark("$lang{YES}", 'success') : $html->color_mark("$lang{NO}", '#f04'),
+        $test_button,
+        $change_button,
+        $delete_button,
+      );
+    }
+
+  }
+
+  print $table_for_systems->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 paysys_add_configure_groups()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_add_configure_groups {
+
+  if ($FORM{add_form}) {
+    my $btn_value = $lang{ADD};
+    my $btn_name = 'add_merchant';
+    my ($paysys_select, $json_list) = _paysys_select_systems_new();
+
+    $html->tpl_show(
+      _include('paysys_merchant_config_add', 'Paysys'),
+      {
+        BTN_VALUE     => $btn_value,
+        BTN_NAME      => $btn_name,
+        PAYSYS_SELECT => $paysys_select,
+        JSON_LIST     => $json_list
+      },
+    );
+    return 1;
+  }
+
+  if ($FORM{add_merchant}) {
+    if ($FORM{MERCHANT_NAME} && $FORM{SYSTEM_ID}) {
+      $Paysys->merchant_settings_add({
+        MERCHANT_NAME => $FORM{MERCHANT_NAME},
+        SYSTEM_ID     => $FORM{SYSTEM_ID},
+      });
+      if (!$Paysys->{errno}) {
+        my $merchant_id = $Paysys->{INSERT_ID};
+        foreach my $key (keys %FORM) {
+          next if (!$key);
+          if ($key =~ /PAYSYS_/) {
+            $FORM{$key} =~ s/[\n\r]//g;
+            $FORM{$key} =~ s/"/\\"/g;
+            $Paysys->merchant_params_add({
+              PARAM       => $key,
+              VALUE       => $FORM{$key},
+              MERCHANT_ID => $merchant_id
+            });
+            if ($Paysys->{errno}) {
+              return $html->message('err', $lang{ERROR}, "Error with $key : $FORM{$key}");
+            }
+          }
+        }
+      }
+    }
+    $html->message('info', $lang{ADDED});
+  }
+  elsif ($FORM{change}) {
+    if ($FORM{MERCHANT_NAME} && $FORM{SYSTEM_ID}) {
+      $Paysys->merchant_settings_change({
+        ID            => $FORM{MERCHANT_ID},
+        MERCHANT_NAME => $FORM{MERCHANT_NAME},
+        SYSTEM_ID     => $FORM{SYSTEM_ID},
+      });
+      my $merchant_id = $FORM{MERCHANT_ID};
+      if (!$Paysys->{errno}) {
+        del_settings_to_config({ MERCHANT_ID => $merchant_id, DEL_ALL => 1 });
+        $Paysys->merchant_params_delete({ MERCHANT_ID => $merchant_id });
+        if (!$Paysys->{errno}) {
+          foreach my $key (keys %FORM) {
+            next if (!$key);
+            if ($key =~ /PAYSYS_/) {
+              $FORM{$key} =~ s/[\n\r]//g;
+              $FORM{$key} =~ s/"/\\"/g;
+              $Paysys->merchant_params_add({
+                PARAM       => $key,
+                VALUE       => $FORM{$key},
+                MERCHANT_ID => $merchant_id
+              });
+              if ($Paysys->{errno}) {
+                return $html->message('err', $lang{ERROR}, "Error with $key : $FORM{$key}");
+              }
+            }
+          }
+          add_settings_to_config({ MERCHANT_ID => $merchant_id, SYSTEM_ID => $FORM{SYSTEM_ID}, PARAMS_CHANGED => 1 });
+          $html->message('info', $lang{CHANGED});
+        }
+        else {
+          return $html->message('err', $lang{ERROR}, "Error : $Paysys->{errno}");
+        }
+      }
+    }
+  }
+  elsif ($FORM{chgm}) {
+    my $btn_value = $lang{CHANGE};
+    my $btn_name = 'change';
+
+    my ($paysys_select, $json_list) = _paysys_select_systems_new($FORM{system_name}, $FORM{chgm}, { change => 1 });
+
+    $html->tpl_show(
+      _include('paysys_merchant_config_add', 'Paysys'),
+      {
+        BTN_VALUE     => $btn_value,
+        BTN_NAME      => $btn_name,
+        PAYSYS_SELECT => $paysys_select,
+        JSON_LIST     => $json_list,
+        MERCHANT_NAME => $FORM{merchant_name} || '',
+        HIDE_SELECT   => 'hidden',
+        MERCHANT_ID   => $FORM{chgm} || ''
+      },
+    );
+    return 1;
+  }
+  elsif ($FORM{del_merch}) {
+    del_settings_to_config({ MERCHANT_ID => $FORM{del_merch}, DEL_ALL => 1 });
+    $Paysys->merchant_settings_delete({ ID => $FORM{del_merch} });
+    $Paysys->merchant_params_delete({ MERCHANT_ID => $FORM{del_merch} });
+    if (!$Paysys->{errno}) {
+      $html->message('info', $lang{DELETED});
+    }
+  }
+
+  my $connected_payment_systems = $Paysys->paysys_connect_system_list({
+    SHOW_ALL_COLUMNS => 1,
+    STATUS           => 1,
+    COLS_NAME        => 1,
+  });
+
+  if (ref $connected_payment_systems ne 'ARRAY' || !scalar(@$connected_payment_systems)) {
+    $html->message('err', 'No payments system connected');
+    return 1;
+  }
+
+  my $list = $Paysys->merchant_settings_list({
+    ID             => '_SHOW',
+    MERCHANT_NAME  => '_SHOW',
+    SYSTEM_ID      => '_SHOW',
+    PAYSYSTEM_NAME => '_SHOW',
+    MODULE         => '_SHOW',
+    COLS_NAME      => 1
+  });
+
+  my $table = $html->table(
+    {
+      ID         => 'MERCHANT_TABLE',
+      caption    => $html->button("", "get_index=paysys_add_configure_groups&add_form=1&header=2",
+        {
+          LOAD_TO_MODAL => 1,
+          class         => 'btn-sm glyphicon glyphicon-plus login_b text-success no-padding',
+        }) . " $lang{PAYSYS_SETTINGS_FOR_MERCHANTS}",
+      width      => '100%',
+      title      =>
+        [ '#', $lang{MERCHANT_NAME2}, $lang{PAY_SYSTEM}, $lang{MODULE}, "$lang{PARAMS} $lang{PAY_SYSTEM}", '', '' ],
+      DATA_TABLE => 1,
+    }
+  );
+
+  foreach my $item (@$list) {
+    next if (!$item->{id});
+    my $params = $Paysys->merchant_params_info({ MERCHANT_ID => $item->{id} });
+    my $table_params = $html->table({
+      width      => '100%',
+      ID         => 'PAYSYS_MERCHANT_PARAMS',
+      caption    => "$lang{PARAMS} $lang{PAY_SYSTEM}",
+      HIDE_TABLE => 1
+    });
+    foreach my $param (keys %$params) {
+      next if (!$param);
+      $table_params->addrow($param, $params->{$param});
+    }
+
+    $table->addrow(
+      $item->{id},
+      $item->{merchant_name},
+      $item->{name},
+      $item->{module},
+      $table_params->show(),
+      $html->button("", "get_index=paysys_add_configure_groups&chgm=$item->{id}&systen_id=$item->{system_id}&merchant_name=$item->{merchant_name}&"
+        . "system_name=$item->{name}&header=2",
+        { LOAD_TO_MODAL => 1,
+          ADD_ICON      => "glyphicon glyphicon-pencil",
+          CONFIRM       => $lang{CONFIRM},
+          ex_params => "data-tooltip='$lang{CHANGE}' data-tooltip-position='top'"
+        }),
+      $html->button($lang{DEL}, "index=$index&del_merch=$item->{id}", { MESSAGE => "$lang{DEL} $item->{merchant_name}?", class => 'del' })
+    );
+  }
+
+  print $table->show();
+
+  print paysys_configure_groups_new(\%FORM);
+  print paysys_group_settings(\%FORM);
+
+  return 1;
+}
+
+#**********************************************************
+=head2 paysys_read_folder_systems_new()
+
+=cut
+#**********************************************************
+sub _paysys_select_systems_new {
+  my ($name, $id, $attr) = @_;
+  my $systems = q{};
+  my @array = ();
+  my $list = q{};
+  if ($attr->{change}) {
+    $list = $Paysys->paysys_connect_system_list({
+      SHOW_ALL_COLUMNS => 1,
+      STATUS           => 1,
+      COLS_NAME        => 1,
+    });
+  }
+  else {
+    $list = $Paysys->paysys_connect_system_list({
+      SHOW_ALL_COLUMNS => 1,
+      STATUS           => 1,
+      COLS_NAME        => 1,
+    });
+  }
+
+  my %HASH_TO_JSON = ();
+  foreach my $system (@$list) {
+    next if ($attr->{change} && $system->{name} ne $name);
+    my $Module = _configure_load_payment_module($system->{module});
+    if ($Module->can('get_settings')) {
+      my %settings = $Module->get_settings();
+
+      foreach my $key (keys %{$settings{CONF}}) {
+        if (defined $name && $name ne '') {
+          my $name_Up = uc($name);
+          delete $settings{CONF}{$key} if $key =~ /_NAME_/;
+          $key =~ s/_NAME_/_$name_Up\_/;
+          $settings{CONF}{$key} = '';
+
+        }
+      }
+      if ($attr->{change}) {
+        my $params = $Paysys->merchant_params_info({ MERCHANT_ID => $id });
+        @{$settings{CONF}}{keys %{$settings{CONF}}} = @{$params}{keys %{$settings{CONF}}};
+      }
+      $settings{SYSTEM_ID} = $system->{id};
+
+      foreach my $key (keys %{$settings{CONF}}) {
+        if ($settings{CONF}{$key}) {
+          $settings{CONF}{$key} =~ s/\%/&#37;/g;
+        }
+      }
+      $HASH_TO_JSON{$system->{name}} = \%settings;
+    }
+    if ($system->{name}) {
+      push @array, $system->{name};
+    }
+
+  }
+
+  $systems = \@array;
+
+  my $json_list = JSON->new->utf8(0)->encode(\%HASH_TO_JSON);
+
+  return $html->form_select('MODULE',
+    {
+      SELECTED    => $name || '',
+      SEL_ARRAY   => $systems,
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '--' },
+    }), $json_list;
+}
+
+#**********************************************************
+=head2 paysys_group_settings($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_group_settings {
+  my ($attr) = @_;
+  if ($attr->{add_settings}) {
+    # truncate settings table
+    $Paysys->groups_settings_delete({});
+    _error_show($Paysys);
+  }
+
+  my $connected_payment_systems = $Paysys->paysys_connect_system_list({
+    SHOW_ALL_COLUMNS => 1,
+    STATUS           => 1,
+    COLS_NAME        => 1,
+  });
+
+  if (ref $connected_payment_systems ne 'ARRAY' || !scalar(@$connected_payment_systems)) {
+    $html->message('err', 'No payments system connected');
+    return 1;
+  }
+
+  my $groups_list = $Users->groups_list({
+    COLS_NAME      => 1,
+    DISABLE_PAYSYS => 0
+  });
+
+  my @connected_payment_systems = ('#', $lang{GROUPS});
+  foreach my $system (@$connected_payment_systems) {
+    my $Module = _configure_load_payment_module($system->{module});
+    if ($Module->can('user_portal') || $Module->can('user_portal_special')) {
+      push(@connected_payment_systems, $system->{name});
+    }
+  }
+
+  # Show systems in user portal
+  my $table_UsPor = $html->table(
+    {
+      ID         => 'GROUPS_USER_PORTAL_TABLE',
+      caption    => "$lang{SHOW_PAYSYSTEM_IN_USER_PORTAL}",
+      width      => '100%',
+      title      => \@connected_payment_systems,
+      DATA_TABLE => 1
+    }
+  );
+
+  my $list_settings = $Paysys->groups_settings_list({
+    GID       => '_SHOW',
+    PAYSYS_ID => '_SHOW',
+    COLS_NAME => 1,
+    PAGE_ROWS => 99999,
+  });
+
+  my %groups_settings = ();
+  foreach my $gid_settings (@$list_settings) {
+    $groups_settings{"SETTINGS_$gid_settings->{gid}_$gid_settings->{paysys_id}"} = 1;
+  }
+  # form rows for table
+  foreach my $group (@$groups_list) {
+    my @rows;
+    next if $group->{disable_paysys} == 1;
+
+    foreach my $system (@$connected_payment_systems) {
+      my $Module = _configure_load_payment_module($system->{module});
+      if ($Module->can('user_portal') || $Module->can('user_portal_special')) {
+        my $input_name = "SETTINGS_$group->{gid}_$system->{paysys_id}";
+        if ($attr->{add_settings} && $attr->{$input_name}) {
+          $Paysys->groups_settings_add({
+            GID       => $group->{gid},
+            PAYSYS_ID => $system->{paysys_id},
+          });
+          $groups_settings{$input_name} = 1 if (!$Paysys->{errno});
+        }
+        my $checkbox = $html->form_input("$input_name", "1",
+          { TYPE => 'checkbox', STATE => (($groups_settings{$input_name}) ? 'checked' : '') });
+        push(@rows, "$lang{SHOW}" . $checkbox);
+      }
+    }
+    $table_UsPor->addrow($group->{gid}, $group->{name}, @rows);
+  }
+  $table_UsPor->addfooter($html->form_input('add_settings', $lang{SAVE}, { TYPE => 'submit' }));
+
+  return $html->form_main(
+    {
+      CONTENT => $table_UsPor->show(),
+      HIDDEN  => {
+        index => "$index",
+      },
+      NAME    => 'PAYSYS_GROUPS_SETTINGS'
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 paysys_configure_groups_new($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_configure_groups_new {
+
+  if (defined $FORM{chg}) {
+    return paysys_merchant_select(\%FORM);
+  }
+
+  if ($FORM{save_merch_gr}) {
+    foreach my $key (keys %FORM) {
+      next if (!$key);
+      if ($key =~ /SETTINGS_/) {
+        my (undef, $gid, $system_id) = split('_', $key);
+        next if ($FORM{"SETTINGS_$gid" . "_$system_id"} eq '');
+        $Paysys->paysys_merchant_to_groups_delete({ PAYSYS_ID => $system_id, GID => (defined $gid && $gid == 0) ? '0' : $gid });
+        $Paysys->paysys_merchant_to_groups_add({
+          GID       => $gid,
+          PAYSYS_ID => $system_id,
+          MERCH_ID  => $FORM{"SETTINGS_$gid" . "_$system_id"}
+        });
+        if ($Paysys->{errno}) {
+          return $html->message('err', $lang{ERROR}, "Error with $key : $FORM{$key}");
+        }
+        else {
+          add_settings_to_config({
+            MERCHANT_ID => $FORM{"SETTINGS_$gid" . "_$system_id"},
+            GID         => $gid
+          });
+        }
+      }
+    }
+  }
+  if (defined $FORM{clear_set}) {
+    my $_list = $Paysys->merchant_for_group_list({
+      PAYSYS_ID => '_SHOW',
+      MERCH_ID  => '_SHOW',
+      GID       => "$FORM{clear_set}",
+      LIST2HASH => 'paysys_id,merch_id'
+    });
+    foreach my $key (keys %{$_list}) {
+      next if (!$key);
+      del_settings_to_config({ MERCHANT_ID => $_list->{$key}, GID => (defined $FORM{clear_set} && $FORM{clear_set} == 0) ? '0' : $FORM{clear_set} });
+      $Paysys->paysys_merchant_to_groups_delete({ PAYSYS_ID => $key, GID => (defined $FORM{clear_set} && $FORM{clear_set} == 0) ? '0' : $FORM{clear_set} });
+    }
+    $html->message('info', $lang{DELETED});
+  }
+
+  my $connected_payment_systems = $Paysys->paysys_connect_system_list({
+    SHOW_ALL_COLUMNS => 1,
+    STATUS           => 1,
+    COLS_NAME        => 1,
+  });
+
+  if (ref $connected_payment_systems ne 'ARRAY' || !scalar(@$connected_payment_systems)) {
+    $html->message('err', 'No payments system connected');
+    return 1;
+  }
+
+  my $groups_list = $Users->groups_list({
+    COLS_NAME      => 1,
+    DISABLE_PAYSYS => 0
+  });
+
+  push(@$groups_list,
+    {
+      'allow_credit'   => '0',
+      'descr'          => 'default',
+      'disable_chg_tp' => '0',
+      'disable_paysys' => '0',
+      'domain_id'      => '0',
+      'gid'            => '0',
+      'name'           => 'default',
+      'users_count'    => '0'
+    });
+
+  my @connected_payment_systems = ('#', $lang{GROUPS});
+  foreach my $system (@$connected_payment_systems) {
+    push(@connected_payment_systems, $system->{name});
+  }
+  push(@connected_payment_systems, '', '');
+  # Show systems in user portal
+  my $table = $html->table(
+    {
+      ID         => 'GROUPS_GROUP_SETTINGS',
+      caption    => "$lang{SELECT_MERCHANT_FOR_GROUP}",
+      width      => '100%',
+      title      => \@connected_payment_systems,
+      DATA_TABLE => 1
+    }
+  );
+
+  my $list = $Paysys->paysys_merchant_to_groups_info({ COLS_NAME => 1 });
+  my %settings_hash = ();
+  foreach my $item (@$list) {
+    $settings_hash{$item->{gid}}{$item->{paysys_id}} = $item->{merchant_name};
+  }
+
+  foreach my $group (@$groups_list) {
+    my @rows;
+    next if $group->{disable_paysys} == 1;
+    foreach my $system (@$connected_payment_systems) {
+      if (exists $settings_hash{$group->{gid}}{$system->{id}}) {
+        push(@rows, "$settings_hash{$group->{gid}}{$system->{id}}");
+      }
+      else {
+        push(@rows, "$lang{NOT_EXIST}");
+      }
+    }
+    $table->addrow(
+      $group->{gid},
+      $group->{name},
+      @rows,
+      $html->button("", "get_index=paysys_configure_groups_new&header=2&chg=$group->{gid}",
+        { LOAD_TO_MODAL => 1,
+          ADD_ICON      => "glyphicon glyphicon-pencil",
+          CONFIRM       => $lang{CONFIRM},
+          ex_params => "data-tooltip='$lang{CHANGE}' data-tooltip-position='top'"
+        }),
+      $html->button($lang{DEL}, "index=$index&clear_set=$group->{gid}", { MESSAGE => "$lang{DEL} $lang{FOR} $group->{name}?", class => 'del' }));
+  }
+
+  return $html->form_main(
+    {
+      CONTENT => $table->show(),
+      HIDDEN  => {
+        index => "$index",
+      },
+      NAME    => 'PAYSYS_GROUP_SETTINGS'
+    }
+  );
+}
+
+#**********************************************************
+=head2 paysys_merchant_select()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub paysys_merchant_select {
+  my ($attr) = @_;
+  my $group = ();
+  if (defined $attr->{chg} && $attr->{chg} != 0) {
+    $group = $Users->groups_list({
+      GID       => $attr->{chg},
+      COLS_NAME => 1,
+    });
+    $group = $group->[0];
+  }
+  else {
+    $group->{name} = 'default';
+  }
+
+  my $connected_payment_systems = $Paysys->paysys_connect_system_list({
+    SHOW_ALL_COLUMNS => 1,
+    STATUS           => 1,
+    COLS_NAME        => 1,
+  });
+
+  my $list = $Paysys->merchant_settings_list({
+    ID             => '_SHOW',
+    MERCHANT_NAME  => '_SHOW',
+    SYSTEM_ID      => '_SHOW',
+    PAYSYSTEM_NAME => '_SHOW',
+    MODULE         => '_SHOW',
+    COLS_NAME      => 1
+  });
+  my $paysystem_sel = qq{};
+  foreach my $system (@$connected_payment_systems) {
+    next if (!$system);
+    my %merch_select_hash = ();
+    my $select_name = qq{};
+    my $selected_val = qq{};
+    my $selected_values = $Paysys->merchant_for_group_list({
+      GID       => $attr->{chg},
+      PAYSYS_ID => $system->{id},
+      MERCH_ID  => '_SHOW',
+      LIST2HASH => 'paysys_id,merch_id'
+    });
+
+    foreach my $merch (@$list) {
+      if ($merch->{system_id} eq $system->{id}) {
+        $selected_val = $selected_values->{$merch->{system_id}} || '';
+        $select_name = qq{SETTINGS_$attr->{chg}_$system->{id}};
+        $merch_select_hash{$merch->{id}} = $merch->{merchant_name};
+      }
+    }
+
+    $paysystem_sel .= $html->tpl_show(_include('paysys_select_for_group', 'Paysys'), {
+      LABEL_NAME      => $system->{name},
+      MERCHANT_SELECT => $html->form_select(
+        $select_name,
+        {
+          SELECTED => $selected_val,
+          SEL_HASH => { '' => '', %merch_select_hash },
+          NO_ID    => 1
+        }
+      )
+    }, { OUTPUT2RETURN => 1 });
+
+  }
+
+  $html->tpl_show(_include('paysys_merchants_for_groups', 'Paysys'), {
+    GROUP_NAME    => $group->{name},
+    GROUP_ID      => $attr->{chg},
+    PAYSYSTEM_SEL => $paysystem_sel,
+    INDEX         => get_function_index('paysys_add_configure_groups')
+  });
+  return 1;
+}
+
+#**********************************************************
+=head2 add_settings_to_config($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub add_settings_to_config {
+  my ($attr) = @_;
+  my $config = Conf->new($db, $admin, \%conf);
+  my $gr_list = ();
+
+  if ($attr->{SYSTEM_ID} && $attr->{PARAMS_CHANGED}) {
+    $gr_list = $Paysys->merchant_for_group_list({
+      PAYSYS_ID => $attr->{SYSTEM_ID},
+      MERCH_ID  => $attr->{MERCHANT_ID},
+      GID       => '_SHOW',
+      LIST2HASH => 'gid,merch_id'
+    });
+
+    while (my ($k, $v) = each(%{$gr_list})) {
+      add_settings_to_config({
+        MERCHANT_ID => $v,
+        GID         => $k
+      });
+    }
+    return 1;
+  }
+
+  my $list = $Paysys->merchant_params_info({ MERCHANT_ID => $attr->{MERCHANT_ID} });
+
+  foreach my $key (keys %{$list}) {
+    if (defined $attr->{GID} && $attr->{GID} != 0) {
+      $config->config_add({ PARAM => $key . "_$attr->{GID}", VALUE => $list->{$key}, REPLACE => 1 });
+    }
+    else {
+      $config->config_add({ PARAM => $key, VALUE => $list->{$key}, REPLACE => 1 });
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 del_settings_to_config($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub del_settings_to_config {
+  my ($attr) = @_;
+  my $config = Conf->new($db, $admin, \%conf);
+
+  my $list = $Paysys->merchant_params_info({ MERCHANT_ID => $attr->{MERCHANT_ID} });
+
+  foreach my $key (keys %{$list}) {
+    if ($attr->{DEL_ALL}) {
+      $config->config_del_by_part_of_param($key);
+    }
+    elsif (defined $attr->{GID} && $attr->{GID} != 0) {
+      $config->config_del($key . "_$attr->{GID}");
+    }
+    else {
+      $config->config_del($key);
+    }
+  }
+
+  return 1;
 }
 
 1;

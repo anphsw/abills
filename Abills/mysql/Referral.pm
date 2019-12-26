@@ -19,6 +19,11 @@ my $default_values = {
   MAX_LEVEL          => '0',
   DISCOUNT_COEF      => '0',
   DISCOUNT_NEXT_COEF => '0',
+  BONUS_AMOUNT       => '0',
+  PAYMENT_ARREARS    => '0',
+  BONUS_BILL         => '0',
+  PERIOD             => '0',
+  REPL_PERCENT     => '0',
 };
 
 #**********************************************************
@@ -209,6 +214,188 @@ sub list{
 }
 
 #**********************************************************
+=head2 tp_list($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+
+=cut
+#**********************************************************
+sub tp_list{
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former( $attr, [
+    [ 'ID', 'INT', 'r.id', 1 ],
+    [ 'NAME', 'str', 'r.name', 1 ],
+    [ 'BONUS_AMOUNT', 'INT', 'r.bonus_amount', 1 ],
+    [ 'PAYMENT_ARREARS', 'INT', 'r.payment_arrears', 1 ],
+    [ 'PERIOD', 'INT', 'r.period', 1],
+    [ 'REPL_PERCENT', 'INT', 'r.repl_percent', 1],
+    [ 'BONUS_BILL', 'INT', 'r.bonus_bill', 1],
+  ],
+    {
+      WHERE => 1
+    }
+  );
+
+  $self->query(
+    "SELECT
+     $self->{SEARCH_FIELDS} r.id
+     FROM referral_tp r
+    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+     ",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 request_list($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+
+=cut
+#**********************************************************
+sub request_list{
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $GROUP_BY = $attr->{GROUP_BY} || '';
+  my $WHERE = $self->search_former( $attr, [
+    [ 'ID', 'INT', 'r.id as referral_request', 1 ],
+    [ 'FIO', 'STR', 'r.fio', 1 ],
+    [ 'PHONE', 'STR', 'r.phone', 1 ],
+    [ 'ADDRESS', 'STR', 'r.address', 1 ],
+    [ 'STATUS', 'INT', 'r.status', 1],
+    [ 'UID', 'INT', 'r.referrer as uid', 1],
+    [ 'REFERRER', 'INT', 'r.referrer', 1],
+    [ 'LOGIN', 'STR', 'u.id as login', 1],
+    [ 'DATE', 'STR', 'r.date', 1],
+    [ 'TP_ID', 'INT', 'r.tp_id as referral_tp', 1],
+    [ 'TP_NAME', 'INT', 'rt.name as tp_name', 1],
+    [ 'REFERRAL_UID', 'INT', 'r.referral_uid', 1],
+    ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(r.date, '%Y-%m-%d')" ],
+  ],
+    {
+      WHERE => 1
+    }
+  );
+
+
+  $self->query(
+    "SELECT
+     $self->{SEARCH_FIELDS} r.id
+     FROM referral_requests r
+     LEFT JOIN users u ON (u.uid = r.referrer)
+     LEFT JOIN referral_tp rt ON (r.tp_id = rt.id)
+    $WHERE $GROUP_BY ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+     ",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+
+#**********************************************************
+=head2 tp_info($id)
+
+  Arguments:
+    id
+
+  Returns:
+
+=cut
+#**********************************************************
+
+sub tp_info{
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT * FROM referral_tp WHERE id = ? ",
+    undef,
+    {
+      INFO => 1,
+      Bind => [ $id ],
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 log_list($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+
+=cut
+#**********************************************************
+sub log_list{
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former( $attr, [
+    [ 'ID', 'INT', 'rl.id' ],
+    [ 'UID', 'INT', 'rl.uid', 1 ],
+    [ 'DATE', 'STR', 'rl.date', 1 ],
+    [ 'REFERRAL_REQUEST', 'STR', 'rl.referral_request', 1 ],
+    [ 'TP_ID', 'INT', 'rr.tp_id', 1 ],
+    [ 'REFERRER', 'INT', 'rr.referrer', 1 ],
+  ],
+    {
+      WHERE => 1
+    }
+  );
+
+  if($attr->{COUNT}){
+    $self->query("SELECT rr.referrer, COUNT(rl.id) as count, rl.uid, rl.id, rr.tp_id, rl.referral_request
+    FROM referral_log rl
+    LEFT JOIN referral_requests rr ON (rl.referral_request = rr.id)
+    GROUP BY uid;", undef, $attr);
+    return $self->{list};
+  }
+
+  $self->query(
+    "SELECT
+       $self->{SEARCH_FIELDS}, rl.id
+     FROM referral_log rl
+     LEFT JOIN referral_requests rr ON (rl.referral_request = rr.id)
+    $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
+     ",
+    undef,
+    $attr
+  );
+
+  return $self->{LIST};
+}
+
+#**********************************************************
 =head2 info($uid, $attr)
 
   Arguments:
@@ -246,6 +433,58 @@ sub add{
 }
 
 #**********************************************************
+=head2 add($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+
+=cut
+#**********************************************************
+sub add_request{
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_add( 'referral_requests', $attr, { REPLACE => 1 } );
+}
+
+
+#**********************************************************
+=head2 tp_add($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+
+=cut
+#**********************************************************
+sub tp_add{
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_add( 'referral_tp', $attr, { REPLACE => 1 } );
+}
+
+#**********************************************************
+=head2 add($attr)
+
+  Arguments:
+    $attr - hash_ref
+
+  Returns:
+
+=cut
+#**********************************************************
+sub add_log{
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_add( 'referral_log', $attr, { REPLACE => 1 } );
+}
+
+#**********************************************************
 =head2 del($id)
 
   Arguments:
@@ -263,6 +502,41 @@ sub del{
 }
 
 #**********************************************************
+=head2 del($id)
+
+  Arguments:
+
+
+  Returns:
+
+=cut
+#**********************************************************
+sub del_request{
+  my $self = shift;
+  my ($id) = @_;
+
+  return $self->query_del( 'referral_requests', { ID => $id } );
+}
+
+
+#**********************************************************
+=head2 tp_del($id)
+
+  Arguments:
+
+
+  Returns:
+
+=cut
+#**********************************************************
+sub tp_del{
+  my $self = shift;
+  my ($id) = @_;
+
+  return $self->query_del( 'referral_tp', { ID => $id } );
+}
+
+#**********************************************************
 =head2 change($attr)
 
   Arguments:
@@ -277,6 +551,51 @@ sub change{
   my ($attr) = @_;
 
   return $self->changes( $attr );
+}
+
+
+#**********************************************************
+=head2 change_request($attr)
+
+  Arguments:
+
+
+  Returns:
+
+=cut
+#**********************************************************
+sub change_request{
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->changes( {
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'referral_requests',
+    DATA         => $attr
+  } );
+}
+
+#**********************************************************
+=head2 tp_change($attr)
+
+  Arguments:
+
+
+  Returns:
+
+=cut
+#**********************************************************
+sub tp_change{
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'referral_tp',
+      DATA         => $attr
+    }
+  );
 }
 
 #**********************************************************
@@ -369,7 +688,7 @@ sub _transform_to_hash{
   my $name_key = $attr->{NAME_KEY};
   my $val_key = $attr->{VAL_KEY};
 
-  if ( scalar @{$list} == 0 ){
+  if ( !$list || scalar @{$list} == 0 ){
     return { };
   }
 

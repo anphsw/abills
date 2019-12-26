@@ -59,6 +59,8 @@
           </div>
         </div>
 
+        %REFERRAL_TP%
+
         <div class='box-footer'><input id='REG_REQUEST_BTN' type='submit' class='btn btn-primary' name='add_user_' value='%ACTION_LNG%'>
         </div>
 

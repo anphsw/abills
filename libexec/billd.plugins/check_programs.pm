@@ -59,7 +59,14 @@ sub check_programs {
       print "Program: $name, Start cmd: ". ($start_cmd || q{--}) ."\n";
     }
 
-    my @ps = split m|$/|, qx/ps axc | grep $name/;
+    my @ps;
+    if ($name eq 'websocket') {
+      @ps = split m|$/|, qx/ps ax | grep $name | grep -v grep/;
+    }
+    else {
+      @ps = split m|$/|, qx/ps axc | grep $name/;
+    }
+    
     if ($debug > 1) {
       print join("\n", @ps)."\n";
     }

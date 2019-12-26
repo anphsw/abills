@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS `storage_installation` (
   `date` DATE NOT NULL,
   `monthes` SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0,
   `amount_per_month` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `actual_sell_price` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
 )
@@ -159,6 +160,7 @@ CREATE TABLE IF NOT EXISTS `storage_sn` (
   `storage_installation_id` SMALLINT(6) NOT NULL DEFAULT 0,
   `serial` TEXT CHARACTER SET utf8 NOT NULL,
   `sn_comments` TEXT,
+  `qrcode_hash` CHAR(32) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
 )
@@ -172,6 +174,8 @@ CREATE TABLE IF NOT EXISTS `storage_storages` (
 )
   DEFAULT CHARSET=utf8 COMMENT = 'List of storages';
 
+INSERT INTO `storage_storages` (`id`, `name`, `comments`) VALUES (1, '$lang{MAIN}', '');
+
 
 CREATE TABLE IF NOT EXISTS `storage_inner_use` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -180,6 +184,7 @@ CREATE TABLE IF NOT EXISTS `storage_inner_use` (
   `aid` INT(10) UNSIGNED DEFAULT '0',
   `date` DATETIME DEFAULT NULL,
   `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `responsible` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `comments` TEXT,
   PRIMARY KEY (`id`),
   KEY `storage_incoming_articles_id` (`storage_incoming_articles_id`)
@@ -228,3 +233,24 @@ CREATE TABLE IF NOT EXISTS  `storage_admins` (
   UNIQUE KEY `aid` (`aid`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Storage admins settings';
+
+CREATE TABLE IF NOT EXISTS  `storage_inventory` (
+  `incoming_article_id` INT(10) UNSIGNED DEFAULT '0',
+  `date` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  UNIQUE KEY (`incoming_article_id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage inventory info';
+
+CREATE TABLE IF NOT EXISTS  `storage_invoices_payments` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `invoice_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
+  `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `actual_sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `date` DATETIME NOT NULL,
+  `aid` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` TEXT,
+  PRIMARY KEY (`id`),
+  KEY `invoice_id` (`invoice_id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage payments for invoice';

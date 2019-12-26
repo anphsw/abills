@@ -57,7 +57,7 @@ sub ureports_send_reports {
     $message = $html->tpl_show(_include($attr->{MESSAGE_TEPLATE}, 'Ureports'), $attr,
       { OUTPUT2RETURN => 1 });
   }
-  elsif ( $attr->{REPORT_ID} ) {
+  elsif ( $attr->{REPORT_ID}) {
     $message = $html->tpl_show(_include('ureports_report_' . $attr->{REPORT_ID}, 'Ureports'), $attr,
       { OUTPUT2RETURN => 1 });
   }

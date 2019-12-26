@@ -18,7 +18,7 @@ our(
 
 my @service_status_colors = ($_COLORS[9], "840000", '#808080', '#0000FF', $_COLORS[6], '#009999');
 my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{ERROR}, $lang{BREAKING}, $lang{NOT_MONITORING});
-our @port_types = ('', 'RJ45', 'GBIC', 'Gigabit', 'SFP');
+our @port_types = ('', 'RJ45', 'GBIC', 'Gigabit', 'SFP', 'QSFP', 'EPON', 'GPON');
 our @skip_ports_types = [
   135,
   142,
@@ -955,7 +955,7 @@ sub equipment_port_panel{
   #sort by row
   my $ports_by_row = { };
   foreach my $port ( @{$extra_ports} ){
-    next if(! $port->{row});
+    next if(!defined($port->{row}));
     if ( $ports_by_row->{$port->{row}} ){
       push @{ $ports_by_row->{$port->{row}} }, $port;
     }
@@ -1024,34 +1024,6 @@ sub equipment_port_panel{
 
       $extra_ports_rows->{$row_num} = join( ", ", @extra_ports );
     }
-    #    if ($row_num == 0) {
-    #      if (($extra_port1 != 0) || ($extra_port2 != 0)) {
-    #        $row .= "<div class='equipment-block'>";
-    #        $row .=
-    #        ($extra_port1)
-    #        ? _get_port('e1', "port port-$port_types[$extra_port1]-free")
-    #        : _get_port('',   "port");
-    #        $row .=
-    #        ($extra_port2)
-    #        ? _get_port('e2', "port port-$port_types[$extra_port2]-free")
-    #        : _get_port('',   "port");
-    #        $row .= "</div>";
-    #      }
-    #    }
-    #    if ($row_num == 1 || $rows_count == 1) {
-    #      if (($extra_port3 != 0) || ($extra_port4 != 0)) {
-    #        $row .= "<div class='equipment-block'>";
-    #        $row .=
-    #        ($extra_port3)
-    #        ? _get_port('e3', "port port-$port_types[$extra_port3]-free")
-    #        : _get_port('',   "port");
-    #        $row .=
-    #        ($extra_port4)
-    #        ? _get_port('e4', "port port-$port_types[$extra_port4]-free")
-    #        : _get_port('',   "port");
-    #        $row .= "</div>";
-    #      }
-    #    }
 
     $row .= "</div>";
 
@@ -1072,14 +1044,14 @@ sub equipment_port_panel{
   $panel .= "</div>";
 
   #form extra_ports_json string
-  my $extra_ports_json = "<input type='hidden' id='extraPortsJson' value='{ ";
+  my $extra_ports_json = "<input type='hidden' id='extraPortsJson' value='[ ";
   my @rows_json = ();
-  foreach my $row_number ( sort keys %{$extra_ports_rows} ){
-    push ( @rows_json, qq{ "$row_number" : { $extra_ports_rows->{$row_number} } } );
+  foreach my $row( @$extra_ports ){
+    push ( @rows_json,  '{"rowNumber": ' . $row->{row} . ', "portNumber": ' . $row->{port_number} . ', "portType": ' . $row->{port_type} . '}' );
   }
 
   $extra_ports_json .= join( ", ", @rows_json );
-  $extra_ports_json .= " }' >";
+  $extra_ports_json .= " ]' >";
 
   $panel .= $extra_ports_json;
 
@@ -1137,7 +1109,7 @@ sub equipment_port_info {
     $attr->{PORT}+=$attr->{PORT_SHIFT}
   }
 
-  my $info_fields = 'PORT_STATUS,PORT_IN,PORT_OUT,PORT_IN_ERR,PORT_OUT_ERR,DISTANCE';
+  my $info_fields = 'PORT_STATUS,PORT_IN,PORT_OUT,PORT_IN_ERR,PORT_OUT_ERR,DISTANCE,PORT_UPTIME';
 
   if($FORM{PORT_STATUS}) {
     $html->message('info', $lang{INFO}, "$lang{PORT} $lang{STATUS}");
@@ -1210,7 +1182,8 @@ sub port_result_former {
 
       if($permissions{0}{22}) {
         $FORM{chg} //= q{};
-        $value .= $html->button($lang{DISABLE}, "index=$index&UID=". ($FORM{UID} || q{}) ."&chg=$FORM{chg}&PORT_STATUS=1",
+        my $status = $port_info->{$port_id}->{PORT_STATUS} || 1;
+        $value .= $html->button($lang{DISABLE}, "index=$index&UID=". ($FORM{UID} || q{}) ."&chg=$FORM{chg}&PORT_STATUS=$status",
           { ICON => 'glyphicon glyphicon-off' }
         );
       }
@@ -1228,8 +1201,9 @@ sub port_result_former {
         . $lang{SENDED} .': '. int2byte($port_info->{$port_id}->{PORT_OUT});
     }
     elsif($key eq 'ONU_RX_POWER'){
-      $key = $lang{POWER} || q{POWER};
+      my $color_num = '';
       if($port_info->{$port_id}->{ONU_RX_POWER}) {
+        $color_num = pon_tx_alerts( $value, 1 );
         $value = 'ONU_RX_POWER: ' .  pon_tx_alerts( $value );
       }
       if($port_info->{$port_id}->{ONU_TX_POWER}) {
@@ -1238,6 +1212,13 @@ sub port_result_former {
       if($port_info->{$port_id}->{OLT_RX_POWER}) {
         $value .= 'OLT_RX_POWER: '. pon_tx_alerts( $port_info->{$port_id}->{OLT_RX_POWER} );
       }
+      my %color = (
+        '' => '',
+        1  => 'text-success',
+        2  => 'text-danger',
+        3  => 'text-warning'
+      );
+      $key = $html->element( 'i', " ", { class => "glyphicon glyphicon-signal $color{$color_num}"} ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;" . ($lang{POWER} || q{POWER}) );
     }
     elsif($key eq 'ONU_PORTS_STATUS') {
       $key = "$lang{PORTS}:";
@@ -1313,6 +1294,7 @@ sub port_result_former {
                                       : $html->button($lang{TEST}, "index=$index&UID=". ($FORM{UID} || q{})."&chg=". ($FORM{chg} || $FORM{ID} || q{}) ."&TEST_DISTANCE=1",
           { class => 'btn btn-default', title => $lang{DISTANCE} });
       $value  = $port_info->{$port_id}->{DISTANCE};
+      $key = $html->element( 'i', "", { class => 'glyphicon glyphicon-resize-horizontal' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{$key}" );
     }
     elsif($key eq 'PORT_IN_ERR') {
       $key = $lang{ERROR};
@@ -1322,7 +1304,21 @@ sub port_result_former {
           ( ($port_info->{$port_id}->{PORT_OUT_ERR} || 0) + ($port_info->{$port_id}->{PORT_IN_ERR} || 0) > 0 ) ? 'text-danger' : undef );
     }
     elsif($key eq 'TEMPERATURE') {
-      $value = $port_info->{$port_id}->{TEMPERATURE} . " &deg;C"; 
+      $key = $html->element( 'i', "", { class => 'fa fa-thermometer-2' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{$key}" );
+      $value = $port_info->{$port_id}->{TEMPERATURE} . " &deg;C";
+    }
+    elsif($key eq 'VOLTAGE') {
+      $key = $html->element( 'i', "", { class => 'glyphicon glyphicon-flash' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{$key}" );
+    }
+    elsif($key eq 'Mac/Serial') {
+      $key = $html->element( 'i', "", { class => 'glyphicon glyphicon-barcode' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$key" );
+    }
+    elsif($key eq 'ONU_DESC') {
+      $key = $html->element( 'i', "", { class => 'glyphicon glyphicon-list-alt' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{DESCRIBE}" );
+    }
+    elsif($key eq 'STATUS') {
+      $key = $html->element( 'i', "", { class => "glyphicon glyphicon-globe $attr->{COLOR_STATUS}" } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;$lang{STATUS}" );
+
     }
     $key = ($lang{$key}) ? $lang{$key} : $key;
     push @info, [ $key, $value ];

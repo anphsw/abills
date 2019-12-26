@@ -292,7 +292,7 @@ sub cards_main {
       'status'       => $lang{STATUS},
       'created'      => $lang{CREATED},
       'used_date'    => "$lang{USED} $lang{DATE}",
-      'diller_name'  => "$lang{DILLERS}",
+      'diller_name'  => $lang{DILLERS},
       'diller_date'  => "$lang{DILLERS} $lang{DATE}",
       'diller_sold_date' => "$lang{DILLERS} $lang{SOLD}",
       'sold'         => $lang{SOLD},
@@ -315,7 +315,7 @@ sub cards_main {
 
     my @fields_array = ();
 
-    if (! $FORM{EXPORT_CONTENT} && defined($FORM{SERIAL}) && $permissions{4} )  {
+    if ( defined($FORM{SERIAL}) && $permissions{4} )  {
       push @fields_array, $html->form_input("IDS", $line->{id}, { TYPE => 'checkbox', FORM_ID => 'cards_list' });
     }
 
@@ -857,7 +857,7 @@ sub cards_user_payment  {
 
     if ($Cards->{errno}) {
       if ($Cards->{errno} == 2) {
-        $html->message('err', "$lang{CARD_SERVICE}:$lang{ERROR}", "$lang{NOT_EXIST}/ $Cards->{BRUTE_COUNT} /", { ID => 603 });
+        $html->message('err', "$lang{CARD_SERVICE}:$lang{ERROR}", "$lang{NOT_EXIST} (". ($Cards->{BRUTE_COUNT} || q{}) .")", { ID => 603 });
         $Cards->bruteforce_add({ UID => $LIST_PARAMS{UID}, PIN => $FORM{PIN} });
         $_db->commit();
       }

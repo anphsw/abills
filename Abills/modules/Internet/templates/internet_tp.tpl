@@ -51,14 +51,14 @@
                       </div>
                     </div>
 
-                    <div class="form-group">
-                      <div class="checkbox">
-                        <label>
-                          <input type="checkbox" name="TP_STATUS" value="1" id="TP_STATUS" %TP_STATUS%>
-                          <b>_{HIDE_TP}_</b>
-                        </label>
+                  <div class='form-group'>
+                    <label class='control-label col-md-3'>_{HIDE_TP}_</label>
+                    <div class='col-md-9'>
+                      <div class="checkbox pull-left">
+                        <input style="margin-left:0px;" type="checkbox" name="STATUS" value="1" id="STATUS" %STATUS%>
                       </div>
                     </div>
+                  </div>
 
                 </div>
             </div>
@@ -116,7 +116,7 @@
                  <div class='form-group'>
                      <label class='control-label col-md-8' for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
                      <div class='checkbox pull-left'>
-                         <input style='margin-left:15px;' id='PERIOD_ALIGNMENT' name='PERIOD_ALIGNMENT' value=1 %PERIOD_ALIGNMENT% type='checkbox'>
+                         <input style='margin-left:15px;' id='PERIOD_ALIGNMENT' name='PERIOD_ALIGNMENT' value=1 %PERIOD_ALIGNMENT% type='checkbox' data-input-disables="FIXED_FEES_DAY,ABON_DISTRIBUTION">
                      </div>
                  </div>
 
@@ -124,14 +124,14 @@
                      <label class='control-label col-md-8' for='ABON_DISTRIBUTION'>_{ABON_DISTRIBUTION}_:</label>
                      <div class='checkbox pull-left'>
                          <input style='margin-left:15px;' id='ABON_DISTRIBUTION' name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%
-                                type='checkbox'>
+                                type='checkbox' data-input-disables="PERIOD_ALIGNMENT,FIXED_FEES_DAY">
                      </div>
                  </div>
 
                  <div class='form-group'>
                      <label class='control-label col-md-8' for='FIXED_FEES_DAY'>_{FIXED_FEES_DAY}_:</label>
                      <div class='checkbox pull-left'>
-                         <input style='margin-left:15px;' id='FIXED_FEES_DAY' name='FIXED_FEES_DAY' value=1 %FIXED_FEES_DAY% type='checkbox'>
+                         <input style='margin-left:15px;' id='FIXED_FEES_DAY' name='FIXED_FEES_DAY' value=1 %FIXED_FEES_DAY% type='checkbox' data-input-disables="PERIOD_ALIGNMENT,ABON_DISTRIBUTION">
                      </div>
                  </div>
 

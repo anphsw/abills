@@ -52,3 +52,6 @@ $lang{PRINT_TERMO_PRINTER} = 'Termo-printer check';
 $lang{UNPAID_INVOICES} = 'Unpaid invoices';
 $lang{SAVE_CONTROL_SUM}='Download document checksum';
 $lang{LIST_OF_CHARGES}='List of charges';
+$lang{DELETED_GROUP}="Delete by group";
+$lang{NO_CHECK_DOCUMENT}="Select the documents to delete";
+$lang{OPERATION}="The operation was successfully completed";

@@ -30,7 +30,7 @@ my $api_url = 'api.telegram.org';
 #**********************************************************
 sub new {
   my $class = shift;
-  my ($conf, $attr) = @_ or return 0;
+  my ($conf) = @_ or return 0;
   
   %conf = %{$conf};
   
@@ -41,10 +41,10 @@ sub new {
   };
   
   $self->{api} = Abills::Backend::Plugin::Telegram::BotAPI->new(\%conf, {
-      token   => $conf{TELEGRAM_TOKEN},
-      debug   => $conf{TELEGRAM_API_DEBUG},
-      api_url => $api_url
-    });
+    token   => $conf{TELEGRAM_TOKEN},
+    debug   => $conf{TELEGRAM_API_DEBUG},
+    api_url => $api_url
+  });
   
   die 'No Telegram token ($conf{TELEGRAM_TOKEN})' if ( !$self->{token} );
   

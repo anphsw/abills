@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS `employees_geolocation` (
   KEY `employee_id` (`employee_id`),
   KEY `district_id` (`district_id`),
   KEY `street_id` (`street_id`),
-  KEY `build_id` (`build_id`),
+  KEY `build_id` (`build_id`)
 )
   COMMENT = 'Employees geolocation';
 
@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS `employees_department` (
   `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` char(60) NOT NULL DEFAULT '',
   `comments` TEXT,
+  `positions` varchar(25) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8

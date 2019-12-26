@@ -139,53 +139,78 @@ my @test_list = (
 );
 
 
-#json_test(\@test_list);
+# json_test(\@test_list);
+#**********************************************************
+=head2 json_test($test_list, $attr) - period select
 
+  Argumentsd:
+    $test_list
+    $attr
+      TEST_NAME - test name
+      UI   - Test user interface
+
+  Returns:
+
+=cut
+#**********************************************************
 sub json_test {
   my ($test_list, $attr) = @_;
 
   my $test_name = $attr->{TEST_NAME} || 'Test JSON';
   my $test_ = $test_list->[0];
   $ENV{'QUERY_STRING'} = join('&', map {"$_=$test_->{params}->{$_}"} sort keys %{ $test_->{params} });
-  eval { do "../cgi-bin/admin/index.cgi" };
+
+  if($attr->{UI}) {
+    eval {do "../cgi-bin/index.cgi"};
+  }
+  else {
+    eval {do "../cgi-bin/admin/index.cgi"};
+  }
 
   subtest $test_name => sub {
-      foreach my $test (@$test_list) {
-        delete $html->{JSON_OUTPUT};
-        $ENV{'QUERY_STRING'} = join('&', map {"$_=$test->{params}->{$_}"} sort keys %{ $test->{params} });
-        if ($debug > 2) {
-          print "REQUEST: $ENV{'QUERY_STRING'}\n";
-        }
+    my $subtest_num = 0;
+    foreach my $test (@$test_list) {
+      delete $html->{JSON_OUTPUT};
+      $subtest_num++;
+      $ENV{'QUERY_STRING'} = join('&', map {"$_=$test->{params}->{$_}"} sort keys %{$test->{params}});
+      if ($debug > 2) {
+        print "REQUEST: $ENV{'QUERY_STRING'}\n";
+      }
 
-        %FORM = %{ $test->{params} };
-        $html->form(\%FORM);
-        %LIST_PARAMS = %{ $test->{params} };
+      %FORM = %{$test->{params}};
+      $html->form(\%FORM);
+      %LIST_PARAMS = %{$test->{params}};
 
+      if (defined(&quick_functions)) {
         quick_functions();
-        print "RESULT: '". ($html->{RESULT} || q{}) ."'\n";
-        if ($test->{valid_json}) {
-          if(ok_json($html->{RESULT})) {
-            if ($test->{schema}) {
-              if(! ok_json_schema($html->{RESULT}, $test->{schema})) {
-                print "Failed schema test: $test->{name}\n";
-                exit;
-              }
+      }
+      # # else {
+      # #   print "NO: quick_functions\n";
+      # # }
+      print "RESULT: '" . ($html->{RESULT} || q{}) . "'\nEND RESULT $subtest_num\n";
+      if ($test->{valid_json}) {
+        if (ok_json($html->{RESULT})) {
+          if ($test->{schema}) {
+            if (!ok_json_schema($html->{RESULT}, $test->{schema})) {
+              print "Failed schema test: $test->{name}\n";
+              exit;
             }
-          }
-          else {
-            exit;
           }
         }
         else {
-          $test->{result} //= q{};
-          like($html->{RESULT}, qr/$test->{result}/,
-             ($test->{name}  || 'Test name not defined') .': '
-             . ' RESULT: ' . ($html->{RESULT} || q{})
-          );
+          exit;
         }
-        delete $html->{RESULT};
       }
-    };
+      else {
+        $test->{result} //= q{};
+        like($html->{RESULT}, qr/$test->{result}/,
+          ($test->{name} || 'Test name not defined') . ': '
+            . ' RESULT: ' . ($html->{RESULT} || q{})
+        );
+      }
+      delete $html->{RESULT};
+    }
+  };
 
   done_testing();
 }

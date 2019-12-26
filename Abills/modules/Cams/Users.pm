@@ -27,6 +27,8 @@ our (
 );
 
 my $Cams = Cams->new($db, $admin, \%conf);
+my $Address = Address->new($db, $admin, \%conf);
+my $Users = Users->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 cams_user($attr) - Users info
@@ -60,33 +62,68 @@ sub cams_user {
     });
 
     show_result($Cams, $lang{ADDED}) if !$Cams->{errno};
-  }
-  elsif ($FORM{chg} || ($FORM{ID} && !$FORM{del})) {
-    $Cams->{ACTION} = 'change';
-    $Cams->{LNG_ACTION} = $lang{CHANGE};
 
-    my $result = $Cams->_list({
-      SERVICE_ID => '_SHOW',
-      TP_ID      => '_SHOW',
-      STATUS     => '_SHOW',
-      ID         => $FORM{chg},
-      COLS_NAME  => 1,
-      COLS_UPPER => 1,
-      PAGE_ROWS  => 99999,
-    });
+    if (!$Cams->{errno}) {
+      $Cams->{ID} = $Cams->{INSERT_ID};
 
-    if ($Cams->{TOTAL}) {
-      $Cams->{SERVICE_ID} = $result->[0]{SERVICE_ID};
-      $Cams->{TP_ID} = $result->[0]{TP_ID};
-      $Cams->{STATUS} = $result->[0]{STATUS};
+      if (!$FORM{STATUS}) {
+        $Cams->_info($Cams->{ID});
+
+        if ($Cams->{ACTIVATE}) {
+          ($Cams->{ACTIVATE}, undef) = split(" ", $Cams->{ACTIVATE});
+        }
+
+        ::service_get_month_fee($Cams, {
+          UID                        => $FORM{UID} || $Cams->{UID} || "",
+          SERVICE_NAME               => $lang{CAMERAS},
+          DO_NOT_USE_GLOBAL_USER_PLS => 1
+        });
+      }
     }
 
-    if ($FORM{UID}) {
-      $user_groups .= cams_user_groups({ SERVICE_INFO => $Cams, UID => $FORM{UID}, SERVICE_ID => $Cams->{SERVICE_ID} });
+    if ($conf{CAMS_CHECK_USER_GROUPS} && $Cams->{ID}) {
+      $FORM{change_now} = 1;
+      $user = $Users->pi({ UID => $FORM{UID} });
+      my $group_ids = "";
+      if ($Users->{TOTAL}) {
+        my $user_address = $Address->address_info($user->{LOCATION_ID});
+        my $user_access_groups = $Cams->access_group_list({
+          NAME        => "_SHOW",
+          STREET_ID   => $user_address->{STREET_ID} || 0,
+          DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
+          LOCATION_ID => $user->{LOCATION_ID} || 0,
+          SERVICE_ID  => $FORM{SERVICE_ID} || $Cams->{SERVICE_ID},
+          COMMENT     => "_SHOW",
+          COLS_NAME   => 1,
+        });
+
+        foreach my $group (@{$user_access_groups}) {
+          $group_ids .= "$group->{id}, ";
+        }
+
+        chop $group_ids;
+        chop $group_ids;
+        $FORM{IDS} = $group_ids;
+        $FORM{ID} = $Cams->{ID} || $Cams->{INSERT_ID};
+      }
+
+      $Cams->user_groups({
+        IDS   => $group_ids,
+        TP_ID => $FORM{TP_ID} || $Cams->{TP_ID},
+        ID    => $Cams->{ID} || $Cams->{INSERT_ID},
+      });
     }
   }
   elsif ($FORM{change}) {
+    $Cams->user_change(\%FORM);
 
+    if ($Cams->{OLD_STATUS} && !$Cams->{STATUS}) {
+      if (cams_user_activate($Cams, { USER => $users, REACTIVATE => (!$Cams->{STATUS}) ? 1 : 0, })) {
+        $Cams->user_change(\%FORM);
+      }
+    }
+    $FORM{chg} = $FORM{ID};
+    #    delete $FORM{change};
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     my $result = $Cams->_list({
@@ -110,12 +147,48 @@ sub cams_user {
       }
     }
   }
+  elsif (!$FORM{add_form}) {
+    my $list = $Cams->users_list({ UID => $FORM{UID}, ID => '_SHOW', COLS_NAME => 1 });
+    if ($Cams->{TOTAL} == 1) {
+      $FORM{chg} = $list->[0]->{id};
+    }
+  }
+
+  if ($FORM{chg} || ($FORM{ID} && !$FORM{del})) {
+    $Cams->{ACTION} = 'change';
+    $Cams->{LNG_ACTION} = $lang{CHANGE};
+
+    my $result = $Cams->_list({
+      SERVICE_ID => '_SHOW',
+      TP_ID      => '_SHOW',
+      STATUS     => '_SHOW',
+      ID         => $FORM{chg},
+      COLS_NAME  => 1,
+      COLS_UPPER => 1,
+      PAGE_ROWS  => 99999,
+    });
+
+    if ($Cams->{TOTAL}) {
+      $Cams->{SERVICE_ID} = $result->[0]{SERVICE_ID};
+      $Cams->{TP_ID} = $result->[0]{TP_ID};
+      $Cams->{STATUS} = $result->[0]{STATUS};
+    }
+
+    if ($FORM{UID}) {
+      if (!$conf{CAMS_FOLDER}) {
+        $user_groups .= cams_user_groups({ SERVICE_INFO => $Cams, UID => $FORM{UID}, SERVICE_ID => $Cams->{SERVICE_ID} });
+      }
+      else {
+        $user_groups .= cams_user_folders({ SERVICE_INFO => $Cams, UID => $FORM{UID}, SERVICE_ID => $Cams->{SERVICE_ID} });
+      }
+    }
+  }
 
   $Cams_service = cams_user_services(\%FORM);
 
   $FORM{SUBSCRIBE_FORM} = cams_services_sel({ %FORM, %$Cams, FORM_ROW => 1, UNKNOWN => 1 });
 
-  if (!$Cams->{ID}) {
+  if (!$Cams->{ID} || $FORM{ID}) {
     $Cams->{TP_ADD} = $html->form_select('TP_ID', {
       SELECTED  => $FORM{TP_ID} || $Cams->{TP_ID} || '',
       SEL_LIST  => $Cams->tp_list({ TP_ID => '_SHOW', NAME => '_SHOW', SERVICE_ID => ($FORM{SERVICE_ID} || $Cams->{SERVICE_ID} || "_SHOW") }),
@@ -210,12 +283,12 @@ sub cams_cameras {
 
     my $uid = $FORM{UID};
 
-    $FORM{HOST} = _cams_correct_host($FORM{HOST});
+    $FORM{HOST} = _cams_correct_host($FORM{HOST}) if !$conf{CAMS_SKIP_CHECK_HOST};
     if ($FORM{NAME} =~ /^[aA-zZ\d_-]+$/mg && $FORM{HOST}) {
       $correct_name = _cams_group_correct({
         GROUP_ID     => $FORM{GROUP_ID} || $Cams->{GROUP_ID},
         CHECK_GROUPS => 1,
-      });
+      }) if !$conf{CAMS_FOLDER};
       if ($correct_name) {
         $Cams->stream_add(\%FORM);
         $FORM{CAM_ID} = $Cams->{INSERT_ID} || "";
@@ -236,12 +309,11 @@ sub cams_cameras {
   elsif ($FORM{change_cam}) {
     my $uid = $FORM{UID};
 
-    $FORM{HOST} = _cams_correct_host($FORM{HOST});
+    $FORM{HOST} = _cams_correct_host($FORM{HOST}) if !$conf{CAMS_SKIP_CHECK_HOST};
     if ($FORM{NAME} =~ /^[aA-zZ\d_-]+$/mg && $FORM{HOST}) {
       $Cams->stream_change(\%FORM);
       if (!_error_show($Cams)) {
         show_result($Cams, $lang{CHANGED});
-#        $show_add_form = 1;
       }
     }
     else {
@@ -268,8 +340,8 @@ sub cams_cameras {
   my $uid = $user->{UID} || $FORM{UID};
   return 0 unless ($uid);
 
-  $FORM{CAMS_TP_ID} = $tariff->{TP_ID};
-  $FORM{SERVICE_ID} = $tariff->{SERVICE_ID};
+  $FORM{CAMS_TP_ID} ||= $tariff->{TP_ID};
+  $FORM{SERVICE_ID} ||= $tariff->{SERVICE_ID};
 
   my $user_tps = $Cams->_list({
     SERVICE_ID       => '_SHOW',
@@ -284,7 +356,7 @@ sub cams_cameras {
   });
 
   if ($FORM{change_camera_now} && $Cams->{TOTAL}) {
-    my @cameras = split(',', $FORM{IDS});
+    my @cameras = $FORM{IDS} ? split(',', $FORM{IDS}) : ();
     my $cameras_count = @cameras;
 
     if ($cameras_count > $user_tps->[0]{TP_STREAMS_COUNT}) {
@@ -311,7 +383,15 @@ sub cams_cameras {
       ID         => $user_tps->[0]{id},
       UID        => $FORM{UID},
       SERVICE_ID => $FORM{SERVICE_ID},
-    });
+    }) if !$conf{CAMS_FOLDER};
+
+    $CAMS_STREAM{FOLDERS_SELECT} = _cams_folders_select({
+      TP_ID      => $FORM{CAMS_TP_ID},
+      ID         => $user_tps->[0]{id},
+      UID        => $FORM{UID},
+      SERVICE_ID => $FORM{SERVICE_ID},
+    }) if $conf{CAMS_FOLDER};
+    $FORM{FOLDERS} = 1 if $conf{CAMS_FOLDER};
 
     $CAMS_STREAM{ORIENTATION_SELECT} = _cams_orientation_select({ SELECTED => ($CAMS_STREAM{ORIENTATION} || 0) });
     $CAMS_STREAM{ARCHIVE_SELECT} = _cams_archive_select({ SELECTED => $CAMS_STREAM{ARCHIVE} });
@@ -325,20 +405,17 @@ sub cams_cameras {
       ],
       NO_ID    => 1
     });
-    $html->tpl_show(
-      _include('cams_stream_add_user', 'Cams'),
-      {
-        %CAMS_STREAM, %FORM,
-        LIMIT_ARCHIVE      => $CAMS_STREAM{LIMIT_ARCHIVE} ? 'checked' : '',
-        PRE_IMAGE          => $CAMS_STREAM{PRE_IMAGE} ? 'checked' : '',
-        CONSTANTLY_WORKING => $CAMS_STREAM{CONSTANTLY_WORKING} ? 'checked' : '',
-        ONLY_VIDEO         => $CAMS_STREAM{ONLY_VIDEO} ? 'checked' : '',
-        UID                => $user->{UID} || $FORM{UID},
-        DISABLED_CHECKED   => $CAMS_STREAM{DISABLED} ? 'checked' : '',
-        SUBMIT_BTN_ACTION  => ($FORM{chg_cam}) ? 'change_cam' : 'add_cam',
-        SUBMIT_BTN_NAME    => ($FORM{chg_cam}) ? $lang{CHANGE} : $lang{ADD},
-      }
-    );
+    $html->tpl_show(_include('cams_stream_add_user', 'Cams'), {
+      %CAMS_STREAM, %FORM,
+      LIMIT_ARCHIVE      => $CAMS_STREAM{LIMIT_ARCHIVE} ? 'checked' : '',
+      PRE_IMAGE          => $CAMS_STREAM{PRE_IMAGE} ? 'checked' : '',
+      CONSTANTLY_WORKING => $CAMS_STREAM{CONSTANTLY_WORKING} ? 'checked' : '',
+      ONLY_VIDEO         => $CAMS_STREAM{ONLY_VIDEO} ? 'checked' : '',
+      UID                => $user->{UID} || $FORM{UID},
+      DISABLED_CHECKED   => $CAMS_STREAM{DISABLED} ? 'checked' : '',
+      SUBMIT_BTN_ACTION  => ($FORM{chg_cam}) ? 'change_cam' : 'add_cam',
+      SUBMIT_BTN_NAME    => ($FORM{chg_cam}) ? $lang{CHANGE} : $lang{ADD},
+    });
   }
 
   my @access_cameras = ();
@@ -364,6 +441,8 @@ sub cams_cameras {
   }
 
   my @titles = ('#', $lang{NAME}, $lang{CAM_TITLE}, 'Host', $lang{LOGIN}, $lang{DISABLED}, '-', '-');
+  $FORM{SERVICE_ID} ||= "";
+  $FORM{CAMS_TP_ID} ||= "";
   my $table = $html->table({
     width      => '100%',
     caption    => $lang{CAMERAS},
@@ -426,7 +505,7 @@ sub cams_cameras {
 sub cams_user_services {
   my ($form_) = @_;
 
-  $Cams->{SERVICE_ID} ||= $form_->{SERVICE_ID};
+  $Cams->{SERVICE_ID} = $form_->{SERVICE_ID} if $form_->{SERVICE_ID};
   $Cams_service = undef;
   my DBI $db_ = $Cams->{db}{db};
 
@@ -444,7 +523,7 @@ sub cams_user_services {
 
     my $action_result = cams_account_action({
       %$form_,
-      ID           => $Cams->{ID},
+      ID           => $Cams->{ID} || $form_->{ID},
       SUBSCRIBE_ID => $form_->{SUBSCRIBE_ID} || $Cams->{SUBSCRIBE_ID} || '',
     });
 
@@ -493,7 +572,9 @@ sub cams_account_action {
 
   my $result = 0;
 
-  if ($Cams->{SERVICE_ID} && !$Cams_service) {
+  if (($Cams->{SERVICE_ID} || ($attr->{SERVICE_ID} && $attr->{MODULE})) && !$Cams_service) {
+    $Cams->{SERVICE_ID} = $Cams->{SERVICE_ID} || $attr->{SERVICE_ID};
+    $Cams->{MODULE} = $Cams->{MODULE} && $Cams->{MODULE} ne "Cams" ? $Cams->{MODULE} : $attr->{MODULE};
     $Cams_service = cams_load_service($Cams->{MODULE}, { SERVICE_ID => $Cams->{SERVICE_ID} });
     if ($Cams_service && $Cams_service->{SUBSCRIBE_COUNT}) {
       $attr->{SUBSCRIBE_COUNT} = $Cams_service->{SUBSCRIBE_COUNT};
@@ -501,13 +582,23 @@ sub cams_account_action {
   }
 
   $Cams->{TP_ID} = $attr->{TP_ID} if ($attr->{TP_ID} && !$Cams->{TP_ID});
-  my $uid = $attr->{UID} || $Cams->{UID};
+  my $uid = $attr->{UID} || $Cams->{UID} || $FORM{UID};
   if ($attr->{USER_INFO}) {
     $users = $attr->{USER_INFO};
   }
 
-  if ($attr->{add}) {
+  if ($attr->{NEGDEPOSIT}) {
+    if ($Cams_service && $Cams_service->can('user_negdeposit')) {
+      $Cams_service->user_negdeposit($attr);
+      if ($Cams_service->{errno}) {
+        print "$Cams_service->{SERVICE_NAME} Error: [$Cams_service->{errno}]  $Cams_service->{errstr} UID: $uid $attr->{ID}\n";
+      }
+    }
+  }
+  elsif ($attr->{add}) {
     if ($Cams_service && $Cams_service->can('user_add')) {
+      $users->pi({ UID => $uid });
+      $Cams->{PHONE} = $users->{PHONE};
       $users->info($uid, { SHOW_PASSWORD => 1 });
       $Cams->_info($attr->{ID});
       $Cams->{EMAIL} ||= $users->{EMAIL};
@@ -524,6 +615,15 @@ sub cams_account_action {
         $Cams->{errno} = $Cams_service->{errno};
         $Cams->{errstr} = $Cams_service->{errstr};
         $result = 1;
+      }
+      else {
+        if ($Cams_service->{SUBSCRIBE_ID}) {
+          $Cams->user_change({
+            ID           => $Cams->{ID},
+            SUBSCRIBE_ID => $Cams_service->{SUBSCRIBE_ID}
+          });
+        }
+        $result = 0;
       }
     }
   }
@@ -543,12 +643,21 @@ sub cams_account_action {
         $Cams->{errstr} = $Cams_service->{errstr};
         $result = 1;
       }
+      else {
+        if ($Cams_service->{SUBSCRIBE_ID}) {
+          $Cams->user_change({
+            ID           => $Cams->{ID},
+            SUBSCRIBE_ID => $Cams_service->{SUBSCRIBE_ID}
+          });
+        };
+      }
     }
   }
   elsif ($attr->{chg}) {
     if ($Cams_service && $Cams_service->can('user_info')) {
+      my $user_info = $Cams->_info($attr->{chg});
       $users->info($uid, { SHOW_PASSWORD => 1 });
-      $Cams_service->user_info({ %$attr, %$users, %{$Cams} });
+      $Cams_service->user_info({ %$attr, %$users, %{$Cams}, %{$user_info} });
     }
   }
   elsif ($attr->{del}) {
@@ -559,10 +668,14 @@ sub cams_account_action {
   }
   elsif ($attr->{change_cam}) {
     if ($Cams_service && $Cams_service->can('camera_change')) {
+      my $group_info = ();
+      $group_info = $Cams->folder_info($attr->{FOLDER_ID}) if $attr->{FOLDER_ID};
+      $group_info = $Cams->group_info($attr->{GROUP_ID}) if $attr->{GROUP_ID} && !$attr->{FOLDER_ID};
       $Cams_service->camera_change({
         %$attr,
         %$Cams,
-        %FORM
+        %FORM,
+        SUBGROUP_ID => $group_info->{SUBGROUP_ID} ? $group_info->{SUBGROUP_ID} : "",
       });
 
       if ($Cams_service->{errno}) {
@@ -574,11 +687,29 @@ sub cams_account_action {
   }
   elsif ($attr->{add_cam}) {
     if ($Cams_service && $Cams_service->can('camera_add')) {
+      my $group_info = ();
+      $group_info = $Cams->folder_info($attr->{FOLDER_ID}) if $attr->{FOLDER_ID};
+      $group_info = $Cams->group_info($attr->{GROUP_ID}) if $attr->{GROUP_ID} && !$attr->{FOLDER_ID};
       $Cams_service->camera_add({
         %{$Cams},
         %{$attr},
-        ID => $Cams->{ID}
+        ID          => $attr->{CAM_ID},
+        SUBGROUP_ID => $group_info->{SUBGROUP_ID} ? $group_info->{SUBGROUP_ID} : "",
       });
+
+      if ($Cams_service->{errno}) {
+        $Cams->{errno} = $Cams_service->{errno};
+        $Cams->{errstr} = $Cams_service->{errstr};
+        $result = 1;
+      }
+      else {
+        if ($Cams_service->{NUMBER_ID}) {
+          $Cams->stream_change({
+            ID        => $attr->{CAM_ID},
+            NUMBER_ID => $Cams_service->{NUMBER_ID}
+          });
+        };
+      }
     }
   }
   elsif ($attr->{chg_cam}) {
@@ -601,11 +732,8 @@ sub cams_account_action {
   }
   elsif ($attr->{change_group}) {
     if ($Cams_service && $Cams_service->can('group_change')) {
-      $Cams_service->group_change({
-        %$attr,
-        %$Cams,
-        %FORM
-      });
+      $Cams->group_info($FORM{ID});
+      $Cams_service->group_change({ %$attr, %$Cams, %FORM });
 
       if ($Cams_service->{errno}) {
         $Cams->{errno} = $Cams_service->{errno};
@@ -621,15 +749,25 @@ sub cams_account_action {
         %{$attr},
         ID => $Cams->{ID}
       });
+
       if ($Cams_service->{errno}) {
         $Cams->{errno} = $Cams_service->{errno};
         $Cams->{errstr} = $Cams_service->{errstr};
         $result = 1;
       }
+      else {
+        if ($Cams_service->{SUBGROUP_ID}) {
+          $Cams->group_change({
+            ID          => $attr->{GROUP_ID},
+            SUBGROUP_ID => $Cams_service->{SUBGROUP_ID}
+          });
+        };
+      }
     }
   }
   elsif ($attr->{chg_group}) {
     if ($Cams_service && $Cams_service->can('group_info')) {
+      $Cams->group_info($attr->{chg_group});
       $Cams_service->group_info({ %$attr, %$users, %{$Cams} });
       if ($Cams_service->{errno}) {
         $Cams->{errno} = $Cams_service->{errno};
@@ -640,6 +778,7 @@ sub cams_account_action {
   }
   elsif ($attr->{del_group}) {
     if ($Cams_service && $Cams_service->can('group_del')) {
+      $Cams->group_info($attr->{del_group});
       $Cams_service->group_del({ %$attr, %{$Cams}, ID => $attr->{del_cam} });
       if ($Cams_service->{errno}) {
         $Cams->{errno} = $Cams_service->{errno};
@@ -648,9 +787,64 @@ sub cams_account_action {
       }
     }
   }
+  elsif ($attr->{change_folder}) {
+    if ($Cams_service && $Cams_service->can('folder_change')) {
+      $Cams->folder_info($attr->{ID});
+      $Cams_service->folder_change({ %$attr, %$Cams, %FORM });
+      if ($Cams_service->{errno}) {
+        $Cams->{errno} = $Cams_service->{errno};
+        $Cams->{errstr} = $Cams_service->{errstr};
+        $result = 1;
+      }
+    }
+  }
+  elsif ($attr->{add_folder}) {
+    if ($Cams_service && $Cams_service->can('folder_add')) {
+      $Cams_service->folder_add({
+        %{$Cams},
+        %{$attr},
+        ID => $Cams->{ID}
+      });
 
-  if ($attr->{change_now}) {
-    if ($Cams_service && $Cams_service->can('change_user_groups')) {
+      if ($Cams_service->{errno}) {
+        $Cams->{errno} = $Cams_service->{errno};
+        $Cams->{errstr} = $Cams_service->{errstr};
+        $result = 1;
+      }
+      else {
+        if ($Cams_service->{SUBFOLDER_ID}) {
+          $Cams->folder_change({
+            ID           => $attr->{INSERT_ID},
+            SUBFOLDER_ID => $Cams_service->{SUBFOLDER_ID}
+          });
+        };
+      }
+    }
+  }
+  elsif ($attr->{chg_folder}) {
+    if ($Cams_service && $Cams_service->can('folder_info')) {
+      $Cams->folder_info($attr->{chg_folder});
+      $Cams_service->folder_info({ %$attr, %$users, %{$Cams} });
+      if ($Cams_service->{errno}) {
+        $Cams->{errno} = $Cams_service->{errno};
+        $Cams->{errstr} = $Cams_service->{errstr};
+        $result = 1;
+      }
+    }
+  }
+  elsif ($attr->{del_folder}) {
+    if ($Cams_service && $Cams_service->can('folder_del')) {
+      $Cams_service->folder_del({ %$attr, %{$Cams} });
+      if ($Cams_service->{errno}) {
+        $Cams->{errno} = $Cams_service->{errno};
+        $Cams->{errstr} = $Cams_service->{errstr};
+        $result = 1;
+      }
+    }
+  }
+
+  if ($attr->{change_now} && $attr->{chg}) {
+    if ($Cams_service && $Cams_service->can('change_user_groups') && !$FORM{FOLDER_CHANGE}) {
       $users->info($uid);
       my $tp_params = $Cams->tp_list({
         TP_ID => $attr->{TP_ID} || $Cams->{TP_ID},
@@ -664,6 +858,38 @@ sub cams_account_action {
       }
 
       $Cams_service->change_user_groups({ %$attr, %{$Cams}, %$users });
+      if ($Cams_service->{errno}) {
+        $Cams->{errno} = $Cams_service->{errno};
+        $Cams->{errstr} = $Cams_service->{errstr};
+        $result = 1;
+      }
+    }
+    elsif ($Cams_service && $Cams_service->can('change_user_folders') && $FORM{FOLDER_CHANGE}) {
+      $users->info($uid);
+      my $tp_params = $Cams->tp_list({
+        TP_ID => $attr->{TP_ID} || $Cams->{TP_ID},
+        DVR   => '_SHOW',
+        PTZ   => '_SHOW',
+      });
+
+      if ($Cams->{TOTAL}) {
+        $attr->{DVR} = $tp_params->[0]{dvr};
+        $attr->{PTZ} = $tp_params->[0]{ptz};
+      }
+
+      $Cams_service->change_user_folders({ %$attr, %{$Cams}, %$users });
+      if ($Cams_service->{errno}) {
+        $Cams->{errno} = $Cams_service->{errno};
+        $Cams->{errstr} = $Cams_service->{errstr};
+        $result = 1;
+      }
+    }
+  }
+  elsif ($attr->{change_camera_now}) {
+    if ($Cams_service && $Cams_service->can('change_user_cameras')) {
+      $users->info($uid);
+
+      $Cams_service->change_user_cameras({ %$attr, %{$Cams}, %$users });
       if ($Cams_service->{errno}) {
         $Cams->{errno} = $Cams_service->{errno};
         $Cams->{errstr} = $Cams_service->{errstr};
@@ -698,11 +924,19 @@ sub _cams_get_access_user_cameras {
     ID        => $attr->{ID},
     PAGE_ROWS => 10000,
     COLS_NAME => 1
-  });
+  }) if !$conf{CAMS_FOLDER};
+
+  $groups = $Cams->user_folders_list({
+    TP_ID     => $attr->{TP_ID},
+    ID        => $attr->{ID},
+    PAGE_ROWS => 10000,
+    COLS_NAME => 1
+  }) if $conf{CAMS_FOLDER};
 
   foreach my $group (@$groups) {
     my $cameras = $Cams->streams_list({
-      GROUP_ID         => $group->{group_id},
+      GROUP_ID         => $conf{CAMS_FOLDER} ? 0 : $group->{group_id},
+      FOLDER_ID        => !$conf{CAMS_FOLDER} ? 0 : $group->{folder_id},
       UID              => 0,
       COLS_NAME        => 1,
       SHOW_ALL_COLUMNS => 1,
@@ -767,11 +1001,19 @@ sub _cams_get_private_user_cameras {
     ID        => $attr->{ID},
     PAGE_ROWS => 10000,
     COLS_NAME => 1
-  });
+  }) if !$conf{CAMS_FOLDER};
+
+  $groups = $Cams->user_folders_list({
+    TP_ID     => $attr->{TP_ID},
+    ID        => $attr->{ID},
+    PAGE_ROWS => 10000,
+    COLS_NAME => 1
+  }) if $conf{CAMS_FOLDER};
 
   foreach my $group (@$groups) {
     my $cameras = $Cams->streams_list({
-      GROUP_ID         => $group->{group_id},
+      GROUP_ID         => $conf{CAMS_FOLDER} ? 0 : $group->{group_id},
+      FOLDER_ID        => !$conf{CAMS_FOLDER} ? 0 : $group->{folder_id},
       UID              => $attr->{UID},
       COLS_NAME        => 1,
       SHOW_ALL_COLUMNS => 1,
@@ -782,6 +1024,7 @@ sub _cams_get_private_user_cameras {
 
   my $cameras = $Cams->streams_list({
     GROUP_ID         => 0,
+    FOLDER_ID        => 0,
     UID              => $attr->{UID},
     COLS_NAME        => 1,
     SHOW_ALL_COLUMNS => 1,

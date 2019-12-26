@@ -30,6 +30,7 @@ our (
 );
 
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
+my $Shedule = Shedule->new( $db, $admin, \%conf );
 #my $Iptv = Iptv->new( $db, $admin, \%conf );
 
 #**********************************************************
@@ -87,7 +88,6 @@ sub iptv_user {
         %{$Iptv},
       }
     );
-    return 0;
   }
   elsif ($FORM{send_message}) {
     if (!$FORM{send}) {
@@ -184,23 +184,19 @@ sub iptv_user {
     iptv_additional_functions();
     return 1;
   }
-
-  if ($FORM{new_device}) {
+  elsif ($FORM{new_device}) {
     iptv_new_devices();
     return 1;
   }
-
-  if ($FORM{activation_code}) {
+  elsif ($FORM{activation_code}) {
     iptv_activation_code();
     return 1;
   }
-
-  if ($FORM{watch_now}) {
+  elsif ($FORM{watch_now}) {
     iptv_watch_now();
     return 1;
   }
-
-  if ($attr->{REGISTRATION} && $FORM{add}) {
+  elsif ($attr->{REGISTRATION} && $FORM{add}) {
     return 1;
   }
 
@@ -230,7 +226,8 @@ sub iptv_user {
           NEW_MODEL_TP => 1,
           COLS_NAME    => 1,
           DOMAIN_ID    => $admin->{DOMAIN_ID},
-          SERVICE_ID   => $Iptv->{SERVICE_ID}
+          SERVICE_ID   => $Iptv->{SERVICE_ID},
+          STATUS       => '0'
         }),
         SEL_KEY   => 'tp_id',
         SEL_VALUE => 'id,name',
@@ -288,6 +285,22 @@ sub iptv_user {
       $Iptv->{NEXT_FEES_WARNING} = $html->message($Iptv->{NEXT_FEES_MESSAGE_TYPE}, $Iptv->{TP_NAME},
         $Iptv->{NEXT_FEES_WARNING}, { OUTPUT2RETURN => 1 });
     }
+
+    #    Shedule info.
+    $Shedule->info({
+      UID    => $Iptv->{UID},
+      TYPE   => 'tp',
+      MODULE => 'Iptv'
+    });
+
+    if ($Shedule->{TOTAL}) {
+      my (undef, $tp_id) = split(':', $Shedule->{ACTION});
+      $tp_id = $Shedule->{ACTION} if !$Shedule->{ADMIN_ACTION};
+      my $tp_info = $Tariffs->info($tp_id);
+      if ($Tariffs->{TOTAL} && $tp_id) {
+        $html->message('info', $lang{INFO}, "$lang{CHANGE_OF_TP} $tp_id:$tp_info->{NAME}. $Shedule->{Y}-$Shedule->{M}-$Shedule->{D}");
+      }
+    }
   }
 
   $Iptv->{STATUS_SEL} = sel_status({ STATUS => $Iptv->{STATUS} });
@@ -310,7 +323,7 @@ sub iptv_user {
           %{($attr) ? $attr : {}},
           %{$Iptv},
           %{($user) ? $user : {}} },
-          { ID => 'iptv_user', OUTPUT2RETURN => 1 });
+          { ID => 'iptv_user', OUTPUT2RETURN => ($FORM{json}) ? undef : 1 });
       }
 
       if ($Iptv->{ID}) {
@@ -319,7 +332,7 @@ sub iptv_user {
     }
 
     if (($Iptv->{UID} && $Iptv->{SERVICE_ID} && $Iptv->{SERVICE_MODULE} && $Iptv->{TP_ID})
-      || ($Iptv->{SERVICE_MODULE} && $Iptv->{SERVICE_MODULE} eq "SmartUp")) {
+      || ($Iptv->{SERVICE_MODULE} && ($Iptv->{SERVICE_MODULE} eq "SmartUp" || $Iptv->{SERVICE_MODULE} eq "Olltv"))) {
       my $chg_dev = $FORM{chg} || "";
       my $module_dev = $FORM{MODULE} || "";
       my $service_dev = $Iptv->{SERVICE_ID} || "";
@@ -388,10 +401,10 @@ sub iptv_user {
   }
 
   if($attr->{PROFILE_MODE}) {
-    return '', $service_info1, $service_info2, $service_info_subscribes;
+    return '', ($service_info1 || q{}), $service_info2, ($Tv_service->{SERVICE_RESULT_FORM} || q{}) . $service_info_subscribes;
   }
 
-  print $service_info1 . $service_info2 . $service_info_subscribes;
+  print (($Tv_service->{SERVICE_RESULT_FORM} || q{}) . ($service_info1 || q{}). $service_info2 . $service_info_subscribes);
 
   return 1;
 }
@@ -422,7 +435,8 @@ sub iptv_new_devices {
 sub iptv_activation_code {
 
   if ($Tv_service->can('get_code')) {
-    $Tv_service->get_code({ %FORM, %LIST_PARAMS, INDEX => $index, DEVICE => 1, });
+    $users->info( $FORM{UID}, { SHOW_PASSWORD => 1 } );
+    $Tv_service->get_code({ %{$users}, %FORM, %LIST_PARAMS, INDEX => $index, DEVICE => 1, });
   }
 
   return 1;
@@ -500,6 +514,7 @@ sub iptv_get_playlist {
       my @table_titles = ();
 
       foreach my $key (keys %{$res_array->[0]}) {
+        next if !$res_array->[0]{$key};
         if ($lang{uc $key}) {
           $key = $lang{uc $key};
         }
@@ -517,7 +532,7 @@ sub iptv_get_playlist {
           caption    => $lang{PLAYLISTS},
           title      => \@table_titles,
           ID         => 'PLAYLIST_ITEMS',
-          DATA_TABLE => 1,
+#          DATA_TABLE => 1,
         }
       );
 
@@ -556,7 +571,7 @@ sub iptv_get_playlist {
 #**********************************************************
 sub iptv_get_device {
 
-  if ($FORM{action_devices} && $FORM{action_devices} eq "del" && $FORM{uniq}) {
+  if ($FORM{action_devices} && $FORM{action_devices} eq "del" && ($FORM{uniq} || $Tv_service->{SERVICE_NAME} ne "SmartUp")) {
     if ($Tv_service && $Tv_service->can('del_devices')) {
       my $result = $Tv_service->del_devices({ %FORM, %LIST_PARAMS });
       if ($result->{status} && $result->{status} eq 'ok') {
@@ -577,34 +592,58 @@ sub iptv_get_device {
     if ($result->{result}{devices}) {
       my $res_array = $result->{result}{devices};
       my @table_titles = ();
+      my @table_keys = ();
 
       foreach my $key (keys %{$res_array->[0]}) {
+        next if !$res_array->[0]{$key} || $key ne "uniq" && $key ne "activation_data" && $key ne "model" && $Tv_service->{SERVICE_NAME} ne "Olltv";
+
+        push @table_keys, $key;
         if ($lang{uc $key}) {
           $key = $lang{uc $key};
         }
-        if ($key eq "uniq") {
+        elsif ($key eq "uniq") {
           $key = "UNIQ";
         }
+        else {
+          my ($f_word, $s_word) = split('_', $key);
+          $key = $f_word ? $s_word ? ucfirst $f_word . " " . $s_word : ucfirst $f_word : "";
+        }
+
         push @table_titles, $key;
       }
 
       @table_titles = sort @table_titles;
 
-      my $table = $html->table(
-        {
-          width      => '100%',
-          caption    => $lang{DEVICE} || "",
-          title      => \@table_titles,
-          ID         => 'DEVICE_ITEMS',
-          DATA_TABLE => 1,
-        }
-      );
+      my $table = $html->table({
+        width      => '100%',
+        caption    => $lang{DEVICE} || "",
+        title      => \@table_titles,
+        ID         => 'DEVICE_ITEMS',
+#       DATA_TABLE => 1,
+      });
 
-      foreach my $item (@{$res_array}) {
-        my $del_btn = $html->button( $lang{DEL}, "index=$index&action_devices=del&chg=$FORM{chg}&MODULE=Iptv&UID=$FORM{UID}&uniq=" . ($item->{uniq} || ""),{
-          class => 'btn btn-info',
-        });
-        $table->addrow(($item->{uniq} || ""), ($item->{activation_data} || ""), ($item->{model} || ""), $del_btn) if $item->{uniq};
+      if ($Tv_service->{SERVICE_NAME} ne "Olltv") {
+        foreach my $item (@{$res_array}) {
+          my $del_btn = $html->button($lang{DEL}, "index=$index&action_devices=del&chg=$FORM{chg}&MODULE=Iptv&UID=$FORM{UID}&uniq=" . ($item->{uniq} || ""), {
+            class => 'btn btn-info',
+          });
+          $table->addrow(($item->{uniq} || ""), ($item->{activation_data} || ""), ($item->{model} || ""), $del_btn) if $item->{uniq};
+        }
+      }
+      else {
+        foreach my $item (@{$res_array}) {
+          my @array_item = ();
+          my $del_url = "";
+          foreach my $key (@table_keys) {
+            $del_url .= "&$key=$item->{$key}";
+            push @array_item, $item->{$key};
+          }
+          my $del_btn = $html->button($lang{DEL}, "index=$index&action_devices=del&chg=$FORM{chg}&MODULE=Iptv&UID=$FORM{UID}" . ($del_url || ""), {
+            class => 'btn btn-info',
+          });
+          push @array_item, $del_btn;
+          $table->addrow(@array_item);
+        }
       }
       return $table;
     }
@@ -722,6 +761,11 @@ sub iptv_user_add {
 
   Arguments:
     $form_ - INPUT FORM arguments
+      SERVICE_ID
+      SERIAL_NUMBER
+      MAC
+      CID
+      SUBSCRIBE_ID
 
   Results:
     $Tv_service [obj]
@@ -746,7 +790,6 @@ sub iptv_user_services {
   }
 
   if (!::_error_show($Iptv) && $Tv_service) {
-
     my $action_result = iptv_account_action({
       %$form_,
       ID           => $Iptv->{ID},
@@ -879,7 +922,7 @@ sub iptv_account_action{
   my $result = 0;
   #my $service = '';
 
-  if ($Iptv->{SERVICE_ID} && ! $Tv_service) {
+  if ($Iptv->{SERVICE_ID} && ((! $Tv_service) || ($Tv_service->{SERVICE_NAME} && $Iptv->{SERVICE_MODULE} && $Tv_service->{SERVICE_NAME} ne $Iptv->{SERVICE_MODULE}))) {
     $Tv_service = tv_load_service( $Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} } );
     if($Tv_service && $Tv_service->{SUBSCRIBE_COUNT}) {
       $attr->{SUBSCRIBE_COUNT} = $Tv_service->{SUBSCRIBE_COUNT};
@@ -903,6 +946,7 @@ sub iptv_account_action{
 
   if ( $attr->{NEGDEPOSIT} ){
     if ( $Tv_service && $Tv_service->can('user_negdeposit') ) {
+      $attr->{TP_ID} = $Iptv->{TP_ID} if $Iptv->{TP_ID};
       $Tv_service->user_negdeposit( $attr );
       if ( $Tv_service->{errno} ){
         print "$Tv_service->{SERVICE_NAME} Error: [$Tv_service->{errno}]  $Tv_service->{errstr} UID: $uid $attr->{ID}\n";
@@ -1149,7 +1193,7 @@ sub iptv_account_action{
           });
         }
 
-        $result = 1;
+        $result = 0;
       }
     }
     else {
@@ -1197,17 +1241,18 @@ sub iptv_account_action{
         ::_error_show( $Tv_service, { ID => $Tv_service->{errno}, MESSAGE => $message } );
       }
       elsif($Tv_service->{RESULT} && $Tv_service->{RESULT}->{results} && ref $Tv_service->{RESULT}->{results} eq 'ARRAY') {
-        result_former(
+        ($Tv_service->{SERVICE_RESULT_FORM}) = result_former(
           {
-            TABLE    => {
+            TABLE           => {
               width      => '100%',
               HIDE_TABLE => 1,
-              caption    => $Tv_service->{SERVICE_NAME}. ' ('. ($#{ $Tv_service->{RESULT}->{results} } + 1) .')',
+              caption    => $Tv_service->{SERVICE_NAME} . ' (' . ($#{$Tv_service->{RESULT}->{results}} + 1) . ')',
               ID         => 'IPTV_EXTERNAL_LIST',
             },
-            DATAHASH     => $Tv_service->{RESULT}->{results},
+            DATAHASH        => $Tv_service->{RESULT}->{results},
             SKIP_TOTAL_FORM => 1,
-            TOTAL        => 1
+            TOTAL           => 1,
+            OUTPUT2RETURN   => 1
           }
         );
       }
@@ -1342,8 +1387,6 @@ sub iptv_chg_tp{
     }
   }
 
-  my $Shedule = Shedule->new( $db, $admin, \%conf );
-
   if ( $FORM{set} ){
     if ( !$permissions{0}{4} ){
       $html->message( 'err', $lang{ERROR}, $lang{ERR_ACCESS_DENY} );
@@ -1460,7 +1503,9 @@ sub iptv_chg_tp{
           MODULE       => 'Iptv',
           SERVICE_ID   => $FORM{SERVICE_ID},
           NEW_MODEL_TP => 1,
-          COLS_NAME    => 1 } ),
+          COLS_NAME    => 1,
+          STATUS       => '0'},
+        ),
         SEL_KEY        => 'tp_id',
         SEL_VALUE      => 'id,name',
         NO_ID          => 1,
@@ -1494,11 +1539,40 @@ sub iptv_chg_tp{
 sub iptv_additional_functions {
 
   if ($Tv_service && $Tv_service->can('additional_functions')) {
-    $Tv_service->additional_functions({ %FORM, %LIST_PARAMS });
+    my $result = $Tv_service->additional_functions({ %FORM, %LIST_PARAMS });
+    if (ref $result eq "HASH" && $result->{RETURN}) {
+      return $result->{RETURN};
+    }
   }
   else {
     $html->message('err', $lang{ERROR}, "Can't load additional functions");
   }
+  return 1;
+}
+
+#*******************************************************************
+=head2 iptv_get_service_tps($attr)
+
+  Arguments:
+    $attr
+
+=cut
+#*******************************************************************
+sub iptv_get_service_tps {
+
+  print $html->form_select('TP_ID', {
+    SEL_LIST  => $Tariffs->list({
+      MODULE       => 'Iptv',
+      NEW_MODEL_TP => 1,
+      COLS_NAME    => 1,
+      DOMAIN_ID    => $admin->{DOMAIN_ID},
+      SERVICE_ID   => $FORM{SERVICE_ID},
+      STATUS       => '0'
+    }),
+    SEL_KEY   => 'tp_id',
+    SEL_VALUE => 'id,name',
+  });
+
   return 1;
 }
 

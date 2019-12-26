@@ -358,10 +358,10 @@ sub bonus_rules {
   $Bonus->{LNG_ACTION} = $lang{ADD};
 
   if ($FORM{add}) {
-    $FORM{RULES} = $BONUS_HUSH_INDEX{$FORM{RULE}};
+    $FORM{RULES} = ($FORM{RULE} && $BONUS_HUSH_INDEX{$FORM{RULE}}) ? $BONUS_HUSH_INDEX{$FORM{RULE}} : q{};
     $Bonus->rule_add({ %FORM });
     if (!$Bonus->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{ADDED}");
+      $html->message('info', $lang{INFO}, $lang{ADDED});
     }
   }
   elsif ($FORM{change}) {
@@ -379,7 +379,7 @@ sub bonus_rules {
     $Bonus->{LNG_ACTION} = $lang{CHANGE};
 
     if (!$Bonus->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGING}");
+      $html->message('info', $lang{INFO}, $lang{CHANGING});
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
@@ -390,22 +390,20 @@ sub bonus_rules {
     }
   }
 
-  if ($Bonus->{errno}) {
-    $html->message('err', $lang{ERROR}, "[$Bonus->{errno}] $err_strs{$Bonus->{errno}}");
-  }
+  _error_show($Bonus);
 
   $Bonus->{STATE} = ($Bonus->{STATE}) ? 'checked' : '';
 
   #my %bonus_hash = ();
   my $list = $Bonus->rule_list({ TP_ID => $FORM{TP_ID} });
-  #  _bp('', \$list, {HEADER=>1});
   my @PERIODS = ($lang{DAY}, $lang{MONTH});
 
   my $table = $html->table(
     {
       width   => '100%',
-      caption => "$lang{RULES}",
-      title   => [ $lang{PERIOD}, "$lang{RULES}", "$lang{VALUE}", "$lang{BONUS}", '-', '-' ],
+      caption => $lang{RULES},
+      title   => [ $lang{PERIOD}, $lang{RULES}, $lang{VALUE}, $lang{BONUS}, '-' ],
+      ID      => 'BONUS_RULES'
     }
   );
 
@@ -427,8 +425,8 @@ sub bonus_rules {
       $BONUS_HUSH{$BONUS_HUSH_ARRAY[ $line->[1] - 1 ]},
       $line->[2],
       $line->[3],
-      $html->button($lang{CHANGE}, "index=$index&RULES=1&TP_ID=$FORM{TP_ID}&chg=$line->[4]", { class => 'change' }),
-      $html->button($lang{DEL}, "index=$index&TP_ID=$FORM{TP_ID}&RULES=1&del=$line->[4]",
+      $html->button($lang{CHANGE}, "index=$index&RULES=1&TP_ID=$FORM{TP_ID}&chg=$line->[4]", { class => 'change' })
+       . $html->button($lang{DEL}, "index=$index&TP_ID=$FORM{TP_ID}&RULES=1&del=$line->[4]",
         { MESSAGE => "$lang{DEL} $line->[4] ?", class => 'del' })
     );
   }
@@ -730,8 +728,8 @@ sub bonus_users_list {
     FUNCTION_FIELDS => 'change',
     SELECT_VALUE    => {
       state => {
-        0 => $lang{ENABLE},
-        1 => $lang{DISABLE},
+        0 => $lang{DISABLE},
+        1 => $lang{ENABLE},
       }
     },
     EXT_TITLES      => {
@@ -1233,11 +1231,11 @@ sub bonus_service_discount_mk {
 
   if ($RULES{TOTAL_PAYMENT} || $RULES{ONETIME_PAYMENT_SUM}) {
     my $payments_sum = 0;
-
     my %get_bonus = (
       PAGE_ROWS => 1,
       TP_ID     => '_SHOW',
-      SORT      => "1 DESC, 2 DESC, 3 DESC, onetime_payment_sum DESC",
+      #SORT      => "1 DESC, 2 DESC, 3 DESC, onetime_payment_sum DESC",
+      SORT      => "2 DESC, 3 DESC, onetime_payment_sum DESC",
       COLS_NAME => 1
     );
 
@@ -1624,8 +1622,6 @@ sub bonus_users {
   my ($attr) = @_;
 
   return bonus_service_discount_client($attr);
-
-  return 1;
 }
 
 #**********************************************************
@@ -1639,7 +1635,7 @@ sub bonus_tp_accomulation {
     $Bonus->accomulation_rule_change(\%FORM);
 
     if (!_error_show($Bonus)) {
-      $html->message('info', $lang{BONUS}, "$lang{CHANGED}");
+      $html->message('info', $lang{BONUS}, $lang{CHANGED});
     }
   }
 
@@ -1694,6 +1690,7 @@ sub bonus_periodic_accomulation {
   my ($attr) = @_;
   my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
+
   $debug_output .= "Bonus - Accoumulation\n" if ($debug > 1);
 
   my $date = $DATE;
@@ -1712,14 +1709,13 @@ sub bonus_periodic_accomulation {
   $LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
 
   $Bonus->{debug} = 1 if ($debug > 6);
-
   my $tp_list = $Bonus->accomulation_rule_list({
     COST      => '>0',
     COLS_NAME => 1
   });
 
   foreach my $tp (@{$tp_list}) {
-    $debug_output .= "TP ID: $tp->{tp_id} DV TP: $tp->{dv_tp_id}  COST: $tp->{cost}\n" if ($debug > 1);
+    $debug_output .= "TP ID: $tp->{tp_id} DV TP: $tp->{dv_tp_id} COST: $tp->{cost}\n" if ($debug > 1);
     my $list = $Bonus->user_list({
       LOGIN     => '_SHOW',
       DV_TP_ID  => $tp->{dv_tp_id},
@@ -1875,7 +1871,7 @@ sub bonus_tp_using_periodic {
 }
 
 #**********************************************************
-=head2 bonus_tp_using
+=head2 bonus_tp_using()
 
 =cut
 #**********************************************************
@@ -1887,7 +1883,7 @@ sub bonus_tp_using {
   if ($FORM{add}) {
     $Bonus->tp_using_add({ %FORM });
     if (!$Bonus->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{ADDED}");
+      $html->message('info', $lang{INFO}, $lang{ADDED});
     }
   }
   elsif ($FORM{change}) {
@@ -1904,7 +1900,7 @@ sub bonus_tp_using {
     $Bonus->{LNG_ACTION} = $lang{CHANGE};
 
     if (!$Bonus->{errno}) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGING}");
+      $html->message('info', $lang{INFO}, $lang{CHANGING});
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {

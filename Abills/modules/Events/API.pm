@@ -92,7 +92,7 @@ sub add_event {
   
   my @admins_to_generate_event_for = ();
   if (!$event_params->{AID}){
-    $Events->admins_subscribed_to_module_list($module);
+    @admins_to_generate_event_for = $Events->admins_subscribed_to_module_list($module);
     if (!scalar @admins_to_generate_event_for){
       # Send to at least one admin
       @admins_to_generate_event_for = (1);

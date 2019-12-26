@@ -1,0 +1,19 @@
+$lang{ACCIDENT_LOG}='Журнал аварий';
+$lang{WORK_END_DATE}='Ориентировочное время исправления';
+$lang{WORK_REALY_DATE}='Реальное время исправления';
+$lang{ADD_ACCIDENT}='Добавить аварию';
+$lang{OPERATION}='Операция успешно выполнена';
+$lang{DESC}='Описание';
+$lang{WAITING}='Ожидает';
+$lang{DONE} = "Выполнена";
+$lang{UNDONE} = "Не выполнена";
+
+$lang{WARNING}='Внимание!';
+$lang{WARNING_ACCIDENT}='Проводятся аварийно-ремонтные работы в районе. Просим прощения за неудобства!';
+$lang{STATE_OR_REGION} = 'Область или регион';
+$lang{BUILD} = 'Дом';
+$lang{PROCESSING} = 'Обработка';
+$lang{PROCESSED}= 'Обработано';
+$lang{CLOSED}='Закрыто';
+
+1;

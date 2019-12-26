@@ -35,6 +35,7 @@ my (undef, undef, $d) = split(/-/, $DATE);
 internet_traffic_limit_block();
 internet_traffic_limit_unblock();
 compare_start_activate();
+internet_ureports_reset();
 
 
 #**********************************************************
@@ -361,4 +362,25 @@ sub internet_traffic_limit_unblock {
 
   return 1;
 }
+
+#**********************************************************
+=head2 internet_ureports_reset() - Reset ureports for report ;
+
+=cut
+#**********************************************************
+sub internet_ureports_reset {
+
+  $Internet->query("UPDATE ureports_users_reports users_reports, internet_main internet
+SET users_reports.date='0000-00-00'
+WHERE internet.uid=users_reports.uid
+ AND report_id IN (3,11)
+ AND internet.activate > '0000-00-00'
+ AND users_reports.date > '0000-00-00'
+ AND internet.activate > users_reports.date
+", 'do');
+
+
+  return 1;
+}
+
 1;

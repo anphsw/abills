@@ -166,6 +166,7 @@ sub add {
 
   $self->query_add('netblock_main',
     { %$attr,
+      INCTIME => 'NOW()',
       DBTIME => 'NOW()'
       },
     { REPLACE => 1 });

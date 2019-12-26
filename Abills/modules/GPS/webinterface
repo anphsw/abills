@@ -8,7 +8,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw/sec2time time2sec in_array cmd load_pmodule/;
+use Abills::Base qw/sec2time time2sec in_array cmd load_pmodule _bp/;
 
 our $db;
 our $admin;
@@ -68,18 +68,53 @@ sub gps_unregistered_trackers {
 =cut
 #**********************************************************
 sub gps_tracked_admins {
+
   my $admins_list = $Gps->tracked_admins_list();
+
+  if ($FORM{change}) {
+    my $result = $Gps->admins_color_info({ AID => $FORM{AID} });
+    if (!$Gps->{TOTAL}) {
+      $Gps->admins_color_add({
+        AID   => $FORM{AID},
+        COLOR => $FORM{COLOR}
+      });
+    }
+    else {
+      $Gps->admins_color_change({
+        ID    => $result->{ID},
+        COLOR => $FORM{COLOR}
+      });
+    }
+
+    if (!_error_show($Gps)) {
+      $html->message("info", $lang{CHANGED});
+    }
+  }
+
+  if ($FORM{COLOR_FORM}) {
+    my $color = "#0000FF";
+    my $result = $Gps->admins_color_info({ AID => $FORM{AID} });
+    $color = $result->{COLOR} if $Gps->{TOTAL};
+
+    $html->tpl_show(_include('gps_color_form', "GPS"), {
+      ACTION      => "add",
+      ACTION_LANG => $lang{ADD},
+      COLOR       => $color,
+      AID         => $FORM{AID}
+    });
+
+    return 1;
+  }
 
   my $table = $html->table(
     {
       width   => '100%',
-      caption => $lang{ADMINS},
-      title   => [ '#', 'ADMIN ID', $lang{NAME}, "GPS IMEI", $lang{LAST_UPDATE} ],
+      caption => $lang{ADMIN_ROUTES},
+      title   => [ 'Admin ID', $lang{LOGIN}, "GPS IMEI", $lang{ROUTE_COLOR}, $lang{LAST_UPDATE} ],
       ID      => "GPS_TRACKED_ADMINS"
     }
   );
 
-  my $i = 1;
   foreach my $admin_ (@{$admins_list}) {
 
     my $last_row = $Gps->tracked_admin_info($admin_->{aid});
@@ -98,11 +133,20 @@ sub gps_tracked_admins {
       $route_btn = gps_route_button($last_x, $last_y, $admin_->{aid}, $last_date);
     }
 
+    my $color = "#0000FF";
+    my $result = $Gps->admins_color_info({ AID => $admin_->{aid} });
+    $color = $result->{COLOR} if $Gps->{TOTAL} && $result->{COLOR};
+
+    my $colorBtn = $html->button($color, "get_index=gps_tracked_admins&header=2&COLOR_FORM=1&AID=$admin_->{aid}", {
+      LOAD_TO_MODAL => 1,
+      ex_params     => "style='color: $color;'"
+    });
+
     $table->addrow(
-      $i++,
       $admin_->{aid},
       $admin_->{name} || $admin->{login},
       $admin_->{gps_imei},
+      $colorBtn,
       "$last_row->{gps_time} $last_coords_btn $route_btn"
     );
   }
@@ -318,16 +362,75 @@ sub gps_delete_thumbnail {
 =cut
 #**********************************************************
 sub gps_report {
-  my $date_start = $FORM{DATE_START} || $DATE;
-  my $date_end = $FORM{DATE_END} || $DATE;
-  my $admin_aid = $FORM{ADMIN_ID} || undef;
+
+  if ($FORM{change}) {
+    $Gps->admins_show_change({ AIDS => $FORM{AIDS} });
+  }
+
+  if ($FORM{FILTER}) {
+    my $admins_list = $Gps->tracked_admins_list();
+
+    my $aids = '';
+    my $checkbox = '';
+    my $label = '';
+    my $div_checkbox = '';
+
+    foreach my $line (@$admins_list) {
+
+      my $show_info = $Gps->admins_color_info({ AID => $line->{aid} });
+
+      $checkbox = $html->form_input('AIDS', $line->{aid}, {
+        class => 'list-checkbox',
+        TYPE  => 'checkbox',
+        STATE => $Gps->{TOTAL} ? $show_info->{SHOW_ADMIN} : 1,
+      }) . " " . ($line->{name} || q{}) . ' : ' . ($line->{login} || q{}) . " ( " . ($line->{gps_imei} || q{}) . " )";
+
+      $label = $html->element('label', $checkbox);
+      $div_checkbox = $html->element('li', $checkbox, { class => 'list-group-item' });
+
+      $aids .= $div_checkbox;
+    }
+
+    $html->tpl_show(_include('gps_filter_form', 'GPS'), { AIDS => $aids });
+    return;
+  }
 
   if (!in_array('Maps', \@MODULES)) {
     $html->message('err', $lang{ERROR}, "Module Maps not connected");
     return 0;
   }
 
-  # Neccessary to calculate length
+  reports({
+    NO_GROUP    => 1,
+    NO_TAGS     => 1,
+    DATE_RANGE  => 1,
+    DATE        => $FORM{DATE},
+    REPORT      => '',
+    EX_PARAMS   => {
+      DATE   => $lang{DATE},
+      USERS  => $lang{USERS},
+      ADMINS => $lang{ADMINS},
+    },
+    PERIOD_FORM => 1,
+    EXT_TYPE    => {
+      ADMINS     => $lang{ADMINS},
+      CHAPTERS   => $lang{CHAPTERS},
+      PER_MONTH  => $lang{PER_MONTH},
+      DISTRICT   => $lang{DISTRICT},
+      STREET     => $lang{STREET},
+      BUILD      => $lang{BUILD},
+      REPLY      => $lang{REPLY},
+      PER_CLOSED => $lang{CLOSED},
+    },
+    EXT_SELECT  => {
+      ADMINS => { LABEL => $lang{ADMIN}, SELECT => sel_admins({ NAME => 'AID' }) },
+    },
+  });
+
+  my $date_start = $FORM{FROM_DATE} || $DATE;
+  my $date_end = $FORM{TO_DATE} || $DATE;
+  my $admin_aid = $FORM{AID} || undef;
+
   require Maps;
   Maps->import();
 
@@ -364,150 +467,58 @@ sub gps_report {
     $stats->{$aid}->{dates} = \@dates;
   }
 
-  my $chart = '';
-  if ($admin_aid) {
-    my @work_time = ();
-    my @kilometers = ();
+  my $filterBtn = $html->button("Настройки отображения на карте", "get_index=gps_report&header=2&FILTER=1", {
+    LOAD_TO_MODAL => 1,
+    class         => 'btn btn-xs btn-primary',
+  });
 
-    foreach my $date (@{$stats->{$admin_aid}->{dates}}) {
-      push @work_time, $stats->{$admin_aid}->{$date}->{work_time};
-      push @kilometers, $stats->{$admin_aid}->{$date}->{kilometers};
-    }
-
-    $chart = $html->make_charts(
-      {
-        TRANSITION    => 1,
-        TYPE          => { work_time => 'area', kilometers => 'area' },
-        X_TEXT        => $stats->{$admin_aid}->{dates},
-        DATA          => { "$lang{TIME}, s" => \@work_time, "$lang{DURATION}, km" => \@kilometers },
-        OUTPUT2RETURN => 1,
-      }
-    );
-  }
-
-  #make select_elements
-  my $admins = [ { id => 0, name => $lang{ALL} } ];
-
-  my $admins_select_list = $admins_list;
-
-  if ($admin_aid) {
-    $admins_select_list = $Gps->tracked_admins_list();
-  }
-
-  foreach my $adm (@{$admins_select_list}) {
-    my $aid = $adm->{aid};
-    my $aname = $adm->{name} || $adm->{login};
-
-    push @{$admins}, { id => $aid, name => $aname };
-  }
-
-  my $admin_select = $html->form_select('ADMIN_ID', {
-    SELECTED => $FORM{ADMIN_ID},
-    SEL_LIST => $admins,
-    NO_ID    => 1
-  }
-  );
-
-  my $first_column_name = ($admin_aid) ? $lang{DATE} : $lang{NAME};
-  my $columns = [ $first_column_name, $lang{TIME}, "$lang{DURATION}, km", $lang{ROUTE} ];
-  #make table
-  my $table_main = $html->table(
-    {
-      width => '100%',
-      title => $columns,
-      qs    => $pages_qs,
-      ID    => 'GPS_REPORT_TABLE'
-    }
-  );
-
-  my $stats_avg = {};
-
-  foreach my $date (sort (keys %{$by_date})) {
-    if (!$admin_aid) {
-      $table_main->addtd(@{[ $table_main->td($date,
-        { class => 'bg-info text-center', colspan => scalar @{$columns} }) ]});
-    }
-
-    foreach my $adm (@{$admins_list}) {
-      my $aid = $adm->{aid};
-      my $adm_stats = $stats->{$aid}->{$date};
-      my $name = '';
-      if (!$admin_aid) {
-        $name = $adm->{name} || $adm->{login};
-      }
-      else {
-        $name = $date;
-      }
-      $adm_stats->{work_time} = $adm_stats->{work_time} ? abs($adm_stats->{work_time}) : 0;
-
-      my $time = sec2time($adm_stats->{work_time}, { format => 1 });
-
-      #ground to meters
-      my $kilometers = $adm_stats->{kilometers} || 0;
-
-      $stats_avg->{$aid}->{work_time} += $adm_stats->{work_time};
-      $stats_avg->{$aid}->{kilometers} += $kilometers;
-      $stats_avg->{$aid}->{stats_count}++;
-
-      my $route_btn = '';
-      if ($adm_stats->{work_time} > 0) {
-        my $maps_index = get_function_index('maps_show_map');
-        my $link = "?index=$maps_index&show_gps=$aid&DATE=$date";
-
-        $route_btn = $html->button("<span class='glyphicon glyphicon-globe'></span>", undef, {
-          GLOBAL_URL => $link, target => '_blank',
-          class      => 'btn btn-xs btn-info', NO_LINK_FORMER => 1
-        });
-      }
-
-      $table_main->addrow(
-        $name,       # $date
-        $time,       # $work_time
-        $kilometers, # $route_length
-        $route_btn
-      );
-    }
-  }
-
-  my $table_avg = $html->table(
-    {
-      width => '100%',
-      title => $columns,
-      qs    => $pages_qs,
-      ID    => 'GPS_REPORT_AVG_TABLE'
-    }
-  );
+  my $user_table = $html->table({
+    width   => '100%',
+    caption => "GPS $lang{REPORTS} $lang{FOR_TIME} ($date_start - $date_end)",
+    title   => [ $lang{NAME}, $lang{TIME}, "$lang{DURATION}, km", $lang{ROUTE} ],
+    ID      => 'CHANNEL_USERS',
+    qs      => $pages_qs,
+    header  => $filterBtn,
+  });
 
   foreach my $adm (@{$admins_list}) {
-    my $name = $adm->{name} || $adm->{login};
     my $aid = $adm->{aid};
-    my $stats_count = $stats_avg->{$aid}->{stats_count};
-    $stats_count = ($stats_count) ? $stats_count : 1;
 
-    $stats_avg->{ $aid }->{kilometers} ||= 0;
-    $stats_avg->{ $aid }->{work_time} ||= 0;
+    my $adm_stats = $stats->{$aid};
 
-    my $kms = int(($stats_avg->{ $aid }->{kilometers} / $stats_count) * 1000) / 1000;
+    my $kilometers = 0;
+    my $time;
 
-    my $time = sec2time($stats_avg->{ $aid }->{work_time} / $stats_count, { format => 1 });
+    foreach my $key (keys %{$adm_stats}) {
+      next if ($key eq 'dates');
 
-    $table_avg->addrow(
-      $name,
-      $time,
-      $kms,
-      '',
+      $time += $adm_stats->{$key}{work_time};
+      $kilometers += $adm_stats->{$key}{kilometers};
+    }
+
+    $time = sec2time($time, { format => 1 });
+
+    my $route_btn = '';
+
+    if ($kilometers > 0) {
+      my $maps_index = get_function_index('maps_show_map');
+      my $link = "?index=$maps_index&show_gps=$aid";
+
+      $route_btn = $html->button("<span class='glyphicon glyphicon-globe'></span>", undef, {
+        GLOBAL_URL => $link, target => '_blank',
+        class      => 'btn btn-xs btn-info', NO_LINK_FORMER => 1
+      });
+    }
+
+    $user_table->addrow(
+      $adm->{name} || $adm->{login},
+      $time,       # $work_time
+      $kilometers, # $route_length
+      $route_btn
     );
   }
 
-  #show result
-  $html->tpl_show(_include('gps_report', "GPS"), {
-    ADMIN_SELECT         => $admin_select,
-    DATE_START           => $date_start,
-    DATE_END             => $date_end,
-    REPORT_TABLE         => $table_main->show(),
-    REPORT_AVG_TABLE     => $table_avg->show(),
-    REPORT_COMPARE_CHART => $chart,
-  });
+  print $user_table->show();
 
   return 1;
 }
@@ -591,7 +602,6 @@ sub get_route_length {
       $sum += $length;
     }
   }
-
   # ground to meters
   return int($sum) / 1000;
 }

@@ -17,3 +17,4 @@ $lang{USER_PORTAL} = 'Портал Абонента';
 
 $lang{SERVICE_COUNT}='Кількість послуг';
 $lang{FEES_PERIOD}='Кількість нарахувань';
+$lang{NO_ACTIVE_SERVICE}='У Вас немає додаткових послуг';

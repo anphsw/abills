@@ -56,13 +56,13 @@
         <div class='form-group %PHONE_HAS_ERROR% %PHONE_HIDDEN%'>
           <label class='col-md-3 required control-label'>_{PHONE}_:</label>
 
-          <div class='col-md-9'><input type=text name=PHONE value='%PHONE%' class='form-control' %PHONE_DISABLE%></div>
+          <div class='col-md-9'><input type=text name=PHONE value='%PHONE_ALL%' class='form-control' %PHONE_DISABLE%></div>
         </div>
 
         <div class='form-group %CELL_PHONE_HAS_ERROR% %CELL_PHONE_HIDDEN%'>
           <label class='col-md-3 required control-label'>_{CELL_PHONE}_:</label>
 
-          <div class='col-md-9'><input type=text name=CELL_PHONE value='%CELL_PHONE%' class='form-control' %CELL_PHONE_DISABLE%></div>
+          <div class='col-md-9'><input type=text name=CELL_PHONE value='%CELL_PHONE_ALL%' class='form-control' %CELL_PHONE_DISABLE%></div>
         </div>
 
         <div class='form-group %EMAIL_HAS_ERROR% %EMAIL_HIDDEN%'>

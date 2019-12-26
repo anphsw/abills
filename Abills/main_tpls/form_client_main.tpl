@@ -19,19 +19,19 @@
         </a>
       </li>
       <li>
-        <a href="#" >
+        <a href="#" %REG_LOGIN%>
           <span><strong>_{LOGIN}_:</strong> %LOGIN%</span>
         </a>
       </li>
       <li>
-        <a href="#">
+        <a href="#" %REG_IP%>
           <span><strong>IP:</strong> %IP%</span>
         </a>
       </li>
     </ul>
     <ul class='nav navbar-nav navbar-right hidden-xs hidden-sm'>
       <li>
-        <a href="#">
+        <a href="#" %REG_STATE%>
           <span><strong>_{STATE}_:</strong> %STATE% <!-- %STATE_CODE% --></span>
         </a>
       </li>
@@ -83,3 +83,5 @@
 </script>
 %PUSH_SCRIPT%
 </body>
+
+%CHECK_ADDRESS_MODAL%

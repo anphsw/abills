@@ -19,7 +19,7 @@ plan tests => $plans_count;
 my $test_aid = 1;
 
 my $ping_request = {"TYPE" => "PING"};
-my $ping_responce = {"TYPE" => "PONG"};
+#my $ping_responce = {"TYPE" => "PONG"};
 
 my $test_notification = "Test notification";
 

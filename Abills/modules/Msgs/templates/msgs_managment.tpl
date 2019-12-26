@@ -67,6 +67,7 @@
         </a>
         %INNER_MSG_TEXT%
         %WORK_BTN%
+        %STORAGE_BTN%
         %MSG_PRINT_BTN%
         %ADD_TAGS_BTN%
         %WORKPLANNING_BTN%

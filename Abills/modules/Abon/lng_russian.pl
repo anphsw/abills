@@ -15,3 +15,4 @@ $lang{MANUAL_ACTIVATE}='Ручное включение услуги';
 $lang{USER_PORTAL}='Портал Абонента';
 $lang{SERVICE_COUNT}='Количество услуг';
 $lang{FEES_PERIOD}='Количество списаний';
+$lang{NO_ACTIVE_SERVICE}='В данный момент у Вас нет дополнительных услуг';

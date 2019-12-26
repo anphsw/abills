@@ -231,6 +231,8 @@ sub list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
+  $attr->{SKIP_DEL_CHECK} = 1;
+
   my @WHERE_RULES = ();
 
   my $info_fields_list;
@@ -315,7 +317,7 @@ sub list {
     ['BILL_ID',        'INT',  'c.bill_id',       1 ],
     ['TAX_NUMBER',     'STR',  'c.tax_number',    1 ],
     ['BANK_ACCOUNT',   'STR',  'c.bank_account',  1 ],
-    ['BANK_NAME',      'STR'.  'c.bank_name',     1 ],
+    ['BANK_NAME',      'STR',  'c.bank_name',     1 ],
     ['COR_BANK_ACCOUNT','STR', 'c.cor_bank_account', 1],
     ['BANK_BIC',       'STR',  'c.bank_bic',      1 ],
     ['PHONE',          'STR',  'c.phone',         1 ],
@@ -374,6 +376,7 @@ sub list {
     $self->query("SELECT COUNT(DISTINCT c.id) AS total
     FROM companies c
     LEFT JOIN users u ON (u.company_id=c.id)
+    $EXT_TABLE
     $WHERE;",
     undef,
     { INFO => 1 });

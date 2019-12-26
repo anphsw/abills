@@ -42,4 +42,14 @@ $lang{LIMIT_ARCHIVE} = 'Ограничить доступ к архиву';
 $lang{ONLY_VIDEO} = 'Только видео';
 $lang{TYPE_FOR_SERVICE} = 'Тип для сервиса';
 
+$lang{CAMS_REVIEW} = 'Обзор камеры';
+$lang{CAMS_VISIBILITY} = 'Длина видимости камеры (метры)';
+$lang{CAMERA_ANGLE} = 'Угол обзора камеры';
+$lang{CAMERA_ANGLE_LOCATION} = 'Направление камеры';
+
+$lang{PARENT} = "Родитель";
+$lang{CHILDREN} = "Потомки";
+$lang{FOLDERS} = "Каталоги";
+$lang{ENTER_GROUP_NAME_OR_ADDRESS} = "Укажите название или адрес";
+
 1;

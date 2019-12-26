@@ -117,7 +117,7 @@
   <!-- Main Header -->
   <header class='main-header' >
     <!-- client_start -->
-    <a href='index.cgi' class='logo' %S_MENU%>
+    <a href='%INDEX_NAME%' class='logo' %S_MENU%>
       <!-- mini logo for sidebar mini 50x50 pixels -->
       <span class='logo-mini'><b><span style='color: red;'>A</span></b></span>
       <!-- logo for regular state and mobile devices -->

@@ -155,7 +155,7 @@ sub add {
   }
   else {
     $self->{errno}  = 14;
-    $self->{errstr} = 'No Bill';
+    $self->{errstr} = 'NO_BILL';
   }
 
   if (! $self->{db}->{TRANSACTION} && !$attr->{NO_AUTOCOMMIT} && !$attr->{TRANSACTION}) {
@@ -252,32 +252,34 @@ sub list {
   }
 
   my $WHERE =  $self->search_former($attr, [
-      ['DATETIME',       'DATE','p.date',   'p.date AS datetime'],
-      ['LOGIN',          'STR', 'u.id',         'u.id AS login' ],
-      ['PAYMENT_METHOD', 'INT', 'p.method',                   1 ],
-      ['DSC',            'STR', 'p.dsc',                      1 ],
-      ['INNER_DESCRIBE', 'STR', 'p.inner_describe'              ],
-      ['SUM',            'INT', 'p.sum',                      1 ],
-      ['LAST_DEPOSIT',   'INT', 'p.last_deposit',             1 ],
-      ['METHOD',         'INT', 'p.method',                   1 ],
-      ['AMOUNT',         'INT', 'p.amount',                   1 ],
-      ['CURRENCY',       'INT', 'p.currency',                 1 ],
-      ['A_LOGIN',        'STR', 'a.id'                          ],
-      ['ADMIN_NAME',     'STR', 'a.id'                          ],
-      ['PAYMENT_METHOD_ID','INT', 'p.method', 'p.method AS payment_method_id' ],
-      ['BILL_ID',        'INT', 'p.bill_id',                  1 ],
-      ['AID',            'INT', 'p.aid',                        ],
-      ['IP',             'INT', 'INET_NTOA(p.ip)',  'INET_NTOA(p.ip) AS ip'],
-      ['EXT_ID',         'STR', 'p.ext_id',                   1 ],
-      ['ADMIN_NAME',     'STR', '', "IF(a.name is null, 'Unknown', a.name) AS admin_name" ],
-      ['INVOICE_NUM',    'INT', 'd.invoice_num',                          1],
-      ['DATE',           'DATE','DATE_FORMAT(p.date, \'%Y-%m-%d\')'        ],
-      ['REG_DATE',       'DATE','p.reg_date',                             1],
-      ['MONTH',          'DATE','DATE_FORMAT(p.date, \'%Y-%m\')'           ],
-      ['ID',             'INT', 'p.id'                                     ],
-      ['FROM_DATE_TIME|TO_DATE_TIME','DATE', "p.date"                      ],
-      ['FROM_DATE|TO_DATE', 'DATE', 'DATE_FORMAT(p.date, \'%Y-%m-%d\')'    ],
-      ['UID',            'INT', 'p.uid',                                  1],
+      ['DATETIME',       'DATE','p.date',   'p.date AS datetime'                           ],
+      ['LOGIN',          'STR', 'u.id',         'u.id AS login'                            ],
+      ['PAYMENT_METHOD', 'INT', 'p.method',                                              1 ],
+      ['DSC',            'STR', 'p.dsc',                                                 1 ],
+      ['INNER_DESCRIBE', 'STR', 'p.inner_describe'                                         ],
+      ['SUM',            'INT', 'p.sum',                                                 1 ],
+      ['LAST_DEPOSIT',   'INT', 'p.last_deposit',                                        1 ],
+      ['METHOD',         'INT', 'p.method',                                              1 ],
+      ['AMOUNT',         'INT', 'p.amount',                                              1 ],
+      ['CURRENCY',       'INT', 'p.currency',                                            1 ],
+      ['A_LOGIN',        'STR', 'a.id'                                                     ],
+      ['ADMIN_NAME',     'STR', 'a.id'                                                     ],
+      ['PAYMENT_METHOD_ID','INT', 'p.method', 'p.method AS payment_method_id'              ],
+      ['BILL_ID',        'INT', 'p.bill_id',                                             1 ],
+      ['AID',            'INT', 'p.aid',                                                   ],
+      ['IP',             'INT', 'INET_NTOA(p.ip)',  'INET_NTOA(p.ip) AS ip'                ],
+      ['EXT_ID',         'STR', 'p.ext_id',                                              1 ],
+      ['ADMIN_NAME',     'STR', '', "IF(a.name is null, 'Unknown', a.name) AS admin_name"  ],
+      ['INVOICE_NUM',    'INT', 'd.invoice_num',                                         1 ],
+      ['DATE',           'DATE','DATE_FORMAT(p.date, \'%Y-%m-%d\')'                        ],
+      ['REG_DATE',       'DATE','p.reg_date',                                            1 ],
+      ['MONTH',          'DATE','DATE_FORMAT(p.date, \'%Y-%m\')'                           ],
+      ['ID',             'INT', 'p.id'                                                     ],
+      ['FROM_DATE_TIME|TO_DATE_TIME','DATE', "p.date"                                      ],
+      ['FROM_DATE|TO_DATE', 'DATE', 'DATE_FORMAT(p.date, \'%Y-%m-%d\')'                    ],
+      ['UID',            'INT', 'p.uid',                                                 1 ],
+      ['AFTER_DEPOSIT',  'INT', '(p.sum+p.last_deposit) as after_deposit',               1 ],
+      ['ADMIN_DISABLE', 'INT', 'a.disable', 'a.disable AS admin_disable',                1 ],
     ],
     { WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES,
@@ -318,12 +320,14 @@ sub list {
     $list = $self->{list};
   }
 
-  $self->query("SELECT COUNT(p.id) AS total, SUM(p.sum) AS sum, COUNT(DISTINCT p.uid) AS total_users
+  $self->query("SELECT COUNT(tt.id) AS total, SUM(tt.sum) AS sum, COUNT(DISTINCT tt.uid) AS total_users
+    FROM (SELECT p.id, p.sum, p.uid
     FROM payments p
-  LEFT JOIN users u ON (u.uid=p.uid)
-  LEFT JOIN admins a ON (a.aid=p.aid)
-  $EXT_TABLES
-  $WHERE",
+    LEFT JOIN users u ON (u.uid=p.uid)
+    LEFT JOIN admins a ON (a.aid=p.aid)
+    $EXT_TABLES
+    $WHERE
+    GROUP BY p.id) tt",
   undef,
   { INFO => 1 }
   );

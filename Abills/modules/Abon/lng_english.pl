@@ -15,3 +15,4 @@ $lang{MANUAL_ACTIVATE}='Manual Activate';
 $lang{USER_PORTAL}='User portal';
 $lang{SERVICE_COUNT}='Service count';
 $lang{FEES_PERIOD}='Abon period';
+$lang{NO_ACTIVE_SERVICE}='No Active Service';

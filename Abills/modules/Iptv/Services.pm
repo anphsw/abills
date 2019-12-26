@@ -43,14 +43,15 @@ sub tv_services {
   elsif ($FORM{add}) {
     $Iptv->services_add({ %FORM });
     if (!$Iptv->{errno}) {
-      $html->message('info', $lang{SCREENS}, $lang{ADDED});
+      $html->message('info', $lang{SERVICES}, $lang{ADDED});
       tv_service_info($Iptv->{INSERT_ID});
     }
   }
   elsif ($FORM{change}) {
+    $FORM{STATUS} ||= 0;
     $Iptv->services_change(\%FORM);
     if (!_error_show($Iptv)) {
-      $html->message('info', $lang{SCREENS}, $lang{CHANGED});
+      $html->message('info', $lang{SERVICES}, $lang{CHANGED});
       tv_service_info($FORM{ID});
     }
   }
@@ -60,7 +61,7 @@ sub tv_services {
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Iptv->services_del($FORM{del});
     if (!$Iptv->{errno}) {
-      $html->message('info', $lang{SCREENS}, $lang{DELETED});
+      $html->message('info', $lang{SERVICES}, $lang{DELETED});
     }
   }
   #  elsif ( $FORM{log_del} && $FORM{COMMENTS} ){
@@ -143,7 +144,7 @@ sub tv_service_info {
     if ($Iptv->{PROVIDER_PORTAL_URL}) {
       $Iptv->{PROVIDER_PORTAL_BUTTON} = _service_portal_filter($Iptv->{PROVIDER_PORTAL_URL});
     }
-    $html->message('info', $lang{SCREENS}, $lang{CHANGING});
+    $html->message('info', $lang{SERVICES}, $lang{CHANGING});
 
     if ($Iptv->{MODULE}) {
       my $Tv_service = tv_load_service($Iptv->{MODULE}, { SERVICE_ID => $Iptv->{ID}, SOFT_EXCEPTION => 1 });
@@ -253,6 +254,12 @@ sub tv_service_import_tp {
     );
 
     my $tp_list = $Tv_service->tp_export();
+
+    if($Tv_service->{errno}) {
+      _error_show($Tv_service, { MESSAGE => "$lang{TARIF_PLANS} $lang{IMPORT}" });
+      return 0;
+    }
+
     if ($FORM{tp_import} == 2) {
       my $Tariffs = Tariffs->new($db, \%conf, $admin);
       my $message = '';

@@ -30,7 +30,7 @@ sub new($;$) {
 
   my $nas_ip_mng_port = $host->{NAS_MNG_IP_PORT} || $host->{nas_mng_ip_port} || q{};
 
-  if(! $nas_ip_mng_port) {
+  if (!$nas_ip_mng_port) {
     return 0;
   }
 
@@ -108,7 +108,8 @@ sub new($;$) {
 #**********************************************************
 sub execute {
   my $self = shift;
-  _bp("DEBUG", ("Was called from " . join(", ", caller) . "\n"), \%BP_ARGS) if ($self->{debug});
+
+  _bp("DEBUG", ("Was called from " . join(", ", caller) . "\n"), \%BP_ARGS) if($self->{debug});
 
   return $self->{executor}->execute(@_);
 }
@@ -509,7 +510,7 @@ sub ppp_accounts_change {
     [ '/ppp/secret/set', $key_values, { numbers => $id } ]
   ]);
 
-#  return 1;
+  #  return 1;
 }
 
 #**********************************************************
@@ -641,181 +642,155 @@ sub hotspot_configure {
   my $radius_address = $arguments->{BILLING_IP_ADDRESS};
   my $radius_secret = $arguments->{RADIUS_SECRET};
 
-  $self->execute(
-    [
-      # Configure WAN
-      [
-        '/ip/address/add', {
-        address   => "$address/$netmask",
-        comment   => "HOTSPOT",
-        disabled  => "no",
-        interface => $interface,
-        network   => $network
-      }
-      ],
+  $self->execute([ [
+    '/ip address add', {
+    address   => "$address/$netmask",
+    comment   => "HOTSPOT",
+    disabled  => "no",
+    interface => $interface,
+    network   => $network
+  }
+  ],
+  ]);
 
-      [
-        '/ip/route/add', {
-        disabled       => "no",
-        distance       => 1,
-        'dst-address'  => '0.0.0.0/0',
-        gateway        => $gateway,
-        scope          => 30,
-        'target-scope' => 10
-      }
-      ],
-
-      # ADD IP pool for hotspot users
-      [
-        '/ip/pool/add',
-        { name => 'hotspot-pool-1', ranges => $range }
-      ],
-
-      # Add DNS for resolving
-      [ '/ip/dns/set', {
-        'allow-remote-requests' => 'yes',
-        'cache-max-ttl'         => "1w",
-        'cache-size'            => '10000KiB',
-        'max-udp-packet-size'   => 512,
-        'servers'               => "$address,$dns_server"
-      }
-      ],
-      [
-        '/ip/dns/static/add', {
-        name    => "$dns_name",
-        address => $address
-      }
-      ],
-
-      # Add DHCP Server
-      [
-        '/ip/dhcp-server/add', {
-        'address-pool'  => 'hotspot-pool-1',
-        authoritative   => 'after-2sec-delay',
-        'bootp-support' => 'static',
-        'disabled'      => 'no',
-        interface       => $interface,
-        'lease-time'    => '1h',
-        name            => 'hotspot_dhcp'
-      }
-      ],
-
-      [ '/ip/dhcp-server/config/set', { 'store-leases-disk' => '5m' } ],
-
-      [ '/ip/dhcp-server/network/add', {
-        address => "$network/$netmask",
-        comment => "Hotspot network",
-        gateway => $address
-      }
-      ],
-      # Prevent blocking ABillS Server
-      #      qq{/ip hotspot ip-binding add address=$radius_address type=bypassed},
-      [ '/ip/firewall/nat/add', {
-        chain         => 'pre-hotspot',
-        'dst-address' => $radius_address,
-        action        => 'accept'
-      }
-      ],
-    ],
-    {
-      SHOW_RESULT => 1,
-      SKIP_ERROR  => 1,
-      CHAINED     => 1
+  $self->execute([
+    [ '/ip dhcp-server network add', {
+      address => "$network/$netmask",
+      comment => "Hotspot network",
+      gateway => $address
     }
+    ]
+  ]);
+  $self->execute([
+    [ '/ip firewall nat add', {
+      chain         => 'pre-hotspot',
+      'dst-address' => $radius_address,
+      action        => 'accept'
+    }
+    ],
+  ]);
+  $self->execute([
+    [
+      '/ip pool add',
+      { name => 'hotspot-pool-1', ranges => $range }
+    ],
+
+  ]);
+  $self->execute([
+    [ '/ip dns set', {
+      'allow-remote-requests' => 'yes',
+      'cache-max-ttl'         => "1w",
+      'cache-size'            => '10000KiB',
+      'max-udp-packet-size'   => 512,
+      'servers'               => "$address,$dns_server"
+    }
+    ],
+  ]);
+  $self->execute([
+    [
+      '/ip dns static add', {
+      name    => "$dns_name",
+      address => $address
+    }
+    ],
+  ]);
+  $self->execute([
+    [ '/ip dhcp-server config set', { 'store-leases-disk' => '5m' } ],
+  ]);
+  $self->execute([
+    [
+      '/ip dhcp-server add', {
+      'address-pool'  => 'hotspot-pool-1',
+      authoritative   => 'after-2sec-delay',
+      'bootp-support' => 'static',
+      'disabled'      => 'no',
+      interface       => $interface,
+      'lease-time'    => '1h',
+      name            => 'hotspot_dhcp'
+    }
+    ]
+  ],
   );
 
   $self->show_message("\n Configuring Hotspot \n");
 
-  $self->execute(
-    [
-      # Add HOTSPOT profile
-      [ '/ip/hotspot/profile/add',
-        { name                   => 'hsprof1',
-          'dns-name'             => $dns_name,
-          'hotspot-address'      => $address,
-          'html-directory'       => 'hotspot',
-          'http-cookie-lifetime' => '1d',
-          'http-proxy'           => "0.0.0.0:0",
-          'login-by'             => "cookie,http-chap",
-          'rate-limit'           => "",
-          'smtp-server'          => "0.0.0.0",
-          'split-user-domain'    => "no",
-          'use-radius'           => "yes"
-        }
-      ],
-      [ '/ip/hotspot/add',
-        { name                => 'hotspot1',
-          'address-pool'      => $pool_name,
-          'addresses-per-mac' => 2,
-          disabled            => "no",
-          'idle-timeout'      => "5m",
-          interface           => $interface,
-          'keepalive-timeout' => "none",
-          profile             => "hsprof1" }
-      ],
-      [ '/ip/hotspot/user/profile/set',
-        {
-          'idle-timeout'       => 'none',
-          'keepalive-timeout'  => '2m',
-          'shared-users'       => 1,
-          'status-autorefresh' => '1m',
-          'transparent-proxy'  => 'no'
-        },
-        {
-          name => 'default',
-        }
-      ],
-      [ '/ip/hotspot/service-port/set',
-        {
-          disabled => "yes",
-          ports    => 21
-        },
-        {
-          name => "ftp",
-        }
-      ],
-      [ '/ip hotspot walled-garden ip add', {
-        action        => "accept",
-        disabled      => "no",
-        'dst-address' => $address
-      }
-      ],
-      [ '/ip hotspot walled-garden ip add', {
-        action        => 'accept',
-        disabled      => "no",
-        'dst-address' => $radius_address
-      }
-      ],
-      [ '/ip hotspot set', {
-        numbers        => 'hotspot1',
-        'address-pool' => 'none'
-      }
-      ],
-      [ '/ip firewall nat add', {
-        action   => "masquerade",
-        chain    => "srcnat",
-        disabled => "no"
-      }
-      ]
-    ],
-    {
-      SHOW_RESULT => 1,
-      SKIP_ERROR  => 1,
+  $self->execute([ [ '/ip hotspot profile add',
+    { name                   => 'hsprof1',
+      'hotspot-address'      => $address,
+      'html-directory'       => 'hotspot',
+      'http-cookie-lifetime' => '1d',
+      'http-proxy'           => "0.0.0.0:0",
+      'login-by'             => "http-pap",
+      'rate-limit'           => "",
+      'smtp-server'          => "0.0.0.0",
+      'split-user-domain'    => "no",
+      'use-radius'           => "yes"
     }
-  );
+  ] ]);
+  $self->execute([
+    [ '/ip hotspot add',
+      { name                => 'hotspot1',
+        'address-pool'      => 'none',
+        'addresses-per-mac' => 2,
+        disabled            => "no",
+        'idle-timeout'      => "5m",
+        interface           => $interface,
+        'keepalive-timeout' => "none",
+        profile             => "hsprof1" }
+    ],
+  ]);
+  $self->execute([
+    [ '/ip hotspot user profile set',
+      {
+        'idle-timeout'       => 'none',
+        'keepalive-timeout'  => '2m',
+        'shared-users'       => 1,
+        'status-autorefresh' => '1m',
+        'transparent-proxy'  => 'no'
+      },
+      {
+        name => 'default',
+      }
+    ],
+  ]);
+  $self->execute([ [ '/ip hotspot service-port set',
+    {
+      disabled => "yes",
+      ports    => 21
+    },
+    {
+      name => "ftp",
+    }
+  ], ]);
+  $self->execute([
+    [ '/ip hotspot walled-garden ip add', {
+      action        => "accept",
+      disabled      => "no",
+      'dst-address' => $radius_address
+    }
+    ],
+  ]);
+  $self->execute([
+    [ '/ip firewall nat add', {
+      action   => "masquerade",
+      chain    => "srcnat",
+      disabled => "no"
+    }
+    ]
+  ]);
 
   $self->show_message("\n  Configuring RADIUS\n");
 
+  $self->execute([
+    [ "/radius add", { address => $radius_address, secret => $radius_secret, service => "hotspot" } ],
+  ]);
+  $self->execute([
+    [ "/ip hotspot profile set", { 'use-radius' => 'yes' }, { name => 'hsprof1' } ],
+  ]);
   $self->execute(
     [
-      [ "/radius add", { address => $radius_address, secret => $radius_secret, service => "hotspot" } ],
-      [ "/ip hotspot profile set", { 'use-radius' => 'yes' }, { name => 'hsprof1' } ],
-      [ "/radius set", { timeout => '00:00:01', numbers => '0' } ]
+      [ "/radius set timeout=00:00:01 numbers=0" ]
     ],
-    {
-      SHOW_RESULT => 1,
-      SKIP_ERROR  => 1,
-    }
   );
 
   $self->show_message("\n Configuring Hotspot walled-garden \n");
@@ -830,16 +805,14 @@ sub hotspot_configure {
   };
 
   my @walled_garden_commands = ();
-  foreach (@walled_garden_hosts) {
-    push(@walled_garden_commands, [ '/ip hotspot walled-garden add', { 'dst-host' => $_ } ]);
+  foreach my $host (@walled_garden_hosts) {
+    if ($host) {
+      push(@walled_garden_commands, [ '/ip hotspot walled-garden add', { 'dst-host' => $host,  'server' => 'hotspot1'  } ]);
+    }
   }
 
   $self->execute(
     \@walled_garden_commands,
-    {
-      SHOW_RESULT => 1,
-      SKIP_ERROR  => 1,
-    }
   );
 
   $self->show_message("\n Uploading custom captive portal \n");

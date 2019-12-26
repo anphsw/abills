@@ -34,13 +34,16 @@
   <input type=hidden name='step' value='$FORM{step}'>
 
   <fieldset>
-
     <div class='box box-theme box-form'>
+      <div class='box-header with-border'>
+        <div class='box-title'>
+          <h4>_{USER_INFO}_</h4>
+        </div>
+      </div>
       <div class='box-body'>
-
         <div class='form-group'>
-          <label class='control-label col-md-4' for='TP_ID'>_{TARIF_PLAN}_</label>
-          <div class='col-md-8'>
+          <label class='control-label col-md-4 col-sm-3' for='TP_ID'>_{TARIF_PLAN}_</label>
+          <div class='col-md-8 col-md-9'>
             <div class='input-group'>
              %TP_ID%  %TP_NAME%
 
@@ -50,14 +53,14 @@
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-md-4' for='TYPE'>_{TYPE}_</label>
-          <div class='col-md-8'>
+          <label class='control-label col-md-4 col-sm-3' for='TYPE'>_{TYPE}_</label>
+          <div class='col-md-8 col-md-9'>
             %TYPE_SEL%
           </div>
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-md-4' for='DESTINATION'>_{DESTINATION}_</label>
+          <label class='control-label col-md-4 col-sm-3' for='DESTINATION'>_{DESTINATION}_</label>
           <div class='col-md-6' id='DESTINATION_SELECT_WRAPPER'>
             %DESTINATION_VIEW%
           </div>
@@ -69,15 +72,15 @@
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-md-4' for='STATUS'>_{STATUS}_</label>
-          <div class='col-md-8'>
+          <label class='control-label col-md-4 col-sm-3' for='STATUS'>_{STATUS}_</label>
+          <div class='col-md-8 col-md-9'>
             %STATUS_SEL%
           </div>
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-md-4'>_{REGISTRATION}_</label>
-          <div class='col-md-8'>
+          <label class='control-label col-md-4 col-sm-3'>_{REGISTRATION}_</label>
+          <div class='col-md-8 col-md-9'>
             <p class="form-control-static">%REGISTRATION%</p>
           </div>
         </div>

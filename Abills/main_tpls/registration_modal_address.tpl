@@ -15,14 +15,10 @@
   </div>
 
   <div class='form-group' style='%EXT_SEL_STYLE%'>
-    <div class="col-md-6 ">
-      <label class='control-label col-sm-3 col-md-4 LABEL-BUILD'>_{ADDRESS_BUILD}_</label>
-      <div class='input-group col-md-7 addBuildMenu' style="padding-left: 10px">
-        <div id="registration_builds" class="col-md-12" style="padding: 0">
+      <label class='control-label col-xs-3 col-md-2 LABEL-BUILD'>_{ADDRESS_BUILD}_</label>
+        <div id="registration_builds" class="col-xs-9 col-md-10" >
           %ADDRESS_BUILD%
         </div>
-      </div>
-    </div>
   </div>
 
 </div>
@@ -55,7 +51,7 @@
     }, 1000);
   });
 
-  function GetStreets_reg(data) {
+  function GetStreetsREG_DISTRICT_ID(data) {
     var d = jQuery("#REG_DISTRICT_ID").val();
     // console.log(d);
     jQuery.post('$SELF_URL', 'header=2&get_index=form_address_select2&DISTRICT_ID=' + d + '&STREET=1&REGISTRATION_MODAL=1', function (result) {
@@ -63,7 +59,7 @@
       initChosen();
     });
   }
-  function GetBuilds_reg(data) {
+  function GetBuildsREG_STREET_ID(data) {
     var s = jQuery("#REG_STREET_ID").val();
     // console.log(s);
     jQuery.post('$SELF_URL', 'header=2&get_index=form_address_select2&STREET_ID='+s+'&BUILD=1&REGISTRATION_MODAL=1', function (result) {
@@ -72,7 +68,7 @@
     });
   }
   //Get location_id after change build
-  function GetLoc_reg(data) {
+  function GetLocREG_BUILD_ID(data) {
     var i = jQuery("#REG_BUILD_ID").val();
     if (i == "--") {
       i = '';

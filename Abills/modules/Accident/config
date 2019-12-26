@@ -1,0 +1,21 @@
+%FUNCTIONS_LIST = ();
+
+load_module('Accident', $html);
+my $Accident = Accident->new($db, $admin, \%conf);
+
+$Accident->list({
+  STATUS => 0
+});
+
+my $info = $html->badge($Accident->{TOTAL}, { TYPE => 'bg-red' });
+
+if ($Accident->{TOTAL} > 0) {
+  $FUNCTIONS_LIST{"01:0:$lang{ACCIDENT_LOG} $info:main_log:"} = 8;
+}
+else {
+  $FUNCTIONS_LIST{"01:0:$lang{ACCIDENT_LOG}:main_log:"} = 8;
+}
+
+$FUNCTIONS_LIST{"02:1:$lang{ADD_ACCIDENT}:add_accident_log:"} = 8;
+
+1;

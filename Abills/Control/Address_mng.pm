@@ -906,6 +906,7 @@ sub short_address_name {
       FLAT_CHECK_FREE     => 1
       FLAT_CHECK_OCCUPIED => 1
       SHOW                => 1
+      SHOW_BUTTONS     => 1 - Do not show Maps, Dom, Add District and Add Street buttons
       FLOOR               => value    - Shows Extra fields entrance and floor at the address box
         and add value into floor input
       ENTRANCE            => value    - Shows Extra fields entrance and floor at the address box
@@ -931,6 +932,10 @@ sub form_address {
 
   if(! $attr->{SHOW}) {
     $params{PARAMS}='collapsed-box';
+    $params{BUTTON_ICON}='plus';
+  }
+  else {
+    $params{BUTTON_ICON}='minus';
   }
 
   if ( ! $conf{ADDRESS_REGISTER} ) {
@@ -1010,7 +1015,8 @@ sub _street_type_select {
 
   Arguments:
     $attr -
-
+    SHOW_BUTTONS => 1 - Show Maps, Dom buttons
+    SHOW_ADD_BUTTONS => 1 - Show Add District and Add Street buttons
   Returns:
 
 =cut
@@ -1027,6 +1033,10 @@ sub form_address_select2 {
     $street_id = q{REG_STREET_ID};
     $build_id = q{REG_BUILD_ID};
   }
+
+  $attr->{DISTRICT_SELECT_ID} = $FORM{DISTRICT_SELECT_ID} if ($FORM{DISTRICT_SELECT_ID});
+  $attr->{STREET_SELECT_ID} = $FORM{STREET_SELECT_ID} if ($FORM{STREET_SELECT_ID});
+  $attr->{BUILD_SELECT_ID} = $FORM{BUILD_SELECT_ID} if ($FORM{BUILD_SELECT_ID});
 
   if ($attr->{LOCATION_ID} && $attr->{LOCATION_ID} != 0) {
     my $full_address = $Address->build_list({
@@ -1048,12 +1058,14 @@ sub form_address_select2 {
   my $d = $html->form_select(
     $district_id,
     {
+      ID          => $attr->{DISTRICT_SELECT_ID},
       SELECTED    => $attr->{DISTRICT_ID} || 0,
       SEL_LIST    => $districts,
       SEL_KEY     => 'id',
       SEL_VALUE   => 'name',
       NO_ID       => 1,
       SEL_OPTIONS => { 0 => '--' },
+      EX_PARAMS => 'onChange="GetStreets' . ($attr->{DISTRICT_SELECT_ID}  || $district_id). '(this)"',
     }
   );
   my $st_emp = '';
@@ -1072,12 +1084,14 @@ sub form_address_select2 {
     my $s = $html->form_select(
       $street_id,
       {
+        ID          => $attr->{STREET_SELECT_ID},
         SELECTED    => 0,
         SEL_LIST    => $streets,
         SEL_KEY     => 'id',
         SEL_VALUE   => 'street_name',
         NO_ID       => 1,
         SEL_OPTIONS => { 0 => '--' },
+        EX_PARAMS => 'onChange="GetBuilds' . ($attr->{STREET_SELECT_ID}  || $street_id). '(this)"',
       }
     );
     print $s;
@@ -1096,12 +1110,14 @@ sub form_address_select2 {
     $st_emp = $html->form_select(
       $street_id,
       {
+        ID          => $attr->{STREET_SELECT_ID},
         SELECTED    => $attr->{STREET_ID} || 0,
         SEL_LIST    => $streets,
         SEL_KEY     => 'id',
         SEL_VALUE   => 'street_name',
         NO_ID       => 1,
         SEL_OPTIONS => { 0 => '--' },
+        EX_PARAMS => 'onChange="GetBuilds' . ($attr->{STREET_SELECT_ID} || $street_id). '(this)"',
       }
     );
   }
@@ -1117,12 +1133,14 @@ sub form_address_select2 {
     my $bu = $html->form_select(
       $build_id,
       {
+        ID          => $attr->{BUILD_SELECT_ID},
         SELECTED    => 0,
         NO_ID       => 1,
         SEL_LIST    => $builds,
         SEL_KEY     => 'id',
         SEL_VALUE   => 'number',
         SEL_OPTIONS => { 0 => '--' },
+        EX_PARAMS => 'onChange="GetLoc' . ($attr->{BUILD_SELECT_ID} || $build_id) . '(this)"',
       }
     );
     print $bu;
@@ -1144,15 +1162,28 @@ sub form_address_select2 {
     $bd_emp = $html->form_select(
        $build_id,
        {
+         ID          => $attr->{BUILD_SELECT_ID},
          SELECTED    => $attr->{LOCATION_ID} || 0,
          SEL_LIST    => $builds,
          SEL_KEY     => 'id',
          SEL_VALUE   => 'number',
          NO_ID       => 1,
          SEL_OPTIONS => { 0 => '--' },
+         EX_PARAMS => 'onChange="GetLoc' . ($attr->{BUILD_SELECT_ID} || $build_id) . '(this)"',
        }
      );
   }
+
+  my $district_button = $html->button("", 'get_index=form_districts&full=1&header=1', {
+    class => 'btn btn-success btn-sm',
+    ICON => "fa fa-street-view",
+    ex_params => "data-tooltip-position='top' data-tooltip='$lang{ADD} $lang{DISTRICT}'",
+  });
+  my $street_button = $html->button("", 'get_index=form_streets&full=1&header=1', {
+    class => 'btn btn-success btn-sm',
+    ICON => "fa fa-road",
+    ex_params => "data-tooltip-position='top' data-tooltip='$lang{ADD} $lang{STREET}'",
+  });
 
   if ($attr->{REGISTRATION_MODAL}) {
     $form = $html->tpl_show(templates('registration_modal_address'), {
@@ -1167,20 +1198,26 @@ sub form_address_select2 {
   }
   else {
     $form = $html->tpl_show(templates('form_address_search2'), {
-      ADD_BUILD_HIDE   => $attr->{HIDE_ADD_BUILD_BUTTON} ? "style='display:none;'" : '',
-      ADDRESS_DISTRICT => $d,
-      ADDRESS_STREET   => $st_emp,
-      ADDRESS_BUILD    => $bd_emp,
-      ADDRESS_FLAT     => $attr->{ADDRESS_FLAT} || '',
-      LOCATION_ID      => $attr->{LOCATION_ID} || '',
-      HIDE_FLAT        => $attr->{HIDE_FLAT} ? 'display: none' : '',
-      EXT_ADDRESS      => $attr->{EXT_ADDRESS} ? $attr->{EXT_ADDRESS} : q{},
-      MAP_BTN          => $attr->{MAP_BTN} ? $attr->{MAP_BTN} : q{},
-      DOM_BTN          => $attr->{DOM_BTN} ? $attr->{DOM_BTN} : q{},
-      EXT_SEL_STYLE    => $attr->{EXT_SEL_STYLE} ? $attr->{EXT_SEL_STYLE} : q{},
+      ADD_BUILD_HIDE      => $attr->{HIDE_ADD_BUILD_BUTTON} ? "style='display:none;'" : '',
+      ADDRESS_DISTRICT    => $d,
+      DISTRICT_ID         => $attr->{DISTRICT_SELECT_ID} || 'DISTRICT_ID',
+      STREET_ID           => $attr->{STREET_SELECT_ID} || 'STREET_ID',
+      BUILD_ID            => $attr->{BUILD_SELECT_ID} || 'BUILD_ID',
+      QINDEX              => $FORM{REG_QINDEX} || '',
+      ADDRESS_STREET      => $st_emp,
+      ADDRESS_BUILD       => $bd_emp,
+      ADDRESS_FLAT        => $attr->{ADDRESS_FLAT} || '',
+      LOCATION_ID         => $attr->{LOCATION_ID} || '',
+      HIDE_FLAT           => $attr->{HIDE_FLAT} ? 'display: none' : '',
+      EXT_ADDRESS         => $attr->{EXT_ADDRESS} ? $attr->{EXT_ADDRESS} : q{},
+      MAP_BTN             => $attr->{MAP_BTN} && $attr->{SHOW_BUTTONS} ? $attr->{MAP_BTN} : q{},
+      DOM_BTN             => $attr->{DOM_BTN} && $attr->{SHOW_BUTTONS} ? $attr->{DOM_BTN} : q{},
+      EXT_SEL_STYLE       => $attr->{EXT_SEL_STYLE} ? $attr->{EXT_SEL_STYLE} : q{},
+      ADDRESS_ADD_BUTTONS => $attr->{SHOW_ADD_BUTTONS} ? "$district_button $street_button" : q{},
     },
       { OUTPUT2RETURN => 1, ID => 'form_address_sel2' });
   }
   return $form;
 }
+
 1;

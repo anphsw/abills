@@ -227,3 +227,6 @@ div.input-group > span.input-group-addon.glyphicon {
 .form-inline .form-group .select2-container {
     display: block;
 }
+.form-inline .form-group .select2.select2-container{
+    min-width: 200px;
+}

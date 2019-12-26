@@ -35,9 +35,9 @@ function getOptimaBottomQBinfo(margin, firstDiv, height) {
 function QBinfo(title, msg, group_id, event_id, seen_url) {
   
   var time        = 15000;
-  var align       = 'bottom-left';
+  var align       = 'bottom-right';
   var width       = 300;
-  var height      = 100;
+  var height      = 140;
   var icon        = '/img/information.png';
   var position    = 'absolute';
   var effect      = 600;

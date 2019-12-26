@@ -1,0 +1,654 @@
+=head1 Accident
+
+  Accident
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+use Abills::Base;
+use Abills::Misc;
+use Admins;
+
+use Accident::db::Accident;
+use Address;
+
+our (
+  $db,
+  $admin,
+  %conf,
+  %lang,
+  $html,
+  @MONTHES,
+  %permissions
+);
+
+my %priority = (
+  0 => $lang{VERY_LOW},
+  1 => $lang{LOW},
+  2 => $lang{NORMAL},
+  3 => $lang{HIGH},
+  4 => $lang{VERY_HIGH}
+);
+
+my %status = (
+  0 => $lang{PROCESSING},
+  1 => $lang{PROCESSED},
+  2 => $lang{CLOSED},
+);
+
+my @STATUSES_COLORS = ('text-primary', 'text-warning', '#2D9F31');
+
+my $Accident = Accident->new($db, $admin, \%conf);
+my $Address = Address->new($db, $admin, \%conf);
+
+my $accident_log;
+my $build_list_address;
+
+#**********************************************************
+=head2 main_log()
+
+  Arguments:
+     -
+
+  Returns:
+    -
+
+=cut
+#**********************************************************
+sub main_log {
+  my $index = get_function_index('main_log');
+  if ($FORM{del}) {
+    $Accident->address_del({
+      ID => $FORM{AL_ID}
+    });
+
+    $Accident->del({
+      AL_ID => $FORM{AL_ID}
+    });
+
+    if (!_error_show($Accident)) {
+      $html->message('info', $lang{SUCCESS}, $lang{OPERATION});
+    }
+  }
+
+  my $form_city = form_address_select2({
+    %FORM,
+    HIDE_FLAT             => 1,
+    HIDE_ADD_BUILD_BUTTON => 1,
+  }, { class => 'form-control' });
+
+  my $datepicker = $html->form_daterangepicker({
+    NAME      => 'FROM_DATE/TO_DATE',
+    FORM_NAME => 'accident_log',
+    VALUE     => $FORM{'FROM_DATE_TO_DATE'},
+  });
+
+  if ($FORM{SAVE}) {
+    my @id_success = split(/, /, $FORM{AL_ID} ? $FORM{AL_ID} : '');
+
+    foreach my $chg_element (@id_success) {
+      $Accident->change_element({
+        AL_ID     => $chg_element,
+        AL_STATUS => 2
+      });
+    }
+    if (!_error_show($Accident)) {
+      $html->message("info", $lang{SUCCESS}, $lang{OPERATION});
+    }
+  }
+
+  my $select_priority = $html->form_select(
+    'AL_PRIORITY',
+    {
+      SELECTED    => $FORM{AL_PRIORITY},
+      SORT_VALUE  => 1,
+      SORT_KEY    => 1,
+      NO_ID       => 1,
+      SEL_HASH    => \%priority,
+      SEL_OPTIONS=> { '' => ''}
+    },
+    { class => 'form-control' }
+  );
+
+  my $select_admin = $html->form_select(
+    'AL_AID',
+    {
+      SELECT      => $FORM{AL_AID} || 0,
+      SEL_HASH    => sel_admins({ HASH => 1 }),
+      NO_ID       => 1,
+      SEL_OPTIONS=> { '' => ''}
+    },
+    { class => 'form-control' }
+  );
+
+  my $select_status = $html->form_select(
+    'AL_STATUS',
+    {
+      SELECT       => $FORM{AL_STATUS} || 0,
+      SEL_HASH     => \%status,
+      NO_ID        => 1,
+      SORT_KEY_NUM => 1,
+      SEL_OPTIONS=> { '' => ''}
+    },
+    { class => 'form-control' }
+  );
+
+  form_search({
+    TPL => $html->tpl_show(_include('accident_log_search', 'Accident'), {
+      INDEX           => $index,
+      SELECT_PRIORITY => $select_priority,
+      DATE_PCIKER     => $datepicker,
+      SELECT_ADDRESS  => $form_city,
+      SELECT_ADMIN    => $select_admin,
+      SELECT_STATUS   => $select_status,
+    }, { OUTPUT2RETURN => 1 })
+  });
+
+  $accident_log = $Accident->list({
+    ADDRESS_ID  => '_SHOW',
+    FROM_DATE   => $FORM{FROM_DATE} || '_SHOW',
+    TO_DATE     => $FORM{TO_DATE} || '_SHOW',
+    AL_PRIORITY => $FORM{AL_PRIORITY} || '_SHOW',
+    TYPE_ID     => '_SHOW',
+    SKIP_STATUS => 2,
+    AL_AID      => $FORM{AL_AID} || '_SHOW',
+    COLS_NAME   => 1
+  });
+
+  $build_list_address = $Address->build_list({
+    LOCATION_ID   => '_SHOW',
+    STREET_NAME   => '_SHOW',
+    LOCATION_ID   => '_SHOW',
+    CITY          => '_SHOW',
+    DISTRICT_ID   => '_SHOW',
+    DISTRICT_NAME => '_SHOW',
+    NUMBER        => '_SHOW',
+    STREET_ID     => '_SHOW',
+    COLS_NAME     => 1,
+  });
+
+  my Abills::HTML $table;
+  my $acc_list;
+
+  my %EXT_TITLES = (
+    'al_id'         => '#',
+    'al_priority'   => $lang{PRIORITY},
+    'al_name'       => $lang{NAME},
+    'al_date'       => $lang{DATE},
+    'al_status'     => $lang{STATUS},
+    'al_desc'       => $lang{DESC},
+    'al_aid'        => $lang{ADMIN},
+    'al_end_time'   => $lang{WORK_END_DATE},
+    'al_realy_time' => $lang{WORK_REALY_DATE},
+    'address_id'    => $lang{ADDRESS},
+  );
+
+  ($table, $acc_list) = result_former({
+    INPUT_DATA      => $Accident,
+    FUNCTION        => 'list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'AL_ID,AL_PRIORITY,AL_NAME,AL_DATE,AL_STATUS,AL_DESCR,AL_AID,AL_END_TIME,AL_REALY_TIME,ADDRESS_ID',
+    HIDDEN_FIELDS   => 'TYPE_ID,CITY,BUILD,STREET_ID,DISTRICT',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => \%EXT_TITLES,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{ACCIDENT_LOG},
+      qs      => $pages_qs,
+      title   => [ $lang{PRIORITY} ],
+      ID      => 'ACCIDENT_LOG',
+      MENU    => "$lang{ADD}:index=" . get_function_index('add_accident_log') . ":add;",
+    },
+  });
+
+  my $dublicat = 0;
+
+  foreach my $line (@$acc_list) {
+    my @fields_array = ();
+    my $concat_chg = '';
+    my $res = '';
+    my $type_build = '';
+
+    if ($line->{type_id} && $line->{type_id} ne '2') {
+      foreach my $element (@$acc_list) {
+        if ($element->{type_id} eq $line->{type_id} && $element->{al_id} == $line->{al_id}) {
+          $res = address_convert($element->{address_id}, ($element->{type_id} == 4 ? 5 : ($element->{type_id} == 3 ? 6 : 7)), $res);
+          $type_build .= "$element->{address_id}," if ($element->{address_id});
+        }
+      }
+    }
+    next if ($dublicat == $line->{al_id});
+    $dublicat = $line->{al_id};
+    for (my $i = 0; $i < $Accident->{SEARCH_FIELDS_COUNT}; $i++) {
+      my $field_name = $Accident->{COL_NAMES_ARR}->[$i] || '';
+
+      $concat_chg .= "&" . uc $field_name . "=" . (($field_name eq 'address_id' && $line->{type_id} != 2) ? $type_build : $line->{$field_name});
+
+      if ($field_name eq "al_priority") {
+        $line->{al_priority} = $priority{ $line->{al_priority} };
+      }
+      elsif ($field_name eq "al_status") {
+        $line->{al_status} = $html->color_mark($status{ $line->{al_status} }, $STATUSES_COLORS[ $line->{al_status} ]);
+      }
+      elsif ($field_name eq "al_aid") {
+        my $admins_list = sel_admins({ HASH => 1 });
+        $line->{al_aid} = $admins_list->{ $line->{al_aid} };
+      }
+      elsif ($field_name eq "address_id") {
+        $line->{address_id} = address_convert($line->{address_id}, $line->{type_id}, $res);
+      }
+      elsif ($field_name eq "type_id") {
+        $line->{type_id} = '';
+      }
+
+      push @fields_array, $line->{$field_name};
+    }
+
+    push @fields_array, $html->button($lang{CHANGE}, "&change=1&index=" . get_function_index('add_accident_log') . $concat_chg,
+      { class => 'change' });
+    push @fields_array, $html->button($lang{DEL}, "&del=1&AL_ID=" . $line->{al_id} . "&index=" . get_function_index('main_log'),
+      { MESSAGE => $lang{DEL}, class => 'del' });
+
+    $table->addrow(@fields_array);
+  }
+  print $table->show();
+
+  return 0;
+}
+
+#**********************************************************
+=head2 add_accident_log()
+
+  Arguments:
+     -
+
+  Returns:
+    -
+=cut
+#**********************************************************
+sub add_accident_log {
+  my $admin_select = sel_admins({ HASH => 1 });
+  my @address_array = ();
+  my $type_id = 0;
+
+  my $list = $Address->build_list({
+    ID            => '_SHOW',
+    STREET_ID     => '_SHOW',
+    STREET_NAME   => '_SHOW',
+    DISTRICT_NAME => '_SHOW',
+    DISTRICT_ID   => '_SHOW',
+    NUMBER        => '_SHOW',
+    CITY          => '_SHOW',
+    LOCATION_ID   => '_SHOW',
+    COLS_NAME     => 1,
+    SORT          => 'district_name,street_name,number+0',
+  });
+
+  if ($FORM{add} || $FORM{chg}) {
+    if ($FORM{AL_GEOLOCATION}) {
+      $type_id = 1;
+      @address_array = split(/, /, $FORM{AL_GEOLOCATION} ? $FORM{AL_GEOLOCATION} : '');
+    }
+    elsif ($FORM{AL_CITY}) {
+      foreach my $element (@$list) {
+        if ($FORM{AL_CITY} eq $element->{city}) {
+          push @address_array, $element->{location_id};
+        }
+      }
+      $type_id = 2;
+    }
+    elsif ($FORM{AL_STREET}) {
+      $type_id = 3;
+      @address_array = split(/, /, $FORM{AL_STREET} ? $FORM{AL_STREET} : '');
+    }
+    elsif ($FORM{AL_BUILD}) {
+      $type_id = 4;
+      @address_array = split(/, /, $FORM{AL_BUILD} ? $FORM{AL_BUILD} : '');
+    }
+    else {
+      $html->message('err', $lang{ERROR}, $lang{EMPTY_FIELD});
+
+      return 1;
+    }
+    if ($FORM{chg}) {
+      $Accident->address_del({
+        ID => $FORM{al_id}
+      });
+
+      $Accident->del({
+        AL_ID => $FORM{al_id}
+      });
+    }
+
+    $Accident->add({ %FORM });
+    my $insert_id = $Accident->{INSERT_ID};
+
+    foreach my $element (@address_array) {
+      $Accident->address_add({
+        AC_ID      => $insert_id,
+        TYPE_ID    => $type_id,
+        ADDRESS_ID => $element,
+      });
+    }
+
+    if (!_error_show($Accident)) {
+      $html->message('info', $lang{SUCCESS}, $lang{OPERATION});
+    }
+  }
+
+  my $select_priority = $html->form_select(
+    'AL_PRIORITY',
+    {
+      SELECTED   => $FORM{AL_PRIORITY} || 0,
+      SORT_VALUE => 1,
+      SORT_KEY   => 1,
+      NO_ID      => 1,
+      SEL_HASH   => \%priority,
+    },
+    { class => 'form-control' });
+
+  my $select_admin = $html->form_select(
+    'AL_AID',
+    {
+      SELECTED   => $FORM{AL_AID} || 0,
+      SORT_VALUE => 1,
+      SORT_KEY   => 1,
+      NO_ID      => 1,
+      SEL_HASH   => $admin_select,
+    },
+    { class => 'form-control' }
+  );
+
+  my $end_date = $html->form_datepicker('AL_END_TIME', $FORM{AL_END_TIME} || $DATE);
+  my $real_date = $html->form_datepicker('AL_REALY_TIME', $FORM{AL_REALY_TIME} || $DATE);
+
+  my $keys = "district_name_check,city_name,street_name_check,number_check";
+
+  foreach my $line (@$list) {
+    my $street_id = $html->form_input('AL_STREET', $line->{street_id}, {
+      TYPE  => 'checkbox',
+      STATE => ($FORM{STREET_ID} && $FORM{STREET_ID} == $line->{street_id}) ? 1 : 0,
+      ID    => $line->{street_id},
+    });
+
+    $line->{street_name_check} = $html->element('label', $street_id . ' ' . ($line->{street_name} ? $line->{street_name} : ''));
+
+    my $dist_id = $html->form_input('AL_GEOLOCATION', $line->{district_id}, {
+      TYPE  => 'checkbox',
+      STATE => ($FORM{DISTRICT_ID} && $FORM{DISTRICT_ID} == $line->{district_id}) ? 1 : 0,
+      ID    => $line->{district_id},
+    });
+
+    $line->{district_name_check} = $html->element('label', $dist_id . ' ' . ($line->{district_name} ? $line->{district_name} : ''));
+
+    my $number_id = $html->form_input('AL_BUILD', $line->{location_id}, {
+      TYPE  => 'checkbox',
+      STATE => ($FORM{BUILD_ID} && $FORM{BUILD_ID} eq $line->{location_id}) ? 1 : 0,
+      ID    => $line->{location_id},
+    });
+
+    $line->{number_check} = $html->element('label', $number_id . " $lang{BUILD} " . ($line->{number} ? $line->{number} : ''));
+
+    my $city_id = $html->form_input('AL_CITY', $line->{city}, {
+      TYPE  => 'checkbox',
+      STATE => ($FORM{CITY} && $FORM{CITY} eq $line->{city}) ? 1 : 0,
+      ID    => $line->{city},
+    });
+
+    $line->{city_name} = $html->element('label', $city_id . ' ' . ($line->{city} ? $line->{city} : ''));
+
+  }
+  my $tree = $html->html_tree($list, $keys, { OUTPUT2RETURN => 1 });
+
+  my $date_today = $html->form_datetimepicker('AL_DATE', $FORM{AL_DATE} || $DATE);
+
+  my $select_status = $html->form_select(
+    'AL_STATUS',
+    {
+      SELECT       => $FORM{AL_STATUS} || 1,
+      SEL_HASH     => \%status,
+      NO_ID        => 1,
+      SORT_KEY_NUM => 1,
+    },
+    { class => 'form-control' }
+  );
+
+  $html->tpl_show(_include('accident_add', 'Accident'), {
+    INDEX           => get_function_index('add_accident_log'),
+    NAME            => $lang{NAME},
+    AL_NAME         => ($FORM{AL_NAME} ? lc $FORM{AL_NAME} : ''),
+    DESCRIBE        => $lang{DESC},
+    SELECT_PRIORITY => $select_priority,
+    ADMIN_SELECT    => $select_admin,
+    DATEPICKER_END  => $end_date,
+    DATEPICKER_REAL => $real_date,
+    ADD             => !$FORM{change} ? $lang{ADD} : $lang{CHANGE},
+    AL_DESC         => ($FORM{AL_DESC} ? lc $FORM{AL_DESC} : ''),
+    ADD_CHG         => !$FORM{change} ? 'add' : 'chg',
+    AL_ID_CHANGE    => $FORM{AL_ID},
+    AL_CHG_JS       => $FORM{ADDRESS_ID},
+    GEO_TREE        => $tree,
+    SELECT_STATUS   => $select_status,
+    DATE            => $date_today
+  });
+
+  return 0;
+}
+
+#**********************************************************
+=head2 accident_widget($attr)
+
+  Arguments:
+    -
+
+  Returns:
+    Table start page widget
+
+=cut
+#**********************************************************
+sub accident_widget {
+  require Admins;
+  Admins->import();
+  my $Admins = Admins->new($db, $admin, \%conf);
+
+  $build_list_address = $Address->build_list({
+    LOCATION_ID   => '_SHOW',
+    STREET_NAME   => '_SHOW',
+    LOCATION_ID   => '_SHOW',
+    CITY          => '_SHOW',
+    DISTRICT_ID   => '_SHOW',
+    DISTRICT_NAME => '_SHOW',
+    NUMBER        => '_SHOW',
+    STREET_ID     => '_SHOW',
+    COLS_NAME     => 1,
+  });
+
+  my $admins_list = $Admins->list({
+    LOGIN     => '_SHOW',
+    AID       => '_SHOW',
+    COLS_NAME => 1
+  });
+
+  my $accident_list_done = $Accident->list({
+    AL_AID        => '_SHOW',
+    AL_STATUS     => '_SHOW',
+    AL_NAME       => '_SHOW',
+    AL_END_TIME   => '_SHOW',
+    AL_REALY_TIME => '_SHOW',
+    AL_DATE       => '_SHOW',
+    ADDRESS_ID    => '_SHOW',
+    TYPE_ID       => '_SHOW',
+    AL_STATUS     => '_SHOW',
+    AL_DESC       => '_SHOW',
+    AL_PRIORITY   => '_SHOW',
+    COLS_NAME     => 1
+  });
+
+  my $table = $html->table(
+    {
+      width   => '100%',
+      caption => $html->button($lang{ACCIDENT_LOG},
+        'index=' . get_function_index('main_log')),
+      title   => [ $lang{NAME}, $lang{ADDRESS}, $lang{ADMIN}, $lang{WORK_END_DATE}, $lang{WORK_REALY_DATE}, $lang{STATUS} ],
+      ID      => 'ACCIDENT',
+    }
+  );
+
+  my $dublicate = 0;
+  foreach my $element (@$accident_list_done) {
+    my $admin_login = '';
+    foreach my $admins (@$admins_list) {
+      if ($element->{al_aid} == $admins->{aid}) {
+        $admin_login = $admins->{login}
+      }
+    }
+
+    next if ($dublicate == $element->{al_id});
+    $dublicate = $element->{al_id};
+    $table->addrow(
+      $element->{al_name},
+      address_convert($element->{address_id}, $element->{type_id}, ""),
+      $admin_login,
+      $element->{al_end_time},
+      $element->{al_realy_time},
+      $html->color_mark($status{ $element->{al_status} }, $STATUSES_COLORS[ $element->{al_status} ])
+    );
+  }
+
+  return $table->show();
+}
+
+#**********************************************************
+=head2 accident_log_start_page($attr)
+
+  Arguments:
+    -
+
+  Returns:
+    Widget function
+
+=cut
+#**********************************************************
+sub accident_start_page {
+  my %START_PAGE_F = (
+    'accident_widget' => $lang{ACCIDENT_LOG}
+  );
+
+  return \%START_PAGE_F;
+}
+
+#**********************************************************
+=head2 accident_dashboard_mess()
+
+=cut
+#**********************************************************
+sub accident_dashboard_mess {
+  my $user_date = $user->pi({
+    LOCATION_ID => '_SHOW',
+    COLS_NAME   => '_SHOW',
+    UID         => $user->{UID}
+  });
+
+  if (!$user_date->{LOCATION_ID}) {
+    return 0;
+  }
+
+  $build_list_address = $Address->build_list({
+    LOCATION_ID => $user_date->{LOCATION_ID},
+    COLS_NAME   => 1,
+    DISTRICT_ID => '_SHOW',
+    STREET_ID   => '_SHOW',
+  });
+
+  my $list = $Accident->list({
+    ADDRESS_ID  => '_SHOW',
+    SKIP_STATUS => 2,
+    TYPE_ID     => '_SHOW',
+    AL_DESC     => '_SHOW',
+    COLS_NAME   => 1
+  });
+
+  my $iter = 0;
+
+  foreach my $element (@$list) {
+    if ($element->{type_id} && $element->{type_id} == 4) {
+      ++$iter if ($element->{address_id} eq $build_list_address->[0]{number});
+    }
+    elsif ($element->{type_id} && $element->{type_id} == 3) {
+      ++$iter if ($element->{address_id} == $build_list_address->[0]{street_id});
+    }
+    elsif ($element->{type_id} && $element->{type_id} == 1) {
+      ++$iter if ($element->{address_id} == $build_list_address->[0]{district_id});
+    }
+  }
+
+  if ($iter > 0) {
+    $html->tpl_show(_include('accident_user_warr', 'Accident'));
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 address_convert($status)
+
+  Arguments:
+
+
+  Returns:
+
+=cut
+#**********************************************************
+sub address_convert {
+  my ($address, $type, $result) = @_;
+
+  my $concat = '';
+  my $dublicat_s = 0;
+
+  foreach my $iter (@$build_list_address) {
+    if ($type == 1) {
+      if ($address && $address == $iter->{district_id}) {
+        $concat = ($result || $iter->{district_name}) . "<br/>";
+      }
+    }
+    elsif ($type == 2) {
+      if ($address && $address eq $iter->{location_id}) {
+        $concat = "$iter->{district_name}, $iter->{city}<br/>";
+      }
+    }
+    elsif ($type == 3) {
+      if ($address && $address eq $iter->{street_id}) {
+        $concat = "$iter->{district_name}, $iter->{city},<br/>".($result || $iter->{street_name})."<br/>";
+      }
+    }
+    elsif ($type == 4) {
+      if ($address && $address eq $iter->{location_id}) {
+        $concat = "$iter->{district_name}, $iter->{city}, $iter->{street_name}, <br/>".($result || $iter->{number})."<br/>";
+      }
+    }
+    elsif ($type == 5) {
+      if ($address && $address eq $iter->{location_id}) {
+        $result .= "$iter->{number}, ";
+      }
+    }
+    elsif ($type == 6) {
+      if ($address && $address eq $iter->{street_id}) {
+        next if ($dublicat_s == $iter->{street_id});
+        $dublicat_s = $iter->{street_id};
+        $result .= "$iter->{street_name}, ";
+      }
+    }
+    elsif ($type == 7) {
+      if ($address && $address eq $iter->{district_id}) {
+        next if ($dublicat_s == $iter->{district_id});
+        $dublicat_s = $iter->{district_id};
+        $result .= "$iter->{district_name}, ";
+      }
+    }
+  }
+
+  return $concat || $result;
+}
+
+1;

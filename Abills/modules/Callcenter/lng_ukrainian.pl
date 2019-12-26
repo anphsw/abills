@@ -1,4 +1,5 @@
 $lang{CALLS_HANDLER}='Обробник дзвінків';
+$lang{CALLS_HANDLER_CHART}='Графік обробника дзвінків';
 $lang{CALL_CENTER}='Call-центр';
 $lang{RINGING}='Йде дзвінок';
 $lang{IN_PROCESSING}='В обробці';

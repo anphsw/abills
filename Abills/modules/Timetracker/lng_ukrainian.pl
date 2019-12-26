@@ -37,6 +37,15 @@ $lang{EXTERNAL_SYSTEM} = 'Зовнішні системи обліку';
 $lang{ERROR_API_KEY} = 'APIKEY не має дозволу переглядати користувачів або неправильний APIURL.
 Змінити: $ conf (TIMETRACKER_REDMINE_APIKEY) & $ conf (TIMETRACKER_REDMINE_APIURL) ';
 $lang{ERROR_EMAIL} = "Неможливо знайти користувача по електронній пошті";
-$lang(NO_FIELD) = 'не заповнено';
+$lang{NO_FIELD} = 'не заповнено';
 
 $lang{EXECUTOR} = 'Виконавець';
+
+$lang{DATE} = 'Дата';
+$lang{SEARCH} = 'Пошук';
+$lang{SUPPORT} = 'Тех. пітримка';
+$lang{REDMINE} = 'Redmine';
+$lang{TASK_EXECUTION} = 'Закриті задачі';
+$lang{NOT_CONFIGURED} = 'Модуль не налаштовано';
+$lang{NOT_FOUND} = 'Немає конфігурації: ';
+$lang{ALL_TIME} = 'Всього часу, години'

@@ -52,8 +52,8 @@ sub storage_articles{
       }
     }
     else {
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARTICLETYPE_MEASURE_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'storage_articles', 'Storage' ), { %{$Storage}, %FORM } );
+      $html->message( 'warn', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARTICLETYPE_MEASURE_ARE_REQUIRED}" );
+#      $html->tpl_show( _include( 'storage_articles', 'Storage' ), { %{$Storage}, %FORM } );
     }
   }
   elsif ( $FORM{del} ) {
@@ -76,8 +76,8 @@ sub storage_articles{
       }
     }
     else {
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARTICLETYPE_MEASURE_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'storage_articles', 'Storage' ), { %{$Storage}, %FORM } );
+      $html->message( 'warn', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARTICLETYPE_MEASURE_ARE_REQUIRED}" );
+#      $html->tpl_show( _include( 'storage_articles', 'Storage' ), { %{$Storage}, %FORM } );
     }
   }
   elsif ( $FORM{chg} ) {
@@ -95,9 +95,10 @@ sub storage_articles{
     'ARTICLE_TYPE',
     {
       SELECTED    => $Storage->{ARTICLE_TYPE} || 0,
-      SEL_LIST    => $Storage->storage_types_list( { COLS_NAME => 1 } ),
+      SEL_LIST    => $Storage->storage_types_list( { COLS_NAME => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) } ),
       NO_ID       => 1,
       SEL_OPTIONS => { '' => '--' },
+      REQUIRED    => 1,
     }
   );
 
@@ -108,12 +109,15 @@ sub storage_articles{
       SEL_HASH      => _storage_translate_measure(\%measures_name),
       NO_ID         => 1,
       OUTPUT2RETURN => 1,
+      REQUIRED      => 1,
     }
   );
 
-  if ( !$FORM{add} && !$FORM{change} ) {
-    $html->tpl_show( _include( 'storage_articles', 'Storage' ), $Storage );
-  }
+#  if ( !$FORM{add} && !$FORM{change} ) {
+    $html->tpl_show( _include( 'storage_articles', 'Storage' ), {%$Storage, ADD_DATE => $DATE} );
+#  }
+
+  $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} || undef;
 
   result_former( {
     INPUT_DATA      => $Storage,
@@ -250,7 +254,7 @@ sub _storage_translate_measure {
   my ($attr) = @_;
 
   if($attr && ref $attr eq "HASH"){
-    foreach my $key (%$attr){
+    foreach my $key (keys %$attr){
       $attr->{$key} = _translate($attr->{$key});
     }
   }
@@ -336,6 +340,8 @@ sub storage_articles_types{
 
   $html->tpl_show( _include( 'storage_articles_types', 'Storage' ), { %{$Storage}, %FORM } );
 
+  $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} || undef;
+
   result_former({
     INPUT_DATA      => $Storage,
     FUNCTION        => 'storage_types_list',
@@ -344,6 +350,7 @@ sub storage_articles_types{
     FUNCTION_FIELDS => 'change' . ((defined( $permissions{4}->{3} )) ? ',del' : ''),
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
+      'id'       => "ID",
       'name'     => $lang{NAME},
       'comments' => $lang{COMMENTS},
     },
@@ -476,6 +483,9 @@ sub suppliers_main{
 #  }
 #
 #  print $table->show();
+
+  $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} || undef;
+
   result_former( {
     INPUT_DATA      => $Storage,
     FUNCTION        => 'suppliers_list_new',
@@ -501,6 +511,7 @@ sub suppliers_main{
       accountant => $lang{POSITION_MANAGER},
       director   => $lang{DIRECTOR},
       managment  => $lang{ACCOUNTANT},
+      domain_id  => 'Domain',
     },
     TABLE           => {
       width   => '100%',
@@ -590,6 +601,7 @@ sub storage_storages{
     $html->tpl_show( _include( 'storage_storages', 'Storage' ), $Storage );
   }
 
+  $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} || undef;
   result_former( {
     INPUT_DATA      => $Storage,
     FUNCTION        => 'storages_list',
@@ -660,6 +672,7 @@ sub storage_properties {
     my $property_info = $Storage->storage_property_info({
       ID         => $FORM{chg},
       NAME       => '_SHOW',
+      COMMENTS   => '_SHOW',
       COLS_NAME  => 1,
       COLS_UPPER => 1,
     });
@@ -678,6 +691,7 @@ sub storage_properties {
     }
   );
 
+  $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} || undef;
   result_former(
     {
       INPUT_DATA      => $Storage,
@@ -719,6 +733,7 @@ sub _property_list_html {
   my ($incoming_articles_id) = @_;
 
   my $properties_list = $Storage->storage_property_list({
+    DOMAIN_ID     => $admin->{DOMAIN_ID} || undef,
     NAME          => '_SHOW',
     COMMENTS      => '_SHOW',
     SHOW_ALL_COLS => 1,
@@ -810,6 +825,7 @@ sub storage_admins {
 
   $STORAGE_ADMINS_TEMPLATE{ADMINS_SELECT} = sel_admins({
     SELECTED => $STORAGE_ADMINS_TEMPLATE{AID} || '',
+    DISABLE  => '0',
   });
 
   $html->tpl_show(
@@ -819,6 +835,7 @@ sub storage_admins {
     }
   );
 
+  $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} || undef;
   result_former(
     {
       INPUT_DATA      => $Storage,

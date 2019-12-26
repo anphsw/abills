@@ -31,6 +31,7 @@ my $sql_errors = '/usr/abills/var/log/sql_errors';
       CHARSET  - Default utf8
       SQL_MODE - Default NO_ENGINE_SUBSTITUTION
       SCOPE    - Allow to create multiple cached pools ( to use with threads)
+      DBPARAMS=""
 
 =cut
 #**********************************************************
@@ -43,8 +44,14 @@ sub connect{
   #my %conn_attrs = (PrintError => 0, RaiseError => 1, AutoCommit => 1);
   # TaintIn => 1, TaintOut => 1,
   my DBI $db;
-  if ( $db = DBI->connect_cached( "DBI:mysql:database=$dbname;host=$dbhost;mysql_client_found_rows=0", "$dbuser"
-    , "$dbpasswd", { Taint => 1, private_scope_key => $attr->{SCOPE} || 0 } ) ){
+  my $db_params = q{};
+
+  if($attr && $attr->{DBPARAMS}) {
+    $db_params .=";".$attr->{DBPARAMS};
+  }
+
+  if ( $db = DBI->connect_cached( "DBI:mysql:database=$dbname;host=$dbhost;mysql_client_found_rows=0".$db_params,
+    "$dbuser", "$dbpasswd", { Taint => 1, private_scope_key => $attr->{SCOPE} || 0 } ) ){
     $db->{mysql_auto_reconnect} = 1;
     #For mysql 5 or highter
     if ($attr->{CHARSET}) {
@@ -629,6 +636,7 @@ sub search_former{
     'EXT_BILL_ID',
     'EXT_DEPOSIT',
     'BIRTH_DATE',
+    'CELL_PHONE',
   );
 
   if ( $attr->{USERS_FIELDS_PRE} ){
@@ -642,6 +650,7 @@ sub search_former{
 
   foreach my $search_param ( @{$search_params} ){
     my ($param, $field_type, $sql_field, $show) = @{$search_param};
+    next if (in_array($param, $data->{HIDDEN_COLUMNS}));
     my $param2 = '';
     if ( $param =~ /^(.*)\|(.*)$/ ){
       $param = $1;
@@ -672,6 +681,31 @@ sub search_former{
       USE_USER_PI       => $attr->{USE_USER_PI},
       SUPPLEMENT        => 1
     } ) };
+  }
+# add hidden fields
+  foreach my $search_param ( @{$search_params} ){
+    my ($param, $field_type, $sql_field, $show) = @{$search_param};
+    next unless (in_array($param, $data->{HIDDEN_COLUMNS}));
+    my $param2 = '';
+    if ( $param =~ /^(.*)\|(.*)$/ ){
+      $param = $1;
+      $param2 = $2;
+    }
+
+    if ( $data->{$param} || ($field_type eq 'INT' && defined( $data->{$param} ) && $data->{$param} ne '') ){
+      if ( $sql_field eq '' ){
+        $self->{SEARCH_FIELDS} .= "$show, ";
+        $self->{SEARCH_FIELDS_COUNT}++;
+        push @{ $self->{SEARCH_FIELDS_ARR} }, $show;
+      }
+      elsif ( $param2 ){
+        push @WHERE_RULES, "($sql_field>='$data->{$param}' and $sql_field<='$data->{$param2}')";
+      }
+      else{
+        push @WHERE_RULES,
+          @{ $self->search_expr( $data->{$param}, $field_type, $sql_field, { EXT_FIELD => $show } ) };
+      }
+    }
   }
 
   if ( $attr->{WHERE_RULES} ){
@@ -822,9 +856,10 @@ sub search_expr{
             $last_ip .= $1 || '255';
           }
           else{
-            $p[$i] =~ s/\*//g;
-            $first_ip .= $p[$i] || 0;
-            $last_ip .= $p[$i] || 255;
+            my $ip = $p[$i] || q{};
+            $ip =~ s/\*//g;
+            $first_ip .= $ip || 0;
+            $last_ip .= $ip || 255;
           }
 
           if ( $i != 3 ){
@@ -1336,9 +1371,21 @@ sub search_expr_users{
   #Tags search
   if ( $attr->{TAGS} ){
     $attr->{TAGS} =~ s/,\s?/\;/g;
+    my @tags_fields = (
+      'GROUP_CONCAT(DISTINCT tags.name ORDER BY tags.name SEPARATOR ", ") AS tags',
+      'GROUP_CONCAT(tags.priority ORDER BY tags.name SEPARATOR ", ") AS priority'
+    );
+
+    if($attr->{TAGS_ID}) {
+      push @tags_fields, 'GROUP_CONCAT(DISTINCT tags.id ORDER BY tags.name SEPARATOR ", ") AS tags_id';
+    }
+
+    if($attr->{TAGS_DATE}) {
+      push @tags_fields, 'GROUP_CONCAT(tags_users.date ORDER BY tags.name SEPARATOR ", ") AS tags_date';
+    }
+
     push @fields, @{ $self->search_expr( $attr->{TAGS}, 'INT', "tags_users.tag_id",
-        { EXT_FIELD => 'GROUP_CONCAT(DISTINCT tags.name ORDER BY tags.name SEPARATOR ", ") AS tags,
-         GROUP_CONCAT(tags.priority ORDER BY tags.name SEPARATOR ", ") AS priority' } ) };
+        { EXT_FIELD => join(',', @tags_fields) } ) };
 
     $self->{EXT_TABLES} .= " LEFT JOIN tags_users ON (u.uid=tags_users.uid)
                              LEFT JOIN tags ON (tags_users.tag_id=tags.id)",

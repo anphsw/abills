@@ -6,6 +6,9 @@ package Abills::Sender::Core;
 
 =head1 DESCRIBE
 
+
+  ERROR CODES:
+
 =head1 SYNOPSIS
 
   use Abills::Sender::Core;
@@ -41,8 +44,8 @@ our ($base_dir);
 our %PLUGIN_NAME_FOR_TYPE_ID = (
   0  => 'Browser',
   1  => 'Sms',
-  #  2  => 'Phone',
-  #  3  => 'Skype',
+  # 2  => 'Sms',
+  #  3  => 'Web redirect' # Old skype 'Skype',
   #  4  => 'ICQ',
   5  => 'Viber',
   6  => 'Telegram',
@@ -124,7 +127,8 @@ sub sender_load {
   my $self = shift;
   my ($sender_type, $attr) = @_;
 
-  return if ( !$sender_type || !-f ($base_dir || '/usr/abills') . "/lib/Abills/Sender/$sender_type.pm" );
+  $base_dir //= $self->{conf}{base_dir} || '/usr/abills';
+  return if ( !$sender_type || !-f $base_dir . "/lib/Abills/Sender/$sender_type.pm" );
 
   eval {
     # Require
@@ -239,11 +243,14 @@ sub send_message {
   my Abills::Sender::Plugin $plugin = $self->{$send_type};
 
   $plugin->{db} = $self->{db};
+  $plugin->{admin} = $self->{admin};
+  $plugin->{conf} = $self->{conf};
 
   if ( scalar @contacts > 1 && $plugin->support_batch() ) {
     return $plugin->send_message({
       %{$attr},
-      TO_ADDRESS => join(',', map {$_->{value}} @contacts),
+      # TO_ADDRESS => join(',', map {$_->{value}} @contacts),
+      TO_ADDRESS => $contacts[0]{value},
       CONTACT    => \@contacts
     });
   }
@@ -320,6 +327,10 @@ sub send_message_auto {
 
   Arguments:
     $attr -
+      SENDER_TYPE
+      UID
+      AID
+      EXTRA_TYPE
 
   Returns:
     contact_ref
@@ -346,7 +357,9 @@ sub get_contacts_for {
     : (($attr->{UID}) ? 'UID' : 0);
 
   if ( !$receiver_type ) {
-    print "Invalid receiver type. Should be AID or UID";
+    $self->{errstr}="Invalid receiver type. Should be AID or UID";
+    $self->{errno}=1;
+    print $self->{errstr};
     return 0;
   };
 
@@ -373,6 +386,10 @@ sub get_contacts_for {
     $TYPE_ID_FOR_PLUGIN_NAME{$send_type} = $plugin_contact_type;
   }
 
+  if($plugin_contact_type == 1 && $attr->{EXTRA_SMS_TYPE}) {
+    $plugin_contact_type .= ';'.$attr->{EXTRA_SMS_TYPE};
+  }
+
   my %search_params = (
     TYPE      => $plugin_contact_type,
     TYPE_NAME => '_SHOW',
@@ -390,7 +407,9 @@ sub get_contacts_for {
   }
   elsif ( $attr->{AID} ) {
     if ( !$self->{admin} ) {
-      print " \$self->{admin} is not defined \n";
+      $self->{errstr} = " \$self->{admin} is not defined \n";
+      $self->{errno}=2;
+      print $self->{errstr};
       return 0;
     }
 
@@ -404,35 +423,9 @@ sub get_contacts_for {
     return wantarray ? @{$contacts_list} : $contacts_list;
   }
   else {
-    #No contacts for UID: 471 No contact
-    if ( $receiver_type && $receiver_type eq 'UID' && $self->{db} ) {
-      require Users;
-      Users->import();
-      my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-
-      # $Users->pi({ UID => $attr->{$receiver_type} });
-      # only $receiver_type='UID' will be used in this if
-      $Users->pi({ UID => $attr->{UID} });
-
-      if ( $Users->{EMAIL} ) {
-        my $contact = {
-          type_id => 9,
-          value   => $Users->{EMAIL}
-        };
-
-        return wantarray
-          ? @{[ $contact ]}
-          : [ $contact ];
-      }
-
-      return 0;
-    }
-
     print "No contacts for $receiver_type: $attr->{$receiver_type}" if ( $self->{debug} );
     return 0;
   }
-
-  return 0;
 }
 
 #**********************************************************
@@ -496,14 +489,12 @@ sub available_types {
   # Form all methods Sender can use
   my @available_methods = ();
   foreach my $method ( sort keys %TYPE_ID_FOR_PLUGIN_NAME ) {
-
     # Browser is not supported yet
     next if ($attr->{CLIENT} && $method eq 'Browser');# in_array($method, ['Browser', 'Push']) );
 
-    if ( $self->sender_load($method, $self->{conf}, $attr) ) {
+    if ( $self->sender_load($method, $attr) ) {
       push(@available_methods, $method);
     }
-
   }
 
   if ($attr->{HASH_RETURN}){

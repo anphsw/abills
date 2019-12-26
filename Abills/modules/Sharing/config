@@ -37,6 +37,7 @@
   "5:0:Sharing $lang{LOG}:null:"                           => 4,
   "6:5:$lang{LOG} $lang{DOWNLOADS}:sharing_download_log:"  => 4,
   "7:5:$lang{STATS}:sharing_report:"                       => 4,
+  "8:5:$lang{DEMO}:sharing_demo_report:"                   => 4,
 );
 
 %USER_FUNCTION_LIST = (

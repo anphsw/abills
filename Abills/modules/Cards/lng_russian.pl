@@ -8,3 +8,21 @@ $lang{ERR_TRY_AGAIN}='Произошла ошибка, попробуйт еще
 $lang{DILLERS_USE}='Отдано дилерам';
 $lang{TRANSFERRED_TO_PRODUCTION}='Передано в производство';
 $lang{ERR_SUPPORT}='ОБратитесь в службу поддержки';
+
+$lang{SEARCH}='Поиск';
+$lang{DOCUMENT}='Договор';
+$lang{TP_PLAN}='Tарифный план';
+
+$lang{TYPE_OPERATION}='Тип операции';
+$lang{PAYMENT_DATE}='Дата платежа';
+$lang{SUM_OPERATIONS}='Сума операций';
+
+$lang{COMING}='Приход';
+$lang{CARE}='Уход';
+$lang{GENERAL_INFORMATION} = 'Общая информация';
+
+$lang{SEARCH_PHRASE}='Фраза для поиска';
+$lang{DILLER_PAY}='Оплата дилером';
+$lang{PAY_USER}='Переказано пользователю';
+
+1;

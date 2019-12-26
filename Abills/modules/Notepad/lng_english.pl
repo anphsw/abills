@@ -21,3 +21,11 @@ $lang{ITEM} = 'Item';
 
 $lang{NOTES} = 'Notes';
 $lang{NOTES} = 'Note';
+
+$lang{STICKER} = 'Sticky Note';
+$lang{ST_STATUS} = 'Sticker status';
+$lang{ST_TITLE} = 'Sticker title';
+$lang{ST_TEXT} = 'Sticker text';
+$lang{STICKER_TITLE} = 'Input title',
+$lang{STICKER_DISPLAY} = 'Display',
+$lang{STICKER_HIDE} = 'Hide'

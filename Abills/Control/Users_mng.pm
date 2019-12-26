@@ -93,19 +93,25 @@ sub form_user_profile {
       delete($FORM{CREDIT});
     }
 
-    if ($admin->{CREDIT_DAYS}
-      && ($FORM{CREDIT_DATE} && $user_info->{CREDIT_DATE} ne $FORM{CREDIT_DATE})
-      && ($FORM{CREDIT_DATE} ne '0000-00-00' && date_diff($DATE, $FORM{CREDIT_DATE}) > $admin->{CREDIT_DAYS})) {
-      $html->message('err', $lang{ERROR}, "!++ $lang{CHANGE} $lang{CREDIT} $lang{DATE} $lang{ERR_ACCESS_DENY}", { ID => 112 });
-      delete($FORM{CREDIT_DATE});
+    if ($admin->{CREDIT_DAYS}  && defined($FORM{CREDIT}) && $FORM{CREDIT} > 0) {
+      my $max_credit = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $admin->{CREDIT_DAYS} ));
+      if ($FORM{CREDIT_DATE} && $FORM{CREDIT_DATE} ne '0000-00-00' && date_diff($DATE, $FORM{CREDIT_DATE}) > $admin->{CREDIT_DAYS}) {
+        $FORM{CREDIT_DATE} = $max_credit;
+        $html->message('warn', $lang{ERROR}, "Maximum date $max_credit ($admin->{CREDIT_DAYS})");
+      }
+      elsif ($FORM{CREDIT_DATE} && $FORM{CREDIT_DATE} eq '0000-00-00') {
+        $FORM{CREDIT_DATE} = $max_credit;
+        $html->message('warn', $lang{ERROR}, "Maximum date $max_credit ($admin->{CREDIT_DAYS})");
+      }
     }
 
     if ($admin->{MAX_CREDIT} && $admin->{MAX_CREDIT} > 0 && $FORM{CREDIT} && ($user_info->{CREDIT} != $FORM{CREDIT}) && ($admin->{MAX_CREDIT} < $FORM{CREDIT})) {
-      $html->message('err', $lang{ERROR}, "$lang{CHANGE} $lang{CREDIT} $lang{ERR_ACCESS_DENY}");
+      $html->message('err', $lang{ERROR}, "$lang{CHANGE} $lang{CREDIT} $lang{ERR_ACCESS_DENY}", { ID => 131 });
       delete($FORM{CREDIT});
+      return 1;
     }
 
-    if (!$permissions{0}{11} && defined($FORM{REDUCTION}) && $user_info->{REDUCTION} != $FORM{REDUCTION}) {
+    if (!$permissions{0}{11} && defined($FORM{REDUCTION}) && $FORM{REDUCTION} > 0 && $user_info->{REDUCTION} != $FORM{REDUCTION}) {
       $html->message('err', $lang{ERROR}, "$lang{REDUCTION} $lang{ERR_ACCESS_DENY}");
       delete($FORM{REDUCTION});
     }
@@ -204,8 +210,11 @@ sub form_user_profile {
     # }
     # else {
     require Control::Services;
-    my $service_info = get_services($user_info);
+    my $service_info = get_services($user_info, {
+      #ACTIVE_ONLY => 1
+    });
     my $pre_info = '';
+
     foreach my $service (@{$service_info->{list}}) {
       $pre_info .= "$service->{SERVICE_NAME} $service->{SERVICE_DESC}: " . sprintf("%.2f", $service->{SUM} || 0) . "\n";
     }
@@ -213,10 +222,12 @@ sub form_user_profile {
     $pre_info .= "$lang{TOTAL}: " . sprintf("%.2f", $service_info->{total_sum} || 0);
 
     if($service_info->{distribution_fee} && $service_info->{distribution_fee} > 0 && $user_info->{REDUCTION} < 100 && defined($user_info->{DEPOSIT})) {
-      my $days_to_end = ($user_info->{DEPOSIT} || 0) / ($service_info->{distribution_fee} * ((100 - $user_info->{REDUCTION}) / 100));
+      my $days_to_end = int(($user_info->{DEPOSIT} || 0) / $service_info->{distribution_fee});
       $pre_info .= " $lang{DAYS}: " . sprintf("%d", $days_to_end);
-      my ($Y, $M, $D) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $days_to_end )));
-      $pre_info .= " / $Y-$M-$D ";
+      if($days_to_end > 0) {
+        my ($Y, $M, $D) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $days_to_end)));
+        $pre_info .= " / $Y-$M-$D ";
+      }
     }
 
     # require Sinfo;
@@ -364,6 +375,17 @@ sub form_user_add {
   }
 
   $html->message('info', $lang{ADDED}, "$lang{ADDED} '$user_info->{LOGIN}' / [$user_info->{UID}]");
+
+  if($FORM{REFERRAL_REQUEST}){
+    require Referral;
+    Refferal->import();
+    my $Referral = Referral->new($db, $admin, \%conf);
+    $Referral->change_request({
+      ID           => $FORM{REFERRAL_REQUEST},
+      REFERRAL_UID => $user_info->{UID},
+    });
+
+  }
   if ($conf{external_useradd}) {
     if (!_external($conf{external_useradd}, { %FORM })) {
       return 0;
@@ -467,11 +489,10 @@ sub form_users_multiuser {
   }
   elsif (defined($FORM{MU_BONUS} && in_array('Bonus', \@MODULES)) && $FORM{MU_BONUS} == 1) {
    load_module('Bonus', $html);
-
    bonus_multi_add(\%FORM);
-
   }
   elsif ($FORM{MU_DELIVERY} || $FORM{DELIVERY_CREATE}) {
+    #Fixme make one function
     use Msgs;
     my $Msgs = Msgs->new($db, $admin, \%conf);
     my $delivery_info = $Msgs->msgs_delivery_info($FORM{DELIVERY});
@@ -525,7 +546,8 @@ sub form_users_multiuser {
 =head2 form_users($attr) - User account managment form
 
   Arguments:
-    USER_INFO
+    $attr
+      USER_INFO
 
 =cut
 #**********************************************************
@@ -555,7 +577,7 @@ sub form_users {
     my $sms_number = $users->{PHONE};
     if ($conf{CONTACTS_NEW}) {
       $sms_number = ($conf{SMS_SEND_ALL})
-        ? ($users->{CELL_PHONE_ALL} || $users->{PHONE})
+        ? ($users->{CELL_PHONE_ALL} || $users->{PHONE_ALL})
         : ($users->{CELL_PHONE} || $users->{PHONE});
     }
 
@@ -725,18 +747,24 @@ sub user_pi {
     $user = $users;
   }
 
-  if ($FORM{REG} && $conf{CONTACTS_NEW} && $FORM{DEFAULT_CONTACT_TYPES}) {
-    my @default_types = split(/,\s+/, $FORM{DEFAULT_CONTACT_TYPES});
+  if ($FORM{REG} && $conf{CONTACTS_NEW} && $FORM{ALL_CONTACT_TYPES}) {
+    my @default_types = split(/,/, $FORM{ALL_CONTACT_TYPES});
 
     foreach my $contact_type_id (@default_types) {
       my $contact = $FORM{"CONTACT_TYPE_$contact_type_id"};
       if ($contact && $contact ne '') {
-        $Contacts->contacts_add({
-          TYPE_ID => $contact_type_id,
-          VALUE   => $contact,
-          UID     => $FORM{UID}
-        });
-        _error_show($user);
+        my @contacts_by_type = split(/,/, $contact);
+        foreach my $item (@contacts_by_type) {
+          $item =~ s/"//g;
+          $item =~ s/'//g;
+          $item =~ s/\\//g;
+          $Contacts->contacts_add({
+            TYPE_ID => $contact_type_id,
+            VALUE   => $item,
+            UID     => $FORM{UID}
+          });
+          _error_show($user);
+        }
       }
     }
   }
@@ -779,7 +807,7 @@ sub user_pi {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 0;
     }
-    if ($FORM{FIO1}) {
+    if ($FORM{FIO1} || $FORM{FIO2} || $FORM{FIO3}) {
       $FORM{FIO} = $FORM{FIO1};
     }
 
@@ -794,7 +822,7 @@ sub user_pi {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 0;
     }
-    if ($FORM{FIO1}) {
+    if ($FORM{FIO1} || $FORM{FIO2} || $FORM{FIO3}) {
       $FORM{FIO} = $FORM{FIO1};
     }
     $user->pi_change({ %FORM });
@@ -1009,21 +1037,27 @@ sub user_pi {
   $user_pi->{HEADER2} = $html->table_header(\@header_arr, { TABS => 1, SHOW_ONLY => 2, ACTIVE => '#_main' });
 
   $user_pi->{OLD_CONTACTS_VISIBLE} = (!exists $conf{CONTACTS_NEW} || !$conf{CONTACTS_NEW});
+  $user_pi->{OLD_PHONE_VISIBLE} = 'disabled' if (defined($user_pi->{OLD_CONTACTS_VISIBLE}) && $user_pi->{OLD_CONTACTS_VISIBLE} != 1);
 
   $user_pi->{CONTRACTS_TABLE} = _user_contracts_table($FORM{UID});
 
   if ($user_pi->{FIO2} && $user_pi->{FIO3}) {
-    $user_pi->{FIO_READONLY} = 'readonly';
+    $user_pi->{FIO_READONLY} = 'disabled';
   }
 
   if (!$attr->{QUICK_FORM} && ($permissions{0}{24} || ($FORM{index} && $FORM{index} != 15))) {
 
     my $ext_address = $html->tpl_show(templates('form_ext_address'), { %$user_pi }, { ID => 'ext_address', OUTPUT2RETURN => 1 });
+    $attr->{DISTRICT_SELECT_ID} = 'USER_DISTRICT_ID';
+    $attr->{STREET_SELECT_ID} = 'USER_STREET_ID';
+    $attr->{BUILD_SELECT_ID} = 'USER_BUILD_ID';
     $user_pi->{ADDRESS_TPL} = form_address({
       # Can be received from MSGS reg_request
       %$attr,
       %$user_pi,
       SHOW        => 1,
+      SHOW_BUTTONS => 1,
+      SHOW_ADD_BUTTONS => 1,
       EXT_ADDRESS => $ext_address,
     });
 
@@ -1050,9 +1084,6 @@ sub user_pi {
     else {
       $user_pi->{PHOTO} = "/styles/lte_adm/dist/img/avatar0.png";
     }
-
-    $user_pi->{EDIT_BUTTON} = $html->button('', "index=30&UID=" . ($user_pi->{UID} || q{}),
-      { class => 'btn btn-default btn-xs', ICON => 'glyphicon glyphicon-edit' });
 
     my $location_id = $FORM{LOCATION_ID} || $user_pi->{LOCATION_ID};
 
@@ -1089,6 +1120,21 @@ sub user_pi {
     }
     else {
       $user_pi->{ADDRESS_STR} = ($user_pi->{CITY} ? "$user_pi->{CITY}, " : "") . "$user_pi->{ADDRESS_STREET} $user_pi->{ADDRESS_BUILD}/$user_pi->{ADDRESS_FLAT}";
+    }
+
+    if (!$permissions{0}{26}) {
+      $user_pi->{PHONE} = $lang{HIDE};
+      $user_pi->{ADDRESS_STR} = $lang{HIDE};
+      $user_pi->{PASPORT_NUM} = '';
+      $user_pi->{PASPORT_DATE} = '';
+      $user_pi->{PASPORT_GRANT} = '';
+      $user_pi->{BIRTH_DATE} = '';
+      $user_pi->{REG_ADDRESS} = '';
+    }
+
+    if ($permissions{0}{4}) {
+      $user_pi->{EDIT_BUTTON} = $html->button('', "index=30&UID=" . ($user_pi->{UID} || q{}),
+        { class => 'btn btn-box-tool', ICON => 'glyphicon glyphicon-edit' });
     }
 
     return $html->tpl_show(templates('form_pi_lite'), $user_pi, { OUTPUT2RETURN => 1, ID => 'user_pi' });
@@ -1295,24 +1341,6 @@ sub user_form {
       }
     }
 
-    if (!$permissions{0}{9}) {
-      $user_info->{CREDIT_READONLY} = 'readonly';
-      $user_info->{CREDIT_DATE_READONLY} = 'disabled';
-    }
-
-    if (!$permissions{0}{11}) {
-      $user_info->{REDUCTION_READONLY} = 'readonly';
-      $user_info->{REDUCTION_DATE_READONLY} = 'disabled';
-    }
-
-    if (!$permissions{0}{19}) {
-      $user_info->{ACTIVATE_READONLY} = 'disabled';
-    }
-
-    if (!$permissions{0}{20}) {
-      $user_info->{EXPIRE_READONLY} = 'disabled';
-    }
-
     if ($permissions{0} && $permissions{0}{15}) {
       $user_info->{BILL_CORRECTION} = $html->button('', "index=$index&UID=$uid&bill_correction=1",
         { ICON => 'glyphicon glyphicon-wrench', TITLE => $lang{CHANGE} });
@@ -1425,6 +1453,9 @@ sub user_form {
       $user_info->{PASSWORD_HIDDEN} = 1;
     }
 
+    $user_info->{AID}=$admin->{AID};
+    $user_info->{A_LOGIN}=$admin->{A_LOGIN};
+
     if (in_array('Sms', \@MODULES)) {
       # FIXME: check if admin should can send SMS without permission
       $user_info->{PASSWORD} .= $html->button("", "index=$index&header=1&UID=$uid&SHOW_PASSWORD=1&SEND_SMS_PASSWORD=1",
@@ -1447,12 +1478,7 @@ sub user_form {
       user_pi({ MAIN_USER_TPL => $main_account, %$attr });
     }
     elsif ($permissions{0}{24} || ($index && $index != 15)) {
-      if ($attr->{OUTPUT2RETURN} && !$FORM{json}) {
-        return $html->tpl_show(templates('form_user'), $user_info, { ID => 'form_user', OUTPUT2RETURN => 1 });
-      }
-      else {
-        return $html->tpl_show(templates('form_user'), $user_info, { ID => 'form_user', OUTPUT2RETURN => 1 });
-      }
+      return $html->tpl_show(templates('form_user'), $user_info, { ID => 'form_user', OUTPUT2RETURN => 1 });
     }
     else {
       if ($permissions{1}) {
@@ -1471,10 +1497,6 @@ sub user_form {
         $user_info->{PRINT_BUTTON} = $html->button('', "qindex=$index&STATMENT_ACCOUNT=$uid&UID=$uid&header=2",
           { ICON => 'glyphicon glyphicon-print', target => '_new', ex_params =>
             "data-tooltip='$lang{STATMENT_OF_ACCOUNT}' data-tooltip-position='top'" });
-      }
-
-      if (!$permissions{0}{18}) {
-        $user_info->{DISABLE_HIDEN} = 'style="display: none;"';
       }
 
       if (($user_info->{DEPOSIT_MARK}) && $user_info->{DEPOSIT_MARK} eq 'label-primary') {
@@ -1831,22 +1853,22 @@ sub user_right_menu {
 =cut
 #**********************************************************
 sub user_ext_menu {
-  my ($uid, $login, $attr) = @_;
+  my ($uid, $user_name, $attr) = @_;
 
   if (!$uid) {
     return '[unknown user]'
   }
 
   if ($FORM{xml} || $FORM{csv} || $FORM{json} || $FORM{EXPORT_CONTENT}) {
-    return $login;
+    return $user_name;
   }
 
   my $ex_params = ($attr->{dv_status_color}) ? "style='color:#$attr->{dv_status_color}'" : '';
   my $icon_class = (defined($attr->{login_status}) && $state_icon_colors[ $attr->{login_status} ]) ? $state_icon_colors[ $attr->{login_status} ] : '';
 
   my $edit_login = '';
-  if ($permissions{0}{27}) {
-    $edit_login = $html->button("$lang{CHANGE} $lang{LOGIN}", "qindex=15&UID=$uid&edit_login=". ($login || q{}) ."&header=2", {
+  if ($permissions{0}{27} && !$attr->{NO_CHANGE}) {
+    $edit_login = $html->button("$lang{CHANGE} $lang{LOGIN}", "qindex=15&UID=$uid&edit_login=". ($attr->{LOGIN} || q{}) ."&header=2", {
       ICON          => 'glyphicon glyphicon-pencil',
       LOAD_TO_MODAL => 1,
     });
@@ -1861,10 +1883,10 @@ sub user_ext_menu {
   my $return = $edit_login . " " . $ext_menu;
 
   if ($attr->{SHOW_UID}) {
-    $return .= $html->button($html->b(" $login"), "index=15&UID=$uid") . " (UID: $uid) ";
+    $return .= $html->button($html->b(" $user_name"), "index=15&UID=$uid") . " (UID: $uid) ";
   }
   else {
-    $return .= $html->button(($login ? "$login" : q{}), "index=15&UID=$uid" . (($attr->{EXT_PARAMS}) ? "&$attr->{EXT_PARAMS}" : ''), { TITLE => $attr->{TITLE} });
+    $return .= $html->button(($user_name ? "$user_name" : q{}), "index=15&UID=$uid" . (($attr->{EXT_PARAMS}) ? "&$attr->{EXT_PARAMS}" : ''), { TITLE => $attr->{TITLE} });
   }
 
   return $return;
@@ -1890,15 +1912,13 @@ sub user_info {
 
   if ($FORM{edit_login}) {
     if ($FORM{new_login}) {
-      use Users;
-      my $Users = Users->new($db, $admin, $Conf);
-      $Users->list({ LOGIN => $FORM{LOGIN} });
-      if (($Users->{TOTAL} == 1 && !($FORM{edit_login} eq $FORM{LOGIN})) || $Users->{TOTAL} > 1) {
+      $users->list({ LOGIN => $FORM{LOGIN} });
+      if (($users->{TOTAL} == 1 && !($FORM{edit_login} eq $FORM{LOGIN})) || $users->{TOTAL} > 1) {
         $FORM{LOGIN_ERROR} = 1;
       }
-      elsif (!$Users->{TOTAL}) {
+      elsif (!$users->{TOTAL}) {
         $uid = $FORM{UID};
-        $Users->change($uid, {
+        $users->change($uid, {
           ID  => $FORM{LOGIN},
           UID => $uid
         });
@@ -1921,7 +1941,7 @@ sub user_info {
 
   if ($uid && $users->{errno}) {
     if (!$attr || !$attr->{QUITE}) {
-      _error_show($users, { MESSAGE => "$lang{USER} '$uid' " });
+      _error_show($users, { MESSAGE => "$lang{USER} '$uid' ", ID => '005' });
     }
     return $users;
   }
@@ -1971,7 +1991,7 @@ sub user_info {
 
     my @arr = ();
     foreach my $info (@params) {
-      push @arr, ($extra_user_info->{lc($info)} || lc($info));
+      push @arr, ($extra_user_info->{lc($info)} || '');
     }
 
     $user_name = join(' / ', @arr);
@@ -1983,7 +2003,8 @@ sub user_info {
   my $ext_menu = user_ext_menu($uid, $user_name, {
     SHOW_UID     => (!$conf{USER_PANEL}) ? 1 : undef,
     login_status => $user_info->{DISABLE},
-    deleted      => $user_info->{DELETED}
+    deleted      => $user_info->{DELETED},
+    LOGIN        => $user_info->{LOGIN},
   });
 
   if (!$admin->{DOMAIN_ID} && $user_info->{DOMAIN_ID}) {
@@ -2166,6 +2187,9 @@ sub form_users_list {
   if($FORM{search}) {
     while(my($k, $v)=each %FORM) {
       if($v) {
+        if ( $k && ($k eq 'PHONE' || $k eq 'CELL_PHONE') && $v !~ m/\*/ ) {
+          $v = qq{*$v*};
+        }
         $LIST_PARAMS{$k} = $v;
       }
     }
@@ -2378,21 +2402,31 @@ sub form_users_list {
     );
 
     if (in_array('Msgs', \@MODULES)) {
+      #Fixme to require Msgs::Delivery;
       load_module('Msgs', $html);
       my %info = ();
       my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
-      $_COLORS[6] //= 'red';
-      $_COLORS[8] //= '#FFFFFF';
-      $_COLORS[9] //= '#FFFFFF';
-      #my @priority_colors    = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[6]);
-      my @send_methods = ($lang{MESSAGE}, 'E-MAIL');
+      # $_COLORS[6] //= 'red';
+      # $_COLORS[8] //= '#FFFFFF';
+      # $_COLORS[9] //= '#FFFFFF';
 
-      if (in_array('Sms', \@MODULES)) {
-        $send_methods[2] = "$lang{SEND} SMS";
-      }
+      my %send_methods = (
+        0 => $lang{MESSAGE},
+        1 => 'E-MAIL'
+      );
+
+      my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+      my $sender_send_types = $Sender->available_types({ HASH_RETURN => 1, CLIENT => 1 });
+
+      %send_methods = (
+        %send_methods,
+        %$sender_send_types
+      );
+
       if ($conf{MSGS_REDIRECT_FILTER_ADD}) {
-        $send_methods[3] = 'Web  redirect';
+        $send_methods{3} = 'Web redirect';
       }
+
       $info{DELIVERY_SPAN_ADDON_URL} = $SELF_URL . "?index=" . get_function_index('msgs_delivery_main');
       $info{DELIVERY_SELECT_FORM} = sel_deliverys({ SKIP_MULTISELECT => 1 });
       $info{DATE_PIKER} = $html->form_datepicker('DELIVERY_SEND_DATE');
@@ -2407,14 +2441,16 @@ sub form_users_list {
           ARRAY_NUM_ID => 1
         }
       );
+
       $info{SEND_METHOD_SELECT} = $html->form_select(
         'SEND_METHOD',
         {
-          SELECTED     => 2,
-          SEL_ARRAY    => \@send_methods,
-          ARRAY_NUM_ID => 1
+          SELECTED => 2,
+          SEL_HASH => \%send_methods,
+          NO_ID    => 1
         }
       );
+
       my $delivery_tpl = $html->tpl_show(templates('form_user_delivery_add'), \%info, { OUTPUT2RETURN => 1 });
 
       @multi_operation = ([ $html->form_input('MU_DELIVERY', 1, { TYPE => 'checkbox', }) . $lang{DELIVERY}, $delivery_tpl ],
@@ -2803,7 +2839,7 @@ sub form_wizard {
   }
 
   print $html->element('div', join('', @rows), { class => "btn-group btn-group-justified sticky" });
-  print $reg_output if ($fn && $fn ne 'form_payments');
+  print $reg_output || q{} if ($fn && $fn ne 'form_payments');
   if (!$steps{ $FORM{step} } || $FORM{finish} || (!$FORM{next} && $FORM{step} == 2 && !$FORM{back})) {
 
     $html->message('info', $lang{INFO}, $lang{REGISTRATION_COMPLETE} . '!');
@@ -2830,22 +2866,23 @@ sub form_wizard {
     $FORM{SUM} = 0;
   }
 
-  my $back_button = q{};
+  my @back_button = ();
 
   if ($FORM{TP_ID}) {
-    $back_button .= $html->form_input('TP_ID', $FORM{TP_ID}, { TYPE => 'hidden' });
+    push @back_button, $html->form_input('TP_ID', $FORM{TP_ID}, { TYPE => 'hidden' });
   }
 
   if ($FORM{step} > 2) {
-    $back_button .= $html->form_input('finish', $lang{FINISH}, { TYPE => ($steps{ $FORM{step} }) ? 'submit' : 'hidden' })
-      . ' ' . $html->form_input('back', $lang{BACK}, { TYPE => 'submit' });
+    push @back_button,
+      $html->form_input('finish', $lang{FINISH}, { TYPE => ($steps{ $FORM{step} }) ? 'submit' : 'hidden' }),
+      $html->form_input('back', $lang{BACK}, { TYPE => 'submit' });
   }
   else {
     if (!$FORM{back}) {
-      $back_button .= $html->form_input('add', $lang{FINISH}, { TYPE => 'submit' });
+      push @back_button, $html->form_input('add', $lang{FINISH}, { TYPE => 'submit' });
     }
     else {
-      $back_button .= $html->form_input('change', $lang{FINISH}, { TYPE => 'submit' })
+      push @back_button, $html->form_input('change', $lang{FINISH}, { TYPE => 'submit' })
     }
   }
 
@@ -2857,7 +2894,7 @@ sub form_wizard {
         REGISTRATION => 1,
         USER_INFO    => ($FORM{UID}) ? $users : undef,
         LNG_ACTION   => ($steps{ $FORM{step} }) ? $lang{NEXT} : $lang{REGISTRATION_COMPLETE},
-        BACK_BUTTON  => $back_button,
+        BACK_BUTTON  => join(($FORM{json}) ? ',' : '', @back_button),
         UID          => $FORM{UID},
         SUBJECT      => $lang{REGISTRATION},
         EXT_HTML     => $reg_output,
@@ -2966,31 +3003,69 @@ sub _build_user_contacts_form {
 
   my $in_reg_wizard = ($FORM{UID}) ? 0 : 1;
   my $default_types_string = q{};
+  my $json = JSON->new()->utf8(0);
 
   # In reg wizard, show default types
   if ($in_reg_wizard) {
-    my @default_contacts = ();
-    my @default_type_ids = ();
+    my %contact_types = ();
+    my $all_contact_types = qq{};
+    my $default_contact_types = q{};
 
-    my @default_types = grep {$_->{is_default}} @{$user_contacts_types_list};
-
-    foreach my $default_type (@default_types) {
-      my $type_name = $Contacts->contact_name_for_type_id($default_type->{id});
-
-      push(@default_contacts,
-        {
-          type_id => $default_type->{id},
-          value   => $FORM{uc($type_name)} || ''
-        }
-      );
-      push(@default_type_ids, $default_type->{id});
+    foreach my $item (@$user_contacts_types_list) {
+      $contact_types{$item->{id}} = $item->{name};
+      $all_contact_types .= "$item->{id},";
+      $default_contact_types .= "$item->{id}," if ($item->{is_default});
     }
+    chop($all_contact_types);
+    chop($default_contact_types);
 
-    $user_contacts_list = \@default_contacts;
-    $default_types_string = join(", ", @default_type_ids);
+    my $type_select = $html->form_select(
+      'TYPES_CONTACTS_',
+      {
+        SELECTED     => '2',
+        SEL_HASH     => \%contact_types,
+        NO_ID        => 1,
+        NORMAL_WIDTH => 1,
+        SORT_KEY_NUM => 1,
+        EX_PARAMS    => "onchange='changeContactType(this)'"
+      }
+    );
+    $type_select =~ s/\n//g;
+
+    return $html->tpl_show(
+      templates('reg_wizard_contacts'),
+      {
+        TYPE_SELECT           => $type_select,
+        ALL_CONTACT_TYPES     => $all_contact_types,
+        EMAIL_FORMAT          => $Abills::Filters::EMAIL_EXPR,
+        PHONE_FORMAT          => $conf{PHONE_FORMAT} ? $conf{PHONE_FORMAT} : '.+',
+        CELL_PHONE_FORMAT     => $conf{CELL_PHONE_FORMAT} ? $conf{CELL_PHONE_FORMAT} : '.+',
+        DEFAULT_CONTACT_TYPES => $default_contact_types
+      },
+      { OUTPUT2RETURN => 1 }
+    );
+#    FIXME:Delete in a month(Commented - 13.08.2019)
+#    my @default_contacts = ();
+#    my @default_type_ids = ();
+#
+#    my @default_types = grep {$_->{is_default}} @{$user_contacts_types_list};
+#
+#    foreach my $default_type (@default_types) {
+#      my $type_name = $Contacts->contact_name_for_type_id($default_type->{id});
+#
+#      push(@default_contacts,
+#        {
+#          type_id => $default_type->{id},
+#          value   => $FORM{uc($type_name)} || ''
+#        }
+#      );
+#      push(@default_type_ids, $default_type->{id});
+#    }
+#
+#    $user_contacts_list = \@default_contacts;
+#    $default_types_string = join(", ", @default_type_ids);
   }
 
-  my $json = JSON->new()->utf8(0);
 
   my $contacts_json = $json->encode({
     contacts => $user_contacts_list,
@@ -3036,9 +3111,9 @@ sub user_contacts_renew {
 
   my $contacts = $json->decode($FORM{CONTACTS});
 
-  my ($val_phone, $val_email, $val_message) = contacts_validation($contacts);
+  my ($validation_result, $val_message) = contacts_validation($contacts);
 
-  if ($val_phone == 2 || $val_email == 2) {
+  if ($validation_result == 2) {
     $status = 1;
     $message = $val_message;
   }
@@ -3120,10 +3195,13 @@ sub form_info_field_tpl {
   else {
     require Info_fields;
     my $Info_fields = Info_fields->new($db, $admin, \%conf);
+    #domain_id
     my $fields_list = $Info_fields->fields_list({
-      COMPANY => ($attr->{COMPANY} || 0),
-      SORT    => 5,
+      COMPANY   => ($attr->{COMPANY} || 0),
+      DOMAIN_ID => $users->{DOMAIN_ID} || 0,
+      SORT      => 5,
     });
+
     my $i = 0;
     foreach my $line (@$fields_list) {
       if ($attr->{POPUP} && !$attr->{POPUP}->{$line->{SQL_FIELD}}) {
@@ -3319,11 +3397,11 @@ sub form_info_field_tpl {
     # fa fa-twitter
     # fa fa-google-plus
     elsif ($type == 16) {
-
       next if ($attr->{CALLED_FROM_CLIENT_UI}); # Social icons already displaying in "Password" tab
 
       my $values = ($attr->{VALUES} && $attr->{VALUES}->{$field_name}) ? $attr->{VALUES}->{$field_name} : ($FORM{$field_id} || '');
-      my ($k, $val) = split(/, /, $values);
+      my ($k, $val) = split(/, /, $values || q{});
+
       $input = "<div class='form-group'>
       <div class='col-sm-6'>"
         . $html->form_select(
@@ -3334,11 +3412,12 @@ sub form_info_field_tpl {
           SEL_OPTIONS => { '' => '--' },
         }
       )
-        . "</div>"
-        . $html->element('span', '', { class => 'visible-xs col-xs-12', style => 'padding-top: 10px' })
-        . "<div class='col-sm-6'>"
-        . "<div class='input-group' style='width: 100%'>"
-        . $html->form_input($field_name, $val, { ID => $field_id, OUTPUT2RETURN => 1 });
+         . "</div>"
+         . $html->element('span', '', { class => 'visible-xs col-xs-12', style => 'padding-top: 10px' })
+         . "<div class='col-sm-6'>"
+         . "<div class='input-group' style='width: 100%'>"
+         . $html->form_input($field_name || q{}, $val || q{}, { ID => $field_id || q{}, OUTPUT2RETURN => 1 })
+      ;
 
       if ($val) {
         $input .= $html->element('span', $html->button('', "index=" . get_function_index('user_pi') . "&UID=$uid&SOCIAL_INFO=$k, $val", { class => 'info' }), { class => 'input-group-addon' });
@@ -3403,8 +3482,8 @@ sub form_info_field_tpl {
           ID         => "$field_id",
           NAME       => (_translate($name)),
           VALUE      => $input,
-          COLS_LEFT  => $attr->{COLS_LEFT} || 'col-xs-4',
-          COLS_RIGHT => $attr->{COLS_RIGHT} || 'col-xs-8',
+          COLS_LEFT  => $attr->{COLS_LEFT} || 'col-sm-4 col-md-4',
+          COLS_RIGHT => $attr->{COLS_RIGHT} || 'col-sm-8 col-md-8',
         },
         { OUTPUT2RETURN => 1, ID => "$field_id" }
       );
@@ -3513,11 +3592,11 @@ sub get_info_fields_read_only_view {
         );
       }
       else {
-        my %field_list_name_by_id = map {$_->{id} => $_->{name}} @$field_value_list;
+#        my %field_list_name_by_id = map {$_->{id} => $_->{name}} @$field_value_list;
 
         $value_view = $html->element(
           'span',
-          $field_list_name_by_id{$value},
+          $value,
           { OUTPUT2RETURN => 1 }
         );
       }
@@ -4162,40 +4241,43 @@ sub check_login_availability {
 sub contacts_validation {
   my ($attr) = @_;
   my $val_message = qq{};
-  my $val_phone = 0;
-  my $val_email = 0;
+  my $result = 0;
 
   foreach my $item (@$attr) {
     next if (!$item->{VALUE});
-    if ($item->{TYPE_ID} == 1 && $conf{PHONE_FORMAT}) {
-      if ($item->{VALUE} =~ /$conf{PHONE_FORMAT}/) {
-        $val_phone = 1;
-#        $val_message .= 'Valid Cell Phone. ';
+    if ($item->{TYPE_ID} == 1 && $conf{CELL_PHONE_FORMAT}) {
+      if ($item->{VALUE} =~ /$conf{CELL_PHONE_FORMAT}/) {
+        $result = 1;
       }
       else {
-        $val_phone = 2;
+        $result = 2;
         $val_message .= $lang{WRONG} . ' ' . $lang{CELL_PHONE} . ': ' . $item->{VALUE} . '. ';
-        return $val_phone, $val_email, $val_message;
-
+        return $result, $val_message;
+      }
+    }
+    elsif ($item->{TYPE_ID} == 2 && $conf{PHONE_FORMAT}) {
+      if ($item->{VALUE} =~ /$conf{PHONE_FORMAT}/) {
+        $result = 1;
+      }
+      else {
+        $result = 2;
+        $val_message .= $lang{WRONG} . ' ' . $lang{PHONE} . ': ' . $item->{VALUE} . '. ';
+        return $result, $val_message;
       }
     }
     elsif ($item->{TYPE_ID} eq '9') {
       if ($item->{VALUE} =~ /$Abills::Filters::EMAIL_EXPR/) {
-        $val_email = 1;
-        #        $val_message .= 'Valid email. ';
+        $result = 1;
       }
       else {
-        $val_email = 2;
+        $result = 2;
         $val_message .= $lang{ERR_WRONG_EMAIL} . ': ' . $item->{VALUE} . '. ';
-        return $val_phone, $val_email, $val_message;
-
+        return $result, $val_message;
       }
     }
   }
 
-
-
-  return $val_phone, $val_email, $val_message;
+  return $result, $val_message;
 }
 
 1;

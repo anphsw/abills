@@ -125,6 +125,8 @@ function PMA_markRowsInit() {
 window.onload = PMA_markRowsInit;
 
 $(function(){
+  if (roClases) { $(roClases).prop( "readonly", true ); };
+  if (diClases) { $(diClases).prop( "disabled", true ); };
   $('#hold_up_window, input[name=\"hold_up_window\"]').click(function (e) {
     e.preventDefault();
     var prevPopupWindow = $(this).closest('table').next('div#open_popup_block_middle');

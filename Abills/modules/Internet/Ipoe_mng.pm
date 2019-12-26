@@ -55,17 +55,20 @@ sub internet_ipoe_activate{
   $Internet->info( $LIST_PARAMS{UID}, $attr );
   my $static_ip= $Internet->{IP};
 
-  if ( $Internet->{STATUS} && $Internet->{STATUS} > 0 ){
+  if ( $Internet->{STATUS} && $Internet->{STATUS} > 0 && !$conf{INTERNET_IPOE_NEGATIVE}){
     my $service_status = sel_status({ HASH_RESULT => 1 });
 
     if ( $user->{UID} ){
       internet_user_info();
     }
     else{
-      $html->message( 'err', $lang{ERROR}, "$service_status->{$Internet->{STATUS}}", { ID => 362 } );
+      my ($status_text, undef)=split(/:/, $service_status->{$Internet->{STATUS}});
+      $html->message( 'err', $lang{ERROR}, $status_text, { ID => 362 } );
     }
 
-    return 1 if (!$FORM{activate});
+    if (!$FORM{activate}) {
+      return 1;
+    }
   }
 
   if ( !$user->{UID} && !$attr->{IP} ){
@@ -161,8 +164,6 @@ sub internet_ipoe_activate{
   }
   elsif ( $FORM{ACTIVE} ){
 
-    require Auth2;
-    Auth2->import();
     if ( int( $nas_id ) < 1 ){
       $html->message( 'err', $lang{ERROR}, "Unknown NAS", { ID => 323 } );
     }
@@ -184,6 +185,7 @@ sub internet_ipoe_activate{
               USER_NAME            => $user->{LOGIN},
               NAS_ID               => $nas_id,
               STATUS               => 2,
+              CALLING_STATION_ID   => $Internet->{CID} || $ip,
               ACCT_TERMINATE_CAUSE => $attr->{ACCT_TERMINATE_CAUSE} || 6
             }
           );
@@ -206,7 +208,7 @@ sub internet_ipoe_activate{
           NAS_MNG_IP         => $Nas->{NAS_MNG_IP},
           NAS_MNG_PORT       => $Nas->{NAS_MNG_PORT} || 22,
           TP_ID              => $Internet->{TP_ID},
-          CALLING_STATION_ID => $ip,
+          CALLING_STATION_ID => $Internet->{CID} || $ip,
           NAS_PORT           => $Internet->{PORT},
           FILTER_ID          => $Internet->{FILTER_ID} || $Internet->{TP_FILTER_ID},
           CONNECT_INFO       => $FORM{CONNECT_INFO},
@@ -214,22 +216,32 @@ sub internet_ipoe_activate{
           SERVICE_ID         => $attr->{ID} || 0
         );
 
-        my %RAD = (
+        my %RAD_REQUEST = (
           'Acct-Status-Type'   => 1,
           'User-Name'          => $user->{LOGIN},
-          'Acct-Session-Id'    => mk_unique_value( 10 ),
+          'Acct-Session-Id'    => $DATA{ACCT_SESSION_ID},
           'Framed-IP-Address'  => $ip,
-          'Calling-Station-Id' => $ip,
+          'Calling-Station-Id' => $Internet->{CID} || $ip,
           'NAS-IP-Address'     => $Nas->{NAS_IP},
           'NAS-Port'           => $Internet->{PORT},
           'Filter-Id'          => $Internet->{FILTER_ID} || $Internet->{TP_FILTER_ID},
           'Connect-Info'       => $FORM{CONNECT_INFO},
         );
 
+        require Auth2;
+        Auth2->import();
         my $Auth = Auth2->new( $db, \%conf );
-        $Auth->{UID} = $user->{UID};
-        my ($r, $RAD_PAIRS) = $Auth->internet_auth( \%RAD, $Nas, { SECRETKEY => $conf{secretkey} } );
+        my ($r, $RAD_PAIRS) = $Auth->auth( \%RAD_REQUEST, $Nas);
         delete ( $RAD_PAIRS->{'Session-Timeout'} );
+
+        my $debug = 0;
+        if($debug) {
+          print "Result: $r\n";
+          while(my($k, $v)=each %$RAD_PAIRS ) {
+            print "  $k -> $v\n";
+          }
+        }
+
         if ( $RAD_PAIRS->{'Filter-Id'} ){
           $DATA{FILTER_ID} = $RAD_PAIRS->{'Filter-Id'};
         }
@@ -541,8 +553,6 @@ sub internet_ipoe_change_status{
     }
   }
 
-  #my $bitmask = $netmask;
-
   if ( !$cmd ){
     print "Error: Not defined external command for status: $STATUS\n";
     return 0;
@@ -571,12 +581,11 @@ sub internet_ipoe_change_status{
     cmd( $cmd );
   }
 
-  $conf{INTERNET_IPOE_FILTER} //= $conf{IPN_FILTER};
-
-  if ( $conf{IPN_FILTER} && ($STATUS ne 'ONLINE_ENABLE' || ($STATUS eq 'ONLINE_ENABLE' && $FILTER_ID ne '')) ){
-    $cmd = "$conf{IPN_FILTER}";
+  if ( $conf{INTERNET_IPOE_FILTER} && ($STATUS ne 'ONLINE_ENABLE' || ($STATUS eq 'ONLINE_ENABLE' && $FILTER_ID ne '')) ){
+    $cmd = $conf{INTERNET_IPOE_FILTER};
     $cmd =~ s/\%STATUS/$STATUS/g;
     $cmd =~ s/\%IP/$ip/g;
+    $cmd =~ s/\%ACTION/$STATUS/g;
     $cmd =~ s/\%MASK/$netmask/g;
     $cmd =~ s/\%LOGIN/$USER_NAME/g;
     $cmd =~ s/\%FILTER_ID/$FILTER_ID/g;

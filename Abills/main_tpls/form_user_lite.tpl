@@ -39,7 +39,7 @@
   <div id='form_1' class='box box-theme box-big-form for_sort'>
     <div class='box-header with-border'><h3 class='box-title'>_{USER_ACCOUNT}_ %DISABLE_MARK%</h3>
       <div class='box-tools pull-right'>
-      <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+      <button type='button' class='btn btn-box-tool' data-widget='collapse'>
       <i class='fa fa-minus'></i>
         </button>
       </div>
@@ -60,22 +60,24 @@
     <div class='row' style='padding-bottom: 10px;'>
       <label class='control-label col-md-3 col-xs-3'>_{CREDIT}_</label>
       <div class='col-md-3 col-xs-3'>
-        <input id='CREDIT' name='CREDIT' class='form-control' type='number' step='0.01' min='0' %CREDIT_READONLY% value='%CREDIT%'>
+        <input id='CREDIT' name='CREDIT' class='form-control r-0-9' type='number' step='0.01' min='0' 
+        value='%CREDIT%'>
       </div>
       <label class='control-label col-md-3 col-xs-3'>_{DATE}_</label>
       <div class='col-md-3 col-xs-3'>
-        <input id='CREDIT_DATE' name='CREDIT_DATE' class='datepicker form-control' type='text' %CREDIT_DATE_READONLY% value='%CREDIT_DATE%'>
+        <input id='CREDIT_DATE' name='CREDIT_DATE' class='datepicker form-control d-0-9' type='text' 
+        value='%CREDIT_DATE%'>
       </div>
     </div>
     <div class='row' style='padding-bottom: 10px;'>
         <label class='control-label col-xs-3 col-md-3'>_{REDUCTION}_(%)</label>
         <div class=' col-xs-3 col-md-3'>
-          <input id='REDUCTION' name='REDUCTION' class='form-control' type='number' 
-                min='0' max='100' %REDUCTION_READONLY% value='%REDUCTION%' step='0.01'>
+          <input id='REDUCTION' name='REDUCTION' class='form-control r-0-11' type='number' 
+                min='0' max='100' value='%REDUCTION%' step='0.01'>
         </div>
         <label class='control-label col-md-3 col-xs-3'>_{DATE}_</label>
         <div class='col-md-3 col-xs-3'>
-            <input id='REDUCTION_DATE' name='REDUCTION_DATE' class='datepicker form-control' type='text' %REDUCTION_DATE_READONLY% value='%REDUCTION_DATE%'>
+            <input id='REDUCTION_DATE' name='REDUCTION_DATE' class='datepicker form-control d-0-11' type='text' value='%REDUCTION_DATE%'>
         </div>
       </div>
         <!-- ACTIVATION / EXPIRED -->
@@ -83,12 +85,12 @@
           <label class='control-label col-xs-3 col-md-3' for='ACTIVATE'>_{ACTIVATE}_</label>
           <div class='col-xs-9 col-md-3' style='margin-bottom: -1px;'>
             <input id='ACTIVATE' name='ACTIVATE' value='%ACTIVATE%' placeholder='%ACTIVATE%'
-                   class='form-control datepicker' %ACTIVATE_READONLY% type='text'>
+                   class='form-control datepicker d-0-19' type='text'>
           </div>
           <label class='control-label col-xs-3 col-md-3' for='EXPIRE'>_{EXPIRE}_</label>
           <div class='col-xs-9 col-md-3 %EXPIRE_COLOR%'>
             <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%'
-                   class='form-control datepicker' %EXPIRE_READONLY% type='text'>
+                   class='form-control datepicker d-0-20' type='text'>
           </div>
         </div>
   </div>
@@ -97,7 +99,7 @@
         <div class='box-header with-border'>
           <h3 class='box-title'>_{EXTRA}_</h3>
           <div class='box-tools pull-right'>
-            <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
+            <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-plus'></i>
             </button>
           </div>
         </div>
@@ -143,7 +145,7 @@
       <div class='col-md-4 col-xs-4'>%PASSWORD%</div>
       </div>    
       
-      <div class='col-md-4 col-xs-4' %DISABLE_HIDEN%>
+      <div class='col-md-4 col-xs-4 h-0-18'>
           <label class='btn btn-default'>
             <input id='DISABLE' name='DISABLE' value='1' %DISABLE_CHECKBOX% type='checkbox' onClick='add_comments();'>
           _{DISABLE}_

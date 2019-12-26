@@ -32,7 +32,7 @@ my $messages_list = $Msgs->messages_list({
   LAST_REPLIE_DATE => '_SHOW',
   STATE            => 6,
   EMAIL            => '_SHOW',
-
+  PAGE_ROWS        => 999999,
   COLS_NAME        => 1,
 });
 
@@ -65,8 +65,9 @@ foreach my $message (@$messages_list) {
       AID        => 2,
     });
     $Msgs->message_change({
-      ID    => $message->{id},
-      STATE => 2,
+      ID         => $message->{id},
+      ADMIN_READ => "$DATE $TIME",
+      STATE      => 2,
     });
   }
 }

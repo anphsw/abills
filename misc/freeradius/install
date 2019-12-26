@@ -57,7 +57,6 @@ eap.conf         > [/usr/local/etc/raddb]/eap.conf
 :OS=FREEBSD,FREERADIUS=3:FILE=v3/sites-enabled/abills_default  > [/usr/local/etc/raddb]/sites-enabled/abills_default
 :OS=FREEBSD,FREERADIUS=3:exec: rm /usr/local/etc/raddb/sites-enabled/inner-tunnel
 :OS=FREEBSD,FREERADIUS=3:exec: rm /usr/local/etc/raddb/sites-enabled/default
-
 #Freeradius V3 Linux
 :OS=LINUX,FREERADIUS=3:FILE=v3/users  > [/usr/local/freeradius/etc/raddb]/users
 :OS=LINUX,FREERADIUS=3:FILE=v3/mods-enabled/perl > [/usr/local/freeradius/etc/raddb]/mods-enabled/perl
@@ -69,6 +68,7 @@ eap.conf         > [/usr/local/etc/raddb]/eap.conf
 :OS=LINUX,FREERADIUS=3,DHCP=1:$INCLUDE /usr/local/freeradius/share/freeradius/dictionary.dhcp >> [/usr/local/freeradius/etc/raddb]/dictionary
 :OS=LINUX,FREERADIUS=3,DHCP=1:exec:ln -s /usr/abills/Abills/Internet/ipoe_shapper.pl /usr/abills/libexec/ipoe_shapper.pl
 :OS=LINUX,FREERADIUS=3,DHCP=1:exec:echo "" > [/usr/local/freeradius/etc/raddb]/clients.conf
+:OS=LINUX,FREERADIUS=3:exec:%RESTART_RADIUS% restart
 
 
 

@@ -86,7 +86,7 @@ sub iptv_tp{
         $lang{NAME} => $Tariffs->{NAME_SEL}
       },
       [
-        $lang{INFO} . ":TP_ID=$FORM{TP_ID}",
+        $lang{INFO} . "::TP_ID=$FORM{TP_ID}",
         $lang{INTERVALS} . ':' . get_function_index( 'iptv_intervals' ) . ":TP_ID=$FORM{TP_ID}",
         $lang{NAS} . ':' . get_function_index( 'form_nas_allow' ) . ":TP_ID=$FORM{TP_ID}",
         $lang{USERS} . ':' . get_function_index( 'iptv_users_list' ) . ":TP_ID=$FORM{TP_ID}",
@@ -175,6 +175,8 @@ sub iptv_tp{
         { OUTPUT2RETURN => 1 }
       );
     }
+
+    $tarif_info->{STATUS} = "checked" if $tarif_info->{STATUS};
 
     $html->tpl_show( _include( 'iptv_tp', 'Iptv' ), { %FORM, %{$tarif_info} } );
   }

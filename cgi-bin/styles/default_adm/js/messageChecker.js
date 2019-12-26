@@ -169,7 +169,7 @@ var AMessageChecker = (function () {
     message.id       = data['ID'] || 0;
     message.group_id = data['GROUP_ID'] || 0;
     
-    if (message.text.length > 60) {
+    if (message.text.length > 100) {
       message.text = message.text.substr(0, 140) + "...";
     }
     return message;

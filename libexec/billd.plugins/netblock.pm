@@ -21,7 +21,7 @@ use Abills::Fetcher;
 #binmode(STDOUT,':utf8');
 use Data::Dumper;
 use Abills::Base qw(int2ip ip2int date_diff
-  decode_base64 encode_base64 ssh_cmd gen_time load_pmodule);
+  decode_base64 encode_base64 ssh_cmd gen_time load_pmodule convert dirname);
 use Netblock;
 use Events;
 use strict;
@@ -261,6 +261,10 @@ sub rkn {
   my $dt = POSIX::strftime("%F_%H-%M", localtime(time));
   my $newf = $BASE . "arch/" . $dt . ".zip";
   my $certificate = $BASE . "cfg/certificate.pem";
+
+  if($argv->{CERT_PEM}) {
+    $certificate = $argv->{CERT_PEM};
+  }
 
   if (!-f $certificate) {
     print "File not exist '$certificate'\n";
@@ -1135,23 +1139,40 @@ sub sign_request {
 
   my $doc_name = $dom->createElement('operatorName');
   $params{ORGANIZATION_NAME} =~ s/"//g;
-  $doc_name->appendText($params{ORGANIZATION_NAME});
+  $doc_name->appendText( convert($params{ORGANIZATION_NAME} || q{}, { utf82win=> 1}) );
   $root->appendChild($doc_name);
+
   my $doc_inn = $dom->createElement('inn');
-  $doc_inn->appendText($params{ORGANIZATION_INN});
+  $doc_inn->appendText(convert($params{ORGANIZATION_INN} || q{}, { utf82win=> 1}));
   $root->appendChild($doc_inn);
+
   my $doc_ogrn = $dom->createElement('ogrn');
-  $doc_ogrn->appendText($params{ORGANIZATION_OGRN});
+  $doc_ogrn->appendText(convert($params{ORGANIZATION_OGRN} || q{}, { utf82win=> 1}));
   $root->appendChild($doc_ogrn);
   my $doc_mail = $dom->createElement('email');
-  $doc_mail->appendText($params{ORGANIZATION_MAIL});
+  $doc_mail->appendText(convert($params{ORGANIZATION_MAIL}, { utf82win=> 1}));
   $root->appendChild($doc_mail);
 
   my $reqxml = $BASE . "cfg/request.xml";
-  $dom->toFile($reqxml, 3);
+  my $cert_dirname = dirname($reqxml);
+
+  if(! -d $cert_dirname) {
+    print "ERROR: directory not exists '$cert_dirname'\n";
+    exit;
+  }
+
+  if (! $dom->toFile($reqxml, 3)) {
+    print "ERROR: Cna't create file '$reqxml' $! \n";
+  }
+
   #my $reqxml = $dom->toString(0);
   #encode_base64($reqxml);
   my $certificate = $BASE . "cfg/certificate.pem";
+
+  if($argv->{CERT_PEM}) {
+    $certificate = $argv->{CERT_PEM};
+  }
+
   my $sign_req = $BASE . "cfg/request.xml.sign";
   #my $pfx = $BASE."cfg/p12.pfx";
   #my $tout = cmd("echo \"".$reqxml."\" \| $conf{NETBLOCK_OSSL_BIN} smime -sign -binary -signer $certificate -outform PEM",
@@ -1170,6 +1191,22 @@ sub sign_request {
 
   return 1;
 }
+
+#**********************************************************
+=head2 uablock($attr) - Doblocka UA list
+
+=cut
+#**********************************************************
+sub help {
+
+  print << "[END]";
+
+  CERT_PEM - Certificate path
+
+[END]
+  return 1;
+}
+
 
 
 1;

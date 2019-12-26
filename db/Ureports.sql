@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS `ureports_log` (
   `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `status` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   KEY `uid` (`uid`)
 )
   DEFAULT CHARSET = utf8
@@ -31,12 +30,11 @@ CREATE TABLE IF NOT EXISTS `ureports_main` (
 CREATE TABLE IF NOT EXISTS `ureports_spool` (
   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
-  `added` DATETIME NOT NULL,
+  `added` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `execute` DATE NOT NULL,
   `body` TEXT NOT NULL,
   `destinatio` VARCHAR(60) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   KEY `uid` (`uid`)
 )
   DEFAULT CHARSET = utf8

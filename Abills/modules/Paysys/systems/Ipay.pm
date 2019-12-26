@@ -15,7 +15,7 @@ use Abills::Base qw(load_pmodule _bp);
 use Abills::Fetcher;
 require Abills::Templates;
 require Paysys::Paysys_Base;
-our $PAYSYSTEM_VERSION = '1.01';
+our $PAYSYSTEM_VERSION = '8.00';
 
 my $CONF;
 
@@ -935,6 +935,7 @@ sub proccess {
   my ($FORM) = @_;
 
   my $buffer = $FORM->{__BUFFER};
+  $main::html = Abills::HTML->new({CONF => $self->{conf}});
   my ($xml) = $buffer =~ /xml\=(<.+>)/gms;
   main::mk_log($xml, {PAYSYS_ID => 'Ipay', REQUEST => 'Request'});
   #  _bp("test", $xml, {TO_CONSOLE => 1});
@@ -1029,13 +1030,20 @@ sub proccess {
   my $desc = $transaction->{$transaction_id}->{desc}->[0];
   my $hash_transaction_info = $json->decode($json_transaction_info);
 
+  my $payment_amount = '';
+  my $account = '';
+  if (exists ($hash_transaction_info->{step_2} )) {
+    $payment_amount = $hash_transaction_info->{step_2}{invoice};
+    $account        = $hash_transaction_info->{step_1}{acc};
+  }
+  else {
+    $payment_amount = $hash_transaction_info->{invoice} / 100;
+    $account        = $hash_transaction_info->{acc};
+  }
 
-  my $payment_amount = $hash_transaction_info->{invoice} / 100;
-
-  my $account = $hash_transaction_info->{acc};
-
-  my %DATA;
-  $DATA{$self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY}} = $account;
+  my %DATA = ();
+  my $account_key = $self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID';
+  $DATA{$account_key} = $account;
   $DATA{amount} = $payment_amount;
   $DATA{payment_status} = $payment_status;
   $DATA{transaction_id} = $transaction_id;
@@ -1044,7 +1052,7 @@ sub proccess {
     my ($status_code) = main::paysys_pay( {
       PAYMENT_SYSTEM    => $PAYSYSTEM_SHORT_NAME,
       PAYMENT_SYSTEM_ID => $PAYSYSTEM_ID,
-      CHECK_FIELD       => $self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID',
+      CHECK_FIELD       => $account_key,
       USER_ID           => $account,
       SUM               => $payment_amount,
       EXT_ID            => $payment_id,
@@ -1178,24 +1186,26 @@ sub report {
 
   $html = $attr->{HTML};
   my $lang = $attr->{LANG};
-
   use Paysys;
   my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
-  my $ls = $Paysys->paysys_report_list({TABLE => 'paysys_ipay_report', COLS_NAME => 1});
+  my $list = $Paysys->paysys_report_list({ TABLE => 'paysys_ipay_report', COLS_NAME => 1, PAGE_ROWS => 9999999 });
 
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "Easypay",
-      cols_align => [ 'right', 'right', 'right', 'right' ],
+      caption    => "Ipay",
       title      =>
-      [ "#", "$lang->{SUM}", "$lang->{DATE}", "ID" ],
-      DATA_TABLE => 1,
+      [ "#", "$lang->{USER}", "$lang->{SUM}", "$lang->{DATE}", "$lang->{TRANSACTION}"  ],
+      DATA_TABLE => { 'order' => [ [ 0, 'id' ] ] },
     }
   );
 
-  foreach my $payment (@$ls){
-    $table->addrow($payment->{id}, $payment->{sum}, $payment->{date}, $payment->{payment_id},);
+  foreach my $payment (@$list) {
+    $table->addrow($payment->{id},
+      $html->button("$payment->{user_key}", "index=15&UID=$payment->{user_key}",{ class => 'btn btn-primary btn-xs' }),
+      $payment->{sum},
+      $payment->{date},
+      $payment->{transaction_id});
   }
 
   print $table->show();

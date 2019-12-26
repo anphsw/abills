@@ -137,4 +137,29 @@ $lang{TIME_END_WORK}='Час закінчення робіт';
 $lang{ACTUAL_TIME_END}='Фактичний час закінчення';
 $lang{BRIGADE}='Бригада';
 $lang{D_ACTIVE}='Активна';
+
+$lang{MONDAY_FULL}='Понеділок';
+$lang{TUESDAY_FULL}='Вівторок';
+$lang{WEDNESDAY_FULL}='Середа';
+$lang{THURSDAY_FULL}='Четвер';
+$lang{FRIDAY_FULL}="П'ятниця";
+$lang{SATURDAY_FULL}='Субота';
+$lang{SUNDAY_FULL}='Неділя';
+
+$lang{ERR_NO_MESSAGE} = 'Відсутній текст повідомлення';
+$lang{MASS_MAILING} = 'Масове розсилання! Продовжити?';
+$lang{ATTACH_ADDRESS} = 'Прикріпити до адреси';
+$lang{FULL_MESSAGE_ADDRESS} = 'Повна адреса повідомлення';
+$lang{TAKEN_TO_WORK} = 'Узято в роботу';
+
+$lang{REPEAT_MSG_USER} = 'Повідомлення по даному користувачу сьогодні уже прийнято!';
+$lang{REPEAT_MSG_LOCATION_1} = 'Повідомлення по адресу';
+$lang{REPEAT_MSG_LOCATION_2} = ' сьогодні уже прийнято!';
+$lang{ADD_ANOTHER_ONE} = 'Додати ще одне?';
+
+$lang{ADMIN_UNREAD}='Не прочитано адмністраторам';
+$lang{TODAY_PLAN}='Заплановано на сьогодні';
+$lang{UNREG_COUNT}='Кількість незареєстрованних';
+$lang{UNREPLY_MSGS}='Без ответа';
+
 1

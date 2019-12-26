@@ -38,36 +38,36 @@
       <div class='box-body'>
 
         <div class='form-group'>
-          <label class='control-label col-md-4' for='TP_ID'>_{TARIF_PLAN}_</label>
-          <div class='col-md-8'>
+          <label class='control-label col-md-4 col-sm-3' for='TP_ID'>_{TARIF_PLAN}_</label>
+          <div class='col-md-8 col-sm-9'>
             %TP_ID%
           </div>
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-md-4' for='TYPE'>_{TYPE}_</label>
-          <div class='col-md-8'>
+          <label class='control-label col-md-4 col-sm-3' for='TYPE'>_{TYPE}_</label>
+          <div class='col-md-8 col-sm-9'>
             %TYPE_SEL%
           </div>
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-md-4' for='DESTINATION'>_{DESTINATION}_</label>
-          <div class='col-md-8' id='DESTINATION_SELECT_WRAPPER'>
+          <label class='control-label col-md-4 col-sm-3' for='DESTINATION'>_{DESTINATION}_</label>
+          <div class='col-md-8 col-sm-9' id='DESTINATION_SELECT_WRAPPER'>
             %DESTINATION_VIEW%
           </div>
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-md-4' for='STATUS'>_{STATUS}_</label>
-          <div class='col-md-8'>
+          <label class='control-label col-md-4 col-sm-3' for='STATUS'>_{STATUS}_</label>
+          <div class='col-md-8 col-sm-9'>
             %STATUS_SEL%
           </div>
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-md-4'>_{REGISTRATION}_</label>
-          <div class='col-md-8'>
+          <label class='control-label col-md-4 col-sm-3'>_{REGISTRATION}_</label>
+          <div class='col-md-8 col-sm-9'>
             <p class="form-control-static">%REGISTRATION%</p>
           </div>
         </div>

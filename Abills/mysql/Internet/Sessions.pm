@@ -421,7 +421,7 @@ sub online {
       ['ACCT_SESSION_ID',   'STR', 'c.acct_session_id',                            1 ],
       ['SERVICE_ID',        'INT', 'c.service_id',                                 1 ],
       ['UID',               'INT', 'c.uid'                                           ],
-      ['LAST_ALIVE',        'INT', 'UNIX_TIMESTAMP() - c.lupdated', 'IF(UNIX_TIMESTAMP() > c.lupdated, UNIX_TIMESTAMP() - c.lupdated, 0) AS last_alive', 1 ],
+      ['LAST_ALIVE',        'INT', 'UNIX_TIMESTAMP() - MIN(c.lupdated)', 'IF(UNIX_TIMESTAMP() > MIN(c.lupdated), UNIX_TIMESTAMP() - MIN(c.lupdated), 0) AS last_alive', 1 ],
       ['ONLINE_BASE',       '',    '', 'c.cid, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ],
       ['SHOW_TP_ID',        'INT', 'tp.tp_id', 'tp.tp_id AS real_tp_id' ],
       ['TP_NUM',            'INT', 'tp.id   AS tp_num',                             1],
@@ -439,7 +439,7 @@ sub online {
     if (! $field) {
       print "internet_online/online: Wrong field name\n";
     }
-    elsif ($field =~ /TP_BILLS_PRIORITY|TP_NAME|FILTER_ID|TP_CREDIT|PAYMENT_METHOD|SHOW_TP_ID/ && $EXT_TABLE !~ /tarif_plans/) {
+    elsif ($field =~ /TP_BILLS_PRIORITY|TP_NAME|FILTER_ID|TP_CREDIT|PAYMENT_METHOD|SHOW_TP_ID|TP_NUM/ && $EXT_TABLE !~ /tarif_plans/) {
       $EXT_TABLE .= " LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id)";
     }
     elsif ($field =~ /SWITCH_NAME|SWITCH_ID/ && $EXT_TABLE !~ m/ switch /) {

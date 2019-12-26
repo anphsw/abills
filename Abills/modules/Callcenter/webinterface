@@ -1,5 +1,3 @@
-#!perl
-
 =head1 NAME
   Callcenter - work with callcenter
 
@@ -15,7 +13,6 @@
 use strict;
 use warnings;
 
-
 use Callcenter;
 use Users;
 use Admins;
@@ -26,7 +23,7 @@ our ($db, $admin, $html, %lang, %conf, %OUTPUT, %LIST_PARAMS);
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Callcenter',
-  REQUIRE_VERSION => 7.01
+  REQUIRE_VERSION => 7.09
   })) {
   exit;
 }
@@ -236,7 +233,7 @@ sub callcenter_calls_handler {
   if(!$FORM{sort}){
     $LIST_PARAMS{SORT} = 'date';
   }
-  
+
   result_former(
     {
       INPUT_DATA      => $Callcenter,
@@ -248,14 +245,15 @@ sub callcenter_calls_handler {
       EXT_TITLES      => {
         'id'             => "ID",
         # 'uid'            => "$lang{USER}",
-        'user_phone'     => "$lang{PHONE}",
+        'user_phone'     => "$lang{CALL_FROM}",
         'admin'          => "$lang{ADMIN}",
         'status'         => "$lang{STATUS}",
         'date'           => "$lang{DATE}",
-        'operator_phone' => "$lang{ADMIN} $lang{PHONE}",
+        'operator_phone' => "$lang{CALL_TO}",
         'fio'            => "$lang{FIO}",
         'login'          => "$lang{USER}",
-        'address_full'   => "$lang{ADDRESS}"
+        'address_full'   => "$lang{ADDRESS}",
+        'city'           => $lang{CITY},
       },
       TABLE => {
         width   => '100%',
@@ -720,6 +718,7 @@ sub _callcenter_user_btn {
 =cut
 #**********************************************************
 sub callcenter_report {
+
   reports({
     PERIOD_FORM=>1,
     DATE_RANGE=>1,
@@ -728,26 +727,27 @@ sub callcenter_report {
   });
 
   my %info = ();
-  my %data_status_1 = q{};
-  my %data_status_2 = q{};
-  my %data_status_3 = q{};
-  my %data_status_4 = q{};
+  my %data_status_1 = ();
+  my %data_status_2 = ();
+  my %data_status_3 = ();
+  my %data_status_4 = ();
 
 #  Count calls for info-boxes
-  $Callcenter->callcenter_list_calls({DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE )});
-  $info{ALL_CALLS} = $Callcenter->{TOTAL};
+  $Callcenter->callcenter_data_report({DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), PARAM => "'%Y-%m-%d'", COLS_NAME => 1});
+  $info{ALL_CALLS} = $Callcenter->{list}[0]{count};
 
-  $Callcenter->callcenter_list_calls({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 1 });
-  $info{RINGING} = $Callcenter->{TOTAL};
+  $Callcenter->{debug}=0;
+  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 1, PARAM => "'%Y-%m-%d'", COLS_NAME => 1});
+  $info{RINGING} = $Callcenter->{list}[0]{count};
 
-  $Callcenter->callcenter_list_calls({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 2 });
-  $info{IN_PROCESSING} = $Callcenter->{TOTAL};
+  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 2, PARAM => "'%Y-%m-%d'", COLS_NAME => 1});
+  $info{IN_PROCESSING} = $Callcenter->{list}[0]{count};
 
-  $Callcenter->callcenter_list_calls({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 3 });
-  $info{PROCESSED} = $Callcenter->{TOTAL};
+  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 3, PARAM => "'%Y-%m-%d'", COLS_NAME => 1});
+  $info{PROCESSED} = $Callcenter->{list}[0]{count};
 
-  $Callcenter->callcenter_list_calls({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 4 });
-  $info{NOT_PROCESSED} = $Callcenter->{TOTAL};
+  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 4, PARAM => "'%Y-%m-%d'", COLS_NAME => 1});
+  $info{NOT_PROCESSED} = $Callcenter->{list}[0]{count};
 
 #  DATA for chart
   %data_status_1 = _callcenter_convert_data_for_chart({
@@ -877,6 +877,7 @@ sub _callcenter_convert_data_for_chart {
     DATE      => $period,
     STATUS    => $attr->{STATUS},
     PARAM     => $date_param,
+    GROUP_BY  => 1,
     LIST2HASH => 'my_data,count',
   });
 
@@ -930,11 +931,12 @@ sub callcenter_sound {
 
 foreach my $file ( split(/\s/, $result_cmd) ) {
   my ($date,$call_from,$call_to) = $file =~ /^(\d+)\-(\d+)\-(\d+)/;
+  my ($y,$m,$d,$h,$mn) = $date =~ /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/g;
   $table->addrow(
     $call_from || '',
     $call_to || '',
-    $date || '',
-    qq{<audio controls style="width: 200px;height: 25px;"><source src="/images/asterisk/$file" type="audio/wav"</audio>},
+    "$d-$m-$y $h:$mn" || '',
+    qq{<audio controls style="width: 350px;height: 25px;"><source src="/images/asterisk/$file" type="audio/wav"</audio>},
   );
 }
 

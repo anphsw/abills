@@ -103,5 +103,6 @@ $lang{TYPE_IN_SPENDING_TYPE}='Введите тип расхода по касс
 $lang{TYPE_IN_COMING_TYPE}='Введите тип прихода по кассе';
 $lang{UNITS_}='Единицы измерения';
 
+$lang{VACATION}='Отпуск';
 
 1

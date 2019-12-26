@@ -202,6 +202,14 @@
                     </div>
 
                     <div class='form-group'>
+                        <label class='control-label col-md-3' for='EXPIRE'>_{EXPIRE}_:</label>
+                        <div class='col-md-9'>
+                            <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%'
+                                   class='form-control datepicker' type='text'>
+                        </div>
+                    </div>
+
+                    <div class='form-group'>
                         <label class='control-label col-md-3' for='FULL_LOG'>Paranoid _{LOG}_:</label>
                         <div class='col-md-9'>
                             <input id='FULL_LOG' name='FULL_LOG' value='1' %FULL_LOG% type='checkbox'>

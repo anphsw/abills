@@ -8,8 +8,8 @@
 
 =head1 VERSION
 
-  VERSION: 0.35
-  UPDATE: 20190415
+  VERSION: 0.36
+  UPDATE: 20190607
 
 =cut
 #**********************************************************
@@ -189,12 +189,12 @@ sub check_activity {
     LEFT JOIN tarif_plans tp  ON (tp.tp_id=internet.tp_id)
   };
 
-  if (in_array('Internet', \@MODULES)) {
-    $internet_tables = q{  FROM internet_online online
-      LEFT JOIN internet_main internet  ON (internet.id=online.service_id)
-      LEFT JOIN tarif_plans tp  ON (tp.tp_id=internet.tp_id)
-    };
-  }
+  # if (in_array('Internet', \@MODULES)) {
+  #   $internet_tables = q{  FROM internet_online online
+  #     LEFT JOIN internet_main internet  ON (internet.id=online.service_id)
+  #     LEFT JOIN tarif_plans tp  ON (tp.tp_id=internet.tp_id)
+  #   };
+  # }
 
   my $sql = "SELECT online.user_name,
     UNIX_TIMESTAMP() - UNIX_TIMESTAMP(online.started) AS duration,
@@ -209,6 +209,7 @@ sub check_activity {
     n.nas_type,
     n.mng_host_port,
     n.mng_user,
+    online.service_id,
     DECODE(n.mng_password, '$conf{secretkey}') AS mng_password,
     IF(internet.filter_id<>'', internet.filter_id, tp.filter_id) AS filter_id,
     INET_NTOA(internet.netmask) AS netmask,
@@ -228,58 +229,59 @@ sub check_activity {
 
   my $fw_step = 1000;
 
-  foreach my $line (@{$Internet->{list}}) {
-    my $tp_id = $line->{tp_id};
-    my $ip = $line->{ip};
+  foreach my $user_info (@{$Internet->{list}}) {
+    my $tp_id = $user_info->{tp_id};
+    my $ip = $user_info->{ip};
 
     if ($ip eq '0.0.0.0') {
-      $Log->log_print('LOG_EMERG', $line->{user_name}, "DURATION: $line->{duration} TP: $tp_id IP: $ip STATUS: $line->{status} WRONG_IP");
+      $Log->log_print('LOG_EMERG', $user_info->{user_name}, "DURATION: $user_info->{duration} TP: $tp_id IP: $ip STATUS: $user_info->{status} WRONG_IP");
       next;
     }
 
     my $TRAFFIC_CLASSES = $TP_TRAFFIC_CLASSES->{$tp_id} || 1;
 
-    $Log->log_print('LOG_INFO', $line->{user_name}, "DURATION: $line->{duration} TP: $tp_id IP: $ip STATUS: $line->{status} TC: $TRAFFIC_CLASSES GUEST: " . $line->{guest});
+    $Log->log_print('LOG_INFO', $user_info->{user_name}, "DURATION: $user_info->{duration} TP: $tp_id IP: $ip STATUS: $user_info->{status} TC: $TRAFFIC_CLASSES GUEST: " . $user_info->{guest});
     my $cmd = '';
 
-    if ($line->{netmask} ne '32') {
-      my $ips = 4294967296 - ip2int($line->{netmask});
-      $line->{netmask} = 32 - length(sprintf("%b", $ips)) + 1;
+    if ($user_info->{netmask} ne '32') {
+      my $ips = 4294967296 - ip2int($user_info->{netmask});
+      $user_info->{netmask} = 32 - length(sprintf("%b", $ips)) + 1;
     }
 
     if (defined($argv->{IPN_SHAPPER})) {
       $cmd = $conf{IPN_FW_START_RULE} || $conf{INTERNET_IPOE_START};
       $cmd =~ s/\%IP/$ip/g;
-      $cmd =~ s/\%MASK/$line->{netmask}/g;
+      $cmd =~ s/\%MASK/$user_info->{netmask}/g;
       #$cmd =~ s/\%NUM/$rule_num/g;
       #$cmd =~ s/\%SPEED_IN/$speed_in/g if ($speed_in > 0);
       #$cmd =~ s/\%SPEED_OUT/$speed_out/g if ($speed_out > 0);
-      $cmd =~ s/\%LOGIN/$line->{user_name}/g;
-      $cmd =~ s/\%PORT/$line->{nas_port_id}/g;
-      $cmd =~ s/\%DEBUG/$line->{filter_id}/g;
+      $cmd =~ s/\%LOGIN/$user_info->{user_name}/g;
+      $cmd =~ s/\%PORT/$user_info->{nas_port_id}/g;
+      $cmd =~ s/\%DEBUG/$user_info->{filter_id}/g;
       $cmd =~ s/\%STATUS/ONLINE_ENABLE/g;
+      $cmd =~ s/\%SERVICE_ID/$user_info->{service_id}/g;
 
-      if ($line->{filter_id} && $conf{IPN_FILTER}) {
+      if ($user_info->{filter_id} && $conf{IPN_FILTER}) {
         my $f_cmd = $conf{IPN_FILTER};
         $f_cmd =~ s/\%STATUS/ONLINE_ENABLE/g;
-        $f_cmd =~ s/\%IP/$line->{ip}/g;
-        $f_cmd =~ s/\%MASK/$line->{netmask}/g;
+        $f_cmd =~ s/\%IP/$user_info->{ip}/g;
+        $f_cmd =~ s/\%MASK/$user_info->{netmask}/g;
         #$cmd =~ s/\%NUM/$rule_num/g;
         #$cmd =~ s/\%SPEED_IN/$speed_in/g if ($speed_in > 0);
         #$cmd =~ s/\%SPEED_OUT/$speed_out/g if ($speed_out > 0);
-        $f_cmd =~ s/\%LOGIN/$line->{user_name}/g;
-        $f_cmd =~ s/\%PORT/$line->{nas_port_id}/g;
-        $f_cmd =~ s/\%FILTER_ID/$line->{filter_id}/g;
+        $f_cmd =~ s/\%LOGIN/$user_info->{user_name}/g;
+        $f_cmd =~ s/\%PORT/$user_info->{nas_port_id}/g;
+        $f_cmd =~ s/\%FILTER_ID/$user_info->{filter_id}/g;
         $f_cmd =~ s/\%DEBUG//g;
         $cmd .= "; $f_cmd";
       }
 
-      $ENV{NAS_IP_ADDRESS} = $line->{nas_ip};
-      $ENV{NAS_MNG_USER} = $line->{mng_user};
-      $ENV{NAS_MNG_PASSWORD} = $line->{mng_password};
-      $ENV{NAS_MNG_IP_PORT} = $line->{mng_host_port};
-      $ENV{NAS_ID} = $line->{nas_id};
-      $ENV{NAS_TYPE} = $line->{nas_type} || '';
+      $ENV{NAS_IP_ADDRESS} = $user_info->{nas_ip};
+      $ENV{NAS_MNG_USER} = $user_info->{mng_user};
+      $ENV{NAS_MNG_PASSWORD} = $user_info->{mng_password};
+      $ENV{NAS_MNG_IP_PORT} = $user_info->{mng_host_port};
+      $ENV{NAS_ID} = $user_info->{nas_id};
+      $ENV{NAS_TYPE} = $user_info->{nas_type} || '';
     }
     else {
 
@@ -287,7 +289,7 @@ sub check_activity {
         $Turbo = Turbo->new($db, undef, \%conf);
         $Turbo->list(
           {
-            UID    => $line->{UID},
+            UID    => $user_info->{UID},
             ACTIVE => 1,
           }
         );
@@ -312,7 +314,7 @@ sub check_activity {
       }
       else {
         for (my $traf_type = 0; $traf_type < $TRAFFIC_CLASSES; $traf_type++) {
-          if ($line->{guest}) {
+          if ($user_info->{guest}) {
             $cmd = "$IPFW -q table " . (10 + $traf_type * 2) . " delete $ip; ";
             $cmd .= "$IPFW -q table " . (11 + $traf_type * 2) . " delete $ip; ";
             $cmd .= "$IPFW -q table $fw_guest_table add $ip;";

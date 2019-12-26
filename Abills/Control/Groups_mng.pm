@@ -119,6 +119,7 @@ sub form_groups {
     $users->{DISABLE_PAYSYS}= ($users->{DISABLE_PAYSYS}) ? 'checked' : '';
     $users->{DISABLE_CHG_TP}= ($users->{DISABLE_CHG_TP}) ? 'checked' : '';
     $users->{BONUS}         = ($users->{BONUS}) ? 'checked' : '';
+    $users->{GID_DISABLE}   = 'disabled';
 
     if(in_array('Multidoms', \@MODULES)) {
       load_module('Multidoms', $html);

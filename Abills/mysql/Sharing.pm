@@ -2122,9 +2122,13 @@ sub info_user {
     "SELECT
     su.uid,
     su.file_id,
-    su.date_to
-    FROM sharing_users as su
-    WHERE uid = $attr->{UID} and file_id = $attr->{FILE_ID};", undef, { COLS_NAME => 1 }
+    su.date_to,
+    su.demo
+    FROM sharing_users AS su
+    WHERE uid = ? AND file_id = ?;", undef,
+    { COLS_NAME => 1,
+      Bind      => [ $attr->{UID}, $attr->{FILE_ID} ]
+    }
   );
 
   if($self->{list} && ref $self->{list} eq 'ARRAY' && scalar @{$self->{list}} > 0){
@@ -2571,6 +2575,31 @@ sub sharing_get_downloaded_files_count {
   LEFT JOIN sharing_files sf ON (sf.id=sdl.file_id)
 GROUP BY file_id
 ORDER BY count DESC;
+  ", undef, {COLS_NAME => 1});
+
+  return $self->{list};
+}
+
+#*******************************************************************
+=head2 sharing_get_demo_files() -
+
+  Arguments:
+    $attr
+
+  Returns:
+
+=cut
+#*******************************************************************
+sub sharing_get_demo_files {
+  my $self = shift;
+  my($attr)=@_;
+
+  $self->query("
+    select su.uid, u.id, su.file_id, su.date_to, sf.name from sharing_users as su
+LEFT JOIN sharing_files sf ON (sf.id=su.file_id)
+LEFT JOIN users u ON (u.uid=su.uid)
+WHERE su.demo = 1
+GROUP BY file_id;
   ", undef, {COLS_NAME => 1});
 
   return $self->{list};

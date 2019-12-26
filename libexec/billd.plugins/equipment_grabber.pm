@@ -52,15 +52,15 @@ else {
 if ($argv->{GET_FW}) {
   equipment_get_version();
 }
-
-if ($argv->{SCAN_EQUIPMENT_PORTS}) {
+elsif ($argv->{SCAN_EQUIPMENT_PORTS}) {
   equipment_scan_equipment();
 }
-
-if ($argv->{DELETE_EQUIPMENT_PORTS}) {
+elsif ($argv->{DELETE_EQUIPMENT_PORTS}) {
   equipment_delete_ports();
 }
-
+else {
+  equipment_grab();
+}
 
 #**********************************************************
 =head2 equipment_check($attr)

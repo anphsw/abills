@@ -9,7 +9,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Mail;
-use Abills::Base qw(in_array sendmail mk_unique_value);
+use Abills::Base qw(in_array sendmail mk_unique_value cmd);
 
 our ($db,
   $admin,
@@ -672,9 +672,9 @@ sub mail_user_boxes {
   #  mail_users_list();
   # }
 
-  $Mail->{ANTIVIRUS} = ' checked' if (defined($Mail->{ANTIVIRUS}) && $Mail->{ANTIVIRUS} == 0);
-  $Mail->{ANTISPAM}  = ' checked' if (defined($Mail->{ANTISPAM}) && $Mail->{ANTISPAM} == 0);
-  $Mail->{DISABLE}   = ' checked' if (defined($Mail->{DISABLE}) && $Mail->{DISABLE} == 1);
+  $Mail->{ANTIVIRUS} = ' checked' if (defined($Mail->{ANTIVIRUS}) && $Mail->{ANTIVIRUS} =~ /\d+/ && $Mail->{ANTIVIRUS} == 0);
+  $Mail->{ANTISPAM}  = ' checked' if (defined($Mail->{ANTISPAM}) && $Mail->{ANTISPAM} ne '' && $Mail->{ANTISPAM} == 0);
+  $Mail->{DISABLE}   = ' checked' if ($Mail->{DISABLE});
 
   $Mail->{DOMAINS_SEL} = $html->form_select(
     'MAIL_DOMAIN_ID',

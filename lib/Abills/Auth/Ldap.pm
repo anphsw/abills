@@ -74,7 +74,7 @@ sub ldap_get_objects {
   );
 
   if ($result->{code}) {
-    die $result->error;
+    die $result->error . $mesg;
   }
 
   printf "COUNT: %s\n", $result->{count};

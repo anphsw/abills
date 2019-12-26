@@ -9,7 +9,7 @@
     <div class='form-group'>
       <label class='control-label col-md-3'>_{NUMBER}_</label>
       <div class='col-md-9'>
-        <input type='number' class='form-control' name='STEP_NUMBER' VALUE='%STEP_NUMBER%'>
+        <input type='number' class='form-control' name='STEP_NUMBER' VALUE='%STEP_NUMBER%' min='1' required>
       </div>
     </div>
     <div class='form-group'>

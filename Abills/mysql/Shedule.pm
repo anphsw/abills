@@ -156,6 +156,7 @@ sub list{
       [ 'COMMENTS',     'STR', 's.comments'     ],
       [ 'ACTION',       'STR', 's.action'       ],
       [ 'ADMIN_ACTION', 'STR', 's.admin_action' ],
+      [ 'ID',           'INT', 's.id'           ],
       [ 'SHEDULE_DATE', 'DATE', "CONCAT(s.y,'-',s.m,'-',s.d)", "CONCAT(s.y,'-',s.m,'-',s.d)" ]
     ],
     { WHERE             => 1,
@@ -259,6 +260,7 @@ sub add{
   Arguments:
     $attr
       EXECUTE - Execute flag
+      UID
 
   Result:
     Object
@@ -278,29 +280,47 @@ sub del{
       $WHERE = " AND uid='$attr->{UID}'";
     }
 
-    $self->query( "DELETE FROM shedule WHERE id IN ( $attr->{IDS} ) $WHERE;", 'do' );
-    if ( $attr->{UID} ){
-      $admin->action_add( $attr->{UID}, "SHEDULE:$attr->{IDS} RESULT:$result" . $attr->{EXT_INFO},
-        { TYPE => ($attr->{EXECUTE}) ? 29 : 28 } );
+    my $ids = $attr->{IDS};
+    $ids =~ s/,\s?/;/g;
+    $self->list({ ID => $ids });
+
+    if($self->{TOTAL}) {
+      $self->query("DELETE FROM shedule WHERE id IN ( $attr->{IDS} ) $WHERE;", 'do');
+
+      if ($self->{AFFECTED}) {
+        if ($attr->{UID}) {
+          $admin->action_add($attr->{UID}, "SHEDULE:$attr->{IDS} RESULT:$result" . $attr->{EXT_INFO},
+            { TYPE => ($attr->{EXECUTE}) ? 29 : 28 });
+        }
+        else {
+          $admin->system_action_add("SHEDULE:$attr->{IDS} UID:$self->{UID}", { TYPE => 10 });
+        }
+        return $self;
+      }
     }
-    else{
-      $admin->system_action_add( "SHEDULE:$attr->{IDS} UID:$self->{UID}", { TYPE => 10 } );
-    }
-    return $self;
   }
 
   $self->info( { ID => $attr->{ID} } );
 
   if ( $self->{TOTAL} > 0 ){
-    $self->query_del( 'shedule', $attr, {
-        uid => $attr->{UID} || $attr->{UID}
-      });
-    if ( $self->{UID} ){
-      $admin->action_add( $self->{UID}, "SHEDULE:$attr->{ID} RESULT:$result" . $attr->{EXT_INFO},
-        { TYPE => ($attr->{EXECUTE}) ? 29 : 28 } );
+    if($attr->{UID} && $attr->{UID} != $self->{UID}) {
+      $self->{errno}=11;
+      $self->{errstr}='WRONG_UID';
+      return $self;
     }
-    else{
-      $admin->system_action_add( "SHEDULE:$attr->{ID} RESULT: $result", { TYPE => ($attr->{EXECUTE}) ? 29 : 28 } );
+
+    $self->query_del( 'shedule', $attr, {
+      uid => $attr->{UID}
+    });
+
+    if($self->{AFFECTED}) {
+      if ($self->{UID}) {
+        $admin->action_add($self->{UID}, "SHEDULE:$attr->{ID} RESULT:$result" . $attr->{EXT_INFO},
+          { TYPE => ($attr->{EXECUTE}) ? 29 : 28 });
+      }
+      else {
+        $admin->system_action_add("SHEDULE:$attr->{ID} RESULT: $result", { TYPE => ($attr->{EXECUTE}) ? 29 : 28 });
+      }
     }
   }
 

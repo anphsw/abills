@@ -12,44 +12,50 @@ our (
   $Admin,
   $db,
   $argv,
+  $DATE,
+  $TIME,
 );
 
-my @required_conf = (
-  'EXTRECEIPT_APP_ID',
-  'EXTRECEIPT_SECRET',
-  'EXTRECEIPT_METHODS',
-  'EXTRECEIPT_GOODS_NAME',
-  'EXTRECEIPT_AUTHOR',
-  'EXTRECEIPT_API_URL',
- );
-
-foreach my $key (@required_conf) {
-  if (!defined($conf{$key})) {
-    print "Can't find $key\n";
-    return 1;
-  }
-}
-
-use Extreceipt::db::Extreceipt;
-use Extreceipt::API::Online_receipts;
 use Conf;
+use Extreceipt::db::Extreceipt;
 
-my $Receipt     = Extreceipt->new($db, $Admin, \%conf);
-my $Receipt_api = Online_receipts->new(\%conf);
-my $Config      = Conf->new($db, $Admin, \%conf);
-unless ($Receipt_api->init()) {
-  print "Can't get token!\nCheck your configuration (app_id and secret).\n";
-  return 1;
-}
+my $Config  = Conf->new($db, $Admin, \%conf);
+my $Receipt = Extreceipt->new($db, $Admin, \%conf);
+
+my $api_list = $Receipt->api_list();
+my $Receipt_api = ();
+foreach my $line (@$api_list) {
+  my $api_name = $line->{api_name};
+  if (eval { require "Extreceipt/API/$api_name.pm"; 1; }) {
+    $Receipt_api->{$line->{api_id}} = $api_name->new(\%conf, $line);
+    $Receipt_api->{$line->{api_id}}->{debug} = 1 if ($argv->{DEBUG});
+    if (!$Receipt_api->{$line->{api_id}}->init()) {
+      $Receipt_api->{$line->{api_id}} = ();
+    }
+  }
+  else {
+    print $@;
+    $Receipt_api->{$line->{api_id}} = ();
+  }
+} 
 
 if ($argv->{CANCEL}) {
   cancel_payments($argv->{CANCEL});
+}
+elsif ($argv->{CHECK}) {
+  check_receipts();
+}
+elsif ($argv->{RESEND}) {
+  resend_errors();
 }
 else {
   check_receipts();
   check_payments();
   send_payments();
+  resend_errors();
 }
+
+exit 1;
 
 #**********************************************************
 =head2 check_payments()
@@ -59,10 +65,10 @@ else {
 #**********************************************************
 sub check_payments {
 
-  my $start_id = $conf{EXTRECEIPT_LAST_ID} || $argv->{START} || 1;
+  my $start_id = $argv->{START} || $conf{EXTRECEIPT_LAST_ID} || 1;
   $Receipt->get_new_payments($start_id);
   $Config->config_add({
-    PARAM   => 'EXTRECEIPT_LAST_ID',
+    PARAM   => "EXTRECEIPT_LAST_ID",
     VALUE   => $Receipt->{LAST_ID},
     REPLACE => 1
   });
@@ -75,9 +81,14 @@ sub check_payments {
 =cut
 #**********************************************************
 sub send_payments {
-  my $list = $Receipt->list({ STATUS => 0 });
+  my $list = $Receipt->list({ STATUS => 0, PAGE_ROWS => 9999 });
   foreach my $line (@$list) {
-    my $command_id = $Receipt_api->payment_register($line);
+    next if (!$Receipt_api->{$line->{api_id}});
+    $line->{phone} =~ s/[^0-9\+]//g;
+    if (!$line->{mail} && !$line->{phone}) {
+      $line->{mail} = $line->{uid} . '@myisp';
+    }
+    my $command_id = $Receipt_api->{$line->{api_id}}->payment_register($line);
     if ($command_id) {
       $Receipt->change({ PAYMENTS_ID => $line->{payments_id}, COMMAND_ID => $command_id, STATUS => 1 });
     }
@@ -93,7 +104,8 @@ sub send_payments {
 sub cancel_payments {
   my ($id) = @_;
   my $info = $Receipt->info($id);
-  my $command_id = $Receipt_api->payment_cancel($info->[0]);
+  return 1 if (!$Receipt_api->{$info->[0]{api_id}});
+  my $command_id = $Receipt_api->{$info->[0]{api_id}}->payment_cancel($info->[0]);
   if ($command_id) {
     $Receipt->change({ PAYMENTS_ID => $id, CANCEL_ID => $command_id, STATUS => 3 });
   }
@@ -107,19 +119,66 @@ sub cancel_payments {
 =cut
 #**********************************************************
 sub check_receipts {
-  my $list = $Receipt->list({ STATUS => 1 });
+  my $list = ();
+  if ($argv->{CHECK}) {
+    $list = $Receipt->info($argv->{CHECK});
+  }
+  else {
+    $list = $Receipt->list({ STATUS => 1, PAGE_ROWS => 9999 });
+  }
   foreach my $line (@$list) {
-    my ($fdn, $fda, $date) = $Receipt_api->get_info($line->{command_id});
+    next if (!$Receipt_api->{$line->{api_id}});
+    # next if ($line->{api_name} eq 'Atol');
+    my ($fdn, $fda, $date, $payments_id, $error) = $Receipt_api->{$line->{api_id}}->get_info($line);
+    $payments_id ||= $line->{payments_id};
+    if ($error) {
+      if ($payments_id =~ m/\-e/) {
+        $payments_id =~ s/\-e//;
+        $Receipt->change({
+          PAYMENTS_ID  => $payments_id,
+          STATUS       => 5,
+        });
+      }
+      else {
+        $Receipt->change({
+          PAYMENTS_ID  => $payments_id,
+          STATUS       => 4,
+        });
+      }
+      next;
+    }
+    $payments_id =~ s/\-e//;
     $date =~ s/T/ /;
     $date =~ s/\+.*//;
     if ($fda) {
       $Receipt->change({
-        PAYMENTS_ID  => $line->{payments_id},
+        PAYMENTS_ID  => $payments_id,
         FDN          => $fdn,
         FDA          => $fda,
         RECEIPT_DATE => $date,
         STATUS       => 2,
       });
+    }
+  }
+  return 1;
+}
+
+#**********************************************************
+=head2 resend_errors()
+  Resend payments with status 4, status changes to 1.
+=cut
+#**********************************************************
+sub resend_errors {
+  my $list = $Receipt->list({ STATUS => 4, PAGE_ROWS => 9999 });
+  foreach my $line (@$list) {
+    next if (!$Receipt_api->{$line->{api_id}});
+    if (!$line->{mail} && !$line->{phone}) {
+      $line->{mail} = $line->{uid} . '@myisp';
+    }
+    $line->{payments_id} .= "-e";
+    my $command_id = $Receipt_api->{$line->{api_id}}->payment_register($line);
+    if ($command_id) {
+      $Receipt->change({ PAYMENTS_ID => $line->{payments_id}, COMMAND_ID => $command_id, STATUS => 1 });
     }
   }
   return 1;

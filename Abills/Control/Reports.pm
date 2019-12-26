@@ -205,7 +205,7 @@ sub reports{
         );
       }
       push @rows, $html->element('label', "$lang{GROUP}: ", {class => 'col-md-2 control-label'})
-        . $html->element('div', sel_groups(), {class => 'col-md-8'});
+        . $html->element('div', sel_groups({FILTER_SEL => 1}), {class => 'col-md-8'});
       if ($attr->{EXT_TYPE} || %select_types) {
         push @rows, $html->element('label', " $lang{TYPE}: ", {class => 'col-md-2 control-label'})
           . $html->element('div', $html->form_select(
@@ -224,8 +224,16 @@ sub reports{
 
     #Show extra select form
     if($attr->{EXT_SELECT}){
-      push @rows, $html->element('label', $attr->{EXT_SELECT_NAME} ? "$attr->{EXT_SELECT_NAME}: ": " ", {class => 'col-md-2 control-label'})
-        . $html->element('div', $attr->{EXT_SELECT}, {class => 'col-md-8'});
+      if(ref $attr->{EXT_SELECT} eq 'HASH'){
+        foreach my $key ( sort keys %{$attr->{EXT_SELECT}}){
+          push @rows, $html->element('label', $attr->{EXT_SELECT}{$key}{LABEL} ? "$attr->{EXT_SELECT}{$key}{LABEL}: ": " ", {class => 'col-md-2 control-label'})
+              . $html->element('div', ($attr->{EXT_SELECT}{$key}{SELECT} || ''), {class => 'col-md-8'});
+        }
+      }
+      else{
+        push @rows, $html->element('label', $attr->{EXT_SELECT_NAME} ? "$attr->{EXT_SELECT_NAME}: ": " ", {class => 'col-md-2 control-label'})
+            . $html->element('div', $attr->{EXT_SELECT}, {class => 'col-md-8'});
+      }
     }
     if ( $attr->{EX_INPUTS} ){
       foreach my $line ( @{ $attr->{EX_INPUTS} } ){
@@ -257,8 +265,9 @@ sub reports{
     my $box_footer = $html->element( 'div', $html->form_input( 'show', $lang{SHOW}, { class => 'btn btn-primary btn-block', TYPE => 'submit', FORM_ID => 'report_panel' } ), {
       class => 'box-footer',
     } );
-    my $box_header = $html->element( 'div', $html->element('h4', $lang{FILTERS}, {class => 'box-title table-caption'})
-      . '<div class="box-tools pull-right">
+
+    my $box_header = $html->element( 'div', $html->element('h4', $lang{SET_PARAMS}, {class => 'box-title table-caption'})
+      . '<div class="box-tools pull-right">' . ($attr->{EXTRA_HEADER_BTN} || "") . '
       <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
       <i class="fa fa-minus"></i></button></div>',
       { class => 'box-header with-border'} );
@@ -603,7 +612,7 @@ sub report_payments{
       EXT_TYPE    => {
         PAYMENT_METHOD => $lang{PAYMENT_METHOD},
         ADMINS         => $lang{ADMINS},
-        FIO            => $lang{FIO},
+#        FIO            => $lang{FIO},
         PER_MONTH      => $lang{PER_MONTH},
         DISTRICT       => $lang{DISTRICT},
         STREET         => $lang{STREET},
@@ -681,12 +690,89 @@ sub report_payments{
       },
       SKIP_COMPARE => 1
     );
+    my %ext_titles = (
+      'ADMINS' => {
+        admin_name  => $lang{ADMIN},
+        login_count => $lang{COUNT} . $lang{USERS},
+        count       => $lang{COUNT} . $lang{PAYMENTS},
+        sum         => $lang{SUM},
+        gid         => $lang{GROUP},
+        tags         => $lang{TAGS},
+      },
+      'PAYMENT_METHOD' => {
+        login_count => $lang{COUNT} . $lang{USERS},
+        count       => $lang{COUNT} . $lang{PAYMENTS},
+        sum         => $lang{SUM},
+        method        => $lang{PAYMENT_METHOD},
+        gid         => $lang{GROUP},
+        tags         => $lang{TAGS},
+      },
+      'GID' => {
+        login_count => $lang{COUNT} . $lang{USERS},
+        count       => $lang{COUNT} . $lang{PAYMENTS},
+        sum         => $lang{SUM},
+        gid         => $lang{GROUP},
+        tags         => $lang{TAGS},
+      },
+      'DAYS' => {
+        login_count => $lang{COUNT} . $lang{USERS},
+        count       => $lang{COUNT} . $lang{PAYMENTS},
+        sum         => $lang{SUM},
+        date        => $lang{DATE},
+        gid         => $lang{GROUP},
+        tags         => $lang{TAGS},
+      },
+      'PER_MONTH' => {
+        month         => $lang{MONTH},
+        login_count => $lang{COUNT} . $lang{USERS},
+        count       => $lang{COUNT} . $lang{PAYMENTS},
+        sum         => $lang{SUM},
+        arpu          => $lang{ARPU},
+        arppu         => $lang{ARPPU},
+        gid         => $lang{GROUP},
+        tags         => $lang{TAGS},
+      },
+      'USER' => {
+        login         => $lang{USER},
+        login_count => $lang{COUNT} . $lang{USERS},
+        count       => $lang{COUNT} . $lang{PAYMENTS},
+        sum         => $lang{SUM},
+        fio           => $lang{FIO},
+        gid         => $lang{GROUP},
+        tags         => $lang{TAGS},
+      },
+      'DISTRICT' => {
+        district_name => $lang{DISTRICT},
+        login_count => $lang{COUNT} . $lang{USERS},
+        count       => $lang{COUNT} . $lang{PAYMENTS},
+        sum         => $lang{SUM},
+        gid         => $lang{GROUP},
+        tags         => $lang{TAGS},
+      },
+      'STREET' => {
+        street_name   => $lang{ADDRESS_STREET},
+        login_count => $lang{COUNT} . $lang{USERS},
+        count       => $lang{COUNT} . $lang{PAYMENTS},
+        sum         => $lang{SUM},
+        gid         => $lang{GROUP},
+        tags         => $lang{TAGS},
+      },
+      'HOURS' => {
+        hour          => $lang{HOURS},
+        login_count => $lang{COUNT} . $lang{USERS},
+        count       => $lang{COUNT} . $lang{PAYMENTS},
+        sum         => $lang{SUM},
+        gid         => $lang{GROUP},
+        tags         => $lang{TAGS},
+      },
+    );
 
     ($table, $list) = result_former( {
       INPUT_DATA      => $Payments,
       FUNCTION        => 'reports',
       BASE_FIELDS     => ($type =~ /MONTH/) ? 6 : 4,
       #DEFAULT_FIELDS  => 'ARPU',
+      HIDDEN_FIELDS   => 'UID,TOTAL_USERS,PRIORITY',
       SKIP_USER_TITLE => 1,
       SELECT_VALUE    => {
         method => $PAYMENT_METHODS,
@@ -694,23 +780,7 @@ sub report_payments{
       },
       CHARTS          => 'login_count,count,sum' . (($type =~ /MONTH/) ? ',arppu,arpu' : ''),
       CHARTS_XTEXT    => $x_text,
-      EXT_TITLES      => {
-        arpu          => $lang{ARPU},
-        arpuu         => $lang{ARPPU},
-        date          => $lang{DATE},
-        month         => $lang{MONTH},
-        login         => $lang{USER},
-        fio           => $lang{FIO},
-        hour          => $lang{HOURS},
-        build         => $lang{ADDRESS_BUILD},
-        district_name => $lang{DISTRICT},
-        street_name   => $lang{ADDRESS_STREET},
-        method        => $lang{PAYMENT_METHOD},
-        admin_name    => $lang{ADMIN},
-        login_count   => $lang{COUNT} . $lang{USERS},
-        count         => $lang{COUNT} . $lang{PAYMENTS},
-        sum           => $lang{SUM}
-      },
+      EXT_TITLES      => $ext_titles{$type} || $ext_titles{'DAYS'},
       FILTER_COLS     => {
         admin_name    => "search_link:report_payments:ADMIN_NAME,$type=1,$pages_qs",
         method        => "search_link:report_payments:METHOD,TYPE=USER,$pages_qs",
@@ -723,11 +793,17 @@ sub report_payments{
         sum           => "_format_sum_for_payments::sum",
       },
       TABLE           => {
-        width   => '100%',
-        caption => "$lang{REPORTS}",
-        qs      => $pages_qs,
-        ID      => 'REPORTS_PAYMENTS',
-        EXPORT  => 1,
+        width            => '100%',
+        caption          => "$lang{REPORTS}",
+        qs               => $pages_qs,
+        ID               => 'REPORTS_PAYMENTS',
+        EXPORT           => 1,
+        SHOW_COLS_HIDDEN => {
+          TYPE      => $type || 'DAYS',
+          FROM_DATE => $FORM{FROM_DATE} || $DATE,
+          TO_DATE   => $FORM{TO_DATE} || $DATE,
+          show      => $lang{SHOW}
+        },
       },
       MAKE_ROWS       => 1,
       SEARCH_FORMER   => 1,
@@ -826,7 +902,7 @@ sub form_system_changes{
     61 => "$lang{TPL_DELETED}",
     62 => "$lang{FILE_ADDED}",
     63 => "$lang{FILE_DELETED}",
-    65 => "CHANGE_ADMIN_PERMITS",
+    65 => "$lang{CHANGE_ADMIN_PERMITS}",
     70 => "SERVICE RESTART",
   );
 
@@ -874,7 +950,7 @@ sub form_system_changes{
     $html->tpl_show( templates( 'form_history_search' ), \%search_params, { OUTPUT2RETURN => 1 } ),
   });
 
-  my $list = $admin->system_action_list( { %LIST_PARAMS } );
+  my $list = $admin->system_action_list( { %LIST_PARAMS, ADMIN_DISABLE => '_SHOW' } );
   my $table = $html->table(
     {
       width      => '100%',
@@ -915,7 +991,7 @@ sub form_system_changes{
       $html->b( $line->[0] ),
       $html->color_mark( $line->[1], $color ),
       $html->color_mark( $message, $color ),
-      $line->[3],
+      _status_color_state($line->[3], $line->[8]),
       $line->[4],
       $line->[5],
       $html->color_mark( $action_types{ $line->[6] }, $color ),
@@ -1160,9 +1236,10 @@ sub form_changes_summary {
     $pages_qs .= "&FROM_DATE=" . ($FORM{FROM_DATE} ? $FORM{FROM_DATE} : q{});
     $pages_qs .= "&TO_DATE=" . ($FORM{TO_DATE} ? $FORM{TO_DATE} : q{});
   }
+
   my $table = $html->table({
     width  => '300',
-    cation => "$lang{REPORTS}",
+    cation => $lang{REPORTS},
     qs     => $pages_qs,
     ID     => 'ADMIN_ACTIONS_SUMMARY',
     EXPORT => 1

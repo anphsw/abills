@@ -1137,11 +1137,17 @@ function initDatepickers(context) {
       
       var has_hidden = $e.data('has-hidden');
       var callback   = undefined;
-      
+
+      var autoUpdateInput = true;
+      if($daterangepickers.hasClass('no_default')){
+        autoUpdateInput = false;
+      }
+
       if (has_hidden) {
         callback = function (start, end) {
           $e.parent().find('input[type="hidden"]#' + $e.data('name1')).val(moment(start).format(DATERANGEPICKER_LOCALE['format']));
           $e.parent().find('input[type="hidden"]#' + $e.data('name2')).val(moment(end).format(DATERANGEPICKER_LOCALE['format']));
+          setDatePickerValue(start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD'), $($e.context), autoUpdateInput)
         }
       }
       
@@ -1150,16 +1156,24 @@ function initDatepickers(context) {
         timePicker24Hour    : true,
         locale              : DATERANGEPICKER_LOCALE,
         autoApply           : true,
-        autoUpdateInput     : true,
+        autoUpdateInput     : autoUpdateInput,
         showCustomRangeLabel: true,
         alwaysShowCalendars : true,
         ranges              : ranges,
         // container     : 'section#main-content'
-      }, callback);
+      }, callback || function (start, end) {
+        setDatePickerValue(start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD'), $($e.context), autoUpdateInput)
+      });
     });
     
   }
   
+}
+
+function setDatePickerValue(start, end, item, autoUpdate){
+  if(!autoUpdate) {
+    item.val(start + '/' + end);
+  }
 }
 
 function initSelect2(context) {

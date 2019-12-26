@@ -49,7 +49,7 @@ sub events_uni_result_former {
       MULTISELECT     => 'IDS:id:DELETE_EVENTS_FORM',
       TABLE           => {
         MULTISELECT_ACTIONS => $attr->{MULTISELECT_ACTIONS},
-        DATA_TABLE          => 1,
+        # DATA_TABLE          => 1,
         width               => '100%',
         caption             => $attr->{READABLE_NAME},
         ID                  => uc $attr->{LIST_FUNC},

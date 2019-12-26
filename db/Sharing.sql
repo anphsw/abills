@@ -113,7 +113,9 @@ CREATE TABLE IF NOT EXISTS `sharing_users` (
   `uid` SMALLINT(11) NOT NULL DEFAULT 0,
   `file_id` SMALLINT(6) NOT NULL DEFAULT 0,
   `date_to` DATE NOT NULL DEFAULT '0000-00-00',
-  UNIQUE (`uid`, `file_id`)
+  `demo` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  UNIQUE (`uid`, `file_id`),
+  FOREIGN KEY (file_id) REFERENCES sharing_files(id)
 )
   COMMENT = 'Users and their files';
 

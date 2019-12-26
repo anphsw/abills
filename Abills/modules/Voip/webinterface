@@ -549,10 +549,11 @@ sub voip_user{
   $user->{PROVISION} = $html->tpl_show(
     templates( 'form_show_hide' ),
     {
-      CONTENT => $html->tpl_show( _include( 'voip_provision_user', 'Voip' ), $user, { OUTPUT2RETURN => 1 } ),
-      NAME    => 'Provision',
-      ID      => 'PROVISION',
-      PARAMS  => 'collapsed-box'
+      CONTENT     => $html->tpl_show(_include('voip_provision_user', 'Voip'), $user, { OUTPUT2RETURN => 1 }),
+      NAME        => 'Provision',
+      ID          => 'PROVISION',
+      PARAMS      => 'collapsed-box',
+      BUTTON_ICON => 'plus'
     },
     { OUTPUT2RETURN => 1 }
   );
@@ -1683,6 +1684,11 @@ sub voip_daily_fees{
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
   #my ($y, $m, $d) = split( /-/, $ADMIN_REPORT{DATE}, 3 );
 
+  if($debug > 5) {
+    $Tariffs->{debug}=1;
+    $Voip->{debug}=1;
+  }
+
   my $tp_list = $Tariffs->list(
     {
       %LIST_PARAMS,
@@ -1703,13 +1709,13 @@ sub voip_daily_fees{
           ACTIVATE       => "<=$DATE",
           EXPIRE         => "0000-00-00,>$DATE",
           VOIP_EXPIRE    => "0000-00-00,>$DATE",
+          LOGIN          => '_SHOW',
           SERVICE_STATUS => '0',
           LOGIN_STATUS   => 0,
           TP_ID          => $tp->{tp_id},
           COLS_NAME      => 1,
           REDUCTION      => '_SHOW',
           BILL_ID        => '_SHOW',
-          ACTIVATE       => '_SHOW',
           DEPOSIT        => '_SHOW',
           CREDIT         => '_SHOW',
           STATUS         => '_SHOW',

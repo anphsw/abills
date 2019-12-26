@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS `bonus_service_discount` (
   `pay_method` VARCHAR(100) NOT NULL DEFAULT '0',
   `comments` TEXT NOT NULL,
   `tp_id` VARCHAR(200) NOT NULL DEFAULT '',
+  `onetime_payment_sum` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`id`)
 ) COMMENT = 'Bonus service discount';
 

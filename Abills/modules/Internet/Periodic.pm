@@ -617,10 +617,9 @@ sub internet_monthly_next_tp {
             SERVICE_EXPIRE => $expire
           });
         }
-
         if($tp_info->{change_price}
           && $tp_info->{change_price} > 0
-          && $tp_info->{next_tp_id} == $tp_info->{id}
+          && $tp_info->{next_tp_id} == $tp_info->{tp_id}
           && ! $status) {
           $Fees->take(\%user, $tp_info->{change_price}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
           if($Fees->{errno}) {
@@ -651,6 +650,8 @@ sub internet_monthly_fees {
   if($attr->{LOGON_ACTIVE_USERS} || $attr->{SRESTART}) {
     return $debug_output;
   }
+
+  my $fees_priority = $conf{FEES_PRIORITY} || q{};
 
   $debug_output .= "Internet: Monthly periodic payments\n" if ($debug > 1);
 
@@ -767,6 +768,7 @@ sub internet_monthly_fees {
           CREDIT       => '_SHOW',
           COMPANY_ID   => '_SHOW',
           PERSONAL_TP  => '_SHOW',
+          EXT_DEPOSIT  => '_SHOW',
           COLS_NAME    => 1,
           GROUP_BY     => 'internet.id',
           %USERS_LIST_PARAMS
@@ -804,6 +806,10 @@ sub internet_monthly_fees {
         if ($debug > 3) {
           $debug_output .= " Login: $user{LOGIN} ($user{UID}) TP_ID: $u->{tp_id} Fees: $TP_INFO->{MONTH_FEE}"
             . "REDUCTION: $user{REDUCTION} DEPOSIT: $user{DEPOSIT} CREDIT $user{CREDIT} ACTIVE: $user{ACTIVATE} TP: $u->{tp_id}\n";
+        }
+
+        if ($fees_priority =~ /bonus/ && $TP_INFO->{SMALL_DEPOSIT_ACTION} && $user{EXT_DEPOSIT}) {
+          $user{DEPOSIT} += $user{EXT_DEPOSIT};
         }
 
         if (!$user{BILL_ID} && $user{MAIN_BILL_ID}) {
@@ -1017,7 +1023,7 @@ sub internet_monthly_fees {
           if ($postpaid || $user{DEPOSIT} + $user{CREDIT} > 0) {
             #*******************************************
             #Unblock Small deposit status
-            if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $month_fee < $user{DEPOSIT}) {
+            if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $sum < $user{DEPOSIT}) {
               if ($user{INTERNET_STATUS} && $TP_INFO->{ABON_DISTRIBUTION} && $conf{INTERNET_FULL_MONTH} && $sum * $days_in_month > $user{DEPOSIT}) {
                 next;
               }

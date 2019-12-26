@@ -101,5 +101,8 @@ $lang{CARD_EXIST} = "Карта уже существует";
 $lang{NO_CARDS} = "Нет карт (или заблокированы или отстутствуют)";
 $lang{INTERNAL_URL} = "Внутренняя ссылка";
 $lang{EXTERNAL_URL} = "Внешняя ссылка";
+$lang{CHANGE_OF_TP} = "Смена тарифного плана на";
+
+$lang{ERROR_SHOW_CHANNELS} = "Ошибка показа каналов";
 
 1;

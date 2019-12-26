@@ -21,6 +21,7 @@ our (
 
 $Cams = Cams->new($db, $admin, \%conf);
 $users_ = Users->new($db, $admin, \%conf);
+my $Address = Address->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 cams_user_info() - Cams user interface
@@ -28,6 +29,15 @@ $users_ = Users->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub cams_user_info {
+
+  my %PORTAL_ACTIONS = ();
+  my $service_list = $Cams->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
+
+  return 1 if (!$Cams->{TOTAL});
+
+  foreach my $service (@$service_list) {
+    $PORTAL_ACTIONS{$service->{id}} = $service->{user_portal};
+  }
 
   $Cams->{ACTION} = 'add';
   $Cams->{LNG_ACTION} = $lang{ADD};
@@ -56,6 +66,56 @@ sub cams_user_info {
     });
 
     show_result($Cams, $lang{ADDED});
+    if (!$Cams->{errno}) {
+      $Cams->{ID} = $Cams->{INSERT_ID};
+
+      if (!$FORM{STATUS}) {
+        $Cams->_info($Cams->{ID});
+
+        if ($Cams->{ACTIVATE}) {
+          ($Cams->{ACTIVATE}, undef) = split(" ", $Cams->{ACTIVATE});
+        }
+
+        ::service_get_month_fee($Cams, {
+          UID                        => $FORM{UID} || $Cams->{UID} || "",
+          SERVICE_NAME               => $lang{CAMERAS},
+          DO_NOT_USE_GLOBAL_USER_PLS => 1
+        });
+      }
+    }
+
+    if ($conf{CAMS_CHECK_USER_GROUPS} && $Cams->{ID}) {
+      $FORM{change_now} = 1;
+      $user = $users_->pi({ UID => $FORM{UID} });
+      my $group_ids = "";
+      if ($users_->{TOTAL}) {
+        my $user_address = $Address->address_info($user->{LOCATION_ID});
+        my $user_access_groups = $Cams->access_group_list({
+          NAME        => "_SHOW",
+          STREET_ID   => $user_address->{STREET_ID} || 0,
+          DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
+          LOCATION_ID => $user->{LOCATION_ID} || 0,
+          SERVICE_ID  => $FORM{SERVICE_ID} || $Cams->{SERVICE_ID},
+          COMMENT     => "_SHOW",
+          COLS_NAME   => 1,
+        });
+
+        foreach my $group (@{$user_access_groups}) {
+          $group_ids .= "$group->{id}, ";
+        }
+
+        chop $group_ids;
+        chop $group_ids;
+        $FORM{IDS} = $group_ids;
+        $FORM{ID} = $Cams->{ID} || $Cams->{INSERT_ID};
+      }
+
+      $Cams->user_groups({
+        IDS   => $group_ids,
+        TP_ID => $FORM{TP_ID} || $Cams->{TP_ID},
+        ID    => $Cams->{ID},
+      });
+    }
   }
   elsif ($FORM{chg} || ($FORM{ID} && !$FORM{del})) {
     $Cams->{ACTION} = 'change';
@@ -117,14 +177,20 @@ sub cams_user_info {
     $Cams->{TP_DISPLAY_NONE} = "style='display:none'";
   }
 
+  $FORM{FOLDER_CHANGE} = 1 if ($FORM{change_now} && $conf{CAMS_FOLDER});
   $Cams_service = cams_user_services(\%FORM, $user, $Cams);
 
-  $FORM{SUBSCRIBE_FORM} = cams_services_sel({ %FORM, %$Cams, FORM_ROW => 1, UNKNOWN => 1 });
+  $FORM{SUBSCRIBE_FORM} = cams_services_sel({ %FORM, %$Cams, FORM_ROW => 1, UNKNOWN => 1, USER_PORTAL => '2' });
 
   $html->tpl_show(_include('cams_user_add_tp', 'Cams'), { %FORM, %$Cams, });
 
   if ($FORM{UID} && $FORM{chg}) {
-    $user_groups = cams_user_groups({ SERVICE_INFO => $Cams, UID => $FORM{UID}, SERVICE_ID => $Cams->{SERVICE_ID} });
+    if (!$conf{CAMS_FOLDER}) {
+      $user_groups .= cams_user_groups({ SERVICE_INFO => $Cams, UID => $FORM{UID}, SERVICE_ID => $Cams->{SERVICE_ID} });
+    }
+    else {
+      $user_groups .= cams_user_folders({ SERVICE_INFO => $Cams, UID => $FORM{UID}, SERVICE_ID => $Cams->{SERVICE_ID} });
+    }
   }
 
   $LIST_PARAMS{SERVICE_NAME} = "_SHOW";
@@ -135,7 +201,7 @@ sub cams_user_info {
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,TP_NAME,STATUS',
     HIDDEN_FIELDS   => 'LOGIN',
-    FUNCTION_FIELDS => 'change, del',
+    FUNCTION_FIELDS => 'change',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
       'id'           => "#",
@@ -165,6 +231,11 @@ sub cams_user_info {
 =cut
 #**********************************************************
 sub cams_clients_streams {
+
+  $Cams->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
+
+  return 1 if (!$Cams->{TOTAL});
+
   my $uid = $user->{UID};
   return 0 unless ($uid);
 
@@ -180,6 +251,8 @@ sub cams_clients_streams {
   });
 
   foreach my $tariff (@$user_tariffs) {
+    next if $tariff->{status};
+
     my $user_cams = $Cams->user_cameras_list({
       TP_ID     => $tariff->{tp_id},
       ID        => $tariff->{id},
@@ -212,7 +285,7 @@ sub cams_clients_streams {
         }
       }
     }
-    $html->tpl_show(_include('cams_streams_wrapper', 'Cams'), { CAMS => $streams_html });
+    $html->tpl_show(_include('cams_streams_wrapper', 'Cams'), { CAMS => $streams_html, EXTRA_LINKS => $conf{CAMS_EXTRA_LINKS} || '' });
 
     push @tp_array, $tariff->{id};
   }
@@ -224,6 +297,11 @@ sub cams_clients_streams {
 =cut
 #**********************************************************
 sub cams_user_streams_management {
+
+  $Cams->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
+
+  return 1 if (!$Cams->{TOTAL});
+
   my %CAMS_STREAM = ();
   my $show_add_form = 0;
   my $correct_name = 1;
@@ -272,12 +350,12 @@ sub cams_user_streams_management {
     $Cams->{db}->{TRANSACTION} = 1;
     my $uid = $FORM{UID};
 
-    $FORM{HOST} = _cams_correct_host($FORM{HOST});
+    $FORM{HOST} = _cams_correct_host($FORM{HOST}) if !$conf{CAMS_SKIP_CHECK_HOST};
     if ($FORM{NAME} =~ /^[aA-zZ\d_-]+$/mg && $FORM{HOST}) {
       $correct_name = _cams_group_correct({
         GROUP_ID     => $FORM{GROUP_ID} || $Cams->{GROUP_ID},
         CHECK_GROUPS => 1,
-      });
+      }) if $conf{CAMS_FOLDER};
       if ($correct_name) {
         $Cams->stream_add(\%FORM);
         $FORM{CAM_ID} = $Cams->{INSERT_ID} || "";
@@ -298,12 +376,12 @@ sub cams_user_streams_management {
   elsif ($FORM{change_cam}) {
     my $uid = $FORM{UID};
 
-    $FORM{HOST} = _cams_correct_host($FORM{HOST});
+    $FORM{HOST} = _cams_correct_host($FORM{HOST}) if !$conf{CAMS_SKIP_CHECK_HOST};
     if ($FORM{NAME} =~ /^[aA-zZ\d_-]+$/mg && $FORM{HOST}) {
       $Cams->stream_change(\%FORM);
       if (!_error_show($Cams)) {
         show_result($Cams, $lang{CHANGED});
-#        $show_add_form = 1;
+        #        $show_add_form = 1;
       }
     }
     else {
@@ -340,7 +418,7 @@ sub cams_user_streams_management {
   });
 
   if ($FORM{change_camera_now} && $Cams->{TOTAL}) {
-    my @cameras = split(',', $FORM{IDS});
+    my @cameras = $FORM{IDS} ? split(',', $FORM{IDS}) : ();
     my $cameras_count = @cameras;
 
     if ($cameras_count > $user_tps->[0]{TP_STREAMS_COUNT}) {
@@ -367,7 +445,15 @@ sub cams_user_streams_management {
       ID         => $user_tps->[0]{id},
       UID        => $FORM{UID},
       SERVICE_ID => $FORM{SERVICE_ID} || $Cams->{list}[0]{SERVICE_ID},
-    });
+    }) if !$conf{CAMS_FOLDER};
+
+    $CAMS_STREAM{FOLDERS_SELECT} = _cams_folders_select({
+      TP_ID      => $FORM{CAMS_TP_ID},
+      ID         => $user_tps->[0]{id},
+      UID        => $FORM{UID},
+      SERVICE_ID => $FORM{SERVICE_ID} || $Cams->{list}[0]{SERVICE_ID},
+    }) if $conf{CAMS_FOLDER};
+    $FORM{FOLDERS} = 1 if $conf{CAMS_FOLDER};
 
     $CAMS_STREAM{ORIENTATION_SELECT} = _cams_orientation_select({ SELECTED => ($CAMS_STREAM{ORIENTATION} || 0) });
     $CAMS_STREAM{ARCHIVE_SELECT} = _cams_archive_select({ SELECTED => $CAMS_STREAM{ARCHIVE} });
@@ -477,6 +563,10 @@ sub cams_user_streams_management {
 sub cams_archives {
   my %CAMS_STREAM = ();
 
+  $Cams->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
+
+  return 1 if (!$Cams->{TOTAL});
+
   $FORM{UID} = $user->{UID} ? $user->{UID} : "";
   $FORM{USER_INFO} = $user;
 
@@ -532,6 +622,7 @@ sub cams_archives {
     if ($Cams_service && $Cams_service->can('get_archive')) {
       $users_->info($FORM{UID}, { SHOW_PASSWORD => 1 });
       $users_->pi({ UID => $FORM{UID} });
+      $camera->{DATE} = $FORM{date} if $FORM{date};
       my $result = $Cams_service->get_archive({
         %$camera, %$users_
       });

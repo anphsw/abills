@@ -7,21 +7,21 @@
 %JSON%
 
 <div class='box box-theme box-form'>
-    <div class='box-header with-border text-primary'><h3>_{POLL}_</h3></div>
+    <div class='box-header with-border'><h4 class='box-title'>_{POLL}_</h4></div>
 
 <div class='box-body'>
   <div class='form-group'>
       <label class='col-md-3 control-label required'>_{SUBJECT}_</label>
   	<div class='col-md-9'>
         <input class='form-control' type='text' name='SUBJECT' value='%SUBJECT%' placeholder='_{POLL_SUBJECT}_'
-               required='required'>
+               %DISABLE% required='required'  >
   	</div>
   </div>
   <div class='form-group'>
       <label class='col-md-3 control-label'>_{DESCRIPTION}_</label>
   	<div class='col-md-9'>
         <textarea class='form-control' type='text' name='DESCRIPTION' placeholder='_{POLL_DESCRIPTION}_'
-                  maxlength='200'>%DESCRIPTION%</textarea>
+                  %DISABLE%  maxlength='200' >%DESCRIPTION%</textarea>
   	</div>
   </div>
   <div class='form-group'>
@@ -45,18 +45,24 @@
   	</div>
   </div>
   <div id='extraAnswerWrapper'></div>
+  <div class='form-group'>
+     <label class='col-md-3 control-label'>_{EXPIRATION_DATE}_</label>
+     <div class='col-md-9'>
+       <input id='EXPIRATION_DATE' name='EXPIRATION_DATE' value='%EXPIRATION_DATE%' placeholder='%EXPIRATION_DATE%' class='form-control datepicker' %DISABLE% type='text'/>
+     </div>
+  </div>
  </form>
 
   <div class='form-group %HIDDEN%' id='extraAnswerControls' style='margin-right: 15px;'>
       <div class='text-right'>
           <div class='btn-group btn-group-xs'>
               <button class='btn btn-xs btn-danger' id='removeAnswerBtn'
-                      data-tooltip='_{DEL}_ _{POLL}_'
+                      data-tooltip='_{DEL_POLL_ANSWER}_'
                       data-tooltip-position='bottom'>
                   <span class='glyphicon glyphicon-remove'></span>
               </button>
               <button class='btn btn-xs btn-success' id='addAnswerBtn'
-                      data-tooltip='_{ADD}_ _{POLL}_'>
+                      data-tooltip='_{ADD_POLL_ANSWER}_'>
                   <span class='glyphicon glyphicon-plus'></span>
               </button>
           </div>

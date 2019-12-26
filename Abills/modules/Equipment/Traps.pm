@@ -90,13 +90,13 @@ sub color_it {
 
   my @format;
   foreach my $k (sort keys %$vr) {
-    push @format, label_w_text({ NAME => $k, TEXT => $vr->{$k}, CTRL => 1, RCOL => 8, LCOL => 4 })
+    push @format, label_w_text({ NAME => $k, TEXT => $vr->{$k}, CTRL => 1, RCOL => 8, LCOL => 4 });
   }
 
   my $modal = $html->tpl_show(_include('equipment_snmp_traps_modal', 'Equipment'), {
     ID     => $attr->{VALUES}->{TRAP_ID},
     TITLE  => $attr->{VALUES}->{TRAPOID},
-    FORMAT => @format
+    FORMAT => \@format
   }, { OUTPUT2RETURN => 1 });
   my $link = qq(<a href="#$attr->{VALUES}->{TRAP_ID}" class="text-$color" data-toggle="modal" data-target="#$attr->{VALUES}->{TRAP_ID}">$text</a>);
 

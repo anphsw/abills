@@ -1,0 +1,10 @@
+{
+  "DEVICE":"Cdata",
+  "FDB":"1",
+  "FDB_OID": "",
+  "FDB_EXPR": "(%%d+%%.%%d+%%.%%d+%%.%%d+%%.%%d+%%.%%d+):(.+)|MAC,PORT",
+//  "PORT_INDEX": "",
+  "info" : {
+
+  }
+}

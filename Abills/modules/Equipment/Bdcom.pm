@@ -32,7 +32,7 @@ sub _bdcom_get_ports {
   });
 
   foreach my $key (keys %{$ports_info}) {
-    if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} =~ /^1$/ && $ports_info->{$key}{PORT_NAME} =~ /(.PON)(\d+\/\d+)$/) {
+    if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} == 1 && $ports_info->{$key}{PORT_NAME} =~ /(.PON)(\d+\/\d+)$/i) {
       my $type = lc($1);
       #my $branch = decode_port($key);
       $ports_info->{$key}{BRANCH} = $2;
@@ -277,12 +277,12 @@ sub _bdcom {
         PARSER => '_bdcom_convert_power'
       }, #tx_power = tx_power * 0.1;
       # ONU_TX_POWER NOt work on BDCOM(tm) P3616-2TE Software, Version 10.1.0E Build 28164
-      #'OLT_RX_POWER' => {
-      #  NAME   => 'Olt_Rx_Power',
-      #  OIDS   => '.1.3.6.1.4.1.3320.9.183.1.1.5',
-      #  PARSER => '_bdcom_convert_power',
-      #  SKIP   => 'P3616-2TE'
-      #}, #olt_rx_power = olt_rx_power * 0.1;
+      'OLT_RX_POWER' => {
+        NAME   => 'OLT_RX_POWER',
+        OIDS   => '.1.3.6.1.4.1.3320.9.183.1.1.5',
+        PARSER => '_bdcom_convert_power',
+        SKIP   => 'P3616-2TE'
+      }, #olt_rx_power = olt_rx_power * 0.1;
       'ONU_DESC'       => {
         NAME   => 'DESCRIBE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.18',
@@ -359,18 +359,130 @@ sub _bdcom {
       }
     },
     gpon => {
+      'ONU_MAC_SERIAL' => {
+        NAME   => 'Mac/Serial',
+        OIDS   => '.1.3.6.1.4.1.3320.10.3.3.1.2',
+        #PARSER => 'bin2hex'
+      },
+      'ONU_STATUS'     => {
+        NAME   => 'STATUS',
+        OIDS   => '1.3.6.1.4.1.3320.10.3.1.1.8',
+        #OIDS   => '.1.3.6.1.4.1.3320.10.3.3.1.4',
+        PARSER => ''
+      },
+      'ONU_TX_POWER'   => {
+        NAME   => 'ONU_TX_POWER',
+        OIDS   => '.1.3.6.1.4.1.3320.10.3.4.1.3',
+        PARSER => '_bdcom_convert_power'
+      }, #tx_power = tx_power * 0.1;
+      'ONU_RX_POWER'   => {
+        NAME   => 'ONU_RX_POWER',
+        OIDS   => '.1.3.6.1.4.1.3320.10.3.4.1.2',
+        PARSER => '_bdcom_convert_power'
+      }, #tx_power = tx_power * 0.1;
+      # ONU_TX_POWER NOt work on BDCOM(tm) P3616-2TE Software, Version 10.1.0E Build 28164
+      'OLT_RX_POWER' => {
+        NAME   => 'OLT_RX_POWER',
+        OIDS   => '.1.3.6.1.4.1.3320.9.183.1.1.5',
+        PARSER => '_bdcom_convert_power',
+        SKIP   => 'P3616-2TE'
+      }, #olt_rx_power = olt_rx_power * 0.1;
+      'ONU_DESC'       => {
+        NAME   => 'DESCRIBE',
+        OIDS   => '.1.3.6.1.2.1.31.1.1.1.18',
+        PARSER => ''
+      },
+      'ONU_IN_BYTE'    => {
+        NAME   => 'PORT_IN',
+        OIDS   => '.1.3.6.1.2.1.31.1.1.1.6',
+        PARSER => ''
+      },
+      'ONU_OUT_BYTE'   => {
+        NAME   => 'PORT_OUT',
+        OIDS   => '.1.3.6.1.2.1.31.1.1.1.10',
+        PARSER => ''
+      },
+      # 'TEMPERATURE'    => {
+      #   NAME   => 'TEMPERATURE',
+      #   OIDS   => '.1.3.6.1.4.1.3320.101.10.5.1.2',
+      #   PARSER => '_bdcom_convert_temperature'
+      # }, #temperature = temperature / 256;
+      'reset'          => {
+        NAME        => '',
+        OIDS        => '1.3.6.1.4.1.3320.10.3.2.1.1.4',
+        RESET_VALUE => 0,
+        PARSER      => ''
+      },
+      # 'VLAN'           => {
+      #   NAME   => 'VLAN',
+      #   OIDS   => '1.3.6.1.4.1.3320.101.12.1.1.3',
+      #   PARSER => '',
+      #   WALK   => 1
+      # },
+      main_onu_info    => {
+        'HARD_VERSION'      => {
+          NAME   => 'VERSION',
+          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.9',
+          PARSER => ''
+        },
+        'FIRMWARE'          => {
+          NAME   => 'FIRMWARE',
+          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.9',
+          PARSER => ''
+        },
+        # 'VOLTAGE'          => {
+        #   NAME   => 'VOLTAGE',
+        #   OIDS   => '.1.3.6.1.4.1.3320.101.10.5.1.3',
+        #   PARSER => '_bdcom_convert_voltage'
+        # }, #voltage = voltage * 0.0001;
+        'DISTANCE'          => {
+          NAME   => 'DISTANCE',
+          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.33',
+          PARSER => '_bdcom_convert_distance'
+        }, #distance = distance * 0.001;
+        'MAC'               => {
+          NAME   => 'MAC',
+          OIDS   => '.1.3.6.1.4.1.3320.10.3.3.1.2',
+          PARSER => '_bdcom_gpon_mac',
+          #OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.28',
+          #PARSER => '_bdcom_mac_list',
+          #WALK   => 1
+        },
+        # 'VLAN'             => {
+        #   NAME   => 'VLAN',
+        #   OIDS   => '1.3.6.1.4.1.3320.101.12.1.1.3',
+        #   PARSER => '',
+        #   WALK   => 1
+        # },
+        # 0-1 - Active
+        # 2 - Not connected
+        'ONU_PORTS_STATUS'  => {
+          NAME   => 'ONU_PORTS_STATUS',
+          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.8',
+          PARSER => '',
+          WALK   => 1
+        },
+        'UPTIME'            => {
+          NAME   => 'UPTIME',
+          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.19.22',
+          PARSER => '_bdcom_sec2time',
+        },
+        'ONUDEACTIVEREASON' =>  {
+          NAME   => 'ONUDEACTIVEREASON',
+          OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.35',
+          PARSER => '',
+        }
+      }
     }
     #
-    #    'onuReset'                        => '1.3.6.1.4.1.3320.101.10.1.1.29',
-    #    'cur_tx'                          => '1.3.6.1.4.1.3320.101.10.5.1.5', #TX cure
     #    #''        => '1.3.6.1.4.1.3320.101.10.5.1.6', #TX ULimit
     #    'cur_rx'                          => '1.3.6.1.4.1.3320.9.183.1.1.5', #RX cure
-    #    #'mac_onu' => '1.3.6.1.4.1.3320.101.10.1.1.3',
+
+    #    !!! 'mac_onu' => '1.3.6.1.4.1.3320.101.10.1.1.3',  VERSION: P3608-2TE
+
     #    #'RTT(TQ)' =>  '1.3.6.1.4.1.3320.101.11.1.1.8.8',
     #    'onu_ports_status'                => '1.3.6.1.4.1.3320.101.12.1.1.8',
     #    'onustatus'                       => '1.3.6.1.4.1.3320.101.10.1.1.26',
-    #    'onu_distance'                    => '1.3.6.1.4.1.3320.101.10.1.1.27',
-    #    'mac/serial'                      => '1.3.6.1.4.1.3320.101.10.4.1.1', #Active macs
     #    #'onu_mac' =>  '1.3.6.1.4.1.3320.101.10.1.1.76',  #new params
     #    #                'speed_in' => '1.3.6.1.4.1.3320.101.12.1.1.13',  # onu_id.onu_port
     #    #                'speed_out'=> '1.3.6.1.4.1.3320.101.12.1.1.21',  # onu_id.onu_port
@@ -492,6 +604,17 @@ sub _bdcom {
   }
 
   return \%snmp;
+}
+
+#**********************************************************
+=head2 _bdcom_sec2time($sec)
+
+=cut
+#**********************************************************
+sub _bdcom_sec2time {
+  my ($sec)=@_;
+
+  return sec2time($sec, { str => 1 });
 }
 
 #**********************************************************
@@ -680,7 +803,7 @@ sub _bdcom_get_fdb {
   if ($port_name_oid) {
     $ports_name = snmp_get({
       %$attr,
-      TIMEOUT => $attr->{TIMEOUT} || 8,,
+      TIMEOUT => $attr->{TIMEOUT} || 8,
       OID     => $port_name_oid,
       VERSION => 2,
       WALK    => 1
@@ -765,6 +888,17 @@ sub _bdcom_get_fdb {
   }
 
   return %fdb_list;
+}
+
+#**********************************************************
+=head2 _bdcom_gpon_mac($serial);
+
+=cut
+#**********************************************************
+sub _bdcom_gpon_mac {
+  my ($serial)=@_;
+
+  return $serial;
 }
 
 1

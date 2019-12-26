@@ -459,7 +459,7 @@ sub _list {
 
   if ($attr->{ADDRESS_FULL}) {
     $attr->{BUILD_DELIMITER} = ',' if (!$attr->{BUILD_DELIMITER});
-    my @fields = @{$self->search_expr($attr->{ADDRESS_FULL}, "STR", "CONCAT(streets.name, ' ', builds.number) AS address_full", { EXT_FIELD => 1 })};
+    my @fields = @{$self->search_expr($attr->{ADDRESS_FULL}, "STR", "CONCAT(districts.name, ', ', streets.name, ' ', builds.number) AS address_full", { EXT_FIELD => 1 })};
 
     $EXT_TABLE_JOINS_HASH{nas} = 1;
     $EXT_TABLE_JOINS_HASH{builds} = 1;
@@ -548,7 +548,8 @@ sub _change {
     {
       CHANGE_PARAM => 'NAS_ID',
       TABLE        => 'equipment_infos',
-      DATA         => $attr
+      DATA         => $attr,
+      SKIP_LOG     => ($attr->{SKIP_LOG} ? 1 : 0),
     }
   );
   return $self;
@@ -1708,14 +1709,17 @@ sub mac_log_list {
     { WHERE => 1,
     }
   );
+
   if ($attr->{MAC_COUNT}) {
     $WHERE .= ' and unix_timestamp(datetime) > unix_timestamp(rem_time)';
   }
+
   if ($attr->{USER_NAS}) {
     my @fields = @{$self->search_expr("$attr->{USER_NAS}", "STR", "CONCAT('--') AS user_nas", { EXT_FIELD => 1 })};
     $self->{SEARCH_FIELDS} .= join(', ', @fields);
   }
-  $self->query("SELECT 
+
+  $self->query("SELECT
     $self->{SEARCH_FIELDS} ml.id AS id
     FROM equipment_mac_log ml
     LEFT JOIN nas n ON (n.id=nas_id)
@@ -1899,7 +1903,7 @@ sub onu_list {
     { WHERE        => 1,
       USERS_FIELDS => 1,
       USE_USER_PI  => 1,
-      SKIP_USERS_FIELDS => [ 'LOGIN' ]
+      SKIP_USERS_FIELDS => [ 'LOGIN', 'DOMAIN_ID' ]
     });
 
   if ($attr->{TRAFFIC}) {
@@ -1914,6 +1918,11 @@ sub onu_list {
     my @fields = @{$self->search_expr($attr->{USER_MAC}, "STR", "CONCAT('--') AS user_mac", { EXT_FIELD => 1 })};
     $self->{SEARCH_FIELDS} .= join(', ', @fields);
   }
+  if ($attr->{DISTANCE}) {
+    my @fields = @{$self->search_expr("$attr->{DISTANCE}", "STR", "CONCAT('--') AS distance", { EXT_FIELD => 1 })};
+    $self->{SEARCH_FIELDS} .= join(', ', @fields);
+  }
+
 
   # if ($attr->{FIO}) {
   #   my @fields = @{$self->search_expr($attr->{FIO}, "STR", "CONCAT('--') AS fio", { EXT_FIELD => 1 })};
@@ -1925,7 +1934,7 @@ sub onu_list {
   # }
 
   my $EXT_TABLES = q{};
-  if($self->{EXT_TABLES} || $self->{SEARCH_FIELDS} =~ /u\./) {
+  if($self->{EXT_TABLES} || $self->{SEARCH_FIELDS} =~ /u\./ || $WHERE =~ /u\./) {
     $EXT_TABLES = '
       LEFT JOIN internet_main internet ON (onu.onu_dhcp_port=internet.port AND p.nas_id=internet.nas_id)
       LEFT JOIN users u ON (u.uid=internet.uid) ';
@@ -1961,6 +1970,7 @@ sub onu_list {
     $self->query("SELECT COUNT(*) AS total
     FROM equipment_pon_onu onu
       INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
+    $EXT_TABLES
     $WHERE;", undef, { INFO => 1 }
     );
   }
@@ -2595,6 +2605,13 @@ sub equipment_all_info {
 #**********************************************************
 sub onu_and_internet_cpe_list {
   my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = '';
+
+  if ($attr->{ACTIVE}) {
+    $WHERE = "AND ((em.vendor_id = 12 AND onu.onu_status=3) OR (em.vendor_id = 11 AND onu.onu_status=1))";
+  }
   
   $self->query("SELECT 
     onu.id,
@@ -2608,12 +2625,50 @@ sub onu_and_internet_cpe_list {
     i.uid
     FROM equipment_pon_onu onu
     LEFT JOIN equipment_pon_ports p ON (p.id=onu.port_id)
-    INNER JOIN internet_main i ON (onu.onu_mac_serial=i.cpe_mac AND i.cpe_mac<>'');",
+    LEFT JOIN equipment_infos ei ON (ei.nas_id=p.nas_id)
+    LEFT JOIN equipment_models em ON (ei.model_id=em.id)
+    INNER JOIN internet_main i ON (onu.onu_mac_serial=i.cpe_mac AND i.cpe_mac<>'')
+    WHERE i.disable = 0
+    AND (onu.onu_dhcp_port<>i.port OR p.nas_id<>i.nas_id)
+    $WHERE;",
     undef,
     { COLS_NAME => 1 }
   );
 
   return $self->{list} || [ ];
+}
+
+#**********************************************************
+=head2 mac_duplicate_list() -
+
+=cut
+#**********************************************************
+sub mac_duplicate_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT
+    el.mac,
+    el.ip,
+    el.vlan,
+    el.port,
+    el.port_name,
+    el.datetime,
+    el.rem_time
+    FROM equipment_mac_log el
+    WHERE el.mac IN (
+      SELECT mac
+      FROM equipment_mac_log
+      WHERE nas_id = ?
+      GROUP BY mac
+      HAVING COUNT(*) > 1
+    )
+    ORDER BY el.mac;",
+    undef,
+    { Bind => [ $attr->{NAS_ID} ], COLS_NAME => 1, COLS_UPPER => 1 }
+  );
+  
+  return $self->{list};
 }
 
 1

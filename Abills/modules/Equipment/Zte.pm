@@ -510,8 +510,8 @@ sub _zte {
           OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.2',
           PARSER => '_zte_convert_epon_voltage'
         },
-        'DISATNCE'     => {
-          NAME   => 'DISATNCE',
+        'DISTANCE'     => {
+          NAME   => 'DISTANCE',
           OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.2.1.1.10',
           PARSER => '_zte_convert_distance',
         },
@@ -550,9 +550,10 @@ sub _zte {
         PARSER    => '_zte_convert_power',
         ADD_2_OID => '.1'
       }, # rx_power = rx_power * 0.002 - 30.0;
+      #Fixme
       'OLT_RX_POWER'   => {
         NAME   => 'Olt_Rx_Power',
-        OIDS   => '', #.1.3.6.1.4.1.3902.1015.1010.11.2.1.2
+        OIDS   => '', #.1.3.6.1.4.1.3902.1015.1010.11.2.1.2 #c320 only
         PARSER => '_zte_convert_olt_power'
       }, # olt_rx_power = olt_rx_power * 0.001;
       'ONU_NAME'       => {
@@ -802,7 +803,7 @@ sub _zte_set_desc {
   Arguments:
     $dec    - Deciamal port ID
     $attr
-       MODEL_NAME
+       MODEL_NAME  - C220|C320
        TYPE        - dhcp
        DEBUG
 
@@ -830,16 +831,17 @@ sub decode_onu {
       'onu'} = map {oct("0b$_")} $bin =~ /^(\d{4})(\d{4})(\d{5})(\d{3})(\d{8})(\d{8})/;
 
     if ($result_type eq 'dhcp') {
-      $result{slot} = ($model_name =~ /C220/i) ? sprintf("%02d", $result{slot}) : sprintf("%02d", $result{slot});
-      $result{onu} = ($model_name =~ /C220/i) ? sprintf("%02d", $result{onu}) : sprintf("%03d", $result{onu});
+      $result{slot} = ($model_name =~ /C220|C320/i) ? sprintf("%02d", $result{slot}) : sprintf("%02d", $result{slot});
+      $result{onu} = ($model_name =~ /C220|C320/i) ? sprintf("%02d", $result{onu}) : sprintf("%03d", $result{onu});
       if ($model_name =~ /C220/i) {
         $result{slot} =~ s/^0/ /g;
         $result{onu} =~ s/^0/ /g;
       }
-      if ($model_name =~ /C320/i) {
+      elsif ($model_name =~ /C320/i) {
         if ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum') {
           $result{slot} =~ s/^0/ /g;
           $result{onu} =~ s/^0/ /g;
+		      $i = 0;
         }
       }
     }
@@ -874,7 +876,6 @@ sub decode_onu {
       . '/' . $result{olt};
   }
   elsif ($type == 6) {
-    print "666666666666";
     @result{'type', 'shelf', 'slot'} = map {oct("0b$_")} $bin =~ /^(\d{4})(\d{4})(\d{8})/;
     return $type . '#' . $type_name{$result{type}}
       . '_' . $result{shelf}
@@ -931,6 +932,34 @@ sub encode_port {
 
   return oct("0b$bin");
 }
+
+#**********************************************************
+=head2 encode_onu($type, $shelf, $slot, $olt, $onu) - encode onu
+
+  Arguments:
+    $type
+	$shelf
+	$slot
+	$olt
+	$onu
+  Returns:
+    encodec decimal
+
+=cut
+#**********************************************************
+sub encode_onu {
+  my ($type, $shelf, $slot, $olt, $onu) = @_;
+
+  my $bin = sprintf("%04b", $type)
+    . sprintf("%04b", $shelf)
+    . sprintf("%05b", $slot)
+    . sprintf("%03b", $olt - 1)
+	. sprintf('%08b', $onu)
+    . '00000000';
+
+  return oct("0b$bin");
+}
+
 
 #**********************************************************
 =head2 _zte_convert_power($power) - Convert power
@@ -1163,7 +1192,8 @@ sub _zte_unregister {
 
     foreach my $line (@$unreg_result) {
       next if (!$line);
-      my ($id, $value) = split(/:/, $line);
+      $line =~ /^([0-9\.]+):(.{0,100})$/ig;
+      my ($id, $value)=($1, $2);
 
       my ($branch, $num) = split(/\./, $id);
       if (!$oid_type) {
@@ -1392,7 +1422,7 @@ sub _zte_unregister_form {
     });
   } else {
     my $val = $list[0] || '';
-    $attr->{TEMPLATE} = "<input name='TEMPLATE' class='form-control' disabled value='$val'>";
+    $attr->{TEMPLATE} = "<input name='TEMPLATE' class='form-control' readonly value='$val'>";
   }
 
   $html->tpl_show(_include('equipment_registred_onu_zte', 'Equipment'), $attr);

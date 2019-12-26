@@ -59,6 +59,7 @@ our @EXPORT = qw(
   load_pmodule
   date_inc
   indexof
+  dirname
 );
 
 @EXPORT_OK = qw(
@@ -96,6 +97,7 @@ our @EXPORT = qw(
   show_hash
   load_pmodule
   indexof
+  dirname
 );
 
 # As said in perldoc, should be called once on a program
@@ -213,6 +215,7 @@ sub indexof {
        json      - Convert \n to \\n
 
        Transpation
+         utf82win
          win2koi
          koi2win
          win2iso
@@ -1031,10 +1034,27 @@ sub int2byte {
   Returns:
     $literal_sum
 
+  Examples:
+
+    $literal_sum = int2ml(1000.20,
+      {
+        ONES             => \@ones,
+        TWOS             => \@twos,
+        FIFTH            => \@fifth,
+        ONE              => \@one,
+        ONEST            => \@onest,
+        TEN              => \@ten,
+        TENS             => \@tens,
+        HUNDRED          => \@hundred,
+        MONEY_UNIT_NAMES => $conf{MONEY_UNIT_NAMES},
+        LOCALE           => $conf{LOCALE}
+      }
+    );
+
 =cut
 #***********************************************************
 sub int2ml {
-  my ($array, $attr) = @_;
+  my ($sum, $attr) = @_;
   my $ret = '';
 
   my @ones  = @{ $attr->{ONES} };
@@ -1057,9 +1077,9 @@ sub int2ml {
       @money_unit_names = @{ $attr->{MONEY_UNIT_NAMES} };
     }
   }
-  $array =~ s/,/\./g;
-  $array =~ tr/0-9,.//cd;
-  my $tmp = $array;
+  $sum =~ s/,/\./g;
+  $sum =~ tr/0-9,.//cd;
+  my $tmp = $sum;
   my $count = ($tmp =~ tr/.,//);
 
   if ($count > 1) {
@@ -1071,10 +1091,10 @@ sub int2ml {
   my ($first, @first, $i);
 
   if (!$count) {
-    $first = $array;
+    $first = $sum;
   }
   else {
-    $first = $second = $array;
+    $first = $second = $sum;
     $first  =~ s/(.*)(\..*)/$1/;
     $second =~ s/(.*)(\.)(\d\d)(.*)/$3/;
     $second .= "0" if (length $second < 2);
@@ -1707,7 +1727,8 @@ sub date_format {
       TO_WEB_CONSOLE - print to browser debug console via JavaScript
       TO_CONSOLE     - print without HTML formatting
       IN_JSON        - surround with JSON comment tags ( used only with IN_CONSOLE )
-      
+      TO_FILE        - print to file.
+
       SORT           - Sort hash keys
 
   Returns:
@@ -1726,6 +1747,12 @@ sub date_format {
     No HTML formatting
       _bp("Simple hash", $hash, { TO_CONSOLE => 1 });
 
+    Print to special file
+      _bp("Simple hash", $hash, { TO_FILE => path/to/file });
+
+    Print to /usr/abills/var/log/bp.log
+      _bp("Simple hash", $hash, { TO_FILE => 1 });
+
     Legacy:
       _bp({ SHOW => 'Some text' });
 
@@ -1733,6 +1760,8 @@ sub date_format {
 #**********************************************************
 sub _bp {
   my ($explanation, $value, $attr) = @_;
+
+  $attr->{TO_CONSOLE} = 1 if( $attr ->{TO_FILE} );
 
   # Allow to set args one time for all cals
   state $STATIC_ARGS;
@@ -1806,8 +1835,23 @@ sub _bp {
     if ($attr->{IN_JSON}){
       $console_log_string = " /* \n $console_log_string \n */ ";
     }
-    
-    print $console_log_string . "\n";
+
+    if($attr->{TO_FILE}) {
+
+      our $base_dir;
+      $base_dir //= '/usr/abills/';
+
+      my $file = $base_dir.'var/log/bp.log';
+      $file = $attr->{TO_FILE} if ($attr->{TO_FILE} != 1);
+
+
+      open(my $fh, '>>', $file) || print "[ $filename : $line ] \n Error opening '$file': $! \n";
+      print $fh $console_log_string . "\n";
+      close($fh);
+
+    } else {
+      print $console_log_string . "\n";
+    }
   }
   else{
     $break_line = ($attr->{BREAK_LINE}) ? $attr->{BREAK_LINE} : "<br/>\n";
@@ -1908,6 +1952,7 @@ sub startup_files {
       RESTART_APACHE     => '/usr/local/etc/rc.d/apache24',
       RESTART_DHCP       => '/usr/local/etc/rc.d/isc-dhcp-server',
       SUDO               => '/usr/local/bin/sudo',
+      POSTQUEUE          => '/usr/local/sbin/postqueue',
     );
   }
   else {
@@ -2188,6 +2233,26 @@ sub date_inc {
   }
 
   return "$year-$month-$day";
+}
+
+#**********************************************************
+=head2 dirname($path) - Get dirname
+
+  Arguments:
+    $path FILE_WITH_PATH
+
+  Result:
+    Dirname
+
+=cut
+#**********************************************************
+sub dirname {
+  my ($x) = @_;
+  if ($x !~ s@[/\\][^/\\]+$@@) {
+    $x = '.';
+  }
+
+  return $x;
 }
 
 =head1 AUTHOR

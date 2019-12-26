@@ -16,11 +16,9 @@ use parent qw(dbcore);
 my ($admin, $CONF);
 
 #*******************************************************************
-
 =head2 new()
 
 =cut
-
 #*******************************************************************
 sub new {
   my $class = shift;
@@ -42,6 +40,7 @@ sub new {
 
   Arguments:
     $attr  -
+
   Returns:
 
   Examples:
@@ -165,6 +164,11 @@ sub crm_lead_list {
     push @WHERE_RULES, "cl.phone LIKE '\%$attr->{PHONE_SEARCH}\%'";
   }
 
+  if($self->{admin}{DOMAIN_ID}){
+    push @WHERE_RULES,
+      "(cl.domain_id='$self->{admin}{DOMAIN_ID}')";
+  }
+
   my $WHERE = $self->search_former(
     $attr,
     [
@@ -185,10 +189,12 @@ sub crm_lead_list {
       [ 'ADDRESS',          'STR',   'cl.address',                     1 ],
       [ 'LAST_ACTION',      'STR',   'cl.id as last_action',           1 ],
       [ 'PRIORITY' ,        'STR',   'cl.priority',                    1 ],
-      [ 'PERIOD',           'DATE',  'cl.date as period',                        1 ],
-      [ 'SOURCE',         'INT',   'cl.source',                   1 ],
+      [ 'PERIOD',           'DATE',  'cl.date as period',              1 ],
+      [ 'SOURCE',           'INT',   'cl.source',                      1 ],
       [ 'COMMENTS',         'STR',   'cl.comments',                      ],
-      [ 'TAG_IDS' ,        'STR',   'cl.tag_ids',                      1 ],
+      [ 'TAG_IDS' ,         'STR',   'cl.tag_ids',                     1 ],
+      [ 'DOMAIN_ID',        'INT',   'cl.domain_id',                   0 ],
+      [ 'CL_UID',           'INT',   'cl.uid',                         0 ],
     ],
     {
       WHERE             => 1,
@@ -197,9 +203,6 @@ sub crm_lead_list {
       WHERE_RULES       => \@WHERE_RULES,
     }
   );
-
-
-#  $WHERE .= ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query(
     "SELECT
@@ -211,7 +214,8 @@ sub crm_lead_list {
     LEFT JOIN admins a ON (a.aid = cl.responsible)
     LEFT JOIN users u ON (u.uid = cl.uid)
     $WHERE
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
@@ -257,7 +261,6 @@ sub crm_progressbar_step_add {
 }
 
 #*******************************************************************
-
 =head2 function crm_progressbar_step_info() - get information about step
 
   Arguments:
@@ -270,7 +273,6 @@ sub crm_progressbar_step_add {
     my $step_info = $Cashbox->crm_progressbar_step_info({ ID => 1 });
 
 =cut
-
 #*******************************************************************
 sub crm_progressbar_step_info {
   my $self = shift;
@@ -309,7 +311,6 @@ sub crm_progressbar_step_delete {
 }
 
 #*******************************************************************
-
 =head2 function crm_progressbar_step_delete() - change step's information in datebase
 
   Arguments:
@@ -326,7 +327,6 @@ sub crm_progressbar_step_delete {
 
 
 =cut
-
 #*******************************************************************
 sub crm_progressbar_step_change {
   my $self = shift;
@@ -344,7 +344,6 @@ sub crm_progressbar_step_change {
 }
 
 #*******************************************************************
-
 =head2 crm_progressbar_step_list() - get list of all comings
 
   Arguments:
@@ -357,17 +356,21 @@ sub crm_progressbar_step_change {
     my @list = $Cashbox->crm_progressbar_step_list({ COLS_NAME => 1});
 
 =cut
-
 #*******************************************************************
 sub crm_progressbar_step_list {
   my $self = shift;
   my ($attr) = @_;
 
   my @WHERE_RULES = ();
-  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 2;
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  if($self->{admin}{DOMAIN_ID}){
+    push @WHERE_RULES,
+      "(domain_id='$self->{admin}{DOMAIN_ID}')";
+  }
 
   my $WHERE = $self->search_former(
     $attr,
@@ -377,20 +380,19 @@ sub crm_progressbar_step_list {
       [ 'NAME',        'STR', 'name',         1 ],
       [ 'COLOR',       'STR', 'color',        1 ],
       [ 'DESCRIPTION', 'STR', 'description',  1 ],
+      [ 'DOMAIN_ID',   'INT', 'domain_id',    0 ],
     ],
-    { WHERE => 1, }
+    {
+      WHERE => 1,
+      WHERE_RULES => \@WHERE_RULES,
+    }
   );
-
-  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
   $self->query(
     "SELECT
-    id,
-    step_number,
-    name,
-    color,
-    description
-    FROM crm_progressbar_steps 
+    $self->{SEARCH_FIELDS}
+    id
+    FROM crm_progressbar_steps
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -402,8 +404,9 @@ sub crm_progressbar_step_list {
   return $self->{list} if ($self->{TOTAL} < 1);
 
   $self->query(
-    "SELECT count(*) AS total
-   FROM crm_progressbar_steps",
+    "SELECT COUNT(*) AS total
+   FROM crm_progressbar_steps
+   $WHERE",
     undef,
     { INFO => 1 }
   );
@@ -515,10 +518,16 @@ sub leads_source_list {
   my $self = shift;
   my ($attr) = @_;
 
+  my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  if($self->{admin}{DOMAIN_ID}){
+    push @WHERE_RULES,
+      "(cls.domain_id='$self->{admin}{DOMAIN_ID}')";
+  }
 
   my $WHERE = $self->search_former(
     $attr,
@@ -526,15 +535,18 @@ sub leads_source_list {
       [ 'ID',         'INT',    'cls.id',       1 ],
       [ 'NAME',       'STR',    'cls.name',     1 ],
       [ 'COMMENTS',   'STR',    'cls.comments', 1 ],
+      [ 'DOMAIN_ID',  'INT',    'cls.domain_id',0 ],
     ],
-    { WHERE => 1, }
+    {
+      WHERE => 1,
+      WHERE_RULES => \@WHERE_RULES,
+    }
   );
 
   $self->query(
     "SELECT
-    cls.id,
-    cls.name,
-    cls.comments
+    $self->{SEARCH_FIELDS}
+    cls.id
     FROM crm_leads_sources as cls
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -548,7 +560,8 @@ sub leads_source_list {
 
   $self->query(
     "SELECT COUNT(*) AS total
-   FROM crm_leads_sources",
+    FROM crm_leads_sources as cls
+    $WHERE",
     undef,
     { INFO => 1 }
   );
@@ -610,26 +623,36 @@ sub progressbar_comment_list  {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 'id';
+  my @WHERE_RULES = ();
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : 'DESC';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 99999;
 
+  if($self->{admin}{DOMAIN_ID}){
+    push @WHERE_RULES,
+      "(cpsc.domain_id='$self->{admin}{DOMAIN_ID}')";
+  }
+
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'ID',         'INT',    'cpsc.id',           1 ],
-      [ 'STEP_ID',    'INT',    'cpsc.step_id',      1 ],
-      [ 'LEAD_ID',    'INT',    'cpsc.lead_id',      1 ],
-      [ 'MESSAGE',    'STR',    'cpsc.message',      1 ],
-      [ 'DATE',       'DATE',   'cpsc.date',         1 ],
-      [ 'ADMIN',      'STR',    'a.id as admin',     1 ],
-      [ 'ACTION',     'STR',    'ca.name as action', 1 ],
-      [ 'AID',        'INT',    'cpsc.aid', 1 ],
-      [ 'LEAD_FIO',   'STR',    'cl.fio as lead_fio', 1 ],
-      [ 'PLANNED_DATE',       'DATE',   'cpsc.planned_date',         1 ],
+      [ 'ID',            'INT',    'cpsc.id',                1 ],
+      [ 'STEP_ID',       'INT',    'cpsc.step_id',           1 ],
+      [ 'LEAD_ID',       'INT',    'cpsc.lead_id',           1 ],
+      [ 'MESSAGE',       'STR',    'cpsc.message',           1 ],
+      [ 'DATE',          'DATE',   'cpsc.date',              1 ],
+      [ 'ADMIN',         'STR',    'a.id as admin',          1 ],
+      [ 'ACTION',        'STR',    'ca.name as action',      1 ],
+      [ 'AID',           'INT',    'cpsc.aid',               1 ],
+      [ 'LEAD_FIO',      'STR',    'cl.fio as lead_fio',     1 ],
+      [ 'PLANNED_DATE',  'DATE',   'cpsc.planned_date',      1 ],
+      [ 'DOMAIN_ID',     'INT',    'cpsc.domain_id',         0 ],
     ],
-    { WHERE => 1, }
+    {
+      WHERE => 1,
+      WHERE_RULES => \@WHERE_RULES,
+    }
   );
 
   $self->query(
@@ -652,7 +675,8 @@ sub progressbar_comment_list  {
 
   $self->query(
     "SELECT COUNT(*) AS total
-   FROM crm_progressbar_step_comments",
+    FROM crm_progressbar_step_comments cpsc
+    $WHERE",
     undef,
     { INFO => 1 }
   );
@@ -743,10 +767,11 @@ sub crm_actions_delete {
 }
 
 #**********************************************************
-=head2 crm_actions_list() - return list of actions
+=head2 crm_actions_list($attr) - return list of actions
 
   Arguments:
-    ATTRIBUTES -
+    $attr -
+
   Returns:
 
   Examples:
@@ -757,10 +782,16 @@ sub crm_actions_list {
   my $self = shift;
   my ($attr) = @_;
 
+  my @WHERE_RULES = ();
   my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  if($self->{admin}{DOMAIN_ID}){
+    push @WHERE_RULES,
+      "(ca.domain_id='$self->{admin}{DOMAIN_ID}')";
+  }
 
   my $WHERE = $self->search_former(
     $attr,
@@ -768,8 +799,12 @@ sub crm_actions_list {
       [ 'ID',         'INT',    'ca.id',       1 ],
       [ 'NAME',       'STR',    'ca.name',     1 ],
       [ 'ACTION',     'STR',    'ca.action',   1 ],
+      [ 'DOMAIN_ID',  'INT',    'ca.domain_id',0 ],
     ],
-    { WHERE => 1, }
+    {
+      WHERE => 1,
+      WHERE_RULES => \@WHERE_RULES,
+    }
   );
 
   $self->query(
@@ -789,7 +824,8 @@ sub crm_actions_list {
 
   $self->query(
     "SELECT COUNT(*) AS total
-   FROM crm_actions",
+    FROM crm_actions as ca
+    $WHERE",
     undef,
     { INFO => 1 }
   );
@@ -835,7 +871,7 @@ sub crm_update_lead_tags {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("UPDATE `crm_leads` SET tag_ids='$attr->{TAG_IDS}' WHERE id=?",
+  $self->query("UPDATE `crm_leads` SET tag_ids='$attr->{TAG_IDS}' WHERE id=?;",
     "do",
     {
       Bind => [

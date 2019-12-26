@@ -13,7 +13,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
-use Abills::Base qw(date_diff in_array sendmail sec2time show_log mk_unique_value int2byte _bp int2ip days_in_month clearquotes next_month);
+use Abills::Base qw(date_diff in_array sendmail sec2time show_log mk_unique_value int2byte _bp int2ip ip2int days_in_month clearquotes next_month);
 use Abills::Filters qw(_mac_former human_exp);
 use Internet;
 use Internet::Sessions;
@@ -66,16 +66,6 @@ if($permissions{5}) {
 #if($FORM{UID}) {
   require Internet::Users;
 #}
-
-#
-#if ($conf{DV_BONUS}) {
-#  require Dv::Rating;
-#}
-#
-#if ($conf{DV_TURBO_MODE}) {
-#  require Dv::Turbo;
-#}
-#
 
 if(%ADMIN_REPORT) {
   require Internet::Periodic;
@@ -152,10 +142,11 @@ sub internet_users_search {
     }
   );
 
+  my $search_form = $html->tpl_show(_include('internet_users_search', 'Internet'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
+  $search_form .= $html->tpl_show(templates('form_search_personal_info'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
+
   form_search({
-    SEARCH_FORM  => $html->tpl_show(_include('internet_users_search', 'Internet'),
-      { %$Internet_, %FORM },
-      { OUTPUT2RETURN => 1 }),
+    SEARCH_FORM  => $search_form,
     ADDRESS_FORM  => 1,
     CONTROL_FORM  => 1
   });
@@ -194,6 +185,14 @@ sub internet_multiuser {
   if ($FORM{MU_STATUS}) {
     $params{STATUS} = $FORM{INTERNET_MU_STATUS};
   }
+  if ($FORM{MU_REDUCTION}) {
+    $params{REDUCTION} = $FORM{MU_REDUCTION_SUM} || 0;
+    $params{REDUCTION_DATE} = $FORM{MU_REDUCTION_DATE} || '0000-00-00';
+  }
+  if ($FORM{MU_ACTIVATE}) {
+    $params{ACTIVATE} = $FORM{MU_ACTIVATE_DATE};
+  }
+
   if ($#multiuser_arr < 0) {
     $html->message('err', $lang{MULTIUSER_OP}, "$lang{SELECT_USER}");
     return 1;
@@ -223,7 +222,7 @@ sub internet_multiuser {
     }
     $html->message('info', $lang{MULTIUSER_OP}, "$lang{TO_PLAN}\n$lang{SERVICE}: " . join(', ', @multiuser_no_error) );
   }
-  elsif ($FORM{MU_CREDIT}) {
+  elsif ($FORM{MU_CREDIT} || $FORM{MU_REDUCTION} || $FORM{MU_ACTIVATE}) {
     $params{CREDIT} = $FORM{MU_CREDIT_SUM} || 0;
     $params{CREDIT_DATE} = $FORM{MU_CREDIT_DATE} || '0000-00-00';
 
@@ -236,7 +235,47 @@ sub internet_multiuser {
         }
       );
     }
-  } 
+  }
+  elsif ($FORM{MU_SET_IPV6}) {
+    my $Ip_pool  = $Nas->ip_pools_info($FORM{INTERNET_MU_IPV6_POLL});
+    foreach my $id (@multiuser_arr) {
+      my $uid_hex = sprintf("%x", $uid_hash->{$id});
+      my $id_hex  = sprintf("%x", $id);
+      my $ipv6    = $Ip_pool->{IPV6_TEMPLATE} || '';
+      $ipv6       =~ s/\{UID\}/$uid_hex/g;
+      $ipv6       =~ s/\{ID\}/$id_hex/g;
+      my $ipv6_pd = $Ip_pool->{IPV6_PD_TEMPLATE} || '';
+      $ipv6_pd    =~ s/\{UID\}/$uid_hex/g;
+      $ipv6_pd    =~ s/\{ID\}/$id_hex/g;
+
+      $Internet->change({
+        ID               => $id,
+        UID              => $uid_hash->{$id},
+        IPV6             => $ipv6,
+        IPV6_PREFIX      => $ipv6_pd,
+        IPV6_MASK        => $Ip_pool->{IPV6_MASK},
+        IPV6_PREFIX_MASK => $Ip_pool->{IPV6_PD_MASK},
+      });
+    }
+  }
+  elsif ($FORM{MU_SET_IPV4}) {
+    my $Ip_pool  = $Nas->ip_pools_info($FORM{INTERNET_MU_IPV4_POLL});
+    my $first_ip = ip2int($Ip_pool->{IP});
+    my $ip_arr   = $Internet->get_free_static_ip({
+      FIRST => $first_ip,
+      LAST  => $first_ip + $Ip_pool->{COUNTS} - 1,
+      COUNT => $#multiuser_arr + 1,
+    });
+    my $i=0;
+    foreach my $id (@multiuser_arr) {
+      $Internet->change({
+        ID  => $id,
+        UID => $uid_hash->{$id},
+        IP  => int2ip($ip_arr->[$i++][0]),
+      });
+      last if ($i >= scalar @$ip_arr);
+    }
+  }
   elsif (!%params) {
     $html->message('warn', $lang{MULTIUSER_OP}, "$lang{THERE_ARE_NO_SETTINGS_TO_CHANGE}");
     return 1;
@@ -442,47 +481,83 @@ sub internet_users_list {
     return 0;
   }
 
-  if ( $Internet->{TOTAL} > 1 && $permissions{0}{7} && ! $FORM{EXPORT_CONTENT}) {
-    $html->{FORM_ID}='internet_users_list';
-    # $Internet->{MU_TP_SELECT}       = sel_tp({ MODULE => 'Internet', SELECT => 'INTERNET_MU_TP' });
-    $Internet->{MU_TP_SELECT}       = $html->tpl_show(_include('internet_tp_shedule', 'Internet'), {
-      TP_SEL   => sel_tp({ MODULE => 'Internet;Dv', SELECT => 'INTERNET_MU_TP' }),
-      DATE_SEL => $html->form_datepicker('TP_SHEDULE','0000-00-00')
-    }, { OUTPUT2RETURN => 1 });
-    $Internet->{MU_CREDIT_DATEPICKER} = $html->form_datepicker('MU_CREDIT_DATE','0000-00-00');
-    $Internet->{MU_TP_CHECKBOX}     = $html->form_input('MU_TP', 1, { TYPE => 'checkbox', });
-    $Internet->{MU_STATUS_CHECKBOX} = $html->form_input('MU_STATUS', 1, { TYPE => 'checkbox', });
-    $Internet->{MU_STATUS_SELECT}   = sel_status({NAME   => 'INTERNET_MU_STATUS'});
-    $Internet->{MU_DATE}            = $html->form_datepicker('INTERNET_MU_DATEPICKER','0000-00-00');
-    $Internet->{MU_DATE_CHECKBOX}   = $html->form_input('MU_DATE', 1, { TYPE => 'checkbox', });
-    print $html->form_main(
-      {
-        CONTENT => $table . $html->tpl_show(_include('internet_user_multiselect', 'Internet'), $Internet, { OUTPUT2RETURN => 1 }) ,
-        HIDDEN  => {
-          index       => get_function_index('internet_users_list'),
-          INTERNET_MULTIUSER => 1
-        },
-        NAME    => $html->{FORM_ID},
-        class   => 'hidden-print',
-        ID      => $html->{FORM_ID},
-      }
-    );
+  if( $FORM{EXPORT_CONTENT} ) {
+    print $table;
   }
-  elsif($Internet->{TOTAL} > 1 && !$FORM{EXPORT_CONTENT}){
-    print $html->form_main(
-      {
-        CONTENT => $table,
-        HIDDEN  => {
-          index       => get_function_index('internet_users_list'),
-        },
-        NAME    => 'internet_users_list',
-        class   => 'hidden-print',
-        ID      => 'internet_users_list',
-      }
-    );
+  elsif ( $Internet->{TOTAL} > 1) {
+    if ($permissions{0}{7}) {
+      $html->{FORM_ID} = 'internet_users_list';
+      $Internet->{MU_TP_SELECT} = $html->tpl_show(_include('internet_tp_shedule', 'Internet'), {
+        TP_SEL   => sel_tp({ MODULE => 'Internet;Dv', SELECT => 'INTERNET_MU_TP' }),
+        DATE_SEL => $html->form_datepicker('TP_SHEDULE', '0000-00-00')
+      }, { OUTPUT2RETURN => 1 });
+      $Internet->{MU_CREDIT_DATEPICKER} = $html->form_datepicker('MU_CREDIT_DATE', '0000-00-00');
+      $Internet->{MU_TP_CHECKBOX} = $html->form_input('MU_TP', 1, { TYPE => 'checkbox', });
+      $Internet->{MU_STATUS_CHECKBOX} = $html->form_input('MU_STATUS', 1, { TYPE => 'checkbox', });
+      $Internet->{MU_STATUS_SELECT} = sel_status({ NAME => 'INTERNET_MU_STATUS' });
+      $Internet->{MU_DATE} = $html->form_datepicker('INTERNET_MU_DATEPICKER', '0000-00-00');
+      $Internet->{MU_DATE_CHECKBOX} = $html->form_input('MU_DATE', 1, { TYPE => 'checkbox', });
+      $Internet->{IPV6_HIDE} = "style='display: none;'" unless ($conf{IPV6});
+
+      my $pool_ipv6_list = $Nas->ip_pools_list({
+        IPV6      => 1,
+        STATIC    => 1,
+        NETMASK   => '_SHOW',
+        COLS_NAME => 1
+      });
+      $Internet->{MU_IPV6_POLL_SEL} = $html->form_select('INTERNET_MU_IPV6_POLL', {
+        SEL_LIST    => $pool_ipv6_list,
+        NO_ID    => 1
+      });
+      my $pool_ipv4_list = $Nas->ip_pools_list({
+        STATIC    => 1,
+        NETMASK   => '_SHOW',
+        COLS_NAME => 1
+      });
+      $Internet->{MU_IPV4_POLL_SEL} = $html->form_select('INTERNET_MU_IPV4_POLL', {
+        SEL_LIST    => $pool_ipv4_list,
+        NO_ID    => 1
+      });
+      print $html->form_main(
+        {
+          CONTENT => $table . $html->tpl_show(_include('internet_user_multiselect', 'Internet'), $Internet, { OUTPUT2RETURN => 1 }),
+          HIDDEN  => {
+            index              => get_function_index('internet_users_list'),
+            INTERNET_MULTIUSER => 1
+          },
+          NAME    => $html->{FORM_ID},
+          class   => 'hidden-print',
+          ID      => $html->{FORM_ID},
+        }
+      );
+    }
+    else {
+      print $html->form_main(
+        {
+          CONTENT => $table,
+          HIDDEN  => {
+            index => get_function_index('internet_users_list'),
+          },
+          NAME    => 'internet_users_list',
+          class   => 'hidden-print',
+          ID      => 'internet_users_list',
+        }
+      );
+    }
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 internet_error_user($attr)
+
+=cut
+#**********************************************************
+sub internet_error_user {
+  my ($attr) = @_;
+
+  return internet_error($attr);
 }
 
 #**********************************************************
@@ -753,18 +828,54 @@ sub internet_payments_maked {
       $abon_fees = ($Internet->{MONTH_ABON} / 30) + $Internet->{DAY_ABON};
     }
 
-    if ($Internet->{STATUS} > 3 && $Internet->{STATUS} != 6 && $deposit > $abon_fees) {
-      $Internet->change(
-        {
-          UID    => $user->{UID},
-          ID     => $Internet->{ID},
-          STATUS => 0
+    #OLd method. Always change activate period with payments
+    #@deprecated
+    if ($conf{payment_chg_activate} && $Internet->{SERVICE_ACTIVATE} ne '0000-00-00') {
+      if ($conf{payment_chg_activate} ne 2
+        || date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30) {
+        $Internet->change({
+          ACTIVATE => $DATE,
+          UID      => $user->{UID},
+          ID       => $Internet->{ID},
+        });
+      }
+    }
+
+    if($user->{REDUCTION} && $user->{REDUCTION} > 0) {
+      $abon_fees = $abon_fees * (100 - $user->{REDUCTION}) / 100;
+    }
+
+    if (in_array($Internet->{STATUS}, [4,5]) && $deposit > $abon_fees) {
+      my %params = ();
+      if($conf{INTERNET_CUSTOM_PERIOD}) {
+        if($deposit >= $Internet->{TP_CHANGE_PRICE}) {
+          if($Internet->{TP_AGE}) {
+            my ($y, $m, $d) = split(/-/, $DATE);
+            $params{SERVICE_EXPIRE} = POSIX::strftime("%Y-%m-%d",
+              localtime(POSIX::mktime(0, 0, 0, $d, ($m - 1), ($y - 1900), 0, 0, 0) + $Internet->{TP_AGE} * 86400));
+
+            my $Fees = Fees->new($db, $admin, \%conf);
+            $Fees->take($user, $Internet->{TP_CHANGE_PRICE}, { DESCRIBE => $lang{ACTIVATE_TARIF_PLAN} });
+            $service->{DESCRIBE} = ($Internet->{TP_NAME} || "") . " $lang{SUM}: $Internet->{TP_CHANGE_PRICE}";
+            $html->message('info', "$lang{ACTIVATE} $lang{INTERNET}", $service->{DESCRIBE});
+          }
         }
-      );
+        else {
+          return 1;
+        }
+      }
+
+      $Internet->change({
+        UID    => $user->{UID},
+        ID     => $Internet->{ID},
+        STATUS => 0,
+        %params
+      });
 
       if($conf{INTERNET_FULL_MONTH} && $Internet->{OLD_STATUS} && $Internet->{OLD_STATUS} == 5) {
         $attr->{FULL_MONTH_FEE}=1;
       }
+
       #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
       service_get_month_fee($Internet, $attr);
 
@@ -1014,7 +1125,7 @@ sub internet_registration {
       SELECTED => $FORM{TP_ID},
       SEL_LIST => $Tariffs->list({ %LIST_PARAMS,
         MODULE       => 'Dv;Internet',
-        HIDE_HIDDEN  => 1,
+        STATUS       => '<1',
         NEW_MODEL_TP => 1,
         COLS_NAME    => 1 }),
       SEL_KEY   => 'tp_id'
@@ -1068,6 +1179,8 @@ sub internet_docs {
     TP_NUM           => '_SHOW',
     TP_FIXED_FEES_DAY=> '_SHOW',
     INTERNET_ACTIVATE=> '_SHOW',
+    INTERNET_EXPIRE  => '_SHOW',
+    TP_REDUCTION_FEE => '_SHOW',
     GROUP_BY         => 'internet.id',
     COLS_NAME        => 1
   });
@@ -1086,8 +1199,10 @@ sub internet_docs {
       $info{service_desc}      = q{};
       $info{tp_name}           = $service_info->{tp_name};
       $info{service_activate}  = $service_info->{internet_activate};
+      $info{service_expire}    = $service_info->{internet_expire};
       $info{tp_fixed_fees_day} = $service_info->{tp_fixed_fees_day} || 0;
       $info{status}            = $service_info->{internet_status};
+      $info{tp_reduction_fee}  = $service_info->{tp_reduction_fee};
 
       if ($service_info->{internet_status} && $service_info->{internet_status} != 5 && $attr->{SKIP_DISABLED}) {
         $info{day} = 0;

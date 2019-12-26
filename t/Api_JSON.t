@@ -8,9 +8,11 @@ use strict;
 use warnings;
 use lib '.';
 
-do "JSON.t";
+do "/usr/abills/t/JSON.t";
 
 my $api_key = '1523615231263123';
+my $user = 'test';
+my $passwd = '123456';
 
 my @test_list = (
   {
@@ -20,7 +22,9 @@ my @test_list = (
       EXPORT_CONTENT => 'INTERNET_TARIF_PLANS',
       header         => 1,
       json           => 1,
-      API_KEY        => $api_key
+      # API_KEY        => $api_key
+      user           => $user,
+      passwd         => $passwd
     },
     result     => '',
     valid_json => 1
@@ -28,9 +32,11 @@ my @test_list = (
   {
     name   => 'BILLING_VERSION',
     params => {
-      API_KEY  => $api_key,
+      # API_KEY  => $api_key,
       API_INFO => 'system_information',
-      json     => 1
+      json     => 1,
+      user           => $user,
+      passwd         => $passwd
     },
     result     => '',
     valid_json => 1,
@@ -59,7 +65,9 @@ my @test_list = (
     name   => 'INTERNET_TP',
     params => {
       get_index      => 'internet_tp',
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       EXPORT_CONTENT => 'INTERNET_TARIF_PLANS',
       json           => 1
     },
@@ -90,7 +98,9 @@ my @test_list = (
       LOGIN          => 'abills',
       EXPORT_CONTENT => 'USERS_LIST',
       EXPORT         => 1,
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       json           => 1
     },
     result     => '',
@@ -118,7 +128,9 @@ my @test_list = (
       qindex  => 15,
       UID     => 109058,
       EXPORT  => 1,
-      API_KEY => $api_key,
+      # API_KEY => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       json    => 1
     },
     result     => '',
@@ -138,7 +150,9 @@ my @test_list = (
     params => {
       get_index      => 'form_districts',
       EXPORT_CONTENT => 'DISTRICTS_LIST',
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       json           => 1
     },
     result     => '',
@@ -163,7 +177,9 @@ my @test_list = (
     params => {
       get_index      => "form_streets",
       EXPORT_CONTENT => 'STREETS_LIST',
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       json           => 1
     },
     result     => '',
@@ -189,7 +205,9 @@ my @test_list = (
       get_index      => 'form_streets',
       EXPORT_CONTENT => 'BUILDS_LIST',
       BUILDS         => 102,
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       json           => 1
     },
     result     => '',
@@ -213,8 +231,8 @@ my @test_list = (
     name       => 'INFO_FIELDS',
     params     => {
       get_index       => 'form_info_fields',
-      user         => 'abills',
-      passwd       => 'abills',
+        user           => $user,
+        passwd         => $passwd,
       json         => 1
     },
     result     => '',
@@ -246,7 +264,9 @@ my @test_list = (
     params => {
       get_index      => 'form_groups',
       EXPORT_CONTENT => 'GROUPS',
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       json           => 1
     },
     result     => '',
@@ -271,7 +291,9 @@ my @test_list = (
     params => {
       get_index      => 'internet_users_list',
       EXPORT_CONTENT => 'INTERNET_USERS_LIST',
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       json           => 1
     },
     result     => '',
@@ -301,7 +323,9 @@ my @test_list = (
       show_columns   => 'LOGIN,UID,PORT,VLAN,SERVER_VLAN,ADDRESS_FULL,FIO,DEPOSIT,INTERNET_STATUS,NAS_ID',
       NAS_ID         => '*',
       EXPORT_CONTENT => 'INTERNET_USERS_LIST',
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       json           => 1
     },
     result     => '',
@@ -317,7 +341,7 @@ my @test_list = (
             "title": "The Caption Schema",
             "default": "",
             "examples": [
-              "Интернет+ - Пользователи"
+              ""
             ]
           },
           "ID": {
@@ -338,7 +362,7 @@ my @test_list = (
               "title": "The 0 Schema",
               "default": "",
               "examples": [
-                "Логин"
+                ""
               ]
             }
           },
@@ -355,7 +379,7 @@ my @test_list = (
                   "title": "The Login Schema",
                   "default": "",
                   "examples": [
-                    "abills_admin"
+                    ""
                   ]
                 },
                 "fio": {
@@ -364,7 +388,7 @@ my @test_list = (
                   "title": "The Fio Schema",
                   "default": "",
                   "examples": [
-                    "Иван Васильевич Грозный   "
+                    ""
                   ]
                 },
                 "deposit": {
@@ -373,7 +397,7 @@ my @test_list = (
                   "title": "The Deposit Schema",
                   "default": "",
                   "examples": [
-                    "-1355"
+                    ""
                   ]
                 },
                 "address_full": {
@@ -382,7 +406,7 @@ my @test_list = (
                   "title": "The Address_full Schema",
                   "default": "",
                   "examples": [
-                    "Славута 14,2"
+                    ""
                   ]
                 },
                 "vlan": {
@@ -427,7 +451,7 @@ my @test_list = (
                   "title": "The Tp_id Schema",
                   "default": "",
                   "examples": [
-                    "2"
+                    ""
                   ]
                 },
                 "internet_status": {
@@ -436,7 +460,7 @@ my @test_list = (
                   "title": "The Internet_status Schema",
                   "default": "",
                   "examples": [
-                    "Активно"
+                    ""
                   ]
                 },
                 "uid": {
@@ -445,7 +469,7 @@ my @test_list = (
                   "title": "The Uid Schema",
                   "default": "",
                   "examples": [
-                    "2"
+                    ""
                   ]
                 },
                 "id": {
@@ -454,7 +478,7 @@ my @test_list = (
                   "title": "The Id Schema",
                   "default": "",
                   "examples": [
-                    "1"
+                    ""
                   ]
                 },
                 "total": {
@@ -463,7 +487,7 @@ my @test_list = (
                   "title": "The Total Schema",
                   "default": "",
                   "examples": [
-                    "form_payments internet_stats"
+                    ""
                   ]
                 },
                 "": {
@@ -486,7 +510,9 @@ my @test_list = (
     params => {
       get_index => 'internet_user',
       UID       => 2,
-      API_KEY   => $api_key,
+      # API_KEY   => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       json      => 1
     },
     result     => '',
@@ -501,7 +527,9 @@ my @test_list = (
     params => {
       get_index => 'equipment_info',
       NAS_ID    => 7,
-      API_KEY   => $api_key,
+      # API_KEY   => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       json      => 1
     },
     result     => '',
@@ -520,7 +548,9 @@ my @test_list = (
     params => {
       get_index      => 'msgs_admin',
       EXPORT_CONTENT => 'MSGS_LIST',
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       STATE          => 8,
       json           => 1
     },
@@ -546,7 +576,9 @@ my @test_list = (
     params => {
       get_index      => 'msgs_admin',
       EXPORT_CONTENT => 'MSGS_LIST',
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       STATE          => 0,
       json           => 1
     },
@@ -578,7 +610,9 @@ my @test_list = (
       AJAX      => 1,
       UID       => 2,
       LOGIN     => 1,
-      API_KEY   => $api_key,
+      # API_KEY   => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       STATE     => 0,
       json      => 1
     },
@@ -604,7 +638,9 @@ my @test_list = (
       SKIP_FULL_INFO => 1,
       EXPORT_CONTENT => 'USERS_LIST',
       LOGIN          => 'abills',
-      API_KEY        => $api_key,
+      # API_KEY        => $api_key,
+        user           => $user,
+        passwd         => $passwd,
       STATE          => 0,
       json           => 1
     },
@@ -634,7 +670,9 @@ my @test_list = (
       SKIP_FULL_INFO => 1,
       EXPORT_CONTENT => 'INTERNET_ONLINE',
       show_columns   => 'LOGIN,DURATION_SEC2,CLIENT_IP_NUM,ACCT_INPUT_OCTETS,ACCT_OUTPUT_OCTETS,CID,FIO,CONNECT_INFO,GUEST,ADDRESS_FULL',
-      API_KEY        => $api_key
+      # API_KEY        => $api_key
+      user           => $user,
+      passwd         => $passwd
     },
     result     => '',
     valid_json => 1,
@@ -648,7 +686,7 @@ my @test_list = (
             "title": "The Caption Schema",
             "default": "",
             "examples": [
-              "Online"
+              ""
             ]
           },
           "ID": {
@@ -656,7 +694,7 @@ my @test_list = (
             "title": "The Id Schema",
             "default": "",
             "examples": [
-              "INTERNET_ONLINE"
+              ""
             ]
           },
           "TITLE": {
@@ -666,7 +704,7 @@ my @test_list = (
               "title": "The 0 Schema",
               "default": "",
               "examples": [
-                "Логин"
+                ""
               ]
             }
           },
@@ -680,7 +718,7 @@ my @test_list = (
                   "title": "The Login Schema",
                   "default": "",
                   "examples": [
-                    "7::192.168.2.1:Всего: 2 Zap СессииОшибка"
+                    ""
                   ]
                 }
               }
@@ -697,7 +735,9 @@ my @test_list = (
       UID         => 112,
       SUMMARY_SHOW=> 1,
       EXPORT      => 1,
-      API_KEY     => $api_key
+      # API_KEY     => $api_key
+      user           => $user,
+      passwd         => $passwd
     },
     result     => '',
     valid_json => 1,
@@ -705,6 +745,6 @@ my @test_list = (
   }
 );
 
-json_test(\@test_list, { TEST_NAME => 'Api JSON test' });
+json_test(\@test_list, { TEST_NAME => 'Api JSON test', UI => 1 });
 
 1;

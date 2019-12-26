@@ -1,3 +1,4 @@
+
 /*
 DROP TABLE IF EXISTS `maps_wells`;
 DROP TABLE IF EXISTS `maps_wifi_zones`;

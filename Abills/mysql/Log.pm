@@ -216,7 +216,7 @@ sub log_print {
         print $fh "$DATE $TIME $LOG_TYPE: $action $user_name $nas$MESSAGE\n";
         close($fh);
       }
-      else {
+      elsif (!$self->{SILENT}) {
         print "Content-Type: text/html\n\n";
         print "Can't open file '$logfile' $!\n";
       }

@@ -16,10 +16,13 @@ CREATE TABLE IF NOT EXISTS `iptv_main` (
   `subscribe_id` VARCHAR(32) NOT NULL DEFAULT '' COMMENT 'External service ID for syncronization',
   `email` VARCHAR(100) NOT NULL DEFAULT '' COMMENT 'Extra email for service',
   `service_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Service id for plugin connections',
+  `iptv_login` VARCHAR(32) NOT NULL DEFAULT '',
+  `iptv_password` VARCHAR(32) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  KEY `tp_id` (`tp_id`)
+  KEY `tp_id` (`tp_id`),
+  KEY `uid` (`uid`)
 )
-  DEFAULT CHARSET=utf8 COMMENT = 'IPTV users settings';
+  DEFAULT CHARSET=utf8 COMMENT = 'Iptv users settings';
 
 CREATE TABLE IF NOT EXISTS `iptv_tps` (
   `id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
@@ -35,10 +38,9 @@ CREATE TABLE IF NOT EXISTS `iptv_tps` (
   `next_period_step` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `free_time` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `service_id` TINYINT(2) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Service id for plugin connections',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`)
+  PRIMARY KEY (`id`)
 )
-  DEFAULT CHARSET=utf8 COMMENT = 'IPTV TPs';
+  DEFAULT CHARSET=utf8 COMMENT = 'Iptv TPs';
 
 CREATE TABLE IF NOT EXISTS `iptv_channels` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -55,7 +57,7 @@ CREATE TABLE IF NOT EXISTS `iptv_channels` (
   UNIQUE KEY `name` (`name`),
   UNIQUE KEY `num` (`num`)
 )
-  DEFAULT CHARSET=utf8 COMMENT = 'IPTV channels';
+  DEFAULT CHARSET=utf8 COMMENT = 'Iptv channels';
 
 CREATE TABLE IF NOT EXISTS `iptv_ti_channels` (
   `interval_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
@@ -67,7 +69,7 @@ CREATE TABLE IF NOT EXISTS `iptv_ti_channels` (
   UNIQUE KEY `channel_id` (`channel_id`, `interval_id`),
   KEY interval_id (`interval_id`)
 )
-  DEFAULT CHARSET=utf8 COMMENT = 'IPTV channels prices';
+  DEFAULT CHARSET=utf8 COMMENT = 'Iptv channels prices';
 
 CREATE TABLE IF NOT EXISTS `iptv_users_channels` (
   `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
@@ -102,7 +104,8 @@ CREATE TABLE IF NOT EXISTS `iptv_calls` (
   `guest` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `service_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   KEY `acct_session_id` (`acct_session_id`),
-  KEY `uid` (`uid`)
+  KEY `uid` (`uid`),
+  KEY `service_id` (`service_id`)
 ) DEFAULT CHARSET=utf8 COMMENT = 'Iptv online';
 
 
@@ -115,9 +118,10 @@ CREATE TABLE IF NOT EXISTS `iptv_subscribes` (
   `expire` DATE NOT NULL DEFAULT '0000-00-00',
   `password` BLOB NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `ext_id` (`ext_id`)
+  KEY `ext_id` (`ext_id`),
+  KEY `tp_id` (`tp_id`)
 )
-  DEFAULT CHARSET=utf8 COMMENT = 'IPTV Subscribes';
+  DEFAULT CHARSET=utf8 COMMENT = 'Iptv Subscribes';
 
 
 CREATE TABLE IF NOT EXISTS `iptv_screens` (
@@ -174,23 +178,25 @@ CREATE TABLE IF NOT EXISTS `iptv_devices` (
   `date_activity` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ip_activity` int(11) unsigned NOT NULL DEFAULT '0',
   `service_id` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `code` VARCHAR(10) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`)
+  KEY `uid` (`uid`),
+  KEY `service_id` (`service_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'IPTV devices';
 
-CREATE TABLE `iptv_extra_params` (
+CREATE TABLE IF NOT EXISTS `iptv_extra_params` (
   `id` smallint(6) unsigned NOT NULL AUTO_INCREMENT,
   `balance` double(14, 2) NOT NULL DEFAULT '0.00',
   `send_sms` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT '1 - yes, 0 - no',
   `sms_text` TEXT,
-  `ip_mac` varchar(15) NOT NULL DEFAULT '',
+  `ip_mac` VARCHAR(120) NOT NULL DEFAULT '',
   `service_id` smallint(6) unsigned NOT NULL DEFAULT '0',
   `group_id` smallint(6) unsigned NOT NULL DEFAULT '0',
   `tp_id` smallint(6) unsigned NOT NULL DEFAULT '0',
   `max_device` smallint(6) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`)
+  `pin` VARCHAR(10) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'IPTV extra_params';
 

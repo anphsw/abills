@@ -9,6 +9,7 @@ use warnings FATAL => 'all';
 use Abills::Base;
 use Users;
 use Internet;
+use List::Util qw/max min/;
 our(
   $html,
   %lang,
@@ -35,47 +36,33 @@ sub report_new_all_customers {
   if ($FORM{NEXT} || $FORM{PRE}) {
     $search_year = $FORM{NEXT} || $FORM{PRE};
   }
-  my $count_new_cust = $Users->info_user_reports({ LIST2HASH => 'reg_month,count',USER_NEW_COUNT => 1, YEAR => $search_year });
-  my $all_count = '';
-  my @data_hash = ();
-  my @data_hash2 = ();
-  my $i = 1;
-  foreach (@MONTHES) {
-    $i = sprintf("%02d", $i);
-    $Users->list({ REGISTRATION => "<=$search_year-$i" });
-    $all_count = $Users->{TOTAL};
-    $count_new_cust->{$i} ? push @data_hash, $count_new_cust->{$i} : push @data_hash, 0;
-    $count_new_cust->{$i} ? push @data_hash2, $all_count += $count_new_cust->{$i} : push @data_hash2, $all_count;
-    $i++;
+
+  my $all_data = $Users->all_new_report({ COLS_NAME => 1, YEAR => $search_year });
+  my @data_array = ();
+  my @data_array2 = ();
+
+  foreach my $line (@$all_data) {
+    push @data_array, $line->{count_new_users};
+    push @data_array2, $line->{count_all_users};
   }
 
-  my $max1 = 0;
-  my $max2 = 0;
-  my $val1 = 0;
-  my $val2 = 0;
-
-  for (@data_hash) {
-    $max1 = $_ if !$max1 || $_ > $max1
-  };
-  for (@data_hash2) {
-    $max2 = $_ if !$max2 || $_ > $max2
-  };
-
-  $val1 = ($max1!=0 && $max1>200 )?($max1/5): 50;
-  $val2 = ($max2!=0 && $max2>2000 )?($max2/5): 300;
+  my $val1 = max @data_array;
+  my $val2 = max @data_array2;
+  $val1 = $val1 > 300 ? 150 : 50;
+  $val2 = $val2 > 1500 ? 750 : 150;
 
   my $chart3 = $html->chart({
     TYPE       => 'line',
     DATA_CHART => {
       datasets => [ {
-        data            => \@data_hash,
+        data            => \@data_array,
         label           => $lang{NEW_CUST},
         yAxisID         => 'left-y-axis',
         borderColor     => '#5cc',
         fill            => 'false',
         backgroundColor => '#5cc',
       }, {
-        data            => \@data_hash2,
+        data            => \@data_array2,
         label           => $lang{ALL},
         yAxisID         => 'right-y-axis',
         borderColor     => '#a6f',
@@ -88,13 +75,13 @@ sub report_new_all_customers {
       tooltips => {
         mode => 'index',
       },
-      scales => {
+      scales   => {
         yAxes => [ {
           id       => 'left-y-axis',
           type     => 'linear',
           position => 'left',
           ticks    => {
-            stepSize => sprintf( "%.f", $val1 ),
+            stepSize => sprintf("%.f", $val1),
             min      => 0
           }
         }, {
@@ -102,8 +89,8 @@ sub report_new_all_customers {
           type     => 'linear',
           position => 'right',
           ticks    => {
-            stepSize => sprintf( "%.f", $val2 ),
-            min => 0
+            stepSize => sprintf("%.f", $val2),
+            min      => 0
           }
         } ]
       }
@@ -138,10 +125,13 @@ sub report_new_arpu {
   if ($FORM{NEXT} || $FORM{PRE}) {
     $search_year = $FORM{NEXT} || $FORM{PRE};
   }
-  my $count_new_cust = $Users->info_user_reports({ LIST2HASH => 'reg_month,count',USER_NEW_COUNT => 1, YEAR => $search_year });
-  my $summ_for_month = '';
-  my $all_count = '';
-  my $users_count_act_serv = '';
+
+  my $min_tariff_amount = $Users->min_tarif_val({ COLS_NAME => 1 });
+  my $data_for_report = $Users->all_data_for_report({
+    YEAR      => $search_year,
+    COLS_NAME => 1
+  });
+
   my $arpu_val = '';
   my $arpu_chart3 = 0;
   my $info_chart4 = 0;
@@ -150,42 +140,20 @@ sub report_new_arpu {
   my @data_array3 = ();
   my @data_array4 = ();
   my @data_array5 = ();
-  my $i = 1;
 
-  my $min_tariff_amount = $Users->info_user_reports({ MIN_TARIFF_AMOUNT => 1, COLS_NAME => 1 });
-  $Users->list({REGISTRATION => "<$y-$m", LOGIN_STATUS => 0, PAGE_ROWS => 9999999, COLS_NAME => 1});
-  my $users_without_new = $Users->{TOTAL};
-
-  foreach (@MONTHES) {
-    $i = sprintf("%02d", $i);
+  foreach my $data_per_month (@$data_for_report) {
+    #    Make array for new users
+    push @data_array, $data_per_month->{count_new_users};
     #    ARPU for all
-    #    Payments sum per month
-    $summ_for_month = $Users->info_user_reports({ PAY_SUM => 1, YEAR => $search_year, MONTH => $i, COLS_NAME => 1 });
-    #    User count that registered to $i month
-    $Users->list({ REGISTRATION => "<=$search_year-$i" });
-    $all_count = $Users->{TOTAL} || 0;
-    #    ARPU for all users
-    $arpu_val = ($summ_for_month->{sum} || 0) / (($all_count + ($count_new_cust->{$i} || 0)) || 1);
+    $arpu_val = ($data_per_month->{payments_for_every_month}) / ($data_per_month->{count_all_users} != '0' ? $data_per_month->{count_all_users} : 1);
     $arpu_val = sprintf("%0.3f", $arpu_val);
     push @data_array2, $arpu_val;
-
     #    AVR fees per month
-    #    Make array for new users
-    $count_new_cust->{$i} ? push @data_array, $count_new_cust->{$i} : push @data_array, 0;
-
-    #     Users count for activated services
-    $Internet->list({ INTERNET_REGISTRATION => "<" . $search_year . "-" . sprintf("%02d", $i + 1) . "-01" });
-    $users_count_act_serv = $Internet->{TOTAL};
-
-    #   Fees sum per month for users with activated services
-    my $fees_sum = $Users->info_user_reports({ FEES_PER_MONTH => 1, YEAR => $search_year, MONTH => $i, COLS_NAME => 1 });
-    $arpu_chart3 = ($fees_sum->{sum} || 0) / ($users_count_act_serv || 1);
+    $arpu_chart3 = ($data_per_month->{fees_sum}) / ($data_per_month->{count_activated_users} || 1);
     push @data_array3, sprintf("%0.3f", $arpu_chart3);
-
     #   The average amount of active services
-    my $services_info = $Users->info_user_reports({ SUM_AND_TOTAL_SERVICES => 1, YEAR => $search_year, MONTH => $i, COLS_NAME => 1 });
-    $info_chart4 = ($services_info->{month_fee_sum} || 0) / ($services_info->{total_active_services} || 1);
-    if ($i ge $m && $search_year eq $y) {
+    $info_chart4 = ($data_per_month->{month_fee_sum} || 0) / ($data_per_month->{total_active_services} || 1);
+    if ($data_per_month->{month} gt $m && $search_year eq $y) {
       push @data_array4, sprintf("%0.3f", 0);
     }
     else {
@@ -193,71 +161,71 @@ sub report_new_arpu {
     }
 
     #   Predicted ARPU
-    my $result = ((($services_info->{month_fee_sum} || 0) + (($count_new_cust->{$i} || 0) * ($min_tariff_amount->{min_t} || 0))) / ((($users_without_new || 0) + ($count_new_cust->{$i} || 0)) || 1) );
-    if ($i eq ($m) && $search_year eq $y) {
+    my $result = ((($data_per_month->{month_fee_sum}) + (($data_per_month->{count_new_users}) * ($min_tariff_amount->{min_t} || 0))) / ($data_per_month->{count_all_users} || 1));
+    if ($data_per_month->{month} eq ($m) && $search_year eq $y) {
       push @data_array5, sprintf("%0.3f", $result);
     }
     else {
       push @data_array5, sprintf("%0.3f", 0);
     }
-    $i++;
   }
-  unshift(@data_array5, 0.000);
 
-  my $max1 = 0;
-  my $max2 = 0;
+  unshift(@data_array5, 0.000);
+  pop(@data_array5);
+
+  my @array_all_data = (@data_array2, @data_array3, @data_array4, @data_array5);
   my $val1 = 0;
   my $val2 = 0;
 
-  for (@data_array) {
-    $max1 = $_ if !$max1 || $_ > $max1
-  };
-  for (@data_array2) {
-    $max2 = $_ if !$max2 || $_ > $max2
-  };
-  $val1 = ($max1!=0 && $max1>300 )?($max1/5): 50;
-  $val2 = ($max2!=0 && $max2>2000 )?($max2/5): 300;
-
+  $val1 = max @data_array;
+  $val2 = max @array_all_data;
+  $val1 = $val1 > 300 ? 150 : 50;
+  $val2 = $val2 > 1500 ? 750 : 150;
 
   my $chart3 = $html->chart({
     TYPE       => 'line',
     DATA_CHART => {
-      datasets => [ {
-        data            => \@data_array2,
-        label           => 'ARPU',
-        yAxisID         => 'right-y-axis',
-        borderColor     => '#3af',
-        fill            => 'false',
-        backgroundColor => '#3af',
-      }, {
-        data            => \@data_array,
-        label           => $lang{NEW_CUST},
-        yAxisID         => 'left-y-axis',
-        borderColor     => '#f68',
-        fill            => 'false',
-        backgroundColor => '#f68',
-      }, {
-        data            =>  \@data_array3,
-        label           => $lang{AVR_FEES_AUTHORIZED},
-        yAxisID         => 'left-y-axis',
-        borderColor     => '#0f8',
-        fill            => 'false',
-        backgroundColor => '#0f8',
-      }, {
-        data            =>  \@data_array4,
-        label           => $lang{AVR_AMOUNT_ACTIVE_SERV},
-        yAxisID         => 'left-y-axis',
-        borderColor     => '#fa1',
-        fill            => 'false',
-        backgroundColor => '#fa1',
-      }, {
-        data            =>  \@data_array5,
-        label           => $lang{ARPU_FUTURE},
-        yAxisID         => 'left-y-axis',
-        borderColor     => '#00d',
-        fill            => 'false',
-        backgroundColor => '#00d',
-      }
+      datasets => [
+        {
+          data            => \@data_array2,
+          label           => 'ARPU',
+          yAxisID         => 'left-y-axis',
+          borderColor     => '#3af',
+          fill            => 'false',
+          backgroundColor => '#3af',
+        },
+        {
+          data            => \@data_array,
+          label           => $lang{NEW_CUST},
+          yAxisID         => 'right-y-axis',
+          borderColor     => '#f68',
+          fill            => 'false',
+          backgroundColor => '#f68',
+        },
+        {
+          data            => \@data_array3,
+          label           => $lang{AVR_FEES_AUTHORIZED},
+          yAxisID         => 'left-y-axis',
+          borderColor     => '#0f8',
+          fill            => 'false',
+          backgroundColor => '#0f8',
+        },
+        {
+          data            => \@data_array4,
+          label           => $lang{AVR_AMOUNT_ACTIVE_SERV},
+          yAxisID         => 'left-y-axis',
+          borderColor     => '#fa1',
+          fill            => 'false',
+          backgroundColor => '#fa1',
+        },
+        {
+          data            => \@data_array5,
+          label           => $lang{ARPU_FUTURE},
+          yAxisID         => 'left-y-axis',
+          borderColor     => '#00d',
+          fill            => 'false',
+          backgroundColor => '#00d',
+        }
       ],
       labels   => \@MONTHES
     },
@@ -271,19 +239,19 @@ sub report_new_arpu {
           type     => 'linear',
           position => 'right',
           ticks    => {
-            stepSize => sprintf( "%.2f", $val2 ),
-            min => 0
-          }
-        },
-        {
-          id       => 'left-y-axis',
-          type     => 'linear',
-          position => 'left',
-          ticks    => {
-            stepSize => sprintf( "%.f", $val1 ),
+            stepSize => sprintf("%.2f", $val1),
             min      => 0
           }
-        }
+        },
+          {
+            id       => 'left-y-axis',
+            type     => 'linear',
+            position => 'left',
+            ticks    => {
+              stepSize => sprintf("%.f", $val2),
+              min      => 0
+            }
+          }
         ]
       }
     }

@@ -7,7 +7,7 @@
 # UPDATED: 20190410
 #**********************************************************
 
-VERSION=2.36;
+VERSION=2.38;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -232,7 +232,7 @@ sql_get_conf () {
 #**********************************************************
 get_sys_id() {
   sql_get_conf;
-  SYS_ID=`${MYSQL} -s -N -u ${DB_USER} -p"${DB_PASSWD}" -h ${DB_HOST} -D ${DB_NAME} -e "SELECT value FROM config WHERE param='SYS_ID';" 2> /dev/null`
+  SYS_ID=`${MYSQL} -s -N -u ${DB_USER} -p"${DB_PASSWD}" -h ${DB_HOST} -D ${DB_NAME} -e "SELECT value FROM config WHERE param='SYS_ID' LIMIT 1;" 2> /dev/null`
 }
 
 #**********************************************************
@@ -1266,7 +1266,7 @@ free_update () {
 
   cd ${TMP_DIR}
   SNAPHOT_NAME=abills_.tgz
-  URL=https://netix.dl.sourceforge.net/project/abills/abills/0.77/abills-0.77.77.tgz
+  URL=https://netix.dl.sourceforge.net/project/abills/abills/0.81/abills-0.81.16.tgz
 
   _fetch ${SNAPHOT_NAME} "${URL}";
 

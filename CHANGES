@@ -1,6 +1,626 @@
 Список запланированных изменений [[abills:todo:todo|Todo List]]
 
+====0.82====
+26.12.2019
+
 ====0.81====
+06.12.2019
+
+  * ''Employees''.[[http://abills.net.ua:8090/pages/viewpage.action?pageId=8126507#id-%D0%A1%D0%BE%D1%82%D1%80%D1%83%D0%B4%D0%BD%D0%B8%D0%BA%D0%B8-%D0%A1%D1%82%D0%B0%D1%82%D1%83%D1%81%D1%8B%D1%81%D0%BE%D1%82%D1%80%D1%83%D0%B4%D0%BD%D0%B8%D0%BA%D0%B0 | Назначены разные цвета (черный, красный, серый) для разных статусов сотрудников]].
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=9601077 | Назначены разные цвета (черный, красный, серый) для разных статусов администратора]]
+  * ''Cards''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=2523197 | Интерфейс дилера: исправлено меню Поиск, меню История]].
+  * ''Cards''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=2523197#id-%D0%98%D0%BD%D1%82%D0%B5%D1%80%D1%84%D0%B5%D0%B9%D1%81%D0%94%D0%B8%D0%BB%D0%B5%D1%80%D0%B0-%D0%9A%D0%B0%D1%80%D1%82%D0%BE%D1%87%D0%BA%D0%B8%D0%BF%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F | Правки дизайна интерфейса дилера]].
+  * ''Cams''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=16974135 | Добавить подгрузку папок в соответствии с выбраной группой]].
+  * ''Cams''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=15761423 | Добавлена возможность изменять ТП в конце периода]].
+  * ''Ureports''. Добавлено поиск по телефону в списке абонентов модуля.
+  * Добавлена возможность удаления расписания приостановления через кабинет абонента.
+  * Оптимизировано работу отчета Пользователи новые+АРПУ.
+  * ''Discounts''. [[http://abills.net.ua:8090/display/AB/Discounts#Discounts-%D0%94%D0%B8%D1%81%D0%BA%D0%BE%D0%BD%D1%82%D0%BD%D0%B0%D1%8F%D0%BA%D0%B0%D1%80%D1%82%D0%B0%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%B0 | Дисконтная карта абонента]].
+  * Исправлено поиск абонента по телефону и мобильному телефону в меню Поиск.
+  * Добавлено настройку конфинурации $conf{PUBLIC_MODE}=1; - блокировать потенциально опасные команды для публичной демонстрации системы.
+  * Добавлено кнопку в меню Мониторинг zabbix: общее состояние.
+  *  ''Iptv''.  [[http://abills.net.ua:8090/display/AB/Oll+tv | Olltv: управление списком устройств абонента]].
+  * ''Cablecat''. Добавлено отображение примечаний на схеме комутации.
+  * ''Abills Lite''. Cохранять настройки авторизации абонента для меню Настройки в android-приложении.
+  * ''GPS''. [[http://abills.net.ua:8090/display/AB/GPS#GPS-%D0%9D%D0%B5%D0%B7%D0%B0%D1%80%D0%B5%D0%B3%D0%B8%D1%81%D1%82%D1%80%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D0%B5%D0%A2%D1%80%D0%B5%D0%BA%D0%B5%D1%80%D1%8B | Добавлено в отчет возможность выбора периода отображения маршрутов]].
+  * ''GPS''. [[http://abills.net.ua:8090/display/AB/GPS#GPS-%D0%9C%D0%BE%D0%BD%D0%B8%D1%82%D0%BE%D1%80%D0%B8%D0%BD%D0%B3%3EGPS%3E%D0%9E%D1%82%D1%81%D0%BB%D0%B5%D0%B6%D0%B8%D0%B2%D0%B0%D0%B5%D0%BC%D1%8B%D0%B5%D0%B0%D0%B4%D0%BC%D0%B8%D0%BD%D0%B8%D1%81%D1%82%D1%80%D0%B0%D1%82%D0%BE%D1%80%D1%8B | Добавлено возможность задания и отображение маршрутов разных администраторов машин разными цветами]].
+  * ''Кабинет абонента''. Исправление веб-дизайна страницы меню Оповещения>Статистика.
+  * ''Time Tracker''. Добавлено комментарии при удалении записей.
+  * Расширено права на функцию отключения абонента (скрывать кнопку Отключить в учетной записи абонента).
+  * ''Msgs''. Исправлено ошибки при добавлении/удалении параметров Extra fields.
+  * ''Msgs''. Рефакторинг Msgs: Chat.
+  * ''Msgs''. Добавлено возможность поиска по администратору, создавшему сообщение.
+  * ''Msgs''. Исправлено формат поля Планируемое время в сообщении.
+  * ''Msgs''. Добавлена возможность отображения сообщений домов-полигонов на карте.
+  * ''Hotspot''. Переведено с main на dbcore.
+  * ''Sysinfo''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35816622 | Оптимизация рестарта сервисов]]
+  * ''Storage''. Добавлено вывод информации по суммам списания по оборудованию в информационном банере (зеленого цвета).
+  * ''Paysys''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35816564 | Paysoft (Paymaster) обновление функционала]].
+  * ''Paysys''. [[http://abills.net.ua:8090/display/AB/Portmone#Portmone-%D0%A0%D0%B0%D0%B7%D0%B4%D0%B5%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%D0%BF%D0%BB%D0%B0%D1%82%D0%B5%D0%B6%D0%B5%D0%B9%D0%BF%D0%BE%D0%B3%D1%80%D1%83%D0%BF%D0%BF%D0%B0%D0%BC%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D0%B5%D0%B9 | Платежная система Portmone: добавлена поддержка групп]].
+  * ''Paysys''. Платежная система Payme: исправлено проблему использования ключей содержащих два знака процента.
+  * ''Poll''. Обновленное меню опросов в личном кабинете абонента.
+  * ''Poll''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=22020119 | Не отображать статус В обработке в личном кабинете абонента]].
+  * ''Poll''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=22020122 | Улучшение дизайна меню Опрос в личном кабинете абонента]]
+  * ''Crm''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=11403768 | Исправлено заполнение шагов в меню Клиенты>Потенциальные клиенты>Потенциальные клиенты>Информация]]
+  * ''Sharing''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=9601102 | Добавлена сортировка файлов для скачивания]].
+  * ''Netblock''. Обновлен список доменов.
+  * ''Notepad''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35816331 | Добавлена возможность создания стикеров]]
+  * ''Extreceipts''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=11403316 | Форма для конфигурации, свои настройки для каждой единицы контрольно-кассовой техники]]
+  * ''Extreceipts''. Реализовано интерфейс для онлайн кассы Atol.
+  * Добавлено JSON тест для функций личного кабинета абонента.
+  *  ''Internet''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=9601069 | Добавлена возможность исключения адреса из пула адресов]].
+  * ''Internet''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=2523480#JSONAPI%D0%B8%D0%BD%D1%82%D0%B5%D1%80%D1%84%D0%B5%D0%B9%D1%81%D1%83%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F-%D0%90%D0%BA%D1%82%D0%B8%D0%B2%D0%B0%D1%86%D0%B8%D1%8F%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D0%B0 | Добавлены API примеры активации сервиса]].
+  * ''Internet''. Отображение tcpdump в реальном времени. Internet daignostic.
+  * ''Internet''. Добавлено возможность (право) администратору приостанавливать услугу интернет, продлевать срок услуги на время приостановления.
+
+<accordion title="20191206"><panel title="MySQL"><code mysql>
+CREATE TABLE IF NOT EXISTS `paysys_ipay_report` (
+  `id`             SMALLINT UNSIGNED      NOT NULL AUTO_INCREMENT,
+  `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `date`           DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `transaction_id` VARCHAR(24)            NOT NULL DEFAULT '',
+  `user_key`       VARCHAR(16)            NOT NULL DEFAULT '',
+  PRIMARY KEY `id` (`id`),
+  UNIQUE `transaction_id` (`transaction_id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Paysys ipay report';
+CREATE TABLE IF NOT EXISTS `paysys_easypay_report` (
+  `id`             SMALLINT UNSIGNED      NOT NULL  AUTO_INCREMENT,
+  `uid`            INT(11) UNSIGNED       NOT NULL  DEFAULT '0',
+  `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL  DEFAULT '0.00',
+  `prov_bill`      int(11) UNSIGNED       NOT NULL  DEFAULT '0',
+  `mfo`            int(8) UNSIGNED        NOT NULL  DEFAULT '0',
+  `bank_name`      VARCHAR(30)            NOT NULL  DEFAULT '',
+  `client_cmsn`    DOUBLE(5, 2) UNSIGNED  NOT NULL  DEFAULT '0.00',
+  `commission`     DOUBLE(5, 2) UNSIGNED  NOT NULL  DEFAULT '0.00',
+  `currency`       VARCHAR(5)             NOT NULL  DEFAULT '',
+  `date`           DATETIME               NOT NULL  DEFAULT '0000-00-00 00:00:00',
+  `description`    VARCHAR(200)           NOT NULL  DEFAULT '',
+  `prov_name`      VARCHAR(30)            NOT NULL  DEFAULT '',
+  `okpo`           int(8) UNSIGNED        NOT NULL  DEFAULT '0',
+  `company_name`   VARCHAR(30)            NOT NULL  DEFAULT '',
+  `terminal_id`    int(8) UNSIGNED        NOT NULL  DEFAULT '0',
+  `transaction_id` VARCHAR(24)            NOT NULL  DEFAULT '',
+  PRIMARY KEY `id` (`id`),
+  UNIQUE `transaction_id` (`transaction_id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Paysys easypay report';
+CREATE TABLE IF NOT EXISTS `paysys_ibox_report` (
+  `id`             SMALLINT UNSIGNED      NOT NULL AUTO_INCREMENT,
+  `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `date`           DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `transaction_id` VARCHAR(24)            NOT NULL DEFAULT '',
+  `user_key`       VARCHAR(16)            NOT NULL DEFAULT '',
+  PRIMARY KEY `id` (`id`),
+  UNIQUE `transaction_id` (`transaction_id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Paysys ibox report';
+ALTER TABLE `ippools` ADD COLUMN `ip_skip` MEDIUMTEXT NULL;
+CREATE TABLE IF NOT EXISTS `gps_admins_color` (
+   `id` SMALLINT(6) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+   `aid` SMALLINT(6) UNSIGNED NOT NULL UNIQUE REFERENCES `admins` (`aid`),
+   `color` VARCHAR(7) NOT NULL DEFAULT '#0000FF',
+   UNIQUE KEY (`aid`)
+);
+ALTER TABLE `cams_main` ADD COLUMN `expire` DATE NOT NULL DEFAULT '0000-00-00';
+ALTER TABLE `gps_admins_color` ADD COLUMN `show_admin` INT NOT NULL DEFAULT 1;
+ALTER TABLE `cams_folder` ADD COLUMN `subfolder_id` VARCHAR(32) NOT NULL DEFAULT '' COMMENT 'External folder ID for syncronization';
+CREATE TABLE IF NOT EXISTS `paysys_merchant_settings` (
+  `id` TINYINT(4) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `merchant_name` VARCHAR(40) NOT NULL DEFAULT '',
+  `system_id` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY `id`(`id`),
+  FOREIGN KEY (`system_id`) REFERENCES `paysys_connect` (`id`) ON DELETE CASCADE
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Paysys merchant settings';
+CREATE TABLE IF NOT EXISTS `paysys_merchant_params` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `param`     VARCHAR(50)          NOT NULL DEFAULT '',
+  `value`     VARCHAR(400)         NOT NULL DEFAULT '',
+  `merchant_id` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY `id`(`id`),
+  FOREIGN KEY (`merchant_id`) REFERENCES `paysys_merchant_settings` (`id`) ON DELETE CASCADE
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Paysys merchant params';
+CREATE TABLE IF NOT EXISTS `paysys_merchant_to_groups_settings` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `gid` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `paysys_id` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `merch_id`  TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY `id` (`id`),
+  FOREIGN KEY (`merch_id`) REFERENCES `paysys_merchant_settings` (`id`) ON DELETE CASCADE
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Settings for each group';
+
+
+</code></panel></accordion>
+
+28.10.2019
+
+  * ''Internet''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=7504024#id-%D0%94%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5%D0%BF%D0%B0%D1%80%D0%B0%D0%BC%D0%B5%D1%82%D1%80%D1%8B%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D1%8FInternet+-%D0%94%D0%B8%D0%B0%D0%B3%D0%BD%D0%BE%D1%81%D1%82%D0%B8%D0%BA%D0%B0%D1%81%D0%BE%D0%B5%D0%B4%D0%B8%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F | Mikrotik: расширенная диагностика соединения]].
+  * ''Crm''. Исправление ошибок при заполнении шагов в  шкале выполнения.
+  * ''Poll''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=22020122 | Улучшено меню Опрос в личном кабинете абонента]].
+  * ''Equipment''. [[http://abills.net.ua:8090/display/AB/PON | Написан плагин для подключения PON OLT C-DATA]].
+  * ''Poll''. [[http://abills.net.ua:8090/display/AB/Poll | Улучшено меню модуля Опрос]].
+  * ''Sharing''. Добавлено возможность задавать файлы в разных каталогах.
+  * ''Iptv''. Добавлено зеленый статус-бар в учетной записи абонента.
+  * ''ABillS Lite''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35815586#ABillSLite-android%D0%BF%D1%80%D0%B8%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5-%D0%92%D0%B7%D0%B0%D0%B8%D0%BC%D0%BE%D0%B4%D0%B5%D0%B9%D1%81%D1%82%D0%B2%D0%B8%D0%B5%D1%81%D0%BF%D1%80%D0%B8%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5%D0%BC | Добавлено свайп-перелистывание страниц меню]].
+  * ''TimeTracker''. [[http://abills.net.ua:8090/display/AB/Timetracker | В отчет "Учет времени" добавлено колонку Всего времени]].
+  * ''TimeTracker''. [[http://abills.net.ua:8090/display/AB/Timetracker#Timetracker-%D0%97%D0%B0%D0%BA%D1%80%D1%8B%D1%82%D1%8B%D0%B5%D0%B7%D0%B0%D0%B4%D0%B0%D1%87%D0%B8 | Добавлено отчет "Закрытые задачи"]].
+  * ''Sharing''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=9601102 | Предоставление доступа к файлам в демо режиме]].
+  * ''Iptv''. [[http://abills.net.ua:8090/display/AB/Smotreshka+TV#SmotreshkaTV-%D0%A1%D0%B8%D0%BD%D1%85%D1%80%D0%BE%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D0%B5%D0%B9%D0%BF%D0%BEIptv_login |Smotreshka. Синхронизация пользователей по Iptv_login]].
+  * ''Sharing''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35816324 | Добавлено Отчёт по файлам, предоставленным в режиме демо]].
+  * Исправлено ошибку при дублировании панелей в учетной записи абонента.
+  * ''Sms''. [[http://abills.net.ua:8090/display/AB/Sms#Sms-%D0%92%D1%81%D0%B5%D0%BF%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%B8%D0%B2%D0%B0%D0%B5%D0%BC%D1%8B%D0%B5%D1%82%D0%B8%D0%BF%D1%8B%D0%BA%D0%BE%D0%BC%D0%B0%D0%BD%D0%B4%D1%8B | Добавлены смс-операция "Перевод средств между абонентами"]].
+  * ''Paysys''. [[http://abills.net.ua:8090/display/AB/Click | Интеграция плат.системы Click.uz]].
+  * ''Sms''. Добавлены операции пополнения счета при получении команды.
+  * ''Internet''. Добавлено вывод предупреждения о дублировании портов.
+  * ''Internet''. Добавлено массовое добавление IPv4 адресов клиентам.
+  * ''Telegram + Msgs''. Добавлена возможность прикрепление картинок и файлов во время быстрого ответа через бота.
+  * Исправлено ошибку при редактировании логина абонента.
+  * ''Iptv''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=4030716 | Добавлена возможность скрыть ТП в ЛК пользователя]].
+  * ''Poll''. Исправлено ошибки в работе кнопок статусов опроса в кабинете абонента.
+  * ''Msgs''. Добавлено поддержку доменов в Разделы в сообщениях и сообщениям, привязанным к адресу.
+  * ''Paysys''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35816372 | Внешние команды для оплаты]].
+  * ''Iptv''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35816215 | Вывод информации о пользователях, у которых не списало абонплату за сервисы ТВ]].
+  * ''Internet''. Мониторинг: добавлено в  список фильтров SVLAN и CVLAN.
+  * ''Equipment''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258945#id-%D0%9F%D1%80%D0%B8%D0%B2%D1%8F%D0%B7%D0%BA%D0%B0%D1%82%D0%B8%D0%BF%D0%B0%D0%BE%D0%B1%D0%BE%D1%80%D1%83%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F%D0%BA%D1%81%D0%B5%D1%80%D0%B2%D0%B5%D1%80%D1%83%D0%B4%D0%BE%D1%81%D1%82%D1%83%D0%BF%D0%B0-%D0%9F%D0%BE%D0%B2%D1%82%D0%BE%D1%80%D1%8F%D1%8E%D1%89%D0%B8%D0%B5%D1%81%D1%8FMAC%D0%B0%D0%B4%D1%80%D0%B5%D1%81%D0%B0 | Отчет по дубликатам MAC адресов]].
+  * ''db_check''. Добавлена проверка на наличие индексов в таблицах.
+  * ''Iptv''. Исправлено ошибку при изменение статуса сервиса с Отключено на Активно.
+  * ''Sms''. [[http://abills.net.ua:8090/display/AB/Sms#Sms-EskizSms | Добавлено новый плагин Eskiz.uz]].
+  * ''ABills Lite''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35815586#ABillSLite-android%D0%BF%D1%80%D0%B8%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5-8)%D0%A1%D0%BC%D0%B5%D0%BD%D0%B0%D1%86%D0%B2%D0%B5%D1%82%D0%BE%D0%B2%D0%BE%D0%B9%D0%BF%D0%B0%D0%BB%D0%B8%D1%82%D1%80%D1%8B | Добавлена возможность смены цветовой палитры приложения]].
+  * Добавлена поддержка Multidoms для голосования в личном кабинете абонента (Опрос).
+  * ''CRM''. Добавлено в меню Клиенты>Потенциальные клиенты три новые закладки "Все", "Потенциальные" и "Конвертированные".
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=11403316 | Реализовано 1-й этап добавления в модуль Extreceipt поддержки Атолл-онлайн]]
+  * ''Paysys''. Добавлена возможность отключения пополнения в портале абонента.
+  * Добавлены примеры JSON теста.
+
+<accordion title="20191028"><panel title="MySQL"><code mysql>
+
+ALTER TABLE sharing_users ADD FOREIGN KEY (file_id) REFERENCES sharing_files(id);
+ALTER TABLE `msgs_messages` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `msgs_chapters` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `msgs_chapters` DROP INDEX `name`;
+ALTER TABLE `msgs_chapters` ADD UNIQUE KEY `name` (`name`, `domain_id`);
+ALTER TABLE poll_polls ADD COLUMN expiration_date DATE NOT NULL DEFAULT '0000-00-00';
+ALTER TABLE `poll_polls` ADD COLUMN `domain_id` SMALLINT(6) NOT NULL DEFAULT 0;
+ALTER TABLE `crm_leads` MODIFY COLUMN  `current_step` int NOT NULL DEFAULT 1;
+ALTER TABLE `crm_progressbar_steps` MODIFY COLUMN  `step_number` INT UNSIGNED NOT NULL DEFAULT 1;
+
+</code></panel></accordion>
+
+30.09.2019
+
+  * ''Storage''. Отображение списаний за оборудование в информационном блоке в учетной записи абонента.
+  * ''Telegram''. Реализована подписка администратора либо из вебформы, либо с помощью подтверждения телефона.
+  * ''Paysys''. [[http://abills.net.ua:8090/display/AB/Paysys#Paysys-%D0%9D%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B8%D0%BA%D0%BE%D0%BD%D1%84%D0%B8%D0%B3%D1%83%D1%80%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%BD%D0%BE%D0%B3%D0%BE%D1%84%D0%B0%D0%B9%D0%BB%D0%B0 | Настройка: в поле Вид оплаты добавить галочку (checkbox) для создания вида оплаты]].
+  * Добавлены права администратора (пункт 26) на просмотр персональной информации.
+  * ''NAS''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35816037 | Добавлена синхронизация с Zabbix]].
+  * ''Equipment''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258965 | Кастомные SNMP/JSON шаблоны]].
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=11403583 | Добавлена возможность валидации номера телефона в контактах]].
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=11403471 | Добавлена возможность делать собственные ссылки в быстрых функциях]].
+  * ''ABills Lite''. Реализованы облачные push-оповещения для Android приложения.
+  * ''ABills Lite''. Добавлено поддержку модуля Paysys в Android приложении.
+  * ''ABills Lite''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35815586| Создано Android приложение ABillS Lite]].
+  * ''Maps''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258791#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D0%B7%D0%B0%D1%8F%D0%B2%D0%BA%D0%B0%D0%BC%D0%B8%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%BE%D0%B2-%D0%9E%D1%82%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5%D0%B7%D0%B0%D1%8F%D0%B2%D0%BE%D0%BA%D0%BD%D0%B0%D0%BA%D0%B0%D1%80%D1%82%D0%B5 | Отображение заявок на карте для каждого раздела с сообщениями]].
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=2523382 | Добавлена возможность включения страницы ознакомления и принятия правил провайдера]].
+  * ''Msgs''. Добавлено подписи приоритетов сообщений.
+  * ''Msgs''. В открытом сообщении в поле Ответственный скрывать администраторов со статусом Уволен и Отключено.
+  * ''Cams''. Zoneminder. Добавлена возможность привязки камер пользователю.
+  * ''Cams''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35816089 | Добавлена возможность создавать каталоги]].
+  * ''IPTV''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=4980752#id-%D0%9A%D0%B0%D0%B1%D0%B8%D0%BD%D0%B5%D1%82%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%B0IPTV-%D0%98%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%BD%D1%8B%D0%B9%D1%88%D0%B0%D0%B1%D0%BB%D0%BE%D0%BD%D0%BE%D0%B1Iptv |Добавлен информационный шаблон о сервисе телевидение]].
+  * ''Iptv''. Добавлена возможность отключать сервисы абонента (права администратора пункт 1.14).
+  * ''Iptv''. Отображение тарифных планов без перезагрузки страницы.
+  * ''Internet+''. Исправлен дизайн окна Тарифы Трафика.
+  * ''Internet+''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35816148 | Ipv6. Добавлена возможность массового добавление адресов клиентам]].
+  * ''Internet+''. Автоматизирован выбор параметра даты при смене тарифного плана через указание даты в учетной записи абонента.
+  * Журнал адресов: добавлен быстрый переход к следующему меню (район, улица, дом, квартира).
+  * ''CRM''. Поддержка Multidoms в CRM.
+  * Abills_install: поддержка Debian 10.
+  * ''Time Tracker''. Исправление ошибки - добавлено checkbox для фокус-фактора.
+
+<accordion title="20190930"><panel title="MySQL"><code mysql>
+ALTER TABLE `nas` ADD COLUMN zabbix_hostid INT(11) NOT NULL DEFAULT 0;
+ALTER TABLE `notepad` ADD COLUMN `status_st` TINYINT(1)  UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE `cams_streams` MODIFY COLUMN `group_id` int(11) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE `cams_streams` ADD COLUMN `folder_id` int(11) unsigned NOT NULL DEFAULT '0';
+
+CREATE TABLE IF NOT EXISTS `cams_users_folders` (
+  `id` INTEGER(10) UNSIGNED NOT NULL DEFAULT '0',
+  `tp_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `folder_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `changed` DATETIME NOT NULL,
+  UNIQUE KEY `id` (`id`, `folder_id`, `tp_id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Cams users folders';
+
+CREATE TABLE IF NOT EXISTS `cams_folder` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `title` varchar(64) NOT NULL DEFAULT '',
+  `comment` varchar(250) DEFAULT '',
+  `parent_id` int(6) unsigned NOT NULL DEFAULT 0,
+  `group_id` int(6) unsigned NOT NULL DEFAULT 0,
+  `service_id` int(6) unsigned NOT NULL DEFAULT 0,
+  `location_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `district_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `street_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `build_id` int(11) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `title` (`title`)
+)
+  DEFAULT CHARSET=utf8 COMMENT='Cams Folder';
+
+ALTER TABLE `sharing_users` ADD COLUMN demo TINYINT(3) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `iptv_main` ADD COLUMN `iptv_login` varchar(32) NOT NULL DEFAULT '';
+ALTER TABLE `iptv_main` ADD COLUMN `iptv_password` varchar(32) NOT NULL DEFAULT '';
+ALTER TABLE `crm_progressbar_steps` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `crm_leads_sources` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `crm_actions` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `crm_leads` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `crm_progressbar_step_comments` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+
+</code></panel></accordion>
+
+30.08.2019
+
+  * Добавлено переход администратора в личный кабинет абонента при безпарольном доступе.
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=9601077| Добавлено временный пароль администратора.]]
+  * ''Referrals''. Добавлено поле "Все" в статусы Заявки подключения.
+  * ''Msgs''. Добавлен статус Взято в работу.
+  * ''Equipment''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=7504045| Добавлена информация о времени активности порта.]]
+  * Добавлено поиск логов заявок на подключения.
+  * ''IPTV''. Исправлено ошибки по абонплате.
+  * ''Referrals''. В меню Заявки подключения добавлено фильтр по периоду (дата).
+  * ''Referrals''. [[http://abills.net.ua:8090/display/AB/Referral#Referral-%D0%9D%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0%D1%80%D0%B5%D1%84%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B| Добавлено создание тарифных планов для модуля.]]
+  * ''Internet''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=7504049| Добавлена возможность отключения тарифных планов.]]
+  * ''Internet''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258920#id-%D0%9C%D0%BD%D0%BE%D0%B3%D0%BE%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D0%BA%D0%B8%D0%B5%D0%BE%D0%BF%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8-%D0%94%D0%BE%D0%B1%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F%D0%91%D0%BE%D0%BD%D1%83%D1%81%D0%BE%D0%B2%D1%87%D0%B5%D1%80%D0%B5%D0%B7%D0%BC%D0%BD%D0%BE%D0%B3%D0%BE%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D0%BA%D0%B8%D0%B5%D0%BE%D0%BF%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8 | Добавлено в мультиоперации поле скидка и дата скидки.]
+  * ''Sms''. [[http://abills.net.ua:8090/display/AB/Sms#Sms-CMD | Добавлен универсальный плагин для отпраки смс.]]
+  * ''Internet+''. Мониторинг. Исправлено постоянную перезагрузку страницы.
+  * ''Cablecat''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=8782014#id-%D0%A1%D1%85%D0%B5%D0%BC%D0%B0%D0%BA%D0%BE%D0%BC%D0%BC%D1%83%D1%82%D0%B0%D1%86%D0%B8%D0%B8-%D0%9F%D0%B5%D1%87%D0%B0%D1%82%D0%BD%D0%B0%D1%8F%D1%84%D0%BE%D1%80%D0%BC%D0%B0| В печатную форму добавлено делители.]]
+  * ''Internet''. Добавлено сообщение о запланированой смене ТП.
+  * ''Paysys''. Исправлены ошибки платежной симтемы Payme.
+  * ''Iptv''. Добавлено дневные списания за каналы.
+  * ''IPTV''. Улучшены списания по тарифным планам системы Conax.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258791#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D0%B7%D0%B0%D1%8F%D0%B2%D0%BA%D0%B0%D0%BC%D0%B8%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%BE%D0%B2-%D0%98%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%D0%BE%D0%B1%D1%83%D0%B6%D0%B5%D1%81%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%BD%D0%BE%D0%B9%D0%B7%D0%B0%D1%8F%D0%B2%D0%BA%D0%B5| Добавлено информирование об уже созданной заявке.]]
+  * ''Msgs''. Добавлена привязка нарядов работ к доменам.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258791#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D0%B7%D0%B0%D1%8F%D0%B2%D0%BA%D0%B0%D0%BC%D0%B8%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%BE%D0%B2-%D0%A2%D0%9C%D0%A6(%D0%A2%D0%BE%D0%B2%D0%B0%D1%80%D0%BD%D0%BE-%D0%BC%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5%D1%86%D0%B5%D0%BD%D0%BD%D0%BE%D1%81%D1%82%D0%B8%D0%B2%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B5%D1%81%D0%B7%D0%B0%D1%8F%D0%B2%D0%BA%D0%B0%D0%BC%D0%B8)| Добавлена возможность прикрепления ТМЦ в работе с заявками.]]
+  * Добавлено проверку на уникальность договора на уровне биллинга.
+  * ''Internet+''. [[http://abills.net.ua:8090/display/AB/Accel-ppp#Accel-ppp-Accel-pppConsole| Добавлено accel_ppp расширенная консоль.]]
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=23527446| Добавлена проверка целостности базы данных. ]]
+  * ''Equipment''. [[http://abills.net.ua:8090/display/AB/PON+GRabber#PONGRabber-%D0%9F%D0%B0%D1%80%D0%B0%D0%BC%D0%B5%D1%82%D1%80SNMP_SERIAL_SCAN_ALL| Добавлен поиск дублирующихся серийников на всех OLT, и оповещение администратора о проблеме.]]
+
+<accordion title="20190830"><panel title="MySQL"><code mysql>
+
+ALTER TABLE `employees_department` ADD COLUMN `positions` VARCHAR(25) NOT NULL DEFAULT '';
+
+ALTER TABLE `cams_main` ADD COLUMN `subscribe_id` VARCHAR(32) NOT NULL DEFAULT '' COMMENT 'External service ID for syncronization';
+
+ALTER TABLE `cams_groups` MODIFY COLUMN `id` int(11) unsigned NOT NULL AUTO_INCREMENT;
+ALTER TABLE `cams_groups` MODIFY COLUMN `location_id` int(11) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE `cams_groups` MODIFY COLUMN `district_id` int(11) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE `cams_groups` MODIFY COLUMN `street_id` int(11) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE `cams_groups` MODIFY COLUMN `build_id` int(11) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE `cams_groups` MODIFY COLUMN `service_id` int(6) unsigned NOT NULL DEFAULT 0;
+
+ALTER TABLE `msgs_unreg_requests` MODIFY COLUMN `phone` varchar(16) NOT NULL DEFAULT '';
+
+ALTER TABLE `cams_groups` ADD COLUMN `subgroup_id` VARCHAR(32) NOT NULL DEFAULT '' COMMENT 'External group ID for syncronization';
+ALTER TABLE `cams_streams` ADD COLUMN `number_id` VARCHAR(32) NOT NULL DEFAULT '' COMMENT 'External camera ID for syncronization';
+</code></panel></accordion>
+
+23.08.2019
+
+  * ''Equipment''. [[http://abills.net.ua:8090/display/AB/SNMP+Console| Создано SNMP консоль.]]
+  * ''Storage''. Добавлена поддержка Multidoms.
+  * ''Msgs''. Исправлено ошибки в Поиск по сообщениям, переход по страницам после поиска.
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=14319620#id-%D0%9E%D1%82%D1%87%D0%B5%D1%82%D1%8B%D0%BF%D0%BE%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D1%8E%D0%A1%D0%BA%D0%BB%D0%B0%D0%B4-%D0%90%D0%BD%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%80%D0%B5%D0%BD%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2| Добавлен отчет Анализ аренды товара.]]
+  * ''Docs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=11403889#id-%D0%A8%D0%B0%D0%B1%D0%BB%D0%BE%D0%BD%D1%8B%D0%B4%D0%BE%D0%BA%D1%83%D0%BC%D0%B5%D0%BD%D1%82%D0%BE%D0%B2-%D0%94%D0%BE%D0%B3%D0%BE%D0%B2%D0%BE%D1%80|Добавлено новый параметр для любой переменной с датой добавлены _LIT (дата прописью) и _EURO (дата в формате 01.01.2011).]]
+  * ''Referals''. [[http://abills.net.ua:8090/display/AB/Referral| Добавлен лог регистрации абонентов.]]
+  * ''Paysys''. [[http://abills.net.ua:8090/display/AB/Paysys#Paysys-%D0%9D%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B8%D0%BA%D0%BE%D0%BD%D1%84%D0%B8%D0%B3%D1%83%D1%80%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%BD%D0%BE%D0%B3%D0%BE%D1%84%D0%B0%D0%B9%D0%BB%D0%B0| Добавлен параметр $conf{PAYSYS_ADD_TO_RECOMMENDED_SUMM}='1.2'; - значение суммы, которое будет добавляться к рекомендуемой сумме оплаты.]]
+  * ''Docs''. Добавлено групповое удаление счетов.
+  * Добавлен лог заявок на подключения через буквенную маркировку UNREG_ID.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258791#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D0%B7%D0%B0%D1%8F%D0%B2%D0%BA%D0%B0%D0%BC%D0%B8%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%BE%D0%B2-%D0%9F%D0%BE%D0%B8%D1%81%D0%BA%D1%81%D0%BE%D0%BE%D0%B1%D1%89%D0%B5%D0%BD%D0%B8%D0%B9| Добавлен Поиск закрытых сообщений по дате закрытия.]]
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258799| Добавлен Поиск закрытых заявок на подключение по дате.]]
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=14319620#id-%D0%9E%D1%82%D1%87%D0%B5%D1%82%D1%8B%D0%BF%D0%BE%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D1%8E%D0%A1%D0%BA%D0%BB%D0%B0%D0%B4-%D0%90%D0%BD%D0%B0%D0%BB%D0%B8%D0%B7%D0%BF%D1%80%D0%BE%D0%B4%D0%B0%D0%B6%D0%B8%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%D0%B2%D1%80%D0%B0%D1%81%D1%81%D1%80%D0%BE%D1%87%D0%BA%D1%83| Добавлен отчет Анализ продажи товаров в рассрочку.]]
+  * ''Iptv''. [[http://abills.net.ua:8090/display/AB/24tv| Реализован протокол модуля 24tv.]]
+  * ''Callcenter''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=14319783#id-%D0%9E%D1%82%D1%87%D1%91%D1%82IVR-%D0%9C%D0%B5%D0%BD%D1%8E%D0%9A%D0%BB%D0%B8%D0%B5%D0%BD%D1%82%D1%8B%3E%D0%9B%D0%BE%D0%B3%D0%B8%D0%BD%D1%8B%3E%D0%98%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D1%8F%3E%D0%A1%D0%B5%D1%80%D0%B2%D0%B8%D1%81%D1%8B%3E%D0%98%D0%BD%D1%82%D0%B5%D1%80%D0%B0%D0%BA%D1%82%D0%B8%D0%B2%D0%BD%D0%BE%D0%B5%D0%BC%D0%B5%D0%BD%D1%8E(IVR)| Улучшено отчет по обращениям абонента через ivr и колцентр в карточке абонента.]]
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=14319620#id-%D0%9E%D1%82%D1%87%D0%B5%D1%82%D1%8B%D0%BF%D0%BE%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D1%8E%D0%A1%D0%BA%D0%BB%D0%B0%D0%B4-%D0%9E%D1%81%D1%82%D0%B0%D1%82%D0%BA%D0%B8%D0%BF%D0%BE%D1%81%D0%BA%D0%BB%D0%B0%D0%B4%D1%83| Добавлен отчет Остатки по складу.]]
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=2523265#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%BC%D0%BD%D0%B0%D1%81%D0%BA%D0%BB%D0%B0%D0%B4%D0%B5-%D0%9C%D0%B5%D0%BD%D1%8E%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%BE| Добавлено отчет Анализ установленного оборудования.]]
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=14319620#id-%D0%9E%D1%82%D1%87%D0%B5%D1%82%D1%8B%D0%BF%D0%BE%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D1%8E%D0%A1%D0%BA%D0%BB%D0%B0%D0%B4-%D0%9E%D1%82%D1%87%D0%B5%D1%82%D0%BF%D1%80%D0%B8%D1%85%D0%BE%D0%B4%D0%B0%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%B0%D0%B7%D0%B0%D0%BF%D0%B5%D1%80%D0%B8%D0%BE%D0%B4| Добавлено отчет Приход товара за период.]]
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=14319718| Дополнено меню Поиск в сервисе Интернет+.]]
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=35815690| Дополнено меню Поиск в сервисе Телевидение.]]
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=11403583#id-%D0%A4%D0%B0%D0%B9%D0%BB%D0%BA%D0%BE%D0%BD%D1%84%D0%B8%D0%B3%D1%83%D1%80%D0%B0%D1%86%D0%B8%D0%B8-%D0%9F%D0%B5%D1%80%D0%B5%D0%BD%D0%BE%D1%81%D0%B4%D0%BE%D0%BB%D0%B6%D0%BD%D0%B8%D0%BA%D0%BE%D0%B2%D0%B2%D0%B4%D1%80%D1%83%D0%B3%D1%83%D1%8E%D0%B3%D1%80%D1%83%D0%BF%D0%BF%D1%83| Улучшено перенос должников. Возможность создавать несколько правил для отдельной группы.]]
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=2523265#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%BC%D0%BD%D0%B0%D1%81%D0%BA%D0%BB%D0%B0%D0%B4%D0%B5-%D0%9C%D0%B5%D0%BD%D1%8E%D0%92%D0%BD%D1%83%D1%82%D1%80%D0%B5%D0%BD%D0%BD%D0%B5%D0%B5%D0%98%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5| Обновлен интерфейс меню Внутреннее использование.]]
+  * ''Equipment''. OLT добавлена поддержка BDCOM GPON.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258797#id-%D0%9D%D0%B0%D1%80%D1%8F%D0%B4%D1%8B%D1%80%D0%B0%D0%B1%D0%BE%D1%82-%D0%A8%D0%B0%D0%B1%D0%BB%D0%BE%D0%BD%D0%BD%D0%B0%D1%80%D1%8F%D0%B4%D0%B0|Наряды: разделение бригады в печатной форме. ]]
+  * ''Msgs''. Добавлено предупреждение о массовой рассылке.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258797#id-%D0%9D%D0%B0%D1%80%D1%8F%D0%B4%D1%8B%D1%80%D0%B0%D0%B1%D0%BE%D1%82-%D0%A8%D0%B0%D0%B1%D0%BB%D0%BE%D0%BD%D1%8B%D0%BD%D0%B0%D1%80%D1%8F%D0%B4%D0%BE%D0%B2%D0%B4%D0%BB%D1%8F%D1%80%D0%B0%D0%B7%D0%BD%D1%8B%D1%85%D0%BA%D0%B0%D1%82%D0%B5%D0%B3%D0%BE%D1%80%D0%B8%D0%B9| Шаблоны нарядов для разных категорий.]]
+  * ''Msgs''. Наряды. Быстрые шаблоны - сортировка по времены выполнения.
+  * Исправлено вывод всех поля с контактами в интерфейсе абонента.
+  * ''Iptv''. Исправлено выборку ТП в кабинете пользователя.
+  * ''Iptv''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=4980768| Убрать тариф из списка доступных.]]
+  * ''Paysys''. Исправлено ошибку при добавлении платежной системы сохранять Вип Оплаты.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258797#id-%D0%9D%D0%B0%D1%80%D1%8F%D0%B4%D1%8B%D1%80%D0%B0%D0%B1%D0%BE%D1%82-%D0%9F%D1%80%D0%BE%D1%81%D0%BC%D0%BE%D1%82%D1%80%D0%BD%D0%B0%D1%80%D1%8F%D0%B4%D0%BE%D0%B2%D1%80%D0%B0%D0%B1%D0%BE%D1%82| Новый формат нарядов работ.]]
+  * ''Iptv''. Добавлено отображение информации о смене ТП по рассписанию.
+  * ''Iptv''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=4980752#id-%D0%9A%D0%B0%D0%B1%D0%B8%D0%BD%D0%B5%D1%82%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%B0IPTV-%D0%9F%D1%80%D0%B8%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%D0%BE%D1%82%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B8%D1%8F%D1%82%D0%B0%D1%80%D0%B8%D1%84%D0%BD%D0%BE%D0%B3%D0%BE%D0%BF%D0%BB%D0%B0%D0%BD%D0%B0| Активация приостановленной услуги в кабинете абонента]]
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258799#id-%D0%97%D0%B0%D1%8F%D0%B2%D0%BA%D0%B8%D0%BD%D0%B0%D0%BF%D0%BE%D0%B4%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B8%D0%B5-%D0%9E%D1%82%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5%D0%B7%D0%B0%D1%8F%D0%B2%D0%BE%D0%BA%D0%BF%D0%BE%D0%B4%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B8%D1%8F%D0%BD%D0%B0%D0%BA%D0%B0%D1%80%D1%82%D0%B5| Отображение заявок подключения на карте.]]
+  * ''Paysys''. Исправлена ошибка при добавлении платежной системы сохраняется приоритет.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258791#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D0%B7%D0%B0%D1%8F%D0%B2%D0%BA%D0%B0%D0%BC%D0%B8%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%BE%D0%B2-%D0%9E%D1%82%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5%D0%B7%D0%B0%D1%8F%D0%B2%D0%BE%D0%BA%D0%BD%D0%B0%D0%BA%D0%B0%D1%80%D1%82%D0%B5| Возможность отображения заявок (сообщений) на карте.]]
+  * ''Storage''. [[hthttp://abills.net.ua:8090/pages/viewpage.action?pageId=2523265#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%BC%D0%BD%D0%B0%D1%81%D0%BA%D0%BB%D0%B0%D0%B4%D0%B5-%D0%9C%D0%B5%D0%BD%D1%8E%D0%9F%D0%BE%D0%B4%D0%BE%D1%82%D1%87%D1%91%D1%82%D0%BD%D0%BE%D1%81%D1%82%D1%8Ctp| Возможность списания материалов из меню Подотчетность.]]
+  * ''Paysys''. Исправлена ошибка при правке настройки платежной системы.
+  * ''Msgs''. Улучшена работа с Multidoms.
+  * ''Paysys''. Унифицирована панель добавление платежной системы.
+  * ''Paysys''. [[http://abills.net.ua:8090/display/AB/Fondy| Модуль Fondy для новой схемы.]]
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=4030512#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%B0%D0%BC%D0%B8-%D0%A1%D0%BF%D0%B8%D1%81%D0%BE%D0%BA%D0%BE%D0%B1%D0%BE%D1%80%D1%83%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%B0| Расчет "%" дохода админа (ответственного).]]
+  * ''Msgs''. Заявки на подключения: добавлена поддержка Multidoms.
+  * ''Paysys''. [[http://abills.net.ua:8090/display/AB/Paysys#Paysys-%D0%9D%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B8%D0%BA%D0%BE%D0%BD%D1%84%D0%B8%D0%B3%D1%83%D1%80%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%BD%D0%BE%D0%B3%D0%BE%D1%84%D0%B0%D0%B9%D0%BB%D0%B0| Возможность убрать меню Отчет>Paysys>НБ Киргизкой республики.]]
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=31883907#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D0%BD%D0%B0%D0%BA%D0%BB%D0%B0%D0%B4%D0%BD%D1%8B%D0%BC%D0%B8-%D0%9E%D0%BF%D0%BB%D0%B0%D1%82%D1%8B%D0%BF%D0%BE%D0%BD%D0%B0%D0%BA%D0%BB%D0%B0%D0%B4%D0%BD%D1%8B%D0%BC| Оплаты по накладным - автоматический вывод общей суммы накладной.]]
+  * ''Paysys''. [[http://abills.net.ua:8090/display/AB/Ckasa| Ckassa]]
+  * Оптимизировано отображение шаблонов tpl_show.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258799| Заявки на подключение. Новый интерфейс.]]
+  * ''Paysys''. [[http://abills.net.ua:8090/display/AB/OSMPv4| Перевод модуля OSMPv4 на новую схему.]]
+  * ''Internet''. [[http://abills.net.ua:8090/display/AB/PON+GRabber| Сравнение CPE MAC с текущими данными.]]
+  * ''Storage''. Добавлено возможность редактирования записи в меню Настройка>Склад>Установлено.
+  * ''Callcenter''. Исправлено поиск в отчете IVR.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258791#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D0%B7%D0%B0%D1%8F%D0%B2%D0%BA%D0%B0%D0%BC%D0%B8%D0%B0%D0%B1%D0%BE%D0%BD%D0%B5%D0%BD%D1%82%D0%BE%D0%B2-%D0%9E%D1%82%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5%D0%B7%D0%B0%D1%8F%D0%B2%D0%BE%D0%BA%D0%BD%D0%B0%D0%BA%D0%B0%D1%80%D1%82%D0%B5| Добавлена возможность прикреплять сообщения к локации.]]
+  * ''Equipment''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=7504045#id-%D0%A3%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%D1%83%D1%81%D0%BB%D1%83%D0%B3%D0%BE%D0%B9-%D0%9E%D0%B1%D0%BE%D1%80%D1%83%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5| Панель Оборудование в карточке абонента: добавлено пиктограммы для полей панели.]]
+  * ''Paysys''. [[http://abills.net.ua:8090/display/AB/Platon | Модуль Platon для новой схемы]]
+  * ''Storage''. Исправлено ошибку при заполнении комментариев в меню Настройка>Склад>Качество.
+  * ''Paysys''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=31883756| Тестирование платежных систем.]]
+  * ''Paysys''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=34996247#id-%D0%A2%D0%B5%D1%80%D0%BC%D0%B8%D0%BD%D0%B0%D0%BB%D1%8B%D0%B4%D0%BB%D1%8F%D0%BE%D0%BF%D0%BB%D0%B0%D1%82%D1%8B-%D0%9E%D1%82%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5%D0%B1%D0%BB%D0%B8%D0%B6%D0%B0%D0%B9%D1%88%D0%B5%D0%B3%D0%BE%D1%82%D0%B5%D1%80%D0%BC%D0%B8%D0%BD%D0%B0%D0%BB%D0%B0| Терминалы на карте: добавлено поля время работы терминалов.]]
+  * ''Paysys''. Ipay. Доработано определение ответа от Ipay.
+  * ''Paysys''. Ipay. Добавлено в модуль обработку запроса check.
+
+<accordion title="20190823"><panel title="MySQL"><code mysql>
+ALTER TABLE `msgs_unreg_requests` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `msgs_dispatch` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+
+CREATE TABLE IF NOT EXISTS `msgs_storage` (
+  `id`                           INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+  `msgs_id`                      INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `installation_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `date`                         DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `aid`                          SMALLINT(6)      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`)
+) DEFAULT CHARSET = utf8 COMMENT = 'Storage items to msgs tickets';
+
+ALTER TABLE `employees_department` ADD COLUMN `positions` VARCHAR(25) NOT NULL DEFAULT '';
+</code></panel></accordion>
+
+06.08.2019
+  * ''Internet''. В equipment_pon добавлена возможность проверки и автоматического заполнения реальных данных абоненту.
+  * ''Internet''. Автокомпенсация при переходе с Приостановленно в Активно в месячных тарифных планах с датой активации и датой списания.
+  * ''Paysys''. В модуле Ipay добавлена поддержка оплаты с сайта Ipay.
+  * ''Paysys''. Добавлен модуль Platon для новой схемы.
+  * ''Paysys''. Добавлен модуль Fondy для новой схемы.
+  * ''Paysys''. Добавлен модуль OSMPv4 для новой схемы.
+  * ''Paysys''. Добавлен модуль Центральной кассы для новой схемы.
+  * ''Paysys''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=34996247#id-%D0%A2%D0%B5%D1%80%D0%BC%D0%B8%D0%BD%D0%B0%D0%BB%D1%8B%D0%B4%D0%BB%D1%8F%D0%BE%D0%BF%D0%BB%D0%B0%D1%82%D1%8B-%D0%9E%D1%82%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5%D0%B1%D0%BB%D0%B8%D0%B6%D0%B0%D0%B9%D1%88%D0%B5%D0%B3%D0%BE%D1%82%D0%B5%D1%80%D0%BC%D0%B8%D0%BD%D0%B0%D0%BB%D0%B0|Добавлены дополнительные поля в добавлении терминалов и выводе на карте.]]
+  * ''Paysys''. Исправлена ошибка изменения имени платежной системы при выборе иной платежной системы.
+  * ''Storage''. Добавлен подсчет процента администратору в таблицах проданных товаров.
+  * ''Storage''. Исправлена ошибка при заполнении комментариев до качеств товаров на складе.
+  * ''Storage''. Добавлена возможность редактирование установленных товаров.
+  * ''Storage''. В оплатах по накладным добавлено автоматическое подтягивание суммы накладной.
+  * ''Storage''. Добавлена возможность списывать товар из Подотчетности.
+  * ''Iptv''. Активация приостановленной услуги в кабинете клиента.
+  * ''Iptv''. Исправлена выборка тарифных планов в кабинете клиента.
+  * ''Iptv''. Отображении информации смены тарифного плана по расписанию.
+  * ''Equipment''. Улучшено отображение панели в карточке абонента.
+  * ''Ivr''. Исправлен поиск в отчете IVR.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258799|Карта подключений]]
+  * ''Msgs''. Для каждой категории нарядов можно добавить свой бланк печати.
+  * Исправлена работа контактов в модальном окне обязательных к заполнению данных в клиентском кабинете.
+
+<accordion title="20190806"><panel title="MySQL"><code mysql>
+ALTER TABLE `msgs_messages` ADD COLUMN `location_id` INT(11) UNSIGNED NOT NULL DEFAULT 0;
+
+ALTER TABLE `paysys_terminals` ADD COLUMN `work_days` SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE `paysys_terminals` ADD COLUMN `start_work` TIME NOT NULL DEFAULT '00:00:00';
+ALTER TABLE `paysys_terminals` ADD COLUMN `end_work` TIME NOT NULL DEFAULT '00:00:00';
+ALTER TABLE `paysys_terminals` ADD COLUMN `description` TEXT;
+
+ALTER TABLE `cams_streams` ADD UNIQUE (`name`);
+
+
+ALTER TABLE `storage_articles` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `storage_article_types` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `storage_suppliers` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `storage_storages` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `storage_property` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `storage_admins` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+
+ALTER TABLE `storage_incoming` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `storage_inventory` ADD COLUMN `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `tarif_plans` ADD COLUMN `status` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0';
+
+</code></panel></accordion>
+
+24.07.2019
+  * ''Internet''. В скрипт linkupdown добавлена работа с мультисервисами абонентов.
+  * ''Internet''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=7503925#id-%D0%90%D0%B2%D1%82%D0%BE%D1%80%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8FInternetIPoE-%D0%92%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B8%D0%B5%D0%B0%D0%BA%D1%82%D0%B8%D0%B2%D0%BD%D1%8B%D1%85%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D0%B5%D0%B9|Ручное включение для негативных сессий]]
+  * ''Internet''. Создание пулов для быстрой авторизации.
+  * ''Internet''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=7504045#id-%D0%A3%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%D1%83%D1%81%D0%BB%D1%83%D0%B3%D0%BE%D0%B9-%D0%A0%D0%B0%D1%81%D1%87%D1%91%D1%82%D1%81%D1%83%D0%BC%D0%BC%D1%8B%D0%BE%D0%BF%D0%BB%D0%B0%D1%82%D1%8B%D0%B4%D0%BE%D0%BE%D0%BF%D1%80%D0%B5%D0%B4%D0%B5%D0%BB%D1%91%D0%BD%D0%BD%D0%BE%D0%B3%D0%BE%D1%87%D0%B8%D1%81%D0%BB%D0%B0|Расчет суммы оплаты до определенного числа]]
+  * ''Internet''. Добавлена блокировка взаимоисключающих параметров.
+  * ''Hotspot''. Улучшена организация рекламной компании.
+  * ''Iptv''. Улучшения кабинета абонента для сервисов телевидения.
+  * ''Paysys''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=34996247|Отображение терминалов на карте в кабинете пользователя]]
+  * ''Storage''. Доработан отчет по самым кассовым товарам.
+  * ''Storage''. Во всех подменю склада добавлены удобные фильтры.
+  * ''Storage''. В подменю Внутренее использование добавили возможность экспорта.
+  * ''Storage''. В подменю Подотчетность добавили возможность экспорта.
+  * ''Storage''. Автозаполнение ответственного за установку в меню Сервисов абонента.
+  * ''Storage''. Добавлен документ инвентаризации.
+  * ''Storage''. Улучшена форма добавления названия товара.
+  * ''Storage''. Добавлена работа с накладными.
+  * ''Storage''. Улучшено логирование действий с товаром.
+  * ''Msgs''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=6258797#id-%D0%9D%D0%B0%D1%80%D1%8F%D0%B4%D1%8B%D1%80%D0%B0%D0%B1%D0%BE%D1%82-%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5%D0%BD%D0%B0%D1%80%D1%8F%D0%B4%D0%B0%D1%80%D0%B0%D0%B1%D0%BE%D1%82|Улучшена форма создания нарядов.]]
+  * ''Msgs''. Добавлены поля в печать наряда на работу.
+  * ''Msgs''. Добавлена возможность редактирования ответственного в заявке на подключение.
+  * ''Cams''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=16974131|Добавлена привязка адресов к камерам]]
+  * ''Cams''. Для тарифных планов добавлена возможность выравнивания месяца.
+  * ''Cams''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=16974131|Автоматическое подписание пользователя на группы]]
+  * ''Referrals''. Исправлены ошибки с настройками реферальной системы.
+  * ''Referrals''. Упрощен вывод списка рефералов.
+  * ''Referrals''. Добавлена проверка перед зачислением бонуса.
+  * ''Referrals''. Добавлена возможность задать длительность начисления бонусов.
+  * ''Referrals''. Добавлена возможность выбора счёта, на который начислять бонусы.
+  * ''Employees''. Исправлена работу внесение часов в Табель работ с RFID лога.
+  * ''Sms''. [[http://abills.net.ua:8090/display/AB/Sms#Sms-Universal_sms_module|Универсальный SMS плагин]]
+  * Поправлена работа extra полей в отчете по оплатам.
+  * Исправлена работа адресов в кабинете пользователя.
+  * Поиск по адресам теперь сохраняет предыдущие искомые параметры в панели адреса.
+
+<accordion title="20190724"><panel title="MySQL"><code mysql>
+ALTER TABLE `msgs_messages` ADD COLUMN `location_id` INT(11) UNSIGNED NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS  `storage_invoices_payments` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `invoice_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT 0,
+  `sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `actual_sum` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `date` DATETIME NOT NULL,
+  `aid` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` TEXT,
+  PRIMARY KEY (`id`),
+  KEY `invoice_id` (`invoice_id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage payments for invoice';
+
+ALTER TABLE `storage_inner_use` ADD COLUMN `responsible` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS `ippools_ips` (
+  `ip`        int(10) unsigned     NOT NULL DEFAULT '0',
+  `status`    tinyint(3) unsigned  NOT NULL DEFAULT '0',
+  `ippool_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+  UNIQUE KEY `ip` (`ip`, `ippool_id`),
+  KEY `ip_status` (`ip`, `status`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'IP Pools ips';
+
+ALTER TABLE referral_log ADD tp_id int NOT NULL;
+
+ALTER TABLE `extreceipts` ADD COLUMN `api` VARCHAR(20) NOT NULL DEFAULT '';
+ALTER TABLE `extreceipts` MODIFY COLUMN `command_id` VARCHAR(60) NOT NULL DEFAULT '';
+ALTER TABLE `extreceipts` MODIFY COLUMN `cancel_id` VARCHAR(60) NOT NULL DEFAULT '';
+
+ALTER TABLE `paysys_main` ADD COLUMN `recurrent_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE `paysys_main` ADD COLUMN `recurrent_cron` VARCHAR(25) NOT NULL DEFAULT '';
+ALTER TABLE `paysys_main` ADD COLUMN `recurrent_module` VARCHAR(25) NOT NULL DEFAULT '';
+ALTER TABLE `paysys_terminals` ADD COLUMN `work_days` SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE `paysys_terminals` ADD COLUMN `start_work` TIME NOT NULL DEFAULT '00:00:00';
+ALTER TABLE `paysys_terminals` ADD COLUMN `end_work` TIME NOT NULL DEFAULT '00:00:00';
+ALTER TABLE `paysys_terminals` ADD COLUMN `description` TEXT;
+
+ALTER TABLE `config` MODIFY COLUMN `value` VARCHAR(400) NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS `referral_log` (
+    `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    `uid` INT(11) UNSIGNED NOT NULL REFERENCES `users` (`uid`)
+    ON DELETE CASCADE,
+    `referrer` INT(11) UNSIGNED NOT NULL REFERENCES `users` (`uid`)
+    ON DELETE CASCADE,
+    `date` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+  COMMENT = 'Referral log table stores information about periodic referrals';
+CREATE TABLE IF NOT EXISTS  `storage_inventory` (
+  `incoming_article_id` INT(10) UNSIGNED DEFAULT '0',
+  `date` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  UNIQUE KEY (`incoming_article_id`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage inventory info';
+
+ALTER TABLE `msgs_chapters` ADD COLUMN `color` VARCHAR(7) NOT NULL DEFAULT '';
+
+ALTER TABLE msgs_unreg_requests ADD referral_uid INTEGER(11) NOT NULL DEFAULT '0';
+
+CREATE TABLE IF NOT EXISTS `referral_tp` (
+    `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    `name` VARCHAR (60) NOT NULL DEFAULT '',
+    `bonus_amount` DOUBLE(10, 2) UNSIGNED NOT NULL  DEFAULT '0.00',
+    `payment_arrears` int(11) UNSIGNED NOT NULL  DEFAULT '0',
+    `period` int(11) UNSIGNED NOT NULL  DEFAULT '0',
+    `repl_percent` int(3) UNSIGNED NOT NULL  DEFAULT '0',
+    `bonus_bill` int(1) UNSIGNED NOT NULL  DEFAULT '0'
+)
+  COMMENT = 'Referral tp table stores information about referral tarifs';
+</code></panel></accordion>
+
+21.06.2019
+  * ''Internet''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=7504024#id-%D0%94%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5%D0%BF%D0%B0%D1%80%D0%B0%D0%BC%D0%B5%D1%82%D1%80%D1%8B%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D1%8FInternet+-%D0%A0%D0%B0%D0%B7%D1%80%D0%B5%D1%88%D0%B8%D1%82%D1%8C%D0%B4%D1%83%D0%B1%D0%BB%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5CPEMAC|Добавлена опция, которая разрешает дублировать CPE MAC]]
+  * ''Internet''. В скрипте linkupdown добавлена работа с Service ID.
+  * ''Cards''. Добавление новых сервисов в Iptv.
+  * ''Equipment''. PON мультипрофайлы.
+  * ''Equipment''. Добавлены серийные номера новых ONU в рассылке equipment_pon.
+  * ''Maps''. ''Cams''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=16974135|На карте теперь есть слой для камер.]]
+  * ''Docs''. Генерация мультисчетов для определенных тарифных планов.
+  * ''Storage''. Реализован продаж и установку товара по серийному номеру.
+  * ''Storage''. Добавлена возможность генерировать QR код из серийного номера товара.
+  * ''Storage''. Исправлена сортировка в логе операций с товаром.
+  * ''Storage''. Улучшена форма добавления поставщиков.
+  * ''Storage''. Улучшена форма и таблица подменю "Подотчётность".
+  * ''Storage''. Улучшена форма добавлена товара без перезагрузки страницы.
+  * ''Storage''. Исправили фильтр по складу.
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=2523265#id-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D1%81%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%BC%D0%B2%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D0%B5%D0%A1%D0%BA%D0%BB%D0%B0%D0%B4-%D0%94%D0%BE%D0%B1%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%B0|Добавлена работы с приходными накладными.]]
+  * ''Storage''. Теперь во всех подменю выбор администратора работает только с администраторами в статусе Активно.
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=14319620#id-%D0%9E%D1%82%D1%87%D0%B5%D1%82%D1%8B-%D0%90%D0%BD%D0%B0%D0%BB%D0%B8%D0%B7%D0%BF%D1%80%D0%BE%D0%B4%D0%B0%D0%B6%D0%B8%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2|Добавлен отчет по самым продаваемым товарам.]]
+  * ''Storage''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=4030512|При продаже товара, теперь можно добавить фактическую сумму продажи.]]
+  * ''Storage''. Добавлена настройка для администратора в модуле.
+  * ''Paysys''. Реализован модуль платежной системы DonPay.
+  * ''Paysys''. Оптимизирован модуль платежной системы Portmone.
+  * ''Paysys''. Добавлен модуль платежной системы Lifecell.
+  * ''Sms''. Добавлен универсальный SMS плагин.
+  * ''Iptv''. [[http://abills.net.ua:8090/display/AB/Ezhometech|Разработан плагин для системы Ezhometech]]
+  * ''Callcenter''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=31883415|Добавлен отчет по звонкам]]
+  * ''Callceneter''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=3211442#id-%D0%9A%D0%BE%D0%BD%D1%82%D1%80%D0%BE%D0%BB%D1%8C%D0%B2%D1%85%D0%BE%D0%B4%D1%8F%D1%89%D0%B8%D1%85%D0%B7%D0%B2%D0%BE%D0%BD%D0%BA%D0%BE%D0%B2-Websocketbackend|Добавлена более подробная информация на уведомлениях о звонках.]]
+  * ''Callcenter''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=31883591|Прослушивание записанных звонков.]]
+  * ''Employees''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=3211351|Добавлен вывод информации о нормах рабочих часов.]]
+  * ''Ring''. Добавлена возможность организовывать динамические фильтры абонентов для обзвона.
+  * ''Msgs''. Исправлена работа модуля с не валидными контактами.
+  * ''Crm''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=3211400#id-%D0%9F%D0%BE%D1%82%D0%B5%D0%BD%D1%86%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5%D0%BA%D0%BB%D0%B8%D0%B5%D0%BD%D1%82%D1%8B-%D0%98%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D1%8F%D0%BE%D0%BF%D0%BE%D1%82%D0%B5%D0%BD%D1%86%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%BC%D0%BA%D0%BB%D0%B8%D0%B5%D0%BD%D1%82%D0%B5|Добавлены теги для потенциальных клиентов.]]
+  * ''Info''. [[http://abills.net.ua:8090/display/AB/Info#Info-%D0%98%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5|Модуль внедрен в карточку абонента.]]
+  * ''Referral''. [[http://abills.net.ua:8090/display/AB/Referral|Теперь модуль работает вместе с заявками на подключение.]]
+  * ''Telegram Bot''. [[http://abills.net.ua:8090/pages/viewpage.action?pageId=11403847#TelegramBot(webhookversion)-%D0%9D%D0%B0%D1%87%D0%B0%D0%BB%D0%BE%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%8B%D1%81%D0%B1%D0%BE%D1%82%D0%BE%D0%BC|Авторизация и подписка по номеру телефона.]]
+  * ''Telegram Bot''. Добавлена возможность отвечать на сообщения из Msgs.
+  * В форме адресов добавили кнопку быстрого доступа на добавление новых адресов.
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=9306188|В новой схеме контактов можно добавить валидацию.]]
+  * В меню Администраторы добавили новые колонки в дополнительные поля таблицы.
+  * Исправлена работа прав Администраторов для суммы кредита и дней кредита.
+  * В Профиле Администратора добавлена возможность спрятать правое меню.
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=3211272#id-%D0%94%D0%BD%D0%B5%D0%B2%D0%BD%D1%8B%D0%B5,%D0%BC%D0%B5%D1%81%D1%8F%D1%87%D0%BD%D1%8B%D0%B5%D0%BF%D0%B5%D1%80%D0%B8%D0%BE%D0%B4%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%BF%D1%80%D0%BE%D1%86%D0%B5%D1%81%D1%81%D1%8B-%D0%A3%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%D0%BA%D1%80%D0%B5%D0%B4%D0%B8%D1%82%D0%B0%D0%BD%D0%B0%D1%81%D1%83%D0%BC%D0%BC%D1%83%D0%B2%D1%81%D0%B5%D1%85%D1%83%D1%81%D0%BB%D1%83%D0%B3|Добавлены новые фильтры в услуге Полный кредит]]
+  * [[http://abills.net.ua:8090/pages/viewpage.action?pageId=21430286#id-%D0%91%D1%8B%D1%81%D1%82%D1%80%D0%BE%D0%B5%D0%9E%D1%82%D1%87%D1%91%D1%82%D1%8B-%D0%9E%D1%82%D1%87%D1%91%D1%82-%D0%92%D0%B8%D0%B4%D0%BE%D0%BF%D0%BB%D0%B0%D1%82%D1%8B(%D0%A1%D0%B5%D0%B3%D0%BE%D0%B4%D0%BD%D1%8F,%D0%92%D1%87%D0%B5%D1%80%D0%B0)|Быстрый отчёт по оплатах за вчера/сегодня]]
+  * Исправлена работа с адресами в поиске.
+  * В клиентском кабинете исправлена работа с новыми контактами.
+
+<accordion title="20190621"><panel title="MySQL"><code mysql>
+CREATE TABLE IF NOT EXISTS  `storage_admins` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `percent` SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `comments` TEXT,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `aid` (`aid`)
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Storage admins settings';
+
+ALTER TABLE `storage_suppliers` CHANGE COLUMN `icq` `telegram` VARCHAR(30) NOT NULL DEFAULT '';
+ALTER TABLE `storage_accountability` ADD COLUMN `added_by_aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0';
+
+ALTER TABLE `storage_sn` ADD COLUMN `qrcode_hash` CHAR(32) NOT NULL DEFAULT '';
+
+ALTER TABLE `cams_streams` ADD COLUMN `angel` int(11) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE `cams_streams` ADD COLUMN `length` int(11) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE `cams_streams` ADD COLUMN `location_angel` int(11) unsigned NOT NULL DEFAULT '0';
+ALTER TABLE `storage_installation` ADD COLUMN `actual_sell_price` DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00';
+</code></panel></accordion>
+
 14.05.2019
   * ''Internet''. Реализована опция снятия абонплаты за целый месяц при статусе слишком маленький депозит.
   * ''Internet''. Исправлено отображение тарифного плана у клиентов.

@@ -241,7 +241,6 @@ sub msgs_notify_user {
       ? $preview_url_without_message_id . $message_id
       : undef;
 
-
     my $mail_message = $html->tpl_show(
       _include($message_tpl, 'Msgs'),
       {
@@ -275,14 +274,15 @@ sub msgs_notify_user {
       MAIL_HEADER => [ "X-ABillS-Msg-ID: $message_id", "X-ABillS-REPLY-ID: $reply_id" ]
     });
 
+    #Fixme remove all sends throght sender
     if ( $conf{TELEGRAM_TOKEN} && $message_id ne '--' ) {
       require Msgs::Messaging;
       msgs_send_via_telegram($message_id, {
-          UID        => $user_info->{uid},
-          MESSAGE    => $message,
-          SUBJECT    => "_{YOU_HAVE_NEW_REPLY}_ '". $html->b($subject)  ."'",
-          PARSE_MODE => 'HTML'
-        });
+        UID        => $user_info->{uid},
+        MESSAGE    => $message,
+        SUBJECT    => "_{YOU_HAVE_NEW_REPLY}_ '". $html->b($subject)  ."'",
+        PARSE_MODE => 'HTML'
+      });
     }
   }
 

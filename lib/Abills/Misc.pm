@@ -259,7 +259,8 @@ sub _error_show {
              . (($module->{sql_query}) ? $html->pre($module->{sql_query}, { OUTPUT2RETURN => 1 }) : ''),
            NAME    => $lang{EXTRA},
            ID      => 'QUERIES',
-           PARAMS  => 'collapsed-box'
+           PARAMS  => 'collapsed-box',
+           BUTTON_ICON => 'plus'
           },
          { OUTPUT2RETURN => 1 })
         }
@@ -465,7 +466,8 @@ sub cross_modules_call {
   }
 
   #Default silent mode (off)
-  our $silent=0;
+  #our $silent=0;
+  my $silent=0;
 
   if (defined($attr->{SILENT})) {
     $silent=$attr->{SILENT};
@@ -1002,7 +1004,7 @@ sub service_get_month_fee {
           $periods = 0;
         }
         #if activation in cure month curmonth
-        elsif ( $periods == 0 || ($periods == 1 && $d < $active_d) ){
+        elsif ( $periods == 0 || ($periods == 1 && $d < $active_d && $active_m == $m) ){
           $periods = -1;
         }
         else{
@@ -1091,11 +1093,20 @@ sub service_get_month_fee {
 
         if ($tp->{PERIOD_ALIGNMENT}) {
           if(in_array('Internet', \@MODULES)) {
-            $Service->change({
-              ACTIVATE => $DATE,
-              UID      => $uid,
-              ID       => $Service->{ID}
-            });
+            my $change_function = '';
+            if($Service->can('change')) {
+              $change_function = 'change';
+            }
+            elsif($Service->can('user_change')) {
+              $change_function = 'user_change';
+            }
+            if($change_function) {
+              $Service->$change_function({
+                ACTIVATE => $DATE,
+                UID      => $uid,
+                ID       => $Service->{ID}
+              });
+            }
           }
           else {
             $Users->change(
@@ -1169,7 +1180,7 @@ sub service_get_month_fee {
       }
       else {
         $days_in_month = days_in_month({ DATE => "$y-$m" });
-        my $start_date = ($tp->{5180447114}) ? (($account_activate ne '0000-00-00') ? $account_activate : $DATE) : "$y-$m-01";
+        my $start_date = ($tp->{PERIOD_ALIGNMENT}) ? (($account_activate ne '0000-00-00') ? $account_activate : $DATE) : "$y-$m-01";
         $FEES_DSC{PERIOD} = ($tp->{ABON_DISTRIBUTION}) ? '' : "($start_date-$y-$m-$days_in_month)";
       }
 
@@ -1238,20 +1249,6 @@ sub service_get_month_fee {
   }
 
   return \%total_sum;
-}
-
-#**********************************************************
-=head2 dirname($path)
-
-=cut
-#**********************************************************
-sub dirname {
-  my ($x) = @_;
-  if ($x !~ s@[/\\][^/\\]+$@@) {
-    $x = '.';
-  }
-
-  return $x;
 }
 
 #**********************************************************
@@ -1814,6 +1811,7 @@ sub upload_file {
       GID
       HASH_RESULT     - Return results as hash
       SKIP_MULTISELECT  - Skip multiselect
+      FILTER_SEL      - Select for reports (filter)
 
   Returns:
     GID select form
@@ -1846,20 +1844,23 @@ sub sel_groups {
   }
   else {
     my $gid = $attr->{GID} || $FORM{GID};
-
-    $GROUPS_SEL = $html->form_select(
-      'GID',
-      {
-        SELECTED    => $gid,
-        SEL_LIST    => $users->groups_list({ GIDS => ($admin->{GID}) ? $admin->{GID} : undef, COLS_NAME => 1 }),
-        SEL_KEY     => 'gid',
-        SEL_VALUE   => 'name',
-        SEL_OPTIONS => ($admin->{GID}) ? undef : { '' => "$lang{ALL}" },
-        MAIN_MENU   => get_function_index('form_groups'),
-        MAIN_MENU_ARGV => $gid ? "GID=$gid" : '',
-        MULTIPLE    => !$attr->{SKIP_MULTISELECT},
-      }
+    my %PARAMS = (
+      SELECTED    => $gid,
+      SEL_LIST    => $users->groups_list({ GIDS => ($admin->{GID}) ? $admin->{GID} : undef, COLS_NAME => 1 }),
+      SEL_KEY     => 'gid',
+      SEL_VALUE   => 'name',
     );
+
+    if ($attr->{FILTER_SEL}) {
+      $PARAMS{SEL_OPTIONS} = ($admin->{GID}) ? undef : { '*' => "$lang{ALL}" };
+      $PARAMS{MULTIPLE}    = 1;
+    }
+    else {
+      $PARAMS{SEL_OPTIONS} = ($admin->{GID}) ? undef : { '' => "$lang{ALL}" };
+      $PARAMS{MAIN_MENU}      = get_function_index('form_groups'),
+      $PARAMS{MAIN_MENU_ARGV} = $gid ? "GID=$gid" : '';
+    }
+    $GROUPS_SEL = $html->form_select('GID', \%PARAMS);
   }
 
   return $GROUPS_SEL;
@@ -2386,7 +2387,7 @@ sub _get_files_in{
   # Read files in dir
   opendir my $fh, $directory_path or do {
     $html->message( 'err', 'ERROR', "Can't open dir '$directory_path' $!\n" );
-    return 0;
+    return [];
   };
 
   my @contents = grep !/^\.\.?$/, readdir $fh;
@@ -2518,7 +2519,7 @@ sub recomended_pay {
       foreach my $line (@{ $cross_modules_return->{$module} }) {
         # $name, $describe
         my (undef, undef, $sum) = split(/\|/, $line);
-        $user_->{TOTAL_DEBET} += $sum;
+        $user_->{TOTAL_DEBET} += $sum if($sum);
 
         if ($user_->{REDUCTION} && $module ne 'Abon') {
           $user_->{TOTAL_DEBET} = sprintf("%.2f", $user_->{TOTAL_DEBET} * (100 - $user_->{REDUCTION}) / 100);
@@ -2538,6 +2539,8 @@ sub recomended_pay {
   if ($user_->{TOTAL_DEBET} > int($user_->{TOTAL_DEBET})) {
     $user_->{TOTAL_DEBET} = sprintf("%.2f", int($user_->{TOTAL_DEBET}) + 1);
   }
+
+  $user_->{TOTAL_DEBET} += ($conf{PAYSYS_ADD_TO_RECOMMENDED_SUMM} || 0);
 
   return $user_->{TOTAL_DEBET};
 }
@@ -2559,6 +2562,7 @@ sub recomended_pay {
 #**********************************************************
 sub format_sum {
   my ($sum, $attr) = @_;
+  $sum //= 0;
   my $result = $sum;
 
   if ($attr->{DEPOSIT_FORMAT}) {

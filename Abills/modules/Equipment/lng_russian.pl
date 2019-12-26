@@ -33,7 +33,7 @@ $lang{TRAPS}='SNMP traps';
 $lang{REVISION} = 'Ревизия (версия)';
 $lang{SELECT_TYPE} = 'Выберите тип';
 $lang{SELECT_PORT} = 'Выберите порт';
-$lang{REGISTERED} = 'Зарегестрированно';
+$lang{REGISTERED} = 'Зарегистрировано';
 $lang{HOURS_} = 'часов';
 $lang{CABLE_TEST} = 'Тестирование кабеля';
 $lang{PAIR} = 'Пара';
@@ -81,7 +81,7 @@ $lang{SPEED_IN}='Входная скорость(Mb/s)';
 $lang{SPEED_OUT}='Исходящая скорость(Mb/s)';
 $lang{SIGNAL} = 'Сигнал';
 
-$lang{REPORT_ON_UNREGISTERED_ONU} = "Отчет по незарегистированным ONU";
+$lang{REPORT_ON_UNREGISTERED_ONU} = "Отчет по незарегистрированным ONU";
 $lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS} = "Отчет по количеству занятых и свободных портов";
 $lang{TOTAL_ALL_PORTS} = "Общее количество портов";
 $lang{TOTAL_BUSY_PORTS} = "Количество занятых портов";
@@ -95,8 +95,6 @@ $lang{ERROR_FILE} = "Не удалось открыть файл: ";
 $lang{EDIT_SUCCESS} = 'Шаблон изменен';
 $lang{INVALID_JSON} = 'Неверный формат файла';
 $lang{FILES_TITLE} = 'Шаблоны';
-$lang{FIELD} = 'поле';
-$lang{GROUP} = 'групу';
 $lang{FILE_REMOVED} = 'Файл удален';
 $lang{FILE_NOT_REMOVED} = "Файл не был удален";
 $lang{JSON_CONF} = 'SNMP Шаблоны';
@@ -105,7 +103,7 @@ $lang{JSON_CONF} = 'SNMP Шаблоны';
 $lang{GOOD_SIGNAL} = 'Хороший сигнал';
 $lang{BAD_SIGNAL} = 'Плохой сигнал';
 $lang{WORTH_SIGNAL} = 'Средний сигнал';
-$lang{BUSY} = 'заполнено на';
+$lang{OLT_BUSY} = 'заполнено на';
 
 $lang{ONU_PROFILE} = 'Профайл';
 $lang{CALCULATOR} = 'Калькулятор';
@@ -116,4 +114,11 @@ $lang{DIVIDER} = 'Делитель';
 $lang{COUPLER} = 'Ответвитель';
 $lang{PASS} = 'Проход';
 $lang{BEND} = 'Отвод';
+
+$lang{SNMP_INFO} = 'SNMP Информация';
+$lang{PORT_UPTIME} = 'Время работы порта';
+
+$lang{NO_ZABBIX_INFO} = 'Нужно заполнить Zabbix hostid, а также $conf{ZABBIX_URL}';
+$lang{DUPLICATE_MAC} = 'Повторяющиеся MAC адреса';
+
 1

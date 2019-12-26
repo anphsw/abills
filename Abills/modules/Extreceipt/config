@@ -1,0 +1,9 @@
+our %FUNCTIONS_LIST = ();
+
+$FUNCTIONS_LIST{"10:0:$lang{CHECKS}:null"} = 8;
+$FUNCTIONS_LIST{"11:10:$lang{CHECKS}:check_list"} = 8;
+$FUNCTIONS_LIST{"20:0:$lang{CHECKS}:null"} = 5;
+$FUNCTIONS_LIST{"21:20:KKT:kkt_list"} = 5;
+$FUNCTIONS_LIST{"22:20:API:api_list"} = 5;
+
+1;

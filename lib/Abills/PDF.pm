@@ -384,7 +384,7 @@ sub menu2{
 
       #    if ((defined($FORM{$mp_name}) && $FORM{$mp_name} eq $k) && $file eq '') {
       if ( (defined( $FORM{root_index} ) && $FORM{root_index} eq $k) && $file eq '' ){
-        $self->{menu} .= "<tr><td bgcolor=\"$_COLORS[3]\"><a href='$link$ex_params'><b>" . $menu->{"$line"} . "</b></a></td></TR>\n";
+        $self->{menu} .= "$menu->{$line} [$link$ex_params]\n";
         #while (my ($k, $v) = each %{$sub_menu}) {
           #$self->{menu} .= "<tr><td bgcolor=\"$lang{COLORS}[1]\">&nbsp;&nbsp;&nbsp;<a href='$SELF_URL?index=$k'>$v</a></td></TR>\n";
         #}
@@ -526,7 +526,7 @@ sub table{
   $self->{table} = "<TABLE $width cellspacing=\"0\" cellpadding=\"0\" border=\"0\"$table_class>\n";
 
   if ( defined( $attr->{caption} ) ){
-    $self->{table} .= "<TR><TD bgcolor=\"$_COLORS[1]\" align=\"right\" class=\"tcaption\"><b>$attr->{caption}</b></td></TR>\n";
+    $self->{table} .= "$attr->{caption}\n";
   }
 
   $self->{table} .= "<tr><td bgcolor=\"$_COLORS[1]\">$attr->{header}</td></tr>\n" if ($attr->{header});
@@ -747,9 +747,7 @@ sub button{
   $params = $self->link_former( $params );
 
   $ex_attr = " TITLE='$attr->{TITLE}'" if (defined( $attr->{TITLE} ));
-
-  my $message = ($attr->{MESSAGE}) ? " onclick=\"return confirmLink(this, '$attr->{MESSAGE}')\"" : '';
-  my $button = "<a href=\"$params\"$ex_attr$message>$name</a>";
+  my $button = "$name [$params]";
 
   return $button;
 }

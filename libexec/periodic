@@ -108,6 +108,10 @@ if ( $argv->{SKIP_MODULES} ){
   $argv->{NO_ADM_REPORT} = 1;
 }
 
+if($argv->{GID}) {
+  $LIST_PARAMS{GID}=$argv->{GID};
+}
+
 my $debug = 0;
 if ( $argv->{DEBUG} ){
   $debug = $argv->{DEBUG} || 0;
@@ -252,9 +256,9 @@ if ( defined( $argv->{monthly} ) ){
         };
     }
 
-    sendmail( "$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "$ADMIN_REPORT{HOSTNAME}: Monthly billing report",
+    sendmail( $conf{ADMIN_MAIL}, $conf{ADMIN_MAIL}, "$ADMIN_REPORT{HOSTNAME}: Monthly billing report",
       "Admin Report",
-      "$conf{MAIL_CHARSET}",
+      $conf{MAIL_CHARSET} || q{},
       "2 (High)",
       {
         ATTACHMENTS => \@attachments,
@@ -318,10 +322,10 @@ elsif ( defined( $argv->{daily} ) ){
         };
     }
 
-    sendmail( "$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}",
+    sendmail( $conf{ADMIN_MAIL}, $conf{ADMIN_MAIL},
       "$ADMIN_REPORT{HOSTNAME}: Daily billing report ($YESTERDAY)",
       "Admin Report",
-      "$conf{MAIL_CHARSET}",
+      $conf{MAIL_CHARSET} || q{},
       "2 (High)",
       {
         ATTACHMENTS => \@attachments,
@@ -1090,9 +1094,9 @@ sub credit_full_set{
     $LIST_PARAMS{DEPOSIT}=$argv->{DEPOSIT};
   }
 
-  if($argv->{GID}) {
-    $LIST_PARAMS{GID}=$argv->{GID};
-  }
+  # if($argv->{GID}) {
+  #   $LIST_PARAMS{GID}=$argv->{GID};
+  # }
 
   if ( $argv->{TRANSACTION} ){
     $db->{db}->{AutoCommit} = 0;
@@ -1107,6 +1111,7 @@ sub credit_full_set{
         DEPOSIT    => '_SHOW',
         DISABLE    => 0,
         COMPANY_ID => 0,
+        DELETED    => 0,
         %LIST_PARAMS,
         PAGE_ROWS  => 1000000,
         COLS_NAME  => 1,
@@ -1158,6 +1163,7 @@ sub credit_full_set{
     {
       DISABLE    => 0,
       CREDIT     => '_SHOW',
+      DELETED    => 0,
       %LIST_PARAMS,
       PAGE_ROWS  => 1000000,
       COMPANY_ID => (defined( $argv->{COMPANY_ID} )) ? $argv->{COMPANY_ID} : undef,
@@ -1177,6 +1183,7 @@ sub credit_full_set{
         DISABLE    => 0,
         CREDIT     => '_SHOW',
         DEPOSIT    => '_SHOW',
+        DELETED    => 0,
         COLS_NAME  => 1,
         %LIST_PARAMS,
         PAGE_ROWS  => 100000,
@@ -1267,101 +1274,203 @@ sub reduction_operation{
 }
 
 #*******************************************************************
-=head2 debetors_group_create() - Create debeters group
+=head2 debetors_group_create() - Create debetors group
+
+  example:
+    $conf{DEBETORS_GROUP}='27:0:::5:,28:-500:::5:,29:-1000:::5:,27:0:-500::223:,28:-500:-1000::223:,29:-1000:::223:';
 
 =cut
 #*******************************************************************
-sub debetors_group_create{
+sub debetors_group_create {
 
   return 0 if (!$conf{DEBETORS_GROUP});
   $conf{DEBETORS_GROUP} =~ s/\n//g;
 
-  my @DEBETORS_GROUP = split( /,/, $conf{DEBETORS_GROUP} );
-  my %DEBETORS_GIDS  = ();
-  my %USERS_GIDS     = ();
+  my @DEBETORS_GROUP = split(/,/, $conf{DEBETORS_GROUP});
+#  my %DEBETORS_GIDS = ();
+#  my %USERS_GIDS = ();
 
-  foreach my $line ( sort @DEBETORS_GROUP ){
+  foreach my $line (sort @DEBETORS_GROUP) {
     # DEBETOR_GROUP_ID:DEPOSIT:LAST_PAYNMENT_DAYS:USER_GID
-    my ($DEBETOR_GID, $DEPOSIT, $LAST_PAYMENTS_DAYS, $USER_GID, $LAST_FEES_DAYS) = split( /:/, $line );
+    my ($DEBETOR_GID, $DEPOSIT_MIN, $DEPOSIT_MAX, $LAST_PAYMENTS_DAYS, $USER_GID, $LAST_FEES_DAYS) = split(/:/, $line);
     # FOR all users
-    $USER_GID = -1 if (!defined( $USER_GID ) || $USER_GID eq '');
-    $DEBETORS_GIDS{$DEBETOR_GID} = $USER_GID;
-    $LAST_FEES_DAYS = '' if (!defined( $LAST_FEES_DAYS ));
-    $USERS_GIDS{$USER_GID} = "$DEBETOR_GID:$DEPOSIT:$LAST_PAYMENTS_DAYS:$LAST_FEES_DAYS";
-  }
-
-  #Add to debetors group
-  if ($debug > 1) {
-    $DEBUG .= "Add to debetors group\n";
-    if($debug > 6) {
-      $users->{debug}=1;
+    if (!defined($USER_GID) || $USER_GID eq '') {
+      $USER_GID = "!=$DEBETOR_GID";
     }
-  }
+    #    $DEBETORS_GIDS{$DEBETOR_GID} = $USER_GID;
+    $LAST_FEES_DAYS //= '';
+    $LAST_PAYMENTS_DAYS //= '';
+    my $deposit_min_add = (defined($DEPOSIT_MIN) && $DEPOSIT_MIN ne '') ? ">$DEPOSIT_MIN" : ">0";
+    my $deposit_max_add = (defined($DEPOSIT_MAX) && $DEPOSIT_MAX ne '') ? "<$DEPOSIT_MAX" : "";
+    #   Checking if debetor groups exists
+    $users->group_info($DEBETOR_GID);
 
-  my $LAST_ACTION_TITLE='';
-  foreach my $USER_GID ( sort { $b <=> $a } keys %USERS_GIDS ){
-    my $val = $USERS_GIDS{$USER_GID};
-    my ($DEBETOR_GID, $DEPOSIT, $LAST_PAYMENTS_DAYS, $LAST_FEES_DAYS) = split( /:/, $val );
-    $users->group_info( $DEBETOR_GID );
-    if ( $users->{TOTAL} < 1 ){
+    if ($users->{TOTAL} < 1) {
       print "DEBETORS Group [$DEBETOR_GID] not Exist. Create it\n";
+      my $group_name = '';
+      if ($DEPOSIT_MIN && $DEPOSIT_MIN != 0) {
+        $group_name = "$DEPOSIT_MIN";
+      }
+      elsif (defined $DEPOSIT_MIN && $DEPOSIT_MIN == 0) {
+        $group_name = '0';
+      }
+
       $users->group_add(
         {
           GID   => $DEBETOR_GID,
-          NAME  => "$lang{DEBETORS}". (($USER_GID > 0) ? ": $lang{GROUP} $USER_GID" : ''),
-          DESCR => "$lang{DEBETORS}". (($USER_GID > 0) ? ": $lang{GROUP} $USER_GID" : '')
+          NAME  => "$lang{DEBETORS} $group_name",
+          DESCR => "$lang{DEBETORS} $group_name"
         }
       );
+      if ($users->{errno}) {
+        print "ERROR create debetor group $users->{errstr}";
+      }
+    }
+    #    Add to debetors group
+    if ($debug > 1) {
+      $DEBUG .= "Add to debetors group\n";
+      if ($debug > 6) {
+        $users->{debug} = 1;
+      }
     }
 
-    #my %LIST_PARAMS = ();
-    if ( $LAST_FEES_DAYS && $LAST_FEES_DAYS > 0 ){
+    my $LAST_ACTION_TITLE = '';
+    my %LIST_PARAMS = ();
+    if ($LAST_FEES_DAYS && $LAST_FEES_DAYS > 0) {
       $LIST_PARAMS{FEES_DAYS} = "<$LAST_FEES_DAYS";
       $LAST_ACTION_TITLE = 'Fees';
     }
-    elsif ( $LAST_PAYMENTS_DAYS && $LAST_PAYMENTS_DAYS > 0 ){
+    elsif ($LAST_PAYMENTS_DAYS && $LAST_PAYMENTS_DAYS > 0) {
       $LIST_PARAMS{PAYMENT_DAYS} = "<$LAST_PAYMENTS_DAYS";
       $LAST_ACTION_TITLE = 'Payments';
     }
 
-    my $list = $users->list(
+
+    #  #Flush from debetors group
+    $DEBUG .= "Delete from debetors Group\n" if ($debug > 1);
+
+    #    Return debetor to its group
+    my $list_debetors_min = $users->list(
       {
-        GID          => ($USER_GID == -1 && $#DEBETORS_GROUP == 0) ? "!$DEBETOR_GID" : "$USER_GID",
-        DEPOSIT      => "<=$DEPOSIT",
+        GID          => "$DEBETOR_GID",
+        DEPOSIT      => "$deposit_min_add",
         COMMENTS     => '_SHOW',
         CREDIT       => '_SHOW',
-        GID          => '_SHOW',
         LOGIN_STATUS => '_SHOW',
-        %LIST_PARAMS,
         PAGE_ROWS    => 1000000,
-        DELETED      => '0',
         COLS_NAME    => 1
       }
     );
 
-    if ( $users->{errno} ){
+    if ($users->{errno}) {
+      print "ERROR: $users->{errno} $users->{errstr} \n";
+      exit;
+    }
+    my $list_debetors_max = [];
+    if (defined($DEPOSIT_MAX) && $DEPOSIT_MAX ne '') {
+      $list_debetors_max = $users->list(
+        {
+          GID          => "$DEBETOR_GID",
+          DEPOSIT      => "$deposit_max_add",
+          COMMENTS     => '_SHOW',
+          CREDIT       => '_SHOW',
+          LOGIN_STATUS => '_SHOW',
+          PAGE_ROWS    => 1000000,
+          COLS_NAME    => 1
+        }
+      );
+      if ($users->{errno}) {
+        print "ERROR: $users->{errno} $users->{errstr} \n";
+        exit;
+      }
+    }
+
+    my @list_debetors = (@{$list_debetors_min}, @{$list_debetors_max});
+
+    foreach my $debetor (@list_debetors) {
+      my $uid = $debetor->{uid};
+      my $gid = $debetor->{gid};
+      my $last_payments = $debetor->{last_payments} || $debetor->{last_fees} || '-';
+
+      #Get last gid
+      my $history_list = $admin->action_list({
+        TYPE      => '26',
+        UID       => $uid,
+        ACTIONS   => '_SHOW',
+        PAGE_ROWS => 1,
+        COLS_NAME => 1,
+        DESC      => 'desc'
+      });
+
+      my $prev_gid = $DEBETOR_GID || 0;
+      if ($prev_gid < 0) {
+        $prev_gid = 0;
+      }
+
+      if ($admin->{TOTAL} > 0) {
+        if ($history_list->[0]->{actions} =~ /(^\d+)-/) {
+          $prev_gid = $1;
+        }
+      }
+
+      if ($gid == $prev_gid) {
+        next;
+      }
+
+      $DEBUG .= "$debetor->{login} ($uid) DEPOSIT: $debetor->{deposit} CREDIT: $debetor->{credit} LAST $LAST_ACTION_TITLE: $last_payments GID: $gid -> $prev_gid\n" if ($debug > 0);
+
+      if ($debug < 8) {
+        $users->change(
+          $uid,
+          {
+            GID => $prev_gid,
+            UID => $uid
+          }
+        );
+      }
+
+    }
+
+    $deposit_min_add = (defined($DEPOSIT_MIN) && $DEPOSIT_MIN ne '') ? "<=$DEPOSIT_MIN" : "<=0";
+    $deposit_max_add = (defined($DEPOSIT_MAX) && $DEPOSIT_MAX ne '') ? ">=$DEPOSIT_MAX" : "";
+
+    my $list = $users->list(
+      {
+        GID          => "$USER_GID",
+        DEPOSIT      => "$deposit_min_add;$deposit_max_add",
+        COMMENTS     => '_SHOW',
+        CREDIT       => '_SHOW',
+        LOGIN_STATUS => '_SHOW',
+        %LIST_PARAMS,
+        PAGE_ROWS    => 1000000,
+        COLS_NAME    => 1,
+#        SKIP_USERS_FIELDS=> [ 'DEPOSIT' ]
+      }
+    );
+
+    if ($users->{errno}) {
       print "ERROR: $users->{errno} $users->{errstr} \n";
       exit;
     }
 
-    foreach my $line ( @{$list} ){
-      my $uid = $line->{uid};
-      my $gid = $line->{gid};
-      my $last_payments = $line->{last_payments} || $line->{last_fees};
+    foreach my $user (@{$list}) {
+      my $uid = $user->{uid};
+      my $gid = $user->{gid};
+      my $last_payments = $user->{last_payments} || $user->{last_fees} || '';
 
       next if ($gid == $DEBETOR_GID);
-      next if(! defined($line->{deposit}));
+      next if (!defined($user->{deposit}));
 
-      $DEBUG .= "$line->{login} ($uid) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} LAST $LAST_ACTION_TITLE: $last_payments GID: $gid -> $DEBETOR_GID\n" if ($debug > 0);
-      my $comments = $line->{comments} || '';
-      if ( $debug < 8 ){
+      $DEBUG .= "$user->{login} ($uid) DEPOSIT: $user->{deposit} CREDIT: $user->{credit} LAST $LAST_ACTION_TITLE: $last_payments GID: $gid -> $DEBETOR_GID\n" if ($debug > 0);
+      my $comments = $user->{comments} || '';
+      if ($debug < 8) {
         #Check group if not exist create it
         $users->change(
           $uid,
           {
             GID     => $DEBETOR_GID,
             UID     => $uid,
-            DISABLE => $line->{login_status}
+            DISABLE => $user->{login_status}
           }
         );
 
@@ -1374,80 +1483,7 @@ sub debetors_group_create{
         );
       }
     }
-  }
 
-  #Flush from debetors group
-  $DEBUG .= "Delete from debetors Group\n" if ($debug > 1);
-  delete $LIST_PARAMS{FEES_DAYS};
-  delete $LIST_PARAMS{PAYMENT_DAYS};
-
-  foreach my $DEBETOR_GID ( sort { $b <=> $a } keys %DEBETORS_GIDS ){
-    my $val = $USERS_GIDS{ $DEBETORS_GIDS{$DEBETOR_GID} };
-    my (undef, $DEPOSIT, undef) = split( /:/, $val );
-    my $list = $users->list(
-      {
-        DEPOSIT   => ">$DEPOSIT",
-        CREDIT    => '_SHOW',
-        #GID       => '_SHOW',
-        #COMMENTS     => "*$lang{DEBETORS}:*",
-        #PAYMENT_DAYS => ">$LAST_PAYMENTS_DAYS",
-        %LIST_PARAMS,
-        GID       => $DEBETOR_GID,
-        DELETED   => '0',
-        PAGE_ROWS => 1000000,
-        COLS_NAME => 1
-      }
-    );
-
-    foreach my $line ( @{$list} ){
-      my $uid = $line->{uid};
-      my $gid = $line->{gid};
-      my $last_payments = $line->{last_payments} || $line->{last_fees} || '-';
-
-      #Get last gid
-      my $history_list = $admin->action_list( {
-        TYPE      => '26',
-        UID       => $uid,
-        ACTIONS   => '_SHOW',
-        PAGE_ROWS => 1,
-        COLS_NAME => 1,
-        DESC      => 'desc'
-      } );
-
-      my $prev_gid = ($DEBETORS_GIDS{$DEBETOR_GID}) || 0;
-      if ($prev_gid < 0) {
-        $prev_gid = 0;
-      }
-
-      if ( $admin->{TOTAL} > 0 ){
-        if ( $history_list->[0]->{actions} =~ /(^\d+)-/ ){
-          $prev_gid = $1;
-        }
-      }
-
-      if ($gid == $prev_gid) {
-        next;
-      }
-
-      $DEBUG .= "$line->{login} ($uid) DEPOSIT: $line->{deposit} CREDIT: $line->{credit} LAST $LAST_ACTION_TITLE: $last_payments GID: $gid -> $prev_gid\n" if ($debug > 0);
-
-      if ( $debug < 8 ){
-        $users->change(
-          $uid,
-          {
-            GID => $prev_gid,
-            UID => $uid
-          }
-        );
-        #        $users->pi_change(
-        #          {
-        #            UID => $uid,
-        #            #COMMENTS => "$comments",
-        #            SKIP_INFO_FIELDS => 1
-        #          }
-        #        );
-      }
-    }
   }
 
   return 1;

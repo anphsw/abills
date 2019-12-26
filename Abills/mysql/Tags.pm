@@ -46,7 +46,6 @@ sub info{
   return $self;
 }
 
-
 #**********************************************************
 =head2 add($attr)
 
@@ -147,7 +146,7 @@ sub tags_user{
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
 
   $self->{EXT_TABLES} = '';
 
@@ -205,8 +204,17 @@ sub tags_user_change{
   my $self = shift;
   my ($attr) = @_;
 
+  $self->query( "SELECT GROUP_CONCAT(tag_id) 
+    FROM tags_users 
+    WHERE uid = ?
+    GROUP by uid;",
+      undef,
+      { Bind => [ $attr->{UID} ] }
+  );
+  my $old_tags = $self->{list}[0][0] || '';
+
   $self->{admin}->{MODULE}=$MODULE;
-  $self->user_del( $attr );
+  $self->user_del({ %$attr, SKIP_LOG => 1 });
 
   if ( $attr->{IDS} ){
     my @ids_arr = split( /, /, $attr->{IDS} || '' );
@@ -226,8 +234,8 @@ sub tags_user_change{
       undef,
       { MULTI_QUERY => \@MULTI_QUERY } );
   }
-
-  $self->{admin}->action_add( $attr->{UID}, $attr->{IDS}, { TYPE => 1 } );
+  $attr->{IDS} //= '';
+  $self->{admin}->action_add( $attr->{UID}, "$old_tags -> $attr->{IDS}", { TYPE => 1 } );
 
   return $self;
 }
@@ -247,7 +255,7 @@ sub user_del{
 
   $self->query_del( 'tags_users', undef, { uid => $attr->{UID} } );
 
-  if($self->{AFFECTED} && $self->{AFFECTED} > 0) {
+  if($self->{AFFECTED} && $self->{AFFECTED} > 0 && !$attr->{SKIP_LOG}) {
     $self->{admin}->{MODULE}=$MODULE;
     $self->{admin}->action_add($attr->{UID}, "", { TYPE => 10 });
   }

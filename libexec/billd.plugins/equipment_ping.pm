@@ -100,23 +100,22 @@ sub equipment_ping {
 
   my $message = '';
   while (my ($host, undef, undef) = $ping->ack) {
-    if ($ips{$host}{STATUS} == 1) {
-      $message .= "$ips{$host}{NAS_NAME}($host) _{AVAILABLE}_\n";
-    }
     if ($ips{$host}{STATUS}) {
+      $message .= "$ips{$host}{NAS_NAME}($host) _{AVAILABLE}_\n";
       $Equipment->_change({
         NAS_ID        => $ips{$host}{NAS_ID},
         STATUS        => 0,
-        LAST_ACTIVITY => $datetime
+        LAST_ACTIVITY => $datetime,
+        SKIP_LOG      => 1
       });
     }
 
-    $Equipment->ping_log_add({
-      DATE     => $datetime,
-      NAS_ID   => $ips{$host}{NAS_ID},
-      STATUS   => 1,
-      DURATION => $ret_time{$host},
-    });
+    # $Equipment->ping_log_add({
+    #   DATE     => $datetime,
+    #   NAS_ID   => $ips{$host}{NAS_ID},
+    #   STATUS   => 1,
+    #   DURATION => $ret_time{$host},
+    # });
 
     print " $host is reachable\n" if ( $debug > 1);
     delete $syn{$host};
@@ -131,51 +130,53 @@ sub equipment_ping {
       print "FPING return status = $fping for HOST $host_fping\n" if ( $debug > 1 );
       if ( $fping != 0 ) {
         print "$host_fping do not response\n" if ( $debug > 1 );
-        $Equipment->_change( { NAS_ID => $ips{$host_fping}{NAS_ID}, STATUS => 3 } );
+        next if ($ips{$host_fping}{STATUS} == 3);
+        $Equipment->_change( { NAS_ID => $ips{$host_fping}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 } );
         $message .= "$ips{$host_fping}{NAS_NAME}($host_fping) _{UNAVAILABLE}_\n";
-        $Equipment->ping_log_add({
-          DATE     => $datetime,
-          NAS_ID   => $ips{$host_fping}{NAS_ID},
-          STATUS   => 0,
-          DURATION => $timeout,
-        });
+        # $Equipment->ping_log_add({
+        #   DATE     => $datetime,
+        #   NAS_ID   => $ips{$host_fping}{NAS_ID},
+        #   STATUS   => 0,
+        #   DURATION => $timeout,
+        # });
       }
       else {
         print "Updating host $host_fping STATUS to AVAILABLE\n" if ( $debug > 1 );
-        $Equipment->_change( { NAS_ID => $ips{$host_fping}{NAS_ID}, STATUS => 0 } );
+        next if ($ips{$host_fping}{STATUS} == 0);
+        $Equipment->_change( { NAS_ID => $ips{$host_fping}{NAS_ID}, STATUS => 0, SKIP_LOG => 1 } );
         $message .= "$ips{$host_fping}{NAS_NAME}($host_fping) _{AVAILABLE}_\n";
-        $Equipment->ping_log_add({
-          DATE     => $datetime,
-          NAS_ID   => $ips{$host_fping}{NAS_ID},
-          STATUS   => 1,
-          DURATION => $timeout,
-        });
+        # $Equipment->ping_log_add({
+        #   DATE     => $datetime,
+        #   NAS_ID   => $ips{$host_fping}{NAS_ID},
+        #   STATUS   => 1,
+        #   DURATION => $timeout,
+        # });
       }
-     }
+    }
   }
   else {
    foreach my $host (keys %syn) {
       if ($ips{$host}{STATUS} == 0) {
-      my $ping_icmp = Net::Ping->new("icmp");
-      next if $ping_icmp->ping($host, 2);
-      sleep(1);
-      $ping_icmp->close();
-	    print "$host do not response\n";
+        my $ping_icmp = Net::Ping->new("icmp");
+        next if $ping_icmp->ping($host, 2);
+        sleep(1);
+        $ping_icmp->close();
+        print "$host do not response\n";
 
-      $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 3 } );
-      $message .= "$ips{$host}{NAS_NAME}($host) _{UNAVAILABLE}_\n";
+        $Equipment->_change( { NAS_ID => $ips{$host}{NAS_ID}, STATUS => 3, SKIP_LOG => 1 } );
+        $message .= "$ips{$host}{NAS_NAME}($host) _{UNAVAILABLE}_\n";
+      }
+
+    # $Equipment->ping_log_add({
+    #   DATE     => $datetime,
+    #   NAS_ID   => $ips{$host}{NAS_ID},
+    #   STATUS   => 0,
+    #   DURATION => $timeout,
+    # });
+      print " $host is unreachable\n" if ( $debug > 1);
+      $ping->close;
     }
-
-    $Equipment->ping_log_add({
-      DATE     => $datetime,
-      NAS_ID   => $ips{$host}{NAS_ID},
-      STATUS   => 0,
-      DURATION => $timeout,
-    });
-    print " $host is unreachable\n" if ( $debug > 1);
-    $ping->close;
   }
-}
 
   if ($message) {
     ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();

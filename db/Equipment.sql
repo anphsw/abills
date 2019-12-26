@@ -31,7 +31,8 @@ REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`) VALUES
   (18, 'H3C', '', 'http://www.h3c.com'),
   (19, 'Foundry Networks', '', 'http://www.brocade.com/en.html'),
   (20, 'Alcatel', '', 'https://www.alcatel-lucent.com/'),
-  (21, 'Hewlett-Packard', '', 'http://www8.hp.com/ru/ru/home.html');
+  (21, 'Hewlett-Packard', '', 'http://www8.hp.com/ru/ru/home.html'),
+  (22, 'CDATA', '', 'http://ru.cdatatec.com/product-item/');
 
 
 CREATE TABLE IF NOT EXISTS `equipment_types` (
@@ -48,7 +49,9 @@ INSERT INTO `equipment_types` VALUES (1, 'Switch'),
   (4, 'PON'),
   (5, 'Server'),
   (6, 'DOCSIS'),
-  (7, 'Set-top box');
+  (7, 'Set-top box'),
+  (8, 'PON ONT')
+  ;
 
 CREATE TABLE IF NOT EXISTS `equipment_models` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -248,7 +251,7 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_onu` (
   `onu_status` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `onu_in_byte` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
   `onu_out_byte` BIGINT(14) UNSIGNED NOT NULL DEFAULT '0',
-  `onu_dhcp_port` VARCHAR(20) NOT NULL DEFAULT '',
+  `onu_dhcp_port` VARCHAR(20) NOT NULL DEFAULT '' COMMENT 'Internet main ports',
   `onu_graph` VARCHAR(50) NOT NULL DEFAULT 'SIGNAL,TEMPERATURE,SPEED',
   `datetime` DATETIME NOT NULL DEFAULT '0000-00-00',
   `line_profile` VARCHAR(50) NOT NULL DEFAULT 'ONU',

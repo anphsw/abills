@@ -331,7 +331,7 @@ my %request_list = (
             "properties": {
               "id": { "type": "integer" },
               "name": { "type": "string" },
-              "cost": { "type": "integer" }
+              "cost": { "type": "string" }
             },
             "required": [
               "name",
@@ -1079,7 +1079,7 @@ sub help {
   -local
   -userside
   -remote=
-  -debug
+  -debug=0..10
   -request=
   -max_rows=
   -start_page=
@@ -1089,7 +1089,7 @@ sub help {
 };
 
   exit;
-  return 1;
+  #return 1;
 }
 
 

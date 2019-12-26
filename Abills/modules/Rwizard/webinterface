@@ -413,6 +413,8 @@ sub rwizard_old {
       }
     }
 
+    $Reports->{QUERY}       =~ s/WHERE\s+AND\s+/WHERE /ig;
+    $Reports->{QUERY_TOTAL} =~ s/WHERE\s+AND\s+/WHERE /ig;
     $Reports->{QUERY_TOTAL} =~ s/^[\n\r]+$//g;
     if ($FORM{DEBUG}) {
       $Reports->{debug} = 1;
@@ -556,6 +558,7 @@ sub rwizard_old {
           if ($cols_params{$c}{CHART}) {
             $CHART{TYPES}{$cols_params{$c}{TITLE}} = $cols_params{$c}{CHART};
             if ($cols_params{$c}{CHART} eq 'X_TEXT') {
+              $val =~ s/'/\\\'/g;
               $CHART{X_LINE}[$num] = $val;
               $CHART{X_TEXT}[$num] = $val;
             }
@@ -1222,7 +1225,7 @@ sub _make_report_menu {
   }
 
   if ($Reports->{QUERY} =~ /%GID%/) {
-    push @rows, "$lang{GROUP}: " . sel_groups();
+    push @rows, "$lang{GROUP}: " . sel_groups({FILTER_SEL => 1});
   }
 
   if ($Reports->{QUERY} =~ /%DEPOSIT:?([\S]{0,12})%/) {
@@ -1357,9 +1360,9 @@ sub _make_report_query {
   }
 
   if ($Reports->{QUERY} =~ /%GID%/g) {
-    if (!defined($attr->{GID}) || $attr->{GID} eq '') {
-      $Reports->{QUERY} =~ s/and [a-z0-9\.\_]+\s?\=\s?\'?%GID%\'?//ig;
-      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\s?\=\s?\'?%GID%\'?//ig;
+    if (!defined($attr->{GID}) || $attr->{GID} eq '' || $attr->{GID} eq '*') {
+      $Reports->{QUERY} =~ s/[and]{0,3} [a-z0-9\.\_]+\s?\=\s?\'?%GID%\'?//ig;
+      $Reports->{QUERY_TOTAL} =~ s/[and]{0,3} [a-z0-9\.\_]+\s?\=\s?\'?%GID%\'?//ig;
     }
     else {
       if ($attr->{GID} =~ /,\s?/) {
@@ -1429,8 +1432,8 @@ sub _make_report_query {
 
   if ($Reports->{QUERY} =~ /%PAYMENT_METHODS%/) {
     if (!defined($attr->{PAYMENT_METHODS}) || $attr->{PAYMENT_METHODS} eq '') {
-      $Reports->{QUERY} =~ s/and [a-z0-9\.\_]+\=\'%PAYMENT_METHODS%\'//ig;
-      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\=\'%PAYMENT_METHODS%\'//ig;
+      $Reports->{QUERY} =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'%PAYMENT_METHODS%\'//ig;
+      $Reports->{QUERY_TOTAL} =~ s/[and]{0,3} [a-z0-9\.\_]+\=\'%PAYMENT_METHODS%\'//ig;
     }
     else {
       $Reports->{QUERY} =~ s/%PAYMENT_METHODS%/$attr->{PAYMENT_METHODS}/g;
@@ -1440,8 +1443,8 @@ sub _make_report_query {
 
   if ($Reports->{QUERY} =~ /%ADMIN_ID%/) {
     if (!defined($attr->{ADMIN_ID}) || $attr->{ADMIN_ID} eq '') {
-      $Reports->{QUERY} =~ s/and [a-z0-9\.\_]+\s?\=\s?\'?%ADMIN_ID%\'?//ig;
-      $Reports->{QUERY_TOTAL} =~ s/and [a-z0-9\.\_]+\s?\=\s?\'?%ADMIN_ID%\'?//ig;
+      $Reports->{QUERY} =~ s/[and]{0,3} [a-z0-9\.\_]+\s?\=\s?\'?%ADMIN_ID%\'?//ig;
+      $Reports->{QUERY_TOTAL} =~ s/[and]{0,3} [a-z0-9\.\_]+\s?\=\s?\'?%ADMIN_ID%\'?//ig;
     }
     else {
       if ($attr->{ADMIN_ID} =~ /,\s?/) {
@@ -1455,6 +1458,8 @@ sub _make_report_query {
     }
   }
 
+  $Reports->{QUERY}       =~ s/WHERE\s+AND\s+/WHERE /ig;
+  $Reports->{QUERY_TOTAL} =~ s/WHERE\s+AND\s+/WHERE /ig;
   $Reports->{QUERY_TOTAL} //= "";
   $Reports->{QUERY_TOTAL} =~ s/^[\n\r]+$//g;
 
@@ -1634,8 +1639,9 @@ sub _make_report_chart {
       if ($cols_params->{$c}{CHART}) {
         $CHART{TYPES}{$cols_params->{$c}{TITLE}} = $cols_params->{$c}{CHART};
         if ($cols_params->{$c}{CHART} eq 'X_TEXT') {
-          $CHART{X_LINE}[$num] = $val;
-          $CHART{X_TEXT}[$num] = $val;
+          $val =~ s/'/\\\'/g;
+          $CHART{X_LINE}[$num-1] = $val;
+          $CHART{X_TEXT}[$num-1] = $val;
         }
         else {
           $DATA_HASH{$cols_params->{$c}{TITLE}}[$num] = $val;

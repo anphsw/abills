@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
-# Abills configuretion file
+# Abills configuration file
 
-$PROGRAM='~AsmodeuS~ Billing System';
+our $PROGRAM='~AsmodeuS~ Billing System';
 
 #DB configuration
 $conf{dbhost}='localhost';
@@ -28,7 +28,7 @@ our @MODULES = (
   #Device monitoring and manage via snmp
   'Equipment',
   'Tags',
-#            'Cards',
+  #'Cards',
   'Sqlcmd',
 );
 
@@ -89,7 +89,6 @@ $conf{LANGS}="english:English;
  spanish:Spain;
  uzbek:Uzbek;";
 
-
 #Web interface
 $conf{PASSWD_LENGTH}=6;
 $conf{MAX_USERNAME_LENGTH}=15;
@@ -106,12 +105,12 @@ $conf{KBYTE_SIZE}      = 1024;
 $conf{ADDRESS_REGISTER}= 1;
 
 # Debug mod 
-$conf{debug}=10;
+$conf{debug}=1;
 $conf{debugmods}='LOG_ALERT LOG_WARNING LOG_ERR LOG_INFO';
 
 #show auth and accounting time need Time::HiRes module (available from CPAN)
 # Check script runnig time
-$conf{time_check}=1;
+#$conf{time_check}=1;
 
 # Folders and files
 $base_dir='/usr/abills/';
@@ -137,6 +136,6 @@ our $year    = strftime("%Y", localtime(time));
 $conf{info_fields_new}=1;
 $conf{CONTACTS_NEW}=1;
 
-$conf{INTERNET_CID_AUTO_FORMAT} = 1;
+$conf{INTERNET_CID_FORMAT}=1;
 
 1

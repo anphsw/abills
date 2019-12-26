@@ -1746,7 +1746,7 @@ sub form_info_lists {
 
     foreach my $line (@$list) {
       $lists_hash{ $line->{sql_field} . '_list' } = $line->{name};
-    } 
+    }
   }
   else{
       $list = $Conf->config_list(
@@ -1969,6 +1969,8 @@ sub form_fees_types {
     $LIST_PARAMS{SORT} = 2;
   }
 
+  $LIST_PARAMS{PAGE_ROWS} = 1000;
+
   result_former({
     INPUT_DATA      => $Fees,
     FUNCTION        => 'fees_type_list',
@@ -1990,6 +1992,7 @@ sub form_fees_types {
       caption    => "$lang{FEES} $lang{TYPE}",
       qs         => $pages_qs,
       ID         => 'FEES_TYPE',
+      DATA_TABLE => 1,
     },
     MAKE_ROWS    => 1,
     SEARCH_FORMER=> 1,
@@ -2261,6 +2264,7 @@ sub form_intervals {
       }
 
     }
+
     print $table->show();
   }
   elsif (defined($FORM{TP_ID})) {
@@ -2393,18 +2397,23 @@ sub form_prog_pathes {
                    "PING", "MYSQLDUMP", "GZIP", "SSH", "SCP", "CURL", "SUDO", "ARP");
 
   if ($FORM{action} && $FORM{action} eq "change") {
-    my $filename = "$conf{TPL_DIR}/programs.tpl";
-    if (open(my $fh, '+>', $filename) ) {
-      for (my $i = 0 ; $i < $#PROGS_ARR ; $i++) {
-        if ($FORM{$PROGS_ARR[$i]} =~ /^([\/A-Za-z0-9_\.\-]+)/) {
-          my $r = $1;
-          print $fh "$PROGS_ARR[$i]=$r\n";
+    if(!$conf{PUBLIC_MODE}){
+      my $filename = "$conf{TPL_DIR}/programs.tpl";
+      if (open(my $fh, '+>', $filename) ) {
+        for (my $i = 0 ; $i < $#PROGS_ARR ; $i++) {
+          if ($FORM{$PROGS_ARR[$i]} =~ /^([\/A-Za-z0-9_\.\-]+)/) {
+            my $r = $1;
+            print $fh "$PROGS_ARR[$i]=$r\n";
+          }
         }
+        close($fh);
       }
-      close($fh);
+      else {
+        $html->message('err', $lang{ERROR}, "'$filename' $!");
+      }
     }
     else {
-      $html->message('err', $lang{ERROR}, "'$filename' $!");
+      $html->message('err', $lang{ERROR}, $lang{ERROR_PUBLIC_MODE});
     }
   }
 
@@ -2486,10 +2495,7 @@ sub client_menu {
 }
 
 #**********************************************************
-=head2
-
-  Arguments:
-    attr      -
+=head2 organization_info()
 
   Returns:
 
@@ -2499,100 +2505,60 @@ sub organization_info {
   my %info;
 
   my %name_form = (
-    ORGANIZATION_ADDRESS                        => 0,
-    ORGANIZATION_FAX                            => 0,
-    ORGANIZATION_MAIL                           => 0,
-    ORGANIZATION_NAME                           => 0,
-    ORGANIZATION_PHONE                          => 0,
-    ORGANIZATION_CURRENT_ACCOUNT                => 0,
-    ORGANIZATION_ID_CODE                        => 0,
-    ORGANIZATION_BANK_NAME                      => 0,
-    ORGANIZATION_BANK_NUM                       => 0,
-    ORGANIZATION_SUPPORT_TECH                   => 0,
-    ORGANIZATION_SUPPORT_INFO                   => 0,
-    ORGANIZATION_CUSTOM_DEPART_LEGAL_ENTITIES   => 0,
-    ORGANIZATION_CUSTOM_DEPART_PHYS_PERSON      => 0,
-    ORGANIZATION_WEB_SITE                       => 0,
-    ORGANIZATION_ADDITIONAL_INFO                => 0,
+    ORGANIZATION_ADDRESS                      => 0,
+    ORGANIZATION_FAX                          => 0,
+    ORGANIZATION_MAIL                         => 0,
+    ORGANIZATION_NAME                         => 0,
+    ORGANIZATION_PHONE                        => 0,
+    ORGANIZATION_CURRENT_ACCOUNT              => 0,
+    ORGANIZATION_ID_CODE                      => 0,
+    ORGANIZATION_BANK_NAME                    => 0,
+    ORGANIZATION_BANK_NUM                     => 0,
+    ORGANIZATION_SUPPORT_TECH                 => 0,
+    ORGANIZATION_SUPPORT_INFO                 => 0,
+    ORGANIZATION_CUSTOM_DEPART_LEGAL_ENTITIES => 0,
+    ORGANIZATION_CUSTOM_DEPART_PHYS_PERSON    => 0,
+    ORGANIZATION_WEB_SITE                     => 0,
+    ORGANIZATION_ADDITIONAL_INFO              => 0,
   );
 
-if ($FORM{chg_form}) {
-
+  if ($FORM{chg_form}) {
     $info{BUTTON_NAME} = 'chg';
-    $info{ACTION}     = "$lang{CHANGE}";
-    $info{OLD_PARAM}  = $FORM{chg_form};
-    $info{PARAM}      = $FORM{chg_form};
-    $info{VALUE}      = $FORM{chg_form_value};
+    $info{ACTION} = "$lang{CHANGE}";
+    $info{OLD_PARAM} = $FORM{chg_form};
+    $info{PARAM} = $FORM{chg_form};
+    $info{VALUE} = $FORM{chg_form_value};
     $info{TAGS_PANEL} = $FORM{chg_form};
-    $info{VALUE_INPUT} = $html->form_input( 'VALUE', $FORM{chg_form_value}, { TYPE => 'text' } );
+    $info{VALUE_INPUT} = $html->form_input('VALUE', $FORM{chg_form_value}, { TYPE => 'text' });
     $Conf->config_info($FORM{change});
 
-   if($FORM{chg_form} eq 'ORGANIZATION_ADDRESS' ){
-      require Address;
-
-      Address->import();
-      my $Address = Address->new($db, $admin, \%conf);
-      my $locatio_info = $Conf->config_info({PARAM=>'_ORGANIZATION_LOCATION_ID'});
-
-      $info{LABEL} = $lang{OLD};
-
-      if($locatio_info->{VALUE}){
-        $Address->address_info($locatio_info->{VALUE});
-        $info{VALUE} = full_address_name($locatio_info->{VALUE});
-      }
-
-      $info{ADDRESS_SEL}    =  $html->tpl_show(templates('form_address_sel'),{%$Address},
-      { OUTPUT2RETURN => 1, ID => 'form_address_sel' });
-    }
-
-    print $html->tpl_show(templates('form_information_about_organization'), \%info);
+    $html->tpl_show(templates('form_information_about_organization'), \%info);
   }
 
   if ($FORM{chg}) {
-   if($FORM{OLD_PARAM} && $FORM{OLD_PARAM} eq 'ORGANIZATION_ADDRESS'){
-        my $company_adress_str = full_address_name($FORM{LOCATION_ID});
-
-        $Conf->config_change(
-          'ORGANIZATION_ADDRESS',
-          {
-            PARAM =>'ORGANIZATION_ADDRESS',
-            WITHOUT_PARAM_CHANGE => 1,
-            VALUE                => $company_adress_str,
-          }
-        );
-
-        $Conf->config_change(
-          '_ORGANIZATION_LOCATION_ID',
-          {
-            PARAM                => '_ORGANIZATION_LOCATION_ID',
-            WITHOUT_PARAM_CHANGE => 1,
-            VALUE                => $FORM{LOCATION_ID},
-          }
-        );
+    $Conf->config_change(
+      '',
+      {
+        VALUE                => $FORM{VALUE},
+        PARAM                => $FORM{OLD_PARAM},
+        WITHOUT_PARAM_CHANGE => 1,
       }
-      else{
-        $Conf->config_change(
-          '',
-          {
-            VALUE                => $FORM{VALUE},
-            PARAM                => $FORM{OLD_PARAM},
-            WITHOUT_PARAM_CHANGE  => 1,
-          }
-          );
-      }
+    );
   }
-
-  if ($FORM{add}) {
+  elsif ($FORM{add}) {
     if ($FORM{PARAM}) {
       $FORM{PARAM} = $FORM{PARAM} !~ m/ORGANIZATION_/ ? 'ORGANIZATION_' . $FORM{PARAM} : $FORM{PARAM};
     }
     $Conf->config_add(\%FORM);
   }
+  elsif ($FORM{del}) {
+    $Conf->config_del($FORM{del});
+  }
 
   if ($FORM{add_form}) {
     $info{BUTTON_NAME} = 'add';
-    $info{ACTION}      = "$lang{ADD}";
-    $info{TAGS_PANEL}  = $html->form_input(
+    $info{ACTION} = "$lang{ADD}";
+    $info{TAGS_PANEL} = $html->form_input(
       'PARAM',
       '%PARAM%',
       {
@@ -2605,21 +2571,18 @@ if ($FORM{chg_form}) {
     $html->tpl_show(templates('form_information_about_organization'), \%info);
   }
 
-  if ($FORM{del}) {
-    $Conf->config_del($FORM{del});
-  }
-
   my $value_list = $Conf->config_list({
-                                       COLS_NAME => 1,
-                                       CUSTOM=>1
+    COLS_NAME => 1,
+    CUSTOM    => 1
   });
+
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => $html->element('i', '', { class => 'fa fa-fw fa-tags' }) . $lang{ORGANIZATION_INFO},
+      width       => '100%',
+      caption     => $html->element('i', '', { class => 'fa fa-fw fa-tags' }) . $lang{ORGANIZATION_INFO},
       title_plain => [ $lang{TAGS}, $lang{VALUE} ],
-      ID         => 'FUNCTIONS_LIST',
-      MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+      ID          => 'ORGANIZATION_INFO',
+      MENU        => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
     }
   );
 
@@ -2636,7 +2599,6 @@ if ($FORM{chg_form}) {
 
   foreach my $name (keys %name_form) {
     if ($name_form{$name} == 0) {
-
       $Conf->config_add(
         {
           PARAM => "$name",
@@ -2652,7 +2614,7 @@ if ($FORM{chg_form}) {
 }
 
 #**********************************************************
-=head2 form_payment_types
+=head2 form_payment_types()
 
   Arguments:
     attr      -
@@ -2795,10 +2757,10 @@ sub info_fields_new {
     else{
       $users->info_field_add(
         {
-          POSITION     => $FORM{PRIORITY}, 
-          FIELD_TYPE   => $FORM{TYPE}, 
-          USERS_PORTAL => $FORM{ABON_PORTAL}, 
-          FIELD_ID     => $FORM{SQL_FIELD}, 
+          POSITION     => $FORM{PRIORITY},
+          FIELD_TYPE   => $FORM{TYPE},
+          USERS_PORTAL => $FORM{ABON_PORTAL},
+          FIELD_ID     => $FORM{SQL_FIELD},
           CAN_BE_CHANGED_BY_USER => $FORM{USER_CHG},
           NAME         => $FORM{NAME},
           COMPANY_ADD  => $FORM{COMPANY},
@@ -2828,9 +2790,9 @@ sub info_fields_new {
   elsif ( $FORM{del} && $FORM{COMMENTS}) {
     my $list = $Info_fields->fields_list({ ID => $FORM{del}});
     $Info_fields->fields_del($FORM{del}, COMMENTS => $FORM{COMMENTS});
-    $users->info_field_del({ 
+    $users->info_field_del({
       FIELD_ID => $list->[0]->{SQL_FIELD},
-      SECTION  => ($list->[0]->{COMPANY} ? 'ifc' : 'ifu' ), 
+      SECTION  => ($list->[0]->{COMPANY} ? 'ifc' : 'ifu' ),
     });
     show_result( $Info_fields, $lang{DELETED} );
   }
@@ -2851,7 +2813,7 @@ sub info_fields_new {
     $html->tpl_show(
       templates('form_info_fields'),
       {
-        %TEMPLATE_ADVERTISEMENT, 
+        %TEMPLATE_ADVERTISEMENT,
         %{ ($chg_list->[0]) ? $chg_list->[0] : {} },
         SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
         SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},

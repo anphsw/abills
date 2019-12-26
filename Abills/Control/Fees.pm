@@ -97,6 +97,8 @@ sub form_fees {
         delete $FORM{DATE};
         $FORM{DESCRIBE} = dynamic_types({FEES_METHODS_STR => $FORM{DESCRIBE}});
         $FORM{DSC} = dynamic_types({FEES_METHODS_STR => $FORM{DSC}});
+
+        $FORM{SKIP_PRIORITY}=1;
         $Fees->take($user, $FORM{SUM}, \%FORM);
         if (! _error_show($Fees)) {
           $html->message( 'info', $lang{FEES}, "$lang{TAKE} $lang{SUM}: $Fees->{SUM}" );
@@ -277,6 +279,7 @@ sub form_fees_list {
     INPUT_DATA      => $Fees,
     FUNCTION        => 'list',
     BASE_FIELDS     => 1,
+    HIDDEN_FIELDS   => 'ADMIN_DISABLE',
     DEFAULT_FIELDS  => 'ID,LOGIN,DATETIME,DSC,SUM,LAST_DEPOSIT,METHOD,ADMIN_NAME',
     FUNCTION_FIELDS => 'del',
     EXT_TITLES      => {
@@ -354,6 +357,10 @@ sub form_fees_list {
       elsif($field_name eq 'bill_id') {
         $line->{bill_id} = ($conf{EXT_BILL_ACCOUNT} && $attr->{USER_INFO}) ? ($BILL_ACCOUNTS->{ $line->{bill_id} } || q{--}) : $line->{bill_id};
       }
+      elsif($field_name eq 'admin_name') {
+          $line->{admin_name} = _status_color_state($line->{admin_name}, $line->{admin_disable});
+          delete $line->{admin_disable};
+      }
       #      elsif($field_name eq 'invoice_num') {
       #        if (in_array('Docs', \@MODULES) && ! $FORM{xml}) {
       #          my $payment_sum = $line->{sum};
@@ -408,7 +415,7 @@ sub form_fees_list {
       FEES_METHODS_STR - string(one fees type)
     
   Returns:
-    return $attr or true
+    return fees_method
 
   Example:
     dynamic_types({FEES_METHODS_STR => $fees_info->{DEFAULT_DESCRIBE}})
@@ -432,15 +439,16 @@ sub dynamic_types {
     foreach my $item (values %{$attr->{FEES_METHODS_HASH}}) {
       $item =~ s/\{(\w+)\}/($my_dynamic_types->{$1} || $1)/ge;
     }
-    return $attr->{FEES_METHODS_HASH};
+    return $attr->{FEES_METHODS_HASH} || q{};
   }
 
   if ($attr->{FEES_METHODS_STR}) {
     $attr->{FEES_METHODS_STR} =~ s/\{(\w+)\}/($my_dynamic_types->{$1} || $1)/ge;
-  return $attr->{FEES_METHODS_STR};
+    return $attr->{FEES_METHODS_STR} || q{};
   }
 
-  return 1;
+  return q{};
 }
+
 
 1;

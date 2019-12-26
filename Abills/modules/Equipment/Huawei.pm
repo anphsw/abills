@@ -242,7 +242,8 @@ sub _huawei_unregister {
 
     foreach my $line (@$unreg_result) {
       my ($id, $mac_bin) = split(/:/, $line);
-      my ($snmp_port_id, $onu_id) = split(/\./, $id, 2);
+      # $snmp_port_id, $onu_id
+      my ($snmp_port_id, undef) = split(/\./, $id, 2);
       my $branch  = decode_port($snmp_port_id);
       my $equipment_id;
 
@@ -580,7 +581,7 @@ sub _huawei {
       'ONU_MAC_SERIAL' => {
         NAME   => 'Mac/Serial',
         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3',
-        PARSER => 'bin2mac'
+        PARSER => 'bin2hex'
       },
       'ONU_STATUS'     => {
         NAME   => 'STATUS',
@@ -958,6 +959,7 @@ sub _huawei_get_service_ports {
   my ($attr) = @_;
 
   my $onu_type = $attr->{ONU_TYPE} || $attr->{TYPE};
+
   if (_huawei_telnet_open($attr)) {
     my $data = '';
     $data = _huawei_telnet_cmd("display service-port port $attr->{BRANCH} ont $attr->{ONU_ID} sort-by vlan");
@@ -1482,7 +1484,6 @@ sub _huawei_telnet_cmd {
   $Telnet->print($cmd);
   $Telnet->print(" ");
   my @data = $Telnet->waitfor('/#/');
-  #$data[0] =~ s/\n/<br>/g;
 
   return $data[0];
 }

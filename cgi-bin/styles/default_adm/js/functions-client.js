@@ -48,9 +48,16 @@ function setIcons() {
     var icon = (typeof (menu_icons[entry.id]) !== 'undefined')
         ? menu_icons[entry.id]
         : 'fa fa-circle';
-  
-    $entry.html('<i class="' + icon + '"></i><span>' +  $entry.html() + '</span>');
-    
+    var regex_icon = /currency/ig;
+    var result = icon.match(regex_icon);
+    if (result == "currency" ) {
+      // console.log(result);
+      $entry.html('<i class="' + icon + '"></i>&nbsp;&nbsp;&nbsp;<span>' +  $entry.html() + '</span>');
+    }
+    else {
+      $entry.html('<i class="' + icon + '"></i><span>' +  $entry.html() + '</span>');
+    }
+
   });
   
   // Load custom icons

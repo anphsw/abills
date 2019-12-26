@@ -1,7 +1,8 @@
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(_bp load_pmodule);
+use Abills::Base qw(_bp load_pmodule int2ip);
 use Dv_Sessions;
+use Users;
 
 our Equipment $Equipment;
 
@@ -13,6 +14,8 @@ our (
   $admin,
 );
 
+my $Internet = Internet->new($db, $admin, \%conf);
+my $Users = Users->new($db, $admin, \%conf);
 
 #********************************************************
 =head2 network_map($attr)
@@ -21,7 +24,6 @@ our (
 #********************************************************
 sub network_map {
 
-  my $Internet = Internet->new($db, undef, \%conf);
   my %nodes = ();
   my %edges = ();
 
@@ -109,87 +111,103 @@ sub user_route {
   $attr //= {};
   my $user_uid = $attr->{UID} || $FORM{UID} || return '';
 
+  my $user_info = $Users->info($user_uid);
+  my $intenet_info = $Internet->list({
+    UID => $user_uid,
+    IP  => '_SHOW',
+    NAS_ID => '_SHOW',
+    COLS_NAME => 1
+  });
   my %nodes = ();
   my %edges = ();
 
-  my $user_node = $Equipment->port_list({
-    UID       => $user_uid,
-    NAS_ID    => '_SHOW',
-    UPLINK    => '_SHOW',
-    LOGIN     => '_SHOW',
-    #  FIO       => '_SHOW',
-    COLS_NAME => 1
-  });
-  _error_show($Equipment);
-
-  unless ($Equipment->{TOTAL} > 0) {
-    $html->message('err', $lang{ERROR}, "user is not assigned to any port");
-    return 1;
-  };
-  my $user_nas = $user_node->[0]->{nas_id} || 0;
-  my $user_login = $user_node->[0]->{login};
-  my $current_nas = $user_node->[0]->{nas_id};
-  $nodes{'0'} = {
-    'name' => $user_login,
-    'type' => 'user',
-  };
-  $edges{'0'}->{$user_nas} = { 'length' => '0.5' };
-
-  while (42) {
-    my $nas_info = $Equipment->_list({
-      NAS_ID    => $current_nas,
-      NAS_NAME  => '_SHOW',
-      NAS_IP    => '_SHOW',
+  if($intenet_info->[0]->{nas_id}) {
+    my $user_node = $Equipment->port_list({
+      NAS_ID    => $intenet_info->[0]->{nas_id},
+      UPLINK    => '_SHOW',
       STATUS    => '_SHOW',
       COLS_NAME => 1
     });
+    _error_show($Equipment);
 
     unless ($Equipment->{TOTAL} > 0) {
-      $html->message('err', $lang{ERROR}, "NAS_NOT_FOUND");
+      $html->message('err', $lang{ERROR}, "user is not assigned to any port");
       return 1;
-    }
+    };
+    my $user_nas = $user_node->[0]->{nas_id} || 0;
+    my $user_login = $user_info->{LOGIN};
+    my $current_nas = $user_node->[0]->{nas_id};
+    $nodes{0} = {
+      'name'    => $user_login,
+      'type_id' => 0,
+      'state'   => $user_node->[0]->{status},
+      'ip'      => int2ip($intenet_info->[0]->{ip_num})
+    };
+    $edges{0} = { target => 0, name => $user_node->[0]->{uplink}, source => $user_nas };
 
-    if ($nas_info->[0] && $nodes{$nas_info->[0]->{nas_id}}) {
-      last;
-    }
+    while (42) {
+      my $nas_info = $Equipment->_list({
+        NAS_ID      => $current_nas,
+        NAS_IP      => '_SHOW',
+        NAS_NAME    => '_SHOW',
+        STATUS      => '_SHOW',
+        PORTS       => '_SHOW',
+        TYPE_ID     => '_SHOW',
+        VENDOR_NAME => '_SHOW',
+        MODEL_NAME  => '_SHOW',
+        PAGE_ROWS   => 9999,
+        COLS_NAME   => 1
+      });
 
-    if ($nas_info->[0]->{nas_id}) {
-      my $Internet = Internet->new($db, undef, \%conf);
-      my $online = $Internet->list({
-        NAS_ID    => $nas_info->[0]->{nas_id},
-        ONLINE    => '_SHOW',
+      unless ($Equipment->{TOTAL} > 0) {
+        $html->message('err', $lang{ERROR}, "NAS_NOT_FOUND");
+        return 1;
+      }
+
+      if ($nas_info->[0] && $nodes{$nas_info->[0]->{nas_id}}) {
+        last;
+      }
+
+      if ($nas_info->[0]->{nas_id}) {
+        my $online = $Internet->list({
+          NAS_ID    => $nas_info->[0]->{nas_id},
+          ONLINE    => '_SHOW',
+          COLS_NAME => 1
+        });
+
+        $nodes{$nas_info->[0]->{nas_id}} = {
+          'name'    => ($nas_info->[0]->{nas_name} || '') . " ($nas_info->[0]->{nas_id})",
+          'ip'      => $nas_info->[0]->{nas_ip},
+          'state'   => $nas_info->[0]->{status},
+          'ports'   => $nas_info->[0]->{ports},
+          'type_id' => $nas_info->[0]->{type_id},
+          'vendor'  => $nas_info->[0]->{vendor_name},
+          'model'   => $nas_info->[0]->{model_name},
+          'online'  => $online->[0]->{online},
+        };
+      }
+      my $uplink_port = $Equipment->port_list({
+        NAS_ID    => $current_nas,
+        UPLINK    => '!0',
+        PORT      => '_SHOW',
         COLS_NAME => 1
       });
 
-      $nodes{$nas_info->[0]->{nas_id}} = {
-        'name'    => ($nas_info->[0]->{nas_name} || '') . " ($nas_info->[0]->{nas_id})",
-        'ip'      => $nas_info->[0]->{nas_ip},
-        'state'   => $nas_info->[0]->{status},
-        'ports'   => $nas_info->[0]->{ports},
-        'type_id' => $nas_info->[0]->{type_id},
-        'vendor'  => $nas_info->[0]->{vendor_name},
-        'model'   => $nas_info->[0]->{model_name},
-        'online'  => $online->[0]->{online},
-      };
+      if ($Equipment->{TOTAL} < 1) {
+        last;
+      }
+
+      if ($current_nas && $uplink_port->[0] && $uplink_port->[0]->{uplink}) {
+        $edges{$current_nas} = { source => $uplink_port->[0]->{uplink}, target => $current_nas, name => $uplink_port->[0]->{port} };
+      }
+
+      $current_nas = $uplink_port->[0]->{uplink};
     }
-
-    my $uplink_port = $Equipment->port_list({
-      NAS_ID    => $current_nas,
-      UPLINK    => '!0',
-      PORT      => '_SHOW',
-      COLS_NAME => 1
-    });
-
-    unless ($uplink_port && ref $uplink_port eq 'ARRAY') {last;}
-
-    if ($current_nas && $uplink_port->[0] && $uplink_port->[0]->{uplink}) {
-      $edges{$current_nas} = {source => $uplink_port->[0]->{uplink}, target => $current_nas, name => $uplink_port->[0]->{port} };
-    }
-
-    $current_nas = $uplink_port->[0]->{uplink};
   }
 
   my %rec_hash = ('nodes' => \%nodes, 'edges' => \%edges);
+
+  # _bp('asd', \%rec_hash);
 
   load_pmodule('JSON');
   JSON->import();

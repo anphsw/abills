@@ -115,7 +115,7 @@ sub cards_info {
   my $WHERE = $self->search_former($attr, [
       ['ID',           'INT',  'c.id'             ],
       ['PIN',          'STR',  "DECODE(c.pin, '$CONF->{secretkey}')" ],
-      ['SERIAL',       'STR',  "CONCAT(c.serial, if($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number))",  ],
+      ['SERIAL',       'STR',  "CONCAT(c.serial, IF($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number))",  ],
     ],
     { WHERE => 1,
     	WHERE_RULES => \@WHERE_RULES
@@ -124,7 +124,7 @@ sub cards_info {
 
   $self->query("SELECT
       c.serial,
-      if($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number) AS number,
+      IF($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number) AS number,
       c.sum,
 
       IF(c.status = 1 or c.status = 2 or c.status = 4  or c.status = 5, c.status,
@@ -135,7 +135,7 @@ sub cards_info {
       c.datetime,
       c.expire,
       c.pin,
-      if (c.expire<CURDATE() && c.expire != '0000-00-00', 1, 0) AS expire_status,
+      IF (c.expire<CURDATE() && c.expire != '0000-00-00', 1, 0) AS expire_status,
       c.uid,
       c.diller_id,
       c.id,
@@ -364,7 +364,8 @@ sub cards_change {
     DATETIME         => 'datetime',
     DILLER_ID        => 'diller_id',
     DILLER_SOLD_DATE => 'diller_sold_date',
-    ID               => 'id'
+    ID               => 'id',
+    UID              => 'uid'
     #DOMAIN_ID => 'domain_id'
   );
 
@@ -453,6 +454,11 @@ sub cards_list {
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
 
   my @WHERE_RULES = ();
+
+  if ($attr->{NO_GROUP}) {
+    push @WHERE_RULES, $attr->{SERIAL_DILLERS} ne '_SHOW' ? @{ $self->search_expr($attr->{SERIAL_DILLERS}, 'STR', 'cu.serial') } : 'cu.serial';
+    $GROUP_BY='';
+  }
 
   if($self->{INTERNET}) {
     $internet_user_table='internet_main';

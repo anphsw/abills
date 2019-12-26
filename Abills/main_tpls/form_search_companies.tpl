@@ -11,7 +11,7 @@
             <div class='form-group'>
                 <label class='control-label col-xs-3' for='COMPANY_NAME'>_{NAME}_:</label>
                 <div class='col-xs-9'>
-                    <textarea cols='40' rows='4' name='COMPANY_NAME' class='form-control'>%COMPANY_NAME%</textarea>
+                    <textarea cols='40' rows='4' id='COMPANY_NAME' name='COMPANY_NAME' class='form-control'>%COMPANY_NAME%</textarea>
                 </div>
             </div>
 
@@ -37,16 +37,16 @@
                 </div>
             </div>
         </div>
-            
-            <div class="box collapsed-box" style='margin-bottom: 0px; border-top-width: 1px;'>
-              <div class="box-header with-border">
-                <h3 class="box-title">_{OTHER}_</h3>
-                <div class="box-tools pull-right">
-                  <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+
+            <div class='box collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
+              <div class='box-header with-border'>
+                <h3 class='box-title'>_{OTHER}_</h3>
+                <div class='box-tools pull-right'>
+                  <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
                   </button>
                 </div>
               </div>
-              <div class="box-body">
+              <div class='box-body'>
                 <div class='form-group'>
                     <label for='DEPOSIT' class='control-label col-xs-3'>_{DEPOSIT}_:</label>
                     <div class='col-xs-9'>
@@ -65,14 +65,14 @@
                 <div class='form-group' >
                     <label class='control-label col-xs-3' for='CREDIT_DATE'>_{DATE}_:</label>
                     <div class='col-xs-9'>
-                        %CREDIT_DATE%
+                        <input type='date' id='CREDIT_DATE' class='form-control' name='DATE' value=%CREDIT_DATE%>
                     </div>
                 </div>
 
                 <div class='form-group'>
                     <label class='control-label col-xs-3' for='REGISTRATION'>_{REGISTRATION}_:</label>
                     <div class='col-xs-9'>
-                        %REGISTRATION%
+                        <input type='date' id='REGISTRATION' class='form-control' name='DATE' value=%REGISTRATION%>
                     </div>
                 </div>
 
@@ -85,16 +85,16 @@
 
               </div>
             </div>
-            
-            <div class="box collapsed-box" style='margin-bottom: 0px; border-top-width: 1px;'>
-              <div class="box-header with-border">
-                <h3 class="box-title">_{BANK}_</h3>
-                <div class="box-tools pull-right">
-                  <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+
+            <div class='box collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
+              <div class='box-header with-border'>
+                <h3 class='box-title'>_{BANK}_</h3>
+                <div class='box-tools pull-right'>
+                  <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
                   </button>
                 </div>
               </div>
-              <div class="box-body">
+              <div class='box-body'>
 
                 <div class='form-group'>
                     <label for='VAT' class='control-label col-xs-3'>_{VAT}_ (%):</label>
@@ -152,15 +152,15 @@
             </div>
 
 
-            <div class="box collapsed-box" style='margin-bottom: 0px; border-top-width: 1px;'>
-              <div class="box-header with-border">
-                <h3 class="box-title">_{EXTRA_ABBR}_. _{FIELDS}_</h3>
-                <div class="box-tools pull-right">
-                  <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+            <div class='box collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
+              <div class='box-header with-border'>
+                <h3 class='box-title'>_{EXTRA_ABBR}_. _{FIELDS}_</h3>
+                <div class='box-tools pull-right'>
+                  <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
                   </button>
                 </div>
               </div>
-              <div class="box-body">
+              <div class='box-body'>
                   %INFO_FIELDS%
               </div>
           </div>

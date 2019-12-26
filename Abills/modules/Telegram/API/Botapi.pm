@@ -42,11 +42,33 @@ sub send_message {
 
   $attr->{chat_id} ||= $self->{chat_id};
 
-  # my $params = qq/-F "chat_id=$attr->{chat_id}"/;
-  # $params .= qq/ -F "text=$attr->{text}"/;
   my $json_str = $self->perl2json($attr);
   my $params   = qq(-d '$json_str' -H "Content-Type: application/json");
   my $url      = $self->{api_url} . 'sendMessage';
+  my $result   = `$curl $params -s -X POST "$url"`;
+
+  if ($debug > 0) {
+    `echo 'COMMAND: curl $params -s -X POST "$url"' >> /tmp/telegram.log`;
+    `echo 'RESULT: $result' >> /tmp/telegram.log`;
+  }
+  
+  return 1;
+}
+
+#**********************************************************
+=head2 send_contact()
+  
+=cut
+#**********************************************************
+sub send_contact {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{chat_id} ||= $self->{chat_id};
+
+  my $json_str = $self->perl2json($attr);
+  my $params   = qq(-d '$json_str' -H "Content-Type: application/json");
+  my $url      = $self->{api_url} . 'sendContact';
   my $result   = `$curl $params -s -X POST "$url"`;
 
   if ($debug > 0) {

@@ -107,6 +107,6 @@ sub send_message {
     return 'ERROR';
   }  
 
-  return 1;
 }
-  
+
+1;

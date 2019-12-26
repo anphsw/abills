@@ -9,7 +9,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-unshift(@INC, '../Abills/'); #/usr/abills/Abills/
+unshift(@INC, '/usr/abills/', '/usr/abills/Abills/'); #/usr/abills/Abills/
 
 our $html = Abills::HTML->new( { CONF => \%conf } );
 our (

@@ -385,7 +385,7 @@ sub internet_pools_report {
   my $find_pool_for_address = sub {
     my $ip_addr_num = shift;
     foreach my $pool ( @{$pools_list} ) {
-      return $pool->{id} if ( $ip_addr_num >= $pool->{ip} && $ip_addr_num <= $pool->{last_ip_num} );
+      return $pool->{id} if ( $ip_addr_num >= $pool->{ip} && $ip_addr_num < $pool->{last_ip_num} );
     }
 
     return 0;

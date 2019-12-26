@@ -22,44 +22,38 @@
         <div class='box-header with-border'><h4 class='box-title'>_{REGISTRATION}_</h4></div>
         <div class='box-body'>
             %CHECKED_ADDRESS_MESSAGE%
-            <div class='form-group'>
-                <label class='control-label col-md-3' for='LANGUAGE'>_{LANGUAGE}_</label>
-                <div class='col-md-9'>
-                    %SEL_LANGUAGE%
-                </div>
-            </div>
 
             <div class='form-group'>
-                <label class='control-label required col-md-3' for='LOGIN'>_{LOGIN}_</label>
-                <div class='col-md-9'>
+                <label class='control-label required col-md-4 col-sm-3' for='LOGIN'>_{LOGIN}_:</label>
+                <div class='col-md-8 col-sm-9'>
                     <input id='LOGIN' name='LOGIN' value='%LOGIN%' required placeholder='_{LOGIN}_' class='form-control' type='text'>
                 </div>
             </div>
 
             <div class='form-group'>
-                <label class='control-label required col-md-3' for='FIO'>_{FIO}_</label>
-                <div class='col-md-9'>
+                <label class='control-label required col-md-4 col-sm-3' for='FIO'>_{FIO}_:</label>
+                <div class='col-md-8 col-sm-9'>
                     <input id='FIO' name='FIO' value='%FIO%' required placeholder='_{FIO}_' class='form-control' type='text'>
                 </div>
             </div>
 
             <div class='form-group'>
-                <label class='control-label required col-md-3' for='PHONE'>_{PHONE}_</label>
-                <div class='col-md-9'>
+                <label class='control-label required col-md-4 col-sm-3' for='PHONE'>_{PHONE}_:</label>
+                <div class='col-md-8 col-sm-3'>
                     <input id='FIO' name='PHONE' value='%PHONE%' required placeholder='_{PHONE}_' class='form-control' type='text'>
                 </div>
             </div>
 
             <div class='form-group'>
-                <label class='control-label col-md-3' for='EMAIL'>E-MAIL</label>
-                <div class='col-md-9'>
+                <label class='control-label col-md-4 col-sm-3' for='EMAIL'>E-MAIL:</label>
+                <div class='col-md-8 col-sm-9'>
                     <input id='FIO' name='EMAIL' value='%EMAIL%' placeholder='E-mail' class='form-control' type='text'>
                 </div>
             </div>
 
             <div class='form-group'>
-                <label class='control-label col-md-3' for='TP_ID'>_{TARIF_PLAN}_</label>
-                <div class='col-md-9'>
+                <label class='control-label col-md-4 col-sm-3' for='TP_ID'>_{TARIF_PLAN}_:</label>
+                <div class='col-md-8 col-sm-9'>
                     %TP_SEL%
                 </div>
             </div>

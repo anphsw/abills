@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 use JSON;
-use Encode qw/encode_utf8/;
+use Encode qw/encode_utf8 decode_utf8/;
 
 our (
   %conf,
@@ -36,17 +36,19 @@ use Contacts;
 use API::Botapi;
 use db::Telegram;
 use Buttons;
+use Tauth;
 
 our $db = Abills::SQL->connect( @conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
-our $admin   = Admins->new($db, \%conf);
-my $Contacts = Contacts->new($db, $admin, \%conf);
-my $Users    = Users->new($db, $admin, \%conf);
-my $Bot_db   = Telegram->new($db, $admin, \%conf);
+our $admin    = Admins->new($db, \%conf);
+our $Bot_db   = Telegram->new($db, $admin, \%conf);
+our $Users    = Users->new($db, $admin, \%conf);
+our $Contacts = Contacts->new($db, $admin, \%conf);
 
 my $message = ();
 my $fn_data = "";
-my $debug = 0;
+my $debug   = 0;
+our $Bot = ();
 
 print "Content-type:text/html\n\n";
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/ if ($ENV{'REQUEST_METHOD'});
@@ -54,6 +56,7 @@ if (!$ENV{'REQUEST_METHOD'}) {
   $message->{text} = join(' ', @ARGV);
   $message->{chat}{id} = 403536999;
   $debug = 1;
+  $Bot = Botapi->new($conf{TELEGRAM_TOKEN}, 403536999, 'curl');
 }
 elsif ($ENV{'REQUEST_METHOD'} eq "POST") {
   my $buffer = '';
@@ -68,13 +71,22 @@ elsif ($ENV{'REQUEST_METHOD'} eq "POST") {
   else {
     $message = $hash->{message};
   }
+  $Bot = Botapi->new($conf{TELEGRAM_TOKEN}, $message->{chat}{id}, ($conf{FILE_CURL} || 'curl'));
 }
 else {
-  print "Если вы видите это сообщение, вебхук настроен верно.";
-  exit 0;
+  my ($command) = $ENV{'QUERY_STRING'} =~ m/command=([^&]*)/;
+  $command //= '';
+  $command =~ tr/+/ /;
+  $command =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+  $message->{text} = decode_utf8($command);
+  $message->{chat}{id} = 'test_id';
+  ($fn_data) = $ENV{'QUERY_STRING'} =~ m/fn_data=([^&]*)/;
+  $fn_data =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+  $fn_data =~ decode_utf8($fn_data);
+  require API::Webtest;
+  $Bot = Webtest->new();
 }
 
-my $Bot = Botapi->new($conf{TELEGRAM_TOKEN}, $message->{chat}{id}, ($conf{FILE_CURL} || 'curl'));
 my %buttons_list = %{buttons_list({bot => $Bot, bot_db => $Bot_db})};
 my %commands_list = reverse %buttons_list;
 
@@ -87,27 +99,39 @@ exit 1;
 =cut
 #**********************************************************
 sub message_process {
-  #Subscribe
-  if ($message->{text} =~ m/^\/start/) {
-    subscribe();
-    main_menu();
+  my $aid = get_aid($message->{chat}{id});
+  if ($aid) {
+    admin_menu();
     return 1;
   }
-  #Auth
-  my $uid = get_uid();
-  unless ($uid) {
-    $Bot->send_message({
-      text => "Для подключения телеграм-бота нажмите на кнопку 'Подписаться' в кабинете пользователя.",
-    });
-    exit 0;
+
+  my $uid = get_uid($message->{chat}{id}); 
+  if (!$uid) {
+    if ($message->{text} =~ m/^\/start/) {
+      subscribe($message);
+      main_menu();     
+    }
+    elsif ($message->{contact}) {
+      if ($message->{contact}{user_id} eq $message->{chat}{id}) {
+        subscribe_phone($message);
+        main_menu();
+      }
+    }
+    else {
+      subscribe_info();
+    }
+    return 1;
   }
 
   $Bot->{uid} = $uid;
-  my $text = encode_utf8($message->{text});
+  my $text = $message->{text} ? encode_utf8($message->{text}) : "";
 
   my $info = $Bot_db->info($uid);
 
   if ($Bot_db->{TOTAL} > 0 && $info->{button} && $info->{fn}) {
+    #Игнорирование нажатия старых инлайн-кнопок.
+    return 1 if ($fn_data);
+    
     my $ret = telegram_button_fn({
       button    => $info->{button},
       fn        => $info->{fn},
@@ -118,10 +142,11 @@ sub message_process {
       message   => $message,
     });
 
-    main_menu() unless($ret);
+    main_menu() if(!$ret);
     return 1;
   }
   elsif ($fn_data) {
+    $fn_data =~ s/MSGS:REPLY:/Msgs_reply&reply&/;
     my @fn_argv = split('&', $fn_data);
     telegram_button_fn({
       button => $fn_argv[0],
@@ -140,7 +165,7 @@ sub message_process {
       bot_db => $Bot_db,
     });
   }
-  elsif ($buttons_list{Send_message} && length($message->{text}) >= 10) {
+  elsif ($buttons_list{Send_message} && length($message->{text}) >= 20) {
     telegram_button_fn({
       button => 'Send_message',
       fn     => 'simple_msgs',
@@ -153,62 +178,6 @@ sub message_process {
   else {
     main_menu();
   }
-  return 1;
-}
-
-#**********************************************************
-=head2 subscribe()
-  
-=cut
-#**********************************************************
-sub subscribe {
-  my ($type, $sid) = $message->{text} =~ m/^\/start ([ua])_([a-zA-Z0-9]+)/;
-
-  if ($type && $sid && $type eq 'u') {
-    my $uid = $Users->web_session_find($sid);
-    if ($uid) {
-      my $list = $Contacts->contacts_list({
-        TYPE  => 6,
-        VALUE => $message->{chat}{id},
-      });
-      
-      if ( !$Contacts->{TOTAL} || scalar (@{$list}) == 0 ) {
-        $Contacts->contacts_add({
-          UID      => $uid,
-          TYPE_ID  => 6,
-          VALUE    => $message->{chat}{id},
-          PRIORITY => 0,
-        });
-      }
-    }
-  }
-  elsif ($type && $sid && $type eq 'a') {
-    $admin->online_info({SID => $sid});
-    my $aid = $admin->{AID};
-    if ( $aid ) {
-      my $list = $admin->admins_contacts_list({
-        TYPE  => 6,
-        VALUE => $message->{chat}{id},
-      });
-      
-      if ( !$admin->{TOTAL} || scalar (@{$list}) == 0 ) {
-        $admin->admin_contacts_add({
-          AID      => $aid,
-          TYPE_ID  => 6,
-          VALUE    => $message->{chat}{id},
-          PRIORITY => 0,
-        });
-      }
-    }
-    exit 0;
-  }
-  else {
-    $Bot->send_message({
-      text => "Для подключения телеграм-бота нажмите на кнопку 'Подписаться' в кабинете пользователя.",
-    });
-    exit 0;
-  }
-
   return 1;
 }
 
@@ -242,23 +211,17 @@ sub main_menu {
 }
 
 #**********************************************************
-=head2 get_uid($chat_id)
-  
+=head2 admin_menu()  
+
 =cut
 #**********************************************************
-sub get_uid {
-  my $chat_id = $message->{chat}{id};
-  my $list = $Contacts->contacts_list({
-    TYPE  => 6,
-    VALUE => $message->{chat}{id},
-    UID   => '_SHOW',
+sub admin_menu {
+
+  $Bot->send_message({
+    text => 'Hello admin',
   });
 
-  # _bp('contacts list by chat_id', $list, {TO_CONSOLE => 1}) if ($debug);
-
-  return 0 if ($Contacts->{TOTAL} < 1);
-
-  return $list->[0]->{uid};
+  return 1;
 }
 
 1;

@@ -121,6 +121,8 @@ sub info {
    tp.priority AS tp_priority,
    tp.activate_price AS tp_activate_price,
    tp.age AS tp_age,
+   tp.activate_price AS tp_activate_price,
+   tp.change_price AS tp_change_price,
    tp.filter_id AS tp_filter_id,
    tp.period_alignment AS tp_period_alignment,
    tp.fixed_fees_day,
@@ -527,6 +529,7 @@ sub list {
       ['TP_COMMENTS',       'STR', 'tp.comments', 'tp.comments AS tp_comments' ],
       ['TP_CREDIT',         'INT', 'tp.credit',       'tp.credit AS tp_credit' ],
       ['TP_FIXED_FEES_DAY', 'INT', 'tp.fixed_fees_day', 'tp.fixed_fees_day AS tp_fixed_fees_day' ],
+      ['TP_REDUCTION_FEE',  'INT', 'tp.reduction_fee', 'tp.reduction_fee AS tp_reduction_fee' ],
       ['ONLINE',            'INT', 'c.uid',                  'c.uid AS online' ],
       ['ONLINE_IP',         'INT', 'INET_NTOA(c.framed_ip_address)', 'INET_NTOA(c.framed_ip_address) AS online_ip' ],
       ['ONLINE_DURATION',   'INT', 'c.uid',  'IF(c.lupdated>UNIX_TIMESTAMP(c.started), c.lupdated - UNIX_TIMESTAMP(c.started), 0) AS online_duration' ],
@@ -870,7 +873,16 @@ sub get_speed {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'tp.tp_id, tt.id';
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  if ($attr->{LOGIN}) {
+  if ($attr->{SERVICE_ID}) {
+    push @WHERE_RULES, @{ $self->search_expr($attr->{SERVICE_ID}, 'INT', 'internet.id') };
+
+    $EXT_TABLE .= "LEFT JOIN internet_main internet ON (internet.tp_id = tp.tp_id)
+    LEFT JOIN users u ON (internet.uid = u.uid)";
+
+    $self->{SEARCH_FIELDS} = ', internet.speed, u.activate, internet.netmask, internet.join_service, internet.uid';
+    $self->{SEARCH_FIELDS_COUNT} += 3;
+  }
+  elsif ($attr->{LOGIN}) {
     push @WHERE_RULES, @{ $self->search_expr($attr->{LOGIN}, 'STR', 'u.id') };
     $EXT_TABLE .= "LEFT JOIN internet_main internet ON (internet.tp_id = tp.tp_id )
     LEFT JOIN users u ON (internet.uid = u.uid )";
@@ -1133,6 +1145,50 @@ sub del_user_ippool {
 
   $self->query_del('internet_users_pool', {}, $attr);
   return $self;
+}
+
+#*******************************************************************
+=head2 get_free_static_ip()
+
+  Arguments:
+    FIRST
+    LAST
+    COUNT
+
+=cut
+#*******************************************************************
+sub get_free_static_ip {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT
+      (? + TWO_1.SeqValue + TWO_2.SeqValue + TWO_4.SeqValue + TWO_8.SeqValue + TWO_16.SeqValue + TWO_32.SeqValue + TWO_64.SeqValue + TWO_128.SeqValue + TWO_256.SeqValue + TWO_512.SeqValue + TWO_1024.SeqValue + TWO_2048.SeqValue + TWO_4096.SeqValue + TWO_8192.SeqValue + TWO_16384.SeqValue + TWO_32768.SeqValue+ TWO_65536.SeqValue) as SeqValue
+    FROM
+      (SELECT 0 SeqValue UNION ALL SELECT 1 SeqValue) TWO_1
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 2 SeqValue) TWO_2
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 4 SeqValue) TWO_4
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 8 SeqValue) TWO_8
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 16 SeqValue) TWO_16
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 32 SeqValue) TWO_32
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 64 SeqValue) TWO_64
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 128 SeqValue) TWO_128
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 256 SeqValue) TWO_256
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 512 SeqValue) TWO_512
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 1024 SeqValue) TWO_1024
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 2048 SeqValue) TWO_2048
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 4096 SeqValue) TWO_4096
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 8192 SeqValue) TWO_8192
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 16384 SeqValue) TWO_16384
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 32768 SeqValue) TWO_32768
+      CROSS JOIN (SELECT 0 SeqValue UNION ALL SELECT 65536 SeqValue) TWO_65536
+    HAVING SeqValue NOT IN (SELECT ip from internet_main)
+    AND SeqValue < ?
+    ORDER BY 1 LIMIT ?;",
+    undef, 
+    { Bind => [$attr->{FIRST}, $attr->{LAST}, $attr->{COUNT}]}
+  );
+
+  return $self->{list} || [ ];
 }
 
 1

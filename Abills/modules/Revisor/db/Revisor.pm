@@ -7,7 +7,7 @@ package Revisor;
 =cut
 
 use strict;
-use parent 'main';
+use parent 'dbcore';
 my $MODULE = 'Revisor';
 
 my Admins $admin;
@@ -69,8 +69,8 @@ sub user_list {
   );
   
   my $EXT_TABLES = $self->{EXT_TABLES} || q{};
-  
-  $self->query2(
+
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} u.uid
    FROM users u
    $EXT_TABLES
@@ -89,7 +89,7 @@ sub user_list {
   my $list = $self->{list};
   
    if ( $self->{TOTAL} >= 0 ) {
-    $self->query2("SELECT COUNT(u.uid) AS total FROM users u $EXT_TABLES $WHERE", undef, { INFO => 1 });
+    $self->query("SELECT COUNT(u.uid) AS total FROM users u $EXT_TABLES $WHERE", undef, { INFO => 1 });
   }
   
   return $list;
@@ -130,7 +130,7 @@ sub revisor_dv_list {
   );
   
   
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} dv.uid
     FROM dv_main dv
     $WHERE
@@ -182,7 +182,7 @@ sub revisor_internet_list {
   );
   
   
-  $self->query2(
+  $self->query(
     "SELECT $self->{SEARCH_FIELDS} in.uid
     FROM internet_main in
     $WHERE

@@ -94,8 +94,6 @@ $lang{ERROR_FILE} = "Couldn't open: ";
 $lang{EDIT_SUCCESS} = 'Template changed';
 $lang{INVALID_JSON} = 'Invalid Json File';
 $lang{FILES_TITLE} = 'Templates';
-$lang{FIELD} = 'field';
-$lang{GROUP} = 'group';
 $lang{FILE_REMOVED} = 'File removed';
 $lang{FILE_NOT_REMOVED} = "File isn't removed";
 $lang{JSON_CONF} = 'SNMP Templates';
@@ -103,7 +101,7 @@ $lang{JSON_CONF} = 'SNMP Templates';
 $lang{GOOD_SIGNAL} = 'Good signal';
 $lang{BAD_SIGNAL} = 'Bad signal';
 $lang{WORTH_SIGNAL} = 'Worth signal';
-$lang{BUSY} = 'fill in';
+$lang{OLT_BUSY} = 'fill in';
 
 $lang{ONU_PROFILE} = 'Profile';
 $lang{CALCULATOR} = 'Calculator';
@@ -114,4 +112,11 @@ $lang{DIVIDER} = 'Divider';
 $lang{COUPLER} = 'Coupler';
 $lang{PASS} = 'Pass';
 $lang{BEND} = 'Bend';
+
+$lang{SNMP_INFO} = 'SNMP Information';
+$lang{PORT_UPTIME} = 'Port uptime';
+
+$lang{NO_ZABBIX_INFO} = 'Zabbix hostid and $conf{ZABBIX_URL} required';
+$lang{DUPLICATE_MAC} = 'Duplicate MAC';
+
 1

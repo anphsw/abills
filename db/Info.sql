@@ -7,9 +7,8 @@ CREATE TABLE IF NOT EXISTS `info_info`
   `media_id` SMALLINT(6) DEFAULT 0          NOT NULL,
   `location_id` INT(11) NOT NULL DEFAULT '0',
   `date` DATETIME NOT NULL,
-  `admin_id` INT NOT NULL,
+  `admin_id` SMALLINT NOT NULL DEFAULT 0,
   `document_id` SMALLINT(6) NOT NULL DEFAULT '0',
-
   PRIMARY KEY `id` (`id`)
 )
   ENGINE = InnoDB
@@ -32,7 +31,7 @@ CREATE TABLE IF NOT EXISTS `info_media`
 CREATE TABLE IF NOT EXISTS `info_comments`
 (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `text` VARCHAR(300) NOT NULL,
+  `text` VARCHAR(300) NOT NULL DEFAULT '',
   PRIMARY KEY `id` (`id`)
 )
   ENGINE = InnoDB
@@ -41,9 +40,9 @@ CREATE TABLE IF NOT EXISTS `info_comments`
 
 CREATE TABLE IF NOT EXISTS `info_locations` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `timestamp` DATETIME NOT NULL DEFAULT '0000-00-00',
-  `coordx` DOUBLE NOT NULL,
-  `coordy` DOUBLE NOT NULL,
+  `timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `coordx` DOUBLE NOT NULL DEFAULT 0,
+  `coordy` DOUBLE NOT NULL DEFAULT 0,
   `comment` TEXT NOT NULL,
   PRIMARY KEY (`id`)
 )
@@ -55,10 +54,10 @@ CREATE TABLE IF NOT EXISTS `info_locations` (
 CREATE TABLE IF NOT EXISTS `info_documents`
 (
   `id` SMALLINT(6) PRIMARY KEY AUTO_INCREMENT,
-  `filename` VARCHAR(50) NOT NULL,
+  `filename` VARCHAR(50) NOT NULL DEFAULT '',
   `real_name` TEXT,
   `file` BLOB NULL,
-  `content_type` VARCHAR(30) NOT NULL,
+  `content_type` VARCHAR(30) NOT NULL DEFAULT '',
   `content_size` VARCHAR(30) DEFAULT '0' NOT NULL
 )
   ENGINE = InnoDB

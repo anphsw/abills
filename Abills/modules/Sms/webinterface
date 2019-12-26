@@ -70,17 +70,20 @@ sub sms_service_connect {
   my $Sms_service;
 
   my @sms_systems = (
-    { SMS_BROKER_LOGIN       => 'Sms_Broker' },
-    { SMS_TXTLOCAL_APIKEY    => 'Txtlocal'   },
-    { SMS_SMSC_USER          => 'Smsc'       },
-    { SMS_LITTLESMS_USER     => 'Littlesms'  },
-    { SMS_EPOCHTASMS_OPENKEY => 'Epochtasms' },
-    { SMS_TURBOSMS_PASSWD    => 'Turbosms'   },
-    { SMS_JASMIN_USER        => 'Jasmin'     },
-    { SMS_SMSEAGLE_USER      => 'Smseagle'   },
-    { SMS_BULKSMS_LOGIN      => 'Bulksms'    },
-    { SMS_IDM_LOGIN          => 'IDM'        },
-    { SMS_TERRA_USER         => 'Sms_terra'  },
+    { SMS_PLAYMOBILE_LOGIN   => 'Playmobile'            },
+    { SMS_CMD                => 'Cmd'                   },
+    { SMS_TXTLOCAL_APIKEY    => 'Txtlocal'              },
+    { SMS_SMSC_USER          => 'Smsc'                  },
+    { SMS_LITTLESMS_USER     => 'Littlesms'             },
+    { SMS_EPOCHTASMS_OPENKEY => 'Epochtasms'            },
+    { SMS_TURBOSMS_PASSWD    => 'Turbosms'              },
+    { SMS_JASMIN_USER        => 'Jasmin'                },
+    { SMS_SMSEAGLE_USER      => 'Smseagle'              },
+    { SMS_BULKSMS_LOGIN      => 'Bulksms'               },
+    { SMS_IDM_LOGIN          => 'IDM'                   },
+    { SMS_TERRA_USER         => 'Sms_terra'             },
+    { SMS_UNIVERSAL_URL      => 'Universal_sms_module'  },
+    { SMS_ESKIZ_URL          => 'Eskizsms'              },
   );
 
   foreach my $sms_system ( @sms_systems ) {
@@ -171,7 +174,7 @@ sub sms_send {
       return 0;
     }
   }
-  
+
   if ($attr->{UID} && $conf{SMS_LIMIT}) {
     my $uid_sms_list = $Sms->list({ 
       UID      => $attr->{UID},
@@ -194,14 +197,12 @@ sub sms_send {
     return 0;
   }
 
-  $Sms_service->send_sms(
-    {
-      NUMBERS => $numbers,
-      NUMBER  => $attr->{NUMBER},
-      MESSAGE => (($conf{TURBOSMS_MESSAGE_HEADER}) ? $conf{TURBOSMS_MESSAGE_HEADER}.' ' : '') . $attr->{MESSAGE},
-      DEBUG   => $attr->{DEBUG} || $conf{SMS_DEBUG} || 0
-    }
-  );
+  $Sms_service->send_sms({
+    NUMBERS => $numbers,
+    NUMBER  => $attr->{NUMBER},
+    MESSAGE => (($conf{TURBOSMS_MESSAGE_HEADER}) ? $conf{TURBOSMS_MESSAGE_HEADER}.' ' : '') . $attr->{MESSAGE},
+    DEBUG   => $attr->{DEBUG} || $conf{SMS_DEBUG} || 0
+  });
 
   if ($Sms_service->{errno}) {
     if ($attr->{QUITE}) {
@@ -336,7 +337,7 @@ sub sms_reports {
 
   if (! $FORM{desc} && ! $FORM{sort}) {
     $LIST_PARAMS{DESC} = 'DESC';
-    $LIST_PARAMS{SORT} = 1;
+    $LIST_PARAMS{SORT} = 2;
   }
 
   if($FORM{search_form}) {
@@ -452,12 +453,12 @@ sub sms_reports {
       #FUNCTION_FIELDS => 'change,del',
       #SKIP_USER_TITLE => 1,
       SELECT_VALUE  => {
-        status => \%sms_status,
+        sms_status => \%sms_status,
       },
       EXT_TITLES => {
         datetime      => $lang{DATE},
-        status        => $lang{STATUS},
-        phone         => $lang{PHONE},
+        sms_status    => "SMS $lang{STATUS}",
+        sms_phone     => "SMS $lang{PHONE}",
         message       => $lang{MESSAGE},
         ext_id        => 'EXT ID',
         ext_status    => 'EXT status',

@@ -1,6 +1,8 @@
 #!/usr/bin/perl
 use strict;
 use warnings FATAL => 'all';
+use Time::Piece;
+use Time::Seconds;
 
 BEGIN {
   our $Bin;
@@ -25,10 +27,11 @@ use Abills::Base qw(_bp);
 use POSIX qw(strftime);
 use Log qw(log_add log_print);
 use Iptv;
+use Shedule;
 use Abills::Sender::Core;
-use Iptv;
 require Abills::Misc;
 require Iptv::User_portal;
+use JSON qw/decode_json encode_json/;
 
 our $DATE = strftime("%Y-%m-%d", localtime(time));
 our $TIME = strftime("%H:%M:%S", localtime(time));
@@ -53,6 +56,11 @@ if (-f $libpath . "/language/$html->{language}.pl") {
 
 my $Iptv = Iptv->new($db, $admin, \%conf);
 my $Log = Log->new($db, \%conf);
+my $Tariff = Tariffs->new($db, $admin, \%conf);
+my $Shedule = Shedule->new($db, $admin, \%conf);
+
+iptv_check_service();
+exit;
 
 if ($FORM{type}) {
   print "Content-type:text/html\n\n";
@@ -474,9 +482,9 @@ sub transfer_service {
     else {
       require Tariffs;
       Tariffs->import();
-      my $Tariffs = Tariffs->new($db, \%conf, $admin);
+      my $Tariff = Tariffs->new($db, \%conf, $admin);
 
-      $tarrifs = $Tariffs->list({
+      $tarrifs = $Tariff->list({
         NAME        => "_SHOW",
         ACTIV_PRICE => "_SHOW",
         MODULE      => 'Iptv',
@@ -522,7 +530,7 @@ sub smartup_activation {
   my %result;
   my $code = 10000000 + int rand(89999999);
   my $exist_device = 0;
-  my $Users  = Users->new($db, $admin, \%conf);
+  my $Users = Users->new($db, $admin, \%conf);
   my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
   my $device = $Iptv->device_list({
@@ -1120,7 +1128,7 @@ sub _ip_user_search {
         PAGE_ROWS => 1000000
       });
 
-      if (($logins_list->[0]{PHONE} || $logins_list->[0]{phone})&& $new_device && $code) {
+      if (($logins_list->[0]{PHONE} || $logins_list->[0]{phone}) && $new_device && $code) {
         $Sender->send_message({
           TO_ADDRESS  => $logins_list->[0]{PHONE} || $logins_list->[0]{phone},
           MESSAGE     => $code,
@@ -1165,7 +1173,7 @@ sub _ip_user_search {
           PAGE_ROWS => 1000000
         });
 
-        if (($logins_list->[0]{PHONE} || $logins_list->[0]{phone})&& $new_device && $code) {
+        if (($logins_list->[0]{PHONE} || $logins_list->[0]{phone}) && $new_device && $code) {
           $Sender->send_message({
             TO_ADDRESS  => $logins_list->[0]{PHONE} || $logins_list->[0]{phone},
             MESSAGE     => $code,
@@ -1213,7 +1221,7 @@ sub _ip_user_search {
         PAGE_ROWS => 1000000
       });
 
-      if (($logins_list->[0]{PHONE} || $logins_list->[0]{phone})&& $new_device && $code) {
+      if (($logins_list->[0]{PHONE} || $logins_list->[0]{phone}) && $new_device && $code) {
         $Sender->send_message({
           TO_ADDRESS  => $logins_list->[0]{PHONE} || $logins_list->[0]{phone},
           MESSAGE     => $code,
@@ -1231,6 +1239,596 @@ sub _ip_user_search {
 
   return 0;
 }
+
+#**********************************************************
+=head2 iptv_check_service($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub iptv_check_service {
+
+  print "Content-Type: text/html\n\n";
+  my $extra_params = $Iptv->extra_params_list({
+    SERVICE_ID => '_SHOW',
+    GROUP_ID   => '_SHOW',
+    TP_ID      => '_SHOW',
+    SMS_TEXT   => '_SHOW',
+    SEND_SMS   => '_SHOW',
+    IP_MAC     => '_SHOW',
+    BALANCE    => '_SHOW',
+    MAX_DEVICE => '_SHOW',
+    PIN        => '_SHOW',
+  });
+
+  return 0 if !$Iptv->{TOTAL};
+
+  foreach my $param (@{$extra_params}) {
+    if ($param->{SERVICE_ID} && check_ip($ENV{REMOTE_ADDR}, "$param->{IP_MAC}")) {
+      my $function_name = "iptv_" . ($param->{SERVICE_MODULE} || "");
+      if (defined(&{$function_name})) {
+        &{\&{$function_name}}($param);
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 iptv_24tv($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub iptv_24tv {
+  my ($attr) = @_;
+
+  my (@params) = split(/&/, $ENV{QUERY_STRING});
+  foreach my $param (@params) {
+    my ($key, $value) = split(/=/, $param);
+    $FORM{$key} = $value if $key;
+  }
+
+  if ($FORM{ip} && $FORM{phone} && $FORM{mbr_id}) {
+    _iptv_24tv_auth($attr);
+    return 1;
+  }
+
+  if ($FORM{trf_id}) {
+    _iptv_24tv_packet($attr);
+    return 1;
+  }
+
+  if ($FORM{user_id} && $FORM{sub_id}) {
+    _iptv_24tv_del_sub($attr);
+    return 1;
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _iptv_24tv_auth($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _iptv_24tv_auth {
+  my ($attr) = @_;
+
+  my $Internet = Internet->new($db, $admin, \%conf);
+  my $user_info = $Internet->list({
+    ONLINE_IP  => $FORM{ip},
+    UID        => '_SHOW',
+    COLS_NAME  => 1,
+    COLS_UPPER => 1,
+  });
+
+  if ($Internet->{TOTAL}) {
+    print _json_former({ "user_id" => $user_info->[0]{uid}, });
+    return 1;
+  }
+
+  print _json_former({
+    "status" => -1,
+    "err"    => -1,
+    "errmsg" => "Пользователь не найден"
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _iptv_24tv_packet($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _iptv_24tv_packet {
+  my ($attr) = @_;
+
+  load_module('Iptv', $html);
+  my $params = decode_json($FORM{__BUFFER});
+
+  #  Get user subscribe info
+  my $user_info = $Iptv->user_list({
+    UID          => $params->{user}{provider_uid},
+    SERVICE_ID   => $attr->{SERVICE_ID},
+    TP_FILTER    => '_SHOW',
+    SUBSCRIBE_ID => $params->{user}{id},
+    TP_ID        => '_SHOW',
+    MONTH_FEE    => '_SHOW',
+    COLS_NAME    => 1,
+    COLS_UPPER   => 1,
+  });
+
+  _iptv_24tv_print_err({ message => "Добаление дополнительного пакета возможно только при наличии основного пакета." }) if (!$Iptv->{TOTAL} && !$params->{packet}{is_base});
+  return 0 if (!$Iptv->{TOTAL} && !$params->{packet}{is_base});
+
+  my $Tv_service = tv_load_service($attr->{SERVICE_MODULE}, { SERVICE_ID => $attr->{SERVICE_ID} });
+  if (!$Tv_service) {
+    _iptv_24tv_print_err({ message => "Ошибка при подписке" });
+    return 0;
+  }
+
+  if ($params->{packet}{is_base}) {
+    _iptv_base_tariffs({
+      TV_SERVICE        => $Tv_service,
+      ID                => $Iptv->{TOTAL} ? $user_info->[0]{ID} : 0,
+      FILTER_ID         => $params->{packet}{id},
+      UID               => $params->{user}{provider_uid},
+      SUBSCRIBE_ID      => $params->{user}{id},
+      SERVICE_ID        => $attr->{SERVICE_ID},
+      CURRENT_MONTH_FEE => $Iptv->{TOTAL} ? $user_info->[0]{MONTH_FEE} : 0,
+      TP_ID             => $user_info->[0]{TP_ID},
+    });
+    return 1;
+  }
+
+  if (!$params->{packet}{is_base}) {
+    _iptv_additional_tariffs({
+      TV_SERVICE   => $Tv_service,
+      UID          => $params->{user}{provider_uid},
+      IDS          => $params->{packet}{id},
+      TP_ID        => $user_info->[0]{TP_ID},
+      ID           => $user_info->[0]{ID},
+      SUBSCRIBE_ID => $params->{user}{id},
+    });
+    return 1;
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _iptv_24tv_print_err($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _iptv_24tv_print_err {
+  my ($attr) = @_;
+
+  print _json_former({
+    "status" => -1,
+    "err"    => -1,
+    "errmsg" => $attr->{message}
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _iptv_24tv_print_err($attr)
+
+  Arguments:
+    $attr->{INSERT_ID}
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _iptv_get_service_fee {
+  my ($attr) = @_;
+
+  $Iptv->user_info($attr->{INSERT_ID});
+
+  my %users_services = ();
+  my %FEES_DSC = (
+    MODULE            => "Iptv",
+    SERVICE_NAME      => $lang{TV},
+    TP_ID             => $Iptv->{TP_NUM},
+    TP_NAME           => $Iptv->{TP_NAME},
+    FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
+  );
+
+  push @{$users_services{$Iptv->{UID}}}, {
+    SUM       => $Iptv->{MONTH_FEE},
+    DESCRIBE  => fees_dsc_former(\%FEES_DSC),
+    FILTER_ID => $Iptv->{TP_FILTER_ID},
+    ID        => $Iptv->{ID}
+  };
+
+  $Iptv->{REDUCTION} = $Iptv->{REDUCTION_FEE} || 0;
+  return get_service_fee($Iptv, \%users_services, {
+    DATE             => $DATE,
+    METHOD           => 1,
+    PERIOD_ALIGNMENT => $Iptv->{PERIOD_ALIGNMENT},
+  });
+}
+
+#**********************************************************
+=head2 _iptv_additional_tariffs($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _iptv_additional_tariffs {
+  my ($attr) = @_;
+
+  my $ti_list = $Tariff->ti_list({ TP_ID => $attr->{TP_ID} });
+
+  if (!$Tariff->{TOTAL}) {
+    _iptv_24tv_print_err({ message => "Тариф не найден (основной)" });
+    return 0;
+  }
+
+  my $user_channels_list = $Iptv->user_channels_list({
+    ID        => $attr->{ID},
+    TP_ID     => $attr->{TP_ID},
+    COLS_NAME => 1,
+  });
+
+  my $channels = $Iptv->channel_ti_list({
+    COLS_NAME        => 1,
+    USER_INTERVAL_ID => $ti_list->[0][0],
+    FILTER_ID        => $attr->{IDS},
+    ID               => '_SHOW',
+  });
+
+  if (!$Iptv->{TOTAL}) {
+    _iptv_24tv_print_err({ message => "Тариф не найден (дополнительный)" });
+    return 0;
+  }
+
+  my $Tv_service = $attr->{TV_SERVICE};
+
+  if ($Tv_service && $Tv_service->can('user_sub')) {
+    $Tv_service->{debug} = 0;
+    my $result = $Tv_service->user_sub({
+      UID => $attr->{SUBSCRIBE_ID},
+      TP  => $attr->{IDS}
+    });
+
+    if (ref($result) eq 'HASH' && $result->{error}) {
+      _iptv_24tv_print_err({ message => "Ошибка при подписке" });
+      return 0;
+    }
+
+    $Iptv->user_channels({
+      ID    => $attr->{ID},
+      TP_ID => $attr->{TP_ID},
+      IDS   => $channels->[0]{channel_id} || $channels->[0]{channel_id}
+    });
+
+    my %users_services = ();
+    $Iptv->user_info($attr->{ID});
+    if (!$Iptv->{errno}) {
+      iptv_channels_fees({
+        UID            => $Iptv->{UID},
+        TP_ID          => $Iptv->{TP_ID},
+        TP_NUM         => $Iptv->{TP_NUM},
+        TP             => $Iptv,
+        USERS_SERVICES => \%users_services,
+      });
+
+      my $ulist_main = $Iptv->user_list({
+        ID           => $attr->{ID},
+        LOGIN        => '_SHOW',
+        SUBSCRIBE_ID => '_SHOW',
+        DEPOSIT      => '_SHOW',
+        CREDIT       => '_SHOW',
+        BILL_ID      => '_SHOW',
+        REDUCTION    => '_SHOW',
+        TP_ID        => $attr->{TP_ID},
+        COLS_NAME    => 1,
+      });
+
+      if ($Iptv->{TOTAL}) {
+        my %user = (
+          ID           => $ulist_main->[0]{id},
+          LOGIN        => $ulist_main->[0]{login},
+          UID          => $ulist_main->[0]{uid},
+          BILL_ID      => $ulist_main->[0]{bill_id},
+          DEPOSIT      => $ulist_main->[0]{deposit},
+          CREDIT       => $ulist_main->[0]{credit},
+          REDUCTION    => $ulist_main->[0]{reduction} || 0,
+          IPTV_STATUS  => $ulist_main->[0]{service_status},
+          SUBSCRIBE_ID => $ulist_main->[0]{subscribe_id},
+        );
+
+        get_service_fee(\%user, \%users_services, {
+          DATE   => $DATE,
+          METHOD => 1,
+        });
+      }
+    }
+
+    my $tariffs = "";
+    foreach my $packet (@{$user_channels_list}) {
+      $tariffs .= ($packet->{channel_id} || $packet->{channel_id}) . ", ";
+    }
+
+    $tariffs .= $channels->[0]{channel_id};
+
+    $Iptv->user_channels({
+      ID    => $attr->{ID},
+      TP_ID => $attr->{TP_ID},
+      IDS   => $tariffs
+    });
+
+    print _json_former({ "status" => 1 });
+    return 1;
+  }
+
+  _iptv_24tv_print_err({ message => "Ошибка при подписке" });
+  return 0;
+}
+
+#**********************************************************
+=head2 _iptv_base_tariffs($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _iptv_base_tariffs {
+  my ($attr) = @_;
+
+  my $tariff_info = $Tariff->list({
+    NAME       => '_SHOW',
+    TP_ID      => '_SHOW',
+    MONTH_FEE  => '_SHOW',
+    FILTER_ID  => $attr->{FILTER_ID},
+    SERVICE_ID => $attr->{SERVICE_ID},
+    COLS_NAME  => 1,
+    COLS_UPPER => 1,
+  });
+
+  if (!$Tariff->{TOTAL}) {
+    _iptv_24tv_print_err({ message => "Тариф не найден" });
+    return 0;
+  }
+
+  my $more_expensive = $attr->{CURRENT_MONTH_FEE} > $tariff_info->[0]{month_fee} ? 1 : 0;
+
+  if ($more_expensive) {
+    my $change_date = Time::Piece->strptime($DATE, "%Y-%m-%d");
+    $change_date += ONE_MONTH;
+    $change_date = $change_date->ymd;
+    my ($year, $month, undef) = split('-', $change_date);
+
+    _iptv_del_shedulers({ UID => $attr->{UID} });
+    $Shedule->add({
+      UID          => $attr->{UID},
+      TYPE         => 'tp',
+      ACTION       => "$attr->{TP_ID}:$tariff_info->[0]{tp_id}",
+      D            => 1,
+      M            => $month,
+      Y            => $year,
+      COMMENTS     => "$lang{FROM}: $tariff_info->[0]{tp_id}:$tariff_info->[0]{name}",
+      ADMIN_ACTION => 1,
+      MODULE       => 'Iptv',
+    });
+    _iptv_24tv_print_err({ message => $Shedule->{errstr} }) if ($Shedule->{errno});
+    return 0 if $Shedule->{errno};
+
+    print _json_former({
+      "status" => 1,
+      "errmsg" => "Переход на пакет запланирован после окончания текущего!"
+    });
+    return 0;
+  }
+
+  my $Tv_service = $attr->{TV_SERVICE};
+  if ($Tv_service && $Tv_service->can('user_change') && $attr->{ID}) {
+    $Tv_service->{debug} = 0;
+    delete $Tv_service->{errno};
+    my $result = $Tv_service->user_change({
+      UID           => $attr->{UID},
+      SUBSCRIBE_ID  => $attr->{SUBSCRIBE_ID},
+      TP_FILTER_ID  => $attr->{FILTER_ID},
+      STATUS        => 0,
+      DEL_BASE_SUBS => 1,
+    });
+    if (ref $result eq "HASH" && $result->{errno}) {
+      _iptv_24tv_print_err({ message => "Ошибка при подписке" });
+      return 0;
+    }
+  }
+  elsif ($Tv_service && $Tv_service->can('user_sub') && !$attr->{ID}) {
+    $Tv_service->{debug} = 0;
+    delete $Tv_service->{errno};
+    my $result = $Tv_service->user_sub({
+      UID      => $attr->{SUBSCRIBE_ID},
+      TP       => $attr->{FILTER_ID},
+      DEL_BASE => 1
+    });
+    if (ref $result eq "HASH" && $result->{errno}) {
+      _iptv_24tv_print_err({ message => "Ошибка при подписке" });
+      return 0;
+    }
+  }
+
+  $Iptv->user_del({ ID => $attr->{ID} }) if $attr->{ID};
+
+  #  Add user subscribe
+  _iptv_del_shedulers({ UID => $attr->{UID} });
+  $Iptv->user_add({
+    SUBSCRIBE_ID => $attr->{SUBSCRIBE_ID},
+    UID          => $attr->{UID},
+    SERVICE_ID   => $attr->{SERVICE_ID},
+    TP_ID        => $tariff_info->[0]{tp_id}
+  });
+
+  if ($Iptv->{errstr} && $Iptv->{errstr} eq "TOO_SMALL_DEPOSIT") {
+    $Iptv->{errstr} = "Не хватает денег на подписку.";
+  }
+  _iptv_24tv_print_err({ message => $Iptv->{errstr} }) if ($Iptv->{errno});
+  return 0 if $Iptv->{errno};
+
+  my $result = _iptv_get_service_fee({ INSERT_ID => $Iptv->{INSERT_ID} });
+
+  if ($result) {
+    print _json_former({ "status" => 1 });
+    return 1;
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _iptv_del_shedulers($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _iptv_del_shedulers {
+  my ($attr) = @_;
+
+  my $shedulers = $Shedule->list({
+    UID       => $attr->{UID},
+    MODULE    => "Iptv",
+    TYPE      => "tp",
+    COLS_NAME => 1
+  });
+
+  foreach my $shed (@{$shedulers}) {
+    $Shedule->del({ ID => $shed->{id} });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _iptv_del_shedulers($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _iptv_24tv_del_sub {
+  my ($attr) = @_;
+
+  load_module('Iptv', $html);
+  my $Tv_service = tv_load_service($attr->{SERVICE_MODULE}, { SERVICE_ID => $attr->{SERVICE_ID} });
+  if (!$Tv_service) {
+    _iptv_24tv_print_err({ message => "Ошибка при отписке" });
+    return 0;
+  }
+  my $params = decode_json($FORM{__BUFFER});
+
+  if ($Tv_service && $Tv_service->can('user_unsub')) {
+    $Tv_service->{debug} = 0;
+    delete $Tv_service->{errno};
+    my $result = $Tv_service->user_unsub({
+      UID    => $params->{user}{id},
+      SUB_ID => $FORM{sub_id},
+    });
+
+    if (ref $result eq "HASH" && $result->{errno}) {
+      _iptv_24tv_print_err({ message => "Ошибка при отписке" });
+      return 0;
+    }
+
+    my $packet_id = $params->{subscription}{packet}{is_base} ? $params->{subscription}{packet}{id} : '_SHOW';
+    my $user_info = $Iptv->user_list({
+      UID          => $params->{user}{provider_uid},
+      SERVICE_ID   => $attr->{SERVICE_ID},
+      TP_FILTER    => $packet_id,
+      SUBSCRIBE_ID => $params->{user}{id},
+      TP_ID        => '_SHOW',
+      MONTH_FEE    => '_SHOW',
+      COLS_NAME    => 1,
+      COLS_UPPER   => 1,
+    });
+
+    if ($params->{subscription}{packet}{is_base}) {
+      if ($Iptv->{TOTAL}) {
+        $Iptv->user_del({
+          ID => $user_info->[0]{ID}
+        });
+      }
+    }
+
+    if (!$params->{subscription}{packet}{is_base}) {
+      if ($Iptv->{TOTAL}) {
+        my $IDS = '';
+        my $user_channels_list = $Iptv->user_channels_list({
+          ID        => $user_info->[0]{ID},
+          TP_ID     => $user_info->[0]{TP_ID},
+          COLS_NAME => 1,
+        });
+
+        $packet_id = $params->{subscription}{packet}{id};
+        my $channel_info = $Iptv->channel_list({
+          NUM       => $packet_id,
+          FILTER    => $packet_id,
+          ID        => '_SHOW',
+          COLS_NAME => 1,
+        });
+
+        if ($Iptv->{TOTAL}) {
+          foreach my $user_channel (@{$user_channels_list}) {
+            if ($user_channel->{channel_id} ne ($channel_info->[0]{id} || $channel_info->[0]{ID})) {
+              $IDS .= $user_channel->{channel_id} . ", ";
+            }
+          }
+
+          chop $IDS if ($IDS);
+          $Iptv->user_channels({
+            IDS   => $IDS || 0,
+            ID    => $user_info->[0]{ID},
+            TP_ID => $user_info->[0]{TP_ID},
+          });
+        }
+      }
+    }
+
+    print _json_former({ "status" => 1 });
+    return 1;
+  }
+
+  return 0;
+}
+
 
 1;
 

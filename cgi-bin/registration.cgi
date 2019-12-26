@@ -23,7 +23,7 @@ BEGIN {
 
 
 use Abills::Defs;
-our (%OUTPUT, @REGISTRATION, %lang, %LANG, $base_dir);
+our (%OUTPUT, @REGISTRATION, %lang, %LANG, $base_dir, $CONTENT_LANGUAGE);
 do "../libexec/config.pl";
 
 use Abills::Base qw(sendmail in_array load_pmodule);
@@ -89,7 +89,7 @@ if ($conf{REGISTRATION_VERIFY_PHONE}) {
     verify_phone($FORM{PHONE}, $FORM{PIN});
   }
   elsif ($FORM{reg} || $FORM{add}) {
-    $html->message('err', "Для регистрации необходимо подтвердить телефон.");
+    $html->message('err', $lang{REG_PHONE});
     delete $FORM{reg};
     delete $FORM{add};
   }
@@ -102,6 +102,15 @@ if($conf{FB_REGISTRATION} && !$FORM{LOCATION_ID}) {
   $INFO_HASH{FB_INFO} = $html->button("<i class='fa fa-facebook'></i>Facebook", $log_url, { class => 'btn btn-social btn-facebook'});
   $INFO_HASH{FB_INFO_BLOCK} = $html->button("Facebook", $log_url, { class => 'btn btn-primary btn-block' });
 }
+
+my %lang_module = (
+    'Employees' => $lang{JOBS},
+    'Internet'  => $lang{INTERNET},
+    'Iptv'      => $lang{IPTV},
+    'Msgs'      => $lang{APPLICATIONS}
+);
+
+my $choose_module_buttons = '';
 
 # Check modules for registration are enabled
 if (@REGISTRATION){
@@ -124,7 +133,9 @@ elsif ($FORM{get_index} && $FORM{get_index} eq 'form_address_select2') {
   form_address_select2(\%FORM);
   exit 1;
 }
-elsif ( !$FORM{no_addr} 
+elsif ( !$FORM{no_addr}
+     && !$FORM{reg}
+     && !$FORM{add}
      && !$FORM{LOCATION_ID} 
      && $conf{REGISTRATION_REQUEST}
      && (in_array('Internet', \@MODULES) || in_array('Iptv', \@MODULES))) {
@@ -143,16 +154,16 @@ elsif ($#REGISTRATION > -1) {
     $INFO_HASH{user_registration} = $FORM{user_registration} || '';
   }
   else {
-    my $choose_module_buttons = '';
-    if ($#REGISTRATION > 0 && !$FORM{registration}) {
+    $choose_module_buttons = "<ul class='sidebar-menu tree' data-widget='tree'>";
+    if (defined $#REGISTRATION > 0 && !$FORM{registration}) {
       foreach my $registration_module (@REGISTRATION) {
-        $choose_module_buttons .= $html->button($registration_module, "module=$registration_module", { class => 'btn btn-lg btn-default' }) . ' ';
+        $choose_module_buttons .= "<li><a href='?module=" . $registration_module ."'><span>" . ($lang_module{ $registration_module } || $registration_module). "</span></a></li>"
       }
     }
     if (!$FORM{LOCATION_ID} && !$FORM{no_addr}) {
-      $choose_module_buttons .= "<button type='button' class='btn btn-lg btn-success' data-toggle='modal' data-target='#checkAddress'>" . $lang{CHECK_ADDRESS} . "</button>";
+      $choose_module_buttons .= "<li><a data-toggle='modal' data-target='#checkAddress'><span>" . $lang{CHECK_ADDRESS} . "</span></a></li>";
     }
-    $html->{HEADER_ROW} = $html->element('div', $choose_module_buttons, { class => 'row'});
+    $choose_module_buttons .= "</ul>";
   }
 
   $INFO_HASH{CAPTCHA} = get_captcha();
@@ -228,14 +239,28 @@ $admin->{RIGHT_MENU_OPEN}          = '';
 
 if (!($FORM{header} && $FORM{header} == 2)) {
   print $html->header();
-  my $address_modal_form = form_address_select2({ REGISTRATION_MODAL => 1});
+  my $address_modal_form = form_address_select2({ REGISTRATION_MODAL => 1 });
 
-  $OUTPUT{HTML_STYLE} = 'default_adm';
-  $OUTPUT{BODY}       = $html->{OUTPUT};
+  $OUTPUT{HTML_STYLE} = 'lte_adm';
+  $OUTPUT{CONTENT_LANGUAGE} = lc $CONTENT_LANGUAGE;
+  $OUTPUT{INDEX_NAME} = 'registration.cgi';
   $OUTPUT{CHECK_ADDRESS_MODAL} = $html->tpl_show(templates('form_address_modal'), { ADDRESS => $address_modal_form }, {OUTPUT2RETURN => 1});
   $OUTPUT{TITLE}      = "$conf{WEB_TITLE} - $lang{REGISTRATION}";
-  
+  $OUTPUT{SELECT_LANGUAGE}   = $INFO_HASH{SEL_LANGUAGE};
+  $OUTPUT{REG_LOGIN} = "style='display:none;'";
+  $OUTPUT{REG_STATE} = "style='display:none;'";
+  $OUTPUT{REG_IP} = "style='display:none;'";
+  $OUTPUT{DATE} = $DATE;
+  $OUTPUT{TIME} = $TIME;
+  $OUTPUT{IP} = $ENV{'REMOTE_ADDR'};
+  $OUTPUT{BODY} = $html->{OUTPUT};
+  $html->{OUTPUT} = '';
+  $OUTPUT{SKIN} = 'skin-green';
+  $OUTPUT{MENU} = $choose_module_buttons;
+  $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT);
+
   print $html->tpl_show(templates('registration'), { %OUTPUT, TITLE_TEXT => $lang{REGISTRATION} });
+  print $html->tpl_show(templates('form_client_start'), { %OUTPUT });
 }
 else {
   print "Content-Type: text/html\n\n";

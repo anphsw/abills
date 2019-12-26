@@ -98,9 +98,17 @@ sub check_dublicate {
     ACTION => "search.json?utf8=%E2%9C%93&q=$search_query"
       . "&scope=all&project_id=$self->{project_id}&titles_only=1&issues=1&attachments=0&options=1",
   });
+
   return 0 if ($self->{errno});
 
   if ($self->{RESULT} && defined $self->{RESULT}->{total_count}) {
+    if ($self->{RESULT}{results}->[0]) {
+      $self->{TASK_ID} = $self->{RESULT}{results}->[0]->{id};
+      $self->{TASK_LINK} = $self->{api_url};
+      $self->{TASK_LINK} =~ s/\/[a-zA-Z]+\/[a-zA-Z0-9]+\/?$//;
+      $self->{TASK_LINK} .= '/issues/'.$self->{TASK_ID};
+    }
+
     return $self->{RESULT}->{total_count};
   }
 
@@ -130,7 +138,7 @@ sub export_task {
   my $priority = $attr->{PRIORITY} || 2;
 
   # '%23' is url encoded '#'
-  if ($self->check_dublicate("%23S$attr->{ID}")) {
+  if ($self->check_dublicate('%23S'.$attr->{ID})) {
     $self->{errno} = 7;
     $self->{errstr} = 'EXIST';
     return $self;

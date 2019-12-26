@@ -49,7 +49,7 @@
                     <div class='box-header with-border'>
                         <h3 class='box-title'>_{MANAGE}_</h3>
                         <div class='box-tools pull-right'>
-                            <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i
+                            <button type='button' class='btn btn-box-tool' data-widget='collapse'><i
                                     class='fa fa-plus'></i>
                             </button>
                         </div>
@@ -124,7 +124,7 @@
                     <div class='box-header with-border'>
                         <h3 class='box-title'>_{EXTRA}_</h3>
                         <div class='box-tools pull-right'>
-                            <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i
+                            <button type='button' class='btn btn-box-tool' data-widget='collapse'><i
                                     class='fa fa-plus'></i>
                             </button>
                         </div>

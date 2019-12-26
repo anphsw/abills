@@ -21,7 +21,7 @@ our (
 );
 
 #use base 'Exporter';
-use Encode qw(decode);
+use Encode qw(decode decode_utf8);
 
 our $VERSION = 2.01;
 my $CONF;
@@ -81,21 +81,21 @@ sub new {
 #**********************************************************
 sub form_input {
   my $self = shift;
-  my ($name, $value, $attr) = @_;
+  my (undef, $value) = @_;
 
-  my $type  = (defined($attr->{TYPE}))  ? $attr->{TYPE}             : 'text';
-  my $state = (defined($attr->{STATE})) ? ' checked="1"'            : '';
-  my $size  = (defined($attr->{SIZE}))  ? " SIZE=\"$attr->{SIZE}\"" : '';
   return $value;
 
-  $self->{FORM_INPUT} = "<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size/>";
-
-  if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
-    $self->{OUTPUT} .= $self->{FORM_INPUT};
-    $self->{FORM_INPUT} = '';
-  }
-
-  return $self->{FORM_INPUT};
+  # my $type  = (defined($attr->{TYPE}))  ? $attr->{TYPE}             : 'text';
+  # my $state = (defined($attr->{STATE})) ? ' checked="1"'            : '';
+  # my $size  = (defined($attr->{SIZE}))  ? " SIZE=\"$attr->{SIZE}\"" : '';
+  # $self->{FORM_INPUT} = "<input type=\"$type\" name=\"$name\" value=\"$value\"$state$size/>";
+  #
+  # if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
+  #   $self->{OUTPUT} .= $self->{FORM_INPUT};
+  #   $self->{FORM_INPUT} = '';
+  # }
+  #
+  # return $self->{FORM_INPUT};
 }
 
 #**********************************************************
@@ -389,7 +389,7 @@ sub addrow {
     }
 
     if($val =~ /\[(.+)\|(.{0,100})\]/) {
-      $worksheet->write_url( $self->{row_number}, $col_num, $SELF_URL .'?'. $1, $2);
+      $worksheet->write_url( $self->{row_number}, $col_num, $SELF_URL .'?'. $1, decode_utf8($2));
     }
     elsif($val =~ /_COLOR:(.+):(.+)/) {
       my $color  = $1;
@@ -401,14 +401,14 @@ sub addrow {
         #bold => 1
       );
 
-      $worksheet->write( $self->{row_number}, $col_num, decode( 'utf8', $text ), $format || undef );
+      $worksheet->write( $self->{row_number}, $col_num, decode_utf8( $text ), $format || undef );
     }
     else {
       if($val =~ /^0/) {
-        $worksheet->write_string( $self->{row_number}, $col_num, decode( 'utf8', $val ), $self->{format} || undef );
+        $worksheet->write_string( $self->{row_number}, $col_num, decode_utf8( $val ), $self->{format} || undef );
       }
       else {
-        $worksheet->write( $self->{row_number}, $col_num, decode( 'utf8', $val ), $self->{format} || undef );
+        $worksheet->write( $self->{row_number}, $col_num, decode_utf8( $val ), $self->{format} || undef );
       }
     }
 
@@ -502,8 +502,8 @@ sub img {
 
   return "";
 
-  my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
-  return "<img alt='$name' src='$img_path$img' border='0'>";
+  # my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
+  # return "<img alt='$name' src='$img_path$img' border='0'>";
 }
 
 #**********************************************************

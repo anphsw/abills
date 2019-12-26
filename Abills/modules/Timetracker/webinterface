@@ -13,14 +13,17 @@ use Abills::Base qw(time2sec);
 use Timetracker::db::Timetracker;
 use Admins;
 use XML::Simple qw(:strict);
-
+use LWP::Simple;
+use JSON;
+use utf8;
+use Encode qw(encode_utf8);
 use Abills::Fetcher qw/web_request/;
 
 our ($html, %FORM, $db, %conf, $admin, %lang, @WEEKDAYS);
 my $Timetracker = Timetracker->new($db, $admin, \%conf);
 my $Admins = Admins->new($db, \%conf);
-
 my @external_systems = ($lang{NO}, 'Support', 'Redmine');
+
 #**********************************************************
 =head2 timetracker() - Accounting and time allocation. Report.
 
@@ -75,7 +78,7 @@ sub timetracker {
     {
       width   => "100%",
       caption => $lang{TIMETRACKER},
-      title   => [ $lang{EXECUTOR}, @elements, $lang{COEFFICIENT} ],
+      title   => [ $lang{EXECUTOR}, $lang{ALL_TIME}, @elements, $lang{COEFFICIENT} ],
       qs      => $pages_qs,
       ID      => "TABLE_ID",
       MENU    => "$lang{ADD}:index=" . get_function_index('add_time') . "&add_form=1&$pages_qs:add",
@@ -103,7 +106,8 @@ sub timetracker {
     }
 
     $coefficient = ($coefficient) ? sprintf('%0.1f', (($coefficient * 100) / $sum_num_elements)) : 0;
-    $table->addrow($name, @num_elements, "$coefficient");
+    my $sum_time = sprintf('%.2f', ($sum_num_elements || 0) / 100);
+    $table->addrow($name, $sum_time, @num_elements, $coefficient);
   }
 
   print $table->show();
@@ -126,6 +130,7 @@ sub add_time {
   my @num_element;
   my @element_id;
   my $btn_action = 'add';
+  my $btn_change = 'search';
   my $btn_value = $lang{ADD};
   my %elements_value;
   my ($year, undef, undef) = split('-', $DATE);
@@ -166,7 +171,6 @@ sub add_time {
         DATE => $FORM{DATE},
       }
     );
-
     foreach my $element (@$timetracker_list_element) {
       $Timetracker->add(
         {
@@ -177,12 +181,10 @@ sub add_time {
         }
       );
     }
-
     $html->message("info", $lang{ADD_MASSAGE}, $lang{OPERATION});
     $date_for_picker = $FORM{DATE};
   }
-
-  if ($FORM{del}) {
+  if ($FORM{del} && $FORM{COMMENTS}) {
 
     $Timetracker->del(
       {
@@ -283,7 +285,7 @@ sub add_time {
     push @element, $element->{element};
     push @element_id, $element->{id};
   }
-
+  ###...
   $html->tpl_show(
     _include("timetracker_add_form", "Timetracker"),
     {
@@ -300,6 +302,7 @@ sub add_time {
   my $tables = '';
   my $count = 0;
   my %weeks = ();
+
   foreach my $item (@$Timetracker_list) {
     my Time::Piece $d = Time::Piece->strptime($item->{date}, "%Y-%m-%d");
     $dates{$item->{date}} = 1;
@@ -308,12 +311,11 @@ sub add_time {
 
   my %tables = ();
   foreach my $week (reverse sort {$a <=> $b} keys %weeks) {
-
     $tables{$week} = $html->table(
       {
         width   => "100%",
         caption => $lang{WEEK} . ": " . $week,
-        title   => [ $lang{DATE}, @element, "" ],
+        title   => [ $lang{DATE}, @element ],
         qs      => $pages_qs,
         ID      => "TABLE_ID",
         export  => 1
@@ -327,21 +329,24 @@ sub add_time {
       foreach my $item (@element_id) {
         push @num_element, sprintf('%.2f', ($weeks{$week}->{$date}->{$item} || 0) / 100);
       }
-      my $del_button = $html->button("", "index=$index&del=$date&NAME=$admin->{AID}",
-        { class => "text-danger", ADD_ICON => "glyphicon glyphicon-trash" });
-      my $edit_button = $html->button("", "index=$index&chg=$date&NAME=$admin->{AID}",
-        { class => "", ADD_ICON => "glyphicon glyphicon-pencil" });
+      my $del_button = $html->button($lang{DELETE}, "index=$index&del=$date", {
+          class => 'del',
+          MESSAGE => "$lang{DEL}"
+      });
+      my $edit_button = $html->button("", "index=$index&chg=$date&NAME=$admin->{AID}", {
+          class => "",
+          ADD_ICON => "glyphicon glyphicon-pencil"
+      });
       $tables{$week}->addrow($d->wdayname . " " . $d->dmy, @num_element, "$edit_button$del_button");
     }
 
-    $tables .= $html->element('div', $tables{$week}->show(), { class => "col-md-4" });
+    $tables .= $html->element('div', $tables{$week}->show(), { class => "col-md-12" });
     $count++;
     if (int($count / 3) == $count / 3 || $count == (scalar keys(%weeks))) {
       print $html->element('div', $tables, { class => "row" });
       $tables = '';
     }
   }
-
   $html->element('div', $tables, { class => "row" });
 
   return 1;
@@ -371,7 +376,7 @@ sub add_item {
       $html->message("info", $lang{ADD_MASSAGE}, $lang{OPERATION});
     }
   }
-  elsif ($FORM{del}) {
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
 
     $Timetracker->del_element($FORM{del});
 
@@ -380,7 +385,6 @@ sub add_item {
     }
   }
   elsif ($FORM{change}) {
-
     $Timetracker->change_element(
       {
         ID              => $FORM{ID},
@@ -436,7 +440,6 @@ sub add_item {
     }
   }
   else {
-
     my $external_system = $html->form_select(
       'EXTERNAL_SYSTEM',
       {
@@ -471,8 +474,14 @@ sub add_item {
   );
 
   foreach my $item (@$timetracker_list_element) {
-    my $del_button = $html->button("", "index=$index&del=$item->{id}", { class => "text-danger", ADD_ICON => "glyphicon glyphicon-trash" });
-    my $edit_button = $html->button("", "index=$index&chg=$item->{id}", { class => "", ADD_ICON => "glyphicon glyphicon-pencil" });
+    my $del_button = $html->button($lang{DELETE}, "index=$index&del=$item->{id}", {
+      class => 'del',
+      MESSAGE => "$lang{DEL}"
+    });
+    my $edit_button = $html->button("", "index=$index&chg=$item->{id}", {
+      class => "",
+      ADD_ICON => "glyphicon glyphicon-pencil"
+    });
     $table->addrow($item->{id}, $item->{element}, $external_systems[$item->{external_system}], ($item->{priority}) ? $lang{YES} : $lang{NO}, "$edit_button$del_button");
   }
 
@@ -695,6 +704,65 @@ sub get_support_time {
   }
 
   return sprintf('%.2f', $support_time / 3600);
+}
+
+#**********************************************************
+=head2 get_ticket_work() - Returns the number of
+                            completed tasks from
+                            Sapport and Redmine
+
+=cut
+#**********************************************************
+sub get_ticket_work {
+  my $from_data_ = localtime->strftime('%Y-%m-%d');
+  my (undef, undef, undef, $mday, $mon, $year, undef, undef, undef) = localtime(time);
+  my $to_date_ = sprintf "%.4d-%.2d-%.2d", $year + 1900, $mon + 1, $mday = 1;
+
+  if ($conf{TIMETRACER_REDMINE_API}) {
+    reports({
+      NO_GROUP    => 1,
+      NO_TAGS     => 1,
+      DATE_RANGE  => 1,
+      DATE        => $FORM{DATE},
+      REPORT      => '',
+      PERIOD_FORM => 1,
+    });
+
+    if ($FORM{TO_DATE} == undef) {
+      $FORM{TO_DATE} = $from_data_;
+      $FORM{FROM_DATE} = $to_date_;
+    }
+
+    my $table_support = $html->table(
+      {
+        width   => "100%",
+        caption => $lang{TASK_EXECUTION},
+        title   => [ $lang{ADMIN}, $lang{SUPPORT}, $lang{REDMINE}, "" ],
+        qs      => $pages_qs,
+        ID      => "TABLE_ID",
+        export  => 1
+      }
+    );
+
+    my $size_support = $Timetracker->change_element_work({
+      DATA_DAY    => $FORM{FROM_DATE},
+      TO_DATA_DAY => $FORM{TO_DATE},
+    });
+
+    foreach my $item (@$size_support) {
+      my $url = $conf{TIMETRACER_REDMINE_API} . "assigned_to.cf_8=$item->{aid}&closed_on=><$FORM{FROM_DATE}|$FORM{TO_DATE}";
+      my $json_close_ticket = web_request($url, { CURL => 1, JSON_RETURN => 1 });
+      if (defined($json_close_ticket)) {
+        $table_support->addrow($item->{NAME}, $item->{admins_count}, $json_close_ticket->{total_count} ? $json_close_ticket->{total_count} : 0);
+      }
+    }
+    print $table_support->show();
+  }
+  else {
+    $html->message('err', $lang{NOT_CONFIGURED}, "$lang{NOT_FOUND} \$conf{TIMETRACER_REDMINE_API}");
+  }
+
+  return 1;
 }
 
 1;

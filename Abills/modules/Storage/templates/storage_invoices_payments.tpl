@@ -1,0 +1,52 @@
+<form action='$SELF_URL' method='POST' class='form-horizontal'>
+  <input type='hidden' name='index' value='$index'>
+
+
+  <div class='box box-theme box-form'>
+    <div class='box-header with-border'><h4 class='box-title'>_{INVOICE_PAYMENTS}_</h4></div>
+    <div class='box-body'>
+      <div class='form-group'>
+        <label class='col-md-3 control-label'>_{STORAGE_INVOICE}_</label>
+        <div class='col-md-9'>
+          %INVOICES_SELECT%
+        </div>
+      </div>
+      <div class='form-group'>
+        <label class='col-md-3 control-label'>_{SUM}_</label>
+        <div class='col-md-9'>
+          <input name='SUM' value='%SUM%' class='form-control'>
+        </div>
+      </div>
+      <div class='form-group'>
+        <label class='col-md-3 control-label'>_{TOTAL_INVOICE_SUM}_</label>
+        <div class='col-md-9'>
+          <input name='ACTUAL_SUM' value='%ACTUAL_SUM%' class='form-control' id='TOTAL_INVOICE_SUM'>
+        </div>
+      </div>
+      <div class='form-group'>
+        <label class='col-md-3 control-label'>_{COMMENTS}_</label>
+        <div class='col-md-9'>
+          <textarea name='COMMENTS' class='form-control'>%COMMENTS%</textarea>
+        </div>
+      </div>
+    </div>
+    <div class='box-footer'>
+      <input type='submit' class='btn btn-primary' name='%BTN_NAME%' value='%BTN_VALUE%'>
+    </div>
+  </div>
+</form>
+
+
+<script>
+  jQuery(document).ready(function() {
+    jQuery('#INVOICE_ID').on('change', function (data) {
+      console.log(jQuery(this).val());
+      var val = jQuery(this).val();
+
+      jQuery.post('/admin/index.cgi', 'header=2&get_index=storage_invoces_payments&invoice_sum=1&INVOICE_ID=' + val, function (result) {
+        console.log(result);
+        jQuery('#TOTAL_INVOICE_SUM').val(result);
+      });
+    });
+  });
+</script>

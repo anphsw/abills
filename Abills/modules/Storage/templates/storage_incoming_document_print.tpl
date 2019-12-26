@@ -9,18 +9,18 @@
     <td width="50%" style="border:solid; border-width: 1px;">
       <p><b>Постачальник:</b> %SUPPLIER_NAME%</p>
       <p><b>Адреса:</b></p>
-      <p><b>Р/рахунок:</b> %SUPPLIER_ACCOUNT%</p>
-      <p><b>в</b> %SUPPLIER_BANK_NAME%</p>
-      <p><b>МФО:</b>%SUPPLIER_MFO%</p>
-      <p><b>ЄДРПОУ:</b>%SUPPLIER_OKPO%</p>
-      <p><b>Тел./ф.:</b> %SUPPLIER_PHONE%</p>
+      <p><b>Р/рахунок:</b> %ACCOUNT%</p>
+      <p><b>в</b> %BANK_NAME%</p>
+      <p><b>МФО:</b>%MFO%</p>
+      <p><b>ЄДРПОУ:</b>%OKPO%</p>
+      <p><b>Тел./ф.:</b> %PHONE%</p>
     </td>
     <td></td>
     <td align="center" valign="top" width="50%">
       <p>
       <h2>Прибуткова Накладна</h2></p>
       <p>
-      <h2>N _________________</h2></p>
+      <h2>№ %INVOICE_NUMBER%</h2></p>
       <p><b>від "%DAY%" %MONTH% %YEAR% р.</b></p>
     </td>
   </tr>
@@ -86,29 +86,18 @@
   <th>Сума</th>
   </tr>
 
-  <tr>
-    <td>1</td>
-    <td>%ARTICLE_TYPE% %ARTICLE_NAME%</td>
-    <td>%MEASURE_NAME%</td>
-    <td>%TOTAL%</td>
-    <td>%SELL_PRICE%</td>
-    <td>%TOTAL_SUM%</td>
-  </tr>
+  %ROWS%
 
   <tr>
-    <td colspan="3"><b>Всього з ПДВ(прописом)</b></td>
+    <td colspan="3"><b>Всього </b>%INCOMING_SUM_LIT%</td>
     <td colspan="2"><b>Разом</b></td>
     <td></td>
   </tr>
+
   <tr>
     <td colspan="3"><b></b></td>
-    <td colspan="2"><b>ПДВ 20%</b></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td colspan="3"><b></b></td>
-    <td colspan="2"><b>Всього з ПДВ</b></td>
-    <td></td>
+    <td colspan="2"><b>Всього</b></td>
+    <td>%TOTAL_SUM_FOR_ALL_ITEMS%</td>
   </tr>
 </table>
 

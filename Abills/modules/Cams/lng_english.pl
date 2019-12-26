@@ -41,4 +41,14 @@ $lang{LIMIT_ARCHIVE} = 'Restrict access to the archive';
 $lang{ONLY_VIDEO} = 'Video Only';
 $lang{TYPE_FOR_SERVICE} = 'Type for service';
 
+$lang{CAMS_REVIEW} = 'Camera review';
+$lang{CAMS_VISIBILITY} = 'Camera visibility length (meters)';
+$lang{CAMERA_ANGLE} = 'Camera angle';
+$lang{CAMERA_ANGLE_LOCATION} = 'Camera direction';
+
+$lang{PARENT} = "Parent";
+$lang{CHILDREN} = "Children";
+$lang{FOLDERS} = "Folders";
+$lang{ENTER_GROUP_NAME_OR_ADDRESS} = "Enter name or address";
+
 1;

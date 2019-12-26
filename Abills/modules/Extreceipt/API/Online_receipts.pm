@@ -15,25 +15,25 @@ use utf8 qw/encode/;
 use Abills::Base qw(_bp);
 
 my $api_url = '';
-my $debug = 0;
-
+my $curl    = '';
 
 #**********************************************************
-=head2 new($app_id, $secret)
+=head2 new($conf, $attr)
 
 =cut
 #**********************************************************
 sub new {
-  my ($class, $conf) = @_;
+  my ($class, $conf, $attr) = @_;
 
-  $debug   = 1;
-  $api_url = $conf->{EXTRECEIPT_API_URL};
+  $api_url = $attr->{url};
+  $curl    = $conf->{FILE_CURL} || 'curl';
   
   my $self = {
-    APP_ID  => $conf->{EXTRECEIPT_APP_ID},
-    SECRET  => $conf->{EXTRECEIPT_SECRET},
-    author  => $conf->{EXTRECEIPT_AUTHOR},
-    goods   => $conf->{EXTRECEIPT_GOODS_NAME},
+    APP_ID       => $attr->{login},
+    SECRET       => $attr->{password},
+    goods        => $attr->{goods_name},
+    author       => $attr->{author},
+    api          => $attr->{api_name},
   };
   
   bless($self, $class);
@@ -60,7 +60,8 @@ sub init {
   my $url = $api_url . "Token?" . $query;
   my $result = `curl -s "$url" $params`;
 
-  my $perl_hash = decode_json($result);
+  my $perl_hash = ();
+  eval { $perl_hash = decode_json($result); 1 };
   if ($self->{debug}) {
     print "CMD: curl -s '$url' $params\n";
     print "RESULT: $result\n";
@@ -82,7 +83,7 @@ sub payment_register {
   my $self = shift;
   my ($attr) = @_;
 
-  if ($debug) {
+  if ($self->{debug}) {
     print "\nTry \\printCheck for payment $attr->{payments_id}\n";
   }
   
@@ -92,16 +93,17 @@ sub payment_register {
     token          => $self->{TOKEN},
     type           => "printCheck",
     command => {
-      smsEmail54FZ   => ($attr->{phone} || $attr->{mail} || ''),
+      smsEmail54FZ   => ($attr->{c_phone} || $attr->{phone} || $attr->{mail} || ''),
       payed_cash     => '0',
       payed_cashless => $attr->{sum},
       author         => $self->{author},
       c_num          => $attr->{payments_id},
       goods  => [{
-        count => 1,
-        price => $attr->{sum},
-        sum   => $attr->{sum},
-        name  => $self->{goods},
+        count     => 1,
+        price     => $attr->{sum},
+        sum       => $attr->{sum},
+        name      => $self->{goods},
+        item_type => 4,
         # nds_value       => 0, 
         nds_not_apply   => 'true',
       }]
@@ -114,8 +116,9 @@ sub payment_register {
   my $params = qq(-d '$p_data' -H "sign: $sign" -H "Content-Type: application/json");
   my $url = $api_url . "Command";
   my $result = `curl $params -s -X POST "$url"`;
-  my $perl_hash = decode_json($result);
-  if ($debug) {
+  my $perl_hash = ();
+  eval { $perl_hash = decode_json($result); 1 };
+  if ($self->{debug}) {
     print "CMD: curl $params -s -X POST '$url'\n";
     print "RESULT: $result\n";
   }
@@ -130,7 +133,7 @@ sub payment_register {
 #**********************************************************
 sub get_info {
   my $self = shift;
-  my ($command_id) = @_;
+  my ($attr) = @_;
 
   my %data = (
     nonce  => $self->get_nonce(),
@@ -141,19 +144,26 @@ sub get_info {
   my $query = $self->make_query(\%data);
 
   my $params = qq/-H "sign: $sign"/;
-  my $url = $api_url . "Command/$command_id?" . $query;
+  my $url = $api_url . "Command/$attr->{command_id}?" . $query;
   my $result = `curl -s '$url' $params`;
-  if ($debug) {
+  if ($self->{debug}) {
     print "CMD: curl -s '$url' $params\n";
     print "RESULT: $result\n";
   }
-  my $perl_hash = decode_json($result);
+  my $perl_hash = ();
+  eval { $perl_hash = decode_json($result); 1 };
 
-  if ($perl_hash->{fiscal_document_number} && $perl_hash->{fiscal_document_attribute} && $perl_hash->{receipt_datetime}) {
-    return ($perl_hash->{fiscal_document_number}, $perl_hash->{fiscal_document_attribute}, $perl_hash->{receipt_datetime});
+  if ($perl_hash->{id}) {
+    return (
+      $perl_hash->{fiscal_document_number},
+      $perl_hash->{fiscal_document_attribute},
+      $perl_hash->{receipt_datetime},
+      $perl_hash->{command}->{c_num},
+      0
+    );
   }
 
-  return (0, 0, 0);
+  return (0, 0, 0, $perl_hash->{command}->{c_num}, 1);
 }
 
 #**********************************************************
@@ -224,13 +234,7 @@ sub perl2json {
   }
   else {
     $data //='';
-    # print "$data\n";
-    # if ($data =~ '^[0-9]+$') {
-    #   return qq{$data};
-    # }
-    # else {
-      return qq{\"$data\"};
-    # }
+    return qq{\"$data\"};
   }
 }
 
@@ -243,7 +247,7 @@ sub payment_cancel {
   my $self = shift;
   my ($attr) = @_;
 
-  if ($debug) {
+  if ($self->{debug}) {
     print "\nTry \\printPurchaseReturn for payment $attr->{payments_id}\n";
   }
   
@@ -253,7 +257,7 @@ sub payment_cancel {
     token          => $self->{TOKEN},
     type           => "printPurchaseReturn",
     command => {
-      smsEmail54FZ   => ($attr->{phone} || $attr->{mail} || ''),
+      smsEmail54FZ   => ($attr->{c_phone} || $attr->{phone} || $attr->{mail} || ''),
       payed_cash     => '0',
       payed_cashless => $attr->{sum},
       author         => $self->{author},
@@ -275,7 +279,7 @@ sub payment_cancel {
   my $url = $api_url . "Command";
   my $result = `curl $params -s -X POST "$url"`;
   my $perl_hash = decode_json($result);
-  if ($debug) {
+  if ($self->{debug}) {
     print "CMD: curl $params -s -X POST '$url'\n";
     print "RESULT: $result\n";
   }

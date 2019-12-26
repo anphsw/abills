@@ -46,8 +46,7 @@ CREATE TABLE IF NOT EXISTS `admin_system_actions` (
   `aid`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `module`      VARCHAR(10)          NOT NULL DEFAULT '',
   `action_type` TINYINT(2) UNSIGNED  NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`)
+  PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'System Changes';
@@ -262,7 +261,7 @@ CREATE TABLE IF NOT EXISTS `companie_admins` (
 
 CREATE TABLE IF NOT EXISTS `config` (
   `param`     VARCHAR(50)          NOT NULL DEFAULT '',
-  `value`     VARCHAR(250)         NOT NULL DEFAULT '',
+  `value`     VARCHAR(400)         NOT NULL DEFAULT '',
   `domain_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   UNIQUE KEY `param` (`domain_id`, `param`)
 )
@@ -732,9 +731,11 @@ CREATE TABLE IF NOT EXISTS `ippools` (
   `domain_id`        smallint(6) UNSIGNED NOT NULL DEFAULT '0',
   `vlan`             smallint(2) unsigned not null default 0,
   `comments`         TEXT                 NOT NULL,
+  `ip_skip`          MEDIUMTEXT           NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `nas` (`nas`, `ip`),
-  KEY `guest` (`guest`)
+  KEY `guest` (`guest`),
+  KEY `priority` (`priority`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'IP Pools';
@@ -744,7 +745,8 @@ CREATE TABLE IF NOT EXISTS `ippools_ips` (
   `status`    tinyint(3) unsigned  NOT NULL DEFAULT '0',
   `ippool_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   UNIQUE KEY `ip` (`ip`, `ippool_id`),
-  KEY `ip_status` (`ip`, `status`)
+  KEY `ip_status` (`ip`, `status`),
+  KEY `ippool_id` (`ippool_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'IP Pools ips';
@@ -787,8 +789,10 @@ CREATE TABLE IF NOT EXISTS `msgs_chapters` (
   `name`          VARCHAR(20)          NOT NULL DEFAULT '',
   `inner_chapter` TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
   `autoclose`     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `color`         VARCHAR(7)           NOT NULL DEFAULT '',
+  `domain_id`     SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`)
+  UNIQUE KEY `name` (`name`, `domain_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs chapters';
@@ -803,7 +807,8 @@ CREATE TABLE IF NOT EXISTS `msgs_dispatch` (
   `aid`         SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `resposible`  SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `created_by`  SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  `category`    int(11) unsigned     NOT NULL DEFAULT '0',
+  `category`    INT(11)     UNSIGNED NOT NULL DEFAULT '0',
+  `domain_id`   SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `plan_date` (`plan_date`, `state`)
 )
@@ -875,6 +880,8 @@ CREATE TABLE IF NOT EXISTS `msgs_messages` (
   `survey_id`        SMALLINT(6) UNSIGNED NOT NULL  DEFAULT '0',
   `rating`           TINYINT(4) UNSIGNED  NOT NULL  DEFAULT '0' COMMENT 'Message rating',
   `rating_comment`   TEXT                 NOT NULL,
+  `location_id`      INT(11)    UNSIGNED  NOT NULL  DEFAULT '0',
+  `domain_id`        SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `uid` (`uid`),
   KEY `chapter` (`chapter`),
@@ -946,6 +953,8 @@ CREATE TABLE IF NOT EXISTS `msgs_unreg_requests` (
   `last_contact`    DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
   `planned_contact` DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
   `contact_note`    TEXT                   NOT NULL,
+  `referral_uid`    INTEGER(11) UNSIGNED   NOT NULL DEFAULT '0',
+  `domain_id`       SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   KEY `state` (`state`),
@@ -984,7 +993,6 @@ CREATE TABLE IF NOT EXISTS `msgs_survey_subjects` (
   `aid`               SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `created`           DATETIME             NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
 )
   DEFAULT CHARSET = utf8
@@ -1048,6 +1056,16 @@ CREATE TABLE IF NOT EXISTS `msgs_delivery_users` (
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs delivery users';
 
+CREATE TABLE IF NOT EXISTS `msgs_storage` (
+  `id`              INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+  `msgs_id`         INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `installation_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `date`            DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `aid`             SMALLINT(6)      NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+) DEFAULT CHARSET = utf8
+  COMMENT = 'Storage items to msgs tickets';
+
 SET SESSION sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
 REPLACE INTO `msgs_status` (`id`, `name`, `readiness`, `task_closed`, `color`, `icon`) VALUE
   ('0', '$lang{OPEN}', '0', '0', '#0000FF', 'fa fa-envelope-open text-aqua'),
@@ -1089,6 +1107,7 @@ CREATE TABLE IF NOT EXISTS `nas` (
   `location_id`    INTEGER(11) UNSIGNED NOT NULL  DEFAULT '0',
   `floor`          VARCHAR(10)          NOT NULL DEFAULT '',
   `entrance`       VARCHAR(10)          NOT NULL DEFAULT '',
+  `zabbix_hostid` INT(11)     UNSIGNED NOT NULL  DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `mac` (`mac`),
   UNIQUE KEY `domain_id` (`domain_id`, `ip`, `nas_identifier`)
@@ -1490,8 +1509,7 @@ CREATE TABLE IF NOT EXISTS `web_users_sessions` (
   `ext_info`    VARCHAR(200)     NOT NULL DEFAULT '',
   `coordx`      DOUBLE(20, 14)   NOT NULL DEFAULT '0',
   `coordy`      DOUBLE(20, 14)   NOT NULL DEFAULT '0',
-  PRIMARY KEY (`sid`),
-  UNIQUE KEY `sid` (`sid`)
+  PRIMARY KEY (`sid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'User Web Sessions';
@@ -1503,13 +1521,18 @@ CREATE TABLE IF NOT EXISTS `users_bruteforce` (
   `ip`         INT(11) UNSIGNED    NOT NULL  DEFAULT '0',
   `auth_state` TINYINT(1) UNSIGNED NOT NULL  DEFAULT '0',
   KEY `login` (`login`)
-);
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'User poratl brute force';
 
 CREATE TABLE IF NOT EXISTS `users_nas` (
   `uid`    INT(10) UNSIGNED     NOT NULL DEFAULT '0',
   `nas_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   KEY `uid` (`uid`)
-);
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Users nas servers';
+
 
 CREATE TABLE IF NOT EXISTS `users_pi` (
   `uid`            INT(11) UNSIGNED     NOT NULL DEFAULT 0,
@@ -1545,26 +1568,26 @@ CREATE TABLE IF NOT EXISTS `users_pi` (
 
 CREATE TABLE IF NOT EXISTS `users_contact_types`
 (
-  id         SMALLINT(6) UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
-  name       VARCHAR(30)                      NOT NULL DEFAULT '',
-  is_default TINYINT(1) UNSIGNED              NOT NULL DEFAULT 0,
-  hidden     TINYINT(1) UNSIGNED NOT NULL DEFAULT 0
+  `id`         SMALLINT(6) UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  `name`       VARCHAR(30)                      NOT NULL DEFAULT '',
+  `is_default` TINYINT(1) UNSIGNED              NOT NULL DEFAULT 0,
+  `hidden`     TINYINT(1) UNSIGNED NOT NULL DEFAULT 0
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Types of user contacts';
 
 CREATE TABLE IF NOT EXISTS `users_contacts` (
-  id       INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  uid      INT(11) UNSIGNED     NOT NULL DEFAULT 0,
-  type_id  SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-  value    VARCHAR(250)         NOT NULL DEFAULT '',
-  priority SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
-  comments TEXT                 NOT NULL,
-  FOREIGN KEY (uid) REFERENCES users (uid)
+  `id`       INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `uid`      INT(11) UNSIGNED     NOT NULL DEFAULT 0,
+  `type_id`  SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `value`    VARCHAR(250)         NOT NULL DEFAULT '',
+  `priority` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `comments` TEXT                 NOT NULL,
+  FOREIGN KEY (`uid`) REFERENCES users (`uid`)
     ON DELETE CASCADE,
-  FOREIGN KEY (type_id) REFERENCES users_contact_types (id)
+  FOREIGN KEY (`type_id`) REFERENCES users_contact_types (`id`)
     ON DELETE CASCADE,
-  INDEX _uid_contact (uid)
+  INDEX `_uid_contact` (`uid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Main user contacts table';
@@ -1983,10 +2006,10 @@ REPLACE INTO `users_contact_types` (`id`, `name`, `is_default`, `hidden`) VALUES
 
 CREATE TABLE IF NOT EXISTS `admins_contacts` (
   `id`       int(11) unsigned      NOT NULL AUTO_INCREMENT,
-  `aid`      smallint(11) unsigned NOT NULL DEFAULT 0,
+  `aid`      smallint(6) unsigned NOT NULL DEFAULT 0,
   `type_id`  smallint(6) unsigned  NOT NULL DEFAULT 0,
   `value`    varchar(250)          NOT NULL DEFAULT '',
-  `priority` smallint(6) unsigned           DEFAULT 0,
+  `priority` tinyint(3) unsigned   DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `aid` (`aid`),
   KEY `type_id` (`type_id`)
@@ -2080,3 +2103,4 @@ CREATE TABLE IF NOT EXISTS `msgs_chat`(
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Chat Messages';
+

@@ -122,8 +122,50 @@ sub ureports_users_list {
   );
 
   if ($FORM{search_form}) {
-    form_search({ SEARCH_FORM =>
-      $html->tpl_show(_include('ureports_users_search', 'Ureports'), { %FORM }, { notprint => 1 }) });
+    form_search({ TPL =>
+      $html->tpl_show(_include('ureports_users_search', 'Ureports'), {
+        %FORM,
+        INDEX => get_function_index('ureports_users_list')
+      },
+        {
+          notprint => 1
+        })
+    });
+  }
+
+  if ($FORM{search_user_ureports}) {
+    my $user_data =  $Ureports->user_info(undef, {
+      DESTINATION => $FORM{PHONE} || '_SHOW'
+    });
+
+    if ($user_data->{TOTAL} > 0) {
+      my $table = $html->table({
+        width   => "100%",
+        caption => $lang{USER},
+        title   => [ $lang{LOGIN}, $lang{FIO}, $lang{TARIF_PLAN}, $lang{STATUS}, $lang{TYPE}, $lang{DESTINATION} ],
+        qs      => $pages_qs,
+        ID      => "UREPORTS_TABLE",
+        MENU    => $lang{SEARCH} . ':index=' . get_function_index('ureports_users_list') . '&search_form=1:search;',
+        export  => 1,
+      });
+
+      my @data_search = ($user_data->{ID}, $user_data->{FIO}, $user_data->{TP_NAME},
+        (($user_data->{STATUS}) ? $html->color_mark($service_status[$user_data->{STATUS}],
+          $_COLORS[6]) : $service_status[$user_data->{STATUS}]), ($user_data->{TYPE} && $service_type{$user_data->{TYPE}}) ?
+          $service_type{$user_data->{TYPE}} : $user_data->{TYPE}, $user_data->{DESTINATION});
+
+      push @data_search,
+        $html->button($lang{STATS}, "index=" . (get_function_index('ureports_user')) . "&UID=$user_data->{UID}",
+          { class => 'stats' });
+      $table->addrow(@data_search);
+
+      print $table->show();
+
+      return;
+    }
+    else {
+      $html->message('err', $lang{ERROR}, $lang{USER_NOT_EXIST});
+    }
   }
 
   #print $html->letters_list( { pages_qs => $pages_qs } );
@@ -146,7 +188,7 @@ sub ureports_users_list {
       cid           => 'CID',
       filter_id     => 'Filter ID',
       tp_name       => $lang{TARIF_PLANS},
-      status        => "$lang{STATUS}",
+      status        => $lang{STATUS},
       type          => $lang{TYPE},
       destination   => $lang{DESTINATION},
       reports_count => $lang{REPORTS}
@@ -157,7 +199,7 @@ sub ureports_users_list {
       qs      => $pages_qs,
       ID      => 'UREPORTS_USERS',
       EXPORT  => 1,
-      MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;"
+      MENU    => $lang{SEARCH} . ':index=' . get_function_index('ureports_users_list') . '&search_form=1:search;'
       #$lang{ADD}:index=$index&add_form=1:add",
     },
   });
@@ -442,7 +484,7 @@ sub ureports_user {
 
   if(! $attr->{REGISTRATION}) {
     $Ureports->{HISTORY_BTN} = $html->button($lang{LOG}, "UID=$Ureports->{UID}&index=" . ($index + 1),
-      { class => 'btn bnt-default btn-success pull-right' });
+      { class => 'btn bnt-default btn-success' });
   }
 
   $html->tpl_show(_include('ureports_user', 'Ureports'), { %{$attr}, %{$Ureports} });
@@ -713,69 +755,24 @@ sub ureports_stats {
     $LIST_PARAMS{DESC} = 'desc';
   }
 
-  my @rows = ();
+  my $period = $html->form_daterangepicker({
+    NAME      => 'FROM_DATE/TO_DATE',
+    FORM_NAME => 'stats',
+    VALUE     => $FORM{'FROM_DATE_TO_DATE'},
+    WITH_TIME => 0
+  });
 
-  push @rows, $html->element('label', "$lang{FROM}: ", { class => 'col-md-2 control-label' })
-    . $html->element('div', $html->date_fld2('FROM_DATE', {
-    MONTHES  => \@MONTHES,
-    EEK_DAYS => \@WEEKDAYS
-  }), { class => 'col-md-9' });
-
-  push @rows, $html->element('label', "$lang{TO}: ", { class => 'col-md-2 control-label' })
-    . $html->element('div', $html->date_fld2('TO_DATE', {
-    MONTHES   => \@MONTHES,
-    WEEK_DAYS => \@WEEKDAYS
-  }), { class => 'col-md-9' });
-
-  push @rows, $html->element('label', "$lang{ROWS}: ", { class => 'col-md-2 control-label' })
-    . $html->element('div', $html->form_input('rows', int($conf{list_max_recs}), {
-    SIZE          => 4,
-    OUTPUT2RETURN => 1
-  }), { class => 'col-md-9' });
-
-  my $ROWS;
-  foreach my $val (@rows) {
-    $ROWS .= $html->element( 'div', $html->element('div', $val, {
-      class => 'form-group',
-      OUTPUT2RETURN => 1
-    }), { class => 'col-md-6 no-padding' } );
-  }
-  my $row_body = $html->element( 'div', $ROWS, {
-    class => 'row',
-  } );
-  my $box_body = $html->element( 'div', $row_body, {
-    class => 'box-body',
-  } );
-  my $box_footer = $html->element( 'div', $html->form_input( 'show', $lang{SHOW}, { class => 'btn btn-primary btn-block', TYPE => 'submit', OUTPUT2RETURN => 1 } ), {
-    class => 'box-footer',
-  } );
-  my $box_header = $html->element( 'div', $lang{FILTERS} . '<div class="box-tools pull-right">
-      <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
-      <i class="fa fa-minus"></i></button></div>',
-    { class => 'box-header with-border'} );
-  my $report_form = $html->element( 'div', $box_header . $box_body . $box_footer, {
-    class => 'box box-theme',
-  } );
-
-  print $html->form_main(
-    {
-      CONTENT => $report_form,
-      HIDDEN  => {
-        sid   => ($sid || ''),
-        index => $index,
-        UID   => $FORM{UID},
-        UIDS  => ($FORM{UIDS} || '')
-      },
-      #NAME => 'stats',
-      ID      => 'stats',
-      class   => 'form-horizontal'
-    }
-  );
+  $html->tpl_show(_include('ureports_stats', 'Ureports'), {
+    PERIOD         => $period,
+    SID            => ($sid || ''),
+    UID            => $FORM{UID},
+    UIDS           => ($FORM{UIDS} || ''),
+  });
 
   if (defined($FORM{show})) {
     $pages_qs .= "&show=1&FROM_DATE=" . ($FORM{FROM_DATE} || q{})
       . "&TO_DATE=" . ($FORM{TO_DATE} || '');
-    $LIST_PARAMS{INTERVAL} = ($FORM{FROM_DATE} || q{}) . '/' . ($FORM{TO_DATE} || '');
+    $LIST_PARAMS{INTERVAL} = ($FORM{FROM_DATE_TO_DATE} || q{});
   }
   elsif (defined($FORM{PERIOD})) {
     $LIST_PARAMS{PERIOD} = int($FORM{PERIOD});
@@ -812,7 +809,7 @@ sub ureports_stats {
       $line->{destination},
       $line->{tp_id},
       $line->{report_id},
-      $line->{status},
+      ($line->{status}) ? 'OK' : $lang{UNKNOWN},
       $html->button("D", "index=$index&UID=$line->{uid}&MSG_ID=$line->{id}",
         { TITLE => $lang{DETAIL}, class => 'show' })
         . ' ' . $delete);
@@ -943,6 +940,9 @@ sub ureports_user_info {
           $html->form_input("VALUE_$line->{report_id}", ($line->{value} || 0), {
             SIZE          => 6,
             OUTPUT2RETURN => 1,
+            EX_PARAMS     => 'pattern="[.0-9]+"',
+            TYPE          => 'number',
+            class         => 'form-control',
           }),
 
           # Price
@@ -984,7 +984,7 @@ sub ureports_user_info {
   });
 
   $Ureports->{DESTINATION_VIEW} = $html->element('p', $Ureports->{DESTINATION}, {
-    class         => 'form-control-static',
+    class         => 'form-control-static col-md-8 col-sm-9',
     OUTPUT2RETURN => 1
   });
 
@@ -1030,7 +1030,7 @@ sub ureports_daily_resets {
   if ($d == 1) {
     my $list = $Ureports->tp_user_reports_list(
       {
-        REPORT_ID => "13;14;3;11",
+        REPORT_ID => "13;14;3;11;10;9",
         DATE      => '>0000-00-00',
         %LIST_PARAMS,
         COLS_NAME => 1,
@@ -1392,10 +1392,10 @@ sub ureports_tp_reports {
   Arguments:
     $attr
       USER_INFO
-
+      METHOD
+      SUM
 
   Results:
-
 
 =cut
 #**********************************************************
@@ -1408,6 +1408,13 @@ sub ureports_payments_maked {
   );
 
   my Users $user = $attr->{USER_INFO};
+
+  if ($conf{UREPORTS_PAYMENT_METHOD} && $attr->{METHOD}) {
+    my @arr = split(/,\s?/, $conf{UREPORTS_PAYMENT_METHOD});
+    if(! in_array($attr->{METHOD}, \@arr)) {
+      return 0;
+    }
+  }
 
   return '' if ($FORM{DISABLE} || $FORM{CREDIT});
   return '' if (!$attr->{SUM} || int($attr->{SUM}) == 0);
@@ -1443,42 +1450,21 @@ sub ureports_payments_maked {
 
     my $total_daily_fee = 0;
 
-    my $cross_modules_return = cross_modules_call('_docs', {
-      FEES_INFO    => 1,
-      UID          => $user->{UID},
-      SKIP_MODULES => 'Ureports',
-      SILENT       => 1
-    });
+    my $service_info = get_services({
+      UID           => $user->{UID},
+      REDUCTION     => $user->{REDUCTION},
+      SKIP_DISABLED => 1,
+      PAYMENT_TYPE  => 0
+    },
+      { SKIP_MODULES  => 'Ureports,Sqlcmd' }
+    );
 
-    $user->{RECOMMENDED_PAYMENT} = 0;
-    foreach my $module (sort keys %{$cross_modules_return}) {
-      if (ref $cross_modules_return->{$module} eq 'HASH') {
-        if ($cross_modules_return->{$module}{day}) {
-          $total_daily_fee += $cross_modules_return->{$module}{day};
-          $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{day} * 30;
-        }
+    foreach my $service ( @{ $service_info->{list} } ) {
+      $user->{RECOMMENDED_PAYMENT} += $service->{SUM};
+    }
 
-        if ($cross_modules_return->{$module}{abon_distribution}) {
-          $total_daily_fee += ($cross_modules_return->{$module}{month} / 30);
-          #              if($cross_modules_return->{$module}{abon_distribution} && ! $conf{INTERNET_FULL_MONTH}) {
-          #                $user->{RECOMMENDED_PAYMENT} += ($cross_modules_return->{$module}{month} / 30);
-          #              }
-          #              else {
-          $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
-          #              }
-        }
-        elsif ($cross_modules_return->{$module}{month}) {
-          $user->{RECOMMENDED_PAYMENT} += $cross_modules_return->{$module}{month};
-        }
-
-        if ($cross_modules_return->{$module}->{service_activate}) {
-          $info{ACTIVATE} = $cross_modules_return->{$module}->{service_activate};
-        }
-
-        if ($cross_modules_return->{$module}->{tp_fixed_fees_day}) {
-          $info{TP_FIXED_FEES_DAY} = $cross_modules_return->{$module}->{tp_fixed_fees_day};
-        }
-      }
+    if($service_info->{distribution_fee}) {
+      $total_daily_fee = $service_info->{distribution_fee};
     }
 
     $user->{TOTAL_FEES_SUM} = $user->{RECOMMENDED_PAYMENT};
@@ -1543,11 +1529,11 @@ sub ureports_payments_maked {
     ureports_send_reports(
       $user_info->{DESTINATION_TYPE},
       $user_info->{DESTINATION_ID},
-      $html->tpl_show(_include('ureports_report_12', 'Ureports'), { %{$user}, %{$user_info}, %info }, { OUTPUT2RETURN => 1 }),
+      $html->tpl_show(_include('ureports_report_12', 'Ureports'), { %{$user}, %info, %{$user_info} }, { OUTPUT2RETURN => 1 }),
       {
-        %info,
         %{$user},
         %{$user_info},
+        %info,
         SUBJECT   => $lang{ACCOUNT_REPLENISHMENT},
         UID       => $user->{UID},
         TP_ID     => $user_info->{TP_ID},
@@ -1668,7 +1654,7 @@ sub _ureports_get_user_contacts {
   my $phone_exist = 0;
   my $i = 0;
   foreach my $item (@{$contacts_list}) {
-    if ($item->{value} eq "") {
+    if ($item->{value} && $item->{value} eq "") {
       splice(@{$contacts_list}, $i, 1);
     }
     $i++

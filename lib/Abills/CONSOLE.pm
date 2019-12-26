@@ -423,7 +423,7 @@ sub addrow {
   my $col_num=0;
 
   foreach my $val (@row) {
-    if($self->{title}->[$col_num] &&  $self->{title}->[$col_num] eq '-') {
+    if(! $self->{title}->[$col_num] || $self->{title}->[$col_num] eq '-') {
       next;
     }
 

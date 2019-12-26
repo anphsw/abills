@@ -278,4 +278,24 @@ sub discounts_user_del{
   return $self;
 }
 
+#**********************************************************
+=head2 discounts_user_query($attr)
+
+  Arguments:
+     UID - User ID
+
+  Returns:
+
+=cut
+#**********************************************************
+sub discounts_user_query {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query2("SELECT fio FROM users_pi WHERE uid = $attr->{UID}",
+    undef, { COLS_NAME => 1 });
+
+  return $self;
+}
+
 1

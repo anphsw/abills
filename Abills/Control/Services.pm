@@ -60,6 +60,7 @@ sub sel_tp {
     NEW_MODEL_TP => 1,
     DOMAIN_ID    => $users->{DOMAIN_ID},
     COLS_NAME    => 1,
+    STATUS       => '_SHOW',
     %params
   });
 
@@ -74,9 +75,8 @@ sub sel_tp {
   my %tp_list = ();
 
   foreach my $line (@$list) {
-    if($attr->{SKIP_TP} && $attr->{SKIP_TP} == $line->{tp_id}) {
-      next;
-    }
+    next if($attr->{SKIP_TP} && $attr->{SKIP_TP} == $line->{tp_id});
+    next if (!$attr->{SHOW_ALL} && $line->{status});
     $tp_list{$line->{tp_id}} = $line->{id} .' : '. $line->{name};
   }
 
@@ -113,6 +113,9 @@ sub sel_tp {
 
   Arguments:
     $user_info
+    $attr
+      ACTIVE_ONLY
+      SKIP_MODULES
 
   Returns:
     \%services
@@ -125,14 +128,15 @@ sub sel_tp {
 =cut
 #**********************************************************
 sub get_services {
-  my ($user_info) = @_;
+  my ($user_info, $attr) = @_;
 
   my %result = ();;
 
   my $cross_modules_return = cross_modules_call('_docs', {
-    UID       => $user_info->{UID},
-    REDUCTION => $user_info->{REDUCTION},
-    FULL_INFO => 1,
+    UID          => $user_info->{UID},
+    REDUCTION    => $user_info->{REDUCTION},
+    FULL_INFO    => 1,
+    SKIP_MODULES => $attr->{SKIP_MODULES}
     #PAYMENT_TYPE => 0
   });
 
@@ -142,41 +146,64 @@ sub get_services {
     if (ref $cross_modules_return->{$module} eq 'ARRAY') {
       next if ($#{$cross_modules_return->{$module}} == -1);
       foreach my $service_info (@{$cross_modules_return->{$module}}) {
-        if(ref $service_info eq 'HASH') {
+        if (ref $service_info eq 'HASH') {
           #foreach my $mod_info ( @{ $module_return } ) {
-            my $day_fee = ($service_info->{day} && $service_info->{day} > 0) ? $service_info->{day} * $days_in_month : 0;
-            my $sum = $day_fee + ($service_info->{month} || 0);
+          my $status = $service_info->{status} || 0;
+          if ($attr->{ACTIVE_ONLY} && $status) {
+            next;
+          }
 
-            push @{$result{list}}, {
-              MODULE       => $module,
-              SERVICE_NAME => $service_info->{service_name} || q{},
-              SERVICE_DESC => $service_info->{service_desc} || q{},
-              SUM          => $sum,
-              STATUS       => $service_info->{status} || 0,
-            };
+          my $day_fee = ($service_info->{day} && $service_info->{day} > 0) ? $service_info->{day} * $days_in_month : 0;
+          my $sum = $day_fee + ($service_info->{month} || 0);
 
-            $result{total_sum} += $sum;
-
-            if($service_info->{abon_distribution}) {
-              $result{distribution_fee} += $service_info->{month} / $days_in_month;
+          if($service_info->{tp_reduction_fee} && $user_info->{REDUCTION}) {
+            if($user_info->{REDUCTION} < 100 ) {
+              $sum = $sum * ((100 - $user_info->{REDUCTION}) / 100);
+              $service_info->{month} = $service_info->{month} * ((100 - $user_info->{REDUCTION}) / 100);
+              $service_info->{day} = $service_info->{day} * ((100 - $user_info->{REDUCTION}) / 100);
             }
-
-            if($service_info->{day}) {
-              $result{distribution_fee} += $service_info->{day};
+            else {
+              $sum = 0;
             }
+          }
+
+          push @{$result{list}}, {
+            MODULE           => $module,
+            SERVICE_NAME     => $service_info->{service_name} || q{},
+            SERVICE_DESC     => $service_info->{service_desc} || q{},
+            SUM              => $sum,
+            STATUS           => $status,
+            TP_REDUCTION_FEE => $service_info->{tp_reduction_fee} || 0,
+          };
+
+          $result{total_sum} += $sum;
+
+          my $day_division = $days_in_month;
+          if($service_info->{service_activate} && $service_info->{service_activate} ne '0000-00-00') {
+            $day_division = 30;
+          }
+
+          if ($service_info->{abon_distribution}) {
+            $result{distribution_fee} += $service_info->{month} / $day_division;
+          }
+
+          if ($service_info->{day}) {
+            $result{distribution_fee} += $service_info->{day};
+          }
+
           #}
         }
-        else {
-          my ($service_name, $service_desc, $sum, undef, undef, undef, undef, $status) = split(/\|/, $service_info);
-          push @{$result{list}}, {
-             MODULE       => $module,
-             SERVICE_NAME => $service_name,
-             SERVICE_DESC => $service_desc,
-             SUM          => $sum,
-             STATUS       => $status || 0,
-           };
-           $result{total_sum} += $sum;
-        }
+        # else {
+        #   my ($service_name, $service_desc, $sum, undef, undef, undef, undef, $status) = split(/\|/, $service_info);
+        #   push @{$result{list}}, {
+        #      MODULE       => $module,
+        #      SERVICE_NAME => $service_name,
+        #      SERVICE_DESC => $service_desc,
+        #      SUM          => $sum,
+        #      STATUS       => $status || 0,
+        #    };
+        #    $result{total_sum} += $sum;
+        # }
       }
     }
   }

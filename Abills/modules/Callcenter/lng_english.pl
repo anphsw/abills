@@ -1,4 +1,5 @@
 $lang{CALLS_HANDLER}='Calls handler ';
+$lang{CALLS_HANDLER_CHART}='Calls handler chart';
 $lang{CALL_CENTER}='Call center';
 $lang{RINGING}='Ringing';
 $lang{IN_PROCESSING}='In processing';

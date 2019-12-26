@@ -130,7 +130,7 @@ sub hangup {
     hangup_radpppd($Nas, \%params);
   }
   elsif ($nas_type eq 'mikrotik') {
-    my ($ip, $mng_port, $second_port) = split(/:/, $Nas->{NAS_MNG_IP_PORT} || q{}, 3);
+    my ($ip, $mng_port, $second_port, undef) = split(/:/, $Nas->{NAS_MNG_IP_PORT} || q{}, 4);
     #IPN Hangup if COA port 0
     if ($ip && !$mng_port && $second_port && $second_port > 0) {
       #$Nas->{NAS_MNG_IP_PORT} = "$ip:$second_port";
@@ -189,9 +189,9 @@ sub hangup {
   ) {
     hangup_ipoe($Nas, \%params);
   }
-  elsif ($nas_type eq 'patton') {
-    hangup_patton29xx($Nas, \%params);
-  }
+  # elsif ($nas_type eq 'patton') {
+  #   hangup_patton29xx($Nas, \%params);
+  # }
   elsif ($nas_type eq 'pppd' || $nas_type eq 'lepppd') {
     hangup_pppd($Nas, \%params);
   }
@@ -208,9 +208,14 @@ sub hangup {
 
     hangup_radius($Nas, \%params);
   }
-  #  elsif ( $nas_type eq 'redback' || $nas_type eq 'zte_m6000'){
-  #    hangup_radius( $Nas, \%params );
-  #  }
+  elsif ( $nas_type eq 'redback' || $nas_type eq 'zte_m6000'){
+    if($attr->{CONNECT_INFO} && $attr->{CONNECT_INFO} !~ /pppoe/) {
+      my $cid = $attr->{CID} || $attr->{CALLING_STATION_ID} || '';
+      $cid =~ s/\-/:/g;
+      $params{RAD_PAIRS}->{'User-Name'} = $cid;
+    }
+    hangup_radius( $Nas, \%params );
+  }
   elsif ($nas_type eq 'mx80') {
     $params{RAD_PAIRS}->{'Acct-Session-Id'} = $params{SESSION_ID};
     hangup_radius($Nas, \%params);
@@ -316,9 +321,8 @@ sub telnet_cmd {
         alarm 0;
       };
 
-      # ���� ����� �� ����-���� $timeout
       if ($@) {
-        last;
+        return $res;
       }
 
       $input .= $inbuf;
@@ -774,7 +778,7 @@ sub hangup_ipoe {
   my $PORT = $attr->{PORT};
   my $netmask = $attr->{NETMASK} || $attr->{netmask} || 32;
   my $FILTER_ID = $attr->{FILTER_ID} || '';
-  my $nas_type = $NAS->{NAS_TYPE} || 'ipoe';
+  #my $nas_type = $NAS->{NAS_TYPE} || 'ipoe';
 
   if ($debug > 3) {
     print "Hangup ipcad: \n";
@@ -803,19 +807,19 @@ sub hangup_ipoe {
     print "Error: [ $Ipn->{errno} ] $Ipn->{errstr} \n";
   }
 
-  if ($nas_type eq 'dhcp'
-    || $nas_type eq 'mikrotik_dhcp'
-    || $nas_type eq 'dlink_pb'
-    || $nas_type eq 'dlink'
-    || $nas_type eq 'edge_core'
-  ) {
-    if ($Ipn->can('query2')) {
-      $Ipn->query2("DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
-    }
-    else {
-      $Ipn->query("DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
-    }
-  }
+  # if ($nas_type eq 'dhcp'
+  #   || $nas_type eq 'mikrotik_dhcp'
+  #   || $nas_type eq 'dlink_pb'
+  #   || $nas_type eq 'dlink'
+  #   || $nas_type eq 'edge_core'
+  # ) {
+  #   if ($Ipn->can('query2')) {
+  #     $Ipn->query2("DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
+  #   }
+  #   else {
+  #     $Ipn->query("DELETE FROM dhcphosts_leases WHERE ip=INET_ATON('$ip')", 'do');
+  #   }
+  # }
 
   my $num = 0;
   if ($attr->{UID} && $CONF->{IPN_FW_RULE_UID}) {
@@ -948,7 +952,16 @@ sub hangup_cisco_isg {
     $r->load_dictionary($CONF->{'dictionary'});
 
     $r->add_attributes({ Name => 'User-Name', Value => "$attr->{USER}" });
-    $r->add_attributes({ Name => 'Cisco-Account-Info', Value => "S$attr->{FRAMED_IP_ADDRESS}" });
+
+    # We cannot uniquely identify a session by IP address when VRFs are used.
+    # However, we can do it using a session ID (requires CSCek31466)
+    if ($CONF->{INTERNET_ISG_KILL_WITH_SID}) {
+      $r->add_attributes({ Name => 'Acct-Session-Id', Value => "$attr->{ACCT_SESSION_ID}" });
+    }
+    else {
+       $r->add_attributes({ Name => 'Cisco-Account-Info', Value => "S$attr->{FRAMED_IP_ADDRESS}" });
+    }
+
     $r->add_attributes({ Name => 'Cisco-AVPair', Value => "subscriber:command=account-logoff" });
 
     $r->send_packet(43) and $type = $r->recv_packet;
@@ -1154,35 +1167,35 @@ sub hangup_radpppd {
 #
 # get_pppd_stats ($SERVER, $PORT, $IP)
 #***********************************************************
-#@deprecated
-sub stats_pppd {
-  my ($NAS, $PORT) = @_;
-
-  my $firstnumber = 1000;
-  my $step = 10;
-  my $innum = $firstnumber + $PORT * $step;
-  my $outnum = $firstnumber + $PORT * $step + 5;
-
-  my %stats = ();
-
-  $stats{ $NAS->{NAS_IP} }{$PORT}{in} = 0;
-  $stats{ $NAS->{NAS_IP} }{$PORT}{out} = 0;
-
-  # 01000    369242     53878162 count ip from any to any in via 217.196.163.253
-  open(my $FW, '|-', "/usr/sbin/ipfw $innum $outnum") || die "Can't open '/usr/sbin/ipfw' $!\n";
-  while (<$FW>) {
-    my ($num, undef, $bytes, undef) = split(/ +/, $_, 4);
-    if ($innum == $num) {
-      $stats{$NAS->{NAS_IP}}{$PORT}{in} = $bytes;
-    }
-    elsif ($outnum == $num) {
-      $stats{$NAS->{NAS_IP}}{$PORT}{in} = $bytes;
-    }
-  }
-  close($FW);
-
-  return 1;
-}
+# #@deprecated
+# sub stats_pppd {
+#   my ($NAS, $PORT) = @_;
+#
+#   my $firstnumber = 1000;
+#   my $step = 10;
+#   my $innum = $firstnumber + $PORT * $step;
+#   my $outnum = $firstnumber + $PORT * $step + 5;
+#
+#   my %stats = ();
+#
+#   $stats{ $NAS->{NAS_IP} }{$PORT}{in} = 0;
+#   $stats{ $NAS->{NAS_IP} }{$PORT}{out} = 0;
+#
+#   # 01000    369242     53878162 count ip from any to any in via 217.196.163.253
+#   open(my $FW, '|-', "/usr/sbin/ipfw $innum $outnum") || die "Can't open '/usr/sbin/ipfw' $!\n";
+#   while (<$FW>) {
+#     my ($num, undef, $bytes, undef) = split(/ +/, $_, 4);
+#     if ($innum == $num) {
+#       $stats{$NAS->{NAS_IP}}{$PORT}{in} = $bytes;
+#     }
+#     elsif ($outnum == $num) {
+#       $stats{$NAS->{NAS_IP}}{$PORT}{in} = $bytes;
+#     }
+#   }
+#   close($FW);
+#
+#   return 1;
+# }
 
 #***********************************************************
 =head2 hangup_pppd($NAS, $attr);
@@ -1220,43 +1233,43 @@ sub hangup_pppd {
   return $result;
 }
 
-#***********************************************************
-=head2 hangup_patton29xx()
-
- HANGUP Patton 29xx
-
-=cut
-#***********************************************************
-#@deprecated
-sub hangup_patton29xx {
-  my ($NAS, $attr) = @_;
-  my $exec = '';
-
-  my $PORT = $attr->{PORT};
-  # Get active sessions
-  my %active = ();
-  my @arr = snmpwalk("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.3");
-  foreach my $line (@arr) {
-    if ($line =~ /(\d+):6/) {
-      $active{$1} = 1;
-    }
-  }
-
-  #Get iface
-  @arr = snmpwalk("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.9");
-  foreach my $line (@arr) {
-    if ($line =~ /(\d+):(\d+)/) {
-      if ($2 == $PORT && $active{$1}) {
-        $exec = snmpset("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.3.$1", 'integer', 10);
-
-        #print " IFACE: $iface INDEX $1 IN: $in OUT: $out\n";
-        last;
-      }
-    }
-  }
-
-  return $exec;
-}
+# #***********************************************************
+# =head2 hangup_patton29xx()
+#
+#  HANGUP Patton 29xx
+#
+# =cut
+# #***********************************************************
+# #@deprecated
+# sub hangup_patton29xx {
+#   my ($NAS, $attr) = @_;
+#   my $exec = '';
+#
+#   my $PORT = $attr->{PORT};
+#   # Get active sessions
+#   my %active = ();
+#   my @arr = snmpwalk("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.3");
+#   foreach my $line (@arr) {
+#     if ($line =~ /(\d+):6/) {
+#       $active{$1} = 1;
+#     }
+#   }
+#
+#   #Get iface
+#   @arr = snmpwalk("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.9");
+#   foreach my $line (@arr) {
+#     if ($line =~ /(\d+):(\d+)/) {
+#       if ($2 == $PORT && $active{$1}) {
+#         $exec = snmpset("$NAS->{NAS_MNG_PASSWORD}\@$NAS->{NAS_IP}", ".1.3.6.1.4.1.1768.5.100.1.3.$1", 'integer', 10);
+#
+#         #print " IFACE: $iface INDEX $1 IN: $in OUT: $out\n";
+#         last;
+#       }
+#     }
+#   }
+#
+#   return $exec;
+# }
 
 #***********************************************************
 # Get stats from Patton RAS 29xx
@@ -1380,8 +1393,6 @@ sub setspeed {
   else {
     return -1;
   }
-
-  return 0;
 }
 
 #***********************************************************

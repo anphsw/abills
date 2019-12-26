@@ -1139,7 +1139,7 @@ sub _send_sms_with_pin {
 
   if (in_array( 'Sms', \@MODULES ) ) {
     load_module( 'Sms', $html );
-    my $message = "PIN: $attr->{password}";
+    my $message = "Пин код: $attr->{password}";
     my $phone = $PHONE_PREFIX . $attr->{phone};
     my $sms = Sms->new( $db, $admin, \%conf );
     my $phone_sms_list = $sms->list({
@@ -1187,10 +1187,16 @@ sub _send_sms_with_pin {
 =cut
 #**********************************************************
 sub fast_login {
-
 # print "Content-Type:text/html\n\n";
   if ($FORM{error}) {
-    if ($conf{HOTSPOT_USE_PIN}) {
+    if ($conf{HOTSPOT_USER_PORTAL} && $COOKIES{hotspot_username} && $COOKIES{hotspot_password}) {
+      my $user_portal_url = $SELF_URL;
+      $user_portal_url =~ s/start/index/;
+      $user_portal_url .= "?user=$COOKIES{hotspot_username}&passwd=$COOKIES{hotspot_password}";
+      print "Location: $user_portal_url\n\n";
+      exit 1;
+    }
+    elsif ($conf{HOTSPOT_USE_PIN}) {
       #ask user for card pin
       #TODO: filter errors
       print $html->header();
@@ -1329,19 +1335,12 @@ sub fast_login {
       ACTION   => 3,
       COMMENTS => "User:$COOKIES{hotspot_username} cookies login"
     });
-    print $html->header();
-    print $html->tpl_show( templates( 'hotspot_auto_login' ), {
-      LOGIN              => $COOKIES{hotspot_username},
-      PASSWORD           => $COOKIES{hotspot_password},
-      HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
-      DST                => redirect_page(),
-    });
+    mikrotik_login({LOGIN => $COOKIES{hotspot_username}, PASSWORD => $COOKIES{hotspot_password}});
     exit;
   }
 
 #===== CHECK PHONE =====
   if ( $conf{HOTSPOT_CHECK_PHONE} ){
-
     my $hot_log = $Hotspot->log_list({
         CID       => $FORM{mac},
         INTERVAL  => "$DATE/$DATE",
@@ -1372,17 +1371,7 @@ sub fast_login {
       ACTION   => 3,
       COMMENTS => "User:$login($FORM{mac}) auto login"
     });
-    mk_cookie({
-      hotspot_username=> $login,
-      hotspot_password=> $password,
-    });
-    print $html->header();
-    print $html->tpl_show( templates( 'hotspot_auto_login' ), {
-      LOGIN              => $login,
-      PASSWORD           => $password,
-      HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
-      DST                => redirect_page(),
-    });
+    mikrotik_login({LOGIN => $login, PASSWORD => $password});
     exit;
   }
   elsif ($conf{HOTSPOT_PHONE_LOGIN} && $FORM{PHONE}) {
@@ -1422,7 +1411,7 @@ if ($conf{HOTSPOT_BUY_CARDS}) {
     });
     if ($Hotspot->{TOTAL} > 0) {
       my ($op_id) = $hot_log->[0]->{comments} =~ m/op_id\:\'(.*)\'/;
-      use Paysys;
+      require Paysys;
       my $Paysys = Paysys->new($db, $admin, \%conf);
       my $list = $Paysys->list({
         TRANSACTION_ID => "Liqpay:$op_id",
@@ -1582,17 +1571,8 @@ sub hotspot_registration {
         COMMENTS => "$return->[0]->{LOGIN} registred, UID:$return->[0]->{UID}"
       });
 
-  mk_cookie({
-    hotspot_username=> $return->[0]->{LOGIN},
-    hotspot_password=> $return->[0]->{PASSWORD},
-  });
-  print $html->header();
-  print $html->tpl_show( templates( 'hotspot_auto_login' ), {
-    LOGIN              => $return->[0]->{LOGIN},
-    PASSWORD           => $return->[0]->{PASSWORD},
-    HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
-    DST                => redirect_page(),
-  });
+  mikrotik_login({LOGIN => $return->[0]->{LOGIN}, PASSWORD => $return->[0]->{PASSWORD}});
+  
   exit;
 }
 
@@ -1632,18 +1612,7 @@ sub fast_mac_login {
       $Log->log_print('LOG_INFO', $list->[0]->{login}, "$FORM{mac} MAC login", { LOG_FILE => "$conf{HOTSPOT_LOG}" });
     }
 
-    mk_cookie({
-      hotspot_username=> $list->[0]->{login},
-      hotspot_password=> $list->[0]->{password},
-    });
-
-    print $html->header();
-    print $html->tpl_show( templates( 'hotspot_auto_login' ), {
-      LOGIN              => $list->[0]->{login},
-      PASSWORD           => $list->[0]->{password},
-      HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
-      DST                => redirect_page(),
-    });
+    mikrotik_login({LOGIN => $list->[0]->{login}, PASSWORD => $list->[0]->{password}});
     exit;
   }
   return 1;
@@ -1682,18 +1651,8 @@ sub phone_login {
       $Log->log_print('LOG_INFO', $list->[0]->{login}, "$FORM{PHONE} PHONE login", { LOG_FILE => "$conf{HOTSPOT_LOG}" });
     }
 
-    mk_cookie({
-      hotspot_username=> $list->[0]->{login},
-      hotspot_password=> $list->[0]->{password},
-    });
+    mikrotik_login({ LOGIN => $list->[0]->{login}, PASSWORD => $list->[0]->{password} });
 
-    print $html->header();
-    print $html->tpl_show( templates( 'hotspot_auto_login' ), {
-      LOGIN              => $list->[0]->{login},
-      PASSWORD           => $list->[0]->{password},
-      HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $conf{HOTSPOT_AUTO_LOGIN},
-      DST                => redirect_page(),
-    });
     exit;
   }
 
@@ -1773,7 +1732,7 @@ sub phone_verifycation {
           { GLOBAL_URL => "$COOKIES{link_login}", class => 'btn btn-success' } );
     print $html->header();
     if ($auth_replace_tpl) {
-      print $html->tpl_show( templates( $auth_replace_tpl ), { 
+      print $html->tpl_show( templates( $auth_replace_tpl ), {
         AUTH_NUMBER => $conf{HOTSPOT_AUTH_NUMBER},
         mac         => $FORM{mac},
         PHONE       => $FORM{PHONE},
@@ -1782,7 +1741,7 @@ sub phone_verifycation {
     }
     else {
       print $html->tpl_show( templates( $auth_tpl )) if ($auth_tpl);
-      print $html->tpl_show( templates( 'form_client_hotspot_call_auth' ), { 
+      print $html->tpl_show( templates( 'form_client_hotspot_call_auth' ), {
         AUTH_NUMBER => $conf{HOTSPOT_AUTH_NUMBER},
         mac         => $FORM{mac},
         PHONE       => $FORM{PHONE},
@@ -2073,4 +2032,48 @@ sub change_user_mac {
   return 1;
 }
 
-1
+#**********************************************************
+=head2 mikrotik_login()
+    
+=cut
+#**********************************************************
+sub mikrotik_login {
+  my ($attr) = @_;
+  my $tpl = 'hotspot_auto_login';
+  my $ad_to_show = ();
+
+  mk_cookie({
+    hotspot_username=> $attr->{LOGIN},
+    hotspot_password=> $attr->{PASSWORD},
+  });
+
+  if($conf{HOTSPOT_SHOW_AD}) {
+
+    $ad_to_show = $Hotspot->request_random_ad({ COLS_NAME => 1 });
+    my $user_info = $users->list({
+      LOGIN     => $attr->{LOGIN},
+      COLS_NAME => 1,
+    });
+
+    my $tp_info = $Dv->info($user_info->[0]->{uid});
+
+    my @show_tp = split(';', ($conf{HOTSPOT_AD_TP_IDS} || ''));
+    if($ad_to_show->{id} && in_array($tp_info->{TP_ID}, \@show_tp)) {
+      $Hotspot->advert_shows_add({ AD_ID => $ad_to_show->{id}});
+
+      $tpl='hotspot_auto_login_advertisement';
+    }
+  }
+  print $html->header();
+  print $html->tpl_show(templates($tpl), {
+    LOGIN              => $attr->{LOGIN},
+    PASSWORD           => $attr->{PASSWORD},
+    HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || '1',
+    TIME               => $conf{HOTSPOT_AD_SHOW_TIME} || 10,
+    ADVERTISEMENT      => $ad_to_show->{url} || '',
+  });
+
+  return 1;
+}
+
+1;

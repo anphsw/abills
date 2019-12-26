@@ -139,9 +139,9 @@ sub count_vk_likes {
   my $self = shift;
   my ($attr) = @_;
   
-  my $client_id    = $self->{conf}->{AUTH_VK_ID} || q{};
+  #my $client_id    = $self->{conf}->{AUTH_VK_ID} || q{};
   my $version      = '5.62';
-  my $client_secret= $self->{conf}->{AUTH_VK_SECRET} || q{};
+  #my $client_secret= $self->{conf}->{AUTH_VK_SECRET} || q{};
   
   unless ($attr->{OWNER_ID} && $attr->{POST_ID}) {return 1;}
   

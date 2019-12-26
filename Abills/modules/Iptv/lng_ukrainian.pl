@@ -98,5 +98,8 @@ $lang{CARD_EXIST} = "Картка уже існує";
 $lang{NO_CARDS} = "Немає карт (Або заблоковані або відсутні)";
 $lang{INTERNAL_URL} = "Внутрішнє посилання";
 $lang{EXTERNAL_URL} = "Зовнішнє посилання";
+$lang{CHANGE_OF_TP} = "Зміна тарифного плану на";
+
+$lang{ERROR_SHOW_CHANNELS} = "Ошибка показа каналов";
 
 1;

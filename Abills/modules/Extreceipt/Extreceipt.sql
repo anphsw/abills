@@ -1,11 +1,40 @@
 CREATE TABLE IF NOT EXISTS `extreceipts` (
-  `payments_id` INT(11)    UNSIGNED NOT NULL DEFAULT 0,
-  `command_id`  INT(11)    UNSIGNED NOT NULL DEFAULT 0,
-  `receipt_date` VARCHAR(30)        NOT NULL,
-  `fdn`         INT(11)    UNSIGNED NOT NULL DEFAULT 0,
-  `fda`         INT(11)    UNSIGNED NOT NULL DEFAULT 0,
-  `cancel_id`   INT(11)    UNSIGNED NOT NULL DEFAULT 0,
-  `status`      TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `payments_id`  INT(11)    UNSIGNED NOT NULL DEFAULT 0,
+  `command_id`   VARCHAR(60)         NOT NULL DEFAULT '',
+  `receipt_date` VARCHAR(30)         NOT NULL DEFAULT '',
+  `fdn`          INT(11)    UNSIGNED NOT NULL DEFAULT 0,
+  `fda`          INT(11)    UNSIGNED NOT NULL DEFAULT 0,
+  `cancel_id`    VARCHAR(60)         NOT NULL DEFAULT '',
+  `status`       TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `kkt_id`       INT(11)    UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`payments_id`)
 )
   COMMENT = 'External receipts';
+
+CREATE TABLE IF NOT EXISTS `extreceipts_kkt` (
+  `kkt_id`       INT(11)    UNSIGNED NOT NULL AUTO_INCREMENT,
+  `api_id`       INT(11)    UNSIGNED NOT NULL DEFAULT 0,
+  `kkt_group`    VARCHAR(30)         NOT NULL DEFAULT '',
+  `methods`      VARCHAR(30)         NOT NULL DEFAULT '',
+  `groups`       VARCHAR(30)         NOT NULL DEFAULT '',
+  `admins`       VARCHAR(30)         NOT NULL DEFAULT '',
+  PRIMARY KEY (`kkt_id`)
+)
+  COMMENT = 'kkt';
+
+CREATE TABLE IF NOT EXISTS `extreceipts_api` (
+  `api_id`       INT(11)    UNSIGNED NOT NULL AUTO_INCREMENT,
+  `api_name`     VARCHAR(20)         NOT NULL DEFAULT '',
+  `login`        VARCHAR(60)         NOT NULL DEFAULT '',
+  `password`     VARCHAR(120)        NOT NULL DEFAULT '',
+  `url`          VARCHAR(200)        NOT NULL DEFAULT '',
+  `goods_name`   VARCHAR(200)        NOT NULL DEFAULT '',
+  `author`       VARCHAR(30)         NOT NULL DEFAULT '',
+  `callback`     VARCHAR(200)        NOT NULL DEFAULT '',
+  `email`        VARCHAR(30)         NOT NULL DEFAULT '',
+  `inn`          VARCHAR(30)         NOT NULL DEFAULT '',
+  `address`      VARCHAR(200)        NOT NULL DEFAULT '',
+  PRIMARY KEY (`api_id`)
+)
+  COMMENT = 'Extreceipts apis';
+

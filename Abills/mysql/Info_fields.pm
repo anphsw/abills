@@ -21,9 +21,9 @@ sub new {
   bless($self, $class);
 
   $admin->{MODULE} = $MODULE;
-  $self->{db}      = $db;
-  $self->{admin}   = $admin;
-  $self->{conf}    = $CONF;
+  $self->{db} = $db;
+  $self->{admin} = $admin;
+  $self->{conf} = $CONF;
 
   return $self;
 }
@@ -58,7 +58,6 @@ sub fields_del {
   my ($attr) = @_;
 
   $self->query_del('info_fields', { ID => $attr });
-  
 
   return $self->{result};
 }
@@ -72,22 +71,22 @@ sub fields_list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former( $attr, [
-      [ 'ID',         'INT', 'id',          1 ],
-      [ 'NAME',       'STR', 'name',        1 ],
-      [ 'SQL_FIELD',  'STR', 'sql_field',   1 ],
-      [ 'TYPE',       'INT', 'type',        1 ],
-      [ 'PRIORITY',   'INT', 'priority',    1 ],
-      [ 'COMPANY',    'INT', 'company',     1 ],
-      [ 'ABON_PORTAL','INT', 'abon_portal', 1 ],
-      [ 'USER_CHG',   'INT', 'user_chg',    1 ],
-      [ 'MODULE',     'STR', 'module',      1 ],
-      [ 'COMMENT',    'STR', 'comment',     1 ],
-      [ 'DOMAIN_ID',  'STR', 'domain_id',   1 ],
-    ],
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',       'INT', 'id',        1 ],
+    [ 'NAME',     'STR', 'name',      1 ],
+    [ 'SQL_FIELD','STR', 'sql_field', 1 ],
+    [ 'TYPE',     'INT', 'type',      1 ],
+    [ 'PRIORITY', 'INT', 'priority',  1 ],
+    [ 'COMPANY',  'INT', 'company',   1 ],
+    [ 'ABON_PORTAL', 'INT', 'abon_portal', 1 ],
+    [ 'USER_CHG', 'INT', 'user_chg',  1 ],
+    [ 'MODULE',   'STR', 'module',    1 ],
+    [ 'COMMENT',  'STR', 'comment',   1 ],
+    [ 'DOMAIN_ID','INT', 'domain_id', 1 ],
+  ],
     { WHERE => 1,
     }
   );

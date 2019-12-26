@@ -265,6 +265,7 @@ $lang{LAST_UPDATE} = 'Последнее обновление';
 $lang{ARPU} = 'Средняя выручка на одного пользователя';
 $lang{CONFIRM} = 'Подтвердить';
 $lang{OPERATION_DEPOSIT} = 'Депозит операции';
+$lang{AFTER_OPERATION_DEPOSIT} = 'Депозит после операции';
 $lang{COMPANIES} = 'Компании';
 $lang{RESTART} = 'Рестарт';
 $lang{HEADER} = ' Заголовок';
@@ -816,5 +817,24 @@ $lang{SHORT_ADMINS}='Админы';
 $lang{AVR_FEES_AUTHORIZED}='Средние списания по авторизированным абонентам';
 $lang{AVR_AMOUNT_ACTIVE_SERV}='Средняя стоимость активных сервисов';
 $lang{ARPU_FUTURE}='Прогнозируемое ARPU';
+$lang{SET_PARAMS}='Задать параметры';
+$lang{SECONDS} = 'секунд';
+$lang{WAIT} = 'Подождите';
+$lang{ERROR_DEL_SHEDULE_CHG_TP} = 'Расписание добавленное администратором невозможно удалить, для удаления обратитесь в тех.поддержку';
 
+$lang{ERROR_PUBLIC_MODE} = 'Вы не можете выполнить это действие в режиме публичной демонстрации системы';
+$lang{CHANGE_ADMIN_PERMITS} = 'Изменение прав доступа';
+
+$lang{IP_SKIP}='IP пропустить';
+$lang{SEARCH_ABON}='Поиск абонентов';
+
+$lang{JOBS}='Вакансии';
+$lang{INTERNET}='Интернет';
+$lang{IPTV}='Телевидение';
+$lang{APPLICATIONS}='Заявки на подключения';
+$lang{REG_PHONE}='Для регистрации необходимо подтвердить телефон.';
+$lang{REG_SUCCESS}='Поздравляем! Регистрация завершена';
+$lang{REG_SEND_EMAIL}='Вся информация была отправлена на ваш E-mail';
+
+$lang{EXTRA_FIELDS}='Дополнительные поля';
 1

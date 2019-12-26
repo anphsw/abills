@@ -5,6 +5,7 @@ ALTER TABLE `notepad_reminders` ADD COLUMN `rule_id`   SMALLINT(3) NOT NULL DEFA
 ALTER TABLE `notepad_reminders` MODIFY COLUMN `week_day` TEXT;
 
 ALTER TABLE `notepad` MODIFY COLUMN `create_date` DATETIME    DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE `notepad` ADD COLUMN `status_st` TINYINT(3) NOT NULL AFTER `aid`;
 
 CREATE TABLE IF NOT EXISTS `notepad_checklist_rows` (
   `id`       INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,

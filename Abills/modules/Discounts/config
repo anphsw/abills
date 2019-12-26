@@ -3,3 +3,7 @@
       "02:1:$lang{ADD} $lang{DISCOUNTS}:discounts_add_discounts:"     => 5,
       "03:0:$lang{DISCOUNTS}:discounts_user_service:UID"              => 20,
 );
+
+%USER_FUNCTION_LIST = (
+    "01:0:$lang{CARD_ABON}:discounts_user:"                           => 0,
+);

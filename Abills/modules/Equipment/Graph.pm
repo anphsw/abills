@@ -78,10 +78,22 @@ sub add_graph {
       archive => { rows => 336,  cpoints => 3,  cfunc => 'MAX' },
       archive => { rows => 744,  cpoints => 6,  cfunc => 'MAX' },
       archive => { rows => 1460, cpoints => 36, cfunc => 'MAX' },
+    ],
+    0 => [
+      archive => { rows => 144,  cpoints => 1,  cfunc => 'AVERAGE' },
+      archive => { rows => 336,  cpoints => 3,  cfunc => 'AVERAGE' },
+      archive => { rows => 744,  cpoints => 6,  cfunc => 'AVERAGE' },
+      archive => { rows => 1460, cpoints => 36, cfunc => 'AVERAGE' },
+      archive => { rows => 144,  cpoints => 1,  cfunc => 'MAX' },
+      archive => { rows => 336,  cpoints => 3,  cfunc => 'MAX' },
+      archive => { rows => 744,  cpoints => 6,  cfunc => 'MAX' },
+      archive => { rows => 1460, cpoints => 36, cfunc => 'MAX' },
     ]
   };
 
-  my $step = (defined($attr->{STEP}) && ($attr->{STEP} eq 60 || $attr->{STEP} eq 300 || $attr->{STEP} eq 600) ) ? $attr->{STEP} : '300';
+  # my $step = (defined($attr->{STEP}) && ($attr->{STEP} eq 60 || $attr->{STEP} eq 300 || $attr->{STEP} eq 600) ) ? $attr->{STEP} : '300';
+  my $step = defined($attr->{STEP})? $attr->{STEP} : '300';
+
   my @datasource = ();
   my %values = ();
   my $rrdfile = $rrd_dir. "/" . $attr->{NAS_ID} . "_" . $attr->{PORT} . "_" . lc($attr->{TYPE}) . ".rrd";
@@ -102,7 +114,8 @@ sub add_graph {
     $rrd->create(
       step => $step,
       @datasource,
-      @{$archive->{$step}}
+      @{$archive->{$step} || $archive->{0}}
+
     );
   }
 
