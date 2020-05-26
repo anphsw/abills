@@ -373,43 +373,41 @@ sub storage_articles_types{
 
 =cut
 #***********************************************************
-sub suppliers_main{
+sub suppliers_main {
 
-  if ( $FORM{message} ) {
-    $html->message( 'info', $lang{INFO}, "$FORM{message}" );
+  if ($FORM{message}) {
+    $html->message('info', $lang{INFO}, "$FORM{message}");
   }
   $Storage->{ACTION} = 'add';
   $Storage->{ACTION_LNG} = $lang{ADD};
   $Storage->{DATE} = '0000-00-00';
 
-
   $Storage->{OKPO_PATTERN} = $conf{STORAGE_OKPO_PATTERN} || '\d{8,10}';
-  $Storage->{INN_PATTERN} = $conf{STORAGE_INN_PATTERN}   || '\d{12,12}';
-  $Storage->{MFO_PATTERN} = $conf{STORAGE_MFO_PATTERN}   || '\d{6,6}';
+  $Storage->{INN_PATTERN} = $conf{STORAGE_INN_PATTERN} || '\d{12,12}';
+  $Storage->{MFO_PATTERN} = $conf{STORAGE_MFO_PATTERN} || '\d{6,6}';
 
+  if ($FORM{del}) {
+    my $list = $Storage->storage_incoming_articles_list({ SUPPLIER_ID => $FORM{del}, COLS_NAME => 1 });
+    _error_show($Storage);
 
-  if ( $FORM{del} ) {
-    my $list = $Storage->storage_incoming_articles_list( { SUPPLIER_ID => $FORM{del}, COLS_NAME => 1 } );
-    _error_show( $Storage );
-
-    if ( defined( $list->[0]->{id} ) ) {
-      $html->message( 'warn', $lang{INFO}, "$lang{CANT_DELETE_ERROR3}" );
+    if (defined($list->[0]->{id})) {
+      $html->message('warn', $lang{INFO}, "$lang{CANT_DELETE_ERROR3}");
     }
     else {
-      $Storage->suppliers_del( { ID => $FORM{del} } );
-      if ( !$Storage->{errno} ) {
-        $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
+      $Storage->suppliers_del({ ID => $FORM{del} });
+      if (!$Storage->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{DELETED}");
       }
     }
   }
-  elsif ( $FORM{change} ) {
-    if ( $FORM{NAME} ) {
-      $Storage->suppliers_change( { %FORM } );
-      if ( !$Storage->{errno} ) {
+  elsif ($FORM{change}) {
+    if ($FORM{NAME}) {
+      $Storage->suppliers_change({ %FORM });
+      if (!$Storage->{errno}) {
 
         #$html->message('info', $lang{INFO}, "$lang{CHANGED}");
         $html->tpl_show(
-          _include( 'storage_redirect', 'Storage' ),
+          _include('storage_redirect', 'Storage'),
           {
             SECTION => '',
             MESSAGE => "$lang{CHANGED}",
@@ -420,16 +418,23 @@ sub suppliers_main{
     else {
       $Storage->{ACTION} = 'change';
       $Storage->{ACTION_LNG} = $lang{CHANGE};
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'storage_suppliers_form', 'Storage' ), { %{$Storage}, %FORM } );
+      $html->message('info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}");
+      $Storage->{ADDRESS_FORM} = form_address_select2({
+        HIDE_FLAT             => 1,
+        HIDE_ADD_BUILD_BUTTON => 1,
+        LOCATION_ID           => 0,
+        DISTRICT_ID           => 0,
+        STREET_ID             => 0,
+      });
+      $html->tpl_show(_include('storage_suppliers_form', 'Storage'), { %{$Storage}, %FORM });
     }
   }
-  elsif ( $FORM{add} ) {
-    if ( $FORM{NAME} ) {
-      $Storage->suppliers_add( { %FORM } );
-      if ( !$Storage->{errno} ) {
+  elsif ($FORM{add}) {
+    if ($FORM{NAME}) {
+      $Storage->suppliers_add({ %FORM });
+      if (!$Storage->{errno}) {
         $html->tpl_show(
-          _include( 'storage_redirect', 'Storage' ),
+          _include('storage_redirect', 'Storage'),
           {
             SECTION => '',
             MESSAGE => "$lang{ADDED}",
@@ -438,80 +443,65 @@ sub suppliers_main{
       }
     }
     else {
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'storage_suppliers_form', 'Storage' ), { %{$Storage}, %FORM } );
+      $html->message('info', $lang{INFO}, "$lang{FIELDS_FOR_NAME_ARE_REQUIRED}");
+      $Storage->{ADDRESS_FORM} = form_address_select2({
+        HIDE_FLAT             => 1,
+        HIDE_ADD_BUILD_BUTTON => 1,
+        LOCATION_ID           => 0,
+        DISTRICT_ID           => 0,
+        STREET_ID             => 0,
+      });
+      $html->tpl_show(_include('storage_suppliers_form', 'Storage'), { %{$Storage}, %FORM });
     }
   }
-  elsif ( $FORM{chg} ) {
+  elsif ($FORM{chg}) {
     $Storage->{ACTION} = 'change';
     $Storage->{ACTION_LNG} = $lang{CHANGE};
-    $Storage->suppliers_info( { ID => $FORM{chg} } );
-    if ( !$Storage->{errno} ) {
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGING}" );
+    $Storage->suppliers_info({ ID => $FORM{chg} });
+    if (!$Storage->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{CHANGING}");
     }
   }
-  if ( !$FORM{add} and !$FORM{change} ) {
-    $html->tpl_show( _include( 'storage_suppliers_form', 'Storage' ), $Storage );
+  if (!$FORM{add} and !$FORM{change}) {
+    $Storage->{ADDRESS_FORM} = form_address_select2({
+      HIDE_FLAT             => 1,
+      HIDE_ADD_BUILD_BUTTON => 1,
+      LOCATION_ID           => $Storage->{LOCATION_ID} || 0,
+      DISTRICT_ID           => $Storage->{DISTRICT_ID} || 0,
+      STREET_ID             => $Storage->{STREET_ID} || 0,
+    });
+    $html->tpl_show(_include('storage_suppliers_form', 'Storage'), $Storage);
   }
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{SUPPLIERS},
-      title   => [ $lang{NAME}, $lang{PHONE}, 'email', 'icq', $lang{SITE}, $lang{DIRECTOR}, $lang{BILL}, '-' ],
-      pages   => $Storage->{TOTAL},
-      ID      => 'STORAGE_ID'
-    }
-  );
-
-#  my $list = $Storage->suppliers_list( { COLS_NAME => 1 } );
-#  _error_show( $Storage );
-#
-#  foreach my $line ( @{$list} ) {
-#    $table->addrow(
-#      $line->{name},
-#      $line->{phone},
-#      $line->{email},
-#      $line->{icq},
-#      $line->{site},
-#      $line->{director},
-#      $line->{account},
-#      $html->button( $lang{INFO}, "index=$index&chg=$line->{id}", { class => 'change' } )
-#        . ' ' . ((defined( $permissions{0}->{5} ))                                     ? $html->button( $lang{DEL},
-#          "index=$index&del=$line->{id}",
-#          { MESSAGE => "$lang{DEL} $lang{SUPPLIER} $line->{name}?", class => 'del' } ) : '')
-#    );
-#  }
-#
-#  print $table->show();
 
   $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} || undef;
 
-  result_former( {
+  result_former({
     INPUT_DATA      => $Storage,
     FUNCTION        => 'suppliers_list_new',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'ID,NAME,PHONE,EMAIL,DIRECTOR,ACCOUNT',
+    DEFAULT_FIELDS  => 'ID,NAME,PHONE,EMAIL,DIRECTOR,ACCOUNT,COMMENT',
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
-      id        => '#',
-      name      => $lang{NAME},
-      date      => $lang{DATE},
-      okpo      => $lang{OKPO},
-      inn       => $lang{INN},
-      inn_svid  => $lang{CERTIFICATE_OF_INDIVIDUAL_TAX_NUMBER},
-      account   => $lang{ACCOUNT},
-      mfo       => $lang{MFO},
-      phone     => "$lang{PHONE} 1",
-      phone2    => "$lang{PHONE} 2",
-      fax       => $lang{FAX},
-      url       => $lang{SITE},
-      email     => 'EMAIL',
-      telegram  => 'Telegram',
+      id         => '#',
+      name       => $lang{NAME},
+      date       => $lang{DATE},
+      okpo       => $lang{OKPO},
+      inn        => $lang{INN},
+      inn_svid   => $lang{CERTIFICATE_OF_INDIVIDUAL_TAX_NUMBER},
+      account    => $lang{ACCOUNT},
+      mfo        => $lang{MFO},
+      phone      => "$lang{PHONE} 1",
+      phone2     => "$lang{PHONE} 2",
+      fax        => $lang{FAX},
+      url        => $lang{SITE},
+      email      => 'E-mail',
+      telegram   => 'Telegram',
       accountant => $lang{POSITION_MANAGER},
       director   => $lang{DIRECTOR},
       managment  => $lang{ACCOUNTANT},
       domain_id  => 'Domain',
+      comment    => $lang{COMMENTS},
     },
     TABLE           => {
       width   => '100%',

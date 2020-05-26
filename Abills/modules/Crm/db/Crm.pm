@@ -156,10 +156,6 @@ sub crm_lead_list {
     push @WHERE_RULES, "date <= '$attr->{TO_DATE}'";
   }
 
-#  if($attr->{SOURCE_ID}){
-#    push @WHERE_RULES, "source = '$attr->{SOURCE_ID}'";
-#  }
-
   if($attr->{PHONE_SEARCH}){
     push @WHERE_RULES, "cl.phone LIKE '\%$attr->{PHONE_SEARCH}\%'";
   }
@@ -881,5 +877,27 @@ sub crm_update_lead_tags {
 
   return $self;
 }
+
+#**********************************************************
+=head2 crm_step_number_leads()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub crm_step_number_leads {
+  my $self = shift;
+
+  $self->query("SELECT step_number,id
+    FROM crm_progressbar_steps;",
+    undef,
+    { LIST2HASH => 'step_number,id' });
+
+  return $self->{list_hash} || {};
+}
+
 
 1

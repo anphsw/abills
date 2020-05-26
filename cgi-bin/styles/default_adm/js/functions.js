@@ -81,7 +81,7 @@ function displayJSONTooltip(result) {
     if (message !== 'null') {
       var text = '<h3>' + (message['caption'] || '') + '</h3>';
       if (message['messaga']) {
-        text += ' : <h4>' + (message['messaga'] || '') + '</h4>';
+        text += '<h4>' + (message['messaga'] || '') + '</h4>';
       }
       
       var alert_classes = {

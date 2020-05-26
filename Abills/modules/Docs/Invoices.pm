@@ -1047,10 +1047,10 @@ sub docs_invoice{
       } );
 
     if ( $res ){
-      $html->message( 'info', "$lang{INFO}", "E-Mail $lang{SENDED} " );
+      $html->message( 'info', "$lang{INFO}", "$lang{SEND_REG} E-Mail" );
     }
     else{
-      $html->message( 'info', "$lang{ERROR}", "E-Mail $lang{SENDED} Error: $FORM{ERR_MESSAGE} " );
+      $html->message( 'info', "$lang{ERROR}", "$lang{SEND_REG} E-Mail  Error: $FORM{ERR_MESSAGE} " );
     }
 
     return 0;
@@ -1359,7 +1359,7 @@ sub docs_invoice_period {
           foreach my $line ( @{ $cross_modules_return->{$module} } ){
             my ($name, $describe, $sum, undef, undef, $fees_type, $activate) = split( /\|/, $line );
 
-            next if ($sum || $sum < 0);
+            next if (! $sum || $sum < 0);
             $period_from = $FORM{FROM_DATE};
             $period_from =~ s/\d+$/01/;
             my $module_service_activate = $service_activate;

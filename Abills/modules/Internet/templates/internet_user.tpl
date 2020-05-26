@@ -39,6 +39,11 @@
   <input type=hidden name='STATUS_DAYS' value='%STATUS_DAYS%'>
   <input type=hidden name='step' value='$FORM{step}'>
   <input type=hidden name='ID' value='%ID%'>
+  <input type='hidden' name='LEAD_ID' value='$FORM{LEAD_ID}'>
+  <input type='hidden' name='LOCATION_ID' value='$FORM{LOCATION_ID}'>
+  <input type='hidden' name='DISTRICT_ID' value='$FORM{DISTRICT_ID}'>
+  <input type='hidden' name='STREET_ID' value='$FORM{STREET_ID}'>
+  <input type='hidden' name='ADDRESS_FLAT' value='$FORM{ADDRESS_FLAT}'>
 
   <div  id='form_3' class='box box-theme box-big-form for_sort'>
     <div class='box-header with-border'>
@@ -306,7 +311,6 @@
           <div class='col-md-3' align='left'>
             %REGISTRATION_INFO%
             %REGISTRATION_INFO_PDF%
-            %REGISTRATION_INFO_SMS%
           </div>
         </div>
         %PASSWORD_FORM%

@@ -257,6 +257,17 @@ sub model_list {
     [ 'COMMENTS', 'STR', 'm.comments', 1 ],
     [ 'MODEL_ID', 'INT', 'm.id', 1 ],
     [ 'ELECTRIC_POWER', 'INT', 'm.electric_power', 1 ],
+    [ 'PORTS_WITH_EXTRA', 'STR',
+      'IF(
+        (SELECT
+          @extra_ports := COUNT(*) FROM equipment_extra_ports
+          WHERE model_id = m.id
+        ) > 0,
+        CONCAT(m.ports, "+", @extra_ports),
+        m.ports
+      ) AS ports_with_extra',
+      1
+    ],
   ],
     { WHERE => 1,
     }
@@ -419,6 +430,17 @@ sub _list {
     [ 'DISABLE',    'INT', 'nas.disable',                   1 ],
     [ 'TYPE_NAME',  'INT', 'm.type_id', 't.name AS type_name', ],
     [ 'PORTS',      'INT', 'm.ports',                       1 ],
+    [ 'PORTS_WITH_EXTRA', 'STR',
+      'IF(
+        (SELECT
+          @extra_ports := COUNT(*) FROM equipment_extra_ports
+          WHERE model_id = m.id
+        ) > 0,
+        CONCAT(m.ports, "+", @extra_ports),
+        m.ports
+      ) AS ports_with_extra',
+      1
+    ],
     [ 'MAC',        'INT', 'nas.mac',                       1 ],
     [ 'PORT_SHIFT', 'INT', 'm.port_shift',                  1 ],
     [ 'NAS_IP',     'IP', 'nas.ip', 'INET_NTOA(nas.ip) AS nas_ip' ],
@@ -442,6 +464,7 @@ sub _list {
     [ 'INTERNET_VLAN','STR', 'i.internet_vlan',             1 ],
     [ 'TR_069_VLAN',  'STR', 'i.tr_069_vlan',               1 ],
     [ 'IPTV_VLAN',    'STR', 'i.iptv_vlan',                 1 ],
+    [ 'NAS_DESCR',    'STR', 'nas.descr AS nas_descr',      1 ],
   ],
     { WHERE => 1,
     }
@@ -1897,7 +1920,7 @@ sub onu_list {
     [ 'OLT_PORT',    'STR', 'p.id',                           0 ],
     [ 'ONU_SNMP_ID', 'INT', 'onu.onu_snmp_id',                1 ],
     [ 'DATETIME',    'DATE','onu.datetime',                   1 ],
-    [ 'DELETED',     'STR', 'onu.deleted',                    1 ],
+    [ 'DELETED',     'INT', 'onu.deleted',                    1 ],
     [ 'SERVER_VLAN', 'STR', 'i.server_vlan',                  1 ],
   ],
     { WHERE        => 1,
@@ -2612,6 +2635,15 @@ sub onu_and_internet_cpe_list {
   if ($attr->{ACTIVE}) {
     $WHERE = "AND ((em.vendor_id = 12 AND onu.onu_status=3) OR (em.vendor_id = 11 AND onu.onu_status=1))";
   }
+
+  my @ids = ();
+  if ($attr->{NAS_IDS}) {
+    @ids = split (';', $attr->{NAS_IDS} || '');
+  }
+
+  if (@ids) {
+    $WHERE .= " AND p.nas_id IN (" . join(",", (map { $self->{db}->{db}->quote($_) } @ids)) . ")";
+  }
   
   $self->query("SELECT 
     onu.id,
@@ -2669,6 +2701,93 @@ sub mac_duplicate_list {
   );
   
   return $self->{list};
+}
+
+#**********************************************************
+=head2 _list($attr) - Equipment list
+
+=cut
+#**********************************************************
+sub _list_with_coords {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
+
+  if ($admin->{DOMAIN_ID}) {
+    $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
+  }
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'TYPE',           'STR', 't.id',                                     1 ],
+    [ 'NAS_NAME',       'STR', 'nas.name', 'nas.name AS nas_name'            ],
+    [ 'SYSTEM_ID',      'STR', 'i.system_id',                              1 ],
+    [ 'TYPE_ID',        'INT', 'm.type_id',                                1 ],
+    [ 'VENDOR_ID',      'INT', 'm.vendor_id',                              1 ],
+    [ 'NAS_TYPE',       'STR', 'nas.nas_type',                             1 ],
+    [ 'MODEL_NAME',     'STR', 'm.model_name',                             1 ],
+    [ 'SNMP_TPL',       'STR', 'm.snmp_tpl',                               1 ],
+    [ 'MODEL_ID',       'INT', 'i.model_id',                               1 ],
+    [ 'VENDOR_NAME',    'STR', 'v.name', 'v.name AS vendor_name'             ],
+    [ 'STATUS',         'INT', 'i.status',                                 1 ],
+    [ 'DISABLE',        'INT', 'nas.disable',                              1 ],
+    [ 'TYPE_NAME',      'INT', 'm.type_id', 't.name AS type_name',           ],
+    [ 'PORTS',          'INT', 'm.ports',                                  1 ],
+    [ 'MAC',            'INT', 'nas.mac',                                  1 ],
+    [ 'NAS_IP',         'IP', 'nas.ip', 'INET_NTOA(nas.ip) AS nas_ip'        ],
+    [ 'NAS_ID',         'INT', 'i.nas_id',                                 1 ],
+    [ 'NAS_GID',        'INT', 'nas.gid',                                  1 ],
+    [ 'NAS_GROUP_NAME', 'STR', 'ng.name', 'ng.name AS nas_group_name'        ],
+    [ 'DISTRICT_ID',    'INT', 'streets.district_id', 'districts.name'       ],
+    [ 'LOCATION_ID',    'INT', 'nas.location_id',                          1 ],
+    [ 'DOMAIN_ID',      'INT', 'nas.domain_id',                            1 ],
+    [ 'DOMAIN_NAME',    'INT', 'domains.name', 'domains.name AS domain_name' ],
+    [ 'COORDX',         'INT', 'builds.coordx',                            1 ],
+    [ 'COORDY',         'INT', 'builds.coordy',                            1 ],
+    [ 'LAST_ACTIVITY',  'DATE', 'i.last_activity',                         1 ],
+  ],
+    { WHERE => 1, }
+  );
+
+  my $EXT_TABLES = '';
+
+  if($attr->{DOMAIN_NAME}) {
+    $EXT_TABLES .= "LEFT JOIN domains on (domains.id=nas.domain_id)"
+  }
+
+  $self->query("SELECT
+        $self->{SEARCH_FIELDS}
+        i.nas_id, nas.location_id, builds.coordx, builds.coordy,
+        m.id,
+        i.nas_id,
+        SUM(plpoints.coordx)/COUNT(plpoints.coordx) AS coordx_2,
+        SUM(plpoints.coordy)/COUNT(plpoints.coordy) AS coordy_2
+    FROM equipment_infos i
+      INNER JOIN equipment_models m ON (m.id=i.model_id)
+      INNER JOIN equipment_types t ON (t.id=m.type_id)
+      INNER JOIN equipment_vendors v ON (v.id=m.vendor_id)
+      LEFT JOIN nas ON (nas.id=i.nas_id)
+      LEFT JOIN builds ON (builds.id=nas.location_id)
+      LEFT JOIN maps_points mp ON (builds.id=mp.location_id)
+      LEFT JOIN maps_point_types mt ON (mp.type_id=mt.id)
+      LEFT JOIN maps_coords mc ON (mp.coord_id=mc.id)
+      LEFT JOIN maps_polygons mgone ON (mgone.object_id=mp.id)
+      LEFT JOIN maps_polygon_points plpoints ON(mgone.id=plpoints.polygon_id)
+      $EXT_TABLES
+    $WHERE
+    GROUP BY nas.location_id HAVING (coordx <> 0 AND coordy <> 0) OR (coordx_2 <> 0 AND coordy_2 <> 0)
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  return $list;
 }
 
 1

@@ -363,7 +363,7 @@ sub online {
       ['EX_OUTPUT_OCTETS',  'INT', 'c.ex_output_octets',                           1 ],
       ['CID',               'STR', 'c.cid',                                        1 ],
       ['TP_NAME',           'STR', 'tp.name AS tp_name',                           1 ],
-      ['STARTED',           'DATE','IF(DATE_FORMAT(c.started, "%Y-%m-%d")=CURDATE(), DATE_FORMAT(c.started, "%H:%i:%s"), c.started) AS started', 1],
+      ['STARTED',           'DATE','c.started', 'IF(DATE_FORMAT(c.started, "%Y-%m-%d")=CURDATE(), DATE_FORMAT(c.started, "%H:%i:%s"), c.started) AS started' ],
       ['NETMASK',           'IP',  'service.netmask',        'INET_NTOA(service.netmask) AS netmask'],
       ['CONNECT_INFO',      'STR', 'c.connect_info',                               1 ],
       ['SPEED',             'INT', 'service.speed',                                1 ],
@@ -1853,10 +1853,7 @@ sub log_rotate{
 sub users_online_count_by_builds {
   my ($self, $attr) = @_;
   my $WHERE = '';
-  #  my $search_columns = [
-  #    [ 'BUILD_ID', 'INT', 'b.id', 1 ],
-  #    [ 'USERS_COUNT', 'INT', 'COUNT(pi.uid)']
-  #  ];
+
   if ($attr->{GUEST}) {
     $WHERE = qq{WHERE pi.uid IN ( SELECT uid FROM internet_online WHERE guest>0)};
   }

@@ -22,13 +22,14 @@ exit if (
     {
       HEADER          => $user->{UID},
       MODULE          => 'Cablecat',
-      REQUIRE_VERSION => 7.65,
+      REQUIRE_VERSION => 7.75,
     }
   )
 );
 
 # Using selects from Maps module
-load_module('Maps', $html);
+load_module('Maps2', $html);
+# load_module('Maps', $html);
 
 if ( !defined $Maps ) {
   $Maps = Maps->new($db, $admin, \%conf);
@@ -165,20 +166,17 @@ sub cablecat_main {
       }
     );
   };
-  
-  $html->tpl_show(
-    _include('cablecat_main', 'Cablecat'),
-    {
-      GO_TO_MAP_BTN     => $menu_button->($lang{MAP}, 'maps_edit', 'success'),
-      COLOR_SCHEMES_BTN => $menu_button->($lang{COLOR_SCHEMES}, 'cablecat_color_schemes'),
-      CABLES_BTN        => $menu_button->($lang{CABLES}, 'cablecat_cables'),
-      WELLS_BTN         => $menu_button->($lang{WELLS}, 'cablecat_wells'),
-      SPLITTERS_BTN     => $menu_button->($lang{SPLITTERS}, 'cablecat_splitters'),
-      CONNECTERS_BTN    => $menu_button->($lang{CONNECTERS}, 'cablecat_connecters'),
-      COMMUTATIONS_BTN  => $menu_button->($lang{COMMUTATIONS}, 'cablecat_commutations'),
-      CROSSES_BTN       => $menu_button->($lang{CROSSES}, 'cablecat_crosses')
-    }
-  );
+
+  $html->tpl_show(_include('cablecat_main', 'Cablecat'), {
+    GO_TO_MAP_BTN     => $menu_button->($lang{MAP}, 'maps2_main', 'success'),
+    COLOR_SCHEMES_BTN => $menu_button->($lang{COLOR_SCHEMES}, 'cablecat_color_schemes'),
+    CABLES_BTN        => $menu_button->($lang{CABLES}, 'cablecat_cables'),
+    WELLS_BTN         => $menu_button->($lang{WELLS}, 'cablecat_wells'),
+    SPLITTERS_BTN     => $menu_button->($lang{SPLITTERS}, 'cablecat_splitters'),
+    CONNECTERS_BTN    => $menu_button->($lang{CONNECTERS}, 'cablecat_connecters'),
+    COMMUTATIONS_BTN  => $menu_button->($lang{COMMUTATIONS}, 'cablecat_commutations'),
+    CROSSES_BTN       => $menu_button->($lang{CROSSES}, 'cablecat_crosses')
+  });
 
   return 1;
 }

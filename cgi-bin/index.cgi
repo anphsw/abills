@@ -57,7 +57,10 @@ our $html = Abills::HTML->new(
   }
 );
 
-our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef });
+our $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
+  { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef,
+    dbdebug => $conf{dbdebug}
+  });
 
 if ($html->{language} ne 'english') {
   do $libpath . "/language/english.pl";
@@ -83,7 +86,7 @@ $admin->{SESSION_IP} = $ENV{REMOTE_ADDR};
 $conf{WEB_TITLE} = $admin->{DOMAIN_NAME} if ($admin->{DOMAIN_NAME});
 $conf{TPL_DIR} //= $base_dir . '/Abills/templates/';
 
-require Abills::Misc;
+do 'Abills/Misc.pm';
 require Abills::Templates;
 require Abills::Result_former;
 $html->{METATAGS} = templates('metatags_client');
@@ -229,11 +232,9 @@ sub quick_functions {
 
     fl();
 
-#    if (!$conf{PASSWORDLESS_ACCESS}) {
-      $menu_names{1000} = $lang{LOGOUT};
-      $functions{1000} = 'logout';
-      $menu_items{1000}{0} = $lang{LOGOUT};
-#    }
+    $menu_names{1000} = $lang{LOGOUT};
+    $functions{1000} = 'logout';
+    $menu_items{1000}{0} = $lang{LOGOUT};
 
     if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY') {
       $user->{MONEY_UNIT_NAMES} = $conf{MONEY_UNIT_NAMES}->[0] || '';
@@ -437,6 +438,35 @@ sub quick_functions {
 
   $html->fetch({ DEBUG => $ENV{DEBUG} });
 
+  if ($conf{dbdebug} && $admin->{db}->{queries_count} && $conf{PORTAL_DB_DEBUG}) {
+    #$admin->{VERSION} .= " q: $admin->{db}->{queries_count}";
+
+    if ($admin->{db}->{queries_list}) {
+      my $queries_list = "Queries:<br><textarea cols=160 rows=10>";
+
+      my $i = 0;
+      my @q_arr = (ref $Conf->{db}->{queries_list} eq 'HASH') ? keys %{ $Conf->{db}->{queries_list} } : @{ $Conf->{db}->{queries_list} };
+
+      foreach my $k (@q_arr) {
+        $i++;
+        my $count = (ref $Conf->{db}->{queries_list} eq 'HASH') ? " ($Conf->{db}->{queries_list}->{$k})" : '';
+        $queries_list .= "$i $count";
+        $queries_list .= " ===================================\n      $k\n ";
+      }
+      $queries_list .= "</textarea>";
+      $admin->{VERSION} .= $html->tpl_show( templates('form_show_hide'),
+        {
+          CONTENT => $queries_list,
+          NAME    => 'Queries: '.$i,
+          ID      => 'QUERIES',
+          PARAMS  => 'collapsed-box',
+          BUTTON_ICON => 'plus'
+        },
+        { OUTPUT2RETURN => 1 } );
+    }
+    print $admin->{VERSION};
+  }
+
   return 1;
 }
 
@@ -449,7 +479,6 @@ sub quick_functions {
 sub form_info {
 
   $admin->{SESSION_IP} = $ENV{REMOTE_ADDR};
-  require Control::Users_mng;
 
   #  For address ajax
   if ($FORM{get_index} && $FORM{get_index} eq 'form_address_select2') {
@@ -735,6 +764,7 @@ sub form_info {
       $user->{LNG_ACTION} = $lang{CHANGE};
 
       if (exists $conf{user_chg_info_fields} && $conf{user_chg_info_fields}) {
+        require Control::Users_mng;
         $user->{INFO_FIELDS} = form_info_field_tpl({
           VALUES                => $user_pi,
           CALLED_FROM_CLIENT_UI => 1,
@@ -983,6 +1013,7 @@ sub form_info {
   }
 
   ## Show users info fields
+  require Control::Portal_mng;
   my $info_fields_view = get_info_fields_read_only_view({
     VALUES                => $user,
     CALLED_FROM_CLIENT_UI => 1,
@@ -1532,8 +1563,11 @@ sub form_fees {
     DEPOSIT      => '_SHOW',
     METHOD       => '_SHOW',
     LAST_DEPOSIT => '_SHOW',
+    LOGIN        => undef,
     COLS_NAME    => 1
   });
+
+  shift @{ $Fees->{COL_NAMES_ARR} };
 
   my $table = $html->table({
     width       => '100%',
@@ -1545,6 +1579,7 @@ sub form_fees {
       $lang{DEPOSIT},
       $lang{TYPE}
     ],
+    FIELDS_IDS  => $Fees->{COL_NAMES_ARR},
     qs          => $pages_qs,
     pages       => $Fees->{TOTAL},
     ID          => 'FEES'
@@ -1561,8 +1596,8 @@ sub form_fees {
     $table->addrow(
       $line->{datetime},
       $line->{dsc},
-      $line->{sum},
-      $line->{last_deposit},
+      sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $line->{sum} || 0),
+      sprintf($conf{DEPOSIT_FORMAT} || '%.2f', $line->{last_deposit} || 0),
       $FEES_METHODS->{ $line->{method} || 0}
     );
   }
@@ -1594,8 +1629,11 @@ sub form_payments_list {
     DSC          => '_SHOW',
     SUM          => '_SHOW',
     LAST_DEPOSIT => '_SHOW',
+    LOGIN        => undef,
     COLS_NAME    => 1
   });
+
+  shift  @{ $Payments->{COL_NAMES_ARR} };
 
   my $table = $html->table({
     width       => '100%',
@@ -1606,6 +1644,7 @@ sub form_payments_list {
       $lang{SUM},
       $lang{DEPOSIT}
     ],
+    FIELDS_IDS  => $Payments->{COL_NAMES_ARR},
     qs          => $pages_qs,
     pages       => $Payments->{TOTAL},
     ID          => 'PAYMENTS'
@@ -1885,9 +1924,7 @@ sub form_neg_deposit {
     $user_->{CARDS_BUTTON} = $html->button("$lang{ICARDS}", "index=$fn_index$pages_qs", { BUTTON => 2 });
   }
 
-  if ($conf{DEPOSIT_FORMAT}) {
-    $user_->{DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT}, $user_->{DEPOSIT});
-  }
+  $user_->{DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT} || "%.2f", $user_->{DEPOSIT});
 
   $html->tpl_show(templates('form_neg_deposit'), $user_, { ID => 'form_neg_deposit' });
 
@@ -2053,7 +2090,6 @@ sub form_custom {
   $info{RECOMENDED_PAY} = recomended_pay($user);
 
   my $json_info = user_full_info({ SHOW_ID => 1 });
-  #$conf{WEB_DEBUG}=1;
   if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10) {
     $html->{OUTPUT} .= '<pre>';
     $html->{OUTPUT} .= $json_info;
@@ -2067,18 +2103,16 @@ sub form_custom {
   eval {
     $user_info = $json->decode($json_info);
     1;
-  } or do {
+  }
+  or do {
     my $e = $@;
     $html->message('err', $lang{ERROR}, $e);
   };
-
-#  my $user_info = $json->decode($json_info);
 
   foreach my $key (@{$user_info}) {
     #$html->{OUTPUT} .= "$key->{NAME}<br>";
     my $main_name = $key->{NAME};
     if ($key->{SLIDES}) {
-      #$html->{OUTPUT} .= "!!!!!!!!!!!!!!!!!!!! $#{ $key->{SLIDES} } <br>" if ($conf{WEB_DEBUG});
       for (my $i = 0; $i <= $#{$key->{SLIDES}}; $i++) {
         foreach my $field_id (keys %{$key->{SLIDES}->[$i]}) {
           my $id = $main_name . '_' . $field_id . '_' . $i;
@@ -2228,7 +2262,6 @@ sub make_social_auth_manage_buttons {
         . '&redirect_uri=' . $redirect_uri
         . '&state=facebook'
         . '&scope=public_profile,email,user_birthday,user_likes,user_friends'
-
     });
   }
 

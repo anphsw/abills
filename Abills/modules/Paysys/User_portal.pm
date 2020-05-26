@@ -168,8 +168,20 @@ sub paysys_payment {
     SORT      => 'priority',
   });
 
+  my $list = $Paysys->paysys_merchant_to_groups_info({
+    COLS_NAME      => 1
+  });
+
+  foreach my $system (@$connected_systems){
+    foreach my $merchant (@$list){
+      if($merchant->{system_id}==$system->{id} && $merchant->{gid}==$user->{GID}){
+        $system->{merchant_name}=$merchant->{merchant_name};
+      }
+    }
+  }
+
   $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });
-  if (in_array('Maps', \@MODULES)) {
+  if (in_array('Maps2', \@MODULES) && !$FORM{json}) {
     $TEMPLATES_ARGS{MAP} = paysys_maps_new();
   }
 
@@ -201,7 +213,7 @@ sub paysys_payment {
 
     if ($Module->can('user_portal')) {
       push @payment_systems, _paysys_system_radio({
-        NAME    => $payment_system->{name},
+        NAME    => $payment_system->{merchant_name},
         MODULE  => $payment_system->{module},
         ID      => $payment_system->{paysys_id},
         CHECKED => $count == 1 ? 'checked' : '',
@@ -342,7 +354,7 @@ sub paysys_user_log {
   my $table = $html->table(
     {
       width   => '100%',
-      caption => "Paysys",
+      caption => "$lang{PAY_JOURNAL}",
       title   =>
         [ 'ID', "$lang{DATE}", "$lang{SUM}", "$lang{PAY_SYSTEM}", "$lang{TRANSACTION}", "$lang{STATUS}", '-' ],
       qs      => $pages_qs,

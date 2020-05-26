@@ -10,7 +10,6 @@ use Abills::Base qw(days_in_month date_diff load_pmodule);
 
 our (
   %lang,
-  $html,
   $admin,
   %conf,
   $db,
@@ -18,6 +17,7 @@ our (
   @MONTHES
 );
 
+our Abills::HTML $html;
 my $Msgs = Msgs->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -241,7 +241,10 @@ sub msgs_shedule2 {
 
   if ( !$FORM{DATE} ) {
     $FORM{DATE} = POSIX::strftime('%Y-%m-%d', localtime);
-  };
+  }
+  else {
+    $FORM{DATE} =~ s/.+,.//g;
+  }
 
   my DBI $db_ = $Msgs->{db}->{db};
   my $options = { COLUMNS => 9, START_TIME => 9, FRACTION => 60, TIME_UNIT => 0 };
@@ -263,10 +266,8 @@ sub msgs_shedule2 {
         for my $task ( @{$tasks} ) {
 
           my $task_id = $task->{id};
-          #                my $task_length = $task->{length};
           my $task_start = $task->{start} || 0;
           my $task_name = $task->{name} || '';
-          #                my $task_end = $task_start + $task_length;
 
           my $hours_start = $task_start + $options->{START_TIME};
 
@@ -420,7 +421,6 @@ sub msgs_shedule2 {
 
   msgs_show_shedule_table({
     ADMINS             => \@admins,
-    #        DEBUG => 1,
     OPTIONS            => $options,
     NEW_TASKS          => \@new_tasks,
     ADMINS_JOBS        => \@jobs,
@@ -651,7 +651,7 @@ sub msgs_shedule {
     $LIST_PARAMS{PLAN_TO_DATE} = $DATE;
   }
 
-  my $list = $Msgs->messages_list(
+  my $msgs_list = $Msgs->messages_list(
     {
       PLAN_DATE_TIME         => '_SHOW',
       RESPOSIBLE_ADMIN_LOGIN => '_SHOW',
@@ -669,7 +669,7 @@ sub msgs_shedule {
   my $table = $html->table(
     {
       width   => '300',
-      caption => "$lang{SHEDULE}",
+      caption => $lang{SHEDULE},
       ID      => 'SHEDULE_LIST',
     }
   );
@@ -683,7 +683,7 @@ sub msgs_shedule {
   my @admins_list = ([ 0, "- $lang{UNKNOWN}" ],
     @{ $admin->list({ GID => $admin->{GID}, DISABLE => 0, PAGE_ROWS => 1000 }) });
 
-  foreach my $line ( @{$list} ) {
+  foreach my $line ( @{$msgs_list} ) {
     my ($date, $time) = split(/ /, $line->{plan_date_time} || q{});
     my @hours = ();
 
@@ -772,7 +772,7 @@ sub msgs_shedule {
           }
         );
 
-        #        my $list = $Msgs->messages_list(
+        #        my $msgs_list = $Msgs->messages_list(
         #          {
         #            %LIST_PARAMS,
         #            DESC      => '',

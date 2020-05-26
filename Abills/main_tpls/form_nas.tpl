@@ -26,6 +26,8 @@
 
         <input type=hidden name='index' value='62'>
         <input type=hidden name='NAS_ID' value='%NAS_ID%'>
+        <input type=hidden name='NAS_RAD_PAIRS' id="NAS_RAD_PAIRS" value='%NAS_RAD_PAIRS%'>
+
         <div class='row'>
 
             <div class='col-md-6'>
@@ -162,18 +164,24 @@
             </div>
             <div class='col-md-6'>
                 <div class='form-group'>
-                    <div class='box box-theme box-form-big'>
-                        <div class='box-header with-border'>
-                            <a data-toggle='collapse' data-parent='#accordion' href='#nas_misc'>_{EXTRA}_</a>
+                    <div class='box box-theme box-form-big collapsed-box'>
+                        <div class='box-header with-border'> <h4 class='box-title'>_{EXTRA}_</h4>
+                            <div class='box-tools pull-right'>
+                                <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
+                                </button>
+                            </div>
+                           <!-- <a data-toggle='collapse' data-parent='#accordion' href='#nas_misc'>_{EXTRA}_</a>
+
+                           <div class='box-header with-border'><h4 class='box-title'>_{NAS}_</h4></div> -->
                         </div>
                         <div id='nas_misc' class='box-collapse box-body collapse in'>
 
 
                             %NAS_ID_FORM%
                             <div class='form-group'>
-                                <label for='NAS_DESCRIBE' class='control-label col-md-4'>_{DESCRIBE}_</label>
+                                <label for='NAS_DESCRIBE' class='control-label col-md-3'>_{DESCRIBE}_</label>
 
-                                <div class='col-md-8'>
+                                <div class='col-md-9'>
                                     <input class='form-control' id='NAS_DESCRIBE' placeholder='%NAS_DESCRIBE%'
                                            name='NAS_DESCRIBE'
                                            value='%NAS_DESCRIBE%'>
@@ -181,18 +189,18 @@
                             </div>
 
                             <div class='form-group'>
-                                <label class='control-label col-md-4' for='NAS_IDENTIFIER'>Radius NAS-Identifier</label>
+                                <label class='control-label col-md-3' for='NAS_IDENTIFIER'>Radius NAS-Identifier</label>
 
-                                <div class='col-md-8'>
+                                <div class='col-md-9'>
                                     <input id='NAS_IDENTIFIER' name='NAS_IDENTIFIER' value='%NAS_IDENTIFIER%'
                                            placeholder='%NAS_IDENTIFIER%' class='form-control' type='text'>
                                 </div>
                             </div>
 
                             <div class='form-group'>
-                                <label class='control-label col-md-4' for='MAC'>MAC</label>
+                                <label class='control-label col-md-3' for='MAC'>MAC</label>
 
-                                <div class='col-md-8'>
+                                <div class='col-md-9'>
                                     <input id='MAC' name='MAC' value='%MAC%' placeholder='%MAC%' class='form-control'
                                            type='text'>
                                 </div>
@@ -231,11 +239,60 @@
 
 
                             <div class='form-group'>
-                                <label class='col-md-12'>RADIUS _{PARAMS}_ (,)</label>
+                                <label class='col-md-12'>RADIUS _{PARAMS}_</label>
 
                                 <div class='col-md-12'>
-                        <textarea cols='40' rows='4' name='NAS_RAD_PAIRS'
-                                  class='form-control'>%NAS_RAD_PAIRS%</textarea>
+                                    <table class='table table-bordered table-hover'>
+
+                                        <thead>
+                                        <tr>
+                                            <th class='text-center col-md-1'>
+                                                #
+                                            </th>
+                                            <th class='text-center col-md-3'>
+                                                _{LEFT_PART}_
+                                            </th>
+                                            <th class='text-center col-md-1'>
+                                                _{CONDITION}_
+                                            </th>
+                                            <th class='text-center col-md-3'>
+                                                _{RIGHT_PART}_
+                                            </th>
+                                        </tr>
+                                        </thead>
+                                        <tbody id='tab_logic'>
+
+                                        <tr id='addr1'>
+                                            <td class="ids">
+                                                <input type='hidden' name='IDS' value='1'>
+                                                1
+                                            </td>
+                                            <td class="left_p">
+                                                <input type='text' name='LEFT_PART' id='LEFT_PART' value='%LEFT_PART%'
+                                                       placeholder='_{LEFT_PART}_' class='form-control'/>
+                                            </td>
+                                            <td class="cnd">
+                                                <input type='text' name='CONDITION' id='CONDITION' value='%CONDITION%' placeholder='='
+                                                       class='form-control'/>
+                                            </td>
+                                            <td class="right_p">
+                                                <input type='text' name='RIGHT_PART' id='RIGHT_PART'
+                                                       value='%RIGHT_PART%' placeholder='_{RIGHT_PART}_'
+                                                       class='form-control'/>
+                                            </td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class='col-md-2 col-xs-2 pull-right' style="padding-right: 0">
+                                    <a title="_{ADD}_" class='btn btn-sm btn-default' id='add_field'>
+                                        <span class='glyphicon glyphicon-plus'></span>
+                                    </a>
+                                </div>
+                                <div class='col-md-2 col-xs-2 pull-right' style="padding-right: 0">
+                                    <a title="_{ADD}_" class='btn btn-sm btn-default' id='del_field'>
+                                        <span class='glyphicon glyphicon-minus'></span>
+                                    </a>
                                 </div>
                             </div>
 
@@ -259,3 +316,83 @@
 
     </fieldset>
 </form>
+
+<script>
+    jQuery(function () {
+        var iter = 2;
+
+        var date = document.getElementById('NAS_RAD_PAIRS').value;
+        var element = 0;
+        var answDate = date.split(',');
+
+        while (element < answDate.length) {
+            if(answDate[element] === " ") {
+                answDate.splice(element, 1);
+            }
+            element++;
+        }
+
+        element = 0;
+
+        if (date) {
+            while (element < answDate.length) {
+                if (/([0-9a-zA-Z\-!]+)([-+=]{1,2})([:\-#= 0-9a-zA-Zа-яА-Я.]+)/.test(answDate[element])) {
+                    let dateRegex = answDate[element].match(/([0-9a-zA-Z\-!]+)([-+=]{1,2})([:\-#= 0-9a-zA-Zа-яА-Я.]+)/);
+                    if (element < answDate.length) {
+                        jQuery('#addr1').clone(true)
+                            .attr('id', 'addr' + iter)
+                            .show()
+                            .appendTo('#tab_logic');
+
+                        jQuery('#addr' + iter).children('.ids').text(iter);
+
+                        jQuery('#addr' + (iter - 1)).children('.left_p').children("#LEFT_PART").val(dateRegex[1]);
+                        jQuery('#addr' + (iter - 1)).children('.cnd').children("#CONDITION").val(dateRegex[2]);
+                        jQuery('#addr' + (iter - 1)).children('.right_p').children("#RIGHT_PART").val(dateRegex[3]);
+
+                        iter++;
+                    }
+                }
+                element++;
+            }
+
+            if (iter > 3) {
+                jQuery('#del_field').show();
+            }
+
+            jQuery('#addr' + (iter - 1)).remove();
+            iter--;
+        }
+
+        jQuery('#add_field').click(function () {
+            jQuery('#addr1').clone(true)
+                .attr('id', 'addr' + iter)
+                .show()
+                .appendTo('#tab_logic');
+
+            jQuery('#addr' + iter).children('.ids').text(iter);
+
+            jQuery('#addr' + iter).children('.left_p').children("#LEFT_PART").val("");
+            jQuery('#addr' + iter).children('.cnd').children("#CONDITION").val("");
+            jQuery('#addr' + iter).children('.right_p').children("#RIGHT_PART").val("");
+
+            iter++;
+
+            if (iter > 2) {
+                jQuery('#del_field').show();
+            }
+        });
+
+        jQuery('#del_field').click(function () {
+            if (iter > 2) {
+                jQuery('#addr' + (iter - 1)).remove();
+                iter--;
+            }
+            else if (iter === 2) {
+                jQuery('#addr' + (iter-1)).children('.left_p').children("#LEFT_PART").val("");
+                jQuery('#addr' + (iter-1)).children('.cnd').children("#CONDITION").val("");
+                jQuery('#addr' + (iter-1)).children('.right_p').children("#RIGHT_PART").val("");
+            }
+        });
+    })
+</script>

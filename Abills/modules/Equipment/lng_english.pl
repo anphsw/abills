@@ -119,4 +119,6 @@ $lang{PORT_UPTIME} = 'Port uptime';
 $lang{NO_ZABBIX_INFO} = 'Zabbix hostid and $conf{ZABBIX_URL} required';
 $lang{DUPLICATE_MAC} = 'Duplicate MAC';
 
+$lang{RF_PORT_ON} = 'RF port status';
+
 1

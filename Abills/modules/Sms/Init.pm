@@ -1,3 +1,4 @@
+package Sms::Init;
 =head1
 
   INIT SMS Service
@@ -6,9 +7,18 @@
 
 use strict;
 use warnings FATAL => 'all';
+use parent 'Exporter';
+
+our @EXPORT = qw(
+  init_sms_service
+);
+
+our @EXPORT_OK = qw(
+  init_sms_service
+);
 
 #**********************************************************
-=head2 init()
+=head2 init_sms_service($db, $admin, $conf)
 
 =cut
 #**********************************************************
@@ -31,6 +41,9 @@ sub init_sms_service {
     { SMS_IDM_LOGIN          => 'IDM'                   },
     { SMS_TERRA_USER         => 'Sms_terra'             },
     { SMS_UNIVERSAL_URL      => 'Universal_sms_module'  },
+    { SMS_ESKIZ_URL          => 'Eskizsms'              },
+    { SMS_BROKER_LOGIN       => 'Sms_Broker'            },
+    { SMS_OMNICELL_URL       => 'Omnicell'              },
   );
 
   foreach my $sms_system ( @sms_systems ) {

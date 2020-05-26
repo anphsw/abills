@@ -1,0 +1,1136 @@
+#!perl
+
+=head1 Maps2 managment functions
+
+  Maps2 web functions
+
+  Error ID: 333x
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+use Shedule;
+use Encode;
+use Abills::Filters;
+use Abills::Base qw(in_array next_month days_in_month mk_unique_value
+  convert tpl_parse show_log cmd sendmail _bp);
+use Abills::Defs;
+use Abills::Experimental qw(is_not_empty_array_ref);
+use JSON;
+
+our (
+  $db,
+  $admin,
+  %conf,
+  %lang,
+  $html,
+  %permissions,
+  $ui
+);
+
+use Address;
+
+exit if form_purchase_module({
+  HEADER          => $user->{UID},
+  MODULE          => 'Maps',
+  REQUIRE_VERSION => 7.70,
+});
+
+require Maps;
+Maps->import();
+
+our $Maps = Maps->new($db, $admin, \%conf);
+our $Address = Address->new($db, $admin, \%conf);
+
+our ($MAPS_ENABLED_LAYERS);
+
+require Maps2::Layers;
+require Maps2::Reports;
+require Maps2::Configure;
+
+use Maps2::Shared qw/
+  LAYER_ID_BY_NAME
+  MAPS_ICONS_DIR
+  MAPS_ICONS_DIR_WEB_PATH
+  CLOSE_OUTER_MODAL_SCRIPT
+/;
+
+#*******************************************************************
+=head2 maps2_main($uid)
+
+  Arguments:
+
+=cut
+#*******************************************************************
+sub maps2_main {
+  my ($attr) = @_;
+
+  if ($FORM{SHOW_ADDRESS}) {
+    $html->tpl_show(templates('form_address_build_sel'), $attr);
+    return 1;
+  }
+
+  if ($FORM{WIFI_ADD_FORM}) {
+    $html->tpl_show(_include('maps2_add_wifi', 'Maps2'), { %$attr });
+    return 1;
+  }
+
+  # Every object linked to address can add new address
+  if ($FORM{ADD_ADDRESS_BUILD} && $FORM{STREET_ID}) {
+    if ($FORM{NUMBER}) {
+      $FORM{ADD_ADDRESS_BUILD} = $FORM{NUMBER};
+    }
+    $Address->build_add({ %FORM, COORDY => $FORM{COORDX}, COORDX => $FORM{COORDY} });
+    if (!_error_show($Address)) {
+      $FORM{LOCATION_ID} = $Address->{INSERT_ID};
+    }
+  }
+
+  if ($FORM{change} && $FORM{LAYER_ID}) {
+    my $operation = _maps2_change_objects($FORM{LAYER_ID}, $FORM{OBJECT_ID}, \%FORM);
+    return _maps2_result_of_operation($operation, $lang{ADDED});
+  }
+  elsif ($FORM{change_coords} && ($FORM{LAYER_ID} || $FORM{TYPE})) {
+    return _maps2_change_coords(\%FORM);
+  }
+  elsif ($FORM{del} && $FORM{LAYER_ID}) {
+    my $operation = _maps2_del_objects($FORM{LAYER_ID}, $FORM{OBJECT_ID}, \%FORM);
+    return _maps2_result_of_operation($operation, $lang{DELETED});
+  }
+
+  $attr->{MAP_HEIGHT} = 50 if ($FORM{MODAL});
+
+  my $javascript_vars = $html->tpl_show(
+    _include('maps2_js_variables', 'Maps2'),
+    maps2_get_js_variables(
+      %{$attr},
+      %FORM,
+      SHOW_NAS            => $attr->{SHOW_NAS},
+      SHOW_USERS          => $attr->{SHOW_USERS},
+      SHOW_CONTROLS       => ($attr->{QUICK}) ? '' : 1,
+      MAPS_DEFAULT_TYPE   => $conf{MAPS_DEFAULT_TYPE} || 'OSM',
+      MAPS_DEFAULT_LATLNG => $conf{MAPS_DEFAULT_LATLNG} || ''
+    ),
+    { OUTPUT2RETURN => 1 }
+  );
+
+  $html->tpl_show(_include('maps2_main', 'Maps2'), { JS_VARIABLES => $javascript_vars });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 maps2_layers_list() - aggregates layers from DB and external modules
+
+=cut
+#**********************************************************
+sub maps2_layers_list {
+
+  push @MODULES, 'Maps';
+  my $layers_list = $Maps->layers_list({
+    MODULE           => join(';', @MODULES),
+    COLS_NAME        => 1,
+    COLS_UPPER       => 0,
+    SORT             => 'id',
+    DESC             => 'DESC',
+    SHOW_ALL_COLUMNS => 1,
+  });
+  _error_show($Maps);
+
+  my $district_module = [ grep {$_->{id} eq LAYER_ID_BY_NAME->{DISTRICT}} @{$layers_list} ]->[0];
+  if (defined $district_module) {
+    $district_module->{add_func} = 'maps2_districts_main';
+    $district_module->{custom_params} = {
+      OBJECT_TYPE_ID   => '',
+      SAVE_AS_GEOMETRY => 1,
+      RETURN_FORM      => 'COLOR'
+    }
+  }
+
+  my %layer_export_list_name_refs = (
+    LAYER_ID_BY_NAME->{BUILD}        => 'maps2_builds_show',
+    LAYER_ID_BY_NAME->{WIFI}         => 'maps2_wifis_show',
+    LAYER_ID_BY_NAME->{DISTRICT}     => 'maps2_districts_show',
+    LAYER_ID_BY_NAME->{ROUTE}        => 'maps_routes_show',
+    LAYER_ID_BY_NAME->{TRAFFIC}      => 'maps_traffic_show',
+    LAYER_ID_BY_NAME->{CUSTOM_POINT} => 'maps_objects_show',
+    LAYER_ID_BY_NAME->{BUILD2}       => 'maps2_builds2_show',
+  );
+  my $modules_extra_layers = cross_modules_call('_maps_layers', { SILENT => 1 });
+  # Resetting cross_modules alarm to prevent test die;
+  alarm 0;
+
+  my $extra_scripts = '';
+
+  foreach my $module_name (keys %{$modules_extra_layers}) {
+    next if (!defined $modules_extra_layers->{$module_name});
+
+    my $result = $modules_extra_layers->{$module_name};
+
+    push @{$layers_list}, @{$result->{LAYERS}};
+
+    # Load custom scripts
+    if ($result->{SCRIPTS}) {
+      foreach my $script_name (@{$result->{SCRIPTS}}) {
+        $extra_scripts .= "<script src='$script_name'></script>";
+      }
+    }
+
+    if ($result->{EXPORT_FUNC}) {
+      foreach my $id (keys %{$result->{EXPORT_FUNC}}) {
+        $layer_export_list_name_refs{$id} = $result->{EXPORT_FUNC}->{$id};
+      }
+    }
+  };
+
+  foreach (@{$layers_list}) {
+    $_->{lang_name} //= _translate($_->{name});
+    $_->{export_function} = $layer_export_list_name_refs{$_->{id}};
+  }
+
+  my $js = objToJson($layers_list);
+
+  print $js if $FORM{RETURN_JSON};
+
+  return {
+    LAYERS        => $layers_list,
+    EXTRA_SCRIPTS => $extra_scripts,
+    EXPORT_REFS   => \%layer_export_list_name_refs,
+  }
+}
+
+#**********************************************************
+=head2 maps2_get_js_variables() - adds javascript variables
+
+=cut
+#**********************************************************
+sub maps2_get_js_variables {
+  my (%parent_attr) = @_;
+
+  my $layers_list = maps2_layers_list();
+
+  my $default_layer_ids = JSON::to_json(LAYER_ID_BY_NAME, { utf8 => 0 });
+  my $layers = JSON::to_json($layers_list->{LAYERS}, { utf8 => 0 });
+  my $layer_list_refs = JSON::to_json($layers_list->{EXPORT_REFS}, { utf8 => 0 });
+
+  delete $parent_attr{USER_INFO};
+  delete $parent_attr{__BUFFER};
+  delete $FORM{__BUFFER};
+  my $form = JSON::to_json({ %FORM, %parent_attr }, { utf8 => 0 });
+
+  my $options = JSON::to_json({
+    SHOW_ADD_BTN => $parent_attr{SHOW_ADD_BTN} || 0,
+    ICONS_DIR    => MAPS_ICONS_DIR_WEB_PATH,
+    EDIT_MODE    => $parent_attr{SHOW_ADD_BTN} || 0
+  }, { utf8 => 0 });
+
+  return {
+    LAYERS           => $layers,
+    LAYER_LIST_REFS  => $layer_list_refs,
+    LAYER_ID_BY_NAME => $default_layer_ids,
+    FORM             => $form,
+    OPTIONS          => $options,
+    EXTRA_SCRIPTS    => $layers_list->{EXTRA_SCRIPTS},
+    GOOGLE_API_KEY   => $conf{GOOGLE_API_KEY},
+    YANDEX_API_KEY   => $conf{YANDEX_API_KEY},
+    %parent_attr,
+  };
+}
+
+#**********************************************************
+=head2 _maps2_change_objects()
+
+=cut
+#**********************************************************
+sub _maps2_change_objects {
+  my ($layer_id, $object_id, $attr) = @_;
+
+  if ($layer_id eq LAYER_ID_BY_NAME->{BUILD}) {
+    $attr->{ID} = $attr->{LOCATION_ID} if !$attr->{ID};
+    return $Maps->build_change({
+      %$attr,
+      COORDX => $attr->{COORDY},
+      COORDY => $attr->{COORDX},
+    });
+  }
+  elsif ($layer_id eq LAYER_ID_BY_NAME->{BUILD2}) {
+    return 0 if !$attr->{LOCATION_ID};
+
+    _maps2_change_build2($attr);
+  }
+  elsif ($layer_id eq LAYER_ID_BY_NAME->{WIFI}) {
+    _maps2_change_wifi($attr);
+  }
+  elsif ($attr->{TYPE} && $attr->{TYPE} eq 'marker') {
+    my $id = $attr->{OBJECT_ID} || $attr->{ID};
+    return 0 if (!$id);
+
+    $Maps->points_change({
+      ID     => $id,
+      COORDX => $attr->{COORDX},
+      COORDY => $attr->{COORDY},
+    });
+  }
+  elsif ($attr->{TYPE} && $attr->{TYPE} eq 'polyline') {
+    _maps2_change_popyline({
+      POLYLINE_ID => $attr->{POLYLINE_ID},
+      LAYER_ID    => $layer_id,
+      OBJECT_ID   => $object_id,
+    });
+  }
+  else {
+    print "Not implemented for type";
+    return 0;
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _maps2_change_popyline()
+
+=cut
+#**********************************************************
+sub _maps2_change_popyline {
+  my ($attr) = @_;
+
+  my $id = $attr->{POLYLINE_ID} || 0;
+  if (!$id && defined $attr->{OBJECT_ID}) {
+    my $list = $Maps->polylines_list({
+      LAYER_ID   => $attr->{LAYER_ID},
+      OBJECT_ID  => $attr->{OBJECT_ID},
+      COLS_NAME  => 1,
+      COLS_UPPER => 0
+    });
+    return 0 unless ($list && ref $list eq 'ARRAY' && scalar(@{$list}) > 0);
+
+    $id = $list->[0]->{id};
+  }
+
+  # Delete old points for polyline
+  $Maps->polyline_points_del(undef, { polyline_id => $id });
+
+  # $attr->{POINTS} should contain single polyline array
+  my $polylines_json = $attr->{POINTS};
+  my @polylines = JSON::from_json($polylines_json);
+
+  my @polyline_points = @{$polylines[0]};
+  # Add each coord
+  foreach my $point_arr (@polyline_points) {
+    $Maps->polyline_points_add({
+      COORDX      => $point_arr->[0],
+      COORDY      => $point_arr->[1],
+      POLYLINE_ID => $id
+    });
+    _error_show($Maps);
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _maps2_change_build2()
+
+=cut
+#**********************************************************
+sub _maps2_change_build2 {
+  my ($attr) = @_;
+
+  $Address->address_info($attr->{LOCATION_ID});
+  my $object_id = $Maps->points_add({ %{$attr}, TYPE_ID => 3, NAME =>
+    "$Address->{ADDRESS_STREET}, $Address->{ADDRESS_BUILD}" });
+
+  $Maps->polygons_add({
+    OBJECT_ID => $object_id,
+    LAYER_ID  => LAYER_ID_BY_NAME->{BUILD2}
+  });
+
+  my @points_array = split(/,/, $FORM{coords});
+
+  if ($Maps->{INSERT_ID}) {
+    my $polygon_id = $Maps->{INSERT_ID};
+    foreach my $point (@points_array) {
+      my ($coordx, $coordy) = split(':', $point);
+      $Maps->polygon_points_add({
+        POLYGON_ID => $polygon_id,
+        COORDX     => $coordx,
+        COORDY     => $coordy
+      });
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _maps2_change_wifi()
+
+=cut
+#**********************************************************
+sub _maps2_change_wifi {
+  my ($attr) = @_;
+
+  my $object_id = $Maps->points_add({ %{$attr}, TYPE_ID => 2, NAME => $FORM{NAME} });
+
+  $Maps->polygons_add({
+    NAME      => $FORM{NAME},
+    LAYER_ID  => LAYER_ID_BY_NAME->{WIFI},
+    COLOR     => $FORM{COLOR} || 'silver',
+    OBJECT_ID => $object_id,
+  });
+
+  my @points_array = split(/,/, $FORM{coords});
+
+  if ($Maps->{INSERT_ID}) {
+    my $polygon_id = $Maps->{INSERT_ID};
+    foreach my $point (@points_array) {
+      my ($coordx, $coordy) = split(':', $point);
+      $Maps->polygon_points_add({
+        POLYGON_ID => $polygon_id,
+        COORDX     => $coordx,
+        COORDY     => $coordy
+      });
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _maps2_del_objects()
+
+=cut
+#**********************************************************
+sub _maps2_del_objects {
+  my ($layer_id, $object_id) = @_;
+
+  return $Maps->points_change({
+    ID     => $FORM{POINT_ID},
+    COORDX => '0.00000000000000',
+    COORDY => '0.00000000000000',
+  }) if ($FORM{POINT_ID});
+
+  return 0 if (!$object_id);
+
+  if ($layer_id eq LAYER_ID_BY_NAME->{BUILD}) {
+    return $Maps->build_change({
+      ID     => $object_id,
+      COORDX => '0.00000000000000',
+      COORDY => '0.00000000000000',
+    });
+  }
+  elsif (_isCablecat({ LAYER_ID => $FORM{LAYER_ID} })) {
+    return _maps2_del_cablecat_objects({
+      LAYER_ID  => $FORM{LAYER_ID},
+      OBJECT_ID => $object_id
+    });
+  }
+  elsif (_isPolygon({ LAYER_ID => $FORM{LAYER_ID} })) {
+    return _maps2_del_poligon($FORM{LAYER_ID}, $object_id);
+  }
+
+  return 0;
+}
+
+#***************************************************************
+=head2 _maps2_del_poligon($attr)
+
+=cut
+##***************************************************************
+sub _maps2_del_poligon {
+  my ($layer_id, $object_id) = @_;
+
+  $Maps->points_del({
+    ID => $object_id
+  });
+
+  my $poligons = $Maps->polygons_list({
+    OBJECT_ID => $object_id,
+    LAYER_ID  => $layer_id
+  });
+
+  return 0 if !$Maps->{TOTAL};
+  $Maps->polygon_points_del(undef, {
+    POLYGON_ID => $poligons->[0]{id},
+  });
+
+  return $Maps->polygons_del(undef, {
+    OBJECT_ID => $object_id,
+  });
+}
+
+#***************************************************************
+=head2 _maps2_del_cablecat_objects($attr)
+
+=cut
+##***************************************************************
+sub _maps2_del_cablecat_objects {
+  my ($attr) = @_;
+
+  return 0 if !in_array('Cablecat', \@MODULES);
+
+  use Cablecat;
+  my $Cablecat = Cablecat->new($db, $admin, \%conf);
+
+  if ($attr->{LAYER_ID} == LAYER_ID_BY_NAME->{CABLE}) {
+    my $del_cable = $Cablecat->cables_list({
+      POINT_ID => $attr->{OBJECT_ID},
+      ID       => '_SHOW',
+    });
+
+    if ($Cablecat->{TOTAL}) {
+      $Cablecat->delete_links_for_element('CABLE', $del_cable->[0]{id});
+      return $Cablecat->cables_del({ ID => $del_cable->[0]{id} });
+    }
+  }
+  elsif ($attr->{LAYER_ID} == LAYER_ID_BY_NAME->{WELL}) {
+    my $del_well = $Cablecat->wells_list({
+      POINT_ID => $attr->{OBJECT_ID},
+      ID       => '_SHOW',
+    });
+
+    return $Cablecat->wells_del({ ID => $del_well->[0]{id} }) if ($Cablecat->{TOTAL});
+  }
+
+  return 0;
+}
+
+#***************************************************************
+=head2 _isPolygon($attr)
+
+=cut
+##***************************************************************
+sub _isPolygon {
+  my ($attr) = @_;
+
+  return 0 unless $attr->{LAYER_ID};
+
+  return $attr->{LAYER_ID} == LAYER_ID_BY_NAME->{BUILD2} || $attr->{LAYER_ID} == LAYER_ID_BY_NAME->{DISTRICT}
+    || $attr->{LAYER_ID} == LAYER_ID_BY_NAME->{WIFI};
+}
+
+#***************************************************************
+=head2 _isCablecat($attr)
+
+=cut
+##***************************************************************
+sub _isCablecat {
+  my ($attr) = @_;
+
+  return 0 unless $attr->{LAYER_ID};
+
+  return $attr->{LAYER_ID} == LAYER_ID_BY_NAME->{CABLE} || $attr->{LAYER_ID} == LAYER_ID_BY_NAME->{WELL};
+}
+
+#***************************************************************
+=head2 _maps2_result_of_operation($attr)
+
+=cut
+##***************************************************************
+sub _maps2_result_of_operation {
+  my ($operation, $success, $error) = @_;
+
+  if ($operation != 0) {
+    $html->message('info', $lang{SUCCESS}, $success);
+  }
+  else {
+    print "Error" . ($error || '');
+  }
+
+  return $operation;
+}
+
+#***************************************************************
+=head2 _maps2_get_online_users($attr)
+
+=cut
+##***************************************************************
+sub _maps2_get_online_users {
+  my ($attr) = @_;
+  my $Dv_sessions = '';
+
+  if (in_array('Dv', \@MODULES)) {
+    require Dv_Sessions;
+    Dv_Sessions->import();
+
+    $Dv_sessions = Dv_Sessions->new($db, $admin, \%conf);
+  }
+  elsif (in_array('Internet', \@MODULES)) {
+    require Internet::Sessions;
+    Internet::Sessions->import();
+
+    $Dv_sessions = Internet::Sessions->new($db, $admin, \%conf);
+  }
+
+  my %search_params = ($attr->{SHORT}) ? () : (
+    CLIENT_IP => '_SHOW',
+    USER_NAME => '_SHOW',
+    DURATION  => '_SHOW',
+  );
+
+  my $list = $Dv_sessions->online({
+    %search_params,
+    COLS_NAME => 1,
+    PAGE_ROWS => 1000000,
+  });
+
+  my %USERS_ONLINE = ();
+  foreach my $line (@{$list}) {
+    push @{$USERS_ONLINE{ $line->{uid} }}, $line;
+  }
+  return \%USERS_ONLINE;
+}
+
+#***************************************************************
+=head2 _maps2_get_users($attr)
+
+  Arguments:
+    $attr - hash_ref
+      LOCATION_ID     - filter results by LOCATION_ID
+      RETURN_AS_ARRAY - return raw DB list
+
+  Returns:
+    hash_ref - location_id => [ users_for_thi_location ]
+
+=cut
+#***************************************************************
+sub _maps2_get_users {
+  my ($attr) = @_;
+
+  my $list = $users->list({
+    LOGIN         => '_SHOW',
+    FIO           => '_SHOW',
+    DEPOSIT       => '_SHOW',
+    STREET_NAME   => '_SHOW',
+    BUILD_NUMBER  => '_SHOW',
+    ADDRRESS_FLAT => '_SHOW',
+    ACTIVATE      => '_SHOW',
+    EXPIRE        => '_SHOW',
+    GID           => $FORM{GROUP_ID} || '_SHOW',
+    %LIST_PARAMS,
+    LOCATION_ID   => $attr->{LOCATION_ID} || '!',
+    PAGE_ROWS     => '1000000',
+    COLS_NAME     => 1,
+    COLS_UPPER    => 1,
+    SORT          => 'pi.address_flat',
+    UID           => undef
+  });
+
+  if ($attr->{RETURN_AS_ARRAY}) {
+    return $list;
+  }
+  my %USERS_INFO = ();
+  foreach my $line (@{$list}) {
+
+    # Skip users without location
+    next if (!$line->{build_id});
+
+    push @{$USERS_INFO{ $line->{build_id} }}, $line;
+  }
+
+  return \%USERS_INFO;
+}
+
+#**********************************************************
+=head2 maps2_add_external_object()
+
+=cut
+#**********************************************************
+sub maps2_add_external_object {
+  my ($type_id, $attr) = @_;
+
+  return if (!$type_id || ref $type_id);
+
+  my $type_info = $Maps->point_types_info($type_id);
+  _error_show($Maps);
+
+  my $name = $attr->{NAME} || do {
+    my $max_ids = $Maps->points_max_ids_for_types($type_id);
+    _error_show($Maps);
+
+    my $max_id = $max_ids->{$type_id} || '';
+    _translate($type_info->{NAME}) . $max_id;
+  };
+
+  delete $attr->{ID};
+  $Maps->points_add({
+    %{$attr},
+    EXTERNAL => 1,
+    NAME     => $name,
+    TYPE_ID  => $type_id,
+  });
+  _error_show($Maps);
+  return $Maps->{errno} ? 0 : $Maps->{INSERT_ID};
+}
+
+#**********************************************************
+=head2 maps2_show_map($attr) - maps2_show_map
+
+  Arguments:
+    HIDE_CONTROLS     - hide controls,
+    LAYERS            - show this Layers. Ex.: '\"1,12\"'
+    LAYER             - show this layer
+    OBJECT_ID         - show object with this OBJECT_ID (Use with LAYER)
+    SHOW_SEARCH       - show search control
+    HIDE_EDIT_BUTTONS - hide del and edit buttons
+    SMALL             - set small map
+    MAP_HEIGHT        - set map height
+
+  Return:
+    Map object
+
+=cut
+#**********************************************************
+sub maps2_show_map {
+  my ($attr) = @_;
+
+  $attr->{OBJECT_ID} ||= $FORM{OBJECT_ID};
+
+  if ($attr->{DATA} && !$attr->{MSGS_MAP} && !$attr->{SKIP_OBJECTS}) {
+    if (ref $attr->{DATA} eq 'ARRAY') {
+      $FORM{OBJECT_TO_SHOW} = maps2_get_custom_array_objects($attr);
+    }
+    elsif (ref $attr->{DATA} eq 'HASH') {
+      $FORM{OBJECT_TO_SHOW} = maps2_get_custom_hash_objects($attr);
+    }
+  }
+  elsif (!$attr->{SKIP_OBJECTS}) {
+    $attr->{TO_SCREEN} = 0 if $FORM{RETURN_HASH_OBJECT};
+    $FORM{OBJECT_TO_SHOW} = maps2_get_build_objects($attr);
+    if ($FORM{RETURN_HASH_OBJECT}) {
+      print JSON::to_json($FORM{OBJECT_TO_SHOW}, { utf8 => 0 });
+      return 1;
+    }
+  }
+
+  my $javascript_vars = $html->tpl_show(
+    _include('maps2_js_variables', 'Maps2'),
+    maps2_get_js_variables(
+      %{$attr},
+      %FORM,
+      HIDE_CONTROLS       => ($attr->{QUICK}) ? 1 : '',
+      MAPS_DEFAULT_TYPE   => $conf{MAPS_DEFAULT_TYPE} || 'OSM',
+      MAPS_DEFAULT_LATLNG => $conf{MAPS_DEFAULT_LATLNG} || ''
+    ),
+    { OUTPUT2RETURN => 1 }
+  );
+
+  my $map_show = $html->tpl_show(_include('maps2_main', 'Maps2'), {
+    JS_VARIABLES => $javascript_vars,
+    MAP_HEIGHT   => $attr->{MAP_HEIGHT}
+  }, { OUTPUT2RETURN => 1 });
+
+  return $map_show;
+}
+
+#**********************************************************
+=head2 maps2_get_build_objects($attr)
+
+  Arguments:
+
+  Return:
+
+
+=cut
+#**********************************************************
+sub maps2_get_build_objects {
+  my ($attr) = @_;
+
+  my $result = '';
+  my @objects;
+
+  $result = maps2_builds_show({
+    %{$attr},
+    EXPORT      => 1,
+    RETURN_HASH => 1,
+    TO_SCREEN   => defined $attr->{TO_SCREEN} ? $attr->{TO_SCREEN} : 1
+  });
+  map(push(@objects, $_), @{$result}) if is_not_empty_array_ref($result);
+
+  $result = maps2_builds2_show({
+    %{$attr},
+    EXPORT      => 1,
+    RETURN_HASH => 1,
+    TO_SCREEN   => defined $attr->{TO_SCREEN} ? $attr->{TO_SCREEN} : 1
+  });
+  map(push(@objects, $_), @{$result}) if is_not_empty_array_ref($result);
+
+  return \@objects;
+}
+
+#**********************************************************
+=head2 maps2_get_custom_array_objects($attr)
+
+  Arguments:
+
+  Return:
+
+
+=cut
+#**********************************************************
+sub maps2_get_custom_array_objects {
+  my ($attr) = @_;
+
+  my $result = '';
+  my @objects;
+  my %objects_hash;
+
+  foreach my $object (@{$attr->{DATA}}) {
+    $object->{LOCATION_ID} = $object->{location_id} || $object->{build_id};
+    next unless $object->{LOCATION_ID} || !$objects_hash{$object->{LOCATION_ID}};
+
+    $objects_hash{$object->{LOCATION_ID}} = 1;
+    $result = maps2_get_build_objects($object);
+    push @objects, $result->[0] if is_not_empty_array_ref($result);
+  }
+
+  return \@objects;
+}
+
+#**********************************************************
+=head2 maps2_get_custom_hash_objects($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub maps2_get_custom_hash_objects {
+  my ($attr) = @_;
+
+  my @objects;
+  my $build_objects;
+  my $map_type_icon = $attr->{MAP_TYPE_ICON} || ();
+  my $map_icon = $attr->{MAP_ICON};
+
+  foreach my $key (keys %{$attr->{DATA}}) {
+    $build_objects = maps2_get_build_objects({
+      GET_LIKE_MARKER => $attr->{FULL_TYPE_URL} ? 1 : 0,
+      LOCATION_ID     => $key,
+      RETURN_HASH     => 1
+    });
+
+    $attr->{MAP_ICON} = $map_icon;
+    if (ref $attr->{DATA}{$key} eq 'ARRAY' && $attr->{DATA}{$key}[0] && $map_type_icon) {
+      if ($map_type_icon->{ICON_PATH} && $map_type_icon->{ICON_FIELD} && $attr->{DATA}{$key}[0]{$map_type_icon->{ICON_FIELD}}) {
+        my $file_path = "$conf{TPL_DIR}/" . $attr->{MAP_TYPE_ICON}{ICON_EXIST_PATH} . $attr->{DATA}{$key}[0]{$map_type_icon->{ICON_FIELD}} . ".png";
+        if (-e $file_path) {
+          $attr->{MAP_ICON} ||= "$map_type_icon->{ICON_PATH}$attr->{DATA}{$key}[0]{$map_type_icon->{ICON_FIELD}}.png"
+        }
+      }
+    }
+
+    if ($attr->{MAP_SHOW_ITEMS} && $build_objects && ref $build_objects eq 'ARRAY') {
+      foreach my $build (@{$build_objects}) {
+        my $info = _maps2_get_custom_info($attr->{DATA}{$key}, {
+          MAP_SHOW_ITEMS => $attr->{MAP_SHOW_ITEMS},
+          TO_SCREEN      => $attr->{TO_SCREEN},
+          LINK_ITEMS     => $attr->{MAP_SHOW_ITEMS}{LINK_ITEMS},
+          DEFAULT_VALUE  => $attr->{MAP_SHOW_ITEMS}{DEFAULT_VALUE},
+        });
+        if (!$map_type_icon->{ICON_PATH} && _isPolygon({ LAYER_ID => $build->{LAYER_ID} })) {
+          $build->{POLYGON}{INFO} = $info;
+          $build->{POLYGON}{TYPE} = $attr->{MAP_ICON} if $attr->{MAP_ICON};
+          $build->{POLYGON}{FULL_TYPE_URL} = $attr->{FULL_TYPE_URL} if $attr->{FULL_TYPE_URL} && $attr->{MAP_ICON};
+        }
+        else {
+          $build->{MARKER}{INFO} = $info;
+          $build->{MARKER}{TYPE} = $attr->{MAP_ICON} if $attr->{MAP_ICON};
+          $build->{MARKER}{FULL_TYPE_URL} = $attr->{FULL_TYPE_URL} if $attr->{FULL_TYPE_URL} && $attr->{MAP_ICON};
+        }
+
+        push @objects, $build;
+      }
+    }
+  }
+
+  return $objects[0] ? \@objects : $build_objects;
+}
+
+#**********************************************************
+=head2 _maps2_get_custom_info($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _maps2_get_custom_info {
+  my ($objects, $attr) = @_;
+
+  foreach my $key (reverse sort keys %{$attr->{MAP_SHOW_ITEMS}}) {
+    next if $key eq "LINK_ITEMS" || $key eq 'DEFAULT_VALUE';
+
+    push @{$attr->{TABLE_TITLES}}, uc $key;
+    push @{$attr->{TABLE_LANG_TITLES}}, $attr->{MAP_SHOW_ITEMS}{$key};
+  }
+
+  my $info = maps2_point_info_table({
+    OBJECTS           => $objects,
+    TABLE_TITLES      => $attr->{TABLE_TITLES},
+    TABLE_LANG_TITLES => $attr->{TABLE_LANG_TITLES},
+    LINK_ITEMS        => $attr->{LINK_ITEMS},
+    DEFAULT_VALUE     => $attr->{DEFAULT_VALUE},
+    TO_SCREEN         => 1
+  });
+
+  return $info
+}
+
+#**********************************************************
+=head2 maps2_show_object_button()
+
+=cut
+#**********************************************************
+sub maps2_show_object_button {
+  my ($layer_id, $object_id, $attr) = @_;
+
+  $layer_id = LAYER_ID_BY_NAME->{$layer_id} || $layer_id;
+  my $params = '';
+
+  my %button_params = (
+    class  => 'btn btn-xs btn-info',
+    title  => $lang{SHOW},
+    ICON   => 'glyphicon glyphicon-globe',
+    target => '_blank'
+  );
+  
+  if ($attr->{CHECK_POINT} && $object_id) {
+    my $point_info = $Maps->points_info($object_id);
+    $attr->{ADD_POINT} = 1 if $Maps->{TOTAL} > 0 && !($point_info->{coordx} && $point_info->{coordy});
+  }
+
+  $button_params{class} = 'btn btn-xs btn-warning disabled' if (exists $attr->{POINT_ID} && !$attr->{POINT_ID});
+
+  if ($attr->{SHOW_IN_MAP}) {
+    $button_params{ex_params} = qq/onclick="ObjectsConfiguration.panToObject($layer_id, $object_id)"/;
+    $button_params{class} .= ' pull-right';
+    $button_params{JAVASCRIPT} = '';
+    $button_params{SKIP_HREF} = 1;
+    $button_params{NO_LINK_FORMER} = 1;
+  }
+  else {
+    my $maps_index = get_function_index('maps2_main');
+    $params = "index=$maps_index&LAYER=$layer_id";
+    $params .= "&OBJECT_ID=$object_id" if $object_id;
+    $params .= "&ADD_POINT=1" if $attr->{ADD_POINT};
+
+    return $params if ($attr->{RETURN_HREF});
+  }
+
+  my $name = ($attr && $attr->{NAME}) ? $attr->{NAME} : '';
+  if ($name) {
+    $button_params{ADD_ICON} = $button_params{ICON};
+    delete $button_params{ICON}
+  }
+
+  return $html->button($name, $params, \%button_params)
+}
+
+#**********************************************************
+=head2 _maps2_change_coords($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _maps2_change_coords {
+  my ($attr) = @_;
+
+  return 0 if !$attr->{TYPE};
+
+  if ($attr->{TYPE} eq 'POLYGON') {
+    _maps2_change_polygon_coords($attr);
+    return 1;
+  }
+
+  if ($attr->{TYPE} eq 'POLYLINE') {
+    _maps2_change_polyline_coords($attr);
+    return 1;
+  }
+
+  if ($attr->{TYPE} eq 'MARKER') {
+    _maps2_change_marker_coords($attr);
+    return 1;
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _maps2_change_polygon_coords($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _maps2_change_polygon_coords {
+  my ($attr) = @_;
+
+  my $polygons = $Maps->polygons_list({
+    ID        => '_SHOW',
+    OBJECT_ID => $attr->{OBJECT_ID}
+  });
+
+  return '' if !$Maps->{TOTAL};
+  my @points_array = split(/,/, $attr->{coords});
+  my @points = ();
+  foreach my $point (@points_array) {
+    my ($coordx, $coordy) = split(':', $point);
+    push @points, { COORDX => $coordx, COORDY => $coordy };
+  }
+
+  $Maps->polygon_points_add({
+    POLYGON_ID => $polygons->[0]{ID},
+    POINTS     => \@points
+  });
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _maps2_change_polyline_coords($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _maps2_change_polyline_coords {
+  my ($attr) = @_;
+
+  if ($attr->{ADD_NEW}) {
+    $Maps->points_info($attr->{OBJECT_ID});
+    return 0 if !$Maps->{TOTAL};
+
+    $Maps->polylines_add({
+      OBJECT_ID => $attr->{OBJECT_ID},
+      LAYER_ID  => 10
+    });
+  }
+
+  my $polylines = $Maps->polylines_list({
+    ID        => '_SHOW',
+    OBJECT_ID => $attr->{OBJECT_ID}
+  });
+
+  return '' if !$Maps->{TOTAL};
+  my @points_array = split(/,/, $attr->{coords});
+
+  my @points = ();
+  foreach my $point (@points_array) {
+    my ($coordx, $coordy) = split(':', $point);
+    push @points, { COORDX => $coordx, COORDY => $coordy };
+  }
+
+  $Maps->polyline_points_add({
+    POLYLINE_ID => $polylines->[0]{id} || $polylines->[0]{ID},
+    POINTS      => \@points
+  });
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _maps_change_marker_coords($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _maps2_change_marker_coords {
+  my ($attr) = @_;
+
+  return 0 if !$attr->{OBJECT_ID} || !$attr->{coordx} || !$attr->{coordy};
+
+  if ($attr->{LAYER_ID} && $attr->{LAYER_ID} eq LAYER_ID_BY_NAME->{BUILD}) {
+    $Maps->build_change({
+      ID     => $attr->{OBJECT_ID},
+      COORDX => $attr->{coordy},
+      COORDY => $attr->{coordx},
+    });
+
+    return 1;
+  }
+
+  $Maps->points_change({
+    ID     => $attr->{OBJECT_ID},
+    COORDX => $attr->{coordx},
+    COORDY => $attr->{coordy},
+  });
+
+  return 0;
+}
+
+#**********************************************************
+=head2 maps2_user($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub maps2_user {
+  my ($attr) = @_;
+
+  my $javascript_vars = $html->tpl_show(
+    _include('maps2_js_variables', 'Maps2'),
+    maps2_get_js_variables(
+      %FORM,
+      HIDE_CONTROLS       => 1,
+      LAYERS              => '\"1,12\"',
+      SHOW_SEARCH         => 1,
+      MAPS_DEFAULT_TYPE   => $conf{MAPS_DEFAULT_TYPE} || 'OSM',
+      HIDE_EDIT_BUTTONS   => 1,
+      MAPS_DEFAULT_LATLNG => $conf{MAPS_DEFAULT_LATLNG} || ''
+    ),
+    { OUTPUT2RETURN => 1 }
+  );
+
+  $html->tpl_show(_include('maps2_main', 'Maps2'), { JS_VARIABLES => $javascript_vars });
+
+  return 0;
+}
+
+#**********************************************************
+=head2 maps2_without_edits($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub maps2_without_edits {
+  my ($attr) = @_;
+
+  my $javascript_vars = $html->tpl_show(
+    _include('maps2_js_variables', 'Maps2'),
+    maps2_get_js_variables(
+      %FORM,
+      HIDE_ADD_BUTTONS    => 1,
+      SHOW_SEARCH         => 1,
+      MAPS_DEFAULT_TYPE   => $conf{MAPS_DEFAULT_TYPE} || 'OSM',
+      HIDE_EDIT_BUTTONS   => 1,
+      MAPS_DEFAULT_LATLNG => $conf{MAPS_DEFAULT_LATLNG} || ''
+    ),
+    { OUTPUT2RETURN => 1 }
+  );
+
+  $html->tpl_show(_include('maps2_main', 'Maps2'), { JS_VARIABLES => $javascript_vars });
+
+  return 0;
+}
+
+1;

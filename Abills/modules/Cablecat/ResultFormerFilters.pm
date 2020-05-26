@@ -19,16 +19,16 @@ our (
 sub _cablecat_result_former_color_scheme_filter {
   my ($colors_text) = @_;
   return '' if (!$colors_text);
-  
+
   my @colors_raw = split(',', $colors_text);
-  
-  my @colors = map { '#' . $_ } @colors_raw;
-  
-  my $i                  = 1;
+
+  my @colors = map {'#' . $_} @colors_raw;
+
+  my $i = 1;
   my $create_colored_div = sub {
     my $text = $conf{CABLECAT_COLOR_SCHEME_NUMBERS} ? $i++ : '&nbsp;&nbsp;&nbsp;';
     my $color = $_;
-    
+
     if ($_ =~ /\+$/) {
       if ($conf{CABLECAT_COLOR_SCHEME_NUMBERS}) {
         $text .= '+';
@@ -36,14 +36,14 @@ sub _cablecat_result_former_color_scheme_filter {
       else {
         $text = '+';
       }
-      
+
       ($color) = $_ =~ /(.*)\+/;
     }
-    
+
     return $html->element('div', $text, { style => "display: inline-block; padding: 3px 5px; background-color : $color; color: white" });
   };
-  
-  return join('', map { $create_colored_div->($_) } @colors);
+
+  return join('', map {$create_colored_div->($_)} @colors);
 }
 
 #**********************************************************
@@ -59,9 +59,9 @@ sub _cablecat_result_former_color_scheme_filter {
 #**********************************************************
 sub _cablecat_result_former_point_id_filter {
   my ($point_id, $attr) = @_;
-  
+
   state $map_points_by_id;
-  if ( !defined $map_points_by_id ) {
+  if (!defined $map_points_by_id) {
     my $points_list = $Maps->points_list({
       COORDX    => '_SHOW',
       COORDY    => '_SHOW',
@@ -71,31 +71,29 @@ sub _cablecat_result_former_point_id_filter {
     $map_points_by_id = sort_array_to_hash($points_list);
   }
   state $map_index = undef;
-  if ( !$map_index ) {
-    $map_index = get_function_index('maps_edit');
+  if (!$map_index) {
+    $map_index = get_function_index('maps2_main');
   }
-  
+
   my $layer_id = ($attr && $attr->{PARAMS} && $attr->{PARAMS}->[0]) ? $attr->{PARAMS}->[0] : 1;
-  
-  if ( $point_id ) {
+
+  if ($point_id) {
+    my $link = "index=$map_index&LAYER=$layer_id&OBJECT_ID=$point_id";
+    my $icon = 'glyphicon glyphicon-globe';
+
     # If have location, we can show it on map
-    if ( $map_points_by_id->{$point_id}{coordx} && $map_points_by_id->{$point_id}{coordy} ) {
-      return $html->button('', "index=$map_index&show_layer=$layer_id&OBJECT_ID=$point_id&BY_POINT_ID=$point_id&SINGLE=1&LAYER_ID=$layer_id&POINT_ID=$point_id",
-        { ICON => 'glyphicon glyphicon-globe' })
+    if (!$map_points_by_id->{$point_id}{coordx} || !$map_points_by_id->{$point_id}{coordy}) {
+      $icon = 'glyphicon glyphicon-map-marker';
+      $link .= '&ADD_POINT=1'
     }
-    # Else should change existing object
-    else {
-      return $html->button('', "index=$map_index&add=CUSTOM_POINT&OBJECT_ID=$point_id",
-        { ICON => 'glyphicon glyphicon-map-marker' })
-    }
+
+    return $html->button('', $link, { ICON => $icon });
   }
   # If no object defined, propose to add it
   else {
     return '';
-    #    return $html->button('', "index=$map_index&add=CUSTOM_POINT&TYPE_ID=$type_id",
-    #      { ICON => 'glyphicon glyphicon-plus' });
   }
-  
+
 }
 
 #**********************************************************
@@ -105,16 +103,18 @@ sub _cablecat_result_former_point_id_filter {
 #**********************************************************
 sub _cablecat_result_former_cable_point_id_filter {
   my ($point_id, $attr) = @_;
-  
+
   return '' if (!$point_id);
-  
+
   my $polyline_id = $attr->{VALUES}{POLYLINE_ID};
-  return '' if (!$polyline_id);
-  
-  return maps_show_object_button(
+
+  $Maps->points_info($point_id);
+  return '' if !$Maps->{TOTAL};
+
+  return maps2_show_object_button(
     $MAP_LAYER_ID{CABLE},
     $point_id,
-    { GO_TO_MAP => 1, POINT_ID => $point_id, SINGLE => $point_id }
+    { GO_TO_MAP => 1, POINT_ID => $point_id, SINGLE => $point_id, ADD_POINT => $polyline_id ? '' : 1 }
   )
 }
 
@@ -126,19 +126,19 @@ sub _cablecat_result_former_cable_point_id_filter {
 sub _cablecat_result_former_parent_id_filter {
   my $well_id = shift;
   return '' unless ($well_id);
-  
+
   # Next block should be called only once
   state $well_by_id = undef;
   if (!$well_by_id) {
     my $well_list = $Cablecat->wells_list({ ID => '_SHOW', NAME => '_SHOW', COLS_NAME => 1 });
     _error_show($Cablecat);
-    
+
     $well_by_id = sort_array_to_hash($well_list);
   }
-  
+
   my $well = $well_by_id->{$well_id};
   return '' unless (defined $well);
-  
+
   return $html->button($well->{name}, "index=" . get_function_index('cablecat_wells') . "&chg=$well->{id}", {});
 }
 
@@ -162,26 +162,26 @@ sub _cablecat_result_former_parent_id_filter {
 #**********************************************************
 sub _cablecat_result_former_named_chg_link_filter {
   my ($names, $attr) = @_;
-  
+
   return '' unless $names;
-  
+
   my %params = %{$attr->{VALUES}};
   my $function = $params{FUNCTION};
-  
-  if (!exists $params{PARAM_NAME} || !exists $params{uc $params{PARAM_NAME}}){
+
+  if (!exists $params{PARAM_NAME} || !exists $params{uc $params{PARAM_NAME}}) {
     return ''
   }
-  
+
   my @ids = split(',\s?', $params{uc $params{PARAM_NAME}});
   my @names = split(',\s?', $names);
-  
+
   my $index = get_function_index($function);
-  
+
   my @links = ();
-  for ( my $i = 0; $i <= $#ids; $i++ ) {
-    push (@links, $html->button($names[$i], "index=$index&chg=$ids[$i]",{}));
+  for (my $i = 0; $i <= $#ids; $i++) {
+    push(@links, $html->button($names[$i], "index=$index&chg=$ids[$i]", {}));
   }
-  
+
   return join(', ', @links);
 }
 
@@ -192,11 +192,11 @@ sub _cablecat_result_former_named_chg_link_filter {
 #**********************************************************
 sub _cablecat_result_former_icon_filter {
   my ($icon_name) = @_;
-  
+
   my $folder = '/images/maps/icons/';
-  
+
   $icon_name .= '.png' if ($icon_name !~ /\.png$/);
-  
+
   return "<img src='$folder$icon_name' alt='$icon_name' />";
 }
 

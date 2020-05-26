@@ -1835,7 +1835,10 @@ sub sel_groups {
   }
   elsif($attr->{HASH_RESULT}) {
     my %group_hash = ();
-    my $list = $users->groups_list({ GIDS => ($admin->{GID}) ? $admin->{GID} : undef, COLS_NAME => 1 });
+    my $list = $users->groups_list({
+      GIDS      => ($admin->{GID}) ? $admin->{GID} : undef,
+      COLS_NAME => 1,
+    });
     foreach my $line (@$list) {
       $group_hash{$line->{gid}} = "($line->{gid}) $line->{name}";
     }
@@ -1846,9 +1849,12 @@ sub sel_groups {
     my $gid = $attr->{GID} || $FORM{GID};
     my %PARAMS = (
       SELECTED    => $gid,
-      SEL_LIST    => $users->groups_list({ GIDS => ($admin->{GID}) ? $admin->{GID} : undef, COLS_NAME => 1 }),
+      SEL_LIST    => $users->groups_list({ GIDS => ($admin->{GID}) ? $admin->{GID} : undef,
+        DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+        COLS_NAME => 1 }),
       SEL_KEY     => 'gid',
       SEL_VALUE   => 'name',
+      EX_PARAMS   => $attr->{MULTISELECT} ? 'multiple="multiple"' : $attr->{EX_PARAMS}
     );
 
     if ($attr->{FILTER_SEL}) {
@@ -2087,12 +2093,19 @@ sub import_former {
     #  $perl_scalar->{errstr}="$perl_scalar->{message}";
     #}
     if($perl_scalar->{DATA_1}) {
-      foreach my $info_line (@{ $perl_scalar->{DATA_1} }) {
-        foreach my $key ( keys %$info_line ) {
-          $info_line->{ uc($key) } = $info_line->{$key};
-          delete( $info_line->{$key} );
+      if (ref($perl_scalar->{DATA_1}) eq 'ARRAY') {
+        foreach my $info_line (@{ $perl_scalar->{DATA_1} }) {
+          push @import_data, $info_line;
         }
-        push @import_data, $info_line;
+      } 
+      else {
+        foreach my $info_line (@{ $perl_scalar->{DATA_1} }) {
+          foreach my $key ( keys %$info_line ) {
+            $info_line->{ uc($key) } = $info_line->{$key};
+            delete( $info_line->{$key} );
+          }
+          push @import_data, $info_line;
+        }
       }
     }
 

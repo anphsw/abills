@@ -33,7 +33,7 @@ our $Iptv = Iptv->new($db, $Admin, \%conf);
 my $Users = Users->new($db, $Admin, \%conf);
 require Iptv::Services;
 
-my $ftp = Net::FTP->new($conf{CONAX_FTP_HOST}, Timeout => 5, Debug => ($argv->{DEBUG} || 0)) or die print "Cannot connect to some.host.name: $@\n";
+my $ftp = Net::FTP->new($conf{CONAX_FTP_HOST}, Timeout => 5, Debug => ($argv->{DEBUG} || 0)) or die print "Cannot connect to $conf{CONAX_FTP_HOST}: $@\n";
 
 $ftp->login($conf{CONAX_FTP_LOGIN}, $conf{CONAX_FTP_PASSWORD}) or die print "Cannot login: " . $ftp->message;
 
@@ -361,6 +361,8 @@ sub users_oversubscription {
       SUBSCRIBE_ID   => "_SHOW",
       CID            => '_SHOW',
       COLS_NAME      => 1,
+      SORT           => 'service.uid',
+      PAGE_ROWS      => 10000
     });
 
     foreach my $user (@$users_) {
@@ -554,13 +556,13 @@ sub _sort_cards {
   @cards = @{$attr->{CARDS}};
   push @cards, { cid => ($attr->{cid} || $attr->{CID}) } if !$attr->{subscribe_id};
 
-  my $cid = "";
-  foreach my $card (@cards) {
-    $cid = $card->{cid};
-    chop $cid;
-    $card->{prior} = substr($cid, -1) ne "0" ? substr($cid, -1) : 10;
-  }
-  my @sorted = sort {$a->{prior} <=> $b->{prior}} @cards;
+  # my $cid = "";
+  # foreach my $card (@cards) {
+  #   $cid = $card->{cid};
+  #   chop $cid;
+  #   $card->{prior} = substr($cid, -1) ne "0" ? substr($cid, -1) : 10;
+  # }
+  my @sorted = sort {$a->{cid} <=> $b->{cid}} @cards;
   my @return_cards = ();
 
   foreach my $card (@sorted) {

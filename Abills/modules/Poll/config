@@ -8,25 +8,27 @@
 
 %USER_FUNCTION_LIST = ();
 
-load_module('Poll', $html);
 
-my $Poll = Poll->new($db, $admin, \%conf);
-my $list_open_polls = $Poll->open_poll( {
+if ($user && $user->{UID}) {
+  load_module('Poll', $html);
+
+  my $Poll = Poll->new($db, $admin, \%conf);
+  my $list_open_polls = $Poll->open_poll( {
     DOMAIN_ID     => ($admin->{DOMAIN_ID} || 0),
     COLS_NAMES    => 1,
     UID           => ($user->{UID} || 1)
-} );
-if ( $list_open_polls->{total_count} != 0 ) {
-  $info = $html->color_mark("$list_open_polls->{total_count}",'#ff000');
-  $USER_FUNCTION_LIST{"01:0:$lang{POLL} ($info):poll_user:"} = 0;
-}
-else {
-  $USER_FUNCTION_LIST{"01:0:$lang{POLL}:poll_user:"} = 0;
-}
+  } );
+  if ( $list_open_polls->{total_count} != 0 ) {
+    $info = $html->color_mark("$list_open_polls->{total_count}",'#ff000');
+    $USER_FUNCTION_LIST{"01:0:$lang{POLL} ($info):poll_user:"} = 0;
+  }
+  else {
+    $USER_FUNCTION_LIST{"01:0:$lang{POLL}:poll_user:"} = 0;
+  }
 
-if($conf{POLL_USERS_ADD_POLE}){
-  $USER_FUNCTION_LIST{"02:1:$lang{ADD} $lang{POLL}:poll_user_add_poll:"} = 0;
-
+  if($conf{POLL_USERS_ADD_POLE}){
+    $USER_FUNCTION_LIST{"02:1:$lang{ADD} $lang{POLL}:poll_user_add_poll:"} = 0;
+  }
 }
 
 1

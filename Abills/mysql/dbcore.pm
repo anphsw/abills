@@ -368,7 +368,7 @@ sub query{
     $self->{list} = \@rows;
   }
   else{
-    if ( $q && defined( $q->{NAME} ) && ref $q->{NAME} eq 'ARRAY' ){
+    if ( $q && $q->{NAME} && ref $q->{NAME} eq 'ARRAY' ){
       push @{ $self->{COL_NAMES_ARR} }, @{ $q->{NAME} };
     }
 

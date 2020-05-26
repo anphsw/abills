@@ -12,18 +12,18 @@ use Extreceipt::db::Extreceipt;
 use Reports;
 use Conf;
 
-our(
+our (
   $index,
   %lang,
-  $html,
   $admin,
   $db,
   %conf,
 );
 
+our Abills::HTML $html;
+
 my $Receipt = Extreceipt->new($db, $admin, \%conf);
-my $Config  = Conf->new($db, $admin, \%conf);
-my %PAYMENTS_METHODS = %{ get_payment_methods() };
+my $Config = Conf->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 api_list()
@@ -49,36 +49,35 @@ sub api_list {
     }, { TPL => 'receipts_api', MODULE => 'Extreceipt' });
   }
   elsif ($FORM{adding}) {
-    $Receipt->api_add( \%FORM );
+    $Receipt->api_add(\%FORM);
     $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
   }
   elsif ($FORM{ADD}) {
-    $html->tpl_show('', { 
+    $html->tpl_show('', {
       SUBMIT_BTN_ACTION => 'adding',
       SUBMIT_BTN_VALUE  => '1',
       SUBMIT_BTN_NAME   => $lang{ADD},
     }, { TPL => 'receipts_api', MODULE => 'Extreceipt' });
   }
-  
+
   my $api_list = $Receipt->api_list();
-  
-  my $table = $html->table( {
-      width               => '100%',
-      caption             => "Receipts API : ",
-      ID                  => 'API',
-      title               => ["#", "API name", ""],
-      HAS_FUNCTION_FIELDS => 1,
-      
-      MENU                => "$lang{ADD}:index=$index&ADD=1:add"
+
+  my $table = $html->table({
+    width               => '100%',
+    caption             => "Receipts API : ",
+    ID                  => 'API',
+    title               => [ "#", "API name", "" ],
+    HAS_FUNCTION_FIELDS => 1,
+    MENU                => "$lang{ADD}:index=$index&ADD=1:add"
   });
-  
+
   foreach (@$api_list) {
     my $edit_button = $html->button($lang{CHANGE}, "index=$index&CHANGE=$_->{api_id}", { class => 'change' });;
     my $del_button = $html->button($lang{DELETE}, "index=$index&DELETE=$_->{api_id}", { class => 'del' });
-    $table->addrow($_->{api_id}, $_->{api_name}, $edit_button . $del_button );
-  } 
+    $table->addrow($_->{api_id}, $_->{api_name}, $edit_button . $del_button);
+  }
   print $table->show();
-  
+
   return 1;
 }
 
@@ -106,36 +105,36 @@ sub kkt_list {
     }, { TPL => 'receipts_kkt', MODULE => 'Extreceipt' });
   }
   elsif ($FORM{adding}) {
-    $Receipt->kkt_add( \%FORM );
+    $Receipt->kkt_add(\%FORM);
     $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
   }
   elsif ($FORM{ADD}) {
-    $html->tpl_show('', { 
+    $html->tpl_show('', {
       SUBMIT_BTN_ACTION => 'adding',
       SUBMIT_BTN_VALUE  => '1',
       SUBMIT_BTN_NAME   => $lang{ADD},
     }, { TPL => 'receipts_kkt', MODULE => 'Extreceipt' });
   }
-  
+
   my $api_list = $Receipt->kkt_list();
-  
-  my $table = $html->table( {
-      width               => '100%',
-      caption             => "KKT",
-      ID                  => 'KKT',
-      title               => ["#", "API name", "KKT $lang{GROUP}", $lang{PAYMENT_METHOD}, $lang{GROUPS}, "" ],
-      HAS_FUNCTION_FIELDS => 1,
-      
-      MENU                => "$lang{ADD}:index=$index&ADD=1:add"
+
+  my $table = $html->table({
+    width               => '100%',
+    caption             => "KKT",
+    ID                  => 'KKT',
+    title               => [ "#", "API name", "KKT $lang{GROUP}", $lang{PAYMENT_METHOD}, $lang{GROUPS}, "" ],
+    HAS_FUNCTION_FIELDS => 1,
+
+    MENU                => "$lang{ADD}:index=$index&ADD=1:add"
   });
-  
+
   foreach (@$api_list) {
     my $edit_button = $html->button($lang{CHANGE}, "index=$index&CHANGE=$_->{kkt_id}", { class => 'change' });;
     my $del_button = $html->button($lang{DELETE}, "index=$index&DELETE=$_->{kkt_id}", { class => 'del' });
-    $table->addrow($_->{kkt_id}, $_->{api_name}, $_->{kkt_group}, $_->{methods}, $_->{groups}, $edit_button . $del_button );
-  } 
+    $table->addrow($_->{kkt_id}, $_->{api_name}, $_->{kkt_group}, $_->{methods}, $_->{groups}, $edit_button . $del_button);
+  }
   print $table->show();
-  
+
   return 1;
 }
 
@@ -164,14 +163,16 @@ sub check_list {
     _extreceipt_resend($FORM{resend});
   }
 
-  if (! $FORM{sort}) {
+  if (!$FORM{sort}) {
     $LIST_PARAMS{SORT} = 1;
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
+  my $PAYMENTS_METHODS = get_payment_methods();
+
   my $payment_method_select = $html->form_select('PAYMENT_METHOD', {
     SELECTED => $FORM{PAYMENT_METHOD} || '*',
-    SEL_HASH => { '*' => $lang{ALL}, %PAYMENTS_METHODS },
+    SEL_HASH => { '*' => $lang{ALL}, %$PAYMENTS_METHODS },
     NO_ID    => 1,
     SORT_KEY => 1
   });
@@ -210,15 +211,15 @@ sub check_list {
   }
 
   result_former({
-    INPUT_DATA      => $Receipt,
-    FUNCTION        => 'payments_list',
-    DEFAULT_FIELDS  => 'ID,DATETIME,LOGIN,SUM,PAYMENT_METHOD,STATUS,EXTST',
-    FILTER_COLS     => {
+    INPUT_DATA     => $Receipt,
+    FUNCTION       => 'payments_list',
+    DEFAULT_FIELDS => 'ID,DATETIME,LOGIN,SUM,PAYMENT_METHOD,STATUS,EXTST',
+    FILTER_COLS    => {
       extst          => '_extreceipt_buttons_filter::id,extst,payment_method',
       payment_method => '_extreceipt_payment_filter::',
     },
-    SELECT_VALUE    => {
-      status         => {
+    SELECT_VALUE   => {
+      status => {
         0 => $lang{NEW},
         1 => $lang{SENDED},
         2 => $lang{ACCEPTED},
@@ -226,7 +227,7 @@ sub check_list {
         4 => $lang{ERROR},
       }
     },
-    EXT_TITLES      => {
+    EXT_TITLES     => {
       'id'             => $lang{NUM},
       'datetime'       => $lang{DATE},
       'sum'            => $lang{SUM},
@@ -234,16 +235,16 @@ sub check_list {
       'status'         => $lang{STATUS},
       'extst'          => ' '
     },
-    TABLE => {
+    TABLE          => {
       width   => '100%',
       caption => $lang{PAYMENTS},
       qs      => $pages_qs,
       pages   => $Receipt->{TOTAL},
       ID      => 'PAYMENTS',
     },
-    MAKE_ROWS       => 1,
-    SEARCH_FORMER   => 1,
-    TOTAL           => 1
+    MAKE_ROWS      => 1,
+    SEARCH_FORMER  => 1,
+    TOTAL          => 1
   });
 
   return 1;
@@ -269,7 +270,10 @@ sub _extreceipt_new {
 }
 
 #**********************************************************
-=head2 _extreceipt_send()
+=head2 _extreceipt_send($payment_id)
+
+  Arguments:
+    $payment_id -
 
 =cut
 #**********************************************************
@@ -278,19 +282,26 @@ sub _extreceipt_send {
 
   my $info = $Receipt->info($payment_id);
   $info->[0]->{phone} //= '';
-  $info->[0]->{phone} =~ s/[^0-9\+]//g;
+  #$info->[0]->{phone} =~ s/[^0-9\+]//g;
   $info->[0]->{mail} //= ($info->[0]->{uid} . '@myISP');
 
   my $command_id = $Receipt->{API}->{$info->[0]->{api_id}}->payment_register($info->[0]);
   if ($command_id) {
-    $Receipt->change({ PAYMENTS_ID => $info->[0]->{payments_id}, COMMAND_ID => $command_id, STATUS => 1 });
+    $Receipt->change({
+      PAYMENTS_ID => $info->[0]->{payments_id},
+      COMMAND_ID  => $command_id,
+      STATUS      => 1
+    });
   }
 
   return 1;
 }
 
 #**********************************************************
-=head2 _extreceipt_info()
+=head2 _extreceipt_info($id)
+
+  Arguments:
+    $id - Receipt id
 
 =cut
 #**********************************************************
@@ -299,10 +310,11 @@ sub _extreceipt_info {
 
   my $info = $Receipt->info($id);
   my ($fdn, $fda, $date, $payments_id, $error) = $Receipt->{API}->{$info->[0]->{api_id}}->get_info($info->[0]);
+
   if ($error) {
     $Receipt->change({
-      PAYMENTS_ID  => $payments_id || $info->[0]->{command_id},
-      STATUS       => 4,
+      PAYMENTS_ID => $payments_id || $info->[0]->{command_id},
+      STATUS      => 4,
     });
   }
   elsif ($fda) {
@@ -319,6 +331,7 @@ sub _extreceipt_info {
   else {
     $html->message('info', "FDN = $fdn, FDA = $fda");
   }
+
   return 1;
 }
 
@@ -358,7 +371,7 @@ sub _extreceipt_buttons_filter {
   my $attr = $values->{VALUES};
   my $buttons = '';
 
-  if($attr->{id} > $conf{"EXTRECEIPT_LAST_ID"}) {
+  if ($attr->{id} > $conf{"EXTRECEIPT_LAST_ID"}) {
     $buttons = $html->button($lang{NEW}, "index=$index&new=1&$pages_qs", { class => 'btn btn-xs btn-default' });
   }
   elsif (!defined($attr->{extst})) {
@@ -395,7 +408,9 @@ sub _extreceipt_payment_filter {
   my ($method) = @_;
   return '' unless $method;
 
-  return $PAYMENTS_METHODS{$method};
+  my $PAYMENTS_METHODS = get_payment_methods();
+
+  return $PAYMENTS_METHODS->{$method};
 }
 
 #**********************************************************
@@ -408,7 +423,10 @@ sub receipt_init {
   my $Receipt_api = ();
   foreach my $line (@$api_list) {
     my $api_name = $line->{api_name};
-    if (eval { require "Extreceipt/API/$api_name.pm"; 1; }) {
+    if (eval {
+      require "Extreceipt/API/$api_name.pm";
+      1;
+    }) {
       $Receipt_api->{$line->{api_id}} = $api_name->new(\%conf, $line);
       # $Receipt_api->{$line->{api_id}}->{debug} = 1;
       if (!$Receipt_api->{$line->{api_id}}->init()) {
@@ -419,7 +437,7 @@ sub receipt_init {
       print $@;
       $Receipt_api->{$line->{api_id}} = ();
     }
-  } 
+  }
   return $Receipt_api;
 }
 

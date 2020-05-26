@@ -114,6 +114,10 @@ sub register_gpon_huawei {
     exit 0;
   }
 
+  if ($argv->{VLAN_PER_USER}) {
+    return register_gpon_huawei_vlan_per_user();
+  }
+
   my ($frame, $slot, $port) = split(/\//, $argv->{BRANCH}, 3);
   my $line_profile = $argv->{LINE_PROFILE};
   my $srv_profile = $argv->{SRV_PROFILE};
@@ -234,6 +238,11 @@ sub register_gpon_huawei {
         }
         else {
           print "Service-port $service_port_num added vlan $vlan_s_p in user_vlan $vlan_id\n";
+
+          if ($argv->{ANTI_MACSPOOFING}) {
+            $data = telnet_cmd("security anti-macspoofing max-mac-count service-port $service_port_num 1");
+          }
+
           if (!$vlan && $vlan_count > 1 && !$tr_069_vlan) {
             $data = telnet_cmd("dhcp option82 service-port $service_port_num disable");
             print "Оption 82 in the service port $service_port_num is disabled\n";
@@ -250,7 +259,81 @@ sub register_gpon_huawei {
 }
 
 #**********************************************************
-=head2 delete_epon_huawei($attr) - Delete Gpon onu
+=head2 register_gpon_huawei_vlan_per_user($attr) - Registration Gpon onu (vlan per user)
+
+=cut
+#**********************************************************
+sub register_gpon_huawei_vlan_per_user {
+  my ($frame, $slot, $port) = split(/\//, $argv->{BRANCH}, 3);
+  my $line_profile = $argv->{LINE_PROFILE};
+  my $srv_profile = $argv->{SRV_PROFILE};
+  my $mac_serial = $argv->{MAC_SERIAL};
+  my $onu_desc = ($argv->{ONU_DESC}) ? "desc $argv->{ONU_DESC}" : "; enter;";
+  my $onu_id = '';
+  my $internet_user_vlan = $argv->{INTERNET_USER_VLAN} || 101;
+  my $vlan = $argv->{VLAN_ID} || '';
+  my $gemport = $argv->{GEMPORT} || 14;
+  my $err = 0;
+
+  if (!$line_profile) {
+    print 'Not exist "Line-Profile"' . "\n";
+    $err = 1;
+  }
+  if (!$srv_profile) {
+    print 'Not exist "Srv-Profile"' . "\n";
+    $err = 1;
+  }
+  if (!$vlan && defined($argv->{VLAN_ID})) {
+    print 'Internet vlan is not selected' . "\n";
+    $err = 1;
+  }
+  if (!$mac_serial) {
+    print 'Not exist "Mac or Serial"' . "\n";
+    $err = 1;
+  }
+
+  return 0 if ($err);
+
+  if (telnet_open()) {
+    my $data = '';
+
+    $data = telnet_cmd("interface gpon $frame/$slot");
+    $data = telnet_cmd("ont add $port sn-auth $mac_serial omci ont-lineprofile-name $line_profile ont-srvprofile-name $srv_profile $onu_desc");
+
+    if ($data =~ /.*(Failure:[a-zA-Z\s]+)\|/) {
+      print $1 . "\n";
+      $data = telnet_cmd("quit") if ($debug < 9);
+      $Telnet->close();
+      return 0 if ($debug < 9);
+    }
+    elsif ($data =~ /.*ONTID \:([0-9]+).*/) {
+      $onu_id = $1;
+      print "ONU: $frame/$slot/$port:$onu_id ADDED\n";
+    }
+    else {
+      print "FATAL ERROR: Unable to register ONT \n" if ($debug < 9);
+      $data = telnet_cmd("quit") if ($debug < 9);
+      $Telnet->close();
+      return 0 if ($debug < 9);
+    }
+
+    $data = telnet_cmd("ont port native-vlan $port $onu_id eth 1 vlan $internet_user_vlan; enter;");
+    $data = telnet_cmd("quit");
+
+    my $cvlan_offset = $argv->{CVLAN_OFFSET} || 3000;
+    my $cvlan = $onu_id + $cvlan_offset;
+    $data = telnet_cmd("service-port vlan $vlan gpon $frame/$slot/$port ont $onu_id gemport $gemport multi-service user-vlan $internet_user_vlan tag-transform translate-and-add inner-vlan $cvlan inbound traffic-table index 7 outbound traffic-table index 7");
+
+    $data = telnet_cmd("quit\n");
+
+    print "SVLAN:CVLAN $vlan:$cvlan\n";
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 delete_epon_huawei($attr) - Delete Epon onu
 
 =cut
 #**********************************************************
@@ -460,12 +543,12 @@ sub _get_onu_service_ports {
 
     foreach my $line (@list) {
       if ($onu_type eq 'gpon') {
-        if ($line =~ /(\d+)\s+(\d+)\s+common\s+gpon\s+\d+\/\d+\s*\/\d+\s+\d+\s+\d+\s+vlan\s+(\d+)/) {
+        if ($line =~ /(\d+)\s+(\d+)\s+(common|stacking)\s+gpon\s+\d+\/\d+\s*\/\d+\s+\d+\s+\d+\s+vlan\s+(\d+)/) {
           $service_ports->{$1} = [ $2, $3 ];
         }
       }
       elsif ($onu_type eq 'epon') {
-        if ($line =~ /(\d+)\s+(\d+)\s+common\s+epon\s+\d+\/\d+\s+\/\d+\s+\d+\s+\-+\s+vlan\s+(\d+)/) { #/) {
+        if ($line =~ /(\d+)\s+(\d+)\s+(common|stacking)\s+epon\s+\d+\/\d+\s+\/\d+\s+\d+\s+\-+\s+vlan\s+(\d+)/) { #/) {
           $service_ports->{$1} = [ $2, $3 ];
         }
       }
@@ -587,25 +670,6 @@ sub register_epon_huawei {
     }
   }
 
-  #my @onu_service_ports = ();
-
-  #   print "<pre>
-  #
-  # conf
-  # interface epon $frame/$slot
-  #
-  # ont add $port mac-auth $mac_serial oam ont-line profile-name $line_profile ont-srvprofile-name $srv_profile
-  #
-  # ont port native-vlan $port $onu_id eth 1 vlan $internet_user_vlan
-  # quit
-  #
-  # service-port vlan $vlan epon $attr->{BRANCH} ont 0 multi-service user-vlan $internet_user_vlan
-  # quit
-  #
-  #    </pre>";
-  #
-  #   print show_hash($argv, { DELIMITER => ';;' });
-
   if (telnet_open()) {
     my $data = telnet_cmd("interface epon $frame/$slot");
 
@@ -636,7 +700,17 @@ sub register_epon_huawei {
       return 0 if ($debug < 9);
     }
 
-    $data = telnet_cmd("service-port vlan $vlan epon $attr->{BRANCH} ont $onu_id multi-service user-vlan $internet_user_vlan\n");
+
+    if ($argv->{VLAN_PER_USER}) {
+      my $cvlan_offset = $argv->{CVLAN_OFFSET} || 3000;
+      my $cvlan = $onu_id + $cvlan_offset;
+      $data = telnet_cmd("service-port vlan $vlan epon $attr->{BRANCH} ont $onu_id multi-service user-vlan $internet_user_vlan tag-transform translate-and-add inner-vlan $cvlan inbound traffic-table index 7 outbound traffic-table index 7\n");
+
+      print "SVLAN:CVLAN $vlan:$cvlan\n";
+    }
+    else {
+      $data = telnet_cmd("service-port vlan $vlan epon $attr->{BRANCH} ont $onu_id multi-service user-vlan $internet_user_vlan\n");
+    }
     $data = telnet_cmd("quit\n");
   }
 

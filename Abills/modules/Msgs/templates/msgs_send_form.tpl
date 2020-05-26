@@ -1,5 +1,4 @@
 <script TYPE='text/javascript'>
-  <!--
   function add_comments() {
 
     var DISPATCH_CREATE = document.getElementById('DISPATCH_CREATE');
@@ -43,7 +42,7 @@
 
       var new_delivery = document.getElementById('new_delivery');
       var delivery_list = document.getElementById('delivery_list');
-      var DELIVERY_COMMENTS = document.getElementById('DELIVERY_COMMENTS');
+      var DELIVERY_COMMENTS = document.getElementById('SUBJECT');
 
       if (comments === '' || comments === null) {
         alert('Enter comments');
@@ -70,8 +69,6 @@
     var MAX_FILES_COUNT = 3;
     initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
   });
-
-  -->
 </script>
 
 <FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'
@@ -96,6 +93,10 @@
         <input type='hidden' name='PAR' value='%PAR%'/>
         <input type='hidden' name='step' value='$FORM{step}'/>
         <input type='hidden' name='check_repeat' value='$FORM{CHECK_REPEAT}'/>
+        <input type='hidden' name='LOCATION_ID' value='$FORM{LOCATION_ID}'>
+        <input type='hidden' name='DISTRICT_ID' value='$FORM{DISTRICT_ID}'>
+        <input type='hidden' name='STREET_ID' value='$FORM{STREET_ID}'>
+        <input type='hidden' name='ADDRESS_FLAT' value='$FORM{ADDRESS_FLAT}'>
 
         <div class='form-group'>
           <label class='control-label col-md-3' for='CHAPTER'>_{CHAPTERS}_</label>
@@ -109,7 +110,7 @@
           <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_</label>
 
           <div class='col-md-9'>
-            <input type='text' name='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%'
+            <input type='text' name='SUBJECT' id='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%'
                    class='form-control'>
           </div>
         </div>

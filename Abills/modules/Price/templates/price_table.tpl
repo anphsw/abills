@@ -116,8 +116,7 @@
                 </div>
             </div>
         </div>
-        <div class="container">
-            <div class="box box-info ">
+            <div class="box box-primary">
                 <div class="box-header with-border">
                     <h2 class="box-title">_{GENERAL_INFORMATION}_</h2>
                 </div>
@@ -163,7 +162,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
             <br>
 
             %PANEL%

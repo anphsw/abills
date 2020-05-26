@@ -152,6 +152,8 @@ sub messages_list {
   my $self = shift;
   my ($attr) = @_;
 
+  my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : 'm.id';
+  
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
@@ -236,11 +238,15 @@ sub messages_list {
     push @WHERE_RULES, "(m.subject LIKE '%$attr->{SEARCH_MSGS_BY_WORD}%' OR m.message LIKE '%$attr->{SEARCH_MSGS_BY_WORD}%' OR r.text LIKE '%$attr->{SEARCH_MSGS_BY_WORD}%')";
   }
 
+  if ($attr->{STATE_DONE}) {
+    push @WHERE_RULES, "m.state = $attr->{STATE_DONE}";
+  }
+
   $admin->{permissions}->{0}->{8} = 1;
   my $WHERE = $self->search_former($attr, [
     [ 'MSG_ID',                 'INT',    'm.id',                                                                        ],
     [ 'CLIENT_ID',              'STR',    'if(m.uid>0, u.id, mg.name)', 'if(m.uid>0, u.id, mg.name) AS client_id'        ],
-    [ 'SUBJECT',                'STR',    'm.subject', 1                                                                 ],
+    [ 'SUBJECT',                'STR',    'm.subject',                                                                 1 ],
     [ 'CHAPTER_NAME',           'STR',    'mc.name', 'mc.name AS chapter_name'                                           ],
     [ 'CHAPTER_COLOR',          'STR',    'mc.color', 'mc.color AS chapter_color'                                        ],
     [ 'CHAPTER',                'INT',    'm.chapter'                                                                    ],
@@ -293,6 +299,7 @@ sub messages_list {
     [ 'ADDRESS_BY_LOCATION_ID', 'STR',    "CONCAT(ds.name, ', ', st.name, ', ', bl.number) AS address_by_location",
       "CONCAT(ds.name, ', ', st.name, ', ', bl.number) AS address_by_location_id"                                        ],
     [ 'ADMIN_DISABLE',          'INT',   'ra.disable', 'ra.disable AS admin_disable',                                  1 ],
+    [ 'DONE_SUM',               'INT',   'SUM(m.resposible && m.state) AS done_sum',                                   1 ]
   ],
     { WHERE             => 1,
       WHERE_RULES       => \@WHERE_RULES,
@@ -320,12 +327,6 @@ sub messages_list {
     $EXT_TABLES .= "LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)";
   }
 
-  if ($attr->{ADDRESS_BY_LOCATION_ID}) {
-    $EXT_TABLES .= "LEFT JOIN builds bl ON (bl.id=m.location_id)";
-    $EXT_TABLES .= "LEFT JOIN streets st ON (st.id=bl.street_id)";
-    $EXT_TABLES .= "LEFT JOIN districts ds ON (ds.id=st.district_id)";
-  }
-
   if ($admin->{DOMAIN_ID}) {
     $admin->{DOMAIN_ID} =~ s/;/,/g;
 
@@ -337,17 +338,22 @@ sub messages_list {
     }
   }
 
-  #Old section
-  #  SELECT m.id, $self->{SEARCH_FIELDS}
-  #       m.uid,
-  #    a.aid,
-  #    m.chapter AS chapter_id,
-  #       m.deligation,
-  #    m.admin_read,
-  #       m.inner_msg,
-  #    m.plan_time,
-  #       m.resposible,
-  #    u.id AS user_name
+  if ($attr->{DISTRICT_ID} || $attr->{STREET_ID} || $attr->{BUILD_ID} || $attr->{ADDRESS_BY_LOCATION_ID}) {
+    $EXT_TABLES .= "LEFT JOIN builds bl ON (bl.id=m.location_id)";
+    $EXT_TABLES .= "LEFT JOIN streets st ON (st.id=bl.street_id)";
+    $EXT_TABLES .= "LEFT JOIN districts ds ON (ds.id=st.district_id)";
+
+    my $adding_where = '';
+    $adding_where = 'ds.id=' . $attr->{DISTRICT_ID} if $attr->{DISTRICT_ID};
+    $adding_where .=  $attr->{STREET_ID} ? $attr->{DISTRICT_ID} ?
+      ' AND st.id=' . $attr->{STREET_ID} : 'st.id=' . $attr->{STREET_ID} : '';
+    $adding_where .=  $attr->{BUILD_ID} ? $attr->{STREET_ID} ?
+      ' AND bl.id=' . $attr->{BUILD_ID} : 'bl.id=' . $attr->{BUILD_ID} : '';
+
+    if ($adding_where) {
+      $WHERE .= $WHERE ? " OR ($adding_where)" : " $adding_where";
+    }
+  }
 
   $self->query("SELECT m.id, $self->{SEARCH_FIELDS}
        m.uid,
@@ -363,14 +369,14 @@ sub messages_list {
       LEFT JOIN groups mg ON (m.gid=mg.gid)
       LEFT JOIN admins ra ON (m.resposible=ra.aid)
       $WHERE
-      GROUP BY m.id
+      GROUP BY $GROUP_BY
         ORDER BY $SORT $DESC
         LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
 
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $self->query("SELECT COUNT(DISTINCT m.id) AS total,
   COUNT(DISTINCT IF(m.admin_read = '0000-00-00 00:00:00', m.id, 0)) AS in_work,
@@ -511,8 +517,6 @@ sub message_info {
 sub message_change {
   my $self = shift;
   my ($attr) = @_;
-
-  #delete $attr->{UID};
 
   $attr->{PAR} = $attr->{PARENT_ID} if ($attr->{PARENT_ID});
   $attr->{STATUS} = ($attr->{STATUS}) ? $attr->{STATUS} : 0;
@@ -1522,6 +1526,7 @@ sub dispatch_admins_change {
 
 #**********************************************************
 =head2 dispatch_admins_list($attr)
+
 =cut
 #**********************************************************
 sub dispatch_admins_list {
@@ -2042,6 +2047,8 @@ sub unreg_requests_change {
     COLS_NAME   => 1,
     COLS_UPPER  => 1,
   });
+
+  $attr->{DOMAIN_ID} ||= $admin->{DOMAIN_ID};
 
   $self->changes({
       CHANGE_PARAM    => 'ID',
@@ -3388,6 +3395,7 @@ sub messages_quick_replys_list {
     [ 'REPLY',   'STR', 'qr.reply',         1 ],
     [ 'TYPE_ID', 'INT', 'qr.type_id',       1 ],
     [ 'TYPE',    'STR', 'qrt.name AS type', 1 ],
+    [ 'COLOR',   'STR', 'qr.color',         1 ],
   ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
@@ -3775,6 +3783,418 @@ sub msgs_storage_list {
   );
 
   return $list || [];
+}
+
+#**********************************************************
+=head2 message_team_add()
+
+  Arguments:
+     ID             - id ticket
+     RESPONSIBLE    - ID responsible team
+     STATE          - status ticket
+     id_team        - id team
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub message_team_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_add('msgs_team_ticket', $attr);
+}
+
+#**********************************************************
+=head2 message_team_change()
+
+  Arguments:
+     ID           - new ticket id
+     RESPONSIBLE  - new responsible id
+     ID_TEAM      - new id team
+     ID_SEARCH    - old id ticket search
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub message_team_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("UPDATE msgs_team_ticket
+                AS mdt SET mdt.id = ?,
+                mdt.responsible = ?,
+                mdt.id_team = ?
+                WHERE mdt.id = ?;", undef, {
+    Bind => [ $attr->{ID}, $attr->{RESPONSIBLE}, $attr->{ID_TEAM}, $attr->{ID_SEARCH} ]
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 message_team_del()
+
+  Arguments:
+     ID         - id dispatch delete value
+
+  Returns:
+    $self       - state query
+
+=cut
+#**********************************************************
+sub message_team_del {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query_del('msgs_team_ticket', undef, { ID => $id });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 responsible_team_info()
+
+  Arguments:
+     ID         - id team
+
+  Returns:
+    list        - id and responisble team
+
+=cut
+#**********************************************************
+sub responsible_team_info {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT md.id, md.resposible
+                FROM msgs_dispatch md
+                WHERE md.id = ?", undef, {
+    Bind      => [ $id ],
+    COLS_NAME => 1,
+    INFO      => 1
+  });
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 respnosible_info_change()
+
+  Arguments:
+     ID         - dispatch change
+
+  Returns:
+    dispatch info for id
+
+=cut
+#**********************************************************
+sub respnosible_info_change {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT mdt.id, mdt.responsible, mm.subject FROM msgs_team_ticket AS mdt
+                LEFT JOIN msgs_messages AS mm ON mdt.id = mm.id
+                WHERE mdt.id = ?;",
+    undef,
+    {
+      COLS_NAME => 1,
+      INFO      => 1,
+      Bind      => [ $id ]
+    });
+
+  return $self->{list}[0];
+}
+
+#**********************************************************
+=head2 ticket_team_list()
+
+  Arguments:
+     ID               - id ticket
+     RESPONSIBLE      - responsible team
+     STATE            - status ticket
+     ID_TEAM          - id team
+     NAME             - name admin responsible team
+
+  Returns:
+    list              - date team ticket
+
+=cut
+#**********************************************************
+sub ticket_team_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  
+  my $GROUP_BY = ($attr->{GROUP_BY}) ? 'GROUP BY 1' : '';
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',                    'INT',  'mdt.id',                            1 ],
+      [ 'RESPONSIBLE',           'INT',  'mdt.responsible',                   1 ],
+      [ 'STATE' ,                'INT',  'mdt.state',                         1 ],
+      [ 'ID_TEAM',               'INT',  'mdt.id_team',                       1 ],
+      [ 'NAME',                  'STR',  'a.id AS name',                      1 ],
+    ],
+    { WHERE => 1 }
+  );
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} mdt.id
+                FROM msgs_team_ticket
+                AS mdt LEFT JOIN admins AS a ON a.aid = mdt.responsible
+                $WHERE $GROUP_BY", undef, {
+    COLS_NAME => 1,
+    INFO      => 1
+  });
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 responsible_team_list()
+
+  Arguments:
+     -
+
+  Returns:
+    list      - admins responsible team
+
+=cut
+#**********************************************************
+sub responsible_team_list {
+  my $self = shift;
+
+  $self->query("SELECT md.id, md.resposible, a.id AS aid FROM msgs_dispatch AS md
+    LEFT JOIN admins a ON md.resposible = a.aid WHERE a.aid IS NOT NULL;",
+    undef,
+    { COLS_NAME => 1, INFO => 1 });
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 team_location_add()
+
+  Arguments:
+     ID_TEAM        - id team set location
+     DISTRICT_ID    -
+     STREET_ID      -
+     BUILD_ID       -
+
+  Returns:
+    $self           - status query
+
+=cut
+#**********************************************************
+sub team_location_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_add('msgs_team_address', $attr);
+}
+
+#**********************************************************
+=head2 team_location_change()
+
+  Arguments:
+     ID             - id team for location
+     DISTRICT_ID    -
+     STREET_ID      -
+     BUILD_ID       -
+     $id            - id serach address
+
+  Returns:
+    $self           - status query
+
+=cut
+#**********************************************************
+sub team_location_change {
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  $self->query("UPDATE msgs_team_address AS mda
+                SET mda.id_team     = ?,
+                    mda.district_id = ?,
+                    mda.street_id   = ?,
+                    mda.build_id    = ?
+                WHERE mda.id = ?;", undef, {
+    Bind => [ $attr->{ID}, $attr->{DISTRICT_ID}, $attr->{STREET_ID}, $attr->{BUILD_ID}, $id ]
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 team_location_del()
+
+  Arguments:
+     ID         - id dispatch address
+
+  Returns:
+    $self       - status query
+
+=cut
+#**********************************************************
+sub team_location_del {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query_del('msgs_team_address', undef, { ID => $id });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 team_location_list()
+
+  Arguments:
+     ID             - id dispatach address
+     ID_TEAM        - id team for address
+     DISTRICT_ID    - 
+     STREET_ID      -
+     BUILD_ID       -
+     NUMBER         - number build
+     NAME_DISTRICT  -
+     NAME_STREET    -
+
+  Returns:
+    list location for set team
+
+=cut
+#**********************************************************
+sub team_location_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',                    'INT',  'mda.id',                            1 ],
+      [ 'ID_TEAM',               'INT',  'mda.id_team',                       1 ],
+      [ 'DISTRICT_ID',           'INT',  'mda.district_id',                   1 ],
+      [ 'STREET_ID' ,            'INT',  'mda.street_id',                     1 ],
+      [ 'BUILD_ID',              'INT',  'mda.build_id',                      1 ],
+      [ 'NUMBER',                'STR',  'b.number',                          1 ],
+      [ 'NAME_DISTRICT',         'STR',  'd.name AS name_district',           1 ],
+      [ 'NAME_STREET',           'STR',  's.name AS name_street',             1 ],
+    ],
+    { WHERE => 1 }
+  );
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} mda.id
+                FROM msgs_team_address AS mda
+         LEFT JOIN districts d on mda.district_id = d.id
+         LEFT JOIN builds b on mda.build_id = b.id
+         LEFT JOIN  streets s on b.street_id = s.id
+                $WHERE", undef, {
+    COLS_NAME => 1,
+    INFO      => 1
+  });
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 msgs_address_add()
+
+  Arguments:
+    ID
+    DISTRICTS
+    STREET
+    BUILD
+    FLAT
+
+  Return:
+    INSERT_ID
+
+=cut
+#**********************************************************
+sub msgs_address_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_add('msgs_address', $attr);
+}
+
+#**********************************************************
+=head2 msgs_address_info()
+
+  Arguments:
+    id
+
+  Return:
+    message address info
+
+=cut
+#**********************************************************
+sub msgs_address_info {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT *
+                FROM msgs_address ma
+                WHERE ma.id = ?", undef, {
+    Bind      => [ $id ],
+    COLS_NAME => 1,
+    INFO      => 1
+  });
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 msgs_address_change($attr)
+
+  Arguments:
+    ID
+
+  Return:
+    change result
+
+=cut
+#**********************************************************
+sub msgs_address_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM    => 'ID',
+      TABLE           => 'msgs_address',
+      DATA            => $attr,
+    }
+  );
+
+  return $self->{result};
+}
+
+#**********************************************************
+=head2 msgs_address_del($attr)
+
+  Arguments:
+    ID
+
+  Return:
+    delete result
+
+=cut
+#**********************************************************
+sub msgs_address_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('msgs_address', $attr);
+
+  return $self;
 }
 
 1;

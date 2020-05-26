@@ -13,7 +13,16 @@ our $CONNECTION_TYPE_IPN = 'ipn';
 
 my %BP_ARGS = (TO_CONSOLE => 1);
 #**********************************************************
-=head2 new() - Constructor
+=head2 new($host, $CONF, $attr) - Constructor
+
+  Arguments:
+    $host
+    $CONF
+    $attr
+      API_BACKEND
+
+  Return:
+    $executor
 
 =cut
 #**********************************************************
@@ -27,7 +36,7 @@ sub new($;$) {
   $self->{nas_id} = $host->{NAS_ID} || $host->{nas_id};
 
   $self->{nas_mng_password} = $host->{NAS_MNG_PASSWORD} || $host->{nas_mng_password};
-
+  $self->{password}=$self->{nas_mng_password};
   my $nas_ip_mng_port = $host->{NAS_MNG_IP_PORT} || $host->{nas_mng_ip_port} || q{};
 
   if (!$nas_ip_mng_port) {
@@ -35,7 +44,13 @@ sub new($;$) {
   }
 
   my ($nas_ip, $coa_port, $management_port) = split(":", $nas_ip_mng_port);
-  $management_port ||= $coa_port || '22';
+
+  if($attr->{API_BACKEND}) {
+    $management_port = '8728';
+  }
+  else {
+    $management_port ||= $coa_port || '22';
+  }
 
   $self->{backend} = $attr->{backend} || (($management_port eq '8728') ? 'api' : 'ssh');
 
@@ -45,7 +60,7 @@ sub new($;$) {
     ? '1700'
     : $coa_port;
 
-  $self->{admin} = $host->{nas_mng_user} || $host->{NAS_MNG_USER} || '';
+  $self->{admin} = $host->{NAS_MNG_USER} || $host->{nas_mng_user} || '';
 
   if ($self->{backend} eq 'ssh') {
     require Abills::Nas::Mikrotik::SSH;
@@ -122,10 +137,16 @@ sub execute {
 sub has_access {
   my $self = shift;
 
+  if (! $self->{executor}) {
+    return 0;
+  }
+
   my $has_access = $self->{executor}->check_access();
   if ($has_access == -5 && $self->{backend} eq 'ssh') {
     $self->generate_key($self->{admin});
   }
+
+  $self->{errstr}=$self->{executor}->{errstr};
 
   return $has_access;
 }
@@ -382,8 +403,6 @@ sub leases_add {
         $dhcp_server_name = "$attr->{DHCP_NAME_PREFIX}_$lease->{network}";
       }
     }
-    #    use Data::Dumper;
-    #    print Dumper($lease);
 
     print "Adding new lease address=$lease->{ip} mac-address=$lease->{mac} \n" if ($attr->{VERBOSE});
 

@@ -105,4 +105,6 @@ $lang{CHANGE_OF_TP} = "Смена тарифного плана на";
 
 $lang{ERROR_SHOW_CHANNELS} = "Ошибка показа каналов";
 
+$lang{GET_LOGIN_AND_PASSWD} = "Получить логин и пароль";
+
 1;

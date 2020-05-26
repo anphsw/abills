@@ -6,7 +6,10 @@
   "5:1:$lang{CAMERAS}:cams_main"            => 5,
   "6:0:$lang{TP_CAMERAS}:cams_user"         => 20,
   "7:0:$lang{CAMERAS}:cams_cameras"         => 20,
-  "8:0:Folders:cams_get_group_folders:AJAX" => 5
+  "8:0:Folders:cams_get_group_folders:AJAX" => 5,
+  "09:0:$lang{CAMERAS}:cams_users_list:"    => 11,
+  "20:0::cams_cams_maps:AJAX"               => 5,
+  "21:0::cams_cams_maps_review:AJAX"        => 5,
 );
 
 if ($conf{CAMS_FOLDER}) {

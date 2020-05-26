@@ -10,7 +10,7 @@
       <div class='form-group'>
         <label class='control-label col-md-3' for='NAME_id'>_{NAME}_</label>
         <div class='col-md-9'>
-          <input type='text' class='form-control' name='NAME' value='%NAME%' id='NAME_id' placeholder=''/>
+          <input type='text' class='form-control' name='NAME' value='%NAME%' id='NAME_id' placeholder='' autocomplete="off"/>
         </div>
       </div>
 

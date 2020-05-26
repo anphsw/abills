@@ -112,6 +112,18 @@ sub internet_daily_fees {
       #Get active yesterdays logins
       my %active_logins = ();
       if ($TP_INFO->{ACTIVE_DAY_FEE} > 0) {
+        my $online_list = $Sessions->online({
+          UID          => '_SHOW',
+          LOGIN        => '_SHOW',
+          TP_ID        => $TP_INFO->{TP_ID},
+          STARTED      => "<$ADMIN_REPORT{DATE} 00:00:00",
+          GUEST        => 0
+        });
+
+        foreach my $l (@$online_list) {
+          $active_logins{ $l->{login} } = $l->{uid};
+        }
+
         my $report_list = $Sessions->reports(
           {
             INTERVAL => "$attr->{YESTERDAY}/$attr->{YESTERDAY}",
@@ -1055,7 +1067,7 @@ sub internet_monthly_fees {
               #Block small deposit
               if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $sum > $user{DEPOSIT} + $user{CREDIT}
                 && (($TP_INFO->{FIXED_FEES_DAY} && ($d == $activate_d || ($d == $START_PERIOD_DAY && $activate_d > 28)))
-                || ($date_unixtime - $active_unixtime > 30 * 86400))
+                || ($date_unixtime - $active_unixtime > 30 * 86400) || $TP_INFO->{ABON_DISTRIBUTION} )
               ) {
                 $debug_output .= internet_small_deposit_action({
                   TP_INFO   => $TP_INFO,

@@ -20,6 +20,7 @@
           <input type=hidden name='header' value='2'>
           %YEAR_SEL%
           <a href='javascript:window.print();' class='btn btn-default'>_{PRINT}_</a>
+          %UPLOAD_XML%
         </form>
 
     </div>

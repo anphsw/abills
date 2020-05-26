@@ -59,27 +59,33 @@
         </div>
         <div id='_abon' class='box-body'>
           <div class='form-group'>
-            <label class='col-md-8 control-label'>_{DAY_FEE}_:</label>
-            <div class='col-md-4'>
+            <label class='col-md-4 control-label'>_{DAY_FEE}_:</label>
+            <div class='col-md-8'>
               <input class='form-control' type=text name=DAY_FEE value='%DAY_FEE%'>
             </div>
           </div>
           <div class='form-group'>
-            <label class='control-label col-md-8' for='POSTPAID_DAY_FEE'>_{DAY_FEE}_ _{POSTPAID}_</label>
+            <label class='control-label col-md-4' for='POSTPAID_DAY_FEE'>_{DAY_FEE}_ _{POSTPAID}_</label>
             <div class='checkbox pull-left'>
               <input style='margin-left:15px;' type='checkbox' name='POSTPAID_DAY_FEE' value=1 %POSTPAID_DAY_FEE%>
             </div>
           </div>
           <div class='form-group'>
-            <label class='col-md-8 control-label'>_{MONTH_FEE}_:</label>
-            <div class='col-md-4'>
+            <label class='col-md-4 control-label'>_{MONTH_FEE}_:</label>
+            <div class='col-md-8'>
               <input class='form-control' type=text name=MONTH_FEE value='%MONTH_FEE%'>
             </div>
           </div>
           <div class='form-group'>
-            <label class='control-label col-md-8' for='POSTPAID_MONTH_FEE'>_{MONTH_FEE}_ _{POSTPAID}_</label>
+            <label class='control-label col-md-4' for='POSTPAID_MONTH_FEE'>_{MONTH_FEE}_ _{POSTPAID}_</label>
             <div class='checkbox pull-left'>
               <input style='margin-left:15px;' type='checkbox' name='POSTPAID_MONTH_FEE' value=1 %POSTPAID_MONTH_FEE%>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label for='METHOD' class='control-label col-sm-4'>_{FEES}_ _{TYPE}_:</label>
+            <div class='col-md-8'>
+              %SEL_METHOD%
             </div>
           </div>
         </div>

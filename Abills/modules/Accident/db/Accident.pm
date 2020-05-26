@@ -52,9 +52,7 @@ sub add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('accident_log', $attr, {
-    AL_DATE => 'NOW()'
-  });
+  $self->query_add('accident_log', $attr);
 
   return $self;
 }
@@ -96,7 +94,7 @@ sub change_element {
 
   $self->changes(
     {
-      CHANGE_PARAM => 'AL_ID',
+      CHANGE_PARAM => 'ID',
       TABLE        => 'accident_log',
       DATA         => $attr,
     }
@@ -109,18 +107,18 @@ sub change_element {
 =head2 list ($attr) - list for accident log
 
  Arguments:
-     AL_ID              - Accident id
-     AL_PRIORITY        - Accident priority status
-     AL_DATE            - Date accident
-     AL_STATUS          - Status accident
-     AL_NAME            - Accident name
-     AL_DESC            - Description
+     ID              - Accident id
+     PRIORITY        - Accident priority status
+     DATE            - Date accident
+     STATUS          - Status accident
+     NAME            - Accident name
+     DESC            - Description
      ADDRESS_ID         - Districts accident
      FROM_DATE          -
      TO_DATE            -
-     AL_AID             - Administration id
-     AL_END_TIME        - Date end work
-     AL_REALY_TIME      - Date end realy work
+     AID             - Administration id
+     END_TIME        - Date end work
+     REALY_TIME      - Date end realy work
      STREET             - Street accident
      TYPE_ID            - Address type
      SKIP_STATUS        - Skip status
@@ -142,7 +140,7 @@ sub list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   if ($attr->{SKIP_STATUS}) {
-    push @WHERE_RULES, "al.al_status != $attr->{SKIP_STATUS}";
+    push @WHERE_RULES, "al.status != $attr->{SKIP_STATUS}";
   }
 
   if ($attr->{BUILD_ID} && $attr->{STREET_ID} && $attr->{DISTRICT_ID}) {
@@ -161,18 +159,18 @@ sub list {
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'AL_ID',                      'INT',    'al.al_id',         1 ],
-      [ 'AL_DATE',                    'DATE',   'al.al_date',       1 ],
-      [ 'AL_NAME',                    'STR',    'al.al_name',       1 ],
-      [ 'AL_DESC',                    'STR',    'al.al_desc',       1 ],
-      [ 'AL_PRIORITY',                'INT',    'al.al_priority',   1 ],
-      [ 'AL_AID',                     'INT',    'al.al_aid',        1 ],
-      [ 'AL_STATUS',                  'INT',    'al.al_status',     1 ],
-      [ 'ADDRESS_ID',                 'INT',    'ad.address_id',    1 ],
-      [ 'AL_END_TIME',                'DATE',   'al.al_end_time',   1 ],
-      [ 'AL_REALY_TIME',              'DATE',   'al.al_realy_time', 1 ],
-      [ 'TYPE_ID',                    'INT',    'ad.type_id',       1 ],
-      [ 'FROM_DATE|TO_DATE',          'DATE',   "DATE_FORMAT(al.al_date, '%Y-%m-%d')", ],
+      [ 'ID',                      'INT',    'al.id',                  1 ],
+      [ 'DATE',                    'DATE',   'al.date',                1 ],
+      [ 'NAME',                    'STR',    'al.name',                1 ],
+      [ 'DESCR',                   'STR',    'al.descr',               1 ],
+      [ 'PRIORITY',                'INT',    'al.priority',            1 ],
+      [ 'AID',                     'INT',    'al.aid',                 1 ],
+      [ 'STATUS',                  'INT',    'al.status',              1 ],
+      [ 'ADDRESS_ID',              'INT',    'ad.address_id',          1 ],
+      [ 'END_TIME',                'DATE',   'al.end_time',            1 ],
+      [ 'REALY_TIME',              'DATE',   'al.realy_time',          1 ],
+      [ 'TYPE_ID',                 'INT',    'ad.type_id',             1 ],
+      [ 'FROM_DATE|TO_DATE',       'DATE',   "DATE_FORMAT(al.date, '%Y-%m-%d')", ],
     ],
     {
       WHERE       => 1,
@@ -180,25 +178,24 @@ sub list {
     }
   );
 
-  $self->query("(SELECT $self->{SEARCH_FIELDS} al.al_id
+  $self->query("SELECT $self->{SEARCH_FIELDS} al.id
       FROM accident_log al
-   LEFT JOIN admins a ON al.al_aid = a.aid
+   LEFT JOIN admins a ON al.aid = a.aid
    LEFT JOIN districts di ON di.id
-   LEFT JOIN accident_address ad ON ad.ac_id = al.al_id
+   LEFT JOIN accident_address ad ON ad.ac_id = al.id
    LEFT JOIN builds b ON b.id
     $WHERE
-    ORDER BY $SORT $DESC)
     UNION
-    (SELECT $self->{SEARCH_FIELDS} al.al_id
+    SELECT $self->{SEARCH_FIELDS} al.id
       FROM accident_log al
-   LEFT JOIN admins a ON al.al_aid = a.aid
+   LEFT JOIN admins a ON al.aid = a.aid
    LEFT JOIN districts di ON di.id
-   RIGHT JOIN accident_address ad ON ad.ac_id = al.al_id
+   RIGHT JOIN accident_address ad ON ad.ac_id = al.id
    LEFT JOIN builds b ON b.id
     $WHERE
-    GROUP BY al.al_id
+    GROUP BY al.id
  HAVING AVG(ad.type_id != 4)
-    ORDER BY $SORT $DESC);",
+    ORDER BY $SORT $DESC;",
     undef,
     $attr
   );
@@ -206,6 +203,52 @@ sub list {
   my $list = $self->{list} || [];
 
   return $list;
+}
+
+#**********************************************************
+=head2 accident_info ($attr) - 
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_info {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT *
+      FROM accident_log
+      WHERE id = ?;",
+    undef,
+    { Bind => [ $id ], COLS_NAME => 1 }
+  );
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 accident_address_info ($attr) - 
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_address_info {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT *
+      FROM accident_address
+      WHERE ac_id = ?;",
+    undef,
+    { Bind => [ $id ], COLS_NAME => 1 }
+  );
+
+  return $self->{list};
 }
 
 #**********************************************************
@@ -268,6 +311,237 @@ sub address_del {
   });
 
   return $self->{result};
+}
+
+#**********************************************************
+=head2 accident_equipment_add ($attr) - equipment error add
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_equipment_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_add('accident_equipments', $attr);
+}
+
+#**********************************************************
+=head2 accident_equipment_del ($attr) - equipment error del
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_equipment_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_del('accident_equipments', $attr);
+}
+
+#**********************************************************
+=head2 accident_equipment_info ($attr) - equipment error info
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_equipment_info {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT *
+      FROM accident_equipments
+      WHERE id = ?;",
+    undef,
+    { Bind => [ $id ], COLS_NAME => 1 }
+  );
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 accident_equipment_chg () - equipment error change
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_equipment_chg {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'accident_equipments',
+      DATA         => $attr,
+    }
+  );
+
+  return $self->{result};
+}
+
+#**********************************************************
+=head2 accident_equipment_list ($attr) - equipment error list
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_equipment_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @WHERE_RULES = ();
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',             'INT',    'ae.id',                          1 ],
+      [ 'ID_EQUIPMENT',   'INT',    'ae.id_equipment',                1 ],
+      [ 'DATE',           'DATE',   'ae.date',                        1 ],
+      [ 'END_DATE',       'DATE',   'ae.end_date',                    1 ],
+      [ 'AID',            'INT',    'ae.aid',                         1 ],
+      [ 'STATUS',         'INT',    'ae.status',                      1 ],
+      [ 'UID',            'INT',    'im.uid',                         1 ],
+      [ 'NAS_ID',         'INT',    'im.nas_id',                      1 ],
+    ],
+    {
+      WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES,
+    }
+  );
+
+  my $ext_table = '';
+  if ($attr->{EXT_TABLE}) {
+    $ext_table .= 'LEFT JOIN internet_main AS im ON ae.id_equipment = im.nas_id';
+  }
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} ae.id FROM 
+                accident_equipments AS ae $ext_table $WHERE ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  return $list;
+}
+
+#**********************************************************
+=head2 accident_compensation ($attr) - 
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_compensation_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_add('accident_compensation', $attr);
+}
+
+#**********************************************************
+=head2 accident_compensation_list ($attr) - 
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_compensation_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @WHERE_RULES = ();
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',             'INT',    'ac.id',                          1 ],
+      [ 'PROCENT',        'INT',    'ac.procent',                     1 ],
+      [ 'DATE',           'DATE',   'ac.date',                        1 ],
+      [ 'SERVICE',        'INT',    'ac.service',                     1 ],
+      [ 'TYPE_ID',        'INT',    'ac.type_id',                     1 ],
+      [ 'ADDRESS_ID',     'INT',    'ac.address_id',                  1 ],
+    ],
+    {
+      WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES,
+    }
+  );
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} ac.id FROM 
+                accident_compensation AS ac $WHERE ORDER BY $SORT $DESC;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  return $list;
+}
+
+#**********************************************************
+=head2 accident_date_compensation ($attr) - 
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_date_compensation {
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT 
+                SUM(IF( DATEDIFF(al.realy_time, al.date ) <> 0, DATEDIFF(al.realy_time, al.date ), 1 ) ) AS day_log 
+                FROM accident_log AS al 
+                WHERE al.id =  $id;",
+    undef
+  );
+
+  my $day = @{$self->{list}}[0];
+
+  return $day;
+}
+
+#**********************************************************
+=head2 accident_compensation_del ($attr) -
+
+ Arguments:
+
+ Returns:
+
+=cut
+#**********************************************************
+sub accident_compensation_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_del('accident_compensation', $attr);
 }
 
 1;

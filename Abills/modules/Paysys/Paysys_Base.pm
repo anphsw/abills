@@ -22,7 +22,9 @@ our (
   %PAYSYS_PAYMENTS_METHODS,
   %lang,
   $html,
-  $base_dir
+  $base_dir,
+  $TIME,
+  $DATE
 );
 
 my $payments = Finance->payments($db, $admin, \%conf);
@@ -48,7 +50,7 @@ my @status = ("$lang{UNKNOWN}", #0
   'WRONG_SUM',                #16
   'PAYMENT_SQL_ERROR',        #17
 );
-
+our %PAYSYSTEM_CONF;
 #**********************************************************
 =head2 function paysys_pay() - make payment;
 
@@ -229,9 +231,6 @@ sub paysys_pay {
       $status = 9;
       return $status, $list->[0]->{id}; # added ID for second param return 08.02.2017
     }
-    #elsif($list->[0]->{status} != 1) {
-    #
-    #}
 
     if (!$order_id) {
       (undef, $ext_id)=split(/:/, $list->[0]->{transaction_id});
@@ -538,8 +537,14 @@ sub paysys_pay {
       CHECK_FIELD - Searching field for user;
       USER_ID     - User identifier for CHECK_FIELD;
       EXTRA_FIELDS- Extra fields
+      DEBUG       - Debug mode
 
   Returns:
+    $result, $user_info
+
+    $result - result code;
+    $user_info - users information fields.
+
     Checking code.
     All codes:
       0  - User exist;
@@ -553,9 +558,6 @@ sub paysys_pay {
      CHECK_FIELD => 'UID',
      USER_ID     => 1
     });
-
-    $result - result code;
-    $list - users information fields.
 
 =cut
 #**********************************************************
@@ -625,7 +627,7 @@ sub paysys_check_user {
   }
 
   if( $conf{PAYSYS_OSMP_EXTRA_INFO} ){
-    use Abills::Misc;
+    require Abills::Misc;
     my $recomended_pay = recomended_pay($list->[0], { SKIP_DEPOSIT_CHECK => ($attr->{SKIP_DEPOSIT_CHECK} || 0) });
     $list->[0]->{fee} = $recomended_pay;
   }
@@ -930,6 +932,7 @@ Make log file for paysys request
       REPLY     - ABillS Reply
       SHOW      - print message to output
       LOG_FILE  - Log file. (Default: paysys_check.log)
+      HEADER    - Print header
 
   Returns:
 
@@ -960,6 +963,11 @@ sub mk_log {
 
     print $fh $message;
     close($fh);
+
+    if($attr->{HEADER}) {
+      print "Content-Type: text/plain\n\n";
+      print "BAD_XML_REQUEST";
+    }
   }
   else {
     print "Content-Type: text/plain\n\n";
@@ -1203,6 +1211,27 @@ sub _hide_personal_field {
   my $result = encode_utf8(join(' ', @changed_fields));
 
   return $result
+}
+
+#**********************************************************
+=head2 account_gid_split($gid)
+
+  Arguments:
+     $gid
+
+  Returns:
+
+=cut
+#**********************************************************
+sub account_gid_split {
+  my $self = shift;
+  my ($gid) = @_;
+
+  foreach my $param (keys %PAYSYSTEM_CONF) {
+    if ($self->{conf}{$param . '_' . $gid}) {
+      $self->{conf}{$param} = $self->{conf}{$param . '_' . $gid};
+    }
+  }
 }
   
 1

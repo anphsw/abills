@@ -1976,7 +1976,7 @@ sub paysys_periodic {
         });
 
       # if there is no error
-      if ($json_result->{StatementsResponse}) {
+      if ($json_result && $json_result->{StatementsResponse}) {
         # show error if something wrong
         if (!$json_result->{StatementsResponse}->{statements} || ref $json_result->{StatementsResponse}->{statements} ne 'ARRAY') {
           print "NOT ARRAY REF";

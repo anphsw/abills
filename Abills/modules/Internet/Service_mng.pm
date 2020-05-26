@@ -59,13 +59,13 @@ sub new {
       SERVICE - Service object
       USER     - User object
       DATE     - Cur date
+      USER_PORTAL - Call from user portal
 
   Return:
     $message, $message_type
       self 
         ABON_DATE
         DAY_TO_FEE
-
 
   Examples:
 
@@ -122,8 +122,10 @@ sub service_warning {
       $warning = cmd($1, {
         PARAMS => {
           language => $html->{language},
-          %{$attr->{USER}},
-          %{$attr->{INTERNET}} }
+          USER_PORTAL => $attr->{USER_PORTAL},
+          %{ ($attr->{USER}) ? $attr->{USER} : {} },
+          %{ ($attr->{INTERNET}) ? $attr->{INTERNET} : {} }
+        }
       });
     }
   }
@@ -243,7 +245,6 @@ sub service_warning {
       my $to_expire = date_diff($DATE, $Service->{EXPIRE});
       if ($days_to_fee > $to_expire) {
         $days_to_fee = $to_expire;
-        print " $days_to_fee ";
       }
     }
 

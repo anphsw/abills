@@ -145,14 +145,16 @@ sub msgs_user_watch {
 
   my $watched_messages_list = $Msgs->messages_list(
     {
-      MSG_ID     => join(';', map {$_->{main_msg}} @$watched_links) || 0,
-      COLS_NAME  => 1,
-      PAGE_ROWS  => 5,
-      LOGIN      => '_SHOW',
-      STATE      => '_SHOW',
-      PRIORITY_ID=> '_SHOW',
+      MSG_ID           => join(';', map {$_->{main_msg}} @$watched_links) || 0,
+      COLS_NAME        => 1,
+      PAGE_ROWS        => 5,
+      LOGIN            => '_SHOW',
+      STATE            => '_SHOW',
+      PRIORITY_ID      => '_SHOW',
       LAST_REPLIE_DATE => '_SHOW',
+      SUBJECT          => '_SHOW',
       SORT             => 'last_replie_date',
+      CHAPTER_NAME     => '_SHOW',
     }
   );
   _error_show($Msgs);

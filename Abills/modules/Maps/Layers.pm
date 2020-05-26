@@ -16,7 +16,7 @@ use v5.16;
 use Abills::Base qw/_bp in_array/;
 
 our ($MAPS_ENABLED_LAYERS);
-use Maps::Shared qw/:all LAYER_ID_BY_NAME $MAPS_ENABLED_LAYERS/;
+#use Maps::Shared qw/:all LAYER_ID_BY_NAME $MAPS_ENABLED_LAYERS/;
 
 our ($db,
   $admin,

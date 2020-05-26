@@ -1,4 +1,9 @@
 <input type='hidden' name='ALL_CONTACT_TYPES' value='%ALL_CONTACT_TYPES%'>
+<input type='hidden' name='phone' id='phone' value='$FORM{phone}'>
+<input type='hidden' name='email' id='email' value='$FORM{email}'>
+<input type='hidden' name='LEAD_ID' value='$FORM{LEAD_ID}'>
+<input type='hidden' name='PHONE_NUMBER' id='PHONE_NUMBER' value='$FORM{PHONE_NUMBER}'>
+
 <div class='box box-theme'>
   <div class='box-header with-border'><h3 class='box-title'>_{CONTACTS}_</h3>
     <div class='box-tools pull-right'>
@@ -77,8 +82,21 @@
       jQuery("#TYPES_CONTACTS_" + oldI).val(type);
       initChosen();
     }
-
+    setLeadInfo();
   });
+
+  function setLeadInfo() {
+    var phone = jQuery('#phone').val();
+    var email = jQuery('#email').val();
+
+    jQuery('input[name="CONTACT_TYPE_2"]').val(phone);
+    jQuery('input[name="CONTACT_TYPE_9"]').val(email);
+
+    var require_phone = jQuery('#PHONE_NUMBER').val();
+    if (require_phone == 'PHONE_NUMBER') {
+      jQuery('input[name="CONTACT_TYPE_2"]').attr('required', true);
+    }
+  }
 
   function changeContactType(contactType) {
     var selectChanged = jQuery('#' + contactType.name);
@@ -92,15 +110,15 @@
     var patt = /\d/g;
     var resultType = name.match(patt);
 
-    if (resultType == 2) {
+    if (resultType == 2 && next_disable === 1) {
       var phone = data.val();
       changeClassAndColor(data, 2, phone);
     }
-    else if (resultType == 9) {
+    else if (resultType == 9 && next_disable === 1) {
       var email = data.val();
       changeClassAndColor(data, 9, email);
     }
-    else if (resultType == 1) {
+    else if (resultType == 1 && next_disable === 1) {
       var cellPhone = data.val();
       changeClassAndColor(data, 1, cellPhone);
     }
@@ -163,11 +181,18 @@
         return false;
       }
     });
-    if (redExist == 1) {
+    if (redExist == 1 || next_disable === 2) {
       jQuery('input[name=next]').attr('disabled', 'disabled');
     }
     else {
       jQuery('input[name=next]').removeAttr('disabled', 'disabled');
     }
   }
+
+  function validate_after_login() {
+    jQuery("#additional_fields_container :input.ct_input").each(function () {
+      validation(jQuery(this));
+    });
+  }
+
 </script>

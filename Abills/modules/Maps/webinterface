@@ -55,13 +55,20 @@ our $Maps = Maps->new($db, $admin, \%conf);
 
 our ($MAPS_ENABLED_LAYERS);
 
+# use Maps::Shared qw/
+#   LAYER_ID_BY_NAME
+#   MAPS_ICONS_DIR
+#   MAPS_ICONS_DIR_WEB_PATH
+#   $MAPS_ENABLED_LAYERS
+#   CLOSE_OUTER_MODAL_SCRIPT
+# /;
+
 use Maps::Shared qw/
-  LAYER_ID_BY_NAME
   MAPS_ICONS_DIR
   MAPS_ICONS_DIR_WEB_PATH
-  $MAPS_ENABLED_LAYERS
   CLOSE_OUTER_MODAL_SCRIPT
 /;
+
 
 if ($permissions{5}) {
   require Maps::Configure;
@@ -221,39 +228,40 @@ sub maps_edit {
         }
       }
 
-      use Cablecat;
-      my $Cablecat = Cablecat->new($db, $admin, \%conf);
-      #Delete cable links
-      if ($FORM{LAYER_ID} == 10 && $FORM{cable_id}) {
-        $Cablecat->delete_links_for_element('CABLE', $FORM{cable_id});
-        $Cablecat->cables_del({ ID => $FORM{cable_id} });
-      }
-      #Delete well
-      elsif ($FORM{LAYER_ID} == 11 && $FORM{well_id}) {
-        $Cablecat->wells_del({ ID => $FORM{well_id} });
-      }
-      elsif ($FORM{LAYER_ID} == 10 && $FORM{OBJECT_ID}) {
-        my $del_cable = $Cablecat->cables_list({
-          POINT_ID => $FORM{OBJECT_ID},
-          ID       => '_SHOW',
-        });
+      if (in_array('Cablecat', \@MODULES)) {
+        use Cablecat;
+        my $Cablecat = Cablecat->new($db, $admin, \%conf);
+        #Delete cable links
+        if ($FORM{LAYER_ID} == 10 && $FORM{cable_id}) {
+          $Cablecat->delete_links_for_element('CABLE', $FORM{cable_id});
+          $Cablecat->cables_del({ ID => $FORM{cable_id} });
+        }
+        #Delete well
+        elsif ($FORM{LAYER_ID} == 11 && $FORM{well_id}) {
+          $Cablecat->wells_del({ ID => $FORM{well_id} });
+        }
+        elsif ($FORM{LAYER_ID} == 10 && $FORM{OBJECT_ID}) {
+          my $del_cable = $Cablecat->cables_list({
+            POINT_ID => $FORM{OBJECT_ID},
+            ID       => '_SHOW',
+          });
 
-        if ($Cablecat->{TOTAL}) {
-          $Cablecat->delete_links_for_element('CABLE', $del_cable->[0]{id});
-          $Cablecat->cables_del({ ID => $del_cable->[0]{id} });
+          if ($Cablecat->{TOTAL}) {
+            $Cablecat->delete_links_for_element('CABLE', $del_cable->[0]{id});
+            $Cablecat->cables_del({ ID => $del_cable->[0]{id} });
+          }
+        }
+        elsif ($FORM{LAYER_ID} == 11 && $FORM{OBJECT_ID}) {
+          my $del_well = $Cablecat->wells_list({
+            POINT_ID => $FORM{OBJECT_ID},
+            ID       => '_SHOW',
+          });
+
+          if ($Cablecat->{TOTAL}) {
+            $Cablecat->wells_del({ ID => $del_well->[0]{id} });
+          }
         }
       }
-      elsif ($FORM{LAYER_ID} == 11 && $FORM{OBJECT_ID}) {
-        my $del_well = $Cablecat->wells_list({
-          POINT_ID => $FORM{OBJECT_ID},
-          ID       => '_SHOW',
-        });
-
-        if ($Cablecat->{TOTAL}) {
-          $Cablecat->wells_del({ ID => $del_well->[0]{id} });
-        }
-      }
-
       show_result($Maps, $lang{DELETED});
       print CLOSE_OUTER_MODAL_SCRIPT;
       return 1;
@@ -639,7 +647,7 @@ sub maps_show_map {
       if ($objects_info && ref $objects_info eq 'HASH') {
 
         if (scalar keys %{$objects_info} == 0) {
-          $html->message('warn', $lang{ERROR}, $lang{NO_DATA});
+          $html->message('warn', 'Maps: ' . $lang{ERROR}, $lang{NO_DATA});
         }
         else {
           $location_id = join(';', sort keys %{$objects_info});
@@ -670,7 +678,8 @@ sub maps_show_map {
     foreach my $line (@{$objects_list}) {
       my $point_count = 0;
 
-      if ($line->{coordy} eq "0.00000000000000" || $line->{coordx} eq "0.00000000000000" || $line->{coordy} eq "0" || $line->{coordx} eq "0") {
+      if ($line->{coordy} eq "0.00000000000000" || $line->{coordx} eq "0.00000000000000"
+        || $line->{coordy} eq "0" || $line->{coordx} eq "0") {
         my $polygon = _maps_polygon_builds_in_msgs($line);
         $tpl_obj .= $polygon if $polygon;
         next;

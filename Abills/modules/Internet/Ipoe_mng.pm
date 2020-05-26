@@ -8,21 +8,20 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(mk_unique_value int2byte ip2int int2ip sec2time cmd);
 use Abills::Filters;
+use Internet::Ipoe;
+use Internet::Collector;
+use Internet::Sessions;
 
 our(
   $db,
   $admin,
   %conf,
   %LIST_PARAMS,
-  $html,
   $IPV4,
-  %lang,
-
+  %lang
 );
 
-use Internet::Ipoe;
-use Internet::Collector;
-use Internet::Sessions;
+our Abills::HTML $html;
 
 my $Internet       = Internet->new( $db, $admin, \%conf );
 my $Internet_ipoe  = Internet::Ipoe->new( $db, $admin, \%conf );
@@ -207,6 +206,7 @@ sub internet_ipoe_activate{
           NAS_MNG_IP_PORT    => $Nas->{NAS_MNG_IP_PORT},
           NAS_MNG_IP         => $Nas->{NAS_MNG_IP},
           NAS_MNG_PORT       => $Nas->{NAS_MNG_PORT} || 22,
+          NAS_MNG_PASSWORD   => $Nas->{NAS_MNG_PASSWORD} || q{},
           TP_ID              => $Internet->{TP_ID},
           CALLING_STATION_ID => $Internet->{CID} || $ip,
           NAS_PORT           => $Internet->{PORT},
@@ -571,13 +571,14 @@ sub internet_ipoe_change_status{
       $ENV{NAS_IP_ADDRESS}  = $attr->{NAS_IP_ADDRESS};
       $ENV{NAS_MNG_USER}    = $attr->{NAS_MNG_USER};
       $ENV{NAS_MNG_IP_PORT} = $attr->{NAS_MNG_IP_PORT};
+      $ENV{NAS_MNG_PASSWORD}= $attr->{NAS_MNG_PASSWORD};
       $ENV{NAS_ID}          = $attr->{NAS_ID};
       $ENV{NAS_TYPE}        = $attr->{NAS_TYPE} || '';
       ($ENV{NAS_MNG_IP}, undef, $ENV{NAS_MNG_PORT}) = split(/:/, $attr->{NAS_MNG_IP_PORT}, 4);
       $ENV{NAS_MNG_PORT} ||= 22;
     }
 
-    print "IPN: $cmd\n" if ($DEBUG > 4);
+    print $html->pre("IPN $STATUS: $cmd") if ($DEBUG > 4);
     cmd( $cmd );
   }
 
@@ -592,7 +593,7 @@ sub internet_ipoe_change_status{
     $cmd =~ s/\%UID/$uid/g;
     $cmd =~ s/\%PORT/$PORT/g;
     cmd( $cmd );
-    print "IPN FILTER: $cmd\n" if ($DEBUG > 4);
+    print $html->pre("IPN FILTER: $cmd") if ($DEBUG > 4);
   }
 
   return 1;

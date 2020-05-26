@@ -112,7 +112,7 @@ sub abon_user {
   my ($attr) = @_;
 
   my $message = '';
-  my $uid = $users->{UID} || $LIST_PARAMS{UID} || $FORM{UID};
+  my $uid = $users->{UID} || $LIST_PARAMS{UID} || $FORM{UID} || $attr->{UID};
 
   if ($FORM{change} || $FORM{add}) {
     $FORM{QUICK} = 1;
@@ -125,9 +125,16 @@ sub abon_user {
     $users->pi({ UID => $uid });
     my @new_arr = ();
     my @ids_arr = ();
-    if ($FORM{IDS}) {
-      @ids_arr = split(/, /, $FORM{IDS});
+
+    if($attr->{CHECK_TP} && $attr->{TP_NAMES}) {
+      my $tp_ids = abon_check_tps({ TP_NAMES => $attr->{TP_NAMES} });
+      $FORM{IDS} = join(', ', keys %{ $tp_ids } );
     }
+
+    if ($FORM{IDS}) {
+      @ids_arr = split(/,\s?/, $FORM{IDS});
+    }
+
     my %ids_hash = ();
     my @add_arr = ();
     my @del_arr = ();
@@ -250,7 +257,8 @@ sub abon_user {
           );
         }
 
-        if ($deposit >= $Abon->{TP_INFO}->{PRICE}
+        if ($attr->{SKIP_FEE}
+          || $deposit && $deposit >= $Abon->{TP_INFO}->{PRICE}
           || $line->{payment_type}
           || time() < $seltime) {
           $Abon->{TP_INFO}->{PERIOD_ALIGNMENT} = $line->{period_alignment} || 0;
@@ -323,7 +331,7 @@ sub abon_user {
               METHOD   => $Abon->{TP_INFO}->{FEES_TYPE}
             );
 
-            if ($Abon->{TP_INFO}->{PRICE} > 0) {
+            if ($Abon->{TP_INFO}->{PRICE} > 0 && ! $attr->{SKIP_FEE}) {
               $Fees->take($users, $Abon->{TP_INFO}->{PRICE}, { %PARAMS });
               if (!_error_show($Fees)) {
                 $message .= $description . "\n";
@@ -504,9 +512,14 @@ sub abon_user {
     {
       CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
       HIDDEN  => {
-        index => $index,
-        UID   => $uid,
-        step  => $FORM{step}
+        index        => $index,
+        UID          => $uid,
+        step         => $FORM{step},
+        LEAD_ID      => $FORM{LEAD_ID},
+        LOCATION_ID  => $FORM{LOCATION_ID},
+        DISTRICT_ID  => $FORM{DISTRICT_ID},
+        STREET_ID    => $FORM{STREET_ID},
+        ADDRESS_FLAT => $FORM{ADDRESS_FLAT}
       },
       NAME    => 'ABON_USER_TPS',
       ID      => 'ABON_USER_TPS',
@@ -565,7 +578,18 @@ sub abon_user_list {
   );
 
   foreach my $line (@{$list}) {
-    $table->addrow(user_ext_menu($line->{uid}, $line->{login}), $line->{fio}, $line->{tp_name}, $line->{comments}, $line->{price}, $line->{service_count}, $PERIODS[ $line->{period} ], $line->{date}, $line->{next_abon}, $line->{manual_fee});
+    my $date_if = 0;
+    $date_if = date_diff($DATE, $line->{next_abon}) if ($line->{next_abon});
+
+    if ($date_if && $date_if <= 0) {
+      $table->{rowcolor} = 'bg-danger';
+    }
+
+    $table->addrow(user_ext_menu($line->{uid}, $line->{login}), $line->{fio},
+      $line->{tp_name}, $line->{comments}, $line->{price},
+      $line->{service_count}, $PERIODS[ $line->{period} ],
+      $line->{date}, $line->{next_abon}, $line->{manual_fee}
+    );
   }
   print $table->show();
 
@@ -1371,6 +1395,38 @@ sub abon_client {
   print $table->show();
 
   return 1;
+}
+
+#**********************************************************
+=head1 abon_check_tps($attr) - client interface
+
+  Attributes:
+    $attr
+     TP_NAMES = Tarif plan names
+
+  Results:
+    tp_ids_arr_ref
+
+=cut
+#**********************************************************
+sub abon_check_tps {
+  my ($attr) = @_;
+  my %ids = ();
+
+  my @tps = split(/,\s?/, $attr->{TP_NAMES});
+
+  foreach my $tp_name ( @tps ) {
+    my $tp_list = $Abon->tariff_list({ NAME => $tp_name, COLS_NAME => 1 });
+    if($Abon->{TOTAL}) {
+      $ids{$tp_list->[0]->{tp_id}}=$tp_name;
+    }
+    else {
+      $Abon->tariff_add({ NAME => $tp_name });
+      $ids{$Abon->{INSERT_ID}}=$tp_name;
+    }
+  }
+
+  return \%ids;
 }
 
 1

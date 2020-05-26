@@ -1,0 +1,29 @@
+<form METHOD=POST class='form-horizontal' name='COMPENSATION_ACCIDENT' >
+    <input type='hidden' name='index' value='%INDEX%'>
+    <input type='hidden' name='type_id' value='%TYPE_ID%'>
+    <input type='hidden' name='address' value='%ADDRESS%'>
+    <input type='hidden' name='ID' value='%ID%'>
+
+    <div class='box box-theme box-form'>
+        <div class='box-header with-border'>
+            <h4 class='box-title'>
+                _{COMPENSATION}_
+            </h4>
+        </div>
+        <div class="box-body">
+
+            <div class="form-group">
+                <label class="control-label col-md-4 col-sm-3">_{SERVICE}_:</label>
+                <div class="col-md-8 col-sm-9">
+                    %SERVICE%
+                </div>
+            </div>
+
+            %ADDRESS_FORM%
+
+            <div class='col-md-12 col-sm-12'>
+                <input type="submit" class="btn btn-primary col-md-12 col-sm-12" name="COMPENSATION" value="_{COMPENSATION}_">
+            </div>
+        </div>
+    </div>
+</form>

@@ -39,10 +39,9 @@ use Nas;
 use Abills::Nas::Mikrotik;
 use Abills::Base qw(int2ip _bp in_array parse_arguments);
 
-_bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } });
+#_bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } });
 
-my Dv_Sessions $Dv_Sessions;
-my Internet::Sessions $Internet_Sessions;
+my Internet::Sessions $Sessions;
 
 if (!$argv->{NAS_IDS}) {
   print "Error: No NAS_IDS given \n";
@@ -50,10 +49,10 @@ if (!$argv->{NAS_IDS}) {
 }
 
 if ($argv->{USE_DV}) {
-  $Dv_Sessions = Dv_Sessions->new($db, $Admin, \%conf);
+  $Sessions = Dv_Sessions->new($db, $Admin, \%conf);
 }
 else {
-  $Internet_Sessions = Internet::Sessions->new($db, $Admin, \%conf);
+  $Sessions = Internet::Sessions->new($db, $Admin, \%conf);
 }
 
 mikrotik_check_clients();
@@ -65,6 +64,9 @@ mikrotik_check_clients();
 #**********************************************************
 sub mikrotik_check_clients {
 
+  if ($argv->{NAS_IDS}) {
+    $argv->{NAS_IDS} =~ s/,/;/;
+  }
   my @nas_ids = split(',\s', $argv->{NAS_IDS} || '');
 
   foreach my $nas_id (@nas_ids) {
@@ -83,13 +85,15 @@ sub mikrotik_check_clients {
     print "There is " . (scalar @{$address_list_entries}) . " address-list entries \n" if ($debug);
 
     # Get sessions
-    my $online_for_nas = get_online_list($nas_id);
-    if (!$online_for_nas) {
+    my $sorted_by_nas = get_online_list({ NAS_ID => $nas_id });
+
+    if (! $sorted_by_nas->{ $nas_id }) {
       next;
     }
 
-    print "There is " . (scalar @{$online_for_nas}) . " online sessions \n" if ($debug);
+    my $online_for_nas = $sorted_by_nas->{ $nas_id };
 
+    print "There is " . (scalar @{$online_for_nas}) . " online sessions \n" if ($debug);
 
     # Compare
     my @addresses_to_delete = get_not_in_online_address_list_entries($online_for_nas, $address_list_entries);
@@ -116,57 +120,60 @@ sub mikrotik_check_clients {
 }
 
 
-#**********************************************************
-=head2 get_online_list()
-
-=cut
-#**********************************************************
-sub get_online_list {
-  my ($nas_id) = @_;
-
-  my $online_list = [];
-
-  if ($argv->{USE_DV}) {
-    $online_list = $Dv_Sessions->online({
-      NAS_ID    => $nas_id,
-      LOGIN     => '_SHOW',
-      CID       => '_SHOW',
-      CLIENT_IP => '_SHOW',
-      TP_ID     => '_SHOW',
-      PAGE_ROWS => 100000,
-      COLS_NAME => 1,
-    });
-
-    if ($Dv_Sessions->{errno}) {
-      print "  Can't get online sessions : " . ($Dv_Sessions->{errstr} || 'Unknown error') . "\n";
-      return 0;
-    }
-    elsif (!$Dv_Sessions->{TOTAL} && $debug) {
-      print "  No online sessions for NAS_ID $nas_id \n";
-    }
-  }
-  else {
-    $online_list = $Internet_Sessions->online({
-      NAS_ID    => $nas_id,
-      LOGIN     => '_SHOW',
-      CID       => '_SHOW',
-      CLIENT_IP => '_SHOW',
-      TP_ID     => '_SHOW',
-      PAGE_ROWS => 100000,
-      COLS_NAME => 1,
-    });
-
-    if ($Internet_Sessions->{errno}) {
-      print "  Can't get online sessions : " . ($Internet_Sessions->{errstr} || 'Unknown error') . "\n";
-      return 0;
-    }
-    elsif (!$Internet_Sessions->{TOTAL} && $debug) {
-      print "  No online sessions for NAS_ID $nas_id \n";
-    }
-  }
-
-  return $online_list || [];
-}
+# #**********************************************************
+# =head2 get_online_list($nas_id)
+#
+#   Arguments:
+#     $nas_id
+#
+# =cut
+# #**********************************************************
+# sub get_online_list {
+#   my ($nas_id) = @_;
+#
+#   my $online_list = [];
+#
+#   if ($argv->{USE_DV}) {
+#     $online_list = $Sessions->online({
+#       NAS_ID    => $nas_id,
+#       LOGIN     => '_SHOW',
+#       CID       => '_SHOW',
+#       CLIENT_IP => '_SHOW',
+#       TP_ID     => '_SHOW',
+#       PAGE_ROWS => 100000,
+#       COLS_NAME => 1,
+#     });
+#
+#     if ($Sessions->{errno}) {
+#       print "  Can't get online sessions : " . ($Sessions->{errstr} || 'Unknown error') . "\n";
+#       return 0;
+#     }
+#     elsif (!$Sessions->{TOTAL} && $debug) {
+#       print "  No online sessions for NAS_ID $nas_id \n";
+#     }
+#   }
+#   else {
+#     $online_list = $Sessions->online({
+#       NAS_ID    => $nas_id,
+#       LOGIN     => '_SHOW',
+#       CID       => '_SHOW',
+#       CLIENT_IP => '_SHOW',
+#       TP_ID     => '_SHOW',
+#       PAGE_ROWS => 100000,
+#       COLS_NAME => 1,
+#     });
+#
+#     if ($Sessions->{errno}) {
+#       print "  Can't get online sessions : " . ($Sessions->{errstr} || 'Unknown error') . "\n";
+#       return 0;
+#     }
+#     elsif (!$Sessions->{TOTAL} && $debug) {
+#       print "  No online sessions for NAS_ID $nas_id \n";
+#     }
+#   }
+#
+#   return $online_list || [];
+# }
 
 #**********************************************************
 =head2 get_address_list_hash()
@@ -188,7 +195,14 @@ sub get_address_list_hash {
 }
 
 #**********************************************************
-=head2 get_not_in_online_address_list_entries()
+=head2 get_not_in_online_address_list_entries($online_list, $address_list_list)
+
+  Argumnets:
+    $online_list
+    $address_list_list
+
+  Return:
+    result
 
 =cut
 #**********************************************************

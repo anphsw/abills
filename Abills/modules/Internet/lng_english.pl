@@ -11,5 +11,12 @@ $lang{GEOLOCATION_TP}='Geolocation of the group';
 $lang{DIMENSION} = 'Dimension';
 
 $lang{ERR_ALREADY_USE}='already use';
+$lang{ID_TP_SEARCH}='ID service internet';
+$lang{FLAT}='Flat';
+$lang{BUILD} = 'Build';
+$lang{SELECT_TAG} = 'Please select at least one tag!';
+
+$lang{CLONE} = 'Clone';
+$lang{SUCCESSFULLY_CLONED} = 'successfully cloned';
 
 1;

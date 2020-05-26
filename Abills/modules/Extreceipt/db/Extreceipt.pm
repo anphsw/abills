@@ -84,19 +84,21 @@ sub list {
 sub info {
   my $self = shift;
   my ($id) = @_;
+
   $self->query("SELECT
       e.*,
       ek.api_id,
       ek.kkt_group,
       p.sum,
       p.uid,
-      ucp.value as phone,
-      ucm.value as mail
+      IF(ucp.value IS NULL, pi.phone,  ucp.value) AS phone,
+      IF(ucm.value IS NULL, pi.email, ucm.value) AS mail
       FROM extreceipts e
       LEFT JOIN extreceipts_kkt ek ON (e.kkt_id = ek.kkt_id)
       LEFT JOIN payments p ON (p.id = e.payments_id)
       LEFT JOIN users_contacts ucp ON (ucp.uid = p.uid AND ucp.type_id=2)
       LEFT JOIN users_contacts ucm ON (ucm.uid = p.uid AND ucm.type_id=9)
+      LEFT JOIN users_pi pi ON (pi.uid = p.uid)
       WHERE e.payments_id = ?;",
     undef,
     { Bind => [ $id ], COLS_NAME => 1 }

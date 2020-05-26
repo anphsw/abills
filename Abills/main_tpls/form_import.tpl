@@ -9,14 +9,15 @@
     <form class='form form-horizontal' name='ajax_upload_form' id='ajax_upload_form' method='post'>
   
         <input type='hidden' name='get_index' value='%CALLBACK_FUNC%'/>  
-        <input type='hidden' name='header' value='2'/>  
+        <input type='hidden' name='header' value='2'/>
         <input type='hidden' name='import' value='1'/>  
         <input type='hidden' name='add' value='1'/>
-  
+        <input type='hidden' name='IMPORT_ADDRESS' value='%IMPORT_ADDRESS%'/>
+
         <div class='form-group'>  
             <label class='control-label col-md-3 required' for='IMPORT_TYPE'> _{TYPE}_</label>
             <div class='col-md-9'>  
-                <select name='IMPORT_TYPE' class='form-control'>  
+                <select id='IMPORT_TYPE' name='IMPORT_TYPE' class='form-control'>
                   <option value='csv'>CSV (TAB)
                   <option value='JSON'>JSON
                   <!--

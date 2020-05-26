@@ -15,7 +15,7 @@ $lang{PAYMENTS_INFO} = 'Інформувати про платежі';
 $lang{ALL_SERVICE_EXPIRE} = 'Всі послуги завершаться через ХХ  днів';
 $lang{DEAR} = 'Шановний';
 
-$lang{DEPOSIT_NOTIFY_BEFORE_ABON} = 'Оаовыстити за пару днів до абонплати про стан рахунку';
+$lang{DEPOSIT_NOTIFY_BEFORE_ABON} = 'Сповістити за пару днів до абонплати про стан рахунку';
 
 $lang{RECOMMENDED_PAYMENT} = 'Рекомендований платіж';
 $lang{NEXT_PERIOD_TP} = 'Тарифний план наступного періоду';

@@ -31,9 +31,7 @@
                     %DATE_PCIKER%
                 </div>
             </div>
-            <div class='form-group'>
                 %SELECT_ADDRESS%
-            </div>
             <input class='btn btn-primary col-md-12 col-sm-12' type='submit' name="search" value='_{SEARCH}_'>
         </div>
     </div>

@@ -1,33 +1,36 @@
 #!/usr/bin/perl -w
 =head1 NAME
 
- ZTE Configuration utility
+ Eltex configuration utility
 
-=head2 EXAMLES
+=head2 VERSION
 
-conf t
-interface gpon-olt_1/1/2
+  VERSION: 2
+  DATE: 20200303
 
-show gpon onu uncfg gpon-olt_1/1/2
+=head2 REGISTRATION
 
-interface gpon-olt_1/1/2
-  onu 2 type ZTE-F601 sn ZTExxxxxxxxx
-  onu 2 profile  line ABILLS_PROFILE remote VLAN_1001
-
-exit
-interface gpon-onu_1/1/2:1
-  switchport mode hybrid vport 1
-  service-port 1 vport 1 user-vlan 1001 vlan 1001 queue-no 0
-  port-location format ti vport 1
-  port-location format ti sport 1
-  dhcp-option82 enable vport 1
-  dhcp-option82 enable sport 1
-  ip dhcp snooping enable vport 1
-  ip-service ip-source-guard enable sport 1
-
+configure terminal
+interface ont 1/7/2
+serial ELTX6C0001A8
+template NTU1421-INT_vl6
+description "acad20/15"
+do commit
+do confirm
 exit
 exit
 
+send omci restore interface ont 1/7/2
+
+=head2 DELETE
+
+configure terminal
+interface ont 1/7/2
+no serial
+no template
+no description
+do commit
+do confirm
 
 =cut
 
@@ -35,17 +38,26 @@ exit
 use strict;
 BEGIN {
   use FindBin '$Bin';
-  our $libpath = $Bin . '/../';
+  our $libpath = $Bin . '/../../../../';
   unshift(@INC,
     $libpath . 'lib/',
-    '/usr/abills/lib',
-    $libpath . '/../'
+    $libpath,
+    $libpath . 'Abills/',
+    $libpath . 'Abills/mysql/',
+    $libpath . 'Abills/modules',
   );
 }
 
-use Abills::Base qw(parse_arguments load_pmodule _bp);
+use Abills::Base qw(parse_arguments load_pmodule in_array);
+our (
+  %conf,
+  $DATE,
+  $TIME
+);
+
+do 'libexec/config.pl';
 require Equipment::Snmp_cmd;
-my $debug = 1;
+my $debug = 0;
 my $argv = parse_arguments(\@ARGV);
 
 if ($argv->{DEBUG}) {
@@ -66,18 +78,122 @@ if ($argv->{help}) {
   exit;
 }
 
-register_eltex();
+load_pmodule('Net::Telnet');
+
+if ($conf{EQUIPMENT_ELTEX_SNMP_REGISTRATION}) {
+  register_eltex_snmp();
+}
+else {
+  register_eltex();
+}
 
 #**********************************************************
-=head2 register_eltex($attr) - List of cards
-
+=head2 register_eltex() - register eltex ONU
 
 =cut
 #**********************************************************
 sub register_eltex {
+  my $host      = $argv->{NAS_MNG_IP_PORT} || '';
+  my $user_name = $argv->{NAS_MNG_USER};
+  my $password  = $argv->{NAS_MNG_PASSWORD};
+
+  my $branch            = $argv->{BRANCH};
+  my $onu_desc          = $argv->{ONU_DESC};
+  my $mac               = $argv->{MAC};
+  my $profile           = $argv->{ONU_TEMPLATE};
+  my $deregister_ont_id = $argv->{ONU_ID};
+
+  my ($ip) = split(/:/, $host);
+  my $port = 23;
+
+  if (!$ip) {
+    print "OLT IP not defined\n";
+    exit 0;
+  }
+
+  my $Telnet = Net::Telnet->new(
+    Prompt  => '/ma4000# $/',
+    Timeout => 15,
+    Errmode => sub {
+      my ($errmsg) = @_;
+      print "Telnet error: $errmsg";
+      exit 0;
+    }
+  );
+
+  $Telnet->dump_log('-') if ($debug > 3);
+
+  $Telnet->open(
+    Host => $ip,
+    Port => $port,
+  );
+
+  $Telnet->login($user_name, $password);
+
+  if ($argv->{del_onu}) {
+    unregister_eltex({
+      TELNET => $Telnet,
+      BRANCH => $branch,
+      ONT_ID => $deregister_ont_id
+    });
+    exit 1;
+  }
+
+  my @telnet_lines = $Telnet->cmd("show interface ont $branch configured");
+  my $telnet_result = join '', @telnet_lines;
+
+  my @taken_ont_ids = $telnet_result =~ /^\s+\d+\s+\w+\s+(\d+)/gm;
+  my $ont_id = first_available_ont_id(\@taken_ont_ids);
+
+  $Telnet->prompt('/ma4000\(config\)# $/');
+  $Telnet->cmd('configure terminal');
+
+  my $branch_quoted = $branch;
+  $branch_quoted =~ s/\//\\\//g;
+
+  $Telnet->prompt('/ma4000\(config\)\(if-ont-' . $branch_quoted . '\/' . $ont_id . '\)# $/');
+  $Telnet->cmd('interface ont ' . $branch . '/' . $ont_id);
+
+  $Telnet->cmd('serial ' . $mac);
+  $Telnet->cmd('template ' . $profile);
+  $Telnet->cmd('description ' . $onu_desc);
+
+  $Telnet->cmd('do commit');
+  $Telnet->cmd('do confirm');
+
+  $Telnet->prompt('/ma4000\(config\)# $/');
+  $Telnet->cmd('exit');
+
+  $Telnet->prompt('/ma4000# $/');
+  $Telnet->cmd('exit');
+
+  sleep 10;
+
+  @telnet_lines = $Telnet->cmd('send omci restore interface ont ' . $branch . '/' . $ont_id);
+  $telnet_result = join '', @telnet_lines;
+  if ($telnet_result =~ /successfully restored to default config and rebooted/) {
+    print "ONU ELTEX: $branch:$ont_id ADDED";
+  }
+
+  exit 1;
+}
+
+#**********************************************************
+=head2 register_eltex_snmp() - register eltex ONU through SNMP
+
+=cut
+#**********************************************************
+sub register_eltex_snmp {
 
   my $mac = $argv->{MAC} || q{};
   my $type = $argv->{TYPE} || '';
+
+  my $slot = $argv->{BRANCH} =~ /(\d+)\/\d+/;
+  $slot++;
+
+  my $mac_hex = $mac;
+  my $mac_text = substr $mac_hex, 0, 4, '';
+  my $snmp_mac = join('.', $slot, 8, unpack("C*", $mac_text . pack("H*", $mac_hex)));
 
   if ($argv->{del_onu}) {
     $mac = $argv->{ONU_SNMP_ID};
@@ -92,22 +208,22 @@ sub register_eltex {
       VERSION        => '2',
     });
 
-    return 1;
+    exit 1;
   }
 
-  my $status_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.20." . $mac;
-  my $port_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.3." . $mac;
-  my $slot_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.4." . $mac;
-  my $vlan_oid = ".1.3.6.1.4.1.35265.1.22.3.14.1.5." . $mac . ".1";
-  my $service_oid = ".1.3.6.1.4.1.35265.1.22.3.14.1.4." . $mac . ".1";
-  my $template_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.43." . $mac;
+  my $status_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.20." . $snmp_mac;
+  my $port_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.3." . $snmp_mac;
+  my $slot_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.4." . $snmp_mac;
+  my $vlan_oid = ".1.3.6.1.4.1.35265.1.22.3.14.1.5." . $snmp_mac . ".1";
+  my $service_oid = ".1.3.6.1.4.1.35265.1.22.3.14.1.4." . $snmp_mac . ".1";
+  my $template_oid = ".1.3.6.1.4.1.35265.1.22.3.4.1.43." . $snmp_mac;
 
   if (($argv->{VLAN} ne '') && ($argv->{PORT} ne '')) {
     if ($type eq "gpon") {
       my @snmp_oids = ();
       push @snmp_oids, $status_oid, 'integer', "4";
       push @snmp_oids, $port_oid, 'gauge32', "$argv->{PORT}";
-      push @snmp_oids, $slot_oid, 'gauge32', "$argv->{BRANCH}";
+      push @snmp_oids, $slot_oid, 'gauge32', "$slot";
 
       my $result = snmp_set({
         SNMP_COMMUNITY => $argv->{SNMP_COMMUNITY},
@@ -128,27 +244,120 @@ sub register_eltex {
         VERSION        => '2',
       });
 
-      return 1;
+      exit 1;
     }
   }
 
-  return 0;
+  exit 0;
 }
 
 #**********************************************************
-=head2 unregister_eltex($attr)
+=head2 unregister_eltex($attr) - unregister ONT
 
   Arguments:
-     $attr
+    $attr
+      TELNET - Net::Telnet object
+      BRANCH - ONT branch (e.g. 1/7)
+      ONT_ID - ONT ID (e.g. 2)
 
-  Returns:
+  Example:
+    unregister_eltex({
+      TELNET => $Telnet,
+      BRANCH => '1/7',
+      ONT_ID => '2'
+    }); #unregister ONU 1/7:2
 
 =cut
 #**********************************************************
 sub unregister_eltex {
   my ($attr) = @_;
 
-  print "okkk";
+  my $Telnet = $attr->{TELNET};
+  my $branch = $attr->{BRANCH};
+  my $ont_id = $attr->{ONT_ID};
+
+  $Telnet->prompt('/ma4000\(config\)# $/');
+  $Telnet->cmd('configure terminal');
+
+  my $branch_quoted = $attr->{BRANCH};
+  $branch_quoted =~ s/\//\\\//g;
+
+  $Telnet->prompt('/ma4000\(config\)\(if-ont-' . $branch_quoted . '\/' . $ont_id . '\)# $/');
+  $Telnet->cmd('interface ont ' . $branch . '/' . $ont_id);
+
+  $Telnet->cmd('no serial');
+  $Telnet->cmd('no template');
+  $Telnet->cmd('no description');
+
+  $Telnet->prompt('/ma4000\(config\)# $/');
+  $Telnet->cmd('exit');
+
+  $Telnet->cmd('no interface ont ' . $branch . '/' . $ont_id);
+
+  $Telnet->cmd('do commit');
+  $Telnet->cmd('do confirm');
+}
+
+#**********************************************************
+=head2 first_available_ont_id(@taken_ont_ids) - get first available ONT ID
+  Returns first available ONT ID or -1 if none
+
+  Arguments:
+    @taken_ont_ids - taken ont ids
+
+  Returns:
+    $ont_id - first available ont id
+
+  Example:
+    first_available_ont_id([0,1,2,4,5,7]); #returns 3
+
+=cut
+#**********************************************************
+sub first_available_ont_id {
+  my @taken_ont_ids = @_;
+  foreach my $id (0..63) {
+    if (!in_array($id, @taken_ont_ids)) {
+      return $id;
+    }
+  }
+  return -1;
+}
+
+#**********************************************************
+=head2 help() - print help
+
+=cut
+#**********************************************************
+sub help {
+
+print << "[END]";
+
+help: $0
+
+  NAS_MNG_IP_PORT=
+  NAS_MNG_USER=
+  NAS_MNG_PASSWORD=
+
+  MAC=
+  BRANCH=
+  ONU_DESC=
+  ONU_TEMPLATE=
+
+  ONU_ID=  - for deregistration
+
+  PROFILE= || 'ABILLS_PROFILE';
+  VLAN_ID= PORT_VLAN= SERVER_VLAN=
+  ONU_TYPE=
+  SN ONU_MAC_SERIAL=
+  PON_TYPE=
+  COMMENTS=
+  LLID=
+
+  DEBUG=
+  help
+
+[END]
+
 }
 
 1;

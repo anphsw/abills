@@ -16,7 +16,7 @@
                     %MAC% (%IP%)
                 </div>
             </div>
-
+<!--
             <div class='form-group'>
                 <label class='col-md-3'>_{PORT}_</label>
                 <div class='col-md-9'>
@@ -30,7 +30,7 @@
                     %VLAN%
                 </div>
             </div>
-
+-->
 
         </div>
         <div class='box-footer'>

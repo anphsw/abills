@@ -672,38 +672,141 @@ sub mikrotik {
   }
 
   my $tp_id = $attr->{TP_NUM};
-  my @commands = ();
-  push @commands, qq{/ip firewall address-list remove [find address=$attr->{CLIENT_IP}] };
+  #my @commands = ();
+
+  require Abills::Nas::Mikrotik;
+  Abills::Nas::Mikrotik->import();
+  my $Mikrotik = Abills::Nas::Mikrotik->new(
+    $attr,
+    \%conf,
+    {
+      FROM_WEB         => 1,
+      MESSAGE_CALLBACK => sub { print('info', $_[0], $_[1]) },
+      ERROR_CALLBACK   => sub { print('err', $_[0], $_[1]) },
+      DEBUG            => $debug || 0,
+      API_BACKEND      => $conf{MIKROTIK_API}
+    }
+  );
+
+  if(! $Mikrotik) {
+    print "ERROR: Not defined NAS IP address and Port\n";
+    return 0;
+  }
+  elsif ($Mikrotik->has_access() != 1){
+    print "ERROR: No access to $Mikrotik->{ip_address}:$Mikrotik->{port} ($Mikrotik->{backend})"
+      . (($Mikrotik->{errstr}) ? "\n$Mikrotik->{errstr}" : q{});
+    return 0;
+  }
 
   if ($conf{MIKROTIK_QUEUES}) {
+    my %list_params = ();
     if ($ACTION eq 'up') {
-      push @commands, qq{/queue simple add name=$attr->{USER} target=$attr->{CLIENT_IP} max-limit=$attr->{SPEEDS}->{0}{IN}000/$attr->{SPEEDS}->{0}{OUT}000 };
+      #push @commands, qq{/queue simple add name=$attr->{USER} target=$attr->{CLIENT_IP} max-limit=$attr->{SPEEDS}->{0}{IN}000/$attr->{SPEEDS}->{0}{OUT}000 };
+
+      %list_params = ( address => $attr->{CLIENT_IP} );
+      mikrotik_drop_ip($Mikrotik, '/ip firewall address-list', \%list_params, { list_expr => 'CLIENTS_|negative' });
+
+      %list_params = ( name => $attr->{USER} );
+      mikrotik_drop_ip($Mikrotik, '/queue simple', \%list_params);
+
+      %list_params = (
+        'name'      => $attr->{USER},
+        'target'    => $attr->{CLIENT_IP},
+        'max-limit' => "$attr->{SPEEDS}->{0}{IN}000/$attr->{SPEEDS}->{0}{OUT}000"
+      );
+
+      $Mikrotik->execute([
+        [
+          qq{/queue simple add },
+          \%list_params
+        ]
+      ]);
     }
     elsif ($ACTION eq 'down') {
-      push @commands, qq{/queue simple remove [find name=$attr->{USER}] };
+      $list_params{name}=$attr->{USER};
+      mikrotik_drop_ip($Mikrotik, '/queue simple', \%list_params);
     }
     elsif ($ACTION eq 'guest') {
-      push @commands, qq{/queue simple remove [find name=$attr->{USER}] };
-      push @commands, qq{/ip firewall address-list add list=negative address=$attr->{CLIENT_IP} };
+      #push @commands, qq{/queue simple remove [find name=$attr->{USER}] };
+      #push @commands, qq{/ip firewall address-list add list=negative address=$attr->{CLIENT_IP} };
+      $list_params{list} = q{negative};
+      $list_params{address} = $attr->{CLIENT_IP};
+      my $ip_in_list = mikrotik_drop_ip($Mikrotik, '/ip firewall address-list', \%list_params);
+      #Add IP
+      if($list_params{list} && $ip_in_list != 2) {
+        $Mikrotik->execute([
+          [
+            qq{/ip firewall address-list add },
+            \%list_params
+          ]
+        ]);
+      }
     }
   }
   else {
     # ADD client to address-list
+    my %list_params = ( address => $attr->{CLIENT_IP} );
     if ($ACTION eq 'up') {
-      push @commands, qq{/ip firewall address-list add list=CLIENTS_$tp_id address=$attr->{CLIENT_IP} };
+      mikrotik_drop_ip($Mikrotik, '/ip firewall address-list', \%list_params, { list_expr => 'CLIENTS_|negative' });
+      $list_params{list} = 'CLIENTS_'.$tp_id;
     }
     elsif ($ACTION eq 'guest') {
-      push @commands, qq{/ip firewall address-list add list=negative address=$attr->{CLIENT_IP} };
+      mikrotik_drop_ip($Mikrotik, '/ip firewall address-list', \%list_params, { list_expr => 'CLIENTS_' });
+      $list_params{list} = 'negative';
+    }
+
+    my $ip_in_list = mikrotik_drop_ip($Mikrotik, '/ip firewall address-list', \%list_params);
+    if($list_params{list} && $ip_in_list != 2) {
+      $Mikrotik->execute([
+        [
+          qq{/ip firewall address-list add },
+          \%list_params
+        ]
+      ]);
     }
   }
 
-  my $result = ssh_cmd( \@commands, { %{$attr}, BASE_DIR => $base_dir } );
+  return 1;
+}
 
-  if(ref $result eq 'ARRAY'  ) {
-    print @$result;
+#************************************************
+=head2 mikrotik_drop_ip($Mikrotik, $cmd, $list_params) - drop ip from list
+
+  Arguments:
+    $Mikrotik,
+    $cmd,
+    $list_params
+    list_expr = Reg expr
+
+  Results:
+    0 - Error
+    1 - True
+    2 - Exists
+
+=cut
+#************************************************
+sub mikrotik_drop_ip {
+  my ($Mikrotik, $cmd, $list_params, $attr)=@_;
+
+  my (undef, @rules ) = $Mikrotik->{executor}->mtik_query( $cmd . ' print',
+    {'.proplist' => '.id,list' },
+    $list_params );
+
+  # Not exists
+  if ($list_params->{list} && $#rules == 0) {
+    return 2;
   }
-  else {
-    print $result;
+
+  foreach my $rule ( @rules ) {
+    if($attr->{list_expr} && $rule->{'list'} !~ /$attr->{list_expr}/) {
+      next;
+    }
+
+    print "DEL $rule->{'.id'} / ". ($rule->{'list'} || q{}) ."\n" if($debug > 3);
+
+    $Mikrotik->{executor}->mtik_cmd( $cmd . ' remove', {
+      '.id' => $rule->{'.id'},
+    });
   }
 
   return 1;

@@ -11,7 +11,7 @@
 
 =head2 VERSION
 
-  VERSION 0.1
+  VERSION 0.2
 
 =head2 AUTHOR
 
@@ -39,7 +39,7 @@ use warnings 'FATAL' => 'all';
 
 our ($VERSION);
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 my $debug = 0;
 my $DEBUG_ARGS = { TO_CONSOLE => 1 };
@@ -70,7 +70,6 @@ use constant {
     'firewall_address__list' => [ '/ip/firewall/address-list/print' ],
     'firewall_filter_list'   => [ '/ip/firewall/filter/print' ],
     'log_print'              => [ '/log/print' ],
-
   }
 };
 
@@ -79,9 +78,10 @@ use constant {
 =head2 new($db, $admin, $CONF)
 
   Arguments:
-    $db    - ref to DB
     $admin - current Web session admin
     $CONF  - ref to %conf
+    $attr
+      DEBUG
 
   Returns:
     object
@@ -105,7 +105,6 @@ sub new {
   my ($nas__mng_ip, undef) = split(":", $host->{nas_mng_ip_port});
 
   $self->{host} = $nas__mng_ip || return 0;
-
   #  $self->{port} = $nas_port || $coa_port || '8728';
   $self->{port} = '8728';
 
@@ -116,6 +115,7 @@ sub new {
     if ($attr->{FROM_WEB}) {
       $DEBUG_ARGS = { TO_WEB_CONSOLE => 1 };
     }
+    $debug=$self->{debug};
   }
   else {
     $self->{debug} = 0;
@@ -135,6 +135,7 @@ sub new {
   else {
     $self->{error_cb} = sub {print shift};
   }
+
   return $self;
 }
 
@@ -400,9 +401,9 @@ sub upload_key {
 =cut
 #**********************************************************
 sub talk {
-
   #my(@sentence) = shift;
   my ($sentence_ref) = shift;
+
   my (@sentence) = @{$sentence_ref};
   &_write_sentence(\@sentence);
   my (@reply);
@@ -410,7 +411,6 @@ sub talk {
   my ($i) = 0;
   my ($retval) = 0;
   while (($retval, @reply) = &_read_sentence()) {
-
     foreach my $line (@reply) {
       if ($line =~ /^=(\S+)=(.*)/s) {
         $attrs[$i]->{$1} = $2;
@@ -422,6 +422,7 @@ sub talk {
     }
     $i++;
   }
+
   return($retval, @attrs);
 }
 
@@ -460,30 +461,72 @@ sub login {
   if (!($sock = $self->_mtik_connect($host, $port))) {
     return 0;
   }
+
   $passwd ||= '';
   my (@command);
   push(@command, '/login');
+  push( @command, '=name=' . $username );
+  push( @command, '=password=' . $passwd );
   my ($retval, @results) = &talk(\@command);
-  my ($chal) = pack("H*", $results[0]->{'ret'});
-  my ($md) = Digest::MD5->new();
-  $md->add(chr(0));
-  $md->add($passwd);
-  $md->add($chal);
-  my ($hexdigest) = $md->hexdigest;
-  undef(@command);
-  push(@command, '/login');
-  push(@command, '=name=' . $username);
-  push(@command, '=response=00' . $hexdigest);
-  ($retval, @results) = &talk(\@command);
 
-  if ($retval > 1) {
-    $self->{errstr} = $results[0]->{'message'};
-    return 0;
+  if($results[0]->{'ret'}) {
+    my ($chal) = pack("H*", $results[0]->{'ret'});
+    my ($md) = Digest::MD5->new();
+    $md->add(chr(0));
+    $md->add($passwd);
+    $md->add($chal);
+    my ($hexdigest) = $md->hexdigest;
+    undef(@command);
+    push(@command, '/login');
+    push(@command, '=name=' . $username);
+    push(@command, '=response=00' . $hexdigest);
+    ($retval, @results) = &talk(\@command);
+
+    if ($retval > 1) {
+      $self->{errstr} = $results[0]->{'message'};
+      return 0;
+    }
   }
+
   if ($debug > 0) {
     print "Logged in to $host as $username\n";
   }
+
   return 1;
+
+  # my $self = shift;
+  # my ($host, $username, $passwd, $port) = @_;
+  #
+  # if (!($sock = $self->_mtik_connect($host, $port))) {
+  #   return 0;
+  # }
+  #
+  # $passwd ||= '';
+  # my (@command);
+  # push(@command, '/login');
+  # my ($retval, @results) = &talk(\@command);
+  # my ($chal) = pack("H*", $results[0]->{'ret'});
+  # my ($md) = Digest::MD5->new();
+  # $md->add(chr(0));
+  # $md->add($passwd);
+  # $md->add($chal);
+  # my ($hexdigest) = $md->hexdigest;
+  # undef(@command);
+  # push(@command, '/login');
+  # push(@command, '=name=' . $username);
+  # push(@command, '=response=00' . $hexdigest);
+  # ($retval, @results) = &talk(\@command);
+  #
+  # if ($retval > 1) {
+  #   $self->{errstr} = $results[0]->{'message'};
+  #   return 0;
+  # }
+  #
+  # if ($debug > 0) {
+  #   print "Logged in to $host as $username\n";
+  # }
+  #
+  # return 1;
 }
 
 #**********************************************************
@@ -500,22 +543,26 @@ sub logout {
 }
 
 #**********************************************************
-=head2 get_by_key()
+=head2 get_by_key($cmd, $id)
 
 =cut
 #**********************************************************
 sub get_by_key {
-  my ($cmd) = shift;
-  my ($id) = shift || '.id';
+  my $self = shift;
+  my ($cmd, $id ) = @_;
+  $id ||= '.id';
+
   $errstr = '';
   my (@command);
   push(@command, $cmd);
   my (%ids);
+
   my ($retval, @results) = talk(\@command);
   if ($retval > 1) {
     $errstr = $results[0]->{'message'};
     return %ids;
   }
+
   foreach my $attrs (@results) {
     my $key = '';
     foreach my $attr (keys(%{$attrs})) {
@@ -530,24 +577,33 @@ sub get_by_key {
       $ids{$key} = $attrs;
     }
   }
+
   return %ids;
 }
 
 #**********************************************************
-=head2 mtik_cmd()
+=head2 mtik_cmd($cmd, $attrs_href)
 
 =cut
 #**********************************************************
 sub mtik_cmd {
-  my ($cmd) = shift;
-  my (%attrs) = %{(shift)};
+  my ( $self, $cmd, $attrs_href ) = @_;
+
+  $cmd ||= q{};
+  $cmd =~ s/^ ?| ?$//g;
+  $cmd =~ s/\ +/\//g;
+
+  my @command = ($cmd);
 
   $errstr = '';
-  my (@command);
 
-  push(@command, $cmd);
-  foreach my $attr (keys(%attrs)) {
-    push(@command, '=' . $attr . '=' . $attrs{$attr});
+  foreach my $attr ( keys %{$attrs_href} ) {
+    if (defined($attrs_href->{$attr})) {
+      push( @command, '='. $attr .'='. $attrs_href->{$attr} );
+    }
+    else {
+      push( @command, '=!'. $attr );
+    }
   }
 
   my ($retval, @results) = talk(\@command);
@@ -610,16 +666,15 @@ sub mtik_query {
     push(@command, '?' . $query . '=' . $queries{$query});
   }
 
-
-  #  _bp('', \@command, $DEBUG_ARGS);
-
   my ($retval, @results) = talk(\@command);
   if ($retval > 1) {
     $errstr = $results[0]->{'message'};
     _bp('mtik errornous query', { command => \@command, error => $errstr }, $DEBUG_ARGS) if ($self->{debug});
   }
+
   _bp('results', \@results, $DEBUG_ARGS) if ($self->{debug} > 2);
   _bp('mtik_query1', { command => \@command, error => $errstr }, $DEBUG_ARGS) if ($self->{debug} > 2);
+
   return($retval, @results);
 }
 

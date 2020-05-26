@@ -157,6 +157,8 @@ sub result_row_former {
           index - index of funtion to go
           LINK_ITEM - link item (Ex. fio)
           EXTRA_PARAMS - extra params of link (Ex. &add_func=1)
+        DEFAULT_VALUE - defalut value if value eq ''
+          EX. subject => $lang{NO_SUBJECT}
 
       CHARTS      - Make charts. Coma separated column names to make chart from
       CHARTS_XTEXT- Charts x axis text
@@ -274,7 +276,7 @@ sub result_former {
       COLS_NAME      => 1,
       %LIST_PARAMS,
       SHOW_COLUMNS   => $FORM{show_columns},
-      HIDDEN_COLUMNS => \@hidden_fields 
+      HIDDEN_COLUMNS => \@hidden_fields
     });
     #_error_show($data);
 
@@ -300,7 +302,7 @@ sub result_former {
         push @header_arr, "$title:$attr->{EXTRA_TABS}->{$name}";
 
         my $qs = $ENV{QUERY_STRING};
-        $qs =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+        $qs =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1)) /eg;
         if ($ENV{QUERY_STRING} eq $attr->{EXTRA_TABS}->{$name}) {
           $exec_function = $function_name;
         }
@@ -310,107 +312,8 @@ sub result_former {
     print $html->table_header(\@header_arr, { TABS => 1 });
 
     if ($FORM{MAP}) {
-      if (in_array('Maps', \@MODULES)) {
-        load_module('Maps', $html);
-
-        my %USERS_INFO = ();
-
-        $data->{list} = [] if (ref($data->{list}) ne "ARRAY");
-
-        foreach my $line (sort @{$data->{list}}) {
-          next unless ($line->{build_id} || $line->{location_id});
-
-          if (!$attr->{MAP_SHOW_ITEMS}) {
-            push @{$USERS_INFO{ $line->{build_id} || $line->{location_id} }}, $line;
-            next;
-          }
-
-          if ($line->{message}) {
-            $line->{message} =~ s/\r\n/ /gm;
-            $line->{message} =~ s/\n/ /gm;
-            $line->{message} =~ s/\"/\\"/gm;
-          }
-
-          my $info_table = "";
-          if ($USERS_INFO{ $line->{build_id} || $line->{location_id} }[0] && $USERS_INFO{ $line->{build_id}
-            || $line->{location_id} }[0]{map_custom_info}) {
-            foreach my $key (reverse sort keys %{$attr->{MAP_SHOW_ITEMS}}) {
-              next if $key eq "LINK_ITEMS";
-              if (!$line->{$key}){
-                $line->{$key} = " ";
-              }
-
-              if ($attr->{MAP_SHOW_ITEMS}{LINK_ITEMS}{$key}) {
-                my $index_link = $attr->{MAP_SHOW_ITEMS}{LINK_ITEMS}{$key}{index} || "";
-                next if !$index_link;
-
-                my $link = "<a href='?index=$index_link";
-                foreach my $extra_key (sort keys %{$attr->{MAP_SHOW_ITEMS}{LINK_ITEMS}{$key}{EXTRA_PARAMS}}) {
-                  my $value = $attr->{MAP_SHOW_ITEMS}{LINK_ITEMS}{$key}{EXTRA_PARAMS}->{$extra_key};
-                  next if !$line->{$value};
-
-                  $link .= "&$extra_key=$line->{$value}";
-                }
-                $link .= "' target=_blank>$line->{$key}</a>";
-                $info_table .= qq(<td>$link</td>);
-                next;
-              }
-              $info_table .= qq(<td>$line->{$key}</td>);
-            }
-            $info_table .= qq(</tr>);
-
-            $line->{map_custom_info} = $info_table;
-            $USERS_INFO{ $line->{build_id} || $line->{location_id} }[0]{map_custom_info} .= $line->{map_custom_info};
-
-            next;
-          }
-
-          $info_table = qq(<table class="table table-bordered"><thead><tr>);
-
-          foreach my $key (reverse sort keys %{$attr->{MAP_SHOW_ITEMS}}) {
-            next if $key eq "LINK_ITEMS";
-            if (!$line->{$key}){
-              $line->{$key} = " ";
-            }
-
-            my $value = $attr->{MAP_SHOW_ITEMS}->{$key};
-            $info_table .= qq(<th>$value</th>);
-          }
-          $info_table .= qq(</thead><tr>);
-
-          foreach my $key (reverse sort keys %{$attr->{MAP_SHOW_ITEMS}}) {
-            next if !$line->{$key};
-
-            if ($attr->{MAP_SHOW_ITEMS}{LINK_ITEMS}{$key}) {
-              my $index_link = $attr->{MAP_SHOW_ITEMS}{LINK_ITEMS}{$key}{index} || "";
-              next if !$index_link;
-
-              my $link = "<a href='?index=$index_link";
-              foreach my $extra_key (sort keys %{$attr->{MAP_SHOW_ITEMS}{LINK_ITEMS}{$key}{EXTRA_PARAMS}}) {
-                my $value = $attr->{MAP_SHOW_ITEMS}{LINK_ITEMS}{$key}{EXTRA_PARAMS}->{$extra_key};
-                next if !$line->{$value};
-
-                $link .= "&$extra_key=$line->{$value}";
-              }
-              $link .= "' target=_blank>$line->{$key}</a>";
-              $info_table .= qq(<td>$link</td>);
-              next;
-            }
-            $info_table .= qq(<td>$line->{$key}</td>);
-          }
-          $info_table .= qq(</tr>);
-
-          $line->{map_custom_info} = $info_table;
-          push @{$USERS_INFO{ $line->{build_id} || $line->{location_id} }}, $line;
-        }
-
-        maps_show_map({
-          DATA                  => \%USERS_INFO,
-          MAP_FILTERS           => $attr->{MAP_FILTERS},
-          LOCATION_TABLE_FIELDS => $attr->{MAP_FIELDS},
-          POINT_TYPE            => $attr->{MAP_ICON},
-          MAP_TYPE_ICON         => $attr->{MAP_TYPE_ICON},
-        });
+      if (in_array('Maps2', \@MODULES)) {
+        _result_former_maps2_show($data->{list}, $attr);
         return -1, -1;
       }
     }
@@ -466,15 +369,20 @@ sub result_former {
     'zip'             => "$lang{ZIP}",
 
     'deleted'         => "$lang{DELETED}",
-    'gid'             => "$lang{GROUP}",
-    'group_name'      => "$lang{GROUP} $lang{NAME}",
     #    'build_id'      => 'Location ID',
     'uid'             => 'UID',
     'birth_date'      => "$lang{BIRTH_DATE}",
   );
 
+  if ($permissions{0}{28}) {
+    $SEARCH_TITLES{group_name} = "$lang{GROUP} $lang{NAME}";
+    $SEARCH_TITLES{gid} = "$lang{GROUP}";
+  }
+
   if (in_array('Tags', \@MODULES)) {
-    $SEARCH_TITLES{tags} = $lang{TAGS};
+    if (!$admin->{MODULES} || $admin->{MODULES}{'Tags'}) {
+      $SEARCH_TITLES{tags} = $lang{TAGS};
+    }
   }
 
   if (in_array('Multidoms', \@MODULES) && (!$admin->{DOMAIN_ID} || $admin->{DOMAIN_ID} =~ /[,;]+/)) {
@@ -1219,5 +1127,46 @@ sub table_function_fields {
   return \@fields_array;
 }
 
+#**********************************************************
+=head2 _result_former_maps2_show($list, $attr)
+
+  Attributes:
+
+  Result:
+
+=cut
+#**********************************************************
+sub _result_former_maps2_show {
+  my ($list, $attr) = @_;
+
+  load_module('Maps2', $html);
+
+  $list = [] if (ref($list) ne "ARRAY");
+  my $date_list;
+
+  foreach my $object (@{$list}) {
+    $object->{location_id} ||= $object->{build_id};
+    next unless $object->{location_id};
+    delete $object->{message} if $object->{message};
+    if ($date_list->{$object->{location_id}}){
+      push @{$date_list->{$object->{location_id}}}, $object;
+      next;
+    }
+    push @{$date_list->{$object->{location_id}}}, $object;
+  }
+
+  print maps2_show_map({
+    DATA           => $date_list || {},
+    QUICK          => 1,
+    MAP_SHOW_ITEMS => $attr->{MAP_SHOW_ITEMS},
+    MAP_TYPE_ICON  => $attr->{MAP_TYPE_ICON},
+    MAP_FILTERS    => $attr->{MAP_FILTERS},
+    MAP_FIELDS     => $attr->{MAP_FIELDS},
+    MAP_ICON       => $attr->{MAP_ICON},
+    FULL_TYPE_URL  => $attr->{MAP_FULL_TYPE_URL}
+  });
+
+  return 1;
+}
 
 1;

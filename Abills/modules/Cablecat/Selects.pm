@@ -69,7 +69,7 @@ sub _cablecat_point_id_select {
       NO_ID       => 1,
       SEL_OPTIONS => { '' => '' },
       
-      MAIN_MENU      => get_function_index('maps_objects_main'),
+      # MAIN_MENU      => get_function_index('maps_objects_main'),
       MAIN_MENU_ARGV => $selected ? 'chg=' . $selected : '',
       %{$attr},
     }

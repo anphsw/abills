@@ -1,0 +1,163 @@
+.btn_not_active {
+    width: 102px;
+    color: #434343 !important;
+    text-decoration: none;
+    background: white;
+    padding: 3px;
+    border-radius: 5px;
+    display: inline-block;
+    border: 1px solid #7c7c7c;
+    transition: all 0.4s ease 0s;
+}
+
+.btn_active {
+    width: 102px;
+    color: white !important;
+    text-decoration: none;
+    background: #3c8dbc;
+    padding: 3px;
+    border-radius: 5px;
+    display: inline-block;
+    border: 1px solid #3c8dbc;
+    transition: all 0.4s ease 0s;
+}
+
+.btn_in_menu:hover {
+    border: 1px solid #434343;
+    -webkit-box-shadow: 0 5px 40px -10px rgba(0, 0, 0, 0.57);
+    -moz-box-shadow: 0 5px 40px -10px rgba(0, 0, 0, 0.57);
+    box-shadow: 5px 40px -10px rgba(0, 0, 0, 0.57);
+    transition: all 0.4s ease 0.1s;
+}
+
+.button_cont {
+    padding-bottom: 2px;
+    float: left;
+}
+
+#navbar_container {
+    width: 135px;
+    display: none;
+    border-radius: 5px;
+    padding: 1px;
+}
+
+#search_select {
+    width: 14vw;
+    display: none;
+    margin-right: 1vw;
+}
+
+.circle {
+    cursor: pointer;
+    border: 1px solid #aaa;
+    width: 20px;
+    height: 20px;
+    border-radius: 100%;
+    position: relative;
+    margin-bottom: 2px;
+    margin-left: 1px;
+    display: inline-block;
+    vertical-align: middle;
+    background: white;
+    transition: all 0.3s ease 0s;
+
+    transform: translate(-1em,0);
+    -webkit-transform: translate(-1em,0);
+    -moz-transform: translate(-1em,0);
+    -o-transform: translate(-1em,0);
+    -ms-transform: translate(-1em,0);
+}
+
+.circle:hover {
+    background: #3c8dbc;
+    color: white;
+}
+
+.circle.plus:hover:after {
+    background: white;
+}
+
+.circle.plus:hover:before {
+    background: white;
+}
+
+.circle:active {
+    background: white;
+}
+
+.circle:before, .circle:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.circle.plus:before, .circle.plus:after {
+    background: #3c8dbc;
+}
+
+.circle.plus:before {
+    width: 2px;
+    margin: 3px auto;
+}
+
+.circle.plus:after {
+    margin: auto 3px;
+    height: 2px;
+    box-shadow: none;
+}
+
+.spin-load {
+    position: absolute;
+    z-index: 99999999;
+    right: 78px;
+    color: darkblue;
+    opacity: 1 !important;
+    margin-top: 2px;
+}
+
+.disabled {
+    pointer-events: none;
+    opacity: 0.7;
+    background: #ddd;
+    color: #D2E4E8;
+}
+
+.leaflet-custom {
+    margin-left: 0 !important;
+    margin-bottom: 2px !important;
+}
+
+#select-div {
+    visibility: hidden;
+    width: 1vw;
+
+    -webkit-transition: all 0.5s ease;
+    -moz-transition: all 0.5s ease;
+    -o-transition: all 0.5s ease;
+    transition: all 0.5s ease;
+}
+
+.select-div-visible {
+    visibility: visible !important;
+    width: 100% !important;
+}
+
+.danger-equipment {
+    animation-duration: 1s;
+    animation-name: changeIconEquipment;
+    animation-iteration-count: infinite;
+}
+
+@keyframes changeIconEquipment {
+    from {
+        content:url("/images/maps/icons/nas_green.png");
+    }
+
+    to {
+        content:url("/images/maps/icons/nas_fire.png");
+    }
+}

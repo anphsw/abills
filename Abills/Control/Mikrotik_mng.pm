@@ -1,17 +1,16 @@
 use strict;
 use warnings FATAL => 'all';
 
-our (@state_colors, $db, %lang, $base_dir, %conf, $DATE, $TIME);
+our ($db, %lang, $base_dir, %conf);
 our Abills::HTML $html;
 our Admins $admin;
 
 use Nas;
-my $Nas = Nas->new($db, \%conf, $admin);
-
-require Abills::Nas::Mikrotik;
-
 use Abills::Base qw(in_array load_pmodule cmd);
 use Abills::Experimental;
+require Abills::Nas::Mikrotik;
+
+my $Nas = Nas->new($db, \%conf, $admin);
 
 #**********************************************************
 =head2 form_mikrotik_check_access()
@@ -435,8 +434,6 @@ sub mikrotik_configure {
     });
   }
 
-
-
   # Initialize shaper
   $params->{USE_NAT} //= '0';
   my $cmd = $base_dir . "libexec/billd checkspeed mikrotik"
@@ -445,7 +442,7 @@ sub mikrotik_configure {
   # Try to run by ourselves
   my $res = 1;
   eval {
-      $res = cmd($cmd, { SHOW_RESULT => 1, DEBUG => 5, timeout => 30});
+    $res = cmd($cmd, { SHOW_RESULT => 1, DEBUG => 5, timeout => 30});
   };
   if ($@){
     $res = 1;
@@ -479,9 +476,9 @@ sub form_mikrotik_hotspot {
   
   ### Step 0 : check access ###
   my Abills::Nas::Mikrotik $mikrotik = _mikrotik_init_and_check_access($Nas_, {
-      DEBUG => $conf{mikrotik_debug} || 1,
-      RETURN_TO => 'mikrotik_hotspot'
-    });
+    DEBUG => $conf{mikrotik_debug} || 1,
+    RETURN_TO => 'mikrotik_hotspot'
+  });
   
   return 0 unless $mikrotik;
 
@@ -596,7 +593,6 @@ sub form_mikrotik_upload_key {
 #
   
   if ( $FORM{upload_key} ) {
-    
     my ($old_adm, $old_pass) = ($Nas_->{nas_mng_user}, $Nas_->{nas_mng_password});
     $Nas_->{nas_mng_user} = $system_admin;
     $Nas_->{nas_mng_password} = $system_password;
@@ -656,7 +652,6 @@ sub form_mikrotik_upload_key {
 sub _mikrotik_init_and_check_access {
   my ($Nas_, $attr) = @_;
   
-  use Abills::Base qw/_bp/;
   my $mikrotik = Abills::Nas::Mikrotik->new( $Nas_, \%conf, {
       FROM_WEB         => 1,
       MESSAGE_CALLBACK => sub { $html->message('info', @_[0 ... 1]) },

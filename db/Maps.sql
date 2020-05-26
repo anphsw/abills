@@ -16,13 +16,15 @@ DROP TABLE IF EXISTS `maps_icons`;
 DROP TABLE IF EXISTS `maps_districts`;
 */
 
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 CREATE TABLE IF NOT EXISTS `maps_wells` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(100) DEFAULT NULL,
   `type_id` TINYINT(1) UNSIGNED DEFAULT '0',
   `coordx` DOUBLE(20, 14) DEFAULT '0.00000000000000',
   `coordy` DOUBLE(20, 14) DEFAULT '0.00000000000000',
-  `comment` TEXT NOT NULL,
+  `comment` TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
   COMMENT = 'Wells coord';
@@ -37,27 +39,28 @@ CREATE TABLE IF NOT EXISTS `maps_wifi_zones` (
   COMMENT = 'Wifi zones';
 
 CREATE TABLE IF NOT EXISTS `maps_point_types` (
-  `id` SMALLINT(6) PRIMARY KEY AUTO_INCREMENT,
+  `id` SMALLINT(6) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `name` VARCHAR(60) NOT NULL UNIQUE,
-  `icon` VARCHAR(30) NOT NULL    DEFAULT 'default',
+  `icon` VARCHAR(30) NOT NULL DEFAULT 'default',
+  `layer_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `comments` TEXT
 )
   COMMENT = 'Types of custom points';
 
-REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (1, '$lang{WELL}', 'well_green');
-REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (2, '$lang{WIFI}', 'wifi_green');
-REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (3, '$lang{BUILD}', 'build_green');
-REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (4, '$lang{DISTRICT}', '');
+REPLACE INTO `maps_point_types` (`id`, `name`, `icon`, `layer_id`) VALUES (1, '$lang{WELL}', 'well_green', 11);
+REPLACE INTO `maps_point_types` (`id`, `name`, `icon`, `layer_id`) VALUES (2, '$lang{WIFI}', '', 2);
+REPLACE INTO `maps_point_types` (`id`, `name`, `icon`, `layer_id`) VALUES (3, '$lang{BUILD}', 'build_green', 1);
+REPLACE INTO `maps_point_types` (`id`, `name`, `icon`, `layer_id`) VALUES (4, '$lang{DISTRICT}', '', 4);
 REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (5, '$lang{MUFF}', 'muff_green');
 REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (6, '$lang{SPLITTER}', 'splitter_green');
-REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (7, '$lang{CABLE}', 'cable_green');
-REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (8, '$lang{EQUIPMENT}', 'nas_green');
-REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (9, '$lang{PILLAR}', 'route_green');
-REPLACE INTO `maps_point_types` (`id`, `name`, `icon`) VALUES (33, '$lang{CAMERAS}', 'cams');
+REPLACE INTO `maps_point_types` (`id`, `name`, `icon`, `layer_id`) VALUES (7, '$lang{CABLE}', '', 10);
+REPLACE INTO `maps_point_types` (`id`, `name`, `icon`, `layer_id`) VALUES (8, '$lang{EQUIPMENT}', 'nas_green', 7);
+REPLACE INTO `maps_point_types` (`id`, `name`, `icon`, `layer_id`) VALUES (20, 'PON', 'pon_normal', 20);
+REPLACE INTO `maps_point_types` (`id`, `name`, `icon`, `layer_id`) VALUES (33, '$lang{CAMERAS}', 'cams_main', 20);
 
 
 CREATE TABLE IF NOT EXISTS `maps_coords` (
-  `id` INT(11) PRIMARY KEY AUTO_INCREMENT,
+  `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `coordx` DOUBLE NOT NULL,
   `coordy` DOUBLE NOT NULL
 )
@@ -65,7 +68,7 @@ CREATE TABLE IF NOT EXISTS `maps_coords` (
 
 CREATE TABLE IF NOT EXISTS `maps_points` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `name` VARCHAR(30) NOT NULL,
+  `name` VARCHAR(30) NOT NULL DEFAULT '',
   `coord_id` INT(11) REFERENCES `maps_coords` (`id`)
     ON DELETE CASCADE,
   `type_id` SMALLINT(6) REFERENCES `maps_point_types` (`id`)
@@ -78,14 +81,15 @@ CREATE TABLE IF NOT EXISTS `maps_points` (
     ON DELETE RESTRICT,
   `planned` TINYINT(1) NOT NULL DEFAULT 0,
   `installed` DATETIME,
-  `external` TINYINT(1) NOT NULL DEFAULT 0
+  `external` TINYINT(1) NOT NULL DEFAULT 0,
+  KEY `location_id` (`location_id`)
 )
   COMMENT = 'Custom points';
 
 
 CREATE TABLE IF NOT EXISTS `maps_layers` (
-  `id` SMALLINT(6) PRIMARY KEY AUTO_INCREMENT,
-  `name` VARCHAR(30) NOT NULL,
+  `id` SMALLINT(6) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `name` VARCHAR(30) NOT NULL DEFAULT '',
   `type` VARCHAR(32) NOT NULL DEFAULT 'build',
   `structure` VARCHAR(32) NOT NULL DEFAULT 'MARKER',
   `module` VARCHAR(32) NOT NULL DEFAULT 'Maps',
@@ -111,9 +115,9 @@ REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (12, '$lan
 
 CREATE TABLE IF NOT EXISTS `maps_circles` (
   `id` INT(11) UNSIGNED PRIMARY KEY  AUTO_INCREMENT,
-  `layer_id` SMALLINT(6) REFERENCES `maps_layers` (`id`)
+  `layer_id` SMALLINT(6) UNSIGNED REFERENCES `maps_layers` (`id`)
     ON DELETE CASCADE,
-  `object_id` INT(11) REFERENCES `maps_points` (`id`)
+  `object_id` INT(11) UNSIGNED REFERENCES `maps_points` (`id`)
     ON DELETE CASCADE,
   `coordx` DOUBLE NOT NULL,
   `coordy` DOUBLE NOT NULL,
@@ -125,13 +129,14 @@ CREATE TABLE IF NOT EXISTS `maps_circles` (
 
 CREATE TABLE IF NOT EXISTS `maps_polylines` (
   `id` INT(11) UNSIGNED PRIMARY KEY  AUTO_INCREMENT,
-  `layer_id` SMALLINT(6) REFERENCES `maps_layers` (`id`)
+  `layer_id` SMALLINT(6) UNSIGNED REFERENCES `maps_layers` (`id`)
     ON DELETE CASCADE,
-  `object_id` INT(11) REFERENCES `maps_points` (`id`)
+  `object_id` INT(11) UNSIGNED REFERENCES `maps_points` (`id`)
     ON DELETE CASCADE,
-  `name` VARCHAR(32) NOT NULL  DEFAULT '',
-  `comments` TEXT,
-  `length` DOUBLE NOT NULL DEFAULT 0
+  `name` VARCHAR(32) NOT NULL DEFAULT '',
+  `comments` TEXT NOT NULL DEFAULT '',
+  `length` DOUBLE NOT NULL DEFAULT 0,
+  KEY `object_id` (`object_id`)
 )
   COMMENT = 'Custom drawed polylines';
 
@@ -147,30 +152,32 @@ CREATE TABLE IF NOT EXISTS `maps_polyline_points` (
 
 CREATE TABLE IF NOT EXISTS `maps_polygons` (
   `id` INT(11) UNSIGNED PRIMARY KEY  AUTO_INCREMENT,
-  `layer_id` SMALLINT(6) REFERENCES `maps_layers` (`id`)
+  `layer_id` SMALLINT(6) UNSIGNED REFERENCES `maps_layers` (`id`)
     ON DELETE CASCADE,
-  `object_id` INT(11) REFERENCES `maps_points` (`id`)
+  `object_id` INT(11) UNSIGNED REFERENCES `maps_points` (`id`)
     ON DELETE CASCADE,
   `name` VARCHAR(32) NOT NULL,
   `color` VARCHAR(32) NOT NULL  DEFAULT 'silver',
-  `comments` TEXT
+  `comments` TEXT,
+  KEY `object_id` (`object_id`)
 )
   COMMENT = 'Custom drawed polygons';
 
 CREATE TABLE IF NOT EXISTS `maps_polygon_points` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `polygon_id` SMALLINT(6) REFERENCES `maps_polygons` (`id`)
+  `polygon_id` SMALLINT(6) UNSIGNED REFERENCES `maps_polygons` (`id`)
     ON DELETE CASCADE,
   `coordx` DOUBLE NOT NULL,
-  `coordy` DOUBLE NOT NULL
+  `coordy` DOUBLE NOT NULL,
+  KEY `polygon_id` (`polygon_id`)
 )
   COMMENT = 'Custom drawed polygons points';
 
 CREATE TABLE IF NOT EXISTS `maps_text` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `layer_id` SMALLINT(6) REFERENCES `maps_layers` (`id`)
+  `layer_id` SMALLINT(6) UNSIGNED REFERENCES `maps_layers` (`id`)
     ON DELETE CASCADE,
-  `object_id` INT(11) REFERENCES `maps_points` (`id`)
+  `object_id` INT(11) UNSIGNED REFERENCES `maps_points` (`id`)
     ON DELETE CASCADE,
   `coordx` DOUBLE NOT NULL,
   `coordy` DOUBLE NOT NULL,
@@ -180,8 +187,8 @@ CREATE TABLE IF NOT EXISTS `maps_text` (
 
 CREATE TABLE IF NOT EXISTS `maps_icons` (
   `id` INT(11) UNSIGNED PRIMARY KEY  AUTO_INCREMENT,
-  `name` VARCHAR(32) NOT NULL,
-  `filename` VARCHAR(255) NOT NULL,
+  `name` VARCHAR(32) NOT NULL DEFAULT '',
+  `filename` VARCHAR(255) NOT NULL DEFAULT '',
   `comments` TEXT
 )
   COMMENT = 'User-defined icons';

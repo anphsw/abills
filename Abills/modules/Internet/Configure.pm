@@ -31,6 +31,10 @@ my $Address  = Address->new($db, $admin, \%conf);
 #**********************************************************
 sub internet_tp {
 
+  $FORM{RAD_PAIRS} = radius_params({ %FORM });
+
+  internet_tp_clone() if $FORM{ADD_CLONE_TP};
+
   if($FORM{import}){
     internet_import_tp();
     return 1;
@@ -75,6 +79,7 @@ sub internet_tp {
       $Fees->fees_type_add({ NAME => $FORM{NAME}});
       $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
     }
+
     $Tariffs->add({ %FORM, MODULE => 'Internet' });
     if (!$Tariffs->{errno}) {
       $html->message('info', $lang{ADDED}, "$lang{NAME}: $FORM{NAME}\n".
@@ -137,7 +142,13 @@ sub internet_tp {
       return 0;
     }
     elsif ($FORM{change}) {
-      $Tariffs->change($FORM{TP_ID}, {%FORM});
+      if ($FORM{create_fees_type}) {
+        my $Fees = Finance->fees($db, $admin, \%conf);
+        $Fees->fees_type_add({ NAME => $FORM{NAME}});
+        $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
+      }
+
+      $Tariffs->change($FORM{TP_ID}, \%FORM);
       if (!$Tariffs->{errno}) {
         $html->message('info', $lang{CHANGED}, "$lang{CHANGED} $Tariffs->{ID}");
       }
@@ -279,9 +290,7 @@ sub internet_tp {
       $tarif_info->{EXT_BILL_ACCOUNT} = '';
     }
 
-    if($tarif_info->{NAME}) {
-      $tarif_info->{NAME}=~ s/\\+/\\/g;
-    }
+    $tarif_info->{NAME}=~ s/\\+/\\/g if $tarif_info->{NAME};
 
     if(in_array('Multidoms', \@MODULES) && $permissions{10}) {
       $tarif_info->{FORM_DOMAINS} = $html->tpl_show(templates('form_row'), {
@@ -290,6 +299,13 @@ sub internet_tp {
           VALUE => multidoms_domains_sel({ DOMAIN_ID => $tarif_info->{DOMAIN_ID} }),
         }, { OUTPUT2RETURN => 1 });
     }
+
+    $tarif_info->{CLONE_BTN} = $html->button($lang{CLONE}, "get_index=internet_tp_clone&header=2" .
+      ($FORM{TP_ID} ? "&TP_ID=$FORM{TP_ID}" : $FORM{add_form} ? "&add_form=$FORM{add_form}" : ''), {
+      class         => 'btn btn-sm btn-default',
+      ex_params     => "style='float: right'",
+      LOAD_TO_MODAL => 1
+    });
 
     $html->tpl_show(_include('internet_tp', 'Internet'), $tarif_info, { SKIP_VARS => 'IP' });
   }
@@ -858,6 +874,129 @@ sub geolocation_group_tp {
     TP_GID           => $FORM{ID} || $FORM{TP_GID} || '',
   });
   return 1;
+}
+
+#**********************************************************
+=head2 internet_tp_clone($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub internet_tp_clone {
+  my ($attr) = @_;
+
+  if ($FORM{ADD_CLONE_TP}) {
+    my $clone_tp = $Tariffs->list({
+      TP_ID            => $FORM{INTERNET_TP_SELECT},
+      SHOW_ALL_COLUMNS => 1,
+      COLS_NAME        => 1,
+      COLS_UPPER       => 1
+    });
+    return if !$Tariffs->{TOTAL};
+
+    _internet_tp_clone_add_tp($clone_tp->[0], \%FORM);
+    return;
+  }
+
+  my $internet_tp_index = get_function_index('internet_tp');
+  my $tp_select = $html->form_select('INTERNET_TP_SELECT', {
+    SEL_LIST => $Tariffs->list({
+      MODULE       => 'Dv;Internet',
+      DOMAIN_ID    => $admin->{DOMAIN_ID} || '',
+      NEW_MODEL_TP => 1,
+      COLS_NAME    => 1
+    }),
+    SELECTED => $FORM{TP_ID} || '',
+  });
+
+  $html->tpl_show(_include('internet_tp_clone', 'Internet'), {
+    INTERNET_TP_SELECT => $tp_select,
+    INDEX              => $internet_tp_index,
+    %FORM
+  });
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _internet_tp_clone_add_tp($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _internet_tp_clone_add_tp {
+  my ($clone_tp, $attr) = @_;
+
+  my $new_ti = $Tariffs->ti_list({ TP_ID => $clone_tp->{TP_ID}, COLS_NAME => 1, COLS_UPPER => 1 });
+  delete $clone_tp->{ID};
+  $clone_tp->{NAME} = $attr->{NAME} ? $attr->{NAME} : $clone_tp->{NAME} . '_CLONE';
+
+  if ($attr->{TP_ID}) {
+    $clone_tp->{TP_ID} = $attr->{TP_ID};
+    $Tariffs->change($attr->{TP_ID}, $clone_tp);
+
+    return if _error_show($Tariffs);
+
+    my $old_ti = $Tariffs->ti_list({ TP_ID => $attr->{TP_ID}, COLS_NAME => 1, COLS_UPPER => 1 });
+    map $Tariffs->ti_del($_->{ID}), @{$old_ti} if $Tariffs->{TOTAL};
+
+    foreach (@{$new_ti}) {
+      $Tariffs->{TP_ID} = $attr->{TP_ID};
+      my $added_ti = $Tariffs->ti_add({
+        TI_DAY   => $_->{DAY},
+        TI_BEGIN => $_->{BEGIN},
+        TI_END   => $_->{END},
+        TI_TARIF => $_->{TARIF},
+      });
+
+      my $tt_list = $Tariffs->tt_list({ TI_ID => $_->{ID}, COLS_NAME => 1, COLS_UPPER => 1 });
+      foreach my $tt (@{$tt_list}) {
+        $Tariffs->tt_add({
+          tt    => $added_ti->{INTERVAL_ID},
+          TP_ID => $attr->{TP_ID},
+          %{$tt}
+        });
+      }
+    }
+    $FORM{TP_ID} = $attr->{TP_ID};
+
+    $html->message('info', "$lang{TARIF_PLAN} $lang{SUCCESSFULLY_CLONED}");
+    return;
+  }
+
+  delete $clone_tp->{TP_ID};
+  my $new_tp = $Tariffs->add($clone_tp);
+
+  return if _error_show($Tariffs);
+
+  foreach (@{$new_ti}) {
+    $Tariffs->{TP_ID} = $new_tp->{TP_ID};
+    my $added_ti = $Tariffs->ti_add({
+      TI_DAY   => $_->{DAY},
+      TI_BEGIN => $_->{BEGIN},
+      TI_END   => $_->{END},
+      TI_TARIF => $_->{TARIF},
+    });
+
+    my $tt_list = $Tariffs->tt_list({ TI_ID => $_->{ID}, COLS_NAME => 1, COLS_UPPER => 1 });
+    foreach my $tt (@{$tt_list}) {
+      $Tariffs->tt_add({
+        tt    => $added_ti->{INTERVAL_ID},
+        TP_ID => $new_tp->{TP_ID},
+        %{$tt}
+      });
+    }
+  }
+  $FORM{TP_ID} = $new_tp->{TP_ID};
+
+  $html->message('info', "$lang{TARIF_PLAN} $lang{SUCCESSFULLY_CLONED}");
+  return;
 }
 
 1;

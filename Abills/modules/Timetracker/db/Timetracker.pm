@@ -185,3 +185,27 @@ sub change_element_work {
 
   return $self->{list};
 }
+
+#**********************************************************
+=head2 get_run_time - get run time for admin 
+  Arguments:
+  {
+    FROM_DATE => $FROM_DATE,
+    TO_DATE => $TO_DATE,
+  }
+  Returns:
+    Hash
+=cut
+#**********************************************************
+sub get_run_time {
+  my $self = shift;
+
+  my ($attr) = @_;
+
+  $self->query2("SELECT aid, run_time FROM msgs_reply 
+                WHERE datetime BETWEEN
+                '$attr->{FROM_DATE}' AND '$attr->{TO_DATE}';",
+                 undef, {COLS_NAME => 1} );
+
+  return $self->{list} || [];
+}

@@ -48,4 +48,13 @@ $lang{REDMINE} = 'Redmine';
 $lang{TASK_EXECUTION} = 'Закриті задачі';
 $lang{NOT_CONFIGURED} = 'Модуль не налаштовано';
 $lang{NOT_FOUND} = 'Немає конфігурації: ';
-$lang{ALL_TIME} = 'Всього часу, години'
+$lang{ALL_TIME} = 'Всього часу, години';
+
+$lang{ADMINS} = 'список адміністраторів';
+$lang{CLOSE_MOUTH} = 'количество закрытых за поточный месяц работ по Redmine';
+$lang{ACTUALLY_HOURS} = 'кількість фактично витрачених годин';
+$lang{SCHEDULED_HOURS} = 'кількість запланованих годин';
+$lang{TIME_COMPLEXITY} = 'складність помножена на кількість запланованих годин';
+$lang{CLOSED_TICKETS} = 'кількість закритих support тікетів';
+$lang{TIME_SUPPORT} = 'Сумарний час роботи з сапортом';
+$lang{REPORTS_HEADER} = 'Звіт про роботу адміністраторів';

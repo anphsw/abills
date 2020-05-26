@@ -135,12 +135,7 @@ sub msgs_delivery {
   my $debug_output = '';
   $debug_output .= "Mdelivery\n" if ($debug > 1);
 
-  my @send_methods = (
-    'Push',
-    'Mail',
-    'Sms',
-    'Web_redirect'
-  );
+  my $send_methods = $Sender->available_types({ HASH_RETURN => 1});
 
   my $Msgs_delivery = Msgs->new($db, $Admin, \%conf);
   my $SEND_DATE           = $argv->{DATE} || $DATE;
@@ -166,7 +161,10 @@ sub msgs_delivery {
 
   foreach my $mdelivery (@$delivery_list) {
     $Msgs_delivery->msgs_delivery_info($mdelivery->{id});
-    $Log->log_print('LOG_INFO', '', "Delivery: $mdelivery->{id} Send method: $send_methods[$Msgs_delivery->{SEND_METHOD}] ($Msgs_delivery->{SEND_METHOD}) ");
+
+    my $send_method_id = $Msgs_delivery->{SEND_METHOD} ? $Msgs_delivery->{SEND_METHOD} : 0;
+
+    $Log->log_print('LOG_INFO', '', "Delivery: $mdelivery->{id} Send method: $send_methods->{$send_method_id} ($send_method_id) ");
     $LIST_PARAMS{PAGE_ROWS}    = 1000000;
     $LIST_PARAMS{MDELIVERY_ID} = $mdelivery->{id};
 
@@ -214,21 +212,52 @@ sub msgs_delivery {
         $internet_info = $Internet->info($u->{uid});
       }
 
-      my $message = $html->tpl_show($Msgs_delivery->{TEXT}, {%$user_pi, %$internet_info}, {
-        OUTPUT2RETURN      => 1, 
-        SKIP_DEBUG_MARKERS => 1
+      my $message = $html->tpl_show($Msgs_delivery->{TEXT}, { 
+          %$user_pi, 
+          %$internet_info,
+          LOGIN => $u->{login}
+      }, 
+      {
+          OUTPUT2RETURN      => 1, 
+          SKIP_DEBUG_MARKERS => 1
       });
 
       if($debug < 6) {
-        $Sender->send_message({
-          SENDER      => $Msgs_delivery->{SENDER},
-          TO_ADDRESS  => ($Msgs_delivery->{SEND_METHOD} && $Msgs_delivery->{SEND_METHOD} == 1) ? $email : undef,
-          MESSAGE     => $message,
-          SUBJECT     => $Msgs_delivery->{SUBJECT},
-          SENDER_TYPE => $send_methods[$Msgs_delivery->{SEND_METHOD} || 1],
-          ATTACHMENTS => ($#ATTACHMENTS > -1) ? \@ATTACHMENTS : undef,
-          UID         => $user_pi->{UID}
-        });
+        if (!$Msgs_delivery->{SEND_METHOD}) {
+          $Msgs_delivery->message_add({
+            UID        => $user_pi->{UID},
+            STATE      => 6,
+            ADMIN_READ => "$DATE $TIME",
+            SUBJECT    => $Msgs_delivery->{SUBJECT},
+            PRIORITY   => $Msgs_delivery->{PRIORITY},
+            MESSAGE    => $Msgs_delivery->{TEXT},
+          });
+        }
+        else {
+          my $to_address;
+          if ( $Msgs_delivery->{SEND_METHOD} ) {
+            if( $Msgs_delivery->{SEND_METHOD} == 9) {
+              $to_address = $email;
+            }
+            elsif( $Msgs_delivery->{SEND_METHOD} == 1 && ! $conf{CONTACTS_NEW} ) {
+              $to_address = $user_pi->{PHONE};
+            }
+          }
+
+          $Sender->send_message({
+            SENDER      => $Msgs_delivery->{SENDER},
+            TO_ADDRESS  => $to_address,
+            MESSAGE     => $message,
+            SUBJECT     => $Msgs_delivery->{SUBJECT},
+            SENDER_TYPE => $Msgs_delivery->{SEND_METHOD} || 0,
+            ATTACHMENTS => ($#ATTACHMENTS > -1) ? \@ATTACHMENTS : undef,
+            UID         => $user_pi->{UID}
+          });
+
+          if($Sender->{errno}) {
+            print "ERROR: $Sender->{errno} $Sender->{errstr}\n";
+          }
+        }
 
         if($argv->{SLEEP}) {
           sleep int($argv->{SLEEP});

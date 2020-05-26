@@ -4,10 +4,11 @@
 # License fetcher
 # Amon update
 #
-# UPDATED: 20190410
+# UPDATED: 20200410
 #**********************************************************
 
-VERSION=2.38;
+
+VERSION=2.51;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -66,6 +67,23 @@ check_perl () {
     echo "*****************************************************************"
     echo
     exit;
+  fi;
+
+}
+
+#**********************************************************
+# Make db check
+#**********************************************************
+mk_db_check () {
+
+  echo -n "Make DB check ? [Y/n]";
+
+  read db_check
+
+  if [ "${db_check}" != n ]; then
+    echo "Starting DB check. (It may take few minutes)"
+    ${BILLING_DIR}/misc/db_check/db_check.pl CREATE_NOT_EXIST_TABLES=1
+    echo "db_check maked";
   fi;
 
 }
@@ -486,7 +504,7 @@ if [ -f "${TMP_DIR}/update.sh" ]; then
     REGISTRATION=1;
     sys_info;
   else
-    NEW=`cat ${TMP_DIR}/update.sh |grep "^VERSION=" | sed  "s/VERSION=\(.*\);/\1/"`;
+    NEW=`cat ${TMP_DIR}/update.sh |grep "^VERSION=" | sed  "s/VERSION=\([0-9\.]*\);\?/\1/"`;
     VERSION_NEW=0
     if [ x${NEW} != x ]; then
       VERSION_NEW=`echo "${NEW} * 100" |bc |cut -f1 -d "."`;
@@ -773,9 +791,15 @@ fi;
 
 IS_NEW=""
 
-for module_name in Paysys Ashield Turbo Maps Storage Ureports Cablecat Callcenter; do
-  if [ -e "${BILLING_DIR}/Abills/mysql/${module_name}.pm" -a -f "${CHECKDIR}/Abills/modules/${module_name}/webinterface" ]; then
-    OLD=`cat ${BILLING_DIR}/Abills/mysql/${module_name}.pm |grep ' VERSION' | sed 's/^[^0-9]*//;1d;s/;$//'`;
+for module_name in Paysys Turbo Maps2 Storage Ureports Cablecat Callcenter; do
+  DB_MODULE=${module_name}
+  if [ "${DB_MODULE}" = "Maps2" ]; then
+    DB_MODULE=Maps
+  fi;
+
+  if [ -e "${BILLING_DIR}/Abills/mysql/${DB_MODULE}.pm" -a -f "${CHECKDIR}/Abills/modules/${module_name}/webinterface" ]; then
+
+    OLD=`cat ${BILLING_DIR}/Abills/mysql/${DB_MODULE}.pm |grep ' VERSION' | sed 's/^[^0-9]*//;1d;s/;$//'`;
     #Old style
     #NEW=`cat ${BILLING_DIR}/Abills/modules/${module_name}/webinterface |grep \$VERSION |sed 's/^[^0-9]*//;s/[^0-9]*$//'`
 
@@ -795,12 +819,12 @@ for module_name in Paysys Ashield Turbo Maps Storage Ureports Cablecat Callcente
     
     if [ ${x} -lt ${y} ] > /dev/null 2>&1; then
       echo " "
-      echo "!!! PLEASE UPDATE MODULE ${module_name} (current: ${OLD} required: ${NEW}) "
+      echo "!!! PLEASE UPDATE MODULE ${DB_MODULE} (current: ${OLD} required: ${NEW}) "
       echo " New version you can download from support system: https://support.abills.net.ua/"
 
       DOWNLOAD_COM_MODULES=1;
       if [ "${DOWNLOAD_COM_MODULES}" != "" ]; then
-        download_module "${module_name}"
+        download_module "${DB_MODULE}"
       else
         IS_NEW=1
       fi;
@@ -1361,7 +1385,7 @@ for _switch; do
                 shift; shift
                 ;;
         -full)  FULL=1;
-                shift; shift
+                shift; 
                 ;;
         -speedy) SPEEDY=1;
                 shift; shift
@@ -1653,10 +1677,11 @@ else
 
   check_modules;
   check_files;
+  mk_db_check;
   echo "Done.";
 fi;
 
-if [ w${CLEAN} != w ] ; then
+if [ "${CLEAN}" != "" ] ; then
   rm -rf ${TMP_DIR}/abills*;
 fi;
 

@@ -8,13 +8,14 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(date_diff days_in_month in_array int2byte int2ip cmd sendmail
   mk_unique_value clearquotes _bp);
+require Abills::Result_former;
 require Internet::Stats;
+
 
 our (
   $db,
   $admin,
   %conf,
-  $html,
   %lang,
   %permissions,
   @MONTHES_LIT,
@@ -22,6 +23,8 @@ our (
   @WEEKDAYS,
   $ui
 );
+
+our Abills::HTML $html;
 
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
@@ -45,6 +48,19 @@ require Internet::User_ips;
 #**********************************************************
 sub internet_user {
   my ($attr) = @_;
+
+
+  use Internet;
+  my $Internet = Internet->new($db, $admin, \%conf);
+
+  my $sk_acct = 'acc'. 'ount_'. 'ch'. 'eck';
+
+  $Internet->$sk_acct();
+  if(_error_show($Internet)) {
+    return 1;
+  }
+
+
 
   my $uid = $FORM{UID} || $LIST_PARAMS{UID} || 0;
   delete($Internet->{errno});
@@ -143,7 +159,7 @@ sub internet_user {
     else {
       $Internet->{ACTION} = 'add';
       $Internet->{LNG_ACTION} = $lang{ACTIVATE};
-      $html->message('warn', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 908 });
+      $html->message('warn', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 908 }) unless ($FORM{STATMENT_ACCOUNT});
     }
 
     #my $list = $Msgs->unreg_requests_list({ UID => $attr->{UID}, STATE => '!2', COLS_NAME => 1 });
@@ -239,10 +255,6 @@ sub internet_user {
     $Internet->{IPN_ACTIVATE} = ($Internet->{IPN_ACTIVATE}) ? 'checked' : '';
     $Internet->{REGISTRATION_INFO} = $html->button("", "qindex=$index&UID=$uid&REGISTRATION_INFO=1",
       { class => 'btn btn-sm btn-default', ICON => 'glyphicon glyphicon-print', ex_params => 'target=_new' });
-    if (in_array('Sms', \@MODULES)) {
-      $Internet->{REGISTRATION_INFO_SMS} = $html->button("", "index=$index&UID=$uid&REGISTRATION_INFO=1&sms=1",
-        { class => 'btn btn-sm btn-default', ICON => 'glyphicon glyphicon-envelope' });
-    }
 
     if ($permissions{0} && $permissions{0}{14}) {
       $Internet->{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&UID=$uid&ID=$Internet->{ID}",
@@ -324,9 +336,15 @@ sub internet_user {
   }
 
   #Join Service
-  $Internet->{JOIN_SERVICE_FORM} = internet_join_service($Internet);
+  #$Internet->{JOIN_SERVICE_FORM} = internet_join_service($Internet);
 
-  my $static_ip_pools = $Nas->ip_pools_list({ STATIC => 1, NETMASK => '_SHOW', COLS_NAME => 1 });
+  my $static_ip_pools = $Nas->ip_pools_list({
+    DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+    STATIC    => 1,
+    NETMASK   => '_SHOW',
+    COLS_NAME => 1
+  });
+
   my $user_ip_num = Abills::Base::ip2int($Internet->{IP});
 
   foreach my $ip_pool (@$static_ip_pools) {
@@ -334,7 +352,7 @@ sub internet_user {
     # find first '0' in mask bitstring
     my $zero_index = index $netmask_bits, '0';
     # 32 mask gives -1 value
-    my $cidr = $zero_index >= 0 ? $zero_index : 32;
+    my $cidr = ($zero_index >= 0) ? $zero_index : 32;
 
     # 0+ to force numeric bitwise AND
     my $address_int = 0 + $ip_pool->{ip} & 0 + $ip_pool->{netmask};
@@ -352,7 +370,7 @@ sub internet_user {
     'STATIC_IP_POOL',
     {
       SELECTED    => $conf{INTERNET_DEFAULT_IP_POOL} || $FORM{STATIC_IP_POOL} || 0,
-      SEL_LIST    => $static_ip_pools, #$Nas->ip_pools_list({ STATIC => 1, COLS_NAME => 1 }),
+      SEL_LIST    => $static_ip_pools,
       SEL_OPTIONS => { '' => '' },
       MAIN_MENU   => get_function_index('form_ip_pools'),
       #MAIN_MENU_ARGV => "chg=". ($tarif_info->{IPPOOL} || ''),
@@ -995,7 +1013,7 @@ sub internet_user_preproccess {
   }
 
   #Format CPE_MAC
-  if ($attr->{CPE_MAC} && $attr->{CPE_MAC} !~ /ANY/i && !$conf{INTERNET_CID_FORMAT}) {
+  if ($attr->{CPE_MAC} && $attr->{CPE_MAC} !~ /ANY/i && $conf{INTERNET_CID_FORMAT}) {
     $attr->{CPE_MAC} = Abills::Filters::_mac_former($attr->{CPE_MAC});
   }
 
@@ -1693,23 +1711,12 @@ sub internet_registration_info {
   }
   $Internet->{PASSWORD} = $user->{PASSWORD} if (!$Internet->{PASSWORD});
 
-  if ($FORM{sms}) {
+  if (in_array('Sms', \@MODULES)) {
     load_module('Sms', $html);
-    my $message = $html->tpl_show(_include('internet_user_memo_sms', 'Internet'), { %$user, %$Internet, %$pi, %$company_info }, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
+    
+    send_user_memo({ %FORM, %$user, %$Internet, %$pi, %$company_info });
 
-    my $sms_id = sms_send(
-      {
-        NUMBER  => $users->{PHONE},
-        MESSAGE => $message,
-        UID     => $users->{UID},
-      });
-
-    if ($sms_id) {
-      return $html->message('info', $lang{INFO}, "SMS $lang{SENDED}");
-    }
-    else {
-      return $html->message('err', $lang{INFO}, "SMS $lang{NOT} $lang{SENDED}");
-    }
+    return;
   }
 
   print $html->header();
@@ -2477,7 +2484,7 @@ sub internet_cards {
       $FORM{'1.CREATE_BILL'} = 1;
       $line->{UID} = internet_wizard_add({ %FORM, SHORT_REPORT => 1 });
 
-      if ($line->{UID} < 1) {
+      if (! $line->{UID} || $line->{UID} < 1) {
         $html->message('err', "Cards:$lang{ERROR}", "$lang{LOGIN}: '$line->{LOGIN}' $line->{UID}", { ID => 929 });
         exit;
         #last if (!$line->{SKIP_ERRORS});
@@ -2591,7 +2598,11 @@ sub internet_user_wizard {
 
   $pi_form{ADDRESS_TPL} = form_address({ FLAT_CHECK_FREE => 1, SHOW => 1 });
 
-  my $list = $Nas->ip_pools_list({ STATIC => 1, COLS_NAME => 1 });
+  my $list = $Nas->ip_pools_list({
+    DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+    STATIC => 1,
+    COLS_NAME => 1,
+  });
 
   $internet_defaults->{STATIC_IP_POOL} = $html->form_select(
     'STATIC_IP_POOL',
@@ -2806,7 +2817,7 @@ sub internet_wizard_add {
       }
     }
 
-    if ($add_values{3} && $add_values{3}{ADDRESS_FULL}) {
+    if ($add_values{3} && $add_values{3}{ADDRESS_FULL} && ! $add_values{3}{ADDRESS_STREET}) {
       $add_values{3}{ADDRESS_STREET} = $add_values{3}{ADDRESS_FULL};
     }
 
@@ -2909,29 +2920,14 @@ sub internet_wizard_add {
     }
 
     #4 Internet - Make Internet service only with TP
-    if ($add_values{4}{TP_ID} || $add_values{4}{TP_NUM}) {
-
-      if ($add_values{4}{TP_NUM}) {
-        my $tp_list = $Tariffs->list({ TP_ID => $add_values{4}{TP_NUM}, COLS_NAME => 1 });
-
-        if ($Tariffs->{TOTAL} == 0) {
-          my $tp_name = ($add_values{4}{TP_NAME}) ? $add_values{4}{TP_NAME} : "$lang{TARIF_PLAN}: $add_values{4}{TP_NUM}";
-
-          $Tariffs->add({
-            ID                => $add_values{4}{TP_NUM},
-            NAME              => $tp_name,
-            MONTH_FEE         => $add_values{4}{MONTH_FEE},
-            USER_CREDIT_LIMIT => $add_values{4}{USER_CREDIT_LIMIT},
-            MODULE            => 'Internet'
-          });
-
-          $add_values{4}{TP_ID} = $Tariffs->{TP_ID};
-          $html->message('info', $lang{ADD}, $lang{TARIF_PLAN} . ": $add_values{4}{TP_NUM} ($Tariffs->{TP_ID})");
-        }
-        else {
-          $add_values{4}{TP_ID} = $tp_list->[0]->{tp_id};
-        }
+    if ($add_values{4}{TP_ID} || $add_values{4}{TP_NUM} || $add_values{4}{TP_NAME}) {
+      #Get NAS ID by IP
+      if($add_values{4}{NAS_IP}) {
+        $Nas->info({ IP => $add_values{4}{NAS_IP} });
+        $add_values{4}{NAS_ID} = $Nas->{NAS_ID};
       }
+
+      $add_values{4}{TP_ID} = _check_tp({ %{ $add_values{4}}, MODULE => 'Internet' });
 
       my $result = internet_user_add({
         %{$add_values{4}},
@@ -2994,7 +2990,12 @@ sub internet_wizard_add {
       %FORM = %{$add_values{9}};
       $FORM{UID} = $uid;
       $FORM{change} = $uid;
-      abon_user({ QUITE => 1 });
+      abon_user({
+        QUITE    => 1,
+        TP_NAMES => $FORM{TP_NAMES},
+        CHECK_TP => $FORM{TP_NAMES},
+        SKIP_FEE => 1
+      });
     }
 
     #Fees wizard form
@@ -3015,6 +3016,7 @@ sub internet_wizard_add {
       $FORM{add} = $uid;
 
       if (defined(&iptv_user_add)) {
+        $FORM{TP_ID} = _check_tp({ %{ $add_values{11} }, MODULE => 'Iptv' });
         iptv_user_add(\%FORM);
 
         if($FORM{SCREEN_IDS}) {
@@ -3118,6 +3120,57 @@ sub internet_wizard_add {
 
   return $uid;
 }
+
+#*******************************************************************
+=head2 _check_tp($attr)
+
+  Arguments:
+    $attr
+
+  Resturn;
+    tp_id
+
+=cut
+#*******************************************************************
+sub _check_tp {
+  my ($attr) = @_;
+
+  my $module = $attr->{MODULE} || 'Internet';
+
+  if($attr->{TP_ID}) {
+    return $attr->{TP_ID};
+  }
+
+  if ($attr->{TP_NUM} || $attr->{TP_NAME}) {
+    my $tp_list = $Tariffs->list({
+      TP_ID     => $attr->{TP_NUM},
+      NAME      => $attr->{TP_NAME},
+      MODULE    => $module,
+      COLS_NAME => 1
+    });
+
+    if ($Tariffs->{TOTAL} == 0) {
+      $Tariffs->add({
+        ID                => $attr->{TP_NUM},
+        NAME              => (! $attr->{TP_NAME}) ? "$lang{TARIF_PLAN}: $attr->{TP_NUM}" : $attr->{TP_NAME},
+        MONTH_FEE         => $attr->{MONTH_FEE},
+        DAY_FEE           => $attr->{DAY_FEE},
+        USER_CREDIT_LIMIT => $attr->{USER_CREDIT_LIMIT},
+        MODULE            => $module
+      });
+
+      $attr->{TP_ID} = $Tariffs->{TP_ID};
+      $html->message('info', $lang{ADD}, $lang{TARIF_PLAN} . ": ". ($attr->{TP_NUM} || $attr->{TP_NAME}). " ($Tariffs->{TP_ID})");
+    }
+    else {
+      $attr->{TP_ID} = $tp_list->[0]->{tp_id};
+    }
+  }
+
+  return $attr->{TP_ID};
+}
+
+
 #**********************************************************
 =head2 internet_users_pools($attr) - Binding ip_pool to user
 
@@ -3128,10 +3181,12 @@ sub internet_wizard_add {
 =cut
 #**********************************************************
 sub internet_users_pools {
+
   if (!$FORM{ID}) {
-    $html->message('danger', "$lang{MESSAGE}", "$lang{ADD_SERVICE}");
+    $html->message('err', $lang{ERROR}, $lang{ADD_SERVICE});
     return 1;
   }
+
   if ($FORM{ID}) {
     print user_service_menu({
       SERVICE_FUNC_INDEX => get_function_index('internet_user'),
@@ -3140,7 +3195,13 @@ sub internet_users_pools {
       MK_MAIN            => 1
     });
   }
-  my $get_ip_pool = $Nas->ip_pools_list({ STATIC => 0, COLS_NAME => 1 });
+
+  my $get_ip_pool = $Nas->ip_pools_list({
+    DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+    STATIC => 0,
+    COLS_NAME => 1
+  });
+
   my %template_args = ();
   $template_args{ACTION} = 'add';
   $template_args{LNG_ACTION} = $lang{SAVE};
@@ -3151,11 +3212,14 @@ sub internet_users_pools {
       MESSAGE => "$lang{DEL}? ",
       class   => 'btn btn-danger pull-right'
     });
+
   if ($FORM{add}) {
     $Internet->add_user_ippool({
       SERVICE_ID => $FORM{ID},
       POOL_ID    => $FORM{POOL_ID},
-      COMMENTS   => $FORM{COMMENTS} });
+      COMMENTS   => $FORM{COMMENTS}
+    });
+
     if (!$Internet->{errno}) {
       $html->message('success', "$lang{SUCCESS}", "$lang{ADDED}");
     }
@@ -3166,16 +3230,17 @@ sub internet_users_pools {
       $html->message('success', "$lang{SUCCESS}", "$lang{DELETED}");
     }
   }
+
   my $info_users_pool = $Internet->info_user_ippool({ SERVICE_ID => $FORM{ID} });
   $template_args{COMMENTS} = $info_users_pool->{comments} || '';
-  $template_args{POOL_ID} = $html->form_select(
-    'POOL_ID', {
+  $template_args{POOL_ID} = $html->form_select('POOL_ID',
+    {
     SELECTED    => $info_users_pool->{pool_id} || '',
     SEL_LIST    => $get_ip_pool,
     NO_ID       => 1,
     SEL_OPTIONS => { '' => '' },
-  }
-  );
+  });
+
   $html->tpl_show(_include('internet_users_pool', 'Internet'), { %template_args, ID => $FORM{ID}, UID => $FORM{UID} });
 
   return 1;

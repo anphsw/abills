@@ -230,10 +230,9 @@ sub users_list {
 
   my $search_columns = [
     [ 'UID',                'INT', 'cm.uid',                                  ],
-    [ 'LOGIN',              'STR', 'u.id as login',                         1 ],
     [ 'ID',                 'INT', 'cm.id',                                 1 ],
     [ 'TP_ID',              'INT', 'cm.tp_id',                              1 ],
-    [ 'STATUS',             'INT', 'cm.status',                             1 ],
+    [ 'SERVICE_STATUS',     'INT', 'cm.status as service_status',           1 ],
     [ 'TP_NAME',            'STR', 'tp.name as tp_name',                    1 ],
     [ 'TP_STREAMS_COUNT',   'INT', 'ctp.streams_count as tp_streams_count', 1 ],
     [ 'USER_STREAMS_COUNT', 'INT', 'COUNT(*) as user_streams_count',        1 ],
@@ -248,7 +247,17 @@ sub users_list {
     map {$attr->{ $_->[0] } = '_SHOW' unless (exists $attr->{ $_->[0] })} @{$search_columns};
   }
 
-  my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
+  my $EXT_TABLE = '';
+  $self->{EXT_TABLES} = '';
+
+  my $WHERE = $self->search_former($attr, $search_columns, {
+    WHERE             => 1,
+    USERS_FIELDS_PRE  => 1,
+    USE_USER_PI       => 1,
+    SKIP_USERS_FIELDS => [ 'UID' ]
+  });
+
+  $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
   $self->query2(
     "SELECT $self->{SEARCH_FIELDS} cm.uid
@@ -258,6 +267,7 @@ sub users_list {
    LEFT JOIN cams_tp ctp       ON (cm.tp_id=ctp.tp_id)
    LEFT JOIN tarif_plans tp    ON (cm.tp_id=tp.tp_id)
    LEFT JOIN cams_services s   ON (tp.service_id=s.id)
+   $EXT_TABLE
    $WHERE GROUP BY cm.id LIMIT $PG, $PAGE_ROWS ;",
     undef,
     {

@@ -26,7 +26,7 @@ use Equipment;
 use Events;
 use Events::API;
 use Data::Dumper;
-use Abills::Base qw(load_pmodule in_array check_time gen_time in_array);
+use Abills::Base qw(load_pmodule in_array check_time gen_time);
 use FindBin '$Bin';
 
 use threads;
@@ -51,13 +51,7 @@ require Equipment::Grabbers;
 require Equipment::Pon_mng;
 require Equipment::Graph;
 
-if ($argv->{NAS_IDS} && !$argv->{CPE_FILL}) {
-  _equipment_pon_load($argv->{NAS_IDS});
-}
-elsif ($argv->{multi}) {
-  _equipment_pon_multi();
-}
-elsif ($argv->{SERIAL_SCAN}) {
+if ($argv->{SERIAL_SCAN}) {
   _scan_mac_serial();
 }
 elsif ($argv->{SNMP_SERIAL_SCAN_ALL}) {
@@ -68,6 +62,9 @@ elsif ($argv->{CPE_FILL} || $argv->{FORCE_FILL}) {
 }
 elsif ($argv->{CPE_CHECK}) {
   _check_port_and_nas_from_internet_main();
+}
+elsif ($argv->{FILL_CPE_FROM_NAS_AND_PORT}) {
+  _fill_cpe_from_nas_and_port();
 }
 else {
   _equipment_pon();
@@ -90,47 +87,7 @@ sub _equipment_pon {
     $Equipment->{debug} = 1;
   }
   my $equipment_list = $Equipment->_list({
-    COLS_NAME => 1,
-    PAGE_ROWS => 100000,
-    STATUS    => '0',
-    TYPE_NAME => '4',
-  });
-
-  foreach my $line (@$equipment_list) {
-    #    my $zz = `/usr/abills/libexec/billd equipment_pon NAS_ID=$line->{nas_id}`;
-    _equipment_pon_load($line->{nas_id});
-  }
-
-  return 1;
-}
-#**********************************************************
-=head2 _equipment_pon_load($nas_id)
-
-=cut
-#**********************************************************
-sub _equipment_pon_load {
-  my ($nas_id) = @_;
-
-  my $pon_begin_time = check_time();
-  our $SNMP_TPL_DIR = $Bin . "/../Abills/modules/Equipment/snmp_tpl/";
-  #"/usr/abills/Abills/modules/Equipment/snmp_tpl/";
-
-  $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef }, \%conf);
-  if (!$db->{db}) {
-    print "Error: SQL connect error\n";
-    exit;
-  }
-
-  my $admin_ = Admins->new($db, \%conf);
-  $admin_->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
-  $Equipment = Equipment->new($db, $admin_, \%conf);
-
-  if ($debug > 6) {
-    $Equipment->{debug} = 1;
-  }
-
-  my $Equipment_list = $Equipment->_list({
-    NAS_ID           => $nas_id,
+    NAS_ID           => $argv->{NAS_IDS},
     NAS_NAME         => '_SHOW',
     MODEL_ID         => '_SHOW',
     REVISION         => '_SHOW',
@@ -148,26 +105,74 @@ sub _equipment_pon_load {
     LOCATION_ID      => '_SHOW',
     VENDOR_NAME      => '_SHOW',
     SNMP_VERSION     => '_SHOW',
-    TYPE_NAME        => '',
+    TYPE_NAME        => $argv->{NAS_IDS} ? '' : '4',
+    STATUS           => $argv->{NAS_IDS} ? '_SHOW' : '0',
+    PAGE_ROWS        => 100000,
     COLS_NAME        => 1
   });
 
   if ($Equipment->{TOTAL} < 1) {
-    print "No found any pon equipment\n";
+    print "Not found any pon equipment\n";
     return 1;
   }
 
-  my $nas_info = $Equipment_list->[0];
-  $Equipment->model_info($nas_info->{model_id});
+  if ($argv->{multi}) {
+    my @threads = ();
+    foreach my $line (@$equipment_list) {
+      my threads $t = threads->create(\&_equipment_pon_load, $line);
+      push @threads, $t;
+      $t->detach();
+
+      while (wait_ps(\@threads, $running_threads)) {
+
+      }
+    }
+
+    while (wait_ps(\@threads, 0)) {
+      print "Wait finish\n" if ($debug > 3);
+    }
+  }
+  else {
+    foreach my $line (@$equipment_list) {
+      _equipment_pon_load($line);
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _equipment_pon_load($nas_id)
+
+=cut
+#**********************************************************
+sub _equipment_pon_load {
+  my ($nas_info) = @_;
+  my $nas_id = $nas_info->{nas_id};
+
+  my $pon_begin_time = check_time();
+  our $SNMP_TPL_DIR = $Bin . "/../Abills/modules/Equipment/snmp_tpl/";
+  #"/usr/abills/Abills/modules/Equipment/snmp_tpl/";
+
+  #needed for multi, each thread must have its own connection
+  $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef }, \%conf);
+  if (!$db->{db}) {
+    print "Error: SQL connect error\n";
+    exit;
+  }
+
+  my $admin_ = Admins->new($db, \%conf);
+  $admin_->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
+  $Equipment = Equipment->new($db, $admin_, \%conf);
+
+
   if (!$nas_info->{nas_ip}) {
     print "NAS_ID: $nas_info->{nas_id} deleted\n";
-    # next;
     return 1;
   }
   elsif (!$nas_info->{nas_mng_password}) {
     print "NAS_ID: $nas_info->{nas_id} COMMUNITY not defined\n";
     $nas_info->{nas_mng_password} = 'public';
-    #next;
   }
 
   my $SNMP_COMMUNITY = "$nas_info->{nas_mng_password}\@" . (($nas_info->{nas_mng_ip_port}) ? $nas_info->{nas_mng_ip_port} : $nas_info->{nas_ip});
@@ -190,20 +195,23 @@ sub _equipment_pon_load {
         NAS_ID     => $nas_id
       });
 
-      #Add ports
       if ($argv->{RELOAD}) {
         if ($debug > 2) {
           print "Reload ports: $Equipment->{TOTAL}\n";
         }
 
-        foreach my $line (@$port_list) {
+        my @del_ports = map { $_->{ID} } @$port_list;
+        if (@del_ports) {
+          my $del_ports_str = join (',', @del_ports);
+
           if ($debug > 1) {
-            print "Delete onu port: $line->{ID} \n";
+            print "Delete onu ports: $del_ports_str\n";
           }
 
-          $Equipment->onu_del(0, { PORT_ID => $line->{ID} });
-          $Equipment->pon_port_del($line->{ID});
+          $Equipment->onu_del(0, { PORT_ID => \@del_ports });
+          $Equipment->pon_port_del($del_ports_str);
         }
+
         $Equipment->{TOTAL} = 0;
       }
 
@@ -213,8 +221,8 @@ sub _equipment_pon_load {
           SNMP_COMMUNITY => $SNMP_COMMUNITY,
           NAS_ID         => $nas_id,
           NAS_TYPE       => $nas_type,
-          MODEL_NAME     => $Equipment->{MODEL_NAME},
-          SNMP_TPL       => $Equipment->{SNMP_TPL},
+          MODEL_NAME     => $nas_info->{model_name},
+          SNMP_TPL       => $nas_info->{snmp_tpl},
         });
 
         $port_list = $Equipment->pon_port_list({
@@ -228,14 +236,13 @@ sub _equipment_pon_load {
         $olt_ports->{$line->{snmp_id}} = $line;
       }
 
-      #my $olt_ports = equipment_pon_get_ports({SNMP_COMMUNITY => $SNMP_COMMUNITY, NAS_ID => $nas_id, NAS_TYPE => $nas_type, MODEL_NAME => $Equipment->{MODEL_NAME}, SNMP_TPL => $Equipment->{SNMP_TPL}});
       my $onu_snmp_list = &{\&$onu_list_fn}($olt_ports, {
         VERSION        => $nas_info->{snmp_version} || 1,
         SNMP_COMMUNITY => $SNMP_COMMUNITY,
         TIMEOUT        => $argv->{TIMEOUT} || 5,
         SKIP_TIMEOUT   => 1,
         DEBUG          => $debug,
-        MODEL_NAME     => $Equipment->{MODEL_NAME},
+        MODEL_NAME     => $nas_info->{model_name},
         TYPE           => 'dhcp'
       });
 
@@ -248,7 +255,7 @@ sub _equipment_pon_load {
         PAGE_ROWS  => 100000,
         ONU_GRAPH  => '_SHOW',
         COMMENTS   => '_SHOW',
-        ONU_STATUS => '_SHOW',
+        STATUS => '_SHOW',
       });
 
       my $created_onu = ();
@@ -256,19 +263,27 @@ sub _equipment_pon_load {
         $created_onu->{ $onu->{onu_snmp_id} }->{ONU_GRAPH} = $onu->{onu_graph};
         $created_onu->{ $onu->{onu_snmp_id} }->{ONU_DESC} = $onu->{comments} || '';
         $created_onu->{ $onu->{onu_snmp_id} }->{ID} = $onu->{id};
-        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_STATUS} = $onu->{onu_status};
+        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_STATUS} = $onu->{status};
       }
+
+
+      my $onu_status_fn = $nas_type . '_onu_status';
 
       my @MULTI_QUERY = ();
       my @ONU_ADD = ();
-      #print Dumper $onu_list;
       my %pon_types_oids = ();
       foreach my $onu (@$onu_snmp_list) {
-        if ($created_onu->{ $onu->{ONU_SNMP_ID} }) {
-          #          if($debug > 6) {
-          #            print "$nas_type TYPE => $onu->{PON_TYPE} \n";
-          #          }
+        my $onu_status_converter = &{\&$onu_status_fn}($onu->{PON_TYPE});
+        if ($onu_status_converter) {
+          if (defined $onu->{ONU_STATUS}) {
+            $onu->{ONU_STATUS} = $onu_status_converter->{$onu->{ONU_STATUS}};
+          }
+          if (!defined $onu->{ONU_STATUS}) {
+            $onu->{ONU_STATUS} = 1000; #NOT_EXPECTED_STATUS
+          }
+        }
 
+        if ($created_onu->{ $onu->{ONU_SNMP_ID} }) {
           if (! $pon_types_oids{$onu->{PON_TYPE}}) {
             $pon_types_oids{$onu->{PON_TYPE}} = &{\&{$nas_type}}({ TYPE => $onu->{PON_TYPE}, MODEL => ($nas_info->{model_name} || '') });
           }
@@ -326,11 +341,10 @@ sub _equipment_pon_load {
             '0',
             $created_onu->{ $onu->{ONU_SNMP_ID} }->{ID}
           ];
-          #$Equipment->onu_change( { ID => $created_onu->{ $onu->{ONU_SNMP_ID} }->{ID}, NAS_ID => $nas_id, %{$onu} } );
+
           delete $created_onu->{ $onu->{ONU_SNMP_ID} };
         }
         else {
-          #$Equipment->onu_add( { NAS_ID => $nas_id, %{$onu} } );
           push @ONU_ADD, [
             $onu->{OLT_RX_POWER} || '',
             $onu->{ONU_RX_POWER} || '',
@@ -391,7 +405,7 @@ sub _equipment_pon_load {
   }
 
   if ($debug) {
-    print "NAS_TYPE : " . ($nas_info->{NAME} || q{}) . " MODEL_NAME: " . ($Equipment->{MODEL_NAME} || q{}) . ", NAS_IP: $nas_info->{nas_ip}"
+    print "NAS_TYPE : " . ($nas_info->{NAME} || q{}) . " MODEL_NAME: " . ($nas_info->{model_name} || q{}) . ", NAS_IP: $nas_info->{nas_ip}"
       . " NAS_ID: $nas_id, ONU: $onu_counts " . gen_time($pon_begin_time) . "\n";
   }
 
@@ -437,40 +451,6 @@ sub wait_ps {
   #Finish
   return 0;
 }
-
-#**********************************************************
-=head2 _equipment_pon_multi()
-
-=cut
-#**********************************************************
-sub _equipment_pon_multi {
-
-  my @threads = ();
-
-  my $equipment_list = $Equipment->_list({
-    COLS_NAME => 1,
-    PAGE_ROWS => 100000,
-    STATUS    => '0',
-    TYPE_NAME => '4',
-  });
-
-  foreach my $line (@$equipment_list) {
-    my threads $t = threads->create(\&_equipment_pon_load, $line->{nas_id});
-    push @threads, $t;
-    $t->detach();
-
-    while (wait_ps(\@threads, $running_threads)) {
-
-    }
-  }
-
-  while (wait_ps(\@threads, 0)) {
-    print "Wait finish\n" if ($debug > 3);
-  }
-
-  return 1;
-}
-
 
 #**********************************************************
 =head2 pon_alert($attr)
@@ -532,8 +512,7 @@ sub _scan_mac_serial {
     ID         => "_SHOW",
   });
   
-  my @mac_array = ();
-  my @dublicate = ();
+  my %mac_nas_ids = ();
   foreach my $pon (@$equipment_list) {
     my $onu_list = $Equipment->onu_list({
       COLS_NAME  => 1,
@@ -546,20 +525,16 @@ sub _scan_mac_serial {
     });
 
     foreach my $onu (@$onu_list) {
-      if ($onu->{mac_serial} && !in_array($onu->{mac_serial}, \@mac_array)) {
-        push @mac_array, $onu->{mac_serial};
-      }
-      elsif ($onu->{mac_serial}) {
-        push @dublicate, $onu;
+      if ($onu->{mac_serial}) {
+        push @{ $mac_nas_ids{$onu->{mac_serial}} }, $onu->{nas_id};
       }
     }
   }
 
-  if (scalar @dublicate != 0) {
-    my $message = "";
-
-    foreach my $element (@dublicate) {
-      $message = "Nas (id)" . $element->{nas_id} . " has " . $element->{mac_serial} . " mac_serial duplicate\n";
+  foreach my $mac (keys %mac_nas_ids) {
+    if (@{$mac_nas_ids{$mac}} > 1) {
+      my $nas_ids = join (', ', @{$mac_nas_ids{$mac}});
+      my $message = "mac_serial " . $mac . " duplicated on NAS ids " . $nas_ids . "\n";
       _generate_new_event($message);
     }
   }
@@ -692,15 +667,11 @@ sub _scan_mac_serial_on_all_nas {
 =cut
 #**********************************************************
 sub _save_port_and_nas_to_internet_main {
-  my $onu_list = $Equipment->onu_and_internet_cpe_list();
   require Internet;
-  my @ids = split ';', $argv->{NAS_IDS} || '';
+  my $onu_list = $Equipment->onu_and_internet_cpe_list({NAS_IDS => $argv->{NAS_IDS}});
   my $Internet = Internet->new($db, $Admin, \%conf);
   foreach my $line (@$onu_list) {
-    if ($argv->{NAS_IDS} && !in_array($line->{onu_nas}, \@ids)) {
-      next;
-    }
-    if ($argv->{FORCE_FILL} || !$line->{user_port} || !$line->{user_nas}) {
+    if (($argv->{FORCE_FILL} || !$line->{user_port} || !$line->{user_nas}) && ($line->{onu_nas})) {
       $Internet->change({
         UID    => $line->{uid},
         ID     => $line->{service_id},
@@ -730,6 +701,52 @@ sub _check_port_and_nas_from_internet_main {
       print "User:$line->{uid},  nas does not match user_nas:'$line->{user_nas}'/onu_nas:'$line->{onu_nas}'\n";
     }
   }
+  return 1;
+}
+
+#**********************************************************
+=head2 _fill_cpe_from_nas_and_port() - Find ONU MAC from customer's NAS and port and fill CPE MAC with it if empty
+
+=cut
+#**********************************************************
+sub _fill_cpe_from_nas_and_port {
+  require Internet;
+  my $Internet = Internet->new($db, $Admin, \%conf);
+
+  my $internet_list = $Internet->list({
+    NAS_ID  => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
+    PORT    => '_SHOW',
+    CPE_MAC => '_SHOW',
+    COLS_NAME => 1
+  });
+
+  my $onu_list = $Equipment->onu_list({
+    NAS_ID  => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
+    MAC_SERIAL => '_SHOW',
+    COLS_NAME => 1
+  });
+
+  my %macs_by_nas_port = ();
+
+  foreach my $line (@$onu_list) {
+    $macs_by_nas_port{$line->{nas_id}}{$line->{dhcp_port}} = $line->{mac_serial};
+  }
+
+  foreach my $line (@$internet_list) {
+    if ($line->{cpe_mac} || !$line->{nas_id} || !$line->{port}) {
+      next;
+    }
+
+    if ($macs_by_nas_port{$line->{nas_id}} && $macs_by_nas_port{$line->{nas_id}}{$line->{port}}) {
+      $Internet->change({
+        UID => $line->{uid},
+        ID  => $line->{id},
+        CPE_MAC => $macs_by_nas_port{$line->{nas_id}}{$line->{port}}
+      });
+      print "UID $line->{uid}: filled CPE MAC $macs_by_nas_port{$line->{nas_id}}{$line->{port}}\n";
+    }
+  }
+
   return 1;
 }
 

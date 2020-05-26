@@ -181,11 +181,8 @@ sub hangup {
   elsif ($nas_type eq 'ipcad'
     || $nas_type eq 'mikrotik_dhcp'
     || $nas_type eq 'dhcp'
-    || $nas_type eq 'dlink_pb'
-    || $nas_type eq 'dlink'
-    || $nas_type eq 'edge_core'
-    || $nas_type eq 'gpon'
-    || $nas_type eq 'epon'
+    || $nas_type eq 'ipn'
+    || ( $CONF->{INTERNET_IPOE_NAS_TYPES} && $CONF->{INTERNET_IPOE_NAS_TYPES} =~ /$nas_type/)
   ) {
     hangup_ipoe($Nas, \%params);
   }
@@ -837,6 +834,7 @@ sub hangup_ipoe {
     # ip / hangup / manage / snmp
     ($ENV{NAS_MNG_IP}, undef, $ENV{NAS_MNG_PORT}) = split(/:/, $NAS->{NAS_MNG_IP_PORT});
     $ENV{NAS_MNG_USER} = $NAS->{NAS_MNG_USER};
+    $ENV{NAS_MNG_PASSWORD} = $NAS->{NAS_MNG_PASSWORD};
     $ENV{NAS_MNG_IP_PORT} = $NAS->{NAS_MNG_IP_PORT};
     $ENV{NAS_ID} = $NAS->{NAS_ID};
     $ENV{NAS_TYPE} = $NAS->{NAS_TYPE};
@@ -862,9 +860,8 @@ sub hangup_ipoe {
     });
   }
 
-  my $stop_rule = $CONF->{INTERNET_IPOE_STOP} || $CONF->{IPN_FW_STOP_RULE};
-  if ($stop_rule) {
-    my $cmd = $stop_rule;
+  my $cmd = $CONF->{INTERNET_IPOE_STOP} || $CONF->{IPN_FW_STOP_RULE};
+  if ($cmd) {
     $cmd =~ s/\%IP/$ip/g;
     $cmd =~ s/\%MASK/$netmask/g;
     $cmd =~ s/\%NUM/$rule_num/g;
@@ -1092,7 +1089,7 @@ sub hangup_dslmax {
 }
 
 #***********************************************************
-=head1 hangup_mpd5($NAS, $PORT, $USER, $attr) - HANGUP MPD
+=head1 hangup_mpd5($NAS, $attr) - HANGUP MPD
 
 =cut
 #***********************************************************
@@ -1100,7 +1097,6 @@ sub hangup_mpd5 {
   my ($NAS, $attr) = @_;
 
   my $PORT = $attr->{PORT};
-  #my $USER = $attr->{USER};
 
   if (!$NAS->{NAS_MNG_IP_PORT}) {
     print "MPD Hangup failed. Can't find NAS IP and port. NAS: $NAS->{NAS_ID}\n";
@@ -1140,7 +1136,7 @@ sub hangup_mpd5 {
   return $result;
 }
 
-#####################################################################
+#***********************************************************
 =head2 hangup_radpppd() - radppp functions
 
   HANGUP radpppd

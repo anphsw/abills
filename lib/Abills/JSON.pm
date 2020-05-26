@@ -1,4 +1,4 @@
-package Abills::JSON_;
+package Abills::JSON;
 
 =head1 NAME
 
@@ -285,11 +285,11 @@ sub menu {
   my @menu_arr       = ();
   my $menu_navigator = '';
   my $menu_text      = '';
-  push @menu_arr, qq{"SID" : { "sid" : "$self->{SID}" } \n} if ($self->{SID});
 
   return $menu_navigator, $menu_text if ($FORM{NO_MENU});
 
   my $EX_ARGS = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
+  $EX_ARGS =~ s/&sid=\w+//g;
   my $fl = $attr->{FUNCTION_LIST};
 
   my %new_hash = ();
@@ -312,9 +312,11 @@ sub menu {
 
     next if ((!defined($attr->{ALL_PERMISSIONS})) && (!$permissions->{ $parent - 1 }) && $parent == 0);
     push @menu_arr,   " \"$fl->{$ID}\": {
-      \"ID\"       : \"$ID\",
-      \"EX_ARGS\"  : \"" . $self->link_former($EX_ARGS) . "\",
-      \"DESCRIBE\" : \"$val\",
+      \"ID\"       : \"$ID\", "
+
+      . (($EX_ARGS) ? "\"EX_ARGS-$EX_ARGS-\"  : \"" . $self->link_former($EX_ARGS) . "\"," : '')
+
+      . "\"DESCRIBE\" : \"$val\",
       \"TYPE\"     : \"MAIN\"\n }";
 
     if (defined($new_hash{$ID})) {
@@ -325,9 +327,11 @@ sub menu {
 
       while (my ($k, $val2) = each %$mi) {
         push @menu_arr, "$prefix \"sub_" . $fl->{$k} . "\": {
-          \"ID\"       : \"$k\",
-          \"EX_ARGS\"  : \"" . $self->link_former($EX_ARGS) . "\",
-          \"DESCRIBE\" : \"$val2\",
+          \"ID\"       : \"$k\","
+
+          . (($EX_ARGS) ? "\"EX_ARGS\"  : \"" . $self->link_former($EX_ARGS) . "\"," : q{})
+
+          . "\"DESCRIBE\" : \"$val2\",
           \"TYPE\"     : \"SUB\",
           \"PARENT\"   : \"$ID\"\n  }";
 
@@ -352,13 +356,12 @@ sub menu {
     }
   }
 
-  $menu_text .= join(",\n  ", @menu_arr);
+  $menu_text .= qq{"SID" : { "sid" : "$self->{SID}" }, \n} if ($self->{SID});
+  $menu_text .= "\"MENU\" : {" . join(",\n  ", @menu_arr) ."\n}";
 
   push @{ $self->{JSON_OUTPUT} }, $menu_text;
 
   return ('', '');
-
-  #return ($menu_navigator, $menu_text);
 }
 
 
@@ -372,7 +375,7 @@ sub header {
   my ($attr)     = @_;
 
   my $CHARSET = (defined($attr->{CHARSET})) ? $attr->{CHARSET} : $self->{CHARSET} || 'utf8';
-  $CHARSET =~ s/ //g;
+  $CHARSET =~ s/\s//g;
 
   if ($FORM{DEBUG}) {
     print "Content-Type: text/plain\n\n";
@@ -415,7 +418,7 @@ sub table {
 
   if ($attr->{FIELDS_IDS}) {
     $self->{FIELDS_IDS}  = $attr->{FIELDS_IDS};
-    $self->{TABLE_TITLE} = $attr->{title};
+    $self->{TABLE_TITLE} = $attr->{title} || $attr->{title_plain};
   }
 
   if ($attr->{rows}) {
@@ -440,7 +443,12 @@ sub table {
     #$self->{table} .= "{";
   }
   else {
-    $self->{table} .= "\"TABLE_" . $self->{ID} . "\" : {";
+    if ($attr->{MAIN_BODY}) {
+      $self->{table} .= "{ \"NAME\" : \"TABLE_" . $self->{ID} . "\",";
+    }
+    else {
+      $self->{table} .= "\"TABLE_" . $self->{ID} . "\" : {";
+    }
   }
 
   if (defined($attr->{caption})) {
@@ -460,6 +468,16 @@ sub table {
   }
   elsif (defined($attr->{title_plain})) {
     $self->{table} .= $self->table_title_plain($attr->{title_plain});
+  }
+
+  if (ref($self->{FIELDS_IDS}) eq 'HASH') {
+    $self->{table} .= "\"EXT_DATA\" : [";
+
+    foreach (keys %{ $self->{FIELDS_IDS} }) {
+      $self->{table} .= "\"$self->{FIELDS_IDS}{$_}\",\n";
+    }
+
+    $self->{table} .= "]";
   }
 
   if ($attr->{pages} && !$FORM{EXPORT_CONTENT}) {
@@ -499,16 +517,15 @@ sub addrow {
   for (my $i=0; $i<=$#row; $i++) {
     my $val = $row[$i+$select_present];
     if ($self->{FIELDS_IDS}) {
-      #if (! $self->{FIELDS_IDS}->[$i] || $self->{TABLE_TITLE}->[$i+$select_present]) {
       if ($self->{TABLE_TITLE}->[$i]) {
-        #print "---- $self->{TABLE_TITLE}->[$i] ----<br>\n";
         if(! $self->{FIELDS_IDS}->[$i]) {
           next;
         }
-        #print "-- $i -> ". ($self->{TABLE_TITLE}->[$i+$select_present]) ."\n";
+
         $val =~ s/[\n\r]/ /g;
         $val =~ s/\"/\\\"/g;
         $val =~ s/\t/ /g;
+
         push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : \"$val\"";
       }
     }
@@ -669,7 +686,7 @@ sub show {
   my $self = shift;
   my ($attr) = @_;
 
-  if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) {
+  if (($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) || ($attr->{DUBLICATE_DATA})) {
     return '';
   }
 
@@ -677,17 +694,19 @@ sub show {
     @table_rows = @{ $self->{table_rows} };
   }
 
- # if (defined($self->{pages})) {
- #   $self->{show} = $self->{show} . ',' . $self->{pages};
- # }
-
-  my $json_body = $self->{table}
-    . "\"DATA_1\" : [\n  "
-    . join(",\n ", @table_rows)
-    . "\n] ";
+  my $json_body ='';
+  if (ref($self->{FIELDS_IDS}) eq 'HASH') {
+    $json_body = $self->{table};
+  }
+  else {
+    $json_body = $self->{table}
+      . "\"DATA_1\" : [\n  "
+      . join(",\n ", @table_rows)
+      . "\n] ";
+  }
 
   $json_body .= '}' if (! $FORM{EXPORT_CONTENT});
-
+  
   if (! $attr->{OUTPUT2RETURN})  {
     push @{ $self->{HTML}{JSON_OUTPUT} }, $json_body;
     return '';
@@ -992,6 +1011,9 @@ sub tpl_show {
       };
     }
     return ;
+  }
+  elsif ($self->{SELECT}) {
+    return '';
   }
   else {
     return qq{ "$tpl_id" : $json_body };

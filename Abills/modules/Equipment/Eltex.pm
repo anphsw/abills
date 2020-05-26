@@ -20,7 +20,8 @@ use Abills::Base qw(_bp);
 our (
   $debug,
   %lang,
-  $html
+  $html,
+  %ONU_STATUS_TEXT_CODES
 );
 
 #**********************************************************
@@ -32,12 +33,9 @@ sub _eltex_get_ports {
   my ($attr) = @_;
   #  show_hash($attr, { DELIMITER => '<br>' });
   my $ports_info = ();
-  if ($attr->{MODEL_NAME} =~ /^LTP-[8,4]X/) {
-    $ports_info = _eltex_ltp_get_ports($attr);
-    return \%{$ports_info};
-  }
-  if ($attr->{MODEL_NAME} =~ /MA4000/) {
-    $ports_info = _eltex_ma4000_get_ports($attr);
+
+  if ($attr->{MODEL_NAME} =~ /(^LTP-[8,4]X|MA4000)/) {
+    $ports_info = _eltex_gpon_get_ports($attr);
     return \%{$ports_info};
   }
   my $count_oid = '.1.3.6.1.4.1.35265.1.21.1.8.0';
@@ -93,39 +91,39 @@ sub _eltex_get_ports {
 
 =cut
 #**********************************************************
-sub _eltex_ltp_get_ports {
-  my ($attr) = @_;
-  my $ports_info = equipment_test({
-    %{$attr},
-    TIMEOUT   => 5,
-    VERSION   => 2,
-    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT'
-  });
+#sub _eltex_ltp_get_ports {
+#  my ($attr) = @_;
+#  my $ports_info = equipment_test({
+#    %{$attr},
+#    TIMEOUT   => 5,
+#    VERSION   => 2,
+#    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT'
+#  });
 
-  #  _bp('', \$ports_info, {HEADER=>1});
-  foreach my $key (keys %{$ports_info}) {
-    if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} =~ /^250$/ && $ports_info->{$key}{PORT_NAME} =~ /PON channel (\d+)/) {
-      my $type = 'gpon';
-      #my $branch = decode_port($key);
-      $ports_info->{$key}{BRANCH} = "0/$1";
-      $ports_info->{$key}{PON_TYPE} = $type;
-      $ports_info->{$key}{SNMP_ID} = $key;
-      $ports_info->{$key}{BRANCH_DESC} = $ports_info->{$key}{PORT_DESCR};
-    }
-    else {
-      delete($ports_info->{$key});
-    }
-  }
-
-  return $ports_info;
-}
+#  #  _bp('', \$ports_info, {HEADER=>1});
+#  foreach my $key (keys %{$ports_info}) {
+#    if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} =~ /^250$/ && $ports_info->{$key}{PORT_NAME} =~ /PON channel (\d+)/) {
+#      my $type = 'gpon';
+#      #my $branch = decode_port($key);
+#      $ports_info->{$key}{BRANCH} = "0/$1";
+#      $ports_info->{$key}{PON_TYPE} = $type;
+#      $ports_info->{$key}{SNMP_ID} = $key;
+#      $ports_info->{$key}{BRANCH_DESC} = $ports_info->{$key}{PORT_DESCR};
+#    }
+#    else {
+#      delete($ports_info->{$key});
+#    }
+#  }
+#
+#  return $ports_info;
+#}
 
 #**********************************************************
-=head2 _eltex_ma4000_get_ports($attr) - Get OLT ports
+=head2 _eltex_gpon_get_ports($attr) - Get OLT ports
 
 =cut
 #**********************************************************
-sub _eltex_ma4000_get_ports {
+sub _eltex_gpon_get_ports {
   my ($attr) = @_;
   my $ports_info = ();
   my $ports_tmp = ();
@@ -211,7 +209,6 @@ sub _eltex_onu_list {
       $port_ids{$port_list->{$snmp_id}{BRANCH}} = $port_list->{$snmp_id}{ID};
     }
   }
-  if ($attr->{MODEL_NAME} =~ /MA4000/) { %pon_types = ('gpon' => 1); }
 
   foreach my $pon_type (keys %pon_types) {
     my $snmp = _eltex({ TYPE => $pon_type });
@@ -254,7 +251,7 @@ sub _eltex_onu_list {
         my @oid_octets = split(/\./, $index);
 
         my $onu_id;
-        if ($attr->{MODEL_NAME} =~ /MA4000/) {
+        if ($attr->{MODEL_NAME} =~ /(^LTP-[8,4]X|MA4000)/) {
           $onu_id = $index;
           $onu_cur_status{$onu_id}{PORT} = (defined $port) ? $oid_octets[0]-1 . '/' . $port : 0;
         }
@@ -273,7 +270,7 @@ sub _eltex_onu_list {
         next if (!$line);
         my ($index, $onu_id2) = split(/:/, $line);
         my $onu_id;
-        if ($attr->{MODEL_NAME} =~ /MA4000/) {
+        if ($attr->{MODEL_NAME} =~ /(^LTP-[8,4]X|MA4000)/) {
           $onu_id = $index;
         }
         else {
@@ -292,7 +289,7 @@ sub _eltex_onu_list {
 
       if ($type ne '') {
         $onu_id = $index;
-        if ($attr->{MODEL_NAME} !~ /MA4000/) {
+        if ($attr->{MODEL_NAME} !~ /(^LTP-[8,4]X|MA4000)/) {
           $onu_id =~ s/\d+\.//g;
         }
       }
@@ -304,8 +301,10 @@ sub _eltex_onu_list {
     foreach my $line (@{$onu_mac_list}) {
       next if (!$line);
       my ($onu_id, $mac) = split(/:/, $line, 2);
+      next if ($onu_cur_status{$onu_id}{STATUS} == 13);
+
       $type = $onu_id;
-      if ($attr->{MODEL_NAME} !~ /MA4000/) {
+      if ($attr->{MODEL_NAME} !~ /(^LTP-[8,4]X|MA4000)/) {
         $onu_id =~ s/\d+\.//g;
       }
       my $onu_mac = '';
@@ -317,11 +316,11 @@ sub _eltex_onu_list {
         $onu_snmp_id = mac2dec($onu_mac);
       }
       else {
-        $onu_mac = uc(join('', unpack("AAAAH*", $mac || q{})));
+        $onu_mac = _eltex_convert_mac($mac);
         $onu_snmp_id = $type;
       }
 
-      my $port_prefix = ($attr->{MODEL_NAME} =~ /MA4000/) ? '' : '0/';
+      my $port_prefix = ($attr->{MODEL_NAME} =~ /(^LTP-[8,4]X|MA4000)/) ? '' : '0/';
       $onu_info{PORT_ID} = (defined($onu_cur_status{$onu_id}{PORT})) ? $port_ids{$port_prefix . $onu_cur_status{$onu_id}{PORT}} : $port_ids{ANY};
 
       $onu_info{ONU_ID}         = $onu_cur_status{$onu_id}{ONU_ID2}; #$onu_id;
@@ -374,25 +373,50 @@ sub _eltex_onu_list {
 =cut
 #**********************************************************
 sub _eltex_onu_status {
+  my ($pon_type) = @_;
 
-  my %status = (
-    0  => 'offline:text-red',
-    1  => 'allocated',
-    2  => 'authInProgress',
-    3  => 'cfgInProgress',
-    4  => 'authFailed',
-    5  => 'cfgFailed',
-    6  => 'reportTimeout',
-    7  => 'ok:text-green',
-    8  => 'authOk',
-    9  => 'resetInProgress',
-    10 => 'resetOk',
-    11 => 'discovered',
-    12 => 'blocked',
-    13 => 'checkNewFw',
-    14 => 'unidentified',
-    15 => 'unconfigured',
-  );
+  my %status = ();
+  if ($pon_type eq 'gepon') {
+    %status = (
+      0  => $ONU_STATUS_TEXT_CODES{OFFLINE},           #free
+      1  => $ONU_STATUS_TEXT_CODES{ALLOCATED},         #allocated
+      2  => $ONU_STATUS_TEXT_CODES{AUTH_IN_PROGRESS},  #authInProgress
+      3  => $ONU_STATUS_TEXT_CODES{CFG_IN_PROGRESS},   #cfgInProgress
+      4  => $ONU_STATUS_TEXT_CODES{AUTH_FAILED},       #authFailed
+      5  => $ONU_STATUS_TEXT_CODES{CFG_FAILED},        #cfgFailed
+      6  => $ONU_STATUS_TEXT_CODES{REPORT_TIMEOUT},    #reportTimeout
+      7  => $ONU_STATUS_TEXT_CODES{ONLINE},            #ok
+      8  => $ONU_STATUS_TEXT_CODES{AUTH_OK},           #authOk
+      9  => $ONU_STATUS_TEXT_CODES{RESET_IN_PROGRESS}, #resetInProgress
+      10 => $ONU_STATUS_TEXT_CODES{RESET_OK},          #resetOk
+      11 => $ONU_STATUS_TEXT_CODES{DISCOVERED},        #discovered
+      12 => $ONU_STATUS_TEXT_CODES{BLOCKED},           #blocked
+      13 => $ONU_STATUS_TEXT_CODES{CHECK_NEW_FW},      #checkNewFw
+      14 => $ONU_STATUS_TEXT_CODES{UNIDENTIFIED},      #unidentified
+      15 => $ONU_STATUS_TEXT_CODES{UNCONFIGURED},      #unconfigured
+    );
+  }
+  elsif ($pon_type eq 'gpon') {
+    %status = (
+      0  => $ONU_STATUS_TEXT_CODES{OFFLINE},           #free
+      1  => $ONU_STATUS_TEXT_CODES{ALLOCATED},         #allocated
+      2  => $ONU_STATUS_TEXT_CODES{AUTH_IN_PROGRESS},  #authInProgress
+      3  => $ONU_STATUS_TEXT_CODES{AUTH_FAILED},       #authFailed
+      4  => $ONU_STATUS_TEXT_CODES{AUTH_OK},           #authOk
+      5  => $ONU_STATUS_TEXT_CODES{CFG_IN_PROGRESS},   #cfgInProgress
+      6  => $ONU_STATUS_TEXT_CODES{CFG_FAILED},        #cfgFailed
+      7  => $ONU_STATUS_TEXT_CODES{ONLINE},            #ok
+      8  => $ONU_STATUS_TEXT_CODES{FAILED},            #failed
+      9  => $ONU_STATUS_TEXT_CODES{BLOCKED},           #blocked
+      10 => $ONU_STATUS_TEXT_CODES{MIBRESET},          #mibreset
+      11 => $ONU_STATUS_TEXT_CODES{PRECONFIG},         #preconfig
+      12 => $ONU_STATUS_TEXT_CODES{FW_UPDATING},       #fwUpdating
+      13 => $ONU_STATUS_TEXT_CODES{UNACTIVATED},       #unactivated
+      14 => $ONU_STATUS_TEXT_CODES{REDUNDANT},         #redundant
+      15 => $ONU_STATUS_TEXT_CODES{DISABLED},          #disabled
+      16 => $ONU_STATUS_TEXT_CODES{UNKNOWN}            #unknown
+    )
+  }
 
   return \%status;
 }
@@ -484,7 +508,7 @@ sub _eltex {
       'ONU_MAC_SERIAL' => {
         NAME   => 'Mac/Serial',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.2',
-        PARSER => 'bin2mac'
+        PARSER => '_eltex_convert_mac'
       },
       'ONU_STATUS'     => {
         NAME   => 'STATUS',
@@ -526,10 +550,21 @@ sub _eltex {
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.15',
         PARSER => '_dec_div'
       },
+      'VIDEO_RX_POWER' => {
+        NAME   => 'VIDEO_RX_POWER',
+        OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.16',
+        PARSER => '_eltex_convert_video_power'
+      },
+      'RF_PORT_ON' => {
+        NAME   => 'RF_PORT_ON',
+        OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.24',
+        PARSER => '_eltex_convert_rf_port_status'
+      },
       'reset'          => {
         NAME   => '',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.22',
-        PARSER => ''
+        PARSER => '',
+        VALUE_TYPE => 'gauge32'
       },
       main_onu_info    => {
         'ONU_TYPE'     => {
@@ -628,6 +663,51 @@ sub _eltex_convert_power {
 }
 
 #**********************************************************
+=head2 _eltex_convert_video_power($power);
+
+=cut
+#**********************************************************
+sub _eltex_convert_video_power {
+  my ($power) = @_;
+
+  return undef if ( !defined($power) || $power == 32767 );
+
+  $power = $power * 0.001 if ($power);
+
+  return $power;
+}
+
+#**********************************************************
+=head2 _eltex_convert_rf_port_status($power);
+
+=cut
+#**********************************************************
+sub _eltex_convert_rf_port_status {
+  my ($status_code) = @_;
+
+  return undef if (!$status_code);
+
+  my %status = (
+    1   => 'on:text-green',
+    2   => 'off',
+    255 => 'n/a'
+  );
+
+  return $status{$status_code};
+}
+
+#**********************************************************
+=head2 _eltex_convert_mac($mac);
+
+=cut
+#**********************************************************
+sub _eltex_convert_mac {
+  my ($mac) = @_;
+
+  return uc(join('', unpack("AAAAH*", $mac || q{})));
+}
+
+#**********************************************************
 =head2 _eltex_convert_onu_type($id);
 
 =cut
@@ -695,6 +775,7 @@ sub _eltex_unregister {
   foreach my $type (@types) {
     my $snmp = _eltex({ TYPE => $type });
     my $all_result = ();
+    my $mac_serials = ();
     my @unreg_result = ();
 
     if ($snmp->{unregister}->{'ONU_STATUS'}->{OIDS}) {
@@ -706,6 +787,20 @@ sub _eltex_unregister {
       });
     }
 
+    if ($snmp->{'ONU_MAC_SERIAL'}->{OIDS}) {
+      $mac_serials = snmp_get({
+        SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
+        WALK           => 1,
+        OID            => $snmp->{'ONU_MAC_SERIAL'}->{OIDS},
+        TIMEOUT        => 5
+      });
+    }
+
+    my $port_list = snmp_get({ %$attr,
+      WALK => 1,
+      OID  => '1.3.6.1.4.1.35265.1.22.3.1.1.3', #ltp8xONTStateChannel
+    });
+
     foreach my $line (@$all_result) {
       #$id, $value
       my (undef, $value) = split(/:/, $line);
@@ -715,19 +810,42 @@ sub _eltex_unregister {
       }
     }
 
+    my %onus;
+
     foreach my $line (@unreg_result) {
+      my ($snmp_id, undef) = split(/:/, $line);
+
       #$mac_serial, $mac_bin
       my ($mac_serial, undef) = split(/:/, $line);
       #$snmp_port_id, $onu_id
       my ($snmp_port_id, undef) = split(/\./, $mac_serial, 2);
       my $branch = $snmp_port_id;
 
-      push @unregister, {
+      $onus{$snmp_id} = {
         type       => $type,
         branch     => $branch,
         mac_serial => $mac_serial,
-        model_name => $attr->{NAS_INFO}{MODEL_NAME},
       }
+    }
+
+    foreach my $line (@{$mac_serials}) {
+      my ($snmp_id, $mac) = split(/:/, $line);
+      my $onu_mac = _eltex_convert_mac($mac);
+      if($onus{$snmp_id}) {
+        $onus{$snmp_id}{mac_serial} = $onu_mac;
+      }
+    }
+
+    foreach my $line (@{$port_list}) {
+      my ($snmp_id, $port) = split(/:/, $line);
+      my @oid_octets = split(/\./, $snmp_id);
+      if($onus{$snmp_id}) {
+        $onus{$snmp_id}{branch} = (defined $port) ? $oid_octets[0]-1 . '/' . $port : 0;
+      }
+    }
+
+    foreach my $key (keys %onus) {
+      push @unregister, $onus{$key};
     }
   }
   return \@unregister;
@@ -746,17 +864,31 @@ sub _eltex_unregister {
 sub _eltex_unregister_form {
   my ($attr) = @_;
 
-  #my $snmp_oids = _eltex();
   $debug = $attr->{DEBUG} || 0;
+
+  my $onu_templates = snmp_get({
+    SNMP_COMMUNITY => $attr->{SNMP_COMMUNITY},
+    OID => '1.3.6.1.4.1.35265.1.22.3.24.1.1.2',
+    WALK => 1,
+    TIMEOUT => 5
+  });
+
+  @{$onu_templates} = map {(split (/:/, $_, 2))[1]} @{$onu_templates};
 
   $attr->{PON_TYPE}   = $attr->{TYPE} || qq{};
   $attr->{MAC}        = $attr->{MAC_SERIAL} || qq{};
   $attr->{ACTION}     = 'onu_registration';
   $attr->{ACTION_LNG} = $lang{ADD};
-  $attr->{MODEL_NAME} = $attr->{NAS_INFO}{MODEL_NAME} || qq{};
   $attr->{BRANCH}     = $attr->{BRANCH} || 0;
+  $attr->{ONU_TEMPLATE}   = $html->form_select(
+    'ONU_TEMPLATE',
+    {
+      SEL_ARRAY => $onu_templates
+    }
+  );
 
-  $html->tpl_show(_include('equipment_registred_onu_eltex', 'Equipment'), $attr);
+  my $template = ($conf{EQUIPMENT_ELTEX_SNMP_REGISTRATION}) ? 'equipment_registred_onu_eltex_snmp' : 'equipment_registred_onu_eltex';
+  $html->tpl_show(_include($template, 'Equipment'), $attr);
 
   return 1;
 }

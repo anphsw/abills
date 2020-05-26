@@ -70,7 +70,7 @@
   </div>
 
   <div class='col-md-6'>
-    <div class='box box-theme' data-visible='%HAS_LINKED%'>
+    <div class='box box-theme' style='display: none' data-visible='%HAS_LINKED%'>
       <div class='box-header with-border'><h4 class='box-title'>_{LINKED}_ _{CABLES}_ -> _{WELLS}_</h4></div>
       <div class='box-body text-left'>
         %LINKED%

@@ -54,7 +54,7 @@ sub paysys_configure_main {
     if ($FORM{create_payment_method}) {
       require Payments;
       Payments->import();
-      my $Payments   = Payments->new($db, $admin, \%conf);
+      my $Payments = Payments->new($db, $admin, \%conf);
 
       $Payments->payment_type_add({
         NAME  => $FORM{NAME} || '',
@@ -139,7 +139,7 @@ sub paysys_configure_main {
     if ($FORM{create_payment_method}) {
       require Payments;
       Payments->import();
-      my $Payments   = Payments->new($db, $admin, \%conf);
+      my $Payments = Payments->new($db, $admin, \%conf);
 
       $Payments->payment_type_add({
         NAME  => $FORM{NAME} || '',
@@ -172,7 +172,7 @@ sub paysys_configure_main {
       COLS_UPPER       => 1,
     });
 
-    my ($paysys_select, $json_list) = _paysys_select_systems($connect_system_info->{name}, $connect_system_info->{paysys_id}, {change => 1});
+    my ($paysys_select, $json_list) = _paysys_select_systems($connect_system_info->{name}, $connect_system_info->{paysys_id}, { change => 1 });
 
     $html->tpl_show(
       _include('paysys_connect_system', 'Paysys'),
@@ -699,7 +699,7 @@ sub paysys_configure_terminals {
 
   my @WEEKDAYS_WORK = ();
   if ($TERMINALS{WORK_DAYS}) {
-    my $bin = sprintf ("%b", int $TERMINALS{WORK_DAYS});
+    my $bin = sprintf("%b", int $TERMINALS{WORK_DAYS});
     @WEEKDAYS_WORK = split(//, $bin);
   }
 
@@ -889,34 +889,17 @@ sub _configure_load_payment_module {
 #**********************************************************
 sub paysys_maps_new {
 
-  my %search_keys = (
-    PAYSYS_PRIVAT_TERMINAL_ACCOUNT_KEY => 'Privatbank;privat;приват;Приватбанк:privat',
-    PAYSYS_EASYPAY_SERVICE_ID          => 'easypay:easypay',
-  );
+  load_module('Maps2', $html);
 
-  my %search_on_map = ();
-
-  foreach my $key (keys %search_keys) {
-    if ($conf{$key}) {
-      $search_on_map{$key} = $search_keys{$key};
-    }
-  }
-
-  load_module('Maps', $html);
-
-  return maps_show_map(
-    {
-      QUICK             => 1,
-      GET_LOCATION      => 1,
-      PAYSYS            => 1,
-      OBJECTS           => \%search_on_map,
-      OUTPUT2RETURN     => 1,
-      SMALL             => 1,
-      GET_USER_POSITION => 1,
-      CLIENT_MAP        => 1,
-    }
-  );
-
+  return maps2_show_map({
+    QUICK          => 1,
+    LAYER          => '35',
+    HIDE_CONTROLS  => 1,
+    NAVIGATION_BTN => 0,
+    OUTPUT2RETURN  => 1,
+    SKIP_OBJECTS   => 1,
+    BUILD_ROUTE    => 1
+  });
 }
 
 #**********************************************************
@@ -1122,6 +1105,7 @@ sub paysys_add_configure_groups {
     my $btn_name = 'add_merchant';
     my ($paysys_select, $json_list) = _paysys_select_systems_new();
 
+
     $html->tpl_show(
       _include('paysys_merchant_config_add', 'Paysys'),
       {
@@ -1200,6 +1184,8 @@ sub paysys_add_configure_groups {
   elsif ($FORM{chgm}) {
     my $btn_value = $lang{CHANGE};
     my $btn_name = 'change';
+
+    $FORM{merchant_name} =~ s/\\(.)/$1/g;
 
     my ($paysys_select, $json_list) = _paysys_select_systems_new($FORM{system_name}, $FORM{chgm}, { change => 1 });
 
@@ -1496,8 +1482,8 @@ sub paysys_configure_groups_new {
       next if (!$key);
       if ($key =~ /SETTINGS_/) {
         my (undef, $gid, $system_id) = split('_', $key);
-        next if ($FORM{"SETTINGS_$gid" . "_$system_id"} eq '');
         $Paysys->paysys_merchant_to_groups_delete({ PAYSYS_ID => $system_id, GID => (defined $gid && $gid == 0) ? '0' : $gid });
+        next if ($FORM{"SETTINGS_$gid" . "_$system_id"} eq '');
         $Paysys->paysys_merchant_to_groups_add({
           GID       => $gid,
           PAYSYS_ID => $system_id,
@@ -1522,6 +1508,7 @@ sub paysys_configure_groups_new {
       GID       => "$FORM{clear_set}",
       LIST2HASH => 'paysys_id,merch_id'
     });
+
     foreach my $key (keys %{$_list}) {
       next if (!$key);
       del_settings_to_config({ MERCHANT_ID => $_list->{$key}, GID => (defined $FORM{clear_set} && $FORM{clear_set} == 0) ? '0' : $FORM{clear_set} });
@@ -1575,6 +1562,7 @@ sub paysys_configure_groups_new {
   );
 
   my $list = $Paysys->paysys_merchant_to_groups_info({ COLS_NAME => 1 });
+
   my %settings_hash = ();
   foreach my $item (@$list) {
     $settings_hash{$item->{gid}}{$item->{paysys_id}} = $item->{merchant_name};
@@ -1599,7 +1587,7 @@ sub paysys_configure_groups_new {
         { LOAD_TO_MODAL => 1,
           ADD_ICON      => "glyphicon glyphicon-pencil",
           CONFIRM       => $lang{CONFIRM},
-          ex_params => "data-tooltip='$lang{CHANGE}' data-tooltip-position='top'"
+          ex_params     => "data-tooltip='$lang{CHANGE}' data-tooltip-position='top'"
         }),
       $html->button($lang{DEL}, "index=$index&clear_set=$group->{gid}", { MESSAGE => "$lang{DEL} $lang{FOR} $group->{name}?", class => 'del' }));
   }
@@ -1685,7 +1673,6 @@ sub paysys_merchant_select {
         }
       )
     }, { OUTPUT2RETURN => 1 });
-
   }
 
   $html->tpl_show(_include('paysys_merchants_for_groups', 'Paysys'), {
@@ -1697,11 +1684,14 @@ sub paysys_merchant_select {
   return 1;
 }
 
-#**********************************************************
+#**********************************************************s
 =head2 add_settings_to_config($attr)
 
   Arguments:
     $attr -
+      SYSTEM_ID
+      PARAMS_CHANGED
+      MERCHANT_ID
 
   Returns:
 
@@ -1709,7 +1699,8 @@ sub paysys_merchant_select {
 #**********************************************************
 sub add_settings_to_config {
   my ($attr) = @_;
-  my $config = Conf->new($db, $admin, \%conf);
+
+  my $Config = Conf->new($db, $admin, \%conf);
   my $gr_list = ();
 
   if ($attr->{SYSTEM_ID} && $attr->{PARAMS_CHANGED}) {
@@ -1733,10 +1724,19 @@ sub add_settings_to_config {
 
   foreach my $key (keys %{$list}) {
     if (defined $attr->{GID} && $attr->{GID} != 0) {
-      $config->config_add({ PARAM => $key . "_$attr->{GID}", VALUE => $list->{$key}, REPLACE => 1 });
+      #print $key . "_$attr->{GID}" .'<br>';
+      $Config->config_add({
+        PARAM   => $key . "_$attr->{GID}",
+        VALUE   => $list->{$key},
+        REPLACE => 1
+      });
     }
     else {
-      $config->config_add({ PARAM => $key, VALUE => $list->{$key}, REPLACE => 1 });
+      $Config->config_add({
+        PARAM   => $key,
+        VALUE   => $list->{$key},
+        REPLACE => 1
+      });
     }
   }
 
@@ -1748,6 +1748,9 @@ sub add_settings_to_config {
 
   Arguments:
     $attr -
+      GID
+      MERCHANT_ID
+      DEL_ALL
 
   Returns:
 
@@ -1755,19 +1758,16 @@ sub add_settings_to_config {
 #**********************************************************
 sub del_settings_to_config {
   my ($attr) = @_;
-  my $config = Conf->new($db, $admin, \%conf);
+  my $Config = Conf->new($db, $admin, \%conf);
 
   my $list = $Paysys->merchant_params_info({ MERCHANT_ID => $attr->{MERCHANT_ID} });
 
   foreach my $key (keys %{$list}) {
-    if ($attr->{DEL_ALL}) {
-      $config->config_del_by_part_of_param($key);
-    }
-    elsif (defined $attr->{GID} && $attr->{GID} != 0) {
-      $config->config_del($key . "_$attr->{GID}");
+    if (defined $attr->{GID} && $attr->{GID} != 0) {
+      $Config->config_del($key . "_$attr->{GID}");
     }
     else {
-      $config->config_del($key);
+      $Config->config_del($key);
     }
   }
 

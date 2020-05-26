@@ -203,8 +203,8 @@
 
         <!-- Wiki link -->
         <li id='wiki-link' class='hidden-xs'>
-          <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:%FUNCTION_NAME%'
-             target='_blank' rel='noopener' title='ABillS Wiki'>
+          <a href='$ENV{DOC_URL}%FUNCTION_NAME%'
+             id='wiki_url' target='_blank' rel='noopener' title='ABillS Wiki'>
             <i class='fa fa-question'></i>
           </a>
         </li>
@@ -237,20 +237,35 @@
     AMessageChecker.start(EVENT_PARAMS);
   });
 
-
   jQuery(function () {
     jQuery("#Search_menus").on("keyup", function () {
       if (this.value.length > 0) {
         jQuery("li.for_search").hide().filter(function () {
-          return jQuery(this).text().toLowerCase().indexOf(jQuery("#Search_menus").val().toLowerCase()) != -1;
+            jQuery(this).children().attr('style', 'display: block;');
+            jQuery(this).children().find('ul.for_search').attr('style', 'display: block;');
+            jQuery("li.treeview").addClass('active');
+            jQuery("li.for_search").addClass('active');
+          return jQuery(this).text().toLowerCase().indexOf(jQuery("#Search_menus").val().toLowerCase()) !== -1;
         }).show();
       }
       else {
-        jQuery("li.for_search").show();
+          jQuery("li.treeview").removeClass('active');
+          jQuery("li.for_search").removeClass('active');
+          jQuery("li.for_search").show();
+          jQuery("ul.for_search").attr('style', 'display: none;');
       }
     });
   });
 
+  jQuery(function () {
+    var url = jQuery('#wiki_url').attr('href');
+    var pattern = /doc.cgi/
+    if (pattern.test(url)) {
+      jQuery('#wiki_url').attr('href', url);
+    } else {
+      jQuery('#wiki_url').attr('href', '$ENV{DOC_URL}'); 
+    }
+  });
 </script>
 
 <!-- END header -->
@@ -274,7 +289,7 @@
         <a href='#' id='admin-status' data-tooltip='%ONLINE_USERS%'>Online&nbsp;<span class='label label-success'>%ONLINE_COUNT%</span></a>
       </div>
     </div>
-    <!--search by menu-->
+<!--    search by menu-->
     <div class="input-group sidebar-form">
       <input type="text" class="form-control" placeholder="_{SEARCH}_..." id="Search_menus" autocomplete="off">
       <span class="input-group-btn">

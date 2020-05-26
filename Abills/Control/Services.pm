@@ -31,6 +31,7 @@ our(
     SEL_OPTIONS - Extra sel options (items)
     EX_PARAMS   - Extra sell options
     SMALL_DEPOSIT_ACTION
+    DOMAIN_ID
 
   Returns:
     \%tp_hash (tp_id => name)
@@ -58,7 +59,7 @@ sub sel_tp {
 
   my $list = $Tariffs->list({
     NEW_MODEL_TP => 1,
-    DOMAIN_ID    => $users->{DOMAIN_ID},
+    DOMAIN_ID    => $users->{DOMAIN_ID} || $admin->{DOMAIN_ID} || $attr->{DOMAIN_D},
     COLS_NAME    => 1,
     STATUS       => '_SHOW',
     %params

@@ -5,6 +5,7 @@ $lang{REFERRAL_TP} = 'Реферальний тариф';
 $lang{REFERRALS_LIST} = 'Список рефералів';
 $lang{BONUS_AMOUNT} = 'Кількість бонусів';
 $lang{BONUS_DESC} = 'Бонус за реферала';
+$lang{ADD_FRIEND} = 'Запроси друга';
 $lang{PAYMENT_ARREARS} = 'Заборгованість в оплатах';
 $lang{ACCRUALS} = 'нарахування';
 $lang{PAY_NOW} = '0 - нараховувати відразу';

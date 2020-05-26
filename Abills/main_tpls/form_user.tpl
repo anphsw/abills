@@ -40,6 +40,18 @@
       }
     });
 
+    if (jQuery('#create_company_id').val() == 1) {
+        var company_name_input = jQuery('<input/>', { 'class' : 'form-control', name : 'COMPANY_NAME', id : 'COMPANY_NAME' });
+
+        jQuery('#create_company').attr('checked','checked')
+        jQuery('#create_company_wrapper').after(company_name_input);
+        jQuery('#COMPANY_NAME').wrap("<div class='col-md-6 col-xs-12' id='company_name_wrapper'></div>");
+
+        jQuery('#COMPANY_NAME').val(
+          jQuery('#company_name').val()
+        );
+    }
+
     jQuery('#LOGIN').on('input', function(){
       var value = jQuery('#LOGIN').val();
       doDelayedSearch(value)
@@ -47,6 +59,7 @@
   });
   
   var timeout = null;
+  var next_disable = 1;
   function doDelayedSearch(val) {
     if (timeout) {
       clearTimeout(timeout);
@@ -62,14 +75,17 @@
       return 1;
     }
     jQuery.post('$SELF_URL', 'header=2&get_index=' + 'check_login_availability' + '&login_check=' + val, function (data) {
-      console.log(data);
-      if(data === 'success'){
+      if(data === 'success') {
         jQuery('#LOGIN').parent().parent().removeClass('has-error').addClass('has-success');
+        jQuery('input[name=next]').removeAttr('disabled', 'disabled');
+        next_disable = 1;
+        validate_after_login();
       }
       else{
         jQuery('#LOGIN').parent().parent().removeClass('has-success').addClass('has-error');
+        jQuery('input[name=next]').attr('disabled', 'disabled');
+        next_disable = 2;
       }
-
     });
   }
 
@@ -83,6 +99,8 @@
   <input type=hidden name=NOTIFY_ID value='%NOTIFY_ID%'>
   <input type=hidden name=TP_ID value='%TP_ID%'>
   <input type=hidden name=REFERRAL_REQUEST value='%REFERRAL_REQUEST%'>
+  <input type=hidden name=create_company_id id='create_company_id' value='$FORM{company}'>
+  <input type=hidden name=company_name id='company_name' value='$FORM{company_name}'>
 
   <div id='form_1' class='box box-theme box-big-form for_sort'>
     <div class='box-header with-border'><h3 class='box-title'>_{USER_ACCOUNT}_</h3>
@@ -104,7 +122,11 @@
         <label class='control-label col-xs-4 col-md-2' for='CREDIT'>_{CREDIT}_</label>
         <div class='col-xs-8 col-md-3'>
           <input id='CREDIT' name='CREDIT' value='%CREDIT%' placeholder='%CREDIT%' class='form-control r-0-9'
-                 type='number' step='0.01' min='0'>
+                 type='number' step='0.01' min='0'
+                  data-tooltip='_{ERR_CREDIT_CHANGE_LIMIT_REACH}_<br/>
+                                <h5>_{SUM}_:</h5>%CREDIT%<br/>
+                                <h5>_{DATE}_:</h5>%DATE_CREDIT%'
+                  data-tooltip-position='top'>
         </div>
 
         <span class='visible-xs visible-sm col-xs-12' style='padding-top: 5px'> </span>

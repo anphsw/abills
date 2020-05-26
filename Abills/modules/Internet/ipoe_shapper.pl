@@ -243,7 +243,7 @@ sub check_activity {
     $Log->log_print('LOG_INFO', $user_info->{user_name}, "DURATION: $user_info->{duration} TP: $tp_id IP: $ip STATUS: $user_info->{status} TC: $TRAFFIC_CLASSES GUEST: " . $user_info->{guest});
     my $cmd = '';
 
-    if ($user_info->{netmask} ne '32') {
+    if ($user_info->{netmask} && $user_info->{netmask} ne '32') {
       my $ips = 4294967296 - ip2int($user_info->{netmask});
       $user_info->{netmask} = 32 - length(sprintf("%b", $ips)) + 1;
     }

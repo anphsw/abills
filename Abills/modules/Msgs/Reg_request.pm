@@ -544,6 +544,7 @@ sub msgs_unreg_requests {
     SHOW                             => 1,
     SHOW_ADD_BUTTONS                 => $attr->{NO_BUTTONS} ? 0 : 1,
     REGISTRATION_HIDE_ADDRESS_BUTTON => $attr->{REGISTRATION_HIDE_ADDRESS_BUTTON} || 0,
+    ADDRESS_FLAT                     => $TEMPLATE_PARAMS->{ADDRESS_FLAT} || ''
   });
   $Msgs->{TP_SEL} = _sel_tp($TEMPLATE_PARAMS->{TP_ID} || "");
   $Msgs->{PAID} = "checked" if $TEMPLATE_PARAMS->{PAID};

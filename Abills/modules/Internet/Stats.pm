@@ -12,13 +12,13 @@ our(
   $db,
   $admin,
   %conf,
-  $html,
   %lang,
   %permissions,
   @WEEKDAYS,
   @PERIODS
 );
 
+our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
@@ -686,14 +686,8 @@ sub internet_sessions {
   }
 
   if (! $FORM{sort}) {
-    if ($FORM{UID} || $user->{UID}) {
-      $LIST_PARAMS{SORT} = '1';
-      $LIST_PARAMS{DESC} = 'desc';
-    }
-    else {
-      $LIST_PARAMS{SORT} = '2';
-      $LIST_PARAMS{DESC} = 'desc';
-    }
+    $LIST_PARAMS{SORT} = 'l.start';
+    $LIST_PARAMS{DESC} = 'desc';
   }
 
   if($user->{UID}) {
@@ -761,6 +755,8 @@ sub internet_sessions {
     },
   });
 
+  delete $LIST_PARAMS{SORT};
+
   if ($sessions->{TOTAL} < 1) {
     $html->message('info', $lang{INFO}, $lang{NO_RECORD});
     return 0;
@@ -814,7 +810,7 @@ sub internet_sessions {
   }
 
   print $table->show();
-
+  #delete $LIST_PARAMS{SORT};
   return 1;
 }
 
@@ -920,7 +916,7 @@ sub internet_payment_message {
     $total_fee = $total_fee * (100 - $users_->{REDUCTION}) / 100;
   }
 
-  my $uid = $users_->{UID};
+  my $uid = $users_->{UID} || 0;
 
   if ($Internet_->{STATUS} && $total_fee > $users_->{DEPOSIT}) {
     my $sum = 0;

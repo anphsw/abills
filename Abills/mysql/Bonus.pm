@@ -13,11 +13,12 @@ use Tariffs;
 use Users;
 use Fees;
 use Bills;
-our $VERSION = 2.07;
+
+our $VERSION = 2.08;
+
 my $Bill;
 my $MODULE = 'Bonus';
 my ($admin, $CONF);
-#my ($SORT, $DESC, $PG, $PAGE_ROWS);
 
 #**********************************************************
 # Init
@@ -111,8 +112,6 @@ sub list {
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  #my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  #my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
@@ -531,7 +530,6 @@ sub bonus_operation {
     }
   }
 
-  #$self->{db}->{AutoCommit}=0;
   $user->{EXT_BILL_ID} = $attr->{BILL_ID} if ($attr->{BILL_ID});
 
   if ($user->{EXT_BILL_ID} > 0) {
@@ -576,9 +574,6 @@ sub bonus_operation {
     $self->{errno}  = 14;
     $self->{errstr} = 'No Bill';
   }
-
-  #$self->{db}->commit;
-  #$self->{db}->rollback;
 
   return $self;
 }
@@ -645,15 +640,12 @@ sub bonus_operation_list {
       ['A_LOGIN',        'STR', 'a.id AS admin_login',        1 ],
       ['DESCRIBE',       'STR', 'p.dsc'                         ],
       ['INNER_DESCRIBE', 'STR', 'p.inner_describe'              ],
-      #['AMOUNT',         'INT', 'p.amount',                    1],
-      #['CURRENCY',       'INT', 'p.currency',                  1],
       ['METHOD',         'INT', 'p.method',                    1],
       ['BILL_ID',        'INT', 'p.bill_id',                   1],
       ['IP',             'INT', 'INET_NTOA(p.ip)',  'INET_NTOA(p.ip) AS ip'],
       ['EXT_ID',         'STR', 'p.ext_id',                               1],
       ['DATE',           'DATE','DATE_FORMAT(p.date, \'%Y-%m-%d\')'        ],
-      ['EXPIRE',         'DATE','DATE_FORMAT(p.expire, \'%Y-%m-%d\')',   'DATE_FORMAT(p.expire, \'%Y-%m-%d\') AS expire' ], 
-      #['REG_DATE',       'DATE','p.reg_date',                             1],
+      ['EXPIRE',         'DATE','DATE_FORMAT(p.expire, \'%Y-%m-%d\')',   'DATE_FORMAT(p.expire, \'%Y-%m-%d\') AS expire' ],
       ['MONTH',          'DATE','DATE_FORMAT(p.date, \'%Y-%m\') AS month'  ],
       ['ID',             'INT', 'p.id'                                     ],
       ['AID',            'INT', 'p.aid',                                   ],
@@ -801,21 +793,22 @@ sub service_discount_list {
   $self->{SEARCH_FIELDS_COUNT}= 0;
 
   my $WHERE =  $self->search_former($attr, [
-      ['NAME',              'STR', 'name',               1 ],
-      ['TP_ID',             'INT', 'tp_id'                 ],
-      ['REGISTRATION_DAYS', 'INT', 'registration_days'     ],
-      ['PERIODS',           'INT', 'service_period'        ],
-      ['TOTAL_PAYMENTS_SUM','INT', 'total_payments_sum'    ],
-      ['PAY_METHOD',        'INT', 'pay_method'            ],
-      ['COMMENTS',          'STR', 'comments',           1 ],
-      ['TP_ID',             'STR', 'tp_id',              1 ],
-      ['ONETIME_PAYMENT_SUM','INT','onetime_payment_sum',1 ],
-    ],
+      ['ID',                  'INT',    'id',                    1 ],
+      ['NAME',                'STR',    'name',                  1 ],
+      ['TP_ID',               'INT',    'tp_id'                    ],
+      ['REGISTRATION_DAYS',   'INT',    'registration_days'        ],
+      ['PERIODS',             'INT',    'service_period'           ],
+      ['TOTAL_PAYMENTS_SUM',  'INT',    'total_payments_sum'       ],
+      ['PAY_METHOD',          'INT',    'pay_method'               ],
+      ['COMMENTS',            'STR',    'comments',              1 ],
+      ['TP_ID',               'STR',    'tp_id',                 1 ],
+      ['ONETIME_PAYMENT_SUM', 'INT',    'onetime_payment_sum',   1 ],
+  ],
     { WHERE => 1 }
   );
 
   $self->query("SELECT
-  name,
+  $self->{SEARCH_FIELDS}
   service_period,
   registration_days,
   total_payments_sum,
@@ -824,9 +817,7 @@ sub service_discount_list {
   bonus_sum,
   bonus_percent,
   ext_account,
-  pay_method,
-  $self->{SEARCH_FIELDS}
-  id
+  pay_method
      FROM bonus_service_discount
      $WHERE 
      ORDER BY $SORT $DESC
@@ -1026,7 +1017,6 @@ sub accomulation_rule_list {
   }
 
   if ($attr->{TP_ID}) {
-    #push @WHERE_RULES, "(br.tp_id='$attr->{TP_ID}' OR br.tp_id IS NULL)";
     $JOIN_WHERE = " AND br.tp_id='$attr->{TP_ID}'";
   }
 
@@ -1330,8 +1320,6 @@ sub tp_using_list {
 
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  #my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  #my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE =  $self->search_former($attr, [
     ['LOGIN',          'STR', 'u.id',               'u.id AS login'    ],

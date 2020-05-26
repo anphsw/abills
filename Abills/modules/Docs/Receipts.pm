@@ -514,10 +514,10 @@ sub docs_receipt_list{
       )
     )
     {
-      $html->message( 'info', "$lang{INFO}", "E-Mail $lang{SENDED} " );
+      $html->message( 'info', "$lang{INFO}", "$lang{SEND_REG} E-Mail" );
     }
     else{
-      $html->message( 'info', "$lang{ERROR}", "E-Mail $lang{SENDED} Error: $FORM{ERR_MESSAGE} " );
+      $html->message( 'info', "$lang{ERROR}", "$lang{SEND_REG} E-Mail  Error: $FORM{ERR_MESSAGE} " );
     }
     return 1;
   }

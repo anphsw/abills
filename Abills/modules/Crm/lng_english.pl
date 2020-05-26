@@ -31,5 +31,8 @@ $lang{MINUTES}='Minutes';
 $lang{PLANNED}='Planned';
 $lang{ADD_TAGS}='Add tags';
 $lang{NO_CLICK_USER}='No user selected for distribution';
+$lang{NO_EMAIL}='Indicate the address in the configuration file E-Mail:';
+$lang{NO_EMAIL_LEAD}='E-Mail is not started in Lead:';
+$lang{DELIVERY} = 'Delivery';
 
 1

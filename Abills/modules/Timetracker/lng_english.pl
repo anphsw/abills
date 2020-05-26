@@ -47,4 +47,13 @@ $lang{REDMINE} = 'Redmine';
 $lang{TASK_EXECUTION} = 'Closed Tasks';
 $lang{NOT_CONFIGURED} = 'The module is not configured';
 $lang{NOT_FOUND} = 'Not found configuration: ';
-$lang{ALL_TIME} = 'Total time, hours'
+$lang{ALL_TIME} = 'Total time, hours';
+
+$lang{ADMINS} = 'admin list';
+$lang{CLOSE_MOUTH} = 'the number of works closed in a month in a row on Redmine';
+$lang{ACTUALLY_HOURS} = 'the number of hours actually spent';
+$lang{SCHEDULED_HOURS} = 'number of hours scheduled';
+$lang{TIME_COMPLEXITY} = 'complexity multiplied by the number of hours planned';
+$lang{CLOSED_TICKETS} = 'number of closed support tickets';
+$lang{TIME_SUPPORT} = 'Total working time with Supports';
+$lang{REPORTS_HEADER} = 'Administrators report';

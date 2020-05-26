@@ -11,6 +11,7 @@
    SKIP_NAT_IPS="xxx,xxx"
    NAT_LIST="xx.xx.xx.xx-xx.xx.xx.xx"
    SINGLE_THREAD - Make all commands in one connection
+   SIMPLE - Check simple quese (By API)
 
    SSH_CMD
    SSH_PORT
@@ -20,6 +21,8 @@
 
 use warnings;
 use strict;
+require Abills::Nas::Mikrotik;
+Abills::Nas::Mikrotik->import();
 
 our (
   $Nas,
@@ -30,7 +33,19 @@ our (
   $base_dir
 );
 
-mikrotik_check_speed();
+if($argv->{SIMPLE}) {
+  if($debug > 3) {
+    print "Mikrotik simple check\n";
+  }
+
+  check_speed2({
+    NAS_TYPE     => 'mikrotik',
+    SET_SPEED_FN => 'mikroik_set_speed'
+  });
+}
+else {
+  mikrotik_check_speed();
+}
 
 #**********************************************************
 =head2 check_speed_mikrotik($attr) Manage mikrotik bandwidth
@@ -443,5 +458,143 @@ Flags: X - disabled, I - invalid
   return 1;
 }
 
+#**********************************************************
+=head2 get_mikrotik_speed_list($attr) Manage mikrotik bandwidth
+
+  Arguments:
+    ARGV
+
+  Actions:
+
+=cut
+#**********************************************************
+sub get_mikrotik_speed_list {
+  my ($attr) = @_;
+
+  if($debug > 2) {
+    print "Get shapers from mikrotik\n";
+  }
+
+  my $Mikrotik = Abills::Nas::Mikrotik->new(
+    $attr,
+    \%conf,
+    {
+      FROM_WEB         => 1,
+      MESSAGE_CALLBACK => sub { print('info', $_[0], $_[1]) },
+      ERROR_CALLBACK   => sub { print('err', $_[0], $_[1]) },
+      DEBUG            => ($debug && $debug > 2) ? $debug : 0,
+      API_BACKEND      => $conf{MIKROTIK_API}
+    }
+  );
+
+  if(! $Mikrotik) {
+    print "ERROR: Not defined NAS IP address and Port\n";
+    return 0;
+  }
+  elsif ($Mikrotik->has_access() != 1){
+    print "ERROR: No access to $Mikrotik->{ip_address}:$Mikrotik->{port} ($Mikrotik->{backend})"
+      . (($Mikrotik->{errstr}) ? "\n $Mikrotik->{errstr}\n" : q{});
+    return 0;
+  }
+
+  my $cmd = q{/queue simple};
+
+  my (undef, @rules ) = $Mikrotik->{executor}->mtik_query( $cmd . ' print',
+    {'.proplist' => '.id,name,max-limit,target' },
+    {}
+  );
+
+  my %simple_rules = ();
+  foreach my $rule ( @rules ) {
+    if($debug > 1) {
+      print "ID: $rule->{'.id'} NAME: $rule->{'name'} IN/OUT $rule->{'max-limit'} IP: $rule->{'target'}\n";
+    }
+
+    my $username = $rule->{'name'};
+    my ($in,$out)=split(/\//, $rule->{'max-limit'});
+    $simple_rules{$username}{IN} = $in / 1000;
+    $simple_rules{$username}{OUT} = $out / 1000;
+    $simple_rules{$username}{ID}  = $rule->{'.id'};
+  }
+
+  return \%simple_rules;
+}
+
+#**********************************************************
+=head2 get_mikrotik_speed_list($attr) Manage mikrotik bandwidth
+
+  Arguments:
+    $attr
+
+
+  Actions:
+
+=cut
+#**********************************************************
+sub mikroik_set_speed {
+  my ($nas_info, $port, $user_name, $speed_in, $speed_out, $attr)=@_;
+
+  if($debug > 1) {
+    print "Set speed:\n";
+  }
+
+  my $Mikrotik = Abills::Nas::Mikrotik->new(
+    $nas_info,
+    \%conf,
+    {
+      FROM_WEB         => 1,
+      MESSAGE_CALLBACK => sub { print('info', $_[0], $_[1]) },
+      ERROR_CALLBACK   => sub { print('err', $_[0], $_[1]) },
+      DEBUG            => ($debug && $debug > 2) ? $debug : 0,
+      API_BACKEND      => $conf{MIKROTIK_API}
+    }
+  );
+
+  if(! $Mikrotik) {
+    print "ERROR: Not defined NAS IP address and Port\n";
+    return 0;
+  }
+  elsif ($Mikrotik->has_access() != 1){
+    print "ERROR: No access to $Mikrotik->{ip_address}:$Mikrotik->{port} ($Mikrotik->{backend})"
+      . (($Mikrotik->{errstr}) ? "\n$Mikrotik->{errstr}" : q{});
+    return 0;
+  }
+
+  if($attr->{ID}) {
+    print "Try to del: $attr->{ID} USER_NAME: $user_name\n" if ($debug > 1);
+    my $cmd = '/queue simple';
+    my %list_params = ( name => $user_name );
+    my (undef, @rules ) = $Mikrotik->{executor}->mtik_query( $cmd . ' print',
+      {'.proplist' => '.id,name' },
+      \%list_params
+    );
+    foreach my $rule ( @rules ) {
+      if($attr->{list_expr} && $rule->{'list'} !~ /$attr->{list_expr}/) {
+        next;
+      }
+
+      print "DEL ID: $rule->{'.id'} NAME: $rule->{'name'}\n" if($debug > 3);
+
+      $Mikrotik->{executor}->mtik_cmd( $cmd . ' remove', {
+        '.id' => $rule->{'.id'},
+      });
+    }
+  }
+
+  my %list_params = (
+    'name'      => $user_name,
+    'target'    => $attr->{FRAMED_IP_ADDRESS},
+    'max-limit' => $speed_in.'000/'. $speed_out .'000'
+  );
+
+  $Mikrotik->execute([
+    [
+      qq{/queue simple add },
+      \%list_params
+    ]
+  ]);
+
+  return 1;
+}
 
 1;

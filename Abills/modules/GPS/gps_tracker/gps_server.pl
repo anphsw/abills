@@ -114,7 +114,7 @@ while (1) {
   log_debug("Raw HTTP", $data, 4);
   my $FORM = define_the_protocol($data);
 
-  if ($FORM->{id} ne '') {
+  if (defined($FORM->{id}) && $FORM->{id} ne '') {
     my $mappings = get_traccar_mappings();
     my $unified_data = unify_data($FORM, $mappings);
 
@@ -212,7 +212,7 @@ sub write_unregistered {
 sub parse_http_request {
   my ($http_request) = @_;
 
-  my %FORM = {};
+  my %FORM = ();
 
   my $buffer = [ split(/\n/, $http_request) ]->[0];
   $buffer =~ s/^.*\?//;
@@ -424,7 +424,7 @@ sub UTC2LocalString {
 
 
 #**********************************************************
-=head2 unify_data()
+=head2 define_the_protocol()
 
   Arguments:
     $pa_data,
@@ -443,11 +443,46 @@ sub define_the_protocol {
     # (027043576388BR00150919A4949.6147N02402.0461E000.60650290.000000000000L00000000)
     $FORM = parse_tk103_protokol($ps_data);
   }
+  elsif($conf{GPS_PROTOCOL}) {
+    parse_fm_xxx($ps_data);
+  }
   else {
     $FORM = parse_http_request($ps_data)
   }
 
   return $FORM;
+}
+
+#**********************************************************
+=head2 parse_fm_xxx($ps_data) - teltonika fm_xxx
+
+  Protocol:
+    https://voxtrail.com/assets/company/Teltonika/protocol/FMXXXX_Protocols_v2.10.pdf
+
+  Arguments:
+    $pa_data,
+
+  Returns:
+    $FORM
+
+=cut
+#**********************************************************
+sub parse_fm_xxx {
+  my ($ps_data) = @_;
+
+  my %FORM = ();
+
+  my @arr = $ps_data =~ /(\S{2})/g;
+
+  $FORM{CODEC_ID}=$arr[0];
+  $FORM{NUMOFDATA}=$arr[1];
+  $FORM{UNIX_TIMESTAMP}=join('', @arr[2..8]);
+
+  while(my($k, $v)=each %FORM) {
+    print "$k, $v\n";
+  }
+
+  return \%FORM;
 }
 
 1;

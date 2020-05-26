@@ -12,7 +12,8 @@ use Abills::Filters qw(bin2hex bin2mac);
 our (
   $html,
   %lang,
-  %html_color
+  %html_color,
+  %ONU_STATUS_TEXT_CODES
 );
 
 my $Telnet;
@@ -82,7 +83,7 @@ sub _huawei_onu_list {
     my $port_begin_time = 0;
     $port_begin_time = check_time() if ($debug > 2);
 
-    if (!defined($ports_info->{$snmp_id}->{PORT_STATUS}) || $ports_info->{$snmp_id}->{PORT_STATUS} != 1) {
+    if (!defined($ports_info->{$snmp_id}->{PORT_STATUS}) || !($ports_info->{$snmp_id}->{PORT_STATUS} == 1 || $ports_info->{$snmp_id}->{PORT_STATUS} == 4)) {
       print "Port is not online\n" if ($debug > 2);
       next;
     }
@@ -210,8 +211,8 @@ sub _huawei_unregister {
       my %unregister_info = ();
       foreach my $line (@$unreg_result) {
         next if (!$line);
-        my ($id, $value) = split(/:/, $line || q{});
-        my ($type, $snmp_port_id, undef) = split(/\./, $id || q{});
+        my ($id, $value) = split(/:/, $line || q{}, 2);
+        my ($type, $snmp_port_id, $onu_num) = split(/\./, $id || q{});
 
         next if (!$unreg_info{$type});
 
@@ -219,10 +220,10 @@ sub _huawei_unregister {
           $value = bin2mac($value);
         }
 
-        $unregister_info{$snmp_port_id}->{$unreg_info{$type}} = $value;
-        $unregister_info{$snmp_port_id}->{'branch'}     = decode_port($snmp_port_id);
-        $unregister_info{$snmp_port_id}->{'branch_num'} = $snmp_port_id;
-        $unregister_info{$snmp_port_id}->{'pon_type'}   = $pon_type;
+        $unregister_info{$snmp_port_id . '.' . $onu_num}->{$unreg_info{$type}} = $value;
+        $unregister_info{$snmp_port_id . '.' . $onu_num}->{'branch'}     = decode_port($snmp_port_id);
+        $unregister_info{$snmp_port_id . '.' . $onu_num}->{'branch_num'} = $snmp_port_id;
+        $unregister_info{$snmp_port_id . '.' . $onu_num}->{'pon_type'}   = $pon_type;
       }
 
       push @unregister, values %unregister_info;
@@ -393,6 +394,7 @@ sub _huawei_unregister_form {
 
   if ($pon_type eq 'gpon') {
     $attr->{UC_TYPE} = uc($pon_type);
+    $attr->{SHOW_VLANS}=1;
     $html->tpl_show(_include('equipment_registred_onu', 'Equipment'), { %$attr, %FORM });
   }
   elsif ($pon_type eq 'epon') {
@@ -404,7 +406,7 @@ sub _huawei_unregister_form {
 }
 
 #**********************************************************
-=head2 _huawei_prase_line_profile($attr) 
+=head2 _huawei_prase_line_profile($attr)
 
   Arguments:
     $attr
@@ -421,12 +423,9 @@ sub _huawei_prase_line_profile {
 
   my %line_profile = ();
 
-  my $snmp = _huawei({ TYPE => $attr->{TYPE} });
+  my $pon_type = $attr->{TYPE} || $attr->{PON_TYPE};
+  my $snmp = _huawei({ TYPE => $pon_type });
   my $oid = $snmp->{profiles}->{'LINE_PROFILE_VLANS'}->{OIDS};
-
-  if ($attr->{TYPE} eq 'gpon') {
-    $oid .= '.' . huawei_make_profile_name($attr->{LINE_PROFILE});
-  }
 
   my $data = snmp_get({
     %{$attr},
@@ -435,6 +434,28 @@ sub _huawei_prase_line_profile {
     #TIMEOUT => 8,
     SILENT => 1
   });
+
+  if ($pon_type eq 'gpon') {
+
+    #$oid .= '.' . huawei_make_profile_name($attr->{LINE_PROFILE}); # was before snmp_get. commented because i observed Huawei which
+                                                                    # responsed to $oid, but did not responsed to $oid . huawei_make_profile_name($attr->{LINE_PROFILE}):
+                                                                    #
+                                                                    # # snmpwalk $IP 1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8
+                                                                    #               .1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8.3.79.78.85.1.1 = INTEGER: 108
+                                                                    #               .1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8.7.79.78.84.45.49.48.56.1.1 = INTEGER: 108
+                                                                    #
+                                                                    # # snmpwalk $IP 1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8.3.79.78.85
+                                                                    #               .1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8.3.79.78.85 = No Such Instance currently exists at this OID
+                                                                    #
+                                                                    # # snmpwalk $IP 1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8.3.79.78.85.1.1
+                                                                    #               .1.3.6.1.4.1.2011.6.128.1.1.3.64.1.8.3.79.78.85.1.1 = INTEGER: 108
+                                                                    #
+                                                                    #
+                                                                    # Huawei MA5680T, Firmware: MA5600V800R013C00, Patch: SPC101
+
+    my $huawei_profile_name = huawei_make_profile_name($attr->{LINE_PROFILE});
+    @$data = map { $_ =~ /^$huawei_profile_name\.([\d\.]+:[\d]+)$/ } @$data;
+  }
 
   foreach my $line (@$data) {
     my ($gem_maping, $vlan) = split(':', $line);
@@ -751,8 +772,8 @@ sub _huawei {
 sub _huawei_onu_status {
 
   my %status = (
-    1 => 'Online:text-green',
-    2 => 'Offline:text-red',
+    1 => $ONU_STATUS_TEXT_CODES{ONLINE},
+    2 => $ONU_STATUS_TEXT_CODES{OFFLINE}
   );
 
   return \%status;

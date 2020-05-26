@@ -84,37 +84,11 @@ sub cams_user_info {
       }
     }
 
-    if ($conf{CAMS_CHECK_USER_GROUPS} && $Cams->{ID}) {
-      $FORM{change_now} = 1;
-      $user = $users_->pi({ UID => $FORM{UID} });
-      my $group_ids = "";
-      if ($users_->{TOTAL}) {
-        my $user_address = $Address->address_info($user->{LOCATION_ID});
-        my $user_access_groups = $Cams->access_group_list({
-          NAME        => "_SHOW",
-          STREET_ID   => $user_address->{STREET_ID} || 0,
-          DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
-          LOCATION_ID => $user->{LOCATION_ID} || 0,
-          SERVICE_ID  => $FORM{SERVICE_ID} || $Cams->{SERVICE_ID},
-          COMMENT     => "_SHOW",
-          COLS_NAME   => 1,
-        });
-
-        foreach my $group (@{$user_access_groups}) {
-          $group_ids .= "$group->{id}, ";
-        }
-
-        chop $group_ids;
-        chop $group_ids;
-        $FORM{IDS} = $group_ids;
-        $FORM{ID} = $Cams->{ID} || $Cams->{INSERT_ID};
-      }
-
-      $Cams->user_groups({
-        IDS   => $group_ids,
-        TP_ID => $FORM{TP_ID} || $Cams->{TP_ID},
-        ID    => $Cams->{ID},
-      });
+    if ($conf{CAMS_CHECK_USER_GROUPS} && $Cams->{ID} && !$conf{CAMS_FOLDER}) {
+      _cams_autofill_groups($Cams);
+    }
+    elsif ($conf{CAMS_CHECK_USER_FOLDERS} && $Cams->{ID} && $conf{CAMS_FOLDER}) {
+      _cams_autofill_folders($Cams);
     }
   }
   elsif ($FORM{chg} || ($FORM{ID} && !$FORM{del})) {
@@ -383,6 +357,9 @@ sub cams_user_streams_management {
         show_result($Cams, $lang{CHANGED});
         #        $show_add_form = 1;
       }
+      else {
+        $correct_name = 0;
+      }
     }
     else {
       $html->message("err", "$lang{ERROR}", "$lang{ONLY_LATIN_LETTER}") if $FORM{HOST};
@@ -433,6 +410,7 @@ sub cams_user_streams_management {
       });
     }
   }
+
 
   if ($service_id && $correct_name) {
     $FORM{SERVICE_ID} = $service_id;

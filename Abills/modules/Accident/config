@@ -18,4 +18,20 @@ else {
 
 $FUNCTIONS_LIST{"02:1:$lang{ADD_ACCIDENT}:add_accident_log:"} = 8;
 
+if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
+  $Accident->accident_equipment_list({
+    STATUS => 0
+  });
+  $info = $html->badge($Accident->{TOTAL}, { TYPE => 'bg-red' });
+
+  if ($Accident->{TOTAL} > 0) {
+    $FUNCTIONS_LIST{"03:1:$lang{ACCIDENT_FOR_EQUIPMENT} $info:accident_equipment_log:"} = 8;
+  }
+  else {
+    $FUNCTIONS_LIST{"03:1:$lang{ACCIDENT_FOR_EQUIPMENT}:accident_equipment_log:"} = 8;
+  }
+}
+
+$FUNCTIONS_LIST{"04:1:$lang{COMPENSATION}:accident_compensation:"} = 8;
+
 1;

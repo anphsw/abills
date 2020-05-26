@@ -14,6 +14,7 @@ use warnings FATAL => 'all';
 use Encode;
 use Fees;
 use Sms;
+use Sms::Init;
 use Abills::Filters;
 use Abills::Defs;
 use Abills::Base qw(convert);
@@ -21,7 +22,6 @@ use Abills::Base qw(convert);
 our ($db,
   $admin,
   %conf,
-  $html,
   %lang,
   %err_strs,
   $index,
@@ -34,12 +34,11 @@ our ($db,
   %FORM
 );
 
+our Abills::HTML $html;
 
 my $Sms   = Sms->new($db, $admin, \%conf);
 my $Fees  = Fees->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
-my $debug = 0;
-
 
 my %sms_status = (
   0  => 'В очереди отправки',
@@ -58,63 +57,12 @@ my %sms_status = (
   14 => 'Сообщение на указанный номер не может быть доставлено.',
   15 => 'Отправка более одного одинакового запроса на передачу SMS-сообщения либо более пяти одинаковых запросов на получение стоимости сообщения в течение минуты.',
   16 => '',
+  100 => 'Доставлено',
+  101 => 'Не доставлено',
+  102 => 'Ошибка при отправке',
+  103 => 'Отклонено системой',
+  104 => 'Отправка сообщения отложена',
 );
-
-#**********************************************************
-=head2 sms_service_connect() - Connect to sms service
-
-=cut
-#**********************************************************
-sub sms_service_connect {
-
-  my $Sms_service;
-
-  my @sms_systems = (
-    { SMS_PLAYMOBILE_LOGIN   => 'Playmobile'            },
-    { SMS_CMD                => 'Cmd'                   },
-    { SMS_TXTLOCAL_APIKEY    => 'Txtlocal'              },
-    { SMS_SMSC_USER          => 'Smsc'                  },
-    { SMS_LITTLESMS_USER     => 'Littlesms'             },
-    { SMS_EPOCHTASMS_OPENKEY => 'Epochtasms'            },
-    { SMS_TURBOSMS_PASSWD    => 'Turbosms'              },
-    { SMS_JASMIN_USER        => 'Jasmin'                },
-    { SMS_SMSEAGLE_USER      => 'Smseagle'              },
-    { SMS_BULKSMS_LOGIN      => 'Bulksms'               },
-    { SMS_IDM_LOGIN          => 'IDM'                   },
-    { SMS_TERRA_USER         => 'Sms_terra'             },
-    { SMS_UNIVERSAL_URL      => 'Universal_sms_module'  },
-    { SMS_ESKIZ_URL          => 'Eskizsms'              },
-  );
-
-  foreach my $sms_system ( @sms_systems ) {
-    my $config_key = ( keys %$sms_system )[0];
-    if ($conf{ $config_key } ) {
-      $Sms_service = $sms_system->{$config_key};     
-      eval { require "Sms/$Sms_service.pm"; };
-      if (!$@) {
-        $Sms_service->import();
-        $Sms_service = $Sms_service->new($db, $admin, \%conf);
-        if ($debug) {
-           print "$sms_system->{$config_key} Loaded...";
-        }
-        last;
-      }
-      else {
-        print $@;
-        $html->message('err', $lang{ERROR}, "Can't load '$Sms_service'. Purchase this module http://abills.net.ua");
-        exit;
-      }
-    }
-  }
-
-  if (! $Sms_service) {
-    $html->message('err', $lang{ERROR}, "Sms service not connected", { ID => 1600 });
-    $Sms_service->{errno}=1;
-    $Sms_service->{errstr}="Sms service not connected";
-  }
-
-  return $Sms_service;
-}
 
 #**********************************************************
 =head2 sms_send($attr) - Send SMS
@@ -138,13 +86,13 @@ sub sms_service_connect {
 sub sms_send {
   my ($attr) = @_;
 
-  my $Sms_service = sms_service_connect();
+  my $Sms_service = init_sms_service($db, $admin, \%conf);
   my $status = 0;
 
   if($Sms_service->{errno}) {
     return 0
   }
-  
+
   my $numbers = $attr->{NUMBERS};
   if ($conf{SMS_NUMBER_EXPR}) {
     if($attr->{NUMBER}) {
@@ -160,7 +108,7 @@ sub sms_send {
       $numbers = \%new_numbers;
     }
   }
-  
+
   $conf{SMS_NUMBER}= "[0-9]{12}" if (! $conf{SMS_NUMBER});
 
   if (! $attr->{NUMBER} && ! $attr->{NUMBERS}) {
@@ -272,7 +220,7 @@ sub sms_send {
 sub sms_info {
   my ($id) = @_;
 
-  my $Sms_service = sms_service_connect();
+  my $Sms_service = init_sms_service($db, $admin, \%conf);
   if ($Sms_service->{errno}) {
     return 0;
   }
@@ -290,9 +238,7 @@ sub sms_info {
 =cut
 #**********************************************************
 sub sms_account_info {
-  #my ($attr) = @_;
-
-  my $Sms_service = sms_service_connect();
+  my $Sms_service = init_sms_service($db, $admin, \%conf);
 
   if ( $Sms_service->{errno} ) {
     return 0;
@@ -329,7 +275,7 @@ sub sms_account_info {
 #**********************************************************
 sub sms_reports {
 
-  my $Sms_service = sms_service_connect();
+  my $Sms_service = init_sms_service($db, $admin, \%conf);
 
   if ( $Sms_service->{errno} ) {
     return 0;
@@ -479,6 +425,122 @@ sub sms_reports {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 send_user_memo($attr)
+
+=cut
+#**********************************************************
+sub send_user_memo {
+  my ($attr) = @_;
+
+  my %user = ();
+
+  if ($conf{SMS_REG_GREETING}) {
+    require Users;
+    Users->import();
+
+    my $uid = $attr->{UID};
+    my $Users = Users->new($db, $admin, \%conf);
+    
+    $user = $Users->info($uid, { SHOW_PASSWORD => 1 });
+  }
+
+  if ( (($attr->{sms} && !$conf{SMS_REG_GREETING}) || 
+       ($attr->{finish} && $conf{SMS_REG_GREETING})) ||
+       ($attr->{sms} && $attr->{ACTION} && $attr->{ACTION} eq 'send') && in_array('Internet', \@MODULES)) {
+
+    my $message;
+    if ($attr->{NEW_USER}) {
+      $message = $html->tpl_show(_include('sms_send_user_memo', 'Sms'), { 
+        %$attr,
+        %$user,
+        ISP => $conf{WEB_TITLE}
+      }, {
+        OUTPUT2RETURN      => 1, 
+        SKIP_DEBUG_MARKERS => 1 
+      });
+    }
+    else {
+      $message = $html->tpl_show(_include('internet_user_memo_sms', 'Internet'), { 
+        %$attr, 
+        %$user 
+      }, { 
+        OUTPUT2RETURN      => 1, 
+        SKIP_DEBUG_MARKERS => 1 
+      });
+    }
+
+    return 0 if (!$attr->{PASSWORD});
+
+    my $sms_id = sms_send(
+    {
+      NUMBER  => $attr->{PHONE},
+      MESSAGE => $message,
+      UID     => $attr->{UID},
+    });
+
+    if ($sms_id) {
+      return $html->message('info', $lang{INFO}, "SMS $lang{SENDED}");
+    }
+    else {
+      return $html->message('err', $lang{INFO}, "SMS $lang{NOT} $lang{SENDED}");
+    }
+  }
+}
+
+#**********************************************************
+=head2 sms_send_register()
+
+=cut
+#**********************************************************
+sub sms_send_register {
+  my ($attr) = @_;
+
+  my $uid        = $attr->{USER_INFO}->{UID} || $attr->{UID};
+  my $login      = $attr->{USER_INFO}->{LOGIN} || '';
+  my $phone      = $attr->{USER_INFO}->{PHONE} || '';
+
+  if ($uid) {
+    $attr->{READONLY} = 'readonly';
+  }
+
+  if (!$attr->{LNG_ACTION} && !$attr->{ACTION}) {
+    $attr->{ACTION}     = 'send';
+    $attr->{LNG_ACTION} = $lang{SEND};
+
+    if (!$phone) {
+      require Contacts;
+      Contacts->import();
+
+      my $Contacts = Contacts->new($db, $admin, \%conf);
+      my $user_phone = $Contacts->contacts_list({
+        UID     => $uid,
+        TYPE    => 1,
+        VALUE   => '_SHOW'
+      });
+      
+      $phone = $user_phone->[0]{value};
+    }
+  }
+
+  if ($attr->{ACTION} eq 'send') {
+    $attr->{UID} = $uid;
+    send_user_memo({ %$attr, %FORM });
+  }
+
+  $html->tpl_show(_include('sms_send_end_register', 'Sms'), { 
+    %$attr,
+    INDEX                   => $index,
+    UID                     => $uid,
+    USER                    => $login,
+    PHONE                   => $phone,
+    UID                     => $uid,
+    REGISTRATION_INFO_SMS   => 1,
+    sms                     => 1,
+    step                    => $attr->{step}
+  });
 }
 
 1

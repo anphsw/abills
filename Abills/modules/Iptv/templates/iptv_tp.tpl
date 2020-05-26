@@ -136,6 +136,14 @@
                      class='control-label col-md-3'>_{SMALL_DEPOSIT_ACTION}_:</label>
               <div class='col-md-9'>%SMALL_DEPOSIT_ACTION_SEL%</div>
             </div>
+
+            <div class='form-group'>
+              <label for='METHOD' class='control-label col-sm-3'>_{FEES}_ _{TYPE}_:</label>
+              <div class='col-md-9'>
+                %SEL_METHOD%
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

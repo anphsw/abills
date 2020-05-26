@@ -1,8 +1,8 @@
 <form METHOD=POST class='form-horizontal' >
     <input type='hidden' name='index' value='%INDEX%'>
     <input type="hidden" name="%ADD_CHG%" value="1">
-    <input type="hidden" name="al_id" id="al_id" value="%AL_ID_CHANGE%">
-    <input type="hidden" name="al_chg" id="al_chg" value="%AL_CHG_JS%">
+    <input type="hidden" name="al_id" id="al_id" value="%ID_CHANGE%">
+    <input type="hidden" name="al_chg" id="al_chg" value="%CHG_JS%">
 
     <div class='box box-theme box-form'>
         <div class='box-header with-border'>
@@ -14,14 +14,14 @@
             <div class="form-group">
                 <label class="control-label col-md-4 col-sm-3">_{NAME}_:</label>
                 <div class="col-md-8 col-sm-9">
-                    <input type='text' name='AL_NAME' value='%AL_NAME%' placeholder='%NAME%'
+                    <input type='text' name='NAME' value='%NAME%' placeholder='%P_NAME%'
                            class='form-control'>
                 </div>
             </div>
             <div class="form-group">
                 <label class="control-label col-md-4 col-sm-3">_{DESCRIBE}_:</label>
                 <div class="col-md-8 col-sm-9">
-                    <input type='text' name='AL_DESC' value='%AL_DESC%' placeholder='%DESCRIBE%'
+                    <input type='text' name='DESCR' value='%DESCR%' placeholder='%DESCRIBE%'
                            class='form-control'>
                 </div>
             </div>
@@ -80,7 +80,7 @@
     let result = date.match(/[0-9]{1,9}/g);
 
     if (result.length > 0) {
-        setTimeout(function(){
+        setTimeout(function() {
             for (var i = 0; i < result.length; i++) {
                 jQuery("#"+result[i]).trigger('click');
             }

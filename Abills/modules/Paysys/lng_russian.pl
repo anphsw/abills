@@ -1,3 +1,4 @@
+use warnings FATAL => 'all';
 $lang{PAY_SYSTEM} = 'Плат. система';
 $lang{TRANSACTION} = 'Транзакция';
 $lang{TEST_MODE} = 'Тестовый режим';
@@ -82,4 +83,9 @@ $lang{SHOW_PAYSYSTEM_IN_USER_PORTAL} = 'Показать платежную си
 $lang{SELECT_MERCHANT_FOR_GROUP} = 'Выбор настроек контрагента для групп';
 $lang{_MERCHANT} = 'контрагента';
 $lang{MERCHANT_NAME2} = 'Название контрагента';
+$lang{ERR_MESSAGE}='Для совершения оплаты необходимо сообщить нам Ваш адрес электронной почты или номер телефона';
+$lang{FAST_PAY} = 'Вы будете перенаправлены на сервис банка Privat - Быстрая оплата.';
+$lang{PRIVAT_TERMINAL}='Приватбанк терминал';
+$lang{PAY_ADD}='Начать оплату';
+$lang{PAY_JOURNAL}='Журнал внешних оплат';
 1;

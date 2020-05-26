@@ -953,7 +953,7 @@ sub account_check {
   $self->query("SELECT COUNT(uid) FROM internet_main;");
 
   if($self->{TOTAL}) {
-    if($self->{list}->[0]->[0] > 0x4B1) {
+    if($self->{list}->[0]->[0] > 0x4B2) {
       $self->{errno} = 0x2BC;
     }
   }

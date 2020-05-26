@@ -93,7 +93,7 @@ sub internet_online {
   }
   elsif ($FORM{diagnostic}) {
     my $res = internet_diagnostic($FORM{diagnostic});
-    if ($res == 0){
+    if ($res == 0) {
       return 0;
     }
   }
@@ -318,9 +318,15 @@ sub internet_online {
           $html->button($lang{SHOW}, "index=$index&NAS_ID=$line->{nas_id}", { class => 'show' }));
       }
 
-      if (Abills::Base::in_array('Maps', \@MODULES)) {
+      if (Abills::Base::in_array('Maps2', \@MODULES)) {
+        _internet_map2_menu({
+          TABLE => $table->show(),
+        });
+        return 1;
+      }
+      elsif (Abills::Base::in_array('Maps', \@MODULES)) {
         _internet_map_menu({
-          TABLE   => $table->show(),
+          TABLE => $table->show(),
         });
         return 1;
       }
@@ -474,8 +480,8 @@ sub internet_online {
       if (defined($dub_logins->{ $line->{user_name} }) && $dub_logins->{ $line->{user_name} } > 1) {
         $table->{rowcolor} = '#FFFF00';
       }
-      elsif ($_nas->{nas_type} ne 'ipcad'
-        && $_nas->{nas_type} ne 'dhcp'
+      elsif ($_nas->{nas_type} && $_nas->{nas_type} ne 'ipcad'
+        && $_nas->{nas_type} && $_nas->{nas_type} ne 'dhcp'
         && defined($line->{nas_port_id})
         && defined($nas_id)
         && defined($dub_ports->{ $nas_id }{ $line->{nas_port_id} })
@@ -626,7 +632,7 @@ sub internet_online {
     );
   }
   else {
-    $output_filters = internet_online_search() ;
+    $output_filters = internet_online_search();
     $output = $output_filters . $output;
 
     #TODO MOreelegent solution
@@ -650,6 +656,14 @@ sub internet_online {
     }
   }
 
+  if (Abills::Base::in_array('Maps2', \@MODULES) && !$FORM{ZAPED}) {
+    _internet_map2_menu({
+      TABLE   => $output_map,
+      FILTERS => $output_filters,
+      ZAPED   => $output_zaped,
+    });
+    return 1;
+  }
   if (Abills::Base::in_array('Maps', \@MODULES) && !$FORM{ZAPED}) {
     _internet_map_menu({
       TABLE   => $output_map,
@@ -689,11 +703,17 @@ sub internet_online_search {
     ACCT_SESSION_ID => 'SESSION_ID',
     UID             => 'UID',
     LAST_ALIVE      => $lang{LAST_UPDATE},
-    GID             => "$lang{GROUP} ID",
-    TAGS            => "$lang{TAGS}",
     VLAN            => 'Client VLAN',
     SERVER_VLAN     => 'Server VLAN',
   );
+  
+  if ($permissions{0}{28}) {
+    $FILTER_FIELDS{GID} = "$lang{GROUP} ID";
+  }
+
+  if (!$admin->{MODULES} || $admin->{MODULES}{'Tags'}) {
+    $FILTER_FIELDS{TAGS} = "$lang{TAGS}";
+  }
 
   my $FIELDS_SEL = $html->form_select(
     'FILTER_FIELD',
@@ -746,12 +766,13 @@ sub internet_diagnostic {
   my @diagnostic_rules = split(/;/, $conf{INTERNET_EXTERNAL_DIAGNOSTIC});
   for (my $i = 0; $i <= $#diagnostic_rules; $i++) {
     my @rule = split(/:/, $diagnostic_rules[$i]);
-    if($rule[1] eq 'package'){
+    if ($rule[1] eq 'package') {
       ($name, undef, $package) = @rule;
     }
     else {
       ($name, $cmd) = @rule;
     }
+
     if ($i == $diag_num) {
       last;
     }
@@ -765,20 +786,20 @@ sub internet_diagnostic {
     FRAMED_IP_ADDRESS => $ip
   });
 
-  if($package){
+  if ($package) {
     my $require_module = "Internet::$package";
     eval {require "Internet/$package.pm";};
     if (!$@) {
       $require_module->import();
-      $require_module->new({conf => \%conf, html => $html});
-      return $require_module->action($diagnostic,$extra_param);
+      $require_module->new({ conf => \%conf, html => $html });
+      return $require_module->action($diagnostic, $extra_param);
     }
     else {
       print "Error loading\n";
       print $@;
     }
   }
-  else{
+  else {
     my $res = cmd($cmd, {
       PARAMS  => $ACCT_INFO,
       timeout => 10,
@@ -813,6 +834,11 @@ sub internet_online_builds {
   my $online_has_guest = $Sessions->users_online_count_by_builds({ GUEST => 1 });
   _error_show($Sessions) and return 0;
   my %online_for_guest_location_id = map {$_->{id} => $_->{online_count}} @$online_has_guest;
+
+  require Dom;
+  Dom->import();
+  my $Dom = Dom->new($db, $admin, \%conf);
+  my $list_online = $Dom->users_online_by_builds();
 
   my $districts_list = $Address->district_list({
     COLS_NAME => 1,
@@ -852,8 +878,8 @@ sub internet_online_builds {
 
       my $builds_content = '';
       my $builds_count = 0;
-      foreach my $build (@{$builds_list}) {
 
+      foreach my $build (@{$builds_list}) {
         my $btn_class = 'btn-default';
 
         $street_users{total} += $build->{users_count};
@@ -873,13 +899,34 @@ sub internet_online_builds {
         }
 
         $builds_count += 1;
+
+        my $tooltipe_text = "";
+
+        foreach my $element_online (@{ $list_online }) {
+          my $status = $element_online->{status};
+          my $id  = $element_online->{id};
+          my $color_mark = $status ? '#00b35b' : '#b80000';
+
+          if ($id && $id eq $build->{id}) {
+            my $uid = $element_online->{uid};
+            my $fio = $element_online->{fio};
+
+            my $text_no_color = "$fio - (UID: $uid)<br/>";
+            my $text_color = $html->color_mark($text_no_color, $color_mark);
+
+            $tooltipe_text .= $text_color;
+          }
+        }
+
+        my $tooltipe_active = "data-tooltip='$tooltipe_text' data-tooltip-position='bottom'" if ($tooltipe_text ne '');
+
         $builds_content .= $html->button($build->{number},
           "index=7&type=11&search=1&search_form=1&LOCATION_ID=$build->{id}&BUILDS=$street->{id}", {
             class         => 'btn btn-lg btn-build ' . $btn_class,
-            OUTPUT2RETURN => 1
+            ex_params     => $tooltipe_active || '',
+            OUTPUT2RETURN => 1,
           }
         );
-
       }
 
       my $offline_users = ($street_users{total} || 0) - ($street_users{online} || 0);
@@ -998,6 +1045,41 @@ sub _internet_map_menu {
     DATA          => \%USERS_INFO,
     OUTPUT2RETURN => 1,
     QUICK         => 1,
+  });
+
+  $html->tpl_show(_include('internet_online_map', 'Internet'), {
+    FILTERS => $attr->{FILTERS},
+    TABLE   => $attr->{TABLE},
+    MAPS    => $FORM{MAPS}
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _internet_map2_menu() - show menu with map2
+
+=cut
+#**********************************************************
+sub _internet_map2_menu {
+  my ($attr) = @_;
+
+  load_module('Maps2', $html);
+
+  require Maps;
+  Maps->import();
+  my $Maps = Maps->new($db, $admin, \%conf);
+
+  my $builds_for_users = $Maps->users_monitoring_list({ COLS_NAME => 1 });
+  return 0 if _error_show($Maps);
+
+  my @build_ids = ();
+  map push(@build_ids, $_->{build_id}), @{$builds_for_users} if $Maps->{TOTAL};
+
+  $FORM{MAPS} = maps2_show_map({
+    BUILD_IDS     => \@build_ids,
+    OUTPUT2RETURN => 1,
+    QUICK         => 1
   });
 
   $html->tpl_show(_include('internet_online_map', 'Internet'), {

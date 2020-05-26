@@ -8,7 +8,7 @@ $lang{LAST_ACTIVITY}='Последняя активность';
 $lang{BREAKING}='Поломка';
 
 $lang{LEVEL}='Уровень';
-$lang{DISTANCE}='Растояние';
+$lang{DISTANCE}='Расстояние';
 $lang{SNMP_SURVEY}='SNMP Опрос';
 $lang{ERR_NOT_REGISTRED}='Еще не зарегистрировано ';
 
@@ -39,7 +39,7 @@ $lang{CABLE_TEST} = 'Тестирование кабеля';
 $lang{PAIR} = 'Пара';
 
 $lang{REBOOT}='Перезагрузка';
-$lang{REBOOTED}='Перезагруженна';
+$lang{REBOOTED}='Перезагружена';
 
 $lang{SYSTEM_ID}='Название системы';
 $lang{UPTIME}='Время работы';
@@ -48,7 +48,7 @@ $lang{ONU_STATUS}='Статус приставки';
 $lang{POWER}='Уровень сигнала';
 $lang{TEMPERATURE}='Температура';
 $lang{VOLTAGE}='Вольтаж';
-$lang{UNREGISTER}='Незарегистрированые';
+$lang{UNREGISTER}='Незарегистрированные';
 $lang{UNREG_ONU}='Дерегистрировать';
 $lang{DEVICE}='Устройство';
 
@@ -107,7 +107,7 @@ $lang{OLT_BUSY} = 'заполнено на';
 
 $lang{ONU_PROFILE} = 'Профайл';
 $lang{CALCULATOR} = 'Калькулятор';
-$lang{CABLE_LENGTH} = 'Длинна опт. кабеля, км.';
+$lang{CABLE_LENGTH} = 'Длина опт. кабеля, км.';
 $lang{CON_COUNT} = 'Кол-во мех. соед., шт.';
 $lang{CALCULATE} = 'Посчитать';
 $lang{DIVIDER} = 'Делитель';
@@ -120,5 +120,7 @@ $lang{PORT_UPTIME} = 'Время работы порта';
 
 $lang{NO_ZABBIX_INFO} = 'Нужно заполнить Zabbix hostid, а также $conf{ZABBIX_URL}';
 $lang{DUPLICATE_MAC} = 'Повторяющиеся MAC адреса';
+
+$lang{RF_PORT_ON} = 'Статус RF-порта';
 
 1

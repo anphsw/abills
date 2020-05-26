@@ -18,13 +18,13 @@ BEGIN {
 our (
   $debug,
   %conf,
-  $admin,
+  $Admin,
   $db,
   $OS
 );
 
-use Sms::Sms_Broker;
 use Sms;
+use Sms::Init;
 
 sms_status();
 
@@ -38,22 +38,22 @@ sub sms_status {
   do 'Abills/Misc.pm';
   load_module('Sms');
   print "Sms status\n" if ($debug > 1);
-  my $Sms   = Sms->new($db, $admin, \%conf);
+  my $Sms   = Sms->new($db, $Admin, \%conf);
 
-  my $Sms_service = sms_service_connect();
+  my $Sms_service = init_sms_service($db, $Admin, \%conf);
   if ($Sms_service->{errno}) {
     return 0;
   }
 
   if($Sms_service->can('get_status')) {
-    my $list = $Sms->list({ STATUS => 0, COLS_NAME => 1 });
+    my $list = $Sms->list({ SMS_STATUS => 0, COLS_NAME => 1 });
     foreach my $line ( @$list ) {
 
       if($debug > 1) {
         print "ID: $line->{id} DATE: $line->{datetime}\n";
       }
 
-      $Sms_service->get_status({ REF_ID => $line->{datetime} });
+      $Sms_service->get_status({ REF_ID => $line->{datetime}, EXT_ID => $line->{ext_id} });
 
       if($debug > 1) {
         print "  STATUS: ". (defined($Sms_service->{status}) ? $Sms_service->{status} : 0) ."\n";

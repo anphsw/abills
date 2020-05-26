@@ -1,0 +1,5 @@
+%FUNCTIONS_LIST = (
+  "16:13::weather_today_actions:AJAX"                                   => 5,
+);
+
+1;

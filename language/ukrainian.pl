@@ -131,7 +131,7 @@ $lang{COUNT}='Кількість';
 $lang{FOR}='для';
 $lang{WRITE_TO_DB}='Записати в базу';
 $lang{ON}='На';
-$lang{MESSAGE}='Текст';
+$lang{MESSAGE}='Повідомлення';
 $lang{ERR_IP_ADDRESS_CONFLICT}='Конфлікт адрес';
 $lang{UP_RATING}='Підняти рейтинг';
 $lang{ACCOUNTS}='Рахунки';
@@ -642,7 +642,7 @@ $lang{CHOOSE} = 'Вибрати';
 $lang{UNLINK} = 'Відвязати';
 $lang{AVERAGE_RATING} = 'Середня оцінка';
 $lang{EVALUATION_OF_PERFORMANCE} = 'Оцінка виконання';
-$lang{USERS_ADDED_TO_DELIVERY} = 'Користувачів, добавлено в розсилку';
+$lang{USERS_ADDED_TO_DELIVERY} = 'Користувачів добавлено в розсилку';
 $lang{WIDTH}='Ширина';
 $lang{THERE_ARE_NO_SETTINGS_TO_CHANGE} = 'Параметри для зміни відсутні';
 $lang{ACTIVATED} = 'Активовано';
@@ -833,6 +833,15 @@ $lang{REG_SUCCESS}='Вітаємо! Реєстрація завершена';
 $lang{REG_SEND_EMAIL}='Вся інформація була надіслана на ваш E-mail';
 
 $lang{EXTRA_FIELDS}='Додаткові поля';
+$lang{LEFT_PART}='Ліва частина';
+$lang{RIGHT_PART}='Права частина';
+$lang{CONDITION}='Умова';
+
+$lang{SYMBOLS_REG}='Допустимі символи: ';
+$lang{SEND_REG}='Відправлено на';
+
+$lang{RESPONSIBLE}='Відповідальний';
+$lang{NO_ADDRESS}='Адрес не був заповнений, заповніть будь ласка!';
 
 1;
 

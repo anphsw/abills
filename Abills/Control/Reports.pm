@@ -204,8 +204,12 @@ sub reports{
           HOURS => $lang{HOURS},
         );
       }
-      push @rows, $html->element('label', "$lang{GROUP}: ", {class => 'col-md-2 control-label'})
-        . $html->element('div', sel_groups({FILTER_SEL => 1}), {class => 'col-md-8'});
+      
+      if ($permissions{0}{28}) {
+        push @rows, $html->element('label', "$lang{GROUP}: ", {class => 'col-md-2 control-label'})
+          . $html->element('div', sel_groups({FILTER_SEL => 1}), {class => 'col-md-8'});
+      }
+
       if ($attr->{EXT_TYPE} || %select_types) {
         push @rows, $html->element('label', " $lang{TYPE}: ", {class => 'col-md-2 control-label'})
           . $html->element('div', $html->form_select(
@@ -241,14 +245,20 @@ sub reports{
       }
     }
     #SHow tags
-    #my $TAGS = '';
-    if ( !$attr->{NO_TAGS} && in_array( 'Tags', \@MODULES ) ){
-      load_module( 'Tags', $html );
-      push @rows, $html->element('label', "$lang{TAGS}: ", {class => 'col-md-2 control-label'})
-        . $html->element('div', tags_sel(), {class => 'col-md-8'});
+    if ( !$attr->{NO_TAGS} && in_array( 'Tags', \@MODULES)) {
+      if (!$admin->{MODULES} || $admin->{MODULES}{'Tags'}) {
+        load_module( 'Tags', $html );
+        my $tag_count;
+        my $form_tags_sel;
+
+        ($form_tags_sel, $tag_count) = tags_sel({ HASH => 1 });
+
+        if ($tag_count) {
+          push @rows, $html->element('label', "$lang{TAGS}: ", {class => 'col-md-2 control-label'})
+            . $html->element('div', $form_tags_sel, {class => 'col-md-8'});
+        }
+      }
     }
-
-
 
     my %info = ();
     my $info_rows = '';
@@ -595,7 +605,7 @@ sub report_payments{
     $LIST_PARAMS{METHOD} = $FORM{FIELDS};
     $LIST_PARAMS{METHOD} =~ s/ //g;
     $LIST_PARAMS{METHOD} =~ s/,/;/g;
-    $fields = "FIELDS=" . $LIST_PARAMS{METHOD};
+    $fields = "&FIELDS=" . $LIST_PARAMS{METHOD};
   }
   elsif ( $FORM{METHOD} ){
     $LIST_PARAMS{METHOD} = $FORM{METHOD};
@@ -782,7 +792,7 @@ sub report_payments{
       CHARTS_XTEXT    => $x_text,
       EXT_TITLES      => $ext_titles{$type} || $ext_titles{'DAYS'},
       FILTER_COLS     => {
-        admin_name    => "search_link:report_payments:ADMIN_NAME,$type=1,$pages_qs",
+        admin_name    => "search_link:report_payments:ADMIN_NAME,$type=1,$pages_qs,$fields",
         method        => "search_link:report_payments:METHOD,TYPE=USER,$pages_qs",
         login         => "search_link:from_users:UID,$type=1,$pages_qs",
         date          => "search_link:report_payments:DATE,DATE,$fields",
@@ -1238,11 +1248,12 @@ sub form_changes_summary {
   }
 
   my $table = $html->table({
-    width  => '300',
-    cation => $lang{REPORTS},
-    qs     => $pages_qs,
-    ID     => 'ADMIN_ACTIONS_SUMMARY',
-    EXPORT => 1
+    width      => '300',
+    cation     => $lang{REPORTS},
+    qs         => $pages_qs,
+    FIELDS_IDS => \%action_types,
+    ID         => 'ADMIN_ACTIONS_SUMMARY',
+    EXPORT     => 1,
   });
 
   foreach my $key ( sort keys %action_types ) {
@@ -1394,7 +1405,12 @@ sub analiz_user_statistic {
     $conf{LOGS_DIR} = $var_dir . 'log/user_fn.log';
   }
 
-  open(my $log_file, '<:encoding(UTF-8)', $conf{USER_FN_LOG}) or die "Error in opening file $conf{USER_FN_LOG} $!\n";
+  my $log_file;
+  if (! open($log_file, '<:encoding(UTF-8)', $conf{USER_FN_LOG})) {
+    $html->message('err', $lang{ERROR}, "Error in opening file $conf{USER_FN_LOG} $!");
+    return 1;
+  }
+
   my %info;
   my %transition_info;
   my $transition_1 = '';
@@ -1410,13 +1426,13 @@ sub analiz_user_statistic {
       my @lines = split(/\s/, $row, 4);
 
       @lines = split(/:/, $lines[3], 3);
-      $info{ $lines[1] }{time} += $lines[2];
+      $info{ $lines[1] }{time} = ($info{ $lines[1] }{time}) ? $info{ $lines[1] }{time} + $lines[2] : $lines[2];
       $info{ $lines[1] }{popularity} += 1;
       $the_bigest_eql{user_num} += $session_id ne $lines[0] ? 1 : 0;
 
       if ($transition_1 ne $lines[1] && $session_id eq $lines[0]) {
-        $transition_info{ $lines[1] }{$transition_1} += 1;
-        $the_bigest_eql{total_transition} += 1;
+        $transition_info{ $lines[1] }{$transition_1} = ($transition_info{ $lines[1] }{$transition_1}) ? $transition_info{ $lines[1] }{$transition_1} + 1 : 1;
+        $the_bigest_eql{total_transition} = ($the_bigest_eql{total_transition}) ? $the_bigest_eql{total_transition} + 1 : 1;
 
         if ($transition_info{ $lines[1] }{$transition_1} > $the_bigest_eql{transition}) {
           $the_bigest_eql{transition} = $transition_info{ $lines[1] }{$transition_1};
@@ -1424,8 +1440,9 @@ sub analiz_user_statistic {
       }
       $transition_1 = $lines[1];
       $session_id   = $lines[0];
-      $the_bigest_eql{total_popularity} += 1;
-      $the_bigest_eql{total_time} += $lines[2];
+
+      $the_bigest_eql{total_popularity} = ($the_bigest_eql{total_popularity}) ? $the_bigest_eql{total_popularity} + 1 : 1;
+      $the_bigest_eql{total_time} = ($the_bigest_eql{total_time}) ? $the_bigest_eql{total_time} + $lines[2] : $lines[2];
 
       if ($info{ $lines[1] }{popularity} > $the_bigest_eql{popularity}) {
         $the_bigest_eql{popularity} = $info{ $lines[1] }{popularity};
@@ -1443,7 +1460,7 @@ sub analiz_user_statistic {
       caption     => $html->element( 'i', '',{class => 'fa fa-fw fa-bar-chart',style => 'font-size:28px;'})
                       . '&nbsp'
                       . $lang{POPULAR_MENU},
-      title_plain => [ "$lang{NAME}", "$lang{VISITS}", "$lang{PERCENTAGE}" ],
+      title_plain => [ $lang{NAME}, $lang{VISITS}, $lang{PERCENTAGE} ],
       width       => '100%',
       ID          => 'LIST_OF_LOGS_TABLE',
     }
@@ -1475,7 +1492,7 @@ sub analiz_user_statistic {
                      . $lang{AVERAGE_TIME},
       width       => '100%',
       ID          => 'LIST_OF_LOGS_TABLE',
-      title_plain => [ "$lang{NAME}", "$lang{TIME}", "$lang{PERCENTAGE}" ],
+      title_plain => [ $lang{NAME}, $lang{TIME}, $lang{PERCENTAGE} ],
     }
   );
   foreach my $func_name (sort keys %info) {
@@ -1507,9 +1524,10 @@ sub analiz_user_statistic {
                      . $lang{POPULAR_TRANSITIONS},
       width       => '100%',
       ID          => 'LIST_OF_LOGS_TABLE',
-      title_plain => [ "$lang{NAME}", "$lang{TRANSITION}", "$lang{PERCENTAGE}" ],
+      title_plain => [ $lang{NAME}, $lang{TRANSITION}, $lang{PERCENTAGE} ],
     }
   );
+
   foreach my $func_name (sort keys %transition_info) {
 
     foreach my $comon_func_name (sort keys %{ $transition_info{$func_name} }) {
@@ -1532,7 +1550,7 @@ sub analiz_user_statistic {
   }
   print $table2->show();
 
-  1;
+  return 1;
 }
 
 #**********************************************************

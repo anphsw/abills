@@ -145,4 +145,16 @@ $lang{TODAY_PLAN}='Today planing';
 $lang{UNREG_COUNT}='Unreg count';
 $lang{UNREPLY_MSGS}='Unreply message';
 
+$lang{TICKET}='Ticket';
+$lang{TICKET_BRIGADE}='Tickets installers';
+$lang{BRIGADE}='Brigade';
+$lang{LOCATION_BRIGADE}='Snap to geo address';
+
+$lang{TICKET_REPORT}='Work on ticket';
+$lang{DONE_TICKET}='Ticket completed';
+$lang{SPENT_TIME}='Spent time';
+$lang{TICKET_SUM}='Ticket sum';
+$lang{PAID_AMOUT}='Paid amout';
+$lang{NOT_TURNED_ON}='Module not turned on';
+
 1;

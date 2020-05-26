@@ -55,7 +55,7 @@ $lang{OPEN_MSGS} = 'Открытые темы';
 $lang{NOTE} = 'Заметка';
 $lang{LAST_CONTACT} = 'Последний контакт с клиентом';
 $lang{SUBSEQENT_CONTACT} = 'Последующий контакт с клиентом';
-$lang{ADD_DELIVERY} = 'Добавит рассылку';
+$lang{ADD_DELIVERY} = 'Добавить рассылку';
 $lang{SEND_TIME} = 'Время отправки';
 $lang{SEND_DATE} = 'Дата отправки';
 $lang{WAIT_TO_SEND} = 'Ждет отправки';
@@ -155,5 +155,17 @@ $lang{ADMIN_UNREAD}='Не прочитано адмнистраторам';
 $lang{TODAY_PLAN}='Запланированно на сегодня';
 $lang{UNREG_COUNT}='Количество не зарегистрированных';
 $lang{UNREPLY_MSGS}='Без ответа';
+
+$lang{TICKET}='Заявка';
+$lang{TICKET_BRIGADE}='Тикеты монтажников';
+$lang{BRIGADE}='Бригада';
+$lang{LOCATION_BRIGADE}='Привязать к геоадресу';
+
+$lang{TICKET_REPORT}='Работы над заявками';
+$lang{DONE_TICKET}='Выполнено заявок';
+$lang{SPENT_TIME}='Потраченное время';
+$lang{TICKET_SUM}='Сумма заявок';
+$lang{PAID_AMOUT}='Выплаченная сумма';
+$lang{NOT_TURNED_ON}='Модуль не включен';
 
 1

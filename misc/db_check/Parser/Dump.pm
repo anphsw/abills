@@ -7,9 +7,10 @@ use v5.16;
 
 BEGIN {
   use Abills::Misc;
+  use Abills::PModules qw(load_perl_module);
 
-  main::load_pmodule('SQL::Translator');
-  main::load_pmodule('Parser::Dump::MySQL');
+  load_perl_module('SQL::Translator');
+  load_perl_module('Parser::Dump::MySQL');
 }
 
 use Abills::Base qw/_bp/;
@@ -86,9 +87,21 @@ sub parse_accumulate {
   my ($file, $attr) = @_;
 
   my @files_list = (-d $file) ? sort @{main::_get_files_in($file, { FULL_PATH => 1, FILTER => '\.sql$' })} : ($file);
+  my %FINDED_MODULES = ();
 
   foreach my $filepath (@{files_list}) {
     next if ($filepath =~ /Multidoms\.sql/);
+
+    my (undef, $sql_file) = split('db\/', $filepath);
+    my ($module_name, undef) = split('\.', $sql_file);
+    $FINDED_MODULES{$module_name} = 1;
+
+    if ($attr->{MODULE_DB}) {
+      if ($module_name && $sql_file && (-e $attr->{MODULE_DB} . $module_name . '/' . $sql_file)) {
+        $filepath = $attr->{MODULE_DB} . $module_name . '/' . $sql_file;
+      }
+    }
+
     print "Parsing $filepath \n" if ($debug);
 
     my $content = get_file_content($filepath);
@@ -99,6 +112,26 @@ sub parse_accumulate {
     next if (!$content);
 
     Parser::Dump::MySQL::parse($translator_main, $content, { SKIP_DUPLICATE_CREATE => 1 });
+  }
+
+  if ($attr->{ALL_MODULES} && ref $attr->{ALL_MODULES} eq 'ARRAY' && $attr->{MODULE_DB}) {
+    foreach my $module (@{$attr->{ALL_MODULES}}) {
+      next if ($FINDED_MODULES{$module} || !$module);
+
+      if (-e $attr->{MODULE_DB} . $module . '/' . $module . '.sql') {
+        $module = $attr->{MODULE_DB} . $module . '/' . $module . '.sql';
+        print "Parsing $module \n" if ($debug);
+
+        my $content = get_file_content($module);
+
+        filter_alter($content, \%alter_defined);
+        $content =~ s/^ALTER TABLE (.*?);$//gms;
+
+        next if (!$content);
+
+        Parser::Dump::MySQL::parse($translator_main, $content, { SKIP_DUPLICATE_CREATE => 1 });
+      }
+    }
   }
 
   if ($attr->{SAVE_TO}) {

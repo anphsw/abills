@@ -1,3 +1,4 @@
+
 use strict;
 use warnings FATAL => 'all';
 
@@ -23,19 +24,11 @@ sub cablecat_cable_reports {
   my %ADDRESS_PARAMS = _get_address_named_params(\%FORM);
 
   my $choose_address_form = form_address_select2({HIDE_FLAT => 1, HIDE_ADD_BUILD_BUTTON => 1});
-#    $html->tpl_show(_include('cablecat_reports_address_form', 'Cablecat'),
-#    {
-#      %FORM,
-#      %ADDRESS_PARAMS,
-#      FORM_ID => 'report_panel',
-#    }, { OUTPUT2RETURN => 1 });
   
   my $planned_input = $html->tpl_show( templates('form_row_checkbox'), {
       INPUT => $html->form_input('PLANNED', '', { TYPE => 'checkbox', STATE => $FORM{planned} }),
       NAME  => $lang{PLANNED}
-    }, {
-      OUTPUT2RETURN => 1
-    }
+    }, { OUTPUT2RETURN => 1 }
   );
 
   reports({
@@ -49,7 +42,6 @@ sub cablecat_cable_reports {
   
   delete $LIST_PARAMS{DISTRICT_ID};
 
-  
   $LIST_PARAMS{TYPE_ID} = $FORM{TYPE_ID} || '_SHOW';
   $LIST_PARAMS{CREATED} = ($FORM{FROM_DATE} && $FORM{TO_DATE}) ? "$FORM{FROM_DATE}/$FORM{TO_DATE}" : '_SHOW';
   

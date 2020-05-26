@@ -40,6 +40,7 @@
         %CHANGE_BUTTON%
         %BUTTON_TO_LEAD_INFO%
         %CONVERT_DATA_BUTTON%
+        %CONVERT_LEAD_BUTTON%
       </div>
     </div>
   </div>

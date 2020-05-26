@@ -1,3 +1,5 @@
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 DROP TABLE IF EXISTS `confcontrol_controlled_files`;
 DROP TABLE IF EXISTS `confcontrol_stats`;
 

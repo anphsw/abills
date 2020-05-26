@@ -197,6 +197,14 @@ if ($permissions{0} && (($FORM{UID} && $FORM{UID} =~ /^(\d+)$/
 }
 
 print $html->header();
+
+if ($conf{NEW_WIKI}) {
+  $ENV{DOC_URL} = "https://support.abills.net.ua/doc.cgi?url=";
+}
+else {
+  $ENV{DOC_URL} = 'http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:%FUNCTION_NAME%';
+}
+
 my ($menu_text, $navigat_menu) = mk_navigator();
 
 $html->{LANG} = { GO2PAGE => $lang{GO2PAGE} };
@@ -788,10 +796,10 @@ sub form_bills {
 
     foreach my $line (@$list) {
       if ($line->{company_name}) {
-        $BILLS_HASH{ $line->{id} } = "$line->{id} : $line->{company_name} :$line->{deposit}";
+        $BILLS_HASH{ $line->{id} } = "$line->{id} : $line->{company_name} : ". sprintf('%.2f', $line->{deposit} || 0);
       }
       elsif ($line->{login}) {
-        $BILLS_HASH{ $line->{id} } = ">> $line->{id} : Personal :$line->{deposit}";
+        $BILLS_HASH{ $line->{id} } = ">> $line->{id} : Personal : ". sprintf('%.2f', $line->{deposit} || 0);
       }
     }
 
@@ -995,6 +1003,7 @@ sub form_changes {
     caption    => $lang{LOG},
     pages      => $admin->{TOTAL},
     ID         => 'ADMIN_ACTIONS',
+    FIELDS_IDS => $admin->{COL_NAMES_ARR},
     EXPORT     => 1,
     MENU       => "$lang{SEARCH}:search_form=1&index=$index$pages_qs2:search;"
   });
@@ -1065,8 +1074,13 @@ sub form_changes {
   print $table->show();
 
   $table = $html->table({
+    ID         => 'ADMIN_ACTION_TOTAL',
     width      => '100%',
-    rows       => [ [ "$lang{TOTAL}:", $html->b( $admin->{TOTAL} ) ] ]
+    rows       => [ [ "$lang{TOTAL}:", $html->b( $admin->{TOTAL} ) ] ],
+    FIELDS_IDS => {
+      1 => $lang{TOTAL},
+      2 => $admin->{TOTAL}
+    }
   });
 
   print $table->show();
@@ -1572,6 +1586,10 @@ sub form_search {
         $FORM{COMPANY_NAME}=$FORM{LOGIN};
         delete $FORM{LOGIN};
       }
+      elsif ($FORM{TYPE_PAGE}) {
+        $FORM{type} = $FORM{TYPE_PAGE};
+        $search_type = $FORM{type};
+      }
     }
     else {
       $LIST_PARAMS{LOGIN} = $FORM{LOGIN};
@@ -1655,7 +1673,7 @@ sub form_search {
       return '';
     }
 
-    my $group_sel   = sel_groups({FILTER_SEL => 1});
+    my $group_sel   = sel_groups({FILTER_SEL => 1}) if ($admin->{permissions}->{0}->{28});
     my %search_form = (
       2  => 'form_search_payments',
       3  => 'form_search_fees',
@@ -1694,6 +1712,7 @@ sub form_search {
             SEL_OPTIONS  => { '' => $lang{ALL} }
           }
         );
+        $SEARCH_DATA{SEARCH_FORM} = $html->tpl_show(templates('form_search_personal_info'), { %FORM, %info }, { OUTPUT2RETURN => 1 });
         $attr->{ADDRESS_FORM}=1;
       }
       elsif ($search_type == 3) {
@@ -1708,6 +1727,7 @@ sub form_search {
             SEL_OPTIONS  => { '' => $lang{ALL} }
           }
         );
+        $SEARCH_DATA{SEARCH_FORM} = $html->tpl_show(templates('form_search_personal_info'), { %FORM, %info }, { OUTPUT2RETURN => 1 });
         $attr->{ADDRESS_FORM}=1;
       }
       elsif ($search_type == 11 || $search_type == 15) {
@@ -1716,6 +1736,7 @@ sub form_search {
           delete $FORM{UID};
         }
 
+        $SEARCH_DATA{SEARCH_FORM} = $html->tpl_show(templates('form_search_personal_info'), { %FORM, %info }, { OUTPUT2RETURN => 1 });
         $info{INFO_FIELDS} = form_info_field_tpl({ SKIP_DATA_RETURN => 1 });
 
         if (in_array('Docs', \@MODULES)) {
@@ -1763,7 +1784,7 @@ sub form_search {
         $info{INFO_FIELDS}  = form_info_field_tpl({ COMPANY => 1 });
       }
 
-      $SEARCH_DATA{SEARCH_FORM} = $html->tpl_show(templates($search_form{ $search_type }), { %FORM, %info }, { OUTPUT2RETURN => 1 });
+      $SEARCH_DATA{SEARCH_FORM} .= $html->tpl_show(templates($search_form{ $search_type }), { %FORM, %info }, { OUTPUT2RETURN => 1 });
       $SEARCH_DATA{SEARCH_FORM} .= $html->form_input('type', $search_type, { TYPE => 'hidden', FORM_ID => 'SKIP' });
     }
 
@@ -1802,9 +1823,9 @@ sub form_search {
           },
          { OUTPUT2RETURN => 1 });
     }
-
-    $SEARCH_DATA{FROM_DATE} = $html->date_fld2('FROM_DATE', { MONTHES => \@MONTHES, WEEK_DAYS => \@WEEKDAYS, NO_DEFAULT_DATE => $attr->{NO_DEFAULT_DATE} });
-    $SEARCH_DATA{TO_DATE}   = $html->date_fld2('TO_DATE',   { MONTHES => \@MONTHES, WEEK_DAYS => \@WEEKDAYS, NO_DEFAULT_DATE => $attr->{NO_DEFAULT_DATE} });
+  
+    $SEARCH_DATA{FROM_DATE} = $html->form_datepicker('FROM_DATE', $FORM{FROM_DATE});
+    $SEARCH_DATA{TO_DATE}   = $html->form_datepicker('TO_DATE', $FORM{TO_DATE});
 
     if ($index == 7) {
       my @header_arr = ();
@@ -1822,8 +1843,23 @@ sub form_search {
     }
 
     if (in_array('Tags', \@MODULES)) {
-      load_module('Tags', $html);
-      $SEARCH_DATA{TAGS_SEL} = tags_sel();
+      if (!$admin->{MODULES} || $admin->{MODULES}{'Tags'}) {
+        load_module('Tags', $html);
+
+        my $tag_count;
+        my $form_tags_sel;
+
+        ($form_tags_sel, $tag_count) = tags_sel({ HASH => 1 });
+        if ($tag_count) {
+          $SEARCH_DATA{TAGS_SEL} = $form_tags_sel;
+        }
+        else {
+          $SEARCH_DATA{DISPLAY_TAGS} = 'display: none;';
+        }
+      }
+      else {
+        $SEARCH_DATA{DISPLAY_TAGS} = 'display: none;';
+      }
     }
 
     if ($attr->{PLAIN_SEARCH_FORM}) {
@@ -1834,7 +1870,18 @@ sub form_search {
         delete @SEARCH_DATA{'FROM_DATE', 'TO_DATE'};
         $SEARCH_DATA{HIDE_DATE} = 'hidden';
       };
-      $html->tpl_show(templates('form_search'), {%SEARCH_DATA, GROUPS_SEL => $group_sel}, { ID => $attr->{ID} });
+      unless ($admin->{permissions}->{0}->{28}) {
+        $SEARCH_DATA{DISPLAY_GROUP} = 'display: none;';
+      }
+      else {
+        $SEARCH_DATA{GROUPS_SEL} = $group_sel;
+      }
+
+      $html->tpl_show(templates('form_search'), {
+        %SEARCH_DATA
+      }, { 
+        ID => $attr->{ID} 
+      });
     }
   }
 
@@ -2914,7 +2961,6 @@ sub post_page {
   $html->test();
   return 1;
 }
-
 
 #**********************************************************
 =head2 _status_color_state($status)

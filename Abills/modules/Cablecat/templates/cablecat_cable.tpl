@@ -9,7 +9,7 @@
       <div class='form-group'>
         <label class='control-label col-md-3 required' for='NAME_id'>_{NAME}_</label>
         <div class='col-md-9'>
-          <input type='text' class='form-control' required name='NAME' value='%NAME%' id='NAME_id'/>
+          <input type='text' class='form-control' required name='NAME' value='%NAME%' id='NAME_id' autocomplete="off"/>
         </div>
       </div>
 

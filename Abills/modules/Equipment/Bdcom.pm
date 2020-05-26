@@ -9,6 +9,7 @@ use warnings;
 use Abills::Base qw(in_array);
 use Abills::Filters qw(bin2mac _mac_former dec2hex);
 our %lang;
+our %ONU_STATUS_TEXT_CODES;
 
 #**********************************************************
 =head2 _bdcom_get_ports($attr) - Get OLT slots and connect ONU
@@ -190,6 +191,12 @@ sub _bdcom_onu_list {
         else {
           $type =~ /\/(\d+)/;
           my $olt_num = $1 + $ether_ports;
+
+          #BDCOM(tm) P3608-2TE Software, Version 10.1.0E Build 46085
+          if ($conf{EQUIPMENT_BDCOM_OLT_DECR} && $attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /P3608/) {
+            $olt_num--;
+          }
+
           $port_id = sprintf("%02x%02x", $olt_num, $device_index);
           #print "// $olt_num, $device_index \n";
           #$port_id = sprintf( "%02d%02x", $brench_index, $interface_index );
@@ -637,31 +644,16 @@ sub _bdcom_mac_list {
 =cut
 #**********************************************************
 sub _bdcom_onu_status {
-  #  my %status = (
-  #    0  => 'free',
-  #    1  => 'allocated:text-success',
-  #    2  => 'authInProgress:text-warning',
-  #    3  => 'cfgInProgress:text-info',
-  #    4  => 'authFailed:text-danger',
-  #    5  => 'cfgFailed:text-danger',
-  #    6  => 'reportTimeout',
-  #    7  => 'ok',
-  #    8  => 'authOk',
-  #    9  => 'resetInProgress',
-  #    10 => 'resetOk',
-  #    11 => 'discovered',
-  #    12 => 'blocked:text-danger',
-  #    13 => 'checkNewFw',
-  #    14 => 'unidentified',
-  #    15 => 'unconfigured',
-  #  );
+
   my %status = (
-    0 => 'Authenticated:text-green',
-    1 => 'Registered:text-green',  #work
-    2 => 'Deregistered:text-red',  #not work
-    3 => 'Auto_config:text-green', #not work
-#    4 => 'Unknown status'
+    0 => $ONU_STATUS_TEXT_CODES{AUTHENTICATED},
+    1 => $ONU_STATUS_TEXT_CODES{REGISTERED},   #work
+    2 => $ONU_STATUS_TEXT_CODES{DEREGISTERED}, #not work
+    3 => $ONU_STATUS_TEXT_CODES{AUTO_CONFIG},  #not work
+    4 => $ONU_STATUS_TEXT_CODES{LOST},
+    5 => $ONU_STATUS_TEXT_CODES{STANDBY},
   );
+
   return \%status;
 }
 

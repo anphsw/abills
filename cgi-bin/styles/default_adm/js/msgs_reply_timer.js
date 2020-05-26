@@ -10,7 +10,7 @@ function Stopwatch(display) {
 }
 Stopwatch.prototype = {
   reset    : function () {
-    this.times = [0, 0, 0, 0];
+    this.times = [2, 0, 0, 0];
   },
   start    : function () {
     if (!this.time) this.time = performance.now();

@@ -37,11 +37,20 @@
         </div>
       </div>
 
+<!--      <div class='form-group'>-->
+<!--        <label class='control-label col-md-3'>_{DATE}_:</label>-->
+<!--        <div class='col-md-9'>-->
+<!--          %DATE_RANGE_PICKER%-->
+<!--        </div>-->
+<!--      </div>-->
+
       <div class='form-group'>
-        <label class='control-label col-md-3'>_{DATE}_:</label>
-        <div class='col-md-9'>
-          %DATE_RANGE_PICKER%
+        <label class='col-md-12 text-center text-bold '>_{DATE}_: </label>
+        <div class='col-md-1'>
+          <input type='checkbox' id='DATE_CHECKBOX' name='DATE_CHECKBOX' class='form-control-static'
+                 data-input-enables='FROM_DATE_TO_DATE'/>
         </div>
+        <div class='col-md-11'>%DATE_RANGE_PICKER%</div>
       </div>
 
     </div>

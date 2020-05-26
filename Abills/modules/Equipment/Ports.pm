@@ -858,7 +858,12 @@ sub equipments_get_used_ports{
   });
   my %ids = ();
 
-  @{$list} = (@{$equipment_list}, @{$nas_list});
+  if ($nas_list) {
+    @{$list} = (@{$equipment_list}, @{$nas_list});
+  }
+  else {
+    @{$list} = (@{$equipment_list});
+  }
 
   foreach my $line ( @{$list} ) {
     if (!$ids{ $line->{nas_id} }) {
@@ -1158,7 +1163,7 @@ sub port_result_former {
 
   my @info        = ();
   my @info_fields = '';
-  my @skip_params = ('PORT_OUT', 'PORT_OUT_ERR', 'ONU_OUT_BYTE', 'ONU_TX_POWER', 'OLT_RX_POWER', 'ETH_ADMIN_STATE', 'ETH_DUPLEX', 'ETH_SPEED', 'VLAN');
+  my @skip_params = ('PORT_OUT', 'PORT_OUT_ERR', 'ONU_OUT_BYTE', 'ONU_TX_POWER', 'OLT_RX_POWER', 'VIDEO_RX_POWER', 'ETH_ADMIN_STATE', 'ETH_DUPLEX', 'ETH_SPEED', 'VLAN');
   my $port_id     = $attr->{PORT};
 
   if($attr->{INFO_FIELDS}) {
@@ -1188,6 +1193,10 @@ sub port_result_former {
         );
       }
     }
+    elsif ($key eq 'RF_PORT_ON') {
+      my ($text, $color) = split(/:/, $value);
+      $value = $html->color_mark($text, $color);
+    }
     elsif($key eq 'ONU_IN_BYTE') {
       $key = $lang{TRAFFIC};
       $value = $lang{RECV} .': '.int2byte($value)
@@ -1207,10 +1216,13 @@ sub port_result_former {
         $value = 'ONU_RX_POWER: ' .  pon_tx_alerts( $value );
       }
       if($port_info->{$port_id}->{ONU_TX_POWER}) {
-        $value .= 'ONU_TX_POWER: '. pon_tx_alerts($port_info->{$port_id}->{ONU_TX_POWER});
+        $value .= 'ONU_TX_POWER: ' . pon_tx_alerts($port_info->{$port_id}->{ONU_TX_POWER});
       }
       if($port_info->{$port_id}->{OLT_RX_POWER}) {
-        $value .= 'OLT_RX_POWER: '. pon_tx_alerts( $port_info->{$port_id}->{OLT_RX_POWER} );
+        $value .= 'OLT_RX_POWER: ' . pon_tx_alerts( $port_info->{$port_id}->{OLT_RX_POWER} );
+      }
+      if(defined $port_info->{$port_id}->{VIDEO_RX_POWER}) {
+        $value .= 'VIDEO_RX_POWER: ' . pon_tx_alerts_video( $port_info->{$port_id}->{VIDEO_RX_POWER} );
       }
       my %color = (
         '' => '',

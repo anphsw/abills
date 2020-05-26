@@ -528,11 +528,11 @@ sub cablecat_commutation_equipment {
   }
   elsif ($FORM{operation} eq 'SAVE_COORDS') {
     $Cablecat->commutation_equipment_change({
-      _CHANGE_PARAM => 'NAS_ID',
-
-      NAS_ID        => $FORM{ID},
-      COMMUTATION_X => $FORM{X},
-      COMMUTATION_Y => $FORM{Y},
+      _CHANGE_PARAM        => 'NAS_ID',
+      NAS_ID               => $FORM{ID},
+      COMMUTATION_X        => $FORM{X},
+      COMMUTATION_Y        => $FORM{Y},
+      COMMUTATION_ROTATION => $FORM{COMMUTATION_ROTATION},
     });
     show_result($Cablecat, $lang{CHANGED}, '', { ID => 'COORDS_CHANGED' });
   }
@@ -938,21 +938,13 @@ sub _cablecat_commutation_cables_prepare_json {
       },
       meta  => {
         name               => $cable->{name},
-        #      position => $position,
-        #      fibers   => \%fibers,
         well_1_id          => $cable->{well_1_id},
         well_2_id          => $cable->{well_2_id},
         well_1             => $cable->{well_1},
         well_2             => $cable->{well_2},
-        map_btn            => maps_show_object_button(
-          $MAP_LAYER_ID{CABLE},
-          $cable->{id}, {
-          GO_TO_MAP   => 1,
-          POINT_ID    => $cable->{point_id},
-          SINGLE      => $cable->{point_id},
+        map_btn => maps2_show_object_button($MAP_LAYER_ID{CABLE}, $cable->{point_id}, {
           RETURN_HREF => 1
-        }
-        ),
+        }),
         other_commutations => \%other_commutation_hash
       }
     };

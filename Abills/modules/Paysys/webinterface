@@ -16,6 +16,7 @@ use Abills::Base qw(in_array cfg2hash convert ip2int
 use Abills::Fetcher qw(web_request);
 use Finance;
 use Abills::Misc;
+use Abills::Experimental qw(arrays_array2table);
 
 if (form_purchase_module({
 	HEADER          => $user->{UID},
@@ -209,7 +210,8 @@ sub paysys_periodic_new {
       $res_hash{ 'PM:'.$res_arr->[$i]{ordernumber} } = $i;
     }
 
-    my $list = $Paysys->list({ DATE           => $DATE,
+    my $list = $Paysys->list({
+      DATE           => $DATE,
       PAYMENT_SYSTEM => $payment_system_id,
       ID             => '_SHOW',
       SUM            => '_SHOW',
@@ -486,7 +488,8 @@ sub paysys_import_payments_new {
       TYPE         => 'PAYMENTS',
       IMPORT_TYPE  => $FORM{IMPORT_TYPE},
       IMPORT_RULES => $conf{PAYSYS_IMPORT_RULES},
-      FORM         => \%FORM
+      FORM         => \%FORM,
+      DEBUG        => $FORM{DEBUG} || 0
     }
   );
 
@@ -588,12 +591,12 @@ sub paysys_import_form_new {
         $BINDING_FIELD, { DEBUG => $debug, ENCODE => $FORM->{ENCODE} });
 
       if($FORM{METHOD} == 113){
+        my $Address = Address->new($db, $admin, \%conf);
         for(my $i=0; $i <= $#{$DATA_ARR}; $i++){
           if($DATA_ARR->[$i]->{UID} =~ /\D+/ || $DATA_ARR->[$i]->{UID} eq ''){
             my %BUILDS_LETTERS =  (1 => "А", 2 => "Б", 3 => "В");
             my ($bank_street, $bank_build, $bank_flat) = $DATA_ARR->[$i]->{ADDRESS} =~ /(\d+)","(.+)","(.+)/;
-            my $address = Address->new($db, $admin, \%conf);
-            my $street_info = $address->street_list({COLS_NAME => 1, NAME => '_SHOW', SECOND_NAME => $bank_street});
+            my $street_info = $Address->street_list({COLS_NAME => 1, NAME => '_SHOW', SECOND_NAME => $bank_street});
 
             $bank_street = $street_info->[0]->{street_name};
 
@@ -607,11 +610,14 @@ sub paysys_import_form_new {
               $bank_flat = $num . "-" . $BUILDS_LETTERS{$letter_num};
             }
 
-            my $user_info = $users->list({ COLS_NAME       => 1,
+            my $user_info = $users->list({
+              COLS_NAME       => 1,
               FIO             => '_SHOW',
               ADDRESS_STREET  => $street_info->[0]->{street_name},
               ADDRESS_FLAT    => $bank_flat,
-              ADDRESS_BUILD   => $bank_build});
+              ADDRESS_BUILD   => $bank_build
+            });
+
             if($#{$user_info} == 0){
               $DATA_ARR->[$i]->{UID} = $user_info->[0]->{uid};
               $DATA_ARR->[$i]->{ADDRESS} = "$bank_street $bank_build, $bank_flat";
@@ -650,8 +656,6 @@ sub paysys_import_form_new {
       print $table->show();
     }
 
-    #my $PAYMENTS_METHODS = get_payment_methods();
-
     my $ids = join(';', @{ ($BINDING_IDS) ? $BINDING_IDS : {} });
 
     if ($ids eq '') {
@@ -661,7 +665,7 @@ sub paysys_import_form_new {
 
     my $accounts_list;
     if(in_array($BINDING_FIELD, [ 'BANK_ACCOUNT', 'TAX_NUMBER' ])) {
-      print "Companyy ids: $BINDING_FIELD // $ids !!!\n"; # if($debug > 4);
+      print "Companyy ids: $BINDING_FIELD // $ids !!!\n" if($debug > 4);
       my $Customer = Customers->new($db, $admin, \%conf);
       my $Company  = $Customer->company();
       $accounts_list = $Company->list({
@@ -836,10 +840,9 @@ sub paysys_import_form_new {
         {
           width      => '100%',
           caption    => "$lang{PRE} Import - $import_types[$attr->{IMPORT_TYPE}]",
-          title      => [ 'ID', "$lang{FIO}", "$lang{PHONE}", "$lang{CONTRACT_ID}", "$lang{SUM}", "$lang{DATE}",
-            "$lang{BANK} $lang{ACCOUNT}", "$lang{TYPE}", "$lang{ADDRESS}", "$lang{DESCRIBE}",
-            "$lang{INNER} $lang{DESCRIBE}", "$lang{BINDING}", "EXT ID", '-' ],
-          cols_align => [ 'left', 'left', 'right', 'right', 'left', 'right', 'right', 'center:noprint', 'center:noprint' ],
+          title      => [ $lang{FIO}, $lang{PHONE}, $lang{CONTRACT_ID}, $lang{SUM}, $lang{DATE},
+            "$lang{BANK} $lang{ACCOUNT}", $lang{TYPE}, $lang{ADDRESS}, $lang{DESCRIBE},
+            "$lang{INNER} $lang{DESCRIBE}", $lang{BINDING}, "EXT ID", '-' ],
           qs         => $pages_qs,
           ID         => 'PAYSYS_IMPORT_LIST',
           SELECT_ALL => "FORM_IMPORT:IDS:$lang{SELECT_ALL}",
@@ -858,20 +861,18 @@ sub paysys_import_form_new {
             'PAYMENT_METHOD_' . $ID,
             {
               SELECTED => $DATA_ARR->[$i]->{PAYMENT_METHOD} || $FORM{METHOD} ||'',
-              SEL_HASH => \%PAYMENTS_METHODS,
+              SEL_HASH => get_payment_methods(),
               NO_ID    => 1,
               SORT_KEY => 1
             }
           );
         }
         elsif ($attr->{TYPE} eq 'FEES') {
-          %FEES_METHODS = %{ get_fees_types({ SHORT => 1 }) };
-
           $PAYMENT_METHOD_SEL = $html->form_select(
             'METHOD_' . $ID,
             {
               SELECTED => $DATA_ARR->[$i]->{METHOD} || '',
-              SEL_HASH => {%FEES_METHODS},
+              SEL_HASH => get_fees_types({ SHORT => 1 }),
               NO_ID    => 1,
               SORT_KEY => 1
             }
@@ -890,14 +891,20 @@ sub paysys_import_form_new {
         }
 
         #print "$DATA_ARR->[$i]->{TERMINAL_ID}, $DATA_ARR->[$i]->{NUM_AGENT}<br>";
+        $HIDDEN_HASH{ 'SUM_' . $ID }          = $DATA_ARR->[$i]->{SUM};
+        $HIDDEN_HASH{ 'DATE_' . $ID }         = ($DATA_ARR->[$i]->{DATE} || $FORM{DATE} || q{$DATE}) .' '. ($DATA_ARR->[$i]->{TIME} || $FORM{TIME} || q{$TIME});
+        $HIDDEN_HASH{ 'BANK_ACCOUNT_' . $ID } = $DATA_ARR->[$i]->{BANK_ACCOUNT};
+        $HIDDEN_HASH{ 'ADDRESS_' . $ID }      = $DATA_ARR->[$i]->{ADDRESS};
+
         my $date = $DATA_ARR->[$i]->{DATE} || $FORM{DATE};
+
         $table->addrow(
           $html->form_input('IDS', $ID, { TYPE => 'checkbox' }) . $ID,
           $html->form_input('FIO_' . $ID,   $DATA_ARR->[$i]->{FIO}   || '', { SIZE => 40 }) . "$info",
           $html->form_input('PHONE_' . $ID, $DATA_ARR->[$i]->{PHONE} || '', { SIZE => 12 }),
             ($BINDING_FIELD eq 'CONTRACT_ID') ? $DATA_ARR->[$i]->{CONTRACT_ID} : $html->form_input('CONTRACT_ID_' . $ID, $DATA_ARR->[$i]->{CONTRACT_ID} || '', { SIZE => 12 }),
           $DATA_ARR->[$i]->{SUM},
-          $date,
+          $HIDDEN_HASH{ 'DATE_' . $ID },
           $DATA_ARR->[$i]->{BANK_ACCOUNT},
           $PAYMENT_METHOD_SEL,
           $DATA_ARR->[$i]->{ADDRESS},
@@ -906,11 +913,6 @@ sub paysys_import_form_new {
           $html->form_input($BINDING_FIELD . '_' . $ID, $DATA_ARR->[$i]->{$BINDING_FIELD} || ''),
           $html->form_input('EXT_ID_' . $ID,            $DATA_ARR->[$i]->{EXT_ID}         || $date . '_' . $attr->{IMPORT_TYPE} . $ID),
         );
-
-        $HIDDEN_HASH{ 'SUM_' . $ID }          = $DATA_ARR->[$i]->{SUM};
-        $HIDDEN_HASH{ 'DATE_' . $ID }         = $DATA_ARR->[$i]->{DATE} || $FORM{DATE};
-        $HIDDEN_HASH{ 'BANK_ACCOUNT_' . $ID } = $DATA_ARR->[$i]->{BANK_ACCOUNT};
-        $HIDDEN_HASH{ 'ADDRESS_' . $ID }      = $DATA_ARR->[$i]->{ADDRESS};
 
         $total_count++;
         $total_sum += $DATA_ARR->[$i]->{SUM};
@@ -924,13 +926,13 @@ sub paysys_import_form_new {
             'CANCEL_PAYMENTS', 1, { TYPE => 'radio' } ) . " $lang{CANCEL_PAYMENTS} ") . ' ' . $html->form_input(
           'SKIP_CROSSMODULES_CALLS', 1, { TYPE => 'checkbox' } ) . " $lang{NO} $lang{MODULES} ",
         HIDDEN  => {
-          index       => "$index",
+          index       => $index,
           OP_SID      => $op_sid,
           IMPORT_TYPE => $FORM{IMPORT_TYPE},
           BINDING_FIELD => $BINDING_FIELD,
           %HIDDEN_HASH
         },
-        SUBMIT  => { IMPORT => "IMPORT" },
+        SUBMIT  => { IMPORT => $lang{IMPORT} },
         NAME    => 'FORM_IMPORT'
       }
     );
@@ -938,8 +940,7 @@ sub paysys_import_form_new {
     $table = $html->table(
       {
         width      => '100%',
-        cols_align => [ 'right', 'right' ],
-        rows       => [ [ "$lang{TOTAL}:", "$total_count", "$lang{SUM}", $total_sum ] ]
+        rows       => [ [ "$lang{TOTAL}:", "$total_count", "$lang{SUM}:", $total_sum ] ]
       }
     );
 
@@ -981,9 +982,11 @@ sub paysys_import_form_new {
       }
     );
 
-    $info{FORM_ER} = $html->tpl_show(templates('form_row'), { ID => '',
-        NAME                                                     => "$lang{CURRENCY} : $lang{EXCHANGE_RATE}",
-        VALUE                                                     => $info{SEL_ER} }, { OUTPUT2RETURN => 1 });
+    $info{FORM_ER} = $html->tpl_show(templates('form_row'), {
+        ID     => '',
+        NAME   => "$lang{CURRENCY} : $lang{EXCHANGE_RATE}",
+        VALUE  => $info{SEL_ER} },
+      { OUTPUT2RETURN => 1 });
   }
 
   $info{METHOD} = $html->form_select(
@@ -1018,6 +1021,110 @@ sub paysys_import_fees_new {
   );
 
   return 1;
+}
+
+#**********************************************************
+=head2 paysys_maps_layers()
+
+=cut
+#**********************************************************
+sub paysys_maps_layers {
+
+  return {
+    LAYERS      => [{
+      id         => 35,
+      name       => 'TERMINALS',
+      lang_name  => $lang{TERMINALS},
+      module     => 'Paysys',
+      structure  => 'MARKER'
+    }],
+    EXPORT_FUNC => {
+      35 => 'paysys_terminals_show',
+    }
+  };
+}
+
+#**********************************************************
+=head2 paysys_terminals_show()
+
+=cut
+#**********************************************************
+sub paysys_terminals_show {
+
+  my $terminals = $Paysys->terminal_list_with_coords({
+    COORDX_CENTER => '_SHOW',
+    COORDY_CENTER => '_SHOW',
+    COORDX        => '_SHOW',
+    COORDY        => '_SHOW',
+    TYPE_ID       => '_SHOW',
+    TYPE          => '_SHOW',
+    START_WORK    => '_SHOW',
+    END_WORK      => '_SHOW',
+    WORK_DAYS     => '_SHOW',
+    ADDRESS_FULL  => '_SHOW',
+    LOCATION_ID   => '!',
+    COLS_NAME     => 1,
+    PAGE_ROWS     => 10000
+  });
+
+  my @objects_to_show = ();
+
+  foreach my $terminal (@{$terminals}) {
+    my @start_work = split(":", $terminal->{start_work}) if $terminal->{start_work};
+    my @end_work = split(":", $terminal->{end_work}) if $terminal->{end_work};
+
+    $terminal->{start_work} = ($start_work[0] || "00") . ":" . ($start_work[1] || "00");
+    $terminal->{end_work} = ($end_work[0] || "00") . ":" . ($end_work[1] || "00");
+
+    my @works_days = ();
+    my @WEEKDAYS_WORK = ();
+    if ($terminal->{work_days}) {
+      my $bin = sprintf("%b", int $terminal->{work_days});
+      @WEEKDAYS_WORK = split(//, $bin);
+    }
+
+    my $count = 1;
+    foreach my $day (@WEEKDAYS_WORK) {
+      push @works_days, $WEEKDAYS[$count] if $day;
+      $count++;
+    }
+    $terminal->{work_days} = join(', ', @works_days) || '';
+
+    my $line_info = arrays_array2table([
+      [ $lang{TYPE}, $terminal->{name} ],
+      [ $lang{ADDRESS}, $terminal->{address_full} ],
+      [ $lang{WORK_DAYS}, $terminal->{work_days} ],
+      [ $lang{WORK_TIME}, "$terminal->{start_work} - $terminal->{end_work}" ],
+      [ $lang{DESCRIBE}, $terminal->{description} ],
+    ]);
+
+    my %marker = (
+      MARKER    => {
+        LAYER_ID      => 35,
+        ID            => $terminal->{id},
+        OBJECT_ID     => $terminal->{location_id},
+        COORDX        => $terminal->{coordy} || $terminal->{coordx_center},
+        COORDY        => $terminal->{coordx} || $terminal->{coordy_center},
+        FULL_TYPE_URL => 1,
+        TYPE          => "/images/terminals/terminal_$terminal->{type_id}.png",
+        INFOWINDOW    => $line_info,
+        NAME          => "$terminal->{name}: $terminal->{address_full}",
+        DISABLE_EDIT  => 1
+      },
+      LAYER_ID  => 35,
+      ID        => $terminal->{id},
+      OBJECT_ID => $terminal->{location_id}
+    );
+
+    push @objects_to_show, \%marker;
+  }
+
+  if ($FORM{RETURN_JSON}) {
+    print "[" . (join ',', map {JSON::to_json($_, { utf8 => 0 })} @objects_to_show) . "]";
+    return 1;
+  }
+
+  return join ',', map {JSON::to_json($_, { utf8 => 0 })} @objects_to_show;
 }
 
 1

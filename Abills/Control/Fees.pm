@@ -304,6 +304,9 @@ sub form_fees_list {
       ID      => 'FEES',
       EXPORT  => 1,
       MENU    => "$lang{SEARCH}:search_form=1&index=3:search",
+      SHOW_COLS_HIDDEN => {
+        TYPE_PAGE => $FORM{type}
+      }
     }
   });
 

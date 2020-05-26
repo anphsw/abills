@@ -14,7 +14,8 @@ our (
   @bool_vals,
   @status,
   $debug,
-  $admin
+  $admin,
+  $db
 );
 
 our Voip $Voip;
@@ -39,12 +40,16 @@ sub voip_tp{
       $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_NAME} );
     }
     else{
+      if ($FORM{create_fees_type}) {
+        my $Fees = Finance->fees($db, $admin, \%conf);
+        $Fees->fees_type_add({ NAME => $FORM{NAME}});
+        $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
+      }
       $Voip->tp_add( { %FORM } );
       if ( !$Voip->{errno} ){
         $html->message( 'info', $lang{ADDED}, "$lang{ADDED} $Voip->{TP_ID}" .
             $html->button( $lang{INTERVALS}, 'index=' . get_function_index( 'voip_intervals' ) . "&TP_ID=$Voip->{TP_ID}"
-              ,
-              { BUTTON => 1 } ) );
+              , { BUTTON => 1 } ) );
       }
     }
   }
@@ -107,6 +112,11 @@ sub voip_tp{
       return 0;
     }
     elsif ( $FORM{change} ){
+      if ($FORM{create_fees_type}) {
+        my $Fees = Finance->fees($db, $admin, \%conf);
+        $Fees->fees_type_add({ NAME => $FORM{NAME}});
+        $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
+      }
       $Voip->tp_change( $FORM{TP_ID}, { %FORM } );
       if ( !$Voip->{errno} ){
         $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} ". ($Voip->{TP_ID} || $FORM{TP_ID} || q{}) );
@@ -133,6 +143,20 @@ sub voip_tp{
         SELECTED     => $Voip_tp->{PAYMENT_TYPE},
         SEL_ARRAY    => \@payment_types,
         ARRAY_NUM_ID => 1
+      }
+    );
+
+    $Voip_tp->{SEL_METHOD} = $html->form_select(
+      'FEES_METHOD',
+      {
+        SELECTED    => $Voip_tp->{FEES_METHOD} || 1,
+        SEL_HASH    => get_fees_types(),
+        NO_ID       => 1,
+        SORT_KEY    => 1,
+        SEL_OPTIONS => { 0 => '' },
+        MAIN_MENU   => get_function_index('form_fees_types'),
+        CHECKBOX    => 'create_fees_type',
+        CHECKBOX_TITLE => $lang{CREATE}
       }
     );
 
@@ -189,12 +213,10 @@ sub voip_tp{
   }
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b( $Voip->{TOTAL} ) ] ]
-    }
-  );
+  $table = $html->table({
+    width => '100%',
+    rows  => [ [ "$lang{TOTAL}:", $html->b($Voip->{TOTAL}) ] ]
+  });
 
   print $table->show();
 

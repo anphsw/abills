@@ -15,7 +15,7 @@ Abills::Base - Base functions
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 use feature 'state';
 use strict;
-our (@EXPORT_OK, %EXPORT_TAGS);
+our (%EXPORT_TAGS);
 
 use POSIX qw(locale_h strftime mktime);
 use parent 'Exporter';
@@ -62,7 +62,7 @@ our @EXPORT = qw(
   dirname
 );
 
-@EXPORT_OK = qw(
+our @EXPORT_OK = qw(
   null
   convert
   int2ip

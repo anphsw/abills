@@ -91,7 +91,7 @@ sub download_ssh {
   my $cmd = $conf{SYNC_DB_DOWNLOAD} || q{};
 
   if(! $cmd && $synsc_db_hosts) {
-    $cmd = qq{scp -P $sync_db_port $synsc_db_hosts:$path/$dump_file $sync_db_dir; gzip -d  $sync_db_dir/$dump_file --name $sync_db_dir/sync_dump.sql };
+    $cmd = qq{scp -P $sync_db_port $synsc_db_hosts:$path/$dump_file $sync_db_dir; gzip -d  $sync_db_dir/$dump_file -c > $sync_db_dir/sync_dump.sql };
   }
 
   if(! $cmd  ) {

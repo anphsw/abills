@@ -145,3 +145,8 @@ $lang{TOTAL_FOR_PERIOD}='Total for period';
 $lang{SPECIFY_THE_REASON_FOR_CANCELLATION}='Specify the reason for cancellation';
 $lang{INCOMING_INVOICE_REPORT}='Incoming invoice report';
 $lang{NO_ITEMS_FOR_CHOSEN_DATE}='No items for chosen date';
+
+$lang{REPORT}='Report';
+
+$lang{INSTALLED_REPORT}='Report on installed goods';
+$lang{INSTALLED_PERIOD}='Installed goods for the period';

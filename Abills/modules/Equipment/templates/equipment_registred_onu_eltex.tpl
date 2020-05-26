@@ -21,14 +21,6 @@
             </div>
 
             <div class='form-group'>
-                <label class='control-label col-md-5' for='VENDOR'>_{MODEL}_:</label>
-
-                <div class='col-md-7 control-element'>
-                    <input type='text' name='MODEL_NAME' value='%MODEL_NAME%' ID='MODEL_NAME' readonly class='form-control'>
-                </div>
-            </div>
-
-            <div class='form-group'>
                 <label class='control-label col-md-5' for='BRANCH'>BRANCH:</label>
 
                 <div class='col-md-7 control-element'>
@@ -44,7 +36,7 @@
                 </div>
             </div>
 
-            <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
+            <!--<span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
             <div class='form-group' id='VLAN_SEL_DIV'>
                 <label class='control-label col-md-5' for='VLAN'>VLAN:</label>
                 <div class='col-md-7 control-element'>
@@ -56,6 +48,20 @@
 
                 <div class='col-md-7 control-element'>
                     <input type='text' name='PORT' value='%PORT%' ID='PORT' class='form-control'>
+                </div>
+            </div>-->
+            <div class='form-group'>
+                <label class='control-label col-md-5' for='ONU_TEMPLATE'>_{TEMPLATE}_:</label>
+
+                <div class='col-md-7 control-element'>
+                    %ONU_TEMPLATE%
+                </div>
+            </div>
+            <div class='form-group'>
+                <label class='control-label col-md-5' for='ONU_DESC'>_{DESCRIBE}_:</label>
+
+                <div class='col-md-7 control-element'>
+                    <input type='text' name='ONU_DESC' value='%ONU_DESC%' ID='ONU_DESC' class='form-control'>
                 </div>
             </div>
 

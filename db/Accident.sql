@@ -1,32 +1,59 @@
-CREATE TABLE accident_log
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
+CREATE TABLE IF NOT EXISTS `accident_log`
 (
-    al_id         TINYINT UNSIGNED AUTO_INCREMENT
+    `id`         SMALLINT(3) UNSIGNED AUTO_INCREMENT
         PRIMARY KEY,
-    al_desc       VARCHAR(100)                                     NOT NULL DEFAULT '',
-    al_priority   TINYINT UNSIGNED     DEFAULT 0                   NOT NULL,
-    al_date       DATETIME             DEFAULT CURRENT_TIMESTAMP() NOT NULL,
-    al_aid        SMALLINT(6) UNSIGNED DEFAULT 1                   NOT NULL,
-    al_end_time   DATETIME             DEFAULT CURRENT_TIMESTAMP() NOT NULL,
-    al_realy_time DATETIME             DEFAULT CURRENT_TIMESTAMP() NULL,
-    al_status     TINYINT(3)           DEFAULT 0                   NOT NULL,
-    al_name       VARCHAR(20)                                      NOT NULL,
-    CONSTRAINT accident_log
-        FOREIGN KEY (al_aid) REFERENCES admins (aid)
+    `descr`       VARCHAR(100)        NOT NULL DEFAULT '',
+    `priority`   TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
+    `date`       DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `aid`        SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    `end_time`   DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `realy_time` DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `status`     TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
+    `name`       VARCHAR(20)          NOT NULL DEFAULT '',
+    KEY `status` (`status`),
+    CONSTRAINT `accident_log`
+        FOREIGN KEY (`aid`) REFERENCES `admins` (`aid`) ON DELETE CASCADE
 )
     DEFAULT CHARSET = utf8
     COMMENT = 'Accident log';
 
-
-CREATE TABLE accident_address
+CREATE TABLE IF NOT EXISTS `accident_address`
 (
-    id         TINYINT UNSIGNED AUTO_INCREMENT
+    `id`         SMALLINT(3) UNSIGNED AUTO_INCREMENT
         PRIMARY KEY,
-    ac_id      TINYINT UNSIGNED NULL,
-    type_id    TINYINT(3)       NOT NULL,
-    address_id TINYINT(3)       NOT NULL,
-    CONSTRAINT address
-        FOREIGN KEY (ac_id) REFERENCES accident_log (al_id)
-)
+    `ac_id`      SMALLINT(3) UNSIGNED NOT NULL,
+    `type_id`    TINYINT(3) UNSIGNED NOT NULL,
+    `address_id` TINYINT(3) UNSIGNED NOT NULL,
 
+    CONSTRAINT `address`
+        FOREIGN KEY (`ac_id`) REFERENCES `accident_log` (`id`) ON DELETE CASCADE
+)
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Accident address';
+
+CREATE TABLE IF NOT EXISTS `accident_equipments`
+(
+    `id`             SMALLINT(3) UNSIGNED AUTO_INCREMENT
+        PRIMARY KEY,
+    `id_equipment`   SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0,
+    `date`           DATE                 NOT NULL DEFAULT '0000-00-00',
+    `end_date`       DATE                 NOT NULL DEFAULT '0000-00-00',
+    `aid`            SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    `status`         TINYINT(3)  UNSIGNED NOT NULL DEFAULT 0
+)
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Accident address';
+
+CREATE TABLE IF NOT EXISTS `accident_compensation` (
+    `id`             SMALLINT(3) UNSIGNED AUTO_INCREMENT
+        PRIMARY KEY,
+    `procent`        FLOAT       UNSIGNED NOT NULL DEFAULT 0.0,
+    `date`           DATE                 NOT NULL DEFAULT '0000-00-00',
+    `service`        SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0,
+    `type_id`        SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0,
+    `address_id`     SMALLINT(3) UNSIGNED NOT NULL DEFAULT 0
+) 
     DEFAULT CHARSET = utf8
     COMMENT = 'Accident address';

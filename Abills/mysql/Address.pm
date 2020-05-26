@@ -550,6 +550,7 @@ sub build_list {
       ['NUMBERING_DIRECTION','STR', 'b.numbering_direction', 1 ],
       ['DOMAIN_ID',         'INT', 'd.domain_id',          1 ],
       ['CITY',              'INT', 'd.city',         1 ],
+      ['USERS',             'INT', 'GROUP_CONCAT(DISTINCT pi.uid) AS users', 1 ],
     ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES

@@ -546,17 +546,7 @@ sub button {
 # $type - info, err
 #**********************************************************
 sub message {
-  my $self = shift;
-  my ($type, $caption, $message) = @_;
-  my $output = "$type: [CAPTION] $message\n";
-
-  if (defined($self->{NO_PRINT})) {
-    $self->{OUTPUT} .= $output;
-    return $output;
-  }
-  else {
-    print $output;
-  }
+  
 }
 
 #**********************************************************

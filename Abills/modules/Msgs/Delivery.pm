@@ -40,29 +40,19 @@ my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[
 =cut
 #**********************************************************
 sub msgs_delivery_main {
-#  my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
   my $msgs_status = {
     0 => "$lang{D_ACTIVE}:#0000FF",
     1 => "$lang{DEFERRED}:#ff0638",
     2 => "$lang{DONE}:#009D00",
   };
 
-  my %send_methods = (
-    0 => $lang{MESSAGE},
-    1 => 'E-MAIL'
-  );
-
   my $sender_send_types = $Sender->available_types({ HASH_RETURN => 1, CLIENT => 1 });
 
-  %send_methods = (
-    %send_methods,
+  my %send_methods = (
+    0 => $lang{MESSAGE},
     %$sender_send_types
   );
 
-  # if (in_array('Sms', \@MODULES)) {
-  #   $Msgs->{EXTRA_PARAMS} = '';
-  #   $send_methods[2] = "$lang{SEND} SMS";
-  # }
   if ($conf{MSGS_REDIRECT_FILTER_ADD}) {
     $send_methods{3} = 'Web  redirect';
   }
@@ -79,7 +69,7 @@ sub msgs_delivery_main {
       $html->message('success', $lang{INFO}, $lang{MESSAGE} . ' ' . $lang{ADDED});
     }
   }
-  elsif ($FORM{del_delivery}) {
+  elsif ($FORM{del_delivery} && $FORM{COMMENTS}) {
     $Msgs->msgs_delivery_del({ ID => $FORM{del_delivery} });
 
     if (!$Msgs->{errno}) {
@@ -110,7 +100,6 @@ sub msgs_delivery_main {
   if ($FORM{add_form} || $FORM{chg} || $FORM{show}) {
     $Msgs->{DATE_PIKER} = $html->form_datepicker('SEND_DATE', $Msgs->{SEND_DATE});
     $Msgs->{TIME_PIKER} = $html->form_timepicker('SEND_TIME', $Msgs->{SEND_TIME});
-#    $Msgs->{STATUS_SELECT} = msgs_sel_status({ NAME => 'STATUS', STATUS => 9 });
     $Msgs->{STATUS_SELECT} = $html->form_select('STATUS',
       {
         SELECTED => 0,
@@ -142,6 +131,10 @@ sub msgs_delivery_main {
         NO_ID    => 1
       }
     );
+
+    if($Msgs->{TEXT}) {
+      $Msgs->{TEXT} =~ s/\%/\&#37;/g;
+    }
 
     $html->tpl_show(_include('msgs_add_delivery', 'Msgs'), { %$Msgs });
 
@@ -216,7 +209,7 @@ sub msgs_delivery_main {
       }
       push @fields_array, $html->button($lang{SHOW}, "index=$index&show=$line->{id}", { class => 'user' }) .
           $html->button($lang{CHANGE}, "index=$index&chg=$line->{id}", { class => 'change' }) .
-          $html->button($lang{DELETE}, "index=$index&del_delivery=$line->{id}", { class => 'del' });
+          $html->button($lang{DELETE}, "index=$index&del_delivery=$line->{id}", { MESSAGE => "$lang{DEL}",  class => 'del' });
       $table->addrow(@fields_array);
     }
 
@@ -233,7 +226,6 @@ sub msgs_delivery_main {
 
     $table = $html->table({
       width      => '100%',
-      cols_align => [ 'right', 'right' ],
       rows       => [ [ "  $lang{TOTAL}: ", $html->b($total_dilivery) ] ]
     });
 
@@ -276,7 +268,7 @@ sub msgs_delivery_user_table {
       fio    => $lang{FIO},
       status => $lang{STATUS},
       uid    => 'uid',
-      email  => 'Email'
+      email  => 'E-mail'
     },
     TABLE           => {
       width      => '100%',
@@ -319,7 +311,6 @@ sub msgs_delivery_user_table {
 
   my $total_table = $html->table({
     width      => '100%',
-    cols_align => [ 'right', 'right' ],
     rows       => [ [ "  $lang{TOTAL}: ", $html->b($total_dilivery_users) ] ]
   });
 

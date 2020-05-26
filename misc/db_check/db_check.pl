@@ -129,6 +129,7 @@ sub db_check {
     for my $dir ('db') {
       #, 'db/update' ) {
       my $dir_path = $base_dir . $dir;
+
       my $cache_path = $dir_path . '/parser_dump.cache';
 
       if (exists $cached{$dir_path}) {
@@ -139,11 +140,14 @@ sub db_check {
         }
         else {
           print " No cache for $dir_path \n" if ($debug);
-          Parser::Dump::parse_accumulate($dir_path, { SAVE_TO => $cache_path })
+          Parser::Dump::parse_accumulate($dir_path, { SAVE_TO => $cache_path, MODULE_DB => $base_dir . 'Abills/modules/',
+            ALL_MODULES => $all_modules })
         };
       }
       else {
-        Parser::Dump::parse_accumulate($dir_path, { SAVE_TO => $cache_path })};
+        Parser::Dump::parse_accumulate($dir_path, { SAVE_TO => $cache_path, MODULE_DB => $base_dir . 'Abills/modules/',
+          ALL_MODULES => $all_modules })
+      };
     }
   }
 
@@ -270,7 +274,7 @@ sub compare_tables {
     my $col_definition = get_column_definition($dump_cols_ref->{$col});
     my $current_def = get_column_definition($sql_cols_ref->{$col});
 
-    if ($current_def ne $col_definition) {
+    if ($current_def ne $col_definition && $current_def ne 'TEXT') {
 
       my $type_equals = ($dump_type eq $sql_type);
       my $null_equals;

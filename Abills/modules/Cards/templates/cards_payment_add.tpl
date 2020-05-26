@@ -10,7 +10,7 @@
 
 
             <div class='form-group'>
-                <label class='control-label col-md-3 col-sm-3'>_{SERIAL}_:</label>
+                <label class='control-label col-md-3 col-sm-3'>_{NUMBER_AND_SERIA}_:</label>
 
                 <div class='col-md-9 col-sm-9'>
                     <input class='form-control' type='text' name='SERIAL' value='%SERIAL%'>

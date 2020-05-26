@@ -79,7 +79,9 @@ sub init {
 
 #**********************************************************
 =head2 payment_register($attr)
+
   Регистрирует платеж в онлайн-кассе
+
 =cut
 #**********************************************************
 sub payment_register {
@@ -144,8 +146,13 @@ sub payment_register {
 }
 
 #**********************************************************
-=head2 get_info($id)
-  Получает информацию по ранее зарегистрированному платежу
+=head2 get_info($id) - Получает информацию по ранее зарегистрированному платежу
+
+  Arguments:
+    $id
+
+  Results:
+
 =cut
 #**********************************************************
 sub get_info {
@@ -159,8 +166,10 @@ sub get_info {
   my $params = qq(-H "Token: $self->{TOKEN}");
   my $url = $api_url . $attr->{kkt_group} . "/report/$attr->{command_id}";
   my $result = `$curl $params -s -X GET "$url"`;
+  print qq{$curl $params -s -X GET "$url"};
   my $perl_hash = ();
   eval { $perl_hash = decode_json($result); 1 };
+
   if ($self->{debug}) {
     print "CMD: $curl $params -s -X GET '$url'\n";
     print "RESULT: $result\n";
@@ -185,8 +194,11 @@ sub get_info {
 }
 
 #**********************************************************
-=head2 payment_cancel($attr)
-  Регистрирует отмену чека в онлайн-кассе
+=head2 payment_cancel($attr) - Регистрирует отмену чека в онлайн-кассе
+
+  Arguments:
+    $attr
+
 =cut
 #**********************************************************
 sub payment_cancel {
@@ -252,7 +264,10 @@ sub payment_cancel {
 
 
 #**********************************************************
-=head2 perl2json()
+=head2 perl2json($data)
+
+  Arguments:
+
 
 =cut
 #**********************************************************
@@ -284,16 +299,18 @@ sub perl2json {
 }
 
 #**********************************************************
-=head2 test()
-  Тест подключения
+=head2 test() - Тест подключения
+
 =cut
 #**********************************************************
 sub test {
   my $self = shift;
-  my ($attr) = @_;
+  #my ($attr) = @_;
+
   return 1;
 }
 
+1;
 
 
 

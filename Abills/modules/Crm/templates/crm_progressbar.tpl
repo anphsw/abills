@@ -117,6 +117,7 @@
   <div class='box-body'>
     <div class='row' id='progressTracker'>
       <input type='hidden' name='STEP_NUM' id='progressStatus' value='%CUR_STEP%'/>
+      <input type='hidden' name='END_STEP' id='end_step' value='%END_STEP%'/>
       <hr/>
       <div class='alert alert-info' id='tips'>%TIPS%</div>
       <ol class='progtrckrText progtrckr-width' id='step_name'></ol>
@@ -173,15 +174,31 @@
     jQuery('#step_icon').children().attr('class', 'progtrckr-todo');
   }
 
+  function checkStep(step) {
+    var endStep = jQuery('#end_step').val();
+    
+    if (endStep == step) {
+      jQuery('#lead_to_client').attr('disabled', false);
+      jQuery('#lead_to_client').attr('style', 'pointer-events: ;');
+    } else {
+      jQuery('#lead_to_client').attr('disabled', true);
+      jQuery('#lead_to_client').attr('style', 'pointer-events: none;');
+    }
+  }
+
   jQuery(document).ready(function () {
     fillNames(namesArr);
     currentStep = %CUR_STEP%;
     refreshProgress(currentStep);
 
+    checkStep(currentStep)
+
     jQuery('.progtrckr>li').on('click', function () {
       jQuery('#progressStatus').val(this.id);
       refreshProgress(this.id);
       jQuery.get('?qindex=$index&header=2&LEAD_ID=$FORM{LEAD_ID}&CUR_STEP=' + this.id);
+
+      checkStep(this.id);
     });
 
     //remove tips alert-info if no text

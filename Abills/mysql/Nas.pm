@@ -343,13 +343,17 @@ sub add {
 
   $self->{NAS_ID}=$self->{INSERT_ID};
 
+  if ($attr->{ACTION_ADMIN}) {
+    return $self;
+  }
+
   $admin->system_action_add("NAS_ID:$self->{NAS_ID}", { TYPE => 1 });
 
   return $self;
 }
 
 #**********************************************************
-=head2 del($id) ADel nas server
+=head2 del($id) - Del nas server
 
 =cut
 #**********************************************************
@@ -425,27 +429,35 @@ sub nas_ip_pools_list {
   );
   
   my $search_columns = [
-    [ 'ID',           'INT', 'pool.id',                                             1],
-    [ 'NAS_NAME',     'STR', 'n.name AS nas_name',                                  1],
-    [ 'POOL_NAME',    'STR', 'pool.name AS pool_name',                              1],
-    [ 'FIRST_IP',     'IP',  'INET_NTOA(pool.ip) AS first_ip',                      1],
-    [ 'LAST_IP',      'IP',  'INET_NTOA(pool.ip + pool.counts - 1) AS last_ip',     1],
-    [ 'IP',           'INT', 'pool.ip',                                             1],
-    [ 'LAST_IP_NUM',  'INT', '(pool.ip + pool.counts - 1) AS last_ip_num',              1],
-    [ 'IP_COUNT',     'INT', 'pool.counts AS ip_count',                             1],
-    #[ 'IP_FREE',      'INT', '(pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts )) AS ip_free', 1],
-    [ 'INTERNET_IP_FREE',  'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet WHERE internet.ip > pool.ip AND internet.ip <= pool.ip + pool.counts )) AS ip_free', 1],
-    [ 'PRIORITY',     'INT', 'pool.priority',                                       1],
-    [ 'SPEED',        'INT', 'pool.speed',                                          1],
-    [ 'NAME',         'STR', 'pool.name AS name',                                   1],
-    [ 'NAS',          'INT', 'np.nas_id',                                           1],
-    [ 'NETMASK',      'IP',  'pool.netmask',                                        1],
-    [ 'GATEWAY',      'IP',  'pool.gateway',                                        1],
-    # Kills ip pools choose form
-    #    [ 'NAS_ID',       'INT', 'np.nas_id',                                      1],
-    [ 'STATIC',       'INT', 'pool.static',                                         1],
-    [ 'ACTIVE_NAS_ID','INT', 'IF(np.nas_id IS NULL, 0, np.nas_id) AS active_nas_id',1],
-    [ 'IP_SKIP',      'STR', 'pool.ip_skip'                                        ,1],
+    [ 'ID',                 'INT', 'pool.id',                                               1],
+    [ 'NAS_NAME',           'STR', 'n.name AS nas_name',                                    1],
+    [ 'POOL_NAME',          'STR', 'pool.name AS pool_name',                                1],
+    [ 'FIRST_IP',           'IP',  'INET_NTOA(pool.ip) AS first_ip',                        1],
+    [ 'LAST_IP',            'IP',  'INET_NTOA(pool.ip + pool.counts) AS last_ip',           1],
+    [ 'IP',                 'INT', 'pool.ip',                                               1],
+    [ 'LAST_IP_NUM',        'INT', '(pool.ip + pool.counts) AS last_ip_num',                1],
+    [ 'IP_COUNT',           'INT', 'pool.counts AS ip_count',                               1],
+    #[ 'IP_FREE',           'INT', '(pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts )) AS ip_free', 1],
+    [ 'INTERNET_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet WHERE internet.ip > pool.ip AND internet.ip <= pool.ip + pool.counts )) AS internet_ip_free', 1],
+    [ 'PRIORITY',           'INT', 'pool.priority',                                         1],
+    [ 'SPEED',              'INT', 'pool.speed',                                            1],
+    [ 'NAME',               'STR', 'pool.name AS name',                                     1],
+    [ 'NAS',                'INT', 'np.nas_id',                                             1],
+    [ 'NETMASK',            'IP',  'pool.netmask',                                          1],
+    [ 'GATEWAY',            'IP',  'pool.gateway',                                          1],
+    [ 'STATIC',             'INT', 'pool.static',                                           1],
+    [ 'ACTIVE_NAS_ID',      'INT', 'IF(np.nas_id IS NULL, 0, np.nas_id) AS active_nas_id',  1],
+    [ 'IP_SKIP',            'STR', 'pool.ip_skip'                                        ,  1],
+    [ 'IPV6_PREFIX',        'STR', 'INET6_NTOA(pool.ipv6_prefix) AS ipv6_prefix',           1],
+    [ 'IPV6_MASK',          'IP',  'pool.ipv6_mask',                                        1],
+    [ 'IPV6_TEMP',          'STR', 'pool.ipv6_template AS ipv6_temp',                       1],
+    [ 'IPV6_PD',            'STR', 'INET6_NTOA(pool.ipv6_pd) AS ipv6_pd',                   1],
+    [ 'IPV6_PD_MASK',       'STR', 'pool.ipv6_pd_mask',                                     1],
+    [ 'IPV6_PD_TEMP',       'STR', 'pool.ipv6_pd_template AS ipv6_pd_temp',                 1],
+    [ 'COMMENTS',           'STR', 'pool.comments',                                         1],
+    [ 'DNS',                'STR', 'pool.dns',                                              1],
+    [ 'VLAN',               'INT', 'pool.vlan',                                             1],
+    [ 'GUEST',              'INT', 'pool.guest',                                            1],
   ];
   
   if ($attr->{SHOW_ALL_COLUMNS}){
@@ -508,7 +520,6 @@ sub ip_pools_info {
   my ($id) = @_;
 
   my $fields_v6 = ($IPV6) ? ", INET6_NTOA(ipv6_prefix) AS ipv6_prefix, INET6_NTOA(ipv6_pd) AS ipv6_pd" : '';
-
   $self->query2("SELECT *,
       INET_NTOA(ip) AS ip
       $fields_v6
@@ -566,6 +577,10 @@ sub ip_pools_list {
 
   my @WHERE_RULES = ();
 
+  if($attr->{DOMAIN_ID}) {
+    push @WHERE_RULES, "pool.domain_id='$attr->{DOMAIN_ID}'";
+  }
+
   if (defined($attr->{STATIC})) {
     if($attr->{IPV6}) {
       push @WHERE_RULES, "pool.ipv6_prefix<>''";
@@ -575,7 +590,7 @@ sub ip_pools_list {
 
     my $WHERE = ($#WHERE_RULES > -1) ? join(' AND ', @WHERE_RULES) : '';
     $self->query2("SELECT '', pool.name,
-   pool.ip, pool.ip + pool.counts - 1 AS last_ip_num, pool.counts, pool.priority,
+   pool.ip, pool.ip + pool.counts AS last_ip_num, pool.counts, pool.priority,
     INET_NTOA(pool.ip) AS first_ip, INET_NTOA(pool.ip + pool.counts) AS last_ip,
     pool.id, pool.nas, pool.netmask as netmask, pool.gateway, pool.dns
     FROM ippools pool
@@ -594,7 +609,7 @@ sub ip_pools_list {
   my $WHERE = ($#WHERE_RULES > -1) ? "and " . join(' AND ', @WHERE_RULES) : '';
 
   $self->query2("SELECT nas.name, pool.name,
-   pool.ip, pool.ip + pool.counts - 1 AS last_ip_num, pool.counts, pool.priority,
+   pool.ip, pool.ip + pool.counts AS last_ip_num, pool.counts, pool.priority,
     INET_NTOA(pool.ip) AS first_ip, INET_NTOA(pool.ip + pool.counts - 1) AS last_ip,
     pool.id, pool.nas, pool.gateway, pool.netmask as netmask
     FROM ippools pool, nas
@@ -618,9 +633,10 @@ sub ip_pools_add {
 
   $attr->{IPV6_PREFIX}  = undef if (! $IPV6);
 
-  $self->query_add('ippools', { %$attr,
-  	                            NAS      => undef,
- 	                           });
+  $self->query_add('ippools', {
+    %$attr,
+    NAS      => undef,
+ 	});
 
   if($admin) {
     $admin->system_action_add("NAS_ID:$attr->{NAS_ID} POOLS:" . (join(',', split(/, /, $attr->{ids}))), { TYPE => 1 });
@@ -856,7 +872,7 @@ sub query_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   $self->query2(
-    "SELECT * FROM radtest_history
+    "SELECT * FROM `radtest_history`
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
@@ -867,7 +883,7 @@ sub query_list {
   return $self->{list} if ($self->{TOTAL} < 1);
 
   $self->query2(
-    "SELECT count(*) AS total
+    "SELECT COUNT(*) AS total
    FROM radtest_history",
     undef,
     { INFO => 1 }
@@ -917,7 +933,7 @@ sub query_info {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT * FROM radtest_history WHERE id = ?;",
+  $self->query2("SELECT * FROM `radtest_history` WHERE id = ?;",
   undef,
   { INFO => 1,
     Bind => [ $attr->{ID} ] }
@@ -1067,9 +1083,7 @@ sub nas_cmd_list {
 
   return $self->{list} if ($self->{TOTAL} < 1);
 
-  $self->query2(
-    "SELECT count(*) AS total
-   FROM nas_cmd",
+  $self->query2("SELECT COUNT(*) AS total FROM nas_cmd",
     undef,
     { INFO => 1 }
   );

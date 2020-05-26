@@ -4,6 +4,11 @@
   <input type=hidden name=OP_SID value='%OP_SID%'>
   <input type=hidden name=UID value='%UID%'>
   <input type=hidden name=step value='$FORM{step}'>
+  <input type='hidden' name='LEAD_ID' value='$FORM{LEAD_ID}'>
+  <input type='hidden' name='LOCATION_ID' value='$FORM{LOCATION_ID}'>
+  <input type='hidden' name='DISTRICT_ID' value='$FORM{DISTRICT_ID}'>
+  <input type='hidden' name='STREET_ID' value='$FORM{STREET_ID}'>
+  <input type='hidden' name='ADDRESS_FLAT' value='$FORM{ADDRESS_FLAT}'>
 
   <fieldset>
     <div class='box box-theme box-big-form'>
@@ -14,7 +19,7 @@
           <label class='control-label col-md-3 required' for='SUM'>_{SUM}_:</label>
           <div class='col-md-4'>
             <input  id='SUM' name='SUM' value='$FORM{SUM}' required placeholder='$FORM{SUM}' class='form-control'
-                   type='number' step='0.01' min='0' %AUTOFOCUS%>
+                    type='number' step='0.01' min='0' %AUTOFOCUS%>
           </div>
         </div>
 
@@ -33,14 +38,14 @@
         </div>
 
         <div class='form-group'>
-          <label class='control-label col-md-3' for='PAYMENT_METHOD'>_{PAYMENT_METHOD}_:</label>
+          <label class='control-label col-md-3'>_{PAYMENT_METHOD}_:</label>
           <div class='col-md-9'>
-            %SEL_METHOD%
+              %SEL_METHOD%
           </div>
         </div>
 
         <div class='form-group' %CASHBOX_HIDDEN%>
-          <label class='control-label col-md-3' for='CASHBOX'>_{CASHBOX}_:</label>
+          <label class='control-label col-md-3'>_{CASHBOX}_:</label>
           <div class='col-md-9'>
             %CASHBOX_SELECT%
           </div>
@@ -58,10 +63,10 @@
         %DATE_FORM%
 
         %EXT_DATA_FORM%
-		
+
       </div>
-      
-	  %DOCS_INVOICE_RECEIPT_ELEMENT%
+
+      %DOCS_INVOICE_RECEIPT_ELEMENT%
 
       <div class='box-footer'>
         %BACK_BUTTON% <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
@@ -73,7 +78,7 @@
 </form>
 
 <script>
-  jQuery('#user_form').on('submit', function(){
-    renameAndDisable('submitbutton', '_{IN_PROGRESS}_...' );
-  });
+    jQuery('#user_form').on('submit', function(){
+        renameAndDisable('submitbutton', '_{IN_PROGRESS}_...' );
+    });
 </script>

@@ -20,15 +20,6 @@
           </div>
           <hr/>
 
-<!--          <div class='form-group'>
-            <label class='control-label col-md-3' for='COMPANY_NAME'>_{COMPANY}_</label>
-            <div class='col-md-9'>
-              <input type='text' id='COMPANY_NAME' name='COMPANY_NAME' value='%COMPANY_NAME%'
-                     placeholder='%COMPANY_NAME%'
-                     class='form-control'>
-            </div>
-          </div>-->
-
           <div class='form-group'>
             <label class='control-label required col-md-3' for='FIO'>_{FIO}_</label>
             <div class='col-md-9'>
@@ -62,13 +53,6 @@
                      placeholder='%CONNECTION_TIME%' class='form-control datepicker with-time'>
             </div>
           </div>
-
-          <!--<div class='form-group'>
-               <label class='control-label col-md-3' for='CHAPTER'>_{CHAPTERS}_</label>
-               <div class='col-md-9'>
-                     %CHAPTER_SEL%
-               </div>
-          </div>-->
 
           <div class='form-group'>
             <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_</label>

@@ -91,7 +91,14 @@
                     %TP_SEL%
                 </div>
             </div>
+            <div class='form-group'>
+                <label class='control-label col-sm-3 col-md-3' for='ID'>_{ID_TP_SEARCH}_:</label>
 
+                <div class='col-sm-9 col-md-9'>
+                    <input id='ID' name='ID' value='%ID%' placeholder='%ID_TP_SEARCH%'
+                           class='form-control' type='text'>
+                </div>
+            </div>
         </div>
     </div>
 </div>

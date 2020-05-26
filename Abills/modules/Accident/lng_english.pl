@@ -16,4 +16,9 @@ $lang{PROCESSING} = 'Processing';
 $lang{PROCESSED}= 'Processed';
 $lang{CLOSED}='Closed';
 
+$lang{ACCIDENT_FOR_EQUIPMENT} = 'Malfunctioning equipment';
+
+$lang{WARNING_TIME} = 'The works will be completed by: ';
+$lang{COMPENSATION} = 'Compensation';
+$lang{PROCENT} = 'Procent';
 1;

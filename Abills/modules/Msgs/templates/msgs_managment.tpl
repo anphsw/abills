@@ -216,13 +216,13 @@
       </div>
       <div>%TASKS_LIST%</div>
     </div>
-
+    <div class='form-group'>
+      %TICKET_ADDRESS%
+  
+  </div>
 
   </div>
   <div class='box-footer'>
     <input type=submit name=change value='_{CHANGE}_' class='btn btn-primary btn-sm'>
   </div>
 </div>
-
-
-

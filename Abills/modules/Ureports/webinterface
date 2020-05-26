@@ -17,7 +17,7 @@ use warnings FATAL => 'all';
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Ureports',
-  REQUIRE_VERSION => 7.51,
+  REQUIRE_VERSION => 7.55,
 })) {
 
   exit;
@@ -128,47 +128,10 @@ sub ureports_users_list {
         INDEX => get_function_index('ureports_users_list')
       },
         {
-          notprint => 1
+          OUTPUT2RETURN => 1
         })
     });
   }
-
-  if ($FORM{search_user_ureports}) {
-    my $user_data =  $Ureports->user_info(undef, {
-      DESTINATION => $FORM{PHONE} || '_SHOW'
-    });
-
-    if ($user_data->{TOTAL} > 0) {
-      my $table = $html->table({
-        width   => "100%",
-        caption => $lang{USER},
-        title   => [ $lang{LOGIN}, $lang{FIO}, $lang{TARIF_PLAN}, $lang{STATUS}, $lang{TYPE}, $lang{DESTINATION} ],
-        qs      => $pages_qs,
-        ID      => "UREPORTS_TABLE",
-        MENU    => $lang{SEARCH} . ':index=' . get_function_index('ureports_users_list') . '&search_form=1:search;',
-        export  => 1,
-      });
-
-      my @data_search = ($user_data->{ID}, $user_data->{FIO}, $user_data->{TP_NAME},
-        (($user_data->{STATUS}) ? $html->color_mark($service_status[$user_data->{STATUS}],
-          $_COLORS[6]) : $service_status[$user_data->{STATUS}]), ($user_data->{TYPE} && $service_type{$user_data->{TYPE}}) ?
-          $service_type{$user_data->{TYPE}} : $user_data->{TYPE}, $user_data->{DESTINATION});
-
-      push @data_search,
-        $html->button($lang{STATS}, "index=" . (get_function_index('ureports_user')) . "&UID=$user_data->{UID}",
-          { class => 'stats' });
-      $table->addrow(@data_search);
-
-      print $table->show();
-
-      return;
-    }
-    else {
-      $html->message('err', $lang{ERROR}, $lang{USER_NOT_EXIST});
-    }
-  }
-
-  #print $html->letters_list( { pages_qs => $pages_qs } );
 
   if ($FORM{letter}) {
     $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
@@ -176,6 +139,7 @@ sub ureports_users_list {
   }
   my Abills::HTML $table;
   my $user_list;
+
   ($table, $user_list) = result_former({
     DEFAULT_FIELDS  => 'LOGIN,FIO,TP_NAME,STATUS,TYPE,DESTINATION',
     INPUT_DATA      => $Ureports,
@@ -264,7 +228,7 @@ sub ureports_user {
   if (form_purchase_module({
     HEADER          => $user->{UID},
     MODULE          => 'Ureports',
-    REQUIRE_VERSION => 7.51
+    REQUIRE_VERSION => 7.55
   })) {
     return 0;
   }
@@ -968,7 +932,7 @@ sub ureports_user_info {
 
   # Choose destination type and value
   if ($conf{UREPORTS_ALLOWED_TYPES}) {
-    my @types = split(',', $conf{UREPORTS_ALLOWED_TYPES});
+    my @types = split(/,\s?/, $conf{UREPORTS_ALLOWED_TYPES});
     my %rev_service_type = reverse %service_type;
     my %user_types = ();
     foreach (@types) {
@@ -1519,7 +1483,8 @@ sub ureports_payments_maked {
 
     $user->pi({ UID => $user->{UID} });
     $info{DATE} = "$DATE $TIME";
-    $info{SUM} = sprintf("%.2f", $attr->{SUM});
+    # Add 0 to correct encoding of sum
+    $info{SUM} = sprintf("%.2f", $attr->{SUM} + 0);
     my $recommended_payment = $info{RECOMMENDED_PAYMENT};
 
     if ($recommended_payment && $recommended_payment > 0) {

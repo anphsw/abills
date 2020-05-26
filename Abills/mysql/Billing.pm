@@ -54,6 +54,9 @@ sub new {
       ACCT_INPUT_GIGAWORDS
       ACCT_OUTPUT_GIGAWORDS
 
+    $attr
+      TRAFFIC_PRICE
+
   Returns:
     Return TRAFFIC SUM
 
@@ -61,7 +64,7 @@ sub new {
 #**********************************************************
 sub traffic_calculations {
   my $self = shift;
-  my ($RAD) = @_;
+  my ($RAD, $attr) = @_;
 
   my $sent  = $RAD->{OUTBYTE}  || 0;    #default from server
   my $recv  = $RAD->{INBYTE}   || 0;    #default to server
@@ -78,14 +81,21 @@ sub traffic_calculations {
   );
   my %expr = ();
 
-  my $list = $Tariffs->tt_list({ TI_ID => $self->{TI_ID} });
+  if ($attr->{TRAFFIC_PRICE}) {
+    %traf_price = %{ $attr->{TRAFFIC_PRICE}{LIST} };
+    %prepaid    = %{ $attr->{TRAFFIC_PRICE}{PREPAID} } if ($attr->{TRAFFIC_PRICE}{PREPAID});
+    %expr       = %{ $attr->{TRAFFIC_PRICE}{EXPR} } if ($attr->{TRAFFIC_PRICE}{EXPR});
+  }
+  else {
+    my $list = $Tariffs->tt_list({ TI_ID => $self->{TI_ID} });
 
-  #id, in_price, out_price, prepaid, speed, descr, nets
-  foreach my $line (@$list) {
-    $traf_price{in}{ $line->[0] }  = $line->[1];
-    $traf_price{out}{ $line->[0] } = $line->[2];
-    $prepaid{ $line->[0] }         = $line->[3];
-    $expr{ $line->[0] } = $line->[8] if (length($line->[8]) > 7);
+    #id, in_price, out_price, prepaid, speed, descr, nets
+    foreach my $line (@$list) {
+      $traf_price{in}{ $line->[0] } = $line->[1];
+      $traf_price{out}{ $line->[0] } = $line->[2];
+      $prepaid{ $line->[0] } = $line->[3];
+      $expr{ $line->[0] } = $line->[8] if (length($line->[8]) > 7);
+    }
   }
 
   my $used_traffic;
@@ -96,7 +106,7 @@ sub traffic_calculations {
     $sent2 = $RAD->{INTERIUM_INBYTE1}  || 0;
   }
 
-  if ($prepaid{0} + $prepaid{1} > 0) {
+  if ($prepaid{0} + ($prepaid{1} || 0) > 0) {
     #Traffic transfert function
     if ($self->{TRAFFIC_TRANSFER_PERIOD}) {
       my $tp = $self->{TP_NUM};
@@ -154,7 +164,7 @@ sub traffic_calculations {
         }
       }
     }
-    else {
+    elsif($self->{UID}) {
       #Get traffic from begin of month
       $used_traffic = $self->get_traffic({
         UID        => $self->{UID},
@@ -178,9 +188,9 @@ sub traffic_calculations {
         $used_traffic->{TRAFFIC_OUT_2} += ($RAD->{OUTBYTE2}) ? int($RAD->{OUTBYTE2} / $CONF->{MB_SIZE}) : 0;
       }
     }
-    elsif ($RAD->{ACCT_INPUT_GIGAWORDS}) {
-      $recv = $recv + ($RAD->{ACCT_INPUT_GIGAWORDS} || 0) * 4294967296;
-      $sent = $sent + ($RAD->{ACCT_OUTPUT_GIGAWORDS} || 0) * 4294967296;
+    elsif ($RAD->{'Acct-Output-Gigawords'}) {
+      $recv = $recv + ($RAD->{'Acct-Output-Gigawords'} || 0) * 4294967296;
+      $sent = $sent + ($RAD->{'Acct-Output-Gigawords'} || 0) * 4294967296;
     }
     $used_traffic->{ONLINE} = 0;
 
@@ -212,7 +222,7 @@ sub traffic_calculations {
       $traf_price{out}{0} = 0;
     }
     #
-    elsif ($used_traffic->{TRAFFIC_SUM} + $used_traffic->{ONLINE} / $CONF->{MB_SIZE} > $prepaid{0}
+    elsif ($used_traffic->{TRAFFIC_SUM} + ($used_traffic->{ONLINE} / $CONF->{MB_SIZE}) > $prepaid{0}
       && $used_traffic->{TRAFFIC_SUM} < $prepaid{0})
     {
       my $not_prepaid = ($used_traffic->{TRAFFIC_SUM} + $used_traffic->{ONLINE} / $CONF->{MB_SIZE} - $prepaid{0}) * $CONF->{MB_SIZE};
@@ -221,11 +231,12 @@ sub traffic_calculations {
     }
 
     # If left local prepaid traffic set traf price to 0
-    if ($used_traffic->{TRAFFIC_SUM_2} < $prepaid{1}) {
+    if ($prepaid{1} && $used_traffic->{TRAFFIC_SUM_2} < $prepaid{1}) {
       $traf_price{in}{1}  = 0;
       $traf_price{out}{1} = 0;
     }
-    elsif ($used_traffic->{TRAFFIC_SUM_2} + $used_traffic->{ONLINE2} / $CONF->{MB_SIZE} > $prepaid{1}
+    elsif ($prepaid{1}
+      && $used_traffic->{TRAFFIC_SUM_2} + $used_traffic->{ONLINE2} / $CONF->{MB_SIZE} > $prepaid{1}
       && ($used_traffic->{TRAFFIC_SUM_2} < $prepaid{1}))
     {
       my $not_prepaid = ($used_traffic->{TRAFFIC_SUM_2} + $used_traffic->{ONLINE2} / $CONF->{MB_SIZE} - $prepaid{1}) * $CONF->{MB_SIZE};
@@ -262,7 +273,6 @@ sub traffic_calculations {
 
   # TRafic payments
   my $traf_sum = 0;
-
   my $gl_in  = ($traf_price{in}{0})           ? $recv / $CONF->{MB_SIZE} * $traf_price{in}{0}   : 0;
   my $gl_out = ($traf_price{out}{0})          ? $sent / $CONF->{MB_SIZE} * $traf_price{out}{0}  : 0;
   my $lo_in  = (defined($traf_price{in}{1}))  ? $recv2 / $CONF->{MB_SIZE} * $traf_price{in}{1}  : 0;
@@ -752,6 +762,9 @@ sub session_sum {
       }
     }
     $self->{TP_NUM} = $attr->{TP_NUM};
+  }
+  elsif ($self->{INTERNET}) {
+    return 0, 0, 0, 0, 0, 0;
   }
   else {
     $self->query2("SELECT

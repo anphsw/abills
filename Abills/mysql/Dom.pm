@@ -17,9 +17,9 @@ use Dom;
 
 my $admin;
 my $CONF;
-my $SORT      = 1;
-my $DESC      = '';
-my $PG        = 1;
+my $SORT = 1;
+my $DESC = '';
+my $PG = 1;
 my $PAGE_ROWS = 25;
 
 #**********************************************************
@@ -37,7 +37,7 @@ my $PAGE_ROWS = 25;
 #**********************************************************
 sub new {
   my $class = shift;
-  my $db    = shift;
+  my $db = shift;
   ($admin, $CONF) = @_;
 
   my $self = {};
@@ -45,9 +45,9 @@ sub new {
 
   $admin->{MODULE} = $MODULE;
 
-  $self->{db}    = $db;
+  $self->{db} = $db;
   $self->{admin} = $admin;
-  $self->{conf}  = $CONF;
+  $self->{conf} = $CONF;
 
   return $self;
 }
@@ -64,32 +64,32 @@ sub new {
 =cut
 #**********************************************************
 sub list {
-  my $self   = shift;
+  my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
-  my $WHERE =  $self->search_former($attr, [
-    [ 'FIO',            'STR', 'pi.fio',           1],
-    [ 'ADDRESS_BUILD',  'INT', 'pi.address_build', 1],
-    [ 'UID',            'INT', 'pi.uid',           1],
-    [ 'CITY',           'STR', 'pi.city',          1],
-    [ 'COMPANY_ID',     'INT', 'u.company_id',     1],
-    [ 'DISABLE',        'INT', 'u.disable',        1],
-    [ 'ADDRESS_FLAT',   'STR', 'pi.address_flat',  1],
-    [ 'LOCATION_ID',    'INT', 'pi.location_id',   1],
-    [ 'CREDITOR',       'INT', 'creditor', "IF(u.credit>0, 1, 0) AS creditor ",  1],
-    [ 'DEBETOR',        'INT', 'debetor', "IF(IF(company.id IS NULL, b.deposit, b.deposit)<0, 1, 0) AS debetor", 1],
-    [ 'ADDRESS_STREET', 'STR', 'pi.address_street',  1],
-    ],
-  {
-    WHERE       => 1,
-    WHERE_RULES => \@WHERE_RULES
-  });
+  my $WHERE = $self->search_former($attr, [
+    [ 'FIO', 'STR', 'pi.fio', 1 ],
+    [ 'ADDRESS_BUILD', 'INT', 'pi.address_build', 1 ],
+    [ 'UID', 'INT', 'pi.uid', 1 ],
+    [ 'CITY', 'STR', 'pi.city', 1 ],
+    [ 'COMPANY_ID', 'INT', 'u.company_id', 1 ],
+    [ 'DISABLE', 'INT', 'u.disable', 1 ],
+    [ 'ADDRESS_FLAT', 'STR', 'pi.address_flat', 1 ],
+    [ 'LOCATION_ID', 'INT', 'pi.location_id', 1 ],
+    [ 'CREDITOR', 'INT', 'creditor', "IF(u.credit>0, 1, 0) AS creditor ", 1 ],
+    [ 'DEBETOR', 'INT', 'debetor', "IF(IF(company.id IS NULL, b.deposit, b.deposit)<0, 1, 0) AS debetor", 1 ],
+    [ 'ADDRESS_STREET', 'STR', 'pi.address_street', 1 ],
+  ],
+    {
+      WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES
+    });
   $self->query2("SELECT $self->{SEARCH_FIELDS} pi.email
      FROM users_pi pi
       LEFT JOIN users u ON (pi.uid=u.uid)
@@ -98,8 +98,8 @@ sub list {
     $WHERE
       GROUP BY pi.uid
       ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-  undef,
-  $attr
+    undef,
+    $attr
   );
 
   my $list = $self->{list};
@@ -107,9 +107,31 @@ sub list {
   $self->query2("SELECT COUNT(*) AS total
      FROM users_pi pi
      $WHERE;",
-     undef, {INFO => 1 }
+    undef, { INFO => 1 }
   );
   return $list;
+}
+
+#**********************************************************
+=head2 users_online_by_builds() - show users online by builds
+
+=cut
+#**********************************************************
+sub users_online_by_builds {
+  my $self = shift;
+
+  my $online_list = $self->query2("
+         SELECT b.id AS id, u.uid, u.fio, i.status, b.number
+         FROM internet_online AS i
+         left join users_pi AS u on u.uid = i.uid
+         LEFT JOIN builds AS b ON b.id = u.location_id;",
+    undef,
+    {
+      COLS_NAME => 1
+    });
+
+
+  return $online_list->{list} || [];
 }
 
 1

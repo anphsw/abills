@@ -38,3 +38,5 @@ $lang{EVENTS} = 'Eventos';
 #$lang{SERVICE_FEE}='Сервисный сбор';
 
 $lang{ADD_INFO} = 'Información Adicional';
+
+1;

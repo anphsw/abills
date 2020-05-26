@@ -91,6 +91,14 @@
                         rows='2' readonly>%REG_ADDRESS%</textarea>
             </div>
           </div>
+          <div class='form-group'>
+            <label class='control-label col-xs-4 col-md-2' for='TAX_NUMBER'>_{TAX_NUMBER}_:</label>
+            <div class='col-xs-8 col-md-10'>
+              <input id='TAX_NUMBER' name='TAX_NUMBER' value='%TAX_NUMBER%'
+                     placeholder='%TAX_NUMBER%'
+                     class='form-control' type='text' readonly>
+            </div>
+          </div>
         </div>
       </div>
 

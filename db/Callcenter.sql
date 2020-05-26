@@ -1,3 +1,5 @@
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 CREATE TABLE IF NOT EXISTS `callcenter_calls_handler` (
   `user_phone` VARCHAR(20) NOT NULL DEFAULT '',
   `operator_phone` VARCHAR(20) NOT NULL DEFAULT '',

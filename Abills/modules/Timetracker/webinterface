@@ -18,6 +18,7 @@ use JSON;
 use utf8;
 use Encode qw(encode_utf8);
 use Abills::Fetcher qw/web_request/;
+require Timetracker::Reports;
 
 our ($html, %FORM, $db, %conf, $admin, %lang, @WEEKDAYS);
 my $Timetracker = Timetracker->new($db, $admin, \%conf);
@@ -232,8 +233,6 @@ sub add_time {
     }
   );
   _error_show($Timetracker);
-
-  # my $timetracker_list_element_ = $Timetracker->list_element({ COLS_NAME => 1, DESC => "desc" });
 
   my $datepicker = $html->form_datepicker("DATE", $date_for_picker);
   my $datepicker_form = $html->tpl_show(

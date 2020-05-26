@@ -2841,25 +2841,19 @@ sub employees_send_sms_to_anyone {
   $html->message('info ', $lang{SEND_SMS_TO_ANYONE});
 
   if ($FORM{send}) {
-    require Abills::Sender::Core;
-    Abills::Sender::Core->import();
-    my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+    load_module('Sms', $html);
 
-    $Sender->send_message({
-      SENDER_TYPE => 'Sms',
-      MESSAGE     => $FORM{MESSAGE},
-      TO_ADDRESS  => $FORM{PHONE_NUMBER}
+    my $sms_id = sms_send(
+    {
+      NUMBER  => $FORM{PHONE_NUMBER},
+      MESSAGE => $FORM{MESSAGE},
     });
-
-    if ($Sender->{Sms}{status} == 0) {
-      return 0;
-    }
-
-    if ($Sender->{errno}) {
-      $html->message('error', "$Sender->{errno}: $Sender->{errstr}.")
+    
+    if ($sms_id) {
+      return $html->message('info', $lang{INFO}, "SMS $lang{SENDED}");
     }
     else {
-      $html->message('info', "$lang{SENT_MASSAGE}")
+      return $html->message('err', $lang{INFO}, "SMS $lang{NOT} $lang{SENDED}");
     }
   }
 

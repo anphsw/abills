@@ -19,7 +19,7 @@ use strict;
 use warnings 'FATAL' => 'all';
 use v5.16;
 
-our $VERSION = 0.77;
+our $VERSION = 0.80;
 
 our $begin_time;
 BEGIN {
@@ -40,11 +40,11 @@ BEGIN {
 use POSIX qw(strftime);
 use Time::Local qw/timelocal/;
 use lib '../lib';
-
-our (%lang, $var_dir);
 use Abills::Init qw/$admin $db %conf $DATE $base_dir @MODULES $var_dir/;
 use Abills::Base qw (in_array days_in_month convert gen_time _bp load_pmodule);
 use Abills::HTML;
+
+our (%lang, $var_dir);
 
 # To avoid loading Abills::Templates, redefining _error_show
 {
@@ -320,7 +320,17 @@ sub form_charts_configuration {
 }
 
 #**********************************************************
-=head2  build_graphics($attr) Parse input and make charts
+=head2  build_graphics($EXT_TABLE, $WHERE, $bind_values, $type, $ids, $current_time) Parse input and make charts
+
+  Arguments:
+    $EXT_TABLE
+    $WHERE
+    $bind_values
+    $type
+    $ids
+    $current_time
+
+  Returns:
 
 =cut
 #**********************************************************
@@ -361,13 +371,23 @@ sub build_graphics {
       $speed_list, "$type: '$name' ($key) ", $start_time, $current_time
     );
     show_tabbed(\%charts_for_period, $i);
-
   }
+
   return 1;
 }
 
 #**********************************************************
-=head2 get_traffic($EXT_TABLE, $WHERE, $start, $period)
+=head2 get_traffic($EXT_TABLE, $WHERE, $bind_values, $start, $end_time)
+
+  Arguments:
+    $EXT_TABLE
+    $WHERE
+    $bind_values
+    $start
+    $end_time
+
+  Returns:
+    $list
 
 =cut
 #**********************************************************
@@ -434,7 +454,18 @@ sub get_ipn_traffic {
 }
 
 #**********************************************************
-=head2 get_pppoe_traffic()
+=head2 get_pppoe_traffic($multiply_for_bytes, $EXT_TABLE, $WHERE, $bind_values, $start_time, $end_time)
+
+  Arguments:
+    $multiply_for_bytes
+    $EXT_TABLE
+    $WHERE
+    $bind_values
+    $start_time
+    $end_time
+
+  Returns:
+    %$list
 
 =cut
 #**********************************************************
@@ -448,7 +479,7 @@ sub get_pppoe_traffic {
       SUM(l.sent2) $multiply_for_bytes
       FROM s_detail l
       $EXT_TABLE
-      WHERE $WHERE and l.last_update > $start_time and l.last_update < $end_time
+      WHERE $WHERE AND l.last_update > $start_time AND l.last_update < $end_time
       GROUP BY 1
       ORDER BY l.last_update;", undef
     , { Bind => $bind_values }
@@ -1018,10 +1049,17 @@ sub get_name_for {
 }
 
 #**********************************************************
-#
+=head show_tabbed($charts_period);
+
+  Arguments:
+    $charts_period
+
+  Returns:
+
+=cut
 #**********************************************************
 sub show_tabbed {
-  my ($charts_period, $chart_number) = @_;
+  my ($charts_period) = @_;
 
   my $tabs = qq{
    <!-- Tab panes -->
@@ -1034,7 +1072,9 @@ sub show_tabbed {
 }
 
 #**********************************************************
-#
+=head2 _get_tp_list($id)
+
+=cut
 #**********************************************************
 sub _get_tp_list {
   my ($id) = @_;
@@ -1053,7 +1093,9 @@ sub _get_tp_list {
 }
 
 #**********************************************************
-#
+=head2 _get_nas_list($id)
+
+=cut
 #**********************************************************
 sub _get_nas_list {
   my ($id) = @_;
@@ -1071,7 +1113,9 @@ sub _get_nas_list {
 }
 
 #**********************************************************
-#
+=head2 _get_group_list($id)
+
+=cut
 #**********************************************************
 sub _get_group_list {
   my ($id) = @_;
@@ -1264,80 +1308,80 @@ sub print_footer {
 }
 
 
-#**********************************************************
-=head2 show_page() - Show charts
-
-=cut
-#**********************************************************
-sub show_page {
-  my (@charts) = @_;
-
-  print_head();
-
-  my %page_header = ();
-  my $name = $lang{ALL};
-
-
-  #  if ( $FORM{LOGIN} ) {
-  #    $page_header{HEADER_NAME} = $lang{USER};
-  #    $page_header{VALUE} = "<a href='index.cgi?LOGIN_EXPR=$FORM{LOGIN}'>$FORM{LOGIN}</a>";
-  #  }
-  #  if ( $FORM{UID} ) {
-  #    if ( $FORM{UID} ne 'all' ) {
-  #      $name = get_name_for($FORM{UID});
-  #    }
-  #    $page_header{HEADER_NAME} = $lang{USER};
-  #    $page_header{HEADER_VALUE} = $name;
-  #  }
-  #  elsif ( $FORM{SESSION_ID} ) {
-  #    if ( $FORM{SESSION_ID} ne 'all' ) {
-  #      $name = get_name_for($FORM{SESSION_ID})
-  #    }
-  #    $page_header{HEADER_NAME} = 'Session_id';
-  #    $page_header{HEADER_VALUE} = $name;
-  #  }
-  #  elsif ( $FORM{TP_ID} ) {
-  #    if ( $FORM{TP_ID} ne 'all' ) {
-  #      $name = get_name_for($FORM{TP_ID})
-  #    }
-  #    $page_header{HEADER_NAME} = $lang{TARIF_PLAN};
-  #    $page_header{HEADER_VALUE} = $name;
-  #  }
-  #  elsif ( $FORM{NAS_ID} ) {
-  #    if ( $FORM{NAS_ID} ne 'all' ) {
-  #      $name = get_name_for($FORM{NAS_ID})
-  #    }
-  #    $page_header{HEADER_NAME} = $lang{NAS};
-  #    $page_header{HEADER_VALUE} = $name;
-  #
-  #  }
-  #  elsif ( $FORM{GID} ) {
-  #    if ( $FORM{GID} ne 'all' ) {
-  #      $name = get_name_for($FORM{GID})
-  #    }
-  #    $page_header{HEADER_NAME} = $lang{GROUP};
-  #    $page_header{HEADER_VALUE} = $name;
-  #  }
-  #  elsif ( $FORM{TAG_ID} ) {
-  #    if ( $FORM{TAG_ID} ne 'all' ) {
-  #      $name = get_name_for($FORM{TAG_ID})
-  #    }
-  #    $page_header{HEADER_NAME} = $lang{TAGS};
-  #    $page_header{HEADER_VALUE} = $name;
-  #  }
-  #
-  #  my $date_to_show = $FORM{DATE} || $DATE;
-  #
-  #  print "<div class='page-header'><h3>$page_header{HEADER_NAME}: $page_header{HEADER_VALUE}</h3></div>";
-  #  print "<h5><b>$lang{DATE}:</b> $date_to_show </h5><br>";
-  #
-  #  foreach my $chart ( @charts ) {
-  #    print $chart;
-  #  }
-  #
-  print_footer();
-
-  return 1;
-}
+# #**********************************************************
+# =head2 show_page() - Show charts
+#
+# =cut
+# #**********************************************************
+# sub show_page {
+#   #my (@charts) = @_;
+#
+#   print_head();
+#
+#   # my %page_header = ();
+#   # my $name = $lang{ALL};
+#
+#
+#   #  if ( $FORM{LOGIN} ) {
+#   #    $page_header{HEADER_NAME} = $lang{USER};
+#   #    $page_header{VALUE} = "<a href='index.cgi?LOGIN_EXPR=$FORM{LOGIN}'>$FORM{LOGIN}</a>";
+#   #  }
+#   #  if ( $FORM{UID} ) {
+#   #    if ( $FORM{UID} ne 'all' ) {
+#   #      $name = get_name_for($FORM{UID});
+#   #    }
+#   #    $page_header{HEADER_NAME} = $lang{USER};
+#   #    $page_header{HEADER_VALUE} = $name;
+#   #  }
+#   #  elsif ( $FORM{SESSION_ID} ) {
+#   #    if ( $FORM{SESSION_ID} ne 'all' ) {
+#   #      $name = get_name_for($FORM{SESSION_ID})
+#   #    }
+#   #    $page_header{HEADER_NAME} = 'Session_id';
+#   #    $page_header{HEADER_VALUE} = $name;
+#   #  }
+#   #  elsif ( $FORM{TP_ID} ) {
+#   #    if ( $FORM{TP_ID} ne 'all' ) {
+#   #      $name = get_name_for($FORM{TP_ID})
+#   #    }
+#   #    $page_header{HEADER_NAME} = $lang{TARIF_PLAN};
+#   #    $page_header{HEADER_VALUE} = $name;
+#   #  }
+#   #  elsif ( $FORM{NAS_ID} ) {
+#   #    if ( $FORM{NAS_ID} ne 'all' ) {
+#   #      $name = get_name_for($FORM{NAS_ID})
+#   #    }
+#   #    $page_header{HEADER_NAME} = $lang{NAS};
+#   #    $page_header{HEADER_VALUE} = $name;
+#   #
+#   #  }
+#   #  elsif ( $FORM{GID} ) {
+#   #    if ( $FORM{GID} ne 'all' ) {
+#   #      $name = get_name_for($FORM{GID})
+#   #    }
+#   #    $page_header{HEADER_NAME} = $lang{GROUP};
+#   #    $page_header{HEADER_VALUE} = $name;
+#   #  }
+#   #  elsif ( $FORM{TAG_ID} ) {
+#   #    if ( $FORM{TAG_ID} ne 'all' ) {
+#   #      $name = get_name_for($FORM{TAG_ID})
+#   #    }
+#   #    $page_header{HEADER_NAME} = $lang{TAGS};
+#   #    $page_header{HEADER_VALUE} = $name;
+#   #  }
+#   #
+#   #  my $date_to_show = $FORM{DATE} || $DATE;
+#   #
+#   #  print "<div class='page-header'><h3>$page_header{HEADER_NAME}: $page_header{HEADER_VALUE}</h3></div>";
+#   #  print "<h5><b>$lang{DATE}:</b> $date_to_show </h5><br>";
+#   #
+#   #  foreach my $chart ( @charts ) {
+#   #    print $chart;
+#   #  }
+#   #
+#   print_footer();
+#
+#   return 1;
+# }
 
 1

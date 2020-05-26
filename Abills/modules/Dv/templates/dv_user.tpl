@@ -23,6 +23,7 @@
   <input type=hidden name='UID' value='$FORM{UID}'>
   <input type=hidden name='STATUS_DAYS' value='%STATUS_DAYS%'>
   <input type=hidden name='step' value='$FORM{step}'>
+  <input type='hidden' name='LEAD_ID' value='$FORM{LEAD_ID}'>
 
   <div class='box box-theme'>
     <div class='box-header with-border'>

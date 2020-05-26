@@ -353,7 +353,7 @@ Commutation.prototype = {
 
     fiber.meta = {
       id  : element.id + '_' + (num),
-      name: element.id + '_' + (num + 1),
+      name: element.id + ': №' + (num + 1),
       num : num
     };
   },
@@ -580,7 +580,6 @@ Commutation.prototype = {
 
     if (typeof(this.fiber_by_id[start_id]) === 'undefined' || typeof(this.fiber_by_id[end_id]) === 'undefined') {
       alert('Trying to create link beetween unexisting fibers ' + start_id + ' ' + end_id);
-      console.log(this.fiber_by_id);
       if (callback) {
         callback(false);
       }
@@ -1179,8 +1178,7 @@ Drawable.prototype = {
     this.drawConnectedCircles();
   },
   drawFiber              : function (fiber, index) {
-
-    if (this.type === "SPLITTER") {
+    if (this.type === "SPLITTER" || this.type === "CROSS") {
         this.fiber_attr.fill = fiber.color !== undefined ? fiber.color.substring(0, 7) : "lightgray";
     }
     var fiber_rect = paper.rect(
@@ -1199,6 +1197,20 @@ Drawable.prototype = {
 
     $(fiber_rect.node)
       .data('fiber-id', this.type + '_' + this.id + '_' + index);
+
+    if (this.type === 'EQUIPMENT' || this.type === 'CROSS') {
+      let fiber_num = paper.text(
+        fiber.x + 4,
+        fiber.y + 15,
+        fiber.num + 1
+      );
+
+      fiber_num.toFront();
+      this.rendered.push(fiber_num);
+    }
+
+    this.splitterAttenuation(fiber);
+
 
     this.fiber_attr.class = 'fiber';
     return fiber_rect;
@@ -1220,10 +1232,15 @@ Drawable.prototype = {
   redrawShell            : function () {
     this.clearShell();
 
+    if ((this.type === 'EQUIPMENT' || this.type === 'CROSS') && !this.height_chanched) {
+      this.height += 7;
+      this.height_chanched = 1;
+    }
+
     this.rendered = paper.set();
     this.text     = paper.text(
       this.x + (this.width / 2),
-      this.y + ((this.height + SCHEME_OPTIONS.FIBER_HEIGHT / 4) / 2),
+      this.y + ((this.height + SCHEME_OPTIONS.FIBER_HEIGHT / 4) / 1.7),
       this.raw.model_name || this.raw.name || ''
     );
 
@@ -1370,6 +1387,15 @@ Drawable.prototype = {
     }
 
     this.tip = new HTMLTip(info_hash, this.shell.node);
+  },
+  splitterAttenuation    : function(fiber) {
+    if (this.type !== 'SPLITTER' || !fiber.attenuation)
+      return 0;
+
+    let fiber_num = paper.text(fiber.x + 4, fiber.y - 7, fiber.attenuation);
+
+    fiber_num.toFront();
+    this.rendered.push(fiber_num);
   }
 };
 
@@ -1444,6 +1470,12 @@ $.extend(Rotatable.prototype, {
   },
   calculateFiberPositions: function () {
     Drawable.prototype.calculateFiberPositions.apply(this);
+    if (this.fibers_colors) {
+      for (let i = 0; i < this.fibers.length; i++) {
+        this.fibers[i].color = "#".concat(this.fibers_colors.array[this.fibers[i].num % this.fibers_colors.array.length]);
+      }
+    }
+
     if (+this.rotation_angle !== 0) {
       for (var i = 0; i < this.fibers.length; i++) {
         this.fibers[i].edge_original = $.extend({}, this.fibers[i].edge);
@@ -1947,8 +1979,7 @@ function Splitter(splitter_raw) {
   this.fibers = new Array(this.inputs + this.outputs);
   var color_arr = this.raw.fibers_colors.split(',');
 
-  var fibersColorPalette = new AColorPalette(color_arr);
-  this.fibers_colors = fibersColorPalette;
+  this.fibers_colors = new AColorPalette(color_arr);
 
   this.calculateFiberPositions();
 
@@ -1979,7 +2010,6 @@ $.extend(Splitter.prototype, {
     this.outputs_start_x = this.getCenteredFibersStartX(this.outputs);
     this.outputs_edge_y  = this.height;
 
-
     var count_color = 0;
 
     // Input fibers
@@ -2004,6 +2034,10 @@ $.extend(Splitter.prototype, {
       });
     }
 
+    if (this.raw.attenuation) {
+      this.raw.attenuations = this.raw.attenuation.split('/');
+    }
+
     // Output fibers
     for (var i = 0; i < this.outputs; i++) {
       if (count_color >= this.fibers_colors.array.length) {
@@ -2022,7 +2056,8 @@ $.extend(Splitter.prototype, {
           y: fiber_y + SCHEME_OPTIONS.FIBER_HEIGHT / 2
         },
         marked: this.fibers_colors.array[count_color].length === 7 ? 1 : '',
-        color: this.fibers_colors ? "#".concat(this.fibers_colors.array[count_color++]) : this.fiber_attr.fill
+        color: this.fibers_colors ? "#".concat(this.fibers_colors.array[count_color++]) : this.fiber_attr.fill,
+        attenuation: this.raw.attenuations ? this.raw.attenuations[i] ? this.raw.attenuations[i] : null : null
       });
     }
 
@@ -2036,16 +2071,18 @@ $.extend(Splitter.prototype, {
 });
 
 function Equipment(equipment_raw, options) {
-  Drawable.apply(this, arguments);
+
+  this.raw    = equipment_raw;
+  this.fibers = new Array(+equipment_raw.ports);
+  Rotatable.apply(this, arguments);
+
+  // Drawable.apply(this, arguments);
   this.id   = equipment_raw.id;
   this.type = 'EQUIPMENT';
 
   if (!this.id) {
     throw new Error("Got equipment without id")
   }
-
-  this.raw    = equipment_raw;
-  this.fibers = new Array(+equipment_raw.ports);
 
   this.calculateSizes();
   this.calculateFiberPositions();
@@ -2057,7 +2094,8 @@ function Equipment(equipment_raw, options) {
   Equipment.prototype.num += 1;
 }
 
-Equipment.prototype = Object.create(Drawable.prototype);
+Equipment.prototype = Object.create(Rotatable.prototype);
+// Equipment.prototype = Object.create(Drawable.prototype);
 $.extend(Equipment.prototype, {
   num           : 0,
   type          : 'EQUIPMENT',
@@ -2101,10 +2139,12 @@ function Cross(cross_raw, options) {
     throw new Error("Got cross without id")
   }
 
-
   this.fiber_attr = $.extend(this.fiber_attr, {
     fiber_start: cross_raw.port_start - 1
   });
+
+  if (this.raw.fibers_colors)
+    this.fibers_colors = new AColorPalette(this.raw.fibers_colors.split(','));
 
   this.calculateSizes();
   this.calculateFiberPositions();
@@ -2145,7 +2185,7 @@ Cross.prototype = $.extend(Cross.prototype, {
         };
       }
     };
-  }
+  },
 });
 
 /** Helper geometric models */
@@ -2915,7 +2955,6 @@ function initContextMenus() {
       if (triggered_by_center_circle) {
         last_element_num += 1
       }
-      console.log(path_element_num, last_element_num);
 
       if (+path_element_num === 0 || +path_element_num === last_element_num) {
         delete items['delete_path_el'];

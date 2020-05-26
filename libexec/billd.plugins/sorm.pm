@@ -9,7 +9,27 @@
 # $conf{ISP_ID} = '1'; # идентифакатор ИСП из "информация по операторам связи и их филалах"'
 #
 # iconv -f UTF-8 -t CP1251 abonents.csv.utf > abonents.csv
+=head1 NAME
 
+  SORM sync
+
+=head1 VERSION
+
+  VERSION: 0.11
+  DATETIME: 20200415
+
+  API_VERSION: КОМПЛЕКС «ЯХОНТ»
+  API_VERSION: НИКА.466533.034.ТР.011.DMZ
+
+=head1 ARGUMENTS
+
+  INIT -  Init dirs
+  START - START
+  DICTIONARIES
+  WIFI
+  SHOW_ERRORS - Get errors
+
+=cut
 
 use strict;
 use warnings FATAL => 'all';
@@ -24,7 +44,7 @@ our (
 );
 
 use Time::Piece;
-use Abills::Base qw/cmd _bp in_array/;
+use Abills::Base qw/cmd _bp in_array int2ip/;
 use Abills::Misc qw/translate_list/;
 use Users;
 use Internet;
@@ -33,6 +53,7 @@ use Companies;
 use Finance;
 use Nas;
 use Hotspot;
+use Net::FTP;
 
 my $User = Users->new($db, $Admin, \%conf);
 my $Company = Companies->new($db, $Admin, \%conf);
@@ -42,11 +63,35 @@ my $Nas = Nas->new($db, \%conf, $Admin);
 my $Abon = Abon->new($db, $Admin, \%conf);
 my $Hotspot = Hotspot->new( $db, $Admin, \%conf );
 my $start_date = "01.08.2017 12:00:00";
+
 my $isp_id    = $conf{SORM_ISP_ID} || 1;
 my $server_ip = $conf{SORM_SERVER} || '127.0.0.1';
 my $login     = $conf{SORM_LOGIN}  || 'login';
-my $pswd      = $conf{SORM_PSWD}   || 'password';
+my $pswd      = $conf{SORM_PASSWORD}   || 'password';
+
 my $t = localtime;
+my $debug     = 0;
+
+if($argv->{DEBUG}) {
+  $debug = $argv->{DEBUG};
+}
+
+do ("/usr/abills/language/russian.pl");
+
+=comments
+
+  +/ISP/abonents/abonents/
+  +/ISP/payments/balance-fillup/
+  +/ISP/dictionaries/pay-types/
+  +/ISP/dictionaries/ip-numbering-plan/
+  +/ISP/dictionaries/doc-types/
+  /ISP/dictionaries/telcos/
+  +/ISP/dictionaries/gates/
+  +/ISP/abonents/services/ передаём информацию о до сервисах. в частности о приставках в аренде
+  +/ISP/dictionaries/supplement-services/
+
+=cut
+
 
 if ($argv->{DICTIONARIES}) {
   supplement_services_dictionary();
@@ -54,8 +99,10 @@ if ($argv->{DICTIONARIES}) {
   docs_dictionary();
   gates_dictionary();
   ippool_dictionary();
+  dictionary_telcos();
 }
 elsif ($argv->{START}) {
+  sorm_init();
   my $users_list = $User->list({
     COLS_NAME   => 1,
     PAGE_ROWS   => 99999,
@@ -66,6 +113,10 @@ elsif ($argv->{START}) {
   foreach (@$users_list) {
     user_info_report($_->{uid});
   }
+}
+elsif($argv->{SHOW_ERRORS}) {
+  sorm_errors();
+  exit;
 }
 elsif ($argv->{WIFI}) {
   check_wifi();
@@ -88,8 +139,8 @@ sub check_admin_actions {
 
   my $filename = $var_dir . "sorm/last_admin_action";
   open (my $fh, '<', $filename) or die "Could not open file '$filename' $!";
-  my $last_action_date = <$fh>;
-  chomp $last_action_date;
+    my $last_action_date = <$fh>;
+    chomp $last_action_date;
   close $fh;
 
   my $action_list = $Admin->action_list({ 
@@ -147,8 +198,8 @@ sub check_payments {
 
   my $filename = $var_dir . "sorm/last_payments";
   open (my $fh, '<', $filename) or die "Could not open file '$filename' $!";
-  my $last_payment_date = <$fh>;
-  chomp $last_payment_date;
+    my $last_payment_date = <$fh>;
+    chomp $last_payment_date;
   close $fh;
 
   my $payment_list = $Payments->list({
@@ -174,7 +225,7 @@ sub check_payments {
   }
   
   open ($fh, '>', $filename) or die "Could not open file '$filename' $!";
-  print $fh $last_payment_date;
+    print $fh $last_payment_date;
   close $fh;
 
   return 1;
@@ -189,8 +240,8 @@ sub check_wifi {
 
   my $filename = $var_dir . "sorm/last_wifi_action";
   open (my $fh, '<', $filename) or die "Could not open file '$filename' $!";
-  my $last_wifi_date = <$fh>;
-  chomp $last_wifi_date;
+    my $last_wifi_date = <$fh>;
+    chomp $last_wifi_date;
   close $fh;
 
   my $wifi_list = $Hotspot->log_list({ 
@@ -270,7 +321,8 @@ sub user_info_report {
       $arr[13] = "";             # имя
       $arr[14] = "";             # отчество
       $arr[15] = "";             # фамилия
-      $arr[16] = $User->{FIO};   # ФИО строкой
+      #fixme
+      $arr[16] = $User->{FIO} || "UNKNOWN";   # ФИО строкой
     }
 
     $arr[17] = "";             # дата рождения
@@ -303,7 +355,6 @@ sub user_info_report {
 
 #юр лицо
   else {
-
     $arr[11] = 1;              # тип абонента (0 - физ лицо, 1 - юр лицо)
 
     $arr[12] = "";             # 
@@ -321,10 +372,10 @@ sub user_info_report {
     $arr[24] = "";             # 
     $arr[25] = "";             # 
 
+    $Company->{debug}=1;
     $Company->info($User->{COMPANY_ID});
-
-    $arr[26] = $Company->{COMPANY_NAME};   # наименование компании
-    $arr[27] = $Company->{COMPANY_VAT};    # ИНН
+    $arr[26] = $Company->{NAME};   # abonent-jur-fullname  наименование компании
+    $arr[27] = $Company->{TAX_NUMBER};    # abonent-jur-inn ИНН
     $arr[28] = $Company->{REPRESENTATIVE}; # контактное лицо
     $arr[29] = $Company->{PHONE};          # контактный телефон
     $arr[30] = $Company->{BANK_NAME};      # банк абонента
@@ -332,7 +383,12 @@ sub user_info_report {
   }
 
 #адрес абонента  
-  my $address = ($User->{ADDRESS_FULL} || "") . ", " . ($User->{CITY} || "") . ", " . ($User->{ZIP} || "");
+  #my $address = ($User->{ADDRESS_FULL} || "") . ", " . ($User->{CITY} || "") . ", " . ($User->{ZIP} || "");
+  my $address =  ($User->{ADDRESS_DISTRICT} ||q{}) .", "
+    . ($User->{CITY} || q{}) .", "
+    . ($User->{ADDRESS_STREET} || q{}) .", "
+    . ($User->{ADDRESS_BUILD} || q{}) .", "
+    . ($User->{ADDRESS_FLAT} || q{}) ." ";
 
   $arr[32] = 1;               # тип данных адреса (0 - структурировано, 1 - одной строкой)
   $arr[33] = "";              # индекс
@@ -359,13 +415,38 @@ sub user_info_report {
   $arr[52] = "";              # квартира
   $arr[53] = $address;        # адрес строкой
 
+#почтовый адрес Error: address-3-unstruct
+  $arr[54] = ($user->{COMPANY_ID})  ? "1" : ""; #		тип данных по  почтовому адресу (0 - структурированные данные, 1 - неструктурированные) (число):	Обязательное поле 0 или 1
+  $arr[55] = "";		# почтовый индекс, zip-код (строка, 1..32)	Обязательное поле если запись структурированная
+  $arr[56] = "";		# страна (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[57] = "";		# область (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[58] = "";		# район, муниципальный округ (строка, 1..128)	Опциональное поле если запись структурированная
+  $arr[59] = "";		# город/поселок/деревня/аул (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[60] = "";		# улица (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[61] = "";		# номер дома, строения (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[62] = "";		# корпус (строка, 1..128)	Опциональное поле если запись структурированная
+  $arr[63] = "";		# квартира, офис (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[64] = ($user->{COMPANY_ID}) ? $address :  "";		# неструктурированный адрес (строка, 1..1024)	Обязательное поле если запись неструктурированная
+
+# адрес доставки корреспонденции
+  $arr[65] = ($user->{COMPANY_ID})  ? "1" : "";	 #	тип данных по адресу доставки счета (0 - структурированные данные, 1 - неструктурированные) (число)(пустое поле, если отсутствует*):	Обязательное поле 0 или 1
+  $arr[66] = "";	#	почтовый индекс, zip-код (строка, 1..32)	Обязательное поле если запись структурированная
+  $arr[67] = "";	#		страна (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[68] = "";	#		область (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[69] = "";	#		район, муниципальный округ (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[70] = "";	#		город/поселок/деревня/аул (строка, 1..128)	Опциональное поле если запись структурированная
+  $arr[71] = "";	#		улица (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[72] = "";	#		номер дома, строения (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[73] = "";	#		корпус (строка, 1..128)	Опциональное поле если запись структурированная
+  $arr[74] = "";	#		квартира, офис (строка, 1..128)	Обязательное поле если запись структурированная
+  $arr[75] = ($user->{COMPANY_ID}) ? $address :  "";	#		неструктурированный адрес (строка, 1..1024)	Обязательное поле если запись неструктурированная
 
   my $string = "";
   foreach (@arr) {
     $string .= '"' . ($_ // "") . '";'; 
   }
   $string =~ s/;$/\n/;
-  
+
   _add_report('user', $string);
 
   return 1;
@@ -411,10 +492,7 @@ sub ippool_dictionary {
 
   foreach my $pool (@$pools_list) {
     next unless ($pool->{ip});
-    my $w=($pool->{ip}/16777216)%256;
-    my $x=($pool->{ip}/65536)%256;
-    my $y=($pool->{ip}/256)%256;
-    my $ip = "$w.$x.$y.0";
+    my $ip = int2ip($pool->{ip});
     
     my $mask = 32 - length(sprintf ("%b", $pool->{ip_count}));
 
@@ -432,7 +510,7 @@ sub ippool_dictionary {
 }
 
 #**********************************************************
-=head2 docs_dictionary($attr)
+=head2 docs_dictionary()
 
 =cut
 #**********************************************************
@@ -442,11 +520,28 @@ sub docs_dictionary {
   _add_report('d_type', $string);
 
   print "Docs dictionary formed.\n";
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 dictionary_telcos()
+
+=cut
+#**********************************************************
+sub dictionary_telcos {
+  my $string = '' . "\n";
+
+  _add_report('telcos', $string);
+
+  print "telcos dictionary formed.\n";
+
   return 1;
 }
 
 #**********************************************************
-=head2 gates_dictionary($attr)
+=head2 gates_dictionary()
 
 =cut
 #**********************************************************
@@ -456,6 +551,7 @@ sub gates_dictionary {
   _add_report('gates', $string);
 
   print "Gates dictionary formed.\n";
+
   return 1;
 }
 
@@ -465,7 +561,7 @@ sub gates_dictionary {
 =cut
 #**********************************************************
 sub payments_type_dictionary {
-  do ("/usr/abills/language/russian.pl");
+
   my $types = translate_list($Payments->payment_type_list({ COLS_NAME => 1 }));
 
   if ($conf{PAYSYS_PAYMENTS_METHODS}) {
@@ -507,6 +603,7 @@ sub supplement_services_dictionary {
   }
 
   print "supplement_services dictionary formed.\n";
+
   return 1;
 }
 
@@ -621,11 +718,18 @@ sub wifi_report {
 #**********************************************************
 =head2 _add_report($type, $string)
 
+  Arguments:
+    $type
+    $string
+
+  Results:
+   TRUE or FALSE
+
 =cut
 #**********************************************************
 sub _add_report {
   my ($type, $string) = @_;
-# print "$type : $string";
+
   my %reports = (
     user    => "$var_dir/sorm/abonents/abonents.csv.utf",
     abon    => "$var_dir/sorm/abonents/services.csv.utf",
@@ -636,6 +740,7 @@ sub _add_report {
     pool    => "$var_dir/sorm/dictionaries/ip-numbering-plan.csv.utf",
     sup_s   => "$var_dir/sorm/dictionaries/supplement-services.csv.utf",
     wifi    => "$var_dir/sorm/wi-fi/wifi.csv.utf",
+    telcos  => "$var_dir/sorm/dictionaries/telcos.csv.utf"
   );
 
   my $filename = $reports{$type};
@@ -649,7 +754,7 @@ sub _add_report {
   }
 
   open (my $fh, '>>', $filename) or die "Could not open file '$filename' $!";
-  print $fh $string;
+    print $fh $string;
   close $fh;
 
   return 1;
@@ -664,6 +769,7 @@ sub _date_format {
   my ($date) = @_;
 
   $date =~ s/(\d{4})-(\d{2})-(\d{2})(.*)/$3.$2.$1$4/;
+
   return $date;
 }
 
@@ -674,161 +780,280 @@ sub _date_format {
 #**********************************************************
 sub send_changes {
 
-  use Net::FTP;
+  #Docname:dirname
+  my @export_docs = (
+    'abonents/abonents:/abonents/abonents:/abonents',
+    'payments/payments:/payments/balance-fillup:/payments',
+    'abonents/services:abonents/services',
+    'gates:/dictionaries/gates:/dictionaries',
+    'dictionaries/doc-types:/dictionaries/doc-types:/dictionaries',
+    'dictionaries/pay-types:/dictionaries/pay-types:/dictionaries',
+    'dictionaries/ip-numbering-plan:/dictionaries/ip-numbering-plan:/dictionaries',
+    'dictionaries/supplement-services:/dictionaries/supplement-services:/dictionaries',
+    'wi-fi/wifi:/wi-fi'
+  );
 
-  if (-e "/usr/abills/var/sorm/abonents/abonents.csv.utf") {
-    my $file = join('_', 
-      "/usr/abills/var/sorm/abonents/abonents",
-      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
-    $file .= ".csv";
-    print "Send $file\n";
-    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/abonents/abonents.csv.utf > $file");
-    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
-    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
-    $ftp->cwd("/abonents/abonents") or die "Cannot change working directory ", $ftp->message;
-    $ftp->put($file) or die "$file put failed ", $ftp->message;
-    print $ftp->message;
-    $ftp->quit;
-    # unlink $file;
-    unlink '/usr/abills/var/sorm/abonents/abonents.csv.utf';
+  foreach my $line (@export_docs) {
+    my ($doc_name, $dirname, $error_dir)=split(/:/, $line);
+
+    if (-e $var_dir . '/sorm/'. $doc_name .'.csv.utf') {
+      my $file = join('_',  $var_dir.'/sorm/'. $doc_name,
+        $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+      $file .= ".csv";
+      print $var_dir . '/sorm/'. $doc_name .'.csv.utf' ." -> $dirname/". $dirname.".cvs\n";
+      _ftp_upload({
+        ICONV => "$var_dir/sorm/$doc_name.csv.utf > $file",
+        DIR   => $dirname,
+        FILE  => $file
+      });
+      # unlink $file;
+      unlink $var_dir . '/sorm/'. $doc_name . '.csv.utf';
+      sorm_errors({
+        DIR   => $error_dir,
+        FILE  => $file
+      });
+    }
   }
 
-  if (-e "/usr/abills/var/sorm/payments/payments.csv.utf") {
-    my $file = join('_', 
-      "/usr/abills/var/sorm/payments/payments",
-      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
-    $file .= ".csv";
-    print "Send $file\n";
-    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/payments/payments.csv.utf > $file");
-    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
-    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
-    $ftp->cwd("/payments/balance-fillup") or die "Cannot change working directory ", $ftp->message;
-    $ftp->put($file) or die "$file put failed ", $ftp->message;
-    print $ftp->message;
-    $ftp->quit;
-    # unlink $file;
-    unlink '/usr/abills/var/sorm/payments/payments.csv.utf';
-  }
+  # if (-e $var_dir . "/sorm/payments/payments.csv.utf") {
+  #   my $file = join('_',  "$var_dir/sorm/payments/payments",
+  #     $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+  #   $file .= ".csv";
+  #
+  #   _ftp_upload({
+  #     ICONV => "$var_dir/sorm/payments/payments.csv.utf > $file",
+  #     DIR   => "/payments/balance-fillup",
+  #     FILE  => $file
+  #   });
+  #
+  #   # unlink $file;
+  #   unlink $var_dir.'/sorm/payments/payments.csv.utf';
+  # }
 
-  if (-e "/usr/abills/var/sorm/abonents/services.csv.utf") {
-    my $file = join('_', 
-      "/usr/abills/var/sorm/abonents/services",
-      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
-    $file .= ".csv";
-    print "Send $file\n";
-    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/abonents/services.csv.utf > $file");
-    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
-    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
-    $ftp->cwd("/abonents/services") or die "Cannot change working directory ", $ftp->message;
-    $ftp->put($file) or die "$file put failed ", $ftp->message;
-    print $ftp->message;
-    $ftp->quit;
-    # unlink $file;
-    unlink '/usr/abills/var/sorm/services/services.csv.utf';
-  }
-
-  if (-e "/usr/abills/var/sorm/dictionaries/gates.csv.utf") {
-    my $file = join('_', 
-      "/usr/abills/var/sorm/dictionaries/gates",
-      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
-    $file .= ".csv";
-    print "Send $file\n";
-    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/gates.csv.utf > $file");
-    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
-    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
-    $ftp->cwd("/dictionaries/gates") or die "Cannot change working directory ", $ftp->message;
-    $ftp->put($file) or die "$file put failed ", $ftp->message;
-    print $ftp->message;
-    $ftp->quit;
-    # unlink $file;
-    unlink '/usr/abills/var/sorm/dictionaries/gates.csv.utf';
-  }
-
-  if (-e "/usr/abills/var/sorm/dictionaries/doc-types.csv.utf") {
-    my $file = join('_', 
-      "/usr/abills/var/sorm/dictionaries/doc-types",
-      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
-    $file .= ".csv";
-    print "Send $file\n";
-    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/doc-types.csv.utf > $file");
-    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
-    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
-    $ftp->cwd("/dictionaries/doc-types") or die "Cannot change working directory ", $ftp->message;
-    $ftp->put($file) or die "$file put failed ", $ftp->message;
-    print $ftp->message;
-    $ftp->quit;
-    # unlink $file;
-    unlink '/usr/abills/var/sorm/dictionaries/doc-types.csv.utf';
-  }
-
-  if (-e "/usr/abills/var/sorm/dictionaries/pay-types.csv.utf") {
-    my $file = join('_', 
-      "/usr/abills/var/sorm/dictionaries/pay-types",
-      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
-    $file .= ".csv";
-    print "Send $file\n";
-    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/pay-types.csv.utf > $file");
-    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
-    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
-    $ftp->cwd("/dictionaries/pay-types") or die "Cannot change working directory ", $ftp->message;
-    $ftp->put($file) or die "$file put failed ", $ftp->message;
-    print $ftp->message;
-    $ftp->quit;
-    # unlink $file;
-    unlink '/usr/abills/var/sorm/dictionaries/pay-types.csv.utf';
-  }
-
-  if (-e "/usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf") {
-    my $file = join('_', 
-      "/usr/abills/var/sorm/dictionaries/ip-numbering-plan",
-      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
-    $file .= ".csv";
-    print "Send $file\n";
-    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf > $file");
-    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
-    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
-    $ftp->cwd("/dictionaries/ip-numbering-plan") or die "Cannot change working directory ", $ftp->message;
-    $ftp->put($file) or die "$file put failed ", $ftp->message;
-    print $ftp->message;
-    $ftp->quit;
-    # unlink $file;
-    unlink '/usr/abills/var/sorm/dictionaries/ip-numbering-plan.csv.utf';
-  }
-
-  if (-e "/usr/abills/var/sorm/dictionaries/supplement-services.csv.utf") {
-    my $file = join('_', 
-      "/usr/abills/var/sorm/dictionaries/supplement-services",
-      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
-    $file .= ".csv";
-    print "Send $file\n";
-    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/dictionaries/supplement-services.csv.utf > $file");
-    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
-    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
-    $ftp->cwd("/dictionaries/supplement-services") or die "Cannot change working directory ", $ftp->message;
-    $ftp->put($file) or die "$file put failed ", $ftp->message;
-    print $ftp->message;
-    $ftp->quit;
-    # unlink $file;
-    unlink '/usr/abills/var/sorm/dictionaries/supplement-services.csv.utf';
-  }
-
-  if (-e "/usr/abills/var/sorm/wi-fi/wifi.csv.utf") {
-    my $file = join('_', 
-      "/usr/abills/var/sorm/wi-fi/wifi",
-      $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
-    $file .= ".csv";
-    print "Send $file\n";
-    system("iconv -f UTF-8 -t CP1251 /usr/abills/var/sorm/wi-fi/wifi.csv.utf > $file");
-    my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
-    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
-    $ftp->cwd("/wi-fi") or die "Cannot change working directory ", $ftp->message;
-    $ftp->put($file) or die "$file put failed ", $ftp->message;
-    print $ftp->message;
-    $ftp->quit;
-    # unlink $file;
-    unlink '/usr/abills/var/sorm/wi-fi/wifi.csv.utf';
-  }
+  # if (-e $var_dir . "/sorm/abonents/services.csv.utf") {
+  #   my $file = join('_', "$var_dir/sorm/abonents/services",
+  #     $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+  #   $file .= ".csv";
+  #
+  #   _ftp_upload({
+  #     ICONV => "$var_dir/sorm/abonents/services.csv.utf > $file",
+  #     DIR   => "/abonents/services",
+  #     FILE  => $file
+  #   });
+  #
+  #   # unlink $file;
+  #   unlink '$var_dir/sorm/services/services.csv.utf';
+  # }
+  # if (-e $var_dir . "/sorm/dictionaries/gates.csv.utf") {
+  #   my $file = join('_',
+  #     "$var_dir/sorm/dictionaries/gates",
+  #     $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+  #   $file .= ".csv";
+  #
+  #   _ftp_upload({
+  #     ICONV => "$var_dir/sorm/dictionaries/gates.csv.utf > $file",
+  #     DIR   => "/dictionaries/gates",
+  #     FILE  => $file
+  #   });
+  #
+  #   # unlink $file;
+  #   unlink $var_dir .'/sorm/dictionaries/gates.csv.utf';
+  # }
+  #
+  # if (-e "$var_dir/sorm/dictionaries/doc-types.csv.utf") {
+  #   my $file = join('_',
+  #     "$var_dir/sorm/dictionaries/doc-types",
+  #     $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+  #   $file .= ".csv";
+  #
+  #   _ftp_upload({
+  #     ICONV => "$var_dir/sorm/dictionaries/doc-types.csv.utf > $file",
+  #     DIR   => "/dictionaries/doc-types",
+  #     FILE  => $file
+  #   });
+  #
+  #   # unlink $file;
+  #   unlink $var_dir.'/sorm/dictionaries/doc-types.csv.utf';
+  # }
+  #
+  # if (-e "$var_dir/sorm/dictionaries/pay-types.csv.utf") {
+  #   my $file = join('_',
+  #     "$var_dir/sorm/dictionaries/pay-types",
+  #     $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+  #   $file .= ".csv";
+  #   print "Send $file\n";
+  #   system("iconv -f UTF-8 -t CP1251 $var_dir/sorm/dictionaries/pay-types.csv.utf > $file");
+  #   my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+  #   $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+  #   $ftp->cwd("/dictionaries/pay-types") or die "Cannot change working directory ", $ftp->message;
+  #   $ftp->put($file) or die "$file put failed ", $ftp->message;
+  #   print $ftp->message;
+  #   $ftp->quit;
+  #   # unlink $file;
+  #   unlink '$var_dir/sorm/dictionaries/pay-types.csv.utf';
+  # }
+  #
+  # if (-e "$var_dir/sorm/dictionaries/ip-numbering-plan.csv.utf") {
+  #   my $file = join('_',
+  #     "$var_dir/sorm/dictionaries/ip-numbering-plan",
+  #     $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+  #   $file .= ".csv";
+  #   print "Send $file\n";
+  #   system("iconv -f UTF-8 -t CP1251 $var_dir/sorm/dictionaries/ip-numbering-plan.csv.utf > $file");
+  #   my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+  #   $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+  #   $ftp->cwd("/dictionaries/ip-numbering-plan") or die "Cannot change working directory ", $ftp->message;
+  #   $ftp->put($file) or die "$file put failed ", $ftp->message;
+  #   print $ftp->message;
+  #   $ftp->quit;
+  #   # unlink $file;
+  #   unlink '$var_dir/sorm/dictionaries/ip-numbering-plan.csv.utf';
+  # }
+  #
+  # if (-e "$var_dir/sorm/dictionaries/supplement-services.csv.utf") {
+  #   my $file = join('_',
+  #     "$var_dir/sorm/dictionaries/supplement-services",
+  #     $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+  #   $file .= ".csv";
+  #   print "Send $file\n";
+  #   system("iconv -f UTF-8 -t CP1251 $var_dir/sorm/dictionaries/supplement-services.csv.utf > $file");
+  #   my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+  #   $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+  #   $ftp->cwd("/dictionaries/supplement-services") or die "Cannot change working directory ", $ftp->message;
+  #   $ftp->put($file) or die "$file put failed ", $ftp->message;
+  #   print $ftp->message;
+  #   $ftp->quit;
+  #   # unlink $file;
+  #   unlink '$var_dir/sorm/dictionaries/supplement-services.csv.utf';
+  # }
+  #
+  # if (-e "$var_dir/sorm/wi-fi/wifi.csv.utf") {
+  #   my $file = join('_',
+  #     "$var_dir/sorm/wi-fi/wifi",
+  #     $t->year, $t->mon, $t->mday, $t->hour, $t->min, $t->sec);
+  #   $file .= ".csv";
+  #   print "Send $file\n";
+  #   system("iconv -f UTF-8 -t CP1251 $var_dir/sorm/wi-fi/wifi.csv.utf > $file");
+  #   my $ftp = Net::FTP->new($server_ip, Debug => 0) or die "Cannot connect to $server_ip: $@";
+  #   $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+  #   $ftp->cwd("/wi-fi") or die "Cannot change working directory ", $ftp->message;
+  #   $ftp->put($file) or die "$file put failed ", $ftp->message;
+  #   print $ftp->message;
+  #   $ftp->quit;
+  #   # unlink $file;
+  #   unlink '$var_dir/sorm/wi-fi/wifi.csv.utf';
+  # }
   
+  return 1;
+}
+
+#**********************************************************
+=head2 sorm_init() - Init base parameters
+
+=cut
+#**********************************************************
+sub sorm_init {
+
+  my @dirs = ('/sorm/',
+    '/sorm/abonents/',
+    '/sorm/payments/',
+    '/sorm/wi-fi/',
+    '/sorm/dictionaries/'
+  );
+
+  foreach my $dir ( @dirs ) {
+    if($debug > 1) {
+      print "Create dir: $var_dir$dir\n";
+    }
+    mkdir($var_dir. $dir);
+  }
+
+  system(qq{echo "2018-01-01 00:00:01" > $var_dir/sorm/last_admin_action});
+  system(qq{echo "2018-01-01 00:00:01" > $var_dir/sorm/last_payments});
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _ftp_upload($file, $attr) - Init base parameters
+
+  Arguments:
+    $attr
+      FILE
+      DIR
+      ICONV - base_file:distination_file
+
+  Retuens:
+    TRUE FALSE
+
+=cut
+#**********************************************************
+sub _ftp_upload {
+  my ($attr) = @_;
+
+  if($attr->{ICONV}) {
+    my $cmd = "iconv -f UTF-8 -t CP1251 $attr->{ICONV}";
+    if($debug > 2) {
+      print " $cmd\n";
+    }
+    system($cmd);
+  }
+
+  if($debug > 1) {
+    print "Connect: SERVER: $server_ip LOGIN: $login PASSWORD: $pswd\n";
+  }
+
+  my $file = $attr->{FILE} || q{};
+  print "Send $file\n";
+
+  my $ftp = Net::FTP->new($server_ip, Debug => 0, Passive => $conf{FTP_PASSIVE_MODE} || 0) or die "Cannot connect to $server_ip: $@";
+    $ftp->login($login, $pswd) or die "Cannot login ", $ftp->message;
+    if($attr->{DIR}) {
+      $ftp->cwd($attr->{DIR}) or die "Cannot change working directory ", $ftp->message;
+    }
+    $ftp->put($file) or die "$file put failed ", $ftp->message;
+    print $ftp->message;
+  $ftp->quit;
+
+  return 1;
+}
+
+#**********************************************************
+=head2 sorm_errors() - Show sorm errors
+
+  Arguments:
+    $attr
+      DIR
+      FILE
+
+  Retuens:
+
+=cut
+#**********************************************************
+sub sorm_errors {
+  my ($attr)=@_;
+
+  sleep 2;
+  print "\n__________ERROR________________\n" if($debug > 0);
+  my $file         = $attr->{FILE};
+  my $ftp_login    = $conf{SORM_ERR_LOGIN};
+  my $ftp_password = $conf{SORM_ERR_PASSWORD};
+  my $ftp = Net::FTP->new($server_ip, Debug => 0, Passive => $conf{FTP_PASSIVE_MODE} || 0) or die "Cannot connect to $server_ip: $@";
+  $ftp->login($ftp_login, $ftp_password) or die "Cannot login ", $ftp->message;
+
+  if($attr->{DIR}) {
+    $ftp->cwd('/'.$attr->{DIR}) or die "Cannot change working directory ", $ftp->message;
+  }
+
+  my @files = $ftp->ls();
+  foreach my $ftp_file (@files) {
+    #$ftp->mget($file) or die "$file get failed ", $ftp->message;
+    print "Error: ". ($ftp_file || '-') .' -> '. ($file || '-') ."\n";
+  }
+
+  print $ftp->message;
+  $ftp->quit;
+
   return 1;
 }
 

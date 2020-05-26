@@ -11,19 +11,21 @@ use Encode qw(_utf8_on);
 use Abills::Base qw(urlencode in_array int2byte convert);
 use Msgs::Misc::Attachments;
 use Shedule;
+use Address;
 
 our (
   $db,
   %conf,
   %lang,
   $admin,
-  $html,
   %permissions,
   @WEEKDAYS,
   @MONTHES,
   @MONTHES_LIT,
 );
 
+our Abills::HTML $html;
+my $Address = Address->new($db, $admin, \%conf);
 my $Msgs = Msgs->new($db, $admin, \%conf);
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 my $Attachments = Msgs::Misc::Attachments->new($db, $admin, \%conf);
@@ -187,13 +189,15 @@ sub msgs_admin {
       return 1;
     }
 
-    msgs_ticket_show({
+    my $result = msgs_ticket_show({
       ID                  => $FORM{WORK},
       A_PRIVILEGES        => $A_PRIVILEGES,
       CHAPTERS_DELIGATION => $CHAPTERS_DELIGATION,
     });
 
-    msgs_work({ WORK_LIST => 1, MESSAGE_ID => $FORM{WORK}, UID => $uid });
+    if($result) {
+      msgs_work({ WORK_LIST => 1, MESSAGE_ID => $FORM{WORK}, UID => $uid });
+    }
 
     return 1;
   }
@@ -201,7 +205,7 @@ sub msgs_admin {
     msgs_export();
     return 1;
   }
-  elsif($FORM{STORAGE_MSGS_ID}){
+  elsif ($FORM{STORAGE_MSGS_ID}){
     load_module('Storage', $html);
     storage_hardware();
 
@@ -279,6 +283,10 @@ sub msgs_admin {
       UID    => $uid,
       MSG_ID => $FORM{del}
     });
+
+    if ($conf{MSGS_ADDRESS}) {
+      $Msgs->msgs_address_del({ ID => $FORM{del} });
+    }
 
     $Msgs->message_del({ ID => $FORM{del}, UID => $uid });
     $html->message('info', $lang{INFO}, "$lang{DELETED} # $FORM{del}") if (!$Msgs->{errno});
@@ -365,8 +373,6 @@ sub msgs_admin_add {
   my ($attr) = @_;
 
   if ($FORM{ADD_ADDRESS_BUILD} && $FORM{STREET_ID} && !$FORM{LOCATION_ID}) {
-    use Address;
-    my $Address = Address->new($db, $admin, \%conf);
     $Address->build_add({ STREET_ID => $FORM{STREET_ID}, ADD_ADDRESS_BUILD => $FORM{ADD_ADDRESS_BUILD} });
     if (!_error_show($Address)) {
       $FORM{LOCATION_ID} = $Address->{INSERT_ID};
@@ -393,10 +399,11 @@ sub msgs_admin_add {
 
     if ($FORM{DELIVERY_CREATE}) {
       $Msgs->msgs_delivery_add({ %FORM,
-        SUBJECT     => $FORM{DELIVERY_COMMENTS},
+        TEXT        => $FORM{MESSAGE},
+        SUBJECT     => $FORM{SUBJECT},
         SEND_DATE   => $FORM{DELIVERY_SEND_DATE},
         SEND_TIME   => $FORM{DELIVERY_SEND_TIME},
-        SEND_METHOD => $FORM{DELIVERY_SEND_METHOD},
+        SEND_METHOD => $FORM{DELIVERY_SEND_METHOD} || $FORM{SEND_TYPE},
         STATUS      => $FORM{DELIVERY_STATUS},
         PRIORITY    => $FORM{DELIVERY_PRIORITY},
       });
@@ -406,7 +413,6 @@ sub msgs_admin_add {
     }
 
     for (my $i = 0; $i <= 2; $i++) {
-
       # First input will come without underscore
       my $input_name = 'FILE_UPLOAD' . (($i > 0) ? "_$i" : '');
 
@@ -422,12 +428,19 @@ sub msgs_admin_add {
     }
 
     if ($FORM{SEND_TYPE} && ($FORM{SEND_TYPE} == 1 || $FORM{SEND_TYPE} == 6)) {
-      $FORM{INNER_MSG} = 1;
+      #$FORM{INNER_MSG} = 1;
       $FORM{STATE} = 2;
     }
 
     if ($FORM{UID}) {
       $FORM{UID} =~ s/,/;/g;
+    }
+
+    if ($FORM{LOCATION_ID} && $FORM{LOCATION_ID} =~ /, /g) {
+      $FORM{LOCATION_ID}   =~ s/, //g;
+      $FORM{STREET_ID}     =~ s/, //g;
+      $FORM{DISTRICT_ID}   =~ s/, //g;
+      $FORM{ADDRESS_FLAT}  =~ s/, //g;
     }
 
     if (!$FORM{UID} && $FORM{LOCATION_ID} && $FORM{CHECK_FOR_ADDRESS} && $FORM{send_message}) {
@@ -440,6 +453,16 @@ sub msgs_admin_add {
         USER_READ  => '0000-00-00 00:00:00',
         IP         => $admin->{SESSION_IP}
       });
+
+      if (!_error_show($Msgs) && $conf{MSGS_ADDRESS}) {
+        $Msgs->msgs_address_add({ 
+          ID          => $Msgs->{INSERT_ID},
+          DISTRICTS   => $FORM{DISTRICT_ID} || 0,
+          STREET      => $FORM{STREET_ID} || 0,
+          BUILD       => $FORM{LOCATION_ID} || 0,
+          FLAT        => $FORM{ADDRESS_FLAT} || 0
+        });
+      }
 
       $html->message('info', $lang{MESSAGES}, "$lang{SENDED} $lang{MESSAGE}");
 
@@ -461,17 +484,28 @@ sub msgs_admin_add {
       return 1;
     }
 
+    my %query_data = ();
+
+    foreach my $data_element (keys %FORM) {
+      if ($FORM{ $data_element }) {
+        $query_data{ $data_element } = $FORM{ $data_element };
+      }
+      else {
+        $query_data{ $data_element } = '_SHOW';
+      }
+    }
+
     my $users_list = $users->list({
       LOGIN     => '_SHOW',
       FIO       => '_SHOW',
       PHONE     => '_SHOW',
       EMAIL     => '_SHOW',
-      %FORM,
+      %query_data,
       UID       => ($FORM{UID} && $FORM{UID} =~ /\d+/) ? $FORM{UID} : undef,
       GID       => $FORM{GID},
       PAGE_ROWS => 1000000,
       DISABLE   => ($FORM{GID}) ? 0 : undef,
-      COLS_NAME => 1
+      COLS_NAME => 1,
     });
 
     if ($users->{TOTAL} < 1) {
@@ -554,7 +588,7 @@ sub msgs_admin_add {
           $internet_info = $Internet->info($user_info->{uid}, { COLS_NAME => 1, COLS_UPPER => 1 });
         }
 
-        $message = $html->tpl_show($FORM{MESSAGE}, { %{$user_pi}, %{$internet_info} }, {
+        $message = $html->tpl_show($FORM{MESSAGE}, { USER_LOGIN => $user_pi->{LOGIN}, %{$user_pi}, %{$internet_info} }, {
           OUTPUT2RETURN      => 1,
           SKIP_DEBUG_MARKERS => 1
         });
@@ -603,17 +637,6 @@ sub msgs_admin_add {
           next;
         }
 
-        if ($FORM{SEND_TYPE} && $FORM{SEND_TYPE} != 3) {
-          my $result = $Sender->send_message({
-            UID         => $user_info->{uid},
-            SENDER_TYPE => $FORM{SEND_TYPE},
-            EXTRA_TYPE  => $conf{MSGS_SENDER_SMS_TYPE},
-            SUBJECT     => ($FORM{SUBJECT} || ""),
-            MESSAGE     => $message,
-          });
-          next unless ($result);
-        }
-
         $Msgs->message_add({
           %FORM,
           MESSAGE    => $message,
@@ -622,6 +645,16 @@ sub msgs_admin_add {
           USER_READ  => '0000-00-00 00:00:00',
           IP         => $admin->{SESSION_IP}
         });
+
+        if (!_error_show($Msgs)) {
+           $Msgs->msgs_address_add({ 
+                ID          => $Msgs->{INSERT_ID},
+                DISTRICTS   => $FORM{DISTRICT_ID} || 0,
+                STREET      => $FORM{STREET_ID} || 0,
+                BUILD       => $FORM{LOCATION_ID} || 0,
+                FLAT        => $FORM{ADDRESS_FLAT} || 0
+            });
+        }
 
         if (_error_show($Msgs)) {
           return 0;
@@ -789,22 +822,29 @@ sub msgs_admin_add_form {
   );
 
   if ((!$FORM{UID} || $FORM{UID} =~ /;/) && !$FORM{TASK}) {
-    $tpl_info{GROUP_SEL} = sel_groups();
+    $tpl_info{GROUP_SEL} = sel_groups({ MULTISELECT => 1 });
     $tpl_info{ADDRESS_FORM} = form_address({ LOCATION_ID => $FORM{LOCATION_ID} || '' });
 
     if (in_array('Tags', \@MODULES)) {
-      load_module('Tags', $html);
-      $tpl_info{TAGS_FORM} = $html->tpl_show(
-        templates('form_show_hide'),
-        {
-          CONTENT     => tags_search_form(),
-          NAME        => 'TAGS',
-          ID          => 'TAGS_FORM',
-          PARAMS      => 'collapsed-box',
-          BUTTON_ICON => 'plus'
-        },
-        { OUTPUT2RETURN => 1 }
-      );
+      if (!$admin->{MODULES} || $admin->{MODULES}{'Tags'}) {
+        load_module('Tags', $html);
+
+        my (undef, $tags_count) = tags_sel({ HASH => 1 });
+
+        if ($tags_count) {
+          $tpl_info{TAGS_FORM} = $html->tpl_show(
+            templates('form_show_hide'),
+            {
+              CONTENT     => tags_search_form(),
+              NAME        => $lang{TAGS},
+              ID          => 'TAGS_FORM',
+              PARAMS      => 'collapsed-box',
+              BUTTON_ICON => 'plus'
+            },
+            { OUTPUT2RETURN => 1 }
+          );
+        }
+      }
     }
 
     $tpl_info{DATE_PIKER} = $html->form_datepicker('DELIVERY_SEND_DATE');
@@ -833,11 +873,16 @@ sub msgs_admin_add_form {
     $tpl_info{DELIVERY_SELECT_FORM} = sel_deliverys({ SKIP_MULTISELECT => 1, SELECTED => $FORM{DELIVERY} || '' });
     $tpl_info{SEND_DELIVERY_FORM} = $html->tpl_show(
       _include('msgs_delivery_form', 'Msgs'),
-      { %{$attr}, %FORM, %{$Msgs} },
+      { %{$attr}, %FORM, %tpl_info, %{$Msgs} },
       { OUTPUT2RETURN => 1 },
     );
 
     $tpl_info{BACK_BUTTON} = $html->form_input('PREVIEW', $lang{PRE}, { TYPE => 'submit' });
+    
+    unless ($permissions{0}{28}) {
+      $tpl_info{GROUP_HIDE} = 'display: none';
+    }
+
     $tpl_info{SEND_EXTRA_FORM} = $html->tpl_show(_include('msgs_send_extra', 'Msgs'),
       \%tpl_info,
       { OUTPUT2RETURN => 1, ID => 'msgs_send_extra' });
@@ -854,11 +899,6 @@ sub msgs_admin_add_form {
     %send_types,
     %$sender_send_types
   );
-
-  #FIXME: This type works for sending sms via Msgs
-  # if (in_array('Sms', \@MODULES)) {
-  #   $send_types{2} = "-- $lang{SEND} SMS";
-  # }
 
   if ($conf{MSGS_REDIRECT_FILTER_ADD}) {
     $send_types{3} = 'Msgs redirect';
@@ -958,6 +998,7 @@ sub msgs_admin_add_form {
       CHAPTERS_DELIGATION
 
   Returns:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -1121,7 +1162,7 @@ sub msgs_ticket_show {
     { class => 'btn btn-warning', ICON => 'glyphicon glyphicon-sunglasses', title => $lang{INNER} }
   )
     : '';
-  $Msgs->{MAP} = msgs_maps({ %{$Msgs}, %{$users} });
+  $Msgs->{MAP} = msgs_maps2({ %{$Msgs}, %{$users} });
 
   $Msgs->msg_watch_list({ MAIN_MSG => $Msgs->{ID}, AID => $admin->{AID} });
   my $uid = $Msgs->{UID} || 0;
@@ -1206,11 +1247,25 @@ sub msgs_ticket_show {
     $Msgs->{TASKS_LIST} = msgs_tasks_list($message_id);
   }
 
+  if ($Msgs->{LOCATION_ID} && !($Msgs->{ADDRESS_BUILD} && $Msgs->{ADDRESS_STREET})) {
+    $Address->address_info($Msgs->{LOCATION_ID});
+    if ($Address->{TOTAL}) {
+      $Msgs->{ADDRESS_BUILD} = $Address->{ADDRESS_BUILD};
+      $Msgs->{ADDRESS_STREET} = $Address->{ADDRESS_STREET};
+    }
+  }
+
+  my $ticket_address = '';
+  if ($conf{MSGS_ADDRESS}) {
+    $ticket_address = msgs_address({ %FORM });
+  }
+
   $Msgs->{EXT_INFO} = $html->tpl_show(_include($msgs_managment_tpl, 'Msgs'), {
     %{$users},
     %{$Msgs},
     PHONE               => $users->{PHONE} || $users->{CELL_PHONE} || '--',
-    PLAN_DATETIME_INPUT => $execution_time_input
+    PLAN_DATETIME_INPUT => $execution_time_input,
+    TICKET_ADDRESS      => $ticket_address,
   },
     { OUTPUT2RETURN => 1 });
 
@@ -1335,7 +1390,6 @@ sub msgs_ticket_show {
 
   $Msgs->{ID} = $Msgs->{MAIN_ID};
   #    $Msgs->{MAP} = msgs_maps({ %$Msgs, %$users });
-  $params{PROGRESSBAR} = msgs_progress_bar_show($Msgs);
 
   while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
     my $msg_button = $html->button($1, "&index=$index&chg=$1",
@@ -1343,7 +1397,7 @@ sub msgs_ticket_show {
     $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
   }
   # Button for subject chaning
-  if (scalar keys %{$A_PRIVILEGES} == 0 || ($Msgs->{CHAPTER} && $A_PRIVILEGES->{$Msgs->{CHAPTER}} == 3)) {
+  if (scalar keys %{$A_PRIVILEGES} == 0 || ($Msgs->{CHAPTER} && $A_PRIVILEGES->{$Msgs->{CHAPTER}} && $A_PRIVILEGES->{$Msgs->{CHAPTER}} == 3)) {
     $params{CHANGE_SUBJECT_BUTTON} = $html->button("$lang{CHANGE} $lang{SUBJECT}",
       "qindex=" . get_function_index('_msgs_show_change_subject_template') . "&header=2&subject=" . ($Msgs->{SUBJECT} || q{}) . "&msg_id=$Msgs->{ID}",
       {
@@ -1354,6 +1408,12 @@ sub msgs_ticket_show {
       }
     );
   }
+  elsif($Msgs->{CHAPTER} && ! $A_PRIVILEGES->{$Msgs->{CHAPTER}}) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 791 });
+    return 0;
+  }
+
+  $params{PROGRESSBAR} = msgs_progress_bar_show($Msgs);
 
   if (in_array('Workplanning', \@MODULES)) {
     $params{WORKPLANNING} = work_planning_table_show($message_id);
@@ -1383,8 +1443,10 @@ sub msgs_ticket_show {
     });
   }
 
-  require Msgs::Chat;
-  show_admin_chat();
+  if($conf{MSGS_CHAT}) {
+    require Msgs::Chat;
+    show_admin_chat();
+  }
 
   return 1;
 }
@@ -1425,7 +1487,6 @@ sub msgs_ticket_reply {
   }
 
   foreach my $line (@{$list}) {
-    #    Abills::Base::_bp('', $line);
     if ($line->{survey_id}) {
       $FORM{REPLY_ID} = $line->{id};
       push @REPLIES, msgs_survey_show({
@@ -1672,7 +1733,13 @@ sub msgs_work {
       return employees_works({ EXT_ID => $attr->{MESSAGE_ID}, UID => $attr->{UID} });
     }
     else {
-      return employees_works_list({ EXT_ID => $attr->{MESSAGE_ID}, UID => $attr->{UID} });
+      delete $FORM{index};
+      return employees_works_list({
+       EXT_ID => $attr->{MESSAGE_ID},
+       UID    => $attr->{UID},
+       INDEX  => $index,
+       chg    => $FORM{chg}
+     });
     }
   }
 
@@ -1954,6 +2021,43 @@ sub msgs_maps {
     LOCATION_TABLE_FIELDS => 'LOGIN,UID,FIO',
     #GET_LOCATION => 1,
     #ICON         => 'atm',
+    OUTPUT2RETURN         => 1,
+    HIDE_ALL_LAYERS       => 1,
+    MAP_ZOOM              => 16,
+    SMALL                 => 1,
+    MAP_HEIGHT            => 25,
+    SHOW_BUILD            => $Msgs_->{LOCATION_ID},
+    NAVIGATION_BTN        => 1
+  });
+
+}
+
+#**********************************************************
+=head2 msgs_maps2()
+
+=cut
+#**********************************************************
+sub msgs_maps2 {
+  my ($Msgs_) = @_;
+
+  if (!$Msgs_->{LOCATION_ID} || !in_array('Maps2', \@MODULES)) {
+    return msgs_maps($Msgs_);
+  }
+
+  load_module('Maps2', $html);
+
+  return maps2_show_map({
+    MSGS_MAP              => 1,
+    QUICK                 => 1,
+    DATA                  => {
+      $Msgs_->{LOCATION_ID} => [ {
+        uid   => $Msgs_->{UID},
+        login => $Msgs_->{LOGIN},
+        fio   => $Msgs_->{FIO}
+      } ]
+    },
+    LOCATION_ID           => $Msgs_->{LOCATION_ID},
+    LOCATION_TABLE_FIELDS => 'LOGIN,UID,FIO',
     OUTPUT2RETURN         => 1,
     HIDE_ALL_LAYERS       => 1,
     MAP_ZOOM              => 16,

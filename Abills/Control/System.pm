@@ -2633,9 +2633,11 @@ sub form_payment_types {
   $info{BUTTON_NAME}   = $lang{ADD};
 
   if ($FORM{add}) {
+    $Payments->payment_default_type();
     $Payments->payment_type_add(\%FORM);
   }
   elsif ($FORM{change}) {
+    $Payments->payment_default_type();
     $Payments->payment_type_change(\%FORM);
   }
   elsif ($FORM{chg}) {
@@ -2651,6 +2653,7 @@ sub form_payment_types {
 
     $info{NAME}  = _translate($payment_type->{NAME});
     $info{COLOR} = $payment_type->{COLOR};
+    $info{CHECK_DEFAULT} = 'checked' if ($payment_type->{DEFAULT_PAYMENT});
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Payments->payment_type_del({ ID => $FORM{del} });
@@ -2658,21 +2661,27 @@ sub form_payment_types {
 
   _error_show($Payments);
 
+  $info{ADMIN_PAY} = $lang{ADMIN_PAY};
   $html->tpl_show(templates('form_payments_add_type'), \%info);
   my $types = translate_list($Payments->payment_type_list({ COLS_NAME => 1 }));
+
+  foreach my $default_type (@$types) {
+    $default_type->{default_payment} = $html->element('label', '', { class => 'fa fa-check' }) if ($default_type->{default_payment});
+  }
 
   result_former(
     {
       INPUT_DATA      => $Payments,
       LIST            => $types,
-      BASE_FIELDS     => 3,
+      BASE_FIELDS     => 4,
       FUNCTION_FIELDS => 'change, del',
-      DEFAULT_FIELDS  => 'ID,NAME,COLOR',
+      DEFAULT_FIELDS  => 'ID,NAME,COLOR,DEFAULT_PAYMENT',
       SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
-        id    => 'ID',
-        name  => $lang{NAME},
-        color => $lang{COLOR},
+        id              => 'ID',
+        name            => $lang{NAME},
+        color           => $lang{COLOR},
+        default_payment => $lang{DEFAULT}
       },
       TABLE => {
         width   => '100%',

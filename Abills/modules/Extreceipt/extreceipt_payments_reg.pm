@@ -16,17 +16,26 @@ our (
   $TIME,
 );
 
+use Abills::Base qw(show_hash);
 use Conf;
 use Extreceipt::db::Extreceipt;
 
-my $Config  = Conf->new($db, $Admin, \%conf);
+my $debug = 0;
+if ($argv->{DEBUG}) {
+  $debug = $argv->{DEBUG};
+}
+
+my $Config = Conf->new($db, $Admin, \%conf);
 my $Receipt = Extreceipt->new($db, $Admin, \%conf);
 
 my $api_list = $Receipt->api_list();
 my $Receipt_api = ();
 foreach my $line (@$api_list) {
   my $api_name = $line->{api_name};
-  if (eval { require "Extreceipt/API/$api_name.pm"; 1; }) {
+  if (eval {
+    require "Extreceipt/API/$api_name.pm";
+    1;
+  }) {
     $Receipt_api->{$line->{api_id}} = $api_name->new(\%conf, $line);
     $Receipt_api->{$line->{api_id}}->{debug} = 1 if ($argv->{DEBUG});
     if (!$Receipt_api->{$line->{api_id}}->init()) {
@@ -37,7 +46,7 @@ foreach my $line (@$api_list) {
     print $@;
     $Receipt_api->{$line->{api_id}} = ();
   }
-} 
+}
 
 if ($argv->{CANCEL}) {
   cancel_payments($argv->{CANCEL});
@@ -60,7 +69,7 @@ exit 1;
 #**********************************************************
 =head2 check_payments()
   Checks whether new payments appear in the payments table.
-  If there are new payments, they are entered into the Receipts_main table with the status 0.
+??If there are new payments, they are entered into the Receipts_main table with the status 0.
 =cut
 #**********************************************************
 sub check_payments {
@@ -115,7 +124,7 @@ sub cancel_payments {
 #**********************************************************
 =head2 check_receipts()
   Checks the status of previously sent payments with status 1.
-  If a check is made for them, it changes the status to 2, and fills with the ID check.
+??If a check is made for them, it changes the status to 2, and fills with the ID check.
 =cut
 #**********************************************************
 sub check_receipts {
@@ -126,27 +135,36 @@ sub check_receipts {
   else {
     $list = $Receipt->list({ STATUS => 1, PAGE_ROWS => 9999 });
   }
+
   foreach my $line (@$list) {
+    if ($debug > 7) {
+      print show_hash($line);
+      print "\n";
+      next;
+    }
+
     next if (!$Receipt_api->{$line->{api_id}});
     # next if ($line->{api_name} eq 'Atol');
     my ($fdn, $fda, $date, $payments_id, $error) = $Receipt_api->{$line->{api_id}}->get_info($line);
+    print "($fdn, $fda, $date, $payments_id, $error)\n";
     $payments_id ||= $line->{payments_id};
     if ($error) {
       if ($payments_id =~ m/\-e/) {
         $payments_id =~ s/\-e//;
         $Receipt->change({
-          PAYMENTS_ID  => $payments_id,
-          STATUS       => 5,
+          PAYMENTS_ID => $payments_id,
+          STATUS      => 5,
         });
       }
       else {
         $Receipt->change({
-          PAYMENTS_ID  => $payments_id,
-          STATUS       => 4,
+          PAYMENTS_ID => $payments_id,
+          STATUS      => 4,
         });
       }
       next;
     }
+
     $payments_id =~ s/\-e//;
     $date =~ s/T/ /;
     $date =~ s/\+.*//;

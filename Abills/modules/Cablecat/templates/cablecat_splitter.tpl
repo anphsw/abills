@@ -35,6 +35,14 @@
         </div>
       </div>
 
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='ATTENUATION'>_{ATTENUATION}_</label>
+        <div class='col-md-9'>
+          <input class='form-control' type='text' id="ATTENUATION" name='ATTENUATION'
+                 value='%ATTENUATION%' pattern="^[0-9]{1,2}(\/[0-9]{1,2}){1,}"/>
+        </div>
+      </div>
+
 
       %OBJECT_INFO%
 

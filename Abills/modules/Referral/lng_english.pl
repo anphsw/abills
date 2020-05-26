@@ -6,6 +6,7 @@ $lang{REFERRALS_LIST} = 'Refferal list';
 $lang{BONUS_AMOUNT} = 'Amount of bonuses';
 $lang{BONUS_DESC} = 'Referral bonus';
 $lang{PAYMENT_ARREARS} = 'Payment arrears';
+$lang{ADD_FRIEND} = 'Bring a friend';
 $lang{ACCRUALS} = 'accrual';
 $lang{PAY_NOW} = '0 - charge immediately';
 $lang{PAY_X_MONTH} = 'X - charge in X months';

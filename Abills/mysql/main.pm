@@ -403,7 +403,7 @@ sub query_add{
       #elsif ($column eq 'IPV6_PREFIX' || $column eq 'IPV6') {
       #  push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON( ? )";
       #}
-      elsif ( $column eq 'IPV6' || $column eq 'IPV6_PD' ){
+      elsif ( $column eq 'IPV6' || $column eq 'IPV6_PD' || $column eq 'IPV6_PREFIX' ){
         push @inserts_arr, "$row->{COLUMN_NAME}=INET6_ATON( ? )";
       }
       elsif ( $values->{$column} =~ /^INET_ATON\(/i ){

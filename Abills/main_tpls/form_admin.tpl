@@ -84,7 +84,7 @@
                         <div class='box-header with-border' class='center'>
                             <h3 class="box-title">_{PASPORT}_</h3>
                             <div class="box-tools pull-right">
-                                <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-minus"></i>
+                                <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
                                 </button>
                             </div>
                         </div>

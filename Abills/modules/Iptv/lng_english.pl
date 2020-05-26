@@ -104,4 +104,6 @@ $lang{CHANGE_OF_TP} = "Change of tariff plan to";
 
 $lang{ERROR_SHOW_CHANNELS} = "Error show channels";
 
+$lang{GET_LOGIN_AND_PASSWD} = "Get login and password";
+
 1;

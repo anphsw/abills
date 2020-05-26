@@ -52,15 +52,15 @@
 
               </div>
 
-              <div class='form-group'>
-                <label class='control-label col-sm-4 col-md-4'>_{GROUP}_:</label>
+              <div class='form-group' style='%DISPLAY_GROUP%'>
+                <label class='control-label col-sm-3 col-md-4'>_{GROUP}_:</label>
 
-                <div class='col-sm-8 col-md-8'>%GROUPS_SEL%</div>
+                <div class='col-sm-9 col-md-8'>%GROUPS_SEL%</div>
               </div>
 
-              <div class='form-group'>
-                <label class='control-label col-sm-4 col-md-4' for='TAGS'>_{TAGS}_</label>
-                <div class='col-sm-8 col-md-8'>
+              <div class='form-group' style='%DISPLAY_TAGS%'>
+                <label class='control-label col-sm-3 col-md-4' for='TAGS'>_{TAGS}_</label>
+                <div class='col-sm-9 col-md-8'>
                   <div class='input-group'>
                     %TAGS_SEL%
                     <span class="input-group-addon" data-tooltip="_{EMPTY_FIELD}_">

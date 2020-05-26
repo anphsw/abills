@@ -89,6 +89,7 @@
         </div>
 
         <div class='box-footer text-right'>
+            %FB_INFO%
             <input type=submit name=reg value='_{REGISTRATION}_' class='btn btn-primary'>
         </div>
 

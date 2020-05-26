@@ -16,7 +16,7 @@ use Cams;
 use Address;
 use Tariffs;
 use Abills::Experimental;
-our ($db, $admin, %conf, $html, %lang, %ADMIN_REPORT);
+our ($db, $admin, %conf, $html, %lang, %ADMIN_REPORT, %permissions);
 
 require Cams::Services;
 require Cams::Configure;
@@ -30,6 +30,16 @@ my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Users = Users->new($db, $admin, \%conf);
 my $Fees = Fees->new($db, $admin, \%conf);
 
+my @service_status = ("$lang{ENABLE}",
+  $lang{DISABLE},
+  $lang{NOT_ACTIVE},
+  $lang{HOLD_UP},
+  "$lang{DISABLE}: $lang{NON_PAYMENT}",
+  $lang{ERR_SMALL_DEPOSIT},
+  $lang{VIRUS_ALERT},
+  $lang{REPAIR}
+);
+
 my $Cams_service;
 
 #**********************************************************
@@ -38,8 +48,9 @@ my $Cams_service;
 =cut
 #**********************************************************
 sub cams_main {
+
   my ($change_button, $delete_button) = "";
-  my $show_add_form = 1;
+  my $show_add_form = $FORM{add_form} ? 1 : 0;
   my $correct_name = 1;
   my $camera = ();
   my $service_id = '';
@@ -85,9 +96,9 @@ sub cams_main {
           }
         }
 
-        if (in_array('Maps', \@MODULES)) {
-          load_module('Maps');
-          $FORM{POINT_ID} = maps_add_external_object(33, \%FORM);
+        if (in_array('Maps2', \@MODULES)) {
+          load_module('Maps2');
+          $FORM{POINT_ID} = maps2_add_external_object(33, \%FORM);
         }
 
         delete $FORM{GROUP_ID} if $FORM{FOLDER_ID};
@@ -108,6 +119,7 @@ sub cams_main {
     }
   }
   elsif ($FORM{chg_cam}) {
+    $show_add_form = 1;
     $camera = $Cams->stream_info($FORM{chg_cam});
     $camera->{OWNER} = $camera->{USER_LOGIN};
     $camera->{SERVICE_ID} = $camera->{SERVICE_ID_FOLDER} if $camera->{SERVICE_ID_FOLDER};
@@ -258,6 +270,8 @@ sub cams_main {
 
   my $cameras = $Cams->streams_list({ SHOW_ALL_COLUMNS => 1 });
 
+  load_module('Maps2', $html) if (in_array('Maps2', \@MODULES));
+
   foreach my $one_camera (@$cameras) {
     if ($one_camera->{USER_LOGIN} && $one_camera->{UID}) {
       $one_camera->{USER_LOGIN} = $html->button($one_camera->{USER_LOGIN}, "index=15&LOGIN=$one_camera->{USER_LOGIN}", {
@@ -266,8 +280,8 @@ sub cams_main {
     }
 
     my $maps_btn = "";
-    if (in_array('Maps', \@MODULES)) {
-      $maps_btn = _cams_result_former_point_id_filter($one_camera->{point_id});
+    if (in_array('Maps2', \@MODULES) && defined $one_camera->{POINT_ID}) {
+      $maps_btn = maps2_show_object_button(33, $one_camera->{POINT_ID}, { CHECK_POINT => 1 });
     }
 
     $change_button = $html->button('', "index=$index&chg_cam=$one_camera->{ID}", { class => 'change' });
@@ -1282,14 +1296,18 @@ sub cams_maps_layers {
 =cut
 #**********************************************************
 sub cams_cams_maps {
+  
   my $cameras = $Cams->streams_list({
-    POINT_ID     => $FORM{OBJECT_ID} || $FORM{POINT_ID} || '!',
-    NAME         => '_SHOW',
-    TITLE        => '_SHOW',
-    GROUP_NAME   => '_SHOW',
-    SERVICE_NAME => '_SHOW',
-    HOST         => '_SHOW',
-    PAGE_ROWS    => 10000
+    POINT_ID       => $FORM{OBJECT_ID} || $FORM{POINT_ID} || '!',
+    NAME           => '_SHOW',
+    TITLE          => '_SHOW',
+    GROUP_NAME     => '_SHOW',
+    SERVICE_NAME   => '_SHOW',
+    HOST           => '_SHOW',
+    ANGEL          => '_SHOW',
+    LOCATION_ANGEL => '_SHOW',
+    LENGTH         => '_SHOW',
+    PAGE_ROWS      => 10000
   });
 
   require Maps;
@@ -1321,7 +1339,6 @@ sub cams_cams_maps {
       "<li class='list-group-item'>$lang{SERVICE}: $point_id_to_id{$point->{id}}{service_name}</li>" .
       "<li class='list-group-item'>$lang{CAMS_GROUP}: $point_id_to_id{$point->{id}}{group_name}</li>" .
       "<li class='list-group-item'>Host: $point_id_to_id{$point->{id}}{host}</li>" .
-      #      "<li class='list-group-item'>$lang{PORTS}: $ports</li>" .
       "</ul>" .
       "</div>";
     my $info = "<div class='panel-group'>$tb</div>";
@@ -1333,8 +1350,11 @@ sub cams_cams_maps {
                     "COORDX"   : $point->{coordx},
                     "COORDY"   : $point->{coordy},
                     "INFO"     : "$info",
-                    "TYPE"     : "cams_main"
+                    "TYPE"     : "cams_main",
+                    "NAME"     : "$point_id_to_id{$point->{id}}{name}",
+                    "POINT_ID" : $point_id_to_id{$point->{id}}{point_id}
                   },
+               "POINT_ID" : $point_id_to_id{$point->{id}}{point_id},
                "LAYER_ID" : 33
               }
       };
@@ -1343,6 +1363,11 @@ sub cams_cams_maps {
   }
 
   if ($FORM{EXPORT_LIST}) {
+    if ($FORM{RETURN_JSON}) {
+      print "[" . join(", ", @export_arr) . "]";
+      return 1;
+    }
+
     return join(", ", @export_arr);
   }
 
@@ -1355,6 +1380,7 @@ sub cams_cams_maps {
 =cut
 #**********************************************************
 sub cams_cams_maps_review {
+
   my $cameras = $Cams->streams_list({
     POINT_ID       => $FORM{OBJECT_ID} || $FORM{POINT_ID} || '!',
     NAME           => '_SHOW',
@@ -1389,41 +1415,31 @@ sub cams_cams_maps_review {
     next if (!$point->{coordy} || !$point->{coordx} || !$point_id_to_id{$point->{id}}{angel} || !$point_id_to_id{$point->{id}}{length});
 
     my $location_angel = $point_id_to_id{$point->{id}}{location_angel} || 0;
-    my @routes_coord_arr = ();
-    push @routes_coord_arr, '["' . $point->{coordx} . '","' . $point->{coordy} . '"]';
-
-    my $min_angel = $location_angel - $point_id_to_id{$point->{id}}{angel} / 2;
-    my $max_angel = $location_angel + $point_id_to_id{$point->{id}}{angel} / 2;
-
-    for (my $i = $min_angel; $i <= $max_angel; $i++) {
-      my $first_line = _cams_metres_to_mercator({
-        coordx => $point->{coordx},
-        coordy => $point->{coordy},
-        angel  => $i,
-        length => $point_id_to_id{$point->{id}}{length} || 0,
-      });
-      push @routes_coord_arr, '["' . $first_line->{COORDX} . '","' . $first_line->{COORDY} . '"]' if $first_line->{COORDY};
-    }
-
-    my $points_json = join(',', @routes_coord_arr);
 
     my $tpl = qq{
-            {
-                "ID"        : $point->{id},
-                "OBJECT_ID" : $point->{id},
-                "POLYGON"   : {
-                    "ID"        : $point->{id},
-                    "LAYER_ID"  : 34,
-                    "POINTS"    : [$points_json]
-                },
-                "LAYER_ID"  : 34
-            }
-    };
+              {
+               "SEMICIRCLE": {
+                    "ID"             : "REVIEW_$point->{id}",
+                    "COORDX"         : $point->{coordx},
+                    "COORDY"         : $point->{coordy},
+                    "NAME"           : "$lang{CAMS_REVIEW}: $point_id_to_id{$point->{id}}{name}",
+                    "LENGTH"         : $point_id_to_id{$point->{id}}{length},
+                    "ANGEL"          : $point_id_to_id{$point->{id}}{angel},
+                    "LOCATION_ANGEL" : $point_id_to_id{$point->{id}}{location_angel}
+                  },
+               "LAYER_ID" : 34
+              }
+      };
 
     push @export_arr, $tpl;
   }
 
   if ($FORM{EXPORT_LIST}) {
+    if ($FORM{RETURN_JSON}) {
+      print "[" . join(", ", @export_arr) . "]";
+      return 1;
+    }
+
     return join(", ", @export_arr);
   }
 
@@ -1512,11 +1528,11 @@ sub cams_payments_maked {
   $user = $attr->{USER_INFO} if ($attr->{USER_INFO});
 
   my $list = $Cams->users_list({
-    UID        => $user->{UID},
-    STATUS     => '_SHOW',
-    SERVICE_ID => '_SHOW',
-    ID         => '_SHOW',
-    COLS_NAME  => 1,
+    UID            => $user->{UID},
+    SERVICE_STATUS => '_SHOW',
+    SERVICE_ID     => '_SHOW',
+    ID             => '_SHOW',
+    COLS_NAME      => 1,
   });
 
   if ($Cams->{TOTAL} < 1) {
@@ -1526,6 +1542,7 @@ sub cams_payments_maked {
   my $users_disable = $users->{DISABLE};
   foreach my $service_user (@{$list}) {
 
+    $service_user->{status} = $service_user->{service_status};
     my $cams_service_info = $Cams->services_info($service_user->{service_id});
     my $cams_info_ = $Cams->_info($service_user->{id});
 
@@ -1630,7 +1647,7 @@ sub cams_user_activate {
   if ((($Cams_info->{STATUS} && $Cams_info->{STATUS} == 5) || ($Cams_info->{OLD_STATUS} && $Cams_info->{OLD_STATUS} == 5))
     && $user->{DEPOSIT} + $user->{CREDIT} < $total_sum) {
     if (!$attr->{SILENT}) {
-      $html->message('err', "$lang{CAMS} $lang{ERROR}",
+      $html->message('err', "$lang{CAMERAS} $lang{ERROR}",
         $lang{NEGATIVE_DEPOSIT} . "\n $lang{DEPOSIT}: $user->{DEPOSIT}\n$lang{SUM}: " . sprintf("%.2f", $total_sum), { ID => 810 });
     }
     return 1;
@@ -1953,5 +1970,125 @@ sub cams_docs {
 
   return \@services;
 }
+
+#**********************************************************
+=head2 cams_users_list($attr)
+
+  Arguments:
+    $attr
+      USER_ACCOUNT
+
+=cut
+#**********************************************************
+sub cams_users_list {
+  my ($attr) = @_;
+
+  if ($FORM{TP_ID}) {
+    $LIST_PARAMS{TP_ID} = $FORM{TP_ID};
+    $pages_qs .= "&TP_ID=$FORM{TP_ID}";
+  }
+  if ($FORM{search_form}) {
+    cams_users_search();
+  }
+
+  if (!$FORM{UID} && $FORM{letter}) {
+    $LIST_PARAMS{LOGIN} = "$FORM{letter}*";
+    $pages_qs .= "&letter=$FORM{letter}";
+  }
+
+  my $status_bar = $html->button($lang{ALL}, "index=$index$pages_qs", { class => "btn btn-default active" });
+
+  for (my $i = 0; $i <= 2; $i++) {
+    my $name = $service_status[$i];
+    my $active = '';
+    my $qs = $pages_qs;
+    if (defined($FORM{SERVICE_STATUS}) && $FORM{SERVICE_STATUS} eq $i && $FORM{SERVICE_STATUS} ne '') {
+      $LIST_PARAMS{SERVICE_STATUS} = $FORM{SERVICE_STATUS};
+      $qs .= "&SERVICE_STATUS=$i";
+      $active = 'active';
+    }
+    else {
+      $qs =~ s/\&SERVICE_STATUS=\d//;
+    }
+    $status_bar .= $html->button($name, "index=$index&SERVICE_STATUS=$i$qs", { class => "btn btn-default $active" });
+  }
+  if ($FORM{SERVICES} && $FORM{SERVICES} =~ m/^[<>]?\d+$/) {
+    my $search = $FORM{SERVICES};
+    if ($search !~ m/^[<>]/) {
+      $search = "=$search";
+    }
+    $LIST_PARAMS{SERVICE_COUNT} = $FORM{SERVICES};
+    $LIST_PARAMS{GROUP_BY} = "GROUP BY u.uid HAVING service_count $search";
+  }
+
+  my Abills::HTML $table;
+  my $list;
+
+  my $function_fields = 'change';
+  if ($permissions{0} && $permissions{0}{14}) {
+    $function_fields = 'change,del';
+  }
+
+  result_former({
+    INPUT_DATA     => $Cams,
+    BASE_FIELDS    => 0,
+    FUNCTION       => 'users_list',
+    DEFAULT_FIELDS => 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,SERVICE_STATUS,SERVICE_NAME',
+    EXT_TITLES => {
+      'id'             => 'ID',
+      'filter_id'      => 'Filter ID',
+      'tp_name'        => $lang{TARIF_PLAN},
+      'service_status' => "Cams $lang{STATUS}",
+      'subscribe_id'   => $lang{SUBSRIBES},
+      'service_name'   => $lang{SERVICE}
+    },
+    TABLE          => {
+      width   => '100%',
+      caption => ($FORM{UID}) ? "$lang{SERVICES}" : "$lang{CAMERAS} - $lang{USERS}",
+      qs      => $pages_qs,
+      header  => $status_bar,
+      ID      => 'CAMS_USERS_LIST',
+      EXPORT  => 1,
+      MENU    =>
+        "$lang{ADD}:index=" . (($FORM{UID}) ? "$index&UID=$FORM{UID}&add_form=1&new=1" : get_function_index('form_wizard')) . ':add'
+          . (($FORM{UID}) ? '' : ";$lang{SEARCH}:index=$index&search_form=1:search"),
+    },
+    MAKE_ROWS      => 1,
+    MODULE         => 'Cams',
+    TOTAL          => ($attr->{USER_ACCOUNT} && $attr->{USER_ACCOUNT} < 5) ? 0 : 1
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 cams_users_search($Cams)
+
+=cut
+#****************************************************s******
+sub cams_users_search {
+
+  my %info = ();
+  $info{GROUP_SEL} = sel_groups();
+  $info{STATUS_SEL} = $html->form_select('SERVICE_STATUS', {
+    SELECTED     => $FORM{SERVICE_STATUS},
+    SEL_ARRAY    => \@service_status,
+    SEL_OPTIONS  => { '' => '' },
+    ARRAY_NUM_ID => 1
+  });
+
+  $info{SERVICE_SEL} = cams_services_sel({ %$Cams, ALL => 1 });
+
+  my $search_form = $html->tpl_show(_include('cams_users_search', 'Cams'), { %info, %FORM }, { OUTPUT2RETURN => 1 });
+  $search_form .= $html->tpl_show(templates('form_search_personal_info'), { %info, %FORM }, { OUTPUT2RETURN => 1 });
+
+  form_search({
+    SEARCH_FORM  => $search_form,
+    ADDRESS_FORM => 1
+  });
+
+  return 1;
+}
+
 
 1;

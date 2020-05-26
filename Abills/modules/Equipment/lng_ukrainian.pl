@@ -117,4 +117,6 @@ $lang{PORT_UPTIME} = 'Час роботи порта';
 $lang{NO_ZABBIX_INFO} = 'Потрібно заповнити Zabbix hostid, а також $conf{ZABBIX_URL}';
 $lang{DUPLICATE_MAC} = 'MAC адреси, що повторюються';
 
+$lang{RF_PORT_ON} = 'Статус RF-порта';
+
 1

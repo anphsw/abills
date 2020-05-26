@@ -158,6 +158,10 @@ sub msgs_list {
   if (!$FORM{FROM_DATE} && !$FORM{TO_DATE} && $FORM{CLOSE_FROM_DATE} && $FORM{CLOSE_TO_DATE}) {
     $LIST_PARAMS{CLOSED_DATE} = ">=$FORM{CLOSE_FROM_DATE};<=$FORM{CLOSE_TO_DATE}";
   }
+  
+  if ($FORM{CHAPTER}) {
+    $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER};
+  }
 
   ($table, $list) = result_former({
     INPUT_DATA      => $Msgs,
@@ -173,12 +177,11 @@ sub msgs_list {
       id => 'search_link:msgs_admin:UID,chg={ID}',
     },
     MAP_SHOW_ITEMS  => {
-      #      'message'     => $lang{MESSAGE},
-      'subject'      => $lang{SUBJECT},
-      'chapter_name' => $lang{CHAPTER},
-      'user_name'    => $lang{LOGIN},
-      'date'         => $lang{DATE},
-      'LINK_ITEMS'   => {
+      'subject'       => $lang{SUBJECT},
+      'chapter_name'  => $lang{CHAPTER},
+      'user_name'     => $lang{LOGIN},
+      'date'          => $lang{DATE},
+      'LINK_ITEMS'    => {
         'user_name' => {
           'index'        => get_function_index("form_users"),
           'EXTRA_PARAMS' => {
@@ -192,6 +195,9 @@ sub msgs_list {
             'chg' => 'id',
           }
         }
+      },
+      'DEFAULT_VALUE' => {
+        'subject' => $lang{NO_SUBJECT}
       }
     },
     MAP_TYPE_ICON => {
@@ -199,6 +205,7 @@ sub msgs_list {
       'ICON_FIELD'      => "chapter_id",
       'ICON_EXIST_PATH' => 'chapters/chapter_',
     },
+    MAP_FULL_TYPE_URL => 1,
     MULTISELECT     => scalar keys %{$attr->{CHAPTERS_DELIGATION}} == 0 ? 'del:id:MSGS_LIST' : '',
       FILTER_VALUES => {
         rating                 => sub {
@@ -234,7 +241,6 @@ sub msgs_list {
         },
         resposible_admin_login => sub {
           my ($resposible_admin_login, $admin_disable) = @_;
-
           _status_color_state($resposible_admin_login, $admin_disable->{admin_disable});
         },
         admin_login            => sub {
@@ -288,7 +294,7 @@ sub msgs_list {
         width      => '100%',
         caption    => $lang{MESSAGES},
         qs         => $pages_qs
-          #        . (defined($FORM{STATE}) ? "&STATE=$FORM{STATE}" : '&ALL_MSGS=1')
+                 . (defined($FORM{CHAPTER}) ? "&CHAPTER=$FORM{CHAPTER}" : '')
           . (!$FORM{UID} ? '&UID=' : ''),
         ID         => $attr->{LIST_ID} || 'MSGS_LIST',
         header     => msgs_status_bar({ MSGS_STATUS => $msgs_status, NEXT => 1 }),
@@ -350,14 +356,15 @@ sub msgs_list {
     rows  => [ [ "  $lang{TOTAL}: ", $html->b($total_msgs) ] ]
   });
 
+  my $msgs_chategory = _msgs_category();
+
   print $html->form_main({
     CONTENT => (($table) ? $table->show({ OUTPUT2RETURN => 1 }) : q{})
       . (($table2) ? $table2->show({ OUTPUT2RETURN => 1 }) : q{})
-      . $info,
+      . $info . $msgs_chategory,
     HIDDEN  => {
-      index => $index,
-      #UID  => $FORM{UID},
-      STATE => $FORM{STATE}
+      index     => $index,
+      STATE     => $FORM{STATE},
     },
     NAME    => 'MSGS_LIST',
     ID      => 'MSGS_LIST',
@@ -552,5 +559,40 @@ sub _msgs_list_state_form {
   return $state;
 }
 
+#**********************************************************
+=head2 _msgs_category() - Draw a html block with 
+                          select to search by section
+
+  Arguments:
+    -
+  Results:
+    -
+
+=cut
+#**********************************************************
+sub _msgs_category {
+
+    my $chapter = $Msgs->chapters_list({ COLS_NAME => 1 });
+
+    my $info = '';
+    my @rows_element = _msgs_footer_row($chapter, {
+      NAME_SELECT   => 'CHAPTER',
+      ID_KEY        => 'id',
+      ID_VALUE      => 'name',
+      FOR_FORM      => 'MSGS_LIST',
+      NAME_BUTTON   => 'SERACH_CATEGORY',
+      LABEL         => $lang{CHAPTER}
+    });
+
+    foreach my $chapter_element (@rows_element) {
+      $info .= $html->element('div', $chapter_element, { class => 'form-group' });
+    }
+
+    if ($info) {
+      $info = $html->element('div', $info, { class => 'well well-sm form-inline' })
+    }
+
+    return $info
+}
 
 1;

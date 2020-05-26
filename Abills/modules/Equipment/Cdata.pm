@@ -24,7 +24,8 @@ use Abills::Filters qw(bin2mac);
 our (
   %lang,
   %conf,
-  %FORM
+  %FORM,
+  %ONU_STATUS_TEXT_CODES
 );
 
 #**********************************************************
@@ -188,13 +189,15 @@ sub _cdata_onu_list {
       next if ($oid_name eq 'main_onu_info' || $oid_name eq 'reset' );
       if ($snmp->{$oid_name}->{OIDS}) {
         my $oid = $snmp->{$oid_name}->{OIDS};
+        my $timeout = $snmp->{$oid_name}->{TIMEOUT};
         print ">> $oid\n" if ($debug > 3);
         my $result = snmp_get({
           %{$attr},
           OID     => $oid,
           VERSION => 2,
           WALK    => 1,
-          SILENT  => 1
+          SILENT  => 1,
+          TIMEOUT => $timeout || 2
         });
 
         foreach my $line (@$result) {
@@ -375,9 +378,9 @@ sub _cdata_onu_status {
 
   my %status = (
 #    0 => 'Authenticated:text-green',
-    1 => 'Online:text-green',
-    2 => 'Offline:text-red',
-    3 => 'Online:text-green',
+    1 => $ONU_STATUS_TEXT_CODES{ONLINE},
+    2 => $ONU_STATUS_TEXT_CODES{OFFLINE},
+    3 => $ONU_STATUS_TEXT_CODES{ONLINE}
   );
   return \%status;
 }
@@ -652,10 +655,11 @@ sub _cdata2 {
         #          WALK   => 1
         #        },
         'ONU_PORTS_STATUS' => {
-          NAME   => 'ONU_PORTS_STATUS',
-          OIDS   => ' 1.3.6.1.4.1.17409.2.3.5.1.1.5',
-          PARSER => '',
-          WALK   => 1
+          NAME    => 'ONU_PORTS_STATUS',
+          OIDS    => ' 1.3.6.1.4.1.17409.2.3.5.1.1.5',
+          PARSER  => '',
+          WALK    => 1,
+          TIMEOUT => 10
         }
       }
     },
@@ -737,13 +741,15 @@ sub _cdata2_onu_list {
       next if ($oid_name eq 'main_onu_info' || $oid_name eq 'reset');
       if ($snmp->{$oid_name}->{OIDS}) {
         my $oid = $snmp->{$oid_name}->{OIDS};
+        my $timeout = $snmp->{$oid_name}->{TIMEOUT};
         print ">> $oid\n" if ($debug > 3);
         my $result = snmp_get({
           %{$attr},
           OID     => $oid,
           VERSION => 2,
           WALK    => 1,
-          SILENT  => 1
+          SILENT  => 1,
+          TIMEOUT => $timeout || 2
         });
 
         foreach my $line (@$result) {

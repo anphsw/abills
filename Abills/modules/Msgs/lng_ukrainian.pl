@@ -162,4 +162,16 @@ $lang{TODAY_PLAN}='Заплановано на сьогодні';
 $lang{UNREG_COUNT}='Кількість незареєстрованних';
 $lang{UNREPLY_MSGS}='Без ответа';
 
+$lang{TICKET}='Заявка';
+$lang{TICKET_BRIGADE}='Тікети монтажників';
+$lang{BRIGADE}='Бригада';
+$lang{LOCATION_BRIGADE}='Прив\'язати до геоадресу';
+
+$lang{TICKET_REPORT}='Роботи над заявками';
+$lang{DONE_TICKET}='Виконано заявок';
+$lang{SPENT_TIME}='Потрачений час';
+$lang{TICKET_SUM}='Сума заявок';
+$lang{PAID_AMOUT}='Виплаченна сума';
+$lang{NOT_TURNED_ON}='Модуль не включений';
+
 1

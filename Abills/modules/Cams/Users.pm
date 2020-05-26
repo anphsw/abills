@@ -81,38 +81,13 @@ sub cams_user {
       }
     }
 
-    if ($conf{CAMS_CHECK_USER_GROUPS} && $Cams->{ID}) {
-      $FORM{change_now} = 1;
-      $user = $Users->pi({ UID => $FORM{UID} });
-      my $group_ids = "";
-      if ($Users->{TOTAL}) {
-        my $user_address = $Address->address_info($user->{LOCATION_ID});
-        my $user_access_groups = $Cams->access_group_list({
-          NAME        => "_SHOW",
-          STREET_ID   => $user_address->{STREET_ID} || 0,
-          DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
-          LOCATION_ID => $user->{LOCATION_ID} || 0,
-          SERVICE_ID  => $FORM{SERVICE_ID} || $Cams->{SERVICE_ID},
-          COMMENT     => "_SHOW",
-          COLS_NAME   => 1,
-        });
-
-        foreach my $group (@{$user_access_groups}) {
-          $group_ids .= "$group->{id}, ";
-        }
-
-        chop $group_ids;
-        chop $group_ids;
-        $FORM{IDS} = $group_ids;
-        $FORM{ID} = $Cams->{ID} || $Cams->{INSERT_ID};
-      }
-
-      $Cams->user_groups({
-        IDS   => $group_ids,
-        TP_ID => $FORM{TP_ID} || $Cams->{TP_ID},
-        ID    => $Cams->{ID} || $Cams->{INSERT_ID},
-      });
+    if ($conf{CAMS_CHECK_USER_GROUPS} && $Cams->{ID} && !$conf{CAMS_FOLDER}) {
+      _cams_autofill_groups();
     }
+    elsif ($conf{CAMS_CHECK_USER_FOLDERS} && $Cams->{ID} && $conf{CAMS_FOLDER}) {
+      _cams_autofill_folders();
+    }
+
   }
   elsif ($FORM{change}) {
     $Cams->user_change(\%FORM);
@@ -1033,6 +1008,94 @@ sub _cams_get_private_user_cameras {
   @access_cameras = (@access_cameras, @$cameras) if $Cams->{TOTAL};
 
   return @access_cameras;
+}
+
+#**********************************************************
+=head2 _cams_autofill_groups($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _cams_autofill_groups {
+  my ($attr) = @_;
+
+  $Cams->{ID} ||= $Cams->{INSERT_ID} || $attr->{ID} || $attr->{INSERT_ID};
+  return 0 if !$Cams->{ID};
+
+  $FORM{change_now} = 1;
+  $FORM{chg} = 1;
+  $user = $Users->pi({ UID => $FORM{UID} });
+  if ($Users->{TOTAL}) {
+    my $user_address = $Address->address_info($user->{LOCATION_ID});
+    my $user_access_groups = $Cams->access_group_list({
+      NAME        => "_SHOW",
+      STREET_ID   => $user_address->{STREET_ID} || 0,
+      DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
+      LOCATION_ID => $user->{LOCATION_ID} || 0,
+      SERVICE_ID  => $FORM{SERVICE_ID} || $Cams->{SERVICE_ID},
+      COMMENT     => "_SHOW",
+      COLS_NAME   => 1,
+    });
+
+    $FORM{IDS} = join(', ', map $_->{id}, @{$user_access_groups});
+    $FORM{ID} = $Cams->{ID};
+  }
+
+  $Cams->user_groups({
+    IDS   => $FORM{IDS},
+    TP_ID => $FORM{TP_ID} || $Cams->{TP_ID},
+    ID    => $Cams->{ID},
+  });
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _cams_autofill_folders($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _cams_autofill_folders {
+  my ($attr) = @_;
+
+  $Cams->{ID} ||= $Cams->{INSERT_ID} || $attr->{ID} || $attr->{INSERT_ID};
+  return 0 if !$Cams->{ID};
+
+  $FORM{change_now} = 1;
+  $FORM{FOLDER_CHANGE} = 1;
+  $FORM{chg} = 1;
+
+  $user = $Users->pi({ UID => $FORM{UID} });
+  if ($Users->{TOTAL}) {
+    my $user_address = $Address->address_info($user->{LOCATION_ID});
+    my $user_access_folders = $Cams->access_folder_list({
+      NAME        => "_SHOW",
+      STREET_ID   => $user_address->{STREET_ID} || 0,
+      DISTRICT_ID => $user_address->{DISTRICT_ID} || 0,
+      LOCATION_ID => $user->{LOCATION_ID} || 0,
+      SERVICE_ID  => $FORM{SERVICE_ID} || $Cams->{SERVICE_ID},
+      COMMENT     => "_SHOW",
+      COLS_NAME   => 1,
+    });
+
+    $FORM{IDS} = join(', ', map $_->{id}, @{$user_access_folders});
+    $FORM{ID} = $Cams->{ID};
+  }
+
+  $Cams->user_folders({
+    IDS   => $FORM{IDS},
+    TP_ID => $FORM{TP_ID} || $Cams->{TP_ID},
+    ID    => $Cams->{ID},
+  });
+
+  return 0;
 }
 
 1;

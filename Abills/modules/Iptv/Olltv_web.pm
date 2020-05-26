@@ -7,6 +7,8 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(in_array);
+use Time::Piece;
+use Time::Seconds;
 
 our(
   $Iptv,
@@ -208,17 +210,18 @@ sub olltv_user{
         $label_type = 'label-info';
       }
 
-      $Tv_service->{BOUGHT_SUBSRIBES} .= $html->element('span',
-        " ($Tv_service->{bought_subs}->[$i]->{service_type}) "
+      $Tv_service->{BOUGHT_SUBSRIBES} .= $html->element('span', " ($Tv_service->{bought_subs}->[$i]->{service_type}) "
         . $Tv_service->{bought_subs}->[$i]->{sub_id}
-        .' '. $html->button($lang{del},
-           "index=$index&UID=$FORM{UID}&chg=$attr->{ID}&del_bundle=1&SUB_ID=$Tv_service->{bought_subs}->[$i]->{sub_id}",
-           { class => 'del' })
-        ,
-        { class => "label $label_type",
-          title => $Tv_service->{bought_subs}->[$i]->{start_date}
-            . '-' . $Tv_service->{bought_subs}->[$i]->{expiration_date}
-        });
+        . ' ' . $html->button($lang{del},
+        "index=$index&UID=$FORM{UID}&chg=$attr->{ID}&del_bundle=1&SUB_ID=$Tv_service->{bought_subs}->[$i]->{sub_id}",
+        { class => 'del' }), {
+        class          => "label $label_type",
+        title          => $Tv_service->{bought_subs}->[$i]->{start_date}
+          . '-' . $Tv_service->{bought_subs}->[$i]->{expiration_date},
+        'data-tooltip' => "BINDING_CODE: $Tv_service->{bought_subs}->[$i]->{device_binding_code}",
+        'onclick'      => "copyToBuffer(\'$Tv_service->{bought_subs}->[$i]->{device_binding_code}\', true)",
+        'style'        => "cursor: pointer;"
+      });
 
       if ( $Tv_service->{bought_subs}->[$i]->{service_type} == 1 ){
         $bundle = $Tv_service->{bought_subs}->[$i];
@@ -390,22 +393,36 @@ sub olltv_console {
 
   print $html->table_header( \@header_arr, { TABS => 1 });
 
-  my $result = $Tv_service->_send_request(
-    {
-      ACTION     => $FORM{list} || 'getUserList',
-      DEBUG      => $conf{IPTV_OLLTV_DEBUG},
-      start_date => $DATE
-    }
-  );
+  my $start_date_for_request = $DATE;
 
-  _error_show($Tv_service);
+  if ($FORM{list} && $FORM{list} eq 'getAllPurchases') {
+    $start_date_for_request = Time::Piece->strptime($DATE, "%Y-%m-%d");
+    $start_date_for_request -= ONE_MONTH;
+    $start_date_for_request = $start_date_for_request->ymd;
+  }
 
-  if ( $FORM{list} && $FORM{list} eq 'getDeviceList' ){
-    if ( ($FORM{del} && $FORM{COMMENTS}) || $FORM{MAC} ){
+  if ($FORM{list} && $FORM{list} eq 'getDeviceList') {
+    if (($FORM{del} && $FORM{COMMENTS}) || $FORM{MAC}) {
       $FORM{del_device} = 1;
       olltv_user();
     }
   }
+
+  if ($FORM{list} && $FORM{list} eq 'getUserList') {
+    if ($FORM{del} && $FORM{COMMENTS} && $Tv_service && $FORM{ACCOUNT}) {
+      $Tv_service->user_del({
+        ID => $FORM{ACCOUNT}
+      });
+    }
+  }
+
+  my $result = $Tv_service->_send_request({
+    ACTION     => $FORM{list} || 'getUserList',
+    DEBUG      => $conf{IPTV_OLLTV_DEBUG},
+    start_date => $start_date_for_request
+  });
+
+  _error_show($Tv_service);
 
   if (!$result || ref $result ne 'HASH' || !$result->{data}){
     if($result && $result->{code}) {
@@ -418,24 +435,22 @@ sub olltv_console {
   }
 
   result_former({
-    FUNCTION_FIELDS => "iptv_console:DEL:mac;serial_number:&list="
-      . ($FORM{list} || '') . "&del=1&COMMENTS=1"
+    FUNCTION_FIELDS => "iptv_console:del:mac;account;serial_number:&list="
+      . ($FORM{list} || 'getUserList') . "&del=1&COMMENTS=1"
       . (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : ''),
-    #":$lang{DEL}:MAC:&del=1&COMMENTS=del",
-    TABLE         => {
-      width            => '100%',
-      caption          => $FORM{list} || 'getUserList',
-      qs               => "&list=" . ($FORM{list} || ''). (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : ''),
-      EXPORT           => 1,
-      #SHOW_COLS_HIDDEN => { },
-      ID               => 'IPTV_OLLTV_LIST',
+    TABLE           => {
+      width   => '100%',
+      caption => $FORM{list} || 'getUserList',
+      qs      => "&list=" . ($FORM{list} || '') . (($FORM{SERVICE_ID}) ? "&SERVICE_ID=$FORM{SERVICE_ID}" : ''),
+      EXPORT  => 1,
+      ID      => 'IPTV_OLLTV_LIST',
     },
-    FILTER_COLS   => {
-      account              => 'search_link:iptv_users_list:ID',
+    FILTER_COLS     => {
+      account              => 'account_exist',
       SubscriberProviderID => 'search_link:iptv_users_list:ID',
     },
-    DATAHASH      => ($FORM{list} && $FORM{list} eq 'getAllPurchases') ? $result->{data}->{purchases} : $result->{data},
-    TOTAL         => 1
+    DATAHASH        => ($FORM{list} && $FORM{list} eq 'getAllPurchases') ? $result->{data}->{purchases} : $result->{data},
+    TOTAL           => 1
   });
 
   return 1;
@@ -469,6 +484,28 @@ sub olltv_screens {
   $html->tpl_show( _include( 'iptv_olltv_screens', 'Iptv' ), $Iptv );
 
   return 1;
+}
+
+
+#**********************************************************
+=head2 account_exist($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub account_exist {
+  my ($id) = @_;
+
+  return '' if !$id;
+
+  my $user_info = $Iptv->user_info($id);
+  
+  return '' if !$Iptv->{TOTAL};
+
+  return $html->button($id, "index=" . get_function_index('iptv_users_list') . "&search_form=1&search=1&ID=$id");
 }
 
 1;

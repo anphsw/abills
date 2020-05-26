@@ -22,4 +22,25 @@ $lang{NO_PUBLIC_UTILITIES_FOR_THIS_YEAR}='No data for selected year';
 $lang{SPENT_MONEY_FOR_PUB_UTILITIES_FOR_PERIODS}='Spent money for public utilities for periods';
 $lang{DIFFERENCE_PUBLIC_UTILITIES_FOR_PERIODS}='The difference in the public utilities for the periods';
 $lang{AMOUNT_MONEY_SPENT}='Amount of money spent';
+$lang{DATA_FROM104}='Data from 104.ua';
+$lang{COUNTER_NUMBER}='The number of counter';
+$lang{DATE_ADD_INDICATOR}='The date of adding indecator';
+$lang{INDICATOR}='The indicator';
+$lang{COUNTER_HISTORY}='The indicators of counters history';
+$lang{PAYMENT_HISTORY}='Payment history';
+$lang{DATE_PAY}='Payment day';
+$lang{LOGIN}='Login';
+$lang{PASSWORD}='Password';
+$lang{VALUE_GRN}='Value,grn';
+$lang{COUNTER}='Counter';
+$lang{SALDO}='Saldo';
+$lang{ACCRUED}='Accrued';
+$lang{PAID}='Paid';
+$lang{REMAINDER}='Remainder';
+$lang{Consomers}='Consumers';
+
+
+
+
+
 1

@@ -17,6 +17,7 @@
   <input type='hidden' name='index' value='$index'>
   %MAIN_USER_TPL%
   <input type=hidden name=UID value='%UID%'>
+  <input type='hidden' name='FIO_REQUIRE' id='FIO_REQUIRE' value='$FORM{FIO_REQUIRE}'>
 
   <!-- General panel -->
   <div id='form_2' class='box box-theme box-big-form for_sort'>
@@ -161,6 +162,14 @@
                         rows='2'>%REG_ADDRESS%</textarea>
             </div>
           </div>
+          <div class='form-group'>
+            <label class='control-label col-xs-4 col-md-2' for='TAX_NUMBER'>_{TAX_NUMBER}_:</label>
+            <div class='col-xs-8 col-md-10'>
+              <input id='TAX_NUMBER' name='TAX_NUMBER' value='%TAX_NUMBER%'
+                     placeholder='%TAX_NUMBER%'
+                     class='form-control' type='text'>
+            </div>
+          </div>
         </div>
       </div>
       <!-- Contract fields -->
@@ -230,5 +239,12 @@
   jQuery('#hide_fio').click(function() {
     jQuery('#full_fio').fadeOut(200);
     jQuery('#simple_fio').delay(201).fadeIn(300);
+  });
+
+  jQuery(function () {
+    var require_fields = jQuery('#FIO_REQUIRE').val();
+    if (require_fields == 'FIO_REQUIRE') {
+      jQuery('#FIO').attr('required', true);
+    }
   });
 </script>

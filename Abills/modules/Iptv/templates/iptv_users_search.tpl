@@ -73,3 +73,31 @@
         </div>
     </div>
 </div>
+
+<div class='col-md-6'>
+    <div class='box box-theme box-big-form collapsed-box'>
+        <div class='box-header with-border'>
+            <h3 class='box-title'>_{SCREENS}_</h3>
+            <div class='box-tools pull-right'>
+                <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+                    <i class='fa fa-plus'></i>
+                </button>
+            </div>
+        </div>
+        <div class='box-body'>
+            <div class='form-group'>
+                <label class='control-label col-md-3' for='TP_ID'>MAC/CID:</label>
+                <div class='col-md-9'>
+                    <input id='MAC_CID' name='MAC_CID' value='%MAC_CID%' placeholder='%MAC_CID%' class='form-control' type='text'>
+                </div>
+            </div>
+
+            <div class='form-group'>
+                <label class='control-label col-md-3' for='CID'>_{SERIAL}_:</label>
+                <div class='col-md-9'>
+                    <input id='SERIAL' name='SERIAL' value='%SERIAL%' placeholder='%SERIAL%' class='form-control' type='text'>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

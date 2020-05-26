@@ -11,6 +11,8 @@ use warnings FATAL => 'all';
 
 use Abills::Sender::Plugin;
 use parent 'Abills::Sender::Plugin';
+use Sms::Init;
+use Sms;
 
 
 #**********************************************************
@@ -43,11 +45,26 @@ sub send_message {
     return 0;
   }
 
-  use Sms::Init;
   my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf});
   my $sms_result = $Sms_service->send_sms({
     NUMBER     => $attr->{TO_ADDRESS},
     MESSAGE    => $attr->{MESSAGE}
+  });
+
+  my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
+  my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
+
+  my $Sms = Sms->new($self->{db}, $self->{admin}, $self->{conf});
+
+  $Sms->add({
+    UID          => $attr->{UID} || $self->{UID} || 0,
+    MESSAGE      => $attr->{MESSAGE} || q{},
+    PHONE        => $attr->{TO_ADDRESS},
+    DATETIME     => "$DATE $TIME",
+    STATUS       => $sms_result || 0,
+    EXT_ID       => $Sms_service->{id} || '',
+    STATUS_DATE  => "$DATE $TIME",
+    EXT_STATUS   => $Sms_service->{status} || '',
   });
 
   return 1;
@@ -60,6 +77,7 @@ sub send_message {
 #**********************************************************
 sub contact_types {
   my $self = shift;
+
 
   return $self->{conf}->{SMS_CONTACT_ID} || 1;
 }

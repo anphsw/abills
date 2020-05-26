@@ -48,14 +48,14 @@
         <div class='form-group'>
           <label class='control-label col-md-3' for='PHONE'>_{PHONE}_:</label>
           <div class=' col-md-9'>
-            <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control' type='text'>
+            <input id='PHONE' name='phone' value='%PHONE%' placeholder='%PHONE%' class='form-control' type='text'>
           </div>
         </div>
 
         <div class='form-group'>
           <label class='control-label col-md-3' for='EMAIL'>E-MAIL:</label>
           <div class=' col-md-9'>
-            <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control' type='text'>
+            <input id='EMAIL' name='email' value='%EMAIL%' placeholder='%EMAIL%' class='form-control' type='text'>
           </div>
         </div>
 

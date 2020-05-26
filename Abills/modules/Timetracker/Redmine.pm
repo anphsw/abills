@@ -1,0 +1,224 @@
+package Redmine;
+
+=head1 NAME
+
+  Redmine
+
+=head2 FILENAME
+
+  Redmine.pm
+
+=head2 VERSION
+
+  VERSION: 0.1
+  REVISION: 20200220
+
+=head2 SYNOPSIS
+
+=cut
+
+use warnings FATAL => 'all';
+use strict;
+use Abills::Fetcher qw/web_request/;
+
+#**********************************************************
+=head2 new
+
+  Instantiation object
+
+=cut
+#**********************************************************
+sub new {
+  my $class = shift;
+  my ($db)  = shift;
+  my ($admin, $CONF) = @_;
+
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
+
+  bless($self, $class);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 get_closed_issues_from_redmine($attr) - returns array closed issues from redmine
+  Arguments:
+    $attr = {
+      FROM_DATE => '2020-01-01',
+      TO_DATE => '2020-02-20',
+      DEBUG => 0,
+      ADMIN_AIDS => [1, 2, 3],
+    };
+
+  Returns:
+    $issues
+
+  Example:
+    get_closed_issues_from_redmine($attr);
+=cut
+#**********************************************************
+sub get_closed_issues_from_redmine {
+  my ($attr) = @_;
+  if (!$attr->{DEBUG}) {
+    $attr->{DEBUG} = 0;
+  }
+  my $issues_list = {};
+
+  for my $aid (@{$attr->{ADMIN_AIDS}}) {
+    my $url = "http://abills.net.ua/r/issues.json?offset=0&limit=100&status_id=closed&assigned_to.cf_8=$aid&closed_on=%3E%3C$attr->{FROM_DATE}|$attr->{TO_DATE}";
+    my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
+    $issues_list->{$aid} = $json->{issues};
+    $issues_list->{'closed->'.$aid} = $json->{total_count};
+  }
+
+  return $issues_list;
+}
+
+
+#**********************************************************
+=head2 get_spent_hours($attr) - return spend hours for admin
+  Arguments:
+    $attr = {
+      FROM_DATE => '2020-01-01',
+      TO_DATE => '2020-02-20',
+      DEBUG => 0,
+      ADMIN_AIDS => [1, 2, 3],
+    };
+  
+  Returns:
+    $hours
+  
+  Examples:
+    get_spent_hours($attr);
+=cut
+#**********************************************************
+sub get_spent_hours {
+  my $self = shift;
+  my ($attr) = @_;
+  my $hours = {};
+  my $issues_list = get_closed_issues_from_redmine($attr);
+
+  for my $aid (@{$attr->{ADMIN_AIDS}}) {
+    for my $admin_issues ($issues_list->{$aid}) {
+      for my $admin_issue (@{$admin_issues}) {
+        my $issue_id = $admin_issue->{id};
+        my $issue_url = "http://abills.net.ua/r/issues/$issue_id.json";
+        my $json = web_request($issue_url, { CURL => 1, JSON_RETURN => 1, DEBUG => 0 });
+        my $issue = $json->{issue};
+        $hours->{$aid} += sprintf("%.3f",$issue->{spent_hours});
+      }
+    }
+  }
+
+  return $hours;
+}
+
+
+#**********************************************************
+=head2 get_closed_tasks($attr) - get count closed tasks
+  Arguments:
+    $attr = {
+      FROM_DATE => '2020-01-01',
+      TO_DATE => '2020-02-20',
+      DEBUG => 0,
+      ADMIN_AIDS => [1, 2, 3],
+    };
+
+  Returns:
+    $closed_tasks
+
+  Example:
+    get_closed_tasks($attr);
+=cut
+#**********************************************************
+sub get_closed_tasks {
+  my $self = shift;
+  my ($attr) = @_;
+  my $closed_tasks = {};
+  my $issues_list = get_closed_issues_from_redmine($attr);
+
+  for my $aid (@{$attr->{ADMIN_AIDS}}) {
+    $closed_tasks->{$aid} = $issues_list->{'closed->'.$aid};
+  }
+
+  return $closed_tasks;
+}
+
+=head2 get_scheduled_hours_on_complexity($attr) - return scheduled_hours_on_complexity for admin
+  Arguments:
+    $attr = {
+      FROM_DATE => '2020-01-01',
+      TO_DATE => '2020-02-20',
+      DEBUG => 0,
+      ADMIN_AIDS => [1, 2, 3],
+    };
+
+  Returns:
+    $result
+
+  Examples:
+    get_scheduled_hours_on_complexity($attr);
+=cut
+#**********************************************************
+sub get_scheduled_hours_on_complexity {
+  my $self = shift;
+  my ($attr) = @_;
+  my $result = {};
+  my $issues_list = get_closed_issues_from_redmine($attr);
+
+  for my $aid (@{$attr->{ADMIN_AIDS}}) {
+    for my $admin_issues ($issues_list->{$aid}) {
+      for my $admin_issue (@{$admin_issues}) {
+        for my $custom_field (@{$admin_issue->{custom_fields}}) {
+          if($custom_field->{name} eq 'Сложность') {
+            if($custom_field->{value} && $admin_issue->{estimated_hours}) {
+              $result->{$aid} += ($custom_field->{value} * $admin_issue->{estimated_hours});
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return $result;
+}
+
+#**********************************************************
+=head2 get_scheduled_hours($attr) - return scheduled hours for admin
+  Arguments:
+    $attr = {
+      FROM_DATE => '2020-01-01',
+      TO_DATE => '2020-02-20',
+      DEBUG => 0,
+      ADMIN_AIDS => [1, 2, 3],
+    };
+
+  Returns:
+    $hours
+
+  Examples:
+    get_scheduled_hours($attr);  
+=cut
+#**********************************************************
+sub get_scheduled_hours {
+  my $self = shift;
+  my ($attr) = @_;
+  my $issues_list = get_closed_issues_from_redmine($attr);
+  my $hours = {};
+  
+  for my $aid (@{$attr->{ADMIN_AIDS}}) {
+    for my $issues ($issues_list->{$aid}) {
+      for my $issue (@{$issues}) { 
+        $hours->{$aid} += $issue->{estimated_hours} || 0;
+      }
+    }
+  }
+
+  return $hours;
+}
+
+return 1;

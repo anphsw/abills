@@ -165,6 +165,11 @@ if ( $argv->{LOGIN} ){
   $argv->{NO_ADM_REPORT}=1
 }
 
+my @SKIP_FN = ();
+if($argv->{SKIP_FN}) {
+  @SKIP_FN = split(/,\s?/, $argv->{SKIP_FN});
+}
+
 push @daily_functions, 'admin_report_daily' if (!$argv->{MODULES} && ! $argv->{NO_ADM_REPORT});
 push @monthly_functions, 'admin_report_monthly' if (!$argv->{NO_ADM_REPORT});
 push @monthly_functions, 'logrotate', 'backup' if (!$argv->{MODULES});
@@ -206,6 +211,10 @@ if ( defined( $argv->{monthly} ) ){
     my $f = $monthly_functions[$i];
 
     if ( $argv->{FN} && $argv->{FN} ne $f ){
+      next;
+    }
+
+    if ( in_array($f, \@SKIP_FN) ) {
       next;
     }
 
@@ -271,6 +280,10 @@ elsif ( defined( $argv->{daily} ) ){
   for ( my $i = 0; $i <= $#daily_functions; $i++ ){
     my $f = $daily_functions[$i];
     if ( $argv->{FN} && $argv->{FN} ne $f ){
+      next;
+    }
+
+    if ( in_array($f, \@SKIP_FN) ) {
       next;
     }
 
@@ -1503,6 +1516,7 @@ sub help {
    NO_USERS_WARNINGS          - Don't send user warning messages
    MODULES=[modules_list,...] - Make periodic process only for this modules
    FN                         - Run sperified function
+   SKIP_FN                    - Skip run functions
    SKIP_MODULES=[modules_list]- Skip this module in periodic proccess
    NO_ADM_REPORT              - Don't send report to admin via e-mail
    SHEDULE                    - Make Shedule

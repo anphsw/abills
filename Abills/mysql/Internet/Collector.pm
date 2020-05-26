@@ -730,24 +730,42 @@ sub traffic_user_get2{
   #my $from   = $attr->{FROM} || '';
   my %result = ();
   my $WHERE = '';
+  my $mb_size = $self->{conf}->{MB_SIZE};
 
   if($self->{conf}->{INTERNET_INTERVAL_PREPAID}) {
-    $self->query("SELECT traffic_type, sent, recv
+    if ( $attr->{ACTIVATE} ){
+      if ( $attr->{ACTIVATE} eq '0000-00-00' ){
+        $attr->{ACTIVATE} = "DATE_FORMAT(CURDATE(), '%Y-%m-01')";
+      }
+      else{
+        $attr->{ACTIVATE} = "'$attr->{ACTIVATE}'";
+      }
+      $WHERE .= "AND DATE_FORMAT(added, '%Y-%m-%d')>=$attr->{ACTIVATE}";
+    }
+    else{
+      $WHERE .= "AND DATE_FORMAT(added, '%Y-%m')>=DATE_FORMAT(CURDATE(), '%Y-%m')";
+    }
+
+    $self->query("SELECT traffic_type,
+        sent  / $mb_size,
+        recv / $mb_size,
+        acct_session_id
       FROM internet_log_intervals
-      WHERE acct_session_id= ?
-        AND interval_id= ?
-        AND uid= ? FOR UPDATE;",
+      WHERE
+        interval_id= ?
+        AND uid= ?
+        $WHERE
+      FOR UPDATE;",
       undef,
-      { Bind => [ $attr->{ACCT_SESSION_ID}, $attr->{INTERVAL_ID}, $attr->{UID}  ] }
+      { Bind => [ $attr->{INTERVAL_ID}, $uid  ] }
     );
 
     my $store_record = 0;
     foreach my $line (@{ $self->{list} }) {
       #Traffic class
-      $result{ $line->[0] }{TRAFFIC_IN} = $line->[2];
-      $result{ $line->[0] }{TRAFFIC_OUT} = $line->[1];
-
-      if($attr->{TRAFFIC_ID} == $line->[0]) {
+      $result{ $line->[0] }{TRAFFIC_IN} += $line->[2];
+      $result{ $line->[0] }{TRAFFIC_OUT} += $line->[1];
+      if($attr->{TRAFFIC_ID} == $line->[0] && $line->[3] eq $attr->{ACCT_SESSION_ID}) {
         $store_record = 1;
       }
     }
@@ -764,7 +782,7 @@ sub traffic_user_get2{
           $attr->{TRAFFIC_ID} || 0,
           $self->{SUM} || 0,
           $attr->{ACCT_SESSION_ID},
-          $self->{UID} || $attr->{UID}
+          $uid
         ] });
     }
     else {
@@ -785,7 +803,7 @@ sub traffic_user_get2{
           $attr->{INTERVAL_ID},
           $attr->{ACCT_SESSION_ID},
           $attr->{TRAFFIC_ID} || 0,
-          $attr->{UID}
+          $uid
         ] }
       );
     }
@@ -840,8 +858,8 @@ sub traffic_user_get2{
   $self->query( "SELECT started,
    uid,
    traffic_class,
-   traffic_in / $self->{conf}->{MB_SIZE},
-   traffic_out / $self->{conf}->{MB_SIZE}
+   traffic_in / $mb_size,
+   traffic_out / $mb_size
     FROM traffic_prepaid_sum
     WHERE $WHERE;"
   );

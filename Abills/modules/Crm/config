@@ -7,9 +7,6 @@
   "18:16:$lang{INFO}:crm_lead_info:LEAD_ID"                       => 1,
   "23:16:Short Lead Info:crm_short_info:PHONE"                    => 1,
   "25:16:Lead Convert:crm_lead_convert:FROM_LEAD_ID"              => 1,
-  # delete if works
-  # "27:16:$lang{BIND_USER}:crm_lead_add_user:TO_LEAD_ID"           => 1,
-
   "20:1:$lang{SOURCE} $lang{ADD}:crm_source_types:"               => 5,
   "22:14:$lang{LEADS}:crm_reports_leads:"                         => 4,
   "24:14:$lang{LEADS} $lang{PROGRESS}:crm_leads_progress_report:" => 4,

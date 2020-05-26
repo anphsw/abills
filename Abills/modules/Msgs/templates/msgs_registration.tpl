@@ -24,7 +24,7 @@
             <div class='form-group'>
                 <label class='control-label required col-md-4 col-sm-3' for='LOGIN'>_{LOGIN}_:</label>
                 <div class='col-md-8 col-sm-9'>
-                    <input id='LOGIN' name='LOGIN' value='%LOGIN%' required='required' placeholder='_{LOGIN}_'
+                        <input id='LOGIN' name='LOGIN' value='%LOGIN%' required='required' title='_{SYMBOLS_REG}_a-Z 0-9' placeholder='_{LOGIN}_'
                            class='form-control'
                            type='text'>
                 </div>
@@ -89,7 +89,7 @@
 
                 <label class='control-label col-md-2 pull-left' for='ADDRESS_FLAT'>_{ADDRESS_FLAT}_:</label>
                 <div class='col-md-4'>
-                    <input type=text name=ADDRESS_FLAT value='%ADDRESS_FLAT%'placeholder="_{ADDRESS_FLAT}_" class='form-control' id='ADDRESS_FLAT'>
+                    <input type=text name=ADDRESS_FLAT value='%ADDRESS_FLAT%' placeholder='_{ADDRESS_FLAT}_' class='form-control' id='ADDRESS_FLAT'>
                 </div>
             </div>
 

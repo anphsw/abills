@@ -60,12 +60,15 @@
     <div class='row' style='padding-bottom: 10px;'>
       <label class='control-label col-md-3 col-xs-3'>_{CREDIT}_</label>
       <div class='col-md-3 col-xs-3'>
-        <input id='CREDIT' name='CREDIT' class='form-control r-0-9' type='number' step='0.01' min='0' 
-        value='%CREDIT%'>
+        <input id='CREDIT' name='CREDIT' class='form-control r-0-9' type='number' step='0.01' min='0'
+        value='%CREDIT%' data-tooltip='_{ERR_CREDIT_CHANGE_LIMIT_REACH}_<br/>
+                                      <h5>_{SUM}_:</h5>%CREDIT%<br/>
+                                      <h5>_{DATE}_:</h5>%DATE_CREDIT%'
+               data-tooltip-position='top'>
       </div>
       <label class='control-label col-md-3 col-xs-3'>_{DATE}_</label>
       <div class='col-md-3 col-xs-3'>
-        <input id='CREDIT_DATE' name='CREDIT_DATE' class='datepicker form-control d-0-9' type='text' 
+        <input id='CREDIT_DATE' name='CREDIT_DATE' class='datepicker form-control d-0-9' type='text'
         value='%CREDIT_DATE%'>
       </div>
     </div>
@@ -117,8 +120,8 @@
               </div>
             </div>
       
-      <label class='control-label col-xs-4 col-md-4'>_{GROUP}_</label>
-      <div class='col-md-8 col-xs-8'>
+      <label class='control-label col-xs-4 col-md-4' style='%GROUP_PERMISSION%'>_{GROUP}_</label>
+      <div class='col-md-8 col-xs-8' style='%GROUP_PERMISSION%'>
           <div class='input-group'>
                 <input type=text name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly>
                 <span class='input-group-addon'><a href='$SELF_URL?index=12&UID=$FORM{UID}'

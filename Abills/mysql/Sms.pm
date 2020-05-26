@@ -145,7 +145,8 @@ sub list {
   $self->query("SELECT
       $self->{SEARCH_FIELDS}
       sms.uid,
-      sms.id
+      sms.id,
+      sms.ext_id
      FROM sms_log sms
      LEFT JOIN users u ON (u.uid=sms.uid)
      $EXT_TABLE

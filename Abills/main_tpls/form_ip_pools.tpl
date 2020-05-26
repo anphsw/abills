@@ -238,16 +238,14 @@
                     </div>
                     <div class='box-body'>
                         <div class='form-group'>
-                            <label class='control-label col-md-4' for='IPV6_PREFIX_id'>_{PREFIX}_</label>
+                            <label class='control-label col-md-4' for='IPV6_PREFIX'>_{PREFIX}_</label>
                             <div class='col-md-8'>
-                                <input class='form-control' name='IPV6_PREFIX' value='%IPV6_PREFIX%'
-                                       id='IPV6_PREFIX_id'/>
+                                <input class='form-control' name='IPV6_PREFIX' value='%IPV6_PREFIX%' id='IPV6_PREFIX'/>
                             </div>
                         </div>
 
                         <div class='form-group'>
                             <label class='control-label col-md-4'>MASK:</label>
-
                             <div class='col-md-8'>
                                 %IPV6_BIT_MASK%
                             </div>
@@ -266,9 +264,9 @@
                                 <h5><b>Prefix delegated</b></h5>
                             </div>
                             <div class='form-group'>
-                                <label class='control-label col-md-4' for='IPV6_PD_id'>_{PREFIX}_</label>
+                                <label class='control-label col-md-4' for='IPV6_PD'>_{PREFIX}_</label>
                                 <div class='col-md-8'>
-                                    <input class='form-control' name='IPV6_PD' value='%IPV6_PD%' id='IPV6_PD_id'/>
+                                    <input class='form-control' name='IPV6_PD' value='%IPV6_PD%' id='IPV6_PD'/>
                                 </div>
                             </div>
 
@@ -310,9 +308,9 @@
                     </div>
                     <div class='box-body'>
                         <div class='form-group'>
-                            <label class='control-label col-md-4' for='STATIC_id'>_{STATIC}_:</label>
+                            <label class='control-label col-md-4' for='STATIC'>_{STATIC}_:</label>
                             <div class='col-md-8'>
-                                <input class='control-element' type='checkbox' name='STATIC' id='STATIC_id'
+                                <input class='control-element' type='checkbox' name='STATIC' id='STATIC'
                                        value='1' %STATIC%/>
                             </div>
                         </div>
@@ -326,9 +324,9 @@
                             </div>
                         </div>
                         <div class='form-group'>
-                            <label class='control-label col-md-4' for='DNS'>DNS:</label>
+                            <label class='control-label col-md-4' for='DNS'>DNS (,):</label>
                             <div class='col-md-8'>
-                                <input class='form-control ip-input' name='DNS' value='%DNS%' id='DNS'/>
+                                <input class='form-control' name='DNS' value='%DNS%' id='DNS'/>
                             </div>
                         </div>
 
@@ -341,17 +339,17 @@
 
 
                         <div class='form-group'>
-                            <label class='control-label col-md-4' for='SPEED_id'>_{SPEED}_:</label>
+                            <label class='control-label col-md-4' for='SPEED'>_{SPEED}_:</label>
                             <div class='col-md-8'>
-                                <input class='form-control' type='number' name='SPEED' id='SPEED_id' value='%SPEED%'
+                                <input class='form-control' type='number' name='SPEED' id='SPEED' value='%SPEED%'
                                        maxlength='5'/>
                             </div>
                         </div>
 
                         <div class='form-group'>
-                            <label class='control-label col-md-4' for='VLAN_id'>Server VLAN:</label>
+                            <label class='control-label col-md-4' for='VLAN'>Server VLAN:</label>
                             <div class='col-md-8'>
-                                <input class='form-control' type='number' name='VLAN' id='VLAN_id' value='%VLAN%'
+                                <input class='form-control' type='number' name='VLAN' id='VLAN' value='%VLAN%'
                                        maxlength='5'/>
                             </div>
                         </div>
@@ -371,10 +369,10 @@
 
 
             <div class='form-group'>
-                <label class='control-label col-md-4' for='GUEST_id'>_{GUEST}_:</label>
+                <label class='control-label col-md-4' for='GUEST'>_{GUEST}_:</label>
 
                 <div class='col-md-8'>
-                    <input type='checkbox' value='1' name='GUEST' id='GUEST_id' %GUEST%>
+                    <input type='checkbox' value='1' name='GUEST' id='GUEST' %GUEST%>
                 </div>
             </div>
 

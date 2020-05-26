@@ -105,7 +105,11 @@ sub ipoe_periodic_session_restart{
   my $Internet = Internet->new( $db, $admin, \%conf );
   $Nas->{debug} = 1 if ($debug > 6);
 
-  my @nas_types = ('ipcad', 'dhcp', 'mikrotik_dhcp');
+  my @nas_types = ('ipcad', 'dhcp', 'ipn');
+
+  if($conf{INTERNET_IPOE_NAS_TYPES}) {
+    @nas_types = split(/,\s?/, $conf{INTERNET_IPOE_NAS_TYPES});
+  }
 
   if ( $attr->{NAS_TYPES} ){
     @nas_types = split( /,/, $attr->{NAS_TYPES} );
@@ -309,6 +313,10 @@ sub ipoe_start_active{
   if ( $attr->{NAS_TYPES} ){
     @nas_types = split( /,/, $attr->{NAS_TYPES} );
   }
+  elsif($conf{INTERNET_IPOE_NAS_TYPES}) {
+    @nas_types = split(/,\s?/, $conf{INTERNET_IPOE_NAS_TYPES});
+  }
+
 
   #Get online
   my $Internet = Internet->new( $db, $admin, \%conf );

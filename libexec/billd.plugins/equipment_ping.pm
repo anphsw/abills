@@ -28,6 +28,7 @@ our (
 my $Equipment = Equipment->new( $db, $Admin, \%conf );
 my $Events = Events::API->new( $db, $Admin, \%conf );
 
+local $ENV{PATH} = "$ENV{PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:/root/bin";
 equipment_ping();
 
 

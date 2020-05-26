@@ -58,6 +58,7 @@ function loadToModal(url, callback) {
               
               pageInit(modalBody);
               Events.emit('modal_loaded', modalBody);
+              if (callback) callback();
               
             }, 'html')
             .fail(function (error) {
@@ -65,8 +66,6 @@ function loadToModal(url, callback) {
         
               Events.emit('modal_loaded', false);
             });
-  
-        if (callback) callback();
       });
 
 

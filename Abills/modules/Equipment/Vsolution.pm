@@ -9,6 +9,7 @@ use warnings;
 use Abills::Base qw(in_array);
 use Abills::Filters qw(bin2mac _mac_former dec2hex);
 our %lang;
+our %ONU_STATUS_TEXT_CODES;
 
 #**********************************************************
 =head2 _vsolution_get_ports($attr) - Get OLT slots and connect ONU
@@ -357,10 +358,10 @@ sub _vsolution_onu_status {
   #    15 => 'unconfigured',
   #  );
   my %status = (
-    0 => 'Authenticated:text-green',
-    1 => 'Registered:text-green',
-    2 => 'Deregistered:text-red',
-    3 => 'Auto_config:text-green'
+    0 => $ONU_STATUS_TEXT_CODES{AUTHENTICATED},
+    1 => $ONU_STATUS_TEXT_CODES{REGISTERED},
+    2 => $ONU_STATUS_TEXT_CODES{DEREGISTERED},
+    3 => $ONU_STATUS_TEXT_CODES{AUTO_CONFIG}
   );
   return \%status;
 }

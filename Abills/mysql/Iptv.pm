@@ -315,39 +315,39 @@ sub user_list{
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'TP_NUM',       'INT', 'tp.id',   'tp.id AS tp_num'        ],
-      [ 'TP_NAME',      'STR', 'tp.name', 'tp.name AS tp_name'     ],
-      [ 'TP_COMMENTS',  'STR', 'tp.comments', 'tp.comments AS tp_comments' ],
-      #      ['IPTV_STATUS',    'INT', 'service.disable AS iptv_status',   1 ],
-      [ 'SERVICE_STATUS', 'INT', 'service.disable', 'service.disable AS service_status' ],
-      [ 'CID',          'STR', 'service.cid',                    1 ],
-      [ 'PIN',          'STR', 'service.pin',                    1 ],
-      [ 'ALL_FILTER_ID','STR', 'IF(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id', 1 ],
-      [ 'FILTER_ID',    'STR', 'service.filter_id',              1 ],
-      [ 'DVCRYPT_ID',   'INT', 'service.dvcrypt_id',             1 ],
-      [ 'MONTH_FEE',    'INT', 'tp.month_fee',                   1 ],
-      [ 'ABON_DISTRIBUTION', 'INT', 'tp.abon_distribution',      1 ],
-      [ 'DAY_FEE',      'INT', 'tp.day_fee',                     1 ],
-      [ 'TP_ID',        'INT', 'service.tp_id',                  1 ],
-      [ 'TV_SERVICE_ID','INT', 'tp.service_id', 'tp.service_id AS tv_service_id'],
-      [ 'TV_SERVICE_NAME','INT', 'tv_service.name', 'tv_service.name AS tv_service_name'],
-      [ 'TP_CREDIT',    'INT', 'tp.credit:',           'tp_credit' ],
-      [ 'TP_FILTER',    'INT', 'tp.filter_id',                   1 ],
-      [ 'TP_REDUCTION_FEE', 'INT', 'tp.reduction_fee', 'tp.reduction_fee AS tp_reduction_fee' ],
-      [ 'PAYMENT_TYPE', 'INT', 'tp.payment_type',                1 ],
-      [ 'MONTH_PRICE',  'INT', 'ti_c.month_price',               1 ],
-      [ 'DAY_PRICE',    'INT', 'ti_c.day_price',                 1 ],
-      [ 'IPTV_ACTIVATE','DATE','service.activate', 'service.activate AS iptv_activate' ],
-      [ 'IPTV_EXPIRE',  'DATE','service.expire', 'service.expire AS iptv_expire' ],
-      [ 'SUBSCRIBE_ID', 'INT', 'service.subscribe_id',           1 ],
-      [ 'SERVICE_ID',   'INT', 'service.service_id',             1 ],
-      [ 'EMAIL',        'STR', 'service.email',                  1 ],
-      [ 'SERVICE_COUNT','INT', '', 'COUNT(service.id) AS service_count'  ] ,
-      [ 'ID',           'INT', 'service.id',                     1 ],
-      [ 'UID',          'INT', 'service.uid',                      ],
-      [ 'IPTV_LOGIN',   'STR', 'service.iptv_login',                      1 ],
-      [ 'IPTV_PASSWORD', 'STR', 'service.iptv_password',                     1 ],
-#      [ 'GID',          'INT', 'u.gid',                    'u.gid' ],
+      [ 'TP_NUM',            'INT', 'tp.id',   'tp.id AS tp_num'                                                   ],
+      [ 'TP_NAME',           'STR', 'tp.name', 'tp.name AS tp_name'                                                ],
+      [ 'TP_COMMENTS',       'STR', 'tp.comments', 'tp.comments AS tp_comments'                                    ],
+      [ 'SERVICE_STATUS',    'INT', 'service.disable', 'service.disable AS service_status'                         ],
+      [ 'CID',               'STR', 'service.cid',                                                               1 ],
+      [ 'PIN',               'STR', 'service.pin',                                                               1 ],
+      [ 'ALL_FILTER_ID',     'STR', 'IF(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id', 1 ],
+      [ 'FILTER_ID',         'STR', 'service.filter_id',                                                         1 ],
+      [ 'DVCRYPT_ID',        'INT', 'service.dvcrypt_id',                                                        1 ],
+      [ 'MONTH_FEE',         'INT', 'tp.month_fee',                                                              1 ],
+      [ 'ABON_DISTRIBUTION', 'INT', 'tp.abon_distribution',                                                      1 ],
+      [ 'DAY_FEE',           'INT', 'tp.day_fee',                                                                1 ],
+      [ 'TP_ID',             'INT', 'service.tp_id',                                                             1 ],
+      [ 'TV_SERVICE_ID',     'INT', 'tp.service_id', 'tp.service_id AS tv_service_id'                              ],
+      [ 'TV_SERVICE_NAME',   'INT', 'tv_service.name', 'tv_service.name AS tv_service_name'                        ],
+      [ 'TP_CREDIT',         'INT', 'tp.credit:', 'tp_credit'                                                      ],
+      [ 'TP_FILTER',         'INT', 'tp.filter_id',                                                              1 ],
+      [ 'TP_REDUCTION_FEE',  'INT', 'tp.reduction_fee', 'tp.reduction_fee AS tp_reduction_fee'                     ],
+      [ 'PAYMENT_TYPE',      'INT', 'tp.payment_type',                                                           1 ],
+      [ 'MONTH_PRICE',       'INT', 'ti_c.month_price',                                                          1 ],
+      [ 'DAY_PRICE',         'INT', 'ti_c.day_price',                                                            1 ],
+      [ 'IPTV_ACTIVATE',     'DATE','service.activate', 'service.activate AS iptv_activate'                        ],
+      [ 'IPTV_EXPIRE',       'DATE','service.expire', 'service.expire AS iptv_expire'                              ],
+      [ 'SUBSCRIBE_ID',      'INT', 'service.subscribe_id',                                                      1 ],
+      [ 'SERVICE_ID',        'INT', 'service.service_id',                                                        1 ],
+      [ 'EMAIL',             'STR', 'service.email',                                                             1 ],
+      [ 'SERVICE_COUNT',     'INT', '', 'COUNT(service.id) AS service_count'                                       ] ,
+      [ 'ID',                'INT', 'service.id',                                                                1 ],
+      [ 'UID',               'INT', 'service.uid',                                                                 ],
+      [ 'IPTV_LOGIN',        'STR', 'service.iptv_login',                                                        1 ],
+      [ 'IPTV_PASSWORD',     'STR', 'service.iptv_password',                                                     1 ],
+      [ 'MAC_CID',           'STR', 'us.cid AS mac_cid',                                                         1 ],
+      [ 'SERIAL',            'STR', 'us.serial',                                                                 1 ],
     ],
     {
       WHERE             => 1,
@@ -369,6 +369,11 @@ sub user_list{
 
   if($attr->{TV_SERVICE_NAME}) {
     $EXT_TABLE .= "LEFT JOIN iptv_services tv_service ON (tv_service.id=tp.service_id)";
+  }
+
+  if ($attr->{MAC_CID} || $attr->{SERIAL}) {
+    $EXT_TABLE .= "LEFT JOIN iptv_users_screens us ON (service.id=us.service_id)" .
+      "LEFT JOIN iptv_screens s ON (s.num=us.screen_id)";
   }
 
   my $list;
@@ -1638,10 +1643,14 @@ sub users_screens_list{
     );
   }
   else{
+    my $service_join = $attr->{SERVICE_ID} ? "AND service.id='$attr->{SERVICE_ID}'" : '';
+    $WHERE .= $WHERE ? " AND us.service_id<>0" : "us.service_id<>0" unless $attr->{SERVICE_ID};
+
     $self->query( "SELECT $self->{SEARCH_FIELDS} us.service_id, s.id, service.uid
       FROM iptv_screens s
-      LEFT JOIN iptv_main service  ON (s.tp_id=service.tp_id AND service.id='$attr->{SERVICE_ID}')
+      LEFT JOIN iptv_main service  ON (s.tp_id=service.tp_id $service_join)
       LEFT JOIN iptv_users_screens us ON (service.id=us.service_id AND s.num=us.screen_id)
+      LEFT JOIN users u ON (u.uid=service.uid)
       $WHERE
       GROUP BY s.id
       ORDER BY $SORT $DESC
@@ -2165,6 +2174,40 @@ sub users_fees{
     GROUP BY f.uid
     HAVING Pays_date <> COUNT_DAYS_OF_REGISTRATION
     ORDER BY im.registration", undef, { COLS_NAME => 1}
+  );
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 iptv_users_fees_by_service($id)
+
+  Arguments:
+
+=cut
+#**********************************************************
+sub iptv_users_fees_by_service{
+  my $self = shift;
+  my ($attr) = @_;
+
+  return [] if !$attr->{TP_NAMES} || !$attr->{TP_NAMES}[0];
+
+  $attr->{DESCRIBE} ||= 'Телевидение:';
+  my $like_statements = "f.dsc LIKE '$attr->{DESCRIBE}%$attr->{TP_NAMES}[0]%'";
+  shift @{$attr->{TP_NAMES}};
+  map $like_statements .= " OR f.dsc LIKE '$attr->{DESCRIBE}%$_%'", @{$attr->{TP_NAMES}};
+
+  my $WHERE = "WHERE ($like_statements)";
+
+  if ($attr->{FROM_DATE} && $attr->{TO_DATE}) {
+    $WHERE .= " AND f.date>='$attr->{FROM_DATE}' AND f.date<='$attr->{TO_DATE}'";
+  }
+  
+  $self->query("SELECT f.uid AS uid, f.sum, f.dsc, u.id AS login, f.date
+    FROM fees f
+    LEFT JOIN users u ON(f.uid=u.uid)
+    $WHERE",
+    undef, { COLS_NAME => 1}
   );
 
   return $self->{list};

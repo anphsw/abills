@@ -58,6 +58,7 @@ my %ARGS = ();
 my $debug = 0;
 
 my $networks_list = [];
+my @all_networks_list = ();
 
 exit main() ? 0 : 1;
 
@@ -132,22 +133,22 @@ sub main {
 #**********************************************************
 sub prepare {
   my ($nas_id) = @_;
-  
-  $networks_list = $Dhcphosts->networks_list(
-    {
-      DISABLE          => 0,
-      NAS_ID           => $nas_id,
-      NAME             => '_SHOW',
-      PAGE_ROWS        => 10000,
-      SORT             => 2,
-      SHOW_ALL_COLUMNS => 1,
-      COLS_NAME        => 1
-    }
-  );
+
+  $networks_list = $Dhcphosts->networks_list({
+    DISABLE          => 0,
+    NAS_ID           => $nas_id,
+    NAME             => '_SHOW',
+    PAGE_ROWS        => 10000,
+    SORT             => 2,
+    SHOW_ALL_COLUMNS => 1,
+    COLS_NAME        => 1
+  });
   
   if ( !$networks_list || scalar @{$networks_list} < 1 ) {
     die "No dhcphosts networks configured \n";
   };
+
+  @all_networks_list = @{$networks_list};
   
   return 1;
 }
@@ -169,6 +170,7 @@ sub sync_leases {
   my ($nas, $attr) = @_;
   
   my $nas_id = $nas->{nas_id};
+  @{$networks_list} = @all_networks_list;
   $networks_list = $mikrotik->dhcp_servers_check($networks_list, $attr);
   
   my $db_leases = db_leases_list($nas_id);
@@ -198,13 +200,6 @@ sub sync_leases {
     else {
       delete $mikrotik_leases_by_mac{$host_mac};
     }
-    #    if ( !$db_leases_by_mac{$host_mac}->{active} ){
-    #      # If disabled, delete allow lease, cause will be added with negative addrress-list
-    #      print "Mikrotik have allowing lease $host_mac that should be disabled. \n" if ($ARGS{VERBOSE});
-    #      push ( @mikrotik_to_delete_leases_ids, $db_leases_by_mac{$host_mac}->{id} );
-    #      push ( @mikrotik_to_add_leases, $db_leases_by_mac{$host_mac} );
-    #    }
-
   }
   
   # Delete all other leases
@@ -299,33 +294,24 @@ sub db_leases_list {
   # Get leases from DB
   my @db_leases = ();
   foreach ( @{$networks_list} ) {
-    my $network_hosts_list = $Dhcphosts->hosts_list(
-      {
-        NETWORK      => '_SHOW',
-        NETWORK_NAME => '_SHOW',
-        STATUS       => '_SHOW',
-        USER_DISABLE => 0,
-        LOGIN        => '_SHOW',
-        TP_TP_ID     => '_SHOW',
-        TP_NAME      => '_SHOW',
-        IPN_ACTIVATE => 1,
-        MAC          => '_SHOW',
-        IP           => '_SHOW',
-        NAS_ID       => $nas_id,
-        NAS_NAME     => '_SHOW',
-        OPTION_82    => '_SHOW',
-        DELETED      => 0,
-        #  CREDIT       => '_SHOW',
-        #  HOSTNAME     => '_SHOW',
-        #  PORTS        => '_SHOW',
-        #  VID          => '_SHOW',
-        #  BOOT_FILE    => '_SHOW',
-        #  NEXT_SERVER  => '_SHOW',
-        #  %PARAMS,
-        COLS_NAME    => 1,
-        PAGE_ROWS    => 100000,
-      }
-    );
+    my $network_hosts_list = $Dhcphosts->hosts_list({
+      NETWORK      => '_SHOW',
+      NETWORK_NAME => '_SHOW',
+      STATUS       => '_SHOW',
+      USER_DISABLE => 0,
+      LOGIN        => '_SHOW',
+      TP_TP_ID     => '_SHOW',
+      TP_NAME      => '_SHOW',
+      IPN_ACTIVATE => 1,
+      MAC          => '_SHOW',
+      IP           => '_SHOW',
+      NAS_ID       => $nas_id,
+      NAS_NAME     => '_SHOW',
+      OPTION_82    => '_SHOW',
+      DELETED      => 0,
+      COLS_NAME    => 1,
+      PAGE_ROWS    => 100000,
+    });
     
     unless ( defined $network_hosts_list ) {
       print " !!! No hosts configured for NAS_ID: $nas_id \n";

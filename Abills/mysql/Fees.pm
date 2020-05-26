@@ -295,13 +295,19 @@ sub list {
     $EXT_TABLES  .= " LEFT JOIN fees_types ft ON (ft.id=f.method)";
   }
 
+  if($self->{SEARCH_FIELDS} =~ /u\.|pi\./ || $WHERE =~ /u\.|pi\./) {
+    $EXT_TABLES = 'LEFT JOIN users u ON (u.uid=f.uid) ' . $EXT_TABLES;
+  }
+
+  if($self->{SEARCH_FIELDS} =~ /a\./ || $WHERE =~ /a\./) {
+    $EXT_TABLES = 'LEFT JOIN admins a ON (a.aid=f.aid) ' . $EXT_TABLES;
+  }
+
   $self->query("SELECT f.id,
      $self->{SEARCH_FIELDS}
    f.inner_describe,
    f.uid
     FROM fees f
-    LEFT JOIN users u ON (u.uid=f.uid)
-    LEFT JOIN admins a ON (a.aid=f.aid)
     $EXT_TABLES
     $WHERE 
     GROUP BY f.id
@@ -316,10 +322,8 @@ sub list {
   return $self->{list} if ($self->{TOTAL} < 1);
   my $list = $self->{list};
 
-  if ($self->{TOTAL} > 0 || $PG > 0) {
+  if ($self->{TOTAL} > 0) {
     $self->query("SELECT COUNT(*) AS total, sum(f.sum) AS sum, count(DISTINCT f.uid) AS total_users FROM fees f
-  LEFT JOIN users u ON (u.uid=f.uid) 
-  LEFT JOIN admins a ON (a.aid=f.aid)
   $EXT_TABLES
   $WHERE",
   undef,
@@ -572,8 +576,10 @@ sub fees_type_add {
   my ($attr) = @_;
 
   $self->query_add('fees_types', $attr);
+  if(! $self->{errno}) {
+    $admin->system_action_add("FEES_TYPES:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 }) if (!$self->{errno});
+  }
 
-  $admin->system_action_add("FEES_TYPES:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 }) if (!$self->{errno});
   return $self;
 }
 

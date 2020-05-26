@@ -2,7 +2,7 @@
     <div class='box-header with-border'>
         <h4 class='box-title'>_{MULTIUSER_OP}_</h4>
         <div class='box-tools pull-right'>
-            <button type='button' id='mu_status_box_btn' class='btn btn-default btn-xs' data-widget='collapse'><i
+            <button type='button' id='mu_status_box_btn' class='btn btn-box-tool' data-widget='collapse'><i
                     class='fa fa-plus'></i>
             </button>
         </div>
@@ -89,7 +89,7 @@
                     <input type='checkbox' name='MU_ACTIVATE' value='1' form='internet_users_list' id='MU_ACTIVATE'>
                     _{ACTIVATE}_
                 </div>
-                <div class='col-md-4'>
+                <div class='col-md-8'>
                     <input id='MU_ACTIVATE_DATE' name='MU_ACTIVATE_DATE' value='0000-00-00'
                             form='internet_users_list' class='form-control datepicker' type='text'>
                 </div>
@@ -102,7 +102,7 @@
                     <input type='checkbox' name='MU_SET_IPV6' value='1' form='internet_users_list' id='MU_SET_IPV6'>
                     _{SET}_ _{STATIC}_ IPv6
                 </div>
-                <div class='col-md-4'>
+                <div class='col-md-8'>
                     %MU_IPV6_POLL_SEL%
                 </div>
             </div>
@@ -114,8 +114,20 @@
                     <input type='checkbox' name='MU_SET_IPV4' value='1' form='internet_users_list' id='MU_SET_IPV4'>
                     _{SET}_ _{STATIC}_ IPv4
                 </div>
-                <div class='col-md-4'>
+                <div class='col-md-8'>
                     %MU_IPV4_POLL_SEL%
+                </div>
+            </div>
+        </div>
+
+        <div class='form-group' style="%VISIBLE%">
+            <div class='row'>
+                <div class='col-md-4'>
+                    <input type='checkbox' name='MU_TAGS_USER' value='1' form='internet_users_list' id='MU_TAGS_USER'>
+                    _{TAGS}_ _{USER}_
+                </div>
+                <div class='col-md-8'>
+                    %MU_USER_TAGS%
                 </div>
             </div>
         </div>

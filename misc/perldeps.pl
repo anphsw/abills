@@ -178,6 +178,14 @@ my @modules = (
     rpm => "perl-XML-Simple"
   },
   {
+    cpan => "DateTime",
+    port => "/usr/ports/devel/p5-DateTime",
+    pkg => "p5-DateTime",
+    apt => "libdatetime-perl",
+    rpm => "perl-DateTime"
+  },
+
+  {
     cpan => "LWP::Protocol::https"
   },
   {

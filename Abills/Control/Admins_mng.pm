@@ -94,7 +94,7 @@ sub form_admins {
       $lang{PASSWD} . ":54:AID=$admin_form->{AID}:password"
     );
 
-    push @admin_menu, $lang{GROUP} . ":58:AID=$admin_form->{AID}:users" if (!$admin->{GID});
+    push @admin_menu, $lang{GROUP} . ":58:AID=$admin_form->{AID}:users" if (!$admin->{GID} || ($permissions{0} && $permissions{0}{28}));
     push @admin_menu, $lang{ACCESS} . ":59:AID=$admin_form->{AID}:",
       'Paranoid' . ':' . get_function_index('form_admins_full_log_analyze') . ":AID=$admin_form->{AID}:",
       $lang{CONTACTS} . ":61:AID=$admin_form->{AID}:contacts";
@@ -277,7 +277,7 @@ sub form_admins {
     $LIST_PARAMS{ADMIN_NAME} = $FORM{A_FIO};
   }
 
-  my $list = $admin_form->admins_groups_list({ ALL => 1, COLS_NAME => 1 });
+  my $list = $admin_form->admins_groups_list({ ALL => 1, COLS_NAME => 1 , SORT=>$FORM{sort}});
   my %admin_groups = ();
   foreach my $line (@$list) {
     $admin_groups{ $line->{aid} } .= ", $line->{gid}:$line->{name}";
@@ -350,6 +350,8 @@ sub form_admins {
     },
   });
 
+  my $count = 0;
+
   foreach my $line (@$admins_list) {
     my @fields_array = ();
     for (my $i = 0; $i < 4 + $admin->{SEARCH_FIELDS_COUNT}; $i++) {
@@ -388,6 +390,8 @@ sub form_admins {
         . $html->button($lang{INFO}, "index=$index&AID=$line->{aid}", { class => 'change' })
         . $html->button($lang{DEL}, "index=$index&del=$line->{aid}", { MESSAGE => "$lang{DEL} $line->{aid}?", class => 'del' })
     );
+
+    ++$count;
   }
 
   print $table->show();
@@ -395,7 +399,7 @@ sub form_admins {
   $table = $html->table(
     {
       width => '100%',
-      rows  => [ [ "$lang{TOTAL}:", $html->b($admin_form->{TOTAL}) ] ]
+      rows  => [ [ "$lang{TOTAL}:", $html->b($count) ] ]
     }
   );
   print $table->show();
@@ -1034,8 +1038,7 @@ sub form_admin_permissions {
   foreach my $name (sort @MODULES) {
     $table2->addrow(
       $html->button("$name", '',
-        { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php?id=abills:docs:modules:' . $name . ':ru',
-          ex_params  => 'target=' . $name }),
+        { GLOBAL_URL => 'http://abills.net.ua:8090/display/AB/' . $name}),
       $version,
       $html->form_input(
         "9_" . $i . "_" . $name,

@@ -18,6 +18,7 @@ use Finance;
 use Tariffs;
 use Users;
 use Abills::Base qw(_bp in_array cfg2hash mk_unique_value);
+
 our ($db,
   $admin,
   %conf,
@@ -50,7 +51,6 @@ sub bonus_user_log {
 
   if (defined($attr->{USER})) {
     my $user = $attr->{USER};
-    #$payments->{UID} = $user->{UID};
 
     if ($conf{EXT_BILL_ACCOUNT}) {
       $BILL_ACCOUNTS{ $user->{EXT_BILL_ID} } = "$lang{EXTRA} : $user->{EXT_BILL_ID}" if ($user->{EXT_BILL_ID});
@@ -127,10 +127,6 @@ sub bonus_user_log {
 
     if ($permissions{1} && $permissions{1}{1}) {
       $Bonus->{OP_SID} = mk_unique_value(16);
-      #      if ( $permissions{1}{4} ){
-      #        $payments->{DATE} = "<tr><td colspan=2>$lang{DATE}:</td><td>" . $html->form_input( 'DATE',
-      #          "$DATE $TIME" ) . "</td></tr>\n";
-      #      }
       $html->tpl_show(_include('bonus_operation', 'Bonus'), $Bonus);
     }
   }
@@ -198,8 +194,6 @@ sub bonus_user_log {
       $line->[6],
       $BONUS_METHODS{ $line->[7] },
       $line->[8],
-
-      #  ($conf{EXT_BILL_ACCOUNT} && $attr->{USER}) ? $BILL_ACCOUNTS{$line->[8]} : "$line->[8]",
       $line->[9],
       $line->[10],
       $line->[11],
@@ -280,8 +274,6 @@ sub bonus_tp {
   $Bonus->{STATE} = ($Bonus->{STATE}) ? 'checked' : '';
   $html->tpl_show(_include('bonus_tp', 'Bonus'), $Bonus);
 
-  #my %bonus_hash = ();
-
   my $list = $Bonus->tp_list();
 
   my $table = $html->table(
@@ -338,7 +330,6 @@ sub bonus_tp {
 =cut
 #*******************************************************************
 sub bonus_rules {
-  #my ($attr) = @_;
 
   my %BONUS_HUSH = (
     TRAFFIC_IN_BONUS_MB  => $lang{TRAFFIC_IN_BONUS_MB},
@@ -394,7 +385,6 @@ sub bonus_rules {
 
   $Bonus->{STATE} = ($Bonus->{STATE}) ? 'checked' : '';
 
-  #my %bonus_hash = ();
   my $list = $Bonus->rule_list({ TP_ID => $FORM{TP_ID} });
   my @PERIODS = ($lang{DAY}, $lang{MONTH});
 
@@ -461,34 +451,6 @@ sub bonus_rules {
   $info_bonus{TP_ID} = $FORM{TP_ID};
 
   $html->tpl_show(_include('bonus_rules', 'Bonus'), \%info_bonus);
-  #  $table->addtd(
-  #    $table->td(
-  #      $html->form_select(
-  #        'PERIOD',
-  #        {
-  #          SELECTED      => $Bonus->{PERIOD},
-  #          SEL_ARRAY     => \@PERIODS,
-  #          OUTPUT2RETURN => 1,
-  #          ARRAY_NUM_ID  => 1
-  #        }
-  #      )
-  #    ),
-  #
-  #    $table->td(
-  #      $html->form_select(
-  #        'RULE',
-  #        {
-  #          SELECTED => $Bonus->{RULE},
-  #          SEL_HASH => \%BONUS_HUSH,
-  #          NO_ID    => 1
-  #        }
-  #      )
-  #    ),
-  #
-  #    $table->td($html->form_input('RULE_VALUE', $Bonus->{RULE_VALUE}, { SIZE => 10 })),
-  #    $table->td($html->form_input('ACTIONS', $Bonus->{ACTIONS}, { SIZE => 50 })),
-  #    $table->td($html->form_input($Bonus->{ACTION}, $Bonus->{LNG_ACTION}, { TYPE => 'SUBMIT' }), { colspan => 2 })
-  #  );
 
   print $html->form_main({
     CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
@@ -642,7 +604,7 @@ sub bonus_user {
       $Bonus->{ACTION} = $html->form_input('change', $lang{ACTIVATE}, { TYPE => 'submit', OUTPUT2RETURN => 1 });
     }
 
-    $Bonus->{STATE} = $status[$Bonus->{STATE}]; # . '  '. (($Bonus->{STATE}==1) ?  $html->button("$lang{DISABLE}", "index=$index&change=1&STATE=0", { MESSAGE => "$lang{DISABLE} $lang{BONUS} ?", BUTTON => 1 }) : '');
+    $Bonus->{STATE} = $status[$Bonus->{STATE}];
   }
 
   if (!$conf{BONUS_PAYMENTS}) {
@@ -686,7 +648,6 @@ sub bonus_user {
 
     if (!$user->{UID} && $Bonus->{UID}) {
       $Bonus->{COST_FORM} = $html->form_input('SCORE', $Bonus->{COST});
-      #$Bonus->{COST_FORM} = $html->form_input( 'COST', $Bonus->{COST} );
     }
     else {
       $Bonus->{COST_FORM} = $bonus_cost;
@@ -983,8 +944,6 @@ sub bonus_payments_maked {
   my $list = $Bonus->service_discount_list(
     {
       REGISTRATION_DAYS => "<=$registration_days,>=0",
-      #PERIODS           => "<=$periods",
-      #PAY_METHOD        => "$FORM{METHOD};-1",
       PAGE_ROWS         => 20,
       SORT              => "registration_days DESC, 1 DESC, 2 DESC, pay_method DESC",
       COLS_NAME         => 1
@@ -1084,7 +1043,6 @@ sub bonus_service_discount_client {
   );
 
   if ($Bonus->{TOTAL} > 0) {
-    #$RESULT{TOTAL_PAYMENT}     = $list->[0]->[2] || 0;
     $RESULT{DISCOUNT} = $list->[0]->{discount} || 0;
     $RESULT{DISCOUNT_PERIOD} = $list->[0]->{discount_days} || 0;
     $RESULT{BONUS_SUM} = $list->[0]->{bonus_sum} || 0;
@@ -1154,7 +1112,7 @@ sub bonus_service_discount_mk {
     elsif ($line->{total_payments_sum} > 0) {
       $RULES{TOTAL_PAYMENT} = 1;
     }
-    elsif ($line->{onetime_payment_sum}) {
+    elsif ($line->{onetime_payment_sum} && $line->{onetime_payment_sum} > 0) {
       $RULES{ONETIME_PAYMENT_SUM} = $line->{onetime_payment_sum};
     }
     elsif ($line->{service_period}) {
@@ -1192,7 +1150,6 @@ sub bonus_service_discount_mk {
   }
 
   my %RESULT = ();
-  #if ($periods > 0) {
   if ($RULES{PERIOD}) {
     my ($year, $month, $day) = split(/-/, $attr->{USER_INFO}->{REGISTRATION}, 3);
     my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
@@ -1204,7 +1161,7 @@ sub bonus_service_discount_mk {
         PERIODS             => "<=$periods",
         PAGE_ROWS           => 1,
         COLS_NAME           => 1,
-        SORT                => "1 DESC, 2 DESC",
+        SORT                => ($periods) ? '2 DESC' :  "1 DESC, 2 DESC",
         TP_ID               => '_SHOW',
         ONETIME_PAYMENT_SUM => '_SHOW'
       }
@@ -1229,7 +1186,7 @@ sub bonus_service_discount_mk {
     }
   }
 
-  if ($RULES{TOTAL_PAYMENT} || $RULES{ONETIME_PAYMENT_SUM}) {
+  if ($RULES{TOTAL_PAYMENT} || ($RULES{ONETIME_PAYMENT_SUM} && $RULES{ONETIME_PAYMENT_SUM} > 0)) {
     my $payments_sum = 0;
     my %get_bonus = (
       PAGE_ROWS => 1,
@@ -1978,8 +1935,6 @@ sub bonus_tp_using {
       caption => $lang{BONUS_TP_USING},
       qs      => $pages_qs,
       ID      => 'BONUS_TP_USING',
-      #SHOW_COLS  => \%SEARCH_TITLES,
-      #ACTIVE_COLS=> \%ACTIVE_TITLES,
       EXPORT  => 1,
       MENU    => "$lang{ADD}:index=" . $index . ':add' . ";",
     },

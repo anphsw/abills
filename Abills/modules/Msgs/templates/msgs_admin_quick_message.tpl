@@ -52,9 +52,8 @@
 
 <script>
   pageInit(jQuery('#modal_MSGS_QUICK_MESSAGE'));
-
-//  jQuery('form#form_MSGS_QUICK_MESSAGE').on('submit', function (e) {
-//    ajaxFormSubmit(e);
-//  });
-    Events.on('AJAX_SUBMIT.form_MSGS_QUICK_MESSAGE', aModal.hide.bind(aModal));
+  
+  setTimeout(() => 
+    Events.on('AJAX_SUBMIT.form_MSGS_QUICK_MESSAGE', aModal.hide.bind(aModal)), 1000
+  );
 </script>

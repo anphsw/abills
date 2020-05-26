@@ -60,19 +60,6 @@ sub stalker_console{
     #    $Tv_service->user_add({ %{$users}, %{$Iptv}, %FORM });
     return $Tv_service->{error};
   }
-  #  elsif ( $FORM{del} ){
-  #    $Tv_service->user_action( { %{$users}, %{$Iptv}, del => 1, MAC => $FORM{MAC} } );
-  #    if ( !_error_show( $Tv_service, { MESSAGE => $Tv_service->{errstr} } ) ){
-  #      $html->message( 'info', $lang{INFO}, "$lang{DELETED}\n ID: $FORM{del}\n MAC: ". ($FORM{MAC} || q{}) );
-  #    }
-  #    else {
-  #      if($Tv_service->{errstr} =~ /Account not found/){
-  #        delete $Tv_service->{error};
-  #        return 0;
-  #      }
-  #    }
-  #    return $Tv_service->{error};
-  #  }
 
   my @header_arr = ("$lang{ACCOUNTS}:index=$index&SERVICE_ID=$service_id",
     "STB:index=$index&list=STB&SERVICE_ID=$service_id",
@@ -369,7 +356,7 @@ sub iptv_stalker_show_list{
       $FUNCTION_FIELDS = q{};
     }
   }
-  elsif ( $list_type eq 'ITV' ){
+  elsif ( $list_type eq 'ITV' || $list_type eq 'itv'){
     $FUNCTION_FIELDS = '';
     if ( $FORM{import_channels} ){
       $Iptv->channel_del( 0, { ALL => 1 } );

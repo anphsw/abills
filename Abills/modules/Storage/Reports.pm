@@ -241,7 +241,8 @@ sub storage_remnants_report {
     });
 
   my $report_table = $html->table({
-    title      => [ $lang{NAME}, $lang{MEASURE}, $lang{TOTAL}, $lang{ACCOUNTABILITY}, $lang{DISCARDED}, $lang{INSTALLED}, $lang{RESERVED}, $lang{INNER_USE}, $lang{REST} ],
+    title      => [ $lang{NAME}, $lang{MEASURE}, $lang{TOTAL}, $lang{ACCOUNTABILITY}, $lang{DISCARDED},
+      $lang{INSTALLED}, $lang{RESERVED}, $lang{INNER_USE}, $lang{REST} ],
     width      => '100%',
     caption    => $lang{REMNANTS},
     qs         => $pages_qs,
@@ -606,7 +607,7 @@ sub storage_in_installments_statistics {
 
   foreach my $item (@$in_installments_items){
     my $profit = ($item->{in_installments_price} - $item->{sum_price}) / $item->{total_months} * $item->{payments_count};
-    my $admin_sum = $profit / 100 * $item->{admin_percent};
+    my $admin_sum = $item->{admin_percent} ? $profit / 100 * $item->{admin_percent} : 0;
     $table->addrow(
       "$item->{sat_name} $item->{sta_name}",
       "$item->{count}",
@@ -691,16 +692,14 @@ sub storage_rent_statistics {
     COLS_NAME     => 1
   });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{REPORT} $lang{ANALYSIS_ITEMS_IN_RENT} " . ($FORM{FROM_DATE} || $DATE) . " - " . ($FORM{TO_DATE} || $DATE),
-      title      => [ $lang{NAME}, $lang{COUNT}, "$lang{COUNT} $lang{PAYMENTS}", "$lang{SUM} $lang{FOR_THE_MONTH}", $lang{PROFIT}, $lang{ADMINS_PERCENT}, "$lang{NET_PROFIT}"],
-      ID         => 'STORAGE_SELL_PRICE',
-      DATA_TABLE => { "order"=> [[1, "desc"]]},
-      EXPORT => 1,
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => "$lang{REPORT} $lang{ANALYSIS_ITEMS_IN_RENT} " . ($FORM{FROM_DATE} || $DATE) . " - " . ($FORM{TO_DATE} || $DATE),
+    title      => [ $lang{NAME}, $lang{COUNT}, "$lang{COUNT} $lang{PAYMENTS}", "$lang{SUM} $lang{FOR_THE_MONTH}", $lang{PROFIT}, $lang{ADMINS_PERCENT}, "$lang{NET_PROFIT}" ],
+    ID         => 'STORAGE_SELL_PRICE',
+    DATA_TABLE => { "order" => [ [ 1, "desc" ] ] },
+    EXPORT     => 1,
+  });
 
   foreach my $item (@$items){
     my $profit = ($item->{amount_per_month} * $item->{payments_count});
@@ -718,6 +717,88 @@ sub storage_rent_statistics {
 
   print $table->show();
 
+}
+
+#**********************************************************
+=head2 storage_installation_report()
+
+  Arguments:
+     -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub storage_installation_report {
+
+  my $admins_select = sel_admins({ NAME => 'INSTALLED_AID' });
+  my $storage_select = storage_storage_sel($Storage, { ALL => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) });
+  my $type_select = $html->form_select(
+    'TYPE_ID',
+    {
+      SELECTED    => $FORM{TYPE_ID} || 0,
+      SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '--' },
+    }
+  );
+
+  reports({
+    PERIOD_FORM   => 1,
+    DATE_RANGE    => 1,
+    NO_GROUP      => 1,
+    NO_TAGS       => 1,
+    ADMINS_SELECT => 1,
+    EXT_SELECT    => {
+      STORAGE   => { LABEL => $lang{STORAGE}, SELECT => $storage_select },
+      REPSOBILE => { LABEL => $lang{RESPOSIBLE}, SELECT => $admins_select },
+      TYPE      => { LABEL => $lang{TYPE}, SELECT => $type_select },
+    }
+  });
+
+  if($FORM{FROM_DATE} && $FORM{FROM_DATE} gt $DATE){
+    $FORM{FROM_DATE} = $DATE;
+  }
+
+  if($FORM{TO_DATE} && $FORM{TO_DATE} gt $DATE){
+    $FORM{TO_DATE} = $DATE;
+  }
+
+  my $installations = $Storage->storage_installation_list({
+    COUNT        => '_SHOW',
+    SUM          => '_SHOW',
+    STA_NAME     => '_SHOW',
+    DATE         => ($FORM{TO_DATE} ? "<=$FORM{TO_DATE}" : "<=$DATE"),
+    SERIAL       => '_SHOW',
+    ADMIN_NAME   => '_SHOW',
+    STORAGE_NAME => '_SHOW',
+    MEASURE_NAME => '_SHOW',
+    TO_DATE      => $FORM{TO_DATE} || $DATE,
+    FROM_DATE    => $FORM{FROM_DATE} || $DATE,
+    AID          => $FORM{INSTALLED_AID} || '_SHOW',
+    SAT_ID       => $FORM{TYPE_ID} || '_SHOW',
+    STORAGE_ID   => $FORM{STORAGE_ID} || '_SHOW',
+    COLS_NAME    => 1
+  });
+
+  my $installed_table = $html->table({
+    width      => '100%',
+    caption    => $lang{INSTALLED_PERIOD} . " (" . ($FORM{FROM_DATE} || $DATE) . " - " . ($FORM{TO_DATE} || $DATE) . " )",
+    title      => [ $lang{NAME}, $lang{COUNT}, $lang{PRICE},
+      $lang{SERIAL}, $lang{RESPONSIBLE}, $lang{DATE}, $lang{STORAGE} ],
+    ID         => 'STORAGE_INSTALLED_TABLE',
+    DATA_TABLE => { "order" => [ [ 1, "desc" ] ] },
+    EXPORT     => 1,
+  });
+
+  foreach my $install (@{$installations}) {
+    $installed_table->addrow($install->{sta_name}, $install->{count} . ' ' . _translate($install->{measure_name}), $install->{sum},
+      $install->{serial}, $install->{admin_name}, $install->{date}, $install->{storage_name});
+  }
+
+  print $installed_table->show();
+
+  return 1;
 }
 
 1;

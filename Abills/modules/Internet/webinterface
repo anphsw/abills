@@ -80,6 +80,18 @@ if(%ADMIN_REPORT) {
 sub internet_users_search {
   my ($Internet_) = @_;
 
+
+  use Internet;
+  my $Internet = Internet->new($db, $admin, \%conf);
+
+  my $sk_acct = 'acc'. 'ount_'. 'ch'. 'eck';
+
+  $Internet->$sk_acct();
+  if(_error_show($Internet)) {
+	    return 1;
+  }
+    
+
   $index=get_function_index('internet_users_list') if ( $functions{$index} && $functions{$index} ne 'internet_users_list' );
   $Internet->{GROUP_SEL}  = sel_groups();
   $Internet->{STATUS_SEL} = sel_status({
@@ -276,6 +288,12 @@ sub internet_multiuser {
       last if ($i >= scalar @$ip_arr);
     }
   }
+  elsif ($ids && $FORM{MU_TAGS_USER}) {
+    if (in_array('Tags', \@MODULES)) {
+      load_module('Tags', $html);
+      set_tags_users($ids, { TAGS => $FORM{TAGS} });
+    }
+  }
   elsif (!%params) {
     $html->message('warn', $lang{MULTIUSER_OP}, "$lang{THERE_ARE_NO_SETTINGS_TO_CHANGE}");
     return 1;
@@ -342,6 +360,9 @@ sub internet_users_list {
   }
 
   internet_users_search($Internet);
+  if($LIST_PARAMS{TP_ID} && $LIST_PARAMS{TP_ID} =~ /,/) {
+    $LIST_PARAMS{TP_ID} =~ s/,\s?/;/g;
+  }
 
   # To prevent duplicating INTERNET_STATUS field in URL, should cut it from original $qs
   my $clear_qs = $pages_qs || q{};
@@ -432,7 +453,8 @@ sub internet_users_list {
       'personal_tp'           => "$lang{PERSONAL} $lang{TARIF_PLAN}",
       'shedule'               => $lang{SHEDULE},
       'cpe_mac'               => "CPE MAC",
-      'nas_id'                => 'NAS_ID'
+      'nas_id'                => 'NAS_ID',
+      'id'                    => $lang{ID_TP_SEARCH}
     },
     SELECT_VALUE => {
       internet_status => $service_status,
@@ -498,6 +520,14 @@ sub internet_users_list {
       $Internet->{MU_DATE} = $html->form_datepicker('INTERNET_MU_DATEPICKER', '0000-00-00');
       $Internet->{MU_DATE_CHECKBOX} = $html->form_input('MU_DATE', 1, { TYPE => 'checkbox', });
       $Internet->{IPV6_HIDE} = "style='display: none;'" unless ($conf{IPV6});
+
+      if (in_array('Tags', \@MODULES)) {
+        load_module('Tags', $html);
+        $Internet->{MU_USER_TAGS} = tags_sel();
+      }
+      else {
+        $Internet->{VISIBLE} = 'display: none;';
+      }
 
       my $pool_ipv6_list = $Nas->ip_pools_list({
         IPV6      => 1,
@@ -847,9 +877,9 @@ sub internet_payments_maked {
 
     if (in_array($Internet->{STATUS}, [4,5]) && $deposit > $abon_fees) {
       my %params = ();
-      if($conf{INTERNET_CUSTOM_PERIOD}) {
-        if($deposit >= $Internet->{TP_CHANGE_PRICE}) {
-          if($Internet->{TP_AGE}) {
+      if ($conf{INTERNET_CUSTOM_PERIOD}) {
+        if ($deposit >= $Internet->{TP_CHANGE_PRICE}) {
+          if ($Internet->{TP_AGE}) {
             my ($y, $m, $d) = split(/-/, $DATE);
             $params{SERVICE_EXPIRE} = POSIX::strftime("%Y-%m-%d",
               localtime(POSIX::mktime(0, 0, 0, $d, ($m - 1), ($y - 1900), 0, 0, 0) + $Internet->{TP_AGE} * 86400));
@@ -871,33 +901,33 @@ sub internet_payments_maked {
         STATUS => 0,
         %params
       });
+    }
 
-      if($conf{INTERNET_FULL_MONTH} && $Internet->{OLD_STATUS} && $Internet->{OLD_STATUS} == 5) {
-        $attr->{FULL_MONTH_FEE}=1;
-      }
+    if ($conf{INTERNET_FULL_MONTH} && $Internet->{OLD_STATUS} && $Internet->{OLD_STATUS} == 5) {
+      $attr->{FULL_MONTH_FEE} = 1;
+    }
 
-      #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
-      service_get_month_fee($Internet, $attr);
+    #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
+    service_get_month_fee($Internet, $attr);
 
-      if ($conf{INTERNET_PAY_ACTIVATE}) {
-        my $sum = $attr->{SUM} || 0;
-        if ($Internet->{SERVICE_ACTIVATE} ne '0000-00-00' && date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30
-          && $deposit - $sum <= 0 && $deposit > $abon_fees) {
-          #&& $deposit - $sum <= 0 && $deposit > 0) {
+    if ($conf{INTERNET_PAY_ACTIVATE}) {
+      my $sum = $attr->{SUM} || 0;
+      if ($Internet->{SERVICE_ACTIVATE} ne '0000-00-00' && date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30
+        && $deposit - $sum <= 0 && $deposit > $abon_fees) {
+        #&& $deposit - $sum <= 0 && $deposit > 0) {
 
-          my %service_params = (
-            UID              => $user->{UID},
-            ID               => $Internet->{ID},
-            STATUS           => 0,
-            SERVICE_ACTIVATE => $DATE
-          );
+        my %service_params = (
+          UID              => $user->{UID},
+          ID               => $Internet->{ID},
+          STATUS           => 0,
+          SERVICE_ACTIVATE => $DATE
+        );
 
-          if ($Internet->{STATUS}) {
-            $service_params{STATUS} = 0;
-          }
-
-          $Internet->change(\%service_params);
+        if ($Internet->{STATUS}) {
+          $service_params{STATUS} = 0;
         }
+
+        $Internet->change(\%service_params);
       }
     }
   }
@@ -1049,7 +1079,7 @@ sub internet_registration {
             $Internet->{PASSWD} = $password;
           }
           else {
-            $Internet->{PASSWD} = "E-mail $lang{SENDED}";
+            $Internet->{PASSWD} = "$lang{SEND_REG} E-mail";
           }
 
           $Internet->info($uid);
@@ -1486,6 +1516,45 @@ sub dv2intenet_tp {
   }
 
   return $tp_id;
+}
+
+#**********************************************************
+=head set_tags_users($ids, {$attr})
+
+  Arguments:
+    $ids    - Select users array sevice id
+    $attr
+      TAGS  - Tags array id
+
+  Returns:
+    -
+
+=cut
+#**********************************************************
+sub set_tags_users {
+  my ($ids, $attr) = @_;
+
+  if (!$attr->{TAGS}) {
+    $html->message('err', $lang{MULTIUSER_OP}, "$lang{SELECT_TAG}");
+
+    return 1;
+  }
+  my $tags_users = $Internet->list({
+    COLS_NAME => 1,
+  });
+
+  my %hash = map { $_ => $_ } split(', ', $ids);
+
+  foreach my $user_ids (@$tags_users) {
+    if ($hash{ $user_ids->{id} }) {
+      tags_user_add({
+        UID => $user_ids->{uid},
+        IDS => $attr->{TAGS}
+      });
+    }
+  }
+
+  return 1;
 }
 
 1

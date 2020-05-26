@@ -267,6 +267,7 @@ sub _msgs_dispatches_job_list {
     MSG_ID        => '_SHOW',
     COLS_NAME     => 1,
     SORT          => 'm.plan_time',
+    PAGE_ROWS     => 10000
   });
 
   foreach my $message (@{$messages}) {
@@ -415,15 +416,16 @@ sub msgs_dispatch {
       SORT           => 'm.plan_time',
     });
 
+    $Msgs->{PLAN_DATE_LIT} = '';
     if (in_array('Docs', \@MODULES)) {
       ($Msgs->{Y}, $Msgs->{M}, $Msgs->{D}) = split(/-/, ($Msgs->{PLAN_DATE}) || '');
-      $Msgs->{PLAN_DATE_LIT} = "$Msgs->{D} " . $MONTHES_LIT[ int($Msgs->{M}) - 1 ] . " $Msgs->{Y} $lang{YEAR}";
-    }
-    else {
-      $Msgs->{PLAN_DATE_LIT} = '';
-    }
-    my $i = 1;
 
+      if ($Msgs->{Y} && $Msgs->{M} && $Msgs->{D}) {
+        $Msgs->{PLAN_DATE_LIT} = "$Msgs->{D} " . $MONTHES_LIT[ int($Msgs->{M}) - 1 ] . " $Msgs->{Y} $lang{YEAR}";
+      }
+    }
+
+    my $i = 1;
     foreach my $line (@{$value_list}) {
       $ORDERS{"$line->{param}"} = $line->{value};
     }

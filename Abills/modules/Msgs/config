@@ -23,7 +23,7 @@ our %FUNCTIONS_LIST = (
   "19:8:$lang{TEMPLATES}:msgs_templates_report:"                     => 4,
   "20:8:$lang{ADMIN_STATISTICS}:msgs_admin_statistics:"              => 4,
   "20:8:$lang{REPLYS_AND_TIME}:report_replys_and_time:"              => 4,
-
+  "22:8:$lang{TICKET_REPORT}:msgs_admin_report:"                     => 4,
 );
 
 %USER_FUNCTION_LIST = ();
@@ -58,6 +58,8 @@ elsif ( defined($admin->{AID}) ) {
   $FUNCTIONS_LIST{"39:10:$lang{DELIVERY}:msgs_delivery_main:"} = 8;
   $FUNCTIONS_LIST{"40:01::msgs_admin_quick_message:IN_MODAL"} = 8;
   $FUNCTIONS_LIST{"45:01::msgs_repeat_ticket:AJAX"} = 8;
+  $FUNCTIONS_LIST{"46:10:$lang{TICKET_BRIGADE}:msgs_team_set_ticket:"} = 8;
+  $FUNCTIONS_LIST{"47:46:$lang{LOCATION_BRIGADE}:msgs_team_location:"} = 8;
 
   if($conf{MSGS_CHAT}) {
     $FUNCTIONS_LIST{"21:1:Msgs:show_admin_chat:AJAX"} = 5;

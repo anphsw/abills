@@ -1,3 +1,5 @@
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 CREATE TABLE IF NOT EXISTS `cams_tp` (
   `tp_id` SMALLINT(5) UNSIGNED DEFAULT '0',
   `streams_count` smallint(6) unsigned DEFAULT 0,
@@ -129,7 +131,6 @@ CREATE TABLE IF NOT EXISTS `cams_folder` (
   `street_id` int(11) unsigned NOT NULL DEFAULT '0',
   `build_id` int(11) unsigned NOT NULL DEFAULT '0',
   `subfolder_id` VARCHAR(32) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `title` (`title`)
+  PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET=utf8 COMMENT='Cams Folder';

@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS `admin_actions` (
   `module`      VARCHAR(10)          NOT NULL DEFAULT '',
   `action_type` TINYINT(2)           NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   KEY `uid` (`uid`)
 )
   DEFAULT CHARSET = utf8
@@ -244,7 +243,6 @@ CREATE TABLE IF NOT EXISTS `companies` (
   `address_flat`     varchar(10)           NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `bill_id` (`bill_id`),
-  UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`domain_id`, `name`)
 )
   DEFAULT CHARSET = utf8
@@ -407,9 +405,9 @@ CREATE TABLE IF NOT EXISTS `exchange_rate` (
   `rate`       DOUBLE(12, 4)        NOT NULL DEFAULT '0.0000',
   `changed`    DATE                 NOT NULL DEFAULT '0000-00-00',
   `id`         SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY `id` (`id`),
   UNIQUE KEY `money` (`money`),
-  UNIQUE KEY `short_name` (`short_name`),
-  UNIQUE KEY `id` (`id`)
+  UNIQUE KEY `short_name` (`short_name`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Exchange rate';
@@ -441,9 +439,9 @@ CREATE TABLE IF NOT EXISTS `fees` (
   `method`         TINYINT(4) UNSIGNED   NOT NULL  DEFAULT '0',
   `reg_date`       DATETIME              NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   KEY `date` (`date`),
-  KEY `uid` (`uid`)
+  KEY `uid` (`uid`),
+  KEY `aid` (`aid`)
 );
 
 CREATE TABLE IF NOT EXISTS `filters` (
@@ -555,7 +553,8 @@ CREATE TABLE IF NOT EXISTS `internet_main` (
   PRIMARY KEY (`id`),
   KEY `uid` (`uid`),
   KEY `port` (`port`),
-  KEY `nas_id` (`nas_id`)
+  KEY `nas_id` (`nas_id`),
+  KEY `tp_id` (`tp_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT ='Internet users';
@@ -607,7 +606,8 @@ CREATE TABLE IF NOT EXISTS `internet_online` (
   KEY `framed_ip_address` (`framed_ip_address`),
   KEY `service_id` (`service_id`),
   KEY `nas_id` (`nas_id`),
-  KEY `uid` (`uid`)
+  KEY `uid` (`uid`),
+  KEY `switch_mac` (`switch_mac`)
 )
   DEFAULT CHARSET = utf8
   COMMENT ='Internet online';
@@ -641,7 +641,7 @@ CREATE TABLE IF NOT EXISTS `internet_log` (
   COMMENT = 'Internet sessions logs';
 
 CREATE TABLE IF NOT EXISTS `internet_users_pool` (
-  `service_id`  SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `service_id`  INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `pool_id`   SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `comments`    VARCHAR(60) NOT NULL DEFAULT '',
   PRIMARY KEY (`service_id`)
@@ -735,7 +735,9 @@ CREATE TABLE IF NOT EXISTS `ippools` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `nas` (`nas`, `ip`),
   KEY `guest` (`guest`),
-  KEY `priority` (`priority`)
+  KEY `priority` (`priority`),
+  KEY `static` (`static`),
+  KEY `ipv6_prefix` (`ipv6_prefix`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'IP Pools';
@@ -891,6 +893,20 @@ CREATE TABLE IF NOT EXISTS `msgs_messages` (
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs Messages';
 
+CREATE TABLE IF NOT EXISTS `msgs_address` (
+	`id`        INT(11)     UNSIGNED            NOT NULL PRIMARY KEY,
+	`districts` SMALLINT(6) UNSIGNED DEFAULT 0  NOT NULL,
+	`street`    SMALLINT(6) UNSIGNED DEFAULT 0  NOT NULL,
+	`build`     SMALLINT(6) UNSIGNED DEFAULT 0  NOT NULL,
+	`flat`      VARCHAR(5)           DEFAULT '' NOT NULL,
+  
+  CONSTRAINT `msgs_id` FOREIGN KEY (`id`)
+      REFERENCES `msgs_messages` (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Msgs set address';
+
+
 CREATE TABLE IF NOT EXISTS `msgs_watch` (
   `main_msg` INT(11) UNSIGNED  NOT NULL  DEFAULT 0  REFERENCES `msgs_messages` (`id`),
   `aid`      SMALLINT UNSIGNED NOT NULL  DEFAULT 0,
@@ -956,7 +972,6 @@ CREATE TABLE IF NOT EXISTS `msgs_unreg_requests` (
   `referral_uid`    INTEGER(11) UNSIGNED   NOT NULL DEFAULT '0',
   `domain_id`       SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   KEY `state` (`state`),
   KEY `datetime` (`datetime`),
   KEY `location_id` (`location_id`)
@@ -973,8 +988,7 @@ CREATE TABLE IF NOT EXISTS `msgs_survey_questions` (
   `comments`      TEXT                 NOT NULL,
   `user_comments` TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
   `fill_default`  TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`)
+  PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Messages Survey questions';
@@ -1020,8 +1034,8 @@ CREATE TABLE IF NOT EXISTS `msgs_status` (
   `task_closed` TINYINT(1)           NOT NULL DEFAULT 0,
   `color`       VARCHAR(7)           NOT NULL DEFAULT '',
   `icon`        VARCHAR(30)          NOT NULL DEFAULT '',
-  UNIQUE `name` (`name`),
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE `name` (`name`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Messages statuses';
@@ -1050,7 +1064,6 @@ CREATE TABLE IF NOT EXISTS `msgs_delivery_users` (
   `send_method`  TINYINT(2) UNSIGNED  NOT NULL DEFAULT '0',
   `status`       TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   UNIQUE KEY `mdelivery_id` (`mdelivery_id`, `uid`)
 )
   DEFAULT CHARSET = utf8
@@ -1078,6 +1091,34 @@ REPLACE INTO `msgs_status` (`id`, `name`, `readiness`, `task_closed`, `color`, `
   ('9', '$lang{NOTIFICATION_MSG}', '0', '0', '', 'fa fa-flag text-red'),
   ('10', '$lang{NOTIFICATION_MSG}  $lang{READED}', '100', '0', '', 'fa fa-flag-o text-red'),
   ('11', '$lang{POTENTIAL_CLIENT}', '0', '0', '', 'fa fa-user-plus text-green');
+
+CREATE TABLE `msgs_team_ticket` (
+  `id`          INT(11)      UNSIGNED NOT NULL DEFAULT 0,
+  `responsible` SMALLINT(6)  UNSIGNED NOT NULL DEFAULT 0,
+  `state`       TINYINT(3)   UNSIGNED NOT NULL DEFAULT 0,
+  `id_team`     INT(11)      UNSIGNED NOT NULL DEFAULT 0,
+  
+  PRIMARY KEY (`id`),
+  KEY `msgs_id_team_fk` (`id_team`),
+
+  CONSTRAINT `msgs_dispatch_fk` FOREIGN KEY (`id`) REFERENCES `msgs_messages` (`id`),
+  CONSTRAINT `msgs_id_team_fk` FOREIGN KEY (`id_team`) REFERENCES `msgs_dispatch` (`id`)
+)
+DEFAULT CHARSET=utf8 
+COMMENT='Table team ticket';
+
+
+CREATE TABLE `msgs_team_address` (
+  `id`          SMALLINT(3)   UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id_team`     INT(11)       UNSIGNED NOT NULL DEFAULT 0,
+  `district_id` SMALLINT(3)   UNSIGNED NOT NULL DEFAULT 0,
+  `street_id`   SMALLINT(3)   UNSIGNED NOT NULL DEFAULT 0,
+  `build_id`    SMALLINT(3)   UNSIGNED NOT NULL DEFAULT 0,
+  
+  PRIMARY KEY (`id`)
+) 
+DEFAULT CHARSET=utf8 
+COMMENT='Table team location';
 
 CREATE TABLE IF NOT EXISTS `nas` (
   `id`             SMALLINT(5) UNSIGNED NOT NULL  AUTO_INCREMENT,
@@ -1179,26 +1220,25 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `ext_id`         VARCHAR(28)          NOT NULL  DEFAULT '',
   `bill_id`        INT(11) UNSIGNED     NOT NULL  DEFAULT '0',
   `inner_describe` VARCHAR(80)          NOT NULL  DEFAULT '',
-  `amount`         DOUBLE(10, 2)        NOT NULL  DEFAULT '0.00'
-  COMMENT 'Sum in currency',
+  `amount`         DOUBLE(10, 2)        NOT NULL  DEFAULT '0.00' COMMENT 'Sum in currency',
   `currency`       SMALLINT UNSIGNED    NOT NULL  DEFAULT 0,
   `reg_date`       DATETIME             NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   KEY `date` (`date`),
-  KEY `uid` (`uid`)
+  KEY `uid` (`uid`),
+  KEY `aid` (`aid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Payments log';
 
 CREATE TABLE IF NOT EXISTS `payments_type` (
-  `id`    INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `name`  VARCHAR(50) NOT NULL         DEFAULT '',
-  `color` VARCHAR(7)  NOT NULL         DEFAULT '',
-  UNIQUE KEY `id` (`id`)
+    `id`              INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    `name`            VARCHAR(50)         NOT NULL DEFAULT '',
+    `color`           VARCHAR(7)          NOT NULL DEFAULT '',
+    `default_payment` TINYINT(3) UNSIGNED NOT NULL DEFAULT 0
 )
-  DEFAULT CHARSET = utf8
-  COMMENT = 'Add new payment type';
+    DEFAULT CHARSET = utf8
+    COMMENT = 'Add new payment type';
 
 SET SESSION sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
 REPLACE INTO `payments_type` (`id`, `name`, `color`) VALUES
@@ -1315,7 +1355,7 @@ CREATE TABLE IF NOT EXISTS `shedule` (
   `admin_action` TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
   `service_id`   INT(11) UNSIGNED     NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_action` (`h`, `d`, `m`, `y`, `type`, `uid`, `module`),
+  UNIQUE KEY `uniq_action` (`h`, `d`, `m`, `y`, `type`, `uid`, `module`, `action`(255)),
   KEY `date_type_uid` (`date`, `type`, `uid`),
   KEY `uid` (`uid`),
   KEY `aid` (`aid`)
@@ -1433,7 +1473,7 @@ CREATE TABLE IF NOT EXISTS `tp_nas` (
 
 CREATE TABLE IF NOT EXISTS `trafic_tarifs` (
   `id`                 TINYINT(4)             NOT NULL DEFAULT '0',
-  `descr`              VARCHAR(30)                     DEFAULT NULL,
+  `descr`              VARCHAR(30)                     DEFAULT '',
   `net_id`             SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
   `nets`               TEXT,
   `tp_id`              SMALLINT(5) UNSIGNED   NOT NULL DEFAULT '0',
@@ -1464,7 +1504,6 @@ CREATE TABLE IF NOT EXISTS `traffic_classes` (
   `comments` TEXT                 NOT NULL,
   `changed`  DATETIME             NOT NULL  DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
 )
   DEFAULT CHARSET = utf8
@@ -1494,7 +1533,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `id` (`domain_id`, `id`),
   KEY `bill_id` (`bill_id`),
   KEY `gid` (`gid`),
-  KEY `company_id` (`company_id`)
+  KEY `company_id` (`company_id`),
+  KEY `deleted` (`deleted`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Users list';
@@ -1560,6 +1600,7 @@ CREATE TABLE IF NOT EXISTS `users_pi` (
   `city`           VARCHAR(20)          NOT NULL DEFAULT '',
   `accept_rules`   TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
   `location_id`    INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
+  `tax_number`     VARCHAR(30)          NOT NULL DEFAULT '0',
   PRIMARY KEY (`uid`),
   KEY `location_id` (`location_id`)
 )
@@ -1600,7 +1641,6 @@ CREATE TABLE IF NOT EXISTS `sqlcmd_history` (
   `db_id`     TINYINT(4) UNSIGNED  NOT NULL DEFAULT '0',
   `comments`  TEXT                 NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   KEY `aid` (`aid`)
 )
   DEFAULT CHARSET = utf8
@@ -1649,7 +1689,6 @@ CREATE TABLE IF NOT EXISTS `districts` (
   `zoom`      TINYINT(2)           NOT NULL DEFAULT '0',
   `domain_id` SMALLINT(4) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`city`, `name`, `domain_id`)
 )
   DEFAULT CHARSET = utf8
@@ -2066,7 +2105,8 @@ CREATE TABLE IF NOT EXISTS `users_contracts` (
   `reg_date`   DATETIME             NOT NULL DEFAULT '0000-00-00 00:00:00',
   `aid`        INT(11) UNSIGNED     NOT NULL DEFAULT '0',
   `signature`  TEXT,
-  PRIMARY KEY `id` (`id`)
+  PRIMARY KEY `id` (`id`),
+  KEY `uid` (`uid`)
 )
   DEFAULT CHARSET = utf8
   COMMENT ='Contracts';
@@ -2075,7 +2115,7 @@ CREATE TABLE IF NOT EXISTS `contracts_type` (
   `id`       SMALLINT(5) unsigned NOT NULL AUTO_INCREMENT,
   `name`     VARCHAR(120)         NOT NULL DEFAULT '',
   `template` VARCHAR(40)          NOT NULL DEFAULT '',
-  UNIQUE KEY `id` (`id`)
+  PRIMARY KEY `id` (`id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT ='Contracts type';

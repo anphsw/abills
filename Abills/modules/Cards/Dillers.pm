@@ -1349,14 +1349,18 @@ sub cards_diller_search {
             $user_fio = $contract_id->{fio};
           }
         }
+
+        my $after_pay = _format_sum($payment->{after_deposit});
+        my $sum_out = _format_sum($payment->{sum});
+
         $table->addrow(
           $payment->{uid},
           $payment->{login},
           $user_fio,
           $payment->{datetime},
           $payment->{dsc},
-          sprintf('%.2f', $payment->{after_deposit}),
-          sprintf('%.2f', $payment->{sum}),
+          $after_pay,
+          $sum_out,
           $payment->{admin_name},
           $contract,
           $type_operation[ 0 ],
@@ -1441,13 +1445,17 @@ sub cards_diller_search {
           $contract = $contract_id->{contract_id};
         }
       }
+
+      my $after_dep = _format_sum($element->{after_deposit});
+      my $sum_out = _format_sum($element->{sum});
+
       $table->addrow(
         $element->{uid},
         $element->{login},
         $element->{datetime},
         $element->{dsc},
-        sprintf('%.2f', $element->{after_deposit}),
-        sprintf('%.2f', $element->{sum}),
+        $after_dep,
+        $sum_out,
         $element->{admin_name},
         $contract,
         $type_operation[ 0 ],
@@ -1651,14 +1659,18 @@ sub cards_diller_operations_log {
           $user_fio = $contract_id->{fio};
         }
       }
+
+      my $after_dep = _format_sum($element->{after_deposit});
+      my $sum_out = _format_sum($element->{sum});
+
       $table->addrow(
         $element->{uid},
         $element->{login},
         $user_fio,
         $element->{datetime},
         $element->{dsc},
-        sprintf('%.2f', $element->{after_deposit}),
-        sprintf('%.2f', $element->{sum}),
+        $after_dep,
+        $sum_out,
         $element->{admin_name},
         $contract,
         $type_operation[ 0 ],

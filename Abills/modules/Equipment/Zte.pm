@@ -15,7 +15,8 @@ our (
   %lang,
   $html,
   %conf,
-  $base_dir
+  $base_dir,
+  %ONU_STATUS_TEXT_CODES
 );
 
 my %type_name = (
@@ -748,20 +749,20 @@ sub _zte_onu_status {
   my ($pon_type) = @_;
 
   my %status = (
-    0 => 'unknown:text-orange',
-    1 => 'LOS:text-red',
-    2 => 'Synchronization:text-red',
-    3 => 'Online:text-green',
-    4 => 'Dying_gasp:text-red',
-    5 => 'Power_Off:text-orange',
-    6 => 'Offline:text-red',
+    0 => $ONU_STATUS_TEXT_CODES{UNKNOWN},
+    1 => $ONU_STATUS_TEXT_CODES{LOS},
+    2 => $ONU_STATUS_TEXT_CODES{SYNC},
+    3 => $ONU_STATUS_TEXT_CODES{ONLINE},
+    4 => $ONU_STATUS_TEXT_CODES{DYING_GASP},
+    5 => $ONU_STATUS_TEXT_CODES{POWER_OFF},
+    6 => $ONU_STATUS_TEXT_CODES{OFFLINE}
   );
 
   if ($pon_type eq 'epon') {
     %status = (
-      1 => 'Power_Off:text-orange',
-      2 => 'Offline:text-red',
-      3 => 'Online:text-green'
+      1 => $ONU_STATUS_TEXT_CODES{POWER_OFF},
+      2 => $ONU_STATUS_TEXT_CODES{OFFLINE},
+      3 => $ONU_STATUS_TEXT_CODES{ONLINE},
     );
   }
 
@@ -1176,6 +1177,8 @@ sub _zte_unregister {
   #my $unreg_type = ($attr->{NAS_INFO}->{MODEL_NAME} && $attr->{NAS_INFO}->{MODEL_NAME} eq 'C320') ? 'unregister_c320' : 'unregister';
   my $unreg_type = 'unregister_gpon';
   my $snmp = _zte({ TYPE => $unreg_type });
+  my %unregister_onus = ();
+
   #my $nas_model = $attr->{NAS_INFO}->{MODEL_NAME};
 
   #if(($attr->{NAS_INFO}->{MODEL_NAME} && $attr->{NAS_INFO}->{MODEL_NAME} eq 'C320')) {
@@ -1192,10 +1195,10 @@ sub _zte_unregister {
 
     foreach my $line (@$unreg_result) {
       next if (!$line);
-      $line =~ /^([0-9\.]+):(.{0,100})$/ig;
+      $line =~ /^([0-9\.]+):(.{0,200})$/ig;
       my ($id, $value)=($1, $2);
 
-      my ($branch, $num) = split(/\./, $id);
+      my ($branch, undef) = split(/\./, $id);
       if (!$oid_type) {
         next
       }
@@ -1210,10 +1213,10 @@ sub _zte_unregister {
       #        }
 
       #print "$num TYPE: $oid_type // $id, $value //<br>";
-      $unregister[$num - 1]->{$oid_type} = $value;
-      $unregister[$num - 1]->{'branch'} = decode_onu($branch, { MODEL_NAME => $attr->{NAS_INFO}->{MODEL_NAME} });
-      $unregister[$num - 1]->{'branch_num'} = $branch;
-      $unregister[$num - 1]->{'pon_type'} = $snmp->{$oid_type}->{TYPE} if ($snmp->{$oid_type}->{TYPE});
+      $unregister_onus{$id}->{$oid_type}    = $value;
+      $unregister_onus{$id}->{'branch'}     = decode_onu($branch, { MODEL_NAME => $attr->{NAS_INFO}->{MODEL_NAME} });
+      $unregister_onus{$id}->{'branch_num'} = $branch;
+      $unregister_onus{$id}->{'pon_type'}   = $snmp->{$oid_type}->{TYPE} if ($snmp->{$oid_type}->{TYPE});
     }
   }
 
@@ -1247,7 +1250,7 @@ sub _zte_unregister {
 
   foreach my $line (@$unreg_result) {
     next if (!$line);
-    my ($id, $value) = split(/:/, $line || q{});
+    my ($id, $value) = split(/:/, $line || q{}, 2);
 
     my ($type, $branch, $num) = split(/\./, $id || q{});
     next if (!$unreg_info{$type});
@@ -1256,10 +1259,14 @@ sub _zte_unregister {
       $value = bin2mac($value);
     }
 
-    $unregister[$num - 1]->{$unreg_info{$type}} = $value;
-    $unregister[$num - 1]->{'branch'} = decode_onu($branch, { MODEL_NAME => $attr->{NAS_INFO}->{MODEL_NAME} });
-    $unregister[$num - 1]->{'branch_num'} = $branch;
-    $unregister[$num - 1]->{'pon_type'} = $snmp->{UNREGISTER}->{TYPE};
+    $unregister_onus{$branch .'_'. $num}->{$unreg_info{$type}} = $value;
+    $unregister_onus{$branch .'_'. $num}->{'branch'}           = decode_onu($branch, { MODEL_NAME => $attr->{NAS_INFO}->{MODEL_NAME} });
+    $unregister_onus{$branch .'_'. $num}->{'branch_num'}       = $branch;
+    $unregister_onus{$branch .'_'. $num}->{'pon_type'}         = $snmp->{UNREGISTER}->{TYPE};
+  }
+
+  foreach my $branch_num ( keys %unregister_onus ) {
+    push @unregister, $unregister_onus{$branch_num};
   }
 
   return \@unregister;

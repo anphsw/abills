@@ -23,7 +23,7 @@
                 </div>
                 <div class='form-group'>
                     <label class='font-weight-bold text-center col-md-6 form-control-label col-xs-12'>_{BALANCE_RECHARCHE_SUM}_:</label>
-                    <label class='font-weight-bold col-md-6 form-control-label col-xs-12'>$FORM{SUM}</label>
+                    <label class='font-weight-bold col-md-6 form-control-label col-xs-12'>%SUM%</label>
                 </div>
                 <div class='form-group'>
                     <label class='font-weight-bold text-center col-md-6 form-control-label'>_{COMMISSION}_:</label>

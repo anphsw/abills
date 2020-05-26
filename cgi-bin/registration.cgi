@@ -160,7 +160,7 @@ elsif ($#REGISTRATION > -1) {
         $choose_module_buttons .= "<li><a href='?module=" . $registration_module ."'><span>" . ($lang_module{ $registration_module } || $registration_module). "</span></a></li>"
       }
     }
-    if (!$FORM{LOCATION_ID} && !$FORM{no_addr}) {
+    if (!$FORM{LOCATION_ID} && !$FORM{no_addr} && $conf{CHECK_ADDRESS_REGISTRATION}) {
       $choose_module_buttons .= "<li><a data-toggle='modal' data-target='#checkAddress'><span>" . $lang{CHECK_ADDRESS} . "</span></a></li>";
     }
     $choose_module_buttons .= "</ul>";
@@ -196,19 +196,26 @@ elsif ($#REGISTRATION > -1) {
     if ($return && $return > 1) {
       my $message = $html->tpl_show(templates('registration_admin_notification'),
         {
-          LOGIN => $FORM{LOGIN},
-          FIO   => $FORM{FIO},
-          DATE  => $DATE,
-          TIME  => $TIME,
-          REMOTE_ADDR=> $ENV{REMOTE_ADDR},
-          MODULE=> $m,
-          EMAIL => $FORM{EMAIL}
+          LOGIN       => $FORM{LOGIN},
+          FIO         => $FORM{FIO},
+          DATE        => $DATE,
+          TIME        => $TIME,
+          REMOTE_ADDR => $ENV{REMOTE_ADDR},
+          MODULE      => $m,
+          PHONE       => $FORM{PHONE},
+          EMAIL       => $FORM{EMAIL},
+          UID         => '--',
+          COMMENT     => $FORM{COMMENTS},
+          TIME_CONECT => $FORM{CONNECTION_TIME},
         },
         { OUTPUT2RETURN => 1});
 
-      if ($conf{REGISTRATION_EXTERNAL}) {
-        if (!_external($conf{REGISTRATION_EXTERNAL}, { %FORM })) {
-          #return 0;
+      if ($message) {
+        my $SENDMAIL = '/usr/sbin/sendmail';
+        if (!-f $SENDMAIL) {
+          print "Content-Type: text/html\n\n";
+          print "Mail delivery agent not exists";
+          return 0;
         }
       }
 
@@ -273,6 +280,13 @@ else {
 =cut
 #**********************************************************
 sub password_recovery {
+
+  my $SENDMAIL = '/usr/sbin/sendmail';
+  if (!-f $SENDMAIL) {
+    $html->message('err', $lang{ERROR}, "Mail delivery agent not exists");
+    return 0;
+  }
+  
   if ($FORM{SEND} && (!$conf{REGISTRATION_CAPTCHA} || check_captcha(\%FORM))) {
     password_recovery_process();
   }
@@ -313,8 +327,9 @@ sub password_recovery_process {
   }
 
   my $users_list = $users->list({
-    PHONE => '_SHOW',
-    EMAIL => '_SHOW',
+    PHONE         => '_SHOW',
+    EMAIL         => '_SHOW',
+    FORGOT_PASSWD => '_SHOW',
     %FORM,
     COLS_NAME => 1
   });

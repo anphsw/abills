@@ -5,6 +5,7 @@
                 <div class="inner">
                     <h3>_{WARNING}_</h3>
                     <p>_{WARNING_ACCIDENT}_</p>
+                    <p>%WORK_MESS%</p>
                 </div>
                 <div class="icon">
                     <i class="fa fa-warning"></i>

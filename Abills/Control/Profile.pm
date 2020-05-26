@@ -208,6 +208,14 @@ sub flist {
 
   my $mi;
 
+  my $tag_count;
+  my $form_tags_sel;
+
+  if (in_array('Tags', \@MODULES)) {
+    load_module('Tags');
+    ($form_tags_sel, $tag_count) = tags_sel({ HASH => 1 });
+  }
+
   for (my $parent = 0 ; $parent <= $#menu_sorted ; $parent++) {
     my $val    = $h->{$parent};
     my $level  = 0;
@@ -230,6 +238,14 @@ sub flist {
         if (defined($qm{$functions{ $k }})) {
           $checked = 1;
           $val     = $html->b($val);
+        }
+
+        if ($functions{ $k } =~ /group/ && !$permissions{0}{28}) {
+          next;
+        }
+
+        if ( ($functions{ $k } =~ /tags/ && !$admin->{MODULES}{'Tags'}) || !$tag_count) {
+          next;
         }
 
         $table->addrow(

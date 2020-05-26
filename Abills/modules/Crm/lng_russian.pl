@@ -39,4 +39,8 @@ $lang{CHOOSE}='Выберите';
 $lang{ADD_TAGS}='Добавить теги';
 $lang{NO_CLICK_USER}='Не выбрано ни одного пользователя для рассылки';
 
+$lang{NO_EMAIL}='Укажите в конфигурационном файле E-Mail адрес: ';
+$lang{NO_EMAIL_LEAD}='В лидов нет E-Mail:';
+$lang{DELIVERY} = 'Рассылка';
+
 1

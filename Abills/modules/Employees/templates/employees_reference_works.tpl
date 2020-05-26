@@ -35,12 +35,15 @@
       <input type='text' class='form-control' name='UNITS' value='%UNITS%'>
     </div>
   </div>
-  <div class='checkbox text-center'>
+
+  <div class='form-group'>
+  <label class='control-label col-md-3'>_{DISABLED}_</label>
+  <div class='checkbox ' align="left">
         <label>
-            <input type='checkbox' data-return='1' data-checked='%DISABLED%' name='DISABLED'   id='DISABLED_ID'  value='1'/>
-            <strong>_{DISABLED}_</strong>
+            <input type='checkbox' data-return='1' data-checked='%DISABLED%' name='DISABLED'   id='DISABLED_ID'  value='1' />
         </label>
       </div>
+  </div>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{COMMENTS}_</label>
     <div class='col-md-9'>

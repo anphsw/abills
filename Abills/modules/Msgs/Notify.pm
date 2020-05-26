@@ -10,11 +10,12 @@ use Abills::Base qw(sendmail _bp);
 
 our ($db,
   %lang,
-  $html,
   $admin,
   %conf,
   $ui
 );
+
+our Abills::HTML $html;
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
@@ -183,11 +184,10 @@ sub msgs_notify_admins {
 sub msgs_notify_user {
   my ($attr) = @_;
 
-  return 0 if ($attr->{INNER_MSG} || $attr->{REPLY_INNER_MSG} || $FORM{INNER_MSG} || $FORM{REPLY_INNER_MSG});
+  return 0 if ($attr->{INNER_MSG} || $attr->{REPLY_INNER_MSG});
 
   if ( $attr->{MESSAGES_BATCH} && ref $attr->{MESSAGES_BATCH} ) {
     # Call self for each message id
-
     my %msg_id_for_user = %{ $attr->{MESSAGES_BATCH} };
 
     foreach my $_uid  ( sort keys %msg_id_for_user ) {
@@ -215,13 +215,13 @@ sub msgs_notify_user {
     LOGIN     => '_SHOW',
     FIO       => '_SHOW',
     EMAIL     => '_SHOW',
+    PHONE     => '_SHOW',
     UID       => $attr->{UID} || '-1',
     COLS_NAME => 1
   });
 
-  my $message_tpl = ($attr->{SEND_TYPE} && $attr->{SEND_TYPE} == 1)
-                      ? 'msgs_email_delivery'
-                      : 'msgs_email_notify';
+  my $send_type = $attr->{SEND_TYPE} || 0;
+  my $message_tpl = ($send_type == 1) ? 'msgs_email_delivery' : 'msgs_email_notify';
 
   # Make view url
   my $preview_url_without_message_id = '';
@@ -252,9 +252,7 @@ sub msgs_notify_user {
         ID          => $message_id,
         ATTACHMENT  => $attr->{FILE_UPLOAD}->{filename} || '',
         SUBJECT_URL => $preview_url,
-
         %$message_params,
-
         SUBJECT     => $subject,
         STATUS      => $state,
         MESSAGE     => $message,
@@ -262,17 +260,35 @@ sub msgs_notify_user {
       { OUTPUT2RETURN => 1 }
     );
 
+    #Old Contacts depricated
+    my $to_address;
+    if(! $conf{CONTACTS_NEW}) {
+      if(!  $send_type) {
+        $to_address = $user_info->{email};
+      }
+      elsif ( $send_type == 1 && $user_info->{phone}) {
+        $to_address = $user_info->{phone};
+      }
+      elsif (in_array( $send_type, [0, 1]) && $user_info->{email}) {
+        $to_address = $user_info->{email};
+      }
+    }
+
     $Sender->send_message({
       UID         => $user_info->{uid},
       SUBJECT     => ($conf{WEB_TITLE} || q{}) ." - $lang{NEW_MESSAGE} " . $subject,
-      SENDER_TYPE => $attr->{SEND_TYPE} || 'Mail',
-      # TO_ADDRESS  => $line->{email},
+      SENDER_TYPE => $send_type || 9,
+      TO_ADDRESS  => $to_address,
       MESSAGE     => $message,
       MAIL_TPL    => $mail_message,
-      ATTACHMENTS => ($FORM{SEND_TYPE} && $#{ $ATTACHMENTS } > - 1) ? $ATTACHMENTS : undef,
+      ATTACHMENTS => ($#{ $ATTACHMENTS } > - 1) ? $ATTACHMENTS : undef,
       ACTIONS     => $preview_url,
       MAIL_HEADER => [ "X-ABillS-Msg-ID: $message_id", "X-ABillS-REPLY-ID: $reply_id" ]
     });
+
+    if($Sender->{errno}) {
+      $html->message('err', $lang{ERROR},  "[$Sender->{errno}] $Sender->{errstr}");
+    }
 
     #Fixme remove all sends throght sender
     if ( $conf{TELEGRAM_TOKEN} && $message_id ne '--' ) {

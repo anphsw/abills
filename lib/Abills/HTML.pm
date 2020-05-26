@@ -305,8 +305,8 @@ sub new {
     }
   }
   elsif ($FORM{json}) {
-    require Abills::JSON_;
-    $self = Abills::JSON_->new(
+    require Abills::JSON;
+    $self = Abills::JSON->new(
       {
         IMG_PATH        => $IMG_PATH,
         NO_PRINT        => defined($attr->{'NO_PRINT'}) ? $attr->{'NO_PRINT'} : 1,

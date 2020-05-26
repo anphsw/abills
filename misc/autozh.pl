@@ -4,8 +4,8 @@
 
   Auto zap/hangup console utility
 
-  VERSION: 0.22
-  REVISION: 20160921
+  VERSION: 0.26
+  REVISION: 20200203
 
 =cut
 
@@ -23,7 +23,7 @@ BEGIN {
 }
 
 my $debug   = 0;
-my $VERSION = 0.25;
+my $VERSION = 0.26;
 
 use Abills::SQL;
 use Abills::Base qw(check_time parse_arguments gen_time days_in_month in_array);
@@ -54,6 +54,7 @@ autozap.pl Version: $VERSION
   SLEEP=COUNT:TIME    -  Sleep after count of actions
   GUEST=1        - Select only guest session
   HANGUP=1       - Make Hangup
+  DURATION=      - Max duration more then
   LOGIN=...      - login for hangup
   COUNT=         - Hangup or zap records (Default: infinity)
   UID=...        - UID for hangup
@@ -153,7 +154,7 @@ if ($debug > 1) {
 if ($argv->{HANGUP}) {
   if ($debug > 6) {
     $Sessions->{debug} = 1;
-    $Nas->{debug}         = 1;
+    $Nas->{debug}      = 1;
   }
 
   $Sessions->online(

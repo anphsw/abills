@@ -240,16 +240,16 @@ sub discounts_user {
 
   if (sprintf("%.2f",$user->{DEPOSIT}) < 0.01) {
     $html->message( 'err', $lang{ERROR}, $lang{WARR_DEPOSIT} );
+  } else {
+    $html->tpl_show(
+      _include('discounts_user_card', 'Discounts'), {
+      CARD_SIGN => $lang{CARD_ABON},
+      FIO       => $fio_user->{list}->[0]->{fio},
+      UID       => $user->{UID},
+      CODE_SCAN => $code->render,
+      LOGO      => $logo,
+    });
   }
-
-  $html->tpl_show(
-    _include('discounts_user_card', 'Discounts'), {
-    CARD_SIGN        => $lang{CARD_ABON},
-    FIO              => $fio_user->{list}->[0]->{fio},
-    UID              => $user->{UID},
-    CODE_SCAN        => $code->render,
-    LOGO             => $logo,
-  });
 
   return 1;
 }

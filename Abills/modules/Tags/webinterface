@@ -65,6 +65,16 @@ sub tags_user_add {
     $html->message('info', $lang{INFO}, $lang{CHANGED});
   }
 
+  $FORM{RESPONSIBLE_HIDDEN} = $attr->{RESPONSIBLE_HIDDEN} || '';
+
+  my $tags_responsible_list = $Tags->responsible_tag_list({ 
+    AID       => '_SHOW', 
+    TAGS_ID   => '_SHOW', 
+    COLS_NAME => 1 
+  });
+
+  send_mail_tags($tags_responsible_list, { %FORM });
+
   return 1;
 }
 
@@ -91,8 +101,8 @@ sub tags_user {
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => "Tags",
-      title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS} ],
+      caption    => $lang{TAGS},
+      title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS}, $lang{RESPONSIBLE} ],
       FIELDS_IDS => $Tags->{COL_NAMES_ARR},
       qs         => $pages_qs,
       ID         => 'TAG_USER',
@@ -101,7 +111,6 @@ sub tags_user {
 
   foreach my $line (@$list) {
     $table->addrow(
-      #$line->{id}.
       $html->form_input(
         'IDS',
         $line->{id},
@@ -112,7 +121,15 @@ sub tags_user {
       ),
       $line->{name},
       $line->{date},
-      $line->{comments}
+      $line->{comments},
+      $line->{responsible},
+      $html->form_input(
+        'RESPONSIBLE_HIDDEN',
+        $line->{responsible},
+        {
+          TYPE  => 'HIDDEN'
+        }
+      )
     );
   }
 
@@ -133,9 +150,9 @@ sub tags_user {
     {
       CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
       HIDDEN  => {
-        index => $index,
-        UID   => $FORM{UID},
-        step  => $FORM{step}
+        index       => $index,
+        UID         => $FORM{UID},
+        step        => $FORM{step}
       },
       METHOD   => 'GET',
       NAME     => $FORM{FORM_NAME} || 'TAGS_USER',
@@ -162,7 +179,11 @@ sub tags_list {
   $Tags->{LNG_ACTION} = $lang{ADD};
 
   if( $FORM{add} ) {
+
     $Tags->add({ %FORM });
+
+    my $id_tag = $Tags->{INSERT_ID};
+    split_responsible($FORM{RESPONSIBLE}, $id_tag);
 
     if (! _error_show($Tags)) {
       $html->message('info', $lang{INFO}, "$lang{ADDED}");
@@ -175,9 +196,12 @@ sub tags_list {
     if (! _error_show($Tags)) {
       $html->message('info', $lang{INFO}, "$lang{CHANGED}");
     }
+
+    $Tags->del_responsible($FORM{ID});
+    split_responsible($FORM{RESPONSIBLE}, $FORM{ID});
   }
   elsif( $FORM{chg} ) {
-    $Tags->info($FORM{chg});
+    $Tags->info($FORM{chg}, { RESPONSIBLE => 1 });
 
     if (! _error_show($Tags)) {
       $html->message('info', $lang{INFO}, "$lang{CHANGING}");
@@ -187,6 +211,8 @@ sub tags_list {
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Tags->del($FORM{del});
+    $Tags->del_responsible($FORM{del});
+
     if (!$Tags->{errstr}) {
       $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{del}] ");
     }
@@ -202,38 +228,43 @@ sub tags_list {
     }
   );
 
+  $Tags->{RESPONSIBLE} = tags_sel({ ADMIN => 1, RESPONSIBLE => $Tags->{RESPONSIBLE} });
+
   $html->tpl_show(_include('tags_form', 'Tags'), $Tags);
+  
+  $LIST_PARAMS{RESPONSIBLE_ADMIN} = 1;
 
   result_former({
-     INPUT_DATA      => $Tags,
-     FUNCTION        => 'list',
-     DEFAULT_FIELDS  => 'NAME,COMMENTS,PRIORITY',
-     FUNCTION_FIELDS => 'change,del',
-     EXT_TITLES      => {
-        name         => $lang{NAME},
-        priority     => $lang{PRIORITY},
-        comments     => $lang{COMMENTS},
-     },
-     SKIP_USER_TITLE => 1,
-     SELECT_VALUE    => {
-        priority =>  {
-          0  => "$lang{VERY_LOW}",
-          1  => "$lang{LOW}",
-          2  => "$lang{NORMAL}",
-          3  => "$lang{HIGH}",
-          4  => "$lang{VERY_HIGH}"
-        }
-     },
-     TABLE           => {
-       width      => '100%',
-       caption    => "Tags",
-       qs         => $pages_qs,
-       ID         => 'IPTV_USERS_LIST',
-     },
-     MAKE_ROWS    => 1,
-     MODULE       => 'Tags',
-     TOTAL        => 1
-    });
+    INPUT_DATA      => $Tags,
+    FUNCTION        => 'list',
+    DEFAULT_FIELDS  => 'NAME,COMMENTS,PRIORITY,RESPONSIBLE',
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      name        => $lang{NAME},
+      priority    => $lang{PRIORITY},
+      comments    => $lang{COMMENTS},
+      responsible => $lang{RESPONSIBLE},
+    },
+    SKIP_USER_TITLE => 1,
+    SELECT_VALUE    => {
+      priority => {
+        0 => "$lang{VERY_LOW}",
+        1 => "$lang{LOW}",
+        2 => "$lang{NORMAL}",
+        3 => "$lang{HIGH}",
+        4 => "$lang{VERY_HIGH}"
+      }
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{TAGS},
+      qs      => $pages_qs,
+      ID      => 'TAGS_LIST',
+    },
+    MAKE_ROWS       => 1,
+    MODULE          => 'Tags',
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -258,7 +289,6 @@ sub tags_search_form {
            ID      => "tag_$line->{id}",
            NAME    => $line->{name},
            VALUE   => $input,
-           #BG_COLOR=> $priority_colors[$line->{priority}]
          },
          { OUTPUT2RETURN => 1 });
   }
@@ -272,19 +302,34 @@ sub tags_search_form {
 =cut
 #**********************************************************
 sub tags_sel {
+  my ($attr) = @_;
+  my $admins_list = ();
 
-  my $form =  $html->form_select('TAGS',
-              {
-                SELECTED => $FORM{TAGS} || '',
-                SEL_LIST => $Tags->list({
-                              NAME      => '_SHOW',
-                              PRIORITY  => '_SHOW',
-                              COLS_NAME => 1 }),
+  if ($attr->{ADMIN}) {
+    $admins_list = $admin->list({
+      ID        => '_SHOW',
+      COLS_NAME => 1
+    });
+  }
 
-                #SEL_OPTIONS => { '' => $lang{ALL} },
-                EX_PARAMS   => 'multiple="multiple"'
-              }
-            );
+  my $tags_list = $Tags->list({
+    NAME              => '_SHOW',
+    PRIORITY          => '_SHOW',
+    RESPONSIBLE_ADMIN => 1,
+    COLS_NAME         => 1
+  });
+
+  my $form = $html->form_select($attr->{ADMIN} ? 'RESPONSIBLE' : 'TAGS',
+    {
+      SELECTED  => ($attr->{ADMIN} ? $attr->{RESPONSIBLE} : $FORM{TAGS}) || '',
+      SEL_LIST  => $attr->{ADMIN} ? $admins_list : $tags_list,
+      EX_PARAMS => 'multiple="multiple"'
+    }
+  );
+
+  if ($attr->{HASH}) {
+    return ($form, $tags_list);
+  }
 
   return $form;
 }
@@ -324,7 +369,7 @@ sub reports_user_tags {
 
   my $tags_table = $html->table(
     {
-      caption    => "Tags",
+      caption    => $lang{TAGS},
       width      => '100%',
       title      => [ $lang{NAME}, $lang{ENABLE}, $lang{DISABLE}, $lang{TOTAL}, $lang{PERCENTAGE} ],
       ID         => 'USER_TAGS_REPORTS'
@@ -363,7 +408,7 @@ sub tags_multiuser_form {
   my $table = $html->table(
     {
       width      => '100%',
-      title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS} ],
+      title      => [ '-', $lang{NAME}, $lang{DATE}, $lang{COMMENTS}, $lang{RESPONSIBLE} ],
       FIELDS_IDS => $Tags->{COL_NAMES_ARR},
       qs         => $pages_qs,
       ID         => 'TAG_USER',
@@ -372,7 +417,6 @@ sub tags_multiuser_form {
 
   foreach my $line (@$list) {
     $table->addrow(
-      #$line->{id}.
       $html->form_input(
         'TAGS_IDS',
         $line->{id},
@@ -383,7 +427,8 @@ sub tags_multiuser_form {
       ),
       $line->{name},
       $line->{date},
-      $line->{comments}
+      $line->{comments},
+      $line->{responsible}
     );
   }
 
@@ -398,6 +443,153 @@ sub tags_multiuser_form {
   print $table->show();
 
   return 1;
+}
+
+#**********************************************************
+=head2 split_responsible()
+
+  Arguments:
+    $responsible    - admins responsible
+    $id_tag         - id tag
+
+  Returns:
+    -
+
+=cut
+#**********************************************************
+sub split_responsible {
+  my ($responsible, $id_tag) = @_;
+
+  my $admin_aid = $admin->list({
+    ID        => '_SHOW',
+    COLS_NAME => 1
+  });
+
+  my @admin_array = ();
+
+  return 0 if (!$responsible);
+  push @admin_array, split(/, /, $responsible);
+
+  my %admins_hash = map { $_->{id} => $_->{aid} } @{ $admin_aid };
+
+  foreach my $admin_element (@admin_array) {
+    $Tags->add_responsible({
+      AID     => $admins_hash{ $admin_element },
+      TAGS_ID => $id_tag
+    });
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 tags_start_page()
+
+  Arguments:
+    -
+
+  Returns:
+    Widget hash
+
+=cut
+#**********************************************************
+sub tags_start_page {
+  my %START_PAGE_F = (
+    'tags_responsible_widget' => $lang{TAGS}
+  );
+
+  return \%START_PAGE_F;
+}
+
+#**********************************************************
+=head2 tags_responsible_widget()
+
+  Arguments:
+    -
+
+  Returns:
+    Table
+
+=cut
+#**********************************************************
+sub tags_responsible_widget {
+
+  my $tags_user = $Tags->user_tags_info({ AID => $admin->{AID} });
+
+  my $table = $html->table(
+    {
+      width   => '100%',
+      caption => $html->button($lang{TAGS},
+        'index=' . get_function_index('tags_list')),
+      title   => [ '#', $lang{TAGS}, $lang{USER} ],
+      ID      => 'TAGS_WIDGET',
+    }
+  );
+
+  foreach my $user_tag (@$tags_user) {
+    if ($user_tag->{uid}) {
+      $table->addrow(
+        $user_tag->{tags},
+        $user_tag->{name},
+        $html->button('UID: ' . $user_tag->{uid}, 'index=' . get_function_index('form_users') . "&UID=$user_tag->{uid}"),
+      )
+    }
+  }
+
+  return $table->show();
+}
+
+#**********************************************************
+=head2 send_mail_tags()
+
+  Arguments:
+    RESPONSIBLE_HIDDEN    - Responsible admin id
+
+  Returns:
+    -
+
+=cut
+#**********************************************************
+sub send_mail_tags {
+  my ($responsible_list, $attr) = @_;
+
+  my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
+
+  my $no_email = '';
+
+  my $admins_list = $admin->list({ 
+    ID        => '_SHOW', 
+    EMAIL     => '_SHOW', 
+    COLS_NAME => 1
+  });
+
+  my %email_admins = map { $_->{aid} => $_->{email} } @{ $admins_list };
+
+  my @ids_tags = ();
+  push @ids_tags, split(/, /, $attr->{IDS} || '');
+
+  foreach my $ids_item (@ids_tags) {
+    foreach my $responsible_element (@$responsible_list) {
+      if ($ids_item eq $responsible_element->{tags_id} && $email_admins{ $responsible_element->{aid} }) {
+        $Sender->send_message({
+          TO_ADDRESS  => $email_admins{ $responsible_element->{aid} },
+          MESSAGE     => $lang{SET_TAGS} . 'UID: ',
+          SUBJECT     => $lang{SET_TAGS} . 'ID: ' . $ids_item,
+          SENDER_TYPE => 'Mail',
+          DEBUG       => 5,
+        });
+      }
+      elsif ($ids_item eq $responsible_element->{tags_id}) {
+        $no_email .= "$responsible_element->{aid}, ";
+      }
+    }
+  }
+
+  if ($no_email ne '') {
+    $html->message( 'err', $lang{ERROR}, "$lang{NO_SEND} AID: $no_email" );
+  }
+
+  return 0;
 }
 
 1

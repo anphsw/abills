@@ -1498,4 +1498,158 @@ sub report_replys_and_time {
   return 1;
 }
 
+#**********************************************************
+=head2 msgs_admin_report()
+
+=cut
+#**********************************************************
+sub msgs_admin_report { 
+  
+  my $work_list;
+
+  if (in_array('Employees', \@MODULES)) {
+    require Employees;
+    Employees->import();
+    my $Employees = Employees->new($db, $admin, \%conf);
+
+    $work_list = $Employees->employees_works_list({ 
+      COLS_NAME   => 1, 
+      SUM         => '_SHOW',
+      EXTRA_SUM   => '_SHOW',
+      EXT_ID      => '_SHOW',
+      WORK_AID    => '_SHOW',
+      SALARY      => '_SHOW',
+    });
+  }
+  else {
+    $html->message('err', $lang{ERROR}, "Employees $lang{NOT_TURNED_ON}");
+  }
+
+  my $admins_list = $admin->list({ 
+    COLS_NAME => 1 
+  });
+
+  my $dispatch_list = $Msgs->messages_list({ 
+    RESPOSIBLE_ADMIN_LOGIN    => '_SHOW',
+    STATE                     => '_SHOW',
+    RUN_TIME                  => '_SHOW',
+    DONE_SUM                  => '_SHOW',
+    GROUP_BY                  => 'm.resposible',
+    STATE_DONE                => 2,
+    FROM_DATE                 => $FORM{FROM_DATE},
+    TO_DATE                   => $FORM{TO_DATE},
+    COLS_NAME                 => 1,
+    PAGE_ROWS                 => 10000,
+  });
+  
+  reports(
+    {
+      DATE_RANGE  => 1,
+      DATE        => $FORM{DATE},
+      PERIOD_FORM => 1,
+      NO_TAGS     => 1,
+      NO_GROUP    => 1
+    }
+  );
+
+  my $table = $html->table({
+    caption => "$lang{REPORTS}",
+    title   => [ 
+      "$lang{RESPOSIBLE} $lang{ADMIN}",
+      $lang{DONE_TICKET},
+      $lang{SPENT_TIME},
+      $lang{PAID_AMOUT},
+      $lang{SALARY},
+      $lang{SUM},
+    ],
+    ID      => 'MSGS_REPORT',
+  });
+
+  my $sum_ticket  = 0;
+  my $sum_time    = '00:00:00';
+  my $sum_payment = 0;
+  my $sum_salary  = 0;
+  my $sum_pay_sal = 0;
+
+  my @time_operations = ();
+
+  foreach my $admin_item (@$admins_list) {
+    my $done_ticket  = 0;
+    my $sum_amout    = 0;
+    my $run_time     = '00:00:00';
+    my $salary       = 0;
+
+    if (in_array('Employees', \@MODULES)) {
+      foreach my $work_item (@$work_list) {
+        if ($admin_item->{aid} == $work_item->{work_aid}) {
+          $sum_amout += $work_item->{sum} if ($work_item->{sum});
+          $salary     = $work_item->{salary} if ($work_item->{salary});
+        }
+      }
+    }
+
+    foreach my $msgs_item (@$dispatch_list) {
+      if ($msgs_item->{resposible} && $admin_item->{aid} == $msgs_item->{resposible}) {
+        $run_time    = $msgs_item->{run_time} if ($msgs_item->{run_time});
+        $done_ticket = $msgs_item->{done_sum} if ($msgs_item->{done_sum});
+      }
+    }
+
+    $sum_ticket  += $done_ticket;
+    $sum_payment += $sum_amout;
+    $sum_salary  += $salary;
+    $sum_pay_sal += $sum_amout + $salary;
+    
+    my @time = split(/:/, $run_time);
+    if ($#time_operations <= 0) {
+      @time_operations = @time;
+    }
+    else {
+      my $hours   = $time[0] + $time_operations[0];
+      my $minutes = $time[1] + $time_operations[1];
+      my $seconds = $time[2] + $time_operations[2];
+      
+      if ($seconds > 60) {
+        ++$minutes;
+        $seconds = 0;
+      }
+
+      if ($minutes > 60) {
+        ++$hours;
+        $minutes = 0;
+      }
+
+      $hours   = "0$hours" if ($hours < 10);
+      $minutes = "0$minutes" if ($minutes < 10);
+      $seconds = "0$seconds" if ($seconds < 10);
+
+      $time_operations[0] = $hours;
+      $time_operations[1] = $minutes;
+      $time_operations[2] = $seconds;
+
+      $sum_time = "$hours:$minutes:$seconds";
+    }
+
+    $table->addrow(
+      $admin_item->{login},
+      $done_ticket, 
+      $run_time, 
+      $sum_amout,
+      $salary,
+      ($sum_amout + $salary));
+  }
+
+  $table->addfooter(
+    $html->b($lang{SUM}), 
+    $html->b($sum_ticket),
+    $html->b($sum_time),
+    $html->b($sum_payment),
+    $html->b($sum_salary),
+    $html->b($sum_pay_sal));
+
+  print $table->show();
+
+  return 1;
+}
+
 1;

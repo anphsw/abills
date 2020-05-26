@@ -30,21 +30,6 @@
 </div>
 
     <div id=new_delivery style='display: none'>
-
-      <div class='row'>
-          <label class='control-label col-md-2 ' for='DELIVERY_COMMENTS'>_{SUBJECT}_:</label>
-          <div class='col-md-10'>
-            <input  type=text id=DELIVERY_COMMENTS name=DELIVERY_COMMENTS value='%DELIVERY_COMMENTS%' class='form-control'>
-          </div>
-      </div>
-
-      <div class="row">
-        <label class='control-label col-md-2 ' for='TEXT'>_{MESSAGES}_:</label>
-        <div class='col-md-10'>
-          <textarea   class='form-control'  rows='5' %DISABLE% id='TEXT' name='TEXT'  placeholder='_{TEXT}_' >%TEXT%</textarea>
-        </div>
-      </div>
-
       <div class='row'>
         <label class='control-label col-md-2 ' for='DELIVERY_SEND_TIME'>_{SEND_TIME}_:</label>
         <div class='col-md-5'>

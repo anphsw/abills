@@ -3111,29 +3111,38 @@ sub employees_works_list{
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'DATE',       'DATE','w.date',      1 ],
-      [ 'EMPLOYEE',   'STR', 'employee.name', 'employee.name AS employee' ],
-      [ 'WORK_ID',    'INT', 'w.work_id',   1 ],
-      [ 'WORK',       'INT', 'crw.name',   'crw.name AS work' ],
-      [ 'RATIO',      'STR', 'w.ratio',     'w.ratio' ],
-      [ 'EXTRA_SUM',  'INT', 'w.extra_sum',  ],
-      [ 'SUM',        'INT', 'w.sum', 'if(w.extra_sum > 0, w.extra_sum, w.sum) AS sum' ],
-      [ 'COMMENTS',   'INT', 'w.comments',   1],
-      [ 'PAID',       'INT', 'w.paid',       ],
-      [ 'ADMIN_NAME', 'STR', 'a.login',     'a.name AS admin_name' ],
-      [ 'EMPLOYEE_ID','INT', 'w.employee_id',  ],
-      [ 'FROM_DATE|TO_DATE','DATE', "DATE_FORMAT(w.date, '%Y-%m-%d')",  ],
-      [ 'FEES_ID',    'INT', 'w.fees_id',    1],
-      [ 'WORK_DONE',  'INT', 'w.work_done',  1],
-      [ 'EXT_ID',     'INT', 'w.ext_id',     1],
+      [ 'ID',         'INT', 'w.id',                                                    1 ],
+      [ 'DATE',       'DATE','w.date',                                                  1 ],
+      [ 'EMPLOYEE',   'STR', 'employee.name', 'employee.name AS employee'                 ],
+      [ 'WORK_ID',    'INT', 'w.work_id',                                               1 ],
+      [ 'WORK',       'INT', 'crw.name',   'crw.name AS work'                             ],
+      [ 'RATIO',      'STR', 'w.ratio',     'w.ratio'                                     ],
+      [ 'EXTRA_SUM',  'INT', 'w.extra_sum',                                             1 ],
+      [ 'SUM',        'INT', 'w.sum', 'if(w.extra_sum > 0, w.extra_sum, w.sum) AS sum'    ],
+      [ 'COMMENTS',   'INT', 'w.comments',                                              1 ],
+      [ 'PAID',       'INT', 'w.paid',                                                  1 ],
+      [ 'ADMIN_NAME', 'STR', 'a.login',     'a.name AS admin_name'                        ],
+      [ 'EMPLOYEE_ID','INT', 'w.employee_id',                                             ],
+      [ 'FROM_DATE|TO_DATE','DATE', "DATE_FORMAT(w.date, '%Y-%m-%d')",                    ],
+      [ 'FEES_ID',    'INT', 'w.fees_id',                                               1 ],
+      [ 'WORK_DONE',  'INT', 'w.work_done',                                             1 ],
+      [ 'EXT_ID',     'INT', 'w.ext_id',                                                1 ],
+      [ 'WORK_AID',   'INT', 'w.employee_id AS work_aid',                               1 ],
+      [ 'SALARY',     'INT', 'eb.bet AS salary',                                        1 ]
     ],
     {
       WHERE => 1,
     }
   );
 
+  my $ext_table = '';
+  if ($attr->{SALARY}) {
+    $ext_table .= ' LEFT JOIN employees_bet AS eb ON eb.aid = w.employee_id ';
+  }
+
   $self->query( "SELECT $self->{SEARCH_FIELDS} w.aid, w.id
    FROM employees_works w
+   $ext_table
    LEFT JOIN admins a ON (a.aid=w.aid)
    LEFT JOIN admins employee ON (employee.aid=w.employee_id)
    LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)

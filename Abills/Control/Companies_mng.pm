@@ -343,7 +343,10 @@ sub form_companies {
         ID      => 'COMPANY_ID',
         EXPORT  => 1,
         MENU    => "$lang{ADD}:index=$index&add_form=1".':add'.
-          ";$lang{SEARCH}:index=".get_function_index( 'form_search' )."&type=13:search"
+          ";$lang{SEARCH}:index=".get_function_index( 'form_search' )."&type=13:search",
+        SHOW_COLS_HIDDEN => {
+          TYPE_PAGE => $FORM{type}
+        }
       },
       MAKE_ROWS       => 1,
       TOTAL           => 1

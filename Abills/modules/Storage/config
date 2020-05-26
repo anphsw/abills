@@ -19,8 +19,9 @@
   "51:50:$lang{REMNANTS} $lang{REPORTS}:storage_remnants_report:"  => 4,
   "52:50:$lang{ANALYSIS_ITEMS_SALE}:storage_statistics:"           => 4,
   "53:50:$lang{ANALYSIS_ITEMS_IN_INSTALLMENTS}:storage_in_installments_statistics:"  => 4,
-  "54:50:$lang{ANALYSIS_ITEMS_IN_RENT}:storage_rent_statistics:"  => 4,
+  "54:50:$lang{ANALYSIS_ITEMS_IN_RENT}:storage_rent_statistics:"   => 4,
   "55:50:$lang{INCOMING_INVOICE_REPORT}:storage_incoming_report:"  => 4,
+  "56:50:$lang{INSTALLED_REPORT}:storage_installation_report:"     => 4,
 
   # Maintain
   "80:0:$lang{STORAGE}:null"       => 8,
@@ -29,6 +30,10 @@
   "82:80:$lang{STORAGE_INVOICES}:storage_invoices:"   => 8,
   "83:82:$lang{INVOICE_PAYMENTS}:storage_invoces_payments:" => 8,
   "84:80:$lang{LOG}:storage_log:"  => 8,
+);
+
+%USER_FUNCTION_LIST = (
+  "01:0:$lang{HARDWARE}:storage_hardware_user_portal:UID" => 0
 );
 
 %PERIODIC = (

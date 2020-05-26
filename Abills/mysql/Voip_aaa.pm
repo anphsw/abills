@@ -277,7 +277,7 @@ sub auth {
 
     }
     #Check deposit
-    elsif ($self->{DEPOSIT} <= 0) {
+    elsif ($self->{DEPOSIT} <= 0 && ! $conf->{VOIP_ALLOW_ZERO_ROUTE}) {
       $RAD_PAIRS{'Reply-Message'} = "Negativ deposit '$self->{DEPOSIT}'. Rejected!";
       $RAD_PAIRS{'Filter-Id'}='neg_deposit';
       return 1, \%RAD_PAIRS;

@@ -194,7 +194,7 @@ sub send_message {
   if ( !exists $self->{$send_type} ) {
     $self->sender_load($send_type, $attr);
     if ( !$self->{$send_type} ) {
-      $self->{errstr} = "Can't load plugin $send_type \n";
+      $self->{errstr} = "Can't load plugin: $send_type \n";
       $self->{errno} = 1;
       print $self->{errstr} if ( $self->{debug} );
       return 0;

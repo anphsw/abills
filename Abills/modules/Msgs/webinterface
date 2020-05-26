@@ -75,7 +75,14 @@ if ($permissions{4}) {
 if ($conf{MSGS_CHAT}) {
   require Msgs::Chat;
 }
+
+if ($conf{MSGS_ADDRESS}) {
+  require Msgs::Msgs_address;
+}
+
 require Msgs::Reg_request;
+require Msgs::Msgs_team_ticket;
+require Msgs::Msgs_team_location;
 
 #**********************************************************
 =head2 msgs_user_del($uid, $attr) - Delete user  from module
@@ -2171,6 +2178,52 @@ sub msgs_receive_signature {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 _msgs_footer_row($list, $attr) - Splits the html 
+                                          block into rows
+
+  Arguments:
+    $list         -
+    NAME_SELECT   - select form name
+    ID_KEY        - select id key
+    ID_VALUE      - select id visible value
+    FOR_FORM      - for form select
+    NAME_BUTTON   - button name in form
+    LABEL         - Attached tag next to select
+
+  Results:
+    array rows sections
+
+=cut
+#**********************************************************
+sub _msgs_footer_row {
+  my ($list, $attr) = @_;
+
+  my $select = $html->form_select($attr->{NAME_SELECT}, {
+     SELECTED    => $FORM{BRIGADE} || '',
+     SEL_LIST    => $list,
+     SEL_KEY     => $attr->{ID_KEY},
+     SEL_VALUE   => $attr->{ID_VALUE},
+     SEL_OPTIONS => { 0 => $lang{ALL} },
+     NO_ID       => 1,
+     FORM_ID     => $attr->{FOR_FORM}
+  });
+
+  my $button = $html->form_input($attr->{NAME_BUTTON}, $lang{SEARCH}, { 
+    TYPE    => 'submit', 
+    class   => 'btn btn-primary', 
+    FORM_ID => $attr->{FOR_FORM} 
+  });
+
+  my @rows = (
+      "$attr->{LABEL}: ",
+      $select,
+      $button,
+  );
+
+  return @rows;
 }
 
 1;

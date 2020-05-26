@@ -3542,7 +3542,7 @@ sub dv_registration {
             $Dv->{PASSWD} = $password;
           }
           else {
-            $Dv->{PASSWD} = "E-mail $lang{SENDED}";
+            $Dv->{PASSWD} = "$lang{SEND_REG} E-Mail";
           }
 
           $Dv->info($uid);

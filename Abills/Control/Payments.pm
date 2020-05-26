@@ -119,7 +119,8 @@ sub form_payments {
       {
         HIDDEN_FIELDS => {
           subf       => ($FORM{subf}) ? $FORM{subf} : undef,
-          COMPANY_ID => $FORM{COMPANY_ID}
+          COMPANY_ID => $FORM{COMPANY_ID},
+          LEAD_ID    => $FORM{LEAD_ID}
         },
         ID            => 'SEARCH_PAYMENTS',
         CONTROL_FORM  => 1
@@ -150,6 +151,16 @@ sub form_payment_add {
   }
 
   my %PAYMENTS_METHODS = %{ get_payment_methods() };
+
+  my $payment_list = $Payments->payment_type_list({
+    COLS_NAME => 1,
+    SORT      => 'id',
+  });
+
+  my $default_id = 0;
+  foreach my $default_payment (@$payment_list) {
+    $default_id = $default_payment->{id} if ($default_payment->{default_payment});
+  }
 
   #exchange rate sel
   my $er_list   = $Payments->exchange_list({%FORM, COLS_NAME => 1 });
@@ -193,7 +204,7 @@ sub form_payment_add {
   $Payments->{SEL_METHOD} = $html->form_select(
     'METHOD',
     {
-      SELECTED => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : 0,
+      SELECTED => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : $default_id,
       SEL_HASH => \%PAYMENTS_METHODS,
       NO_ID    => 1,
     }
@@ -222,14 +233,6 @@ sub form_payment_add {
       if ($FORM{DATE}) {
         ($DATE, $TIME) = split(/ /, $FORM{DATE});
       }
-
-      #        my $date_field = $html->date_fld2('DATE', {
-      #            FORM_NAME => 'user_form',
-      #            DATE      => $DATE,
-      #            TIME      => $TIME,
-      #            MONTHES   => \@MONTHES,
-      #            WEEK_DAYS => \@WEEKDAYS
-      #          });
 
       my $date_field = $html->form_datetimepicker('DATE', $FORM{DATE}, {
           FORM_ID => 'user_form',
@@ -323,9 +326,8 @@ sub form_payment_add {
         { BUTTON => 1 })
     }
 
+    $Payments->{ADMIN_PAY} = $lang{ADMIN_PAY};
     if($attr->{EXT_HTML}){
-      # print $html->element('div', $attr->{EXT_HTML}, {class => "col-md-6"});
-      # print $html->element('div', $html->tpl_show(templates('form_payments'), { %FORM, %$attr, %$Payments }, { ID => 'form_payments', OUTPUT2RETURN => 1  }), {class => "col-md-6"});
       print "<div class='row'><div class='col-md-6'>" . $attr->{EXT_HTML} . "</div>";
       print "<div class='col-md-6'>" . $html->tpl_show(templates('form_payments'),
         { %FORM, %$attr, %$Payments }, { ID => 'form_payments', OUTPUT2RETURN => 1  }) . "</div></div>";
@@ -333,8 +335,6 @@ sub form_payment_add {
     else{
       $html->tpl_show(templates('form_payments'), { %FORM, %$attr, %$Payments }, { ID => 'form_payments'  });
     }
-
-    #return 0 if ($attr->{REGISTRATION});
   }
 
   return 1;
@@ -514,21 +514,21 @@ sub form_payments_list {
       DEFAULT_FIELDS  => 'DATETIME,LOGIN,DSC,SUM,LAST_DEPOSIT,METHOD,EXT_ID',
       FUNCTION_FIELDS => 'del',
       EXT_TITLES      => {
-          'id'           => $lang{NUM},
-          'datetime'     => $lang{DATE},
-          'dsc'          => $lang{DESCRIBE},
-          'sum'          => $lang{SUM},
-          'last_deposit' => $lang{OPERATION_DEPOSIT},
-          'deposit'      => $lang{CURRENT_DEPOSIT},
-          'method'       => $lang{PAYMENT_METHOD},
-          'ext_id'       => 'EXT ID',
-          'reg_date'     => "$lang{PAYMENTS} $lang{REGISTRATION}",
-          'ip'           => 'IP',
-          'admin_name'   => $lang{ADMIN},
-          'invoice_num'  => $lang{INVOICE},
-          amount         => "$lang{ALT} $lang{SUM}",
-          currency       => $lang{CURRENCY},
-          after_deposit  => $lang{AFTER_OPERATION_DEPOSIT}
+        'id'              => $lang{NUM},
+        'datetime'        => $lang{DATE},
+        'dsc'             => $lang{DESCRIBE},
+        'sum'             => $lang{SUM},
+        'last_deposit'    => $lang{OPERATION_DEPOSIT},
+        'deposit'         => $lang{CURRENT_DEPOSIT},
+        'method'          => $lang{PAYMENT_METHOD},
+        'ext_id'          => 'EXT ID',
+        'reg_date'        => "$lang{PAYMENTS} $lang{REGISTRATION}",
+        'ip'              => 'IP',
+        'admin_name'      => $lang{ADMIN},
+        'invoice_num'     => $lang{INVOICE},
+        amount            => "$lang{ALT} $lang{SUM}",
+        currency          => $lang{CURRENCY},
+        after_deposit     => $lang{AFTER_OPERATION_DEPOSIT}
       },
       TABLE           => {
           width   => '100%',
@@ -536,7 +536,10 @@ sub form_payments_list {
           qs      => $pages_qs,
           EXPORT  => 1,
           ID      => 'PAYMENTS',
-          MENU    => "$lang{SEARCH}:search_form=1&index=2:search"
+          MENU    => "$lang{SEARCH}:search_form=1&index=2:search",
+          SHOW_COLS_HIDDEN => {
+            TYPE_PAGE => $FORM{type}
+          }
       },
   });
 
@@ -559,7 +562,6 @@ sub form_payments_list {
     });
 
     foreach my $i2p (@$i2p_list) {
-      #print "$i2p->{invoice_id}:$i2p->{invoiced_sum}:$i2p->{invoice_num}\n";
       push @{ $i2p_hash{$i2p->{payment_id}} }, ($i2p->{invoice_id} || '') .':'. ($i2p->{invoiced_sum} || '') .':'. ($i2p->{invoice_num} || '');
     }
   }

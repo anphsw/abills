@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS `tasks_admins` (
 CREATE TABLE IF NOT EXISTS `tasks_partcipiants` (
   `id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  CONSTRAINT id_aid PRIMARY KEY (id,aid)
+  PRIMARY KEY (id,aid)
 )
   COMMENT = 'Tasks partcipiants';
 

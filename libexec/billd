@@ -958,8 +958,7 @@ sub check_speed_linux{
   }
   close( $ph );
 
-  #out
-  #ppp15 police 0x2e28 rate 2048Kbit burst 12Kb mtu 2Kb action drop
+  #speed out: ppp15 police 0x2e28 rate 2048Kbit burst 12Kb mtu 2Kb action drop
   $cmd = 'for if in `/sbin/ifconfig | grep ppp | awk \'{print $1}\'`; do echo $if `tc filter show dev $if parent ffff: | grep police`; done;';
   print "$cmd\n" if ($debug > 5);
   open( $ph, '-|', "$cmd" ) || die "Can't open file '$cmd' $!\n";
@@ -1015,7 +1014,7 @@ sub check_speed_linux{
       #Get intervals
       while (my ($k, $interval_id) = each( %TT_IDS )) {
         print " INTERVAL: $k, $interval_id\n" if ($debug > 1);
-        if ( ($k eq 'TT' || $k eq 'FIRST_INTERVAL') && !$speeds{$tp}{IN} ){
+        if ( ($k eq 'TT' || $k eq 'FIRST_INTERVAL') && !$speeds{$tp_id}{IN} ){
           my $list = $Tariffs->tt_list( { TI_ID => $interval_id, SHOW_NETS => 1 } );
           foreach my $line ( @{$list} ){
             my $traf_type = $line->[0];
@@ -1055,8 +1054,8 @@ sub check_speed_linux{
               }
             }
 
-            $speeds{$tp}{IN}{$traf_type} = $speed_in;
-            $speeds{$tp}{OUT}{$traf_type} = $speed_out;
+            $speeds{$tp_id}{IN}{$traf_type} = $speed_in;
+            $speeds{$tp_id}{OUT}{$traf_type} = $speed_out;
           }
         }
       }
@@ -1166,24 +1165,24 @@ sub check_speed_linux{
 
     #TP SPEED
     elsif ( defined( $speeds{$TP} ) ){
-      if ( $JOIN_SERVICE > 0 ){
-        if ( !$PORTS_SPEEDS{$IFACE}{0}{IN}
-          || !$PORTS_SPEEDS{$IFACE}{0}{OUT}
-          || !defined( $speeds{$TP}{IN}{0} )
-          || !defined( $speeds{$TP}{OUT}{0} )
-          || int( $PORTS_SPEEDS{$IFACE}{0}{IN} ) != $speeds{$TP}{IN}{0}
-          || int( $PORTS_SPEEDS{$IFACE}{0}{OUT} ) != $speeds{$TP}{OUT}{0} )
-        {
-          $debug_outputs .= check_speed_change(
-            $user, $IFACE, $IP,
-            {
-              NAS_TYPE => $NAS_TYPE,
-              debug    => ($debug > 3) ? ' debug' : undef
-            }
-          );
-        }
-        next;
-      }
+      # if ( $JOIN_SERVICE > 0 ){
+      #   if ( !$PORTS_SPEEDS{$IFACE}{0}{IN}
+      #     || !$PORTS_SPEEDS{$IFACE}{0}{OUT}
+      #     || !defined( $speeds{$TP}{IN}{0} )
+      #     || !defined( $speeds{$TP}{OUT}{0} )
+      #     || int( $PORTS_SPEEDS{$IFACE}{0}{IN} ) != $speeds{$TP}{IN}{0}
+      #     || int( $PORTS_SPEEDS{$IFACE}{0}{OUT} ) != $speeds{$TP}{OUT}{0} )
+      #   {
+      #     $debug_outputs .= check_speed_change(
+      #       $user, $IFACE, $IP,
+      #       {
+      #         NAS_TYPE => $NAS_TYPE,
+      #         debug    => ($debug > 3) ? ' debug' : undef
+      #       }
+      #     );
+      #   }
+      #   next;
+      # }
 
       if ( $speeds{$TP} ){
         while (my ($class_id, $tp_speed_in) = each %{ $speeds{$TP}{IN} }) {
@@ -1355,7 +1354,7 @@ sub check_speed{
     return 1;
   }
   elsif ( defined( $argv->{accel_ppp} ) ){
-    check_speed_accel();
+    check_speed2({ NAS_TYPE => 'accel_ppp' });
     return 1;
   }
   elsif ( $argv->{NEW} ){
@@ -1473,7 +1472,8 @@ sub check_speed{
         # key1 interface; key2 rule number; value speed
         my %speeds_rotations = (
           'Kbit' => 1,
-          'Mbit' => 1000
+          'Mbit' => 1000,
+          'Gbit' => 1000000
         );
 
         #Parce all ipfw rules
@@ -3097,7 +3097,7 @@ sub get_turbo_speed{
 }
 
 #**********************************************************
-=head2 check_speed_accel($attr) - Manage accel-ppp bandwidth
+=head2 check_speed2($attr) - Manage accel-ppp bandwidth
 
    3 type of actions
      up
@@ -3106,57 +3106,34 @@ sub get_turbo_speed{
 
    Shaper for global traffic only
 
+   Arguments:
+     $attr
+       NAS_TYPE - Nas type for shaper function
+       SET_SPEED_FUN - Set speed function name
+
+   Returns:
+
 =cut
 #**********************************************************
-sub check_speed_accel{
+sub check_speed2{
   my ($attr) = @_;
 
   if ( $debug > 3 ){
     print "Check speed accel-ppp\n";
   }
 
-  my ($TARIF_SPEEDS) = get_tp_cure_speed( $attr );
-  my $TURBO_SPEEDS = get_turbo_speed();
-
-  if ( $argv->{LOGINS} ){
-    $LIST_PARAMS{USER_NAME} = $argv->{LOGINS};
-  }
-
-  $Sessions->online(
-    {
-      USER_NAME          => '_SHOW',
-      NAS_PORT_ID        => '_SHOW',
-      CALLS_TP_ID        => '_SHOW',
-      #SHOW_TP_ID         => '_SHOW',
-      SPEED              => '_SHOW',
-      JOIN_SERVICE       => '_SHOW',
-      CLIENT_IP          => '_SHOW',
-      DURATION_SEC       => '_SHOW',
-      STARTED            => '_SHOW',
-      CONNECT_INFO       => '_SHOW',
-      ACCT_SESSION_ID    => '_SHOW',
-      ACCT_INPUT_OCTETS  => '_SHOW',
-      ACCT_OUTPUT_OCTETS => '_SHOW',
-      TP_ID              => '_SHOW',
-      GUEST              => 0,
-      %LIST_PARAMS,
-      NAS_ID             => $LIST_PARAMS{NAS_IDS},
-    }
-  );
-
-  if ( $Sessions->{errno} ){
-    print "[$Sessions->{errno}] $Sessions->{err_str}\n";
-    exit;
-  }
-
-  my $online = $Sessions->{nas_sorted};
+  my $nas_type          = $attr->{NAS_TYPE} || 'accel_ppp';
+  my ($TARIF_SPEEDS)    = get_tp_cure_speed( $attr );
+  my $TURBO_SPEEDS      = get_turbo_speed();
+  my $online            = get_online_list();
+  my $nas_shaper_list_fn= 'get_'. $nas_type .'_speed_list';
+  my $set_speed_fn      = $attr->{SET_SPEED_FN} || 'setspeed';
 
   if ( $debug > 6 ){
     $Nas->{debug} = 1
   }
 
   my $nas_list = $Nas->list( { %LIST_PARAMS, COLS_NAME => 1, PAGE_ROWS => 50000 } );
-
   my $NAS_TYPE = '';
 
   foreach my $nas_info ( @{$nas_list} ){
@@ -3166,17 +3143,23 @@ sub check_speed_accel{
       }
       next;
     }
+
     $NAS_TYPE = $nas_info->{nas_type} || '';
-    my $nas_speed = get_accel_ppp_info( $nas_info );
+    my $nas_speed = &{ \&$nas_shaper_list_fn }( $nas_info );
 
     if ( $argv->{SHOW_SPEED} ){
       next;
     }
+    # elsif(! $nas_speed) {
+    #   print "ERROR: Can't get nas speed NAS_ID: $nas_info->{nas_id}\n";
+    #   next;
+    # }
 
     my $l = $online->{ $nas_info->{nas_id} };
 
     foreach my $line ( @{$l} ){
       #Get speed
+      my $speed_rule_id = 0;
       my $tp_id = (in_array('Internet', \@MODULES)) ? ($line->{tp_id} || 0) : ($line->{real_tp_id} || 0);
       my $user_speed = ($TURBO_SPEEDS->{ $line->{user_name} }) ? $TURBO_SPEEDS->{ $line->{user_name} } : ($line->{speed} || 0);
       my $speed_in = ($user_speed > 0) ? $user_speed : ($TARIF_SPEEDS->{$tp_id}->{0}->{IN} || 0);
@@ -3208,28 +3191,39 @@ sub check_speed_accel{
          . ($TARIF_SPEEDS->{$tp_id}->{0}->{EXPRESSION} || '') . "\n";
       }
 
-      if ( $nas_speed->{$line->{user_name}}{IN}
+      if ( $nas_speed
+        && $nas_speed->{$line->{user_name}}{IN}
         && $speed_in == $nas_speed->{$line->{user_name}}{IN}
         && $speed_out == $nas_speed->{$line->{user_name}}{OUT} ){
         next;
       }
+      elsif($speed_in + $speed_out == 0) {
+        print "NO_SPEED: $line->{user_name}\n" if ($debug > 1);
+        next;
+      }
 
-      my $ret = setspeed(
-        { NAS_TYPE         => $nas_info->{nas_type},
-          NAS_MNG_IP_PORT  => $nas_info->{nas_mng_ip_port},
-          NAS_MNG_PASSWORD => $nas_info->{nas_mng_password}
-        },
-        $line->{nas_port_id},
-        $line->{user_name},
-        $speed_in,
-        $speed_out,
-        {
-          ACCT_SESSION_ID   => $line->{acct_session_id} || '--',
-          FRAMED_IP_ADDRESS => $line->{client_ip},
-          UID               => $line->{uid},
-          debug             => $debug
-        }
-      );
+      $speed_rule_id = $nas_speed->{$line->{user_name}}{ID};
+
+      my $ret = q{};
+      if ($debug < 8) {
+        $ret = &{ \&$set_speed_fn}(
+          { NAS_TYPE         => $nas_info->{nas_type},
+            NAS_MNG_IP_PORT  => $nas_info->{nas_mng_ip_port},
+            NAS_MNG_PASSWORD => $nas_info->{nas_mng_password}
+          },
+          $line->{nas_port_id},
+          $line->{user_name},
+          $speed_in,
+          $speed_out,
+          {
+            ACCT_SESSION_ID   => $line->{acct_session_id} || '--',
+            FRAMED_IP_ADDRESS => $line->{client_ip},
+            UID               => $line->{uid},
+            ID                => $speed_rule_id,
+            debug             => $debug
+          }
+        );
+      }
 
       print "Change speed: $line->{user_name} SESSION_ID: $line->{acct_session_id}, "
           . "CUR: ". ($nas_speed->{$line->{user_name}}{IN} || 0) .'/'. ($nas_speed->{$line->{user_name}}{OUT} || 0) .' '
@@ -3243,7 +3237,59 @@ sub check_speed_accel{
 }
 
 #**********************************************************
-=head2 get_accel_ppp_info($nas, $attr) - Get speed from accel
+=head2 get_online_list() - Get online sessions
+
+  Arguments:
+    $attr
+      NAS_ID
+
+  Returns:
+    \%online - online sessions list by nas
+
+=cut
+#**********************************************************
+sub get_online_list {
+  my ($attr) = @_;
+
+  if ( $argv->{LOGINS} ){
+    $LIST_PARAMS{USER_NAME} = $argv->{LOGINS};
+  }
+
+  $Sessions->{debug} = 1 if ($debug > 4);
+  $Sessions->online(
+    {
+      USER_NAME          => '_SHOW',
+      NAS_PORT_ID        => '_SHOW',
+      CALLS_TP_ID        => '_SHOW',
+      #SHOW_TP_ID         => '_SHOW',
+      SPEED              => '_SHOW',
+      JOIN_SERVICE       => '_SHOW',
+      CLIENT_IP          => '_SHOW',
+      DURATION_SEC       => '_SHOW',
+      STARTED            => '_SHOW',
+      CONNECT_INFO       => '_SHOW',
+      ACCT_SESSION_ID    => '_SHOW',
+      ACCT_INPUT_OCTETS  => '_SHOW',
+      ACCT_OUTPUT_OCTETS => '_SHOW',
+      TP_ID              => '_SHOW',
+      GUEST              => 0,
+      %LIST_PARAMS,
+      NAS_ID             => $attr->{NAS_ID} || $LIST_PARAMS{NAS_IDS},
+    }
+  );
+
+  if ( $Sessions->{errno} ){
+    print "[$Sessions->{errno}] $Sessions->{err_str}\n";
+    exit;
+  }
+
+  my $online = $Sessions->{nas_sorted};
+
+  return $online;
+}
+
+#**********************************************************
+=head2 get_accel_ppp_speed_list($nas, $attr) - Get speed from accel
 
   Arguments:
     $nas
@@ -3255,7 +3301,7 @@ sub check_speed_accel{
 
 =cut
 #**********************************************************
-sub get_accel_ppp_info {
+sub get_accel_ppp_speed_list {
   my ($nas, $attr) = @_;
 
   if ( $debug > 2 ){

@@ -12,6 +12,7 @@
   <input type=hidden name=UID value=$FORM{UID}>
   <input type=hidden name=ID value=$FORM{chg}>
   <input type=hidden name='step' value='$FORM{step}'>
+  <input type='hidden' name='LEAD_ID' value='$FORM{LEAD_ID}'>
 
   <fieldset>
     <div class='col-md-6'>

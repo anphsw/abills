@@ -26,7 +26,8 @@ use Abills::Filters qw(bin2mac);
 our (
   %lang,
   %conf,
-  %FORM
+  %FORM,
+  %ONU_STATUS_TEXT_CODES
 );
 
 #**********************************************************
@@ -311,8 +312,8 @@ sub _gcom {
 #**********************************************************
 sub _gcom_onu_status {
   my %status = (
-    0 => 'down:text-red',
-    1 => 'up:text-green',
+    0 => $ONU_STATUS_TEXT_CODES{OFFLINE}, #down
+    1 => $ONU_STATUS_TEXT_CODES{ONLINE}   #up
   );
 
   return \%status;

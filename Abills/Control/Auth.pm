@@ -445,11 +445,19 @@ sub check_permissions {
     return 1;
   }
   elsif ($admin->{DISABLE} == 1) {
+    $admin->system_action_add("Disabled admin $login tried to login", { TYPE => 11 });
     $admin->{errno}  = 2;
     $admin->{errstr} = 'DISABLED';
     return 2;
   }
+  elsif ($admin->{DISABLE} == 2) {
+    $admin->system_action_add("Fired admin $login tried to login", { TYPE => 11 });
+    $admin->{errno}  = 2;
+    $admin->{errstr} = 'FIRED';
+    return 2;
+  }
   elsif ($admin->{EXPIRE} && $admin->{EXPIRE} ne '0000-00-00 00:00:00' && $admin->{EXPIRE} lt $DATE ) {
+    $admin->system_action_add("Expired admin $login tried to login", { TYPE => 11 });
     $admin->{errno}  = 2;
     $admin->{errstr} = 'EXPIRED';
     return 2;
@@ -458,7 +466,7 @@ sub check_permissions {
   if ($admin->{WEB_OPTIONS}) {
     my @WO_ARR = split(/;/, $admin->{WEB_OPTIONS});
     foreach my $line (@WO_ARR) {
-      my ($k, $v) = split(/=/, $line);
+      my ($k, $v) = split(/=/, $line, 2);
       next if(! $k);
       $admin->{SETTINGS}{$k} = $v;
 

@@ -940,8 +940,7 @@ sub docs_pre_payment{
 
 =cut
 #**********************************************************
-sub docs_statement_of_account{
-
+sub docs_statement_of_account {
   if($FORM{download}) {
     print "Content-Type: text/html; filename=\"statement_of_account.htm\"\n"
       . "Content-Disposition: attachment; filename=\"statement_of_account.htm\"\n\n";
@@ -967,7 +966,6 @@ sub docs_statement_of_account{
   my $fees_list = $Fees->list({
     DATETIME   => '_SHOW',
     DSC        => '_SHOW',
-    DEPOSIT    => '_SHOW',
     SUM        => '_SHOW',
     LAST_DEPOSIT=>'_SHOW',
     %LIST_PARAMS,
@@ -997,37 +995,46 @@ sub docs_statement_of_account{
     push @{ $operations{$line->{datetime}} }, $line;
   }
 
-#  my $list = $Docs->statement_of_account( {
-#    %LIST_PARAMS,
-#    COLS_NAME  => 1,
-#    COLS_UPPER => 1
-#  });
-#
-#  foreach my $line ( @{$list} ){
-#    $Docs->{ROWS} .= $html->tpl_show( _include( 'docs_statement_of_account_row', 'Docs' ),
-#      { %{$line} }, { OUTPUT2RETURN => 1 } );
-#  }
   $users->pi( { UID => $LIST_PARAMS{UID} } );
 
+  my @xls_data = ();
+  my @data_upload = ();
+  my @title_upload = ( $lang{DATE}, $lang{TYPE}, $lang{ACCOUNT}, $lang{BALANCE}, $lang{FEES}, $lang{PAYMENTS}, $lang{DESCRIBE} );
   foreach my $date ( sort keys %operations ) {
 
     foreach my $money_operation ( @{ $operations{$date} } ) {
+      my $date = ($money_operation->{FEES}) ? $money_operation->{datetime} : $html->b(($money_operation->{datetime}));
+      my $login = ($money_operation->{FEES}) ? $users->{LOGIN} : $html->b($users->{LOGIN});
+      my $invoice = $html->b($money_operation->{invoice_num});
+      my $fio = ($money_operation->{FEES}) ? $users->{FIO} : $html->b($users->{FIO});
+      my $fees = ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : '';
+      my $payments = ($money_operation->{FEES}) ? '' : $html->b(sprintf("%.2f", $money_operation->{sum} || 0));
+      my $describe = ($money_operation->{FEES}) ? $money_operation->{dsc} : $html->b($money_operation->{dsc} || q{});
+      my $deposit = ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{last_deposit} || 0) : $html->b(sprintf("%.2f", $money_operation->{last_deposit} || 0));
+
       $Docs->{ROWS} .= $html->tpl_show( _include( 'docs_statement_of_account_row', 'Docs' ),
         {
-          date        =>
-            ($money_operation->{FEES}) ? $money_operation->{datetime} : $html->b(($money_operation->{datetime})),
-          login       => ($money_operation->{FEES}) ? $users->{LOGIN} : $html->b($users->{LOGIN}),
-          invoice_num => $html->b($money_operation->{invoice_num}),
-          fio         => ($money_operation->{FEES}) ? $users->{FIO} : $html->b($users->{FIO}),
-          fees_sum    => ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : '',
-          payment_sum => ($money_operation->{FEES}) ? '' : $html->b(sprintf("%.2f", $money_operation->{sum} || 0)),
-          describe    => ($money_operation->{FEES}) ? $money_operation->{dsc} : $html->b($money_operation->{dsc} || q{}),
-          deposit     =>
-            ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{last_deposit} || 0) : $html->b(sprintf("%.2f", $money_operation->{last_deposit} || 0))
-          ,
+          date        => $date,
+          login       => $login,
+          invoice_num => $invoice,
+          fio         => $fio,
+          fees_sum    => $fees,
+          payment_sum => $payments,
+          describe    => $describe,
+          deposit     => $deposit,
         },
         { OUTPUT2RETURN => 1 } );
-    }
+
+        push @xls_data, $date;
+        push @xls_data, $login;
+        push @xls_data, $invoice;
+        push @xls_data, $deposit;
+        push @xls_data, $fees;
+        push @xls_data, $payments;
+        push @xls_data, $describe;
+    } 
+    push @data_upload, [ @xls_data ];  
+    @xls_data = ();
   }
 
   my ($y)=split(/-/, $DATE);
@@ -1045,11 +1052,30 @@ sub docs_statement_of_account{
     }
   );
 
-  $html->tpl_show( _include( 'docs_statement_of_account', 'Docs' ),
-    { %{$users},
-      %{$Docs},
-      DATE => $DATE },
-    { } );
+  my $uid = $FORM{UID} || 0;
+  my $upload_xml = $html->button('XLS', "qindex=15&STATMENT_ACCOUNT=1&UID=$uid&header=2&xls=1&EXPORT_CONTENT=DOCS", { 
+    class => 'btn btn-default'
+  });
+
+  if ($FORM{xls}) {
+    my $table = $html->table({
+       ID         => 'DOCS',
+       title      => \@title_upload, 
+       rows       => \@data_upload,
+    });
+    $table->show();
+  }
+  else {
+    my $tpl = $html->tpl_show( _include( 'docs_statement_of_account', 'Docs' ),
+      {
+        %{$users},
+        %{$Docs},
+        DATE        => $DATE,
+        UPLOAD_XML  => $upload_xml
+      },
+      { }
+    );
+  }
 
   return 1;
 }

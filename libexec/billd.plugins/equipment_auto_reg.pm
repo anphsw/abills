@@ -2,7 +2,7 @@
 
  billd plugin
 
- DESCRIBE: PON auto regiistration
+ DESCRIBE: PON auto registration
 
  Arguments:
 
@@ -18,10 +18,8 @@ use SNMP_util;
 use Equipment;
 use Internet;
 use Users;
-use Data::Dumper;
 use Abills::Base qw(load_pmodule in_array check_time gen_time);
 use FindBin '$Bin';
-use threads;
 
 our $SNMP_TPL_DIR = $Bin . "/../Abills/modules/Equipment/snmp_tpl/";
 
@@ -52,11 +50,19 @@ do 'Abills/Misc.pm';
 
 require Equipment::Pon_mng;
 
+my @nas_ids;
+if ($argv->{NAS_IDS}) {
+  @nas_ids = split(/;/, $argv->{NAS_IDS});
+}
+if ($argv->{BRANCHES} && @nas_ids != 1) {
+  print "Error: there should be one NAS ID when using BRANCHES. Use billd equipment_auto_reg NAS_IDS=\"ID\" BRANCHES=\"BRANCH1;BRANCH2;...\"\n";
+  exit 1;
+}
 #tr_069_setting();
 _auto_reg();
 
 #**********************************************************
-=head2 _auto_reg($comments)
+=head2 _auto_reg($attr)
 
   Arguments:
 
@@ -102,29 +108,59 @@ sub _auto_reg {
       my $SNMP_PORT = 161;
       $SNMP_COMMUNITY .= ':'.$SNMP_PORT;
     }
+
     $nas->{SNMP_COMMUNITY} = $SNMP_COMMUNITY;
-    print "NAS_NAME: $nas->{NAS_NAME}, NAS_ID: $nas->{NAS_ID} \n" if ($debug);
+
+    print "NAS_NAME: $nas->{NAS_NAME}, NAS_ID: $nas->{NAS_ID}\n" if ($debug);
+
     my $nas_type = equipment_pon_init($nas);
     my $unregister_fn = $nas_type . '_unregister';
+
     if (defined(&$unregister_fn)) {
       my $unregister_list = &{\&$unregister_fn}({ %$nas });
+      my @branches;
+      if ($argv->{BRANCHES}) {
+        @branches = split (/;/, lc($argv->{BRANCHES}));
+      }
+
       foreach my $ont_info (@$unregister_list) {
+        if ($argv->{BRANCHES}) {
+          my $found_branch;
+          my $current_branch = lc($ont_info->{pon_type} . ':' . $ont_info->{branch});
+
+          foreach my $branch_pattern (@branches) {
+            $branch_pattern =~ s/\*/\.\*/g;
+
+            if ($current_branch =~ $branch_pattern) {
+              print "found pattern: " . $branch_pattern . ", $current_branch\n";
+              $found_branch = 1;
+            }
+          }
+
+          if (!$found_branch) {
+            next;
+          }
+        }
+
         my $internet_list = ();
         my $internet_list1 = $Internet->list({
           INTERNET_ACTIVATE=> '_SHOW',
           INTERNET_STATUS  => '0',
-          CPE_MAC          => $ont_info->{mac_serial},       
+          CPE_MAC          => $ont_info->{mac_serial},
           COLS_NAME        => 1,
           PAGE_ROWS        => 10000000,
           NAS_ID           => '_SHOW',
           PORT             => '_SHOW',
           UID              => '_SHOW',
         });
+
         foreach my $ui (@$internet_list1) {
           push( @{$internet_list}, $ui );
         }
+
         $ont_info->{vendor_mac_serial} = $ont_info->{vendor} . $ont_info->{mac_serial};
         $ont_info->{vendor_mac_serial} =~ s/^([A-Z]{4})[A-F0-9]{8}/$1/g;
+
         my $internet_list2 = $Internet->list({
           INTERNET_ACTIVATE=> '_SHOW',
           INTERNET_STATUS  => '0',
@@ -135,15 +171,24 @@ sub _auto_reg {
           PORT             => '_SHOW',
           UID              => '_SHOW',
         });
+
         foreach my $ui (@$internet_list2) {
           push( @{$internet_list}, $ui );
         }
-     
+
         foreach my $user_infos (@$internet_list) {
+          if ($argv->{FORCE_FILL_NAS}) {
+            delete $user_infos->{nas_id};
+          }
+          if ($argv->{FORCE_FILL_NAS_AND_PORT}) {
+            delete $user_infos->{nas_id};
+            delete $user_infos->{port};
+          }
+
           if (!$user_infos->{nas_id} && !$user_infos->{port}) {
             my $user_info = $Users->list({
-              UID        => $user_infos->{uid},
-              LOGIN      => '_SHOW',
+              UID       => $user_infos->{uid},
+              LOGIN     => '_SHOW',
               COLS_NAME => 1,
               PAGE_ROWS => 10000000,
               %LIST_PARAMS
@@ -153,20 +198,23 @@ sub _auto_reg {
               $ont_info->{uc($key)} = $ont_info->{$key};
             }
             $ont_info->{ONU_DESC} = $user_info->[0]->{login};
-            my $ont = _register_onu({ NAS_INFO => $nas, SNMP_COMMUNITY => $SNMP_COMMUNITY, BRANCH => $ont_info->{branch},  %{$ont_info} });            
-            
+            my $ont = _register_onu({ NAS_INFO => $nas, SNMP_COMMUNITY => $SNMP_COMMUNITY, BRANCH => $ont_info->{branch},  %{$ont_info} });
+
             my $triple_play_profile = $conf{HUAWEI_TRIPLE_LINE_PROFILE_NAME} || 'TRIPLE-PLAY';
+
             if ($ont) {
               if ($ont->{LINE_PROFILE} eq $triple_play_profile && $user_info->[0]->{_wifi_ssid} && $user_info->[0]->{_wifi_pass}) {
-                tr_069_setting($ont->{DATABASE_ID}, $user_info->[0]);             
+                tr_069_setting($ont->{DATABASE_ID}, $user_info->[0]);
               }
+
               $Internet->change({
-                UID     => $user_infos->{uid}, 
-                ID      => $user_infos->{id}, 
-                CPE_MAC => $ont_info->{mac_serial},
-                NAS_ID  => $ont->{NAS_ID}, 
-                PORT    => $ont->{ONU_DHCP_PORT},
-                VLAN    => $ont->{VLAN}
+                UID         => $user_infos->{uid},
+                ID          => $user_infos->{id},
+                CPE_MAC     => $ont_info->{mac_serial},
+                NAS_ID      => $ont->{NAS_ID},
+                PORT        => $ont->{ONU_DHCP_PORT},
+                VLAN        => $ont->{VLAN},
+                SERVER_VLAN => $ont->{SERVER_VLAN}
               });
             }
             last;
@@ -175,6 +223,8 @@ sub _auto_reg {
       }
     }
   }
+
+  return 0;
 }
 
 #********************************************************
@@ -195,11 +245,6 @@ sub _register_onu {
   my $nas_id = $attr->{NAS_ID} || $attr->{NAS_INFO}->{NAS_ID};
   $attr->{VENDOR_NAME} = $attr->{NAS_INFO}->{VENDOR_NAME};
   $attr->{onu_registration} = 1;
-#  #For old version
-#  $Equipment->vendor_info($Equipment->{VENDOR_ID});
-#  if (!$attr->{VENDOR_NAME}) {
-#    $attr->{VENDOR_NAME} = $Equipment->{NAME};
-#  }
 
   my $nas_type = equipment_pon_init($attr);
 
@@ -216,8 +261,9 @@ sub _register_onu {
     COLS_UPPER => 1,
     NAS_ID     => $nas_id
   });
+
   if (!$Equipment->{TOTAL}) {
-    equipment_pon_get_ports({ 
+    equipment_pon_get_ports({
       VERSION        => $attr->{NAS_INFO}->{snmp_version} || 1,
       SNMP_COMMUNITY => $attr->{NAS_INFO}->{SNMP_COMMUNITY},
       NAS_ID         => $nas_id,
@@ -243,6 +289,14 @@ sub _register_onu {
   $attr->{IPTV_VLAN} = $attr->{NAS_INFO}->{iptv_vlan} || '';
   $attr->{SRV_PROFILE} = $conf{HUAWEI_SRV_PROFILE_NAME} || 'ALL',
   $attr->{LINE_PROFILE} = $conf{HUAWEI_LINE_PROFILE_NAME} || 'ONU';
+
+  if ($conf{"HUAWEI_SRV_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}}) {
+    $attr->{SRV_PROFILE} = $conf{"HUAWEI_SRV_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}};
+  }
+  if ($conf{"HUAWEI_LINE_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}}) {
+    $attr->{LINE_PROFILE} = $conf{"HUAWEI_LINE_PROFILE_NAME_BY_PON_TYPE"}->{lc $attr->{pon_type}};
+  }
+
   if ($conf{HUAWEI_TRIPLE_PLAY_ONU} && in_array($attr->{EQUIPMENT_ID}, $conf{HUAWEI_TRIPLE_PLAY_ONU})) {
     $attr->{LINE_PROFILE} = $conf{HUAWEI_TRIPLE_LINE_PROFILE_NAME} || 'TRIPLE-PLAY';
   }
@@ -265,17 +319,27 @@ sub _register_onu {
       $attr->{IPTV_USER_VLAN} = $conf{IPTV_USER_VLAN} || '103';
 
       delete $attr->{NAS_INFO}->{ACTION_LNG};
+
+      my %extra_reg_params = split (/ |\=/, $argv->{EXTRA_REG_PARAMS});
+
+      #temporary workaround for strange situation, when cmd() refuses to run command, and $result_code=2
+      #Dumper($params_for_cmd->{register}) prints 'V2.8S', but when i do $params_for_cmd->{register}='V2.8S' it somehow fixes
+      my $params_for_cmd = { %$attr, %{$attr->{NAS_INFO}}, %extra_reg_params };
+      delete $params_for_cmd->{register};
+      delete $params_for_cmd->{REGISTER};
       $result = cmd($cmd, {
         DEBUG   => $debug || 0,
-        PARAMS  => { %$attr, %{$attr->{NAS_INFO}} },
+        PARAMS  => $params_for_cmd,
         ARGV    => 1,
         timeout => 30
       });
       $result_code = $? >> 8;
     }
+
     if ($result_code) {
       print $result . "\n" if ($debug);
       $result =~ s/\n/ /g;
+
       if ($result =~ /ONU: \d+\/\d+\/\d+\:(\d+) ADDED/) {
         my $onu = ();
         $onu->{NAS_ID} = $nas_id;
@@ -288,6 +352,11 @@ sub _register_onu {
         $onu->{LINE_PROFILE} = $attr->{LINE_PROFILE};
         $onu->{SRV_PROFILE} = $attr->{SRV_PROFILE};
         $onu->{VLAN} = $attr->{VLAN_ID};
+
+        if ($result =~ /SVLAN:CVLAN (\d+):(\d+)/) {
+          $onu->{SERVER_VLAN} = $1;
+          $onu->{VLAN} = $2;
+        }
 
         my $onu_list = $Equipment->onu_list({ COLS_NAME => 1, PORT_ID => $onu->{PORT_ID}, ONU_SNMP_ID => $onu->{ONU_SNMP_ID} });
         if ($onu_list->[0]->{id}) {
@@ -309,8 +378,9 @@ sub _register_onu {
   }
   return 0;
 }
+
 #**********************************************************
-=head2 tr_069_cpe_setting($id, $attr) - Devaice setting
+=head2 tr_069_setting($id, $attr) - Device setting
 
 =cut
 #**********************************************************

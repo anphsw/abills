@@ -1,3 +1,5 @@
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 CREATE TABLE IF NOT EXISTS `netblock_main` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `blocktype` varchar(20) NOT NULL DEFAULT '',

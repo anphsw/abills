@@ -58,7 +58,8 @@ sub new {
 sub send_sms {
   my $self = shift;
   my ($attr) = @_;
-  my $request_url = $self->{conf}->{SMS_UNIVERSAL_URL} || q{};
+
+  my $request_url_tpl = $self->{conf}->{SMS_UNIVERSAL_URL} || q{};
   my $result = q{};
   my $message = urlencode($attr->{MESSAGE});
   my $hexstr = decode_utf8($attr->{MESSAGE});
@@ -66,28 +67,24 @@ sub send_sms {
   $hexstr =~ s/\n/000a/g;
   $hexstr =~ s/\r//g;
 
-  if ($attr->{NUMBERS} && $attr->{NUMBERS} ne '') {
-    foreach my $number (sort keys %{$attr->{NUMBERS}}) {
-      $request_url =~ s/\%MESSAGE\%/$message/g;
-      $request_url =~ s/\%HEX_MESSAGE\%/$hexstr/g;
-      
-      $attr->{NUMBER} =~ s/ //g;
-      $attr->{NUMBER} =~ s/-//g;
-      $request_url =~ s/\%NUMBER\%/$number/g;
-      $result = web_request($request_url, { DEBUG => $self->{DEBUG}, CURL => 1});
-      $request_url =~ s/$number/\%NUMBER\%/g;
-    }
+  my @numbers;
+  if ($attr->{NUMBER} && $attr->{NUMBER} ne '') {
+    @numbers = split(/,\s?/, $attr->{NUMBER});
   }
-  elsif ($attr->{NUMBER} && $attr->{NUMBER} ne '') {
-    foreach my $number ( split(/,\s?/, $attr->{NUMBER}) ) {
-      $request_url =~ s/\%MESSAGE\%/$message/g;
-      $request_url =~ s/\%HEX_MESSAGE\%/$hexstr/g;
-      $attr->{NUMBER} =~ s/ //g;
-      $attr->{NUMBER} =~ s/-//g;
-      $request_url =~ s/\%NUMBER\%/$number/g;
-      $result = web_request($request_url, { DEBUG => $self->{DEBUG}, CURL => 1});
-      $request_url =~ s/$number/\%NUMBER\%/g;
-    }
+  elsif ($attr->{NUMBERS} && $attr->{NUMBERS} ne '') {
+    @numbers = sort keys %{$attr->{NUMBERS}};
+  }
+
+  foreach my $number (@numbers) {
+    my $request_url = $request_url_tpl;
+
+    $request_url =~ s/\%MESSAGE\%/$message/g;
+    $request_url =~ s/\%HEX_MESSAGE\%/$hexstr/g;
+
+    $number =~ s/ //g;
+    $number =~ s/-//g;
+    $request_url =~ s/\%NUMBER\%/$number/g;
+    $result = web_request($request_url, { DEBUG => $self->{DEBUG}, CURL => 1});
   }
 
   return $result;

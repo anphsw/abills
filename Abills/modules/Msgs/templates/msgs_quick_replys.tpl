@@ -25,12 +25,14 @@
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{COLOR}_</label>
     <div class='col-md-9'>
-      <input type='color' class='form-control' value='#80ff00' name='COLOR' value='%COLOR%'>
+      <input type='color' class='form-control' name='COLOR' value='%COLOR%' type="color">
     </div>
   </div>
 
 <div class='box-footer'>
-  <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LNG%'>
+  <div class='col-md-3'>
+  <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LNG%' >
+  </div>
 </div>
 
 </div>

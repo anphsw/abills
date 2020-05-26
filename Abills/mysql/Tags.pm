@@ -35,13 +35,25 @@ sub new{
 #**********************************************************
 sub info{
   my $self = shift;
-  my ($id) = @_;
+  my ($id, $attr) = @_;
 
   $self->query( "SELECT * FROM tags WHERE id = ? ;",
     undef,
-    { INFO => 1,
-      Bind => [ $id ] }
+    {
+      INFO => 1,
+      Bind => [ $id ]
+    }
   );
+
+  if ($attr->{RESPONSIBLE}) {
+    $self->query( "SELECT GROUP_CONCAT(DISTINCT a.id) AS responsible FROM tags_responsible AS tr
+                    LEFT JOIN  admins AS a ON tr.aid = a.aid
+                  WHERE tr.tags_id = ?",
+      undef,
+      { INFO => 1,
+        Bind => [ $id ] }
+    );
+  }
 
   return $self;
 }
@@ -108,22 +120,33 @@ sub list{
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  #my $PG        = ($attr->{PG})        ? $attr->{PG}             : 0;
-  #my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
+
+  my $EXT_TABLE = $self->{EXT_TABLES} || '';
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'NAME', 'STR', 'name', 1 ],
-      [ 'COMMENTS', 'STR', 'comments', 1 ],
-      [ 'PRIORITY', 'int', 'priority', 1 ],
-      [ 'ID', 'INT', 'id', ],
+      [ 'NAME',           'STR',    't.name',               1 ],
+      [ 'COMMENTS',       'STR',    't.comments',           1 ],
+      [ 'PRIORITY',       'int',    't.priority',           1 ],
+      [ 'ID',             'INT',    't.id',                   ],
+      [ 'ID_RESPONSIBLE', 'INT',    'tr.id AS id_responsible' ],
+      [ 'RESPONSIBLE',    'INT',    'GROUP_CONCAT(DISTINCT a.id) AS responsible',               1 ],
+      [ 'TAGS_ID',        'INT',    'tr.tags_id'              ]
     ],
-    { WHERE => 1,
+    {
+      WHERE => 1,
     }
   );
 
-  $self->query( "SELECT $self->{SEARCH_FIELDS} id
-     FROM tags
+  if ($attr->{RESPONSIBLE_ADMIN}) {
+    $EXT_TABLE .= "LEFT JOIN tags_responsible AS tr ON t.id = tr.tags_id
+                  LEFT JOIN  admins AS a ON tr.aid = a.aid";
+  }
+
+  $self->query( "SELECT $self->{SEARCH_FIELDS} t.id
+     FROM tags AS t
+     $EXT_TABLE
      $WHERE
+      GROUP BY t.id
       ORDER BY $SORT $DESC;",
     undef,
     $attr
@@ -151,15 +174,13 @@ sub tags_user{
   $self->{EXT_TABLES} = '';
 
   my $WHERE = $self->search_former( $attr, [
-      #['FIO',        'STR', 'pi.fio',           ],
-      [ 'TAG_ID', 'INT', 't.id', ],
-      [ 'LAST_ABON', 'INT', 'tu.date', ],
-      #['UID',        'INT', 'tu.uid',            ],
-     ['USERS_SUM',     'INT', 'SUM(tu.uid) AS tu.users_sum',     ],
-
+      [ 'TAG_ID',    'INT', 't.id',                            ],
+      [ 'LAST_ABON', 'INT', 'tu.date',                         ],
+      [ 'USERS_SUM', 'INT', 'SUM(tu.uid) AS tu.users_sum',     ],
+      [ 'RESPONSIBLE',    'INT', 'GROUP_CONCAT(DISTINCT a.id) AS responsible',               1 ],
     ],
-    { WHERE => 1,
-
+    {
+      WHERE => 1,
     }
   );
 
@@ -170,9 +191,13 @@ sub tags_user{
        tu.date,
        t.comments,
        t.priority,
-       t.id
+       t.id,
+       GROUP_CONCAT(DISTINCT a.id) AS responsible,
+       tu.uid
      FROM tags t
      LEFT JOIN tags_users tu ON (tu.tag_id = t.id AND tu.uid='$attr->{UID}')
+     LEFT JOIN tags_responsible AS tr ON t.id = tr.tags_id
+     LEFT JOIN  admins AS a ON tr.aid = a.aid
      $EXT_TABLE
      $WHERE
      GROUP BY t.id
@@ -204,7 +229,7 @@ sub tags_user_change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query( "SELECT GROUP_CONCAT(tag_id) 
+  $self->query( "SELECT GROUP_CONCAT(tag_id)
     FROM tags_users 
     WHERE uid = ?
     GROUP by uid;",
@@ -220,7 +245,7 @@ sub tags_user_change{
     my @ids_arr = split( /, /, $attr->{IDS} || '' );
     my @MULTI_QUERY = ();
 
-    for ( my $i; $i <= $#ids_arr; $i++ ){
+    for ( my $i = 0; $i <= $#ids_arr; $i++ ){
       my $id = $ids_arr[$i];
 
       push @MULTI_QUERY, [
@@ -253,7 +278,16 @@ sub user_del{
   my $self = shift;
   my ($attr) = @ _;
 
-  $self->query_del( 'tags_users', undef, { uid => $attr->{UID} } );
+  if ($attr->{TAG_ID}) {
+    my @delete_attr = ($attr->{UID}, $attr->{TAG_ID});
+
+    $self->query('DELETE FROM tags_users WHERE uid = ? AND tag_id = ?;', 'do', {
+      Bind => \@delete_attr
+    });
+  }
+  else {
+    $self->query_del('tags_users', undef, { uid => $attr->{UID} });
+  }
 
   if($self->{AFFECTED} && $self->{AFFECTED} > 0 && !$attr->{SKIP_LOG}) {
     $self->{admin}->{MODULE}=$MODULE;
@@ -274,8 +308,6 @@ sub tags_list{
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  # my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  # my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   $self->{EXT_TABLES} = '';
 
@@ -284,6 +316,7 @@ sub tags_list{
       ['TAG_ID',     'INT',    't.id',    ],
       ['LAST_ABON',  'INT',    'tu.date', ],
       ['UID',        'INT',    'tu.uid',  ],
+      ['NAME',       'STR',    't.name',  ],
     ],
     {
       WHERE => 1,
@@ -300,7 +333,7 @@ sub tags_list{
        t.id,
        u.disable,
        u.uid,
-       u.id as login
+       u.id as login,
      FROM tags_users tu
      RIGHT JOIN tags t ON (t.id=tu.tag_id)
      LEFT JOIN users u ON (u.uid=tu.uid)
@@ -310,6 +343,119 @@ sub tags_list{
     undef,
     $attr
   );
+
+  my $list = $self->{list};
+
+  return $list;
+}
+
+#**********************************************************
+=head2 add_responsible($attr)
+
+  Arguments:
+    AID       - admin id
+    TAGS_ID   - tags id
+
+  Returns:
+    -
+
+=cut
+#**********************************************************
+sub add_responsible {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add( 'tags_responsible', $attr );
+
+  return $self;
+}
+
+#**********************************************************
+=head2 del_responsible($id)
+
+  Arguments:
+    $id         - id tag
+
+  Returns:
+    -
+
+=cut
+#**********************************************************
+sub del_responsible{
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query_del( 'tags_responsible', undef, { TAGS_ID => $id } );
+
+  return $self->{result};
+}
+
+#**********************************************************
+=head2 user_tags_info() - get tag user for responsible admin
+
+  Arguments:
+    AID         - Admin id
+
+  Returns:
+    list tags responsibel second admin
+
+=cut
+#**********************************************************
+sub user_tags_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT tu.uid, tu.tag_id, GROUP_CONCAT(DISTINCT t.name) AS name, GROUP_CONCAT(DISTINCT tu.tag_id) AS tags
+                FROM tags_users AS tu
+                LEFT JOIN tags AS t ON tu.tag_id = t.id
+                LEFT JOIN tags_responsible AS tr ON t.id = tr.tags_id
+                LEFT JOIN admins AS a ON tr.aid = a.aid
+                WHERE a.aid = ?
+                GROUP BY tu.uid", undef, {
+    COLS_NAME => 1,
+    Bind      => [ $attr->{AID} ]
+  });
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 responsible_tag_list() - get list responsible tags
+
+  Arguments:
+    ID         - 
+    AID        - responsible admin for tags
+    TAGS_ID    - id tags who has responsible
+
+  Returns:
+    list tags responsible
+
+=cut
+#**********************************************************
+sub responsible_tag_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former( $attr, [
+      ['ID',        'INT',    'tr.id',      1 ],
+      ['AID',       'INT',    'tr.aid',     1 ],
+      ['TAGS_ID',   'INT',    'tr.tags_id', 1 ],
+    ],
+    {
+      WHERE => 1,
+    }
+  );
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} tr.id 
+                FROM tags_responsible AS tr 
+                $WHERE", 
+                undef, 
+                { 
+                  COLS_NAME => 1
+                });
 
   my $list = $self->{list};
 

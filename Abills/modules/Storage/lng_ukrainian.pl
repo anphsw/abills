@@ -146,3 +146,8 @@ $lang{TOTAL_FOR_PERIOD}='Всього за період';
 $lang{SPECIFY_THE_REASON_FOR_CANCELLATION}='Вкажіть причину списання';
 $lang{INCOMING_INVOICE_REPORT}='Звіт приходу за накладними';
 $lang{NO_ITEMS_FOR_CHOSEN_DATE}='Немає даних для обранної дати';
+
+$lang{REPORT}='Звіт';
+
+$lang{INSTALLED_REPORT}='Звіт по встановленим товарам';
+$lang{INSTALLED_PERIOD}='Встановлено товарів за період';

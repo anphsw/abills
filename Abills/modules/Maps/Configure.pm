@@ -15,7 +15,7 @@ JSON->import(qw/to_json from_json/);
 
 use Abills::Base qw/_bp in_array/;
 use Abills::Experimental;
-use Maps::Shared qw/:all MAPS_ICONS_DIR MAPS_ICONS_DIR_WEB_PATH LAYER_ID_BY_NAME CLOSE_OUTER_MODAL_SCRIPT/;
+#use Maps::Shared qw/:all MAPS_ICONS_DIR MAPS_ICONS_DIR_WEB_PATH CLOSE_OUTER_MODAL_SCRIPT/;
 
 our ($db,
   $admin,

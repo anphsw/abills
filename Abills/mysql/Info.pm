@@ -623,4 +623,86 @@ sub get_error {
   return 1;
 }
 
+#**********************************************************
+=head2 search_comments()
+
+  Arguments:
+    $comments - search comment
+
+  Returns:
+    $self
+
+=cut
+#**********************************************************
+sub search_comments {
+  my $self = shift;
+  my ($comments) = @_;
+
+  $self->query2("SELECT ic.id, ic.text, ii.date, ii.obj_id, ii.admin_id FROM info_comments AS ic
+   LEFT JOIN info_info AS ii ON ic.id = ii.id WHERE ic.text LIKE '\%$comments\%'", undef, {
+    COLS_NAME => 1
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 change_comments()
+
+  Arguments:
+    ID            - ID change comment
+    AID           - admin id changes comment
+    UID           - user id save comment
+    TEXT          - comment new
+    OLD_COMMENTS  - old comment
+
+  Return:
+    $self
+
+=cut
+#**********************************************************
+sub change_comments {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query2("UPDATE info_comments SET text = ? WHERE id = ?", undef, {
+    Bind => [ $attr->{TEXT}, $attr->{ID} ]
+  });
+
+  $self->query_add('info_change_comments', {
+    ID_COMMENTS => $attr->{ID},
+    DATE_CHANGE => 'NOW()',
+    AID         => $attr->{AID},
+    UID         => $attr->{UID},
+    TEXT        => $attr->{TEXT},
+    OLD_COMMENT => $attr->{OLD_COMMENTS},
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 change_comments()
+
+  Arguments:
+    -
+
+  Returns:
+    -
+
+=cut
+#**********************************************************
+sub log_comments {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query2("SELECT icc.aid, icc.date_change, icc.id_comments,
+                icc.old_comment, icc.text, icc.uid
+                FROM info_change_comments AS icc;", undef, {
+    COLS_NAME => 1
+  });
+
+  return $self->{list};
+}
+
 1;

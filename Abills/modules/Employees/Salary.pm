@@ -1466,7 +1466,7 @@ sub employees_works_list {
 
   $LIST_PARAMS{EXT_ID} = $attr->{EXT_ID};
   $LIST_PARAMS{WORK_ID} = $attr->{WORK_ID};
-
+  
   $pages_qs .= "&WORK=$attr->{EXT_ID}";
 
   result_former(
@@ -1475,6 +1475,7 @@ sub employees_works_list {
       FUNCTION        => 'employees_works_list',
       BASE_FIELDS     => 0,
       DEFAULT_FIELDS  => "DATE,EMPLOYEE,WORK,SUM,COMMENTS,FEES_ID,WORK_DONE",
+      HIDDEN_FIELDS   => "ID,ADMIN_NAME,WORK_ID,RATIO,PAID,EXT_ID,EXTRA_SUM",
       FUNCTION_FIELDS => 'change, del',
       SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
@@ -1499,6 +1500,11 @@ sub employees_works_list {
         qs      => $pages_qs,
         ID      => 'EMPLOYEES_WORKS',
         MENU    => "$lang{ADD}:index=$index$pages_qs:add",
+        SHOW_COLS_HIDDEN => {
+          index => $attr->{INDEX},
+          UID   => $attr->{UID},
+          chg   => $attr->{chg}
+        }
       },
       SELECT_VALUE    => {
         paid      => {

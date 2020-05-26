@@ -55,6 +55,7 @@
   </div>
   <div class='box-footer'>
     <input  type='submit' class='btn btn-primary' value='%BTN_NAME%'>
+
   </div>
   </div>
 

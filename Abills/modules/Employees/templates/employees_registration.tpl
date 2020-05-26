@@ -21,7 +21,7 @@
             <div class='form-group'>
                 <label class='col-md-4 col-sm-3 control-element'>_{FIO}_:</label>
                 <div class='col-md-8 col-sm-9'>
-                    <input required type='text' class='form-control' name='FIO' placeholder="_{FIO}_" value='%FIO%'>
+                    <input required type='text' class='form-control' name='FIO' title='_{SYMBOLS_REG}_a-Z 0-9' placeholder="_{FIO}_" value='%FIO%'>
                 </div>
             </div>
 

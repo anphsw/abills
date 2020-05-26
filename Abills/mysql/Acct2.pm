@@ -346,7 +346,7 @@ sub accounting {
           acct_output_gigawords= ? ",
         'do',
         { Bind => [
-            $self->{UID},
+            $self->{UID} || 0,
             $RAD->{'Acct-Session-Time'},
             $self->{TARIF_PLAN} || $self->{TP_ID} || 0,
             $RAD->{'Acct-Session-Time'},
@@ -438,7 +438,7 @@ sub accounting {
           acct_input_gigawords= ? ,
           acct_output_gigawords= ? ",
           'do',
-          { Bind => [ $self->{UID},
+          { Bind => [ $self->{UID} || 0,
               $RAD->{'Acct-Session-Time'},
               $self->{TARIF_PLAN} || $EXT_ATTR{TP_ID},
               $RAD->{'Acct-Session-Time'},

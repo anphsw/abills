@@ -108,6 +108,20 @@
                   <div class='col-md-9'><input class='form-control' name='IN_INSTALLMENTS_PRICE' type='text'
                                                value='%IN_INSTALLMENTS_PRICE%'/></div>
                 </div>
+                <div class='form-group'>
+                  <label for='METHOD' class='control-label col-sm-3'>_{FEES}_ _{TYPE}_:</label>
+                  <div class='col-md-9'>
+                    %SEL_METHOD%
+                  </div>
+                </div>
+
+                <div class='form-group'>
+                  <label class='control-label col-md-8' for='ABON_DISTRIBUTION'>_{ABON_DISTRIBUTION}_:</label>
+                  <div class='checkbox pull-left'>
+                    <input style='margin-left:15px;' id='ABON_DISTRIBUTION' name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%
+                           type='checkbox' data-input-disables='PERIOD_ALIGNMENT,FIXED_FEES_DAY'>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -105,11 +105,12 @@ our $users = Users->new($db, $admin, \%conf);
 our %PAYSYS_PAYMENTS_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
 
 #debug =========================================
-my $output2 = get_request_info();
+my $INPUT_DATA = get_request_info();
 
 if ($debug > 2) {
-  mk_log($output2);
+  mk_log($INPUT_DATA);
 }
+
 #END debug =====================================
 
 
@@ -131,25 +132,24 @@ if($conf{PAYSYS_NEW_SCHEME}){
     my $module    = $connected_system->{module};
 
     if(check_ip($remote_ip, $paysys_ip)){
-      my $INPUT_DATA = get_request_info();
-      mk_log("$INPUT_DATA", {
-          PAYSYS_ID => $module,
 
-        });
-      my $REQUIRE_OBJECT = _configure_load_payment_module($module);
-      mk_log("$module loaded\n", {
-          PAYSYS_ID => $module
-        });
-      my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {
+      mk_log($INPUT_DATA, { PAYSYS_ID => $module  });
+
+      my $Payment_system_mod = _configure_load_payment_module($module);
+
+      mk_log("$module loaded\n", { PAYSYS_ID => $module    });
+
+      my $Payment_system = $Payment_system_mod->new($db, $admin, \%conf, {
         CUSTOM_NAME => $connected_system->{name},
-        CUSTOM_ID   => $connected_system->{paysys_id}});
-      mk_log("$module object created\n", {
-          PAYSYS_ID => $module
-        });
-      $PAYSYS_OBJECT->proccess(\%FORM);
-      mk_log("$module process ended\n\n", {
-          PAYSYS_ID => $module
-        });
+        CUSTOM_ID   => $connected_system->{paysys_id}
+      });
+
+      mk_log("$module object created\n", { PAYSYS_ID => $module   });
+
+      $Payment_system->proccess(\%FORM);
+
+      mk_log("$module process ended\n\n", { PAYSYS_ID => $module  });
+
       exit;
     }
   }
@@ -177,6 +177,7 @@ sub paysys_payment_gateway {
   $html->{WEB_TITLE} = 'Payment Gateway';
 
   print $html->header();
+  load_module('Paysys', $html);
 
   my ($result, $user_info) = paysys_check_user({
     CHECK_FIELD => $conf{PAYSYS_GATEWAY_IDENTIFIER} || 'UID',
@@ -193,15 +194,15 @@ sub paysys_payment_gateway {
     });
 
     if($Paysys->{errno}){
-      print $html->message('err', "$lang{ERROR}", 'Payment system not exist');
+      print $html->message('err', $lang{ERROR}, 'Payment system not exist');
     }
     else{
       my $Module = _configure_load_payment_module($payment_system_info->{module});
       my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html });
-      print $Paysys_Object->user_portal($user_info, {
-          %FORM,
-        });
+
+      print $Paysys_Object->user_portal($user_info, { %FORM });
     }
+
     return 1;
   }
 
@@ -242,21 +243,19 @@ sub paysys_payment_gateway {
     return 1;
   }
   elsif($result == 1){
-    $html->message("err", "Try again");
+    $html->message("err", $lang{USER_NOT_EXIST});
   }
   elsif($result == 11){
-    $html->message("err", "Paysys Disable");
+    $html->message("err", "Paysys" . $lang{DISABLE});
   }
 
   $html->tpl_show(_include('paysys_gateway', 'Paysys'), \%TEMPLATES_ARGS,
     { });
+
+  return 1;
 }
 
 #END NEW SCHEME ================================
-
-
-
-
 
 load_pmodule('Digest::MD5');
 our $md5 = Digest::MD5->new();
@@ -339,7 +338,7 @@ my %ip_binded_system = (
   => 'Evostok',
   '137.135.220.102'
   => 'Kaznachey',
-  '212.24.63.49'
+  '212.24.63.49,176.99.1.0/27,176.99.0.80/28'
   => 'Robokassa',
   '192.168.0.0' #add IP f
   => 'Paykeeper',
@@ -583,9 +582,9 @@ sub paysys_payments {
   elsif ($FORM{smsid}) {
     smsproxy_payments();
   }
-  elsif ($FORM{sign}) {
-    usmp_payments();
-  }
+  # elsif ($FORM{sign}) {
+  #   usmp_payments();
+  # }
   elsif ($FORM{lr_paidto}) {
     load_pay_module('Libertyreserve');
   }
@@ -596,7 +595,7 @@ sub paysys_payments {
     }
     elsif (scalar keys %FORM > 0) {
       print "Error: Unknown payment system";
-      mk_log($output2, { PAYSYS_ID => 'Unknown' });
+      mk_log($INPUT_DATA, { PAYSYS_ID => 'Unknown' });
     }
     else {
       $FORM{INTERACT} = 1;
@@ -1830,7 +1829,7 @@ sub wm_ua_validate {
 #**********************************************************
 sub interact_mode {
 
-  do "../language/$html->{language}.pl";
+  #do "../language/$html->{language}.pl";
 
   load_module('Paysys', $html);
 
@@ -1838,7 +1837,9 @@ sub interact_mode {
   $LIST_PARAMS{UID} = $FORM{UID};
 
   print paysys_payment();
-  print $html->{OUTPUT} if $FORM{TRUE}; # showing payments result output
+  print $html->{OUTPUT} if ($FORM{TRUE}); # showing payments result output
+
+  return 1;
 }
 
 #**********************************************************
@@ -1882,7 +1883,7 @@ sub load_pay_module {
   }
 
   exit;
-  return 1;
+  #return 1;
 }
 
 #***********************************************************
@@ -1940,7 +1941,7 @@ sub new_load_pay_module {
   }
 
   exit;
-  return 1;
+  #return 1;
 }
 
 

@@ -253,6 +253,7 @@ sub tv_service_import_tp {
       1 => $lang{CHANNELS}
     );
 
+    $Tv_service->{SERVICE_ID} = $FORM{chg} if $FORM{chg};
     my $tp_list = $Tv_service->tp_export();
 
     if($Tv_service->{errno}) {
@@ -699,6 +700,122 @@ sub _service_extra_params {
   print $table->show();
 
   return 1;
+}
+
+#**********************************************************
+=head2 get_next_abon_date($attr)
+
+  Arguments:
+    $attr
+      UID       -
+      PERIOD    -
+      DATE      -
+      SERVICE   -
+        EXPIRE
+        MONTH_ABON
+        ABON_DISTRIBUTION
+        STATUS
+
+
+  Results:
+    $Service_mng->{ABON_DATE}
+
+
+=cut
+#**********************************************************
+sub get_next_abon_date {
+  my $self = ();
+  my ($attr) = @_;
+
+  my $start_period_day = $attr->{START_PERIOD_DAY} || $conf{START_PERIOD_DAY} || 1;
+  my $Service = $attr->{SERVICE};
+  my $service_activate = $Service->{ACTIVATE} || $attr->{ACTIVATE} || '0000-00-00';
+  my $service_expire = $Service->{EXPIRE} || '0000-00-00';
+  my $month_abon = $attr->{MONTH_ABON} || $Service->{MONTH_ABON} || 0;
+  my $tp_age = $Service->{TP_INFO}->{AGE} || 0;
+  my $service_status = $Service->{STATUS} || 0;
+  my $abon_distribution = $Service->{ABON_DISTRIBUTION} || 0;
+  my $fixed_fees_day = $Service->{FIXED_FEES_DAY} || $attr->{FIXED_FEES_DAY} || 0;
+
+  $DATE = $attr->{DATE} if ($attr->{DATE});
+
+  my ($Y, $M, $D) = split(/-/, $DATE, 3);
+
+  $self->{message} = q{};
+  $self->{ABON_DATE} = $DATE;
+
+  if ($service_status == 5) {
+    $self->{message} = "STATUS_5";
+    return;
+  }
+
+  if ($service_activate ne '0000-00-00' && $service_expire eq '0000-00-00') {
+    ($Y, $M, $D) = split(/-/, $service_activate, 3);
+  }
+
+  # Renew expired accounts
+  if ($service_expire ne '0000-00-00' && $tp_age > 0) {
+    # Renew expire tarif
+    if (date_diff($service_expire, $DATE) > 1) {
+      my ($NEXT_EXPIRE_Y, $NEXT_EXPIRE_M, $NEXT_EXPIRE_D) = split(/-/, POSIX::strftime("%Y-%m-%d",
+        localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) + $tp_age * 86400))));
+
+      $self->{NEW_EXPIRE} = "$NEXT_EXPIRE_Y-$NEXT_EXPIRE_M-$NEXT_EXPIRE_D";
+      $self->{message} = "RENEW EXPIRE";
+      return;
+    }
+    else {
+      $self->{ABON_DATE} = $service_expire;
+    }
+  }
+  #Get next abon day
+  elsif (!$conf{IPTV_USER_CHG_TP_NEXT_MONTH} && ($month_abon == 0 || $abon_distribution)) {
+    ($Y, $M, $D) = split(/-/, POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) + 86400))));
+
+    $self->{ABON_DATE} = sprintf("%d-%02d-%02d", $Y, $M, $D);
+    $self->{message} = 'MONTH_FEE_0';
+  }
+  # next month abon period
+  else {
+    if ($service_activate ne '0000-00-00') {
+      if ($fixed_fees_day) {
+        $M++;
+
+        if ($M == 13) {
+          $M = 1;
+          $Y++;
+        }
+
+        $self->{ABON_DATE} = sprintf("%d-%02d-%02d", $Y, $M, $D);
+        $self->{message} = 'FIXED_DAY';
+      }
+      else {
+        $self->{ABON_DATE} = POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900),
+          0, 0, 0) + 31 * 86400 + (($start_period_day > 1) ? $start_period_day * 86400 : 0))));
+        $self->{message} = 'NEXT_PERIOD_ABON';
+      }
+
+    }
+    else {
+      if ($start_period_day > $D) {
+        $D = $start_period_day;
+      }
+      else {
+        $M++;
+        $D = '01';
+      }
+
+      if ($M == 13) {
+        $M = 1;
+        $Y++;
+      }
+
+      $self->{ABON_DATE} = sprintf("%d-%02d-%02d", $Y, $M, $D);
+      $self->{message} = 'NEXT_MONTH_ABON';
+    }
+  }
+
+  return $self->{ABON_DATE} || undef;
 }
 
 1;

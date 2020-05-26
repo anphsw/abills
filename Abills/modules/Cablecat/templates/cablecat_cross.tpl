@@ -9,7 +9,7 @@
       <div class='form-group'>
         <label class='control-label col-md-3 required' for='NAME_ID'>_{NAME}_</label>
         <div class='col-md-9'>
-          <input type='text' class='form-control' value='%NAME%'  required name='NAME'  id='NAME_ID'  />
+          <input type='text' class='form-control' value='%NAME%'  required name='NAME'  id='NAME_ID' autocomplete="off" />
         </div>
       </div>
 
@@ -24,6 +24,13 @@
         <label class='control-label col-md-3' for='WELL_ID'>_{WELL}_</label>
         <div class='col-md-9'>
           %WELL_ID_SELECT%
+        </div>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-3' for='COLOR_SCHEME_ID_SELECT'>_{COLOR_SCHEME}_</label>
+        <div class='col-md-9'>
+          %COLOR_SCHEME_ID_SELECT%
         </div>
       </div>
 

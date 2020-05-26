@@ -16,15 +16,14 @@ our (
   $admin,
   %conf,
   %lang,
-  $html,
   @WEEKDAYS,
   @MONTHES
 );
 
 our Users $user;
+our Abills::HTML $html;
 
 my $Internet = Internet->new($db, $admin, \%conf);
-my $Fees     = Fees->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 my $Nas      = Nas->new($db, \%conf, $admin);
@@ -228,18 +227,14 @@ sub internet_user_info_proceed {
     return 0;
   }
 
-#  ($Internet->{NEXT_FEES_WARNING}, $Internet->{NEXT_FEES_MESSAGE_TYPE}) = internet_warning({
-#    USER     => $user,
-#    INTERNET => $Internet
-#  });
-
   require Internet::Service_mng;
-  my $Service = Internet::Service_mng->new({ lang => \%lang });
+  my $Service = Internet::Service_mng->new({ lang => \%lang, conf => \%conf });
 
   ($Internet->{NEXT_FEES_WARNING}, $Internet->{NEXT_FEES_MESSAGE_TYPE}) = $Service->service_warning({
-    SERVICE => $Internet,
-    USER    => $user,
-    DATE    => $DATE
+    SERVICE     => $Internet,
+    USER        => $user,
+    DATE        => $DATE,
+    USER_PORTAL => 1
   });
 
   if ($Internet->{NEXT_FEES_WARNING}) {
@@ -472,10 +467,10 @@ sub internet_service_info {
     }
 
     push @extra_fields,$html->tpl_show(templates('form_row_client'), {
-        ID    => '$id',
+        ID    => $id,
         NAME  => _translate($lang_),
         VALUE => $Internet_->{$id} . ( $value_prefix ? (' ' . $value_prefix) : '' ),
-      }, { OUTPUT2RETURN => 1 });
+      }, { OUTPUT2RETURN => 1, ID => $id });
   }
 
   $Internet_->{EXTRA_FIELDS} = join(($FORM{json} ? ',' : ''), @extra_fields);
@@ -675,7 +670,7 @@ sub internet_user_chg_tp {
   #Get TP groups
   $Tariffs->tp_group_info($Internet->{TP_GID});
   if (!$Tariffs->{USER_CHG_TP}) {
-    $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 140 });
+    $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 144 });
     return 0;
   }
 
@@ -985,7 +980,8 @@ sub internet_user_chg_tp {
       REDUCTION_FEE   => '_SHOW',
       NEW_MODEL_TP    => 1,
       COLS_NAME       => 1,
-      DOMAIN_ID       => $user->{DOMAIN_ID}
+      DOMAIN_ID       => $user->{DOMAIN_ID},
+      PAYMENT_TYPE    => '_SHOW'
     });
 
     my @skip_tp_changes = ();
@@ -996,7 +992,6 @@ sub internet_user_chg_tp {
     foreach my $tp (@$tp_list) {
       next if (in_array($tp->{id}, \@skip_tp_changes));
       next if ($tp->{tp_id} == $Internet->{TP_ID} && $user->{EXPIRE} eq '0000-00-00');
-      #   $table->{rowcolor} = ($table->{rowcolor} && $table->{rowcolor} eq $_COLORS[1]) ? $_COLORS[2] : $_COLORS[1];
       my $radio_but = '';
 
       my $tp_fee = $tp->{day_fee} + $tp->{month_fee};
@@ -1007,7 +1002,7 @@ sub internet_user_chg_tp {
 
       $user->{CREDIT}=($user->{CREDIT}>0)? $user->{CREDIT}  : (($tp->{credit} > 0) ? $tp->{credit} : 0);
 
-      if ($tp_fee < $user->{DEPOSIT} + $user->{CREDIT} || $tp->{abon_distribution}) {
+      if ($tp_fee < $user->{DEPOSIT} + $user->{CREDIT} || $tp->{payment_type} || $tp->{abon_distribution}) {
         $radio_but = $html->form_input('TP_ID', $tp->{tp_id}, { TYPE => 'radio', OUTPUT2RETURN => 1 });
       }
       elsif( $conf{INTERNET_USER_CHG_TP_SMALL_DEPOSIT}){
@@ -1402,13 +1397,13 @@ sub internet_dhcp_get_mac_add {
       else {
         my $internet_list = $Internet->list({
           UID       => $user->{UID},
-          PORT     => '_SHOW',
+          PORT      => '_SHOW',
           NAS_ID    => '_SHOW',
           COLS_NAME => 1,
           PAGE_ROWS => 1
         });
         foreach my $service (@$internet_list) {
-          if (!$service->{nas_id} && !$service->{port}) {
+          if ((!$service->{nas_id} && !$service->{port}) || $Internet->{TOTAL} == 1) {
              $Internet->change(
               {
                 %PARAMS_HASH,
@@ -1520,6 +1515,7 @@ sub internet_dhcp_get_mac {
       UID         => '_SHOW',
       CID         => '_SHOW',
       NAS_TYPE    => '!cisco_isg',
+      SWITCH_ID   => '_SHOW',
       SWITCH_PORT => '_SHOW',
       COLS_NAME   => 1,
       COLS_UPPER  => 1
@@ -1527,9 +1523,9 @@ sub internet_dhcp_get_mac {
 
     if ($Sessions->{TOTAL} > 0) {
       %PARAMS        = %{ $list->[0] };
-      $PARAMS{NAS_ID} = $list->[0]->{nas_id};
+      $PARAMS{NAS_ID}= $list->[0]->{switch_id} || $list->[0]->{nas_id};
       $PARAMS{MAC}   = _mac_former($list->[0]->{cid});
-      $PARAMS{PORTS}  = $list->[0]->{switch_port};
+      $PARAMS{PORTS} = $list->[0]->{switch_port};
       $PARAMS{PORT}  = $list->[0]->{switch_port};
       $PARAMS{VLAN}  = $list->[0]->{vlan};
       $PARAMS{UID}   = $list->[0]->{uid};
@@ -1593,13 +1589,44 @@ sub internet_dhcp_get_mac {
 sub internet_holdup_service {
 
   my ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
-    undef, $active_fees, $holdup_skip_gids, $user_del_shedule) = split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP});
+    undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_) = split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP});
 
   if ($holdup_skip_gids) {
     my @holdup_skip_gids_arr = split(/,\s?/, $holdup_skip_gids);
     if (in_array($user->{GID}, \@holdup_skip_gids_arr)) {
       return '';
     }
+  }
+
+  if ($expr_) {
+    my @holdup_exprs = split(/,\s?/, $expr_);
+    my %holdup_params = ();
+    foreach my $expr_pair (@holdup_exprs) {
+      my ($key, $val)=split(/=/, $expr_pair);
+      $holdup_params{$key}=$val;
+    }
+    if ($holdup_params{REGISTRATION}) {
+      $holdup_params{REGISTRATION} =~ s/^([<>])//;
+      my $param = $1 || '=';
+      if($param eq '>') {
+        $param = '<';
+      }
+      elsif ($param eq '<') {
+        $param = '>'
+      }
+
+      my $days = date_diff($user->{REGISTRATION}, $DATE);
+
+      if(eval ($days . $param . $holdup_params{REGISTRATION})) {
+        $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} $lang{REGISTRATION}", { ID => 33 });
+        return '';
+      }
+    }
+  }
+
+  if ($active_fees && $active_fees > 0 && $user->{DEPOSIT} < $active_fees) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_SMALL_DEPOSIT}, { ID => 34 });
+    return '';
   }
 
   if ($hold_up_day_fee && $hold_up_day_fee > 0) {
@@ -1626,7 +1653,7 @@ sub internet_holdup_service {
       );
 
       service_get_month_fee($Internet, { QUITE => 1 });
-      $html->message('info', $lang{SERVICE}, "$lang{ACTIVATE}");
+      $html->message('info', $lang{SERVICE}, $lang{ACTIVATE});
       return '';
     }
     elsif($conf{INTERNET_HOLDUP_COMPENSATE}) {
@@ -1718,10 +1745,6 @@ sub internet_holdup_service {
           internet_compensation({ QUITE => 1, HOLD_UP => 1, UP => 1 });
         }
 
-        if($active_fees) {
-          $Fees->take($user, $active_fees, { DESCRIBE => $lang{HOLD_UP} });
-        }
-
         $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n $lang{DATE}: $FORM{FROM_DATE} -> $FORM{TO_DATE}\n  $lang{DAYS}: " . sprintf("%d", $block_days));
         return '';
       }
@@ -1745,7 +1768,7 @@ sub internet_holdup_service {
 
   if (($Internet->{STATUS} && $Internet->{STATUS} == 3) || $Internet->{DISABLE}) {
     $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .
-      $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=$FORM{ID}sid=$sid", { BUTTON => 1, MESSAGE => "$lang{ACTIVATE}?" }) );
+      $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}) ."&sid=$sid", { BUTTON => 1, MESSAGE => "$lang{ACTIVATE}?" }) );
     return '';
   }
 

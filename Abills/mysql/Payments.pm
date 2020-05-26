@@ -279,7 +279,7 @@ sub list {
       ['FROM_DATE|TO_DATE', 'DATE', 'DATE_FORMAT(p.date, \'%Y-%m-%d\')'                    ],
       ['UID',            'INT', 'p.uid',                                                 1 ],
       ['AFTER_DEPOSIT',  'INT', '(p.sum+p.last_deposit) as after_deposit',               1 ],
-      ['ADMIN_DISABLE', 'INT', 'a.disable', 'a.disable AS admin_disable',                1 ],
+      ['ADMIN_DISABLE',  'INT', 'a.disable', 'a.disable AS admin_disable',               1 ],
     ],
     { WHERE       => 1,
     	WHERE_RULES => \@WHERE_RULES,
@@ -590,13 +590,14 @@ sub payment_type_list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former($attr, [
-      ['ID',           'INT',  'pt.id'    ],
-      ['NAME',         'STR',  'pt.name'  ],
-      ['COLOR',        'STR',  'pt.color' ]
+      ['ID',                'INT',  'pt.id'              ],
+      ['NAME',              'STR',  'pt.name'            ],
+      ['COLOR',             'STR',  'pt.color'           ],
+      ['DEFAULT_PAYMENT',   'INT',  'pt.default_payment' ]
     ],
     { WHERE => 1 });
 
-  $self->query("SELECT pt.id, pt.name, pt.color
+  $self->query("SELECT pt.id, pt.name, pt.color, pt.default_payment
     FROM payments_type pt
     $WHERE
     GROUP BY pt.id
@@ -669,4 +670,18 @@ sub payment_report_admin {
   );
   return $self->{list};
 }
+
+#**********************************************************
+=head2 payment_default_type($attr)
+
+=cut
+#**********************************************************
+sub payment_default_type {
+  my $self = shift;
+
+  $self->query("UPDATE payments_type SET default_payment = 0;");
+
+  return $self;
+}
+
 1

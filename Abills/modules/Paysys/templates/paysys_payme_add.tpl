@@ -52,6 +52,7 @@
        несколько полей с атрибутом  name="description[{lang}]"
        lang может принимать значения ru|en|uz -->
   <input type="hidden" name="description" value="PaymentDesc Payme"/>
+  <input type="hidden" name="description" value="%DESCRIBE%"/>
 
   <!-- Объект детализации платежа
        Поле для детального описания платежа, например, перечисления
@@ -78,12 +79,17 @@
 
       <div class='form-group'>
         <label class='col-md-6 control-label text-center'> _{PAY_SYSTEM}_:</label>
-        <label class='col-md-6 control-label'>PayMe</label>
+        <label class='col-md-6 control-label'>Payme</label>
+      </div>
+
+      <div class='form-group'>
+        <label class='control-label col-md-6 text-center'>_{DESCRIBE}_:</label>
+        <label class='control-label col-md-6'>%DESCRIBE%</label>
       </div>
 
       <div class='form-group'>
         <label class='control-label col-md-6 text-center'>_{SUM}_:</label>
-        <label class='control-label col-md-6'> $FORM{SUM} </label>
+        <label class='control-label col-md-6'>$FORM{SUM}</label>
       </div>
     </div>
     <div class='box-footer'>
@@ -92,3 +98,4 @@
   </div>
 
 </form>
+

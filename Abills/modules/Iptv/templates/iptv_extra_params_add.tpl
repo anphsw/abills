@@ -25,9 +25,9 @@
                 </div>
             </div>
             <div class='form-group'>
-                <label class='control-label col-md-4 required' for="IP">IP: </label>
+                <label class='control-label col-md-4' for="IP">IP: </label>
                 <div class='col-md-8'>
-                    <input required='' type='text' class='form-control' id="IP" name='IP' value='%IP%'/>
+                    <input type='text' class='form-control' id="IP" name='IP' value='%IP%'/>
                 </div>
             </div>
             <div class='form-group'>

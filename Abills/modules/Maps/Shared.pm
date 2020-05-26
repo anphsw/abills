@@ -12,7 +12,6 @@ use warnings FATAL => 'all';
 
 =cut
 
-use Exporter;
 use parent 'Exporter';
 
 use constant {
@@ -45,13 +44,12 @@ our $MAPS_ENABLED_LAYERS = {};
 
 our @EXPORT = qw/
   LAYER_ID_BY_NAME
-  $MAPS_ENABLED_LAYERS
   MAPS_ICONS_DIR_WEB_PATH
   MAPS_ICONS_DIR
   CLOSE_OUTER_MODAL_SCRIPT
 /;
 
-our @EXPORT_OK = qw/LAYER_ID_BY_NAME $MAPS_ENABLED_LAYERS/;
+our @EXPORT_OK = qw/LAYER_ID_BY_NAME/;
 
 our %EXPORT_TAGS = (
   all => \@EXPORT

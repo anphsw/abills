@@ -2,10 +2,11 @@
 
     <input type=hidden name='index' value='$index'>
     <input type=hidden name='TP_ID' value='%TP_ID%'>
+    <input type=hidden name='RAD_PAIRS' id="RAD_PAIRS" value='%RAD_PAIRS%'>
     <div class='row'>
         <div class='col-md-6'>
             <div class='box box-theme box-big-form'>
-                <div class='box-header with-border'><h4 class='box-title'>_{TARIF_PLAN}_</h4></div>
+                <div class='box-header with-border'><h4 class='box-title'>_{TARIF_PLAN}_</h4>%CLONE_BTN%</div>
                 <div class='box-body'>
 
                     <div class='form-group'>
@@ -45,17 +46,17 @@
                     </div>
 
                     <div class='form-group'>
-                      <label class='control-label col-md-3'>_{DESCRIBE}_</label>
+                      <label class='control-label col-md-3' for='COMMENTS'>_{DESCRIBE}_</label>
                       <div class='col-md-9'>
-                        <textarea cols='40' rows='4' name='COMMENTS' class='form-control'>%COMMENTS%</textarea>
+                        <textarea cols='40' rows='4' name='COMMENTS' class='form-control' id='COMMENTS'>%COMMENTS%</textarea>
                       </div>
                     </div>
 
                   <div class='form-group'>
                     <label class='control-label col-md-3'>_{HIDE_TP}_</label>
                     <div class='col-md-9'>
-                      <div class="checkbox pull-left">
-                        <input style="margin-left:0px;" type="checkbox" name="STATUS" value="1" id="STATUS" %STATUS%>
+                      <div class='checkbox pull-left'>
+                        <input style='margin-left:0px;' type='checkbox' name='STATUS' value='1' id='STATUS' %STATUS%>
                       </div>
                     </div>
                   </div>
@@ -116,7 +117,7 @@
                  <div class='form-group'>
                      <label class='control-label col-md-8' for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
                      <div class='checkbox pull-left'>
-                         <input style='margin-left:15px;' id='PERIOD_ALIGNMENT' name='PERIOD_ALIGNMENT' value=1 %PERIOD_ALIGNMENT% type='checkbox' data-input-disables="FIXED_FEES_DAY,ABON_DISTRIBUTION">
+                         <input style='margin-left:15px;' id='PERIOD_ALIGNMENT' name='PERIOD_ALIGNMENT' value=1 %PERIOD_ALIGNMENT% type='checkbox' data-input-disables='FIXED_FEES_DAY,ABON_DISTRIBUTION'>
                      </div>
                  </div>
 
@@ -124,14 +125,14 @@
                      <label class='control-label col-md-8' for='ABON_DISTRIBUTION'>_{ABON_DISTRIBUTION}_:</label>
                      <div class='checkbox pull-left'>
                          <input style='margin-left:15px;' id='ABON_DISTRIBUTION' name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%
-                                type='checkbox' data-input-disables="PERIOD_ALIGNMENT,FIXED_FEES_DAY">
+                                type='checkbox' data-input-disables='PERIOD_ALIGNMENT,FIXED_FEES_DAY'>
                      </div>
                  </div>
 
                  <div class='form-group'>
                      <label class='control-label col-md-8' for='FIXED_FEES_DAY'>_{FIXED_FEES_DAY}_:</label>
                      <div class='checkbox pull-left'>
-                         <input style='margin-left:15px;' id='FIXED_FEES_DAY' name='FIXED_FEES_DAY' value=1 %FIXED_FEES_DAY% type='checkbox' data-input-disables="PERIOD_ALIGNMENT,ABON_DISTRIBUTION">
+                         <input style='margin-left:15px;' id='FIXED_FEES_DAY' name='FIXED_FEES_DAY' value=1 %FIXED_FEES_DAY% type='checkbox' data-input-disables='PERIOD_ALIGNMENT,ABON_DISTRIBUTION'>
                      </div>
                  </div>
 
@@ -407,10 +408,60 @@
               </div>
 
               <div class='form-group'>
-                  <label class='col-sm-offset-2 col-sm-8'>RADIUS Parameters (,)</label>
-                  <div class='col-sm-offset-2 col-sm-8'>
-                      <textarea cols='40' rows='4' name='RAD_PAIRS' class='form-control'>%RAD_PAIRS%</textarea>
-                  </div>
+                  <label class='col-sm-offset-2 col-sm-8'>RADIUS Parameters</label>
+                    <div class='col-md-12'>
+                      <table class='table table-bordered table-hover'>
+
+                        <thead>
+                        <tr>
+                          <th class='text-center col-md-1'>
+                            #
+                          </th>
+                          <th class='text-center col-md-3'>
+                            _{LEFT_PART}_
+                          </th>
+                          <th class='text-center col-md-1'>
+                            _{CONDITION}_
+                          </th>
+                          <th class='text-center col-md-3'>
+                            _{RIGHT_PART}_
+                          </th>
+                        </tr>
+                        </thead>
+                        <tbody id='tab_logic'>
+
+                        <tr id='addr1'>
+                          <td class='ids'>
+                            <input type='hidden' name='IDS' value='1'>
+                            1
+                          </td>
+                          <td class='left_p'>
+                            <input type='text' name='LEFT_PART' id='LEFT_PART' value='%LEFT_PART%'
+                                   placeholder='_{LEFT_PART}_' class='form-control'/>
+                          </td>
+                          <td class='cnd'>
+                            <input type='text' name='CONDITION' id='CONDITION' value='%CONDITION%' placeholder='='
+                                   class='form-control'/>
+                          </td>
+                          <td class='right_p'>
+                            <input type='text' name='RIGHT_PART' id='RIGHT_PART'
+                                   value='%RIGHT_PART%' placeholder='_{RIGHT_PART}_'
+                                   class='form-control'/>
+                          </td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                <div class='col-md-2 col-xs-2 pull-right' style='padding-right: 0'>
+                  <a title='_{ADD}_' class='btn btn-sm btn-default' id='add_field'>
+                    <span class='glyphicon glyphicon-plus'></span>
+                  </a>
+                </div>
+                <div class='col-md-2 col-xs-2 pull-right' style='padding-right: 0'>
+                  <a title='_{ADD}_' class='btn btn-sm btn-default' id='del_field'>
+                    <span class='glyphicon glyphicon-minus'></span>
+                  </a>
+                </div>
               </div>
               %BONUS%
 
@@ -430,3 +481,83 @@
     </div>
 <br>
 </form>
+<script>
+    jQuery(function () {
+        var iter = 2;
+
+        var date = document.getElementById('RAD_PAIRS').value;
+        var element = 0;
+
+        var answDate = date.split(',');
+
+        while (element < answDate.length) {
+            if(answDate[element] === " ") {
+                answDate.splice(element, 1);
+            }
+            element++;
+        }
+
+        element = 0;
+
+        if (date) {
+            while (element < answDate.length) {
+                if (/([0-9a-zA-Z\-!]+)([-+=]{1,2})([:\-#= 0-9a-zA-Zа-яА-Я.]+)/.test(answDate[element])) {
+                    let dateRegex = answDate[element].match(/([0-9a-zA-Z\-!]+)([-+=]{1,2})([:\-#= 0-9a-zA-Zа-яА-Я.]+)/);
+                    if (element < answDate.length) {
+                        jQuery('#addr1').clone(true)
+                            .attr('id', 'addr' + iter)
+                            .show()
+                            .appendTo('#tab_logic');
+
+                        jQuery('#addr' + iter).children('.ids').text(iter);
+
+                        jQuery('#addr' + (iter - 1)).children('.left_p').children("#LEFT_PART").val(dateRegex[1]);
+                        jQuery('#addr' + (iter - 1)).children('.cnd').children("#CONDITION").val(dateRegex[2]);
+                        jQuery('#addr' + (iter - 1)).children('.right_p').children("#RIGHT_PART").val(dateRegex[3]);
+
+                        iter++;
+                    }
+                }
+                element++;
+            }
+
+            if (iter > 2) {
+                jQuery('#del_field').show();
+            }
+
+            jQuery('#addr' + (iter - 1)).remove();
+            iter--;
+        }
+
+        jQuery('#add_field').click(function () {
+            jQuery('#addr1').clone(true)
+                .attr('id', 'addr' + iter)
+                .show()
+                .appendTo('#tab_logic');
+
+            jQuery('#addr' + iter).children('.ids').text(iter);
+
+            jQuery('#addr' + iter).children('.left_p').children("#LEFT_PART").val("");
+            jQuery('#addr' + iter).children('.cnd').children("#CONDITION").val("");
+            jQuery('#addr' + iter).children('.right_p').children("#RIGHT_PART").val("");
+
+            iter++;
+
+            if (iter > 2) {
+                jQuery('#del_field').show();
+            }
+        });
+
+        jQuery('#del_field').click(function () {
+            if (iter > 2) {
+                jQuery('#addr' + (iter - 1)).remove();
+                iter--;
+            }
+            else if (iter === 2) {
+                jQuery('#addr' + (iter-1)).children('.left_p').children("#LEFT_PART").val("");
+                jQuery('#addr' + (iter-1)).children('.cnd').children("#CONDITION").val("");
+                jQuery('#addr' + (iter-1)).children('.right_p').children("#RIGHT_PART").val("");
+            }
+        });
+    })
+</script>

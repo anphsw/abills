@@ -850,6 +850,7 @@ sub equipment_add_form {
 
   if ($FORM{add}) {
     $FORM{NAS_TYPE} = 'other';
+    $FORM{NAS_MNG_IP_PORT} = join(':', $FORM{NAS_MNG_IP} || '', $FORM{COA_PORT} || '', $FORM{SSH_PORT} || '', $FORM{SNMP_PORT} || '');
     if($admin->{DOMAIN_ID} && $admin->{DOMAIN_ID} !~ /^\d+$/) {
       $html->message('err', $lang{ERROR}, 'Select domain', { ID => 461 });
     }
@@ -877,7 +878,9 @@ sub equipment_add_form {
   require Control::Nas_mng;
   require Control::Address_mng;
 
-  $info{ADDRESS_FORM} = form_address();
+  $info{ADDRESS_FORM} = form_address({
+    FLOOR => '' #to show floor and entrance fields
+  });
   $info{NAS_GROUPS_SEL} = sel_nas_groups({ GID => $Nas->{GID} });
 
   $html->tpl_show(_include('equipment_add', 'Equipment'), \%info);
@@ -924,31 +927,47 @@ sub equipment_list {
   if (defined($LIST_PARAMS{DISTRICT_ID}) && !$LIST_PARAMS{DISTRICT_ID}) {
     delete $LIST_PARAMS{DISTRICT_ID};
   }
+
   result_former({
     INPUT_DATA      => $Equipment,
     FUNCTION        => '_list',
-    DEFAULT_FIELDS  => 'NAS_NAME,STATUS,NAS_IP,MODEL_NAME,VENDOR_NAME,TYPE_NAME,PORTS,ADDRESS_FULL',
+    DEFAULT_FIELDS  => 'NAS_NAME,STATUS,NAS_IP,MODEL_NAME,VENDOR_NAME,TYPE_NAME,PORTS_WITH_EXTRA,ADDRESS_FULL',
     FUNCTION_FIELDS => 'equipment_traps:show:nas_id,equipment_info:change:nas_id,equipment_info:del:nas_id;&del=nas_id',
     MAP             => 1,
+    MAP_SHOW_ITEMS  => {
+      'nas_name'      => $lang{NAS},
+      'nas_ip'        => 'IP',
+      'model_name'    => $lang{MODEL},
+      'type_name'     => $lang{TYPE},
+      'LINK_ITEMS'    => {
+        'nas_name' => {
+          'index'        => get_function_index("equipment_info"),
+          'EXTRA_PARAMS' => {
+            'NAS_ID' => 'nas_id',
+          }
+        },
+      },
+    },
+    MAP_ICON        => 'nas_green',
     EXTRA_TABS      => { 'Netmaps:network_map' => "index=" . $index . "&NET_MAP=1" },
     STATUS_VALS     => \@service_status,
     EXT_TITLES      => {
-      nas_ip         => 'IP',
-      nas_name       => $lang{NAME},
-      address_full   => $lang{ADDRESS},
-      mac            => 'MAC',
-      online         => 'Online',
-      nas_id         => 'Nas ID',
-      system_id      => 'System id',
-      status         => $lang{STATUS},
-      model_name     => $lang{MODEL},
-      vendor_name    => $lang{VENDOR},
-      type_name      => $lang{TYPE},
-      ports          => $lang{PORTS},
-      nas_group_name => $lang{GROUPS},
-      last_activity  => $lang{LAST_ACTIVITY},
-      domain_id      => 'DOMAIN_ID',
-      domain_name    => 'DOMAIN_NAME',
+      nas_ip           => 'IP',
+      nas_name         => $lang{NAME},
+      address_full     => $lang{ADDRESS},
+      mac              => 'MAC',
+      online           => 'Online',
+      nas_id           => 'Nas ID',
+      system_id        => 'System id',
+      status           => $lang{STATUS},
+      model_name       => $lang{MODEL},
+      vendor_name      => $lang{VENDOR},
+      type_name        => $lang{TYPE},
+      ports_with_extra => $lang{PORTS},
+      nas_group_name   => $lang{GROUPS},
+      last_activity    => $lang{LAST_ACTIVITY},
+      domain_id        => 'DOMAIN_ID',
+      domain_name      => 'DOMAIN_NAME',
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {
@@ -2021,7 +2040,7 @@ sub equipment_user_info {
 
       # Type
       push @equipment_infos, [ $lang{TYPE}, ($Nas_info->{type_id} == 4) ? 'PON' : $Nas_info->{type_id} ];
-      if ($Nas_info->{type_id} == 4) {
+      if ($Nas_info->{type_id} == 4 && $attr->{PORT}) {
         my $onu_list = $Equipment->onu_list({
           ONU_DHCP_PORT => $attr->{PORT},
           NAS_ID        => $nas_id || '',
@@ -2119,44 +2138,60 @@ sub equipment_maps_layers {
 =cut
 #**********************************************************
 sub equipment_equipment_maps {
-  my $equipment_list = $Equipment->_list(
-    {
-      NAS_ID      => '_SHOW',
-      LOCATION_ID => '_SHOW',
-      COORDX      => '_SHOW',
-      COORDY      => '_SHOW',
-      COLS_NAME   => 1,
-      PAGE_ROWS   => 10000,
-    }
-  );
+
+  my $equipment_list = $Equipment->_list_with_coords({
+    STATUS    => '_SHOW',
+    COLS_NAME => 1,
+    PAGE_ROWS => 10000,
+  });
   _error_show($Equipment);
 
   # Tell Maps we want to get infowindow from Equipment module
   $FORM{INFO_MODULE} = 'Equipment';
 
   # To prevent showing few points on same position, we are stacking info in one single block
-  my %showed_equipment = ();
 
   my @export_arr = ();
   foreach my $point (@{$equipment_list}) {
-    next if (!($point->{coordy} && $point->{coordx}) || $showed_equipment{$point->{location_id}});
 
-    $showed_equipment{$point->{location_id}} = 1;
-    my $equipment_info = maps_load_info({ LOCATION_ID => $point->{location_id}, TYPE => 'NAS' });
+    my $equipment_info = '';
+    if ($FORM{RETURN_JSON}) {
+      my $result = equipment_location_info({
+        LOCATION_ID => $point->{location_id},
+        TYPE        => 'NAS'
+      });
+
+      if ($result && $result->{HTML}) {
+        $result->{HTML} =~ s/\n/ /gm;
+        $result->{HTML} =~ s/\+"+/'/gm;
+        $equipment_info = $result;
+      }
+    }
+    else {
+      $equipment_info = maps_load_info({ LOCATION_ID => $point->{location_id}, TYPE => 'NAS' });
+    }
 
     my $info = $equipment_info->{HTML} || '';
     my $count = $equipment_info->{COUNT} || 0;
     my $color = $equipment_info->{COLOR} || 'green';
+    $point->{coordy} ||= $point->{coordx_2};
+    $point->{coordx} ||= $point->{coordy_2};
+
+    my $add_class = $color ne 'green' ? 'danger-equipment ' : '';
 
     my $tpl = qq{
             {
              "MARKER": {
-                  "ID"       : $point->{nas_id},
-                  "COORDX"   : $point->{coordy},
-                  "COORDY"   : $point->{coordx},
-                  "INFO"     : "$info",
-                  "TYPE"     : "nas_$color",
-                  "COUNT"    :  $count
+                  "ID"           : $point->{nas_id},
+                  "COORDX"       : $point->{coordy},
+                  "COORDY"       : $point->{coordx},
+                  "INFO"         : "$info",
+                  "TYPE"         : "nas_$color",
+                  "COUNT"        :  $count,
+                  "OBJECT_ID"    : $point->{location_id},
+                  "DISABLE_EDIT" : 1,
+                  "LAYER_ID"     : $EQUIPMENT_MAPS_LAYER_ID,
+                  "ADD_CLASS"    : "$add_class"
                 },
              "LAYER_ID" : $EQUIPMENT_MAPS_LAYER_ID
             }
@@ -2166,6 +2201,11 @@ sub equipment_equipment_maps {
   }
 
   if ($FORM{EXPORT_LIST}) {
+    if ($FORM{RETURN_JSON}) {
+      print "[" . join(", ", @export_arr) . "]";
+      return 1;
+    }
+
     return join(", ", @export_arr);
   }
 
@@ -2173,11 +2213,12 @@ sub equipment_equipment_maps {
 }
 
 #**********************************************************
-=head2 equipment_equipment_maps()
+=head2 equipment_pon_maps()
 
 =cut
 #**********************************************************
 sub equipment_pon_maps {
+
   my $equipment_list = $Equipment->onu_list({
     LOCATION_ID => '_SHOW',
     LOGIN       => '_SHOW',
@@ -2221,11 +2262,11 @@ sub equipment_pon_maps {
         $color = "off";
         $panel_color = "default";
       }
-      elsif ($point->{rx_power} < -8 || $point->{rx_power} > -27) {
+      elsif ($point->{rx_power} < -8 && $point->{rx_power} > -27) {
         $color = "normal";
         $panel_color = "success";
       }
-      elsif ($point->{rx_power} > -8 || $point->{rx_power} < -30) {
+      elsif ($point->{rx_power} < -8 && $point->{rx_power} > -30) {
         $color = "not_normal";
         $panel_color = "danger";
       }
@@ -2250,11 +2291,14 @@ sub equipment_pon_maps {
       my $tpl = qq{
             {
              "MARKER": {
-                  "ID"       : $point->{nas_id}$count,
-                  "COORDX"   : $coordx,
-                  "COORDY"   : $coordy,
-                  "INFO"     : "$info",
-                  "TYPE"     : "pon_$color"
+                  "ID"           : $point->{nas_id}$count,
+                  "COORDX"       : $coordx,
+                  "COORDY"       : $coordy,
+                  "INFO"         : "$info",
+                  "TYPE"         : "pon_$color",
+                  "OBJECT_ID"    : $point->{location_id},
+                  "DISABLE_EDIT" : 1,
+                  "LAYER_ID"     : $PON_MAPS_LAYER_ID
                 },
              "LAYER_ID" : $PON_MAPS_LAYER_ID
             }
@@ -2265,14 +2309,15 @@ sub equipment_pon_maps {
   }
 
   $equipment_list = $Equipment->_list({
-    MODEL_NAME => '_SHOW',
-    NAS_NAME   => '_SHOW',
-    NAS_IP     => '_SHOW',
-    COORDX     => '!',
-    COORDY     => '!',
-    TYPE_ID    => '4',
-    COLS_NAME  => 1,
-    PAGE_ROWS  => 100000,
+    MODEL_NAME  => '_SHOW',
+    NAS_NAME    => '_SHOW',
+    NAS_IP      => '_SHOW',
+    COORDX      => '!',
+    COORDY      => '!',
+    TYPE_ID     => '4',
+    LOCATION_ID => '_SHOW',
+    COLS_NAME   => 1,
+    PAGE_ROWS   => 100000,
   });
   _error_show($Equipment);
 
@@ -2300,7 +2345,6 @@ sub equipment_pon_maps {
     my $color = 'olt';
     my $panel_color = "success";
 
-    #    my $user = $users->info(0, { LOGIN => "$point->{login}" });
     my $index = get_function_index('equipment_info');
     my $link = "OLT:<a href='index.cgi?index=$index&NAS_ID=$point->{nas_id}' target='_blank'> $point->{nas_name}</a>";
     my $tb = "<div class='panel panel-$panel_color'>" .
@@ -2315,6 +2359,7 @@ sub equipment_pon_maps {
 
     $count++;
 
+    $point->{location_id} ||= $point->{build_id};
     my $tpl = qq{
             {
              "MARKER": {
@@ -2322,7 +2367,8 @@ sub equipment_pon_maps {
                   "COORDX"   : $coordy,
                   "COORDY"   : $coordx,
                   "INFO"     : "$info",
-                  "TYPE"     : "$color"
+                  "TYPE"     : "$color",
+                  "OBJECT_ID": $point->{location_id}
                 },
              "LAYER_ID" : $PON_MAPS_LAYER_ID
             }
@@ -2332,6 +2378,11 @@ sub equipment_pon_maps {
   }
 
   if ($FORM{EXPORT_LIST}) {
+    if ($FORM{RETURN_JSON}) {
+      print "[" . join(", ", @export_arr) . "]";
+      return 1;
+    }
+
     return join(", ", @export_arr);
   }
 
@@ -2367,13 +2418,13 @@ sub equipment_location_info {
   foreach my $key (@$equipment_info_list) {
     $st = $st + $key->{status};
     my $link = "<a href='index.cgi?index=$index&NAS_ID=$key->{nas_id}'>$key->{nas_name}</a>";
-    $tb .= "<div class='panel panel-$colors{$key->{status} || 0}'>
-  			<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>
-  			<ul class='list-group'>
-  				<li class='list-group-item'>IP: $key->{nas_ip}</li>
-  				<li class='list-group-item'>$lang{MODEL}: $key->{model_name}</li>
-  			</ul>
-  			</div>";
+    $tb .= "<div class='panel panel-$colors{$key->{status} || 0}'>" .
+  			"<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>" .
+  			"<ul class='list-group'>" .
+  				"<li class='list-group-item'>IP: $key->{nas_ip}</li>" .
+  				"<li class='list-group-item'>$lang{MODEL}: $key->{model_name}</li>" .
+  			"</ul>" .
+  			"</div>";
   }
   my $group = "<div class='panel-group'>$tb</div>";
   return {

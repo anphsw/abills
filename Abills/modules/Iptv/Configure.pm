@@ -46,6 +46,11 @@ sub iptv_tp{
   $tarif_info->{ACTION} = 'ADD_TP';
 
   if ( $FORM{ADD_TP} ){
+    if ($FORM{create_fees_type}) {
+      my $Fees = Finance->fees($db, $admin, \%conf);
+      $Fees->fees_type_add({ NAME => $FORM{NAME}});
+      $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
+    }
     $FORM{ID} = $FORM{CHG_TP_ID};
     $Tariffs->add( { %FORM, MODULE => 'Iptv' } );
     if ( !$Tariffs->{errno} ){
@@ -99,6 +104,12 @@ sub iptv_tp{
       return 0;
     }
     elsif ( $FORM{change} ){
+      if ($FORM{create_fees_type}) {
+        my $Fees = Finance->fees($db, $admin, \%conf);
+        $Fees->fees_type_add({ NAME => $FORM{NAME}});
+        $FORM{FEES_METHOD} = $Fees->{INSERT_ID};
+      }
+
       $FORM{ID} = $FORM{CHG_TP_ID};
       $Tariffs->change( $FORM{TP_ID}, { %FORM, MODULE => 'Iptv' } );
       if ( !$Tariffs->{errno} ){
@@ -136,6 +147,20 @@ sub iptv_tp{
         SEL_OPTIONS    => { '' => '--' },
         MAIN_MENU      => $index + 10,
         MAIN_MENU_ARGV => "chg=$tarif_info->{TP_GID}"
+      }
+    );
+
+    $tarif_info->{SEL_METHOD} = $html->form_select(
+      'FEES_METHOD',
+      {
+        SELECTED    => $tarif_info->{FEES_METHOD} || 1,
+        SEL_HASH    => get_fees_types(),
+        NO_ID       => 1,
+        SORT_KEY    => 1,
+        SEL_OPTIONS => { 0 => '' },
+        MAIN_MENU   => get_function_index('form_fees_types'),
+        CHECKBOX    => 'create_fees_type',
+        CHECKBOX_TITLE => $lang{CREATE}
       }
     );
 
@@ -695,7 +720,6 @@ sub iptv_channels{
   }
 
   if ( $FORM{add} && $FORM{NAME} ){
-    $Iptv->{debug}=1;
     $Iptv->channel_add( \%FORM );
     if ( !$Iptv->{errno} ){
       $html->message( 'info', $lang{ADDED}, "$lang{ADDED} '$FORM{NAME}' " );

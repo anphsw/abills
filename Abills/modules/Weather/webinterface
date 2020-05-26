@@ -1,0 +1,158 @@
+=head1 WEATHER
+
+  Weather
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+
+our (
+  %conf,
+  %lang,
+  $html,
+);
+
+our %LIST_PARAMS = ();
+
+my $paysys_logo_path =  '/styles/default_adm/img/weather_images/';
+
+#**********************************************************
+=head2 weather_today_actions()
+
+  Arguments:
+     -
+
+  Returns:
+    template widget
+
+=cut
+#**********************************************************
+sub weather_today_actions {
+
+    my @day = ( 'TODAY', 'TOMORROW', 'DAT' );
+    my $iter = 0;
+
+    my $array_weather = get_date_weather();
+    return if ($array_weather == 1);
+
+    foreach my $date (@{ $array_weather }) {
+        next if ($iter == 3);
+        my $name_key_img = "IMG_$day[ $iter ]";
+        my $name_key_temp = "TEMP_$day[ $iter ]";
+
+        my $temperature = int(($date->{temperatureMax} - 32) *  (5 / 9));
+
+        $LIST_PARAMS{ $name_key_temp } = $temperature . ' &#8451;';
+        $LIST_PARAMS{ $name_key_img } = $paysys_logo_path . $date->{icon} . '.png';
+
+        $iter++;
+    }
+
+    return $html->tpl_show(_include('weather', 'Weather'), { %LIST_PARAMS }, { OUTPUT2RETURN => 1 });
+}
+
+#**********************************************************
+=head2 get_date_weather()
+
+  Arguments:
+     -
+
+  Returns:
+    $array_weather - get weather json date
+    error          - 1
+
+=cut
+#**********************************************************
+sub get_date_weather {
+    my $coordinate = parse_coordinate();
+
+    if ($coordinate == 1) {
+        $html->message('err', $lang{ERROR}, "$lang{ERROR_COORDINATE}");
+        return 1;
+    }
+
+    my $coordinate_xy = "$coordinate->{latitude},$coordinate->{longitude}";
+    my $url = "https://api.darksky.net/forecast/$conf{WEATHER_KEY}/$coordinate_xy";
+
+    my $array_weather = parse_weather($url);
+    $html->message('err', $lang{ERROR}, "$lang{ERROR_WEATHER}") if ($array_weather == 1);
+
+    return $array_weather || 1;
+}
+
+#**********************************************************
+=head2 parse_coordinate()
+
+  Arguments:
+     -
+
+  Returns:
+    \%coordinate    - coordinate location latitude and longitude
+        OR
+    1               - error
+
+=cut
+#**********************************************************
+sub parse_coordinate {
+    my $coordinate = web_request($conf{WEATHER_COORD}, {
+      CURL        => 1,
+      JSON_RETURN => 1
+    });
+
+    my %coordinate = (
+      latitude  => $coordinate->{latitude},
+      longitude => $coordinate->{longitude}
+    );
+
+    return \%coordinate || 1;
+}
+
+#**********************************************************
+=head2 parse_weather()
+
+  Arguments:
+     $url - url
+
+  Returns:
+     $array_weather - date weather
+        OR
+      1             - error
+
+=cut
+#**********************************************************
+sub parse_weather {
+    my ($url) = @_;
+
+    my $result_date = web_request($url, {
+      CURL        => 1,
+      JSON_RETURN => 1
+    });
+
+    my $array_weather = $result_date->{daily}->{data} ? $result_date->{daily}->{data} : '';
+
+    return $array_weather || 1;
+}
+
+#**********************************************************
+=head2 weather_start_page($attr)
+
+  Arguments:
+    -
+
+  Returns:
+    \%%START_PAGE_F
+
+=cut
+#**********************************************************
+sub weather_start_page {
+
+    my %START_PAGE_F = (
+        'weather_today_actions'       => "$lang{TODAY} $lang{ACTION}",
+    );
+
+    return \%START_PAGE_F;
+}
+
+
+1;

@@ -198,7 +198,7 @@ VALUES (101, 1, 2, '', 'DES-3028', 'http://dlink.ru/ru/products/1/706_i.html', 2
         0, 0, 0, 0, 0, 3, 0, 0),
        (199, 4, 13, '', 'LTP-8X', 'http://eltex.nsk.ru/catalog/olt_ltp-8x_rev-b.php', 8, '', '', '', '', 2, 8, 0, '', 1,
         0, 0, 0, 0, 0, 4, 0, 0),
-       (200, 6, 1, '', 'Catalyst WS-C3750G-12S-S',
+       (200, 1, 1, '', 'Catalyst WS-C3750G-12S-S',
         'http://www.cisco.com/c/en/us/support/switches/catalyst-3750g-12s-switch/model.html', 12, '', '', '', '', 1, 4,
         0, '', 0, 0, 0, 0, 0, 0, 3, 0, 0),
        (201, 3, 13, '', 'MES2124F', 'http://eltex.nsk.ru/catalog/mes2124f.php', 24, '', '', '', '', 2, 4, 0, '', 1, 0,
@@ -356,7 +356,20 @@ VALUES (101, 1, 2, '', 'DES-3028', 'http://dlink.ru/ru/products/1/706_i.html', 2
        (273, 4, 33, '', 'EL5610-04P', 'https://gcom.com.ua/en/pon/epon-el5610-04p/', 8, '', '', '', '', 2, 4, 0, '', 0,
         0, 0, 0, 0, 0, 3, 0, 40),
        (274, 4, 33, '', 'GL5610-08P', 'https://gcom.com.ua/en/pon/gpon-gl5610-08p/', 8, '', '', '', '', 2, 4, 0, '', 0,
-        0, 0, 0, 0, 0, 7, 0, 50);
+        0, 0, 0, 0, 0, 7, 0, 50),
+       (275, 1, 1, '', 'Cisco WS-C3750E-48TD ',
+        'https://xn--h1aemkx.com.ua/switch/3750-e/WS-C3750E-24TD-SD?gclid=Cj0KCQjw3qzzBRDnARIsAECmryp_aQM0T3VuIL7p7AdtLC4zRaeNUpPLCXjuChu24sLsF0nADQILc84aAlIhE',
+        24, '', '', '', 's', 2, 12, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 120),
+       (276, 1, 1, '', 'Cisco WS-C3750E-24TD ',
+        'https://server-shop.ua/kommutator-cisco-satalyst-ws-c3750e-24td-s-k144.html?gclid=Cj0KCQjw3qzzBRDnARIsAECmryqIpeyuui8sIeHYhc2xF3rxJgL5fIs6OH2HRLIlwXr3',
+        24, '', '', '', '', 2, 12, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 120),
+       (277, 1, 8, '', 'Cisco WS-C3560E-24TD ',
+        'https://server-shop.ua/kommutator-cisco-satalyst-ws-c3750e-24td-s-k144.html?gclid=Cj0KCQjw3qzzBRDnARIsAECmryqIpeyuui8sIeHYhc2xF3rxJgL5fIs6OH2HRLIlwXr3',
+        12, '', '', '', '', 3, 4, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 120),
+       (278, 1, 8, '', 'Cisco N3K-C3064PQ-10GX',
+        'https://server-shop.ua/kommutator-cisco-satalyst-ws-c3750e-24td-s-k144.html?gclid=Cj0KCQjw3qzzBRDnARIsAECmryqIpeyuui8sIeHYhc2xF3rxJgL5fIs6OH2HRLIlwXr3',
+        52, '', '', '', '', 2, 26, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 220);
+
 REPLACE INTO `equipment_extra_ports` (`model_id`, `port_number`, `port_type`, `state`, `row`)
 VALUES (101, 1, 4, 0, 0),
        (101, 2, 3, 0, 0),
@@ -886,4 +899,5 @@ VALUES (1, 'Switch'),
        (4, 'PON'),
        (5, 'Server'),
        (6, 'DOCSIS'),
-       (7, 'Set-top box');
+       (7, 'Set-top box'),
+       (8, 'PON ONT');

@@ -325,25 +325,21 @@ sub msgs_chapters {
     $html->tpl_show(_include('msgs_chapter', 'Msgs'), $Msgs);
   }
 
-  my $list = $Msgs->chapters_list(
-    {
-      %LIST_PARAMS,
-      COLOR      => '_SHOW',
-      MSG_COUNTS => '_SHOW',
-      COLS_NAME  => 1
-    }
-  );
+  my $list = $Msgs->chapters_list({
+    %LIST_PARAMS,
+    COLOR      => '_SHOW',
+    MSG_COUNTS => '_SHOW',
+    COLS_NAME  => 1
+  });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{CHAPTERS},
-      title      => [ '#', $lang{NAME}, $lang{PRIVATE}, $lang{MESSAGES}, $lang{RESPOSIBLE}, $lang{COLOR}, $lang{AUTO_CLOSE}, "-", "-" ],
-      qs         => $pages_qs,
-      MENU       => "$lang{ADD}:add_form=1&index=$index:add",
-      ID         => 'MSGS_CHAPTERS'
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{CHAPTERS},
+    title   => [ '#', $lang{NAME}, $lang{PRIVATE}, $lang{MESSAGES}, $lang{RESPOSIBLE}, $lang{COLOR}, $lang{ICON}, $lang{AUTO_CLOSE}, "-", "-" ],
+    qs      => $pages_qs,
+    MENU    => "$lang{ADD}:add_form=1&index=$index:add",
+    ID      => 'MSGS_CHAPTERS'
+  });
 
   foreach my $line (@$list) {
     $table->{rowcolor} = ($FORM{chg} && $FORM{chg} eq $line->{id}) ? $table->{rowcolor} = 'bg-success' : undef;
@@ -354,6 +350,9 @@ sub msgs_chapters {
     $line->{msg_counts} //= 0;
     $line->{color} //= "";
 
+    my $icon = "$conf{TPL_DIR}chapters/chapter_$line->{id}.png";
+    $line->{icon} = -e $icon ? "<img src='/images/chapters/chapter_$line->{id}.png' />" : "";
+
     $table->addrow(
       $line->{id},
       $line->{name},
@@ -361,6 +360,7 @@ sub msgs_chapters {
       $html->button($line->{msg_counts}, "index=". get_function_index('msgs_admin')."&CHAPTER=$line->{id}&ALL_MSGS=1"),
       $line->{admin_login} || '',
       $html->color_mark($line->{color},$line->{color}),
+      $line->{icon},
       $line->{autoclose},
       $html->button( "$lang{PROGRESS_BAR}", "index=$index&PROGRES_BAR=$line->{id}",
         { TITLE => $lang{PROGRESS_BAR}, ICON => 'glyphicon glyphicon-tasks' } ),

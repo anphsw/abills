@@ -868,4 +868,13 @@ $lang{REG_SUCCESS}='Congratulation! Registration Complete';
 $lang{REG_SEND_EMAIL}='All information has been sent to your E-mail';
 
 $lang{EXTRA_FIELDS}='Extra fields';
+$lang{LEFT_PART}='Left part';
+$lang{RIGHT_PART}='Right part';
+$lang{CONDITION}='Condition';
+$lang{SYMBOLS_REG}='Characters are allowed: ';
+$lang{SEND_REG}='Sent to';
+
+$lang{RESPONSIBLE}='Responsible';
+$lang{NO_ADDRESS}='Address not filled in, please fill in!';
+
 1;

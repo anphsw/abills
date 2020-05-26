@@ -190,6 +190,7 @@ sub list{
       a.id AS admin_name,
       s.date,
       s.comments,
+      s.admin_action,
       a.aid,
       s.uid,
       $self->{SEARCH_FIELDS}

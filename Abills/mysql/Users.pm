@@ -538,8 +538,9 @@ sub groups_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['BONUS',     'INT', 'g.bonus',      1 ],
-      ['DOMAIN_ID', 'INT', 'g.domain_id',  1 ]
+      ['BONUS',     'INT', 'g.bonus',                1 ],
+      ['DOMAIN_ID', 'INT', 'g.domain_id',            1 ],
+      ['G_NAME',    'STR', 'g.name AS g_name',       1 ],
     ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
@@ -712,7 +713,8 @@ sub list {
 #    'DOMAIN_ID',
     'UID',
     'PASSWORD',
-    'BIRTH_DATE'
+    'BIRTH_DATE',
+    'TAX_NUMBER'
   );
 
   if($admin->{DOMAIN_ID}) {
@@ -755,6 +757,12 @@ sub list {
   if ($attr->{UNPAID}) {
     $EXT_TABLES .= "LEFT JOIN payments p ON (p.uid=u.uid && p.date > DATE_FORMAT(CURDATE(), '%Y-%m-01 00:00:00'))";
     push @WHERE_RULES, "p.date IS NULL";
+  }
+
+  if ($attr->{FORGOT_PASSWD} && $attr->{EMAIL} eq '_SHOW') {
+    @WHERE_RULES = ();
+    push @WHERE_RULES, "(((SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2)) 
+                        LIKE '%" . $attr->{PHONE} ."%') AND (u.id='" . $attr->{LOGIN} . "') AND u.deleted='0') AND u.deleted=0";
   }
 
   #Show last

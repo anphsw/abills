@@ -71,7 +71,7 @@ sub action {
   my $value = '';
 
   if ($SUM == 0) {
-    $self->{errstr} = 'Wrong sum 0';
+    $self->{errstr} = 'WRONG_SUM 0';
     return $self;
   }
   elsif ($type eq 'take') {

@@ -16,4 +16,10 @@ $lang{PROCESSING} = 'Обработка';
 $lang{PROCESSED}= 'Обработано';
 $lang{CLOSED}='Закрыто';
 
+$lang{ACCIDENT_FOR_EQUIPMENT} = 'Неисправное оборудование';
+
+$lang{WARNING_TIME} = 'Работы будут завершены до: ';
+$lang{COMPENSATION} = 'Компенсация';
+$lang{PROCENT} = 'Процент';
+
 1;
