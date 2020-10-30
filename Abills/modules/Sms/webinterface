@@ -41,27 +41,27 @@ my $Fees  = Fees->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
 
 my %sms_status = (
-  0  => 'В очереди отправки',
-  1  => 'Недостаточно денег для рассылки',
-  2  => 'В процессе рассылки',
-  3  => 'Отправлено',
-  4  => 'Нет правильных номеров получателей',
-  5  => 'Частично отправлено',
-  6  => 'Спам', # Сообщение запрещено (по тексту или по имени отправителя).
-  7  => 'Недействительное имя отправителя  или пароль',
-  8  => 'Пауза',
-  9  => 'Запланирована',
-  10 => 'Ожидает модерации',
-  11 => 'Ошибка в параметрах',
-  12 => 'IP-адрес временно заблокирован из-за частых ошибок в запросах',
-  14 => 'Сообщение на указанный номер не может быть доставлено.',
-  15 => 'Отправка более одного одинакового запроса на передачу SMS-сообщения либо более пяти одинаковых запросов на получение стоимости сообщения в течение минуты.',
-  16 => '',
-  100 => 'Доставлено',
-  101 => 'Не доставлено',
-  102 => 'Ошибка при отправке',
-  103 => 'Отклонено системой',
-  104 => 'Отправка сообщения отложена',
+  0  => $lang{DISPATCH_SMS},
+  1  => $lang{SMALL_DEPOSIT},
+  2  => $lang{IS_PROCESS},
+  3  => $lang{SENDED_SMS},
+  4  => $lang{NO_VALID_PHONE},
+  5  => $lang{PARTIALLY_SEND},
+  6  => $lang{SPAM},
+  7  => $lang{INVALID_SENDER},
+  8  => $lang{PAUSE},
+  9  => $lang{PLANNED},
+  10 => $lang{PENDING_MODERATION},
+  11 => $lang{ERROR_PARAMETRS},
+  12 => $lang{IP_BLOCKED},
+  14 => $lang{CANNOT_BE_DELIVERY},
+  15 => $lang{IDENTICAL_REQUEST},
+  16 => $lang{UNKNOWN},
+  100 => $lang{DELIVERED},
+  101 => $lang{NOT_DELIVERED},
+  102 => $lang{ERROR_SENDING},
+  103 => $lang{REJECT_SYSTEM},
+  104 => $lang{DELAYED},
 );
 
 #**********************************************************
@@ -89,9 +89,7 @@ sub sms_send {
   my $Sms_service = init_sms_service($db, $admin, \%conf);
   my $status = 0;
 
-  if($Sms_service->{errno}) {
-    return 0
-  }
+  return 0 if($Sms_service->{errno});
 
   my $numbers = $attr->{NUMBERS};
   if ($conf{SMS_NUMBER_EXPR}) {
@@ -165,19 +163,7 @@ sub sms_send {
     return 0;
   }
   else {
-    if ($conf{TURBOSMS_SEND_FEES}) {
-      if ($attr->{NUMBERS}) {
-        while (my ($number, $uid) = each %{ $attr->{NUMBERS} }) {
-          $Users->info($uid);
-          $Fees->take($users, $conf{TURBOSMS_SEND_FEES}, { DESCRIBE => 'Sms ' . $number });
-        }
-      }
-      elsif ($attr->{UID}) {
-        $Users->info($attr->{UID});
-        $Fees->take($users, $conf{TURBOSMS_SEND_FEES}, { DESCRIBE => 'Sms ' . $attr->{NUMBER} });
-      }
-    }
-    elsif($conf{SMS_FEES}) {
+    if($conf{SMS_FEES}) {
       if ($attr->{NUMBERS}) {
         while (my ($number, $uid) = each %{ $attr->{NUMBERS} }) {
           $Users->info($uid);
@@ -204,7 +190,7 @@ sub sms_send {
     PHONE        => $attr->{NUMBER},
     DATETIME     => "$DATE $TIME",
     STATUS       => $status || 0,
-    EXT_ID       => $Sms_service->{id} || '',
+    EXT_ID       => $Sms_service->{id} || $Sms_service->{INSERT_ID} || '',
     STATUS_DATE  => "$DATE $TIME",
     EXT_STATUS   => $Sms_service->{status} || '',
   });
@@ -221,9 +207,7 @@ sub sms_info {
   my ($id) = @_;
 
   my $Sms_service = init_sms_service($db, $admin, \%conf);
-  if ($Sms_service->{errno}) {
-    return 0;
-  }
+  return 0 if ($Sms_service->{errno});
 
   $Sms_service->info({ ID => $id });
 
@@ -240,9 +224,7 @@ sub sms_info {
 sub sms_account_info {
   my $Sms_service = init_sms_service($db, $admin, \%conf);
 
-  if ( $Sms_service->{errno} ) {
-    return 0;
-  }
+  return 0 if ($Sms_service->{errno});
 
   my $list = $Sms_service->account_info({
     %LIST_PARAMS,
@@ -277,13 +259,11 @@ sub sms_reports {
 
   my $Sms_service = init_sms_service($db, $admin, \%conf);
 
-  if ( $Sms_service->{errno} ) {
-    return 0;
-  }
+  return 0 if ($Sms_service->{errno});
 
   if (! $FORM{desc} && ! $FORM{sort}) {
     $LIST_PARAMS{DESC} = 'DESC';
-    $LIST_PARAMS{SORT} = 2;
+    $LIST_PARAMS{SORT} = 1;
   }
 
   if($FORM{search_form}) {
@@ -307,25 +287,34 @@ sub sms_reports {
     });
   }
   else {
+    my $phone_search = $html->form_input('SMS_PHONE', $FORM{SMS_PHONE});
+    
     reports({
-      #DATE        => $FORM{DATE},
-      #REPORT      => '',
-      PERIOD_FORM => 1,
-      DATE_RANGE  => 1,
-      NO_TAGS     => 1,
-      HIDDEN      => { direct => $FORM{direct} }
+      PERIOD_FORM     => 1,
+      DATE_RANGE      => 1,
+      NO_TAGS         => 1,
+      HIDDEN          => { 
+        direct => $FORM{direct} 
+      },
+      EXT_SELECT      => $phone_search,
+      EXT_SELECT_NAME => $lang{PHONE}
     });
   }
-  
+
   if($Sms_service->can('info')){
     my @header_arr = ("$lang{MAIN}:index=$index",
-      "Direct:index=$index&direct=1");
+      "$lang{DIRECT}:index=$index&direct=1");
 
     print $html->table_header( \@header_arr, { TABS => 1 } );
   }
 
   if ($FORM{direct}){
     $pages_qs .= "&direct=1";
+    
+    if ($FORM{SMS_PHONE}) {
+      $LIST_PARAMS{PHONE} = $FORM{SMS_PHONE};
+    }
+    
     my $list = $Sms_service->info({
       %LIST_PARAMS,
       DEBUG     => $conf{SMS_DEBUG} || 0,
@@ -346,13 +335,11 @@ sub sms_reports {
       qs      => $pages_qs,
       pages   => $Sms_service->{TOTAL},
       ID      => 'REPORTS_SMS',
-      #pages  => ($Sms_service->{TOTAL}) ? $Sms_service->{TOTAL} : 0,
       MENU    => "$lang{SEARCH}:index=$index&search_form=1&direct=1:search",
     });
 
     foreach my $line ( @{$list} ){
       my $status = ($line->{status} && $sms_status{$line->{status}}) ? $sms_status{$line->{status}} : ($line->{status} || q{});
-      #my $message = $line->{message}  || '';
       Encode::_utf8_off( $line->{message} );
       Encode::_utf8_off( $line->{number} );
       my $destination = $line->{number} || '';
@@ -376,9 +363,7 @@ sub sms_reports {
           ($line->{sended} && $line->{sended} =~ /\d{4}/) ? $line->{sended} : ($line->{sended}) ? $lang{YES} : $lang{NO},
         $line->{updated},
         $status,
-        #convert( substr("$line->[11]", 0, 16), {  utf82win => 1 }).$html->br().
-        #convert(convert("Отсутств", {  win2utf8 => 1 })),
-          ($sms_status{$error_code}) ? $sms_status{$error_code} : $error_code,
+        ($sms_status{$error_code}) ? $sms_status{$error_code} : $error_code,
       );
     }
 
@@ -392,12 +377,14 @@ sub sms_reports {
     print $table->show();
   }
   else {
+    if ($FORM{SMS_PHONE}) {
+      $LIST_PARAMS{SMS_PHONE} = $FORM{SMS_PHONE};
+    }
+    
     result_former({
       INPUT_DATA      => $Sms,
       FUNCTION        => 'list',
       DEFAULT_FIELDS  => 'DATETIME,LOGIN,SMS_STATUS,SMS_PHONE',
-      #FUNCTION_FIELDS => 'change,del',
-      #SKIP_USER_TITLE => 1,
       SELECT_VALUE  => {
         sms_status => \%sms_status,
       },
@@ -435,14 +422,15 @@ sub sms_reports {
 sub send_user_memo {
   my ($attr) = @_;
 
-  my %user = ();
+  return 0 unless (defined($attr->{PHONE}));
+
+  my $uid = $attr->{UID};
 
   if ($conf{SMS_REG_GREETING}) {
     require Users;
     Users->import();
 
-    my $uid = $attr->{UID};
-    my $Users = Users->new($db, $admin, \%conf);
+    $Users = Users->new($db, $admin, \%conf);
     
     $user = $Users->info($uid, { SHOW_PASSWORD => 1 });
   }
@@ -472,15 +460,26 @@ sub send_user_memo {
       });
     }
 
-    return 0 if (!$attr->{PASSWORD});
+    unless ($attr->{PHONE} || $attr->{CALL_PHONE}) {
+      $users->list(
+        {
+          UID         => $uid,
+          PHONE       => '_SHOW',
+          COLS_NAME   => 1
+        });
 
+        if ($users->{list}->[0]->{phone}) {
+          ($attr->{PHONE}, $attr->{CALL_PHONE}) = split(/;/, $users->{list}->[0]->{phone});
+        }
+    }
+    
     my $sms_id = sms_send(
     {
-      NUMBER  => $attr->{PHONE},
+      NUMBER  => $attr->{PHONE} || $attr->{CALL_PHONE},
       MESSAGE => $message,
       UID     => $attr->{UID},
     });
-
+  
     if ($sms_id) {
       return $html->message('info', $lang{INFO}, "SMS $lang{SENDED}");
     }
@@ -540,7 +539,7 @@ sub sms_send_register {
     REGISTRATION_INFO_SMS   => 1,
     sms                     => 1,
     step                    => $attr->{step}
-  });
+  }, { ID => 'sms_send_end_register' });
 }
 
 1

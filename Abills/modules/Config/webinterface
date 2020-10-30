@@ -10,7 +10,7 @@ use Conf;
 
 our ($db, $admin, %conf, $html, %lang, @bool_vals);
 
-my $Config = Conf->new($db, $admin, \%conf);
+my $Config = Conf->new($db, $admin, \%conf, { SKIP_CONF => 1 });
 my $debug = $FORM{DEBUG} || 0;
 
 $Config->{ACTION}     = 'add';

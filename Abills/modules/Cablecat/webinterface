@@ -22,7 +22,7 @@ exit if (
     {
       HEADER          => $user->{UID},
       MODULE          => 'Cablecat',
-      REQUIRE_VERSION => 7.75,
+      REQUIRE_VERSION => 7.78,
     }
   )
 );
@@ -150,6 +150,7 @@ our %CROSS_FIBER_TYPE = (
 require Cablecat::Configure;
 require Cablecat::Layers;
 require Cablecat::Commutation;
+require Cablecat::BigCommutation;
 
 #**********************************************************
 =head2 cablecat_main()
@@ -617,8 +618,15 @@ sub cablecat_link_info {
       elsif ( $FORM{SEARCH_BY} == 3 ) {# Group
         if ( !$FORM{GROUP_ID} ) {
           my $groups_list = $users->groups_list({
-            NAME      => '_SHOW',
-            ID        => '_SHOW',
+            NAME            => '_SHOW',
+            ID              => '_SHOW',
+            GID             => '_SHOW',
+            NAME            => '_SHOW',
+            DESCR           => '_SHOW',
+            ALLOW_CREDIT    => '_SHOW',
+            DISABLE_PAYSYS  => '_SHOW',
+            DISABLE_CHG_TP  => '_SHOW',
+            USERS_COUNT     => '_SHOW',
             COLS_NAME => 1,
             PAGE_ROWS => 10000
           });
@@ -1233,7 +1241,7 @@ sub cablecat_user_trace_connection_form {
     $TEMPLATE_PARAMS{USER_SERVICE_SELECT} = _cablecat_get_user_services_select($uid, { WITH_MODULE => 1 });
   }
   else {
-    $html->message('warn', $lang{ERROR}, "No service ports to trace");
+    $html->message('warn', $lang{ERROR}, "No service ports to trace", { ID => 2220 });
   }
   
   my $search_form = $html->tpl_show(_include('cablecat_user_trace_connection_form', 'Cablecat'),

@@ -1,7 +1,7 @@
 $lang{LATITUDE}='Широта';
 $lang{LONGITUDE}='Долгота';
 $lang{ISP}='Провайдер';
-$lang{CITY}='город';
+$lang{CITY}='Город';
 $lang{TODAY}='Cегодня';
 $lang{TOMORROW}='Завтра';
 $lang{DAT}='Послезавтра';

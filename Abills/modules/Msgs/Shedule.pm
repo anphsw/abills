@@ -684,6 +684,7 @@ sub msgs_shedule {
     @{ $admin->list({ GID => $admin->{GID}, DISABLE => 0, PAGE_ROWS => 1000 }) });
 
   foreach my $line ( @{$msgs_list} ) {
+    next if (! $line);
     my ($date, $time) = split(/ /, $line->{plan_date_time} || q{});
     my @hours = ();
 
@@ -706,7 +707,6 @@ sub msgs_shedule {
 
             for ( my $h = 0; $h < 24 * 4; $h++ ) {
               if ( $calendar{ $chapter_info->[0] } ) {
-                #my $day_periods = $visual_view{$i};
 
                 foreach my $chap_periods ( @{ $calendar{ $chapter_info->[0] } } ) {
                   my ($number, $user_name, $uid, $time_exec) = split(/\|/, $chap_periods, 4);
@@ -744,16 +744,6 @@ sub msgs_shedule {
         push @main_table_rows, $table2->show({ OUTPUT2RETURN => 1 });
       }
 
-      #       if  ($line->[19] ==  0) {
-      #         $caption  =  $html->color_mark($WEEKDAYS[7],  $_COLORS[6]);
-      #       }
-      #       elsif ($line->[19]  == 6)  {
-      #         $caption  =  $html->color_mark($WEEKDAYS[6],  $_COLORS[6]);
-      #       }
-      #       else  {
-      #         $caption  =  $WEEKDAYS[ $line->[19] ];
-      #       }
-
       if ( $FORM{SHOW_TYPE} && ($FORM{SHOW_TYPE} eq 'chapters' || $FORM{SHOW_TYPE} eq 'admins') ) {
         my $title;
         if ( $FORM{SHOW_TYPE} eq 'chapters' ) {
@@ -771,16 +761,6 @@ sub msgs_shedule {
             ID       => 'MSGS_SHEDULE_' . $date,
           }
         );
-
-        #        my $msgs_list = $Msgs->messages_list(
-        #          {
-        #            %LIST_PARAMS,
-        #            DESC      => '',
-        #            SORT      => 'm.plan_date, m.plan_time',
-        #            STATE     => 0,
-        #            PAGE_ROWS => 10000
-        #          }
-        #        );
 
         @hours = ();
         for ( $i = 0; $i < 24; $i++ ) {

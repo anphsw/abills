@@ -46,24 +46,25 @@ sub sms_status {
   }
 
   if($Sms_service->can('get_status')) {
-    my $list = $Sms->list({ SMS_STATUS => 0, COLS_NAME => 1 });
+    my $list = $Sms->list({ SMS_STATUS => 0, COLS_NAME => 1, PAGE_ROWS => 100000 });
+    
     foreach my $line ( @$list ) {
 
       if($debug > 1) {
         print "ID: $line->{id} DATE: $line->{datetime}\n";
       }
 
-      $Sms_service->get_status({ REF_ID => $line->{datetime}, EXT_ID => $line->{ext_id} });
-
+      $Sms_service->get_status({ REF_ID => $line->{datetime}, EXT_ID => ($line->{ext_id} ? $line->{ext_id} : $line->{id}) });
+      
       if($debug > 1) {
         print "  STATUS: ". (defined($Sms_service->{status}) ? $Sms_service->{status} : 0) ."\n";
       }
 
       if (! $Sms_service->{errno}) {
-        if($Sms_service->{status}) {
+        if($Sms_service->{status} || $Sms_service->{list}->[0]{status}) {
           $Sms->change({
             ID     => $line->{id},
-            STATUS => $Sms_service->{status}
+            STATUS => ($Sms_service->{status}) ? $Sms_service->{status} : $Sms_service->{list}->[0]{status}
           });
         }
       }

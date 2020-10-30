@@ -56,6 +56,9 @@ sub notes_list{
 
   delete $self->{COL_NAMES_ARR};
 
+  # Abills::Base::_bp('', $attr, {HEADER=>1});
+
+  #$self->{debug} = 1;
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'n.id';
   my $DESC = ($attr->{DESC}) ? '' : 'DESC';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
@@ -71,6 +74,8 @@ sub notes_list{
     [ 'STATUS',              'INT',   'n.status'                        ,1],
     [ 'STATUS_ST',           'INT',   'n.status_st'                     ,1],
     [ 'SHOW_AT',             'DATE',  'n.show_at'                       ,1],
+    [ 'START_STAT',          'TIME',  'n.start_stat'                    ,1],
+    [ 'END_STAT',            'TIME',  'n.end_stat'                      ,1],
     [ 'NEW',                 'DATE',  'IF(n.show_at < NOW(), 1, 0) AS new', '(n.show_at < NOW()) AS new' ,1],
     [ 'TEXT',                'STR',   'n.text'                          ,1],
     [ 'PERIODIC_RULE_ID',    'INT',   'nr.rule_id AS periodic_rule_id'  ,1],
@@ -86,8 +91,7 @@ sub notes_list{
   }
   
   my $WHERE =  $self->search_former($attr, $search_columns, {  WHERE => 1 } );
-  
-  
+
   $self->query( "SELECT $self->{SEARCH_FIELDS} n.id
               FROM notepad n
               LEFT JOIN notepad_reminders nr FORCE INDEX FOR JOIN (`PRIMARY`) ON ( n.id = nr.id )
@@ -103,7 +107,8 @@ sub notes_list{
   );
 
   return [] if $self->{errno};
-  
+
+ # use Data::Dumper; print "list: <pre>" . Dumper($self->{list}) . "</pre>";
   return $self->{list} || [];
 }
 
@@ -141,11 +146,13 @@ sub notes_add{
   my $self = shift;
   my ($attr) = @_;
 
+  Abills::Base::_bp('', $attr, {HEADER=>1});
+
   $self->query_add( 'notepad',
     {
       %{$attr},
-      AID         => $attr->{AID} || $self->{admin}->{AID},
-      CREATE_DATE => 'NOW()'
+      AID          => $attr->{AID} || $self->{admin}->{AID},
+      CREATE_DATE  => 'NOW()',
     }
   );
 

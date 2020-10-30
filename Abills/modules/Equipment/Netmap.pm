@@ -1,7 +1,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(_bp load_pmodule int2ip);
-use Dv_Sessions;
+use Internet;
 use Users;
 
 our Equipment $Equipment;

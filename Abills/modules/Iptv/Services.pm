@@ -575,8 +575,15 @@ sub _service_extra_params {
   use Abills::Base qw (_bp);
   my $Users = Users->new($db, $admin, \%conf);
   my $groups_list = $Users->groups_list({
-    COLS_NAME      => 1,
-    DISABLE_PAYSYS => 0
+    COLS_NAME       => 1,
+    DISABLE_PAYSYS  => 0,
+    GID             => '_SHOW',
+    NAME            => '_SHOW',
+    DESCR           => '_SHOW',
+    ALLOW_CREDIT    => '_SHOW',
+    DISABLE_PAYSYS  => '_SHOW',
+    DISABLE_CHG_TP  => '_SHOW',
+    USERS_COUNT     => '_SHOW',
   });
 
   require Tariffs;

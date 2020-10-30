@@ -355,7 +355,7 @@
                         </div>
 
                         <div class='form-group'>
-                            <label class='control-label col-md-4'>Next Pool:</label>
+                            <label class='control-label col-md-4'>_{NEXT_POOL}_:</label>
 
                             <div class='col-md-8'>
                                 %NEXT_POOL_ID_SEL%

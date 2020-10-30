@@ -100,7 +100,14 @@ sub del {
 =head2 online_update($attr) - Update online sessions
 
   Arguments:
+    $attr
+      USER_NAME
+      ACCT_SESSION_ID
 
+      GUEST
+
+  Resturns:
+    $self
 
 =cut
 #**********************************************************
@@ -125,6 +132,10 @@ sub online_update {
 
   if ($attr->{ACCT_OUTPUT_OCTETS}) {
     push @SET_RULES, "acct_output_octets='$attr->{ACCT_OUTPUT_OCTETS}'";
+  }
+
+  if (defined($attr->{GUEST})) {
+    push @SET_RULES, "guest='$attr->{GUEST}'";
   }
 
   if ($attr->{CONNECT_INFO}) {
@@ -372,7 +383,7 @@ sub online {
       ['ONLINE_TP_ID',      'INT', 'c.tp_id AS online_tp_id',                      1 ],
       ['STATUS',            'INT', 'c.status',                                     1 ],
       ['TP_ID',             'INT', 'service.tp_id',                                1 ],
-      ['SERVICE_CID',       'STR', 'service.cid',                                  1 ],
+      ['SERVICE_CID',       'STR', 'service.cid',       'service.cid AS service_cid' ],
       ['GUEST',             'INT', 'c.guest',                                      1 ],
       ['TURBO_MODE',        'INT', 'c.turbo_mode',                                 1 ],
       ['JOIN_SERVICE',      'INT', 'c.join_service',                               1 ],
@@ -691,8 +702,8 @@ sub session_detail {
   tp.name AS tp_name,
   l.sent + 4294967296 * acct_output_gigawords AS sent,
   l.recv + 4294967296 * acct_input_gigawords AS recv,
-  l.recv2 AS sent2,
-  l.sent2 AS recv2,
+  l.recv2 AS recv2,
+  l.sent2 AS sent2,
   INET_NTOA(l.ip) AS ip,
   l.cid,
   l.nas_id,
@@ -1557,6 +1568,9 @@ sub reports2 {
 
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  
+  my $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my %EXT_TABLE_JOINS_HASH = ();
   my $main_field           = '';
@@ -1580,8 +1594,7 @@ sub reports2 {
       ['NAS_PORT',         'INT', 'nas_port_id',      ],
       ['ACCT_SESSION_ID',  'STR', 'acct_session_id'   ],
       ['UID',              'INT', 'l.uid'             ],
-
-      #['DATE'            => '',
+      
       ['USERS',           'STR', 'u.id', 'u.id AS login' ],
       ['USERS_FIO',       'STR', 'u.fio',              1 ],
       ['SESSIONS',        'INT', 'COUNT(l.uid)',    'COUNT(l.uid) AS sessions' ],
@@ -1618,22 +1631,18 @@ sub reports2 {
 
     if ( $attr->{TYPE} eq 'HOURS' ){
       $main_field = "DATE_FORMAT(l.start, '\%H') AS hour";
-      #$self->{SEARCH_FIELDS} .= "DATE_FORMAT(l.start, '\%H') AS hour";
     }
     elsif ( $attr->{TYPE} eq 'DAYS' ){
       $main_field = "DATE_FORMAT(l.start, '%Y-%m-%d') AS date";
-      #$self->{SEARCH_FIELDS} .= "DATE_FORMAT(l.start, '%Y-%m-%d') AS date";
     }
     elsif ( $attr->{TYPE} eq 'TP' ){
       $main_field = "l.tp_id";
     }
     elsif ( $attr->{TYPE} eq 'TERMINATE_CAUSE' ){
       $main_field = "l.terminate_cause";
-      #$self->{SEARCH_FIELDS} = "l.terminate_cause";
     }
     elsif ( $attr->{TYPE} eq 'GID' ){
       $main_field = "u.gid";
-      #$self->{SEARCH_FIELDS} = "l.terminate_cause";
       $EXT_TABLE_JOINS_HASH{users} = 1;
     }
     elsif ( $attr->{TYPE} eq 'PER_MONTH' ){
@@ -1696,14 +1705,15 @@ sub reports2 {
     EXTRA_PRE_JOIN => [ 'users:INNER JOIN users u ON (u.uid=l.uid)',
     ]
   } );
-
+  
   $self->query( "SELECT $main_field, $self->{SEARCH_FIELDS}
       l.uid
        FROM internet_log l
        $EXT_TABLES
        $WHERE2
        GROUP BY 1
-       ORDER BY $SORT $DESC;",
+       ORDER BY $SORT $DESC
+       LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
@@ -1733,6 +1743,8 @@ sub reports2 {
     undef,
     { INFO => 1 }
   );
+  
+  $self->{TOTAL} = $self->{USERS};
 
   $self->{TRAFFIC} = $self->{TRAFFIC_OUT} + $self->{TRAFFIC_IN};
   $self->{TRAFFIC_2} = $self->{TRAFFIC_2_OUT} + $self->{TRAFFIC_2_IN};

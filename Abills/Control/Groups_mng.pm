@@ -11,13 +11,14 @@ use Abills::Base qw(in_array);
 
 our (
   $db,
-  $html,
   %lang,
   $admin,
   %permissions,
   @bool_vals,
 );
 
+our Abills::HTML $html;
+our Users $users;
 
 #**********************************************************
 =head2 form_groups() - users groups
@@ -27,7 +28,8 @@ our (
 sub form_groups {
 
   if ($FORM{add_form}) {
-    if ($LIST_PARAMS{GID} || $LIST_PARAMS{GIDS}) {
+    $LIST_PARAMS{PAGE_ROWS}=9999;
+    if ($permissions{0} && !$permissions{0}{28}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
       return 0
     }
@@ -50,7 +52,7 @@ sub form_groups {
       $html->message( 'err', $lang{ERROR}, $lang{ERR_ACCESS_DENY} );
       return 0;
     }
-    elsif ($LIST_PARAMS{GID} || $LIST_PARAMS{GIDS}) {
+    elsif ($permissions{0} && !$permissions{0}{28}) {
       $html->message( 'err', $lang{ERROR}, $lang{ERR_ACCESS_DENY} );
     }
     else {
@@ -71,20 +73,34 @@ sub form_groups {
       $html->message( 'info', $lang{CHANGED}, "$lang{CHANGED} ". ($FORM{chg} || q{}));
     }
   }
-  elsif (defined($FORM{GID})) {
+  elsif (defined($FORM{GID}) || $FORM{chg}) {
+    if ($FORM{chg}) {
+      $FORM{GID} = $FORM{chg};
+      delete($FORM{chg});
+    }
+
     $users->group_info($FORM{GID});
 
     $LIST_PARAMS{GID} = $users->{GID};
     delete $LIST_PARAMS{GIDS};
-    $pages_qs = "&GID=$users->{GID}". (($FORM{subf}) ? "&subf=$FORM{subf}" : q{} );
+    $pages_qs = '&GID=' . ($users->{GID} || $FORM{GID}) . (($FORM{subf}) ? "&subf=$FORM{subf}" : q{} );
 
     my $groups = $html->form_main(
       {
         CONTENT => $html->form_select(
           'GID',
           {
-            SELECTED  => $users->{GID},
-            SEL_LIST  => $users->groups_list({ COLS_NAME => 1 }),
+            SELECTED  => $users->{GID} || $FORM{GID},
+            SEL_LIST  => $users->groups_list({ 
+              GID             => '_SHOW',
+              NAME            => '_SHOW',
+              DESCR           => '_SHOW',
+              ALLOW_CREDIT    => '_SHOW',
+              DISABLE_PAYSYS  => '_SHOW',
+              DISABLE_CHG_TP  => '_SHOW',
+              USERS_COUNT     => '_SHOW',
+              COLS_NAME => 1
+            }),
             SEL_KEY   => 'gid',
             NO_ID     => 1
           }
@@ -100,10 +116,10 @@ sub form_groups {
         $lang{NAME} => $groups
       },
       [
-        $lang{CHANGE}   . "::GID=$users->{GID}:change",
-        $lang{USERS}    . ":11:GID=$users->{GID}:users",
-        $lang{PAYMENTS} . ":2:GID=$users->{GID}:payments",
-        $lang{FEES}     . ":3:GID=$users->{GID}:fees",
+        $lang{CHANGE}   . '::GID=' . ($users->{GID} || $FORM{GID}) . ':change',
+        $lang{USERS}    . ':11:GID=' . ($users->{GID} || $FORM{GID}) . ':users',
+        $lang{PAYMENTS} . ':2:GID=' . ($users->{GID} || $FORM{GID}) . ':payments',
+        $lang{FEES}     . ':3:GID=' . ($users->{GID} || $FORM{GID}) . ':fees',
       ]
     );
 
@@ -111,12 +127,12 @@ sub form_groups {
       return 0;
     }
 
-
     $users->{ACTION}        = 'change';
     $users->{LNG_ACTION}    = $lang{CHANGE};
     $users->{SEPARATE_DOCS} = ($users->{SEPARATE_DOCS})  ? 'checked' : '';
     $users->{ALLOW_CREDIT}  = ($users->{ALLOW_CREDIT})   ? 'checked' : '';
     $users->{DISABLE_PAYSYS}= ($users->{DISABLE_PAYSYS}) ? 'checked' : '';
+    $users->{DISABLE_PAYMENTS}= ($users->{DISABLE_PAYMENTS}) ? 'checked' : '';
     $users->{DISABLE_CHG_TP}= ($users->{DISABLE_CHG_TP}) ? 'checked' : '';
     $users->{BONUS}         = ($users->{BONUS}) ? 'checked' : '';
     $users->{GID_DISABLE}   = 'disabled';
@@ -150,77 +166,63 @@ sub form_groups {
 
   _error_show($users);
 
-  my $list  = $users->groups_list({%LIST_PARAMS, COLS_NAME => 1 });
-
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{GROUPS},
-      title      => [ '#', $lang{NAME}, $lang{DESCRIBE}, $lang{USERS}, "$lang{ALLOW} $lang{CREDIT}",
-        "$lang{DISABLE} Paysys", "$lang{DISABLE} $lang{USER_CHG_TP}", '-' ],
-      qs         => $pages_qs,
-      pages      => $users->{TOTAL},
-      ID         => 'GROUPS',
-      FIELDS_IDS => $users->{COL_NAMES_ARR},
-      EXPORT     => 1,
-      MENU       => "$lang{ADD}:index=$index&add_form=1:add"
-    }
+  my %ext_titles = (
+    'id'                => '#',
+    'name'              => $lang{NAME},
+    'users_count'       => $lang{USERS},
+    'descr'             => $lang{DESCRIBE},
+    'allow_credit'      => "$lang{ALLOW} $lang{CREDIT}",
+    'disable_paysys'    => "$lang{DISABLE} Paysys",
+    'disable_payments'  => "$lang{DISABLE} $lang{PAYMENTS} $lang{CASHBOX}",
+    'disable_chg_tp'    => "$lang{DISABLE} $lang{USER_CHG_TP}",
   );
 
-  if ($admin->{MAX_ROWS}) {
-    $table = $html->table(
-      {
-        width      => '100%',
-        caption    => $lang{GROUPS},
-        title      => [ '#', $lang{NAME}, $lang{DESCRIBE}, "$lang{ALLOW} $lang{CREDIT}",
-          "$lang{DISABLE} Paysys", "$lang{DISABLE} $lang{USER_CHG_TP}", '-' ],
-        qs         => $pages_qs,
-        pages      => $users->{TOTAL},
-        ID         => 'GROUPS',
-        FIELDS_IDS => $users->{COL_NAMES_ARR},
-        EXPORT     => 1,
-        MENU       => "$lang{ADD}:index=$index&add_form=1:add"
+  my ($table, $list) = result_former({
+    INPUT_DATA      => $users,
+    FUNCTION        => 'groups_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'G_NAME,DISABLE_PAYMENTS,DISABLE_PAYMENTS,USERS_COUNT,NAME,DESCR,ALLOW_CREDIT,DISABLE_PAYSYS,DISABLE_CHG_TP',
+    HIDDEN_FIELDS   => 'GID',
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => \%ext_titles,
+    SKIP_USER_TITLE => 1,
+    FILTER_VALUES   => {
+      allow_credit => sub {
+        my ($allow_credit) = @_;
+        return $bool_vals[ $allow_credit ];
+      },
+      disable_paysys => sub {
+        my ($disable_paysys) = @_;
+        return $bool_vals[ $disable_paysys ];
+      },
+      disable_payments => sub {
+        my ($disable_payments) = @_;
+        return $bool_vals[ $disable_payments ];
+      },
+      disable_chg_tp => sub {
+        my ($disable_chg_tp) = @_;
+        return $bool_vals[ $disable_chg_tp ];
+      },
+      users_count => sub {
+        my ($users_count, $line) = @_;
+
+        my $users_count_button = $html->button($users_count, "index=7&GID=$line->{gid}&search_form=1&search=1&type=11");
+        return $users_count_button if ($users_count && $users_count > 0);
+
+        return 0;
       }
-    );
-  }
-
-  foreach my $line (@$list) {
-    my $delete = (defined( $permissions{0}{5} )) ? $html->button( $lang{DEL},
-        "index=" . get_function_index( 'form_groups' ) . "$pages_qs&del=$line->{gid}",
-        { MESSAGE => "$lang{DEL} [$line->{gid}] $line->{name}?", class => 'del' } ) : '';
-
-    if (!$admin->{MAX_ROWS}) {
-      $table->addrow($html->b($line->{gid}),
-        $line->{name},
-        $line->{descr},
-        $html->button($line->{users_count}, "index=7&GID=$line->{gid}&search_form=1&search=1&type=11"),
-        $bool_vals[$line->{allow_credit}],
-        $bool_vals[$line->{disable_paysys}],
-        $bool_vals[$line->{disable_chg_tp}],
-        $html->button($lang{INFO}, "index=" . get_function_index('form_groups') . "&GID=$line->{gid}",
-          { class => 'change' })
-          . ' ' . $delete);
-    }
-    else {
-      $table->addrow($html->b($line->{gid}),
-        $line->{name},
-        $line->{descr},
-        $bool_vals[$line->{allow_credit}],
-        $bool_vals[$line->{disable_paysys}],
-        $bool_vals[$line->{disable_chg_tp}],
-        $html->button($lang{INFO}, "index=" . get_function_index('form_groups') . "&GID=$line->{gid}",
-          { class => 'change' })
-          . ' ' . $delete);
-    }
-  }
-  print $table->show();
-
-  $table = $html->table({
-    width      => '100%',
-    rows       => [ [ "$lang{TOTAL}:", $html->b( $users->{TOTAL} ) ] ]
+    },
+    TABLE  => {
+      width   => '100%',
+      caption => $lang{GROUPS},
+      ID      => 'GROUPS',
+      qs      => $pages_qs,
+      EXPORT  => 1,
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS  => 1,
+    TOTAL      => 1,
   });
-
-  print $table->show();
 
   return 1;
 }

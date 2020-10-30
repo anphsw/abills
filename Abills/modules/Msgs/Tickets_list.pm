@@ -90,9 +90,7 @@ sub msgs_form_search {
     SHOW_PERIOD     => 1,
   });
 
-  if ($LIST_PARAMS{STATE} && $LIST_PARAMS{STATE} =~ s/,\s?/;/) {
-
-  }
+  $LIST_PARAMS{STATE} =~ s/,\s?/;/ if ($LIST_PARAMS{STATE});
 
   return 1;
 }
@@ -163,14 +161,16 @@ sub msgs_list {
     $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER};
   }
 
+  my $uid_statement = $FORM{UID} ? "&UID=$FORM{UID}" : '';
   ($table, $list) = result_former({
     INPUT_DATA      => $Msgs,
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,CLIENT_ID,SUBJECT,CHAPTER_NAME,DATETIME,STATE,PRIORITY_ID,RESPOSIBLE_ADMIN_LOGIN',
-    HIDDEN_FIELDS   => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,RESPOSIBLE,MESSAGE,USER_NAME,DATE',
+    HIDDEN_FIELDS   => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,' .
+      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,DISTRICT_ID',
     APPEND_FIELDS   => 'UID',
     FUNCTION        => 'messages_list',
-    FUNCTION_FIELDS => 'msgs_admin:show:chg_msgs;uid,msgs_admin:del:del_msgs;state:&ALL_MSGS=1',
+    FUNCTION_FIELDS => 'msgs_admin:show:chg_msgs;uid,msgs_admin:del:del_msgs;state:&ALL_MSGS=1' . $uid_statement,
     MAP             => (!$FORM{UID}) ? 1 : undef,
     MAP_FIELDS      => 'ADDRESS_FLAT,ID,CLIENT_ID,SUBJECT',
     MAP_FILTERS     => {
@@ -275,13 +275,10 @@ sub msgs_list {
         'user_read'              => $lang{USER_READ},
         'admin_read'             => $lang{ADMIN_READ},
         'replies_counts'         => "replies_counts",
-        # 'chapter_id'             => $lang{CHAPTERS},
-        # 'deligation'             => $lang{DELIGATE},
         'dispatch_id'            => $lang{DISPATCH},
         'message'                => $lang{MESSAGE},
         'ip'                     => 'IP',
         'msg_phone'              => "CALL $lang{PHONE}",
-        # 'quality_control'        => 'QUALITY_CONTROL',
         'last_replie_date'       => $lang{LAST_ACTIVITY},
         'rating'                 => $lang{RATING},
         'chg_msgs'               => $lang{NUM},
@@ -575,6 +572,10 @@ sub _msgs_category {
     my $chapter = $Msgs->chapters_list({ COLS_NAME => 1 });
 
     my $info = '';
+    if ($FORM{search_form}) {
+      return $info;
+    }
+
     my @rows_element = _msgs_footer_row($chapter, {
       NAME_SELECT   => 'CHAPTER',
       ID_KEY        => 'id',
@@ -589,10 +590,53 @@ sub _msgs_category {
     }
 
     if ($info) {
-      $info = $html->element('div', $info, { class => 'well well-sm form-inline' })
+      $info = $html->element('div', $info . _msgs_status_update(), { class => 'well well-sm form-inline' });
     }
 
-    return $info
+    return $info;
+}
+
+#**********************************************************
+=head2 _msgs_status_update() - add select in update msgs status
+
+  Arguments:
+    -
+
+  Results:
+    select and button
+
+=cut
+#**********************************************************
+sub _msgs_status_update {
+
+  my $status_list = $Msgs->status_list({
+    COLS_NAME => 1
+  });
+
+  map { $_->{name} = _translate( $_->{name} ) } @{ $status_list };
+
+  my $status_select = $html->form_select(
+    "STATE_CHANGE",
+    {
+      SELECTED     => $FORM{STATE_CHANGE} || '_SHOW',
+      SEL_OPTIONS  => { 
+        '_SHOW' => '--' 
+      },
+      SEL_LIST     => $status_list,
+      NO_ID        => 1,
+      FORM_ID      => 'MSGS_LIST'
+    }
+  );
+
+  my $update_status_btn = $html->form_input('UPDATE_STATUS', $lang{CHANGE}, { 
+    TYPE    => 'submit', 
+    class   => 'btn btn-primary', 
+    FORM_ID => 'MSGS_LIST' 
+  });
+
+  return '' unless ($status_select || $update_status_btn);
+
+  return "$status_select $update_status_btn";
 }
 
 1;

@@ -122,6 +122,11 @@ sub list {
     ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//, $attr->{INTERVAL}, 2);
   }
 
+  my $skip_fields = 'UID';
+  if ($attr->{NO_SKIP}) {
+    $skip_fields = '';
+  }
+
   my $WHERE =  $self->search_former($attr, [
       ['DATETIME',         'DATE','sms.datetime',               1 ],
       ['SMS_STATUS',       'INT', 'sms.status as sms_status',   1 ],
@@ -136,7 +141,7 @@ sub list {
     { WHERE            => 1,
       USERS_FIELDS_PRE => 1,
       USE_USER_PI      => 1,
-      SKIP_USERS_FIELDS=> [ 'UID' ]
+      SKIP_USERS_FIELDS=> [ $skip_fields ]
     }
   );
 

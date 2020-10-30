@@ -151,3 +151,8 @@ $lang{REPORT}='Звіт';
 
 $lang{INSTALLED_REPORT}='Звіт по встановленим товарам';
 $lang{INSTALLED_PERIOD}='Встановлено товарів за період';
+
+$lang{SERIAL_NUMBER_IS_ALREADY_IN_USE} = 'Цей серійний номер уже використовується';
+
+$lang{STORAGE_MONTHS_LEFT} = 'Залишилось місяців';
+$lang{STORAGE_COMPLETED} = 'Завершено';

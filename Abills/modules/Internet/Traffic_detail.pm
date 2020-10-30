@@ -13,11 +13,12 @@ use Internet::Sessions;
 
 our(
   %lang,
-  $html,
   $db,
   $admin,
   %conf,
 );
+
+our Abills::HTML $html;
 
 my $Internet_ipoe  = Internet::Ipoe->new( $db, $admin, \%conf );
 my $Sessions       = Internet::Sessions->new($db, $admin, \%conf);

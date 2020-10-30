@@ -31,7 +31,7 @@
   }
 
   document['SELF_URL'] = '$SELF_URL';
-  document['DOMAIN_ID'] = '$FORM{DOMAIN_ID}';
+  document['DOMAIN_ID'] = '%DOMAIN_ID%';
 
   jQuery(function () {
     if (typeof EVENT_PARAMS !== 'undefined') {

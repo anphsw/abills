@@ -457,8 +457,8 @@ sub internet_session_detail {
 
   $Sessions->{_SENT}  = int2byte($Sessions->{SENT});
   $Sessions->{_RECV}  = int2byte($Sessions->{RECV});
-  $Sessions->{_RECV2} = int2byte($Sessions->{SENT2});
-  $Sessions->{_SENT2} = int2byte($Sessions->{RECV2});
+  $Sessions->{_RECV2} = int2byte($Sessions->{RECV2});
+  $Sessions->{_SENT2} = int2byte($Sessions->{SENT2});
   $Sessions->{RECALC} = $html->button($lang{RECALCULATE}, "index=$index&RECALC=1&SESSION_ID=$FORM{SESSION_ID}&UID=$uid", { BUTTON => 1 });
   $Sessions->{SUM}    = sprintf("%.6f", $Sessions->{SUM});
 

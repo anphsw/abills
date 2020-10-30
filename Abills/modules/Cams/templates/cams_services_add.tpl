@@ -86,7 +86,7 @@
                 </div>
 
                 <div class='form-group text-center'>
-                    %SERVICE_TEST%
+                    %SERVICE_TEST% %IMPORT_MODELS%
                 </div>
 
                 <div class='box-footer'>

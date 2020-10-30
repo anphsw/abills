@@ -59,7 +59,6 @@ $lang{SEND_SMS_TO_ANYONE}='Отправка смс сообщения сотру
 
 #Работа с кассами
 $lang{CASHBOX_WORK}='Работа с кассами';
-$lang{CASHBOX}='Касса';
 $lang{CASHBOXS}='Кассы';
 $lang{ADD_CASHBOX}='Добавить кассу';
 $lang{CASHBOX_ADDED}='Касса добавлена';
@@ -104,5 +103,9 @@ $lang{TYPE_IN_COMING_TYPE}='Введите тип прихода по кассе
 $lang{UNITS_}='Единицы измерения';
 
 $lang{VACATION}='Отпуск';
+
+$lang{MOVING_BETWEEN_CASHBOXES}='Перемещение между кассами';
+$lang{MOVING}='Перемещения';
+$lang{TYPE_IN_MOVING_TYPE} = 'Тип перемещения между кассами';
 
 1

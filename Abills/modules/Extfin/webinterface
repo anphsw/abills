@@ -1636,7 +1636,6 @@ sub extfin_monthly_summary {
   foreach my $id (keys %{ $Extfin->{PAYMENT_DEED} }) {
     my (undef, undef, $vat) = split(/\|/, $Extfin->{NAMES}{$id});
     $vat = 0 if (!$vat);
-    #my $total = $Extfin->{PAYMENT_DEED}{$id} + $Extfin->{PAYMENT_DEED}{$id} * ($vat / 100);
 
     $debug_output .= "PERIOD: $period BILL_ID: $id SUM: $Extfin->{PAYMENT_DEED}{$id} DATE: $DATE\n" if ($debug > 2);
     if ($debug < 5) {
@@ -1678,10 +1677,9 @@ sub extfin_calculated_balance {
   use Bills;
   use Users;
 
-#  my $Payments = Finance->payments($db, $admin, \%conf);
-#  my $Fees = Finance->fees($db, $admin, \%conf);
-#  my $Bills = Bills->new($db, $admin, \%conf);
-#  my $User = Users->new($db, $admin, \%conf);
+  if ($FORM{DEBUG}) {
+    $Extfin->{debug}=1;
+  }
 
   my @YEARS = ('2017', '2018', '2019', '2020', '2021', '2022', '2023');
 
@@ -1712,41 +1710,6 @@ sub extfin_calculated_balance {
     }
   );
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{SALDO} $lang{FOR_} " . ($MONTHES[ int($month - 1) ] . " $year"),
-      border  => 1,
-      title   => [ $lang{FIO}, $lang{CONTRACT}, "$lang{SALDO_BEGIN_PERIOD}", "$lang{FEES}", "$lang{PAYMENTS}",
-        "$lang{SALDO_END_PERIOD}" ],
-      ID      => 'EXTFIN_CALCULATED_BALANCE',
-      EXPORT  => 1,
-      qs      => $qs,
-      MENU    => "$lang{PRINT}:qindex=$index&header=2&print_form=1&sort=$FORM{sort}&desc=$FORM{desc}$qs:print"
-    }
-  );
-
-  #  my $bills_list = $Bills->list({ COLS_NAME => 1 });
-  #
-  #  foreach my $bill_id (@$bills_list){
-  #    my $user_pi = $User->pi({ UID => $bill_id->{uid}, FIO => '_SHOW', CONTRACT_ID => '_SHOW' });
-  #
-  #    $bill_id->{FIO} = $user_pi->{FIO};
-  #    $bill_id->{CONTRACT_ID} = $user_pi->{CONTRACT_ID};
-  #  }
-  #
-  #  if($FORM{sort} && $FORM{sort} == 1){
-  #    @$bills_list = sort {($a->{FIO} || q{}) cmp ($b->{FIO} || q{})} @$bills_list;
-  #  }
-  #
-  #  if($FORM{sort} && $FORM{sort} == 2){
-  #    @$bills_list = sort {$a->{CONTRACT_ID} cmp $b->{CONTRACT_ID}} @$bills_list;
-  #  }
-  #
-  #  if($FORM{desc} && $FORM{desc} eq 'DESC'){
-  #    @$bills_list = reverse @$bills_list;
-  #  }
-
   my $period = sprintf("%s-%#.2d", $year, $month);
 
   my $total_old_saldo = 0.00;
@@ -1756,117 +1719,32 @@ sub extfin_calculated_balance {
 
   my $users_print_table = '';
 
-  #  foreach my $bill_id (@$bills_list) {
-  #    # my $user_pi = $User->pi({ UID => $bill_id->{uid}, FIO => '_SHOW', CONTRACT_ID => '_SHOW' });
-  #
-  #    my $balance_report_info = $Extfin->extfin_report_balance_info({ PERIOD => $period, BILL_ID => $bill_id->{id}, COLS_NAME => 1 });
-  #
-  #    my $saldo_for_start = sprintf('%.2f', ($balance_report_info->{SUM} || 0.00));
-  #
-  #   $Payments->list(
-  #     {
-  #       MONTH     => $period,
-  #       BILL_ID   => $bill_id->{id},
-  #       COLS_NAME => 1,
-  #     }
-  #   );
-  #
-  #   $Fees->list(
-  #     {
-  #       MONTH     => $period,
-  #       BILL_ID   => $bill_id->{id},
-  #       COLS_NAME => 1,
-  #     }
-  #   );
-  #
-  #    my $saldo = (($balance_report_info->{SUM} || 0.00)) - $Fees->{SUM} + $Payments->{SUM};
-  #
-  #    my $user_button = $html->button($bill_id->{FIO} || "-----", "index=15&UID=$bill_id->{uid}", {});
-  #
-  #    $table->addrow( $user_button,
-  #                    $bill_id->{CONTRACT_ID} || '',
-  #                    ($saldo_for_start < 0) ? $html->b($saldo_for_start) : $saldo_for_start,
-  #                    sprintf('%.2f', $Fees->{SUM}),
-  #                    sprintf('%.2f', $Payments->{SUM}),
-  #                    sprintf('%.2f', $saldo));
-  #
-  #    $users_print_table .=
-  #      "<tr><td>"
-  #    . ($bill_id->{FIO} || '---------')
-  #    . "</td><td align='right'>"
-  #    . ($bill_id->{CONTRACT_ID} || '')
-  #    . "</td><td align='right'>"
-  #    . ($saldo_for_start < 0 ? $html->b($saldo_for_start) : $saldo_for_start)
-  #    . "</td><td align='right'>"
-  #    . sprintf('%.2f', $Fees->{SUM})
-  #    . "</td><td align='right'>"
-  #    . sprintf('%.2f', $Payments->{SUM})
-  #    . "</td><td align='right'>"
-  #    . sprintf('%.2f', $saldo)
-  #    . "</td></tr>";
-  #
-  #    # total count
-  #    $total_old_saldo += $balance_report_info->{SUM} || 0.00;
-  #    $total_fees      += $Fees->{SUM};
-  #    $total_payments  += $Payments->{SUM};
-  #    $total_new_saldo += $saldo;
-  #  }
-  #
-  #
-  #  $table->addrow('-', '-', '-', '-', '-');
-  #  $table->addrow("$lang{TOTAL}",'', sprintf('%.2f', $total_old_saldo), sprintf('%.2f', $total_fees), sprintf('%.2f', $total_payments), sprintf('%.2f', $total_new_saldo));
-  #
-  #  $users_print_table .=
-  #    "<tr><td>$lang{TOTAL}</td><td></td><td align='right'>"
-  #  . sprintf('%.2f', $total_old_saldo)
-  #  . "</td><td align='right'>"
-  #  . sprintf('%.2f', $total_fees)
-  #  . "</td><td align='right'>"
-  #  . sprintf('%.2f', $total_payments)
-  #  . "</td><td align='right'>"
-  #  . sprintf('%.2f', $total_new_saldo)
-  #  . "</td></tr>";
-  #
-  #  my $print_table = qq{
-  #    <table width="100%" cellspacing="0" border="1">
-  #  <thead>
-  #    <tr>
-  #      <td align='center'>$lang{FIO}</td>
-  #      <td align='center'>$lang{CONTRACT}</td>
-  #      <td align='center'>$lang{SALDO_BEGIN_PERIOD}</td>
-  #      <td align='center'>$lang{FEES}</td>
-  #      <td align='center'>$lang{PAYMENTS}</td>
-  #      <td align='center'>$lang{SALDO_END_PERIOD}</td>
-  #    </tr>
-  #  <thead>
-  #  <tbody>
-  #  $users_print_table
-  #  </tbody>
-  #  </table>
-  #  };
-  #
-  #  if ($FORM{print_form}) {
-  #    $html->tpl_show(
-  #      _include('extfin_balance_reports_print', 'Extfin'),
-  #      {
-  #        TABLE  => $print_table,
-  #        PERIOD => ($MONTHES[ int($month - 1) ] . " $year"),
-  #      }
-  #    );
-  #
-  #    return 1;
-  #  }
-  #
-  #  $html->tpl_show(_include('extfin_balance_reports', 'Extfin'), $Extfin);
-  #
-  #  print $table->show();
-
   my $users_saldo = $Extfin->extfin_report_balance_list({
     PERIOD    => $period,
     GID       => $FORM{GID} || '',
     COLS_NAME => 1,
-    PAGE_ROWS => 9999,
+    PG        => $FORM{pg},
+    PAGE_ROWS => $FORM{PAGE_ROWS},
   });
+  
+  if ($qs && !$qs =~ /PAGE_ROWS=/) {
+    $qs .= "&PAGE_ROWS=10000";
+  }
+
+  my $table = $html->table(
+    {
+      width   => '100%',
+      caption => "$lang{SALDO} $lang{FOR_} " . ($MONTHES[ int($month - 1) ] . " $year"),
+      border  => 1,
+      title   => [ $lang{FIO}, $lang{CONTRACT}, "$lang{SALDO_BEGIN_PERIOD}", "$lang{FEES}", "$lang{PAYMENTS}",
+        "$lang{SALDO_END_PERIOD}" ],
+      ID      => 'EXTFIN_CALCULATED_BALANCE',
+      EXPORT  => 1,
+      pages   => 10000,
+      qs      => $qs,
+      MENU    => "$lang{PRINT}:qindex=$index&header=2&print_form=1&sort=$FORM{sort}&desc=$FORM{desc}$qs:print"
+    }
+  );
 
   foreach my $user_saldo (@$users_saldo) {
     my $saldo_for_start = sprintf('%.2f', ($user_saldo->{sum} || 0.00));

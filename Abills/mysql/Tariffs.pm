@@ -492,7 +492,8 @@ sub change {
     FEES_METHOD             => 'fees_method',
     USER_CREDIT_LIMIT       => 'user_credit_limit',
     SERVICE_ID              => 'service_id',
-    STATUS                  => 'status'
+    STATUS                  => 'status',
+    DESCRIBE_AID            => 'describe_aid',
   );
 
   $attr->{REDUCTION_FEE}        = 0 if (!$attr->{REDUCTION_FEE});
@@ -627,8 +628,8 @@ sub list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT = (defined($attr->{SORT})) ? $attr->{SORT} : 1;
-  my $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
+  my $SORT = $attr->{SORT} ? $attr->{SORT} : 1;
+  my $DESC = $attr->{DESC} ? $attr->{DESC} : '';
 
   my @WHERE_RULES = ();
   $self->{SEARCH_FIELDS} = '';
@@ -707,6 +708,7 @@ sub list {
     [ 'SERVICE_NAME',        'INT', 'tp.service_id', 'tp.service_id AS service_name' ],
     [ 'INTERVALS',           'INT', 'ti.id',   'COUNT(i.id) AS intervals' ],
     [ 'STATUS',              'INT', 'tp.status',                   1 ],
+    [ 'DESCRIBE_AID',        'STR', 'tp.describe_aid',             1 ],
   ];
 
   if ($attr->{SHOW_ALL_COLUMNS}){

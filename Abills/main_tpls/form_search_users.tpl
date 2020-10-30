@@ -69,8 +69,14 @@
         <div class='form-group'>
             <label class='control-label col-sm-4 col-md-4' for='DISABLE'>_{DISABLE}_:</label>
 
-            <div class='col-sm-8 col-md-8'>
+            <div class='col-sm-2 col-md-2'>
                 <input id='DISABLE' name='DISABLE' value='1' type='checkbox'/>
+            </div>
+
+            <label class='control-label col-sm-3 col-md-3' for='DELETED'>_{NOT_DELETED_USERS}_:</label>
+
+            <div class='col-sm-3 col-md-3'>
+                <input id='DELETED' name='DELETED' value='0' type='checkbox'/>
             </div>
         </div>
 

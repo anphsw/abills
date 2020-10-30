@@ -1214,7 +1214,7 @@ sub _make_report_menu {
 
   $pages_qs .= "&REPORT=$attr->{REPORT}";
   while (my ($k, $v) = each %$attr) {
-    if ($k =~ /^ADDRESS|STREET|LOCATION|GID|DATE_FROM|DATE_TO|DEPOSIT|PARAMETER|PAYMENT_METHODS|ADMIN_ID/ && $v) {
+    if ($k =~ /^ADDRESS|STREET|BUILD_ID|LOCATION|GID|DATE_FROM|DATE_TO|DEPOSIT|PARAMETER|PAYMENT_METHODS|ADMIN_ID/ && $v) {
       $pages_qs .= "&$k=$v";
     }
   }
@@ -1277,6 +1277,10 @@ sub _make_report_menu {
 
   if ($Reports->{QUERY} =~ /%ADDRESS%/) {
     $report_panel .= form_address({ SHOW => 1, EXT_SEL_STYLE => 'min-width: 65%' });
+  }
+
+  if ($Reports->{QUERY} =~ /%BUILDS_LIST%/g) {
+    $report_panel .= form_address_multi_location_select({ SHOW => 1});
   }
 
   my $result = $html->form_main({
@@ -1457,6 +1461,17 @@ sub _make_report_query {
       }
     }
   }
+
+
+  if ($Reports->{QUERY} =~ /%BUILDS_LIST%/g) {
+    my $build_query = $attr->{BUILD_ID} ?
+      "pi.location_id IN ($attr->{BUILD_ID})":
+      "pi.location_id IS NOT NULL";
+
+    $Reports->{QUERY} =~ s/%BUILDS_LIST%/$build_query/g;
+    $Reports->{QUERY_TOTAL} =~ s/%BUILDS_LIST%/$build_query/g;
+  }
+
 
   $Reports->{QUERY}       =~ s/WHERE\s+AND\s+/WHERE /ig;
   $Reports->{QUERY_TOTAL} =~ s/WHERE\s+AND\s+/WHERE /ig;

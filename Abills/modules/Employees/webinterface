@@ -777,9 +777,9 @@ sub form_admins_time_sheet {
 
   # button for print time sheet
   my $print_btn = $html->button("$lang{PRINT}","qindex=" . get_function_index('employees_timesheet_print') . "&header=2&print=1&DATE=" . ($FORM{DATE} || $DATE), 
-    { 
-      target => '_new', 
-      class  => 'btn btn-default', 
+    {
+      target => '_new',
+      class  => 'btn btn-default',
       ICON   => 'fa fa-print',
       ex_params => 'data-toggle="tooltip" data-placement="bottom"'
     });
@@ -794,15 +794,15 @@ sub form_admins_time_sheet {
     $lang{DUTY},             # '���������'
   );
 
-  my @day_types_icons = ( 
-'', 
-"<i class='fa fa-globe fa-lg' title='$lang{VACATIONS}' aria-hidden='true'></i>", # ������� 
-"<i class='fa fa-h-square fa-lg' title='$lang{HOSPITAL}' aria-hidden='true'></i>", # ���������� 
-"<i class='fa fa-plane fa-lg' title='$lang{BUSINESS_TRIP}' aria-hidden='true'></i>", # ������������ 
-"<i class='fa fa-close fa-lg' title='$lang{DAY_OFF}' aria-hidden='true'></i>", # �������� 
-"<i class='fa fa-thumbs-o-down fa-lg' title='$lang{SLACK}' aria-hidden='true'></i>", # �� ����� 
-"<i class='fa fa-flash fa-lg' title='$lang{DUTY}' aria-hidden='true'></i>", # ��������� 
-);
+  my @day_types_icons = (
+    '',
+    "<i class='fa fa-globe fa-lg' title='$lang{VACATIONS}' aria-hidden='true'></i>", # �������
+    "<i class='fa fa-h-square fa-lg' title='$lang{HOSPITAL}' aria-hidden='true'></i>", # ���������� 
+    "<i class='fa fa-plane fa-lg' title='$lang{BUSINESS_TRIP}' aria-hidden='true'></i>", # ������������ 
+    "<i class='fa fa-close fa-lg' title='$lang{DAY_OFF}' aria-hidden='true'></i>", # �������� 
+    "<i class='fa fa-thumbs-o-down fa-lg' title='$lang{SLACK}' aria-hidden='true'></i>", # �� ����� 
+    "<i class='fa fa-flash fa-lg' title='$lang{DUTY}' aria-hidden='true'></i>", # ��������� 
+  );
 
   my ($start_y, $start_m, $start_d) = split(/-/, $FORM{DATE} || $DATE);
   my $days_in_month = ($start_m != 2 ? (($start_m % 2) ^ ($start_m > 7)) + 30 : (!($start_y % 400) || !($start_y % 4) && ($start_y % 25) ? 29 : 28));
@@ -823,6 +823,10 @@ sub form_admins_time_sheet {
 
   my $PREV_MONTH = ($start_m == 1)  ? $start_y - 1 . '-12-01' : sprintf('%d-%02d-01', $start_y, ($start_m - 1));
   my $NEXT_MONTH = ($start_m == 12) ? $start_y + 1 . '-01-01' : sprintf('%d-%02d-01', $start_y, ($start_m + 1));
+
+  my $PREV_YEAR = sprintf('%d-%02d-01', $start_y - 1, $start_m);
+  my $NEXT_YEAR = sprintf('%d-%02d-01', $start_y + 1, $start_m);
+
   my $JOB_DATE = ($FORM{day}) ? sprintf("%04d-%02d-%02d", $start_y, $start_m, $FORM{day}) : undef;
 
   push @title_days, $lang{DAYS}, $lang{HOURS};
@@ -864,7 +868,7 @@ sub form_admins_time_sheet {
       $hours_hash{ $aid }{ $date }{day_type} = 1;
     }
   }
-  
+
   my @day_types_title = keys %day_types_hash;
   foreach my $id (@day_types_title) {
     push @title_days, $day_types[$id];
@@ -906,9 +910,12 @@ sub form_admins_time_sheet {
       title_plain => \@title_days,
       class       => 'table table-hover table-condensed table-striped table-bordered',
       ID          => 'ADMINS_WORKS_LIST',
-      header      => $html->button('', "index=$index&DATE=$PREV_MONTH&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-left' })
-      . $html->button($MONTHES[ $start_m - 1 ], "index=$index&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-primary' })
+      header      =>
+        $html->button('', "index=$index&DATE=$PREV_YEAR&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-left' })
+      . $html->button('', "index=$index&DATE=$PREV_MONTH&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-left' })
+      . $html->button($MONTHES[ $start_m - 1 ]." $start_y", "index=$index&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-primary' })
       . $html->button('', "index=$index&DATE=$NEXT_MONTH&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-right' })
+      . $html->button('', "index=$index&DATE=$NEXT_YEAR&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-right' })
     }
   );
 
@@ -1097,26 +1104,6 @@ sub form_admins_time_sheet {
     BUTTON_NAME       => 'change',
   });
 
-# TODO: remove commented in a month if it works. Created 25.01.2019
-
-#  print $html->form_main(
-#    {
-#      CONTENT => "$lang{POSITION}:$position_select"
-#        . $load_to_modal_btn
-#        . $charts_btn
-#        . $print_btn
-#        . $html->element('hr')
-#        . $work_time_norms_table_show
-#        . $html->element('hr')
-#        . $table->show({ OUTPUT2RETURN => 1 }),
-#      HIDDEN  => {
-#        DATE  => $JOB_DATE,
-#        index => $index,
-#        day   => $FORM{day},
-#      },
-#      SUBMIT => { change => $lang{APPLY} }
-#    }
-#  );
 
   return 1;
 }
@@ -1574,15 +1561,14 @@ sub profile_list_admin {
 =cut
 #**********************************************************
 sub employees_rfid_log {
-  
   if ( $FORM{add} && $FORM{RFID} ) {
     my $aid = _employees_get_aid_by_rfid($FORM{RFID});
-  
+
     if (!$aid && in_array('Events', \@MODULES)){
       require Events::API;
       Events::API->import();
       my $Events = Events::API->new($db, $admin, \%conf);
-    
+
       $Events->add_event({
         TITLE    => $lang{EMPLOYEES} . ' RFID',
         MODULE   => 'Employees',
@@ -1590,12 +1576,12 @@ sub employees_rfid_log {
         PRIORITY => 1,
         EXTRA    => '?get_index=employees_rfid_log&full=1'
       });
-    
+
     }
-    
+
     $Employees->rfid_log_add({ %FORM, AID => $aid });
     _error_show($Employees);
-    
+
     if ($FORM{QUIET}){
       print qq{{"result":"ok","aid":"$aid"}};
       return 1;
@@ -1605,9 +1591,9 @@ sub employees_rfid_log {
     $Employees->rfid_log_del({ ID => $FORM{del} });
     _error_show($Employees);
   }
-  
+
   my $date_value = '';
-  
+
   if($FORM{START_DATE}){
     my ($y, $m, undef) = split('-', $FORM{START_DATE}, 3);
     $FORM{END_DATE} = "$y-$m-" . days_in_month({DATE => $FORM{START_DATE}});
@@ -1620,7 +1606,7 @@ sub employees_rfid_log {
     my $start_date = _add_days($DATE, -7);
     $date_value = "$start_date/$DATE";
   }
-  
+
   my $date_range    = $html->form_daterangepicker(
     {
       NAME      => 'FROM_DATE/TO_DATE',
@@ -1629,7 +1615,7 @@ sub employees_rfid_log {
       VALUE     => "$date_value",
     }
   );
-  
+
   my $admins_list = $admin->list(
     {
         %LIST_PARAMS,
@@ -1640,7 +1626,7 @@ sub employees_rfid_log {
         PAGE_ROWS   => 1000
     }
   );
-  
+
   my $admins_select = $html->form_select( 'ADMIN',
     {
       SELECTED    => $FORM{ADMIN} || q{},
@@ -1651,13 +1637,13 @@ sub employees_rfid_log {
       SEL_OPTIONS => { '' => '' }
     }
   );
-  
+
   $html->tpl_show(_include('employees_rfid_filter', 'Employees'),{
       DATE_RANGE   => $date_range,
       ADMIN_SELECT => $admins_select
     });
-  
-  
+
+
   my $rfid_log = $Employees->rfid_log_list({
     %LIST_PARAMS,
     ID         => '_SHOW',
@@ -1670,30 +1656,12 @@ sub employees_rfid_log {
     PG         => $FORM{pg} || '',
   });
   _error_show($Employees);
-    
-  
+
+
   if ( scalar @{$rfid_log} <= 0 ) {
     $html->message('warn', $lang{NO_DATA});
     return 1;
   }
-  
-  # OLD TABLE
-  # my Abills::HTML $table = $html->table( {
-  #   width   => '100%',
-  #   caption => 'RFID',
-  #   border  => 1,
-  #   title   => [ '#', $lang{TIME}, 'RFID', $lang{ADMIN} ],
-  #   pages   => scalar @{$rfid_log},
-  #     qs => $pages_qs,
-  #     ID => 'RFID_LOG_ID'
-  # } );
-  
-  # foreach ( @{$rfid_log} ) {
-  #   my $rfid_str = ('0' x (10 - length $_->{rfid})) . $_->{rfid};
-  #   $table->addrow($_->{id}, $_->{datetime}, $rfid_str, $_->{admin});
-  # }
-  
-  # print $table->show();
 
   result_former(
     {
@@ -1724,7 +1692,7 @@ sub employees_rfid_log {
       TOTAL         => 1,
     }
   );
-  
+
   return 1;
 }
 
@@ -1736,17 +1704,17 @@ sub employees_rfid_log {
 sub _employees_get_aid_by_rfid {
   my ($rfid) = @_;
   return 0 unless $rfid;
-  
+
   my $admins_search_list = $admin->list({
     RFID_NUMBER => $rfid,
     COLS_NAME => 1
   });
-  
+
   _error_show($admin);
 
   return ($admin->{errno} || (!$admins_search_list || ref $admins_search_list ne 'ARRAY' || $admin->{TOTAL} <= 0))
-           ? 0
-           : $admins_search_list->[0]{aid};
+            ? 0
+            : $admins_search_list->[0]{aid};
 }
 
 #**********************************************************
@@ -1773,14 +1741,14 @@ sub employees_vacations {
   elsif($FORM{change}){
     $Employees->employees_vacations_change({%FORM});
 
-    _error_show($Employees); 
+    _error_show($Employees);
   }
-  
+
   if($FORM{del}){
     $Employees->employees_vacations_del({ID => $FORM{del}});
-    _error_show($Employees); 
+    _error_show($Employees);
   }
-  
+
   if($FORM{chg}){
     $action = 'change';
     $button = "$lang{CHANGE}";
@@ -1810,7 +1778,7 @@ sub employees_vacations {
       VALUE     => ($FORM{START_DATE} && $FORM{END_DATE}) ?  "$FORM{START_DATE}/$FORM{END_DATE}" : $DATE,
     }
   );
-    
+
   my $admins_select = $html->form_select( 'AID',
     {
       SELECTED    => $FORM{AID} || q{},
@@ -1828,7 +1796,7 @@ sub employees_vacations {
     ADMIN      => '_SHOW',
     COLS_NAME  => 1
   });
-    
+
 
   $html->tpl_show(_include('employees_vacations_add', 'Employees'), {
       ACTION_LANG  => $button,
@@ -1900,7 +1868,7 @@ sub date_decr {
   }
   return "$year" . "-" . ($month) . "-" . ($day  < 10 ? "0" . $day : $day);
 }
-  
+
 
 #**********************************************************
 =head2 employees_rfid_log_to_timesheet() -
@@ -1937,28 +1905,26 @@ sub employees_rfid_log_to_timesheet {
   foreach my $each_admin_rfid_log (@$rfid_log){
     push (@ {$admins_times{$each_admin_rfid_log->{admin_id}}}, $each_admin_rfid_log->{datetime});
   }
-  
+
   foreach my $key (keys %admins_times){
     if ((scalar @{$admins_times{$key}}) > 1){
 
       my $start = $admins_times{$key}[0];
-  
       my $end   = $admins_times{$key}[scalar @{$admins_times{$key}} - 1];
-  
+
       if($start && $end){
         my (undef, $start_time) = split(' ',$start);
         my (undef, $end_time) = split(' ',$end);
-        
+
         my $start_time_in_sec = time2sec($start_time);
         my $end_time_in_sec = time2sec($end_time);
-        # print "$end_time_in_sec - $start_time_in_sec\n";
         my $time_on_work_in_sec = $end_time_in_sec - $start_time_in_sec;
-  
+
         my ($seconds, $minutes, $hours, undef) = sec2time($time_on_work_in_sec);
         if($attr->{DEBUG} && $attr->{DEBUG} == 1){
           print "Admin ID: $key\nTime on work: $hours:$minutes:$seconds\n";
         }
-  
+
         my %VACATION;
         $VACATION{AIDS} = $key;
         $VACATION{$key.'_WORK_TIME'} = $hours;
@@ -2110,16 +2076,16 @@ sub employees_timesheet_print {
   my $date_end;
   my $all_days_in_month;
   my $all_days_in_month_to_table;
+
   my ($y, $m, $d) = split('-', $DATE);
+
   my @types_in_letter = (
     '',
-    $lang{VACATIONS_SHORT},        
-    $lang{HOSPITAL_SHORT},         
-    $lang{BUSINESS_TRIP_SHORT}, 
-    # $lang{DAY_OFF_SHORT}, 
-    # $lang{SLACK_SHORT},   
-    # $lang{DUTY_SHORT},    
+    $lang{VACATIONS_SHORT},
+    $lang{HOSPITAL_SHORT},
+    $lang{BUSINESS_TRIP_SHORT},
   );
+
   if($FORM{DATE}){
     ($y, $m, $d) = split('-', $FORM{DATE});
 
@@ -2168,7 +2134,7 @@ sub employees_timesheet_print {
       $admins_work_time{$one_day->{name}}{$one_day->{date}} = $types_in_letter[$one_day->{day_type}] ;
     }
     my $position_info = $Employees->position_info({ID => $one_day->{position}, COLS_NAME => 1,});
- 
+
     if(!(exists $admins_positions{$one_day->{name}})){
       $admins_positions{$one_day->{name}} = $position_info->{POSITION};
     }
@@ -2196,8 +2162,8 @@ sub employees_timesheet_print {
 #        $full_days += 1 if ($admins_work_time{$fio_key}{$date_key} && $admins_work_time{$fio_key}{$date_key} != 0);
       }
       else{
-       # $table_rows .= qq{<td align="center">0</td>};
-       $table_rows .= $html->element('td', "0", {align=>'center', OUTPUT2RETURN=>1});
+        # $table_rows .= qq{<td align="center">0</td>};
+        $table_rows .= $html->element('td', "0", {align=>'center', OUTPUT2RETURN=>1});
       }
     }
     # $table_rows .= "<td>$full_time</td>";
@@ -2231,7 +2197,6 @@ sub employees_timesheet_print {
   #   $body_full
   #    </table>};
   my $table = $html->element('table', ("$head_full" . "$body_full"), {OUTPUT2RETURN => 1, width => '100%', cellspacing=>'0', border=>'1'});
-    
 
   if($FORM{print} && $FORM{print} == 1){
     $html->tpl_show(_include('employees_timesheet_print', 'Employees'),

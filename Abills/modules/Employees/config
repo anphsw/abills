@@ -45,11 +45,14 @@
   "66:65:$lang{DOCS}:employees_spending_document:ID"                     => 5,
   "67:65:$lang{ADD} $lang{TYPE}:employees_cashbox_spending_type:"        => 5,
 
-  "68:1:$lang{REFERENCE_WORKS}:employees_reference_works:"               => 5,
+  "68:60:$lang{MOVING_BETWEEN_CASHBOXES}:employees_moving_between_cashboxes:" => 5,
+  "69:68:$lang{ADD} $lang{TYPE}:employees_cashbox_moving_type:"          => 5,
 
-  "70:0:$lang{SALARY}:employees_salary:"                                 => 8,
-  "71:70:$lang{PRINT}:employees_print_payment_statement:PRINT_STATEMENT" => 8,
-  "72:70:$lang{BONUS}:employees_salary_bonus:"                           => 8,
+  "70:1:$lang{REFERENCE_WORKS}:employees_reference_works:"               => 5,
+
+  "71:0:$lang{SALARY}:employees_salary:"                                 => 8,
+  "72:70:$lang{PRINT}:employees_print_payment_statement:PRINT_STATEMENT" => 8,
+  "73:70:$lang{BONUS}:employees_salary_bonus:"                           => 8,
 
 );
 

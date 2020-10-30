@@ -111,7 +111,7 @@
               <label class='control-label col-md-3' for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
               <div class='col-md-9'>
                 <input id='PERIOD_ALIGNMENT' name='PERIOD_ALIGNMENT' value='1' %PERIOD_ALIGNMENT%
-                       type='checkbox'>
+                       type='checkbox' data-input-disables='ABON_DISTRIBUTION'>
               </div>
             </div>
 
@@ -119,7 +119,7 @@
               <label class='control-label col-md-3' for='ABON_DISTRIBUTION'>_{ABON_DISTRIBUTION}_:</label>
               <div class='col-md-9'>
                 <input id='ABON_DISTRIBUTION' name='ABON_DISTRIBUTION' value='1' %ABON_DISTRIBUTION%
-                       type='checkbox'>
+                       type='checkbox' data-input-disables='PERIOD_ALIGNMENT'>
               </div>
             </div>
 

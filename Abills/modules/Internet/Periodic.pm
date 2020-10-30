@@ -70,7 +70,8 @@ sub internet_daily_fees {
 
   my $debug        = $attr->{DEBUG} || 0;
   my $debug_output = '';
-  my $DOMAIN_ID    = $attr->{DOMAIN_ID} || 0;
+  # Fix daily fees: DOMAIN_ID
+  # my $DOMAIN_ID    = $attr->{DOMAIN_ID} || 0;
 
   if ($attr->{USERS_WARNINGS_TEST}) {
     return $debug_output;
@@ -83,7 +84,7 @@ sub internet_daily_fees {
   $debug_output .= "Internet: Daily periodic fees\n" if ($debug > 1);
 
   $LIST_PARAMS{TP_ID}     = $attr->{TP_ID} if ($attr->{TP_ID});
-  $LIST_PARAMS{DOMAIN_ID} = $DOMAIN_ID;
+  # $LIST_PARAMS{DOMAIN_ID} = $DOMAIN_ID;
   my %USERS_LIST_PARAMS         = ( REGISTRATION => "<$ADMIN_REPORT{DATE}" );
   $USERS_LIST_PARAMS{LOGIN}     = $attr->{LOGIN} if ($attr->{LOGIN});
   $USERS_LIST_PARAMS{GID}       = $attr->{GID} if ($attr->{GID});
@@ -1078,7 +1079,7 @@ sub internet_monthly_fees {
                 next;
               }
               #Static day
-              if( ($TP_INFO->{FIXED_FEES_DAY} && ($d == $activate_d || ($d == $START_PERIOD_DAY && $activate_d > 28)))
+              if( (($TP_INFO->{FIXED_FEES_DAY} && $m == $activate_m ) && ($d == $activate_d || ($d == $START_PERIOD_DAY && $activate_d > 28)))
                 || ($date_unixtime - $active_unixtime > 30 * 86400) ) {
 
                 if ($debug > 4) {
@@ -1578,6 +1579,15 @@ $lang{TOTAL}: $Internet->{TOTAL}\n";
 #***********************************************************
 =head2 internet_sheduler($type, $action, $uid, $attr)
 
+  Arguments:
+    $type
+    $action
+    $uid
+    $attr
+
+  Returns:
+    TRUE or FALSE
+
 =cut
 #***********************************************************
 sub internet_sheduler {
@@ -1586,6 +1596,8 @@ sub internet_sheduler {
   my $debug = $attr->{DEBUG} || 0;
 
   $action //= q{};
+  my $d  = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
+  my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
 
   if ($type eq 'tp') {
     my $service_id;
@@ -1598,23 +1610,25 @@ sub internet_sheduler {
       $tp_id = dv2intenet_tp($action);
     }
 
+    my %params = ();
     my $user = $Internet->info($uid, { ID => $service_id });
+
+    if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' && !$Internet->{STATUS}) {
+      $params{ACTIVATE} = $DATE;
+    }
 
     $Internet->change({
       UID         => $uid,
       TP_ID       => $tp_id,
       ID          => $service_id,
-      PERSONAL_TP => 0
+      PERSONAL_TP => 0.00,
+      %params
     });
 
-    if ($attr->{GET_ABON} && $attr->{GET_ABON} eq '-1' && $attr->{RECALCULATE} && $attr->{GET_ABON} eq '-1') {
+    if ($attr->{GET_ABON} && $attr->{GET_ABON} eq '-1' && $attr->{RECALCULATE} && $attr->{RECALCULATE} eq '-1') {
       print "Skip: GET_ABON, RECALCULATE\n" if ($debug > 1);
       return 0;
     }
-
-    my $d  = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
-    my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
-    $FORM{RECALCULATE}   = 0;
 
     if ($Internet->{errno}) {
       return $Internet->{errno};
@@ -1623,6 +1637,7 @@ sub internet_sheduler {
       if ($Internet->{TP_INFO}->{ABON_DISTRIBUTION} || $d == $START_PERIOD_DAY) {
         $Internet->{TP_INFO}->{MONTH_FEE} = 0;
       }
+
       $user = undef;
       $FORM{RECALCULATE} = 1;
       service_get_month_fee($Internet, {
@@ -1668,6 +1683,10 @@ sub internet_sheduler {
       }
     }
     elsif ($action == 0) {
+      if ($Internet->{TP_INFO}->{ABON_DISTRIBUTION} || $d == $START_PERIOD_DAY) {
+        $Internet->{TP_INFO}->{MONTH_FEE} = 0;
+      }
+
       service_get_month_fee($Internet, {
         QUITE    => 1,
         SHEDULER => 1, #($attr->{SHEDULEE_ONLY}) ? undef,
@@ -1798,5 +1817,30 @@ sub internet_report {
   return $REPORT;
 }
 
+#**********************************************************
+=head dv2intenet_tp($dv_tp_id)
+
+  Arguments:
+    $dv_tp_id
+
+=cut
+#**********************************************************
+sub dv2intenet_tp {
+  my($dv_tp_id) = @_;
+  my $tp_id = 0;
+
+  my $tp_list = $Tariffs->list({
+    NEW_MODEL_TP => 1,
+    TP_ID        => $dv_tp_id,
+    MODULE       => 'Dv',
+    COLS_NAME    => 1
+  });
+
+  if($Tariffs->{TOTAL} > 0) {
+    $tp_id = $tp_list->[0]->{tp_id};
+  }
+
+  return $tp_id;
+}
 
 1;

@@ -28,7 +28,7 @@ $lang{BY_COLUMN}='По колонкам';
 $lang{FIRST_PORT_POSITION}='Перший порт';
 $lang{POSITION_UP}='Зверху';
 $lang{POSITION_DOWN}='Знизу';
-$lang{TRAPS}='SNMP traps';
+$lang{TRAPS}='SNMP Пастка';
 
 $lang{REVISION} = 'Ревізія (версія)';
 $lang{SELECT_TYPE} = 'Виберіть тип';
@@ -118,5 +118,23 @@ $lang{NO_ZABBIX_INFO} = 'Потрібно заповнити Zabbix hostid, а �
 $lang{DUPLICATE_MAC} = 'MAC адреси, що повторюються';
 
 $lang{RF_PORT_ON} = 'Статус RF-порта';
+$lang{BACKUP} = 'Резервне копіювання';
+$lang{PROVISION} = 'Положення';
+$lang{FAULTS} = 'Несправності';
+$lang{USER_ROUTE} = 'Маршрут користувача';
+
+$lang{CABLE_TESTER} = 'Кабельний тестер';
+$lang{STATUS_PAIR} = 'Статус пари';
+$lang{LENGTH_PAIR} = 'Довжина пари';
+
+$lang{MAC_BEHIND_ONU} = 'MAC за ONU';
+
+$lang{SHOW_ONU_CONFIG} = 'Показати конфігурацію ONU';
+
+$lang{DISABLE_CATV_PORT} = 'Відключити CATV-порт';
+$lang{ENABLE_CATV_PORT} = 'Увімкнути CATV-порт';
+$lang{CATV_PORT_DISABLED} = 'CATV-порт відключено';
+$lang{CATV_PORT_ENABLED} = 'CATV-порт увімкнено';
+$lang{CATV_PORT_ERROR} = 'Помилка при зміні статуса CATV-порта';
 
 1

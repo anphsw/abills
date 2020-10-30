@@ -18,9 +18,11 @@ use JSON;
 use utf8;
 use Encode qw(encode_utf8);
 use Abills::Fetcher qw/web_request/;
+require Abills::Misc;
 require Timetracker::Reports;
 
-our ($html, %FORM, $db, %conf, $admin, %lang, @WEEKDAYS);
+our (%FORM, $db, %conf, $admin, %lang, @WEEKDAYS);
+our Abills::HTML $html;
 my $Timetracker = Timetracker->new($db, $admin, \%conf);
 my $Admins = Admins->new($db, \%conf);
 my @external_systems = ($lang{NO}, 'Support', 'Redmine');
@@ -57,7 +59,6 @@ sub timetracker {
   my @priority = ();
 
   foreach my $element (@$timetracker_list_element) {
-
     push @elements, $element->{element};
 
     if ($element->{priority} == 1) {
@@ -131,7 +132,7 @@ sub add_time {
   my @num_element;
   my @element_id;
   my $btn_action = 'add';
-  my $btn_change = 'search';
+  #my $btn_change = 'search';
   my $btn_value = $lang{ADD};
   my %elements_value;
   my ($year, undef, undef) = split('-', $DATE);
@@ -165,14 +166,15 @@ sub add_time {
   }
 
   if ($FORM{add}) {
-
     $Timetracker->del(
       {
         AID  => $admin->{AID},
         DATE => $FORM{DATE},
       }
     );
+
     foreach my $element (@$timetracker_list_element) {
+      $FORM{ $element->{id} } =~ s/,/./g;
       $Timetracker->add(
         {
           AID              => $admin->{AID},
@@ -185,8 +187,7 @@ sub add_time {
     $html->message("info", $lang{ADD_MASSAGE}, $lang{OPERATION});
     $date_for_picker = $FORM{DATE};
   }
-  if ($FORM{del} && $FORM{COMMENTS}) {
-
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Timetracker->del(
       {
         AID  => $admin->{AID},
@@ -197,9 +198,7 @@ sub add_time {
       $html->message("info", $lang{DELETE_MASSAGE}, $lang{OPERATION});
     }
   }
-
-  if ($FORM{change}) {
-
+  elsif ($FORM{change}) {
     $Timetracker->del(
       {
         AID  => $admin->{AID},
@@ -362,7 +361,6 @@ sub add_item {
   my $btn_value = $lang{ADD};
 
   if ($FORM{add}) {
-
     $Timetracker->add_element(
       {
         ELEMENT         => $FORM{ELEMENT},
@@ -376,7 +374,6 @@ sub add_item {
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-
     $Timetracker->del_element($FORM{del});
 
     if (!_error_show($Timetracker)) {
@@ -464,7 +461,7 @@ sub add_item {
   my $table = $html->table(
     {
       width   => "100%",
-      caption => "$lang{ELEMENTS}",
+      caption => $lang{ELEMENTS},
       title   => [ "ID", $lang{ELEMENT}, $lang{EXTERNAL_SYSTEM}, $lang{FOCUS_FACTOR}, "" ],
       qs      => $pages_qs,
       ID      => "TABLE_ID",

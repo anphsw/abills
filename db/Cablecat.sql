@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS `cablecat_cable_types` (
 CREATE TABLE IF NOT EXISTS `cablecat_cables` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `name` VARCHAR(128) NOT NULL,
-  `type_id` SMALLINT(6) NOT NULL REFERENCES `cablecat_cable_types` (`id`),
+  `type_id` SMALLINT(6) NOT NULL REFERENCES `cablecat_cable_types` (`id`)
+    ON DELETE RESTRICT,
   `well_1` INT(11) UNSIGNED DEFAULT 0 REFERENCES `cablecat_wells` (`id`)
     ON DELETE RESTRICT,
   `well_2` INT(11) UNSIGNED DEFAULT 0 REFERENCES `cablecat_wells` (`id`)
@@ -55,7 +56,6 @@ CREATE TABLE IF NOT EXISTS `cablecat_cables` (
     ON DELETE SET NULL,
   `length` DOUBLE NOT NULL DEFAULT 0,
   `reserve` DOUBLE NOT NULL DEFAULT 0,
-  FOREIGN KEY `type_id` (`type_id`) REFERENCES `cablecat_cable_types` (`id`),
   UNIQUE `_cablecat_cable_name`(`name`)
 )
   CHARSET = 'utf8'
@@ -137,6 +137,28 @@ CREATE TABLE IF NOT EXISTS `cablecat_splitter_types` (
   CHARSET = 'utf8'
   COMMENT = 'Types of splitters';
 
+REPLACE INTO `cablecat_splitter_types` (`id`, `name`, `fibers_in`, `fibers_out`) VALUES
+  (1, '1x2', 1, 2),
+  (2, '1x3', 1, 3),
+  (3, '1x4', 1, 4),
+  (4, '1x6', 1, 6),
+  (5, '1x8', 1, 8),
+  (6, '1x12', 1, 12),
+  (7, '1x16', 1, 16),
+  (8, '1x24', 1, 24),
+  (9, '1x32', 1, 32),
+  (10, '1x64', 1, 64),
+  (11, '50/50', 1, 2),
+  (12, '45/55', 1, 2),
+  (13, '40/60', 1, 2),
+  (14, '35/65', 1, 2),
+  (15, '30/70', 1, 2),
+  (16, '25/75', 1, 2),
+  (17, '20/80', 1, 2),
+  (18, '15/85', 1, 2),
+  (19, '10/90', 1, 2),
+  (20, '5/95', 1, 2);
+
 CREATE TABLE IF NOT EXISTS `cablecat_splitters` (
   `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `type_id` SMALLINT(6) UNSIGNED REFERENCES `cablecat_splitter_types` (`id`)
@@ -150,7 +172,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_splitters` (
   `commutation_y` DOUBLE(5, 2) NULL,
   `commutation_rotation` SMALLINT NOT NULL DEFAULT 0,
   `color_scheme_id` INT(11) UNSIGNED NOT NULL DEFAULT '1',
-  `attenuation` VARCHAR(64) NOT NULL DEFAULT '0'
+  `attenuation` VARCHAR(64) NOT NULL DEFAULT ''
 )
   CHARSET = 'utf8'
   COMMENT = 'Dividers of fiber signals (PON)';
@@ -270,3 +292,35 @@ CREATE TABLE IF NOT EXISTS `cablecat_coil` (
   `length` INT NOT NULL DEFAULT 30,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Cablecat coil';
+
+CREATE TABLE IF NOT EXISTS `cablecat_schemes` (
+  `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `commutation_id` INT(11) UNSIGNED,
+  `commutation_x` DOUBLE NULL,
+  `commutation_y` DOUBLE NULL,
+  `height` SMALLINT(6) UNSIGNED NOT NULL,
+  `width` SMALLINT(6) UNSIGNED NOT NULL,
+  KEY `commutation_id` (`commutation_id`)
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Schemes for big commutation';
+
+CREATE TABLE IF NOT EXISTS `cablecat_scheme_elements` (
+  `id` INT(11) UNSIGNED NOT NULL,
+  `commutation_x` DOUBLE NULL,
+  `commutation_y` DOUBLE NULL,
+  `type` VARCHAR(32) NOT NULL DEFAULT '',
+  `commutation_id` INT(11) UNSIGNED,
+  KEY `id` (`id`)
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Scheme element for big commutation';
+
+CREATE TABLE IF NOT EXISTS `cablecat_scheme_links` (
+  `id` INT(11) UNSIGNED NOT NULL,
+  `geometry` TEXT,
+  `commutation_id` INT(11) UNSIGNED,
+  KEY `id` (`id`)
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Scheme links for big commutation';

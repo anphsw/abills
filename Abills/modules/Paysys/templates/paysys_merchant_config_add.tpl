@@ -37,7 +37,6 @@
 <script>
   try {
     var arr = JSON.parse('%JSON_LIST%');
-    console.log(arr);
   }
   catch (err) {
     console.log('JSON parse error.');
@@ -54,7 +53,16 @@
       var val = arr[type]['CONF'][sorted[i]];
       var param = sorted[i];
       param = param.replace(/(_NAME_)/,'_'+ type.toUpperCase()+'_');
-      // console.log(sorted[i] + " - " + val);
+
+     jQuery("input[name*='MFO']").attr("maxlength", "6");
+
+     jQuery("input[name*='MFO']").attr("title", "Поле должно содержать 6 цифр");
+
+     jQuery("input[name*='MFO']").hover(function(){
+         jQuery(this).tooltip()
+     });
+
+    // jQuery("input[name*='ACCOUNT_KEY']");
 
       var element = jQuery("<div></div>").addClass("form-group appended_field");
       element.append(jQuery("<label for=''></label>").text(param).addClass("col-md-12 col-sm-12 "));

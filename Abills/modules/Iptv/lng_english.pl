@@ -106,4 +106,6 @@ $lang{ERROR_SHOW_CHANNELS} = "Error show channels";
 
 $lang{GET_LOGIN_AND_PASSWD} = "Get login and password";
 
+$lang{TARIF_PLAN} = 'Tariff plan';
+
 1;

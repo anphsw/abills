@@ -14,7 +14,6 @@ our (
   $admin,
   %conf,
   %lang,
-  $html,
   @units,
   @MONTHES,
   @WEEKDAYS,
@@ -33,6 +32,7 @@ our (
   @money_unit_names,
 );
 
+our Abills::HTML $html;
 my $Docs     = Docs->new( $db, $admin, \%conf );
 my $Payments = Payments->new( $db, $admin, \%conf );
 my @service_status_colors = ($_COLORS[9], $_COLORS[6]);
@@ -540,7 +540,7 @@ sub docs_invoices_list{
     FUNCTION        => 'invoices_list',
     BASE_FIELDS     => (!$user->{UID}) ? 5 : 3,
     DEFAULT_FIELDS  =>
-      ($FORM{UID}) ? 'INVOICE_NUM,DATE,CUSTOMER,PAYMENT_SUM' : 'INVOICE_NUM,DATE,CUSTOMER,PAYMENT_SUM,LOGIN',
+      ($FORM{UID}) ? 'INVOICE_NUM,DATE,CUSTOMER,PAYMENT_SUM' : 'INVOICE_NUM,DATE,CUSTOMER,PAYMENT_SUM',
     HIDDEN_FIELDS   => 'CURRENCY',
     FUNCTION_FIELDS =>
       (!$user->{UID}) ? (($conf{DOCS_INVOICE_ALT_TPL}) ? 'print,' : '') . 'print,payment,show,send,del' : 'print',
@@ -574,7 +574,7 @@ sub docs_invoices_list{
       EXPORT     => 1,
       #SELECT_ALL => (!$user->{UID}) ? 1 : undef,
       SELECT_ALL => ($user && $user->{UID}) ? undef : "DOCS_INVOICES_LIST:IDS:$lang{SELECT_ALL}",
-      MENU       => "$lang{SEARCH}:index=$index&search_form=1" . (($FORM{UID}) ? "&UID=$FORM{UID}" : '') . ":search",
+      MENU       => "$lang{SEARCH}:index=". ($index || 0) ."&search_form=1" . (($FORM{UID}) ? "&UID=$FORM{UID}" : '') . ":search",
     },
   });
 
@@ -892,7 +892,7 @@ sub docs_invoices_multi_create{
 
 =cut
 #**********************************************************
-sub docs_invoice{
+sub docs_invoice {
   my ($attr) = @_;
 
   $users = $user if ($user && $user->{UID});
@@ -1242,7 +1242,7 @@ sub docs_invoice_period {
       caption     => ($users->{UID}) ? $lang{ACTIVATE_NEXT_PERIOD} : "$lang{INVOICE} $lang{PERIOD}: $Y-$M",
       title_plain => [ '#', $lang{DATE}, $lang{LOGIN}, $lang{DESCRIBE}, $lang{SUM}, ($user) ? undef : $lang{TAX} ],
       pages       => $Docs->{TOTAL},
-      ID          => 'DOCS_INVOCE_ORDERS',
+      ID          => 'DOCS_INVOICE_ORDERS',
     });
 
     my $total_sum         = 0;
@@ -1299,7 +1299,7 @@ sub docs_invoice_period {
             ($line->{dsc} || q{} ) . " $date" . (($line->{dsc} && $current_invoice{$line->{dsc}}) ? ' ' . $html->color_mark( $lang{EXIST},
               $_COLORS[6] ) : ''),
             $line->{sum},
-            ($line->{tax} && $fees_tax{$line->{tax}}) ? $fees_tax{$line->{tax}} : 0,
+            ($line->{tax} && $fees_tax{$line->{tax}}) ? $fees_tax{$line->{tax}} : q{},
           );
 
           $total_not_invoice += $line->{sum};
@@ -1337,79 +1337,88 @@ sub docs_invoice_period {
 
     #Next period payments
     if ( $FORM{NEXT_PERIOD} ){
-      my $cross_modules_return = cross_modules_call( '_docs', {
-        UID          => $attr->{UID} || $LIST_PARAMS{UID} || $uid,
-        PAYMENT_TYPE => ($users->{UID}) ? undef : 0
-      } );
-
       ($FORM{FROM_DATE}, $FORM{TO_DATE}) = _next_payment_period({
         PERIOD => $FORM{NEXT_PERIOD},
         DATE   => $date
       });
+
       my $period_from = $FORM{FROM_DATE};
       my $period_to   = $FORM{FROM_DATE};
 
-      foreach my $module ( sort keys %{$cross_modules_return} ){
-        if ( ref $cross_modules_return->{$module} eq 'ARRAY' ){
-          next if ($#{ $cross_modules_return->{$module} } == -1);
-          $table->{extra} = "colspan='6' ";
-          $table->addrow( $module );
-          delete $table->{extra};
+      require Control::Services;
+      my $service_info = get_services($user || $users, {
+        ACTIVE_ONLY => 1
+      });
 
-          foreach my $line ( @{ $cross_modules_return->{$module} } ){
-            my ($name, $describe, $sum, undef, undef, $fees_type, $activate) = split( /\|/, $line );
+      my %services_order = ();
+      foreach my $service (@{$service_info->{list}}) {
+        my $sum = sprintf("%.2f", $service->{SUM} || 0);
+        my $fees_type = 0;
+        my $module   = $service->{MODULE};
+        my $activate = $service->{ACTIVATE};
+        my $describe = $service->{SERVICE_DESC};
+        next if ($sum < 0);
 
-            next if (! $sum || $sum < 0);
-            $period_from = $FORM{FROM_DATE};
-            $period_from =~ s/\d+$/01/;
-            my $module_service_activate = $service_activate;
+        my $module_service_activate = $service_activate;
 
-            if($activate) {
-              $module_service_activate = $activate;
-              $period_from = $module_service_activate;
-            }
+        if ($activate && $activate ne '0000-00-00') {
+          $module_service_activate = $activate;
+          $period_from = $module_service_activate;
+        }
+        else {
+          $period_from = $DATE || '0000-00-00';
+          $period_from =~ s/\d+$/01/;
+        }
 
-            for ( my $i = ($FORM{NEXT_PERIOD} == -1) ? -2 : 0; $i < int( $FORM{NEXT_PERIOD} ); $i++ ){
-              my $result_sum = sprintf( "%.2f", $sum );
-              if ( $users->{REDUCTION} && $module ne 'Abon' ){
-                $result_sum = sprintf( "%.2f", $sum * (100 - $users->{REDUCTION}) / 100 );
-              }
-
-              ($period_from, $period_to)=_next_payment_period({
-                DATE   => $period_from
-              });
-
-              my $order = "$name $describe($period_from-$period_to)";
-
-              $num++ if (!$current_invoice{$order});
-              my $tax_sum = 0;
-
-              if($fees_type && $fees_tax{$fees_type}) {
-                $tax_sum = $result_sum / 100 * $fees_tax{$fees_type};
-              }
-
-              $table->addrow(
-                (
-                  (!$current_invoice{$order}) ? $html->form_input( 'ORDER_' . $num, "$order",
-                    { TYPE => 'hidden', OUTPUT2RETURN => 1 } )
-                    . $html->form_input( 'SUM_' . $num, $result_sum, { TYPE => 'hidden', OUTPUT2RETURN => 1 } )
-                    . $html->form_input( 'IDS', "$num",
-                    { TYPE => ($users->{UID}) ? 'hidden' : 'checkbox', STATE => 'checked', OUTPUT2RETURN => 1 } )
-                    . $num
-                    . $html->form_input( 'FEES_TYPE_' . $num, $fees_type, { TYPE => 'hidden', OUTPUT2RETURN => 1 } )
-                    : ''
-                ),
-                $period_from,
-                $users->{LOGIN},
-                $order . (($current_invoice{$order}) ? ' ' . $html->color_mark( $lang{EXIST}, $_COLORS[6] ) : ''),
-                $result_sum,
-                sprintf("%.2f", $tax_sum)
-              );
-
-              $total_sum     += $result_sum if (!$current_invoice{$order});
-              $total_tax_sum += $tax_sum;
-            }
+        for (my $i = ($FORM{NEXT_PERIOD} == -1) ? -2 : 0; $i < int($FORM{NEXT_PERIOD}); $i++) {
+          my $result_sum = sprintf("%.2f", $sum);
+          if ($users->{REDUCTION} && $module ne 'Abon') {
+            $result_sum = sprintf("%.2f", $sum * (100 - $users->{REDUCTION}) / 100);
           }
+
+          ($period_from, $period_to) = _next_payment_period({
+            DATE => $period_from
+          });
+
+          my $order = "$service->{SERVICE_NAME} $describe($period_from-$period_to)";
+
+          $num++ if (!$current_invoice{$order});
+          my $tax_sum = 0;
+
+          if ($fees_type && $fees_tax{$fees_type}) {
+            $tax_sum = $result_sum / 100 * $fees_tax{$fees_type};
+          }
+
+          push @{ $services_order{ $service->{MODULE_NAME} || $module } },
+            [
+            (
+              (!$current_invoice{$order}) ? $html->form_input('ORDER_' . $num, $order,
+                { TYPE => 'hidden', OUTPUT2RETURN => 1 })
+                . $html->form_input('SUM_' . $num, $result_sum, { TYPE => 'hidden', OUTPUT2RETURN => 1 })
+                . $html->form_input('IDS', $num,
+                { TYPE => ($users->{UID}) ? 'hidden' : 'checkbox', STATE => 'checked', OUTPUT2RETURN => 1 })
+                . $num
+                . $html->form_input('FEES_TYPE_' . $num, $fees_type, { TYPE => 'hidden', OUTPUT2RETURN => 1 })
+                : ''
+            ),
+            $period_from,
+            $users->{LOGIN},
+            $order . (($current_invoice{$order}) ? ' ' . $html->color_mark($lang{EXIST}, $_COLORS[6]) : ''),
+            $result_sum,
+            ($tax_sum) ? sprintf("%.2f", $tax_sum) : q{}
+            ];
+
+          $total_sum += $result_sum if (!$current_invoice{$order});
+          $total_tax_sum += $tax_sum;
+        }
+      }
+
+      foreach my $module (keys %services_order) {
+        $table->{extra} = "colspan='6' ";
+        $table->addrow( $html->b($module) );
+        delete $table->{extra};
+        foreach my $row ( @{ $services_order{$module} } ) {
+          $table->addrow(@{ $row });
         }
       }
     }
@@ -1572,6 +1581,7 @@ sub docs_invoice_period {
      $attr
        DATE
        PERIOD
+       SERVICE_ACTIVATE
 
   Resturns:
     $from_date, $to_date

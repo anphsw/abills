@@ -170,6 +170,7 @@ sub _raisecom_onu_list {
       });
 
       foreach my $line (@$result) {
+        next if (!$line);
         my ($onu_index, $value) = split(/:/, $line, 2);
         my $function = $snmp->{$oid_name}->{PARSER};
 
@@ -190,11 +191,11 @@ sub _raisecom_onu_list {
     }
   };
 
-  my %onu_info = ();
   foreach my $port_index (keys %onu_snmp_info) {
     next if(!$port_index);
 
     my $port = $onu_snmp_info{$port_index};
+    my %onu_info = ();
     foreach my $onu_index (keys %$port) {
       next if(!$onu_index);
 
@@ -203,6 +204,8 @@ sub _raisecom_onu_list {
       $onu_info{ONU_ID} = $pon_onu_id;
       $onu_info{ONU_SNMP_ID} = $onu_index;
       $onu_info{PORT_ID} = $port_ids{$port_index};
+      $onu_info{ONU_DHCP_PORT} = "$port_index\_$pon_onu_id"; #fake ONU_DHCP_PORT; without this ONU to abonent binding don't work
+      $onu_info{PON_TYPE} = "gpon";
       foreach my $oid_name (keys %{$onu}) {
         next if (!$oid_name);
         $onu_info{$oid_name} = $onu->{$oid_name};
@@ -412,6 +415,8 @@ sub _raisecom_convert_temperature {
 #**********************************************************
 sub _raisecom_decode_onu_index1 {
   my ($index) = @_;
+  return if (!$index);
+
   my $slot_id, my $port_id, my $pon_onu_id;
   $index--;
   if ($index<(3<<28)) {
@@ -447,10 +452,12 @@ sub _raisecom_decode_onu_index1 {
 #**********************************************************
 sub _raisecom_decode_onu_index2 {
   my ($index) = @_;
+  return if (!$index);
+
   my $slot_id = ($index>>23) & 0x1F;
   my $port_id = ($index>>16) & 0x7F;
   my $pon_onu_id = $index & 0xFFFF;
-  
+
   return ($slot_id, $port_id, $pon_onu_id);
 }
 
@@ -467,6 +474,8 @@ sub _raisecom_decode_onu_index2 {
 #**********************************************************
 sub _raisecom_recode_onu_index_1_to_2 {
   my ($index) = @_;
+  return if (!$index);
+
   my ($slot_id, $port_id, $pon_onu_id) = _raisecom_decode_onu_index1($index);
   my $result = (1<<28) | ($slot_id<<23) | ($port_id<<16) | ($pon_onu_id);
 
@@ -482,11 +491,12 @@ sub _raisecom_recode_onu_index_1_to_2 {
   Returns:
     $index - ONU index type 1 (examples: 10106001, 815406369)
 
-
 =cut
 #**********************************************************
 sub _raisecom_recode_onu_index_2_to_1 {
   my ($index) = @_;
+  return if (!$index);
+
   my ($slot_id, $port_id, $pon_onu_id) = _raisecom_decode_onu_index2($index);
   my $result;
   if ($pon_onu_id < 100) {

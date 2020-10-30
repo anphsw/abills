@@ -89,7 +89,7 @@ sub payment_register {
   my ($attr) = @_;
 
   if ($self->{debug}) {
-    print "\nTry \\printCheck for payment $attr->{payments_id}\n";
+    print "\nTry print Check for payment $attr->{payments_id}\n";
   }
   
   my %data = (
@@ -149,9 +149,11 @@ sub payment_register {
 =head2 get_info($id) - Получает информацию по ранее зарегистрированному платежу
 
   Arguments:
-    $id
+    $attr
+      kkt_group
 
   Results:
+    $fiscal_document_number, $fiscal_document_attribute, $receipt_datetime,  $external_id, $error
 
 =cut
 #**********************************************************
@@ -160,13 +162,16 @@ sub get_info {
   my ($attr) = @_;
   
   if ($self->{debug}) {
-    print "\nTry get \\report for $attr->{command_id}\n";
+    print "\nTry get report for $attr->{command_id}\n";
   }
+
+  delete $self->{errstr};
+  delete $self->{error};
 
   my $params = qq(-H "Token: $self->{TOKEN}");
   my $url = $api_url . $attr->{kkt_group} . "/report/$attr->{command_id}";
   my $result = `$curl $params -s -X GET "$url"`;
-  print qq{$curl $params -s -X GET "$url"};
+  print qq{$curl $params -s -X GET "$url"} if($self->{debug});
   my $perl_hash = ();
   eval { $perl_hash = decode_json($result); 1 };
 
@@ -181,12 +186,18 @@ sub get_info {
   }
 
   if ( $perl_hash->{uuid} && $perl_hash->{external_id}) {
+    my $error_code = 0;
+    if ($perl_hash->{error}) {
+      $self->{errstr}=encode_utf8($perl_hash->{error}{text});
+      $self->{error}=1;
+      $error_code = 1;
+    }
     return (
       $perl_hash->{payload}->{fiscal_document_number},
       $perl_hash->{payload}->{fiscal_document_attribute},
       $perl_hash->{payload}->{receipt_datetime},
       $perl_hash->{external_id},
-      0
+      $error_code
     );
   }
 

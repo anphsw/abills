@@ -60,9 +60,6 @@ sub _cdata_get_ports {
       $ports_info->{$key}{BRANCH_DESC} = $ports_info->{$key}{PORT_NAME};
       $ports_info->{$key}{BRANCH} = $2;
       $ports_info->{$key}{PORT_ALIAS} = $ports_info->{$key}{PORT_NAME};
-      $ports_info->{$key}{onu_count} = (snmp_get({ %{$attr},
-        OID => "1.3.6.1.4.1.34592.1.3.3.1.1.6.1.$2",
-      }) || 0);
     }
     elsif ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} =~ /^1$/ && $ports_info->{$key}{PORT_DESCR}
       && $ports_info->{$key}{PORT_DESCR} =~ /^(.PON).+PON-(\d+)/) {
@@ -72,9 +69,6 @@ sub _cdata_get_ports {
       $ports_info->{$key}{BRANCH_DESC} = $ports_info->{$key}{PORT_DESCR};
       $ports_info->{$key}{BRANCH} = $2;
       $ports_info->{$key}{PORT_ALIAS} = $ports_info->{$key}{PORT_DESCR};
-      $ports_info->{$key}{onu_count} = (snmp_get({ %{$attr},
-        OID => "1.3.6.1.4.1.34592.1.3.3.1.1.6.1.$2",
-      }) || 0);
     }
     elsif (
       $ports_info->{$key}{PORT_TYPE} &&
@@ -85,7 +79,15 @@ sub _cdata_get_ports {
       # my $branch = $2;
       my $bin_index =  dec2bin($key);
       my (undef, $port_num, undef) = $bin_index =~ /(\d{9})(\d{8})(\d{8})/;
-      my $port_snmp = bin2dec($port_num);
+
+      my $port_snmp;
+      if ($port_num) {
+        $port_snmp = bin2dec($port_num);
+      }
+      else { #CDATA FD1216 firmware V1.5.1 have different port numbers, that do not match regexp
+        $port_snmp = $key;
+      }
+
       my $port = $port_snmp - 2 - 8;
 
       if ($port < 10){
@@ -96,10 +98,6 @@ sub _cdata_get_ports {
       $ports_info->{$key}{BRANCH} = $port;
       $ports_info->{$key}{BRANCH_DESC} = $ports_info->{$key}{PORT_DESCR};
       $ports_info->{$key}{PORT_ALIAS} = $ports_info->{$key}{PORT_DESCR};
-      $ports_info->{$key}{ONU_COUNT} = (snmp_get({ %{$attr},
-        OID => "1.3.6.1.4.1.17409.2.3.3.1.1.8.1.0." . ($port_snmp),
-      }) || 0);
-      $ports_info->{$key}{onu_count} = $ports_info->{$key}{ONU_COUNT};
     }
     else {
       delete($ports_info->{$key});

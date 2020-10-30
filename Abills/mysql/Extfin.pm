@@ -13,7 +13,7 @@ my ($admin, $CONF);
 my $SORT = 1;
 my $DESC = '';
 my $PG   = 1;
-my $PAGE_ROWS = 25;
+my $PAGE_ROWS = 10000;
 
 #**********************************************************
 # Init
@@ -346,9 +346,14 @@ sub balances_add{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2( "INSERT INTO extfin_balance_reports (period, bill_id, sum, date, aid)
-   SELECT '$attr->{PERIOD}', id, deposit, now(), $admin->{AID} FROM bills;", 'do'
-  );
+  if ($CONF->{DAILE_PERIOD}) {
+    $self->query_add('extfin_balance_reports', $attr);
+  }
+  else {
+    $self->query2( "INSERT INTO extfin_balance_reports (period, bill_id, sum, date, aid)
+    SELECT '$attr->{PERIOD}', id, deposit, now(), $admin->{AID} FROM bills;", 'do'
+    );
+  }
 
   return $self;
 }
@@ -1307,6 +1312,11 @@ sub extfin_report_balance_info {
 sub extfin_report_balance_list {
   my $self = shift;
   my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
   if($attr->{PERIOD}){

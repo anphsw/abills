@@ -2,6 +2,14 @@
 
   Модуль взаимодействия с сервисом "Чеки-Онлайн"
 
+  https://app.swaggerhub.com/apis/Business.Ru/check.business.ru/1.2.2
+  https://app.swaggerhub.com/apis-docs/Business.Ru/check.business.ru/1.2.2#/
+
+=head1 VERSION
+
+  VERSION: 0.06
+  DATE: 20201012
+
 =cut
 
 
@@ -13,7 +21,9 @@ use Digest::MD5 qw(md5_hex);
 use JSON;
 use utf8 qw/encode/;
 use Abills::Base qw(_bp);
+use Abills::Fetcher;
 
+my $VERSION = 0.06;
 my $api_url = '';
 my $curl    = '';
 
@@ -29,11 +39,12 @@ sub new {
   $curl    = $conf->{FILE_CURL} || 'curl';
   
   my $self = {
-    APP_ID       => $attr->{login},
-    SECRET       => $attr->{password},
-    goods        => $attr->{goods_name},
-    author       => $attr->{author},
-    api          => $attr->{api_name},
+    APP_ID  => $attr->{login},
+    SECRET  => $attr->{password},
+    goods   => $attr->{goods_name},
+    author  => $attr->{author},
+    api     => $attr->{api_name},
+    VERSION => $VERSION
   };
   
   bless($self, $class);
@@ -49,25 +60,34 @@ sub new {
 sub init {
   my $self = shift;
 
-  my %data = (
-    nonce => $self->get_nonce(),
-    app_id => $self->{APP_ID}
-  );
-  my $sign  = $self->get_sign(\%data);
-  my $query = $self->make_query(\%data);
+  # my %data = (
+  #   nonce => $self->get_nonce(),
+  #   app_id => $self->{APP_ID}
+  # );
 
-  my $params = qq/-H "sign: $sign"/;
-  my $url = $api_url . "Token?" . $query;
-  my $result = `curl -s "$url" $params`;
+  # my $sign  = $self->get_sign(\%data);
+  # my $query = $self->make_query(\%data);
+  #
+  # $self->{debug}=1;
+  # my $params = qq/-H "sign: $sign"/;
+  # my $url = $api_url . "Token?" . $query;
+  # my $result = `$curl -s "$url" $params`;
+  #
+  # my $perl_hash = ();
+  # eval { $perl_hash = decode_json($result); 1 };
+  # if ($self->{debug}) {
+  #   print "CMD: $curl -s '$url' $params\n";
+  #   print "RESULT: $result\n";
+  # }
+  #$self->{TOKEN} = $perl_hash->{token};
 
-  my $perl_hash = ();
-  eval { $perl_hash = decode_json($result); 1 };
-  if ($self->{debug}) {
-    print "CMD: curl -s '$url' $params\n";
-    print "RESULT: $result\n";
-  }
+  $self->make_request({
+    CMD          => 'Token',
+    #REQUEST_DATA => \%data,
+    #GET          => 1
+  });
 
-  $self->{TOKEN} = $perl_hash->{token};
+  $self->{TOKEN} = $self->{request_result}->{token};
 
   return 0 unless ($self->{TOKEN});
   
@@ -117,11 +137,11 @@ sub payment_register {
 
   my $params = qq(-d '$p_data' -H "sign: $sign" -H "Content-Type: application/json");
   my $url = $api_url . "Command";
-  my $result = `curl $params -s -X POST "$url"`;
+  my $result = `$curl $params -s -X POST "$url"`;
   my $perl_hash = ();
   eval { $perl_hash = decode_json($result); 1 };
   if ($self->{debug}) {
-    print "CMD: curl $params -s -X POST '$url'\n";
+    print "CMD: $curl $params -s -X POST '$url'\n";
     print "RESULT: $result\n";
   }
 
@@ -129,9 +149,14 @@ sub payment_register {
 }
 
 #**********************************************************
-=head2 get_info($id)
+=head2 get_info($id) - Получает информацию по ранее зарегистрированному платежу
 
-  Получает информацию по ранее зарегистрированному платежу
+  Arguments:
+    $attr
+      command_id
+
+  Result:
+    fiscal_document_number, fiscal_document_attribute, receipt_datetime, c_num, 0
 
 =cut
 #**********************************************************
@@ -149,9 +174,9 @@ sub get_info {
 
   my $params = qq/-H "sign: $sign"/;
   my $url = $api_url . "Command/$attr->{command_id}?" . $query;
-  my $result = `curl -s '$url' $params`;
+  my $result = `$curl -s '$url' $params`;
   if ($self->{debug}) {
-    print "CMD: curl -s '$url' $params\n";
+    print "CMD: $curl -s '$url' $params\n";
     print "RESULT: $result\n";
   }
   my $perl_hash = ();
@@ -161,7 +186,7 @@ sub get_info {
     return (
       $perl_hash->{fiscal_document_number},
       $perl_hash->{fiscal_document_attribute},
-      $perl_hash->{receipt_datetime},
+      $perl_hash->{receipt_datetime} || q{},
       $perl_hash->{command}->{c_num},
       0
     );
@@ -171,7 +196,13 @@ sub get_info {
 }
 
 #**********************************************************
-=head2 get_sign($attr)
+=head2 get_sign($data)
+
+  Arguments:
+    $data
+
+  Result:
+    $sign
 
 =cut
 #**********************************************************
@@ -196,7 +227,7 @@ sub get_nonce {
 }
 
 #**********************************************************
-=head2 make_query()
+=head2 make_query($data)
 
 =cut
 #**********************************************************
@@ -283,10 +314,10 @@ sub payment_cancel {
 
   my $params = qq(-d '$p_data' -H "sign: $sign" -H "Content-Type: application/json");
   my $url = $api_url . "Command";
-  my $result = `curl $params -s -X POST "$url"`;
+  my $result = `$curl $params -s -X POST "$url"`;
   my $perl_hash = decode_json($result);
   if ($self->{debug}) {
-    print "CMD: curl $params -s -X POST '$url'\n";
+    print "CMD: $curl $params -s -X POST '$url'\n";
     print "RESULT: $result\n";
   }
 
@@ -295,15 +326,87 @@ sub payment_cancel {
 
 
 #**********************************************************
-=head2 test() - Тест подключения
+=head2 test() - Connect test
 
 =cut
 #**********************************************************
 sub test {
   my $self = shift;
-  #my ($attr) = @_;
 
-  return 1;
+  $self->make_request({
+    CMD => 'StateSystem',
+  });
+
+  $self->{test_result}=$self->{request_result};
+
+  return $self;
+}
+
+#**********************************************************
+=head2 make_request($attr) - Тест подключения
+
+  Arguments:
+    $attr
+      CMD
+      REQUEST_DATA - request_datahash
+      GET
+
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub make_request {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $url  = $api_url.$attr->{CMD};
+  my %data = (
+    nonce  => $self->get_nonce(),
+    app_id => $self->{APP_ID},
+  );
+
+  if ($self->{TOKEN}) {
+    $data{token}=$self->{TOKEN};
+  }
+
+  if ($attr && defined($attr->{REQUEST_DATA}) && ref $attr->{REQUEST_DATA} eq 'HASH') {
+    %data =  ( %data, %{ $attr->{REQUEST_DATA} } );
+  }
+
+  my $sign  = $self->get_sign(\%data);
+
+  my %request_params = ();
+  if ($attr->{PUSH}) {
+    my $post_data = $self->perl2json(\%data);
+    $request_params{POST} = $post_data;
+  }
+  else {
+    my $query = $self->make_query(\%data);
+    $url .= '?' . $query;
+  }
+
+  my $result = web_request($url,
+    {
+      HEADERS => [
+        "sign: $sign",
+        "Content-Type: application/json"
+      ],
+      DEBUG       => ($self->{debug}) ? 6 : 0,
+      JSON_RETURN => 1,
+      %request_params
+    }
+  );
+
+  $self->{request_result}=$result;
+
+  if ($result->{result} && $result->{result} > 0) {
+    $self->{errno}=$result->{result};
+    $self->{error}=$result->{result};
+    $self->{errstr}=$result->{message};
+  }
+
+  return $self;
 }
 
 1

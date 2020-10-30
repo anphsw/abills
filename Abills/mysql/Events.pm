@@ -170,24 +170,24 @@ sub events_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   
   my $search_columns = [
-    [ 'ID', 'INT', 'e.id', 1 ],
-    [ 'TITLE', 'STR', 'e.title', 1 ],
-    [ 'COMMENTS', 'STR', 'e.comments', 1 ],
-    [ 'MODULE', 'STR', 'e.module', 1 ],
-    [ 'EXTRA', 'STR', 'e.extra', 1 ],
-    [ 'STATE_ID', 'INT', 'e.state_id', 1 ],
-    [ 'PRIVACY_ID', 'INT', 'e.privacy_id', 1 ],
-    [ 'PRIORITY_ID', 'INT', 'e.priority_id', 1 ],
-    [ 'CREATED', 'DATE', 'e.created', 1 ],
-    [ 'GROUP_ID', 'INT', 'e.group_id AS group_id', 1 ],
-    [ 'GROUP_NAME', 'INT', 'eg.name AS group_name', 1 ],
-    [ 'PRIVACY_NAME', 'STR', 'epriv.name AS privacy_name', 1 ],
-    [ 'PRIORITY_NAME', 'STR', 'eprio.name AS priority_name', 1 ],
-    [ 'STATE_NAME', 'STR', 'es.name AS state_name', 1 ],
-    [ 'GROUP_MODULES', 'STR', 'eg.modules AS group_modules', 1 ],
-    [ 'DOMAIN_ID', 'INT', 'e.domain_id', 1 ],
-    [ 'AID', 'INT', 'e.aid', 1 ],
-  
+    [ 'ID',           'INT',            'e.id',                           1 ],
+    [ 'TITLE',        'STR',            'e.title',                        1 ],
+    [ 'COMMENTS',     'STR',            'e.comments',                     1 ],
+    [ 'MODULE',       'STR',            'e.module',                       1 ],
+    [ 'EXTRA',        'STR',            'e.extra',                        1 ],
+    [ 'STATE_ID',     'INT',            'e.state_id',                     1 ],
+    [ 'PRIVACY_ID',   'INT',            'e.privacy_id',                   1 ],
+    [ 'PRIORITY_ID',  'INT',            'e.priority_id',                  1 ],
+    [ 'CREATED',      'DATE',           'e.created',                      1 ],
+    [ 'GROUP_ID',     'INT',            'e.group_id AS group_id',         1 ],
+    [ 'GROUP_NAME',   'INT',            'eg.name AS group_name',          1 ],
+    [ 'PRIVACY_NAME', 'STR',            'epriv.name AS privacy_name',     1 ],
+    [ 'PRIORITY_NAME','STR',            'eprio.name AS priority_name',    1 ],
+    [ 'STATE_NAME',   'STR',            'es.name AS state_name',          1 ],
+    [ 'GROUP_MODULES','STR',            'eg.modules AS group_modules',    1 ],
+    [ 'DOMAIN_ID',    'INT',            'e.domain_id',                    1 ],
+    [ 'AID',          'INT',            'e.aid',                          1 ],
+    [ 'SEND_TYPES',   'STR',            'epst.send_types',                1 ],
   ];
   
   if ( $attr->{SHOW_ALL_COLUMNS} ) {
@@ -213,7 +213,8 @@ sub events_list {
     LEFT JOIN events_priority eprio FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.priority_id = eprio.id)
     LEFT JOIN events_state es FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.state_id = es.id)
     LEFT JOIN events_group eg ON (e.group_id = eg.id)
-     $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    LEFT JOIN events_priority_send_types epst ON (e.priority_id = epst.priority_id)
+     $WHERE GROUP BY e.id ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     {
       COLS_NAME => 1,
@@ -229,6 +230,7 @@ sub events_list {
     LEFT JOIN events_priority eprio FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.priority_id = eprio.id)
     LEFT JOIN events_state es FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.state_id = es.id)
     LEFT JOIN events_group eg ON (e.group_id = eg.id)
+    LEFT JOIN events_priority_send_types epst ON (e.aid = epst.aid)
     $WHERE;",
     undef,
     { INFO => 1 }

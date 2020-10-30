@@ -30,16 +30,13 @@ sub user_contract {
   my $uid = $FORM{UID}; 
   return '' unless ($uid);
 
-  if ($permissions{0} && !$permissions{0}{4}) {
-
-  }
-  elsif ($FORM{print_add_contract}) {
+  if ($FORM{print_add_contract}) {
     my $list = $users->contracts_list({ UID => $uid, ID => $FORM{print_add_contract}, COLS_UPPER => 1 });
     $users->info($uid, {SHOW_PASSWORD => 1});
     $users->pi({ UID => $uid });
     my $contract_info = {};
     my ($y, $m, $d) = split( /-/, $list->[0]->{DATE} || $DATE, 3 );
-    $contract_info->{DATE_LIT} = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
+    $contract_info->{CONTRACT_DATE_LIT} = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
     my $company_info = {};
 
     if($users->{COMPANY_ID}){
@@ -48,7 +45,7 @@ sub user_contract {
       $company_info = $Company->info($users->{COMPANY_ID});
     }
 
-  #Modules info
+    #Modules info
     my $cross_modules_return = cross_modules_call('_docs', { UID => $uid });
     my $service_num = 1;
     foreach my $module (sort keys %$cross_modules_return) {
@@ -170,12 +167,22 @@ sub _user_contracts_table {
       $sign_button = $html->button($lang{SIGN}, "qindex=" . $f_index . "&UID=$uid&sign=$line->{id}&header=2",
             { class => 'btn btn-default' });
     }
-    my $print_button = $html->button('', "qindex=" . $f_index . "&UID=$uid&print_add_contract=$line->{id}&pdf=1",
+
+    my $print_button  = '';
+    my $edit_button   = '';
+    my $delete_button = '';
+
+    if ($permissions{0} && $permissions{0}{4}) {
+      $print_button = $html->button('', "qindex=" . $f_index . "&UID=$uid&print_add_contract=$line->{id}&pdf=1",
             { ICON => 'glyphicon glyphicon-print', target => '_new', ex_params => "data-tooltip='$lang{PRINT}' data-tooltip-position='top'" });
-    my $edit_button = $html->button('', "index=" . $f_index . "&chg=$line->{id}&UID=$uid",
+
+      $edit_button = $html->button('', "index=" . $f_index . "&chg=$line->{id}&UID=$uid",
             { ICON => 'glyphicon glyphicon-pencil', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
-    my $delete_button = $html->button('', "index=" . $f_index . "&del=$line->{id}&UID=$uid",
+      
+      $delete_button = $html->button('', "index=" . $f_index . "&del=$line->{id}&UID=$uid",
             { ICON => 'glyphicon glyphicon-trash text-danger', ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='top'" });
+    }
+
     $table->addrow($line->{name}, $line->{number}, $line->{date}, $sign_button, ($attr->{UI} ? $print_button : $print_button . $edit_button . $delete_button) );
   }
 

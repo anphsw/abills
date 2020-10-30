@@ -18,9 +18,16 @@
         <div class='col-md-9'>
           <input class='form-control' type='text' name='OLD_STORAGE_NAME' value='%OLD_STORAGE_NAME%' disabled></div>
       </div>
+
       <div class='form-group'>
         <label class='col-md-3 control-label'>_{IN_STORAGE}_</label>
         <div class='col-md-9'>%STORAGE_SELECT%</div>
+      </div>
+
+      <div class='form-group'>
+        <label class='col-md-3 control-label'>_{COUNT}_</label>
+        <div class='col-md-9'>
+          <input class='form-control' type='number' name='COUNT_ITEMS' value='0' max='%MAX_COUNT_ITEMS%' min='1'></div>
       </div>
 
     </div>

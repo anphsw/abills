@@ -16,7 +16,7 @@ our(
   %conf,
   $debug,
   $Nas,
-  $Dv,
+  $Internet,
   $Sessions,
   $OS
 );
@@ -37,7 +37,7 @@ sub neg_deposit_warning {
 
   if ($debug > 7) {
     $Nas->{debug}= 1 ;
-    $Dv->{debug} = 1 ;
+    $Internet->{debug} = 1 ;
     $Sessions->{debug}=1;
   }
   

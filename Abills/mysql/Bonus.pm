@@ -49,12 +49,12 @@ sub info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
-     FROM bonus_main 
-   WHERE id = ? ;",
-   undef,
-   { INFO => 1,
-     Bind => [ $id ] }
+  $self->query('SELECT *
+    FROM bonus_main
+    WHERE id = ? ;',
+    undef,
+    { INFO => 1,
+      Bind => [ $id ] }
   );
 
   return $self;
@@ -1120,10 +1120,10 @@ sub accomulation_scores_add {
 
   my $tp_value = ($attr->{DV_TP_ID}) ? "dv_tp_id='$attr->{DV_TP_ID}'," : q{};
 
-  $self->query("UPDATE bonus_rules_accomulation_scores SET
-      $tp_value
-      cost=cost + $attr->{SCORE}
-    WHERE uid='$attr->{UID}';", 'do'
+  $self->query('UPDATE bonus_rules_accomulation_scores SET '
+      . $tp_value
+      . 'cost=cost + '. $attr->{SCORE}
+      . "WHERE uid='". $attr->{UID} ."';", 'do'
   );
 
   if ($self->{AFFECTED} == 0 && $CONF->{BONUS_PAYMENTS_AUTO}){
@@ -1204,11 +1204,12 @@ DATE_FORMAT(min(date), '%Y%m')) FROM fees where uid='$attr->{UID}' AND
     date>=curdate() - INTERVAL $CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL} MONTH");
 
   if ($self->{list}->[0]->[0]>=$CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL}) { 
-    $self->query("REPLACE INTO bonus_rules_accomulation_scores (uid, cost, changed)
-SELECT $attr->{UID}, IF((SELECT \@A:=MIN(last_deposit) 
+    $self->query('REPLACE INTO bonus_rules_accomulation_scores (uid, cost, changed)
+SELECT '. $attr->{UID} .", IF((SELECT \@A:=MIN(last_deposit)
   FROM fees 
   WHERE uid= ?
-    AND date>=CURDATE() - INTERVAL $CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL} MONTH) >= 0 OR \@A is null, $CONF->{BONUS_ACCOMULATION_FIRST_BONUS}, 0), CURDATE();", 
+    AND date>=CURDATE() - INTERVAL $CONF->{BONUS_ACCOMULATION_FIRST_INTERVAL} MONTH) >= 0
+    OR \@A is null, $CONF->{BONUS_ACCOMULATION_FIRST_BONUS}, 0), CURDATE();",
   'do', 
   { Bind => [ $attr->{UID} ] });
   }
@@ -1254,11 +1255,12 @@ sub tp_using_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT * FROM bonus_tp_using 
-   WHERE id = ?;",
+  $self->query('SELECT * FROM bonus_tp_using
+   WHERE id = ?;',
    undef,
    { INFO => 1,
-     Bind => [ $id ] }
+     Bind => [ $id ]
+   }
   );
 
   return $self;

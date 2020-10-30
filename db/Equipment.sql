@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS `equipment_vendors` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(50) NOT NULL DEFAULT '',
   `support` VARCHAR(50) NOT NULL DEFAULT '',
-  `site` VARCHAR(50) NOT NULL DEFAULT '',
+  `site` VARCHAR(150) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 )
@@ -50,8 +50,8 @@ INSERT INTO `equipment_types` VALUES (1, 'Switch'),
   (5, 'Server'),
   (6, 'DOCSIS'),
   (7, 'Set-top box'),
-  (8, 'PON ONT')
-  ;
+  (8, 'PON ONT'),
+  (9, 'Cams');
 
 CREATE TABLE IF NOT EXISTS `equipment_models` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -83,7 +83,8 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `port_shift` smallint(4) NOT NULL DEFAULT '0',
   `electric_power` INT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  KEY type_id (`type_id`)
+  KEY type_id (`type_id`),
+  UNIQUE KEY `model` (`vendor_id`, `type_id`, `model_name`)
 )
   AUTO_INCREMENT = 1000
   DEFAULT CHARSET = utf8
@@ -261,7 +262,8 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_onu` (
   PRIMARY KEY (`id`),
   KEY onu_dhcp_port (`onu_dhcp_port`),
   KEY onu_status (`onu_status`),
-  KEY port_id (`port_id`)
+  KEY port_id (`port_id`),
+  KEY onu_mac_serial (`onu_mac_serial`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Equipment ONU';
 
@@ -273,7 +275,8 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_ports` (
   `branch` VARCHAR(20) NOT NULL DEFAULT '',
   `branch_desc` VARCHAR(30) NOT NULL DEFAULT '',
   `vlan_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY nas_id (`nas_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Equipment PON ports';
 

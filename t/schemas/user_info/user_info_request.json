@@ -1,0 +1,6 @@
+{
+  "name": "USER_INFO",
+  "method": "GET",
+  "path": "users/1",
+  "params": {}
+}

@@ -16,7 +16,7 @@ use Abills::Base qw(cmd startup_files);
 
 our (
   $Nas,
-  $Dv,
+  $Internet,
   $Sessions,
   $debug,
   $db,
@@ -47,13 +47,13 @@ sub mx80_change_profile {
 
   if ($debug > 7) {
     $Nas->{debug} = 1;
-    $Dv->{debug} = 1;
+    $Internet->{debug} = 1;
     $Sessions->{debug} = 1;
   }
 
   #Tps  speeds
   my %TPS_SPEEDS = ();
-  my $tp_speed_list = $Dv->get_speed({ COLS_NAME => 1, DESC => 'DESC' });
+  my $tp_speed_list = $Internet->get_speed({ COLS_NAME => 1, DESC => 'DESC' });
 
   foreach my $tp (@$tp_speed_list) {
     if (defined($tp->{tt_id}) && $tp->{tp_id}) {

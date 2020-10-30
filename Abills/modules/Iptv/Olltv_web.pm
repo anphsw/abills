@@ -361,7 +361,7 @@ sub olltv_sub{
         TP_FILTER_ID => $line->{filter_id}
       });
 
-      _error_show( $Tv_service, { MESSAGE => "$lang{CHANNEL}: $line->{num} $line->{name}" } );
+      return $Tv_service if _error_show( $Tv_service, { MESSAGE => "$lang{CHANNEL}: $line->{num} $line->{name}" } );
     }
     elsif ( $attr->{DEL}->{ $line->{id} } ){
       $Tv_service->bundle_del({
@@ -372,7 +372,7 @@ sub olltv_sub{
         ID     => $attr->{ID} || $Iptv->{ID},
         SUB_ID => $line->{filter_id}
       });
-      _error_show( $Tv_service, { MESSAGE => "$lang{CHANNEL}: $line->{num} $line->{name}" } );
+      return $Tv_service if _error_show( $Tv_service, { MESSAGE => "$lang{CHANNEL}: $line->{num} $line->{name}" } );
     }
   }
 

@@ -124,7 +124,7 @@ my $success_payment_responce = $_24_NS->proccess(
   }
 );
 ($res) = ($success_payment_responce =~ /\<status_code\>(\d+)\<\/status_code\>/g);
-($number) = ($success_payment_responce =~ /\<pay_id\>(\d+)\<\/pay_id\>/g);
+my $number = ($success_payment_responce =~ /\<pay_id\>(\d+)\<\/pay_id\>/g);
 ok($res && $res eq '22', 'Success payment(function ACT 4) ' . $user_name . ":" . $number);
 
 # TEST 10 checking function pay with invalid account

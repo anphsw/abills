@@ -58,3 +58,4 @@ $lang{NAS_DISABLED} = 'коммутатор отключен';
 $lang{NAS_TECH_WORK} = 'Ведуться технические работы на коммутаторе';
 $lang{ASTERISK} = 'Звёздочка';
 $lang{TRUNKS} = 'Транки';
+$lang{VOIP}='Телефония';

@@ -1,18 +1,18 @@
 <form method='POST' class='form-horizontal'>
 <input type='hidden' name='index' value='$index'>
+<input type='hidden' name='TABLE_FILE' value='$FORM{TABLE_FILE}'>
 
- <div class='col-md-8'>
-<div class='form-group'>
-  <label class='control-label col-md-3'>_{GROUP}_</label>
-  <div class='col-md-9'>%GROUP_SELECT%</div>
+<div class='box box-primary'>
+  <div class='box-header'>
+    <div class='form-group'> 
+      <div class='collapse navbar-collapse'>
+        <label class='col-md-2'>_{GROUP}_</label>
+        <div class='col-md-3'>%GROUP_SELECT%</div>
+        <div class='col-md-3'>%BUTTON_STYLE%</div>
+      </div>
+    </div>
+  </div>
 </div>
- </div>
 
-<!-- <div class='box box-primary'> -->
-<!-- <div class='box-header with-border text-center'>_{FILES}_</div> -->
-<!-- <div class='box-body'> -->
 %FILES%
-<!-- </div> -->
-<!-- </div> -->
-
 </form>

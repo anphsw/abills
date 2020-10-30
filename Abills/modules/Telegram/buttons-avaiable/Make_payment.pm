@@ -30,7 +30,9 @@ sub new {
 =cut
 #**********************************************************
 sub btn_name {
-  return "Пополнить счет";
+  my $self = shift;
+  
+  return $self->{bot}->{lang}->{PAYMENT};
 }
 
 #**********************************************************
@@ -41,13 +43,55 @@ sub btn_name {
 sub click {
   my $self = shift;
   my ($attr) = @_;
-
+  
+  my @inline_keyboard = ();
+  my $uid = $self->{bot}->{uid};
+  my $message = "$self->{bot}->{lang}->{FIRST_PAYMENT}\n";
+  
   use Users;
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-  $Users->info($self->{bot}->{uid});
+  $Users->info($uid);
+  
+  use Payments;
+  my $Payments = Payments->new($self->{db}, $self->{admin}, $self->{conf});
+  my $last_payments = $Payments->list({
+    DATETIME  => '_SHOW',
+    SUM       => '_SHOW',
+    DESCRIBE  => '_SHOW',
+    UID       => $uid,
+    DESC      => 'desc',
+    SORT      => 1,
+    PAGE_ROWS => 1,
+    COLS_NAME => 1
+  });
+
+  my $users_info = $Users->pi({ UID => $uid });
+
+  if ($users_info->{__UKRPAYS}) {
+     $message = $self->{bot}->{lang}->{PAYMENT_NUMBER} . ': <b>' . $users_info->{__UKRPAYS} . '</b>\n';
+  } 
+
+  if ($last_payments && $last_payments > 0) {
+    my $last_sum = $last_payments->[0]{sum};
+    my $last_date = $last_payments->[0]{datetime};
+
+    $message .= "$self->{bot}->{lang}->{UNIQU_NUMBER}: <b>$users_info->{LOGIN} (UID: $users_info->{UID})</b>\n";
+    $message .= "$self->{bot}->{lang}->{DEPOSIT_USER}: <b>$users_info->{DEPOSIT}</b>\n";
+    $message .= "$self->{bot}->{lang}->{LAST_PAYMENT_SUM}: <b>$last_sum</b>\n$self->{bot}->{lang}->{DATE}: <b>$last_date</b>\n";
+  }
+
+  my $inline_button = {
+    text     => "$self->{bot}->{lang}->{PAYMENT}",
+    url      => "$self->{bot}->{SELF_URL}/paysys_check.cgi"
+  };
+  push (@inline_keyboard, [$inline_button]);
 
   $self->{bot}->send_message({
-    text         => "Ваш ID для пополнения счета:$Users->{LOGIN}",
+    text         => $message,
+    reply_markup => {
+      inline_keyboard => \@inline_keyboard
+    },
+    parse_mode   => 'HTML'
   }); 
 
   return 1;

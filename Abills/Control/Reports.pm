@@ -9,7 +9,6 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array cfg2hash int2byte sec2time days_in_month _bp);
 
 our(
-  $html,
   %lang,
   @MONTHES,
   @WEEKDAYS,
@@ -19,6 +18,8 @@ our(
   $var_dir,
   $base_dir,
 );
+
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 reports($attr) - Reports panel
@@ -170,15 +171,12 @@ sub reports{
         }), { class => 'col-md-8' });
       }
       else {
-        #      @rows = (
-        #        push @rows, $html->element('label', "$lang{DATE}: ", {class => 'col-md-2 control-label'});
         push @rows, $html->element('label', "$lang{DATE}: ", { class => 'col-md-1 control-label' })
           . $html->element('label', "$lang{FROM}: ", { class => 'col-md-1 control-label' })
           . $html->element('div', $html->date_fld2('FROM_DATE', { FORM_NAME => 'report_panel' }), { class => 'col-md-8' });
-        #        . " - "
+
         push @rows, $html->element('label', "$lang{TO}: ", { class => 'col-md-2 control-label' })
           . $html->element('div', $html->date_fld2('TO_DATE', { FORM_NAME => 'report_panel' }), { class => 'col-md-8' });
-        #      );
 
         if ($attr->{TIME_FORM}) {
           push @rows, '&nbsp;' . ($html->element('label', "$lang{TIME}: ", { class => 'col-md-2 control-label' }) . $html->form_input('FROM_TIME',
@@ -222,7 +220,7 @@ sub reports{
             },
             NO_ID    => 1
           }
-        ), {class => 'col-md-8 '});
+        ), { class => 'col-md-8' });
       }
     }
 
@@ -635,6 +633,10 @@ sub report_payments{
   $LIST_PARAMS{PAGE_ROWS} = 1000000;
   my $Payments = Finance->payments( $db, $admin, \%conf );
 
+  if($FORM{DEBUG}) {
+    $Payments->{debug}=1;
+  }
+
   my $graph_type = '';
   my Abills::HTML $table;
   my $list;
@@ -828,11 +830,11 @@ sub report_payments{
   };
 
   print $html->make_charts({
-    PERIOD        => $graph_type,
-    DATA          => \%DATA_HASH,
-    LEGEND        => $legend_names,
-    OUTPUT2RETURN => 1,
-    %CHARTS
+     PERIOD        => $graph_type,
+     DATA          => \%DATA_HASH,
+     LEGEND        => $legend_names,
+     OUTPUT2RETURN => 1,
+     %CHARTS
   });
 
   print $table->show();
@@ -1223,19 +1225,13 @@ sub form_changes_summary {
     31 => "$lang{ICARDS} $lang{USED}"
   );
 
-   reports({
-    PERIODS     => 1,
-    NO_TAGS     => 1,
-    NO_GROUP    => 1,
-    PERIOD_FORM => 1,
-  });
-
   my $list = $admin->action_summary({
     TYPE      => join(';', keys %action_types),
     COLS_NAME => 1,
     UID       => $FORM{UID},
     %LIST_PARAMS
   });
+
   my %stats_summary = ();
 
   foreach my $line (@$list) {

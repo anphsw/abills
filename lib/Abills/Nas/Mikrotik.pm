@@ -114,10 +114,17 @@ sub new($;$) {
 =head2 execute($command) -
 
   Arguments:
-    $command -
+    $cmd - array ref. command to run with attributes and queries: [$cmd, \%attributes_attr, \%queries_attr]
+           or array of such commands.
+    $attr - hash_ref
+      SKIP_ERROR - do not finish execution if error on one of commands. ignored if SIMULTANEOUS, because it never finishes execution on error
+      SIMULTANEOUS - only if backend is API. run commands simultaneous, by starting multiple tagged queries at once
 
   Returns:
-    1 - if success
+    1
+    $results - if $cmd is one command. array ref, one result.
+    $results - if SIMULTANEOUS is set. array ref of results in the same order as in $cmd
+
 
 =cut
 #**********************************************************
@@ -127,6 +134,80 @@ sub execute {
   _bp("DEBUG", ("Was called from " . join(", ", caller) . "\n"), \%BP_ARGS) if($self->{debug});
 
   return $self->{executor}->execute(@_);
+}
+
+#**********************************************************
+=head2 start_tagged_query($cmd, \%attributes_attr, \%queries_attr) - Start tagged query. Only supported with API
+
+  Warning: don't use tagged queries with untagged on the same time
+
+    Arguments:
+      $cmd - command to run. example: "/ip address print"
+      \%attributes_attr - command attributes. example: {'.proplist' => 'interface,address'}
+      \%queries_attr - command queries. example: {'interface' => 'ether1'}
+
+    Returns:
+      $tag - tag of started query
+
+=cut
+#**********************************************************
+sub start_tagged_query {
+  my $self = shift;
+  my ($cmd, $attributes_attr, $queries_attr) = @_;
+
+  if ($self->{backend} ne 'api') {
+    print "Tagged queries only supported with Mikrotik API\n" if ($self->{debug});
+    return 0;
+  }
+
+  return $self->{executor}->mtik_query($cmd, $attributes_attr, $queries_attr, {TAGGED => 1});
+}
+
+#**********************************************************
+=head2 get_tagged_query_result($tag) - Wait for selected tagged query(ies) to complete and return result(s). Only supported with API
+
+  Arguments:
+    $tag - number or array ref
+
+  Returns:
+    ($retval, @results) - if $tag is a number
+    hashref { $tag => [$retval, @results] } - if $tag is an array ref
+
+  Examples:
+    get_tagged_query_result($tag);
+    get_tagged_query_result(\@tags);
+
+=cut
+#**********************************************************
+sub get_tagged_query_result {
+  my $self = shift;
+  my ($tag) = @_;
+
+  if ($self->{backend} ne 'api') {
+    print "Tagged queries only supported with Mikrotik API\n" if ($self->{debug});
+    return 0;
+  }
+
+  return $self->{executor}->mtik_get_tagged_query_result($tag);
+}
+
+#**********************************************************
+=head2 get_all_tagged_query_results() - Wait for all tagged queries to complete and return results. Only supported with API
+
+  Returns:
+    hashref { $tag => [$retval, @results] }
+
+=cut
+#**********************************************************
+sub get_all_tagged_query_results {
+  my $self = shift;
+
+  if ($self->{backend} ne 'api') {
+    print "Tagged queries only supported with Mikrotik API\n" if ($self->{debug});
+    return 0;
+  }
+
+  return $self->{executor}->mtik_get_all_tagged_query_results();
 }
 
 #**********************************************************

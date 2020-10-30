@@ -112,6 +112,10 @@ if($argv->{GID}) {
   $LIST_PARAMS{GID}=$argv->{GID};
 }
 
+if($argv->{UID}) {
+  $LIST_PARAMS{UID}=$argv->{UID};
+}
+
 my $debug = 0;
 if ( $argv->{DEBUG} ){
   $debug = $argv->{DEBUG} || 0;

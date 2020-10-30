@@ -34,7 +34,7 @@ sub _huawei_get_ports {
   foreach my $key (keys %{$ports_info}) {
     if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} =~ /^1|250$/ && $ports_info->{$key}{PORT_NAME} =~ /(.PON)/) {
       my $type = lc($1);
-      my $branch = decode_port($key);
+      my $branch = _huawei_decode_port($key);
       $ports_info->{$key}{BRANCH} = $branch;
       $ports_info->{$key}{PON_TYPE} = $type;
       $ports_info->{$key}{SNMP_ID} = $key;
@@ -78,6 +78,10 @@ sub _huawei_onu_list {
     my $type = $port_list->{$snmp_id}{PON_TYPE};
     my %total_info = ();
     my $snmp = _huawei({ TYPE => $type });
+    if ($attr->{QUERY_OIDS} && @{$attr->{QUERY_OIDS}}) {
+      %$snmp = map { $_ => $snmp->{$_} } @{$attr->{QUERY_OIDS}};
+    }
+
     my @cols = ('PORT_ID', 'ONU_ID', 'ONU_SNMP_ID', 'PON_TYPE', 'ONU_DHCP_PORT');
     print "-------------------------------------\n" . uc($port_list->{$snmp_id}{PON_TYPE}) . $port_list->{$snmp_id}{BRANCH} . "\n" if ($debug > 2);
     my $port_begin_time = 0;
@@ -89,7 +93,7 @@ sub _huawei_onu_list {
     }
 
     foreach my $oid_name (keys %{$snmp}) {
-      if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info') {
+      if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage') {
         next;
       }
 
@@ -146,7 +150,7 @@ sub _huawei_onu_list {
           $value = $type;
         }
         elsif ($oid_name eq 'ONU_DHCP_PORT') {
-          $value = decode_port($branch) . ':' . $onu_id;
+          $value = _huawei_decode_port($branch) . ':' . $onu_id;
         }
         elsif ($oid_name eq 'ONU_SNMP_ID') {
           $value = $key;
@@ -221,7 +225,7 @@ sub _huawei_unregister {
         }
 
         $unregister_info{$snmp_port_id . '.' . $onu_num}->{$unreg_info{$type}} = $value;
-        $unregister_info{$snmp_port_id . '.' . $onu_num}->{'branch'}     = decode_port($snmp_port_id);
+        $unregister_info{$snmp_port_id . '.' . $onu_num}->{'branch'}     = _huawei_decode_port($snmp_port_id);
         $unregister_info{$snmp_port_id . '.' . $onu_num}->{'branch_num'} = $snmp_port_id;
         $unregister_info{$snmp_port_id . '.' . $onu_num}->{'pon_type'}   = $pon_type;
       }
@@ -245,7 +249,7 @@ sub _huawei_unregister {
       my ($id, $mac_bin) = split(/:/, $line);
       # $snmp_port_id, $onu_id
       my ($snmp_port_id, undef) = split(/\./, $id, 2);
-      my $branch  = decode_port($snmp_port_id);
+      my $branch  = _huawei_decode_port($snmp_port_id);
       my $equipment_id;
 
       if ($snmp->{unregister}->{'EQUIPMENT_ID'}) {
@@ -599,12 +603,12 @@ sub _huawei {
       }
     },
     gpon => {
-      'ONU_MAC_SERIAL' => {
+      'ONU_MAC_SERIAL'   => {
         NAME   => 'Mac/Serial',
         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3',
         PARSER => 'bin2hex'
       },
-      'ONU_STATUS'     => {
+      'ONU_STATUS'       => {
         NAME   => 'STATUS',
         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.15',
       },
@@ -613,103 +617,127 @@ sub _huawei {
       #       OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3',
       #       PARSER => '_huawei_convert_power'
       #     }, # tx_power = tx_power * 0.01;
-      'ONU_RX_POWER'   => {
+      'ONU_RX_POWER'     => {
         NAME   => 'ONU_RX_POWER',
         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4',
         PARSER => '_huawei_convert_power'
       }, # rx_power = rx_power * 0.01;
-      'OLT_RX_POWER'   => {
+      'OLT_RX_POWER'     => {
         NAME   => 'OLT_RX_POWER',
         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.6',
         PARSER => '_huawei_convert_olt_power'
       }, # olt_rx_power = olt_rx_power * 0.01 - 100;
-      'ONU_DESC'       => {
+      'ONU_DESC'         => {
         NAME   => 'DESCRIBE',
         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9',
         PARSER => '_huawei_convert_desc'
       },
-      'ONU_IN_BYTE'    => {
+      'ONU_IN_BYTE'      => {
         NAME   => 'PORT_IN',
         OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.4.23.1.4',
         PARSER => ''
       },
-      'ONU_OUT_BYTE'   => {
+      'ONU_OUT_BYTE'     => {
         NAME   => 'PORT_OUT',
         OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.4.23.1.3',
       },
-      'LINE_PROFILE'   => {
+      'LINE_PROFILE'     => {
         NAME   => 'ont-lineprofile',
         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.7',
       },
-      'SRV_PROFILE'    => {
+      'SRV_PROFILE'      => {
         NAME   => 'ont-srvprofile',
         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.8',
       },
-      'reset'          => {
+      'reset'            => {
         NAME   => '',
         OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.2',
       },
-      main_onu_info    => {
-        'VERSION_ID'       => {
+      'catv_port_manage' => {
+        NAME               => '',
+        OIDS               => '1.3.6.1.4.1.2011.6.128.1.1.2.63.1.2',
+        ENABLE_VALUE       => 1,
+        DISABLE_VALUE      => 2,
+        USING_CATV_PORT_ID => 1,
+        PARSER             => ''
+      },
+      main_onu_info      => {
+        'VERSION_ID'              => {
           NAME   => 'Version_ID',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.1',
         },
-        'VENDOR_ID'        => {
+        'VENDOR_ID'               => {
           NAME   => 'Vendor_ID',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.5',
           PARSER => ''
         },
-        'EQUIPMENT_ID'     => {
+        'EQUIPMENT_ID'            => {
           NAME   => 'Equipment_ID',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4',
           PARSER => ''
         },
-        'VOLTAGE'          => {
+        'VOLTAGE'                 => {
           NAME   => 'VOLTAGE',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.5',
           PARSER => '_huawei_convert_voltage'
         },
-        'DISTANCE'         => {
+        'DISTANCE'                => {
           NAME   => 'DISTANCE',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20',
           PARSER => '_huawei_convert_distance'
         },
-        'ETH_DUPLEX'       => {
+        'ETH_DUPLEX'              => {
           NAME   => 'ETH_DUPLEX',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.3',
           PARSER => '_huawei_convert_duplex',
           WALK   => '1'
         },
-        'ETH_SPEED'        => {
+        'ETH_SPEED'               => {
           NAME   => 'ETH_SPEED',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.4',
           PARSER => '_huawei_convert_speed',
           WALK   => '1'
         },
-        'ETH_ADMIN_STATE'  => {
+        'ETH_ADMIN_STATE'         => {
           NAME   => 'ETH_ADMIN_STATE',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.5',
           PARSER => '_huawei_convert_admin_state',
           WALK   => '1'
         },
-        'ONU_PORTS_STATUS' => {
+        'ONU_PORTS_STATUS'        => {
           NAME   => 'ONU_PORTS_STATUS',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.22',
           PARSER => '_huawei_convert_state',
           WALK   => '1'
         },
-        'VLAN'             => {
+        'CATV_PORTS_STATUS'       => {
+          NAME   => 'CATV_PORTS_STATUS',
+          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.63.1.3',
+          WALK   => '1',
+        },
+        'CATV_PORTS_ADMIN_STATUS' => {
+          NAME   => 'CATV_PORTS_ADMIN_STATUS',
+          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.63.1.2',
+          PARSER => '_huawei_convert_admin_state',
+          WALK   => '1'
+        },
+        'VIDEO_RX_POWER'          => {
+          NAME   => 'VIDEO_RX_POWER',
+          OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.2.51.1.7',
+          PARSER => '_huawei_convert_power'
+        },
+        'VLAN'                    => {
           NAME   => 'VLAN',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.62.1.7',
           PARSER => '_huawei_convert_eth_vlan',
           WALK   => '1'
         },
-        'TEMPERATURE'      => {
+        'TEMPERATURE'             => {
           NAME   => 'TEMPERATURE',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1',
           PARSER => '_huawei_convert_temperature'
         },
-        'ONU_TX_POWER'     => {
+        'ONU_TX_POWER'            => {
           NAME   => 'ONU_TX_POWER',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3',
           PARSER => '_huawei_convert_power'
@@ -780,7 +808,7 @@ sub _huawei_onu_status {
 }
 
 #**********************************************************
-=head2 decode_port($dec) - Decode onu int
+=head2 _huawei_decode_port($dec) - Decode onu int
 
   Arguments:
     $dec
@@ -790,7 +818,7 @@ sub _huawei_onu_status {
 
 =cut
 #**********************************************************
-sub decode_port {
+sub _huawei_decode_port {
   my ($fsp, $type) = @_;
   $type //= '';
   $fsp =~ s/\.\d+//;
@@ -813,7 +841,7 @@ sub decode_port {
 }
 
 #**********************************************************
-=head2 encode_port($frame, $slot, $port, $type) - Encode port
+=head2 _huawei_encode_port($frame, $slot, $port, $type) - Encode port
 
   Arguments:
     $frame, $slot, $port, $type
@@ -823,7 +851,7 @@ sub decode_port {
 
 =cut
 #**********************************************************
-sub encode_port {
+sub _huawei_encode_port {
   my ($frame, $slot, $port, $type) = @_;
   my $fsp = 0;
 
@@ -911,7 +939,7 @@ sub _huawei_get_service_ports_2 {
   return %service_ports_info if (!$attr->{ONU_SNMP_ID});
   my @service_ports = ();
   my ($snmp_port_id, $onu_id) = split(/\./, $attr->{ONU_SNMP_ID}, 2);
-  my $branch = decode_port($snmp_port_id);
+  my $branch = _huawei_decode_port($snmp_port_id);
   my $onu = $branch . ':' . $onu_id;
 
   my %type = (
@@ -1395,7 +1423,7 @@ sub _huawei_get_fdb {
         my $mac = "$3:$4:$5:$6:$7:$8";
         my ($srv_port, $port_type, $frame, $slot, $port, $onu_id, $van_id) = ($1, $2, $10, $11, $12, $13, $15);
         my $key = $mac . '_' . $van_id;
-        #        my $snmp_port_id = encode_port($port_type, $frame, $slot, $port);
+        #        my $snmp_port_id = _huawei_encode_port($port_type, $frame, $slot, $port);
         if ($attr->{FILTER}) {
           $attr->{FILTER} = lc($attr->{FILTER});
           if ($mac =~ m/($attr->{FILTER})/) {
@@ -1408,7 +1436,7 @@ sub _huawei_get_fdb {
         }
         $hash{$key}{1} = $mac;
         #$hash{$key}{2} = uc($port_type).' '.$port.(($onu_id =~ /\d+/) ? ":$onu_id" : "");
-        $hash{$key}{2} = encode_port($frame, $slot, $port, $port_type) . (($onu_id =~ /\d+/) ? ".$onu_id" : "");
+        $hash{$key}{2} = _huawei_encode_port($frame, $slot, $port, $port_type) . (($onu_id =~ /\d+/) ? ".$onu_id" : "");
         $hash{$key}{4} = $van_id . (($srv_port =~ /\d+/) ? " ( SERVICE_PORT: $srv_port )" : "");
         $hash{$key}{5} = $port_types->{ $port_type } . $frame . '/' . $slot . '/' . $port . (($onu_id =~ /\d+/) ? ":$onu_id" : "");
       }
@@ -1448,7 +1476,7 @@ sub _huawei_telnet_open {
   my $password = $attr->{NAS_INFO}->{NAS_MNG_PASSWORD} || q{};
 
   $Telnet = Net::Telnet->new(
-    Timeout => 20,
+    Timeout => $conf{HUAWEI_TELNET_TIMEOUT} || 20,
     Errmode => 'return'
   );
 

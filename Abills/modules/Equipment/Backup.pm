@@ -10,12 +10,12 @@ use POSIX qw(strftime);
 use Abills::Base qw(int2byte);
 
 our(
-  $html,
   %lang,
   $Equipment,
   $SNMP_TPL_DIR
 );
 
+our Abills::HTML $html;
 my $json = JSON->new->allow_nonref;
 
 #********************************************************
@@ -372,7 +372,7 @@ sub equipment_show_snmp_backup_files {
     $v_index = "$ports_index&visual=$FORM{visual}";
   }
 
-  unless ( $nas_id ) {
+  if (! $nas_id ) {
     my $equipment_list = $Equipment->_list( {
       NAS_NAME  => '_SHOW',
       COLS_NAME => 1

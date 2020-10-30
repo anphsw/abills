@@ -14,7 +14,7 @@ our (
   $Admin,
   %conf,
   %lang,
-  $Dv,
+  $Internet,
   $Sessions,
   $debug,
   %LIST_PARAMS,
@@ -25,7 +25,7 @@ our (
 
 $admin = $Admin;
 
-my Internet $Internet = $Dv;
+my Internet $Internet = $Internet;
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 
 $conf{MB_SIZE} = $conf{KBYTE_SIZE} * $conf{KBYTE_SIZE};

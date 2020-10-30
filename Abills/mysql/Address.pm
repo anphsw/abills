@@ -29,7 +29,7 @@ sub new {
 
   if(ref $admin eq 'HASH') {
     my ($package, $filename, $line) = caller;
-    print "file: $filename\nline: $line\n";
+    print "file: $filename\nline: $line Package: $package\n";
     print ref $admin;
     print "Address ADMIN_NOT_FOUND//// $admin ///";
     exit;
@@ -67,25 +67,25 @@ sub address_info {
   my ($id) = @_;
 
   $self->query("SELECT d.id AS district_id,
-      d.city,
-      d.name AS address_district,
-      s.name AS address_street,
-      b.number AS address_build,
-      b.block AS address_block,
-      s.id AS street_id,
-      s.type AS street_type,
-      d.zip,
-      s.second_name,
-      b.coordx,
-      s.second_name AS address_street2
-     FROM builds b
-     LEFT JOIN streets s  ON (s.id=b.street_id)
-     LEFT JOIN districts d  ON (d.id=s.district_id)
-     WHERE b.id= ? ",
-     undef,
-     { INFO => 1,
-       Bind => [ $id ]
-       }
+        d.city,
+        d.name AS address_district,
+        s.name AS address_street,
+        b.number AS address_build,
+        b.block AS address_block,
+        s.id AS street_id,
+        s.type AS street_type,
+        d.zip,
+        s.second_name,
+        b.coordx,
+        s.second_name AS address_street2
+      FROM builds b
+      LEFT JOIN streets s  ON (s.id=b.street_id)
+      LEFT JOIN districts d  ON (d.id=s.district_id)
+      WHERE b.id= ? ",
+      undef,
+      { INFO => 1,
+        Bind => [ $id ]
+        }
     );
 
   return $self;
@@ -219,7 +219,11 @@ sub district_list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  if($admin->{DOMAIN_ID}) {
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 0;
+  my $LIMIT = ($PAGE_ROWS) ? "LIMIT $PG, $PAGE_ROWS" : '';
+
+  if ($admin->{DOMAIN_ID}) {
     $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
   }
 
@@ -232,24 +236,23 @@ sub district_list {
       ['COORDY',      'INT',  'd.coordy', 1],
       ['ZOOM',        'INT',  'd.zoom',   1],
     ],
-    { WHERE => 1,
-    }
+    { WHERE => 1 }
   );
 
   $self->query("SELECT d.id,
-       d.name,
-       d.country,
-       d.city,
-       zip,
-       $self->{SEARCH_FIELDS}
-       COUNT(s.id) AS street_count
-     FROM districts d
-     LEFT JOIN streets s ON (d.id=s.district_id)
-   $WHERE
-   GROUP BY d.id
-   ORDER BY $SORT $DESC",
-   undef,
-   $attr
+        d.name,
+        d.country,
+        d.city,
+        zip,
+        $self->{SEARCH_FIELDS}
+        COUNT(s.id) AS street_count
+      FROM districts d
+      LEFT JOIN streets s ON (d.id=s.district_id)
+    $WHERE
+    GROUP BY d.id
+    ORDER BY $SORT $DESC $LIMIT",
+    undef,
+    $attr
   );
 
   if($self->{errno}) {
@@ -275,7 +278,7 @@ sub district_info {
   my ($attr) = @_;
 
   $self->query("SELECT id, name, country,
- city, zip, comments, coordx, coordy, zoom
+  city, zip, comments, coordx, coordy, zoom
   FROM districts WHERE id= ? ;",
   undef,
   { INFO => 1,
@@ -579,11 +582,14 @@ sub build_list {
 
   $self->query("SELECT b.number, $self->{SEARCH_FIELDS} b.id, b.street_id
       FROM builds b
-     $EXT_TABLES
-     $WHERE
-     GROUP BY b.id
-     ORDER BY $SORT $DESC
-     LIMIT $PG, $PAGE_ROWS;", undef, $attr);
+      $EXT_TABLES
+      $WHERE
+      GROUP BY b.id
+      ORDER BY $SORT $DESC
+      LIMIT $PG, $PAGE_ROWS;",
+      undef,
+      $attr
+    );
 
   my $list = $self->{list};
 
@@ -725,10 +731,11 @@ sub location_media_info {
 
   $self->query("SELECT * FROM location_media WHERE id= ? ;",
     undef,
-   {
-     INFO => 1,
-     Bind => [ $attr->{ID} ]
-    });
+    {
+      INFO => 1,
+      Bind => [ $attr->{ID} ]
+    }
+  );
 
   return $self;
 }

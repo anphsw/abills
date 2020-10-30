@@ -52,6 +52,14 @@
                       </div>
                     </div>
 
+                    <div class='form-group'>
+                        <label class='control-label col-md-3'>_{DESCRIBE}_ (_{ADMIN}_)</label>
+                        <div class='col-md-9'>
+                            <textarea cols='40' rows='4' name='DESCRIBE_AID' 
+                                class='form-control' id='DESCRIBE_AID'>%DESCRIBE_AID%</textarea>
+                        </div>
+                    </div>
+
                   <div class='form-group'>
                     <label class='control-label col-md-3'>_{HIDE_TP}_</label>
                     <div class='col-md-9'>
@@ -417,6 +425,9 @@
                           <th class='text-center col-md-1'>
                             #
                           </th>
+                          <th class='text-center col-md-1'>
+                            _{EMPTY_FIELD}_
+                          </th>
                           <th class='text-center col-md-3'>
                             _{LEFT_PART}_
                           </th>
@@ -435,6 +446,13 @@
                             <input type='hidden' name='IDS' value='1'>
                             1
                           </td>
+                          <td class="ignore_pair">
+                            <span class="ignone_pair_parent" data-tooltip="_{EMPTY_FIELD}_" data-content="_{EMPTY_FIELD}_" 
+                                  data-html="true" data-toggle="popover" data-trigger="hover" data-placement="right auto" data-container="body">
+                                <i class="fa fa-exclamation"></i>
+                                <input type="checkbox" id="IGNORE_PAIR" name="IGNORE_PAIR" value="1">
+                            </span>
+                        </td>
                           <td class='left_p'>
                             <input type='text' name='LEFT_PART' id='LEFT_PART' value='%LEFT_PART%'
                                    placeholder='_{LEFT_PART}_' class='form-control'/>
@@ -501,8 +519,8 @@
 
         if (date) {
             while (element < answDate.length) {
-                if (/([0-9a-zA-Z\-!]+)([-+=]{1,2})([:\-#= 0-9a-zA-Zа-яА-Я.]+)/.test(answDate[element])) {
-                    let dateRegex = answDate[element].match(/([0-9a-zA-Z\-!]+)([-+=]{1,2})([:\-#= 0-9a-zA-Zа-яА-Я.]+)/);
+                if (/([0-9a-zA-Z\-!:]+)([-+=]{1,2})([:\-\;\(\,\)\\'\\’\"\#= 0-9a-zA-Zа-яА-Я.]+)/.test(answDate[element])) {
+                    let dateRegex = answDate[element].match(/([0-9a-zA-Z\-!:]+)([-+=]{1,2})([:\-\;\(\,\)\\'\\’\"\#= 0-9a-zA-Zа-яА-Я.]+)/);
                     if (element < answDate.length) {
                         jQuery('#addr1').clone(true)
                             .attr('id', 'addr' + iter)
@@ -513,7 +531,32 @@
 
                         jQuery('#addr' + (iter - 1)).children('.left_p').children("#LEFT_PART").val(dateRegex[1]);
                         jQuery('#addr' + (iter - 1)).children('.cnd').children("#CONDITION").val(dateRegex[2]);
-                        jQuery('#addr' + (iter - 1)).children('.right_p').children("#RIGHT_PART").val(dateRegex[3]);
+                        
+                        if (/ \n/.test(answDate[1])) {
+                            answDate[1] = answDate[1].replace(' \n', ',');
+                            var newRightData = dateRegex[3] + answDate[1];
+                            
+                            jQuery('#addr' + (iter - 1)).children('.right_p').children("#RIGHT_PART").val(dateRegex[3] + ',' + answDate[1]);
+                        } else {
+                            jQuery('#addr' + (iter - 1)).children('.right_p').children("#RIGHT_PART").val(dateRegex[3]);
+                        }
+
+                        jQuery('#addr' + (iter - 1))
+                                .children('.ignore_pair')
+                                .children('.ignone_pair_parent')
+                                .children('#IGNORE_PAIR')
+                                .val(iter - 1);
+
+                        var checkboxCheck = false;
+                        if (/!/.test(answDate[element])) {
+                            checkboxCheck = true;
+                        }
+
+                        jQuery('#addr' + (iter - 1))
+                            .children('.ignore_pair')
+                            .children('.ignone_pair_parent')
+                            .children('#IGNORE_PAIR')
+                            .prop('checked', checkboxCheck);
 
                         iter++;
                     }
@@ -541,6 +584,9 @@
             jQuery('#addr' + iter).children('.cnd').children("#CONDITION").val("");
             jQuery('#addr' + iter).children('.right_p').children("#RIGHT_PART").val("");
 
+            jQuery('#addr' + (iter)).children('.ignore_pair').children('.ignone_pair_parent').children('#IGNORE_PAIR').attr('checked', false);
+            jQuery('#addr' + (iter)).children('.ignore_pair').children('.ignone_pair_parent').children('#IGNORE_PAIR').val(iter);
+
             iter++;
 
             if (iter > 2) {
@@ -557,6 +603,8 @@
                 jQuery('#addr' + (iter-1)).children('.left_p').children("#LEFT_PART").val("");
                 jQuery('#addr' + (iter-1)).children('.cnd').children("#CONDITION").val("");
                 jQuery('#addr' + (iter-1)).children('.right_p').children("#RIGHT_PART").val("");
+
+                jQuery('#addr' + (iter-1)).children('.ignore_pair').children('.ignone_pair_parent').children('#IGNORE_PAIR').val("");
             }
         });
     })

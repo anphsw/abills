@@ -23,7 +23,7 @@ use Abills::Base qw(convert date_diff);
 our ($db, $admin, $html, %lang, %conf, %OUTPUT);
 
 my $Poll = Poll->new($db, $admin, \%conf);
-my @panel_colors = ('info', 'success', 'defoult', 'danger'); # colors for different statuses
+my @panel_colors = ('info', 'success', 'defoult', 'danger'); 
 
 #**********************************************************
 
@@ -41,19 +41,17 @@ sub poll_main {
   my $button = $lang{ADD};
   my $action = 'add';
   my $disable = '';
-  my $poll_info;   # information about poll
-  my $answer_info; # information about answer
+  my $poll_info; 
+  my $answer_info; 
 
   my @STATUSES = ("$lang{ENABLE}", "$lang{IN_WORK}", "$lang{ARCHIVE}", "$lang{REJECTED}");
 
-  #add new poll
   if ($FORM{action} && $FORM{action} eq 'add') {
     $Poll->add_poll({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0) });
 
     if (!$Poll->{errno}) {
       $html->message('success', "$lang{POLL} $lang{ADDED}", "");
 
-      # add answers with poll_id link
       poll_answers_add(
         $Poll->{INSERT_ID},
         {
@@ -67,7 +65,6 @@ sub poll_main {
     }
   }
 
-  # change poll
   elsif ($FORM{action} && $FORM{action} eq 'change') {
     $Poll->change_poll({ ID => $FORM{id}, %FORM });
 
@@ -79,7 +76,6 @@ sub poll_main {
     }
   }
 
-  # delete poll
   if ($FORM{del}) {
     $Poll->del_poll({ ID => $FORM{del} });
 
@@ -119,7 +115,6 @@ sub poll_main {
     $Poll->{JSON} = json_answer({ EXTRA_ANSWER => $Poll->{EXTRA_ANSWER} });
   }
 
-  # status select for template
   my $status = $html->form_select(
     'STATUS',
     {
@@ -185,25 +180,6 @@ sub poll_main {
 }
 
 #**********************************************************
-=head2 poll_settings() -
-
-  Arguments:
-    $attr -
-  Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub poll_settings {
-
-
-  return 1;
-}
-
-
-#**********************************************************
-
 =head2 poll_answers_add($attr)
 
   Arguments:
@@ -218,9 +194,13 @@ sub poll_answers_add {
   my ($poll_id, $attr) = @_;
 
   my @answers = split(',', $attr->{ANSWER});
-  my @extra_answers = split(',', $attr->{EXTRA_ANSWER});
 
-  # add main answers
+  my @extra_answers = ();
+  
+  if ($attr->{EXTRA_ANSWER}) {
+    @extra_answers = split(',', $attr->{EXTRA_ANSWER});
+  }
+
   foreach my $answer (@answers) {
     $Poll->add_answer(
       {
@@ -230,14 +210,15 @@ sub poll_answers_add {
     );
   }
 
-  # add extra answers
-  foreach my $extra_answer (@extra_answers) {
-    $Poll->add_answer(
-      {
-        POLL_ID => $poll_id,
-        ANSWER  => $extra_answer
-      }
-    );
+  if ($attr->{EXTRA_ANSWER}) {
+    foreach my $extra_answer (@extra_answers) {
+      $Poll->add_answer(
+        {
+          POLL_ID => $poll_id,
+          ANSWER  => $extra_answer
+        }
+      );
+    }
   }
 
   return 1;
@@ -297,22 +278,6 @@ sub poll_result {
   my $max_votes = scalar @$vote_list;
   my $answer_output = '';
   foreach my $answer (@$answer_info) {
-    #my $vote_answers = $Poll->list_vote({ COLS_NAME => 1, ANSWER_ID => $answer->{id} });
-    #my $max_width;
-    #if ($max_votes != 0) {
-    #  $max_width = scalar @$vote_answers / $max_votes * 100;
-    #}
-    #
-    #$answer_output .= $html->tpl_show(
-    #  _include('poll_result', 'Poll'),
-    #  {
-    #    ANSWER     => $answer->{answer},
-    #    ID         => $answer->{id},
-    #    MAX_WIDTH  => $max_width ? $max_width . '%' : 0,
-    #    COUNT_VOTE => $vote_answers ? scalar @$vote_answers : '0'
-    #  },
-    #  { OUTPUT2RETURN => 1 }
-    #);
     $answer_output .= poll_result_form($max_votes, $answer);
   }
 
@@ -382,8 +347,7 @@ sub poll_discussion {
 #**********************************************************
 sub poll_user {
 
-  #my %OUTPUT;         # global variable for template
-  my $check_voter; # variable for check user on voting
+  my $check_voter; 
   my $poll_list = ();
   my %status_code = (
       OPEN     => 0,
@@ -391,7 +355,7 @@ sub poll_user {
       ARCHIVE  => 2,
       REJECTED => 3
   );
-  # show polls for this status
+
   my $status_code;
   if (($FORM{new} && $FORM{processed}) || $FORM{processed} || $FORM{archive}) {
     $status_code = defined $FORM{status} == 0 ? $status_code{OPEN} : $FORM{status};
@@ -438,14 +402,14 @@ sub poll_user {
     $OUTPUT{CONTENT} .= poll_panel_form($check_voter, $result, $poll);
   }
 
-  my $answer_output = ''; # variable for answers template
+  my $answer_output = ''; 
   if (defined $FORM{poll}) {
     my $poll_info = $Poll->info_poll({ COLS_NAME => 1, ID => $FORM{poll} });
     my $answer_info = $Poll->info_answer({ COLS_NAME => 1, POLL_ID => $FORM{poll} });
-    my $buttons = ''; # variable for buttons template
+    my $buttons = ''; 
 
     my $check = $Poll->list_vote({ COLS_NAME => 1, VOTER => $user->{UID}, POLL_ID => $FORM{poll} });
-    $check_voter = scalar @$check; # check if this user vote already
+    $check_voter = scalar @$check; 
 
     if (!$check_voter) {
       $buttons = $html->tpl_show(_include('poll_buttons', 'Poll'),
@@ -507,7 +471,7 @@ sub poll_user {
 
     my $vote_list = $Poll->list_vote({ COLS_NAME => 1, POLL_ID => $FORM{poll} });
 
-    my $max_votes = scalar @$vote_list; # get number of all votes on this poll
+    my $max_votes = scalar @$vote_list; 
 
     my $buttons = '';
 
@@ -521,7 +485,6 @@ sub poll_user {
 
     $buttons .= $html->tpl_show(_include('poll_discussion_button', 'Poll'), {}, { OUTPUT2RETURN => 1 });
 
-    # show progres bar on every vote
     foreach my $answer (@$answer_info) {
       $answer_output .= poll_result_form($max_votes, $answer);
     }
@@ -720,19 +683,17 @@ sub poll_user_add_poll {
   my $button = $lang{ADD};
   my $action = 'add';
   my $disable = '';
-  my $poll_info;   # information about poll
-  my $answer_info; # information about answer
+  my $poll_info;  
+  my $answer_info; 
 
   my @STATUSES = ("$lang{OPEN}", "$lang{REJECTED}", "$lang{IN_WORK}", "$lang{CLOSE_DONE}");
 
-  #add new poll
   if ($FORM{action} && $FORM{action} eq 'add') {
     $Poll->add_poll({ %FORM });
 
     if (!$Poll->{errno}) {
       $html->message('success', "$lang{POLL} $lang{ADDED}", "");
 
-      # add answers with poll_id link
       poll_answers_add(
         $Poll->{INSERT_ID},
         {
@@ -746,7 +707,6 @@ sub poll_user_add_poll {
     }
   }
 
-  # change poll
   elsif ($FORM{action} && $FORM{action} eq 'change') {
     $Poll->change_poll({ ID => $FORM{id}, %FORM });
 
@@ -758,7 +718,6 @@ sub poll_user_add_poll {
     }
   }
 
-  # delete poll
   if ($FORM{del}) {
     $Poll->del_poll({ ID => $FORM{del} });
 

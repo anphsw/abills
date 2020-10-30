@@ -21,7 +21,8 @@
     "skin-red-light",
     "skin-yellow-light",
     "skin-purple-light",
-    "skin-green-light"
+    "skin-green-light",
+    "skin-midnight"
   ];
 
 

@@ -1,6 +1,6 @@
 $lang{ERR_FIELDS_FOR_NOTIFIED_AND_SUBJECT_ARE_REQUIRED} = "Поле \'Текст\' не заполнено";
 
-$lang{NEXT_SHOW} = 'Показать в';
+$lang{NEXT_SHOW} = 'Показать';
 
 $lang{ACTIVE} = 'Активна';
 $lang{PAUSED} = 'В обработке';
@@ -28,4 +28,6 @@ $lang{ST_TITLE} = 'Заголовок';
 $lang{ST_TEXT} = 'Текст';
 $lang{STICKER_TITLE} = 'Введите заголовок',
 $lang{STICKER_DISPLAY} = 'Отображать',
+$lang{START_STAT} = 'Время начала',
+$lang{END_STAT} = 'Время завершения',
 $lang{STICKER_HIDE} = 'Скрывать'

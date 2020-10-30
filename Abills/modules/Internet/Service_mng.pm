@@ -113,8 +113,8 @@ sub service_warning {
     $Service->{MONTH_ABON} = $Service->{PERSONAL_TP};
   }
 
-  $user->{REDUCTION} = 0 if (!$Service->{REDUCTION_FEE});
-  my $reduction_division = ($user->{REDUCTION} >= 100) ? 0 : ((100 - $user->{REDUCTION}) / 100);
+  $user->{REDUCTION} = 0 if (!$Service->{REDUCTION_FEE} || !$user->{REDUCTION});
+  my $reduction_division = ($user->{REDUCTION} && $user->{REDUCTION} >= 100) ? 0 : ((100 - $user->{REDUCTION}) / 100);
 
   #use internet warning expr
   if ($self->{conf}->{INTERNET_WARNING_EXPR}) {

@@ -20,7 +20,7 @@ sub new {
   };
   
   bless($self, $class);
-  
+
   return $self;
 }
 
@@ -30,7 +30,9 @@ sub new {
 =cut
 #**********************************************************
 sub btn_name {
-  return "Баланс";
+  my $self = shift;
+  
+  return $self->{bot}->{lang}->{DEPOSIT};
 }
 
 #**********************************************************
@@ -60,8 +62,6 @@ sub click {
     COLS_NAME => 1
   });
 
-  # Abills::Base::_bp('1',$last_payments,{TO_CONSOLE => 1});
-
   use Fees;
   my $Fees = Fees->new($self->{db}, $self->{admin}, $self->{conf});
   my $last_fees = $Fees->list({
@@ -75,22 +75,25 @@ sub click {
     COLS_NAME => 1
   });
 
-  my $message = sprintf("Ваш депозит: %.2f\n", $Users->{DEPOSIT});
-  $message .= "Кредит: $Users->{CREDIT}\n" if ($Users->{CREDIT} && $Users->{CREDIT} > 0);
-  $message .= "Кредит доступен до: $Users->{CREDIT_DATE}\n" if ($Users->{CREDIT_DATE} && $Users->{CREDIT_DATE} ne '0000-00-00');
+  my $message = sprintf("$self->{bot}->{lang}->{YOUR_DEPOSIT}: %.2f\n", $Users->{DEPOSIT});
+  $message .= "$self->{bot}->{lang}->{CREDIT}: $Users->{CREDIT}\n" if ($Users->{CREDIT} && $Users->{CREDIT} > 0);
+  $message .= "$self->{bot}->{lang}->{CREDIT_OPEN}: $Users->{CREDIT_DATE}\n" if ($Users->{CREDIT_DATE} && $Users->{CREDIT_DATE} ne '0000-00-00');
   $message .= "\n";
 
-  $message .= "Последняя оплата:\n";
-  $message .= sprintf("Сумма: %.2f\n", $last_payments->[0]->{sum}) if ($last_payments->[0]->{sum});
-  $message .= "Дата: $last_payments->[0]->{datetime}\n" if ($last_payments->[0]->{datetime});
-  $message .= "Описание: $last_payments->[0]->{describe}\n" if ($last_payments->[0]->{describe});
-  $message .= "\n";
-
-  $message .= "Последнее списание:\n";
-  $message .= sprintf("Сумма: %.2f\n", $last_fees->[0]->{sum}) if ($last_fees->[0]->{sum});
-  $message .= "Дата: $last_fees->[0]->{datetime}\n" if ($last_fees->[0]->{datetime});
-  $message .= "Описание: $last_fees->[0]->{describe}\n" if ($last_fees->[0]->{describe});
-
+  if ($last_payments) {
+    $message .= "$self->{bot}->{lang}->{LAST_PAYMENT}:\n";
+    $message .= sprintf("$self->{bot}->{lang}->{SUM}: %.2f\n", $last_payments->[0]->{sum}) if ($last_payments->[0]->{sum});
+    $message .= "$self->{bot}->{lang}->{DATE}: $last_payments->[0]->{datetime}\n" if ($last_payments->[0]->{datetime});
+    $message .= "$self->{bot}->{lang}->{DESCRIBE}: $last_payments->[0]->{describe}\n" if ($last_payments->[0]->{describe});
+    $message .= "\n";
+  }
+  
+  if ($last_fees) {
+    $message .= "$self->{bot}->{lang}->{LAST_FEES}:\n";
+    $message .= sprintf("$self->{bot}->{lang}->{SUM}: %.2f\n", $last_fees->[0]->{sum}) if ($last_fees->[0]->{sum});
+    $message .= "$self->{bot}->{lang}->{DATE}: $last_fees->[0]->{datetime}\n" if ($last_fees->[0]->{datetime});
+    $message .= "$self->{bot}->{lang}->{DESCRIBE }: $last_fees->[0]->{describe}\n" if ($last_fees->[0]->{describe});
+  }
   $self->{bot}->send_message({
     text         => $message,
   }); 

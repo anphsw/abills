@@ -49,8 +49,7 @@
           <div class="form-group">
             <label class="control-label col-md-6 col-sm-6" align="left">_{TODAY}_</label>
             <div class="col-md-3 col-sm-3">
-              <img text-align="center" src="%IMG_TODAY%"
-                   alt="No image" height="32" width="32">
+              <img text-align="center" src="%IMG_TODAY%" alt="No image" height="32" width="32">
             </div>
             <div class="col-md-3 col-sm-3">
               %TEMP_TODAY%
@@ -63,8 +62,7 @@
         <div class="form-group">
           <label class="control-label col-md-6 col-sm-6" align="left">_{TOMORROW}_</label>
           <div class="col-md-3 col-sm-3">
-            <img src="%IMG_TOMORROW%"
-                 alt="No image" height="32" width="32">
+            <img src="%IMG_TOMORROW%" alt="No image" height="32" width="32">
           </div>
           <div class="col-md-3 col-sm-3">
             %TEMP_TOMORROW%
@@ -76,8 +74,7 @@
         <div class="form-group">
           <label class="control-label col-md-6 col-sm-6" align="left">_{DAT}_</label>
           <div class="col-md-3 col-sm-3">
-            <img src="%IMG_DAT%"
-                 alt="No image" height="32" width="32">
+            <img src="%IMG_DAT%" alt="No image" height="32" width="32">
           </div>
           <div class="col-md-3 col-sm-3">
             %TEMP_DAT%
@@ -97,7 +94,6 @@
     var counter = 0;
 
     document.getElementById("date").innerHTML = today;
-
 
     function getWeather(locdata) {
         var lat = locdata.latitude;
@@ -122,7 +118,7 @@
         });
     }
 
-    setTimeout(function () {
+    setTimeout(function() {
         getLocation().done(getWeather);
     }, 500);
 

@@ -568,11 +568,71 @@ sub payment_type_add {
 
 =cut
 #**********************************************************
-sub payment_type_del{
+sub payment_type_del {
   my $self = shift;
   my ($attr) = @_;
 
   $self->query_del('payments_type', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 admin_payment_type_list($attr)
+
+=cut
+#**********************************************************
+sub admin_payment_type_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [
+      ['AID', 'INT', 'admins.aid'],
+    ],
+    { WHERE => 1 });
+
+  $self->query("
+    SELECT
+      admins_payments_types.id,
+      admins_payments_types.payments_type_id,
+      payments_type.name
+    FROM admins_payments_types
+    LEFT JOIN admins
+      ON admins.aid = admins_payments_types.aid
+    LEFT JOIN payments_type
+      ON payments_type.id = admins_payments_types.payments_type_id
+    $WHERE;",
+    undef,
+    $attr
+  );
+
+  return $self->{list};
+}
+
+#**********************************************************
+=head2 admin_payment_type_list_add($attr)
+
+=cut
+#**********************************************************
+sub admin_payment_type_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('admins_payments_types',$attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 admin_payment_type_list_del($attr)
+
+=cut
+#**********************************************************
+sub admin_payment_type_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('admins_payments_types', undef, $attr);
 
   return $self;
 }
@@ -593,12 +653,37 @@ sub payment_type_list {
       ['ID',                'INT',  'pt.id'              ],
       ['NAME',              'STR',  'pt.name'            ],
       ['COLOR',             'STR',  'pt.color'           ],
-      ['DEFAULT_PAYMENT',   'INT',  'pt.default_payment' ]
+      ['DEFAULT_PAYMENT',   'INT',  'pt.default_payment' ],
+      ['FEES_TYPE',         'INT',  'pt.fees_type'       ]
     ],
     { WHERE => 1 });
 
-  $self->query("SELECT pt.id, pt.name, pt.color, pt.default_payment
+  if(!$WHERE && $attr->{IDS}) {
+    $WHERE .= "WHERE ";
+  } elsif ($WHERE && $attr->{IDS}) {
+    $WHERE .= " and ";
+  }
+
+  if($attr->{IDS}) {
+    $WHERE .= "pt.id IN(".join(',', @{$attr->{IDS}}).")"
+  }
+
+  $self->query("
+    SELECT
+      pt.id,
+      pt.name,
+      pt.color,
+      pt.default_payment,
+      pt.fees_type".
+      (
+        $attr->{AID} ?
+          (",COUNT(case when admins_payments_types.aid = $attr->{AID} then 1 else null end) AS allowed") :
+          ""
+      ).
+    "
     FROM payments_type pt
+    LEFT JOIN admins_payments_types
+      ON admins_payments_types.payments_type_id = pt.id
     $WHERE
     GROUP BY pt.id
     ORDER BY $SORT $DESC;",
@@ -635,6 +720,11 @@ sub payment_type_info {
 sub payment_type_change {
   my $self = shift;
   my ($attr) = @_;
+
+  if ($attr->{DEFAULT_UNCLICK}) {
+    $self->payment_default_type();
+    $self->query("UPDATE payments_type SET default_payment = 1 WHERE id = 0;");
+  }
 
   $self->changes(
     {

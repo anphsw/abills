@@ -27,7 +27,6 @@ use Log;
 our ($db,
   %conf,
   $admin,
-  $html,
   %permissions,
   $ui,
   @WEEKDAYS,
@@ -39,6 +38,8 @@ our ($db,
   @PERIODS, # ???
   %ADMIN_REPORT
 );
+
+our Abills::HTML $html;
 
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Shedule  = Shedule->new($db, $admin, \%conf);
@@ -79,18 +80,6 @@ if(%ADMIN_REPORT) {
 #**********************************************************
 sub internet_users_search {
   my ($Internet_) = @_;
-
-
-  use Internet;
-  my $Internet = Internet->new($db, $admin, \%conf);
-
-  my $sk_acct = 'acc'. 'ount_'. 'ch'. 'eck';
-
-  $Internet->$sk_acct();
-  if(_error_show($Internet)) {
-	    return 1;
-  }
-    
 
   $index=get_function_index('internet_users_list') if ( $functions{$index} && $functions{$index} ne 'internet_users_list' );
   $Internet->{GROUP_SEL}  = sel_groups();
@@ -332,6 +321,10 @@ sub internet_users_list {
     return 0;
   }
 
+  if ($FORM{GLOBAL}) {
+    $Internet->{GLOBAL} = 1;
+  }
+
   if($FORM{INTERNET_MULTIUSER} && $FORM{IDS}) {
     internet_multiuser($FORM{IDS});
   }
@@ -411,6 +404,12 @@ sub internet_users_list {
   my Abills::HTML $table;
   my $list;
 
+  my %EXT_PARAM_FORMER = ();
+  if (in_array('Maps2', \@MODULES)) {
+    $EXT_PARAM_FORMER{MAP} = 1;
+    $EXT_PARAM_FORMER{MAP_FIELDS} = 'ADDRESS_FLAT,LOGIN,DEPOSIT,FIO,TP_NAME,ONLINE';
+  }
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Internet,
     FUNCTION        => 'list',
@@ -419,8 +418,7 @@ sub internet_users_list {
     HIDDEN_FIELDS   => 'PRIORITY',
     APPEND_FIELDS   =>  'TP_ID,ID,UID',
     FUNCTION_FIELDS => 'form_payments,internet_stats',
-    MAP             => 1,
-    MAP_FIELDS      => 'ADDRESS_FLAT,LOGIN,DEPOSIT,FIO,TP_NAME,ONLINE',
+    %EXT_PARAM_FORMER,
     MAP_FILTERS     => { id => 'search_link:form_users:UID'
       #online => ''
     },
@@ -494,9 +492,12 @@ sub internet_users_list {
   elsif ($Internet->{TOTAL} == 1) {
     delete $FORM{LOGIN};
     $ui = user_info($list->[0]->{uid});
-    print $ui->{TABLE_SHOW};
-    form_users({ USER_INFO => $ui });
-    return 1;
+    
+    if ($ui) {
+      print $ui->{TABLE_SHOW};
+      form_users({ USER_INFO => $ui });
+      return 1;
+    }
   }
   elsif (! $Internet->{TOTAL}) {
     $html->message('err', $lang{ERROR}, "$lang{USER} $lang{NOT_EXIST}");
@@ -689,7 +690,13 @@ sub internet_error {
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
-  $list = $Log->log_list({%LIST_PARAMS, COLS_NAME => 1,});
+  $list = $Log->log_list({
+    %LIST_PARAMS, 
+    ACTION    => $FORM{ACTION} || '_SHOW',
+    TEXT      => $FORM{TEXT} || '',
+    COLS_NAME => 1
+  });
+
   my $table = $html->table({
     caption    => $lang{TOTAL},
     width      => '100%',
@@ -716,12 +723,27 @@ sub internet_error {
     });
   }
 
+
+  my @header_arr = (
+    "$lang{ALL}:index=$index",
+    "AUTH:index=$index&ACTION=AUTH",
+    "GUEST_MODE:index=$index&ACTION=GUEST_MODE",
+    "HANGUP:index=$index&ACTION=HANGUP",
+    "IPOE_LOGIN_NOT_EXIST:index=$index&TEXT=IPOE_LOGIN_NOT_EXIST",
+    "USER_NOT_EXIST:index=$index&TEXT=USER_NOT_EXIST",
+  );
+
+  my $header = $html->table_header(\@header_arr, {
+    SHOW_ONLY => 3
+  });
+
   $table = $html->table({
     caption => "Internet $lang{ERROR}",
     width   => '100%',
     title   => [ $lang{DATE}, $lang{TYPE}, $lang{ACTION}, $lang{USER}, $lang{TEXT}, "NAS" ],
     pages   => $total,
     qs      => $pages_qs,
+    header  => $header,
     ID      => 'INTERNET_ERRORS',
     EXPORT  => 1,
     MENU    => "$lang{SEARCH}:index=$index&search_form=1:search",
@@ -855,7 +877,8 @@ sub internet_payments_maked {
       $abon_fees = ($user->{REDUCTION} == 0) ? $Internet->{MONTH_ABON} + $Internet->{DAY_ABON} * 30 : ($Internet->{MONTH_ABON} + $Internet->{DAY_ABON} * 30) * (100 - $user->{REDUCTION}) / 100;
     }
     elsif ($Internet->{ABON_DISTRIBUTION}) {
-      $abon_fees = ($Internet->{MONTH_ABON} / 30) + $Internet->{DAY_ABON};
+      my $days_in_month = days_in_month({ DATE => $DATE });
+      $abon_fees = ($Internet->{MONTH_ABON} / $days_in_month) + $Internet->{DAY_ABON};
     }
 
     #OLd method. Always change activate period with payments
@@ -901,16 +924,15 @@ sub internet_payments_maked {
         STATUS => 0,
         %params
       });
+
+      if ($conf{INTERNET_FULL_MONTH} && $Internet->{OLD_STATUS} && $Internet->{OLD_STATUS} == 5) {
+        $attr->{FULL_MONTH_FEE} = 1;
+      }
+
+      #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
+      service_get_month_fee($Internet, $attr);
     }
-
-    if ($conf{INTERNET_FULL_MONTH} && $Internet->{OLD_STATUS} && $Internet->{OLD_STATUS} == 5) {
-      $attr->{FULL_MONTH_FEE} = 1;
-    }
-
-    #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
-    service_get_month_fee($Internet, $attr);
-
-    if ($conf{INTERNET_PAY_ACTIVATE}) {
+    elsif ($conf{INTERNET_PAY_ACTIVATE}) {
       my $sum = $attr->{SUM} || 0;
       if ($Internet->{SERVICE_ACTIVATE} ne '0000-00-00' && date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30
         && $deposit - $sum <= 0 && $deposit > $abon_fees) {
@@ -929,6 +951,7 @@ sub internet_payments_maked {
 
         $Internet->change(\%service_params);
       }
+      service_get_month_fee($Internet, $attr);
     }
   }
 
@@ -1233,6 +1256,7 @@ sub internet_docs {
       $info{tp_fixed_fees_day} = $service_info->{tp_fixed_fees_day} || 0;
       $info{status}            = $service_info->{internet_status};
       $info{tp_reduction_fee}  = $service_info->{tp_reduction_fee};
+      $info{module_name}       = $lang{INTERNET};
 
       if ($service_info->{internet_status} && $service_info->{internet_status} != 5 && $attr->{SKIP_DISABLED}) {
         $info{day} = 0;
@@ -1413,60 +1437,91 @@ sub internet_search {
     $Internet->{debug} = 1;
   }
 
-  $Internet->list({
+  my $intertnet_list = $Internet->list({
     %LIST_PARAMS,
-    UNIVERSAL_SEARCH => 1
+    UNIVERSAL_SEARCH => 1,
+    COLS_NAME => 1
   });
 
+  my $admin_permissions_gid = 0;
+  if ($admin->{GID}) {
+    my @admin_gids = split(/,/, $admin->{GID});
+
+    my $user_gid = $users->info($intertnet_list->[0]->{uid});
+    if ($#admin_gids > 0) {
+      foreach my $admin_gid (@admin_gids) {
+        if ($user_gid->{GID} && $admin_gid == $user_gid->{GID}) {
+          $admin_permissions_gid = 1 
+        }
+        elsif (!$user_gid->{GID}) {
+          $admin_permissions_gid = 1 
+        }
+      }
+    }
+    elsif ($#admin_gids < 1 && $admin->{GID}) {
+      $admin_permissions_gid = 1;
+    }
+  }
+  else {
+    $admin_permissions_gid = 1;
+  }
+  
   my @info = ();
 
-  if($Internet->{TOTAL}) {
-    push @info, {
-      'TOTAL'        => $Internet->{TOTAL},
-      'MODULE'       => 'Internet',
-      'MODULE_NAME'  => $lang{INTERNET},
-      'SEARCH_INDEX' => get_function_index('internet_users_list')
-        . '&' . join('&', @qs) . "&search=1"
-    };
+  if ($admin_permissions_gid) {
+    if($Internet->{TOTAL}) {
+      push @info, {
+        'TOTAL'        => $Internet->{TOTAL},
+        'MODULE'       => 'Internet',
+        'MODULE_NAME'  => $lang{INTERNET},
+        'SEARCH_INDEX' => get_function_index('internet_users_list')
+          . '&' . join('&', @qs) . "&search=1&GLOBAL=1"
+      };
+    }
   }
 
   #Online
   my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-  @default_search = ('CID', '_MULTI_HIT');
 
-  if($attr->{SEARCH_TEXT} =~ /^[0-9\.]+$/) {
-    push @default_search, 'IP';
-  }
+  if ($permissions{5} && $permissions{5}{0}) {
+    @default_search = ('CID', '_MULTI_HIT');
 
-  @qs = ();
-  foreach my $field ( @default_search ) {
-    $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
-    push @qs, "$field=*$attr->{SEARCH_TEXT}*";
-  }
+    if($attr->{SEARCH_TEXT} =~ /^[0-9\.]+$/) {
+      push @default_search, 'IP';
+    }
 
-  $Sessions->online({ %LIST_PARAMS, ALL => 1 });
+    @qs = ();
+    foreach my $field ( @default_search ) {
+      $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
+      push @qs, "$field=*$attr->{SEARCH_TEXT}*";
+    }
 
-  if($Sessions->{TOTAL}) {
-    push @info, {
+    $Sessions->online({ %LIST_PARAMS, ALL => 1 });
+
+    if($Sessions->{TOTAL}) {
+      push @info, {
         'TOTAL'        => $Sessions->{TOTAL},
         'MODULE'       => 'Internet',
         'MODULE_NAME'  => "$lang{INTERNET} ONLINE",
         'SEARCH_INDEX' => get_function_index('internet_online')
           . '&' . join('&', @qs) . "&search=1"
       };
+    }
   }
 
   #Stats
-  $Sessions->list({ %LIST_PARAMS });
+  if ($permissions{3} && $permissions{3}{6}) {
+    $Sessions->list({ %LIST_PARAMS });
 
-  if($Sessions->{TOTAL}) {
-    push @info, {
-        'TOTAL'        => $Sessions->{TOTAL},
-        'MODULE'       => 'Internet',
-        'MODULE_NAME'  => "$lang{INTERNET} $lang{STATS}",
-        'SEARCH_INDEX' => get_function_index('internet_sessions')
-          . '&' . join('&', @qs) . "&search=1"
-      };
+    if($Sessions->{TOTAL}) {
+      push @info, {
+          'TOTAL'        => $Sessions->{TOTAL},
+          'MODULE'       => 'Internet',
+          'MODULE_NAME'  => "$lang{INTERNET} $lang{STATS}",
+          'SEARCH_INDEX' => get_function_index('internet_sessions')
+            . '&' . join('&', @qs) . "&search=1"
+        };
+    }
   }
 
   return \@info;
@@ -1492,31 +1547,6 @@ sub internet_traffic_names {
   return \%TRAFFIC_NAMES;
 }
 
-#**********************************************************
-=head dv2intenet_tp($dv_tp_id)
-
-  Arguments:
-    $dv_tp_id
-
-=cut
-#**********************************************************
-sub dv2intenet_tp {
-  my($dv_tp_id) = @_;
-  my $tp_id = 0;
-
-  my $tp_list = $Tariffs->list({
-    NEW_MODEL_TP => 1,
-    TP_ID        => $dv_tp_id,
-    MODULE       => 'Dv',
-    COLS_NAME    => 1
-  });
-
-  if($Tariffs->{TOTAL} > 0) {
-    $tp_id = $tp_list->[0]->{tp_id};
-  }
-
-  return $tp_id;
-}
 
 #**********************************************************
 =head set_tags_users($ids, {$attr})

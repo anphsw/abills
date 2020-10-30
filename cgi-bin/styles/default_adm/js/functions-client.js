@@ -81,7 +81,13 @@ function set_referrer() {
 }
 
 function selectLanguage(){
-  var sLanguage = jQuery('#language').val() || '';
+  var sLanguage = '';
+  if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+    sLanguage = jQuery('#language_mobile').val() || '';
+  } else {
+    sLanguage = jQuery('#language').val() || '';
+  }
+  
   var sLocation = document['SELF_URL'] + '?'
       + (document['DOMAIN_ID'] ? '?DOMAIN_ID=' + document['DOMAIN_ID'] : '')
       + '&language=' + sLanguage;

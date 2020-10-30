@@ -200,8 +200,8 @@
         <li>
           <a href="javascript:void(0);" data-skin="skin-red-light" class="clearfix full-opacity-hover">
             <div>
-<span style="display:block; width: 20%; float: left; height: 7px;"
-      class="bg-red-active"></span>
+              <span style="display:block; width: 20%; float: left; height: 7px;"
+                    class="bg-red-active"></span>
               <span class="bg-red"
                     style="display:block; width: 80%; float: left; height: 7px;"></span>
             </div>
@@ -216,8 +216,8 @@
              style="display: block; box-shadow: 0 0 3px rgba(0,0,0,0.4)"
              class="clearfix full-opacity-hover">
             <div>
-<span style="display:block; width: 20%; float: left; height: 7px;"
-      class="bg-yellow-active"></span>
+              <span style="display:block; width: 20%; float: left; height: 7px;"
+                    class="bg-yellow-active"></span>
               <span
                   class="bg-yellow" style="display:block; width: 80%; float: left; height: 7px;"></span>
             </div>
@@ -226,7 +226,23 @@
               <span style="display:block; width: 80%; float: left; height: 40px; background: #f4f5f7;"></span>
             </div>
           </a>
-          <p class="text-center no-margin" style="font-size: 12px;">Yellow Light</p></li>
+          <p class="text-center no-margin" style="font-size: 12px;">Yellow Light</p>
+        </li>
+        <li>
+          <a href="javascript:void(0);" data-skin="skin-midnight"
+             style="display: block; box-shadow: 0 0 3px rgba(0,0,0,0.4)"
+             class="clearfix full-opacity-hover">
+            <div>
+              <span style="display:block; width: 20%; float: left; height: 7px;background: #5a5b5c;"></span>
+              <span style="display:block; width: 80%; float: left; height: 7px;background: #353c42;"></span>
+            </div>
+            <div>
+              <span style="display:block; width: 20%; float: left; height: 40px; background: #353c42;"></span>
+              <span style="display:block; width: 80%; float: left; height: 40px; background: #5a5b5c;"></span>
+            </div>
+          </a>
+          <p class="text-center no-margin" style="font-size: 12px;">Night</p>
+        </li>
       </ul>
 
       <div class='form-group'>

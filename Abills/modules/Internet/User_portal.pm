@@ -867,7 +867,7 @@ sub internet_user_chg_tp {
             service_get_month_fee($Internet) if (!$FORM{INTERNET_NO_ABON});
             $Internet->change(
               {
-                ACTIVATE => $DATE,
+                ACTIVATE => ($Internet->{ACTIVATE} ne '0000-00-00') ? $DATE : undef,
                 UID      => $user->{UID},
                 ID       => $FORM{ID}
               }
@@ -969,7 +969,7 @@ sub internet_user_chg_tp {
 
     my $tp_list = $Tariffs->list({
       TP_GID          => $Internet->{TP_GID},
-      CHANGE_PRICE    => '<=' . ($user->{DEPOSIT} + $user->{CREDIT}),
+      CHANGE_PRICE    => ($FORM{skip_check_deposit}) ? undef : '<=' . ($user->{DEPOSIT} + $user->{CREDIT}),
       MODULE          => 'Dv;Internet',
       STATUS          => '<1',
       MONTH_FEE       => '_SHOW',
@@ -1046,7 +1046,10 @@ sub internet_user_chg_tp {
   $Tariffs->{CHG_TP_RULES} = $html->tpl_show(_include('internet_chg_tp_rule', 'Internet'), {}, { OUTPUT2RETURN => 1 });
 
   $html->tpl_show(templates('form_client_chg_tp'),
-    { %$Tariffs, ID => $Internet->{ID} });
+    { %$Tariffs,
+      ID => $Internet->{ID}
+    },
+    { ID => 'INTERNET_CHG_TP'  });
 
   return 1;
 }
@@ -1378,7 +1381,7 @@ sub internet_dhcp_get_mac_add {
       my $list = $Internet->list({
         NAS_ID    => $PARAMS_HASH{NAS_ID},
         UID       => $user->{UID},
-        PORT     => $PARAMS_HASH{PORTS},
+        PORT      => $PARAMS_HASH{PORTS},
         COLS_NAME => 1,
         PAGE_ROWS => 1
       });
@@ -1624,8 +1627,8 @@ sub internet_holdup_service {
     }
   }
 
-  if ($active_fees && $active_fees > 0 && $user->{DEPOSIT} < $active_fees) {
-    $html->message('err', $lang{ERROR}, $lang{ERR_SMALL_DEPOSIT}, { ID => 34 });
+  if ($FORM{add} && $active_fees && $active_fees > 0 && $user->{DEPOSIT} < $active_fees) {
+    $html->message('err', $lang{HOLDUP}, $lang{ERR_SMALL_DEPOSIT}, { ID => 34 });
     return '';
   }
 

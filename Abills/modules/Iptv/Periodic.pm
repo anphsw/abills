@@ -78,14 +78,15 @@ sub iptv_daily_fees {
   my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
 
-  my $DOMAIN_ID = $attr->{DOMAIN_ID} || 0;
+  # Fix daily fees: DOMAIN_ID
+  # my $DOMAIN_ID = $attr->{DOMAIN_ID} || 0;
   if ($attr->{USERS_WARNINGS_TEST}) {
     return $debug_output;
   }
 
   $debug_output .= "Iptv: Daily periodic fees\n" if ($debug > 1);
   $LIST_PARAMS{TP_ID} = $attr->{TP_ID} if ($attr->{TP_ID});
-  $LIST_PARAMS{DOMAIN_ID} = $DOMAIN_ID;
+  # $LIST_PARAMS{DOMAIN_ID} = $DOMAIN_ID;
   my %USERS_LIST_PARAMS = (REGISTRATION => "<$ADMIN_REPORT{DATE}");
   $USERS_LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
   $USERS_LIST_PARAMS{GID} = $attr->{GID} if ($attr->{GID});
@@ -346,7 +347,6 @@ sub iptv_monthly_next_tp {
             TP_ID     => $tp_info->{next_tp_id},
             ID        => $FORM{ID} || $Iptv->{ID},
             SCREEN_ID => undef,
-            USER_INFO => $user,
             change    => 1
           });
 
@@ -443,17 +443,13 @@ sub iptv_monthly_fees {
   }
 
   my %tp_id2id = ();
-  my $tp_list = $Tariffs->list(
-    {
-      MODULE       => 'Iptv',
-      NEW_MODEL_TP => 1,
-      COLS_NAME    => 1
-    }
-  );
+  my $tp_list = $Tariffs->list({
+    MODULE       => 'Iptv',
+    NEW_MODEL_TP => 1,
+    COLS_NAME    => 1
+  });
 
-  foreach my $tp (@{$tp_list}) {
-    $tp_id2id{ $tp->{tp_id} } = $tp->{id};
-  }
+  map $tp_id2id{ $_->{tp_id} } = $_->{id}, @{$tp_list};
 
   my %FEES_METHODS = %{get_fees_types({ SHORT => 1 })};
   $Tariffs->{debug} = 1 if ($debug > 6);
@@ -546,7 +542,7 @@ sub iptv_monthly_fees {
     foreach my $u (@{$ulist_main}) {
 
       if ($u->{iptv_expire} && $u->{iptv_expire} eq '0000-00-00') {
-        if ($d != $START_PERIOD_DAY && !$tp->{abon_distribution}) {
+        if ($d != $START_PERIOD_DAY && !$tp->{abon_distribution} && (!$u->{iptv_activate} || $u->{iptv_activate} eq '0000-00-00')) {
           $debug_output .= "Next period\n" if ($debug > 2);
           $DEBUG = $debug_output;
           next;
@@ -588,7 +584,7 @@ sub iptv_monthly_fees {
         IPTV_STATUS  => $u->{service_status},
         SUBSCRIBE_ID => $u->{subscribe_id},
       );
-
+      
       my %FEES_DSC = (
         MODULE            => 'Iptv',
         SERVICE_NAME      => $lang{TV},
@@ -600,7 +596,8 @@ sub iptv_monthly_fees {
       );
       
       my $total_sum = 0;
-      if ($month_fee > 0 || $min_use > 0) {
+      my $user_month_fee = ($user{REDUCTION} && $user{REDUCTION} > 0) ? $month_fee * (100 - $user{REDUCTION}) / 100 : $month_fee;
+      if ($user_month_fee > 0 || $min_use > 0) {
 
         #Check bill ID and deposit
         if (!$user{BILL_ID} && !defined($user{DEPOSIT})) {
@@ -610,13 +607,13 @@ sub iptv_monthly_fees {
 
         #Month Fee ====
         push @{$users_services{ $u->{uid} }}, {
-          SUM      => $month_fee,
+          SUM      => $user_month_fee,
           DESCRIBE => fees_dsc_former(\%FEES_DSC),
           ID       => $user{ID}
         };
 
         #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID
-        if ($postpaid == 1 || $user{DEPOSIT} + $user{CREDIT} > $month_fee) {
+        if ($postpaid == 1 || $user{DEPOSIT} + $user{CREDIT} > $user_month_fee) {
           if ($conf{IPTV_CLOSE_PERIOD}) {
 
           }
@@ -633,13 +630,22 @@ sub iptv_monthly_fees {
             if ($tp->{FIXED_FEES_DAY} && ($d != $activate_d || ($d != $START_PERIOD_DAY && $activate_d > 28))) {
               next;
             }
-            elsif ($date_unixtime - $active_unixtime < 30 * 86400) {
+            elsif (31 * 86400 > ($date_unixtime - $active_unixtime)) {
               next;
             }
-            else {
-              next;
+            elsif (!$u->{service_status}) {
+              $Iptv->user_change({
+                UID              => $user{UID},
+                ID               => $user{ID},
+                SERVICE_ACTIVATE => POSIX::strftime("%Y-%m-%d", localtime($active_unixtime + 31 * 86400))
+              });
             }
           }
+        }
+        elsif ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
+          my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
+          my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
+          next if 31 * 86400 > ($date_unixtime - $active_unixtime);
         }
         #Block negative
         elsif (!$tp->{small_deposit_action}) {
@@ -654,14 +660,11 @@ sub iptv_monthly_fees {
           });
           next;
         }
-
         #Block small deposit
-        if (iptv_neg_deposti_action({ TP => $tp, USER => $u, SERVICES => $users_services{ $u->{uid} } })) {
+        if (iptv_neg_deposti_action({ TP => $tp, USER => \%user, SERVICES => $users_services{ $u->{uid} } })) {
           my $tp_num = 0;
-
-          if ($tp->{small_deposit_action} && $tp->{small_deposit_action} > 0) {
-            $tp_num = $tp_id2id{$tp->{small_deposit_action}};
-          }
+          
+          $tp_num = $tp_id2id{$tp->{small_deposit_action}}  if ($tp->{small_deposit_action} && $tp->{small_deposit_action} > 0);
 
           iptv_account_action({
             NEGDEPOSIT   => 1,
@@ -685,9 +688,7 @@ sub iptv_monthly_fees {
         DEBUG  => $debug
       });
 
-      if ($ret) {
-        $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $total_sum REDUCTION: $user{REDUCTION} CHANGE ACTIVATE\n" if ($debug > 0);
-      }
+      $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $total_sum REDUCTION: $user{REDUCTION} CHANGE ACTIVATE\n" if ($ret && $debug > 0);
     }
   }
 
@@ -756,17 +757,13 @@ sub iptv_sheduler {
 
   if ($type eq 'tp') {
     my $service_list;
-    if ($conf{IPTV_TRANSFER_SERVICE}) {
-      $service_list = iptv_transfer_service($Iptv);
-    }
+    $service_list = iptv_transfer_service($Iptv) if ($conf{IPTV_TRANSFER_SERVICE});
 
-    $Iptv->user_change(
-      {
-        ID    => $service_id,
-        UID   => $uid,
-        TP_ID => $action_
-      }
-    );
+    $Iptv->user_change({
+      ID    => $service_id,
+      UID   => $uid,
+      TP_ID => $action_
+    });
 
     $info{change} = 1;
     $info{UID} = $uid;
@@ -875,7 +872,6 @@ sub iptv_monthly_next_tp_take_fees {
       DATE         => $DATE
     });
   }
-
 
   return 1;
 }

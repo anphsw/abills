@@ -45,7 +45,7 @@ my $debug = 0;
 my $DEBUG_ARGS = { TO_CONSOLE => 1 };
 our $errstr = '';
 
-use Abills::Base qw/_bp cmd/;
+use Abills::Base qw/_bp cmd in_array/;
 use IO::Socket;
 use Digest::MD5;
 
@@ -136,6 +136,8 @@ sub new {
     $self->{error_cb} = sub {print shift};
   }
 
+  $self->{not_used_tag} = 1;
+
   return $self;
 }
 
@@ -144,14 +146,16 @@ sub new {
 =head2 execute($cmd, $attr) - Execute command in remote console
 
   Arguments:
-    $cmd - string  or array of strings
+    $cmd - array ref. command to run with attributes and queries: [$cmd, \%attributes_attr, \%queries_attr]
+           or array of such commands.
     $attr - hash_ref
-      SAVE_TO         - filename to save output
-      SKIP_ERROR      - do not finish execution if error on one of commands
-
+      SKIP_ERROR - do not finish execution if error on one of commands. ignored if SIMULTANEOUS, because it never finishes execution on error
+      SIMULTANEOUS - run commands simultaneous, by starting multiple tagged queries at once. $cmd must be array of commands
 
   Returns:
     1
+    $results - if $cmd is one command. array ref, one result.
+    $results - if SIMULTANEOUS is set. array ref of results in the same order as in $cmd
 
 =cut
 #**********************************************************
@@ -170,14 +174,25 @@ sub execute {
 
   # If pack of commands
   if ($cmd->[0] && ref $cmd->[0] eq 'ARRAY') {
+    if ($attr->{SIMULTANEOUS}) {
+      my @tags;
+      foreach my $cmd_arr (@{$cmd}) {
+        my ($cmd, $attributes_attr, $queries_attr) = @{$cmd_arr};
+        push @tags, $self->mtik_query($cmd, $attributes_attr, $queries_attr, {TAGGED => 1});
+      }
+      my $results_hash = $self->mtik_get_tagged_query_result(\@tags);
+      my @results = map {$results_hash->{$_}} @tags;
+      @results = map {my $res = (shift @$_); ($res && $res <= 1) ? $_ : 0} @results;
+      return \@results;
+    }
+
     foreach my $cmd_arr (@{$cmd}) {
 
       my ($res, @results) = $self->mtik_query(@{$cmd_arr});
 
       # Handle result
       if ($res == 1) {
-        #        _bp('',[ $cmd_arr, \@results ], {TO_CONSOLE => 1} );
-        $self->{success_cb}(@results) if (defined $self->{success_cb});
+        $self->{message_cb}(@results) if (defined $self->{message_cb});
       }
       else {
         print " \n Error executing '$cmd_arr->[0]' : $errstr \n" if ($self->{debug} > 1);
@@ -210,10 +225,10 @@ sub execute {
 
   Arguments:
     $list_name -
-    
+
   Returns:
     boolean
-    
+
 =cut
 #**********************************************************
 sub has_list_command {
@@ -371,8 +386,7 @@ sub upload_key {
     [
       [ '/file print', { file => "$cert_filename\.txt" } ],
       [ '/file set', { 'contents' => $content, '.id' => "$cert_filename\.txt" }, {} ],
-      @add_user_commands,
-      [ '/user ssh-keys import', { 'public-key-file' => "$cert_filename\.txt", user => $admin_name } ]
+      @add_user_commands
     ],
     {
       SKIP_ERROR => 1
@@ -481,11 +495,11 @@ sub login {
     push(@command, '=name=' . $username);
     push(@command, '=response=00' . $hexdigest);
     ($retval, @results) = &talk(\@command);
+  }
 
-    if ($retval > 1) {
-      $self->{errstr} = $results[0]->{'message'};
-      return 0;
-    }
+  if ($retval > 1) {
+    $self->{errstr} = $results[0]->{'message'};
+    return 0;
   }
 
   if ($debug > 0) {
@@ -616,13 +630,31 @@ sub mtik_cmd {
 }
 
 #**********************************************************
-=head2 mtik_query($cmd, \%attrs, \%queries)
+=head2 mtik_query($cmd, \%attributes_attr, \%queries_attr, \%attr) - Run query
+
+  Warning: don't use tagged queries with untagged on the same time
+
+  Arguments:
+    $cmd - command to run. example: "/ip address print"
+    \%attributes_attr - command attributes. example: {'.proplist' => 'interface,address'}
+    \%queries_attr - command queries. example: {'interface' => 'ether1'}
+    \%attr
+      TAGGED - start tagged query, don't wait for it to complete
+
+  Returns:
+    $tag - tag of started query. if TAGGED is set
+    ($retval, @results)
 
 =cut
 #**********************************************************
 sub mtik_query {
   my $self = shift;
-  my ($cmd, $attributes_attr, $queries_attr) = @_;
+  my ($cmd, $attributes_attr, $queries_attr, $attr) = @_;
+
+  my $tag = $self->{not_used_tag};
+  if ($attr->{TAGGED}) {
+    $self->{not_used_tag}++;
+  }
 
   my (%attrs) = %{$attributes_attr} if ($attributes_attr);
   my (%queries) = %{$queries_attr} if ($queries_attr);
@@ -666,16 +698,163 @@ sub mtik_query {
     push(@command, '?' . $query . '=' . $queries{$query});
   }
 
-  my ($retval, @results) = talk(\@command);
-  if ($retval > 1) {
-    $errstr = $results[0]->{'message'};
-    _bp('mtik errornous query', { command => \@command, error => $errstr }, $DEBUG_ARGS) if ($self->{debug});
+  my ($retval, @results);
+  if ($attr->{TAGGED}) {
+    push(@command, '.tag=' . $tag);
+    &_write_sentence(\@command);
+    $self->{running_tagged_queries}->{$tag} = [$cmd, $attributes_attr, $queries_attr];
+  }
+  else {
+    ($retval, @results) = talk(\@command);
+    if ($retval > 1) {
+      $errstr = $results[0]->{'message'};
+      _bp('mtik errornous query', { command => \@command, error => $errstr }, $DEBUG_ARGS) if ($self->{debug});
+    }
+    _bp('results', \@results, $DEBUG_ARGS) if ($self->{debug} > 2);
   }
 
-  _bp('results', \@results, $DEBUG_ARGS) if ($self->{debug} > 2);
   _bp('mtik_query1', { command => \@command, error => $errstr }, $DEBUG_ARGS) if ($self->{debug} > 2);
 
-  return($retval, @results);
+  if ($attr->{TAGGED}) {
+    return $tag;
+  }
+  else {
+    return($retval, @results);
+  }
+}
+
+#**********************************************************
+=head2 mtik_get_tagged_query_result($tag) - Wait for selected tagged query(ies) to complete and return result(s)
+
+  Arguments:
+    $tag - number or array ref
+
+  Returns:
+    ($retval, @results) - if $tag is a number
+    hashref { $tag => [$retval, @results] } - if $tag is an array ref
+
+  Examples:
+    mtik_get_tagged_query_result($tag);
+    mtik_get_tagged_query_result(\@tags);
+
+=cut
+#**********************************************************
+sub mtik_get_tagged_query_result {
+  my $self = shift;
+  my ($tag) = @_;
+
+  if (!$tag) {
+    if ($debug) {
+      print "Tag is not defined\n";
+    }
+    return 0;
+  }
+
+  my @tags;
+  if (ref $tag eq 'ARRAY') {
+    @tags = @$tag;
+  }
+  else {
+    @tags = ($tag);
+  }
+
+  while (grep {in_array($_, [keys %{$self->{running_tagged_queries}}])} @tags) {
+    $self->mtik_tagged_query_read_next_sentence();
+  }
+
+  if (ref $tag eq 'ARRAY') {
+    return { map {$_ => $self->{tagged_queries_results}->{$_} } @$tag};
+  }
+  elsif ($self->{tagged_queries_results}->{$tag}) {
+    return @{$self->{tagged_queries_results}->{$tag}};
+  }
+  else {
+    return 0;
+  }
+}
+
+#**********************************************************
+=head2 mtik_get_all_tagged_query_results() - Wait for all tagged queries to complete and return results
+
+  Returns:
+    hashref { $tag => [$retval, @results] }
+
+=cut
+#**********************************************************
+sub mtik_get_all_tagged_query_results {
+  my $self = shift;
+
+  while (%{$self->{running_tagged_queries}}) {
+    $self->mtik_tagged_query_read_next_sentence();
+  }
+
+  return $self->{tagged_queries_results};
+}
+
+#**********************************************************
+=head2 mtik_get_running_tagged_queries() - Return currently running queries
+
+  Warning: list of currently running queries don't updates automatically.
+  It updates after running mtik_tagged_query_read_next_sentence, mtik_get_tagged_query_result of mtik_get_all_tagged_query_results.
+  All of these functions waits for next update from Mikrotik.
+
+  Returns:
+    hashref { $running_query_tag => [$cmd, $attributes_attr, $queries_attr] }
+
+=cut
+#**********************************************************
+sub mtik_get_running_tagged_queries {
+  my $self = shift;
+
+  return $self->{running_tagged_queries};
+}
+
+#**********************************************************
+=head2 mtik_tagged_query_read_next_sentence() - Read and parse next sentence, update internal variables (tagged_queries_results, running_tagged_queries)
+
+  Returns:
+    ($retval, $attrs, $tag)
+
+=cut
+#**********************************************************
+sub mtik_tagged_query_read_next_sentence {
+  my $self = shift;
+  my ($retval, @reply) = &_read_sentence();
+
+  my $tag;
+
+  my $attrs;
+  foreach my $line (@reply) {
+    if ($line =~ /^=(\S+)=(.*)/s) {
+      $attrs->{$1} = $2;
+    }
+    if ($line =~ /^\.tag=(\d+)/s) {
+      $tag = $1;
+    }
+  }
+
+  if (!$self->{running_tagged_queries}->{$tag}) {
+    return 0;
+  }
+
+  if ($attrs) {
+    push @{$self->{tagged_queries_temp_results}->{$tag}}, $attrs;
+  }
+  if ($retval > 0) {
+    if (ref $self->{tagged_queries_temp_results}->{$tag} eq 'ARRAY') {
+      $self->{tagged_queries_results}->{$tag} = [$retval, @{$self->{tagged_queries_temp_results}->{$tag}}];
+    }
+
+    if ($retval > 1) {
+      $errstr = $self->{tagged_queries_results}->{$tag}[1]->{'message'};
+      _bp('mtik errornous query', { command => $self->{running_tagged_queries}->{$tag}, error => $errstr }, $DEBUG_ARGS) if ($self->{debug});
+    }
+    _bp('results', $attrs, $DEBUG_ARGS) if ($self->{debug} > 2);
+
+    delete $self->{running_tagged_queries}->{$tag};
+  }
+
+  return ($retval, $attrs, $tag);
 }
 
 #**********************************************************

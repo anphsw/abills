@@ -3262,8 +3262,8 @@ function drawGrid(step, strokeWidth) {
 
   paper.path(path_command).attr({
     'stroke-color': 'silver',
-    'stroke-width': strokeWidth
-  });
+    'stroke-width': strokeWidth,
+  }).node.id = "grid-path";
 }
 
 function makePathCommand(pointsArr) {
@@ -3440,36 +3440,18 @@ function getCloserPoint(p1, p2, value) {
 }
 
 function commutation_print() {
+  let innerContents = document.getElementById('drawCanvas').innerHTML;
+  let content = innerContents.replace(/<path fill="none" stroke="#000000"/g, '');
+  content = content.replace(/width="\d+"/, 'width="100%"');
 
-  var openWindowRenderAndPrint = function openWindowRenderAndPrint() {
-
-    var printWin = window.open('', '', 'width=1000,height=700');
-    if (printWin === null) {
-      alert('Please allow popups to open map print');
-    }
-    var windowContent = '<!DOCTYPE html>';
-    html2canvas($('#drawCanvas'), {
-      useCORS   : true,
-      onrendered: function (canvas) {
-        windowContent += '<html>';
-        windowContent += '<head><title>Print Map</title></head>';
-        windowContent += '<body>';
-        windowContent += '<img src="' + canvas.toDataURL() + '" style="min-height: 100vh;min-width 100vh;">';
-        windowContent += '</body>';
-        windowContent += '</html>';
-        printWin.document.open();
-        printWin.document.write(windowContent);
-        printWin.document.close();
-        printWin.focus();
-        setTimeout(function () {
-          printWin.print();
-          printWin.close();
-        }, 500);
-      }
-    });
-  };
-
-  openWindowRenderAndPrint();
+  var printWin = window.open('', '', 'width=1000,height=700');
+  if (printWin === null) {
+    alert('Please allow popups to open map print');
+  }
+  printWin.document.open();
+  printWin.document.write('<html><head><style></style></head><body onload="window.print();this.close();">' + content + '</html>');
+  printWin.document.close();
+  printWin.focus();
 }
 
 function _translate(text, insertion) {

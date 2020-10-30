@@ -124,4 +124,11 @@ $lang{CABLE_RESERVE} = 'Запас кабеля';
 $lang{CAT_CABLE} = 'Розрізати кабель';
 $lang{RESERVE} = 'Запас';
 
+$lang{ADD_SCHEME} = 'Добавити схему комутації';
+$lang{REMOVE_SCHEME} = 'Видалити схему коммутації';
+$lang{POSITION_CHANGE_ERROR} = 'Помилка зміни позиції';
+$lang{POSITION_SUCCESSFULLY_CHANGED} = 'Позиція успішно змінена';
+$lang{BIG_COMMUTATION} = 'Велика схема комутації';
+$lang{CHOOSE_COMMUTATION} = 'Виберіть комутацію';
+
 1;

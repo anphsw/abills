@@ -104,4 +104,6 @@ $lang{ERROR_SHOW_CHANNELS} = "Ошибка показа каналов";
 
 $lang{GET_LOGIN_AND_PASSWD} = "Отримати логін та пароль";
 
+$lang{TARIF_PLAN} = 'Тарифний план';
+
 1;

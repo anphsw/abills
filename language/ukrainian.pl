@@ -71,7 +71,7 @@ $lang{YES}='Так';
 $lang{FIRST_LOGIN}='Перше під&#39;єднання';
 $lang{HOUR_TARIF}=' Погодинний т';
 $lang{OCTETS_DIRECTION}='Напрямок трафіку';
-$lang{ADD_USER}='Добавити користувача';
+$lang{ADD_USER}='Додати користувача';
 $lang{ERR_HOST_REGISTRED}='Робоча станція вже зареєстрована';
 $lang{EXTRA_FEE}='Додаткова оплата';
 $lang{FINANCES}='Фінансові операції';
@@ -195,6 +195,8 @@ $lang{DELETED}='Знищено';
 $lang{LOG}='Журнал';
 $lang{PAID}='Оплачено';
 $lang{USER_NOT_EXIST}='Такого користувача не існує';
+$lang{NOE_ENOUGHT_SIZE_FOR_SUFFIX}='Недостатньо місця для суфікса, збільшіть розмір логіна в конфігураційному файлі';
+$lang{SUFFIX_ADDED}='Абоненту добавлено суфікс';
 $lang{STATS}='Статистика';
 $lang{CONTRACT}='Договір';
 $lang{NAS}='Сервер доступу';
@@ -842,6 +844,27 @@ $lang{SEND_REG}='Відправлено на';
 
 $lang{RESPONSIBLE}='Відповідальний';
 $lang{NO_ADDRESS}='Адрес не був заповнений, заповніть будь ласка!';
+$lang{ONE_TIME_CODE}='Тимчасовий код';
+
+$lang{WEB_SERVER} = 'Веб-сервер';
+$lang{IP_POOLS} = 'IP-пул';
+$lang{BILLD} = 'Billd плагіни';
+$lang{CHECKSUM}='Контрольна сума';
+$lang{CONSOLE}='Термінал';
+
+$lang{LAST_FEES}='Останнє зняття';
+$lang{CASHBOX}='Каса';
+$lang{ENTER_DEL} = 'Введіть слово';
+$lang{MATCH_USER}='Зіставити користувача';
+$lang{NEXT_POOL}='Наступний пул';
+$lang{AUTH_WEB_ERROR}='Немає параметру аутентифікації';
+
+$lang{COOKIE_AGREEMENTS} = 'Перш ніж переглядати наш сайт, прийміть нашу';
+$lang{COOKIE_URL} = 'політику щодо файлів cookie';
+$lang{NOT_DELETED_USERS}='Не враховувати видалених';
+
+$lang{AND}='І';
+$lang{OR}='АБО';
 
 1;
 

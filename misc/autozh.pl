@@ -4,8 +4,8 @@
 
   Auto zap/hangup console utility
 
-  VERSION: 0.26
-  REVISION: 20200203
+  VERSION: 0.27
+  REVISION: 20200703
 
 =cut
 
@@ -23,12 +23,14 @@ BEGIN {
 }
 
 my $debug   = 0;
-my $VERSION = 0.26;
+my $VERSION = 0.27;
 
 use Abills::SQL;
 use Abills::Base qw(check_time parse_arguments gen_time days_in_month in_array);
 use Admins;
 use Nas;
+use POSIX qw(strftime);
+
 my $begin_time = check_time();
 
 my $Sessions;
@@ -61,6 +63,7 @@ autozap.pl Version: $VERSION
   TP_ID=...      - TP_ID for hangup
   GID=...        - Group ID for hangup
   LIMIT=100      - Hangup limit
+  HANGUP_PERIOD  - Hangup only users with hangup period (Extra field: _hangup_period)
   DEBUG=1..6     -
   help           - This help
 [END]
@@ -142,6 +145,9 @@ if ($argv->{LIMIT}) {
   $LIST_PARAMS{LIMIT}     = $LIST_PARAMS{PAGE_ROWS};
 }
 
+if ($argv->{HANGUP_PERIOD}) {
+  $LIST_PARAMS{_HANGUP_PERIOD} = strftime("%H", localtime(time));
+}
 
 $LIST_PARAMS{NAS_ID} = $argv->{NAS_ID} if ($argv->{NAS_ID});
 my %ACCT_INFO = ();
@@ -186,7 +192,6 @@ if ($argv->{HANGUP}) {
   my $online_list = $Sessions->{nas_sorted};
   my $nas_list = $Nas->list({ COLS_NAME => 1, PAGE_ROWS => 60000 });
 
-  #my @results     = ();
   foreach my $nas_row (@$nas_list) {
     next if (!defined($online_list->{ $nas_row->{nas_id} }));
     $Nas->info({ NAS_ID => $nas_row->{nas_id} });

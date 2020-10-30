@@ -1623,8 +1623,8 @@ sub changes2{
   if ( $#change_fields < 0 ){
     return $self->{result};
   }
-  else{
-    $self->{CHANGES_LOG} = join( ';', @change_log );
+  else {
+    $self->{CHANGES_LOG} = join( ';', @change_log );    
   }
 
   my $extended = ($attr->{EXTENDED}) ? $attr->{EXTENDED} : '';

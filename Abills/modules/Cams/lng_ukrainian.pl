@@ -34,7 +34,6 @@ $lang{NUMBER_OF_USERS} = "Перевищено кількість користу
 $lang{CAMS_ARCHIVE} = "Архів";
 $lang{CAM} = "Камера";
 $lang{LOCATION_CAMS} = 'Місцезнаходження';
-$lang{CAM_TITLE} = 'Група';
 $lang{CONSTANTLY_WORKING} = 'Постійно працююча';
 $lang{PRE_IMAGE} = 'Зображення для попереднього перегляду';
 $lang{LIMIT_ARCHIVE} = 'Обмежити доступ до архіву';
@@ -50,5 +49,11 @@ $lang{PARENT} = "Предок";
 $lang{CHILDREN} = "Нащадки";
 $lang{FOLDERS} = "Папки";
 $lang{ENTER_GROUP_NAME_OR_ADDRESS} = "Вкажіть назву або адреса";
+
+$lang{CAMS_IMPORT_SUCCESSFULLY} = 'Імпорт завершено успішно';
+$lang{CAMS_IMPORT_ERROR} = 'Не вдалося імпортувати';
+$lang{CAMS_IMPORT_MODELS} = 'Імпорт моделей';
+
+$lang{CAMS_GROUP} = 'Група';
 
 1;

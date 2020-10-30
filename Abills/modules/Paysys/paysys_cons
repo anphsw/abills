@@ -249,6 +249,11 @@ sub paysys_import_form_cons {
   		exit;
   	}
 
+    if (! defined($line->{uid})) {
+      print "Company ID '$line->{id}' has no users. Skipping.\n";
+      next;
+    }
+
   	$line->{login} = (! $line->{login}) ? $line->{id} : $line->{login};
     $binding_hash{ lc($line->{$binding_field_id}) } = "$line->{uid}:$line->{login}:" . (($line->{fio}) ? $line->{fio} : '');
   }

@@ -1878,18 +1878,24 @@ sub employees_list_cashbox {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID', 'INT', 'id', 1 ],
-    [ 'NAME', 'STR', 'name', 1 ],
-    [ 'COMMENTS', 'STR', 'comments', 1 ],
+    [ 'ID',       'INT',  'emc.id',         1 ],
+    [ 'NAME',     'STR',  'emc.name',       1 ],
+    [ 'ADMIN',    'STR',  'a.name as admin',1 ] ,
+    [ 'COMMENTS', 'STR',  'emc.comments',   1 ],
   ],
     { WHERE => 1, }
   );
 
   $self->query(
-    "SELECT * FROM employees_cashboxes
+    "SELECT emc.id,
+    emc.name,
+    a.name as admin,
+    emc.comments
+    FROM employees_cashboxes emc
+    LEFT JOIN admins a ON (a.aid = emc.aid)
     $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -1937,6 +1943,10 @@ sub employees_add_type {
 
   if ($attr->{COMING}) {
     $self->query_add('employees_coming_types', {%$attr});
+  }
+
+  if ($attr->{MOVING}) {
+    $self->query_add('employees_moving_types', {%$attr});
   }
 
   return $self;
@@ -2024,6 +2034,10 @@ sub employees_delete_type {
     $self->query_del('employees_coming_types', $attr);
   }
 
+  if ($attr->{MOVING}) {
+    $self->query_del('employees_moving_types', $attr);
+  }
+
   return $self;
 }
 
@@ -2058,6 +2072,13 @@ sub employees_info_type {
   if ($attr->{COMING}) {
     $self->query(
       "SELECT * FROM employees_coming_types
+       WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
+    );
+  }
+
+  if ($attr->{MOVING}) {
+    $self->query(
+      "SELECT * FROM employees_moving_types
        WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
     );
   }
@@ -2106,6 +2127,16 @@ sub employees_change_type {
     );
   }
 
+  if ($attr->{MOVING}) {
+    $self->changes(
+      {
+        CHANGE_PARAM => 'ID',
+        TABLE        => 'employees_moving_types',
+        DATA         => $attr
+      }
+    );
+  }
+
   return $self;
 }
 
@@ -2135,9 +2166,10 @@ sub employees_list_coming_type {
   my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-    [ 'ID',       'INT', 'id',       1 ],
-    [ 'NAME',     'STR', 'name',     1 ],
-    [ 'COMMENTS', 'STR', 'comments', 1 ],
+    [ 'ID',             'INT', 'id',             1 ],
+    [ 'NAME',           'STR', 'name',           1 ],
+    [ 'DEFAULT_COMING', 'INT', 'default_coming', 1 ],
+    [ 'COMMENTS',       'STR', 'comments',       1 ],
   ],
     {
       WHERE => 1,
@@ -3630,4 +3662,277 @@ sub employees_salary_bonus_del {
   return $self;
 }
 
-1
+#*******************************************************************
+
+=head2 function employees_info_moving() - get information about moving
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+  Examples:
+    my $info_moving = $Employees->employees_info_moving({ ID => 1 });
+
+=cut
+
+#*******************************************************************
+sub employees_info_moving {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query(
+    "SELECT ecm.amount,
+    ecm.date,
+    ecm.comments,
+    emt.name as moving_type_name,
+    ecm.id_spending,
+    ecm.id_coming,
+    emt.spending_type,
+    emt.coming_type,
+    ecm.moving_type_id,
+    ecm.cashbox_spending,
+    ecm.cashbox_coming,
+    (SELECT name FROM employees_cashboxes as ec WHERE ecm.cashbox_spending = ec.id) as name_spending,
+    (SELECT name FROM employees_cashboxes as ec WHERE ecm.cashbox_coming = ec.id) as name_coming
+    FROM employees_cashboxes_moving as ecm
+    LEFT JOIN employees_moving_types emt ON (ecm.moving_type_id = emt.id)
+    WHERE ecm.id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
+  );
+
+  return $self;
+}
+#*******************************************************************
+
+=head2 function employees_change_moving() - change moving
+
+  Arguments:
+    $attr
+
+  Returns:
+    $self object
+
+  Examples:
+    $Employees->employees_change_moving({
+      ID       => 1,
+      AMOUNT   => 100
+    });
+
+
+=cut
+
+#*******************************************************************
+sub employees_change_moving {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'employees_cashboxes_moving',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
+}
+
+#*******************************************************************
+
+=head2 function employees_delete_moving() - delete moving
+
+  Arguments:
+    $attr
+
+  Returns:
+
+  Examples:
+    $Employees->employees_delete_moving( {ID => 1} );
+
+=cut
+
+#*******************************************************************
+sub employees_delete_moving {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('employees_cashboxes_moving', $attr);
+
+  return $self;
+}
+#**********************************************************
+
+=head2 employees_add_moving() - add moving
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+    $Employees->employees_add_moving({%FORM});
+=cut
+
+#**********************************************************
+sub employees_add_moving {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('employees_cashboxes_moving', {%$attr});
+
+  return $self;
+}
+#*******************************************************************
+
+=head2 employees_list_moving_type() - get list moving types
+
+  Arguments:
+    $attr
+
+  Returns:
+    @list
+
+  Examples:
+    my @list = $Employees->employees_list_moving_type({ COLS_NAME => 1});
+
+=cut
+
+#*******************************************************************
+sub employees_list_moving_type {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',            'INT', 'id',            1 ],
+    [ 'NAME',          'STR', 'name',          1 ],
+    [ 'COMMENTS',      'STR', 'comments',      1 ],
+  ],
+    { WHERE => 1, });
+
+  $self->query(
+    "SELECT
+    emt.id,
+    emt.name AS  name,
+    emt.comments,
+    est.name AS spending_name,
+    est.id AS spending_id,
+    ect.id AS coming_id,
+    ect.name AS coming_name
+    FROM employees_moving_types as emt
+    LEFT JOIN employees_spending_types as est ON (emt.spending_type = est.id)
+    LEFT JOIN employees_coming_types as ect ON (emt.coming_type = ect.id)
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query(
+    "SELECT count(*) AS total
+   FROM employees_moving_types",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#*******************************************************************
+
+=head2 function employees_list_moving() - get list of all moving
+
+  Arguments:
+    $attr
+
+  Returns:
+    @list
+
+  Examples:
+    my @list = $Employees->employees_list_moving({ COLS_NAME => 1});
+
+=cut
+
+#*******************************************************************
+sub employees_list_moving {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @WHERE_RULES = ();
+  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'AMOUNT',           'DOUBLE', 'cs.amount',                    1 ],
+      [ 'MOVING_TYPE_NAME', 'STR',    'emt.name as moving_type_name', 1 ],
+      [ 'NAME_SPENDING',    'STR',    'cc.name as cashbox_spending',  1 ],
+      [ 'NAME_COMING',      'STR',    'cc.name as cashbox_coming',    1 ],
+      [ 'DATE',             'STR',    'cs.date',                      1 ],
+      [ 'ADMIN',            'STR',    'a.name as admin',              1 ],
+      [ 'COMMENTS',         'STR',    'cac.comments',                 1 ],
+    ],
+    {
+      WHERE       => 1,
+      USE_USER_PI => 1,
+    }
+  );
+  $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
+
+  $self->query(
+    "SELECT
+    ecm.id,
+    ecm.amount,
+    (SELECT name FROM employees_cashboxes as ec WHERE ecm.cashbox_spending = ec.id) as name_spending,
+    (SELECT name FROM employees_cashboxes as ec WHERE ecm.cashbox_coming = ec.id) as name_coming,
+    ecm.date,
+    emt.name as moving_type_name,
+    a.name as admin,
+    ecm.comments
+    FROM  employees_cashboxes_moving as ecm
+    LEFT JOIN admins a ON (a.aid = ecm.aid)
+    LEFT JOIN employees_moving_types emt ON (ecm.moving_type_id = emt.id)
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query(
+    "SELECT count(*) AS total
+   FROM employees_cashboxes_moving",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+#**********************************************************
+=head2 coming_default_type($attr)
+
+=cut
+#**********************************************************
+sub coming_default_type {
+  my $self = shift;
+
+  $self->query("UPDATE employees_coming_types SET default_coming = 0;");
+
+  return $self;
+}
+
+1;

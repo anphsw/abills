@@ -84,3 +84,9 @@ div > .equipment-panel {
     float: left;
     margin: 0 3px;
 }
+
+@media (min-width: 992px) {
+    .modal-lg {
+        width: 910px;
+    }
+}

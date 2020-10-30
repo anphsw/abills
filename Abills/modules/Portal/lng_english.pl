@@ -1,3 +1,6 @@
+$lang{PORTAL} = 'Portal';
+$lang{MENU_PORTAL} = 'Portal menu';
+$lang{PORTAL_ARTICLES} = 'Portal articles';
 $lang{ADD_MENU} = 'Add menu';
 $lang{CHANGE_MENU} = 'Change menu';
 $lang{DESCRIPTION} = 'Description';

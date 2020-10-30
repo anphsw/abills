@@ -7,12 +7,13 @@
 use strict;
 use warnings FATAL => 'all';
 
-our ($db, $admin, %conf, $html, %lang, @WEEKDAYS, @state_colors, @MONTHES, $SELF_URL);
+our ($db, $admin, %conf, %lang, @WEEKDAYS, @state_colors, @MONTHES, $SELF_URL);
+our Abills::HTML $html;
 
 use Notepad;
 use Abills::Defs;
 use Time::Local;
-use Abills::Base qw/_bp next_month date_inc days_in_month in_array date_diff/;
+use Abills::Base qw/next_month date_inc days_in_month in_array date_diff/;
 use Abills::Experimental;
 use JSON qw/encode_json decode_json/;
 
@@ -124,11 +125,14 @@ sub notepad_main {
       }
     );
 
-    $TEMPLATE_NOTE{DATETIMEPICKER} = $html->form_datetimepicker(
+    $TEMPLATE_NOTE{DATETIMEPICKER} = $html->form_datepicker(
       'SHOW_AT',
-      $TEMPLATE_NOTE{SHOW_AT} || (($DATE || '') . ' ' . ($TIME || '')),
+      $TEMPLATE_NOTE{SHOW_AT} || ($DATE || ''),
       { ICON => 1 }
     );
+
+    $TEMPLATE_NOTE{START_STAT} = $html->form_timepicker('START_STAT', $TEMPLATE_NOTE{START_STAT});
+    $TEMPLATE_NOTE{END_STAT} = $html->form_timepicker('END_STAT', $TEMPLATE_NOTE{END_STAT});
 
     $TEMPLATE_NOTE{PERIODIC} = notepad_periodic_rule({ OUTPUT2RETURN => 1, RULE_ID => $Notepad->{NEW_RULE_ID} });
 
@@ -188,7 +192,7 @@ sub notepad_admin_notes_list_view {
   result_former({
     INPUT_DATA      => $Notepad,
     FUNCTION        => 'notes_list',
-    DEFAULT_FIELDS  => 'ID,SUBJECT,STATUS,SHOW_AT,PERIODIC_RULE_ID,CREATED',
+    DEFAULT_FIELDS  => 'ID,SUBJECT,STATUS,SHOW_AT,START_STAT,END_STAT,PERIODIC_RULE_ID,CREATED',
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     EXT_FIELDS      => 0,
@@ -196,6 +200,8 @@ sub notepad_admin_notes_list_view {
     EXT_TITLES      => {
       id               => '#',
       show_at          => $lang{NEXT_SHOW},
+      start_stat       => $lang{START_STAT},
+      end_stat         => $lang{END_STAT},
       created          => $lang{CREATED},
       status           => $lang{STATUS},
       subject          => $lang{SUBJECT},
@@ -255,6 +261,8 @@ sub notepad_manager_notes_list_view {
     EXT_TITLES      => {
       id               => '#',
       show_at          => $lang{NEXT_SHOW},
+      start_stat       => $lang{START_STAT},
+      end_stat         => $lang{END_STAT},
       created          => $lang{CREATED},
       status           => $lang{STATUS},
       subject          => $lang{SUBJECT},
@@ -560,7 +568,7 @@ sub notepad_calendar {
 }
 
 #**********************************************************
-=head2 notepad_calendar_reminders()
+=head2 notepad_calendar_reminders($attr)
 
 =cut
 #**********************************************************
@@ -576,8 +584,8 @@ sub notepad_calendar_reminders {
     STATUS      => '_SHOW',
     NEW         => '_SHOW',
     IS_PERIODIC => '0',
-    SHOW_AT     => ($FORM{start} && $FORM{end})
-      ? $FORM{start} . '/' . $FORM{end}
+    SHOW_AT     => ($FORM{start_stat} && $FORM{end_stat})
+      ? $FORM{start_stat} . '/' . $FORM{end_stat}
       : '_SHOW',
     COLS_UPPER  => 0
   });
@@ -587,6 +595,8 @@ sub notepad_calendar_reminders {
     AID              => $admin->{AID},
     PERIODIC_RULE_ID => '>0',
     SHOW_AT          => '_SHOW',
+    START_STAT       => '_SHOW',
+    END_STAT         => '_SHOW',
     STATUS           => '_SHOW',
     NEW              => '_SHOW',
     COLS_UPPER       => 0
@@ -599,10 +609,10 @@ sub notepad_calendar_reminders {
       my $rules = $Notepad->periodic_rules_info($reminder->{id}, { COLS_UPPER => 0 });
       _error_show($Notepad);
 
-
       # Should decrement to show first day
       my $calculate_from_date = _notepad_date_decr(1, $FORM{start}) . " 00:00:00";
       my $next_show = $reminder->{show_at};
+
       do {
         $next_show = calculate_next_periodic_time($next_show, $rules, $calculate_from_date);
         $calculate_from_date = $next_show;
@@ -787,6 +797,8 @@ sub notepad_notes_sp {
     SUBJECT   => '_SHOW',
     TEXT      => '_SHOW',
     SHOW_AT   => '_SHOW',
+    START_STAT=> '_SHOW',
+    END_STAT  => '_SHOW',
     STATUS    => '0',
     PAGE_ROWS => 7,
     COLS_NAME => 1,

@@ -173,5 +173,8 @@ $lang{SPENT_TIME}='Потрачений час';
 $lang{TICKET_SUM}='Сума заявок';
 $lang{PAID_AMOUT}='Виплаченна сума';
 $lang{NOT_TURNED_ON}='Модуль не включений';
+$lang{HELPDESK}='Стіл довідок';
+
+$lang{SCRUB_BOX} = 'Бокс повідомлень';
 
 1

@@ -186,134 +186,20 @@ sub maps2_builds_show {
   my $object_info = $attr->{DATA};
   my $to_screen = $attr->{TO_SCREEN} || 0;
   my $count_object = 0;
-  
-  # ===== OLD CODE (coords in builds table) =====
-  my $builds_list = $Address->build_list({
-    DISTRICT_ID        => $FORM{DISTRICT_ID} || '>0',
-    DISTRICT_NAME      => '_SHOW',
-    %LIST_PARAMS,
-    NUMBER             => '_SHOW',
-    PUBLIC_COMMENTS    => '_SHOW',
-    PLANNED_TO_CONNECT => '_SHOW',
-    STREET_NAME        => '_SHOW',
-    COORDX             => '!',
-    COORDY             => '!',
-    ZOOM               => '_SHOW',
-    COLS_NAME          => 1,
-    PAGE_ROWS          => 10000,
-    LOCATION_ID        => $FORM{LAST_OBJECT_ID} ? "> $FORM{LAST_OBJECT_ID}" :
-      $attr->{ID} || $FORM{OBJECT_ID} || $attr->{LOCATION_ID} || '_SHOW'
-  });
-
-  $count_object += $Address->{TOTAL} if $Address->{TOTAL};
-
-  my $count_array = _maps2_points_count($builds_list, $object_info);
-
   my @export_hash_arr = ();
-  foreach my $build (@{$builds_list}) {
-    last if ($attr->{ONLY_COUNT});
 
-    next if $attr->{BUILD_IDS} && !in_array($build->{id}, $attr->{BUILD_IDS});
+  _maps2_get_old_builds($attr, \$count_object, \@export_hash_arr, $object_info, $to_screen);
 
-    my $info_hash = {};
-    my $point_count = 0;
-
-    $info_hash = maps2_load_info({ LOCATION_ID => $build->{id}, TO_SCREEN => $to_screen });
-    $point_count = $info_hash->{COUNT} || (($count_array && ref $count_array eq 'ARRAY') ? scalar @{$count_array} : 0);
-
-    next if ($FORM{GROUP_ID} && !$info_hash->{HTML});
-
-    my $color = $info_hash->{COLOR} || _maps2_point_color($point_count, $count_array);
-    my $address_full = ($build->{district_name} || '') . ' ,' . ($build->{street_name} || '') . ' ,' . ($build->{number} || '');
-
-    my $info_table = $info_hash->{HTML} || q{};
-
-    # REVERSE COORDS
-    my %regex = (
-      ID        => $build->{location_id},
-      OBJECT_ID => $build->{location_id},
-      MARKER    => {
-        ID        => $build->{location_id},
-        OBJECT_ID => $build->{id},
-        NAME      => $address_full,
-        COORDX    => $build->{coordy},
-        COORDY    => $build->{coordx},
-        TYPE      => "build_$color",
-        INFO      => $info_table,
-        COUNT     => $point_count,
-        LAYER_ID  => LAYER_ID_BY_NAME->{BUILD},
-      },
-      ADDRESS   => $address_full,
-      LAYER_ID  => @{[ LAYER_ID_BY_NAME->{BUILD} ]}
-    );
-
-    push @export_hash_arr, \%regex;
-  }
-  # ===== END OF OLD CODE =====
-
-  # ===== NEW CODE (coords in maps_points) =====
-  my $coords_list = $Maps->points_list({
-    COORDX       => '!',
-    COORDY       => '!',
-    TYPE_ID      => 3,
-    LOCATION_ID  => $FORM{LAST_OBJECT_ID} ? "> $FORM{LAST_OBJECT_ID}" : '_SHOW',
-    ADDRESS_FULL => '_SHOW',
-    ID           => '_SHOW',
-  });
-
-  $count_object += $Maps->{TOTAL} if $Maps->{TOTAL};
-
-  $count_array = _maps2_points_count($coords_list, $object_info);
-
-  foreach my $build (@{$coords_list}) {
-
-    last if ($attr->{ONLY_COUNT});
-    next if (!$build->{location_id});
-
-    my $info_hash = {};
-    my $point_count = 0;
-
-    if (!$attr->{CLIENT_MAP}) {
-      $info_hash = maps2_load_info({ LOCATION_ID => $build->{location_id} });
-      $point_count = $info_hash->{COUNT} || (($count_array && ref $count_array eq 'ARRAY') ? scalar @{$count_array} : 0);
-    }
-
-    next if ($FORM{GROUP_ID} && !$info_hash->{HTML});
-
-    my $color = $info_hash->{COLOR} || _maps2_point_color($point_count, $count_array);
-    my $address_full = $build->{address_full} || q{};
-
-    my $info_table = $info_hash->{HTML} || q{};
-
-    my %regex = (
-      ID        => $build->{location_id},
-      OBJECT_ID => $build->{location_id},
-      MARKER    => {
-        ID        => $build->{location_id},
-        OBJECT_ID => $build->{id},
-        NAME      => $address_full,
-        COORDX    => $build->{coordx},
-        COORDY    => $build->{coordy},
-        TYPE      => "build_$color",
-        INFO      => $info_table,
-        LAYER_ID  => LAYER_ID_BY_NAME->{BUILD},
-        COUNT     => $point_count
-      },
-      ADDRESS   => $address_full,
-      LAYER_ID  => @{[ LAYER_ID_BY_NAME->{BUILD} ]}
-    );
-
-    push @export_hash_arr, \%regex;
-  }
+  _maps2_get_new_builds($attr, \$count_object, \@export_hash_arr, $object_info);
 
   return $count_object if ($attr->{ONLY_COUNT});
   return \@export_hash_arr if $attr->{RETURN_HASH};
 
-  if ($export) {
-    my $export_string = JSON::to_json(\@export_hash_arr, { utf8 => 0 });
-    print $export_string;
-    return $export_string;
-  }
+  return '' if !$export;
+
+  my $export_string = JSON::to_json(\@export_hash_arr, { utf8 => 0 });
+  print $export_string;
+  return $export_string;
 }
 
 #**********************************************************
@@ -359,7 +245,7 @@ sub maps2_builds2_show {
     my $info_hash = {};
     my $point_count = 0;
 
-    $info_hash = maps2_load_info({ LOCATION_ID => $build->{location_id}, TO_SCREEN => $to_screen });
+    $info_hash = maps2_load_info({ LOCATION_ID => $build->{location_id}, TO_SCREEN => $to_screen }) if !$attr->{CLIENT_MAP};
     $point_count = $info_hash->{COUNT} || 0;
 
     my $color = $info_hash->{COLOR} || _maps2_point_color($point_count);
@@ -429,7 +315,8 @@ sub maps2_districts_show {
   my ($attr) = @_;
 
   my $districts_list = $Maps->districts_list({
-    OBJECT_ID   => $FORM{LAST_OBJECT_ID} ? "> $FORM{LAST_OBJECT_ID}" : $FORM{ID} || '_SHOW',
+    OBJECT_ID   => $FORM{LAST_OBJECT_ID} ? "> $FORM{LAST_OBJECT_ID}" : $FORM{ID} ?
+      $FORM{ID} : $FORM{OBJECT_ID} ? $FORM{OBJECT_ID} : '_SHOW',
     DISTRICT_ID => $FORM{DISTRICT_ID} || '_SHOW',
     DISTRICT    => '_SHOW',
     LIST2HASH   => 'object_id,district_id'
@@ -534,7 +421,35 @@ sub maps2_districts_main {
   return 1 if ($FORM{MESSAGE_ONLY});
 
   if ($show_add_form) {
-    $TEMPLATE_ARGS{DISTRICT_ID_SELECT} = sel_districts({ DISTRICT_ID => $TEMPLATE_ARGS{DISTRICT_ID} });
+    my $districts = $Address->district_list({ PAGE_ROWS => 1000, COLS_NAME => 1 });
+    my $used_districts_list = $Maps->districts_list({
+      OBJECT_ID   => $FORM{LAST_OBJECT_ID} ? "> $FORM{LAST_OBJECT_ID}" : $FORM{ID} || '_SHOW',
+      DISTRICT_ID => $FORM{DISTRICT_ID} || '_SHOW',
+      DISTRICT    => '_SHOW',
+      LIST2HASH   => 'object_id,district_id'
+    });
+    my @used_districts_ids = ();
+    
+    foreach (@{$used_districts_list}) {
+      my $t = $Maps->polygons_list({ OBJECT_ID => $_->{object_id} });
+      next if !$Maps->{TOTAL};
+
+      push(@used_districts_ids, $_->{district_id});
+    }
+
+    my $not_used_districts_list = ();
+
+    foreach (@{$districts}) {
+      next if in_array($_->{id}, \@used_districts_ids);
+      push @{$not_used_districts_list}, $_;
+    }
+
+    $TEMPLATE_ARGS{DISTRICT_ID_SELECT} = $html->form_select("DISTRICT_ID", {
+      SELECTED    => $TEMPLATE_ARGS{DISTRICT_ID},
+      SEL_LIST    => $not_used_districts_list,
+      SEL_OPTIONS => { '' => '--' },
+      NO_ID       => 1
+    });
     $TEMPLATE_ARGS{COLOR} ||= '#ffffff';
 
     $html->tpl_show(_include('maps2_district', 'Maps2'), {
@@ -943,6 +858,152 @@ sub _maps2_get_layer_objects {
   }
 
   return \@OBJECTS;
+}
+
+#**********************************************************
+=head2 _maps2_get_old_builds($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _maps2_get_old_builds {
+  my ($attr, $count_object, $export_hash_arr, $object_info, $to_screen) = @_;
+
+  my $builds_list = $Address->build_list({
+    DISTRICT_ID        => $FORM{DISTRICT_ID} || '>0',
+    DISTRICT_NAME      => '_SHOW',
+    %LIST_PARAMS,
+    NUMBER             => '_SHOW',
+    PUBLIC_COMMENTS    => '_SHOW',
+    PLANNED_TO_CONNECT => '_SHOW',
+    STREET_NAME        => '_SHOW',
+    COORDX             => '!',
+    COORDY             => '!',
+    ZOOM               => '_SHOW',
+    COLS_NAME          => 1,
+    PG                 => '0',
+    PAGE_ROWS          => 10000,
+    LOCATION_ID        => $FORM{LAST_OBJECT_ID} ? "> $FORM{LAST_OBJECT_ID}" :
+      $attr->{ID} || $FORM{OBJECT_ID} || $attr->{LOCATION_ID} || '_SHOW'
+  });
+
+  $$count_object += $Address->{TOTAL} if $Address->{TOTAL};
+
+  my $count_array = _maps2_points_count($builds_list, $object_info);
+
+  foreach my $build (@{$builds_list}) {
+    last if ($attr->{ONLY_COUNT});
+
+    next if $attr->{BUILD_IDS} && !in_array($build->{id}, $attr->{BUILD_IDS});
+
+    my $info_hash = {};
+    my $point_count = 0;
+
+    $info_hash = maps2_load_info({ LOCATION_ID => $build->{id}, TO_SCREEN => $to_screen }) if !$attr->{CLIENT_MAP};
+    $point_count = $info_hash->{COUNT} || (($count_array && ref $count_array eq 'ARRAY') ? scalar @{$count_array} : 0);
+
+    next if ($FORM{GROUP_ID} && !$info_hash->{HTML});
+
+    my $color = $info_hash->{COLOR} || _maps2_point_color($point_count, $count_array);
+    my $address_full = ($build->{district_name} || '') . ' ,' . ($build->{street_name} || '') . ' ,' . ($build->{number} || '');
+
+    my $info_table = $info_hash->{HTML} || q{};
+
+    # REVERSE COORDS
+    my %regex = (
+      ID        => $build->{location_id},
+      OBJECT_ID => $build->{location_id},
+      MARKER    => {
+        ID        => $build->{location_id},
+        OBJECT_ID => $build->{id},
+        NAME      => $address_full,
+        COORDX    => $build->{coordy},
+        COORDY    => $build->{coordx},
+        TYPE      => "build_$color",
+        INFO      => $info_table,
+        COUNT     => $point_count,
+        LAYER_ID  => LAYER_ID_BY_NAME->{BUILD},
+      },
+      ADDRESS   => $address_full,
+      LAYER_ID  => @{[ LAYER_ID_BY_NAME->{BUILD} ]}
+    );
+
+    push @{$export_hash_arr}, \%regex;
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _maps2_get_new_builds($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _maps2_get_new_builds {
+  my ($attr, $count_object, $export_hash_arr, $object_info) = @_;
+
+  my $coords_list = $Maps->points_list({
+    COORDX       => '!',
+    COORDY       => '!',
+    TYPE_ID      => 3,
+    LOCATION_ID  => $FORM{LAST_OBJECT_ID} ? "> $FORM{LAST_OBJECT_ID}" : '_SHOW',
+    ADDRESS_FULL => '_SHOW',
+    ID           => '_SHOW',
+  });
+
+  $$count_object += $Maps->{TOTAL} if $Maps->{TOTAL};
+
+  my $count_array = _maps2_points_count($coords_list, $object_info);
+
+  foreach my $build (@{$coords_list}) {
+
+    last if ($attr->{ONLY_COUNT});
+    next if (!$build->{location_id});
+
+    my $info_hash = {};
+    my $point_count = 0;
+
+    if (!$attr->{CLIENT_MAP}) {
+      $info_hash = maps2_load_info({ LOCATION_ID => $build->{location_id} });
+      $point_count = $info_hash->{COUNT} || (($count_array && ref $count_array eq 'ARRAY') ? scalar @{$count_array} : 0);
+    }
+
+    next if ($FORM{GROUP_ID} && !$info_hash->{HTML});
+
+    my $color = $info_hash->{COLOR} || _maps2_point_color($point_count, $count_array);
+    my $address_full = $build->{address_full} || q{};
+
+    my $info_table = $info_hash->{HTML} || q{};
+
+    my %regex = (
+      ID        => $build->{location_id},
+      OBJECT_ID => $build->{location_id},
+      MARKER    => {
+        ID        => $build->{location_id},
+        OBJECT_ID => $build->{id},
+        NAME      => $address_full,
+        COORDX    => $build->{coordx},
+        COORDY    => $build->{coordy},
+        TYPE      => "build_$color",
+        INFO      => $info_table,
+        LAYER_ID  => LAYER_ID_BY_NAME->{BUILD},
+        COUNT     => $point_count
+      },
+      ADDRESS   => $address_full,
+      LAYER_ID  => @{[ LAYER_ID_BY_NAME->{BUILD} ]}
+    );
+
+    push @{$export_hash_arr}, \%regex;
+  }
+
+  return 0;
 }
 
 1;

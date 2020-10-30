@@ -187,6 +187,7 @@ sub msgs_delivery {
 
     my $user_list = $Msgs_delivery->delivery_user_list({
       %LIST_PARAMS,
+      PASSWORD  => '_SHOW',
       STATUS    => 0,
       COLS_NAME => 1
     });
@@ -212,13 +213,14 @@ sub msgs_delivery {
         $internet_info = $Internet->info($u->{uid});
       }
 
-      my $message = $html->tpl_show($Msgs_delivery->{TEXT}, { 
-          %$user_pi, 
-          %$internet_info,
-          LOGIN => $u->{login}
-      }, 
+      my $message = $html->tpl_show($Msgs_delivery->{TEXT}, {
+        %$user_pi,
+        %$internet_info,
+        USER_LOGIN => $u->{login},
+        PASSWORD   => $u->{password}
+      },
       {
-          OUTPUT2RETURN      => 1, 
+          OUTPUT2RETURN      => 1,
           SKIP_DEBUG_MARKERS => 1
       });
 

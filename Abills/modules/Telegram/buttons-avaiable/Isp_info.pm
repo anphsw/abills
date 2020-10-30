@@ -30,7 +30,9 @@ sub new {
 =cut
 #**********************************************************
 sub btn_name {
-  return "О компании";
+  my $self = shift;
+  
+  return $self->{bot}->{lang}->{ABOUT};
 }
 
 #**********************************************************
@@ -46,10 +48,10 @@ sub click {
   my $Conf = Conf->new($self->{db}, $self->{admin}, $self->{conf});
 
   my $message = "";
-  $message .= "Название компании: $Conf->{conf}->{ORGANIZATION_NAME}\n" if ($Conf->{conf}->{ORGANIZATION_NAME});
-  $message .= "Адресс: $Conf->{conf}->{ORGANIZATION_ADDRESS}\n" if ($Conf->{conf}->{ORGANIZATION_ADDRESS});
-  $message .= "Телефон: $Conf->{conf}->{ORGANIZATION_PHONE}\n" if ($Conf->{conf}->{ORGANIZATION_PHONE});
-  $message .= "Электронная почта: $Conf->{conf}->{ORGANIZATION_MAIL}\n" if ($Conf->{conf}->{ORGANIZATION_MAIL});
+  $message .= "$self->{bot}->{lang}->{COMPANY_NAME}: $Conf->{conf}->{ORGANIZATION_NAME}\n" if ($Conf->{conf}->{ORGANIZATION_NAME});
+  $message .= "$self->{bot}->{lang}->{ADDRESS}: $Conf->{conf}->{ORGANIZATION_ADDRESS}\n" if ($Conf->{conf}->{ORGANIZATION_ADDRESS});
+  $message .= "$self->{bot}->{lang}->{PHONE}: $Conf->{conf}->{ORGANIZATION_PHONE}\n" if ($Conf->{conf}->{ORGANIZATION_PHONE});
+  $message .= "$self->{bot}->{lang}->{EMAIL}: $Conf->{conf}->{ORGANIZATION_MAIL}\n" if ($Conf->{conf}->{ORGANIZATION_MAIL});
 
   $self->{bot}->send_message({
     text         => $message,

@@ -112,7 +112,7 @@
 
                             <div class='col-md-9'>
                                 <input id='NAS_MNG_PASSWORD' name='NAS_MNG_PASSWORD' class='form-control'
-                                       type='password'>
+                                       type='password' autocomplete='new-password'>
                             </div>
                         </div>
                     </div>

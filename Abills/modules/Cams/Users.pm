@@ -690,8 +690,8 @@ sub cams_account_action {
   elsif ($attr->{chg_cam}) {
     if ($Cams_service && $Cams_service->can('camera_info')) {
       $users->pi({ UID => $uid });
-      $Cams->stream_info($attr->{chg_cam});
-      $Cams_service->camera_info({ %$attr, %$users, %{$Cams} });
+      my $camera_info = $Cams->stream_info($attr->{chg_cam});
+      $Cams_service->camera_info({ %{$attr}, %{$users}, %{$Cams}, %{$camera_info} });
       if ($Cams_service->{errno}) {
         $Cams->{errno} = $Cams_service->{errno};
         $Cams->{errstr} = $Cams_service->{errstr};

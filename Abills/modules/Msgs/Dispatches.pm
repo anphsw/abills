@@ -89,6 +89,7 @@ sub msgs_dispatches {
     ex_params      => qq/onclick=modal_view(0,$chg_function)/
   });
 
+  require Control::Reports;
   reports({
     NO_GROUP         => 1,
     NO_TAGS          => 1,
@@ -360,6 +361,7 @@ sub msgs_dispatch {
   require Contacts;
   Contacts->import();
   my $Contacts = Contacts->new($db, $admin, \%conf);
+
   my $disabled_actual_time = 'disabled';
   my $dispatch_admins = q{};
 
@@ -416,6 +418,25 @@ sub msgs_dispatch {
       SORT           => 'm.plan_time',
     });
 
+    my @message_ids;
+
+    foreach my $message (@$list) {
+      push @message_ids, $message->{id};
+    }
+
+    my $reply_list = $Msgs->messages_reply_list({
+      MSGS_IDS   => join(',', @message_ids),
+      MSG_ID     => '_SHOW',
+      INNER_MSG  => 1,
+      COLS_NAME  => 1,
+    });
+    
+    my %work_messages;
+    foreach my $msgs_order (@{ $reply_list }) {
+      $work_messages{ $msgs_order->{main_msg} } = $msgs_order->{text} 
+        unless ($msgs_order->{text} =~ /$lang{DELIGATE}/);
+    }
+
     $Msgs->{PLAN_DATE_LIT} = '';
     if (in_array('Docs', \@MODULES)) {
       ($Msgs->{Y}, $Msgs->{M}, $Msgs->{D}) = split(/-/, ($Msgs->{PLAN_DATE}) || '');
@@ -465,7 +486,7 @@ sub msgs_dispatch {
       $ORDERS{ 'ORDER_PERSONAL_INFO_PASSWORD_' . $i } = $line->{password};
       $ORDERS{ 'ORDER_PERSONAL_INFO_FIO_' . $i } = $line->{fio};
       $ORDERS{ 'ORDER_PERSONAL_INFO_ADDRESS_' . $i } = $address_full;
-      $ORDERS{ 'ORDER_JOB_' . $i } = $line->{message};
+      $ORDERS{ 'ORDER_JOB_' . $i } = $work_messages{ $line->{id} } || $line->{message};
       $ORDERS{ 'ORDER_SUBJECT_' . $i } = $line->{subject};
       $ORDERS{ 'ORDER_CHAPTER_' . $i } = $line->{chapter_name};
       $ORDERS{ 'ORDER_DATE_' . $i } = $line->{date};

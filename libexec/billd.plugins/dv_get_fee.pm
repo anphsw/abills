@@ -16,7 +16,7 @@ our (
   $Admin,
   %conf,
   %lang,
-  $Dv,
+  $Internet,
   $debug,
   %LIST_PARAMS,
   $argv
@@ -42,11 +42,11 @@ sub dv_get_fee {
   if($debug > 1) {
     print "dv_get_fee\n";
     if($debug > 6) {
-      $Dv->{debug}=1;
+      $Internet->{debug}=1;
     }
   }
 
-  my $dv_list = $Dv->list({
+  my $dv_list = $Internet->list({
     LOGIN     => '_SHOW',
     DEPOSIT   => '_SHOW',
     CREDIT    => '_SHOW',
@@ -68,14 +68,14 @@ sub dv_get_fee {
     my $credit = ($u->{tp_credit} > 0 ) ? $u->{tp_credit} : $u->{credit};
 
     if($u->{deposit} + $credit > $u->{month_fee}) {
-      $Dv->change(
+      $Internet->change(
         {
           UID    => $uid,
           STATUS => 0
         }
       );
       $user = undef;
-      service_get_month_fee($Dv, {
+      service_get_month_fee($Internet, {
         QUITE    => 1,
         #SHEDULER => 1,
         DATE     => $DATE,

@@ -199,20 +199,11 @@ sub msgs_user_show {
         }
 
         $FORM{ID} //= q{};
+
         my $quoting_button = $html->button(
-          $lang{QUOTING}, "index=$index&QUOTING=$line->{id}&ID=$FORM{ID}&sid=". ($sid || q{}), { BUTTON => 1 }
+          $lang{QUOTING}, "",
+          { class => 'btn btn-default btn-xs quoting-reply-btn', ex_params => "quoting_id='$line->{id}'" }
         );
-        my $edit_reply_button = '';
-        if ($line->{creator_id} && $line->{creator_id} eq $user->{LOGIN}) {
-          my $n = gmtime() + 3600 * 3;
-          my $d = Time::Piece->strptime($line->{datetime}, "%Y-%m-%d %H:%M:%S");
-          if (($n-$d)/60 < 5) {
-            $edit_reply_button = $html->button(
-              "$lang{EDIT}", "",
-              { class => 'btn btn-default btn-xs reply-edit-btn', ex_params => "reply_id='$line->{id}'"}
-            );
-          }
-        }
 
         push @REPLIES, $html->tpl_show(
           _include('msgs_reply_show', 'Msgs'),
@@ -225,7 +216,6 @@ sub msgs_user_show {
             MESSAGE    => msgs_text_quoting($line->{text}),
             COLOR      => (($line->{aid} > 0) ? 'box-success' : 'box-theme'),
             QUOTING    => $quoting_button,
-            EDIT       => $edit_reply_button,
             ATTACHMENT => $attachment_html,
           },
           { OUTPUT2RETURN => 1,
@@ -243,9 +233,6 @@ sub msgs_user_show {
     if (!$Msgs->{ACTIVE_SURWEY} && ($Msgs->{STATE} < 1 || $Msgs->{STATE} == 6)) {
       push @REPLIES, $html->tpl_show(_include('msgs_client_reply', 'Msgs'), { %$Msgs, REPLY_TEXT => $reply },
         { OUTPUT2RETURN => 1, ID => 'REPLY' });
-    }
-    else {
-      #$html->message('info',  $lang{INFO},  "$msg_status[$Msgs->{STATE}] $lang{DATE}: $Msgs->{CLOSED_DATE}");
     }
 
     $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
@@ -343,7 +330,6 @@ sub msgs_user {
     'STATE',
     {
       SELECTED   => $FORM{STATE} || 0,
-      #SEL_HASH   => { %{$msgs_status}{(0,1,2)} },
       SEL_HASH   => {
         0 => $msgs_status->{0},
         1 => $msgs_status->{1},
@@ -383,6 +369,15 @@ sub msgs_user {
 
         exit 0;
       }
+    }
+
+    my $chapters_list = $Msgs->chapters_list({
+      CHAPTER   => $FORM{CHAPTER},
+      COLS_NAME => 1
+    });
+    
+    if ($chapters_list && $chapters_list->[0] && $chapters_list->[0]{responsible}) {
+      $FORM{RESPOSIBLE} = $chapters_list->[0]{responsible};
     }
 
     $Msgs->message_add(
@@ -442,7 +437,6 @@ sub msgs_user {
   }
   elsif ($FORM{ID} || $Msgs->{LAST_ID}) {
     msgs_user_show({ MSGS_STATUS => $msgs_status });
-    #return  0;
   }
   elsif(!$FORM{SEARCH_MSG_TEXT}) {
     $Msgs->{CHAPTER_SEL} = $html->form_select(
@@ -579,7 +573,6 @@ sub msgs_user {
   print $table->show();
 
   $Msgs->{TOTAL_MSG} = $Msgs->{TOTAL};
-  #my %SHOW_PARAMS = (ADMIN_READ => '0000-00-00 00:00:00',);
 
   $table = $html->table(
     {
@@ -587,10 +580,7 @@ sub msgs_user {
       rows  => [
         [
           "$lang{TOTAL}:  " . $html->b($Msgs->{TOTAL_MSG}),
-          #$html->color_mark( "$lang{IN_WORK}:  " . $html->b( $Msgs->{IN_WORK} ), $msgs_status_colors[3] ),
           "$lang{OPEN}: " . $html->b($Msgs->{OPEN}),
-          #$html->color_mark( "$lang{CLOSED_UNSUCCESSFUL}:  " . $html->b( $Msgs->{UNMAKED} ), $msgs_status_colors[1] ),
-          #$html->color_mark( "$lang{CLOSED_SUCCESSFUL}:  " . $html->b( $Msgs->{CLOSED} ), $msgs_status_colors[2] ),
         ]
       ],
       ID    => 'MSGS_LIST_TOTAL'

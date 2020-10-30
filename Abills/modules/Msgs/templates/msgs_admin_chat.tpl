@@ -158,12 +158,15 @@
 <script>
   var stop_scroll = 0;
   var mytimeout;
+
   jQuery("#fixed-form-container .panel").hide();
   jQuery("#fixed-form-container #open").click(function () {
     jQuery(this).next("#fixed-form-container div").slideToggle(400);
     jQuery(this).toggleClass("expanded");
     jQuery("#open").removeClass('b_green');
     jQuery("#Chat_count").hide();
+    jQuery('#fixed-form-container').css('bottom', '0px');
+    
     change_read();
   });
   update();
@@ -200,8 +203,27 @@
       if (count > 0 && !jQuery('#fixed-form-container div').hasClass('expanded')) {
         jQuery("#open").addClass('b_green');
         jQuery("#Chat_count").show();
+
+        drawJump()
       }
     });
+  }
+
+  function drawJump() {
+    start = Date.now();
+
+    timer = setInterval(function() {
+      let timePassed = Date.now() - start;
+      
+      if (timePassed >= 1000) {
+        clearInterval(timer);
+        
+        return;
+      }
+
+      draw(timePassed, 20);
+
+    }, 20);
   }
 
   jQuery("#chat_message").keypress(function (event) {
@@ -213,5 +235,9 @@
 
   function change_read() {
     jQuery.post('$SELF_URL', 'header=2&qindex=%F_INDEX%&MSG_ID=%NUM_TICKET%&CHANGE=1');
+  }
+
+  function draw(timePassed, px) {
+    jQuery('#fixed-form-container').css('bottom', timePassed / px + 'px');
   }
 </script>

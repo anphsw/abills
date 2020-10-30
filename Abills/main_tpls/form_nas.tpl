@@ -27,6 +27,7 @@
         <input type=hidden name='index' value='62'>
         <input type=hidden name='NAS_ID' value='%NAS_ID%'>
         <input type=hidden name='NAS_RAD_PAIRS' id="NAS_RAD_PAIRS" value='%NAS_RAD_PAIRS%'>
+        <input type=hidden name='PAIR_IGN' id="PAIR_IGN" value='%IGNORE_PAIR%'>
 
         <div class='row'>
 
@@ -149,8 +150,9 @@
                                 Secret,SNMP)</label>
 
                             <div class='col-md-9'>
-                                <input id='NAS_MNG_PASSWORD' name='NAS_MNG_PASSWORD' class='form-control'
+                                <input id='NAS_MNG_PASSWORD' name='NAS_MNG_PASSWORD' class='form-control' autocomplete='new-password'
                                        type='password'>
+                                <div class="hidden"></div>
                             </div>
                         </div>
                         <div class='form-group'>
@@ -249,6 +251,9 @@
                                             <th class='text-center col-md-1'>
                                                 #
                                             </th>
+                                            <th class='text-center col-md-1'>
+                                                _{EMPTY_FIELD}_
+                                            </th>
                                             <th class='text-center col-md-3'>
                                                 _{LEFT_PART}_
                                             </th>
@@ -266,6 +271,13 @@
                                             <td class="ids">
                                                 <input type='hidden' name='IDS' value='1'>
                                                 1
+                                            </td>
+                                            <td class="ignore_pair">
+                                                <span class="ignone_pair_parent" data-tooltip="_{EMPTY_FIELD}_" data-content="_{EMPTY_FIELD}_" 
+                                                      data-html="true" data-toggle="popover" data-trigger="hover" data-placement="right auto" data-container="body">
+                                                    <i class="fa fa-exclamation"></i>
+                                                    <input type="checkbox" id="IGNORE_PAIR" name="IGNORE_PAIR" value="1">
+                                                </span>
                                             </td>
                                             <td class="left_p">
                                                 <input type='text' name='LEFT_PART' id='LEFT_PART' value='%LEFT_PART%'
@@ -336,8 +348,8 @@
 
         if (date) {
             while (element < answDate.length) {
-                if (/([0-9a-zA-Z\-!]+)([-+=]{1,2})([:\-#= 0-9a-zA-Zа-яА-Я.]+)/.test(answDate[element])) {
-                    let dateRegex = answDate[element].match(/([0-9a-zA-Z\-!]+)([-+=]{1,2})([:\-#= 0-9a-zA-Zа-яА-Я.]+)/);
+                if (/([0-9a-zA-Z\-!:]+)([-+=]{1,2})([:\-\;\(\,\)\\'\\’\"\#= 0-9a-zA-Zа-яА-Я.]+)/.test(answDate[element])) {
+                    let dateRegex = answDate[element].match(/([0-9a-zA-Z\-!:]+)([-+=]{1,2})([:\-\;\(\,\)\\'\\’\"\#= 0-9a-zA-Zа-яА-Я.]+)/);
                     if (element < answDate.length) {
                         jQuery('#addr1').clone(true)
                             .attr('id', 'addr' + iter)
@@ -348,7 +360,32 @@
 
                         jQuery('#addr' + (iter - 1)).children('.left_p').children("#LEFT_PART").val(dateRegex[1]);
                         jQuery('#addr' + (iter - 1)).children('.cnd').children("#CONDITION").val(dateRegex[2]);
-                        jQuery('#addr' + (iter - 1)).children('.right_p').children("#RIGHT_PART").val(dateRegex[3]);
+                        
+                        if (/ \n/.test(answDate[1])) {
+                            answDate[1] = answDate[1].replace(' \n', ',');
+                            var newRightData = dateRegex[3] + answDate[1];
+                            
+                            jQuery('#addr' + (iter - 1)).children('.right_p').children("#RIGHT_PART").val(newRightData);
+                        } else {
+                            jQuery('#addr' + (iter - 1)).children('.right_p').children("#RIGHT_PART").val(dateRegex[3]);
+                        }
+
+                        jQuery('#addr' + (iter - 1))
+                                .children('.ignore_pair')
+                                .children('.ignone_pair_parent')
+                                .children('#IGNORE_PAIR')
+                                .val(iter - 1);
+                        
+                        var checkboxCheck = false;
+                        if (/!/.test(answDate[element])) {
+                            checkboxCheck = true;
+                        }
+
+                        jQuery('#addr' + (iter - 1))
+                            .children('.ignore_pair')
+                            .children('.ignone_pair_parent')
+                            .children('#IGNORE_PAIR')
+                            .attr('checked', checkboxCheck);
 
                         iter++;
                     }
@@ -376,6 +413,9 @@
             jQuery('#addr' + iter).children('.cnd').children("#CONDITION").val("");
             jQuery('#addr' + iter).children('.right_p').children("#RIGHT_PART").val("");
 
+            jQuery('#addr' + (iter)).children('.ignore_pair').children('.ignone_pair_parent').children('#IGNORE_PAIR').val(iter);
+            jQuery('#addr' + (iter)).children('.ignore_pair').children('.ignone_pair_parent').children('#IGNORE_PAIR').attr('checked', false);
+
             iter++;
 
             if (iter > 2) {
@@ -392,6 +432,8 @@
                 jQuery('#addr' + (iter-1)).children('.left_p').children("#LEFT_PART").val("");
                 jQuery('#addr' + (iter-1)).children('.cnd').children("#CONDITION").val("");
                 jQuery('#addr' + (iter-1)).children('.right_p').children("#RIGHT_PART").val("");
+
+                jQuery('#addr' + (iter-1)).children('.ignore_pair').children('.ignone_pair_parent').children('#IGNORE_PAIR').val("");
             }
         });
     })

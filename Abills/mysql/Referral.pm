@@ -50,7 +50,7 @@ sub new{
   $self->{admin} = $admin;
   $self->{conf} = $CONF;
 
-  $conf = Conf->new( $self->{db}, $self->{admin}, $self->{conf} );
+  $conf = Conf->new( $self->{db}, $self->{admin}, $self->{conf}, { SKIP_CONF => 1 } );
 
   return $self;
 }

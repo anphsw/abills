@@ -431,7 +431,7 @@ sub telnet_open {
   my $password = $argv->{NAS_MNG_PASSWORD} || q{};
 
   $Telnet = Net::Telnet->new(
-    Timeout => 15,
+    Timeout => $conf{HUAWEI_TELNET_TIMEOUT} || 20,
     Errmode => 'return',
     #    Input_log =>"/tmp/input.log",
     #    Dump_log  => "/tmp/dump.log",

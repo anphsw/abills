@@ -176,7 +176,7 @@
         </div>
 
         <div class='col-md-6' id='PASSWORD_WRAPPER' %HIDE_PASSWORD%>
-          <label class='control-label col-md-4'>_{PASSWD}_</label>
+          <!--<label class='control-label col-md-4'>_{PASSWD}_</label>-->
           <div class='col-md-8' align='left'>%PASSWORD%</div>
         </div>
       </div>

@@ -123,7 +123,9 @@ $(function () {
       }
       
     }).fail(function (status, error) {
-      callback(error);
+      if (error === "parsererror") {
+        callback("Error processing data on server");
+      }
     })
   }
   

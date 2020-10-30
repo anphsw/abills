@@ -1,7 +1,7 @@
 #!/bin/sh
-# ABILLS Certificat creator
+# ABILLS Certificate creator
 #
-# REVISION 20161103
+# REVISION 20201027
 #
 #***********************************************************
 
@@ -14,7 +14,7 @@ CA_pl='/usr/src/crypto/openssl/apps/CA.pl';
 
 hostname=`hostname`;
 password=whatever;
-VERSION=2.12;
+VERSION=2.13;
 DAYS=730;
 DATE=`date`;
 CERT_TYPE=$1;
@@ -50,7 +50,7 @@ if [ "$1" = "" ] ; then
   echo " -HOSTNAME      - Hostname for Certs (default: system hostname)"
   echo " -UPLOAD        - Upload ssh certs to host via ssh (default: )"
   echo " -UPLOAD_FTP    - Upload ssh certs to host via ftp (-UPLOAD_FTP user@host )"
-  
+
 
   exit;
 fi
@@ -111,7 +111,7 @@ fi
 cd ${CERT_PATH};
 
 
-#Get users 
+#Get users
 if [ -f /usr/abills/Abills/programs ]; then
   CERT_USER=`cat /usr/abills/Abills/programs | grep WEB_SERVER_USER | awk -F= '{ print $2 }'`;
   RESTART_APACHE=`cat /usr/abills/Abills/programs | grep RESTART_APACHE | awk -F= '{ print $2 }'`;
@@ -121,7 +121,7 @@ fi;
 if [ "${CERT_USER}" = "" ];  then
   if [ x`uname` = xLinux ]; then
      APACHE_USER="www-data";
-  else 
+  else
     APACHE_USER=www;
   fi;
 else
@@ -160,7 +160,7 @@ x509_cert () {
     echo "Enter ${SYSTEM_NAME} public key";
     exit;
   fi;
- 
+
   if [ "${PUBLIC_KEY}" != "" ]; then
     EASYSOFT_PUBLIC_KEY=${PUBLIC_KEY};
     cp ${PUBLIC_KEY} ${CERT_PATH}/${SYSTEM_NAME}_server_public.pem
@@ -172,9 +172,9 @@ x509_cert () {
 
   CERT_LENGTH=1024;
   # Private key
-  ${OPENSSL} genrsa -out ${SYSTEM_NAME}_private.ppk ${CERT_LENGTH} 
-  ${OPENSSL} req -new -key ${SYSTEM_NAME}_private.ppk -out ${SYSTEM_NAME}.req 
-  #${OPENSSL} ca -in ${SYSTEM_NAME}.req -out ${SYSTEM_NAME}.cer 
+  ${OPENSSL} genrsa -out ${SYSTEM_NAME}_private.ppk ${CERT_LENGTH}
+  ${OPENSSL} req -new -key ${SYSTEM_NAME}_private.ppk -out ${SYSTEM_NAME}.req
+  #${OPENSSL} ca -in ${SYSTEM_NAME}.req -out ${SYSTEM_NAME}.cer
   ${OPENSSL} x509 -req -days ${DAYS} -in ${SYSTEM_NAME}.req -signkey ${SYSTEM_NAME}_private.ppk -out ${SYSTEM_NAME}.cer
   ${OPENSSL} rsa -in  ${CERT_PATH}/${SYSTEM_NAME}_private.ppk -out ${CERT_PATH}/${SYSTEM_NAME}_public.pem -pubout
 
@@ -201,14 +201,22 @@ apache_cert () {
   echo
 
   if [ -f "${CERT_PATH}/server.crt" ]; then
-    echo "Certificat for apache exist";
+    echo "Certificate for apache exists:";
     ls ${CERT_PATH}/server.*
-    
-    echo "Remove it [Y/n]";
-    read RM_CERTS
-    
+
+    if [ "${AINSTALL}" != "" ]; then
+      RM_CERTS="y"
+    else
+      echo -n "Overwrite it and generate new certificate? [Y/n] ";
+      read RM_CERTS
+    fi;
+
     if [ "${RM_CERTS}" != "n" ]; then
+      echo "Removing old certificate."
       rm ${CERT_PATH}/server.*
+    else
+      echo "Will not overwrite existing certificate. Exiting."
+      exit 0
     fi;
   fi;
 
@@ -239,9 +247,9 @@ else
 
    #2. Generate a Certificate Signing Request (CSR)
    #
-   ${OPENSSL} req -new -newkey "rsa:${CERT_LENGTH}" -nodes -sha256 -out server.csr -keyout server.key 
-   #-subj "/C=UA/ST=Calvados/L=CAEN/O=INTERNET/CN=abills.mydomain.com" 
- 
+   ${OPENSSL} req -new -newkey "rsa:${CERT_LENGTH}" -nodes -sha256 -out server.csr -keyout server.key
+   #-subj "/C=UA/ST=Calvados/L=CAEN/O=INTERNET/CN=abills.mydomain.com"
+
    #3. Generate a Self-Signed SSL Certificate
    ${OPENSSL} x509 -req -days ${DAYS} -in server.csr -signkey server.key -out server.crt
 fi;
@@ -263,14 +271,18 @@ fi;
   chmod 400 server.key
 
   if [ "${RESTART_APACHE}" != "" ]; then
-    echo -n "Restart apache: [Y/n]";
-    read RESATRT
-    
-    if [ "${RESATRT}" != "n" ]; then
+    if [ "${AINSTALL}" != "" ]; then
+      RESTART="y"
+    else
+      echo -n "Restart apache: [Y/n]";
+      read RESTART
+    fi;
+
+    if [ "${RESTART}" != "n" ]; then
       ${RESTART_APACHE} restart
     fi;
   else
-    echo "Please restart apache";    
+    echo "Please restart apache";
   fi;
 }
 
@@ -308,7 +320,7 @@ ssh_key () {
 
   SSH_PORT=22
 
-  # If exist only upload  
+  # If exist only upload
   if [ -f ${CERT_PATH}${id_cert_file} ]; then
      echo "Cert exists: ${CERT_PATH}${id_cert_file}";
     if [ ! SKIP_UPLOAD_CERT ]; then
@@ -318,7 +330,7 @@ ssh_key () {
      fi;
     fi;
   fi;
- 
+
   if [ ! -f ${CERT_PATH}${id_cert_file} ]; then
     ssh-keygen -t ${SSH_KEY_TYPE} -C "ABillS remote machine manage key (${DATE})" -f "${CERT_PATH}${id_cert_file}" -N ""
 
@@ -344,12 +356,12 @@ ssh_key () {
 
     if [ "${UPLOAD_FTP}" = "y" ]; then
       FTP_PORT=21
-      
+
       FTP=`which ftp`
       if [ "${FTP}" = "" ] ; then
         echo "ftp client not install.";
         echo "Please install ftp client";
-        exit;  
+        exit;
       fi;
 
       FTP_PASIVE=1;
@@ -378,13 +390,13 @@ ssh_key () {
 
       _HOSTNAME=`echo ${_HOSTNAME} | awk -F@ '{print $2}'`;
       exit;
-    else 
+    else
       echo "Making upload to: ${USER}@${_HOSTNAME} "
       ssh -p ${SSH_PORT} ${USER}@${_HOSTNAME} "mkdir ~/.ssh"
       scp -P ${SSH_PORT} ${CERT_PATH}${id_cert_file}.pub ${USER}@${_HOSTNAME}:~/.ssh/authorized_keys
     fi;
-    
-    
+
+
     echo -n "Connect to remote host: ${_HOSTNAME} [y/n]: "
     read CONNECT
     if [ "${CONNECT}" = "y" ]; then
@@ -418,23 +430,23 @@ express_oplata () {
   password="whatever"
   # Private key
   echo ${OPENSSL};
-  ${OPENSSL} genrsa  -passout pass:${password} -out express_oplata_private.pem ${CERT_LENGTH} 
-      
+  ${OPENSSL} genrsa  -passout pass:${password} -out express_oplata_private.pem ${CERT_LENGTH}
+
 
   # Publick key
   ${OPENSSL} rsa -in express_oplata_private.pem -out express_oplata_public.pem -pubout \
-    -passin pass:${password} 
+    -passin pass:${password}
 
   chmod u=r,go= ${CERT_PATH}/express_oplata_private.pem
   chmod u=r,go= ${CERT_PATH}/express_oplata_public.pem
   chown ${APACHE_USER} ${CERT_PATH}/express_oplata_private.pem ${CERT_PATH}/express_oplata_public.pem
-  
+
   echo -n "Send public key '${CERT_PATH}/express_oplata_public.pem' to Express Oplata? (y/n): ";
 
   read _SEND_MAIL
   if [ w"${_SEND_MAIL}" = wy ]; then
     EO_EMAIL="onwave@express-oplata.ru";
-  
+
     echo -n "Enter comments: "
     read COMMENTS
 
@@ -443,10 +455,10 @@ express_oplata () {
 
     if [ "${BCC_EMAIL}" != "" ]; then
       BCC_EMAIL="-b ${BCC_EMAIL}"
-    fi; 
+    fi;
 
     ( echo "${COMMENTS}"; uuencode /usr/abills/Certs/express_oplata_public.pem express_oplata_public.pem ) | mail -s "Public Cert" ${BCC_EMAIL} ${EO_EMAIL}
-    
+
     echo "Cert sended to Expres-Oplata"
   fi;
 
@@ -461,10 +473,10 @@ cert_info () {
   echo "******************************************************************************"
 
   FILENAME=$1;
-  if [ w"$FILENAME" = w ] ; then 
+  if [ w"$FILENAME" = w ] ; then
     echo "Select Cert file";
     exit;
-  else 
+  else
     echo "Cert file: $FILENAME";
   fi;
 
@@ -519,7 +531,7 @@ eap_cert () {
   fi
 
   cd ${CERT_EAP_PATH}
-  echo 
+  echo
   pwd
 
 if [ w$2 = wclient ]; then
@@ -599,7 +611,7 @@ extendedKeyUsage = 1.3.6.1.5.5.7.3.1
   #CA_pl=`which ${CA_pl}`;
   if [ -f ${CA_pl} ] ; then
     echo "newreq.pem" | ${CA_pl} -newca > /dev/null
-  else 
+  else
     echo "Can't find CA.pl";
     exit;
   fi;
@@ -659,7 +671,7 @@ rm newcert.pem newreq.pem
 }
 
 #**********************************************************
-# check ssl config 
+# check ssl config
 #**********************************************************
 check_ssl_conf () {
   #Freebsd

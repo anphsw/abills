@@ -44,6 +44,10 @@ sub init_sms_service {
     { SMS_ESKIZ_URL          => 'Eskizsms'              },
     { SMS_BROKER_LOGIN       => 'Sms_Broker'            },
     { SMS_OMNICELL_URL       => 'Omnicell'              },
+    { SMS_LIKON_URL          => 'LikonSms'              },
+    { SMS_MSGAM_URL          => 'MsgAm'                 },
+    { SMS_CABLENET_LOGIN     => 'Cablenet'              },
+    { SMS_WEBSMS_URL         => 'WebSms'                },
   );
 
   foreach my $sms_system ( @sms_systems ) {

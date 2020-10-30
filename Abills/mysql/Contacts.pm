@@ -2,7 +2,7 @@ package Contacts;
 
 =head1 NAME
 
-  Users manage functions
+  Users contacts manage functions
 
 =cut
 
@@ -14,10 +14,10 @@ use Attach;
 
 my $admin;
 my $CONF;
-my $SORT = 1;
-my $DESC = '';
-my $PG   = 1;
-my $PAGE_ROWS = 25;
+# my $SORT = 1;
+# my $DESC = '';
+# my $PG   = 1;
+# my $PAGE_ROWS = 25;
 
 our %TYPES = (
   'CELL_PHONE'  => 1,
@@ -146,16 +146,17 @@ sub contacts_add{
   my $self = shift;
   my ($attr) = @_;
 
+  $attr->{value} =~ s/(.*?)\t//g;
 
   $self->query_add('users_contacts', $attr, { REPLACE => 1 });
 
   if (!$self->{errno}) {
     if ($attr->{VALUE} ne $self->{OLD_INFO}{$attr->{TYPE_ID}}) {
       $self->{admin}->action_add($attr->{UID},
-        "CONTACTS_CHANGED. " .  $self->contact_name_for_type_id($attr->{TYPE_ID}) . ": $self->{OLD_INFO}{$attr->{TYPE_ID}} -> $attr->{VALUE}", {TYPE=> 2});
+        "CONTACTS_CHANGED. " .  $self->contact_name_for_type_id($attr->{TYPE_ID}||0)
+          . ": $self->{OLD_INFO}{$attr->{TYPE_ID}||0} -> ". ($attr->{VALUE} || q{}), { TYPE=> 2 });
     }
   }
-
 
   return 1;
 }
@@ -283,10 +284,10 @@ sub contact_types_list{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'id';
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'id';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   #!!! Important !!! Only first list will work without this
   delete $self->{COL_NAMES_ARR};
@@ -441,10 +442,10 @@ sub social_list_info {
   delete $self->{COL_NAMES_ARR};
 
   my @WHERE_RULES = ();
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 'uid';
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : 'desc';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 'uid';
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : 'desc';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
 
   #if ($attr->{UNRECOGNIZED} == 1) {
   #  push @WHERE_RULES, "cch.uid = '0'";
@@ -554,8 +555,6 @@ sub contact_name_for_type_id {
   return $contact_types_by_id->{$type_id} || 0;
 }
 
-
-
 #**********************************************************
 =head2 push_contacts_list($attr)
 
@@ -570,10 +569,10 @@ sub contact_name_for_type_id {
 sub push_contacts_list{
   my ($self, $attr) = @_;
   
-  $SORT = $attr->{SORT} || 'id';
-  $DESC = ($attr->{DESC}) ? '' : 'DESC';
-  $PG = $attr->{PG} || '0';
-  $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
+  my $SORT = $attr->{SORT} || 'id';
+  my $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  my $PG = $attr->{PG} || '0';
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
   
   my $search_columns = [
     ['ID',             'INT',        'id'             ,1 ],
@@ -703,14 +702,14 @@ sub push_contacts_change{
 sub push_messages_list{
   my ($self, $attr) = @_;
   
-  $SORT = $attr->{SORT} || 'id';
-  $DESC = ($attr->{DESC}) ? '' : 'DESC';
-  $PG = $attr->{PG} || '0';
-  $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
+  my $SORT = $attr->{SORT} || 'id';
+  my $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  my $PG = $attr->{PG} || '0';
+  my $PAGE_ROWS = $attr->{PAGE_ROWS} || 25;
   
   my $search_columns = [
     ['ID',            'INT',        'id'           ,1 ],
-    ['TAG',           'STR',        'tag'         ,1 ],
+    ['TAG',           'STR',        'tag'          ,1 ],
     ['CONTACT_ID',    'INT',        'contact_id'   ,1 ],
     ['TITLE',         'STR',        'title'        ,1 ],
     ['MESSAGE',       'STR',        'message'      ,1 ],
@@ -803,7 +802,7 @@ sub push_messages_outdated_del{
   my ($self) = @_;
   
   $self->query(
-    'DELETE FROM push_messages WHERE UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created) > ttl;'
+    'DELETE FROM `push_messages` WHERE UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created) > ttl;', 'do'
   );
   
   return 1;

@@ -497,7 +497,7 @@ sub _eltex {
           OIDS   => '',
           PARSER => ''
         },
-        'DISATNCE'     => {
+        'DISTANCE'     => {
           NAME   => 'DISTANCE',
           OIDS   => '',
           PARSER => ''
@@ -583,7 +583,7 @@ sub _eltex {
           OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.25',
           PARSER => '_eltex_convert_volt'
         },
-        'DISATNCE'     => {
+        'DISTANCE'     => {
           NAME   => 'DISTANCE',
           OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.10',
           PARSER => ''

@@ -18,7 +18,6 @@ our ($db,
   $users,
   %conf,
   %lang,
-  $html,
   @MONTHES_LIT,
   @MONTHES,
   @WEEKDAYS,
@@ -37,8 +36,9 @@ our ($db,
   @money_unit_names,
   $Conf,
   %ADMIN_REPORT
-); # ??
+);
 
+our Abills::HTML $html;
 our Docs $Docs    = Docs->new( $db, $admin, \%conf );
 my $Fees     = Fees->new( $db, $admin, \%conf );
 my $Payments = Payments->new( $db, $admin, \%conf );
@@ -419,6 +419,16 @@ sub docs_print{
     }
   }
 
+  my $qr_code_pay = '';
+  if ($conf{DOCS_QR_CODE}) {
+    $qr_code_pay = docs_qr_code({
+      UID           => $users->{UID},
+      TOTAL_SUM     => $attr->{TOTAL_SUM},
+    });
+
+    $tpl_attributtes{QR_CODE_DOCS} = $qr_code_pay;
+  }
+
   my $filename = $attr->{FILE_NAME} || $attr->{EMAIL_ATTACH_FILENAME} || $template;
   $filename .= '_'. ($attr->{UID} || q{});
   $filename .= '_'. ($attr->{DOC_ID} || q{});
@@ -454,6 +464,7 @@ sub docs_print{
         ),
         { %{$users},
           %{$attr},
+          QR_CODE_DOCS => $qr_code_pay,
         },
         { TITLE         => $template,
           SUBJECT       => $template,
@@ -472,10 +483,6 @@ sub docs_print{
         print $fh $content;
         close($fh);
       }
-#      else {
-#        print "Content-Type: text/plain\n\n";
-#        print "Can't create doc file '$save_file' $!;";
-#      }
     }
   }
   else {
@@ -634,7 +641,7 @@ sub docs_payments_maked{
 
         if ( $FORM{SUM} > $doc->{total_sum} - ($doc->{payment_sum} || 0) ){
           $payment_sum = $doc->{total_sum} - ($doc->{payment_sum} || 0);
-          print "Pre link: Total: $doc->{total_sum} Payments: ". ($doc->{payment_sum} || 0) ." Doc id: $doc->{id}\n";
+          print "Pre link: ADD_SUM: $FORM{SUM} total_sum: $doc->{total_sum} payment_sum: ". ($doc->{payment_sum} || 0) ." Doc id: $doc->{id}\n";
         }
 
         $Docs->invoices2payments( {
@@ -642,10 +649,10 @@ sub docs_payments_maked{
           INVOICE_ID => $doc->{id},
           SUM        => $payment_sum
         } );
-
-        if ( _error_show( $Docs, { MESSAGE => "$lang{INVOICE}", ID => 562 } ) ){
-        }
-        elsif ( !$conf{PAYMENTS_NOT_CHECK_INVOICE_SUM} && $Docs->{TOTAL_SUM} != $FORM{SUM} ){
+        
+        if ( !_error_show( $Docs, { MESSAGE => "$lang{INVOICE}", ID => 562 } ) 
+              && !$conf{PAYMENTS_NOT_CHECK_INVOICE_SUM} 
+              && $Docs->{TOTAL_SUM} != $FORM{SUM} ){
           $html->message( 'warn', $lang{ERROR}, "$lang{PAYMENTS_NOT_EQUAL_DOC} \n  $lang{INVOICE} $lang{SUM}: $Docs->{TOTAL_SUM} \n$lang{PAYMENTS} $lang{SUM}: $FORM{SUM}" );
         }
 
@@ -751,7 +758,6 @@ sub docs_users_list{
     BASE_FIELDS    => 0,
     DEFAULT_FIELDS => 'LOGIN,FIO,DEPOSIT,CREDIT,LOGIN_STATUS,INVOICE_DATE,NEXT_INVOICE_DATE',
     BASE_FIELDS    => 1,
-    #FUNCTION_FIELDS => 'form_payments, dv_stats',
     EXT_TITLES     => {
       login_status      => $lang{STATUS},
       invoice_date      => $lang{LAST_INVOICE_DATE},
@@ -881,16 +887,6 @@ sub docs_user{
       $Docs->{INVOICE_DATE} = $DATE;
     }
   }
-
-  #  $Docs->{INVOICE_DATE}         = $html->date_fld2(
-  #    'INVOICE_DATE',
-  #    {
-  #      MONTHES   => \@MONTHES,
-  #      FORM_NAME => 'receipt_add',
-  #      WEEK_DAYS => \@WEEKDAYS,
-  #      DATE      => $invoice_date
-  #    }
-  #  );
 
   my $user_service_form = $html->tpl_show( _include( 'docs_user', 'Docs' ), { %{$attr}, %{$Docs} }, { ID => 'docs_user', OUTPUT2RETURN => 1 } );
 
@@ -1025,14 +1021,13 @@ sub docs_statement_of_account {
         },
         { OUTPUT2RETURN => 1 } );
 
-        push @xls_data, $date;
-        push @xls_data, $login;
-        push @xls_data, $invoice;
-        push @xls_data, $deposit;
-        push @xls_data, $fees;
-        push @xls_data, $payments;
-        push @xls_data, $describe;
+        push @xls_data, ($date, $login, $invoice, $deposit, $fees, $payments, $describe);
+        
+        if ($#xls_data > 6) {
+          push @data_upload, [ $xls_data[7], $xls_data[8], $xls_data[9], $xls_data[10], $xls_data[11], $xls_data[12], $xls_data[13] ];
+        }
     } 
+    
     push @data_upload, [ @xls_data ];  
     @xls_data = ();
   }
@@ -1119,7 +1114,6 @@ sub docs_sp_invoice_summary{
       rows    => [
         [ "$lang{TOTAL}:", $html->button( $Docs->{TOTAL_}, 'index=' . get_function_index( 'docs_invoices_list' ) . $qs ) ],
         [ "$lang{USERS}:", $html->b( $Docs->{TOTAL_USERS} || 0 ) ],
-        #["$lang{SUM}:",   $html->b(sprintf("%.2f", $Docs->{TOTAL_SUM})) ],
         [ "$lang{UNPAID}:", $html->button( (($Docs->{TOTAL_} || 0) - ($Docs->{PAYMENT_COUNT} || 0)),
             "UNPAIMENT=1&index=" . get_function_index( 'docs_invoices_list' ) . $qs ) ]
       ]
@@ -1474,6 +1468,50 @@ sub docs_module_info {
   }
 
   return \%doc;
+}
+
+#**********************************************************
+=head2 docs_qr_code($attr)
+
+  Arguments:
+    UID           - User ID
+    TOTAL_SUM     - User total sum
+
+  Return:
+    qr_code       - QR Code
+
+=cut
+#**********************************************************
+sub docs_qr_code {
+  my ($attr) = @_;
+
+  eval { 
+    require Control::Qrcode 
+  };
+
+  if($@) {
+    print $@;
+  }
+
+  my $index     = get_function_index('form_payments');
+  my $user_info = $users->pi({ UID => $attr->{UID} });
+  my $op_sid    = mk_unique_value(16);
+
+  my $url_pay   = $conf{DOCS_QR_CODE} . '&index=' . $index . '&UID=' . $attr->{UID}
+         . '&OP_SID=' . $op_sid
+         . '&SUM=' . $attr->{TOTAL_SUM};
+  my $qr_code = qr_make( $SELF_URL, {
+    SHOW_IMG          => 1,
+    OUTPUT2RETURN     => 1,
+    GLOBAL_URL        => $url_pay,
+    PARAMS            => {
+      CONVERT_URL       => 1
+    },
+    size              => 1,
+    margin            => 0,
+  });
+  
+  return $qr_code;
 }
 
 1

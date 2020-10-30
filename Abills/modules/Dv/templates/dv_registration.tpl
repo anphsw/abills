@@ -1,6 +1,11 @@
 <script type='text/javascript'>
     function selectLanguage() {
-        var sLanguage = jQuery('#language').val() || '';
+        var sLanguage = '';
+        if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+          sLanguage = jQuery('#language_mobile').val() || '';
+        } else {
+          sLanguage = jQuery('#language').val() || '';
+        }
         var sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&language=' + sLanguage;
         location.replace(sLocation);
     }

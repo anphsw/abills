@@ -116,17 +116,20 @@ sub messages_new {
   }
 
   if ($attr->{GID}) {
-    $self->query("SELECT $fields
-      FROM (msgs_messages m, users u)
-      $EXT_TABLE
-      $WHERE and u.uid=m.uid GROUP BY 7;"
+    $self->query('SELECT '. $fields
+      .' FROM (msgs_messages m, users u)'
+      . $EXT_TABLE
+      . ' '
+      . $WHERE . ' AND u.uid=m.uid GROUP BY 7;'
     );
   }
   else {
-    $self->query("SELECT $fields
-      FROM msgs_messages m
-      $EXT_TABLE
-      $WHERE GROUP BY 7;"
+    $self->query('SELECT ' . $fields
+      . ' FROM msgs_messages m'
+      . $EXT_TABLE
+      . ' '
+      . $WHERE
+      . ' GROUP BY 7;'
     );
   }
 
@@ -242,6 +245,10 @@ sub messages_list {
     push @WHERE_RULES, "m.state = $attr->{STATE_DONE}";
   }
 
+  if ($attr->{RESPOSIBLE_IDS}) {
+    push @WHERE_RULES, "m.resposible IN ($attr->{RESPOSIBLE_IDS})";
+  }
+
   $admin->{permissions}->{0}->{8} = 1;
   my $WHERE = $self->search_former($attr, [
     [ 'MSG_ID',                 'INT',    'm.id',                                                                        ],
@@ -330,8 +337,11 @@ sub messages_list {
   if ($admin->{DOMAIN_ID}) {
     $admin->{DOMAIN_ID} =~ s/;/,/g;
 
-    if ($WHERE && $WHERE =~ /WHERE u.domain_id='\d+'/) {
-      $WHERE =~ s/WHERE u.domain_id='\d+'/WHERE (CASE WHEN m.uid=0 THEN m.domain_id IN ($admin->{DOMAIN_ID}) ELSE u.domain_id IN ($admin->{DOMAIN_ID}) END)/g;
+    if ($WHERE && $WHERE =~ /u.domain_id='\d+'/) {
+      $WHERE =~ s/u.domain_id='\d+'/(CASE WHEN m.uid=0 THEN m.domain_id IN ($admin->{DOMAIN_ID}) ELSE u.domain_id IN ($admin->{DOMAIN_ID}) END)/g;
+    }
+    elsif ($WHERE) {
+      $WHERE .= " AND (CASE WHEN m.uid=0 THEN m.domain_id IN ($admin->{DOMAIN_ID}) ELSE u.domain_id IN ($admin->{DOMAIN_ID}) END)";
     }
     else {
       $WHERE = "WHERE (CASE WHEN m.uid=0 THEN m.domain_id IN ($admin->{DOMAIN_ID}) ELSE u.domain_id IN ($admin->{DOMAIN_ID}) END)";
@@ -343,18 +353,39 @@ sub messages_list {
     $EXT_TABLES .= "LEFT JOIN streets st ON (st.id=bl.street_id)";
     $EXT_TABLES .= "LEFT JOIN districts ds ON (ds.id=st.district_id)";
 
-    my $adding_where = '';
-    $adding_where = 'ds.id=' . $attr->{DISTRICT_ID} if $attr->{DISTRICT_ID};
-    $adding_where .=  $attr->{STREET_ID} ? $attr->{DISTRICT_ID} ?
+    $WHERE =~ s/(\s?streets.district_id=\'\d+\'(\sAND)?)//d;
+    $WHERE =~ s/(\s?builds.street_id=\'\d+\'(\sAND)?)//d;
+    $WHERE =~ s/(\s+pi.location_id=\'\d+\'(\sAND)?)//d;
+    $WHERE =~ s/(\s?m.location_id=\'\d+\'(\sAND)?)//d;
+
+    $attr->{DISTRICT_ID} = '' if $attr->{DISTRICT_ID} eq '_SHOW';
+    $attr->{STREET_ID} = '' if $attr->{STREET_ID} eq '_SHOW';
+    $attr->{BUILD_ID} = '' if $attr->{BUILD_ID} eq '_SHOW';
+
+    my $msg_address_where = '';
+    $msg_address_where = 'st.district_id=' . $attr->{DISTRICT_ID} if $attr->{DISTRICT_ID};
+    $msg_address_where .=  $attr->{STREET_ID} ? $attr->{DISTRICT_ID} ?
       ' AND st.id=' . $attr->{STREET_ID} : 'st.id=' . $attr->{STREET_ID} : '';
-    $adding_where .=  $attr->{BUILD_ID} ? $attr->{STREET_ID} ?
+    $msg_address_where .=  $attr->{BUILD_ID} ? $attr->{STREET_ID} ?
       ' AND bl.id=' . $attr->{BUILD_ID} : 'bl.id=' . $attr->{BUILD_ID} : '';
 
-    if ($adding_where) {
-      $WHERE .= $WHERE ? " OR ($adding_where)" : " $adding_where";
+    my $user_address_where = q{};
+    if ($attr->{DISTRICT_ID}) {
+      $user_address_where = 'streets.district_id=' . $attr->{DISTRICT_ID};
+    }
+    $user_address_where .=  $attr->{STREET_ID} ? $attr->{DISTRICT_ID} ?
+      ' AND streets.id=' . $attr->{STREET_ID} : 'streets.id=' . $attr->{STREET_ID} : '';
+    $user_address_where .=  $attr->{BUILD_ID} ? $attr->{STREET_ID} ?
+      ' AND builds.id=' . $attr->{BUILD_ID} : 'builds.id=' . $attr->{BUILD_ID} : '';
+
+    if ($msg_address_where && $user_address_where && $WHERE) {
+      my $and_statement = ( split '\s+', $WHERE )[ -1 ];
+      $and_statement = $and_statement && $and_statement ne 'WHERE' && $and_statement ne 'AND' ? 'AND' : '';
+      $WHERE .= $WHERE && $WHERE ne 'WHERE' ? "$and_statement (($msg_address_where) OR ($user_address_where))" :
+        " (($msg_address_where) OR ($user_address_where))";
     }
   }
-
+  delete $self->{list};
   $self->query("SELECT m.id, $self->{SEARCH_FIELDS}
        m.uid,
        a.aid,
@@ -444,28 +475,30 @@ sub message_del {
 
   if ($attr->{ID}) {
     my @id_arr = split(/,/, $attr->{ID});
-    $self->query("DELETE FROM msgs_attachments
-      WHERE message_id IN (" . join(',', map {'?'} @id_arr) . ")
-      AND message_type=0", 'do', { Bind => \@id_arr }
+    my $msg_ids = join(',', map {'?'} @id_arr);
+    $self->query('DELETE FROM msgs_attachments
+      WHERE message_id IN ('. $msg_ids . ')
+      AND message_type=0', 'do', { Bind => \@id_arr }
     );
 
-    $self->query("DELETE FROM msgs_watch
-      WHERE main_msg IN (" . join(',', map {'?'} @id_arr) . ")", 'do', { Bind => \@id_arr }
+    $self->query('DELETE FROM msgs_watch WHERE main_msg IN ('
+      . join(',', map {'?'} @id_arr) . ')',
+      'do', { Bind => \@id_arr }
     );
   }
 
   if ($attr->{UID}) {
-    $self->query("
+    $self->query('
         DELETE FROM msgs_attachments 
         WHERE create_by = ?
-        AND message_type=0",
+        AND message_type=0 ;',
       'do',
       { Bind => [ $attr->{UID} ] });
 
-    $self->query("UPDATE msgs_unreg_requests SET
+    $self->query('UPDATE msgs_unreg_requests SET
       state = 0,
       uid   = 0
-      WHERE uid = ? ", 'do', { Bind => [ $attr->{UID} ] }
+      WHERE uid = ? ;', 'do', { Bind => [ $attr->{UID} ] }
     );
   }
 
@@ -628,9 +661,9 @@ sub chapter_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
+  $self->query('SELECT *
     FROM msgs_chapters
-  WHERE id= ? ",
+    WHERE id= ? ',
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -817,7 +850,8 @@ sub message_reply_del {
     return $self;
   }
 
-  $self->query("DELETE FROM msgs_reply WHERE " . join(' AND ', @WHERE_FIELDS),
+  my $WHERE = join(' AND ', @WHERE_FIELDS);
+  $self->query('DELETE FROM msgs_reply WHERE ' . $WHERE,
     'do', { Bind => \@WHERE_VALUES });
 
   return $self;
@@ -832,9 +866,22 @@ sub messages_reply_list {
   my $self = shift;
   my ($attr) = @_;
 
-  #  $PAGE_ROWS = ($attr->{PAGE_ROWS})     ? $attr->{PAGE_ROWS} : 25;
-  #  $SORT      = ($attr->{SORT})          ? $attr->{SORT}      : 1;
-  #  $DESC      = (defined($attr->{DESC})) ? $attr->{DESC}      : 'DESC';
+  my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : 'mr.id';
+
+  $SORT = ($attr->{SORT} ? $attr->{SORT} : 'datetime');
+  $DESC = ($attr->{DESC} ? $attr->{DESC} : 'ASC');
+
+  if ($attr->{PAGE_ROWS}) {
+    if ($attr->{PAGE_ROWS} =~ /LIMIT/) {
+      $PAGE_ROWS = $attr->{PAGE_ROWS}
+    }
+    else {
+      $PAGE_ROWS = 'LIMIT ' . $attr->{PAGE_ROWS}
+    }
+  }
+  else {
+    $PAGE_ROWS = ' ';
+  }
 
   $self->{SEARCH_FIELDS} = '';
   $self->{SEARCH_FIELDS_COUNT} = 0;
@@ -843,6 +890,10 @@ sub messages_reply_list {
 
   if ($attr->{FROM_DATE} && $attr->{TO_DATE}) {
     push @WHERE_RULES, "mr.datetime BETWEEN '$attr->{FROM_DATE} 00:00:00' AND '$attr->{TO_DATE} 23:59:59'";
+  }
+
+  if ($attr->{MSGS_IDS}) {
+    push @WHERE_RULES, "mr.main_msg IN ($attr->{MSGS_IDS})";
   }
 
   my $WHERE = $self->search_former($attr, [
@@ -858,11 +909,11 @@ sub messages_reply_list {
     [ 'CONTENT_TYPE',  'INT',  'ma.content_type',       1 ],
     [ 'ATTACH_COORDX', 'INT',  'ma.coordx',             1 ],
     [ 'ATTACH_COORDY', 'INT',  'ma.coordy',             1 ],
-    # ['FROM_DATE|TO_DATE',   'DATE',  "DATE_FORMAT(mr.datetime, '%Y-%m-%d')" ],
     [ 'ADMIN',         'STR',  'a.id', 'a.id AS admin', 1 ],
     [ 'AID',           'INT',  'mr.aid',                1 ],
     [ 'DATETIME',      'DATE', "mr.datetime",         '1' ],
     [ 'SURVEY_ID',     'INT',  'mr.survey_id',          1 ],
+    [ 'STATUS',        'INT',  'mr.status',             1 ],
   ],
     {
       WHERE_RULES => \@WHERE_RULES,
@@ -892,8 +943,9 @@ sub messages_reply_list {
     LEFT JOIN admins a ON (mr.aid=a.aid)
     LEFT JOIN msgs_attachments ma ON (mr.id=ma.message_id and ma.message_type=1 )
     $WHERE
-    GROUP BY mr.id
-    ORDER BY datetime ASC;",
+    GROUP BY $GROUP_BY
+    ORDER BY $SORT $DESC
+    $PAGE_ROWS;",
     undef,
     $attr
   );
@@ -3031,9 +3083,10 @@ sub delivery_user_list {
 
   my $WHERE = $self->search_former($attr, [
     [ 'ID',           'INT', 'mdl.id'           ],
-    [ 'UID',          'INT', 'uid'              ],
+    [ 'UID',          'INT', 'u.uid'            ],
     [ 'STATUS',       'INT', 'mdl.status'       ],
     [ 'LOGIN',        'STR', 'u.id'             ],
+    [ 'PASSWORD',     'STR', '', "DECODE(u.password, '$self->{conf}->{secretkey}') AS password"      ],
     [ 'MDELIVERY_ID', 'INT', 'mdl.mdelivery_id' ],
     [ 'FIO',          'STR', 'pi.fio'           ],
     [ 'EMAIL',        'STR', 'pi.email'         ],
@@ -3042,12 +3095,18 @@ sub delivery_user_list {
       WHERE => 1,
     });
 
-  $self->query("SELECT mdl.id, u.id AS login, pi.fio, mdl.status, mdl.uid, pi.email
+  $self->query("SELECT mdl.id, u.id AS login,
+      pi.fio,
+      mdl.status,
+      mdl.uid,
+      $self->{SEARCH_FIELDS}
+      pi.email
      FROM msgs_delivery_users mdl
      INNER JOIN users u ON (u.uid=mdl.uid)
      LEFT JOIN users_pi pi ON (mdl.uid=pi.uid)
      $WHERE
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+     ORDER BY $SORT $DESC
+     LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
@@ -3281,9 +3340,9 @@ sub messages_quick_replys_types_list {
   );
 
   $self->query("SELECT qrt.*
-  FROM msgs_quick_replys_types qrt
+  FROM msgs_quick_replys_types qrt ".
   $WHERE
-  GROUP BY qrt.id
+  . "GROUP BY qrt.id
   ORDER BY $SORT $DESC
   LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -3403,7 +3462,7 @@ sub messages_quick_replys_list {
   );
 
   $self->query("SELECT $self->{SEARCH_FIELDS} qr.color,
-  qrt.name AS type
+  qr.reply, qrt.name AS type
   FROM msgs_quick_replys qr
   LEFT JOIN msgs_quick_replys_types qrt ON (qrt.id=qr.type_id)
   $WHERE
@@ -3431,7 +3490,7 @@ sub messages_quick_replys_list {
 }
 
 #**********************************************************
-=head2 quick_replys_tags_info($id, $attr)
+=head2 quick_replys_tags_info($id)
 
 =cut
 #**********************************************************
@@ -3439,9 +3498,9 @@ sub quick_replys_tags_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
+  $self->query('SELECT *
     FROM msgs_quick_replys_tags
-  WHERE id= ? ",
+  WHERE msg_id = ? ;',
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -3850,7 +3909,9 @@ sub message_team_del {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query_del('msgs_team_ticket', undef, { ID => $id });
+  my @id_del_msgs = split(/, /, $id);
+
+  $self->query('DELETE FROM `msgs_team_ticket` WHERE id IN (' . join(',', @id_del_msgs) . ')' );
 
   return $self;
 }
@@ -3940,7 +4001,8 @@ sub ticket_team_list {
       [ 'RESPONSIBLE',           'INT',  'mdt.responsible',                   1 ],
       [ 'STATE' ,                'INT',  'mdt.state',                         1 ],
       [ 'ID_TEAM',               'INT',  'mdt.id_team',                       1 ],
-      [ 'NAME',                  'STR',  'a.id AS name',                      1 ],
+      [ 'LOGIN',                 'STR',  'a.id AS login',                     1 ],
+      [ 'NAME',                  'STR',  'a.name',                            1 ],
     ],
     { WHERE => 1 }
   );
@@ -3970,7 +4032,7 @@ sub ticket_team_list {
 sub responsible_team_list {
   my $self = shift;
 
-  $self->query("SELECT md.id, md.resposible, a.id AS aid FROM msgs_dispatch AS md
+  $self->query("SELECT md.id, md.resposible, a.id AS aid, CONCAT(a.name, ' ',  md.id) as name FROM msgs_dispatch AS md
     LEFT JOIN admins a ON md.resposible = a.aid WHERE a.aid IS NOT NULL;",
     undef,
     { COLS_NAME => 1, INFO => 1 });
@@ -4140,9 +4202,9 @@ sub msgs_address_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
+  $self->query('SELECT *
                 FROM msgs_address ma
-                WHERE ma.id = ?", undef, {
+                WHERE ma.id = ?;', undef, {
     Bind      => [ $id ],
     COLS_NAME => 1,
     INFO      => 1

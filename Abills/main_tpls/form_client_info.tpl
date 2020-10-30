@@ -34,20 +34,21 @@
         <div class='modal-body' style='padding: 30px;'>
           <input type=hidden name='index' value='10'>
           <input type=hidden name='sid' value='$sid'>
+          <input type=hidden name='CREDIT_RULE' value='' ID='CREDIT_RULE'>
 
           <div class='form-group'>
             <label class='col-md-7'>_{CREDIT_SUM}_: </label>
-            <label class='col-md-3'> %CREDIT_SUM%</label>
+            <label class='col-md-3'>%CREDIT_SUM%</label>
           </div>
           <div class='form-group'>
             <label class='col-md-7'>_{CREDIT_PRICE}_:</label>
-            <label class='col-md-3'>%CREDIT_CHG_PRICE%</label>
+            <label class='col-md-3' id='CREDIT_CHG_PRICE'>%CREDIT_CHG_PRICE%</label>
           </div>
           <div class='form-group'>
             <label class='col-md-7'>_{ACCEPT}_:</label>
 
             <div class='col-md-3'>
-              <input type='checkbox' required='required' value='%CREDIT_SUM%' name='change_credit'>
+              <input id='change_credit' type='checkbox' required='required' value='%CREDIT_SUM%' name='change_credit'>
             </div>
           </div>
         </div>
@@ -116,7 +117,7 @@
           <div class='row'>
             <div class='col-xs-12 col-sm-3 col-md-3 text-1'>_{LOGIN}_</div>
             <div class='col-xs-12 col-sm-9 col-md-9 text-2'>%LOGIN% <i>(UID: %UID%)</i>
-              <div class='extra'>%CHANGE_PASSWORD%</div>
+              <div class='extra'>%CHANGE_PASSWORD% %AUTH_G2FA% </div>
             </div>
           </div>
           <div class='row'>

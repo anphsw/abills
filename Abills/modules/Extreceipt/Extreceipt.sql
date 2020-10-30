@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS `extreceipts` (
   `kkt_id`       INT(11)    UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`payments_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'External receipts';
 
 CREATE TABLE IF NOT EXISTS `extreceipts_kkt` (
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS `extreceipts_kkt` (
   `admins`       VARCHAR(30)         NOT NULL DEFAULT '',
   PRIMARY KEY (`kkt_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'kkt';
 
 CREATE TABLE IF NOT EXISTS `extreceipts_api` (
@@ -36,5 +38,6 @@ CREATE TABLE IF NOT EXISTS `extreceipts_api` (
   `address`      VARCHAR(200)        NOT NULL DEFAULT '',
   PRIMARY KEY (`api_id`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Extreceipts apis';
 

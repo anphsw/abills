@@ -359,7 +359,9 @@ sub txt2translit {
     'Ч' => 'Ch',
     'Щ' => 'Sch',
     'Ю' => 'Ju',
-    'Я' => 'Ja'
+    'Я' => 'Ja',
+    'і' => 'i',
+    'І' => 'I',
   );
 
   for my $c (keys %mchars) {
@@ -1635,7 +1637,12 @@ sub ssh_cmd {
 sub date_diff {
 	my ($from_date, $to_date) = @_;
 
+  return 0 if ( ($from_date eq '0000-00-00') || ($to_date eq '0000-00-00') ); 
+
   require Time::Piece unless $Time::Piece::VERSION;
+  if ($from_date =~ /(.+)\s/) {
+    $from_date=$1;
+  }
 
   my $date1 = Time::Piece->strptime($from_date, "%Y-%m-%d");
   my $date2 = Time::Piece->strptime($to_date, "%Y-%m-%d");

@@ -16,9 +16,9 @@ use Time::Piece;
 
 our (
   $db,
-  $html,
   %lang,
   $admin,
+  %conf,
   %permissions,
   @MONTHES,
   @WEEKDAYS,
@@ -31,8 +31,8 @@ our (
   @status
 );
 
+our Abills::HTML $html;
 my @priority_colors = ('btn-default', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
-
 my $Contacts = Contacts->new($db, $admin, \%conf);
 
 
@@ -62,8 +62,14 @@ sub form_user_profile {
 
   if (in_array('Multidoms', \@MODULES) && $user_info->{GID}) {
     my $group_list = $users->groups_list({
-      GID       => $user_info->{GID},
-      COLS_NAME => 1,
+      GID             => $user_info->{GID},
+      COLS_NAME       => 1,
+      NAME            => '_SHOW',
+      DESCR           => '_SHOW',
+      ALLOW_CREDIT    => '_SHOW',
+      DISABLE_PAYSYS  => '_SHOW',
+      DISABLE_CHG_TP  => '_SHOW',
+      USERS_COUNT     => '_SHOW',
     });
     if ($users->{TOTAL} > 0 && $user_info->{DOMAIN_ID} != $group_list->[0]->{domain_id}) {
       $user_info->{GRP_ERR} = "style='background-color:#FF0000' data-tooltip='$lang{DOMAIN} $lang{ERROR}'";
@@ -83,10 +89,10 @@ sub form_user_profile {
       return 0;
     }
 
-    if (defined $FORM{TP_ID} && !$permissions{0}{9}) {
-      $html->message('err', $lang{ERROR}, "$lang{CHANGE} $lang{TP} : $lang{ERR_ACCESS_DENY}");
-      return 0;
-    }
+    # if (defined $FORM{TP_ID} && !$permissions{0}{9}) {
+    #   $html->message('err', $lang{ERROR}, "$lang{CHANGE} $lang{TARIF_PLAN} : $lang{ERR_ACCESS_DENY}");
+    #   return 0;
+    # }
 
     if (!$permissions{0}{9} && defined($user_info->{CREDIT}) && defined($FORM{CREDIT}) && $user_info->{CREDIT} != $FORM{CREDIT}) {
       $html->message('err', $lang{ERROR}, "! $lang{CHANGE} $lang{CREDIT} $lang{ERR_ACCESS_DENY}");
@@ -112,7 +118,7 @@ sub form_user_profile {
     }
 
     if (!$permissions{0}{11} && defined($FORM{REDUCTION}) && $FORM{REDUCTION} > 0 && $user_info->{REDUCTION} != $FORM{REDUCTION}) {
-      $html->message('err', $lang{ERROR}, "$lang{REDUCTION} $lang{ERR_ACCESS_DENY}");
+      $html->message('err', $lang{ERROR}, "$lang{REDUCTION} $lang{ERR_ACCESS_DENY}", { ID => 132 });
       delete($FORM{REDUCTION});
     }
 
@@ -260,6 +266,7 @@ sub form_user_profile {
     if (in_array('Info', \@MODULES)) {
       load_module('Info', $html);
     }
+
     my @rsch_value = split(/,/, $right_info);
     my %TOTAL_FNC = (
       form_1 => user_form({ USER_INFO => $user_info }),
@@ -269,21 +276,23 @@ sub form_user_profile {
       form_5 => $service_info0 || '',
       form_6 => in_array('Info', \@MODULES) ? info_comments_show('form_user_profile', $user_info->{UID}, {OUTPUT2RETURN => 1, WITH_BOX => 1}) : '',
     );
+
     foreach my $fn (keys %TOTAL_FNC) {
       if (!in_array($fn, \@lsch_value) && !in_array($fn, \@rsch_value)) {
         push(@rsch_value, $fn);
       }
     }
+
     my $left_panel = '';
     my $right_panel = '';
     foreach my $l_item (@lsch_value) {
       next if ($l_item eq 'empty' || $l_item eq '');
-      $left_panel .= $TOTAL_FNC{$l_item};
+      $left_panel .= $TOTAL_FNC{$l_item} || q{};
     }
 
     foreach my $r_item (@rsch_value) {
       next if ($r_item eq 'empty' || $r_item eq '');
-      $right_panel .= $TOTAL_FNC{$r_item};
+      $right_panel .= $TOTAL_FNC{$r_item} || q{};
     }
 
     $html->tpl_show(templates('form_user_profile'), {
@@ -358,8 +367,12 @@ sub form_user_add {
     }
   }
 
+  if ($conf{AUTH_G2FA}) {
+    $FORM{_G2FA} = unique_token_generate(15);
+  }
+
   my Users $user_info = $users->add({ %FORM });
-  #~STEPKO
+
   if (_error_show($users, { MESSAGE =>
     "$lang{LOGIN}: " . (($users->{errno} && $users->{errno} == 7) ? $html->button($FORM{LOGIN}, "index=11&LOGIN=" . ($FORM{LOGIN} || q{})) : '$FORM{LOGIN}')
   })) {
@@ -1057,9 +1070,9 @@ sub user_pi {
     $attr->{DISTRICT_SELECT_ID} = 'USER_DISTRICT_ID';
     $attr->{STREET_SELECT_ID} = 'USER_STREET_ID';
     $attr->{BUILD_SELECT_ID} = 'USER_BUILD_ID';
-    
+
     my @require_fields = ();
-    
+
     if ($conf{REG_SURELY_VALUE}) {
       my $fields = $conf{REG_SURELY_VALUE};
       push @require_fields, split(/,/, $fields);
@@ -1070,7 +1083,7 @@ sub user_pi {
         $attr->{BUILD_REQ}     = 'required' if ($field eq 'BUILD');
       }
     }
-    
+
     $user_pi->{ADDRESS_TPL} = form_address({
       # Can be received from MSGS reg_request
       %$attr,
@@ -1341,16 +1354,70 @@ sub user_form {
   elsif ($FORM{USER_PORTAL} && $permissions{0}{3}) {
     my $login_url = $SELF_URL;
     $login_url =~ s/admin//;
-    $html->redirect("$login_url?user=$user_info->{LOGIN}&passwd=$user_info->{PASSWORD}", { WAIT => 0 });
-    exit 0;
+    $conf{WEB_AUTH_KEY}='LOGIN' if(! $conf{WEB_AUTH_KEY});
+
+    if ($conf{WEB_AUTH_KEY} eq 'LOGIN') {
+      $html->redirect("$login_url?user=$user_info->{LOGIN}&passwd=$user_info->{PASSWORD}", { WAIT => 0 });
+      exit 0;
+    }
+    else{
+      my @a_method = split(/,/, $conf{WEB_AUTH_KEY});
+      my $method = $a_method[0];
+
+      my $users_list = $users->list(
+        {
+          $method     => '_SHOW',
+          UID         => $user_info->{UID},
+          COLS_NAME   => 1
+        }
+      );
+
+      my $met = lc$method;
+      my $info = $users_list->[0]->{$met};
+
+      exit 0 unless ($info);
+      
+      if($method eq "PHONE"){
+        $info =~ s/\+/\%2B/g;
+      }
+
+      $html->redirect("$login_url?user=$info&passwd=$user_info->{PASSWORD}", { WAIT => 0 });
+      exit 0;
+    }
   }
   elsif ($FORM{SHOW_PASSWORD} && $permissions{0}{3}) {
-    print $html->element('span', $lang{LOGIN} . ":'$user_info->{LOGIN}' " . $lang{PASSWD} . ":'$user_info->{PASSWORD}'");
-    # print $html->button('', '', {ICON => 'glyphicon glyphicon-copy', COPY => $user_info->{PASSWORD}, BUTTON => 2});
-    exit 0;
+    $conf{WEB_AUTH_KEY}='LOGIN' if(! $conf{WEB_AUTH_KEY});
+
+    if ($conf{WEB_AUTH_KEY} eq 'LOGIN') {
+      print $html->element('span', $lang{LOGIN} . ":'$user_info->{LOGIN}' " . $lang{PASSWD} . ":'$user_info->{PASSWORD}'");
+      #print $html->button('', '', {ICON => 'glyphicon glyphicon-copy', COPY => $user_info->{PASSWORD}, BUTTON => 2});
+      exit 0;
+    }
+    else{
+      my @a_method = split(/,/, $conf{WEB_AUTH_KEY});
+      my $method = $a_method[0];
+
+      my $users_list = $users->list(
+        {
+          $method     => '_SHOW',
+          UID         => $user_info->{UID},
+          COLS_NAME   => 1
+        }
+      );
+
+      my $met = lc$method;
+      my $info = $users_list->[0]->{$met};
+      if (defined $info) {
+        print $html->element('span', $method . ":'$info' " . $lang{PASSWD} . ":'$user_info->{PASSWORD}'");
+        exit 0;
+      }
+      else{
+        $html->message( 'err', "$lang{ERROR}",  "$lang{AUTH_WEB_ERROR} $method -- $lang{PASSWD}: '$user_info->{PASSWORD}'");
+        exit 0;
+      }
+    }
   }
   else {
-    #$user_info = $attr->{USER_INFO};
     $FORM{UID} = $user_info->{UID} || 0;
     $uid = $user_info->{UID} || 0;
     $user_info->{COMPANY_NAME} = "$lang{NOT_EXIST} ID: $user_info->{COMPANY_ID}" if ($user_info->{COMPANY_ID} && !$user_info->{COMPANY_NAME});
@@ -1690,7 +1757,7 @@ sub user_services {
       }
     }
 
-    return 1;
+    return q{};
   }
 
   my $service_start = 0;
@@ -1858,7 +1925,7 @@ sub user_right_menu {
   if ($i <= 1) {
     if ($i eq 0) {
       @items_arr = ();
-      foreach my $key (sort keys %menu_items) {
+      foreach my $key (sort {$a <=> $b}  keys %menu_items) {
         if (defined($menu_items{$key}{20})) {
           if (in_array($module{$key}, \@MODULES)) {
 
@@ -2073,46 +2140,37 @@ sub user_info {
   #show tags
   my $user_tags = '';
   if (in_array('Tags', \@MODULES)) {
-    require Tags;
-    Tags->import();
-    my $Tags = Tags->new($db, $admin, \%conf);
-
-    my $list = $Tags->tags_user({
-      NAME      => '_SHOW',
-      PRIORITY  => '_SHOW',
-      DATE      => '_SHOW',
-      UID       => $uid,
-      COLS_NAME => 1
-    });
-
-    my @tags_arr = ();
-
-    foreach my $line (@$list) {
-      if ($line->{date}) {
-        push @tags_arr, $html->element('span', $line->{name}, {
-          'class'                 => "btn btn-xs $priority_colors[$line->{priority}]",
-          'data-tooltip'          => $line->{comments} || $line->{name},
-          'data-tooltip-position' => 'top',
-        });
-      }
-    }
-
     if (!$admin->{MODULES} || $admin->{MODULES}{'Tags'}) {
-      load_module('Tags');
-      
-      my $tag_count;
+      require Tags;
+      Tags->import();
+      my $Tags = Tags->new($db, $admin, \%conf);
+      my $list = $Tags->tags_user({
+          NAME      => '_SHOW',
+          PRIORITY  => '_SHOW',
+          DATE      => '_SHOW',
+          UID       => $uid,
+          COLS_NAME => 1
+      });
 
-      (undef, $tag_count) = tags_sel({ HASH => 1 });
-      
-      if ($tag_count) {
-        $user_tags = ((@tags_arr) ? join(" ", @tags_arr) : '')
-          . $html->element('span', '', { class => "btn btn-default btn-xs glyphicon glyphicon-tags",
+      my @tags_arr = ();
+
+      foreach my $line (@$list) {
+        if ($line->{date}) {
+          push @tags_arr, $html->element('span', $line->{name}, {
+              'class'                 => "btn btn-xs $priority_colors[$line->{priority}]",
+              'data-tooltip'          => $line->{comments} || $line->{name},
+              'data-tooltip-position' => 'top',
+          });
+        }
+      }
+
+      $user_tags = ($#tags_arr > -1) ? join(" ", @tags_arr) : '';
+      $user_tags .=$html->element('span', '', { class => "btn btn-default btn-xs glyphicon glyphicon-tags",
           'data-tooltip'                       => "$lang{TAGS} ($lang{ADD})",
           'data-tooltip-position'              => 'top',
-          onclick                              => $permissions{0}{3} ? "loadToModal('$SELF_URL?qindex=" . get_function_index('tags_user') 
+          onclick                              => $permissions{0}{3} ? "loadToModal('$SELF_URL?qindex=" . get_function_index('tags_user')
                                                     . "&UID=$uid&header=2&FORM_NAME=USERS_TAG')" : '',
         });
-      }
     }
   }
 
@@ -2268,12 +2326,27 @@ sub form_users_list {
     $LIST_PARAMS{PAGE_ROWS} = 100000;
   }
 
+  my $ext_fields = '';
+  if ($permissions{0} && $permissions{0}{4}) {
+    $ext_fields .= 'DELETED';
+  }
+
+  if ($FORM{EXPORT_CONTENT}) {
+    my $buffer = $FORM{__BUFFER};
+    my (undef, $value) = split(/(UID=([0-9].+;))/, $buffer);
+
+    if ($value) {
+      $value =~ s/UID=//g;
+      $LIST_PARAMS{UID} = $value;
+    }
+  }
+
   ($table, $list) = result_former({
     INPUT_DATA      => $users,
     FUNCTION        => 'list',
     BASE_FIELDS     => 1,
-    DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,CREDIT,LOGIN_STATUS',
-    HIDDEN_FIELDS   => ($permissions{0}{4}) ? 'DELETED,PRIORITY' : 'PRIORITY',
+    DEFAULT_FIELDS  => "LOGIN,FIO,DEPOSIT,CREDIT,LOGIN_STATUS,$ext_fields",
+    HIDDEN_FIELDS   => 'PRIORITY',
     FUNCTION_FIELDS => 'form_payments, form_fees',
     TABLE           => {
       width            => '100%',
@@ -2294,7 +2367,7 @@ sub form_users_list {
   if (_error_show($users)) {
     return 0;
   }
-  elsif ($users->{TOTAL} && $users->{TOTAL} == 1 && !$FORM{SKIP_FULL_INFO}) {
+  elsif ($users->{TOTAL} && $users->{TOTAL} == 1 && !$FORM{SKIP_FULL_INFO} && !$FORM{EXPORT_CONTENT}) {
     $FORM{index} = 15;
 
     if (!$FORM{UID}) {
@@ -2386,6 +2459,13 @@ sub form_users_list {
           $line->{last_payment} = $html->color_mark($line->{last_payment}, 'text-danger');
         }
       }
+      elsif ($col_name eq 'last_fees' && $line->{last_fees}) {
+         my ($date, undef) = split(/ /, $line->{last_fees});
+
+        if ($date && $DATE eq $date) {
+          $line->{last_fees} = $html->color_mark($line->{last_fees}, 'text-danger');
+        }
+      }
       elsif ($col_name eq 'country_id') {
         $line->{$col_name} = $countries_hash->{$line->{$users->{COL_NAMES_ARR}->[$i]}};
       }
@@ -2395,13 +2475,13 @@ sub form_users_list {
         }
       }
 
-      if ($col_name eq 'login_status') {
-        push @fields_array, $table->td($status[ $line->{login_status} ], { class => $state_colors[ $line->{login_status} ], align => 'center' });
-      }
-      else {
-        push @fields_array, $table->td($line->{$col_name});
-      }
+      if ($col_name eq 'login_status' || $col_name eq 'deleted') {
+      push @fields_array, $table->td($status[ $line->{login_status} ], { class => $state_colors[ $line->{login_status} ], align => 'center' });
     }
+    else {
+      push @fields_array, $table->td($line->{$col_name});
+    }
+  }
 
     @fields_array = ($table->td(user_ext_menu($uid, $line->{login}, {
       login_status => $line->{login_status},
@@ -2600,9 +2680,9 @@ sub form_users_list {
         {
           CONTENT => $table->show({ OUTPUT2RETURN => 1 })
             . ((!$admin->{MAX_ROWS}) ? $table2->show({ OUTPUT2RETURN => 1, DUBLICATE_DATA => 1 }) : '')
-            . $table3->show({ OUTPUT2RETURN => 1, DUBLICATE_DATA => 1 })
-            ,
+            . $table3->show({ OUTPUT2RETURN => 1, DUBLICATE_DATA => 1 }),
           HIDDEN  => {
+            UID => $FORM{UID},
             index => 11,
           },
           NAME    => 'users_list',
@@ -2636,8 +2716,17 @@ sub user_del {
     return 0;
   }
 
-  $user_info->del({ %FORM });
+  $user_info->del({ %FORM, DATE => $DATE });
   $conf{DELETE_USER} = $user_info->{UID};
+
+  if($conf{USER_DELETE_USE_SUFFIX}) {
+    if($user_info->{suffix_added}) {
+      $html->message('info', $lang{INFO}, $lang{SUFFIX_ADDED});
+    }
+    else {
+      $html->message('warn', $lang{WARNING}, $lang{NOE_ENOUGHT_SIZE_FOR_SUFFIX});
+    }
+  }
 
   if (!_error_show($user_info)) {
     if ($conf{external_userdel}) {
@@ -2779,6 +2868,13 @@ sub form_wizard {
   $index = get_function_index('form_wizard');
   my DBI $db_ = $db->{db};
 
+  $users->{PRE_ADD}=1;
+  $users->check_params();
+
+  if($users->{errno}) {
+    $html->message('warn', "Please update license.");
+  }
+
   if ($conf{REG_WIZARD}) {
     $conf{REG_WIZARD} =~ s/[\r\n]+//g;
   }
@@ -2795,9 +2891,8 @@ sub form_wizard {
     $conf{REG_WIZARD} .= ";form_fees_wizard::$lang{FEES}";
     $conf{REG_WIZARD} .= ";iptv_user:Iptv:$lang{TV}" if (in_array('Iptv', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Iptv}));
     $conf{REG_WIZARD} .= ";msgs_admin_add:Msgs:$lang{MESSAGES}" if (in_array('Msgs', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Msgs}));
-    $conf{REG_WIZARD} .= ";sms_send_register:Sms:SMS" if (in_array('Sms', \@MODULES) && !$conf{SMS_REG_GREETING});
   }
-
+  
   if (in_array('Sms', \@MODULES) && $conf{SMS_REG_GREETING}) {
     load_module('Sms', $html);
     send_user_memo({ %FORM, NEW_USER => 1 });
@@ -2814,23 +2909,26 @@ sub form_wizard {
     }
   }
 
-  if (!$FORM{LOCATION_ID} && $FORM{step} && $FORM{step} > 0) {
+  if ($FORM{step} && $FORM{step} > 0) {
     my @require_fields = ();
-  
+    my @require_params = ('BUILD', 'STREET', 'DISTRICT');
+    my @require_params_id = ('LOCATION_ID', 'STREET_ID', 'DISTRICT_ID');
+
     if ($conf{REG_SURELY_VALUE}) {
       my $fields = $conf{REG_SURELY_VALUE};
       push @require_fields, split(/,/, $fields);
-    }
 
-    foreach my $field (@require_fields) {
-      next if ($FORM{step} == 1);
+      for (my $address_params = 0; $address_params < $#require_params; $address_params++) {
+        my $value_id = $require_params_id[ $address_params ];
+        my $value = $require_params[ $address_params ];
 
-      next unless ( ($field eq 'DISTRICT') ||
-                    ($field eq 'STREET')   ||
-                    ($field eq 'BUILD') );
-
-      $FORM{step} = 1;
-      $html->message('err', $lang{ERROR}, $lang{NO_ADDRESS}); 
+        unless ($FORM{ $value_id }) {
+          check_address_registration({
+            require_fields => \@require_fields,
+            require_param  => $value
+          });
+        }
+      }
     }
   }
 
@@ -3313,7 +3411,7 @@ sub form_info_field_tpl {
     #domain_id
     my $fields_list = $Info_fields->fields_list({
       COMPANY   => ($attr->{COMPANY} || 0),
-      DOMAIN_ID => $users->{DOMAIN_ID} || 0,
+      DOMAIN_ID => $users->{DOMAIN_ID} || ($admin->{DOMAIN_ID} ? $admin->{DOMAIN_ID} : '_SHOW'),
       SORT      => 5,
     });
 
@@ -3863,7 +3961,10 @@ sub users_import {
       #add new user
       else {
         $users->add({ %$_user, CREATE_BILL => 1 });
-        if ($users->{UID}) {
+        if ($users->{errno}) {
+          _error_show($users);
+        }
+        elsif ($users->{UID}) {
           $users->pi_add({ %$_user, UID => $users->{UID} });
         }
       }
@@ -4172,6 +4273,48 @@ sub contacts_validation {
   }
 
   return $result, $val_message;
+}
+
+#**********************************************************
+=head2 unique_token_generate($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub unique_token_generate {
+  my ($tokensize) = @_;
+
+  my @alphanumeric = ('A'..'Z', 3);
+  my $randtoken = join '', map $alphanumeric[rand @alphanumeric], 0..$tokensize;
+
+  return $randtoken;
+}
+
+#**********************************************************
+=head2 check_address_registration($attr)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub check_address_registration {
+  my ($attr) = @_;
+
+  foreach my $field (@{$attr->{require_fields}}) {
+    next if ($FORM{step} == 1);
+
+    next unless ($field eq $attr->{require_param});
+
+    next if ($FORM{ADD_ADDRESS_BUILD} && $field eq 'BUILD');
+
+    $FORM{step} = 1;
+    $html->message('err', $lang{ERROR}, $lang{NO_ADDRESS}); 
+  }
 }
 
 1;

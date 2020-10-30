@@ -685,12 +685,8 @@ sub portal_s_page {
       # Если поле url не пустое формируем внешнюю ссылку
       else {
         # Если строка содержит http:// выводим как есть
-        if ($line->{url} =~ m|http://*|) {
+        if (($line->{url} =~ m|http://*|) || ($line->{url} =~ m|https://*|)) {
           $url = $line->{url};
-        }
-        # Если строка не содержит http://  - добавляем
-        else {
-          $url = 'http://' . $line->{url};
         }
       }
 
@@ -883,6 +879,14 @@ sub portal_s_page {
 
   $OUTPUT{SOCIAL_AUTH_BLOCK} = make_social_auth_login_buttons();
   $OUTPUT{CONTENT}           = join(($FORM{json} ? ',' : ''), @CONTENTS);
+
+  if ($conf{COOKIE_POLICY_VISIBLE} && $conf{COOKIE_URL_DOC}) {
+    $OUTPUT{COOKIE_POLICY_VISIBLE} = 'block';
+    $OUTPUT{COOKIE_URL_DOC} = $conf{COOKIE_URL_DOC};
+  }
+  else {
+    $OUTPUT{COOKIE_POLICY_VISIBLE} = 'none';
+  }
 
   print $html->tpl_show(_include('portal_body', 'Portal'), { %OUTPUT });
 

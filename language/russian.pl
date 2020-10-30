@@ -301,6 +301,8 @@ $lang{START} = 'Начало';
 $lang{PERSONAL} = 'Персональный';
 $lang{THREADS} = 'Потоки';
 $lang{USER_NOT_EXIST} = 'Такого пользователя не существует';
+$lang{NOE_ENOUGHT_SIZE_FOR_SUFFIX}='Недостаточно места, для суффикса, увеличьте розмер логина в конфигурационном файле.';
+$lang{SUFFIX_ADDED}='Абоненту был добавлен суффикс';
 $lang{AVG} = 'В среднем';
 $lang{PERIOD} = 'Период';
 $lang{CUSTOMERS} = 'Клиенты';
@@ -455,7 +457,7 @@ $lang{HIGH} = 'Высокий';
 $lang{RULES} = 'Правила';
 $lang{REDUCTION} = 'Скидка';
 $lang{DELETE_USER} = 'Удалить пользователя из базы';
-$lang{FIO} = 'ФИО';
+$lang{FIO} = 'ФИО'; 
 $lang{VAT} = 'НДС';
 $lang{SHOW} = 'Показать';
 $lang{FILTERS} = 'Фильтры';
@@ -571,7 +573,7 @@ $lang{AS} = 'как';
 $lang{TIP} = 'Подсказка';
 $lang{IN} = 'в';
 $lang{ERR_NOT_SUPPORTED} = 'Не поддерживается';
-$lang{SHOWING} = 'Показанно';
+$lang{SHOWING} = 'Показано';
 $lang{OF} = 'из';
 $lang{QUERY} = 'Запрос';
 $lang{ERR_NOT_EXISTS} = 'Не существует';
@@ -843,5 +845,25 @@ $lang{CONDITION}='Условие';
 $lang{SYMBOLS_REG}='Допустимые символы: ';
 $lang{SEND_REG}='Отправелно на';
 $lang{NO_ADDRESS}='Адрес не был заполнен, заполните пожалуйста!';
+$lang{ONE_TIME_CODE}='Временный код';
+
+$lang{WEB_SERVER} = 'Веб-сервер';
+$lang{IP_POOLS} = 'IP-пул';
+$lang{BILLD} = 'Billd плагины';
+$lang{CHECKSUM}='Контрольная сумма';
+$lang{CONSOLE}='Консоль';
+
+$lang{LAST_FEES}='Последнее снятие';
+$lang{CASHBOX}='Касса';
+$lang{ENTER_DEL} = 'Введите слово';
+$lang{MATCH_USER}='Сопоставить пользователя';
+$lang{NEXT_POOL}='Следующий пул';
+$lang{AUTH_WEB_ERROR}='Нет параметра аутентификации';
+$lang{COOKIE_AGREEMENTS} = 'Прежде чем просматривать наш сайт, примите нашу';
+$lang{COOKIE_URL} = 'политику в отношении файлов cookie';
+$lang{NOT_DELETED_USERS}='Не учитывать удалённых';
+
+$lang{AND}='И';
+$lang{OR}='ИЛИ';
 
 1

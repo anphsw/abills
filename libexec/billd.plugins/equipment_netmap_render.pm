@@ -1,4 +1,4 @@
-=head1 NAME netmap_render
+=head1 NAME equipment_netmap_render
 
    getting neighbours from core and add:
 

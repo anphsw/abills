@@ -681,8 +681,8 @@ sub mikrotik {
     \%conf,
     {
       FROM_WEB         => 1,
-      MESSAGE_CALLBACK => sub { print('info', $_[0], $_[1]) },
-      ERROR_CALLBACK   => sub { print('err', $_[0], $_[1]) },
+      MESSAGE_CALLBACK => sub { print('info', 'linkupdown') },
+      ERROR_CALLBACK   => sub { print('err', 'linkupdown') },
       DEBUG            => $debug || 0,
       API_BACKEND      => $conf{MIKROTIK_API}
     }

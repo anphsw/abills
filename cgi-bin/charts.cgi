@@ -40,6 +40,7 @@ BEGIN {
 use POSIX qw(strftime);
 use Time::Local qw/timelocal/;
 use lib '../lib';
+
 use Abills::Init qw/$admin $db %conf $DATE $base_dir @MODULES $var_dir/;
 use Abills::Base qw (in_array days_in_month convert gen_time _bp load_pmodule);
 use Abills::HTML;
@@ -170,7 +171,7 @@ else {
 exit 0;
 
 #**********************************************************
-=head2 form_charts_configuration()
+=head2 form_charts_configuration($attr)
 
 =cut
 #**********************************************************
@@ -432,23 +433,23 @@ sub get_ipn_traffic {
   #form query for each traffic class
   my $select_query_traffic_classes = '';
   my @traffic_classes_ids = sort (keys(%{$traffic_classes}));
+  my @query_fields = ('UNIX_TIMESTAMP(l.start) AS start');
   for (my ($i, $len) = (0, scalar @traffic_classes_ids); $i < $len; $i++) {
-    $select_query_traffic_classes .= "SUM(IF(traffic_class=$i, l.traffic_in, 0)) $multiply_for_bytes, \n";
-    $select_query_traffic_classes .= "SUM(IF(traffic_class=$i, l.traffic_out, 0)) $multiply_for_bytes";
-    $select_query_traffic_classes .= ($i != $len - 1) ? ",\n" : '';
+    push @query_fields, " SUM(IF(traffic_class=$i, l.traffic_in, 0)) $multiply_for_bytes",
+      " SUM(IF(traffic_class=$i, l.traffic_out, 0)) $multiply_for_bytes";
+    #    $select_query_traffic_classes .= ($i != $len - 1) ? ",\n" : '';
   }
 
-  $admin->query("SELECT UNIX_TIMESTAMP(l.start),
-      $select_query_traffic_classes
-      FROM ipn_log l
-      $EXT_TABLE
-      WHERE $WHERE and UNIX_TIMESTAMP(l.start) > $start_time and UNIX_TIMESTAMP(l.start) < ($end_time)
-      GROUP BY 1
-      ORDER BY l.start;",
-    undef,
-    { Bind => $bind_values }
+  $select_query_traffic_classes = join(', ', @query_fields);
 
-  );
+  my $sql = "SELECT $select_query_traffic_classes
+      FRoM ipn_log l
+      $EXT_TABLE
+      WHERE $WHERE AND UNIX_TIMESTAMP(l.start) > $start_time AND UNIX_TIMESTAMP(l.start) < ($end_time)
+      GROUP BY 1
+      ORDER BY l.start;";
+
+  $admin->query($sql, undef,  { Bind => $bind_values });
 
   return $admin->{list} || [];
 }
@@ -1133,7 +1134,9 @@ sub _get_group_list {
 }
 
 #**********************************************************
-#
+=head _get_login_list($id)
+
+=cut
 #**********************************************************
 sub _get_login_list {
   my ($id) = @_;
@@ -1150,6 +1153,11 @@ sub _get_login_list {
   return $admin->{list} || [ [ 0, 0 ] ];
 }
 
+#**********************************************************
+=head _get_uid_list($uid)
+
+=cut
+#**********************************************************
 sub _get_uid_list {
   my ($uid) = @_;
   my $WHERE = '';
@@ -1306,82 +1314,5 @@ sub print_footer {
 
   return 1;
 }
-
-
-# #**********************************************************
-# =head2 show_page() - Show charts
-#
-# =cut
-# #**********************************************************
-# sub show_page {
-#   #my (@charts) = @_;
-#
-#   print_head();
-#
-#   # my %page_header = ();
-#   # my $name = $lang{ALL};
-#
-#
-#   #  if ( $FORM{LOGIN} ) {
-#   #    $page_header{HEADER_NAME} = $lang{USER};
-#   #    $page_header{VALUE} = "<a href='index.cgi?LOGIN_EXPR=$FORM{LOGIN}'>$FORM{LOGIN}</a>";
-#   #  }
-#   #  if ( $FORM{UID} ) {
-#   #    if ( $FORM{UID} ne 'all' ) {
-#   #      $name = get_name_for($FORM{UID});
-#   #    }
-#   #    $page_header{HEADER_NAME} = $lang{USER};
-#   #    $page_header{HEADER_VALUE} = $name;
-#   #  }
-#   #  elsif ( $FORM{SESSION_ID} ) {
-#   #    if ( $FORM{SESSION_ID} ne 'all' ) {
-#   #      $name = get_name_for($FORM{SESSION_ID})
-#   #    }
-#   #    $page_header{HEADER_NAME} = 'Session_id';
-#   #    $page_header{HEADER_VALUE} = $name;
-#   #  }
-#   #  elsif ( $FORM{TP_ID} ) {
-#   #    if ( $FORM{TP_ID} ne 'all' ) {
-#   #      $name = get_name_for($FORM{TP_ID})
-#   #    }
-#   #    $page_header{HEADER_NAME} = $lang{TARIF_PLAN};
-#   #    $page_header{HEADER_VALUE} = $name;
-#   #  }
-#   #  elsif ( $FORM{NAS_ID} ) {
-#   #    if ( $FORM{NAS_ID} ne 'all' ) {
-#   #      $name = get_name_for($FORM{NAS_ID})
-#   #    }
-#   #    $page_header{HEADER_NAME} = $lang{NAS};
-#   #    $page_header{HEADER_VALUE} = $name;
-#   #
-#   #  }
-#   #  elsif ( $FORM{GID} ) {
-#   #    if ( $FORM{GID} ne 'all' ) {
-#   #      $name = get_name_for($FORM{GID})
-#   #    }
-#   #    $page_header{HEADER_NAME} = $lang{GROUP};
-#   #    $page_header{HEADER_VALUE} = $name;
-#   #  }
-#   #  elsif ( $FORM{TAG_ID} ) {
-#   #    if ( $FORM{TAG_ID} ne 'all' ) {
-#   #      $name = get_name_for($FORM{TAG_ID})
-#   #    }
-#   #    $page_header{HEADER_NAME} = $lang{TAGS};
-#   #    $page_header{HEADER_VALUE} = $name;
-#   #  }
-#   #
-#   #  my $date_to_show = $FORM{DATE} || $DATE;
-#   #
-#   #  print "<div class='page-header'><h3>$page_header{HEADER_NAME}: $page_header{HEADER_VALUE}</h3></div>";
-#   #  print "<h5><b>$lang{DATE}:</b> $date_to_show </h5><br>";
-#   #
-#   #  foreach my $chart ( @charts ) {
-#   #    print $chart;
-#   #  }
-#   #
-#   print_footer();
-#
-#   return 1;
-# }
 
 1

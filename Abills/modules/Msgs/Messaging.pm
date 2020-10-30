@@ -419,7 +419,10 @@ sub msgs_send_via_telegram {
 
   my @keyboard = ();
   if ($conf{TELEGRAM_MSGS_BOT_ENABLE}) {
-    push(@keyboard, { text => $translate->('_{MSGS_REPLY}_'), 'callback_data' => 'MSGS:REPLY:' . $message_id });
+    push(@keyboard, { 
+      text => $translate->('_{MSGS_REPLY}_'), 
+      switch_inline_query_current_chat => "MSGS_ID=$message_id\n"
+    });
   }
 
   my $referer = (

@@ -26,7 +26,43 @@
       margin-left: 20px;
     }
   }
+
+  .cookieAcceptBar {
+    right: 0;
+    text-align: center;
+    background-color: #333;
+    color: #fff;
+    padding: 20px 0;
+    z-index: 99999;
+    position: fixed; 
+    width: 100%; 
+    height: 100px; 
+    bottom: 0; 
+    left: 0;
+  }
+
+  .cookieAcceptBar a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: bold;
+  }
+
+  button .cookieAcceptBarConfirm {
+    cursor: pointer;
+    border: none;
+    background-color: #2387c0;
+    color: #fff;
+    text-transform: uppercase;
+    margin-top: 10px;
+    height: 40px;
+    line-height: 40px;
+    padding: 0 20px;
+  }
+
 </style>
+
+<link rel='stylesheet' type='text/css' href='/styles/default_adm/css/social_button.css'>
+
 <div class='login-box'>
   <div class='login-logo'>
     <a href='/'><img src=''></a>
@@ -53,8 +89,11 @@
     <form action='$SELF_URL' METHOD='post' name='form_login' id='form_login'>
       <input type='hidden' name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
       <input type='hidden' ID='REFERER' name='REFERER' value='$FORM{REFERER}'>
+      <input type='hidden' id='AUTH_G2FA' name='AUTH_G2FA' value='1'>
+      <input type='hidden' id='HIDDE_COOKIE' name='HIDDE_COOKIE' value='%COOKIE_POLICY_VISIBLE%'>
       <input type='hidden' id='location_x' name='coord_x'>
       <input type='hidden' id='location_y' name='coord_y'>
+      
       <div class="input-group">
         <span class="input-group-addon st_icon"><i class="fa fa-language"></i></span>
         %SEL_LANGUAGE%
@@ -75,12 +114,18 @@
     </form>
     <a data-visible='%PASSWORD_RECOVERY%' style="float: right" href='/registration.cgi?FORGOT_PASSWD=1'>_{FORGOT_PASSWORD}_</a>
     <a data-visible='%REGISTRATION_ENABLED%' href='/registration.cgi'>_{REGISTRATION}_</a>
+    
     <div class='row'>
-      <div class='col-xs-12 text-center' id='social_network_block'>
-        <link rel='stylesheet' href='/styles/default_adm/css/client_social_icons.css'>
-        <ul class='social-network social-circle'>
-          %SOCIAL_AUTH_BLOCK%
-        </ul>
+      <div class="col-md-12">
+        <a href='%FACEBOOK%' class="fb btn" style='%AUTH_FACEBOOK_ID%;'>
+          <i class="fa fa-facebook fa-fw"></i> Login with Facebook
+        </a>
+        <a href='%TWITTER%' class="twitter btn" style='%AUTH_TWITTER_ID%;'>
+          <i class="fa fa-twitter fa-fw"></i> Login with Twitter
+        </a>
+        <a href='%GOOGLE%' class="google btn" style='%AUTH_GOOGLE_ID%;'>
+          <i class="fa fa-google fa-fw"></i> Login with Google+
+        </a>
       </div>
     </div>
   </div>
@@ -91,12 +136,22 @@
     <span class='logo-lg'  style='color: #02060a;'><b><span style='color: red;'>A</span></b>BillS</span>
   </div>
 </div>
+<div id="cookieAcceptBar" class="cookieAcceptBar" style="display: none;">
+  _{COOKIE_AGREEMENTS}_ 
+  <a href="%COOKIE_URL_DOC%" target="_blank">_{COOKIE_URL}_</a>
+  <br> 
+  <button id="cookieAcceptBarConfirm" class="btn btn-success" onclick="hideBanner()">_{SUCCESS}_</button>
+</div>
 
 <script>
 
   /* Geolocation */
   jQuery(function () {
-    jQuery('#language').on('change', selectLanguage);
+    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+      jQuery('#language_mobile').on('change', selectLanguage);
+    } else {
+      jQuery('#language').on('change', selectLanguage);
+    }
 
     if ('$conf{CLIENT_LOGIN_GEOLOCATION}') {
       var loginBtn = jQuery('#login_btn');
@@ -137,5 +192,27 @@
     }
 
   });
+
+  jQuery(document).on('ready', function() {
+    var successCookie = localStorage.getItem('successCookie');
+    
+    if (successCookie != '1') {
+      jQuery('#cookieAcceptBar').show();
+
+      var checkVisibleCookie = jQuery('#HIDDE_COOKIE').val();
+      jQuery('#cookieAcceptBar').css('display', checkVisibleCookie)
+    }
+  });
+
+  function hideBanner() {
+    var banner = document.getElementById("cookieAcceptBar");
+
+    if (banner.style.display === "none") {
+      banner.style.display = "block";
+    } else {
+      banner.style.display = "none";
+      localStorage.setItem('successCookie', 1);
+    }
+  }
 
 </script>

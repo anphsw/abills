@@ -13,6 +13,7 @@ use Abills::Defs;
 use Abills::Misc;
 use JSON;
 use Contacts;
+use Payments;
 
 our ($db,
   $admin,
@@ -21,6 +22,7 @@ our ($db,
   %permissions,
   @WEEKDAYS,
   @MONTHES,
+  %FORM,
   @status
 );
 
@@ -91,7 +93,8 @@ sub form_admins {
       $lang{FEES} . ":3:AID=$admin_form->{AID}:fees",
       $lang{PAYMENTS} . ":2:AID=$admin_form->{AID}:payments",
       $lang{PERMISSION} . ":52:AID=$admin_form->{AID}:permissions",
-      $lang{PASSWD} . ":54:AID=$admin_form->{AID}:password"
+      $lang{PAYMENT_TYPE} . ":776:AID=$admin_form->{AID}:payment_type",
+      $lang{PASSWD} . ":54:AID=$admin_form->{AID}:password",
     );
 
     push @admin_menu, $lang{GROUP} . ":58:AID=$admin_form->{AID}:users" if (!$admin->{GID} || ($permissions{0} && $permissions{0}{28}));
@@ -310,6 +313,7 @@ sub form_admins {
     FUNCTION_FIELDS => 'permission,log,passwd,info,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
+      login           => $lang{LOGIN},
       name            => $lang{FIO},
       position        => $lang{POSITION},
       regdate         => $lang{REGISTRATION},
@@ -419,6 +423,7 @@ sub form_admins_groups {
 
   if (!defined($attr->{ADMIN})) {
     $FORM{subf} = 58;
+    $index = 50;
     form_admins();
     return 1;
   }
@@ -440,17 +445,34 @@ sub form_admins_groups {
     }
   );
 
-  my $list = $admin_->admins_groups_list({ AID => $LIST_PARAMS{AID} });
+  my $list = $admin_->admins_groups_list({ 
+    AID => $LIST_PARAMS{AID},
+    DESC      => $FORM{desc},
+    SORT      => $FORM{sort}
+  });
   my %admins_group_hash = ();
 
   foreach my $line (@$list) {
     $admins_group_hash{ $line->[0] } = 1;
   }
 
-  $list = $users->groups_list({ DOMAIN_ID => $admin_->{DOMAIN_ID} || undef });
+  $list = $users->groups_list({ 
+    DOMAIN_ID => $admin_->{DOMAIN_ID} || undef, 
+    DESC      => $FORM{desc},
+    SORT      => $FORM{sort},
+    GID             => '_SHOW',
+    NAME            => '_SHOW',
+    DESCR           => '_SHOW',
+    ALLOW_CREDIT    => '_SHOW',
+    DISABLE_PAYSYS  => '_SHOW',
+    DISABLE_CHG_TP  => '_SHOW',
+    USERS_COUNT     => '_SHOW',
+    COLS_NAME       => 1
+  });
+
   foreach my $line (@$list) {
-    $table->addrow($html->form_input('GID', $line->[0], { TYPE => 'checkbox', STATE => (defined($admins_group_hash{ $line->[0] })) ? 'checked' : undef }) . $line->[0],
-      $line->[1]);
+    $table->addrow($html->form_input('GID', $line->{gid}, { TYPE => 'checkbox', STATE => (defined($admins_group_hash{ $line->{gid} })) ? 'checked' : undef }, ) . $line->{gid},
+      $line->{name});
   }
 
   print $html->form_main(
@@ -478,6 +500,7 @@ sub form_admins_full_log {
 
   if (!defined($attr->{ADMIN})) {
     $FORM{subf} = get_function_index('form_admins_full_log');
+    $index = 50;
     form_admins();
     return 1;
   }
@@ -674,6 +697,7 @@ sub form_admins_access {
 
   if (!defined($attr->{ADMIN})) {
     $FORM{subf} = 59;
+    $index = 50;
     form_admins();
     return 1;
   }
@@ -828,6 +852,7 @@ sub form_admin_permissions {
 
   if (!defined($attr->{ADMIN})) {
     $FORM{subf} = 52;
+    $index = 50;
     form_admins();
     return 1;
   }
@@ -1059,6 +1084,80 @@ sub form_admin_permissions {
       TABLE2 => $table2->show({ OUTPUT2RETURN => 1 }),
       AID    => $FORM{AID},
       subf   => $FORM{subf}
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+=head2 form_admin_payment_types($attr);
+
+=cut
+#**********************************************************
+sub form_admin_payment_types {
+  my ($attr) = @_;
+  my $payments = Payments->new($db, $admin, \%conf);
+
+  if (!defined($attr->{ADMIN})) {
+    $FORM{subf} = 776;
+    $index = 50;
+    form_admins();
+    return 1;
+  }
+
+  my Admins $admin_ = $attr->{ADMIN};
+
+  if($FORM{set}) {
+    $payments->admin_payment_type_del({
+      AID => $FORM{AID}
+    });
+
+    if($FORM{ADMIN_PAYMENTS_TYPE}) {
+      my @payments_type_ids = split(',', $FORM{ADMIN_PAYMENTS_TYPE});
+
+      foreach (@payments_type_ids) {
+        $payments->admin_payment_type_add({
+          AID => $FORM{AID},
+          PAYMENTS_TYPE_ID => $_
+        });
+      }
+    }
+  }
+
+  my $payments_type_list = $payments->payment_type_list({
+      COLS_NAME => 1,
+      AID => $admin_->{AID},
+  });
+
+  my $table = $html->table(
+    {
+      width       => '90%',
+      caption     => $lang{PAYMENT_TYPE},
+      title_plain => [ $lang{NAME}, '-' ],
+      ID          => 'ADMIN_PERMISSIONS',
+    }
+  );
+
+  foreach my $payments_type(@{ $payments_type_list }) {
+    $table->addrow(
+      _translate($payments_type->{name}),
+      $html->form_input(
+        'ADMIN_PAYMENTS_TYPE',
+        $payments_type->{id},
+        { TYPE => 'checkbox', STATE => $payments_type->{allowed} ? 'checked' : undef }),
+    );
+  }
+
+  print $html->form_main(
+    {
+      CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+      HIDDEN  => {
+        index => $index,
+        AID   => $FORM{AID},
+        subf  => $FORM{subf}
+      },
+      SUBMIT  => { set => $lang{CHANGE} }
     }
   );
 

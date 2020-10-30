@@ -470,7 +470,6 @@ sub sqlcmd_triggers {
 =cut
 #**********************************************************
 sub sqlcmd_tables {
-
   sqlcmd_cluster_info();
 
   $FORM{sort} = 1 if (!$FORM{sort});
@@ -548,14 +547,20 @@ sub sqlcmd_tables {
   }
 
   my @sorted_ids = sort {
-    if ($ACTIVE_FIELDS[ $FORM{sort} - 1 ] eq 'Name')
-    {
-      $SORT_HASH{$a} cmp $SORT_HASH{$b};
+    my $cpm_res = 0;
+    my $active_fiel_name = $ACTIVE_FIELDS[ $FORM{sort} - 1 ];
+
+    if ($active_fiel_name eq 'Name' || $active_fiel_name eq 'Comment' ) {
+      $cpm_res = (lc $SORT_HASH{$a} cmp lc $SORT_HASH{$b});
     }
     else {
-      length($SORT_HASH{$a}||q{}) <=> length($SORT_HASH{$b}||q{})
-      || ($SORT_HASH{$a}||q{}) cmp ($SORT_HASH{$b} || q{});
+      $cpm_res = (
+        length($SORT_HASH{$a} || q{}) <=> length($SORT_HASH{$b} || q{}) ||
+        ($SORT_HASH{$a} || q{}) cmp ($SORT_HASH{$b} || q{})
+      );
     }
+
+    return $FORM{desc} ? $cpm_res * -1 : $cpm_res;
   } keys %SORT_HASH;
 
   my @sorted = ();
@@ -587,12 +592,6 @@ sub sqlcmd_tables {
 
       push @table_rows, $l;
     }
-
-    #    if($FORM{ACTION}) {
-    #      if($FORM{ACTION} eq 'SEARCH') {
-    #        push @table_rows, ((sqlcmd_table_search($FORM{ACTION}, $line)) ? 'Ok' : '');
-    #      }
-    #    }
 
     $table->addrow(@table_rows, $html->button($lang{SHOW}, "index=" . ($index - 1) . "&TABLE_INFO=$line->{'Name'}&QUERY=SELECT * FROM $line->{'Name'} LIMIT $PAGE_ROWS", { class => 'show' }));
 
@@ -674,7 +673,7 @@ sub sqlcmd_tables {
 =cut
 #**********************************************************
 sub sqlcmd_info {
-  my ($stats, $vars) = $Sqlcmd->sqlcmd_info();
+  my ($stats, $vars, $memory_stats) = $Sqlcmd->sqlcmd_info();
 
   my %op = ();
   %stats = %$stats;
@@ -921,6 +920,19 @@ sub sqlcmd_info {
     make_short(t($stats{'Bytes_received'} + $stats{'Bytes_sent'}, { PERIOD => 'min' })) . '/m',
     make_short(t($stats{'Bytes_received'} + $stats{'Bytes_sent'}, { PERIOD => 'hour' })) . '/h'
   );
+
+  $table->{rowcolor} = 'info';
+  $table->{extra}    = "colspan='6'";
+  $table->addrow("Mysql memory");
+  undef($table->{extra});
+  undef($table->{rowcolor});
+
+  foreach my $memory_stat_name (keys %$memory_stats) {
+    $table->addrow(
+      $memory_stat_name,
+      $memory_stats->{ $memory_stat_name }
+    );
+  }
 
   $table->{rowcolor} = 'info';
   $table->{extra}    = "colspan='6'";

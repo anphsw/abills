@@ -4,6 +4,13 @@
 #
 #**********************************************************
 
+BEGIN {
+  use FindBin '$Bin';
+  our $libpath = $Bin;
+
+  unshift @INC, $Bin . '/../Abills';
+}
+
 use Abills::Base qw/cmd in_array convert startup_files _bp int2ip/;
 use Abills::Misc qw/form_purchase_module cross_modules_call _function get_function_index/;
 use JSON;
@@ -12,7 +19,36 @@ use utf8;
 use Log qw/log_print/;
 use POSIX qw/strftime/;
 
-our ($db, $debug, $Admin, %permissions, $argv, %conf, $OS, $DATE, $TIME, @MODULES, %lang, $base_dir, $SELF_URL);
+our (
+  $db,
+  $debug,
+  $Admin,
+  $argv,
+  %conf,
+  $DATE,
+  $TIME,
+  @MODULES,
+  %lang,
+  $base_dir,
+  $SELF_URL
+);
+
+our $html = Abills::HTML->new(
+  {
+    IMG_PATH  => 'img/',
+    NO_PRINT  => 1,
+    CONF      => \%conf,
+    CHARSET   => $conf{default_charset},
+    HTML_STYLE=> $conf{UP_HTML_STYLE},
+    LANG      => \%lang,
+  }
+);
+
+if ($html->{language} ne 'english') {
+  do $libpath . "/../language/english.pl";
+  do $libpath . "/../Abills/modules/Ureports/lng_english.pl";
+}
+
 exit if (!$conf{PUSH_ENABLED});
 $conf{CROSS_MODULES_DEBUG} = '/tmp/cross_modules';
 
@@ -20,8 +56,8 @@ $SELF_URL //= $conf{BILLING_URL} || '';
 
 use Abills::Sender::Core;
 my $Sender = Abills::Sender::Core->new($db, $Admin, \%conf, {
-    SENDER_TYPE => 'Push'
-  });
+  SENDER_TYPE => 'Push'
+});
 
 my $json = JSON->new->utf8(1);
 my $DEBUG = ($argv && $argv->{DEBUG}) ? $argv->{DEBUG} : 0;
@@ -36,8 +72,6 @@ foreach my $aid ( keys %{$events} ) {
   send_events($aid, $events->{$aid}) if ( scalar (@{$events->{$aid}}) );
 }
 
-#check_reminders();
-
 #**********************************************************
 =head2 collect_events()
 
@@ -51,11 +85,11 @@ sub collect_events {
     DISABLE    => 0,
     COLS_NAME  => 1,
   });
+
   _error_show($Admin);
   
   my @all_aids = map { $_->{aid} } @{$admins_list};
   
-  # Initialize array for each admin
   $events_for_admin{$_} = [ ] foreach (@all_aids);
   
   foreach my $adm ( @{$admins_list} ) {
@@ -67,6 +101,7 @@ sub collect_events {
       my ($adm_year, $adm_month, $adm_day) = split('-', $adm->{birthday});
       if ( $adm_month && $adm_day && ($month == $adm_month && ($adm_day - $day > 0 && $adm_day - $day <= 1)) ) {
         my $birthday_event = _generate_birthday_reminder($adm->{admin_name} || $adm->{login} || $admin->{name});
+        
         foreach my $other_aid ( grep { $_ != $aid } @all_aids ) {
           push(@{$events_for_admin{$other_aid}}, $birthday_event);
         }
@@ -102,21 +137,20 @@ sub collect_admin_events {
   my $language = get_administrator_language($admin);
   
   my $cross_modules_return = cross_modules_call('_events', {
-      UID    => $user->{UID},
-      PERIOD => 300,
-      SILENT => $DEBUG > 0,
-      DEBUG  => $DEBUG
-    });
+    UID          => $user->{UID},
+    PERIOD       => 300,
+    SILENT       => $DEBUG > 0,
+    DEBUG        => $DEBUG,
+    HTML         => $html
+  });
   
   my %admin_modules = ('Events' => 1, 'Notepad' => 1);
   my $admin_groups_ids = $admin->{SETTINGS}->{GROUP_ID} || '';
   
   if ( in_array('Events', \@MODULES) ) {
-    
     if ( $admin_groups_ids ) {
-      
-      # Changing 'AND' to 'OR'
       $admin_groups_ids =~ s/, /;/g;
+
       my $groups_list = $Events->group_list( {
         ID         => $admin_groups_ids,
         MODULES    => '_SHOW',
@@ -139,7 +173,6 @@ sub collect_admin_events {
     
     my $result = $cross_modules_return->{$module};
     if ( $result && $result ne '' ) {
-      # Transform event json text to perl hashref
       eval {
         my $decoded_result = $json->decode('[' . $result . ']');
         
@@ -214,7 +247,6 @@ sub get_administrator_language {
   if ( !$html->{language} || $html->{language} ne $language ) {
     %lang = ();
     
-    # Load main language
     my $main_english = $base_dir . '/language/english.pl';
     require $main_english;
     
@@ -223,7 +255,6 @@ sub get_administrator_language {
       require $main_file;
     }
     
-    # Load modules lang files
     foreach my $module ( @MODULES ) {
       my $english_lang = $base_dir . "/Abills/modules/$module/lng_english.pl";
       require $english_lang if ( -f $english_lang);
@@ -238,37 +269,5 @@ sub get_administrator_language {
   
   return $language;
 }
-
-##**********************************************************
-#=head2 check_reminders()
-#
-#=cut
-##**********************************************************
-#sub check_reminders {
-#
-#  my $periodic_reminders_list = $Notepad->show_reminders_list({ COLS_UPPER => 0 });
-#  my $notes_list = $Notepad->notes_list( {
-#    PAGE_ROWS        => 3,
-#    STATUS           => 0,
-#    DATE             => "<$DATE $TIME;>0000-00-00",
-#    COLS_NAME        => 1,
-#    COLS_UPPER       => 0,
-#    SHOW_ALL_COLUMNS => 1,
-#    AID              => '_SHOW',
-#  } );
-#
-#  foreach my $reminder ( @{$periodic_reminders_list}, @{ $notes_list } ) {
-#    next if (!$reminder->{aid});
-#
-#    $Sender->send_message({
-#      AID     => $reminder->{aid},
-#      MESSAGE => $reminder->{text},
-#      TITLE   => $reminder->{subject}
-#    });
-#  }
-#
-#  return 1;
-#}
-
 
 1

@@ -188,7 +188,7 @@ sub sync_leases {
   foreach my $line ( @{$db_leases} ) {
     $db_leases_by_mac{lc $line->{mac}} = $line;
   }
-  
+
   # Compare leases from mikrotik and DB
   my @mikrotik_to_add_leases = ();
   foreach my $host_mac ( keys (%db_leases_by_mac) ) {
@@ -198,7 +198,14 @@ sub sync_leases {
       push (@mikrotik_to_add_leases, $db_leases_by_mac{$host_mac});
     }
     else {
-      delete $mikrotik_leases_by_mac{$host_mac};
+      my (undef, $mikrotik_tp_id) = split('_', $mikrotik_leases_by_mac{$host_mac}{'address-lists'});
+      if ($mikrotik_tp_id && $mikrotik_tp_id != $db_leases_by_mac{$host_mac}{tp_id}) {
+        print "Address-list was changed: $host_mac\n" if ( $ARGS{VERBOSE} );
+        push (@mikrotik_to_add_leases, $db_leases_by_mac{$host_mac});
+      }
+      else {
+        delete $mikrotik_leases_by_mac{$host_mac};
+      }
     }
   }
   

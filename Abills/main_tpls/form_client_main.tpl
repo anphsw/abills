@@ -54,7 +54,9 @@
         </ul>
       </li>
       <li>
-
+        <a href="#" style='padding-top: 6px; padding-bottom: 6px'>
+          <span>%SELECT_LANGUAGE_MOBILE%</span>
+        </a>
       </li>
     </ul>
   </div>
@@ -67,7 +69,7 @@
   <div class='content-wrapper'>
     <section class="content" id='main-content'>
     %BODY%
-      </section>
+    </section>
 
   </div>
 
@@ -79,7 +81,11 @@
 <script src="/styles/lte_adm/dist/js/app.js"></script>
 
 <script>
-  jQuery('#language').on('change', selectLanguage);
+  if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+    jQuery('#language_mobile').on('change', selectLanguage);
+  } else {
+    jQuery('#language').on('change', selectLanguage);
+  }
 </script>
 %PUSH_SCRIPT%
 </body>

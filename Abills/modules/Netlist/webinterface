@@ -22,10 +22,10 @@ our (
   $db,
   $admin,
   %conf,
-  $html,
-  $lang
+  %lang
 );
 
+our Abills::HTML $html;
 my $Netlist = Netlist->new( $db, $admin, \%conf );
 my $Nas = Nas->new( $db, \%conf, $admin );
 
@@ -287,7 +287,7 @@ sub netlist_ip_calc {
 sub netlist_list {
   $Netlist->{ACTION} = 'add';
   $Netlist->{ACTION_LNG} = $lang{ADD};
-  
+
   if ( $FORM{ping} ) {
     host_diagnostic($FORM{ping});
   }
@@ -296,7 +296,7 @@ sub netlist_list {
       $FORM{IPV6} = $FORM{IP};
       undef $FORM{IP};
     }
-    
+
     if ( !( defined $FORM{IP} || defined $FORM{IPV6} )) {
       $html->message('err', $lang{ERR_WRONG_DATA}, $lang{IP_ADDRESS});
     }
@@ -347,7 +347,16 @@ sub netlist_list {
     'GID',
     {
       SELECTED    => $Netlist->{GID} || $FORM{GID},
-      SEL_LIST    => $Netlist->groups_list( { COLS_NAME => 1 } ),
+      SEL_LIST    => $Netlist->groups_list( { 
+        GID             => '_SHOW',
+        NAME            => '_SHOW',
+        DESCR           => '_SHOW',
+        ALLOW_CREDIT    => '_SHOW',
+        DISABLE_PAYSYS  => '_SHOW',
+        DISABLE_CHG_TP  => '_SHOW',
+        USERS_COUNT     => '_SHOW',
+        COLS_NAME => 1 
+      } ),
       NO_ID       => 1,
       MAIN_MENU   => get_function_index('netlist_groups'),
       SEL_OPTIONS => { '' => '--' },
@@ -445,15 +454,16 @@ sub netlist_list {
   
   print $html->form_main(
     {
-      CONTENT => $table->show() . $html->element( 'div', $info, { class => 'navbar navbar-default form-inline' } ),
-      HIDDEN  => { index => "$index" },
+      CONTENT => $table->show()
+        . $html->element( 'div', $info, { class => 'navbar navbar-default form-inline' } ),
+      HIDDEN  => { index => $index },
+      class  => 'navbar-form form-inline',
     }
   );
-  
+  #navbar-form navbar-right form-inline
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'left', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $Netlist->{TOTAL} ] ]
     }
   );
@@ -506,7 +516,15 @@ sub netlist_groups {
     'PARENT_ID',
     {
       SELECTED    => $Netlist->{PARENT_ID} || 0,
-      SEL_LIST    => $Netlist->groups_list( { NOT_PARENT_ID => 0, COLS_NAME => 1, PAGE_ROWS => 100000 } ),
+      SEL_LIST    => $Netlist->groups_list( { 
+              GID             => '_SHOW',
+      NAME            => '_SHOW',
+      DESCR           => '_SHOW',
+      ALLOW_CREDIT    => '_SHOW',
+      DISABLE_PAYSYS  => '_SHOW',
+      DISABLE_CHG_TP  => '_SHOW',
+      USERS_COUNT     => '_SHOW',
+      NOT_PARENT_ID => 0, COLS_NAME => 1, PAGE_ROWS => 100000 } ),
       NO_ID       => 1,
       SEL_OPTIONS => { '0' => '--' },
     }
@@ -995,20 +1013,20 @@ sub netlist_ip_scan_exec {
 #**********************************************************
 sub netlist_show_networks {
 
-  require Dhcphosts;
-  Dhcphosts->import();
-  my $Dhcphosts = Dhcphosts->new( $db, $admin, \%conf );
-
-  my $dhcp_networks = $Dhcphosts->networks_list( {
-    NAME             => '_SHOW',
-    NETWORK          => '_SHOW',
-    NETMASK          => '_SHOW',
-    SHOW_ALL_COLUMNS => 1,
-    COLS_NAME        => 1,
-    PAGE_ROWS        => 100000
-  } );
-
-  _error_show($Dhcphosts);
+  # require Dhcphosts;
+  # Dhcphosts->import();
+  # my $Dhcphosts = Dhcphosts->new( $db, $admin, \%conf );
+  #
+  # my $dhcp_networks = $Dhcphosts->networks_list( {
+  #   NAME             => '_SHOW',
+  #   NETWORK          => '_SHOW',
+  #   NETMASK          => '_SHOW',
+  #   SHOW_ALL_COLUMNS => 1,
+  #   COLS_NAME        => 1,
+  #   PAGE_ROWS        => 100000
+  # } );
+  #
+  # _error_show($Dhcphosts);
 
   my $ip_pools = $Nas->nas_ip_pools_list( {
     NAS_ID           => '*',
@@ -1027,7 +1045,7 @@ sub netlist_show_networks {
       title   => [ '#', $lang{NAME}, $lang{BEGIN}, $lang{END}, $lang{INFO} ],
       pages   => scalar @{$ip_pools},
       qs      => $pages_qs,
-      ID      => '_ID'
+      ID      => 'NETLIST_IPPOOLS'
     } );
 
   foreach my $pool ( @{$ip_pools} ) {
@@ -1044,30 +1062,30 @@ sub netlist_show_networks {
   }
   print $ip_pools_table->show();
 
-  if (in_array('Dhcphosts', \@MODULES)) {
-    # Show networks defined in pools
-    my $dhcphosts_networks_table = $html->table({
-      width   => '100%',
-      caption => 'Dhcphosts ' . $lang{NETWORKS},
-      title   => [ '#', $lang{NAME}, $lang{NETWORK}, $lang{INFO} ],
-      pages   => scalar @{$ip_pools},
-        qs => $pages_qs,
-        ID => '_ID'
-    });
-
-    foreach my $pool (@{$dhcp_networks}) {
-      my $info_button = $html->button('', "index=$info_index&TYPE=Dhcphosts&ID=$pool->{id}", { class => 'info' });
-
-      $dhcphosts_networks_table->addrow(
-        $pool->{id},
-        $pool->{name},
-        $pool->{network} . '/' . $pool->{netmask},
-        $info_button
-      );
-    }
-
-    print $dhcphosts_networks_table->show();
-  }
+  # if (in_array('Dhcphosts', \@MODULES)) {
+  #   # Show networks defined in pools
+  #   my $dhcphosts_networks_table = $html->table({
+  #     width   => '100%',
+  #     caption => 'Dhcphosts ' . $lang{NETWORKS},
+  #     title   => [ '#', $lang{NAME}, $lang{NETWORK}, $lang{INFO} ],
+  #     pages   => scalar @{$ip_pools},
+  #       qs => $pages_qs,
+  #       ID => '_ID'
+  #   });
+  #
+  #   foreach my $pool (@{$dhcp_networks}) {
+  #     my $info_button = $html->button('', "index=$info_index&TYPE=Dhcphosts&ID=$pool->{id}", { class => 'info' });
+  #
+  #     $dhcphosts_networks_table->addrow(
+  #       $pool->{id},
+  #       $pool->{name},
+  #       $pool->{network} . '/' . $pool->{netmask},
+  #       $info_button
+  #     );
+  #   }
+  #
+  #   print $dhcphosts_networks_table->show();
+  # }
 
   return 1;
 }
@@ -1147,7 +1165,9 @@ sub netlist_network_info {
     my $netmask = $network{netmask_int};
     my $netmask_binary = sprintf('%032b', $netmask);
     my $bits_count = index ($netmask_binary, '0');
+
     $bits_count = 0 if $bits_count <= 0;
+
     my $hosts_count = 1 << (32 - $bits_count);
 
     $last_ip_num = $first_ip_num + $hosts_count - 3;
@@ -1176,6 +1196,7 @@ sub netlist_network_info {
   for ( my $ip_address_num = $first_ip_num; $ip_address_num <= $last_ip_num; $ip_address_num++ ) {
     my $ip_str = int2ip($ip_address_num);
     my ($last_octet) = $ip_str =~ /\.(\d{1,3})$/;
+
     push @ip_addresses, $ip_str;
     push @last_octets, $last_octet;
   }
@@ -1206,6 +1227,7 @@ sub netlist_network_info {
     STATUS => '_SHOW',
     COLS_NAME => 1,
   } );
+
   _error_show($Netlist);
 
   foreach my $custom_watch_ip ( @$netlist_defined_ips ) {
@@ -1280,53 +1302,56 @@ sub _netlist_make_ip_table {
 #**********************************************************
 sub _netlist_make_user_info_popover {
   my ($user_info_hash, $last_octet) = @_;
-  
+
   my $online = $user_info_hash->{online};
   my $class = $online ? 'success' : 'info';
-  
-  if ( my $status_num = $user_info_hash->{netlist_status} ) {
+
+  if (my $status_num = $user_info_hash->{ netlist_status }) {
     $last_octet = $html->color_mark( $last_octet, 'text-' . $status_colors[ $status_num ] );
     $last_octet =~ s/'/"/g;
   }
-  
+
   if ( !exists $user_info_hash->{uid} ) {
     return qq{
-    <td class='$class'>$last_octet</td>
+      <td class='$class'>$last_octet</td>
     };
   }
-  
+
+  $user_info_hash->{fio} =~ s/[\']//gm;
+
   my $html_content = <<"INFO_HTML";
   <div class="table">
-<table class="table table-striped table-condensed">
-  <tr>
-    <td class="text-primary">IP</td>
-    <td class="text-muted">$user_info_hash->{ip}</td>
-  </tr>
-  <tr>
-    <td class="text-primary">Login</td>
-    <td class="text-muted">$user_info_hash->{login}</td>
-  </tr>
-  <tr>
-    <td class="text-primary">FIO</td>
-    <td class="text-muted">$user_info_hash->{fio}</td>
-  </tr>
-  <tr>
-    <td class="text-primary">UID</td>
-    <td class="text-muted">$user_info_hash->{uid}</td>
-  </tr>
-</table>
+    <table class="table table-striped table-condensed">
+      <tr>
+        <td class="text-primary">IP</td>
+        <td class="text-muted">$user_info_hash->{ip}</td>
+      </tr>
+      <tr>
+        <td class="text-primary">Login</td>
+        <td class="text-muted">$user_info_hash->{login}</td>
+      </tr>
+      <tr>
+        <td class="text-primary">FIO</td>
+        <td class="text-muted">$user_info_hash->{fio}</td>
+      </tr>
+      <tr>
+        <td class="text-primary">UID</td>
+        <td class="text-muted">$user_info_hash->{uid}</td>
+      </tr>
+    </table>
+  </div
 INFO_HTML
-  
+
   my $user_link = $html->button($last_octet, 'index=15&UID=' . $user_info_hash->{uid});
-  
+
   return <<"RESULT";
-<td class='$class'>
-<div id='netlist-info-td-$last_octet' data-tooltip='$html_content' data-tooltip-position='auto top'>
-  $user_link
-</div>
-</td>
+  <td class='$class'>
+    <div id='netlist-info-td-$last_octet' data-tooltip='$html_content' data-tooltip-position='auto top'>
+      $user_link
+    </div>
+  </td>
 RESULT
-  
+
 }
 
 #**********************************************************

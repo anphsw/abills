@@ -15,8 +15,8 @@
 
 =head1 VERSION
 
-  VERSION: 0.11
-  DATETIME: 20200415
+  VERSION: 0.15
+  DATETIME: 20201024
 
   API_VERSION: КОМПЛЕКС «ЯХОНТ»
   API_VERSION: НИКА.466533.034.ТР.011.DMZ
@@ -101,6 +101,10 @@ if ($argv->{DICTIONARIES}) {
   ippool_dictionary();
   dictionary_telcos();
 }
+elsif($argv->{DICTIONARIE}) {
+  my $fn = $argv->{DICTIONARIE};
+  &{ \&$fn }();
+}
 elsif ($argv->{START}) {
   sorm_init();
   my $users_list = $User->list({
@@ -110,8 +114,8 @@ elsif ($argv->{START}) {
     DISABLE     => 0,
   });
   
-  foreach (@$users_list) {
-    user_info_report($_->{uid});
+  foreach my $u (@$users_list) {
+    user_info_report($u->{uid});
   }
 }
 elsif($argv->{SHOW_ERRORS}) {
@@ -204,6 +208,7 @@ sub check_payments {
 
   my $payment_list = $Payments->list({
     DATETIME    => ">$last_payment_date",
+    LOGIN       => '_SHOW',
     SUM         => '_SHOW',
     METHOD      => '_SHOW',
     CONTRACT_ID => '_SHOW',
@@ -279,17 +284,24 @@ sub check_wifi {
 sub user_info_report {
   my ($uid) = @_;
 
-  $User->pi({ UID => $uid });
   $User->info($uid);
+  if ($User->{errno}) {
+    delete $User->{errno};
+    return 0;
+  }
+
+  $User->pi({ UID => $uid });
+
+  delete $Internet->{IP};
   $Internet->info($uid);
 
-  my ($family, $name, $surname) = split (' ', $User->{FIO});
+  my ($family, $name, $surname) = split (' ', $User->{FIO} || q{});
 
   my @arr;
 
   $arr[0] = $isp_id;                                    # идентификатор филиала (справочник филиалов)
   $arr[1] = $User->{LOGIN};                             # login
-  $arr[2] = ($Internet->{IP} && $Internet->{IP} ne '0.0.0.0') ? $Internet->{IP} : "";  # статический IP
+  $arr[2] = ($Internet && $Internet->{IP} && $Internet->{IP} ne '0.0.0.0') ? $Internet->{IP} : "";  # статический IP
   $arr[3] = $User->{EMAIL};                             # e-mail
   $arr[4] = $User->{PHONE} || "";                       # телефон
   $arr[5] = "";                                         # MAC-адрес
@@ -302,7 +314,7 @@ sub user_info_report {
 #физ лицо
   if (!$User->{COMPANY_ID}) {
      
-     $arr[11] = 0;             # тип абонента (0 - физ лицо, 1 - юр лицо)
+    $arr[11] = 0;             # тип абонента (0 - физ лицо, 1 - юр лицо)
 
     my ($passport_ser, $passport_num) = $User->{PASPORT_NUM} =~ m/(.*)\s(\d+)/;
     $passport_ser =~ s/\s//g if ($passport_ser);
@@ -372,7 +384,6 @@ sub user_info_report {
     $arr[24] = "";             # 
     $arr[25] = "";             # 
 
-    $Company->{debug}=1;
     $Company->info($User->{COMPANY_ID});
     $arr[26] = $Company->{NAME};   # abonent-jur-fullname  наименование компании
     $arr[27] = $Company->{TAX_NUMBER};    # abonent-jur-inn ИНН
@@ -481,6 +492,11 @@ sub abon_info_report {
 #**********************************************************
 sub ippool_dictionary {
 
+  if ($debug > 6) {
+    $Nas->{debug}=1;
+    $User->{debug}=1;
+  }
+
   my $pools_list = $Nas->nas_ip_pools_list({
     IP_COUNT         => '_SHOW',
     POOL_NAME        => '_SHOW',
@@ -505,6 +521,31 @@ sub ippool_dictionary {
 
     _add_report('pool', $string);
   }
+
+  #Clients pool dictionary
+  my $users_list = $User->list({
+    _GIVE_NETWORK => '*',
+    COMPANY_NAME  => '_SHOW',
+    COLS_NAME     => 1,
+    PAGE_ROWS     => 99999,
+  });
+
+  foreach my $pool (@$users_list) {
+    if(! $pool->{_give_network}) {
+      next;
+    }
+    my ($ip, $bitmask)=split(/\//, $pool->{_give_network});
+
+    my $string = '"' . $isp_id .'";';
+    $string .= '"' . (($pool->{company_name}) ? $pool->{company_name} : $pool->{login}) .'";';
+    $string .= '"' . $ip . '";';
+    $string .= '"' . $bitmask . '";';
+    $string .= '"' . $start_date . '";';
+    $string .= '""' . "\n";
+
+    _add_report('pool', $string);
+  }
+
   print "IP pool dictionary formed.\n";
   return 1;
 }

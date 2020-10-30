@@ -5,6 +5,30 @@
             <legend>_{EQUIPMENT}_ _{SEARCH}_</legend>
 
             <div class='form-group'>
+                <label for='NAS_NAME' class='control-label col-md-3'>_{NAME}_</label>
+                <div class='col-sm-9'>
+                    <input type=text class='form-control' id='NAS_NAME' placeholder='%NAS_NAME%' name='NAS_NAME'
+                           value='%NAS_NAME%'>
+                </div>
+            </div>
+
+            <div class='form-group'>
+                <label for='NAS_IP' class='control-label col-md-3'>IP</label>
+                <div class='col-sm-9'>
+                    <input type=text class='form-control' id='NAS_IP' placeholder='%NAS_IP%' name='NAS_IP'
+                           value='%NAS_IP%'>
+                </div>
+            </div>
+
+            <div class='form-group'>
+                <label for='NAS_DESCR' class='control-label col-md-3'>_{DESCRIBE}_</label>
+                <div class='col-sm-9'>
+                    <input type=text class='form-control' id='NAS_DESCR' placeholder='%NAS_DESCR%' name='NAS_DESCR'
+                           value='%NAS_DESCR%'>
+                </div>
+            </div>
+
+            <div class='form-group'>
                 <label for='SYSTEM_ID' class='control-label col-md-3'>System info</label>
                 <div class='col-sm-9'>
                     <input type=text class='form-control' id='SYSTEM_ID' placeholder='%SYSTEM_ID%' name='SYSTEM_ID'

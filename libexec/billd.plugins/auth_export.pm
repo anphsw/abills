@@ -26,7 +26,7 @@ our (
   $OS,
   $argv,
   %LIST_PARAMS,
-  $Dv,
+  $Internet,
   $Nas
 );
 
@@ -200,7 +200,7 @@ sub get_user_accounts {
 
   if ($debug > 6) {
     $Nas->{debug} = 1;
-    $Dv->{debug} = 1;
+    $Internet->{debug} = 1;
   }
 
   my %nas_pool_ips = ();
@@ -221,7 +221,7 @@ sub get_user_accounts {
     }
   }
 
-  my $internet_list = $Dv->list({
+  my $internet_list = $Internet->list({
     LOGIN     => '_SHOW',
     PASSWORD  => '_SHOW',
     CID       => '_SHOW',

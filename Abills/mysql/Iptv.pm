@@ -93,6 +93,7 @@ sub user_info {
    tp.activate_price AS tp_activate_price,
    tp.change_price AS tp_change_price,
    tp.period_alignment AS tp_period_alignment,
+   tp.reduction_fee AS reduction_fee,
    service.expire AS iptv_expire,
    service.activate AS iptv_activate,
    tv_services.module AS service_module,
@@ -147,34 +148,29 @@ sub user_add {
       $Tariffs->{ACTIV_PRICE} = 0;
     }
 
-    if ( $Tariffs->{AGE} > 0 ){
-      $self->expire_date($attr, $Tariffs);
-    }
+    $self->expire_date($attr, $Tariffs) if ($Tariffs->{AGE} > 0);
   }
 
-  $self->query_add(
-    'iptv_main',
-    {
-      %{$attr},
-      REGISTRATION => 'NOW()',
-      EXPIRE       => $attr->{IPTV_EXPIRE},
-      ACTIVATE     => $attr->{IPTV_ACTIVATE},
-    }
-  );
+  $self->query_add('iptv_main', {
+    %{$attr},
+    REGISTRATION => 'NOW()',
+    EXPIRE       => $attr->{IPTV_EXPIRE},
+    ACTIVATE     => $attr->{IPTV_ACTIVATE},
+  });
 
   return $self if ($self->{errno});
-  $admin->{MODULE}=$MODULE;
+  $admin->{MODULE} = $MODULE;
 
   my @info = ('SERVICE_ID', 'ID', 'TP_ID', 'STATUS', 'IPTV_EXPIRE', 'IPTV_ACTIVATE', 'CID', 'EMAIL');
   my @actions_history = ();
 
   foreach my $param (@info) {
-    if(defined($attr->{$param})) {
-      push @actions_history, $param.":".$attr->{$param};
+    if (defined($attr->{$param})) {
+      push @actions_history, $param . ":" . $attr->{$param};
     }
   }
 
-  $self->{ID}=$self->{INSERT_ID};
+  $self->{ID} = $self->{INSERT_ID};
 
   $admin->action_add($attr->{UID}, "ID: $self->{INSERT_ID} ".  join(', ', @actions_history), { TYPE => 1 } );
 
@@ -208,9 +204,10 @@ sub user_change{
     $self->{TP_INFO} = $Tariffs->info( $attr->{TP_ID} );
     my $User = Users->new( $self->{db}, $admin, $CONF );
 
+    $self->user_channels({ ID => $attr->{ID} });
+
     $User->info( $attr->{UID} );
-    if ( ( $old_info->{STATUS} && $old_info->{STATUS} == 2 )
-      && (defined( $attr->{STATUS} ) && $attr->{STATUS} == 0)
+    if ( ( $old_info->{STATUS} && $old_info->{STATUS} == 2 ) && (defined( $attr->{STATUS} ) && $attr->{STATUS} == 0)
       && $Tariffs->{ACTIV_PRICE} > 0 ){
       if ( $User->{DEPOSIT} + $User->{CREDIT} < $Tariffs->{ACTIV_PRICE} && $Tariffs->{PAYMENT_TYPE} == 0 && $Tariffs->{POSTPAID_FEE} == 0 ){
         $self->{errno} = 15;
@@ -235,13 +232,9 @@ sub user_change{
       $Fees->take( $User, $Tariffs->{CHANGE_PRICE}, { DESCRIBE => "CHANGE_TP" } );
     }
 
-    if ( $Tariffs->{AGE} > 0 ){
-      $self->expire_date($attr, $Tariffs);
-    }
+    $self->expire_date($attr, $Tariffs) if $Tariffs->{AGE} > 0 ;
   }
-  elsif ( ($old_info->{STATUS} == 1
-    || $old_info->{STATUS} == 2
-    || $old_info->{STATUS} == 4
+  elsif ( ($old_info->{STATUS} == 1 || $old_info->{STATUS} == 2 || $old_info->{STATUS} == 4
     || $old_info->{STATUS} == 5) && $attr->{STATUS} == 0 ){
     my $tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
     $self->{TP_INFO} = $tariffs->info( $old_info->{TP_ID} );
@@ -250,13 +243,11 @@ sub user_change{
   $attr->{JOIN_SERVICE} = ($attr->{JOIN_SERVICE}) ? $attr->{JOIN_SERVICE} : 0;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'iptv_main',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'iptv_main',
+    DATA         => $attr
+  });
 
   $self->user_info( $attr->{ID} );
   return $self;
@@ -432,7 +423,7 @@ sub user_list{
 
     if ( $self->{TOTAL} >= 0 ){
       $self->query(
-        "SELECT count(service.id) AS total FROM iptv_main service
+        "SELECT count(DISTINCT service.id) AS total FROM iptv_main service
        LEFT JOIN users u ON (u.uid = service.uid)
        LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id)
       $EXT_TABLE
@@ -639,9 +630,9 @@ sub user_channels{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del( 'iptv_users_channels', $attr );
+  $self->query_del('iptv_users_channels', $attr);
 
-  my @ids = split( /, /, $attr->{IDS} );
+  my @ids = split( /,\s?/, $attr->{IDS} );
 
   my @MULTI_QUERY = ();
 
@@ -859,6 +850,7 @@ sub reports_channels_use2{
               LEFT JOIN bills b ON (u.bill_id = b.id)
               LEFT JOIN companies company ON  (u.company_id=company.id)
               LEFT JOIN bills cb ON  (company.bill_id=cb.id)
+              WHERE ipm.disable=0
             UNION
             SELECT c.num,  c.name, us.uid, im.disable, us.id AS user, IF(company.id IS NULL, b.deposit, cb.deposit) as deposit
               FROM  iptv_channels c
@@ -1603,74 +1595,73 @@ sub users_screens_list{
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $GROUP_BY = '';
 
   my $WHERE = $self->search_former(
     $attr,
     [
-      [ 'LOGIN',       'STR',  'u.id', 'u.id AS login' ],
-      [ 'NUM',         'INT',  's.num',              1 ],
-      [ 'NAME',        'STR',  's.name',             1 ],
-      [ 'MONTH_FEE',   'INT',  's.month_fee',        1 ],
-      [ 'DAY_FEE',     'INT',  's.day_fee',          1 ],
-      [ 'FILTER_ID',   'STR',  's.filter_id',        1 ],
-      [ 'TP_ID',       'INT',  's.tp_id',            1 ],
-      [ 'SERVICE_TP_ID','INT', 'service.tp_id',      1 ],
-      #[ 'SERVICE_ID', 'INT',  'us.service_id',   1 ],
-      [ 'CID',         'STR', 'us.cid',                1 ],
-      [ 'SERIAL',      'STR',  'us.serial',          1 ],
-      [ 'HARDWARE_ID', 'INT',  'us.hardware_id',     1 ],
-      [ 'DATE',        'DATE', 'us.date',            1 ],
-      [ 'UID',         'DATE', 'service.uid',        1 ],
-      [ 'SCREEN_ID',   'INT',  'us.screen_id',        1 ],
+      [ 'LOGIN',            'STR',  'u.id', 'u.id AS login'                                     ],
+      [ 'NUM',              'INT',  's.num',                                                  1 ],
+      [ 'NAME',             'STR',  's.name',                                                 1 ],
+      [ 'MONTH_FEE',        'INT',  's.month_fee',                                            1 ],
+      [ 'DAY_FEE',          'INT',  's.day_fee',                                              1 ],
+      [ 'FILTER_ID',        'STR',  's.filter_id',                                            1 ],
+      [ 'TP_ID',            'INT',  's.tp_id',                                                1 ],
+      [ 'SERVICE_TP_ID',    'INT',  'service.tp_id',                                          1 ],
+      [ 'CID',              'STR',  'us.cid',                                                 1 ],
+      [ 'SERIAL',           'STR',  'us.serial',                                              1 ],
+      [ 'HARDWARE_ID',      'INT',  'us.hardware_id',                                         1 ],
+      [ 'DATE',             'DATE', 'us.date',                                                1 ],
+      [ 'UID',              'DATE', 'service.uid',                                            1 ],
+      [ 'SCREEN_ID',        'INT',  'us.screen_id',                                           1 ],
+      [ 'TP_REDUCTION_FEE', 'INT',  'tp.reduction_fee', 'tp.reduction_fee AS tp_reduction_fee'  ],
     ],
     {
-      WHERE => 1,
+      WHERE             => 1,
+      USERS_FIELDS_PRE  => 1,
+      USE_USER_PI       => 1,
+      SKIP_USERS_FIELDS => [ 'UID' ]
     }
   );
 
-  if ( $attr->{SHOW_ASSIGN} ){
-    $self->query( "SELECT  $self->{SEARCH_FIELDS} us.service_id, s.id, service.uid
-      FROM iptv_main service
-      LEFT JOIN iptv_users_screens us ON (service.id=us.service_id)
-      LEFT JOIN iptv_screens s ON (s.num=us.screen_id)
-      LEFT JOIN users u ON (u.uid=service.uid)
-      $WHERE
-      GROUP BY us.service_id, s.num
-      ORDER BY $SORT $DESC
-      LIMIT $PG, $PAGE_ROWS;",
-      undef,
-      $attr
-    );
+  my $EXT_TABLE = '';
+  if ($attr->{SHOW_ASSIGN}) {
+    $EXT_TABLE .= 'FROM iptv_main service ';
+    $EXT_TABLE .= 'LEFT JOIN iptv_users_screens us ON (service.id=us.service_id) ';
+    $EXT_TABLE .= 'LEFT JOIN iptv_screens s ON (s.num=us.screen_id) ';
+    $GROUP_BY = 'GROUP BY us.service_id, s.num';
   }
-  else{
+  else {
     my $service_join = $attr->{SERVICE_ID} ? "AND service.id='$attr->{SERVICE_ID}'" : '';
     $WHERE .= $WHERE ? " AND us.service_id<>0" : "us.service_id<>0" unless $attr->{SERVICE_ID};
+    $GROUP_BY = 'GROUP BY s.id';
 
-    $self->query( "SELECT $self->{SEARCH_FIELDS} us.service_id, s.id, service.uid
-      FROM iptv_screens s
-      LEFT JOIN iptv_main service  ON (s.tp_id=service.tp_id $service_join)
-      LEFT JOIN iptv_users_screens us ON (service.id=us.service_id AND s.num=us.screen_id)
-      LEFT JOIN users u ON (u.uid=service.uid)
-      $WHERE
-      GROUP BY s.id
-      ORDER BY $SORT $DESC
-      LIMIT $PG, $PAGE_ROWS;",
-      undef,
-      $attr
-    );
+    $EXT_TABLE .= 'FROM iptv_screens s ';
+    $EXT_TABLE .= "LEFT JOIN iptv_main service  ON (s.tp_id=service.tp_id $service_join)";
+    $EXT_TABLE .= "LEFT JOIN iptv_users_screens us ON (service.id=us.service_id AND s.num=us.screen_id)";
   }
+  $EXT_TABLE .= 'LEFT JOIN users u ON (u.uid=service.uid)';
+
+  $EXT_TABLE .= 'LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id)' if $attr->{TP_REDUCTION_FEE};
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} us.service_id, s.id, service.uid
+    $EXT_TABLE
+    $WHERE
+    $GROUP_BY
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
 
   my $list = $self->{list};
 
-  if ( $attr->{SKIP_TOTAL} ){
-    return $list;
-  }
+  return $list if $attr->{SKIP_TOTAL};
 
-  if ( $self->{TOTAL} > 0 && !$attr->{SHOW_ASSIGN} ){
-    $self->query(
-      "SELECT COUNT(*) AS total
-    FROM iptv_screens s
-    $WHERE;", undef, { INFO => 1 }
+  if ($self->{TOTAL} > 0 && !$attr->{SHOW_ASSIGN}) {
+    $self->query("SELECT COUNT(*) AS total
+      $EXT_TABLE
+      $WHERE;", undef, { INFO => 1 }
     );
   }
 
@@ -2206,12 +2197,47 @@ sub iptv_users_fees_by_service{
   $self->query("SELECT f.uid AS uid, f.sum, f.dsc, u.id AS login, f.date
     FROM fees f
     LEFT JOIN users u ON(f.uid=u.uid)
-    $WHERE",
+    $WHERE ORDER BY f.date DESC",
     undef, { COLS_NAME => 1}
   );
 
   return $self->{list};
 }
 
+#**********************************************************
+=head2 iptv_get_channels_by_service($id)
+
+  Arguments:
+
+=cut
+#**********************************************************
+sub iptv_get_channels_by_service {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return [] if !$attr->{SERVICE_ID};
+
+  $self->query("SELECT
+   c.num AS channel_num,
+   c.name,
+   c.comments,
+   ic.month_price,
+   ic.day_price,
+   ic.mandatory,
+   ic.interval_id,
+   c.port,
+   c.disable,
+   i.tp_id,
+   c.id AS channel_id
+     FROM iptv_channels c
+     LEFT JOIN iptv_ti_channels ic ON (id=ic.channel_id)
+     INNER JOIN intervals i ON (ic.interval_id=i.id)
+     INNER JOIN tarif_plans tp ON (i.tp_id=tp.tp_id AND tp.service_id=$attr->{SERVICE_ID})
+   GROUP BY c.name",
+    undef, { COLS_NAME => 1}
+  );
+
+  return $self->{list};
+}
 
 1

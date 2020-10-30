@@ -50,8 +50,16 @@ sub vendor_list {
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',   'INT', 'id',   1 ],
+    [ 'NAME', 'STR', 'name', 1 ],
+    [ 'SITE', 'STR', 'site', 1 ]
+  ],
+    { WHERE => 1, });
+
   $self->query("SELECT name, site, support, id
     FROM equipment_vendors
+    $WHERE
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",
     undef,
@@ -59,9 +67,7 @@ sub vendor_list {
   );
   my $list = $self->{list};
 
-  $self->query("SELECT COUNT(*) AS total
-  FROM equipment_vendors;", undef, { INFO => 1 }
-  );
+  $self->query("SELECT COUNT(*) AS total FROM equipment_vendors $WHERE;", undef, { INFO => 1 });
 
   return $list;
 }
@@ -147,8 +153,15 @@ sub type_list {
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',   'INT', 'id',   1 ],
+    [ 'NAME', 'STR', 'name', 1 ]
+  ],
+    { WHERE => 1, });
+
   $self->query("SELECT name, id
     FROM equipment_types
+    $WHERE
     ORDER BY $SORT $DESC;",
     undef,
     $attr
@@ -699,7 +712,7 @@ sub port_list {
   if ($self->{TOTAL} > 0 && !$attr->{_SKIP_TOTAL}) {
     $self->query("SELECT COUNT(*) AS total
     FROM equipment_ports p
-	$EXT_TABLE
+    $EXT_TABLE
     $WHERE;", undef, { INFO => 1 }
     );
   }
@@ -765,7 +778,7 @@ sub port_list_without_group_by {
   if ($self->{TOTAL} > 0 && !$attr->{_SKIP_TOTAL}) {
     $self->query("SELECT COUNT(*) AS total
     FROM equipment_ports p
-	$EXT_TABLE
+    $EXT_TABLE
     $WHERE;", undef, { INFO => 1 }
     );
   }
@@ -1152,12 +1165,12 @@ sub extra_ports_list {
 =head2 vlan_add($attr) - add vlan to db
 
   Arguments:
-    
+
   Returns:
 
   Example:
     $Equipment->vlan_add({%FORM});
-  
+
 =cut
 #**********************************************************
 sub vlan_add {
@@ -1201,12 +1214,12 @@ sub vlan_change {
 =head2 vlan_del($attr) - delete vlan from db
 
   Arguments:
-    
+
   Returns:
 
   Example:
     $Equipment->vlan_del({ID => $FORM{del}});
-  
+
 =cut
 #**********************************************************
 sub vlan_del {
@@ -1222,7 +1235,7 @@ sub vlan_del {
 =head2 vlan_info($attr) - get vlan info
 
   Arguments:
-    
+
   Returns:
 
   Example:
@@ -1248,13 +1261,12 @@ sub vlan_info {
 =head2 vlan_list($attr) - get vlans list
 
   Arguments:
-    
-    
+
   Returns:
 
   Example:
     $Equipment->vlan_list({COLS_NAME => 1});
-  
+
 =cut
 #**********************************************************
 sub vlan_list {
@@ -1360,7 +1372,7 @@ sub trap_list {
      FROM equipment_traps e
      INNER JOIN nas ON (nas.ip=e.ip)
      $WHERE
-     $GROUP 
+     $GROUP
      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
@@ -1610,7 +1622,7 @@ sub graph_list {
 
   $self->query("SELECT $self->{SEARCH_FIELDS} g.id, nas_id
     FROM equipment_graphs g
-	INNER JOIN equipment_snmp_params p ON (p.id=g.param)
+    INNER JOIN equipment_snmp_params p ON (p.id=g.param)
     $WHERE
     ORDER BY $SORT $DESC;",
     undef,
@@ -1780,10 +1792,10 @@ sub mac_log_add {
 
   if ($attr->{MULTI_QUERY}) {
     $self->query("INSERT INTO equipment_mac_log (
-      mac, 
-      nas_id, 
-      vlan, 
-      port, 
+      mac,
+      nas_id,
+      vlan,
+      port,
       port_name,
       datetime
     ) VALUES (?, ?, ?, ?, ?, NOW());",
@@ -1808,7 +1820,7 @@ sub mac_log_add {
     }
     else {
       $self->query("INSERT INTO equipment_mac_log (mac, nas_id, vlan, port, port_name, datetime) VALUES
-    			('$attr->{MAC}', '$attr->{NAS_ID}', '$attr->{VLAN}', '$attr->{PORT}', '$attr->{PORT_NAME}', NOW());", 'do'
+                    ('$attr->{MAC}', '$attr->{NAS_ID}', '$attr->{VLAN}', '$attr->{PORT}', '$attr->{PORT_NAME}', NOW());", 'do'
       );
     }
   }
@@ -1850,8 +1862,8 @@ sub mac_notif_add {
 
   my $time = ($attr->{DATETIME}) ? 'datetime' : 'rem_time';
   $self->query("INSERT INTO equipment_mac_log (mac, nas_id, vlan, port, port_name $time) VALUES
-				('$attr->{MAC}', '$attr->{NAS_ID}', '$attr->{VLAN}', '$attr->{PORT}', '$attr->{PORT_NAME}', NOW())
-				ON DUPLICATE KEY UPDATE $time=NOW();", 'do'
+                ('$attr->{MAC}', '$attr->{NAS_ID}', '$attr->{VLAN}', '$attr->{PORT}', '$attr->{PORT_NAME}', NOW())
+                ON DUPLICATE KEY UPDATE $time=NOW();", 'do'
   );
 
   return $self;
@@ -1893,6 +1905,7 @@ sub onu_list {
   my $GROUP_BY = '';
   $self->{SEARCH_FIELDS} = '';
   $attr->{SKIP_DEL_CHECK}= 1;
+  $attr->{SKIP_GID} = 1;
 
   if($attr->{GROUP_BY}) {
     $GROUP_BY = 'GROUP BY ' . $attr->{GROUP_BY};
@@ -1928,6 +1941,10 @@ sub onu_list {
       USE_USER_PI  => 1,
       SKIP_USERS_FIELDS => [ 'LOGIN', 'DOMAIN_ID' ]
     });
+
+  if ($attr->{GID}) {
+    $WHERE .= ' AND (' . (join ' OR ', @{$self->search_expr($attr->{GID}, 'INT', 'u.gid')}, 'u.gid IS NULL') . ')';
+  }
 
   if ($attr->{TRAFFIC}) {
     my @fields = @{$self->search_expr($attr->{TRAFFIC}, "STR", "CONCAT(onu.onu_in_byte, ',', onu.onu_out_byte) AS traffic", { EXT_FIELD => 1 })};
@@ -2185,7 +2202,14 @@ sub onu_change {
 }
 
 #**********************************************************
-=head2 onu_del($id)
+=head2 onu_del($id, $attr) - delete ONU's from DB (table equipment_pon_onu)
+
+  Arguments:
+    $id - ONU ID's. comma-separated string
+    $attr
+      PORT_ID - delete ONU's with port_id's. array ref
+      ALL - delete all ONU's
+      COMMENTS
 
 =cut
 #**********************************************************
@@ -2194,16 +2218,24 @@ sub onu_del {
   my ($id, $attr) = @_;
 
   my $del_info = '';
-  if ($id) {
+  if ($attr->{ALL}) {
+    $del_info = "DELETED ALL ONU's";
+  }
+  elsif ($id) {
     my $onu_info = $self->onu_info($id);
     $del_info = "NAS_ID: $onu_info->{NAS_ID} ONU: $onu_info->{ONU_MAC_SERIAL}";
   }
   elsif ($attr->{PORT_ID}) {
-    $del_info = "ONU DEL PORT ID: $attr->{PORT_ID}";
+    if (ref $attr->{PORT_ID} eq 'ARRAY') {
+      $del_info = "ONU DEL PORT IDS: " . join(', ', @{$attr->{PORT_ID}});
+    }
+    else {
+      $del_info = "ONU DEL PORT ID: $attr->{PORT_ID}";
+    }
   }
   $del_info .= " COMMENTS: $attr->{COMMENTS}" if ($attr->{COMMENTS});
 
-  $self->query_del('equipment_pon_onu', { ID => $id }, { port_id => $attr->{PORT_ID} });
+  $self->query_del('equipment_pon_onu', { ID => $id }, { port_id => $attr->{PORT_ID} }, { CLEAR_TABLE => $attr->{ALL} });
   $admin->{MODULE} = 'Equipment';
 
   $admin->system_action_add($del_info, { TYPE => 10 });
@@ -2259,7 +2291,7 @@ sub pon_port_list {
   my $EXT_TABLE = q{};
   my $GROUP_BY = '';
   if ($attr->{ONU_COUNT}) {
-    $EXT_TABLE = "LEFT JOIN equipment_pon_onu onu ON (onu.port_id=p.id)";
+    $EXT_TABLE = "LEFT JOIN equipment_pon_onu onu ON (onu.port_id=p.id AND onu.deleted = 0)";
     $GROUP_BY = " GROUP BY p.id";
   }
 
@@ -2320,13 +2352,18 @@ sub pon_port_change {
 }
 
 #**********************************************************
-=head2 pon_port_del($id)
+=head2 pon_port_del($id, $attr) - delete PON ports from DB (table equipment_pon_ports)
+
+  Arguments:
+    $id - port ID's. comma-separated string
+    $attr
+      ALL - delete all ports
 
 =cut
 #**********************************************************
 sub pon_port_del {
   my $self = shift;
-  my ($id) = @_;
+  my ($id, $attr) = @_;
 
   $self->onu_list({ OLT_PORT => $id });
 
@@ -2335,7 +2372,7 @@ sub pon_port_del {
     $self->{ONU_TOTAL} = $self->{TOTAL};
   }
   else {
-    $self->query_del('equipment_pon_ports', { ID => $id });
+    $self->query_del('equipment_pon_ports', { ID => $id }, undef, { CLEAR_TABLE => $attr->{ALL} });
   }
 
   return $self;
@@ -2535,7 +2572,7 @@ sub tr_069_settings_list {
 
   $self->query("SELECT
     $self->{SEARCH_FIELDS}
-    tr.id 
+    tr.id
     FROM equipment_pon_onu o
     LEFT JOIN equipment_pon_ports p ON (p.id=o.port_id)
     LEFT JOIN nas n ON (n.id=p.nas_id)
@@ -2633,7 +2670,7 @@ sub onu_and_internet_cpe_list {
   my $WHERE = '';
 
   if ($attr->{ACTIVE}) {
-    $WHERE = "AND ((em.vendor_id = 12 AND onu.onu_status=3) OR (em.vendor_id = 11 AND onu.onu_status=1))";
+    $WHERE = "AND ((em.vendor_id = 12 AND onu.onu_status=3) OR (em.vendor_id = 11 AND onu.onu_status=1))"; #TODO: fix (unified ONU statuses)
   }
 
   my @ids = ();
@@ -2644,8 +2681,8 @@ sub onu_and_internet_cpe_list {
   if (@ids) {
     $WHERE .= " AND p.nas_id IN (" . join(",", (map { $self->{db}->{db}->quote($_) } @ids)) . ")";
   }
-  
-  $self->query("SELECT 
+
+  $self->query("SELECT
     onu.id,
     onu.onu_dhcp_port AS onu_port,
     p.nas_id AS onu_nas,
@@ -2660,8 +2697,7 @@ sub onu_and_internet_cpe_list {
     LEFT JOIN equipment_infos ei ON (ei.nas_id=p.nas_id)
     LEFT JOIN equipment_models em ON (ei.model_id=em.id)
     INNER JOIN internet_main i ON (onu.onu_mac_serial=i.cpe_mac AND i.cpe_mac<>'')
-    WHERE i.disable = 0
-    AND (onu.onu_dhcp_port<>i.port OR p.nas_id<>i.nas_id)
+    WHERE (onu.onu_dhcp_port<>i.port OR p.nas_id<>i.nas_id)
     $WHERE;",
     undef,
     { COLS_NAME => 1 }

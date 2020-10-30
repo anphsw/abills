@@ -129,7 +129,7 @@ if (!-f $config_file) {
 
   print "Config file maked...\n";
 
-  if (confirm_yn("Make ABillS mysql user account: ", "y")) {
+  if (confirm_yn("Make ABillS mysql user account?", "y")) {
     #Check mysql running
     my $proc_list = `ps ax`;
     print $proc_list if ($debug > 5);
@@ -160,13 +160,13 @@ if (!-f $config_file) {
 
     MYSQL_PROGRAM:
     if (!-f $mysql) {
-      print "Can't find '$mysql' enter path\n";
+      print "Can't find '$mysql', enter path:\n";
       chop($read = <STDIN>);
       $mysql = $read if ($read ne '');
       goto MYSQL_PROGRAM;
     }
     $mk_config{dbcharset}='utf8';
-    print "MySQL path [$mysql]: ";
+    print "MySQL path: $mysql\n";
 
     my $mysql_root_user = 'root';
     my $mysql_root_passwd = $default_mysql_root_passwd || '';
@@ -174,7 +174,7 @@ if (!-f $config_file) {
     chop($read = <STDIN>);
     $mysql_root_user = $read if ($read ne '');
 
-    print "\nMySQL root password [$mysql_root_passwd]: ";
+    print "MySQL root password [$mysql_root_passwd]: ";
     chop($read = <STDIN>);
     $mysql_root_passwd = $read if ($read ne '');
     my $MYSQL_COLLATE = 'cp1251_general_ci';
@@ -195,7 +195,7 @@ if (!-f $config_file) {
 
       # if inodb engine convert tables
 
-      if (confirm_yn("Your DB not configure for ABillS using. Configure? [Yes/No/Show conf] ", "y")) {
+      if (confirm_yn("Your DB is not configured for ABillS. Configure (will create mysql user, database and will import default sql dumps)?", "y")) {
         print "Make users\n";
         if ($debug) {
           print $add_mysql_user;
@@ -216,7 +216,7 @@ if (!-f $config_file) {
           }
         }
       }
-      elsif (confirm_yn("Show MySQL configure Settings? ", "y")) {
+      elsif (confirm_yn("Show MySQL queries, which will create user and database (you may want to run them manually)?", "y")) {
         print "----------------------------------------------------------\n"."$add_mysql_user\n"."----------------------------------------------------------\n";
       }
     }
@@ -226,7 +226,7 @@ if (!-f $config_file) {
   }
 
   #Make periodic records in cron
-  if (read_file('/etc/crontab') !~ /abills/ && !confirm_yn("Make Cron records: ", "n")) {
+  if (read_file('/etc/crontab') !~ /abills/ && !confirm_yn("Make Cron records?", "n")) {
     my $crontab_content = "*/5  *  *  *  *  root   /usr/abills/libexec/billd -all\n"."1    0  *  *  *  root   /usr/abills/libexec/periodic daily\n"."1    1  *  *  *  root   /usr/abills/libexec/periodic monthly\n";
 
     write_file('/etc/crontab', $crontab_content, '>>');
@@ -237,7 +237,7 @@ if (!-f $config_file) {
     $ret = `chown $startup_files->{WEB_SERVER_USER} /usr/abills/backup /usr/abills/cgi-bin/ /usr/abills/Abills/templates/`;
   }
 
-  if (!confirm_yn("Continue configuration [y]: ", "y")) {
+  if (!confirm_yn("Continue configuration?", "y")) {
     exit;
   }
 }
@@ -320,7 +320,7 @@ sub programs_info {
         my $describe = $3;
 
         #if ($value eq 'exec' && $describe =~ /(.+):(.+)/) {
-        if ($value =~ /exec:(.+)/) {	
+        if ($value =~ /exec:(.+)/) {
           my $cmd   = $1;
           #$describe = $2;
           $value    = `$cmd`;
@@ -397,9 +397,9 @@ sub check_install {
     #Reg expression
     print " > $file" if ($debug > 4);
     $file =~ s/[\r\n]+//g;
-    
+
     next if ( ! $file);
-    
+
     # :DEFAULT:DEFAULT_VALUE_NAME=DEFAULT_VALUE_VALUE:DESCRIBE
     # Get default values
     if ($file =~ /^:DEFAULT:(.+)/) {
@@ -478,7 +478,7 @@ sub check_install {
       }
 
       if ($exec_file =~ /\// && ! -x $exec_file) {
-        print "Error: File '$exec_file' not exist or not executeble\n";
+        print "Error: File '$exec_file' not exist or not executable\n";
         return 0;
       }
       my $res = `$exec_cmd`;
@@ -509,7 +509,7 @@ sub check_install {
           if ($param_name2 =~ /^!(.+)/) {
             $param_name2 = $1;
             if (defined($argv->{$param_name2}) && $argv->{$param_name2} eq $param_value2) {
-            	print "$value\n Skip..\n" if ($debug > 2);
+              print "$value\n Skip..\n" if ($debug > 2);
               $skip = 1;
               last;
             }
@@ -544,7 +544,7 @@ sub check_install {
       $config_body = get_file($conf{WORK_DIR} . "/$program/$config");
     }
     else {
-    	print "Unknown options:\n '$file'\n";
+      print "Unknown options:\n '$file'\n";
       next;
     }
 
@@ -582,7 +582,7 @@ sub check_install {
 
         if ( ! -d $folder) {
           print "Folder not exist '$folder'\n";
-          next; 
+          next;
         }
 
         #Check fo existing record in file
@@ -609,7 +609,7 @@ sub check_install {
         }
       }
       elsif (-e "$folder/$dest" && !defined($argv->{'-f'})) {
-        if (!confirm_yn("File: $folder/$dest exists, override: ", "y")) {
+        if (!confirm_yn("File: $folder/$dest exists, overwrite?", "y")) {
           print "Skipped...\n";
           next;
         }
@@ -943,7 +943,7 @@ sub system_conf {
       $content .= "$name=\"$val\"\n";
     }
 
-    if (confirm_yn("Make /etc/rc.conf", 'y')) {
+    if (confirm_yn("Make /etc/rc.conf?", 'y')) {
       write_file('/etc/rc.conf', $content, '>');
       print "Done\n";
     }
@@ -969,7 +969,7 @@ sub other_options {
 #
 #**********************************************************
 sub help {
-	
+
 print "Auto configuration script Version: $VERSION
  ./autoconf [parameters]
   PROGRAMS=[PROGRAMS,...] - Program names (postfix,freeradius,exppp)
@@ -981,7 +981,7 @@ print "Auto configuration script Version: $VERSION
   PARAMS=                 - Extended parameters
     FREEBSD               - OS FreeBSD make startup config
   CHANGE_PATH             - Change path for instalation files.
-  
+
   FILES                   - Configure only selected files
 
   CSUM                    - Compare checksum

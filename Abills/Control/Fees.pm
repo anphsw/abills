@@ -7,7 +7,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(date_diff in_array);
+use Abills::Base qw(date_diff in_array convert);
 
 our(
   $db,
@@ -16,11 +16,11 @@ our(
   %permissions,
   %lang,
   @MONTHES,
-  $html,
   @bool_vals,
   @state_colors
 );
 
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 form_fees($attr)
@@ -38,7 +38,21 @@ sub form_fees {
 
   my $FEES_METHODS = get_fees_types();
 
-  if ($attr->{USER_INFO}) {
+  if (($FORM{search_form} || $FORM{search}) && $index != 7) {
+    $FORM{type} = $FORM{subf} if ($FORM{subf});
+    if ($FORM{search_form} || $FORM{search}) {
+      form_search(
+        {
+          HIDDEN_FIELDS => {
+            ($FORM{DATE} ? (DATE => $FORM{DATE}) : ()),
+            subf       => ($FORM{subf}) ? $FORM{subf} : undef,
+            COMPANY_ID => $FORM{COMPANY_ID},
+          }
+        }
+      );
+    }
+  }
+  elsif ($attr->{USER_INFO}) {
     my $user = $attr->{USER_INFO};
     my $Shedule = Shedule->new($db, $admin, \%conf);
 
@@ -91,7 +105,6 @@ sub form_fees {
           }
         }
       }
-
       #take now
       else {
         delete $FORM{DATE};
@@ -220,20 +233,6 @@ sub form_fees {
     form_users();
     return 0;
   }
-  elsif ($index != 7) {
-    $FORM{type} = $FORM{subf} if ($FORM{subf});
-    if ($FORM{search_form} || $FORM{search}) {
-      form_search(
-        {
-          HIDDEN_FIELDS => {
-            ($FORM{DATE} ? (DATE => $FORM{DATE}) : ()),
-            subf       => ($FORM{subf}) ? $FORM{subf} : undef,
-            COMPANY_ID => $FORM{COMPANY_ID},
-          }
-        }
-      );
-    }
-  }
 
   return 0 if (!$permissions{2}{0});
 
@@ -249,6 +248,11 @@ sub form_fees {
 
 #**********************************************************
 =head2 form_fees_list($attr)
+
+  Arguments:
+    $attr
+      FEES_METHODS
+      BILL_ACCOUNTS
 
 =cut
 #**********************************************************
@@ -343,8 +347,7 @@ sub form_fees_list {
         if ($line->{dsc} =~ /\$/) {
           $line->{dsc} = _translate($line->{dsc});
         }
-        # old. remove if everything ok.
-        # $line->{dsc} = $line->{dsc}.$html->br().$html->b($line->{inner_describe}) if ($line->{inner_describe});
+
         $line->{dsc} = ($line->{dsc} || q{}) . $html->b(" ($line->{inner_describe})") if ($line->{inner_describe});
       }
       elsif($field_name =~ /deposit/ && defined($line->{$field_name})) {
@@ -364,26 +367,10 @@ sub form_fees_list {
           $line->{admin_name} = _status_color_state($line->{admin_name}, $line->{admin_disable});
           delete $line->{admin_disable};
       }
-      #      elsif($field_name eq 'invoice_num') {
-      #        if (in_array('Docs', \@MODULES) && ! $FORM{xml}) {
-      #          my $payment_sum = $line->{sum};
-      #          my $i2p         = '';
-      #
-      #          if ($i2p_hash{$line->{id}}) {
-      #            foreach my $val ( @{ $i2p_hash{$line->{id}} }  ) {
-      #              my ($invoice_id, $invoiced_sum, $invoice_num)=split(/:/, $val);
-      #              $i2p .= $invoiced_sum ." $lang{PAID} $lang{INVOICE} #". $html->button($invoice_num, "index=". get_function_index('docs_invoices_list'). "&ID=$invoice_id&search=1"  ) . $html->br();
-      #              $payment_sum -= $invoiced_sum;
-      #            }
-      #          }
-      #
-      #          if ($payment_sum > 0) {
-      #            $i2p .= sprintf("%.2f", $payment_sum). ' '. $html->color_mark("$lang{UNAPPLIED}", $_COLORS[6]) .' ('. $html->button($lang{APPLY}, "index=". get_function_index('docs_invoices_list') ."&UNINVOICED=1&PAYMENT_ID=$fees->{id}&UID=$line->{uid}") .')';
-      #          }
-      #
-      #          $line->{invoice_num} .= $i2p;
-      #        }
-      #      }
+
+      if ($Fees->{SEARCH_FIELDS_COUNT} == $i) {
+        delete $line->{admin_disable};
+      }
 
       push @fields_array, $line->{$field_name};
     }

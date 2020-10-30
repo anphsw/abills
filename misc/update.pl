@@ -1077,7 +1077,7 @@ sub check_used_perl_modules {
       'DBD::mysql',
       'DBI',
       'Digest::MD5',
-      'Digest::SHA1',
+      'Digest::SHA',
       'Imager::QRCode',
       'Spreadsheet::WriteExcel',
       'XML::Simple',

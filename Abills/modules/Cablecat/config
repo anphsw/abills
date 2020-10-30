@@ -14,23 +14,29 @@
   "11:1:$lang{CROSSES}:cablecat_crosses:"                            => 5,
   "12:11:$lang{CROSS_TYPES}:cablecat_cross_types:"                   => 5,
 
-  "19:1:$lang{CABLE_RESERVE}:cablecat_reserve:"                      => 5,
-
   "13:1:$lang{COMMUTATIONS}:cablecat_commutations"                   => 5,
   "14:13:$lang{COMMUTATION}:cablecat_commutation::ID"                => 5,
   "15:13::cablecat_maps_ajax:AJAX"                                   => 5,
-  "19:13::cablecat_maps_wells:AJAX"                                  => 5,
-  # "20:13::cablecat_maps_cables:AJAX"                                 => 5,
-  "21:13::cablecat_maps2_cables:AJAX"                                => 5,
+
   "16:13::cablecat_link_info:AJAX"                                   => 5,
   "17:13:$lang{WRONG_LINKS}:cablecat_links_check"                    => 5,
+  "18:13:$lang{PRINT}:show_box"                                      => 5,
+  "19:13::cablecat_maps_wells:AJAX"                                  => 5,
+  "21:13::cablecat_maps2_cables:AJAX"                                => 5,
 
+  "22:1:$lang{CABLE_RESERVE}:cablecat_reserve:"                      => 5,
 
   "40:0:Cablecat:null"                                               => 4,
   "41:40:$lang{CABLES}:cablecat_cable_reports"                       => 4,
 
   "51:0:$lang{CONNECTION_TRACE}:cablecat_user_trace_connection_form" => 20,
-  "18:13:$lang{PRINT}:show_box"                                      => 5,
+
+  "52:1:$lang{BIG_COMMUTATION}:cablecat_big_commutation:"            => 5,
+  "53:0::cablecat_commutations_select:AJAX"                          => 5,
+  "54:0::cablecat_get_commutation:AJAX"                              => 5,
+  "55:0::cablecat_fill_scheme_coords:AJAX"                           => 5,
+  "56:0::cablecat_get_added_schemes:AJAX"                            => 5
+
 );
 
 1;

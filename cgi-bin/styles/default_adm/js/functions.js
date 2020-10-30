@@ -175,8 +175,13 @@ function getGlyphicon(iconName) {
   return "<span class='glyphicon glyphicon-" + iconName + "'></span>";
 }
 
-function showCommentsModal(title, link_to_confirm, attr) {
-  attr = attr || {};
+function showCommentsModal(title, link_to_confirm, confirmation, attr) {
+  attr = attr || confirmation || {};
+
+  var double_confirm = '';
+  if (confirmation != '-') {
+    double_confirm = confirmation; 
+  }
   
   //Cache DOM
   var $modal   = $('#comments_add');
@@ -193,7 +198,7 @@ function showCommentsModal(title, link_to_confirm, attr) {
   
   var submit_types = {
     'default': function (link) {
-      window.location.replace(link);
+      window.location.assign(link);
     },
     'ajax'   : function (link) {
       // Save original state of modal
@@ -223,7 +228,7 @@ function showCommentsModal(title, link_to_confirm, attr) {
           : submit_types['default'];
   
   $mForm.off('submit');
-  
+
   if (type === 'confirm') {
     $modal.find('.modal-body').remove();
     $mForm.on('submit', function (e) {
@@ -233,6 +238,12 @@ function showCommentsModal(title, link_to_confirm, attr) {
     })
   }
   else {
+    if (confirmation != '' && confirmation != '-') {
+      var $hideTwoConfirm = $mForm.find('#mInputConfirmHide');
+  
+      $hideTwoConfirm.attr('style', 'display: block;');
+    }
+
     var $mInput = $mForm.find('#mInput');
     //Focus input when showing modal
     $modal.on('shown.bs.modal', function () {
@@ -251,10 +262,30 @@ function showCommentsModal(title, link_to_confirm, attr) {
         
         $mTitle.html(_COMMENTS_PLEASE + '!');
         return false;
+      } 
+      
+      if (double_confirm != '') {
+        var $myInputConfirm = $mForm.find('#mInputConfirm');
+        var twoConfirm = $myInputConfirm.val();
+
+        if (typeof(double_confirm) !== "string") {
+          double_confirm = _DEL;
+        }
+
+        if (twoConfirm == '' || twoConfirm != double_confirm) {
+          $mHeader.removeClass('alert-info');
+          $mHeader.addClass('alert-danger');
+
+          $mTitle.html(_WORLD_PLEASE + ' ' + double_confirm + '!');
+
+          return false;
+        }
+
       }
       
       // Append comments, and send
       var url = link_to_confirm + '&COMMENTS=' + comments;
+      
       submitForm(url);
       
       // Finish

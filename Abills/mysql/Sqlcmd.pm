@@ -41,8 +41,6 @@ sub info {
   my DBI $db = $self->{db}->{db};
 
   my $list;
-  #my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 0;
-  #my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $DATE = $attr->{DATE} || '0000-00-00';
 
   my $type = $attr->{TYPE} || '';
@@ -128,16 +126,10 @@ sub info {
 
             if($row_array[0]>0) {
               $table_ext_info{$table}=$row_array[0];
-            } 
+            }
           }
         }
       }
-      #elsif ($attr->{ACTION} eq 'BACKUP') {
-      #  $DATE =~ s/-/\_/g;
-      #  my @tables_arr = split(/, /, $attr->{TABLES});
-      #  my $table_list = join(',', @tables_arr);
-      #
-      # }
     }
 
     my $like = '';
@@ -157,12 +149,12 @@ sub info {
 
     $self->{FIELD_NAMES} = $names;
 
-    my @rows      = ();
-    #my @row_array = ();
+    my @rows = ();
 
     while (my @row_array = $sth->fetchrow()) {
       my $i         = 0;
       my %Rows_hash = ();
+
       foreach my $line (@row_array) {
         $Rows_hash{$names->[$i]} = $line;
         $i++;
@@ -186,7 +178,6 @@ sub info {
     $list = \@rows;
 
     #show indexes
-    # SHOW INDEX FROM $row_array[0];
     return $list;
   }
   elsif ($type eq 'showtriggers') {
@@ -329,6 +320,7 @@ sub sqlcmd_info {
   my @row;
   my %stats = ();
   my %vars  = ();
+  my %memory  = ();
   my DBI $db_ = $self->{db}->{db};
 
   # Determine MySQL version
@@ -358,7 +350,25 @@ sub sqlcmd_info {
     $vars{ $row[0] } = $row[1];
   }
 
-  return \%stats, \%vars;
+  #Get server memory usage
+  $query = $db_->prepare('
+  select substring_index(
+        substring_index(event_name, \'/\', 2),
+        \'/\',
+        -1
+      )  as event_type,
+      concat(round(sum(CURRENT_NUMBER_OF_BYTES_USED)/1024/1024, 2), \' Mb\') as MB_CURRENTLY_USED
+    from performance_schema.memory_summary_global_by_event_name
+    group by event_type'
+  );
+
+  $query->execute();
+
+  while (@row = $query->fetchrow_array()) {
+    $memory{ $row[0] } = $row[1];
+  }
+
+  return \%stats, \%vars, \%memory;
 }
 
 #**********************************************************
@@ -371,7 +381,7 @@ sub history_add {
   my ($attr) = @_;
 
   $self->query("INSERT INTO sqlcmd_history (datetime, aid, sql_query, db_id, comments)
-               VALUES (NOW(), ?, ?, ?, ?);", 
+                VALUES (NOW(), ?, ?, ?, ?);",
   'do',
   { Bind => [
       $admin->{AID},
@@ -423,8 +433,8 @@ sub history_list {
   if ($self->{TOTAL} > 0) {
     $self->query("SELECT count(*) AS total
     FROM sqlcmd_history
-    WHERE aid= ?;", 
-    undef, 
+    WHERE aid= ?;",
+    undef,
     { INFO => 1,
       Bind      => [ $admin->{AID}  ]
     }
@@ -441,19 +451,20 @@ sub history_query {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("SELECT datetime,
-     sql_query,
-     comments, 
-     id 
-   FROM sqlcmd_history 
-   WHERE aid= ?
-   AND id= ?;",
-   undef,
-   { INFO => 1,
-     Bind => [ 
-      $admin->{AID},
-      $attr->{QUERY_ID}
-     ] }
+  $self->query(
+    "SELECT datetime,
+      sql_query,
+      comments,
+      id
+    FROM sqlcmd_history
+    WHERE aid= ?
+    AND id= ?;",
+    undef,
+    { INFO => 1,
+      Bind => [
+        $admin->{AID},
+        $attr->{QUERY_ID}
+      ] }
   );
 
   return $self;

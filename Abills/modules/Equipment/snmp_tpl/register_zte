@@ -104,7 +104,7 @@ sub register_zte {
   my $Telnet = Net::Telnet->new(
     Timeout => 15,
     Errmode => 'return',
-    Prompt  => '/#/'
+    Prompt  => '/#$/'
   );
 
   $Telnet->open(
@@ -126,7 +126,7 @@ sub register_zte {
     exit;
   }
   else {
-    my @date = $Telnet->waitfor('/Username:/i');
+    my @data = $Telnet->waitfor('/Username:/i');
 
     if ($Telnet->errmsg) {
       print ">Problem connecting to $ip, port: $port\n";
@@ -134,13 +134,13 @@ sub register_zte {
     }
 
     if ($debug > 2) {
-      print @date;
+      print @data;
     }
 
     $Telnet->print($user_name);
-    @date = $Telnet->waitfor('/password:/i');
+    @data = $Telnet->waitfor('/password:/i');
     if ($debug > 2) {
-      print @date;
+      print @data;
     }
 
     $Telnet->print($password);
@@ -149,16 +149,16 @@ sub register_zte {
       return 0;
     }
 
-    $Telnet->prompt('/#/');
+    $Telnet->prompt('/#$/');
     $Telnet->errmode("return");
-    @date = $Telnet->waitfor('/#/i');
-    print @date if ($debug > 3);
-    $Telnet->prompt('/#/');
+    @data = $Telnet->waitfor('/#$/i');
+    print @data if ($debug > 3);
+    $Telnet->prompt('/#$/');
   }
 
 
   if($argv->{del_onu}) {
-    unregister_onu({
+    my $errcode = unregister_onu({
       TELNET     => $Telnet,
       BRANCH     => $branch,
       MAC        => $mac,
@@ -172,7 +172,7 @@ sub register_zte {
       #REG_IFACE  => $reg_iface
     });
 
-    exit 1;
+    exit $errcode;
   }
   elsif($pon_type eq 'epon') {
     print "EPON registration\n" if($debug > 3);
@@ -261,7 +261,7 @@ sub register_zte {
 }
 
 #**********************************************************
-=head2 get_tpl($attr)
+=head2 get_tpl($attr) #TODO: delete and use equipment_get_telnet_tpl instead
 
   Arguments:
      $attr
@@ -402,9 +402,9 @@ sub unregister_onu {
   foreach my $cmd (@arr) {
     print "$cmd\n" if ($debug);
     $Telnet->print("$cmd") or print "ERROR '$cmd'";
-    my @date = $Telnet->waitfor('/#/i');
+    my @data = $Telnet->waitfor('/#$/i');
     if ($debug > 2) {
-      print @date;
+      print @data;
     }
   }
 
@@ -439,9 +439,9 @@ sub register_onu {
     }
 
     $Telnet->print($cmd) or print "  ERROR: '$cmd'\n";
-    my @date = $Telnet->waitfor('/#/i');
+    my @data = $Telnet->waitfor('/#$/i');
     if ($debug > 2) {
-      print @date;
+      print @data;
     }
   }
 
@@ -525,18 +525,18 @@ sub telnet_cmd {
     print "CMD: $cmd\n";
   }
 
-  my @date = ();
+  my @data = ();
 
   #Get max id
   if($attr->{CMD}) {
-    @date = $Telnet->cmd($cmd) or print "ERROR CMD '$cmd'\n";
+    @data = $Telnet->cmd($cmd) or print "ERROR CMD '$cmd'\n";
   }
   else {
     $Telnet->print($cmd) or print "ERROR TELNET PRINT '$cmd'\n";
-    @date = $Telnet->waitfor('/#/i');
+    @data = $Telnet->waitfor('/#$/i');
   }
 
-  my $content = join("\n", @date);
+  my $content = join("\n", @data);
 
   if ($debug > 3) {
     print "Result: $content\n";
@@ -557,6 +557,8 @@ help: $0
   NAS_MNG_USER=
   NAS_MNG_PASSWORD=
 
+  TEMPLATE=
+
   MAC=
   BRANCH= || '1/1/1';
   PROFILE= || 'ABILLS_PROFILE';
@@ -566,6 +568,8 @@ help: $0
   PON_TYPE=
   COMMENTS=
   LLID=
+
+  del_onu=
 
 [END]
 

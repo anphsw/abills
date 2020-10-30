@@ -24,7 +24,9 @@ my $CONF;
 sub new {
   my $class = shift;
   my $db    = shift;
-  ($admin, $CONF) = @_;
+  $admin    = shift;
+  $CONF     = shift;
+  my $attr  = shift;
 
   $admin->{MODULE} = 'Config';
   my $self = {
@@ -35,12 +37,13 @@ sub new {
 
   bless($self, $class);
 
-  $self->query("SELECT param, value FROM config WHERE domain_id = ?",
-    undef,
-    { Bind => [
-      $admin->{DOMAIN_ID} || 0
-       ]});
-
+  if (! $attr->{SKIP_CONF}) {
+    $self->query("SELECT param, value FROM config WHERE domain_id = ?",
+        undef,
+        { Bind => [
+            $admin->{DOMAIN_ID} || 0
+        ] });
+  }
   #my @non_changed_vars = ('TPL_DIR');
 
   foreach my $line (@{ $self->{list} }) {
@@ -157,7 +160,7 @@ sub config_info {
 sub config_change {
   my $self = shift;
   my ($param, $attr) = @_;
-
+  print("addddddddddddddddd");
   if ($attr->{WITHOUT_PARAM_CHANGE}) {
     $self->changes({
       CHANGE_PARAM => 'PARAM',

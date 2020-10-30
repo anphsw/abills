@@ -89,6 +89,8 @@ $lang{PAYMENT_ADDED} = 'Payment added';
 $lang{PAYMENT_NOTEXIST} = 'Payment does not exist';
 $lang{USER_EXIST} = 'User exists';
 $lang{USER_NOT_EXIST} = 'User does not exist';
+$lang{NOE_ENOUGHT_SIZE_FOR_SUFFIX}='Login size is too small for adding suffix. You should make it longer in the config file';
+$lang{SUFFIX_ADDED}='Suffix was added';
 $lang{SELECT_USER} = 'Select user';
 $lang{SELECT_ALL} = 'Select All';
 $lang{SELECTED} = 'Selected';
@@ -876,5 +878,26 @@ $lang{SEND_REG}='Sent to';
 
 $lang{RESPONSIBLE}='Responsible';
 $lang{NO_ADDRESS}='Address not filled in, please fill in!';
+$lang{ONE_TIME_CODE}='Temporary code';
+
+$lang{WEB_SERVER} = 'Web-server';
+$lang{IP_POOLS} = 'IP-pool';
+$lang{BILLD} = 'Billd Plugins';
+$lang{CHECKSUM}='Checksum';
+$lang{CONSOLE}='Console';
+
+$lang{LAST_FEES}='Last fee';
+$lang{CASHBOX}='Cashbox';
+$lang{ENTER_DEL} = 'Enter the word';
+$lang{MATCH_USER}='Match user';
+$lang{NEXT_POOL}='Next pool';
+
+$lang{AUTH_WEB_ERROR}='No authentication parameter';
+$lang{COOKIE_AGREEMENTS} = 'Before browse our site, please accept our';
+$lang{COOKIE_URL} = 'cookies policy';
+$lang{NOT_DELETED_USERS}='Ignore remote';
+
+$lang{AND}='AND';
+$lang{OR}='OR';
 
 1;

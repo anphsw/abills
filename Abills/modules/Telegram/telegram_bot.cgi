@@ -16,7 +16,12 @@ our (
 BEGIN {
   use FindBin '$Bin';
   require $Bin . '/../../libexec/config.pl';
-  do $Bin . '/../../language/english.pl';
+
+  $conf{TELEGRAM_LANG} = 'russian' unless($conf{TELEGRAM_LANG});
+
+  do $Bin . "/../../language/$conf{TELEGRAM_LANG}.pl";
+  do $Bin . "/../../Abills/modules/Telegram/lng_$conf{TELEGRAM_LANG}.pl";
+
   unshift(@INC,
     $Bin . '/../../',
     $Bin . '/../../lib/',
@@ -37,6 +42,7 @@ use API::Botapi;
 use db::Telegram;
 use Buttons;
 use Tauth;
+use Abills::Misc;
 
 our $db = Abills::SQL->connect( @conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
@@ -63,6 +69,7 @@ elsif ($ENV{'REQUEST_METHOD'} eq "POST") {
   read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
   `echo '$buffer' >> /tmp/telegram.log`;
   my $hash = decode_json($buffer);
+  
   exit 0 unless ($hash && ref($hash) eq 'HASH' && ($hash->{message} || $hash->{callback_query}));
   if ($hash->{callback_query}) {
     $message = $hash->{callback_query}->{message};
@@ -71,7 +78,9 @@ elsif ($ENV{'REQUEST_METHOD'} eq "POST") {
   else {
     $message = $hash->{message};
   }
-  $Bot = Botapi->new($conf{TELEGRAM_TOKEN}, $message->{chat}{id}, ($conf{FILE_CURL} || 'curl'));
+
+  my $bot_addr = $ENV{SERVER_NAME} || $ENV{SERVER_ADDR};
+  $Bot = Botapi->new($conf{TELEGRAM_TOKEN}, $message->{chat}{id}, ($conf{FILE_CURL} || 'curl'), $bot_addr);
 }
 else {
   my ($command) = $ENV{'QUERY_STRING'} =~ m/command=([^&]*)/;
@@ -87,6 +96,7 @@ else {
   $Bot = Webtest->new();
 }
 
+$Bot->{lang} = \%lang;
 my %buttons_list = %{buttons_list({bot => $Bot, bot_db => $Bot_db})};
 my %commands_list = reverse %buttons_list;
 
@@ -100,14 +110,15 @@ exit 1;
 #**********************************************************
 sub message_process {
   my $aid = get_aid($message->{chat}{id});
+
   if ($aid) {
-    admin_menu();
+    admin_fast_replace($message->{text}, $fn_data);
     return 1;
   }
 
   my $uid = get_uid($message->{chat}{id}); 
   if (!$uid) {
-    if ($message->{text} =~ m/^\/start/) {
+    if ($message->{text} && $message->{text} =~ m/^\/start/) {
       subscribe($message);
       main_menu();     
     }
@@ -141,13 +152,25 @@ sub message_process {
       bot_db    => $Bot_db,
       message   => $message,
     });
-
+    
     main_menu() if(!$ret);
     return 1;
   }
-  elsif ($fn_data) {
-    $fn_data =~ s/MSGS:REPLY:/Msgs_reply&reply&/;
+  elsif (($fn_data || $uid) && ($text =~ /(MSGS_ID=[0-9]+)(\s|\n)*(.+)/)) {
+    unless ($fn_data) {
+      $fn_data = "Msgs_reply&send_reply&";
+    } else {
+      $fn_data =~ s/MSGS:REPLY:/Msgs_reply&reply&/;
+    }
+
+    if ($message->{text} eq decode_utf8("$lang{CHANCLE_TEXT}")) {
+      main_menu();
+
+      return 1;
+    }
+
     my @fn_argv = split('&', $fn_data);
+    
     telegram_button_fn({
       button => $fn_argv[0],
       fn     => $fn_argv[1],
@@ -155,6 +178,8 @@ sub message_process {
       uid    => $uid,
       bot    => $Bot,
       bot_db => $Bot_db,
+      text   => $message->{text} || $message->{caption},
+      photo  => $message->{photo}[0]{file_id},
     });
   }
   elsif ($commands_list{$text}) {
@@ -165,11 +190,13 @@ sub message_process {
       bot_db => $Bot_db,
     });
   }
-  elsif ($buttons_list{Send_message} && length($message->{text}) >= 20) {
+  elsif (length($message->{text}) >= 20 || $message->{photo}[0]{file_id}) {
+    my @fn_argv = split('&', $fn_data);
     telegram_button_fn({
-      button => 'Send_message',
-      fn     => 'simple_msgs',
-      text   => $message->{text},
+      button => $fn_argv[0],
+      fn     => $fn_argv[1],
+      text   => $message->{text} || $message->{caption},
+      photo  => $message->{photo}[0]{file_id},
       uid    => $uid,
       bot    => $Bot,
       bot_db => $Bot_db,
@@ -190,10 +217,10 @@ sub main_menu {
   my ($attr) = @_;
   my @line = ();
   my $i = 0;
-  my $text = "Пожалуйста используйте кнопки.";
+  my $text = "$lang{USE_BUTTON}";
     
   foreach my $button (sort keys %commands_list) {
-    push (@{$line[$i%4]}, {text => $button});
+    push (@{$line[$i%4]}, { text => $button });
     $i++;
   }
 
@@ -211,15 +238,42 @@ sub main_menu {
 }
 
 #**********************************************************
-=head2 admin_menu()  
+=head2 admin_fast_replace()  
 
 =cut
 #**********************************************************
-sub admin_menu {
+sub admin_fast_replace {
+  my ($msgs, $callback_data) = @_;
 
-  $Bot->send_message({
-    text => 'Hello admin',
+  my ($packed, $func_name, $msgs_id) = split(/\:/, $callback_data);
+  my @msgs_text = $msgs =~ /(MSGS_ID=[0-9]+)(\s|\n)*(.+)/gs;
+  $msgs_text[0] =~ s/MSGS_ID=//g;
+
+  use Msgs;
+  my $Msgs = Msgs->new($db, $admin, \%conf);
+  my $aid = get_aid($message->{chat}{id});
+  
+  $Msgs->message_reply_add({
+    ID              => $msgs_text[0],
+    REPLY_TEXT      => $msgs_text[2],
+    AID             => $aid,
+  }); 
+
+  $Msgs->message_change({
+    ID         => $msgs_text[0],
+    STATE      => 6,
   });
+
+  unless (_error_show($Msgs)) {
+    $Bot->send_message({
+      text         => "$lang{SEND_SUCCESS}",
+    });
+  }
+  else {
+    $Bot->send_message({
+      text         => "$lang{SEND_ERROR}",
+    });
+  }
 
   return 1;
 }

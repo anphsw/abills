@@ -38,6 +38,9 @@ sub admins_groups_list {
   my $self = shift;
   my ($attr) = @_;
 
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
   my $WHERE = '';
 
   if ($attr->{ALL}) {
@@ -49,7 +52,7 @@ sub admins_groups_list {
 
   $self->query("SELECT ag.gid, ag.aid, g.name
     FROM admins_groups ag, groups g
-    WHERE g.gid=ag.gid $WHERE;",
+    WHERE g.gid=ag.gid $WHERE ORDER BY $SORT $DESC;",
   undef,
   $attr
   );
@@ -193,13 +196,15 @@ sub set_permissions {
 =head2  info($aid, $attr) - Administrator information and auth function
 
   Arguments:
-    LOGIN          - Login for auth
-    PASSWORD       - Password for auth
-    SECRETKEY      - Secret key for password decode (default: $CONF->{secretkey})
-    API_KEY        - API key for auth
-    EXTERNAL_AUTH  - Use external auth
-    DOMAIN_ID      - Admin domian ID
-    IP             - Session IP
+    $aid
+    $attr
+      LOGIN          - Login for auth
+      PASSWORD       - Password for auth
+      SECRETKEY      - Secret key for password decode (default: $CONF->{secretkey})
+      API_KEY        - API key for auth
+      EXTERNAL_AUTH  - Use external auth
+      DOMAIN_ID      - Admin domian ID
+      IP             - Session IP
 
   Returns:
     admin object
@@ -337,7 +342,7 @@ sub info {
     $self->{GID} = join(',', @gid_arr);
   }
 
-  $self->{SESSION_IP} = $IP;
+  $self->{SESSION_IP} = $IP || '0.0.0.1';
 
   return $self;
 }
@@ -496,7 +501,7 @@ sub change {
   }
 
   $self->{MODULE}  = '';
-  $IP              = $self->{SESSION_IP};
+  $IP              = $self->{SESSION_IP} || '0.0.0.1';
   $attr->{DISABLE} = 0 if (!$attr->{DISABLE} && $attr->{A_LOGIN});
   $attr->{FULL_LOG}= 0 if (!$attr->{FULL_LOG} && $attr->{A_LOGIN});
   $attr->{NAME}    = $attr->{A_FIO};
@@ -653,13 +658,13 @@ sub action_summary {
   my ($attr) = @_;
 
   my $WHERE = $self->search_former($attr, [
-      ['TYPE',         'INT',  'aa.action_type',  ],
-      ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')"      ],
+      ['TYPE',              'INT',  'aa.action_type',                      ],
+      ['DATE',              'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
-      ['MONTH',        'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m')"         ],
-      ['UID',          'INT',  'aa.uid'           ],
-      ['AID',          'INT',  'aa.aid'           ],
-      ['ADMIN',        'INT',  'a.id', 'a.id'     ],
+      ['MONTH',             'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m')"    ],
+      ['UID',               'INT',  'aa.uid'                               ],
+      ['AID',               'INT',  'aa.aid'                               ],
+      ['ADMIN',             'INT',  'a.id', 'a.id'                         ],
     ],
     {
       WHERE => 1
@@ -718,13 +723,13 @@ sub action_list {
       ['ACTION',       'INT',  'aa.actions',      ],
       ['TYPE',         'INT',  'aa.action_type',  ],
       ['MODULE',       'STR',  'aa.module',       ],
-      ['IP',           'IP',   'aa.ip',         "INET_NTOA(aa.ip) AS ip" ],
-      ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')"     ],
-      ['MONTH',        'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m')" ],
+      ['IP',           'IP',   'aa.ip',         "INET_NTOA(aa.ip) AS ip"   ],
+      ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')"      ],
+      ['MONTH',        'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m')"         ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
-      ['AID',          'INT',  'aa.aid'           ],
-      ['ADMIN',        'STR',  'a.id', 'a.id as admin_login'],
-      ['ADMIN_DISABLE','INT',  'a.disable', 'a.disable AS admin_disable', 1 ],
+      ['AID',          'INT',  'aa.aid'                                    ],
+      ['ADMIN',        'STR',  'a.id', 'a.id as admin_login'               ],
+      ['ADMIN_DISABLE','INT',  'a.disable', 'a.disable AS admin_disable', 1],
     ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES,
@@ -732,7 +737,7 @@ sub action_list {
       USE_USER_PI => 1,
       SKIP_USERS_FIELDS=> [ 'UID' ]
     }
-    );
+  );
 
   my $EXT_TABLES = $self->{EXT_TABLES} || '';
   my $GROUP_BY = q{};
@@ -1069,6 +1074,26 @@ sub settings_add {
 }
 
 #**********************************************************
+=head2 settings_change($attr)
+
+=cut
+#**********************************************************
+sub settings_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM => 'OBJECT,AID',
+      TABLE        => 'admin_settings',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
 =head2 group_add($id)
 
 =cut
@@ -1330,7 +1355,7 @@ sub full_log_analyze {
    FROM admins_full_log a
   $WHERE
   $GROUP
-  ORDER BY count DESC
+  ORDER BY count(*) DESC
   LIMIT $PG, $PAGE_ROWS;",
     undef, $attr);
 
@@ -1377,7 +1402,9 @@ sub admins_contacts_list {
   $self->{errno} = 0;
   $self->{errstr} = '';
 
-  return [] if (!$attr->{AID});
+  my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : "";
+
+  return [ ] if (!$attr->{AID});
 
   my $WHERE = $self->search_former($attr, [
       ['ID',        'INT',  'ac.id',          1],
@@ -1399,7 +1426,7 @@ sub admins_contacts_list {
  $self->query("SELECT $self->{SEARCH_FIELDS} ac.id
     FROM admins_contacts ac
    LEFT JOIN users_contact_types uct ON(ac.type_id=uct.id)
- $WHERE ORDER BY ac.priority;"
+ $WHERE $GROUP_BY ORDER BY ac.priority;"
  ,undef, {COLS_NAME => 1,  %{ $attr // {} }});
 
  return $self->{list};
@@ -1434,13 +1461,11 @@ sub admins_contacts_info {
 
 =cut
 # #**********************************************************
-sub admin_contacts_add{
+sub admin_contacts_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('admins_contacts', $attr, { REPLACE => 1 });
-
-  return 1;
+  return $self->query_add('admins_contacts', $attr, { REPLACE => 1 });
 }
 #**********************************************************
 =head2 admin_contacts_del($attr)
@@ -1453,13 +1478,31 @@ sub admin_contacts_add{
 
 =cut
 #**********************************************************
-sub admin_contacts_del{
+sub admin_contacts_del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del('admins_contacts', undef, $attr);
+  return $self->query_del('admins_contacts', undef, $attr);
+}
 
-  return 1;
+#**********************************************************
+=head2 admin_contacts_change($attr)
+
+=cut
+#**********************************************************
+sub admin_contacts_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM => 'AID,TYPE_ID',
+      TABLE        => 'admins_contacts',
+      DATA         => $attr
+    }
+  );
+
+  return $self;
 }
 
 #**********************************************************

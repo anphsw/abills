@@ -54,12 +54,26 @@ my @nas_ids;
 if ($argv->{NAS_IDS}) {
   @nas_ids = split(/;/, $argv->{NAS_IDS});
 }
+
+my @branches;
+if ($argv->{BRANCHES}) {
+  @branches = split (/;/, lc($argv->{BRANCHES}));
+}
+foreach my $branch_pattern (@branches) {
+  $branch_pattern =~ s/\*/\.\*/g;
+}
+
 if ($argv->{BRANCHES} && @nas_ids != 1) {
   print "Error: there should be one NAS ID when using BRANCHES. Use billd equipment_auto_reg NAS_IDS=\"ID\" BRANCHES=\"BRANCH1;BRANCH2;...\"\n";
   exit 1;
 }
 #tr_069_setting();
-_auto_reg();
+if ($argv->{DEREGISTER}) {
+  _auto_deregister();
+}
+else {
+  _auto_reg();
+}
 
 #**********************************************************
 =head2 _auto_reg($attr)
@@ -118,10 +132,6 @@ sub _auto_reg {
 
     if (defined(&$unregister_fn)) {
       my $unregister_list = &{\&$unregister_fn}({ %$nas });
-      my @branches;
-      if ($argv->{BRANCHES}) {
-        @branches = split (/;/, lc($argv->{BRANCHES}));
-      }
 
       foreach my $ont_info (@$unregister_list) {
         if ($argv->{BRANCHES}) {
@@ -129,10 +139,7 @@ sub _auto_reg {
           my $current_branch = lc($ont_info->{pon_type} . ':' . $ont_info->{branch});
 
           foreach my $branch_pattern (@branches) {
-            $branch_pattern =~ s/\*/\.\*/g;
-
-            if ($current_branch =~ $branch_pattern) {
-              print "found pattern: " . $branch_pattern . ", $current_branch\n";
+            if ($current_branch =~ /^$branch_pattern$/) {
               $found_branch = 1;
             }
           }
@@ -320,13 +327,16 @@ sub _register_onu {
 
       delete $attr->{NAS_INFO}->{ACTION_LNG};
 
-      my %extra_reg_params = split (/ |\=/, $argv->{EXTRA_REG_PARAMS});
+      my %extra_reg_params = ();
+      if ($argv->{EXTRA_REG_PARAMS}) {
+        %extra_reg_params = split (/ |\=/, $argv->{EXTRA_REG_PARAMS});
+      }
 
-      #temporary workaround for strange situation, when cmd() refuses to run command, and $result_code=2
-      #Dumper($params_for_cmd->{register}) prints 'V2.8S', but when i do $params_for_cmd->{register}='V2.8S' it somehow fixes
       my $params_for_cmd = { %$attr, %{$attr->{NAS_INFO}}, %extra_reg_params };
-      delete $params_for_cmd->{register};
-      delete $params_for_cmd->{REGISTER};
+      foreach my $param_value (%$params_for_cmd) {
+        $param_value =~ s/\0//g;
+      }
+
       $result = cmd($cmd, {
         DEBUG   => $debug || 0,
         PARAMS  => $params_for_cmd,
@@ -377,6 +387,117 @@ sub _register_onu {
     }
   }
   return 0;
+}
+
+#**********************************************************
+=head2 _auto_deregister() - Deregisters all ONU's on branch and deletes user's option 82 params
+
+  Returns:
+    TRUE or FALSE
+
+=cut
+#**********************************************************
+sub _auto_deregister {
+  if (!$argv->{NAS_IDS}) {
+    print "Not selected NAS ID. Use billd equipment_auto_reg NAS_IDS=\"ID\" BRANCHES=\"BRANCH1;BRANCH2;...\"\n";
+    return 0;
+  }
+  if (!$argv->{BRANCHES}) {
+    print "Not selected branches. Use billd equipment_auto_reg NAS_IDS=\"ID\" BRANCHES=\"BRANCH1;BRANCH2;...\"\n";
+    return 0;
+  }
+
+  my $nas_id = $nas_ids[0]; #there will be only one NAS
+  my $nas = $Equipment->_list({
+    NAS_ID           => $nas_id,
+    VENDOR_NAME      => '_SHOW',
+    NAS_IP           => '_SHOW',
+    MNG_HOST_PORT    => '_SHOW',
+    NAS_MNG_USER     => '_SHOW',
+    NAS_MNG_PASSWORD => '_SHOW',
+    COLS_NAME        => 1,
+    COLS_UPPER       => 1
+  });
+  $nas = $nas->[0];
+
+  my $nas_type = equipment_pon_init($nas);
+
+  my $all_port_list = $Equipment->pon_port_list({
+    NAS_ID    => $nas_id,
+    COLS_NAME => 1
+  });
+  my @port_ids;
+
+  foreach my $port (@$all_port_list) {
+    my $found_branch;
+    my $current_branch = lc($port->{pon_type} . ':' . $port->{branch});
+
+    foreach my $branch_pattern (@branches) {
+      if ($current_branch =~ /^$branch_pattern$/) {
+        push @port_ids, $port->{id};
+      }
+    }
+  }
+
+  my $port_ids_string = join (',', @port_ids);
+
+  my $onus = $Equipment->onu_list({
+    OLT_PORT   => $port_ids_string,
+    BRANCH     => '_SHOW',
+    MAC_SERIAL => '_SHOW',
+    COLS_NAME  => 1,
+    COLS_UPPER => 1
+  });
+
+  my $cmd = $SNMP_TPL_DIR . '/register' . $nas_type . '_custom';
+  $cmd = $SNMP_TPL_DIR . '/register' . $nas_type if (!-x $cmd);
+  if (!-x $cmd) {
+    print "Error: can't run registration script $cmd. Exiting.\n";
+    return 0;
+  }
+
+  foreach my $onu (@$onus) {
+    my $result = cmd($cmd, {
+      DEBUG   => $debug || 0,
+      PARAMS  => { %$onu, %$nas, del_onu => 1 },
+      ARGV    => 1,
+      timeout => 30
+    });
+
+    my $result_code = $? >> 8;
+
+    if ($result_code && $result =~ /ONU: \d+\/\d+\/\d+\:\d+ DELETED/) {
+      $Equipment->onu_del($onu->{id});
+
+      my $internet_list = $Internet->list({
+        NAS_ID    => $nas_id,
+        CPE_MAC   => $onu->{mac_serial},
+        UID       => '_SHOW',
+        COLS_NAME => 1,
+        PAGE_ROWS => 10000000,
+      });
+
+      foreach my $user_info (@$internet_list) {
+        $Internet->change({
+          UID         => $user_info->{uid},
+          ID          => $user_info->{id},
+          NAS_ID1     => 0,
+          PORT        => '',
+          VLAN        => 0,
+          SERVER_VLAN => 0,
+        });
+      }
+
+      print "Successfully deleted ONU $onu->{branch}:$onu->{onu_id}\n";
+      print "$cmd exit code: $result_code, output: $result\n" if ($debug);
+    }
+    else {
+      print "Failed to delete ONU $onu->{branch}:$onu->{onu_id}\n";
+      print "$cmd exit code: $result_code, output: $result\n";
+    }
+  }
+
+  return 1;
 }
 
 #**********************************************************

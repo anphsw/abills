@@ -27,7 +27,7 @@ our (
   $argv,
   $db,
   $Admin,
-  $Dv,
+  $Internet,
   %conf,
   $var_dir,
   $debug,
@@ -108,7 +108,7 @@ sub stalker_online_check {
 
   if ($debug > 7) {
     $nas->{debug} = 1;
-    $Dv->{debug} = 1;
+    $Internet->{debug} = 1;
     $Stalker_api->{DEBUG} = 1;
   }
 

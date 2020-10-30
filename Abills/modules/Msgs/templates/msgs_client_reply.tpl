@@ -11,7 +11,7 @@
 
   // Rating modal logic
   jQuery(function () {
-    var form            = jQuery('form');
+    var form            = jQuery('#add_message_form');
     var rating_modal    = jQuery('#rating-modal');
     var save_rating_btn = jQuery('#send-rating');
     var stars           = jQuery('.rating-star');
@@ -168,7 +168,7 @@
     <div class='box-body form form-horizontal' id='box-body'>
       <div class='form-group'>
         <div class='col-md-12'>
-          <textarea data-action='drop-zone' class='form-control' name='REPLY_TEXT' cols='90' rows='11'>%QUOTING% %REPLY_TEXT%</textarea>
+          <textarea id='REPLY_TEXT' data-action='drop-zone' class='form-control' name='REPLY_TEXT' cols='90' rows='11'>%QUOTING% %REPLY_TEXT%</textarea>
         </div>
       </div>
       <div class='form-group'>

@@ -112,26 +112,19 @@ sub _bdcom_onu_list {
 
   foreach my $pon_type (keys %pon_types) {
     my $snmp = _bdcom({ TYPE => $pon_type });
+    if ($attr->{QUERY_OIDS} && @{$attr->{QUERY_OIDS}}) {
+      %$snmp = map { $_ => $snmp->{$_} } @{$attr->{QUERY_OIDS}};
+    }
 
     if (!$snmp->{ONU_STATUS}->{OIDS}) {
       print "$pon_type: no oids\n" if ($debug > 0);
       next;
     }
 
-    #    my $onu_status_list = snmp_get({ %$attr,
-    #      WALK    => 1,
-    #      OID     => $snmp->{ONU_STATUS}->{OIDS},
-    #    });
-
-    #    my %onu_cur_status = ();
-    #    foreach my $line ( @$onu_status_list ) {
-    #      my($port_index, $status)=split(/:/, $line);
-    #      $onu_cur_status{$port_index}=$status;
-    #    }
-
     #Get info
     my %onu_snmp_info = ();
     foreach my $oid_name (keys %{$snmp}) {
+      next if ($oid_name eq 'main_onu_info' || $oid_name eq 'reset');
       if ($snmp->{$oid_name}->{OIDS}) {
         my $oid = $snmp->{$oid_name}->{OIDS};
         print ">> $oid\n" if ($debug > 3);
@@ -167,14 +160,14 @@ sub _bdcom_onu_list {
       if ($type && $type =~ /(.+):(.+)/) {
         $type =~ /(\d+)\/(\d+):(\d+)/;
         my $device_index = $3;
-        my $brench_index = $2;
+        my $branch_index = $2;
         my %onu_info = ();
 
         if ($onu_snmp_info{$interface_index}) {
           %onu_info = %{$onu_snmp_info{$interface_index}};
         }
 
-        $onu_info{PORT_ID} = $port_ids{$1 . '/' . $brench_index};
+        $onu_info{PORT_ID} = $port_ids{$1 . '/' . $branch_index};
         $onu_info{ONU_ID} = $device_index;
         $onu_info{ONU_SNMP_ID} = $interface_index;
         $onu_info{PON_TYPE} = $pon_type;
@@ -199,19 +192,19 @@ sub _bdcom_onu_list {
 
           $port_id = sprintf("%02x%02x", $olt_num, $device_index);
           #print "// $olt_num, $device_index \n";
-          #$port_id = sprintf( "%02d%02x", $brench_index, $interface_index );
+          #$port_id = sprintf( "%02d%02x", $branch_index, $interface_index );
         }
 
         #        #if($debug > 1) {
         #          my $olt_num = $1 + 6;
         #          my $hn_type = sprintf( "%02x%02x", $olt_num, $device_index );
-        #          print "$port_id '$conf{DHCP_O82_BDCOM_TYPE}' // cm-type: $port_id hn-type: $hn_type / Olt_num: $olt_num BRanch index: $brench_index Int_index: $interface_index Device: $device_index ($type) ----> $onu_info{ONU_MAC_SERIAL}\n";
+        #          print "$port_id '$conf{DHCP_O82_BDCOM_TYPE}' // cm-type: $port_id hn-type: $hn_type / Olt_num: $olt_num BRanch index: $branch_index Int_index: $interface_index Device: $device_index ($type) ----> $onu_info{ONU_MAC_SERIAL}\n";
         #        #}
         #        print "?? $attr->{SNMP_COMMUNITY}\n\n";
         $onu_info{ONU_DHCP_PORT} = $port_id;
 
         foreach my $oid_name (keys %{$snmp}) {
-          print "$oid_name -- " . ($snmp->{$oid_name}->{NAME} || 'Unknow oid') . '--' . ($snmp->{$oid_name}->{OIDS} || 'unknown') . " \n" if ($debug > 1);
+          print "$oid_name -- " . ($snmp->{$oid_name}->{NAME} || 'Unknown oid') . '--' . ($snmp->{$oid_name}->{OIDS} || 'unknown') . " \n" if ($debug > 1);
           if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info') {
             next;
           }
@@ -227,19 +220,6 @@ sub _bdcom_onu_list {
             $onu_info{$oid_name} = $onu_snmp_info{$interface_index . ".1"}{VLAN};
             next;
           }
-
-          #          my $oid_value = '';
-          #          if ($snmp->{$oid_name}->{OIDS}) {
-          #            my $oid = $snmp->{$oid_name}->{OIDS}.'.'.$interface_index;
-          #            $oid_value = snmp_get( { %{$attr}, OID => $oid, SILENT => 1 } );
-          #          }
-          #
-          #          my $function = $snmp->{$oid_name}->{PARSER};
-          #          if ($function && defined( &{$function} ) ) {
-          #            ($oid_value) = &{ \&$function }($oid_value);
-          #          }
-          #
-          #          $onu_info{$oid_name} = $oid_value;
         }
         push @onu_list, { %onu_info };
       }
@@ -341,7 +321,7 @@ sub _bdcom {
         'DISTANCE'         => {
           NAME   => 'DISTANCE',
           OIDS   => '.1.3.6.1.4.1.3320.101.10.1.1.27',
-          PARSER => '_bdcom_convert_distance'
+          PARSER => '_bdcom_convert_distance_epon'
         }, #distance = distance * 0.001;
         'MAC'              => {
           NAME   => 'MAC',
@@ -445,7 +425,7 @@ sub _bdcom {
         'DISTANCE'          => {
           NAME   => 'DISTANCE',
           OIDS   => '.1.3.6.1.4.1.3320.10.3.1.1.33',
-          PARSER => '_bdcom_convert_distance'
+          PARSER => '_bdcom_convert_distance_gpon'
         }, #distance = distance * 0.001;
         'MAC'               => {
           NAME   => 'MAC',
@@ -632,7 +612,7 @@ sub _bdcom_sec2time {
 sub _bdcom_mac_list {
   my ($value) = @_;
 
-  my (undef, $v) = split(/:/, $value);
+  my (undef, $v) = split(/:/, $value, 2);
   $v = bin2mac($v) . ';';
 
   return '', $v;
@@ -737,16 +717,31 @@ sub _bdcom_convert_voltage {
 }
 
 #**********************************************************
-=head2 _bdcom_convert_distance();
+=head2 _bdcom_convert_distance_epon();
 
 =cut
 #**********************************************************
-sub _bdcom_convert_distance {
+sub _bdcom_convert_distance_epon {
   my ($distance) = @_;
 
   $distance //= 0;
 
   $distance = $distance * 0.001;
+  $distance .= ' km';
+  return $distance;
+}
+
+#**********************************************************
+=head2 _bdcom_convert_distance_gpon();
+
+=cut
+#**********************************************************
+sub _bdcom_convert_distance_gpon {
+  my ($distance) = @_;
+
+  $distance //= 0;
+
+  $distance = $distance * 0.0001;
   $distance .= ' km';
   return $distance;
 }

@@ -78,14 +78,14 @@ sub msgs_team_location {
   foreach my $element (@$location_data_table) {
     $table->addrow(
       $element->{id},
-      $lang{BRIGADE} . ' №' . $element->{id_team},
+      $lang{BRIGADE} . ' №' . ($element->{id_team} || ''),
       $element->{name_district},
       $element->{name_street},
       $element->{number},
       $html->button($element->{id},
-        "index=" . get_function_index('msgs_team_location') . '&chg_id=' . $element->{id}, { class => 'change' }),
+        "index=" . get_function_index('msgs_team_location') . '&chg_id=' . ($element->{id} || ''), { class => 'change' }),
       $html->button($element->{id}, "index=" . get_function_index('msgs_team_location')
-        . "&del=" . $element->{id}, { class => 'del', MESSAGE => "$lang{DEL}?" })
+        . "&del=" . ($element->{id} || ''), { class => 'del', MESSAGE => "$lang{DEL}?" })
     );
   }
 

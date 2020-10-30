@@ -6,14 +6,19 @@
 
  Arguments:
 
-   TIMEOUT
+   TIMEOUT - SNMP timeout
    RELOAD  - Reload onu
    STEP
    SKIP_RRD - Skip gen rrd
    NAS_IDS
    multi
-   CPE_CHECK - 
+   THREADS - threads number for multi
+   CPE_CHECK
    CPE_FILL
+   FORCE_FILL
+   FILL_CPE_FROM_NAS_AND_PORT
+   SERIAL_SCAN
+   SNMP_SERIAL_SCAN_ALL
 
 =cut
 
@@ -40,7 +45,7 @@ our (
   $var_dir
 );
 
-my $running_threads = 10;
+my $running_threads = $argv->{THREADS} || 10;
 our $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Events = Events::API->new($db, $Admin, \%conf);
 my $Sender = Abills::Sender::Core->new($db, $Admin, \%conf);
@@ -114,6 +119,12 @@ sub _equipment_pon {
   if ($Equipment->{TOTAL} < 1) {
     print "Not found any pon equipment\n";
     return 1;
+  }
+
+  if ($argv->{RELOAD} && !$argv->{NAS_IDS}) {
+    $Equipment->onu_del(0, { ALL => 1 });
+    $Equipment->pon_port_del(0, { ALL => 1});
+    delete $argv->{RELOAD};
   }
 
   if ($argv->{multi}) {
@@ -236,6 +247,16 @@ sub _equipment_pon_load {
         $olt_ports->{$line->{snmp_id}} = $line;
       }
 
+      my $query_oids;
+      if (defined $argv->{QUERY_OIDS}) {
+        if ($argv->{QUERY_OIDS} eq 'only_required') {
+          @$query_oids = ();
+        }
+        else {
+          @$query_oids = split(';', $argv->{QUERY_OIDS});
+        }
+        push @$query_oids, 'ONU_MAC_SERIAL', 'ONU_STATUS';
+      }
       my $onu_snmp_list = &{\&$onu_list_fn}($olt_ports, {
         VERSION        => $nas_info->{snmp_version} || 1,
         SNMP_COMMUNITY => $SNMP_COMMUNITY,
@@ -243,6 +264,7 @@ sub _equipment_pon_load {
         SKIP_TIMEOUT   => 1,
         DEBUG          => $debug,
         MODEL_NAME     => $nas_info->{model_name},
+        QUERY_OIDS     => $query_oids,
         TYPE           => 'dhcp'
       });
 
@@ -273,6 +295,10 @@ sub _equipment_pon_load {
       my @ONU_ADD = ();
       my %pon_types_oids = ();
       foreach my $onu (@$onu_snmp_list) {
+        if (!$onu->{PORT_ID}) {
+          $onu_counts--;
+          next;
+        }
         my $onu_status_converter = &{\&$onu_status_fn}($onu->{PON_TYPE});
         if ($onu_status_converter) {
           if (defined $onu->{ONU_STATUS}) {
@@ -386,14 +412,17 @@ sub _equipment_pon_load {
         print "ADD ONU." if ($debug > 2);
         $Equipment->onu_add({ MULTI_QUERY => \@ONU_ADD });
         print " " . gen_time($time) . "\n" if ($debug > 2);
-        my $serials = join(', ', map {$_->[8]} @ONU_ADD);
-        $Sender->send_message({
-          TO_ADDRESS  => $conf{ADMIN_MAIL},
-          MESSAGE     => "Add " . ($#ONU_ADD + 1) . " new onu on NAS_ID: $nas_id (" . ($nas_info->{NAME} || q{}) . ") Serials: $serials\n",
-          SUBJECT     => "Add new ONU",
-          SENDER_TYPE => 'Mail',
-          DEBUG       => 5,
-        });
+        my $serials_with_descriptions = join(', ', map { $_->[8] . " ($_->[10])" } @ONU_ADD);
+
+        if ($conf{ADMIN_MAIL}) {
+          $Sender->send_message({
+            TO_ADDRESS  => $conf{ADMIN_MAIL},
+            MESSAGE     => "Add " . ($#ONU_ADD + 1) . " new onu on NAS_ID: $nas_id (" . ($nas_info->{NAME} || q{}) . ") Serials (descriptions): $serials_with_descriptions\n",
+            SUBJECT     => "Add new ONU",
+            SENDER_TYPE => 'Mail',
+            DEBUG       => 5,
+          });
+        }
       }
       if ($#MULTI_QUERY > -1) {
         $time = check_time() if ($debug > 2);
@@ -511,7 +540,7 @@ sub _scan_mac_serial {
     MAC_SERIAL => "_SHOW",
     ID         => "_SHOW",
   });
-  
+
   my %mac_nas_ids = ();
   foreach my $pon (@$equipment_list) {
     my $onu_list = $Equipment->onu_list({

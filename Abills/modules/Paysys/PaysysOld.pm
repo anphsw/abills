@@ -1493,7 +1493,7 @@ sub paysys_user_log {
     my $table = $html->table({ width => '100%' });
     foreach my $line (@info_arr) {
       my ($k, $v) = split(/,/, $line, 2);
-      $table->addrow($k, $v) if ($k =~ /STATUS/);
+      $table->addrow($k, $v) if ($k && $k =~ /STATUS/);
     }
 
     $Paysys->{INFO} = $table->show({ OUTPUT2RETURN => 1 });
@@ -2384,9 +2384,9 @@ sub paysys_privatbank {
   $info{AMOUNT2}        = sprintf("%.12d", int($info{AMOUNT2}));
   $info{AdditionalData} = "index=$index&UID=$LIST_PARAMS{UID}";
 
-  load_pmodule('Digest::SHA1');
+  load_pmodule('Digest::SHA');
 
-  my $ctx = Digest::SHA1->new;
+  my $ctx = Digest::SHA->new;
   my $sign_text = $conf{PAYSYS_PB_PW} . $conf{PAYSYS_PB_MERID} . '414963' . $info{OPERATION_ID} . $info{AMOUNT} . '980' . $FORM{DESCRIBE};
 
   $ctx->add($sign_text);
@@ -2435,7 +2435,16 @@ sub paysys_p24_get_payments {
   #Get merchants
   my $merchant_sel = '';
   my @merchant_arr = ($conf{'PAYSYS_P24_MERCHANT_ID'});
-  my $group_list   = $users->groups_list({ COLS_NAME => 1 });
+  my $group_list   = $users->groups_list({       
+    GID             => '_SHOW',
+    NAME            => '_SHOW',
+    DESCR           => '_SHOW',
+    ALLOW_CREDIT    => '_SHOW',
+    DISABLE_PAYSYS  => '_SHOW',
+    DISABLE_CHG_TP  => '_SHOW',
+    USERS_COUNT     => '_SHOW',
+    COLS_NAME       => 1 
+  });
 
   my $cur_merchant = '';
   my $cur_pass     = '';
@@ -5282,7 +5291,7 @@ sub paysys_fondy {
 
   #$info{Server_callback_url} = "http://dev.abills.net.ua/paysys_check.cgi";
 
-  # Строка для сигнатуры
+  #Строка для сигнатуры
   my $string_for_sign = $pass . '|';
 
   # Первый переход
@@ -5435,8 +5444,8 @@ sub paysys_walletone {
     $signature = Digest::MD5::md5_base64($sign_string) . '==';
   }
   elsif ($encription_method eq 'sha1') {
-    load_pmodule('Digest::SHA1');
-    $signature = Digest::SHA1::sha1_base64($sign_string) . '=';
+    load_pmodule('Digest::SHA');
+    $signature = Digest::SHA::sha1_base64($sign_string) . '=';
   }
 
   $info{WMI_SIGNATURE} = $signature;
@@ -7220,7 +7229,14 @@ sub paysys_groups_settings {
   # get groups list
   my $groups_list = $Users->groups_list({
     COLS_NAME      => 1,
-    DISABLE_PAYSYS => 0
+    DISABLE_PAYSYS => 0,
+          GID             => '_SHOW',
+      NAME            => '_SHOW',
+      DESCR           => '_SHOW',
+      ALLOW_CREDIT    => '_SHOW',
+      DISABLE_PAYSYS  => '_SHOW',
+      DISABLE_CHG_TP  => '_SHOW',
+      USERS_COUNT     => '_SHOW',
   });
 
   # get payment systems list

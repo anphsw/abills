@@ -43,7 +43,7 @@ my $used_ports;
 #********************************************************
 =head2 equipment_ports_full($attr)
 
-  Aargumnets:
+  Arguments:
     $attr
       SNMP_COMMUNITY
       NAS_INFO
@@ -83,21 +83,23 @@ sub equipment_ports_full {
 
       foreach my $key ( keys %{ $perl_scalar->{ports} } ){
         next if (ref $key eq 'HASH');
-        if($perl_scalar->{ports}->{$key}->{PARSER} ne 'hidden') {
+        next if ($perl_scalar->{ports}->{$key}->{REQUIRES_CABLE_TEST});
+
+        if ($perl_scalar->{ports}->{$key}->{PARSER} ne 'hidden') {
           $tpl_fields{$key} = $key;
         }
       }
     }
   }
 
-  $tpl_fields{PORT_DESCR}  = "Description";
-  $tpl_fields{NATIVE_VLAN} = "Native VLAN dynamic";
+  $tpl_fields{PORT_DESCR}   = "Description";
+  $tpl_fields{NATIVE_VLAN}  = "Native VLAN dynamic";
+  $tpl_fields{CABLE_TESTER} = $lang{CABLE_TESTER};
 
   #New
   my $default_fields = 'PORT_NAME,PORT_STATUS,ADMIN_PORT_STATUS,UPLINK,LOGIN,MAC,VLAN,PORT_ALIAS,TRAFFIC';
   my ($table, $list) = result_former({
     DEFAULT_FIELDS => $default_fields,
-    FIEDLS_NO_SORT => 1,
     BASE_PREFIX  => 'ID',
     TABLE        => {
       width            => '100%',
@@ -113,6 +115,7 @@ sub equipment_ports_full {
         FIO               => $lang{FIO},
         LOGIN             => $lang{LOGIN},
         MAC               => "MAC",
+        MAC_DYNAMIC       => "MAC dynamic",
         IP                => "IP",
         VLAN              => "Native VLAN static",
         ADDRESS_FULL      => $lang{ADDRESS},
@@ -137,16 +140,19 @@ sub equipment_ports_full {
   }
 
   my $cols_list = join( ',', @cols );
+
   my $ports_info;
   $cols_list .= ',PORT_TYPE';
   #Get snmp info
-  if ( ! $Equipment_->{STATUS} ){
+  if ( ! $Equipment_->{STATUS} ) {
+    my $run_cable_test = in_array('CABLE_TESTER', \@cols);
     $ports_info = equipment_test(
       {
         VERSION        => $Equipment_->{SNMP_VERSION},
         SNMP_COMMUNITY => $SNMP_COMMUNITY,
         PORT_INFO      => $cols_list, # || 'STATUS,PORT_NAME,PORT_STATUS,IN,OUT,speed,pair_length',
         SNMP_TPL       => $Equipment_->{SNMP_TPL},
+        RUN_CABLE_TEST => $run_cable_test,
         %{$attr}
       }
     );
@@ -157,15 +163,9 @@ sub equipment_ports_full {
 
   if(! $ports_info || ! scalar %$ports_info) {
     $html->message( 'warn', 'Offline mode');
-
-    my $port_nums = $Equipment_->{PORTS} || 10;
-    for(my $i=1; $i<=$port_nums; $i++ ) {
-      $ports_info->{$i}={};
-    }
   }
 
   my $port_shift = 0;
-  #if($Equipment_->{MODEL_ID} && $Equipment_->{MODEL_ID} == 185) {
   if($Equipment_->{PORT_SHIFT}) {
     $port_shift = $Equipment_->{PORT_SHIFT};
   }
@@ -182,7 +182,7 @@ sub equipment_ports_full {
   $used_ports = equipments_get_used_ports({
     NAS_ID     => $nas_id,
     PORTS_ONLY => 1,
-    FULL_LIST  => 1,
+    FULL_LIST  => 1
   });
 
   #get info
@@ -203,6 +203,7 @@ sub equipment_ports_full {
   }
 
   my @all_rows = ();
+  my @row_colors = ();
 
   #Get users mac
   my %users_mac = ();
@@ -218,6 +219,18 @@ sub equipment_ports_full {
 
   foreach my $line (@$users_mac) {
     $users_mac{$line->{port} || 0} = $line->{mac_count};
+  }
+
+  my %macs_dynamic;
+  my $nas_and_users_by_mac;
+  if (in_array('MAC_DYNAMIC', \@cols)) {
+    my $fdb = get_fdb($attr);
+
+    foreach my $key (keys %$fdb) {
+      push @{$macs_dynamic{$fdb->{$key}->{2}}}, $fdb->{$key};
+    }
+
+    $nas_and_users_by_mac = equipments_get_used_ports({FULL_LIST => 1});
   }
 
   foreach my $port ( @ports_arr ){
@@ -274,6 +287,27 @@ sub equipment_ports_full {
         }
         push @row, $value;
       }
+      elsif ( $col_id eq 'MAC_DYNAMIC' ) {
+        my @macs_arr = map { $_->{'1'} } @{$macs_dynamic{$port}};
+
+        my $value;
+        for (my $i = 0; $i <= $#macs_arr; $i++) {
+          my $mac = $macs_arr[$i];
+          my $use_button = ($nas_and_users_by_mac->{$mac} && ref $nas_and_users_by_mac->{$mac} eq 'ARRAY');
+          if ($use_button) {
+            $value .= show_used_info( $nas_and_users_by_mac->{ $mac } );
+          }
+          else {
+            $value .= $mac;
+          }
+
+          if (!$use_button && $i != $#macs_arr) {
+            $value .= ', ';
+          }
+        }
+
+        push @row, $value;
+      }
       elsif ($ports_info->{$port} && $ports_info->{$port}->{$col_id} ){
         if ( $col_id eq 'PORT_STATUS' ){
           push @row, ($ports_info->{$port} && $ports_info->{$port}{PORT_STATUS})
@@ -302,6 +336,11 @@ sub equipment_ports_full {
             push @row, q{};
           }
         }
+        elsif($col_id eq 'CABLE_TESTER') {
+          my $value = cable_tester_result_former($ports_info->{$port}->{CABLE_TESTER});
+
+          push @row, $value;
+        }
         else{
           push @row, $ports_info->{$port}->{$col_id};
         }
@@ -316,12 +355,14 @@ sub equipment_ports_full {
         . $html->button( $lang{DEL}, "index=$index&visual=$FORM{visual}&PORT=$port&del=" . $port . "&NAS_ID=$nas_id",
         { MESSAGE => "$lang{DEL} $lang{PORT}: $port?", class => 'del' } );
 
+    push @row_colors, ($FORM{HIGHLIGHT_PORT} && $FORM{HIGHLIGHT_PORT} == ($port - $port_shift) ) ? 'success' : '';
     push @all_rows, \@row;
   }
 
   print result_row_former({
     table      => $table,
     ROWS       => \@all_rows,
+    ROW_COLORS => \@row_colors,
     TOTAL_SHOW => 1,
   });
 
@@ -550,7 +591,7 @@ sub equipment_ports_select {
   $used_ports = equipments_get_used_ports({NAS_ID => $nas_id});
   $Equipment->_info($nas_id);
   $Equipment->model_info( $Equipment->{MODEL_ID} );
-  
+
   my $ports = $Equipment->{PORTS} || 0;
 
   if ( $FORM{SELECT} ){
@@ -1088,7 +1129,6 @@ sub _get_html_for_port{
 =head2 equipment_port_info($attr)
 
   Arguments:
-
     $attr
       NAS_ID
       PORT_ID
@@ -1096,7 +1136,6 @@ sub _get_html_for_port{
       EQUIPMENT_INFOS
 
   Returns:
-
     $information_table
 
 =cut
@@ -1110,11 +1149,11 @@ sub equipment_port_info {
     return $info;
   }
 
-  if($attr->{PORT_SHIFT}) {
-    $attr->{PORT}+=$attr->{PORT_SHIFT}
+  if($attr->{PORT_SHIFT} && $attr->{PORT} =~ /^\d+$/) {
+    $attr->{PORT}+=$attr->{PORT_SHIFT};
   }
 
-  my $info_fields = 'PORT_STATUS,PORT_IN,PORT_OUT,PORT_IN_ERR,PORT_OUT_ERR,DISTANCE,PORT_UPTIME';
+  my $info_fields = 'PORT_STATUS,PORT_IN,PORT_OUT,PORT_IN_ERR,PORT_OUT_ERR,PORT_UPTIME,CABLE_TESTER';
 
   if($FORM{PORT_STATUS}) {
     $html->message('info', $lang{INFO}, "$lang{PORT} $lang{STATUS}");
@@ -1123,9 +1162,9 @@ sub equipment_port_info {
 
   my $test_result = equipment_test({
     %{ ($attr) ? $attr : {} },
-    PORT_INFO => $info_fields,
-    PORT_ID   => $attr->{PORT},
-    TEST_DISTANCE => $attr->{TEST_DISTANCE}
+    PORT_INFO      => $info_fields,
+    PORT_ID        => $attr->{PORT},
+    RUN_CABLE_TEST => $FORM{RUN_CABLE_TEST}
   });
 
   if(ref $test_result ne 'HASH') {
@@ -1133,8 +1172,8 @@ sub equipment_port_info {
   }
 
   push @$info, @{ port_result_former($test_result, {
-    PORT        => $attr->{PORT},
-    INFO_FIELDS => $info_fields
+    PORT                 => $attr->{PORT},
+    INFO_FIELDS          => $info_fields
   }) };
 
   return $info;
@@ -1144,7 +1183,6 @@ sub equipment_port_info {
 =head2 port_result_former($port_info)
 
   Arguments:
-
     $port_info
     $attr
       PORT
@@ -1152,7 +1190,6 @@ sub equipment_port_info {
       EXTRA_INFO
 
   Returns:
-
     $information_table
 
 =cut
@@ -1163,7 +1200,7 @@ sub port_result_former {
 
   my @info        = ();
   my @info_fields = '';
-  my @skip_params = ('PORT_OUT', 'PORT_OUT_ERR', 'ONU_OUT_BYTE', 'ONU_TX_POWER', 'OLT_RX_POWER', 'VIDEO_RX_POWER', 'ETH_ADMIN_STATE', 'ETH_DUPLEX', 'ETH_SPEED', 'VLAN');
+  my @skip_params = ('PORT_OUT', 'PORT_OUT_ERR', 'ONU_OUT_BYTE', 'ONU_TX_POWER', 'OLT_RX_POWER', 'VIDEO_RX_POWER', 'CATV_PORTS_ADMIN_STATUS', 'CATV_PORTS_COUNT', 'ETH_ADMIN_STATE', 'ETH_DUPLEX', 'ETH_SPEED', 'VLAN');
   my $port_id     = $attr->{PORT};
 
   if($attr->{INFO_FIELDS}) {
@@ -1193,7 +1230,7 @@ sub port_result_former {
         );
       }
     }
-    elsif ($key eq 'RF_PORT_ON') {
+    elsif ($key eq 'RF_PORT_ON') { #TODO: rename to CATV
       my ($text, $color) = split(/:/, $value);
       $value = $html->color_mark($text, $color);
     }
@@ -1238,8 +1275,8 @@ sub port_result_former {
       $value = q{};
       foreach my $line (@ports_status) {
         my ($port, $status)=split(/ /, $line);
-        my $color       = q{};
-        my $describe    = "State: Down ".$html->br();
+        my $color       = ($status == 1) ? 'text-green' : '';
+        my $description = (($status == 1) ? "State: Up " : "State: Down ") . $html->br();
         my $speed       = $port_info->{$port_id}->{ETH_SPEED}->{$port} || '';
         my $duplex      = $port_info->{$port_id}->{ETH_DUPLEX}->{$port} || '';
         my $admin_state = $port_info->{$port_id}->{ETH_ADMIN_STATE}->{$port} || '';
@@ -1253,14 +1290,10 @@ sub port_result_former {
 #$speed = '' if ($port eq '6' || $port eq '8');
 #$admin_state = '' if ($port  eq '7' || $port eq '8');
 #$duplex = 'Full';
-        if ($status == 1) {
-          $color   = 'text-green';
-          $describe = "State: Up ".$html->br();
-        }
 
-        $describe .= "Speed: $speed ".$html->br() if ($speed);
-        $describe .= "Duplex: $duplex ".$html->br() if ($duplex);
-        $describe .= "Native Vlan : $vlan ".$html->br() if ($vlan);
+        $description .= "Speed: $speed ".$html->br() if ($speed);
+        $description .= "Duplex: $duplex ".$html->br() if ($duplex);
+        $description .= "Native Vlan : $vlan ".$html->br() if ($vlan);
 
         my $btn = q{};
         if ($admin_state) {
@@ -1268,7 +1301,7 @@ sub port_result_former {
           my $badge_type = ($admin_state eq 'Enable') ? 'up' : 'down';
           $color = ($admin_state eq 'Enable') ? $color : 'text-red';
           my $badge = $html->element('span', '', { class => 'fa fa-power-off', 'data-tooltip' => $describe_state, 'data-tooltip-position' => 'top'});
-          $btn .= $html->element('span', $badge, { class => 'badge badge-' . $badge_type });
+          $btn .= $html->element('span', $badge, { class => 'badge badge-' . $badge_type }); #TODO: fix this on/off button. look at same in CATV_PORTS_STATUS
         }
         $btn .= $html->element('span', '', { class => 'icon icon-eth ' . $color });
         $btn .= $html->element('span', $port, { class => 'port-num' });
@@ -1277,13 +1310,13 @@ sub port_result_former {
           my $color_bb = q{};
           if ($speed =~ /^\d+Gb\/s/ && $status == 1){
             $color_bb = 'text-green';
-          } 
+          }
           elsif ($speed =~ /^\d+Mb\/s/ && $status == 1){
             $color_bb = 'text-yellow';
           }
           $btn .= $html->element('span', $speed, {class => 'badge-bottom ' . $color_bb }) if ($speed);
         }
-        $value .= $html->element('span', $btn, {class => 'btn-ethernet', 'data-tooltip' => $describe, 'data-tooltip-position' => 'bottom'});
+        $value .= $html->element('span', $btn, {class => 'btn-ethernet', 'data-tooltip' => $description, 'data-tooltip-position' => 'bottom'});
       }
 
       $value .= $html->br() . "&emsp;";
@@ -1301,12 +1334,80 @@ sub port_result_former {
       }
 
     }
-    elsif($key eq 'DISTANCE') {
-      $value = ($FORM{TEST_DISTANCE}) ? $port_info->{$port_id}->{DISTANCE}
-                                      : $html->button($lang{TEST}, "index=$index&UID=". ($FORM{UID} || q{})."&chg=". ($FORM{chg} || $FORM{ID} || q{}) ."&TEST_DISTANCE=1",
-          { class => 'btn btn-default', title => $lang{DISTANCE} });
-      $value  = $port_info->{$port_id}->{DISTANCE};
-      $key = $html->element( 'i', "", { class => 'glyphicon glyphicon-resize-horizontal' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{$key}" );
+    elsif($key eq 'CATV_PORTS_STATUS') {
+      next if (defined $port_info->{$port_id}->{CATV_PORTS_COUNT} && $port_info->{$port_id}->{CATV_PORTS_COUNT} == 0);
+      $key = "CATV $lang{PORTS}:";
+      my @ports_status = split(/\n/, $value);
+      $value = q{};
+      foreach my $line (@ports_status) {
+        my ($port, $status);
+        my $admin_state;
+
+        if (split(/ /, $line) == 2) {
+          ($port, $status) = split(/ /, $line);
+          $admin_state = $port_info->{$port_id}->{CATV_PORTS_ADMIN_STATUS}->{$port} || '';
+        }
+        else { #if we do not have multiple ports
+          ($port, $status) = (1, $line);
+          $admin_state = $port_info->{$port_id}->{CATV_PORTS_ADMIN_STATUS} || '';
+        }
+
+        my $color       = ($status == 1) ? 'text-green' : 'text-dark-gray';
+        my $description = (($status == 1) ? "State: Up " : "State: Down ") . $html->br();
+
+        my $btn = q{};
+        if ($admin_state) {
+          my $describe_state = ($admin_state eq 'Enable') ? $lang{DISABLE_CATV_PORT} : $lang{ENABLE_CATV_PORT};
+          my $disable_or_enable_url_param = ($admin_state eq 'Enable') ? 'disable_catv_port' : 'enable_catv_port';
+          my $badge_type = ($admin_state eq 'Enable') ? 'up' : 'down';
+          $color = ($admin_state eq 'Enable') ? $color : 'text-red';
+          my $badge = $html->element('span',
+            $html->button("",
+              "NAS_ID=$FORM{NAS_ID}" .
+              "&index=" . get_function_index('equipment_info') .
+              "&visual=4&$disable_or_enable_url_param=$port" .
+              "&ONU=$FORM{ONU}&info_pon_onu=$FORM{info_pon_onu}&ONU_TYPE=$FORM{ONU_TYPE}",
+              { ICON => 'fa fa-power-off', MESSAGE => "$describe_state $port?"}),
+            { 'data-tooltip' => $describe_state, 'data-tooltip-position' => 'top' }
+          );
+          $btn .= $html->element('span', $badge, { class => 'badge badge-' . $badge_type });
+        }
+        $btn .= $html->element('span', '', { class => 'icon icon-television ' . $color });
+        $btn .= $html->element('span', $port, { class => 'port-num ' . $color });
+
+        $value .= $html->element('span', $btn, {class => 'btn-ethernet', 'data-tooltip' => $description, 'data-tooltip-position' => 'bottom'});
+      }
+
+      $value .= $html->br() . "&emsp;";
+
+      my $help_ = q{};
+      $help_ = $html->element('span', '', { class => 'fa fa-square text-dark-gray' }) . ' - Down &emsp;';
+      $value .= $html->element('span', $help_, {'data-tooltip' => 'Port is Down', 'data-tooltip-position' => 'bottom'});
+
+      $help_ = $html->element('span', '', { class => 'fa fa-square text-green' }) . ' - Up &emsp;';
+      $value .= $html->element('span', $help_, {'data-tooltip' => 'Port is Up', 'data-tooltip-position' => 'bottom'});
+
+      if ($port_info->{$port_id}->{CATV_PORTS_ADMIN_STATUS}) {
+        $help_ = $html->element('span', '', { class => 'fa fa-square text-red' }) . ' - Shutdown &emsp;';
+        $value .= $html->element('span', $help_, {'data-tooltip' => 'Admin state shutdown', 'data-tooltip-position' => 'bottom'});
+      }
+
+    }
+    elsif($key eq 'CABLE_TESTER') {
+      $key = $html->element( 'i', "", { class => 'glyphicon glyphicon-stats' } ) . $html->element('label', "&nbsp;&nbsp;&nbsp;&nbsp;$lang{$key}" );
+
+      if(ref $value eq 'HASH') {
+        $value = cable_tester_result_former($value);
+      }
+      else {
+        $value = $html->button(
+          $lang{TEST},
+          "index=" . get_function_index('form_users')
+          . "&UID=" . ($FORM{UID} || q{})
+          . "&RUN_CABLE_TEST=1",
+          { class => 'btn btn-default' }
+        );
+      }
     }
     elsif($key eq 'PORT_IN_ERR') {
       $key = $lang{ERROR};
@@ -1339,5 +1440,53 @@ sub port_result_former {
   return \@info;
 }
 
+#**********************************************************
+=head2 cable_tester_result_former($cable_test_info) - generates HTML for cable test info
+
+  Arguments:
+    $cable_test_info
+
+  Returns:
+    $result - HTML of cable test info
+
+=cut
+#**********************************************************
+sub cable_tester_result_former {
+  my ($cable_test_info) = @_;
+
+  my $result = '';
+  foreach my $field (sort keys %$cable_test_info) {
+    my $field_value = $cable_test_info->{$field};
+    next if (!defined $field_value);
+
+    if ($field eq 'DISTANCE') {
+      $field = $html->b("$lang{DISTANCE}") . ': ';
+      $field_value = $html->element('p', $field_value);
+    }
+    elsif ($field =~ /LENGTH_PAIR_(.*)/) {
+      $field = $html->b("$lang{LENGTH_PAIR} $1") . ': ';
+      $field_value = $html->element('p', $field_value);
+    }
+    elsif ($field =~ /STATUS_PAIR_(.*)/) {
+      $field = $html->b("$lang{STATUS_PAIR} $1") . ': ';
+      my ($text, $color) = split(/:/, $field_value);
+
+      if ($color) {
+        $field_value = $html->color_mark($text, $color);
+      }
+      else {
+        $field_value = $html->element('p', $field_value);
+      }
+    }
+    else {
+      $field = $html->b($field) . ': ';
+      $field_value = $html->element('p', $field_value);
+    }
+
+    $result .= $field . $field_value;
+  }
+
+  return $result;
+}
 
 1;

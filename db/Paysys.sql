@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS `paysys_main` (
   `recurrent_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `recurrent_cron` VARCHAR(25) NOT NULL DEFAULT '',
   `recurrent_module` VARCHAR(25) NOT NULL DEFAULT '',
+  `subscribe_date_start` DATE NOT NULL DEFAULT '0000-00-00',
   UNIQUE (`uid`, `paysys_id`)
 )
   CHARSET = 'utf8'
@@ -188,7 +189,19 @@ CREATE TABLE IF NOT EXISTS `paysys_global_money_report` (
   `transaction_id` VARCHAR(24) NOT NULL DEFAULT '',
   `description`    VARCHAR(200)           NOT NULL  DEFAULT '',
   PRIMARY KEY `id` (`id`),
+  UNIQUE KEY `transaction_id` (`transaction_id`)
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Paysys global_money report';
+
+CREATE TABLE IF NOT EXISTS `paysys_city24_report` (
+  `id`             SMALLINT UNSIGNED      NOT NULL AUTO_INCREMENT,
+  `sum`            DOUBLE(10, 2) UNSIGNED NOT NULL DEFAULT '0.00',
+  `date`           DATETIME               NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `transaction_id` VARCHAR(24)            NOT NULL DEFAULT '',
+  `user_key`       VARCHAR(16)            NOT NULL DEFAULT '',
+  PRIMARY KEY `id` (`id`),
   UNIQUE `transaction_id` (`transaction_id`)
 )
   DEFAULT CHARSET = utf8
-  COMMENT = 'Paysys global_money report';
+  COMMENT = 'Paysys city24 report';

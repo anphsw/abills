@@ -105,7 +105,6 @@
 </script>
 
 <!-- END header -->
-%TECHWORK%
 
 <div id='wrapper' onclick='hideshowMenu()'>
     <div class='row'>

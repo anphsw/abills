@@ -293,10 +293,20 @@ sub msgs_notify_user {
     #Fixme remove all sends throght sender
     if ( $conf{TELEGRAM_TOKEN} && $message_id ne '--' ) {
       require Msgs::Messaging;
+      
+      my $state = '';
+      if ($message_params->{STATE}) {
+        if ($message_params->{STATE} =~ /:#[0-9a-zA-Z]+/) {
+          $message_params->{STATE} =~ s/:#[0-9a-zA-Z]+//g;
+        }
+
+        $state = "($message_params->{STATE})";
+      }
+
       msgs_send_via_telegram($message_id, {
         UID        => $user_info->{uid},
         MESSAGE    => $message,
-        SUBJECT    => "_{YOU_HAVE_NEW_REPLY}_ '". $html->b($subject)  ."'",
+        SUBJECT    => "_{YOU_HAVE_NEW_REPLY}_ '". $html->b($subject)  ."'" . "\n$state",
         PARSE_MODE => 'HTML'
       });
     }

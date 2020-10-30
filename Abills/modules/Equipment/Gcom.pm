@@ -174,6 +174,9 @@ sub _gcom_onu_list {
   foreach my $port_index (keys %onu_snmp_info) {
     next if(!$port_index);
 
+    my $port_index_slash = $port_index;
+    $port_index_slash =~ s/\./\//;
+
     my $port = $onu_snmp_info{$port_index};
     foreach my $onu_index (keys %$port){
       next if(!$onu_index);
@@ -181,8 +184,8 @@ sub _gcom_onu_list {
       my $onu = $port->{$onu_index};
       $onu_info{ONU_ID} = $onu_index;
       $onu_info{ONU_SNMP_ID} = "$port_index.$onu_index";
-      $port_index =~ s/\./\//;
-      $onu_info{PORT_ID} = $port_ids{$port_index};
+      $onu_info{ONU_DHCP_PORT} = sprintf('%02x%02x%02x', split('\.', $port_index), $onu_index);
+      $onu_info{PORT_ID} = $port_ids{$port_index_slash};
       foreach my $oid_name (keys %{$onu}){
         next if (!$oid_name);
         $onu_info{$oid_name} = $onu->{$oid_name};
@@ -247,6 +250,19 @@ sub _gcom {
           NAME   => 'FIRMWARE',
           OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.10',
         },
+        'CVLAN'           => {
+          NAME   => 'VLAN (CVLAN)',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.2.1.7',
+        },
+        'SVLAN'           => {
+          NAME   => 'VLAN (SVLAN)',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.2.1.8',
+        },
+        'reset'          => {
+          NAME   => '',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.17',
+          PARSER => ''
+        },
       },
       gpon       => {
         'ONU_MAC_SERIAL' => {
@@ -295,6 +311,11 @@ sub _gcom {
           NAME   => 'FIRMWARE',
           OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.2.1.7',
         },
+        #'reset'          => { #not tested
+        #  NAME   => '',
+        #  OIDS   => '1.3.6.1.4.1.13464.1.14.1.4.1.1.6',
+        #  PARSER => ''
+        #},
       },
     );
 

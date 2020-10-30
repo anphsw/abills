@@ -15,7 +15,7 @@ use warnings FATAL => 'all';
 use Employees;
 use Abills::Base qw(days_in_month mk_unique_value);
 use Digest::MD5 qw(md5_hex);
-use Digest::SHA1 qw(sha1_hex);
+use Digest::SHA qw(sha1_hex);
 use Abills::Fetcher qw/web_request/;
 use XML::Simple qw(:strict);
 

@@ -59,7 +59,8 @@
         <label class='control-label col-md-4' for='FIRST_PASSWORD_INPUT'>_{NEW}_ _{PASSWD}_</label>
 
         <div class='col-md-8'>
-          <input type='password' class='form-control' id='FIRST_PASSWORD_INPUT' name='newpassword' value='%newpassword%' title='_{PASSWD}_'/>
+          <input type='password' class='form-control' id='FIRST_PASSWORD_INPUT' name='newpassword' value='%newpassword%' autocomplete='new-password' title='_{PASSWD}_'/>
+          <div class="hidden"></div>
         </div>
       </div>
 

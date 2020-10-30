@@ -27,6 +27,13 @@ my $Payments = Payments->new( $db, $admin, \%conf );
 #**********************************************************
 =head2 docs_acts_list($attr)
 
+  Arguments:
+    $attr
+      COMPANY
+
+  Results:
+
+
 =cut
 #**********************************************************
 sub docs_acts_list{
@@ -52,7 +59,7 @@ sub docs_acts_list{
     }
   }
   else{
-    $index = $FORM{index};
+    $index = $FORM{index} || 0;
   }
 
   if ( $FORM{search_form} ){
@@ -97,7 +104,8 @@ sub docs_acts_list{
       title      => [ '#', $lang{DATE}, $lang{CUSTOMER}, $lang{SUM}, $lang{ADMIN}, $lang{PERIOD}, $lang{DATE}, '-' ],
       qs         => $pages_qs,
       pages      => $Docs->{TOTAL},
-      MENU       => "$lang{SEARCH}:index=$index&search_form=1&COMPANY_ID=" . ($LIST_PARAMS{COMPANY_ID} || '') . ":search",
+      MENU       => "$lang{SEARCH}:index=" . ($index || 0)
+          ."&search_form=1&COMPANY_ID=" . ($LIST_PARAMS{COMPANY_ID} || '') . ":search",
       ID         => 'DOCS_TAX_INVOICE'
     }
   );
@@ -146,6 +154,11 @@ sub docs_acts_list{
 #**********************************************************
 =head2 docs_acts($attr) - docs_acts
 
+  Arguments:
+    $attr
+
+  Results:
+
 =cut
 #**********************************************************
 sub docs_acts{
@@ -163,11 +176,12 @@ sub docs_acts{
       return 0;
     }
     elsif ($FORM{qindex}) {
-      $Company->info($FORM{COMPANY_ID});
+      $Company->info($LIST_PARAMS{COMPANY_ID} || $FORM{COMPANY_ID});
     }
     else {
       $Company = $attr->{COMPANY};
     }
+    $attr->{COMPANY}=$Company;
   }
   elsif($uid) {
     $users = $user if(! $users && $user);
@@ -280,6 +294,10 @@ sub docs_acts{
       class   => 'form-inline',
     }
   );
+
+  if( $Company ){
+    $attr->{COMPANY}=$Company;
+  }
 
   docs_acts_list( $attr );
 

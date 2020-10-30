@@ -18,25 +18,25 @@
     <div class='form-group' style='%EXT_SEL_STYLE%'>
         <label class='control-label col-sm-3 col-md-4 LABEL-BUILD'>_{ADDRESS_BUILD}_</label>
 
-        <div class='input-group col-sm-9 col-md-8 addBuildMenu' style='padding-left: 15px; padding-right: 15px;'>
-            <div id='%BUILD_ID%_' class='col-md-12' style='padding: 0'>
+        <div class='col-sm-9 col-md-8 addBuildMenu' style='padding-left: 15px; padding-right: 15px;'>
+            <div id='%BUILD_ID%_' class='col-md-10 col-sm-10' style='padding: 0'>
                 %ADDRESS_BUILD%
             </div>
-            <span class='input-group-addon' %ADD_BUILD_HIDE%>
-        <a title='_{ADD}_ _{BUILDS}_' class='BUTTON-ENABLE-ADD'>
-        <span class='glyphicon glyphicon-plus'></span>
-        </a>
-        </span>
+            <span class='input-group-addon form-control' %ADD_BUILD_HIDE%>
+              <a title='_{ADD}_ _{BUILDS}_' class='BUTTON-ENABLE-ADD'>
+                <span class='glyphicon glyphicon-plus'></span>
+              </a>
+            </span>
         </div>
 
         <div class='col-sm-8 col-md-8 changeBuildMenu' style='display : none; padding-left: 15px; padding-right: 15px;'>
             <div class='input-group'>
                 <input type='text' id='ADD_ADDRESS_BUILD_ID' name='ADD_ADDRESS_BUILD' class='form-control INPUT-ADD-BUILD'/>
                 <span class='input-group-addon'>
-              <a class='BUTTON-ENABLE-SEL'>
-                <span class='glyphicon glyphicon-list'></span>
-              </a>
-             </span>
+                  <a class='BUTTON-ENABLE-SEL'>
+                    <span class='glyphicon glyphicon-list'></span>
+                  </a>
+                </span>
             </div>
         </div>
     </div>
@@ -95,18 +95,26 @@
   }
 
   function GetBuilds%STREET_ID%(data) {
+    const [formAddress] = jQuery(data).parents('.form-address');
+    let [MULTI_BUILDS] = jQuery(formAddress).find('select#BUILD_ID.MULTI_BUILDS');
+
+    MULTI_BUILDS = +!!MULTI_BUILDS;
+
     var strId = jQuery("#" + data.id).val();
     if (!strId || strId == 0) {
       strId = 0;
       jQuery('#ADD_LOCATION_ID').attr('value', '');
     }
-    jQuery.post('$SELF_URL', '%QINDEX%header=2&get_index=form_address_select2&STREET_ID=' + strId
-      + '&BUILD=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%', function (result) {
-      jQuery('#%BUILD_ID%_').html(result);
-      initChosen();
-      jQuery("#%BUILD_ID%").focus();
-      jQuery("#%BUILD_ID%").select2('open');
-    });
+
+    jQuery.post(
+      '$SELF_URL',
+      `%QINDEX%header=2&get_index=form_address_select2&MULTI_BUILDS=${MULTI_BUILDS}&STREET_ID=${strId}&BUILD=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%`,
+      function (result) {
+        jQuery('#%BUILD_ID%_').html(result);
+        initChosen();
+        jQuery("#%BUILD_ID%").focus();
+        jQuery("#%BUILD_ID%").select2('open');
+      });
   }
   //Get location_id after change build
   var item = '';

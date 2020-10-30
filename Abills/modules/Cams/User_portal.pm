@@ -355,7 +355,6 @@ sub cams_user_streams_management {
       $Cams->stream_change(\%FORM);
       if (!_error_show($Cams)) {
         show_result($Cams, $lang{CHANGED});
-        #        $show_add_form = 1;
       }
       else {
         $correct_name = 0;
@@ -411,7 +410,6 @@ sub cams_user_streams_management {
     }
   }
 
-
   if ($service_id && $correct_name) {
     $FORM{SERVICE_ID} = $service_id;
     $Cams_service = cams_user_services(\%FORM);
@@ -445,20 +443,18 @@ sub cams_user_streams_management {
       ],
       NO_ID    => 1
     });
-    $html->tpl_show(
-      _include('cams_stream_add_user', 'Cams'),
-      {
-        %CAMS_STREAM, %FORM,
-        LIMIT_ARCHIVE      => $CAMS_STREAM{LIMIT_ARCHIVE} ? 'checked' : '',
-        PRE_IMAGE          => $CAMS_STREAM{PRE_IMAGE} ? 'checked' : '',
-        CONSTANTLY_WORKING => $CAMS_STREAM{CONSTANTLY_WORKING} ? 'checked' : '',
-        ONLY_VIDEO         => $CAMS_STREAM{ONLY_VIDEO} ? 'checked' : '',
-        UID                => $user->{UID} || $FORM{UID},
-        DISABLED_CHECKED   => $CAMS_STREAM{DISABLED} ? 'checked' : '',
-        SUBMIT_BTN_ACTION  => ($FORM{chg_cam}) ? 'change_cam' : 'add_cam',
-        SUBMIT_BTN_NAME    => ($FORM{chg_cam}) ? $lang{CHANGE} : $lang{ADD},
-      }
-    );
+
+    $html->tpl_show(_include('cams_stream_add_user', 'Cams'), {
+      %CAMS_STREAM, %FORM,
+      LIMIT_ARCHIVE      => $CAMS_STREAM{LIMIT_ARCHIVE} ? 'checked' : '',
+      PRE_IMAGE          => $CAMS_STREAM{PRE_IMAGE} ? 'checked' : '',
+      CONSTANTLY_WORKING => $CAMS_STREAM{CONSTANTLY_WORKING} ? 'checked' : '',
+      ONLY_VIDEO         => $CAMS_STREAM{ONLY_VIDEO} ? 'checked' : '',
+      UID                => $user->{UID} || $FORM{UID},
+      DISABLED_CHECKED   => $CAMS_STREAM{DISABLED} ? 'checked' : '',
+      SUBMIT_BTN_ACTION  => ($FORM{chg_cam}) ? 'change_cam' : 'add_cam',
+      SUBMIT_BTN_NAME    => ($FORM{chg_cam}) ? $lang{CHANGE} : $lang{ADD},
+    });
   }
 
   foreach my $user_tp (@$user_tps) {
@@ -585,41 +581,64 @@ sub cams_archives {
     UID => $user->{UID} || $FORM{UID},
   });
 
-  if ($FORM{CAMERA_ID}) {
-    my $prev_stream = '';
-    my $streams_html = '';
+  cams_show_camera_archive() if $FORM{CAMERA_ID};
 
-    my $camera = $Cams->stream_info($FORM{CAMERA_ID});
-
-    if (($camera->{service_id} && $camera->{service_id} ne $prev_stream) || ($camera->{service_id} && !$Cams_service)) {
-      $Cams_service = cams_load_service($camera->{service_name}, { SERVICE_ID => $camera->{service_id} });
-    }
-
-    $prev_stream = $camera->{service_id};
-
-    if ($Cams_service && $Cams_service->can('get_archive')) {
-      $users_->info($FORM{UID}, { SHOW_PASSWORD => 1 });
-      $users_->pi({ UID => $FORM{UID} });
-      $camera->{DATE} = $FORM{date} if $FORM{date};
-      my $result = $Cams_service->get_archive({
-        %$camera, %$users_
-      });
-      if ($result && $result->{CAMERA}) {
-        if (ref $result->{CAMERA} ne "ARRAY") {
-          $result->{CAMERA} = ($result->{CAMERA});
-        }
-        for my $cam (@{$result->{CAMERA}}) {
-          $streams_html .= $html->tpl_show(_include('cams_stream_div', 'Cams'), {
-            CAMERA      => $cam || "",
-            STREAM_NAME => $camera->{title} || $camera->{camera_name},
-          }, { OUTPUT2RETURN => 1 });
-        }
-      }
-    }
-
-    $html->tpl_show(_include('cams_streams_wrapper', 'Cams'), { CAMS => $streams_html });
-  }
   return 1;
+}
+
+#**********************************************************
+=head2 cams_show_camera_archive($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub cams_show_camera_archive {
+
+  my $prev_stream = '';
+  my $streams_html = '';
+
+  my $camera = $Cams->stream_info($FORM{CAMERA_ID});
+
+  if (($camera->{service_id} && $camera->{service_id} ne $prev_stream) || ($camera->{service_id} && !$Cams_service)) {
+    $Cams_service = cams_load_service($camera->{service_name}, { SERVICE_ID => $camera->{service_id} });
+  }
+
+  $prev_stream = $camera->{service_id};
+
+  return 0 if (!$Cams_service || !$Cams_service->can('get_archive'));
+
+  $users_->info($FORM{UID}, { SHOW_PASSWORD => 1 });
+  $users_->pi({ UID => $FORM{UID} });
+  $camera->{DATE} = $FORM{date} if $FORM{date};
+
+  my $result = $Cams_service->get_archive({ %$camera, %$users_ });
+
+  return 0 if (!$result || !$result->{CAMERA});
+
+  if (ref $result->{CAMERA} ne "ARRAY") {
+    $result->{CAMERA} = ($result->{CAMERA});
+  }
+  for my $cam (@{$result->{CAMERA}}) {
+    $streams_html .= $html->tpl_show(_include('cams_stream_div', 'Cams'), {
+      CAMERA      => $cam || "",
+      STREAM_NAME => $camera->{title} || $camera->{camera_name},
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  $html->tpl_show(_include('cams_streams_wrapper', 'Cams'), {
+    CAMS              => $streams_html,
+    ADDITIONAL_SCRIPT => $result->{ADDITIONAL_SCRIPT} || ''
+  });
+  #
+  # if ($result->{CALLBACK}) {
+  #   Abills::Base::_bp('', ref $result->{CALLBACK}, {HEADER=>1});
+  #   $result->{CALLBACK}();
+  # }
+
+  return 0;
 }
 
 1;

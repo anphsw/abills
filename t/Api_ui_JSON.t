@@ -48,7 +48,6 @@ my @test_list = (
       "type": "object",
       "title": "The Form_client_info Schema",
       "required": [
-        "__ACCEPT_RULES",
         "INFO_TABLE_CLASS",
         "LOGIN",
         "UID",
@@ -56,7 +55,7 @@ my @test_list = (
         "REDUCTION_DATE",
         "CREDIT_DATE",
         "FIO",
-        "PHONE",
+        "PHONE_ALL",
         "EMAIL",
         "CONTRACT_DATE",
         "STATUS",
@@ -186,14 +185,11 @@ my @test_list = (
           ],
           "pattern": "^(.*)$"
         },
-        "PHONE": {
+        "PHONE_ALL": {
           "$id": "#/properties/form_client_info/properties/PHONE",
           "type": "string",
           "title": "The Phone Schema",
           "default": "",
-          "examples": [
-            ""
-          ],
           "pattern": "^(.*)$"
         },
         "ADDRESS_FLAT": {
@@ -801,14 +797,13 @@ my @test_list = (
           "type": "object",
           "title": "The __pay_system_sel Schema",
           "required": [
-            "PAYSYS_135",
-            "PAYSYS_117"
+            "PAYSYS_62"
           ],
           "properties": {
-            "PAYSYS_135": {
-              "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_135",
+            "PAYSYS_62": {
+              "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_62",
               "type": "object",
-              "title": "The Paysys_135 Schema",
+              "title": "The Paysys_62 Schema",
               "required": [
                 "PAY_SYSTEM",
                 "CHECKED",
@@ -817,7 +812,7 @@ my @test_list = (
               ],
               "properties": {
                 "PAY_SYSTEM": {
-                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_135/properties/PAY_SYSTEM",
+                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_62/properties/PAY_SYSTEM",
                   "type": "string",
                   "title": "The Pay_system Schema",
                   "default": "",
@@ -827,7 +822,7 @@ my @test_list = (
                   "pattern": "^(.*)$"
                 },
                 "CHECKED": {
-                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_135/properties/CHECKED",
+                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_62/properties/CHECKED",
                   "type": "string",
                   "title": "The Checked Schema",
                   "default": "",
@@ -837,7 +832,7 @@ my @test_list = (
                   "pattern": "^(.*)$"
                 },
                 "PAY_SYSTEM_LC": {
-                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_135/properties/PAY_SYSTEM_LC",
+                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_62/properties/PAY_SYSTEM_LC",
                   "type": "string",
                   "title": "The Pay_system_lc Schema",
                   "default": "",
@@ -847,7 +842,7 @@ my @test_list = (
                   "pattern": "^(.*)$"
                 },
                 "PAY_SYSTEM_NAME": {
-                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_135/properties/PAY_SYSTEM_NAME",
+                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_62/properties/PAY_SYSTEM_NAME",
                   "type": "string",
                   "title": "The Pay_system_name Schema",
                   "default": "",
@@ -858,48 +853,6 @@ my @test_list = (
                 }
               }
             },
-            "PAYSYS_117": {
-              "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_117",
-              "type": "object",
-              "title": "The Paysys_117 Schema",
-              "required": [
-                "PAY_SYSTEM",
-                "PAY_SYSTEM_LC",
-                "PAY_SYSTEM_NAME"
-              ],
-              "properties": {
-                "PAY_SYSTEM": {
-                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_117/properties/PAY_SYSTEM",
-                  "type": "string",
-                  "title": "The Pay_system Schema",
-                  "default": "",
-                  "examples": [
-                    ""
-                  ],
-                  "pattern": "^(.*)$"
-                },
-                "PAY_SYSTEM_LC": {
-                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_117/properties/PAY_SYSTEM_LC",
-                  "type": "string",
-                  "title": "The Pay_system_lc Schema",
-                  "default": "",
-                  "examples": [
-                    ""
-                  ],
-                  "pattern": "^(.*)$"
-                },
-                "PAY_SYSTEM_NAME": {
-                  "$id": "#/properties/PAYSYS_FORM/properties/__PAY_SYSTEM_SEL/properties/PAYSYS_117/properties/PAY_SYSTEM_NAME",
-                  "type": "string",
-                  "title": "The Pay_system_name Schema",
-                  "default": "",
-                  "examples": [
-                    ""
-                  ],
-                  "pattern": "^(.*)$"
-                }
-              }
-            }
           }
         }
       }

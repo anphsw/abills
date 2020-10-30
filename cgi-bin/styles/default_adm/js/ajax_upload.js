@@ -14,6 +14,7 @@ jQuery(function () {
   var self_close      = true;
   
   var timeout = _ajax_form.data('timeout');
+
   if (timeout == 0) {
     self_close = false;
   }
@@ -32,15 +33,15 @@ jQuery(function () {
     _add_btn.addClass('disabled');
     
     ajax_clear_body = _ajax_body.html();
-    console.log('submit');
+
     jQuery.ajax({
-      url        : url, // Url to which the request is send
-      type       : 'POST',             // Type of request to be send, called as method
-      data       : new FormData(context), // Data sent to server, a set of key/value pairs (i.e. form fields and values)
-      contentType: false,       // The content type used when sending data to the server.
-      cache      : false,             // To unable request pages to be cached
-      processData: false,        // To send DOMDocument or non processed data file it is set to false
-      success    : function (data)   // A function to be called if request succeeds
+      url        : url,                         // Url to which the request is send
+      type       : 'POST',                      // Type of request to be send, called as method
+      data       : new FormData(context),       // Data sent to server, a set of key/value pairs (i.e. form fields and values)
+      contentType: false,                       // The content type used when sending data to the server.
+      cache      : false,                       // To unable request pages to be cached
+      processData: false,                       // To send DOMDocument or non processed data file it is set to false
+      success    : function (data)              // A function to be called if request succeeds
       {
         _ajax_body.empty().html(data);
         
@@ -51,16 +52,21 @@ jQuery(function () {
   
   function renewForm() {
     aModal.hide();
+    
     _ajax_body.html(ajax_clear_body);
     _add_btn.text(add_btn_text);
     _add_btn.removeClass('disabled');
     _ajax_form = jQuery('#form_ajax_upload');
+    
     bindAjaxFormSubmit();
+    
+    location.reload()
   }
   
   function bindAjaxFormSubmit() {
     _ajax_form.on('submit', function (e) {
       e.preventDefault();
+    
       uploadForm(this);
     });
   }

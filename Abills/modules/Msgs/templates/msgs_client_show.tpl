@@ -1,4 +1,76 @@
-<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'>
+<style>
+  body {font-family: Arial, Helvetica, sans-serif;}
+  
+  .attachment_responsive {
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  
+  .attachment_responsive:hover {opacity: 0.7;}
+  
+  .modal-img {
+    display: none;
+    position: fixed;
+    z-index: 99999;
+    padding-top: 100px;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgb(0,0,0);
+    background-color: rgba(0,0,0,0.9);
+  }
+  
+  .modal-content-img {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+  }
+
+  .modal-content-img {  
+    -webkit-animation-name: zoom;
+    -webkit-animation-duration: 0.6s;
+    animation-name: zoom;
+    animation-duration: 0.6s;
+  }
+  
+  @-webkit-keyframes zoom {
+    from {-webkit-transform:scale(0)} 
+    to {-webkit-transform:scale(1)}
+  }
+  
+  @keyframes zoom {
+    from {transform:scale(0)} 
+    to {transform:scale(1)}
+  }
+
+  .closeImageResize {
+    position: absolute;
+    top: 15px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+  }
+  
+  .closeImageResize:hover,
+  .closeImageResize:focus {
+    color: #bbb;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  @media only screen and (max-width: 700px){
+    .modal-content-img {
+      width: 100%;
+    }
+  }
+</style>
+
+<FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message_form' id='add_message_form'>
     <input type='hidden' name='index' value='$index'/>
     <input type='hidden' name='UID' value='$FORM{UID}'/>
     <input type='hidden' name='ID' value='%ID%'/>
@@ -61,55 +133,65 @@
     <!-- end of table -->
 </form>
 
+<div id="myModalImg" class="modal-img">
+  <span class="closeImageResize">&times;</span>
+  <img class="modal-content-img" id="img_resize">
+  <div id="caption"></div>
+  <br/>
+  <a id='download_btn' class="btn btn-success btn-large">_{DOWNLOAD}_</a>
+  <br/><br/>
+</div>
+
 <script>
   var saveStr = '_{SAVE}_';
   var cancelStr = '_{CANCEL}_';
   var replyId = 0;
 
-  function save_reply(element) {
-    var replyText = jQuery('.reply-edit').val();
-    var date = new Date();
-    var dateStr = date.toISOString().slice(0,10) + " " + date.toTimeString().slice(0,9) + "(%LOGIN%)";
-    replyText = replyText + "\n\n\nEdited: " + dateStr;
-    var replyHtml = replyText.replace(/\</g, "&lt")
-                             .replace(/\>/g, "&gt")
-                             .replace(/\n/g, "<br />");
+  var modal = document.getElementById("myModalImg");
+  var modalImg = document.getElementById("img_resize");
+  var captionText = document.getElementById("caption");
+  
+  var downloadBtn = jQuery('#download_btn');
+  var span = jQuery(".closeImageResize");
 
-    jQuery(element).parent().html(replyHtml);
-  }
+  jQuery(".attachment_responsive").on('click', function(event) {
+    modal.style.display = "block";
+    modalImg.src = this.src;
+    downloadBtn.attr('href',this.src);
+  });
 
-  function edit_reply(element) {
-    if (replyId==0) {
-      replyId = jQuery(element).attr('reply_id');
-      var replyElement = jQuery(element).closest(".box").find(".box-body");
-      var oldReplyHtml = replyElement[0].innerHTML;
-      var oldReply = replyElement[0].innerText;
-      replyElement.html("")
-        .append("<textarea class='form-control reply-edit' rows='10' style='width:100%; margin-left:auto;margin-right:auto'>" + oldReply + "</textarea>")
-        .append("<button type='button' class='btn btn-default btn-xs reply-save'>" + saveStr + "</button>")
-        .append("<button type='button' class='btn btn-default btn-xs reply-cancel'>" + cancelStr + "</button>");
-      replyElement.children().first().focus();
-      
-      jQuery(".reply-save").click(function(event){
-        event.preventDefault();
-        save_reply(this);
-        replyId = 0;
-      });
+  span.on('click', function(event) {
+    modal.style.display = "none";
+  });
 
-      jQuery(".reply-cancel").click(function(event){
-        event.preventDefault();
-        jQuery(this).parent().html(oldReplyHtml);
-        replyId = 0;
-      });
+  jQuery('#myModalImg').on('click', function(event) {
+    modal.style.display = "none";
+  });
+
+  document.addEventListener('keydown', function(event) {
+    const key = event.key;
+    if (key === "Escape") {
+      modal.style.display = "none";
     }
+  });
+
+  function quoting_reply(element) {
+    var replyField = jQuery('#REPLY_TEXT');
+    
+    var replyElement = jQuery(element).closest(".box").find(".box-body");
+    var oldReplyHtml = replyElement[0].innerHTML;
+    var oldReply = replyElement[0].innerText;
+      
+    oldReply = oldReply.replace(/^/g, '> ');
+    oldReply = oldReply.replace(/\n/g, '\n> ');
+    
+    replyField.val(oldReply);
   };
 
-  jQuery(function(event){
-    jQuery(".reply-edit-btn").click(function(event){
+  jQuery(function() {
+    jQuery(".quoting-reply-btn").click(function(event){
       event.preventDefault();
-      edit_reply(this);
+      quoting_reply(this);
     });
   });
 </script>
-
-

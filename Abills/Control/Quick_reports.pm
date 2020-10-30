@@ -265,7 +265,7 @@ sub start_page_users_summary {
         [ $html->button($lang{TOTAL}, "index=11"),
           $users->{TOTAL_USERS}, '' ],
 
-        [ $html->button($lang{DISABLE}, "index=11"),
+        [ $html->button($lang{DISABLE}, "index=11&USERS_STATUS=3"),
           $users->{DISABLED_USERS}, '' ],
 
         [ $html->button($lang{DEBETORS}, "index=11&USERS_STATUS=2"),

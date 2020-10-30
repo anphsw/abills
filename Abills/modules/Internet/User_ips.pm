@@ -7,6 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(ip2int int2ip);
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 our(
   $admin,
@@ -44,13 +45,11 @@ sub get_static_ip {
       $Ip_pool->{IPV6_PD}, $Ip_pool->{IPV6_PD_MASK}, $Ip_pool->{IPV6_PD_TEMPLATE};
   }
 
-#  if($Nas->{TOTAL} < 1) {
-#    return -1;
-#  }
-#  els
   if(_error_show($Ip_pool, { ID => 117, MESSAGE => 'IP POOL:'. $pool_id })) {
     return '0.0.0.0';
   }
+
+  my @arr_ip_skip = $Ip_pool->{IP_SKIP} ? split(/,\s?|;\s?/, $Ip_pool->{IP_SKIP}) : ();
 
   my $start_ip = ip2int($Ip_pool->{IP});
   my $end_ip   = $start_ip + $Ip_pool->{COUNTS};
@@ -70,11 +69,15 @@ sub get_static_ip {
   }
 
   for (my $ip_cur = $start_ip ; $ip_cur <= $end_ip ; $ip_cur++) {
-    if (! $users_ips{ $ip_cur }) {
-      return int2ip($ip_cur);
+    if ( !$users_ips{ $ip_cur }) {
+      my $ip = int2ip($ip_cur);
+
+      if(!($ip ~~ @arr_ip_skip)) {
+        return $ip;
+      }
     }
   }
-  
+
   if ($Ip_pool->{NEXT_POOL_ID}){
     return get_static_ip($Ip_pool->{NEXT_POOL_ID});
   }

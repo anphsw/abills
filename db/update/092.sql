@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS `msgs_address` (
 	`flat`      VARCHAR(5)           DEFAULT '' NOT NULL,
   
   CONSTRAINT `msgs_id` FOREIGN KEY (`id`)
-      REFERENCES `msgs_messages` (`id`)
+      REFERENCES `msgs_messages` (`id`) ON DELETE CASCADE
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs set address';

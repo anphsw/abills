@@ -6,7 +6,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(mk_unique_value int2ip int2byte cmd);
+use Abills::Base qw(mk_unique_value int2ip int2byte cmd in_array);
 
 my $chart_height = 350;
 my $chart_new_window_width = 450;
@@ -17,13 +17,13 @@ our (
   $db,
   %conf,
   $admin,
-  $html,
   %lang,
   @bool_vals,
   @state_colors,
   %permissions
 );
 
+our Abills::HTML $html;
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
 
@@ -318,14 +318,8 @@ sub internet_online {
           $html->button($lang{SHOW}, "index=$index&NAS_ID=$line->{nas_id}", { class => 'show' }));
       }
 
-      if (Abills::Base::in_array('Maps2', \@MODULES)) {
+      if (in_array('Maps2', \@MODULES)) {
         _internet_map2_menu({
-          TABLE => $table->show(),
-        });
-        return 1;
-      }
-      elsif (Abills::Base::in_array('Maps', \@MODULES)) {
-        _internet_map_menu({
           TABLE => $table->show(),
         });
         return 1;
@@ -409,7 +403,8 @@ sub internet_online {
     framed_ipv6_prefix    => 'IPV6',
     framed_interface_id   => 'FRAMED_INTERFACE_ID',
     delegated_ipv6_prefix => 'DELEGATED_IPV6_PREFIX',
-    'cpe_mac'             => 'CPE MAC'
+    'cpe_mac'             => 'CPE MAC',
+    service_cid           => 'Internet CID'
   );
 
   my Abills::HTML $table;
@@ -656,16 +651,8 @@ sub internet_online {
     }
   }
 
-  if (Abills::Base::in_array('Maps2', \@MODULES) && !$FORM{ZAPED}) {
+  if (in_array('Maps2', \@MODULES) && !$FORM{ZAPED}) {
     _internet_map2_menu({
-      TABLE   => $output_map,
-      FILTERS => $output_filters,
-      ZAPED   => $output_zaped,
-    });
-    return 1;
-  }
-  if (Abills::Base::in_array('Maps', \@MODULES) && !$FORM{ZAPED}) {
-    _internet_map_menu({
       TABLE   => $output_map,
       FILTERS => $output_filters,
       ZAPED   => $output_zaped,
@@ -810,7 +797,9 @@ sub internet_diagnostic {
     if ($res) {
       ($status) = ($res =~ m/STATUS: ([^\s]+)/);
     }
-    print $html->message($status || 'info', $lang{DIAGNOSTIC} . ' ' . ($name || q{}), $res);
+
+    $res =~ s/\r\n/<br>/g;
+    print $html->message($status || 'info', $lang{DIAGNOSTIC} . ' ' . ($name || q{}), "<pre>$res</pre>");
   }
 
   return 1;
@@ -823,6 +812,7 @@ sub internet_diagnostic {
 =cut
 #**********************************************************
 sub internet_online_builds {
+
   require Address;
   Address->import();
   my $Address = Address->new($db, $admin, \%conf);
@@ -838,92 +828,63 @@ sub internet_online_builds {
   require Dom;
   Dom->import();
   my $Dom = Dom->new($db, $admin, \%conf);
-  my $list_online = $Dom->users_online_by_builds();
+  my $online_users = $Dom->users_online_by_builds();
+
+  my %online_users_list = ();
+  map $_->{id} ? push(@{$online_users_list{$_->{id}}}, $_) : (), @{$online_users};
 
   my $districts_list = $Address->district_list({
     COLS_NAME => 1,
     SORT      => 'd.name',
-    PAGE_ROWS => 10000
+    PG        => $FORM{PAGE_START} || 0,
+    PAGE_ROWS => $FORM{PAGE_ROWS} || 1
   });
   return if (_error_show($Address));
 
+  my $districts_count = $Address->{TOTAL};
   my $districts_content = '';
+
   foreach my $district (@{$districts_list}) {
-    # Get all streets
-    my $streets_list = $Address->street_list({
-      DISTRICT_ID => $district->{id},
-      STREET_NAME => '_SHOW',
-      SECOND_NAME => '_SHOW',
-      COLS_NAME   => 1,
-      SORT        => 's.name',
-      PAGE_ROWS   => 10000
-    });
+    my $streets = $Dom->streets_list_with_builds({ DISTRICT_ID => $district->{id} });
     return if (_error_show($Address));
 
-    my $streets_content = '';
-    foreach my $street (@{$streets_list}) {
-      my $builds_list = $Address->build_list({
-        STREET_ID   => $street->{id},
-        COLS_NAME   => 1,
-        USERS_COUNT => '_SHOW',
-        SORT        => 1,
-        PAGE_ROWS   => 10000
-      });
-      return if (_error_show($Address));
+    map @{$_->{builds}} = $_->{builds_number} ? split(',', $_->{builds_number}) : (), @{$streets};
 
+    my $streets_content = '';
+    foreach my $street (@{$streets}) {
       my %street_users = (
         total  => 0,
         online => 0,
       );
 
       my $builds_content = '';
-      my $builds_count = 0;
+      my $builds_count = @{$street->{builds}} || 0;
 
-      foreach my $build (@{$builds_list}) {
+      foreach my $build (@{$street->{builds}}) {
         my $btn_class = 'btn-default';
+        my ($build_number, $build_id, $users_count) = split('\|', $build);
 
-        $street_users{total} += $build->{users_count};
+        next if !$build_number || !$build_id;
+        $street_users{total} += $users_count || 0;
 
-        my $has_online = ($online_for_location_id{$build->{id}});
-        my $has_guest = ($online_for_guest_location_id{$build->{id}});
+        my $has_online = ($online_for_location_id{$build_id});
+        my $has_guest = ($online_for_guest_location_id{$build_id});
         if ($has_online) {
-          $street_users{online} += $online_for_location_id{$build->{id}};
+          $street_users{online} += $online_for_location_id{$build_id};
           $btn_class = 'btn-success';
         }
         elsif ($has_guest) {
-          $street_users{online} += $online_for_guest_location_id{$build->{id}};
+          $street_users{online} += $online_for_guest_location_id{$build_id};
           $btn_class = 'btn-warning';
         }
-        elsif ($build->{users_count}) {
+        elsif ($users_count) {
           $btn_class = 'btn-danger';
         }
 
-        $builds_count += 1;
-
-        my $tooltipe_text = "";
-
-        foreach my $element_online (@{ $list_online }) {
-          my $status = $element_online->{status};
-          my $id  = $element_online->{id};
-          my $color_mark = $status ? '#00b35b' : '#b80000';
-
-          if ($id && $id eq $build->{id}) {
-            my $uid = $element_online->{uid};
-            my $fio = $element_online->{fio};
-
-            my $text_no_color = "$fio - (UID: $uid)<br/>";
-            my $text_color = $html->color_mark($text_no_color, $color_mark);
-
-            $tooltipe_text .= $text_color;
-          }
-        }
-
-        my $tooltipe_active = "data-tooltip='$tooltipe_text' data-tooltip-position='bottom'" if ($tooltipe_text ne '');
-
-        $builds_content .= $html->button($build->{number},
-          "index=7&type=11&search=1&search_form=1&LOCATION_ID=$build->{id}&BUILDS=$street->{id}", {
+        $builds_content .= $html->button($build_number,
+          "index=7&type=11&search=1&search_form=1&LOCATION_ID=$build_id&BUILDS=$street->{street_id}", {
             class         => 'btn btn-lg btn-build ' . $btn_class,
-            ex_params     => $tooltipe_active || '',
+            ex_params     => _internet_get_build_tooltip($build_id, \%online_users_list) || '',
             OUTPUT2RETURN => 1,
           }
         );
@@ -937,123 +898,62 @@ sub internet_online_builds {
       );
 
       $streets_content .= $html->tpl_show(templates('form_show_not_hide'), {
-        NAME    => $street->{street_name}
-          . ($street->{second_name}
-          ? " ( $street->{second_name} ) "
-          : '')
-          . " ( $street_online_text ) "
-          ,
+        NAME    => $street->{street_name} . ($street->{second_name} ? " ( $street->{second_name} ) " : '') . " ( $street_online_text ) ",
         CONTENT => '<div class="button-block">' . $builds_content . '</div>',
         PARAMS  => 'collapsed-box'
-      },
-        {
-          OUTPUT2RETURN => 1
-        });
+      }, { OUTPUT2RETURN => 1 });
     }
 
     $districts_content .= $html->tpl_show(templates('form_show_not_hide'), {
-      NAME    => $lang{DISTRICT} . ' ' . $district->{name} . ' ( ' . (scalar @{$streets_list}) . ' )',
+      NAME    => $lang{DISTRICT} . ' ' . $district->{name} . ' ( ' . (scalar @{$streets}) . ' )',
       CONTENT => $streets_content,
       PARAMS  => 'collapsed-box'
-    }, {
-      OUTPUT2RETURN => 1
-    });
-  };
+    }, { OUTPUT2RETURN => 1 });
+  }
 
+  if ($FORM{RETURN_CONTENT}) {
+    print $districts_content;
+    return;
+  }
 
-  $html->tpl_show(_include('internet_online_builds', 'Internet'),
-    {
-      DISTRICT_PANELS => $districts_content
-    }
-  );
+  $html->tpl_show(_include('internet_online_builds', 'Internet'), {
+    DISTRICT_PANELS => $districts_content,
+    MAX_PAGES       => $districts_count
+  });
 
   return 1;
 }
 
 #**********************************************************
-=head2 _internet_map_menu() - show menu with map
+=head2 _internet_get_build_tooltip($attr)
+
+  Arguments:
+
+  Return:
 
 =cut
 #**********************************************************
-sub _internet_map_menu {
-  my ($attr) = @_;
+sub _internet_get_build_tooltip {
+  my ($build_id, $online_users_list) = @_;
 
-  load_module('Maps', $html);
+  return '' if !$online_users_list->{$build_id};
 
-  my $info_table = "";
-  my %USERS_INFO = ();
-  # Get online
-  my $online_list = $Sessions->online({
-    UID       => '_SHOW',
-    COLS_NAME => 1
-  });
-  _error_show($Sessions) and return 0;
+  my $tooltip_info = '';
 
-  # Get location_ids for users
-  my $builds_for_users = $users->list({
-    FIO         => '_SHOW',
-    LOGIN       => '_SHOW',
-    DEPOSIT     => '_SHOW',
-    UID         => join(';', map {$_->{uid}} @{$online_list}),
-    LOCATION_ID => '!',
-    COLS_NAME   => 1
-  });
-  _error_show($users) and return 0;
+  foreach my $online_user (@{$online_users_list->{$build_id}}) {
+    my $color_mark = $online_user->{status} ? '#00b35b' : '#b80000';
+    my $uid = $online_user->{uid} || '';
+    my $fio = $online_user->{fio} || '';
 
-  my $online_block = $html->element('span', '', {
-    class => 'glyphicon glyphicon-ok-circle text-green',
-    title => $lang{ONLINE}
-  });
+    my $text_no_color = "$fio - (UID: $uid)<br/>";
+    my $text_color = $html->color_mark($text_no_color, $color_mark);
 
-  my $count_online = 0;
-  foreach my $build (@{$builds_for_users}) {
-    my $user_flat = $build->{address_flat} || " - ";
-    my $user_link = $html->button($build->{login}, "index=" . get_function_index("form_users") . "&UID=$build->{uid}");
-    my $user_deposit = $build->{deposit} < 0 ? $html->color_mark($build->{deposit}, 'text-danger') : $build->{deposit};
-
-    my $info_for_table .= qq(<td>$online_block</td>);
-    $info_for_table .= qq(<td>$user_link</td>);
-    $info_for_table .= qq(<td>$user_deposit</td>);
-    $info_for_table .= qq(<td>$build->{fio}</td>);
-    $info_for_table .= qq(<td>$user_flat</td>);
-
-    if ($USERS_INFO{ $build->{build_id} || $build->{location_id} }) {
-      $count_online++;
-
-      $info_table = $info_for_table;
-      $info_table .= qq(</tr>);
-      $build->{map_custom_info} = $info_table;
-      $USERS_INFO{ $build->{build_id} || $build->{location_id} }[0]{count} = $count_online;
-      $USERS_INFO{ $build->{build_id} || $build->{location_id} }[0]{map_custom_info} .= $build->{map_custom_info};
-      next;
-    }
-
-    $count_online = 1;
-    $build->{count} = $count_online;
-
-    $info_table = qq(<table class="table table-bordered"><thead><tr>);
-    $info_table .= qq(<th>$lang{ONLINE}</th><th>$lang{LOGIN}</th><th>$lang{DEPOSIT}</th><th>$lang{USER}</th><th>$lang{FLAT}</th>);
-    $info_table .= qq(</thead><tr>);
-    $info_table .= $info_for_table;
-    $info_table .= qq(</tr>);
-
-    $build->{map_custom_info} = $info_table;
-    push @{$USERS_INFO{ $build->{build_id} || $build->{location_id} }}, $build;
+    $tooltip_info .= $text_color;
   }
 
-  $FORM{MAPS} = maps_show_map({
-    DATA          => \%USERS_INFO,
-    OUTPUT2RETURN => 1,
-    QUICK         => 1,
-  });
+  return '' if $tooltip_info eq '';
 
-  $html->tpl_show(_include('internet_online_map', 'Internet'), {
-    FILTERS => $attr->{FILTERS},
-    TABLE   => $attr->{TABLE},
-    MAPS    => $FORM{MAPS}
-  });
-
-  return 1;
+  return "data-tooltip='$tooltip_info' data-tooltip-position='bottom'";
 }
 
 #**********************************************************

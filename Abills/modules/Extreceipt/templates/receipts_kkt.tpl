@@ -9,7 +9,7 @@
       <div class='form-group'>
         <label class='control-label col-md-3' for='API_ID'>API</label>
         <div class='col-md-9'>
-          <input type='text' class='form-control' value='%API_ID%' name='API_ID' id='API_ID'/>
+          %API_SEL%
         </div>
       </div>
       

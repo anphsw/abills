@@ -45,6 +45,15 @@
                     %PAYMENT_TYPE_SEL%
                 </div>
             </div>
+            
+            <div class='form-group'>
+                <div class='col-md-3'>
+                    <label for='USER_PORTAL'>_{USER_PORTAL}_:</label>
+                </div>
+                <div class='col-md-9'>
+                    %USER_PORTAL%
+                </div>
+            </div>
 
             <div class='form-group'>
                 <div class='col-md-7'>
@@ -61,15 +70,6 @@
                 </div>
                 <div class='col-md-5'>
                     <input type='checkbox' name='MANUAL_ACTIVATE' data-return='1' %MANUAL_ACTIVATE% value='1'/>
-                </div>
-            </div>
-
-            <div class='form-group'>
-                <div class='col-md-7'>
-                    <label for='USER_PORTAL'>_{USER_PORTAL}_:</label>
-                </div>
-                <div class='col-md-5'>
-                    <input type='checkbox' name='USER_PORTAL' data-return='1' %USER_PORTAL% value='1'/>
                 </div>
             </div>
 
@@ -106,8 +106,6 @@
                     %PRIORITY%
                 </div>
             </div>
-
-            <!-- <div class='form-group'><td>_{ACCOUNT}_ _{FEES}_:</td><td>%ACCOUNT_SEL%</td></div> -->
 
             <div class='form-group'>
                 <div class='col-md-3'>
@@ -235,4 +233,3 @@
         </div>
     </div>
 </form>
-

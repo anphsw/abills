@@ -98,14 +98,14 @@ sub msgs_team_set_ticket {
 
   foreach my $element (@$dispatch_all) {
     my $replay_button = 
-      $html->button('', "index=" . get_function_index('msgs_admin') . '&chg_msgs=' . $element->{id},
+      $html->button('', "index=" . get_function_index('msgs_admin') . '&chg=' . $element->{id},
         { class => 'glyphicon glyphicon glyphicon-list-alt' }) if ($element->{responsible} && $element->{responsible} == $admin->{AID});
 
     $table->addrow(
       $element->{id},
       $lang{BRIGADE} . ' №' . $element->{id_team},
       $element->{name},
-      $status->{ $element->{state} },
+      $html->color_mark($status->{ $element->{state} }),
       $replay_button,
       $html->button($element->{id},
         "index=" . get_function_index('msgs_team_set_ticket') . '&chg_id=' . $element->{id}, { class => 'change' }),
@@ -143,10 +143,11 @@ sub show_form {
   my $param_name    = "add";
   my $chg_ticket_id = $attr->{chg_id};
 
-  my $ticket_list = $Msgs->messages_list({ 
-    SUBJECT   => '_SHOW', 
-    STATE_ID  => '_SHOW', 
-    COLS_NAME => 1
+  my $ticket_list = $Msgs->messages_list({
+    SUBJECT   => '_SHOW',
+    STATE_ID  => '!2,!1',
+    COLS_NAME => 1,
+    PAGE_ROWS => 65000
   });
 
   my $dispatch_team = $Msgs->responsible_team_list();
@@ -164,7 +165,7 @@ sub show_form {
     SELECTED    => $team,
     SEL_LIST    => $dispatch_team,
     SEL_KEY     => 'id',
-    SEL_VALUE   => 'aid',
+    SEL_VALUE   => 'name',
     SEL_OPTIONS => { '' => '--' },
     NO_ID       => 1,
   });
@@ -204,6 +205,7 @@ sub filter_brigade {
       STATE       => '_SHOW',
       ID_TEAM     => '_SHOW',
       NAME        => '_SHOW',
+      LOGIN       => '_SHOW',
       GROUP_BY    => 1
     }
   );

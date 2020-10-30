@@ -44,12 +44,18 @@
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/style.css'>
 
+  <!-- Toogle Style -->
+  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap2-toggle.min.css'>
+
   <!-- Admin's permissions clases-->
   %PERM_CLASES%
 
   <!-- Bootstrap -->
   <script src='/styles/default_adm/js/jquery.min.js'></script>
   <script src='/styles/default_adm/js/bootstrap.min.js'></script>
+
+  <!-- Toggle script -->
+  <script src='/styles/default_adm/js/bootstrap2-toggle.min.js'></script>
 
   <!-- ECMA6 functions -->
   <script src='/styles/default_adm/js/polyfill.js'></script>
@@ -119,6 +125,8 @@
     var SELF_URL              = '$SELF_URL';
     var INDEX                 = '$index';
     var _COMMENTS_PLEASE      = '_{COMMENTS_PLEASE}_' || 'Comments please';
+    var _WORLD_PLEASE         = '_{ENTER_DEL}_' || 'Enter please';
+    var _DEL                  = '_{DEL}_' || 'Delete';
     document['WEBSOCKET_URL'] = '%WEBSOCKET_URL%';
 
     //CHOSEN INIT PARAMS
@@ -207,6 +215,11 @@
           <div class='modal-body'>
             <div class='row'>
               <input type='text' class='form-control' id='mInput' placeholder='_{COMMENTS}_'>
+            </div>
+          </div>
+          <div class='modal-body' id='mInputConfirmHide' style="display: none">
+            <div class='row'>
+              <input type='text' class='form-control' id='mInputConfirm' placeholder='_{ENTER_DEL}_: _{DEL}_'>
             </div>
           </div>
           <div class='modal-footer'>

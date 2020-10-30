@@ -165,10 +165,16 @@ sub crm_lead_list {
       "(cl.domain_id='$self->{admin}{DOMAIN_ID}')";
   }
 
+  if ($attr->{LEAD_ID}) {
+    $SORT = 'lead_id';
+    $DESC = 'DESC';
+  }
+
   my $WHERE = $self->search_former(
     $attr,
     [
       [ 'LEAD_ID',          'INT',   'cl.id as lead_id',               1 ],
+      [ 'USER_LOGIN',       'STR',   'u.id as user_login',             1 ],
       [ 'FIO',              'STR',   'cl.fio',                         1 ],
       [ 'PHONE',            'STR',   'cl.phone',                       1 ],
       [ 'EMAIL',            'STR',   'cl.email',                       1 ],
@@ -201,9 +207,9 @@ sub crm_lead_list {
   );
 
   $self->query(
-    "SELECT
+    "SELECT 
     $self->{SEARCH_FIELDS}
-    cl.id as lead_id, cl.uid, cl.id
+    cl.uid, cl.id
     FROM crm_leads as cl
     LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
     LEFT JOIN crm_progressbar_steps cps ON (cps.step_number = cl.current_step)

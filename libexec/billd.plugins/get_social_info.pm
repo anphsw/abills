@@ -14,8 +14,6 @@ my $Auth = Abills::Auth::Core->new( {
 
 my $json = JSON->new->utf8;
 
-# my @SOCIAL_NETWORK = ('FACEBOOK', 'VK', 'GOOGLE', 'INSTAGRAM');
-
 get_social_info_facebook();
 
 #**********************************************************
@@ -42,10 +40,10 @@ sub get_social_info_facebook {
     COLS_NAME  => 1, });
     
   foreach $user (@$users_list){
-    # use Abills::Base;
-    # _bp("user", $user, {TO_CONSOLE => 1});
-      
-    #my (undef, $users_social_id) = split(',\s?', $user->{_facebook});
+    unless ($user->{_facebook}) {
+      next;
+    }
+
     my ($users_social_id) =  $user->{_facebook} =~ /(\d+)/;
 
     if(!$users_social_id || $users_social_id eq ''){
@@ -60,7 +58,7 @@ sub get_social_info_facebook {
       my ($month, $day, $year) = split '/', $only_result{BIRTHDAY};
       $only_result{BIRTHDAY} = ($year || '0000') . '-' . ($month || '00') . '-' . ($day || '00');
     }
-    # _bp("users", \%only_result, {TO_CONSOLE => 1});
+    
     my $friends_count = 0;
     if($only_result{FRIENDS}{summary}{total_count}){
       $friends_count = $only_result{FRIENDS}{summary}{total_count};
@@ -94,12 +92,7 @@ sub get_social_info_facebook {
       LOCALE            => $locale,
       PHOTO             => $photo,
       %only_result
-      # FIO => $result->{result}->{name},
-      # EMAIL => $result->{result}->{email},
-      # GENDER => $result->{result}->{gender},
-      # PHONE => $result->{result}->{phone},
-      # BIRTHDAY => $result->{result}->{birthday}, 
-      });
+    });
   }
 
   return 1;

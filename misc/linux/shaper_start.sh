@@ -99,7 +99,8 @@ set -e
 PROG="shaper_start"
 DESCR="shaper_start"
 
-VERSION=2.01
+#DATE: 20200930
+VERSION=2.03
 
 if [ -f /etc/rc.conf ]; then
 . /etc/rc.conf
@@ -164,7 +165,7 @@ TC="/sbin/tc"
 IPT="/sbin/iptables"
 SED="/bin/sed"
 AWK="/usr/bin/awk"
-IPSET="/usr/sbin/ipset"
+IPSET="/sbin/ipset"
 BILLING_DIR="/usr/abills"
 
 #**********************************************************
@@ -276,6 +277,8 @@ fi;
 
 echo "ABillS Iptables ${ACTION}"
 sysctl -w net.ipv4.ip_forward=1
+sysctl -w  net.ipv4.conf.all.forwarding=1
+
 if [ x"${ACTION}" = xstart ]; then
   ${IPT} -P INPUT ACCEPT
   ${IPT} -P OUTPUT ACCEPT
@@ -310,7 +313,12 @@ if [ x"${ACTION}" = xstart ]; then
   ${IPT} -A INPUT -p TCP -s 0/0  --sport 3306 -j ACCEPT
   ${IPT} -A INPUT -p TCP -s 0/0  --dport 3306 -j ACCEPT
 
-  if [ x"${ipt_netflow}" = xYES ];then
+  # Allow OpenVPN
+  if [ "${OPEN_VPN_ALLOW}" != "" ]; then
+    ${IPT} -A INPUT -p UDP -s 0/0  --dport 1194 -j ACCEPT
+  fi;
+
+  if [ x"${ipt_netflow}" = xYES ]; then
     ${IPT} -A FORWARD -j NETFLOW;
   fi;
 
@@ -334,17 +342,21 @@ if [ x"${ACTION}" = xstart ]; then
   fi;
 
   ${IPT} -A FORWARD -m set --match-set allownet src -j ACCEPT
-  ${IPT} -A FORWARD -m set --match-seCOt allownet dst -j ACCEPT
+  ${IPT} -A FORWARD -m set --match-set allownet dst -j ACCEPT
   ${IPT} -t nat -A PREROUTING -m set --match-set allownet src -j ACCEPT
 
   ${IPT} -A FORWARD -m set --match-set allowip src -j ACCEPT
   ${IPT} -A FORWARD -m set --match-set allowip dst -j ACCEPT
   ${IPT} -t nat -A PREROUTING -m set --match-set allowip src -j ACCEPT
 
-  if [ x"${abills_redirect_clients_pool}" != x ]; then
-    # Перенаправление клиентов
+  if [ "${abills_redirect_clients_pool}" != "" ]; then
+    # negative deposit user redirect
     REDIRECT_POOL=`echo ${abills_redirect_clients_pool}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
-	  echo "${REDIRECT_POOL}"
+
+    if [ "${DEBUG}" != "" ]; then
+	    echo "REDIRECTT POOL: ${REDIRECT_POOL}"
+	  fi;
+
 	  for REDIRECT_IPN_POOL in ${REDIRECT_POOL}; do
 	    ${IPT} -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 80 -j REDIRECT --to-ports 80
 	    ${IPT} -t nat -A PREROUTING -s ${REDIRECT_IPN_POOL} -p tcp --dport 443 -j REDIRECT --to-ports 80
@@ -355,7 +367,7 @@ if [ x"${ACTION}" = xstart ]; then
     echo "unknown ABillS IPN IFACES"
   fi;
 
-  if [ x"${abills_ipn_allow_ip}" != x ]; then
+  if [ "${abills_ipn_allow_ip}" != "" ]; then
     ABILLS_ALLOW_IP=`echo ${abills_ipn_allow_ip}  |sed 'N;s/\n/ /' |sed 's/;/ /g'`;
     echo "Enable allow ips ${ABILLS_ALLOW_IP}";
       for IP in ${ABILLS_ALLOW_IP} ; do
@@ -369,11 +381,11 @@ if [ x"${ACTION}" = xstart ]; then
         fi;
       done;
 else
- echo "unknown ABillS IPN ALLOW IP"
+ echo "UNKNOWN ABillS IPN ALLOW IP"
 fi;
 
 
-elif [ x${ACTION} = xstop ]; then
+elif [ "${ACTION}" = stop ]; then
   # Разрешаем всё и всем
   ${IPT} -P INPUT ACCEPT
   ${IPT} -P OUTPUT ACCEPT
@@ -558,9 +570,9 @@ fi;
 # With ipt-ratelimit support
 #**********************************************************
 abills_shaper_iptables() {
-  if [ x${abills_shaper_iptables_enable} = xNO ]; then
+  if [ "${abills_shaper_iptables_enable}" = NO ]; then
     return 0;
-  elif [ x${abills_shaper_iptables_enable} = x ]; then
+  elif [ "${abills_shaper_iptables_enable}" = "" ]; then
     return 0;
   fi;
 
@@ -568,15 +580,18 @@ abills_shaper_iptables() {
   if [ "${ACTION}" = start ]; then
 
     LOCAL_IP=`${IPSET} -L |grep LOCAL_IP|sed 's/ //'|awk -F: '{ print $2 }'`
-    if [ x"${LOCAL_IP}" = x ]; then
+    if [ "${LOCAL_IP}" = "" ]; then
       echo "ADD LOCAL_IP TO IPSET"
       ${IPSET} -N LOCAL_IP iphash
     fi;
+
     LOCAL_NET=`${IPSET} -L |grep LOCAL_NET|sed 's/ //'|awk -F: '{ print $2 }'`
-    if [ x"${LOCAL_NET}" = x ]; then
+
+    if [ "${LOCAL_NET}" = "" ]; then
       echo "ADD LOCAL_NET TO IPSET"
       ${IPSET} -N LOCAL_NET nethash
     fi;
+
     UKRAINE=`${IPSET} -L |grep UKRAINE|sed 's/ //'|awk -F: '{ print $2 }'`
     if [ x"${UKRAINE}" = x ]; then
       echo "ADD UKRAINE TO IPSET"
@@ -685,13 +700,13 @@ abills_custom_rule() {
 #**********************************************************
 abills_nat() {
 
-  if [ x"${abills_nat}" = x ]; then
+  if [ "${abills_nat}" = "" ]; then
     return 0;
   fi;
 
   echo "ABillS NAT ${ACTION}"
 
-  if [ "${ACTION}" = xstatus ]; then
+  if [ "${ACTION}" = status ]; then
     ${IPT} -t nat -L
     return 0;
   fi;
@@ -777,17 +792,18 @@ neg_deposit() {
 #
 #**********************************************************
 abills_dhcp_shaper() {
-  if [ x${abills_dhcp_shaper} = xNO ]; then
+
+  if [ "${abills_dhcp_shaper}" = NO ]; then
     return 0;
-  elif [ x${abills_dhcp_shaper} = x ]; then
+  elif [ "${abills_dhcp_shaper}" = "" ]; then
     return 0;
   fi;
 
   if [ -f ${BILLING_DIR}/libexec/ipoe_shapper.pl ]; then
-    if [ w${ACTION} = wstart ]; then
+    if [ "${ACTION}" = start ]; then
       ${BILLING_DIR}/libexec/ipoe_shapper.pl -d ${NAS_IDS} IPN_SHAPPER
         echo " ${BILLING_DIR}/libexec/ipoe_shapper.pl -d ${NAS_IDS} IPN_SHAPPER";
-    elif [ w${ACTION} = wstop ]; then
+    elif [ "${ACTION}" = stop ]; then
       if [ -f ${BILLING_DIR}/var/log/ipoe_shapper.pid ]; then
         IPOE_PID=`cat ${BILLING_DIR}/var/log/ipoe_shapper.pid`
         if  ps ax | grep -v grep | grep ipoe_shapper > /dev/null ; then

@@ -352,6 +352,8 @@ sub cablecat_maps2_cables {
       push @{$polyline->{POLYLINE}{POINTS}}, \@point_array;
     }
 
+    $cable->{name} =~ s/’/\'/g;
+
     $polyline->{POLYLINE}{NAME} = $cable->{name} || '';
     $polyline->{POLYLINE}{COMMENTS} = $cable->{comments} || '';
     $polyline->{POLYLINE}{STROKECOLOR} = $cable->{outer_color};
@@ -373,6 +375,9 @@ sub cablecat_maps2_cables {
       [ $lang{LENGTH}, "$cable->{length}, ( $cable->{length_calculated} )" ],
       [ $lang{COMMENTS}, $cable->{comments} ],
     ]);
+
+    $cable->{well_1_point_id} ||= '';
+    $cable->{well_2_point_id} ||= '';
 
     $polyline->{POLYLINE}{INFOWINDOW} = $line_info;
     $polyline->{POLYLINE}{LAYER_ID} = 10;

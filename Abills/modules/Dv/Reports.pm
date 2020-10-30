@@ -268,7 +268,15 @@ sub dv_use {
       $CHART{AXIS_CATEGORY_skip} = 0;
       
       $caption[0] = $lang{GROUPS};
-      my $list2 = $users->groups_list();
+      my $list2 = $users->groups_list({
+        GID             => '_SHOW',
+        NAME            => '_SHOW',
+        DESCR           => '_SHOW',
+        ALLOW_CREDIT    => '_SHOW',
+        DISABLE_PAYSYS  => '_SHOW',
+        DISABLE_CHG_TP  => '_SHOW',
+        USERS_COUNT     => '_SHOW',
+      });
       
       foreach my $line ( @{$list2} ) {
         $GROUP_NAMES{ $line->[0] } = $line->[1];

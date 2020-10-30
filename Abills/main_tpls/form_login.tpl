@@ -1,6 +1,12 @@
 <script type='text/javascript'>
   function selectLanguage() {
-    var sLanguage = jQuery('#language').val() || '';
+    var sLanguage = '';
+    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+      sLanguage = jQuery('#language_mobile').val() || '';
+    } else {
+      sLanguage = jQuery('#language').val() || '';
+    }
+    
     var sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&language=' + sLanguage;
     document.location.replace(sLocation);
   }
@@ -13,7 +19,11 @@
       jQuery('#tech_works_block').css('display', 'block');
     }
 
-    jQuery('#language').on('change', selectLanguage);
+    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+      jQuery('#language_mobile').on('change', selectLanguage);
+    } else {
+      jQuery('#language').on('change', selectLanguage);
+    }
   })
 </script>
 <style>
@@ -58,6 +68,8 @@
 
       <input type=hidden name=DOMAIN_ID value='$FORM{DOMAIN_ID}'>
       <input type=hidden ID=REFERER name=REFERER value='$FORM{REFERER}'>
+      <input type='hidden' id='AUTH_G2FA' name='AUTH_G2FA' value='1'>
+      <input type='hidden' name='G2FA_SUCCESS' value='%G2FA_SUCCESS%'>
       <input type='hidden' name='LOGIN' value='1'/>
       <fieldset>
 

@@ -30,7 +30,12 @@
 
   <script type='text/javascript'>
     function selectLanguage() {
-      var sLanguage = jQuery('#language').val() || '';
+      var sLanguage = '';
+      if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+        sLanguage = jQuery('#language_mobile').val() || '';
+      } else {
+        sLanguage = jQuery('#language').val() || '';
+      }
       var sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&language=' + sLanguage;
       document.location.replace(sLocation);
     }
@@ -93,6 +98,38 @@
     body {
       background-color: #ecf0f5;
     }
+
+    .cookieAcceptBar {
+      right: 0;
+      text-align: center;
+      background-color: #333;
+      color: #fff;
+      padding: 20px 0;
+      z-index: 99999;
+      position: fixed; 
+      width: 100%; 
+      height: 100px; 
+      bottom: 0; 
+      left: 0;
+    }
+
+    .cookieAcceptBar a {
+      color: #fff;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    button .cookieAcceptBarConfirm {
+      cursor: pointer;
+      border: none;
+      background-color: #2387c0;
+      color: #fff;
+      text-transform: uppercase;
+      margin-top: 10px;
+      height: 40px;
+      line-height: 40px;
+      padding: 0 20px;
+    }
   </style>
 
 </head>
@@ -100,6 +137,7 @@
 <div id='login_form' class='modal fade' role='dialog'>
   <form method='post' class='form form-horizontal' id='form_login'
         action='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/index.cgi'>
+        <input type='hidden' id='HIDDE_COOKIE' name='HIDDE_COOKIE' value='%COOKIE_POLICY_VISIBLE%'>
 
     <div class='modal-dialog modal-sm'>
       <div class='modal-content'>
@@ -223,6 +261,36 @@
   </div>
 
 </div>
-
+  <div id="cookieAcceptBar" class="cookieAcceptBar" style="display: none;">
+    _{COOKIE_AGREEMENTS}_  
+    <a href="%COOKIE_URL_DOC%" target="_blank">_{COOKIE_URL}_</a>
+    <br> 
+    <button id="cookieAcceptBarConfirm" class="btn btn-success" onclick="hideBanner()">_{SUCCESS}_</button>
+  </div>
 </body>
 </html>
+
+<script>
+  jQuery(document).on('ready', function() {
+    var successCookie = localStorage.getItem('successCookie');
+    
+    if (successCookie != '1') {
+      jQuery('#cookieAcceptBar').show();
+
+      var checkVisibleCookie = jQuery('#HIDDE_COOKIE').val();
+      jQuery('#cookieAcceptBar').css('display', checkVisibleCookie)
+    }
+  });
+
+  function hideBanner() {
+    var banner = document.getElementById("cookieAcceptBar");
+
+    if (banner.style.display === "none") {
+      banner.style.display = "block";
+    } else {
+      banner.style.display = "none";
+      localStorage.setItem('successCookie', 1);
+    }
+  }
+
+</script>

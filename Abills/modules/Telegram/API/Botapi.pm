@@ -3,8 +3,9 @@
 package Botapi;
 use strict;
 use warnings FATAL => 'all';
-
 use JSON;
+
+use Abills::Fetcher qw/web_request/;
 
 my $debug = 0;
 my $curl = '';
@@ -15,7 +16,7 @@ my $curl = '';
 =cut
 #**********************************************************
 sub new {
-  my ($class, $token, $chat_id, $curl_path) = @_;
+  my ($class, $token, $chat_id, $curl_path, $SELF_URL) = @_;
 
   $chat_id //= "";
   $curl = $curl_path;
@@ -24,6 +25,7 @@ sub new {
     api_url  => "https://api.telegram.org/bot$token/",
     file_url => "https://api.telegram.org/file/bot$token/",
     chat_id  => $chat_id,
+    SELF_URL => "https://$SELF_URL:9443"
   };
   
   bless($self, $class);
@@ -43,12 +45,20 @@ sub send_message {
   $attr->{chat_id} ||= $self->{chat_id};
 
   my $json_str = $self->perl2json($attr);
-  my $params   = qq(-d '$json_str' -H "Content-Type: application/json");
   my $url      = $self->{api_url} . 'sendMessage';
-  my $result   = `$curl $params -s -X POST "$url"`;
+
+  my @header = ( 'Content-Type: application/json' );
+  $json_str =~ s/\"/\\\"/g;
+
+  my $result = web_request($url, {
+    POST         => $json_str,
+    HEADERS      => \@header,
+    CURL         => 1,
+    CURL_OPTIONS => '-XPOST',
+  });
 
   if ($debug > 0) {
-    `echo 'COMMAND: curl $params -s -X POST "$url"' >> /tmp/telegram.log`;
+    `echo 'COMMAND: curl $json_str -s -X POST "$url"' >> /tmp/telegram.log`;
     `echo 'RESULT: $result' >> /tmp/telegram.log`;
   }
   
@@ -67,12 +77,20 @@ sub send_contact {
   $attr->{chat_id} ||= $self->{chat_id};
 
   my $json_str = $self->perl2json($attr);
-  my $params   = qq(-d '$json_str' -H "Content-Type: application/json");
   my $url      = $self->{api_url} . 'sendContact';
-  my $result   = `$curl $params -s -X POST "$url"`;
+
+  my @header = ( 'Content-Type: application/json' );
+  $json_str =~ s/\"/\\\"/g;
+  
+  my $result = web_request($url, {
+    POST         => $json_str,
+    HEADERS      => \@header,
+    CURL         => 1,
+    CURL_OPTIONS => '-XPOST',
+  });
 
   if ($debug > 0) {
-    `echo 'COMMAND: curl $params -s -X POST "$url"' >> /tmp/telegram.log`;
+    `echo 'COMMAND: curl $json_str -s -X POST "$url"' >> /tmp/telegram.log`;
     `echo 'RESULT: $result' >> /tmp/telegram.log`;
   }
   
@@ -89,15 +107,19 @@ sub get_file {
   my ($file_id) = @_;
 
   my $json_str = qq({\"file_id\":\"$file_id\"});
-  my $params   = qq(-d '$json_str' -H "Content-Type: application/json");
   my $url      = $self->{api_url} . 'getFile';
-  my $result   = `$curl $params -s -X POST "$url"`;
 
-  # result {"ok":true,"result":{"file_id":"AgADAgADXKoxG4gfmUgruv78JsXopm-4UQ8ABJ5-3HxAVpDBO1EBAAEC","file_size":25011,"file_path":"photos/file_0.jpg"}}
-  # or {"ok":false,"error_code":404,"description":"Not Found"}
+  my @header = ( 'Content-Type: application/json' );
+  
+  my $result = web_request($url, {
+    POST         => $json_str,
+    HEADERS      => \@header,
+    CURL         => 1,
+    CURL_OPTIONS => '-XPOST',
+  });
 
   if ($debug > 0) {
-    `echo 'COMMAND: curl $params -s -X POST "$url"' >> /tmp/telegram.log`;
+    `echo 'COMMAND: curl $json_str -s -X POST "$url"' >> /tmp/telegram.log`;
     `echo 'RESULT: $result' >> /tmp/telegram.log`;
   }
 
@@ -106,7 +128,11 @@ sub get_file {
   my $file_path = $hash_result->{result}->{file_path};
   my $file_size = $hash_result->{result}->{file_size};
   my $file_url = $self->{file_url} . $file_path;
-  my $file_content = `$curl -s "$file_url"`;
+    
+  my $file_content = web_request($file_url, {
+    CURL         => 1,
+    CURL_OPTIONS => '-s',
+  });
 
   return ($file_path, $file_size, $file_content);
 }

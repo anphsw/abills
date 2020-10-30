@@ -38,9 +38,6 @@ use Abills::Defs;
 use Abills::Base qw(int2byte in_array sendmail parse_arguments cmd date_diff);
 use Abills::Templates;
 use Abills::Misc;
-
-use Ureports::Send qw/ureports_send_reports/;
-
 use Admins;
 use Shedule;
 use Dv_Sessions;
@@ -67,6 +64,8 @@ our $html = Abills::HTML->new(
 #my $begin_time = check_time();
 $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef } );
+
+require Ureports::Send; # qw/ureports_send_reports/;
 
 #Always our for crossmodules
 our $admin = Admins->new( $db, \%conf );
@@ -161,7 +160,7 @@ sub ureports_periodic_reports{
 
   $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
   $SERVICE_LIST_PARAMS{CUR_DATE} = $ADMIN_REPORT{DATE};
-  my $d = (split( /-/, $ADMIN_REPORT{DATE}, 3 ))[2];
+  my ($Y, $M, $D) = split( /-/, $ADMIN_REPORT{DATE}, 3 );
   #my $reports_type = 0;
 
   foreach my $tp ( @{$list} ){
@@ -179,6 +178,7 @@ sub ureports_periodic_reports{
       STATUS         => 0,
       ACTIVATE       => '_SHOW',
       REDUCTION      => '_SHOW',
+      PASSWORD       => '_SHOW',
       %SERVICE_LIST_PARAMS,
       MODULE         => '_SHOW',
       COLS_NAME      => 1,
@@ -192,8 +192,7 @@ sub ureports_periodic_reports{
     }
     else {
       $users_params{DV_TP} = 1;
-      $users_params{DV_STATUS} = '_SHOW';
-    }
+      $users_params{DV_STATUS} = '_SHOW';    }
 
     my $ulist = $Ureports->tp_user_reports_list( \%users_params  );
 
@@ -296,7 +295,7 @@ sub ureports_periodic_reports{
 
         $user->{EXPIRE_DATE} = POSIX::strftime( "%Y-%m-%d", localtime( time + $user->{EXPIRE_DAYS} * 86400 ) );
 
-        #Report 1 Deposit belove and dv status active
+        #Report 1 Deposit belove and internet status active
         if ( $user->{REPORT_ID} == 1 ){
           if ( $user->{VALUE} > $user->{DEPOSIT} && !$internet_status ){
             %PARAMS = (
@@ -373,7 +372,7 @@ sub ureports_periodic_reports{
         }
 
         # 5 => "$lang{MONTH}: $lang{DEPOSIT} + $lang{CREDIT} + $lang{TRAFFIC}",
-        elsif ( $user->{REPORT_ID} == 5 && $d == 1 ){
+        elsif ( $user->{REPORT_ID} == 5 && $D == 1 ){
           $Sessions->list(
             {
               UID    => $user->{UID},
@@ -440,7 +439,7 @@ sub ureports_periodic_reports{
 
         # 10 - TOO SMALL DEPOSIT FOR NEXT MONTH WORK
         elsif ( $user->{REPORT_ID} == 10 ){
-          if ( $user->{TP_MONTH_FEE} * $reduction_division > $user->{DEPOSIT} + $user->{CREDIT} ){
+          if ( $user->{RECOMMENDED_PAYMENT} > 0 && $user->{RECOMMENDED_PAYMENT} * $reduction_division > $user->{DEPOSIT} + $user->{CREDIT} ){
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
               MESSAGE  =>
@@ -460,7 +459,7 @@ sub ureports_periodic_reports{
             my $recharge = $user->{TP_MONTH_FEE} + (($user->{DEPOSIT} < 0) ? abs($user->{DEPOSIT}) : 0) ;
             %PARAMS = (
               DESCRIBE => "$lang{REPORTS} ($user->{REPORT_ID}) ",
-              MESSAGE  => "$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH} $lang{BALANCE_RECHARCHE} $recharge",
+              MESSAGE  => '', #"$lang{SMALL_DEPOSIT_FOR_NEXT_MONTH} $lang{BALANCE_RECHARCHE} $recharge",
               SUBJECT  => $lang{DEPOSIT_BELOW}
             );
           }
@@ -571,8 +570,18 @@ sub ureports_periodic_reports{
 
           if($Report->{PARAMS}) {
             %PARAMS = %{ $Report->{PARAMS} };
+            if ($debug > 1) {
+              print "ADD PARAMS\n";
+              foreach my $key (sort keys %PARAMS) {
+                print " $key -> $PARAMS{$key}\n";
+              }
+              print "Template: ". ($Report->{SYS_CONF}{TEMPLATE} || q{}) ."\n";
+            }
           }
           else {
+            if ($debug > 1) {
+              print "NO PARAMS\n";
+            }
             next;
           }
 
@@ -593,15 +602,18 @@ sub ureports_periodic_reports{
           {
             %{$user},
             %PARAMS,
-            SUBJECT   => $PARAMS{SUBJECT},
-            REPORT_ID => $user->{REPORT_ID},
-            UID       => $user->{UID},
-            TP_ID     => $user->{TP_ID},
-            MESSAGE   => $PARAMS{MESSAGE},
-            DATE      => "$ADMIN_REPORT{DATE} $TIME",
-            METHOD    => 1,
+            SUBJECT         => $PARAMS{SUBJECT},
+            REPORT_ID       => $user->{REPORT_ID},
+            UID             => $user->{UID},
+            TP_ID           => $user->{TP_ID},
+            MESSAGE         => $PARAMS{MESSAGE},
+            DATE            => "$ADMIN_REPORT{DATE} $TIME",
+            METHOD          => 1,
             MESSAGE_TEPLATE => $PARAMS{MESSAGE_TEPLATE},
-            DEBUG     => $debug
+            DEBUG           => $debug,
+            Y               => $Y,
+            M               => $M,
+            D               => $D
           }
         );
 

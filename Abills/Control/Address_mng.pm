@@ -161,6 +161,12 @@ sub form_districts{
     MENU       => "$lang{ADD}:index=$index&add_form=1:add",
   });
 
+  my $two_confirmation = '';
+      
+  if ($conf{TWO_CONFIRMATION}) {
+    $two_confirmation = $lang{DEL};
+  }
+
   foreach my $line ( @{$list} ){
     my $map = $bool_vals[0];
 
@@ -177,7 +183,7 @@ sub form_districts{
       $map,
       $html->button( $lang{CHANGE}, "index=$index&chg=$line->{id}", { class => 'change' } )
       .' '. $html->button( $lang{DEL}, "index=$index&del=$line->{id}",
-        { MESSAGE => "$lang{DEL} [$line->{id}] $line->{name}?", class => 'del' } )
+        { MESSAGE => "$lang{DEL} [$line->{id}] $line->{name}?", class => 'del', TWO_CONFIRMATION  => $two_confirmation } )
     );
   }
 
@@ -378,18 +384,6 @@ sub form_builds{
   if ( $FORM{add_form} ){
     if ( $maps_enabled && $FORM{chg} ) {
       $Address->{MAP_BLOCK_VISIBLE} = 1;
-
-      # if ( $Address->{COORDX} && $Address->{COORDX} != 0) {
-      #   $Address->{MAP_BTN} = $html->button( '',
-      #     "get_index=maps_show_map&show=BUILD&OBJECT_ID=$Address->{ID}&header=1",
-      #     { class => 'glyphicon glyphicon-globe', target => '_blank' } );
-      # }
-      # else {
-      #   $Address->{MAP_BTN} = $html->button( '',
-      #     "get_index=maps_edit&add=BUILD&OBJECT_ID=$Address->{ID}&LOCATION_ID=$Address->{ID}&header=1",
-      #     { class => 'add', target => '_blank' } );
-      # }
-
     }
     $Address->{STREET_SEL} = sel_streets($Address);
     $html->tpl_show( templates( 'form_build' ), $Address );
@@ -586,7 +580,7 @@ sub form_add_map {
       OBJECT_ID   => '_SHOW'
     });
 
-    my $object_id = $Maps->{TOTAL} ? $district_info->[0]{object_id} : '';
+    my $object_id = ($Maps->{TOTAL}) ? ($district_info->[0]{object_id} || q{}) : '';
     my $link = "index=$map_index&LAYER=4&OBJECT_ID=" . $object_id;
     $icon = 'glyphicon glyphicon-globe';
     return $html->button('', $link, { ICON => $icon });
@@ -604,7 +598,8 @@ sub form_add_map {
     return $html->button('', $link, { ICON => $icon });
   }
 
-  my $link = "index=$map_index&LAYER=$objects->[0]{LAYER_ID}&OBJECT_ID=$attr->{VALUES}->{ID}";
+  my $object_id = $objects->[0]{LAYER_ID} && $objects->[0]{LAYER_ID} == 12 ? $objects->[0]{OBJECT_ID} : $attr->{VALUES}->{ID};
+  my $link = "index=$map_index&LAYER=$objects->[0]{LAYER_ID}&OBJECT_ID=$object_id";
 
   return $html->button('', $link, { ICON => $icon, ex_params => 'target=new' });
 }
@@ -1005,6 +1000,49 @@ sub _street_type_select {
 
   return $result;
 }
+
+sub form_address_multi_location_select {
+  my ($attr) = @_;
+
+  my $build_id = q{BUILD_ID};
+
+
+  my $builds = $Address->build_list({
+    NUMBER      => '_SHOW',
+    LOCATION_ID => '_SHOW',
+    STREET_NAME => '_SHOW',
+    COLS_NAME   => 1,
+    PAGE_ROWS   => 999999
+  });
+
+  my @builds_name = map {
+      ($_->{street_name} && $_->{number} && $_->{id}) ?
+      {
+        build    => $_->{street_name}." ".$_->{number},
+        build_id => $_->{id}
+      } : ()
+    } @$builds;
+
+  my $builds_form = $html->form_select(
+    $build_id,
+    {
+      MULTIPLE    => 1,
+      SEL_LIST    => \@builds_name,
+      SEL_KEY     => 'build_id',
+      SEL_VALUE   => 'build',
+      NO_ID       => 1
+    }
+  );
+
+  my $form = $html->tpl_show(templates('form_address_multi_location_select'), {
+      BUILDS_SELECT => $builds_form
+    },
+    { OUTPUT2RETURN => 1 }
+  );
+
+  return $form;
+}
+
 #**********************************************************
 =head2 form_address_select2($attr)
 
@@ -1022,6 +1060,8 @@ sub form_address_select2 {
   my $street_id = q{STREET_ID};
   my $build_id = q{BUILD_ID};
   my $form = q{};
+
+  my $MULTI_BUILDS = $attr->{MULTI_BUILDS} || $FORM{MULTI_BUILDS} || 0;
 
   if ($attr->{REGISTRATION_MODAL}) {
     $district_id = q{REG_DISTRICT_ID};
@@ -1129,13 +1169,14 @@ sub form_address_select2 {
       $build_id,
       {
         ID          => $attr->{BUILD_SELECT_ID},
+        MULTIPLE    => $MULTI_BUILDS,
         SELECTED    => 0,
         NO_ID       => 1,
         SEL_LIST    => $builds,
         SEL_KEY     => 'id',
         SEL_VALUE   => 'number',
         SEL_OPTIONS => { 0 => '--' },
-        EX_PARAMS   => ($attr->{BUILD_REQ} || '') . ' ' . 'onChange="GetLoc' . ($attr->{BUILD_SELECT_ID} || $build_id) . '(this)"',
+        EX_PARAMS   => ($attr->{BUILD_REQ} || '') . ' ' . 'onChange="GetLoc' . ($attr->{BUILD_SELECT_ID} || $build_id) . '(this)" '.($MULTI_BUILDS ? 'class="MULTI_BUILDS"' : ''),
       }
     );
     print $bu;
@@ -1158,13 +1199,14 @@ sub form_address_select2 {
        $build_id,
        {
          ID          => $attr->{BUILD_SELECT_ID},
+         MULTIPLE    => ($attr->{MULTI_BUILDS}) ? 1 : 0,
          SELECTED    => $attr->{LOCATION_ID} || 0,
          SEL_LIST    => $builds,
          SEL_KEY     => 'id',
          SEL_VALUE   => 'number',
          NO_ID       => 1,
          SEL_OPTIONS => { 0 => '--' },
-         EX_PARAMS => 'onChange="GetLoc' . ($attr->{BUILD_SELECT_ID} || $build_id) . '(this)"',
+         EX_PARAMS => 'onChange="GetLoc' . ($attr->{BUILD_SELECT_ID} || $build_id) . '(this)" '.($MULTI_BUILDS ? 'class="MULTI_BUILDS"' : '')
        }
      );
   }

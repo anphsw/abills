@@ -26,7 +26,7 @@ our %FUNCTIONS_LIST = (
   "27:19:$lang{TARIF_PLANS}:internet_report_tp:"         => 4,
   "36:0:$lang{INTERNET}:internet_online:"                => 6,
   "37:0:$lang{BUILDS}:internet_online_builds:"           => 6,
-  "30:19:IP Pools:internet_pools_report:"                => 4,
+  "30:19:$lang{IP_POOLS}:internet_pools_report:"         => 4,
   "31:17:$lang{GEOLOCATION_TP}:geolocation_group_tp:ID"  => 5,
   "69:0::internet_tp_clone:AJAX"                         => 5,
 
@@ -53,8 +53,8 @@ if ($conf{INTERNET_TURBO_MODE}) {
     print "Content-Type: text/html\n\n";
     print "Turbo.pm not loaded";
   }
-  $FUNCTIONS_LIST{"26:0:Turbo:internet_turbo_mode:"}         = 6;
-  $FUNCTIONS_LIST{"29:19:Turbo:internet_turbo_mode_report:"} = 4;
+  $FUNCTIONS_LIST{"26:0:$lang{TURBO}:internet_turbo_mode:"}         = 6;
+  $FUNCTIONS_LIST{"29:19:$lang{TURBO}:internet_turbo_mode_report:"} = 4;
 }
 
 if ( $conf{INTERNET_TRAFFIC_DETAIL} ){
@@ -64,7 +64,7 @@ if ( $conf{INTERNET_TRAFFIC_DETAIL} ){
 }
 
   $FUNCTIONS_LIST{"64:19:$lang{UNKNOWN} IPs:ipoe_unknow_ips:"}             = 4;
-  $FUNCTIONS_LIST{"66:19:FT queus:ipoe_ft_queue:"}                         = 4;
+  $FUNCTIONS_LIST{"66:19:$lang{FT_QUEUS}:ipoe_ft_queue:"}                  = 4;
   $FUNCTIONS_LIST{"67:19:IPoE $lang{STATS}:ipoe_use"}                      = 11;
 
 if ($permissions{0}) {
@@ -86,9 +86,9 @@ if($conf{INTERNET_DAY_QUOTA}) {
     print $@;
   }
 
-  $FUNCTIONS_LIST{"41:2:QUOTA:internet_quota_users:UID"}   = 11;
-  $FUNCTIONS_LIST{"42:10:QUOTA:internet_quota_configure:"} = 5;
-  $FUNCTIONS_LIST{"43:19:QUOTA:internet_quota_reports:"}   = 4;
+  $FUNCTIONS_LIST{"41:2:$lang{QUOTA}:internet_quota_users:UID"}   = 11;
+  $FUNCTIONS_LIST{"42:10:$lang{QUOTA}:internet_quota_configure:"} = 5;
+  $FUNCTIONS_LIST{"43:19:$lang{QUOTA}:internet_quota_reports:"}   = 4;
 }
 
 our %USER_FUNCTION_LIST = (

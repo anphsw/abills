@@ -156,5 +156,8 @@ $lang{SPENT_TIME}='Spent time';
 $lang{TICKET_SUM}='Ticket sum';
 $lang{PAID_AMOUT}='Paid amout';
 $lang{NOT_TURNED_ON}='Module not turned on';
+$lang{HELPDESK}='Help Desk';
+
+$lang{SCRUB_BOX} = 'Scrub Box';
 
 1;

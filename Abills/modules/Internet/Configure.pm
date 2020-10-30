@@ -371,7 +371,9 @@ sub internet_tp {
     prepaid                 =>  $lang{PREPAID},
     in_price                =>  "$lang{PRICE} $lang{RECV}",
     out_price               =>  "$lang{PRICE} $lang{SENT}",
-    intervals               =>  $lang{INTERVALS}
+    intervals               =>  $lang{INTERVALS},
+
+    describe_aid            => "$lang{DESCRIBE} ($lang{ADMIN})"
   );
 
   if($permissions{10}) {

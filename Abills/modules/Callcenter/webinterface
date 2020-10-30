@@ -18,20 +18,20 @@ use Users;
 use Admins;
 use Abills::Base qw(in_array);
 
-our ($db, $admin, $html, %lang, %conf, %OUTPUT, %LIST_PARAMS);
+our ($db, $admin, %lang, %conf, %OUTPUT, %LIST_PARAMS);
+our Abills::HTML $html;
 
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Callcenter',
   REQUIRE_VERSION => 7.09
-  })) {
+})) {
   exit;
 }
 
-
 my $Callcenter = Callcenter->new($db, $admin, \%conf);
-my $Users      = Users->new($db, $admin, \%conf);
-my $Admins     = Admins->new($db, $admin, \%conf);
+my $Users = Users->new($db, $admin, \%conf);
+my $Admins = Admins->new($db, $admin, \%conf);
 
 
 #**********************************************************
@@ -51,26 +51,26 @@ sub callcenter_calls_handler {
   my $STATUS_SELECT = $html->form_select(
     'STATUS',
     {
-    SELECTED => $FORM{STATUS} || q{},
-    SEL_ARRAY => \@STATUSES,
-    ARRAY_NUM_ID => 1,
-    }
-  );
-  
-  my $ADMINS_SELECT = $html->form_select(
-    'ADMIN_SELECT',
-    {
-    SELECTED     => $FORM{ADMIN_SELECT} || q{},
-    SEL_LIST     => $Admins->list({COLS_NAME =>1, WITH_SIP_NUMBER => 1, SIP_NUMBER => '_SHOW'}),
-    SEL_KEY      => 'sip_number',
-    SEL_VALUE    => 'login',
-    ARRAY_NUM_ID => 1,
-    NO_ID        => 1,
-    SEL_OPTIONS  => {"" => ""},
+      SELECTED     => $FORM{STATUS} || q{},
+      SEL_ARRAY    => \@STATUSES,
+      ARRAY_NUM_ID => 1,
     }
   );
 
-  if($FORM{call_status} && $FORM{call_status} == 1){
+  my $ADMINS_SELECT = $html->form_select(
+    'ADMIN_SELECT',
+    {
+      SELECTED     => $FORM{ADMIN_SELECT} || q{},
+      SEL_LIST     => $Admins->list({ COLS_NAME => 1, WITH_SIP_NUMBER => 1, SIP_NUMBER => '_SHOW' }),
+      SEL_KEY      => 'sip_number',
+      SEL_VALUE    => 'login',
+      ARRAY_NUM_ID => 1,
+      NO_ID        => 1,
+      SEL_OPTIONS  => { "" => "" },
+    }
+  );
+
+  if ($FORM{call_status} && $FORM{call_status} == 1) {
     $Callcenter->callcenter_add_cals({
       USER_PHONE     => $FORM{user_phone},
       OPERATOR_PHONE => $FORM{operator_phone},
@@ -79,158 +79,157 @@ sub callcenter_calls_handler {
       ID             => $FORM{call_id}
     });
 
-    if(!$Callcenter->{errno}){
+    if (!$Callcenter->{errno}) {
       print "Call successfuly added";
     }
-    else{
+    else {
       print "Error";
     }
 
     return 1;
   }
-  elsif($FORM{call_status} && $FORM{call_status} == 2){
+  elsif ($FORM{call_status} && $FORM{call_status} == 2) {
 
-    $Callcenter->callcenter_change_calls({ STATUS  => $FORM{call_status},
-                                           ID      => $FORM{call_id} });
+    $Callcenter->callcenter_change_calls({ STATUS => $FORM{call_status},
+      ID                                          => $FORM{call_id} });
 
-    if(!$Callcenter->{errno}){
+    if (!$Callcenter->{errno}) {
       print "Status changed to 2";
     }
-    else{
+    else {
       print "Error";
     }
 
     return 1;
   }
-  elsif($FORM{call_status} && $FORM{call_status} == 3){
+  elsif ($FORM{call_status} && $FORM{call_status} == 3) {
 
     $Callcenter->callcenter_change_calls({ STATUS => $FORM{call_status},
-                                           ID     => $FORM{call_id} });
+      ID                                          => $FORM{call_id} });
 
-    if(!$Callcenter->{errno}){
+    if (!$Callcenter->{errno}) {
       print "Status changed to 3";
     }
-    else{
+    else {
       print "Error";
     }
 
     return 1;
   }
-  elsif($FORM{call_status} && $FORM{call_status} == 4){
+  elsif ($FORM{call_status} && $FORM{call_status} == 4) {
     $Callcenter->callcenter_change_calls({ STATUS => $FORM{call_status},
-                                           ID     => $FORM{call_id} });
+      ID                                          => $FORM{call_id} });
 
-    if(!$Callcenter->{errno}){
+    if (!$Callcenter->{errno}) {
       print "Status changed to 4";
     }
-    else{
+    else {
       print "Error";
     }
 
     return 1;
   }
 
-  if($FORM{chg}){
-    my $call_info = $Callcenter->callcenter_info_calls({COLS_NAME => 1, ID => $FORM{chg}});
-
+  if ($FORM{chg}) {
+    my $call_info = $Callcenter->callcenter_info_calls({ COLS_NAME => 1, ID => $FORM{chg} });
 
     $STATUS_SELECT = $html->form_select(
       'STATUS',
       {
-     SELECTED => $call_info->{status} || q{},
-      SEL_ARRAY => \@STATUSES,
-      ARRAY_NUM_ID => 1,
+        SELECTED     => $call_info->{status} || q{},
+        SEL_ARRAY    => \@STATUSES,
+        ARRAY_NUM_ID => 1,
       }
     );
 
-    $html->tpl_show(_include('callcenter_calls_change', 'Callcenter'), 
-                            { STATUS_SELECT => $STATUS_SELECT,
-                              USER          => $call_info->{user_phone},
-                              ADMIN         => $call_info->{operator_phone},
-                              ID            => $call_info->{id}
-                            },);
+    $html->tpl_show(_include('callcenter_calls_change', 'Callcenter'),
+      { STATUS_SELECT => $STATUS_SELECT,
+        USER          => $call_info->{user_phone},
+        ADMIN         => $call_info->{operator_phone},
+        ID            => $call_info->{id}
+      },);
 
     return 1;
   }
 
-  if($FORM{del}){
-    $Callcenter->callcenter_delete_calls({ID => $FORM{del}});
-    if(!$Callcenter->{errno}){
+  if ($FORM{del}) {
+    $Callcenter->callcenter_delete_calls({ ID => $FORM{del} });
+    if (!$Callcenter->{errno}) {
       $html->message('info', "$lang{SUCCESS}", "$lang{DELETED}");
     }
-    else{
-      $html->message('err', "$lang{ERROR}", );
+    else {
+      $html->message('err', "$lang{ERROR}",);
     }
   }
 
-  if($FORM{change}){
+  if ($FORM{change}) {
     $Callcenter->callcenter_change_calls({ STATUS => $FORM{STATUS},
-                                           ID     => $FORM{change} });
+      ID                                          => $FORM{change} });
 
-    if(!$Callcenter->{errno}){
+    if (!$Callcenter->{errno}) {
       $html->message('info', "$lang{SUCCESS}", "$lang{CHANGED}");
     }
-    else{
-      $html->message('err', "$lang{ERROR}", );
+    else {
+      $html->message('err', "$lang{ERROR}",);
     }
   }
 
-  if($FORM{refresh} && $FORM{refresh} == 1){
+  if ($FORM{refresh} && $FORM{refresh} == 1) {
     my $not_found_users = 0;
-    my $unrecognized_users_list = $Callcenter->callcenter_list_calls({ COLS_NAME    => 1, 
-                                                                       UNRECOGNIZED => 1,
-                                                                       USER_PHONE   => '_SHOW', });
+    my $unrecognized_users_list = $Callcenter->callcenter_list_calls({ COLS_NAME => 1,
+      UNRECOGNIZED                                                               => 1,
+      USER_PHONE                                                                 => '_SHOW', });
 
-    foreach my $unrecognized_user (@$unrecognized_users_list){
+    foreach my $unrecognized_user (@$unrecognized_users_list) {
       my $unrecognized_user_phone = $unrecognized_user->{user_phone};
-      if($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}){
+      if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
         $unrecognized_user_phone =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
       }
 
       my $admins_for_number_list = $Admins->list({ SIP_NUMBER => $unrecognized_user_phone, AID => '_SHOW', COLS_NAME => 1 });
-      if ( $admins_for_number_list && ref $admins_for_number_list eq 'ARRAY' && scalar @{$admins_for_number_list} > 0 ) {
+      if ($admins_for_number_list && ref $admins_for_number_list eq 'ARRAY' && scalar @{$admins_for_number_list} > 0) {
         next;
       }
 
-      my $u_info = $Users->list({COLS_NAME => 1, PHONE => "*$unrecognized_user_phone"})->[0];
-      
-      if($Users->{errno}){
+      my $u_info = $Users->list({ COLS_NAME => 1, PHONE => "*$unrecognized_user_phone" })->[0];
+
+      if ($Users->{errno}) {
         $not_found_users++;
         next;
       }
 
-      $Callcenter->callcenter_change_calls({ ID  => $unrecognized_user->{id},
-                                            UID => $u_info->{uid} });
+      $Callcenter->callcenter_change_calls({ ID => $unrecognized_user->{id},
+        UID                                     => $u_info->{uid} });
     }
-    if($not_found_users > 0){
+    if ($not_found_users > 0) {
       $html->message('success', "$lang{NOT_FOUND} $not_found_users $lang{USERS}");
     }
   }
 
-  if(defined $FORM{STATUS} && $FORM{STATUS} != 0){
+  if (defined $FORM{STATUS} && $FORM{STATUS} != 0) {
     $LIST_PARAMS{STATUS} = $FORM{STATUS};
   }
 
-  if(defined $FORM{ADMIN_SELECT}){
+  if (defined $FORM{ADMIN_SELECT}) {
     $LIST_PARAMS{OPERATOR_PHONE} = $FORM{ADMIN_SELECT};
   }
 
-  if(defined $FORM{DATE_START}){
+  if (defined $FORM{DATE_START}) {
     $LIST_PARAMS{DATE_START} = $FORM{DATE_START};
   }
 
-  if(defined $FORM{DATE_END}){
+  if (defined $FORM{DATE_END}) {
     $LIST_PARAMS{DATE_END} = $FORM{DATE_END};
   }
 
-  $html->tpl_show(_include('callcenter_calls_filter', 'Callcenter'), 
-                            { STATUS_SELECT      => $STATUS_SELECT,
-                              STATUS_VISIBILITY  => 1,
-                              ADMINS_SELECT      => $ADMINS_SELECT,
-                              REFRESH_VISIBILITY => 1,
-                            },);
+  $html->tpl_show(_include('callcenter_calls_filter', 'Callcenter'),
+    { STATUS_SELECT      => $STATUS_SELECT,
+      STATUS_VISIBILITY  => 1,
+      ADMINS_SELECT      => $ADMINS_SELECT,
+      REFRESH_VISIBILITY => 1,
+    },);
 
-  if(!$FORM{sort}){
+  if (!$FORM{sort}) {
     $LIST_PARAMS{SORT} = 'date';
   }
 
@@ -255,7 +254,7 @@ sub callcenter_calls_handler {
         'address_full'   => "$lang{ADDRESS}",
         'city'           => $lang{CITY},
       },
-      TABLE => {
+      TABLE           => {
         width   => '100%',
         caption => "$lang{CALL_CENTER}",
         qs      => $pages_qs,
@@ -264,11 +263,11 @@ sub callcenter_calls_handler {
 
         # MENU    => "$lang{ADD}:index=" . get_function_index('poll_main') . ':add' . ";",
       },
-      MAKE_ROWS     => 1,
-      SEARCH_FORMER => 1,
-      FUNCTION_INDEX => $index,
-      MODULE        => 'Callcenter',
-      TOTAL         => 1,
+      MAKE_ROWS       => 1,
+      SEARCH_FORMER   => 1,
+      FUNCTION_INDEX  => $index,
+      MODULE          => 'Callcenter',
+      TOTAL           => 1,
       SKIP_USER_TITLE => 1
     }
   );
@@ -292,86 +291,85 @@ sub callcenter_admins_report {
   my $ADMINS_SELECT = $html->form_select(
     'ADMIN_SELECT',
     {
-    SELECTED     => $FORM{ADMIN_SELECT} || q{},
-    SEL_LIST     => $Admins->list({COLS_NAME =>1, WITH_SIP_NUMBER => 1, SIP_NUMBER => '_SHOW'}),
-    SEL_KEY      => 'sip_number',
-    SEL_VALUE    => 'login',
-    ARRAY_NUM_ID => 1,
-    NO_ID        => 1,
-    SEL_OPTIONS  => {"" => ""},
+      SELECTED     => $FORM{ADMIN_SELECT} || q{},
+      SEL_LIST     => $Admins->list({ COLS_NAME => 1, WITH_SIP_NUMBER => 1, SIP_NUMBER => '_SHOW' }),
+      SEL_KEY      => 'sip_number',
+      SEL_VALUE    => 'login',
+      ARRAY_NUM_ID => 1,
+      NO_ID        => 1,
+      SEL_OPTIONS  => { "" => "" },
     }
   );
 
   my $chart = '';
+  my $calls_list;
+  if ($FORM{ADMIN_SELECT}) {
+    $calls_list = $Callcenter->callcenter_list_calls({
+      DATE_START     => $FORM{DATE_START},
+      DATE_END       => $FORM{DATE_END},
+      OPERATOR_PHONE => $FORM{ADMIN_SELECT},
+      DATE           => '_SHOW',
+      STATUS         => '_SHOW',
+      COLS_NAME      => 1,
+    });
 
-  if($FORM{ADMIN_SELECT}){
-    my $calls_list = $Callcenter->callcenter_list_calls({
-        DATE_START     => $FORM{DATE_START}, 
-        DATE_END       => $FORM{DATE_END},
-        OPERATOR_PHONE => $FORM{ADMIN_SELECT},
-        DATE           => '_SHOW',
-        STATUS         => '_SHOW',
-        COLS_NAME      => 1,  
-  });
+    if (!$calls_list) {
+      $html->message('err', "$lang{NO_CALLS_FOR_DATE_OR_OPERATOR}");
+      return 1;
+    }
 
-  if(!$calls_list){
-    $html->message('err', "$lang{NO_CALLS_FOR_DATE_OR_OPERATOR}");
-    return 1;
-  }
-    
+    my @dates;
+    my @processed;
+    my @not_processed;
 
-  my @dates;
-  my @processed;
-  my @not_processed;
+    @$calls_list = reverse(@$calls_list);
 
-  @$calls_list = reverse(@$calls_list);
+    for (my $i = 1; $i <= scalar(@$calls_list); $i++) {
+      my ($date, undef) = split(' ', $calls_list->[$i - 1]->{date});
 
-  for (my $i = 1 ; $i <= scalar(@$calls_list) ; $i++) {
-    my ($date, undef) = split(' ', $calls_list->[$i - 1]->{date});
-    
-    if(in_array($date, \@dates)){
-      if($calls_list->[$i - 1]->{status} == 3){
-        exists $processed[scalar(@dates) - 1] ? $processed[scalar(@dates) - 1]++ : push(@processed, 1);
+      if (in_array($date, \@dates)) {
+        if ($calls_list->[$i - 1]->{status} == 3) {
+          exists $processed[scalar(@dates) - 1] ? $processed[scalar(@dates) - 1]++ : push(@processed, 1);
+        }
+
+        if ($calls_list->[$i - 1]->{status} == 4) {
+
+          exists $not_processed[scalar(@dates) - 1] ? $not_processed[scalar(@dates) - 1]++ : push(@not_processed, 1);
+
+        }
       }
+      else {
 
-      if($calls_list->[$i - 1]->{status} == 4){
-        
-        exists $not_processed[scalar(@dates) - 1] ? $not_processed[scalar(@dates) - 1]++ : push(@not_processed, 1);
-        
+        push(@dates, $date);
+        if ($calls_list->[$i - 1]->{status} == 3) {
+          push(@processed, 1);
+        }
+
+        if ($calls_list->[$i - 1]->{status} == 4) {
+          push(@not_processed, 1);
+        }
       }
     }
-    else{
 
-      push(@dates, $date);
-      if($calls_list->[$i - 1]->{status} == 3){
-       push(@processed, 1);
+    $chart = $html->make_charts(
+      {
+        TRANSITION    => 1,
+        TYPES         => { "$lang{PROCESSED}" => 'COLUMN', "$lang{NOT_PROCESSED}" => 'COLUMN' },
+        X_TEXT        => \@dates,
+        DATA          => { "$lang{PROCESSED}" => \@processed, "$lang{NOT_PROCESSED}" => \@not_processed },
+        OUTPUT2RETURN => 1,
       }
+    );
 
-      if($calls_list->[$i - 1]->{status} == 4){
-        push(@not_processed, 1);
-      }
-    }
   }
 
-  $chart = $html->make_charts(
+  $html->tpl_show(_include('callcenter_calls_filter', 'Callcenter'),
     {
-      TRANSITION    => 1,
-      TYPES         => { "$lang{PROCESSED}" => 'COLUMN', "$lang{NOT_PROCESSED}" => 'COLUMN'},
-      X_TEXT        => \@dates,
-      DATA          => { "$lang{PROCESSED}" => \@processed, "$lang{NOT_PROCESSED}" => \@not_processed },
-      OUTPUT2RETURN => 1,
-    }
-  );
-
-  }
-
-    $html->tpl_show(_include('callcenter_calls_filter', 'Callcenter'), 
-                            { 
-                              ADMINS_SELECT => $ADMINS_SELECT,
-                              CHART => $chart,
-                              DATE_START => $FORM{DATE_START} || '',
-                              DATE_END => $FORM{DATE_END} || '',
-                            },);
+      ADMINS_SELECT => $ADMINS_SELECT,
+      CHART         => $chart,
+      DATE_START    => $FORM{DATE_START} || '',
+      DATE_END      => $FORM{DATE_END} || '',
+    },);
 
   return 1;
 }
@@ -381,15 +379,15 @@ sub callcenter_admins_report {
 
 =cut
 #**********************************************************
-sub voip_ivr_log{
+sub voip_ivr_log {
   #my ($attr) = @_;
 
-  if ( !$FORM{sort} ){
+  if (!$FORM{sort}) {
     $LIST_PARAMS{SORT} = 1;
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
-  if ( $FORM{change} ){
+  if ($FORM{change}) {
 
   }
 
@@ -403,9 +401,9 @@ sub voip_ivr_log{
 
   $Callcenter->{STATUS_SEL} = sel_status();
 
-  if ( $FORM{search_form} ){
-    form_search( { SEARCH_FORM =>
-      $html->tpl_show( _include( 'voip_ivr_search', 'Voip' ), { %{$Callcenter}, %FORM }, { OUTPUT2RETURN => 1 } ) } );
+  if ($FORM{search_form}) {
+    form_search({ SEARCH_FORM =>
+      $html->tpl_show(_include('voip_ivr_search', 'Voip'), { %{$Callcenter}, %FORM }, { OUTPUT2RETURN => 1 }) });
   }
 
   my @status_vals = ();
@@ -420,12 +418,12 @@ sub voip_ivr_log{
     DEFAULT_FIELDS  => 'ID,DATETIME,CALL_PHONE,CALL_COMMENT,STATUS,UID',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
-      call_phone    => $lang{PHONE},
-      call_comment  => $lang{COMMENTS},
-      datetime => "$lang{DATE} $lang{TIME}",
-      ip       => 'IP',
-      duration => $lang{DURATION},
-      status   => $lang{STATUS},
+      call_phone   => $lang{PHONE},
+      call_comment => $lang{COMMENTS},
+      datetime     => "$lang{DATE} $lang{TIME}",
+      ip           => 'IP',
+      duration     => $lang{DURATION},
+      status       => $lang{STATUS},
     },
     TABLE           => {
       width   => '100%',
@@ -452,34 +450,34 @@ sub voip_ivr_log{
 
 =cut
 #**********************************************************
-sub voip_ivr_menu{
+sub voip_ivr_menu {
 
   $Callcenter->{ACTION} = 'add';
   $Callcenter->{LNG_ACTION} = $lang{ADD};
 
-  if ( $FORM{import} ){
-    if ( $FORM{add} ){
-      my $import_info = import_former( \%FORM );
-      my $total = $#{ $import_info } + 1;
-      foreach my $_info ( @{$import_info} ){
-        $Callcenter->ivr_menu_add( $_info );
-        if ( _error_show( $Callcenter ) ){
+  if ($FORM{import}) {
+    if ($FORM{add}) {
+      my $import_info = import_former(\%FORM);
+      my $total = $#{$import_info} + 1;
+      foreach my $_info (@{$import_info}) {
+        $Callcenter->ivr_menu_add($_info);
+        if (_error_show($Callcenter)) {
           return 0;
         }
       }
 
-      $html->message( 'info', $lang{INFO},
-        "$lang{ADDED}\n $lang{FILE}: $FORM{UPLOAD_FILE}{filename}\n Size: $FORM{UPLOAD_FILE}{Size}\n Count: $total" );
+      $html->message('info', $lang{INFO},
+        "$lang{ADDED}\n $lang{FILE}: $FORM{UPLOAD_FILE}{filename}\n Size: $FORM{UPLOAD_FILE}{Size}\n Count: $total");
       return 1
     }
 
-    my $import_fields = $html->form_select( 'IMPORT_FIELDS', {
-        SELECTED  => $FORM{IMPORT_FIELDS},
-        SEL_ARRAY => [
+    my $import_fields = $html->form_select('IMPORT_FIELDS', {
+      SELECTED  => $FORM{IMPORT_FIELDS},
+      SEL_ARRAY => [
 
-        ],
-        EX_PARAMS => 'multiple="multiple"'
-      });
+      ],
+      EX_PARAMS => 'multiple="multiple"'
+    });
 
     my $encode = $html->form_select(
       'ENCODE',
@@ -489,55 +487,55 @@ sub voip_ivr_menu{
       }
     );
 
-    my $extra_row = $html->tpl_show( templates( 'form_row' ), {
-        ID    => 'ENCODE',
-        NAME  => $lang{ENCODE},
-        VALUE => $encode
-      },
-      { OUTPUT2RETURN => 1 } );
+    my $extra_row = $html->tpl_show(templates('form_row'), {
+      ID    => 'ENCODE',
+      NAME  => $lang{ENCODE},
+      VALUE => $encode
+    },
+      { OUTPUT2RETURN => 1 });
 
-    $html->tpl_show( templates( 'form_import' ), {
-        #IMPORT_FIELDS     => 'LOGIN,CONTRACT_ID,FIO,PHONE,ADDRESS_STREET,ADDRESS_BUILD,ADDRESS_FLAT,PASPORT_NUM,PASPORT_GRANT',
-        CALLBACK_FUNC     => 'voip_ivr_menu',
-        IMPORT_FIELDS_SEL => $import_fields,
-        EXTRA_ROWS        => $extra_row
-      });
+    $html->tpl_show(templates('form_import'), {
+      #IMPORT_FIELDS     => 'LOGIN,CONTRACT_ID,FIO,PHONE,ADDRESS_STREET,ADDRESS_BUILD,ADDRESS_FLAT,PASPORT_NUM,PASPORT_GRANT',
+      CALLBACK_FUNC     => 'voip_ivr_menu',
+      IMPORT_FIELDS_SEL => $import_fields,
+      EXTRA_ROWS        => $extra_row
+    });
 
     return 1;
   }
-  elsif ( $FORM{add} ){
-    $Callcenter->ivr_menu_add( { %FORM } );
-    if ( !$Callcenter->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{ADDED}" );
+  elsif ($FORM{add}) {
+    $Callcenter->ivr_menu_add({ %FORM });
+    if (!$Callcenter->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{ADDED}");
     }
   }
-  elsif ( $FORM{change} ){
-    $Callcenter->ivr_menu_change( { %FORM } );
-    if ( !$Callcenter->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
+  elsif ($FORM{change}) {
+    $Callcenter->ivr_menu_change({ %FORM });
+    if (!$Callcenter->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
     }
   }
-  elsif ( $FORM{chg} ){
-    $Callcenter->ivr_menu_info( { %FORM, ID => $FORM{chg} } );
-    if ( !$Callcenter->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGING}" );
+  elsif ($FORM{chg}) {
+    $Callcenter->ivr_menu_info({ %FORM, ID => $FORM{chg} });
+    if (!$Callcenter->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{CHANGING}");
     }
     $Callcenter->{ACTION} = 'change';
     $Callcenter->{LNG_ACTION} = $lang{CHANGE};
   }
-  elsif ( $FORM{del} && $FORM{COMMENTS} ){
-    $Callcenter->ivr_menu_del( { ID => $FORM{del} } );
-    if ( !$Callcenter->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    $Callcenter->ivr_menu_del({ ID => $FORM{del} });
+    if (!$Callcenter->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{DELETED}");
     }
   }
 
-  _error_show( $Callcenter );
+  _error_show($Callcenter);
 
-  my $list = $Callcenter->ivr_menu_list( { MAIN_ID => 0, NUMBER => '_SHOW', NAME => '_SHOW', COLS_NAME => 1 } );
+  my $list = $Callcenter->ivr_menu_list({ MAIN_ID => 0, NUMBER => '_SHOW', NAME => '_SHOW', COLS_NAME => 1 });
   my %menu_hash = ();
-  foreach my $line ( @{$list} ){
-    if ( $line->{number} ){
+  foreach my $line (@{$list}) {
+    if ($line->{number}) {
       $menu_hash{$line->{number}} = $line->{name};
     }
   }
@@ -555,13 +553,13 @@ sub voip_ivr_menu{
   );
 
   $Callcenter->{DISABLE} = 'checked' if ($Callcenter->{DISABLE});
-  $html->tpl_show( _include( 'voip_ivr_menu', 'Voip' ), $Callcenter );
+  $html->tpl_show(_include('voip_ivr_menu', 'Voip'), $Callcenter);
 
-  delete( $Callcenter->{COL_NAMES_ARR} );
+  delete($Callcenter->{COL_NAMES_ARR});
   my $table;
   ($table, $list) = result_former(
     {
-      INPUT_DATA        => $Callcenter,
+      INPUT_DATA      => $Callcenter,
       FUNCTION        => 'ivr_menu_list',
       BASE_FIELDS     => 1,
       DEFAULT_FIELDS  => 'MAIN_ID,NUMBER,NAME,DISABLE,COMMENTS',
@@ -609,51 +607,50 @@ sub voip_ivr_menu{
 #**********************************************************
 sub callcenter_cdr {
 
-  if($FORM{refresh} && $FORM{refresh} == 1){
+  if ($FORM{refresh} && $FORM{refresh} == 1) {
     my $not_found_users = 0;
 
-    my $unrecognized_users_list = $Callcenter->callcenter_cdr_list({ COLS_NAME    => 1,
-      UNRECOGNIZED => 1,
-      SRC          => '_SHOW',
-      CALLDATE     => '_SHOW',});
+    my $unrecognized_users_list = $Callcenter->callcenter_cdr_list({ COLS_NAME => 1,
+      UNRECOGNIZED                                                             => 1,
+      SRC                                                                      => '_SHOW',
+      CALLDATE                                                                 => '_SHOW', });
 
-
-    foreach my $unrecognized_user (@$unrecognized_users_list){
+    foreach my $unrecognized_user (@$unrecognized_users_list) {
       my $unrecognized_user_phone = $unrecognized_user->{src};
-      if($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}){
+      if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
         $unrecognized_user_phone =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
       }
 
       my $admins_for_number_list = $Admins->list({ SIP_NUMBER => $unrecognized_user_phone, AID => '_SHOW', COLS_NAME => 1 });
-      if ( $admins_for_number_list && ref $admins_for_number_list eq 'ARRAY' && scalar @{$admins_for_number_list} > 0 ) {
+      if ($admins_for_number_list && ref $admins_for_number_list eq 'ARRAY' && scalar @{$admins_for_number_list} > 0) {
         next;
       }
 
-      my $u_info = $Users->list({COLS_NAME => 1, PHONE => "*$unrecognized_user_phone"})->[0];
+      my $u_info = $Users->list({ COLS_NAME => 1, PHONE => "*$unrecognized_user_phone" })->[0];
 
-      if($Users->{errno}){
+      if ($Users->{errno}) {
         $not_found_users++;
         next;
       }
 
-      $Callcenter->callcenter_cdr_change({  CALLDATE  => $unrecognized_user->{calldate},
-        USERFIELD => $u_info->{uid} });
+      $Callcenter->callcenter_cdr_change({ CALLDATE => $unrecognized_user->{calldate},
+        USERFIELD                                   => $u_info->{uid} });
     }
-    if($not_found_users > 0){
+    if ($not_found_users > 0) {
       $html->message('success', "$lang{NOT_FOUND} $not_found_users $lang{USERS}");
     }
   }
 
   result_former(
     {
-      INPUT_DATA        => $Callcenter,
+      INPUT_DATA      => $Callcenter,
       FUNCTION        => 'callcenter_cdr_list',
       BASE_FIELDS     => 0,
       DEFAULT_FIELDS  => 'USERFIELD, SRC, DST, CALLDATE, DURATION, DISPOSITION',
-#      FUNCTION_FIELDS => 'change,del',
+      #      FUNCTION_FIELDS => 'change,del',
       SKIP_USER_TITLE => 1,
       FILTER_COLS     => {
-        userfield       => '_callcenter_user_btn::USERFIELD',
+        userfield => '_callcenter_user_btn::USERFIELD',
       },
       EXT_TITLES      => {
         userfield   => $lang{USER},
@@ -664,14 +661,14 @@ sub callcenter_cdr {
         duration    => "$lang{DURATION} ($lang{SECONDS})",
       },
       TABLE           => {
-        width   => '100%',
-        caption => "CDR",
-        qs      => $pages_qs,
+        width       => '100%',
+        caption     => "CDR",
+        qs          => $pages_qs,
         #header  => $status_bar,
-        ID      => 'CALLCENTER_CDR',
+        ID          => 'CALLCENTER_CDR',
         DATA_TABLE  => 1,
         title_plain => 1,
-        MENU       => "$lang{REFRESH}:index=$index&refresh=1:glyphicon glyphicon-refresh",
+        MENU        => "$lang{REFRESH}:index=$index&refresh=1:glyphicon glyphicon-refresh",
       },
       SELECT_VALUE    => {
         disposition => {
@@ -704,7 +701,7 @@ sub _callcenter_user_btn {
 
   my $u_info = $Users->info($uid);
 
-  return $html->button("$u_info->{LOGIN}", "index=15&UID=$uid", {class=>'user'}) . $html->button("$u_info->{LOGIN}", "index=15&UID=$uid", {});
+  return $html->button("$u_info->{LOGIN}", "index=15&UID=$uid", { class => 'user' }) . $html->button("$u_info->{LOGIN}", "index=15&UID=$uid", {});
 }
 
 #**********************************************************
@@ -720,10 +717,10 @@ sub _callcenter_user_btn {
 sub callcenter_report {
 
   reports({
-    PERIOD_FORM=>1,
-    DATE_RANGE=>1,
-    NO_GROUP => 1,
-    NO_TAGS=>1,
+    PERIOD_FORM => 1,
+    DATE_RANGE  => 1,
+    NO_GROUP    => 1,
+    NO_TAGS     => 1,
   });
 
   my %info = ();
@@ -732,50 +729,50 @@ sub callcenter_report {
   my %data_status_3 = ();
   my %data_status_4 = ();
 
-#  Count calls for info-boxes
-  $Callcenter->callcenter_data_report({DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), PARAM => "'%Y-%m-%d'", COLS_NAME => 1});
+  #  Count calls for info-boxes
+  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE), PARAM => "'%Y-%m-%d'", COLS_NAME => 1 });
   $info{ALL_CALLS} = $Callcenter->{list}[0]{count};
 
-  $Callcenter->{debug}=0;
-  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 1, PARAM => "'%Y-%m-%d'", COLS_NAME => 1});
+  $Callcenter->{debug} = 0;
+  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE), STATUS => 1, PARAM => "'%Y-%m-%d'", COLS_NAME => 1 });
   $info{RINGING} = $Callcenter->{list}[0]{count};
 
-  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 2, PARAM => "'%Y-%m-%d'", COLS_NAME => 1});
+  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE), STATUS => 2, PARAM => "'%Y-%m-%d'", COLS_NAME => 1 });
   $info{IN_PROCESSING} = $Callcenter->{list}[0]{count};
 
-  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 3, PARAM => "'%Y-%m-%d'", COLS_NAME => 1});
+  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE), STATUS => 3, PARAM => "'%Y-%m-%d'", COLS_NAME => 1 });
   $info{PROCESSED} = $Callcenter->{list}[0]{count};
 
-  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE ), STATUS => 4, PARAM => "'%Y-%m-%d'", COLS_NAME => 1});
+  $Callcenter->callcenter_data_report({ DATE => ($FORM{FROM_DATE_TO_DATE} || $DATE), STATUS => 4, PARAM => "'%Y-%m-%d'", COLS_NAME => 1 });
   $info{NOT_PROCESSED} = $Callcenter->{list}[0]{count};
 
-#  DATA for chart
+  #  DATA for chart
   %data_status_1 = _callcenter_convert_data_for_chart({
     DATE      => $FORM{FROM_DATE_TO_DATE},
     STATUS    => 1,
     FROM_DATE => $FORM{FROM_DATE},
-    TO_DATE => $FORM{TO_DATE},
+    TO_DATE   => $FORM{TO_DATE},
   });
 
   %data_status_2 = _callcenter_convert_data_for_chart({
     DATE      => $FORM{FROM_DATE_TO_DATE},
     STATUS    => 2,
     FROM_DATE => $FORM{FROM_DATE},
-    TO_DATE => $FORM{TO_DATE},
+    TO_DATE   => $FORM{TO_DATE},
   });
 
   %data_status_3 = _callcenter_convert_data_for_chart({
     DATE      => $FORM{FROM_DATE_TO_DATE},
     STATUS    => 3,
     FROM_DATE => $FORM{FROM_DATE},
-    TO_DATE => $FORM{TO_DATE},
+    TO_DATE   => $FORM{TO_DATE},
   });
 
   %data_status_4 = _callcenter_convert_data_for_chart({
     DATE      => $FORM{FROM_DATE_TO_DATE},
     STATUS    => 4,
     FROM_DATE => $FORM{FROM_DATE},
-    TO_DATE => $FORM{TO_DATE},
+    TO_DATE   => $FORM{TO_DATE},
   });
 
   $info{CHART} = $html->chart({
@@ -789,22 +786,22 @@ sub callcenter_report {
         backgroundColor => '#e54',
         lineTension     => 0
       }, {
-        data        => $data_status_2{ARRAY_Y},
-        label       => $lang{IN_PROCESSING},
+        data            => $data_status_2{ARRAY_Y},
+        label           => $lang{IN_PROCESSING},
         borderColor     => '#0a6',
         fill            => 'false',
         backgroundColor => '#0a6',
         lineTension     => 0
       }, {
-        data        => $data_status_3{ARRAY_Y},
-        label       => $lang{PROCESSED},
+        data            => $data_status_3{ARRAY_Y},
+        label           => $lang{PROCESSED},
         borderColor     => '#0cf',
         fill            => 'false',
         backgroundColor => '#0cf',
         lineTension     => 0
       }, {
-        data        => $data_status_4{ARRAY_Y},
-        label       => $lang{NOT_PROCESSED},
+        data            => $data_status_4{ARRAY_Y},
+        label           => $lang{NOT_PROCESSED},
         borderColor     => '#fa1',
         fill            => 'false',
         backgroundColor => '#fa1',
@@ -814,12 +811,12 @@ sub callcenter_report {
       labels   => $data_status_1{ARRAY_X}
     },
     OPTIONS    => {
-      bezierCurve   => 'false',
-      scales => {
+      bezierCurve => 'false',
+      scales      => {
         yAxes => [ {
           type  => 'linear',
           ticks => {
-            min  => 0,
+            min      => 0,
             stepSize => 1
           }
         } ]
@@ -827,7 +824,7 @@ sub callcenter_report {
     }
   });
 
-  $html->tpl_show(_include('callcenter_reports_items', 'Callcenter'), {%info});
+  $html->tpl_show(_include('callcenter_reports_items', 'Callcenter'), { %info });
 
   return 1;
 }
@@ -853,24 +850,24 @@ sub _callcenter_convert_data_for_chart {
   my @array_x = ();
   my @array_y = ();
   my %result = ();
-  my ($ys,$ms,$ds) = split(/-/, $start_date);
-  my ($ye,$me,$de) = split(/-/, $end_date);
+  my ($ys, $ms, $ds) = split(/-/, $start_date);
+  my ($ye, $me, $de) = split(/-/, $end_date);
 
-  if ( ($ys == $ye) && ($ms == $me) && ($ds == $de) ) {
+  if (($ys == $ye) && ($ms == $me) && ($ds == $de)) {
     $date_param = "'%H'";
-    @array = (0...23);
+    @array = (0 ... 23);
   }
-  elsif ( ($ys == $ye) && ($ms == $me) && ($ds != $de) ) {
+  elsif (($ys == $ye) && ($ms == $me) && ($ds != $de)) {
     $date_param = "'%d'";
-    @array = (1...Abills::Base::days_in_month( { DATE => $ms} ));
+    @array = (1 ... Abills::Base::days_in_month({ DATE => $ms }));
   }
-  elsif ( ($ys == $ye) && ($ms != $me) ) {
+  elsif (($ys == $ye) && ($ms != $me)) {
     $date_param = "'%m'";
-    @array = (1...12);
+    @array = (1 ... 12);
   }
-  elsif ( ($ys != $ye) ) {
+  elsif (($ys != $ye)) {
     $date_param = "'%Y'";
-    @array = ($ys...$ye);
+    @array = ($ys ... $ye);
   }
 
   $data = $Callcenter->callcenter_data_report({
@@ -895,7 +892,7 @@ sub _callcenter_convert_data_for_chart {
     }
   }
 
-  if ( ($ys == $ye) && ($ms != $me) ) {
+  if (($ys == $ye) && ($ms != $me)) {
     $result{ARRAY_X} = \@main::MONTHES;
   }
   else {
@@ -927,18 +924,18 @@ sub callcenter_sound {
     DATA_TABLE  => 1
   });
 
-  my $result_cmd =  Abills::Base::cmd("ls /usr/abills/Abills/templates/asterisk/");
+  my $result_cmd = Abills::Base::cmd("ls /usr/abills/Abills/templates/asterisk/");
 
-foreach my $file ( split(/\s/, $result_cmd) ) {
-  my ($date,$call_from,$call_to) = $file =~ /^(\d+)\-(\d+)\-(\d+)/;
-  my ($y,$m,$d,$h,$mn) = $date =~ /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/g;
-  $table->addrow(
-    $call_from || '',
-    $call_to || '',
-    "$d-$m-$y $h:$mn" || '',
-    qq{<audio controls style="width: 350px;height: 25px;"><source src="/images/asterisk/$file" type="audio/wav"</audio>},
-  );
-}
+  foreach my $file (split(/\s/, $result_cmd)) {
+    my ($date, $call_from, $call_to) = $file =~ /^(\d+)\-(\d+)\-(\d+)/;
+    my ($y, $m, $d, $h, $mn) = $date =~ /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/g;
+    $table->addrow(
+      $call_from || '',
+      $call_to || '',
+      "$d-$m-$y $h:$mn" || '',
+      qq{<audio controls style="width: 350px;height: 25px;"><source src="/images/asterisk/$file" type="audio/wav"</audio>},
+    );
+  }
 
   print $table->show();
 
@@ -2962,7 +2959,7 @@ foreach my $file ( split(/\s/, $result_cmd) ) {
 #      <a  type='button' href=# onclick='remtemplate($i);'><span class='btn glyphicon glyphicon-remove'></span></a>
 #    </div> 
 #    </div>";
-  
+
 #     my $trunks = $Callcenter->list({ %LIST_PARAMS, FUNC => TRUNKS, COLS_NAME => 1, COLS_UPPER => 1 });
 #     my %trunk_hash;
 
@@ -3017,7 +3014,7 @@ foreach my $file ( split(/\s/, $result_cmd) ) {
 #     $Callcenter->{CONTEXT}    = 'from_call_center';
 #     my $trunks = $Callcenter->list({ %LIST_PARAMS, FUNC => TRUNKS, COLS_NAME => 1, COLS_UPPER => 1 });
 #     my %trunk_hash;
-    
+
 #     $Callcenter->{TEMTLATES} .= "<div class='form-group'> 
 #     <div class='col-md-3'>
 #       <input type=text id=PREPEND\_1 value=\"\"  name=PREPEND\_1 class='form-control'>

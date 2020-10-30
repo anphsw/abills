@@ -3,13 +3,11 @@ use Abills::Base qw(in_array);
 #Iner_ID : Main or Sub or if -1 user menu func list
 our %FUNCTIONS_LIST = (
   "01:-1:$lang{MESSAGES}:msgs_admin:UID"                             => 15,
-  #"02:0:$lang{MESSAGES}:msgs_admin:"                                => 5,
-  "02:0:Helpdesk:null:"                                              => 5,
+  "02:0:$lang{HELPDESK}:null:"                                       => 5,
   "03:2:$lang{CHAPTERS}:msgs_chapters:"                              => 5,
   "04:2:$lang{ADMINS}:msgs_admins:"                                  => 5,
   "05:2:$lang{TEMPLATES}:msgs_survey:"                               => 5,
   "06:2:$lang{STATUS}:msgs_status:"                                  => 5,
-  #"06:2:$lang{TEMPLATES}:msgs_temlates:"                            => 5,
   "08:0:$lang{MESSAGES}:msgs_reports:"                               => 4,
   "09:8:$lang{EVALUATION_OF_PERFORMANCE}:msgs_reports_tasks_rating:" => 4,
   "11:8:$lang{REQUESTS}:msgs_reports_requests:"                      => 4,
@@ -25,6 +23,10 @@ our %FUNCTIONS_LIST = (
   "20:8:$lang{REPLYS_AND_TIME}:report_replys_and_time:"              => 4,
   "22:8:$lang{TICKET_REPORT}:msgs_admin_report:"                     => 4,
 );
+
+if ($conf{MSGS_SCRUB_BOX}) {
+  $FUNCTIONS_LIST{"23:10:$lang{SCRUB_BOX}:msgs_scrub_box:"} = 8;
+}
 
 %USER_FUNCTION_LIST = ();
 if($conf{MSGS_CHAT}) {
@@ -44,22 +46,19 @@ if ( defined($user->{UID}) ) {
 }
 elsif ( defined($admin->{AID}) ) {
   my ($count, $unreg_count) = msgs_new({ AID => $admin->{AID} });
-  $FUNCTIONS_LIST{"10:0:$lang{MESSAGES} $count:msgs_admin:"} = 8;
-  #  $FUNCTIONS_LIST{"32:10:$lang{ADD}:msgs_admin_add:"}          = 8;
-  $FUNCTIONS_LIST{"32:10:$lang{SHEDULE}:msgs_shedule:"} = 8;
-  $FUNCTIONS_LIST{"35:10:$lang{SHEDULE_BOARD}:msgs_shedule2:"} = 8;
+  $FUNCTIONS_LIST{"10:0:$lang{MESSAGES} $count:msgs_admin:"}                      = 8;
+  $FUNCTIONS_LIST{"32:10:$lang{SHEDULE}:msgs_shedule:"}                           = 8;
+  $FUNCTIONS_LIST{"35:10:$lang{SHEDULE_BOARD}:msgs_shedule2:"}                    = 8;
   $FUNCTIONS_LIST{"37:10:$lang{SHEDULE_BOARD} $lang{MONTH}:msgs_shedule2_month:"} = 8;
-  $FUNCTIONS_LIST{"36:10:$lang{SHEDULE_BOARD}:msgs_task_info:MSGS_ID"} = 8;
-  $FUNCTIONS_LIST{"49:10:$lang{DISPATCH}:msgs_dispatches:"} = 8;
-#  $FUNCTIONS_LIST{"50:49:$lang{DISPATCH}:msgs_dispatches:"} = 8;
-#  $FUNCTIONS_LIST{"51:49:$lang{ADD}:msgs_dispatch:"} = 8;
-  $FUNCTIONS_LIST{"34:0:$lang{REQUESTS} $unreg_count:msgs_unreg_requests_list:"} = 8;
-  $FUNCTIONS_LIST{"35:34:$lang{ADD}:msgs_unreg_requests:"} = 8;
-  $FUNCTIONS_LIST{"39:10:$lang{DELIVERY}:msgs_delivery_main:"} = 8;
-  $FUNCTIONS_LIST{"40:01::msgs_admin_quick_message:IN_MODAL"} = 8;
-  $FUNCTIONS_LIST{"45:01::msgs_repeat_ticket:AJAX"} = 8;
-  $FUNCTIONS_LIST{"46:10:$lang{TICKET_BRIGADE}:msgs_team_set_ticket:"} = 8;
-  $FUNCTIONS_LIST{"47:46:$lang{LOCATION_BRIGADE}:msgs_team_location:"} = 8;
+  $FUNCTIONS_LIST{"36:10:$lang{SHEDULE_BOARD}:msgs_task_info:MSGS_ID"}            = 8;
+  $FUNCTIONS_LIST{"49:10:$lang{DISPATCH}:msgs_dispatches:"}                       = 8;
+  $FUNCTIONS_LIST{"34:0:$lang{REQUESTS} $unreg_count:msgs_unreg_requests_list:"}  = 8;
+  $FUNCTIONS_LIST{"35:34:$lang{ADD}:msgs_unreg_requests:"}                        = 8;
+  $FUNCTIONS_LIST{"39:10:$lang{DELIVERY}:msgs_delivery_main:"}                    = 8;
+  $FUNCTIONS_LIST{"40:01::msgs_admin_quick_message:IN_MODAL"}                     = 8;
+  $FUNCTIONS_LIST{"45:01::msgs_repeat_ticket:AJAX"}                               = 8;
+  $FUNCTIONS_LIST{"46:10:$lang{TICKET_BRIGADE}:msgs_team_set_ticket:"}            = 8;
+  $FUNCTIONS_LIST{"47:46:$lang{LOCATION_BRIGADE}:msgs_team_location:"}            = 8;
 
   if($conf{MSGS_CHAT}) {
     $FUNCTIONS_LIST{"21:1:Msgs:show_admin_chat:AJAX"} = 5;

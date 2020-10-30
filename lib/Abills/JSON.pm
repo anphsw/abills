@@ -10,13 +10,10 @@ use strict;
 our (
   %FORM,
   %COOKIES,
-#  $index,
-#  $pages_qs,
   $SORT,
   $DESC,
   $PG,
   $PAGE_ROWS,
-#  $SELF_URL,
   $CONFIG_TPL_SHOW,
 );
 
@@ -66,7 +63,7 @@ sub new {
 }
 
 #**********************************************************
-=head2 form_input()
+=head2 form_input($name, $value)
 
   Arguments:
     $name,
@@ -85,7 +82,7 @@ sub form_input {
   $value =~ s/\\/\\\\/g;
   $value =~ s/\"/\\\\\\\"/g;
 
-  $self->{FORM_INPUT} = "\"$name\" : { \"value\" : \"$value\" }";
+  $self->{FORM_INPUT} =  "{ \"$name\" : \"$value\" }";
 
   return $self->{FORM_INPUT};
 }
@@ -131,6 +128,9 @@ sub form_main {
   }
 
   if ($attr->{CONTENT}) {
+    if ($attr->{CONTENT} !~ /^{/) {
+      $attr->{CONTENT} = '{'.$attr->{CONTENT}.'}';
+    }
     push @arr, $attr->{CONTENT};
   }
 
@@ -142,7 +142,7 @@ sub form_main {
   }
 
   my $tpl_id = $attr->{ID} || 'main_form';
-  my $json_body = "{\n" . join(", \n", @arr) . "}";
+  my $json_body = "[\n" . join(", \n", @arr) . "]";
 
   if($FORM{EXPORT_CONTENT}){
     push @{ $self->{JSON_OUTPUT} }, $attr->{CONTENT};
@@ -214,8 +214,6 @@ sub form_select {
 
     foreach my $v (@$H) {
       my $val = "\"$v->[$key]\"";
-      #$val .= ' selected="1"' if (defined($attr->{SELECTED}) && $v->[$key] eq $attr->{SELECTED});
-      #$val .= ": $v->[$key] " if (!$attr->{NO_ID});
       $val .= ": \"$v->[$value]\"";
       push @sel_arr, $val;
     }
@@ -382,6 +380,7 @@ sub header {
   }
 
   $self->{header}  = "Content-Type: application/json; charset=$CHARSET\n";
+  $self->{header} .= "Access-Control-Allow-Headers: *\n";
   $self->{header} .= "Access-Control-Allow-Origin: *"
                      . "\n\n";
 
@@ -411,7 +410,6 @@ sub table {
   $self->{table} = '';
 
   if ($#table_rows > -1 ) {
-    # $self->{table} = ',';
     $self->{table} = '';
     @table_rows   = ();
   }
@@ -422,15 +420,9 @@ sub table {
   }
 
   if ($attr->{rows}) {
-    # if( @{ $attr->{rows} } <= 1 && ! $attr->{ID}) {
-    #   $self->{table} = q{};
-    #   return $self;
-    # }
-    # else {
       foreach my $line (@{$attr->{rows}}) {
         $self->addrow(@$line);
       }
-    #}
   }
 
   $self->{ID} = $attr->{ID} || q{};
@@ -523,14 +515,24 @@ sub addrow {
         }
 
         $val =~ s/[\n\r]/ /g;
-        $val =~ s/\"/\\\"/g;
         $val =~ s/\t/ /g;
 
-        push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : \"$val\"";
+        if ($val =~ /^{(.+) : (.+)}$/) {
+          push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : $val";
+        }
+        elsif ($val =~ /^{(.+)}$/) {
+          push @formed_rows, $1;
+        }
+        else {
+          $val =~ s/\"/\\\"/g;
+          push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : \"$val\"";
+        }
       }
     }
     else {
-      #push @formed_rows, (($self->{SKIP_FORMER}) ? "\"$val\"" : $self->link_former("\"$val\"", { SKIP_SPACE => 1 }));
+      if ($self->{caption}[$i] && $self->{caption}[$i] !~ /\-/) {
+        push @formed_rows, '"' . $self->{caption}[$i] ."\" : \"$val\"";
+      }
     }
   }
 
@@ -555,18 +557,11 @@ sub addtd {
   for (my $i=0; $i<=$#row+$select_present+1; $i++) {
     my $val = $row[$i+$select_present];
     if ($self->{FIELDS_IDS}) {
-      #my $title_id = ($i+$select_present < 0) ? 0 : $i+$select_present;
       if ($self->{FIELDS_IDS}->[$i] && $self->{TABLE_TITLE}->[$i] && $self->{TABLE_TITLE}->[$i] ne '-' ) {
         $val =~ s/[\n\r]/ /g;
         $val =~ s/\t/ /g;
         push @formed_rows, "\"$self->{FIELDS_IDS}->[$i]\" : \"$val\"";
       }
-      else {
-
-      }
-    }
-    else {
-      #push @formed_rows, (($self->{SKIP_FORMER}) ? "\"$val\"" : $self->link_former("\"$val\"", { SKIP_SPACE => 1 }));
     }
   }
 
@@ -654,27 +649,15 @@ sub table_title {
   my @table_arr = ();
 
   foreach my $line (@$caption) {
-    push @table_arr, "\"$line\"";
+    if ($line) {
+      push @table_arr, "\"$line\"" unless ($line =~ /\-/);
+    }
   }
 
   $self->{table_title} .= join(",", @table_arr) ." ],\n";
+  $self->{caption} = $caption;
 
   return $self->{table_title};
-}
-
-#**********************************************************
-=head2 img($img, $name, $attr)
-
-=cut
-#**********************************************************
-sub img {
-  shift;
-  #my ($img, $name) = @_;
-
-  #my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
-  #$img =~ s/\&/\&amp;/g;
-
-  return ''; #"<img alt='$name' src='$img_path$img'/>";
 }
 
 #**********************************************************
@@ -943,10 +926,10 @@ sub tpl_show {
 
   my $tpl_name = $attr->{ID} || "";
   my $tpl_id = $tpl_name || "_INFO";
+  my $no_subject = $attr->{NO_SUBJECT} || '--'; 
 
   $tpl_name = "HASH" if (! $attr->{MAIN});
 
-  # if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $tpl_name) {
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $tpl_id) {
     return '';
   }
@@ -955,14 +938,13 @@ sub tpl_show {
 
   if ($tpl_name) {
     $xml_tpl = (($self->{tpl_num} && ! $attr->{SKIP_D}) ? "\n(,) \n" : '' ) ."\"$tpl_name\" :";
-    #$tpl_id=$tpl_name;
     $self->{tpl_num}++;
   }
 
   while ($tpl =~ /\%(\w+)\%/g) {
     my $var = $1;
 
-    if ($var =~ /ACTION_LNG/) {
+    if ($var =~ /ACTION_LNG|CID_PATTERN|CPE_PATTERN/) {
       next;
     }
     elsif ($variables_ref->{$var} =~ m/^\{\n\}/i) {
@@ -972,26 +954,31 @@ sub tpl_show {
       if ($variables_ref->{$var} !~ m/\{/g) {
         $variables_ref->{$var} =~ s/\\/\\\\/g;
         $variables_ref->{$var} =~ s/\"/\\\\\\\"/g;
+        $variables_ref->{$var} =~ s/\n//g;
+
         my $value = "\"$var\" : \"$variables_ref->{$var}\"";
         if(! grep { $_ eq $value } @val_arr) {
           push @val_arr, $value;
         }
-        #push @val_arr, "\"-- $var\" : \"$variables_ref->{$var}\" ";
       }
-      elsif ($variables_ref->{$var} =~ m/^\"TABLE\"/i) {
+      elsif ($variables_ref->{$var} =~ m/^\"TABLE/i) {
         push @val_arr, "\"$var\" : { $variables_ref->{$var} }";
       }
-      elsif ($variables_ref->{$var} !~ m/^\"\S+\" : \{/ig) {
+      elsif ($variables_ref->{$var} =~ m/MESSAGE/i) {
         push @val_arr, "\"__$var\" : { $variables_ref->{$var} }";
       }
-      elsif ($variables_ref->{$var} !~ m/\"\S+\" : \{/ig) {
-        push @val_arr, "\"__$var\" : { $variables_ref->{$var} }";
+      elsif (($variables_ref->{$var} !~ m/^\"\S+\" : \{/ig) || ($variables_ref->{$var} !~ m/\"\S+\" : \{/ig)) {
+        push @val_arr, "\"__$var\" : [ $variables_ref->{$var} ]";
       }
       else {
         my $value = "\"_$var\" : $variables_ref->{$var}";
         push @val_arr, $value;
       }
     }
+  }
+
+  if ($variables_ref && !$variables_ref->{MESSAGE} && $no_subject) {
+    push @val_arr, "\"MESSAGE\" : \"$no_subject\"";
   }
 
   my $json_body = q{};
@@ -1030,20 +1017,11 @@ sub tpl_show {
 #**********************************************************
 sub table_header {
   my $self = shift;
-#  my ($header_arr, $attr) = @_;
+
   my $header = '';
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) {
     return '';
   }
-
-#  my @header_arr = ();
-#
-#  foreach my $element ( @{ $header_arr } ) {
-#    my ($name, $url)= split(/:/, $element, 2);
-#    push @header_arr, $self->button($name, $url);
-#  }
-#
-#  $header = "\"table_header\" : {\n". join(",\n", @header_arr) ." }\n";
 
   return $header;
 }

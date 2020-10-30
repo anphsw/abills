@@ -6,8 +6,8 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(date_diff days_in_month in_array int2byte int2ip cmd sendmail
-  mk_unique_value clearquotes _bp);
+use Abills::Base qw(date_diff days_in_month in_array int2byte int2ip sendmail
+  mk_unique_value clearquotes);
 require Abills::Result_former;
 require Internet::Stats;
 
@@ -48,19 +48,6 @@ require Internet::User_ips;
 #**********************************************************
 sub internet_user {
   my ($attr) = @_;
-
-
-  use Internet;
-  my $Internet = Internet->new($db, $admin, \%conf);
-
-  my $sk_acct = 'acc'. 'ount_'. 'ch'. 'eck';
-
-  $Internet->$sk_acct();
-  if(_error_show($Internet)) {
-    return 1;
-  }
-
-
 
   my $uid = $FORM{UID} || $LIST_PARAMS{UID} || 0;
   delete($Internet->{errno});
@@ -466,7 +453,7 @@ sub internet_user {
     }
   );
 
-  if (in_array('Equipment', \@MODULES)) {
+  if (in_array('Equipment', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{'Equipment'})) {
     $Internet->{PORT} = $Internet->{PORTS} if ($Internet->{PORTS});
     $Internet->{PORT_SEL} = $html->form_select(
       'PORT',
@@ -488,11 +475,10 @@ sub internet_user {
     my $server_vlan_list = $Equipment->vlan_list({ PAGE_ROWS => 2000, COLS_NAME => 1 });
 
     if ($Equipment->{TOTAL}) {
-      #      _bp('', \$server_vlan_list, {HEADER=>1});
       $Internet->{VLAN_SEL} = $html->form_select(
         'SERVER_VLAN',
         {
-          SELECTED       => $Internet->{SERVER_VLAN} || 0,
+          SELECTED       => $Internet->{SERVER_VLAN} || $FORM{SERVER_VLAN} || 0,
           SEL_LIST       => $server_vlan_list,
           SEL_KEY        => 'number',
           SEL_VALUE      => 'name',
@@ -509,9 +495,15 @@ sub internet_user {
     }
 
     if (!$attr->{REGISTRATION}) {
-      $Internet->{EQUIPMENT_FORM} = $html->tpl_show(_include('internet_equipment_form', 'Internet'), {
-        EQUIPMENT_INFO => equipment_user_info($Internet)
-      },
+      my $equipment_params = {
+        NAS_ID => $Internet->{NAS_ID} || 0,
+        PORT   => $Internet->{PORT} || 0,
+        VLAN   => $Internet->{VLAN} || 0,
+        UID    => $Internet->{UID},
+        ID     => $Internet->{ID}
+      };
+
+      $Internet->{EQUIPMENT_FORM} = $html->tpl_show(_include('internet_equipment_form', 'Internet'), $equipment_params,
         { ID => 'internet_equipment_form', OUTPUT2RETURN => 1 });
     }
     else {
@@ -549,6 +541,9 @@ sub internet_user {
 
   if ($conf{INTERNET_CID_FORMAT}) {
     $Internet->{CID_PATTERN} = "pattern='" . $conf{INTERNET_CID_FORMAT} . "|ANY|Any|any'";
+  }
+  if ($conf{INTERNET_CPE_FORMAT}) {
+    $Internet->{CPE_PATTERN} = "pattern='" . $conf{INTERNET_CPE_FORMAT} . "|ANY|Any|any'";
   }
 
   my $service_info2 = q{};
@@ -645,7 +640,10 @@ sub internet_user_add {
     #$Internet->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE} if ($attr->{USER_INFO});
     $Internet->info($uid, { ID => $service_id });
     if (!$attr->{STATUS} && !$attr->{SKIP_MONTH_FEE}) {
-      service_get_month_fee($Internet, { REGISTRATION => 1 });
+      service_get_month_fee($Internet, {
+        REGISTRATION               => 1,
+        DO_NOT_USE_GLOBAL_USER_PLS => $attr->{DO_NOT_USE_GLOBAL_USER_PLS} || 0
+      });
     }
 
     if ($conf{MSG_REGREQUEST_STATUS} && !$attr->{STATUS}) {
@@ -750,7 +748,7 @@ sub internet_user_change {
 
   if (!$attr->{STATUS}
     || (defined($attr->{STATUS}) && ($attr->{STATUS} == 0 || $attr->{STATUS} == 5))) {
-    $Shedule = Shedule->new($db, $admin, \%conf);
+
     my $list = $Shedule->list(
       {
         UID       => $uid,
@@ -780,7 +778,10 @@ sub internet_user_change {
 
   if (!$Internet->{errno}) {
     if (!$attr->{STATUS} && ($attr->{GET_ABON} || !$attr->{TP_ID})) {
-      if ($attr->{PERSONAL_TP} &&
+      if ($conf{INTERNET_SKIP_FIRST_DAY_FEE} && ! $Internet->{STATUS} && $Internet->{TP_INFO}{ABON_DISTRIBUTION}) {
+        #print "Skip fee / $Internet->{TP_INFO}{ABON_DISTRIBUTION}";
+      }
+      elsif ($attr->{PERSONAL_TP} &&
         $attr->{PERSONAL_TP} > 0
         && $Internet->{OLD_PERSONAL_TP} == $attr->{PERSONAL_TP} && $Internet->{OLD_STATUS} == ($attr->{STATUS} || 0)) {
 
@@ -789,7 +790,31 @@ sub internet_user_change {
         if (!$permissions{0}{25}) {
           delete $Internet->{PERSONAL_TP};
         }
-        service_get_month_fee($Internet);
+        my $month_fee = 1;
+
+        if($conf{INTERNET_SKIP_CURMONTH_ACTIVATE_FEE}) {
+          my ($Y, $M)=split(/\-/, $DATE, 3);
+
+          $admin->action_list({
+            TYPE      => '14',
+            #ACTION    => '0->3',
+            UID       => $uid,
+            MODULE    => 'Internet',
+            MONTH     => "$Y-$M",
+            PAGE_ROWS => 1,
+            COLS_NAME => 1,
+            SORT      => 'id',
+            DESC      => 'desc'
+          });
+
+          if ($admin->{TOTAL} && $admin->{TOTAL} > 0) {
+            $month_fee=0;
+          }
+        }
+
+        if($month_fee) {
+          service_get_month_fee($Internet);
+        }
       }
     }
 
@@ -892,7 +917,7 @@ sub internet_user_change_nas {
     });
 
     if ($Equipment->{TOTAL}) {
-      if ($Equipment_server_vlan->[0]{type_name} eq "Switch") {
+      if ($Equipment_server_vlan->[0] && $Equipment_server_vlan->[0]{type_name} && $Equipment_server_vlan->[0]{type_name} eq "Switch") {
         my $Equipment_list = $Equipment->port_list({
           NAS_ID     => $attr->{NAS_ID},
           PORT       => $attr->{PORT},
@@ -905,8 +930,10 @@ sub internet_user_change_nas {
           $attr->{VLAN} = $Equipment_list->[0]{VLAN};
           $FORM{VLAN} = $Equipment_list->[0]{VLAN};
 
-          $attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
-          $FORM{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
+          if($Equipment_server_vlan->[0]{SERVER_VLAN}) {
+            $attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
+            $FORM{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
+          }
         }
         # else {
         #   $attr->{VLAN} = 0;
@@ -931,15 +958,19 @@ sub internet_user_change_nas {
           $attr->{VLAN} = $Equipment_list->[0]{VLAN};
           $FORM{VLAN} = $Equipment_list->[0]{VLAN};
 
-          $attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
-          $FORM{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
+          if($attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN}) {
+            $attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
+            $FORM{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
+          }
         }
         else {
           $attr->{VLAN} = 0;
           $FORM{VLAN} = 0;
 
-          $attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
-          $FORM{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
+          if($Equipment_server_vlan->[0]{SERVER_VLAN}) {
+            $attr->{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
+            $FORM{SERVER_VLAN} = $Equipment_server_vlan->[0]{SERVER_VLAN};
+          }
         }
       }
     }
@@ -1013,7 +1044,7 @@ sub internet_user_preproccess {
   }
 
   #Format CPE_MAC
-  if ($attr->{CPE_MAC} && $attr->{CPE_MAC} !~ /ANY/i && $conf{INTERNET_CID_FORMAT}) {
+  if ($attr->{CPE_MAC} && $conf{INTERNET_CPE_FORMAT}) {
     $attr->{CPE_MAC} = Abills::Filters::_mac_former($attr->{CPE_MAC});
   }
 
@@ -1066,13 +1097,13 @@ sub internet_user_preproccess {
     });
 
     if ($Internet->{TOTAL} > 0 &&  $list->[0]->{uid} && $list->[0]->{uid} != $uid) {
-      $html->message('warn', $lang{WARNING}, "NAS_ID & PORT already use. Login: "
+      $html->message('warn', $lang{WARNING}, "$lang{NAS_AND_PORT_ALREADY_USE}. $lang{LOGIN}: "
         . $html->button("$list->[0]{login}", "index=15&UID=" . $list->[0]->{uid}));
 
-      # if (!$attr->{SKIP_ERRORS}) {
-      #   $attr->{RETURN} = 1;
-      #   return $attr;
-      # }
+      if ($conf{INTERNET_PROHIBIT_DUPLICATE_NAS_PORT} && !$attr->{SKIP_ERRORS}) {
+        $attr->{RETURN} = 1;
+        return $attr;
+      }
     }
   }
 
@@ -1278,12 +1309,12 @@ sub internet_user_online {
     foreach my $line (@$list) {
       my $alive_check = '';
 
-      if ($conf{DV_ALIVE_CHECK}) {
+      if ($conf{INTERNET_ALIVE_CHECK}) {
         my $title = "$lang{LAST_UPDATE}: $line->{last_alive}";
-        if ($line->{last_alive} > $conf{DV_ALIVE_CHECK} * 3) {
+        if ($line->{last_alive} > $conf{INTERNET_ALIVE_CHECK} * 3) {
           $alive_check = $html->element('span', '', { title => $title, ICON => 'glyphicon glyphicon-warning-sign text-danger' });
         }
-        elsif ($line->{last_alive} > $conf{DV_ALIVE_CHECK}) {
+        elsif ($line->{last_alive} > $conf{INTERNET_ALIVE_CHECK}) {
           $alive_check = $html->element('span', '', { title => $title, ICON => 'glyphicon glyphicon-warning-sign text-warning' });
         }
         else {
@@ -1322,6 +1353,7 @@ sub internet_user_online {
         ($line->{guest} == 1) ? $html->color_mark($lang{GUEST}, 'bg-danger') : '',
         $html->button($line->{nas_name}, "index=$online_index&NAS_ID=$line->{nas_id}") . $switch
       );
+
       my @function_fields = ();
       if ($conf{INTERNET_EXTERNAL_DIAGNOSTIC}) {
         my @diagnostic_rules = split(/;/, $conf{INTERNET_EXTERNAL_DIAGNOSTIC});
@@ -1752,8 +1784,6 @@ sub internet_form_shedule {
     });
   }
 
-  my $Shedule = Shedule->new($db, $admin, \%conf);
-
   if ($FORM{add} && $permissions{0}{18} && defined($FORM{ACTION})) {
     my ($Y, $M, $D) = split(/-/, ($FORM{DATE} || $DATE), 3);
 
@@ -1848,7 +1878,6 @@ sub internet_form_shedule {
 sub shedule_list {
   my ($attr) = @_;
 
-  my $Shedule = Shedule->new($db, $admin, \%conf);
   my $service_status = sel_status({ HASH_RESULT => 1 });
   my $module = $attr->{MODULE} || q{};
 
@@ -1961,7 +1990,6 @@ sub internet_chg_tp {
 
   #my $TARIF_PLAN = $FORM{tarif_plan} || $lang{DEFAULT_TARIF_PLAN};
   my $period = $FORM{period} || 0;
-  my $Shedule = Shedule->new($db, $admin, \%conf);
 
   #Get next period
   if (
@@ -2038,18 +2066,28 @@ sub internet_chg_tp {
       }
     }
     else {
-      if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00') {
+      if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' && !$Internet->{STATUS}) {
         $FORM{ACTIVATE} = $DATE;
       }
 
-      $FORM{PERSONAL_TP} = 0;
+      $FORM{PERSONAL_TP} = 0.00;
       $Internet->change(\%FORM);
+
+      if( $Internet->{TP_INFO} && $Internet->{TP_INFO}->{MONTH_FEE} && $Internet->{TP_INFO}->{MONTH_FEE} < $users->{DEPOSIT}) {
+        $Internet->{STATUS} = 0;
+        #$FORM{GET_ABON}=1;
+        $FORM{ACTIVE_SERVICE}=1;
+      }
 
       if (!_error_show($Internet, { RIZE_ERROR => 1 })) {
         #Take fees
         #Message
         if (!$Internet->{STATUS} && $FORM{GET_ABON}) {
           service_get_month_fee($Internet);
+          if ($FORM{ACTIVE_SERVICE}) {
+            $FORM{STATUS}=0;
+            $Internet->change(\%FORM);
+          }
         }
         else {
           $html->message('info', $lang{CHANGED}, "$lang{TARIF_PLAN} $message", { ID => 932 });
@@ -2476,7 +2514,7 @@ sub internet_cards {
       %FORM = ();
       %FORM = %FORM_BASE;
       while (my ($k, $v) = each %$line) {
-        $FORM{$k} = clearquotes($v);
+        $FORM{$k} = (defined($v)) ? clearquotes($v) : q{};
       }
 
       $FORM{'1.LOGIN'} = $line->{LOGIN};
@@ -2485,8 +2523,9 @@ sub internet_cards {
       $line->{UID} = internet_wizard_add({ %FORM, SHORT_REPORT => 1 });
 
       if (! $line->{UID} || $line->{UID} < 1) {
-        $html->message('err', "Cards:$lang{ERROR}", "$lang{LOGIN}: '$line->{LOGIN}' $line->{UID}", { ID => 929 });
-        exit;
+        $html->message('err', "Cards:$lang{ERROR}", "$lang{LOGIN}: '".
+          ($line->{LOGIN} || $FORM{LOGIN} || 'No login'). "' ". ($line->{UID} || 0), { ID => 929 });
+        #exit;
         #last if (!$line->{SKIP_ERRORS});
       }
       else {
@@ -2932,9 +2971,10 @@ sub internet_wizard_add {
       my $result = internet_user_add({
         %{$add_values{4}},
         %$attr,
-        SKIP_MONTH_FEE => $FORM{SERIAL},
-        UID            => $uid,
-        QUITE          => 1
+        SKIP_MONTH_FEE             => $FORM{SERIAL},
+        UID                        => $uid,
+        QUITE                      => 1,
+        DO_NOT_USE_GLOBAL_USER_PLS => 1,
       });
 
       if (!$result) {
@@ -3150,16 +3190,19 @@ sub _check_tp {
     });
 
     if ($Tariffs->{TOTAL} == 0) {
+      my $tp_name = (! $attr->{TP_NAME}) ? "$lang{TARIF_PLAN}: $attr->{TP_NUM}" : $attr->{TP_NAME};
       $Tariffs->add({
         ID                => $attr->{TP_NUM},
-        NAME              => (! $attr->{TP_NAME}) ? "$lang{TARIF_PLAN}: $attr->{TP_NUM}" : $attr->{TP_NAME},
+        NAME              => $tp_name,
         MONTH_FEE         => $attr->{MONTH_FEE},
         DAY_FEE           => $attr->{DAY_FEE},
         USER_CREDIT_LIMIT => $attr->{USER_CREDIT_LIMIT},
         MODULE            => $module
       });
 
-      $attr->{TP_ID} = $Tariffs->{TP_ID};
+      _error_show($Tariffs, { ID => 981, MESSAGE => => $tp_name  });
+
+      $attr->{TP_ID} = $Tariffs->{TP_ID} || q{};
       $html->message('info', $lang{ADD}, $lang{TARIF_PLAN} . ": ". ($attr->{TP_NUM} || $attr->{TP_NAME}). " ($Tariffs->{TP_ID})");
     }
     else {

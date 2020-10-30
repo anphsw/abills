@@ -27,7 +27,7 @@ our (
   $argv,
   $debug,
   $Sessions,
-  $Dv,
+  $Internet,
   %LIST_PARAMS,
   $debug_output,
   %conf,
@@ -243,7 +243,7 @@ sub quota_check {
           next;
         }
 
-        my $speed_list = $Dv->get_speed({
+        my $speed_list = $Internet->get_speed({
           UID       => $online->{uid},
           COLS_NAME => 1
         });
@@ -264,7 +264,7 @@ sub quota_check {
         });
       }
       elsif($connect_info =~ /QUOTA:(.+)/) {
-        my $speed_list = $Dv->get_speed({
+        my $speed_list = $Internet->get_speed({
           UID       => $online->{uid},
           COLS_NAME => 1
         });

@@ -845,16 +845,16 @@ sub form_bills {
 }
 
 #**********************************************************
-=head2 form_changes($attr); - Changes list
+=head2 form_changes($attr) - Changes list
 
-   Arguments:
-     $attr
-       ADMIN
-       SEARCH_PARAMS
-       PAGES_QS
+  Arguments:
+    $attr
+      ADMIN
+      SEARCH_PARAMS
+      PAGES_QS
 
-   Results:
-     TRUE or FALSE
+  Results:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -903,7 +903,8 @@ sub form_changes {
     }
   }
   elsif ($FORM{AID} && !defined($LIST_PARAMS{AID})) {
-    $FORM{subf} = $index;
+    $index = 50;
+    $FORM{subf} = 775;
     $pages_qs2 .= "&AID=$FORM{AID}";
     form_admins();
     return 0;
@@ -919,6 +920,13 @@ sub form_changes {
   }
 
   %search_params = %FORM;
+
+  my %hidden_fileds = ();
+  if($LIST_PARAMS{UID}) {
+    $hidden_fileds{UID}=$LIST_PARAMS{UID};
+    $pages_qs2 .= "&UID=$LIST_PARAMS{UID}" if($pages_qs2 !~ /UID/);
+  }
+
   $search_params{MODULES_SEL} = $html->form_select(
     'MODULE',
     {
@@ -938,39 +946,40 @@ sub form_changes {
     }
   );
 
-  if ($attr->{ADMIN}) {
-    $search_params{ADMIN}=$attr->{ADMIN}->{A_LOGIN};
-  }
 
-  my %hidden_fileds = ();
-  if($LIST_PARAMS{AID}) {
-    $hidden_fileds{AID}=$LIST_PARAMS{AID};
-    $pages_qs2 .= "&AID=$hidden_fileds{AID}";
-  }
+  $search_params{ADMIN} = $html->form_select(
+    'AID',
+    {
+      SELECTED    => $FORM{AID} ? $FORM{AID} : '',
+      SEL_LIST    => $admin->list({
+        COLS_NAME => 1
+      }),
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => 1 },
+      SEL_KEY     => 'aid',
+      SEL_VALUE   => 'login',
+      OUTPUT2RETURN => 1
+    }
+  );
 
-  if($LIST_PARAMS{UID}) {
-    $hidden_fileds{UID}=$LIST_PARAMS{UID};
-    $pages_qs2 .= "&UID=$LIST_PARAMS{UID}" if($pages_qs2 !~ /UID/);
-  }
+  form_search({
+    HIDDEN_FIELDS => \%hidden_fileds,
+    SEARCH_FORM   => $html->tpl_show(templates('form_history_search'), \%search_params, { OUTPUT2RETURN => 1 }),
+    SHOW_PERIOD   => 1
+  });
 
-  if($FORM{search_form}) {
-    form_search({
-      HIDDEN_FIELDS => \%hidden_fileds,
-      SEARCH_FORM   => $html->tpl_show(templates('form_history_search'), \%search_params, { OUTPUT2RETURN => 1 }),
-      SHOW_PERIOD   => 1
-    });
-    $pages_qs2 .= $pages_qs;
-  }
-  elsif($attr->{SEARCH_PARAMS}) {
+  $pages_qs2 .= $pages_qs;
+
+  if($attr->{SEARCH_PARAMS}) {
     %LIST_PARAMS = %{ $attr->{SEARCH_PARAMS} };
   }
-  elsif(! $FORM{UID}) {
+  elsif(!$FORM{UID} && !$FORM{search_form}) {
     form_changes_summary();
   }
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
   require Control::Services;
-  my $tps_hash = sel_tp();
+  my $tps_hash = sel_tp({ MODULE => 'Internet;Iptv;Cams;Ureports;Voip' });
 
   $pages_qs .= $pages_qs2;
   if($FORM{FROM_DATE}) {
@@ -1009,6 +1018,18 @@ sub form_changes {
   });
 
   foreach my $line (@$list) {
+    my @location_ids = $line->{actions} =~ m/LOCATION_ID (\d+)->(\d+)/g;
+
+    my %location_name = ();
+
+    foreach my $location_id (@location_ids) {
+      $location_name{$location_id} = short_address_name($location_id);
+    }
+
+    foreach my $name (keys %location_name) {
+      $line->{actions} =~ s/$name/$location_name{$name}/g
+    }
+
     my $delete = ($permissions{4} && $permissions{4}{3}) ? $html->button( $lang{DEL}, "index=$index$pages_qs2&del=$line->{id}",
         { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' } ) : '';
 
@@ -1374,7 +1395,6 @@ sub fl {
     require Control::Address_mng;
     push @m, "70:8:$lang{LOCATIONS}:form_districts:::", "71:70:$lang{STREETS}:form_streets::";
     push @m, "135:70:Address update:form_address_select2:AJAX::";
-
   }
   else {
     require Control::Address_mng;
@@ -1390,7 +1410,7 @@ sub fl {
     require Control::Reports;
     require Control::User_reports;
     if($permissions{3}{7}) {
-      push @m, "76:4:WEB server:report_webserver:::",
+      push @m, "76:4:$lang{WEB_SERVER}:report_webserver:::",
                "122:4:$lang{LIST_OF_LOGS}:logs_list:::";
     }
     if($permissions{3}{8}) {
@@ -1422,7 +1442,7 @@ sub fl {
 
     if ($permissions{3}{5}) {
       push @m, "68:4:$lang{CONFIG}:form_system_changes:::",
-               "86:4:User portal:report_bruteforce:::",
+               "86:4:$lang{USER_PORTAL}:report_bruteforce:::",
                "87:86:$lang{SESSIONS}:report_ui_last_sessions:::",
                "123:86:$lang{USER_STATISTIC}:analiz_user_statistic:::";
     }
@@ -1434,10 +1454,11 @@ sub fl {
 
     push (@m, "5:0:<i class='fa fa-gear'></i><span>$lang{CONFIG}</span>:null:::",
       "62:5:$lang{NAS}:form_nas:::",
-      "63:62:IP POOLs:form_ip_pools:::",
+      "63:62:$lang{IP_POOLS}:form_ip_pools:::",
       "64:62:$lang{NAS_STATISTIC}:form_nas_stats:::",
       "65:62:$lang{GROUPS}:form_nas_groups:::",
       "66:5:$lang{EXCHANGE_RATE}:form_exchange_rate:::",
+      "145:50:$lang{LOG}:form_changes:::",
 
       "75:5:$lang{HOLIDAYS}:form_holidays:::",
       "85:5:$lang{SHEDULE}:form_shedule:::",
@@ -1445,13 +1466,13 @@ sub fl {
       "90:5:$lang{MISC}:null:::",
       "91:90:$lang{TEMPLATES}:form_templates:::",
       "92:90:$lang{DICTIONARY}:form_dictionary:::",
-      "93:90:Checksum:form_config:::",
+      "93:90:$lang{CHECKSUM}:form_config:::",
       "94:90:$lang{PATHES}:form_prog_pathes:::",
       "95:90:$lang{SQL_BACKUP}:form_sql_backup:::",
       "96:90:$lang{INFO_FIELDS}:form_info_fields:::",
       "97:96:$lang{LIST}:form_info_lists:::",
       "98:90:$lang{TYPE} $lang{FEES}:form_fees_types:::",
-      "99:90:billd:form_billd_plugins:::",
+      "99:90:$lang{BILLD}:form_billd_plugins:::",
       "120:90:$lang{STATUS}:form_status:::",
       "121:90:$lang{ORGANIZATION_INFO}:organization_info:::",
       "124:90:$lang{PAYMENT_METHOD}:form_payment_types:::",
@@ -1467,6 +1488,7 @@ sub fl {
         "51:50:$lang{LOG}:form_changes:AID::",
         "52:50:$lang{PERMISSION}:form_admin_permissions:AID::",
         "54:50:$lang{PASSWD}:form_passwd:AID::",
+        "146:50:$lang{PAYMENT_TYPE}:form_admin_payment_types:AID::",
         "55:50:$lang{FEES}:form_fees:AID::",
         "56:50:$lang{PAYMENTS}:form_payments:AID::",
         "57:50:$lang{CHANGE}:form_admins:AID::",
@@ -1475,7 +1497,7 @@ sub fl {
         "61:50:$lang{CONTACTS}:form_admins_contacts:AID::",
         "69:50::form_admins_contacts_save:AID,AJAX:";
 
-        push @m, "58:50:$lang{GROUPS}:form_admins_groups:AID::" if (! $admin->{GID});
+        push @m, "58:50:$lang{GROUPS}:form_admins_groups:AID::" if (! $admin->{GID} || ( $permissions{0} && $permissions{0}{28} ) );
         push @m, "113:50:Domains:form_admins_domains:AID::" if (in_array('Multidoms', \@MODULES));
     }
   }
@@ -1849,6 +1871,13 @@ sub form_search {
         my $tag_count;
         my $form_tags_sel;
 
+        $SEARCH_DATA{TAG_SEARCH_VAL} = $html->form_select('TAG_SEARCH_VAL', {
+          ID          => 'SEARCH_VAL',
+          SELECTED    =>  0,
+          NO_ID       =>  1,
+          SEL_OPTIONS => {0 => "$lang{OR}", 1 => "$lang{AND}",},
+        });
+
         ($form_tags_sel, $tag_count) = tags_sel({ HASH => 1 });
         if ($tag_count) {
           $SEARCH_DATA{TAGS_SEL} = $form_tags_sel;
@@ -2062,7 +2091,7 @@ sub form_shedule {
   );
 
   require Control::Services;
-  my $tp_list = sel_tp();
+  my $tp_list = sel_tp({ MODULE => 'Internet;Iptv;Cams;Ureports;Voip' });
 
   if ($FORM{SHEDULE_DATE}) {
     $LIST_PARAMS{SHEDULE_DATE}=$FORM{SHEDULE_DATE};
@@ -2128,7 +2157,7 @@ sub form_shedule {
           " ($service_id)";
       }
       elsif($line->{type} eq 'tp') {
-        my ($service_id, $action) = split(/:/, $line->{action});
+        my ($service_id, $action) = split(/:/, $line->{action} || q{});
         $action //= q{};
         $value = (($tp_list->{$action}) ? $tp_list->{$action} : $action). " (". ( $service_id || q{}) .") TP_ID: $action";
       }
@@ -2454,7 +2483,7 @@ sub quick_functions {
     $html->{METATAGS} = templates('metatags');
     print $html->header(\%FORM);
 
-    if ($FORM{UID} || ($FORM{type} && $FORM{type} == 11)) {
+    if ($FORM{UID} || ($FORM{type} && $FORM{type} == 11 && ! $FORM{xml})) {
       $ui = user_info($FORM{UID}, { %FORM, LOGIN => (! $FORM{UID} && $FORM{LOGIN}) ? $FORM{LOGIN} : undef });
       if ($FORM{xml} && $ui && $ui->{UID}) {
         $xml_start_teg = 'user_info';
@@ -2538,7 +2567,6 @@ sub set_admin_params {
       REPLACE => 1
     });
   }
-
   #Admin Web_options
   if ($FORM{AWEB_OPTIONS}) {
     my %WEB_OPTIONS = (
@@ -2562,12 +2590,19 @@ sub set_admin_params {
     my $web_options = '';
 
     if (!$FORM{default}) {
+      $FORM{QUICK_REPORTS} ||= '' if $FORM{set};
       while (my ($k, undef) = each %WEB_OPTIONS) {
         if ($FORM{$k}) {
           $web_options .= "$k=$FORM{$k};";
         }
         else {
           $web_options .= "$k=$admin->{SETTINGS}{$k};" if ($admin->{SETTINGS}{$k} && ! defined($FORM{$k}));
+        }
+      }
+
+      if ($admin->{SETTINGS} && $admin->{SETTINGS}{SKIN}) {
+        unless ($FORM{SKIN}) {
+          $web_options .= "SKIN=$admin->{SETTINGS}{SKIN};";
         }
       }
     }
@@ -2680,10 +2715,13 @@ sub set_admin_params {
   ## Visualisation begin
   $admin->{DATE} = $DATE;
   $admin->{TIME} = $TIME;
-  if ($conf{tech_works}) {
-    $admin->{TECHWORK} = $html->message('err', $conf{tech_works}, '');
-  }
 
+  # if ($conf{tech_works}) {
+  #   #$admin->{TECHWORK} = $html->message('err', $conf{tech_works}, $conf{tech_works}, { OUTPUT2RETURN => 1 });
+  #   $html->reminder($lang{WARNING}, $html->button($conf{tech_works}, "index=50&subf=54&AID=1"), {
+  #     class => 'danger'
+  #   });
+  # }
 
   return 1;
 }
@@ -2806,6 +2844,21 @@ sub pre_page {
     }
   );
 
+  if ($conf{ISP_EXPRESSION} && $admin->{SETTINGS} && $admin->{SETTINGS}->{ql}) {
+    my @element_button = split(',', $admin->{SETTINGS}->{ql});
+    my @button_info = ();
+    
+    foreach my $isp_button (@element_button) {
+      my ($key, $value) = split('\|', $isp_button);
+
+      push @button_info, { $key => $value };
+    }
+
+    $admin->{ISP_EXPRESSION} = $html->button_isp_express({
+      INFO  => \@button_info,
+    });
+  }
+
   print $html->tpl_show(templates('header'), {
     %$admin,
     HEADER_FIXED_CLASS => $admin->{SETTINGS}{HEADER_FIXED} ? 'navbar-fixed-top' : '',
@@ -2875,6 +2928,11 @@ sub post_page {
       _error_show($Conf);
       $conf{DEFAULT_PASSWORD_CHANGED} = 1;
     }
+  }
+
+  if ($conf{tech_works}) {
+    #$admin->{TECHWORK} = $html->message('err', $conf{tech_works}, $conf{tech_works}, { OUTPUT2RETURN => 1 });
+    $html->reminder($lang{WARNING}, $conf{tech_works}, { class => 'warning'  });
   }
 
   if (!$conf{GUIDE_DISABLED} && $html->{TYPE} eq 'html'){

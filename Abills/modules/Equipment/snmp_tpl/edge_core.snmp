@@ -20,10 +20,33 @@
     }
   },
   "ports": {
-    "PAIR_LENGTH": {
-      "NAME": "Pair length",
-      "OIDS": ".1.3.6.1.4.1.171.12.58.1.1.1.8",
-      "PARSER": ""
+    "RUN_CABLE_TEST_SET_PORT": {
+      "OIDS": "1.3.6.1.4.1.259.6.10.94.1.2.3.1.0",
+      "PARSER": "hidden"
+    },
+    "LENGTH_PAIR_A": {
+      "NAME": "Pair A length",
+      "OIDS": "1.3.6.1.4.1.259.6.10.94.1.2.3.2.1.6",
+      "PARSER": "",
+      "REQUIRES_CABLE_TEST": "1"
+    },
+    "LENGTH_PAIR_B": {
+      "NAME": "Pair B length",
+      "OIDS": "1.3.6.1.4.1.259.6.10.94.1.2.3.2.1.7",
+      "PARSER": "",
+      "REQUIRES_CABLE_TEST": "1"
+    },
+    "STATUS_PAIR_A": {
+      "NAME": "Pair A status",
+      "OIDS": "1.3.6.1.4.1.259.6.10.94.1.2.3.2.1.2",
+      "PARSER": "_edge_core_convert_pair_status",
+      "REQUIRES_CABLE_TEST": "1"
+    },
+    "STATUS_PAIR_B": {
+      "NAME": "Pair B status",
+      "OIDS": "1.3.6.1.4.1.259.6.10.94.1.2.3.2.1.3",
+      "PARSER": "_edge_core_convert_pair_status",
+      "REQUIRES_CABLE_TEST": "1"
     }
   }
 }

@@ -113,10 +113,10 @@ sub new($;$) {
 
   Arguments:
     $list_name -
-    
+
   Returns:
     boolean
-    
+
 =cut
 #**********************************************************
 sub has_list_command {
@@ -132,7 +132,7 @@ sub has_list_command {
     $attr - hash_ref
       SAVE_TO         - filename to save output
       SKIP_ERROR      - do not finish execution if error on one of commands
-      
+
   Returns:
     1
 
@@ -169,10 +169,10 @@ sub execute {
 
   Arguments:
     $attr -
-    
+
   Returns:
-  
-  
+
+
 =cut
 #**********************************************************
 sub _form_ssh_command_args {
@@ -408,10 +408,10 @@ sub get_list {
 
   Arguments:
     $raw_input - raw SSH output
-    
+
   Returns:
     list
-    
+
 =cut
 #**********************************************************
 sub parse_terse_list {
@@ -494,7 +494,7 @@ sub check_access {
   my $ok = $cmd_result !~ /Permission denied|Failed|denied/i;
   my $not_network_accessible = $cmd_result =~ /timed out|no route to host/i;
 
-  if ($self->{FROM_WEB} && ($cmd_result !~ /interrupted/ || $?)) {
+  if ($self->{FROM_WEB} && ($cmd_result !~ /interrupted/)) {
     print 'Mikrotik check access. ' . $cmd_result . "<br/>";
     return 0;
   }

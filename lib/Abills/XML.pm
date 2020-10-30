@@ -180,6 +180,10 @@ sub form_select {
   if (defined($attr->{SEL_OPTIONS})) {
     my $H = $attr->{SEL_OPTIONS};
     while (my ($k, $v) = each %$H) {
+      if (! $k && ! $v) {
+        next;
+      }
+
       $self->{SELECT} .= "<option value='$k'";
       $self->{SELECT} .= ' selected="1"' if (defined($attr->{SELECTED}) && $k eq $attr->{SELECTED});
       $self->{SELECT} .= ">$v</option>\n";
@@ -631,6 +635,10 @@ sub button {
   my $self = shift;
   my ($name, $params, $attr) = @_;
   my $ex_attr = '';
+
+  if(! $params && ! $name) {
+    return '';
+  }
 
   $params = ($attr->{GLOBAL_URL}) ? $attr->{GLOBAL_URL} : "$params";
   $params = $self->link_former($params);

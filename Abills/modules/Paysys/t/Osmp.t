@@ -56,6 +56,7 @@ my $Osmp = Paysys::systems::Osmp->new($db, $admin, \%conf, {
     CUSTOM_NAME => $attr->{NAME} || '',
     CUSTOM_ID   => $attr->{ID} || '',
    });
+
 # checking function check with valid account
 my $result = $Osmp->proccess(
   {
@@ -69,6 +70,7 @@ my $result = $Osmp->proccess(
 my $res = '';
 ($res) = ($result =~ /\<result\>(\d+)\<\/result\>/g);
 ok($res eq '0', 'User Exist(function check)');
+Abills::Base::_bp('', ($res), {HEADER=>1});
 
 # checking function check with invalid account
 $result = $Osmp->proccess(

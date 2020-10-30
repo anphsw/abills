@@ -1,5 +1,3 @@
-#!perl
-
 =head1 NAME
 
   Periodic payments module
@@ -19,13 +17,14 @@ our ($db,
   $admin,
   %conf,
   %lang,
-  $html,
   %permissions,
   @WEEKDAYS,
   @MONTHES,
   %FORM
 );
 
+
+our Abills::HTML $html;
 my $Abon = Abon->new($db, $admin, \%conf);
 my $Fees = Fees->new($db, $admin, \%conf);
 my @PERIODS = ($lang{DAY}, $lang{MONTH}, $lang{QUARTER}, $lang{SIX_MONTH}, $lang{YEAR});
@@ -419,12 +418,11 @@ sub abon_user {
   my $table = $html->table(
     {
       width   => '100%',
-      caption => "$lang{ABON}",
-      title   => [ "$lang{TARIF_PLAN} (ID)", "$lang{SERVICE} $lang{NAME}", $lang{COMMENTS}, $lang{SUM}, $lang{PERIOD}, "$lang{SERVICE_COUNT}",
-        $lang{FEES_PERIOD}, $lang{LAST_ABON}, $lang{NEXT_ABON}, "$lang{REDUCTION} (%)",
+      caption => $lang{ABON},
+      title   => [ '-', "$lang{TARIF_PLAN} (ID)", "$lang{SERVICE} $lang{NAME}",
+        $lang{COMMENTS}, $lang{SUM}, $lang{PERIOD}, "$lang{SERVICE_COUNT}", $lang{FEES_PERIOD}, $lang{LAST_ABON}, $lang{NEXT_ABON}, "$lang{REDUCTION} (%)",
         "$lang{CREATE} $lang{DOCS}", $lang{SEND_NOTIFICATION}, $lang{MANUAL_ACTIVATE}, '-' ],
-
-      #      FIELDS_IDS => $Abon->{COL_NAMES_ARR},
+      FIELDS_IDS => $Abon->{COL_NAMES_ARR},
       qs      => $pages_qs,
       ID      => 'USER_ABON',
     }
@@ -447,8 +445,7 @@ sub abon_user {
     }
 
     $table->addrow(
-      $line->{id}
-        . $html->form_input(
+      $html->form_input(
         'IDS',
         $line->{id},
         {
@@ -456,6 +453,7 @@ sub abon_user {
           STATE => ($state > 0) ? 1 : undef
         }
       ),
+      $line->{id},
       ($permissions{5}) ? $html->button($line->{name}, "index=" . get_function_index('abon_tariffs') . '&ABON_ID=' . $line->{id}) : "$line->{name}",
       $html->form_input('COMMENTS_' . $line->{id}, $describe || $FORM{ 'error_comments_' . $line->{id} } || q{}, { SIZE => 40 }),
       $line->{price},
@@ -552,11 +550,28 @@ sub abon_user_list {
     return 0;
   }
 
-
   if ($FORM{search_form}) {
+    my $tp_id_select = $html->form_select(
+      "TP_ID",
+      {
+        SELECTED    => $Abon->{TP_ID} || $FORM{TP_ID},
+        SEL_LIST    => $Abon->tariff_list({ COLS_NAME => 1, %LIST_PARAMS }),
+        SEL_OPTIONS => { '' => '--' },
+        SEL_KEY     => 'tp_id',
+        SEL_VALUE   => 'name',
+        EX_PARAMS   => 'multiple="multiple"',
+        NO_ID       => 1,
+      }
+    );
+
     form_search(
       {
-        SEARCH_FORM  => $html->tpl_show(_include('abon_users_search', 'Abon'), { %{$Abon}, %FORM }, { OUTPUT2RETURN => 1 }),
+        SEARCH_FORM  => $html->tpl_show(
+          _include('abon_users_search', 'Abon'), { 
+            %{$Abon},
+            %FORM,
+            TP_ID => $tp_id_select
+          }, { OUTPUT2RETURN => 1 }),
         ADDRESS_FORM => 1
       }
     );
@@ -583,6 +598,9 @@ sub abon_user_list {
 
     if ($date_if && $date_if <= 0) {
       $table->{rowcolor} = 'bg-danger';
+    }
+    else {
+      $table->{rowcolor} = undef;
     }
 
     $table->addrow(user_ext_menu($line->{uid}, $line->{login}), $line->{fio},
@@ -757,6 +775,20 @@ sub abon_tariffs {
     }
   );
 
+  $Abon->{USER_PORTAL} = $html->form_select(
+    'USER_PORTAL',
+    {
+      SELECTED => $Abon->{USER_PORTAL} || $FORM{USER_PORTAL},
+      SEL_HASH => { 
+        0 => $lang{USER_PORTAL_NO},
+        1 => $lang{USER_PORTAL_READ},
+        2 => $lang{USER_PORTAL_EDIT}
+      },
+      NO_ID    => 1,
+      SORT_KEY => 1
+    }
+  );
+
   $Abon->{FEES_TYPE} = ($Abon->{FEES_TYPE}) ? 'checked' : '';
   $Abon->{NOTIFICATION_ACCOUNT} = ($Abon->{NOTIFICATION_ACCOUNT}) ? 'checked' : '';
   $Abon->{ALERT} = ($Abon->{ALERT}) ? 'checked' : '';
@@ -766,7 +798,6 @@ sub abon_tariffs {
   $Abon->{VAT} = ($Abon->{VAT}) ? 'checked' : '';
   $Abon->{DISCOUNT} = ($Abon->{DISCOUNT}) ? 'checked' : '';
   $Abon->{MANUAL_ACTIVATE} = ($Abon->{MANUAL_ACTIVATE}) ? 'checked' : '';
-  $Abon->{USER_PORTAL} = ($Abon->{USER_PORTAL}) ? 'checked' : '';
 
   $html->tpl_show(_include('abon_tp', 'Abon'), $Abon);
 
@@ -1300,6 +1331,7 @@ sub abon_docs {
       }
 
       $info{service_name} = "$lang{ABON}: ($line->{id}) " . "$line->{name}";
+      $info{module_name}  = $lang{ABON};
 
       if ($line->{period} == 1) {
         $info{month} += $line->{price};
@@ -1313,6 +1345,9 @@ sub abon_docs {
       }
       else {
         # NAME| ID | SUM
+        if ($line->{period} == 0) {
+          $line->{price} = $line->{price} * 30;
+        }
         push @services, "$lang{ABON}: ($line->{id}) " . "$line->{name}" . "|$line->{comments} |$line->{price}|$line->{id}";
       }
     }
@@ -1354,9 +1389,11 @@ sub abon_client {
   my $list = $Abon->user_tariff_list(
     $LIST_PARAMS{UID},
     {
-      COLS_NAME    => 1,
-      USER_PORTAL  => 1,
-      SERVICE_LINK => '_SHOW',
+      COLS_NAME         => 1,
+      USER_PORTAL       => 1,
+      USER_PORTAL_EDIT  => '_SHOW',
+      SERVICE_LINK      => '_SHOW',
+      _MULTI_HIT        => 1
     }
   );
 
@@ -1377,10 +1414,10 @@ sub abon_client {
 
   foreach my $line (@{$list}) {
     my $button = '';
-    if ($line->{manual_activate} && !$line->{date}) {
+    if ($line->{manual_activate} && !$line->{date} && $line->{user_portal} == 2) {
       $button = $html->button("$lang{ACTIVATE}", "index=$index&add=$line->{id}", { class => 'btn btn-primary' });
     }
-    elsif ($line->{date} && $line->{service_link}) {
+    elsif ($line->{date} && $line->{service_link} && $line->{user_portal} == 2) {
       my ($caption, $url) = split(/\|/, $line->{service_link}, 2);
       $button = $html->button(_translate($caption), "", { class => 'btn btn-primary', GLOBAL_URL => "$url&sid=$sid" });
     }

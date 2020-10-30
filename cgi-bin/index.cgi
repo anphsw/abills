@@ -53,7 +53,8 @@ our $html = Abills::HTML->new(
     NO_PRINT  => 1,
     CONF      => \%conf,
     CHARSET   => $conf{default_charset},
-    HTML_STYLE=> $conf{UP_HTML_STYLE}
+    HTML_STYLE=> $conf{UP_HTML_STYLE},
+    LANG      => \%lang,
   }
 );
 
@@ -130,8 +131,13 @@ my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HO
   "$lang{DISABLE}: $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT},
   $lang{VIRUS_ALERT});
 
+
 require Control::Auth;
 ($uid, $sid, $login) = auth_user($login, $passwd, $sid);
+
+if ($conf{AUTH_G2FA} && !$FORM{G2FA} && $FORM{AUTH_G2FA}) {
+  $user->web_session_del({ SID => $sid });
+}
 
 # if after auth user $uid not exist - show message about wrong password
 if (!$uid && exists $FORM{logined}) {
@@ -156,7 +162,7 @@ elsif ($FORM{xml}) {
   exit 0;
 }
 
-if (($conf{PORTAL_START_PAGE} && !$uid) || $FORM{article} || $FORM{menu_category}) {
+if (($conf{PORTAL_START_PAGE} && !$conf{tech_works} && !$uid) || $FORM{article} || $FORM{menu_category} ) {
   print $html->header();
   load_module('Portal', $html);
   my $wrong_auth = 0;
@@ -211,18 +217,6 @@ sub quick_functions {
   if ($uid > 0) {
     $default_index = 10;
     #  #Quick Amon Alive Update
-    #  # $ENV{HTTP_USER_AGENT} =~ /^AMon /
-    #  if ($FORM{ALIVE}) {
-    #    load_module('Ipn', $html);
-    #    print $html->header();
-    #    $LIST_PARAMS{LOGIN} = $user->{LOGIN};
-    #    ipn_user_activate();
-    #    $OUTPUT{BODY} = $html->{OUTPUT};
-    #    print $html->tpl_show(templates('form_client_start'), \%OUTPUT, { MAIN => 1,
-    #                                                                      ID   => 'form_client_start' });
-    #    exit;
-    #  }
-
     if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/ && $FORM{REFERER} !~ /index=1000/) {
       print "Location: $FORM{REFERER}\n\n";
       exit;
@@ -357,17 +351,11 @@ sub quick_functions {
 
     $OUTPUT{BODY} = $html->{OUTPUT};
     $html->{OUTPUT} = '';
-    #  if ($conf{AMON_UPDATE} && $ENV{HTTP_USER_AGENT} =~ /AMon \[(\S+)\]/) {
-    #    my $user_version = $1;
-    #    my ($u_url, $u_version, $u_checksum) = split(/\|/, $conf{AMON_UPDATE}, 3);
-    #    if ($u_version > $user_version) {
-    #      $OUTPUT{BODY} = "<AMON_UPDATE url=\"$u_url\" version=\"$u_version\" checksum=\"$u_checksum\" />\n" . $OUTPUT{BODY};
-    #    }
-    #  }
 
     $OUTPUT{STATE} = (!$user->{DISABLE} && $user->{SERVICE_STATUS}) ? $service_status[$user->{SERVICE_STATUS}] : $OUTPUT{STATE};
 
-    $OUTPUT{SELECT_LANGUAGE} = language_select();
+    $OUTPUT{SELECT_LANGUAGE} = language_select('language');
+    $OUTPUT{SELECT_LANGUAGE_MOBILE} = language_select('language_mobile');
 
     $OUTPUT{PUSH_SCRIPT} = ($conf{PUSH_ENABLED}
       ? "<script>window['GOOGLE_API_KEY']='" . ($conf{GOOGLE_API_KEY} // '') . "'</script>"
@@ -430,11 +418,40 @@ sub quick_functions {
     $OUTPUT{SKIN} = 'skin-blue-light';
   }
 
-  print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
-    MAIN => 1,
-    SKIP_DEBUG_MARKERS => 1,
-    ID   => 'FORM_CLIENT_START'
-  });
+  if ($conf{AUTH_G2FA} && $FORM{AUTH_G2FA} && $uid && !$FORM{REFERER}) {  
+    my $id_page;
+    my $first_page;
+
+    if ($FORM{G2FA}) {
+      my $secret_key = $user->info($uid);
+
+      require Abills::Auth::AuthOTP;
+      ($FORM{G2FA_SUCCESS}, undef) = Abills::Auth::AuthOTP->get_token($secret_key->{_G2FA}, $FORM{G2FA});
+    }
+    if ($FORM{G2FA_SUCCESS} eq '' && $FORM{AUTH_G2FA} && !$FORM{logined}) {
+      $first_page = 'form_g2fa';
+      $id_page = 'FORM_G2FA';
+    }
+    else {
+      $id_page = 'FORM_CLIENT_START';
+      $first_page = 'form_client_start';
+    }
+    
+    print $html->tpl_show(templates($first_page), \%OUTPUT, {
+      SKIP_DEBUG_MARKERS => 1,
+      MAIN               => 1,
+      ID                 => $id_page,
+      G2FA_SUCCESS       => $FORM{G2FA_SUCCESS}
+    });
+  }
+  else {
+    print $html->tpl_show(templates('form_client_start'), \%OUTPUT, {
+      MAIN               => 1,
+      SKIP_DEBUG_MARKERS => 1,
+      ID                 => 'FORM_CLIENT_START',
+      G2FA_SUCCESS       => $FORM{G2FA_SUCCESS}
+    });
+  }
 
   $html->fetch({ DEBUG => $ENV{DEBUG} });
 
@@ -485,13 +502,6 @@ sub form_info {
     require Control::Address_mng;
     form_address_select2(\%FORM);
     exit 1;
-  }
-
-  # TODO change to $module_user_info. if $conf{DEFAULT_USER_INFO}
-  if (in_array('Vacations', \@MODULES)) {
-    load_module('Vacations');
-    vacations_user_info();
-    return 1;
   }
 
   if (defined($FORM{PRINT_CONTRACT})) {
@@ -549,158 +559,11 @@ sub form_info {
     return 1;
   }
 
-  my $Payments = Finance->payments($db, $admin, \%conf);
+  #my $Payments = Finance->payments($db, $admin, \%conf);
 
-  my $tp_credit = 0;
+  form_credit();
 
-  my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $conf{user_credit_change} || q{});
-
-  $user->{CREDIT_DAYS} = $days || q{};
-  $user->{CREDIT_MONTH_CHANGES} = $month_changes || q{};
-
-  if (in_array('Dv', \@MODULES) && (!$sum || $sum =~ /\d+/ && $sum == 0)) {
-    load_module('Dv', $html);
-    my $Dv = Dv->new($db, $admin, \%conf);
-    $Dv->info($user->{UID});
-    if ($Dv->{USER_CREDIT_LIMIT} && $Dv->{USER_CREDIT_LIMIT} > 0) {
-      $sum = $Dv->{USER_CREDIT_LIMIT};
-    }
-  }
-  elsif (in_array('Internet', \@MODULES) && (!$sum || $sum =~ /\d+/ && $sum == 0)) {
-    load_module('Internet', $html);
-    my $Internet = Internet->new($db, $admin, \%conf);
-    $Internet->info($user->{UID});
-    if ($Internet->{USER_CREDIT_LIMIT} && $Internet->{USER_CREDIT_LIMIT} > 0) {
-      $sum = $Internet->{USER_CREDIT_LIMIT};
-    }
-  }
-
-  #Credit functions
-  if ($conf{user_credit_change}) {
-    $month_changes = 0 if (!$month_changes);
-    my $credit_date = POSIX::strftime("%Y-%m-%d", localtime(time + int($days) * 86400));
-
-    if ($month_changes) {
-      my ($y, $m) = split(/\-/, $DATE);
-      $admin->action_list(
-        {
-          UID       => $user->{UID},
-          TYPE      => 5,
-          AID       => $admin->{AID},
-          FROM_DATE => "$y-$m-01",
-          TO_DATE   => "$y-$m-31"
-        }
-      );
-
-      if ($admin->{TOTAL} >= $month_changes) {
-        $user->{CREDIT_CHG_BUTTON} = $html->color_mark("$lang{ERR_CREDIT_CHANGE_LIMIT_REACH}. $lang{TOTAL}: $admin->{TOTAL}/$month_changes", 'bg-danger');
-        $sum = -1;
-      }
-    }
-    $user->{CREDIT_SUM} = sprintf("%.2f", $sum);
-
-    #PERIOD=days;MAX_CREDIT_SUM=sum;MIN_PAYMENT_SUM=sum;
-    if ($payments_expr && $sum != -1) {
-      my %params = (
-        PERIOD          => 0,
-        MAX_CREDIT_SUM  => 1000,
-        MIN_PAYMENT_SUM => 1,
-        PERCENT         => 100
-      );
-      my @params_arr = split(/;/, $payments_expr);
-
-      foreach my $line (@params_arr) {
-        my ($k, $v) = split(/=/, $line);
-        $params{$k} = $v;
-      }
-
-      $Payments->list(
-        {
-          UID          => $user->{UID},
-          PAYMENT_DAYS => ">$params{PERIOD}",
-          SUM          => ">=$params{MIN_PAYMENT_SUM}"
-        }
-      );
-
-      if ($Payments->{TOTAL} > 0) {
-        $sum = $Payments->{SUM} / 100 * $params{PERCENT};
-        if ($sum > $params{MAX_CREDIT_SUM}) {
-          $sum = $params{MAX_CREDIT_SUM};
-        }
-      }
-      else {
-        $sum = 0;
-      }
-    }
-
-    $user->group_info($user->{GID});
-    if ($user->{TOTAL} > 0 && !$user->{ALLOW_CREDIT}) {
-      $FORM{change_credit} = 0;
-    }
-    elsif ($user->{DISABLE}) {
-    }
-    elsif ($user->{CREDIT} < sprintf("%.2f", $sum)) {
-      if ($FORM{change_credit}) {
-        if ($conf{user_confirm_changes}) {
-          return 1 unless ($FORM{PASSWORD});
-          $user->info($user->{UID}, { SHOW_PASSWORD => 1 });
-          if ($FORM{PASSWORD} ne $user->{PASSWORD}) {
-            $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD});
-            return 1;
-          }
-        }
-        $user->change(
-          $user->{UID},
-          {
-            UID         => $user->{UID},
-            CREDIT      => $sum,
-            CREDIT_DATE => $credit_date
-          }
-        );
-
-        if (!$user->{errno}) {
-          $html->message('info', "$lang{CHANGED}", " $lang{CREDIT}: $sum");
-          if ($price && $price > 0) {
-            my $Fees = Finance->fees($db, $admin, \%conf);
-            $Fees->take($user, $price, { DESCRIBE => "$lang{CREDIT} $lang{ENABLE}" });
-          }
-
-          cross_modules_call(
-            '_payments_maked',
-            {
-              USER_INFO => $user,
-              SUM       => $sum,
-              QUITE     => 1
-            }
-          );
-
-          if ($conf{external_userchange}) {
-            if (!_external($conf{external_userchange}, $user)) {
-              return 0;
-            }
-          }
-
-          $user->info($user->{UID});
-        }
-      }
-      else {
-        $user->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price);
-        $user->{CREDIT_SUM} = sprintf("%.2f", $sum);
-        $user->{OPEN_CREDIT_MODAL} = $FORM{OPEN_CREDIT_MODAL} || '';
-        $user->{CREDIT_CHG_BUTTON} = $html->button(
-          "$lang{SET} $lang{CREDIT}",
-          '#',
-          {
-            ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'",
-            class     => 'btn btn-xs btn-success',
-            SKIP_HREF => 1
-          }
-        );
-      }
-    }
-  }
-
-  my $deposit = ($user->{CREDIT} == 0) ? $user->{DEPOSIT} + $tp_credit : $user->{DEPOSIT} + $user->{CREDIT};
+  my $deposit = ($user->{CREDIT} == 0) ? $user->{DEPOSIT} + ($user->{TP_CREDIT} || 0) : $user->{DEPOSIT} + $user->{CREDIT};
   if ($deposit < 0) {
     form_neg_deposit($user);
   }
@@ -727,23 +590,7 @@ sub form_info {
       if (defined($user->{FLOOR}) || defined($user->{ENTRANCE})) {
         $user->{EXT_ADDRESS} = $html->tpl_show(templates('form_ext_address'), { ENTRANCE => $user->{ENTRANCE} || '', FLOOR => $user->{FLOOR} || '' }, { OUTPUT2RETURN => 1 });
       }
-      $user->{ADDRESS_SEL} = form_address_select2(${user},{ HIDE_ADD_BUILD_BUTTON => 1});
-#      $user->{ADDRESS_SEL} = $html->tpl_show(
-#        templates('form_client_address_search'),
-#        {
-#          ADDRESS_DISTRICT => $user->{ADDRESS_DISTRICT},
-#          DISTRICT_ID      => $user->{DISTRICT_ID},
-#          STREET_ID        => $user->{STREET_ID},
-#          ADDRESS_STREET   => $user->{ADDRESS_STREET},
-#          ADDRESS_BUILD    => $user->{ADDRESS_BUILD},
-#          LOCATION_ID      => $user->{LOCATION_ID},
-#          ADDRESS_FLAT     => $user->{ADDRESS_FLAT},
-#        }, {
-#          OUTPUT2RETURN      => 1,
-#          SKIP_DEBUG_MARKERS => 1,
-#          ID                 => 'form_client_address_search'
-#        }
-#      );
+      $user->{ADDRESS_SEL} = form_address_select2($user,{ HIDE_ADD_BUILD_BUTTON => 1});
     }
     else{
       require Control::Address_mng;
@@ -826,7 +673,6 @@ sub form_info {
             }
             else {
               load_module('Sms', $html);
-              #my $sms = Sms->new($db, $admin, \%conf);
               sms_send(
                 {
                   NUMBER     => $FORM{PHONE},
@@ -836,7 +682,6 @@ sub form_info {
                 }
               );
               $title = $lang{PHONE_VERIFICATION};
-              # $html->message('info', 'PHONE', string_encoding($FORM{PHONE}, $user->{UID}));
             }
             $user->{FORM_CONFIRMATION_CLIENT_PHONE} = $html->tpl_show(
               templates('form_confirmation_client_info'),
@@ -874,7 +719,6 @@ sub form_info {
             else {
               sendmail("$conf{ADMIN_MAIL}", "$FORM{EMAIL}", "$conf{WEB_TITLE}", "$lang{YOUR_VERIFICATION_CODE}: " . string_encoding($FORM{EMAIL}, $user->{UID}) . "", "$conf{MAIL_CHARSET}", '', {});
               $title = $lang{EMAIL_VERIFICATION};
-              # $html->message('info', 'EMAIL', string_encoding($FORM{EMAIL}, $user->{UID}));
             }
             $user->{FORM_CONFIRMATION_CLIENT_EMAIL} = $html->tpl_show(
               templates('form_confirmation_client_info'),
@@ -917,13 +761,12 @@ sub form_info {
       }
 
       $user->pi_change({ %FORM, UID => $user->{UID} });
-      if ($user->{errno} == 21) {
+      if ($user->{errno} && $user->{errno} == 21) {
         $html->message('err', $user->{errstr});
         return 1;
       }
-      $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
+      $html->message('info', $lang{CHANGED}, $lang{CHANGED});
       $user->pi();
-
     }
     elsif ($conf{CHECK_CHANGE_PI}) {
       $user->{TEMPLATE_BODY} = change_pi_popup();
@@ -935,7 +778,6 @@ sub form_info {
       || !$user->{ADDRESS_BUILD}
       || !$user->{EMAIL}) {
       # scripts for address
-#      $user->{ADDRESS_SEL} =~ s/\r\n||\n//g;
       $user->{MESSAGE_CHG} = $html->message('info', '', "$lang{INFO_CHANGE_MSG}", { OUTPUT2RETURN => 1 });
 
       $user->{PINFO} = 1;
@@ -951,8 +793,6 @@ sub form_info {
       if ($user->{ADDRESS_HIDDEN}) {
         delete $user->{ADDRESS_SEL};
       }
-      # my $modal = $html->tpl_show(templates('form_confirmation_client_info'),{PHONE => $FORM{PHONE}});
-      # my $btn_to_modal = $html->button('$user->{LNG_ACTION}', "", { class => 'btn btn-default', LOAD_TO_MODAL => $modal});
       # template to modal
       $user->{TEMPLATE_BODY} = $html->tpl_show(templates('form_chg_client_info'), $user, { OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
     }
@@ -969,6 +809,8 @@ sub form_info {
   $LIST_PARAMS{PAGE_ROWS} = 1;
   $LIST_PARAMS{DESC} = 'desc';
   $LIST_PARAMS{SORT} = 1;
+
+  my $Payments = Finance->payments($db, $admin, \%conf);
   my $list = $Payments->list(
     {
       %LIST_PARAMS,
@@ -986,10 +828,9 @@ sub form_info {
 
   $user->{STATUS} = ($user->{DISABLE}) ? $html->color_mark("$lang{DISABLE}", $_COLORS[6]) : $lang{ENABLE};
   $deposit = sprintf("%.2f", $user->{DEPOSIT});
-#  $user->{DEPOSIT} = ($deposit < $user->{DEPOSIT}) ?
-  #  + 0.01 : $deposit;
+
   $user->{DEPOSIT} = $deposit;
-  $sum = ($FORM{AMOUNT_FOR_PAY}) ? $FORM{AMOUNT_FOR_PAY} : ($user->{DEPOSIT} < 0) ? abs($user->{DEPOSIT} * 2) : 0;
+  my $sum = ($FORM{AMOUNT_FOR_PAY}) ? $FORM{AMOUNT_FOR_PAY} : ($user->{DEPOSIT} < 0) ? abs($user->{DEPOSIT} * 2) : 0;
   $pages_qs = "&SUM=$sum&sid=$sid";
 
   if (in_array('Docs', \@MODULES) && !$conf{DOCS_SKIP_USER_MENU}) {
@@ -1000,7 +841,7 @@ sub form_info {
   if (in_array('Paysys', \@MODULES)) {
     if (defined $user->{GID} && !$conf{PAYMENT_HIDE_USER_MENU}) {
       my $group_info = $user->group_info($user->{GID});
-      if (exists($group_info->{DISABLE_PAYSYS}) && $group_info->{DISABLE_PAYSYS} == 0) {
+      if ((exists($group_info->{DISABLE_PAYSYS}) && $group_info->{DISABLE_PAYSYS} == 0) || $group_info->{TOTAL} == 0) {
         my $fn_index = get_function_index('paysys_payment');
         $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
       }
@@ -1021,9 +862,6 @@ sub form_info {
   });
 
   foreach my $info_field_view (@$info_fields_view) {
-    #    if ($info_field_obj eq '_rating') {
-    #      $extra = $html->button($lang{RATING}, "index=" . get_function_index('dv_rating_user'), { BUTTON => 1 });
-    #    }
 
     my $name = $info_field_view->{NAME};
     my $view = $info_field_view->{VIEW};
@@ -1043,45 +881,6 @@ sub form_info {
       );
   }
 
-  #  $user->{INFO_FIELDS} =
-
-  # To show info fields, we first need to call list(), so it fills inner array ($user->{EXTRA_FIELDS})
-  #  $user->list({
-  #    UID       => $user->{UID},
-  #    LOGIN     => '_SHOW'
-  #  });
-  #
-  #  foreach my $info_field_obj (@{ $user->{EXTRA_FIELDS} }) {
-  #    my ($config_field_name, $field_params) = @{$info_field_obj};
-  #    my ($priority, $type_id, $name, $user_portal) = split(':', $field_params);
-  #
-  #    next if !$user_portal;
-  #
-  #    my $pi_field_name = substr($config_field_name, 3);
-  #
-  #    next if (! exists $user->{uc($pi_field_name)});
-  #
-  #    my $extra = '';
-  #    if ($info_field_obj eq '_rating') {
-  #      $extra = $html->button($lang{RATING}, "index=" . get_function_index('dv_rating_user'), { BUTTON => 1 });
-  #    }
-  #
-  #    $user->{INFO_FIELDS} .= $html->element(
-  #      'div',
-  #
-  #      $html->element('div', _translate($name), {
-  #          class         => 'col-xs-12 col-sm-3 col-md-3 text-1',
-  #          OUTPUT2RETURN => 1
-  #        })
-  #      . $html->element('div', "$user->{uc($pi_field_name)} $extra", {
-  #          class         => 'col-xs-12 col-sm-9 col-md-9 text-2',
-  #          OUTPUT2RETURN => 1
-  #        }),
-  #      { class=>'row', OUTPUT2RETURN => 1 }
-  #    );
-  #
-  #  }
-  #
   if ($conf{user_chg_pi}) {
     $user->{FORM_CHG_INFO} = $html->form_main(
       {
@@ -1139,21 +938,39 @@ sub form_info {
     $contacts{EMAIL} = $user->{EMAIL_ALL} || q{};
   }
 
-  $html->tpl_show(templates('form_client_info'), { %$user, %contacts }, { ID => 'form_client_info' });
-
-  if ($FORM{CONTRACT_LIST}) {
-    require Control::Contracts_mng;
-    $html->{OUTPUT} .= _user_contracts_table($user->{UID}, { UI => 1 });
+  if ($conf{AUTH_G2FA}) {
+    $contacts{AUTH_G2FA} = $html->button('qr code', "index=$index&sid=$sid&g2fa=1", { class => 'btn btn-xs btn-primary' });
   }
 
-  if (in_array('Dv', \@MODULES)) {
-    load_module('Dv', $html);
-    dv_user_info();
+  if (in_array('Accident', \@MODULES) && $conf{USER_ACCIDENT_LOG}) {
+    load_module('Accident', $html);
+    accident_dashboard_mess();
   }
 
-  if (in_array('Internet', \@MODULES)) {
-    load_module('Internet', $html);
-    internet_user_info();
+  unless ($FORM{g2fa}) {
+    $html->tpl_show(templates('form_client_info'), { %$user, %contacts }, { ID => 'form_client_info' });
+
+    if ($FORM{CONTRACT_LIST}) {
+      require Control::Contracts_mng;
+      $html->{OUTPUT} .= _user_contracts_table($user->{UID}, { UI => 1 });
+    }
+
+    if (in_array('Dv', \@MODULES)) {
+      load_module('Dv', $html);
+      dv_user_info();
+    }
+
+    if (in_array('Internet', \@MODULES)) {
+      load_module('Internet', $html);
+      internet_user_info();
+    }
+  }
+  else {
+    require Control::Qrcode;
+    my $code = _encode_url_to_img($user->{_G2FA}, { 
+      AUTH_G2FA_NAME => $conf{AUTH_G2FA_TITLE} || 'ABillS',
+      AUTH_G2FA_MAIL => $conf{ADMIN_MAIL}, 
+    });
   }
 
   return 1;
@@ -1187,11 +1004,11 @@ sub form_login_clients {
   }
 
   if ($conf{tech_works}) {
-    $html->message('info', $lang{INFO}, "$conf{tech_works}");
+    $html->message('info', $lang{INFO}, $conf{tech_works});
     return 0;
   }
 
-  $first_page{SEL_LANGUAGE} = language_select();
+  $first_page{SEL_LANGUAGE} = language_select('language');
 
   if (!$FORM{REFERER} && $ENV{HTTP_REFERER} && $ENV{HTTP_REFERER} =~ /$SELF_URL/) {
     $ENV{HTTP_REFERER} =~ s/sid=[a-z0-9\_]+//g;
@@ -1204,16 +1021,26 @@ sub form_login_clients {
 
   $first_page{TITLE} = $lang{USER_PORTAL};
 
-  $first_page{SOCIAL_AUTH_BLOCK} = make_social_auth_login_buttons();
+  %first_page = ( %first_page, %{ make_social_auth_login_buttons() } );
 
   if ($conf{TECH_WORKS}) {
     $first_page{TECH_WORKS_BLOCK_VISIBLE} = 1;
     $first_page{TECH_WORKS_MESSAGE} = $conf{TECH_WORKS};
   }
+
+  if ($conf{COOKIE_POLICY_VISIBLE} && $conf{COOKIE_URL_DOC}) {
+    $first_page{COOKIE_POLICY_VISIBLE} = 'block';
+    $first_page{COOKIE_URL_DOC} = $conf{COOKIE_URL_DOC};
+  }
+  else {
+    $first_page{COOKIE_POLICY_VISIBLE} = 'none';
+  }
+
   $OUTPUT{S_MENU} = 'style="display: none;"';
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_login'),
     \%first_page,
-    { MAIN => 1,
+    { 
+      MAIN => 1,
       ID   => 'form_client_login'
     });
 }
@@ -1224,8 +1051,6 @@ sub form_login_clients {
 =cut
 #**********************************************************
 sub form_passwd {
-  #my ($attr) = @_;
-  #my $hidden_inputs;
 
   $conf{PASSWD_SYMBOLS} = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWYXZ' if (!$conf{PASSWD_SYMBOLS});
   $conf{PASSWD_LENGTH} = 6 if (!$conf{PASSWD_LENGTH});
@@ -1424,7 +1249,6 @@ sub reports {
     my $table = $html->table(
       {
         width    => '100%',
-        rowcolor => $lang{COLORS}[1],
         rows     => [
           [
             @rows,
@@ -1554,14 +1378,18 @@ sub form_fees {
 
   my $FEES_METHODS = get_fees_types();
 
+  if ($conf{user_fees_methods}) {
+    $LIST_PARAMS{METHOD}=$conf{user_fees_methods};
+  }
+
   my $Fees = Finance->fees($db, $admin, \%conf);
   my $list = $Fees->list({
+    METHOD       => '_SHOW',
     %LIST_PARAMS,
     DSC          => '_SHOW',
     DATETIME     => '_SHOW',
     SUM          => '_SHOW',
     DEPOSIT      => '_SHOW',
-    METHOD       => '_SHOW',
     LAST_DEPOSIT => '_SHOW',
     LOGIN        => undef,
     COLS_NAME    => 1
@@ -1623,6 +1451,11 @@ sub form_payments_list {
     $LIST_PARAMS{PAGE_ROWS} = $attr->{rows} || '';
   }
 
+  # $conf{user_fees_methods}
+  if ($conf{user_payments_methods}) {
+    $LIST_PARAMS{METHOD}=$conf{user_payments_methods};
+  }
+
   my $list = $Payments->list({
     %LIST_PARAMS,
     DATETIME     => '_SHOW',
@@ -1682,10 +1515,17 @@ sub form_payments_list {
       NOW      - Now form input
       PERIOD   - Select period
 
+  Return:
+    $period_html_form
+
 =cut
 #**********************************************************
 sub form_period {
   my ($period, $attr) = @_;
+
+  if ($FORM{json}) {
+    return q{};
+  }
 
   my @periods = ($lang{NOW}, $lang{NEXT_PERIOD}, $lang{DATE});
   $attr->{TP}->{date_fld} = $html->date_fld2('DATE', { FORM_NAME => 'user', MONTHES => \@MONTHES, WEEK_DAYS => \@WEEKDAYS, NEXT_DAY => 1 });
@@ -1831,7 +1671,6 @@ sub form_money_transfer {
             if (!_error_show($Payments)) {
               my $message = "# $Payments->{INSERT_ID} $lang{MONEY_TRANSFER} $lang{SUM}: $FORM{SUM}";
               if ($transfer_price > 0) {
-                #$Fees = Finance->fees($db, $admin, \%conf);
                 $Fees->take(
                   $user,
                   $transfer_price,
@@ -1840,9 +1679,6 @@ sub form_money_transfer {
                     METHOD   => 4,
                   }
                 );
-                if (!$Fees->{errno}) {
-                  #$message .= " $lang{COMMISSION} $lang{SUM}: $transfer_price";
-                }
               }
 
               $html->message('info', $lang{PAYMENTS}, $message);
@@ -1899,14 +1735,12 @@ sub form_neg_deposit {
   }
 
   if (in_array('Paysys', \@MODULES)) {
-    #    my $fn_index = get_function_index('paysys_payment');
-    #    $user_->{PAYMENT_BUTTON} = $html->button( "$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 } );
 
     # check if user group has Disable Paysys mode
     unless ($conf{PAYMENT_HIDE_USER_MENU}) {
       if (defined $user->{GID}) {
         my $group_info = $user->group_info($user->{GID});
-        #if ($group_info->{DISABLE_PAYSYS} == 0) {
+
         if (!$group_info->{DISABLE_PAYSYS}) {
           my $fn_index = get_function_index('paysys_payment');
           $user->{PAYSYS_PAYMENTS} = $html->button($lang{BALANCE_RECHARCHE}, "index=$fn_index$pages_qs", { BUTTON => 2 });
@@ -1989,7 +1823,9 @@ sub user_login_background {
 sub form_events {
   my @result_array = ();
 
+  my $first_stage = gen_time($begin_time, { TIME_ONLY => 1 });
   print "Content-Type: text/html\n\n";
+
   my $cross_modules_return = cross_modules_call('_events', {
     UID              => $user->{UID},
     CLIENT_INTERFACE => 1
@@ -2003,6 +1839,11 @@ sub form_events {
   }
 
   print "[ " . join(", ", @result_array) . " ]";
+
+  if ($FORM{DEBUG}) {
+    print "First: $first_stage Total: "
+      .gen_time($begin_time, { TIME_ONLY => 1 });
+  }
 
   return 1;
 }
@@ -2078,7 +1919,8 @@ sub form_custom {
 
   require Control::Users_slides;
 
-  if (in_array('Accident', \@MODULES)) {
+  if (in_array('Accident', \@MODULES) && $conf{USER_ACCIDENT_LOG}) {
+    load_module('Accident', $html);
     accident_dashboard_mess();
   }
 
@@ -2110,7 +1952,6 @@ sub form_custom {
   };
 
   foreach my $key (@{$user_info}) {
-    #$html->{OUTPUT} .= "$key->{NAME}<br>";
     my $main_name = $key->{NAME};
     if ($key->{SLIDES}) {
       for (my $i = 0; $i <= $#{$key->{SLIDES}}; $i++) {
@@ -2179,26 +2020,21 @@ sub form_custom {
 #**********************************************************
 sub make_social_auth_login_buttons {
 
-  my $result = '';
+  my %result = ();
 
   foreach my $social_net_name ('Vk', 'Facebook', 'Google', 'Instagram', 'Twitter') {
     my $conf_key_name = 'AUTH_' . uc($social_net_name) . '_ID';
 
     if (exists $conf{$conf_key_name} && $conf{$conf_key_name}) {
-      my $lc_name = lc($social_net_name);
-      my $button_attr = {
-        class => 'icon-' . $lc_name,
-        ICON  => 'fa fa-' . $lc_name
-      };
-
-      $result .= $html->element('li',
-        $html->button('', "external_auth=$social_net_name", $button_attr),
-        { OUTPUT2RETURN => 1 }
-      )
+      $result{ $conf_key_name } = 'display: block;';
+      $result{ uc($social_net_name) } = "index.cgi?external_auth=$social_net_name";
+    }
+    else {
+      $result{ $conf_key_name } = 'display: none;';
     }
   }
 
-  return $result;
+  return \%result;
 }
 
 #**********************************************************
@@ -2441,6 +2277,7 @@ sub make_sender_subscribe_buttons_block {
 =cut
 #**********************************************************
 sub language_select {
+  my ($lang_name) = @_;
 
   #Make active lang list
   if ($conf{LANGS}) {
@@ -2465,7 +2302,7 @@ sub language_select {
   );
 
   return $html->form_select(
-    'language',
+    $lang_name,
     {
       SELECTED     => $html->{language},
       SEL_HASH     => \%LANG,
@@ -2571,6 +2408,7 @@ sub change_pi_popup {
 
   if ($conf{info_fields_new}) {
     require Info_fields;
+    require Control::Users_mng;
     my $Info_fields = Info_fields->new($db, $admin, \%conf);
     my $info_fields_list = $Info_fields->fields_list({
       COMPANY     => 0,
@@ -2638,7 +2476,7 @@ sub check_credit_availability {
       TO_DATE   => "$y-$m-31"
     });
 
-    if ($admin->{TOTAL} >= $month_changes) {
+    if ($admin->{TOTAL} && $month_changes && $admin->{TOTAL} >= $month_changes) {
       return 2;
     }
   }
@@ -2655,6 +2493,241 @@ sub check_credit_availability {
   $user->{CREDIT_SUM} = sprintf("%.2f", $sum);
 
   return 0;
+}
+
+
+#**********************************************************
+=head2 form_credit()
+
+
+=cut
+#**********************************************************
+sub form_credit {
+
+  if (! $conf{user_credit_change}) {
+    return '';
+  }
+
+  my $credit_rule = $FORM{CREDIT_RULE};
+  my @credit_rules = split(/;/, $conf{user_credit_change});
+
+  $user->group_info($user->{GID});
+  if ($user->{TOTAL} > 0 && !$user->{ALLOW_CREDIT}) {
+    $FORM{change_credit} = 0;
+    return '';
+  }
+  elsif ($user->{DISABLE}) {
+    return '';
+  }
+
+  if ($#credit_rules > 0 && ! defined($credit_rule)) {
+    my $table = $html->table({
+      width       => '100%',
+      caption     => $lang{CREDIT},
+      title_plain => [ $lang{DAYS}, $lang{PRICE}, '-' ],
+      ID          => 'CREDIT_FORM'
+    });
+
+    for(my $i=0; $i<=$#credit_rules; $i++)  {
+      my (undef, $days, $price, undef, undef) = split(/:/, $credit_rules[$i]);
+      $table->addrow($days, sprintf("%.2f", $price),
+        $html->button(
+          "$lang{SET} $lang{CREDIT}",
+          '#',
+          {
+            ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'
+              onClick=\"document.getElementById('change_credit').value='1'; document.getElementById('CREDIT_RULE').value='$i'; document.getElementById('CREDIT_CHG_PRICE').textContent='". sprintf("%.2f", $price) ."'\"",
+            class     => 'btn btn-xs btn-success',
+            SKIP_HREF => 1
+          }
+        )
+      );
+    }
+
+    $table->show();
+    return '';
+  }
+
+  my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $credit_rules[$credit_rule || 0]);
+  $user->{CREDIT_DAYS} = $days || q{};
+  $user->{CREDIT_MONTH_CHANGES} = $month_changes || q{};
+
+  if (!$sum || ($sum =~ /\d+/ && $sum == 0)) {
+    $sum = get_credit_limit({
+      REDUCTION => $user->{REDUCTION},
+      UID       => $user->{UID}
+    });
+  }
+
+  #Credit functions
+  $month_changes = 0 if (!$month_changes);
+  my $credit_date = POSIX::strftime("%Y-%m-%d", localtime(time + int($days) * 86400));
+
+  if ($month_changes) {
+    my ($y, $m) = split(/\-/, $DATE);
+    $admin->action_list(
+      {
+        UID       => $user->{UID},
+        TYPE      => 5,
+        AID       => $admin->{AID},
+        FROM_DATE => "$y-$m-01",
+        TO_DATE   => "$y-$m-31"
+      }
+    );
+
+    if ($admin->{TOTAL} >= $month_changes) {
+      $user->{CREDIT_CHG_BUTTON} = $html->color_mark("$lang{ERR_CREDIT_CHANGE_LIMIT_REACH}. $lang{TOTAL}: $admin->{TOTAL}/$month_changes", 'bg-danger');
+      $sum = -1;
+    }
+  }
+  $user->{CREDIT_SUM} = sprintf("%.2f", $sum);
+
+  #PERIOD=days;MAX_CREDIT_SUM=sum;MIN_PAYMENT_SUM=sum;
+  if ($payments_expr && $sum != -1) {
+    my %params = (
+      PERIOD          => 0,
+      MAX_CREDIT_SUM  => 1000,
+      MIN_PAYMENT_SUM => 1,
+      PERCENT         => 100
+    );
+    my @params_arr = split(/,/, $payments_expr);
+
+    foreach my $line (@params_arr) {
+      my ($k, $v) = split(/=/, $line);
+      $params{$k} = $v;
+    }
+
+    my $Payments = Finance->payments($db, $admin, \%conf);
+    $Payments->list(
+      {
+        UID          => $user->{UID},
+        PAYMENT_DAYS => ">$params{PERIOD}",
+        SUM          => ">=$params{MIN_PAYMENT_SUM}"
+      }
+    );
+
+    if ($Payments->{TOTAL} > 0) {
+      $sum = $Payments->{SUM} / 100 * $params{PERCENT};
+      if ($sum > $params{MAX_CREDIT_SUM}) {
+        $sum = $params{MAX_CREDIT_SUM};
+      }
+    }
+    else {
+      $sum = 0;
+    }
+  }
+
+  if ($user->{CREDIT} < sprintf("%.2f", $sum)) {
+    if ($FORM{change_credit}) {
+      if ($conf{user_confirm_changes}) {
+        return 1 unless ($FORM{PASSWORD});
+        $user->info($user->{UID}, { SHOW_PASSWORD => 1 });
+        if ($FORM{PASSWORD} ne $user->{PASSWORD}) {
+          $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD});
+          return 1;
+        }
+      }
+      $user->change(
+        $user->{UID},
+        {
+          UID         => $user->{UID},
+          CREDIT      => $sum,
+          CREDIT_DATE => $credit_date
+        }
+      );
+
+      if (!$user->{errno}) {
+        $html->message('info', $lang{CHANGED}, " $lang{CREDIT}: $sum");
+        if ($price && $price > 0) {
+          my $Fees = Finance->fees($db, $admin, \%conf);
+          $Fees->take($user, $price, { DESCRIBE => "$lang{CREDIT} $lang{ENABLE}" });
+        }
+
+        cross_modules_call(
+          '_payments_maked',
+          {
+            USER_INFO => $user,
+            SUM       => $sum,
+            QUITE     => 1
+          }
+        );
+
+        if ($conf{external_userchange}) {
+          if (!_external($conf{external_userchange}, $user)) {
+            return 0;
+          }
+        }
+
+        $user->info($user->{UID});
+      }
+    }
+    else {
+      $user->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price);
+      $user->{CREDIT_SUM} = sprintf("%.2f", $sum);
+      $user->{OPEN_CREDIT_MODAL} = $FORM{OPEN_CREDIT_MODAL} || '';
+      $user->{CREDIT_CHG_BUTTON} = $html->button(
+        "$lang{SET} $lang{CREDIT}",
+        '#',
+        {
+          ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'",
+          class     => 'btn btn-xs btn-success',
+          SKIP_HREF => 1
+        }
+      );
+    }
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 get_credit_limit();
+
+  Arguments:
+    $attr
+      UID
+      REDUCTION
+
+  Results:
+    $credit_limit
+
+=cut
+#**********************************************************
+sub get_credit_limit {
+  my ($attr) = @_;
+  my $credit_limit = 0;
+
+  if ($conf{user_credit_all_services}) {
+    require Control::Services;
+    my $service_info = get_services({
+      UID          => $attr->{UID},
+      REDUCTION    => $attr->{REDUCTION},
+      PAYMENT_TYPE => 0
+    });
+
+    foreach my $service ( @{ $service_info->{list} } ) {
+      $credit_limit += $service->{SUM};
+    }
+    return ($credit_limit+1);
+  }
+  elsif (in_array('Dv', \@MODULES)) {
+    load_module('Dv', $html);
+    my $Dv = Dv->new($db, $admin, \%conf);
+    $Dv->info($user->{UID});
+    if ($Dv->{USER_CREDIT_LIMIT} && $Dv->{USER_CREDIT_LIMIT} > 0) {
+      $credit_limit = $Dv->{USER_CREDIT_LIMIT};
+    }
+  }
+  elsif (in_array('Internet', \@MODULES)) {
+    load_module('Internet', $html);
+    my $Internet = Internet->new($db, $admin, \%conf);
+    $Internet->info($user->{UID});
+    if ($Internet->{USER_CREDIT_LIMIT} && $Internet->{USER_CREDIT_LIMIT} > 0) {
+      $credit_limit = $Internet->{USER_CREDIT_LIMIT};
+    }
+  }
+
+  return $credit_limit;
 }
 
 1

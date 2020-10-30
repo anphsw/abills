@@ -54,7 +54,6 @@ $lang{SEND_SMS_TO_ANYONE}='Send an SMS message to a staff member who is not regi
 
 #cashbox
 $lang{CASHBOX_WORK}='Work with cashbox';
-$lang{CASHBOX}='Cashbox';
 $lang{CASHBOXS}='Cashboxs';
 $lang{ADD_CASHBOX}='Add cashbox';
 $lang{CASHBOX_ADDED}='Cashbox added';
@@ -99,5 +98,9 @@ $lang{TYPE_IN_COMING_TYPE}='Type in coming type';
 $lang{UNITS_}='Units of measurement';
 
 $lang{VACATION}='Vacation';
+
+$lang{MOVING_BETWEEN_CASHBOXES}='moving between cashboxes';
+$lang{MOVING}='Moving';
+$lang{TYPE_IN_MOVING_TYPE} = 'Type in movig cachboxes';
 
 1

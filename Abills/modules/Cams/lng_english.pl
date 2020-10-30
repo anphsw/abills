@@ -34,7 +34,6 @@ $lang{NUMBER_OF_USERS} = "Number of users in the group exceeded";
 $lang{CAMS_ARCHIVE} = "Archive";
 $lang{CAM} = "Camera";
 $lang{LOCATION_CAMS} = 'Location';
-$lang{CAM_TITLE} = 'Group';
 $lang{CONSTANTLY_WORKING} = 'Constantly working';
 $lang{PRE_IMAGE} = 'Preview image';
 $lang{LIMIT_ARCHIVE} = 'Restrict access to the archive';
@@ -50,5 +49,11 @@ $lang{PARENT} = "Parent";
 $lang{CHILDREN} = "Children";
 $lang{FOLDERS} = "Folders";
 $lang{ENTER_GROUP_NAME_OR_ADDRESS} = "Enter name or address";
+
+$lang{CAMS_IMPORT_SUCCESSFULLY} = 'Import completed successfully';
+$lang{CAMS_IMPORT_ERROR} = 'Import failed';
+$lang{CAMS_IMPORT_MODELS} = 'Import models';
+
+$lang{CAMS_GROUP} = 'Group';
 
 1;

@@ -163,6 +163,10 @@ else {
   if ($conf{EVENTS_ASTERISK}) {
     start_plugin('Asterisk');
   }
+
+  if ($conf{ANDROID_PUSH} && $conf{ANDROID_PUSH_URL}) {
+    start_plugin('Android');
+  }
 }
 
 $Log->info('Waiting for events');
@@ -224,7 +228,7 @@ sub start_plugin {
 #**********************************************************
 sub help {
 
-  print <<"[END]";
+  print << "[END]";
   websocket_backend.pl start
 
 Arguments:

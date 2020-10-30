@@ -705,8 +705,7 @@ sub auth_ {
     #GEt Nas rad pairs
     if ($nas->{NAS_RAD_PAIRS}) {
       $nas->{NAS_RAD_PAIRS} =~ tr/\n\r//d;
-
-      my @pairs_arr = split(/,/, $nas->{NAS_RAD_PAIRS});
+      my @pairs_arr = split(/,[ \n]+/, $nas->{NAS_RAD_PAIRS});
       foreach my $line (@pairs_arr) {
         if ($line =~ /([a-zA-Z0-9\-:]{6,25})\+\=(.{1,200})/) {
           my $left  = $1;

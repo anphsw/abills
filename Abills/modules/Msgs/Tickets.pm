@@ -243,7 +243,6 @@ sub msgs_admin {
   elsif ($FORM{PHOTO}) {
     my $media_return = form_image_mng({
       TO_RETURN => 1,
-      #EXTERNAL_ID =>
     });
 
     if ($FORM{IMAGE}) {
@@ -254,6 +253,28 @@ sub msgs_admin {
     }
 
     return 0;
+  }
+  elsif ($FORM{del} && $FORM{UPDATE_STATUS}) {
+    my @id_msgs = ();
+    @id_msgs = split(/, /, $FORM{del});
+    
+    my @id_error_change = ();
+
+    foreach my $id (@id_msgs) {
+      $Msgs->message_change({
+        ID    => $id,
+        STATE => $FORM{STATE_CHANGE} || 2
+      });
+
+      push @id_error_change, $id if ($Msgs->{errno});
+    }
+
+    if ($#id_error_change > 0) {
+      $html->message('err', $lang{ERROR}, "$lang{ERROR}: " . join(', ', @id_error_change));
+    }
+    else {
+      $html->message('info', $lang{INFO}, $lang{SUCCESS});
+    }
   }
 
   if ($FORM{chg}) {
@@ -288,8 +309,14 @@ sub msgs_admin {
       $Msgs->msgs_address_del({ ID => $FORM{del} });
     }
 
-    $Msgs->message_del({ ID => $FORM{del}, UID => $uid });
-    $html->message('info', $lang{INFO}, "$lang{DELETED} # $FORM{del}") if (!$Msgs->{errno});
+    $Msgs->message_team_del($FORM{del});
+    if (!_error_show($Msgs)) {
+      $Msgs->message_del({ ID => $FORM{del}, UID => $uid });
+      $html->message('info', $lang{INFO}, "$lang{DELETED} # $FORM{del}") if (!$Msgs->{errno});
+    }
+    else {
+      $html->message('err', $lang{ERROR}, $lang{ERROR});
+    }
   }
 
   if (scalar keys %{$CHAPTERS_DELIGATION} > 0) {
@@ -428,7 +455,6 @@ sub msgs_admin_add {
     }
 
     if ($FORM{SEND_TYPE} && ($FORM{SEND_TYPE} == 1 || $FORM{SEND_TYPE} == 6)) {
-      #$FORM{INNER_MSG} = 1;
       $FORM{STATE} = 2;
     }
 
@@ -528,7 +554,6 @@ sub msgs_admin_add {
         FUNCTION_FIELDS => '',
         TABLE           => {
           width      => '100%',
-          #caption    => "$lang{PRE} - $lang{USERS}",
           qs         => $pages_qs,
           ID         => 'USERS_LIST',
           SELECT_ALL => "users_list:UID:$lang{SELECT_ALL}",
@@ -647,13 +672,13 @@ sub msgs_admin_add {
         });
 
         if (!_error_show($Msgs)) {
-           $Msgs->msgs_address_add({ 
-                ID          => $Msgs->{INSERT_ID},
-                DISTRICTS   => $FORM{DISTRICT_ID} || 0,
-                STREET      => $FORM{STREET_ID} || 0,
-                BUILD       => $FORM{LOCATION_ID} || 0,
-                FLAT        => $FORM{ADDRESS_FLAT} || 0
-            });
+          $Msgs->msgs_address_add({
+            ID        => $Msgs->{INSERT_ID},
+            DISTRICTS => $FORM{DISTRICT_ID} || 0,
+            STREET    => $FORM{STREET_ID} || 0,
+            BUILD     => $FORM{LOCATION_ID} || 0,
+            FLAT      => $FORM{ADDRESS_FLAT} || 0
+          });
         }
 
         if (_error_show($Msgs)) {
@@ -733,8 +758,6 @@ sub msgs_admin_add {
         $FORM{ID} = join(',', @msgs_ids);
         my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($FORM{ID} ? " : $FORM{ID}" : ''));
         $html->redirect("?index=$index"
-          # . "&UID=" . ($FORM{UID} || q{})
-          # . "&chg=" . ($FORM{ID} || q{})
           . "&MESSAGE=$header_message#last_msg",
         );
       }
@@ -823,7 +846,10 @@ sub msgs_admin_add_form {
 
   if ((!$FORM{UID} || $FORM{UID} =~ /;/) && !$FORM{TASK}) {
     $tpl_info{GROUP_SEL} = sel_groups({ MULTISELECT => 1 });
-    $tpl_info{ADDRESS_FORM} = form_address({ LOCATION_ID => $FORM{LOCATION_ID} || '' });
+    $tpl_info{ADDRESS_FORM} = form_address({ 
+      LOCATION_ID       => $FORM{LOCATION_ID} || '',
+      SHOW_ADD_BUTTONS  => $conf{MSGS_ADDRESS} ? 1 : 0,
+    });
 
     if (in_array('Tags', \@MODULES)) {
       if (!$admin->{MODULES} || $admin->{MODULES}{'Tags'}) {
@@ -927,7 +953,6 @@ sub msgs_admin_add_form {
     'STATE',
     {
       SELECTED   => $Msgs->{STATE} || 0,
-      #SEL_HASH => { %{$msgs_status}{(0,1,2,9)} },
       SEL_HASH   => {
         0 => $msgs_status->{0},
         1 => $msgs_status->{1},
@@ -982,9 +1007,7 @@ sub msgs_admin_add_form {
       ID            => 'MSGS_SEND_FORM'
     });
 
-  #if ( $attr->{OUTPUT2RETURN} ) {
   return $message_form;
-  #}
 }
 
 
@@ -1269,13 +1292,6 @@ sub msgs_ticket_show {
   },
     { OUTPUT2RETURN => 1 });
 
-  #$Msgs->{THREADS}  =  $html->button($Msgs->{SUBJECT}.  "  ($lang{DATE}: $Msgs->{DATE})  ", "");
-  #if  ($Msgs->{REPLIES_COUNT}  >  0) {
-  #   foreach my  $line  (@{  $Msgs->{REPLIES_COUNT} })  {
-  #      my ($id, $caption, $date,  $person)=split(/|/,  $line);
-  #    }
-  #  }
-
   my $REPLIES = msgs_ticket_reply($message_id);
 
   $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
@@ -1334,7 +1350,7 @@ sub msgs_ticket_show {
         INNER_MSG       => ($FORM{INNER_MSG}) ? ' checked ' : '',
         SURVEY_SEL      => $survey_sel
       },
-      { OUTPUT2RETURN => 1, ID => 'MSGS_REPLY' }
+      { OUTPUT2RETURN => 1, ID => 'MSGS_REPLY', NO_SUBJECT => $lang{NO_SUBJECT} }
     );
   }
 
@@ -1389,7 +1405,6 @@ sub msgs_ticket_show {
   }
 
   $Msgs->{ID} = $Msgs->{MAIN_ID};
-  #    $Msgs->{MAP} = msgs_maps({ %$Msgs, %$users });
 
   while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
     my $msg_button = $html->button($1, "&index=$index&chg=$1",
@@ -1437,7 +1452,6 @@ sub msgs_ticket_show {
     $Msgs->message_change({
       UID        => $uid,
       ID         => $message_id,
-      #USER_READ  => "0000-00-00  00:00:00",
       ADMIN_READ => "$DATE $TIME",
       SKIP_LOG   => 1
     });
@@ -1523,9 +1537,6 @@ sub msgs_ticket_reply {
       elsif ($line->{aid} > 0) {
         $reply_color = 'box-success';
       }
-      #      else {
-      #        $msg_color = 'box-theme';
-      #      }
     }
 
     my $new_topic_button = '';
@@ -1548,10 +1559,8 @@ sub msgs_ticket_reply {
     );
 
     my $quote_button = $html->button(
-      $lang{QUOTING},
-      "&index=$index&chg=$message_id&UID=$uid&QUOTING=$line->{id}#reply"
-        . (($line->{inner_msg}) ? "&INNER_MSG=1" : '')
-      , { BUTTON => 1 }
+      $lang{QUOTING}, "",
+      { class => 'btn btn-default btn-xs quoting-reply-btn', ex_params => "quoting_id='$line->{id}'" }
     );
 
     my $run_time = ($line->{run_time} && $line->{run_time} ne '00:00:00') ? "$lang{RUN_TIME}: $line->{run_time}" : '';
@@ -1577,11 +1586,6 @@ sub msgs_ticket_reply {
         LAST_MSG   => ($total_reply == $#REPLIES + 2) ? 'last_msg' : '',
         REPLY_ID   => $line->{id},
         DATE       => $line->{datetime},
-        #        CAPTION    =>  convert($line->{caption}, {
-        #            text2html => 1,
-        #            json => $FORM{json}
-        #          })
-        #          . "  #  $Msgs->{ID}  $line->{id}",
         PERSON     => ($line->{creator_id} || q{}) . ' ' .
           (($line->{aid})
             ? " ($lang{ADMIN})"
@@ -1604,10 +1608,9 @@ sub msgs_ticket_reply {
 
   if ($Msgs->{REPLY_QUOTE}) {
     if ($FORM{json}) {
-      $Msgs->{REPLY_QUOTE} = ''; #convert($reply, { text2html => 1, json => $FORM{json} })
+      $Msgs->{REPLY_QUOTE} = '';
     }
     else {
-      #      $reply =~ s/^/>  /g;
       $Msgs->{REPLY_QUOTE} =~ s/\n/> /g;
     }
   }
@@ -1692,10 +1695,6 @@ sub _msgs_change_responsible {
         PARSE_MODE  => 'HTML'
       });
     };
-    #    if ($@) {
-    # Do nothing
-    # TODO: show webinterface independent message or write to log
-    #    }
   }
   else {
     msgs_notify_admins({
@@ -1830,19 +1829,15 @@ sub msgs_export {
 
     ($table, $list) = result_former(
       {
-        #FUNCTION_FIELDS => "iptv_olltv:DEL:mac;serial_number:&list=$FORM{list}&del=1&COMMENTS=1",
         TABLE         => {
           width            => '100%',
           caption          => 'Redmine tasks',
-          #qs               => "&list=$FORM{list}",
-          #SHOW_COLS        => \%info_oids,
           SHOW_COLS_HIDDEN => {
           },
           ID               => 'MSGS_REDMINE_LIST',
         },
         DATAHASH      => $Export_redmine->{RESULT}->{issues},
         SKIPP_UTF_OFF => 1,
-        # MAKE_ROWS    => 1,
         TOTAL         => 1
       }
     );
@@ -1867,8 +1862,6 @@ sub msgs_export {
     {
       SELECTED  => 'redmine',
       SEL_ARRAY => [ 'redmine' ],
-      #STYLE        => \@priority_colors,
-      #ARRAY_NUM_ID => 1
     }
   );
 
@@ -1930,14 +1923,8 @@ sub msgs_employee_tasks_map {
 
   _error_show($Msgs);
 
-  #my $msgs_admin_index = get_function_index('msgs_admin');
-
   my %tasks_by_location = ();
   foreach my $task (@{$tasks}) {
-    #    $task->{subject} = $html->button(
-    #      $task->{subject},
-    #      "?index=$msgs_admin_index&chg=$task->{id}"
-    #    );
 
     if ($tasks_by_location{$task->{build_id}}) {
       push @{$tasks_by_location{$task->{build_id}}}, $task;
@@ -1947,7 +1934,6 @@ sub msgs_employee_tasks_map {
     }
 
     $task->{location_id} = $task->{build_id};
-    #$task->{login} = $task->{user_name};
     $task->{state} = $state_name{$task->{state}} || '--';
 
     delete $task->{build_id};
@@ -2019,8 +2005,6 @@ sub msgs_maps {
       } ]
     },
     LOCATION_TABLE_FIELDS => 'LOGIN,UID,FIO',
-    #GET_LOCATION => 1,
-    #ICON         => 'atm',
     OUTPUT2RETURN         => 1,
     HIDE_ALL_LAYERS       => 1,
     MAP_ZOOM              => 16,
@@ -2273,7 +2257,6 @@ sub _msgs_reply_admin {
 
   my %params = ();
   my $msg_state = $FORM{STATE} || 0;
-  #$FORM{STATE}         = $msg_state;
   $params{CHAPTER} = $FORM{CHAPTER_ID} if ($FORM{CHAPTER_ID});
   $params{STATE} = ($msg_state == 0 && !$FORM{MAIN_INNER_MESSAGE} && !$FORM{REPLY_INNER_MSG}) ? 6 : $msg_state;
   $params{CLOSED_DATE} = "$DATE  $TIME" if ($msg_state == 1 || $msg_state == 2);

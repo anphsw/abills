@@ -2,17 +2,17 @@
 if ($conf{PAYSYS_NEW_SCHEME}) {
   %FUNCTIONS_LIST = (
     # Configure 1-20
-    "01:0:Paysys:null"                                                 => 5,
-    "05:2:Paysys:paysys_get_module_settings:MODULE,PAYSYSTEM_ID"       => 5,
-    "06:1:$lang{EXTERNAL_COMMAND}:paysys_configure_external_commands:" => 5,
-    "80:2:Paysys_Test:paysys_main_test:MODULE,PAYSYSTEM_ID"            => 5,
-    "81:80:Paysys_Test:paysys_test:AJAX"                               => 5,
+    "01:0:$lang{PAYSYS}:null"                                           => 5,
+    "05:2:$lang{PAYSYS}:paysys_get_module_settings:MODULE,PAYSYSTEM_ID" => 5,
+    "06:1:$lang{EXTERNAL_COMMAND}:paysys_configure_external_commands:"  => 5,
+    "80:2:Paysys_Test:paysys_main_test:MODULE,PAYSYSTEM_ID"             => 5,
+    "81:80:Paysys_Test:paysys_test:AJAX"                                => 5,
     # Reports 21-40
-    "21:0:Paysys:paysys_log"                                           => 4,
-    "22:21:$lang{INTERNAL_REPORTS}:paysys_reports"                     => 4,
+    "21:0:$lang{PAYSYS}:paysys_log"                                     => 4,
+    "22:21:$lang{INTERNAL_REPORTS}:paysys_reports"                      => 4,
     # Import Fees 60-70
-    "60:0:Import:paysys_import_fees_new:"                              => 3,
-    "82:80::paysys_terminals_show:AJAX"                                => 5,
+    "60:0:Import:paysys_import_fees_new:"                               => 3,
+    "82:80::paysys_terminals_show:AJAX"                                 => 5,
   );
 
   if ($conf{PAYSYS_NEW_SETTINGS}) {
@@ -54,6 +54,7 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
   }
 
   %PERIODIC = (daily => [ 'paysys_periodic_new' ],
+    monthly          => [ 'paysys_monthly_new' ]
   );
 
   if ($permissions{1} && $permissions{1}{5}) {
@@ -62,17 +63,17 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
 }
 else{
   %FUNCTIONS_LIST = (
-    "02:0:Paysys:paysys_log:"                                        => 4,
+    "02:0:$lang{PAYSYS}:paysys_log:"                                        => 4,
     "06:0:Import:paysys_import_fees:"                                => 3,
     "09:2:$lang{EXCHANGE_RATES}:null:"                               => 4,
     "50:9:Privat 24:paysys_p24_ex_rates_print:"                      => 4,
     "51:9:$lang{NBU}:paysys_nbu_ex_rates_print:"                     => 4,
     "52:9:$lang{NBKR}:paysys_nbkr_ex_rates_print:"                   => 4,
-    "07:0:Paysys:null:"                                              => 5,
+    "07:0:$lang{PAYSYS}:null:"                                              => 5,
     "16:7:$lang{EXTERNAL_COMMAND}:paysys_external_commands:"         => 5,
     "19:7:$lang{SETTINGS}:paysys_systems_configuration:"             => 5,
     "20:7:$lang{PAYSYS_SETTINGS_FOR_GROUPS}:paysys_groups_settings:" => 5,
-    "21:7:Paysys:paysys_test:PAYSYSTEM"                              => 5,
+    "21:7:$lang{PAYSYS}:paysys_test:PAYSYSTEM"                              => 5,
   );
 
   if ($conf{PAYSYS_QIWI_TERMINAL_ID}) {

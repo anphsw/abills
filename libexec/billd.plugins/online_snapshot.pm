@@ -20,7 +20,7 @@ our (
   $argv,
   $base_dir,
   $Nas,
-  $Dv
+  $Internet
 );
 
 
@@ -226,7 +226,7 @@ sub ipn_activate {
   my ($attr) = @_;
 
   my $nas_id = $attr->{nas_id};
-  $Dv->info($attr->{uid});
+  $Internet->info($attr->{uid});
 
   my %DATA = (
     ACCT_STATUS_TYPE     => 1,
@@ -245,7 +245,7 @@ sub ipn_activate {
     'NAS-IP-Address'     => $nas_info{$nas_id}{NAS_IP},
     NAS_MNG_USER         => $nas_info{$nas_id}{NAS_MNG_USER},
     NAS_MNG_IP_PORT      => $nas_info{$nas_id}{NAS_MNG_IP_PORT},
-    TP_ID                => $Dv->{TP_ID},
+    TP_ID                => $Internet->{TP_ID},
     CALLING_STATION_ID   => $attr->{CID} || $attr->{cid} || $attr->{client_ip},
     'Calling-Station-Id' => $attr->{CID} || $attr->{cid} || $attr->{client_ip},
     CONNECT_INFO         => $attr->{connect_info} || 0,

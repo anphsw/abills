@@ -345,15 +345,11 @@ sub form_parse {
     while (read(STDIN, $newtext, 1)) {
       $buffer .= $newtext;
     }
-    # ($prefix, $buffer) = split(/[\r\n]+/, $buffer);
-    # if ($buffer && hex("0x$prefix") > 0) {
-    #   $ret = substr($buffer, 0, hex("0x$prefix"));
-    # }
   }
-  elsif ($ENV{'REQUEST_METHOD'} eq "GET") {
+  elsif ($ENV{'REQUEST_METHOD'} ~~ ['GET', 'PUT', 'DELETE']) {
     $buffer = $ENV{'QUERY_STRING'};
   }
-  elsif ($ENV{'REQUEST_METHOD'} eq "POST") {
+  elsif ($ENV{'REQUEST_METHOD'} eq 'POST') {
     read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
   }
 
@@ -398,6 +394,7 @@ sub form_parse {
     for my $part (@pairs) {
       $part =~ s/[\r]\n$//g;
       my (undef, $firstline, $datas) = split(/[\r]\n/, $part, 3);
+
       next if $firstline =~ /filename=\"\"/;
       $firstline =~ s/^Content-Disposition: form-data; //;
       my (@columns) = split(/;\s+/, $firstline);
@@ -765,6 +762,8 @@ sub form_main {
     $self->{OUTPUT} .= $self->{FORM};
     $self->{FORM} = '';
   }
+
+  #Abills::Base::_bp('', $attr->{CONTENT}, {HEADER=>1, TO_CONSOLE=>1 });
 
   return $self->{FORM};
 }
@@ -1923,7 +1922,9 @@ sub table {
   </div>
 </div>\n";
 
-      $show_cols_button = "<button title='$lang->{EXTRA_FIELDS}' class='btn btn-box-tool' data-toggle='modal' data-target='#" . $attr->{ID} . "_cols_modal'><span class='glyphicon glyphicon-option-horizontal'></span></button>";
+      $show_cols_button = "<button title='$lang->{EXTRA_FIELDS}' class='btn btn-box-tool' data-toggle='modal' data-target='#"
+        . ($attr->{ID} || 'no_id_element')
+        . "_cols_modal'><span class='glyphicon glyphicon-option-horizontal'></span></button>";
     }
 
     my $collapse_icon = ($attr->{HIDE_TABLE}) ? 'fa-plus' : 'fa-minus';
@@ -2571,8 +2572,12 @@ sub table_title {
       elsif ($index) {
         $op = "index=$index";
       }
-
-      $self->{table_title} .= $self->button($line, "$op$qs&pg=$pg&sort=$i&desc=$desc");
+      my $admin_subf = '';      
+      if ($FORM{AID} && $FORM{subf}) {
+        $admin_subf = "&AID=$FORM{AID}&subf=$FORM{subf}";  
+      }
+      
+      $self->{table_title} .= $self->button($line, "$op$qs&pg=$pg&sort=$i&desc=$desc" . $admin_subf);
       $self->{table_title} .= " <span class='glyphicon $img'></span>" if ($img);
     }
     else {
@@ -2908,6 +2913,11 @@ sub button {
   my ($name, $params, $attr) = @_;
   my $ex_attr = ($attr->{ex_params}) ? " $attr->{ex_params}" : '';
 
+  my $confirmation = '-';
+  if ($attr->{TWO_CONFIRMATION}) {
+    $confirmation = $attr->{TWO_CONFIRMATION};
+  }
+
   $params = ($attr->{GLOBAL_URL}) ? $attr->{GLOBAL_URL} : "$SELF_URL?" . (($params) ? $params : '');
   $params = $attr->{JAVASCRIPT} if (defined($attr->{JAVASCRIPT}));
   $params = $self->link_former($params) if (!$attr->{NO_LINK_FORMER} || !$attr->{GLOBAL_URL});
@@ -2956,7 +2966,7 @@ sub button {
 
     # title, link, attr_json;
     my $onclick_str = q/onClick="cancelEvent(event);/
-      . qq/showCommentsModal('$text_message', '$params',/
+      . qq/showCommentsModal('$text_message', '$params', '$confirmation', /
       . qq/{ ajax: '$ajax_params', type : '$comments_type' } )"/;
     $ex_attr .= " $onclick_str ";
     $attr->{SKIP_HREF} = 1;
@@ -3787,7 +3797,7 @@ sub make_charts {
   }
 
   my %CHART_OPTIONS = ();
-  my $DATA = $attr->{DATA};
+  my $DATA = $attr->{DATA} || {};
   my @result_arr = ();
   my $debug = $attr->{DEBUG} || 0;
 
@@ -4597,9 +4607,11 @@ sub short_info_panels_row {
       </div>
     };
 
-    if ($size ne '') {
-      $panel_html = "<div class='col-md-$size'>$panel_html</div>";
+    $panel_html = "<div class='col-md-$size'>$panel_html</div>" if ($size ne '');
+    if ($panel->{LIKE_BUTTON} && $panel->{BUTTON_PARAMS}) {
+      $panel_html = $self->button($panel_html, $panel->{BUTTON_PARAMS}, $panel->{BUTTON_ATTR});
     }
+
     $result .= $panel_html;
   }
 
@@ -5516,5 +5528,79 @@ sub _make_perm_clases {
   return $style_str;
 }
 
+#**********************************************************
+=head2 button_isp_express()
+  
+  Arguments:
+    $attr:
+      INFO      - Hash value button
+      DROPDOWN  - Dropdown button
+
+  Returns:
+    $result - express button panel
+
+=cut
+#**********************************************************
+sub button_isp_express {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @titles = ();
+  my $block_button_info = '';
+
+  if ($attr->{DROPDOWN}) {
+    foreach my $title (@{ $attr->{INFO} }) {
+      my $informations = '';
+      while ( my ($key, $value) = each(%$title) ) {
+        $informations .= "<li><a href='$value'>$key</a></li>";
+      }
+
+      push @titles, 
+      "<a href='#' class='dropdown-toggle' data-toggle='dropdown'>$title<b class='caret'></b></a>
+        <ul class='dropdown-menu multi-column columns-3'>
+          <div class='row'>
+            <div class='col-sm-4'>
+              <ul class='multi-column-dropdown'>
+                <h5 class='title'>Центр</h5>
+                  $informations
+              </ul>
+            </div>
+          </div>
+        </ul>";
+    }
+
+    foreach my $information (@titles) {
+      $block_button_info .= "
+      <li class='dropdown'>
+        $information
+      </li>";
+    }
+  } else {
+    foreach my $title (@{ $attr->{INFO} }) {
+      my ($key, $value) = each(%$title);
+      $block_button_info .= "<li class='dropdown'><a href='$value' class='dropdown-toggle'>$key</a></li>";
+    }
+  }
+
+  my $result = 
+  "<section class='content-header'>  
+      <nav class='navbar navbar-default' role='navigation'>
+        <div class='navbar-header'>
+          <button type='button' class='navbar-toggle' data-toggle='collapse' data-target='#bs-example-navbar-collapse-1'>
+	          <span class='icon-bar'></span>
+	          <span class='icon-bar'></span>
+	          <span class='icon-bar'></span>
+          </button>
+        </div>
+        <div class='collapse navbar-collapse' id='bs-example-navbar-collapse-1'>
+          <ul class='nav navbar-nav'>
+            $block_button_info
+          </ul>
+        </div>
+      </nav>
+  </section>";
+
+  return $result;
+}
 
 1

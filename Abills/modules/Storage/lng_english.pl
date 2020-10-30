@@ -150,3 +150,8 @@ $lang{REPORT}='Report';
 
 $lang{INSTALLED_REPORT}='Report on installed goods';
 $lang{INSTALLED_PERIOD}='Installed goods for the period';
+
+$lang{SERIAL_NUMBER_IS_ALREADY_IN_USE} = 'This SN is already in use';
+
+$lang{STORAGE_MONTHS_LEFT} = 'Months left';
+$lang{STORAGE_COMPLETED} = 'Completed';

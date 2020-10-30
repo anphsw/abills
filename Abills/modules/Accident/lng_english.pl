@@ -21,4 +21,5 @@ $lang{ACCIDENT_FOR_EQUIPMENT} = 'Malfunctioning equipment';
 $lang{WARNING_TIME} = 'The works will be completed by: ';
 $lang{COMPENSATION} = 'Compensation';
 $lang{PROCENT} = 'Procent';
+$lang{USER_ACCIDENT_EMPTY}="The user has no accidents or breakdowns!";
 1;

@@ -15,8 +15,8 @@ use Abills::Base qw(in_array cfg2hash convert ip2int
   mk_unique_value decode_base64 sendmail encode_base64 cmd load_pmodule);
 use Abills::Fetcher qw(web_request);
 use Finance;
-use Abills::Misc;
 use Abills::Experimental qw(arrays_array2table);
+require Abills::Misc;
 
 if (form_purchase_module({
 	HEADER          => $user->{UID},
@@ -31,7 +31,6 @@ our ($db,
   %conf,
   $admin,
   $op_sid,
-  $html,
   %lang,
   $base_dir,
   %ADMIN_REPORT,
@@ -46,10 +45,9 @@ our ($db,
 );
 
 my $payment_methods = get_payment_methods();
-#%PAYSYS_PAYMENTS_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
-
 %PAYSYS_PAYMENTS_METHODS = %{ $payment_methods };
 
+our Abills::HTML $html;
 our $Payments = Finance->payments($db, $admin, \%conf);
 our $Fees     = Finance->fees($db, $admin, \%conf);
 our $Paysys   = Paysys->new($db, $admin, \%conf);
@@ -543,9 +541,9 @@ sub paysys_import_form_new {
     #Default Binding field
     my $BINDING_FIELD = $attr->{BINDING_FIELDS} || $FORM->{BINDING_FIELD} || 'CONTRACT_ID';
 
-    if (defined($attr->{IMPORT_TYPE})) {
-      $import_expr = $conf{ 'PAYSYS_IMPORT_EXPRATION_' . $attr->{IMPORT_TYPE} };
-      $BINDING_FIELD = $conf{ 'PAYSYS_IMPORT_BINDING_' . $attr->{IMPORT_TYPE} } if ($conf{ 'PAYSYS_IMPORT_BINDING_' . $attr->{IMPORT_TYPE} });
+    if (defined($attr->{IMPORT_TYPE}|| $attr->{FORM}->{IMPORT_TYPE} )) {
+      $import_expr = $conf{ 'PAYSYS_IMPORT_EXPRATION_' . ($attr->{IMPORT_TYPE} || $attr->{FORM}->{IMPORT_TYPE}) };
+      $BINDING_FIELD = $conf{ 'PAYSYS_IMPORT_BINDING_' .( $attr->{IMPORT_TYPE} || $attr->{FORM}->{IMPORT_TYPE})} if ($conf{ 'PAYSYS_IMPORT_BINDING_' . ($attr->{IMPORT_TYPE} || $attr->{FORM}->{IMPORT_TYPE} )});
     }
 
     my ($DATA_ARR, $BINDING_IDS);
@@ -588,7 +586,7 @@ sub paysys_import_form_new {
     #Get data from file
     elsif ($FORM->{FILE_DATA}) {
       ($DATA_ARR, $BINDING_IDS) = paysys_import_parse($FORM->{FILE_DATA}{Contents}, $import_expr,
-        $BINDING_FIELD, { DEBUG => $debug, ENCODE => $FORM->{ENCODE} });
+        $BINDING_FIELD, { DEBUG => 6, ENCODE => $FORM->{ENCODE} });
 
       if($FORM{METHOD} == 113){
         my $Address = Address->new($db, $admin, \%conf);
@@ -1050,6 +1048,7 @@ sub paysys_maps_layers {
 =cut
 #**********************************************************
 sub paysys_terminals_show {
+  my ($attr) = @_;
 
   my $terminals = $Paysys->terminal_list_with_coords({
     COORDX_CENTER => '_SHOW',
@@ -1098,6 +1097,10 @@ sub paysys_terminals_show {
       [ $lang{DESCRIBE}, $terminal->{description} ],
     ]);
 
+    $line_info =~ s/\"/\\\"/g if $attr->{ESCAPE};
+
+    $terminal->{name} ||= " ";
+    $terminal->{address_full} ||= " ";
     my %marker = (
       MARKER    => {
         LAYER_ID      => 35,
@@ -1119,12 +1122,77 @@ sub paysys_terminals_show {
     push @objects_to_show, \%marker;
   }
 
+  return \@objects_to_show if $attr->{RETURN_OBJECTS};
+
   if ($FORM{RETURN_JSON}) {
     print "[" . (join ',', map {JSON::to_json($_, { utf8 => 0 })} @objects_to_show) . "]";
     return 1;
   }
 
   return join ',', map {JSON::to_json($_, { utf8 => 0 })} @objects_to_show;
+}
+
+#**********************************************************
+=head paysys_monthly_new($attr) - Month periodic payments
+
+
+=cut
+#**********************************************************
+sub paysys_monthly_new {
+  my ($attr) = @_;
+
+  my $debug = $attr->{DEBUG} || 0;
+  my $debug_output = '';
+  $debug_output .= "DV: Monthly periodic payments\n" if ($debug > 1);
+
+  $ADMIN_REPORT{DATE} = $DATE if (!$ADMIN_REPORT{DATE});
+  my (undef, undef, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+
+  my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
+
+ # if ($d != $START_PERIOD_DAY) {
+  #   $DEBUG .= $debug_output;
+  #   return $debug_output;
+  #  Abills::Base::_bp('TEST', $START_PERIOD_DAY , {HEADER=>1, TO_CONSOLE=>1});
+  #}
+
+  my %PAYSYS_PAYMENTS_METHODS = ();
+
+  if($conf{PAYSYS_PAYMENTS_METHODS}) {
+    %PAYSYS_PAYMENTS_METHODS = %{ cfg2hash($conf{PAYSYS_PAYMENTS_METHODS}) };
+  }
+
+  my $list = $Paysys->paysys_user_list(
+    {
+      PAYSYS_ID => '_SHOW',
+      PAGE_ROWS => 100000,
+      COLS_NAME => 1
+    }
+  );
+
+
+  foreach my $line (@$list) {
+    print "$line->{uid}" if ($debug > 0);
+    my $uid = $line->{uid};
+    my $token = $line->{token};
+    my $sum = $line->{sum};
+    my $paysys_id = $line->{paysys_id};
+    my $order_id = $line->{order_id};
+
+      if ($paysys_id == 62 && $conf{PAYSYS_SUBSCRIBE_CHANGE}) {
+
+        use Users;
+        my $users = Users->new($db);
+      # подписка Liqpay
+      #use Paysys::systems::Liqpay;
+      my $Liqpay = Paysys::systems::Liqpay->new($db, $admin, \%conf, {USER => $users});
+
+      $Liqpay -> paysys_subscribe_pay($uid, $sum, $order_id);
+    }
+  }
+
+  $DEBUG .= $debug_output;
+  return $debug_output;
 }
 
 1

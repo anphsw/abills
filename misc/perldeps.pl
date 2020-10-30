@@ -96,11 +96,11 @@ my @modules = (
     rpm => "perl-Digest-MD5"
   },
   {
-    cpan => "Digest::SHA1",
-    port => "/usr/ports/security/p5-Digest-SHA1",
-    pkg => "p5-Digest-SHA1",
+    cpan => "Digest::SHA",
+    port => "/usr/ports/security/p5-Digest-SHA",
+    pkg => "p5-Digest-SHA",
     apt => "libdigest-sha-perl",
-    rpm => "perl-Digest-SHA1"
+    rpm => "perl-Digest-SHA"
   },
   {
     cpan => "Imager::QRCode",
@@ -155,6 +155,7 @@ my @modules = (
 #    apt => "librrd-simple-perl",
 #    rpm => "rrdtool-perl",
 #    use => "RRD::Simple"   # FIXME in CentOS correct check is "use RRD", but FreeBSD works with "use RRD::Simple"
+#    #FIXME RRD::Simple is not used anymore, replace with RRDTool::OO
 #  },
   {
     cpan => "Spreadsheet::WriteExcel",
@@ -227,7 +228,7 @@ if ($action eq 'test') {
 }
 elsif ($action eq 'port') {
   $manager = 'port';
-  $update = 'portsnap update || portsnap fetch && portsnap extract'
+  $update = 'portsnap auto'
 }
 elsif ($action eq 'pkg') {
   $manager = 'pkg';
@@ -236,7 +237,7 @@ elsif ($action eq 'pkg') {
 }
 elsif ($action eq 'apt-get') {
   $manager = 'apt';
-  $program = 'apt-get -y --force-yes install ';
+  $program = 'apt-get -y install ';
   $update = 'apt-get update';
 }
 elsif ($action eq 'rpm') {

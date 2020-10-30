@@ -51,12 +51,6 @@
                     %PARAMS%
                 </div>
 
-                <div class='form-group'>
-                    <div class='col-md-12'>
-                        %SHEDULE_LIST%
-                    </div>
-                </div>
-
             </div>
         </div>
 
@@ -66,6 +60,12 @@
 
 
     </fieldset>
+
+    <div class='form-group'>
+        <div class='col-md-12'>
+            %SHEDULE_LIST%
+        </div>
+    </div>
 </form>
 
 <script>

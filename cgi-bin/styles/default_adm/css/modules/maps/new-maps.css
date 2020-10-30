@@ -35,19 +35,6 @@
     float: left;
 }
 
-#navbar_container {
-    width: 135px;
-    display: none;
-    border-radius: 5px;
-    padding: 1px;
-}
-
-#search_select {
-    width: 14vw;
-    display: none;
-    margin-right: 1vw;
-}
-
 .circle {
     cursor: pointer;
     border: 1px solid #aaa;
@@ -150,14 +137,17 @@
     animation-duration: 1s;
     animation-name: changeIconEquipment;
     animation-iteration-count: infinite;
+
+    -moz-animation-duration: 1s;
+    -moz-animation-name: changeIconEquipment;
+    -moz-animation-iteration-count: infinite;
 }
 
 @keyframes changeIconEquipment {
     from {
-        content:url("/images/maps/icons/nas_green.png");
+        opacity: 0;
     }
-
     to {
-        content:url("/images/maps/icons/nas_fire.png");
+        opacity: 1;
     }
 }

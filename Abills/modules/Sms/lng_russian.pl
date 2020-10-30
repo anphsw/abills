@@ -4,3 +4,29 @@ $lang{MSG_ID}='Номер сообщения';
 $lang{SEND_TIME}='Планируемое время отправки';
 $lang{SENDED}='Отправлено';
 $lang{UPDATED}='Обновлено';
+
+$lang{DIRECT} = 'Личные';
+
+$lang{DISPATCH_SMS} = 'В очереди отправки';
+$lang{SMALL_DEPOSIT} = 'Недостаточно денег для рассылки';
+$lang{IS_PROCESS} = 'В процессе рассылки';
+$lang{SENDED_SMS} = 'Отправлено';
+$lang{NO_VALID_PHONE} = 'Нет правильных номеров получателей';
+$lang{PARTIALLY_SEND} = 'Частично отправлено';
+$lang{SPAM} = 'Спам';
+$lang{INVALID_SENDER} = 'Недействительное имя отправителя  или пароль';
+$lang{PAUSE} = 'Пауза';
+$lang{PLANNED} = 'Запланирована';
+$lang{PENDING_MODERATION} = 'Ожидает модерации';
+$lang{ERROR_PARAMETRS} = 'Ошибка в параметрах';
+$lang{IP_BLOCKED} = 'IP-адрес временно заблокирован из-за частых ошибок в запросах';
+$lang{CANNOT_BE_DELIVERY} = 'Сообщение на указанный номер не может быть доставлено.';
+$lang{IDENTICAL_REQUEST} = 'Отправка более одного одинакового запроса на передачу SMS-сообщения либо более пяти одинаковых запросов на получение стоимости сообщения в течение минуты.';
+$lang{UNKNOWN} = 'Неизвесно';
+$lang{DELIVERED} = 'Доставлено';
+$lang{NOT_DELIVERED} = 'Не доставлено';
+$lang{ERROR_SENDING} = 'Ошибка при отправке';
+$lang{REJECT_SYSTEM} = 'Отклонено системой';
+$lang{DELAYED} = 'Отправка сообщения отложена';
+
+1

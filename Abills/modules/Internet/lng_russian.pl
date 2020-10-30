@@ -17,5 +17,9 @@ $lang{SELECT_TAG} = 'Выберите хотя бы один тег!';
 
 $lang{CLONE} = 'Клонировать';
 $lang{SUCCESSFULLY_CLONED} = 'успешно клонирован';
+$lang{FT_QUEUS}='FT-очередь';
+$lang{TURBO}='Турбо';
+$lang{QUOTA}='Квота';
 
+$lang{NAS_AND_PORT_ALREADY_USE} = 'Сервер доступа и Порт уже используются';
 1;

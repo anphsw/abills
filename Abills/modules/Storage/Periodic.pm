@@ -58,6 +58,7 @@ sub _storage_rent_fees {
     $users->{UID} = $line->{uid};
     $line->{rent_price} = $line->{rent_price} * $line->{count};
 
+    next if !$users->{BILL_ID} || !$users->{UID};
     next if $attr->{DAY} != $START_PERIOD_DAY && !$line->{abon_distribution};
 
     _storage_get_fees({
@@ -120,23 +121,26 @@ sub _storage_installments_fees {
   my $list = $Storage->storage_by_installments_fees({ COLS_NAME => 1 });
 
   foreach my $line (@{$list}) {
-
     $users->{BILL_ID} = $line->{bill_id};
     $users->{UID} = $line->{uid};
+
+    next if !$users->{BILL_ID} || !$users->{UID};
+
     my $total_sum = $line->{amount_per_month} * $line->{count};
 
+    $line->{article_name} ||= '';
     $fees->take($users, $total_sum, {
       DATE     => $ADMIN_REPORT{DATE},
       DESCRIBE => "$lang{BY_INSTALLMENTS} $line->{article_name}",
       METHOD   => $line->{fees_method} || ''
     });
 
-    if ( $fees->{errno} ) {
-      $html->message( 'err', $lang{ERROR}, "[$fees->{errno}] $err_strs{$fees->{errno}}" );
+    if ($fees->{errno}) {
+      $html->message('err', $lang{ERROR}, "[$fees->{errno}] $err_strs{$fees->{errno}}");
     }
-    else{
+    else {
       $Storage->storage_installation_change({
-        ID => $line->{id},
+        ID      => $line->{id},
         MONTHES => $line->{monthes} - 1,
       });
     }

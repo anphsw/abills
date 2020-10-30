@@ -3,24 +3,6 @@ use strict;
 
 use v5.16;
 
-#**********************************************************
-=head2 new() - constructor for HTML_Tree
-
-  Attributes:
-
-  Returns:
-    object - new Tree instance
-
-=cut
-#**********************************************************
-sub new {
-  my $class = shift;
-  my $self = { };
-  bless( $self, $class );
-  return $self;
-}
-
-
 my $name;
 my $levels;
 
@@ -36,6 +18,24 @@ my $has_multi_level_checkbox_names;
 my $attr;
 my $items;
 
+#**********************************************************
+=head2 new() - constructor for HTML_Tree
+
+  Attributes:
+
+  Returns:
+    object - new Tree instance
+
+=cut
+#**********************************************************
+sub new {
+  my $class = shift;
+  my $self = { };
+  
+  bless( $self, $class );
+
+  return $self;
+}
 
   #**********************************************************
 =head2 tree_menu($list, $name, $attr)
@@ -103,32 +103,29 @@ sub tree_menu {
   $attr = $attr_;
   $name = $name_ || 'Menu';
 
-  my $parentness_hash = ($attr->{PARENTNESS_HASH}) ? $attr->{PARENTNESS_HASH} : $self->build_parentness_tree( $list,
-      $attr );
+  my $parentness_hash;
+  if ($attr->{PARENTNESS_HASH}) {
+    $parentness_hash = $attr->{PARENTNESS_HASH};
+  }
+  else {
+    $parentness_hash = $self->build_parentness_tree($list, $attr);
+  }
   
   # Get number of levels
   $levels = $attr->{LEVELS} || count_levels( $parentness_hash );
 
-  my $col_size = ($attr->{COL_SIZE}) ? $attr->{COL_SIZE} : ($levels && $levels > 6) ? 6 : 3;
-
-  # Will only put script for first tree
-  state $scripts_showed = 0;
-  my $tree_script = '';
-  if (!$scripts_showed){
-    $tree_script = "
-        <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/tree.css'>
-        <script src='/styles/default_adm/js/tree_menu.js'></script>
-    ";
-    $scripts_showed = 1;
+  my $col_size;
+  if ($attr->{COL_SIZE}) {
+    $col_size = $attr->{COL_SIZE};
   }
-  
-  my $clickable = ($attr->{LAST_LEVEL_CLICKABLE}) ? 'clickable' : '';
-  
-  return "
-    <div class='col-md-$col_size text-left'>
-    <ul class='nav main well tree-menu $clickable'>\n" . render_tree( $list, $parentness_hash ) . '</ul>'."
-      $tree_script
-    </div>";
+  elsif ($levels && $levels > 6) {
+    $col_size = 6;
+  }
+  else {
+    $col_size = 3;
+  }
+
+  only_put_script($col_size, $list, $parentness_hash);
 }
 
 #**********************************************************
@@ -147,16 +144,15 @@ sub tree_menu {
 sub render_tree {
   my ($list, $parentness) = @_;
 
-  $id_key = $attr->{ID_KEY} || 'ID';
-  $name_key = $attr->{LABEL_KEY} || 'NAME';
-  $value_key = $attr->{VALUE_KEY} || 'ID';
+  $id_key     = $attr->{ID_KEY} || 'ID';
+  $name_key   = $attr->{LABEL_KEY} || 'NAME';
+  $value_key  = $attr->{VALUE_KEY} || 'ID';
 
-  $has_multi_level_ids = defined $attr->{LEVEL_ID_KEYS};
-  $has_multi_level_names = defined $attr->{LEVEL_LABEL_KEYS};
-  $has_multi_level_values = defined $attr->{LEVEL_VALUE_KEYS};
+  $has_multi_level_ids      = defined $attr->{LEVEL_ID_KEYS};
+  $has_multi_level_names    = defined $attr->{LEVEL_LABEL_KEYS};
+  $has_multi_level_values   = defined $attr->{LEVEL_VALUE_KEYS};
 
   $has_multi_level_checkbox_names = defined $attr->{LEVEL_CHECKBOX_NAME};
-
 
   #prepare information
   my $items_ = { };
@@ -166,17 +162,7 @@ sub render_tree {
     }
   }
   else {
-    for (my $i = 0; $i <= $levels; $i++) {
-      my $key = @{ $attr->{LEVEL_ID_KEYS} }[$i];
-
-      foreach my $item (@{$list}) {
-        $items_->{$i}->{ $item->{ $key } } = {
-          $id_key    => $item->{ lc(@{$attr->{LEVEL_ID_KEYS}}[$i]) },
-          $name_key  => $item->{ lc(@{$attr->{LEVEL_LABEL_KEYS}}[$i])},
-          $value_key => $item->{ lc(@{$attr->{LEVEL_VALUE_KEYS}}[$i]) },
-        };
-      }
-    }
+    render_tree_cycles($list, $items_);
   }
 
   $items = $items_;
@@ -202,59 +188,35 @@ sub render_branch {
   my ($menu_name, $level_value, $menu_list, $recursion_level) = @_;
 
   my $checkbox_for_label = '';
+
   if ($attr->{CHECKBOX} && ($attr->{NAME} || $has_multi_level_checkbox_names) && $recursion_level != 0) {
-    my $checkbox_for_label_name = ($has_multi_level_checkbox_names)
-                                    ? @{$attr->{LEVEL_ID_KEYS}}[$recursion_level - 1]
-                                    : $attr->{NAME};
-    my $checkbox_state = ($attr->{CHECKBOX_STATE}
-      && $attr->{CHECKBOX_STATE}{$checkbox_for_label_name . '_' . $level_value}
-    );
-    
-    $checkbox_for_label = "<input
-      type='checkbox'
-      data-checked='$checkbox_state'
-      name='$checkbox_for_label_name'
-      value='$level_value' />";
+    $checkbox_for_label = checkbox_visible($recursion_level, $level_value);
   }
 
   my $result = '';
-  $result .= "<li>$checkbox_for_label<label class='tree-toggler'>$menu_name</label>\n";
   my $ul_display = ($attr->{SHOW_OPEN_TREE}) ? "block" : "none";
+
+  $result .= "<li>$checkbox_for_label<label class='tree-toggler'>$menu_name</label>\n";
   $result .= "<ul class='nav tree' style='display: $ul_display;'>\n";
 
   my ($current_item_name, $current_item_value);
+
   foreach my $item_key (sort keys %{$menu_list}) {
+    ($current_item_name, $current_item_value) = 
+            branch_item($current_item_name, $recursion_level, $item_key, $current_item_value);
 
-    $current_item_name = ($has_multi_level_ids)
-      ? $items->{$recursion_level}->{$item_key}->{$name_key}
-      : $items->{$item_key}->{$name_key};
-
-    $current_item_value = ($has_multi_level_values)
-      ? $items->{$recursion_level}->{$item_key}->{$value_key}
-      : $items->{$item_key}->{$value_key};
-
-    my $checkbox = '';
-    #        if ($attr->{CHECKBOX} && ($attr->{NAME} || $has_multi_level_checkbox_names) ){
-    #          my $checkbox_name = ($has_multi_level_checkbox_names) ? @{$attr->{LEVEL_ID_KEYS}}[$recursion_level - 1] : $attr->{NAME};
-    #          $checkbox = "<input type='checkbox' name='$attr->{NAME}' value='$current_item_value' />";
-    #        }
-    if ($attr->{CHECKBOX} && ($attr->{NAME} || $has_multi_level_checkbox_names)) {
-      my $checkbox_name = ($has_multi_level_checkbox_names) ? @{$attr->{LEVEL_ID_KEYS}}[$recursion_level] : $attr->{NAME};
-      $checkbox = "<input
-        type='checkbox'
-        data-checked='$attr->{CHECKBOX_STATE}{$checkbox_name . '_' . $current_item_value}'
-        name='$checkbox_name'
-        value='$current_item_value' />";
-    }
+    my $checkbox = checkbox_tree($recursion_level, $current_item_value);
 
     if (ref ( $menu_list->{$item_key} ) eq 'HASH') {
-
       $recursion_level++;
       $result .= render_branch( $current_item_name, $current_item_value, $menu_list->{$item_key},
         $recursion_level );
       $recursion_level--;
     }
     else {
+      if ($current_item_name =~ m/<\/url>/g) {
+        $current_item_name =~ s/<\/url>/<\/a>/g;
+      }
 
       $result .= "<li>$checkbox<span class='tree-item'>$current_item_name</span>\n";
     }
@@ -408,6 +370,155 @@ sub build_next_level {
   }
 
   return $level;
+}
+
+#**********************************************************
+=head2 only_put_script()
+
+  Arguments:
+    $col_size         - column size element
+    $list             - data element list
+    $parentness_hash  - if you need more complicated structure pass your own ierarchy for building menu
+
+  Returns:
+    HTML div and ul list of tree
+
+=cut
+#**********************************************************
+sub only_put_script {
+  my ($col_size, $list, $parentness_hash) = @_;
+  state $scripts_showed = 0;
+
+  my $tree_script = '';
+
+  if (!$scripts_showed){
+    $tree_script = "<link rel='stylesheet' type='text/css' href='/styles/default_adm/css/tree.css'>
+        <script src='/styles/default_adm/js/tree_menu.js'></script>";
+    $scripts_showed = 1;
+  }
+  
+  my $clickable = ($attr->{LAST_LEVEL_CLICKABLE}) ? 'clickable' : '';
+  
+  return "<div class='col-md-$col_size text-left'>
+    <ul class='nav main well tree-menu $clickable'>\n" . render_tree( $list, $parentness_hash ) . '</ul>'."
+      $tree_script
+    </div>";
+}
+
+#**********************************************************
+=head2 render_tree_cycles()
+
+  Arguments:
+    $list     - item refferal list
+    items_    - prepare information
+
+  Returns:
+    -
+
+=cut
+#**********************************************************
+sub render_tree_cycles {
+  my ($list, $items_) = @_;
+
+  for (my $i = 0; $i <= $levels; $i++) {
+    my $key = @{ $attr->{LEVEL_ID_KEYS} }[$i];
+  
+    foreach my $item (@{$list}) {
+      $items_->{$i}->{ $item->{ $key } } = {
+        $id_key    => $item->{ lc(@{$attr->{LEVEL_ID_KEYS}}[$i]) },
+        $name_key  => $item->{ lc(@{$attr->{LEVEL_LABEL_KEYS}}[$i])},
+        $value_key => $item->{ lc(@{$attr->{LEVEL_VALUE_KEYS}}[$i]) },
+      };
+    }
+  }
+}
+
+#**********************************************************
+=head2 checkbox_visible()
+
+  Arguments:
+    $recursion_level    -
+    $level_value        -
+
+  Returns:
+    HTML input type checkbox
+
+=cut
+#**********************************************************
+sub checkbox_visible {
+  my ($recursion_level, $level_value) = @_;
+
+  my $checkbox_for_label_name = '';
+
+  if ($has_multi_level_checkbox_names) {
+    $checkbox_for_label_name = @{$attr->{LEVEL_ID_KEYS}}[$recursion_level - 1];
+  }
+  else {
+    $checkbox_for_label_name = $attr->{NAME};
+  }
+
+  my $checkbox_state = ($attr->{CHECKBOX_STATE}
+    && $attr->{CHECKBOX_STATE}{$checkbox_for_label_name . '_' . $level_value} );
+    
+  return "<input type='checkbox' data-checked='$checkbox_state' 
+    name='$checkbox_for_label_name'
+    value='$level_value' />";
+}
+
+#**********************************************************
+=head2 checkbox_tree()
+
+  Arguments:
+    $recursion_level    -
+    $current_item_value -
+
+  Returns:
+    HTML input type checkbox OR empty string
+
+=cut
+#**********************************************************
+sub checkbox_tree {
+  my ($recursion_level, $current_item_value) = @_;
+
+  if ($attr->{CHECKBOX} && ($attr->{NAME} || $has_multi_level_checkbox_names)) {
+    my $checkbox_name = ($has_multi_level_checkbox_names) ? @{$attr->{LEVEL_ID_KEYS}}[$recursion_level] : $attr->{NAME};
+
+    return "<input type='checkbox' 
+      data-checked='$attr->{CHECKBOX_STATE}{$checkbox_name . '_' . $current_item_value}'
+      name='$checkbox_name'
+      value='$current_item_value' />";
+  }
+
+  return '';
+}
+
+#**********************************************************
+=head2 branch_item()
+
+  Arguments:
+    $current_item_name  - 
+    $recursion_level    -
+    $item_key           - 
+    $current_item_value -
+
+  Returns:
+    $current_item_name  -
+    $current_item_value -
+
+=cut
+#**********************************************************
+sub branch_item {
+  my ($current_item_name, $recursion_level, $item_key, $current_item_value) = @_;
+
+  $current_item_name = ($has_multi_level_ids)
+    ? $items->{$recursion_level}->{$item_key}->{$name_key}
+    : $items->{$item_key}->{$name_key};
+
+  $current_item_value = ($has_multi_level_values)
+    ? $items->{$recursion_level}->{$item_key}->{$value_key}
+    : $items->{$item_key}->{$value_key};
+
+  return ($current_item_name, $current_item_value);
 }
 
 1;

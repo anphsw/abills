@@ -598,6 +598,10 @@ sub search_former{
   $self->{SEARCH_VALUES}          = [];
   @{ $self->{SEARCH_FIELDS_ARR} } = ();
 
+  if ($data->{_WHERE_RULES}) {
+    push @WHERE_RULES, $data->{_WHERE_RULES};
+  }
+
   my @user_fields = (
     'LOGIN',
     'FIO',
@@ -616,6 +620,7 @@ sub search_former{
     'ZIP',
     'GID',
     'COMPANY_ID',
+    'COMPANY_NAME',
     'CONTRACT_ID',
     'CONTRACT_SUFIX',
     'CONTRACT_DATE',
@@ -625,6 +630,7 @@ sub search_former{
     'COMMENTS',
     'BILL_ID',
     'LOGIN_STATUS',
+    'LOGIN_DELETED',
     'DOMAIN_ID',
     'DOMAIN_NAME',
     'PASSWORD',
@@ -827,12 +833,12 @@ sub search_expr{
     if ( $type eq 'INT' && $v =~ s/\*/\%/g ){
       $expr = ' LIKE ';
     }
-    elsif ( $v =~ s/^!// ){
-      $expr = ' <> ';
-    }
     elsif ( $type eq 'STR' ){
       $expr = '=';
-      if ( $v =~ /\\\*/ ){
+      if ($v =~ s/^!//) {
+        $v='';
+      }
+      elsif ( $v =~ /\\\*/ ){
         $v = '*';
       }
       else{
@@ -840,6 +846,9 @@ sub search_expr{
           $expr = ' LIKE ';
         }
       }
+    }
+    elsif ( $v =~ s/^!// ){
+      $expr = ' <> ';
     }
     elsif ( $v =~ s/^([<>=]{1,2})// ){
       $expr = $1;
@@ -966,7 +975,7 @@ sub search_expr_users{
     else{
       print "Content-Type: text/html\n\n";
       my ($package, $filename, $line, $subroutine, $hasargs) = caller(1);
-      print "--- $self->{conf} // Undefined \$CONF  $package, $filename, $line !!!!!!!!!!!!!!!!!!\n";
+      print "--- $self->{conf} // Undefined \$CONF Package: $package Filename: $filename Line: $line\n";
       print "$package, $filename, $line, $subroutine, $hasargs\n";
       exit;
     }
@@ -979,7 +988,9 @@ sub search_expr_users{
     DOMAIN_ID      => 'INT:u.domain_id',
     COMPANY_ID     => 'INT:u.company_id',
     COMPANY_CREDIT => 'INT:company.credit AS company_credit',
+    COMPANY_NAME   => 'INT:company.name AS company_name',
     LOGIN_STATUS   => 'INT:u.disable AS login_status',
+    LOGIN_DELETED  => 'INT:u.deleted AS login_deleted',
     REGISTRATION   => 'DATE:u.registration',
     COMMENTS       => 'STR:pi.comments',
     FIO            => 'STR:CONCAT_WS(" ", pi.fio, pi.fio2, pi.fio3) AS fio',
@@ -1412,7 +1423,7 @@ sub search_expr_users{
     push @fields, @{ $self->search_expr( $attr->{DELETED}, 'INT', 'u.deleted', { EXT_FIELD => 1 } ) };
   }
 
-  if($attr->{EXT_BILL_ID}) {
+  if($attr->{EXT_BILL_ID} || $attr->{COMPANY_NAME}) {
     $EXT_TABLE_JOINS_HASH{companies} = 1;
   }
 
@@ -1723,6 +1734,7 @@ sub changes {
           }
 
           $changes_info{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $value . (($attr->{EXT_CHANGE_INFO}) ? ' ' . $attr->{EXT_CHANGE_INFO} : '');
+          $self->{CHG_STATUS} = $OLD_DATA->{$k} . '->' . $value;
         }
         elsif ( $k eq 'DOMAIN_ID' && $OLD_DATA->{$k} == 0 && !$value ){
         }
@@ -1773,9 +1785,11 @@ sub changes {
   my $extended = ($attr->{EXTENDED}) ? $attr->{EXTENDED} : '';
   my $CHANGES_QUERY = join( ', ', @change_fields );
 
-  $self->query( "UPDATE $TABLE SET $CHANGES_QUERY WHERE $change_params_list $extended",
+  $self->query(
+    "UPDATE $TABLE SET $CHANGES_QUERY WHERE $change_params_list $extended",
     'do',
-    { Bind => \@bind_values } );
+    { Bind => \@bind_values }
+  );
 
   $self->{AFFECTED} = sprintf( "%d", (defined ( $self->{AFFECTED} ) ? $self->{AFFECTED} : 0) );
 

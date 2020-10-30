@@ -26,7 +26,7 @@ our (
   $OS,
 );
 
-our Dv $Dv;
+our Dv $Internet;
 
 deposit_info();
 
@@ -46,10 +46,10 @@ sub deposit_info {
   my $deposit_limit = $argv->{DEPOSIT} || 0;
 
   if($debug > 6) {
-    $Dv->{debug}=1;
+    $Internet->{debug}=1;
   }
 
-  my $list = $Dv->list({
+  my $list = $Internet->list({
     LOGIN     => '_SHOW',
     DEPOSIT   => '_SHOW',
     TP_CREDIT => '_SHOW',
@@ -78,7 +78,7 @@ sub deposit_info {
       next;
     }
 
-    $Dv->change({
+    $Internet->change({
       UID => $line->{uid},
       FILTER_ID => ''
     });

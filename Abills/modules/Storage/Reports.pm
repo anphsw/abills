@@ -227,6 +227,7 @@ sub storage_main_report_charts {
 =cut
 #**********************************************************
 sub storage_remnants_report {
+
    reports({
      PERIOD_FORM=>1,
      DATE_RANGE=>1,
@@ -234,11 +235,11 @@ sub storage_remnants_report {
     NO_TAGS=>1,
    });
 
-    my $list = $Storage->storage_remnants_list({
-      FROM_DATE => $FORM{FROM_DATE} || $DATE,
-      TO_DATE   => $FORM{TO_DATE} || $DATE,
-      COLS_NAME => 1
-    });
+  my $list = $Storage->storage_remnants_list({
+    FROM_DATE => $FORM{FROM_DATE} || $DATE,
+    TO_DATE   => $FORM{TO_DATE} || $DATE,
+    COLS_NAME => 1
+  });
 
   my $report_table = $html->table({
     title      => [ $lang{NAME}, $lang{MEASURE}, $lang{TOTAL}, $lang{ACCOUNTABILITY}, $lang{DISCARDED},
@@ -635,17 +636,15 @@ sub storage_in_installments_statistics {
 =cut
 #**********************************************************
 sub storage_rent_statistics {
+
   my $admins_select = sel_admins({ NAME => 'INSTALLED_AID' });
   my $storage_select = storage_storage_sel($Storage, { ALL => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) });
-  my $type_select = $html->form_select(
-    'TYPE_ID',
-    {
-      SELECTED    => $FORM{TYPE_ID} || 0,
-      SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
-      NO_ID       => 1,
-      SEL_OPTIONS => { '' => '--' },
-    }
-  );
+  my $type_select = $html->form_select('TYPE_ID', {
+    SELECTED    => $FORM{TYPE_ID} || 0,
+    SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '--' },
+  });
 
   reports({
     PERIOD_FORM   => 1,
@@ -702,11 +701,15 @@ sub storage_rent_statistics {
   });
 
   foreach my $item (@$items){
+    $item->{amount_per_month} ||= 0;
+    $item->{sat_name} ||= '';
+    $item->{sta_name} ||= '';
+
     my $profit = ($item->{amount_per_month} * $item->{payments_count});
     my $admin_sum = $profit / 100 * ($item->{admin_percent} || 0);
     $table->addrow(
       "$item->{sat_name} $item->{sta_name}",
-      "$item->{count}",
+      $item->{count},
       $item->{payments_count},
       $item->{amount_per_month},
       sprintf('%.2f', $profit),

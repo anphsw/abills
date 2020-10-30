@@ -121,21 +121,7 @@ sub msgs_unreg_requests_list {
     $Msgs->{TP_SEL} = _sel_tp($FORM{TP_ID} || $Msgs->{TP_ID});
     $Msgs->{GID_SEL} = sel_groups();
     $Msgs->{ACTION_LNG} = $lang{ADD};
-
-    #    if ( defined($FORM{LOGIN}) ) {
-    #      if ( $FORM{LOGIN} ) {
-    #        $Msgs->{LOGIN} = $FORM{LOGIN};
-    #        $users->list({ LOGIN => $FORM{LOGIN} });
-    #        if ( $users->{TOTAL} > 0 ) {
-    #          $html->message('err', $lang{ERROR}, "$lang{USER_EXIST}");
-    #        }
-    #        else {
-    #          $html->message('info', $lang{INFO}, "$lang{LOGIN}  $lang{ACCEPT}");
-    #          $index = get_function_index('form_wizard');
-    #          $Msgs->{ACTION_LNG} = $lang{NEXT};
-    #        }
-    #      }
-    #    }
+    
     $index = get_function_index('form_wizard');
     $Msgs->{CHECK_LOGIN_INDEX} = get_function_index('msgs_unreg_requests_list');
 
@@ -317,13 +303,11 @@ sub msgs_unreg_requests_list {
       'connection_time'        => $lang{EXECUTION},
       'ip'                     => 'IP',
       'district_name'          => $lang{DISTRICTS},
-      # 'address_full'           => "$lang{FULL}  $lang{ADDRESS}",
+      'address_full'           => "$lang{FULL}  $lang{ADDRESS}",
       'address_street'         => $lang{ADDRESS_STREET},
       'address_build'          => $lang{ADDRESS_BUILD},
       'address_flat'           => $lang{ADDRESS_FLAT},
       'city'                   => $lang{CITY},
-      # 'zip'                    => $lang{ZIP},
-      # 'change_time'            => $lang{LAST_ACTIVITY},
       'reaction_time'          => $lang{REACTION_TIME},
       'comments'               => $lang{COMMENTS},
       'contact_note'           => $lang{NOTE},

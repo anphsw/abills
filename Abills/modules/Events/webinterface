@@ -54,16 +54,14 @@ sub events_events {
   my ($attr) = @_;
   my @events_list = ();
   
-  # Check if called from cross_modules via User Portal
   if ( $attr->{CLIENT_INTERFACE} ) {
     return '';
   }
-  
+# Abills::Base::_bp('','$translated_events_list',{TO_FILE=>'/usr/abills/var/log/text.txt'});
   return events_notice({ EXPORT => 1 }) if ($FORM{AJAX});
   
   my $events_index = get_function_index('events_main') || 0;
   my $seen_index = get_function_index('events_seen_message') || 0;
-  #  return 'no_index' if ($events_index == 0);
   
   my $events_list = $Events->events_list({
     STATE_ID         => 1,
@@ -78,13 +76,20 @@ sub events_events {
   if ($@){
     return $@;
   }
-  
+
   foreach my $event ( @{$events_list} ) {
     $event->{message} = translate_simple($event->{message} || '');
     $event->{subject} = $event->{title} || $event->{module} || '';
     $event->{subject} = translate_simple($event->{subject});
     $event->{extra} ||= "$SELF_URL?index=$events_index&chg=$event->{id}";
-    push(@events_list, events_event_to_json($event, $seen_index));
+  
+    push(
+      @events_list, 
+      events_event_to_json(
+        $event, 
+        $seen_index
+      )
+    );
   }
   
   return join(", ", @events_list);
@@ -152,11 +157,11 @@ sub events_notice {
     GROUP_NAME    => '_SHOW',
     PRIORITY_NAME => '_SHOW',
     STATE_NAME    => '_SHOW',
+    SEND_TYPES    => '_SHOW',
     AID           => $admin->{AID},
     COLS_NAMES    => 1,
     PAGE_ROWS     => 5,
     SORT          => 'e.created',
-    # DESC          => 'DESC',
   });
 
   my $translated_events_list = translate_list_simple($events_list, 'comments', 'title', 'state_name', 'priority_name');
@@ -164,16 +169,26 @@ sub events_notice {
   if ($attr->{EXPORT}) {
     my @events_list = ();
     my $seen_index = get_function_index('events_seen_message') || 0;
+    
     foreach my $event (@$translated_events_list) {
       push(@events_list, events_event_to_json($event, $seen_index));
     }
+    
     return join(", ", @events_list);
   }
   
+  
+  my @new_events_list = ();
+  foreach my $event (@$translated_events_list) {
+    if ($event->{send_types} && $event->{send_types} =~ /Browser/) {
+      push(@new_events_list, $event);
+    }
+  }
+
   print JSON::to_json({
       CAPTION => $lang{EVENTS},
       ID      => "EVENTS_LIST",
-      DATA_1  => $translated_events_list,
+      DATA_1  => \@new_events_list,
       TOTAL   => $Events->{TOTAL},
     },
     { pretty => 1 });

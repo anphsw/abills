@@ -138,7 +138,7 @@ sub list{
   );
 
   if ($attr->{RESPONSIBLE_ADMIN}) {
-    $EXT_TABLE .= "LEFT JOIN tags_responsible AS tr ON t.id = tr.tags_id
+    $EXT_TABLE .= "LEFT JOIN tags_responsible AS tr FORCE INDEX FOR JOIN (`tags_id_fk`) ON t.id = tr.tags_id
                   LEFT JOIN  admins AS a ON tr.aid = a.aid";
   }
 
@@ -158,7 +158,7 @@ sub list{
 }
 
 #**********************************************************
-=head2 user_list($attr)
+=head2 tags_user($attr)
 
 =cut
 #**********************************************************
@@ -174,10 +174,10 @@ sub tags_user{
   $self->{EXT_TABLES} = '';
 
   my $WHERE = $self->search_former( $attr, [
-      [ 'TAG_ID',    'INT', 't.id',                            ],
-      [ 'LAST_ABON', 'INT', 'tu.date',                         ],
-      [ 'USERS_SUM', 'INT', 'SUM(tu.uid) AS tu.users_sum',     ],
-      [ 'RESPONSIBLE',    'INT', 'GROUP_CONCAT(DISTINCT a.id) AS responsible',               1 ],
+      [ 'TAG_ID',     'INT', 't.id',                            ],
+      [ 'LAST_ABON',  'INT', 'tu.date',                         ],
+      [ 'USERS_SUM',  'INT', 'SUM(tu.uid) AS tu.users_sum',     ],
+      [ 'RESPONSIBLE','INT', 'GROUP_CONCAT(DISTINCT a.id) AS responsible', 1 ],
     ],
     {
       WHERE => 1,
@@ -187,17 +187,20 @@ sub tags_user{
   my $EXT_TABLE = '';
   $EXT_TABLE = $self->{EXT_TABLES} if ($self->{EXT_TABLES});
 
+  if ($attr->{RESPONSIBLE}) {
+    $EXT_TABLE .= "LEFT JOIN tags_responsible AS tr FORCE INDEX FOR JOIN (`tags_id_fk`) ON t.id = tr.tags_id
+                  LEFT JOIN  admins AS a ON tr.aid = a.aid";
+  }
+
   $self->query( "SELECT t.name,
        tu.date,
        t.comments,
        t.priority,
        t.id,
-       GROUP_CONCAT(DISTINCT a.id) AS responsible,
+       $self->{SEARCH_FIELDS}
        tu.uid
      FROM tags t
      LEFT JOIN tags_users tu ON (tu.tag_id = t.id AND tu.uid='$attr->{UID}')
-     LEFT JOIN tags_responsible AS tr ON t.id = tr.tags_id
-     LEFT JOIN  admins AS a ON tr.aid = a.aid
      $EXT_TABLE
      $WHERE
      GROUP BY t.id
@@ -209,11 +212,14 @@ sub tags_user{
 
   my $list = $self->{list};
 
+  $WHERE .= (! $WHERE) ? "WHERE tu.uid='$attr->{UID}'" : " AND tu.uid='$attr->{UID}'";
+
   if ( $self->{TOTAL} > 0 ){
-    $self->query( "SELECT count( DISTINCT tu.uid) AS total
+    $self->query( "SELECT COUNT(DISTINCT tu.uid) AS total
      FROM tags t
      LEFT JOIN tags_users tu ON (tu.tag_id = t.id)
-     $WHERE", undef, { INFO => 1 }
+     $WHERE
+     GROUP BY tu.uid", undef, { INFO => 1 }
     );
   }
 

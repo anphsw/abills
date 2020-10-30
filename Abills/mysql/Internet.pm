@@ -342,7 +342,7 @@ sub change {
 #    }
   }
   elsif (($old_info->{STATUS} && $old_info->{STATUS} == 3)
-    && $attr->{STATUS} == 0
+    && (defined($attr->{STATUS}) && $attr->{STATUS} == 0)
     && $attr->{STATUS_DAYS}) {
 
     my $user = Users->new($self->{db}, $admin, $self->{conf});
@@ -488,6 +488,18 @@ sub list {
 
   my $GROUP_BY = 'u.uid';
 
+  if ($attr->{UNIVERSAL_SEARCH} || $self->{GLOBAL}) {
+    if ($attr->{GID} || $attr->{GLOBAL}) {
+      $attr->{SKIP_GID}       = 1;
+      $attr->{SKIP_DEL_CHECK} = 1;
+    }
+
+    if ($self->{GLOBAL}) {
+      $attr->{GLOBAL} = $self->{GLOBAL};
+      delete $self->{GLOBAL};
+    }
+  }
+
   if ($attr->{GROUP_BY}) {
     $GROUP_BY = $attr->{GROUP_BY};
     delete $attr->{GROUP_BY};
@@ -520,7 +532,7 @@ sub list {
       ['SIMULTANEONSLY',    'INT', 'internet.logins',                        1 ],
       ['SPEED',             'INT', 'internet.speed',                         1 ],
       ['NAS_ID',            'INT', 'internet.nas_id',                        1 ],
-      ['PORT',              'INT', 'internet.port',                          1 ],
+      ['PORT',              'STR', 'internet.port',                          1 ],
       ['ALL_FILTER_ID',     'STR', 'IF(internet.filter_id<>\'\', internet.filter_id, tp.filter_id) AS filter_id', 1 ],
       ['FILTER_ID',         'STR', 'internet.filter_id',                     1 ],
       ['TP_ID',             'INT', 'internet.tp_id',                         1 ],
@@ -583,6 +595,15 @@ sub list {
 #  }
 #
 #  $WHERE = ($#WHERE_RULES > -1) ? "WHERE (" . join($where_delimeter, @WHERE_RULES) .')' : '';
+
+  if ($attr->{UNIVERSAL_SEARCH} && $attr->{GID}) {
+    if ($attr->{GID} =~ /,/) {
+      $WHERE .= ' AND u.gid IN (' . $attr->{GID} . ')';
+    }
+    else {
+      $WHERE .= ' AND u.gid = ' . $attr->{GID};
+    }
+  }
 
   my $EXT_TABLE = $self->{EXT_TABLES} || '';
   if($self->{SEARCH_FIELDS} =~ /online/) {
@@ -953,7 +974,7 @@ sub account_check {
   $self->query("SELECT COUNT(uid) FROM internet_main;");
 
   if($self->{TOTAL}) {
-    if($self->{list}->[0]->[0] > 0x4B2) {
+    if($self->{list}->[0]->[0] > 0x4B1) {
       $self->{errno} = 0x2BC;
     }
   }

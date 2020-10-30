@@ -120,9 +120,17 @@ sub internet_report_use {
     $LIST_PARAMS{TP_ID} = $FORM{TP_ID};
   }
 
+  if ($admin->{MAKE_ROWS}) {
+    $LIST_PARAMS{PAGE_ROWS} = $admin->{MAKE_ROWS};
+  }
   $Sessions->{debug}=1 if ($FORM{DEBUG});
   my Abills::HTML $table;
   our %DATA_HASH;
+
+  if ($LIST_PARAMS{MONTH}) {
+    delete($LIST_PARAMS{MONTH});
+  }
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Sessions,
     FUNCTION        => 'reports2',
@@ -135,7 +143,7 @@ sub internet_report_use {
       tp_id           => \%TP_NAMES
     },
     CHARTS       => 'users_count,sessions_count,traffic_recv,traffic_sent,duration_sec',
-    CHARTS_XTEXT => 'auto', #$x_text,
+    CHARTS_XTEXT => 'auto',
     EXT_TITLES   => \%ext_fields,
     FILTER_COLS  => {
       duration_sec    => '_sec2time_str',
@@ -157,24 +165,23 @@ sub internet_report_use {
       width            => '100%',
       caption          => "$lang{REPORTS}",
       qs               => $pages_qs,
+      pages            => $#{ $Sessions->{list} },
       ID               => 'REPORTS_DV_USE',
       EXPORT           => 1,
-      SHOW_COLS_HIDDEN => { TYPE => $FORM{TYPE},
-        show                     => 1,
-        FROM_DATE                => $FORM{FROM_DATE},
-        TO_DATE                  => $FORM{TO_DATE},
+      SHOW_COLS_HIDDEN => { 
+        TYPE        => $FORM{TYPE},
+        show        => 1,
+        FROM_DATE   => $FORM{FROM_DATE},
+        TO_DATE     => $FORM{TO_DATE},
       },
     },
-    MAKE_ROWS    => 1,
-    SEARCH_FORMER=> 1,
-    #TOTAL        => 1
+    MAKE_ROWS     => 1,
+    SEARCH_FORMER => 1,
   });
 
   print $html->make_charts(
     {
       DATA          => \%DATA_HASH,
-      #AVG           => \%AVG,
-      #TYPE          => \@CHART_TYPE,
       TITLE         => 'Internet',
       TRANSITION    => 1,
       OUTPUT2RETURN => 1,
@@ -361,26 +368,14 @@ sub internet_pools_report {
     COLS_NAME        => 1,
     INTERNET         => in_array('Internet', \@MODULES),
     SHOW_ALL_COLUMNS => 1,
-    PAGE_ROWS        => 10000
+    PG               => $FORM{pg}
   });
-
   _error_show($Nas);
 
   my %pools_by_id = map {$_->{id} => $_} @{$pools_list};
 
   # Assign ips to pools
   my %ips_for_pool = ();
-  # {
-  #  '%pool_id%' => {
-  #    ips => {
-  #      'ip_address' => type # (0 - dynamic, 1 - static, static-in-dynamic - 2 )
-  #    },
-  #    static_count  => '%num%',
-  #    dynamic_count => '%num%',
-  #    count         => '%num%'  - total
-  #  },
-  #   ...
-  #}
 
   my $find_pool_for_address = sub {
     my $ip_addr_num = shift;
@@ -452,7 +447,6 @@ sub internet_pools_report {
 
     my $dynamic = $ips_for_pool{$pool_id}->{dynamic_count} / $pools_by_id{$pool_id}->{ip_count};
     my $static = $ips_for_pool{$pool_id}->{static_count} / $pools_by_id{$pool_id}->{ip_count};
-    #    my $free = 1 - ($ips_for_pool{$pool_id}{count} / $pools_by_id{$pool_id}{ip_count});
     my $free = 1 - ($dynamic + $static);
 
     $ips_for_pool{$pool_id}->{usage}->{dynamic} = sprintf("%.2f", $dynamic * 100);
@@ -501,7 +495,6 @@ sub internet_pools_report {
       },
       HIDE_LEGEND       => 1,
       BACKGROUND_COLORS => {
-        #        'USAGE' => [ 'rgb(255,205,86)', 'rgb(255,99,132)', 'rgb(54, 162, 235)' ],
         'USAGE' => [ '#4CAF50', '#FF9800', '#F44336' ],
       },
       OUTPUT2RETURN     => 1,
@@ -543,6 +536,30 @@ sub internet_pools_report {
       $current_charts_in_row = 0;
     }
   }
+
+  my $ip_pools_page = '';
+  my $next_page = '';
+  my $back_page = $SELF_URL . '?index=' . get_function_index('internet_pools_report') . '&pg=0';
+
+  for (my $iterations = 0; $iterations <= $Nas->{TOTAL}; $iterations++) {
+    if (($iterations != 0) && ($iterations % 25) == 0) {
+      $next_page = $SELF_URL . '?index=' . get_function_index('internet_pools_report') . '&pg=' . $iterations;
+
+      $ip_pools_page .= $html->element('a', $iterations, {
+        href => $next_page,
+        id   => 'btn_page_' . $iterations,
+      });
+    }
+  }
+  
+  $html->tpl_show(_include('internet_page_ippools', 'Internet'), {
+    PAGE_IP_POOLS   => $ip_pools_page,
+    PG_INDEX        => $FORM{pg},
+    FIRST_PAGE      => $back_page,
+    FAST_FIST_PAGE  => $back_page,
+    FAST_END_PAGE   => $next_page,
+  });
+
   # Wrap last row
   push (@rows, $html->element('div', $result, { class => 'row' })) if ( $result );
 

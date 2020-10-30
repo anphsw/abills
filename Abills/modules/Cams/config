@@ -4,16 +4,21 @@
   "3:1:$lang{TARIF_PLANS}:cams_tp"          => 5,
   "4:1:$lang{GROUPS}:cams_groups"           => 5,
   "5:1:$lang{CAMERAS}:cams_main"            => 5,
-  "6:0:$lang{TP_CAMERAS}:cams_user"         => 20,
-  "7:0:$lang{CAMERAS}:cams_cameras"         => 20,
   "8:0:Folders:cams_get_group_folders:AJAX" => 5,
   "09:0:$lang{CAMERAS}:cams_users_list:"    => 11,
   "20:0::cams_cams_maps:AJAX"               => 5,
   "21:0::cams_cams_maps_review:AJAX"        => 5,
 );
 
+if (defined($FORM{UID})) {
+  load_module('Cams', $html);
+  my ($subscriptions, $cameras) = cams_get_badge_info({ UID => $FORM{UID} });
+  $FUNCTIONS_LIST{"6:0:$lang{TP_CAMERAS} $subscriptions:cams_user"} = 20;
+  $FUNCTIONS_LIST{"7:0:$lang{CAMERAS} $cameras:cams_cameras"} = 20;
+}
+
 if ($conf{CAMS_FOLDER}) {
-  $FUNCTIONS_LIST{"8:4:Каталоги:cams_folder"} = 5;
+  $FUNCTIONS_LIST{"8:4:$lang{FOLDERS}:cams_folder"} = 5;
   $FUNCTIONS_LIST{"9:01::cams_get_service_groups:AJAX"} = 5;
 }
 

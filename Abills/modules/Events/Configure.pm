@@ -111,7 +111,6 @@ sub events_main {
       aid => 0,
     },
     FILTER_VALUES   => {
-      comments      => \&translate_simple,
       title         => \&translate_simple,
       priority_name => \&translate_simple,
       aid           => sub {
@@ -119,6 +118,16 @@ sub events_main {
         return exists $admins_by_id->{$aid}
                  ? ($admins_by_id->{$aid}{admin_name} || $admins_by_id->{$aid}{login})
                  : $lang{NOT_EXIST};
+      }, 
+      comments => sub {
+        my ($comments) = shift;
+
+        if ($comments) {
+          $comments =~ s/\n/<br\/>/g;
+          return translate_simple($comments);
+        }
+
+        return '';
       }
     },
     READABLE_NAME   => "$lang{EVENTS}",

@@ -28,7 +28,7 @@ our (
   $argv,
   $debug,
   $Sessions,
-  $Dv,
+  $Internet,
   %LIST_PARAMS,
   $debug_output,
   %conf,
@@ -47,7 +47,7 @@ change_profile();
 sub change_profile {
 
   my $default_filter_id = 'after-auth-ug';
-  my Internet $Internet = $Dv;
+  my Internet $Internet = $Internet;
 
   if ($debug > 6) {
     $Sessions->{debug} = 1;

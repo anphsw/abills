@@ -23,6 +23,23 @@
         </div>
       </div>
 
+      <div class='form-group'>
+        <div class="row">
+          <div class='col-md-6'>
+            <label class='control-label col-md-4' for='START_STAT'>_{START}_: </label>
+            <div class='col-md-8'>
+              %START_STAT%
+            </div>
+          </div>
+          <div class='col-md-6'>
+            <label class='control-label col-md-4' for='END_STAT'>_{END}_: </label>
+            <div class='col-md-8'>
+              %END_STAT%
+            </div>
+          </div>
+        </div>
+      </div>
+
       <hr/>
 
       %PERIODIC%

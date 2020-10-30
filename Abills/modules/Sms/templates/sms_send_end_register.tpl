@@ -5,6 +5,10 @@
     <input type="hidden" name="sms" value="%sms%">
     <input type="hidden" name="step" value="%step%">
     <input type='hidden' name='LEAD_ID' value='$FORM{LEAD_ID}'>
+    <input type='hidden' name='LOCATION_ID' value='$FORM{LOCATION_ID}'>
+    <input type='hidden' name='DISTRICT_ID' value='$FORM{DISTRICT_ID}'>
+    <input type='hidden' name='STREET_ID' value='$FORM{STREET_ID}'>
+    <input type='hidden' name='ADDRESS_FLAT' value='$FORM{ADDRESS_FLAT}'>
 
     <div class='box box-theme box-form'>
         <div class='box-header with-border'>

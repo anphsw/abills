@@ -19,7 +19,7 @@
           <label class='control-label col-md-3 required' for='SUM'>_{SUM}_:</label>
           <div class='col-md-4'>
             <input  id='SUM' name='SUM' value='$FORM{SUM}' required placeholder='$FORM{SUM}' class='form-control'
-                    type='number' step='0.01' min='0' %AUTOFOCUS%>
+                    type='number' step='0.01' min='0' autofocus>
           </div>
         </div>
 

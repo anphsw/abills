@@ -241,20 +241,29 @@ sub iptv_users_fees {
     NO_TAGS         => 1
   });
 
-  return 0 unless $FORM{show};
+  return 0 unless $FORM{show} || $FORM{EXPORT_CONTENT};
 
   my $tps = $Tariffs->list({ MODULE => 'Iptv', COLS_NAME => 1, SERVICE_ID => $FORM{SERVICE_ID} || '_SHOW' });
+  my $channels_list = $Iptv->iptv_get_channels_by_service({ SERVICE_ID => $FORM{SERVICE_ID} });
+
   my @tp_names = ();
   map push(@tp_names, $_->{name}), @{$tps};
+  map push(@tp_names, $_->{name}), @{$channels_list};
 
   my $users_fees = $Iptv->iptv_users_fees_by_service({ TP_NAMES => \@tp_names, DESCRIBE => "$lang{TV}:", %FORM });
 
+  my $qs = $FORM{SERVICE_ID} ? "&SERVICE_ID=$FORM{SERVICE_ID}" : '';
+  $qs .= "&FROM_DATE=$FORM{FROM_DATE}" if $FORM{FROM_DATE};
+  $qs .= "&TO_DATE=$FORM{TO_DATE}" if $FORM{TO_DATE};
+
   my $table = $html->table({
-    width   => '100%',
-    caption => "$lang{TV}: $lang{FEES}",
-    title   => [ $lang{LOGIN}, $lang{DATE}, $lang{SUM}, $lang{DESCRIBE} ],
-    ID      => 'IPTV_FEES',
-    EXPORT  => 1,
+    width      => '100%',
+    caption    => "$lang{TV}: $lang{FEES}",
+    title      => [ $lang{LOGIN}, $lang{DATE}, $lang{SUM}, $lang{DESCRIBE} ],
+    ID         => 'IPTV_FEES',
+    FIELDS_IDS => [ 'LOGIN', 'DATE', 'SUM', 'DESCRIPTION' ],
+    qs         => $qs,
+    EXPORT     => 1,
   });
 
   my $total_table = $html->table({

@@ -29,7 +29,6 @@ my $paysys_logo_path =  '/styles/default_adm/img/weather_images/';
 =cut
 #**********************************************************
 sub weather_today_actions {
-
     my @day = ( 'TODAY', 'TOMORROW', 'DAT' );
     my $iter = 0;
 

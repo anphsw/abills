@@ -43,10 +43,12 @@ require Equipment::Grabbers;
 sub equipment_start_page {
   #my ($attr) = @_;
 
-  my %START_PAGE_F = ('equipment_count_report' => $lang{REPORT_EQUIPMENT},
-    'equipment_pon_report'                     => $lang{REPORT_PON},
-    'equipment_unreg_report'                   => $lang{REPORT_ON_UNREGISTERED_ONU},
-    'equipment_switch_report'                  => $lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS});
+  my %START_PAGE_F = (
+    'equipment_count_report'  => $lang{REPORT_EQUIPMENT},
+    'equipment_pon_report'    => $lang{REPORT_PON},
+    'equipment_unreg_report'  => $lang{REPORT_ON_UNREGISTERED_ONU},
+    'equipment_switch_report' => $lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS}
+  );
 
   return \%START_PAGE_F;
 }
@@ -146,6 +148,29 @@ sub equipment_pon_report {
 #*******************************************************************
 sub equipment_unreg_report {
 
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{REPORT_ON_UNREGISTERED_ONU},
+    title_plain => [ "OLT", $lang{COUNT} ],
+    ID          => 'UNREG_ITEMS',
+  });
+
+  return $html->tpl_show(_include('equipment_unreg_onu_report', 'Equipment'),
+    { UNREG_TABLE => $table->show() }, { OUTPUT2RETURN => 1 });
+}
+
+#**********************************************************
+=head2 unreg_report($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub equipment_unreg_report_date {
+  my ($attr) = @_;
+
   my $pon_list = $Equipment->_list({
     NAS_ID           => '_SHOW',
     NAS_NAME         => '_SHOW',
@@ -156,7 +181,7 @@ sub equipment_unreg_report {
     NAS_TYPE         => '_SHOW',
     MODEL_NAME       => '_SHOW',
     VENDOR_NAME      => '_SHOW',
-    STATUS           => '_SHOW',
+    STATUS           => 0,
     NAS_IP           => '_SHOW',
     MNG_HOST_PORT    => '_SHOW',
     MNG_USER         => '_SHOW',
@@ -171,22 +196,18 @@ sub equipment_unreg_report {
     width       => '100%',
     caption     => $lang{REPORT_ON_UNREGISTERED_ONU},
     title_plain => [ "OLT", $lang{COUNT} ],
-    ID          => 'UNREG_ITEMS',
+    ID          => 'UNREG_ITEMS'
   });
 
   my $unregister_list = '';
   foreach my $nas (@$pon_list) {
-
     my $nas_id = $nas->{NAS_ID};
     $Equipment->vendor_info($Equipment->{VENDOR_ID});
-    if (!$nas->{VENDOR_NAME}) {
-      $nas->{VENDOR_NAME} = $Equipment->{NAME};
-    }
+    $nas->{VENDOR_NAME} = $Equipment->{NAME} if (!$nas->{VENDOR_NAME});
 
     my $nas_type = equipment_pon_init($nas);
-    if ($nas_type eq "_bdcom") {
-      next;
-    }
+    next if ($nas_type eq "_bdcom");
+
     if ($nas_type eq '_eltex') {
       require Equipment::Eltex;
     }
@@ -207,20 +228,20 @@ sub equipment_unreg_report {
     $nas->{FULL} = 1;
 
     my $unregister_fn = $nas_type . '_unregister';
-    if(defined(&$unregister_fn)) {
-      $unregister_list = &{\&$unregister_fn}({ %$nas });
-      my $index = get_function_index('equipment_info');
-      $pages_qs = "index=$index&visual=4&NAS_ID=$nas_id&unregister_list=1";
-      my $count = @$unregister_list;
-      if ($count > 0) {
-        $table->addrow($nas->{NAS_NAME}, $count, $html->button('', $pages_qs, { class => "show", target => '_blank' }));
-      }
-    }
+
+    next unless defined(&$unregister_fn);
+    $unregister_list = &{\&$unregister_fn}({ %$nas });
+
+    my $index = get_function_index('equipment_info');
+    $pages_qs = "index=$index&visual=4&NAS_ID=$nas_id&unregister_list=1";
+
+    my $count = @$unregister_list;
+    $table->addrow($nas->{NAS_NAME}, $count, $html->button('', $pages_qs, { class => "show", target => '_blank' })) if ($count > 0);
   }
 
-  my $report_onu .= $table->show();
+  print $table->show();
 
-  return $report_onu;
+  return 0;
 }
 
 #*******************************************************************

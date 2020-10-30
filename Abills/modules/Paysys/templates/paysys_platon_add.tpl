@@ -6,6 +6,7 @@
   <input type='hidden' name='ext1' value=%UID%>
   <input type='hidden' name='url' value=%URL_OK%>
   <input type='hidden' name='sign' value=%SIGNATURE%>
+  <input type='hidden' name='commission' value=%COMMISSION%>
 
   <div class='container-fluid'>
     <div class='box box-primary'>
@@ -32,7 +33,7 @@
 
         <div class='form-group'>
           <label class='control-label col-md-6 text-center'>_{SERVICE_FEE}_</label>
-          <label class='control-label col-md-6'>%COMMISSION%</label>
+          <label class='control-label col-md-6'>%SERVICE%</label>
         </div>
 
         <div class='form-group'>

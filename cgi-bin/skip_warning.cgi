@@ -1,6 +1,6 @@
 #!/bin/sh
 #**********************************************************
-#  Skip warning
+#  Skip warning message
 #
 #**********************************************************
 
@@ -15,7 +15,7 @@ MYSQL=
 SSH_USER=abills_admin
 MYSQL='/usr/local/bin/mysql';
 BILLING_DIR='/usr/abills/';
-VERSION=0.3
+VERSION=0.4
 DEBUG="1"
 IP="${REMOTE_ADDR}";
 
@@ -70,11 +70,11 @@ db_update () {
 
   #Get uid
 
-  USER_ID=`${MYSQL} -s -N -u ${DB_USER} -p"${DB_PASSWD}" -h ${DB_HOST} -D "${DB_NAME}" -e "SELECT uid FROM dv_calls WHERE framed_ip_address=INET_ATON('${IP}') LIMIT 1;"`;
+  USER_ID=`${MYSQL} -s -N -u ${DB_USER} -p"${DB_PASSWD}" -h ${DB_HOST} -D "${DB_NAME}" -e "SELECT uid FROM internet_online WHERE framed_ip_address=INET_ATON('${IP}') LIMIT 1;"`;
 
   #Update
   if [ "${USER_ID}" != "" ]; then
-    `${MYSQL} -u ${DB_USER} -p"${DB_PASSWD}" -h ${DB_HOST} -D "${DB_NAME}" -e "UPDATE dv_main SET filter_id='' WHERE uid='${USER_ID}' LIMIT 1"`;
+    `${MYSQL} -u ${DB_USER} -p"${DB_PASSWD}" -h ${DB_HOST} -D "${DB_NAME}" -e "UPDATE internet_main SET filter_id='' WHERE uid='${USER_ID}' LIMIT 1"`;
   fi;
 
 }
@@ -84,8 +84,8 @@ db_update () {
 #**********************************************************
 show_redirect_page () {
 	
-if [ x${HTTP_REFERER} != x ]; then
-   if [ x${QUERY_STRING} != x ]; then
+if [ x"${HTTP_REFERER}" != x ]; then
+   if [ x"${QUERY_STRING}" != x ]; then
      REDIRECT_LINK=`echo "${QUERY_STRING}" | sed 's/redirect=//'`
      if [ x${REDIRECT_LINK} != x ]; then    
        echo "Location: http://${REDIRECT_LINK}";

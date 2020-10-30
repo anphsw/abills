@@ -533,18 +533,28 @@ var MessagesMenu = function (id, options) {
   };
   
   this.parseMessage = function (message) {
-    var uid = message['uid'] || '';
+    var id         = message['id'];
+    var uid        = message['uid'] || '';
+    var client_id  = message['client_id'] || message['uid'];
+    var date       = message['datetime'] || message['date'];
+    var subject    = message['subject'] || '-';
+    var type       = "MESSAGE";
+    var module     = "Msgs";
+    var extra      = '/admin/index.cgi?get_index=msgs_admin&full=1&UID=' + uid + '&chg=' + id;
+    var adminRead  = message['admin_read'];
+    var priorityId = message['priority_id'];
+
     return {
-      TYPE      : "MESSAGE",
-      MODULE    : "Msgs",
-      SENDER    : {UID: message['uid'], LOGIN: message['client_id']},
-      EXTRA     : '/admin/index.cgi?get_index=msgs_admin&full=1&UID=' + uid + '&chg=' + message['id'],
-      ID        : message['id'],
-      MSGS_ID   : message['id'],
-      SUBJECT   : message['subject'],
-      CREATED   : message['datetime'],
-      ADMIN_READ: (message['admin_read'] && message['admin_read'] !== '0000-00-00 00:00:00') ? 1 : 0,
-      PRIORITY  : message['priority_id'] || 0
+      TYPE      : type,
+      MODULE    : module,
+      SENDER    : {UID: uid, LOGIN: client_id},
+      EXTRA     : extra,
+      ID        : id,
+      MSGS_ID   : id,
+      SUBJECT   : subject,
+      CREATED   : date,
+      ADMIN_READ: (adminRead && adminRead !== '0000-00-00 00:00:00') ? 1 : 0,
+      PRIORITY  : priorityId || 0
     }
   };
   

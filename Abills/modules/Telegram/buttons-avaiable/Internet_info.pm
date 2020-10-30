@@ -20,6 +20,7 @@ sub new {
   };
   
   bless($self, $class);
+  
   return $self;
 }
 
@@ -29,7 +30,9 @@ sub new {
 =cut
 #**********************************************************
 sub btn_name {
-  return "Интернет";
+  my $self = shift;
+
+  return $self->{bot}->{lang}->{INTERNET};
 }
 
 #**********************************************************
@@ -63,10 +66,10 @@ sub click {
   });
 
   my $inline_keyboard = [];
-  my $message = "Подключенные сервисы:\n\n";
+  my $message = "$self->{bot}->{lang}->{CONNECTED_SERVICE}:\n\n";
 
   foreach my $line (@$list) {
-    $message .= "Тарифный план: <b>$line->{tp_name}</b>\n";
+    $message .= "$self->{bot}->{lang}->{TARIF_PLAN}: <b>$line->{tp_name}</b>\n";
     if ($line->{internet_status} == 3) {
       require Shedule;
       my $Shedule  = Shedule->new($self->{db}, $self->{admin}, $self->{conf});
@@ -83,47 +86,47 @@ sub click {
         my $holdup_stop_date = ($shedule_list->[0]->{d} || '*')
                        . '.' . ($shedule_list->[0]->{m} || '*')
                        . '.' . ($shedule_list->[0]->{y} || '*');
-        $message .= "<b>Внимание: Сервис приостановлен до $holdup_stop_date</b>\n";
+        $message .= "<b>$self->{bot}->{lang}->{SERVICE_STOP_DATE} $holdup_stop_date</b>\n";
         my $inline_button = {
-          text          => "Отменть приостановление",
+          text          => "$self->{bot}->{lang}->{CANCEL_STOP}",
           callback_data => "Internet_info&stop_holdup&$line->{id}&$shedule_list->[0]->{id}"
         };
         $inline_keyboard = [ [$inline_button] ];
       }
       else {
-        $message .= "<b>Внимание: Сервис приостановлен.</b>\n";
+        $message .= "<b>$self->{bot}->{lang}->{SERVICE_STOP}</b>\n";
         my $inline_button = {
-          text          => "Отменть приостановление",
+          text          => "$self->{bot}->{lang}->{CANCEL_STOP}",
           callback_data => "Internet_info&stop_holdup&$line->{id}"
         };
         $inline_keyboard = [ [$inline_button] ];
       }
     }
     elsif ($line->{internet_status} == 5) {
-      $message .= "<b>Внимание: Слишком маленький депозит.</b>\n\n";
+      $message .= "<b>$self->{bot}->{lang}->{SMALL_DEPOSIT}</b>\n\n";
       if ($self->{conf}{user_credit_change} && $Users->{ALLOW_CREDIT}) {
         my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $self->{conf}{user_credit_change});
-        my $days_lit = "день";
+        my $days_lit = "$self->{bot}->{lang}->{DAY}";
         if ($days > 1 && $days < 5) {
-          $days_lit = "дня";
+          $days_lit = "$self->{bot}->{lang}->{DAY}";
         }
         elsif ($days > 4) {
-          $days_lit = "дней";
+          $days_lit = "$self->{bot}->{lang}->{DAYS}";
         }
-        $message .= "Вы можете взять кредит на $days $days_lit\n";
-        $message .= "Стоимость услуги: $price грн.\n" if ($price);
+        $message .= "$self->{bot}->{lang}->{SET_CREDIT} $days $days_lit\n";
+        $message .= "$self->{bot}->{lang}->{SERVICE_PRICE}: $price.\n" if ($price);
 
         my $inline_button = {
-          text          => "Взять кредит",
+          text          => "$self->{bot}->{lang}->{CREDIT_SET}",
           callback_data => "Internet_info&credit"
         };
         $inline_keyboard = [ [$inline_button] ];
       }
     }
     else {
-      $message .= "Скорость: <b>$line->{speed}</b>\n" if ($line->{speed});
-      $message .= "Стоимость за месяц: <b>$line->{month_fee}</b>\n" if ($line->{month_fee} && $line->{month_fee} > 0);
-      $message .= "Стоимость за день: <b>$line->{day_fee}</b>\n" if ($line->{day_fee} && $line->{day_fee} > 0);
+      $message .= "$self->{bot}->{lang}->{SPEED}: <b>$line->{speed}</b>\n" if ($line->{speed});
+      $message .= "$self->{bot}->{lang}->{PRICE_MONTH}: <b>$line->{month_fee}</b>\n" if ($line->{month_fee} && $line->{month_fee} > 0);
+      $message .= "$self->{bot}->{lang}->{PRICE_DAY}: <b>$line->{day_fee}</b>\n" if ($line->{day_fee} && $line->{day_fee} > 0);
     }
     $message .= "\n";
   }
@@ -172,7 +175,7 @@ sub stop_holdup {
     });
 
     $self->{bot}->send_message({
-      text       => "Сервис активирован.",
+      text       => "$self->{bot}->{lang}->{SERVICE_ACTIVETED}",
       parse_mode => 'HTML'
     });
 
@@ -224,7 +227,7 @@ sub credit {
       if ($price && $price > 0) {
         require Fees;
         my $Fees = Fees->new($self->{db}, $self->{admin}, $self->{conf});
-        $Fees->take($Users, $price, { DESCRIBE => "Включение кредита" });
+        $Fees->take($Users, $price, { DESCRIBE => "$self->{bot}->{lang}->{ENABLED_CREDIT}" });
       }
 
       require Abills::Misc;
@@ -239,18 +242,16 @@ sub credit {
         USER_INFO => $Users,
         SUM       => $sum,
         SILENT    => 1,
-        # QUITE     => 1,
-        # DEBUG     => 1
       });
       $self->{bot}->send_message({
-        text       => "Кредит установлен",
+        text       => "$self->{bot}->{lang}->{CREDIT_SUCCESS}",
         parse_mode => 'HTML'
       });
     }
   }
   else {
     $self->{bot}->send_message({
-      text       => "Кредит недоступен.",
+      text       => "$self->{bot}->{lang}->{CREDIT_NOT_EXIST}",
       parse_mode => 'HTML'
     });
   }

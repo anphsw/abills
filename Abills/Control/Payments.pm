@@ -15,7 +15,6 @@ our(
   %conf,
   $admin,
   %lang,
-  $html,
   %permissions,
   @MONTHES,
   @WEEKDAYS,
@@ -27,9 +26,13 @@ our(
 );
 
 my $Payments = Finance->payments($db, $admin, \%conf);
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 form_payments($attr) Payments form
+
+  Arguments:
+    $attr
 
 =cut
 #**********************************************************
@@ -37,6 +40,29 @@ sub form_payments {
   my ($attr) = @_;
 
   return 0 if (!$permissions{1});
+
+  my $allowed_payments = $Payments->admin_payment_type_list({
+    COLS_NAME => 1,
+    AID => $admin->{AID},
+  });
+
+  my @allowed_payments_ids = map { $_->{payments_type_id} } @{ $allowed_payments };
+
+  my $payment_list = $Payments->payment_type_list({
+    COLS_NAME => 1,
+    FEES_TYPE => '_SHOW',
+    SORT      => 'id',
+    IDS       => scalar @allowed_payments_ids ? \@allowed_payments_ids : undef,
+  });
+
+  foreach my $line (@$payment_list) {
+    $attr->{DEFAULT_ID} = $line->{id} if ($line->{default_payment});
+    $attr->{PAYMENTS_METHODS}->{$line->{id}} = _translate($line->{name});
+    if ($FORM{METHOD} && $FORM{METHOD} == $line->{id} && $line->{fees_type}) {
+      $attr->{GET_FEES}=$line->{fees_type};
+      last;
+    }
+  }
 
   our $Docs;
   if (in_array('Docs', \@MODULES)) {
@@ -53,10 +79,20 @@ sub form_payments {
     exit;
   }
 
-  # autofocus on SUM field
-  $Payments->{AUTOFOCUS}  = 'autofocus="autofocus"';
-
-  if ($attr->{USER_INFO}) {
+  if (($FORM{search_form} || $FORM{search}) && $index != 7) {
+    form_search(
+      {
+        HIDDEN_FIELDS => {
+          subf       => ($FORM{subf}) ? $FORM{subf} : undef,
+          COMPANY_ID => $FORM{COMPANY_ID},
+          LEAD_ID    => $FORM{LEAD_ID}
+        },
+        ID            => 'SEARCH_PAYMENTS',
+        CONTROL_FORM  => 1
+      }
+    );
+  }
+  elsif ($attr->{USER_INFO}) {
     my $user = $attr->{USER_INFO};
     $Payments->{UID} = $user->{UID};
 
@@ -113,28 +149,33 @@ sub form_payments {
     form_users();
     return 0;
   }
-  elsif ($index != 7) {
-    $FORM{type} = $FORM{subf} if ($FORM{subf});
-    form_search(
-      {
-        HIDDEN_FIELDS => {
-          subf       => ($FORM{subf}) ? $FORM{subf} : undef,
-          COMPANY_ID => $FORM{COMPANY_ID},
-          LEAD_ID    => $FORM{LEAD_ID}
-        },
-        ID            => 'SEARCH_PAYMENTS',
-        CONTROL_FORM  => 1
-      }
-    );
-  }
+  #depricated
+  # elsif ($index != 7) {
+  #   $FORM{type} = $FORM{subf} if ($FORM{subf});
+  #   form_search(
+  #     {
+  #       HIDDEN_FIELDS => {
+  #         subf       => ($FORM{subf}) ? $FORM{subf} : undef,
+  #         COMPANY_ID => $FORM{COMPANY_ID},
+  #         LEAD_ID    => $FORM{LEAD_ID}
+  #       },
+  #       ID            => 'SEARCH_PAYMENTS',
+  #       CONTROL_FORM  => 1
+  #     }
+  #   );
+  # }
 
   form_payments_list($attr);
 
-  return 1;
+  return 0;
 }
 
 #**********************************************************
 =head2 form_payment_add($attr)
+
+  Arguments:
+    $attr
+      GET_FEES
 
 =cut
 #**********************************************************
@@ -144,23 +185,20 @@ sub form_payment_add {
   my $user = $attr->{USER_INFO};
   our $Docs;
 
+  if ($user->{GID}) {
+    $user->group_info($user->{GID});
+    if ($user->{DISABLE_PAYMENTS}) {
+      $html->message('err', $lang{ERROR}, "$lang{DISABLE} $lang{PAYMENTS} $lang{CASHBOX}");
+      return 0;
+    }
+  }
   my %BILL_ACCOUNTS = ();
   if ($conf{EXT_BILL_ACCOUNT}) {
     $BILL_ACCOUNTS{ $user->{BILL_ID} } = "$lang{PRIMARY} : $user->{BILL_ID}" if ($user->{BILL_ID});
     $BILL_ACCOUNTS{ $user->{EXT_BILL_ID} } = "$lang{EXTRA} : $user->{EXT_BILL_ID}" if ($user->{EXT_BILL_ID});
   }
 
-  my %PAYMENTS_METHODS = %{ get_payment_methods() };
-
-  my $payment_list = $Payments->payment_type_list({
-    COLS_NAME => 1,
-    SORT      => 'id',
-  });
-
-  my $default_id = 0;
-  foreach my $default_payment (@$payment_list) {
-    $default_id = $default_payment->{id} if ($default_payment->{default_payment});
-  }
+  my $PAYMENTS_METHODS = $attr->{PAYMENTS_METHODS};
 
   #exchange rate sel
   my $er_list   = $Payments->exchange_list({%FORM, COLS_NAME => 1 });
@@ -204,8 +242,8 @@ sub form_payment_add {
   $Payments->{SEL_METHOD} = $html->form_select(
     'METHOD',
     {
-      SELECTED => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : $default_id,
-      SEL_HASH => \%PAYMENTS_METHODS,
+      SELECTED => (defined($FORM{METHOD}) && $FORM{METHOD} ne '') ? $FORM{METHOD} : ($attr->{DEFAULT_ID} || 0),
+      SEL_HASH => $PAYMENTS_METHODS,
       NO_ID    => 1,
     }
   );
@@ -332,7 +370,7 @@ sub form_payment_add {
       print "<div class='col-md-6'>" . $html->tpl_show(templates('form_payments'),
         { %FORM, %$attr, %$Payments }, { ID => 'form_payments', OUTPUT2RETURN => 1  }) . "</div></div>";
     }
-    else{
+    else {
       $html->tpl_show(templates('form_payments'), { %FORM, %$attr, %$Payments }, { ID => 'form_payments'  });
     }
   }
@@ -357,7 +395,7 @@ sub payment_add {
   our $Docs;
   my $er;
   my $user = $attr->{USER_INFO};
-  $Payments->{AUTOFOCUS}  = '';
+  #$Payments->{AUTOFOCUS}  = '';
   $FORM{SUM} =~ s/,/\./g;
   $db->{TRANSACTION}=1;
   my DBI $db_ = $db->{db};
@@ -420,11 +458,20 @@ sub payment_add {
           require Employees::Salary;
           Employees->import();
           my $Employees = Employees->new($db, $admin, \%conf);
+          my $coming_type = $Employees->employees_list_coming_type({ COLS_NAME => 1});
+
+          my $id_type;
+          foreach my $key (@$coming_type) {
+            if ($key->{default_coming} == 1){
+              $id_type = $key->{id};
+            }
+          }
+
           $Employees->employees_add_coming({
             DATE           => $FORM{DATE} || $DATE,
             AMOUNT         => $FORM{SUM},
             CASHBOX_ID     => $FORM{CASHBOX_ID},
-            COMING_TYPE_ID => 2,
+            COMING_TYPE_ID => $id_type,
             COMMENTS       => $FORM{DESCRIBE},
             AID            => $admin->{AID},
             UID            => $user->{UID},
@@ -454,6 +501,15 @@ sub payment_add {
         });
       }
     }
+
+    if ($attr->{GET_FEES}) {
+      my $Fees = Finance->fees($db, $admin, \%conf);
+      $Fees->take($user, $FORM{SUM},
+        {
+          DESCRIBE=> ($FORM{DESCRIBE} || q{}) . " PAYMENT: $Payments->{PAYMENT_ID}",
+          METHOD  => $attr->{GET_FEES}
+        });
+    }
   }
 
   if (! $attr->{REGISTRATION} && ! $db->{db}->{AutoCommit}) {
@@ -473,9 +529,9 @@ sub payment_add {
 sub form_payments_list {
   my ($attr) = @_;
 
-  my %PAYMENTS_METHODS = %{ get_payment_methods() };
   return 0 if (! $permissions{1}{0});
 
+  my $PAYMENTS_METHODS = get_payment_methods();
   my $user = $attr->{USER_INFO};
   my %BILL_ACCOUNTS = ();
   if ($conf{EXT_BILL_ACCOUNT}) {
@@ -536,7 +592,7 @@ sub form_payments_list {
           qs      => $pages_qs,
           EXPORT  => 1,
           ID      => 'PAYMENTS',
-          MENU    => "$lang{SEARCH}:search_form=1&index=2:search",
+          MENU    => "$lang{SEARCH}:search_form=1&index=2". (($FORM{UID}) ? "&UID=$FORM{UID}&LOGIN=". ($users->{LOGIN} || q{}) : q{}) .":search",
           SHOW_COLS_HIDDEN => {
             TYPE_PAGE => $FORM{type}
           }
@@ -600,7 +656,7 @@ sub form_payments_list {
         $line->{$field_name} = ($line->{$field_name} < 0) ? $html->color_mark( format_sum($line->{$field_name}), $_COLORS[6] ) :  format_sum($line->{$field_name});
       }
       elsif($field_name eq 'method') {
-        $line->{method} = ($FORM{METHOD_NUM}) ? $line->{method} : ($PAYMENTS_METHODS{ $line->{method} }) ? $PAYMENTS_METHODS{ $line->{method} } : $line->{method};
+        $line->{method} = ($FORM{METHOD_NUM}) ? $line->{method} : ($PAYMENTS_METHODS->{ $line->{method} }) ? $PAYMENTS_METHODS->{ $line->{method} } : $line->{method};
       }
       elsif($field_name eq 'login_status' && defined($line->{login_status})) {
         $line->{login_status} = ($line->{login_status} > 0) ? $html->color_mark($service_status[ $line->{login_status} ], $service_status_colors[ $line->{login_status} ]) : $service_status[$line->{login_status}];
@@ -631,7 +687,11 @@ sub form_payments_list {
         }
       }
       elsif($field_name eq 'admin_name') {
-         $line->{admin_name} = _status_color_state($line->{admin_name}, $line->{admin_disable});
+        $line->{admin_name} = _status_color_state($line->{admin_name}, $line->{admin_disable});
+        delete $line->{admin_disable};
+      }
+      
+      if ($Payments->{SEARCH_FIELDS_COUNT} == $i) {
         delete $line->{admin_disable};
       }
 

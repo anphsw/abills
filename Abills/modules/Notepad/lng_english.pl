@@ -28,4 +28,6 @@ $lang{ST_TITLE} = 'Sticker title';
 $lang{ST_TEXT} = 'Sticker text';
 $lang{STICKER_TITLE} = 'Input title',
 $lang{STICKER_DISPLAY} = 'Display',
+$lang{START_STAT} = 'Time start',
+$lang{END_STAT} = 'Time and',
 $lang{STICKER_HIDE} = 'Hide'

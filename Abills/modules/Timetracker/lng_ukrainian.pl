@@ -50,7 +50,7 @@ $lang{NOT_CONFIGURED} = 'Модуль не налаштовано';
 $lang{NOT_FOUND} = 'Немає конфігурації: ';
 $lang{ALL_TIME} = 'Всього часу, години';
 
-$lang{ADMINS} = 'список адміністраторів';
+$lang{ADMINS_LIST} = 'список адміністраторів';
 $lang{CLOSE_MOUTH} = 'количество закрытых за поточный месяц работ по Redmine';
 $lang{ACTUALLY_HOURS} = 'кількість фактично витрачених годин';
 $lang{SCHEDULED_HOURS} = 'кількість запланованих годин';

@@ -136,7 +136,6 @@ our $year    = strftime("%Y", localtime(time));
 $conf{info_fields_new}=1;
 $conf{CONTACTS_NEW}=1;
 
-$conf{INTERNET_CID_FORMAT}=1;
 $conf{NEW_WIKI}=1;
 
 1

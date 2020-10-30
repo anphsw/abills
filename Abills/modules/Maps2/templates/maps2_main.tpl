@@ -33,37 +33,12 @@
 
 <script src='/styles/default_adm/js/maps/leaflet.semicircle.js'></script>
 
+<script src='/styles/default_adm/js/maps/Leaflet.BigImage.js'></script>
+<link rel='stylesheet' href='/styles/default_adm/css/modules/maps/Leaflet.BigImage.css'>
+
 %JS_VARIABLES%
 
-<div class='row' id="navbar_collapse" style="display: none">
-</div>
-
-<div class='row' id="navbar_container">
-  <div class="leaflet-control-zoom leaflet-bar leaflet-control leaflet-custom">
-    <a id='hide_button' class="leaflet-control-zoom-in" href="#" title="Hide menu" role="button"
-       aria-label="Hide menu">-</a>
-  </div>
-  <div id="navbar_button_container"></div>
-</div>
-
-<div id="home_button" class="leaflet-bar leaflet-control" style="display: none">
-  <a title="Go Home" class="polyline-measure-unicode-icon" id="home_a">
-    <i class="fa fa-home" aria-hidden="true"></i>
-  </a>
-</div>
-
-
-<div class='row' id="search_select">
-  <form>
-    <div class="input-group">
-      <span class="input-group-addon" id="search_hs_button"><i class="glyphicon glyphicon-search"></i></span>
-      <div id="select-div"><select id="SELECT_OBJECTS" style="width:100%"></select></div>
-    </div>
-  </form>
-</div>
-
 <div class='row'>
-
   <div class='box box-theme'>
     <div class='box-body' id='map-wrapper'>
       <div id='map' style='height: 85vh'></div>
@@ -76,13 +51,11 @@
 <script>
 
   function putScriptInHead(id, url, callback_load) {
-    if (document.getElementById(id))
-      return 0;
+    if (document.getElementById(id)) return 0;
 
     let scriptElement = document.createElement('script');
 
-    if (callback_load)
-      scriptElement.onload = callback_load;
+    if (callback_load) scriptElement.onload = callback_load;
 
     scriptElement.id = id;
     scriptElement.src = url;
@@ -94,19 +67,6 @@
   jQuery('#map').css({height: map_height});
 
   var selfUrl = '$SELF_URL';
-  let hide = 0;
-
-  jQuery('#hide_button').on('click', function () {
-    if (hide === 0) {
-      jQuery('#navbar_button_container').fadeOut(300);
-      jQuery('a#hide_button').text('+');
-      hide = 1;
-    } else {
-      jQuery('#navbar_button_container').fadeIn(300);
-      jQuery('a#hide_button').text('-');
-      hide = 0;
-    }
-  });
 
   if (document.getElementById('new_maps')) {
     init_map();

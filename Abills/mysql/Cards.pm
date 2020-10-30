@@ -465,10 +465,16 @@ sub cards_list {
   }
 
   if ($admin->{DOMAIN_ID} == 0) {
-    push @WHERE_RULES, @{ $self->search_expr("$attr->{DOMAIN_ID}", 'INT', 'cu.domain_id') } if ($attr->{DOMAIN_ID});
-  }
-  else {
-    push @WHERE_RULES, @{ $self->search_expr("$admin->{DOMAIN_ID}", 'INT', 'cu.domain_id') };
+    my @domain_id = split(/;/, $attr->{DOMAIN_ID});
+
+    if ($#domain_id > 1) {
+      push @domain_id, 0;
+    }
+
+    foreach my $element_id (@domain_id) {
+      push @WHERE_RULES, "cu.domain_id = $element_id";
+    }
+    
   }
 
   if ($attr->{PAYMENTS}) {
@@ -483,8 +489,11 @@ sub cards_list {
     $GROUP_BY='';
   }
 
+  if ($attr->{USED_FROM_DATE} || $attr->{USED_TO_DATE}) {
+    $attr->{STATUS} = 2;
+  }
+
   my $WHERE = $self->search_former($attr, [
-    #['SERIAL',           'STR',  'cu.serial',    1],
     ['NUMBER',           'INT',  'cu.number',    "IF($self->{CARDS_NUMBER_LENGTH}>0, MID(cu.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), cu.number) AS number"],
     ['CARDS_COUNT',      '',     '', 'COUNT(*) AS cards_count' ],
     ['CARDS_SUM',        '',     '', 'SUM(sum) AS cards_sum'  ],
@@ -494,7 +503,6 @@ sub cards_list {
     ['SUM',              'INT',  'cu.sum',         1],
     ['LOGIN',            'STR',  'u.id AS login',  1],
     ['EXPIRE',           'DATE', 'cu.expire',      1],
-    #['CREATED',          'DATE', "DATE_FORMAT(cu.created, '%Y-%m-%d')",  "DATE_FORMAT(cu.created, '%Y-%m-%d') AS created" ],
     ['CREATED',          'DATE', "DATE_FORMAT(cu.created, '%Y-%m-%d')",  "DATE_FORMAT(cu.created, '%Y-%m-%d %H:%i:%s') AS created" ],
     ['LAST_CREATED',     'DATE', "DATE_FORMAT(MAX(cu.created), '%Y-%m-%d')",  "DATE_FORMAT(MAX(cu.created), '%Y-%m-%d') AS created" ],
     ['DILLER_NAME',      'STR',  "if(cd_users.fio<>'', cd_users.fio, cd.uid) AS diller_name", 1 ],
@@ -509,12 +517,13 @@ sub cards_list {
     ['STATUS',           'INT',  'cu.status',      1],
     ['PIN',              'STR',  "DECODE(cu.pin, '$CONF->{secretkey}')", "DECODE(cu.pin, '$CONF->{secretkey}') AS pin"],
 
-    ['DATE',             'DATE', "DATE_FORMAT(cu.datetime, '%Y-%m-%d')"                     ],
+    #['DATE',             'DATE', "DATE_FORMAT(cu.datetime, '%Y-%m-%d')"                     ],
     ['CREATED_MONTH',    'DATE', "DATE_FORMAT(cu.created, '%Y-%m')"                         ],
     ['FROM_DATE|TO_DATE','DATE', "DATE_FORMAT(cu.created, '%Y-%m-%d')",                     ],
     ['CREATED_FROM_DATE|CREATED_TO_DATE',  'DATE',  "DATE_FORMAT(cu.created, '%Y-%m-%d')",  ],
     ['USED_DATE',        'DATE', "", "IF (cu.status=2, cu.datetime, '') AS used_date"       ],
     ['DILLER_UID',       'INT',  'cd.uid',    1],
+    ['USED_FROM_DATE|USED_TO_DATE', 'DATE', "DATE_FORMAT(cu.datetime, '%Y-%m-%d')", ],
   ],
   {
     WHERE => 1,
@@ -1261,9 +1270,9 @@ sub bruteforce_list {
     push @WHERE_RULES, @{ $self->search_expr("$attr->{DATE}", 'DATE', "DATE_FORMAT(cb.datetime, '%Y-%m-%d')") };
   }
 
-  if ($admin->{DOMAIN_ID}) {
-    push @WHERE_RULES, "cb.domain_id='$admin->{DOMAIN_ID}'";
-  }
+  # if ($admin->{DOMAIN_ID}) {
+  #   push @WHERE_RULES, "cb.domain_id='$admin->{DOMAIN_ID}'";
+  # }
 
   if ($attr->{MONTH}) {
     push @WHERE_RULES, @{ $self->search_expr("$attr->{MONTH}", 'DATE', "DATE_FORMAT(cb.datetime, '%Y-%m')") };

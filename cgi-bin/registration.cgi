@@ -210,23 +210,16 @@ elsif ($#REGISTRATION > -1) {
         },
         { OUTPUT2RETURN => 1});
 
-      if ($message) {
-        my $SENDMAIL = '/usr/sbin/sendmail';
-        if (!-f $SENDMAIL) {
-          print "Content-Type: text/html\n\n";
-          print "Mail delivery agent not exists";
-          return 0;
-        }
-      }
-
-      sendmail(
+      if(! sendmail(
         $conf{ADMIN_MAIL},
         $conf{ADMIN_MAIL},
         'New registration request',
         $message,
         $conf{MAIL_CHARSET},
         ''
-      );
+      )) {
+        $html->message('err', $lang{@REGISTRATION}, 'Request sending error');
+      }
   
       if ($conf{REGISTRATION_REDIRECT}) {
         $html->redirect($conf{REGISTRATION_REDIRECT}, { MESSAGE => $lang{SENDED} });
@@ -265,6 +258,7 @@ if (!($FORM{header} && $FORM{header} == 2)) {
   $OUTPUT{SKIN} = 'skin-green';
   $OUTPUT{MENU} = $choose_module_buttons;
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT);
+  $OUTPUT{DOMAIN_ID}=$FORM{DOMAIN_ID} || q{};
 
   print $html->tpl_show(templates('registration'), { %OUTPUT, TITLE_TEXT => $lang{REGISTRATION} });
   print $html->tpl_show(templates('form_client_start'), { %OUTPUT });
@@ -281,12 +275,6 @@ else {
 #**********************************************************
 sub password_recovery {
 
-  my $SENDMAIL = '/usr/sbin/sendmail';
-  if (!-f $SENDMAIL) {
-    $html->message('err', $lang{ERROR}, "Mail delivery agent not exists");
-    return 0;
-  }
-  
   if ($FORM{SEND} && (!$conf{REGISTRATION_CAPTCHA} || check_captcha(\%FORM))) {
     password_recovery_process();
   }
@@ -359,16 +347,37 @@ sub password_recovery_process {
     { OUTPUT2RETURN => 1 }
   );
 
-  if ($email && $email ne '') {
-    sendmail("$conf{ADMIN_MAIL}", "$email", "$PROGRAM Password Repair", "$message", "$conf{MAIL_CHARSET}", "");
-    $html->message('info', $lang{INFO}, "$lang{SENDED}");
-  }
-  else {
-    $html->message('info', $lang{INFO}, "E-Mail $lang{NOT_EXIST}");
-  }
-
   if ($FORM{SEND_SMS} && in_array('Sms', \@MODULES)) {
     load_module('Sms', $html);
+
+    my $Sms = Sms->new($db, $admin, \%conf);
+    $Sms->import();
+    my $list_sms = $Sms->list({ 
+      COLS_NAME => 1,
+      DATETIME  => '_SHOW',
+      UID       => 1,
+      NO_SKIP   => 1,
+    });
+
+    my $current_mount = strftime("%m", localtime(time));
+    my $limit_sms = 0;
+    foreach my $sms_data (@$list_sms) {
+      my (undef, $year, $mount, $day, undef) 
+          = split(/([0-9].+)-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])/, $sms_data->{datetime});
+
+      if ($mount eq $current_mount) {
+        ++$limit_sms;
+      }
+    }
+
+    if ($conf{USER_LIMIT_SMS} &&  $conf{USER_LIMIT_SMS} <= $limit_sms) {
+      $html->message('err', "$lang{ERROR}", "SMS $lang{LIMIT} $conf{USER_LIMIT_SMS}");
+
+      return 1;
+    }
+
+    $message =~ s/\n/ /g if ($message);
+
     my $sms_sent = sms_send({
       NUMBER  => $phone,
       MESSAGE => $message,
@@ -377,6 +386,15 @@ sub password_recovery_process {
 
     if ($sms_sent){
       $html->message('info', "$lang{INFO}", "SMS $lang{SENDED}");
+    }
+  }
+  else {
+    if ($email && $email ne '') {
+      sendmail("$conf{ADMIN_MAIL}", "$email", "$PROGRAM Password Repair", "$message", "$conf{MAIL_CHARSET}", "");
+      $html->message('info', $lang{INFO}, "$lang{SENDED}");
+    }
+    else {
+      $html->message('info', $lang{INFO}, "E-Mail $lang{NOT_EXIST}");
     }
   }
 

@@ -200,6 +200,7 @@ sub ipoe_periodic_session_restart{
         NAS_TYPE             => $nas_info{$nas_id}{NAS_TYPE},
         NAS_MNG_USER         => $nas_info{$nas_id}{NAS_MNG_USER},
         NAS_MNG_IP_PORT      => (! $attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{NAS_MNG_IP_PORT} : q{},
+        NAS_MNG_PASSWORD     => $nas_info{$nas_id}{NAS_MNG_PASSWORD},
         CONNECT_INFO         => $connect_info
       }
     );
@@ -232,6 +233,7 @@ sub ipoe_periodic_session_restart{
         'NAS-IP-Address'     => $nas_info{$nas_id}{NAS_IP},
         NAS_MNG_USER         => $nas_info{$nas_id}{NAS_MNG_USER},
         NAS_MNG_IP_PORT      => (! $attr->{LOCAL_NAS}) ? $nas_info{$nas_id}{NAS_MNG_IP_PORT} : q{},
+        NAS_MNG_PASSWORD     => $nas_info{$nas_id}{NAS_MNG_PASSWORD},
         TP_ID                => $Internet->{TP_ID},
         CALLING_STATION_ID   => $online->{CID} || $online->{client_ip},
         'Calling-Station-Id' => $online->{CID} || $online->{client_ip},
@@ -247,6 +249,7 @@ sub ipoe_periodic_session_restart{
 
       $Auth->{UID} = $online->{uid};
       $Auth->{IPOE_IP} = $online->{client_ip};
+      $Auth->{SERVICE_ID}=$online->{service_id};
 
       my ($r, $RAD_PAIRS) = $Auth->auth(\%AUTH_REQUEST, \%nas_info);
 
@@ -348,8 +351,12 @@ sub ipoe_start_active{
     return $debug_output;
   }
 
-  #Get puuls for nas
-  my $poll_list = $Nas->nas_ip_pools_list( { SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 } );
+  #Get pools for nas
+  my $poll_list = $Nas->nas_ip_pools_list({
+    SHOW_ALL_COLUMNS => 1,
+    PAGE_ROWS        => 60000,
+    COLS_NAME        => 1
+  });
   my %nas_pools_hash = ();
 
   # Get valid NAS

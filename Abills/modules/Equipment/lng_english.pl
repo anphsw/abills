@@ -28,7 +28,7 @@ $lang{BY_COLUMN}='By columns';
 $lang{FIRST_PORT_POSITION}='First port';
 $lang{POSITION_UP}='Upside';
 $lang{POSITION_DOWN}='Downside';
-$lang{TRAPS}='SNMP traps';
+$lang{TRAPS}='SNMP-Traps';
 
 $lang{REVISION} = 'Revision';
 $lang{SELECT_TYPE} = 'Select type';
@@ -120,5 +120,23 @@ $lang{NO_ZABBIX_INFO} = 'Zabbix hostid and $conf{ZABBIX_URL} required';
 $lang{DUPLICATE_MAC} = 'Duplicate MAC';
 
 $lang{RF_PORT_ON} = 'RF port status';
+$lang{BACKUP} = 'Backup';
+$lang{PROVISION} = 'Provisions';
+$lang{FAULTS} = 'Faults';
+$lang{USER_ROUTE} = 'User Route';
+
+$lang{CABLE_TESTER} = 'Cable tester';
+$lang{STATUS_PAIR} = 'Status of pair';
+$lang{LENGTH_PAIR} = 'Length of pair';
+
+$lang{MAC_BEHIND_ONU} = 'MAC behind ONU';
+
+$lang{SHOW_ONU_CONFIG} = 'Show ONU configuration';
+
+$lang{DISABLE_CATV_PORT} = 'Disable CATV-port';
+$lang{ENABLE_CATV_PORT} = 'Enable CATV-port';
+$lang{CATV_PORT_DISABLED} = 'CATV-port disabled';
+$lang{CATV_PORT_ENABLED} = 'CATV-port enabled';
+$lang{CATV_PORT_ERROR} = 'Error when changing CATV-port status';
 
 1

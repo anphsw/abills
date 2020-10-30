@@ -12,13 +12,15 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw/cmd in_array/;
+use Abills::Base qw/cmd in_array convert/;
 use Abills::Misc;
 use Abills::Templates;
 use Abills::Sender::Core;
 use Ureports;
 
-our ($html, %conf, $db, $admin);
+our (%conf, $db, $admin);
+
+our Abills::HTML $html;
 
 my $debug = 0;
 
@@ -53,13 +55,17 @@ sub ureports_send_reports {
   # Fix old EMAIL type 0 -> 9
   $type = 9 if ( $type eq '0' );
 
-  if ( $attr->{MESSAGE_TEPLATE} ) {
+  if ($attr->{MESSAGE_TEPLATE}) {
     $message = $html->tpl_show(_include($attr->{MESSAGE_TEPLATE}, 'Ureports'), $attr,
       { OUTPUT2RETURN => 1 });
   }
-  elsif ( $attr->{REPORT_ID}) {
+  elsif ($type == 1 && $message && $conf{UREPORTS_CUSTOM_FIRST}) {
+    $attr->{MESSAGE} = $message;
+    $message = $html->tpl_show(_include('ureports_sms_message', 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
+  }
+  elsif ($attr->{REPORT_ID}) {
     $message = $html->tpl_show(_include('ureports_report_' . $attr->{REPORT_ID}, 'Ureports'), $attr,
-      { OUTPUT2RETURN => 1 });
+        { OUTPUT2RETURN => 1 });
   }
 
   if ( $debug > 6 ) {
@@ -68,27 +74,15 @@ sub ureports_send_reports {
   }
 
   my $status = 0;
-  if ( $type == 1 ) {
-    if ( in_array('Sms', \@MODULES) ) {
-      $attr->{MESSAGE} = $message;
-      $message = $html->tpl_show(_include('ureports_sms_message', 'Ureports'), $attr, { OUTPUT2RETURN => 1 });
 
-      load_module('Sms');
-      $status = sms_send(
-        {
-          NUMBER    => $destination,
-          MESSAGE   => $message,
-          DEBUG     => $debug,
-          UID       => $attr->{UID},
-          PERIODIC  => 1
-        }
-      );
-    }
-    elsif ( $conf{UREPORTS_SMS_CMD} ) {
-      cmd("$conf{UREPORTS_SMS_CMD} $destination $message");
-    }
+  if ( $conf{UREPORTS_SMS_CMD} ) {
+    cmd("$conf{UREPORTS_SMS_CMD} $destination $message");
   }
   else {
+    if ($conf{SMS_TRANSLIT}) {
+      $message = convert($message, { txt2translit => 1 });
+    }
+
     $status = $Sender->send_message({
       UID         => $attr->{UID},
       TO_ADDRESS  => $destination,

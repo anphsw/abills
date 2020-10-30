@@ -86,6 +86,8 @@
                             <a href="#" data-toggle="tooltip" title=""><span class="glyphicon glyphicon-question-sign"></span></a>
                         </div>
 
+                        %MODELS_FORM%
+
                         <hr>
 
                         <div class='form-group'>

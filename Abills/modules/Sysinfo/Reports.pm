@@ -4,7 +4,7 @@ use warnings FATAL => 'all';
 
 =head1 NAME
 
-  Sysinfo::Reports - 
+  Sysinfo::Reports -
 
 =cut
 
@@ -28,22 +28,22 @@ require Sysinfo::Services;
 #*******************************************************************
 sub sysinfo_perl {
   #my ($attr) = @_;
-  
+
   my $perl_version = $^V;
   $perl_version=~s/v//g;
   $html->message('info', '', "$lang{VERSION} Perl : $perl_version");
-  
+
   my @require_modules = (
     'DBI',
     'DBD::mysql',
     'Digest::MD5',
     'Digest::MD4',
     'Crypt::DES',
-    'Digest::SHA1',
+    'Digest::SHA',
     'Time::HiRes',
     'XML::Simple',
     'PDF::API2',
-    'RRD::Simple',
+    'RRDTool::OO',
     'JSON',
     'Authen::Captcha',
     'Spreadsheet::WriteExcel',
@@ -54,15 +54,15 @@ sub sysinfo_perl {
     'Imager::QRCode',
     'LWP::UserAgent'
   );
-  
+
   #use ExtUtils::Installed;
   #my ($inst) = ExtUtils::Installed->new();
   my (@modules) = &list_perl_modules();    # $inst->modules();
-  
+
   if ($FORM{MODULE}) {
     my @mods = ();
     my $mod;
-    
+
     if ($FORM{'idx'}) {
       @mods = &list_perl_modules();
       $mod  = $mods[ $FORM{'idx'} ];
@@ -72,44 +72,44 @@ sub sysinfo_perl {
       @mods = &list_perl_modules($FORM{MODULE});
       $mod  = $mods[0];
     }
-    
+
     my %INFO = ();
     my $midx = $FORM{'midx'} ? $FORM{'midx'} : 0;
-    
+
     my @m = ();
     if ($mod->{'mods'}){
       @m = @{ $mod->{'mods'} };
     }
-    
+
     ($INFO{DESCRIBE}, $INFO{VERSION}) = &module_desc($mod, $midx);
-    
+
     $INFO{NAME}    = $FORM{MODULE};
     $INFO{DATE}    = $mod->{'date'};
     $INFO{FILES}   = $mod->{'files'}->[$midx];
     $INFO{INSTALL} = $mod->{'pkg'} ? $mod->{'pkgtype'} : 'Manual Perl module install';
-    
+
     if ($mod->{'master'} && $midx == $mod->{'master'} && @m > 1) {
       for (my $i = 0 ; $i < @m ; $i++) {
         $INFO{SUBMODULES} .= $html->button("$m[$i]", "index=$index&MODULE=$m[$i]&midx=$i&idx=$FORM{'idx'}") . "  " if ($i != $mod->{'master'});
       }
     }
-    
+
     my $perl_doc = `which perldoc`;
     if(! $perl_doc) {
       $perl_doc = '/usr/local/bin/perldoc';
     }
-    
+
     if ($m[$midx]) {
       open(my $DOC, '-|', "$perl_doc -t '$m[$midx]' 2>/dev/null");
       while (<$DOC>) { $INFO{DOC} .= $_; }
       close($DOC);
     }
-    
+
     $INFO{DOC} = $html->link_former($INFO{DOC}, { SKIP_SPACE => 1 });
     $html->tpl_show(_include('sysinfo_pmodule_info', 'Sysinfo'), \%INFO);
     return 1;
   }
-  
+
   my $table = $html->table(
     {
       width      => '100%',
@@ -118,18 +118,18 @@ sub sysinfo_perl {
       ID         => 'RECOMMENDED_MODULES',
     }
   );
-  
+
   foreach my $name (sort @require_modules ) {
     my @mods = &list_perl_modules($name);
     my $mod  = $mods[0];
-    
+
     my ($desc, $ver) = &module_desc($mod);
     my $date = ($mod->{'time'}) ? POSIX::strftime('%Y-%m-%d %H-%M-%S', localtime($mod->{'time'})) : '';
-    
+
     eval "require $name";
     $ver  = 0;
     $ver = $name->VERSION unless ( $@ );
-    
+
     $table->addrow(
       $html->button($name, "index=$index&MODULE=$name&idx=". ($mod->{'index'} || '')),
       $desc,
@@ -138,9 +138,9 @@ sub sysinfo_perl {
       $html->button($lang{INFO}, "", { GLOBAL_URL => "http://abills.net.ua/wiki/doku.php/abills:docs:manual:soft:$name", ex_params => "TARGET=_new", class => 'info' }),
     );
   }
-  
+
   print $table->show();
-  
+
   $table = $html->table(
     {
       caption     => "$lang{MODULES}",
@@ -148,13 +148,13 @@ sub sysinfo_perl {
       title_plain => [ $lang{NAME}, "SUBMODULES", "$lang{DESCRIBE}", "$lang{VERSION}", $lang{DATE} ],
     }
   );
-  
+
   foreach my $module (sort { lc($a->{'mods'}->[ $a->{'master'} ]) cmp lc($b->{'mods'}->[ $b->{'master'} ]) } @modules) {
     my $mi = $module->{'master'} || 0;
     my $name = $module->{'mods'}->[$mi];
     my ($desc, $ver) = &module_desc($module, $mi);
     my $date = POSIX::strftime('%Y-%m-%d %H-%M-%S', localtime($module->{'time'}));
-    
+
     $table->addrow(
       $html->button($name, "index=$index&MODULE=$name&idx=$module->{'index'}"),
       $#{ $module->{'mods'} },
@@ -163,9 +163,9 @@ sub sysinfo_perl {
       $date
     );
   }
-  
+
   print $table->show();
-  
+
   return 1;
 }
 
@@ -175,13 +175,13 @@ sub sysinfo_perl {
 =cut
 #*******************************************************************
 sub sysinfo_os {
-  
+
   my %INFO_HASH = ();
-  
+
   my $full_info = sysinfo_get_os({ FULL_INFO => 1 });
-  
+
   #FreeBSD
-  if ($full_info =~ /(\S+)\s+(\S+)\s+(\S+).+\#\d:(.+) (\S+\@\S+) +(\S+)/) {
+  if ($full_info && $full_info =~ /(\S+)\s+(\S+)\s+(\S+).+\#\d:(.+) (\S+\@\S+) +(\S+)/) {
     $INFO_HASH{OS}       = $1;
     $INFO_HASH{HOST}     = $2;
     $INFO_HASH{VERSION}  = $3;
@@ -190,7 +190,7 @@ sub sysinfo_os {
     $INFO_HASH{PLATFORM} = $6;
   }
   #Linux
-  elsif ($full_info =~ /(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s(\S+)\s(\S+ \S+ \d+ \d{2}:\d{2}:\d{2} \S+ \d{4}) (\S+)/) {
+  elsif ($full_info && $full_info =~ /(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s(\S+)\s(\S+ \S+ \d+ \d{2}:\d{2}:\d{2} \S+ \d{4}) (\S+)/) {
     $INFO_HASH{OS}       = $1;
     $INFO_HASH{HOST}     = $2;
     $INFO_HASH{KERNEL}   = $3;
@@ -200,14 +200,14 @@ sub sysinfo_os {
     $INFO_HASH{PLATFORM} = $7;
     $INFO_HASH{SUM_PLATFORM} = $8;
   }
-  
+
   if ($os eq 'FreeBSD') {
     if ($INFO_HASH{KERNEL} && $INFO_HASH{KERNEL} =~ /\/(\w+)$/) {
       my $file = $1;
       $INFO_HASH{KERNEL_FILE} = "/usr/src/sys/i386/conf/" . $file if (-f "/usr/src/sys/i386/conf/" . $file);
     }
   }
-  
+
   if ($FORM{KERNEL}) {
     my $kern_file = '';
     open(my $fh, '>', "$INFO_HASH{KERNEL_FILE}") || print $html->message('err', $lang{ERROR}, "Can't open '$INFO_HASH{KERNEL_FILE}' $!");
@@ -215,28 +215,28 @@ sub sysinfo_os {
       $kern_file .= $_;
     }
     close($fh);
-    
+
     $kern_file =~ s/\n/<br>\n/g;
-    
+
     my $table = $html->table(
       {
         caption => "$INFO_HASH{KERNEL_FILE}",
         width   => '100%'
       }
     );
-    
+
     my @division = ('device', 'options', 'machine', 'cpu', 'ident');
     foreach my $s (@division) {
       $kern_file =~ s/$s |$s\t/<b>$s<\/b> /ig;
     }
     $kern_file =~ s/ /&nbsp;/g;
     $kern_file =~ s/#(.+)\n/<font color=#0000FF># $1<\/font>/g;
-    
+
     $table->addtd($table->td($kern_file));
-    
+
     print $table->show();
   }
-  
+
   my $table = $html->table(
     {
       caption     => "Operation System",
@@ -244,16 +244,16 @@ sub sysinfo_os {
       title_plain => [ $lang{PARAMS}, $lang{VALUE} ],
     }
   );
-  
+
   $table->addrow('OS',      $INFO_HASH{OS});
   $table->addrow('HOST',    $INFO_HASH{HOST});
   $table->addrow('VERSION', $INFO_HASH{VERSION});
   $table->addrow($lang{DATE},  $INFO_HASH{DATE});
   $table->addrow('KERNEL', ($INFO_HASH{KERNEL_FILE}) ? $html->button($INFO_HASH{KERNEL}, "index=$index&KERNEL=1") : $INFO_HASH{KERNEL});
   $table->addrow('PLATFORM', $INFO_HASH{PLATFORM});
-  
+
   print $table->show();
-  
+
   return 1;
 }
 
@@ -264,7 +264,7 @@ sub sysinfo_os {
 #*******************************************************************
 sub sysinfo_get_os {
   my ($attr) = @_;
-  
+
   my $os_full = '';
   my $os_name = 'UNKNOWN';
   if (-x '/usr/bin/uname') {
@@ -273,14 +273,14 @@ sub sysinfo_get_os {
   elsif (-x '/bin/uname') {
     $os_full = `/bin/uname -a`;
   }
-  
+
   if ($attr->{FULL_INFO}) {
     $os_name = $os_full;
   }
   elsif ($os_full =~ /(\S+)/) {
     $os_name = $1;
   }
-  
+
   return $os_name;
 }
 
@@ -288,7 +288,7 @@ sub sysinfo_get_os {
 # Show system info
 #*******************************************************************
 sub sysinfo_globals {
-  
+
   #Canonical Hostname localhost
   #Listening IP 217.73.128.3
   #Kernel Version 2.6.20.7
@@ -302,25 +302,25 @@ sub sysinfo_globals {
 # Show system info
 #*******************************************************************
 sub sysinfo_main {
-  
+
   #OS version
   sysinfo_os();
-  
+
   # Memory Usage
   sysinfo_memory();
-  
+
   # Mounted Filesystems
   sysinfo_disk();
-  
+
   # Network Usage
   sysinfo_network();
-  
+
   # Check Running proccess
-  
+
   # System Vital
-  
+
   # Hardware Information
-  
+
 }
 
 #**********************************************************
@@ -347,7 +347,7 @@ sub sysinfo_cpu {
 =cut
 #**********************************************************
 sub sysinfo_disk {
-  
+
   my $table = $html->table(
     {
       caption     => "Disk usage",
@@ -355,7 +355,7 @@ sub sysinfo_disk {
       title_plain => [ 'Filesystem', 'Size', 'Used', 'Avail', 'Capacity', 'Mounted' ],
     }
   );
-  
+
   my $info       = $sysinfo_hash{$os}{'disk'}->();
   my $i          = 0;
   my $total_size = 0;
@@ -364,7 +364,7 @@ sub sysinfo_disk {
     if ($line =~ /^\/|total/) {
       $total_size += $info->{Size}->[$i] || 0;
       $total_used += $info->{Used}->[$i] || 0;
-      
+
       my $progress = $html->progress_bar({
         TEXT     => $info->{Capacity}->[$i],
         TOTAL    => $total_size,
@@ -395,9 +395,9 @@ sub sysinfo_disk {
       $progress,
       '');
   }
-  
+
   print $table->show();
-  
+
   return 1;
 }
 
@@ -407,7 +407,7 @@ sub sysinfo_disk {
 =cut
 #*******************************************************************
 sub sysinfo_network {
-  
+
   my $table = $html->table(
     {
       caption    => $lang{NETWORK},
@@ -415,13 +415,13 @@ sub sysinfo_network {
       title      => [ 'INTERFACE', $lang{STATE}, $lang{ADDRESS}, $lang{RECV}, $lang{SENT}, $lang{ERROR} ],
     }
   );
-  
+
   my $info = $sysinfo_hash{$os}{'network'}->();
   my @states = ('Up', 'Down');
-  
+
   my $sorted_arr = multi_hash_sort($info, ($SORT || 0) - 1, {
       ACTIVE_FIELDS => [ 'IF_NAME', 'STATE', 'NETWORK', 'IN', 'OUT', 'IN_ERROR', 'OUT_ERROR', 'COLL' ] });
-  
+
   foreach my $iface (@$sorted_arr) {
     my $v = $info->{$iface};
     $table->addrow($iface,
@@ -432,9 +432,9 @@ sub sysinfo_network {
       #      ($v->{IN_ERROR} || 0) . '/'. ($v->{OUT_ERROR} || 0)
     );
   }
-  
+
   print $table->show();
-  
+
   return 1;
 }
 
@@ -444,7 +444,7 @@ sub sysinfo_network {
 =cut
 #*******************************************************************
 sub sysinfo_processes {
-  
+
   #watch section
   my %watch_proccess = ('httpd'        => '#E8E800:',
     'apache'       => '#E8E800:',
@@ -456,13 +456,13 @@ sub sysinfo_processes {
     'ipcad'        => '#CFCFCF:',
     'accel-ppp'    => '#000080:',
   );
-  
+
   foreach my $ps_name ( split(/,\s?/, $conf{SYSINFO_WATCH} || q{}) ) {
     $watch_proccess{$ps_name} = '-';
   }
-  
+
   my $restart_defined_processes = sysinfo_get_process_pathes();
-  
+
   #all
   my $table = $html->table(
     {
@@ -472,24 +472,24 @@ sub sysinfo_processes {
       ID         => 'SYSINFO_PROCESSES'
     }
   );
-  
+
   my $info = $sysinfo_hash{$os}{'processes'}->();
-  
+
   my @active_fields = ('USER', 'PID', 'CPU', 'MEM', 'VSZ', 'RSS', 'TT', 'STAT', 'STARTED', 'TIME', 'COMMAND');
-  
+
   my $sorted = arr_hash_sort($info, ($SORT || 0) - 1, { ACTIVE_FIELDS => \@active_fields });
-  
+
   foreach my $line (@$sorted) {
     #reset %watch_proccess;
     my $restart_button = '';
-    
+
     foreach my $proc_name (sort keys %watch_proccess ) {
       if ($line->{COMMAND} =~ /$proc_name/) {
         my ($color, undef)=split(/:/, $watch_proccess{$proc_name});
         $table->{rowcolor}=$color || $_COLORS[0];
         if ($restart_defined_processes->{$proc_name} && ($permissions{4} && $permissions{4}->{8}) && -f $restart_defined_processes->{$proc_name}){
           my $disabled = ($proc_name eq 'apache' && !$conf{SYSINFO_ALLOW_APACHE_RESTART}) ? 'disabled' : '';
-          
+
           my $restart_index = get_function_index('sysinfo_services');
           $restart_button = $html->button( 'R', "index=$restart_index&SERVICE=$proc_name&RESTART=1&action=1",
             {
@@ -503,7 +503,7 @@ sub sysinfo_processes {
         last;
       }
     }
-    
+
     $table->addrow($line->{USER},
       $line->{PID},
       $line->{CPU},
@@ -520,7 +520,7 @@ sub sysinfo_processes {
     $table->{rowcolor}=undef;
   }
   print $table->show();
-  
+
   return 1;
 }
 
@@ -529,46 +529,46 @@ sub sysinfo_processes {
 # show proccess
 #**********************************************************
 $sysinfo_hash{'FreeBSD'}{'processes'} = sub {
-  
+
   #USER       PID %CPU %MEM   VSZ   RSS  TT  STAT STARTED      TIME COMMAND
   my $total_info = `env COLUMNS=1000 /bin/ps aux`;
-  
+
   my @arr = split(/\n/, $total_info);
   my @result_array = ();
-  
+
   foreach my $line (@arr) {
     $line =~ s/,/\./g;
     if ($line =~ /(\S+) +(\d+) +(\S+) +(\S+) +(\d+) +(\d+) +(\S+) +(\S+) +(\S+) +(\S+) +(.+)/) {
       my %info = ();
-      
+
       # print "$1, $2, $3, $4, $5 <br>";
       $info{USER}    = $1;
       $info{PID}     = $2;
-      
+
       $info{CPU}     = $3;
       $info{MEM}     = $4;
       $info{VSZ}     = $5;
       $info{RSS}     = $6;
-      
+
       $info{TT}      = $7;
       $info{STAT}    = $8;
       $info{STARTED} = $9;
       $info{TIME}    = $10;
       $info{COMMAND} = $11;
-      
+
       push @result_array, \%info;
     }
   }
-  
+
   return \@result_array;
 };
 
 $sysinfo_hash{'FreeBSD'}{'network'} = sub {
   my $total_info = `/usr/bin/netstat -in`;
-  
+
   my @arr = split(/\n/, $total_info);
   my %info = ();
-  
+
   foreach my $line (@arr) {
     if ($line =~ /(\S+) +(\S+) +(\S+) +(\S+) +(\d+) +(\d+) +(\d+) +(\d+) +(\d+)/) {
       my $iface = $1;
@@ -580,7 +580,7 @@ $sysinfo_hash{'FreeBSD'}{'network'} = sub {
       $info{$iface}{OUT}       = $7;
       $info{$iface}{OUT_ERROR} = $8;
       $info{$iface}{COLL}      = $9;
-      
+
       $info{$iface}{IF_NAME} = $iface;
       $info{$iface}{STATE} = ($iface =~ /\*$/) ? 1 : 0;
     }
@@ -596,7 +596,7 @@ $sysinfo_hash{'FreeBSD'}{'network'} = sub {
       $info{$iface}{OUT}       += $5;
       $info{$iface}{OUT_ERROR} += $6;
       $info{$iface}{COLL}      += $7;
-      
+
       $info{$iface}{IF_NAME} = $iface;
       $info{$iface}{STATE} = ($iface =~ /\*$/) ? 1 : 0;
     }
@@ -611,21 +611,21 @@ $sysinfo_hash{'FreeBSD'}{'network'} = sub {
       $info{$iface}{STATE} = ($iface =~ /\*$/) ? 1 : 0;
     }
   }
-  
+
   return \%info;
 };
 
 $sysinfo_hash{'FreeBSD'}{'disk'} = sub {
   my $total_info = `/bin/df `;
-  
+
   my @arr   = split(/\n/, $total_info);
   my %info  = ();
   my $block = 1024;
-  
+
   if ($total_info =~ /(\d+)-blocks/) {
     $block = $1;
   }
-  
+
   foreach my $line (@arr) {
     if ($line =~ /(\S+) +(\d+) +(\d+) +(\d+) +(\S+) +(\S+)/) {
       push @{ $info{Filesystem} }, $1;
@@ -646,7 +646,7 @@ $sysinfo_hash{'FreeBSD'}{'disk'} = sub {
 #*******************************************************************
 $sysinfo_hash{'FreeBSD'}{'memory'} = sub {
   my ($attr) = @_;
-  
+
   my $sysctl        = {};
   my $sysctl_output = `/sbin/sysctl -a`;
   foreach my $line (split(/\n/, $sysctl_output)) {
@@ -654,7 +654,7 @@ $sysinfo_hash{'FreeBSD'}{'memory'} = sub {
       $sysctl->{$1} = $2;
     }
   }
-  
+
   #   determine the individual known information
   #   NOTICE: forget hw.usermem, it is just (hw.physmem - vm.stats.vm.v_wire_count).
   #   NOTICE: forget vm.stats.misc.zero_page_count, it is just the subset of
@@ -667,17 +667,17 @@ $sysinfo_hash{'FreeBSD'}{'memory'} = sub {
   my $mem_inactive = $sysctl->{"vm.stats.vm.v_inactive_count"} * $sysctl->{"hw.pagesize"};
   my $mem_cache    = $sysctl->{"vm.stats.vm.v_cache_count"} * $sysctl->{"hw.pagesize"};
   my $mem_free     = $sysctl->{"vm.stats.vm.v_free_count"} * $sysctl->{"hw.pagesize"};
-  
+
   #   determine the individual unknown information
   my $mem_gap_vm  = $mem_all - ($mem_wire + $mem_active + $mem_inactive + $mem_cache + $mem_free);
   my $mem_gap_sys = $mem_phys - $mem_all;
   my $mem_gap_hw  = $mem_hw - $mem_phys;
-  
+
   #   determine logical summary information
   my $mem_total = $mem_hw;
   my $mem_avail = $mem_inactive + $mem_cache + $mem_free;
   my $mem_used  = $mem_total - $mem_avail;
-  
+
   #   information annotations
   my $info = {
     "mem_wire"     => 'Wired: disabled for paging out',
@@ -695,28 +695,28 @@ $sysinfo_hash{'FreeBSD'}{'memory'} = sub {
     "mem_avail"    => 'Logically available memory',
     "mem_total"    => 'Logically total memory',
   };
-  
+
   my $table = $html->table(
     {
       caption => "SYSTEM MEMORY INFORMATION",
       width   => '100%',
     }
   );
-  
+
   if (!$attr->{SHORT}) {
     $table->{rowcolor} = 'bg-info';
     $table->{extra}    = "colspan='5' class='small'";
     $table->addrow("&nbsp;");
     $table->{rowcolor} = undef;
     $table->{extra}    = undef;
-    
+
     $table->addrow("mem_wire:",     $mem_wire,     int2byte($mem_wire),     sprintf("%3d%%", ($mem_wire / $mem_all) * 100),     $info->{"mem_wire"});
     $table->addrow("mem_active:",   $mem_active,   int2byte($mem_active),   sprintf("%3d%%", ($mem_active / $mem_all) * 100),   $info->{"mem_active"});
     $table->addrow("mem_inactive:", $mem_inactive, int2byte($mem_inactive), sprintf("%3d%%", ($mem_inactive / $mem_all) * 100), $info->{"mem_inactive"});
     $table->addrow("mem_cache: ",   $mem_cache,    int2byte($mem_cache),    sprintf("%3d%%", ($mem_cache / $mem_all) * 100),    $info->{"mem_cache"});
     $table->addrow("mem_free:  ",   $mem_free,     int2byte($mem_free),     sprintf("%3d%%", ($mem_free / $mem_all) * 100),     $info->{"mem_free"});
     $table->addrow("mem_gap_vm:",   $mem_gap_vm,   int2byte($mem_gap_vm),   sprintf("%3d%%", ($mem_gap_vm / $mem_all) * 100),   $info->{"mem_gap_vm"});
-    
+
     $table->{rowcolor} = 'bg-info';
     $table->{extra}    = "colspan='5' class='small'";
     $table->addrow("&nbsp;");
@@ -724,16 +724,16 @@ $sysinfo_hash{'FreeBSD'}{'memory'} = sub {
     $table->{extra}    = undef;
     $table->addrow("mem_all:",     $mem_all,     int2byte($mem_all),     '100%', $info->{"mem_all"});
     $table->addrow("mem_gap_sys:", $mem_gap_sys, int2byte($mem_gap_sys), '',     $info->{"mem_gap_sys"});
-    
+
     $table->{rowcolor} = 'bg-info';
     $table->{extra}    = "colspan='5' class='small'";
     $table->addrow("&nbsp;");
     $table->{rowcolor} = undef;
     $table->{extra}    = undef;
-    
+
     $table->addrow("mem_phys:",   $mem_phys,   int2byte($mem_phys),   '', $info->{"mem_phys"});
     $table->addrow("mem_gap_hw:", $mem_gap_hw, int2byte($mem_gap_hw), '', $info->{"mem_gap_hw"});
-    
+
     $table->{rowcolor} = 'bg-info';
     $table->{extra}    = "colspan='5' class='small'";
     $table->addrow("&nbsp;");
@@ -741,7 +741,7 @@ $sysinfo_hash{'FreeBSD'}{'memory'} = sub {
     $table->{extra}    = undef;
     $table->addrow("mem_hw:", $mem_hw, int2byte($mem_hw), '', $info->{"mem_hw"});
   }
-  
+
   $table->{rowcolor} = 'bg-info';
   $table->{extra}    = "colspan='5' class='small'";
   $table->addrow("SYSTEM MEMORY SUMMARY:");
@@ -749,48 +749,48 @@ $sysinfo_hash{'FreeBSD'}{'memory'} = sub {
   $table->{extra}    = undef;
   $table->addrow("mem_used:",  $mem_used,  int2byte($mem_used),  sprintf("<img src='../img/gorred.gif' height=10 width=%3d> %3d%%",   ($mem_used / $mem_total) * 100,  ($mem_used / $mem_total) * 100),  $info->{"mem_used"});
   $table->addrow("mem_avail:", $mem_avail, int2byte($mem_avail), sprintf("<img src='../img/gorgreen.gif' height=10 width=%3d> %3d%%", ($mem_avail / $mem_total) * 100, ($mem_avail / $mem_total) * 100), $info->{"mem_avail"});
-  
+
   $table->{rowcolor} = 'bg-info';
   $table->{extra}    = "colspan='5' class='small'";
   $table->addrow("&nbsp;");
   $table->{rowcolor} = undef;
   $table->{extra}    = undef;
   $table->addrow("mem_total:", $mem_total, int2byte($mem_total), '100%', $info->{"mem_total"});
-  
+
   print $table->show();
-  
+
 };
 
 $sysinfo_hash{'FreeBSD'}{'cpu'} = sub {
   my ($attr) = shift;
-  
+
   my $cpu_output = `sysctl -a | grep cpu`;
-  
+
   my %cpu = (cpu_count => 0);
-  
+
   foreach my $line ( split(/\n/, $cpu_output) ) {
     if ( $line =~ m/^(.+): (.+)\s?$/s ) {
       my $key = $1;
       my $val = $2;
-      
+
       $cpu{$key} = $val;
-      
+
       if ($key =~ /dev\.cpu\.(\d+)\./){
         my $core_num = $1 || 0;
         if ($core_num >= $cpu{cpu_count}){
           $cpu{cpu_count} = $core_num;
         }
       }
-      
+
     }
   }
-  
+
   $cpu{cpu_count}++;
-  
+
   if ($attr->{SHORT}) {
     return \%cpu;
   }
-  
+
   sysinfo_show({
     DATA        => \%cpu,
     TABLE_TITLE => "SYSTEM CPU INFORMATION"
@@ -801,12 +801,12 @@ $sysinfo_hash{'FreeBSD'}{'cpu'} = sub {
 # Show system info swap
 #*******************************************************************
 $sysinfo_hash{'FreeBSD'}{'swap'} = sub {
-  
+
   my $memmory_output = `/usr/sbin/swapinfo -k | tail -1 | awk '{ print \$2*1024" "\$3*1024 }'`;
-  
+
   my %memmory = ();
   ($memmory{swap_total}, $memmory{swap_used}) = split(/\s+/, $memmory_output);
-  
+
   return \%memmory;
 };
 
@@ -819,11 +819,11 @@ $sysinfo_hash{'Linux'}{'disk'} = sub {
   my $total_info = `/bin/df --total`;
   my @arr   = split(/\n/, $total_info);
   my %info  = ();
-  
+
   if(! $total_info) {
     return \%info;
   }
-  
+
   my $block = 1024;
   my %division = (
     'K' => 1024,
@@ -855,12 +855,12 @@ $sysinfo_hash{'Linux'}{'disk'} = sub {
       if ($avail =~ /(\d+)([A-Z])$/) {
         $avail = $1 * $division{$2};
       }
-      
+
       push @{ $info{Filesystem} }, $file_system_point;
       push @{ $info{Size} },       $size;
       push @{ $info{Used} },       $used;
       push @{ $info{Avail} },      $avail;
-      
+
       push @{ $info{Capacity} },   $capacity;
       push @{ $info{Mounted} },    $mount_point;
     }
@@ -871,7 +871,7 @@ $sysinfo_hash{'Linux'}{'disk'} = sub {
 
 $sysinfo_hash{'Linux'}{'network'} = sub {
   my $total_info = `/usr/bin/netstat -in`;
-  
+
   my @arr = split(/\n/, $total_info);
   my %info = ();
 
@@ -887,7 +887,7 @@ p3p2       1500 0  20038189103    191   6850 9570   23109610357      0      0
 
 
 =cut
-  
+
   foreach my $line (@arr) {
     if ($line =~ /(\S+) +(\S+) +(\S+) +(\S+) +(\d+) +(\d+) +(\d+) +(\d+) +(\d+)/) {
       my $iface = $1;
@@ -899,7 +899,7 @@ p3p2       1500 0  20038189103    191   6850 9570   23109610357      0      0
       $info{$iface}{OUT}       = $7;
       $info{$iface}{OUT_ERROR} = $8;
       $info{$iface}{COLL}      = $9;
-      
+
       $info{$iface}{IF_NAME} = $iface;
       $info{$iface}{STATE} = ($iface =~ /\*$/) ? 1 : 0;
     }
@@ -911,7 +911,7 @@ p3p2       1500 0  20038189103    191   6850 9570   23109610357      0      0
       $info{$iface}{OUT}       += $5;
       $info{$iface}{OUT_ERROR} += $6;
       $info{$iface}{COLL}      += $7;
-      
+
       $info{$iface}{IF_NAME} = $iface;
       $info{$iface}{STATE} = ($iface =~ /\*$/) ? 1 : 0;
     }
@@ -922,12 +922,12 @@ p3p2       1500 0  20038189103    191   6850 9570   23109610357      0      0
       $info{$iface}{IP}     = $4;
       $info{$iface}{IP_IN}  = $5;
       $info{$iface}{IP_OUT} = $6;
-      
+
       $info{$iface}{IF_NAME} = $iface;
       $info{$iface}{STATE} = ($iface =~ /\*$/) ? 1 : 0;
     }
   }
-  
+
   return \%info;
 };
 
@@ -936,10 +936,10 @@ p3p2       1500 0  20038189103    191   6850 9570   23109610357      0      0
 #*******************************************************************
 $sysinfo_hash{'Linux'}{'swap'} = sub {
   my $memmory_output = `/sbin/swapon -s |/usr/bin/tail -1 |awk '{print \$3" " \$4}'`;
-  
+
   my %memmory = ();
   ($memmory{swap_total}, $memmory{swap_used}) = split(/\s+/, $memmory_output);
-  
+
   return \%memmory;
 };
 
@@ -948,91 +948,91 @@ $sysinfo_hash{'Linux'}{'swap'} = sub {
 #*******************************************************************
 $sysinfo_hash{'Linux'}{'memory'} = sub {
   my ($attr) = @_;
-  
+
   my $memmory_output = `cat /proc/meminfo`;
-  
+
   my %memmory = ();
   foreach my $line (split(/\n/, $memmory_output)) {
     if ($line =~ m/^([^:]+):\s+(.+)\s*$/s) {
       $memmory{$1} = $2;
     }
   }
-  
+
   if ($attr->{SHORT}) {
     return \%memmory;
   }
-  
+
   sysinfo_show({ DATA        => \%memmory,
     TABLE_TITLE => "SYSTEM MEMORY INFORMATION"
   });
-  
+
   return \%memmory;
 };
 
 
 $sysinfo_hash{'Linux'}{'cpu'} = sub {
   my ($attr) = @_;
-  
+
   my $cpu_output=`cat /proc/cpuinfo`;
-  
+
   my %cpu = (cpu_count => 0);
-  
+
   foreach my $line (split(/\n/, $cpu_output)) {
     if ($line =~ m/^([^:]+)\s+:\s+(.+)\s*$/s) {
       my $key = $1;
       my $val = $2;
-      
+
       $cpu{$key} = $val;
       if ( $key eq 'processor' ) {
         $cpu{cpu_count}++;
       }
     }
   }
-  
+
   if ($attr->{SHORT}) {
     return \%cpu;
   }
-  
+
   sysinfo_show({ DATA        => \%cpu,
     TABLE_TITLE => "SYSTEM CPU INFORMATION"
   });
-  
+
   return \%cpu;
 };
 
 $sysinfo_hash{'Linux'}{'processes'} = sub {
-  
+
   #USER       PID %CPU %MEM   VSZ   RSS  TT  STAT STARTED      TIME COMMAND
   my $total_info = `env COLUMNS=1000 /bin/ps aux`;
-  
+
   my @arr = split(/\n/, $total_info);
   my @result_array = ();
-  
+
   foreach my $line (@arr) {
-    
+
     if ($line =~ /(\S+) +(\d+) +(\S+) +(\S+) +(\d+) +(\d+) +(\S+) +(\S+) +(\S+) +(\S+) +(.+)/) {
       my %info = ();
-      
+
       # print "$1, $2, $3, $4, $5 <br>";
       $info{USER} = $1;
       $info{PID}  = $2;
-      
+
       $info{CPU} = $3;
       $info{MEM} = $4;
       $info{VSZ} = $5;
       $info{RSS} = $6;
-      
+
       $info{TT}      = $7;
       $info{STAT}    = $8;
       $info{STARTED} = $9;
       $info{TIME}    = $10;
       $info{COMMAND} = $11;
-      
+
       push @result_array, \%info;
     }
-    
+
   }
-  
+
   return \@result_array;
 };
 
@@ -1041,10 +1041,10 @@ $sysinfo_hash{'Linux'}{'processes'} = sub {
 #**********************************************************
 $sysinfo_hash{'Linux'}{'network'} = sub {
   my $total_info = `/bin/netstat -in`;
-  
+
   my @arr = split(/\n/, $total_info);
   my %info = ();
-  
+
   foreach my $line (@arr) {
     if ($line =~ /(\S+) +(\S+) +(\S+) +(\S+) +(\d+) +(\d+) +(\d+) +(\d+) +(\d+)/) {
       my $iface = $1;
@@ -1056,7 +1056,7 @@ $sysinfo_hash{'Linux'}{'network'} = sub {
       $info{$iface}{OUT}       = $8;
       $info{$iface}{OUT_ERROR} = $9;
       $info{$iface}{COLL}      = '-';
-      
+
       $info{$iface}{IF_NAME} = $iface;
       $info{$iface}{STATE} = ($iface =~ /\*$/) ? 1 : 0;
     }
@@ -1068,7 +1068,7 @@ $sysinfo_hash{'Linux'}{'network'} = sub {
       $info{$iface}{OUT}       += $5;
       $info{$iface}{OUT_ERROR} += $6;
       $info{$iface}{COLL}      += $7;
-      
+
       $info{$iface}{IF_NAME} = $iface;
       $info{$iface}{STATE} = ($iface =~ /\*$/) ? 1 : 0;
     }
@@ -1079,12 +1079,12 @@ $sysinfo_hash{'Linux'}{'network'} = sub {
       $info{$iface}{IP}     = $4;
       $info{$iface}{IP_IN}  = $5;
       $info{$iface}{IP_OUT} = $6;
-      
+
       $info{$iface}{IF_NAME} = $iface;
       $info{$iface}{STATE} = ($iface =~ /\*$/) ? 1 : 0;
     }
   }
-  
+
   return \%info;
 };
 
@@ -1120,7 +1120,7 @@ sub mem_rounded_freebsd {
 #**********************************************************
 sub sysinfo_show {
   my ($attr) = @_;
-  
+
   my $table = $html->table(
     {
       ID => $attr->{TABLE_TITLE} || 'TABLE_ID',
@@ -1129,13 +1129,13 @@ sub sysinfo_show {
       width      => '100%',
     }
   );
-  
+
   foreach my $key ( sort keys %{ $attr->{DATA} }  ) {
     $table->addrow($key, $attr->{DATA}->{$key});
   }
-  
+
   print $table->show();
-  
+
   return 1;
 }
 
@@ -1144,15 +1144,15 @@ sub sysinfo_show {
 #**********************************************************
 sub multi_hash_sort {
   my ($hash, $sort, $attr) = @_;
-  
+
   my $ACTIVE_FIELDS = ($attr->{ACTIVE_FIELDS}) ? $attr->{ACTIVE_FIELDS} : [0];
-  
+
   my %SORT_HASH = ();
-  
+
   while (my ($k, $v) = each %$hash ) {
     $SORT_HASH{$k} = $v->{ $ACTIVE_FIELDS->[$sort] };
   }
-  
+
   my @sorted_ids = sort {
     if($FORM{desc}) {
       length($SORT_HASH{$b}) <=> length($SORT_HASH{$a})
@@ -1163,7 +1163,7 @@ sub multi_hash_sort {
         || $SORT_HASH{$a} cmp $SORT_HASH{$b};
     }
   } keys %SORT_HASH;
-  
+
   return \@sorted_ids;
 }
 
@@ -1172,26 +1172,26 @@ sub multi_hash_sort {
 #**********************************************************
 sub arr_hash_sort {
   my ($array, $sort, $attr) = @_;
-  
+
   my $ACTIVE_FIELDS = ($attr->{ACTIVE_FIELDS}) ? $attr->{ACTIVE_FIELDS} : [0];
-  
+
   my %SORT_HASH = ();
   my $i         = 0;
-  
+
   foreach my $line (@{$array}) {
     $SORT_HASH{$i} = $SORT_HASH{$i} = $line->{ $ACTIVE_FIELDS->[$sort] };
     $i++;
   }
-  
+
   #print $sorted[0]->{$ACTIVE_FIELDS[$FORM{sort}-1]} ;
   my @sorted_ids =
     sort { length($SORT_HASH{$a}) <=> length($SORT_HASH{$b}) || $SORT_HASH{$a} cmp $SORT_HASH{$b} } keys %SORT_HASH;
-  
+
   my @sorted = ();
   foreach my $line (@sorted_ids) {
     push @sorted, $array->[$line];
   }
-  
+
   return \@sorted;
 }
 
@@ -1203,13 +1203,13 @@ sub arr_hash_sort {
 sub list_perl_modules {
   my ($limit) = @_;
   my (@rv, %done, %donedir, %donemod);
-  
+
   my $perl_version = $^V;
   my %Config = (
     'sitelib'  => (-d "/usr/local/lib/perl5/site_perl/$perl_version") ? "/usr/local/lib/perl5/site_perl/$perl_version" : "/usr/local/lib/perl5/site_perl/",
     'sitearch' => (-d "/usr/local/lib/perl5/site_perl/$perl_version/mach") ? "/usr/local/lib/perl5/site_perl/$perl_version/mach" : "/usr/local/lib/perl5/site_perl/"
   );
-  
+
   foreach my $d (
     &expand_usr64($Config{'privlib'}),
     &expand_usr64(
@@ -1227,30 +1227,30 @@ sub list_perl_modules {
     &expand_usr64($Config{'installprivlib'})
   ) {
     next if (!$d);
-    
+
     next if ($donedir{$d});
     my $f;
-    
+
     open(my $FIND, '-|', "find '$d' -name .packlist -print");
     while ($f = <$FIND>) {
       chop($f);
       my @st = stat($f);
       next if ($done{ $st[0], $st[1] }++);
       @st  = stat($f);
-      
+
       my $mod = {
         'date'     => scalar(localtime($st[9])),
         'time'     => $st[9],
         'packfile' => $f,
         'index'    => scalar(@rv)
       };
-      
+
       $f =~ /\/(([A-Z][^\/]*\/)*[^\/]+)\/.packlist$/;
       $mod->{'name'} = $1;
       $mod->{'name'} =~ s/\//::/g;
       next if ($limit && $mod->{'name'} ne $limit);
       next if ($donemod{ $mod->{'name'} }++);
-      
+
       # Add the files in the .packlist
       my (%donefile, $l);
       open(my $fh, '<', $f);
@@ -1294,7 +1294,7 @@ sub list_perl_modules {
     }
     close($FIND);
   }
-  
+
   ## Look for RPMs or Debs for Perl modules
   #if (&foreign_check("software") && $config{'incpackages'}) {
   #	&foreign_require("software", "software-lib.pl");
@@ -1402,7 +1402,7 @@ sub list_perl_modules {
   #
   #		}
   #	}
-  
+
   return @rv;
 }
 
@@ -1413,7 +1413,7 @@ sub list_perl_modules {
 =cut
 #***************************************************************
 sub expand_usr64 {
-  
+
   if ($_[0] && $_[0] =~ /^(\/usr\/lib\/|\/usr\/local\/lib\/)(.*)$/) {
     my ($dir, $dir64, $rest) = ($1, $1, $2);
     $dir64 =~ s/\/lib\//\/lib64\//;
@@ -1433,15 +1433,15 @@ sub expand_usr64 {
 #***************************************************************
 sub module_desc {
   my ($in_name, $desc);
-  
+
   my $f   = (defined($_[1])) ? $_[0]->{'files'}->[ $_[1] ] : '';
   my $pf  = $f;
   my $ver = $_[0]->{'version'};
-  
+
   $pf =~ s/\.pm$/\.pod/ if ($pf);
-  
+
   my ($got_version, $got_name);
-  
+
   my $MOD;
   if ( ($pf && open($MOD, '<', $pf)) || ($f && open($MOD, '<', $f))) {
     while (<$MOD>) {
@@ -1465,21 +1465,21 @@ sub module_desc {
     }
     close($MOD);
   }
-  
+
   my $name;
-  
+
   if (defined($_[1])) {
     $name = $_[0]->{'mods'}->[ $_[1] ];
   }
   else {
     $name = '';
   }
-  
+
   if ($desc) {
     $desc =~ s/^\s*$name\s+\-\s+//
       || $desc =~ s/^\s*\S*<$name>\s+\-\s+//;
   }
-  
+
   return wantarray ? ($desc, $ver) : $desc;
 }
 
@@ -1502,24 +1502,24 @@ sub module_desc {
 =cut
 #**********************************************************
 sub sysinfo_sp_info {
-  
+
   my ($cpu, $ram, $hdd, $load, $load_2, $load_3)=(0, 0, '', 0, 0, 0);
-  
+
   if ($os eq 'FreeBSD') {
     my $sysctl_output = `/sbin/sysctl -a`;
-    
+
     my %sysctl = ();
     foreach my $line (split(/\n/, $sysctl_output)) {
       if ($line =~ m/^([^:]+):\s+(.+)\s*$/s) {
         $sysctl{$1} = $2;
       }
     }
-    
+
     $cpu = $sysctl{'kern.smp.cpus'} || 0;
-    
+
     my $mem_phys     = $sysctl{"hw.physmem"};
     my $mem_free     = $sysctl{"vm.stats.vm.v_free_count"} * $sysctl{"hw.pagesize"};
-    
+
     $ram = $html->progress_bar({
       TEXT     => int2byte($mem_phys) ." $lang{FREE}: ". int2byte($mem_free),
       TOTAL    => $mem_phys,
@@ -1529,9 +1529,9 @@ sub sysinfo_sp_info {
   else {
     my $cpu_info = $sysinfo_hash{$os}{'cpu'}->({ SHORT => 1 });
     $cpu = $cpu_info->{cpu_count};
-    
+
     my $memmory_output = `cat /proc/meminfo`;
-    
+
     my %memmory = ();
     foreach my $line (split(/\n/, $memmory_output)) {
       if ($line =~ m/^([^:]+):\s+(.+)\s*$/s) {
@@ -1545,7 +1545,7 @@ sub sysinfo_sp_info {
     else {
       $memmory{MemTotal} = 0;
     }
-    
+
     if ($memmory{MemFree}){
       $memmory{MemFree} =~ /(\d+)/;
       $memmory{MemFree} = $1 || 0;
@@ -1553,14 +1553,14 @@ sub sysinfo_sp_info {
     else {
       $memmory{MemFree}=0;
     }
-    
+
     $ram = $html->progress_bar({
       TEXT     => int2byte(($memmory{MemTotal} || 0) * 1024) ." $lang{FREE}: ". int2byte(($memmory{MemFree} || 0) * 1024),
       TOTAL    => $memmory{MemTotal},
       COMPLETE => $memmory{MemTotal} - $memmory{MemFree}
     });
   }
-  
+
   my $swap_info = $sysinfo_hash{$os}{'swap'}->({ SHORT => 1 });
   $swap_info->{swap_total} //= 0;
   $swap_info->{swap_used}  //= 0;
@@ -1569,15 +1569,15 @@ sub sysinfo_sp_info {
     TOTAL    => $swap_info->{swap_total},
     COMPLETE => $swap_info->{swap_used}
   });
-  
+
   my $info       = $sysinfo_hash{$os}{'disk'}->({ SHORT => 1 });
   my $i          = 0;
-  
+
   my @user_defined_mount_points = ();
   if (defined $conf{SYSINFO_MOUNT_POINTS} && $conf{SYSINFO_MOUNT_POINTS} ne ''){
     @user_defined_mount_points = split ('/,\s+', $conf{SYSINFO_MOUNT_POINTS});
   }
-  
+
   foreach my $line (@{ $info->{Filesystem} }) {
     if ($line =~ /^\//) {
       if (in_array($info->{Mounted}->[$i], ['/', '/var', '/usr', @user_defined_mount_points ] )) {
@@ -1590,7 +1590,7 @@ sub sysinfo_sp_info {
     }
     $i++;
   }
-  
+
   my $uptime_out = `uptime`;
   if ( $uptime_out =~ /load averages?:\s+(\d{1,3}[\.\,]?\d{2}),\s+(\d{1,3}[\.\,]?\d{2}),\s+(\d{1,3}[\.\,]?\d{2})/ ) {
     $load   = $1;
@@ -1601,21 +1601,21 @@ sub sysinfo_sp_info {
     $load =~ s/\,/\./g;
     $load = $load / $cpu * 100 . ' %';
   }
-  
+
   my $uptime = '';
   if ( $uptime_out =~ /up\s+(.+),\s+\d+\s+u/ ) {
     $uptime = $1;
     $uptime =~ s/days/$lang{DAYS}/g;
   }
-  
+
   ($load) = $load =~ /([\d]+\.?[\d]?)/;
-  
+
   $load = $html->progress_bar({
     TEXT     => sprintf('%.2f%%', $load), #/$load_2/$load_3",
     TOTAL    => 100,
     COMPLETE => $load
   });
-  
+
   my $table = $html->table(
     {
       width      => '100%',
@@ -1631,9 +1631,9 @@ sub sysinfo_sp_info {
       ]
     }
   );
-  
+
   my $reports .= $table->show();
-  
+
   return $reports;
 }
 
@@ -1643,11 +1643,11 @@ sub sysinfo_sp_info {
 =cut
 #**********************************************************
 sub sysinfo_get_process_pathes {
-  
+
   my %services_init_scripts = ();
-  
+
   my $services_cmd = sysinfo_get_defined_restart_programs({SERVICE_NAME_CMD_HASH => 1});
-  
+
   $services_init_scripts{apache} = $conf{SYSINFO_APACHE_NAME} || $services_cmd->{apache2} || $services_cmd->{apache} || $services_cmd->{apache24} || $services_cmd->{httpd} || '';
   $services_init_scripts{radiusd} = $conf{SYSINFO_FREERADIUS_NAME} || $services_cmd->{radiusd} || $services_cmd->{freeradius} || '';
   $services_init_scripts{mysqld} = $conf{SYSINFO_MYSQL_NAME} || $services_cmd->{mysql} || $services_cmd->{'mysql-server'} || $services_cmd->{mysqd} || '';
@@ -1656,11 +1656,11 @@ sub sysinfo_get_process_pathes {
   $services_init_scripts{ipcad} = $conf{SYSINFO_IPCAD_NAME} || '';
   $services_init_scripts{'accel-ppp'} = $conf{SYSINFO_ACCEL_PPP_NAME} || '';
   $services_init_scripts{mpd} = $conf{SYSINFO_MPD_NAME} || '';
-  
+
   foreach my $service_defined (keys %$services_cmd, split(/,\s?/, $conf{SYSINFO_WATCH} || '')){
     $services_init_scripts{$service_defined} = $services_cmd->{$service_defined} if $services_cmd->{$service_defined};
   }
-  
+
   return \%services_init_scripts;
 }
 
@@ -1671,7 +1671,7 @@ sub sysinfo_get_process_pathes {
 #**********************************************************
 sub sysinfo_sp_ps {
   #my ($attr) = @_;
-  
+
   my %watch_proccess = (
     'mysqld'       => '-',
     'radiusd'      => '-',
@@ -1679,7 +1679,7 @@ sub sysinfo_sp_ps {
     'named'        => '-',
     'ipcad'        => '-',
   );
-  
+
   if ( $os eq 'Linux' ) {
     $watch_proccess{'apache'} = '-';
     $watch_proccess{'accel-ppp'} = '-';
@@ -1690,16 +1690,16 @@ sub sysinfo_sp_ps {
       $watch_proccess{mpd} = '';
     }
   }
-  
+
   if ( $conf{SYSINFO_WATCH} ) {
     %watch_proccess = ();
     foreach my $ps_name ( split(/,\s?/, $conf{SYSINFO_WATCH}) ) {
       $watch_proccess{$ps_name} = '-';
     }
   }
-  
+
   my $info = $sysinfo_hash{$os}->{'processes'}->( { SHORT => 1 } );
-  
+
   foreach my $line ( @{$info} ) {
     foreach my $proc_name ( keys %watch_proccess ) {
       if ( $line->{COMMAND} =~ /$proc_name/ ) {
@@ -1713,7 +1713,7 @@ sub sysinfo_sp_ps {
           $line->{VSZ} += $vsz if ($vsz);
           $ps_count = ($count || 0) + 1;
         }
-        
+
         $watch_proccess{$proc_name} = "+:$line->{CPU}:$line->{MEM}:$line->{VSZ}:$ps_count";
         last;
       }
@@ -1722,14 +1722,14 @@ sub sysinfo_sp_ps {
       #}
     }
   }
-  
+
   my %services_init_scripts = ();
-  
+
   my $admin_has_restart_permission = $permissions{4} && $permissions{4}->{8};
   if ( $admin_has_restart_permission ) {
     %services_init_scripts = %{ sysinfo_get_process_pathes() };
   }
-  
+
   my $table = $html->table(
     {
       width       => '100%',
@@ -1746,7 +1746,7 @@ sub sysinfo_sp_ps {
       ),
     }
   );
-  
+
   my $restart_index = get_function_index('sysinfo_services');
   foreach my $ps_name ( keys %watch_proccess ) {
     $watch_proccess{$ps_name} =~ s/,/\./g;
@@ -1760,7 +1760,7 @@ sub sysinfo_sp_ps {
     else {
       $table->{rowcolor} = undef;
     }
-    
+
     my @extra_btns = ();
     if ( $admin_has_restart_permission && $services_init_scripts{$ps_name} && -f $services_init_scripts{$ps_name} ) {
 
@@ -1772,22 +1772,22 @@ sub sysinfo_sp_ps {
           CONFIRM => "$lang{RESTART} $ps_name?"
         }
       );
-      
+
       push @extra_btns, $restart_btn;
-      
+
     }
     else {
       push @extra_btns, '';
     }
-    
+
     $ps_name = ($ps_name =~ /mysql/)
                  ? $html->button( $ps_name,"index=" . get_function_index('sqlcmd_procs') )
                  : $ps_name;
-    
+
     if ( $count && $count > 1 ) {
       $ps_name .= "($count)";
     }
-    
+
     $table->addrow( $ps_name,
       $status,
       sprintf("%.2f", $cpu || 0),
@@ -1796,9 +1796,9 @@ sub sysinfo_sp_ps {
       @extra_btns
     );
   }
-  
+
   my $reports = $table->show();
-  
+
   return $reports;
 }
 
@@ -1809,12 +1809,12 @@ sub sysinfo_sp_ps {
 #***************************************************************
 sub sysinfo_start_page {
   #my ($attr) = @_;
-  
+
   my %START_PAGE_F = (
     'sysinfo_sp_info' => "$lang{SYSTEM_INFO}",
     'sysinfo_sp_ps' => "$lang{PROCCESS_LIST}",
   );
-  
+
   return \%START_PAGE_F;
 }
 
@@ -1824,16 +1824,16 @@ sub sysinfo_start_page {
 =cut
 #**********************************************************
 sub sysinfo_services {
-  
+
   # Get list of services
   my $service_pathes = sysinfo_get_process_pathes();
-  
+
   if ( $FORM{action} ) {
     my $service_name = $FORM{SERVICE};
     return 0 unless ($service_name);
-    
+
     my $service_path = $service_pathes->{$service_name};
-    
+
     if (!$service_path){
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} : $FORM{SERVICE}");
       return 0;
@@ -1842,9 +1842,9 @@ sub sysinfo_services {
       $html->message( 'err', $lang{ERROR}, $lang{ERR_ACCESS_DENY} );
       return 0;
     }
-    
+
     if ( $FORM{RESTART} ) {
-      
+
       # Do restart
       my $restart_was_successful = _sysinfo_restart_service($service_path);
       if ( $restart_was_successful eq '1' ) {
@@ -1855,7 +1855,7 @@ sub sysinfo_services {
           sysinfo_show_permissions_grant_tip($service_path);
         }
       }
-      
+
     }
     elsif ( $FORM{STOP} ) {
       $html->message( 'err', $lang{ERROR}, 'Not implemented' );
@@ -1866,11 +1866,11 @@ sub sysinfo_services {
     else {
       $html->message( 'err', $lang{ERROR}, 'Unknown service' );
     }
-    
+
   }
-  
+
   my @services = sort keys %{ $service_pathes };
-  
+
   my $table = $html->table( {
     width      => '100%',
     caption    => $lang{PROCESSES},
@@ -1880,13 +1880,13 @@ sub sysinfo_services {
       ID         => 'SYSINFO_ID',
       MENU       => "$lang{ADD}:index=" . get_function_index('form_prog_pathes') . ':add',
   } );
-  
+
   my $i = 1;
   foreach my $service ( @services ) {
     next unless $service;
-    
+
     next unless (-f $service_pathes->{$service});
-    
+
     my $disabled = ($service =~ /apache/ && !$conf{SYSINFO_ALLOW_APACHE_RESTART}) ? 'disabled' : '';
     my $restart_btn = $html->button( 'R', "index=$index&SERVICE=$service&RESTART=1&action=1",
       {
@@ -1895,11 +1895,11 @@ sub sysinfo_services {
         CONFIRM => "$lang{RESTART} $service?"
       }
     );
-    
+
     $table->addrow( $i++, $service, $service_pathes->{$service}, $restart_btn );
   }
   print $table->show();
-  
+
   # Show table
 }
 

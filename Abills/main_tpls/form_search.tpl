@@ -54,13 +54,12 @@
 
               <div class='form-group' style='%DISPLAY_GROUP%'>
                 <label class='control-label col-sm-3 col-md-4'>_{GROUP}_:</label>
-
                 <div class='col-sm-9 col-md-8'>%GROUPS_SEL%</div>
               </div>
 
               <div class='form-group' style='%DISPLAY_TAGS%'>
                 <label class='control-label col-sm-3 col-md-4' for='TAGS'>_{TAGS}_</label>
-                <div class='col-sm-9 col-md-8'>
+                <div class='col-sm-6 col-md-5'>
                   <div class='input-group'>
                     %TAGS_SEL%
                     <span class="input-group-addon" data-tooltip="_{EMPTY_FIELD}_">
@@ -69,7 +68,13 @@
                   </span>
                   </div>
                 </div>
+                <div class='col-sm-4 col-md-3'>
+                <div class="input-group">
+                  %TAG_SEARCH_VAL%
+                </div>
               </div>
+              </div>
+
             </div>
             %ADDRESS_FORM%
           </div>

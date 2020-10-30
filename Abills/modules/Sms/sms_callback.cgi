@@ -75,7 +75,7 @@ for my $param_name ('apikey', 'sender', 'text') {
 $admin->info(undef, { API_KEY => $FORM{apikey} });
 exit_with_error(401, "Invalid apikey") unless $admin->{AID};
 
-my @sms_args = split('\+', $FORM{text});
+my @sms_args = split(' ', $FORM{text});
 
 #Hotspot
 if ($sms_args[0] eq "ICNFREEHS" || $sms_args[0] eq "ICNHS") {
@@ -120,7 +120,7 @@ my $additional_info = $sms_args[2];
 my $user_object = check_user($FORM{sender}, $sms_args[0]);
 
 if ($sms_args[1] eq '01') {
-  send_user_memo($user_object);
+  send_user_memo_callback($user_object);
 }
 elsif ($sms_args[1] eq '02') {
   send_internet_info($user_object);
@@ -169,7 +169,7 @@ sub exit_with_error {
 }
 
 #**********************************************************
-=head2 send_user_memo($user)
+=head2 send_user_memo_callback($user)
 
   Arguments:
     $user - user Object
@@ -178,7 +178,7 @@ sub exit_with_error {
 
 =cut
 #**********************************************************
-sub send_user_memo {
+sub send_user_memo_callback {
   my ($user) = @_;
   my $code   = 0;
 
@@ -694,7 +694,7 @@ sub money_transfer {
 
   $Diller->diller_info({ UID => $user->{uid} });
   $error = 3 if ($Diller->{TOTAL} < 1 && $user1->{GID} != $user2->{GID});
-  
+
   if ($error) {
     my $message = $html->tpl_show('', { UID => $target_uid },
       { TPL => 'sms_callback_user_not_exist', MODULE => 'Sms', OUTPUT2RETURN => 1, SKIP_DEBUG_MARKERS => 1 });
@@ -762,7 +762,7 @@ sub money_transfer {
     DESCRIBE => "Transfer '$sum' -> '$user2->{LOGIN}'",
     METHOD   => 10,
   });
-  
+
   $Payments->add($user2, { 
     SUM      => $sum,
     METHOD    => 10,

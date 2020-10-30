@@ -245,6 +245,27 @@ sub cams_main {
       NO_ID    => 1
     });
 
+    if (!$FORM{chg_cam} && in_array('Equipment', \@MODULES)) {
+      my $models = $Cams->model_list({
+        TYPE_NAME    => 'Cams',
+        MODEL_NAME   => '_SHOW',
+        VENDOR_NAME  => '_SHOW',
+        VENDOR_MODEL => '_SHOW',
+        SORT         => 'ev.name',
+        COLS_NAME    => 1
+      });
+
+      $camera->{MODELS_FORM} = $html->tpl_show(_include('cams_stream_model', 'Cams'), {
+        MODELS_LIST => $html->form_select('CAMERA_MODEL', {
+          SELECTED  => $camera->{SOUND} || q{},
+          SEL_LIST  => $models,
+          SEL_KEY   => 'vendor_model',
+          SEL_VALUE => 'vendor_model',
+          NO_ID     => 1
+        })
+      }, { OUTPUT2RETURN => 1 }) if $Cams->{TOTAL} > 0;
+    }
+
     $html->tpl_show(_include('cams_stream_add', 'Cams'), {
       %$camera,
       DISABLED_CHECKED   => $camera->{DISABLED} ? 'checked' : '',
@@ -1035,22 +1056,22 @@ sub cams_monthly_fees {
 
         #If deposit is above-zero or TARIF PALIN is POST PAID or PERIODIC PAYMENTS is POSTPAID
         if ($postpaid == 1 || $user{DEPOSIT} + $user{CREDIT} > $month_fee) {
-          if ($user{ACTIVATE} eq '0000-00-00' && $d != $START_PERIOD_DAY && !$tp->{abon_distribution}) {
+          if ($d != $START_PERIOD_DAY && !$tp->{abon_distribution}) {
             next;
           }
           # If activation set to monthly Fees taken throught 30 days
-          elsif ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
-            my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
-            # my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
-
-            #Block small deposit
-            if ($tp->{FIXED_FEES_DAY} && ($d != $activate_d || ($d != $START_PERIOD_DAY && $activate_d > 28))) {
-              next;
-            }
-            else {
-              next;
-            }
-          }
+          # elsif ($user{ACTIVATE} ne '0000-00-00' && !$tp->{abon_distribution}) {
+          #   my ($activate_y, $activate_m, $activate_d) = split(/-/, $user{ACTIVATE}, 3);
+          #   # my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
+          #
+          #   #Block small deposit
+          #   if ($tp->{FIXED_FEES_DAY} && ($d != $activate_d || ($d != $START_PERIOD_DAY && $activate_d > 28))) {
+          #     next;
+          #   }
+          #   else {
+          #     next;
+          #   }
+          # }
         }
         #Block negative
         else {
@@ -2090,5 +2111,45 @@ sub cams_users_search {
   return 1;
 }
 
+#**********************************************************
+=head cams_get_badge_info($attr)
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub cams_get_badge_info {
+  my ($attr) = @_;
+
+  return '', '' if !$attr->{UID};
+
+  my $subscription_list = $Cams->_list({
+    UID       => $attr->{UID},
+    TP_NAME   => '_SHOW',
+    MONTH_FEE => '_SHOW',
+    STATUS    => '_SHOW',
+    TP_ID     => '_SHOW',
+    ID        => '_SHOW',
+    COLS_NAME => 1
+  });
+
+  my $subscriptions = $Cams->{TOTAL} > 0 ? $html->badge($Cams->{TOTAL}, { TYPE => 'bg-blue' }) : '';
+  my $cameras_count = 0;
+
+  foreach my $subscription (@{$subscription_list}) {
+    $Cams->user_cameras_list({
+      TP_ID     => $subscription->{tp_id},
+      ID        => $subscription->{id},
+      COLS_NAME => 1
+    });
+
+    $cameras_count += $Cams->{USER_CAMERAS} if $Cams->{USER_CAMERAS} && $Cams->{USER_CAMERAS} > 0;
+  }
+
+  my $cameras = $cameras_count > 0 ? $html->badge($cameras_count, { TYPE => 'bg-blue' }) : '';
+
+  return $subscriptions, $cameras;
+}
 
 1;

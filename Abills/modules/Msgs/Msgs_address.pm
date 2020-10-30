@@ -17,6 +17,21 @@ our (
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
 
+#**********************************************************
+=head2 msgs_address($attr)
+
+  Argument:
+    ID
+    DISTRICT_ID
+    STREET_ID
+    BUILD_ID
+    ADDRESS_FLAT
+  
+  Return:
+    -
+
+=cut
+#**********************************************************
 sub msgs_address {
   my ($attr) = @_;
   my $info_address = $Msgs->msgs_address_info($attr->{chg} || $attr->{ID}) if ($attr->{chg} || $attr->{ID});
@@ -63,6 +78,7 @@ sub msgs_address {
     ADDRESS_FORM => $address
   },
   { OUTPUT2RETURN => 1 });
+
 }
 
 1

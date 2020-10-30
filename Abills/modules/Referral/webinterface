@@ -13,7 +13,6 @@ use warnings FATAL => 'all';
 our ($db,
   $admin,
   %conf,
-  $html,
   %LANG,
   %lang);
 
@@ -23,13 +22,16 @@ use Users;
 use Msgs;
 use Msgs::Reg_request;
 use Control::Address_mng;
-use Abills::Base;
+use Abills::Base qw();
 
-my $Referral = Referral->new($db, $admin, \%conf);
+my $Referral = Referral->new($db, $admin, \%conf, { SKIP_CONF => 1 });
 my $Payments = Payments->new($db, $admin, \%conf);
 my $Fees = Fees->new($db, $admin, \%conf);
 my $Bills = Bills->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
+
+our Abills::HTML $html;
+
 #**********************************************************
 =head2 referral_settings()
 
@@ -68,11 +70,13 @@ sub referral_settings {
 }
 
 #**********************************************************
-=head2 referral_user()
+=head2 referral_user($attr)
 
 =cut
 #**********************************************************
 sub referral_user {
+  my ($attr) = @_;
+
   my $uid = $FORM{UID};
 
   require Control::Users_mng;
@@ -111,7 +115,7 @@ sub referral_user {
     $show_referrals_button = referral_get_show_referrals_button($uid);
   }
 
-  $html->tpl_show(_include('referral_user', 'Referral'),
+  my $result = $html->tpl_show(_include('referral_user', 'Referral'),
     {
       SEARCH_BUTTON       => $search_referrer_button,
       REFFERER_ROW_HIDDEN => ($show_referrer_content) ? '' : 'hidden',
@@ -119,8 +123,14 @@ sub referral_user {
       SHOW_BUTTON_HIDDEN  => ($show_referrals_button) ? '' : 'hidden',
       SHOW_BUTTON         => $show_referrals_button
     },
-    { ID => 'referral_user' }
+    { ID => 'referral_user', OUTPUT2RETURN => 1 }
   );
+
+  if ($attr->{PROFILE_MODE}) {
+    return $result;
+  }
+
+  print ($result);
 
   return 1;
 }
@@ -150,14 +160,11 @@ sub referral_report {
 
   my $select = $html->form_select('USER_ID', {
     SELECTED    => $uid,
-
     SEL_LIST    => $users_who_have_referrals,
     SEL_KEY     => 'uid',
     SEL_VALUE   => 'id',
-
     NO_ID       => 1,
     SEL_OPTIONS => { '' => '' },
-
   });
 
   foreach my $root_user (@$users_who_have_referrals) {
@@ -837,13 +844,17 @@ sub referral_requests {
 =cut
 #**********************************************************
 sub add_bonus {
-  my $uid = shift;
-  my $referal = shift;
-  my $tp_id = shift;
-  my $user = $Users->info($uid);
+  my $uid           = shift;
+  my $referal       = shift;
+  my $tp_id         = shift;
+  my $user          = $Users->info($uid);
   my $referral_info = $Users->pi({UID => $referal});
 
   my $settings = $Referral->tp_info($tp_id);
+
+  if (_error_show($Referral)) {
+    return 0;
+  }
 
   my $payment = $Payments->list({
     UID       => $referal,
@@ -852,10 +863,12 @@ sub add_bonus {
     SORT      => 'date DESC'
   });
 
-  my $add_amount = $settings->{BONUS_AMOUNT};
+  my $add_amount   = $settings->{BONUS_AMOUNT};
+  my $repl_percent = $settings->{REPL_PERCENT};
+  my $sum          = $payment->[0]->{sum};
 
-  if ($payment->[0]->{sum}) {
-    $add_amount += $payment->[0]->{sum} * ($settings->{REPL_PERCENT} / 100);
+  if ($sum && $repl_percent) {
+    $add_amount += $sum * ($repl_percent / 100);
   }
   my $fees_list = $Fees->list({
     UID       => $uid,
@@ -869,7 +882,10 @@ sub add_bonus {
     BILL_ID => $fees_list->[0]->{bill_id},
   });
 
-  if (($deposit->{DEPOSIT} || 1) <= 0 && date_diff($fees_list->[0]->{datetime}, $DATE) >= 30 * $settings->{PAYMENT_ARREARS}) {
+  my $left_part  = date_diff($fees_list->[0]->{datetime}, $DATE);
+  my $right_part = 30 * ($settings->{PAYMENT_ARREARS} || 0);
+
+  if (($deposit->{DEPOSIT} || 1) <= 0 && $left_part >= $right_part) {
     return 1;
   }
   else {

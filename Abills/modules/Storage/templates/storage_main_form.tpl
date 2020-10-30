@@ -75,13 +75,13 @@
             <div class='col-md-9'>%DATE_TIME_PICKER%</div>
           </div>
           <div class='form-group'>
-            <label class='col-md-3 control-label'>_{QUANTITY_OF_GOODS}_: </label>
-            <div class='col-md-9'><input class='form-control' name='COUNT' type='text' value='%COUNT%' %DISABLED%/>
+            <label class='col-md-3 control-label required'>_{QUANTITY_OF_GOODS}_: </label>
+            <div class='col-md-9'><input class='form-control' required name='COUNT' type='text' value='%COUNT%' %DISABLED%/>
             </div>
           </div>
           <div class='form-group'>
-            <label class='col-md-3 control-label'>_{SUM_ALL}_: </label>
-            <div class='col-md-9'><input class='form-control' name='SUM' type='text' value='%SUM%' %DISABLED%/></div>
+            <label class='col-md-3 control-label required'>_{SUM_ALL}_: </label>
+            <div class='col-md-9'><input class='form-control' required name='SUM' type='text' value='%SUM%' %DISABLED%/></div>
           </div>
           <div class='form-group'>
             <label class='col-md-3 '>_{SELL_PRICE}_ <br>(_{PER_ONE_ITEM}_): </label>
@@ -154,7 +154,7 @@
         </div>
 
         <div class='box-footer'>
-          <input type=submit name=%ACTION% value='%ACTION_LNG%' class='btn btn-primary'>
+          <input type=submit id="SUBMIT_FORM_BUTTON" name=%ACTION% value='%ACTION_LNG%' class='btn btn-primary'>
         </div>
 
       </div>
@@ -164,10 +164,8 @@
 </form>
 
 <script>
-  //    jQuery('#REG_REQUEST_BTN').prop('disabled', true);
   var timeout     = null;
   var start_value = jQuery('#SN').val();
-  console.log("Start value - " + start_value);
 
   function doDelayedSearch(val) {
     if (timeout) {
@@ -176,29 +174,32 @@
     timeout = setTimeout(function () {
       doSearch(val); //this is your existing function
     }, 500);
-  };
+  }
 
   function doSearch(val) {
     if (!val) {
       jQuery('#SN').parent().parent().removeClass('has-success').addClass('has-error');
       return 1;
     }
+
+    document.getElementById('SUBMIT_FORM_BUTTON').disabled = true;
     jQuery.post('$SELF_URL', 'header=2&qindex=' + '%CHECK_SN_INDEX%' + '&sn_check=' + val, function (data) {
-      console.log(data);
-      console.log(val + " - " + start_value);
+      document.getElementById('SUBMIT_FORM_BUTTON').disabled = false;
       if (data === 'success') {
         jQuery('#SN').parent().parent().removeClass('has-error').addClass('has-success');
         jQuery('#SN').css('border', '3px solid green');
+        document.getElementById('SN').setCustomValidity('');
       }
       else if (val === start_value) {
         jQuery('#SN').parent().parent().removeClass('has-error').addClass('has-success');
         jQuery('#SN').css('border', '3px solid green');
+        document.getElementById('SN').setCustomValidity('');
       }
       else {
         jQuery('#SN').parent().parent().removeClass('has-success').addClass('has-error');
         jQuery('#SN').css('border', '3px solid red');
+        document.getElementById('SN').setCustomValidity('_{SERIAL_NUMBER_IS_ALREADY_IN_USE}_');
       }
-
     });
   }
 
@@ -206,7 +207,6 @@
     var value = jQuery('#SN').val();
     doDelayedSearch(value)
   });
-
 
 </script>
 

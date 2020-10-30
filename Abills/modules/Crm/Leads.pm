@@ -15,6 +15,7 @@ our (
   @PRIORITY,
   %lang,
   $admin,
+  %permissions,
   $db,
   %conf,
 );
@@ -242,6 +243,10 @@ sub crm_leads {
     $html->message('warn', $lang{ERROR}, $lang{NO_CLICK_USER});
   }
 
+  if (!$permissions{0}{1}) {
+    return 0;
+  }
+
   if ($FORM{add_form}) {
     my $submit_button_name = "$lang{ADD}";
     my $submit_button_action = 'add';
@@ -249,8 +254,10 @@ sub crm_leads {
     my $id_hidden = 'hidden';
 
     my $source_list = translate_list($Crm->leads_source_list({
-      NAME      => '_SHOW',
-      COLS_NAME => 1 }));
+        NAME      => '_SHOW',
+        COLS_NAME => 1 
+      })
+    );
 
     my $lead_source_select = $html->form_select(
       'SOURCE',
@@ -407,13 +414,15 @@ sub crm_leads {
   %LIST_PARAMS = %FORM if ($FORM{search});
 
   my $list;
-
+  
   ($table, $list) = result_former(
     {
       INPUT_DATA      => $Crm,
       FUNCTION        => 'crm_lead_list',
       BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => "ID, FIO, PHONE, EMAIL, COMPANY, ADMIN_NAME, DATE, CURRENT_STEP_NAME, LAST_ACTION, PRIORITY, UID, LOGIN, TAG_IDS",
+      DEFAULT_FIELDS  => "LEAD_ID, FIO, PHONE, EMAIL, COMPANY, ADMIN_NAME, 
+                          DATE, CURRENT_STEP_NAME, LAST_ACTION, PRIORITY, 
+                          UID, USER_LOGIN, TAG_IDS",
       HIDDEN_FIELDS   => 'STEP_COLOR,CURRENT_STEP',
       MULTISELECT     => 'ID:lead_id:CRM_LEADS',
       FUNCTION_FIELDS => 'crm_lead_info:$lang{INFO}:lead_id,change, del',
@@ -434,7 +443,7 @@ sub crm_leads {
         'current_step_name' => "$lang{STEP}",
         'last_action'       => "$lang{LAST} $lang{ACTION}",
         'priority'          => "$lang{PRIORITY}",
-        'login'             => "$lang{LOGIN}",
+        'user_login'        => "$lang{LOGIN}",
         'tag_ids'           => "$lang{TAGS}"
       },
       SKIP_PAGES      => 1,
@@ -443,7 +452,7 @@ sub crm_leads {
         caption     => $lang{LEADS},
         qs          => $pages_qs,
         MENU        => "$lang{ADD}:index=$index&add_form=1:add",
-        DATA_TABLE  => { "order" => [ [ 6, "desc" ] ] },
+        DATA_TABLE  => { "order" => [ [ 1, "desc" ] ] },
         title_plain => 1,
         header      => $header,
         SELECT_ALL  => "CRM_LEADS:ID:$lang{SELECT_ALL}",
@@ -1503,9 +1512,11 @@ sub crm_search {
     $Crm->{debug} = 1;
   }
 
-  $Crm->crm_lead_list({
-    %LIST_PARAMS,
-  });
+  unless ($attr->{SEARCH_TEXT} =~ m/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/) {
+    $Crm->crm_lead_list({
+      %LIST_PARAMS,
+    });
+  }
 
   my @info = ();
 
@@ -1557,19 +1568,6 @@ sub crm_user_service {
   my $msgs_box = qq{};
   my $callcenter_box = qq{};
   $FORM{NEWFORM} = 1;
-
-  #  if ($FORM{json}) {
-  #    #    user_form({ USER_INFO => $user_info });
-  #    #    user_pi();
-  #  }
-  #  else {
-  #    print "<div class='row'><div class='col-md-12 col-lg-6'>";
-  #    user_form({ USER_INFO => $user_info });
-  #    print "</div>"
-  #      . "<div class='col-md-12 col-lg-6'>";
-  #    user_pi();
-  #    print "</div></div>";
-  #  }
 
   if (in_array('Msgs', \@MODULES)) {
     my @msgs_rows;

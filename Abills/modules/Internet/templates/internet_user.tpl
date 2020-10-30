@@ -140,7 +140,7 @@
           <label class='control-label col-xs-4 col-md-2' for='CPE_MAC'>CPE MAC</label>
           <div class='col-xs-8 col-md-4'>
             <input id='CPE_MAC' type='text' class='form-control' name='CPE_MAC' value='%CPE_MAC%'
-                   %CID_PATTERN%>
+                   %CPE_PATTERN%>
           </div>
         </div>
       </div>

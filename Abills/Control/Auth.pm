@@ -10,7 +10,6 @@ use Abills::Base qw(sendmail decode_base64 mk_unique_value in_array);
 our(
   $db,
   $admin,
-  $html,
   %conf,
   %lang,
   %err_strs,
@@ -18,6 +17,8 @@ our(
   %permissions,
   %OUTPUT,
 );
+
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 admin_auth() - Primary auth form
@@ -255,10 +256,10 @@ sub form_login {
 
   my %first_page = ();
 
-  if ($conf{tech_works}) {
-    $html->message( 'info', $lang{INFO}, $conf{tech_works} );
-    return 0;
-  }
+  # if ($conf{tech_works}) {
+  #   $html->message( 'info', $lang{INFO}, $conf{tech_works} );
+  #   return 0;
+  # }
 
   #Make active lang list
   if ($conf{LANGS}) {
@@ -310,6 +311,7 @@ sub form_login {
     $first_page{TECH_WORKS_BLOCK_VISIBLE} = 1;
     $first_page{TECH_WORKS_MESSAGE} = $conf{TECH_WORKS};
   }
+
   if ($conf{ADMIN_PASSWORD_RECOVERY}) {
     $first_page{PSWD_BTN} = $html->button("$lang{FORGOT_PASSWORD}?", "index=10&forgot_passwd=1");
   }

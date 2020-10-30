@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS `accident_address`
     `ac_id`      SMALLINT(3) UNSIGNED NOT NULL,
     `type_id`    TINYINT(3) UNSIGNED NOT NULL,
     `address_id` TINYINT(3) UNSIGNED NOT NULL,
+    
+    KEY `address_id` (`address_id`),
+    KEY `type_id` (`type_id`),
 
     CONSTRAINT `address`
         FOREIGN KEY (`ac_id`) REFERENCES `accident_log` (`id`) ON DELETE CASCADE

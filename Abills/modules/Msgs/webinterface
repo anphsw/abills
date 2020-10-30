@@ -46,9 +46,6 @@ $_COLORS[9] //= '#FFFFFF';
 
 my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[6]);
 
-#if($admin->{quick_report_menu}) {
-#}
-
 require Msgs::Delivery;
 require Msgs::Push;
 require Msgs::Notify;
@@ -78,6 +75,10 @@ if ($conf{MSGS_CHAT}) {
 
 if ($conf{MSGS_ADDRESS}) {
   require Msgs::Msgs_address;
+}
+
+if ($conf{MSGS_SCRUB_BOX}) {
+  require Msgs::Msgs_scrub_box;
 }
 
 require Msgs::Reg_request;
@@ -157,10 +158,6 @@ sub msgs_status_bar {
   if ($FORM{CHAPTER}) {
     $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER};
   }
-
-  #if (! defined($FORM{STATE})) {
-  #  $FORM{STATE}=0;
-  #}
 
   if ($FORM{ALL_OPENED} || $state eq '0;3;4;5;6;7') {
     @header_arr = ("$lang{ALL}:index=$index&ALL_MSGS=1$pages_qs$sort_qs", @header_arr);
@@ -913,7 +910,6 @@ sub msgs_events {
 
   foreach my $line (@{$list}) {
     push @events_json, msgs_event_to_json($line, $msgs_index, { UID => 1 });
-    #    $list_text .= "$line->{uid},$line->{client_id},$line->{subject},$line->{message},$line->{id},$SELF_URL?UID=$line->{uid}&chg=$line->{id}&index=$msgs_index|";
   }
 
   #new connection
@@ -940,7 +936,6 @@ sub msgs_events {
   }
 
   # Planned work
-  #  $Msgs->{debug} = 1;
   my $responsible_and_planned_for_today_list = $Msgs->messages_list({
     PAGE_ROWS      => 3,
     SUBJECT        => '_SHOW',
@@ -949,7 +944,6 @@ sub msgs_events {
     PLAN_FROM_DATE => $DATE,
     PLAN_TO_DATE   => $DATE,
     STATE          => '!1,!2,!5,!9',
-    #    GET_NEW    => $attr->{PERIOD} || '60',
     %LIST_PARAMS,
     COLS_NAME      => 1,
     COLS_UPPER     => 0
@@ -1004,19 +998,23 @@ sub msgs_event_to_json {
   $message->{resposible} //= '0';
   $message->{uid} //= '0';
 
-  return qq{
-        {
-          "TYPE"       : "MESSAGE",
-          "MODULE"     : "Msgs",
-          "TITLE"      : "$message->{subject}",
-          "TEXT"       : "$message->{message}",
-          "CREATED"    : "$message->{datetime}",
-          "MSGS_ID"    : "$message->{id}",
-          "RESPONSIBLE": $message->{resposible},
-          "EXTRA"      : "$SELF_URL?$uid_string&index=$msgs_index&chg=$message->{id}",
-          "SENDER"     : { "UID" : "$message->{uid}", "LOGIN" : "$message->{login}" }
-        }
-      };
+  my $message_json = qq{
+    {
+      "TYPE"       : "MESSAGE",
+      "MODULE"     : "Msgs",
+      "TITLE"      : "$message->{subject}",
+      "TEXT"       : "$message->{message}",
+      "CREATED"    : "$message->{datetime}",
+      "MSGS_ID"    : "$message->{id}",
+      "RESPONSIBLE": $message->{resposible},
+      "EXTRA"      : "$SELF_URL?$uid_string&index=$msgs_index&chg=$message->{id}",
+      "SENDER"     : { "UID" : "$message->{uid}", "LOGIN" : "$message->{login}" }
+    }
+  };
+
+  $message_json =~ s/\"/\\"/g;
+
+  return $message_json; 
 }
 
 
@@ -2116,7 +2114,7 @@ sub msgs_get_attachments_view {
         $SELF_URL . "?qindex=$index&ATTACHMENT=$line->{id}",
         ($line->{filename} || 'No name'),
         {
-          class => 'img-responsive',
+          class => 'img-responsive modal-content-img attachment_responsive',
         }
       );
     }
@@ -2202,7 +2200,7 @@ sub _msgs_footer_row {
   my ($list, $attr) = @_;
 
   my $select = $html->form_select($attr->{NAME_SELECT}, {
-     SELECTED    => $FORM{BRIGADE} || '',
+     SELECTED    => $FORM{BRIGADE} || $FORM{CHAPTER} || '',
      SEL_LIST    => $list,
      SEL_KEY     => $attr->{ID_KEY},
      SEL_VALUE   => $attr->{ID_VALUE},

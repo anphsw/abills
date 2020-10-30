@@ -2605,6 +2605,8 @@ sub sharing_user_main {
   my $available_button_link = 'BUY';
   my $available_panel_type = 'primary';
 
+  my @files_table = ();
+
   foreach my $file (@$files_list) {
     # MAYBE: should change to list
     my $user_sharing_info = $Sharing->info_user({ UID => $user->{UID}, FILE_ID => $file->{id} });
@@ -2612,6 +2614,15 @@ sub sharing_user_main {
 
     my $basename = $file->{name};
     $basename =~ s/.*\///;
+
+    my %file_table = (
+      name      => $basename,
+      comment   => $file->{comment},
+      amount    => $file->{amount},
+      version   => $file->{version},
+      date_to   => $user_sharing_info ? "$lang{DATE_TO} $user_sharing_info->{date_to}" : '',
+      file_time => $file->{file_time} . " $lang{DAYS}",
+    );
 
     # User has access to module
     if ($user_sharing_info && $user_sharing_info->{date_to} ge $DATE) {
@@ -2646,6 +2657,8 @@ sub sharing_user_main {
         { OUTPUT2RETURN => 1 }
       );
 
+      $file_table{button} = $button;
+
       if ($user_sharing_info->{demo}) {
         push(@demo_file_panels, $file_panel);
       }
@@ -2674,6 +2687,8 @@ sub sharing_user_main {
         { OUTPUT2RETURN => 1 }
       );
 
+      $file_table{button} = $button;
+
       if ($user_sharing_info && $user_sharing_info->{date_to} lt $DATE){
         push(@expired_file_panels, $file_panel);
       }
@@ -2681,6 +2696,8 @@ sub sharing_user_main {
         push(@not_bought_file_panels, $file_panel);
       }
     }
+
+    push @files_table, \%file_table
   }
 
   push (@file_panels, @demo_file_panels, @bought_file_panels, @expired_file_panels, @not_bought_file_panels);
@@ -2697,12 +2714,38 @@ sub sharing_user_main {
       EX_PARAMS   => "data-auto-submit='form'"
     });
 
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $lang{FILES},
+    title      => [ $lang{NAME}, $lang{COMMENTS}, $lang{AMOUNT}, $lang{VERSION}, $lang{TIME_FOR_FILE} ],
+    ID         => 'FILE_LIST',
+  });
+  
+  my $table_mode = '';
+  if ($FORM{TABLE_FILE} || $FORM{sort}) {  
+    foreach my $file (@files_table) {
+      $table->addrow(
+        $file->{name},
+        $file->{comment},
+        $file->{amount},
+        $file->{version},
+        $file->{file_time},
+        $file->{button}
+      );
+    }
+  }
+  
+  $table_mode = '&TABLE_FILE=1' unless ($FORM{TABLE_FILE} || $FORM{sort});
+  
   $html->tpl_show(
     _include('sharing_user_main', 'Sharing'),
     {
       GROUP_SELECT => $group_select,
-      FILES        => join(($FORM{json} ? ', ' : ' '), @file_panels)
-    }
+      FILES        => ($FORM{TABLE_FILE} || $FORM{sort}) ? $table->show() : join(($FORM{json} ? ', ' : ' '), @file_panels),
+      BUTTON_STYLE => $html->button( ($FORM{TABLE_FILE} || $FORM{sort}) ? ' ' . $lang{PLATE_MODE} : ' ' . $lang{TABLE_MODE}, 
+          "index=$index$table_mode", 
+          { class => ($FORM{TABLE_FILE} || $FORM{sort}) ? 'btn btn-primary fa fa-file' : 'btn btn-primary fa fa-table' } )
+    },
   );
 
   return 1;

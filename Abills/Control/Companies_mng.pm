@@ -139,7 +139,7 @@ sub form_companies {
 
         $Company->add({%USER_HASH});
         if ($Company->{errno}) {
-          _error_show($Company, { MESSAGE =>  "Line:$impoted_named\n $lang{COMPANY}: '$USER_HASH{COMPANY_NAME}'" });
+          _error_show($Company, { MESSAGE =>  "Line:$impoted_named\n F$lang{COMPANY}: '$USER_HASH{COMPANY_NAME}'" });
           return 0;
         }
       }
@@ -402,6 +402,9 @@ sub form_companie_admins {
   my $Customer = Customers->new($db, $admin, \%conf);
   my $Company = $Customer->company();
 
+  $Company->info($FORM{COMPANY_ID} || $FORM{ID});
+  $Company->{COMPANY_NAME}   = $Company->{NAME};
+
   if ($FORM{change}) {
     #ADD_ADMIN:
     $Company->admins_change({%FORM});
@@ -415,10 +418,12 @@ sub form_companie_admins {
 
   _error_show($Company);
 
+  my $name_caption = "$lang{ADMINS}  "  .  "$lang{COMPANY} - " . ($Company->{COMPANY_NAME} || '');
+
   my $table = $html->table(
     {
       width      => '100%',
-      caption    => $lang{ADMINS},
+      caption    => $name_caption,
       title      => [ $lang{ALLOW}, $lang{LOGIN}, $lang{FIO}, 'E-mail' ],
       qs         => $pages_qs,
       ID         => 'COMPANY_ADMINS'

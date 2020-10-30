@@ -49,7 +49,7 @@ $lang{NOT_CONFIGURED} = 'The module is not configured';
 $lang{NOT_FOUND} = 'Not found configuration: ';
 $lang{ALL_TIME} = 'Total time, hours';
 
-$lang{ADMINS} = 'admin list';
+$lang{ADMINS_LIST} = 'admin list';
 $lang{CLOSE_MOUTH} = 'the number of works closed in a month in a row on Redmine';
 $lang{ACTUALLY_HOURS} = 'the number of hours actually spent';
 $lang{SCHEDULED_HOURS} = 'number of hours scheduled';

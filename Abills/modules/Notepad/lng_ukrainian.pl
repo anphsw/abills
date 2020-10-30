@@ -28,4 +28,6 @@ $lang{ST_TITLE} = 'Заголовок';
 $lang{ST_TEXT} = 'Текст';
 $lang{STICKER_TITLE} = 'Введіть заголовок',
 $lang{STICKER_DISPLAY} = 'Відображати',
+$lang{START_STAT} = 'Час початку',
+$lang{END_STAT} = 'Час закінчення',  
 $lang{STICKER_HIDE} = 'Приховувати'

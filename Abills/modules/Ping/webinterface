@@ -28,13 +28,13 @@ our (
   $ui,
   @state_colors,
   @state_icon_colors,
+  $Conf
 );
 
 our Admins $admin;
 
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Ping = Ping->new($db, $admin, \%conf);
-my $Conf = Conf->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 ping_main() - Ping web interface setting

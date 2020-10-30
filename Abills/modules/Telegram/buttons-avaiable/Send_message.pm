@@ -33,7 +33,9 @@ sub new {
 =cut
 #**********************************************************
 sub btn_name {
-  return "Создать сообщение";
+  my $self = shift;
+  
+  return $self->{bot}->{lang}->{CREATE_MSGS};
 }
 
 #**********************************************************
@@ -45,16 +47,16 @@ sub click {
   my $self = shift;
   my ($attr) = @_;
 
-  my $message = "Напишите текст вашего сообщения.\n";
-  $message   .= "Также вы можете отправить файлы и изображения, они будут прикреплены к сообщению.\n";
-  $message   .= "Нажмите <b>Отправить</b> когда сообщение готово или <b>Отменить</b> если вы передумали.";
+  my $message = "$self->{bot}->{lang}->{WRITE_TEXT}\n";
+  $message   .= "$self->{bot}->{lang}->{SEND_FILE}\n";
+  $message   .= "$self->{bot}->{lang}->{CHANCLE}";
   
   my @keyboard = ();
   my $button1 = {
-    text => "Тема сообщения",
+    text => "$self->{bot}->{lang}->{SUBJECT_EDIT}",
   };
   my $button2 = {
-    text => "Отменить",
+    text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
   };
   push (@keyboard, [$button1], [$button2]);
 
@@ -86,9 +88,17 @@ sub simple_msgs {
   my $self = shift;
   my ($attr) = @_;
 
+  if ($attr->{text} eq decode_utf8('$self->{bot}->{lang}->{CHANCLE_TEXT}')) {
+    $self->{bot}->send_message({
+      text => "$self->{bot}->{lang}->{SEND_CHANCLE}",
+    });
+
+    return 1;
+  } 
+
   my $subject = "Telegram Bot";
   my $chapter = 1;
-
+  
   use Msgs;
   my $Msgs = Msgs->new($self->{db}, $self->{admin}, $self->{conf});
 
@@ -101,8 +111,32 @@ sub simple_msgs {
     PRIORITY  => 2,
   });
 
+
+  if (!$Msgs->{errno} && $attr->{photo}) {
+    use Msgs::Misc::Attachments;
+    
+    my $Attachments = Msgs::Misc::Attachments->new($self->{db}, $self->{admin}, $self->{conf});
+    my ($file_path, $file_size, $file_content) = $self->{bot}->get_file($attr->{photo});
+    my ($file_name, $file_extension) = $file_path =~ m/.*\/(.*)\.(.*)/;
+    
+    next unless ($file_content && $file_size && $file_name && $file_extension);
+     
+    my $file_content_type = file_content_type($file_extension);
+
+    delete($Attachments->{save_to_disk});
+      
+    $Attachments->attachment_add({
+      MSG_ID       => $Msgs->{MSG_ID},
+      UID          => $attr->{uid},
+      FILENAME     => "$file_name.$file_extension",
+      CONTENT_TYPE => $file_content_type,
+      FILESIZE     => $file_size,
+      CONTENT      => $file_content,
+    });
+  }
+
   $self->{bot}->send_message({
-    text => "Ваше сообщение отправлено в службу поддержки.",
+    text => "$self->{bot}->{lang}->{SEND_MSGS}",
   });
 
   return 1;
@@ -119,15 +153,15 @@ sub add_to_msg {
 
   if ($attr->{message}->{text}) {
     my $text = encode_utf8($attr->{message}->{text});
-    if ($text eq "Отменить") {
+    if ($text eq "$self->{bot}->{lang}->{CHANCLE_TEXT}") {
       $self->cancel_msg();
       return 0;
     }
-    elsif ($text eq "Отправить") {
+    elsif ($text eq "$self->{bot}->{lang}->{SEND}") {
       $self->send_msg($attr);
       return 0;
     }
-    elsif ($text eq "Тема сообщения") {
+    elsif ($text eq "$self->{bot}->{lang}->{SUBJECT_MSGS}") {
       $self->add_title($attr);
       return 1;
     }
@@ -164,7 +198,7 @@ sub add_text_to_msg {
   $self->{bot_db}->change($info);
 
   $self->{bot}->send_message({
-    text => "К сообщению добавлен текст.",
+    text => "$self->{bot}->{lang}->{ADD_FILE}",
   });
   return 1;
 }
@@ -181,11 +215,11 @@ sub add_title_to_msg {
   
   if ($attr->{message}->{text}) {
     my $text = encode_utf8($attr->{message}->{text});
-    if ($text eq "Отменить") {
+    if ($text eq "$self->{bot}->{lang}->{CHANCLE_TEXT}") {
       $self->cancel_msg();
       return 0;
     }
-    elsif ($text eq "Назад") {
+    elsif ($text eq "$self->{bot}->{lang}->{BACK}") {
 
     }
     else {
@@ -194,7 +228,7 @@ sub add_title_to_msg {
       $msg_hash->{message}->{title} = $title;
       $info->{ARGS} = encode_json($msg_hash);
       $self->{bot}->send_message({
-        text => "Тема сообщения изменена.",
+        text => "$self->{bot}->{lang}->{SUBJECT_EDIT}",
       });
     }
   }
@@ -219,16 +253,16 @@ sub add_title {
   my ($attr) = @_;
   my $info = $attr->{step_info};
   
-  my $message = "Напишите тему сообщения\n";
-  $message   .= "Нажмите <b>Назад</b> чтобы вернуться в предыдущее меню\n";
-  $message   .= "Нажмите <b>Отменить</b> если вы хотите отменить создание сообщения\n";
+  my $message = "$self->{bot}->{lang}->{SUBJECT_MSGS}\n";
+  $message   .= "$self->{bot}->{lang}->{CLICK_BACK}\n";
+  $message   .= "$self->{bot}->{lang}->{CHANCLE}\n";
   
   my @keyboard = ();
   my $button1 = {
-    text => "Назад",
+    text => "$self->{bot}->{lang}->{BACK}",
   };
   my $button2 = {
-    text => "Отменить",
+    text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
   };
   push (@keyboard, [$button1], [$button2]);
 
@@ -263,7 +297,7 @@ sub add_file_to_msg {
   $self->{bot_db}->change($info);
 
   $self->{bot}->send_message({
-    text => "К сообщению добавлен файл.",
+    text => "$self->{bot}->{lang}->{ADD_FILE}",
   });
   return 1;
 }
@@ -277,7 +311,7 @@ sub cancel_msg {
   my $self = shift;
   $self->{bot_db}->del($self->{bot}->{uid});
   $self->{bot}->send_message({
-    text => "Отправка сообщения отменена.",
+    text => "$self->{bot}->{lang}->{SEND_CHANCLE}",
   });
   return 1;
 }
@@ -295,7 +329,7 @@ sub send_msg {
   if ($@) {
   # JSON in 'args' column is invalid, drop it.
     $self->{bot}->send_message({
-      text => "Что-то пошло не так. Сообщение не отправлено.",
+      text => "$self->{bot}->{lang}->{NOT_SEND_MSGS}",
     });
     $self->{bot_db}->del( $self->{bot}->{uid} );
     return 1;
@@ -322,19 +356,10 @@ sub send_msg {
     foreach my $file_id ( @{$msg_hash->{message}->{files}} ) {
       my ($file_path, $file_size, $file_content) = $self->{bot}->get_file($file_id);
       my ($file_name, $file_extension) = $file_path =~ m/.*\/(.*)\.(.*)/;
+      
       next unless ($file_content && $file_size && $file_name && $file_extension);
-      my $file_content_type = "application/octet-stream";
-      if ( $file_extension eq 'png'
-        || $file_extension eq 'jpg'
-        || $file_extension eq 'gif'
-        || $file_extension eq 'jpeg'
-        || $file_extension eq 'tiff'
-        ) {
-        $file_content_type = "image/$file_extension";
-      }
-      elsif ( $file_extension eq "zip" ) {
-        $file_content_type = "application/x-zip-compressed";
-      }
+      
+      my $file_content_type = file_content_type($file_extension);
 
       $Attachments->attachment_add({
         MSG_ID       => $Msgs->{MSG_ID},
@@ -348,7 +373,7 @@ sub send_msg {
   }
   $self->{bot_db}->del($self->{bot}->{uid});
   $self->{bot}->send_message({
-    text => "Сообщение отправлено.",
+    text => "$self->{bot}->{lang}->{SEND_MSGS}",
   });
   return 1;
 }
@@ -363,17 +388,17 @@ sub send_msgs_main_menu {
 
   my @keyboard = ();
   my $button1 = {
-    text => "Тема сообщения",
+    text => "$self->{bot}->{lang}->{SUBJECT_MSGS}",
   };
   my $button2 = {
-    text => "Отправить",
+    text => "$self->{bot}->{lang}->{SEND}",
   };
   my $button3 = {
-    text => "Отменить",
+    text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
   };
   push (@keyboard, [$button1], [$button2], [$button3]);
 
-  my $message   .= "Нажмите <b>Отправить</b> когда сообщение будет готово или <b>Отменить</b> если вы передумали.\n";
+  my $message   .= "$self->{bot}->{lang}->{SEND_OR_CHANCLE}\n";
 
   $self->{bot}->send_message({
     text         => $message,
@@ -387,4 +412,28 @@ sub send_msgs_main_menu {
   return 1;
 }
 
+#**********************************************************
+=head2 file_content_type()
+
+=cut
+#**********************************************************
+sub file_content_type {
+  my ($file_extension) = @_;
+  
+  my $file_content_type = "application/octet-stream";
+
+  if ( $file_extension eq 'png'
+    || $file_extension eq 'jpg'
+    || $file_extension eq 'gif'
+    || $file_extension eq 'jpeg'
+    || $file_extension eq 'tiff'
+  ) {
+    $file_content_type = "image/$file_extension";
+  }
+  elsif ( $file_extension eq "zip" ) {
+    $file_content_type = "application/x-zip-compressed";
+  }
+
+  return $file_content_type;
+}
 1;

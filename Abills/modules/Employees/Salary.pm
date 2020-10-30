@@ -47,7 +47,7 @@ sub employees_cashbox_main {
   my %CASHBOX;
 
   if ($FORM{add}) {
-    $Employees->employees_add_cashbox({ %FORM });
+    $Employees->employees_add_cashbox({ AID=>$FORM{ADMINS}, %FORM });
 
     if (!$Employees->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{CASHBOX_ADDED}");
@@ -57,7 +57,7 @@ sub employees_cashbox_main {
     }
   }
   elsif ($FORM{change}) {
-    $Employees->employees_change_cashbox({ %FORM });
+    $Employees->employees_change_cashbox({ AID=>$FORM{ADMINS}, %FORM });
 
     if (!$Employees->{errno}) {
       $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
@@ -73,8 +73,10 @@ sub employees_cashbox_main {
     $html->message("info", "$lang{CHANGE}");
 
     my $cashbox_info = $Employees->employees_info_cashbox({ ID => $FORM{chg} });
+    
     $CASHBOX{ID} = $FORM{chg};
     $CASHBOX{NAME} = $cashbox_info->{NAME};
+    $CASHBOX{ADMINS_SELECT} = $cashbox_info->{AID};
     $CASHBOX{COMMENTS} = $cashbox_info->{COMMENTS};
   }
   elsif ($FORM{del}) {
@@ -88,6 +90,8 @@ sub employees_cashbox_main {
     }
   }
 
+  $CASHBOX{ADMINS_SELECT} = sel_admins({ NAME => 'ADMINS', SELECTED => $CASHBOX{ADMINS} });
+
   $html->tpl_show(
     _include('employees_cashbox_add', 'Employees'),
     {
@@ -97,15 +101,21 @@ sub employees_cashbox_main {
     }
   );
 
+
+  my $types = translate_list($Employees->employees_list_cashbox({ COLS_NAME => 1 }));
+
   result_former(
     {
       INPUT_DATA      => $Employees,
+      LIST            => $types,
       FUNCTION        => 'employees_list_cashbox',
-      DEFAULT_FIELDS  => "ID, NAME, COMMENTS",
+      BASE_FIELDS     => 0,
+      DEFAULT_FIELDS  => "ID, NAME, ADMIN, COMMENTS",
       FUNCTION_FIELDS => 'employees_cashbox_balance:$lang{BALANCE}:id, change, del',
       EXT_TITLES      => {
         'name'     => "$lang{NAME}",
         'id'       => "ID",
+        'admin'    => "$lang{ADMIN}",
         'comments' => "$lang{COMMENTS}"
       },
       TABLE           => {
@@ -170,6 +180,7 @@ sub employees_cashbox_balance {
       FROM_DATE      => $from_date,
       TO_DATE        => $to_date,
       SORT           => 5,
+      PAGE_ROWS      => 9999,
       DESC           => 'desc',
     }
   );
@@ -182,6 +193,7 @@ sub employees_cashbox_balance {
       FROM_DATE        => $from_date,
       TO_DATE          => $to_date,
       SORT             => 5,
+      PAGE_ROWS        => 9999,
       DESC             => 'desc',
     }
   );
@@ -261,6 +273,7 @@ sub employees_cashbox_balance {
     TO_DATE        => $to_date,
     CASHBOX_ID     => $FORM{CASHBOX_ID} || '',
     COMING_TYPE_ID => $FORM{COMING_TYPE_ID} || '',
+    PAGE_ROWS      => 9999,
     COLS_NAME      => 1,
   });
 
@@ -318,7 +331,8 @@ sub employees_cashbox_balance {
     FROM_DATE        => $from_date,
     TO_DATE          => $to_date,
     CASHBOX_ID       => $FORM{CASHBOX_ID} || '',
-    SPENDING_TYPE_ID => $FORM{SPENDING_TYPE_ID} || '',,
+    SPENDING_TYPE_ID => $FORM{SPENDING_TYPE_ID} || '',
+    PAGE_ROWS        => 9999,
     COLS_NAME        => 1,
   });
 
@@ -501,6 +515,10 @@ sub employees_cashbox_coming_type {
   my %CASHBOX;
 
   if ($FORM{add}) {
+    if ($FORM{DEFAULT_COMING} ) {
+      $Employees->coming_default_type();
+    }
+
     $Employees->employees_add_type({ %FORM, COMING => 1 });
 
     if (!$Employees->{errno}) {
@@ -511,6 +529,10 @@ sub employees_cashbox_coming_type {
     }
   }
   elsif ($FORM{change}) {
+    if ($FORM{DEFAULT_COMING}) {
+      $Employees->coming_default_type();
+    }
+
     $Employees->employees_change_type({ COMING => 1, %FORM });
 
     if (!$Employees->{errno}) {
@@ -541,6 +563,7 @@ sub employees_cashbox_coming_type {
     my $coming_type = $Employees->employees_info_type({ COMING => 1, ID => $FORM{chg} });
     $CASHBOX{ID} = $FORM{chg};
     $CASHBOX{NAME} = $coming_type->{NAME};
+    $CASHBOX{CHECK_DEFAULT} = 'checked' if ($coming_type->{DEFAULT_COMING});
     $CASHBOX{COMMENTS} = $coming_type->{COMMENTS};
   }
 
@@ -553,17 +576,25 @@ sub employees_cashbox_coming_type {
     }
   );
 
+  my $types = translate_list($Employees->employees_list_coming_type({ COLS_NAME => 1 }));
+
+  foreach my $default_type (@$types) {
+    $default_type->{default_coming} = $html->element('label', '', { class => 'fa fa-check' }) if ($default_type->{default_coming});
+  }
+
   result_former(
     {
       INPUT_DATA      => $Employees,
-      FUNCTION        => 'employees_list_coming_type',
-      BASE_FIELDS     => 3,
-      DEFAULT_FIELDS  => "id, name, comments",
+      LIST            => $types,
+      BASE_FIELDS     => 4,
+      DEFAULT_FIELDS  => "id, name, comments, default_coming",
       FUNCTION_FIELDS => "change, del",
+      SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
-        'name'     => "$lang{NAME}",
-        'id'       => "#",
-        'comments' => "$lang{COMMENTS}"
+        'name'           => "$lang{NAME}",
+        'id'             => "#",
+        'default_coming' => $lang{DEFAULT},
+        'comments'       => "$lang{COMMENTS}"
       },
       TABLE           => {
         width   => '100%',
@@ -1108,7 +1139,7 @@ sub employees_cashbox_select {
   my ($attr) = @_;
 
   my $employees_cashbox_select = $html->form_select(
-    'CASHBOX_ID',
+    $attr->{NAME} || 'CASHBOX_ID',
     {
       SELECTED    => $conf{EMPLOYEES_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{ID},
       SEL_LIST    => $Employees->employees_list_cashbox({ COLS_NAME => 1 }),
@@ -2516,5 +2547,292 @@ sub _fee_taken_msg {
   }
   return $result;
 }
+
+#**********************************************************
+
+=head2 employees_cashbox_moving_type() -
+
+  Arguments:
+
+  Returns:
+
+=cut
+
+#**********************************************************
+sub employees_cashbox_moving_type {
+
+  my $action = 'add';
+  my $action_lang = "$lang{ADD}";
+  my %CASHBOX;
+
+  if ($FORM{add}) {
+    $Employees->employees_add_type({ %FORM, MOVING => 1 });
+
+    if (!$Employees->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{TYPE} $lang{ADDED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{TYPE} $lang{NOT} $lang{ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    $Employees->employees_change_type({ MOVING => 1, %FORM });
+
+    if (!$Employees->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
+    }
+  }
+
+  if ($FORM{del}) {
+    $Employees->employees_delete_type({ MOVING => 1, ID => $FORM{del} });
+
+    if (!$Employees->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{TYPE} $lang{DELETED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT} $lang{DELETED}");
+    }
+  }
+
+  if ($FORM{chg}) {
+    $action = 'change';
+    $action_lang = $lang{CHANGE};
+
+    $html->message("info", $lang{CHANGE});
+
+    my $moving_type = $Employees->employees_info_type({ MOVING => 1, ID => $FORM{chg} });
+    $CASHBOX{ID} = $FORM{chg};
+    $CASHBOX{NAME} = $moving_type->{NAME};
+    $CASHBOX{COMMENTS} = $moving_type->{COMMENTS};
+    $CASHBOX{SPENDING_TYPE} = $moving_type->{SPENDING_TYPE};
+    $CASHBOX{MOVING_TYPE} = $moving_type->{MOVING_TYPE};
+  }
+
+  $CASHBOX{SPENDING_TYPE_SELECT} = $html->form_select(
+    'SPENDING_TYPE',
+    {
+      SELECTED    => $FORM{SPENDING_TYPE} || $CASHBOX{SPENDING_TYPE},
+      SEL_LIST    => $Employees->employees_list_spending_type({ COLS_NAME => 1 }),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { "" => "" },
+    }
+  );
+
+  $CASHBOX{COMING_TYPE_SELECT} = $html->form_select(
+    'COMING_TYPE',
+    {
+      SELECTED    => $FORM{COMING_TYPE} || $CASHBOX{COMING_TYPE},
+      SEL_LIST    => $Employees->employees_list_coming_type({ COLS_NAME => 1 }),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { "" => "" },
+    }
+  );
+
+  $html->tpl_show(
+    _include('employees_moving_type', 'Employees'),
+    {
+      %CASHBOX,
+      ACTION      => $action,
+      ACTION_LANG => $action_lang,
+    }
+  );
+
+  result_former(
+    {
+      INPUT_DATA      => $Employees,
+      FUNCTION        => 'employees_list_moving_type',
+      BASE_FIELDS     => 3,
+      DEFAULT_FIELDS  => "id, name, comments, spending_name, coming_name",
+      FUNCTION_FIELDS => "change, del",
+      EXT_TITLES      => {
+        'name'          => "$lang{NAME}",
+        'id'            => "#",
+        'comments'      => "$lang{COMMENTS}",
+        'spending_name' => "$lang{TYPE} $lang{SPENDING}",
+        'coming_name'   => "$lang{TYPE} $lang{COMING}",
+      },
+      TABLE           => {
+        width   => '100%',
+        caption => "$lang{MOVING} $lang{TYPE}",
+        qs      => $pages_qs,
+        ID      => 'EMPLOYEES',
+        header  => '',
+        EXPORT  => 1,
+      },
+      MAKE_ROWS       => 1,
+      SEARCH_FORMER   => 1,
+      MODULE          => 'Employees',
+      TOTAL           => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 employees_moving_between_cashboxes() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub employees_moving_between_cashboxes {
+
+  my $action = 'moving';
+  my $action_lang = "$lang{MOVING}";
+  my %CASHBOX;
+  my $coming_id;
+  my $spending_id;
+
+  my $moving_info = $Employees->employees_info_moving({ COLS_NAME => 1, ID => $FORM{chg} });
+
+  if ($FORM{moving}) {
+
+    my $list = $Employees->employees_list_moving_type({ COLS_NAME => 1});
+    foreach my $line (@$list) {
+      my $spend_id = $line->{spending_id};
+      my $com_id = $line->{coming_id};
+
+      my $coming = $Employees->employees_add_coming({%FORM, CASHBOX_ID => $FORM{CASHBOX_COMING}, AID => $admin->{AID}, COMING_TYPE_ID => $com_id });
+      $coming_id = $coming->{INSERT_ID};
+
+      my $spending = $Employees->employees_add_spending({ %FORM, CASHBOX_ID => $FORM{CASHBOX_SPENDING}, AID => $admin->{AID}, SPENDING_TYPE_ID => $spend_id });
+      $spending_id = $spending->{INSERT_ID};
+    }
+
+    $Employees->employees_add_moving({ %FORM, AID => $admin->{AID}, ID_SPENDING => $spending_id, ID_COMING => $coming_id, });
+
+    if (!$Employees->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{ADDED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_ADDED}");
+    }
+  }
+  elsif ($FORM{change}) {
+    my $moving_chg = $Employees->employees_info_moving({ COLS_NAME => 1, ID => $FORM{ID} });
+
+    $Employees->employees_change_coming({ %FORM, AID => $admin->{AID}, ID => $moving_chg->{ID_COMING}, CASHBOX_ID => $FORM{CASHBOX_COMING} });
+
+    $Employees->employees_change_spending({ %FORM, AID => $admin->{AID}, ID => $moving_chg->{ID_SPENDING}, CASHBOX_ID => $FORM{CASHBOX_SPENDING} });
+
+    $Employees->employees_change_moving ({ %FORM, AID => $admin->{AID} });
+
+    if (!$Employees->{errno}) {
+     $html->message("success", "$lang{SUCCESS}", "$lang{CHANGED}");
+    }
+    else {
+      $html->message("err", "$lang{ERROR}", "$lang{NOT_CHANGED}");
+    }
+  }
+
+  if ($FORM{del}) {
+    my $moving = $Employees->employees_info_moving({ COLS_NAME => 1, ID => $FORM{del} });
+
+    $Employees->employees_delete_moving({ ID => $FORM{del} });
+
+    $Employees->employees_delete_coming({ ID => $moving->{ID_COMING} });
+
+    $Employees->employees_delete_spending({ ID => $moving->{ID_SPENDING} });
+
+    if (!$Employees->{errno}) {
+      $html->message("success", "$lang{SUCCESS}", "$lang{DELETED}");
+    }
+    else {
+     $html->message("err", "$lang{ERROR}", "$lang{NOT_DELETED}");
+    }
+  }
+
+  my $spending_cashbox = 0;
+  my $coming_cashbox = 0;
+  my $moving_type = 0;
+  if ($FORM{chg}) {
+    $html->message("info", $lang{CHANGE});
+
+    $spending_cashbox = $moving_info->{CASHBOX_SPENDING};
+    $coming_cashbox = $moving_info->{CASHBOX_COMING};
+    $moving_type = $moving_info->{MOVING_TYPE_ID};
+    $action = 'change';
+    $action_lang = "$lang{CHANGE}";
+    $CASHBOX{DATE} = $moving_info->{DATE};
+    $CASHBOX{COMMENTS} = $moving_info->{COMMENTS};
+    $CASHBOX{AMOUNT} = $moving_info->{AMOUNT};
+    $CASHBOX{ID} = $FORM{chg};
+  }
+
+  $CASHBOX{MOVING_TYPE_SELECT} = $html->form_select(
+    'MOVING_TYPE_ID',
+    {
+      SELECTED    => $FORM{MOVING_TYPE_ID} || $CASHBOX{MOVING_TYPE_ID} || $moving_type,
+      SEL_LIST    => $Employees->employees_list_moving_type({ COLS_NAME => 1}),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { "" => "" },
+    }
+  );
+
+  $CASHBOX{CASHBOX_SELECT_COMING} = employees_cashbox_select({ NAME => 'CASHBOX_COMING', ID => $coming_cashbox});
+  $CASHBOX{CASHBOX_SELECT_SPENDING} = employees_cashbox_select({ NAME => 'CASHBOX_SPENDING', ID => $spending_cashbox });
+
+  $html->tpl_show(
+    _include('employees_moving_between_cashboxes', 'Employees'),
+    {
+      %CASHBOX,
+      ACTION      => $action,
+      ACTION_LANG => $action_lang,
+      DATE        => $DATE
+    }
+  );
+
+  result_former(
+    {
+      INPUT_DATA      => $Employees,
+      FUNCTION        => 'employees_list_moving',
+      BASE_FIELDS     => 1,
+      DEFAULT_FIELDS  => "id, amount, name_spending, name_coming, moving_type_name, date, comments, admin",
+      FUNCTION_FIELDS => 'employees_coming_document:$lang{DOCS}:id,change, del',
+      EXT_TITLES      => {
+        'amount'           => "$lang{SUM}",
+        'name_spending'    => "$lang{CASHBOX} $lang{SPENDING}",
+        'name_coming'      => "$lang{CASHBOX} $lang{COMING}",
+        'moving_type_name' => "$lang{MOVING} $lang{TYPE}",
+        'date'             => "$lang{DATE}",
+        'admin'            => "$lang{ADMIN}",
+        'comments'         => "$lang{COMMENTS}",
+        'id'               => "#",
+      },
+      FUNCTION_INDEX  => $index,
+      TABLE           => {
+        width   => '100%',
+        caption => "$lang{MOVING_BETWEEN_CASHBOXES}",
+        qs      => $pages_qs,
+        ID      => 'EMPLOYEES',
+        header  => '',
+        EXPORT  => 1,
+      },
+      MAKE_ROWS       => 1,
+      SEARCH_FORMER   => 1,
+      MODULE          => 'Employees',
+      TOTAL           => 1
+    }
+  );
+
+  return 1;
+}
+
 
 1;

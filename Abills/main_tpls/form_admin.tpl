@@ -259,6 +259,13 @@
                         </div>
                     </div>
 
+                    <div class='form-group'>
+                        <label class='control-label col-md-3' for='RFID_NUMBER'>Android ID:</label>
+                        <div class='col-md-9'>
+                            <input id='ANDROID_ID' name='ANDROID_ID' value='%ANDROID_ID%' type='text' class='form-control'>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>

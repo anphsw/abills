@@ -80,25 +80,6 @@ $date_key_hash{USERS_PI} = {
   'email.address'            => 'EMAIL',
   'phone.number'             => 'PHONE:_phone_structure',
   'full_name'                => 'FIO',
-
-  # 'address.entrance'         => 'ADDRESS_FLAT',
-  # 'address.floor'
-  # 'ADDRESS_BUILD' => '',
-  # 'STREET_ID' => '',
-  # 'ADDRESS_DISTRICT' => '',
-  # 'PASPORT_NUM' => '',
-  # 'FIO' => '',
-  # 'ADDRESS_FLAT' => '',
-  # 'ADD_ADDRESS_BUILD' => '',
-  # 'PHONE' => '',
-  # 'LOCATION_ID' => '',
-  # 'ADDRESS_STREET' => '',
-  # 'DISTRICT_ID' => '',
-  # 'EMAIL' => '',
-  # 'PASPORT_DATE' => '',
-  # 'COMMENTS' => '',
-  # '_' => '',
-  # 'CONTRACT_ID' => '',
 };
 
 $date_key_hash{DHCPHOSTS_HOSTS} = { 'ip_mac' => 'MAC:_mac_structure', };
@@ -246,7 +227,6 @@ sub _mac_structure {
     if ($mac_info->{mac} && $mac_info->{ip}) {
       my $usr_mac = join(':', unpack("(A2)*", $mac_info->{mac}));
 
-      # print 'Mac = '. $mac_info->{mac}. "\n"  ;
       return { MAC => $usr_mac, IP => int2ip($mac_info->{ip}) };
     }
   }
@@ -287,7 +267,6 @@ sub insert_user {
 
   if ($user->{errno} && $user->{errno} == 7) {
 
-    # _bp('user',$user,{TO_CONSOLE => 2});
     change_user($user_info);
 
     return 1;

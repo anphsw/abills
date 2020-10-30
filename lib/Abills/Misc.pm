@@ -325,7 +325,12 @@ sub _function {
 
   if (! $function_name) {
     print "Content-type: text/html\n\n";
-    print 'ERROR: Function index: '. ($index || q{}) .' Function not exist!';
+    if ($index !~ /^\d+$/) {
+      print 'ERROR: Wrong function index. Function not exist!';
+    }
+    else {
+      print 'ERROR: Function index: ' . ($index || q{}) . ' Function not exist!';
+    }
     return 0;
   }
   elsif ($function_name eq 'null'){
@@ -796,7 +801,6 @@ sub service_get_month_fee {
 #    }
 #  }
 
-  my %FEES_METHODS = %{ get_fees_types() };
   #Get active price
   if ($tp->{ACTIV_PRICE} && $tp->{ACTIV_PRICE} > 0) {
     my $date  = ($service_activate ne '0000-00-00') ? $service_activate : $DATE;
@@ -856,7 +860,8 @@ sub service_get_month_fee {
       }
 
       if (($attr->{SHEDULER} && $conf{START_PERIOD_DAY} == $d)
-        || ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} == $tp->{MONTH_FEE})) {
+        || ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} == $tp->{MONTH_FEE}
+             && $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} <  $Service->{TP_INFO}->{ABON_DISTRIBUTION})) {
         if ($attr->{SHEDULER}) {
           undef $user;
         }
@@ -1020,7 +1025,6 @@ sub service_get_month_fee {
     $m = $active_m if ($active_m > 0);
 
     for (my $i = 0 ; $i <= $periods ; $i++) {
-
       if ($m > 12) {
         $m = 1;
         $active_y = $active_y + 1;
@@ -1044,7 +1048,6 @@ sub service_get_month_fee {
           my $end_period = POSIX::strftime('%Y-%m-%d',
             localtime((POSIX::mktime(0, 0, 0, $active_d, ($m - 1), ($active_y - 1900), 0, 0, 0) + 30 * 86400)));
           $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)";
-
           if(in_array('Internet', \@MODULES)) {
             my $change_function = '';
             if($Service->can('change')) {
@@ -1102,7 +1105,7 @@ sub service_get_month_fee {
             }
             if($change_function) {
               $Service->$change_function({
-                ACTIVATE => $DATE,
+                ACTIVATE => '0000-00-00', #$DATE,
                 UID      => $uid,
                 ID       => $Service->{ID}
               });
@@ -1176,7 +1179,7 @@ sub service_get_month_fee {
           }
         }
 
-        $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)";
+        $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)" if(! $tp->{ABON_DISTRIBUTION});
       }
       else {
         $days_in_month = days_in_month({ DATE => "$y-$m" });
@@ -1227,10 +1230,10 @@ sub service_get_month_fee {
     }
   }
 
-  if($conf{DV_CUSTOM_PERIOD}) {
-    #print $tp->{ACTIV_PRICE};
-    #$tp->{CHANGE_PRICE}=1;
-  }
+  # if($conf{DV_CUSTOM_PERIOD}) {
+  #   #print $tp->{ACTIV_PRICE};
+  #   #$tp->{CHANGE_PRICE}=1;
+  # }
 
   if($debug < 6) {
     my $external_cmd = '_EXTERNAL_CMD';
@@ -1252,7 +1255,7 @@ sub service_get_month_fee {
 }
 
 #**********************************************************
-=head2 load_pmodule($file, $attr); - Make external operations
+=head2 _external($file, $attr); - Make external operations
 
   Arguments:
     $file     - File for executions
@@ -1267,31 +1270,11 @@ sub service_get_month_fee {
 sub _external {
   my ($file, $attr) = @_;
 
-  #my $arguments = '';
   $attr->{LOGIN}      = $users->{LOGIN} || $attr->{LOGIN};
   $attr->{DEPOSIT}    = $users->{DEPOSIT};
   $attr->{CREDIT}     = $users->{CREDIT};
   $attr->{GID}        = $users->{GID};
   $attr->{COMPANY_ID} = $users->{COMPANY_ID};
-
-#  while (my ($k, $v) = each %$attr) {
-#    if ($k eq 'TABLE_SHOW') {
-#
-#    }
-#    elsif ($k ne '__BUFFER' && $k =~ /[A-Z0-9_]/) {
-#      if ($v && $v ne '') {
-#        $arguments .= " $k=\"$v\"";
-#      }
-#      else {
-#        $arguments .= " $k=\"\"";
-#      }
-#    }
-#  }
-
-  #if (! -x $file) {
-  #  $html->message('info', "_EXTERNAL $file", "$file not executable") if (!$attr->{QUITE});;
-  #  return 0;
-  #}
 
   my $result = cmd("$file", { ARGV => 1, PARAMS => $attr });
   my $error = $!;
@@ -1310,11 +1293,11 @@ sub _external {
 #**********************************************************
 =head2 get_fees_types($attr)
 
-   Arguments:
-     $attr
+  Arguments:
+    $attr
 
-   Returns:
-     \%FEES_METHODS
+  Returns:
+    \%FEES_METHODS
 
 =cut
 #**********************************************************
@@ -1368,6 +1351,7 @@ sub get_payment_methods {
       COLS_NAME => 1,
       SORT      => 'id',
     });
+
     _error_show($Payments) and return 0;
 
     foreach my $type (@$payment_list) {
@@ -1836,8 +1820,15 @@ sub sel_groups {
   elsif($attr->{HASH_RESULT}) {
     my %group_hash = ();
     my $list = $users->groups_list({
-      GIDS      => ($admin->{GID}) ? $admin->{GID} : undef,
-      COLS_NAME => 1,
+      GIDS            => ($admin->{GID}) ? $admin->{GID} : undef,
+      GID             => '_SHOW',
+      NAME            => '_SHOW',
+      DESCR           => '_SHOW',
+      ALLOW_CREDIT    => '_SHOW',
+      DISABLE_PAYSYS  => '_SHOW',
+      DISABLE_CHG_TP  => '_SHOW',
+      USERS_COUNT     => '_SHOW',
+      COLS_NAME       => 1,
     });
     foreach my $line (@$list) {
       $group_hash{$line->{gid}} = "($line->{gid}) $line->{name}";
@@ -1849,9 +1840,18 @@ sub sel_groups {
     my $gid = $attr->{GID} || $FORM{GID};
     my %PARAMS = (
       SELECTED    => $gid,
-      SEL_LIST    => $users->groups_list({ GIDS => ($admin->{GID}) ? $admin->{GID} : undef,
-        DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
-        COLS_NAME => 1 }),
+      SEL_LIST    => $users->groups_list({ 
+        GID             => '_SHOW',
+        NAME            => '_SHOW',
+        DESCR           => '_SHOW',
+        ALLOW_CREDIT    => '_SHOW',
+        DISABLE_PAYSYS  => '_SHOW',
+        DISABLE_CHG_TP  => '_SHOW',
+        USERS_COUNT     => '_SHOW',
+        GIDS            => ($admin->{GID}) ? $admin->{GID} : undef,
+        DOMAIN_ID       => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
+        COLS_NAME       => 1
+      }),
       SEL_KEY     => 'gid',
       SEL_VALUE   => 'name',
       EX_PARAMS   => $attr->{MULTISELECT} ? 'multiple="multiple"' : $attr->{EX_PARAMS}
@@ -2087,11 +2087,6 @@ sub import_former {
     if ( $@ ) {
       $html->message('err', $lang{ERROR}, "Json Error". $html->pre($@));
     }
-    #Else other error
-    #elsif(ref $perl_scalar eq 'HASH' && $perl_scalar->{status} && $perl_scalar->{status} eq 'error') {
-    #  $perl_scalar->{errno}=1;
-    #  $perl_scalar->{errstr}="$perl_scalar->{message}";
-    #}
     if($perl_scalar->{DATA_1}) {
       if (ref($perl_scalar->{DATA_1}) eq 'ARRAY') {
         foreach my $info_line (@{ $perl_scalar->{DATA_1} }) {
@@ -2107,6 +2102,16 @@ sub import_former {
           push @import_data, $info_line;
         }
       }
+    }
+
+    my @cols_names  = split(/,\s?/, $attr->{IMPORT_FIELDS});
+
+    if ($attr->{UPLOAD_PRE}) {
+      import_show({
+        DATA       => \@import_data,
+        COLS_NAMES => \@cols_names
+      });
+      @import_data = ();
     }
 
     return \@import_data;

@@ -174,6 +174,7 @@ sub paysys_payment {
 
   foreach my $system (@$connected_systems){
     foreach my $merchant (@$list){
+      next unless ($merchant->{gid} && $merchant->{system_id} && $system->{id} && $user->{GID});
       if($merchant->{system_id}==$system->{id} && $merchant->{gid}==$user->{GID}){
         $system->{merchant_name}=$merchant->{merchant_name};
       }
@@ -213,7 +214,7 @@ sub paysys_payment {
 
     if ($Module->can('user_portal')) {
       push @payment_systems, _paysys_system_radio({
-        NAME    => $payment_system->{merchant_name},
+        NAME    => $payment_system->{merchant_name} || $payment_system->{name},
         MODULE  => $payment_system->{module},
         ID      => $payment_system->{paysys_id},
         CHECKED => $count == 1 ? 'checked' : '',
@@ -320,8 +321,10 @@ sub paysys_user_log {
     my @info_arr = split(/\n/, $Paysys->{INFO});
     my $table = $html->table({ width => '100%' });
     foreach my $line (@info_arr) {
-      my ($k, $v) = split(/,/, $line, 2);
-      $table->addrow($k, $v) if ($k =~ /STATUS/);
+      if ($line) {
+        my ($k, $v) = split(/,/, $line, 2);
+        $table->addrow($k, $v) if ($k =~ /STATUS/);
+      }
     }
 
     $Paysys->{INFO} = $table->show({ OUTPUT2RETURN => 1 });

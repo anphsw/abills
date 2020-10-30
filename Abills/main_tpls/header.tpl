@@ -269,7 +269,6 @@
 </script>
 
 <!-- END header -->
-%TECHWORK%
 <!-- Left side column. contains the logo and sidebar -->
 <aside class='main-sidebar'>
 
@@ -312,6 +311,7 @@
       jQuery('div.content-wrapper').css({'padding-top': '50px'});
     }
   </script>
+  %ISP_EXPRESSION%
   <!-- Content Header (Page header) -->
   <section class='content-header'>
     %BREADCRUMB%

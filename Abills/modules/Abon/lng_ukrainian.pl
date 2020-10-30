@@ -14,7 +14,9 @@ $lang{SEND_NOTIFICATION} = 'Відправити повідомлення';
 
 $lang{MANUAL_ACTIVATE} = 'Ручне включення послуги';
 $lang{USER_PORTAL} = 'Портал Абонента';
-
+$lang{USER_PORTAL_NO} = 'Не відображати';
+$lang{USER_PORTAL_EDIT} = 'Управління послугою';
+$lang{USER_PORTAL_READ} = 'Тільки читання';
 $lang{SERVICE_COUNT}='Кількість послуг';
 $lang{FEES_PERIOD}='Кількість нарахувань';
 $lang{NO_ACTIVE_SERVICE}='У Вас немає додаткових послуг';

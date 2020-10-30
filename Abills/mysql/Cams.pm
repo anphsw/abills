@@ -6,7 +6,7 @@ package Cams;
 
 =VERSION
 
-  VERSION = 0.01
+  VERSION = 0.02
 
 =cut
 
@@ -690,8 +690,7 @@ sub streams_list {
    LEFT JOIN cams_groups g ON (cs.group_id=g.id)
    LEFT JOIN cams_folder f ON (cs.folder_id=f.id)
    $EXTRA_JOIN
-   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;"
-    ,
+   $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     {
       COLS_NAME  => 1,
@@ -1604,6 +1603,48 @@ sub folder_info {
   );
 
   return $self;
+}
+
+#**********************************************************
+=head2 model_list($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub model_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr,
+    [
+      [ 'MODEL_NAME',   'STR', 'em.model_name AS model_name',                          1 ],
+      [ 'MODEL_ID',     'INT', 'em.model_id AS model_id',                              1 ],
+      [ 'VENDOR_NAME',  'STR', 'ev.name AS vendor_name',                               1 ],
+      [ 'VENDOR_ID',    'INT', 'ev.id AS vendor_id',                                   1 ],
+      [ 'TYPE_NAME',    'STR', 'et.name AS type_name',                                 1 ],
+      [ 'TYPE_ID',      'INT', 'et.id AS type_id',                                     1 ],
+      [ 'VENDOR_MODEL', 'STR', 'CONCAT(ev.name, ": ", em.model_name) AS vendor_model', 1 ],
+    ],
+    { WHERE => 1, }
+  );
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} em.id
+    FROM equipment_models em
+    INNER JOIN equipment_types et ON (em.type_id=et.id)
+    INNER JOIN equipment_vendors ev ON (ev.id=em.vendor_id)
+    $WHERE
+    ORDER BY $SORT $DESC",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
 }
 
 1;

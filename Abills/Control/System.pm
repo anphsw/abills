@@ -2244,13 +2244,14 @@ sub form_intervals {
         my $list_tt = $tarif_plan->tt_list({ TI_ID => $line->{id} });
         foreach my $line2 (@$list_tt) {
           $max_traffic_class_id = $line2->[0] if ($line2->[0] > $max_traffic_class_id);
+
           $table2->addrow(
             ($line2->[0] != 0) ? $html->color_mark($line2->[0], 'red') : $line2->[0],
             $line2->[1],
             $line2->[2],
             $line2->[3],
-            $line2->[4],
-            $line2->[5],
+            int2byte($line2->[4] * 1024).'it',
+            int2byte($line2->[5] * 1024).'it',
             $line2->[6],
             convert($line2->[7], { text2html => 1 }),
             $html->button($lang{CHANGE}, "index=$index$pages_qs&tt=$TI_ID&chg=$line2->[0]", { class => 'change' }),
@@ -2624,7 +2625,6 @@ sub organization_info {
 =cut
 #**********************************************************
 sub form_payment_types {
-
   use Payments;
   my $Payments = Payments->new($db, $admin, \%conf);
   my %info;
@@ -2633,11 +2633,18 @@ sub form_payment_types {
   $info{BUTTON_NAME}   = $lang{ADD};
 
   if ($FORM{add}) {
-    $Payments->payment_default_type();
+    if ($FORM{DEFAULT_PAYMENT}) {
+      $Payments->payment_default_type();
+    }
+
+    $FORM{ID} = $FORM{NEW_ID};
     $Payments->payment_type_add(\%FORM);
   }
   elsif ($FORM{change}) {
-    $Payments->payment_default_type();
+    if ($FORM{DEFAULT_PAYMENT}) {
+      $Payments->payment_default_type();
+    }
+
     $Payments->payment_type_change(\%FORM);
   }
   elsif ($FORM{chg}) {
@@ -2662,6 +2669,19 @@ sub form_payment_types {
   _error_show($Payments);
 
   $info{ADMIN_PAY} = $lang{ADMIN_PAY};
+  $info{FEES_TYPE} = $html->form_select(
+    'FEES_TYPE',
+    {
+      SELECTED      => $Payments->{FEES_TYPE} || 0,
+      SEL_HASH      => get_fees_types(),
+      NO_ID         => 1,
+      SORT_KEY_NUM  => 1,
+      MAIN_MENU     => get_function_index('form_fees_types'),
+    }
+  );
+
+  $info{ ALLOW_SET_ID } = $info{ID} ? 'disabled' : '';
+
   $html->tpl_show(templates('form_payments_add_type'), \%info);
   my $types = translate_list($Payments->payment_type_list({ COLS_NAME => 1 }));
 
@@ -2669,23 +2689,30 @@ sub form_payment_types {
     $default_type->{default_payment} = $html->element('label', '', { class => 'fa fa-check' }) if ($default_type->{default_payment});
   }
 
+  my $fees_types = get_fees_types();
+  $fees_types->{0}=q{-};
+
   result_former(
     {
       INPUT_DATA      => $Payments,
       LIST            => $types,
-      BASE_FIELDS     => 4,
+      BASE_FIELDS     => 5,
       FUNCTION_FIELDS => 'change, del',
-      DEFAULT_FIELDS  => 'ID,NAME,COLOR,DEFAULT_PAYMENT',
+      DEFAULT_FIELDS  => 'ID,NAME,COLOR,DEFAULT_PAYMENT,FEES_TYPE',
       SKIP_USER_TITLE => 1,
       EXT_TITLES      => {
         id              => 'ID',
         name            => $lang{NAME},
         color           => $lang{COLOR},
-        default_payment => $lang{DEFAULT}
+        default_payment => $lang{DEFAULT},
+        fees_type       => $lang{FEES}
+      },
+      SELECT_VALUE    => {
+        fees_type => $fees_types
       },
       TABLE => {
         width   => '100%',
-        caption => "$lang{PAYMENT_METHOD}",
+        caption => $lang{PAYMENT_METHOD},
         ID      => 'PAYMENTS_TYPE_LIST',
         EXPORT  => 1,
       },

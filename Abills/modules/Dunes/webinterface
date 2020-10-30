@@ -33,7 +33,7 @@ my $list = $Dunes->list({ %LIST_PARAMS,
 	                        COLS_NAME => 1 });
 
 if ($Dunes->{errno}) {
-  $html->message('err', $lang{ERROR}, "[$Dv->{errno}] $err_strs{$Dv->{errno}}");
+  $html->message('err', $lang{ERROR}, "[$Internet->{errno}] $err_strs{$Internet->{errno}}");
   return 0;
  }
 

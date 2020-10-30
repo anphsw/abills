@@ -31,7 +31,7 @@ my $Nas = Nas->new($db, \%conf, $admin);
 sub form_nas {
   $FORM{NAS_RAD_PAIRS} = radius_params({ %FORM });
 
-  if ($FORM{NAS_ID}) {
+  if ($FORM{NAS_ID} && !$FORM{del}) {
     if(form_nas_mng($FORM{NAS_ID})) {
       return 1;
     }
@@ -71,7 +71,7 @@ sub form_nas {
       }
     }
   }
-  elsif ($FORM{del} && $FORM{COMMENTS}) {
+  elsif ($permissions{4} && $permissions{4}{3} && $FORM{del} && $FORM{COMMENTS}) {
     $Nas->del($FORM{del});
     if (in_array('Equipment', \@MODULES)) {
     use Equipment;
@@ -592,8 +592,9 @@ sub form_nas_console_command {
   my $col_delimeter = '';
   my $nas_id          = $FORM{NAS_ID} || '';
   $pages_qs = "&console=1&NAS_ID=$nas_id&full=1&ACTION=1&CMD=$FORM{CMD}";
-  $Nas_->{NAS_MNG_IP_PORT} = $FORM{NAS_MNG_IP_PORT} if ($FORM{NAS_MNG_IP_PORT});
-  $Nas_->{NAS_MNG_USER}    = $FORM{NAS_MNG_USER}    if ($FORM{NAS_MNG_USER});
+  $Nas_->{NAS_MNG_IP_PORT}  = $FORM{NAS_MNG_IP_PORT}  if ($FORM{NAS_MNG_IP_PORT});
+  $Nas_->{NAS_MNG_USER}     = $FORM{NAS_MNG_USER}     if ($FORM{NAS_MNG_USER});
+  $Nas_->{NAS_MNG_PASSWORD} = $FORM{NAS_MNG_PASSWORD} if ($FORM{NAS_MNG_PASSWORD});
 
   my $wait_char = ']';
 
@@ -1532,6 +1533,11 @@ sub form_nas_groups {
 sub form_ip_pools {
   my ($attr) = @_;
 
+  if ($FORM{import}) {
+    ip_pools_import();
+    return 1;
+  }
+
   if ($FORM{NAS_ID} && !$FORM{subf}) {
     $FORM{subf} = $index;
     $index      = get_function_index('form_nas');
@@ -1549,6 +1555,12 @@ sub form_ip_pools {
   }
 
   my $mask = 0b0000000000000000000000000000001;
+
+  my $list_next_pool = $Nas->nas_ip_pools_list({ 
+    PAGE_ROWS => 500, 
+    POOL_NAME => '_SHOW', 
+    COLS_NAME => 1 
+  });
 
   if ($FORM{BIT_MASK}) {
     $FORM{NETMASK} = int2ip(4294967296 - sprintf("%d", $mask << (32 - $bit_masks[ $FORM{BIT_MASK} ])));
@@ -1688,7 +1700,7 @@ sub form_ip_pools {
       'NEXT_POOL_ID',
       {
         SELECTED  => $Nas->{NEXT_POOL_ID} || $FORM{NEXT_POLL_ID} || 0,
-        SEL_LIST  => $Nas->nas_ip_pools_list({ PAGE_ROWS => 500, POOL_NAME => '_SHOW', COLS_NAME => 1 }),
+        SEL_LIST  => $list_next_pool,
         SEL_KEY   => 'id',
         SEL_VALUE => 'pool_name',
         NO_ID     => 1,
@@ -1755,15 +1767,15 @@ sub form_ip_pools {
         static           => $lang{STATIC},
         dns              => 'DNS',
         vlan             => 'Vlan',
+        next_pool        => $lang{NEXT_POOL},
+        gateway          => $lang{DEFAULT_GATEWAY},
       },
       FILTER_VALUES   => {
         id       => sub {
           my ($id, $line) = @_;
 
-          my $select_checkbox =
-            ($line->{static})
-              ? 'static'
-              : $html->form_input(
+          my $static = ($line->{static}) ? 'static' : '';
+          my $select_checkbox = $html->form_input(
               'ids',
               $line->{id},
               {
@@ -1773,7 +1785,8 @@ sub form_ip_pools {
               }
             );
 
-          ($html && $html->{TYPE} && $html->{TYPE} eq 'html') ? $id . '&nbsp;' . $select_checkbox : $id;
+          my $checked_id = $id . '&nbsp;' . $select_checkbox . '&nbsp;' . $static;
+          ($html && $html->{TYPE} && $html->{TYPE} eq 'html') ? $checked_id : $id;
         },
         nas_name => sub {
           my ($name, $line) = @_;
@@ -1802,6 +1815,18 @@ sub form_ip_pools {
           else {
             return $html->element('label', '', { class => 'fa fa-close' });
           }
+        },
+        next_pool => sub {
+          my ($next_pool) = @_;
+
+          foreach my $pool_value (@$list_next_pool) {
+            return $pool_value->{pool_name} if ($next_pool && $pool_value->{id} && $pool_value->{id} == $next_pool);
+          }
+        },
+        gateway => sub {
+          my ($gateway) = @_;
+
+          return int2ip($gateway);
         }
       },
       TABLE           => {
@@ -1811,6 +1836,7 @@ sub form_ip_pools {
         ID      => 'NAS_IP_POOLS',
         header  => '',
         EXPORT  => 1,
+        IMPORT  => "$SELF_URL?get_index=form_ip_pools&import=1&header=2",
         MENU    => "$lang{ADD}:index=63&add_form=1&$pages_qs:add",
       },
       MAKE_ROWS       => 1,
@@ -2284,7 +2310,7 @@ sub form_ssh_key {
 sub radius_params {
   my ($attr) = @_;
 
-  if ($attr->{LEFT_PART} && $attr->{RIGHT_PART}) {
+  if ($attr->{LEFT_PART} && defined($attr->{RIGHT_PART})) {
     my @left_parts = split(', ', $attr->{LEFT_PART});
     my @right_parts = split(', ', $attr->{RIGHT_PART});
     my @conditions = split(', ', $attr->{CONDITION});
@@ -2296,13 +2322,187 @@ sub radius_params {
       ++$iter;
     }
 
-    $attr->{NAS_RAD_PAIRS} = join(', ', @pairs_arr);
+    if ($attr->{IGNORE_PAIR}) {
+      my @pairs_arr_ignore = radius_params_ignore({
+        PAIR_FORM   => \@pairs_arr, 
+        IGNORE_PAIR => $attr->{IGNORE_PAIR}
+      });
+
+      $attr->{NAS_RAD_PAIRS} = join(', ', @pairs_arr_ignore);
+    }
+    else {
+      for (my $iter = 0; $iter <= $#pairs_arr; $iter++) {
+        if ($pairs_arr[ $iter ] =~ /!/) {
+          $pairs_arr[ $iter ] =~ s/!//g;
+        }
+      }
+
+      $attr->{NAS_RAD_PAIRS} = join(', ', @pairs_arr);
+    }
 
     if ($attr->{NAS_RAD_PAIRS} =~ /, ,/) {
       $attr->{NAS_RAD_PAIRS} =~ s/ , //g
     }
+    
+    if ($attr->{NAS_RAD_PAIRS} =~ /,/) {
+      $attr->{NAS_RAD_PAIRS} =~ s/,/, \n/g
+    }
+  }
+  else {
+    return '';
   }
 
   return $attr->{NAS_RAD_PAIRS} || '';
 }
+
+#**********************************************************
+=head2 radius_params_ignore() - 
+
+  Arguments:
+    PAIR_FORM     - pair array
+    IGNORE_PAIR   - pair id ignore
+
+  Return:
+    pair_form     - array pair ignore
+
+=cut
+#**********************************************************
+sub radius_params_ignore {
+  my ($attr) = @_;
+
+  my @pair_form = @{ $attr->{PAIR_FORM} };
+  my @ignore_id = split(/, /, $attr->{IGNORE_PAIR});
+
+  for (my $iter = 0; $iter <= $#pair_form; $iter++) {
+    if ($pair_form[ $iter ] =~ /!/) {
+      $pair_form[ $iter ] =~ s/!//g;
+    }
+  }
+
+  foreach my $id (@ignore_id) {
+    next if ($pair_form[ $id - 1 ] =~ /!/);
+    
+    $pair_form[ $id - 1 ] = '!' . $pair_form[ $id - 1 ];
+  }
+
+  return @pair_form;
+}
+
+#**********************************************************
+=head2 ip_pools_import($attr) - 
+
+  Arguments:
+
+  Return:
+    
+=cut
+#**********************************************************
+sub ip_pools_import {
+
+  if ($FORM{add}) {
+    my $import_info = import_former( \%FORM );
+    my $total = $#{ $import_info } + 1;
+
+    my $ip_list = $Nas->ip_pools_list({ COLS_NAME => 1 });
+
+    my %ippools_hash = map { $_->{ip} => $_->{id} } @{$ip_list};
+
+    if ($import_info) {
+      import_ip($import_info, %ippools_hash);
+    }
+
+    $html->message( 'info', $lang{INFO},
+      "$lang{ADDED}\n $lang{FILE}: $FORM{UPLOAD_FILE}{filename}\n Size: $FORM{UPLOAD_FILE}{Size}\n Count: $total" );
+
+    return 1;
+  }
+
+  $html->tpl_show(templates('form_import'), {
+    IMPORT_FIELDS     => 'IP',
+    CALLBACK_FUNC     => 'form_ip_pools',
+  });
+
+  return 1;
+
+}
+
+#**********************************************************
+=head2 import_ip($attr) - 
+
+  Arguments:
+    import_info   - import ip pools
+    ippools_hash  - ip pools in system
+
+  Return:
+    -
+
+=cut
+#**********************************************************
+sub import_ip {
+  my ($import_info, %ippools_hash) = @_;
+  
+  foreach my $ip_import (@$import_info) {
+    if ($ip_import) {
+      add_ip_import($ip_import, %ippools_hash);
+    }
+  }
+
+}
+
+#**********************************************************
+=head2 add_ip_import($attr) - 
+
+  Arguments:
+    ip_tmp  - ip push in system
+    ip_hash - hash ip pools in system
+
+  Return:
+    -
+
+=cut
+#**********************************************************
+sub add_ip_import {
+  my ($ip_tmp, %ip_hash) = @_;
+  my @bit_masks = (32, 31, 30, 29, 28, 27, 26, 25, 24, 
+                   23, 22, 21, 20, 19, 18, 17, 16);  
+
+  my @ip_and_mask;
+
+  if (ref($ip_tmp) eq 'HASH' && $ip_tmp->{IP}) {
+    
+    $ip_tmp->{IP} =~ s/,//g;
+    if ($ip_tmp->{IP} =~ /\//) {
+      @ip_and_mask = split(/\//, $ip_tmp->{IP});
+    }
+    else {
+      push @ip_and_mask, $ip_tmp->{IP};
+    }
+  }
+  else {
+    if ($ip_tmp =~ /\//) {
+      @ip_and_mask = split(/\//, $ip_tmp);
+    }
+    else {
+      push @ip_and_mask, $ip_tmp;
+    }
+  }
+
+  unless ($ip_hash{ $ip_and_mask[0] }) {
+
+    my %mask_hash = map{ $_ => $_ } @bit_masks;
+
+    my $mask = 0b0000000000000000000000000000001;
+    my $mask_network = int2ip(4294967296 - sprintf("%d", $mask << (32 - $mask_hash{ $ip_and_mask[1] || 24 } ) ) );
+    my $count_ip = sprintf("%d", $mask << (32 - $ip_and_mask[1])) - 2;
+
+    $Nas->ip_pools_add({
+      IP        => $ip_and_mask[0],
+      NETMASK   => $mask_network,
+      COUNTS    => $count_ip,
+      NAME      => "Ippools: " . $ip_and_mask[0]
+    });
+  }
+
+}
+
 1;

@@ -1,3 +1,5 @@
+SET SQL_MODE = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_VALUE_ON_ZERO';
+
 REPLACE INTO `equipment_models` (`id`, `type_id`, `vendor_id`, `sys_oid`, `model_name`, `site`, `ports`, `manage_web`,
                                  `manage_ssh`, `snmp_tpl`, `comments`, `rows_count`, `block_size`, `snmp_port_shift`,
                                  `test_firmware`, `port_numbering`, `first_position`, `extra_port1`, `extra_port2`,
@@ -171,7 +173,7 @@ VALUES (101, 1, 2, '', 'DES-3028', 'http://dlink.ru/ru/products/1/706_i.html', 2
         1, 4, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 0),
        (185, 1, 22, '', 'S2326TP-EI',
         'http://shop.nag.ru/catalog/07363.Huawei/20165.Kommutatory-Fast-Ehernet-serii-S2300/07366.S2326TP-EI-AC', 24,
-        '', '', '', '', 2, 4, 0, '', 1, 0, 0, 0, 0, 0, 1, 0, 0),
+        '', '', 'huawei_switch.snmp', '', 2, 4, 0, '', 1, 0, 0, 0, 0, 0, 1, 0, 0),
        (186, 4, 11, '', 'P3616-2TE', 'http://lanmarket.ua/bdcom/bdcom-p3616-2te-2610/', 16, '', '', '', '', 1, 4, 0, '',
         0, 0, 0, 0, 0, 0, 4, 0, 0),
        (187, 3, 6, '', '2011U', '', 10, '', '', 'mikrotik.snmp', '', 1, 5, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 0),
@@ -259,8 +261,8 @@ VALUES (101, 1, 2, '', 'DES-3028', 'http://dlink.ru/ru/products/1/706_i.html', 2
         1, 0, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 0),
        (227, 4, 22, '', 'MA5800X7', 'http://e.huawei.com/en/products/fixed-network/access/olt/ma5800', 0, '', '', '',
         '', 1, 0, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 0),
-       (228, 4, 22, '', 'MA5800-X15', 'http://e.huawei.com/en/products/fixed-network/access/olt/ma5800', 0, '', '', '',
-        '', 1, 0, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 0),
+       (228, 4, 22, '', 'MA5800-X15', 'http://e.huawei.com/en/products/fixed-network/access/olt/ma5800', 0, '', '',
+        'huawei_pon.snmp', '', 1, 0, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 0),
        (229, 1, 20, '', 'OmniStack OS-LS-6224', '', 24, '', '', '', '', 2, 6, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 0),
        (230, 1, 20, '', 'OmniSwitch 6250-24ME',
         'http://www.alcatel-lucent-rt.ru/product/data-network/lan/stackable-switches/omniswitch-6250/', 24, '', '', '',
@@ -273,7 +275,7 @@ VALUES (101, 1, 2, '', 'DES-3028', 'http://dlink.ru/ru/products/1/706_i.html', 2
         2, 12, 0, '', 0, 0, 0, 0, 0, 0, 4, 0, 0),
        (235, 4, 29, '', 'V1600D4', 'https://ru.ftthcpe.com/product/v1600d4/', 8, '', '', '', '', 1, 4, 0, '', 0, 0, 0,
         0, 0, 0, 3, 0, 0),
-       (239, 4, 30, '', 'FD1104SN', 'http://ru.cdatatec.com/product-item/', 4, '', '', '', '', 2, 1, 0, '', 0, 0, 0, 0,
+       (239, 4, 30, '', 'FD1104SN', 'http://ru.cdatatec.com/product-item/', 4, '', '', 'cdata.snmp', '', 2, 1, 0, '', 0, 0, 0, 0,
         0, 0, 1, 0, 0),
        (240, 4, 20, '', 'OS6250M',
         'https://www.al-enterprise.com/en/-/media/assets/internet/documents/omniswitch-6250-datasheet-en.pdf', 8, '',
@@ -368,7 +370,16 @@ VALUES (101, 1, 2, '', 'DES-3028', 'http://dlink.ru/ru/products/1/706_i.html', 2
         12, '', '', '', '', 3, 4, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 120),
        (278, 1, 8, '', 'Cisco N3K-C3064PQ-10GX',
         'https://server-shop.ua/kommutator-cisco-satalyst-ws-c3750e-24td-s-k144.html?gclid=Cj0KCQjw3qzzBRDnARIsAECmryqIpeyuui8sIeHYhc2xF3rxJgL5fIs6OH2HRLIlwXr3',
-        52, '', '', '', '', 2, 26, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 220);
+        52, '', '', '', '', 2, 26, 0, '', 0, 0, 0, 0, 0, 0, 1, 0, 220),
+       (279, 4, 30, '', 'FD1216S', 'http://cdatatec.com/product-item/1u-16pon-port-pizza-box-epon-olt-fd1216s/',
+        16, '', '', 'cdata_fd1216s.snmp', '', 2, 8, 0, '', 1, 0, 0, 0, 0, 0, 6, 0, 70),
+       (280, 4, 11, '', 'GP3600-04', 'https://deps.ua/ua/katalog/concentrators-olt/46077.html#characteristics',
+        4, '', '', '', '', 2, 2, 0, '', 0, 0, 0, 0, 0, 0, 7, 0, 0),
+       (281, 4, 11, '', 'GP3600-16', 'https://deps.ua/ua/katalog/concentrators-olt/bdcom-gp3600-16.html#characteristics',
+        16, '', '', '', '', 2, 8, 0, '', 0, 0, 0, 0, 0, 0, 7, 0, 0),
+       (282, 4, 30, '', 'FD1108S', 'https://cdatatec.com/product-item/8pon-epon-olt-fd1108s/', 8, '', '', 'cdata.snmp', '', 2, 4,
+        0, '', 0, 0, 0, 0, 0, 0, 4, 0, 0);
+
 
 REPLACE INTO `equipment_extra_ports` (`model_id`, `port_number`, `port_type`, `state`, `row`)
 VALUES (101, 1, 4, 0, 0),
@@ -787,6 +798,10 @@ VALUES (101, 1, 4, 0, 0),
        (223, 8, 1, 0, 0),
        (239, 1, 4, 0, 9),
        (240, 1, 3, 0, 1),
+       (260, 1, 4, 0, 0),
+       (260, 2, 4, 0, 0),
+       (260, 3, 4, 0, 1),
+       (260, 4, 4, 0, 1),
        (264, 1, 1, 0, 0),
        (267, 1, 4, 0, 1),
        (267, 2, 4, 0, 1),
@@ -855,7 +870,17 @@ VALUES (101, 1, 4, 0, 0),
        (274, 7, 3, 0, 0),
        (274, 8, 3, 0, 1),
        (274, 9, 4, 0, 0),
-       (274, 10, 4, 0, 1);
+       (274, 10, 4, 0, 1),
+       (279, 1, 4, 0, 1),
+       (279, 2, 4, 0, 1),
+       (279, 3, 4, 0, 1),
+       (279, 4, 4, 0, 1),
+       (279, 5, 3, 0, 1),
+       (279, 6, 3, 0, 1),
+       (279, 7, 3, 0, 1),
+       (279, 8, 3, 0, 1),
+       (279, 9, 4, 0, 0),
+       (279, 10, 4, 0, 1);
 
 REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`)
 VALUES (1, 'Cisco', '', 'http://cisco.com'),

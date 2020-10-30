@@ -37,7 +37,7 @@ sub all_report_time {
     {
       width   => "100%",
       caption => $lang{REPORTS_HEADER},
-      title   => [ $lang{ADMINS}, $lang{CLOSE_MOUTH}, $lang{SCHEDULED_HOURS}, $lang{ACTUALLY_HOURS},
+      title   => [ $lang{ADMINS_LIST}, $lang{CLOSE_MOUTH}, $lang{SCHEDULED_HOURS}, $lang{ACTUALLY_HOURS},
        $lang{TIME_COMPLEXITY}, $lang{CLOSED_TICKETS}, $lang{TIME_SUPPORT} ],
       qs      => $pages_qs,
       ID      => "TIMETRACKER_REPORT1",
@@ -45,7 +45,7 @@ sub all_report_time {
     }
   );
 
-  my $admins_list = sel_admins({HASH=>1});
+  my $admins_list = sel_admins({ HASH=>1, DISABLE => 0 });
 
   my @admin_aids = ();
 

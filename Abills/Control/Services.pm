@@ -175,6 +175,8 @@ sub get_services {
             SUM              => $sum,
             STATUS           => $status,
             TP_REDUCTION_FEE => $service_info->{tp_reduction_fee} || 0,
+            ACTIVATE         => $service_info->{service_activate},
+            MODULE_NAME      => $service_info->{module_name}
           };
 
           $result{total_sum} += $sum;

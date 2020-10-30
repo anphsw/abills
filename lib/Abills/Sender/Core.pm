@@ -330,7 +330,6 @@ sub send_message_auto {
       SENDER_TYPE
       UID
       AID
-      EXTRA_TYPE
 
   Returns:
     contact_ref
@@ -384,10 +383,6 @@ sub get_contacts_for {
   if ( $plugin_contact_type || !$TYPE_ID_FOR_PLUGIN_NAME{$send_type} || $plugin_contact_type != $TYPE_ID_FOR_PLUGIN_NAME{$send_type} ) {
     $PLUGIN_NAME_FOR_TYPE_ID{$plugin_contact_type} = $send_type;
     $TYPE_ID_FOR_PLUGIN_NAME{$send_type} = $plugin_contact_type;
-  }
-
-  if($plugin_contact_type == 1 && $attr->{EXTRA_SMS_TYPE}) {
-    $plugin_contact_type .= ';'.$attr->{EXTRA_SMS_TYPE};
   }
 
   my %search_params = (

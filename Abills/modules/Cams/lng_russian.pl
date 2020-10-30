@@ -52,4 +52,8 @@ $lang{CHILDREN} = "Потомки";
 $lang{FOLDERS} = "Каталоги";
 $lang{ENTER_GROUP_NAME_OR_ADDRESS} = "Укажите название или адрес";
 
+$lang{CAMS_IMPORT_SUCCESSFULLY} = 'Импорт успешно завершен';
+$lang{CAMS_IMPORT_ERROR} = 'Не удалось импортировать';
+$lang{CAMS_IMPORT_MODELS} = 'Импорт моделей';
+
 1;

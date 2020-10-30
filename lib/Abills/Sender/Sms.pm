@@ -22,7 +22,7 @@ use Sms;
     MESSAGE
     SUBJECT
     PRIORITY_ID
-    TO_ADDRESS   - Sms address
+    TO_ADDRESS   - Sms addresses delimiter by (,)
     UID
     debug
 
@@ -35,17 +35,19 @@ sub send_message {
   my $self = shift;
   my ($attr) = @_;
 
-  unless ($attr->{TO_ADDRESS}){
+  if (! $attr->{TO_ADDRESS}){
     print "No recipient address given \n" if ($self->{debug});
     return 0;
   };
-  
+
   my $sms_pattern = $self->{conf}->{SMS_NUMBER} || "[0-9]{12}";
   if ($attr->{TO_ADDRESS} !~ /$sms_pattern/) {
     return 0;
   }
 
+  my $Sms = Sms->new($self->{db}, $self->{admin}, $self->{conf});
   my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf});
+
   my $sms_result = $Sms_service->send_sms({
     NUMBER     => $attr->{TO_ADDRESS},
     MESSAGE    => $attr->{MESSAGE}
@@ -54,15 +56,13 @@ sub send_message {
   my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
   my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
 
-  my $Sms = Sms->new($self->{db}, $self->{admin}, $self->{conf});
-
   $Sms->add({
     UID          => $attr->{UID} || $self->{UID} || 0,
     MESSAGE      => $attr->{MESSAGE} || q{},
     PHONE        => $attr->{TO_ADDRESS},
     DATETIME     => "$DATE $TIME",
     STATUS       => $sms_result || 0,
-    EXT_ID       => $Sms_service->{id} || '',
+    EXT_ID       => $Sms_service->{id} || $Sms_service->{INSERT_ID} || '',
     STATUS_DATE  => "$DATE $TIME",
     EXT_STATUS   => $Sms_service->{status} || '',
   });

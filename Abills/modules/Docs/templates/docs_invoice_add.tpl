@@ -114,7 +114,7 @@
   jQuery(document).ready(function () {
     checkSelect();
     var i = 2;
-    var tp_fs = "%TYPES_FEES%";
+    var tp_fs = `%TYPES_FEES%`;
     jQuery('#add_row').click(function () {
       var tp_fs_new = tp_fs.replace(/TYPE_FEES_1/g, "TYPE_FEES_" + i);
       jQuery('#addr' + i).html("<td>" + i + " <input type=hidden name=IDS value='" + i + "'>" + "</td><td><input id='ORDER_" + i + "' name='ORDER_" + i + "' type='text' placeholder='_{ORDER}_' class='form-control input-md'  /> </td><td>" + tp_fs_new + "</td><td><input  name='COUNTS_" + i + "' type='text' placeholder='1'  class='form-control input-md'></td><td><input  name='SUM_" + i + "' id='SUM_" + i + "' type='text' placeholder='0.00'  class='form-control input-md'></td>");

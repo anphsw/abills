@@ -104,6 +104,9 @@ sub quick_info_payments {
   if($Payments->{TOTAL} && $Payments->{TOTAL} > 0) {
     $result = $list->[0];
     my $payments_methods = get_payment_methods();
+
+    return $result unless ($payments_methods);
+
     $result->{METHOD} = $payments_methods->{$result->{METHOD}};
   }
 

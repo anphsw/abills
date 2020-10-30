@@ -3,6 +3,7 @@
     <input type="hidden" name="%ADD_CHG%" value="1">
     <input type="hidden" name="al_id" id="al_id" value="%ID_CHANGE%">
     <input type="hidden" name="al_chg" id="al_chg" value="%CHG_JS%">
+    <input type="hidden" name="USER_ACCIDENT" id="USER_ACCIDENT" value="%USER_ACCIDENT%">
 
     <div class='box box-theme box-form'>
         <div class='box-header with-border'>
@@ -84,11 +85,11 @@
             for (var i = 0; i < result.length; i++) {
                 jQuery("#"+result[i]).trigger('click');
             }
-        }, 1000);
+        }, 1500);
     }
     else {
         setTimeout(function(){
             jQuery("#"+jQuery('#al_chg').val()).trigger('click');
-        }, 1000);
+        }, 1500);
     }
 </script>

@@ -240,14 +240,6 @@ sub flist {
           $val     = $html->b($val);
         }
 
-        if ($functions{ $k } =~ /group/ && !$permissions{0}{28}) {
-          next;
-        }
-
-        if ( ($functions{ $k } =~ /tags/ && !$admin->{MODULES}{'Tags'}) || !$tag_count) {
-          next;
-        }
-
         $table->addrow(
           "$k "
             . $html->form_input(

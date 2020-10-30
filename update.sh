@@ -8,7 +8,7 @@
 #**********************************************************
 
 
-VERSION=2.51;
+VERSION=2.52;
 
 #ABillS Rel Version
 REL_VERSION="rel-0-5";
@@ -791,7 +791,7 @@ fi;
 
 IS_NEW=""
 
-for module_name in Paysys Turbo Maps2 Storage Ureports Cablecat Callcenter; do
+for module_name in Paysys Turbo Maps2 Storage Ureports Cablecat Callcenter Accident; do
   DB_MODULE=${module_name}
   if [ "${DB_MODULE}" = "Maps2" ]; then
     DB_MODULE=Maps

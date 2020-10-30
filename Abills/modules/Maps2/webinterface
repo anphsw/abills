@@ -34,7 +34,7 @@ use Address;
 exit if form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Maps',
-  REQUIRE_VERSION => 7.70,
+  REQUIRE_VERSION => 7.71,
 });
 
 require Maps;
@@ -687,7 +687,10 @@ sub maps2_show_map {
 
   $attr->{OBJECT_ID} ||= $FORM{OBJECT_ID};
 
-  if ($attr->{DATA} && !$attr->{MSGS_MAP} && !$attr->{SKIP_OBJECTS}) {
+  if ($attr->{DATA} && $attr->{DONE_DATA}) {
+    $FORM{OBJECT_TO_SHOW} = $attr->{DATA};
+  }
+  elsif ($attr->{DATA} && !$attr->{MSGS_MAP} && !$attr->{SKIP_OBJECTS}) {
     if (ref $attr->{DATA} eq 'ARRAY') {
       $FORM{OBJECT_TO_SHOW} = maps2_get_custom_array_objects($attr);
     }
@@ -1084,12 +1087,14 @@ sub _maps2_change_marker_coords {
 sub maps2_user {
   my ($attr) = @_;
 
+  $FORM{OBJECT_TO_SHOW} = maps2_get_build_objects({ %{$attr}, CLIENT_MAP => 1 });
+
   my $javascript_vars = $html->tpl_show(
     _include('maps2_js_variables', 'Maps2'),
     maps2_get_js_variables(
       %FORM,
       HIDE_CONTROLS       => 1,
-      LAYERS              => '\"1,12\"',
+      # LAYERS              => '\"1,12\"',
       SHOW_SEARCH         => 1,
       MAPS_DEFAULT_TYPE   => $conf{MAPS_DEFAULT_TYPE} || 'OSM',
       HIDE_EDIT_BUTTONS   => 1,

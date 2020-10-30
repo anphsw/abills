@@ -61,32 +61,24 @@ sub cams_services {
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Cams->services_del($FORM{del});
-    if (!$Cams->{errno}) {
-      $html->message('info', $lang{SCREENS}, $lang{DELETED});
-    }
+    $html->message('info', $lang{SCREENS}, $lang{DELETED}) if (!$Cams->{errno});
   }
   _error_show($Cams);
 
-  $Cams->{USER_PORTAL_SEL} = $html->form_select(
-    'USER_PORTAL',
-    {
-      SELECTED => $Cams->{USER_PORTAL} || $FORM{USER_PORTAL} || 0,
-      SEL_HASH => {
-        0 => '--',
-        1 => $lang{INFO},
-        2 => $lang{CONTROL} || 'Control'
-      },
-      NO_ID    => 1
-    }
-  );
+  $Cams->{USER_PORTAL_SEL} = $html->form_select('USER_PORTAL', {
+    SELECTED => $Cams->{USER_PORTAL} || $FORM{USER_PORTAL} || 0,
+    SEL_HASH => {
+      0 => '--',
+      1 => $lang{INFO},
+      2 => $lang{CONTROL} || 'Control'
+    },
+    NO_ID    => 1
+  });
 
-  $Cams->{DEBUG_SEL} = $html->form_select(
-    'DEBUG',
-    {
-      SELECTED  => $Cams->{DEBUG} || $FORM{DEBUG} || 0,
-      SEL_ARRAY => [ 0, 1, 2, 3, 4, 5, 6, 7 ],
-    }
-  );
+  $Cams->{DEBUG_SEL} = $html->form_select('DEBUG', {
+    SELECTED  => $Cams->{DEBUG} || $FORM{DEBUG} || 0,
+    SEL_ARRAY => [ 0, 1, 2, 3, 4, 5, 6, 7 ],
+  });
 
   $html->tpl_show(_include('cams_services_add', 'Cams'), { %FORM, %$Cams });
 
@@ -130,39 +122,138 @@ sub cams_service_info {
   my ($id, $attr) = @_;
 
   $Cams->services_info($id);
-  if (!$Cams->{errno}) {
-    $FORM{add_form} = 1;
-    $Cams->{ACTION} = 'change';
-    $Cams->{LNG_ACTION} = $lang{CHANGE};
-    $html->message('info', $lang{SCREENS}, $lang{CHANGING});
 
-    if ($Cams->{MODULE}) {
-      my $Cams_service = cams_load_service($Cams->{MODULE}, { SERVICE_ID => $Cams->{ID}, SOFT_EXCEPTION => 1 });
-      if ($Cams_service && $Cams_service->{VERSION}) {
-        $Cams->{MODULE_VERSION} = $Cams_service->{VERSION};
+  $Cams->{USER_PORTAL} = ($Cams->{USER_PORTAL}) ? $Cams->{USER_PORTAL} : '';
+  $Cams->{STATUS} = ($Cams->{STATUS}) ? 'checked' : '';
+
+  return 1 if $Cams->{errno};
+
+  $FORM{add_form} = 1;
+  $Cams->{ACTION} = 'change';
+  $Cams->{LNG_ACTION} = $lang{CHANGE};
+  $html->message('info', $lang{SCREENS}, $lang{CHANGING});
+
+  return 1 if !$Cams->{MODULE};
+
+  my $Cams_service = cams_load_service($Cams->{MODULE}, { SERVICE_ID => $Cams->{ID}, SOFT_EXCEPTION => 1 });
+  $Cams->{MODULE_VERSION} = $Cams_service->{VERSION} if ($Cams_service && $Cams_service->{VERSION});
+
+  _cams_service_test($Cams_service);
+  _cams_service_import_models($Cams_service);
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _cams_service_test($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _cams_service_test {
+  my $Cams_service = shift;
+
+  return 1 if (!$Cams_service || !$Cams_service->can('test'));
+
+  $Cams->{SERVICE_TEST} = $html->button($lang{TEST}, "index=$index&test=1&chg=$Cams->{ID}",
+    { class => 'btn btn-default btn-info' });
+
+  return 0 if !$FORM{test};
+
+  my $result = $Cams_service->test();
+  if (!$Cams_service->{errno}) {
+    $html->message('info', $lang{INFO}, "$lang{TEST}\n$result");
+  }
+  else {
+    _error_show($Cams_service, { MESSAGE => 'Test:' });
+  }
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _cams_service_test($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _cams_service_import_models {
+  my $Cams_service = shift;
+
+  return 1 if (!$Cams_service || !$Cams_service->can('import_models') || !in_array('Equipment', \@MODULES));
+
+  if ($FORM{import_models}) {
+    my $result = $Cams_service->import_models();
+    if (!$Cams_service->{errno}) {
+      if (!_cams_import_vendors($result)) {
+        $html->message('info', $lang{INFO}, "$lang{CAMS_IMPORT_SUCCESSFULLY}");
       }
-
-      if ($Cams_service && $Cams_service->can('test')) {
-        if ($FORM{test}) {
-          my $result = $Cams_service->test();
-          if (!$Cams_service->{errno}) {
-            $html->message('info', $lang{INFO}, "$lang{TEST}\n$result");
-          }
-          else {
-            _error_show($Cams_service, { MESSAGE => 'Test:' });
-          }
-        }
-
-        $Cams->{SERVICE_TEST} = $html->button($lang{TEST}, "index=$index&test=1&chg=$Cams->{ID}",
-          { class => 'btn btn-default btn-info' });
+      else {
+        $html->message('err', $lang{ERROR}, "$lang{CAMS_IMPORT_ERROR}");
       }
+    }
+    else {
+      _error_show($Cams_service, { MESSAGE => 'IMPORT MODELS:' });
     }
   }
 
-  $Cams->{USER_PORTAL} = ($Cams->{USER_PORTAL}) ? 'checked' : '';
-  $Cams->{STATUS} = ($Cams->{STATUS}) ? 'checked' : '';
+  $Cams->{IMPORT_MODELS} = $html->button($lang{CAMS_IMPORT_MODELS}, "index=$index&import_models=1&chg=$Cams->{ID}",
+    { class => 'btn btn-success' });
 
-  return 1;
+  return;
+}
+
+#**********************************************************
+=head2 _cams_import_vendors($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _cams_import_vendors {
+  my $vendors = shift;
+
+  return 1 if !$vendors || ref $vendors ne 'HASH';
+
+  require Equipment;
+  Equipment->import();
+  my $Equipment = Equipment->new($db, $admin, \%conf);
+
+  my $cams_type = $Equipment->type_list({ NAME => 'Cams', COLS_NAME => 1 });
+  return 1 if $Equipment->{TOTAL} < 1 || !$cams_type->[0]{id};
+
+  my $vendor_id = 0;
+  foreach my $key (keys %{$vendors}) {
+    next if (!$vendors->{$key} || ref $vendors->{$key} ne 'ARRAY');
+
+    $Equipment->vendor_add({ NAME => $key });
+    $vendor_id = $Equipment->{INSERT_ID};
+
+    if ($Equipment->{errno} && $Equipment->{errno} eq '7') {
+      my $vendors = $Equipment->vendor_list({ NAME => $key, COLS_NAME => 1 });
+      next if ($Equipment->{TOTAL} < 1);
+
+      $vendor_id = $vendors->[0]{id};
+    }
+
+    next if !$vendor_id;
+
+    map $Equipment->model_add({
+      VENDOR_ID  => $vendor_id,
+      TYPE_ID    => $cams_type->[0]{id},
+      MODEL_NAME => $_
+    }), @{$vendors->{$key}};
+  }
+
+  return 0;
 }
 
 #**********************************************************
@@ -189,9 +280,7 @@ sub cams_load_service {
     $service_name = $Cams_service->{MODULE} || q{};
   }
 
-  if (!$service_name) {
-    return $api_object;
-  }
+  return $api_object  if (!$service_name);
 
   $service_name = 'Cams::' . $service_name;
 
@@ -200,9 +289,7 @@ sub cams_load_service {
     $service_name->import();
 
     if ($service_name->can('new')) {
-      $api_object = $service_name->new($Cams->{db}, $Cams->{admin}, $Cams->{conf}, {
-        %$Cams_service,
-      });
+      $api_object = $service_name->new($Cams->{db}, $Cams->{admin}, $Cams->{conf}, { %{$Cams_service} });
     }
     else {
       $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
@@ -212,9 +299,7 @@ sub cams_load_service {
   else {
     print $@ if ($FORM{DEBUG});
     $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");
-    if (!$attr->{SOFT_EXCEPTION}) {
-      die "Can't load '$service_name'. Purchase this module http://abills.net.ua";
-    }
+    die "Can't load '$service_name'. Purchase this module http://abills.net.ua" if (!$attr->{SOFT_EXCEPTION});
   }
 
   return $api_object;
@@ -241,13 +326,8 @@ sub cams_services_sel {
 
   my %params = ();
 
-  if ($attr->{ALL} || $FORM{search_form}) {
-    $params{SEL_OPTIONS} = { '' => $lang{ALL} };
-  }
-
-  if ($attr->{UNKNOWN}) {
-    $params{SEL_OPTIONS}->{0} = $lang{UNKNOWN};
-  }
+  $params{SEL_OPTIONS} = { '' => $lang{ALL} } if ($attr->{ALL} || $FORM{search_form});
+  $params{SEL_OPTIONS}->{0} = $lang{UNKNOWN} if ($attr->{UNKNOWN});
 
   my $active_service = $attr->{SERVICE_ID} || $FORM{SERVICE_ID};
 
@@ -274,29 +354,24 @@ sub cams_services_sel {
     $Cams->{SERVICE_ID} = $service_list->[0]->{id};
   }
 
-  my $result = $html->form_select(
-    'SERVICE_ID',
-    {
-      SELECTED       => $active_service,
-      SEL_LIST       => $service_list,
-      EX_PARAMS      => "onchange='autoReload()'",
-      MAIN_MENU      => get_function_index('cams_services'),
-      MAIN_MENU_ARGV => ($active_service) ? "chg=$active_service" : q{},
-      %params
-    }
-  );
+  my $result = $html->form_select('SERVICE_ID', {
+    SELECTED       => $active_service,
+    SEL_LIST       => $service_list,
+    EX_PARAMS      => "onchange='autoReload()'",
+    MAIN_MENU      => get_function_index('cams_services'),
+    MAIN_MENU_ARGV => ($active_service) ? "chg=$active_service" : q{},
+    %params
+  });
 
   if (!$active_service && $service_list->[0] && !$FORM{search_form} && !$attr->{SKIP_DEF_SERVICE}) {
     $FORM{SERVICE_ID} = $service_list->[0]->{id};
   }
 
-  if ($attr->{FORM_ROW}) {
-    $result = $html->tpl_show(templates('form_row'), {
-      ID    => 'SERVICE_ID',
-      NAME  => $lang{SERVICE},
-      VALUE => $result
-    }, { OUTPUT2RETURN => 1 });
-  }
+  $result = $html->tpl_show(templates('form_row'), {
+    ID    => 'SERVICE_ID',
+    NAME  => $lang{SERVICE},
+    VALUE => $result
+  }, { OUTPUT2RETURN => 1 }) if ($attr->{FORM_ROW});
 
   return $result;
 }
@@ -321,14 +396,8 @@ sub cams_tariffs_sel {
   my ($attr) = @_;
 
   my %params = ();
-
-  if ($attr->{ALL} || $FORM{search_form}) {
-    $params{SEL_OPTIONS} = { '' => $lang{ALL} };
-  }
-
-  if ($attr->{UNKNOWN}) {
-    $params{SEL_OPTIONS}->{0} = $lang{UNKNOWN};
-  }
+  $params{SEL_OPTIONS} = { '' => $lang{ALL} } if ($attr->{ALL} || $FORM{search_form});
+  $params{SEL_OPTIONS}->{0} = $lang{UNKNOWN} if ($attr->{UNKNOWN});
 
   my $active_tariff = $attr->{TP_ID} || $FORM{TP_ID};
 

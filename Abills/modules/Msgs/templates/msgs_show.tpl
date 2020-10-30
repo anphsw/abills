@@ -107,22 +107,43 @@
       jQuery(".reply-save").click(function(event){
         event.preventDefault();
         save_reply(this);
+        jQuery(".quoting-reply-btn").attr('disabled', false);
         replyId = 0;
       });
 
       jQuery(".reply-cancel").click(function(event){
         event.preventDefault();
         jQuery(this).parent().html(oldReplyHtml);
+        jQuery(".quoting-reply-btn").attr('disabled', false);
         replyId = 0;
       });
     }
   };
 
+  function quoting_reply(element) {
+    var replyField = jQuery('#REPLY_TEXT');
+    
+    var replyElement = jQuery(element).closest(".box").find(".box-body");
+    var oldReplyHtml = replyElement[0].innerHTML;
+    var oldReply = replyElement[0].innerText;
+      
+    oldReply = oldReply.replace(/^/g, '> ');
+    oldReply = oldReply.replace(/\n/g, '\n> ');
+    
+    replyField.val(oldReply);
+  };
+
   jQuery(function(){
-    Events.emit('Msgs.entityViewed.Msg', '%ID%');
-    jQuery(".reply-edit-btn").click(function(event){
+    jQuery(".reply-edit-btn").click(function(event) {
       event.preventDefault();
+      jQuery(".quoting-reply-btn").attr('disabled', true);
       edit_reply(this);
+    });
+
+    jQuery(".quoting-reply-btn").click(function(event) {
+      
+      event.preventDefault();
+      quoting_reply(this);
     });
   });
 </script>

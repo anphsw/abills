@@ -104,7 +104,7 @@ $lang{SM} = 'см';
 $lang{MM} = 'мм';
 $lang{LITERS} = 'литр';
 $lang{BOXES} = 'ящики';
-$lang{PER_ONE_ITEM}='за 1 единицу';
+$lang{PER_ONE_ITEM} = 'за 1 единицу';
 
 $lang{STORAGES} = 'Склады';
 
@@ -115,39 +115,44 @@ $lang{TO_INNER_USE} = 'Во внутреннее использование';
 $lang{IN_STORAGE} = 'На складе';
 
 $lang{BY_INSTALLMENTS} = 'В рассрочку';
-$lang{PROPERTY}='Качество';
-$lang{CONSINGMENT}='Партия';
-$lang{ACTIONS_LIST}='Действия с товаром';
-$lang{REMNANTS}='Остатки';
-$lang{OF_REMNANTS}='остатков';
-$lang{PRINT_INCOMING_INVOICE}='Печать приходной накладной';
-$lang{PRINT_MOVE_INVOICE}='Печать накладной перемещения';
-$lang{TRANSFER_ITEM}='Перемещение';
-$lang{OUT_STORAGE}='Со склада';
-$lang{IN_STORAGE}='На склад';
+$lang{PROPERTY} = 'Качество';
+$lang{CONSINGMENT} = 'Партия';
+$lang{ACTIONS_LIST} = 'Действия с товаром';
+$lang{REMNANTS} = 'Остатки';
+$lang{OF_REMNANTS} = 'остатков';
+$lang{PRINT_INCOMING_INVOICE} = 'Печать приходной накладной';
+$lang{PRINT_MOVE_INVOICE} = 'Печать накладной перемещения';
+$lang{TRANSFER_ITEM} = 'Перемещение';
+$lang{OUT_STORAGE} = 'Со склада';
+$lang{IN_STORAGE} = 'На склад';
 
-$lang{FOR_INSTALLATION}=' за установку';
-$lang{INVOICE_NUMBER}='Номер накладной';
-$lang{STORAGE_INVOICES}='Накладные';
-$lang{STORAGE_INVOICE}='Накладная';
-$lang{MOST_CASH_ITEMS}='Самый кассовый товар';
-$lang{ANALYSIS_ITEMS_SALE}='Анализ продажи товаров';
-$lang{ANALYSIS_ITEMS_IN_INSTALLMENTS}='Анализ продажи товаров в рассрочку';
-$lang{ANALYSIS_ITEMS_IN_RENT}='Анализ аренды товаров';
-$lang{REVENUE}='Выручка';
-$lang{PROFIT}='Прибыль';
-$lang{NET_PROFIT}='Чистая прибыль';
-$lang{ADMINS_PERCENT}='% для администраторов';
-$lang{INVENTORY}='Инвентаризация';
-$lang{INVENTORY_DATE}='Дата инвентаризации';
-$lang{INVOICE_PAYMENTS}='Оплаты по накладным';
-$lang{TOTAL_INVOICE_SUM}='Общая сумма по накладной';
-$lang{TOTAL_FOR_PERIOD}='Всего за период';
-$lang{SPECIFY_THE_REASON_FOR_CANCELLATION}='Укажите причину списания';
-$lang{INCOMING_INVOICE_REPORT}='Отчет прихода по накладным';
-$lang{NO_ITEMS_FOR_CHOSEN_DATE}='Нету данных на выбранную дату';
+$lang{FOR_INSTALLATION} = ' за установку';
+$lang{INVOICE_NUMBER} = 'Номер накладной';
+$lang{STORAGE_INVOICES} = 'Накладные';
+$lang{STORAGE_INVOICE} = 'Накладная';
+$lang{MOST_CASH_ITEMS} = 'Самый кассовый товар';
+$lang{ANALYSIS_ITEMS_SALE} = 'Анализ продажи товаров';
+$lang{ANALYSIS_ITEMS_IN_INSTALLMENTS} = 'Анализ продажи товаров в рассрочку';
+$lang{ANALYSIS_ITEMS_IN_RENT} = 'Анализ аренды товаров';
+$lang{REVENUE} = 'Выручка';
+$lang{PROFIT} = 'Прибыль';
+$lang{NET_PROFIT} = 'Чистая прибыль';
+$lang{ADMINS_PERCENT} = '% для администраторов';
+$lang{INVENTORY} = 'Инвентаризация';
+$lang{INVENTORY_DATE} = 'Дата инвентаризации';
+$lang{INVOICE_PAYMENTS} = 'Оплаты по накладным';
+$lang{TOTAL_INVOICE_SUM} = 'Общая сумма по накладной';
+$lang{TOTAL_FOR_PERIOD} = 'Всего за период';
+$lang{SPECIFY_THE_REASON_FOR_CANCELLATION} = 'Укажите причину списания';
+$lang{INCOMING_INVOICE_REPORT} = 'Отчет прихода по накладным';
+$lang{NO_ITEMS_FOR_CHOSEN_DATE} = 'Нету данных на выбранную дату';
 
-$lang{REPORT}='Отчет';
+$lang{REPORT} = 'Отчет';
 
-$lang{INSTALLED_REPORT}='Отчет по установленным товарам';
-$lang{INSTALLED_PERIOD}='Установлено товаров за период';
+$lang{INSTALLED_REPORT} = 'Отчет по установленным товарам';
+$lang{INSTALLED_PERIOD} = 'Установлено товаров за период';
+
+$lang{SERIAL_NUMBER_IS_ALREADY_IN_USE} = 'Этот серийный номер уже используется';
+
+$lang{STORAGE_MONTHS_LEFT} = 'Осталось месяцев';
+$lang{STORAGE_COMPLETED} = 'Завершено';

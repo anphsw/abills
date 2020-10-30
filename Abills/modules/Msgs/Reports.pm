@@ -12,11 +12,12 @@ our Msgs $Msgs;
 our(
   $db,
   %conf,
-  $html,
   %lang,
   $admin,
   @MONTHES
 );
+
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 msgs_reports()
@@ -700,12 +701,10 @@ sub _msgs_report_reply_date {
 sub _msgs_report_reply_time {
   my ($line, $join_hash) = @_;
 
-  my (undef, $time) = split(/ /, $line->{datetime});
-  my ($hour) = split(/:/, $time);
+  my (undef, $time) = split(/ /, $line->{datetime} || q{});
+  my ($hour) = split(/:/, $time || q{00:00});
 
   if ($join_hash->{ $hour . ":00" }) {
-
-    # print $join_hash->{$hour .":00"}."fj";
     return 1, $join_hash->{ $hour . ":00" };
   }
   else {
@@ -1005,7 +1004,8 @@ sub msgs_admin_time_spend_report {
 
   if ($FORM{ADMINS_LOGIN}) {
     $FORM{ADMINS_LOGIN} =~ s/,/;/g;
-    
+
+    $Msgs->{debug}=1;
     my $reply_list = $Msgs->messages_reply_list(
       {
         LOGIN     => '_SHOW',
@@ -1024,7 +1024,7 @@ sub msgs_admin_time_spend_report {
     foreach my $reply (@$reply_list){
       $admins_time_per_msg{$reply->{aid}}{admin_login} = $reply->{admin};
 
-      my ($h, $m, $s) = split(':', $reply->{run_time});
+      my ($h, $m, $s) = split(':', $reply->{run_time} || '00:00:00');
       my $seconds_per_reply = ($h * 3600) + ($m * 60) + $s;
 
       $admins_time_per_msg{$reply->{aid}}{msgs}{$reply->{main_msg}}{answers} = ($admins_time_per_msg{$reply->{aid}}{msgs}{$reply->{main_msg}}{answers} || 0) + 1;
@@ -1096,9 +1096,11 @@ sub msgs_admin_time_spend_report {
     );
     
     my %admins_time_per_msg;
-    foreach my $reply (@$reply_list)
-    {
-      my ($h, $m, $s) = split(':', $reply->{run_time});
+    foreach my $reply (@$reply_list) {
+      if (! $reply->{run_time}) {
+        next;
+      }
+      my ($h, $m, $s) = split(':', $reply->{run_time} || '00:00:00');
       my $seconds_per_reply = ($h * 3600) + ($m * 60) + $s;
 
       $admins_time_per_msg{$reply->{aid}}{msgs}{$reply->{main_msg}} = ($admins_time_per_msg{$reply->{aid}}{msgs}{$reply->{main_msg}} || 0) + $seconds_per_reply;
@@ -1518,7 +1520,8 @@ sub msgs_admin_report {
       EXTRA_SUM   => '_SHOW',
       EXT_ID      => '_SHOW',
       WORK_AID    => '_SHOW',
-      SALARY      => '_SHOW',
+      WORK        => '_SHOW',
+      WORK_DONE   => '_SHOW',
     });
   }
   else {
@@ -1541,6 +1544,12 @@ sub msgs_admin_report {
     COLS_NAME                 => 1,
     PAGE_ROWS                 => 10000,
   });
+
+  my $msgs_reply_list = $Msgs->messages_reply_list({
+    MSG_ID    => '_SHOW',
+    STATUS    => 2,
+    COLS_NAME => 1
+  });
   
   reports(
     {
@@ -1556,11 +1565,10 @@ sub msgs_admin_report {
     caption => "$lang{REPORTS}",
     title   => [ 
       "$lang{RESPOSIBLE} $lang{ADMIN}",
+      $lang{NAME},
       $lang{DONE_TICKET},
       $lang{SPENT_TIME},
       $lang{PAID_AMOUT},
-      $lang{SALARY},
-      $lang{SUM},
     ],
     ID      => 'MSGS_REPORT',
   });
@@ -1574,82 +1582,121 @@ sub msgs_admin_report {
   my @time_operations = ();
 
   foreach my $admin_item (@$admins_list) {
+    my $work_name    = '';
     my $done_ticket  = 0;
     my $sum_amout    = 0;
     my $run_time     = '00:00:00';
-    my $salary       = 0;
+    my %admin_work   = ();
 
     if (in_array('Employees', \@MODULES)) {
       foreach my $work_item (@$work_list) {
-        if ($admin_item->{aid} == $work_item->{work_aid}) {
+        if ($work_item->{work_done} && $work_item->{work_aid} && $admin_item->{aid} == $work_item->{work_aid}) {
+          $admin_work{ $admin_item->{login} }            = $admin_item->{login};
+          $admin_work{"WORK_AID_$admin_item->{aid}"}     = $admin_item->{aid};
+          $admin_work{"SUM_AMOUT_$admin_item->{login}"} += $work_item->{sum} if ($work_item->{sum});
+          $work_name = $work_item->{work};
+        }
+        elsif ($admin_item->{aid} && $work_item->{aid} && $admin_item->{aid} == $work_item->{aid}) {
           $sum_amout += $work_item->{sum} if ($work_item->{sum});
-          $salary     = $work_item->{salary} if ($work_item->{salary});
+          $work_name = $work_item->{work};
+        }
+      }
+    }
+  
+    foreach my $msgs_item (@$dispatch_list) {
+      if ($msgs_item->{resposible} && $admin_item->{aid} && $admin_item->{aid} == $msgs_item->{resposible}) {
+        $run_time    = $msgs_item->{run_time} if ($msgs_item->{run_time});
+        $done_ticket = $msgs_item->{done_sum} if ($msgs_item->{done_sum});
+      }
+      elsif ($admin_work{ $admin_item->{login} })  {
+        foreach my $msgs_reply_item (@$msgs_reply_list) {
+          if ($admin_work{"WORK_AID_$admin_item->{aid}"} == $msgs_reply_item->{aid} && $msgs_item->{id}) {
+            $run_time     = $msgs_reply_item->{run_time};
+            $done_ticket += 1;
+          }
         }
       }
     }
 
-    foreach my $msgs_item (@$dispatch_list) {
-      if ($msgs_item->{resposible} && $admin_item->{aid} == $msgs_item->{resposible}) {
-        $run_time    = $msgs_item->{run_time} if ($msgs_item->{run_time});
-        $done_ticket = $msgs_item->{done_sum} if ($msgs_item->{done_sum});
-      }
-    }
+    next if ($done_ticket < 0);
 
     $sum_ticket  += $done_ticket;
     $sum_payment += $sum_amout;
-    $sum_salary  += $salary;
-    $sum_pay_sal += $sum_amout + $salary;
-    
+
     my @time = split(/:/, $run_time);
     if ($#time_operations <= 0) {
       @time_operations = @time;
     }
     else {
-      my $hours   = $time[0] + $time_operations[0];
-      my $minutes = $time[1] + $time_operations[1];
-      my $seconds = $time[2] + $time_operations[2];
-      
-      if ($seconds > 60) {
-        ++$minutes;
-        $seconds = 0;
-      }
-
-      if ($minutes > 60) {
-        ++$hours;
-        $minutes = 0;
-      }
-
-      $hours   = "0$hours" if ($hours < 10);
-      $minutes = "0$minutes" if ($minutes < 10);
-      $seconds = "0$seconds" if ($seconds < 10);
-
-      $time_operations[0] = $hours;
-      $time_operations[1] = $minutes;
-      $time_operations[2] = $seconds;
-
-      $sum_time = "$hours:$minutes:$seconds";
+      $sum_time = sum_time({
+        RUN_TIME       => $run_time,
+        TIME_OPERATION => \@time_operations
+      });
     }
 
-    $table->addrow(
-      $admin_item->{login},
-      $done_ticket, 
-      $run_time, 
-      $sum_amout,
-      $salary,
-      ($sum_amout + $salary));
+    if ($done_ticket > 0) {
+      my $sum_amout_second = $admin_work{"SUM_AMOUT_$admin_item->{login}"} || 0;
+
+      $table->addrow(
+        $admin_item->{login},
+        $work_name,
+        $done_ticket, 
+        $run_time, 
+        $sum_amout || $sum_amout_second,
+      );  
+    }
   }
 
   $table->addfooter(
     $html->b($lang{SUM}), 
+    '',
     $html->b($sum_ticket),
     $html->b($sum_time),
     $html->b($sum_payment),
-    $html->b($sum_salary),
-    $html->b($sum_pay_sal));
+  );
 
   print $table->show();
 
   return 1;
+}
+
+#**********************************************************
+=head2 sum_time($attr)
+
+  Argument:
+    RUN_TIME        - run time one ticket
+    TIME_OPERATION  - time ticket tentative
+
+  Returns:
+    string format time HH:MM:SS
+
+=cut
+#**********************************************************
+sub sum_time {
+  my ($attr) = @_;
+
+  my @time = split(/:/, $attr->{RUN_TIME});
+  my @time_operations = $attr->{TIME_OPERATION};
+  
+  my $hours   = $time[0] + $time_operations[0][0];
+  my $minutes = $time[1] + $time_operations[0][1];
+  my $seconds = $time[2] + $time_operations[0][2];
+      
+  if ($seconds > 60) {
+    ++$minutes;
+    $seconds = 0;
+  }
+
+  if ($minutes > 60) {
+    ++$hours;
+    $minutes = 0;
+  }
+
+  $hours   = "0$hours" if ($hours < 10);
+  $minutes = "0$minutes" if ($minutes < 10);
+  $seconds = "0$seconds" if ($seconds < 10);
+
+  return "$hours:$minutes:$seconds";
 }
 
 1;

@@ -138,4 +138,11 @@ $lang{CABLE_RESERVE} = 'Запас кабеля';
 $lang{CAT_CABLE} = 'Разрезать кабель';
 $lang{RESERVE} = 'Запас';
 
+$lang{ADD_SCHEME} = 'Добавить схему коммутации';
+$lang{REMOVE_SCHEME} = 'Удалить схему коммутации';
+$lang{POSITION_CHANGE_ERROR} = 'Ошибка изменения позиции';
+$lang{POSITION_SUCCESSFULLY_CHANGED} = 'Позиция успешно изменена';
+$lang{BIG_COMMUTATION} = 'Большая схема коммутации';
+$lang{CHOOSE_COMMUTATION} = 'Выберите коммутацию';
+
 1;

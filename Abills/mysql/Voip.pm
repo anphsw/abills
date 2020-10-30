@@ -628,8 +628,8 @@ sub tp_list {
   my ($attr) = @_;
 
   my @WHERE_RULES = ('tp.tp_id=voip.id');
-  $SORT = (defined($attr->{SORT})) ? $attr->{SORT} : 1;
-  $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
+  $SORT = $attr->{SORT} ? $attr->{SORT} : 1;
+  $DESC = $attr->{DESC} ? $attr->{DESC} : '';
 
   my $WHERE = $self->search_former($attr, [
     [ 'FREE_TIME', 'INT', 'voip.free_time', 1 ],

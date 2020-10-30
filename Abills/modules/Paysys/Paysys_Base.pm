@@ -14,6 +14,7 @@ use strict;
 use Abills::Filters;
 use Abills::Base qw(sendmail convert);
 use Finance;
+require Abills::Misc;
 
 our (
   $admin,
@@ -522,6 +523,22 @@ sub paysys_pay {
         sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "$payment_system ADD", "$message", "$conf{MAIL_CHARSET}", "2 (High)");
   }
 
+  if ($conf{PAYSYS_EXTERN_SYNC}) {
+    my $message = "\n" . "============Receive amount====================\n" .
+      "LOGIN:       $user->{LOGIN} [UID: $uid]\n" .
+      "DATE:        $DATE $TIME\n" .
+      "SUM:         $amount \n" .
+      "SYSTEM_NAME: $payment_system  \n" .
+      "TRANSACTION_ID: $payment_system:$ext_id \n" .
+      "DESCRIBE: $attr->{PAYMENT_DESCRIBE} \n\n" .
+      "============Request Parameters===============\n" .
+      $ext_info . "\n\n" .
+
+      "================================";
+
+    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "$payment_system ADD", "$message", "$conf{MAIL_CHARSET}", "2 (High)");
+  }
+
   if ($attr->{PAYMENT_ID} ) {
     return $status, $paysys_id;
   }
@@ -626,9 +643,13 @@ sub paysys_check_user {
     return 14;
   }
 
-  if( $conf{PAYSYS_OSMP_EXTRA_INFO} ){
-    require Abills::Misc;
+  if( $conf{PAYSYS_OSMP_EXTRA_INFO}  ){
     my $recomended_pay = recomended_pay($list->[0], { SKIP_DEPOSIT_CHECK => ($attr->{SKIP_DEPOSIT_CHECK} || 0) });
+    $list->[0]->{fee} = $recomended_pay;
+  }
+
+  if( $conf{PAYSYS_SBERBANK_ONLINE_EXTRA_INFO}  ){
+    my $recomended_pay = recomended_pay($list->[0]);
     $list->[0]->{fee} = $recomended_pay;
   }
   return $result, $list->[0];
@@ -1191,9 +1212,9 @@ sub _account_expression {
   Arguments:
     $symbols_count_show - how much first symbols show
     $field -  string
-    
+
   Returns:
-  
+
 =cut
 #**********************************************************
 sub _hide_personal_field {
@@ -1233,5 +1254,5 @@ sub account_gid_split {
     }
   }
 }
-  
+
 1

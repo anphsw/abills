@@ -1,0 +1,173 @@
+#!/usr/bin/perl -w
+=head1 NAME
+
+ Bdcom configuration utility
+
+=head2 VERSION
+
+  VERSION: 1
+  DATE: 20200625
+
+=head2 DESCRIPTION
+
+Only used for deleting ONU's from BDCOM
+
+=head2 DELETE
+
+Default deregistration template for EPON:
+
+enable
+conf
+interface epon %BRANCH%
+no epon bind-onu mac %MAC%
+
+=cut
+
+use strict;
+BEGIN {
+  use FindBin '$Bin';
+  our $libpath = $Bin . '/../../../../';
+  unshift(@INC,
+    $libpath . 'lib/',
+    $libpath,
+    $libpath . 'Abills/',
+    $libpath . 'Abills/mysql/',
+    $libpath . 'Abills/modules',
+  );
+}
+
+use Abills::Base qw(parse_arguments load_pmodule);
+our (
+  %conf,
+  $DATE,
+  $TIME
+);
+
+do 'libexec/config.pl';
+use Equipment::Misc;
+my $debug = 0;
+my $argv = parse_arguments(\@ARGV);
+
+if ($argv->{DEBUG}) {
+  $debug = $argv->{DEBUG};
+}
+
+if ($debug > 5) {
+  print @ARGV;
+  `echo "@ARGV" >> /tmp/register`;
+}
+
+if ($argv->{help}) {
+  help();
+  exit;
+}
+
+load_pmodule('Net::Telnet');
+
+if ($argv->{del_onu}) {
+  unregister_bdcom();
+  exit 1;
+}
+else {
+  print "register_bdcom can be only used for deleting ONU, exiting\n";
+  exit 0;
+}
+
+#**********************************************************
+=head2 unregister_bdcom() - delete ONU
+
+=cut
+#**********************************************************
+sub unregister_bdcom {
+  my $host      = $argv->{NAS_MNG_IP_PORT} || '';
+  my $user_name = $argv->{NAS_MNG_USER};
+  my $password  = $argv->{NAS_MNG_PASSWORD};
+
+  my $pon_type  = $argv->{PON_TYPE} || '';
+  my $template  = $argv->{TEMPLATE} || "bdcom_deregistration_$pon_type.tpl";
+
+  my ($ip) = split(/:/, $host);
+  my $port = 23;
+
+  if (!$ip) {
+    print "OLT IP not defined\n";
+    exit 0;
+  }
+
+  my $unreg_tpl = equipment_get_telnet_tpl({
+    MAC      => $argv->{ONU_MAC_SERIAL},
+    TEMPLATE => $template,
+    %$argv
+  });
+
+  if (!@$unreg_tpl) {
+    print "Can't read deregistration template\n";
+    exit 0;
+  }
+
+  my $Telnet = Net::Telnet->new(
+    Prompt  => '/(#|>)$/',
+    Timeout => 15,
+    Errmode => sub {
+      my ($errmsg) = @_;
+      print "Telnet error: $errmsg";
+      exit 0;
+    }
+  );
+
+  $Telnet->dump_log('-') if ($debug > 3);
+
+  $Telnet->open(
+    Host => $ip,
+    Port => $port,
+  );
+
+  $Telnet->login($user_name, $password);
+
+  foreach my $cmd (@$unreg_tpl) {
+    print "$cmd\n" if ($debug);
+
+    if($cmd =~ /sleep:(\d+)/) {
+      sleep $1;
+    }
+
+    my @data = $Telnet->cmd($cmd) or print "  ERROR: '$cmd'\n";
+    if ($debug > 2) {
+      print @data;
+    }
+  }
+
+  $Telnet->close();
+}
+
+#**********************************************************
+=head2 help() - print help
+
+=cut
+#**********************************************************
+sub help {
+print << "[END]";
+
+help: $0
+
+  NAS_MNG_IP_PORT=
+  NAS_MNG_USER=
+  NAS_MNG_PASSWORD=
+
+
+  TEMPLATE= || 'bdcom_deregistration_%PON_TYPE%.tpl'
+
+  MAC=
+  BRANCH=
+  SN ONU_MAC_SERIAL=
+  PON_TYPE=
+  ... - any params, which will be used for substitution in template
+
+  DEBUG=
+  help
+
+[END]
+
+}
+
+1;

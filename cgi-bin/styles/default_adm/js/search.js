@@ -165,7 +165,6 @@ function bindClickSearchResult(popup_name) {
     fillSearchResults(popup_name, $(this).attr('value') || $(this).data('value'));
     aModal.hide();
   });
-  console.log('clickSearch');
 }
 
 function fillSearchResults(popup_name, data_value) {

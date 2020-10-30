@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS `maps_wells` (
   `type_id` TINYINT(1) UNSIGNED DEFAULT '0',
   `coordx` DOUBLE(20, 14) DEFAULT '0.00000000000000',
   `coordy` DOUBLE(20, 14) DEFAULT '0.00000000000000',
-  `comment` TEXT NOT NULL DEFAULT '',
+  `comment` TEXT,
   PRIMARY KEY (`id`)
 )
   COMMENT = 'Wells coord';
@@ -101,16 +101,10 @@ CREATE TABLE IF NOT EXISTS `maps_layers` (
 
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (1, '$lang{BUILD}', 'MARKER', 'build');
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (2, '$lang{WIFI}', 'POLYGON', 'wifi');
-# REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (3, '$lang{ROUTE}', 'MARKERS_POLYLINE', 'route');
 DELETE FROM `maps_layers` WHERE `id`='3';
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (4, '$lang{DISTRICT}', 'POLYGON', 'district');
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (5, '$lang{TRAFFIC}', 'MARKER', 'build');
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (6, '$lang{OBJECTS}', 'MARKER', 'custom');
-# ID 7 is reserved for Equipment
-# ID 8 is reserved for GPS
-# ID 9 is reserved for GPS_ROUTE
-# ID 10 is reserved for cablecat CABLES
-# ID 11 is reserved for cablecat WELLS
 REPLACE INTO `maps_layers` (`id`, `name`, `structure`, `type`) VALUES (12, '$lang{BUILD}2', 'POLYGON', 'build');
 
 CREATE TABLE IF NOT EXISTS `maps_circles` (
@@ -134,7 +128,7 @@ CREATE TABLE IF NOT EXISTS `maps_polylines` (
   `object_id` INT(11) UNSIGNED REFERENCES `maps_points` (`id`)
     ON DELETE CASCADE,
   `name` VARCHAR(32) NOT NULL DEFAULT '',
-  `comments` TEXT NOT NULL DEFAULT '',
+  `comments` TEXT,
   `length` DOUBLE NOT NULL DEFAULT 0,
   KEY `object_id` (`object_id`)
 )

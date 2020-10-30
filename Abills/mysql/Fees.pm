@@ -138,6 +138,7 @@ sub take {
 
           $self->query_add('fees', {
             %$attr,
+            BILL_ID      => $user->{BILL_ID},
             SUM          => $self->{SUM},
             LAST_DEPOSIT => $Bill->{DEPOSIT},
           });
@@ -163,12 +164,6 @@ sub take {
   if ($user->{BILL_ID} && $user->{BILL_ID} > 0) {
     $Bill->info({ BILL_ID => $user->{BILL_ID} });
 
-#    if ($user->{COMPANY_VAT}) {
-#      $sum = $sum * ((100 + $user->{COMPANY_VAT}) / 100);
-#    }
-#    else {
-#      $user->{COMPANY_VAT} = 0;
-#    }
     $Bill->action('take', $user->{BILL_ID}, $sum);
     if ($Bill->{errno}) {
       $self->{errno}  = $Bill->{errno};
@@ -179,6 +174,7 @@ sub take {
     $self->{SUM} = $sum;
     $self->query_add('fees', {
       %$attr,
+      BILL_ID      => $user->{BILL_ID},
       SUM          => $self->{SUM},
       LAST_DEPOSIT => $Bill->{DEPOSIT},
       REG_DATE     => 'NOW()'

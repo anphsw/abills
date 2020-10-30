@@ -1,5 +1,4 @@
 <div class='row  form form-inline'>
-
   <div class='checkbox'>
     <label>
       <input type='checkbox' checked='checked' id='SHOW_ONLINE'>
@@ -31,8 +30,54 @@
   %DISTRICT_PANELS%
 </div>
 
+<div id='status-loading-content'>
+  <div class='text-center'>
+    <span class='fa fa-spinner fa-spin fa-2x'></span>
+  </div>
+</div>
+
 <script>
+  let contentLoading = false;
+
+  jQuery('#status-loading-content').hide();
+
   jQuery(function () {
+
+    let pageStart = 1;
+    let maxPageRows = '%MAX_PAGES%' || 0;
+
+    loadContent();
+
+    function loadContent() {
+      jQuery('#status-loading-content').show();
+      if (contentLoading) return;
+
+      contentLoading = true;
+      let url = '$SELF_URL?header=2&get_index=internet_online_builds&RETURN_CONTENT=1&PAGE_START=' + pageStart +
+        '&PAGE_ROWS=' + 1;
+        
+      fetch(url)
+        .then(function (response) {
+          if (!response.ok)
+            throw Error(response.statusText);
+
+          return response;
+        })
+        .then(function (response) {
+          return response.text();
+        })
+        .then(result => {
+          contentLoading = false;
+          jQuery('#DISTRICT_PANELS').append(result);
+          defineTooltipLogic(jQuery('#DISTRICT_PANELS'));
+          jQuery('#status-loading-content').hide();
+
+          if (pageStart < maxPageRows) {
+            pageStart++;
+            loadContent();
+          }
+        });
+    }
 
     var online_chb  = jQuery('input#SHOW_ONLINE');
     var offline_chb = jQuery('input#SHOW_OFFLINE');

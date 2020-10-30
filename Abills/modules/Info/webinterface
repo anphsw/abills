@@ -6,10 +6,11 @@
 =cut
 
 use Info;
-
 use Abills::Base qw/in_array/;
 
 require Abills::Misc;
+
+our Abills::HTML $html;
 
 use constant {
   img_dir              => "/images/Info/images/",
@@ -20,7 +21,7 @@ use constant {
 
 };
 
-my $document_allowed_extensions = $conf{INFO_DOCUMENT_ALLOWED_EXTENSIONS} || 'doc, docx, pdf, xls, xslx, txt';
+#my $document_allowed_extensions = $conf{INFO_DOCUMENT_ALLOWED_EXTENSIONS} || 'doc, docx, pdf, xls, xslx, txt';
 my $image_allowed_extensions = $conf{INFO_IMAGE_ALLOWED_EXTENSIONS} || 'gif, png, jpg, jpeg';
 
 =head1 SYNOPSIS
@@ -85,7 +86,7 @@ sub info_comments_show{
       OBJECT_ID  => $id,
       ADD_COMMENT_INDEX => get_function_index('info_comment_add')
     },
-    { OUTPUT2RETURN => 1 }
+    { OUTPUT2RETURN => 1, ID => 'info_comments_controls' }
   );
 
   #print comments main
@@ -99,7 +100,9 @@ sub info_comments_show{
         TABLE_NAME        => $type,
         OBJECT_ID         => $id,
       },
-      { OUTPUT2RETURN => 1, %{$attr} }
+      { OUTPUT2RETURN => 1,
+        ID => 'info_comments_controls',
+        %{$attr} }
     );
   }
   else {
@@ -111,10 +114,11 @@ sub info_comments_show{
         TABLE_NAME        => $type,
         OBJECT_ID         => $id,
       },
-      { OUTPUT2RETURN => 1, %{$attr} }
+      { OUTPUT2RETURN => 1,
+        ID  => 'info_comments_wrapper',
+        %{$attr} }
     );
   }
-
 
   if ( $attr->{OUTPUT2RETURN} ){
     return $comments_block;
@@ -123,7 +127,7 @@ sub info_comments_show{
     print $comments_block;
   }
 
-  return 1;
+  return '';
 }
 
 #**********************************************************
@@ -166,9 +170,12 @@ sub info_comments_make{
   my $comments_remove_index = get_function_index( 'info_comment_del' );
   
   foreach my $comment (@{$comments_list}){
-    $del_button = qq{ <a data-url='?qindex=$comments_remove_index&OBJ_ID=$comment->{id}&header=2' class='commentDeleteBtn pull-right' title="$lang{DEL}">
+    if (! $FORM{xml}) {
+      $del_button = qq{ <a data-url='?qindex=$comments_remove_index&OBJ_ID=$comment->{id}&header=2' class='commentDeleteBtn pull-right' title="$lang{DEL}">
       <span class='glyphicon glyphicon-trash text-danger'></span>
     </a>};
+    }
+
     push @filled_templates, $html->tpl_show(
         _include( 'comments/info_comment', 'Info' ),
         {
@@ -220,7 +227,7 @@ sub info_comment_del{
 #**********************************************************
 sub info_comment_add {
   if ($FORM{TEXT} eq '') {
-    $html->message('danger', "$lang{COMMENTS_PLEASE}");
+    $html->message('danger', $lang{COMMENTS_PLEASE});
     return 0;
   }
 
@@ -790,7 +797,6 @@ sub info_document_del {
   my $document = $Info->get_document_info($document_id, { COLS_NAME => 1 });
 
   my $filename = $document->{filename};
-
 
   unless ($document->{in_db}) {
     info_uni_file_delete(documents_upload_dir, $filename);

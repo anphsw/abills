@@ -113,39 +113,41 @@ sub info {
     $password = "DECODE(u.password, '$self->{conf}->{secretkey}') AS password";
   }
 
-  $self->query("SELECT u.uid,
-   u.gid,
-   g.name AS g_name,
-   u.id AS login,
-   u.activate,
-   u.expire,
-   u.credit,
-   u.reduction,
-   u.registration,
-   u.disable,
-   IF(u.company_id > 0, cb.id, b.id) AS bill_id,
-   IF(c.name IS NULL, b.deposit, cb.deposit) AS deposit,
-   u.company_id,
-   IF(c.name IS NULL, '', c.name) AS company_name,
-   IF(c.name IS NULL, 0, c.vat) AS company_vat,
-   IF(c.name IS NULL, b.uid, cb.uid) AS bill_owner,
-   IF(u.company_id > 0, c.ext_bill_id, u.ext_bill_id) AS ext_bill_id,
-   u.credit_date,
-   u.reduction_date,
-   IF(c.name IS NULL, 0, c.credit) AS company_credit,
-   u.domain_id,
-   u.deleted,
-   $password
-     FROM users u
-     LEFT JOIN bills b ON (u.bill_id=b.id)
-     LEFT JOIN groups g ON (u.gid=g.gid)
-     LEFT JOIN companies c ON (u.company_id=c.id)
-     LEFT JOIN bills cb ON (c.bill_id=cb.id)
-     $WHERE;",
-   undef,
-   { INFO => 1,
-     Bind => \@values
-   }
+  $self->query(
+    "SELECT
+      u.uid,
+      u.gid,
+      g.name AS g_name,
+      u.id AS login,
+      u.activate,
+      u.expire,
+      u.credit,
+      u.reduction,
+      u.registration,
+      u.disable,
+      IF(u.company_id > 0, cb.id, b.id) AS bill_id,
+      IF(c.name IS NULL, b.deposit, cb.deposit) AS deposit,
+      u.company_id,
+      IF(c.name IS NULL, '', c.name) AS company_name,
+      IF(c.name IS NULL, 0, c.vat) AS company_vat,
+      IF(c.name IS NULL, b.uid, cb.uid) AS bill_owner,
+      IF(u.company_id > 0, c.ext_bill_id, u.ext_bill_id) AS ext_bill_id,
+      u.credit_date,
+      u.reduction_date,
+      IF(c.name IS NULL, 0, c.credit) AS company_credit,
+      u.domain_id,
+      u.deleted,
+      $password
+    FROM `users` u
+    LEFT JOIN bills b ON (u.bill_id=b.id)
+    LEFT JOIN groups g ON (u.gid=g.gid)
+    LEFT JOIN companies c ON (u.company_id=c.id)
+    LEFT JOIN bills cb ON (c.bill_id=cb.id)
+    $WHERE;",
+    undef,
+    { INFO => 1,
+      Bind => \@values
+    }
   );
 
   if ((!$admin->{permissions}->{0} || !$admin->{permissions}->{0}->{8}) && ($self->{DELETED})) {
@@ -155,11 +157,14 @@ sub info {
   }
 
   if ($self->{conf}->{EXT_BILL_ACCOUNT} && $self->{EXT_BILL_ID} && $self->{EXT_BILL_ID} > 0) {
-    $self->query("SELECT b.deposit AS ext_bill_deposit, b.uid AS ext_bill_owner
-     FROM bills b WHERE id= ? ;",
-     undef,
-     { INFO => 1,
-       Bind => [ $self->{EXT_BILL_ID} ] }
+    $self->query(
+      "SELECT
+        b.deposit AS ext_bill_deposit,
+        b.uid AS ext_bill_owner
+      FROM bills b WHERE id= ? ;",
+      undef,
+      { INFO => 1,
+        Bind => [ $self->{EXT_BILL_ID} ] }
     );
 
     if($self->{errno}) {
@@ -205,8 +210,10 @@ sub pi_add {
     require Address;
     Address->import();
     my $Address = Address->new($self->{db}, $admin, $self->{conf});
-
-    $Address->build_add($attr);
+    $Address->build_add({
+      %$attr,
+      COMMENTS => q{}
+    });
     $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
   }
 
@@ -363,14 +370,14 @@ sub pi {
 
         $self->{$uc_contact_type_name . '_ALL'} = join(', ', map {$_->{value} || ''} @contacts_for_type);
         if (@contacts_for_type) {
-
           for (my $i = 0; $i <= $#contacts_for_type; $i++) {
             $self->{ $uc_contact_type_name . ($i > 0 ? '_' . $i : '')} = $contacts_for_type[$i]->{value};
           }
         }
-        else {
-          $self->{ $uc_contact_type_name } = '';
-        }
+        # else {
+        #   $self->{ $uc_contact_type_name } = '';
+        #   print "// $uc_contact_type_name //<br>";
+        # }
       }
       $self->{PHONE} ||= $self->{CELL_PHONE};
 
@@ -421,7 +428,10 @@ sub pi_change {
     require Address;
     Address->import();
     my $Address = Address->new($self->{db}, $admin, $self->{conf});
-    $Address->build_add($attr);
+    $Address->build_add({
+      %$attr,
+      COMMENTS => q{}
+    });
     $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
   }
 
@@ -533,23 +543,28 @@ sub groups_list {
   my $USERS_WHERE = '';
   if ($admin->{DOMAIN_ID}) {
     $admin->{DOMAIN_ID} =~ s/,/;/g;
-    #push @WHERE_RULES, @{ $self->search_expr( $admin->{DOMAIN_ID}, 'INT', 'g.domain_id' ) };
     $USERS_WHERE = "AND (". join('AND', @{ $self->search_expr($admin->{DOMAIN_ID}, 'INT', 'u.domain_id' ) }) .')';
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['BONUS',     'INT', 'g.bonus',                1 ],
-      ['DOMAIN_ID', 'INT', 'g.domain_id',            1 ],
-      ['G_NAME',    'STR', 'g.name AS g_name',       1 ],
+      ['BONUS',            'INT', 'g.bonus',                1 ],
+      ['DOMAIN_ID',        'INT', 'g.domain_id',            1 ],
+      ['G_NAME',           'STR', 'g.name AS g_name',       1 ],
+      ['DISABLE_PAYMENTS', 'INT', 'g.disable_payments',     1 ],
+      ['GID',              'INT', 'g.gid',                  1 ],
+      ['NAME',             'STR', 'g.name',                 1 ],
+      ['DESCR',            'STR', 'g.descr',                1 ],
+      ['ALLOW_CREDIT',     'INT', 'g.allow_credit',         1 ],
+      ['DISABLE_PAYSYS',   'INT', 'g.disable_paysys',       1 ],
+      ['DISABLE_CHG_TP',   'INT', 'g.disable_chg_tp',       1 ],
+      ['USERS_COUNT',      'INT', 'COUNT(u.uid) AS users_count', 1],
     ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES
     }
   );
 
-  $self->query("SELECT g.gid, g.name, g.descr, COUNT(u.uid) AS users_count, g.allow_credit,
-        g.disable_paysys,
-        g.disable_chg_tp,
+  $self->query("SELECT g.gid AS id,
         $self->{SEARCH_FIELDS}
         g.domain_id
         FROM groups g
@@ -599,6 +614,7 @@ sub group_change {
   $attr->{SEPARATE_DOCS} = ($attr->{SEPARATE_DOCS}) ? 1 : 0;
   $attr->{ALLOW_CREDIT}  = ($attr->{ALLOW_CREDIT}) ? 1 : 0;
   $attr->{DISABLE_PAYSYS}= ($attr->{DISABLE_PAYSYS}) ? 1 : 0;
+  $attr->{DISABLE_PAYMENTS}= ($attr->{DISABLE_PAYMENTS}) ? 1 : 0;
   $attr->{DISABLE_CHG_TP}= ($attr->{DISABLE_CHG_TP}) ? 1 : 0;
   $attr->{BONUS}         = ($attr->{BONUS}) ? 1 : 0;
 
@@ -697,12 +713,14 @@ sub list {
     'ZIP',
     'GID',
     'COMPANY_ID',
+    'COMPANY_NAME',
     'CONTRACT_ID',
     'CONTRACT_SUFIX',
     'CONTRACT_DATE',
     'EXPIRE',
     'REDUCTION',
     'LAST_PAYMENT',
+    'LAST_FEES',
     'REGISTRATION',
     'REDUCTION_DATE',
     'COMMENTS',
@@ -710,7 +728,6 @@ sub list {
     'ACTIVATE',
     'EXPIRE',
     'ACCEPT_RULES',
-#    'DOMAIN_ID',
     'UID',
     'PASSWORD',
     'BIRTH_DATE',
@@ -737,7 +754,6 @@ sub list {
 
   # Show debeters
   if ($attr->{DEBETERS}) {
-    #push @WHERE_RULES, "b.deposit<0";
     push @WHERE_RULES, "IF(company.id IS NULL, b.deposit, cb.deposit)<0";
   }
 
@@ -763,6 +779,15 @@ sub list {
     @WHERE_RULES = ();
     push @WHERE_RULES, "(((SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2)) 
                         LIKE '%" . $attr->{PHONE} ."%') AND (u.id='" . $attr->{LOGIN} . "') AND u.deleted='0') AND u.deleted=0";
+  }
+
+  if ($attr->{LOCATION_ID}) {
+    $self->{SEARCH_FIELDS} .= 'pi.location_id, ';
+  }
+
+  if ($attr->{STREET_ID}) {
+    $self->{SEARCH_FIELDS} .= 'builds.street_id, ';
+    $self->{SEARCH_FIELDS} .= 'streets.name, ';
   }
 
   #Show last
@@ -804,7 +829,15 @@ sub list {
       }
     }
 
-    my $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(' AND ', @HAVING_RULES) : '';
+    my $where_delimeter = ' AND ';
+    if ( $attr->{_MULTI_HIT} ) {
+      $where_delimeter = ' OR ';
+    }
+
+    my $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(" $where_delimeter ", @HAVING_RULES) : '';
+    
+    $HAVING = _change_having($HAVING);
+
     $self->query("SELECT u.id AS login,
        $self->{SEARCH_FIELDS}
        u.uid,
@@ -861,7 +894,7 @@ sub list {
   }
 
   #Show last fees
-  if ($attr->{FEES} || $attr->{FEES_DAYS}) {
+  if ($attr->{FEES} || $attr->{FEES_DAYS} || $attr->{LAST_FEES}) {
     my @HAVING_RULES = @WHERE_RULES;
     if ($attr->{FEES}) {
       my $value = @{ $self->search_expr($attr->{FEES}, 'INT') }[0];
@@ -870,7 +903,7 @@ sub list {
       $self->{SEARCH_FIELDS} .= 'MAX(f.date) AS last_fees, ';
       $self->{SEARCH_FIELDS_COUNT}++;
     }
-    elsif ($attr->{FEES_DAYS}) {
+    elsif ($attr->{FEES_DAYS} || $attr->{LAST_FEES}) {
       my @params = split(/,/, $attr->{FEES_DAYS});
 
       foreach my $operation_days (@params) {
@@ -893,8 +926,15 @@ sub list {
       }
     }
 
-    my $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(' AND ', @HAVING_RULES) : '';
+    my $where_delimeter = ' AND ';
+    if ( $attr->{_MULTI_HIT} ) {
+      $where_delimeter = ' OR ';
+    }
 
+    my $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(" $where_delimeter ", @HAVING_RULES) : '';
+
+    $HAVING = _change_having($HAVING);
+    
     $self->query("SELECT u.id AS login,
        $self->{SEARCH_FIELDS}
        u.uid,
@@ -931,7 +971,12 @@ sub list {
         }
       }
 
-      my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' AND ', @WHERE_RULES) : '';
+      my $where_delimeter = ' AND ';
+      if ( $attr->{_MULTI_HIT} ) {
+        $where_delimeter = ' OR ';
+      }
+
+      my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(" $where_delimeter ", @WHERE_RULES) : '';
 
       $self->query("SELECT count(DISTINCT u.uid) AS total FROM users u
        LEFT JOIN fees f ON (u.uid = f.uid)
@@ -952,7 +997,6 @@ sub list {
 
   my $WHERE = ($#WHERE_RULES > -1) ? "WHERE (" . join($where_delimeter, @WHERE_RULES) .')' : '';
 
-  #if (! $attr->{GID} && $admin->{GID}) {
   if ($admin->{GID}) {
     $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." u.gid IN ($admin->{GID})";
   }
@@ -971,7 +1015,13 @@ sub list {
   }
   my $GROUP_BY = q{};
     if($attr->{TAGS}) {
-    $GROUP_BY = 'GROUP BY u.id';
+      if($attr->{TAG_SEARCH_VAL} == 1){
+        my $tags_c = split(',', $attr->{TAGS});
+        $GROUP_BY = "GROUP BY u.id HAVING COUNT(tags_users.tag_id ) = '$tags_c'";
+      }
+      else{
+        $GROUP_BY = 'GROUP BY u.id';
+      }
   }
 
   $self->query("SELECT u.id AS login,
@@ -991,7 +1041,7 @@ sub list {
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} == $PAGE_ROWS || $PG > 0 || $attr->{FULL_LIST}) {
-    $self->query("SELECT COUNT(u.id) AS total,
+    $self->query("SELECT COUNT(DISTINCT u.id) AS total,
      SUM(IF(u.expire<CURDATE() AND u.expire>'0000-00-00', 1, 0)) AS total_expired,
      SUM(IF(u.disable=1, 1, 0)) AS total_disabled,
      SUM(u.deleted) AS total_deleted
@@ -1024,7 +1074,7 @@ sub add {
 
   $self->_space_trim($attr);
 
-  $self->{PRE_ADD}=1;
+  delete $self->{PRE_ADD};
   if (! $self->check_params()) {
     return $self;
   }
@@ -1221,9 +1271,9 @@ sub change {
 =head2 del(attr) - Delete user info from all tables
 
   Arguments:
-     $attr
-       COMMENTS
-       FULL_DELETE
+    $attr
+      COMMENTS
+      FULL_DELETE
 
   Results
 
@@ -1234,11 +1284,25 @@ sub del {
   my ($attr) = @_;
 
   my $comments = ($attr->{COMMENTS}) ? ' '.$attr->{COMMENTS}: q{};
+
   $admin->{MODULE} = '';
+
   if ($attr->{FULL_DELETE}) {
-    my @clear_db = ('admin_actions', 'fees', 'payments', 'users_nas', 'users', 'users_pi', 'shedule', 'msgs_messages', 'web_users_sessions');
+    my @clear_db = (
+      'admin_actions',
+      'fees',
+      'payments',
+      'users_nas',
+      'users',
+      'users_pi',
+      'shedule',
+      'msgs_messages',
+      'msgs_reply',
+      'web_users_sessions'
+    );
 
     $self->{info} = '';
+
     foreach my $table (@clear_db) {
       if ($table eq 'payments') {
         $self->query("DELETE FROM docs_invoice2payments WHERE payment_id IN (SELECT id FROM payments WHERE uid= ? )", 'do', { Bind => [ $self->{UID} ] });
@@ -1255,14 +1319,43 @@ sub del {
     $admin->action_add($self->{UID}, "DELETE $self->{UID}:$self->{LOGIN}$comments", { TYPE => 12 });
   }
   else {
+    my $new_login = $self->{LOGIN};
+
+    my @login_suffixes = ();
+    my $enought_size_for_suffix = 1;
+
+    push (
+      @login_suffixes,
+      "-".($CONF->{USER_DELETE_USE_SUFFIX_VALUE} || 'OLD')
+    ) if $CONF->{USER_DELETE_USE_SUFFIX};
+
+    push (
+      @login_suffixes,
+      "-".$attr->{DATE}
+    ) if $CONF->{USER_DELETE_USE_SUFFIX_DATE};
+
+    foreach my $suffix (@login_suffixes) {
+      if( length($suffix) + length($new_login) <= $CONF->{MAX_USERNAME_LENGTH} ) {
+        $new_login .= $suffix;
+      }
+      else {
+        $enought_size_for_suffix = 0;
+
+        last;
+      }
+    }
+
     $self->change($self->{UID}, {
       DELETED   => 1,
       ACTION_ID => 12,
       ACTION_COMMENTS => $comments,
-      UID       => $self->{UID}
+      UID       => $self->{UID},
+      ID        => $new_login,
     });
 
     $self->query_del('web_users_sessions', undef, { uid => $self->{UID} });
+
+    $self->{suffix_added} = $enought_size_for_suffix;
   }
 
   return $self->{result};
@@ -1782,10 +1875,10 @@ sub info_field_add {
   #Add field to table
   if ($attr->{COMPANY_ADD}) {
     $field_prefix = 'ifc';
-    $self->query("ALTER TABLE companies ADD COLUMN _" . $attr->{FIELD_ID} . " $column_type;", 'do');
+    $self->query('ALTER TABLE companies ADD COLUMN ' .'_'. $attr->{FIELD_ID} . " $column_type;", 'do');
   }
   else {
-    $self->query("ALTER TABLE users_pi ADD COLUMN _" . $attr->{FIELD_ID} . " $column_type;", 'do');
+    $self->query('ALTER TABLE users_pi ADD COLUMN ' .'_' . $attr->{FIELD_ID} . " $column_type;", 'do');
   }
 
   if (!$self->{errno} || ($self->{errno} && $self->{errno} == 3)) {
@@ -1988,7 +2081,9 @@ sub report_users_summary {
 }
 
 #**********************************************************
-# check_params()
+=head2 check_params($attr)
+
+=cut
 #**********************************************************
 sub check_params {
   my $self = shift;
@@ -2011,7 +2106,7 @@ sub check_params {
   }
 
   if($self->{PRE_ADD}) {
-    if($constant+1 < $self->{list}->[0]->[0]) {
+    if($constant-5 < $self->{list}->[0]->[0]) {
       $self->{errno} = 0x2BB;
       $self->{errstr} = $self->{list}->[0]->[0];
       return 0;
@@ -2470,6 +2565,47 @@ sub user_contacts_validation {
   }
 
   return $self;
+}
+
+#**********************************************************
+=head2 _change_having($HAVING)
+
+  Arguments:
+    HAVING - No valid having params query
+
+  Returns:
+    HAVING - Valid having
+
+=cut
+#**********************************************************
+sub _change_having {
+  my ($HAVING) = @_;
+
+  if ($HAVING && $HAVING =~ /CONCAT_WS\(\" \", pi.fio, pi.fio2, pi.fio3\)/) {
+    $HAVING =~ s/CONCAT_WS\(\" \", pi.fio, pi.fio2, pi.fio3\)/fio/g;
+  }
+
+  if ($HAVING && $HAVING =~ /IF\(u.company_id=0, CONCAT\(pi.contract_id\), CONCAT\(company.contract_id\)\)/) {
+    $HAVING =~ s/IF\(u.company_id=0, CONCAT\(pi.contract_id\), CONCAT\(company.contract_id\)\)/contract_id/g;
+  }
+
+  if ($HAVING && $HAVING =~ /IF\(u.credit > 0, u.credit, IF\(company.id IS NULL, 0, company.credit\)\)/) {
+    $HAVING =~ s/IF\(u.credit > 0, u.credit, IF\(company.id IS NULL, 0, company.credit\)\)/credit/g;
+  }
+
+  if ($HAVING && $HAVING =~ /IF\(company.id IS NULL,b.id,cb.id\)/) {
+    $HAVING =~ s/IF\(company.id IS NULL,b.id,cb.id\)/bill_id/g;
+  }
+
+  if ($HAVING && $HAVING =~ /CONCAT\(streets.name, ' ', builds.number, ',', pi.address_flat\)/) {
+    $HAVING =~ s/CONCAT\(streets.name, ' ', builds.number, ',', pi.address_flat\)/address_full/g;
+  }
+
+  if ($HAVING && $HAVING =~ /pi.location_id/) {
+    $HAVING =~ s/pi.location_id/builds.id/g;
+  }
+
+  return $HAVING;
 }
 
 1;

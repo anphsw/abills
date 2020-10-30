@@ -36,7 +36,6 @@ use Ureports::Send;
 our ($db,
   $admin,
   %conf,
-  $html,
   %lang,
   %permissions,
   @bool_vals,
@@ -44,6 +43,8 @@ our ($db,
   @WEEKDAYS,
   %ADMIN_REPORT
 );
+
+our Abills::HTML $html;
 
 my $Ureports = Ureports->new($db, $admin, \%conf);
 my $Fees = Fees->new($db, $admin, \%conf);
@@ -169,35 +170,37 @@ sub ureports_users_list {
   });
 
   #FIXME: refactor to filters
-  foreach my $line (@{$user_list}) {
-    my @fields_array = ();
+  if (ref($user_list) eq 'ARRAY') {
+    foreach my $line (@{$user_list}) {
+      my @fields_array = ();
 
-    for (my $i = 0; $i < $Ureports->{SEARCH_FIELDS_COUNT}; $i++) {
-      my $val = '';
-      my $field_name = $Ureports->{COL_NAMES_ARR}->[$i];
+      for (my $i = 0; $i < $Ureports->{SEARCH_FIELDS_COUNT}; $i++) {
+        my $val = '';
+        my $field_name = $Ureports->{COL_NAMES_ARR}->[$i];
 
-      if ($field_name eq 'login') {
-        $val = $html->button($line->{login}, "index=11&UID=$line->{uid}&MODULE=Ureports");
-      }
-      elsif ($field_name eq 'status') {
-        $val = ($line->{status}) ? $html->color_mark($service_status[$line->{status}],
-          $_COLORS[6]) : $service_status[$line->{status}];
-      }
-      elsif ($field_name eq 'type') {
-        $val = ($line->{type} && $service_type{$line->{type}}) ? $service_type{$line->{type}} : $line->{type};
-      }
-      else {
-        $val = $line->{$field_name};
+        if ($field_name eq 'login') {
+          $val = $html->button($line->{login}, "index=11&UID=$line->{uid}&MODULE=Ureports");
+        }
+        elsif ($field_name eq 'status') {
+          $val = ($line->{status}) ? $html->color_mark($service_status[$line->{status}],
+            $_COLORS[6]) : $service_status[$line->{status}];
+        }
+        elsif ($field_name eq 'type') {
+          $val = ($line->{type} && $service_type{$line->{type}}) ? $service_type{$line->{type}} : $line->{type};
+        }
+        else {
+          $val = $line->{$field_name};
+        }
+
+        push @fields_array, $val;
       }
 
-      push @fields_array, $val;
+      push @fields_array,
+        $html->button($lang{STATS}, "index=" . (get_function_index('ureports_user')) . "&UID=$line->{uid}",
+          { class => 'stats' });
+
+      $table->addrow(@fields_array);
     }
-
-    push @fields_array,
-      $html->button($lang{STATS}, "index=" . (get_function_index('ureports_user')) . "&UID=$line->{uid}",
-        { class => 'stats' });
-
-    $table->addrow(@fields_array);
   }
 
   print $table->show();
@@ -272,7 +275,10 @@ sub ureports_user {
   }
 
   $Ureports->{UID} = $FORM{UID} || $LIST_PARAMS{UID} || q{};
-  my $report_type = $FORM{TYPE} || 0;
+  my $report_type = 0;
+  if($FORM{TYPE} && $FORM{TYPE} =~ /^(\d+)$/) {
+    $report_type = $1;
+  }
   if ($FORM{add}) {
     if (!$permissions{0}{1}) {
       $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY});
@@ -451,7 +457,9 @@ sub ureports_user {
       { class => 'btn bnt-default btn-success' });
   }
 
-  $html->tpl_show(_include('ureports_user', 'Ureports'), { %{$attr}, %{$Ureports} });
+  $html->tpl_show(_include('ureports_user', 'Ureports'),
+    { %{$attr}, %{$Ureports} },
+    { ID => 'ureports_user' });
 
   return 1;
 }
@@ -512,7 +520,7 @@ sub ureports_tp {
         $lang{NAME} => $Tariffs->{NAME_SEL}
       },
       [
-        $lang{INFO} . ":TP_ID=$FORM{TP_ID}",
+        $lang{TARIF_PLANS} . ":TP_ID=$FORM{TP_ID}",
         $lang{REPORTS} . ':' . get_function_index('ureports_tp_reports') . ":TP_ID=$FORM{TP_ID}",
         $lang{USERS} . ':' . get_function_index('ureports_users_list') . ":TP_ID=$FORM{TP_ID}"
       ],
@@ -583,23 +591,24 @@ sub ureports_tp {
     INPUT_DATA      => $Tariffs,
     FUNCTION        => 'list',
     BASE_FIELDS     => $base_fields,
-    DEFAULT_FIELDS  => 'ID,NAME,PAYMENT_TYPE,MONTH_FEE,TP_GROUP_NAME',
+    #DEFAULT_FIELDS  => 'ID,NAME,PAYMENT_TYPE,MONTH_FEE,TP_GROUP_NAME',
+    DEFAULT_FIELDS  => 'ID,NAME,PAYMENT_TYPE,MONTH_FEE',
     FUNCTION_FIELDS => '-, -, -',
     EXT_TITLES      => {
       id                   => '#',
       port                 => $lang{PORT},
       filter_id            => 'Filter ID',
-      tp_name              => "$lang{TARIF_PLAN}",
+      tp_name              => $lang{TARIF_PLAN},
       num                  => $lang{NUM},
       name                 => $lang{NAME},
       payment_type         => $lang{PAYMENT_TYPE},
       month_fee            => $lang{MONTH_FEE},
       age                  => $lang{AGE},
-      tp_group_name        => $lang{GROUP},
+      #tp_group_name        => $lang{GROUP},
       reduction_fee        => $lang{REDUCTION},
       postpaid_daily_fee   => "$lang{DAY_FEE} $lang{POSTPAID}",
       postpaid_monthly_fee => "$lang{MONTH_FEE} $lang{POSTPAID}",
-      ext_bill_account     => "$lang{EXT_BILL_ACCOUNT}",
+      ext_bill_account     => $lang{EXT_BILL_ACCOUNT},
       credit               => $lang{CREDIT},
       abon_distribution    => $lang{ABON_DISTRIBUTION},
       tp_id                => 'TP ID',
@@ -617,21 +626,23 @@ sub ureports_tp {
 
   foreach my $line (@{$list}) {
     my @fields_array = ();
+    next if (! $line->{tp_id});
     for (my $i = 0; $i < $base_fields + $Tariffs->{SEARCH_FIELDS_COUNT}; $i++) {
-      if ($Tariffs->{COL_NAMES_ARR}->[$i] eq 'id') {
+      my $col_name = $Tariffs->{COL_NAMES_ARR}->[$i] || q{};
+      if ($col_name eq 'id') {
         $line->{id} = $html->b($line->{id});
       }
-      elsif ($Tariffs->{COL_NAMES_ARR}->[$i] eq 'name') {
+      elsif ($col_name eq 'name') {
         $line->{name} = $html->button($line->{name}, "index=$index&TP_ID=$line->{tp_id}"),
       }
-      elsif ($Tariffs->{COL_NAMES_ARR}->[$i] eq 'payment_type') {
+      elsif ($col_name eq 'payment_type') {
         $line->{payment_type} = $Payment_Types[ $line->{payment_type} ];
       }
-      elsif ($Tariffs->{COL_NAMES_ARR}->[$i] =~ /time_tarifs|traf_tarifs/) {
-        $line->{$Tariffs->{COL_NAMES_ARR}->[$i]} = $bool_vals[ $line->{$Tariffs->{COL_NAMES_ARR}->[$i]} ];
+      elsif ($col_name =~ /time_tarifs|traf_tarifs/) {
+        $line->{$col_name} = $bool_vals[ $line->{$col_name} ];
       }
 
-      push @fields_array, $line->{$Tariffs->{COL_NAMES_ARR}->[$i]};
+      push @fields_array, $line->{$col_name};
     }
 
     my ($delete, $change);
@@ -1005,6 +1016,10 @@ sub ureports_daily_resets {
     foreach my $line (@{$list}) {
       $debug_output .= "UID: $line->{uid} REPORT_ID: $line->{report_id} VALUE: $line->{value} DEPOSIT: $line->{deposit}\n" if ($debug > 1);
       if ($debug < 5) {
+        if($line->{deposit} < 0 && $line->{report_id} == 2) {
+          next;
+        }
+
         $Ureports->tp_user_reports_reset_date(
           {
             REPORT_ID => $line->{report_id},
@@ -1018,7 +1033,7 @@ sub ureports_daily_resets {
   my $list = $Ureports->tp_user_reports_list(
     {
       RESET     => 1,
-      REPORT_ID => 1,
+      REPORT_ID => '1;2',
       DATE      => '>0000-00-00',
       DISABLE   => 0,
       DEPOSIT   => '>0',
@@ -1405,6 +1420,8 @@ sub ureports_payments_maked {
     COLS_NAME        => 1
   });
 
+  return 0 unless ($Ureports->{list}->[0]->{UID});
+
   if ($Ureports->{TOTAL} > 0) {
     my %info = ();
 
@@ -1434,6 +1451,7 @@ sub ureports_payments_maked {
     $user->{TOTAL_FEES_SUM} = $user->{RECOMMENDED_PAYMENT};
 
     my $user_info = $Ureports->{list}->[0];
+
     if ($total_daily_fee) {
       $info{EXPIRE_DAYS} = int($user->{DEPOSIT} / $total_daily_fee);
       $info{EXPIRE_DATE} = POSIX::strftime("%Y-%m-%d", localtime(time + $info{EXPIRE_DAYS} * 86400));
@@ -1523,9 +1541,6 @@ sub ureports_payments_maked {
         }
         print "\n";
       }
-      #        elsif ( $debug > 0 ){
-      #          $debug_output .= " $user_info->{LOGIN}  UID: $user->{UID} SUM: $sum REDUCTION: $user_info->{REDUCTION}\n" if ($debug > 0);
-      #        }
     }
 
     return 1;
@@ -1708,6 +1723,10 @@ sub ureports_quick_info {
       COLS_NAME     => 1,
       COLS_UPPER    => 1
     });
+    
+    if ($Ureports->{TOTAL} < 0) {
+      return;
+    }
 
     $result = $list->[0];
     my $service_status = sel_status({ HASH_RESULT => 1 });

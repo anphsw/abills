@@ -14,7 +14,7 @@ use warnings "all";
 use Employees;
 require Employees::Mobile_payment;
 use Digest::MD5 qw(md5_hex);
-use Digest::SHA1 qw(sha1_hex);
+use Digest::SHA qw(sha1_hex);
 use Abills::Fetcher qw/web_request/;
 use XML::Simple qw(:strict);
 

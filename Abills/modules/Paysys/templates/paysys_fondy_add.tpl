@@ -8,7 +8,7 @@
   <input type="hidden" name="signature" value="%SIGNATURE%">
   <input type="hidden" name="merchant_id" value="%MERCHANT_ID%">
   <input type="hidden" name="merchant_data" value="%MERCHANT_DATA%">
-
+  <input type="hidden" name="required_rectoken" value="%REQUIRED_RECTOKEN%">
 
     <div class='box box-primary'>
       <div class='box-header with-border text-center'>
@@ -29,6 +29,13 @@
           <label class='font-weight-bold text-center col-md-6 form-control-label col-xs-12'>_{BALANCE_RECHARCHE_SUM}_:</label>
           <label class='font-weight-bold col-md-6 form-control-label col-xs-12'>%SUM%</label>
         </div>
+        <!--<div class='form-group'>
+          <label class='font-weight-bold text-center col-md-6 form-control-label col-xs-12'>
+            _{REGULAR_PAYMENT}_
+            <input type='checkbox' data-sidebarskin='toggle' class='pull-right' data-return='1' name='do_token'
+                   value='on' data-checked='%REGULAR_PAYMENT%'/>
+          </label>
+        </div>-->
 
       </div>
       <div class='box-footer'>
@@ -36,7 +43,5 @@
       </div>
 
     </div>
-
-
 
 </form>

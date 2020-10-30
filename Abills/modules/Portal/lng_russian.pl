@@ -1,3 +1,6 @@
+$lang{PORTAL} = 'Портал';
+$lang{MENU_PORTAL} = 'Портальное меню';
+$lang{PORTAL_ARTICLES} = 'Статьи портала';
 $lang{ADD_MENU} = 'Добавить меню';
 $lang{CHANGE_MENU} = 'Изменить меню';
 $lang{DESCRIPTION} = 'Описание';

@@ -22,12 +22,12 @@
             <label class='control-label col-md-3' for='NAS_MNG_IP_PORT'>IP:PORT</label>
             <div class='col-md-9'>
                 <input id='NAS_MNG_IP_PORT' name='NAS_MNG_IP_PORT' value='%NAS_MNG_IP_PORT%'
-                       placeholder='%NAS_MNG_IP_PORT%' class='form-control' type='text'>
+                       class='form-control' type='text'>
             </div>
 
             <label class='control-label col-md-3' for='NAS_MNG_USER'>_{USER}_</label>
             <div class='col-md-9'>
-                <input id='NAS_MNG_USER' name='NAS_MNG_USER' value='%NAS_MNG_USER%' placeholder='%NAS_MNG_USER%'
+                <input id='NAS_MNG_USER' name='NAS_MNG_USER' value='%NAS_MNG_USER%'
                        class='form-control' type='text'>
             </div>
 
@@ -35,7 +35,7 @@
             <label class='control-label col-md-3' for='NAS_MNG_PASSWORD'>_{PASSWD}_</label>
             <div class='col-md-9'>
                 <input id='NAS_MNG_PASSWORD' name='NAS_MNG_PASSWORD' value='%NAS_MNG_PASSWORD%'
-                       placeholder='%NAS_MNG_PASSWORD%' class='form-control' type='password'>
+                       class='form-control' type='password' autocomplete='new-password'>
             </div>
         </div>
 

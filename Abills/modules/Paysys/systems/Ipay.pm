@@ -3,28 +3,31 @@ package Paysys::systems::Ipay;
 =head1 Ipay
   New module for Ipay payment system
 
-  Date: 07.06.2018
+  Date: 07.10.2020
+  VERSION: 1.05
+
 =cut
 
 use strict;
 use warnings FATAL => 'all';
 
-use parent 'main';
-
+use parent 'dbcore';
+use utf8;
+use Paysys;
 use Abills::Base qw(load_pmodule _bp);
 use Abills::Fetcher;
+use Time::Piece;
 require Abills::Templates;
 require Paysys::Paysys_Base;
-our $PAYSYSTEM_VERSION = '8.00';
 
+our $PAYSYSTEM_VERSION = '8.00';
 my $CONF;
 
 my $PAYSYSTEM_NAME       = 'Ipay';
 my $PAYSYSTEM_SHORT_NAME = 'IPAY';
-
 my $PAYSYSTEM_ID         = 72;
 
-my $DEBUG = 1;
+my $DEBUG = 0;
 my %PAYSYSTEM_CONF = (
   PAYSYS_IPAY_LANGUAGE     => '',
   PAYSYS_IPAY_FAST_PAY     => '',
@@ -39,8 +42,9 @@ my %MERCHANT_CONF = (
   PAYSYS_IPAY_SIGN_KEY     => '',
 );
 
-my ($json, $html, $user, $SELF_URL, $DATETIME, $OUTPUT2RETURN);
-our ($users, @payments);
+my ($json, $user, $SELF_URL, $DATETIME, $OUTPUT2RETURN);
+our (@payments);
+my Abills::HTML $html;
 
 #**********************************************************
 =head2 new() -
@@ -155,7 +159,6 @@ sub new {
 #**********************************************************
 sub paysys_ipay {
   my $self = shift;
-  load_pmodule('JSON');
 
   # Check the PHONE format
   if ($user->{PHONE}) {
@@ -173,7 +176,6 @@ sub paysys_ipay {
   # Card delete
   if ($self->{FORM}->{DeleteCard}) {
     my $json_request_string = $self->create_request_params_in_json('DeleteCard', { CARD_ALIAS => $self->{FORM}->{DeleteCard} });
-    use utf8;
     utf8::decode($json_request_string || '');
     my $result = web_request("$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}", { POST => $json_request_string });
 
@@ -197,7 +199,6 @@ sub paysys_ipay {
         ACC        => $self->{FORM}->{OPERATION_ID},
       }
     );
-    use utf8;
     utf8::decode($json_create_payment_string || '');
     my $pay_result = web_request("$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}", { POST => $json_create_payment_string });
 
@@ -253,7 +254,6 @@ sub paysys_ipay {
         ACC     => $self->{FORM}->{OPERATION_ID},
       }
     );
-    use utf8;
     utf8::decode($register_purchse_by_url_string || '');
     my $result = web_request("$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}", { POST => $register_purchse_by_url_string, });
     my $RESULT_HASH = $json->decode($result);
@@ -295,7 +295,7 @@ sub paysys_ipay {
     my $json_list_string = $self->create_request_params_in_json('List');
 
     my $result = web_request("$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}", { POST => $json_list_string, });
-    my $RESULT_HASH = $json->decode($result)->{response};
+    $RESULT_HASH = $json->decode($result)->{response};
 
     #    my $RESULT_HASH = {
     #        card1 => {
@@ -357,7 +357,7 @@ sub paysys_ipay {
     my $json_invite_by_url_string = $self->create_request_params_in_json('InviteByURL');
     my $invite_by_url_result = web_request("$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}", { POST => $json_invite_by_url_string, });
 
-    my $RESULT_HASH = $json->decode($invite_by_url_result);
+    $RESULT_HASH = $json->decode($invite_by_url_result);
 
     my $confirm_invite_url = $RESULT_HASH->{response}->{url};
     $confirm_invite_url =~ s/\\\//\//g;
@@ -435,7 +435,6 @@ sub create_request_params_in_json {
 #    $time = $time + 2 * 60 * 60;
 #    my $date = POSIX::strftime("%F %X", gmtime($time));
 #  $REQUEST_HASH{request}{auth}{time}  = $date;                                    # now time
-  use Time::Piece;
   my $t = localtime;
   my $time = $t->epoch + (($t->isdst) ? 3 : 2) * 60 * 60;
   my $date = POSIX::strftime("%F %X", gmtime($time));
@@ -544,6 +543,7 @@ sub create_request_params_in_json {
 #**********************************************************
 sub ipay_check_payments {
   my $self = shift;
+
   print "Content-Type: text/html\n\n";
   my $buffer = $self->{FORM}->{__BUFFER};
   my ($xml) = $buffer =~ /xml\=(<.+>)/gms;
@@ -674,8 +674,6 @@ sub user_portal_special {
   my $self = shift;
   my ($user, $attr) = @_;
 
-  load_pmodule('JSON');
-
   # Check the PHONE format
   if ($user->{PHONE}) {
     ($user->{PHONE}) = $user->{PHONE} =~ /(\d+)/;
@@ -692,7 +690,6 @@ sub user_portal_special {
   # Card delete
   if ($attr->{DeleteCard}) {
     my $json_request_string = $self->create_request_params_in_json('DeleteCard', { CARD_ALIAS => $attr->{DeleteCard}, USER => $user });
-    use utf8;
     utf8::decode($json_request_string || '');
     my $result = web_request("$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}", { POST => $json_request_string });
 
@@ -717,7 +714,6 @@ sub user_portal_special {
         USER       => $user,
       }
     );
-    use utf8;
     utf8::decode($json_create_payment_string || '');
     my $pay_result = web_request("$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}", { POST => $json_create_payment_string });
 
@@ -774,7 +770,7 @@ sub user_portal_special {
         USER    => $user,
       }
     );
-    use utf8;
+
     utf8::decode($register_purchse_by_url_string || '');
     my $result = web_request("$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}", { POST => $register_purchse_by_url_string, });
     my $RESULT_HASH = $json->decode($result);
@@ -881,7 +877,7 @@ sub user_portal_special {
     my $json_invite_by_url_string = $self->create_request_params_in_json('InviteByURL');
     my $invite_by_url_result = web_request("$self->{conf}->{PAYSYS_IPAY_REQUEST_URL}", { POST => $json_invite_by_url_string, });
 
-    my $RESULT_HASH = $json->decode($invite_by_url_result);
+    $RESULT_HASH = $json->decode($invite_by_url_result);
 
     my $confirm_invite_url = $RESULT_HASH->{response}->{url};
     $confirm_invite_url =~ s/\\\//\//g;
@@ -1166,17 +1162,17 @@ sub periodic {
 
 =cut
 #**********************************************************
-sub _r_file{
-  my($sftp, $data, $offset, $size) = @_;
-  my @data = split("\n", $data);
-
-  foreach my $line (@data){
-    push (@payments, $line);
-  }
-}
+# sub _r_file{
+#   my($sftp, $data, $offset, $size) = @_;
+#   my @data = split("\n", $data);
+#
+#   foreach my $line (@data){
+#     push (@payments, $line);
+#   }
+# }
 
 #**********************************************************
-=head2 reports()
+=head2 reports($attr)
 
 =cut
 #**********************************************************
@@ -1186,19 +1182,16 @@ sub report {
 
   $html = $attr->{HTML};
   my $lang = $attr->{LANG};
-  use Paysys;
   my $Paysys = Paysys->new($self->{db}, $self->{admin}, $self->{conf});
   my $list = $Paysys->paysys_report_list({ TABLE => 'paysys_ipay_report', COLS_NAME => 1, PAGE_ROWS => 9999999 });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "Ipay",
-      title      =>
-      [ "#", "$lang->{USER}", "$lang->{SUM}", "$lang->{DATE}", "$lang->{TRANSACTION}"  ],
-      DATA_TABLE => { 'order' => [ [ 0, 'id' ] ] },
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => "Ipay",
+    title      =>
+    [ "#", $lang->{USER}, $lang->{SUM}, $lang->{DATE}, $lang->{TRANSACTION} ],
+    DATA_TABLE => { 'order' => [ [ 0, 'id' ] ] },
+  });
 
   foreach my $payment (@$list) {
     $table->addrow($payment->{id},

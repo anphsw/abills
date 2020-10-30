@@ -11,15 +11,16 @@ use Abills::HTML;
 use Tariffs;
 
 our (
-  $html,
   %lang,
   $Tv_service,
   $db,
   $admin,
   @service_status,
   $Iptv,
+  $users
 );
 
+our Abills::HTML $html;
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Shedule = Shedule->new($db, $admin, \%conf);
 
@@ -54,7 +55,7 @@ sub iptv_subcribe_add {
     PAYMENT_TYPE => '_SHOW'
   });
 
-  if ($Tariffs->{TOTAL} < 1) {
+  if ($Tariffs->{TOTAL} < 1 && $Iptv->{TOTAL} < 2) {
     $html->message('err', $lang{ERROR}, $lang{ERR_NO_AVAILABLE_TP}, { ID => 891 });
     return 1;
   }
@@ -171,9 +172,12 @@ sub iptv_user_info {
         }
       }
 
-      $Iptv->user_add({ %FORM, UID => $user->{UID} });
+      $Iptv->user_add({ %FORM, UID => $user->{UID}, IPTV_ACTIVATE => $DATE || '0000-00-00' });
       if (!$Iptv->{errno}) {
         $Iptv->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE};
+        $Iptv->{TP_INFO}{ABON_DISTRIBUTION} = 0;
+        $Iptv->{TP_INFO}{PERIOD_ALIGNMENT} = 0;
+
         service_get_month_fee($Iptv, { SERVICE_NAME => $lang{TV} }) if (!$FORM{STATUS});
         $Iptv->{ID} = $Iptv->{INSERT_ID};
 
@@ -250,9 +254,7 @@ sub iptv_user_info {
       ID             => $FORM{chg}
     });
 
-    if ($return && $return == 2) {
-      return 1;
-    }
+    return 1 if ($return && $return == 2);
   }
 
   my $template_content = _include('iptv_user_info_custom', 'Iptv');
@@ -270,9 +272,7 @@ sub iptv_user_info {
       COLS_NAME  => 1,
     });
 
-    if ($services->[0]{subscribe_count} <= $Iptv->{TOTAL}) {
-      $hide_add_btn = 1;
-    }
+    $hide_add_btn = 1 if ($services->[0]{subscribe_count} <= $Iptv->{TOTAL});
   }
 
   delete($LIST_PARAMS{LOGIN});
@@ -307,7 +307,7 @@ sub iptv_user_info {
     TOTAL           => 1
   });
 
-  _iptv_user_shedules({ chg => $Iptv->{TOTAL} == 1 && !$FORM{chg} ? $list->[0]->{id} : 0 });
+  _iptv_user_shedules({ chg => $Iptv->{TOTAL} == 1 && !$FORM{chg} ? $list->[0]->{id} : 0, SHOW_FIRST => 1 });
 
   if ($Iptv->{TOTAL} == 1 && !$FORM{chg}) {
     iptv_user_service({
@@ -340,9 +340,7 @@ sub iptv_user_service {
 
   $Iptv->user_info($user_service_id, { UID => $user->{UID} });
   $Tv_service = undef;
-  if ($Iptv->{SERVICE_ID}) {
-    $Tv_service = tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} });
-  }
+  $Tv_service = tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} }) if ($Iptv->{SERVICE_ID});
 
   if ($FORM{additional_functions}) {
     return iptv_additional_functions();
@@ -422,13 +420,8 @@ sub iptv_user_service {
     }
   }
 
-  if ($conf{IPTV_USER_CHG_TP}) {
-    $Iptv->{TP_CHANGE_BTN} = $html->button($lang{CHANGE},
-      'index=' . get_function_index('iptv_user_chg_tp')
-        . '&ID=' . $user_service_id
-        . '&sid=' . $sid, { class => 'btn btn-primary' });
-  }
-
+  $Iptv->{TP_CHANGE_BTN} = $html->button($lang{CHANGE}, 'index=' . get_function_index('iptv_user_chg_tp')
+    . '&ID=' . $user_service_id . '&sid=' . $sid, { class => 'btn btn-primary' }) if ($conf{IPTV_USER_CHG_TP});
 
   if (in_array(2, [ values %$PORTAL_ACTIONS ]) && !$Iptv->{STATUS}) {
     $Iptv->{DISABLE_BTN} = $html->button($lang{DISABLE_SERVICE},
@@ -460,15 +453,16 @@ sub iptv_user_service {
     if ($action_ =~ /:/) {
       ($service_id, $action_) = split(/:/, $action_);
     }
-    #if($action_ eq "0") {
+
     $Iptv->{DISABLE_BTN} = $html->badge("$lang{DISABLE_SERVICE_DATE}: $shedule_action->{y}-$shedule_action->{m}-$shedule_action->{d}");
-    #}
     my $span_btn = $html->element('span', '', {
       class          => 'glyphicon glyphicon-off',
       OUTPUT2RETURN  => 1,
       'data-tooltip' => "$lang{DEL} $lang{SHEDULE}"
     });
+
     $FORM{SHEDULE_ID} = $shedule_action->{id} || 0;
+
     $Iptv->{DISABLE_BTN} .= " " . $html->button($span_btn, undef, {
       JAVASCRIPT     => '',
       SKIP_HREF      => 1,
@@ -477,36 +471,10 @@ sub iptv_user_service {
     });
   }
 
-  if ($conf{IPTV_CLIENT_M3U}) {
-    iptv_m3u({ SERVICE_INFO => $Iptv });
-  }
+  _iptv_portal_get_service_info_btn();
+  iptv_m3u({ SERVICE_INFO => $Iptv }) if $conf{IPTV_CLIENT_M3U};
 
-  $Iptv->{IPTV_EXTRA_FIELDS} = '';
-  my @check_fields = (
-    "MONTH_ABON:0.00:\$_MONTH_FEE",
-    "DAY_ABON:0.00:\$_DAY_FEE",
-    'ACTIVATE:0000-00-00:$_ACTIVATE',
-    'EXPIRE:0000-00-00:$_EXPIRE',
-    'ACTIVATE_PRICE:0.00:$_ACTIVATE',
-    "CID::MAC",
-    "SUBSCRIBE_ID:0:Customer Id",
-  );
-
-  my @extra_fields = ();
-  foreach my $param (@check_fields) {
-    my ($id, $default_value, $lang_, $value_prefix) = split(/:/, $param);
-    if (!defined($Iptv->{$id}) || $Iptv->{$id} eq $default_value) {
-      next;
-    }
-
-    push @extra_fields, $html->tpl_show(templates('form_row_client'), {
-      ID    => '$id',
-      NAME  => _translate($lang_),
-      VALUE => $Iptv->{$id} . ($value_prefix ? (' ' . $value_prefix) : ''),
-    }, { OUTPUT2RETURN => 1 });
-  }
-
-  $Iptv->{IPTV_EXTRA_FIELDS} = join(($FORM{json} ? ',' : ''), @extra_fields);
+  _iptv_portal_extra_fields();
 
   $html->tpl_show(_include('iptv_user_info', 'Iptv'), $Iptv);
 
@@ -687,18 +655,18 @@ sub iptv_user_chg_tp {
     $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{SHEDULE_ID}]");
   }
 
-  my $message = '';
-  my $date_ = ($FORM{date_y} || '') . '-' . ($FORM{date_m} || '') . '-' . ($FORM{date_d} || '');
   my $shedules = $Shedule->list({
     UID          => $user->{UID},
     TYPE         => 'tp',
-    DESCRIBE     => "$message\n$lang{FROM}: '$date_'",
+    SHEDULE_DATE => ">=$DATE",
     MODULE       => 'Iptv',
     ADMIN_ACTION => '_SHOW',
     COLS_NAME    => 1,
-    COLS_UPPER   => 1
+    COLS_UPPER   => 1,
+    SORT         => 's.y, s.m, s.d'
   });
-  
+
+
   if (_iptv_portal_show_exist_shedule($shedules)) {
     $Tariffs->{UID} = $attr->{SERVICE_INFO}->{UID};
     $Tariffs->{TP_ID} = $Iptv->{TP_NUM};
@@ -718,27 +686,29 @@ sub iptv_user_chg_tp {
     SEL_VALUE => 'id,name',
   });
 
+  my $tp_list = $Tariffs->list({
+      TP_GID            => $Iptv->{TP_GID},
+      CHANGE_PRICE      => '_SHOW',
+      MODULE            => 'Iptv',
+      NEW_MODEL_TP      => 1,
+      PRIORITY          => $Iptv->{TP_PRIORITY},
+      ABON_DISTRIBUTION => '_SHOW',
+      DAY_FEE           => '_SHOW',
+      MONTH_FEE         => '_SHOW',
+      COMMENTS          => '_SHOW',
+      COLS_NAME         => 1,
+      DOMAIN_ID         => $user->{DOMAIN_ID},
+      SERVICE_ID        => $Iptv->{SERVICE_ID} || '_SHOW',
+      STATUS            => '0',
+      PAYMENT_TYPE      => '_SHOW'
+  });
+
   $table = $html->table({
     width       => '100%',
     caption     => $lang{TARIF_PLAN},
-    title_plain => [ "#", $lang{NAME}, $lang{DAY_FEE}, $lang{MONTH_FEE} ],
-  });
-
-  my $tp_list = $Tariffs->list({
-    TP_GID            => $Iptv->{TP_GID},
-    CHANGE_PRICE      => '_SHOW',
-    MODULE            => 'Iptv',
-    NEW_MODEL_TP      => 1,
-    PRIORITY          => $Iptv->{TP_PRIORITY},
-    ABON_DISTRIBUTION => '_SHOW',
-    DAY_FEE           => '_SHOW',
-    MONTH_FEE         => '_SHOW',
-    COMMENTS          => '_SHOW',
-    COLS_NAME         => 1,
-    DOMAIN_ID         => $user->{DOMAIN_ID},
-    SERVICE_ID        => $Iptv->{SERVICE_ID} || '_SHOW',
-    STATUS            => '0',
-    PAYMENT_TYPE      => '_SHOW'
+    title_plain => [ "#", $lang{NAME}, $lang{DAY_FEE}, $lang{MONTH_FEE}, '-' ],
+    ID          => 'IPTV_TP',
+    FIELDS_IDS  => $Tariffs->{COL_NAMES_ARR},
   });
 
   my @skip_tp_changes = ();
@@ -758,19 +728,15 @@ sub iptv_user_chg_tp {
     my $radio_but = '';
     $user->{CREDIT} = ($user->{CREDIT} && $user->{CREDIT} > 0) ? $user->{CREDIT} : (($tp->{credit} && $tp->{credit} > 0) ? $tp->{credit} : 0);
     if (($tp->{day_fee} + $tp->{month_fee} < $user->{DEPOSIT} + $user->{CREDIT}) || $tp->{payment_type} == 1 || $tp->{abon_distribution}) {
-      $radio_but = $html->form_input('TP_ID', "$tp->{tp_id}", { TYPE => 'radio', OUTPUT2RETURN => 1 });
+      $radio_but = $html->form_input('TP_ID', $tp->{tp_id}, { TYPE => 'radio', OUTPUT2RETURN => 1 });
     }
     else {
       $radio_but = $lang{ERR_SMALL_DEPOSIT};
     }
 
-    $table->addrow(
-      $tp->{id},
-      $html->b($tp->{name} || q{}) . $html->br() . convert($tp->{comments} || q{}, { text2html => 1 }),
-      $tp->{day_fee},
-      $tp->{month_fee},
-      $radio_but
-    );
+    my $tp_name = _iptv_portal_get_service_info_btn($tp) || $tp->{name} || '';
+
+    $table->addrow($tp->{id}, $tp_name, $tp->{day_fee}, $tp->{month_fee}, $radio_but);
     $count_access_tps++;
   }
   $Tariffs->{TARIF_PLAN_TABLE} = $table->show({ OUTPUT2RETURN => 1 });
@@ -830,15 +796,13 @@ sub iptv_m3u {
 
       if ($Tariffs->{TOTAL} > 0) {
         my $interval_id = $list->[0]->{id};
-        $list = $Iptv->channel_ti_list(
-          {
-            %LIST_PARAMS,
-            USER_INTERVAL_ID => $interval_id,
-            STREAM           => '_SHOW',
-            COLS_NAME        => 1,
-            SORT             => 2,
-          }
-        );
+        $list = $Iptv->channel_ti_list({
+          %LIST_PARAMS,
+          USER_INTERVAL_ID => $interval_id,
+          STREAM           => '_SHOW',
+          COLS_NAME        => 1,
+          SORT             => 2,
+        });
 
         if ($Iptv->{TOTAL} > 0) {
           foreach my $line (@{$list}) {
@@ -921,6 +885,8 @@ sub iptv_portal_additional_info {
 
   return [] if !$FORM{chg} || !$FORM{UID} || !$FORM{sid};
 
+  $users = Users->new($db, $admin, \%conf) if !$users;
+
   $Iptv->user_info($FORM{chg});
   $users->info($FORM{UID}, { SHOW_PASSWORD => 1 });
   my $url = "index=$index&chg=$FORM{chg}&MODULE=Iptv&UID=$FORM{UID}&sid=$FORM{sid}";
@@ -930,6 +896,7 @@ sub iptv_portal_additional_info {
 
   return [];
 }
+
 
 #**********************************************************
 =head2 _iptv_portal_show_exist_shedule($attr)
@@ -979,6 +946,149 @@ sub _iptv_portal_show_exist_shedule {
     return 1;
   }
 
+  return 0;
+}
+
+#**********************************************************
+=head2 _iptv_portal_get_service_info_btn($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _iptv_portal_get_service_info_btn {
+  my ($tp_info) = @_;
+
+  my $function_index = get_function_index('iptv_portal_service_info');
+
+  return 0 if !$function_index;
+  
+  if ($FORM{chg} && $Tv_service && $Tv_service->can('service_info')) {
+    $Iptv->user_info($FORM{chg});
+    return 1 if !$Iptv->{TOTAL};
+
+    my $link = "qindex=$function_index&show_service_info=$Iptv->{SERVICE_ID}&tp_id=$Iptv->{TP_ID}&header=2";
+
+    $Iptv->{ADDITIONAL_BUTTON} .= ' ' . $html->button($lang{CHANNELS}, $link, {
+      class         => 'btn btn-success',
+      LOAD_TO_MODAL => 1,
+      ex_params     => "style='cursor: pointer'",
+    });
+
+    return 1;
+  }
+
+  return 1 unless $tp_info;
+
+  my $tp_name = $html->b($tp_info->{name} || q{}) . $html->br() . convert($tp_info->{comments} || q{}, { text2html => 1 });
+
+  return $tp_name unless $tp_info->{service_id};
+
+  $Tv_service ||= tv_load_service('', { SERVICE_ID => $tp_info->{service_id} });
+
+  return $tp_name unless ($Tv_service && $Tv_service->can('service_info'));
+  
+  return $html->button($tp_name, "qindex=$function_index&show_service_info=$tp_info->{service_id}&tp_id=$tp_info->{tp_id}&header=2", {
+    LOAD_TO_MODAL => 1,
+    ex_params     => "style='cursor: pointer'",
+  });
+}
+
+#**********************************************************
+=head2 iptv_portal_service_info($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub iptv_portal_service_info {
+  my ($attr) = @_;
+
+  return 0 unless ($FORM{show_service_info} && $FORM{tp_id});
+
+  $Tv_service ||= tv_load_service('', { SERVICE_ID => $FORM{show_service_info} });
+
+  return 0 unless ($Tv_service && $Tv_service->can('service_info'));
+
+  $Tariffs->info(undef, { TP_ID => $FORM{tp_id} });
+  my $service_infos = $Tv_service->service_info($Tariffs);
+
+  $html->tpl_show(_include('iptv_channels_list', 'Iptv'), { CHANNELS => $service_infos });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _iptv_portal_extra_fields($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _iptv_portal_extra_fields {
+
+  $Iptv->{IPTV_EXTRA_FIELDS} = '';
+  my @check_fields = (
+    "MONTH_ABON:0.00:\$_MONTH_FEE",
+    "DAY_ABON:0.00:\$_DAY_FEE",
+    'ACTIVATE:0000-00-00:$_ACTIVATE',
+    'EXPIRE:0000-00-00:$_EXPIRE',
+    'ACTIVATE_PRICE:0.00:$_ACTIVATE',
+    "CID::MAC",
+    "SUBSCRIBE_ID:0:Customer Id",
+  );
+
+  my @extra_fields = ();
+  foreach my $param (@check_fields) {
+    my ($id, $default_value, $lang_, $value_prefix) = split(/:/, $param);
+    next if (!defined($Iptv->{$id}) || $Iptv->{$id} eq $default_value);
+
+    push @extra_fields, $html->tpl_show(templates('form_row_client'), {
+      ID    => $id,
+      NAME  => _translate($lang_),
+      VALUE => $Iptv->{$id} . ($value_prefix ? " $value_prefix" : ''),
+    }, { OUTPUT2RETURN => 1 });
+  }
+
+  _iptv_portal_service_extra_fields(\@extra_fields);
+
+  $Iptv->{IPTV_EXTRA_FIELDS} = join(($FORM{json} ? ',' : ''), @extra_fields);
+
+  return 0;
+}
+
+#**********************************************************
+=head2 _iptv_portal_service_extra_fields($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub _iptv_portal_service_extra_fields {
+  my ($extra_fields) = @_;
+
+  return if !$Tv_service || !$Tv_service->can('get_iptv_portal_extra_fields');
+  
+  my $service_extra_fields = $Tv_service->get_iptv_portal_extra_fields($Iptv);
+
+  return if ref $service_extra_fields ne 'ARRAY';
+
+  foreach my $item (@{$service_extra_fields}) {
+    push @{$extra_fields}, $html->tpl_show(templates('form_row_client'), {
+      ID    => $item->{id} || '',
+      NAME  => _translate($item->{name}),
+      VALUE => $item->{value},
+    }, { OUTPUT2RETURN => 1 });
+  }
+  
   return 0;
 }
 

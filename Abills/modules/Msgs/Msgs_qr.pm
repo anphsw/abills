@@ -82,7 +82,6 @@ sub msgs_sp_show_new {
     my $closed_in_month = $Msgs->messages_list(
       {
         CLOSED_DATE    => ">=$start_date;<=$end_date",
-
         SORT           => 'id',
         DESC           => 'desc',
         PAGE_ROWS      => 9999999,
@@ -92,7 +91,6 @@ sub msgs_sp_show_new {
     my $opened_in_month = $Msgs->messages_list(
       {
         DATE           => ">=$start_date;<=$end_date",
-
         SORT           => 'id',
         DESC           => 'desc',
         PAGE_ROWS      => 9999999,
@@ -123,7 +121,7 @@ sub msgs_sp_show_new {
 
   return msgs_sp_table($messages_list, {
     CAPTION      => ($attr->{STATE}) ? $lang{OVERDUE} : $lang{MESSAGES},
-    SKIP_ICON => 1,
+    SKIP_ICON    => 1,
     DATE_KEY     => ($attr->{STATE}) ? 'plan_date_time' : 'datetime',
     DATA_CAPTION => ($lang{DATE}),
     BADGE        => $badge
@@ -340,7 +338,8 @@ sub msgs_sp_table {
         ? $html->element('span', substr($msg_info->{chapter_name}, 0, 30) . '...', { title => $msg_info->{chapter_name} })
         : $msg_info->{chapter_name}
       : $lang{NO_CHAPTER};
-
+    
+    $msg_info->{subject} = convert($msg_info->{subject}, { text2html => 1, json => $FORM{json} });
     my $subject = ($msg_info->{subject})
       ? ( length($msg_info->{subject}) > 30)
         ? $html->element('span', substr($msg_info->{subject}, 0, 30) . '...', { title => $msg_info->{subject} })

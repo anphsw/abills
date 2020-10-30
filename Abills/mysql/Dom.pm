@@ -120,18 +120,46 @@ sub list {
 sub users_online_by_builds {
   my $self = shift;
 
-  my $online_list = $self->query2("
-         SELECT b.id AS id, u.uid, u.fio, i.status, b.number
-         FROM internet_online AS i
-         left join users_pi AS u on u.uid = i.uid
-         LEFT JOIN builds AS b ON b.id = u.location_id;",
-    undef,
-    {
-      COLS_NAME => 1
-    });
-
+  my $online_list = $self->query2("SELECT b.id AS id, u.uid, u.fio, i.status, b.number
+    FROM internet_online AS i
+    LEFT JOIN users_pi u ON (u.uid=i.uid)
+    LEFT JOIN builds AS b ON (b.id=u.location_id);",
+    undef, { COLS_NAME => 1 }
+  );
 
   return $online_list->{list} || [];
+}
+
+#**********************************************************
+=head2 streets_list_with_builds($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub streets_list_with_builds {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former($attr, [ [ 'DISTRICT_ID', 'INT', 'st.district_id', 1 ], ], { WHERE => 1 });
+
+  $self->query2("SET SESSION group_concat_max_len = 1000000;", 'do');
+  $self->query2("SELECT st.id AS street_id, st.name as street_name, st.second_name AS second_name,
+    GROUP_CONCAT(DISTINCT CONCAT(b.number, '|', b.id, '|', b.users_count) ORDER BY b.number + 0) as builds_number
+    FROM streets st
+    LEFT JOIN (
+      SELECT b.number as number, b.id as id, b.street_id as street_id, COUNT(pi.uid) AS users_count
+      FROM builds b
+      LEFT JOIN users_pi pi ON (b.id=pi.location_id)
+      GROUP BY b.id
+    ) b ON (b.street_id=st.id)
+    $WHERE GROUP BY st.id ORDER BY street_name;",
+    undef, { COLS_NAME => 1 }
+  );
+
+  return $self->{list} || [];
 }
 
 1

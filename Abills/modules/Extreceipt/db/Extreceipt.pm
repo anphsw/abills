@@ -30,7 +30,7 @@ sub new {
   };
   
   bless($self, $class);
-  
+  $self->{debug}=1;
   return $self;
 }
 
@@ -44,11 +44,18 @@ sub list {
   my ($attr) = @_;
 
   my $WHERE =  $self->search_former($attr, [
-      ['STATUS', 'INT', 'e.status', 1],
-      ['UID',    'INT', 'p.uid',    1],
+      ['STATUS',     'INT', 'e.status', 1],
+      ['UID',        'INT', 'p.uid',    1],
+      ['PAYMENT_ID', 'INT', 'p.id',     1],
+      ['FROM_DATE',  'DATE','p.date',   1],
     ],
     { WHERE => 1 }
   );
+
+  my $limit = '';
+  if($attr->{PAGE_ROWS}) {
+    $limit = " LIMIT $attr->{PAGE_ROWS}";
+  }
 
   $self->query("SELECT
       $self->{SEARCH_FIELDS}
@@ -58,8 +65,8 @@ sub list {
       p.sum,
       p.uid,
       ucc.value as c_phone,
-      IF(ucp.value is NULL, pi.phone, ucp.value) as phone,
-      IF(ucm.value is NULL, pi.email, ucp.value) as mail
+      IF(ucp.value is NULL, pi.phone, ucp.value) AS phone,
+      IF(ucm.value is NULL, pi.email, ucp.value) AS mail
       FROM extreceipts e
       LEFT JOIN extreceipts_kkt ek ON (e.kkt_id = ek.kkt_id)
       LEFT JOIN payments p ON (p.id = e.payments_id)
@@ -68,7 +75,8 @@ sub list {
       LEFT JOIN users_contacts ucp ON (ucp.uid = p.uid AND ucp.type_id=2)
       LEFT JOIN users_contacts ucm ON (ucm.uid = p.uid AND ucm.type_id=9)
       $WHERE
-      GROUP BY e.payments_id;",
+      GROUP BY e.payments_id
+      $limit;",
     undef,
     { %$attr, COLS_NAME => 1, COLS_UPPER => 1 }
   );
@@ -141,6 +149,13 @@ sub get_new_payments {
   my $last_id = $self->{list}[0][0];
 
   my $kkt_list = $self->kkt_list();
+
+  if ($self->{TOTAL} < 1) {
+    $self->{error}=111;
+    $self->{errstr}="NO KKT_LIST VALUES";
+    return 0;
+  }
+
   my $CASE = "CASE\n";
   foreach my $kkt (@$kkt_list) {
     if (!$kkt->{methods}) {
@@ -351,7 +366,7 @@ sub api_list {
   );
 
   $self->query(
-    "SELECT * FROM extreceipts_api ea $WHERE;",
+    "SELECT * FROM `extreceipts_api` ea $WHERE;",
     undef,
     { COLS_NAME => 1, COLS_UPPER => 1 }
   );

@@ -86,18 +86,23 @@ sub equipment_test{
 
     my @port_info_list = split( /,\s?/, $attr->{PORT_INFO} );
 
+    my @requires_cable_test_fields = grep {$snmp_ports_info{$_}->{REQUIRES_CABLE_TEST}} (keys %snmp_ports_info);
+
     foreach my $type ( @port_info_list ){
       my $oid = '';
+      my $function;
 
-      if($type eq 'DISTANCE') {
+      if(in_array($type, \@requires_cable_test_fields)) {
         next;
       }
 
       if ( $snmp_ports_info{$type}{OIDS} ){
         $oid = $snmp_ports_info{$type}{OIDS};
+        $function = $snmp_ports_info{$type}{PARSER};
       }
       elsif (ref $attr->{SNMP_TPL} eq 'HASH' && $attr->{SNMP_TPL}->{$type} ){
         $oid = $attr->{SNMP_TPL}->{$type}->{OIDS};
+        $function = $attr->{SNMP_TPL}->{$type}->{PARSER};
       }
       else{
         next;
@@ -114,6 +119,10 @@ sub equipment_test{
         next;
       }
 
+      if ($function && defined( &{$function} ) ) {
+        ($ports_info) = &{ \&$function }($ports_info);
+      }
+
       if($attr->{PORT_ID}) {
         $ports_info{$attr->{PORT_ID}}{$type} = $ports_info;
         next;
@@ -126,40 +135,74 @@ sub equipment_test{
       }
     }
 
-    if(in_array('DISTANCE', \@port_info_list) && $snmp_ports_info{DISTANCE}) {
+    if($snmp_ports_info{RUN_CABLE_TEST}{OIDS} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{OIDS}) {
       foreach my $port (sort { $a <=> $b } keys %ports_info) {
         if(! $ports_info{$port}{PORT_TYPE}) {
           $ports_info{$port}{PORT_TYPE} = snmp_get({
             %{$attr},
-            OID   => $snmp_ports_info{PORT_TYPE}.'.'.$port,
+            OID   => $snmp_ports_info{PORT_TYPE}{OIDS}.'.'.$port,
           });
         }
 
         if((! defined($ports_info{$port}{PORT_STATUS}) || $ports_info{$port}{PORT_STATUS} != 1)
           || (! defined($ports_info{$port}{PORT_TYPE}) || $ports_info{$port}{PORT_TYPE} != 6)) {
-          next
+          next;
         }
 
-        if($attr->{TEST_DISTANCE}) {
-          my $result = snmp_set({
-            %{$attr},
-            OID   => [ $snmp_ports_info{DISTANCE_ACTIVE}.'.'.$port, 'integer', 1 ],
-            DEBUG => ($debug > 2) ? 1 : undef
-          });
+        if((defined($snmp_ports_info{RUN_CABLE_TEST}{PORT_NAME_REGEX})
+            && defined($ports_info{$port}{PORT_NAME})
+            && $ports_info{$port}{PORT_NAME} !~ $snmp_ports_info{RUN_CABLE_TEST}{PORT_NAME_REGEX})
+          || (defined($snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{PORT_NAME_REGEX})
+            && defined($ports_info{$port}{PORT_NAME})
+            && $ports_info{$port}{PORT_NAME} !~ $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{PORT_NAME_REGEX})) {
+          next;
+        }
 
-          #print "Port: $port /Port_status: $ports_info{$port}{PORT_STATUS} / $ports_info{$port}{PORT_TYPE} Result $result<br>\n";
-          if ($result) {
-            my $oid = $snmp_ports_info{DISTANCE};
-            my $ports_info = snmp_get({
+        if($attr->{RUN_CABLE_TEST}) {
+          my $result;
+          if ($snmp_ports_info{RUN_CABLE_TEST}{OIDS}) {
+            $result = snmp_set({
               %{$attr},
-              OID   => $oid.'.'.$port,
+              OID   => [ $snmp_ports_info{RUN_CABLE_TEST}{OIDS} . '.' . $port, 'integer', 1 ],
               DEBUG => ($debug > 2) ? 1 : undef
             });
-            $ports_info{$port}{DISTANCE} = $ports_info;
+          }
+
+          if ($snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{OIDS}) {
+            $result = snmp_set({
+              %{$attr},
+              OID   => [ $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{OIDS}, 'integer', $port ],
+              DEBUG => ($debug > 2) ? 1 : undef
+            });
+          }
+
+          if ($result) {
+            foreach my $type (@requires_cable_test_fields) {
+              if (!$snmp_ports_info{$type} || !$snmp_ports_info{$type}{OIDS}) {
+                next;
+              }
+
+              my $oid = $snmp_ports_info{$type}{OIDS};
+              my $ports_info = snmp_get({
+                  %{$attr},
+                  OID   => $oid.'.'.$port,
+                  DEBUG => ($debug > 2) ? 1 : undef
+                });
+
+              if ( $ports_info ) {
+                my $function = $snmp_ports_info{$type}{PARSER};
+
+                if ($function && defined( &{$function} ) ) {
+                  ($ports_info) = &{ \&$function }($ports_info);
+                }
+              }
+
+              $ports_info{$port}{CABLE_TESTER}{$type} = $ports_info;
+            }
           }
         }
         else {
-          $ports_info{$port}{DISTANCE} = '-';
+          $ports_info{$port}{CABLE_TESTER} = 1; #indicates that port supports cable tester
         }
       }
     }
@@ -324,7 +367,7 @@ sub get_vlans{
       next if (!$line);
       if ( $line =~ /^(\d+):(\d+)/ ){
         my $port_id = $1;
-        my $vlan_id = $2; 
+        my $vlan_id = $2;
         if (!$vlan_hash{$vlan_id}{STATUS}) {
           if (!$vlan_hash{$vlan_id}{PORTS} ) {
             $vlan_hash{$vlan_id}{PORTS} .= "$port_id";
@@ -529,6 +572,7 @@ sub get_fdb {
         WALK    => 1
       });
       foreach my $line (@{ $value_ }) {
+        next if (!$line);
         my ($index, $name) = split( /:/, $line, 2 );
         $index = $ports_index{ $index } || $index;
         $ports_name{ $index } = $name;
@@ -723,6 +767,36 @@ sub cisco_get_fdb {
   }
 
   return %fdb_result;
+}
+
+#********************************************************
+=head2 _edge_core_convert_pair_status($status)
+
+  Arguments:
+    $status
+
+  Returns:
+    $status_text
+
+=cut
+#********************************************************
+sub _edge_core_convert_pair_status {
+  my ($status) = @_;
+
+  my %status_hash = (
+    1 => 'notTestedYet',
+    2 => 'ok:text-green',
+    3 => 'open',
+    4 => 'short',
+    5 => 'openShort',
+    6 => 'crosstalk',
+    7 => 'unknown',
+    8 => 'impedanceMismatch',
+    9 => 'fail:text-red',
+    10 => 'notSupport'
+  );
+
+  return $status_hash{$status};
 }
 
 1;

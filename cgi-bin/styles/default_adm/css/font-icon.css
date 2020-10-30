@@ -1,17 +1,19 @@
 @font-face {
   font-family: 'icon';
-  src:  url('../fonts/icon.eot?7owlxe');
-  src:  url('../fonts/icon.eot?7owlxe#iefix') format('embedded-opentype'),
-  url('../fonts/icon.ttf?7owlxe') format('truetype'),
-  url('../fonts/icon.wof?7owlxe') format('woff'),
-  url('../fonts/icon.svg?7owlxe#icon') format('svg');
+  src:  url('../fonts/icon.eot?7k8kv7');
+  src:  url('../fonts/icon.eot?7k8kv7#iefix') format('embedded-opentype'),
+    url('../fonts/icon.ttf?7k8kv7') format('truetype'),
+    url('../fonts/icon.woff?7k8kv7') format('woff'),
+    url('../fonts/icon.svg?7k8kv7#icon') format('svg');
   font-weight: normal;
   font-style: normal;
+  font-display: block;
 }
 
 [class^="icon-"], [class*=" icon-"] {
   /* use !important to prevent issues with browser extensions that change fonts */
   font-family: 'icon' !important;
+  speak: never;
   font-style: normal;
   font-weight: normal;
   font-variant: normal;
@@ -23,11 +25,11 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-eth:before {
-  content: "\e901";
-}
 .icon-eth-reverse:before {
   content: "\e900";
+}
+.icon-eth:before {
+  content: "\e901";
 }
 .icon-qsfp:before {
   content: "\e902";
@@ -52,4 +54,7 @@
 }
 .icon-usb-reverse:before {
   content: "\e909";
+}
+.icon-television:before {
+  content: "\f26c";
 }

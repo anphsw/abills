@@ -127,4 +127,11 @@ $lang{CABLE_RESERVE} = 'Cable reserve';
 $lang{CAT_CABLE} = 'Cat cable';
 $lang{RESERVE} = 'Reserve';
 
+$lang{ADD_SCHEME} = 'Add commutation scheme';
+$lang{REMOVE_SCHEME} = 'Remove commutation scheme';
+$lang{POSITION_CHANGE_ERROR} = 'Position change error';
+$lang{POSITION_SUCCESSFULLY_CHANGED} = 'Position successfully changed';
+$lang{BIG_COMMUTATION} = 'Big commutation';
+$lang{CHOOSE_COMMUTATION} = 'Choose commutation';
+
 1;

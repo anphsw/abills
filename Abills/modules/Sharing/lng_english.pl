@@ -25,4 +25,7 @@ $lang{SUCCESS_DEMO}      = 'Successfully granted access to file in demo mode to 
 $lang{CONTINUE_DEMO}     = 'Continue demo';
 $lang{FILES_DEMO}        = 'Files to which access granted in demo mode';
 
+$lang{TABLE_MODE} = 'Table mode';
+$lang{PLATE_MODE} = 'Plate mode';
+
 1

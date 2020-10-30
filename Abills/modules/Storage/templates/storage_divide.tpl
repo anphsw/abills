@@ -12,7 +12,7 @@
 
   %DIVIDE_TABLE%
 
-  <input type='submit' name='divide_all' value='_{DIVIDE}_' class='btn btn-primary'>
+  <input type='submit' id='DIVIDE_BUTTON' name='divide_all' value='_{DIVIDE}_' class='btn btn-primary'>
 </form>
 
 
@@ -28,31 +28,32 @@
     timeout = setTimeout(function() {
       doSearch(val, element); //this is your existing function
     }, 500);
-  };
+  }
 
   function doSearch(val, element) {
     if(!val){
       jQuery(element).parent().parent().removeClass('has-success').addClass('has-error');
       return 1;
     }
+    document.getElementById('DIVIDE_BUTTON').disabled = true;
     jQuery.post('$SELF_URL', 'header=2&qindex=' + '%CHECK_SN_INDEX%' + '&sn_check=' + val, function (data) {
-      console.log(data);
+      document.getElementById('DIVIDE_BUTTON').disabled = false;
       if(data === 'success'){
         jQuery(element).parent().removeClass('has-error').addClass('has-success');
         jQuery(element).css('border', '3px solid green');
+        element.setCustomValidity('');
       }
       else{
         jQuery(element).parent().removeClass('has-success').addClass('has-error');
         jQuery(element).css('border', '3px solid red');
+        element.setCustomValidity('_{SERIAL_NUMBER_IS_ALREADY_IN_USE}_');
       }
     });
   }
 
   jQuery('.sn_check_class').on('input', function(event){
-    console.log(this);
     var element = event.target;
     var value = jQuery(element).val();
-    console.log(value);
     doDelayedSearch(value, element);
   });
 </script>

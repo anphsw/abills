@@ -1,5 +1,3 @@
-#!perl
-
 =head1 NAME
 
   Bonus web functions
@@ -22,7 +20,6 @@ use Abills::Base qw(_bp in_array cfg2hash mk_unique_value);
 our ($db,
   $admin,
   %conf,
-  $html,
   %lang,
   %permissions,
   %err_strs,
@@ -31,6 +28,7 @@ our ($db,
   %BONUS_METHODS
 );
 
+our Abills::HTML $html;
 my $Bonus    = Bonus->new($db, $admin, \%conf);
 my $Payments = Payments->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
@@ -127,7 +125,7 @@ sub bonus_user_log {
 
     if ($permissions{1} && $permissions{1}{1}) {
       $Bonus->{OP_SID} = mk_unique_value(16);
-      $html->tpl_show(_include('bonus_operation', 'Bonus'), $Bonus);
+      $html->tpl_show(_include('bonus_operation', 'Bonus'), $Bonus, { ID => 'bonus_operation' });
     }
   }
   elsif ($FORM{AID} && !defined($LIST_PARAMS{AID})) {
@@ -272,7 +270,7 @@ sub bonus_tp {
   _error_show($Bonus);
 
   $Bonus->{STATE} = ($Bonus->{STATE}) ? 'checked' : '';
-  $html->tpl_show(_include('bonus_tp', 'Bonus'), $Bonus);
+  $html->tpl_show(_include('bonus_tp', 'Bonus'), $Bonus, { ID => 'bonus_tp' });
 
   my $list = $Bonus->tp_list();
 
@@ -450,7 +448,7 @@ sub bonus_rules {
   $info_bonus{chg} = $Bonus->{ID};
   $info_bonus{TP_ID} = $FORM{TP_ID};
 
-  $html->tpl_show(_include('bonus_rules', 'Bonus'), \%info_bonus);
+  $html->tpl_show(_include('bonus_rules', 'Bonus'), \%info_bonus, { ID => 'bonus_rules' });
 
   print $html->form_main({
     CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
@@ -553,7 +551,6 @@ sub bonus_user {
     }
 
     if (defined($FORM{SCORE})) {
-      # && $FORM{SCORE} > 0 ){
       $Bonus->accomulation_scores_change({ %FORM });
       if (!$Bonus->{errno}) {
         $html->message('info', $lang{INFO}, "$lang{CHANGED} $lang{SUM}: $FORM{SCORE}");
@@ -654,7 +651,8 @@ sub bonus_user {
     }
 
     $user_form = $html->tpl_show(_include('bonus_user_accomulation', 'Bonus'), $Bonus, {
-      OUTPUT2RETURN => ($user) ? undef : 1
+      OUTPUT2RETURN => ($user) ? undef : 1,
+      ID            => 'bonus_user_accomulation'
     });
 
     if ($bonus_cost > 0 && $Bonus->{UID} && $allow_transfer && $active_status) {
@@ -662,7 +660,9 @@ sub bonus_user {
     }
   }
   else {
-    $user_form = $html->tpl_show(_include('bonus_user', 'Bonus'), $Bonus, { OUTPUT2RETURN => 1 });
+    $user_form = $html->tpl_show(_include('bonus_user', 'Bonus'), $Bonus, {
+      ID => 'bonus_user',
+      OUTPUT2RETURN => 1 });
   }
 
   if ($attr->{PROFILE_MODE} || $user) {
@@ -1052,7 +1052,9 @@ sub bonus_service_discount_client {
 
   my $service_info = $html->tpl_show(_include('bonus_service_discount_client', 'Bonus'),
     { %{$Bonus}, %RESULT },
-    { OUTPUT2RETURN => ($user) ? 0 : 1 }
+    { OUTPUT2RETURN => ($user) ? 0 : 1,
+      ID => 'bonus_service_discount_client'
+    }
   );
 
   if ($attr->{PROFILE_MODE}) {
@@ -1124,12 +1126,14 @@ sub bonus_service_discount_mk {
   if (in_array('Internet', \@MODULES)) {
     require Internet;
     Internet->import();
+
     $Internet = Internet->new($db, $admin, \%conf);
     $Internet->info($attr->{USER_INFO}->{UID});
   }
   else {
     require Dv;
     Dv->import();
+
     $Internet = Dv->new($db, $admin, \%conf);
     $Internet->info($attr->{USER_INFO}->{UID});
   }
@@ -1139,7 +1143,12 @@ sub bonus_service_discount_mk {
   my $month_fee = 0;
 
   if ($Internet->{MONTH_ABON} && $Internet->{MONTH_ABON} > 0) {
-    $month_fee = $Internet->{MONTH_ABON};
+    if ($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
+      $month_fee = $Internet->{PERSONAL_TP};
+    }
+    else {
+      $month_fee = $Internet->{MONTH_ABON};
+    }
   }
   if ($Internet->{DAY_ABON} && $Internet->{DAY_ABON} > 0) {
     $month_fee = $Internet->{DAY_ABON} * 30;
@@ -1160,28 +1169,29 @@ sub bonus_service_discount_mk {
         REGISTRATION_DAYS   => "<=$registration_days,>=0",
         PERIODS             => "<=$periods",
         PAGE_ROWS           => 1,
-        COLS_NAME           => 1,
-        SORT                => ($periods) ? '2 DESC' :  "1 DESC, 2 DESC",
+        COLS_NAME           => 100,
+        SORT                => ($periods) ? 'service_period DESC' :  "1 DESC, 2 DESC",
         TP_ID               => '_SHOW',
         ONETIME_PAYMENT_SUM => '_SHOW'
       }
     );
 
-    if ($Bonus->{TOTAL}) {
-      if (!$list->[0]->{tp_id}
-        || ($Internet->{TP_ID} && in_array($Internet->{TP_ID}, [ grep {$_ ne ''} split(',\s?', $list->[0]->{tp_id}) ]))
+    for (my $i=0; $i < $Bonus->{TOTAL}; $i++) {
+      if (!$list->[$i]->{tp_id}
+        || ($Internet->{TP_ID} && in_array($Internet->{TP_ID}, [ grep {$_ ne ''} split(',\s?', $list->[$i]->{tp_id}) ]))
       ) {
-        $RESULT{DISCOUNT} = $list->[0]->{discount};
-        $RESULT{DISCOUNT_PERIOD} = $list->[0]->{discount_days};
-        $RESULT{BONUS_SUM} = $list->[0]->{bonus_sum};
-        $RESULT{BONUS_PERCENT} = $list->[0]->{bonus_percent};
-        $RESULT{BONUS_EXT_ACCOUNT} = $list->[0]->{ext_account};
-        $RESULT{ID} = $list->[0]->{id};
-        $RESULT{ONETIME_PAYMENT_SUM} = $list->[0]->{onetime_payment_sum};
+        $RESULT{DISCOUNT} = $list->[$i]->{discount};
+        $RESULT{DISCOUNT_PERIOD} = $list->[$i]->{discount_days};
+        $RESULT{BONUS_SUM} = $list->[$i]->{bonus_sum};
+        $RESULT{BONUS_PERCENT} = $list->[$i]->{bonus_percent};
+        $RESULT{BONUS_EXT_ACCOUNT} = $list->[$i]->{ext_account};
+        $RESULT{ID} = $list->[$i]->{id};
+        $RESULT{ONETIME_PAYMENT_SUM} = $list->[$i]->{onetime_payment_sum};
 
         if ($RESULT{DISCOUNT_PERIOD} > 0) {
           $RESULT{DISCOUNT_PERIOD} = POSIX::strftime('%Y-%m-%d', localtime(time + 86400 * $RESULT{DISCOUNT_PERIOD}));
         }
+        last;
       }
     }
   }
@@ -1191,7 +1201,6 @@ sub bonus_service_discount_mk {
     my %get_bonus = (
       PAGE_ROWS => 1,
       TP_ID     => '_SHOW',
-      #SORT      => "1 DESC, 2 DESC, 3 DESC, onetime_payment_sum DESC",
       SORT      => "2 DESC, 3 DESC, onetime_payment_sum DESC",
       COLS_NAME => 1
     );
@@ -1219,7 +1228,7 @@ sub bonus_service_discount_mk {
     if ($Bonus->{TOTAL} > 0) {
       my @pay_methods = ();
 
-      if($list->[0]{pay_method} && $list->[0]{pay_method} ne '-1') {
+      if(defined($list->[0]{pay_method}) && $list->[0]{pay_method} ne '-1') {
         @pay_methods = split(/,\s?/, $list->[0]{pay_method});
       }
 
@@ -1230,7 +1239,7 @@ sub bonus_service_discount_mk {
       elsif($Internet->{TP_ID} && in_array($Internet->{TP_ID}, [ grep {$_ ne ''} split(',\s?', $list->[0]->{tp_id}) ])) {
         $fill_bonus = 1;
       }
-
+ 
       if ($#pay_methods > -1 && !in_array($pay_method, \@pay_methods)) {
 
       }
@@ -1303,7 +1312,6 @@ sub bonus_service_discount_mk {
 
     $user->{BILL_ID} = $user->{MAIN_BILL_ID} if ($user->{MAIN_BILL_ID});
   }
-  #}
 
   return $return;
 }
@@ -1381,6 +1389,7 @@ sub bonus_service_discount {
   result_former({
     INPUT_DATA      => $Bonus,
     FUNCTION        => 'service_discount_list',
+    HIDDEN_FIELDS   => 'ID',
     BASE_FIELDS     => 10,
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,

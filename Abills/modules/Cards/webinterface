@@ -113,6 +113,10 @@ sub cards_card_info {
 #**********************************************************
 sub cards_main {
 
+  if ($FORM{DEBUG}) {
+    $Cards->{debug} = 1;
+  }
+
   if ($FORM{change}) {
     my $list;
     my $FROM = '';
@@ -217,7 +221,13 @@ sub cards_main {
     $Cards->{SERIAL}       = '*' if(! $FORM{SERIAL});
     $Cards->{SUM}          = undef if (!$FORM{SUM});
     $Cards->{EXPIRE}       = undef if (!$FORM{EXPIRE});
-    $Cards->{DATE}         = $html->date_fld2('DATE',         { MONTHES => \@MONTHES, FORM_NAME => 'form_search', WEEK_DAYS => \@WEEKDAYS, NO_DEFAULT_DATE => 1 });
+    
+    $Cards->{DATE} = $html->form_daterangepicker({
+      NAME      => 'USED_FROM_DATE/USED_TO_DATE',
+      FORM_NAME => 'search_form',
+      VALUE     => $FORM{'USED_FROM_DATE_USED_TO_DATE'},
+    });
+    
     $Cards->{CREATED_DATE} = $html->date_fld2('CREATED_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'form_search', WEEK_DAYS => \@WEEKDAYS, NO_DEFAULT_DATE => 1 });
     $Cards->{EXPIRE_DATE}  = $html->date_fld2('EXPIRE_DATE',  { MONTHES => \@MONTHES, FORM_NAME => 'form_search', WEEK_DAYS => \@WEEKDAYS, NO_DEFAULT_DATE => 1 });
 
@@ -269,6 +279,10 @@ sub cards_main {
   my $cards_list;
   delete $FORM{STATUS};
   delete ($Cards->{error});
+
+  if (defined($FORM{DOMAIN_ID})) {
+    $LIST_PARAMS{_MULTI_HIT}=1;
+  }
 
   ($table, $cards_list) = result_former({
      INPUT_DATA      => $Cards,
@@ -1000,10 +1014,10 @@ sub cards_user_payment  {
           my $Diller = Dillers->new($db, $admin, \%conf);
           $Diller->diller_info({ ID => $Cards->{DILLER_ID} });
           my $diller_fees = 0;
-          if ($Diller->{PAYMENT_TYPE} == 2 && $Diller->{OPERATION_PAYMENT} > 0) {
+          if ($Diller->{PAYMENT_TYPE} && $Diller->{PAYMENT_TYPE} == 2 && $Diller->{OPERATION_PAYMENT} > 0) {
             $diller_fees=$Cards->{SUM} / 100 * $Diller->{OPERATION_PAYMENT};
           }
-          elsif ($Diller->{DILLER_PERCENTAGE} > 0) {
+          elsif ($Diller->{DILLER_PERCENTAGE} && $Diller->{DILLER_PERCENTAGE} > 0) {
             $diller_fees=$Diller->{DILLER_PERCENTAGE};
           }
 

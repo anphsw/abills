@@ -102,8 +102,11 @@ sub _encode_url_to_img {
   my ($url, $attr) = @_;
   
   my $url_to_encode = '';
-  if ( $attr->{PARAMS}->{GLOBAL_URL} ) {
+  if ( $attr->{PARAMS} && $attr->{PARAMS}->{GLOBAL_URL} && !$attr->{PARAMS}->{CONVERT_URL} ) {
     $url_to_encode = urldecode($attr->{PARAMS}->{GLOBAL_URL});
+  }
+  elsif( $attr->{AUTH_G2FA_NAME} && $attr->{AUTH_G2FA_MAIL} ) {
+    $url_to_encode = "otpauth://totp/$attr->{AUTH_G2FA_NAME}:$attr->{AUTH_G2FA_MAIL}?secret=$url&issuer=$attr->{AUTH_G2FA_NAME}"
   }
   else {
     $url_to_encode = $url . _stringify_params($attr->{PARAMS}) . "&full=1";
@@ -151,6 +154,7 @@ sub _generate_image {
   my $result = '';
   # MAYBE:: write errstr to $result?
   $img->write( data => \$result, type => 'jpeg' ) or print $img->errstr;
+  
   return $result;
 }
 

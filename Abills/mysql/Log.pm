@@ -100,6 +100,10 @@ sub log_list {
     push @WHERE_RULES, "l.user = '$attr->{LOGIN}'";
   }
 
+  if ($attr->{TEXT}) {
+    push @WHERE_RULES, "message REGEXP '$attr->{TEXT}'";
+  }
+
   my $WHERE =  $self->search_former($attr, [
       ['DATE',              'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')", 1 ],
       ['LOG_TYPE',          'INT',  'l.log_type',                      1 ],
@@ -110,7 +114,9 @@ sub log_list {
       ['NAS_ID',            'INT',  'l.nas_id',                        1 ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')",   ],
     ],
-    { WHERE       => 1,
+    { 
+      WHERE       => 1,
+      WHERE_RULES => \@WHERE_RULES,
     }
   );
 

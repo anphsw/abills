@@ -5,7 +5,6 @@
   }
 
   function rebuild_form(status){
-    console.log(status);
     if(status == 3){
       console.log("Add monthes input");
       var element = jQuery("<div></div>").addClass("form-group appended_field");
@@ -35,8 +34,6 @@
 
     j_context.find('input').prop('disabled', false);
     j_context.find('select').prop('disabled', false);
-
-
   }
 
   jQuery(document).ready(function() {
@@ -51,7 +48,6 @@
 
   jQuery(function () {
     jQuery('a[data-toggle=\"tab\"]').on('shown.bs.tab', function (e) {
-      console.log(e);
       enableInputs(e.target);
       disableInputs(e.relatedTarget);
     })
@@ -70,7 +66,6 @@
   });
 
   jQuery(function () {
-    //    jQuery('#REG_REQUEST_BTN').prop('disabled', true);
     var timeout = null;
 
     function doDelayedSearch(val, element) {
@@ -80,7 +75,7 @@
       timeout = setTimeout(function() {
         doSearch(val, element); //this is your existing function
       }, 500);
-    };
+    }
 
     function doSearch(val, element) {
       if(!val){
@@ -88,7 +83,6 @@
         return 1;
       }
       jQuery.post('$SELF_URL', 'header=2&qindex=' + '%MAIN_INDEX%' + '&get_info_by_sn=' + val, function (data) {
-        console.log(data);
         var info;
         try {
           info = JSON.parse(data);
@@ -105,7 +99,6 @@
           jQuery('.item_info_by_sn').text('');
         }
         else{
-          console.log("success");
           jQuery(element).parent().removeClass('has-error');
           jQuery(element).css('border', "");
           jQuery('#sell_price').val(info.SELL_PRICE);
@@ -117,10 +110,8 @@
     }
 
     jQuery('.sn_installation').on('input', function(event){
-//      console.log(this);
       var element = event.target;
       var value = jQuery(element).val();
-      console.log(value);
       doDelayedSearch(value, element);
     });
   });
@@ -128,21 +119,28 @@
 
 <script>
   function selectArticles(empty_sel) {
-    console.log("Changed");
-    empty_search = "";
+    let empty_search = "";
     if(empty_sel == 1){
       empty_search = "&EMPTY_SEL=" + empty_sel;
     }
-    jQuery.post('/admin/index.cgi', 'header=2&get_index=storage_hardware&quick_info=1&ARTICLE_TYPE_ID=' + jQuery('#ARTICLE_TYPE_ID').val() + empty_search, function (result) {
+
+    let articleTypeId = jQuery('#ARTICLE_TYPE_ID').val();
+    let storageId = jQuery('#STORAGE_SELECT_ID').val();
+    let searchFields = '&ARTICLE_TYPE_ID=' + articleTypeId;
+    if (storageId) {
+      searchFields += '&STORAGE_ID=' + storageId;
+    }
+
+    jQuery.post('/admin/index.cgi', 'header=2&get_index=storage_hardware&quick_info=1' + searchFields + empty_search, function (result) {
       jQuery("div.ARTICLES_S").empty();
       jQuery("div.ARTICLES_S").html(result);
       initChosen();
-      console.log(result);
     });
-
-    console.log("Ending");
-  };
-
+  }
+  
+  function selectStorage() {
+    jQuery('#ARTICLE_TYPE_ID').change();
+  }
 </script>
 
 <form action=$SELF_URL name='storage_hardware_form' method=POST class='form-horizontal'>
@@ -173,8 +171,9 @@
             <input type='hidden' name='fast_install' value='1'>
             <div class='form-group'>
               <label class='col-md-3 control-label'>SN:</label>
-              <div class='col-md-9'><input class='form-control sn_installation' name='SERIAL' type='text' VALUE='%SERIAL%'
-                                           autofocus/></div>
+              <div class='col-md-9'>
+                <input class='form-control sn_installation' name='SERIAL' type='text' VALUE='%SERIAL%' %DISABLED_SN% autofocus/>
+              </div>
             </div>
 
             <div class="form-group item_info_by_sn">
@@ -190,6 +189,11 @@
           <!--Home Content-->
           <div id="home" class="tab-pane fade">
             <input type=hidden name=ID value=%ID%>
+            <div class='form-group'>
+              <label class='col-md-3 control-label'>_{STORAGE}_: </label>
+              <div class='col-md-9'>%STORAGE_STORAGES%
+              </div>
+            </div>
             <div class='form-group'>
               <label class='col-md-3 control-label'>_{TYPE}_:</label>
               <div class='col-md-9'>%ARTICLE_TYPES%</div>
@@ -221,13 +225,20 @@
           <!--Menu1 Content-->
           <div id="menu1" class="tab-pane fade">
             <div class='form-group'>
+              <label class='col-md-3 control-label'>_{RESPOSIBLE}_:</label>
+              <div class='col-md-9'>%ACCOUNTABILITY_AID_SEL%</div>
+            </div>
+            <div class='form-group'>
               <label class='col-md-3 control-label'>_{NAME}_:</label>
-              <div class='col-md-9'>%IN_ACCOUNTABILITY_SELECT%</div>
+              <div class='col-md-9 ACCOUNTABILITY_SELECT'>%IN_ACCOUNTABILITY_SELECT%</div>
             </div>
             <div class='form-group'>
               <label class='col-md-3 control-label'>_{COUNT}_:</label>
-              <div class='col-md-9'><input class='form-control' name='COUNT_ACCOUNTABILITY' type='text' value='%COUNT%'
-                                           %DISABLE%/></div>
+              <div class='col-md-9'><input class='form-control' name='COUNT_ACCOUNTABILITY' type='text' value='%COUNT%' %DISABLE%/></div>
+            </div>
+            <div class='form-group'>
+              <label class='col-md-3 control-label'>_{SELL_PRICE}_:</label>
+              <div class='col-md-9'><input class='form-control' name='ACTUAL_SELL_PRICE' type='text' value=''/></div>
             </div>
             <div class='form-group'>
               <label class='col-md-3 control-label'>SN:</label>
@@ -236,7 +247,7 @@
           </div>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group' style='%CHG_HIDE%'>
           <label class='col-md-3 control-label'>_{ACTION}_:</label>
           <div class='col-md-9'>%STATUS% %STORAGE_DOC_CONTRACT% %STORAGE_DOC_RECEIPT%</div>
         </div>
@@ -259,18 +270,10 @@
                 <label class='col-md-3 control-label'>_{RESPONSIBLE}_ _{FOR_INSTALLATION}_:</label>
                 <div class='col-md-9'>%INSTALLED_AID_SEL%</div>
               </div>
-              <!--
-                      <div class='form-group'>
-                        <label class='col-md-3 control-label'>Grounds:</label>
-                        <div class='col-md-9'><input class='form-control' name='GROUNDS' type='text' value='%GROUNDS%'/></div>
-                      </div>
-              -->
               <div class='form-group'>
                 <label class='col-md-3 control-label'>_{COMMENTS}_:</label>
                 <div class='col-md-9'><input name='COMMENTS' class='form-control' type='text' value='%COMMENTS%'/></div>
               </div>
-
-              %DHCP_ADD_FORM%
             </div>
           </div>
         </div>
@@ -282,3 +285,15 @@
     </div>
   </fieldset>
 </form>
+
+<script>
+  jQuery('#ACCOUNTABILITY_AID').on('change', function () {
+    let link = 'header=2&get_index=storage_hardware&quick_info=1';
+    link += '&ACCOUNTABILITY_AID=' + (jQuery(this).val() || 0);
+    jQuery.post('/admin/index.cgi', link, function (result) {
+      jQuery("div.ACCOUNTABILITY_SELECT").empty();
+      jQuery("div.ACCOUNTABILITY_SELECT").html(result);
+      initChosen();
+    });
+  });
+</script>

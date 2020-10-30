@@ -31,6 +31,9 @@ function ABillingLinkManager() {
   };
 
   this.delObject = function (id, layer, point_id = 0) {
+    if (point_id === undefined || point_id === null || point_id === 'undefined')
+      point_id = 0;
+
     return 'qindex=' + index + '&header=2&LAYER_ID=' + layer + '&OBJECT_ID=' + id + '&del=1&POINT_ID=' + point_id;
   };
 

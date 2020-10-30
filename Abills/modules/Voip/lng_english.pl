@@ -58,3 +58,4 @@ $lang{NAS_DISABLED} = 'Nas disabled';
 $lang{NAS_TECH_WORK} = 'Nas maintenice';
 $lang{ASTERISK} = 'Astrisk';
 $lang{TRUNKS} = 'Trunks';
+$lang{VOIP} = 'VoIP';

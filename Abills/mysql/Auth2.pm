@@ -381,7 +381,7 @@ sub auth {
     $self->{DEPOSIT} = 0;
   }
 
-  if ($self->{INTERVALS} > 0 && ($self->{DEPOSIT} > 0 || $self->{PAYMENT_TYPE} > 0)) {
+  if ($self->{INTERVALS} > 0) { # && ($self->{DEPOSIT} > 0 || $self->{PAYMENT_TYPE} > 0)) {
     ($self->{TIME_INTERVALS}, $self->{INTERVAL_TIME_TARIF}, $self->{INTERVAL_TRAF_TARIF}) = $Billing->time_intervals($self->{TP_ID});
 
     ($remaining_time, $ATTR) = $Billing->remaining_time(
@@ -411,7 +411,7 @@ sub auth {
 
   #check allow period and time out
   if ($remaining_time == -1) {
-    $RAD_PAIRS->{'Reply-Message'} = "Not Allow day";
+    $RAD_PAIRS->{'Reply-Message'} = "NOT_ALLOW_DAY";
     return 1, $RAD_PAIRS;
   }
   elsif ($remaining_time == -2) {
@@ -460,6 +460,7 @@ sub auth {
   }
   elsif ($self->{PAYMENT_TYPE} == 2) {
     $WHERE = "cid='". $cid ."'";
+    $attr->{GUEST}=1;
   }
   my $online_time;
 
@@ -582,7 +583,11 @@ sub auth {
     delete $self->{REASSIGN};
   }
   else {
-    my $ip = $self->get_ip($NAS->{NAS_ID}, $RAD->{'NAS-IP-Address'}, { TP_IPPOOL => $self->{TP_IPPOOL} });
+    my $ip = $self->get_ip($NAS->{NAS_ID}, $RAD->{'NAS-IP-Address'}, {
+      TP_IPPOOL => $self->{TP_IPPOOL},
+      NAS_MAC   => $self->{NAS_MAC}
+    });
+
     if ($ip eq '-1') {
       $RAD_PAIRS->{'Reply-Message'} = "NO_FREE_POOL_IP: (USED: $self->{USED_IPS})";
       return 1, $RAD_PAIRS;
@@ -646,7 +651,10 @@ sub auth {
 =head2 nas_pair_former($attr) - NAS pair formers
 
   Arguments:
+    $attr
 
+  Results:
+    $self
 
 =cut
 #*********************************************************
@@ -1082,7 +1090,8 @@ sub authentication {
     }
 
     if ($CONF->{INTERNET_LOGIN}) {
-      $self->query2("SELECT uid, login FROM internet_main WHERE login= ? ;", undef, { INFO => 1, Bind => [ $RAD->{'User-Name'} ] });
+      $self->query2("SELECT uid, login, id AS service_id FROM internet_main WHERE login= ? ;",
+          undef, { INFO => 1, Bind => [ $RAD->{'User-Name'} ] });
     }
 
     if ($self->{UID}) {
@@ -1130,14 +1139,15 @@ sub authentication {
   }
 
   if ($CONF->{INTERNET_PASSWORD}) {
-    $self->query2("SELECT DECODE(password, '$CONF->{secretkey}') AS password FROM internet_main WHERE uid='$self->{UID}';");
+    my $WHERE = ($self->{SERVICE_ID}) ? "id='$self->{SERVICE_ID}'" : "uid='$self->{UID}'";
+    $self->query2("SELECT DECODE(password, '$CONF->{secretkey}') AS password FROM internet_main WHERE $WHERE;");
     if($self->{list}->[0]->[0]) {
       $self->{PASSWD}=$self->{list}->[0]->[0];
     }
   }
   if ($RAD->{'CHAP-Password'} && $RAD->{'CHAP-Challenge'}) {
     if (check_chap($RAD->{'CHAP-Password'}, "$self->{PASSWD}", $RAD->{'CHAP-Challenge'}, 0) == 0) {
-      $RAD_PAIRS{'Reply-Message'} = "Wrong CHAP password";
+      $RAD_PAIRS{'Reply-Message'} = 'WRONG_CHAP_PASSWORD';
       return 1, \%RAD_PAIRS;
     }
   }
@@ -1330,7 +1340,7 @@ sub check_bill_account {
     }
     elsif ($self->{TOTAL} < 1) {
       $self->{errno}  = 2;
-      $self->{errstr} = "Ext Bill account Not Exist";
+      $self->{errstr} = "EXT_BILL ACCOUNT NOT EXIST";
       return $self;
     }
 
@@ -1351,7 +1361,7 @@ sub check_bill_account {
     }
     elsif ($self->{TOTAL} < 1) {
       $self->{errno}  = 2;
-      $self->{errstr} = "Bill account Not Exist '$self->{BILL_ID}'";
+      $self->{errstr} = "BILL ACCOUNT NOT EXIST '$self->{BILL_ID}'";
       return $self;
     }
 
@@ -1376,7 +1386,7 @@ sub check_company_account {
     return $self;
   }
   elsif ($self->{TOTAL} < 1) {
-    $self->{errstr} = "Company ID '$self->{COMPANY_ID}' Not Exist";
+    $self->{errstr} = "COMPANY '$self->{COMPANY_ID}' NOT_EXIST";
     $self->{errno}  = 1;
     return $self;
   }
@@ -2214,9 +2224,31 @@ sub pre_auth {
       $login = $1;
     }
 
-    $self->query2("SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id= ?;",
-    undef,
-    { Bind => [ $login ] } );
+    if ($CONF->{INTERNET_PASSWORD}) {
+      my $WHERE = '';
+      if ($CONF->{INTERNET_LOGIN}) {
+        $WHERE = "internet.login='". $login ."'";
+      }
+      else {
+        $WHERE = "users.id='". $login ."'";
+      }
+
+      $self->query2("SELECT DECODE(internet_main.password, '$CONF->{secretkey}') AS password
+        FROM internet_main
+        LEFT JOIN users ON (users.uid=internet_main.uid)
+        WHERE $WHERE;");
+
+      if(! ! $self->{list}->[0]->[0]) {
+        $self->query2("SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id= ?;",
+          undef,
+          { Bind => [ $login ] });
+      }
+    }
+    else {
+      $self->query2("SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id= ?;",
+        undef,
+        { Bind => [ $login ] });
+    }
 
     if ($self->{TOTAL} > 0) {
       my $list     = $self->{list}->[0];
@@ -2228,7 +2260,7 @@ sub pre_auth {
     }
 
     $self->{errno}  = 1;
-    $self->{errstr} = "USER: '$login' not exist";
+    $self->{errstr} = "USER: '$login' NOT_EXIST";
     return 1;
   }
 
@@ -2543,10 +2575,7 @@ sub opt82_parse {
 
   $result{VLAN} = $result{VLAN_DEC} || hex($result{VLAN} || 0);
   $result{PORT} = $result{PORT_MULTI} || $result{PORT_DEC} || hex($result{PORT} || 0);
-
-  if (! $result{SERVER_VLAN}) {
-    $result{SERVER_VLAN} = '';
-  }
+  $result{SERVER_VLAN} = $result{SERVER_VLAN_DEC} || hex($result{SERVER_VLAN} || 0);
 
   return \%result;
 }
@@ -2848,7 +2877,7 @@ sub leases_add {
     0, \%RAD_REPLY;
 =cut
 #**********************************************************
-sub guest_access {
+#sub guest_access {
   #my $self = shift;
   #my ($RAD, $NAS, $message, $attr) = @_;
 
@@ -2948,7 +2977,6 @@ sub guest_access {
 #  }
 #
 #  $RAD_REPLY{'Framed-IP-Address'} = $self->{IP} if ($self->{IP} && $self->{IP} !~ /0\.0\.0\.0/);
-#  #print "-------------------------/////  $RAD_REPLY{'Framed-IP-Address'} ///\n ";
 #  #$self->{UID}   = 0 if (! $self->{UID});
 #  #$self->{TP_ID} = 0 if (! $self->{TP_ID});
 #
@@ -2956,7 +2984,7 @@ sub guest_access {
 #  $self->calls_update($attr, $NAS);
 #  #}
 #  return 0, \%RAD_REPLY;
-}
+#}
 
 
 #**********************************************************

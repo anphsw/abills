@@ -441,7 +441,7 @@ INSERT INTO `dunes` VALUES (747, 'ERROR_NO_MAC_FOR_PORT', '', 'MAC not found.', 
 INSERT INTO `dunes`
 VALUES (748, 'ERROR_SMM_TIMEOUT', '', 'The system timed out while trying to load an essential file.', '');
 INSERT INTO `dunes` VALUES (749, 'ERROR_BAD_PHONE_NUMBER', '', ' Invalid phone number.', '');
-INSERT INTO `dunes` VALUES (750, 'ERROR_WRONG_MODULE', '', 'Invalid authentication attempt', '');
+INSERT INTO `dunes` VALUES (750, 'ERROR_WRONG_MODULE', '', 'fInvalid authentication attempt', '');
 INSERT INTO `dunes` VALUES (751, 'ERROR_INVALID_CALLBACK_NUMBER',
                             'Номер callback содержит недопустимые символы. Допустимы только следующие символы: от 0 до 9, T, P, W, (, ), -, @, а также пробел.',
                             'There is an invalid callback number.',

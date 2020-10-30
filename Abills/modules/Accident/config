@@ -1,6 +1,6 @@
 %FUNCTIONS_LIST = ();
 
-load_module('Accident', $html);
+use Accident;
 my $Accident = Accident->new($db, $admin, \%conf);
 
 $Accident->list({
@@ -33,5 +33,9 @@ if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
 }
 
 $FUNCTIONS_LIST{"04:1:$lang{COMPENSATION}:accident_compensation:"} = 8;
+
+my $badge_accident = $html->badge($Accident->{TOTAL}, { TYPE => 'bg-red' });
+
+$FUNCTIONS_LIST{"05:0:$lang{ACCIDENT_LOG} $badge_accident:user_accident:"} = 20;
 
 1;

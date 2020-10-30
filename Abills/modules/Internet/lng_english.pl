@@ -18,5 +18,9 @@ $lang{SELECT_TAG} = 'Please select at least one tag!';
 
 $lang{CLONE} = 'Clone';
 $lang{SUCCESSFULLY_CLONED} = 'successfully cloned';
+$lang{FT_QUEUS}='FT Queus';
+$lang{TURBO}='Turbo';
+$lang{QUOTA}='Quota';
 
+$lang{NAS_AND_PORT_ALREADY_USE} = 'NAS and Port already use';
 1;
