@@ -156,3 +156,8 @@ $lang{SERIAL_NUMBER_IS_ALREADY_IN_USE} = 'Цей серійний номер у�
 
 $lang{STORAGE_MONTHS_LEFT} = 'Залишилось місяців';
 $lang{STORAGE_COMPLETED} = 'Завершено';
+
+$lang{ATTACH_EQUIPMENT_TO_TICKET} = 'Можливість прикріпити обладнання до тікету';
+$lang{ITEM_ADDED_TO} = 'Товар доданий до';
+
+1;

@@ -56,4 +56,10 @@ $lang{CAMS_IMPORT_MODELS} = 'Імпорт моделей';
 
 $lang{CAMS_GROUP} = 'Група';
 
+$lang{CAMS_DISKS} = 'Диски';
+$lang{CAMS_DB} = 'База даних';
+$lang{CAMS_ONLINE_CHANNELS} = 'Канали/Online';
+$lang{CAMS_UPTIME} = 'Час безвідмовної роботи';
+$lang{CAMS_CPU_LOAD} = 'Загрузка CPU';
+
 1;

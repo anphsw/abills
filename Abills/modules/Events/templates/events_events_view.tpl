@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{EVENTS}_ (%ID%)</h4></div>
-  <div class='box-body form form-horizontal'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4 class='card-title'>_{EVENTS}_ (%ID%)</h4></div>
+  <div class='card-body form form-horizontal'>
 
     <div class='form-group'>
 

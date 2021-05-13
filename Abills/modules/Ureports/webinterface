@@ -17,14 +17,12 @@ use warnings FATAL => 'all';
 if (form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Ureports',
-  REQUIRE_VERSION => 7.55,
+  REQUIRE_VERSION => 7.64,
 })) {
 
   exit;
 }
 
-#use Dv;
-#use Dv_Sessions;
 use Finance;
 use Fees;
 use Tariffs;
@@ -140,6 +138,8 @@ sub ureports_users_list {
   }
   my Abills::HTML $table;
   my $user_list;
+
+  $LIST_PARAMS{TP_ID} = $FORM{TP_ID} if($FORM{TP_ID});
 
   ($table, $user_list) = result_former({
     DEFAULT_FIELDS  => 'LOGIN,FIO,TP_NAME,STATUS,TYPE,DESTINATION',
@@ -331,12 +331,6 @@ sub ureports_user {
       }
     }
   }
-  #  elsif ($FORM{del}) {
-  #    $Ureports->del();
-  #    if (!$Ureports->{errno}) {
-  #      $html->message('info', $lang{INFO}, "$lang{DELETED}");
-  #    }
-  #  }
 
   if (_error_show($Ureports, { MODULE_NAME => 'Ureports', ID => 2101, MESSAGE => $Ureports->{errstr} })) {
     return 1 if ($attr->{REGISTRATION});
@@ -349,16 +343,6 @@ sub ureports_user {
 
   if ($Ureports->{TOTAL} < 1) {
     $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 2101 });
-    #    $Ureports->{TP_ID} = $html->form_select(
-    #      'TP_ID',
-    #      {
-    #        SELECTED  => $Ureports->{TP_ID},
-    #        SEL_LIST  => $tariffs->list({ MODULE => 'Ureports', COLS_NAME => 1 }),
-    #        SEL_KEY   => 'tp_id',
-    #        SEL_VALUE => 'name',
-    #        NO_ID     => 1
-    #      }
-    #    );
 
     if ($attr->{ACTION}) {
       $Ureports->{ACTION} = $attr->{ACTION};
@@ -438,7 +422,7 @@ sub ureports_user {
   $Ureports->{TP_NAME} = '';
   if ($Ureports->{TP_ID}) {
     $Ureports->{CHANGE_TP_BUTTON} = $html->element('span', $html->button($lang{TARIF_PLAN},
-      "TP_ID=$Ureports->{TP_ID}&index=" . get_function_index('ureports_tp'), { class => 'change' }), {class => 'input-group-addon'});
+      "TP_ID=$Ureports->{TP_ID}&index=" . get_function_index('ureports_tp'), { ICON => 'fa fa-pencil', class => 'text-white' }), {class => 'btn btn-secondary'});
   }
 
   $Ureports->{TP_ID} = $html->form_select(
@@ -448,6 +432,7 @@ sub ureports_user {
       SEL_LIST  => $Tariffs->list({ MODULE => 'Ureports', COLS_NAME => 1 }),
       SEL_KEY   => 'tp_id',
       SEL_VALUE => 'name',
+      MAIN_MENU   => get_function_index('ureports_tp'),
       NO_ID     => 1
     }
   );
@@ -577,6 +562,7 @@ sub ureports_tp {
   }
 
   if ($FORM{add_form}) {
+    $tarif_info->{ID} = $tarif_info->{TP_INFO}->{ID};
     $html->tpl_show(_include('ureports_tp', 'Ureports'), $tarif_info);
   }
 
@@ -587,38 +573,47 @@ sub ureports_tp {
   my $base_fields = 2;
   my Abills::HTML $table;
   my $list;
+
+  my %ex_fields = (
+    id                   => '#',
+    filter_id            => 'Filter ID',
+    name                 => $lang{NAME},
+    payment_type         => $lang{PAYMENT_TYPE},
+    month_fee            => $lang{MONTH_FEE},
+    age                  => $lang{AGE},
+    reduction_fee        => $lang{REDUCTION},
+    postpaid_daily_fee   => "$lang{DAY_FEE} $lang{POSTPAID}",
+    postpaid_monthly_fee => "$lang{MONTH_FEE} $lang{POSTPAID}",
+    ext_bill_account     => $lang{EXT_BILL_ACCOUNT},
+    credit               => $lang{CREDIT},
+    abon_distribution    => $lang{ABON_DISTRIBUTION},
+    fees_method          => "$lang{FEES} $lang{TYPE}",
+    tp_id_               => "TP_ID"
+  );
+
+  my @table_title = [
+    '#',
+    $lang{NAME},
+    $lang{PAYMENT_TYPE},
+    $lang{DAY_FEE},
+    $lang{MONTH_FEE},
+    $lang{GROUP},
+    '-'
+  ];
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Tariffs,
     FUNCTION        => 'list',
-    BASE_FIELDS     => $base_fields,
-    #DEFAULT_FIELDS  => 'ID,NAME,PAYMENT_TYPE,MONTH_FEE,TP_GROUP_NAME',
+    BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,NAME,PAYMENT_TYPE,MONTH_FEE',
+    HIDDEN_FIELDS   => 'POSTPAID_MONTH_FEE,POSTPAID_DAI_FEE',
     FUNCTION_FIELDS => '-, -, -',
-    EXT_TITLES      => {
-      id                   => '#',
-      port                 => $lang{PORT},
-      filter_id            => 'Filter ID',
-      tp_name              => $lang{TARIF_PLAN},
-      num                  => $lang{NUM},
-      name                 => $lang{NAME},
-      payment_type         => $lang{PAYMENT_TYPE},
-      month_fee            => $lang{MONTH_FEE},
-      age                  => $lang{AGE},
-      #tp_group_name        => $lang{GROUP},
-      reduction_fee        => $lang{REDUCTION},
-      postpaid_daily_fee   => "$lang{DAY_FEE} $lang{POSTPAID}",
-      postpaid_monthly_fee => "$lang{MONTH_FEE} $lang{POSTPAID}",
-      ext_bill_account     => $lang{EXT_BILL_ACCOUNT},
-      credit               => $lang{CREDIT},
-      abon_distribution    => $lang{ABON_DISTRIBUTION},
-      tp_id                => 'TP ID',
-      next_tp_id           => "$lang{TARIF_PLAN} $lang{NEXT_PERIOD}",
-      fees_method          => "$lang{FEES} $lang{TYPE}",
-    },
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => \%ex_fields,
     TABLE           => {
       width   => '100%',
       caption => "$lang{REPORTS} - $lang{TARIF_PLANS}",
-      title   => [ '#', $lang{NAME}, $lang{PAYMENT_TYPE}, $lang{DAY_FEE}, $lang{MONTH_FEE}, $lang{GROUP}, '-' ],
+      title   => \@table_title,
       ID      => 'UREPORTS_TARIF_PLANS',
       MENU    => "$lang{ADD}:index=$index&add_form=1:add",
     },
@@ -627,7 +622,7 @@ sub ureports_tp {
   foreach my $line (@{$list}) {
     my @fields_array = ();
     next if (! $line->{tp_id});
-    for (my $i = 0; $i < $base_fields + $Tariffs->{SEARCH_FIELDS_COUNT}; $i++) {
+    for (my $i = 0; $i < $Tariffs->{SEARCH_FIELDS_COUNT}; $i++) {
       my $col_name = $Tariffs->{COL_NAMES_ARR}->[$i] || q{};
       if ($col_name eq 'id') {
         $line->{id} = $html->b($line->{id});
@@ -636,7 +631,7 @@ sub ureports_tp {
         $line->{name} = $html->button($line->{name}, "index=$index&TP_ID=$line->{tp_id}"),
       }
       elsif ($col_name eq 'payment_type') {
-        $line->{payment_type} = $Payment_Types[ $line->{payment_type} ];
+        $line->{payment_type} = $Payment_Types[ $line->{payment_type}  ];
       }
       elsif ($col_name =~ /time_tarifs|traf_tarifs/) {
         $line->{$col_name} = $bool_vals[ $line->{$col_name} ];
@@ -842,7 +837,7 @@ sub ureports_user_info {
       $Ureports->user_change({ %FORM, UID => $user->{UID} });
 
       if (!$Ureports->{errno} && $FORM{change_subscribes}) {
-        $Ureports->tp_user_reports_change({ %FORM, UID => $user->{UID} });
+        $Ureports->tp_user_reports_change({ %FORM, UID => $user->{UID}, VISUAL=>1 });
         if (!$Ureports->{errno}) {
           my $message = "$lang{CHANGED}\n";
           if (!($report_type == 1 && $conf{UREPORTS_SKIP_ACTIVATE_SMS})) {
@@ -1396,16 +1391,12 @@ sub ureports_payments_maked {
   }
 
   return '' if ($FORM{DISABLE} || $FORM{CREDIT});
-  return '' if (!$attr->{SUM} || int($attr->{SUM}) == 0);
+  return '' if (!$attr->{SUM} || $attr->{SUM} !~ /\d+/);
   my %users_params = ();
 
   if (in_array('Internet', \@MODULES)) {
     $users_params{INTERNET_TP} = 1;
     $users_params{INTERNET_STATUS} = '_SHOW';
-  }
-  else {
-    $users_params{DV_TP} = 1;
-    $users_params{DV_STATUS} = '_SHOW';
   }
 
   $Ureports->tp_user_reports_list({
@@ -1631,26 +1622,13 @@ sub _ureports_get_user_contacts {
   });
   _error_show($Contacts);
 
-  my $phone_exist = 0;
-  my $i = 0;
-  foreach my $item (@{$contacts_list}) {
-    if ($item->{value} && $item->{value} eq "") {
-      splice(@{$contacts_list}, $i, 1);
-    }
-    $i++
-  }
+  my @contacts = grep { $_->{value} } @{$contacts_list};
+  $contacts_list = \@contacts;
 
-  $i = 0;
   foreach my $item (@{$contacts_list}) {
     if ($item->{type_id} eq '2') {
       $item->{type_id} = '1';
-      $phone_exist = 1;
-      next;
     }
-    elsif ($item->{type_id} eq '1' && $phone_exist == 1) {
-      $item->{type_id} = '2';
-    }
-    $i++;
   }
 
   if (!$conf{CONTACTS_NEW}) {
@@ -1757,6 +1735,89 @@ sub ureports_quick_info {
   return ($Ureports->{TOTAL} && $Ureports->{TOTAL} > 0) ? $reports_list->[0]->{reports_count} : '';
 }
 
+#**********************************************************
+=head2 ureports_monthly_periodic($attr) - take month fee
+
+=cut
+#**********************************************************
+sub ureports_monthly_periodic {
+  my ($attr) = @_;
+
+  my $list = $Tariffs->list({
+    %LIST_PARAMS,
+    MODULE          => 'Ureports',
+    EXT_BILL_ACCOUNT=> '_SHOW',
+    DOMAIN_ID       => '_SHOW',
+    FIXED_FEES_DAY  => '_SHOW',
+    COLS_NAME       => 1,
+    COLS_UPPER      => 1
+  });
+
+  my %PARAMS = (
+    DESCRIBE => "$lang{REPORTS}: $lang{MONTH_FEE}",
+  );
+
+  for my $TP_INFO (@$list){
+    my $month_fee = $TP_INFO->{MONTH_FEE};
+    my $postpaid  = $TP_INFO->{POSTPAID_MONTHLY_FEE} || $TP_INFO->{PAYMENT_TYPE} || 0;
+
+    return 1 if($month_fee <= 0);
+
+    my ($y, $m, $d) = split(/-/, $ADMIN_REPORT{DATE}, 3);
+
+    $m-=1;
+    if ($m == 0) {
+      $m = 12;
+      $y--;
+    }
+    $m = sprintf("%02d", $m);
+
+    my $DATE = $y."-".$m."-02";
+
+    my $info = $Ureports->tp_info($TP_INFO->{TP_ID},{
+      DATE=>$DATE});
+
+    if($info->{LAST_ACTIVE}){
+
+      my $ulist = $Ureports->user_list({
+          TP_ID         => $TP_INFO->{TP_ID},
+          STATUS        =>"_SHOW",
+          COLS_NAME     => 1,
+        });
+
+
+      foreach my $u (@{$ulist}) {
+
+        next if($u->{status} != 0);
+
+        my $user = $users->info($u->{uid});
+
+        if(!$postpaid){
+          my $ext = $user->{EXT_DEPOSIT} ? $user->{EXT_DEPOSIT} : 0;
+          if($ext + $user->{DEPOSIT} + $user->{CREDIT} > $month_fee){
+            $Fees->take($user, $month_fee, { %PARAMS });
+          } else {
+            $Ureports->user_change({
+              UID    => $user->{UID},
+              STATUS => 1
+            })
+          }
+        } else {
+
+          $Fees->take($user, $month_fee, { %PARAMS });
+
+        }
+      }
+
+      $Ureports->tp_change($TP_INFO->{TP_ID},{
+        LAST_ACTIVE=>$ADMIN_REPORT{DATE},
+        TP_ID => $TP_INFO->{TP_ID}
+      });
+    }
+  }
+
+  return 1;
+}
 
 
 1

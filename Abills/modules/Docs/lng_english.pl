@@ -55,3 +55,4 @@ $lang{LIST_OF_CHARGES}='List of charges';
 $lang{DELETED_GROUP}="Delete by group";
 $lang{NO_CHECK_DOCUMENT}="Select the documents to delete";
 $lang{OPERATION}="The operation was successfully completed";
+$lang{PAYMENT_SUM}='Paid';

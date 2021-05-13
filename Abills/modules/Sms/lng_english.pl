@@ -29,4 +29,11 @@ $lang{ERROR_SENDING} = 'Error sending';
 $lang{REJECT_SYSTEM} = 'Rejected by the system';
 $lang{DELAYED} = 'Message sending is delayed';
 
+$lang{SHORT_PASSWORD} = 'Password length should be 8 symbols';
+$lang{ALL_SERVICE_NOT_ACTIVE} = 'All user services not active. UID:';
+$lang{SERVICE_NOT_HOLDING_UP} = 'Service is not holding up';
+$lang{SERVICE_NOT_ACTIVE} = 'Service is not active';
+$lang{PUBLIC_HOTSPOT_SMS} = 'Public hotspot SMS';
+$lang{ADD_SUM_TRANSFER} = 'Add payment sum';
+
 1

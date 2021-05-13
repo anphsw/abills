@@ -190,7 +190,7 @@ sub internet_ipoe_activate{
           );
         }
 
-       ($Nas->{NAS_MNG_IP}, undef, $Nas->{NAS_MNG_PORT})=split(/:/, $Nas->{NAS_MNG_IP_PORT});
+       ($Nas->{NAS_MNG_IP}, undef, $Nas->{NAS_MNG_PORT})=split(/:/, $Nas->{NAS_MNG_IP_PORT} || q{});
 
         my %DATA = (
           ACCT_STATUS_TYPE   => 1,
@@ -1121,9 +1121,8 @@ sub ipoe_use{
       PERIOD_FORM => 1,
       TIME_FORM   => 1,
       DATE_RANGE  => 1,
-      #FIELDS      => {%CAPTIONS_HASH},
       EX_INPUTS   => [
-        $html->element('label', " $lang{DIMENSION}: ", {class => 'col-md-2 control-label'})
+        $html->element('label', " $lang{DIMENSION}: ", {class => 'col-md-12 control-label'})
         . $html->element('div', $html->form_select(
           'DIMENSION',
           {
@@ -1137,7 +1136,7 @@ sub ipoe_use{
             },
             NO_ID    => 1
           }
-        ), {class => 'col-md-9 '})
+        ), {class => 'col-md-12 '})
       ]
     }
   );

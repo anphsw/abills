@@ -618,7 +618,7 @@ function Navigation(map) {
   this.getNavigationLink = function (string) {
     return '<br/><hr/><br/>' + '<div class="text-center">' +
         '<a onclick="aNavigation.createNavigationRoute(mapCenterLatLng, openedInfoWindows[openedInfoWindows.length - 1].position)">' +
-        '<span class="glyphicon glyphicon-share-alt"></span>&nbsp;' +
+        '<span class="fa fa-share-alt"></span>&nbsp;' +
         string +
         '</a>' +
         '</div>';

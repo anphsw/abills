@@ -18,9 +18,9 @@ our (
   %LIST_PARAMS
 );
 
-use Maps2::Layers;
-use Address;
 use Abills::Base qw(in_array _bp);
+use Maps2::Auxiliary qw/maps2_load_module/;
+my $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 #**********************************************************
 =head2 maps_objects_reports()
@@ -29,20 +29,34 @@ use Abills::Base qw(in_array _bp);
 #**********************************************************
 sub maps_objects_reports {
 
-  my $objects = _maps2_get_basic_object();
+  my $layers = ();
+  my $objects = ();
 
-  if (in_array('Cablecat', \@MODULES)) {
-    use Cablecat;
-    my $Cablecat = Cablecat->new($db, $admin, \%conf);
+  foreach (@main::MODULES) {
+    my $module = maps2_load_module($_);
 
-    $objects->{CABLE} = $Cablecat->cable_list_with_points({ONLY_TOTAL => 1});
-    $objects->{WELL} = _maps2_well_reports($Cablecat);
-  }
+    next if !$module;
+    next if !$module->can('new') || !$module->can('maps_layers');
 
-  if (in_array('Equipment', \@MODULES)) {
-    use Equipment;
+    my $module_object = $module->new($db, $admin, \%conf, { LANG => \%lang });
+    my $layer = $module_object->maps_layers();
 
-    %{$objects} = (%{$objects} ,%{_maps2_equipment_show()});
+    next if !$layer->{LAYERS} || ref $layer->{LAYERS} ne 'ARRAY';
+
+    foreach (@{$layer->{LAYERS}}) {
+      next if !$_->{export_function} || (!$_->{lang_name} && !$_->{name});
+
+      my $function_ref = $module_object->can($_->{export_function});
+      next if !$function_ref;
+
+      my $result = $module_object->$function_ref({ ONLY_TOTAL => 1 });
+      next if !$result;
+
+      $objects->{$_->{lang_name} ? _translate($_->{lang_name}) : _translate($_->{name})} = {
+        COUNT    => $result,
+        LAYER_ID => $_->{id}
+      };
+    }
   }
 
   my $objects_info = $html->table({
@@ -54,117 +68,12 @@ sub maps_objects_reports {
   });
 
   foreach my $key (sort keys %{$objects}) {
-    my $type_name = $lang{$key} ? $lang{$key} : $key eq 'BUILD2' ? $lang{'BUILD'} . '2' : $key;
-    my $maps_btn = maps2_show_object_button($key);
-    $objects_info->addrow($type_name, $objects->{$key}, $maps_btn);
+    my $maps_btn = $Auxiliary->maps2_show_object_button($objects->{$key}{LAYER_ID});
+    $objects_info->addrow($key, $objects->{$key}{COUNT}, $maps_btn);
   }
 
   print $objects_info->show();
 }
 
-#**********************************************************
-=head2 _maps2_get_basic_object()
-
-=cut
-#**********************************************************
-sub _maps2_get_basic_object {
-  return {
-    BUILD    => maps2_builds_show({ ONLY_COUNT => 1 }),
-    BUILD2   => maps2_builds2_show({ ONLY_COUNT => 1 }),
-    DISTRICT => maps2_districts_show({ ONLY_COUNT => 1 }),
-    WIFI     => maps2_wifis_show({ ONLY_COUNT => 1 }),
-  }
-}
-
-#**********************************************************
-=head2 _maps2_well_reports()
-
-=cut
-#**********************************************************
-sub _maps2_well_reports {
-  my ($Cablecat) = @_;
-
-  my $wells_list = $Cablecat->wells_list({
-    POINT_ID  => '!',
-    NAME      => '_SHOW',
-    TYPE_ID   => '_SHOW',
-    ICON      => '_SHOW',
-    COMMENTS  => '_SHOW',
-    PAGE_ROWS => 10000
-  });
-  _error_show($Cablecat);
-
-  my @object_ids = map {$_->{point_id}} @{$wells_list};
-
-  my $point_ids = join(';', @object_ids);
-  _error_show($Maps);
-
-  $Maps->points_list({
-    ID               => $point_ids,
-    SHOW_ALL_COLUMNS => 1,
-    NAME             => '_SHOW',
-    ICON             => '_SHOW',
-    TYPE             => '_SHOW',
-    TYPE_ID          => '_SHOW',
-    COORDX           => '!',
-    COORDY           => '!',
-    COLS_NAME        => 1,
-    ADDRESS_FULL     => '_SHOW',
-    EXTERNAL         => 1,
-  });
-
-  return $Maps->{TOTAL};
-};
-
-#**********************************************************
-=head2 _maps2_equipment_show()
-
-=cut
-#**********************************************************
-sub _maps2_equipment_show {
-
-  my $Equipment = Equipment->new($db, $admin, \%conf);
-  my $count_equipment = 0;
-  my %showed_equipment = ();
-
-  my $equipment_list = $Equipment->_list({
-    NAS_ID      => '_SHOW',
-    LOCATION_ID => '_SHOW',
-    COORDX      => '_SHOW',
-    COORDY      => '_SHOW',
-    COLS_NAME   => 1,
-    PAGE_ROWS   => 10000,
-  });
-
-  foreach my $point (@{$equipment_list}) {
-    next if (!($point->{coordy} && $point->{coordx}) || $showed_equipment{$point->{location_id}});
-    $count_equipment++;
-    $showed_equipment{$point->{location_id}} = 1;
-  }
-
-  #  PON
-  $equipment_list = $Equipment->onu_list({
-    MAPS_COORDS => '_SHOW',
-    LOCATION_ID => '_SHOW',
-    LOGIN       => '_SHOW',
-    COLS_NAME   => 1,
-    PAGE_ROWS   => 100000,
-  });
-
-  my $count_pon = 0;
-  foreach my $point (@{$equipment_list}) {
-    next if (!($point->{build_id} && $point->{maps_coords}));
-    my ($coordy, $coordx) = split(/:/, $point->{maps_coords});
-
-    if ($coordx ne "0.00000000000000" && $coordy ne "0.00000000000000") {
-      $count_pon++;
-    }
-  }
-
-  return {
-    EQUIPMENT => $count_equipment,
-    PON       => $count_pon
-  }
-}
 1;
 

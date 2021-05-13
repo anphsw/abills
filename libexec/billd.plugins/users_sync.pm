@@ -8,8 +8,13 @@
  Arguments:
    FIELDS_INFO       - Show field info
    TYPE              - Synsc system type
+      userside (default)
+        URL="https://"
+      odoo
    SYNCHRON_ODOO_FIELDS  - Odoo sync field
    DOMAIN_ID         - DOmain id
+   ADD_GID           - Add users to GID
+   GET_LOCATION      - Sync only locations (Discrict,streets,build,geo coords)
    SKIP_SERVICE      - Skip sync service
    SKIP_WRONG_MAIL
    SYNC_COMPANY      - Add company main account
@@ -19,20 +24,13 @@
    PRODUCT_TYPES
    CATEGORY_IDS
 
+
+
   if($attr->{CATEGORY_IDS})
 
  Config:
    $conf{SYNCHRON_ODOO_FIELDS}='odoo_field:abills_field_id;';
 
-
-
-
-
-1.	Интеграция с системой Odoo (OpenERP):
-  - синхронизация данных при создании клиента (заполнение карточки клиента, изменение данных)
-  - создание и/или синхронизация данных по инвойсам
-  - синхронизация данных по клиентским платежам
-  - формирование SOA по клиенту (отчет о всех инвойсах и платежах, связанных с данным клиентом)
 
 =cut
 #**********************************************************
@@ -40,14 +38,15 @@
 use strict;
 use warnings FATAL => 'all';
 use Data::Dumper;
-use Abills::Base qw(show_hash load_pmodule);
+use Abills::Base qw(show_hash load_pmodule int2ip);
 use Abills::Filters qw(_utf8_encode);
-use Synchron::Odoo;
-use Frontier::Client;
+use Abills::Fetcher;
 use Tariffs;
 use Users;
 use Internet;
 use Companies;
+use Shedule;
+use Address;
 
 our (
   $argv,
@@ -56,16 +55,25 @@ our (
   $debug,
   $Nas,
   $db,
-  $Sessions,
   %conf,
   $Admin,
+  $base_dir,
+  %lang
 );
 
 my $Users        = Users->new($db, $Admin, \%conf);
 my $Companies    = Companies->new($db, $Admin, \%conf);
+my $Address      = Address->new($db, $Admin, \%conf);
+my $Tariffs      = Tariffs->new($db, \%conf, $Admin);
+our $admin       = $Admin;
+our $html = Abills::HTML->new( { CONF => \%conf } );
 my $import_limit = $argv->{IMPORT_LIMIT} || 1000000000;
-my $admin        = $Admin;
-my $Tariffs      = Tariffs->new($db, \%conf, $admin);
+require Internet::Users;
+require Abills::Misc;
+
+my $main_file = $base_dir . '/language/english.pl';
+require $main_file;
+
 
 if($argv->{ODOO_CUSTOM}) {
   odoo_custom();
@@ -74,7 +82,203 @@ elsif($argv->{FIELDS_INFO}) {
   fields_info();
 }
 else {
-  sync_system()
+  sync_system({ TYPE => $argv->{TYPE} })
+}
+
+#**********************************************************
+=head2 us_get_street_list();
+
+  Arguments:
+
+  Results:
+
+=cut
+#**********************************************************
+sub us_get_street_list {
+  my %street_list = ();
+
+  _log('LOG_DEBUG', "Userside: get_street_list");
+
+  my $url = $argv->{URL} || q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
+  $url .= '&request=get_street_list';
+
+  my $result = web_request($url, {
+    JSON_RETURN => 1,
+    CURL        => 1,
+  });
+
+  foreach my $street_id ( keys %{ $result } ) {
+    $street_list{$street_id}{NAME}        = $result->{$street_id}->{full_name};
+  }
+
+  return \%street_list;
+}
+
+#**********************************************************
+=head2 us_get_city_district_list();
+
+  Arguments:
+
+  Results:
+
+=cut
+#**********************************************************
+sub us_get_city_district_list {
+  my %city_district = ();
+
+  _log('LOG_DEBUG', "Userside: get_city_district_list");
+
+  my $url = $argv->{URL} || q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
+
+  $url .= '&request=get_city_district_list';
+
+  my $result = web_request($url, {
+    JSON_RETURN => 1,
+    CURL        => 1,
+  });
+
+  if ($result->{errno}) {
+    print "ERROR:". $result->{errstr};
+
+    return \%city_district;
+  }
+
+  foreach my $city_district (keys %{$result}) {
+    $city_district{$city_district}{NAME}    = $result->{$city_district}->{name};
+    $city_district{$city_district}{CITY_ID} = $result->{$city_district}->{city_id};
+  }
+
+  return \%city_district;
+}
+#**********************************************************
+=head2 us_get_house_list();
+
+  Arguments:
+
+  Results:
+
+=cut
+#**********************************************************
+sub us_get_house_list {
+  my %build_list = ();
+
+  _log('LOG_DEBUG', "Userside: get_house_list");
+
+  #Fixme
+  #get_city_list
+
+  my $city_district_list = us_get_city_district_list();
+  my $street_list = us_get_street_list();
+
+  my $url = $argv->{URL} || q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
+
+  $url .= '&request=get_house_list';
+
+  my $result = web_request($url, {
+    JSON_RETURN => 1,
+    CURL        => 1,
+  });
+
+  foreach my $build_id ( keys %{ $result } ) {
+    $build_list{$build_id}{NAME}        = $result->{$build_id}->{full_name};
+    $build_list{$build_id}{NUMBER}      = $result->{$build_id}->{number};
+    $build_list{$build_id}{STREET_NAME} = $street_list->{$result->{$build_id}->{street_id}}->{NAME};
+    $build_list{$build_id}{CITY}        = ($result->{$build_id}->{city_district_id}
+      && $city_district_list->{$result->{$build_id}->{city_district_id}}) ? $city_district_list->{$result->{$build_id}->{city_district_id}} : q{};
+
+    my ($coordx, $coordy)=(0,0);
+    my @poligon = ();
+    if ($result->{$build_id}->{coordinates}) {
+      ($coordx, $coordy, @poligon)=split(/, /, $result->{$build_id}->{coordinates});
+    }
+
+    $build_list{$build_id}{COORDX}      = $coordy;
+    $build_list{$build_id}{COORDY}      = $coordx;
+
+    $build_list{$build_id}{ZIP}       = $result->{$build_id}->{postcode};
+    $build_list{$build_id}{FLORS}     = $result->{$build_id}->{floor};
+    $build_list{$build_id}{ENTRANCES} = $result->{$build_id}->{entrance};
+  }
+
+  return \%build_list;
+}
+
+#**********************************************************
+=head2 userside_import();
+
+  Arguments:
+
+  Results:
+
+=cut
+#**********************************************************
+sub userside_import {
+  my @users_info = ();
+
+  _log('LOG_DEBUG', "Userside: get_user_list");
+
+  my $build_list = us_get_house_list();
+
+  my $url = $argv->{URL} || q{http://demo.ubilling.net.ua:9999/billing/?module=remoteapi&key=UB45fc024bbb2632be0b3de41ff8a8b15b&action=userside};
+  $url .= '&request=get_user_list';
+
+  my $result = web_request($url, {
+    JSON_RETURN => 1,
+    CURL        => 1
+  });
+
+  #_log('LOG_DEBUG', $result);
+  my $imported = 1;
+  foreach my $login ( keys %{ $result } ) {
+    my $u = $result->{$login};
+
+    my %services = ();
+
+    if($u->{tariff}->{current}->[0]->{id}) {
+      %services = (
+        4 => {
+          TP_NAME => $u->{tariff}->{current}->[0]->{id} || q{},
+          CID     => $u->{ip_mac}->[0]->{mac} || q{},
+          IP      => int2ip($u->{ip_mac}->[0]->{ip} || 0),
+        }
+      );
+    }
+
+    my $house_id = $u->{address}->[0]->{house_id} || 0;
+    push @users_info, {
+      LOGIN            => $u->{login},
+      CITY             => $build_list->{$house_id}->{CITY} || q{},
+      ADDRESS_STREET   => $build_list->{$house_id}->{STREET_NAME} || q{},
+      ADDRESS_BUILD    => $build_list->{$house_id}->{NUMBER} || q{},
+      ADDRESS_FLAT     => $u->{address}->[0]->{apartment}->{number} || q{},
+      ADDRESS_FLOR     => $u->{address}->[0]->{floor} || q{},
+      ADDRESS_ENTRANCE => $u->{address}->[0]->{entrance} || q{},
+      ADDRESS_COORDX   => $build_list->{$house_id}->{COORDX} || q{},
+      ADDRESS_COORDY   => $build_list->{$house_id}->{COORDY} || q{},
+      PHONE            => $u->{phone}->[0]->{number} || q{},
+      EMAIL            => $u->{email}->[0]->{address} || q{},
+      FIO              => $u->{full_name} || q{},
+      PASSWORD         => $u->{password} || q{},
+      GID              => $u->{group}->[0] || 0,
+      DEPOSIT          => $u->{balance} || 0,
+      CREDIT           => $u->{credit} || 0,
+      DISCOUNT         => $u->{discount} || 0,
+      DISABLE          => $u->{state_id} || 0,
+      COMMENTS         => $u->{account_number} || 0,
+      SERVICES         => \%services
+    };
+
+    #print "===============================\n";
+    #print show_hash($u, { DELIMITER => "\n" });
+    $imported++;
+    if ($import_limit < $imported) {
+      last;
+    }
+  }
+
+  user_import(\@users_info);
+
+  return 1;
 }
 
 #**********************************************************
@@ -93,13 +297,13 @@ sub fields_info {
 
 
 #**********************************************************
-=head2 odoo_import();
+=head2 synsc_system ();
 
 =cut
 #**********************************************************
 sub sync_system {
 
-  my $type = $argv->{TYPE} || q{odoo};
+  my $type = $argv->{TYPE} || q{userside};
   my $fn = $type .'_import';
   &{ \&$fn }();
 
@@ -134,6 +338,11 @@ sub odoo_custom {
   if($debug > 1) {
     print "odoo_custom\n";
   }
+
+  require Synchron::Odoo;
+  Synchron::Odoo->import();
+  require Frontier::Client;
+  Frontier::Client->import();
 
   my Synchron::Odoo $Odoo = odoo_connect({ JSON => 1 });
 
@@ -190,6 +399,11 @@ sub odoo_connect {
       print "DOMAIN_ID: $admin->{DOMAIN_ID} URL: $url DB: $dbname USER: $username PASSWORD: $password\n";
     }
   }
+
+  require Synchron::Odoo;
+  Synchron::Odoo->import();
+  require Frontier::Client;
+  Frontier::Client->import();
 
   my $Odoo = Synchron::Odoo->new({
     LOGIN    => $username,
@@ -275,6 +489,9 @@ sub odoo_import {
 #**********************************************************
 =head2 user_import($users_list); - Sync users
 
+  Arguments:
+    $users_list_arr - list of import users
+
 =cut
 #**********************************************************
 sub user_import {
@@ -295,14 +512,31 @@ sub user_import {
     print show_hash($result_fields, { DELIMITER => "\n" });
   }
 
+  my $sync_field = 'LOGIN';
+
   foreach my $user_info ( @$users_list ) {
-    my $sync_field = 'LOGIN';
     print "Sync field: $sync_field Remote filed: ". (($user_info->{$sync_field}) ? $user_info->{$sync_field} : 'Not defined' )."\n" if ($debug > 1);
+
+    #Get location_id
+    my $location_id = get_location_id($user_info);
+
+    if ($location_id) {
+      $user_info->{LOCATION_ID}=$location_id;
+    }
+
+    if ($argv->{GET_LOCATION}) {
+      next;
+    }
+
+    if ($argv->{ADD_GID}) {
+      $user_info->{GID}=$argv->{ADD_GID};
+    }
 
     $Users->{debug}=1 if($debug > 6);
     my $user_list = $Users->list({
       $sync_field  => $user_info->{$sync_field},
       REGISTRATION => '_SHOW',
+      LOCATION_ID  => '_SHOW',
       COLS_NAME    => '_SHOW'
     });
 
@@ -399,6 +633,20 @@ sub user_import {
     if($count > $import_limit) {
       exit;
     }
+
+    if ($user_info->{DEPOSIT}) {
+      $user_info->{SUM}  = $user_info->{DEPOSIT};
+      $user_info->{USER} = $User;
+      internet_wizard_fin($user_info);
+    }
+
+    if ($user_info->{SERVICES} && $user_info->{SERVICES}->{4}) {
+      $user_info->{SERVICES}->{4}->{UID}=$user_info->{UID};
+      $user_info->{SERVICES}->{4}->{REGISTRATION}=1;
+      $user_info->{SERVICES}->{4}->{QUITE}=1;
+      internet_service_add($user_info->{SERVICES}->{4});
+    }
+
   }
 
   if($debug > 1) {
@@ -1347,6 +1595,111 @@ sub odoo_service_sync_company {
   return 1;
 }
 
+#**********************************************************
+=head2 get_location_id($user_info) - Check exist location and coordinats
 
+  Arguments:
+    $user_info
+
+  Returns:
+    $location_id
+
+=cut
+#**********************************************************
+sub get_location_id {
+  my ($user_info)=@_;
+
+  my $location_id = 0;
+  if ($debug > 6) {
+    $Address->{debug}=1;
+  }
+
+  my $builds_list = $Address->build_list({
+    DISTRAICT_NAME => $user_info->{CITY},
+    STREET_NAME    => $user_info->{ADDRESS_STREET},
+    NUMBER         => $user_info->{ADDRESS_BUILD},
+    COORDX         => '_SHOW',
+    COORDY         => '_SHOW',
+    COLS_NAME      => '_SHOW'
+  });
+
+  if ($Address->{TOTAL} == 0) {
+    my $district_id = 1;
+
+    my %district_params = ();
+    $district_params{NAME} = $user_info->{CITY} || 'DEFAULT';
+
+    my $districts_list = $Address->district_list({
+      %district_params,
+      COLS_NAME => 1
+    });
+
+    if ($Address->{TOTAL}) {
+      $district_id = $districts_list->[0]->{id};
+    }
+    else {
+      $Address->district_add({ NAME => $user_info->{CITY} || 'DEFAULT' });
+      $district_id = $Address->{DISTRICT_ID};
+    }
+
+    my $streets_list = $Address->street_list({
+      STREET_NAME => $user_info->{ADDRESS_STREET},
+      DISTRICT_ID => $district_id,
+      COLS_NAME   => 1
+    });
+
+    my $street_id = 0;
+    if($Address->{TOTAL}) {
+      $street_id=$streets_list->[0]->{id};
+    }
+    else {
+      $Address->street_add({ NAME => $user_info->{ADDRESS_STREET}, DISTRICT_ID => $district_id  });
+
+      if ($Address->{errno}) {
+        print "ERROR: NAME => $user_info->{ADDRESS_STREET}, DISTRICT_ID => $district_id\n";
+      }
+      else {
+        $street_id = $Address->{STREET_ID};
+      }
+    }
+
+    $Address->build_add({
+      STREET_ID => $street_id,
+      NUMBER    => $user_info->{ADDRESS_BUILD},
+      COORDX    => $user_info->{ADDRESS_COORDX},
+      COORDY    => $user_info->{ADDRESS_COORDY},
+      ZIP       => $user_info->{ZIP},
+      FLORS     => $user_info->{ADDRESS_BUILD_FLORS},
+      ENTRANCES => $user_info->{ADDRESS_BUILD_ENTRANCES},
+    });
+
+    if ($Address->{errno}) {
+      print "ERROR: $street_id ($user_info->{ADDRESS_STREET}) $user_info->{ADDRESS_BUILD}\n";
+    }
+    else {
+      $location_id = $Address->{LOCATION_ID};
+    }
+  }
+  else {
+    $location_id=$builds_list->[0]->{id};
+
+    if ($user_info->{ADDRESS_COORDX} && $user_info->{ADDRESS_COORDY}
+      && (
+        ($user_info->{ADDRESS_COORDX} ne $builds_list->[0]->{coordx})
+        || ($user_info->{ADDRESS_COORDY} ne $builds_list->[0]->{coordy})
+        )
+      ) {
+
+      $Address->build_change({
+        ID     => $location_id,
+        COORDX => $user_info->{ADDRESS_COORDX},
+        COORDY => $user_info->{ADDRESS_COORDY},
+      });
+
+    }
+  }
+
+  return $location_id;
+}
 
 1;

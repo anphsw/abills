@@ -29,4 +29,11 @@ $lang{ERROR_SENDING} = 'Ошибка при отправке';
 $lang{REJECT_SYSTEM} = 'Отклонено системой';
 $lang{DELAYED} = 'Отправка сообщения отложена';
 
+$lang{SHORT_PASSWORD} = 'Длина пароля должна быть 8 символов.';
+$lang{ALL_SERVICE_NOT_ACTIVE} = 'Все пользовательские сервисы не активны. UID:';
+$lang{SERVICE_NOT_HOLDING_UP} = 'Сервис не задерживается';
+$lang{SERVICE_NOT_ACTIVE} = 'Сервис не активен';
+$lang{PUBLIC_HOTSPOT_SMS} = 'Публичный хот-спот (СМС)';
+$lang{ADD_SUM_TRANSFER} = 'Переказал суму';
+
 1

@@ -1258,10 +1258,10 @@ sub paysys_system_sel {
   foreach my $id (sort keys %PAY_SYSTEMS) {
     #radio_paysys .= "
     # <div class='col-md-4'>
-    # <div class='box box-theme text-center'>
-    # <div class='box-body' id='paysys-chooser'>
+    # <div class='card card-primary card-outline text-center'>
+    # <div class='card-body' id='paysys-chooser'>
     #   <label class='control-element' for='$id'>
-    #     <img class='img-responsive' src='http://abills.net.ua/wiki/lib/exe/fetch.php/abills:docs:modules:paysys:" . lc("$PAY_SYSTEMS{$id}") . "-logo.png'>
+    #     <img class='img-fluid' src='http://abills.net.ua/wiki/lib/exe/fetch.php/abills:docs:modules:paysys:" . lc("$PAY_SYSTEMS{$id}") . "-logo.png'>
     #     $PAY_SYSTEMS{$id}
     #   </label>
     #     <input type='radio' required name='PAYMENT_SYSTEM' id='$id' value='$id'>
@@ -2688,7 +2688,7 @@ sub paysys_p24_get_payments {
       }
 
       my @rows2 = (
-        $table_id_col . (($cant_analize{$ID}) ? $html->element('span', '', { class => 'glyphicon glyphicon-alert' }) : ''),
+        $table_id_col . (($cant_analize{$ID}) ? $html->element('span', '', { class => 'fa fa-exclamation-triangle' }) : ''),
         $table_login_col,
         '',
         $description,

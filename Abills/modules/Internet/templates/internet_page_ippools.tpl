@@ -26,7 +26,7 @@
   <input type='hidden' name='%PG_INDEX%' id='pg_index' value="%PG_INDEX%"/>
   <div class="pagination">
     <a href="%FAST_FIST_PAGE%">&laquo;</a>
-    <a href="%FIRST_PAGE%" id='btn_page_0' class="active">1</a>
+    <a href="%FIRST_PAGE%" id='btn_page_0' class="btn btn-info active">1</a>
     %PAGE_IP_POOLS%
     <a href="%FAST_END_PAGE%">&raquo;</a>
   </div>
@@ -35,7 +35,7 @@
 <script>
   jQuery(function() {
     var id = jQuery('#pg_index').val();
-    
+
     jQuery('.active').removeClass("active");
     jQuery('#btn_page_' + id).addClass("active");
   });

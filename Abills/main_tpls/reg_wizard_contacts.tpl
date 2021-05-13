@@ -4,31 +4,27 @@
 <input type='hidden' name='LEAD_ID' value='$FORM{LEAD_ID}'>
 <input type='hidden' name='PHONE_NUMBER' id='PHONE_NUMBER' value='$FORM{PHONE_NUMBER}'>
 
-<div class='box box-theme'>
-  <div class='box-header with-border'><h3 class='box-title'>_{CONTACTS}_</h3>
-    <div class='box-tools pull-right'>
-      <button type='button' class='btn btn-box-tool' data-widget='collapse'>
+<div class='card card-primary card-outline'>
+  <div class='card-header with-border'><h3 class='card-title'>_{CONTACTS}_</h3>
+    <div class='card-tools pull-right'>
+      <button type='button' class='btn btn-box-tool' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
       </button>
     </div>
   </div>
-  <div class='box-body'>
-    <div class='row'>
+  <div class='card-body rpw'>
       <div class='col-md-12 col-xs-12'>
-        <div id='additional_fields_container'>
-
-        </div>
-        <div class='col-md-2 col-xs-2 pull-right' style="padding-right: 0">
-          <a title="_{ADD}_ _{CONTACTS}_" class='btn btn-sm btn-default' id='add_field'>
-            <span class='glyphicon glyphicon-plus'></span>
+        <div id='additional_fields_container'></div>
+        <div class='col-md-2 col-xs-2 offset-md-10'>
+          <a title="_{ADD}_ _{CONTACTS}_" class='btn btn-sm btn-secondary' id='add_field'>
+            <span class='fa fa-plus'></span>
           </a>
         </div>
-      </div>
     </div>
 
 
     <!-- Invisible element for clone-->
-    <div class='form-group ' style='display: none;' id='blank_element'>
+    <div class='form-group d-none row' id='blank_element'>
       <label class='control-label col-md-2 col-xs-12 '>_{TYPE}_:</label>
       <div id="select_type_contact_1" class='col-md-3 col-xs-12 ' style="margin: 0 0 8px 0 ">
 
@@ -36,11 +32,11 @@
       <label class='control-label col-md-2 col-xs-12'>_{VALUE}_:</label>
       <div class=' col-md-3 col-xs-10'>
         <input class='form-control  ct_input' name="CONTACT_TYPE_2" type='text' disabled
-               onchange="validation(jQuery(this))">
+              onchange="validation(jQuery(this))">
       </div>
       <div class='col-md-2 col-xs-2'>
-        <a title='_{REMOVE}_' class='btn btn-sm btn-default  del_btn' >
-          <span class='glyphicon glyphicon-minus'></span>
+        <a title='_{REMOVE}_' class='btn btn-sm btn-secondary  del_btn' >
+          <span class='fa fa-minus'></span>
         </a>
       </div>
     </div>
@@ -71,7 +67,7 @@
       var oldI = i;
       jQuery('#blank_element').clone(true)
         .attr('id', 'field' + i)
-        .show()
+        .removeClass('d-none')
         .appendTo('#additional_fields_container');
       jQuery('#field' + i).find('.ct_input').removeAttr('disabled').attr('name', 'CONTACT_TYPE_' + type);
       i++;

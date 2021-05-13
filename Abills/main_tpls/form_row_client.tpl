@@ -1,4 +1,4 @@
-<div class='row %class%'>
-    <div class='col-md-3 text-1'>%NAME%</div>
-    <div class='col-md-9 text-2'>%VALUE%</div>
-</div>
+<tr>
+  <td class='%EXT_CLASS%' title='%TITLE%'>%NAME%</td>
+  <td title='%TITLE%'>%VALUE%</td>
+</tr>

@@ -3,9 +3,9 @@
 <input type='hidden' name='AID' value='$FORM{AID_SCHEDULE}'>
 <input type='hidden' name='index' value='$index'>
 
-<div class='box box-theme box-form '>
-  <div class='box-header with-border'><h4 class='box-title'>%FIO%</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form '>
+  <div class='card-header with-border'><h4 class='card-title'>%FIO%</h4></div>
+  <div class='card-body'>
     <ul class='nav nav-tabs' role='tablist'>
       <li class='active'>
         <a href='#monthly' role='tab' data-toggle='tab'>_{MONTHLY}_</a>
@@ -60,7 +60,7 @@
       </div>
     </div>
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input class='btn btn-primary' type='submit' name='%ACTION%' value='%ACTION_LNG%'/>
   </div>
 </div>

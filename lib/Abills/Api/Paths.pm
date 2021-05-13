@@ -24,6 +24,18 @@ sub list {
         ]
       },
       {
+        method  => 'DELETE',
+        path    => '/users/:uid/',
+        handler => 'del({
+          UID => :uid,
+          ...PARAMS
+        })',
+        module  => 'Users',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
         method  => 'GET',
         path    => '/users/:uid/pi/',
         handler => 'pi({ UID => :uid })',
@@ -80,10 +92,47 @@ sub list {
         ]
       },
       {
+        method  => 'GET',
+        path    => '/users/:uid/abon/',
+        handler => 'user_tariff_list(:uid, {
+          COLS_NAME => 1
+        })',
+        module => 'Abon',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
         method  => 'POST',
         path    => '/users/:uid/internet/',
         handler => 'add({
           UID => :uid,
+          ...PARAMS
+        })',
+        module => 'Internet',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method  => 'GET',
+        path    => '/users/:uid/internet/',
+        handler => 'list({
+          UID       => :uid,
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module => 'Internet',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method  => 'GET',
+        path    => '/users/:uid/internet/:id/',
+        handler => 'info(:uid, {
+          ID        => :id,
+          COLS_NAME => 1,
           ...PARAMS
         })',
         module => 'Internet',
@@ -140,7 +189,7 @@ sub list {
         module  => 'Admins',
         credentials => [
           'ADMIN'
-        ] 
+        ]
       },
       {
         method  => 'POST',
@@ -153,7 +202,7 @@ sub list {
         module  => 'Admins',
         credentials => [
           'ADMIN'
-        ] 
+        ]
       },
       {
         method  => 'POST',
@@ -164,7 +213,115 @@ sub list {
         module  => 'Admins',
         credentials => [
           'ADMIN'
-        ] 
+        ]
+      }
+    ],
+    tp => [
+      {
+        method  => 'GET',
+        path    => '/tp/:tpID/',
+        handler => 'info(undef, {
+          TP_ID => :tpID,
+          ...PARAMS
+        })',
+        module  => 'Tariffs',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method  => 'GET',
+        path    => '/tp/:tpID/intervals/',
+        handler => 'ti_list({
+          TP_ID => :tpID,
+          COLS_NAME => 1
+        })',
+        module  => 'Tariffs',
+        credentials => [
+          'ADMIN'
+        ]
+      }
+    ],
+    abon => [
+      {
+        method  => 'GET',
+        path    => '/abon/tariffs/',
+        handler => 'tariff_list({
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module  => 'Abon',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method  => 'GET',
+        path    => '/abon/tariffs/:id/',
+        handler => 'tariff_info(:id)',
+        module  => 'Abon',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method  => 'POST',
+        path    => '/abon/tariffs/',
+        handler => 'tariff_add({
+          ...PARAMS
+        })',
+        module  => 'Abon',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method  => 'POST',
+        path    => '/abon/tariffs/:id/users/:uid/',
+        handler => 'user_tariff_change({
+          IDS => :id,
+          UID   => :uid,
+          ...PARAMS
+        })',
+        module  => 'Abon',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method  => 'DELETE',
+        path    => '/abon/tariffs/:id/users/:uid/',
+        handler => 'user_tariff_change({
+          DEL => :id,
+          UID   => :uid,
+        })',
+        module  => 'Abon',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method  => 'GET',
+        path    => '/abon/users/',
+        handler => 'user_list({
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module  => 'Abon',
+        credentials => [
+          'ADMIN'
+        ]
+      }
+    ],
+    intervals => [
+      {
+        method  => 'GET',
+        path    => '/intervals/:tpID/',
+        handler => 'ti_info(:tpID)',
+        module  => 'Tariffs',
+        credentials => [
+          'ADMIN'
+        ]
       }
     ],
     groups => [
@@ -240,6 +397,7 @@ sub list {
           ...PARAMS
         })',
         module      => 'Msgs',
+        type        => 'ARRAY',
         credentials => [
           'ADMIN'
         ]
@@ -386,6 +544,27 @@ sub list {
           ...PARAMS
         })",
         module  => 'Address',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+    ],
+    online => [
+      {
+        method  => 'GET',
+        path    => '/online/:uid/',
+        handler => "online({
+          UID             => :uid,
+          CLIENT_IP_NUM   => '_SHOW',
+          NAS_ID          => '_SHOW',
+          USER_NAME       => '_SHOW',
+          CLIENT_IP       => '_SHOW',
+          DURATION        => '_SHOW',
+          STATUS          => '_SHOW',
+        })",
+        module  => 'Sessions',
+        subpackage => 'Internet',
+        type    => 'ARRAY',
         credentials => [
           'ADMIN'
         ]

@@ -2,7 +2,7 @@ package Abills::Backend::Plugin::Asterisk;
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Backend::Plugin::BasePlugin;
+#use Abills::Backend::Plugin::BasePlugin;
 use parent 'Abills::Backend::Plugin::BasePlugin';
 
 use Abills::Base qw/in_array/;
@@ -35,8 +35,8 @@ my $Event_log = Abills::Backend::Log->new('FILE', 7, 'Asterisk debug', {
 # DEBUGGING EVENTS
 
 use Abills::Backend::Defs;
-
 use Abills::Backend::Plugin::Websocket::API;
+
 my Abills::Backend::Plugin::Websocket::API $websocket_api = get_global('WEBSOCKET_API');
 
 # Cache
@@ -118,7 +118,7 @@ sub init_connection {
   Asterisk::AMI->import();
   
   $Log->info("Connecting to asterisk ");
-  
+
   $self->connect_to_asterisk();
 }
 
@@ -214,10 +214,12 @@ sub process_asterisk_newchannel {
 
   if ( $event->{Event} && $event->{Event} eq 'Newchannel' ) {
     
-    my $called_number = $event->{Exten};
-    my $caller_number = $event->{CallerIDNum};
+    my $called_number = $event->{Exten} || q{};
+    my $caller_number = $event->{CallerIDNum} || q{};
 
     return unless $caller_number && $called_number;
+
+    return 0  if ($event->{CallerIDNum} =~ /unknown/);
 
     if($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}){
       $caller_number =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
@@ -225,8 +227,8 @@ sub process_asterisk_newchannel {
     
     # CALLCENTER CODE
     if ( in_array('Callcenter', \@MODULES) ) {
-      if ( $event->{CallerIDNum} ne '' && $event->{Exten} ne '' ) {
-        my ($call_id, undef) = split('\.', $event->{Uniqueid});
+      if ( $event->{CallerIDNum} && $event->{Exten} ) {
+        my ($call_id, undef) = split('\.', $event->{Uniqueid} || q{});
         
         my $newchannel_handler = sub {
           
@@ -237,8 +239,8 @@ sub process_asterisk_newchannel {
               COLS_NAME => 1
             }
           );
-          my $uid;
-          if ( $user && ref $user eq 'ARRAY' && scalar @{$user} > 0 ) {
+          my $uid = 0;
+          if ( $Users->{TOTAL} && $Users->{TOTAL} > 0 ) {
             $uid = $user->[0]->{uid};
           }
           
@@ -254,7 +256,6 @@ sub process_asterisk_newchannel {
           
           if ( !$Callcenter->{errno} ) {
             $Log->info("New call added. ID: $call_id");
-            
           }
           else {
             $Log->info("Can't add new call");
@@ -266,12 +267,16 @@ sub process_asterisk_newchannel {
         $asterisk->{guard_timer} = AnyEvent->timer(
           after => 1,
           cb    => sub {
-            $Callcenter->log_list({ COLS_NAME => 1, UID => '_SHOW', UNIQUE_ID => $call_id });
+            $Callcenter->log_list({
+              COLS_NAME => 1,
+              UID       => '_SHOW',
+              UNIQUE_ID => $call_id
+            });
+
             print "Total - $Callcenter->{TOTAL}\n";
             if ( !$Callcenter->{TOTAL} ) {
               $newchannel_handler->();
             }
-            
           }
         );
         
@@ -347,15 +352,19 @@ sub process_asterisk_softhangup {
     my ($call_id, undef) = split('\.', $event->{Uniqueid});
     
     if ( defined $calls_statuses{$call_id} && $calls_statuses{$call_id} == 2 ) {
-      $Callcenter->callcenter_change_calls({ STATUS => 3,
-        ID                                          => $call_id });
+      $Callcenter->callcenter_change_calls({
+        STATUS => 3,
+        ID     => $call_id
+      });
       
       delete $calls_statuses{$call_id};
       $Log->info("Call processed. ID: $call_id");
     }
     else {
-      $Callcenter->callcenter_change_calls({ STATUS => 4,
-        ID                                          => $call_id });
+      $Callcenter->callcenter_change_calls({
+        STATUS => 4,
+        ID     => $call_id
+      });
       $Log->warning("Call not proceessed. ID: $call_id");
     }
   }
@@ -364,32 +373,45 @@ sub process_asterisk_softhangup {
 
 
 #**********************************************************
-=head2 get_admin_by_sip_number()
+=head2 get_admin_by_sip_number($sip_number)
+
+  Arguments:
+    $sip_number
+
+  Returns:
+    AID_ARRAY_REF
 
 =cut
 #**********************************************************
 sub get_admin_by_sip_number {
   my ($sip_number) = @_;
-  
-  my $admins_for_number_list = $Admins->list({ SIP_NUMBER => $sip_number, AID => '_SHOW', COLS_NAME => 1 });
-  if ( $admins_for_number_list && ref $admins_for_number_list eq 'ARRAY' && scalar @{$admins_for_number_list} > 0 ) {
-    
-    # Get first matched administrator aid
-    my $aid = $admins_for_number_list->[0]->{aid};
-    
-    return $aid;
+
+  my %params = (SIP_NUMBER => $sip_number);
+
+  if ($conf{CALLCENTER_ASTERISK_ADMIN_EXPR}) {
+    $params{SIP_NUMBER} = '*'.$sip_number.'*';
   }
-  else {
-    # Return undef
-    return;
+
+  my $admins_for_number_list = $Admins->list({
+    %params,
+    COLS_NAME  => 1
+  });
+
+  my @admins = ();
+  if ( $Admins->{TOTAL} ) {
+    foreach my $admin (@$admins_for_number_list) {
+      push @admins, $admin->{aid};
+    }
   }
+
+  return \@admins;
 }
 
 #**********************************************************
-=head2 notify_admin_about_new_call($call_info) - notifies admin in new thread
+=head2 notify_admin_about_new_call($called_number, $caller_number) - notifies admin in new thread
 
   Arguments:
-    $called_number - call receiver
+    $called_number - call receiver (Admin)
     $caller_numer  - call initiatior
     
   Returns:
@@ -400,21 +422,29 @@ sub get_admin_by_sip_number {
 sub notify_admin_about_new_call {
   my ($called_number, $caller_number) = @_;
 
-  my $aid = get_admin_by_sip_number($called_number);
-  
-  if ( !$aid ) {
-    $Log->debug("Not admin number $called_number");
+  my $admin_aids = get_admin_by_sip_number($called_number);
+  my @online_aids = ();
+
+  foreach my $aid (@$admin_aids) {
+    if ($websocket_api->has_connected('admin', $aid) ) {
+      push @online_aids, $aid;
+    }
+    else {
+      $Log->notice("Can't notify '$aid', no connection");
+    }
   }
-  elsif ( !$websocket_api->has_connected('admin', $aid) ) {
-    $Log->notice("Can't notify $aid, no connection");
+
+  if ($#online_aids == -1) {
+    $Log->notice("Online admin not present for number: $called_number");
     return 1;
-  };
+  }
 
   if($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}){
     $caller_number =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
   }
 
-  my $search_list = $Users->list({ PHONE => "*$caller_number",
+  my $search_list = $Users->list({
+    PHONE        => "*$caller_number",
     UID          => '_SHOW',
     FIO          => '_SHOW',
     DEPOSIT      => '_SHOW',
@@ -422,21 +452,23 @@ sub notify_admin_about_new_call {
     CITY         => '_SHOW',
     COMPANY_NAME => '_SHOW',
     COLS_UPPER   => 1,
-    COLS_NAME    => 1 });
+    COLS_NAME    => 1
+  });
 
-  if ( !($search_list && ref $search_list eq 'ARRAY' && scalar @{$search_list} > 0) ) {
+  if ( !$Users->{TOTAL} || $Users->{TOTAL} < 1 ) {
     # That's not an ABillS registered number
-    $Log->warning("That's not an ABillS registered number $caller_number");
+    $Log->warning("That's not an ABillS registered number '$caller_number'");
     return 1;
   }
 
   foreach my $user_info (@$search_list){
-
     my $notification = _create_user_info_notification({ %{$user_info}, });
     # Notify admin by messageChecker.ParseMessage
-    $websocket_api->notify_admin($aid, $notification);
+    foreach my $aid (@online_aids) {
+      $websocket_api->notify_admin($aid, $notification);
+    }
   }
-  
+
   return 1;
 }
 
@@ -516,9 +548,11 @@ sub _create_user_info_notification {
   if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY'){
     $money_name = $conf{MONEY_UNIT_NAMES}->[0] || '';
   }
+
+  my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
   my $text = "$lang{DEPOSIT} : " . sprintf('%.2f', ($user_info->{DEPOSIT} || 0)) . " $money_name"
     . '<br/>'
-    . "$lang{ADDRESS} : " . ($user_info->{CITY} || '') . ' ' . ($user_info->{ADDRESS_FULL} || '')
+    . "$lang{ADDRESS} : " . ($user_info->{CITY} || '') . $build_delimiter . ($user_info->{ADDRESS_FULL} || '')
     . "<br>"
     . "$lang{TARIF_PLAN} : " . sprintf('%.25s', $tp_name)
     . "<br>"

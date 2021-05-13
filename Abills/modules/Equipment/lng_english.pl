@@ -40,7 +40,7 @@ $lang{PAIR} = 'Pair';
 $lang{REBOOT}='Reboot';
 $lang{REBOOTED}='Rebooted';
 $lang{SYSTEM_ID}='System describe';
-$lang{UPTIME}='Uptime';
+$lang{UPTIME}='Equipment uptime';
 $lang{ERR_NOT_RESPONSE}='Not response';
 $lang{ONU_STATUS}='ONU status';
 $lang{POWER}='Power';
@@ -68,12 +68,12 @@ $lang{UNIQ_MAC_COUNT}='The number of devices with a unique mac address';
 
 $lang{REPORT_PON}='PON report';
 $lang{OLT_COUNT}='Number of OLT';
-$lang{BRANCH_COUNT}='Number of веток';
+$lang{BRANCH_COUNT}='Number of branches';
+$lang{BRANCH_TOTAL_FILL}='Total branches fill percentage';
 $lang{ONU_COUNT}='Number of ONU';
 $lang{ACTIVE_ONU_COUNT}='Number of active ONU';
 $lang{INACTIVE_ONU_COUNT}='Number of inactive ONU';
 $lang{BAD_ONU_COUNT}='Number of failed ONU';
-$lang{NOTREGISTRED_ONU_COUNT}='Number of unregistred ONU';
 
 $lang{SPEED_CHARTS}='Speed charts';
 $lang{SPEED_IN}='In-speed(Mb/s)';
@@ -81,16 +81,14 @@ $lang{SPEED_OUT}='Out speed(Mb/s)';
 $lang{SIGNAL} = 'Signal';
 
 $lang{REPORT_ON_UNREGISTERED_ONU} = "Report on unregistered onu";
-$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS} = "Report on number of busy and free ports";
+$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Report on number of busy and free ports on switches";
+$lang{TOTAL_SWITCH_COUNT} = "Number of switches";
 $lang{TOTAL_ALL_PORTS} = "Total number of ports";
 $lang{TOTAL_BUSY_PORTS} = "Number of busy ports";
 $lang{TOTAL_FREE_PORTS} = "Number of free ports";
 
 $lang{ELECTRIC_POWER} = "Electric power";
 
-
-$lang{ERROR_DIR} = 'Cannot open directory:';
-$lang{ERROR_FILE} = "Couldn't open: ";
 $lang{EDIT_SUCCESS} = 'Template changed';
 $lang{INVALID_JSON} = 'Invalid Json File';
 $lang{FILES_TITLE} = 'Templates';
@@ -138,5 +136,39 @@ $lang{ENABLE_CATV_PORT} = 'Enable CATV-port';
 $lang{CATV_PORT_DISABLED} = 'CATV-port disabled';
 $lang{CATV_PORT_ENABLED} = 'CATV-port enabled';
 $lang{CATV_PORT_ERROR} = 'Error when changing CATV-port status';
+
+$lang{USE_AUTO_PORT_SHIFT} = 'Use auto port shift';
+
+$lang{LINK_STATUS} = 'Link status';
+$lang{PORT_TYPE} = 'Port type';
+
+$lang{FAILED_TO_GET_TELNET_CMDS_FROM_FILE} = 'Failed to get Telnet-commands from file';
+$lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} = 'Getting ONU configuration currently is not supported. You can manually write needed Telnet-commands to file Abills/modules/Equipment/snmp_tpl/zte_get_onu_config_epon.tpl';
+
+$lang{CABLE_TEST_FAILED} = 'failed to run cable test';
+$lang{LAST_CABLE_TEST_TIME} = 'Time of last cable tester run';
+
+$lang{DISPLAYING_USER_EQUIPMENT_INFORMATION} = 'Displaying user equipment information';
+
+$lang{MAC_FLOOD_COUNT} = 'Number of MAC addresses';
+
+$lang{FDB_USES_PORT_NUMBER_INDEX} = 'FDB uses port numbers as indexes';
+
+$lang{CHANGE_PORT} = 'Change port';
+$lang{EQUIPMENT_STATUS} = 'Equipment status';
+$lang{PORT_STATUS} = 'Port status';
+$lang{PORT_STATUS_CHANGING} = 'Changing port status...';
+$lang{PORT_STATUS_CHANGING_SUCCESS} = 'Port status changed successfully';
+$lang{PORT_STATUS_CHANGING_ERROR} = 'Port status changing error';
+$lang{PORT_STATUS_SNMP_TOOLTIP} = 'Change port status on device by sending SNMP-request';
+$lang{SNMP_ERROR} = 'SNMP error';
+$lang{NAS_WITH_ID_NOT_FOUND} = 'NAS with such ID not found';
+
+$lang{DISABLE_INFINITIVE} = 'Disable';
+$lang{ENABLE_INFINITIVE} = 'Enable';
+
+$lang{EXTERNAL_SYSTEM_LINK} = 'External system link';
+
+$lang{NUMBER_OF_SUPPORTED_ONUS_ON_BRANCH_FOR} = 'Number of supported ONUs on branch for';
 
 1

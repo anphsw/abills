@@ -126,7 +126,7 @@ sub sqlcmd {
     $html->tpl_show(_include('sqlcmd', 'Sqlcmd'), { %$Sqlcmd, %FORM, %FORM2 });
 
     if (defined($FORM2{QUERY}) && length($FORM2{QUERY}) > 10) {
-      $list = $Sqlcmd->list({ %FORM2 })
+      $list = $Sqlcmd->list({ %FORM2 });
     }
 
     if ($FORM{QUERY} && !$FORM{xml}) {
@@ -157,10 +157,6 @@ sub sqlcmd {
         foreach my $s (@division) {
           $show_query =~ s/$s | $s / <br>$s /ig;
         }
-
-        #foreach my $s (@func) {
-        #  $show_query =~ s/$s | $s / <br>$s /ig;
-        # }
 
         foreach my $s (@syntax) {
           #Extended
@@ -200,8 +196,8 @@ sub sqlcmd {
 
     if ($Sqlcmd->{errno}) {
       $html->message('err', $lang{ERROR}, "[$Sqlcmd->{errno}] $Sqlcmd->{errno}\n"
-         . ' ' . ($Sqlcmd->{errstr} || q{}) . "\n"
-         . ' ' . ( $Sqlcmd->{sql_errstr} || q{} ), { ID => $Sqlcmd->{db}->{db}->state() });
+        . ' ' . ($Sqlcmd->{errstr} || q{}) . "\n"
+        . ' ' . ( $Sqlcmd->{sql_errstr} || q{} ), { ID => $Sqlcmd->{db}->{db}->state() });
       return 0;
     }
 
@@ -380,18 +376,6 @@ sub sqlcmd {
         $html->button($lang{CHANGE}, "index=$index&TABLE_INFO=$FORM{TABLE_INFO}&FIELD=$line->[0]", { class => 'change' }));
     }
 
-    #my $i=0;
-    #foreach my $line (@CAPTION) {
-    #	$table->addrow($html->form_input('FIELDS', $line, {TYPE => 'CHECKBOX' } ). " $line",
-    #	 "$Sqlcmd->{MYSQL_TYPE_NAME}->[$i] ($Sqlcmd->{MYSQL_LENGTH}->[$i])",
-    # 	 $Sqlcmd->{MYSQL_MAX_LENGTH}->[$i],
-    # 	 $bool_vals[$Sqlcmd->{MYSQL_IS_NOT_NULL}->[$i]],
-    #	 $bool_vals[$Sqlcmd->{MYSQL_IS_KEY}->[$i]],
-    #	 $bool_vals[$Sqlcmd->{MYSQL_IS_PRIMARY_KEY}->[$i]]
-    #	 );
-    #	$i++;
-    # }
-
     my $table2 = $html->table(
       {
         width       => '100%',
@@ -501,7 +485,6 @@ sub sqlcmd_tables {
     NO_BOX_HEADER      => 1,
   });
 
-  # $html->tpl_show(_include('sqlcmd_search_tables', 'Sqlcmd'), { %$Sqlcmd, %FORM });
   my $list = $Sqlcmd->info({ TYPE => 'showtables', %LIST_PARAMS, %FORM });
 
   if (_error_show($Sqlcmd)) {

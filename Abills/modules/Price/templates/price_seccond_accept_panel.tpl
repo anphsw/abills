@@ -3,6 +3,6 @@
     <tr>
         <th>_{PRICE_FOR}_ %CLIENTS_NUM% _{ADDITIONAL_SUBSCRIBERS}_
         </th>
-        <th>%PEOPLE_MONY%<span class='glyphicon glyphicon-usd'></span></th>
+        <th>%PEOPLE_MONY%<span class='fa fa-usd'></span></th>
     </tr>
 </form>

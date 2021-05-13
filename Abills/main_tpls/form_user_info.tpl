@@ -1,8 +1,10 @@
-<div class='box box-theme box-big-form'>
-<div class='box-body'>
+<div class='card container-md'>
+    <div class="card-header">
+        <h4 class="card-title">_{INFO}_</h4>
+    </div>
+<div class='card-body'>
 
 <table class='table table-striped table-hover'>
-    <legend>_{INFO}_</legend>
     <TR>
         <TD>_{LOGIN}_:</TD>
         <TD><a href='$SELF_URL?index=15&UID=%UID%'>%LOGIN%</a></TD>

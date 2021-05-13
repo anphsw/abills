@@ -6,86 +6,132 @@
 
 %OPTIONS_SCRIPT%
 
-<div class='box box-primary center-block'>
-    <div class='box-header with-border text-right'>
-        <h4 class='box-title'>_{SHEDULE_BOARD}_</h4>
+<div class='card card-primary card-outline center-block'>
+    <div class='card-header with-border text-right'>
+        <h4 class='card-title'>_{SHEDULE_BOARD}_ (_{HOURS}_)</h4>
     </div>
-    <div class='box-body'>
-        <div class='row text-left' style='padding-left: 1%; padding-right: 1%;'>
-            <div id='new-tasks'></div>
+    <div class='card-body'>
+        <div class='text-left'>
+            <div class="row" id='new-tasks'></div>
         </div>
-        <div class='row' style='padding-left: 1%; padding-right: 1%;'>
-            <div id='hour-grid'></div>
+        <br/><br/>
+        <div>
+            <div class='row' id='hour-grid'></div>
         </div>
-          
     </div>
 </div>
 
 <div class='col-md-12 col-sm-12'>
-    <div class='col-md-6 col-sm-6'>
-        <div class='box box-primary center-block'>
-            <div class='box-header with-border text-right'>
-                <h4 class='box-title'>_{SEARCH}_</h4>
-            </div>
-            <div class='box-body'>
-                <form class='form form-inline' action=''>
-                    <input type='hidden' name='index' value='$index'/>
-                    <input type='hidden' name='ID' value='$FORM{ID}'/>
-                    <input type='hidden' name='DATE' value='$FORM{DATE}'/>
+    <div class="row">
+        <div class='col-md-6 col-sm-6'>
+            <div class='card box-primary center-block'>
+                <div class='card-header with-border text-right'>
+                    <h4 class='card-title'>_{SEARCH}_</h4>
+                </div>
+                <div class='card-body'>
+                    <form class='form form-inline' action=''>
+                        <input type='hidden' name='index' value='$index'/>
+                        <input type='hidden' name='ID' value='$FORM{ID}'/>
+                        <input type='hidden' name='DATE' value='$FORM{DATE}'/>
+                        <input type='hidden' name='HOURS' value='1'/>
 
-                    <div class="form-group">
-                        <label class='control-label col-md-4 col-sm-3' for='DATE'>_{DATE}_: </label>
-                        <div class="col-md-8 col-sm-9">
-                            <input type='text' class='form-control datepicker' 
-                                value='$FORM{DATE}' name='DATE'/>
+                        <div class="form-group">
+                            <div class="row">
+                                <div class="col-sm-12 col-md-6">
+                                    <label class='control-label col-md-10 col-sm-12' for='DATE'>_{DATE}_</label>
+                                    <div class="input-group">
+                                        <input type='text' class='form-control datepicker'
+                                            value='$FORM{DATE}' name='DATE'/>
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-12 col-md-6">
+                                    <label class='control-label col-md-8 col-sm-12' for='TASK_STATUS_SELECT'>_{STATUS}_</label>
+                                    <div class="input-group">
+                                        %TASK_STATUS_SELECT%
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class='control-label col-md-4 col-sm-3' for='TASK_STATUS_SELECT'>_{STATUS}_: </label>
-                        <div class="col-md-8 col-sm-9">
-                            %TASK_STATUS_SELECT%
-                        </div>
-                    </div>
-
-                    <input type='submit' class='btn btn-primary' value='_{SHOW}_'/>
-                </form>
+                        <input type='submit' class='btn btn-primary' value='_{SHOW}_'/>
+                    </form>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class='col-md-6 col-sm-6'>
-        <div class='box box-primary center-block'>
-            <div class='box-header with-border text-right'>
-                <h4 class='box-title'>_{SET}_</h4>
-            </div>
-            <div class='box-body'>
-                <form id='tasksForm' method='POST' action='$SELF_URL'>
-                    <div class='row'>
-                        <input type='hidden' name='index' value='$index'/>
-                        <input type='hidden' name='jobs' id='jobsNew' />
-                        <input type='hidden' name='popped' id='jobsPopped' />
-                        <input type='hidden' name='DATE' value='$FORM{DATE}'/>
+        <div class='col-md-6 col-sm-6'>
+            <div class='card box-primary center-block'>
+                <div class='card-header with-border text-right'>
+                    <h4 class='card-title'>_{SET}_</h4>
+                </div>
+                <div class='card-body'>
+                    <form id='tasksForm' method='POST' action='$SELF_URL'>
+                        <div class='row'>
+                            <input type='hidden' name='index' value='$index'/>
+                            <input type='hidden' id='indexJob' name='indexJob' value='%INDEX_JOB%'/>
+                            <input type='hidden' name='jobs' id='jobsNew' />
+                            <input type='hidden' name='popped' id='jobsPopped' />
+                            <input type='hidden' name='DATE' value='$FORM{DATE}'/>
+                            <input type='hidden' name='HOURS' value='1'/>
 
-                        <div class='center-block text-center'>
-                            <button class='btn btn-default' type='reset' id='cancelBtn'>_{CANCEL}_</button>
-                            <input type='submit' class='btn btn-primary' id='saveBtn' name='change' value='_{CHANGE}_'>
+                            <div class='center-block text-center'>
+                                <input type='submit' class='btn btn-primary' id='saveBtn' name='change' value='_{CHANGE}_'>
+                            </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-    div#hour-grid > table {
-        border: 1px solid silver;
-    }
+<script>
+function makeResizableDiv() {
+    const resizers = document.querySelectorAll('.resizer')
 
-    div#hour-grid > table > tr > td {
-        width: 110px;
-        height: 30px;
-    }
-</style>
+    for (let i = 0; i < resizers.length; i++) {
+        const currentResizer = resizers[i]
+        currentResizer.addEventListener('mousedown', function(e) {
+            e.preventDefault()
+            window.addEventListener('mousemove', resize)
+            window.addEventListener('mouseup', stopResize)
+        })
 
+        let currentResizerTmp = 0;
+        function resize(e) {
+            if (currentResizer.classList.contains('bottom-right')) {
+                currentResizer.style.width = e.pageX - currentResizer.getBoundingClientRect().left + '%'
+                currentResizerTmp = e.pageX - currentResizer.getBoundingClientRect().left
+            }
+        }
+
+        function stopResize() {
+            window.removeEventListener('mousemove', resize)
+
+            let a = (100 / 60 * 15)
+            let resizeNew = Math.round(currentResizerTmp / a) * a
+            currentResizer.style.width = resize + '%'
+
+            let index = jQuery('#indexJob').val()
+            let hours = resizeNew
+            let id    = currentResizer.id
+
+            let url = `${SELF_URL}?index=${index}&id=${id}&hours=${hours}`
+
+            jQuery.ajax({
+                url        : url,
+                type       : "get",
+                contentType: false,
+                cache      : false,
+                processData: false,
+                success    : function () { }
+            });
+        }
+    }
+}
+
+jQuery(document).ready(function() {
+    makeResizableDiv()
+})
+
+</script>

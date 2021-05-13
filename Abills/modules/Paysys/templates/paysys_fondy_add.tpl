@@ -10,11 +10,11 @@
   <input type="hidden" name="merchant_data" value="%MERCHANT_DATA%">
   <input type="hidden" name="required_rectoken" value="%REQUIRED_RECTOKEN%">
 
-    <div class='box box-primary'>
-      <div class='box-header with-border text-center'>
-        <h4 class='box-title'>Fondy</h4>
+    <div class='card box-primary'>
+      <div class='card-header with-border text-center'>
+        <h4 class='card-title'>Fondy</h4>
       </div>
-      <div class='box-body'>
+      <div class='card-body'>
 
         <div class='form-group text-center'>
           <img src='/styles/default_adm/img/paysys_logo/fondy-logo.png' style="width: auto; max-height: 200px;">
@@ -38,7 +38,7 @@
         </div>-->
 
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input class='btn btn-primary' type='submit' value='_{PAY}_'>
       </div>
 

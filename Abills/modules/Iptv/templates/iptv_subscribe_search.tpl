@@ -1,5 +1,5 @@
-<div class='box box-theme box-form'>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-body'>
 
 <fieldset>
 

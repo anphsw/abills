@@ -101,11 +101,11 @@
   <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
   <input type='hidden' name='ID' value='%ID%'/>
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'>
-      <h4 class='box-title'>_{REMOTE_SERVERS}_</h4>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>_{REMOTE_SERVERS}_</h4>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
 
       <div class="bg-info">
         <div class='form-group'>
@@ -155,7 +155,7 @@
 
       <div class='form-group hidden'>
         <div class='col-md-6'>
-          <button type='button' class='btn btn-default' disabled='disabled' id='check_server_access'>_{CHECK_ACCESS}_
+          <button type='button' class='btn btn-secondary' disabled='disabled' id='check_server_access'>_{CHECK_ACCESS}_
           </button>
         </div>
         <div class='col-md-6' id='check_server_result'></div>
@@ -169,17 +169,17 @@
       </div>
 
       <div class='form-group'>
-        <div class='box box-theme'>
-          <div class='box-header with-border' role='tab' id='EXTRA_heading'>
-            <h4 class='box-title text-center'>
+        <div class='card card-primary card-outline'>
+          <div class='card-header with-border' role='tab' id='EXTRA_heading'>
+            <h4 class='card-title text-center'>
               <a role='button' data-toggle='collapse' href='#EXTRA_collapse' aria-expanded='true'
                  aria-controls='EXTRA_collapse'>
                 _{EXTRA}_
               </a>
             </h4>
           </div>
-          <div id='EXTRA_collapse' class='box-collapse collapse' role='tabpanel' aria-labelledby='EXTRA_heading'>
-            <div class='box-body'>
+          <div id='EXTRA_collapse' class='card-collapse collapse' role='tabpanel' aria-labelledby='EXTRA_heading'>
+            <div class='card-body'>
 
               <div class='checkbox text-center'>
                 <label>
@@ -193,7 +193,7 @@
       </div> <!-- end of collapse form-group -->
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type='submit' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
     </div>
   </div>

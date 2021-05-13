@@ -1,13 +1,14 @@
 
 =head1 NAME
 
-   NAS managment functions
+  NAS managment functions
 
 =cut
 
 use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
+use Abills::Radius_Pairs;
 use Abills::Base qw(in_array convert int2ip ip2int ssh_cmd cmd _bp);
 use Nas;
 
@@ -29,8 +30,6 @@ my $Nas = Nas->new($db, \%conf, $admin);
 =cut
 #**********************************************************
 sub form_nas {
-  $FORM{NAS_RAD_PAIRS} = radius_params({ %FORM });
-
   if ($FORM{NAS_ID} && !$FORM{del}) {
     if(form_nas_mng($FORM{NAS_ID})) {
       return 1;
@@ -390,9 +389,6 @@ sub form_nas_list {
 =cut
 #**********************************************************
 sub form_nas_add {
-
-  $FORM{NAS_RAD_PAIRS} = radius_params({ %FORM });
-
   $Nas->{SEL_TYPE} = $html->form_select(
     'NAS_TYPE',
     {
@@ -458,11 +454,23 @@ sub form_nas_add {
       GLOBAL_URL     => "winbox://",
       NO_LINK_FORMER => 1,
       target         => '_blank',
-      class          => 'btn btn-info',
+      class          => 'btn btn-sm border-left',
       TITLE          => "Winbox",
 #      ex_params      => "data-tooltip='Winbox'",
       });
   }
+
+  $Nas->{RAD_PAIRS_FORM} = $html->tpl_show(
+    templates('form_radius_pairs'),
+    {
+      RAD_PAIRS => Abills::Radius_Pairs::parse_radius_params_string(
+        $Nas->{NAS_RAD_PAIRS}
+      ),
+      SAVE_INDEX => get_function_index('nas_radius_pairs_save'),
+      ID => $Nas->{NAS_ID}
+    },
+    { OUTPUT2RETURN => 1 }
+  );
 
   $html->tpl_show(templates('form_nas'), $Nas, { ID => 'form_nas' });
 
@@ -862,7 +870,7 @@ sub form_nas_console_command {
                 class     => 'btn btn-xs btn-danger removeIpBtn',
                 ex_params => "data-address-number='" . ($line->{id} || $line->{'.id'} || q{}) . "'",
                 SKIP_HREF => 1,
-                ICON      => 'glyphicon glyphicon-remove'
+                ICON      => 'fa fa-remove'
               }
             );
           }
@@ -1378,7 +1386,7 @@ sub form_wrt_configure {
     caption => 'WRT CONFIGURE',
     title   => [ 'ID', $lang{VALUE}, '-' ],
     ID      => 'WRT_CONFIGURE',
-    MENU    => "$lang{BACK}:NAS_ID=$FORM{nas}&index=$index:btn btn-xs btn-default"
+    MENU    => "$lang{BACK}:NAS_ID=$FORM{nas}&index=$index:btn btn-xs btn-secondary"
   });
 
   my $rows = file_op(
@@ -1666,6 +1674,13 @@ sub form_ip_pools {
     }
   }
   elsif ($FORM{set}) {
+    my @arr_ids = ();
+    if ($FORM{ids}) {
+      @arr_ids = split(', ', $FORM{ids});
+    }
+
+    $FORM{ids} = join(', ', _uniq(@arr_ids));
+
     $Nas->nas_ip_pools_set(\%FORM);
 
     if (!$Nas->{errno}) {
@@ -1726,6 +1741,10 @@ sub form_ip_pools {
       }
     );
 
+    if ($Nas->{IP}) {
+      $Nas->{IP}=join('.', (split(/\./, int2ip($Nas->{IP})))[0..2] ) .'.'.'2';
+    }
+
     $html->tpl_show(templates('form_ip_pools'), {
       %FORM,
       %{$Nas},
@@ -1736,7 +1755,7 @@ sub form_ip_pools {
   _error_show($Nas);
   $index = get_function_index('form_ip_pools');
   my Abills::HTML $pools_table;
-  ($pools_table) = result_former(
+  ($pools_table, undef) = result_former(
     {
       INPUT_DATA      => $Nas,
       FUNCTION        => 'nas_ip_pools_list',
@@ -1779,6 +1798,7 @@ sub form_ip_pools {
               'ids',
               $line->{id},
               {
+                class   => 'checked_ippool_' . $line->{id},
                 TYPE    => 'checkbox',
                 FORM_ID => 'IP_POOLS_CHECKBOXES_FORM',
                 STATE   => ($line->{active_nas_id}) ? 'checked' : undef
@@ -1832,6 +1852,7 @@ sub form_ip_pools {
       TABLE           => {
         width   => '100%',
         caption => "NAS IP POOLs",
+        SHOW_FULL_LIST => 1,
         qs      => $pages_qs,
         ID      => 'NAS_IP_POOLS',
         header  => '',
@@ -1841,9 +1862,12 @@ sub form_ip_pools {
       },
       MAKE_ROWS       => 1,
       SEARCH_FORMER   => 1,
-      TOTAL           => 1
+      TOTAL           => 1,
+      OUTPUT2RETURN   => 1
     }
   );
+
+  $html->tpl_show(templates('form_ippools_nas'), { TABLE_IPPOOLS => $pools_table });
 
   print $html->form_main(
     {
@@ -1985,11 +2009,40 @@ sub form_nas_stats {
   return 1;
 }
 
+sub build_radius_params_result_response {
+  my ($module) = @_;
+
+  my $errno = $module->{errno} || 0;
+  my $err_str = $module->{err_str} || '';
+
+  return qq[
+    {
+      "status": $errno,
+      "message": "$err_str"
+    }
+  ];
+}
+
+
+sub parse_radius_params_json {
+  my ($pairs_json) = @_;
+
+  $pairs_json =~ s/\\//g;
+  $pairs_json =~ s/’/'/g;
+
+  my $json = JSON->new()->utf8(0);
+
+  my $radius_pairs = $json->decode($pairs_json);
+  my $radius_pairs_string = build_radius_params_string($radius_pairs);
+
+  return $radius_pairs_string;
+}
+
 #**********************************************************
 =head2 sel_nas_groups($attr)
 
   Arguments:
-    
+    GID
 
 =cut
 #**********************************************************
@@ -2297,104 +2350,41 @@ sub form_ssh_key {
 }
 
 #**********************************************************
-=head2 radius_params($attr) - Nas form adding params
+=head2 nas_radius_pairs_save($attr)
 
   Arguments:
-    $attr
 
   Return:
-    NAS_RAD_PAIRS - nas params
 
 =cut
 #**********************************************************
-sub radius_params {
-  my ($attr) = @_;
+sub nas_radius_pairs_save {
+  #my ($attr) = @_;
 
-  if ($attr->{LEFT_PART} && defined($attr->{RIGHT_PART})) {
-    my @left_parts = split(', ', $attr->{LEFT_PART});
-    my @right_parts = split(', ', $attr->{RIGHT_PART});
-    my @conditions = split(', ', $attr->{CONDITION});
-    my $iter = 0;
+  return 1 if !$FORM{ID};
 
-    my @pairs_arr = ();
-    foreach my $left_part (@left_parts) {
-      push @pairs_arr, $left_part . ($conditions[ $iter ] || '=') . $right_parts[ $iter ] . ', ';
-      ++$iter;
-    }
+  $Nas->{debug}=1;
+  $Nas->change({
+    %{$Nas->info({
+      NAS_ID        => $FORM{ID}
+    })},
+    NAS_ID        => $FORM{ID},
+    NAS_RAD_PAIRS => Abills::Radius_Pairs::parse_radius_params_json($FORM{RADIUS_PAIRS})
+  });
 
-    if ($attr->{IGNORE_PAIR}) {
-      my @pairs_arr_ignore = radius_params_ignore({
-        PAIR_FORM   => \@pairs_arr, 
-        IGNORE_PAIR => $attr->{IGNORE_PAIR}
-      });
+  print Abills::Radius_Pairs::build_radius_params_result_response($Nas);
 
-      $attr->{NAS_RAD_PAIRS} = join(', ', @pairs_arr_ignore);
-    }
-    else {
-      for (my $iter = 0; $iter <= $#pairs_arr; $iter++) {
-        if ($pairs_arr[ $iter ] =~ /!/) {
-          $pairs_arr[ $iter ] =~ s/!//g;
-        }
-      }
-
-      $attr->{NAS_RAD_PAIRS} = join(', ', @pairs_arr);
-    }
-
-    if ($attr->{NAS_RAD_PAIRS} =~ /, ,/) {
-      $attr->{NAS_RAD_PAIRS} =~ s/ , //g
-    }
-    
-    if ($attr->{NAS_RAD_PAIRS} =~ /,/) {
-      $attr->{NAS_RAD_PAIRS} =~ s/,/, \n/g
-    }
-  }
-  else {
-    return '';
-  }
-
-  return $attr->{NAS_RAD_PAIRS} || '';
+  return 1;
 }
 
-#**********************************************************
-=head2 radius_params_ignore() - 
-
-  Arguments:
-    PAIR_FORM     - pair array
-    IGNORE_PAIR   - pair id ignore
-
-  Return:
-    pair_form     - array pair ignore
-
-=cut
-#**********************************************************
-sub radius_params_ignore {
-  my ($attr) = @_;
-
-  my @pair_form = @{ $attr->{PAIR_FORM} };
-  my @ignore_id = split(/, /, $attr->{IGNORE_PAIR});
-
-  for (my $iter = 0; $iter <= $#pair_form; $iter++) {
-    if ($pair_form[ $iter ] =~ /!/) {
-      $pair_form[ $iter ] =~ s/!//g;
-    }
-  }
-
-  foreach my $id (@ignore_id) {
-    next if ($pair_form[ $id - 1 ] =~ /!/);
-    
-    $pair_form[ $id - 1 ] = '!' . $pair_form[ $id - 1 ];
-  }
-
-  return @pair_form;
-}
 
 #**********************************************************
-=head2 ip_pools_import($attr) - 
+=head2 ip_pools_import($attr)
 
   Arguments:
 
   Return:
-    
+
 =cut
 #**********************************************************
 sub ip_pools_import {
@@ -2427,7 +2417,7 @@ sub ip_pools_import {
 }
 
 #**********************************************************
-=head2 import_ip($attr) - 
+=head2 import_ip($attr)
 
   Arguments:
     import_info   - import ip pools
@@ -2440,7 +2430,7 @@ sub ip_pools_import {
 #**********************************************************
 sub import_ip {
   my ($import_info, %ippools_hash) = @_;
-  
+
   foreach my $ip_import (@$import_info) {
     if ($ip_import) {
       add_ip_import($ip_import, %ippools_hash);
@@ -2450,7 +2440,7 @@ sub import_ip {
 }
 
 #**********************************************************
-=head2 add_ip_import($attr) - 
+=head2 add_ip_import($attr)
 
   Arguments:
     ip_tmp  - ip push in system
@@ -2463,13 +2453,13 @@ sub import_ip {
 #**********************************************************
 sub add_ip_import {
   my ($ip_tmp, %ip_hash) = @_;
-  my @bit_masks = (32, 31, 30, 29, 28, 27, 26, 25, 24, 
-                   23, 22, 21, 20, 19, 18, 17, 16);  
+  my @bit_masks = (32, 31, 30, 29, 28, 27, 26, 25, 24,
+                   23, 22, 21, 20, 19, 18, 17, 16);
 
   my @ip_and_mask;
 
   if (ref($ip_tmp) eq 'HASH' && $ip_tmp->{IP}) {
-    
+
     $ip_tmp->{IP} =~ s/,//g;
     if ($ip_tmp->{IP} =~ /\//) {
       @ip_and_mask = split(/\//, $ip_tmp->{IP});
@@ -2503,6 +2493,21 @@ sub add_ip_import {
     });
   }
 
+}
+
+#**********************************************************
+=head2 _uniq() -
+
+  Arguments:
+    -
+  Return:
+    -
+
+=cut
+#**********************************************************
+sub _uniq {
+    my %seen;
+    grep !$seen{$_}++, @_;
 }
 
 1;

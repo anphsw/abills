@@ -1,16 +1,18 @@
 <form action="$SELF_URL">
-    <!-- <input type=hidden name=index value=$index> -->
-    <div class='box box-form'>
-        <div class='box-header'>_{STREETS}_ _{SEARCH}_</div>
-        <div class='box-body'>
-        <div class='form-group'>
-            <label class='col-md-3 control-label'>_{STREET}_</label>
-            <div class='col-md-9'>
-                <input type='text' class='form-control' name='STREET_NAME' value='%NAME%'>
-            </div>
-        </div>
-        </div>
+  <!-- <input type=hidden name=index value=$index> -->
+  <div class='card card-primary card-outline card-form'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>_{STREETS}_ _{SEARCH}_</h4>
     </div>
+    <div class='card-body'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='STREET_NAME'>_{STREET}_:</label>
+        <div class='col-md-8'>
+          <input id='STREET_NAME' type='text' class='form-control' name='STREET_NAME' value='%NAME%'>
+        </div>
+      </div>
+    </div>
+  </div>
 </form>
 
 

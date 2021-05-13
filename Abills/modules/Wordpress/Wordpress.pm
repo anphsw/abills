@@ -51,7 +51,12 @@ sub new {
     admin => $admin,
     conf  => $CONF,
   };
-  
+
+  $CONF->{WORDPRESS_URL} //= q{};
+  $CONF->{WORDPRESS_BLOGID} //= q{};
+  $CONF->{WORDPRESS_ADMIN} //= q{};
+  $CONF->{WORDPRESS_PASSWORD} //= q{};
+
   if ($no_xml_rpc){
     return 0;
   }

@@ -392,6 +392,28 @@ sub abon_user {
       }
     }
 
+    if ($#del_arr > -1) {
+      my $list = $Abon->tariff_list(
+        {
+          IDS              => join('; ', @del_arr),
+          EXT_BILL_ACCOUNT => '_SHOW',
+          COLS_NAME        => 1
+        }
+      );
+
+      foreach my $line (@{$list}) {
+        my $seltime = 0;
+        my $ext_cmd = $line->{ext_cmd};
+
+        if ($ext_cmd) {
+          my $cmd = $ext_cmd;
+          $cmd .= " ACTION=ALERT UID=$users->{UID} TP_ID=$line->{tp_id}";
+          cmd($cmd);
+        }
+
+      }
+    }
+
     delete $FORM{IDS};
     $Abon->user_tariff_change(
       {
@@ -657,7 +679,8 @@ sub abon_tariffs {
       $Abon->{ACTION_LNG} = $lang{CHANGE};
     }
 
-    $pages_qs .= "&ABON_ID=$FORM{ABON_ID}" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
+   # $pages_qs .= "&ABON_ID=$FORM{ABON_ID}" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
+    $pages_qs .= "&ABON_ID=$FORM{ABON_ID}";
 
     $LIST_PARAMS{ABON_ID} = $FORM{ABON_ID};
     $Abon->{ABON_ID} = $FORM{ABON_ID};
@@ -1348,7 +1371,7 @@ sub abon_docs {
         if ($line->{period} == 0) {
           $line->{price} = $line->{price} * 30;
         }
-        push @services, "$lang{ABON}: ($line->{id}) " . "$line->{name}" . "|$line->{comments} |$line->{price}|$line->{id}";
+        push @services, "$lang{ABON}: ($line->{id}) " . "$line->{name}" . "|$line->{comments} |$line->{price}|$line->{id}|$line->{name}";
       }
     }
   }

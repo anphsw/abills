@@ -84,6 +84,7 @@ if ($conf{MSGS_SCRUB_BOX}) {
 require Msgs::Reg_request;
 require Msgs::Msgs_team_ticket;
 require Msgs::Msgs_team_location;
+require Msgs::Msgs_Plugins;
 
 #**********************************************************
 =head2 msgs_user_del($uid, $attr) - Delete user  from module
@@ -152,7 +153,7 @@ sub msgs_status_bar {
       $LIST_PARAMS{STATE} = $state;
     }
     $name //= q{};
-    push @header_arr, "$name:index=$index&STATE=$id$pages_qs$sort_qs";
+    push @header_arr, "$name:index=$index&STATE=$id$pages_qs$sort_qs:class=dropdown-item";
   }
 
   if ($FORM{CHAPTER}) {
@@ -177,13 +178,13 @@ sub msgs_status_bar {
     $pages_qs .= "&EVERYTHING_EXCEPT_DONE=1$sort_qs";
   }
 
-  push @header_arr, "$lang{EVERYTHING_EXCEPT_DONE}:index=$index&EVERYTHING_EXCEPT_DONE=1$sort_qs";
+  push @header_arr, "$lang{EVERYTHING_EXCEPT_DONE}:index=$index&EVERYTHING_EXCEPT_DONE=1$sort_qs:class=dropdown-item";
 
   # state for watching messages
-  push @header_arr, "$lang{WATCH}:index=$index&ALL_MSGS=1&STATE=12$sort_qs";
+  push @header_arr, "$lang{WATCH}:index=$index&ALL_MSGS=1&STATE=12$sort_qs:class=dropdown-item";
 
   if ($attr->{NEXT}) {
-    push @header_arr, "$lang{NEXT}:index=$index&NEXT_MSG=" . ($FORM{chg} || $attr->{ID} || 1) . $sort_qs; #."$pages_qs";
+    push @header_arr, "$lang{NEXT}:index=$index&NEXT_MSG=" . ($FORM{chg} || $attr->{ID} || 1) . $sort_qs . ':class=dropdown-item'; #."$pages_qs";
   }
 
   my $status_bar = $html->table_header(\@header_arr, {
@@ -404,10 +405,10 @@ sub msgs_new {
       my $count = '';
       if ($line->{open_count} > 0) {
         $count =
-           $html->badge($line->{admin_unread_count}, { TYPE => ($line->{admin_unread_count} > 2) ? 'bg-red' : '', STYLE => "TITLE='$lang{ADMIN_UNREAD}'" })
-             . $html->badge($line->{today_plan_count}, { TYPE => 'bg-green',  STYLE => "TITLE='$lang{TODAY_PLAN}'"  })
-             . $html->badge($line->{open_count}, { TYPE => 'bg-blue',  STYLE => "TITLE='$lang{OPEN}'" })
-             . $html->badge($line->{resposible_count}, { TYPE => ($line->{resposible_count} > 0) ? 'bg-yellow' : '', STYLE => "TITLE='$lang{RESPOSIBLE}'" });
+          $html->badge($line->{admin_unread_count}, { TYPE => ($line->{admin_unread_count} > 2) ? 'badge badge-danger' : '', STYLE => "TITLE='$lang{ADMIN_UNREAD}'" })
+            . $html->badge($line->{today_plan_count}, { TYPE => 'badge badge-success',  STYLE => "TITLE='$lang{TODAY_PLAN}'"  })
+            . $html->badge($line->{open_count}, { TYPE => 'badge badge-info',  STYLE => "TITLE='$lang{OPEN}'" })
+            . $html->badge($line->{resposible_count}, { TYPE => ($line->{resposible_count} > 0) ? 'badge badge-warning' : '', STYLE => "TITLE='$lang{RESPOSIBLE}'" });
 
         $Msgs->{UNREAD} += $line->{admin_unread_count};
         $Msgs->{TODAY} += $line->{today_plan_count};
@@ -433,7 +434,7 @@ sub msgs_new {
     $id++;
     $FUNCTIONS_LIST{ "$id:10:$lang{RESPOSIBLE}  "
       . (($Msgs->{RESPOSIBLE} && $Msgs->{RESPOSIBLE} > 0)
-      ? $html->badge($Msgs->{RESPOSIBLE}, { TYPE => 'bg-red', STYLE => "TITLE='$lang{RESPOSIBLE}'" })
+      ? $html->badge($Msgs->{RESPOSIBLE}, { TYPE => 'badge badge-danger', STYLE => "TITLE='$lang{RESPOSIBLE}'" })
       : ''
     )
       . ":msgs_admin:STATE=8" } = 8
@@ -442,16 +443,16 @@ sub msgs_new {
     my $msg_count = '';
 
     if ($Msgs->{OPENED} && $Msgs->{OPENED} > 0) {
-      $msg_count = $html->badge($Msgs->{UNREAD}, { TYPE => $Msgs->{UNREAD} ? 'bg-red' : '', STYLE => "TITLE='$lang{ADMIN_UNREAD}'" })
-        . $html->badge($Msgs->{TODAY}, { TYPE => 'bg-green', STYLE => "TITLE='$lang{TODAY_PLAN}'" })
-        . $html->badge($Msgs->{OPENED}, { TYPE => 'bg-blue', STYLE => "TITLE='$lang{OPEN}'" });
+      $msg_count = $html->badge($Msgs->{UNREAD}, { TYPE => $Msgs->{UNREAD} ? 'badge badge-danger' : '', STYLE => "TITLE='$lang{ADMIN_UNREAD}'" })
+        . $html->badge($Msgs->{TODAY}, { TYPE => 'badge badge-success', STYLE => "TITLE='$lang{TODAY_PLAN}'" })
+        . $html->badge($Msgs->{OPENED}, { TYPE => 'badge badge-info', STYLE => "TITLE='$lang{OPEN}'" });
     }
 
     my $unreg_count = '';
     $Msgs->unreg_requests_count();
 
     if ($Msgs->{TOTAL}) {
-      $unreg_count = $html->badge($Msgs->{UNREG_COUNT}, { TYPE => 'bg-red', STYLE => "title='$lang{UNREG_COUNT}'" });
+      $unreg_count = $html->badge($Msgs->{UNREG_COUNT}, { TYPE => 'badge badge-danger', STYLE => "title='$lang{UNREG_COUNT}'" });
     }
 
     my $refresh_time = $conf{MSGS_REFRESH_HEADER_MENU} || 30;
@@ -502,6 +503,9 @@ sub msgs_task_info_to_html {
     A_NAME                 => $lang{ADMIN},
     LOGIN                  => $lang{LOGIN},
     FIO                    => $lang{FIO},
+    ADMIN_NAME             => "$lang{ADMIN} ($lang{LOGIN})",
+    SUBJECT                => $lang{SUBJECT},
+    USER_NAME              => $lang{USER},
   );
 
   my $result = "<div class='well well-sm'>";
@@ -1034,7 +1038,8 @@ sub msgs_text_quoting {
 
   $input_text //= '';
 
-  $input_text = convert($input_text, { text2html => 1, json => $FORM{json} });
+  $input_text = convert($input_text, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
+  $input_text =~ s/\&#37/\\%/g;
   my $text = '';
   my $quote = '';
 
@@ -1043,16 +1048,12 @@ sub msgs_text_quoting {
       $quote .= $1;
     }
     elsif ($reply_line && $reply_line !~ /^<br>$/) {
-      $text .= (
-        ($quote)
-          ? $html->element('blockquote', $quote, { OUTPUT2RETURN => 1 })
-          : '')
-        . $reply_line;
+      $text .= (($quote) ? $html->element('div', $quote, { OUTPUT2RETURN => 1, class => 'callout callout-quoting' }) : '') . $reply_line;
       $quote = '';
     }
   }
 
-  $text = (($quote) ? $html->element('blockquote', $quote, { OUTPUT2RETURN => 1 }) : '') . $text;
+  $text = (($quote) ? $html->element('div', $quote, { OUTPUT2RETURN => 1, class => 'callout callout-quoting' }) : '') . $text;
 
   while ($text =~ /\[\[(\d+)\]\]/) {
     my $msg_button = $html->button($1, "&index=$index&" . ($is_admin ? "chg" : "ID") . "=$1",
@@ -1347,210 +1348,6 @@ sub msgs_sel_tags {
   }
 
   return $SERVICE_SEL;
-}
-
-#**********************************************************
-=head2 msgs_ticket_form() - Print information about message
-
-  Arguments:
-    $attr
-      UID
-      MSG_PRINT_ID
-=cut
-#**********************************************************
-sub msgs_ticket_form {
-  my ($attr) = @_;
-
-  if (!$FORM{UID}) {
-    #    _bp('ticket form. no uid');
-    return 1;
-  };
-
-  #FIXME: check permissions
-  my $user_main_info = $users->info($FORM{UID}, { SHOW_PASSWORD => 1 });
-  $users->pi({ UID => $FORM{UID} });
-
-  #User Msg info
-  my $msg_info = _msgs_user_msg_info(
-    {
-      MSG_ID          => $attr->{MSG_PRINT_ID},
-      MSG_REPLYS_SHOW => 1,
-    }
-  );
-
-  $attr->{TABLE} .= $html->element(
-    'div',
-    $lang{MESSAGE} . " #" . 1,
-    { class => 'col-xs-12 border' }
-  );
-
-  $attr->{TABLE} .= $html->element(
-    'div',
-    $msg_info->{MESSAGE},
-    { class => 'col-xs-12 border' }
-  );
-
-  $msg_info->{MESSAGE} .= ' ';
-  my @arr = $msg_info->{MESSAGE} =~ m/(.{1,90}\s)/g;
-  my %messages = (
-    text1  => $arr[0],
-    text2  => $arr[1],
-    text3  => $arr[2],
-    text4  => $arr[3],
-    text5  => $arr[4],
-    text6  => $arr[5],
-    text7  => $arr[6],
-    text8  => $arr[7],
-    text9  => $arr[8],
-    text10 => $arr[9],
-    text11 => $arr[10],
-    text12 => $arr[11],
-  );
-
-  for (my $i = 1; $i <= $msg_info->{TOTAL_REPLYS}; $i++) {
-
-    $attr->{TABLE} .= $html->element(
-      'div',
-      $lang{MESSAGE} . " #" . ($i + 1),
-      { class => 'col-xs-6 border' }
-    );
-
-    $attr->{TABLE} .= $html->element(
-      'div',
-      $msg_info->{MSG_REPLYS}->{'REPLY_CREATOR_ID_' . $i},
-      { class => 'col-xs-3 border' }
-    );
-
-    $attr->{TABLE} .= $html->element(
-      'div',
-      $msg_info->{MSG_REPLYS}->{'REPLY_DATE_' . $i},
-      { class => 'col-xs-3 border' }
-    );
-
-    $attr->{TABLE} .= $html->element(
-      'div',
-      $msg_info->{MSG_REPLYS}->{'TEXT_' . $i},
-      { class => 'col-xs-12 border' }
-    )
-  }
-
-  $attr = { %{$msg_info}, %{$user_main_info}, %{($attr) ? $attr : {}} };
-
-  print $html->tpl_show(
-    _include(
-      "msgs_ticket_form",
-      'Msgs',
-    ),
-    {
-      %{$attr},
-      %messages,
-      %FORM
-    },
-  );
-
-  return 1;
-}
-
-#**********************************************************
-=head2 _msgs_user_msg_info() Get information tags about user msg for docs
-
-  Arguments:
-    $attr
-      MSG_ID - message id
-      MSG_REPLYS_SHOW - Show message relys
-
-  Returns:
-    $hash-reff
-      'MSG_DATE_CREATE'  => '2017-02-01 23:31:11',
-      'MSG_SUBJECT'      => 'Надо установать модудь',
-      'MSG_CHAPTER_NAME' => 'Установка оборудован',
-      'MSG_STATE'        => 'Ждём ответ от пользователя',
-      'MSG_PRIORITY'     => 'Нормальный'
-      'RESPOSIBLE'       => 'abills'
-      'TOTAL_REPLYS'     => '2'
-      'MSG_REPLY'        =>
-        {
-          'REPLY_CREATOR_ID_1' => 'abills',
-          'REPLY_CREATOR_ID_2' => 'abills',
-          'REPLY_DATE_1'       => '2017-03-09 17:13:27',
-          'REPLY_DATE_2'       => '2017-03-09 17:13:53'
-        }
-=cut
-#**********************************************************
-sub _msgs_user_msg_info {
-  my ($attr) = @_;
-
-  my %result_hash = ();
-  my $msg_info = $Msgs->message_info($attr->{MSG_ID});
-
-  require Admins;
-  Admins->import();
-  my $Admins = Admins->new($db, $admin, \%conf);
-  $msg_info->{RESPOSIBLE} = $msg_info->{RESPOSIBLE} ? $msg_info->{RESPOSIBLE} : '';
-
-  my $admin_list = $Admins->list(
-    {
-      AID       => $msg_info->{RESPOSIBLE} . ';' . $msg_info->{AID},
-      COLS_NAME => 1,
-    }
-  );
-
-  foreach my $admin_info (@{$admin_list}) {
-    $result_hash{RESPOSIBLE} = $admin_info->{login};
-  }
-
-  $result_hash{MSG_DATE_CREATE} = $msg_info->{DATE};
-  $result_hash{MSG_SUBJECT} = $msg_info->{SUBJECT};
-  $result_hash{MSG_STATE} = $Msgs->status_info($msg_info->{STATE});
-  $result_hash{MSG_STATE} = _translate($result_hash{MSG_STATE}->{NAME});
-  $result_hash{MSG_PRIORITY} = _translate($priority[$msg_info->{PRIORITY}]);
-  $result_hash{MSG_CHAPTER_NAME} = $msg_info->{CHAPTER_NAME};
-  $result_hash{MESSAGE} = $msg_info->{MESSAGE};
-
-  if ($attr->{MSG_REPLYS_SHOW}) {
-    ($result_hash{MSG_REPLYS}, $result_hash{TOTAL_REPLYS}) = _msgs_msg_reply_list_info($Msgs,
-      { MSG_ID => $attr->{MSG_ID} });
-  }
-
-  return \%result_hash;
-}
-
-#**********************************************************
-=head2 _msgs_msg_reply_list_info() Get information tags about user msg replys for docs
-
-  Arguments:
-    $attr
-      MSG_ID - message id
-
-  Returns:
-    1.$hash-reff
-      'REPLY_CREATOR_ID_1' => 'abills',
-      'REPLY_CREATOR_ID_2' => 'abills',
-      'REPLY_DATE_1' => '2017-03-09 17:13:27',
-      'REPLY_DATE_2' => '2017-03-09 17:13:53'
-    2.$TOTAL_REPLYS
-=cut
-#**********************************************************
-sub _msgs_msg_reply_list_info {
-  my ($Msgs_, $attr) = @_;
-
-  my %result_hash = ();
-
-  my $list = $Msgs_->messages_reply_list({
-    MSG_ID    => $attr->{MSG_ID},
-    COLS_NAME => 1
-  });
-
-  my $total_replys = 0;
-
-  foreach my $reply (@{$list}) {
-    $total_replys++;
-    $result_hash{'REPLY_CREATOR_ID_' . $total_replys} = $reply->{creator_id};
-    $result_hash{'REPLY_DATE_' . $total_replys} = $reply->{datetime};
-    $result_hash{'TEXT_' . $total_replys} = $reply->{text};
-  }
-
-  return(\%result_hash, $total_replys);
 }
 
 #**********************************************************
@@ -2060,7 +1857,9 @@ sub msgs_receive_attachments {
     if ($FORM{FILE_UPLOAD_UPLOADS_COUNT} && $FORM{FILE_UPLOAD_UPLOADS_COUNT} >= 1) {
       for (my $i = 1; $i <= $FORM{FILE_UPLOAD_UPLOADS_COUNT}; $i++) {
         my $param_name = "FILE_UPLOAD_" . $i;
+
         if ($FORM{$param_name}->{filename}) {
+          $FORM{$param_name}->{filename} = $i.'_'.$FORM{$param_name}->{filename};
           $add_attachment->($param_name);
         }
       }
@@ -2114,7 +1913,7 @@ sub msgs_get_attachments_view {
         $SELF_URL . "?qindex=$index&ATTACHMENT=$line->{id}",
         ($line->{filename} || 'No name'),
         {
-          class => 'img-responsive modal-content-img attachment_responsive',
+          class => 'img-fluid modal-content-img attachment_responsive',
         }
       );
     }
@@ -2126,7 +1925,7 @@ sub msgs_get_attachments_view {
         $result .= $html->button("$lang{MAPS} $text_coords",
           "index=$map_index&COORDX=$line->{coordx}&COORDY=$line->{coordy}",
           {
-            ADD_ICON => 'glyphicon glyphicon-globe',
+            ADD_ICON => 'fa fa-globe',
             TARGET   => '_new'
           }
         )
@@ -2179,7 +1978,7 @@ sub msgs_receive_signature {
 }
 
 #**********************************************************
-=head2 _msgs_footer_row($list, $attr) - Splits the html 
+=head2 _msgs_footer_row($list, $attr) - Splits the html
                                           block into rows
 
   Arguments:
@@ -2200,23 +1999,22 @@ sub _msgs_footer_row {
   my ($list, $attr) = @_;
 
   my $select = $html->form_select($attr->{NAME_SELECT}, {
-     SELECTED    => $FORM{BRIGADE} || $FORM{CHAPTER} || '',
-     SEL_LIST    => $list,
-     SEL_KEY     => $attr->{ID_KEY},
-     SEL_VALUE   => $attr->{ID_VALUE},
-     SEL_OPTIONS => { 0 => $lang{ALL} },
-     NO_ID       => 1,
-     FORM_ID     => $attr->{FOR_FORM}
+    SELECTED    => $FORM{BRIGADE} || $FORM{CHAPTER} || '',
+    SEL_LIST    => $list,
+    SEL_KEY     => $attr->{ID_KEY},
+    SEL_VALUE   => $attr->{ID_VALUE},
+    SEL_OPTIONS => { 0 => $lang{ALL} },
+    NO_ID       => 1,
+    FORM_ID     => $attr->{FOR_FORM}
   });
 
-  my $button = $html->form_input($attr->{NAME_BUTTON}, $lang{SEARCH}, { 
-    TYPE    => 'submit', 
-    class   => 'btn btn-primary', 
-    FORM_ID => $attr->{FOR_FORM} 
+  my $button = $html->form_input($attr->{NAME_BUTTON}, $lang{SEARCH}, {
+    TYPE    => 'submit',
+    class   => 'btn btn-primary',
+    FORM_ID => $attr->{FOR_FORM}
   });
 
   my @rows = (
-      "$attr->{LABEL}: ",
       $select,
       $button,
   );

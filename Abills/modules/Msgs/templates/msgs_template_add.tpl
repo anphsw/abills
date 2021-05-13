@@ -1,5 +1,5 @@
-<div class='box box-theme box-form'>
-<div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+<div class='card-body'>
 
 <FORM action='$SELF_URL' METHOD='POST'  enctype='multipart/form-data' name='add_message' id='add_message' class='form-horizontal'>
     <legend>_{TEMPLATES}_</legend>

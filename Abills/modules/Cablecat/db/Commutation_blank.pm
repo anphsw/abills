@@ -93,7 +93,9 @@ sub select_cross {
   my ($attr) = @_;
 
   $self->query(
-    "SELECT id, type_id, name FROM cablecat_crosses WHERE id = ?;",
+    "SELECT cc.id, cc.type_id, cc.name, cct.ports_type_id, cct.ports_count FROM cablecat_crosses cc
+    LEFT JOIN cablecat_cross_types cct ON (cc.type_id=cct.id)
+    WHERE cc.id = ?;",
     undef,
     { COLS_NAME => 1, Bind => [ $attr->{ID} ] }
   );
@@ -142,7 +144,7 @@ sub select_splitter {
   my ($attr) = @_;
 
   $self->query(
-    "SELECT id, type_id, color_scheme_id FROM cablecat_splitters WHERE id = ?;",
+    "SELECT id, type_id, color_scheme_id, attenuation FROM cablecat_splitters WHERE id = ?;",
     undef,
     { COLS_NAME => 1, Bind => [ $attr->{ID} ] }
   );

@@ -6,10 +6,11 @@
 
 use warnings FATAL => 'all';
 use strict;
+use Abills::Base qw(time2sec sec2time);
 use Timetracker::db::Timetracker;
 
-our ($html, %FORM, $db, %conf, $admin, %lang, @WEEKDAYS, $pages_qs);
-
+our (%FORM, $db, %conf, $admin, %lang, @WEEKDAYS, $pages_qs);
+our Abills::HTML $html;
 my $Timetracker = Timetracker->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -37,11 +38,13 @@ sub all_report_time {
     {
       width   => "100%",
       caption => $lang{REPORTS_HEADER},
-      title   => [ $lang{ADMINS_LIST}, $lang{CLOSE_MOUTH}, $lang{SCHEDULED_HOURS}, $lang{ACTUALLY_HOURS},
-       $lang{TIME_COMPLEXITY}, $lang{CLOSED_TICKETS}, $lang{TIME_SUPPORT} ],
+      title   => [ $lang{ADMINS_LIST}, $lang{CLOSE_MOUTH}, $lang{SCHEDULED_HOURS},
+        $lang{TIME_COMPLEXITY},
+        $lang{ACTUALLY_HOURS},
+        $lang{CLOSED_TICKETS}, $lang{TIME_SUPPORT} ],
       qs      => $pages_qs,
       ID      => "TIMETRACKER_REPORT1",
-      export  => 1
+      EXPORT  => 1
     }
   );
 
@@ -73,18 +76,40 @@ sub all_report_time {
   my $cloused_support_ticket = get_cloused_support_ticket(\%attr);
   my $run_time_with_support = get_run_time_with_support(\%attr);
 
+  my $total_closed_tasks = 0;
+  my $total_points = 0;
+  my $total_secs = 0;
+  my $total_spent_hours = 0;
+  my $total_scheduled_hours = 0;
+
   for my $aid (keys %{$admins_list}) {
     $table_support->addrow(
       $admins_list->{$aid} || 0, 
       $closed_tasks->{$aid} || 0,
       $scheduled_hours->{$aid} || 0,
-      $spent_hours->{$aid} || 0, 
       $hours_on_complexity->{$aid} || 0,
+      $spent_hours->{$aid} || 0,
       $cloused_support_ticket->{$aid} || 0,
       $run_time_with_support->{$aid} || 0
     );
+
+    $total_closed_tasks += $closed_tasks->{$aid} || 0;
+    $total_scheduled_hours += $scheduled_hours->{$aid} || 0;
+    $total_spent_hours += $spent_hours->{$aid} || 0;
+    $total_points += $hours_on_complexity->{$aid} || 0;
+    $total_secs += time2sec($run_time_with_support->{$aid} || 0);
   }
-  
+
+  $table_support->addrow(
+    $lang{TOTAL},
+    $html->b($total_closed_tasks || 0),
+    $html->b($total_scheduled_hours || 0),
+    $html->b($total_points || 0),
+    $html->b($total_spent_hours || 0),
+    0,
+    $html->b(sec2time($total_secs, { str => 1 }))
+  );
+
   print $table_support->show();
 
   return 1;

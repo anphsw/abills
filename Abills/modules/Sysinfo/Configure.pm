@@ -174,15 +174,15 @@ sub sysinfo_remote_servers {
             "index=$services_index&add_form=1&SERVER_ID=$line->{id}",
             {
               class    => 'btn btn-xs btn-success pull-right',
-              ADD_ICON => 'glyphicon glyphicon-plus'
+              ADD_ICON => 'fa fa-plus'
             }
           );
 
         my $create_btn = $html->button($lang{CHANGE},
           "qindex=$index&header=2&add_form=1&set_services=1&SERVER_ID=$line->{id}",
           {
-            class         => 'btn btn-xs btn-default pull-right',
-            ADD_ICON      => 'glyphicon glyphicon-pencil',
+            class         => 'btn btn-xs btn-secondary pull-right',
+            ADD_ICON      => 'fa fa-pencil',
             LOAD_TO_MODAL => 1
           }
         );
@@ -357,8 +357,8 @@ sub sysinfo_server_services {
         }
 
         my $edit_button = $html->button($lang{CHANGE}, "qindex=$index&header=2&set_servers=1&SERVICE_ID=$line->{id}", {
-          ADD_ICON      => 'glyphicon glyphicon-pencil',
-          class         => 'btn btn-default btn-xs pull-right',
+          ADD_ICON      => 'fa fa-pencil',
+          class         => 'btn btn-secondary btn-xs pull-right',
           LOAD_TO_MODAL => 1
         });
 
@@ -382,7 +382,7 @@ sub sysinfo_server_services {
       "index=$index&add_form=1" . ($FORM{LIST_SERVER_SERVICES} && $FORM{ID} ? "&SERVER_ID=$FORM{ID}" : ''),
       {
         class    => 'btn btn-lg btn-success',
-        ADD_ICON => 'glyphicon glyphicon-plus'
+        ADD_ICON => 'fa fa-plus'
       }
     );
   }

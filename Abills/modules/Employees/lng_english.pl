@@ -102,5 +102,9 @@ $lang{VACATION}='Vacation';
 $lang{MOVING_BETWEEN_CASHBOXES}='moving between cashboxes';
 $lang{MOVING}='Moving';
 $lang{TYPE_IN_MOVING_TYPE} = 'Type in movig cachboxes';
+$lang{ALL_SALARY} = 'Pay out';
+
+$lang{TICKET_WORKS} = 'Ticket works';
+$lang{CHECKING_WORKS_BEFORE_CLOSING} = 'Checking works before closing the ticket';
 
 1

@@ -1,5 +1,5 @@
-<div class='box box-theme box-form'>
-    <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+    <div class='card-body'>
         <form name='MAPS_WIFI' id='form_MAPS_WIFI' method='post' class='form form-horizontal'>
             <input type='hidden' name='index' value='$index'/>
             <input type='hidden' name='qindex' value='$index'>

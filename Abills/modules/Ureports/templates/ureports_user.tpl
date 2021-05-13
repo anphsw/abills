@@ -16,7 +16,6 @@
   var current_destination = '%DESTINATION%';
 
   jQuery(function () {
-
     var type_select = jQuery('select#TYPE');
     var result_wrapper = jQuery('div#DESTINATION_SELECT_WRAPPER');
 
@@ -34,60 +33,58 @@
   <input type=hidden name='step' value='$FORM{step}'>
 
   <fieldset>
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'>
-        <div class='box-title'>
+    <div class='card card-primary card-outline box-form container-md'>
+      <div class='card-header with-border'>
+        <div class='card-title'>
           <h4>_{USER_INFO}_</h4>
         </div>
       </div>
-      <div class='box-body'>
-        <div class='form-group'>
-          <label class='control-label col-md-4 col-sm-3' for='TP_ID'>_{TARIF_PLAN}_</label>
-          <div class='col-md-8 col-md-9'>
-            <div class='input-group'>
-             %TP_ID%  %TP_NAME%
 
-             %CHANGE_TP_BUTTON%
-            </div>
+      <div class='card-body'>
+        <div class='form-group row'>
+          <label class='control-label col-md-2 col-sm-3' for='TP_ID'>_{TARIF_PLAN}_</label>
+          <div class='col-md-9 col-sm-8' id='TARIF_PLAN_WRAPPER'>
+              %TP_ID%  %TP_NAME%
           </div>
         </div>
 
-        <div class='form-group'>
-          <label class='control-label col-md-4 col-sm-3' for='TYPE'>_{TYPE}_</label>
-          <div class='col-md-8 col-md-9'>
+        <div class='form-group row'>
+          <label class='control-label col-md-2 col-sm-3' for='TYPE'>_{TYPE}_</label>
+          <div class='col-md-9 col-sm-8' id='TYPE_WRAPPER'>
             %TYPE_SEL%
           </div>
         </div>
 
-        <div class='form-group'>
-          <label class='control-label col-md-4 col-sm-3' for='DESTINATION'>_{DESTINATION}_</label>
-          <div class='col-md-6' id='DESTINATION_SELECT_WRAPPER'>
+        <div class='form-group row'>
+          <label class='control-label col-md-2 col-sm-3' for='DESTINATION'>_{DESTINATION}_</label>
+          <div class='col-md-9 col-sm-8' id='DESTINATION_SELECT_WRAPPER'>
             %DESTINATION_VIEW%
           </div>
-          <div class="col-md-2">
-            <button class='btn btn-sm btn-default' id='MANUAL_EDIT_CONTACT_BTN'>
-              <span class="glyphicon glyphicon-pencil"></span>
+
+          <div class="col-md-1 d-flex">
+            <button class='btn btn-default' id='MANUAL_EDIT_CONTACT_BTN'>
+              <span class="fa fa-pencil"></span>
             </button>
           </div>
         </div>
 
-        <div class='form-group'>
-          <label class='control-label col-md-4 col-sm-3' for='STATUS'>_{STATUS}_</label>
-          <div class='col-md-8 col-md-9'>
+        <div class='form-group row'>
+          <label class='control-label col-md-2 col-sm-3' for='STATUS'>_{STATUS}_</label>
+          <div class='col-md-9 col-sm-8'>
             %STATUS_SEL%
           </div>
         </div>
 
-        <div class='form-group'>
-          <label class='control-label col-md-4 col-sm-3'>_{REGISTRATION}_</label>
-          <div class='col-md-8 col-md-9'>
+        <div class='form-group row'>
+          <label class='control-label col-md-2 col-sm-3'>_{REGISTRATION}_</label>
+          <div class='col-md-9 col-sm-8'>
             <p class="form-control-static">%REGISTRATION%</p>
           </div>
         </div>
 
       </div>
 
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input type=submit class='btn btn-primary' id='SUBMIT_UREPORTS_USER' name='%ACTION%' value='%LNG_ACTION%'>
         %HISTORY_BTN%
       </div>
@@ -98,3 +95,11 @@
 
   </fieldset>
 </form>
+
+<script>
+  jQuery(document).ready(function() {
+    let contactView = document.querySelector('#DESTINATION_SELECT_WRAPPER .select2-selection__rendered');
+
+    contactView.textContent = current_destination
+  });
+</script>

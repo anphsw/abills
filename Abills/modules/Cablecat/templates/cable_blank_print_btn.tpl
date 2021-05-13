@@ -1,3 +1,3 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>Друк </h4> <div class="btn pull-center">%BTN%</div> </div>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4 class='card-title'>Друк </h4> <div class="btn pull-center">%BTN%</div> </div>
 </div>

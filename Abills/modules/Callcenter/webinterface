@@ -7,7 +7,6 @@
   This module give you opportunity connect your callcenter with abills.
 
   Capabilities:
-    - 
 =cut
 
 use strict;
@@ -668,7 +667,7 @@ sub callcenter_cdr {
         ID          => 'CALLCENTER_CDR',
         DATA_TABLE  => 1,
         title_plain => 1,
-        MENU        => "$lang{REFRESH}:index=$index&refresh=1:glyphicon glyphicon-refresh",
+        MENU        => "$lang{REFRESH}:index=$index&refresh=1:fa fa-refresh",
       },
       SELECT_VALUE    => {
         disposition => {
@@ -2940,7 +2939,7 @@ sub callcenter_sound {
 #     <input class='TEMPLATE form-control' type=text value=\"$line->{EXTEN}\" name=TEMPLATE\_$i>
 #    </div> 
 #    <div class='col-md-2'> 
-#      <a  type='button' href=# onclick='remtemplate($i);'><span class='btn glyphicon glyphicon-remove'></span></a>
+#      <a  type='button' href=# onclick='remtemplate($i);'><span class='btn fa fa-remove'></span></a>
 #    </div> 
 #    </div>";
 #       $i++;
@@ -2956,7 +2955,7 @@ sub callcenter_sound {
 #     <input class='TEMPLATE form-control' type=text value=\"$line->{EXTEN}\" name=TEMPLATE\_$i>
 #    </div> 
 #    <div class='col-md-2'> 
-#      <a  type='button' href=# onclick='remtemplate($i);'><span class='btn glyphicon glyphicon-remove'></span></a>
+#      <a  type='button' href=# onclick='remtemplate($i);'><span class='btn fa fa-remove'></span></a>
 #    </div> 
 #    </div>";
 
@@ -3026,7 +3025,7 @@ sub callcenter_sound {
 #     <input class='TEMPLATE form-control' type=text value=\"\" name=TEMPLATE\_1>
 #    </div> 
 #    <div class='col-md-2'> 
-#      <a  type=submit href=# onclick='remtemplate($i);'><span class='btn glyphicon glyphicon-remove'></span></a>
+#      <a  type=submit href=# onclick='remtemplate($i);'><span class='btn fa fa-remove'></span></a>
 #    </div>
 #    </div>";
 
@@ -3365,7 +3364,7 @@ sub callcenter_sound {
 #     <input class='form-control' type=text value=''3+template+'' name=TEMPLATE_'+c+'>
 #    </div>  
 #      <div class='col-md-2'> 
-#      <a class='btn btn-link' type=button href=# onclick='remtemplate($i);'><span class='btn  glyphicon glyphicon-remove'></span><</a>
+#      <a class='btn btn-link' type=button href=# onclick='remtemplate($i);'><span class='btn  fa fa-remove'></span><</a>
 #    </div> 
 #    </div>";
 #       $i++;

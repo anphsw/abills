@@ -2,11 +2,11 @@
     <input type=hidden name=index value=$index>
     <input type=hidden name=ID value=$FORM{chg}>
 
-    <div class='box box-theme'>
-        <div class='box-header with-border bg-danger'>
+    <div class='card card-primary card-outline'>
+        <div class='card-header with-border bg-danger'>
             Bug # %ID%
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
             <div class='form-group'>
                 <div class='col-md-4 bg-success'>%CUR_VERSION%</div>
                 <div class='col-md-4 bg-success'>%DATETIME%</div>
@@ -48,7 +48,7 @@
             </div>
         </div>
 
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input type=submit name=change value='_{CHANGE}_' class='btn btn-primary'>
         </div>
     </div>

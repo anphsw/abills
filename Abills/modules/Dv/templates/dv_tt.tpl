@@ -4,9 +4,9 @@
   <input type=hidden name='tt' value='%TI_ID%'>
 
   <fieldset>
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'><h4 class='box-title'>_{TRAFIC_TARIFS}_</h4></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-header with-border'><h4 class='card-title'>_{TRAFIC_TARIFS}_</h4></div>
+      <div class='card-body'>
 
 
         <div class='form-group'>
@@ -78,19 +78,19 @@
           </div>
         </div>
         <div class='form-group'>
-          <div class='box box-theme'>
-            <div class="box-header with-border">
-              <h3 class="box-title">Burst Mode</h3>
-              <div class="box-tools pull-right">
-                <button type="button" class="btn btn-default btn-xs" data-widget="collapse" data-toggle='collapse' data-parent='#accordion' href='#burstModeCollapse'
+          <div class='card card-primary card-outline'>
+            <div class="card-header with-border">
+              <h3 class="card-title">Burst Mode</h3>
+              <div class="card-tools pull-right">
+                <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse" data-toggle='collapse' data-parent='#accordion' href='#burstModeCollapse'
                         aria-expanded='false' aria-controls='collapseOne'>
                   <i class="fa fa-plus"></i>
                 </button>
               </div>
             </div>
-            <div id='burstModeCollapse' class='box-collapse collapse collapsing' role='tabpanel'
+            <div id='burstModeCollapse' class='card-collapse collapse collapsing' role='tabpanel'
                  aria-labelledby='burstLimit'>
-              <div class='box-body'>
+              <div class='card-body'>
 
                 <p class='bg-info'>
                   Burst limit > _{SPEED}_</p>
@@ -177,7 +177,7 @@
 
 
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         %BACK_BUTTON% <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
       </div>
     </div>

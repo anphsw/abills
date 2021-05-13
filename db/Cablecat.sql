@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_wells` (
   UNIQUE `_cablecat_well_name`(`name`)
 )
   CHARSET = 'utf8'
-  COMMENT = 'Boxes for custom network equipment';
+  COMMENT = 'cardes for custom network equipment';
 
 CREATE TABLE IF NOT EXISTS `cablecat_splitter_types` (
   `id` SMALLINT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -217,11 +217,13 @@ CREATE TABLE IF NOT EXISTS `cablecat_commutations` (
 );
 
 CREATE TABLE IF NOT EXISTS `cablecat_commutation_cables` (
-  `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`)
-    ON DELETE CASCADE,
+	`id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`) ON DELETE CASCADE,
   `connecter_id` INT(11) UNSIGNED,
-  `cable_id` INT(11) UNSIGNED REFERENCES `cablecat_cables` (`id`)
-    ON DELETE CASCADE,
+  `cable_id` INT(11) UNSIGNED REFERENCES `cablecat_cables` (`id`) ON DELETE CASCADE,
+  `commutation_x` double(6,2) DEFAULT NULL,
+  `commutation_y` double(6,2) DEFAULT NULL,
+  `position` VARCHAR(10) NOT NULL DEFAULT '',
   INDEX `_connecter_ik` (`connecter_id`),
   INDEX `_commutation_ik` (`commutation_id`)
 );

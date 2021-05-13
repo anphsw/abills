@@ -4,11 +4,11 @@
   <input type=hidden name='UID' value='$FORM{UID}'>
   <input type=hidden name='SUM' value='%SUM%'>
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'>
       <h4>_{PAY_TO}_</h4>
     </div>
-    <div class='box-body form form-horizontal'>
+    <div class='card-body form form-horizontal'>
 
       <div class='form-group'>
         <label class='control-label col-md-3' for='TI_ID'>_{TARIF_PLAN}_:</label>

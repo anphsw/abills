@@ -1,31 +1,27 @@
 <div class="col-md-6">
-  <div class='box box-theme'>
-    <div class='box-body'>
+  <div class='card card-primary card-outline'>
+    <div class='card-body'>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='col-md-3 control-label'>_{SERIAL}_ (*):</label>
-
         <div class='col-md-9'><input class='form-control' type='text' name='SERIAL' value='%SERIAL%' size=8/>
         </div>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='col-md-3 control-label'> _{NUM}_ (<,>): </label>
-
         <div class='col-md-9'><input class='form-control' type='text' name='NUMBER' value='%NUMBER%'></div>
-
-
       </div>
-      <div class='form-group'>
-        <label class='col-md-3 control-label'>PIN:</label>
 
+      <div class='form-group row'>
+        <label class='col-md-3 control-label'>PIN:</label>
         <div class='col-md-9'>
           <input class='form-control' type='text' name='PIN' value='%PIN%'/>
         </div>
       </div>
-      <div class='form-group'>
-        <label class='col-md-3 control-label'>_{SUM}_:</label>
 
+      <div class='form-group row'>
+        <label class='col-md-3 control-label'>_{SUM}_:</label>
         <div class='col-md-9'>
           <input class='form-control' type='text' name='SUM' value='%SUM%' size=8/>
         </div>
@@ -34,69 +30,74 @@
   </div>
 </div>
 
-<div class="row">
-  <div class="col-md-12">
-    <div class='box box-theme'>
-      <div class='box-body'>
-        <div class='form-group'>
-          <div class='col-md-6'>
-            <label class='col-md-4 control-label'>_{USED}_:</label>
-
-            <div class='col-md-8'>%DATE%</div>
-          </div>
-          <div class='col-md-6'>
-            <label class='col-md-3 control-label'>_{EXPIRE}_:</label>
-
-            <div class='col-md-9'>%EXPIRE_DATE%</div>
+<div class="col-md-12">
+  <div class='card card-primary card-outline'>
+    <div class='card-body'>
+      <div class='form-group row'>
+        <label class='col-sm-3 col-md-3 control-label' >_{USED}_:</label>
+        <div class='col-sm-3 col-md-3'>
+          <div class="input-group">
+            %DATE%
+            <div class="input-group-append">
+              <div class="input-group-text">
+                <i class='fa fa-exclamation'></i>
+                <input type="checkbox" name='USED_FROM_DATE/USED_TO_DATE' data-input-disables='USED_FROM_DATE_USED_TO_DATE,USED_FROM_DATE,USED_TO_DATE' value='!'>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class='form-group'>
-          <div class='col-md-6'>
-            <label class='col-md-3 control-label'>_{DILLERS}_:</label>
-
-            <div class='col-md-9'>%DILLERS_SEL%</div>
-          </div>
-          <div class='col-md-6'>
-            <label class='col-md-5 control-label'>_{ADMINS}_:</label>
-
-            <div class='col-md-7'>%ADMINS_SEL%</div>
-          </div>
+        <div class='col-md-6 row'>
+          <label class='col-md-3 control-label'>_{EXPIRE}_:</label>
+          <div class='col-md-9'>%EXPIRE_DATE%</div>
         </div>
 
-        <div class='box box-default collapsed-box'>
-          <div class='box-header with-border'>
-            <h3 class='box-title'>_{EXTRA}_</h3>
-            <div class='box-tools pull-right'>
-              <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-plus'></i>
-              </button>
-            </div>
-          </div>
-          <div class='box-body'>
+      </div>
 
-            <div class='form-group'>
-              <label class='col-md-3 control-label'>_{STATUS}_:</label>
+      <div class='form-group row'>
+        <label class='col-md-3 control-label'>_{DILLERS}_:</label>
+        <div class='col-md-3'>%DILLERS_SEL%</div>
 
-              <div class='col-md-9'>%STATUS_SEL%</div>
-            </div>
+        <div class='col-md-6 row'>
+          <label class='col-md-3 control-label'>_{ADMINS}_:</label>
+          <div class='col-md-9'>%ADMINS_SEL%</div>
+        </div>
+      </div>
 
-            <div class='form-group'>
-              <label class='col-md-3 control-label'>ID:</label>
-
-              <div class='col-md-9'>
-                <input class='form-control' type='text' name='ID' value='%ID%' size=8></div>
-            </div>
-            <div class='form-group'>
-              <label class='col-md-3 control-label'>_{DOMAIN}_:</label>
-
-              <div class='col-md-9'>%DOMAIN_SEL%</div>
-            </div>
-
+      <div class='card card-outline collapsed-card'>
+        <div class='card-header with-border'>
+          <h3 class='card-title'>_{EXTRA}_</h3>
+          <div class='card-tools pull-right'>
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+              <i class='fa fa-plus'></i>
+            </button>
           </div>
         </div>
+        <div class='card-body'>
 
+          <div class='form-group row'>
+            <label class='col-md-3 control-label'>_{STATUS}_:</label>
 
+            <div class='col-md-9'>%STATUS_SEL%</div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-md-3 control-label'>ID:</label>
+
+            <div class='col-md-9'>
+              <input class='form-control' type='text' name='ID' value='%ID%' size=8>
+            </div>
+          </div>
+          <div class='form-group row'>
+            <label class='col-md-3 control-label'>_{DOMAIN}_:</label>
+
+            <div class='col-md-9'>%DOMAIN_SEL%</div>
+          </div>
+
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+

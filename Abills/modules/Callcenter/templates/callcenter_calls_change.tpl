@@ -2,11 +2,11 @@
   <input type='hidden' name='index' value=$index>
   <input type='hidden' name='change' value=%ID%>
 
-  <div class='box box-theme box-form form-horizontal'>
+  <div class='card card-primary card-outline box-form form-horizontal'>
   
-  <div class='box-heading with-border text-primary'>_{CALL}_</div>
+  <div class='card-heading with-border text-primary'>_{CALL}_</div>
 
-  <div class='box-body'>
+  <div class='card-body'>
     <div class='form-group'>
       <label class='control-label col-md-3'>_{STATUS}_</label>
       <div class='col-md-9'>
@@ -27,7 +27,7 @@
     </div>
   </div>
 
-  <div class='box-footer'>
+  <div class='card-footer'>
     <button type='submit' class='btn btn-primary'>_{CHANGE}_</button>
   </div>
   </div>

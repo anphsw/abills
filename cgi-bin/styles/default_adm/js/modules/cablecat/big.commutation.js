@@ -1566,6 +1566,8 @@ class Link {
     }
 
     fillStartFiberInfo () {
+        if (!this.firstElement.info) return;
+
         if (this.firstElement.info && this.firstElement.info.schemeId && this.schemeId !== this.firstElement.info.schemeId) {
             let fiber = this.firstElement.info.reverseFibers ? this.firstElement.info.reverseFibers[this.fiber_num_1] : undefined;
             this.startFiber = {
@@ -1589,6 +1591,8 @@ class Link {
     }
 
     fillEndFiberInfo () {
+        if (!this.secondElement.info) return;
+
         if (this.secondElement.info && this.secondElement.info.schemeId && this.schemeId !== this.secondElement.info.schemeId) {
             let fiber = this.secondElement.info.reverseFibers ? this.secondElement.info.reverseFibers[this.fiber_num_2] : undefined;
             this.endFiber = {

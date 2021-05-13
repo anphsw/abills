@@ -417,7 +417,7 @@ sub internet_holdup_fees {
 
   my $debug = $attr->{DEBUG} || 0;
   my $debug_output = '';
-  $debug_output .= "DV: Holdup abon\n" if ($debug > 1);
+  $debug_output .= "Internet: Holdup abon\n" if ($debug > 1);
   return $debug_output if (!$conf{INTERNET_USER_SERVICE_HOLDUP});
   my $holdup_fees = (split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP}))[3];
   return $debug_output if (!$holdup_fees || $holdup_fees == 0);
@@ -1720,7 +1720,7 @@ sub internet_sheduler {
 #***********************************************************
 sub internet_report {
   my ($type, $attr) = @_;
-  my $REPORT = "Module: DV ($type)\n";
+  my $REPORT = "Module: Internet ($type)\n";
 
   %LIST_PARAMS = %{ $attr->{LIST_PARAMS} } if (defined($attr->{LIST_PARAMS}));
 

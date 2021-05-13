@@ -1,7 +1,7 @@
    <div class='col-xs-12 col-md-6'>
       <input type=hidden name=COMPANY_ID value='$FORM{COMPANY_ID}'>
-      <div class='box box-theme'>
-         <div class='box-body'>
+      <div class='card card-primary card-outline'>
+         <div class='card-body'>
             <div class='form-group'>
                <label class='col-md-3 control-label'>_{GROUP}_:</label>
                <div class='col-md-9'>

@@ -12,6 +12,8 @@ var ACommutationControls = null;
 
 var ACableManager = null;
 
+var paperParams = {};
+
 var SCHEME_OPTIONS = null;
 var paper          = null;
 
@@ -43,6 +45,8 @@ var DEFAULT_SCHEME_OPTIONS = {
   ROUTER_HEIGHT_MARGIN: 5,
   OPPOSITE_SHIFT      : 3
 };
+
+console.log(CABLES);
 
 var COLORS_NAME = {
     '#fcfefc' : 'White',
@@ -189,6 +193,7 @@ function cablecatMain() {
     });
   });
 
+
   $.each(SPLITTERS, function (i, e) {
     var splitter = new Splitter(e);
     splitter.render();
@@ -249,11 +254,12 @@ function CableManager(cablesArr) {
 
   $.each(cablesArr, function(i, cableRaw){
     var cable = new Cable(cableRaw);
+    cable.raw = cableRaw;
 
     // Simple round fill
     cable.position = self.cable_positions_arr[i % self.cable_positions_arr.length];
 
-    cableRaw.meta.position = cable.position;
+    cableRaw.meta.position = cable.raw.meta.position || cable.position;
     cableRaw.meta.vertical = (cable.position === 'top' || cable.position === 'bottom');
 
     // Cable should know how many cables are on this side
@@ -333,12 +339,12 @@ Commutation.prototype = {
     }
 
     var fiber_offset = new_element.origin.fiber_attr.fiber_start || 0;
-
     $.each(new_element.fibers, function(i, e){
       var fiber_num = fiber_offset + i;
       var fiber_id  = new_element.id + '_' + fiber_num;
-
+      
       self.fiber_by_id[fiber_id]       = new_element.origin.fibers[i];
+      // console.log(new_element.origin.fibers[i]);
       self.element_for_fiber[fiber_id] = new_element;
 
       self.modifyFiberMeta(new_element, new_element.origin.fibers[i], fiber_num);
@@ -464,7 +470,6 @@ Commutation.prototype = {
     }, function (data) {
       if (data.MESSAGE_ELEMENT_DELETED) {
         aTooltip.displayMessage(data.MESSAGE_ELEMENT_DELETED, 2000);
-        console.log(element);
         if (drawable && drawable.clear) {
           drawable.clear();
         }
@@ -1330,7 +1335,7 @@ Drawable.prototype = {
       }
     });
   },
-  saveCoords             : function () {
+  saveCoords             : function (attr) {
     var params = {
       qindex        : INDEX,
       header        : 2,
@@ -1338,15 +1343,14 @@ Drawable.prototype = {
       operation     : 'SAVE_COORDS',
       entity        : this.type.toUpperCase(),
       ID            : this.id,
-      COMMUTATION_ID: this.raw.commutation_id,
+      COMMUTATION_ID: this.raw.commutation_id || document['COMMUTATION_ID'],
 
       X: this.x,
       Y: this.y
     };
 
-    if (typeof(this.rotation_angle) !== 'undefined') {
-      params['COMMUTATION_ROTATION'] = this.rotation_angle;
-    }
+    if (typeof(this.rotation_angle) !== 'undefined') params['COMMUTATION_ROTATION'] = this.rotation_angle;
+    if (typeof(attr && attr.position) !== 'undefined') params['POSITION'] = attr.position;
 
     $.post('/admin/index.cgi', params);
   },
@@ -1386,7 +1390,7 @@ Drawable.prototype = {
       console.trace();
     }
 
-    this.tip = new HTMLTip(info_hash, this.shell.node);
+    // this.tip = new HTMLTip(info_hash, this.shell.node);
   },
   splitterAttenuation    : function(fiber) {
     if (this.type !== 'SPLITTER' || !fiber.attenuation)
@@ -1542,11 +1546,37 @@ $.extend(Cable.prototype, {
     var marked             = this.filterMarked(fiber_colors);
     var fibersColorPalette = new AColorPalette(fiber_colors);
 
-    for (var i = 0; i < cable.image.fibers; i++) {
+    if (this.fibers.length > 0) {
+      // var fiber_offset = this.fiber_attr['fiber_start'] || 0;
+      for (let i = 0; i < this.fibers.length; i++) {
+        this.fibers[i] = $.extend(this.fibers[i] || {}, {
+          num     : i,
+          x       : params.x + params.ox * i,
+          y       : params.y + params.oy * i,
+          width   : params.width,
+          height  : params.height,
+          edge    : {
+            x: params.x + params.ox * i + params.edge_x_offset,
+            y: params.y + params.oy * i + params.edge_y_offset
+          },
+          start   : {
+            x: params.x + params.ox * i + params.start_x,
+            y: params.y + params.oy * i + params.start_y
+          },
+          color   : color,
+          vertical: this.position.cable.vertical,
+          marked  : marked[i] === true
+        });
+      }
+      return true;
+    }
+
+    for (let i = 0; i < cable.image.fibers; i++) {
 
       var color = fibersColorPalette.getNextColorHex();
 
       this.fibers[this.fibers.length] = {
+        num     : i,
         x       : params.x + params.ox * i,
         y       : params.y + params.oy * i,
         width   : params.width,
@@ -1569,15 +1599,14 @@ $.extend(Cable.prototype, {
   render                  : function () {
     //var cable = this;
 
-    //this.calculateSizes();
+    //this.calculateSizes()
 
     // Cable outer shell
-    var rect = paper.rect(this.x, this.y, this.width, this.height)
-      .attr({
-        fill          : this.cable_raw.image.color || SCHEME_OPTIONS.CABLE_COLOR,
-        'class'       : 'cable',
-        'stroke-width': SCHEME_OPTIONS.SCALE
-      });
+    var rect = paper.rect(this.x, this.y, this.width, this.height).attr({
+      fill          : this.cable_raw.image.color || SCHEME_OPTIONS.CABLE_COLOR,
+      'class'       : 'cable',
+      'stroke-width': SCHEME_OPTIONS.SCALE
+    });
 
     $(rect.node).data({
       'cable-id': this.cable_raw.id
@@ -1595,14 +1624,62 @@ $.extend(Cable.prototype, {
     rect.meta = meta;
 
     this.modules = this.drawModules(this.position.modules);
-
-    this.drawFibers(this.position.fibers);
+    this.fibersSet = this.drawFibers(this.position.fibers);
 
     this.rendered = rect;
     // Maybe move all this.rendered ( that are LOT of references ) to this.shell
     this.shell    = this.rendered;
 
     this.renderTooltips(this.cable_raw);
+    let self = this;
+
+    paper.draggableSet(concatSets(paper, this.modules, this.fibersSet).push(rect).push(this.cableText),
+      null, rect, {'move_by_x': meta.vertical, 'move_by_y': !meta.vertical},
+      function (attr) {
+        rect.undrag();
+        rect.remove();
+        self.modules.remove();
+        self.fibersSet.remove();
+        self.cableText.remove();
+
+        self.cable_raw.meta.position = attr['position'];
+        self.cable_raw.meta.vertical = attr['vertical'];
+        self.cable_raw.start_y = attr['start_y'];
+        self.cable_raw.start_x = attr['start_x'];
+        self.calculateSizes();
+        self.render();
+
+        self.x = self.rendered.attr('x');
+        self.y = self.rendered.attr('y');
+        self.saveCoords(attr);
+        ACommutation.redrawLinksForElement(self.type + '_' + self.id);
+      },
+      function () {
+        self.position.cable.x = self.rendered.attr('x');
+        self.position.cable.y = self.rendered.attr('y');
+        self.x = self.rendered.attr('x');
+        self.y = self.rendered.attr('y');
+
+        self.cable_raw.start_y = self.rendered.attr('y');
+        self.cable_raw.start_x = self.rendered.attr('x');
+        rect.undrag();
+        rect.remove();
+        self.modules.remove();
+        self.fibersSet.remove();
+        self.cableText.remove();
+        self.calculateSizes();
+
+        self.render();
+        self.saveCoords();
+        ACommutation.redrawLinksForElement(self.type + '_' + self.id);
+      });
+
+
+    function concatSets(paper, setA, setB){
+      let new_set = paper.set();
+      new_set.splice.apply(new_set, [0, 0].concat(setA.items, setB.items));
+      return new_set;
+    }
 
     return this;
   },
@@ -1645,13 +1722,16 @@ $.extend(Cable.prototype, {
       var height = SCHEME_OPTIONS.CABLE_SHELL_HEIGHT;
 
       var x, y;
+
       if (vertical) {
-        x = (SCHEME_OPTIONS.CABLE_FULL_HEIGHT / 2) + SCHEME_OPTIONS.CABLE_FULL_HEIGHT + offset;
+        x = (typeof cable.start_x === 'number') ? cable.start_x :
+          (SCHEME_OPTIONS.CABLE_FULL_HEIGHT / 2) + SCHEME_OPTIONS.CABLE_FULL_HEIGHT + offset;
         y = (mirrored) ? SCHEME_OPTIONS.CANVAS_HEIGHT - height : 0;
       }
       else {
         x = (mirrored) ? SCHEME_OPTIONS.CANVAS_WIDTH - height : 0;
-        y = (SCHEME_OPTIONS.CABLE_FULL_HEIGHT / 2) + SCHEME_OPTIONS.CABLE_FULL_HEIGHT + offset;
+        y = (typeof cable.start_y === 'number') ? cable.start_y :
+          (SCHEME_OPTIONS.CABLE_FULL_HEIGHT / 2) + SCHEME_OPTIONS.CABLE_FULL_HEIGHT + offset;
       }
 
       //if not vertical, flip height and width
@@ -1797,7 +1877,6 @@ $.extend(Cable.prototype, {
       cable  : cable_params,
       modules: modules_params,
       fibers : fibers_params
-
     }
   },
   checkColorsLength       : function (colors_array, desired_length) {
@@ -1886,7 +1965,7 @@ $.extend(Cable.prototype, {
 
     var vertical = rect.data('vertical');
 
-    drawText(this.cable_raw);
+    this.cableText = drawText(this.cable_raw);
 
     function drawText(info_object) {
       var description = info_object.meta.name;
@@ -1920,6 +1999,7 @@ $.extend(Cable.prototype, {
           transform: 'r' + angle
         })
       }
+      return text;
     }
   },
   getInfoParams           : function () {
@@ -2693,7 +2773,7 @@ function CommutationControlsAbstract() {
         continue;
       }
 
-      var $option = $('<li></li>');
+      var $option = $('<li class=\'dropdown-item\'></li>');
       var $btn    = $('<a></a>');
 
       $btn.text(_translate(option));
@@ -2838,7 +2918,7 @@ function initContextMenus() {
   $.contextMenu({
     // define which elements trigger this menu
     selector      : ".fiber",
-    trigger       : 'left',
+    trigger       : 'right',
     itemClickEvent: "click",
 
     build: function ($trigger) {
@@ -2896,7 +2976,7 @@ function initContextMenus() {
   $.contextMenu({
     // define which elements trigger this menu
     selector      : ".link-circle",
-    trigger       : 'left',
+    trigger       : 'right',
     itemClickEvent: "click",
 
     build: function ($trigger) {
@@ -2969,7 +3049,7 @@ function initContextMenus() {
   $.contextMenu({
     // define which elements trigger this menu
     selector      : ".cable",
-    trigger       : 'left',
+    trigger       : 'right',
     itemClickEvent: "click",
 
     build: function ($trigger) {
@@ -3058,7 +3138,7 @@ function initContextMenus() {
   $.contextMenu({
     // define which elements trigger this menu
     selector      : ".fiber-connected-another",
-    trigger       : 'left',
+    trigger       : 'right',
     itemClickEvent: "click",
 
     build: function ($trigger) {
@@ -3088,7 +3168,7 @@ function initContextMenus() {
   $.contextMenu({
     // define which elements trigger this menu
     selector      : ".splitter",
-    trigger       : 'left',
+    trigger       : 'right',
     itemClickEvent: "click",
 
     build: function ($trigger) {
@@ -3134,7 +3214,7 @@ function initContextMenus() {
   $.contextMenu({
     // define which elements trigger this menu
     selector      : ".equipment",
-    trigger       : 'left',
+    trigger       : 'right',
     itemClickEvent: "click",
 
     build: function ($trigger) {
@@ -3179,7 +3259,7 @@ function initContextMenus() {
   $.contextMenu({
     // define which elements trigger this menu
     selector      : ".cross",
-    trigger       : 'left',
+    trigger       : 'right',
     itemClickEvent: "click",
 
     build: function ($trigger) {
@@ -3193,8 +3273,6 @@ function initContextMenus() {
       }
 
       var cross = cross_el.origin.raw;
-
-      console.log(cross);
 
       return {
         items: {
@@ -3220,7 +3298,7 @@ function initContextMenus() {
           port_range: {
 
             name    : capitalizeFirst(_translate('Change').toLowerCase()),
-            icon    : 'glyphicon-option-horizontal',
+            icon    : 'fa-ellipsis-h',
             callback: function () {
               loadToModal("?get_index=cablecat_commutation&header=2"
                 + "&operation=CHANGE_PORTS"

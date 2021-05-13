@@ -1,7 +1,7 @@
-<div class='box box-theme box-form'>
-  <div class="box-header with-border"><h4 class="box-title">_{REFERRAL_SYSTEM}_</h4></div>
+<div class='card card-primary card-outline box-form'>
+  <div class="card-header with-border"><h4 class="card-title">_{REFERRAL_SYSTEM}_</h4></div>
   <form name='SETTINGS' id='form_REFERRAL_SETTINGS' method='post' class='form form-horizontal'>
-    <div class='box-body'>
+    <div class='card-body'>
 
       <input type='hidden' name='index' value='$index'/>
       %CHANGE%
@@ -84,7 +84,7 @@
       </div>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       %ACTION%
     </div>
   </form>

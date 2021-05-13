@@ -19,9 +19,6 @@ our (
 );
 
 use FindBin '$Bin';
-#if ($admin && $admin->{DOMAIN_ID}) {
-#  $domain_path = "$admin->{DOMAIN_ID}/";
-#}
 
 #**********************************************************
 =head2 _include($tpl, $module, $attr) - templates
@@ -61,10 +58,10 @@ sub _include {
     $Bin . '/../Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . "_$language" . $sufix,
     $Bin . '/../Abills/templates/' . $domain_path . '/' . $FORM{NAS_GID} . '/' . $module . '_' . $tpl . $sufix,
     $Bin . '/../Abills/templates/' . $domain_path  . $module . '_' . $tpl . "_$language" . $sufix,
-           '../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$language" . $sufix,
-           '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$language" . $sufix,
-           '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
-           '../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
+          '../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$language" . $sufix,
+          '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . "_$language" . $sufix,
+          '../../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
+          '../Abills/templates/' . $domain_path . $module . '_' . $tpl . $sufix,
     $Bin . '/../Abills/templates/'. $domain_path . $module . '_' . $tpl . $sufix,
     $Bin . '/../Abills/templates/' . $module . '_' . $tpl . "_$language" . $sufix,
     #Fixme for unifi hotspot
@@ -143,21 +140,8 @@ sub tpl_content {
         }
       }
       else {
-        # Old
         s/\_\{(\w+)\}\_/$lang{$1}/sg;
         $tpl_content .= $_;
-#        # New check speed
-#        my $row = $_;
-#        if ($row =~ /\_\{(\w+)\}\_/sg) {
-#          my $text = $1;
-#          if($lang{$text}) {
-#            $row =~ s/\_\{(\w+)\}\_/$lang{$text}/sg;
-#          }
-#          else {
-#            $row =~ s/\_\{(\w+)\}\_/$text/sg;
-#          }
-#        }
-#        $tpl_content .= $row;
       }
     }
   close($fh);
@@ -187,8 +171,7 @@ sub templates {
     #Lang tpls
     $Bin . "/../../Abills/templates/" . '_' . "$tpl_name" . '.tpl',
     $Bin . "/../Abills/templates/_$tpl_name" . "_$html->{language}.tpl",
-    #$Bin . "/../../Abills/main_tpls/$tpl_name" . "_$html->{language}.tpl",
-    #$Bin . "/../Abills/main_tpls/$tpl_name" . "_$html->{language}.tpl",
+
     #Main tpl
     $Bin . "/../Abills/templates/_$tpl_name" . ".tpl",
     $Bin . "/../../Abills/main_tpls/$tpl_name" . ".tpl",

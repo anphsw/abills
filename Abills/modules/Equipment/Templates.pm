@@ -173,7 +173,7 @@ sub equipment_tmpl_edit {
             '',
             "index=$index$pages_qs&PARAM=$FORM{PARAM}&DEL=$i",
             {
-              ICON  => 'glyphicon glyphicon-trash text-danger',
+              ICON  => 'fa fa-trash text-danger',
               title => $lang{DEL},
             }
           )
@@ -297,13 +297,13 @@ sub equipment_stats_edit {
   		$table->addrow( $var->{param}, $var->{measure_type},$var->{comments},
     					$html->button('', "index=$index$pages_qs&EDIT=$var->{id}",
       							{
-    								ICON  => 'glyphicon glyphicon-pencil text-info',
+    								ICON  => 'fa fa-pencil text-info',
     								title => $lang{DEL},
       							}
       						).
     					$html->button('', "index=$index$pages_qs&TYPE=$var->{measure_type}&DEL=$var->{id}&TOTAL=$size",
       							{
-    								ICON  => 'glyphicon glyphicon-trash text-danger',
+    								ICON  => 'fa fa-trash text-danger',
     								title => $lang{DEL},
       							}
       						)
@@ -330,7 +330,7 @@ sub equipment_stats_edit {
     					label_w_text({ TEXT =>	$html->form_input( 'SAVE',
     															   ( $FORM{EDIT} )? $lang{CHANGE} : $lang{CREATE},
     															   { TYPE => 'SUBMIT' } ) . "	".
-    											$html->button($lang{CANCEL}, "index=$index$pages_qs", {class =>"btn btn-default"})
+    											$html->button($lang{CANCEL}, "index=$index$pages_qs", {class =>"btn btn-secondary"})
     								  }),
     	    METHOD  => 'GET',
         	#class   => 'form-vertical',
@@ -467,7 +467,7 @@ sub equipment_snmp_port_data {
             "$lang{CABLE_TEST}: $lang{PORT} $key",
             "index=$port_index&NAS_ID=$attr->{NAS_ID}&test=$key",
             {
-              ICON  => 'glyphicon glyphicon-eye-open',
+              ICON  => 'fa fa-eye',
               title => "$lang{INFO}Port $key"
             }
           )
@@ -475,7 +475,7 @@ sub equipment_snmp_port_data {
             "$lang{STATS}: $lang{PORT} $key",
             "index=$stats_index&NAS_ID=$attr->{NAS_ID}&PORT=$key",
             {
-              ICON  => 'glyphicon glyphicon-pencil',
+              ICON  => 'fa fa-pencil',
               title => "$lang{INFO}Port $key"
             }
           )
@@ -903,7 +903,7 @@ sub equipment_fdb_data {
         '',
         "index=$fdb_index&visual=FDB&NAS_ID=$FORM{NAS_ID}&del=$key->{id}",
         {
-          ICON    => 'glyphicon glyphicon-trash text-danger',
+          ICON    => 'fa fa-trash text-danger',
           MESSAGE => "$lang{DEL} $key->{mac}"
         }
       )
@@ -1441,7 +1441,7 @@ sub nms_snmp_get {
 	  $set_button = $html->element( 'span', undef,
       							{
 									ex_params  => qq/onclick=renewLeftBox($oid,'SET',$iid)/,
-    								class  => 'glyphicon glyphicon-pencil text-info',
+    								class  => 'fa fa-pencil text-info',
       							}
       						);
   }

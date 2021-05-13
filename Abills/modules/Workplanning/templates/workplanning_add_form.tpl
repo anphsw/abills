@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>%SUBMIT_BTN_ACTION% _{PLANNED_WORK}_</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4 class='card-title'>%SUBMIT_BTN_ACTION% _{PLANNED_WORK}_</h4></div>
+  <div class='card-body'>
         <form name='%SUBMIT_BTN_ACTION%' id='form_%SUBMIT_BTN_ACTION%' method='post' class='form form-horizontal' value='1'>
         <input type='hidden' name='index' value='$index' />
         <input type='hidden' name='ACTION' value='%ACTION%' />
@@ -60,7 +60,7 @@
           </div>
       </div>
 
-      <div class='box-footer'>
+      <div class='card-footer'>
 
 <!--         <div class='form-group'>
           <label class='control-label col-md-2' for='SUBSCRIBER'>_{SUBSCRIBER}_</label>
@@ -98,7 +98,7 @@
     </form>
 
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
       <input type='submit' form='form_%SUBMIT_BTN_ACTION%' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_ACTION%'>
   </div>
 </div>

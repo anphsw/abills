@@ -1,11 +1,11 @@
 <div class='row'>
   <!-- Nav tabs -->
-  <div class='box box-primary'>
-    <div class='box-header with-border text-center'>
+  <div class='card box-primary'>
+    <div class='card-header with-border text-center'>
       _{NEW}_ _{ICON}_
     </div>
 
-    <div class='box-body' id='ajax_upload_modal_body'>
+    <div class='card-body' id='ajax_upload_modal_body'>
 
       <form class='form form-inline' name='ajax_upload_form' id='ajax_upload_form' data-timeout='%TIMEOUT%' method='post'>
         <input type='hidden' name='get_index' value='%CALLBACK_FUNC%'/>
@@ -22,7 +22,7 @@
       </form>
 
     </div>
-    <div class='box-footer text-right'>
+    <div class='card-footer text-right'>
       <button type='submit' class='btn btn-primary' id='ajax_upload_submit' form='ajax_upload_form'>
         _{ADD}_
       </button>

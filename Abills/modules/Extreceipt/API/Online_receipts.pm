@@ -7,8 +7,9 @@
 
 =head1 VERSION
 
-  VERSION: 0.06
+  VERSION: 0.07
   DATE: 20201012
+  UPDATE: 20210217
 
 =cut
 
@@ -23,7 +24,7 @@ use utf8 qw/encode/;
 use Abills::Base qw(_bp);
 use Abills::Fetcher;
 
-my $VERSION = 0.06;
+my $VERSION = 0.07;
 my $api_url = '';
 my $curl    = '';
 
@@ -60,27 +61,6 @@ sub new {
 sub init {
   my $self = shift;
 
-  # my %data = (
-  #   nonce => $self->get_nonce(),
-  #   app_id => $self->{APP_ID}
-  # );
-
-  # my $sign  = $self->get_sign(\%data);
-  # my $query = $self->make_query(\%data);
-  #
-  # $self->{debug}=1;
-  # my $params = qq/-H "sign: $sign"/;
-  # my $url = $api_url . "Token?" . $query;
-  # my $result = `$curl -s "$url" $params`;
-  #
-  # my $perl_hash = ();
-  # eval { $perl_hash = decode_json($result); 1 };
-  # if ($self->{debug}) {
-  #   print "CMD: $curl -s '$url' $params\n";
-  #   print "RESULT: $result\n";
-  # }
-  #$self->{TOKEN} = $perl_hash->{token};
-
   $self->make_request({
     CMD          => 'Token',
     #REQUEST_DATA => \%data,
@@ -104,7 +84,7 @@ sub init {
 sub payment_register {
   my $self = shift;
   my ($attr) = @_;
-
+Abills::Base::_bp('', $self,{TO_CONSOLE=>1});
   if ($self->{debug}) {
     print "\nTry \\printCheck for payment $attr->{payments_id}\n";
   }
@@ -163,7 +143,7 @@ sub payment_register {
 sub get_info {
   my $self = shift;
   my ($attr) = @_;
-
+Abills::Base::_bp('get_info', $self);
   my %data = (
     nonce  => $self->get_nonce(),
     app_id => $self->{APP_ID},
@@ -400,11 +380,11 @@ sub make_request {
 
   $self->{request_result}=$result;
 
-  if ($result->{result} && $result->{result} > 0) {
-    $self->{errno}=$result->{result};
-    $self->{error}=$result->{result};
-    $self->{errstr}=$result->{message};
-  }
+ # if ($result->{result} && $result->{result} > 0) {
+#    $self->{errno}=$result->{result};
+#    $self->{error}=$result->{result};
+#    $self->{errstr}=$result->{message};
+ # }
 
   return $self;
 }

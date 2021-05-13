@@ -52,6 +52,7 @@ sub click {
   $message .= "$self->{bot}->{lang}->{ADDRESS}: $Conf->{conf}->{ORGANIZATION_ADDRESS}\n" if ($Conf->{conf}->{ORGANIZATION_ADDRESS});
   $message .= "$self->{bot}->{lang}->{PHONE}: $Conf->{conf}->{ORGANIZATION_PHONE}\n" if ($Conf->{conf}->{ORGANIZATION_PHONE});
   $message .= "$self->{bot}->{lang}->{EMAIL}: $Conf->{conf}->{ORGANIZATION_MAIL}\n" if ($Conf->{conf}->{ORGANIZATION_MAIL});
+  $message .= "$self->{bot}->{lang}->{WEB_SITE}: $Conf->{conf}->{ORGANIZATION_WEB_SITE}\n" if ($Conf->{conf}->{ORGANIZATION_WEB_SITE});
 
   $self->{bot}->send_message({
     text         => $message,

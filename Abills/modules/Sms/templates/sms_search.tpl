@@ -1,7 +1,10 @@
 <input type='hidden' name='direct' value='%direct%'>
+<input type='hidden' name='desc' value='%desc%'>
+<input type='hidden' name='sort' value='%sort%'>
+
 <div class='col-md-6'>
-  <div class='box box-theme'>
-    <div class='box-body'>
+  <div class='card card-primary card-outline'>
+    <div class='card-body'>
       <div class='form-group'>
         <label class='control-label col-md-3'>_{GROUP}_:</label>
         <div class='col-md-9'>

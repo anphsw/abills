@@ -6,12 +6,10 @@
     /*This sizes depends on an background image dimensions*/
     height: 36px;
     width: 36px;
-    padding: 10px;
 
     float: left;
     text-align: center;
-    line-height: 15px;
-    /*margin: -1px;*/
+    line-height: 36px;
 }
 
 div > .equipment-panel {
@@ -87,6 +85,6 @@ div > .equipment-panel {
 
 @media (min-width: 992px) {
     .modal-lg {
-        width: 910px;
+        width: 920px;
     }
 }

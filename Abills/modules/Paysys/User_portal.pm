@@ -2,7 +2,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base;
+use Abills::Base qw();
 
 our (
   $html,
@@ -17,12 +17,13 @@ our (
 our Paysys $Paysys;
 
 #**********************************************************
-=head2 paysys_payment()
+=head2 paysys_payment($attr)
 
 =cut
 #**********************************************************
 sub paysys_payment {
   my ($attr) = @_;
+  my $index = get_function_index('paysys_payment');
 
   my %TEMPLATES_ARGS = ();
   $user->pi({UID => $user->{UID}});
@@ -38,65 +39,6 @@ sub paysys_payment {
   if ($FORM{SUM} == 0 && $user) {
     if (defined(&recomended_pay)) {
       $FORM{SUM} = recomended_pay($user);
-    }
-  }
-  # EXTERNAL COMMANDS CODE BEGIN
-  if ($FORM{PAYMENT_SYSTEM} && $user->{UID} && $conf{PAYSYS_EXTERNAL_START_COMMAND}) {
-    my $start_command = $conf{PAYSYS_EXTERNAL_START_COMMAND} || q{};
-    my $attempts = $conf{PAYSYS_EXTERNAL_ATTEMPTS} || 0;
-    my $main_user_information = $Paysys->paysys_user_info({ UID => $user->{UID} });
-
-    if ($main_user_information->{TOTAL} == 0) {
-      $Paysys->paysys_user_add({ ATTEMPTS => 1,
-        UID                               => $user->{UID},
-        EXTERNAL_USER_IP                  => $ENV{REMOTE_ADDR} });
-    }
-    else {
-      if ($main_user_information->{ATTEMPTS} && (!$attempts || $main_user_information->{ATTEMPTS} < $attempts)) {
-        my (undef, $now_month) = split('-', $DATE);
-        my (undef, $last_month) = split('-', $main_user_information->{EXTERNAL_LAST_DATE});
-        my $paysys_id = $main_user_information->{PAYSYS_ID};
-        if (int($now_month) != int($last_month)) {
-          $Paysys->paysys_user_change({
-            ATTEMPTS           => 1,
-            UID                => $user->{UID},
-            PAYSYS_ID          => $paysys_id,
-            EXTERNAL_LAST_DATE => "$DATE $TIME",
-            EXTERNAL_USER_IP   => ip2int($ENV{REMOTE_ADDR}),
-          });
-        }
-        else {
-          my $user_attempts = $main_user_information->{ATTEMPTS} + 1;
-          $Paysys->paysys_user_change({
-            ATTEMPTS           => $user_attempts,
-            UID                => $user->{UID},
-            PAYSYS_ID          => $paysys_id,
-            CLOSED             => 0,
-            EXTERNAL_LAST_DATE => "$DATE $TIME",
-            EXTERNAL_USER_IP   => ip2int($ENV{REMOTE_ADDR}),
-          });
-        }
-      }
-    }
-
-    my $result = cmd($start_command, {
-      PARAMS => { %$user, IP => $ENV{REMOTE_ADDR} }
-    });
-
-    if ($result && $result =~ /(\d+):(.+)/) {
-      my $code = $1;
-      my $text = $2;
-
-      if ($code == 1) {
-        my $button = $html->button("$lang{SET} $lang{CREDIT}", "OPEN_CREDIT_MODAL=1", { class => 'btn btn-success' });
-        $html->message('warn', $text, $button,);
-        return 1;
-      }
-
-      if ($code) {
-        $html->message('warn', $lang{INFO}, $text, { ID => 1730 });
-        return 1;
-      }
     }
   }
 
@@ -141,6 +83,10 @@ sub paysys_payment {
   }
 
   if ($FORM{PAYMENT_SYSTEM}) {
+    if (paysys_external_cmd()) {
+      return 1;
+    }
+
     my $payment_system_info = $Paysys->paysys_connect_system_info({
       PAYSYS_ID => $FORM{PAYMENT_SYSTEM},
       MODULE    => '_SHOW',
@@ -235,14 +181,96 @@ sub paysys_payment {
     $TEMPLATES_ARGS{PAY_SYSTEM_SEL}=join($delimiter, @payment_systems);
   }
 
-  if($attr->{HOTSPOT}){
+  if($attr->{HOTSPOT}) {
     return $TEMPLATES_ARGS{PAY_SYSTEM_SEL};
   }
 
-  return $html->tpl_show(_include('paysys_main', 'Paysys'), \%TEMPLATES_ARGS,
-    { OUTPUT2RETURN => $attr->{OUTPUT2RETURN},
-      ID            => 'PAYSYS_FORM'
+  return $html->tpl_show(_include('paysys_main', 'Paysys'), {
+    %TEMPLATES_ARGS, SUM => $FORM{SUM}
+  }, {
+    OUTPUT2RETURN => $attr->{OUTPUT2RETURN},
+    ID            => 'PAYSYS_FORM'
+  });
+}
+
+#**********************************************************
+=head2 paysys_external_cmd() - Make external cmd
+
+  Arguments:
+    $attr
+
+  Return:
+
+=cut
+#**********************************************************
+sub paysys_external_cmd {
+
+  my $uid = $user->{UID};
+
+  if ($conf{PAYSYS_EXTERNAL_START_COMMAND}) {
+    my $start_command         = $conf{PAYSYS_EXTERNAL_START_COMMAND} || q{};
+    my $attempts              = $conf{PAYSYS_EXTERNAL_ATTEMPTS} || 0;
+    my $main_user_information = $Paysys->paysys_user_info({ UID => $uid });
+
+    if ($main_user_information->{TOTAL} == 0) {
+      $Paysys->paysys_user_add({
+        ATTEMPTS         => 1,
+        UID              => $uid,
+        EXTERNAL_USER_IP => $ENV{REMOTE_ADDR}
+      });
+    }
+    else {
+      if ($main_user_information->{ATTEMPTS} && (!$attempts || $main_user_information->{ATTEMPTS} < $attempts)) {
+        my (undef, $now_month) = split('-', $DATE);
+        my (undef, $last_month) = split('-', $main_user_information->{EXTERNAL_LAST_DATE});
+        my $paysys_id = $main_user_information->{PAYSYS_ID};
+        if (int($now_month) != int($last_month)) {
+          $Paysys->paysys_user_change({
+            ATTEMPTS           => 1,
+            UID                => $uid,
+            PAYSYS_ID          => $paysys_id,
+            EXTERNAL_LAST_DATE => "$DATE $TIME",
+            EXTERNAL_USER_IP   => ip2int($ENV{REMOTE_ADDR}),
+          });
+        }
+        else {
+          my $user_attempts = $main_user_information->{ATTEMPTS} + 1;
+          $Paysys->paysys_user_change({
+            ATTEMPTS           => $user_attempts,
+            UID                => $uid,
+            PAYSYS_ID          => $paysys_id,
+            CLOSED             => 0,
+            EXTERNAL_LAST_DATE => "$DATE $TIME",
+            EXTERNAL_USER_IP   => ip2int($ENV{REMOTE_ADDR}),
+          });
+        }
+      }
+    }
+    #print "Content-Type: text/html\n\n";
+
+    my $result = cmd($start_command, {
+      PARAMS => { %$user, IP => $ENV{REMOTE_ADDR} },
+      #DEBUG  => 5
     });
+
+    if ($result && $result =~ /(\d+):(.+)/) {
+      my $code = $1;
+      my $text = $2;
+
+      if ($code == 1) {
+        my $button = $html->button("$lang{SET} $lang{CREDIT}", "OPEN_CREDIT_MODAL=1", { class => 'btn btn-success' });
+        $html->message('warn', $text, $button,);
+        return 1;
+      }
+
+      if ($code) {
+        $html->message('warn', $lang{INFO}, $text, { ID => 1730 });
+        return 1;
+      }
+    }
+  }
+
+  return 0;
 }
 
 #**********************************************************
@@ -353,16 +381,42 @@ sub paysys_user_log {
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
-  my $list = $Paysys->list({ %LIST_PARAMS, COLS_NAME => 1 });
+  my $date_show = '';
+  if($conf{user_payment_journal_show}) {
+    $LIST_PARAMS{SHOW_PAYMENT} = 1;
+    use POSIX qw(strftime);
+
+    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+
+    $mday = 1;
+    $mon = $mon - $conf{user_payment_journal_show} + 1;
+    if ($mon == 13) {
+      $mon = 1;
+      $year++;
+    }
+    $date_show = POSIX::strftime('%Y-%m-%d', ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst));
+    $LIST_PARAMS{DATE}= ">$date_show";
+  }
+
+  my $list = $Paysys->list({ %LIST_PARAMS,  COLS_NAME => 1 });
+
   my $table = $html->table(
     {
-      width   => '100%',
-      caption => "$lang{PAY_JOURNAL}",
-      title   =>
-        [ 'ID', "$lang{DATE}", "$lang{SUM}", "$lang{PAY_SYSTEM}", "$lang{TRANSACTION}", "$lang{STATUS}", '-' ],
-      qs      => $pages_qs,
-      pages   => $Paysys->{TOTAL},
-      ID      => 'PAYSYS'
+      width       => '100%',
+      caption     => "$lang{PAY_JOURNAL}",
+      title       => [
+        'ID',
+        "$lang{DATE}",
+        "$lang{SUM}",
+        "$lang{PAY_SYSTEM}",
+        "$lang{TRANSACTION}",
+        "$lang{STATUS}",
+        '-'
+      ],
+      qs          => $pages_qs,
+      pages       => $Paysys->{TOTAL},
+      ID          => 'PAYSYS',
+      LITE_HEADER => 1
     }
   );
 
@@ -372,7 +426,6 @@ sub paysys_user_log {
       $line->{sum},
       $PAY_SYSTEMS{$line->{system_id}},
       $line->{transaction_id},
-      #"$status[$line->{status}]",
       $html->color_mark($status[$line->{status}], "$status_color[$line->{status}]"),
       $html->button($lang{INFO}, "index=$index&info=$line->{id}"));
   }
@@ -380,16 +433,61 @@ sub paysys_user_log {
 
   $table = $html->table(
     {
-      width => '100%',
-      rows  =>
-        [ [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM}:", $html->b($Paysys->{SUM_COMPLETE}) ] ]
+      caption     => $lang{ALL},
+      LITE_HEADER => 1,
+      width       => '100%',
+      rows        => [
+        [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM}:", $html->b($Paysys->{SUM_COMPLETE}) ]
+      ]
     }
   );
   print $table->show();
 
   return 1;
 }
+#**********************************************************
+=head2 paysys_subscribe()
 
+=cut
+#**********************************************************
+sub paysys_subscribe {
+
+  my $list_t = $Paysys->paysys_user_info({
+    UID          => $user->{UID},
+  });
+
+  my $table = $html->table(
+    {
+      width       => '100%',
+      caption     => "$lang{TOKEN_PAYMENTS}",
+      title       => [
+        "$lang{DATE}",
+        "$lang{SUM}",
+        "$lang{PAY_SYSTEM}",
+        "$lang{TRANSACTION}",
+        "$lang{STATUS}",
+        '-'
+      ],
+      qs          => $pages_qs,
+      pages       => $Paysys->{TOTAL},
+      ID          => 'PAYSYS',
+      LITE_HEADER => 1,
+    }
+  );
+
+  if($list_t->{EXTERNAL_LAST_DATE}){
+    $table->addrow($list_t->{EXTERNAL_LAST_DATE},
+      $list_t->{SUM},
+      $list_t->{RECURRENT_MODULE},
+      $list_t->{ORDER_ID},
+      $lang{ENABLED},
+      $html->button($lang{HANGUP}, 'index='. get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . 62 . '&SUM=1.00' ));
+  }
+
+  print $table->show();
+
+  return 1;
+}
 #**********************************************************
 =head2 paysys_system_sel()
 

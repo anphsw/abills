@@ -174,7 +174,9 @@ sub stalker_online_check {
     }
 
     if ($debug > 2) {
-      print "$line->{CID} -> $line->{uid}:$line->{id}:$line->{acct_session_id}\n";
+      print "$line->{CID} -> ". ($line->{uid} || 'NO_UID' ).":"
+        . ($line->{id} || 'NO_ID') .":"
+        . ($line->{acct_session_id} || 'NO_SESSION_ID') ."\n";
     }
 
     if (!$line->{uid}) {

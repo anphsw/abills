@@ -45,6 +45,7 @@ sub click {
   my ($attr) = @_;
 
   my $uid = $self->{bot}->{uid};
+  my $money_currency = $self->{conf}->{DOCS_MONEY_NAMES} || '';
 
   require Internet;
   my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
@@ -113,8 +114,10 @@ sub click {
         elsif ($days > 4) {
           $days_lit = "$self->{bot}->{lang}->{DAYS}";
         }
-        $message .= "$self->{bot}->{lang}->{SET_CREDIT} $days $days_lit\n";
-        $message .= "$self->{bot}->{lang}->{SERVICE_PRICE}: $price.\n" if ($price);
+        $message .= "$self->{bot}->{lang}->{SET_CREDIT} $days $days_lit";
+        $message .= " $money_currency\n";
+        $message .= "$self->{bot}->{lang}->{SERVICE_PRICE}: $price" if ($price);
+        $message .= " $money_currency\n";
 
         my $inline_button = {
           text          => "$self->{bot}->{lang}->{CREDIT_SET}",
@@ -125,7 +128,8 @@ sub click {
     }
     else {
       $message .= "$self->{bot}->{lang}->{SPEED}: <b>$line->{speed}</b>\n" if ($line->{speed});
-      $message .= "$self->{bot}->{lang}->{PRICE_MONTH}: <b>$line->{month_fee}</b>\n" if ($line->{month_fee} && $line->{month_fee} > 0);
+      $message .= "$self->{bot}->{lang}->{PRICE_MONTH}: <b>$line->{month_fee}</b>" if ($line->{month_fee} && $line->{month_fee} > 0);
+      $message .= " $money_currency\n";
       $message .= "$self->{bot}->{lang}->{PRICE_DAY}: <b>$line->{day_fee}</b>\n" if ($line->{day_fee} && $line->{day_fee} > 0);
     }
     $message .= "\n";

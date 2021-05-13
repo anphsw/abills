@@ -1178,13 +1178,12 @@ sub mail_wizard {
 
   }
 
-  my $users_defaults = undef; #$users->defaults();
-  #$users_defaults->{DISABLE} = ($users_defaults->{DISABLE} && $users_defaults->{DISABLE} == 1) ? ' checked' : '';
+  my $users_defaults = undef;
 
   $users_defaults->{GID} = sel_groups();
   if (!$attr->{NO_EXTRADATA}) {
+    $attr->{EXT_BILL_ACCOUNT} = 'none' unless ($conf{EXT_BILL_ACCOUNT});
     $users_defaults->{EXDATA} = $user->{EXDATA} .= $html->tpl_show(templates('form_user_exdata_add'), { CREATE_BILL => ' checked' }, { notprint => 1 });
-    $users_defaults->{EXDATA} .= $html->tpl_show(templates('form_ext_bill_add'), { CREATE_EXT_BILL => ' checked' }, { notprint => 1 }) if ($conf{EXT_BILL_ACCOUNT});
   }
 
   $payments->{SEL_METHOD} = $html->form_select(

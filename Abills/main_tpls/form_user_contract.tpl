@@ -2,11 +2,11 @@
   <input type='hidden' name='index' value='$index' />
   <input type='hidden' name='UID' value='$FORM{UID}' />
   <input type='hidden' name='chg' value='$FORM{chg}' />
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'>
-      <h4 class='box-title'>_{ADDITION}_</h4>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>_{ADDITION}_</h4>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
       <div class='form-group'>
         <label class='control-label col-md-3' for='NAME'>_{NAME}_</label>
         <div class='col-md-9'>
@@ -37,7 +37,7 @@
       </div>
 
     </div>
-    <div class='box-footer text-center'>
+    <div class='card-footer text-center'>
       <input type='submit' class='btn btn-primary' name='%BTN_NAME%' value='%BTN_VALUE%'>
     </div>
   </div>

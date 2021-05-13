@@ -67,12 +67,12 @@
   </div>
 
   <div class="col-lg-8 col-md-8 col-sm-12 col-6">
-    <div class="box box-theme">
-      <div class='box-header with-border'>
-        <h4 class="box-title table-caption">_{CALLS_}_</h4>
+    <div class="card card-primary card-outline">
+      <div class='card-header with-border'>
+        <h4 class="card-title table-caption">_{CALLS_}_</h4>
       </div>
 
-      <div class='box-body'>
+      <div class='card-body'>
         %CHART%
       </div>
 

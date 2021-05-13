@@ -46,7 +46,7 @@ sub paysys_log {
 
   if ($FORM{info}) {
     $Paysys->info({ ID => $FORM{info} });
-    my @info_arr = split(/\n/, $Paysys->{INFO});
+    my @info_arr = split(/\n/, $Paysys->{INFO} || q{});
     my $table = $html->table({ width => '100%' });
     foreach my $line (@info_arr) {
       my ($k, $v) = split(/,/, $line, 2);
@@ -156,7 +156,6 @@ sub paysys_log {
     TABLE           => {
       width      => '100%',
       caption    => "Paysys",
-      cols_align => [ 'left', 'left', 'right', 'right', 'left', 'right', 'right', 'center:noprint', 'center:noprint' ],
       qs         => $pages_qs,
       pages      => $Paysys->{TOTAL},
       ID         => 'PAYSYS_LOG',
@@ -192,7 +191,6 @@ sub paysys_log {
   $table = $html->table(
     {
       width      => '100%',
-      cols_align => [ 'right', 'right', 'right', 'right' ],
       rows       => [ [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL}), "$lang{SUM}", $html->b($Paysys->{SUM}) ],
         [ "$lang{TOTAL} $lang{COMPLETE}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM} $lang{COMPLETE}:",
           $html->b($Paysys->{SUM_COMPLETE}) ]
@@ -202,7 +200,6 @@ sub paysys_log {
   if (!$admin->{MAX_ROWS}) {
     print $table->show();
   }
-  # print $table->show();
 
   return 1;
 }

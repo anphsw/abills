@@ -11,10 +11,11 @@ use warnings FATAL => 'all';
   This file contains functions for commutation show and editing
 
 =cut
-our (%lang, $html, %permissions, $Cablecat, $Maps, $Equipment, %MAP_LAYER_ID);
+our ($db, $admin, %conf, %lang, $html, %permissions, $Cablecat, $Maps, $Equipment, %MAP_LAYER_ID);
 use Abills::Base qw/in_array/;
 use Cablecat::Cable_blank;
-require Cablecat::Cable_blank;
+use Maps2::Auxiliary;
+my $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 #**********************************************************
 =head2 cablecat_commutation()
@@ -159,7 +160,8 @@ sub cablecat_commutation {
       $TEMPLATE_ARGS{SPLITTERS} = JSON::to_json($splitters);
       $TEMPLATE_ARGS{EQUIPMENT} = JSON::to_json($equipment);
       $TEMPLATE_ARGS{CROSSES} = JSON::to_json($crosses);
-      $TEMPLATE_ARGS{BTN} = $html->button($lang{PRINT_SCHEME}, "header=2&qindex=" . get_function_index('show_box') . "&print=1&ID=" . $FORM{ID}, { target => '_new', class => 'btn btn-default' });
+      $TEMPLATE_ARGS{BTN} = $html->button($lang{PRINT_SCHEME}, "header=2&qindex=" .
+        get_function_index('show_box') . "&print=1&ID=" . $FORM{ID}, { target => '_new', class => 'btn btn-default' });
     }
 
     $html->tpl_show(_include('cablecat_commutation', 'Cablecat'), \%TEMPLATE_ARGS);
@@ -369,7 +371,16 @@ sub cablecat_commutation_cables {
 
     show_result($Cablecat, $lang{DEL}, '', { ID => 'ELEMENT_DELETED' });
   }
-
+  elsif ($FORM{operation} eq 'SAVE_COORDS') {
+    $Cablecat->commutation_cables_change({
+      CABLE_ID      => $FORM{ID},
+      COMMUTATION_X => $FORM{X},
+      COMMUTATION_Y => $FORM{Y},
+      POSITION      => $FORM{POSITION},
+      _CHANGE_PARAM => 'CABLE_ID'
+    });
+    show_result($Cablecat, $lang{CHANGED}, '', { ID => 'COORDS_CHANGED' });
+  }
 }
 
 
@@ -379,6 +390,7 @@ sub cablecat_commutation_cables {
 =cut
 #**********************************************************
 sub cablecat_commutation_splitters {
+
   if ($FORM{operation} eq 'LIST') {
     my $splitters_for_well = $Cablecat->splitters_list({
       ID         => '_SHOW',
@@ -447,7 +459,6 @@ sub cablecat_commutation_equipment {
   }
 
   if (!$Equipment) {
-    our ($db, $admin, %conf);
     require Equipment;
     Equipment->import();
     $Equipment = Equipment->new($db, $admin, \%conf);
@@ -505,8 +516,13 @@ sub cablecat_commutation_equipment {
       my $ports_count = $equipment_info->{PORTS};
 
       if (!$ports_count || $ports_count eq '0') {
-        $html->message('err', $lang{ERROR}, $lang{NO_PORTS_COUNT});
-        return 0;
+        my $model_info = $Equipment->model_info($equipment_info->{MODEL_ID});
+        $ports_count = $model_info->{PORTS};
+
+        if (!$ports_count || $ports_count eq '0') {
+          $html->message('err', $lang{ERROR}, $lang{NO_PORTS_COUNT});
+          return 0;
+        }
       }
 
       $Cablecat->commutation_equipment_add({
@@ -862,7 +878,6 @@ sub _cablecat_commutation_cables_prepare_json {
   $cable_id =~ s/,/;/g if ($cable_id);
 
   my $cables_list = [];
-
   if ($attr->{COMMUTATION_ID}) {
     # Return info for all cables on commutation
     my $commutation_info = $Cablecat->commutations_info($attr->{COMMUTATION_ID}, {
@@ -927,7 +942,8 @@ sub _cablecat_commutation_cables_prepare_json {
     } @{$other_commutations_for_cable};
 
     $cable->{outer_color} //= '#000000';
-    push @result_list, {
+
+    my $params = {
       id    => +$cable->{id},
       image => {
         modules              => +$cable->{modules_count},
@@ -942,12 +958,31 @@ sub _cablecat_commutation_cables_prepare_json {
         well_2_id          => $cable->{well_2_id},
         well_1             => $cable->{well_1},
         well_2             => $cable->{well_2},
-        map_btn => maps2_show_object_button($MAP_LAYER_ID{CABLE}, $cable->{point_id}, {
+        map_btn => $Auxiliary->maps2_show_object_button($MAP_LAYER_ID{CABLE}, $cable->{point_id}, {
           RETURN_HREF => 1
         }),
         other_commutations => \%other_commutation_hash
       }
     };
+
+    my $commutations_for_cable = $Cablecat->commutation_cables_list({
+      CABLE_ID       => $cable->{id},
+      COMMUTATION_ID => $attr->{COMMUTATION_ID},
+      COMMUTATION_X  => '_SHOW',
+      COMMUTATION_Y  => '_SHOW',
+      POSITION       => '_SHOW',
+      ID             => '_SHOW',
+    });
+    
+    if ($Cablecat->{TOTAL} > 0) {
+      my $cable_info = $commutations_for_cable->[0];
+      $params->{start_x} = $cable_info->{commutation_x};
+      $params->{start_y} = $cable_info->{commutation_y};
+      $params->{change_id} = $cable_info->{id};
+      $params->{meta}{position} = $cable_info->{position};
+    }
+
+    push @result_list, $params;
   }
 
   return \@result_list;
@@ -1065,7 +1100,6 @@ sub _cablecat_cable_element {
   my ($element_id, $fiber_num) = @_;
 
   my %cable = ();
-  our ($db, $admin, %conf);;
   my $Commutation_blank = Commutation_blank->new($db, $admin, \%conf);
 
   my $cable_info = $Cablecat->cables_info($element_id);
@@ -1154,7 +1188,6 @@ sub _cablecat_equipment_element {
   my ($element_id) = @_;
 
   if (!$Equipment) {
-    our ($db, $admin, %conf);
     require Equipment;
     Equipment->import();
     $Equipment = Equipment->new($db, $admin, \%conf);

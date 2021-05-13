@@ -137,7 +137,7 @@ sub ipn_detail{
       $line->[8],
       $html->button( "",
         "index=" . get_function_index( 'dv_sessions' ) . "&IP=$line->[2],$line->[4]&START=<=$line->[0]&END=>=$line->[1]&search=1"
-        , { class => 'glyphicon glyphicon-search', TITLE => "$lang{SESSIONS}" } )
+        , { class => 'fa fa-search', TITLE => "$lang{SESSIONS}" } )
     );
   }
   print $table->show();
@@ -2996,7 +2996,7 @@ sub ipn_unknow_ips{
       pages      => $Ipn->{TOTAL},
       qs         => $pages_qs,
       header     => $html->button( "$lang{DEL} $lang{ALL}", "index=$index&del_all=1",
-        { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-default' } ),
+        { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-secondary' } ),
       ID         => 'IPN_UNKNOWN_LIST'
     }
   );

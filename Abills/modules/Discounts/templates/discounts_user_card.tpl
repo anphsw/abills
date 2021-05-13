@@ -63,10 +63,10 @@
 </style>
 <div class="col-md-12 col-sm-12">
     <div class='panel panel-danger animated-bg text-center'>
-        <div class="box-header with-border">
-            <h3 class='box-title'>%CARD_SIGN%</h3>
+        <div class="card-header with-border">
+            <h3 class='card-title'>%CARD_SIGN%</h3>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
             <div class='row'>
                 <div align="center" class="col-md-12 col-sm-12">
                     <h1>%FIO%</h1>

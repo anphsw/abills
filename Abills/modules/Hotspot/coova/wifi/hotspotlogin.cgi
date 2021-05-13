@@ -373,13 +373,13 @@ if ( exists $FORM{clientState} && $FORM{clientState} == 0 ) {
     <div class="row">
       <div class="col-md-6 col-md-offset-3">
         <div class="panel panel-login">
-          <div class="box-header with-border">
+          <div class="card-header with-border">
             <div class="row text-center">
               <div class="col-xs-6">
-                <a href="#" class="active btn btn-block btn-default" id="login-form-link">$lang{AUTH}</a>
+                <a href="#" class="active btn btn-block btn-secondary" id="login-form-link">$lang{AUTH}</a>
               </div>
               <div class="col-xs-6">
-                <a href="#" class="btn btn-block btn-default" id="guest-form-link">$lang{GUEST}</a>
+                <a href="#" class="btn btn-block btn-secondary" id="guest-form-link">$lang{GUEST}</a>
               </div>
             </div>
             <hr>
@@ -392,13 +392,13 @@ if ( exists $FORM{clientState} && $FORM{clientState} == 0 ) {
                   <INPUT TYPE="hidden" NAME="User_type" VALUE="Login">
                   <div class="form-group">
                     <div class='input-group'>
-                      <span class='input-group-addon'><span class='glyphicon glyphicon-user'></span></span>
+                      <span class='input-group-addon'><span class='fa fa-user'></span></span>
                       <input type="text" name="UserName" id="username" tabindex="1" class="form-control" placeholder="$lang{LOGIN}" value="$hotspot_username">
                     </div>
                   </div>
                   <div class="form-group">
                     <div class='input-group'>
-                      <span class='input-group-addon'><span class='glyphicon glyphicon-lock'></span></span>
+                      <span class='input-group-addon'><span class='fa fa-lock'></span></span>
                       <input type="password" name="Password" id="password" tabindex="2" class="form-control" placeholder="$lang{PASSWD}" value="$hotspot_password">
                     </div>
                   </div>
@@ -466,8 +466,8 @@ elsif ( $FORM{clientState} eq 1 ) {
 <div class="container">
   <div class="row">
     <div class="col-md-4 col-md-offset-4">
-      <div class="box box-success">
-        <div class="box-header with-border logged-user table-logged-user"></div>
+      <div class="card box-success">
+        <div class="card-header with-border logged-user table-logged-user"></div>
         <div class="panel-body">
           <table class="table table-bordered table-logged-user">
             <tbody>

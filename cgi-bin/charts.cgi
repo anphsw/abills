@@ -791,15 +791,15 @@ sub get_highchart {
 
   my $months_button = '';
   if (exists $conf{IPN_DETAIL_CLEAN_PERIOD} && $conf{IPN_DETAIL_CLEAN_PERIOD} >= 90) {
-    $months_button = qq'<button type="button" class="btn btn-default" id="zoom_months_$buttonCounter">3 $lang{MONTHES_A}</button>';
+    $months_button = qq'<button type="button" class="btn btn-secondary" id="zoom_months_$buttonCounter">3 $lang{MONTHES_A}</button>';
   }
 
   my $default_range = $conf{CHARTS_DEFAULT_USER_STATISTIC} || '';
   my $result = qq{
     <div class="btn-group">
-      <button type="button" class="btn btn-default" id='zoom_day_$buttonCounter'>$lang{DAY}</button>
-      <button type="button" class="btn btn-default" id='zoom_week_$buttonCounter'>$lang{WEEK}</button>
-      <button type="button" class="btn btn-default" id='zoom_month_$buttonCounter'>$lang{MONTH}</button>
+      <button type="button" class="btn btn-secondary" id='zoom_day_$buttonCounter'>$lang{DAY}</button>
+      <button type="button" class="btn btn-secondary" id='zoom_week_$buttonCounter'>$lang{WEEK}</button>
+      <button type="button" class="btn btn-secondary" id='zoom_month_$buttonCounter'>$lang{MONTH}</button>
       $months_button
     </div>
     <div id='$chartDivId' style='margin: 5px auto; border: 1px solid silver $dimensions'></div>
@@ -1256,7 +1256,7 @@ sub print_footer {
       }
       else {
         $ENV{QUERY_STRING} =~ s/\&type=\S+//g;
-        $traffic_type_html .= "<a href='$SELF_URL?$ENV{QUERY_STRING}&type=$name' class='btn btn-default'>$name</a> \n";
+        $traffic_type_html .= "<a href='$SELF_URL?$ENV{QUERY_STRING}&type=$name' class='btn btn-secondary'>$name</a> \n";
       }
     }
   }

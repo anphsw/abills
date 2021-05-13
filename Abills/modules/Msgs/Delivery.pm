@@ -176,12 +176,13 @@ sub msgs_delivery_main {
       },
       SKIP_USER_TITLE => 1,
       TABLE           => {
-        width   => '100%',
-        EXPORT  => 1,
-        caption => "$lang{DELIVERY}",
-        qs      => $pages_qs,
-        ID      => 'DILIVERY_LIST',
-        MENU    => "$lang{ADD}:add_form=1&index=$index:add"
+        width      => '100%',
+        EXPORT     => 1,
+        caption    => "$lang{DELIVERY}",
+        qs         => $pages_qs,
+        ID         => 'DILIVERY_LIST',
+        MENU       => "$lang{ADD}:add_form=1&index=$index:add",
+        DATA_TABLE => 1
       },
     });
 
@@ -253,16 +254,16 @@ sub msgs_delivery_user_table {
   my Abills::HTML $user_table;
   my $list;
   ($user_table, $list) = result_former({
-      INPUT_DATA     => $Msgs,
-      LIST           => $user_list,
-      DEFAULT_FIELDS => 'LOGIN, FIO, EMAIL, STATUS ',
-      FUNCTION_INDEX => $attr->{FUNCTION_INDEX} //= 0,
+    INPUT_DATA      => $Msgs,
+    LIST            => $user_list,
+    DEFAULT_FIELDS  => 'LOGIN, FIO, EMAIL, STATUS ',
+    FUNCTION_INDEX  => $attr->{FUNCTION_INDEX} || 0,
     HIDDEN_FIELDS   => 'UID,STATUS,',
     MULTISELECT     => 'IDS:id:DELIVERY_USERS_LIST_FORM',
     BASE_FIELDS     => 5,
     SKIP_USER_TITLE => 1,
-    EXT_TITLES      =>
-    {
+    SKIP_PAGES      => 1,
+    EXT_TITLES      => {
       id     => 'id',
       login  => $lang{LOGIN},
       fio    => $lang{FIO},
@@ -271,53 +272,45 @@ sub msgs_delivery_user_table {
       email  => 'E-mail'
     },
     TABLE           => {
+      caption    => $lang{USERS},
       width      => '100%',
-      qs         => $attr->{PAGE_QS} || $pages_qs,
       ID         => 'DELIVERY_USERS_LIST',
-      SELECT_ALL => "DELIVERY_USERS_LIST_FORM:IDS:$lang{SELECT_ALL}",
-    },
+      SELECT_ALL => "DELIVERY_USERS_LIST_FORM:IDS:$lang{SELECT_ALL}"
+    }
   });
 
   my $field_count = ($FORM{json}) ? $#{ $Msgs->{COL_NAMES_ARR} } : $Msgs->{SEARCH_FIELDS_COUNT};
 
   foreach my $line (@{$list}) {
     my @fields_array = ();
-    push @fields_array, $html->form_input('IDS', $line->{id},
-        {
-          TYPE    => 'checkbox',
-          FORM_ID => 'DELIVERY_USERS_LIST_FORM',
-          ID      => 'IDS',
-        }
-      );
+    push @fields_array, $html->form_input('IDS', $line->{id}, {
+      TYPE    => 'checkbox',
+      FORM_ID => 'DELIVERY_USERS_LIST_FORM',
+      ID      => 'IDS',
+    });
+
     for (my $i = 0; $i < $field_count + 5; $i++) {
-      my $val = '';
       my $field_name = $Msgs->{COL_NAMES_ARR}->[$i];
-      if ($field_name eq 'status') {
-        $val = $users_status[$line->{status}];
-      }
-      else {
-        $val = $line->{ $field_name };
-      }
+      my $val = $field_name eq 'status' ? $users_status[$line->{status}] : $line->{ $field_name };
+
       push @fields_array, $val;
 
     }
-    push @fields_array,
-      $html->button($lang{DELETE}, "index=$index&show=$FORM{show}&IDS=$line->{id}", { class => 'del' });
+    push @fields_array, $html->button($lang{DELETE}, "index=$index&show=$FORM{show}&IDS=$line->{id}", { class => 'del' });
 
     $user_table->addrow(@fields_array);
   }
 
-  my $total_dilivery_users = $Msgs->{TOTAL};
+  my $total_delivery_users = $Msgs->{TOTAL};
 
   my $total_table = $html->table({
-    width      => '100%',
-    rows       => [ [ "  $lang{TOTAL}: ", $html->b($total_dilivery_users) ] ]
+    width => '100%',
+    rows  => [ [ "  $lang{TOTAL}: ", $html->b($total_delivery_users) ] ]
   });
 
   print $html->form_main({
-    CONTENT =>
-    $user_table->show({ OUTPUT2RETURN => 1 }) . $total_table->show({ OUTPUT2RETURN => 1 }) . $html->form_input('APPLY',
-      $lang{DEL}, { TYPE => 'submit', FORM_ID => 'DELIVERY_USERS_LIST_FORM' }),
+    CONTENT => $user_table->show({ OUTPUT2RETURN => 1 }) . $total_table->show({ OUTPUT2RETURN => 1 }) .
+      $html->form_input('APPLY', $lang{DEL}, { TYPE => 'submit', FORM_ID => 'DELIVERY_USERS_LIST_FORM' }),
     HIDDEN  => {
       index => $index,
       show  => $FORM{show},

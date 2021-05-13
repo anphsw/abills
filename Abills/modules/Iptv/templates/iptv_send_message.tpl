@@ -4,10 +4,10 @@
     <input type=hidden name=ID value='$FORM{ID}'>
     <input type=hidden name=send_message value='1'>
     <fieldset>
-        <div class='box box-theme box-form'>
+        <div class='card card-primary card-outline box-form'>
 
             <legend>_{SEND}_ _{MESSAGE}_</legend>
-            <div class='box-body'>
+            <div class='card-body'>
                 <div class='form-group'>
                     <label class='control-label col-md-4' for='MESSAGE'>_{NUM}_:</label>
                     <div class='col-md-8'>
@@ -23,7 +23,7 @@
                 </div>
             </div>
 
-            <div class='box-footer'>
+            <div class='card-footer'>
                 <input class='btn btn-primary btn-sm' type=submit name=send value='_{SEND}_'>
             </div>
         </div>

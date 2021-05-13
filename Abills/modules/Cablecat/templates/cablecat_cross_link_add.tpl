@@ -1,8 +1,8 @@
 <form name='CABLECAT_CROSS_LINK' id='form_CABLECAT_CROSS_LINK' method='post' class='form form-horizontal'>
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{CROSS}_ _{LINK}_ %SUBMIT_BTN_NAME%</h4></div>
-    <div class='box-body'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{CROSS}_ _{LINK}_ %SUBMIT_BTN_NAME%</h4></div>
+    <div class='card-body'>
       <input type='hidden' name='index' value='$index'/>
       <input type='hidden' name='cross_link_operation' value='1'/>
 
@@ -40,7 +40,7 @@
       </div>
 
     </div>
-    <div class='box-footer text-center'>
+    <div class='card-footer text-center'>
       <input type='submit' class='btn btn-primary' name='action' value='%SUBMIT_BTN_NAME%'>
     </div>
   </div>

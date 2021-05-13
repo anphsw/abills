@@ -1,24 +1,24 @@
 
-<div class="row">
+<div class='row'>
 %NEWS%
 </div>
 
-<div class="row">
+<div class='row'>
     <!-- Left col -->
-    <section class="col-lg-8 connectedSortable">
+    <section class='col-lg-8 connectedSortable'>
         <!-- small box -->
-        <div class="small-box bg-red">
-            <div class="inner">
-                <h4>Ваш депозит: %MAIN_INFO_DEPOSIT% грн</h4>
-                <p>Рекомендуемая сумма для оплаты %RECOMENDED_PAY% грн</p>
-                <p>Номер счета Ukrpays: %MAIN_INFO_UID%</p>
-                <p>Последнее пополнение счета: &nbsp; %PAYMENTS_DATETIME% &nbsp; %PAYMENTS_SUM% грн &nbsp; %PAYMENTS_DSC%</p>
-                <a href='$SELF_URL?get_index=paysys_payment&SUM=%RECOMENDED_PAY%' class='btn btn-primary'>Пополнить счет !</a>
+        <div class='small-box bg-red'>
+            <div class='inner'>
+                <h4>_{YOUR_DEPOSIT}_: %MAIN_INFO_DEPOSIT% %MONEY_UNIT_NAME%</h4>
+                <p>_{RECOMMENDED_PAYMENT}_ %RECOMENDED_PAY% %MONEY_UNIT_NAME%</p>
+                <p>_{PAYMENT_NUMBER}_ UID: %MAIN_INFO_UID%</p>
+                <p>_{LAST_PAYMENT_FEE}_: &nbsp; %PAYMENTS_DATETIME% &nbsp; %PAYMENTS_SUM% %MONEY_UNIT_NAME% &nbsp; %PAYMENTS_DSC%</p>
+                <a href='$SELF_URL?get_index=paysys_payment&SUM=%RECOMENDED_PAY%' class='btn btn-primary text-white'>_{MAKE_PAYMENT}_!</a>
             </div>
-            <div class="icon">
-                <i class="ion ion-pie-graph"></i>
+            <div class='icon'>
+                <i class='ion ion-pie-graph'></i>
             </div>
-            <a href="/index.cgi?index=10" class="small-box-footer">_{INFO}_ <i class="fa fa-arrow-circle-right"></i></a>
+            <a href='/index.cgi?index=10' class='small-box-footer'>_{INFO}_ <i class='fa fa-arrow-circle-right'></i></a>
         </div>
 
         %BIG_BOX%
@@ -27,28 +27,28 @@
     </section>
     <!-- /.Left col -->
     <!-- right col (We are only adding the ID to make the widgets sortable)-->
-    <section class="col-lg-4 connectedSortable">
+    <section class='col-lg-4 connectedSortable'>
         <!-- /.box-header -->
 
         %SMALL_BOX%
 
-        <div class="callout callout-info">
-            <p>Вы хотите зарегистрировать мак адрес текущего устройства?</p>
+        <div class='callout callout-info'>
+            <p>_{WANT_TO_REGISTER_CURRENT_MAC}_ ?</p>
 
             <label>
-                <input type="checkbox"> Подтвердить
+                <input type='checkbox'> _{CONFIRM}_
             </label>
-            <button type="submit" class="btn btn-primary">ДА !</button>
+            <button type='submit' class='btn btn-primary'>_{YES}_!</button>
         </div>
 
-        <div class="callout callout-warning">
+        <div class='callout callout-warning'>
             <h4></h4>
 
-            <p>Отменить приостановление?</p>
+            <p>_{CANCEL_SUSPENSION}_?</p>
             <label>
-                <input type="checkbox"> Подтвердить
+                <input type='checkbox'> _{CONFIRM}_
             </label>
-            <a href='$SELF_URL?get_index=dv_user_info&del=1' class='btn btn-primary'>ДА !</a>
+            <a href='$SELF_URL?get_index=dv_user_info&del=1' class='btn btn-primary text-white'>_{YES}_!</a>
 
         </div>
 

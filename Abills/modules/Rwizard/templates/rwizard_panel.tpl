@@ -7,17 +7,17 @@
 
 <form action='$SELF_URL' METHOD='post' class='form-horizontal' role='form' id='REPORTS_SHOW'>
   <input type=hidden name=index value=$index>
-  <div class="box box-theme FK">
+  <div class="card card-primary card-outline FK">
 
-    <div class='box-header with-border'>
-      <h4 class="box-title table-caption">_{FILTERS}_</h4>
-      <div class="box-tools pull-right">
-        <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+    <div class='card-header with-border'>
+      <h4 class="card-title table-caption">_{FILTERS}_</h4>
+      <div class="card-tools pull-right">
+        <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse">
           <i class="fa fa-minus"></i></button>
       </div>
     </div>
 
-    <div class="box-body">
+    <div class="card-body">
       <div class="row align-items-center">
         <div class="col-md-6">
           <div class="form-group">
@@ -37,7 +37,7 @@
         </div>
       </div>
 
-      <div class="box-footer">
+      <div class="card-footer">
         <input type=submit class='btn btn-primary btn-block' name=SHOW value='_{SHOW}_'>
       </div>
     </div>

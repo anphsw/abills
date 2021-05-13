@@ -2,10 +2,10 @@
   <input type='hidden' name='index' value='$index'/>
   <input type='hidden' name='chg' value='%ID%'/>
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4>_{OBJECT}_ _{TYPE}_</h4></div>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4>_{OBJECT}_ _{TYPE}_</h4></div>
 
-    <div class='box-body'>
+    <div class='card-body'>
       <div class='form-group'>
         <label class='control-label col-md-3 required' for='NAME'>_{NAME}_: </label>
         <div class='col-md-9'>
@@ -33,7 +33,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type='submit' class='btn btn-primary' name='change' value='_{CHANGE}_'>
     </div>
   </div>

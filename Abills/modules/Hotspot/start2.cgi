@@ -38,7 +38,6 @@ use Users;
 use Internet;
 use Tariffs;
 use Hotspot;
-use Hotspot::HotspotBase;
 
 our $db = Abills::SQL->connect( @conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
@@ -47,6 +46,8 @@ our $users    = Users->new($db, $admin, \%conf);
 our $Internet = Internet->new($db, $admin, \%conf);
 our $Tariffs  = Tariffs->new($db, \%conf, $admin);
 our $Hotspot  = Hotspot->new($db, $admin, \%conf);
+
+require Hotspot::HotspotBase;
 
 # print "Content-type:text/html\n\n";
 parse_query();

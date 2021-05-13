@@ -8,10 +8,8 @@ use strict;
 use warnings FATAL => 'all';
 
 our(
-  $Iptv,
   $Tv_service,
   $db,
-  $html,
   $admin,
   %lang,
   %tp_list,
@@ -23,6 +21,8 @@ our(
   $pages_qs
 );
 
+our Abills::HTML $html;
+our Iptv $Iptv;
 my $Tariffs = Tariffs->new( $db, \%conf, $admin );
 
 #**********************************************************

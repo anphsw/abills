@@ -1123,7 +1123,7 @@ sub accomulation_scores_add {
   $self->query('UPDATE bonus_rules_accomulation_scores SET '
       . $tp_value
       . 'cost=cost + '. $attr->{SCORE}
-      . "WHERE uid='". $attr->{UID} ."';", 'do'
+      . " WHERE uid='". $attr->{UID} ."';", 'do'
   );
 
   if ($self->{AFFECTED} == 0 && $CONF->{BONUS_PAYMENTS_AUTO}){

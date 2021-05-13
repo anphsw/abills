@@ -23,7 +23,6 @@ $lang{PARTLY_PAID}='Частично оплаченый';
 $lang{UNPAID}='Не оплаченый';
 $lang{VAT_INCLUDE}='С учётом НДС';
 $lang{AMOUNT_FOR_PAY}='Сумма для оплаты';
-#$lang{ACTIVATE_NEXT_PERIOD}='Для активации следующего учётного периода нужно оплатить';
 $lang{CURENT_BILLING_PERIOD}='Текущий учётный период';
 $lang{NEXT_PERIODS}='Следующие учётные периоды';
 
@@ -56,3 +55,6 @@ $lang{LIST_OF_CHARGES}='Список начислений';
 $lang{DELETED_GROUP}="Удалить группой";
 $lang{NO_CHECK_DOCUMENT}="Выберите документы для удаления";
 $lang{OPERATION}="Операция успешно выполнена";
+$lang{PAYMENT_SUM}='Оплачено';
+
+1;

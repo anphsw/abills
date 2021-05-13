@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{CROSS}_ : %NAME%</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4 class='card-title'>_{CROSS}_ : %NAME%</h4></div>
+  <div class='card-body'>
     <form name='CABLECAT_COMMUTATION_ADD_CROSS_MODAL' id='CABLECAT_COMMUTATION_ADD_CROSS_MODAL' method='post'
           class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
@@ -24,7 +24,7 @@
 
   </div>
 
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type='submit' form='CABLECAT_COMMUTATION_ADD_CROSS_MODAL' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>

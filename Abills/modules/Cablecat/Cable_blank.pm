@@ -12,7 +12,7 @@ use utf8;
 use Abills::Base qw(_bp in_array);
 use Cablecat;
 
-our ($html, %FORM, $db, %conf, $admin, %lang);
+our ($html, %FORM, $db, %conf, $admin, %lang, %CROSS_PORT_TYPE);
 
 my $Commutation = Commutation_blank->new($db, $admin, \%conf);
 my ($y1_first, $y1_second) = (40, 40);
@@ -107,8 +107,9 @@ sub _print_elements {
 
     if ($element->{element_type} eq $CONNECTION_TYPES{"cross"}) {
       my $cross = $Commutation->select_cross({ COLS_NAME => 1, ID => $element->{element_id} });
-      my $cross_type = $Commutation->select_cross_types({ COLS_NAME => 1, ID => $cross->{type_id} });
-      _cross_equipment_line($cross_type->{ports_count} - 1, $cross->{id}, "CROSS", $cross->{name});
+      _cross_equipment_line($cross->{ports_count} - 1, $cross->{id}, "CROSS", $cross->{name},
+        $cross->{ports_type_id} && $CROSS_PORT_TYPE{$cross->{ports_type_id}} ? $CROSS_PORT_TYPE{$cross->{ports_type_id}} : '' );
+      $Commutation->{debug} = 0;
       next;
     }
 
@@ -125,11 +126,12 @@ sub _print_elements {
       my $splitter_type = $Commutation->select_splitter_types({ COLS_NAME => 1, ID => $splitter->{type_id} });
       my @colors = split(',', $color->{colors});
       _splitter_line({
-        fiber_in  => $splitter_type->{fibers_in},
-        fiber_out => $splitter_type->{fibers_out},
-        digit     => $splitter->{id},
-        name      => $splitter_type->{name},
-        colors    => \@colors
+        fiber_in    => $splitter_type->{fibers_in},
+        fiber_out   => $splitter_type->{fibers_out},
+        digit       => $splitter->{id},
+        name        => $splitter_type->{name},
+        colors      => \@colors,
+        attenuation => $splitter->{attenuation}
       });
       next;
     }
@@ -562,7 +564,7 @@ sub _print_cable_lines {
   if ($y1_first == 40 && $y1_second == 40) {
     $img->rectangle(0, 0, 1045, 1510);
 
-    $img->font('Times:italic');
+    $img->font('Times');
     $img->fontsize(14);
     $img->moveTo(990, 20);
     $img->string("Abills");
@@ -600,14 +602,14 @@ sub _print_cable_lines {
 =cut
 #**********************************************************
 sub _cross_equipment_line {
-  my ($ports, $digit, $type, $name) = @_;
+  my ($ports, $digit, $type, $name, $port_type) = @_;
   my $digit2 = $cross_number_index % 2;
   my ($x1, $x2, $y1, $y2);
 
   if ($y1_first == 40 && $y1_second == 40) {
     $img->rectangle(0, 0, 1045, 1510);
 
-    $img->font('Times:italic');
+    $img->font('Times');
     $img->fontsize(14);
     $img->moveTo(1000, 20);
     $img->string("Abills");
@@ -653,7 +655,11 @@ sub _cross_equipment_line {
     }
   }
 
-  _cross_equipment_print($digit, $x1, $x2, $y1, $y2, $ports + 1, $type, $name);
+  _cross_equipment_print($digit, $x1, $x2, $y1, $y2, $ports + 1, {
+    TYPE      => $type,
+    NAME      => $name,
+    PORT_TYPE => $port_type
+  });
 
   return 1;
 }
@@ -711,11 +717,20 @@ sub _cable_print {
   #Port
   $img->rectangle($x1 + 260, $y1 + 40, $x2, $y2 + 15);
 
-  $img->string(GD::Simple::gdSmallFont, $x1 + 10, $y1 + 40, "Color", $black);
-  $img->string(GD::Simple::gdSmallFont, $x1 + 70, $y1 + 40, "Address", $black);
-  $img->string(GD::Simple::gdSmallFont, $x1 + 265, $y1 + 40, "Port", $black);
-  $img->string(GD::Simple::gdSmallFont, $x1 + 205, $y1 + 40, "Model Col", $black);
+  $img->fontsize(9);
+  $img->moveTo($x1 + 10, $y1 + 53);
+  $img->string($lang{COLOR} || "Color", $black);
 
+  $img->moveTo($x1 + 70, $y1 + 53);
+  $img->string($lang{ADDRESS} || "Address", $black);
+
+  $img->moveTo($x1 + 265, $y1 + 53);
+  $img->string($lang{PORT} || "Port", $black);
+
+  $img->moveTo($x1 + 205, $y1 + 53);
+  $img->string($lang{MODULES} || "Modules", $black);
+
+  $img->font('Times');
   if ($modules_count == 1) {
     for (my $i = 0; $i < $count; $i++) {
       $img->string(GD::Simple::gdSmallFont, $x1 + 277, $y1 + ($i + 3) * 15 + 15, $i + 1, $black);
@@ -725,8 +740,8 @@ sub _cable_print {
 
     for (my $i = 0; $i < $count; $i++) {
       if ($i >= $elements) {
-        $img->string(GD::Simple::gdSmallFont, $x1 + 13, $y1 + ($i + 2.9) * 15 + 15,
-          $CABLE_COLORS{"$colors[$i - $elements]"}, $black);
+        $img->moveTo($x1 + 13, $y1 + ($i + 2.9) * 15 + 15);
+        $img->string($lang{uc $CABLE_COLORS{"$colors[$i - $elements]"}} || $CABLE_COLORS{"$colors[$i - $elements]"}, $black);
 
         if ($number_index_ % 2 != 0) {
           $img->bgcolor(unpack('C*', pack('H*', $colors[$i - $elements])));
@@ -738,8 +753,8 @@ sub _cable_print {
         }
       }
       else {
-        $img->string(GD::Simple::gdSmallFont, $x1 + 13, $y1 + ($i + 2.9) * 15 + 15,
-          $CABLE_COLORS{"$colors[$i]"}, $black);
+        $img->moveTo($x1 + 2, $y1 + ($i + 2.9) * 15 + 28);
+        $img->string($lang{uc $CABLE_COLORS{"$colors[$i]"}} || $CABLE_COLORS{"$colors[$i]"}, $black);
 
         if ($number_index_ % 2 != 0) {
           $img->bgcolor(unpack('C*', pack('H*', $colors[$i - $elements])));
@@ -754,8 +769,8 @@ sub _cable_print {
       $img->bgcolor(255, 255, 255);
 
       if ($i == $count / 2 - 1) {
-        $img->string(GD::Simple::gdSmallFont, $x1 + 210, $y1 + ($i + 2.9) * 15 + 15,
-          $CABLE_COLORS{"$colors_modules[0]"}, $black);
+        $img->moveTo($x1 + 202, $y1 + ($i + 2.9) * 15 + 30);
+        $img->string($lang{uc $CABLE_COLORS{"$colors_modules[0]"}} || $CABLE_COLORS{"$colors_modules[0]"}, $black);
       }
     }
   }
@@ -771,8 +786,8 @@ sub _cable_print {
 
     for (my $i = 0; $i < $modules_count; $i++) {
       $img->line($x1, $y1 + ($center_0 + 3.8) * 15 + 15, $x2, $y1 + ($center_0 + 3.8) * 15 + 15);
-      $img->string(GD::Simple::gdSmallFont, $x1 + 210, $y1 + ($center_0 + 2.8) * 15 + 15,
-        $CABLE_COLORS{"$colors_modules[$i]"}, $black);
+      $img->moveTo($x1 + 202, $y1 + ($center_0 + 2.8) * 15 + 15);
+      $img->string($lang{uc $CABLE_COLORS{"$colors_modules[$i]"}} || $CABLE_COLORS{"$colors_modules[$i]"}, $black);
 
       $center_0 += $center_1 + 1;
     }
@@ -783,8 +798,8 @@ sub _cable_print {
 
       while ($count_p < ($count / $modules_count)) {
         if ($count_p >= $elements) {
-          $img->string(GD::Simple::gdSmallFont, $x1 + 15, $y1 + ($count_y + 2.9) * 15 + 15,
-            $CABLE_COLORS{"$colors[$count_p - $elements]"}, $black);
+          $img->moveTo($x1 + 2, $y1 + ($count_y + 2.9) * 15 + 28);
+          $img->string($lang{uc $CABLE_COLORS{$colors[$count_p - $elements]}} ||$CABLE_COLORS{$colors[$count_p - $elements]}, $black);
 
           if ($number_index_ % 2 != 0) {
             $img->bgcolor(unpack('C*', pack('H*', $colors[$count_p - $elements])));
@@ -798,8 +813,8 @@ sub _cable_print {
           $img->bgcolor(255, 255, 255);
         }
         else {
-          $img->string(GD::Simple::gdSmallFont, $x1 + 15, $y1 + ($count_y + 2.9) * 15 + 15,
-            $CABLE_COLORS{"$colors[$count_p]"}, $black);
+          $img->moveTo($x1 + 2, $y1 + ($count_y + 2.9) * 15 + 28);
+          $img->string($lang{uc $CABLE_COLORS{$colors[$count_p]}} ||$CABLE_COLORS{$colors[$count_p]}, $black);
 
           if ($number_index_ % 2 != 0) {
             $img->bgcolor(unpack('C*', pack('H*', $colors[$count_p])));
@@ -822,7 +837,6 @@ sub _cable_print {
 
   $img->line($x1, $y1 + 40 + 15, $x2, $y1 + 40 + 15);
 
-  $img->font('Times:italic');
   $img->fontsize(13);
   $img->string(GD::Simple::gdGiantFont, $x1 + 2, $y1 + 5, "$number", $black);
 
@@ -888,16 +902,12 @@ sub _cable_print {
 =cut
 #**********************************************************
 sub _cross_equipment_print {
-  my ($number, $x1, $x2, $y1, $y2, $count, $type, $name) = @_;
+  my ($number, $x1, $x2, $y1, $y2, $count, $attr) = @_;
 
   my $x1_for_left = $x1;
   my $x2_for_left = $x2;
-  if ($type eq $CONNECTION_TYPES{"cross"} && $cross_array_number{$number} % 2 == 1) {
-    $x1_for_left += 100;
-  }
-  else {
-    $x2_for_left -= 94;
-  }
+  $x1_for_left += 100 if ($attr->{TYPE} eq $CONNECTION_TYPES{"equipment"} && $cross_array_number{$number} % 2 == 1);
+  $x2_for_left += 100 if $attr->{TYPE} eq $CONNECTION_TYPES{"cross"};
 
   my $black = $img->colorAllocate(0, 0, 0);
 
@@ -906,89 +916,69 @@ sub _cross_equipment_print {
   $img->rectangle($x1 + 40, $y1, $x2 + 100, $y1 + 40);
 
   #port
-  $img->rectangle($x1_for_left, $y1 + 40, $x2_for_left + 40, $y2 + 15);
+  $img->rectangle($x1_for_left, $y1 + 40, $x1_for_left + 40, $y2 + 15);
   #color
-  $img->rectangle($x1_for_left + 40, $y1 + 40, $x2_for_left + 100, $y2 + 15);
+  $img->rectangle($x1_for_left + 40, $y1 + 40, $x2_for_left, $y2 + 15);
 
-  $img->string(GD::Simple::gdSmallFont, $x1_for_left + 10, $y1 + 40, "Port", $black);
-  $img->string(GD::Simple::gdSmallFont, $x1_for_left + 50, $y1 + 40, "Color", $black);
 
-  my $x1_for_left_line = $x1_for_left + 100;
+  $img->fontsize(9);
+  $img->moveTo($x1_for_left + 10, $y1 + 53);
+  $img->string($lang{PORT} || "Port", $black);
+
+  $img->moveTo($x1_for_left + 50, $y1 + 53);
+  $img->string($lang{COLOR} || "Color", $black);
+
+  if ($attr->{TYPE} eq $CONNECTION_TYPES{"cross"}) {
+    $img->rectangle($x1_for_left + 100, $y1 + 40, $x2_for_left, $y2 + 15);
+
+    $img->moveTo($x1_for_left + 110, $y1 + 53);
+    $img->string($lang{PORT_TYPE} || "Port type", $black);
+  }
+
+  my $x1_for_left_line = $x1_for_left ;
   for (my $i = 0; $i < $count; $i++) {
     $img->string(GD::Simple::gdSmallFont, $x1_for_left + 15, $y1 + ($i + 3) * 15 + 15, $i + 1, $black);
-    $img->string(GD::Simple::gdSmallFont, $x1_for_left + 50, $y1 + ($i + 2.8) * 15 + 15, "grey", $black);
+
+    $img->moveTo($x1_for_left + 42, $y1 + ($i + 2.8) * 15 + 28);
+    $img->string($lang{GRAY} || "gray", $black);
+
+    if ($attr->{PORT_TYPE}) {
+      $img->moveTo($x1_for_left + 110, $y1 + ($i + 2.8) * 15 + 28);
+      $img->string($attr->{PORT_TYPE}, $black);
+    }
+
     $img->line($x1_for_left_line, $y1 + ($i + 3.8) * 15 + 15, $x2_for_left, $y1 + ($i + 3.8) * 15 + 15);
   }
 
   $img->line($x1_for_left_line, $y1 + 40 + 15, $x2_for_left, $y1 + 40 + 15);
 
-  $img->font('Times:italic');
+  $img->font('Times');
   $img->fontsize(13);
   $img->string(GD::Simple::gdGiantFont, $x1 + 2, $y1 + 5, "$number", $black);
 
-  if ($type eq $CONNECTION_TYPES{"cross"}) {
-    my $name_length = length $name;
+  my $name_length = length $attr->{NAME};
 
-    if ($name_length < 35) {
-      $img->moveTo($x1 + 40, $y1 + 25);
-      $img->string("$name");
-    }
-    else {
-      my @result = split(' ', $name);
-      my $sub_name1 = "";
-      my $sub_name2 = "";
-      my $temp = "";
-      my $len = 0;
-
-      foreach my $str (@result) {
-        $temp = $sub_name1 . " " . $str . " ";
-        $len = length $temp;
-        if ($len < 35) {
-          $sub_name1 = $sub_name1 . " " . $str . " ";
-        }
-        else {
-          $sub_name2 = $sub_name2 . " " . $str . " ";
-        }
-      }
-      $img->moveTo($x1 + 20, $y1 + 18);
-      $img->string("$sub_name1");
-
-      $img->moveTo($x1 + 20, $y1 + 35);
-      $img->string("$sub_name2");
-    }
+  if ($name_length < 35) {
+    $img->moveTo($x1 + 40, $y1 + 25);
+    $img->string($attr->{NAME});
   }
-  if ($type eq $CONNECTION_TYPES{"equipment"}) {
-    $img->fontsize(13);
-    my $name_length = length $name;
+  else {
+    my @result = split(' ', $attr->{NAME});
+    my $sub_name1 = "";
+    my $sub_name2 = "";
+    my $temp = "";
+    my $len = 0;
 
-    if ($name_length < 25) {
-      $img->moveTo($x1 + 20, $y1 + 25);
-      $img->string("$name");
+    foreach my $str (@result) {
+      $temp = $sub_name1 . " " . $str . " ";
+      $len = length $temp;
+      $len < 35 ? $sub_name1 : $sub_name2 = join(' ', ($len < 35 ? $sub_name1 : $sub_name2, $str));
     }
-    else {
-      my @result = split(' ', $name);
-      my $sub_name1 = "";
-      my $sub_name2 = "";
-      my $temp = "";
-      my $len = 0;
+    $img->moveTo($x1 + 40, $y1 + 18);
+    $img->string($sub_name1);
 
-      foreach my $str (@result) {
-        $temp = $sub_name1 . " " . $str . " ";
-        $len = length $temp;
-        if ($len < 25) {
-          $sub_name1 = $sub_name1 . " " . $str . " ";
-        }
-        else {
-          $sub_name2 = $sub_name2 . " " . $str . " ";
-        }
-      }
-      $img->moveTo($x1 + 20, $y1 + 18);
-      $img->string("$sub_name1");
-
-      $img->moveTo($x1 + 20, $y1 + 35);
-      $img->string("$sub_name2");
-    }
-
+    $img->moveTo($x1 + 40, $y1 + 35);
+    $img->string($sub_name2);
   }
 
   open(my $out, '>', 'img.png') or die "Write image $!\n";
@@ -1023,39 +1013,57 @@ sub _splitter_print {
 
   my $x1_for_left = $attr->{x1};
   my $x2_for_left = $attr->{x2};
-  if ($splitter_array_number{$attr->{side}} % 2 == 1) {
-    $x1_for_left += 50;
-  }
-  else {
-    $x2_for_left -= 50;
-  }
 
   #port
   $img->rectangle($x1_for_left, $attr->{y1} + 40, $x1_for_left + 40, $attr->{y2} + 15);
   #  color
   $img->rectangle($x1_for_left + 40, $attr->{y1} + 40, $x1_for_left + 90, $attr->{y2} + 15);
   #  type
-  $img->rectangle($x1_for_left + 90, $attr->{y1} + 40, $x2_for_left, $attr->{y2} + 15);
+  $img->rectangle($x1_for_left + 90, $attr->{y1} + 40, $x1_for_left + 140, $attr->{y2} + 15);
+  #  attenuation
+  $img->rectangle($x1_for_left + 140, $attr->{y1} + 40, $x2_for_left, $attr->{y2} + 15);
 
-  $img->string(GD::Simple::gdSmallFont, $x1_for_left + 9, $attr->{y1} + 40, "Port", $black);
-  $img->string(GD::Simple::gdSmallFont, $x1_for_left + 50, $attr->{y1} + 40, "Color", $black);
-  $img->string(GD::Simple::gdSmallFont, $x1_for_left + 105, $attr->{y1} + 40, "Type", $black);
+  $img->fontsize(9);
+
+  $img->moveTo($x1_for_left + 9, $attr->{y1} + 53);
+  $img->string($lang{PORT} || "Port", $black);
+
+  $img->moveTo($x1_for_left + 50, $attr->{y1} + 53);
+  $img->string($lang{COLOR} || "Color", $black);
+
+  $img->moveTo($x1_for_left + 105, $attr->{y1} + 53);
+  $img->string($lang{TYPE} || "Type", $black);
+
+  $img->moveTo($x1_for_left + 145, $attr->{y1} + 53);
+  $img->string($lang{ATTENUATION} || "Attenuation", $black);
 
   my $colors_count = @{$attr->{colors}};
 
+  my @attenuation = $attr->{attenuation} ? split('\/', $attr->{attenuation}) : ();
   for (my $i = 0; $i < $attr->{fiber_in} + $attr->{fibers_out}; $i++) {
-    my $type = $i - $attr->{fiber_in} > -1 ? "output" : "input";
+    my $type = $lang{ENTER} || 'enter';
+    if ($i - $attr->{fiber_in} > -1) {
+      $type = $lang{OUTER} || 'outer';
+
+      $img->moveTo($x1_for_left + 150, $attr->{y1} + ($i + 2.8) * 15 + 28);
+      $img->string($attenuation[$i - $attr->{fiber_in}] || '', $black);
+    }
+
     my $color_index = $i >= $colors_count ? $i - $colors_count : $i;
     $img->string(GD::Simple::gdSmallFont, $x1_for_left + 15, $attr->{y1} + ($i + 3) * 15 + 15, $i + 1, $black);
-    $img->string(GD::Simple::gdSmallFont, $x1_for_left + 50, $attr->{y1} + ($i + 2.8) * 15 + 15, $CABLE_COLORS{$attr->{colors}[$color_index]}, $black);
-    $img->string(GD::Simple::gdSmallFont, $x1_for_left + 100, $attr->{y1} + ($i + 2.8) * 15 + 15, $type, $black);
+
+    $img->moveTo($x1_for_left + 42, $attr->{y1} + ($i + 2.8) * 15 + 28);
+    $img->string($lang{uc $CABLE_COLORS{$attr->{colors}[$color_index]}} || $CABLE_COLORS{$attr->{colors}[$color_index]}, $black);
+
+    $img->moveTo($x1_for_left + 100, $attr->{y1} + ($i + 2.8) * 15 + 28);
+    $img->string($type, $black);
     $img->line($x1_for_left, $attr->{y1} + ($i + 3.8) * 15 + 15, $x2_for_left, $attr->{y1} + ($i + 3.8) * 15 + 15);
   }
   $img->line($x1_for_left, $attr->{y1} + 40 + 15, $x2_for_left, $attr->{y1} + 40 + 15);
 
-  $img->font('Times:italic');
+  $img->font('Times');
   $img->fontsize(13);
-  $img->string(GD::Simple::gdGiantFont, $attr->{x1} + 2, $attr->{y1} + 5, "$attr->{side}", $black);
+  $img->string(GD::Simple::gdGiantFont, $attr->{x1} + 2, $attr->{y1} + 5, $attr->{side}, $black);
 
   $attr->{name} = "$lang{SPLITTER}: $attr->{name}";
   my $name_length = length $attr->{name};
@@ -1280,7 +1288,7 @@ sub _splitter_line {
   if ($y1_first == 40 && $y1_second == 40) {
     $img->rectangle(0, 0, 1045, 1510);
 
-    $img->font('Times:italic');
+    $img->font('Times');
     $img->fontsize(14);
     $img->moveTo(1000, 20);
     $img->string("Abills");
@@ -1291,13 +1299,13 @@ sub _splitter_line {
   }
 
   if ($digit2 != 0) {
-    ($x1, $x2) = (120, 320);
+    ($x1, $x2) = (110, 320);
     ($y1, $y2) = ($y1_first, $y1_first + 57 + (15 * ($attr->{fiber_in} + $attr->{fiber_out} - 1)));
 
     $y1_first += 57 + (15 * ($attr->{fiber_in} + $attr->{fiber_out} - 1)) + 25;
   }
   else {
-    ($x1, $x2) = (725, 920);
+    ($x1, $x2) = (725, 930);
     ($y1, $y2) = ($y1_second, $y1_second + 57 + (15 * ($attr->{fiber_in} + $attr->{fiber_out} - 1)));
     $y1_second += 57 + (15 * ($attr->{fiber_in} + $attr->{fiber_out} - 1)) + 25;
   }
@@ -1307,15 +1315,16 @@ sub _splitter_line {
   $splitter_number_index++;
 
   _splitter_print({
-    side       => $attr->{digit},
-    x1         => $x1,
-    x2         => $x2,
-    y1         => $y1,
-    y2         => $y2,
-    fiber_in   => $attr->{fiber_in},
-    fibers_out => $attr->{fiber_out},
-    name       => $attr->{name},
-    colors     => $attr->{colors}
+    side        => $attr->{digit},
+    x1          => $x1,
+    x2          => $x2,
+    y1          => $y1,
+    y2          => $y2,
+    fiber_in    => $attr->{fiber_in},
+    fibers_out  => $attr->{fiber_out},
+    name        => $attr->{name},
+    colors      => $attr->{colors},
+    attenuation => $attr->{attenuation}
   });
 
   return 1;

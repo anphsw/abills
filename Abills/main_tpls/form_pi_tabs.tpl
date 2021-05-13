@@ -19,12 +19,12 @@
     <input type=hidden name=UID value='%UID%'>
 
     <!-- General panel -->
-    <div class='box box-theme box-big-form'>
-        <div class='box-header with-border'><h3 class="box-title">_{INFO}_</h3>
-            <div class="box-tools pull-right">
-                <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-minus"></i>
+    <div class='card card-primary card-outline box-big-form'>
+        <div class='card-header with-border'><h3 class="card-title">_{INFO}_</h3>
+            <div class="card-tools pull-right">
+                <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i class="fa fa-minus"></i>
                 </button>
-                <button type="button" class="btn btn-default btn-xs" data-widget="remove"><i class="fa fa-times"></i></button>
+                <button type="button" class="btn btn-secondary btn-xs" data-card-widget="remove"><i class="fa fa-times"></i></button>
             </div>
         </div>
     <div class='nav-tabs-custom box-big-form box-body' style="padding: 0">
@@ -76,14 +76,14 @@
                             <input id='CONTRACT_ID' name='CONTRACT_ID' value='%CONTRACT_ID%'
                                    placeholder='%CONTRACT_ID%' class='form-control' type='text'>
                             <div class='input-group-btn'>
-                                <button type='button' class='btn btn-default dropdown-toggle'
+                                <button type='button' class='btn btn-secondary dropdown-toggle'
                                         data-toggle='dropdown'
                                         aria-expanded='false'><span class='caret'></span></button>
                                 <ul class='dropdown-menu dropdown-menu-right' role='menu'>
                                     <li><span class='input-group-addon'>%PRINT_CONTRACT%</span></li>
                                     <li><span class='input-group-addon'><a
                                             href='$SELF_URL?qindex=15&UID=$FORM{UID}&PRINT_CONTRACT=%CONTRACT_ID%&SEND_EMAIL=1&pdf=1'
-                                            class='glyphicon glyphicon-envelope' target=_new>
+                                            class='fa fa-envelope' target=_new>
                                     </a></span></li>
                                 </ul>
                             </div>
@@ -153,7 +153,7 @@
             </div>
 
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
         </div>
     </div>

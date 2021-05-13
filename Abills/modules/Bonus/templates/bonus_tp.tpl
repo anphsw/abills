@@ -4,9 +4,9 @@
     <input type=hidden name=TP_ID value=$FORM{TP_ID}>
 
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'>_{TARIF_PLAN}_</div>
-        <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'>_{TARIF_PLAN}_</div>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='control-label col-md-3'>_{TARIF_PLAN}_:</label>
                 <div class='col-md-9'>
@@ -36,7 +36,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input class='btn btn-primary' type=submit name=%ACTION% value='%LNG_ACTION%'>
         </div>
     </div>

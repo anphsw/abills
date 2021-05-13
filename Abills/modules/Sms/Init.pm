@@ -48,20 +48,27 @@ sub init_sms_service {
     { SMS_MSGAM_URL          => 'MsgAm'                 },
     { SMS_CABLENET_LOGIN     => 'Cablenet'              },
     { SMS_WEBSMS_URL         => 'WebSms'                },
+    { SMS_FENIX_URL          => 'Fenix'                 },
+    { SMS_AMD_URL            => 'AMD'                   },
   );
 
   foreach my $sms_system ( @sms_systems ) {
     my $config_key = ( keys %$sms_system )[0];
+
     if ($conf->{ $config_key } ) {
-      $Sms_service = $sms_system->{$config_key};     
+      $Sms_service = $sms_system->{$config_key};
+
       eval { require "Sms/$Sms_service.pm"; };
+
       if (!$@) {
         $Sms_service->import();
         $Sms_service = $Sms_service->new($db, $admin, $conf);
+
         last;
       }
       else {
         print $@;
+
         exit;
       }
     }

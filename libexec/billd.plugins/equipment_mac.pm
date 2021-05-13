@@ -19,6 +19,7 @@ use Abills::Base qw(in_array gen_time check_time);
 use Nas;
 use Equipment;
 use Events;
+use Events::API;
 use JSON;
 
 our $SNMP_TPL_DIR = "../Abills/modules/Equipment/snmp_tpl/";
@@ -40,7 +41,7 @@ our (
 
 $Admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' } );
 my $Equipment = Equipment->new( $db, $Admin, \%conf );
-#my $Events = Events->new($db, $Admin, \%conf);
+my $Events = Events::API->new($db, $Admin, \%conf);
 my $Log = Log->new($db, $Admin);
 
 if($debug > 2) {
@@ -127,6 +128,9 @@ sub equipment_check {
     MNG_HOST_PORT   => '_SHOW',
     NAS_MNG_PASSWORD=> '_SHOW',
     STATUS          => '0',
+    PORT_SHIFT      => '_SHOW',
+    AUTO_PORT_SHIFT => '_SHOW',
+    FDB_USES_PORT_NUMBER_INDEX => '_SHOW',
     %LIST_PARAMS
   } );
 
@@ -194,7 +198,7 @@ sub equipment_check {
       if($mac eq '00:00:00:00:00:00') {
         next;
       }
-      
+
       my $vlan = $fdb_list->{$mac_dec}{4} || 0;
       if ($vlan =~ /(\d+)\D+/ ) {
         $vlan = $1;
@@ -229,6 +233,7 @@ sub equipment_check {
       if (ref $mac_log_hash{ $key } eq 'HASH' &&  $mac_log_hash{ $key }{id}) {
         $chg_mac_count++;
         push @MAC_LOG_CHG, [
+          $data{PORT_NAME},
           $mac_log_hash{ $key }{id}
         ];
         delete $mac_log_hash{ $key };
@@ -251,7 +256,7 @@ sub equipment_check {
       $time = check_time() if ($debug > 2);
       print "Add NEW MACS COUNT:$add_mac_count" if ($debug > 2);
       $Equipment->mac_log_add( {  MULTI_QUERY => \@MAC_LOG_ADD } );
-      print " " . gen_time($time) . "\n" if ($debug > 2);     
+      print " " . gen_time($time) . "\n" if ($debug > 2);
     }
 
     $add_mac_count=0;
@@ -287,7 +292,30 @@ sub equipment_check {
 
   print "Total NAS: $total_nas\n\n" if($debug);
 
+  if ($conf{EQUIPMENT_MAC_PER_PORT}) {
+    print "MAC FLOOD:\n\n" if ($debug);
+
+    mac_flood();
+  }
+
   return 1;
+}
+
+sub mac_flood {
+  $Equipment->mac_flood_search({
+    MIN_COUNT => $conf{EQUIPMENT_MAC_PER_PORT},
+    COLS_NAME => 1,
+  }) if ($conf{EQUIPMENT_MAC_PER_PORT});
+
+  foreach my $port (@{$Equipment->{list}}) {
+    $Events->add_event({
+      MODULE      => 'Equipment',
+      TITLE       => "MAC Flood",
+      COMMENTS    => "MAC Flood  $port->{NAME} ( $port->{NAS_ID} ): $port->{CNT}",
+      EXTRA       => "?get_index=equipment_info&full=1&visual=6&search=1&NAS_ID=$port->{NAS_ID}&PORT=" . $port->{PORT},
+      PRIORITY_ID => 3
+    });
+  }
 }
 
 

@@ -19,13 +19,13 @@
 
     <fieldset>
         %NEXT_FEES_WARNING%
-        <div class='box box-theme box-form box-big-form'>
-            <div class='box-header with-border'><h4 class='box-title'></h4></div>
-            <div class='box-body'>
+        <div class='card card-primary card-outline card-formc card-big-form'>
+            <div class='card-header with-border'><h4 class='card-title'></h4></div>
+            <div class='card-body'>
                 %MENU%
                 %SUBSCRIBE_FORM%
                 %SERVICE_FORM%
-                <div class='form-group'>
+                <div class='form-group row'>
                     <label class='control-label col-md-3' for='TP_NUM'>_{TARIF_PLAN}_:</label>
                     <div class='col-md-9'>
                         %TP_ADD%
@@ -40,7 +40,7 @@
                         </div>
                     </div>
                 </div>
-                <div class='form-group'>
+                <div class='form-group row'>
                     <label class='control-label col-md-3' for='EMAIL'>E-mail:</label>
                     <div class='col-md-9'>
                         <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control'
@@ -48,7 +48,7 @@
                     </div>
                 </div>
 
-                <div class='box-footer'>
+                <div class='card-footer'>
                     %BACK_BUTTON%
                     <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
                 </div>

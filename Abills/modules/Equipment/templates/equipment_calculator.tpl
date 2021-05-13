@@ -6,11 +6,11 @@
 
 <FORM action='$SELF_URL' METHOD='POST' class='form calculator-form'>
   <input type='hidden' name='index' value='$index'>
-  <div class='box box-theme'>
-    <div class='box-header with-border'>
-      <h3 class="box-title"> _{CALCULATOR}_</h3>
+  <div class='card card-primary card-outline'>
+    <div class='card-header with-border'>
+      <h3 class="card-title"> _{CALCULATOR}_</h3>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
 
 
       <div class='form-group'>
@@ -125,7 +125,7 @@
         </button>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <button type="button" class="btn btn-primary calculate">_{CALCULATE}_</button>
     </div>
 

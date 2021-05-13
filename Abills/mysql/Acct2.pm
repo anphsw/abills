@@ -272,13 +272,14 @@ sub accounting {
           bill_id= ? ,
           terminate_cause= ? ,
           acct_input_gigawords= ? ,
-          acct_output_gigawords= ?
+          acct_output_gigawords= ?,
+          guest= ?
           $ipv6",
           'do',
           { Bind => [
               $self->{UID} || 0,
               $RAD->{'Acct-Session-Time'},
-              $self->{TARIF_PLAN},
+              $self->{TP_ID},
               $RAD->{'Acct-Session-Time'},
               $RAD->{OUTBYTE},
               $RAD->{INBYTE},
@@ -293,7 +294,8 @@ sub accounting {
               $self->{BILL_ID},
               $RAD->{'Acct-Terminate-Cause'},
               $RAD->{$input_gigawords},
-              $RAD->{$output_gigawords}
+              $RAD->{$output_gigawords},
+              $self->{GUEST} || 0
             ] }
         );
       }
@@ -312,7 +314,7 @@ sub accounting {
         ($self->{UID},
          $self->{SUM},
          $self->{BILL_ID},
-         $self->{TARIF_PLAN},
+         $self->{TP_ID},
          $self->{TIME_TARIF},
          $self->{TRAF_TARIF}) = $Billing->session_sum($RAD->{'User-Name'},
                  time - $RAD->{'Acct-Session-Time'},
@@ -348,7 +350,7 @@ sub accounting {
         { Bind => [
             $self->{UID} || 0,
             $RAD->{'Acct-Session-Time'},
-            $self->{TARIF_PLAN} || $self->{TP_ID} || 0,
+            $self->{TP_ID} || 0,
             $RAD->{'Acct-Session-Time'},
             $RAD->{OUTBYTE},
             $RAD->{INBYTE},
@@ -387,7 +389,7 @@ sub accounting {
       ($self->{UID},
         $self->{SUM},
         $self->{BILL_ID},
-        $self->{TARIF_PLAN},
+        $self->{TP_ID},
         $self->{TIME_TARIF},
         $self->{TRAF_TARIF}) = $Billing->session_sum($RAD->{'User-Name'},
         (time - $RAD->{'Acct-Session-Time'}),
@@ -395,7 +397,7 @@ sub accounting {
         $RAD,
         \%EXT_ATTR);
 
-      $self->{TARIF_PLAN} //= $EXT_ATTR{TP_ID};
+      $self->{TP_ID} //= $EXT_ATTR{TP_ID};
       #  return $self;
       if ($self->{UID} == -2) {
         $self->{errno}  = 1;
@@ -440,7 +442,7 @@ sub accounting {
           'do',
           { Bind => [ $self->{UID} || 0,
               $RAD->{'Acct-Session-Time'},
-              $self->{TARIF_PLAN} || $EXT_ATTR{TP_ID},
+              $self->{TP_ID} || $EXT_ATTR{TP_ID},
               $RAD->{'Acct-Session-Time'},
               $RAD->{OUTBYTE},
               $RAD->{INBYTE},
@@ -627,7 +629,8 @@ sub rt_billing {
    sum,
    tp_id,
    uid,
-   service_id
+   service_id,
+   guest
    FROM internet_online
   WHERE nas_id='$NAS->{NAS_ID}' AND acct_session_id='". $RAD->{'Acct-Session-Id'} ."';");
 
@@ -657,7 +660,7 @@ sub rt_billing {
   ($self->{UID},
     $self->{SUM},
     $self->{BILL_ID},
-    $self->{TARIF_PLAN},
+    $self->{TP_ID},
     $self->{TIME_TARIF},
     $self->{TRAF_TARIF}) = $Billing->session_sum(
     $RAD->{'User-Name'},
@@ -716,27 +719,28 @@ sub rt_billing {
     }
   }
 
-  $self->query2("SELECT traffic_type FROM internet_log_intervals
+  if($conf->{INTERNET_INTERVAL_PREPAID}) {
+    $self->query2('SELECT traffic_type FROM internet_log_intervals
      WHERE acct_session_id= ?
            AND interval_id= ?
-           AND uid= ? FOR UPDATE;",
-    undef,
-    { Bind => [ $RAD->{'Acct-Session-Id'}, $Billing->{TI_ID}, $self->{UID}  ] }
-  );
+           AND uid= ? FOR UPDATE;',
+      undef,
+      { Bind => [ $RAD->{'Acct-Session-Id'}, $Billing->{TI_ID}, $self->{UID} ] }
+    );
 
-  my %intrval_traffic = ();
-  foreach my $line (@{ $self->{list} }) {
-    $intrval_traffic{ $line->[0] } = 1;
-  }
+    my %intrval_traffic = ();
+    foreach my $line (@{$self->{list}}) {
+      $intrval_traffic{ $line->[0] } = 1;
+    }
 
-  my @RAD_TRAFF_SUFIX = ('', '1');
-  $self->{SUM} = 0 if ($self->{SUM} < 0);
+    my @RAD_TRAFF_SUFIX = ('', '1');
+    $self->{SUM} = 0 if ($self->{SUM} < 0);
 
-  for (my $traffic_type = 0 ; $traffic_type <= $#RAD_TRAFF_SUFIX ; $traffic_type++) {
-    next if ($RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } + $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } < 1);
+    for (my $traffic_type = 0; $traffic_type <= $#RAD_TRAFF_SUFIX; $traffic_type++) {
+      next if ($RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } + $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] } < 1);
 
-    if ($intrval_traffic{$traffic_type}) {
-      $self->query2("UPDATE internet_log_intervals SET
+      if ($intrval_traffic{$traffic_type}) {
+        $self->query2('UPDATE internet_log_intervals SET
                 sent=sent+ ? ,
                 recv=recv+ ? ,
                 duration=duration + ?,
@@ -744,8 +748,9 @@ sub rt_billing {
               WHERE interval_id= ?
                 AND acct_session_id= ?
                 AND traffic_type= ?
-                AND uid= ? ;", 'do',
-        { Bind => [ $RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
+                AND uid= ? ;', 'do',
+          { Bind => [
+            $RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
             $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
 
             $RAD->{'INTERIUM_ACCT_SESSION_TIME'},
@@ -755,12 +760,12 @@ sub rt_billing {
             $traffic_type,
             $self->{UID}
           ] }
-      );
-    }
-    else {
-      $self->query2("INSERT INTO internet_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
-        VALUES ( ? , ? , ? , ? , ? , ? , ? , ?, NOW());", 'do',
-        { Bind => [
+        );
+      }
+      else {
+        $self->query2('INSERT INTO internet_log_intervals (interval_id, sent, recv, duration, traffic_type, sum, acct_session_id, uid, added)
+        VALUES ( ? , ? , ? , ? , ? , ? , ? , ?, NOW());', 'do',
+          { Bind => [
             $Billing->{TI_ID},
             $RAD->{ 'INTERIUM_OUTBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
             $RAD->{ 'INTERIUM_INBYTE' . $RAD_TRAFF_SUFIX[$traffic_type] },
@@ -770,8 +775,11 @@ sub rt_billing {
             $RAD->{'Acct-Session-Id'},
             $self->{UID}
           ] });
+      }
     }
   }
+
+  return $self;
 }
 
 

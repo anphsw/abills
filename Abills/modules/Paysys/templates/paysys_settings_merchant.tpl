@@ -7,9 +7,9 @@
     <input type='hidden' name='MERCHANT' value='%MERCHANT%'>
     <input type='hidden' name='NAME' value='%NAME%'>
 
-    <div class='box box-primary'>
-        <div class='box-header with-border'>%PAYSYS_NAME%</div>
-        <div class='box-body'>
+    <div class='card box-primary'>
+        <div class='card-header with-border'>%PAYSYS_NAME%</div>
+        <div class='card-body'>
             %INPUT%
             <div class='checkbox'>
                 <label>
@@ -18,7 +18,7 @@
                 </label>
             </div>
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input type='submit' form='form_PAYSYS_SETTINGS_MERCHANT' class='btn btn-primary' id='button_settings' name='change'
                    value='_{CHANGE}_'>
         </div>

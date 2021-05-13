@@ -13,7 +13,7 @@
   <div class="pull-right">
     <button id='feedback_modal_btn' type="button" class="btn btn-primary btn-xs"
             onclick="loadToModal('?POPUP=1&FEEDBACK=1')">
-      <span class='glyphicon glyphicon-comment'></span>
+      <span class='fa fa-comment'></span>
     </button>
   </div>
   %DEBUG_FORM%

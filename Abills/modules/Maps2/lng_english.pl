@@ -35,7 +35,7 @@ $lang{ONLY_ONLINE} = 'Only online';
 $lang{ONLY_OFFLINE} = 'Only offline';
 $lang{BUILD_NOT_FOUND} = 'Build is not added to the map';
 $lang{TWISTED_PAIR} = 'Twisted Pair';
-$lang{BOXES} = 'Boxes';
+$lang{BOXES} = 'cardes';
 $lang{EDIT} = 'Edit';
 $lang{WIFI} = "Wi-Fi";
 $lang{POINT} = 'Point';
@@ -101,5 +101,7 @@ $lang{COORDS_NOT_FOUND} = 'Not found';
 $lang{NO_COORDINATES_SPECIFIED} = 'No coordinates specified';
 
 $lang{COMPLETE_PREVIOUS_CHANGE} = 'Complete previous changes';
+
+$lang{SHOW_MSGS_MAP} = 'Show message on map';
 
 1;

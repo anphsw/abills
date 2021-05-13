@@ -180,7 +180,7 @@ sub gps_map_button {
   my $maps_index = get_function_index('maps_show_map');
   my $link = "?index=$maps_index&show_gps=$admin_id&NO_ROUTE=1";
 
-  return $html->button("<span class='glyphicon glyphicon-globe'></span>", undef,
+  return $html->button("<span class='fa fa-globe'></span>", undef,
     {
       GLOBAL_URL     => $link,
       target         => '_blank',
@@ -215,7 +215,7 @@ sub gps_route_button {
   my $maps_index = get_function_index('maps_show_map');
   my $link = "?index=$maps_index&show_gps=$admin_id&DATE=$date";
 
-  return $html->button("<span class='glyphicon glyphicon-road'></span>", undef,
+  return $html->button("<span class='fa fa-road'></span>", undef,
     {
       GLOBAL_URL     => $link,
       target         => '_blank',
@@ -504,7 +504,7 @@ sub gps_report {
       my $maps_index = get_function_index('maps_show_map');
       my $link = "?index=$maps_index&show_gps=$aid";
 
-      $route_btn = $html->button("<span class='glyphicon glyphicon-globe'></span>", undef, {
+      $route_btn = $html->button("<span class='fa fa-globe'></span>", undef, {
         GLOBAL_URL => $link, target => '_blank',
         class      => 'btn btn-xs btn-info', NO_LINK_FORMER => 1
       });

@@ -37,7 +37,7 @@ sub msgs_tasks {
     if(! $Msgs->{errno}) {
       $html->message('info', $lang{INFO}, $lang{ADDED} . "# ".
           $html->button($Msgs->{INSERT_ID}, 'index=' . $index . "&chg=$Msgs->{INSERT_ID}",
-            { class => 'btn btn-xs btn-default text-right' }) );
+            { class => 'btn btn-xs btn-secondary text-right' }) );
     }
   }
 
@@ -82,7 +82,7 @@ sub msgs_tasks_list {
   my $tasks = q{};
 
   foreach my $line ( @$task_list ) {
-    my $btn = 'btn-default';
+    my $btn = 'btn-secondary';
 
     if($line->{state} == 2) {
       $btn = 'btn-success';

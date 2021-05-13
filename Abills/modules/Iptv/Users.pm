@@ -187,22 +187,13 @@ sub iptv_user {
       $user->{LNG_ACTION} = $lang{ACTIVATE};
     }
 
-    $Iptv->{TP_ADD} = $html->form_select(
-      'TP_ID',
-      {
-        SELECTED  => $FORM{TP_ID} || $Iptv->{TP_ID} || '',
-        SEL_LIST  => $Tariffs->list({
-          MODULE       => 'Iptv',
-          NEW_MODEL_TP => 1,
-          COLS_NAME    => 1,
-          DOMAIN_ID    => $admin->{DOMAIN_ID},
-          SERVICE_ID   => $Iptv->{SERVICE_ID},
-          STATUS       => '0'
-        }),
-        SEL_KEY   => 'tp_id',
-        SEL_VALUE => 'id,name',
-      }
-    );
+    $Iptv->{TP_ADD} = sel_tp({
+      SELECT      => 'TP_ID',
+      MODULE      => 'Iptv',
+      TP_ID       => $Iptv->{TP_ID},
+      SERVICE_ID  => $Iptv->{SERVICE_ID},
+      STATUS      => '0'
+    });
 
     $Iptv->{TP_DISPLAY_NONE} = "style='display:none'";
   }
@@ -917,7 +908,8 @@ sub iptv_account_action {
             SERVICE_ID => $Iptv->{ID},
             SCREEN_ID  => $Tv_service->{SCREEN_ID} || $Iptv->{SCREEN_ID},
             CID        => $Tv_service->{CID},
-            SERIAL     => $Tv_service->{SERIAL}
+            SERIAL     => $Tv_service->{SERIAL} || '',
+            COMMENT    => $Tv_service->{COMMENT} || ''
           });
         }
 
@@ -1176,10 +1168,10 @@ sub iptv_chg_tp {
 
   _iptv_show_exist_shedule($period);
 
-  $Tariffs->{UID} = $attr->{USER_INFO}->{UID};
-  $Tariffs->{TP_ID} = $Iptv->{TP_ID};
+  $Tariffs->{UID}     = $attr->{USER_INFO}->{UID};
+  $Tariffs->{TP_ID}   = $Iptv->{TP_ID};
   $Tariffs->{TP_NAME} = ($Iptv->{TP_NUM}) ? "$Iptv->{TP_NUM}:$Iptv->{TP_NAME}" : $lang{NOT_EXIST};
-  $Tariffs->{ID} = $Iptv->{ID};
+  $Tariffs->{ID}      = $Iptv->{ID};
 
   $html->tpl_show(templates('form_chg_tp'), $Tariffs);
 
@@ -1216,8 +1208,11 @@ sub iptv_additional_functions {
 =cut
 #*******************************************************************
 sub iptv_get_service_tps {
+  my ($attr) = @_;
 
-  print $html->form_select('TP_ID', {
+  $attr->{EX_PARAMS} ||= $FORM{EX_PARAMS};
+
+  my $tp_sel = $html->form_select('TP_ID', {
     SEL_LIST  => $Tariffs->list({
       MODULE       => 'Iptv',
       NEW_MODEL_TP => 1,
@@ -1228,9 +1223,13 @@ sub iptv_get_service_tps {
     }),
     SEL_KEY   => 'tp_id',
     SEL_VALUE => 'id,name',
+    EX_PARAMS => $attr->{EX_PARAMS} ? $attr->{EX_PARAMS} : '',
+    SELECTED  => $FORM{TP_ID}
   });
 
-  return 1;
+  return $tp_sel if $attr->{RETURN_SELECT};
+
+  print $tp_sel;
 }
 
 #**********************************************************
@@ -1356,6 +1355,10 @@ sub _iptv_user_shedules {
 sub _iptv_add_shedule_form {
   my ($period) = @_;
 
+  my $uid = $user->{UID} || $FORM{UID} || 0;
+  my $user_info = $users->pi({ UID => $uid });
+  my $tp_gids = ($user_info->{LOCATION_ID}) ? tp_gids_by_geolocation($user_info->{LOCATION_ID}, $Tariffs, $user_info->{GID}) : '';
+
   $Tariffs->{TARIF_PLAN_SEL} = $html->form_select('TP_ID', {
     SELECTED       => $Iptv->{TP_ID},
     SEL_LIST       => $Tariffs->list({
@@ -1364,6 +1367,7 @@ sub _iptv_add_shedule_form {
       NEW_MODEL_TP => 1,
       COLS_NAME    => 1,
       STATUS       => '0',
+      TP_GID       => $tp_gids || '_SHOW',
       DOMAIN_ID    => $admin->{DOMAIN_ID},
     }),
     SEL_KEY        => 'tp_id',

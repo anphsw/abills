@@ -13,7 +13,7 @@
     //
     //     sum = TotalSum + Sum;
     //
-    //     document.getElementById('total_sum').innerHTML = sum + " <span class='glyphicon glyphicon-usd'></span>";
+    //     document.getElementById('total_sum').innerHTML = sum + " <span class='fa fa-usd'></span>";
     // }
 </script>
 

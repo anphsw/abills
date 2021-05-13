@@ -1,34 +1,34 @@
-<div class='box'>
-  <div class='box-header with-border'><h4 class='box-title'>_{INFO}_</h4></div>
-  <div class='box-body'>
+<div class='card'>
+  <div class='card-header with-border'><h4 class='card-title'>_{INFO}_</h4></div>
+  <div class='card-body'>
 
     <div class="col-md-2 col-xs-2 no-padding">
-      <img src="/styles/lte_adm/dist/img/avatar0.png" class="img-responsive pull-left" alt="">
+      <img src="/styles/lte_adm/dist/img/avatar0.png" class="img-fluid pull-left" alt="">
     </div>
     
     <div class="col-md-10">
     <div class="input-group">
-        <span class="input-group-addon"><span class="glyphicon glyphicon-user"></span></span>
+        <span class="input-group-addon"><span class="fa fa-user"></span></span>
           <input class="form-control" type="text" readonly="" value="%FIO%" placeholder="_{FIO}_">
       </div>
 
     <div class="input-group">
-        <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
+        <span class="input-group-addon"><span class="fa fa-calendar"></span></span>
           <input class="form-control" type="text" readonly="" value="%DATE%" placeholder="_{BIRTHDAY}_">
       </div>
 
     <div class="input-group">
-        <span class="input-group-addon"><span class="glyphicon glyphicon-earphone"></span></span>
+        <span class="input-group-addon"><span class="fa fa-phone"></span></span>
           <input class="form-control" type="text" readonly="" value="%PHONE%" placeholder="_{PHONE}_">
       </div>
 
     <div class="input-group">
-        <span class="input-group-addon"><span class="glyphicon glyphicon-envelope"></span></span>
+        <span class="input-group-addon"><span class="fa fa-envelope"></span></span>
           <input class="form-control" type="text" readonly="" value="%MAIL%" placeholder="_{MAIL_BOX}_">
       </div>
 
     <div class="input-group">
-        <span class="input-group-addon"><span class="glyphicon glyphicon-tag"></span></span>
+        <span class="input-group-addon"><span class="fa fa-tag"></span></span>
           <input class="form-control" type="text" readonly="" value="%POSITION%" placeholder="_{POSITIONS}_">
       </div>
     </div>

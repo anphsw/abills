@@ -224,7 +224,7 @@ sub answers_html {
                  : "module=Expert";
 
   foreach my $answer (@$answers_list) {
-    $answers_html .= $html->button($answer->{answer}, "$params&UID=$FORM{UID}&ID=$answer->{id}", { class => 'btn btn-default btn-block' });
+    $answers_html .= $html->button($answer->{answer}, "$params&UID=$FORM{UID}&ID=$answer->{id}", { class => 'btn btn-secondary btn-block' });
   }
 
   return  $answers_html;

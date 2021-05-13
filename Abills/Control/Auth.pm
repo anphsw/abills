@@ -52,7 +52,7 @@ sub auth_admin {
 
     if (! $res) {
       if ($FORM{REFERER} && $FORM{REFERER} =~ /$SELF_URL/ && $FORM{REFERER} !~ /index=10/) {
-        $html->set_cookies('admin_sid', $admin->{SID}, '', '/');
+        $html->set_cookies('admin_sid', $admin->{SID}, '', '');
         $COOKIES{admin_sid} = $admin->{SID};
         $admin->online({ SID => $admin->{SID}, TIMEOUT => $conf{web_session_timeout} });
         print "Location: $FORM{REFERER}\n\n";
@@ -280,20 +280,15 @@ sub form_login {
     french       => 37,
     polish       => 90,
     russian      => 96,
-    ukrainian      => 129,
+    ukrainian    => 129,
   );
 
-  $first_page{SEL_LANGUAGE} = $html->form_select(
-    'language',
-    {
-      SELECTED     => $html->{language},
-      SEL_HASH     => \%LANG,
-      NO_ID        => 1,
-      EX_PARAMS =>  "style='width:100%'",
-      #      NORMAL_WIDTH => 1,
-      EXT_PARAMS   => { qt_locale => \%QT_LANG}
-    }
-  );
+  $first_page{SEL_LANGUAGE} = $html->form_select('language', {
+    SELECTED   => $html->{language},
+    SEL_HASH   => \%LANG,
+    NO_ID      => 1,
+    EXT_PARAMS => { qt_locale => \%QT_LANG }
+  });
 
   $first_page{TITLE} = $lang{AUTH};
 
@@ -779,18 +774,9 @@ sub passwordless_access {
   my ($remote_addr, $session_id, $login, $attr) = @_;
   my ($ret);
 
-  my $Sessions;
-
-  if (in_array('Internet', \@MODULES)) {
-    require Internet::Sessions;
-    Internet::Sessions->import();
-    $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-  }
-  else {
-    require Dv_Sessions;
-    Dv_Sessions->import();
-    $Sessions = Dv_Sessions->new($db, $admin, \%conf);
-  }
+  require Internet::Sessions;
+  Internet::Sessions->import();
+  my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
   my %params = ();
 
@@ -829,17 +815,10 @@ sub passwordless_access {
     return ($ret, $session_id, $login);
   }
   else {
-    my $Internet;
-    if (in_array('Internet', \@MODULES)) {
-      require Internet;
-      Internet->import();
-      $Internet = Internet->new($db, $admin, \%conf);
-    }
-    else {
-      require Dv;
-      Dv->import();
-      $Internet = Dv->new($db, $admin, \%conf);
-    }
+    require Internet;
+    Internet->import();
+
+    my $Internet = Internet->new($db, $admin, \%conf);
 
     my $internet_list = $Internet->list({
       IP        => $remote_addr,

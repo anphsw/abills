@@ -1,13 +1,6 @@
-<div class='form-group' style='%GROUP_HIDE%'>
-    <label class='control-label col-md-3' for='GROUP'>_{GROUP}_</label>
-   <div class='col-md-9'>
-      %GROUP_SEL%
-   </div>
+<div class="form-group row" style='%GROUP_HIDE%'>
+  <label class="control-label col-md-3" for="GROUP">_{GROUP}_:</label>
+  <div class="col-md-9">
+    %GROUP_SEL%
+  </div>
 </div>
-
-  %ADDRESS_FORM%
-  %TAGS_FORM%
-
-
-
-

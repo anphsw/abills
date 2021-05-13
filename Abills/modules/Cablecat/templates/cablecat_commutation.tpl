@@ -9,57 +9,58 @@
   <div class='col-md-12'>
 
     <div class='row text-left'>
-      <div id='scheme_controls' class='well well-sm'>
-        <div class='btn-group' role='toolbar'>
+      <div id='scheme_controls' class='card bg-light p-2 m-2 mt-0 w-100'>
 
-          <!-- ADD MENU -->
-          <div class='btn-group'>
-            <button type='button' class='btn btn-success dropdown-toggle' data-toggle='dropdown' aria-haspopup='true'
-                    aria-expanded='false'>
-              <span>_{ADD}_</span>
-              <span class='caret'></span>
-            </button>
-            <ul class='dropdown-menu plus-options' aria-labelledby='dLabel'></ul>
+        <div class='d-flex bd-highlight'>
+          <div class='bd-highlight'>
+            <div class='btn-group' role='toolbar'>
+
+              <!-- ADD MENU -->
+              <div class='btn-group'>
+                <button type='button' class='btn btn-success dropdown-toggle' data-toggle='dropdown' aria-haspopup='true'
+                        aria-expanded='false'>
+                  <span>_{ADD}_</span>
+                  <span class='caret'></span>
+                </button>
+                <ul class='dropdown-menu plus-options' aria-labelledby='dLabel'></ul>
+              </div>
+
+              <!-- SPECIAL OPERATIONS BUTTON -->
+              <div class='btn-group'>
+                <button type='button' role='button' class='btn btn-default dropdown-toggle' title='_{EXTRA}_'
+                        data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>
+                  <span>_{EXTRA}_</span>
+                  <span class='caret'></span>
+                </button>
+
+                <ul class='dropdown-menu advanced-options' aria-labelledby='dLabel'></ul>
+
+              </div>
+              <div class='btn-group'>
+                <button id='commutation_print' type='button' role='button' class='btn btn-default' title='_{PRINT}_'>
+                  _{PRINT}_
+                </button>
+              </div>
+              <div class='btn-group'>
+                %BTN%
+              </div>
+            </div>
           </div>
+          <div class='ml-auto bd-highlight'>
+            <!-- ZOOM BUTTON GROUP -->
+            <div class='btn-group pull-right'>
+              <button type='button' role='button' class='btn btn-default' title='ZOOM_IN' id='ZOOM_IN'>
+                <span class='fa fa-search-minus'></span>
+              </button>
+              <button type='button' role='button' class='btn btn-default' title='ZOOM_NORMAL' id='ZOOM_NORMAL'>
+                <span>100%</span>
+              </button>
+              <button type='button' role='button' class='btn btn-default' title='ZOOM_OUT' id='ZOOM_OUT'>
+                <span class='fa fa-search-plus'></span>
+              </button>
 
-          <!-- INFO BUTTON -->
-          <!--          <button type='button' id='info-btn' role='button' class='btn btn-info' title='_{INFO}_'>
-                      <span>_{INFO}_</span>
-                    </button>-->
-
-          <!-- SPECIAL OPERATIONS BUTTON -->
-          <div class='btn-group'>
-            <button type='button' role='button' class='btn btn-default dropdown-toggle' title='_{EXTRA}_'
-                    data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>
-              <span>_{EXTRA}_</span>
-              <span class='caret'></span>
-            </button>
-
-            <ul class='dropdown-menu advanced-options' aria-labelledby='dLabel'></ul>
-
+            </div>
           </div>
-          <div class='btn-group'>
-            <button id='commutation_print' type='button' role='button' class='btn btn-default' title='_{PRINT}_'>
-              _{PRINT}_
-            </button>
-          </div>
-          <div class='btn-group'>
-            %BTN%
-          </div>
-        </div>
-
-        <!-- ZOOM BUTTON GROUP -->
-        <div class='btn-group pull-right'>
-          <button type='button' role='button' class='btn btn-default' title='ZOOM_IN' id='ZOOM_IN'>
-            <span class='glyphicon glyphicon-zoom-out'></span>
-          </button>
-          <button type='button' role='button' class='btn btn-default' title='ZOOM_NORMAL' id='ZOOM_NORMAL'>
-            <span>100%</span>
-          </button>
-          <button type='button' role='button' class='btn btn-default' title='ZOOM_OUT' id='ZOOM_OUT'>
-            <span class='glyphicon glyphicon-zoom-in'></span>
-          </button>
-
         </div>
 
       </div>
@@ -125,6 +126,8 @@
 
 <!-- Draggable -->
 <script src='/styles/default_adm/js/modules/cablecat/raphael.extensions.js'></script>
+
+<script src='/styles/default_adm/js/modules/cablecat/commutation.drag.js'></script>
 
 <!-- Context Menu -->
 <script src='/styles/default_adm/js/modules/cablecat/jquery.ui.position.min.js'></script>

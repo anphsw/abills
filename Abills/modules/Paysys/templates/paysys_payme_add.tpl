@@ -63,36 +63,36 @@
 
 
 
-  <div class='box box-primary '>
-    <div class='box-header with-border'><h4>_{BALANCE_RECHARCHE}_</h4></div>
+  <div class='card box-primary '>
+    <div class='card-header with-border'><h4>_{BALANCE_RECHARCHE}_</h4></div>
 
-    <div class='box-body'>
+    <div class='card-body'>
 
       <div class='form-group text-center'>
         <img src='/styles/default_adm/img/paysys_logo/payme-logo.png' style="width: auto; max-height: 200px;">
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='col-md-6 control-label text-center'>_{ORDER}_:</label>
         <label class='col-md-6 control-label'>$FORM{OPERATION_ID}</label>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='col-md-6 control-label text-center'> _{PAY_SYSTEM}_:</label>
         <label class='col-md-6 control-label'>Payme</label>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-6 text-center'>_{DESCRIBE}_:</label>
         <label class='control-label col-md-6'>%DESCRIBE%</label>
       </div>
 
-      <div class='form-group'>
+      <div class='form-group row'>
         <label class='control-label col-md-6 text-center'>_{SUM}_:</label>
         <label class='control-label col-md-6'>$FORM{SUM}</label>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input class='btn btn-primary' type=submit value=_{PAY}_>
     </div>
   </div>

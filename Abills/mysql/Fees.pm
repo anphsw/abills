@@ -28,6 +28,8 @@ sub new {
   $self->{admin}=$admin;
   $self->{conf}=$CONF;
 
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
+
   $Bill = Bills->new($db, $admin, $CONF);
 
   return $self;
@@ -285,6 +287,22 @@ sub list {
     }
     );
 
+  if($self->{conf}->{user_payment_journal_show} && defined $attr->{SHOW_PAYMENT}){
+    use POSIX qw(strftime);
+
+    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+
+    $mday = 1;
+    $mon = $mon - $self->{conf}->{user_payment_journal_show} + 1;
+    if ($mon == 13) {
+      $mon = 1;
+      $year++;
+    }
+    my $date_show = POSIX::strftime('%Y-%m-%d', ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst));
+
+    $WHERE .= "AND f.date >= '$date_show'";
+  }
+
   my $EXT_TABLES  = $self->{EXT_TABLES};
 
   if($attr->{TAX} || $attr->{TAX_SUM}) {
@@ -342,7 +360,7 @@ sub reports {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $PG   = ($attr->{PG})   ? $attr->{PG}   : 0;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $date = '';
+  my $date = "u.id AS login";
   my @WHERE_RULES = ();
   my %EXT_TABLE_JOINS_HASH = ();
 
@@ -350,13 +368,10 @@ sub reports {
     push @WHERE_RULES, @{ $self->search_expr($attr->{ADMINS}, 'STR', 'a.id') };
   }
 
-  if ($attr->{DATE}) {
-    #push @WHERE_RULES, "DATE_FORMAT(f.date, '%Y-%m-%d')='$attr->{DATE}'";
-  }
-  elsif ($attr->{INTERVAL}) {
+  if ($attr->{INTERVAL}) {
     ($attr->{FROM_DATE}, $attr->{TO_DATE}) = split(/\//, $attr->{INTERVAL}, 2);
   }
-  elsif (defined($attr->{MONTH})) {
+  elsif ($attr->{MONTH}) {
     $date = "DATE_FORMAT(f.date, '%Y-%m-%d') AS date";
   }
   else {
@@ -418,8 +433,16 @@ sub reports {
     $EXT_TABLE_JOINS_HASH{builds}=1;
     $EXT_TABLE_JOINS_HASH{streets}=1;
   }
-  elsif ($date eq '') {
-    $date = "u.id AS login";
+  elsif ($report_type eq 'GID') {
+    $date = "u.gid";
+    $EXT_TABLE_JOINS_HASH{users}=1;
+  }
+  # else{
+  #   $date = "u.id AS login";
+  # }
+
+  if($attr->{GID}) {
+    $EXT_TABLE_JOINS_HASH{users}=1;
   }
 
   $attr->{SKIP_DEL_CHECK}=1;
@@ -448,6 +471,7 @@ sub reports {
     $attr->{TAX_SUM}='_SHOW';
   }
 
+  $EXT_TABLE_JOINS_HASH{users}=1 if ($self->{EXT_TABLES});
   my $EXT_TABLES = $self->mk_ext_tables({
     JOIN_TABLES     => \%EXT_TABLE_JOINS_HASH,
     EXTRA_PRE_JOIN  => [ 'users:INNER JOIN users u ON (u.uid=f.uid)',

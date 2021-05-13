@@ -1,41 +1,38 @@
 <form method='POST' action='$SELF_URL' class='form-horizontal'>
+  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='ID' value='%ID%'>
 
-<input type='hidden' name='index' value='$index'>
-<input type='hidden' name='ID' value='%ID%'>
+  <div class='card card-primary card-outline card-form'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>_{ADD}_ _{MSGS_TAGS}_</h4>
+    </div>
+    <div class='card-body'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='REPLY'>_{TAGS}_:</label>
+        <div class='col-md-8'>
+          <input type='text' class='form-control' id='REPLY' name='REPLY' value='%REPLY%'>
+        </div>
+      </div>
 
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right'>_{MSGS_TAGS_TYPES}_:</label>
+        <div class='col-md-8'>
+          %QUICK_REPLYS_CATEGORY%
+        </div>
+      </div>
 
-  <div class='box box-theme box-big-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{ADD}_ _{MSGS_TAGS}_</h4></div>
-    <div class='box-body'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='COLOR'>_{TAGS}_:</label>
+        <div class='col-md-8'>
+          <input type='color' class='form-control' name='COLOR' id='COLOR' value='%COLOR%' type='color'>
+        </div>
+      </div>
 
-  <div class='form-group'>
-    <label class='col-md-3 control-label'>_{TAGS}_</label>
-    <div class='col-md-9'>
-      <input type='text' class='form-control' name='REPLY' value='%REPLY%'>
+    </div>
+    <div class='card-footer'>
+      <div class='col-md-12'>
+        <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LNG%'>
+      </div>
     </div>
   </div>
-
-  <div class='form-group'>
-    <label class='col-md-3 control-label'>_{MSGS_TAGS_TYPES}_</label>
-    <div class='col-md-9'>
-      %QUICK_REPLYS_CATEGORY%
-    </div>
-  </div>
-
-  <div class='form-group'>
-    <label class='col-md-3 control-label'>_{COLOR}_</label>
-    <div class='col-md-9'>
-      <input type='color' class='form-control' name='COLOR' value='%COLOR%' type="color">
-    </div>
-  </div>
-
-<div class='box-footer'>
-  <div class='col-md-3'>
-  <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LNG%' >
-  </div>
-</div>
-
-</div>
-</div>
-
 </form>

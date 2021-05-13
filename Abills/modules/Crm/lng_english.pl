@@ -35,4 +35,37 @@ $lang{NO_EMAIL}='Indicate the address in the configuration file E-Mail:';
 $lang{NO_EMAIL_LEAD}='E-Mail is not started in Lead:';
 $lang{DELIVERY} = 'Delivery';
 
+$lang{COMPETITOR} = 'Competitor';
+$lang{COMPETITORS} = 'Competitors';
+$lang{COMPETITOR_SITE} = 'Competitor site';
+$lang{CONNECTION_TYPE} = 'Connection type';
+$lang{COMPETITOR_ADDED} = 'Competitor added';
+$lang{COMPETITOR_DELETED} = 'Competitor deleted';
+$lang{COMPETITOR_CHANGED} = 'Competitor data changed';
+$lang{LOCALITIES_OF_THE_COMPETITOR} = 'Localities of the competitor';
+$lang{LOCALITIES_OF_THE_TP} = 'Localities of the tariff plan';
+$lang{COMPETITORS_TP} = 'Competitors tariff plans';
+$lang{NO_COMPETITOR_SELECTED} = 'No competitor selected';
+$lang{LOCALITIES_CREATED_TP} = 'Localities can be specified only for already created tariff plans';
+$lang{COMPETITOR_HAS_NOT_ADDRESS} = 'Competitor not tied to address';
+
+$lang{CRM_MASS_ADDING} = 'Mass adding';
+
+$lang{CRM_MIN_TARIFF_PLANS} = 'Min tariff plans';
+$lang{CRM_MAX_TARIFF_PLANS} = 'Max tariff plans';
+$lang{CRM_POPULAR_TARIFF_PLANS} = 'Popular tariff plans';
+
+$lang{CRM_ASSESSMENT} = 'Assessment of competitors';
+
+$lang{CRM_BAD} = 'Bad';
+$lang{CRM_UNSATISFACTORILY} = 'Unsatisfactorily';
+$lang{CRM_SATISFACTORILY} = 'Satisfactorily';
+$lang{CRM_GOOD} = 'Good';
+$lang{CRM_IDEALLY} = 'Ideally';
+$lang{CRM_NUMBER_OF_RATINGS} = 'Number of ratings';
+
+$lang{CRM_CHANGED_STEP} = 'Changed step';
+$lang{CRM_VIEWING_INFORMATION} = 'Viewing information';
+$lang{CRM_RECENT_ACTIVITY} = 'Recent activity';
+
 1

@@ -9,11 +9,11 @@
   <input type='hidden' name='add' value='1'/>
   <input type='hidden' name='AJAX' value='1'/>
 
-  <div class='box box-primary'>
-    <div class='box-header'>
+  <div class='card box-primary'>
+    <div class='card-header'>
       <h4>_{ADD_WELL}_</h4>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
       <div class='form-group'>
         <label class='control-label col-md-3 required' for='wellName'>_{NAME}_:</label>
 
@@ -29,7 +29,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type=submit name=add_well value=_{ADD}_ class='btn btn-primary'>
     </div>
   </div>

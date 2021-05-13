@@ -82,6 +82,7 @@ sub user_info {
    tp.month_fee AS month_abon,
    tp.abon_distribution,
    tp.day_fee,
+   tp.day_fee AS day_abon,
    tp.activate_price,
    tp.postpaid_monthly_fee,
    tp.payment_type,
@@ -97,6 +98,7 @@ sub user_info {
    service.expire AS iptv_expire,
    service.activate AS iptv_activate,
    tv_services.module AS service_module,
+   tp.fees_method as fees_method,
    service.*
      FROM iptv_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.tp_id)
@@ -127,6 +129,7 @@ sub user_add {
     return $self;
   }
 
+  $attr->{DISABLE} = $attr->{STATUS};
   if ( $attr->{TP_ID} && $attr->{TP_ID} > 0 && !$attr->{STATUS} ){
     my $Tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
     $self->{TP_INFO} = $Tariffs->info( $attr->{TP_ID} );
@@ -144,7 +147,7 @@ sub user_add {
       }
 
       my $fees = Fees->new( $self->{db}, $admin, $CONF );
-      $fees->take( $User, $Tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV TP" } );
+      $fees->take( $User, $Tariffs->{ACTIV_PRICE}, { DESCRIBE => "ACTIV TP", METHOD => $Tariffs->{FEES_METHOD} || '' } );
       $Tariffs->{ACTIV_PRICE} = 0;
     }
 
@@ -334,7 +337,7 @@ sub user_list{
       [ 'EMAIL',             'STR', 'service.email',                                                             1 ],
       [ 'SERVICE_COUNT',     'INT', '', 'COUNT(service.id) AS service_count'                                       ] ,
       [ 'ID',                'INT', 'service.id',                                                                1 ],
-      [ 'UID',               'INT', 'service.uid',                                                                 ],
+      [ 'UID',               'INT', 'service.uid',                                                               1 ],
       [ 'IPTV_LOGIN',        'STR', 'service.iptv_login',                                                        1 ],
       [ 'IPTV_PASSWORD',     'STR', 'service.iptv_password',                                                     1 ],
       [ 'MAC_CID',           'STR', 'us.cid AS mac_cid',                                                         1 ],
@@ -1754,7 +1757,7 @@ sub services_add{
     $attr->{PASSWORD} = "ENCODE('$attr->{PASSWORD}', '$self->{conf}->{secretkey}')",
   }
 
-  $self->query_add( 'iptv_services', $attr );
+  $self->query_add('iptv_services', $attr);
 
   return $self;
 }

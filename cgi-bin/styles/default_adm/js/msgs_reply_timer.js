@@ -88,12 +88,12 @@ jQuery(function(){
   function startTimer(){
     stopwatch.start();
     func_btn.attr('run_status', '1');
-    func_icon.attr('class', 'glyphicon glyphicon-pause');
+    func_icon.attr('class', 'fa fa-pause');
   }
   function pauseTimer(){
     stopwatch.stop();
     func_btn.attr('run_status', '0');
-    func_icon.attr('class', 'glyphicon glyphicon-play');
+    func_icon.attr('class', 'fa fa-play');
   }
 
   function toggleTimer() {

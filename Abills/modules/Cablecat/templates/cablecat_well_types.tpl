@@ -1,36 +1,41 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>%PANEL_HEADING%</h4></div>
-  <div class='box-body'>
-    <form name='CABLECAT_WELLS_TYPE' id='form_CABLECAT_WELLS_TYPE' method='post' class='form form-horizontal'>
-      <input type='hidden' name='index' value='$index' />
-      <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1' />
-      <input type='hidden' name='ID' value='%ID%' />
+<form name='CABLECAT_WELLS_TYPE' id='form_CABLECAT_WELLS_TYPE' method='post' class='form form-horizontal'>
+  <input type='hidden' name='index' value='$index'/>
+  <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
+  <input type='hidden' name='ID' value='%ID%'/>
+  
+  <div class='card card-primary card-outline card-form'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>%PANEL_HEADING%</h4>
+    </div>
+    <div class='card-body'>
 
-      <div class='form-group'>
-        <label class='control-label col-md-3 required' for='NAME_ID'>_{NAME}_</label>
-        <div class='col-md-9'>
-          <input type='text' class='form-control' value='%NAME%'  required name='NAME'  id='NAME_ID'  />
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right required' for='NAME_ID'>_{NAME}_:</label>
+        <div class='col-md-8'>
+          <input type='text' class='form-control' value='%NAME%' required name='NAME' id='NAME_ID'/>
         </div>
       </div>
 
-      <div class='form-group'>
-        <label class='control-label col-md-3' for='ICON'>_{ICON}_</label>
-        <div class='col-md-9'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='ICON'>_{ICON}_:</label>
+        <div class='col-md-8'>
           %ICON_SELECT%
         </div>
       </div>
 
-      <div class='form-group'>
-        <label class='control-label col-md-3' for='COMMENTS_ID'>_{COMMENTS}_</label>
-        <div class='col-md-9'>
-          <textarea class='form-control col-md-9'  rows='5'  name='COMMENTS' id='COMMENTS_ID'>%COMMENTS%</textarea>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='COMMENTS_ID'>_{COMMENTS}_:</label>
+        <div class='col-md-8'>
+          <textarea class='form-control' rows='5' name='COMMENTS' id='COMMENTS_ID'>%COMMENTS%</textarea>
         </div>
       </div>
-    </form>
-
+      
+    </div>
+    <div class='card-footer'>
+      <input type='submit' form='form_CABLECAT_WELLS_TYPE' class='btn btn-primary' name='submit'
+             value='%SUBMIT_BTN_NAME%'>
+    </div>
   </div>
-  <div class='box-footer'>
-    <input type='submit' form='form_CABLECAT_WELLS_TYPE' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
-  </div>
-</div>
+  
+</form>
 

@@ -1678,7 +1678,7 @@ sub employees_mobile_report_add {
 
   Arguments:
     $attr -
-      SORT - column for sorting
+      SORT - column for fa fa-sort-up
       DESC - DESC / ASC
   Returns:
     list
@@ -1790,8 +1790,14 @@ sub employees_info_cashbox {
   my ($attr) = @_;
 
   $self->query(
-    "SELECT * FROM employees_cashboxes
-      WHERE id = ?;", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
+    "SELECT ec.comments,
+     ec.name,
+     ec.aid,
+     a.name as name_admin
+     FROM employees_cashboxes ec
+     LEFT JOIN admins a ON (a.aid = ec.aid)
+     WHERE ec.id = ?;
+     ", undef, { INFO => 1, Bind => [ $attr->{ID} ] }
   );
 
   return $self;
@@ -1915,6 +1921,58 @@ sub employees_list_cashbox {
   return $list;
 }
 
+#*******************************************************************
+
+=head2 employees_payments_cashbox() - get list of all cashboxes
+
+  Arguments:
+    $attr
+
+  Returns:
+    @list
+
+  Examples:
+    my @list = $Employees->employees_payments_cashbox({ COLS_NAME => 1});
+
+=cut
+
+#*******************************************************************
+sub employees_payments_cashbox {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 100;
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'NAME',     'STR',  'emc.name',       1 ],
+    [ 'ADMIN',    'STR',  'a.name as admin',1 ] ,
+    [ 'AID',      'STR',  'emc.aid',        1 ] ,
+    [ 'COMMENTS', 'STR',  'emc.comments',   1 ],
+  ],
+    { WHERE => 1, }
+  );
+
+  $self->query(
+    "SELECT emc.id,
+    emc.name,
+    emc.aid,
+    a.name as admin,
+    emc.comments
+    FROM employees_cashboxes emc
+    LEFT JOIN admins a ON (a.aid = emc.aid)
+    $WHERE
+    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  return $list;
+}
 
 #**********************************************************
 
@@ -3209,14 +3267,12 @@ sub employees_works_add{
   my $self = shift;
   my ($attr) = @_;
 
-  if(! $attr->{EXTRA_SUM}) {
+  if (!$attr->{EXTRA_SUM}) {
     $self->employees_info_reference_works({ ID => $attr->{WORK_ID} });
-    if($self->{TOTAL}) {
-      $attr->{SUM} = $self->{SUM} * ($attr->{RATIO} || 1);
-    }
+    $attr->{SUM} = $self->{SUM} * ($attr->{RATIO} || 1) if$self->{TOTAL};
   }
 
-  $self->query_add( 'employees_works', { %$attr, AID => $admin->{AID} });
+  $self->query_add('employees_works', { %$attr, AID => $admin->{AID} });
 
   return $self;
 }
@@ -3237,13 +3293,11 @@ sub employees_works_change{
     }
   }
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'employees_works',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'employees_works',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -3933,6 +3987,61 @@ sub coming_default_type {
   $self->query("UPDATE employees_coming_types SET default_coming = 0;");
 
   return $self;
+}
+
+#**********************************************************
+=head2 employees_works_by_type_list($attr) - list of tp services
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub employees_works_by_type_list{
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',                'INT',  'w.id',                                                      1 ],
+    [ 'WORK_ID',           'INT',  'w.work_id',                                                 1 ],
+    [ 'WORK',              'INT',  'crw.name', 'crw.name AS work',                              1 ],
+    [ 'TOTAL_WORKS',       'INT',  'COUNT(w.id) AS total_works',                                1 ],
+    [ 'WORKS_SUM',         'INT',  'sum(if(w.extra_sum > 0, w.extra_sum, w.sum)) AS works_sum', 1 ],
+    [ 'ADMIN_NAME',        'STR',  'a.login', 'a.name AS admin_name',                           1 ],
+    [ 'EMPLOYEE_AID',      'INT',  'employee.aid AS employee_aid',                              1 ],
+    [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(w.date, '%Y-%m-%d')",                           1 ],
+    [ 'WORK_DONE',         'INT',  'w.work_done',                                               1 ],
+    [ 'TOTAL_DONE',        'INT',  'SUM(w.work_done) AS total_done',                            1 ],
+    [ 'PERFORMERS',        'STR',  'GROUP_CONCAT(DISTINCT employee .name) AS performers',       1 ]
+  ], { WHERE => 1 });
+
+
+  $self->query( "SELECT $self->{SEARCH_FIELDS} w.id
+   FROM employees_works w
+   LEFT JOIN admins a ON (a.aid=w.aid)
+   LEFT JOIN admins employee ON (employee.aid=w.employee_id)
+   LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)
+    $WHERE
+    GROUP BY w.work_id
+    ORDER BY $SORT $DESC",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  $self->query( "SELECT COUNT(*) AS total, SUM(if(w.extra_sum > 0, w.extra_sum, w.sum)) AS total_sum
+   FROM employees_works w
+   LEFT JOIN admins a ON (a.aid=w.aid)
+   LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)
+    $WHERE", undef, { INFO => 1 }
+  );
+
+
+  return $list;
 }
 
 1;

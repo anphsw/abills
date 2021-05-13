@@ -1,5 +1,5 @@
-<div class='box box-solid'>
-  <div class='box-body' style='padding: 0;'>
+<div class='card box-solid'>
+  <div class='card-body' style='padding: 0;'>
     <div class='col-md-2' style='padding: 0; text-align: left;'>
       <ul class="nav nav-stacked">
       %COLLECTION_IDS%

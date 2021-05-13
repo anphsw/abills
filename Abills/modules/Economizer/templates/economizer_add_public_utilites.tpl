@@ -4,9 +4,9 @@
 <input type='hidden' name='ID' value='%ID%'>
 <input type='hidden' name='sid' value='$sid'>
 
-  <div class='box box-primary form-horizontal'>
-  <div class='box-header with-border'><h4 class='box-title'>_{PUBLIC_UTILITIES}_</h4></div>
-  <div class='box-body'>
+  <div class='card box-primary form-horizontal'>
+  <div class='card-header with-border'><h4 class='card-title'>_{PUBLIC_UTILITIES}_</h4></div>
+  <div class='card-body'>
     <div class='form-group'>
       <label class='col-md-3 control-label required'>_{DATE}_</label>
       <div class='col-md-9'>
@@ -53,7 +53,7 @@
       </div>
     </div>
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input  type='submit' class='btn btn-primary' value='%BTN_NAME%'>
 
   </div>

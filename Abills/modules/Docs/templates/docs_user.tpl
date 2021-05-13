@@ -7,11 +7,11 @@
 <input type=hidden name='step' value='$FORM{step}'>
 
 
-   <div class='box box-theme box-form'>
-     <div class='box-header with-border'>
+   <div class='card card-primary card-outline box-form'>
+     <div class='card-header with-border'>
        <h4>_{OPTIONS}_  </h4>
      </div>
-     <div class='box-body form form-horizontal'>
+     <div class='card-body'>
 
 
 <fieldset>

@@ -201,7 +201,7 @@ sub maps2_point_types_main {
     });
 
     my $open_upload_modal_btn = $html->button('UPLOAD', "get_index=_maps2_icon_ajax_upload&header=2", {
-      ICON          => 'glyphicon glyphicon-upload',
+      ICON          => 'fa fa-upload',
       LOAD_TO_MODAL => 1,
       class         => 'btn btn-success btn-sm',
       ID            => 'UPLOAD_BUTTON',

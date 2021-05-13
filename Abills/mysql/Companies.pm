@@ -337,7 +337,7 @@ sub list {
       USE_USER_PI      => 1,
       SKIP_USERS_FIELDS=> [ 'DEPOSIT', 'CREDIT', 'BILL_ID', 'CREDIT_DATE', 'ADDRESS',
         'REGISTRATION', 'CONTRACT_ID', 'CONTRACT_DATE', 'PHONE',
-        'DOMAIN_ID', 'LOCATION_ID', 'ADDRESS_FLAT', 'DOMAIN_ID'
+        'DOMAIN_ID', 'LOCATION_ID', 'ADDRESS_FLAT', 'DOMAIN_ID', 'COMPANY_NAME'
       ],
       WHERE            => 1,
     }

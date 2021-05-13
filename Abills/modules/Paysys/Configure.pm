@@ -3,14 +3,16 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(cmd);
+use Paysys;
+use Users;
+
 
 our ($db,
   %conf,
   $admin,
   $op_sid,
-  $html,
   %lang,
-  $base_dir,
+#  $base_dir,
   %ADMIN_REPORT,
   %PAYSYS_PAYMENTS_METHODS,
   @WEEKDAYS,
@@ -19,16 +21,18 @@ our ($db,
   @TERMINAL_STATUS,
 );
 
-use Paysys;
 our Paysys $Paysys;
-use Users;
+our Abills::HTML $html;
 my $Users = Users->new($db, $admin, \%conf);
+
+
 #**********************************************************
 =head2 paysys_configure_main()
 
 =cut
 #**********************************************************
 sub paysys_configure_main {
+  our $Conf = Conf->new($db, $admin, \%conf);
   #my $paysys_folder = "$base_dir" . 'Abills/modules/Paysys/systems/';
 
   # show form for paysys connection
@@ -896,11 +900,15 @@ sub _configure_load_payment_module {
 #**********************************************************
 sub paysys_maps_new {
 
-  load_module('Maps2', $html);
+  use Paysys::Maps_info;
+  my $Paysys_maps = Paysys::Maps_info->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
-  return maps2_show_map({
+  use Maps2::Maps_view;
+  my $Maps_info = Maps2::Maps_view->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
+  return $Maps_info->show_map(\%FORM, {
     QUICK          => 1,
-    DATA           => paysys_terminals_show({ RETURN_OBJECTS => 1, ESCAPE => 1 }),
+    DATA           => $Paysys_maps->paysys_terminals_show({ RETURN_OBJECTS => 1, ESCAPE => 1 }),
     DONE_DATA      => 1,
     HIDE_CONTROLS  => 1,
     NAVIGATION_BTN => 0,
@@ -940,10 +948,17 @@ sub paysys_configure_main_new {
       Payments->import();
       my $Payments = Payments->new($db, $admin, \%conf);
 
-      $Payments->payment_type_add({
-        NAME  => $FORM{NAME} || '',
-        COLOR => '#000000'
-      });
+      my $list_type =  translate_list($Payments->payment_type_list({ COLS_NAME => 1 }));
+
+      my @all_payment_types = map { $_->{name} } @$list_type;
+
+      if (!in_array($FORM{NAME}, \@all_payment_types)){
+        $Payments->payment_type_add({
+          NAME  => $FORM{NAME} || '',
+          COLOR => '#000000'
+        });
+      }
+
       $FORM{PAYMENT_METHOD} = $Payments->{INSERT_ID};
     }
 
@@ -952,7 +967,7 @@ sub paysys_configure_main_new {
       STATUS           => 1,
       COLS_NAME        => 1,
     });
-    
+
     foreach my $item (@$list) {
       if ($item->{paysys_id} eq $FORM{PAYSYS_ID}){
         $html->message('error', $lang{ERROR}, $lang{EXIST});
@@ -982,10 +997,16 @@ sub paysys_configure_main_new {
       Payments->import();
       my $Payments = Payments->new($db, $admin, \%conf);
 
-      $Payments->payment_type_add({
-        NAME  => $FORM{NAME} || '',
-        COLOR => '#000000'
-      });
+      my $list_type =  translate_list($Payments->payment_type_list({ COLS_NAME => 1 }));
+
+      my @all_payment_types = map { $_->{name} } @$list_type;
+
+      if (!in_array($FORM{NAME}, \@all_payment_types)){
+        $Payments->payment_type_add({
+          NAME  => $FORM{NAME} || '',
+          COLOR => '#000000'
+        });
+      }
       $FORM{PAYMENT_METHOD} = $Payments->{INSERT_ID};
     }
 
@@ -1068,7 +1089,7 @@ sub paysys_configure_main_new {
       my $merch_index = get_function_index('paysys_add_configure_groups');
       my $merchant_button = $html->button("$lang{MERCHANT_BUTTON}",
         "index=$merch_index&MODULE=$payment_system->{module}&PAYSYSTEM_ID=$paysys_id",
-        { class => 'btn btn-primary btn-xs' });
+        { class => 'btn btn-primary btn-sm' });
       my $change_button = $html->button("$lang{CHANGE}",
         "index=$index&MODULE=$payment_system->{module}&chg=$id&PAYSYSTEM_ID=$paysys_id",
         { class => 'change' });
@@ -1080,7 +1101,7 @@ sub paysys_configure_main_new {
         my $test_index = get_function_index('paysys_main_test');
         $test_button = $html->button("$lang{START_PAYSYS_TEST}",
           "index=$test_index&MODULE=$payment_system->{module}&PAYSYSTEM_ID=$paysys_id",
-          { class => 'btn btn-success btn-xs' });
+          { class => 'btn btn-success btn-sm' });
       }
       elsif ($require_module->can('has_test')) {
         $test_button = $lang{PAYSYS_MODULE_NOT_TURNED_ON};
@@ -1261,7 +1282,7 @@ sub paysys_add_configure_groups {
       caption    => $html->button("", "get_index=paysys_add_configure_groups&add_form=1&header=2",
         {
           LOAD_TO_MODAL => 1,
-          class         => 'btn-sm glyphicon glyphicon-plus login_b text-success no-padding',
+          class         => 'btn-sm fa fa-plus login_b text-success no-padding',
         }) . " $lang{PAYSYS_SETTINGS_FOR_MERCHANTS}",
       width      => '100%',
       title      =>
@@ -1299,7 +1320,7 @@ sub paysys_add_configure_groups {
       $table_params->show(),
       $html->button("", $change_link,
         { LOAD_TO_MODAL => 1,
-          ADD_ICON      => "glyphicon glyphicon-pencil",
+          ADD_ICON      => "fa fa-pencil",
           CONFIRM       => $lang{CONFIRM},
           ex_params => "data-tooltip='$lang{CHANGE}' data-tooltip-position='top'"
         }),
@@ -1505,9 +1526,8 @@ sub paysys_group_settings {
       NAME    => 'PAYSYS_GROUPS_SETTINGS'
     }
   );
-
-  return 1;
 }
+
 #**********************************************************
 =head2 paysys_configure_groups_new($attr)
 
@@ -1645,7 +1665,7 @@ sub paysys_configure_groups_new {
       @rows,
       $html->button("", "get_index=paysys_configure_groups_new&header=2&chg=$group->{gid}",
         { LOAD_TO_MODAL => 1,
-          ADD_ICON      => "glyphicon glyphicon-pencil",
+          ADD_ICON      => "fa fa-pencil",
           CONFIRM       => $lang{CONFIRM},
           ex_params     => "data-tooltip='$lang{CHANGE}' data-tooltip-position='top'"
         }),

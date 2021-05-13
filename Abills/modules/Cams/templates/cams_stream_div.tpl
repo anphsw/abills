@@ -1,8 +1,10 @@
 <div class='col-md-6'>
-    <div class='box box-theme'>
-        <div class="box-heading">%STREAM_NAME%</div>
-        <div class="box-body">
-            %CAMERA%
-        </div>
+  <div class='card card-primary card-outline'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>%STREAM_NAME%</h4>
     </div>
+    <div class="card-body">
+      %CAMERA%
+    </div>
+  </div>
 </div>

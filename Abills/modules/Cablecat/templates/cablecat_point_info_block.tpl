@@ -4,7 +4,7 @@
 <!--  <div class='form-group'>-->
 <!--    <div class='col-md-1 col-md-offset-11'>-->
 <!--      <a id='point_info_edit_btn' title='_{EDIT}_' target='_blank'>-->
-<!--        <span class='glyphicon glyphicon-edit'></span>-->
+<!--        <span class='fa fa-edit'></span>-->
 <!--      </a>-->
 <!--    </div>-->
 <!--  </div>-->

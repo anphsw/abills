@@ -3,10 +3,10 @@
 <input type='hidden' name='ID' value='$FORM{chg}'>
 <fieldset>
 
-<div class='box box-theme box-form'>
+<div class='card card-primary card-outline box-form'>
 <legend>_{BOXES}_ _{TYPE}_</legend>
 
-<div class='box-body'>
+<div class='card-body'>
 
 <div class='form-group'>
   <label class='control-label col-md-3' for='MARKING'>_{MARKING}_</label>
@@ -70,7 +70,7 @@
 
 </div>
 
-<div class='box-footer'>
+<div class='card-footer'>
 	<input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
 </div>
 

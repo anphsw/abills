@@ -1,12 +1,13 @@
-<div class='box box-theme box-big-form %PARAMS%'>
-  <div class='box-header with-border'>
-    <h4 class='box-title'>%NAME%</h4>
-    <div class='box-tools pull-right'>
-      <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
+<div class='card card-big-form %PARAMS%'>
+  <div class='card-header with-border'>
+    <h4 class='card-title'>%NAME%</h4>
+    <div class='card-tools pull-right'>
+      <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+        <i class='fa fa-%BUTTON_ICON%'></i>
       </button>
     </div>
   </div>
-  <div class='box-body' style='color: black'>
+  <div class='card-body'>
     %CONTENT%
   </div>
 </div>

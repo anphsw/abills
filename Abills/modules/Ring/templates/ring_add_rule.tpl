@@ -4,12 +4,12 @@
 <input type='hidden' name='ACTION_TYPE' value=%ACTION_TYPE%>
 <input type='hidden' name='ID' value=%ID%>
 
-<div class='box box-theme box-form'>
-<div class='box-header with-border text-primary'>
-	<h4 class='box-title table-caption'>_{RULE}_</h4>
+<div class='card card-primary card-outline box-form'>
+<div class='card-header with-border text-primary'>
+	<h4 class='card-title table-caption'>_{RULE}_</h4>
 </div>
 
-<div class='box-body'>
+<div class='card-body'>
 
 	<div class='form-group'>
 		<label class='control-label col-md-3 required'>_{NAME}_</label>
@@ -45,7 +45,7 @@
    	<div class='col-md-7'>%FILE_SELECT%</div>
    	<div class='col-md-2'>
    		<a href='%UPLOAD_FILE%' class='btn btn-primary'>
-  			<span class='glyphicon glyphicon-plus' aria-hidden='true'></span>
+  			<span class='fa fa-plus' aria-hidden='true'></span>
 		</a>
 	</div>
    </div>
@@ -81,7 +81,7 @@
 
 </div>
 
-<div class='box-footer'>
+<div class='card-footer'>
 	<button type='submit' class='btn btn-primary'>%BUTTON%</button>
 </div>
 

@@ -6,14 +6,14 @@
 <input type='hidden' name='PHONE' value=%PHONE%>
 <input type='hidden' name='POSITION' value=%POSITION%>
 
-	<div class='box box-primary '>
+	<div class='card box-primary '>
 		<!-- head -->
-	  <div class='box-header big-box with-border'><h3 class='box-title'>_{EMPLOYEE_PROFILE}_</h3></div>
+	  <div class='card-header big-box with-border'><h3 class='card-title'>_{EMPLOYEE_PROFILE}_</h3></div>
 	  <!-- body -->
-	  <div class='box-body'>
+	  <div class='card-body'>
 %LIST_OF_QUESTION%
 	  <!-- footer -->
-	  <div class='box-footer'>
+	  <div class='card-footer'>
 
 	  	<p class='text-center'><input type='submit' class='btn btn-primary pull-center' name='add_data' value='_{NEXT}_'></p>
 

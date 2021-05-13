@@ -28,6 +28,7 @@ our (
   $DATE,
   $TIME,
   %permissions,
+  @ONU_ONLINE_STATUSES
 );
 
 load_pmodule("JSON");
@@ -36,7 +37,7 @@ our $Equipment = Equipment->new($db, $admin, \%conf);
 require Equipment::Grabbers;
 
 #*******************************************************************
-=head2 equipment_start_page() 
+=head2 equipment_start_page()
 
 =cut
 #*******************************************************************
@@ -47,7 +48,7 @@ sub equipment_start_page {
     'equipment_count_report'  => $lang{REPORT_EQUIPMENT},
     'equipment_pon_report'    => $lang{REPORT_PON},
     'equipment_unreg_report'  => $lang{REPORT_ON_UNREGISTERED_ONU},
-    'equipment_switch_report' => $lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS}
+    'equipment_switch_report' => $lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES}
   );
 
   return \%START_PAGE_F;
@@ -96,49 +97,64 @@ sub equipment_count_report {
 =cut
 #*******************************************************************
 sub equipment_pon_report {
-  my $onu_count = 0;
+  my $equipment_list = $Equipment->_list({
+    TYPE_ID              => '4',
+    STATUS               => '0;3', #enable, error
+    EPON_SUPPORTED_ONUS  => '_SHOW',
+    GPON_SUPPORTED_ONUS  => '_SHOW',
+    GEPON_SUPPORTED_ONUS => '_SHOW',
+    COLS_NAME            => 1
+  });
 
-  my $inactive_onu_count = 0;
-  $Equipment->_list({ TYPE_ID => '4' });
-  my $pon_count = $Equipment->{TOTAL} || '0';
+  my %equipment_list = map { $_->{nas_id} => $_ } @$equipment_list;
+  my $olt_count = $Equipment->{TOTAL} || '0';
 
-  $Equipment->onu_list();
-  $onu_count = $Equipment->{TOTAL} || '0';
-
-  $Equipment->pon_port_list({ GROUP_BY => 'p.nas_id, p.branch' });
+  my $branches = $Equipment->pon_port_list({
+    STATUS => '0;3', #enable, error
+    GROUP_BY => 'p.nas_id, p.branch',
+    COLS_NAME => 1
+  });
   my $branch_count = $Equipment->{TOTAL} || '0';
 
-  $Equipment->onu_list({ STATUS => '1;3' });
-  my $active_onu_count = $Equipment->{TOTAL} || '0';
-
-  $Equipment->onu_list({ STATUS => '<1' });
-  $inactive_onu_count = $Equipment->{TOTAL} || '0';
-
-  $Equipment->onu_list({ STATUS => '2' });
-  my $notreg_onu = $Equipment->{TOTAL} || '0';
-  my $bad_onu = $onu_count - $inactive_onu_count - $active_onu_count - $notreg_onu;
-
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $html->button($lang{REPORT_PON}, "index=" . get_function_index('equipment_pon_form')),
-      ID      => 'PON_INFO',
-      rows    => [
-        [ $lang{OLT_COUNT}, $pon_count ],
-        [ $lang{BRANCH_COUNT}, $branch_count ],
-        [ $lang{ONU_COUNT}, $onu_count ],
-        [ $lang{ACTIVE_ONU_COUNT}, $active_onu_count ],
-        [ $lang{INACTIVE_ONU_COUNT}, $inactive_onu_count ],
-        [ $lang{BAD_ONU_COUNT}, $bad_onu ],
-        [ $lang{NOTREGISTRED_ONU_COUNT}, $notreg_onu ],
-
-      ]
+  my $possible_onu_count = 0;
+  foreach my $branch (@$branches) {
+    if ($branch->{pon_type} eq 'epon') {
+      $possible_onu_count += $equipment_list{$branch->{nas_id}}->{epon_supported_onus} || 64;
     }
-  );
+    elsif ($branch->{pon_type} eq 'gpon') {
+      $possible_onu_count += $equipment_list{$branch->{nas_id}}->{gpon_supported_onus} || 128;
+    }
+    elsif ($branch->{pon_type} eq 'gepon') {
+      $possible_onu_count += $equipment_list{$branch->{nas_id}}->{gepon_supported_onus} || 128;
+    }
+  }
 
-  my $report_onu .= $table->show();
+  my $onu_info = $Equipment->pon_onus_report({
+    ONU_ONLINE_STATUS => join(';', @ONU_ONLINE_STATUSES),
+    STATUS            => '0;3', #enable, error
+    DELETED           => 0,
+    COLS_NAME         => 1
+  });
 
-  return $report_onu;
+  my ($onu_count, $active_onu_count, $bad_onu_count) = ($onu_info->{onu_count} || 0, $onu_info->{active_onu_count} || 0, $onu_info->{bad_onu_count} || 0);
+  my $branch_total_fill = $possible_onu_count ? sprintf('%.2f%%', $onu_count / $possible_onu_count * 100) : '-';
+  my $inactive_onu_count = $onu_count - $active_onu_count;
+  my $table = $html->table({
+    width   => '100%',
+    caption => $html->button($lang{REPORT_PON}, "index=" . get_function_index('equipment_pon_form')),
+    ID      => 'PON_INFO',
+    rows    => [
+      [ $lang{OLT_COUNT}, $olt_count ],
+      [ $lang{BRANCH_COUNT}, $branch_count ],
+      [ $lang{BRANCH_TOTAL_FILL}, $branch_total_fill ],
+      [ $lang{ONU_COUNT}, $onu_count ],
+      [ $lang{ACTIVE_ONU_COUNT}, $active_onu_count ],
+      [ $lang{INACTIVE_ONU_COUNT}, $inactive_onu_count ],
+      [ $lang{BAD_ONU_COUNT}, $bad_onu_count ]
+    ]
+  });
+
+  return $table->show();
 }
 
 #*******************************************************************
@@ -224,7 +240,7 @@ sub equipment_unreg_report_date {
       require Equipment::Cdata;
     }
 
-    $nas->{SNMP_COMMUNITY} = $nas->{NAS_MNG_PASSWORD} . "@" . $nas->{NAS_MNG_IP_PORT};
+    $nas->{SNMP_COMMUNITY} = ($nas->{NAS_MNG_PASSWORD} || q{}) . "@" . ($nas->{NAS_MNG_IP_PORT} || q{});
     $nas->{FULL} = 1;
 
     my $unregister_fn = $nas_type . '_unregister';
@@ -251,16 +267,14 @@ sub equipment_unreg_report_date {
 #*******************************************************************
 sub equipment_switch_report {
 
-  my ($free_ports, $busy_ports, $ports, $nas)  = 0;
+  my ($free_ports, $busy_ports, $ports, $switch_count) = 0;
   my $Internet = Internet->new($db, $admin, \%conf);
   my $switch_list = $Equipment->_list({
-    NAS_ID     => '_SHOW',
-    NAS_NAME   => '_SHOW',
     PORTS      => '_SHOW',
     TYPE_ID    => '1',
-    STATUS     => '_SHOW',
     COLS_NAME  => 1,
-    COLS_UPPER => 1
+    COLS_UPPER => 1,
+    PAGE_ROWS  => 100000
   });
 
   foreach my $switch (@$switch_list) {
@@ -269,7 +283,7 @@ sub equipment_switch_report {
       PORT      => '_SHOW',
       COLS_NAME => 1
     });
-    $nas++;
+    $switch_count++;
     $ports += $switch->{PORTS};
     $busy_ports += $Internet->{TOTAL};
     $free_ports += ($switch->{PORTS} - $Internet->{TOTAL});
@@ -278,10 +292,10 @@ sub equipment_switch_report {
   my $table = $html->table(
     {
       width   => '100%',
-      caption => $lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS},
+      caption => $lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES},
       ID      => 'SWITCH_INFO',
       rows    => [
-        [ $lang{TOTAL_COUNT}, $nas ],
+        [ $lang{TOTAL_SWITCH_COUNT}, $switch_count ],
         [ $lang{TOTAL_ALL_PORTS}, $ports ],
         [ $lang{TOTAL_BUSY_PORTS}, $busy_ports ],
         [ $lang{TOTAL_FREE_PORTS}, $free_ports ],
@@ -289,7 +303,7 @@ sub equipment_switch_report {
     }
   );
 
-  my $report_switch .= $table->show();
+  my $report_switch = $table->show();
 
   return $report_switch;
 }
@@ -303,10 +317,19 @@ sub equipment_onu_report {
   my $Nas = Nas->new($db, \%conf, $admin);
 
   my $list = $Equipment->_list({
-    TYPE_ID   => 4,
-    NAS_IP    => '_SHOW',
-    NAS_ID    => '_SHOW',
-    COLS_NAME => 1,
+    TYPE_ID              => 4,
+    NAS_IP               => '_SHOW',
+    NAS_ID               => '_SHOW',
+    EPON_SUPPORTED_ONUS  => '_SHOW',
+    GPON_SUPPORTED_ONUS  => '_SHOW',
+    GEPON_SUPPORTED_ONUS => '_SHOW',
+    PAGE_ROWS            => 1000000,
+    COLS_NAME            => 1
+  });
+
+  my $full_branch_list = $Equipment->pon_port_list({
+    GROUP_BY => 'p.nas_id, p.branch',
+    COLS_NAME => 1
   });
 
   foreach my $line (@$list) {
@@ -321,6 +344,8 @@ sub equipment_onu_report {
       NAS_ID    => $line->{nas_id},
       RX_POWER  => '_SHOW',
       NAS_IP    => '_SHOW',
+      DELETED   => 0,
+      STATUS    => '_SHOW',
       PON_TYPE  => '_SHOW',
       BRANCH    => '_SHOW',
       COLS_NAME => 1,
@@ -334,30 +359,43 @@ sub equipment_onu_report {
       }
 
       $branch_list{$onu->{branch}}{total_count} += 1;
-      if (pon_tx_alerts($onu->{rx_power}, 1) == 1) {
-        $branch_list{$onu->{branch}}{good_count} += 1;
-      }
-      elsif (pon_tx_alerts($onu->{rx_power}, 1) == 2) {
-        $branch_list{$onu->{branch}}{bad_count} += 1;
-      }
-      elsif (pon_tx_alerts($onu->{rx_power}, 1) == 3) {
-        $branch_list{$onu->{branch}}{worth_count} += 1;
+
+      if (in_array($onu->{status}, \@ONU_ONLINE_STATUSES)) {
+        $branch_list{$onu->{branch}}{online_count} += 1;
+        my $signal_status_code = pon_tx_alerts($onu->{rx_power}, 1);
+
+        if ($signal_status_code == 1) {
+          $branch_list{$onu->{branch}}{good_count} += 1;
+        }
+        elsif ($signal_status_code == 2) {
+          $branch_list{$onu->{branch}}{bad_count} += 1;
+        }
+        elsif ($signal_status_code == 3) {
+          $branch_list{$onu->{branch}}{worth_count} += 1;
+        }
       }
     }
+
     my $total_count = 0;
     my $total_possible = 0;
     my $busy = 0;
-    foreach my $key (keys %branch_list) {
-      if ($branch_list{$key}->{pon_type} eq 'epon') {
-        $total_possible += 64;
+    foreach my $branch (@$full_branch_list) {
+      next if ($branch->{nas_id} != $line->{nas_id});
+
+      if ($branch->{pon_type} eq 'epon') {
+        $total_possible += $line->{epon_supported_onus} || 64;
       }
-      elsif ($branch_list{$key}->{pon_type} eq 'gpon') {
-        $total_possible += 128;
+      elsif ($branch->{pon_type} eq 'gpon') {
+        $total_possible += $line->{gpon_supported_onus} || 128;
       }
-      elsif ($branch_list{$key}->{pon_type} eq 'gepon') {
-        $total_possible += 128;
+      elsif ($branch->{pon_type} eq 'gepon') {
+        $total_possible += $line->{gepon_supported_onus} || 128;
       }
-      $total_count += $branch_list{$key}->{total_count} || 0;
+
+      if ($branch_list{$branch->{branch}}) {
+        $branch_list{$branch->{branch}}->{id} = $branch->{id};
+        $total_count += $branch_list{$branch->{branch}}->{total_count} || 0;
+      }
     }
     if ($total_possible != 0) {
       $busy = sprintf("%.2f", $total_count / $total_possible * 100);
@@ -366,23 +404,33 @@ sub equipment_onu_report {
     my $table = $html->table({
       ID      => 'info_' . $line->{nas_id},
       title   => [ $lang{INTERFACE}, $lang{COUNT}, $lang{GOOD_SIGNAL}, $lang{GOOD_SIGNAL} . ' %', $lang{WORTH_SIGNAL}, $lang{WORTH_SIGNAL} . ' %', $lang{BAD_SIGNAL}, $lang{BAD_SIGNAL} . ' %' ],
-      caption => $nas_info->[0]->{nas_ip} . ' - ' . $lang{OLT_BUSY} . ' ' . $busy . '% ( ' . $total_count . ' ONU ' . $lang{REGISTERED} . ' )',
+      caption => $html->button(
+          "$nas_info->[0]->{nas_id}: $nas_info->[0]->{nas_name} ($nas_info->[0]->{nas_ip})",
+          "index=" . get_function_index('equipment_info') . "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}"
+        ) .
+        " - $lang{OLT_BUSY} $busy% ($total_count ONU $lang{REGISTERED})",
     });
 
     foreach my $key (sort keys %branch_list) {
       my $total = $branch_list{$key}->{total_count};
+      my $online = $branch_list{$key}->{online_count};
+
       my $good = $branch_list{$key}->{good_count};
       my $worth = $branch_list{$key}->{worth_count};
       my $bad = $branch_list{$key}->{bad_count};
       $table->addrow(
-        $branch_list{$key}->{pon_type} . ' ' . $key,
+        $html->button(
+          $branch_list{$key}->{pon_type} . ' ' . $key,
+          "index=" . get_function_index('equipment_info') . "&visual=4&NAS_ID=$nas_info->[0]->{nas_id}&OLT_PORT=$branch_list{$key}->{id}"
+        ),
         $total,
-        $html->badge($good, { TYPE => 'label-success' }),
-        $good ? sprintf("%.2f", $good / $total * 100) . '%' : '',
-        $html->badge($worth, { TYPE => 'label-warning' }),
-        $worth ? sprintf("%.2f", $worth / $total * 100) . '%' : '',
-        $html->badge($bad, { TYPE => 'label-danger' }),
-        $bad ? sprintf("%.2f", $bad / $total * 100) . '%' : '');
+        $html->badge($good, { TYPE => 'badge-success' }),
+        $good ? sprintf("%.2f", $good / $online * 100) . '%' : '',
+        $html->badge($worth, { TYPE => 'badge-warning' }),
+        $worth ? sprintf("%.2f", $worth / $online * 100) . '%' : '',
+        $html->badge($bad, { TYPE => 'badge-danger' }),
+        $bad ? sprintf("%.2f", $bad / $online * 100) . '%' : ''
+      );
     }
 
     print $table->show() if (%branch_list);

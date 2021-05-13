@@ -421,11 +421,11 @@ sub iptv_user_service {
   }
 
   $Iptv->{TP_CHANGE_BTN} = $html->button($lang{CHANGE}, 'index=' . get_function_index('iptv_user_chg_tp')
-    . '&ID=' . $user_service_id . '&sid=' . $sid, { class => 'btn btn-primary' }) if ($conf{IPTV_USER_CHG_TP});
+    . '&ID=' . $user_service_id . '&sid=' . $sid, { class => 'btn btn-xs btn-primary' }) if ($conf{IPTV_USER_CHG_TP} && !$Iptv->{STATUS});
 
   if (in_array(2, [ values %$PORTAL_ACTIONS ]) && !$Iptv->{STATUS}) {
     $Iptv->{DISABLE_BTN} = $html->button($lang{DISABLE_SERVICE},
-      'index=' . get_function_index('iptv_user_info') . '&sid=' . $sid . "&ID=$Iptv->{ID}&disable=1", { class => 'btn btn-danger' });
+      'index=' . get_function_index('iptv_user_info') . '&sid=' . $sid . "&ID=$Iptv->{ID}&disable=1", { class => 'btn btn-xs btn-danger' });
     $conf{IPTV_USER_CHG_CHANNELS} = 1;
   }
 
@@ -456,7 +456,7 @@ sub iptv_user_service {
 
     $Iptv->{DISABLE_BTN} = $html->badge("$lang{DISABLE_SERVICE_DATE}: $shedule_action->{y}-$shedule_action->{m}-$shedule_action->{d}");
     my $span_btn = $html->element('span', '', {
-      class          => 'glyphicon glyphicon-off',
+      class          => 'fa fa-power-off',
       OUTPUT2RETURN  => 1,
       'data-tooltip' => "$lang{DEL} $lang{SHEDULE}"
     });
@@ -505,7 +505,7 @@ sub iptv_user_service {
 sub iptv_user_chg_tp {
   my ($attr) = @_;
 
-  if ($FORM{SHEDULE_ID}) {
+  if ($FORM{SHEDULE_ID} && !$FORM{del}) {
     iptv_user_info($attr);
     return;
   }
@@ -539,9 +539,7 @@ sub iptv_user_chg_tp {
     return 1;
   }
 
-  my $Service_result = get_next_abon_date({
-    SERVICE => $Iptv
-  });
+  my $Service_result = get_next_abon_date({ SERVICE => $Iptv });
 
   $Iptv->{ABON_DATE} = $Service_result;
 
@@ -687,20 +685,21 @@ sub iptv_user_chg_tp {
   });
 
   my $tp_list = $Tariffs->list({
-      TP_GID            => $Iptv->{TP_GID},
-      CHANGE_PRICE      => '_SHOW',
-      MODULE            => 'Iptv',
-      NEW_MODEL_TP      => 1,
-      PRIORITY          => $Iptv->{TP_PRIORITY},
-      ABON_DISTRIBUTION => '_SHOW',
-      DAY_FEE           => '_SHOW',
-      MONTH_FEE         => '_SHOW',
-      COMMENTS          => '_SHOW',
-      COLS_NAME         => 1,
-      DOMAIN_ID         => $user->{DOMAIN_ID},
-      SERVICE_ID        => $Iptv->{SERVICE_ID} || '_SHOW',
-      STATUS            => '0',
-      PAYMENT_TYPE      => '_SHOW'
+    TP_GID            => $Iptv->{TP_GID},
+    CHANGE_PRICE      => '_SHOW',
+    MODULE            => 'Iptv',
+    NEW_MODEL_TP      => 1,
+    PRIORITY          => $Iptv->{TP_PRIORITY},
+    ABON_DISTRIBUTION => '_SHOW',
+    DAY_FEE           => '_SHOW',
+    MONTH_FEE         => '_SHOW',
+    COMMENTS          => '_SHOW',
+    COLS_NAME         => 1,
+    DOMAIN_ID         => $user->{DOMAIN_ID},
+    SERVICE_ID        => $Iptv->{SERVICE_ID} || '_SHOW',
+    STATUS            => '0',
+    PAYMENT_TYPE      => '_SHOW',
+    REDUCTION_FEE     => '_SHOW'
   });
 
   $table = $html->table({
@@ -715,15 +714,17 @@ sub iptv_user_chg_tp {
   my $count_access_tps = 0;
 
   @skip_tp_changes = split(/,\s?/, $conf{IPTV_SKIP_CHG_TPS}) if ($conf{IPTV_SKIP_CHG_TPS}) ;
+  push(@skip_tp_changes, $Iptv->{TP_ID});
 
   foreach my $tp (@{$tp_list}) {
-
     next if (in_array($tp->{tp_id}, \@skip_tp_changes));
-    next if ($tp->{tp_id} == $Iptv->{TP_ID} && $user->{EXPIRE} eq '0000-00-00');
+    # next if ($user->{EXPIRE} eq '0000-00-00');
     next if $tp->{change_price} * ((100 - $user->{REDUCTION}) / 100) >= ($user->{DEPOSIT} + $user->{CREDIT}) && !$tp->{payment_type};
 
-    $tp->{day_fee} *= ((100 - $user->{REDUCTION}) / 100);
-    $tp->{month_fee} *= ((100 - $user->{REDUCTION}) / 100);
+    if ($tp->{reduction_fee}) {
+      $tp->{day_fee} *= ((100 - $user->{REDUCTION}) / 100);
+      $tp->{month_fee} *= ((100 - $user->{REDUCTION}) / 100);
+    }
 
     my $radio_but = '';
     $user->{CREDIT} = ($user->{CREDIT} && $user->{CREDIT} > 0) ? $user->{CREDIT} : (($tp->{credit} && $tp->{credit} > 0) ? $tp->{credit} : 0);
@@ -739,6 +740,7 @@ sub iptv_user_chg_tp {
     $table->addrow($tp->{id}, $tp_name, $tp->{day_fee}, $tp->{month_fee}, $radio_but);
     $count_access_tps++;
   }
+
   $Tariffs->{TARIF_PLAN_TABLE} = $table->show({ OUTPUT2RETURN => 1 });
   if ($Tariffs->{TOTAL} == 0 || !$count_access_tps) {
     $html->message('info', $lang{INFO}, "$lang{ERR_SMALL_DEPOSIT}", { ID => 842 });
@@ -1050,9 +1052,10 @@ sub _iptv_portal_extra_fields {
     next if (!defined($Iptv->{$id}) || $Iptv->{$id} eq $default_value);
 
     push @extra_fields, $html->tpl_show(templates('form_row_client'), {
-      ID    => $id,
-      NAME  => _translate($lang_),
-      VALUE => $Iptv->{$id} . ($value_prefix ? " $value_prefix" : ''),
+      ID        => $id,
+      NAME      => _translate($lang_),
+      VALUE     => $Iptv->{$id} . ($value_prefix ? " $value_prefix" : ''),
+      EXT_CLASS => 'text-bold'
     }, { OUTPUT2RETURN => 1 });
   }
 
@@ -1083,9 +1086,11 @@ sub _iptv_portal_service_extra_fields {
 
   foreach my $item (@{$service_extra_fields}) {
     push @{$extra_fields}, $html->tpl_show(templates('form_row_client'), {
-      ID    => $item->{id} || '',
-      NAME  => _translate($item->{name}),
-      VALUE => $item->{value},
+      ID        => $item->{id} || '',
+      NAME      => _translate($item->{name}),
+      VALUE     => $item->{value},
+      EXT_CLASS => 'text-bold',
+      TITLE     => $item->{title} || ''
     }, { OUTPUT2RETURN => 1 });
   }
   

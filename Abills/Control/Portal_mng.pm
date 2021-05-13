@@ -146,7 +146,7 @@ sub get_info_fields_read_only_view {
             '',
             {
               GLOBAL_URL => $attr->{VALUES}->{$field_name},
-              ADD_ICON   => 'glyphicon glyphicon-globe'
+              ADD_ICON   => 'fa fa-globe'
             }
           );
         }
@@ -176,7 +176,7 @@ sub get_info_fields_read_only_view {
 
           $value_view = $html->button($lang{DOWNLOAD}, '', {
             GLOBAL_URL => $file_download_url,
-            ADD_ICON   => 'glyphicon glyphicon-download'
+            ADD_ICON   => 'fa fa-download'
           });
 
         }
@@ -195,21 +195,21 @@ sub get_info_fields_read_only_view {
                     <h4 class="modal-title">$name</h4>
                   </div>
                   <div class="modal-body">
-                    <img class='img img-responsive' src="$SELF_URL?qindex=$index&PHOTO=$uid&UID=$uid" alt="$field_name">
+                    <img class='img img-fluid' src="$SELF_URL?qindex=$index&PHOTO=$uid&UID=$uid" alt="$field_name">
                   </div>
                   <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">$lang{CLOSE}</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">$lang{CLOSE}</button>
                   </div>
                 </div>
               </div>
             </div>
-            <button type="button" class="btn btn-xs btn-default" data-toggle="modal" data-target="#$name\_preview">
-              <span class="glyphicon glyphicon-picture"></span>$lang{PREVIEW}
+            <button type="button" class="btn btn-xs btn-secondary" data-toggle="modal" data-target="#$name\_preview">
+              <span class="fa fa-picture-o"></span>$lang{PREVIEW}
             </button>
           };
         }
         else {
-          $value_view = $html->button('', "index=$index&PHOTO=$uid&UID=$uid", { ICON => 'glyphicon glyphicon-camera' });
+          $value_view = $html->button('', "index=$index&PHOTO=$uid&UID=$uid", { ICON => 'fa fa-camera' });
         }
       }
       else {

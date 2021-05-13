@@ -51,9 +51,9 @@ sub new {
   my $self = { };
   bless( $self, $class );
 
-  $self->{unifi_url} = $CONF->{UNIFI_URL};
-  $self->{login}     = $CONF->{UNIFI_USER};
-  $self->{password}  = $CONF->{UNIFI_PASS};
+  $self->{unifi_url} = $CONF->{UNIFI_URL} || q{};
+  $self->{login}     = $CONF->{UNIFI_USER} || q{};
+  $self->{password}  = $CONF->{UNIFI_PASS} || q{} ;
   $unifi_version     = $CONF->{UNIFI_VERSION} || 4;
   $self->{unifi_sitename} = $CONF->{UNIFI_SITENAME} || 'default';
   $self->{FILE_CURL} = $CONF->{FILE_CURL};
@@ -84,7 +84,7 @@ sub get_api_list {
 
   my $path = $self->{unifi_url} . "/api/s/$self->{unifi_sitename}/" . $api_path;
   $self->mk_request( $path, $params );
-  my $list = $self->{list};
+  my $list = $self->{list} || [];
 
   $self->logout();
   return $list;

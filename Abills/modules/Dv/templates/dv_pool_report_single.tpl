@@ -14,9 +14,9 @@
   }
 </style>
 <div class='col-md-%COLS_SIZE% padding-min'>
-  <div class='box box-theme'>
-    <div class='box-header'><h4 class='box-header with-border'>%NAME%</h4></div>
-    <div class='box-body'>
+  <div class='card card-primary card-outline'>
+    <div class='card-header'><h4 class='card-header with-border'>%NAME%</h4></div>
+    <div class='card-body'>
       <p>%IP_RANGE%</p>
 
       <table class='table table-labeled'>

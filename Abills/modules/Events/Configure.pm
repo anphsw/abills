@@ -80,7 +80,7 @@ sub events_main {
     MULTISELECT_ACTIONS => [
       {
         TITLE    => $lang{DEL},
-        ICON     => 'glyphicon glyphicon-trash',
+        ICON     => 'fa fa-trash',
         ACTION   => "$SELF_URL?index=$index&del=1",
         PARAM    => "IDS",
         CLASS    => 'btn-danger',
@@ -88,7 +88,7 @@ sub events_main {
       },
       {
         TITLE  => $lang{SEEN},
-        ICON   => 'glyphicon glyphicon-ok',
+        ICON   => 'fa fa-check',
         ACTION => "$SELF_URL?index=$index&seen=1",
         PARAM  => "IDS"
       }

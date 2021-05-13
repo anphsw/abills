@@ -11,8 +11,7 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
     "21:0:$lang{PAYSYS}:paysys_log"                                     => 4,
     "22:21:$lang{INTERNAL_REPORTS}:paysys_reports"                      => 4,
     # Import Fees 60-70
-    "60:0:Import:paysys_import_fees_new:"                               => 3,
-    "82:80::paysys_terminals_show:AJAX"                                 => 5,
+    "60:0:Import:paysys_import_fees_new:"                               => 3
   );
 
   if ($conf{PAYSYS_NEW_SETTINGS}) {
@@ -30,8 +29,9 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
       my $group_info = $user->group_info($user->{GID});
       if ((exists $group_info->{DISABLE_PAYSYS} && $group_info->{DISABLE_PAYSYS} == 0) || ! $user->{TOTAL}) {
         %USER_FUNCTION_LIST = (
-          "01:0:$lang{BALANCE_RECHARCHE}:paysys_payment:" => 40,
-          "02:1:$lang{LOG}:paysys_user_log:"              => 40
+          "01:0:$lang{BALANCE_RECHARCHE}:paysys_payment:"     => 40,
+          "02:1:$lang{LOG}:paysys_user_log:"                  => 40,
+          "02:1:$lang{TOKEN_PAYMENTS}:paysys_subscribe:"  => 40
         );
       }
       else {

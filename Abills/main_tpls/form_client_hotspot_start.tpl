@@ -15,8 +15,6 @@
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/font-awesome.min.css'>
   <link rel='stylesheet' href='/styles/default_adm/css/ionicons.min.css'>
   <link rel='stylesheet' href='/styles/lte_adm/dist/css/AdminLTE.css'>
-  <link rel='stylesheet' href='/styles/lte_adm/dist/css/skins/_all-skins.css'>
-
 
   <style>
     #dropdown_language ul {
@@ -79,8 +77,8 @@
     <div class='container'>
       <div class='row'>
         <div class='center-block'>
-          <div class='box  box-theme' style='text-align:center'>
-            <div class='box-header with-border'>
+          <div class='card  card-primary card-outline' style='text-align:center'>
+            <div class='card-header with-border'>
               <div class='row '>
                 <div class='col-md-1 col-xs-2 col-sm-1 col-lg-1'>
                 </div>
@@ -95,7 +93,7 @@
                   <ul class='nav nav-pills'>
                     <li class='dropdown' id='dropdown_language'>
                       <a class='dropdown-toggle' data-toggle='dropdown' data-target='#dropdown_language'
-                         id='flag_active'>
+                        id='flag_active'>
                         <img src='/styles/default_adm/img/flags/%LANG_CURRENT%.png' alt='%LANG_CURRENT%'/>
                       </a>
                       <ul class='dropdown-menu list-unstyled' id='flag_list'>%LANG_LIST%</ul>
@@ -104,11 +102,11 @@
                 </div><!-- end of col-md-1 -->
               </div> <!-- end of row -->
             </div> <!-- end of box-header with-border -->
-            <div class='box-body'>
+            <div class='card-body'>
               <!-- <p>Domain ID: %DOMAIN_ID% Domain name: %DOMAIN_NAME%</p> -->
               <div class='row center-block'>
                 <a class='btn btn-success btn-lg' href='%LOGIN_URL%'>_{I_HAVE_LOGIN_AND_PASSWORD}_</a>
-                <a class='btn btn-default top-margin' href='$SELF_URL?GUEST_ACCOUNT=1&DOMAIN_ID=%DOMAIN_ID%%PAGE_QS%'>_{I_WANT_TO_TRY}_</a>
+                <a class='btn btn-secondary top-margin' href='$SELF_URL?GUEST_ACCOUNT=1&DOMAIN_ID=%DOMAIN_ID%%PAGE_QS%'>_{I_WANT_TO_TRY}_</a>
               </div>
               %ADDRESS_STREET% %ADDRESS_BUILD% %ADDRESS_FLAT%
             </div> <!-- END OF box-BODY -->
@@ -118,11 +116,11 @@
 
       <div class='row'>
         <div class='center-block'>
-          <div class='box box-theme'>
-            <div class='box-header with-border text-center'>
+          <div class='card card-primary card-outline'>
+            <div class='card-header with-border text-center'>
               <h3 style='margin:0'>_{I_HAVE_PIN_CARD}_</h3>
             </div>
-            <div class='box-body' style='text-align:center'>
+            <div class='card-body' style='text-align:center'>
 
               <div class='row'>
                 <div class='col-hidden-xs col-sm-3 col-md-3 col-lg-3'></div>
@@ -143,7 +141,7 @@
 
 
                     <div class=' col-xs-12 col-sm-3 col-md-3 col-lg-3'>
-                      <input class='form-input btn btn-default top-margin' type='submit' value='_{INFO}_'>
+                      <input class='form-input btn btn-secondary top-margin' type='submit' value='_{INFO}_'>
                     </div>
 
                   </form>
@@ -157,11 +155,11 @@
       </div>
 
       <div class='row' id='paysys_buy_cards' style='display:none'>
-        <div class='box box-theme'>
-          <div class='box-header with-border' style='text-align:center;'>
+        <div class='card card-primary card-outline'>
+          <div class='card-header with-border' style='text-align:center;'>
             <h3 style='margin:0'>_{BUY_CARD_ONLINE}_</h3>
           </div>
-          <div class='box-body'>
+          <div class='card-body'>
 
             %CARDS_TYPE%
 

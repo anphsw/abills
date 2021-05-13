@@ -5,8 +5,8 @@
 
 <div class='row' data-visible='%NAVIGATION_VISIBLE%'>
     <div class='btn-group btn-group-xs' role='group'>
-    <button type='button' id='navigation' class='btn btn-default' onclick='aNavigation.showRoute()'>_{SHOW}_ _{ROUTE}_</button>
-    <button type='button' id='goToMainNavigation' class='btn btn-default'>_{ROUTE}_</button>
+    <button type='button' id='navigation' class='btn btn-secondary' onclick='aNavigation.showRoute()'>_{SHOW}_ _{ROUTE}_</button>
+    <button type='button' id='goToMainNavigation' class='btn btn-secondary'>_{ROUTE}_</button>
     </div>
 </div>
 <div id='map' style='height: 85vh'></div>

@@ -1,71 +1,72 @@
-<form METHOD=POST class='form-horizontal' >
+<form METHOD=POST class='form-horizontal container-md' >
     <input type='hidden' name='index' value='%INDEX%'>
     <input type="hidden" name="%ADD_CHG%" value="1">
     <input type="hidden" name="al_id" id="al_id" value="%ID_CHANGE%">
     <input type="hidden" name="al_chg" id="al_chg" value="%CHG_JS%">
     <input type="hidden" name="USER_ACCIDENT" id="USER_ACCIDENT" value="%USER_ACCIDENT%">
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'>
-            <h4 class='box-title'>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'>
+            <h4 class='card-title'>
                 _{ADD_ACCIDENT}_
             </h4>
         </div>
-        <div class="box-body">
-            <div class="form-group">
-                <label class="control-label col-md-4 col-sm-3">_{NAME}_:</label>
-                <div class="col-md-8 col-sm-9">
+        <div class="card-body">
+
+            <div class="form-group row">
+                <label class="control-label col-md-2 col-sm-3">_{NAME}_:</label>
+                <div class="col-md-9 col-sm-8">
                     <input type='text' name='NAME' value='%NAME%' placeholder='%P_NAME%'
                            class='form-control'>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="control-label col-md-4 col-sm-3">_{DESCRIBE}_:</label>
-                <div class="col-md-8 col-sm-9">
+            <div class="form-group row">
+                <label class="control-label col-md-2 col-sm-3">_{DESCRIBE}_:</label>
+                <div class="col-md-9 col-sm-8">
                     <input type='text' name='DESCR' value='%DESCR%' placeholder='%DESCRIBE%'
                            class='form-control'>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="control-label col-md-4 col-sm-3">_{PRIORITY}_:</label>
-                <div class="col-md-8 col-sm-9">
+            <div class="form-group row">
+                <label class="control-label col-md-2 col-sm-3">_{PRIORITY}_:</label>
+                <div class="col-md-9 col-sm-8">
                     %SELECT_PRIORITY%
                 </div>
             </div>
-            <div class="form-group">
-                <label class="control-label col-md-4 col-sm-3">_{STATUS}_:</label>
-                <div class="col-md-8 col-sm-9">
+            <div class="form-group row">
+                <label class="control-label col-md-2 col-sm-3">_{STATUS}_:</label>
+                <div class="col-md-9 col-sm-8">
                     %SELECT_STATUS%
                 </div>
             </div>
-            <div class="form-group">
-                <label class="control-label col-md-4 col-sm-3">_{ADMIN}_:</label>
-                <div class="col-md-8 col-sm-9">
+            <div class="form-group row">
+                <label class="control-label col-md-2 col-sm-3">_{ADMIN}_:</label>
+                <div class="col-md-9 col-sm-8">
                     %ADMIN_SELECT%
                 </div>
             </div>
-            <div class="form-group">
-                <label class="control-label col-md-4 col-sm-3">_{DATE}_:</label>
-                <div class="col-md-8 col-sm-9">
+            <div class="form-group row">
+                <label class="control-label col-md-2 col-sm-3">_{DATE}_:</label>
+                <div class="col-md-9 col-sm-8">
                     %DATE%
                 </div>
             </div>
-            <div class="form-group">
-                <label class="control-label col-md-4 col-sm-3">_{WORK_END_DATE}_:</label>
-                <div class="col-md-8 col-sm-9">
+            <div class="form-group row">
+                <label class="control-label col-md-2 col-sm-3">_{WORK_END_DATE}_:</label>
+                <div class="col-md-9 col-sm-8">
                     %DATEPICKER_END%
                 </div>
             </div>
-            <div class="form-group">
-                <label class="control-label col-md-4 col-sm-3">_{WORK_REALY_DATE}_:</label>
-                <div class="col-md-8 col-sm-9">
+            <div class="form-group row">
+                <label class="control-label col-md-2 col-sm-3">_{WORK_REALY_DATE}_:</label>
+                <div class="col-md-9 col-sm-8">
                     %DATEPICKER_REAL%
                 </div>
             </div>
             %GEO_TREE%
-            <div class='col-md-12 col-sm-12'>
-                <input type="submit" class="btn btn-primary col-md-12 col-sm-12" name="ADD" value="%ADD%">
-            </div>
+        </div>
+        <div class='card-footer'>
+            <input type="submit" class="btn btn-primary" name="ADD" value="%ADD%">
         </div>
     </div>
 </form>

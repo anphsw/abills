@@ -1,9 +1,9 @@
 <form method='POST' action='https://api.privatbank.ua:9083/p24api/ishop' class='form form-horizontal'>
 
-<div class='box box-primary'>
-    <div class='box-header with-border text-center'><h4 class='box-title'>_{BALANCE_RECHARCHE}_</h4></div>
+<div class='card box-primary'>
+    <div class='card-header with-border text-center'><h4 class='card-title'>_{BALANCE_RECHARCHE}_</h4></div>
 
-<div class='box-body'>
+<div class='card-body'>
     <div class='form-group'>
         <label class='col-md-6 col-sm-6 text-right'>_{ORDER}_:</label>
         <label class='col-md-6 col-sm-6'>$FORM{OPERATION_ID}</label>
@@ -45,7 +45,7 @@
 <input type='hidden' name='server_url' value='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/paysys_check.cgi' />
 
 </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
         <input class='btn btn-primary' type=submit value='_{PAY}_'>
     </div>
 </div>   

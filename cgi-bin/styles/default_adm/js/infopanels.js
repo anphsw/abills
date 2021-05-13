@@ -117,9 +117,9 @@ var AInfoPanels = (function () {
       var contentRows = '';
       for (var key in contentObject) {
         if (!contentObject.hasOwnProperty(key)) continue;
-        contentRows += '<div class="row">'
-            + '<div class="' + INFO_PANEL_CONTENT_LEFT_CLASSES + ' col-md-' + leftSize + '">' + key + '</div>'
-            + '<div class="' + INFO_PANEL_CONTENT_RIGHT_CLASSES + ' col-md-' + rightSize + '"><p>' + contentObject[key] + '</p></div>'
+        contentRows += '<div class="col-md-12 form-group row">'
+            + '<div class="' + INFO_PANEL_CONTENT_LEFT_CLASSES + ' col-md-' + leftSize + '">' + key + ':</div>'
+            + '<div class="' + INFO_PANEL_CONTENT_RIGHT_CLASSES + ' col-md-' + rightSize + '">' + contentObject[key] + '</div>'
             + '</div>';
       }
       return contentRows;
@@ -130,11 +130,11 @@ var AInfoPanels = (function () {
       //var slideIndicators = getSlideIndicators(id, slidesArray.length);
       if (slidesArray.length > 0) {
         var SLIDE_CONTROLS = '<a class="left carousel-control" href="#' + id + '" role="button" data-slide="prev">'
-            + '<span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span>'
+            + '<span class="fa fa-chevron-left" aria-hidden="true"></span>'
             + '<span class="sr-only">Previous</span>'
             + '</a>'
             + '<a class="right carousel-control" href="#' + id + '" role="button" data-slide="next">'
-            + '<span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>'
+            + '<span class="fa fa-chevron-right" aria-hidden="true"></span>'
             + '<span class="sr-only">Next</span>'
             + '</a>';
         
@@ -191,7 +191,7 @@ var AInfoPanels = (function () {
         
         panelElement += '<div id="tile' + index + '" class="tile">';
         if (panel.HEADER)
-          panelElement += '<div class="row text-center InfoPanelHeader">' + panel.HEADER + '</div>';
+          panelElement += '<div class="text-center InfoPanelHeader">' + panel.HEADER + '</div>';
         
         //append content
         panelElement += '<div class="row InfoPanelContent">' + panel.BODY + '</div>';

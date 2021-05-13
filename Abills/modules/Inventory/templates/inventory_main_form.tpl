@@ -4,10 +4,10 @@
   <input type=hidden name=inventory_main value=1>
   <input type=hidden name=ID value='$FORM{chg}'>
 
-<div class='box box-theme box-big-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{EQUIPMENT}_</h4></div>
+<div class='card card-primary card-outline box-big-form'>
+  <div class='card-header with-border'><h4 class='card-title'>_{EQUIPMENT}_</h4></div>
 
-  <div class='box-body'>
+  <div class='card-body'>
 
     <div class='form-group'>
       <label class='control-label col-xs-4' for='HOSTNAME'>_{HOSTNAME}_</label>
@@ -101,30 +101,30 @@
     </div>
 
 
-  <div class='box box-default box-big-form collapsed-box'>
-    <div class='box-header with-border'>
-      <h3 class='box-title'>Hardware</h3>
-      <div class='box-tools pull-right'>
-        <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-plus'></i>
+  <div class='card box-default box-big-form collapsed-box'>
+    <div class='card-header with-border'>
+      <h3 class='card-title'>Hardware</h3>
+      <div class='card-tools pull-right'>
+        <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
         </button>
       </div>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
     %HARDWARE%
   </div>
   </div>
 
 
 
-<div class='box box-default box-big-form collapsed-box'>
-<div class='box-header with-border'>
-  <h3 class='box-title'>Software</h3>
-  <div class='box-tools pull-right'>
-    <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-plus'></i>
+<div class='card box-default box-big-form collapsed-box'>
+<div class='card-header with-border'>
+  <h3 class='card-title'>Software</h3>
+  <div class='card-tools pull-right'>
+    <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
     </button>
   </div>
 </div>
-<div class='box-body'>
+<div class='card-body'>
  %SOFTWARE%
 </div>
 </div>
@@ -132,7 +132,7 @@
 
   </div>
 
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type=submit name=%ACTION% value=%ACTION_LNG% class='btn btn-primary'> %DEL_BUTTON%
   </div>
 

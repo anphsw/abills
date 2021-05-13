@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-   libexec/billd
+  libexec/billd
 
 Accounting control deamon
 Speed control
@@ -76,7 +76,7 @@ if($ARGV[0]) {
   $pid_name = $ARGV[0];
 }
 
-if (!$argv->{checkppp} && make_pid( $log_dir . '/'. $pid_name .'.pid' ) == 1) {
+if (! $argv->{SKIPPID} && make_pid( $log_dir . '/'. $pid_name .'.pid' ) == 1) {
   if(defined($argv->{'-force'})) {
     stop_server($log_dir . '/'. $pid_name .'.pid');
   }
@@ -121,31 +121,31 @@ if($argv->{DOMAIN_ID}) {
   Conf->new($db, $Admin, \%conf);
 }
 
-if(in_array('Internet', \@MODULES)) {
-  require Internet::Sessions;
-  Internet::Sessions->import();
-  require Internet;
-  Internet->import();
+#if(in_array('Internet', \@MODULES)) {
+require Internet::Sessions;
+Internet::Sessions->import();
+require Internet;
+Internet->import();
 
-  $Sessions = Internet::Sessions->new( $db, $Admin, \%conf );
-  $Internet = Internet->new( $db, $Admin, \%conf );
-  $Dv = $Internet;
-}
-else {
-  require Dv_Sessions;
-  Dv_Sessions->import();
-  require Dv;
-  Dv->import();
+$Sessions = Internet::Sessions->new( $db, $Admin, \%conf );
+$Internet = Internet->new( $db, $Admin, \%conf );
+#  $Dv = $Internet;
+# }
+# else {
+#   require Dv_Sessions;
+#   Dv_Sessions->import();
+#   require Dv;
+#   Dv->import();
+#
+#   $Sessions = Dv_Sessions->new( $db, $Admin, \%conf );
+#   $Internet = Dv->new( $db, $Admin, \%conf );
+#   $Dv = $Internet;
+# }
 
-  $Sessions = Dv_Sessions->new( $db, $Admin, \%conf );
-  $Internet = Dv->new( $db, $Admin, \%conf );
-  $Dv = $Internet;
-}
-
-my $Billd = Billd->new($db, $Admin, \%conf);
-our $Nas      = Nas->new( $db, \%conf );
-our Log $Log      = Log->new( $db, \%conf );
-$Log->{PRINT} = 1;
+my $Billd    = Billd->new($db, $Admin, \%conf);
+our $Nas     = Nas->new( $db, \%conf );
+our Log $Log = Log->new( $db, \%conf );
+$Log->{PRINT}= 1;
 
 my $Nas_cmd = Abills::Nas::Control->new( $db, \%conf );
 
@@ -227,7 +227,9 @@ if ( $debug > 1 ){
   print gen_time( $begin_time ) . "\n";
 }
 
-make_pid( $log_dir . '/'. $pid_name .'.pid', 'clean' );
+if (!$argv->{SKIPPID}) {
+  make_pid($log_dir . '/' . $pid_name . '.pid', 'clean');
+}
 
 #***********************************************************
 =head2 deamon() - Deamon Mode
@@ -373,6 +375,12 @@ sub check_lines{
            ." UID: ". ($uid || 'n/d') . " TP: ". ($online->{tp_num} || 'n/d')
            ." SESSION_SUM: $online->{session_sum}");
         }
+      }
+      #For RADIUS CoA testing
+      elsif ($argv->{COA_ACTION}) {
+        session_hangup( $nas, $online,
+          "COA_ACTION $argv->{COA_ACTION} DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $online->{session_sum}",
+          { COA_ACTION => $argv->{COA_ACTION} });
       }
       elsif (($uid && ($online->{online_tp_id} && $online->{online_tp_id} ne $online->{tp_id}))
         && $online->{status} != 2
@@ -643,7 +651,7 @@ sub check_lines{
           print "Skip with neg deposit filter '". ($Billing->{NEG_DEPOSIT_FILTER} || ''). "'\n" if ($debug > 1);
         }
         else{
-          session_hangup( $nas, $online, "DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $Billing->{SUM}",
+          session_hangup( $nas, $online, "TRAF or TIME limit DEPOSIT: $deposit CREDIT: $credit SESSION_SUM: $Billing->{SUM}",
             { COA_ACTION => 'NEG_DEPOSIT' });
         }
       }
@@ -735,16 +743,20 @@ sub billd_plugins{
 
 =cut
 #**********************************************************
-sub  coa_former {
+sub coa_former {
   my ($coa_marker, $online, $nas_info) = @_;
 
   my $nas_type = $nas_info->{NAS_TYPE} || q{};
 
+  my $coa_request_tpl = $conf{'INTERNET_COA_'.$coa_marker.'_'.uc($nas_type)} || $conf{'INTERNET_COA_'.$coa_marker} || q{};
+
+  if (! $coa_request_tpl) {
+    return;
+  }
+
   my ($speed_in, $speed_out) = (0,0);
   if ($coa_marker =~ /RECHARGE|ENABLE/) {
     my $list = $Internet->get_speed({
-      #CHECK_NETS => 1,
-      TP_ID     => $online->{user_name} || '-',
       BURST     => 1,
       COLS_NAME => 1,
       LOGIN     => $online->{user_name},
@@ -753,23 +765,75 @@ sub  coa_former {
 
     $speed_in  = $list->[0]->{in_speed} || 0;
     $speed_out = $list->[0]->{out_speed} || 0;
+    #speed in kbit
+    $online->{speed_in}=$list->[0]->{in_speed} || 0;
+    $online->{speed_out}=$list->[0]->{out_speed} || 0;
+
+    #Speed in bits
+    $online->{speed_in_b}=($list->[0]->{in_speed} || 0) * 1024;
+    $online->{speed_out_b}=($list->[0]->{out_speed} || 0) * 1024;
   }
 
-  my %COA_PARAMS = (
-    CHANGE_TP   => { TP => "$online->{tp_id}" },
-    DISABLE     => {
-      'ERX-Service-Activate' => "svc-guest-ipoe(svc-filter-disable)"
-    },
-    NEG_DEPOSIT => {
-      'ERX-Service-Deactivate' => "svc-global-ipoe",
-      'ERX-Service-Activate'   => "svc-guest-ipoe(svc-filter-in-nomoney)"
-    },
-    RECHARGE    => {
-      'ERX-Service-Deactivate' => "svc-guest-ipoe",
-      'ERX-Service-Activate'   => "svc-global-ipoe($speed_in, $speed_out)",
-      'ERX-Service-Activate'   => 'svc-cgn-nat'
-    },
-  );
+  my %COA_PARAMS = ();
+
+  my @coa_requests = split(/;/, $coa_request_tpl);
+
+  foreach my $requests ( @coa_requests ) {
+    my @pairs = split(/\n/, $requests);
+    my %coa_pairs = ();
+    foreach my $pair (@pairs) {
+      my ($key, $value)=split(/=/, $pair);
+      while ( $value =~ /\%([a-z\_0-9]+)\%/ig ) {
+        print ">> $1\n" if ($debug > 3);
+        if ($online->{$1}) {
+          my $info_key = $online->{$1} || q{};
+          $value =~ s/\%([a-z\_0-9]+)\%/$info_key/;
+        }
+      }
+      $coa_pairs{$key}=$value;
+    }
+    push @{ $COA_PARAMS{$coa_marker} }, \%coa_pairs;
+  }
+
+  # my %COA_PARAMS = (
+  #   CHANGE_TP   => { TP => "$online->{tp_id}" },
+  #   DISABLE     => {
+  #     'ERX-Service-Activate' => 'svc-guest-ipoe(svc-filter-disable)',
+  #     'Acct-Session-Id'      => $online->{acct_session_id}
+  #   },
+  #   NEG_DEPOSIT => {
+  #     'ERX-Service-Deactivate' => 'svc-global-ipoe',
+  #     'ERX-Service-Activate:1' => 'svc-guest-ipoe(svc-filter-in-nomoney)',
+  #     'Acct-Session-Id'        => $online->{acct_session_id}
+  #   },
+  #   RECHARGE    => {
+  #     'ERX-Service-Deactivate' => 'svc-guest-ipoe',
+  #     'ERX-Service-Activate:1' => 'svc-global-ipoe('. ($speed_in * 1024). ", ". ($speed_out * 1024).')',
+  #     'Acct-Session-Id'        => $online->{acct_session_id}
+  #   }
+  # );
+
+  #NAT section
+  if ($conf{MX80_NAT_PROFILE} && $coa_marker =~ /RECHARGE/) {
+    my @nets = (
+      '10.0.0.0/8',
+      '172.16.0.0/12',
+      '192.168.0.0/16',
+      '100.64.0.0/10'
+    );
+
+    foreach my $ip_range (@nets) {
+      $ip_range =~ /(.+)\/(\d+)/;
+      my $ip_ = $1;
+      my $IP = unpack("N", pack("C4", split(/\./, $ip_)));
+      my $NETMASK = unpack "N", pack("B*", ("1" x $2 . "0" x (32 - $2)));
+      my $client_ip_num = unpack("N", pack("C4", split(/\./, $online->{client_ip})));
+      if (($client_ip_num & $NETMASK) == ($IP & $NETMASK)) {
+        my $nat_profile = ($online->{connect_info} && $online->{connect_info} =~ /demux/) ? 'svc-cgn-nat-pppoe' : 'svc-cgn-nat-ipoe';
+        $COA_PARAMS{RECHARGE}{'ERX-Service-Activate:2'} = $nat_profile;
+      }
+    }
+  }
 
   my $radius_request_pairs = ($COA_PARAMS{$coa_marker})  ? $COA_PARAMS{$coa_marker} : undef;
 
@@ -794,15 +858,16 @@ sub  coa_former {
 
 =cut
 #**********************************************************
-sub  session_hangup{
+sub session_hangup{
   my ($nas_info, $online, $message, $attr) = @_;
 
   my $ret = q{};
   my $coa_action = q{};
   my $coa_request = q{};
 
-  if ($attr->{COA_ACTION} && $conf{INTERNET_SERVICE_COA}) {
-    $coa_action = coa_former($attr->{COA_ACTION}, $online, );
+  if ($attr->{COA_ACTION} && ($conf{INTERNET_SERVICE_COA} || $argv->{COA_ACTION})) {
+    $coa_action = $argv->{COA_ACTION} || $attr->{COA_ACTION};
+    $coa_action = coa_former($coa_action, $online, );
     $coa_request = 'coa' if ($coa_action);
   }
 
@@ -846,8 +911,15 @@ sub  session_hangup{
       NAS    => $nas_info
     } );
 
-    if ($coa_request) {
-      $Sessions->{debug}=1;
+    if ($debug > 0) {
+      print "RADIUS RETURN: ". ($Nas_cmd->{rad_return} || q{}) ."\n";
+
+      foreach my $rad_key (keys %{ $Nas_cmd->{rad_pairs} }) {
+        print " $rad_key ->  $Nas_cmd->{rad_pairs}->{$rad_key};\n";
+      }
+    }
+
+    if ($coa_request && ! $argv->{COA_ACTION}) {
       $Sessions->online_update({
         ACCT_SESSION_ID => $online->{acct_session_id},
         USER_NAME       => $online->{user_name},
@@ -2218,7 +2290,7 @@ sub check_speed{
     }
 
     if ( $conf{INTERNET_TURBO_MODE} ){
-      my (@turbo_mods) = split( /;/, $conf{DV_TURBO_MODE} );
+      my (@turbo_mods) = split( /;/, $conf{INTERNET_TURBO_MODE} );
       foreach my $line ( @turbo_mods ){
         # ($speed, $time, $price, $name, $bonus)
         my ($speed) = split( /:/, $line, 5 );
@@ -3618,6 +3690,37 @@ sub get_result{
   return \%RESULT;
 }
 
+#**********************************************************
+=head2 _log($type, $message, $attr) - inner log function for billd
+
+    Arguments:
+      $type
+        Error levels
+
+        LOG_EMERG   => 0
+        LOG_ALERT   => 1
+        LOG_CRIT    => 2
+        LOG_ERR     => 3
+        LOG_WARNING => 4
+        LOG_NOTICE  => 5
+        LOG_INFO    => 6
+        LOG_DEBUG   => 7
+        LOG_SQL     => 8
+
+      $message,
+      $attr
+
+    Results:
+
+=cut
+#**********************************************************
+sub _log {
+  my($type, $message, $attr)=@_;
+
+  print "$type: $message\n";
+
+  return 1;
+}
 
 #**********************************************************
 =head2 help()
@@ -3656,10 +3759,16 @@ CHECK speed
     RECONFIGURE=1  - Reconfigure speed settings
   speed_expr       - Speed Expration
   SKIP_HANGUP      - Skip hangup only info
+  COA_ACTION       - Use for testing RADIUS CoA action for online user
+                      CHANGE_TP
+                      DISABLE
+                      NEG_DEPOSIT
+                      RECHARGE
   SHOW_CUR_SPEED   - Show current users speed
   OS               - Local OS (linux|freebsd). Optional params
   mikrotik         - check speed on mikrotik
   accel_ppp        - push speed to accel-ppp
+  SKIPPID          - SKip PID create for multi exec scripts
  PLUGINS
 $plugins
  CHECK connection Alive
@@ -3677,5 +3786,4 @@ $plugins
 \n";
 }
 
-__END__
-1
+1;

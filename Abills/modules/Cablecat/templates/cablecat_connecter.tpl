@@ -1,32 +1,33 @@
 <div class='row'>
   <div class='%CLASS_FOR_MAIN_FORM%' id='CONNECTER_FORM_CONTAINER_DIV'>
-    <div class='box box-theme'>
-      <div class='box-header with-border'><h4 class='box-title'>_{CONNECTER}_</h4></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline'>
+      <div class='card-header with-border'><h4 class='card-title'>_{CONNECTER}_</h4></div>
+      <div class='card-body'>
+        
         <form name='CABLECAT_CONNECTERS' id='form_CABLECAT_CONNECTERS' method='post' class='form form-horizontal'>
           <input type='hidden' name='index' value='$index'/>
           <input type='hidden' name='ID' value='%ID%'/>
           <input type='hidden' name='TYPE_ID' value='2'/>
           <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='NAME_ID'>_{NAME}_</label>
-            <div class='col-md-9'>
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='NAME_ID'>_{NAME}_:</label>
+            <div class='col-md-8'>
               <input type='text' class='form-control' value='%NAME%' name='NAME'
                      id='NAME_ID'/>
             </div>
           </div>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3 required' for='TYPE_ID'>_{CONNECTER_TYPE}_</label>
-            <div class='col-md-9'>
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right required' for='TYPE_ID'>_{CONNECTER_TYPE}_:</label>
+            <div class='col-md-8'>
               %CONNECTER_TYPE_ID_SELECT%
             </div>
           </div>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3 required' for='WELL_ID'>_{WELL}_</label>
-            <div class='col-md-9'>
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right required' for='WELL_ID'>_{WELL}_:</label>
+            <div class='col-md-8'>
               %WELL_ID_SELECT%
             </div>
           </div>
@@ -36,7 +37,7 @@
         </form>
 
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input type='submit' form='form_CABLECAT_CONNECTERS' class='btn btn-primary' name='submit'
                value='%SUBMIT_BTN_NAME%'>
       </div>
@@ -44,16 +45,16 @@
   </div>
 
   <div class='col-md-6' data-visible='%HAS_COMMUTATION_FORM%'>
-    <div class='box box-theme'>
-      <div class='box-body'>
+    <div class='card card-primary card-outline'>
+      <div class='card-body'>
         %COMMUTATION_FORM%
       </div>
     </div>
   </div>
   <div class='col-md-6' data-visible='%HAS_LINKED%'>
-    <div class='box box-theme'>
-      <div class='box-header with-border'><h4 class='box-title'>_{LINKED}_ _{CONNECTERS}_</h4></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline'>
+      <div class='card-header with-border'><h4 class='card-title'>_{LINKED}_ _{CONNECTERS}_</h4></div>
+      <div class='card-body'>
         %LINKED%
       </div>
     </div>

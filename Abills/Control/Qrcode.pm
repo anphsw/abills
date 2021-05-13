@@ -82,7 +82,7 @@ sub _generate_img_tag {
   my $global_url_options = ($attr->{GLOBAL_URL}) ? "&GLOBAL_URL=" . $attr->{GLOBAL_URL} : "";
   
   return $html->img("$url$params&qrcode=1&qindex=100000$global_url_options", "qrcode",
-    { OUTPUT2RETURN => 1, class => 'img-responsive center-block' }
+    { OUTPUT2RETURN => 1, class => 'img-fluid center-block' }
   );
 }
 

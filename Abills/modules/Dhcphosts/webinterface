@@ -358,8 +358,8 @@ sub dhcphosts_monitor{
         qs      => $pages_qs,
         pages   => $Dhcphosts->{TOTAL},
         header  => $html->button( "$lang{DEL} $lang{ALL}", "index=$index&del=1",
-          { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-default' } ) . ' ' . $html->button( "$lang{DEL} $lang{EXPIRED}",
-          "index=$index&del=1&ENDED=1", { MESSAGE => "$lang{DEL} $lang{EXPIRED}?", class => 'btn btn-default' } ),
+          { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-secondary' } ) . ' ' . $html->button( "$lang{DEL} $lang{EXPIRED}",
+          "index=$index&del=1&ENDED=1", { MESSAGE => "$lang{DEL} $lang{EXPIRED}?", class => 'btn btn-secondary' } ),
         ID      => 'DHCPHOSTS_LEASES',
         EXPORT  => 1,
       }
@@ -1300,7 +1300,7 @@ sub dhcphosts_user{
         $Dhcphosts->{IPN_ACTIVATE_BUTTON} = $html->color_mark( 'Online', '#00FF00' )
         . $html->button('H', "index=". get_function_index( 'ipn_user_activate' )
             . "&UID=$session_info->{uid}&LOGOUT=1&SESSION_ID=$session_info->{acct_session_id}&REMOTE_ADDR=$Dhcphosts->{IP}",
-          { TITLE => 'Hangup', class => 'btn btn-default off', NO_LINK_FORMER => 1 });
+          { TITLE => 'Hangup', class => 'btn btn-secondary off', NO_LINK_FORMER => 1 });
       }
       else{
         $Dhcphosts->{IPN_ACTIVATE_BUTTON} = $html->button( $lang{ACTIVATE},

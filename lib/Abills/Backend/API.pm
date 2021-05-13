@@ -280,7 +280,7 @@ sub json_request {
 #**********************************************************
 sub _request {
   my ($self, $attr, $payload) = @_;
-  
+
   if ( $attr->{NON_SAFE} ) {
     return $self->_instant_request({
       MESSAGE => $payload,
@@ -361,7 +361,7 @@ sub _asynchronous_request {
 #**********************************************************
 sub _synchronous_request {
   my ($self, $attr) = @_;
-  
+
   my $message = $attr->{MESSAGE} || do {
     warn 'No $attr->{MESSAGE} in WebSocket::API ' . __LINE__ . " \n";
     return 0;
@@ -369,7 +369,7 @@ sub _synchronous_request {
   
   # Setup recieve callback
   my $operation_end_waiter = AnyEvent->condvar;
-  
+
   # Set timeout to 2 seconds
   my $timeout_waiter = AnyEvent->timer(
     after => 2,
@@ -378,13 +378,13 @@ sub _synchronous_request {
       $operation_end_waiter->send(undef);
     }
   );
-  
+
   $self->connect unless ($self->{fh});
   
   my AnyEvent::Handle $handle = $self->{fh};
-  
+
   return 0 unless $handle;
-  
+
   $handle->on_read(
     sub {
       my ($responce_handle) = shift;
@@ -401,7 +401,7 @@ sub _synchronous_request {
   # Script will hang here until receives result from async operation above
   my $result = $operation_end_waiter->recv;
   undef $timeout_waiter;
-  
+
   return $result;
 };
 

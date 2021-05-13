@@ -1,23 +1,22 @@
-<form action='$SELF_URL' method='POST' class='form-horizontal'>
+<form action='$SELF_URL' method='POST'>
   <input type=hidden name='index' value='$index'>
   <input type=hidden name='TP_ID' value='%TP_ID%'>
   <input type=hidden name='tt' value='%TI_ID%'>
 
   <fieldset>
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'><h4 class='box-title'>_{TRAFIC_TARIFS}_</h4></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline col-md-6 container'>
+      <div class='card-header with-border'><h4 class='card-title'>_{TRAFIC_TARIFS}_</h4></div>
+      <div class='card-body'>
 
-
-        <div class='form-group'>
-          <label class='control-label col-sm-3' for='TI_ID'>_{INTERVALS}_:</label>
+        <div class='form-group row'>
+          <label class='control-label col-sm-3'>_{INTERVALS}_:</label>
 
           <div class='col-sm-9'>
-            <label class='control-label' for='TI_ID'>%TI_ID%</label>
+            <label class='control-label'>%TI_ID%</label>
           </div>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-sm-3' for='SEL_ID'>_{TRAFFIC_CLASS}_:</label>
 
           <div class='col-sm-9'>
@@ -25,7 +24,7 @@
           </div>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-md-3' for='NETS_SEL'>_{NETWORKS}_:</label>
 
           <div class='col-md-9'>
@@ -33,7 +32,7 @@
           </div>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-sm-3' for='PREPAID'>_{PREPAID}_</label>
 
           <div class='col-sm-8'>
@@ -43,7 +42,7 @@
           <label class='col-md-1 control-label' style='text-align: left; padding-left: 0'> Mb </label>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-sm-4' style='text-align: center;'>_{TRAFIC_TARIFS}_ (1 Mb):</label>
 
           <label class='control-label col-sm-1' for='IN_PRICE'>IN</label>
@@ -62,7 +61,7 @@
 
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-sm-4' for='IN_SPEED'>_{SPEED}_ (Kbits):</label>
           <label class='control-label col-sm-1' for='IN_SPEED'>IN</label>
 
@@ -77,28 +76,27 @@
                    class='form-control' type='text'>
           </div>
         </div>
-        <div class='form-group'>
-          <div class='box box-theme box-form'>
-            <div class="box-header with-border">
-              <h3 class="box-title">Burst Mode</h3>
-              <div class="box-tools pull-right">
-                <button type="button" class="btn btn-default btn-xs" data-widget="collapse" data-toggle='collapse' data-parent='#accordion' href='#burstModeCollapse'
-                        aria-expanded='false' aria-controls='collapseOne'>
-                  <i class="fa fa-plus"></i>
-                </button>
-              </div>
-            </div>
-            <div id='burstModeCollapse' class='box-collapse collapse collapsing' role='tabpanel'
-                 aria-labelledby='burstLimit'>
-              <div class='box-body'>
 
+        <div class='card card-primary card-outline collapsed-card'>
+          <div class="card-header with-border">
+            <h3 class="card-title">Burst Mode</h3>
+            <div class="card-tools pull-right">
+              <button type="button" class="btn btn-tool" data-card-widget="collapse"  data-parent='#accordion' href='#burstModeCollapse'
+                        aria-expanded='false' aria-controls='collapseOne'>
+                <i class="fa fa-plus"></i>
+              </button>
+            </div>
+          </div>
+         <!-- <div id='burstModeCollapse' class='card-collapse collapse collapsing' role='tabpanel'
+                 aria-labelledby='burstLimit'>-->
+          <div  id='burstModeCollapse' class='card-body'>
                 <p class='bg-info'>
                   Burst limit > _{SPEED}_</p>
                 <p class='bg-info'>
                   Burst limit > Burst threshold
                 </p>
 
-                <div class='form-group '>
+                <div class='form-group row'>
                   <label class='control-label col-md-5' for='BURST_LIMIT_DL'>Burst limit,
                     kbps</label>
 
@@ -115,7 +113,7 @@
                   </div>
                 </div>
 
-                <div class='form-group '>
+                <div class='form-group row'>
                   <label class='control-label col-md-5' for='BURST_THRESHOLD_DL'>Burst threshold,
                     kbps</label>
 
@@ -132,7 +130,7 @@
                   </div>
                 </div>
 
-                <div class='form-group '>
+                <div class='form-group row'>
                   <label class='control-label col-md-5' for='BURST_TIME_DL'>Burst time,
                     _{SECONDS}_</label>
 
@@ -149,10 +147,8 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-sm-3' for='DESCR'>_{DESCRIBE}_:</label>
 
           <div class='col-sm-9'>
@@ -161,7 +157,7 @@
           </div>
         </div>
 
-        <div class='form-group'>
+        <div class='form-group row'>
           <label class='control-label col-sm-3' for='EXPRESSION'>_{EXPRESSION}_:</label>
 
           <div class='col-md-9'>
@@ -177,7 +173,7 @@
 
 
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         %BACK_BUTTON% <input type=submit name=%ACTION% value='%LNG_ACTION%' ID='submitbutton' class='btn btn-primary'>
       </div>
     </div>

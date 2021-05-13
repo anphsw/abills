@@ -39,6 +39,7 @@ $lang{ABON} = 'Периодические снятия';
 $lang{ZAPED} = 'Zaped';
 $lang{RETURN_TO_START_PAGE} = 'Возврат на стартовую страницу';
 $lang{NEW} = 'Новый';
+$lang{NEW_MESSAGE}='Новое сообщение';
 $lang{ADDRESS_BUILD} = 'Дом';
 $lang{OR} = ' или';
 $lang{HOUR_TARIF} = 'Часовой тариф';
@@ -212,7 +213,7 @@ $lang{SHORT_NAME} = 'Короткое название';
 $lang{TIME_SHEET} = 'Табель Работ';
 $lang{INN} = 'ИНН';
 $lang{ACCOUNTS} = 'Счета';
-$lang{MAX_SESSION_DURATION} = 'Макc. время сессии';
+$lang{MAX_SESSION_DURATION} = 'Макс. время сессии';
 $lang{OVERTIME} = 'Сверх.урочное время';
 $lang{DOMAINS} = 'Домены';
 $lang{LOADING} = 'Загрузка';
@@ -253,7 +254,7 @@ $lang{ERR_CREDIT_CHANGE_LIMIT_REACH} = 'Использованы все попы
 $lang{PASSWORD_RECOVERY} = 'Восстановление пароля';
 $lang{NOW} = 'Немедленно';
 $lang{OCTETS_DIRECTION} = 'Направление трафика';
-$lang{ERR_SMALL_DEPOSIT} = 'Cлишком маленький депозит';
+$lang{ERR_SMALL_DEPOSIT} = 'Слишком маленький депозит';
 $lang{USER_CHG_TP} = 'Смена тарифного плана пользователем';
 $lang{TP_CHANGE_SHEDULED} = 'Запланирована смена тарифного плана';
 $lang{CITY} = 'Город';
@@ -275,7 +276,7 @@ $lang{INNER} = 'Внутреннее';
 $lang{POLL} = 'Голосование';
 $lang{COMMENTS} = 'Комментарии';
 $lang{EXPORT} = 'Экспорт';
-$lang{SMALL_DEPOSIT_ACTION} = 'Действие при недостаточном депозите';
+$lang{SMALL_DEPOSIT_ACTION} = 'Действие при нед. депозите';
 $lang{CONFIRM_PASSWD} = 'Подтвердить пароль';
 $lang{CREDIT} = 'Кредит';
 $lang{PRE} = 'Предварительный просмотр';
@@ -343,7 +344,7 @@ $lang{SENDED} = 'Отправлено';
 
 $lang{RESETED} = 'Сброшено';
 $lang{VIEW} = 'Вид';
-$lang{HOLD_UP} = 'Приостановление';
+$lang{HOLD_UP} = 'Приостановление доступа';
 $lang{OPERATION_FEES} = 'Со счёта будет снято';
 $lang{ONE_TIME} = 'Одноразово';
 $lang{USER} = 'Пользователь';
@@ -379,7 +380,7 @@ $lang{EXPRESSION} = 'Регулярные выражения';
 $lang{LIST} = 'Список';
 $lang{STEP} = 'Шаг';
 $lang{FROM} = 'От';
-$lang{FEES} = 'Cписания';
+$lang{FEES} = 'Списания';
 $lang{MONTH_ALIGNMENT} = 'Выравнивание месяца';
 $lang{TRAF_LIMIT} = 'Лимит трафика';
 $lang{TYPES} = 'Типы';
@@ -457,7 +458,7 @@ $lang{HIGH} = 'Высокий';
 $lang{RULES} = 'Правила';
 $lang{REDUCTION} = 'Скидка';
 $lang{DELETE_USER} = 'Удалить пользователя из базы';
-$lang{FIO} = 'ФИО'; 
+$lang{FIO} = 'ФИО';
 $lang{VAT} = 'НДС';
 $lang{SHOW} = 'Показать';
 $lang{FILTERS} = 'Фильтры';
@@ -585,10 +586,10 @@ $lang{ORGANIZATION_INFO} = 'Параметры организации';
 $lang{FAX} = 'Факс';
 $lang{LAST_ACTIVITY} = 'Последняя активность';
 $lang{REACTION_TIME} = 'Время реакции';
-$lang{LIST_OF_LOGS} = 'Cписок логов';
+$lang{LIST_OF_LOGS} = 'Список логов';
 $lang{USER_STATISTIC} = 'Статистика пользователей';
-$lang{POPULAR_MENU} = 'Cамые популярные меню';
-$lang{POPULAR_TRANSITIONS} = 'Cамые популярные переходы';
+$lang{POPULAR_MENU} = 'Самые популярные меню';
+$lang{POPULAR_TRANSITIONS} = 'Самые популярные переходы';
 $lang{AVERAGE_TIME} = 'Среднее время работы в портале';
 $lang{PERCENTAGE} = 'Процентное соотношение';
 $lang{VISITS} = 'Просмотров';
@@ -702,6 +703,9 @@ $lang{TEXT_NOT_FOUND} = 'Текст не найден';
 $lang{TRY_AGAIN} = 'Попробуйте снова';
 $lang{UNAVAILABLE} = 'Недоступен';
 $lang{AVAILABLE} = 'Доступен';
+
+$lang{ERROR_DIR} = 'Не удалось открыть папку:';
+$lang{ERROR_FILE} = "Не удалось открыть файл: ";
 
 $lang{CHECK_ACCESS} = 'Проверить доступ';
 
@@ -865,5 +869,25 @@ $lang{NOT_DELETED_USERS}='Не учитывать удалённых';
 
 $lang{AND}='И';
 $lang{OR}='ИЛИ';
+$lang{PERMISIION_DENIED}='В доступе отказано';
+$lang{NEG_DEPOSIT} = 'Слишком маленький депозит для пользования услугой.';
+
+$lang{RECOMMENDED_PAYMENT} = 'Рекомендуемая сумма оплаты';
+$lang{PAYMENT_NUMBER} = "Ваш номер счета для пополнения";
+$lang{LAST_PAYMENT_FEE} = "Последнее пополнение счета";
+$lang{MAKE_PAYMENT} = "Пополнить счет";
+$lang{CONFIRM_PI} = "Подтвердить персональные данны";
+
+$lang{CANCEL_SUSPENSION} = "Отменить приостановление";
+$lang{WANT_TO_REGISTER_CURRENT_MAC} = "Вы хотите зарегистрировать мак адрес текущего устройства";
+
+$lang{UNSAVED_CHANGES} = "Несохраненные изменения";
+$lang{SAVED} = "Сохранено";
+
+$lang{COMMENTS_DOESNT_EXIST} = "Комментариев нет";
+$lang{YOUR_DEPOSIT} = "Ваш депозит";
+
+$lang{LARGE_TEXT} = "Крупный текст";
+$lang{DATA_CHANGE} = "Изменение данных";
 
 1

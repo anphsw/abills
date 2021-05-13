@@ -35,6 +35,10 @@ sub camelize {
 sub decamelize {
   my ($string) = @_;
 
+  if($string eq uc($string)) {
+    return $string;
+  }
+
   $string = ucfirst($string);
 
   $string =~ s{(\w+)}{

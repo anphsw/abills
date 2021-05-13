@@ -4,11 +4,11 @@
   <input type='hidden' name='COORDY' value='%COORDY%'>
   <input type='hidden' name='POINTS' value='%POINTS%'>
 
-  <div class='box box-theme'>
-    <div class='box-header with-border'>
+  <div class='card card-primary card-outline'>
+    <div class='card-header with-border'>
       <h3>_{ROUTES}_</h3>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
       <div class='form-group'>
         <label class='control-label col-md-3' for='ROUTE_ID'>_{ROUTE}_</label>
         <div class='col-md-9'>
@@ -30,7 +30,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type='submit' name=add_route_info value=_{ADD}_ class='btn btn-primary'>
     </div>
   </div>

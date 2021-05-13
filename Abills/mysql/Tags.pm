@@ -63,12 +63,12 @@ sub info{
 
 =cut
 #**********************************************************
-sub add{
+sub add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add( 'tags', $attr );
-  $self->{admin}->system_action_add( "TAG_ID:$self->{INSERT_ID}", { TYPE => 1 } );
+  $self->query_add('tags', $attr);
+  $self->{admin}->system_action_add("TAG_ID:$self->{INSERT_ID}", { TYPE => 1 });
 
   return $self;
 }
@@ -82,14 +82,12 @@ sub change{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM    => 'ID',
-      TABLE           => 'tags',
-      DATA            => $attr,
-      EXT_CHANGE_INFO => "TAG_ID:$attr->{ID}"
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM    => 'ID',
+    TABLE           => 'tags',
+    DATA            => $attr,
+    EXT_CHANGE_INFO => "TAG_ID:$attr->{ID}"
+  });
 
   return $self->{result};
 }
@@ -103,7 +101,7 @@ sub del{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query_del( 'tags', { ID => $id } );
+  $self->query_del('tags', { ID => $id });
 
   $self->{admin}->system_action_add( "TAG_ID:$id", { TYPE => 10 } );
   return $self->{result};
@@ -130,11 +128,9 @@ sub list{
       [ 'ID',             'INT',    't.id',                   ],
       [ 'ID_RESPONSIBLE', 'INT',    'tr.id AS id_responsible' ],
       [ 'RESPONSIBLE',    'INT',    'GROUP_CONCAT(DISTINCT a.id) AS responsible',               1 ],
-      [ 'TAGS_ID',        'INT',    'tr.tags_id'              ]
-    ],
-    {
-      WHERE => 1,
-    }
+      [ 'TAGS_ID',        'INT',    'tr.tags_id'              ],
+      [ 'COLOR',          'STR',    't.color',              1 ]
+    ], { WHERE => 1 }
   );
 
   if ($attr->{RESPONSIBLE_ADMIN}) {
@@ -196,6 +192,7 @@ sub tags_user{
        tu.date,
        t.comments,
        t.priority,
+       t.color,
        t.id,
        $self->{SEARCH_FIELDS}
        tu.uid
@@ -339,7 +336,7 @@ sub tags_list{
        t.id,
        u.disable,
        u.uid,
-       u.id as login,
+       u.id as login
      FROM tags_users tu
      RIGHT JOIN tags t ON (t.id=tu.tag_id)
      LEFT JOIN users u ON (u.uid=tu.uid)

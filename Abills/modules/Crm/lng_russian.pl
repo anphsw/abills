@@ -43,4 +43,36 @@ $lang{NO_EMAIL}='Укажите в конфигурационном файле E
 $lang{NO_EMAIL_LEAD}='В лидов нет E-Mail:';
 $lang{DELIVERY} = 'Рассылка';
 
+$lang{COMPETITOR} = 'Конкурент';
+$lang{COMPETITORS} = 'Конкуренты';
+$lang{COMPETITOR_SITE} = 'Сайт конкурента';
+$lang{CONNECTION_TYPE} = 'Тип подключения';
+$lang{COMPETITOR_ADDED} = 'Конкурент добавлен';
+$lang{COMPETITOR_DELETED} = 'Конкурент удален';
+$lang{COMPETITOR_CHANGED} = 'Данные о конкуренте изменены';
+$lang{LOCALITIES_OF_THE_COMPETITOR} = 'Населенные пункты конкурента';
+$lang{LOCALITIES_OF_THE_TP} = 'Населенные пункты тарифного плана';
+$lang{COMPETITORS_TP} = 'Тарифные планы конкурентов';
+$lang{NO_COMPETITOR_SELECTED} = 'Конкурент не выбран';
+$lang{LOCALITIES_CREATED_TP} = 'Населенные пункты можно указать только для уже созданных тарифных планов';
+$lang{COMPETITOR_HAS_NOT_ADDRESS} = 'Конкурент не привязан к адресу';
+
+$lang{CRM_MASS_ADDING} = 'Массовое добавление';
+
+$lang{CRM_MIN_TARIFF_PLANS} = 'Минимальные тарифные планы';
+$lang{CRM_MAX_TARIFF_PLANS} = 'Максимальные тарифные планы';
+$lang{CRM_POPULAR_TARIFF_PLANS} = 'Популярные тарифные планы';
+$lang{CRM_ASSESSMENT} = 'Оценка конкурента';
+
+$lang{CRM_BAD} = 'Плохо';
+$lang{CRM_UNSATISFACTORILY} = 'Неудовлетворительно';
+$lang{CRM_SATISFACTORILY} = 'Удовлетворительно';
+$lang{CRM_GOOD} = 'Хорошо';
+$lang{CRM_IDEALLY} = 'Идеально';
+$lang{CRM_NUMBER_OF_RATINGS} = 'Количество оценок';
+
+$lang{CRM_CHANGED_STEP} = 'Изменено шаг';
+$lang{CRM_VIEWING_INFORMATION} = 'Просмотрено информацию';
+$lang{CRM_RECENT_ACTIVITY} = 'Последние действия';
+
 1

@@ -23,7 +23,7 @@
   <div class='col-md-6'>
     %SELECT%
     <button role='button' class='btn btn-success btn-sm filter-add-btn'>
-      <span class='glyphicon glyphicon-plus'></span>
+      <span class='fa fa-plus'></span>
     </button>
   </div>
 </div>

@@ -1,6 +1,6 @@
-<div class='box'>
-  <div class='box-header'><h4 class='box-title'>_{CONNECT_BY_NUMBER}_</h4></div>
-  <div class='box-body'>
+<div class='card'>
+  <div class='card-header'><h4 class='card-title'>_{CONNECT_BY_NUMBER}_</h4></div>
+  <div class='card-body'>
 
     <div class='form-group' id='cables_chooser'>
       <p>_{CHOOSE}_ _{CABLES}_</p>
@@ -52,8 +52,8 @@
 
 
   </div>
-  <div class='box-footer text-right'>
-    <button type='button' class='btn btn-default' data-dismiss='modal'>_{CANCEL}_</button>
+  <div class='card-footer text-right'>
+    <button type='button' class='btn btn-secondary' data-dismiss='modal'>_{CANCEL}_</button>
     <button type='button' class='btn btn-primary' id='connect_by_numbers_btn'>_{CONNECT}_</button>
   </div>
 </div>

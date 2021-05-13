@@ -12,7 +12,6 @@ our %FUNCTIONS_LIST = (
   "09:7:$lang{TAX_INVOICE}:docs_tax_invoice:COMPANY_ID"      => 13,
   "10:7:$lang{INVOICES}:docs_invoices_list:COMPANY_ID"       => 13,
   "11:10:$lang{ADD}:docs_invoice_company:COMPANY_ID"         => 13,
-  # "11:8:$lang{ADD}:docs_tax_invoice:COMPANY_ID"            => 13,
 
   "12:0:$lang{DOCS}:docs_summary:"                           => 5,
   "13:12:$lang{REGISTRATION}:docs_registration_create"       => 5,
@@ -31,9 +30,6 @@ our %FUNCTIONS_LIST = (
   "25:21:$lang{INVOICES}:docs_invoices_list:"                => 4,
   "26:21:$lang{RECEIPTS}:docs_receipt_list:"                 => 4,
   "27:21:$lang{UNPAID_INVOICES}:docs_unpaid_invoices:"       => 4,
-
-  #                   "13:11:$lang{CONTRACTS}:docs_contractst:"           => 8
-
 );
 
 if (! $conf{DOCS_SKIP_USER_MENU}) {
@@ -46,7 +42,6 @@ if (! $conf{DOCS_SKIP_USER_MENU}) {
     $USER_FUNCTION_LIST{"02:1:$lang{ACTS}:docs_acts_list:"} = 0;
   }
 }
-
 
 %PERIODIC = (monthly   => [ 'docs_unpaid_invoice_del' ] );
 

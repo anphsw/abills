@@ -16,8 +16,6 @@ $lang{DEAR} = 'Dear';
 
 $lang{DEPOSIT_NOTIFY_BEFORE_ABON} = 'Send deposit before abon payment';
 
-$lang{RECOMMENDED_PAYMENT} = 'Recommended payment';
-
 $lang{NEXT_PERIOD_TP} = 'Next period tarif plan';
 $lang{VISUAL} = 'Visual';
 

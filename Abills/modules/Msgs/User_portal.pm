@@ -127,16 +127,16 @@ sub msgs_user_show {
   $Msgs->{PRIORITY_TEXT} = $html->color_mark($priority[ $Msgs->{PRIORITY} ], $priority_colors[ $Msgs->{PRIORITY} ]);
 
   if ($Msgs->{PRIORITY} == 4) {
-    $Msgs->{MAIN_PANEL_COLOR} = 'box-danger';
+    $Msgs->{MAIN_PANEL_COLOR} = 'card-danger';
   }
   elsif ($Msgs->{PRIORITY} == 3) {
-    $Msgs->{MAIN_PANEL_COLOR} = 'box-warning';
+    $Msgs->{MAIN_PANEL_COLOR} = 'card-warning';
   }
   elsif ($Msgs->{PRIORITY} >= 1) {
-    $Msgs->{MAIN_PANEL_COLOR} = 'box-info';
+    $Msgs->{MAIN_PANEL_COLOR} = 'card-info';
   }
   else {
-    $Msgs->{MAIN_PANEL_COLOR} = 'box-primary';
+    $Msgs->{MAIN_PANEL_COLOR} = 'card-primary';
   }
 
   my @REPLIES = ();
@@ -200,10 +200,10 @@ sub msgs_user_show {
 
         $FORM{ID} //= q{};
 
-        my $quoting_button = $html->button(
-          $lang{QUOTING}, "",
-          { class => 'btn btn-default btn-xs quoting-reply-btn', ex_params => "quoting_id='$line->{id}'" }
-        );
+        my $quoting_button = $html->button($lang{QUOTING}, "", {
+          class     => 'btn btn-default btn-xs quoting-reply-btn',
+          ex_params => "quoting_id='$line->{id}'"
+        });
 
         push @REPLIES, $html->tpl_show(
           _include('msgs_reply_show', 'Msgs'),
@@ -214,7 +214,7 @@ sub msgs_user_show {
             CAPTION    => convert($line->{caption}, { text2html => 1, json => $FORM{json} }),
             PERSON     => ($line->{creator_fio} || $line->{creator_id}),
             MESSAGE    => msgs_text_quoting($line->{text}),
-            COLOR      => (($line->{aid} > 0) ? 'box-success' : 'box-theme'),
+            COLOR      => (($line->{aid} > 0) ? 'card-success' : 'card-outline card-success'),
             QUOTING    => $quoting_button,
             ATTACHMENT => $attachment_html,
           },
@@ -449,12 +449,7 @@ sub msgs_user {
       }
     );
 
-    $html->tpl_show(
-      _include('msgs_send_form_user', 'Msgs'),
-      {
-        %$Msgs,
-      }
-    );
+    $html->tpl_show(_include('msgs_send_form_user', 'Msgs'),{ %$Msgs });
   }
 
   if ($FORM{MESSAGE}) {
@@ -479,7 +474,7 @@ sub msgs_user {
   if (! $FORM{sort}){
     $LIST_PARAMS{SORT} = '4, 1';
     delete $LIST_PARAMS{DESC};
-    if(! defined($FORM{STATE})) {
+    if(! defined($FORM{STATE}) && !$FORM{ALL_MSGS}) {
       $LIST_PARAMS{STATE} = '!1,!2';
     }
   }
@@ -534,19 +529,20 @@ sub msgs_user {
   }
   else {
     my $list = $Msgs->messages_list({
-      SUBJECT        => '_SHOW',
-      DATETIME       => '_SHOW',
-      STATE          => '_SHOW',
-      RESPOSIBLE     => '_SHOW',
-      USER_READ      => '_SHOW',
+      SUBJECT          => '_SHOW',
+      LAST_REPLIE_DATE => '_SHOW',
+      DATETIME         => '_SHOW',
+      STATE            => '_SHOW',
+      RESPOSIBLE       => '_SHOW',
+      USER_READ        => '_SHOW',
       %LIST_PARAMS,
-      COLS_NAME      => 1
+      COLS_NAME        => 1
     });
 
     $table = $html->table({
       width   => '100%',
       caption => $lang{MESSAGES},
-      title   => [ '#', $lang{SUBJECT}, $lang{DATE}, $lang{STATUS}, '-' ],
+      title   => [ '#', $lang{SUBJECT}, , $lang{ADDED}, $lang{STATUS}, $lang{LAST_ACTIVITY}, '-' ],
       qs      => $pages_qs,
       pages   => $Msgs->{TOTAL},
       ID      => 'MSGS_LIST',
@@ -565,6 +561,7 @@ sub msgs_user {
         : $html->button($html->b((($line->{subject}) ? "$line->{subject}" : $lang{NO_SUBJECT})), "index=$index&ID=$line->{id}&sid=$sid#last_msg"),
         $line->{datetime},
         $html->color_mark($msgs_status->{ $line->{state} }) . (($line->{resposible} && !$line->{state}) ? " ($lang{TAKEN_TO_WORK})" : ""),
+        $line->{last_replie_date},
         $html->button($lang{SHOW}, "index=$index&ID=$line->{id}&sid=$sid", { class => 'show' })
       );
     }
@@ -583,7 +580,8 @@ sub msgs_user {
           "$lang{OPEN}: " . $html->b($Msgs->{OPEN}),
         ]
       ],
-      ID    => 'MSGS_LIST_TOTAL'
+      ID    => 'MSGS_LIST_TOTAL',
+      OUTPUT2RETURN => 1
     }
   );
   print $table->show();

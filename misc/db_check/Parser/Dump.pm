@@ -295,6 +295,11 @@ sub _parse_columns {
     if (exists $field->{is_auto_increment} && $field->{is_auto_increment}) {
       $type_str .= ' auto_increment';
     }
+
+    if (exists $field->{extra} && exists $field->{extra}{list} && $field->{extra}{list} && ref $field->{extra}{list} eq 'ARRAY') {
+      $type_str = $type . "(\'" . join('\',\'', @{$field->{extra}{list}}) . "\')";
+    }
+
     my %column = (
       Type => lc $type_str,
     );

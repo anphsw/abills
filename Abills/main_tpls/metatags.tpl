@@ -16,11 +16,11 @@
   <meta name='Author' content='~AsmodeuS~'/>
 
   <title>%TITLE% %BREADCRUMB%</title>
-  <link rel="shortcut icon" type="image/png" href="/favicon.ico">
+  <link rel='shortcut icon' type='image/png' href='/favicon.ico'>
   <!-- CSS -->
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/select2.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bootstrap.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/dist/css/AdminLTE.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/dist/css/adminlte.min.css'>
+  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/bs-stepper.min.css'>
 
   <!-- Theme style -->
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/dist/css/skins/_all-skins.css'>
@@ -29,7 +29,6 @@
 
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/pace/pace.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datepicker/datepicker3.css'>
-  <!--<link rel='stylesheet' type='text/css' href='/styles/default_adm/css/chosen.min.css'>-->
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/QBInfo.css'>
 
   <!-- Ionicons -->
@@ -51,8 +50,11 @@
   %PERM_CLASES%
 
   <!-- Bootstrap -->
+  <script src='/styles/default_adm/js/popper.min.js'></script>
   <script src='/styles/default_adm/js/jquery.min.js'></script>
   <script src='/styles/default_adm/js/bootstrap.min.js'></script>
+  <script src='/styles/default_adm/js/bs-stepper.min.js'></script>
+  <script src='/styles/%HTML_STYLE%/dist/js/adminlte.min.js'></script>
 
   <!-- Toggle script -->
   <script src='/styles/default_adm/js/bootstrap2-toggle.min.js'></script>
@@ -73,9 +75,6 @@
 
   <!-- Navigation bar saving show/hide state -->
   <script  src='/styles/default_adm/js/navBarCollapse.js'></script>
-
-  <!-- Custom <select> design -->
-  <!--<script src='/styles/default_adm/js/chosen.jquery.min.js'></script>-->
 
   <!--Javascript template engine-->
   <script src='/styles/default_adm/js/mustache.min.js'></script>
@@ -107,12 +106,6 @@
   <script src='/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.js'></script>
   <script src='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.js'></script>
   <script src='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.js'></script>
-  <!--<script src='/styles/%HTML_STYLE%/plugins/slimScroll/jquery.slimscroll.min.js'></script>-->
-  <!--<script src='/styles/%HTML_STYLE%/plugins/input-mask/jquery.inputmask.js'></script>-->
-  <!--<script src='/styles/%HTML_STYLE%/plugins/input-mask/jquery.inputmask.date.ex ensions.js'></script>-->
-  <!--<script src='/styles/%HTML_STYLE%/plugins/input-mask/jquery.inputmask.extensions.js'></script>-->
-
-  <script src='/styles/%HTML_STYLE%/dist/js/app.js'></script>
 
   <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>
   <script src='/styles/default_adm/js/select2.min.js'></script>
@@ -135,10 +128,8 @@
       allow_single_deselect: true,
       placeholder_text     : '--',
       search_contains: true
-//      width                : '100%',
-//      'min-width'                : '300px'
     };
-    
+
     var DATERANGEPICKER_LOCALE = {
       separator       : '/',
       applyLabel      : '_{APPLY}_',
@@ -156,28 +147,10 @@
 
     var CONTENT_LANGUAGE = '%CONTENT_LANGUAGE%';
 
-    /*
-    AdminLTEOptions = {
-      //BoxRefresh Plugin
-
-      //Bootstrap.js tooltip
-      enableBSToppltip: true,
-
-      sidebarPushMenu: true,
-
-      navbarMenuSlimscroll: true,
-      navbarMenuSlimscrollWidth: '3px', //The width of the scroll bar
-    };
-    */
-
     moment.locale('%CONTENT_LANGUAGE%');
 
     jQuery(function () {
-
-//      jQuery('ul.sidebar-menu').slimScroll({
-//        height: '500px',
-//        width: 'auto'
-//      });
+      if (localStorage.getItem('largeText') && localStorage.getItem('largeText') === 'true') jQuery('body').removeClass('text-sm');
 
       if (!'%FAVICO_DISABLED%' && typeof window['initFavicon'] !== 'undefined'){
         initFavicon();
@@ -196,11 +169,12 @@
 </head>
 <body class='hold-transition
   sidebar-mini
-  $admin->{SETTINGS}{SKIN}
   $admin->{SETTINGS}{FIXED_LAYOUT}
   $admin->{MENU_HIDDEN}
   %SIDEBAR_HIDDEN%
-  $admin->{RIGHT_MENU_OPEN}'>
+  $admin->{RIGHT_MENU_OPEN}
+  $admin->{SETTINGS}{BODY_SKIN}
+  text-sm'>
 <div class='wrapper'>
   %CALLCENTER_MENU%
 
@@ -209,15 +183,15 @@
       <div class='modal-dialog modal-sm'>
         <div class='modal-content'>
           <div id='mHeader' class='modal-header alert-info'>
-            <button type='button' class='close' data-dismiss='modal' aria-hidden='true'>&times;</button>
             <h4 id='mTitle' class='modal-title'>&nbsp;</h4>
+            <button type='button' class='close' data-dismiss='modal' aria-hidden='true'>&times;</button>
           </div>
           <div class='modal-body'>
             <div class='row'>
               <input type='text' class='form-control' id='mInput' placeholder='_{COMMENTS}_'>
             </div>
           </div>
-          <div class='modal-body' id='mInputConfirmHide' style="display: none">
+          <div class='modal-body' id='mInputConfirmHide' style='display: none'>
             <div class='row'>
               <input type='text' class='form-control' id='mInputConfirm' placeholder='_{ENTER_DEL}_: _{DEL}_'>
             </div>

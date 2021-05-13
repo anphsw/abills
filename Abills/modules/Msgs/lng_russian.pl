@@ -1,5 +1,6 @@
 $lang{LOCK} = 'Блокировано';
 $lang{DONE} = 'Выполнено';
+$lang{UNDONE} = 'Не выполнена';
 $lang{EXECUTION} = 'Планируемое Время Выполнения';
 $lang{RESPOSIBLE} = 'Ответственный';
 $lang{HIDE} = 'Скрыто';
@@ -96,7 +97,7 @@ $lang{AUTO_CLOSE} = 'Автоматическое закрытие (дней)';
 $lang{CLOSED_BY_TIME} = "Закрыта по истечению времени";
 $lang{SUBJECT_CHANGED} = "Тема изменена с";
 
-$lang{OPERATOR_STATISTICS} = 'Cтатистика оператора техподдержки';
+$lang{OPERATOR_STATISTICS} = 'Статистика оператора техподдержки';
 $lang{NUMBER_OF_PROCESSED_REQUESTS} = 'Количество обработанных заявок';
 $lang{TIME_SPENT_ON_APPLICATIONS} = 'Время потраченное на заявки';
 $lang{AVERAGE_SCORE_FOR_CLOSED_BIDS} = 'Оценка выполнения (средняя)';
@@ -162,6 +163,7 @@ $lang{BRIGADE}='Бригада';
 $lang{LOCATION_BRIGADE}='Привязать к геоадресу';
 
 $lang{TICKET_REPORT}='Работы над заявками';
+$lang{TICKET_REPORT_BY_ADMINS}='Работы над заявками (по администраторам)';
 $lang{DONE_TICKET}='Выполнено заявок';
 $lang{SPENT_TIME}='Потраченное время';
 $lang{TICKET_SUM}='Сумма заявок';
@@ -170,4 +172,30 @@ $lang{NOT_TURNED_ON}='Модуль не включен';
 $lang{HELPDESK}='Служба поддержки';
 
 $lang{SCRUB_BOX} = 'Бокс сообщений';
+
+$lang{MSGS_TAGS} = 'Метка(и)';
+$lang{PLUGINS} = 'Плагины';
+$lang{MSGS_BEFORE_CREATE} = 'События перед добавлением заявки';
+$lang{MSGS_AFTER_CREATE} = 'События после добавления заявки';
+$lang{MSGS_RIGHT} = 'Плагины в разделе "Управление"';
+$lang{MSGS_BOTTOM} = 'Плагины внизу заявки';
+$lang{MSGS_BEFORE_REPLY} = 'События перед отправкой ответа на зявку';
+$lang{TICKET_INTERACTION_BUTTONS} = 'Кнопки взаимодействия с тикетом';
+$lang{ADDITIONAL_TICKET_INFORMATION} = 'Дополнительная информация о заявке';
+$lang{CHOICE_OF_WORK_ORDER} = 'Возможность выбрать наряд работ';
+$lang{PRINT_TICKER_BUTTON} = 'Кнопка печати заявки';
+$lang{SET_TICKET_TO_THE_TASK_BOARD} = 'Установить заявку на доску задач';
+$lang{ADDING_WORK_ORDER} = 'Добавление наряда работ перед созданием заявки';
+$lang{TICKET_MAIN_INFO} = 'Основная информация по заявке';
+$lang{ADDING_DELIVERY} = 'Добавление рассылки перед созданием заявки';
+$lang{CHECKING_MESSAGE_BY_ADDRESS} = 'Проверка сообщений по адресу';
+$lang{PLUGIN_LOADING_ERROR} = 'Ошибка загрузки плагина';
+$lang{TICKET_DISTRIBUTION_BY_CHAPTER} = 'Распределение заявок в зависимости от раздела';
+
+$lang{PERFORMERS} = 'Исполнители';
+
+$lang{NUMBER_OF_PROCESSED_REQUESTS_IN_THE_CURRENT_MONTH} = 'Количество обработанных заявок в текущем месяце';
+$lang{TIME_SPENT_ON_APPLICATIONS_IN_THE_CURRENT_MONTH} = 'Время потраченное на заявки в текущем месяце';
+$lang{THE_NUMBER_OF_USER_TICKETS_IN_THE_CURRENT_MONTH} = 'Количество пользовательских заявок за текущий месяц и потраченное на них время';
+
 1

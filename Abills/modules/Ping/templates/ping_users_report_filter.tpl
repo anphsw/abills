@@ -3,16 +3,16 @@
 
   <fieldset>
 
-  <div class='box box-theme collapsed-box'>
-        <div class="box-header with-border">
-          <h3 class="box-title"><i class='fa fa-fw fa-filter'></i>_{FILTERS}_</h3>
-          <div class="box-tools pull-right">
-            <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+  <div class='card card-primary card-outline collapsed-box'>
+        <div class="card-header with-border">
+          <h3 class="card-title"><i class='fa fa-fw fa-filter'></i>_{FILTERS}_</h3>
+          <div class="card-tools pull-right">
+            <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i class="fa fa-plus"></i>
             </button>
           </div>
         </div>
 
-        <div class='box-body' style="padding: 0px">
+        <div class='card-body' style="padding: 0px">
 
         <div style="padding: 10px">
 
@@ -43,15 +43,15 @@
             </div>
         </div>
 
-          <div class="box box-theme collapsed-box">
-            <div class="box-header with-border">
-              <h4 class="box-title">_{ADDRESS}_</h4>
-              <div class="box-tools pull-right">
-                <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-plus"></i>
+          <div class="card card-primary card-outline collapsed-box">
+            <div class="card-header with-border">
+              <h4 class="card-title">_{ADDRESS}_</h4>
+              <div class="card-tools pull-right">
+                <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i class="fa fa-plus"></i>
                 </button>
               </div>
             </div>
-            <div class="box-body">
+            <div class="card-body">
               %ADDRESS_FORM%
             </div>
           </div>

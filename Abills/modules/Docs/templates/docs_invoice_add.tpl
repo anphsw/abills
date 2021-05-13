@@ -10,58 +10,62 @@
   <input type=hidden name='SEND_EMAIL' value='1'>
   <input type=hidden name=INCLUDE_DEPOSIT value=1>
 
-  <div class='box box-theme box-big-form'>
-    <div class='box-header with-border'><h4 class='box-title'>%CAPTION%</h4>
-
+  <div class='card container-md'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>%CAPTION%</h4>
       <span class='pull-right'>
         <a href='$SELF_URL?full=1&get_index=docs_invoice_company&UID=%UID%' class='btn btn-xs btn-success' >_{NEXT_PERIOD_INVOICE}_</a>
       </span>
-
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
 
       %FORM_INVOICE_ID%
 
-      <div class='form-group'>
-        <label class='control-label col-md-3' for='DATE'>_{DATE}_</label>
-        <div class='col-md-9'>
-          %DATE_FIELD%
+      <div class="form-group row">
+        <label class="control-label col-sm-12 col-md-3" for='DATE'>_{DATE}_:</label>
+        <div class="col-sm-12 col-md-9">
+          <div class='input-group'>
+            %DATE_FIELD%
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="control-label col-sm-12 col-md-3" for='CUSTOMER'>_{CUSTOMER}_:</label>
+        <div class="col-sm-12 col-md-9">
+          <div class='input-group'>
+            <input type='text' id='CUSTOMER' name='CUSTOMER' value='%CUSTOMER%' placeholder='%CUSTOMER%'
+              class='form-control'>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="control-label col-sm-12 col-md-3" for='PHONE'>_{PHONE}_:</label>
+        <div class="col-sm-12 col-md-9">
+          <div class='input-group'>
+            <input type='text' id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control'>
+          </div>
         </div>
       </div>
 
       <div class='form-group'>
-        <label class='control-label col-md-3' for='CUSTOMER'>_{CUSTOMER}_</label>
-        <div class='col-md-9'>
-          <input type='text' id='CUSTOMER' name='CUSTOMER' value='%CUSTOMER%' placeholder='%CUSTOMER%'
-                 class='form-control'>
-        </div>
-      </div>
-
-      <div class='form-group'>
-        <label class='control-label col-md-3' for='PHONE'>_{PHONE}_</label>
-        <div class='col-md-9'>
-          <input type='text' id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control'>
-        </div>
-      </div>
-
-      <div class='form-group'>
-        <div class="col-md-12">
-          <table class='table table-bordered table-hover' id='tab_logic'>
+          <table class='table table-bordered' id='tab_logic'>
             <thead>
             <tr>
-              <th class='text-center col-md-1'>
+              <th style='width: 10px'>
                 #
               </th>
-              <th class='text-center col-md-5'>
+              <th style='width: 300px'>
                 _{NAME}_
               </th>
-              <th class='text-center col-md-3'>
+              <th style='width: 200px'>
                 _{LIST_OF_CHARGES}_
               </th>
-              <th class='text-center col-md-1'>
+              <th style='width: 75px'>
                 _{COUNT}_
               </th>
-              <th class='text-center col-md-2'>
+              <th style='width: 75px'>
                 _{SUM}_
               </th>
             </tr>
@@ -89,26 +93,22 @@
             <tr id='addr2'></tr>
             </tbody>
           </table>
-          <a id='add_row' class='btn btn-sm btn-default pull-left'>
-            <span class='glyphicon glyphicon-plus'></span>
+          <a id='add_row' class='btn btn-sm btn-secondary pull-left'>
+            <span class='fa fa-plus'></span>
           </a>
-          <a id='delete_row' class='btn btn-sm btn-default pull-right'>
-            <span class='glyphicon glyphicon-minus'></span>
+          <a id='delete_row' class='btn btn-sm btn-secondary pull-right'>
+            <span class='fa fa-minus'></span>
           </a>
-        </div>
+
       </div>
 
     </div>
 
-    <div class='box-footer'><input type=submit name=create value='_{CREATE}_' class='btn btn-primary'></div>
+    <div class='card-footer'><input type=submit name=create value='_{CREATE}_' class='btn btn-primary'></div>
 
   </div>
 
-
-  <!-- <input type=submit name=pre value='_{PRE}_'>  -->
 </form>
-
-<!-- http://bootsnipp.com/snippets/featured/dynamic-table-row-creation-and-deletion -->
 
 <script>
   jQuery(document).ready(function () {
@@ -139,8 +139,6 @@
           var myFeesData = JSON.parse(result);
           jQuery("input#SUM_" + selId).val(myFeesData.SUM);
           jQuery("input#ORDER_" + selId).val(myFeesData.NAME);
-          // console.log(myFeesData.SUM);
-          // console.log(result);
         });
 
       }));

@@ -34,7 +34,14 @@ sub new {
 
 =cut
 sub format() {
-  my ($self, $data, $type) = @_;
+  my ($self, $data, $type, $errno, $errstr) = @_;
+
+  if($errno && $errstr) {
+    return to_json {
+      errno => $errno,
+      errstr => $errstr
+    }
+  }
 
   if(ref $data eq 'ARRAY' || (defined $type && $type eq 'ARRAY')) {
     foreach( @{ $data }) {

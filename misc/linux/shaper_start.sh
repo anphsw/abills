@@ -341,6 +341,13 @@ if [ x"${ACTION}" = xstart ]; then
     ${IPSET} -N allowip iphash
   fi;
 
+  #For neg filter redirect
+  neg_deposit=`${IPSET} -L |grep neg_deposit|sed 's/ //'|awk -F: '{ print $2 }'`
+  if [ x"${neg_deposit}" = x ]; then
+    echo "ADD denyip"
+    ${IPSET} -N neg_deposit iphash
+  fi;
+
   ${IPT} -A FORWARD -m set --match-set allownet src -j ACCEPT
   ${IPT} -A FORWARD -m set --match-set allownet dst -j ACCEPT
   ${IPT} -t nat -A PREROUTING -m set --match-set allownet src -j ACCEPT
@@ -784,7 +791,14 @@ neg_deposit() {
     #iptables -t nat -D PREROUTING -s 10.100.0.0/16 -p tcp -m tcp --dport 80 -j DNAT --to-destination 10.100.1.1:80
     #${IPT} -t nat -A PREROUTING -s ${IP} -p tcp --dport 80 -j REDIRECT --to-ports 80 ${USER_IF} --to-destination ${PORTAL_IP}:80
     ${IPT} -t nat -A PREROUTING -s ${USER_NET} -p tcp --dport 80 -j DNAT ${USER_IF} --to-destination ${PORTAL_IP}:80
+
   done;
+
+  #Ipset redirect
+  ${IPT} -t nat -A PREROUTING -m set --match-set neg_deposit src -p tcp --dport 80 -j DNAT --to-destination ${PORTAL_IP}:80
+  ${IPT} -A FORWARD -m set --match-set neg_deposit src -d ${PORTAL_IP} -j ACCEPT
+  ${IPT} -A FORWARD -m set --match-set neg_deposit src -j DROP
+
 }
 
 

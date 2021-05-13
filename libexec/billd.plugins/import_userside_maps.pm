@@ -38,7 +38,7 @@ Equipment->import();
 my $Equipment = Equipment->new($db, $admin, \%conf);
 
 require Cablecat::Configure;
-require Cablecat::Layers;
+# require Cablecat::Layers;
 require Cablecat::Commutation;
 
 our %date_key_hash;

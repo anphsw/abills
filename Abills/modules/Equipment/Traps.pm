@@ -319,8 +319,8 @@ sub equipment_traps_types {
         color => $lang{COLOR},
       },
       SKIP_USER_TITLE => 1,
-      SELECT_VALUE    => { event => { 0 => " ", 1 => " :glyphicon glyphicon-ok" },
-        skip                     => { 0 => " ", 1 => " :glyphicon glyphicon-ok" },
+      SELECT_VALUE    => { event => { 0 => " ", 1 => " :fa fa-check" },
+        skip                     => { 0 => " ", 1 => " :fa fa-check" },
         type                     => \%types,
         name                     => \%$sel
       },
@@ -376,7 +376,7 @@ sub equipment_traps_types {
               { TYPE => 'checkbox', STATE => $params->[0]->{skip} || undef }) }) .
           label_w_text({ RCOL => 3,
             TEXT              => $html->form_input('SAVE', ($FORM{chg}) ? $lang{CHANGE} : $lang{CREATE}, { TYPE => 'SUBMIT' }) . "	" .
-              $html->button($lang{CANCEL}, "index=$index$pages_qs", { class => "btn btn-default" })
+              $html->button($lang{CANCEL}, "index=$index$pages_qs", { class => "btn btn-secondary" })
           }),
         METHOD  => 'GET',
         HIDDEN  => {

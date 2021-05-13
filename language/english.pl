@@ -266,6 +266,9 @@ $lang{LANGUAGE} = 'Language';
 $lang{LOG} = 'History';
 $lang{SHEDULE} = 'Schedule';
 
+$lang{ERROR_DIR} = 'Cannot open directory:';
+$lang{ERROR_FILE} = "Couldn't open: ";
+
 $lang{ERR_SELECT_TP} = 'Select Tarif Plan';
 $lang{ERR_WRONG_NAME} = 'Wrong name';
 $lang{ERR_ENTER_USER_NAME} = 'Enter user login';
@@ -549,6 +552,7 @@ $lang{GO2PAGE} = 'Page';
 $lang{SECOND_NAME} = 'Alternative name';
 $lang{FOR} = 'for';
 $lang{NEW} = 'New';
+$lang{NEW_MESSAGE}='You\'ve got a new message';
 $lang{IN_WORK} = 'In Work';
 $lang{POLL} = 'Poll';
 $lang{SUCCESS} = 'Success';
@@ -899,5 +903,26 @@ $lang{NOT_DELETED_USERS}='Ignore remote';
 
 $lang{AND}='AND';
 $lang{OR}='OR';
+$lang{PERMISIION_DENIED}='Permission denied';
+$lang{NEG_DEPOSIT} = 'The deposit is too small to use the service.';
+
+$lang{RECOMMENDED_PAYMENT} = 'Recommended payment';
+$lang{PAYMENT_NUMBER} = "Your account number to top up";
+$lang{LAST_PAYMENT_FEE} = "Last payment";
+$lang{MAKE_PAYMENT} = "Top up the account";
+$lang{CONFIRM_PI} = "Confirm personal info";
+
+$lang{CANCEL_SUSPENSION} = "Do you want to cancel suspension";
+$lang{WANT_TO_REGISTER_CURRENT_MAC} = "Do you want to register MAC address of this device";
+
+$lang{UNSAVED_CHANGES} = "You have got unsaved changes";
+$lang{SAVED} = "Saved";
+
+$lang{COMMENTS_DOESNT_EXIST} = "There is no comment";
+
+$lang{YOUR_DEPOSIT} = "Your deposit";
+
+$lang{LARGE_TEXT} = "Large text";
+$lang{DATA_CHANGE} = "Data change";
 
 1;

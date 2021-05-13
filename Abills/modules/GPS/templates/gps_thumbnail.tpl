@@ -1,13 +1,13 @@
-<div class='box box-primary'>
+<div class='card box-primary'>
 
-    <div class='box-header with-border text-center'>
+    <div class='card-header with-border text-center'>
         _{ADMIN}_ _{ICON}_
     </div>
 
-    <div class='box-body text-center' id='DELETE_THUMBNAIL_PANEL_BODY'>
+    <div class='card-body text-center' id='DELETE_THUMBNAIL_PANEL_BODY'>
         <img src='%IMG_PATH%' alt='admin_thumbnail'/>
         <button id='thumbnail_delete_button' class='btn btn-xs btn-danger' data-aid='%AID%' data-index='%DEL_INDEX%'>
-            <span class='glyphicon glyphicon-remove'></span>
+            <span class='fa fa-remove'></span>
         </button>
 
     </div>

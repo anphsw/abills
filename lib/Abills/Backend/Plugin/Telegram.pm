@@ -173,8 +173,13 @@ sub set_timer {
             }
 
             if ($updates->{error_code}) {
-              my $text = $updates->{description} || 'Unknown error';
+              my $text = $updates->{description} || $updates->{error} || 'Unknown error';
               my $code = $updates->{error_code} || '-1';
+
+              # my $debug_info = q{};
+              # foreach my $key ( keys %$updates ) {
+              #   $debug_info .= "$key -> $updates->{$key}\n";
+              # }
 
               $Log->warning("Error on request. $code : $text");
 

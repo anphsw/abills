@@ -1,10 +1,10 @@
 <div class='col-md-6'>
-  <div class='box box-theme form-horizontal'>
-    <div class='box-body'>
+  <div class='card card-primary card-outline form-horizontal'>
+    <div class='card-body'>
       <div class="media">
         <div class="media-left media-middle">
           <a href="#">
-            <img class="img-responsive img-thumbnail" src="%FILE_SRC%" alt="...">
+            <img class="img-fluid img-thumbnail" src="%FILE_SRC%" alt="...">
           </a>
         </div>
       </div>
@@ -22,7 +22,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <div class='checkbox'>
         <label>
           <input type='checkbox' %CHECKED% name=%FILE_NAME%> %FILE_NAME%

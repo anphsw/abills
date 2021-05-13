@@ -1,8 +1,8 @@
-<div class='box box-primary'>
-  <div class='box-header with-border'>
-    <h5 class='box-title'>%NAME%</h5>
+<div class='card box-primary'>
+  <div class='card-header with-border'>
+    <h5 class='card-title'>%NAME%</h5>
   </div>
-  <div class='box-body' style='text-align: left'>
+  <div class='card-body' style='text-align: left'>
     %TPL%
 
 
@@ -17,7 +17,7 @@
 
 </div>
 
-<div class='box-footer'>
+<div class='card-footer'>
   %RUN_TIME% %ATTACHMENT%
   <div class='pull-right'>%QUOTING% %DELETE%</div>
 </div>

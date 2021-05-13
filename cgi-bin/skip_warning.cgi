@@ -16,7 +16,7 @@ SSH_USER=abills_admin
 MYSQL='/usr/local/bin/mysql';
 BILLING_DIR='/usr/abills/';
 VERSION=0.4
-DEBUG="1"
+DEBUG=
 IP="${REMOTE_ADDR}";
 
 #LOG

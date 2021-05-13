@@ -2,11 +2,11 @@
 
   <input type='hidden' name='index' value=$index>
 
-  <div class='box box-primary box-form'>
-    <div class='box-header with-border'>
-      <h4 class='box-title table-caption'>_{BALANCE}_ _{IN_CASHBOX}_</h4>
+  <div class='card box-primary box-form'>
+    <div class='card-header with-border'>
+      <h4 class='card-title table-caption'>_{BALANCE}_ _{IN_CASHBOX}_</h4>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
       <div class='form-group'>
         <label class='col-md-3 control-label'>_{CASHBOX}_</label>
         <div class='col-md-9'>
@@ -32,7 +32,7 @@
       </div>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type='submit' class='btn btn-primary' value='%ACTION_LANG%' name='%ACTION%'>
     </div>
 
@@ -54,11 +54,11 @@
 </div>
 <div class='col-md-4'>
 
-  <div class='box box-primary'>
-    <div class='box-header with-border'>
+  <div class='card box-primary'>
+    <div class='card-header with-border'>
       <div class='row'>
         <div class='col-xs-3'>
-          <i class='glyphicon glyphicon-plus fa-5x'></i>
+          <i class='fa fa-plus fa-5x'></i>
         </div>
         <div class='col-xs-9 text-right'>
           <div style='font-size: 40px'>%TOTAL_COMING%</div>
@@ -68,11 +68,11 @@
   </div>
 </div>
 <div class='col-md-4'>
-  <div class='box box-danger'>
-    <div class='box-header with-border'>
+  <div class='card box-danger'>
+    <div class='card-header with-border'>
       <div class='row'>
         <div class='col-xs-3'>
-          <i class='glyphicon glyphicon-minus fa-5x'></i>
+          <i class='fa fa-minus fa-5x'></i>
         </div>
         <div class='col-xs-9 text-right'>
           <div style='font-size: 40px'>%TOTAL_SPENDING%</div>
@@ -82,8 +82,8 @@
   </div>
 </div>
 <div class='col-md-4'>
-  <div class='box box-success'>
-    <div class='box-header with-border'>
+  <div class='card box-success'>
+    <div class='card-header with-border'>
       <div class='row'>
         <div class='col-xs-3'>
           <i class='fa fa-calculator fa-5x'></i>

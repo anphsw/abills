@@ -2,9 +2,9 @@
 <input type='hidden' name='index' value=$index>
 <input type='hidden' name='ID' value=%ID%>
 
-  <div class='box box-form box-primary'>
-    <div class='box-header with-border'>_{GROUPS}_</div>
-    <div class='box-body'>
+  <div class='card box-form box-primary'>
+    <div class='card-header with-border'>_{GROUPS}_</div>
+    <div class='card-body'>
       <div class='form-group'>
         <label class='control-element col-md-3'>_{GROUP}_</label>
         <div class='col-md-9'>
@@ -26,7 +26,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'>
     </div>
   </div>

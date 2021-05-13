@@ -1,12 +1,12 @@
 <div class='btn-group btn-group-xs'>
   <a role='button' class='btn btn-xs btn-primary' data-toggle='modal' data-target='#info_comments_modal' title='_{ADD}_ _{COMMENTS}_'>
-    <span class='glyphicon glyphicon-plus'></span>
+    <span class='fa fa-plus'></span>
   </a>
 
   <button role='button' class='btn btn-xs btn-success' id='info_comments_refresh'
           data-object_id='%OBJECT_ID%' data-object_type='%TABLE_NAME%'
           data-renews="#commentsBlock" data-source="info_comments_renew" title='_{REFRESH}_'>
-    <span class='glyphicon glyphicon-refresh'></span>
+    <span class='fa fa-refresh'></span>
   </button>
 </div>
 <div class='modal fade' id='info_comments_modal' tabindex='-1' role='dialog'>
@@ -35,7 +35,7 @@
           </div>
         </div>
         <div class='modal-footer'>
-          <button type='button' class='btn btn-default' data-dismiss='modal'>_{CANCEL}_</button>
+          <button type='button' class='btn btn-secondary' data-dismiss='modal'>_{CANCEL}_</button>
           <button type='submit' class='btn btn-primary' id='go'>_{ADD}_</button>
         </div>
       </div><!-- /.modal-content -->

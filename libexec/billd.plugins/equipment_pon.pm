@@ -19,6 +19,8 @@
    FILL_CPE_FROM_NAS_AND_PORT
    SERIAL_SCAN
    SNMP_SERIAL_SCAN_ALL
+   QUERY_OIDS - query only this OIDs
+   TRANSACTION - perform all grabber queries to DB in one transaction
 
 =cut
 
@@ -56,17 +58,16 @@ require Equipment::Grabbers;
 require Equipment::Pon_mng;
 require Equipment::Graph;
 
+our @ONU_ONLINE_STATUSES;
+
 if ($argv->{SERIAL_SCAN}) {
   _scan_mac_serial();
 }
 elsif ($argv->{SNMP_SERIAL_SCAN_ALL}) {
   _scan_mac_serial_on_all_nas();
 }
-elsif ($argv->{CPE_FILL} || $argv->{FORCE_FILL}) {
+elsif ($argv->{CPE_FILL} || $argv->{FORCE_FILL} || $argv->{CPE_CHECK}) {
   _save_port_and_nas_to_internet_main();
-}
-elsif ($argv->{CPE_CHECK}) {
-  _check_port_and_nas_from_internet_main();
 }
 elsif ($argv->{FILL_CPE_FROM_NAS_AND_PORT}) {
   _fill_cpe_from_nas_and_port();
@@ -196,6 +197,10 @@ sub _equipment_pon_load {
       return 0;
     }
 
+    if ($argv->{TRANSACTION}) {
+      $Equipment->{db}->{db}->begin_work();
+    }
+
     my $onu_list_fn = $nas_type . '_onu_list';
 
     if (defined(&{$onu_list_fn})) {
@@ -276,16 +281,16 @@ sub _equipment_pon_load {
         SKIP_DOMAIN=> 1,
         PAGE_ROWS  => 100000,
         ONU_GRAPH  => '_SHOW',
-        COMMENTS   => '_SHOW',
-        STATUS => '_SHOW',
+        STATUS     => '_SHOW',
+        DELETED    => '_SHOW'
       });
 
       my $created_onu = ();
       foreach my $onu (@$onu_database_list) {
         $created_onu->{ $onu->{onu_snmp_id} }->{ONU_GRAPH} = $onu->{onu_graph};
-        $created_onu->{ $onu->{onu_snmp_id} }->{ONU_DESC} = $onu->{comments} || '';
         $created_onu->{ $onu->{onu_snmp_id} }->{ID} = $onu->{id};
         $created_onu->{ $onu->{onu_snmp_id} }->{ONU_STATUS} = $onu->{status};
+        $created_onu->{ $onu->{onu_snmp_id} }->{DELETED} = $onu->{deleted};
       }
 
 
@@ -314,18 +319,6 @@ sub _equipment_pon_load {
             $pon_types_oids{$onu->{PON_TYPE}} = &{\&{$nas_type}}({ TYPE => $onu->{PON_TYPE}, MODEL => ($nas_info->{model_name} || '') });
           }
           my $snmp = $pon_types_oids{$onu->{PON_TYPE}};
-          #          if ($created_onu->{ $onu->{ONU_SNMP_ID} }->{ONU_DESC} && $created_onu->{ $onu->{ONU_SNMP_ID} }->{ONU_DESC} ne $onu->{ONU_DESC}){
-          #            my $set_desc_fn = $nas_type . '_set_desc';
-          #            if ( defined( &{$set_desc_fn} ) ){
-          #              #print "CHANGE $onu->{ONU_SNMP_ID} TYPE: \"$onu->{PON_TYPE}\" DESC: \"$onu->{ONU_DESC}\" OID: \"$snmp->{ONU_DESC}->{OIDS}.$onu->{ONU_SNMP_ID}\"";
-          #              &{ \&$set_desc_fn }({ SNMP_COMMUNITY => $SNMP_COMMUNITY,
-          #                      ONU_ID         => $onu->{ONU_ID},
-          #                      PON_TYPE       => $onu->{PON_TYPE},
-          #                      OID            => $snmp->{ONU_DESC}->{OIDS}.'.'.$onu->{ONU_SNMP_ID},
-          #                      DESC           => $created_onu->{ $onu->{ONU_SNMP_ID} }->{ONU_DESC}
-          #                  });
-          #            }
-          #          }
           my @onu_graph_types = split(',', $created_onu->{ $onu->{ONU_SNMP_ID} }->{ONU_GRAPH});
           foreach my $graph_type (@onu_graph_types) {
             my @onu_graph_data = ();
@@ -345,7 +338,13 @@ sub _equipment_pon_load {
               if ($debug > 3) {
                 print "NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => " . join(',', @onu_graph_data) . " STEP => ". ($argv->{STEP} || '300'). "\n";
               }
-              add_graph({ NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300' });
+              eval {
+                add_graph({ NAS_ID => $nas_id, PORT => $onu->{ONU_SNMP_ID}, TYPE => $graph_type, DATA => \@onu_graph_data, STEP => $argv->{STEP} || '300' });
+              };
+              if ( $@ ){
+                print "Failed to update RRD database:\n";
+                print $@;
+              }
             }
           }
 
@@ -395,14 +394,13 @@ sub _equipment_pon_load {
       my $time;
 
       foreach my $snmp_id (keys %{$created_onu}) {
-        $time = check_time() if ($debug > 2);
-        print "UPDATE EXPIRED ONU." if ($debug > 2);
-        if ($created_onu->{ $snmp_id }->{ONU_STATUS} && $created_onu->{ $snmp_id }->{ONU_STATUS} > 0) {
+        if (!$created_onu->{ $snmp_id }->{DELETED}) {
+          $time = check_time() if ($debug > 2);
           $Equipment->onu_change({
             ID         => $created_onu->{ $snmp_id }->{ID},
-            ONU_STATUS => 2,
             DELETED    => 1
           });
+          print "UPDATE EXPIRED ONU." if ($debug > 2);
           print " " . gen_time($time) . "\n" if ($debug > 2);
         }
       }
@@ -430,6 +428,10 @@ sub _equipment_pon_load {
         $Equipment->onu_change({ MULTI_QUERY => \@MULTI_QUERY });
         print " " . gen_time($time) . "\n" if ($debug > 2);
       }
+    }
+
+    if ($argv->{TRANSACTION}) {
+      $Equipment->{db}->{db}->commit();
     }
   }
 
@@ -697,37 +699,61 @@ sub _scan_mac_serial_on_all_nas {
 #**********************************************************
 sub _save_port_and_nas_to_internet_main {
   require Internet;
-  my $onu_list = $Equipment->onu_and_internet_cpe_list({NAS_IDS => $argv->{NAS_IDS}});
+  my $onu_list = $Equipment->onu_and_internet_cpe_list({NAS_IDS => $argv->{NAS_IDS}, DELETED => 0});
   my $Internet = Internet->new($db, $Admin, \%conf);
-  foreach my $line (@$onu_list) {
-    if (($argv->{FORCE_FILL} || !$line->{user_port} || !$line->{user_nas}) && ($line->{onu_nas})) {
-      $Internet->change({
-        UID    => $line->{uid},
-        ID     => $line->{service_id},
-        NAS_ID => $line->{onu_nas},
-        PORT   => $line->{onu_port},
-      });
-      print "User:$line->{uid} add port ($line->{onu_port}) and nas ($line->{onu_nas})\n";
-    }
+
+  my $check_mode = $argv->{CPE_CHECK} && !$argv->{CPE_FILL} && !$argv->{FORCE_FILL};
+
+  my %onus_by_uid;
+  foreach my $onu (@$onu_list) {
+    push @{$onus_by_uid{$onu->{uid}}}, $onu;
   }
 
-  return 1;
-}
+  foreach my $uid (keys %onus_by_uid) {
+    my @uid_onu_list = @{$onus_by_uid{$uid}};
+    my $onu_to_set = $uid_onu_list[0];
 
-#**********************************************************
-=head2 _check_port_and_nas_in_internet_main()
+    if (($check_mode || $argv->{FORCE_FILL} || !$onu_to_set->{user_port} || !$onu_to_set->{user_nas}) && ($onu_to_set->{onu_nas})) {
+      if (scalar @uid_onu_list > 1) {
+        print "WARNING: there are more than one ONU with MAC $onu_to_set->{cpe}\n";
 
-=cut
-#**********************************************************
-sub _check_port_and_nas_from_internet_main {
-  my $onu_list = $Equipment->onu_and_internet_cpe_list();
-  foreach my $line (@$onu_list) {
-    if ($line->{onu_port} ne $line->{user_port}) {
-      $line->{onu_port} //= '';
-      print "User:$line->{uid},  port does not match user_port:'$line->{user_port}'/onu_port:'$line->{onu_port}'\n";
-    }
-    if ($line->{onu_nas} ne $line->{user_nas}) {
-      print "User:$line->{uid},  nas does not match user_nas:'$line->{user_nas}'/onu_nas:'$line->{onu_nas}'\n";
+        my @online_uid_onu_list = grep { in_array($_->{onu_status}, \@ONU_ONLINE_STATUSES) } @uid_onu_list;
+        if (scalar @online_uid_onu_list == 1) {
+          $onu_to_set = $online_uid_onu_list[0];
+          if ($onu_to_set->{user_nas} ne $onu_to_set->{onu_nas} || $onu_to_set->{user_port} ne $onu_to_set->{onu_port}) {
+            print "Changing user's ONU to online one\n" if (!$check_mode);
+          }
+          else {
+            print "Not changing user's ONU (User:$onu_to_set->{uid})\n" if (!$check_mode);
+            next;
+          }
+        }
+        else {
+          print "Not changing user's ONU (User:$onu_to_set->{uid})\n" if (!$check_mode);
+          next;
+        }
+      }
+
+      if ($onu_to_set->{user_nas} ne $onu_to_set->{onu_nas} || $onu_to_set->{user_port} ne $onu_to_set->{onu_port}) {
+        if ($check_mode) {
+          if ($onu_to_set->{onu_port} ne $onu_to_set->{user_port}) {
+            $onu_to_set->{onu_port} //= '';
+            print "User:$onu_to_set->{uid},  port does not match user_port:'$onu_to_set->{user_port}'/onu_port:'$onu_to_set->{onu_port}'\n";
+          }
+          if ($onu_to_set->{onu_nas} ne $onu_to_set->{user_nas}) {
+            print "User:$onu_to_set->{uid},  nas does not match user_nas:'$onu_to_set->{user_nas}'/onu_nas:'$onu_to_set->{onu_nas}'\n";
+          }
+        }
+        else {
+          $Internet->change({
+            UID    => $onu_to_set->{uid},
+            ID     => $onu_to_set->{service_id},
+            NAS_ID => $onu_to_set->{onu_nas},
+            PORT   => $onu_to_set->{onu_port},
+          });
+          print "User:$onu_to_set->{uid} add port ($onu_to_set->{onu_port}) and nas ($onu_to_set->{onu_nas})\n";
+        }
+      }
     }
   }
   return 1;

@@ -4,11 +4,11 @@
   <input type="hidden" name="ID" value="%ID%">
   <input type="hidden" name="UID" value="%UID%">
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'>
-      <h4 class='box-title'>_{CHANGE}_</h4>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>_{CHANGE}_</h4>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
       <div class='form-group'>
         <label class='control-label col-md-4 col-sm-3' for="COMMENTS_OLD">_{OLD}_ _{COMMENTS}_:</label>
         <div class='col-md-8 col-sm-9'>

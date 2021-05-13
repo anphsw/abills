@@ -28,13 +28,13 @@
     <input type='hidden' name='OP_SID' value='%OP_SID%' ID=OP_SID>
     <input type='hidden' name='sid' value='$sid'>
     <input type='hidden' name='SUM' value='' ID='SUM'>
-    <div class='box box-form box-primary form-horizontal'>
-        <div class='box-header with-border'>
-            <h4 class='box-title'>
+    <div class='card box-form box-primary form-horizontal'>
+        <div class='card-header with-border'>
+            <h4 class='card-title'>
                 _{ICARDS}_
             </h4>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='col-md-4 col-sm-3 control-label'>_{COUNT}_:</label>
                 <div class='col-md-8 col-sm-9'>
@@ -48,7 +48,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input class='btn btn-primary center-block' type='submit' name='add' value='_{ADD}_' onclick=\"make_unique(this.form)\">
         </div>
     </div>

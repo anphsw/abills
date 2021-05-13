@@ -104,6 +104,11 @@ $lang{ERROR_SHOW_CHANNELS} = "Ошибка показа каналов";
 
 $lang{GET_LOGIN_AND_PASSWD} = "Отримати логін та пароль";
 
-$lang{TARIF_PLAN} = 'Тарифний план';
+$lang{TP_NOT_FOUND} = "Тарифних планів не знайдено";
+$lang{FILTER_ID_EMPTY} = "Поле 'Filter_id' порожнє";
+$lang{IPTV_USER_NOT_FOUND} = "Користувач не знайдений";
+$lang{IPTV_ERROR_CREATING_USER} = "Помилка при створенні користувача";
+$lang{IPTV_ERROR_ADDING_TP} = "Помилка при додаванні ТП";
+$lang{IPTV_ERROR_DEL_TP} = "Помилка видалення тарифного плану";
 
 1;

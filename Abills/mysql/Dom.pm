@@ -123,7 +123,8 @@ sub users_online_by_builds {
   my $online_list = $self->query2("SELECT b.id AS id, u.uid, u.fio, i.status, b.number
     FROM internet_online AS i
     LEFT JOIN users_pi u ON (u.uid=i.uid)
-    LEFT JOIN builds AS b ON (b.id=u.location_id);",
+    LEFT JOIN builds AS b ON (b.id=u.location_id)
+    GROUP BY u.uid;",
     undef, { COLS_NAME => 1 }
   );
 

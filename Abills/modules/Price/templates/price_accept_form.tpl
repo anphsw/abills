@@ -6,20 +6,20 @@
     <input type='hidden' name='LINK_FORM' value='%LINK_FORM%'>
 
 
-    <div class='box box-primary'>
-        <div class='box-header with-border'>
-            <h3 class='box-title'>
+    <div class='card box-primary'>
+        <div class='card-header with-border'>
+            <h3 class='card-title'>
                 <div class='row'>
                     <div class='col-md-12 col-md-offset-1'>
                         <h2><span class='fa fa-fw fa-wrench'></span>_{PRICE_SUPPORT}_</h2>
                     </div>
                 </div>
             </h3>
-            <div class='box-tools'>
-                <h3 id="total_sum"><strong>_{TOTAL}_: %SUMM%<span class='glyphicon glyphicon-usd'></span></strong></h3>
+            <div class='card-tools'>
+                <h3 id="total_sum"><strong>_{TOTAL}_: %SUMM%<span class='fa fa-usd'></span></strong></h3>
             </div>
         </div>
-        <div class="box-body">
+        <div class="card-body">
             <div class="form-group">
                 <label class="col-md-1 control-element" for="E_MAIL">E-mail:</label>
                 <div class="col-md-3">
@@ -33,11 +33,11 @@
             </div>
         </div>
         <div class="container">
-            <div class="box box-info ">
-                <div class="box-header with-border">
-                    <h2 class="box-title">_{GENERAL_INFORMATION}_</h2>
+            <div class="card box-info ">
+                <div class="card-header with-border">
+                    <h2 class="card-title">_{GENERAL_INFORMATION}_</h2>
                 </div>
-                <div class="box-body">
+                <div class="card-body">
                     <div class="form-group">
                         <label class="col-md-3 control-element"
                                for="BILLING_SYSTEM">_{BILLING_OPERATION_SYSTEM}_:</label>
@@ -80,11 +80,11 @@
 
             %PANEL%
 
-            <div class="box box-info ">
-                <div class="box-header with-border">
-                    <h2 class="box-title">_{SSL_CERTIFICATES}_</h2>
+            <div class="card box-info ">
+                <div class="card-header with-border">
+                    <h2 class="card-title">_{SSL_CERTIFICATES}_</h2>
                 </div>
-                <div class="box-body">
+                <div class="card-body">
                     <div class="form-group">
                         <label class="col-md-3 control-element" for="COUNTRY_NAME">_{COUNTRY}_:</label>
                         <div class="col-md-6">
@@ -161,11 +161,11 @@
                 </div>
             </div>
 
-            <div class="box box-info ">
-                <div class="box-header with-border">
-                    <h2 class="box-title">_{ORGANIZATION_INFORMATION}_</h2>
+            <div class="card box-info ">
+                <div class="card-header with-border">
+                    <h2 class="card-title">_{ORGANIZATION_INFORMATION}_</h2>
                 </div>
-                <div class="box-body">
+                <div class="card-body">
                     <div class="form-group">
                         <label class="col-md-3 control-element" for="COMPANY_NAME">_{ORGANIZATION_NAME}_:</label>
                         <div class="col-md-6">
@@ -206,11 +206,11 @@
             </div>
             <br>
 
-            <div class="box box-info ">
-                <div class="box-header with-border">
-                    <h2 class="box-title">_{INFORMATION_FOR_ACCESS}_:</h2>
+            <div class="card box-info ">
+                <div class="card-header with-border">
+                    <h2 class="card-title">_{INFORMATION_FOR_ACCESS}_:</h2>
                 </div>
-                <div class="box-body">
+                <div class="card-body">
                     <div class="form-group">
                         <label class="col-md-3 control-element" for="IP_ADDRESS">IP:</label>
                         <div class="col-md-6">
@@ -243,11 +243,11 @@
                     <br>
                 </div>
             </div>
-            <div class="box box-info ">
-                <div class="box-header with-border">
-                    <h2 class="box-title">_{ADDITIONAL_INFORMATION}_:</h2>
+            <div class="card box-info ">
+                <div class="card-header with-border">
+                    <h2 class="card-title">_{ADDITIONAL_INFORMATION}_:</h2>
                 </div>
-                <div class="box-body">
+                <div class="card-body">
                     <div class="form-group">
                         <label class="col-md-3 control-element" for="PAYMENT_SYS">_{PAYMENT_SYSTEM}_:</label>
                         <div class="col-md-9">
@@ -264,7 +264,7 @@
                     </div>
                 </div>
             </div>
-            <div class='box-footer'>
+            <div class='card-footer'>
                 <row>
                     <div class='col-md-3'>
                         <button class='btn btn-block btn-primary' type='submit' value='_{CANCEL}_'>_{CANCEL}_</button>

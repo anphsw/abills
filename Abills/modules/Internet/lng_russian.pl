@@ -22,4 +22,11 @@ $lang{TURBO}='Турбо';
 $lang{QUOTA}='Квота';
 
 $lang{NAS_AND_PORT_ALREADY_USE} = 'Сервер доступа и Порт уже используются';
+
+$lang{RELOAD_EQUIPMENT_INFO} = 'Перезагрузить информацию про оборудование';
+
+$lang{USERS_OUTFLOW} = 'Отток пользователей';
+$lang{TOTAL_USERS} = 'Общее количество пользователей';
+$lang{ONE_MONTH_DEBS}='Один месяц долга';
+
 1;

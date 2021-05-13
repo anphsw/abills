@@ -11,7 +11,7 @@
     <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"></span>
 
 
-    <div class='box-footer'>
+    <div class='card-footer'>
         <input type='submit' name='add' value='_{ADD}_' ID='add' class='btn btn-primary'>
     </div>
 </form>

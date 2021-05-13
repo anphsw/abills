@@ -547,7 +547,7 @@ sub wordpress_export_dv_tariffs {
         $tarif->{tp_group_name} || q{},
           ($tarif->{comments}) ? $html->element( 'abbr', $lang{DESCRIBE}, {
               'data-tooltip'          => $tarif->{comments},
-              'data-tooltip-position' => 'auto bottom'
+              'data-tooltip-position' => 'bottom'
             }
           )                    : '',
       );

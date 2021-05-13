@@ -97,6 +97,7 @@ sub info {
       e.*,
       ek.api_id,
       ek.kkt_group,
+      ek.aid,
       p.sum,
       p.uid,
       IF(ucp.value IS NULL, pi.phone,  ucp.value) AS phone,
@@ -124,8 +125,8 @@ sub add {
   my $self = shift;
   my ($payment_id, $api) = @_;
   
-  $self->query("INSERT INTO extreceipts (payments_id, api) 
-      VALUES (?, ?);",
+  $self->query('INSERT INTO extreceipts (payments_id, api)
+      VALUES (?, ?);',
     'do',
     { Bind => [ $payment_id, $api ] }
   );
@@ -142,7 +143,7 @@ sub get_new_payments {
   my $self = shift;
   my ($start_id) = @_;
 
-  $self->query("SELECT id FROM payments ORDER BY id DESC LIMIT 1;",
+  $self->query('SELECT id FROM payments ORDER BY id DESC LIMIT 1;',
     undef,
     { }
   );
@@ -158,6 +159,7 @@ sub get_new_payments {
 
   my $CASE = "CASE\n";
   foreach my $kkt (@$kkt_list) {
+    print "// if (!$kkt->{methods}) { //zzzzzzzzz\n";
     if (!$kkt->{methods}) {
       next;
     }
@@ -167,16 +169,24 @@ sub get_new_payments {
     else {
       $CASE .= "WHEN p.method IN ($kkt->{methods}) AND u.gid IN ($kkt->{groups}) THEN $kkt->{kkt_id}\n";
     }
+
+    if($kkt->{aid} > 0){
+      $CASE .= "WHEN p.aid IN ($kkt->{aid}) THEN $kkt->{kkt_id}\n";
+    }
+    else{
+      next;
+    }
+
   }
   $CASE .= "ELSE 0\nEND as kkt_id\n";
 
-  $self->query("INSERT INTO extreceipts (payments_id, kkt_id) 
-      SELECT p.id, $CASE 
+  $self->query('INSERT INTO extreceipts (payments_id, kkt_id)
+      SELECT p.id, '. $CASE .'
       FROM payments p
       LEFT JOIN users u ON (u.uid = p.uid)
       WHERE p.id NOT IN (SELECT payments_id FROM extreceipts)
       AND p.id > ? AND p.id <= ? 
-      HAVING kkt_id > 0;",
+      HAVING kkt_id > 0;',
     'do',
     { Bind => [ $start_id, $last_id ] }
   );

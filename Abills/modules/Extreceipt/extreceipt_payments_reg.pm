@@ -61,6 +61,7 @@ foreach my $line (@$api_list) {
   }) {
     $Receipt_api->{$line->{api_id}} = $api_name->new(\%conf, $line);
     $Receipt_api->{$line->{api_id}}->{debug} = 1 if ($debug);
+    Abills::Base::_bp('', $Receipt_api->{$line->{api_id}}->init(),{HEADER=>1, TO_CONSOLE=>1});
     if (!$Receipt_api->{$line->{api_id}}->init()) {
       $Receipt_api->{$line->{api_id}} = ();
     }
@@ -69,6 +70,7 @@ foreach my $line (@$api_list) {
     print $@;
     $Receipt_api->{$line->{api_id}} = ();
   }
+
 }
 
 my %params = ( PAGE_ROWS => 9999 );
@@ -139,6 +141,7 @@ sub send_payments {
   });
 
   foreach my $line (@$list) {
+    Abills::Base::_bp('', $Receipt_api->{$line->{api_id}}, {HEADER=>1});
     next if (!$Receipt_api->{$line->{api_id}});
     $line->{phone} =~ s/[^0-9\+]//g;
     if (!$line->{mail} && !$line->{phone}) {
@@ -203,9 +206,10 @@ sub check_receipts {
       print "\n";
       next;
     }
-
     next if (!$Receipt_api->{$line->{api_id}});
     my $Receipt_info = $Receipt_api->{$line->{api_id}};
+
+    Abills::Base::_bp('CHECK', $Receipt_info, {HEADER=>1, TO_CONSOLE=>1});
     # next if ($line->{api_name} eq 'Atol');
     my ($fdn, $fda, $date, $payments_id, $error) = $Receipt_info->get_info($line);
     $payments_id ||= $line->{payments_id};

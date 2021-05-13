@@ -58,6 +58,8 @@ sub new {
     $self->{db2} = $sql->{db};
   }
 
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
+
   $self->{TRAFFIC_ROWS} = 0;
   $Billing = Billing->new($self->{db}, $CONF);
   return $self;

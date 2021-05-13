@@ -92,27 +92,30 @@ sub ti_list {
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : "2, 3";
   my $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
+
   if ($SORT eq '1') { $SORT = "2, 3"; }
+
   my $begin_end = "i.begin, i.end,";
   my $TP_ID     = $self->{TP_ID} || $attr->{TP_ID};
 
-  #if (defined($attr->{TP_ID})) {
   if ($attr->{SHOW_INTERVAL_SEC}) {
     $begin_end = "TIME_TO_SEC(i.begin) AS begin_sec, TIME_TO_SEC(i.end) AS end_sec, ";
     $TP_ID     = $attr->{TP_ID};
   }
 
-  $self->query("SELECT i.id, i.day, $begin_end
-   i.tarif,
-   COUNT(tt.id) AS traffic_classes,
-   i.id
-   FROM intervals i
-   LEFT JOIN  trafic_tarifs tt ON (tt.interval_id=i.id)
-   WHERE i.tp_id='$TP_ID'
-   GROUP BY i.id
-   ORDER BY $SORT $DESC",
-   undef,
-   $attr
+  $self->query("SELECT i.id,
+      i.day,
+      $begin_end
+      i.tarif,
+      COUNT(tt.id) AS traffic_classes,
+      i.id
+    FROM intervals i
+    LEFT JOIN trafic_tarifs tt ON (tt.interval_id=i.id)
+    WHERE i.tp_id='$TP_ID'
+    GROUP BY i.id
+    ORDER BY $SORT $DESC",
+    undef,
+    $attr
   );
 
   return $self->{list};
@@ -597,11 +600,11 @@ sub info {
   }
 
   $self->query("SELECT *,
-      postpaid_daily_fee AS postpaid_day_fee, 
-      postpaid_monthly_fee AS postpaid_month_fee, 
-      logins AS SIMULTANEOUSLY, 
-      activate_price AS activ_price, 
-      uplimit AS alert, 
+      postpaid_daily_fee AS postpaid_day_fee,
+      postpaid_monthly_fee AS postpaid_month_fee,
+      logins AS SIMULTANEOUSLY,
+      activate_price AS activ_price,
+      uplimit AS alert,
       gid AS tp_gid,
       next_tp_id AS next_tarif_plan
     FROM tarif_plans
@@ -659,8 +662,10 @@ sub list {
     [ 'DAY_FEE',             'INT', 'tp.day_fee',                  1 ],
     [ 'ACTIVE_DAY_FEE',      'INT', 'tp.active_day_fee',           1 ],
     [ 'POSTPAID_DAY_FEE',    'INT', 'tp.postpaid_daily_fee',       1 ],
+    [ 'POSTPAID_DAILY_FEE',    'INT', 'tp.postpaid_daily_fee',       1 ],
     [ 'MONTH_FEE',           'INT', 'tp.month_fee',                1 ],
     [ 'POSTPAID_MONTH_FEE',  'INT', 'tp.postpaid_monthly_fee',     1 ],
+    [ 'POSTPAID_MONTHLY_FEE',  'INT', 'tp.postpaid_monthly_fee',     1 ],
     [ 'PERIOD_ALIGNMENT',    'INT', 'tp.period_alignment',         1 ],
     [ 'ABON_DISTRIBUTION',   'INT', 'tp.abon_distribution',        1 ],
     [ 'FIXED_FEES_DAY',      'INT', 'tp.fixed_fees_day',           1 ],
@@ -698,6 +703,7 @@ sub list {
     [ 'DOMAIN_ID',           'INT', 'tp.domain_id',                1 ],
     [ 'EXT_BILL_ACCOUNT',    'INT', 'tp.ext_bill_account',         1 ],
     [ 'INNER_TP_ID',         'INT', 'tp.tp_id',                    1 ],
+    [ 'TP_ID_',              'INT', 'tp.tp_id', 'tp.tp_id AS tp_id_' ],
     [ 'MODULE',              'STR', 'tp.module',                   1 ],
     [ 'IN_SPEED',            'INT', 'tt.in_speed',                 1 ],
     [ 'OUT_SPEED',           'INT', 'tt.out_speed',                1 ],
@@ -715,11 +721,10 @@ sub list {
     map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
   }
 
-  my $WHERE =  $self->search_former($attr, $search_columns,
-    { WHERE => 1,
-    	WHERE_RULES => \@WHERE_RULES
-    }
-  );
+  my $WHERE =  $self->search_former($attr, $search_columns, {
+    WHERE => 1,
+    WHERE_RULES => \@WHERE_RULES
+  });
 
   my $fields = '';
 
@@ -727,8 +732,8 @@ sub list {
     $fields = "IF(SUM(i.tarif) is null or sum(i.tarif)=0, 0, 1) AS time_tarifs,
     IF(SUM(tt.in_price + tt.out_price)> 0, 1, 0) AS traf_tarifs,
     tp.payment_type,
-    tp.day_fee, tp.month_fee, 
-    tp.logins, 
+    tp.day_fee, tp.month_fee,
+    tp.logins,
     tp.age,
     tp_g.name AS tp_group_name,
     tp.rad_pairs,
@@ -739,11 +744,11 @@ sub list {
     tp.credit,
     tp.min_use,
     tp.abon_distribution,
-   ";
+    ";
   }
 
   $self->query("SELECT tp.id,
-    tp.name, 
+    tp.name,
     $fields
     $self->{SEARCH_FIELDS}
     tp.small_deposit_action,
@@ -1258,26 +1263,120 @@ sub tp_geo_list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
+  my $EXT_TABLE = '';
+  my $EXT_COLUMNS = '';
+  my @WHERE_RULES = ();
+
+  if ($attr->{EMPTY_GEOLOCATION}) {
+    push @WHERE_RULES, "tpg.tp_gid IS NULL";
+    $EXT_TABLE .= 'INNER JOIN tp_groups g ON (tpg.tp_gid=g.id)';
+    $EXT_COLUMNS .= ', g.id AS gid';
+  }
+
   my $WHERE = $self->search_former($attr, [
-    [ 'TP_GID', 'INT', 'tpg.tp_gid', 1 ],
-    [ 'STREET_ID', 'INT', 'tpg.street_id', 1 ],
-    [ 'BUILD_ID', 'INT', 'tpg.build_id', 1 ],
+    [ 'TP_GID',      'INT', 'tpg.tp_gid',      1 ],
+    [ 'STREET_ID',   'INT', 'tpg.street_id',   1 ],
+    [ 'BUILD_ID',    'INT', 'tpg.build_id',    1 ],
     [ 'DISTRICT_ID', 'INT', 'tpg.district_id', 1 ],
-  ],
-    { WHERE       => 1,
-    });
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   $self->query(
-    "SELECT   tpg.tp_gid,
-              tpg.street_id,
-              tpg.build_id,
-              tpg.district_id
-              FROM tp_geolocation AS tpg
-              $WHERE
-              ORDER BY $SORT $DESC;", undef, $attr
+    "SELECT tpg.tp_gid, tpg.street_id, tpg.build_id, tpg.district_id $EXT_COLUMNS FROM tp_geolocation AS tpg
+    $EXT_TABLE
+    $WHERE
+    ORDER BY $SORT $DESC;", undef, $attr
   );
 
   return $self->{list};
 }
+
+#*******************************************************************
+=head2 add_tp_group_users_groups($attr) -
+
+  Arguments:
+    %$attr
+      NAME             - position's name;
+
+  Returns:
+    $self object
+
+=cut
+#*******************************************************************
+sub add_tp_group_users_groups {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('tp_groups_users_groups', { %$attr });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 del_tp_group_users_groups() -
+
+  Arguments:
+    $attr
+
+  Returns:
+
+=cut
+#*******************************************************************
+sub del_tp_group_users_groups {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('tp_groups_users_groups', undef, { tp_gid => $attr->{TP_GID} });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 tp_group_users_groups_info() - get geo list
+
+  Arguments:
+    $attr
+  Returns:
+    @list
+
+=cut
+#**********************************************************
+sub tp_group_users_groups_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $GROUP_BY = ($attr->{GROUP_BY}) ? $attr->{GROUP_BY} : 'GROUP BY tpug.id';
+
+  my $EXT_TABLE = '';
+  my $EXT_COLUMNS = '';
+  my @WHERE_RULES = ();
+
+  if ($attr->{EMPTY_GROUP}) {
+    push @WHERE_RULES, "tpug.tp_gid IS NULL";
+    $EXT_TABLE .= 'INNER JOIN tp_groups g ON (tpug.tp_gid=g.id)';
+    $EXT_COLUMNS .= ', g.id AS g_gid';
+  }
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'TP_GID',  'INT', 'tpug.tp_gid',                                      1 ],
+    [ 'TP_GID2', 'INT', 'g.id',                                             1 ],
+    [ 'GID',     'INT', 'tpug.gid',                                         1 ],
+    [ 'TP_GIDS', 'INT', 'GROUP_CONCAT(DISTINCT tpug.tp_gid) AS tp_gids',    1 ],
+    [ 'GIDS',    'INT', 'GROUP_CONCAT(DISTINCT tpug.gid) AS gids',          1 ],
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
+
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} tpug.id $EXT_COLUMNS
+    FROM tp_groups_users_groups tpug
+    $EXT_TABLE
+    $WHERE
+    $GROUP_BY
+    ORDER BY $SORT $DESC;", undef, $attr
+  );
+
+  return $self->{list};
+}
+
 
 1

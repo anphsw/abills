@@ -1,8 +1,8 @@
-<div class='box box-primary'>
-    <div class='box-header with-border'>
-        <h3 class="box-title">_{BONUS}_</h3>
+<div class='card box-primary'>
+    <div class='card-header with-border'>
+        <h3 class="card-title">_{BONUS}_</h3>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
         <div class='row'>
             <label class='control-label col-md-3'>%TOTAL_PAYMENT%</label>
         </div>

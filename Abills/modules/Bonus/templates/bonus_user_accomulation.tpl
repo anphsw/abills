@@ -4,11 +4,11 @@
     <input type='hidden' name='UID' value='$FORM{UID}'>
     <input type='hidden' name='sid' value='$sid'>
 
-    <div class='box box-primary'>
-        <div class='box-header with-border'>
-            <h3 class='box-title'>_{ACCOUMULATION}_ _{BONUS}_</h3>
+    <div class='card box-primary'>
+        <div class='card-header with-border'>
+            <h3 class='card-title'>_{ACCOUMULATION}_ _{BONUS}_</h3>
         </div>
-        <div class='box-body form form-horizontal'>
+        <div class='card-body form form-horizontal'>
             <div class='form-group'>
                 <label class='col-md-3'>%TARIF_SEL_NAME%</label>
 
@@ -39,7 +39,7 @@
                 </div>
             </div>
 
-            <div class='box-footer'>
+            <div class='card-footer'>
                 %ACTION%
             </div>
         </div>

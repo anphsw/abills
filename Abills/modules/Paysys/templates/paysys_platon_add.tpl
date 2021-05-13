@@ -9,11 +9,11 @@
   <input type='hidden' name='commission' value=%COMMISSION%>
 
   <div class='container-fluid'>
-    <div class='box box-primary'>
-      <div class='box-header with-border text-center'>
-        <h4 class='box-title'>Platon</h4>
+    <div class='card box-primary'>
+      <div class='card-header with-border text-center'>
+        <h4 class='card-title'>Platon</h4>
       </div>
-      <div class='box-body'>
+      <div class='card-body'>
 
         <div class='form-group text-center'>
           <img
@@ -43,7 +43,7 @@
 
 
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input class='btn btn-primary' type='submit' value='_{PAY}_'>
       </div>
 

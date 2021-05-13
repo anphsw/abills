@@ -13,13 +13,13 @@
 	<label class='control-label'>SQL QUERY:</label>
 	<textarea name='QUERY' cols=70 rows=10 onkeydown='keyDown(event)' onkeyup='keyUp(event)' class='form-control'>%QUERY%</textarea>	
 </div>
-<div class='form-group'>
+<div class='form-group row'>
 	<label class='control-label col-md-2'>_{ROWS}_:</label>
 	<div class='col-md-2'><input type=text class='form-control' name='ROWS' value='%ROWS%'></div>
-	<label class='control-label col-md-3'>_{SAVE}_:<input type=checkbox name='HISTORY' value='1'></label>
+	<label class='control-label col-md-3'>_{SAVE}_: <input type=checkbox name='HISTORY' value='1'></label>
 	<label class='control-label col-md-2'>XML: <input type=checkbox name='xml' value='1'></label>
 </div>
-<div class='form-group'>
+<div class='form-group row'>
 	<label class='control-label col-md-3'>_{COMMENTS}_:</label>
 	<div class='col-md-6'><input type=text name='COMMENTS' value='%COMMENTS%' class='form-control'></div>
 </div>

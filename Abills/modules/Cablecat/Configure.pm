@@ -12,6 +12,9 @@ our (
   %CROSS_CROSS_TYPE, %CROSS_PANEL_TYPE, %CROSS_PORT_TYPE, %CROSS_POLISH_TYPE, %CROSS_FIBER_TYPE
 );
 
+use Maps2::Auxiliary;
+my $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+
 #**********************************************************
 =head2 cablecat_cables()
 
@@ -231,7 +234,7 @@ sub cablecat_cables {
   my $sub_create_cable_point = sub {
     my $cable_id = shift;
 
-    my $new_external_object_id = maps2_add_external_object($MAP_TYPE_ID{CABLE}, \%FORM);
+    my $new_external_object_id = $Auxiliary->maps2_add_external_object($MAP_TYPE_ID{CABLE}, \%FORM);
     $Cablecat->cables_change({ ID => $cable_id, POINT_ID => $new_external_object_id });
     _error_show($Cablecat);
 
@@ -252,7 +255,8 @@ sub cablecat_cables {
       if ($FORM{ADD_ON_NEW_MAP} && $FORM{coords} && $new_external_object_id) {
         $Maps->polylines_add({
           OBJECT_ID => $new_external_object_id,
-          LAYER_ID  => 10
+          LAYER_ID  => 10,
+          LENGTH    => $FORM{LENGTH_CALCULATED} || 0
         });
 
         my @points_array = split(/,/, $FORM{coords});
@@ -289,10 +293,8 @@ sub cablecat_cables {
     show_result($Cablecat, $lang{CHANGED});
   }
   elsif ($FORM{chg}) {
-    if ($FORM{CREATE_OBJECT}) {
-      $sub_create_cable_point->($FORM{chg});
-    }
-    
+    $sub_create_cable_point->($FORM{chg}) if ($FORM{CREATE_OBJECT});
+
     my $tp_info = $Cablecat->cables_info($FORM{chg});
     if (!_error_show($Cablecat)) {
       %TEMPLATE_ARGS = %{$tp_info};
@@ -383,16 +385,13 @@ sub cablecat_cables {
     $TEMPLATE_ARGS{OBJECT_INFO} = cablecat_make_point_info($TEMPLATE_ARGS{POINT_ID}, $MAP_LAYER_ID{CABLE});
     $TEMPLATE_ARGS{LENGTH_CALCULATED} = $FORM{LENGTH_CALCULATED} || '0.00';
 
-    $html->tpl_show(
-      _include('cablecat_cable', 'Cablecat'),
-      {
-        %TEMPLATE_ARGS,
-        CABLE_TYPE_SELECT =>
-          _cablecat_cable_type_select({ SELECTED => $TEMPLATE_ARGS{TYPE_ID}, NAME => 'TYPE_ID', REQUIRED => 1 }),
-        SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
-        SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
-      }
-    );
+    $html->tpl_show(_include('cablecat_cable', 'Cablecat'), {
+      %TEMPLATE_ARGS,
+      CABLE_TYPE_SELECT =>
+        _cablecat_cable_type_select({ SELECTED => $TEMPLATE_ARGS{TYPE_ID}, NAME => 'TYPE_ID', REQUIRED => 1 }),
+      SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
+      SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
+    });
   }
 
   return 1 if ($FORM{TEMPLATE_ONLY});
@@ -682,7 +681,7 @@ sub cablecat_wells {
   }
   elsif ($FORM{add}) {
     $FORM{NAME} =~ s/\\"//gm if $FORM{NAME};
-    my $new_point_id = maps2_add_external_object($MAP_TYPE_ID{WELL}, \%FORM);
+    my $new_point_id = $Auxiliary->maps2_add_external_object($MAP_TYPE_ID{WELL}, \%FORM);
     show_result($Maps, $lang{SUCCESS}, $lang{ADDED} . ' ' . $lang{OBJECT}, { ID => 'OBJECT_ADDED' });
     $FORM{POINT_ID} = $new_point_id;
 
@@ -771,6 +770,7 @@ sub cablecat_wells {
       DESC      => 'DESC',
       COLS_NAME => 1
     });
+
     _error_show($Cablecat);
 
     $TEMPLATE_ARGS{TYPE_ID_SELECT} = $html->form_select('TYPE_ID', {
@@ -781,7 +781,9 @@ sub cablecat_wells {
     });
     my %count_for_type = ();
     foreach my $well_type (@$type_id_list) {
-      $count_for_type{$well_type->{id}} = $Cablecat->wells_next({ TYPE_ID => $well_type->{id} }) + 1;
+      # my $next_id = $Cablecat->wells_next({ TYPE_ID => $well_type->{id} });
+      # $count_for_type{$well_type->{id}} = $next_id ? $next_id + 1 : $Cablecat->wells_next() + 1;
+      $count_for_type{$well_type->{id}} = $Cablecat->wells_next() + 1;
     }
     $TEMPLATE_ARGS{COUNT_FOR_TYPE} = encode_json(\%count_for_type);
 
@@ -1022,7 +1024,7 @@ sub cablecat_connecters {
       $lang{CONNECTER} . '_' . ($Cablecat->connecters_next());
     };
 
-    my $new_point_id = maps2_add_external_object($MAP_TYPE_ID{SPLITTER}, \%FORM);
+    my $new_point_id = $Auxiliary->maps2_add_external_object($MAP_TYPE_ID{SPLITTER}, \%FORM);
     show_result($Maps, $lang{ADDED} . ' ' . $lang{OBJECT});
     $FORM{POINT_ID} = $new_point_id;
 
@@ -1197,8 +1199,7 @@ sub cablecat_make_point_info {
 
   if ($layer_id && $point_id) {
     $point_info->{SHOW_MAP_BTN} = 1;
-    $point_info->{MAP_BTN} = maps2_show_object_button($layer_id || $point_info->{LAYER_ID}, $point_id,
-      { NAME => $lang{SHOW} });
+    $point_info->{MAP_BTN} = $Auxiliary->maps2_show_object_button($layer_id || $point_info->{LAYER_ID}, $point_id, { NAME => $lang{SHOW} });
   }
 
   $point_info->{ADDRESS_NAME} = $point_info->{LOCATION_ID} ? full_address_name($point_info->{LOCATION_ID}) : $lang{NO_DATA};
@@ -1291,7 +1292,7 @@ sub cablecat_splitters {
   my $show_add_form = $FORM{add_form} || 0;
 
   if ($FORM{add}) {
-    my $new_point_id = maps2_add_external_object($MAP_TYPE_ID{SPLITTER}, \%FORM);
+    my $new_point_id = $Auxiliary->maps2_add_external_object($MAP_TYPE_ID{SPLITTER}, \%FORM);
     show_result($Maps, $lang{ADDED} . ' ' . $lang{OBJECT});
     $FORM{POINT_ID} = $new_point_id;
 
@@ -2029,7 +2030,7 @@ sub _cablecat_cross_link_info {
   if (!defined($link) || !defined($link->{link_type})) {
     return $html->button('',
       "index=$crosses_index&cross_link_operation=1&add_form=1&CROSS_ID=$cross_id&CROSS_PORT=$port_num", {
-        ICON   => 'glyphicon glyphicon-plus',
+        ICON   => 'fa fa-plus',
         TARGET => 'cablecat_cross_link_add',
         BUTTON => 1
       }
@@ -2058,8 +2059,8 @@ sub _cablecat_cross_link_info {
 
       my $change_button = $html->button('',
         "index=$crosses_index&cross_link_operation=1&chg=1&CROSS_ID=$cross_id&CROSS_PORT=$port_num", {
-          ICON   => 'glyphicon glyphicon-pencil',
-          class  => 'btn btn-xs btn-default',
+          ICON   => 'fa fa-pencil',
+          class  => 'btn btn-xs btn-secondary',
           TARGET => 'cablecat_cross_link_add',
         });
 
@@ -2067,7 +2068,7 @@ sub _cablecat_cross_link_info {
         "index=$crosses_index&cross_link_operation=1&del=1&CROSS_ID=$cross_id&CROSS_PORT=$port_num", {
           class   => 'btn btn-xs btn-danger',
           MESSAGE => "$lang{DEL} ?",
-          ICON    => 'glyphicon glyphicon-remove',
+          ICON    => 'fa fa-remove',
         });
 
       return $change_button . $del_button . ($equipment_link . " $lang{PORT} : $equipment_port") . ",  $lang{EQUIPMENT} : $Equipment_name";
@@ -2280,7 +2281,7 @@ sub _cablecat_well_connecters {
     my @connecters_links = map {
       $html->button("$_->{name} (#$_->{id})", "index=$connecters_index&chg=$_->{id}")
         . $html->button('', "qindex=$connecters_index&change=1&ID=$_->{id}&PARENT_ID=0", {
-        ICON    => 'glyphicon glyphicon-remove',
+        ICON    => 'fa fa-remove',
         class   => 'text-danger',
         CONFIRM => "$lang{UNLINK}?",
         AJAX    => 'form_CABLECAT_CONNECTERS'
@@ -2315,42 +2316,35 @@ sub _cablecat_well_cable_links {
   return if (!$well_id || ref $well_id);
 
   # Can be optimized with 'well_1=%ID% OR well_2=%ID%' when possible in search former
-  my $cables_out = $Cablecat->cables_list(
-    {
-      WELL_1_ID   => $well_id,
-      WELL_2_ID   => '_SHOW',
-      NAME        => '_SHOW',
-      POINT_ID    => '_SHOW',
-      WELL_1      => '_SHOW',
-      WELL_2      => '_SHOW',
-      POLYLINE_ID => '_SHOW',
-    }
-  );
+  my $cables_out = $Cablecat->cables_list({
+    WELL_1_ID   => $well_id,
+    WELL_2_ID   => '_SHOW',
+    NAME        => '_SHOW',
+    POINT_ID    => '_SHOW',
+    WELL_1      => '_SHOW',
+    WELL_2      => '_SHOW',
+    POLYLINE_ID => '_SHOW',
+  });
   _error_show($Cablecat);
 
-  my $cables_in = $Cablecat->cables_list(
-    {
-      WELL_2_ID   => $well_id,
-      WELL_1_ID   => '_SHOW',
-      NAME        => '_SHOW',
-      POINT_ID    => '_SHOW',
-      WELL_1      => '_SHOW',
-      WELL_2      => '_SHOW',
-      POLYLINE_ID => '_SHOW',
-    }
-  );
+  my $cables_in = $Cablecat->cables_list({
+    WELL_2_ID   => $well_id,
+    WELL_1_ID   => '_SHOW',
+    NAME        => '_SHOW',
+    POINT_ID    => '_SHOW',
+    WELL_1      => '_SHOW',
+    WELL_2      => '_SHOW',
+    POLYLINE_ID => '_SHOW',
+  });
   _error_show($Cablecat);
 
   my $cables_index = get_function_index('cablecat_cables');
 
   my $well_cable_row = sub {
     my ($cable, $linked_well_name, $linked_well_id) = @_;
-    maps2_show_object_button(
-      $MAP_LAYER_ID{CABLE},
-      $cable->{point_id}, {
-        POINT_ID  => ($cable->{polyline_id} ? $cable->{point_id} : 0),
-      }
-    )
+    $Auxiliary->maps2_show_object_button($MAP_LAYER_ID{CABLE}, $cable->{point_id}, {
+      POINT_ID => ($cable->{polyline_id} ? $cable->{point_id} : 0),
+    })
       . '&nbsp;' . $html->button($cable->{name}, "index=$cables_index&chg=$cable->{id}")
       . ' -> '
       . ($linked_well_id

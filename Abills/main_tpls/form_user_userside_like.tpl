@@ -11,12 +11,12 @@
                 <div class="panel-body">
                     <div class="tab-content">
                         <div class="tab-pane fade in active" id="tab1default">
-							<div class='box col-md-12'>
-							  <div class='box-header with-border'><h6 class='box-title'>%FIO%</h6></div>
-							  <div class='box-body'>
+							<div class='card col-md-12'>
+							  <div class='card-header with-border'><h6 class='card-title'>%FIO%</h6></div>
+							  <div class='card-body'>
 									
 								<!-- 	<div class="row col-md-12 text-left">
-										<btn class="glyphicon glyphicon-wrench text-primary"> </btn> <a href="#">_{CREATE_TASK}_</a> <br>
+										<btn class="fa fa-wrench text-primary"> </btn> <a href="#">_{CREATE_TASK}_</a> <br>
 									</div> -->
 
 									<div class="col-md-6">
@@ -118,9 +118,9 @@
 							  </div>
 							</div>
 
-							<div class='box col-md-12'>
-							  <div class='box-header with-border'><h6 class='box-title'>IP/MAC-_{ADDRESS}_</h6></div>
-							  <div class='box-body'>
+							<div class='card col-md-12'>
+							  <div class='card-header with-border'><h6 class='card-title'>IP/MAC-_{ADDRESS}_</h6></div>
+							  <div class='card-body'>
 
 							      	<div class='row'>
 							        <div class='col-md-6 text-left'>
@@ -131,9 +131,9 @@
 							  </div>
 							</div>
 
-							<div class='box col-md-12'>
-							  <div class='box-header with-border'><h6 class='box-title'>_{CONTACT_INFORMATION}_</h6></div>
-							  <div class='box-body'>
+							<div class='card col-md-12'>
+							  <div class='card-header with-border'><h6 class='card-title'>_{CONTACT_INFORMATION}_</h6></div>
+							  <div class='card-body'>
 
 								<div class="col-md-6">
 
@@ -194,9 +194,9 @@
 							  </div>
 							</div>
 
-							<div class='box col-md-12'>
-							  <div class='box-header with-border'><h6 class='box-title'>_{ADDITIONAL_DATA}_</h6></div>
-							  <div class='box-body'>
+							<div class='card col-md-12'>
+							  <div class='card-header with-border'><h6 class='card-title'>_{ADDITIONAL_DATA}_</h6></div>
+							  <div class='card-body'>
 
 								<div class="col-md-6">
 							      	<div class='row'>
@@ -235,7 +235,7 @@
 							      	<!-- <div class='row'>
 							        <label class='col-md-6 text-right'>_{DRESS_FOR_WORK}_:</label>
 							        <div class='col-md-6 text-left'>
-							            <span class="glyphicon glyphicon-list-alt text-primary">
+							            <span class="fa fa-list-alt text-primary">
 							        </div>
 									</div> -->
 								</div>
@@ -243,9 +243,9 @@
 							  </div>
 							</div>
 
-							<div class='box col-md-12'>
-							  <div class='box-header with-border'><h6 class='box-title'>_{TECHNICAL_DATA}_</h6></div>
-							  <div class='box-body'>
+							<div class='card col-md-12'>
+							  <div class='card-header with-border'><h6 class='card-title'>_{TECHNICAL_DATA}_</h6></div>
+							  <div class='card-body'>
 
 								<div class="col-md-6">
 
@@ -305,9 +305,9 @@
 								</div>
 
 								<div class="row col-md-12 text-left">
-<!-- 									<br><btn class="glyphicon glyphicon-pencil text-primary"> </btn> <a href="#">_{EDIT}_</a>  
-									<br><btn class="glyphicon glyphicon-wrench text-primary"> </btn> <a href="#">Відмітки на абоненті</a> 
-									<br><btn class="glyphicon glyphicon-bullhorn text-primary"> </btn> <a href="#">Рекламні кампанії</a>  -->
+<!-- 									<br><btn class="fa fa-pencil text-primary"> </btn> <a href="#">_{EDIT}_</a>  
+									<br><btn class="fa fa-wrench text-primary"> </btn> <a href="#">Відмітки на абоненті</a> 
+									<br><btn class="fa fa-bullhorn text-primary"> </btn> <a href="#">Рекламні кампанії</a>  -->
 								</div>
 
 							  </div>

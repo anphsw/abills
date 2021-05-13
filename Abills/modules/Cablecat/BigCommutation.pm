@@ -190,10 +190,7 @@ sub _cablecat_get_cables {
         well_1_id => $cable->{well_1_id},
         well_2_id => $cable->{well_2_id},
         well_1    => $cable->{well_1},
-        well_2    => $cable->{well_2},
-        map_btn   => maps2_show_object_button($MAP_LAYER_ID{CABLE}, $cable->{point_id}, {
-          RETURN_HREF => 1
-        })
+        well_2    => $cable->{well_2}
       }
     };
   };

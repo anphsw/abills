@@ -9,11 +9,11 @@
 </div>
 
 <div class='row'>
-  <div class='box box-theme'>
-    <div class='box-body' id='map-wrapper'>
+  <div class='card card-primary card-outline'>
+    <div class='card-body' id='map-wrapper'>
       <div id='map' style='height: 85vh'></div>
     </div>
-    <div class='box-footer'></div>
+    <div class='card-footer'></div>
   </div>
   <div class='clearfix'></div>
 </div>

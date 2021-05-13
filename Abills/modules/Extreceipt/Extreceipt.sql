@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS `extreceipts_api` (
   `url`          VARCHAR(200)        NOT NULL DEFAULT '',
   `goods_name`   VARCHAR(200)        NOT NULL DEFAULT '',
   `author`       VARCHAR(30)         NOT NULL DEFAULT '',
+  `aid`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `callback`     VARCHAR(200)        NOT NULL DEFAULT '',
   `email`        VARCHAR(30)         NOT NULL DEFAULT '',
   `inn`          VARCHAR(30)         NOT NULL DEFAULT '',

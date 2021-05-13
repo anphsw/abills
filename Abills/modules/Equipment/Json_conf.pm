@@ -50,7 +50,7 @@ sub json_conf_main {
       SKIP_HREF      => 1,
       NO_LINK_FORMER => 1,
       ex_params      => qq/onclick='add_file()'/,
-      ICON           => 'glyphicon glyphicon-plus text-success'
+      ICON           => 'fa fa-plus text-success'
     });
 
   my $table = $html->table({
@@ -68,7 +68,7 @@ sub json_conf_main {
       $table->addrow(
         $file,
         $html->button('edit', "index=$index&file=$file", { class => 'change' }),
-        $html->button('', "index=$index&remove_file=$file", { class => 'glyphicon glyphicon glyphicon-trash text-danger' })
+        $html->button('', "index=$index&remove_file=$file", { class => 'fa fa-trash text-danger' })
       );
     }
   }
@@ -126,7 +126,7 @@ sub view_file {
       SKIP_HREF      => 1,
       NO_LINK_FORMER => 1,
       ex_params      => qq/onclick='add_row("main")'/,
-      ICON           => 'glyphicon glyphicon-plus text-success'
+      ICON           => 'fa fa-plus text-success'
     });
 
   my $add_info = $html->button('', undef,
@@ -135,7 +135,7 @@ sub view_file {
       SKIP_HREF      => 1,
       NO_LINK_FORMER => 1,
       ex_params      => qq/onclick='add_row("info")'/,
-      ICON           => 'glyphicon glyphicon-plus text-success'
+      ICON           => 'fa fa-plus text-success'
     });
 
   my $add_status = $html->button('', undef,
@@ -144,7 +144,7 @@ sub view_file {
       SKIP_HREF      => 1,
       NO_LINK_FORMER => 1,
       ex_params      => qq/onclick='add_row("status")'/,
-      ICON           => 'glyphicon glyphicon-plus text-success'
+      ICON           => 'fa fa-plus text-success'
     });
 
   my $add_ports = $html->button('', undef,
@@ -153,7 +153,7 @@ sub view_file {
       SKIP_HREF      => 1,
       NO_LINK_FORMER => 1,
       ex_params      => qq/onclick='add_row("ports")'/,
-      ICON           => 'glyphicon glyphicon-plus text-success'
+      ICON           => 'fa fa-plus text-success'
     });
 
   my $main_table = $html->table({

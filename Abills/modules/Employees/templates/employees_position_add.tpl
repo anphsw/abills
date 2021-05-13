@@ -3,33 +3,33 @@
 	<input type='hidden' name='action' value='%ACTION%'>
 	<input type='hidden' name='id' value=%ID%>
 
-	<div class='box box-theme box-form form-horizontal'>
+	<div class='card card-primary card-outline container-md'>
 
-		<div class='box-header with-border'>_{ADD_POSITION}_</div>
-		<div class='box-body'>
+		<div class='card-header with-border'>_{ADD_POSITION}_</div>
+		<div class='card-body'>
 
-			<div class='form-group'>
-				<label class='control-element col-md-3'>_{POSITION}_</label>
-				<div class='col-md-9'>
+			<div class='form-group row'>
+				<label class='col-md-4 col-form-label text-md-right'>_{POSITION}_:</label>
+				<div class='col-md-8'>
 					<input type='text' class='form-control' name='POSITION' value='%POSITION%'>
 				</div>
 			</div>
 
-			<div class='form-group'>
-				<label class='control-element col-md-3'>_{SUBORDINATION}_</label>
-				<div class='col-md-9'>
+			<div class='form-group row'>
+				<label class='col-md-4 col-form-label text-md-right'>_{SUBORDINATION}_:</label>
+				<div class='col-md-8'>
 					%SUBORDINATION%
 				</div>
 			</div>
 
-			<div class='form-group'>
-				<label class='control-element col-md-3'>_{OPEN_VACANCY}_</label>
-				<div class='col-md-9'>
+			<div class='form-group row'>
+				<label class='col-md-4 col-form-label text-md-right'>_{OPEN_VACANCY}_:</label>
+				<div class='col-md-8'>
 					<input name='VACANCY' %check% value='1'  type='checkbox'>
 				</div>
 			</div>
 		</div>
-		<div class='box-footer'>
+		<div class='card-footer'>
 			<input type='submit' class='btn btn-primary' name='BUTTON' value='%BUTTON_NAME%'>
 		</div>
 

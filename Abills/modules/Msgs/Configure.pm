@@ -28,81 +28,57 @@ sub msgs_admins {
 
   if ($FORM{change}) {
     $Msgs->admin_change({%FORM});
-    if (!$Msgs->{errno}) {
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" );
-    }
+    $html->message( 'info', $lang{INFO}, "$lang{CHANGED}" ) if (!$Msgs->{errno});
   }
   elsif ($FORM{chg}) {
     my $a_list = $Msgs->admins_list({ AID => $FORM{AID} });
     my %A_PRIVILEGES = ();
     my %A_MAIL_SEND = ();
-    my %A_DELIGATION_LEVEL = ();
+    my %A_DELEGATION_LEVEL = ();
 
     foreach my $line (@$a_list) {
       $A_PRIVILEGES{ $line->[5] } = $line->[2];
-      $A_DELIGATION_LEVEL{ $line->[5] } = $line->[3];
+      $A_DELEGATION_LEVEL{ $line->[5] } = $line->[3];
       $A_MAIL_SEND{ $line->[5] } = $line->[6];
       $Msgs->{ADMIN} = $line->[0];
     }
 
-    if (!$Msgs->{errno}) {
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGE}" );
-    }
+    my $list = $Msgs->chapters_list({ AID => $FORM{AID}, COLS_NAME => 1 });
 
-    my $list = $Msgs->chapters_list({ AID => $FORM{AID} });
-    my $table = $html->table(
-      {
-        width      => '100%',
-        title      => [ 'ID', $lang{CHAPTERS}, $lang{ACCESS}, 'E-mail', $lang{PRIORITY} ],
-        ID         => 'ADMIN_ACCESS'
-      }
-    );
+    my $table = $html->table({
+      width => '100%',
+      title => [ 'ID', $lang{CHAPTERS}, $lang{ACCESS}, 'E-mail', $lang{PRIORITY} ],
+      ID    => 'ADMIN_ACCESS'
+    });
 
-    my @DELIGATION_LEVEL_ARR = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    my @DELEGATION_LEVEL_ARR = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
     foreach my $line (@$list) {
-      my $privileges = $html->form_select(
-        'PRIORITY_' . $line->[0],
-        {
-          SELECTED      => ($A_PRIVILEGES{ $line->[0] }) ? $A_PRIVILEGES{ $line->[0] } : 0,
-          SEL_ARRAY     => \@privilages_arr,
-          NORMAL_WIDTH  => 1,
-          ARRAY_NUM_ID  => 1
-        }
-      );
+      my $privileges = $html->form_select('PRIORITY_' . $line->{id}, {
+        SELECTED     => ($A_PRIVILEGES{ $line->{id} }) ? $A_PRIVILEGES{ $line->{id} } : 0,
+        SEL_ARRAY    => \@privilages_arr,
+        NORMAL_WIDTH => 1,
+        ARRAY_NUM_ID => 1
+      });
 
-      my $deligation_level = $html->form_select(
-        'DELIGATION_LEVEL_' . $line->[0],
-        {
-          SELECTED     => ($A_DELIGATION_LEVEL{ $line->[0] }) ? $A_DELIGATION_LEVEL{ $line->[0] } : 0,
-          ,
-          NORMAL_WIDTH => 1,
-          SEL_ARRAY    => \@DELIGATION_LEVEL_ARR,
-          ARRAY_NUM_ID => 1
-        }
-      );
+      my $delegation_level = $html->form_select('DELIGATION_LEVEL_' . $line->{id}, {
+        SELECTED     => ($A_DELEGATION_LEVEL{ $line->{id} }) ? $A_DELEGATION_LEVEL{ $line->{id} } : 0,
+        NORMAL_WIDTH => 1,
+        SEL_ARRAY    => \@DELEGATION_LEVEL_ARR,
+        ARRAY_NUM_ID => 1
+      });
 
       $table->addrow(
-        $line->[0]
-          . $html->form_input(
-          'IDS',
-          "$line->[0]",
-          {
-            TYPE  => 'checkbox',
-            STATE => (defined($A_PRIVILEGES{ $line->[0] })) ? 1 : undef
-          }
-        ),
-        $line->[1],
-        $privileges,
-        $html->form_input(
-          'EMAIL_NOTIFY_' . $line->[0],
-          1,
-          {
-            TYPE  => 'checkbox',
-            STATE => ($A_MAIL_SEND{ $line->[0] }) ? 1 : undef
-          }
-        ),
-        $deligation_level,
+        $line->{id} . $html->form_input('IDS', "$line->{id}", {
+          TYPE  => 'checkbox',
+          STATE => (defined($A_PRIVILEGES{ $line->{id} })) ? 1 : undef
+        }),
+        $line->{name}, $privileges,
+        $html->form_input('EMAIL_NOTIFY_' . $line->{id}, 1, {
+          TYPE  => 'checkbox',
+          STATE => ($A_MAIL_SEND{ $line->{id} }) ? 1 : undef
+        }),
+        $delegation_level
       );
     }
 
@@ -113,15 +89,13 @@ sub msgs_admins {
   _error_show($Msgs);
 
   my $list = $Msgs->admins_list({ %LIST_PARAMS, COLS_NAME => 1 });
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $lang{ADMINS},
-      title      => [ $lang{ADMIN}, $lang{CHAPTERS}, $lang{PERMISSION}, $lang{MESSAGES}, 'E-mail', $lang{PRIORITY}, "-" ],
-      qs         => $pages_qs,
-      ID         => 'MSGS_ADMINS'
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{ADMINS},
+    title   => [ $lang{ADMIN}, $lang{CHAPTERS}, $lang{PERMISSION}, $lang{MESSAGES}, 'E-mail', $lang{PRIORITY}, "-" ],
+    qs      => $pages_qs,
+    ID      => 'MSGS_ADMINS'
+  });
 
   my %A_PRIVILEGES = ();
   foreach my $line (@$list) {
@@ -153,15 +127,10 @@ sub msgs_admins {
         { rowspan => (($rows > 0) ? $rows + 1 : 1) } )
     );
 
-    if ($rows > 0) {
-      for (my $i = 1; $i <= $rows; $i++) {
-        ($chapter_name, $privilege, $deligation_level, $aid, $chapter_id, $mail_send, $priority_level) = split(/\|/, $arr[$i]);
-        $table->addrow($chapter_name,
-          $privilages_arr[$privilege || 0],
-          $msgs,
-          $bool_vals[($mail_send || 0)],
-          $deligation_level);
-      }
+    next if $rows <= 0;
+    for (my $i = 1; $i <= $rows; $i++) {
+      ($chapter_name, $privilege, $deligation_level, $aid, $chapter_id, $mail_send, $priority_level) = split(/\|/, $arr[$i]);
+      $table->addrow($chapter_name, $privilages_arr[$privilege || 0], $msgs, $bool_vals[($mail_send || 0)], $deligation_level);
     }
   }
 
@@ -221,30 +190,28 @@ sub msgs_progress_bar {
   _error_show($Msgs);
   $html->tpl_show(_include('msgs_pb', 'Msgs'), $Msgs);
 
-  result_former(
-    {
-      INPUT_DATA      => $Msgs,
-      FUNCTION        => 'pb_list',
-      BASE_FIELDS     => 3,
-      DEFAULT_FIELDS  => 'STEP_NUM,STEP_NAME,STEP_TIPS',
-      FUNCTION_FIELDS => 'change,del',
-      SKIP_USER_TITLE => 1,
-      EXT_TITLES      => {
-        'step_num'  => $lang{NUM},
-        'step_name' => $lang{NAME},
-        'step_tip'  => $lang{TIPS},
-      },
-      TABLE => {
-        width   => '100%',
-        caption => "$lang{PROGRESS_BAR}",
-        qs      => $pages_qs,
-        ID      => 'PROGRESS_BAR_LIST',
-        EXPORT  => 1,
-      },
-      MAKE_ROWS => 1,
-      TOTAL     => 1
-    }
-  );
+  result_former({
+    INPUT_DATA      => $Msgs,
+    FUNCTION        => 'pb_list',
+    BASE_FIELDS     => 3,
+    DEFAULT_FIELDS  => 'STEP_NUM,STEP_NAME,STEP_TIPS',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      'step_num'  => $lang{NUM},
+      'step_name' => $lang{NAME},
+      'step_tip'  => $lang{TIPS},
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{PROGRESS_BAR}",
+      qs      => $pages_qs,
+      ID      => 'PROGRESS_BAR_LIST',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -314,13 +281,11 @@ sub msgs_chapters {
   _error_show($Msgs);
 
   if ($FORM{add_form}) {
-    $Msgs->{RESPONSIBLE_SEL} = sel_admins(
-      {
-        NORMAL_WIDTH => 1,
-        NAME         => 'RESPONSIBLE',
-        RESPONSIBLE   => $Msgs->{RESPONSIBLE}?$Msgs->{RESPONSIBLE}:''
-      }
-    );
+    $Msgs->{RESPONSIBLE_SEL} = sel_admins({
+      NORMAL_WIDTH => 1,
+      NAME         => 'RESPONSIBLE',
+      RESPONSIBLE  => $Msgs->{RESPONSIBLE} ? $Msgs->{RESPONSIBLE} : ''
+    });
     $Msgs->{INNER_CHAPTER} = ($Msgs->{INNER_CHAPTER}) ? '  checked' : '';
     $html->tpl_show(_include('msgs_chapter', 'Msgs'), $Msgs);
   }
@@ -363,7 +328,7 @@ sub msgs_chapters {
       $line->{icon},
       $line->{autoclose},
       $html->button( "$lang{PROGRESS_BAR}", "index=$index&PROGRES_BAR=$line->{id}",
-        { TITLE => $lang{PROGRESS_BAR}, ICON => 'glyphicon glyphicon-tasks' } ),
+        { TITLE => $lang{PROGRESS_BAR}, ICON => 'fa fa-tasks' } ),
       $html->button( "$lang{CHANGE}", "index=$index&chg=$line->{id}", { class => 'change' } ),
       $html->button( $lang{DEL}, "index=$index&del=$line->{id}",
         { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' } )

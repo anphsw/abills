@@ -1,6 +1,6 @@
-<div class='box box-theme box-form center-block'>
-    <div class='box-header text-center'><h4>_{CAMERAS}_</h4></div>
-    <div class='box-body'>
+<div class='card card-primary card-outline box-form center-block'>
+    <div class='card-header text-center'><h4>_{CAMERAS}_</h4></div>
+    <div class='card-body'>
 
         <form name='CAMS_STREAM_ADD' id='form_CAMS_STREAM_ADD' method='post' class='form form-horizontal'>
             <input type='hidden' name='index' value='$index'/>
@@ -75,7 +75,7 @@
 
     </div>
 
-    <div class='box-footer'>
+    <div class='card-footer'>
         <input type='submit' form='form_CAMS_STREAM_ADD' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
     </div>
 

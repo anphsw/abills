@@ -4,10 +4,10 @@
     <input type='hidden' name='UID' value="%UID%">
     <input type='hidden' name='LOGIN' value="%LOGIN%">
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'><h4 class='box-title'>_{PAYMENTS}_</h4></div>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'><h4 class='card-title'>_{PAYMENTS}_</h4></div>
 
-        <div class='box-body'>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='col-md-4 col-sm-3 control-label'>_{SUM}_:</label>
                 <div class='col-md-8 col-sm-9'>
@@ -30,8 +30,8 @@
         </div>
     </div>
 
-    <div class="box box-theme">
-        <div class="box-header with-border text-center">
+    <div class="card card-primary card-outline">
+        <div class="card-header with-border text-center">
             <h4>
                 _{INFO}_
             </h4>

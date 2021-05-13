@@ -32,6 +32,8 @@ use Spreadsheet::WriteExcel;
 my Spreadsheet::WriteExcel $worksheet;
 
 my %text_colors = (
+  'text-green'  => 'green',
+  'text-red'    => 'red',
   'text-danger' => 'red',
   '#FF0000'     => 'red',
 );
@@ -333,7 +335,7 @@ sub table {
   $self->{ID}=$attr->{ID};
 
   if ($FORM{EXPORT_CONTENT} && $FORM{EXPORT_CONTENT} ne $self->{ID}) {
-  	return $self;
+    return $self;
   }
 
   if ($attr->{SELECT_ALL}) {
@@ -375,10 +377,12 @@ sub addrow {
   $self->{row_number}++;
 
   if (! $worksheet) {
-  	return $self;
+    return $self;
   }
 
   $worksheet->set_column(0, 3, 25);
+
+  my $format = $workbook->add_format( text_wrap => 1 );
 
   my $col_shift = ($self->{SELECT_ALL}) ? 1 : 0;
 
@@ -395,20 +399,27 @@ sub addrow {
       my $color  = $1;
       my $text   = $2;
 
-      my $format = $workbook->add_format(
-        color   => ($color =~ /^#(\d+)/) ? $1 : $text_colors{$color},
-        size    => 10,
+      my $color_format = $workbook->add_format(
+        color     => ($color =~ /^#(\d+)/) ? $1 : $text_colors{$color},
+        size      => 10,
+        text_wrap => 1,
         #bold => 1
       );
 
-      $worksheet->write( $self->{row_number}, $col_num, decode_utf8( $text ), $format || undef );
-    }
-    else {
-      if($val =~ /^0/) {
-        $worksheet->write_string( $self->{row_number}, $col_num, decode_utf8( $val ), $self->{format} || undef );
+      if ($text =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
+        $worksheet->write_string( $self->{row_number}, $col_num, decode_utf8( $text ), $color_format || undef );
       }
       else {
-        $worksheet->write( $self->{row_number}, $col_num, decode_utf8( $val ), $self->{format} || undef );
+        $worksheet->write( $self->{row_number}, $col_num, decode_utf8( $text ), $color_format || undef );
+      }
+    }
+    else {
+      if($val =~ /^0/  ||
+         $val =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
+        $worksheet->write_string( $self->{row_number}, $col_num, decode_utf8( $val ), $format || undef );
+      }
+      else {
+        $worksheet->write( $self->{row_number}, $col_num, decode_utf8( $val ), $format || undef );
       }
     }
 
@@ -429,6 +440,8 @@ sub addtd {
 
   my $select_present = ($self->{SELECT_ALL}) ? 1 : 0;
 
+  my $format = $workbook->add_format( text_wrap => 1 );
+
   for (my $i=0; $i<=$#row; $i++) {
     my $val = $row[($i+$select_present)];
 
@@ -443,17 +456,28 @@ sub addtd {
       my $color  = $1;
       my $text   = $2;
 
-      my $format = $workbook->add_format(
-        color   => ($color =~ /^#(\d+)/) ? $1 :$text_colors{$color},
-        size    => 10,
+      my $color_format = $workbook->add_format(
+        color     => ($color =~ /^#(\d+)/) ? $1 :$text_colors{$color},
+        size      => 10,
+        text_wrap => 1,
         #bold    => 1,
           #bg_color=> 'silver',
       );
 
-      $worksheet->write( $self->{row_number}, $self->{col_num}, decode( 'utf8', $text ), $format || undef );
+      if ($text =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
+        $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode( 'utf8', $text ), $color_format || undef );
+      }
+      else {
+        $worksheet->write( $self->{row_number}, $self->{col_num}, decode( 'utf8', $text ), $color_format || undef );
+      }
     }
     else {
-      $worksheet->write( $self->{row_number}, $self->{col_num}, decode( 'utf8', $val ), undef );
+      if ($val =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
+        $worksheet->write_string( $self->{row_number}, $self->{col_num}, decode( 'utf8', $val ), $format || undef );
+      }
+      else {
+        $worksheet->write( $self->{row_number}, $self->{col_num}, decode( 'utf8', $val ), $format || undef );
+      }
     }
     print "addtd: $self->{row_number} col: $self->{col_num} = $val\n" if ($FORM{DEBUG});
     $self->{col_num}++;
@@ -484,7 +508,12 @@ sub table_title {
   my $i=0;
 
   foreach my $line (@$caption) {
-    $worksheet->write(0, $i, decode('utf8', $line), $title_format);
+    if ($line =~ /^=/) { #to prevent writing strings starting with '=' as formulas, because we never actually use formulas
+      $worksheet->write_string(0, $i, decode('utf8', $line), $title_format);
+    }
+    else {
+      $worksheet->write(0, $i, decode('utf8', $line), $title_format);
+    }
     $i++;
   }
 
@@ -530,12 +559,26 @@ sub show {
 }
 
 #**********************************************************
-=head2 button($name, $params, $attr)
+=head2 button($name, $params, $attr) - Create link element
+
+  Arguments:
+    $name     - Link name
+    $params   - Link params (url)
+    $attr
+      ONLY_IN_HTML - link will be returned if we are working with HTML, but will not be returned in export modes like xls, csv, json
+
+  Returns:
+    String with element
+
 =cut
 #**********************************************************
 sub button {
   my $self = shift;
-  my ($name, $params) = @_;
+  my ($name, $params, $attr) = @_;
+
+  if ($attr->{ONLY_IN_HTML}) {
+    return '';
+  }
 
   return "[$params|$name]";
 }
@@ -546,7 +589,7 @@ sub button {
 # $type - info, err
 #**********************************************************
 sub message {
-  
+
 }
 
 #**********************************************************
@@ -726,6 +769,7 @@ sub color_mark {
   my ($message, $color, $attr) = @_;
 
   return $message if ($attr->{SKIP_XML});
+  return $message if ($color eq 'code');
   my $output = ($color) ? '_COLOR:'. $color .':'.$message : $message;
 
   return $output;

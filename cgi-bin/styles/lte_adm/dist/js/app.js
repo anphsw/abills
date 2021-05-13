@@ -314,42 +314,41 @@ function _init() {
     activate: function (toggleBtn) {
       //Get the screen sizes
       var $body = $('body');
-      
+
       var screenSizes = $.AdminLTE.options.screenSizes;
       var menuHidden = (Cookies.get('menuHidden') === 'true');
-  
+
       if (menuHidden) {
         $body.addClass('sidebar-collapse').trigger('collapsed.pushMenu');
       }
       //Enable sidebar toggle
       $(document).on('click', toggleBtn, function (e) {
         e.preventDefault();
-  
+
         var $body = $('body');
-        
+
         //Enable sidebar push menu
         if ($(window).width() > (screenSizes.sm - 1)) {
-          
+
           if ($body.hasClass('sidebar-collapse')) {
             $body.removeClass('sidebar-collapse').trigger('expanded.pushMenu');
           }
           else {
             $body.addClass('sidebar-collapse').trigger('collapsed.pushMenu');
           }
-          
+
           Cookies.set('menuHidden', !menuHidden);
-          
+
         }
         //Handle sidebar push menu for small screens
         else {
-          
+
           if ($body.hasClass('sidebar-open')) {
             $body.removeClass('sidebar-open').removeClass('sidebar-collapse').trigger('collapsed.pushMenu');
           }
           else {
             $body.addClass('sidebar-open').trigger('expanded.pushMenu');
           }
-          
         }
       });
 
@@ -415,7 +414,7 @@ function _init() {
         var checkElement = $this.next();
 
         //Check if the next element is a menu and is visible
-        if ((checkElement.is('.treeview-menu')) && (checkElement.is('.menu-open') || checkElement.is(':visible'))) {
+        if ((checkElement.is('.nav-item')) && (checkElement.is('.menu-open') || checkElement.is(':visible'))) {
           //Close the menu
           checkElement.slideUp(animationSpeed, function () {
             checkElement.removeClass('menu-open');
@@ -425,7 +424,7 @@ function _init() {
           checkElement.parent("li").removeClass("tab-pane");
         }
         //If the menu is not visible
-        else if ((checkElement.is('.treeview-menu')) && (!checkElement.is(':visible'))) {
+        else if ((checkElement.is('.nav-item')) && (!checkElement.is(':visible'))) {
           //Get the parent menu
           var parent = $this.parents('ul').first();
           //Close all open menus within the parent
@@ -446,7 +445,7 @@ function _init() {
           });
         }
         //if this isn't a link, prevent the page from being redirected
-        if (checkElement.is('.treeview-menu')) {
+        if (checkElement.is('.nav-item')) {
           //e.preventDefault();
         }
       });

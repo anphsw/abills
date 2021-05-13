@@ -58,6 +58,7 @@
   </div>
 </div>
 
+<!-- Logo -->
 <div class="fixed" >
   <div style="position: absolute; bottom: 5px;">
     <span class='logo-lg'  style='color: #02060a;'><b><span style='color: red;'>A</span></b>BillS</span>

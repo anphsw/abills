@@ -1,4 +1,3 @@
-
 (function ($, AdminLTE) {
 
   "use strict";
@@ -10,19 +9,18 @@
    */
 
   var my_skins = [
-    "skin-blue",
-    "skin-black",
-    "skin-red",
-    "skin-yellow",
-    "skin-purple",
-    "skin-green",
-    "skin-blue-light",
-    "skin-black-light",
-    "skin-red-light",
-    "skin-yellow-light",
-    "skin-purple-light",
-    "skin-green-light",
-    "skin-midnight"
+    "navbar-dark navbar-primary",
+    "navbar-dark navbar-navy",
+    "navbar-dark navbar-danger",
+    "navbar-light navbar-warning",
+    "navbar-light navbar-white",
+    "navbar-dark navbar-indigo",
+    "navbar-dark navbar-success",
+    "navbar-dark navbar-teal",
+    "navbar-light navbar-orange",
+    "navbar-dark navbar-pink",
+    "navbar-dark navbar-lightblue",
+    "navbar-dark"
   ];
 
 
@@ -41,14 +39,17 @@
   /**
    * Replaces the old skin with the new skin
    * @param cls the new skin class
+   * @param body_cls the new body skin class
    * @returns Boolean false to prevent link's default action
    */
-  function change_skin(cls) {
+  function change_skin(cls, body_cls) {
     $.each(my_skins, function (i) {
-      $("body").removeClass(my_skins[i]);
+      $(".main-header").removeClass(my_skins[i]);
+      $("body").removeClass('dark-mode');
     });
 
-    $("body").addClass(cls);
+    $(".main-header").addClass(cls);
+    if (body_cls) $("body").addClass(body_cls);
     return false;
   }
 
@@ -60,13 +61,12 @@
   function setup() {
     //Add the change skin listener
     $("[data-skin]").on('click', function (e) {
-      if($(this).hasClass('knob'))
-        return;
+      if ($(this).hasClass('knob')) return;
       e.preventDefault();
-//      var $em = $('list-unstyled').find('')
-        $(this).addClass("hover");
-        $('#skin').val($(this).data('skin'));
-      change_skin($(this).data('skin'));
+      $(this).addClass("hover");
+      $('#skin').val($(this).data('skin'));
+      $('#body_skin').val($(this).data('body-skin'));
+      change_skin($(this).data('skin'), $(this).data('body-skin'));
     });
 
     //Add the layout manager

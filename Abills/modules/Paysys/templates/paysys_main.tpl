@@ -27,25 +27,29 @@
 
     <input type='hidden' name='OPERATION_ID' value='%OPERATION_ID%'>
 
-    <div class='box box-primary'>
-
-        <div class='box-header with-border text-center'><h4 class='box-title'>_{BALANCE_RECHARCHE}_</h4></div>
-        <div class='box-body'>
-
-            <div class='form-group'>
-                <label class='col-md-3 control-label'>_{TRANSACTION}_ #:</label>
-                <label class='col-md-3 control-label'>%OPERATION_ID%</label>
-            </div>
-
-            <div class='form-group'>
-                <label class='col-md-3 control-label required'>_{SUM}_:</label>
-                <div class='col-md-9'><input class='form-control' type='number' min='0' step='0.01' name='SUM' value='$FORM{SUM}' autofocus>
+    <div class='card card-secondary'>
+        <div class='card-header with-border text-center'>
+            <h4 class='card-title'>_{BALANCE_RECHARCHE}_</h4>
+        </div>
+        <div class='card-body'>
+            <div class="form-group row">
+                <label for="transaction" class="col-sm-4 col-md-4 col-form-label text-md-right">_{TRANSACTION}_ #:</label>
+                <div class="col-sm-8 col-md-8">
+                    <input type="text" class="form-control" id="transaction" placeholder="_{TRANSACTION}_ #" readonly value="%OPERATION_ID%">
                 </div>
             </div>
 
-            <div class='form-group'>
-                <label class='col-md-3 control-label'>_{DESCRIBE}_:</label>
-                <div class='col-md-9'><input class='form-control' type='text' name='DESCRIBE' value='_{BALANCE_RECHARCHE}_'>
+            <div class="form-group row">
+                <label for="sum" class="col-sm-4 col-md-4 col-form-label text-md-right">_{SUM}_:</label>
+                <div class="col-sm-8 col-md-8">
+                    <input class='form-control' type='number' min='0' step='0.01' id="sum" name='SUM' value='%SUM%' autofocus>
+                </div>
+            </div>
+
+            <div class="form-group row">
+                <label for="describe" class="col-sm-4 col-md-4 col-form-label text-md-right">_{DESCRIBE}_:</label>
+                <div class="col-sm-8 col-md-8">
+                    <input class='form-control' type='text' name='DESCRIBE' placeholder="_{DESCRIBE}_" value='_{BALANCE_RECHARCHE}_'>
                 </div>
             </div>
 
@@ -60,7 +64,7 @@
             </div>
         </div>
 
-        <div class='box-footer %HIDE_FOOTER%'><input class='btn btn-primary' type='submit' name=pre value='_{NEXT}_'></div>
+        <div class='card-footer %HIDE_FOOTER%'><input class='btn btn-primary' type='submit' name=pre value='_{NEXT}_'></div>
     </div>
 
 

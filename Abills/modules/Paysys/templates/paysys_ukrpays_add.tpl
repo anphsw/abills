@@ -13,9 +13,9 @@
 <input type='hidden' name='service_id' value='$conf{PAYSYS_UKRPAYS_SERVICE_ID}'>
 <input type='hidden' name='amount' value='%AMOUNT%'>
 
-<div class='box box-primary'>
-<div class='box-header with-border text-center'>Visa / Mastercard (Ukrpays)</div>
-<div class='box-body'>
+<div class='card box-primary'>
+<div class='card-header with-border text-center'>Visa / Mastercard (Ukrpays)</div>
+<div class='card-body'>
 	<div class='form-group text-center'>
 	<img src='https://ukrpays.com/img/logo.gif'>
 	<a href='http://www.mastercard.com/ru/personal/ru/cardholderservices/securecode/mastercard_securecode.html'>
@@ -28,7 +28,7 @@
 	</div>
 
 </div>
-<div class='box-footer'>
+<div class='card-footer'>
     <input class='btn btn-primary' type='submit' name='pay' value='_{PAY}_'>
 </div>
 

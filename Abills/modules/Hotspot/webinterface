@@ -107,7 +107,7 @@ sub hotspot_reports {
       push @results_list, [
           $row_number_counter++,
           $html->button( $logins_row->{uid}, "index=15&UID=$logins_row->{uid}",
-            { ICON => 'glyphicon glyphicon-user', class => 'btn btn-sm btn-default' }
+            { ICON => 'fa fa-user', class => 'btn btn-sm btn-secondary' }
           ),
           $logins_row->{first_seen},
           $logins_row->{login_time},
@@ -128,7 +128,7 @@ sub hotspot_reports {
       push @results_list, [
           $row_number_counter++,
           $html->button( $logins_row->{uid}, "index=15&UID=$logins_row->{uid}",
-            { ICON => 'glyphicon glyphicon-user', class => 'btn btn-sm btn-default' }
+            { ICON => 'fa fa-user', class => 'btn btn-sm btn-secondary' }
           ),
           $logins_row->{first_seen},
           $logins_row->{login_time},

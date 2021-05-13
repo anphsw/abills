@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{EQUIPMENT}_ : %WELL%</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4 class='card-title'>_{EQUIPMENT}_ : %WELL%</h4></div>
+  <div class='card-body'>
     <form name='CABLECAT_COMMUTATION_ADD_EQUIPMENT_MODAL' id='CABLECAT_COMMUTATION_ADD_EQUIPMENT_MODAL' method='post'
           class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
@@ -8,9 +8,9 @@
       <input type='hidden' name='entity' value='EQUIPMENT'/>
       <input type='hidden' name='COMMUTATION_ID' value='%COMMUTATION_ID%'/>
 
-      <div class="form-group">
-        <label class="control-label col-md-3">_{EQUIPMENT}_</label>
-        <div class="col-md-9">
+      <div class='form-group row'>
+        <label class='control-label col-md-3'>_{EQUIPMENT}_:</label>
+        <div class='col-md-9'>
           %EQUIPMENT_SELECT%
         </div>
       </div>
@@ -19,7 +19,7 @@
 
   </div>
 
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type='submit' form='CABLECAT_COMMUTATION_ADD_EQUIPMENT_MODAL' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>

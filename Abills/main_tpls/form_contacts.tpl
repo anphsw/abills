@@ -1,14 +1,6 @@
 <style>
-  #contact_submit {
-    margin-left: 25px;
-  }
-
   .draggable-handler {
     cursor: move;
-  }
-
-  .contact {
-    background-color: #f0f0f0;
   }
 
   #contacts_wrapper.reg_wizard .contact {
@@ -23,94 +15,133 @@
     display: none;
   }
 
+  #contacts_wrapper.reg_wizard .contact-comments-btn {
+    display: none;
+  }
+
+  .form-group.callout.callout-info.contact {
+    height: auto !important;
+  }
+
 </style>
 
-<!-- <form action='$SELF_URL' class='form-horizontal'> -->
-  <!-- <input type='hidden' name='index' value='$index'> -->
-  <input type='hidden' name='subf' value='%subf%'>
-  <input type='hidden' name='DEFAULT_CONTACT_TYPES' value='%DEFAULT_TYPES%'>
+<input type='hidden' name='subf' value='%subf%'>
+<input type='hidden' name='DEFAULT_CONTACT_TYPES' value='%DEFAULT_TYPES%'>
 
-  <!-- FOR REG WIZARD -->
-  <div class='form-group %SIZE_CLASS%'>
-    <div class='box box-theme'>
-      <div class='box-header with-border'>
-        <h3 class='box-title'>_{CONTACTS}_</h3>
-        <div class='box-tools pull-right'>
-          <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i>
+<div class='form-group %SIZE_CLASS% mb-0'>
+  <div class='card mb-0'>
+    <div class='card-header with-border'>
+      <h3 class='card-title'>_{CONTACTS}_</h3>
+      <div class='card-tools pull-right'>
+        <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+          <i class='fa fa-minus'></i>
+        </button>
+      </div>
+    </div>
+    <div class='card-body' style='display: block;'>
+      <ul id='contacts_wrapper' class='todo-list'></ul>
+      <div id='contacts_controls'>
+        <div class='col-xs-8'>
+          <span class='text-success' id='contacts_response'></span>
+        </div>
+        <div class='col-xs-4 text-right'>
+          <button role='button' id='contact_add' class='btn btn-sm btn-success'>
+            <span class='fa fa-plus'></span>
+          </button>
+
+          <button role='button' id='contact_submit' class='btn btn-sm btn-primary disabled'>
+            <span class='fa fa-check'></span>
           </button>
         </div>
       </div>
-      <div class='box-body' style='display: block;'>
-        <div id='contacts_wrapper'></div>
-        <div id='contacts_controls'>
-          <div class='col-xs-8'>
-            <span class='text-success' id='contacts_response'></span>
-          </div>
-          <div class='col-xs-4 text-right'>
-            <div class='btn-group'>
-              <button role='button' id='contact_add' class='btn btn-xs btn-success'>
-                <span class='glyphicon glyphicon-plus'></span>
-              </button>
-
-              <button role='button' id='contact_submit' class='btn btn-xs btn-primary disabled'>
-                <span class='glyphicon glyphicon-ok'></span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </div>
     </div>
   </div>
-<!-- </form> -->
+</div>
 
 <script>
   var CONTACTS_LANG = {
+    'COMMENTS': '_{COMMENTS}_',
     'CONTACTS': '_{CONTACTS}_',
-    'CANCEL'  : '_{CANCEL}_',
-    'ADD'     : '_{ADD}_',
-    'REMOVE'  : '_{REMOVE}_'
+    'EDIT': '_{EDIT}_',
+    'SAVE': '_{SAVE}_',
+    'CANCEL': '_{CANCEL}_',
+    'ADD': '_{ADD}_',
+    'REMOVE': '_{REMOVE}_'
   };
   var CONTACTS_JSON = JSON.parse('%JSON%');
 </script>
+
 <!-- Mustache.min.js template -->
 <script id='contacts_modal_body' type='x-tmpl-mustache'>
-   <div class='form-group contact'>
-     <div class='col-md-6'>
-       <select class='form-control' name='type_id' id='contacts_type_select'>
-         {{ #types }}
-           <option value='{{ id }}'>{{ name }}</option>
-         {{ /types }}
-       </select>
-     </div>
-     <span class='visible-xs visible-sm col-xs-12' style='padding-top: 10px'> </span>
-     <div class='col-md-6'>
-      <input type='text' class='form-control' id='contacts_type_value' name='value' />
-     </div>
-   </div>
-
+    <div class='form-group contact'>
+      <div class="row">
+        <div class="col-sm-4 col-md-4">
+          <select class='form-control' name='type_id' id='contacts_type_select'>
+            {{ #types }}
+              <option value='{{ id }}'>{{ name }}</option>
+            {{ /types }}
+          </select>
+        </div>
+        <div class='col-sm-4 col-md-4'>
+          <input type='text' class='form-control' id='contacts_type_value' name='value' placeholder="_{CONTACTS}_"/>
+        </div>
+        <div class='col-sm-4 col-md-4'>
+          <input type='text' class='form-control' id='contacts_type_comments' name='comments' placeholder="_{COMMENTS}_"/>
+        </div>
+      </div>
+    </div>
 </script>
+
+
+<script id='contact_comment_edit_template' type='x-tmpl-mustache'>
+  <label class='col-sm-2 col-md-4 col-form-label'>_{COMMENTS}_</label>
+  <input id="edit_contact_comments_modal_input" value="{{ comments }}" class="form-control" type="text">
+</script>
+
 <script id='contact_template' type='x-tmpl-mustache'>
 
-  <div class='form-group contact' data-id='{{id}}' data-priority='{{priority}}' data-position='{{position}}'>
-    <div class='col-xs-1 draggable-handler'>
-      <span class='glyphicon glyphicon-option-vertical form-control-static'></span>
+  <li class='text-left contact_template_data' data-id='{{id}}' data-priority='{{priority}}' data-position='{{position}}'>
+    <div class="d-flex bd-highlight">
+      <span class="pt-2 bd-highlight handle ui-sortable-handle">
+        <i class="fa fa-ellipsis-v"></i>
+        <i class="fa fa-ellipsis-v"></i>
+      </span>
+      <div class="pl-1 pt-2 bd-highlight" style="width: 33%">
+        <label>{{name}}</label>
+      </div>
+      <div class="flex-grow-1 bd-highlight">
+        <input class='form-control contact_template_value' type='text' {{#form}}form='{{form}}'{{/form}} name='{{type_id}}' {{#value}}value='{{value}}'{{/value}}/>
+        <input data-id='{{id}}' class='form-control contact_template_comments' type='hidden' {{#form}}form='{{form}}'{{/form}} name='COMMENTS' {{#comments}}value='{{comments}}'{{/comments}}/>
+      </div>
+      <div class="p-2 tools d-block">
+        <span
+          data-tooltip="{{comments}}{{^comments}}_{COMMENTS_DOESNT_EXIST}_{{/comments}}"
+          data-tooltip-position="top"
+          data-content="{{comments}}{{^comments}}_{COMMENTS_DOESNT_EXIST}_{{/comments}}"
+          data-html="true"
+          data-toggle="popover"
+          data-trigger="hover"
+          data-placement="top"
+          data-container="body"
+          data-original-title=""
+          title=""
+          class='p-1 fa fa-comment contact-comment-edit-btn text-blue form-control-static'
+          data-id='{{id}}'>
+         </span>
+        </a>
+        {{^is_default}}
+            <span data-target='#' class='fa fa-remove contact-remove-btn text-red form-control-static' data-id='{{id}}'></span>
+        {{/is_default}}
+      </div>
     </div>
-    <label class='control-label col-xs-3'>
-      <div>{{name}}</div>
-    </label>
-    <div class='col-xs-7'>
-      <input class='form-control' type='text' {{#form}}form='{{form}}'{{/form}} name='{{type_id}}' {{#value}}value='{{value}}'{{/value}}/>
-    </div>
-    <div class='col-xs-1'>
-    {{^is_default}}
-      <a data-target='#' class='contact-remove-btn text-red form-control-static' data-id='{{id}}'>
-        <span class='glyphicon glyphicon-remove'></span>
-      </a>
-    {{/is_default}}
-    </div>
-  </div>
 
+  </li>
 </script>
 
 <script src='/styles/default_adm/js/contacts_form.js?v=0.77.78'></script>
+
+<style>
+  .contact {
+    padding: 0.5rem !important;
+  }
+</style>

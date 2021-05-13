@@ -5,7 +5,7 @@ use warnings;
 use parent 'Abills::Sender::Plugin';
 use Abills::Base qw(_bp);
 
-our $VERSION = 0.02;
+our $VERSION = 0.03;
 
 use Abills::Backend::Plugin::Telegram::BotAPI;
 use Abills::Fetcher;
@@ -94,8 +94,10 @@ sub send_message {
   if ($attr->{DEBUG}){
     $self->{api}{debug} = $attr->{DEBUG};
   }
-  
-  my $result = $self->{api}->sendMessage({
+
+  $attr->{TELEGRAM_ATTR}->{reply_markup} = make_reply($attr->{MAKE_REPLY}, $attr) if($attr->{MAKE_REPLY});
+
+ my $result = $self->{api}->sendMessage({
       chat_id => $attr->{TO_ADDRESS},
       text    => $text,
       %{ $attr->{TELEGRAM_ATTR} // {} }
@@ -184,6 +186,53 @@ sub get_bot_name {
   }
   
   return $self->{name};
+}
+
+#**********************************************************
+=head2 make_reply() - return reply keyboard
+
+  Returns:
+    hash - keyboard
+
+=cut
+#**********************************************************
+sub make_reply(){
+  my ($message_id, $sender_attr) = @_;
+
+  my @keyboard = ();
+
+
+  my $referer = (
+    # Allow users to use their own portal URL
+    ($sender_attr->{UID} ? $conf{CLIENT_INTERFACE_URL} : '')
+      || $conf{BILLING_URL}
+      || $ENV{HTTP_REFERER}
+      || ''
+  );
+
+  if ($referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/g) {
+    my $site_url = $1;
+
+    if ($site_url) {
+      my $link = $site_url;
+
+      if ($sender_attr->{UID}) {
+        $link .= "/index.cgi?get_index=msgs_user&ID=$message_id#last_msg";
+      }
+      elsif ($sender_attr->{AID}) {
+        my $receiver_uid = $sender_attr->{SENDER_UID} ? '&UID=' . $sender_attr->{SENDER_UID} : '';
+        $link .= "/admin/index.cgi?get_index=msgs_admin&full=1$receiver_uid&chg=$message_id#last_msg";
+      }
+
+      push(@keyboard, { text => $sender_attr->{LANG}->{MSGS_REPLY}, 'url' => $link });
+    }
+  }
+
+  return {
+    inline_keyboard => [
+      \@keyboard
+    ]
+  }
 }
 
 1;

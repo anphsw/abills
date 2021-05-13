@@ -1,7 +1,7 @@
 
 <div class='col-xs-12 col-md-6'>
-<div class='box box-theme box-big-form'>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-big-form'>
+  <div class='card-body'>
     <div class='form-group'>
         <label class='col-md-4 control-label'>_{MESSAGE}_</label>
         <div class='col-md-8'>

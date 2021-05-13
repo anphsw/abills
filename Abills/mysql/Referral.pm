@@ -281,7 +281,7 @@ sub request_list{
   my $WHERE = $self->search_former( $attr, [
     [ 'ID', 'INT', 'r.id as referral_request', 1 ],
     [ 'FIO', 'STR', 'r.fio', 1 ],
-    [ 'PHONE', 'STR', 'r.phone', 1 ],
+    [ 'phone', 'STR', 'r.phone', 1 ],
     [ 'ADDRESS', 'STR', 'r.address', 1 ],
     [ 'STATUS', 'INT', 'r.status', 1],
     [ 'UID', 'INT', 'r.referrer as uid', 1],

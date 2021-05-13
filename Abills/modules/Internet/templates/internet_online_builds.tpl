@@ -1,32 +1,32 @@
-<div class='row  form form-inline'>
-  <div class='checkbox'>
+<div class='d-flex justify-content-center form-inline form m-1'>
+  <div class='checkbox m-1'>
     <label>
       <input type='checkbox' checked='checked' id='SHOW_ONLINE'>
       _{ONLINE}_
     </label>
   </div>
-  <div class='checkbox'>
+  <div class='checkbox m-1'>
     <label>
       <input type='checkbox' checked='checked' id='SHOW_OFFLINE'>
       _{OFFLINE}_
     </label>
   </div>
-  <div class='checkbox'>
+  <div class='checkbox m-1'>
     <label>
       <input type='checkbox' checked='checked' id='SHOW_EMPTY'>
       _{EMPTY}_
     </label>
   </div>
-  <div class='form-group'>
-    <button class='btn btn-default' id='OPEN_ALL'><span class="fa fa-plus"></span>&nbsp;_{OPEN_ALL}_</button>
+  <div class='form-group m-1'>
+    <button class='btn btn-default' id='OPEN_ALL'><span class='fa fa-plus'></span>&nbsp;_{OPEN_ALL}_</button>
   </div>
-  <div class='form-group'>
-    <button class='btn btn-default' id='CLOSE_ALL'><span class="fa fa-minus"></span>&nbsp;_{CLOSE_ALL}_</button>
+  <div class='form-group m-1'>
+    <button class='btn btn-default' id='CLOSE_ALL'><span class='fa fa-minus'></span>&nbsp;_{CLOSE_ALL}_</button>
   </div>
 
 </div>
 
-<div class='row' id='DISTRICT_PANELS'>
+<div id='DISTRICT_PANELS'>
   %DISTRICT_PANELS%
 </div>
 
@@ -55,7 +55,7 @@
       contentLoading = true;
       let url = '$SELF_URL?header=2&get_index=internet_online_builds&RETURN_CONTENT=1&PAGE_START=' + pageStart +
         '&PAGE_ROWS=' + 1;
-        
+
       fetch(url)
         .then(function (response) {
           if (!response.ok)
@@ -90,12 +90,12 @@
 
     open_btn.on('click', function (e) {
       cancelEvent(e);
-      district_panels.find('button[data-widget="collapse"]').find('i.fa-plus').click();
+      district_panels.find('button[data-card-widget="collapse"]').find('i.fa-plus').click();
     });
 
     close_btn.on('click', function (e) {
       cancelEvent(e);
-      district_panels.find('button[data-widget="collapse"]').find('i.fa-minus').click();
+      district_panels.find('button[data-card-widget="collapse"]').find('i.fa-minus').click();
     });
 
 
@@ -108,7 +108,7 @@
     var checkbox_btn_class = {
       online : 'btn-success',
       offline: 'btn-danger',
-      empty  : 'btn-default'
+      empty  : 'btn-secondary'
     };
 
     var element_for_checkbox_id = {

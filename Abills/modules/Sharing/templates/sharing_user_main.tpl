@@ -2,8 +2,8 @@
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='TABLE_FILE' value='$FORM{TABLE_FILE}'>
 
-<div class='box box-primary'>
-  <div class='box-header'>
+<div class='card box-primary'>
+  <div class='card-header'>
     <div class='form-group'> 
       <div class='collapse navbar-collapse'>
         <label class='col-md-2'>_{GROUP}_</label>

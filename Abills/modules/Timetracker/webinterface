@@ -12,8 +12,7 @@ use Time::Piece;
 use Abills::Base qw(time2sec);
 use Timetracker::db::Timetracker;
 use Admins;
-use XML::Simple qw(:strict);
-use LWP::Simple;
+#use LWP::Simple;
 use JSON;
 use utf8;
 use Encode qw(encode_utf8);
@@ -333,7 +332,7 @@ sub add_time {
       });
       my $edit_button = $html->button("", "index=$index&chg=$date&NAME=$admin->{AID}", {
           class => "",
-          ADD_ICON => "glyphicon glyphicon-pencil"
+          ADD_ICON => "fa fa-pencil"
       });
       $tables{$week}->addrow($d->wdayname . " " . $d->dmy, @num_element, "$edit_button$del_button");
     }
@@ -476,7 +475,7 @@ sub add_item {
     });
     my $edit_button = $html->button("", "index=$index&chg=$item->{id}", {
       class => "",
-      ADD_ICON => "glyphicon glyphicon-pencil"
+      ADD_ICON => "fa fa-pencil"
     });
     $table->addrow($item->{id}, $item->{element}, $external_systems[$item->{external_system}], ($item->{priority}) ? $lang{YES} : $lang{NO}, "$edit_button$del_button");
   }
@@ -604,6 +603,9 @@ sub fibonacci {
 #**********************************************************
 sub get_redmine_time {
   my ($date) = @_;
+
+  require XML::Simple;
+  XML::Simple->(/qw(:strict)/);
 
   if (!$conf{TIMETRACKER_REDMINE_APIURL} || !$conf{TIMETRACKER_REDMINE_APIKEY}) {
     $html->message("err", $lang{ERROR}, '$conf{TIMETRACKER_REDMINE} ' . $lang{NO_FIELD});

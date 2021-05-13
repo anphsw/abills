@@ -1,68 +1,68 @@
 <div class='row'>
   <div class='%MAIN_FORM_SIZE%'>
-    <div class='box box-theme'>
-      <div class='box-header with-border'><h4 class='box-title'>_{WELL}_</h4></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline'>
+      <div class='card-header with-border'><h4 class='card-title'>_{WELL}_</h4></div>
+      <div class='card-body'>
         <form name='CABLECAT_WELLS' id='form_CABLECAT_WELLS' method='post' class='form form-horizontal'>
           <input type='hidden' name='index' value='$index'/>
           <input type='hidden' name='ID' value='%ID%'/>
           <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
           %EXTRA_INPUTS%
 
-          <div class='form-group'>
-            <label class='control-label col-md-3 required' for='NAME_ID'>_{NAME}_</label>
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right required' for='NAME_ID'>_{NAME}_</label>
 
-            <div class='col-md-9'>
+            <div class='col-md-8'>
               <input type='text' class='form-control' value='%NAME%' required name='NAME' id='NAME_ID'/>
             </div>
           </div>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3 required' for='TYPE_ID_SELECT'>_{TYPE}_</label>
-            <div class='col-md-9'>
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right required' for='TYPE_ID_SELECT'>_{TYPE}_</label>
+            <div class='col-md-8'>
               %TYPE_ID_SELECT%
             </div>
           </div>
 
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='INSTALLED_ID'>_{INSTALLED}_</label>
-            <div class='col-md-9'>
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='INSTALLED_ID'>_{INSTALLED}_</label>
+            <div class='col-md-8'>
               <input type='text' class='form-control datepicker' value='%INSTALLED%' name='INSTALLED'
                      id='INSTALLED_ID'/>
             </div>
           </div>
 
-          <div class='form-group should-be-hidden'>
-            <label class='control-label col-md-3' for='POINT_ID'>_{OBJECT}_</label>
-            <div class='col-md-9'>
+          <div class='form-group row should-be-hidden'>
+            <label class='col-md-4 col-form-label text-md-right' for='POINT_ID'>_{OBJECT}_</label>
+            <div class='col-md-8'>
               %POINT_ID_SELECT%
             </div>
           </div>
 
-          <div class='checkbox text-center should-be-hidden' data-visible='%ADD_OBJECT_VISIBLE%'>
-            <label>
-              <!-- Here 1 is WELL map type_id -->
-              <input type='checkbox' name='ADD_OBJECT' value='1'
-                     data-return='1' data-checked='%ADD_OBJECT%'
-                     data-input-disables='POINT_ID'
-              />
-              <strong>_{CREATE}_ _{OBJECT}_</strong>
-            </label>
+          <div class='form-group row should-be-hidden' data-visible='%ADD_OBJECT_VISIBLE%'>
+            <label class='col-md-4 col-form-label text-md-right' for='ADD_OBJECT'>_{CREATE}_ _{OBJECT}_:</label>
+            <div class='col-md-8'>
+              <div class='form-check'>
+                <!-- Here 1 is WELL map type_id -->
+                <input type='checkbox' class='form-check-input' id='ADD_OBJECT' name='ADD_OBJECT'
+                       %ADD_OBJECT% value='1' data-input-disables='POINT_ID'>
+              </div>
+            </div>
           </div>
 
           <hr/>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='PARENT_ID'>_{INSIDE}_</label>
-            <div class='col-md-9'>
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='PARENT_ID'>_{INSIDE}_</label>
+            <div class='col-md-8'>
               %PARENT_ID_SELECT%
             </div>
           </div>
         </form>
 
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input type='submit' form='form_CABLECAT_WELLS' class='btn btn-primary' name='submit'
                value='%SUBMIT_BTN_NAME%'>
       </div>
@@ -70,18 +70,18 @@
   </div>
 
   <div class='col-md-6'>
-    <div class='box box-theme' style='display: none' data-visible='%HAS_LINKED%'>
-      <div class='box-header with-border'><h4 class='box-title'>_{LINKED}_ _{CABLES}_ -> _{WELLS}_</h4></div>
-      <div class='box-body text-left'>
+    <div class='card card-primary card-outline' style='display: none' data-visible='%HAS_LINKED%'>
+      <div class='card-header with-border'><h4 class='card-title'>_{LINKED}_ _{CABLES}_ -> _{WELLS}_</h4></div>
+      <div class='card-body text-left'>
         %LINKED%
       </div>
     </div>
   </div>
 
   <div class='col-md-6'>
-    <div class='box box-theme' style='display: none' data-visible='%CONNECTERS_VISIBLE%' id='CONNECTERS_BOX'>
-      <div class='box-header with-border'><h4 class='box-title'>_{CONNECTERS}_</h4></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline' style='display: none' data-visible='%CONNECTERS_VISIBLE%' id='CONNECTERS_BOX'>
+      <div class='card-header with-border'><h4 class='card-title'>_{CONNECTERS}_</h4></div>
+      <div class='card-body'>
         %CONNECTERS%
       </div>
     </div>
@@ -112,7 +112,7 @@
           loadToModal(href);
         });
 
-        add_btn.addClass('btn btn-default');
+        add_btn.addClass('btn btn-secondary');
       }
 
       function setup_modal_connecter_add_form(modal) {
@@ -135,7 +135,7 @@
       function refreshConnectersView() {
         aModal.hide();
 
-        console.log('box_refresh');
+        console.log('card_refresh');
         setBoxRefreshingState(connecters_box, true);
         console.log(connecters_box, true);
         jQuery('#WELL_CONNECTERS_LIST').load(' #WELL_CONNECTERS_LIST', function () {

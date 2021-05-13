@@ -1,14 +1,12 @@
-<div class='form-group'>
-  <label class='control-label col-xs-4 col-md-6'>_{EXTRA}_ _{DEPOSIT}_</label>
-  <div class='col-xs-8 col-md-6'>
-    <p>%EXT_BILL_DEPOSIT%</p>
-  </div>
-</div>
+<div class='form-group row'>
+  <label class='col-md-2 col-sm-2 col-form-label' for='EXT_BILL_DEPOSIT'>_{EXTRA}_ _{DEPOSIT}_</label>
+  <div class='col-md-4 col-sm-10'>
+    <span class='label %EXT_DEPOSIT_MARK%'>%EXT_BILL_DEPOSIT%</span>
 
-<div class='form-group'>
-  <label class='control-label col-xs-4 col-md-6' >_{EXTRA_BILL}_</label>
-  <div class='col-xs-8 col-md-6'>
-    <p>%EXT_BILL_ID%</p>
+  </div>
+  <label class='col-md-2 col-sm-2 col-form-label' for='EXT_BILL_ID'>_{EXTRA_BILL}_</label>
+  <div class='col-md-4 col-sm-10'>
+    <input type=text name='EXT_BILL_ID' value='%EXT_BILL_ID%' ID='EXT_BILL' class='form-control' readonly>
   </div>
 </div>
 

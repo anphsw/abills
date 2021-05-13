@@ -90,7 +90,6 @@ sub snmp_info_form {
         'dlink_ip_mac_port' => 'D-Link IP MAC Port Binding',
         'cisco_air'         => 'Cisco Aironet Asociation',
         'celan'             => 'CeLAN MAC Table',
-        'cable_tester'      => 'Cable tester (D-Link)',
         'ports_state'       => 'Port State',
         'mikrotik_air'      => 'Mikrotik Signal Power',
         'cpu_load'          => 'CPU Load',

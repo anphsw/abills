@@ -39,11 +39,11 @@
   <div class='row'>
     <div class='col-md-3 col-lg-3 col-xs-3 hidden-xs'></div>
     <div class='col-md-6 col-sm-12 col-xs-12 col-lg-6'>
-      <div class='box box-success'>
-        <div class='box-header with-border text-center'>
+      <div class='card box-success'>
+        <div class='card-header with-border text-center'>
           <h3 style='margin:0'> _{ICARDS}_ - _{BUY}_ </h3>
         </div>
-        <div class='box-body' style='margin-top: 0%; padding-top: 1%;'>
+        <div class='card-body' style='margin-top: 0%; padding-top: 1%;'>
           <div class='row' style='margin-left:2%; margin-top:0%;'>
             <div class='row'>
               <div class='col-sm-6 col-xs-4 text-right'>
@@ -89,7 +89,7 @@
           </div>
 
         </div>
-        <div class='box-footer' style='margin:0%; padding: 0%;'>
+        <div class='card-footer' style='margin:0%; padding: 0%;'>
           <div class='row'>
             <div class='col-sm-5 col-xs-5 col-md-5 col-xs-5 col-lg-5 col-xs-5'></div>
             <div class='col-md-4'>

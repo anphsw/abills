@@ -1,5 +1,4 @@
-<SCRIPT TYPE='text/javascript'>
-  <!--
+<script>
   function add_comments() {
 
     if (document.user_form.DISABLE.checked) {
@@ -7,170 +6,247 @@
 
       var comments = prompt('_{COMMENTS}_', '');
 
-      if (comments == '' || comments == null) {
+      if (comments === '' || comments == null) {
         alert('Enter comments');
-        document.user_form.DISABLE.checked                  = false;
-        document.user_form.ACTION_COMMENTS.style.visibility = 'hidden';
+        document.user_form.DISABLE.checked = false;
+        document.user_form.ACTION_COMMENTS.style.display = 'none';
+      } else {
+        document.user_form.DISABLE.checked = true;
+        document.user_form.ACTION_COMMENTS.value = comments;
+        document.user_form.ACTION_COMMENTS.style.display = 'block';
+        document.getElementById('DISABLE_LABEL').innerHTML = '_{DISABLE}_';
       }
-      else {
-        document.user_form.DISABLE.checked                  = true;
-        document.user_form.ACTION_COMMENTS.value            = comments;
-        document.user_form.ACTION_COMMENTS.style.visibility = 'visible';
-      }
-    }
-    else {
-      document.user_form.DISABLE.checked                  = false;
-      document.user_form.ACTION_COMMENTS.style.visibility = 'hidden';
-      document.user_form.ACTION_COMMENTS.value            = '';
+    } else {
+      document.user_form.DISABLE.checked = false;
+      document.user_form.ACTION_COMMENTS.style.display = 'block';
+      document.user_form.ACTION_COMMENTS.value = '';
+      document.getElementById('DISABLE_LABEL').innerHTML = '_{ACTIV}_';
     }
   }
-  -->
-</SCRIPT>
+
+  jQuery(function() {
+    if (document.user_form.DISABLE.checked) {
+      document.user_form.ACTION_COMMENTS.style.display = 'block';
+    } else {
+      document.user_form.ACTION_COMMENTS.style.display = 'none';
+    }
+
+    jQuery('input#DISABLE').on('input', add_comments);
+  });
+</script>
 
 <form class='form-horizontal' action='$SELF_URL' id='user_form' name='user_form' METHOD='POST' ENCTYPE='multipart/form-data'>
 
   <input type='hidden' name='index' value='$index'>
-  %MAIN_USER_TPL%
+    %MAIN_USER_TPL%
   <input type=hidden name=UID value='%UID%'>
 
-  
-  
   <!-- General panel -->
-  <div id='form_1' class='box box-theme box-big-form for_sort'>
-    <div class='box-header with-border'><h3 class='box-title'>_{USER_ACCOUNT}_ %DISABLE_MARK%</h3>
-      <div class='box-tools pull-right'>
-      <button type='button' class='btn btn-box-tool' data-widget='collapse'>
+  <div id='form_1' class='card card-big-form for_sort'>
+    <div class='card-header with-border'><h3 class='card-title'>_{USER_ACCOUNT}_ %DISABLE_MARK%</h3>
+      <div class='card-tools pull-right'>
+      <button type='button' class='btn btn-tool' data-card-widget='collapse'>
       <i class='fa fa-minus'></i>
         </button>
       </div>
     </div>
-    <div class='box-body'>
-    <div class='row' style='padding-bottom: 10px;'>
-      <label class='control-label col-md-3 col-xs-3'>_{DEPOSIT}_</label>
-      
-      <div class='col-md-9 col-xs-9'>
-        <div class='input-group'>
-            <input class='form-control %DEPOSIT_MARK%' type='text' readonly value='%SHOW_DEPOSIT%' placeholder='0'>
-        <span class='input-group-addon'>%PAYMENTS_BUTTON%</span>
-        <span class='input-group-addon'>%FEES_BUTTON%</span>
-        <span class='input-group-addon'>%PRINT_BUTTON%</span>
-        </div>
-      </div>
-    </div>
-    <div class='row' style='padding-bottom: 10px;'>
-      <label class='control-label col-md-3 col-xs-3'>_{CREDIT}_</label>
-      <div class='col-md-3 col-xs-3'>
-        <input id='CREDIT' name='CREDIT' class='form-control r-0-9' type='number' step='0.01' min='0'
-        value='%CREDIT%' data-tooltip='_{ERR_CREDIT_CHANGE_LIMIT_REACH}_<br/>
-                                      <h5>_{SUM}_:</h5>%CREDIT%<br/>
-                                      <h5>_{DATE}_:</h5>%DATE_CREDIT%'
-               data-tooltip-position='top'>
-      </div>
-      <label class='control-label col-md-3 col-xs-3'>_{DATE}_</label>
-      <div class='col-md-3 col-xs-3'>
-        <input id='CREDIT_DATE' name='CREDIT_DATE' class='datepicker form-control d-0-9' type='text'
-        value='%CREDIT_DATE%'>
-      </div>
-    </div>
-    <div class='row' style='padding-bottom: 10px;'>
-        <label class='control-label col-xs-3 col-md-3'>_{REDUCTION}_(%)</label>
-        <div class=' col-xs-3 col-md-3'>
-          <input id='REDUCTION' name='REDUCTION' class='form-control r-0-11' type='number' 
-                min='0' max='100' value='%REDUCTION%' step='0.01'>
-        </div>
-        <label class='control-label col-md-3 col-xs-3'>_{DATE}_</label>
-        <div class='col-md-3 col-xs-3'>
-            <input id='REDUCTION_DATE' name='REDUCTION_DATE' class='datepicker form-control d-0-11' type='text' value='%REDUCTION_DATE%'>
-        </div>
-      </div>
-        <!-- ACTIVATION / EXPIRED -->
-        <div class='row' style='margin-bottom: 15px;%ACT_EXP_BTN_HIDE%'>
-          <label class='control-label col-xs-3 col-md-3' for='ACTIVATE'>_{ACTIVATE}_</label>
-          <div class='col-xs-9 col-md-3' style='margin-bottom: -1px;'>
-            <input id='ACTIVATE' name='ACTIVATE' value='%ACTIVATE%' placeholder='%ACTIVATE%'
-                   class='form-control datepicker d-0-19' type='text'>
-          </div>
-          <label class='control-label col-xs-3 col-md-3' for='EXPIRE'>_{EXPIRE}_</label>
-          <div class='col-xs-9 col-md-3 %EXPIRE_COLOR%'>
-            <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%'
-                   class='form-control datepicker d-0-20' type='text'>
-          </div>
-        </div>
-  </div>
-
-    <div class='box box-default collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
-        <div class='box-header with-border'>
-          <h3 class='box-title'>_{EXTRA}_</h3>
-          <div class='box-tools pull-right'>
-            <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-plus'></i>
-            </button>
-          </div>
-        </div>
-        <div class='box-body'>
-          <div class='form-group'>
-            <label class='control-label col-xs-4 col-md-4'>_{COMPANY}_</label>
-            <div class=' col-xs-8 col-md-8'>
-              <div class='input-group'>
-                <input type=text name='COMP' value='%COMPANY_NAME%' ID='COMP' class='form-control'
-                       readonly>
-                <span class='input-group-addon'><a href='$SELF_URL?index=13&amp;COMPANY_ID=%COMPANY_ID%'
-                                                   class='glyphicon glyphicon-circle-arrow-left'></a></span>
-                <span class='input-group-addon'><a href='$SELF_URL?index=21&UID=$FORM{UID}'
-                                                   class='glyphicon glyphicon-pencil'></a></span>
+    <div class='card-body'>
+      <div class='form-group'>
+        <div class='row'>
+          <div class='col-sm-12 col-md-6'>
+            <div class='info-box h-100'>
+              <span class='info-box-icon bg-success'>
+                <i class='fa fa-money'></i>
+              </span>
+              <div class='info-box-content'>
+                <div class='row'>
+                  <h3 class='col-md-12'>
+                    <span class='info-box-number %DEPOSIT_MARK% ' title='%DEPOSIT%'>%SHOW_DEPOSIT%</span>
+                  </h3>
+                </div>
+                <span class='info-box-text row'>
+                  <div class='btn-group col-md-12'>
+                    %PAYMENTS_BUTTON% %FEES_BUTTON% %PRINT_BUTTON%
+                  </div>
+                </span>
               </div>
             </div>
-      
-      <label class='control-label col-xs-4 col-md-4' style='%GROUP_PERMISSION%'>_{GROUP}_</label>
-      <div class='col-md-8 col-xs-8' style='%GROUP_PERMISSION%'>
-          <div class='input-group'>
-                <input type=text name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly>
-                <span class='input-group-addon'><a href='$SELF_URL?index=12&UID=$FORM{UID}'
-                                         class='glyphicon glyphicon glyphicon-pencil'></a></span>
+          </div>
+          <div class='col-md-6 col-sm-6 col-12'>
+            <div class='info-box h-100'>
+              <div class='info-box-content'>
+                <span class='info-box-text text-center'></span>
+                <div class='info-box-content'>
+                  <div class='text-center'>
+                    <div class='custom-control custom-switch custom-switch-on-danger custom-switch-off-success'>
+                      <input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%'>
+                      <label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>
+                    </div>
+                  </div>
+                  <input class='form-control' type='text' name='ACTION_COMMENTS' ID='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' size='40'
+                    style='display : none;' />%ACTION_COMMENTS%
+                </div>
               </div>
+            </div>
+          </div>
         </div>
-      
-  
-      
-            <label class='control-label col-xs-4 col-md-4' for='REG'>_{REGISTRATION}_</label>
-            <div class='col-xs-8 col-md-8'>
-              <input type=text name='REG' value='%REGISTRATION%' ID='REG' class='form-control' readonly>
-            </div>
-            <label class='control-label col-xs-4 col-md-4' for='BILL'>_{BILL}_</label>
-            <div class='col-xs-8 col-md-8'>
-              <div class='input-group'>
-                <input type=text name='BILL' value='%BILL_ID%' ID='BILL' class='form-control' readonly>
-                <span class='input-group-addon'>%BILL_CORRECTION%</span>
-              </div>
-            </div>
       </div>
       <div class='form-group'>
-          <label class='control-label col-xs-4 col-md-4'>_{PASSWD}_</label>
-      <div class='col-md-4 col-xs-4'>%PASSWORD%</div>
-      </div>    
-      
-      <div class='col-md-4 col-xs-4 h-0-18'>
-          <label class='btn btn-default'>
-            <input id='DISABLE' name='DISABLE' value='1' %DISABLE_CHECKBOX% type='checkbox' onClick='add_comments();'>
-          _{DISABLE}_
-        </label>
+        <div class='row'>
+          <div class='col-sm-12 col-md-6'>
+            <div class='form-group row'>
+              <label  class='col-sm-4 col-md-4 col-form-label'>_{CREDIT}_</label>
+              <div class='col-sm-8 col-md-8'>
+                <input id='CREDIT' name='CREDIT' class='form-control r-0-9' type='number' step='0.01' min='0'
+                  value='%CREDIT%' data-tooltip='_{ERR_CREDIT_CHANGE_LIMIT_REACH}_<br/><h5>_{SUM}_:</h5>%CREDIT%<br/><h5>_{DATE}_:</h5>%DATE_CREDIT%'
+                  data-tooltip-position='top'>
+              </div>
+            </div>
+          </div>
+
+          <div class='col-sm-12 col-md-6'>
+            <div class='form-group row'>
+              <label  class='col-sm-2 col-form-label'>_{DATE}_</label>
+              <div class='col-sm-10'>
+                <input id='CREDIT_DATE' name='CREDIT_DATE' class='datepicker form-control d-0-9' type='text'
+                value='%CREDIT_DATE%'>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-        
-              
-      <div class='col-md-8 col-xs-8 %DISABLE_COLOR%' %DISABLE_HIDEN%>
-        %DISABLE_COMMENTS%
-        <input class='form-control' type=text name=ACTION_COMMENTS value='%DISABLE_COMMENTS%' size=30
-               style='visibility: hidden;'>%ACTION_COMMENTS%
+
+      <div class='form-group'>
+        <div class='row'>
+          <div class='col-sm-12 col-md-6'>
+            <div class='form-group row'>
+              <label  class='col-sm-4 col-md-4 col-form-label'>_{REDUCTION}_(%)</label>
+              <div class='col-sm-8 col-md-8'>
+                <input id='REDUCTION' name='REDUCTION' class='form-control r-0-11' type='number'
+                  min='0' max='100' value='%REDUCTION%' step='0.01'>
+              </div>
+            </div>
+          </div>
+
+          <div class='col-sm-12 col-md-6'>
+            <div class='form-group row'>
+              <label  class='col-sm-2 col-form-label'>_{DATE}_</label>
+              <div class='col-sm-10'>
+                <input id='REDUCTION_DATE' name='REDUCTION_DATE' class='datepicker form-control d-0-11' type='text' value='%REDUCTION_DATE%'>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      %DEL_FORM%
-    
-    
-    
 
+      <div class='form-group'>
+        <div class='row'>
+          <div class='col-md-6' id='PASSWORD_WRAPPER' %HIDE_PASSWORD%>
+            <div class='col-md-8' align='left'>%PASSWORD%</div>
+          </div>
+        </div>
+      </div>
     </div>
+    <div class='card card-secondary card-outline collapsed-card mb-0 border-top'>
+      <div class='card-header with-border'>
+        <h3 class='card-title'>_{EXTRA}_</h3>
+        <div class='card-tools pull-right'>
+          <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
+          </button>
+        </div>
+      </div>
+      <div class='card-body'>
+        <div class='form-group'>
+          <div class='row'>
+            <div class='col-sm-12 col-md-6'>
+              <div class='form-group row'>
+                <label  class='col-sm-2 col-md-4 col-form-label' for='ACTIVATE'>_{ACTIVATE}_</label>
+                <div class='col-sm-10 col-md-8'>
+                  <input id='ACTIVATE' name='ACTIVATE' value='%ACTIVATE%' placeholder='%ACTIVATE%'
+                    class='form-control datepicker d-0-19' type='text'>
+                </div>
+              </div>
+            </div>
+            <div class='col-sm-12 col-md-6'>
+              <div class='form-group row'>
+                <label  class='col-sm-2 col-md-4 col-form-label' for='EXPIRE'>_{EXPIRE}_</label>
+                <div class='col-sm-10 col-md-8'>
+                  <input id='EXPIRE' name='EXPIRE' value='%EXPIRE%' placeholder='%EXPIRE%'
+                    class='form-control datepicker d-0-20' type='text'>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class='form-group row'>
+          <label  class='col-sm-2 col-md-2 col-form-label'>_{COMPANY}_</label>
+          <div class='col-sm-10 col-md-10'>
+            <div class='input-group'>
+              <input type=text name='COMP' value='%COMPANY_NAME%' ID='COMP' class='form-control' readonly>
+              <div class='input-group-append'>
+                <div class='input-group-text'>
+                  <a href='$SELF_URL?index=13&amp;COMPANY_ID=%COMPANY_ID%'
+                    class='fa fa-arrow-circle-left'></a>
+                </div>
+              </div>
+              <div class='input-group-append'>
+                <div class='input-group-text'>
+                  <a href='$SELF_URL?index=21&UID=$FORM{UID}'
+                    class='fa fa-pencil'></a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class='form-group row' style='%GROUP_PERMISSION%'>
+          <label  class='col-sm-2 col-form-label'>_{GROUP}_</label>
+          <div class='col-sm-10'>
+            <div class='input-group'>
+              <input type=text name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly>
+              <div class='input-group-append'>
+                <div class='input-group-text'>
+                  <a href='$SELF_URL?index=12&UID=$FORM{UID}'
+                    class='fa fa-pencil'></a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <div class='row'>
+            <div class='col-sm-12 col-md-6'>
+              <div class='form-group row'>
+                <label  class='col-sm-2 col-md-4 col-form-label' for='REG'>_{REGISTRATION}_</label>
+                <div class='col-sm-10 col-md-8'>
+                  <input type=text name='REG' value='%REGISTRATION%' ID='REG' class='form-control' readonly>
+                </div>
+              </div>
+            </div>
+
+            <div class='col-sm-12 col-md-6'>
+              <div class='form-group row'>
+                <label  class='col-sm-2 col-md-4 col-form-label' for='BILL'>_{BILL}_</label>
+                <div class='col-sm-10 col-md-8'>
+                  <div class='input-group'>
+                    <input type=text name='BILL' value='%BILL_ID%' ID='BILL' class='form-control' readonly>
+                    <div class='input-group-append'>
+                      <div class='input-group-text'>
+                        %BILL_CORRECTION%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'>
     </div>
   </div>

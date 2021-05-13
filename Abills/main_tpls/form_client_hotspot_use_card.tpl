@@ -5,8 +5,8 @@
     <input type=hidden name='mac' value='%mac%'>
 
     <fieldset>
-        <div class='box box-theme'>
-            <div class='box-body'>
+        <div class='card card-primary card-outline'>
+            <div class='card-body'>
                 <div class='form-group'>
                     <label class='control-label col-md-3' for='CARD_NUM'>PIN:</label>
                     <div class='col-md-7'>

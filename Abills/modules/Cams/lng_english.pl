@@ -56,4 +56,10 @@ $lang{CAMS_IMPORT_MODELS} = 'Import models';
 
 $lang{CAMS_GROUP} = 'Group';
 
+$lang{CAMS_DISKS} = 'Disks';
+$lang{CAMS_DB} = 'Database';
+$lang{CAMS_ONLINE_CHANNELS} = 'Channels/Online';
+$lang{CAMS_UPTIME} = 'Uptime';
+$lang{CAMS_CPU_LOAD} = 'CPU load';
+
 1;

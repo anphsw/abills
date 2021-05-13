@@ -63,7 +63,7 @@ function addNewPoint(layer_id, object_id) {
     aDrawController.setDrawingMode(structure);
     //aTooltip.display('<h3>' + _NOW_YOU_CAN_ADD_NEW + lang_name + _TO_MAP + '</h3>', 1000);
 
-    $('button#dropOperationCtrlBtn').attr('class', 'btn btn-default');
+    $('button#dropOperationCtrlBtn').attr('class', 'btn btn-secondary');
 
     if (isDefined(mapObject.init)) {
         mapObject.init(layer);
@@ -108,7 +108,7 @@ function toggleRemoveMarkerMode() {
 
     Events.on('object_click', showRemoveConfirmModal);
 
-    $('button#dropOperationCtrlBtn').attr('class', 'btn btn-default');
+    $('button#dropOperationCtrlBtn').attr('class', 'btn btn-secondary');
 
     new ATooltip('<h2>' + _CLICK_ON_A_MARKER_YOU_WANT_TO_DELETE + '</h2>')
         .setClass('info')
@@ -1436,7 +1436,7 @@ var AMapLayersBtns = (function () {
     var button_for_layer = {};
 
     var ENABLED_BTN_CLASS = 'btn-primary';
-    var DISABLED_BTN_CLASS = 'btn-default';
+    var DISABLED_BTN_CLASS = 'btn-secondary';
 
 
     function cacheDOM() {
@@ -1629,7 +1629,7 @@ function MapControls() {
             .attr('title', title)
             .attr('class', 'btn btn-' + (class_ || 'primary'))
             .attr('onclick', onclickString)
-            .html('<span class="glyphicon glyphicon-' + icon + '"></span>');
+            .html('<span class="fa fa-' + icon + '"></span>');
     };
 
     this.addBtn = function (row, btn_params) {
@@ -1706,7 +1706,7 @@ function MapControls() {
         }
 
         this.rows[row_id]['buttons'][index] = this.createBtnDropdown(
-            '<span class="glyphicon glyphicon-' + dropdown_options.icon + '"></span>',
+            '<span class="fa fa-' + dropdown_options.icon + '"></span>',
             dropdown_options.options,
             dropdown_options.class,
             dropdown_options.id

@@ -9,11 +9,11 @@
     <input type='hidden' name='SUM' value='%SUM%'>
     <input type='hidden' name='sid' value='$sid'>
 
-    <div class='box box-primary center-block' style='max-width: 400px'>
-        <div class='box-header with-border'>
+    <div class='card box-primary center-block' style='max-width: 400px'>
+        <div class='card-header with-border'>
             _{MONEY_TRANSFER}_
         </div>
-        <div class='box-body form form-horizontal'>
+        <div class='card-body form form-horizontal'>
             <div class='form-group'>
                 <label class='col-md-6 text-right'>UID:</label>
                 <label class='col-md-6'>
@@ -43,7 +43,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer '>
+        <div class='card-footer '>
             <input class='btn btn-primary center-block' type='submit' name='transfer' value='_{SEND}_'/>
         </div>
     </div>

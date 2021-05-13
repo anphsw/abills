@@ -1,7 +1,7 @@
 <div class='col-md-12 col-lg-12 main_funnel' >
-  <div class='box box-primary '>
-    <div class='box-header with-border text-center'><h4>_{SALES_FUNNEL}_</h4></div>
-    <div class='box-body'>
+  <div class='card box-primary '>
+    <div class='card-header with-border text-center'><h4>_{SALES_FUNNEL}_</h4></div>
+    <div class='card-body'>
       <div id="chartdiv"></div>
     </div>
   </div>

@@ -2,9 +2,9 @@
 <input type='hidden' name='index' value='$index' />
 <input type='hidden' name='export' value='1' />
 
-<div class='box box-primary form-horizontal'>
-<div class='box-header with-border'>_{DOWNLOAD_CHANNELS}_</div>
-<div class='box-body'>
+<div class='card box-primary form-horizontal'>
+<div class='card-header with-border'>_{DOWNLOAD_CHANNELS}_</div>
+<div class='card-body'>
 
 %TABLE%
 
@@ -20,7 +20,7 @@
 
 </div>
 </div>
-<div class='box-footer'><button type='submit' class='btn btn-primary'>_{EXPORT}_</button></div>
+<div class='card-footer'><button type='submit' class='btn btn-primary'>_{EXPORT}_</button></div>
 </div>
 
 </form>

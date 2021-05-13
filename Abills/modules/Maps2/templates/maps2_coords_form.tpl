@@ -1,9 +1,9 @@
 <form action=$SELF_URL class='form-horizontal'>
   <input type=hidden name=index value=$index>
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{AUTO_COORDS}_</h4></div>
-    <div class='box-body'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{AUTO_COORDS}_</h4></div>
+    <div class='card-body'>
       <div class='form-address'>
         <input type='hidden' name='LOCATION_ID' id='ADD_LOCATION_ID' value='%LOCATION_ID%' class='HIDDEN-BUILD'>
 
@@ -23,7 +23,7 @@
 
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input id='GMA_EXECUTE_BTN' type=submit name=discovery value='_{START}_' class='btn btn-primary'>
     </div>
   </div>

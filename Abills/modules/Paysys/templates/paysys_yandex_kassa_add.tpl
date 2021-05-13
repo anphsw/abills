@@ -13,10 +13,10 @@
     <input name='cps_email' value='user@domain.com' type='hidden'/>
     <input type='submit' value='Заплатить'/> -->
 
-<div class='box box-primary box-form'>
-    <div class='box-header with-border'><h4>_{BALANCE_RECHARCHE}_</h4></div>
+<div class='card box-primary box-form'>
+    <div class='card-header with-border'><h4>_{BALANCE_RECHARCHE}_</h4></div>
 
-<div class='box-body'>
+<div class='card-body'>
     <div class='form-group'>
         <label class='col-md-6 control-label text-right'>_{ORDER}_:</label>
         <label class='col-md-6 control-label'>$FORM{OPERATION_ID}</label>
@@ -32,7 +32,7 @@
         <label class='control-label col-md-6'> $FORM{SUM} </label>
     </div>
 </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
         <input class='btn btn-primary' type=submit value=_{PAY}_>
     </div>
 </div> 

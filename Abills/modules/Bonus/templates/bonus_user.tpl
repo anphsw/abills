@@ -4,11 +4,11 @@
         <input type='hidden' name='UID' value='$FORM{UID}'>
         <input type='hidden' name='sid' value='$sid'>
 
-        <div class='box box-primary'>
-            <div class='box-header'>
-                <h3 class='box-title'>_{BONUS}_</h3>
+        <div class='card box-primary'>
+            <div class='card-header'>
+                <h3 class='card-title'>_{BONUS}_</h3>
             </div>
-            <div class='box-body form form-horizontal'>
+            <div class='card-body form form-horizontal'>
                 <div class='form-group'>
                     <label class='col-md-3 control-label'>%TARIF_SEL_NAME%:</label>
 
@@ -30,7 +30,7 @@
                         %ACCEPT_RULES%
                     </div>
                 </div>
-                <div class='box-footer'>
+                <div class='card-footer'>
                     %ACTION%
                 </div>
             </div>

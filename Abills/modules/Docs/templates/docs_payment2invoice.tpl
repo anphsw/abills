@@ -4,9 +4,9 @@
     <input type=hidden name='sid' value='$FORM{sid}'>
     <input type=hidden name='UNINVOICED' value='1'>
     <div class='container-fluid'>
-        <div class='box box-primary form-horizontal'>
-            <div class='box-header with-border text-center'>_{PAYMENTS}_</div>
-            <div class='box-body'>
+        <div class='card box-primary form-horizontal'>
+            <div class='card-header with-border text-center'>_{PAYMENTS}_</div>
+            <div class='card-body'>
                 <div class='form-group col-xs-12' align='center'>
                     %PAYMENTS_LIST%
                 </div>
@@ -22,7 +22,7 @@
                     <canvas class='col-xs-12' height='2'></canvas>
                 </div>
             </div>
-            <div class='box-footer'>
+            <div class='card-footer'>
                 <input class='btn btn-primary' type='submit' name='apply' value='_{APPLY}_'>
             </div>
         </div>

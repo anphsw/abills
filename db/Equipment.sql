@@ -67,8 +67,6 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `comments` TEXT NOT NULL,
   `rows_count` INT(11) UNSIGNED NOT NULL DEFAULT '1',
   `block_size` INT(11) UNSIGNED DEFAULT '0',
-  `snmp_port_shift` smallint(4) UNSIGNED NOT NULL DEFAULT '0'
-  COMMENT 'Shift user ports via snmp',
   `test_firmware` VARCHAR(20) NOT NULL DEFAULT ''
   COMMENT 'Test equipment firmware',
   `port_numbering` TINYINT(1) UNSIGNED DEFAULT '0'
@@ -81,7 +79,12 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `extra_port4` SMALLINT(6) UNSIGNED DEFAULT '0',
   `ports_type` SMALLINT(5) UNSIGNED DEFAULT '1',
   `port_shift` smallint(4) NOT NULL DEFAULT '0',
+  `auto_port_shift` TINYINT(1) NOT NULL DEFAULT '0',
+  `fdb_uses_port_number_index` TINYINT(1) NOT NULL DEFAULT '0',
   `electric_power` INT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `epon_supported_onus` SMALLINT(4) UNSIGNED,
+  `gpon_supported_onus` SMALLINT(4) UNSIGNED,
+  `gepon_supported_onus` SMALLINT(4) UNSIGNED,
   PRIMARY KEY (`id`),
   KEY type_id (`type_id`),
   UNIQUE KEY `model` (`vendor_id`, `type_id`, `model_name`)
@@ -119,7 +122,7 @@ CREATE TABLE IF NOT EXISTS `equipment_ports` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'PORT NAS',
   `port` INT(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'SWITCH PORT NUM',
-  `status` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `status` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ADMIN. PORT STATUS',
   `uplink` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'NAS ID',
   `comments` VARCHAR(250) NOT NULL DEFAULT '',
   `vlan` smallint(2) unsigned NOT NULL DEFAULT 0 COMMENT 'PORT VLAN',
@@ -127,7 +130,7 @@ CREATE TABLE IF NOT EXISTS `equipment_ports` (
   UNIQUE KEY `nas_port` (`nas_id`, `port`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Equipment ports';
-  
+
 CREATE TABLE IF NOT EXISTS `pon_onus` (
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT 0,
   `mac` VARCHAR(16) NOT NULL DEFAULT '',
@@ -224,7 +227,7 @@ CREATE TABLE IF NOT EXISTS `equipment_graph_log` (
   DEFAULT CHARSET=utf8 COMMENT = 'Equipment graph stats log';
 
 CREATE TABLE IF NOT EXISTS `equipment_mac_log` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `mac` VARCHAR(17) NOT NULL DEFAULT '',
   `ip` INT UNSIGNED NOT NULL DEFAULT 0,
   `port` VARCHAR(10) NOT NULL DEFAULT '',
@@ -234,8 +237,7 @@ CREATE TABLE IF NOT EXISTS `equipment_mac_log` (
   `rem_time` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `port_name` VARCHAR(50) NOT NULL DEFAULT '',
   KEY `mac` (`mac`),
-  KEY `nas_id` (`nas_id`),
-  KEY `id` (`id`)
+  KEY `nas_id` (`nas_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'Equipment MAC log';
 
@@ -291,7 +293,7 @@ CREATE TABLE IF NOT EXISTS `equipment_trap_types` (
   `varbind` varchar(50) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) 
+)
   DEFAULT CHARSET = utf8 COMMENT = 'Equipment trap types';
 
 CREATE TABLE IF NOT EXISTS `equipment_snmp_params` (

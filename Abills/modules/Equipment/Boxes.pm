@@ -83,7 +83,7 @@ sub equipment_boxes{
       width   => '100%',
       caption => "$lang{BOXES}",
       qs      => $pages_qs,
-      ID      => 'BOX_LIXT',
+      ID      => 'card_LIXT',
       EXPORT  => 1,
       MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
     },
@@ -157,7 +157,7 @@ sub equipment_box_types{
     },
     TABLE           => {
       width   => '100%',
-      caption => 'Box',
+      caption => 'card',
       qs      => $pages_qs,
       ID      => 'EQUIPMENT_BOXES',
       EXPORT  => 1,

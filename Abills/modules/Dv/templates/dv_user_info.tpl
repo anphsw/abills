@@ -1,14 +1,14 @@
 <div class='alert alert-danger' style='padding: 0' data-visible='%HAS_PAYMENT_MESSAGE%'>%PAYMENT_MESSAGE%</div>
 
-<div class='box box-theme'>
-  <div class='box-header with-border text-center'><h4 class='box-title'>_{DV}_</h4></div>
-  <div class='box-body no-padding'>
+<div class='card card-primary card-outline'>
+  <div class='card-header with-border text-center'><h4 class='card-title'>_{DV}_</h4></div>
+  <div class='card-body no-padding'>
 
 
       %PAYMENT_MESSAGE%
-    <div class='box-body'>
-      <h4 class='box-title text-center'>%NEXT_FEES_WARNING%</h4>
-      <h4 class='box-title text-center'>%TP_CHANGE_WARNING%</h4>
+    <div class='card-body'>
+      <h4 class='card-title text-center'>%NEXT_FEES_WARNING%</h4>
+      <h4 class='card-title text-center'>%TP_CHANGE_WARNING%</h4>
     </div>
 
       %SERVICE_EXPIRE_DATE%

@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS `ureports_spool` (
 CREATE TABLE IF NOT EXISTS `ureports_tp` (
   `msg_price` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `tp_id` SMALLINT(5) UNSIGNED DEFAULT '0',
+  last_active DATE DEFAULT '0000-00-00',
   KEY `tp_id` (`tp_id`)
 )
   DEFAULT CHARSET = utf8

@@ -3,14 +3,14 @@
     <input type=hidden name=COORDX value=%COORDX%>
     <input type=hidden name=COORDY value=%COORDY%>
 
-    <div class='box box-theme'>
-        <div class='box-body'>
+    <div class='card card-primary card-outline'>
+        <div class='card-body'>
             <div class='form-group'>
                 %ROUTE_ID%
             </div>
         </div>
-        <div class='box-footer'>
-            <input type='submit' name=add_route_info value=_{ADD}_ class='btn btn-default'>
+        <div class='card-footer'>
+            <input type='submit' name=add_route_info value=_{ADD}_ class='btn btn-secondary'>
         </div>
     </div>
 

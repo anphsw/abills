@@ -368,7 +368,7 @@ sub _eltex_onu_list {
 }
 
 #**********************************************************
-=head2  _eltex_onu_status()
+=head2  _eltex_onu_status($pon_type)
 
 =cut
 #**********************************************************
@@ -550,12 +550,7 @@ sub _eltex {
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.15',
         PARSER => '_dec_div'
       },
-      'VIDEO_RX_POWER' => {
-        NAME   => 'VIDEO_RX_POWER',
-        OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.16',
-        PARSER => '_eltex_convert_video_power'
-      },
-      'RF_PORT_ON' => {
+      'RF_PORT_ON' => { #TODO: move to main_onu_info?
         NAME   => 'RF_PORT_ON',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.24',
         PARSER => '_eltex_convert_rf_port_status'
@@ -587,6 +582,11 @@ sub _eltex {
           NAME   => 'DISTANCE',
           OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.10',
           PARSER => ''
+        },
+        'VIDEO_RX_POWER' => {
+          NAME   => 'VIDEO_RX_POWER',
+          OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.16',
+          PARSER => '_eltex_convert_video_power'
         }
       },
       unregister       => {
@@ -802,6 +802,7 @@ sub _eltex_unregister {
     });
 
     foreach my $line (@$all_result) {
+      next if (!$line);
       #$id, $value
       my (undef, $value) = split(/:/, $line);
 
@@ -813,6 +814,7 @@ sub _eltex_unregister {
     my %onus;
 
     foreach my $line (@unreg_result) {
+      next if (!$line);
       my ($snmp_id, undef) = split(/:/, $line);
 
       #$mac_serial, $mac_bin
@@ -829,6 +831,7 @@ sub _eltex_unregister {
     }
 
     foreach my $line (@{$mac_serials}) {
+      next if (!$line);
       my ($snmp_id, $mac) = split(/:/, $line);
       my $onu_mac = _eltex_convert_mac($mac);
       if($onus{$snmp_id}) {
@@ -837,6 +840,7 @@ sub _eltex_unregister {
     }
 
     foreach my $line (@{$port_list}) {
+      next if (!$line);
       my ($snmp_id, $port) = split(/:/, $line);
       my @oid_octets = split(/\./, $snmp_id);
       if($onus{$snmp_id}) {

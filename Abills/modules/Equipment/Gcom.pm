@@ -135,12 +135,15 @@ sub _gcom_onu_list {
     }
   }
 
+  my $pon_type;
   my $snmp;
   if ($attr->{MODEL_NAME} =~ 'EL5610') {
-    $snmp = _gcom({TYPE => "epon"});
+    $snmp = _gcom({TYPE => 'epon'});
+    $pon_type = 'epon';
   }
   elsif ($attr->{MODEL_NAME} =~ 'GL5610') {
-    $snmp = _gcom({TYPE => "gpon"});
+    $snmp = _gcom({TYPE => 'gpon'});
+    $pon_type = 'gpon';
   }
   my %onu_snmp_info = ();
   foreach my $oid_name (keys %{$snmp}) {
@@ -186,6 +189,7 @@ sub _gcom_onu_list {
       $onu_info{ONU_SNMP_ID} = "$port_index.$onu_index";
       $onu_info{ONU_DHCP_PORT} = sprintf('%02x%02x%02x', split('\.', $port_index), $onu_index);
       $onu_info{PORT_ID} = $port_ids{$port_index_slash};
+      $onu_info{PON_TYPE} = $pon_type;
       foreach my $oid_name (keys %{$onu}){
         next if (!$oid_name);
         $onu_info{$oid_name} = $onu->{$oid_name};
@@ -230,39 +234,50 @@ sub _gcom {
         },
         'ONU_DESC'       => {
           NAME   => 'ONU_DESC',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.10',
+          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.10', #XXX THIS IS SOFT VERSION
         },
         'TEMPERATURE'    => {
           NAME   => 'TEMPERATURE',
           OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.4',
         },
-        'DISTANCE'       => {
-          NAME   => 'DISTANCE',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.18',
-          PARSER => '_gcom_convert_distance',
-        },
-        'VOLTAGE'        => {
-          NAME   => 'VOLTAGE',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.5',
-          PARSER => '_gcom_convert_voltage',
-        },
-        'SOFT_VERSION'   => {
-          NAME   => 'FIRMWARE',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.10',
-        },
-        'CVLAN'           => {
-          NAME   => 'VLAN (CVLAN)',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.2.1.7',
-        },
-        'SVLAN'           => {
-          NAME   => 'VLAN (SVLAN)',
-          OIDS   => '1.3.6.1.4.1.13464.1.13.3.2.1.8',
-        },
+        #XXX works not on every firmware. on some firmware may respond with many useless lines (100k+), because of it PON Grabber effectively stops working
+        #'ONU_IN_BYTE'    => {
+        #  NAME   => 'PORT_IN',
+        #  OIDS   => '1.3.6.1.4.1.13464.1.13.3.17.1.11',
+        #},
+        #'ONU_OUT_BYTE'   => {
+        #  NAME   => 'PORT_OUT',
+        #  OIDS   => '1.3.6.1.4.1.13464.1.13.3.17.1.4',
+        #},
         'reset'          => {
           NAME   => '',
           OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.17',
           PARSER => ''
         },
+        main_onu_info    => {
+          'DISTANCE'       => {
+            NAME   => 'DISTANCE',
+            OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.18',
+            PARSER => '_gcom_convert_distance',
+          },
+          'VOLTAGE'        => {
+            NAME   => 'VOLTAGE',
+            OIDS   => '1.3.6.1.4.1.13464.1.13.3.3.1.5',
+            PARSER => '_gcom_convert_voltage',
+          },
+          'SOFT_VERSION'   => {
+            NAME   => 'FIRMWARE',
+            OIDS   => '1.3.6.1.4.1.13464.1.13.3.1.1.10',
+          },
+          'CVLAN'          => {
+            NAME   => 'VLAN (CVLAN)',
+            OIDS   => '1.3.6.1.4.1.13464.1.13.3.2.1.7',
+          },
+          'SVLAN'          => {
+            NAME   => 'VLAN (SVLAN)',
+            OIDS   => '1.3.6.1.4.1.13464.1.13.3.2.1.8',
+          }
+        }
       },
       gpon       => {
         'ONU_MAC_SERIAL' => {
@@ -289,16 +304,6 @@ sub _gcom {
           NAME   => 'TEMPERATURE',
           OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.8',
         },
-        'DISTANCE'       => {
-          NAME   => 'DISTANCE',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.1.1.7',
-          PARSER => '_gcom_convert_distance',
-        },
-        'VOLTAGE'        => {
-          NAME   => 'VOLTAGE',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.4',
-          PARSER => '_gcom_convert_voltage',
-        },
         'ONU_IN_BYTE'    => {
           NAME   => 'PORT_IN',
           OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.7.1.7',
@@ -307,16 +312,28 @@ sub _gcom {
           NAME   => 'PORT_OUT',
           OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.7.1.5',
         },
-        'SOFT_VERSION'   => {
-          NAME   => 'FIRMWARE',
-          OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.2.1.7',
-        },
         #'reset'          => { #not tested
         #  NAME   => '',
         #  OIDS   => '1.3.6.1.4.1.13464.1.14.1.4.1.1.6',
         #  PARSER => ''
         #},
-      },
+        main_onu_info    => {
+          'DISTANCE'       => {
+            NAME   => 'DISTANCE',
+            OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.1.1.7',
+            PARSER => '_gcom_convert_distance',
+          },
+          'SOFT_VERSION'   => {
+            NAME   => 'FIRMWARE',
+            OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.2.1.7',
+          },
+          'VOLTAGE'        => {
+            NAME   => 'VOLTAGE',
+            OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.4',
+            PARSER => '_gcom_convert_voltage',
+          }
+        }
+      }
     );
 
   if ($attr->{TYPE}) {

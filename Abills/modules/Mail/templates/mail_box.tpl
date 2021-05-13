@@ -6,17 +6,17 @@
 <input type=hidden name='UID' value='$FORM{UID}'>
 <input type=hidden name='MBOX_ID' value='%MBOX_ID%'>
 
-<div class='box box-theme box-form box-big-form'>
-	<div class='box-header with-border'>
-		<h4 class='box-title'>E-Mail</h4>
-		<div class='box-tools pull-right'>
-			<button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i>
+<div class='card card-primary card-outline box-form box-big-form'>
+	<div class='card-header with-border'>
+		<h4 class='card-title'>E-Mail</h4>
+		<div class='card-tools pull-right'>
+			<button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-minus'></i>
 			</button>
 		</div>
 	</div>
 
 
-	<div class='box-body form form-horizontal'>
+	<div class='card-body form form-horizontal'>
 
 <fieldset>
 
@@ -53,10 +53,10 @@
       	<input class='form-control' id='MAILS_LIMIT' placeholder='%MAILS_LIMIT%' name='MAILS_LIMIT' value='%MAILS_LIMIT%'>
      	</div>
       <div class='col-md-3'>
-      	<label for='BOX_SIZE' class='control-label col-sm-3'>_{SIZE}_(Mb):</label>
+      	<label for='card_SIZE' class='control-label col-sm-3'>_{SIZE}_(Mb):</label>
       </div>
       <div class='col-md-3'>
-      	<input class='form-control' id='BOX_SIZE' placeholder='%BOX_SIZE%' name='BOX_SIZE' value='%BOX_SIZE%'>
+      	<input class='form-control' id='card_SIZE' placeholder='%BOX_SIZE%' name='card_SIZE' value='%BOX_SIZE%'>
      	</div>
   	</div>
 
@@ -125,7 +125,7 @@
 </fieldset>
 </div>
 
-<div class='box-footer'>
+<div class='card-footer'>
 	<input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
 </div>
 

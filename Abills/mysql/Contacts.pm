@@ -73,41 +73,43 @@ sub new {
 sub contacts_list {
   my $self = shift;
   my ($attr) = @_;
-  
+
   $self->{errno} = 0;
   $self->{errstr} = '';
-  
+
   return [] if ( !$attr->{UID} );
-  
+
   my @search_columns = (
     [ 'UID',       'INT',     'uc.uid'        ,1 ],
     [ 'VALUE',     'STR',     'uc.value'      ,1 ],
     [ 'PRIORITY',  'INT',     'uc.priority'   ,1 ],
+    [ 'COMMENTS',  'STR',     'uc.comments'   ,1 ],
     [ 'TYPE',      'INT',     'uc.type_id'    ,1 ],
     [ 'DEFAULT',   'INT',     'uct.is_default',1 ],
     [ 'TYPE_NAME', 'STR',     'uct.name'      ,1 ],
     [ 'HIDDEN',    'INT',     'uct.hidden'       ]
   );
-  
+
   if ( $attr->{SHOW_ALL_COLUMNS} ) {
     map {$attr->{$_->[0]} = '_SHOW' unless ( exists $attr->{$_->[0]} )} @search_columns;
   }
-  
+
   my $WHERE = $self->search_former($attr, \@search_columns,{ WHERE => 1 });
-  
+
   my $EXT_TABLES = '';
   if ( $self->{SEARCH_FIELDS} =~ /uct\./ ) {
     $EXT_TABLES = "LEFT JOIN users_contact_types uct ON (uc.type_id=uct.id)"
   }
-  
+
   $self->query("
     SELECT $self->{SEARCH_FIELDS} uc.id
     FROM users_contacts uc
     $EXT_TABLES
-     $WHERE ORDER BY priority;"
-    , undef, { COLS_NAME => 1, %{ $attr ? $attr : {} } }
+    $WHERE ORDER BY priority;",
+    undef,
+    { COLS_NAME => 1, %{ $attr ? $attr : {} } }
   );
-  
+
   return $self->{list} || [];
 }
 
@@ -146,15 +148,16 @@ sub contacts_add{
   my $self = shift;
   my ($attr) = @_;
 
-  $attr->{value} =~ s/(.*?)\t//g;
+  $attr->{value} =~ s/(.*?)\t//g if ($attr->{value});
 
   $self->query_add('users_contacts', $attr, { REPLACE => 1 });
 
   if (!$self->{errno}) {
-    if ($attr->{VALUE} ne $self->{OLD_INFO}{$attr->{TYPE_ID}}) {
+    if (! $self->{OLD_INFO}{$attr->{TYPE_ID}}
+      || ($attr->{VALUE} && $attr->{TYPE_ID} && $attr->{VALUE} ne $self->{OLD_INFO}{$attr->{TYPE_ID}})) {
       $self->{admin}->action_add($attr->{UID},
         "CONTACTS_CHANGED. " .  $self->contact_name_for_type_id($attr->{TYPE_ID}||0)
-          . ": $self->{OLD_INFO}{$attr->{TYPE_ID}||0} -> ". ($attr->{VALUE} || q{}), { TYPE=> 2 });
+          . ": ". ($self->{OLD_INFO}{$attr->{TYPE_ID}||0} || q{}) ." -> ". ($attr->{VALUE} || q{}), { TYPE=> 2 });
     }
   }
 

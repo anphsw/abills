@@ -172,7 +172,7 @@ sub info_comments_make{
   foreach my $comment (@{$comments_list}){
     if (! $FORM{xml}) {
       $del_button = qq{ <a data-url='?qindex=$comments_remove_index&OBJ_ID=$comment->{id}&header=2' class='commentDeleteBtn pull-right' title="$lang{DEL}">
-      <span class='glyphicon glyphicon-trash text-danger'></span>
+      <span class='fa fa-trash text-danger'></span>
     </a>};
     }
 
@@ -561,7 +561,7 @@ sub info_locations_show_map {
       <div class='row text-left'>
         <div class='row pull-right'>
            <a class='locationRemoveBtn' title='$lang{DEL}' onclick=removeLocation($location->{id})>
-             <span class='glyphicon glyphicon-remove-sign'></span>
+             <span class='fa fa-times-circle'></span>
            </a>
         </div>
       $comment
@@ -763,11 +763,11 @@ sub info_documents_make {
     my $download_index = get_function_index('info_document_download');
 
     my $download_path = "/admin/index.cgi?qindex=$download_index&DOCUMENT_ID=$document_id";
-    my $download_btn = "<a href='$download_path' class='btn btn-xs btn-default' download><span class='glyphicon glyphicon-save'></span></a>";
+    my $download_btn = "<a href='$download_path' class='btn btn-xs btn-secondary' download><span class='fa fa-save'></span></a>";
 
     my $deleteURL = "/admin/index.cgi?get_index=info_document_del&OBJ_ID=$line->{id}&header=2";
     my $delete_btn = "<a id='documentDelBtn' class='btn btn-xs btn-danger' onclick='loadToModal(\"$deleteURL\")'>
-      <span class='glyphicon glyphicon-remove'></span></a>";
+      <span class='fa fa-remove'></span></a>";
 
     my $action_btns = "<div class='btn-group btn-group-xs'>$delete_btn$download_btn</div>";
 
@@ -1077,7 +1077,7 @@ sub log_comments_edit {
       $item_log->{date_change} || $item_log->{date},
       ($FORM{chg} || $FORM{COMMENT}) ? $html->button("", 'index=' . $index . '&chg=' . ($item_log->{id_comments} || $item_log->{id}) .
         '&uid=' . ($item_log->{uid} || $item_log->{obj_id}) . '&text=' . $item_log->{text},
-        { class => "", ADD_ICON => "glyphicon glyphicon-pencil" }) : ''
+        { class => "", ADD_ICON => "fa fa-pencil" }) : ''
     );
   }
 

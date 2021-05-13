@@ -49,21 +49,21 @@ _bp('', '', {SET_ARGS => {TO_CONSOLE => 1}});
 sub new {
   my $class = shift;
   my ($conf) = @_;
-  
+
   return 0 unless ($conf->{PUSH_ENABLED});
-  
+
   my $self = {
     auth_key => $conf->{GOOGLE_API_KEY}
   };
-  
+
   die 'Undefined $conf{GOOGLE_API_KEY}' if (!$self->{auth_key});
-  
+
   $self->{db} = Abills::SQL->connect($conf->{dbtype}, $conf->{dbhost}, $conf->{dbname}, $conf->{dbuser}, $conf->{dbpasswd},
     { CHARSET => ($conf->{dbcharset}) ? $conf->{dbcharset} : undef });
   $self->{admin} = Admins->new($self->{db}, $conf);
   $self->{admin}->info($conf->{SYSTEM_ADMIN_ID} || '2', { IP => '127.0.0.1' });
   $self->{Contacts} = Contacts->new($self->{db}, $self->{admin}, $conf);
-  
+
   bless( $self, $class );
   return $self;
 }
@@ -84,13 +84,13 @@ sub new {
 #**********************************************************
 sub send_message {
   my ($self, $attr) = @_;
-  
+
   # Return if client is not registered
   return 0 unless (defined $attr->{TO_ADDRESS} && defined $attr->{MESSAGE});
-  
+
   my $contact = $attr->{CONTACT};
 #  my ($sendpoint, $key, $auth) = split(/\|\|/, $attr->{TO_ADDRESS}, 3);
-  
+
 #  $attr->{TO_ADDRESS}    = $sendpoint;
 #  $attr->{CLIENT_PUBLIC} = $key;
 #  $attr->{CLIENT_AUTH}   = $auth;
@@ -106,7 +106,7 @@ sub send_message {
   else {
     $sent = $self->send_single($attr->{TO_ADDRESS}, $contact->{id}, $attr);
   }
-  
+
 }
 
 #**********************************************************
@@ -116,27 +116,27 @@ sub send_message {
     $endpoint   - string, special url linked to client device (browser)
     $contact_id - int, ID of contact for this device
     $attr       - hash_ref
-    
+
   Push works in two steps
   Server sends client 'Push', so he knows there's something on server for him
   Client goes to server and fetches messages
-  
+
   So here is algoritm
   Send 'Push' to client. If Push Service tells us, everything is ok, and 'Push' will be delivered to client,
   save message to DB, so client can fetch it later
-  
+
 =cut
 #**********************************************************
 sub send_single {
   my ($self, $endpoint, $contact_id, $attr) = @_;
-  
+
   my $result = ($endpoint =~ 'google')
     ? $self->send_to_gcm($attr)
     : $self->send_to_firefox($attr);
-  
+
   if ( $result ) {
     my Contacts $Contacts = $self->{Contacts};
-    
+
     $Contacts->push_messages_add({
       CONTACT_ID => $contact_id,
       MESSAGE    => $attr->{MESSAGE},
@@ -145,7 +145,7 @@ sub send_single {
       %{ $attr }
     });
   }
-  
+
   return $result;
 };
 
@@ -154,15 +154,15 @@ sub send_single {
 
   Arguments:
     $attr -
-    
+
   Returns:
     1
-    
+
 =cut
 #**********************************************************
 sub send_to_firefox {
   my ($self, $attr, $data) = @_;
-  
+
   my $push_data = $json->encode( {
     data             => {
       message => 'Push'
@@ -170,7 +170,7 @@ sub send_to_firefox {
     'time_to_live'   => 600
   } );
   $push_data =~ s/"/\\\"/g;
-  
+
   my $result = web_request( $attr->{TO_ADDRESS}, {
       CURL_OPTIONS => '-XPOST',
       HEADERS => [
@@ -178,9 +178,8 @@ sub send_to_firefox {
       ],
       DEBUG   => $attr->{DEBUG}
     } );
-  
+
   # Normal result is empty responce
-  
   return $result eq '';
 }
 
@@ -188,29 +187,28 @@ sub send_to_firefox {
 =head2 send_to_gcm($attr) - Sends Push message to Google Cloud Messaging
 
   Arguments:
-    $attr -
-    
+    $attr
   Returns:
-  
-  
+
 =cut
 #**********************************************************
 sub send_to_gcm {
   my ($self, $attr, $data) = @_;
-  
+
   my @endpoint_sections = split('/', $attr->{TO_ADDRESS});
   my $client_id = pop @endpoint_sections;
   my $server_url = join('/', @endpoint_sections);
-  
+
   my $gcm_data = $json->encode( {
     registration_ids => [ $client_id ],
     data             => {
-     message => undef
+      message => undef
     },
     'time_to_live'   => 86400
   } );
+
   $gcm_data =~ s/"/\\\"/g;
-  
+
   my $result = web_request( $server_url, {
       POST    => $gcm_data,
       HEADERS => [
@@ -220,17 +218,17 @@ sub send_to_gcm {
       ],
       DEBUG   => $attr->{DEBUG}
     } );
-  
+
   # Check answer
   if ( $result =~ /^{"/ ) {
     my $responce = $json->decode( $result );
-    
+
     # Now should check result responce for errors
     if (!$responce->{success} && $responce->{failure}){
-      
+
       my $results = $responce->{results};
       if ($results && ref $results eq 'ARRAY' && scalar @{$results}){
-        
+
         my $error = $results->[0];
         if ( $error && ref $error eq 'HASH' && $error->{error} ){
           if ($error->{error} eq 'InvalidRegistration'){
@@ -240,7 +238,7 @@ sub send_to_gcm {
         }
       }
     }
-    
+
     return $responce->{success};
   }
   elsif ( $result =~ /Unauthorized/ ) {
@@ -249,7 +247,7 @@ sub send_to_gcm {
   elsif ( $result =~ /InvalidTokenFormat/ ){
     print "\n\n PUSH ERROR: Invalid Token key \n";
   }
-  
+
   return 0;
 }
 

@@ -10,18 +10,20 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Defs;
 use Abills::Fetcher;
-use Abills::Base qw(convert clearquotes int2byte days_in_month
-  in_array startup_files load_pmodule);
+use Abills::Backend::Utils qw/json_encode_safe json_decode_safe/;
+use Abills::Base qw(convert dsc2hash clearquotes int2byte days_in_month
+  in_array startup_files load_pmodule urlencode);
+use JSON;
 
 our ($db,
- %lang,
- $base_dir,
- %LANG,
- @MONTHES,
- @WEEKDAYS,
- @bool_vals,
- %permissions,
- @state_colors
+  %lang,
+  $base_dir,
+  %LANG,
+  @MONTHES,
+  @WEEKDAYS,
+  @bool_vals,
+  %permissions,
+  @state_colors
 );
 
 our Abills::HTML $html;
@@ -101,39 +103,39 @@ sub form_status {
   }
 
   result_former({
-     INPUT_DATA      => $Service,
-     FUNCTION        => 'status_list',
-     DEFAULT_FIELDS  => 'ID,NAME,COLOR,TYPE,GET_FEES',
-     FUNCTION_FIELDS => 'change,del',
-     SKIP_USER_TITLE => 1,
-     SELECT_VALUE    => {
-        type     => { 0 => ' ', 1 => 'Critical' },
-        get_fees => { 0 => "$lang{NO}", 1 => "$lang{YES}"}
-     },
-     FILTER_COLS => {
-        name  => '_translate',
-     },
+    INPUT_DATA      => $Service,
+    FUNCTION        => 'status_list',
+    DEFAULT_FIELDS  => 'ID,NAME,COLOR,TYPE,GET_FEES',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    SELECT_VALUE    => {
+      type     => { 0 => ' ', 1 => 'Critical' },
+      get_fees => { 0 => "$lang{NO}", 1 => "$lang{YES}"}
+    },
+    FILTER_COLS => {
+      name  => '_translate',
+    },
     FILTER_VALUES => {
       color => sub { $html->color_mark($_[0], $_[0]) }
     },
-     EXT_TITLES      => {
-       id         => '#',
-       name       => $lang{NAME},
-       type       => $lang{TYPE},
-       color      => $lang{COLOR},
-       get_fees   => $lang{GET_FEES}
-     },
-     TABLE           => {
-       width      => '100%',
-       caption    => "$lang{SERVICE} $lang{STATUS}",
-       qs         => $pages_qs,
-       ID         => 'SERVICE_STATUS_LIST',
-       EXPORT     => 1,
-       MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
-     },
-     MAKE_ROWS    => 1,
-     SEARCH_FORMER=> 1,
-     TOTAL        => 1
+    EXT_TITLES      => {
+      id         => '#',
+      name       => $lang{NAME},
+      type       => $lang{TYPE},
+      color      => $lang{COLOR},
+      get_fees   => $lang{GET_FEES}
+    },
+    TABLE           => {
+      width      => '100%',
+      caption    => "$lang{SERVICE} $lang{STATUS}",
+      qs         => $pages_qs,
+      ID         => 'SERVICE_STATUS_LIST',
+      EXPORT     => 1,
+      MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS    => 1,
+    SEARCH_FORMER=> 1,
+    TOTAL        => 1
   });
 
   return 1;
@@ -245,40 +247,41 @@ sub form_billd_plugins {
   my Abills::HTML $table;
 
   ($table) = result_former({
-     INPUT_DATA      => $Billd,
-     FUNCTION        => 'list',
-     DEFAULT_FIELDS  => 'PLUGIN_NAME,PERIOD,STATUS,PRIORITY,LAST_EXECUTE,EXECUTE_TIME',
-     FUNCTION_FIELDS => 'change,del',
-     SKIP_USER_TITLE => 1,
-     SELECT_VALUE    => {
-       make_lock => { 0 => $lang{NO},
-                      1 => $lang{YES}
-               },
-       status    => { 0 => $lang{ENABLE},
-                      1 => "$lang{DISABLE}:text-danger"
-               }
-     },
-     EXT_TITLES      => {
-       plugin_name  => $lang{NAME},
-       period       => $lang{PERIOD},
-       status       => $lang{STATUS},
-       threads      => 'Threads',
-       make_lock    => 'Lock',
-       priority     => $lang{PRIORITY},
-       last_execute => 'last_execute',
-       execute_time => 'EXECUTE_TIME',
-     },
-     TABLE           => {
-       width      => '100%',
-       caption    => "Active billd plugins",
-       qs         => $pages_qs,
-       ID         => 'BILLD_PLUGINS',
-       EXPORT     => 1,
-       #MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
-     },
-     MAKE_ROWS    => 1,
-     SEARCH_FORMER=> 1,
-     TOTAL        => 1
+    INPUT_DATA      => $Billd,
+    FUNCTION        => 'list',
+    DEFAULT_FIELDS  => 'PLUGIN_NAME,PERIOD,STATUS,PRIORITY,LAST_EXECUTE,EXECUTE_TIME',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    SELECT_VALUE    => {
+      make_lock => {
+        0 => $lang{NO},
+        1 => $lang{YES}
+      },
+      status    => {
+        0 => $lang{ENABLE},
+        1 => "$lang{DISABLE}:text-danger"
+      }
+    },
+    EXT_TITLES      => {
+      plugin_name  => $lang{NAME},
+      period       => $lang{PERIOD},
+      status       => $lang{STATUS},
+      threads      => 'Threads',
+      make_lock    => 'Lock',
+      priority     => $lang{PRIORITY},
+      last_execute => 'last_execute',
+      execute_time => 'EXECUTE_TIME',
+    },
+    TABLE           => {
+      width      => '100%',
+      caption    => "Active billd plugins",
+      qs         => $pages_qs,
+      ID         => 'BILLD_PLUGINS',
+      EXPORT     => 1,
+    },
+    MAKE_ROWS    => 1,
+    SEARCH_FORMER=> 1,
+    TOTAL        => 1
   });
 
   opendir my $fh, "$billd_plugin_dir" or die "Can't open dir '$billd_plugin_dir' $!\n";
@@ -299,12 +302,81 @@ sub form_billd_plugins {
     $filename =~ s/\.pm//;
 
     $table->addrow($filename,
-       $date,
-       int2byte($size),
-       $html->button($lang{ACTIVE}, "index=$index&PLUGIN_NAME=$filename&add_form=1", { class => 'add' }));
+      $date,
+      int2byte($size),
+      $html->button($lang{ACTIVE}, "index=$index&PLUGIN_NAME=$filename&add_form=1", { class => 'add' })
+    );
   }
 
   print $table->show();
+
+  return 1;
+}
+
+sub form_templates_pdf_edit {
+  my $file = $FORM{file};
+
+  return 0 unless ($file);
+
+  my $pdf_content = '';
+  my $dsc_parsed_data = {};
+
+  open(my $pdf_file, '<', "$conf{TPL_DIR}/" . $file . '.pdf') if (-e "$conf{TPL_DIR}/" . $file . '.pdf');
+  open(my $dsc_file, '<', "$conf{TPL_DIR}/" . $file . '.dsc') if (-e "$conf{TPL_DIR}/" . $file . '.dsc');
+
+  if ($pdf_file) {
+    while (<$pdf_file>) {
+      $pdf_content .= $_;
+    }
+
+    close($pdf_file);
+  }
+  else {
+    $html->message( 'danger text-center', $lang{ERROR}, $lang{ERROR_FILE}.$file.'.pdf');
+    return 0;
+  }
+
+  if($dsc_file) {
+    my $dsc_content = '';
+
+    while (<$dsc_file>) {
+      $dsc_content .= $_;
+    }
+
+    $dsc_parsed_data = dsc2hash($dsc_content);
+    close($dsc_file);
+  }
+  else {
+    $html->message( 'danger text-center', $lang{ERROR}, $lang{ERROR_FILE}.$file.'.dsc');
+  }
+
+  my $pdf_base64 = encode_base64($pdf_content);
+
+  my $json = JSON->new()->utf8(0);
+
+  $html->tpl_show(templates('form_templates_pdf_edit'), {
+    FILE_NAME => $file,
+    PDF_BASE64 => $pdf_base64,
+    DSC => $json->encode($dsc_parsed_data),
+    SAVE_INDEX => get_function_index('form_templates_pdf_save')
+  });
+
+  return 1;
+}
+
+sub form_templates_pdf_save {
+  return 0 unless ($FORM{FILE_NAME});
+
+  my $dcs_file_name = $FORM{FILE_NAME} =~ s/pdf/dsc/rg;
+  open(my $dsc_file, '+>', "$conf{TPL_DIR}/" . $dcs_file_name . '.dsc') || die "Can't open file $!";
+
+  my $tpl_file_name = $FORM{FILE_NAME} =~ s/pdf/tpl/rg;
+  open(my $tpl_file, '+>', "$conf{TPL_DIR}/" . $tpl_file_name . '.tpl') || die "Can't open file $!";
+
+  print $dsc_file $FORM{DSC_CONTENT};
+
+  close($dsc_file);
+  close($tpl_file);
 
   return 1;
 }
@@ -490,7 +562,6 @@ sub form_templates {
 
   $FORM{create} = '' if (!$FORM{create});
   $FORM{tpl_name} = '' if (!$FORM{create});
-  #$conf{TPL_DIR}  = '' if();
   $info{TPL_NAME} = '' if (!$info{TPL_NAME});
 
   my $tpl_ = $html->tpl_show(templates('form_template_editor'), { %info }, { OUTPUT2RETURN => 1 });
@@ -503,7 +574,7 @@ sub form_templates {
   elsif($info{TPL_NAME} =~ /_client_menu/){
     client_menu();
   }
-  my @caption = keys %LANG;
+  my @caption = sort keys %LANG;
   my $table = $html->table(
     {
       width       => '100%',
@@ -648,6 +719,7 @@ sub form_templates {
     $table->{extra}    = undef;
 
     my $describe = '';
+    my $pdf_editor_index = get_function_index('form_templates_pdf_edit');
 
     foreach my $file (sort @contents) {
       next if (-d "$conf{TPL_DIR}/" . $file);
@@ -657,7 +729,36 @@ sub form_templates {
       ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks) = stat("$conf{TPL_DIR}/$file");
       $mtime = POSIX::strftime("%Y-%m-%d", localtime($mtime));
 
-      $table->addrow("$file", $size, $mtime, $describe, $html->button($lang{DEL}, "index=$index&file_del=$file", { MESSAGE => "$lang{DEL} '$file'", class => 'del' }));
+      my $file_actions = '';
+
+      $file_actions .= $html->button(
+          $lang{DEL},
+          "index=$index&file_del=$file",
+          {
+            MESSAGE => "$lang{DEL} '$file'",
+            class => 'del'
+          }
+        );
+
+      if($file =~ /\.pdf$/) {
+        my $file_without_extention = $file =~ s/\.pdf//r;
+
+        $file_actions .= $html->button(
+            $lang{EDIT},
+            "index=$pdf_editor_index&file=$file_without_extention",
+            {
+              ICON => 'fa fa-pencil'
+            }
+          );
+      }
+
+      $table->addrow(
+        "$file",
+        $size,
+        $mtime,
+        $describe,
+        $file_actions
+      );
     }
 
   }
@@ -739,11 +840,12 @@ sub tpl_describe {
   my $filename     = $tpl_name . '.dsc';
   my %TPL_DESCRIBE = ();
 
-  my $rows = file_op({ FILENAME  => $filename,
-                       SKIP_CHECK=> 1,
-                       ROWS      => 1,
-                       PATH      => $path
-                     });
+  my $rows = file_op({
+    FILENAME  => $filename,
+    SKIP_CHECK=> 1,
+    ROWS      => 1,
+    PATH      => $path
+  });
 
   return { } if (!$rows || $rows eq q{});
 
@@ -779,11 +881,11 @@ sub form_dictionary {
   }
 
   if ($FORM{add_form}) {
-     print $html->form_main(
+    print $html->form_main(
       {
         CONTENT => "$lang{DICTIONARY}: " . $html->form_input('SUB_DICT', "" ),
         HIDDEN  => {
-           index => $index,
+          index => $index,
         },
         SUBMIT  => { add => "$lang{ADD}" },
         class   => 'form-inline'
@@ -939,9 +1041,9 @@ sub form_dictionary {
     }
 
     $table->addrow($html->form_input('NAME',
-       $k, { SIZE => 30 }),
-       $html->form_input($k, $v, { SIZE => 45 }),
-       ($sub_dict) ? $html->form_input($sub_dict . "_" . $k, "$v2", { SIZE => 100 }) : ''
+      $k, { SIZE => 30 }),
+      $html->form_input($k, $v, { SIZE => 45 }),
+      ($sub_dict) ? $html->form_input($sub_dict . "_" . $k, "$v2", { SIZE => 100 }) : ''
     );
     $i++;
   }
@@ -1091,29 +1193,29 @@ sub form_exchange_rate {
 
   _error_show($finance);
   my ($table, $list) = result_former({
-     INPUT_DATA      => $finance,
-     FUNCTION        => 'exchange_list',
-     BASE_FIELDS     => 5,
-     FUNCTION_FIELDS => 'change,del',
-     SKIP_USER_TITLE => 1,
-     EXT_TITLES      => {
-        money      => $lang{MONEY},
-        short_name => $lang{SHORT_NAME},
-        rate       => "$lang{EXCHANGE_RATE} (1 unit =)",
-        iso        => 'iso',
-        changed    => $lang{CHANGED},
-         },
-     TABLE           => {
-       width      => '100%',
-       caption    => "$lang{EXCHANGE_RATE}",
-       qs         => $pages_qs,
-       ID         => 'EXCHANGE_RATE',
-       EXPORT     => 1,
-       MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
-     },
-     MAKE_ROWS    => 1,
-     SEARCH_FORMER=> 1,
-     TOTAL        => 1
+    INPUT_DATA      => $finance,
+    FUNCTION        => 'exchange_list',
+    BASE_FIELDS     => 5,
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      money      => $lang{MONEY},
+      short_name => $lang{SHORT_NAME},
+      rate       => "$lang{EXCHANGE_RATE} (1 unit =)",
+      iso        => 'iso',
+      changed    => $lang{CHANGED},
+    },
+    TABLE           => {
+      width      => '100%',
+      caption    => "$lang{EXCHANGE_RATE}",
+      qs         => $pages_qs,
+      ID         => 'EXCHANGE_RATE',
+      EXPORT     => 1,
+      MENU       => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add",
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    TOTAL           => 1
   });
 
   if (!$FORM{sort}) {
@@ -1122,28 +1224,28 @@ sub form_exchange_rate {
   }
 
   ($table, $list) = result_former({
-     INPUT_DATA      => $finance,
-     FUNCTION        => 'exchange_log_list',
-     BASE_FIELDS     => 3,
-     FUNCTION_FIELDS => 'del',
-     SKIP_USER_TITLE => 1,
-     EXT_TITLES      => {
-        money      => $lang{MONEY},
-        short_name => $lang{SHORT_NAME},
-        rate       => "$lang{EXCHANGE_RATE} (1 unit =)",
-        iso        => 'iso',
-        changed    => $lang{CHANGED},
-     },
-     TABLE           => {
-       width      => '100%',
-       caption    => $lang{LOG},
-       qs         => $pages_qs,
-       ID         => 'EXCHANGE_RATE_LOG',
-       EXPORT     => 1,
-     },
-     MAKE_ROWS    => 1,
-     SEARCH_FORMER=> 1,
-     TOTAL        => 1
+    INPUT_DATA      => $finance,
+    FUNCTION        => 'exchange_log_list',
+    BASE_FIELDS     => 3,
+    FUNCTION_FIELDS => 'del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      money      => $lang{MONEY},
+      short_name => $lang{SHORT_NAME},
+      rate       => "$lang{EXCHANGE_RATE} (1 unit =)",
+      iso        => 'iso',
+      changed    => $lang{CHANGED},
+    },
+    TABLE           => {
+      width      => '100%',
+      caption    => $lang{LOG},
+      qs         => $pages_qs,
+      ID         => 'EXCHANGE_RATE_LOG',
+      EXPORT     => 1,
+    },
+    MAKE_ROWS    => 1,
+    SEARCH_FORMER=> 1,
+    TOTAL        => 1
   });
 
   return 1;
@@ -1425,7 +1527,7 @@ sub table_for_calendar{
 
     $week_row .= "<td width='100' height='100' $holiday_day>
                   <a href='/admin/index.cgi?index=75&$action=$attr->{MONTH}-$i&year=". ($FORM{year} || '') ."&month=". ($FORM{month} || '') ."' title='$comment'>
-                   <h4>$i</h4><br>
+                    <h4>$i</h4><br>
                   </a>
                   $delete
                   </td>";
@@ -1544,26 +1646,26 @@ sub form_info_fields {
   _error_show($users);
 
   my @fields_types = (
-   'String',
-   'Integer',
-   $lang{LIST},
-   $lang{TEXT},
-   'Flag',
-   'Blob',
-   'PCRE',
-   'AUTOINCREMENT',
-   'ICQ',
-   'URL',
-   'PHONE',
-   'E-Mail',
-   'Skype',
-   $lang{FILE},
-   '',
-   'PHOTO',
-   'SOCIAL NETWORK',
-   'Crypt',
-   $lang{LANGUAGE},
-   'Time zone'
+    'String',
+    'Integer',
+    $lang{LIST},
+    $lang{TEXT},
+    'Flag',
+    'Blob',
+    'PCRE',
+    'AUTOINCREMENT',
+    'ICQ',
+    'URL',
+    'PHONE',
+    'E-Mail',
+    'Skype',
+    $lang{FILE},
+    $lang{DELIVERY},
+    'PHOTO',
+    'SOCIAL NETWORK',
+    'Crypt',
+    $lang{LANGUAGE},
+    'Time zone'
   );
 
   my $fields_type_sel = $html->form_select(
@@ -2027,10 +2129,11 @@ sub get_checksum {
     elsif($filename =~ /webinterface$|\.pm|billd$|periodic$|rlm_perl.pl|index.cgi|\.js$/) {
       my $file_content = '';
       if (open(my $fh, '<', $filename)) {
-         while(<$fh>) {
-           $file_content .= $_;
-         }
-       close($fh);
+        while(<$fh>) {
+          $file_content .= $_;
+        }
+
+        close($fh);
       }
 
       my $digest = Digest::MD5::md5_hex($file_content);
@@ -2092,31 +2195,30 @@ sub form_tp_groups {
   $Tariffs->{USER_CHG_TP} = ($Tarrifs->{USER_CHG_TP}) ? 'checked' : '';
   $html->tpl_show(templates('form_tp_group'), $Tarrifs);
   result_former({
-     INPUT_DATA      => $Tariffs,
-     FUNCTION        => 'tp_group_list',
-     BASE_FIELDS     => 4,
-#     DEFAULT_FIELDS  => 'NUMBER,FLORS,ENTRANCES,FLATS,STREET_NAME,USERS_COUNT,USERS_CONNECTIONS,ADDED'. (in_array('Maps', \@MODULES) ? ',COORDX' : ''),
-     FUNCTION_FIELDS => 'geolocation_group_tp:$lang{GEOLOCATION_TP}:id:,change,del',
-     EXT_TITLES      => {
-       id          => '#',
-       name        => $lang{NAME},
-       user_chg_tp => $lang{USER_CHG_TP},
-       tarif_plans_count => $lang{COUNT}
-     },
-     SKIP_USER_TITLE => 1,
-     SELECT_VALUE  => {
-        user_chg_tp => { 0 => $lang{NO}, 1 => $lang{YES}  },
-     },
-     TABLE       => {
-       width      => '100%',
-       caption    => $lang{GROUPS},
-       qs         => $pages_qs,
-       ID         => 'TP_GROUPS',
-       EXPORT     => 1,
-       MENU       => "$lang{ADD}:index=$index&add_form=1:add",
-     },
-     MAKE_ROWS    => 1,
-     TOTAL        => 1
+    INPUT_DATA      => $Tariffs,
+    FUNCTION        => 'tp_group_list',
+    BASE_FIELDS     => 4,
+    FUNCTION_FIELDS => 'group_tp_user_groups:$lang{GROUPS}:id:,geolocation_group_tp:$lang{GEOLOCATION_TP}:id:,change,del',
+    EXT_TITLES      => {
+      id          => '#',
+      name        => $lang{NAME},
+      user_chg_tp => $lang{USER_CHG_TP},
+      tarif_plans_count => $lang{COUNT}
+    },
+    SKIP_USER_TITLE => 1,
+    SELECT_VALUE  => {
+      user_chg_tp => { 0 => $lang{NO}, 1 => $lang{YES}  },
+    },
+    TABLE       => {
+      width      => '100%',
+      caption    => $lang{GROUPS},
+      qs         => $pages_qs,
+      ID         => 'TP_GROUPS',
+      EXPORT     => 1,
+      MENU       => "$lang{ADD}:index=$index&add_form=1:add",
+    },
+    MAKE_ROWS    => 1,
+    TOTAL        => 1
   });
 
   return 1;
@@ -2142,13 +2244,8 @@ sub form_intervals {
     $tarif_plan->{LNG_ACTION} = $lang{ADD};
 
     if (defined($FORM{tt})) {
-      if(in_array('Internet', \@MODULES)) {
-        load_module('Internet', $html);
-        internet_traf_tarifs({ TP => $tarif_plan });
-      }
-      else {
-        dv_traf_tarifs({ TP => $tarif_plan });
-      }
+      load_module('Internet', $html);
+      internet_traf_tarifs({ TP => $tarif_plan });
     }
     elsif ($FORM{add}) {
       $tarif_plan->ti_add({%FORM});
@@ -2192,7 +2289,7 @@ sub form_intervals {
     my $table = $html->table(
       {
         width      => '100%',
-        caption    => "$lang{INTERVALS}",
+        caption    => $lang{INTERVALS},
         title      => [ '#', $lang{DAYS}, $lang{BEGIN}, $lang{END}, $lang{HOUR_TARIF}, $lang{TRAFFIC}, '-', '-', '-' ],
         qs         => $pages_qs,
         class      => 'table table-hover table-condensed table-striped table-bordered'
@@ -2201,7 +2298,7 @@ sub form_intervals {
 
     my $color = "AAA000";
     foreach my $line (@$list) {
-      my $delete = $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->{id}", { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' });
+      my $delete = $html->button($lang{DEL}, "index=$index$pages_qs&del=$line->{id}&subf=$FORM{subf}", { MESSAGE => "$lang{DEL} [$line->{id}] ?", class => 'del' });
       $color = sprintf("%06x", hex('0x' . $color) + 7000);
 
       #day, $hour|$end = color
@@ -2223,8 +2320,8 @@ sub form_intervals {
         $table->td($line->{begin}),
         $table->td($line->{end}),
         $table->td($line->{tarif}),
-        $table->td($html->button($lang{TRAFFIC}, "index=$index$pages_qs&tt=$line->{id}",  { class => 'btn btn-xs btn-default traffic' })),
-        $table->td($html->button($lang{CHANGE},  "index=$index$pages_qs&chg=$line->{id}", { class => 'change' })),
+        $table->td($html->button($lang{TRAFFIC}, "index=$index$pages_qs&tt=$line->{id}&subf=$FORM{subf}",  { class => 'btn btn-xs btn-default traffic' })),
+        $table->td($html->button($lang{CHANGE},  "index=$index$pages_qs&chg=$line->{id}&subf=$FORM{subf}", { class => 'change' })),
         $table->td($delete), $table->td("&nbsp;", { bgcolor => '#' . $color, rowspan => ($line->{traffic_classes} > 0) ? 2 : 1 })
       );
 
@@ -2250,12 +2347,12 @@ sub form_intervals {
             $line2->[1],
             $line2->[2],
             $line2->[3],
-            int2byte($line2->[4] * 1024).'it',
-            int2byte($line2->[5] * 1024).'it',
+            int2byte($line2->[4] * $conf{KBYTE_SIZE}, { KBYTE_SIZE => $conf{KBYTE_SIZE} }),
+            int2byte($line2->[5] * $conf{KBYTE_SIZE}, { KBYTE_SIZE => $conf{KBYTE_SIZE} }),
             $line2->[6],
             convert($line2->[7], { text2html => 1 }),
-            $html->button($lang{CHANGE}, "index=$index$pages_qs&tt=$TI_ID&chg=$line2->[0]", { class => 'change' }),
-            $html->button($lang{DEL}, "index=$index$pages_qs&tt=$TI_ID&del=$line2->[0]", { MESSAGE => "$lang{DEL} [$line2->[0]]?", class => 'del' })
+            $html->button($lang{CHANGE}, "index=$index$pages_qs&tt=$TI_ID&chg=$line2->[0]&subf=$FORM{subf}", { class => 'change' }),
+            $html->button($lang{DEL}, "index=$index$pages_qs&tt=$TI_ID&del=$line2->[0]&subf=$FORM{subf}", { MESSAGE => "$lang{DEL} [$line2->[0]]?", class => 'del' })
           );
         }
 
@@ -2268,12 +2365,13 @@ sub form_intervals {
 
     print $table->show();
   }
-  elsif (defined($FORM{TP_ID})) {
+  elsif ($FORM{TP_ID}) {
     $FORM{subf} = $index;
-    if (defined( &dv_tp )) {
-      dv_tp();
-    }
-    elsif (defined( &internet_tp )) {
+    # if (defined( &dv_tp )) {
+    #   dv_tp();
+    # }
+    # els
+    if (defined( &internet_tp )) {
       internet_tp();
     }
 
@@ -2364,9 +2462,9 @@ sub form_intervals {
     if(in_array('Internet', \@MODULES)) {
       $html->tpl_show(_include('internet_tt', 'Internet'), $tarif_plan);
     }
-    else {
-      $html->tpl_show(_include('dv_tt', 'Dv'), $tarif_plan);
-    }
+    # else {
+    #   $html->tpl_show(_include('dv_tt', 'Dv'), $tarif_plan);
+    # }
   }
   else {
     my $day_id = $FORM{day} || $tarif_plan->{TI_DAY} || $FORM{TI_DAY};
@@ -2402,7 +2500,7 @@ sub form_prog_pathes {
       my $filename = "$conf{TPL_DIR}/programs.tpl";
       if (open(my $fh, '+>', $filename) ) {
         for (my $i = 0 ; $i < $#PROGS_ARR ; $i++) {
-          if ($FORM{$PROGS_ARR[$i]} =~ /^([\/A-Za-z0-9_\.\-]+)/) {
+          if ($FORM{$PROGS_ARR[$i]} =~ /^([\/A-Za-z0-9_\.\-\s]+)$/) {
             my $r = $1;
             print $fh "$PROGS_ARR[$i]=$r\n";
           }
@@ -2529,7 +2627,7 @@ sub organization_info {
     $info{OLD_PARAM} = $FORM{chg_form};
     $info{PARAM} = $FORM{chg_form};
     $info{VALUE} = $FORM{chg_form_value};
-    $info{TAGS_PANEL} = $FORM{chg_form};
+    $info{TAGS_PANEL} = $html->element('p', $FORM{chg_form}, { class => 'col-form-label' }); #need col-form-label to vertically align this text with label
     $info{VALUE_INPUT} = $html->form_input('VALUE', $FORM{chg_form_value}, { TYPE => 'text' });
     $Conf->config_info($FORM{change});
 
@@ -2770,7 +2868,7 @@ sub info_fields_new {
     'E-Mail',
     'Skype',
     $lang{FILE},
-    '',
+    $lang{DELIVERY},
     'PHOTO',
     'SOCIAL NETWORK',
     'Crypt',
@@ -2787,8 +2885,8 @@ sub info_fields_new {
     if (!$FORM{SQL_FIELD}) {
       $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (SQL_FIELD)");
     }
-    elsif (length($FORM{SQL_FIELD}) > 15) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (Length > 15)");
+    elsif (length($FORM{SQL_FIELD}) > 20) {
+      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} (Length > 20)");
     }
     else{
       $users->info_field_add(
@@ -2840,10 +2938,10 @@ sub info_fields_new {
     $TEMPLATE_ADVERTISEMENT{TYPE_SELECT} //= $html->form_select(
     'TYPE',
     {
-      SELECTED => $chg_list->[0]->{type},
-      SEL_ARRAY => \@fields_types,
+      SELECTED      => $chg_list->[0]->{type} || 0,
+      SEL_ARRAY     => \@fields_types,
       ARRAY_NUM_ID  => 1,
-      SEL_OPTIONS => {"" => ""}
+      SEL_OPTIONS   => {"" => ""}
     }
     );
     $html->tpl_show(
@@ -2924,61 +3022,59 @@ sub info_fields_new {
     $LIST_PARAMS{COMPANY} = 1;
   }
 
-  result_former(
-    {
-      INPUT_DATA      => $Info_fields,
-      FUNCTION        => 'fields_list',
-      DEFAULT_FIELDS  => 'ID, NAME, SQL_FIELD, TYPE, PRIORITY, ABON_PORTAL, USER_CHG, COMPANY, MODULE, COMMENT',
-      FUNCTION_FIELDS => 'change,del',
-      SKIP_USER_TITLE => 1,
-      EXT_TITLES      => {
-        id          => '#',
-        name        => $lang{NAME},
-        sql_field   => "SQL_FIELD",
-        type        => $lang{TYPE},
-        priority    => $lang{PRIORITY},
-        abon_portal => $lang{USER_PORTAL},
-        user_chg    => $lang{USER} . $lang{CHANGE},
-        company     => $lang{COMPANY},
-        module      => $lang{MODULE},
-        comment     => $lang{COMMENTS},
-      },
-      FILTER_VALUES   => {
-        type => sub {
-          my (undef, $line) = @_;
-          if ($line->{type} == 2) {
-            $html->button($fields_types[2], "index=" . ($index + 1) . "&LIST_TABLE=$line->{sql_field}" . '_list');
-          }
-          else {
-            $fields_types[$line->{type}];
-          }
+  result_former({
+    INPUT_DATA      => $Info_fields,
+    FUNCTION        => 'fields_list',
+    DEFAULT_FIELDS  => 'ID, NAME, SQL_FIELD, TYPE, PRIORITY, ABON_PORTAL, USER_CHG, COMPANY, MODULE, COMMENT',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id          => '#',
+      name        => $lang{NAME},
+      sql_field   => "SQL_FIELD",
+      type        => $lang{TYPE},
+      priority    => $lang{PRIORITY},
+      abon_portal => $lang{USER_PORTAL},
+      user_chg    => $lang{USER} . $lang{CHANGE},
+      company     => $lang{COMPANY},
+      module      => $lang{MODULE},
+      comment     => $lang{COMMENTS},
+    },
+    FILTER_VALUES   => {
+      type => sub {
+        my (undef, $line) = @_;
+        if ($line->{type} == 2) {
+          $html->button($fields_types[2], "index=" . ($index + 1) . "&LIST_TABLE=$line->{sql_field}" . '_list');
         }
-      },
-      SELECT_VALUE    => {
-        abon_portal => {
-          0 => $bool[0],
-          1 => $bool[1]
-        },
-        user_chg    => {
-          0 => $bool[0],
-          1 => $bool[1]
-        },
-        company     => {
-          0 => $bool[0],
-          1 => $bool[1]
+        else {
+          $fields_types[$line->{type}];
         }
+      }
+    },
+    SELECT_VALUE    => {
+      abon_portal => {
+        0 => $bool[0],
+        1 => $bool[1]
       },
-      TABLE           => {
-        width   => '100%',
-        caption => $lang{INFO_FIELDS},
-        ID      => "INFO_FIELDS",
-        header  => $status_bar,
-        MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add; :index=$index&update_table=1&$pages_qs:glyphicon glyphicon-import",
+      user_chg    => {
+        0 => $bool[0],
+        1 => $bool[1]
       },
-      MAKE_ROWS       => 1,
-      TOTAL           => 1
-    }
-  );
+      company     => {
+        0 => $bool[0],
+        1 => $bool[1]
+      }
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{INFO_FIELDS},
+      ID      => "INFO_FIELDS",
+      header  => $status_bar,
+      MENU    => "$lang{ADD}:index=$index&add_form=1&$pages_qs:add; :index=$index&update_table=1&$pages_qs:fa fa-reply",
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }

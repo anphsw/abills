@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS `reports_wizard` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 )
+  CHARSET = 'utf8'
   COMMENT = 'Reports Wizard';
 
 CREATE TABLE IF NOT EXISTS `reports_groups` (
@@ -23,4 +24,5 @@ CREATE TABLE IF NOT EXISTS `reports_groups` (
   `admins` VARCHAR(60) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 )
+  CHARSET = 'utf8'
   COMMENT = 'Reports Groups';

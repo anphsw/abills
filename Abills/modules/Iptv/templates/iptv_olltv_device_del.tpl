@@ -11,9 +11,9 @@
 <input type=hidden name='SERVICE_ID' value='$FORM{SERVICE_ID}'>
 
 <fieldset>
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{DEVICE}_</h4></div>
-    <div class='box-body'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{DEVICE}_</h4></div>
+    <div class='card-body'>
 
 <div class='form-group'>
   <label class='control-label col-md-3' for='ID'>ID</label>
@@ -61,7 +61,7 @@
 </div>
 
     </div>
-<div class='box-footer'>
+<div class='card-footer'>
  	%BACK_BUTTON%
   <input type='submit' class='btn btn-primary' name='del_device' value='_{DEL}_'>
 </div>

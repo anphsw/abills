@@ -1670,8 +1670,6 @@ sub sysinfo_get_process_pathes {
 =cut
 #**********************************************************
 sub sysinfo_sp_ps {
-  #my ($attr) = @_;
-
   my %watch_proccess = (
     'mysqld'       => '-',
     'radiusd'      => '-',
@@ -1705,7 +1703,6 @@ sub sysinfo_sp_ps {
       if ( $line->{COMMAND} =~ /$proc_name/ ) {
         my $ps_count = 1;
         if ( $watch_proccess{$proc_name} ) {
-          # ($status, $cpu, $mem, $vsz, $count)
           $watch_proccess{$proc_name} =~ s/,/\./g;
           my (undef, $cpu, $mem, $vsz, $count) = split(/:/, $watch_proccess{$proc_name});
           $line->{CPU} += $cpu if ($cpu);
@@ -1717,9 +1714,6 @@ sub sysinfo_sp_ps {
         $watch_proccess{$proc_name} = "+:$line->{CPU}:$line->{MEM}:$line->{VSZ}:$ps_count";
         last;
       }
-      #else {
-      #$watch_proccess{$proc_name} = "-";
-      #}
     }
   }
 
@@ -1737,11 +1731,12 @@ sub sysinfo_sp_ps {
       caption     => $html->button( "$lang{PROCCESS_LIST}", 'index=' . get_function_index('sysinfo_processes') ),
       ID          => 'PROCCESS_LIST',
       EXTRA_BTN =>  $html->button(
-        "$lang{INFO}",
+        '',
         'index=' . get_function_index('sysinfo_processes'),
         {
-          ICON=>'fa fa-fw fa-info',
-          class=>'btn btn-box-tool '
+          ADD_ICON => 'fa fa-fw fa-info',
+          class    => 'btn btn-tool ',
+          TITLE    => $lang{INFO}
         }
       ),
     }
@@ -1781,8 +1776,8 @@ sub sysinfo_sp_ps {
     }
 
     $ps_name = ($ps_name =~ /mysql/)
-                 ? $html->button( $ps_name,"index=" . get_function_index('sqlcmd_procs') )
-                 : $ps_name;
+      ? $html->button( $ps_name,"index=" . get_function_index('sqlcmd_procs') )
+      : $ps_name;
 
     if ( $count && $count > 1 ) {
       $ps_name .= "($count)";

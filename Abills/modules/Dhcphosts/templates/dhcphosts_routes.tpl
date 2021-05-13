@@ -1,6 +1,6 @@
 <!--Begin of DHCP Routes-->
-    <div class='box box-theme box-form'>
-      <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-body'>
         <form action='$SELF_URL' method='post'>
         <input type='hidden' name='index' value='$index' />
         <input type='hidden' name='NET_ID' value='$FORM{NET_ID}' />
@@ -35,7 +35,7 @@
           </div>
         </div>
            </div>
-         <div class='box-footer'>
+         <div class='card-footer'>
            <div class='row'>
            <div class='col-md-12'>
               <input class='btn btn-primary' type='submit' name='%ACTION%' value='%ACTION_LNG%' />

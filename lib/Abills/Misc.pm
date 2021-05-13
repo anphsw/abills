@@ -467,7 +467,7 @@ sub cross_modules_call {
   if ($attr->{SUM} && ! $attr->{USER_INFO}->{PAYMENTS_ADDED}) {
     $attr->{USER_INFO}->{DEPOSIT} += $attr->{SUM};
     $attr->{USER_INFO}->{PAYMENTS_ADDED}=1;
-    # $added = 1;
+    # $added = 1; #Don't remove
   }
 
   #Default silent mode (off)
@@ -980,7 +980,7 @@ sub service_get_month_fee {
     }
 
     my $periods = 0;
-    if (int($active_m) > 0 && int($active_m) < $m) {
+    if (int($active_m) > 0 && int($active_m) < $m && int($active_y) < int($y)) {
       $periods = $m - $active_m;
       if (int($active_d) > int($d)) {
         $periods--;
@@ -1005,7 +1005,7 @@ sub service_get_month_fee {
 
     if ($account_activate ne '0000-00-00') {
       if ($Service->{OLD_STATUS} && $Service->{OLD_STATUS} == 5) {
-        if ( $conf{DV_CURDATE_ACTIVATE} || $conf{INTERNET_PAY_ACTIVATE} ){
+        if ( $conf{INTERNET_PAY_ACTIVATE} ){
           $periods = 0;
         }
         #if activation in cure month curmonth
@@ -1135,13 +1135,13 @@ sub service_get_month_fee {
             $Users->change(
               $uid,
               {
-                ACTIVATE => ($conf{DV_CURDATE_ACTIVATE} || $conf{INTERNET_PAY_ACTIVATE}) ? $DATE : $account_activate,
+                ACTIVATE => ($conf{INTERNET_PAY_ACTIVATE}) ? $DATE : $account_activate,
                 UID      => $uid
               }
             );
           }
 
-          if ($conf{DV_CURDATE_ACTIVATE} || $conf{INTERNET_PAY_ACTIVATE}) {
+          if ($conf{INTERNET_PAY_ACTIVATE}) {
             ($active_y, $active_m, $active_d) = split(/-/, $DATE);
             $end_period = POSIX::strftime('%Y-%m-%d',
               localtime((POSIX::mktime(0, 0, 0, $active_d, ($active_m - 1), ($active_y - 1900), 0, 0,
@@ -1793,9 +1793,9 @@ sub upload_file {
   Attributes:
     $attr
       GID
-      HASH_RESULT     - Return results as hash
-      SKIP_MULTISELECT  - Skip multiselect
-      FILTER_SEL      - Select for reports (filter)
+      HASH_RESULT      - Return results as hash
+      SKIP_MULTISELECT - Skip multiselect
+      FILTER_SEL       - Select for reports (filter)
 
   Returns:
     GID select form
@@ -1840,7 +1840,7 @@ sub sel_groups {
     my $gid = $attr->{GID} || $FORM{GID};
     my %PARAMS = (
       SELECTED    => $gid,
-      SEL_LIST    => $users->groups_list({ 
+      SEL_LIST    => $users->groups_list({
         GID             => '_SHOW',
         NAME            => '_SHOW',
         DESCR           => '_SHOW',
@@ -1888,7 +1888,7 @@ sub sel_groups {
 =cut
 #**********************************************************
 sub sel_status {
-  my ($attr) = @_;
+  my ($attr, $select_params) = @_;
 
   my $select_name = $attr->{NAME} || 'STATUS';
 
@@ -1930,6 +1930,7 @@ sub sel_status {
         EX_PARAMS      => $attr->{EX_PARAMS},
         #MAIN_MENU      => get_function_index('form_status'),
         #MAIN_MENU_ARGV => "chg=$status_id"
+        %{($select_params) ? $select_params : {}}
       }
     );
   }
@@ -2063,6 +2064,7 @@ sub import_show {
        CSV
        XML
        JSON
+       TAB
     UPLOAD_PRE
     ENCODE
 
@@ -2115,6 +2117,10 @@ sub import_former {
     }
 
     return \@import_data;
+  }
+
+  if ($attr->{IMPORT_TYPE} && $attr->{IMPORT_TYPE} eq 'csv') {
+    $attr->{IMPORT_DELIMITER}=',';
   }
 
   my $delimiter   = $attr->{IMPORT_DELIMITER} || "\t+";

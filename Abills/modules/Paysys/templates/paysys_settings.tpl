@@ -20,9 +20,9 @@ input:checked + .paysys-chooser-box > .box-footer{
 }
 </style>
 
-<div class='box box-primary'>
-    <div class='box-header with-border'><h4 class='box-title'>_{CHOOSE_SYSTEM}_</h4></div>
-  <div class='box-body'>
+<div class='card box-primary'>
+    <div class='card-header with-border'><h4 class='card-title'>_{CHOOSE_SYSTEM}_</h4></div>
+  <div class='card-body'>
     
         <form name='PAYSYS_SETTINGS' id='form_PAYSYS_SETTINGS' method='post' class='form form-horizontal'>
         <input type='hidden' name='index' value='%index%' />
@@ -33,7 +33,7 @@ input:checked + .paysys-chooser-box > .box-footer{
     </form>
 
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
       <input type='submit' form='form_PAYSYS_SETTINGS' class='btn btn-primary' name='action' value='_{SELECT}_'>
   </div>
 </div>

@@ -1,7 +1,7 @@
 <div class='col-xs-12 col-md-6'>
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{OBJECT}_</h4></div>
-    <div class='box-body'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{OBJECT}_</h4></div>
+    <div class='card-body'>
 
       <form name='MAPS_OBJECT' id='form_MAPS_OBJECT' method='post' action='$SELF_URL' class='form form-horizontal'>
         <input type='hidden' name='index' value='$index'/>

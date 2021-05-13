@@ -6,52 +6,19 @@
   <input type='hidden' name='OPERATION' value='$FORM{OPERATION}'/>
   <input type='hidden' name='action' value='1'/>
 
-  <!--
-    <div class='form-group'>
-      <label class='control-label col-md-4 required' for='NAS_IP_id'>IP</label>
-      <div class='col-md-8'>
-        <input type='text' class='form-control' name='NAS_IP' required='required' readonly='readonly' value='%NAS_IP%'
-               id='NAS_IP_id'/>
-      </div>
-    </div>
-
-    <div class='form-group'>
-      <label class='control-label col-md-4 required' for='VENDOR_NAME_id'>_{VENDOR}_</label>
-      <div class='col-md-8'>
-        <input type='text' class='form-control' name='VENDOR_NAME' required='required' readonly='readonly'
-               value='%VENDOR_NAME%' id='VENDOR_NAME_id'/>
-      </div>
-    </div>
-
-    <div class='form-group'>
-      <label class='control-label col-md-4 required' for='MODEL_NAME_id'>_{MODEL}_</label>
-      <div class='col-md-8'>
-        <input type='text' class='form-control' name='MODEL_NAME' required='required' readonly='readonly'
-               value='%MODEL_NAME%' id='MODEL_NAME_id'/>
-      </div>
-    </div>
-
-    <div class='form-group' data-tooltip='_{REQUIRED_ARG}_ _{FOR}_ D-Link'>
-      <label class='control-label col-md-4' for='REVISION_id'>_{REVISION}_</label>
-      <div class='col-md-8'>
-        <input type='text' class='form-control' name='REVISION' value='%REVISION%' id='REVISION_id'/>
-      </div>
-    </div>
--->
-
   <div class='form-group' data-tooltip='\$conf{TFTP_SERVER_IP}'>
-    <label class='control-label col-md-3 required' for='TFTPSERVER_id'>TFTP IP</label>
-    <div class='col-md-9'>
+    <label class='control-label col-md-12 required' for='TFTPSERVER_id'>TFTP IP</label>
+    <div class='col-md-12'>
       <input type='text' class='form-control' name='TFTPSERVER' required='required' value='%TFTPSERVER%'
-             id='TFTPSERVER_id'/>
+        id='TFTPSERVER_id'/>
     </div>
   </div>
 
   <div class='form-group'>
-    <label class='control-label col-md-3 required' for='BACKUP_NAME_id'>Backup _{NAME}_</label>
-    <div class='col-md-9'>
+    <label class='control-label col-md-12 required' for='BACKUP_NAME_id'>Backup _{NAME}_</label>
+    <div class='col-md-12'>
       <input type='text' class='form-control' name='BACKUP_NAME' required='required' value='%BACKUP_NAME%'
-             id='BACKUP_NAME_id'/>
+        id='BACKUP_NAME_id'/>
     </div>
   </div>
 
@@ -65,7 +32,6 @@
 
 <script>
   jQuery(function () {
-    "use strict";
 
     var _ajax_form = jQuery('#EQUIPMENT_SNMP_BACKUP');
     var _act_btn   = jQuery('#action_btn');

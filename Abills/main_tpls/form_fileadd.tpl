@@ -10,7 +10,7 @@
                    class='input-file form-control' type='file'>
         </div>
     </div>
-    <input type='submit' name='UPLOAD' value='_{ADD}_' class='btn btn-default btn-success'>
+    <input type='submit' name='UPLOAD' value='_{ADD}_' class='btn btn-secondary btn-success'>
 </FORM>
 
 

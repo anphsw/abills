@@ -1,14 +1,28 @@
-<div class='well col-md-6 col-md-push-3'>
-    <div class='row'>
-        <label class='control-label col-md-3'>_{SUM}_:</label>
-        <div class='col-md-9'>
-            <input type=text class='form-control' name=SUM>
-        </div>
+<div class="card card-primary card-outline col-md-6">
+    <div class="card-header with-border">
+        <h3>_{PAIDS}_</h3>
     </div>
-    <div class='row'>
-        <label class='control-label col-md-3'>_{DESCRIBE}_:</label>
-        <div class='col-md-9'>
-            <input type=text class='form-control' name=DESCRIBE>
+    <div class="card-body">
+        <div class="form-group">
+            <div class="row">
+                <div class="col-sm-12 col-md-12">
+                    <label class='control-label col-md-12'>_{SUM}_</label>
+                    <div class="input-group">
+                        <input type='text' class='form-control' name='SUM'>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="row">
+                <div class="col-sm-12 col-md-12">
+                    <label class='control-label col-md-12'>_{DESCRIBE}_</label>
+                    <div class="input-group">
+                        <input type='text' class='form-control' name='DESCRIBE'>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

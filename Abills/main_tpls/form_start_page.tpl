@@ -5,22 +5,12 @@
     padding-right: 3px;
   }
 
-  .start-panel > .box:not(.collapsed-box) > div.box-body {
+  .start-panel > .card:not(.collapsed-card-widget) > div.card-body {
     min-height: 270px;
     max-height: 270px;
   }
 
-  .start-panel-placeholder {
-    width: 432px;
-    height: 432px;
-    background-color: yellow;
-  }
-
-  #sortable > div {
-    border-top: 1px solid transparent;
-  }
-
-  .start-panel .box .box-header {
+  .start-panel .card .card-header {
     cursor: move;
   }
 </style>
@@ -28,20 +18,18 @@
   <input type='hidden' name='AWEB_OPTIONS' value='1'/>
   <input type='hidden' name='QUICK' value='1'/>
 </form>
-<div class="row">
-  <div id='sortable'>
-    %INFO%
-  </div>
+<div class="row" id='sortable' style="padding-top: 10px;">
+  %INFO%
 </div>
 <script>
-
   jQuery(function () {
+
     var sortable_wrapper = jQuery("#sortable");
 
-    /*sortable box*/
+    /*sortable card*/
     sortable_wrapper.sortable(
         {
-          cancel: ".box-body",
+          cancel: ".card-body",
           scroll: true,
           helper: "clone",
           cursor: "move"
@@ -60,8 +48,7 @@
       formData += "&AWEB_OPTIONS=1&QUICK=1";
 
       /* Send Data */
-      jQuery.post('/admin/index.cgi', formData, function (data) {
-      });
+      jQuery.post('/admin/index.cgi', formData, function (data) { });
     });
 
   });

@@ -155,7 +155,7 @@ body {
     margin: 1px 0 0 3px;
     position: absolute;
     pointer-events: none;
-    font-family: 'Glyphicons Halflings';
+    font-family: 'fas Halflings';
 }
 #login .checkbox .character-checkbox {
     width: 25px;

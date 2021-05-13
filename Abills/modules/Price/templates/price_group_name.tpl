@@ -1,8 +1,8 @@
-<div class="box box-info ">
-    <div class="box-header with-border">
-        <h2 class="box-title">%NAME%</h2>
+<div class="card box-info ">
+    <div class="card-header with-border">
+        <h2 class="card-title">%NAME%</h2>
     </div>
-    <div class="box-body">
+    <div class="card-body">
         <div class="form-group">
             %ELEMENTS%
         </div>

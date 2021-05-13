@@ -1,14 +1,14 @@
 <div class="col-xs-12 col-md-6">
-<div class='box box-theme '>
-    <div class="box-header with-border">
-        <h3 class="box-title">_{OTHER}_</h3>
-        <div class="box-tools pull-right">
-            <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i class="fa fa-minus"></i>
+<div class='card card-primary card-outline '>
+    <div class="card-header with-border">
+        <h3 class="card-title">_{OTHER}_</h3>
+        <div class="card-tools pull-right">
+            <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i class="fa fa-minus"></i>
             </button>
         </div>
     </div>
 
-    <div class='box-body'>
+    <div class='card-body'>
         <div class='form-group'>
             <label class='col-md-3 control-label'>IP</label>
             <div class='col-md-6'>
@@ -43,7 +43,7 @@
 </div>
 </div>
 
-<!--<div class='box-form form-horizontal'>-->
+<!--<div class='card-form form-horizontal'>-->
 
 <!--</div>-->
 <!-- 

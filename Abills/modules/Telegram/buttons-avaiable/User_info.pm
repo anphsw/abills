@@ -58,7 +58,9 @@ sub click {
   if ($Users->{CELL_PHONE}) {
     $message .= "$self->{bot}->{lang}->{YOUR_PHONE_CELL}: $Users->{CELL_PHONE}\n";
   }
-
+  if($Users->{CONTRACT_ID}){
+    $message .= "$self->{bot}->{lang}->{CONTRACT_ID}: $Users->{CONTRACT_ID}\n";
+  }
   if ($Users->{PHONE_ALL}) {
     $message .= "$self->{bot}->{lang}->{YOUR_PHONE}: $Users->{PHONE_ALL}\n";
   }
@@ -72,7 +74,7 @@ sub click {
 
   $self->{bot}->send_message({
     text => $message,
-  }); 
+  });
 
   return 1;
 }

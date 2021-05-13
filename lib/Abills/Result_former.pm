@@ -30,7 +30,7 @@ our (
     $attr
       table - table object
       ROWS  - array_array
-      ROW_COLORS - ref Array color
+      ROW_COLORS - ref Array color. use bootstrap's table contextual classes (table-success, table-danger etc)
       EXTRA_HTML_INFO - Add extra HTML information
 
   Examples:
@@ -80,7 +80,7 @@ sub result_row_former {
     });
 
     print $table->show();
-    print $attr->{EXTRA_HTML_INFO} if ($attr->{EXTRA_HTML_INFO} && $table->{HTML});
+    print $attr->{EXTRA_HTML_INFO} if ($attr->{EXTRA_HTML_INFO} && $table->{HTML}); #XXX JSON somewhy have ->{HTML}, so we write EXTRA_HTML_INFO before JSON, resulting in broken JSON. XML also somewhy have ->{HTML}
     return '';
   }
 
@@ -104,13 +104,13 @@ sub result_row_former {
       BASE_PREFIX     - Base prefix for data hash
 
       FUNCTION_FIELDS - function field forming
-         change  - change field
-         payment - payment field
-         status  - status field
-         del     - del field
+        change  - change field
+        payment - payment field
+        status  - status field
+        del     - del field
 
-         custon_field:
-           functiom_name:name:param:ex_param
+        custon_field:
+          functiom_name:name:param:ex_param
 
       STATUS_VALS - Value for status fields (status,disable)
       EXT_TITLES  - Translations for table header ( Necessary for column selection modal window)
@@ -197,12 +197,14 @@ sub result_former {
   }
 
   @cols = _result_former_columns($attr);
+  # _info_fields_hide();
 
   _sort_table(
     $attr->{TABLE}->{ID}, $sort, \@cols
   );
 
   my @hidden_fields = _result_former_hidden_fields($attr, \@cols);
+
   _result_former_append_fields($attr, \@cols);
 
   my $data = _result_former_data($attr, \@hidden_fields);
@@ -571,7 +573,7 @@ sub table_function_fields {
     }
     elsif ($function_fields->[$i] eq 'del') {
       my $two_confirmation = '';
-      
+
       if ($conf{TWO_CONFIRMATION}) {
         $two_confirmation = $lang{DEL};
       }
@@ -580,8 +582,8 @@ sub table_function_fields {
         $html->button($lang{DEL}, "&index=$index&del="
           . (($line->{id}) ? $line->{id} : '')
           . ($attr->{MODULE} ? "&MODULE=$attr->{MODULE}" : '')
-          . $query_string, { 
-            class             => 'del', 
+          . $query_string, {
+            class             => 'del',
             MESSAGE           => "$lang{DEL} " . ($line->{name} || $line->{id} || q{-}) . "?",
             TWO_CONFIRMATION  => $two_confirmation
           }
@@ -607,7 +609,7 @@ sub table_function_fields {
           $button_params{class} = 'del';
           $button_params{TITLE} = "$lang{DEL}";
           $button_params{MESSAGE} = "$lang{DEL} " . ($line->{name} || $line->{id} || q{-}) . "?";
-          
+
           if ($conf{TWO_CONFIRMATION}) {
             $button_params{TWO_CONFIRMATION} = $lang{DEL};
           }
@@ -705,8 +707,11 @@ sub _result_former_maps2_show {
 =head2 _result_former_columns($attr)
 
   Arguments:
+    $attr
+      DEFAULT_FIELDS
 
   Return:
+    @cols
 
 =cut
 #**********************************************************
@@ -757,6 +762,7 @@ sub _result_former_columns {
 =head2 _result_former_fields($attr)
 
   Arguments:
+    $attr
 
   Return:
 
@@ -839,7 +845,7 @@ sub _result_former_data {
     }
 
     delete($data->{COL_NAMES_ARR});
-
+    $data->{debug} = 1 if ($FORM{DEBUG});
     my $list = $data->$fn({
       COLS_NAME      => 1,
       %LIST_PARAMS,
@@ -868,7 +874,6 @@ sub _result_former_data {
 sub _result_former_data_extra_fields {
   my ($data, $SEARCH_TITLES) = @_;
 
-  $SEARCH_TITLES->{TEST} = 1;
   return $SEARCH_TITLES unless $data->{EXTRA_FIELDS};
 
   foreach my $line (@{$data->{EXTRA_FIELDS}}) {
@@ -953,7 +958,7 @@ sub _get_search_titles {
   if (in_array('Tags', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Tags})) {
     $SEARCH_TITLES{tags} = $lang{TAGS} if (!$admin->{MODULES} || $admin->{MODULES}{Tags});
   }
-  
+
   if (in_array('Multidoms', \@MODULES) && (!$admin->{DOMAIN_ID} || $admin->{DOMAIN_ID} =~ /[,;]+/)) {
     $SEARCH_TITLES{domain_id} = 'DOMAIN ID';
     $SEARCH_TITLES{domain_name} = $lang{DOMAIN};
@@ -1180,7 +1185,7 @@ sub _get_tags_value {
 
   return $line->{$col_name} if (!$line->{tags} || $line->{tags} eq '');
 
-  my @priority_colors = ('btn-default', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
+  my @priority_colors = ('btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
   my @tags_name = split(/,/, $line->{tags});
   my @tags_priority = split(/,/, $line->{priority});
   $line->{$col_name} = q{};
@@ -1385,28 +1390,74 @@ sub _result_former_make_rows {
 #**********************************************************
 sub _column_no_permitss {
 
+  _info_fields_hide();
+
+  my (undef, $name_var, $fields_data) = split(/(SEARCH_FIELDS=)(.+[A-Z][0-9])/, $admin->{WEB_OPTIONS} || q{});
+  my @web_options_admin = ();
+  @web_options_admin = split(/, /, $fields_data) if ($fields_data);
+
+  my %hash_fields_options = map { $_ => 1 } @web_options_admin;
+
   if ($permissions{0} && !$permissions{0}{28}) {
     delete $LIST_PARAMS{GID};
     delete $LIST_PARAMS{GROUP_NAME};
   }
 
   if ($permissions{0} && !$permissions{0}{26}) {
-    delete $LIST_PARAMS{ADDRESS_BUILD};
-    delete $LIST_PARAMS{ADDRESS_FLAT};
-    delete $LIST_PARAMS{ADDRESS_FULL};
-    delete $LIST_PARAMS{ADDRESS_STREET};
-    delete $LIST_PARAMS{DISTRICT_ID};
-    delete $LIST_PARAMS{STREET_ID};
-    delete $LIST_PARAMS{PHONE};
+    delete $LIST_PARAMS{DISTRICT_ID} unless ($hash_fields_options{DISTRICT_ID});
+    delete $LIST_PARAMS{STREET_ID} unless ($hash_fields_options{STREET_ID});
+    delete $LIST_PARAMS{ADDRESS_BUILD} unless ($hash_fields_options{ADDRESS_BUILD});
+    delete $LIST_PARAMS{ADDRESS_FLAT} unless ($hash_fields_options{ADDRESS_FLAT});
+    delete $LIST_PARAMS{ADDRESS_FULL} unless ($hash_fields_options{ADDRESS_FULL});
+    delete $LIST_PARAMS{ADDRESS_STREET} unless ($hash_fields_options{ADDRESS_STREET});
+    delete $LIST_PARAMS{PHONE} unless ($hash_fields_options{PHONE});
   }
 
-  if (in_array('Tags', \@MODULES) && $admin->{MODULES} && !$admin->{MODULES}{Tags}) {    
+  if (in_array('Tags', \@MODULES) && $admin->{MODULES} && !$admin->{MODULES}{Tags}) {
     delete $LIST_PARAMS{TAGS};
   }
+
+  return 1;
 }
 
 #**********************************************************
-=head2 _sort_table($name_table, $sort)
+=head2 _info_fields_hide()
+
+  Arguments:
+    -
+  Return:
+    -
+
+=cut
+#**********************************************************
+sub _info_fields_hide {
+
+  # return 0 unless (($admin->{SETTING} || $FORM{show_columns}));
+  # 
+  # my @info_fields = ();
+  # if (! $FORM{show_columns}) {
+  #   @info_fields = split(', ', $admin->{SETTING});
+  # }
+  # else {
+  #   @info_fields = split(', ', $FORM{show_columns});
+  # }
+  #
+  # my %hash_fields = ();
+  # foreach my $key (@info_fields) {
+  #   $hash_fields{$key} = 1;
+  # }
+  #
+  # foreach my $key (sort keys %LIST_PARAMS) {
+  #   if ($key =~ /^_/ && !$hash_fields{ $key }) {
+  #     delete($LIST_PARAMS{ $key });
+  #   }
+  # }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _sort_table($name_table, $sort, $cols)
 
   Arguments:
     $name_table -
@@ -1430,18 +1481,20 @@ sub _sort_table {
     });
   }
   else {
-    my ($sort, $desc) = split('\|', $admin->{SORT_TABLE}) if ($admin->{SORT_TABLE});  
-    if ($sort && ($sort - 1) > $#{ $cols }) {
-      $LIST_PARAMS{SORT} = '1'; 
+    my ($sort, $desc) = split('\|', $admin->{SORT_TABLE}) if ($admin->{SORT_TABLE});
+    if ($sort && $sort =~ /^\d+$/ && ($sort - 1) > $#{ $cols }) {
+      $LIST_PARAMS{SORT} = '1';
     }
     else {
-      $LIST_PARAMS{SORT} = ($sort || $LIST_PARAMS{SORT}) || '1'; 
+      $LIST_PARAMS{SORT} = ($sort || $LIST_PARAMS{SORT}) || '1';
     }
 
     $desc = $sort ? $desc : $LIST_PARAMS{DESC};
-    
+
     $LIST_PARAMS{DESC} = $desc || '';
   }
+
+  return 1;
 }
 
 #**********************************************************

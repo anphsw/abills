@@ -66,6 +66,8 @@ sub _raisecom_get_ports {
   Arguments:
     $id - ONU's SNMP ID
     $attr
+      TODO: add support for SHOW_FIELDS
+      snmp_get attrs
 
   Returns:
     %onu_info
@@ -95,7 +97,6 @@ sub _raisecom_get_onu_info {
 
     my $value = snmp_get({
       %$attr,
-      VERSION => '2',
       OID     => $oid . '.' . $onu_index . $add_2_oid,
       SILENT  => 1,
     });
@@ -108,6 +109,11 @@ sub _raisecom_get_onu_info {
 
     if ($snmp_info->{$oid_name}->{NAME}) {
       $oid_name = $snmp_info->{$oid_name}->{NAME};
+    }
+
+    if ($oid_name =~ /STATUS/ && defined $value) {
+      my $status_hash = _raisecom_onu_status();
+      $value = $status_hash->{$value} || $ONU_STATUS_TEXT_CODES{NOT_EXPECTED_STATUS};
     }
 
     $onu_info{$id}{$oid_name} = $value;
@@ -226,7 +232,7 @@ sub _raisecom_onu_list {
 
 =cut
 #**********************************************************
-sub _raisecom {
+sub _raisecom { #TODO: move part of OIDs to main_onu_info, fix _raisecom_get_onu_info, _raisecom_onu_list accordingly
     my ($attr) = @_;
 
   my %snmp = (
@@ -264,7 +270,7 @@ sub _raisecom {
         OIDS   => '1.3.6.1.4.1.8886.18.3.1.3.1.1.20',
         ONU_INDEX_DECODER => 2,
       },
-      'TEMPERATURE'    => {
+      'TEMPERATURE'    => { #XXX move to main_onu_info?
         NAME   => 'TEMPERATURE',
         OIDS   => '1.3.6.1.4.1.8886.18.3.6.3.1.1.18',
         PARSER => '_raisecom_convert_temperature',

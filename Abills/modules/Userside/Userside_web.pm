@@ -157,13 +157,13 @@ sub page {
 
   #ADDITIONAL_DATA
   $user_info->{STATEMENT_OF_ACCOUNT} = $html->button("", "qindex=$form_users&STATMENT_ACCOUNT=10&UID=10&header=2",
-   { class => '', ICON => 'glyphicon glyphicon-list-alt' });
+   { class => '', ICON => 'fa fa-list-alt' });
   $user_info->{CONTRACT}             = $html->button("", "qindex=$form_users&UID=$uid&PRINT_CONTRACT=2&pdf=1",
-   { class => '', ICON => 'glyphicon glyphicon-list-alt' });
+   { class => '', ICON => 'fa fa-list-alt' });
   $user_info->{MEMO}                 = $html->button("", "qindex=$internet_user&UID=2&REGISTRATION_INFO=1",
-   { class => '', ICON => 'glyphicon glyphicon-list-alt' });
+   { class => '', ICON => 'fa fa-list-alt' });
   $user_info->{MEMO_PDF}             = $html->button("", "qindex=$internet_user&UID=2&REGISTRATION_INFO=1&pdf=1",
-   { class => '', ICON => 'glyphicon glyphicon-list-alt' });
+   { class => '', ICON => 'fa fa-list-alt' });
 
   $user_info->{PAYMENTS_BTN_NAME} = ($list->[0]->{sum} && $list->[0]->{datetime})
    ? $html->element('strong', "$list->[0]->{sum}") . $html->element('i', " ($list->[0]->{datetime})")
@@ -276,10 +276,10 @@ sub page {
     @data = ();
     foreach my $c_day (@days) {
       if ($hash{$c_month}{"0$c_day"} || $hash{$c_month}{$c_day}) {
-        push @data, $html->element('span', '', { class => "glyphicon glyphicon-ok-sign text-green", title => "$c_day" });
+        push @data, $html->element('span', '', { class => "fa fa-check-circle text-green", title => "$c_day" });
       }
       else {
-        push @data, $html->element('span', '', { class => "glyphicon glyphicon-remove-sign text-red", title => "$c_day" });
+        push @data, $html->element('span', '', { class => "fa fa-times-circle text-red", title => "$c_day" });
       }
     }
     $table->addrow($c_month, @data);

@@ -3,6 +3,8 @@ package Abills::Api::Router;
 use strict;
 use warnings;
 
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
+
 use JSON;
 
 BEGIN {
@@ -10,6 +12,7 @@ BEGIN {
   my $sql_type = 'mysql';
   unshift(@INC,
     $libpath . "Abills/$sql_type/",
+    $libpath . "Abills/$sql_type/Internet/",
     $libpath . "Abills/modules/",
     $libpath . "Abills/Control/",
     $libpath . "/lib/",
@@ -49,10 +52,8 @@ sub new {
 
   $self->{credentials} = ();
   $self->{allowed} = 0;
-
-  $self->{query_params} = ($ENV{REQUEST_METHOD} eq "GET") ? $query_params : $query_params->{__BUFFER} ? decode_json $query_params->{__BUFFER} : ();
-
-  if($ENV{REQUEST_METHOD} eq "PUT" || $ENV{REQUEST_METHOD} eq "DELETE") {
+  $self->{query_params} = ($ENV{REQUEST_METHOD} ~~ ["GET", "DELETE"]) ? $query_params : $query_params->{__BUFFER} ? decode_json $query_params->{__BUFFER} : ();
+  if($ENV{REQUEST_METHOD} eq "DELETE") {
       my @pairs = split(/[&,;]/, $ENV{QUERY_STRING});
 
       foreach my $pair (@pairs){
@@ -93,9 +94,12 @@ sub handle {
   my ($self) = @_;
 
   my $handler = parse_request($self, $self->{query_params});
+  my $route = $handler->{route};
 
-  if(defined $handler->{route}->{credentials}) {
-    foreach my $credential_name (@{ $handler->{route}->{credentials} }) {
+  $route->{subpackage} = $route->{subpackage} || '';
+
+  if(defined $route->{credentials}) {
+    foreach my $credential_name (@{ $route->{credentials} }) {
       my $credential = $self->{credentials}->{$credential_name};
 
       if(defined $credential) {
@@ -113,8 +117,8 @@ sub handle {
     $self->{allowed} = 1;
   }
 
-  if($handler->{route}->{custom}) {
-    my $result = $handler->{route}->{handler}->(
+  if($route->{custom}) {
+    my $result = $route->{handler}->(
       $handler->{path_params},
       $self->{query_params}
     );
@@ -123,18 +127,33 @@ sub handle {
     $self->{response_type} = $handler->{route}->{type} || 'HASH';
   }
   else {
-    my $module_name = $handler->{route}->{module};
+    my $module_name = $route->{module};
+    my $module_package = $route->{subpackage}.($route->{subpackage} ? '::' : '').$handler->{route}->{module};
 
-    $self->{response_type} = $handler->{route}->{type} || 'HASH';
+    $self->{response_type} = $route->{type} || 'HASH';
 
-    require "$module_name.pm";
+    eval "use $module_package";
 
-    my $module = eval "$module_name->new(\$self->{db}, \$self->{admin}, \$self->{conf})";
+    if($@) {
+      $self->{errno} = 1;
+      $self->{errstr} = 'Module is not found';
+
+      return;
+    }
+
+    my $module = eval "$module_package->new(\$self->{db}, \$self->{admin}, \$self->{conf})";
 
     $self->{result} = eval "\$module->$handler->{signature}";
 
+    if($@) {
+      $self->{errno} = 2;
+      $self->{errstr} = $@;
+
+      return;
+    }
+
     unless($self->{result}) {
-      if($handler->{route}->{type} eq 'ARRAY'){
+      if($self->{response_type} eq 'ARRAY'){
         $self->{result} = []
       }
       else {
@@ -242,8 +261,9 @@ sub parse_request {
     my $rest_params = '';
 
     for my $query_key (keys %{ $query_params }) {
-      my $key = Abills::Api::Camelize::decamelize($query_key);
-      $rest_params .= "$key => '$query_params->{$query_key}',";
+      my $key   = Abills::Api::Camelize::decamelize($query_key);
+      my $value = $query_params->{$query_key} || q{};
+      $rest_params .= "$key => '$value',";
     }
 
     chop($rest_params);

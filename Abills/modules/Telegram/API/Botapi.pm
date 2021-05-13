@@ -106,11 +106,11 @@ sub get_file {
   my $self = shift;
   my ($file_id) = @_;
 
-  my $json_str = qq({\"file_id\":\"$file_id\"});
+  my $json_str = '{\"file_id\":\"'.$file_id.'\"}';
   my $url      = $self->{api_url} . 'getFile';
 
   my @header = ( 'Content-Type: application/json' );
-  
+
   my $result = web_request($url, {
     POST         => $json_str,
     HEADERS      => \@header,
@@ -128,7 +128,7 @@ sub get_file {
   my $file_path = $hash_result->{result}->{file_path};
   my $file_size = $hash_result->{result}->{file_size};
   my $file_url = $self->{file_url} . $file_path;
-    
+
   my $file_content = web_request($file_url, {
     CURL         => 1,
     CURL_OPTIONS => '-s',

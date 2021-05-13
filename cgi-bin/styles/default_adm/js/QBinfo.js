@@ -78,13 +78,13 @@ function QBinfo(title, msg, group_id, event_id, seen_url) {
   if (group_id && group_id !== '1') {
     codeInput +=
         '<td valign="middle" align="right" class="qb_title_btn qb_unsubscribe_btn" width="10%">'
-        + '  <a onclick="AMessageChecker.unsubscribe(' + id + ', ' + group_id + ')" ><span class="glyphicon glyphicon-eye-close"></span></a>'
+        + '  <a onclick="AMessageChecker.unsubscribe(' + id + ', ' + group_id + ')" ><span class="fa fa-eye-slash"></span></a>'
         + '</td>';
   }
   if (seen_url) {
     codeInput +=
         '<td valign="middle" align="right" class="qb_title_btn qb_seen_btn" width="10%">'
-        + ' <a onclick="AMessageChecker.seenMessage(' + id + ', \'' + seen_url + '\')" ><span class="glyphicon glyphicon-ok"></span></a>'
+        + ' <a onclick="AMessageChecker.seenMessage(' + id + ', \'' + seen_url + '\')" ><span class="fa fa-check"></span></a>'
         + '</td>';
   }
   
@@ -93,7 +93,7 @@ function QBinfo(title, msg, group_id, event_id, seen_url) {
   
   
   codeInput += '<td valign="middle" align="right" class="qb_title_btn qb_close_btn" width="10%">'
-      + '<a onclick="hideQBinfo(' + id + ')" ><span class="glyphicon glyphicon-remove"></span></a>'
+      + '<a onclick="hideQBinfo(' + id + ')" ><span class="fa fa-remove"></span></a>'
       + '</td>'
       + '</tr></table><div class="msgQBinfo">' + msg + '</div>';
   

@@ -2,13 +2,13 @@
   <input type='hidden' name=index value=$index>
   <input type=hidden name='NAS_ID' value='%NAS_ID%'>
   <input type=hidden name='mrtg_cfg' value='1'>
-  <div class='box box-theme box-form'>
+  <div class='card card-primary card-outline box-form'>
     <!-- head -->
-    <div class='box-header with-border'>
-      <h4 class="box-title table-caption">Options</h4>
+    <div class='card-header with-border'>
+      <h4 class="card-title table-caption">Options</h4>
     </div>
     <!-- body -->
-    <div class='box-body'>
+    <div class='card-body'>
 
       <div class='form-group'>
         <label class='col-md-3 control-label'>MRTG WorkDir</label>
@@ -33,7 +33,7 @@
 
     </div>
     <!-- footer -->
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type='submit' class='btn btn-primary' name='confirm' value='_{APPLY}_'>
     </div>
 

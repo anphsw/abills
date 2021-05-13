@@ -39,9 +39,9 @@
 
 
     <!--</fieldset>-->
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'><h4>_{TARIF_PLANS}_</h4></div>
-        <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'><h4>_{TARIF_PLANS}_</h4></div>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='control-label col-md-4' for='TP_ID_MAIN'>_{MAIN}_</label>
                 <div class='col-md-8'>
@@ -70,7 +70,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input type='submit' class='btn btn-primary' name=%ACTION% value='%LNG_ACTION%'>
         </div>
     </div>

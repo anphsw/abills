@@ -1,9 +1,9 @@
 <form method='POST' action='$SELF_URL' class='form-horizontal'>
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='ID' value='%ID%'>
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'><h4>_{ADD_SERVICE}_</h4></div>
-        <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'><h4>_{ADD_SERVICE}_</h4></div>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='control-label col-md-3 required'>_{GROUP}_</label>
                 <div class='col-md-9'>
@@ -24,7 +24,7 @@
             </div>
 
             <div class='form-group'>
-                <label class='control-label col-md-3' for="PRICE">_{PRICE}_,<span class='glyphicon glyphicon-usd'></span></label>
+                <label class='control-label col-md-3' for="PRICE">_{PRICE}_,<span class='fa fa-usd'></span></label>
                 <div class='col-md-9'>
                     <input required='' type='text' class='form-control' id="PRICE" name='PRICE' value='%PRICE%'/>
                 </div>
@@ -36,7 +36,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input type='submit' class='btn btn-primary' name='%BTN_ACTION%' value='%BTN_LNG%'>
         </div>
     </div>

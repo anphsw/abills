@@ -1,14 +1,14 @@
-<div class='box box-theme collapsed-box %PARAMS%' form='internet_users_list'>
-    <div class='box-header with-border'>
-        <h4 class='box-title'>_{MULTIUSER_OP}_</h4>
-        <div class='box-tools pull-right'>
-            <button type='button' id='mu_status_box_btn' class='btn btn-box-tool' data-widget='collapse'><i
-                    class='fa fa-plus'></i>
+<div class='card card-primary card-outline %PARAMS% collapsed-card' form='internet_users_list'>
+    <div class='card-header with-border'>
+        <h4 class='card-title'>_{MULTIUSER_OP}_</h4>
+        <div class='card-tools pull-right'>
+            <button type='button' id='mu_status_box_btn' class='btn btn btn-tool' data-card-widget='collapse'>
+                <i class='fa fa-plus'></i>
             </button>
         </div>
     </div>
 
-    <div class=' box-body' id='daasd'>
+    <div class='card-body' id='daasd'>
 
         <div class='form-group'>
             <div class='row'>

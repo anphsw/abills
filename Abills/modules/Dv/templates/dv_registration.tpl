@@ -21,10 +21,10 @@
 <input type=hidden name=DOMAIN_ID value=$FORM{DOMAIN_ID}>
 <input type=hidden name=module value=Dv>
 
-<div class='box box-theme box-form center-block'>
+<div class='card card-primary card-outline box-form center-block'>
 
-<div class='box-header with-border'><h4 class='box-title'>_{REGISTRATION}_</h4></div>
-<div class='box-body'>
+<div class='card-header with-border'><h4 class='card-title'>_{REGISTRATION}_</h4></div>
+<div class='card-body'>
 %CHECKED_ADDRESS_MESSAGE%
 <div class='form-group'>
   <label class='control-label col-md-3' for='LANGUAGE'>_{LANGUAGE}_</label>
@@ -89,7 +89,7 @@
 %CAPTCHA%
 </div>
 
-<div class='box-footer text-right'>
+<div class='card-footer text-right'>
     <input type=submit name=reg value='_{REGISTRATION}_' class='btn btn-primary'>
 </div>
 

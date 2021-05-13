@@ -4,8 +4,8 @@
 <input type=hidden name=PHOTO value='%UID%'>
 <input type='hidden' name='EXTERNAL_ID' value='%EXTERNAL_ID%'>
 <br>
-<div class='box box-theme box-form'>
-<div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+<div class='card-body'>
 
 <fieldset>
 <legend>_{IMAGES}_</legend>

@@ -308,8 +308,8 @@ sub work_planning_add {
     my $build_name = $Address->build_info({ ID => $item->{builds_id} });
     my $Admin_name  = $Admins->info($item->{aid});
     
-    my $del_button  = $html->button("", "index=$index&DELETE=$item->{id}", { class => "text-danger", ADD_ICON => "glyphicon glyphicon-trash" });
-    my $edit_button = $html->button("", "index=$index&EDIT=$item->{id}", { class => "", ADD_ICON => "glyphicon glyphicon-pencil" });
+    my $del_button  = $html->button("", "index=$index&DELETE=$item->{id}", { class => "text-danger", ADD_ICON => "fa fa-trash" });
+    my $edit_button = $html->button("", "index=$index&EDIT=$item->{id}", { class => "", ADD_ICON => "fa fa-pencil" });
     $table->addrow(
       $item->{id},     $item->{date_of_creation}, $item->{date_of_execution},     "$Admin_name->{A_FIO}", $item->{description},                     $arr_status_option[ $item->{status} ],
       $item->{budget}, $Users->{FIO},             $build_name->{NUMBER}, $item->{comment},       $Admins->info($item->{creator})->{A_FIO}, $msgs_indicator, "$edit_button$del_button"
@@ -462,7 +462,7 @@ sub workplanning_installation_search{
         }
       );
       foreach my $user ( @{$users_list} ) {
-        my $login_str = "<button class='btn btn-default search-result' data-uid='$user->{uid}'>$user->{login}</button>";
+        my $login_str = "<button class='btn btn-secondary search-result' data-uid='$user->{uid}'>$user->{login}</button>";
         $table->addrow(
           $login_str,
           $user->{fio} || '--',
@@ -482,7 +482,7 @@ sub workplanning_installation_search{
       ex_params      =>
       qq{onclick="loadRawToModal('?qindex=$index&install_accountability=1&header=2&user_search_form=1')"},
       class          => 'btn btn-defaut',
-      ICON           => 'glyphicon glyphicon-search'
+      ICON           => 'fa fa-search'
     } );
   
   # if ( $Storage->{UID} ) {

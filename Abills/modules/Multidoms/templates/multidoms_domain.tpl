@@ -2,9 +2,9 @@
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='chg' value='$FORM{chg}'>
    
-    <div class='box box-theme box-big-form'>
-      <div class='box-header with-border'><h3 class='box-title'>_{DOMAINS}_</h3></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline box-big-form'>
+      <div class='card-header with-border'><h3 class='card-title'>_{DOMAINS}_</h3></div>
+      <div class='card-body'>
         <div class='form-group'>
                     <label class='control-label col-md-3' for='NAME'>_{NAME}_</label>
                     <div class='col-md-9'>

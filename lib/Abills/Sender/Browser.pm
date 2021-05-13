@@ -91,13 +91,13 @@ sub send_message {
       TEXT  => $attr->{MESSAGE}
     }
   );
-  
+
   return $self->{api}->_request($attr, \%payload);
 }
 
 
 #**********************************************************
-=head2 connected_admins()
+=head2 connected_admins() - Get connected admins
 
   Returns:
     list - aids of connected admins
@@ -111,9 +111,13 @@ sub connected_admins {
     TYPE      => 'REQUEST_LIST',
     LIST_TYPE => 'ADMINS',
   );
-  
+
   my $responce = $self->{api}->json_request( { MESSAGE => \%request } );
-  
+
+  if(! $responce) {
+    return 0;
+  }
+
   #TODO: check for errors
   my $connected = $responce->{LIST};
   
@@ -134,7 +138,7 @@ sub connected_admins {
 sub has_connected_admin {
   my $self = shift;
   my ( $aid ) = @_;
-  
+
   my $admins = $self->connected_admins();
   
   return in_array( $aid, $admins );

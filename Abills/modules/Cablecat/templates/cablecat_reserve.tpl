@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{CABLE_RESERVE}_</h4></div>
-    <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{CABLE_RESERVE}_</h4></div>
+    <div class='card-body'>
         <form name='CABLECAT_CROSS' id='form_CABLECAT_CROSS' method='post' class='form form-horizontal'>
             <input type='hidden' name='index' value='$index' />
             <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1' />
@@ -23,7 +23,7 @@
         </form>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
         <input type='submit' form='form_CABLECAT_CROSS' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
     </div>
 </div>

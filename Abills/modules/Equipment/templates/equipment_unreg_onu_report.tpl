@@ -5,7 +5,7 @@
 
   let box_body = document.createElement('div');
   box_body.id = 'loading_content';
-  box_body.classList.add('box-body');
+  box_body.classList.add('card-body');
 
   let status_loading = document.createElement('div');
   status_loading.id = 'status-loading-content';

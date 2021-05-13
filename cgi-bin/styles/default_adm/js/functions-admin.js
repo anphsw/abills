@@ -127,89 +127,63 @@ window.onload = PMA_markRowsInit;
 $(function(){
   if (roClases) { $(roClases).prop( "readonly", true ); };
   if (diClases) { $(diClases).prop( "disabled", true ); };
+
   $('#hold_up_window, input[name=\"hold_up_window\"]').click(function (e) {
     e.preventDefault();
+
     var prevPopupWindow = $(this).closest('table').next('div#open_popup_block_middle');
     var close = prevPopupWindow.children('a#close_popup_window');
+
     prevPopupWindow.css({
       'margin-top': -((prevPopupWindow.height()) / 2),
       'margin-left': -((prevPopupWindow.width()) / 2)
     }).slideToggle(0);
+
     close.click(function () {
       $(this).parent().hide();
     });
   });
 });
 
-
-/**
-
- */
-// function comments_add(theLink, Message, CustomMsg) {
-//   var comments = prompt(Message, '');
-//
-//   if (comments == '' || comments == null) {
-//     alert('Enter comments');
-//   }
-// }
-
 function defineHighlightRow() {
   $('tr').on('click', function () {
     var $this = $(this);
 
     if (!$this.parents('table').hasClass('no-highlight')) {
-
-      //Get a color for bg-info class
-      var $color = $('.bg-success').css('background-color');
-
-      //We need to know if it's been already colored
-      var trigger = ($this.css('background-color') === $color);
-
       //operate only on second click
-      var second_click = $this.prop('highlighted') === true;
-      switch (second_click) {
-        case true:
-          switch (trigger) {
-            case true: //if it was colored
-              $this.css('background-color', $(this).prop('color_before')); //drop custom color
-              $this.prop('highlighted', false);
-              break;
-            default:  //if not
-              $this.css('background-color', $color);    //set custom color
-              break;
-          }
-          break;
-        default:
-          $(this).prop('highlighted', true);
-          $(this).prop('color_before', $this.css('background-color'));
+      if ($this.prop('second-click')) {
+        $(this).toggleClass('table-success');
+        if (!$(this).hasClass('table-success')) {
+          $(this).prop('second-click', false);
+        }
       }
-
+      else {
+        $(this).prop('second-click', true);
+      }
     }
   });
 }
 
 function defineMainSearchLiveLogic() {
   var $universal_search_forms = $('.UNIVERSAL_SEARCH_FORM');
-  
+
   if (!$universal_search_forms.length) return true;
-  
+
   var login_uid_row_template = ''
       + '<span>&nbsp;{{fio}}</span>'
-      + '<span class="pull-right"><strong>&nbsp;{{login}} ( {{uid}} )</strong></span>'
-      + '';
+      + '<span class="pull-right"><strong>&nbsp;{{login}} ( {{uid}} )</strong></span>';
   var address_phone_row_template = ''
       + '<br/><span>&nbsp;{{address_full}}&nbsp;</span>'
-      + '<span class="pull-right"><i class="text-muted">{{phone}}</i></span>'
-      + '';
-  
+      + '<span class="pull-right"><i class="text-muted">{{phone}}</i></span>';
+
   Mustache.parse(login_uid_row_template);
   Mustache.parse(address_phone_row_template);
-  
+
   $.each($universal_search_forms, function(i, form){
     var $form = $(form);
     var $type_select = $form.find('.search-type-select');
     var $input = $form.parent().find('input.UNIVERSAL_SEARCH');
-    
+
     try {
       $input.marcoPolo({
         url : $form.attr('action'),
@@ -224,11 +198,11 @@ function defineMainSearchLiveLogic() {
             EXPORT_CONTENT: "USERS_LIST"
           }
         },
-  
+
         formatData: function (data) {
           return data['DATA_1'];
         },
-  
+
         submitOnEnter: true,
         highlight    : false,
         selectable : ':not(.disabled)',
@@ -240,9 +214,9 @@ function defineMainSearchLiveLogic() {
           }
           return result;
         },
-  
+
         minChars: 3,
-  
+
         onSelect: function (data) {
           location.replace('?index=15&UID=' + data.uid);
         },
@@ -258,24 +232,25 @@ function defineMainSearchLiveLogic() {
 
 
 $(document).ready(function () {
-  
+
   //Highlight row
   defineHighlightRow();
-  
+
   //Live universal search
   defineMainSearchLiveLogic();
-  
+
 });
 
 // Init header menus
 $(function () {
-  
+
   var Proto_Events      = new EventsMenu('events-menu', {});
   var Proto_Messages    = new MessagesMenu('messages-menu', {});
+
   var Proto_Responsible = new MessagesMenu('responsible-menu', {
     filter: function (message) {return (!message['state_id'] || message['state_id'] === '0')}
   });
-  
+
   var try_to_init_menu = function(name, menu_proto){
     try {
       if (menu_proto.init()) window[name] = menu_proto;
@@ -286,15 +261,16 @@ $(function () {
       return false;
     }
   };
-  
+
   try_to_init_menu('HEvents', Proto_Events);
+
   if (try_to_init_menu('HMessages', Proto_Messages)){
     // Init small search form inside header
       var drop_search_form = jQuery('#drop_search_form');
-      
+
       jQuery('#dropdown_search_button').off('click').on('click', function () {
         var is_enabled = drop_search_form.data('enabled') === true;
-      
+
         if (!is_enabled) {
           drop_search_form.show();
           jQuery('#search_input').focus();
@@ -302,11 +278,9 @@ $(function () {
         else {
           drop_search_form.hide();
         }
-      
+
         drop_search_form.data('enabled', !is_enabled);
-      
       });
-    
   };
   try_to_init_menu('HResponsible', Proto_Responsible);
 
@@ -318,9 +292,7 @@ $(function () {
      */
     CALLBACK : function (notification) {
       var id = notification.ID;
-    
-      //if (typeof this['SHOWED'] === 'undefined'){ this.SHOWED = {} }
-    
+
       if (typeof NOTEPAD_LIST_EXTENSION.SHOWED[id] === 'undefined'){
         new AModal()
             .setRawMode(true)
@@ -330,7 +302,7 @@ $(function () {
             })
             .loadUrl('?get_index=notepad_checklist_modal&header=2&chg=1&NOTE_ID=' + id)
             .show();
-  
+
         NOTEPAD_LIST_EXTENSION.SHOWED[id] = true;
       }
       else {
@@ -338,10 +310,8 @@ $(function () {
       }
     }
   };
-  
   AMessageChecker.extend(NOTEPAD_LIST_EXTENSION);
 });
-
 
 var currColor = 0;
 var colorArray = [

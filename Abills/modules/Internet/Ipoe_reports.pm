@@ -52,7 +52,7 @@ sub ipoe_unknow_ips{
       pages      => $Internet_ipoe->{TOTAL},
       qs         => $pages_qs,
       header     => $html->button( "$lang{DEL} $lang{ALL}", "index=$index&del_all=1",
-        { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-default' } ),
+        { MESSAGE => "$lang{DEL} $lang{ALL}?", class => 'btn btn-secondary' } ),
       ID         => 'IPN_UNKNOWN_LIST'
     }
   );

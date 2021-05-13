@@ -103,10 +103,10 @@
                 '<div class="calendar left">' +
                     '<div class="daterangepicker_input">' +
                       '<input class="input-mini" type="text" name="daterangepicker_start" value="" />' +
-                      '<i class="fa fa-calendar glyphicon glyphicon-calendar"></i>' +
+                      '<i class="fa fa-calendar"></i>' +
                       '<div class="calendar-time">' +
                         '<div></div>' +
-                        '<i class="fa fa-clock-o glyphicon glyphicon-time"></i>' +
+                        '<i class="fa fa-clock-o"></i>' +
                       '</div>' +
                     '</div>' +
                     '<div class="calendar-table"></div>' +
@@ -114,10 +114,10 @@
                 '<div class="calendar right">' +
                     '<div class="daterangepicker_input">' +
                       '<input class="input-mini" type="text" name="daterangepicker_end" value="" />' +
-                      '<i class="fa fa-calendar glyphicon glyphicon-calendar"></i>' +
+                      '<i class="fa fa-calendar"></i>' +
                       '<div class="calendar-time">' +
                         '<div></div>' +
-                        '<i class="fa fa-clock-o glyphicon glyphicon-time"></i>' +
+                        '<i class="fa fa-clock-o"></i>' +
                       '</div>' +
                     '</div>' +
                     '<div class="calendar-table"></div>' +
@@ -680,7 +680,7 @@
                 html += '<th></th>';
 
             if ((!minDate || minDate.isBefore(calendar.firstDay)) && (!this.linkedCalendars || side == 'left')) {
-                html += '<th class="prev available"><i class="fa fa-chevron-left glyphicon glyphicon-chevron-left"></i></th>';
+                html += '<th class="prev available"><i class="fa fa-chevron-left"></i></th>';
             } else {
                 html += '<th></th>';
             }
@@ -722,7 +722,7 @@
 
             html += '<th colspan="5" class="month">' + dateHtml + '</th>';
             if ((!maxDate || maxDate.isAfter(calendar.lastDay)) && (!this.linkedCalendars || side == 'right' || this.singleDatePicker)) {
-                html += '<th class="next available"><i class="fa fa-chevron-right glyphicon glyphicon-chevron-right"></i></th>';
+                html += '<th class="next available"><i class="fa fa-chevron-right"></i></th>';
             } else {
                 html += '<th></th>';
             }

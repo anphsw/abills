@@ -691,7 +691,7 @@ sub inventory_former_passwd {
   $result = $html->button($value, '#', {
     GLOBAL_URL => '#',
     COPY       => $value,
-    ICON       => 'glyphicon glyphicon-lock ' . $color
+    ICON       => 'fa fa-lock ' . $color
   });
 
   return $result;

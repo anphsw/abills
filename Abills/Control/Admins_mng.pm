@@ -83,7 +83,7 @@ sub form_admins {
         subf  => $FORM{subf}
       },
       SUBMIT  => { show => $lang{SHOW} },
-      class   => 'navbar-form navbar-right form-inline',
+      class   => 'navbar navbar-expand-lg navbar-light bg-light form-main',
     });
 
     $LIST_PARAMS{AID} = $admin_form->{AID};
@@ -93,7 +93,7 @@ sub form_admins {
       $lang{FEES} . ":3:AID=$admin_form->{AID}:fees",
       $lang{PAYMENTS} . ":2:AID=$admin_form->{AID}:payments",
       $lang{PERMISSION} . ":52:AID=$admin_form->{AID}:permissions",
-      $lang{PAYMENT_TYPE} . ":776:AID=$admin_form->{AID}:payment_type",
+      $lang{PAYMENT_TYPE} . ":146:AID=$admin_form->{AID}:payment_type",
       $lang{PASSWD} . ":54:AID=$admin_form->{AID}:password",
     );
 
@@ -107,6 +107,7 @@ sub form_admins {
     if (in_array('Msgs', \@MODULES)) {
       push @admin_menu, "$lang{MESSAGES}:" . get_function_index('msgs_admin') . ":AID=$admin_form->{AID}:msgs";
     }
+
 
     func_menu(
       {
@@ -201,7 +202,7 @@ sub form_admins {
     );
 
     $admin_form->{POSITION_ADD_LINK} = $html->button('', 'index=' . get_function_index('employees_positions'), {
-      ICON           => 'glyphicon glyphicon-plus',
+      ICON           => 'fa fa-plus',
       NO_LINK_FORMER => 1,
       target         => '_blank',
     });
@@ -244,14 +245,14 @@ sub form_admins {
       GLOBAL_URL     => $link,
       target         => '_blank',
       class          => 'btn btn-info',
-      INCON          => 'glyphicon glyphicon-globe',
+      INCON          => 'fa fa-globe',
       NO_LINK_FORMER => 1
     });
 
     $admin_form->{GPS_ICON_BTN} = $html->button('', '', {
       GLOBAL_URL     => $link,
-      class          => 'btn btn-default',
-      ICON           => 'glyphicon glyphicon-picture',
+      class          => 'btn btn-secondary',
+      ICON           => 'fa fa-picture-o',
       NO_LINK_FORMER => 1,
       JAVASCRIPT     => '#',
       ex_params      => qq/onclick='loadToModal("?get_index=gps_add_thumbnail&header=2&AID=$FORM{AID}")'/,
@@ -383,11 +384,11 @@ sub form_admins {
 
     my $geo_button = '';
     if (in_array('Employees', \@MODULES)) {
-      $geo_button = $html->button($lang{GEO}, "index=" . get_function_index('employees_geolocation') . "&eid=$line->{aid}", { ICON => 'glyphicon glyphicon-map-marker' })
+      $geo_button = $html->button($lang{GEO}, "index=" . get_function_index('employees_geolocation') . "&eid=$line->{aid}", { ICON => 'fa fa-map-marker' })
     }
 
     $table->addrow(@fields_array,
-      $html->button($lang{PERMISSION}, "index=$index&subf=52&AID=$line->{aid}", { class => 'permissions', ICON => 'glyphicon glyphicon-check' })
+      $html->button($lang{PERMISSION}, "index=$index&subf=52&AID=$line->{aid}", { class => 'permissions', ICON => 'fa fa-check' })
         . $geo_button
         . $html->button($lang{LOG}, "index=$index&subf=51&AID=$line->{aid}", { class => 'history' })
         . $html->button($lang{PASSWD}, "index=$index&subf=54&AID=$line->{aid}", { class => 'password' })
@@ -939,13 +940,15 @@ sub form_admin_permissions {
 
     foreach my $k (sort keys(%ADMIN_TYPES)) {
 
-      my $button = ($FORM{ADMIN_TYPE} eq $k) ? $html->b($ADMIN_TYPES{$k} . ' ') : $html->button($ADMIN_TYPES{$k}, "index=$index" .
-        (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k", { BUTTON => 1 }) . '  ';
+      my $btn_css_style = ($FORM{ADMIN_TYPE} && $k && $FORM{ADMIN_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-secondary btn-sm';
+      my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k";
+
+      my $button = $html->button($ADMIN_TYPES{$k}, $url_btn, { class => $btn_css_style }) . '  ';
 
       my $button_del = ($FORM{ADMIN_TYPE} eq $k)
         ? $html->button("", "index=$index" .
         (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&del_permits=$k",
-        { ADD_ICON => "glyphicon glyphicon-remove", MESSAGE => "$lang{DEL} $ADMIN_TYPES{$k}" }) : '';
+        { ADD_ICON => "fa fa-remove", MESSAGE => "$lang{DEL} $ADMIN_TYPES{$k}" }) : '';
 
       print $button;
       print $button_del;
@@ -955,8 +958,9 @@ sub form_admin_permissions {
   else {
     foreach my $k (sort keys(%ADMIN_TYPES)) {
 
-      my $button = ($FORM{ADMIN_TYPE} && $FORM{ADMIN_TYPE} eq $k) ? $html->b($ADMIN_TYPES{$k} . ' ') : $html->button($ADMIN_TYPES{$k}, "index=$index" .
-        (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k", { BUTTON => 1 }) . '  ';
+      my $btn_css_style = ($FORM{ADMIN_TYPE} && $k && $FORM{ADMIN_TYPE} eq $k) ? 'btn btn-info btn-sm' : 'btn btn-secondary btn-sm';
+      my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k";
+      my $button = $html->button($ADMIN_TYPES{$k}, $url_btn, { class => $btn_css_style }) . '  ';
 
       print $button;
 
@@ -1100,7 +1104,7 @@ sub form_admin_payment_types {
   my $payments = Payments->new($db, $admin, \%conf);
 
   if (!defined($attr->{ADMIN})) {
-    $FORM{subf} = 776;
+    $FORM{subf} = 146;
     $index = 50;
     form_admins();
     return 1;
@@ -1233,6 +1237,7 @@ sub form_admins_contacts_save {
   $FORM{CONTACTS} =~ s/\\\"/\"/g;
 
   my $contacts = $json->decode($FORM{CONTACTS});
+  # Abills::Base::_bp('', $contacts, { TO_CONSOLE => 1 });
   my DBI $db_ = $admin->{db}->{db};
   if (ref $contacts eq 'ARRAY') {
     $db_->{AutoCommit} = 0;
@@ -1263,8 +1268,26 @@ sub form_admins_contacts_save {
     }
   }
 
+  my $admin_contacts_list = $admin->admins_contacts_list(
+    {
+      AID      => $FORM{AID},
+      VALUE    => '_SHOW',
+      DEFAULT  => '_SHOW',
+      PRIORITY => '_SHOW',
+      TYPE     => '_SHOW',
+      HIDDEN   => '0'
+    }
+  );
+  
+  # Abills::Base::_bp('', $admin_contacts_list, { TO_CONSOLE => 1 });
+
+  my $contacts_json = JSON->new()->utf8(0)->encode({
+    contacts => $admin_contacts_list,
+  });
+
   print qq[
     {
+      "contacts" : $contacts_json,
       "status" : $status,
       "message" :  "$message"
     }

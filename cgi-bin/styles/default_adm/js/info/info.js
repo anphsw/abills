@@ -14,7 +14,7 @@ if (typeof info_script_loaded === 'undefined') {
 
     //console.log($this);
 
-    var $refreshIcon = $this.find('.glyphicon');
+    var $refreshIcon = $this.find('.fa');
 //        console.log($refreshIcon);
 
     var type = $this.attr('data-object_type');
@@ -122,8 +122,8 @@ if (typeof info_script_loaded === 'undefined') {
         e.preventDefault();
         var $commentDiv = $(this).parent().parent().parent();
 
-        var $icon = $(this).find('.glyphicon');
-        $icon.removeClass('glyphicon-trash ');
+        var $icon = $(this).find('.fa');
+        $icon.removeClass('fa-trash ');
         $icon.addClass('fa fa-spinner fa-3x fa-pulse');
 
         var url = $(this).data('url');
@@ -256,7 +256,7 @@ if (typeof info_script_loaded === 'undefined') {
     if ($documentsWrapper[0]) {
       console.log('docs');
       var $documentRefreshBtn = $documentsWrapper.find('#info_documents_refresh');
-      var $documentRefreshIcon = $documentsWrapper.find('#info_documents_refresh>.glyphicon.glyphicon-refresh');
+      var $documentRefreshIcon = $documentsWrapper.find('#info_documents_refresh>.fa.fa-refresh');
 
       //Bind events
 

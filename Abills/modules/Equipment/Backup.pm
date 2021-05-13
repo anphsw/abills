@@ -365,7 +365,7 @@ sub equipment_show_snmp_backup_files {
 
   # THIS FUNCTION IS SUBFUNCTION
   my $file_operations_index = get_function_index( 'equipment_show_snmp_backup_files' );
-  my $ports_index = get_function_index( 'equipment_ports' );
+  my $ports_index = get_function_index( 'equipment_ports' ); #XXX equipment_ports is not in config. probably is not working.
 
   my $v_index = $file_operations_index;
   if ($FORM{visual} && $FORM{visual} ne ''){
@@ -416,7 +416,7 @@ sub equipment_show_snmp_backup_files {
     my $download_link = $html->button(
       '',
       "qindex=$file_operations_index&download=$filename",
-      { ICON => 'glyphicon glyphicon-download' }
+      { ICON => 'fa fa-download' }
     );
 
     my $upload_btn = '';
@@ -435,7 +435,7 @@ sub equipment_show_snmp_backup_files {
           SKIP_HREF      => 1,
           NO_LINK_FORMER => 1,
           class         => 'btn btn-xs btn-warning',
-          ICON           => 'glyphicon glyphicon-upload',
+          ICON           => 'fa fa-upload',
           title          => $lang{ADD},
           ex_params      => qq/onclick=loadToModal('$upload_link')/
         });
@@ -445,7 +445,7 @@ sub equipment_show_snmp_backup_files {
     $del_link = $html->button('',
       "index=$file_operations_index&del=$filename",
       {
-        ICON    => 'glyphicon glyphicon-trash text-danger',
+        ICON    => 'fa fa-trash text-danger',
         MESSAGE => "$lang{DEL} $filename"
       }
     );

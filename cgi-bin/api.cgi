@@ -154,3 +154,5 @@ else {
 }
 
 print $router->out(Abills::Api::Formatter::JSONFormatter->new($use_camelize, ['COL_NAMES_ARR']));
+
+1;

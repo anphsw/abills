@@ -7,9 +7,9 @@
 
 
 
-  <div class='box box-primary box-form box-horizontal'>
-    <div class='box-header with-border'><div class='box-title'>_{ADD}_ _{QUESTION}_</div></div>
-    <div class='box-body'>
+  <div class='card box-primary box-form box-horizontal'>
+    <div class='card-header with-border'><div class='card-title'>_{ADD}_ _{QUESTION}_</div></div>
+    <div class='card-body'>
 
     <div class='form-group'>
     <label class='control-element col-md-3'>_{QUESTION}_</label>
@@ -25,7 +25,7 @@
     </div>
     </div>
 
-    <div class='box-footer'>
+    <div class='card-footer'>
         <p class='text-center'><input class="btn btn-primary" name="%BUTTON_NAME%" value="%BUTTON_VALUE%" type="submit"></p>
     </div>
   </div>

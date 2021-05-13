@@ -145,11 +145,11 @@ sub form_districts{
   my $countries_hash;
   ($countries_hash, $Address->{COUNTRY_SEL}) = sel_countries( { COUNTRY => $Address->{COUNTRY} } );
 
-  if ( $FORM{add_form} ){
-    $html->tpl_show( templates( 'form_district' ), $Address );
+  if ($FORM{add_form}) {
+    $html->tpl_show(templates('form_district'), $Address);
   }
 
-  my $list = $Address->district_list({ %LIST_PARAMS, COLS_NAME => 1 });
+  my $list = $Address->district_list({ %LIST_PARAMS, COLS_NAME => 1,  PAGE_ROWS => 10000 });
   my $table = $html->table({
     width      => '100%',
     caption    => $lang{DISTRICTS},
@@ -162,7 +162,7 @@ sub form_districts{
   });
 
   my $two_confirmation = '';
-      
+
   if ($conf{TWO_CONFIRMATION}) {
     $two_confirmation = $lang{DEL};
   }
@@ -273,6 +273,7 @@ sub form_streets{
     FUNCTION        => 'street_list',
     BASE_FIELDS     => 1,
     DEFAULT_FIELDS  => 'ID,STREET_NAME,BUILD_COUNT,USERS_COUNT',
+    HIDDEN_FIELDS   => 'DISTRICT_ID',
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     FILTER_COLS     => {
@@ -565,13 +566,17 @@ sub form_add_map {
   my (undef, $attr) = @_;
 
   return '' if ((!$attr->{VALUES}->{ID} || !$attr->{DISTRICT_ID}) && !in_array('Maps2', \@MODULES));
-  load_module('Maps2');
+
+  eval { require Maps; };
+  return '' if ($@);
+
+  use Maps2::Maps_info;
+  my $Maps_info = Maps2::Maps_info->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
   my $map_index = get_function_index('maps2_main');
-  my $icon = 'glyphicon glyphicon-globe';
+  my $icon = 'fa fa-globe';
 
   if ($attr->{DISTRICT_ID}) {
-    require Maps;
     Maps->import();
     my $Maps = Maps->new($db, $admin, \%conf);
 
@@ -582,19 +587,17 @@ sub form_add_map {
 
     my $object_id = ($Maps->{TOTAL}) ? ($district_info->[0]{object_id} || q{}) : '';
     my $link = "index=$map_index&LAYER=4&OBJECT_ID=" . $object_id;
-    $icon = 'glyphicon glyphicon-globe';
+    $icon = 'fa fa-globe';
     return $html->button('', $link, { ICON => $icon });
   }
 
-  my $objects = maps2_get_build_objects({
-    LOCATION_ID => $attr->{VALUES}->{ID}
-  });
+  my $objects = $Maps_info->maps2_get_build_objects({ LOCATION_ID => $attr->{VALUES}->{ID} });
 
   my $count = @{$objects};
 
   if (!$count) {
     my $link = "index=$map_index&LAYER=1&OBJECT_ID=$attr->{VALUES}->{ID}&ADD_POINT=1";
-    $icon = 'glyphicon glyphicon-map-marker';
+    $icon = 'fa fa-map-marker';
     return $html->button('', $link, { ICON => $icon });
   }
 
@@ -859,7 +862,8 @@ sub full_address_name {
     ($info->{ADDRESS_BLOCK} ? "-$info->{ADDRESS_BLOCK}" : '')
   );
 
-  return join(', ', grep { $_ && $_ ne '' } @address_components);
+  my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
+  return join("$build_delimiter", grep { $_ && $_ ne '' } @address_components);
 }
 
 #**********************************************************
@@ -877,6 +881,7 @@ sub short_address_name {
     $street_type = (split (';', $conf{STREET_TYPE}))[$info->{STREET_TYPE}];
   }
 
+  $info->{ADDRESS_STREET} =  $info->{ADDRESS_STREET} ? "($info->{ADDRESS_STREET})" : '';
   my @address_components = (
     "$street_type $info->{ADDRESS_STREET}",
     ($info->{ADDRESS_STREET2} ? "($info->{ADDRESS_STREET2})" : ''),
@@ -920,16 +925,14 @@ sub form_address {
   my ($attr) = @_;
   my %params = ();
 
-  
-  if(! $attr->{SHOW}) {
-    $params{PARAMS}='collapsed-box';
+  if(!$attr->{SHOW}) {
     $params{BUTTON_ICON}='plus';
   }
   else {
     $params{BUTTON_ICON}='minus';
   }
 
-  if ( ! $conf{ADDRESS_REGISTER} ) {
+  if (!$conf{ADDRESS_REGISTER} ) {
     my $countries_hash;
     ($countries_hash, $params{COUNTRY_SEL}) = sel_countries({
         NAME    => 'COUNTRY_ID',
@@ -961,8 +964,9 @@ sub form_address {
   if (defined($attr->{FLOOR}) || defined($attr->{ENTRANCE})) {
     $Address->{EXT_ADDRESS} = $html->tpl_show(templates('form_ext_address'), { ENTRANCE => $attr->{ENTRANCE}, FLOOR => $attr->{FLOOR} }, { OUTPUT2RETURN => 1 });
   }
+
     my $result = $html->tpl_show(
-      templates('form_show_hide'),
+      templates('form_show_not_hide'),
       {
         CONTENT => form_address_select2({ %$Address, %$attr }),
         NAME    => $lang{ADDRESS},
@@ -1005,7 +1009,6 @@ sub form_address_multi_location_select {
   my ($attr) = @_;
 
   my $build_id = q{BUILD_ID};
-
 
   my $builds = $Address->build_list({
     NUMBER      => '_SHOW',
@@ -1078,6 +1081,7 @@ sub form_address_select2 {
       LOCATION_ID => $attr->{LOCATION_ID},
       DISTRICT_ID => '_SHOW',
       STREET_ID   => '_SHOW',
+      BLOCK       => '_SHOW',
       COLS_NAME   => 1 });
     $attr->{DISTRICT_ID} = $full_address->[0]->{district_id};
     $attr->{STREET_ID} = $full_address->[0]->{street_id};
@@ -1129,6 +1133,7 @@ sub form_address_select2 {
         EX_PARAMS   => ($attr->{STREET_REQ} || '') . ' '.  'onChange="GetBuilds' . ($attr->{STREET_SELECT_ID}  || $street_id). '(this)"',
       }
     );
+
     print $s;
     return 1;
   }
@@ -1160,25 +1165,23 @@ sub form_address_select2 {
   if ($FORM{BUILD}) {
     my $builds = $Address->build_list({
       STREET_ID => $FORM{STREET_ID},
+      BLOCK     => '_SHOW',
       NUMBER    => '_SHOW',
       COLS_NAME => 1,
       SORT      => 'b.number+0',
       PAGE_ROWS => 999999
     });
-    my $bu = $html->form_select(
-      $build_id,
-      {
-        ID          => $attr->{BUILD_SELECT_ID},
-        MULTIPLE    => $MULTI_BUILDS,
-        SELECTED    => 0,
-        NO_ID       => 1,
-        SEL_LIST    => $builds,
-        SEL_KEY     => 'id',
-        SEL_VALUE   => 'number',
-        SEL_OPTIONS => { 0 => '--' },
-        EX_PARAMS   => ($attr->{BUILD_REQ} || '') . ' ' . 'onChange="GetLoc' . ($attr->{BUILD_SELECT_ID} || $build_id) . '(this)" '.($MULTI_BUILDS ? 'class="MULTI_BUILDS"' : ''),
-      }
-    );
+    my $bu = $html->form_select($build_id, {
+      ID          => $attr->{BUILD_SELECT_ID},
+      MULTIPLE    => $MULTI_BUILDS,
+      SELECTED    => 0,
+      NO_ID       => 1,
+      SEL_LIST    => $builds,
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'number,block',
+      SEL_OPTIONS => { 0 => '--' },
+      EX_PARAMS   => ($attr->{BUILD_REQ} || '') . ' ' . 'onChange="GetLoc' . ($attr->{BUILD_SELECT_ID} || $build_id) . '(this)" ' . ($MULTI_BUILDS ? 'class="MULTI_BUILDS"' : '')
+    });
     print $bu;
     return 1;
   }
@@ -1195,20 +1198,17 @@ sub form_address_select2 {
       });
     }
 
-    $bd_emp = $html->form_select(
-       $build_id,
-       {
-         ID          => $attr->{BUILD_SELECT_ID},
-         MULTIPLE    => ($attr->{MULTI_BUILDS}) ? 1 : 0,
-         SELECTED    => $attr->{LOCATION_ID} || 0,
-         SEL_LIST    => $builds,
-         SEL_KEY     => 'id',
-         SEL_VALUE   => 'number',
-         NO_ID       => 1,
-         SEL_OPTIONS => { 0 => '--' },
-         EX_PARAMS => 'onChange="GetLoc' . ($attr->{BUILD_SELECT_ID} || $build_id) . '(this)" '.($MULTI_BUILDS ? 'class="MULTI_BUILDS"' : '')
-       }
-     );
+    $bd_emp = $html->form_select($build_id, {
+      ID          => $attr->{BUILD_SELECT_ID},
+      MULTIPLE    => ($attr->{MULTI_BUILDS}) ? 1 : 0,
+      SELECTED    => $attr->{LOCATION_ID} || 0,
+      SEL_LIST    => $builds,
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'number',
+      NO_ID       => 1,
+      SEL_OPTIONS => { 0 => '--' },
+      EX_PARAMS   => 'onChange="GetLoc' . ($attr->{BUILD_SELECT_ID} || $build_id) . '(this)" ' . ($MULTI_BUILDS ? 'class="MULTI_BUILDS"' : '')
+    });
   }
 
   my $district_button = $html->button("", 'get_index=form_districts&full=1&header=1', {
@@ -1226,7 +1226,7 @@ sub form_address_select2 {
     LOAD_TO_MODAL => 1,
     class         => 'btn btn-sm btn-success',
     title         => $lang{SHOW},
-    ICON          => 'glyphicon glyphicon-globe',
+    ICON          => 'fa fa-globe',
   }) if in_array('Maps2', \@MODULES);
 
 
@@ -1470,6 +1470,81 @@ sub add_import_districts {
   $Address->district_add({ NAME => Encode::decode('UTF-8', $name_district) });
 
   return $Address->{INSERT_ID};
+}
+
+#**********************************************************
+=head2 geolocation_tree($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub geolocation_tree {
+  my ($attr, $checked_list) = @_;
+    
+  my $builds = $attr->{BUILDS} && ref($attr->{BUILDS}) eq 'ARRAY' ? $attr->{BUILDS} : $Address->build_list({
+    ID                => '_SHOW',
+    STREET_NAME       => '_SHOW',
+    DISTRICT_NAME     => '_SHOW',
+    DISTRICT_ID       => '_SHOW',
+    NUMBER            => '_SHOW',
+    COLS_NAME         => 1,
+    WITH_STREETS_ONLY => 1,
+    SORT              => 'district_name,street_name,number+0',
+    PAGE_ROWS         => 999999
+  });
+
+  my %address = ();
+  foreach (@{$checked_list}) {
+    if ($_->{street_id}) {
+      $address{"STREET_ID_$_->{street_id}"} = 1;
+    }
+    elsif ($_->{build_id}) {
+      $address{"BUILD_ID_$_->{build_id}"} = 1;
+    }
+    elsif ($_->{district_id}) {
+      $address{"DISTRICT_ID_$_->{district_id}"} = 1;
+    }
+  }
+
+  my $keys = "district_name_check,street_name_check,number_check";
+
+  foreach my $build (@{$builds}) {
+    my $build_input = $html->form_input("BUILD_ID", $build->{id}, {
+      TYPE      => 'checkbox',
+      class     => 'tree_box',
+      EX_PARAMS => "data-parent-id='STREET_$build->{street_id}' ". ($address{"BUILD_ID_$build->{id}"} ? 'checked' : ''),
+      ID        => 'BUILD_' . $build->{id}
+    });
+    $build->{number_check} = $html->element('label', ($build_input || q{}) . ' ' . ($build->{number} || q{}));
+
+    my $street_input = $html->form_input("STREET_ID", $build->{street_id}, {
+      TYPE      => 'checkbox',
+      class     => 'tree_box',
+      EX_PARAMS => "data-parent-id='DISTRICT_$build->{district_id}' " . ($address{"STREET_ID_$build->{street_id}"} ? 'checked' : ''),
+      ID        => 'STREET_' . $build->{street_id}
+    });
+    $build->{street_name_check} = $html->element('label', ($street_input || q{}) . ' ' . ($build->{street_name} || q{}));
+
+    my $district_input = $html->form_input("DISTRICT_ID", $build->{district_id}, {
+      TYPE      => 'checkbox',
+      class     => 'tree_box',
+      EX_PARAMS => $address{"DISTRICT_ID_$build->{district_id}"} ? 'checked' : '',
+      ID        => 'DISTRICT_' . $build->{district_id}
+    });
+    $build->{district_name_check} = $html->element('label', ($district_input || q{}) . ' ' . ($build->{district_name} || q{}));
+  }
+
+  return $html->tpl_show(templates('form_geolocation_tree'), {
+    GEOLOCATION_TREE => $html->html_tree($builds, $keys),
+    TITLE            => $attr->{TITLE},
+    index            => $attr->{INDEX},
+    BTN_LNG          => $attr->{BTN_LNG},
+    BTN_ACTION       => $attr->{BTN_ACTION},
+    HIDDEN_INPUTS    => $attr->{HIDDEN_INPUTS}
+  }, { OUTPUT2RETURN => 1 });
 }
 
 1;

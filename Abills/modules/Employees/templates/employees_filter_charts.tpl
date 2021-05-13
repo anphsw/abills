@@ -2,8 +2,8 @@
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='DATE' value='%DATE%'>
 
-  <div class='box box-theme box-form form-horizontal'>
-    <div class='box-body'>
+  <div class='card card-primary card-outline box-form form-horizontal'>
+    <div class='card-body'>
 
       <div class='form-group'>
         <label class='col-md-3 control-label'>_{EMPLOYEE}_</label>
@@ -19,7 +19,7 @@
       </div>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type='submit' name='FILTER' value='_{SHOW}_' class='btn btn-primary'>
     </div>
   </div>

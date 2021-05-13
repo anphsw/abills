@@ -601,6 +601,7 @@ sub cams_show_camera_archive {
   my $streams_html = '';
 
   my $camera = $Cams->stream_info($FORM{CAMERA_ID});
+  $camera->{service_id} ||= $camera->{service_id_folder};
 
   if (($camera->{service_id} && $camera->{service_id} ne $prev_stream) || ($camera->{service_id} && !$Cams_service)) {
     $Cams_service = cams_load_service($camera->{service_name}, { SERVICE_ID => $camera->{service_id} });

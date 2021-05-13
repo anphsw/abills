@@ -5,8 +5,8 @@
     <input type=hidden name='mac' value='%mac%'>
 
     <fieldset>
-        <div class='box box-theme'>
-            <div class='box-body'>
+        <div class='card card-primary card-outline'>
+            <div class='card-body'>
                 Перезвоните на номер <a href="tel:%AUTH_NUMBER%">%AUTH_NUMBER%</a>
             </div>
         </div>

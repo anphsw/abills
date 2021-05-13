@@ -1,31 +1,31 @@
 <form >
 <input type='hidden' name='index' value='$index'>
-  <div class='box box-theme box-form form-horizontal'>
-    <div class='box-body'>
+  <div class='card card-primary card-outline box-form form-horizontal col-md-6 container'>
+    <div class='card-body'>
 
       <div class='form-group'>
-        <label class='control-label col-md-3'>_{MONTH}_</label>
-        <div class='col-md-9'>
+        <label class='control-label'>_{MONTH}_</label>
+        <div class='col-md-12'>
         %MONTH%
         </div>
       </div>
 
       <div class='form-group'>
-        <label class='control-label col-md-3'>_{YEAR}_</label>
-        <div class='col-md-9'>
+        <label class='control-label'>_{YEAR}_</label>
+        <div class='col-md-12'>
         %YEAR%
         </div>
       </div>
 
       <div class='form-group'>
-        <label class='control-label col-md-3'>_{POSITION}_</label>
-        <div class='col-md-9'>
+        <label class='control-label'>_{POSITION}_</label>
+        <div class='col-md-12'>
           %POSITIONS%
         </div>
       </div>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type='submit' name='FILTER' value='_{SHOW}_' class='btn btn-primary'>
     </div>
   </div>

@@ -5,12 +5,12 @@
   <input type='hidden' name='mikrotik_configure' value='1'/>
   <input type='hidden' name='subf' value=''/>
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'>
-      <h4 class='box-title'>_{CONFIGURATION}_ : $FORM{CONNECTION_TYPE}</h4>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>_{CONFIGURATION}_ : $FORM{CONNECTION_TYPE}</h4>
       <div class='pull-right'>%CLEAN_BTN%</div>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
 
       <div class='form-group'>
         <label class='control-label col-md-3 required' for='RADIUS_IP_ID'>RADIUS IP</label>
@@ -49,11 +49,11 @@
       <!--extra-->
 
       <div class='form-group'>
-        <div class='box box-theme'>
-          <div class='box-header text-center' role='tab' id='EXTRA_OPTIONS_heading'>
+        <div class='card card-primary card-outline'>
+          <div class='card-header text-center' role='tab' id='EXTRA_OPTIONS_heading'>
             _{EXTRA}_
           </div>
-          <div class='box-body'>
+          <div class='card-body'>
 
             <div class='form-group'>
               <label class='control-label col-md-3' for='RADIUS_IP_ID'>_{INTERNAL_NETWORK}_</label>
@@ -70,7 +70,7 @@
 
       </div>
 
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input type='submit' class='btn btn-primary' name='action' value='_{APPLY}_'>
       </div>
     </div>

@@ -27,8 +27,7 @@ CREATE TABLE IF NOT EXISTS `gps_admins_color` (
 CREATE TABLE IF NOT EXISTS `gps_admins_thumbnails` (
   `id` SMALLINT(6) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `aid` SMALLINT(6) UNSIGNED NOT NULL UNIQUE REFERENCES `admins` (`aid`),
-  `thumbnail_path` VARCHAR(40) NOT NULL DEFAULT '',
-  PRIMARY KEY `thumbnail_id` (`id`)
+  `thumbnail_path` VARCHAR(40) NOT NULL DEFAULT ''
 )
   COMMENT = 'GPS Admin Thumbnails';
 

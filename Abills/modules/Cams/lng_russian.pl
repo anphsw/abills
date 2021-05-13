@@ -56,4 +56,10 @@ $lang{CAMS_IMPORT_SUCCESSFULLY} = 'Импорт успешно завершен'
 $lang{CAMS_IMPORT_ERROR} = 'Не удалось импортировать';
 $lang{CAMS_IMPORT_MODELS} = 'Импорт моделей';
 
+$lang{CAMS_DISKS} = 'Диски';
+$lang{CAMS_DB} = 'База данных';
+$lang{CAMS_ONLINE_CHANNELS} = 'Каналы/Online';
+$lang{CAMS_UPTIME} = 'Время безотказной работы';
+$lang{CAMS_CPU_LOAD} = 'Загрузка CPU';
+
 1;

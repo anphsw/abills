@@ -4,9 +4,9 @@
   <input type=hidden name='TP_ID' value='%TP_ID%'>
   <div class="row">
     <div class='col-md-6'>
-      <div class='box box-theme box-form'>
-        <div class='box-header with-border'><h4 class='box-title'>_{TARIF_PLAN}_</h4></div>
-        <div class='box-body'>
+      <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'><h4 class='card-title'>_{TARIF_PLAN}_</h4></div>
+        <div class='card-body'>
 
           <div class='form-group'>
             <label class='control-label col-md-3' for='ID'>#</label>
@@ -57,14 +57,14 @@
     </div>
 
     <div class='col-md-6'>
-      <div class='box box-theme box-form'>
-        <div class='box-header with-border text-center'>
+      <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border text-center'>
           <a data-toggle='collapse' data-parent='#accordion' href='#abon_misc'>_{ABON}_</a>
         </div>
-        <div id='abon_misc' class='box-collapse collapse out'>
+        <div id='abon_misc' class='card-collapse collapse out'>
 
 
-          <div class='box-body'>
+          <div class='card-body'>
 
             <div class='form-group'>
               <label for='DAY_FEE' class='control-label col-md-8'>_{DAY_FEE}_:</label>
@@ -156,13 +156,13 @@
     </div>
 
     <div class='col-md-6'>
-      <div class='box box-theme box-form'>
-        <div class='box-header with-border text-center'>
+      <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border text-center'>
           <a data-toggle='collapse' data-parent='#accordion' href='#_time_limit'>_{TIME_LIMIT}_ (sec)</a>
         </div>
-        <div id='_time_limit' class='box-collapse collapse out'>
+        <div id='_time_limit' class='card-collapse collapse out'>
 
-          <div class='box-body'>
+          <div class='card-body'>
 
             <div class='form-group'>
               <label for='DAY_TIME_LIMIT' class='control-label col-md-3'>_{DAY}_:</label>
@@ -201,13 +201,13 @@
     </div>
 
     <div class='col-md-6'>
-      <div class='box box-theme box-form'>
-        <div class='box-header with-border text-center'>
+      <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border text-center'>
           <a data-toggle='collapse' data-parent='#accordion' href='#_traf_limit'>_{TRAF_LIMIT}_ (Mb)</a>
         </div>
-        <div id='_traf_limit' class='box-collapse collapse out'>
+        <div id='_traf_limit' class='card-collapse collapse out'>
 
-          <div class='box-body'>
+          <div class='card-body'>
             <div class='form-group'>
               <label for='DAY_TRAF_LIMIT' class='control-label col-sm-3'>_{DAY}_:</label>
               <div class='col-md-9'>
@@ -244,12 +244,12 @@
       </div>
     </div>
     <div class='col-md-6'>
-      <div class='box box-theme box-form'>
-        <div class='box-header with-border text-center'>
+      <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border text-center'>
           <a data-toggle='collapse' data-parent='#accordion' href='#_other'>_{OTHER}_</a>
         </div>
 
-        <div id='_other' class='box-body box-collapse collapse out'>
+        <div id='_other' class='card-body box-collapse collapse out'>
 
           <div class='form-group'>
             <label for='OCTETS_DIRECTION' class='control-label col-sm-3'>_{OCTETS_DIRECTION}_</label>
@@ -406,7 +406,7 @@
   </div>
 
   <div class='row'>
-    <div class='box-footer'>
+    <div class='card-footer'>
         <input type=submit name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary'>
     </div>
   </div>

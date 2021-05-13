@@ -31,7 +31,7 @@
 <form method='POST' action='$SELF_URL'>
   <input type='hidden' name='MOUNT_LANG' value=''>
   <div class="container">
-    <div id="map" class="box-body table-responsive map">
+    <div id="map" class="card-body table-responsive map">
       <div class="form-group">
         <div id="city-text">_{CITY}_</div>
         <div class="hidden" id="city-text4">_{LONGITUDE}_</div>

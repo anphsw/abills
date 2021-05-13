@@ -125,7 +125,7 @@ sub docs_acts_list{
       $line->{created},
       (($conf{DOCS_CERT_CMD}) ? $html->button( $lang{SAVE_CONTROL_SUM},
         "qindex=$index&cert=$line->{id}&COMPANY_ID=". ($line->{company_id} || q{}) . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') . (($pages_qs) ? $pages_qs : ""),
-          { ex_params => 'target=_new', ICON => 'glyphicon glyphicon-certificate' } ) : q{})
+          { ex_params => 'target=_new', ICON => 'fa fa-certificate' } ) : q{})
         . $html->button( $lang{PRINT},
           "qindex=$index&print=$line->{id}&COMPANY_ID=". ($line->{company_id} || q{}) . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') . (($pages_qs) ? $pages_qs : ""),
           { ex_params => 'target=_new', class => 'print' } )

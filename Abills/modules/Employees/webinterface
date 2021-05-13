@@ -225,16 +225,16 @@ sub employees_main {
   if (in_array('Maps', \@MODULES) && $admin_form->{GPS_IMEI} && $admin_form->{GPS_IMEI} ne ''){
     my $maps_index = get_function_index('maps_show_map');
     my $link = "?index=$maps_index&show_gps=$admin_form->{AID}";
-    $admin_form->{GPS_ROUTE_BTN} = $html->button($html->element('span', '', { class=> 'glyphicon glyphicon-globe' }), undef , {
+    $admin_form->{GPS_ROUTE_BTN} = $html->button($html->element('span', '', { class=> 'fa fa-globe' }), undef , {
          GLOBAL_URL => $link, 
          target     => '_blank',
          class      => 'btn btn-info', 
          NO_LINK_FORMER => 1
     });
 
-    $admin_form->{GPS_ICON_BTN} = $html->button($html->element('span', '', { class => 'glyphicon glyphicon-picture' }), undef , {
+    $admin_form->{GPS_ICON_BTN} = $html->button($html->element('span', '', { class => 'fa fa-picture-o' }), undef , {
          GLOBAL_URL     => $link,
-         class          => 'btn btn-default',
+         class          => 'btn btn-secondary',
          NO_LINK_FORMER => 1,
          JAVASCRIPT     => '#',
          ex_params      => qq/onclick='loadToModal("?get_index=gps_add_thumbnail&header=2&AID=$FORM{AID}")'/,
@@ -779,7 +779,7 @@ sub form_admins_time_sheet {
   my $print_btn = $html->button("$lang{PRINT}","qindex=" . get_function_index('employees_timesheet_print') . "&header=2&print=1&DATE=" . ($FORM{DATE} || $DATE), 
     {
       target => '_new',
-      class  => 'btn btn-default',
+      class  => 'btn btn-secondary',
       ICON   => 'fa fa-print',
       ex_params => 'data-toggle="tooltip" data-placement="bottom"'
     });
@@ -911,11 +911,11 @@ sub form_admins_time_sheet {
       class       => 'table table-hover table-condensed table-striped table-bordered',
       ID          => 'ADMINS_WORKS_LIST',
       header      =>
-        $html->button('', "index=$index&DATE=$PREV_YEAR&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-left' })
-      . $html->button('', "index=$index&DATE=$PREV_MONTH&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-left' })
+        $html->button('', "index=$index&DATE=$PREV_YEAR&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-secondary fa fa-arrow-left' })
+      . $html->button('', "index=$index&DATE=$PREV_MONTH&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-secondary fa fa-arrow-left' })
       . $html->button($MONTHES[ $start_m - 1 ]." $start_y", "index=$index&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-primary' })
-      . $html->button('', "index=$index&DATE=$NEXT_MONTH&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-right' })
-      . $html->button('', "index=$index&DATE=$NEXT_YEAR&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-right' })
+      . $html->button('', "index=$index&DATE=$NEXT_MONTH&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-secondary fa fa-arrow-right' })
+      . $html->button('', "index=$index&DATE=$NEXT_YEAR&POSITION=".($FORM{POSITION} || ''), { class => 'btn btn-xs btn-secondary fa fa-arrow-right' })
     }
   );
 
@@ -1051,7 +1051,7 @@ sub form_admins_time_sheet {
   my $load_to_modal_btn = $html->button( "$lang{ADDING_VACATION}", 'get_index=employees_vacations&header=2',
     {
       LOAD_TO_MODAL  => 1,
-      class          => 'btn  btn-default',
+      class          => 'btn  btn-secondary',
       ICON           => 'fa fa-calendar-plus-o',
       ex_params => 'data-toggle="tooltip" data-placement="bottom"'
     } );
@@ -1059,7 +1059,7 @@ sub form_admins_time_sheet {
   # button for show charts for each admin
   my $charts_btn = $html->button( "$lang{_GRAPH}", "index=" . get_function_index('employees_time_sheet_charts') . "&DATE=" . ($FORM{DATE} ? $FORM{DATE} : $DATE),
     {
-      class          => 'btn  btn-default',
+      class          => 'btn  btn-secondary',
       target         => '_blank',
       ICON           => 'fa fa-bar-chart',
       ex_params      => 'data-toggle="tooltip" data-placement="bottom"'
@@ -1562,6 +1562,9 @@ sub profile_list_admin {
 #**********************************************************
 sub employees_rfid_log {
   if ( $FORM{add} && $FORM{RFID} ) {
+    use Admins;
+    my $Admins = Admins->new($db, $admin, \%conf);
+
     my $aid = _employees_get_aid_by_rfid($FORM{RFID});
 
     if (!$aid && in_array('Events', \@MODULES)){
@@ -1582,8 +1585,10 @@ sub employees_rfid_log {
     $Employees->rfid_log_add({ %FORM, AID => $aid });
     _error_show($Employees);
 
+    my $admin_info = $Admins->info($aid, { COLS_NAME => 1 });
+
     if ($FORM{QUIET}){
-      print qq{{"result":"ok","aid":"$aid"}};
+      print qq{{ "result":"ok", "aid":"$aid", "login": "$admin_info->{A_LOGIN}"}};
       return 1;
     }
   }
@@ -2211,7 +2216,7 @@ sub employees_timesheet_print {
   }
 
 
-  print $html->button("","qindex=" . get_function_index('employees_timesheet_print') . "&header=2&test=1", {target => '_new', class=> 'btn btn-default', ICON => 'fa fa-print'});
+  print $html->button("","qindex=" . get_function_index('employees_timesheet_print') . "&header=2&test=1", {target => '_new', class=> 'btn btn-secondary', ICON => 'fa fa-print'});
 
   return 1;
 }

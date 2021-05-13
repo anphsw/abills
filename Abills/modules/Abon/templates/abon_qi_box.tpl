@@ -1,9 +1,9 @@
 <!-- small box -->
 <div class='small-box bg-aqua'>
     <div class='inner'>
-        <h4>Дополнительные услуги</h4>
+        <h4>_{EXT_SERVICES}_</h4>
         <p> %ABON_TP_NAME_0%  %ABON_SCOMMENTS_0% </p>
-        <p>Цена %ABON_PRICE_0% грн/мес</p>
+        <p>_{PRICE}_ %ABON_PRICE_0% грн/_{MONTH}_</p>
     </div>
     <div class='icon'>
         <i class='ion ion-bag'></i>

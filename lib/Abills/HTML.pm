@@ -8,14 +8,12 @@ Abills::HTML - HTML visualisation functions with bootstrap support
 
     use Abills::HTML;
 
-    $html = Abills::HTML->new(
-       {
-         CONF     => \%conf,
-         NO_PRINT => 0,
-         PATH     => $conf{WEB_IMG_SCRIPT_PATH} || '../',
-         CHARSET  => $conf{default_charset},
-       }
-    );
+    $html = Abills::HTML->new({
+      CONF     => \%conf,
+      NO_PRINT => 0,
+      PATH     => $conf{WEB_IMG_SCRIPT_PATH} || '../',
+      CHARSET  => $conf{default_charset},
+    });
 
     print $html->header();
 
@@ -31,7 +29,7 @@ no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 our (@_COLORS, %LIST_PARAMS, %COOKIES, $index, $SORT, $DESC, $PG, $PAGE_ROWS, $SELF_URL);
 
-our $VERSION = 7.00;
+our $VERSION = 9.00;
 use base 'Exporter';
 our @EXPORT = qw(
   get_cookies
@@ -74,17 +72,17 @@ my %ISO_LANGUAGE_CODE = (
 );
 
 my %button_class_icons = (
-  add      => 'glyphicon glyphicon-plus text-success',
-  search   => 'glyphicon glyphicon-search',
-  info     => 'glyphicon glyphicon-info-sign',
-  del      => 'glyphicon glyphicon-trash text-danger',
-  fees     => 'glyphicon glyphicon-collapse-down',
-  password => 'glyphicon glyphicon-lock',
-  stats    => 'glyphicon glyphicon-stats text-success',
-  print    => 'glyphicon glyphicon-print',
-  user     => 'glyphicon glyphicon-user',
-  history  => 'glyphicon glyphicon-book',
-  show     => 'glyphicon glyphicon-list-alt',
+  add      => 'fa-plus text-success',
+  search   => 'fa-search',
+  info     => 'fa-info-circle',
+  del      => 'fa-remove text-danger',
+  fees     => 'fa-money',
+  password => 'fa-lock',
+  stats    => 'fa-bar-chart text-success',
+  print    => 'fa-print',
+  user     => 'fa-user',
+  history  => 'fa-book',
+  show     => 'fa-list-alt',
 );
 
 #**********************************************************
@@ -122,7 +120,7 @@ sub new {
   }
 
   if (!$CONF->{CURRENCY_ICON}) {
-    $CONF->{CURRENCY_ICON} = 'glyphicon glyphicon-euro';
+    $CONF->{CURRENCY_ICON} = 'fa fa-euro';
   }
 
   $self->{OUTPUT} = '';
@@ -174,7 +172,7 @@ sub new {
 
   $self->{SESSION_IP} = $ENV{REMOTE_ADDR} || '0.0.0.0';
   $self->{domain} = $ENV{SERVER_NAME};
-  $self->{secure} = '';
+  $self->{secure} = ($attr->{HTML_SECURE}) ? $attr->{HTML_SECURE} : '';
 
   @_COLORS = (
     '#FDE302', # 0 TH
@@ -346,10 +344,10 @@ sub form_parse {
       $buffer .= $newtext;
     }
   }
-  elsif ($ENV{'REQUEST_METHOD'} ~~ ['GET', 'PUT', 'DELETE']) {
+  elsif ($ENV{'REQUEST_METHOD'} ~~ ['GET', 'DELETE']) {
     $buffer = $ENV{'QUERY_STRING'};
   }
-  elsif ($ENV{'REQUEST_METHOD'} eq 'POST') {
+  elsif ($ENV{'REQUEST_METHOD'} eq 'POST' || $ENV{'REQUEST_METHOD'} eq 'PUT') {
     read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
   }
 
@@ -428,7 +426,6 @@ sub form_parse {
           }
         }
         else {
-          #next if $datas =~ /^\s*$/;
           $datas =~ s/"/\\"/g;
           $datas =~ s/'/\\'/g;
           $FORM{"$name"} = $datas;
@@ -546,12 +543,12 @@ sub form_textarea {
   $self->{FORM_INPUT} = "<textarea id='$name' name='$name' cols=$cols rows=$rows class='form-control'>" . ($value || '') . "</textarea>";
 
   if ($attr->{HIDE}) {
-    $self->{FORM_INPUT} = "<div class=\"box box-theme\">
-  <div class='box-header with-border'>
+    $self->{FORM_INPUT} = "<div class=\"card card-primary card-outline\">
+  <div class='card-header with-border'>
     <a data-toggle='collapse' data-parent='#accordion' href='#collapseOne'>$name</a>
   </div>
-  <div id='collapseOne' class='box-collapse collapse'>
-    <div class='box-body'>
+  <div id='collapseOne' class='card-collapse collapse'>
+    <div class='card-body'>
        $self->{FORM_INPUT}
     </div>
   </div>
@@ -646,18 +643,18 @@ sub short_form {
   $self->{FORM} .= "</form>\n";
 
   if(defined $attr->{IN_BOX}){
-    my $box_header = $attr->{NO_BOX_HEADER} ? '' : $self->element( 'div', $self->element('h4', $attr->{IN_BOX}, {class => 'box-title table-caption'})
-      . '<div class="box-tools pull-right">
-      <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+    my $box_header = $attr->{NO_BOX_HEADER} ? '' : $self->element( 'div', $self->element('h4', $attr->{IN_BOX}, {class => 'card-title table-caption'})
+      . '<div class="card-tools pull-right">
+      <button type="button" class="btn btn-default btn-xs" data-card-widget="collapse">
       <i class="fa fa-minus"></i></button></div>',
-      { class => 'box-header with-border'} );
+      { class => 'card-header with-border'} );
 
     my $box_body = $self->element( 'div', $self->{FORM}, {
-      class => 'box-body',
+      class => 'card-body',
     } );
 
     my $box = $self->element( 'div', $box_header . $box_body, {
-      class => 'box box-theme',
+      class => 'card card-primary card-outline',
     } );
 
     $self->{FORM} = $box;
@@ -763,8 +760,6 @@ sub form_main {
     $self->{FORM} = '';
   }
 
-  #Abills::Base::_bp('', $attr->{CONTENT}, {HEADER=>1, TO_CONSOLE=>1 });
-
   return $self->{FORM};
 }
 
@@ -792,14 +787,14 @@ sub form_main {
       MAIN_MENU_ARGV - Arguments for main menu
       EXT_BUTTON     - Allow second button next to MAIN_MENU
       WRITE_TO_DATA  - Writes to HTML5 attr 'data-' named values from list
-      STYLE          - Array of element style
+      STYLE          - Array of element style #XXX is broken, at least if STYLE contain colors
       SEL_WIDTH      - Select width
       SEL_OPTIONS    - Extra sel options HASH_REF { key => value, ... }
       EXPORT_CONTENT - Export content
       USE_COLORS     - Use color for hash value
       EX_PARAMS      - Extra HTML attributes
       NORMAL_WIDTH   - By default, all selects in .form-horizontal .form-group will have .form-group width,
-                       this options sets width to 100% (.form-control styles)
+                        this options sets width to 100% (.form-control styles)
       AUTOSUBMIT     - Submit form when selected ( $URL or 'form' )
       REQUIRED       - Make select required ( do not allow to send form when empty ) label should have class .required
       MULTIPLE       - Allow to choose few values from one select
@@ -816,7 +811,6 @@ sub form_main {
 sub form_select {
   my $self = shift;
   my ($name, $attr) = @_;
-  my $input_group = 0;
 
   if ($attr->{POPUP_WINDOW}) {
     return $self->form_window($name, $attr);
@@ -851,7 +845,7 @@ sub form_select {
 
   my $element_id = ($attr->{ID}) ? $attr->{ID} : $name;
 
-  $self->{SELECT} = "<select name='$name' $ex_params style='width:$sel_width' ID='$element_id'$css_class $form tabindex='0'>\n";
+  $self->{SELECT} = "<select name='$name' $ex_params style='width:$sel_width;' ID='$element_id'$css_class $form tabindex='0'>\n";
 
   if (defined($attr->{SEL_OPTIONS})) {
     foreach my $k (keys(%{$attr->{SEL_OPTIONS}})) {
@@ -893,40 +887,6 @@ sub form_select {
       $i++;
     }
   }
-  #  elsif (defined($attr->{SEL_MULTI_ARRAY})) {
-  #    my $key                      = $attr->{MULTI_ARRAY_KEY};
-  #    my $value                    = $attr->{MULTI_ARRAY_VALUE};
-  #    my $H                        = $attr->{SEL_MULTI_ARRAY};
-  #    my @MULTI_ARRAY_VALUE_PREFIX = ();
-  #
-  #    if ($attr->{MULTI_ARRAY_VALUE_PREFIX}) {
-  #      @MULTI_ARRAY_VALUE_PREFIX = split(/,/, $attr->{MULTI_ARRAY_VALUE_PREFIX});
-  #    }
-  #
-  #    foreach my $v (@$H) {
-  #      $self->{SELECT} .= "<option value='$v->[$key]'";
-  #      $self->{SELECT} .= ' selected' if (defined($attr->{SELECTED}) && $v->[$key] eq $attr->{SELECTED});
-  #      $self->{SELECT} .= '>';
-  #
-  #      #Value
-  #      $self->{SELECT} .= "$v->[$key] " if (!$attr->{NO_ID});
-  #
-  #      if ($value =~ /,/) {
-  #        my @values      = split(/,/, $value);
-  #        my $key_num     = 0;
-  #        my @values_arr = ();
-  #        foreach my $val_keys (@values) {
-  #          push @values_arr, (($attr->{MULTI_ARRAY_VALUE_PREFIX} && $MULTI_ARRAY_VALUE_PREFIX[$key_num]) ? $MULTI_ARRAY_VALUE_PREFIX[$key_num] . $v->[ int($val_keys) ] : $v->[ int($val_keys) ]);
-  #          $key_num++;
-  #        }
-  #        $self->{SELECT} .= join(' : ', @values_arr);
-  #      }
-  #      else {
-  #        $self->{SELECT} .= "$v->[$value]";
-  #      }
-  #      $self->{SELECT} .= "\n";
-  #    }
-  #  }
   elsif ($attr->{SEL_LIST}) {
     my $has_selected = defined($attr->{SELECTED});
     my $key = $attr->{SEL_KEY} || 'id';
@@ -967,8 +927,10 @@ sub form_select {
         my @values_arr = ();
         for (my $key_num = 0; $key_num <= $#values; $key_num++) {
           my $val_keys = $values[$key_num] || '';
-          push @values_arr, (($attr->{SEL_VALUE_PREFIX} && $SEL_VALUE_PREFIX[$key_num]) ? $SEL_VALUE_PREFIX[$key_num] : '')
+          my $multi_val = (($attr->{SEL_VALUE_PREFIX} && $SEL_VALUE_PREFIX[$key_num]) ? $SEL_VALUE_PREFIX[$key_num] : '')
             . ((ref $v eq 'HASH' && $v->{$val_keys}) ? $v->{$val_keys} : '');
+
+          push @values_arr, $multi_val if ($multi_val);
         }
         if ($#values_arr > -1) {
           $self->{SELECT} .= join(' : ', @values_arr);
@@ -1014,7 +976,6 @@ sub form_select {
 
           $self->{SELECT} .= '>';
 
-          #$self->{SELECT} .= "$val " if (! $attr->{NO_ID});
           $self->{SELECT} .= "$val\n";
         }
         $self->{SELECT} .= "</optgroup>";
@@ -1025,8 +986,7 @@ sub form_select {
         my @sorted_list = ();
         if ($attr->{SORT_VALUE}) {
           @sorted_list = sort {
-            length($attr->{SEL_HASH}->{$k}->{$a} || '') <=> length($attr->{SEL_HASH}->{$k}->{$b} || '')
-              || $attr->{SEL_HASH}->{$k}->{$a} cmp $attr->{SEL_HASH}->{$k}->{$b}
+            $attr->{SEL_HASH}->{$k}->{$a} cmp $attr->{SEL_HASH}->{$k}->{$b}
           } keys %{$attr->{SEL_HASH}->{$k}};
         }
         else {
@@ -1096,6 +1056,7 @@ sub form_select {
   }
 
   $self->{SELECT} .= "</select>\n";
+  my $ext_button = ($attr->{EXT_BUTTON} || '');
 
   if ($attr->{MAIN_MENU}) {
     my $input = q{};
@@ -1105,36 +1066,56 @@ sub form_select {
       my $state = $FORM{$checkbox_name} || $attr->{CHECKBOX_STATE};
       $input = $self->form_input($checkbox_name, '1', {
         TYPE      => 'checkbox',
-        EX_PARAMS => "NAME='$checkbox_name' data-tooltip='$checkbox_title'",
+        EX_PARAMS => "NAME='$checkbox_name' data-tooltip='$checkbox_title' class='ml-1'",
         ID        => 'DATE',
         STATE     => $state
       },
         { OUTPUT2RETURN => 1 });
     }
-    $input_group = 1;
+
+    my $main_menu = $self->button('info', "index=$attr->{MAIN_MENU}" .
+      (($attr->{MAIN_MENU_ARGV}) ? "&$attr->{MAIN_MENU_ARGV}" : ''), {
+      class     => 'show',
+      ex_params => "class='btn-sm'"
+    });
+
     $self->{SELECT} = "
-      <div class='input-group select'>
-      $self->{SELECT}
-      <span class='input-group-addon'> $input"
-      . $self->button('info', "index=$attr->{MAIN_MENU}" . (($attr->{MAIN_MENU_ARGV}) ? "&$attr->{MAIN_MENU_ARGV}" : ''), { class => 'show' })
-      . ($attr->{EXT_BUTTON} || '')
-      . "</span></div>\n";
+    <div class='d-flex bd-highlight'>
+      <div class='flex-fill bd-highlight overflow-hidden select2-border'>
+         <div class='select'>
+          <div class='input-group-append select2-append'>
+            $self->{SELECT}
+          </div>
+         </div>
+      </div>
+      <div class='bd-highlight'>
+        <div class='input-group-append h-100'>
+          <div class='input-group-text p-0 rounded-left-0'>
+            $input $main_menu $ext_button
+          </div>
+        </div>
+      </div>
+    </div>";
   }
   elsif ($attr->{EXT_BUTTON}) {
-    $input_group = 1;
     $self->{SELECT} = "
-      <div class='input-group select'>
-      $self->{SELECT}
-      <span class='input-group-addon'>"
-      . ($attr->{EXT_BUTTON} || '')
-      . "</span></div>\n";
+    <div class='d-flex bd-highlight'>
+      <div class='flex-fill bd-highlight overflow-hidden select2-border'>
+         <div class='input-group-append select2-append'>
+            $self->{SELECT}
+          </div>
+      </div>
+      <div class='bd-highlight'>
+        <div class='input-group-append h-100'>
+          <div class='input-group-text p-0 rounded-left-0'>
+            $ext_button
+          </div>
+        </div>
+      </div>
+    </div>";
   }
 
-  if (!$input_group) {
-    $self->{SELECT} = "<div class='input-group select'>" . $self->{SELECT} . "</div>";
-
-  }
-  return $self->{SELECT};
+  return  $self->{SELECT};
 }
 
 #**********************************************************
@@ -1163,7 +1144,6 @@ sub form_window {
   my $parent_input_name = $attr->{PARENT_INPUT} || '';
 
   my $main_menu = $attr->{MAIN_MENU} || '';
-  #my $main_menu_argv = $attr->{MAIN_MENU_ARGV} || '';
 
   # Counter for storing params in array
   $self->{button_num}++;
@@ -1172,7 +1152,7 @@ sub form_window {
   $self->{WINDOW} = "
    <div class='input-group'> ";
 
-  my $tooltip = $attr->{TOOLTIP} ? " data-tooltip='$attr->{TOOLTIP}' data-tooltip-position='left auto'" : '';
+  my $tooltip = $attr->{TOOLTIP} ? " data-tooltip='$attr->{TOOLTIP}' data-tooltip-position='left'" : '';
 
   if ($attr->{HAS_NAME}) {
     $self->{WINDOW} .= "<input type='hidden' value='%" . $name . "%' name='$name' id='$name'/>
@@ -1182,35 +1162,39 @@ sub form_window {
     $self->{WINDOW} .= "<input type='text' value='" . ($attr->{VALUE} || '') . "' name='$name' class='form-control'/>";
   }
 
-  $self->{WINDOW} .= "<span class='input-group-addon'> ";
+  $self->{WINDOW} .= "<div class='input-group-append'> ";
 
   if ($attr->{MAIN_MENU}) {
     # FIXME : NAS_ID?
-    $self->{WINDOW} .= " <div style='display:inline; cursor:pointer;'>
-          <a onclick='replace(hrefValue( \"" . $SELF_URL . "\", \"" . $main_menu . "\", \"NAS_ID\"))'>
-            <span class='glyphicon glyphicon-list-alt'></span>
-          </a>
-      </div>\n";
+    $self->{WINDOW} .= "
+    <div class='input-group-text' style='cursor:pointer;'>
+      <a onclick='replace(hrefValue( \"" . $SELF_URL . "\", \"" . $main_menu . "\", \"NAS_ID\"))'>
+        <i class='fa fa-list-alt'></i>
+      </a>
+    </div>\n";
   }
 
   my $modal_size = $attr->{POPUP_SIZE} || '';
   $self->{WINDOW} .= "
-    <a id='btnPopupOpen' type='button' onclick=\'openModal($buttonNum, \"TemplateBased\", \"$modal_size\");\'>
-       <span class='glyphicon glyphicon-search'></span>
-    </a>
-    <div class='clear_results' style='display:inline; cursor:pointer;'>
-      <span class='glyphicon glyphicon-remove'></span>
+        <div class='input-group-text'>
+          <a id='btnPopupOpen' type='button' onclick=\'openModal($buttonNum, \"TemplateBased\", \"$modal_size\");\'>
+            <i class='fa fa-search'></i>
+          </a>
+        </div>
+
+    <div class='input-group-text clear_results' style='cursor:pointer;'>
+      <i class='fa fa-remove'></i>
     </div>\n";
 
   $self->{WINDOW} .= "
-    </span>
-   </div>
+    </div>
+  </div>
 
-   <script>
-     modalsArray[modalsArray.length] = new Array(\'$action\',\'$name\',\'$parent_input_name\',\'$searchString\',\'$window_type\');
+    <script>
+    modalsArray[modalsArray.length] = new Array(\'$action\',\'$name\',\'$parent_input_name\',\'$searchString\',\'$window_type\');
      //console.log(searchString);
-   </script>
-   <script type='text/javascript' src='/styles/default_adm/js/$js_script.js'></script>\n";
+  </script>
+  <script type='text/javascript' src='/styles/default_adm/js/$js_script.js'></script>\n";
 
   return $self->{WINDOW};
 }
@@ -1248,10 +1232,15 @@ sub set_cookies {
     $cookie .= " path=$path; ";
   }
 
-  if ($self->{domain}) {
-    $cookie .= " domain=$self->{domain}; ";
-  }
-  elsif ($attr->{DOMAIN}) {
+  # TODO: remove if enything won't be broken
+  # if ($self->{domain}) {
+  #   $cookie .= " domain=$self->{domain}; ";
+  # }
+  # elsif ($attr->{DOMAIN}) {
+  #   $cookie .= " domain=$attr->{DOMAIN}; ";
+  # }
+
+  if ($attr->{DOMAIN}) {
     $cookie .= " domain=$attr->{DOMAIN}; ";
   }
 
@@ -1313,47 +1302,13 @@ sub get_cookies {
 sub menu {
   my $self = shift;
   my ($menu_items, $menu_args, $permissions, $attr) = @_;
-  my $menu_navigator = '';
   my $root_index = 0;
-  my %tree = ();
   my %menu = ();
   my $sub_menu_array;
   my $EX_ARGS = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
   my $fl = $attr->{FUNCTION_LIST};
 
-
-  # make navigate line
-  if ($index > 0) {
-    $root_index = $index;
-    my $h = $menu_items->{$root_index};
-    my @menu_links = ();
-    my @plain_breadcrumb = ();
-
-    while (my ($par_key, $name) = each(%$h)) {
-      my $ex_params = '';
-      if (defined($menu_args->{$root_index})) {
-        if ($menu_args->{$root_index} =~ /=/) {
-          $ex_params = "&$menu_args->{$root_index}";
-        }
-        elsif (defined($FORM{ $menu_args->{$root_index} })) {
-          $ex_params = '&' . "$menu_args->{$root_index}=$FORM{$menu_args->{$root_index}}";
-        }
-      }
-
-      unshift @menu_links, $self->button($name, "index=$root_index$ex_params");
-      unshift @plain_breadcrumb, $name if ($root_index > 10);
-
-      $tree{$root_index} = 1;
-      if ($par_key && $par_key > 0) {
-        $root_index = $par_key;
-        $h = $menu_items->{$par_key};
-      }
-    }
-    if ($#plain_breadcrumb) {
-      $self->{BREADCRUMB} = join(' > ', @plain_breadcrumb);
-    }
-    $menu_navigator = "<ol class='breadcrumb'>" . join($self->li('>'), map {$self->li($_)} @menu_links) . "</ol>\n";
-  }
+  my ($menu_navigator, $tree) = $self->breadcrumb($root_index, $menu_items, $menu_args);
 
   $FORM{root_index} = $root_index;
   if ($root_index > 0) {
@@ -1375,77 +1330,87 @@ sub menu {
     }
   }
   my @last_array = ();
-  my $menu_text = "<ul class='sidebar-menu'>";
+  my $menu_text = "
+  <nav class='mt-2'>
+    <ul class='nav nav-pills nav-sidebar flex-column nav-child-indent' data-widget='treeview' role='menu' data-accordion='false'>";
+
   my $level = 0;
   my $parent = 0;
   my %main_ids = ();
 
   foreach my $line (@{$menu{$parent}}) {
-    #($ID, $name)
     my ($ID, undef) = split(/:/, $line, 2);
     $main_ids{ "sub" . $ID } = 1;
   }
 
   label:
   $sub_menu_array = \@{$menu{$parent}};
-  #my $m_item = '';
-  #my %table_items = ();
 
   while (my $sm_item = pop @$sub_menu_array) {
-    my ($ID, $name) = split(/:/, $sm_item, 2);
+    my ($ID, $name_menu) = split(/:/, $sm_item, 2);
     my $id = (($ID =~ /^sub([0-9]+)/) ? $1 : $ID);
+
     next if ((!defined($attr->{ALL_PERMISSIONS})) && (!defined($permissions->{ $id - 1 })) && $parent == 0);
 
     my $active = '';
     my $class = '';
     if ($parent == 0 && $menu{$ID}) {
-      $class = "treeview";
+      $class = "nav-item has-treeview";
     }
-    if (defined($tree{$ID}) && $parent == 0) {
-      #      $name   = '<span class="glyphicon glyphicon-chevron-right"></span> '.$self->b($name);
-      $active = 'active';
-    }
-    elsif (defined($tree{$ID})) {
+
+    my $color_active_label = '';
+    if (defined($tree->{$ID}) && $parent == 0) {
       $active = 'active menu-open';
     }
+    elsif (defined($tree->{$ID})) {
+      $active = 'nav-item menu-open';
+    }
+
     my $ext_args = "$EX_ARGS";
 
     if (defined($menu_args->{$id})) {
       $ext_args = ($menu_args->{$id} =~ /=/) ? "&$menu_args->{$id}" : "&$menu_args->{$id}=$FORM{$menu_args->{$id}}";
-      #$name = $self->b($name) if ($name !~ /<b>/);
-      #$active = ' active';
     }
     if ($menu{$ID} && $fl->{$ID} ne 'null') {
-      push @{$menu{$ID}}, "sub" . $ID . ":" . $name;
+      push @{$menu{$ID}}, "sub" . $ID . ":" . $name_menu;
       $fl->{ "sub" . $ID } = $fl->{$ID};
     }
-    if (($parent != 0 && ($level eq 1 || $level eq 2)) && !$main_ids{ $ID }) {
-      $name = "<i class='fa fa-circle-o'></i>" . $name;
-    }
+
     my $ex_params = ($parent == 0) ? (($fl->{$ID} ne 'null') ? ' id=' . $fl->{$ID} : '') : '';
-    $ex_params .= ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID }) ? " onclick='return false'" : "";
-    $name .= "<span class='pull-right-container'>\n<i class='fa fa-angle-left pull-right'></i>\n</span>" if ($menu{$ID});
-    #my $link = $self->button($name, "index=" . (($ID =~ /^sub([0-9]+)/) ? $1 : $ID) . "$ext_args", { ex_params => ($parent == 0) ? (($fl->{$ID} ne 'null') ? ' id=' . $fl->{$ID} : '') : '', SKIP_HREF => ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID } )? "1" : '' });
-    my $link = $self->button($name, ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID }) ? "index=$index" : "index=" . (($ID =~ /^sub([0-9]+)/) ? $1 : $ID) . "$ext_args", { ex_params => $ex_params });
-    if ($parent == 0) {
-      #User add function
-      #if ($ID == 1) {
-      #  $link .= "<span>[+]</span>";
-      #}
-      $menu_text .= "<li class='$class $active  for_search'>$link\n";
+    $ex_params .= ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID }) ? " onclick='return false' class='nav-link $active'" : " class='nav-link $active'";
+    $name_menu .= "<p class='menu-label'>\n<i class='right fa fa-angle-left'></i>\n</p>" if ($menu{$ID});
+
+    $name_menu = "<p>$name_menu</p>" if $name_menu && $name_menu !~ /<p class='d-inline'>/;
+
+    my $name = '';
+    my $menu_circle_icon = '';
+    if (($parent != 0 && (defined($level) && $level >= 1)) && !$main_ids{ $ID }) {
+      $menu_circle_icon = "<i class='nav-icon fa fa-circle-o'></i>";
     }
-    elsif (defined($menu{$ID})) {
-      $menu_text .= "<li class='$active  for_search'>$link\n\n";
+
+    if ($menu{$ID}) {
+      $name = "$menu_circle_icon$name_menu";
     }
     else {
-      $menu_text .= "<li class='$active  for_search'>$link\n";
+      $name = "$menu_circle_icon$name_menu";
+    }
+
+    my $link = $self->button($name, ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID }) ? "index=$index" : "index=" . (($ID =~ /^sub([0-9]+)/) ? $1 : $ID) . "$ext_args", { ex_params => $ex_params });
+    if ($parent == 0) {
+      $menu_text .= "<li class='nav-item for_search $active'>$link\n";
+    }
+    elsif (defined($menu{$ID})) {
+      $menu_text .= "<li class='nav-item $active for_search'>$link\n\n";
+    }
+    else {
+      $menu_text .= "<li class='nav-item $active for_search'>$link\n";
     }
 
     if (!$menu{$ID}) {
       $menu_text .= "</li>\n";
     }
     else {
-      $menu_text .= "<ul class='treeview-menu  for_search'>\n ";
+      $menu_text .= "<ul class='nav nav-treeview for_search'>\n ";
     }
 
     if (defined($menu{$ID})) {
@@ -1463,9 +1428,66 @@ sub menu {
     goto label;
   }
 
-  $menu_text .= "</ul>\n";
+  $menu_text .= "</ul></nav>\n";
 
   return($menu_navigator, $menu_text);
+}
+
+#**********************************************************
+=head2 breadcrumb($root_index, $menu_items, $menu_args) - Make breadcrumb
+
+  Arguments:
+  root_index, $menu_items, $menu_args
+    $root_index   - Root index (defoult 0)
+    $menu_items   - Menu items hash_ref
+    $menu_args    - Menu arguments
+
+  Returns:
+    $menu_navigator, %tree
+
+=cut
+#**********************************************************
+sub breadcrumb {
+  my $self = shift;
+  my ($root_index, $menu_items, $menu_args) = @_;
+
+  my $menu_navigator = '';
+  my %tree = ();
+
+  if ($index > 0) {
+    $root_index = $index;
+    my $h = $menu_items->{$root_index};
+    my @menu_links = ();
+    my @plain_breadcrumb = ();
+
+    while (my ($par_key, $name) = each(%$h)) {
+      my $ex_params = '';
+      if (defined($menu_args->{$root_index})) {
+        $ex_params = "&$menu_args->{$root_index}" if ($menu_args->{$root_index} =~ /=/);
+        $ex_params = '&' . "$menu_args->{$root_index}=$FORM{$menu_args->{$root_index}}" if (defined($FORM{ $menu_args->{$root_index} }));
+      }
+
+      unshift @menu_links, $self->button($name, "index=$root_index$ex_params", { ex_params => ( ($root_index == $index) ? 'aria-current="page"' : '' ) });
+      unshift @plain_breadcrumb, $name if ($root_index > 10);
+
+      $tree{$root_index} = 1;
+      if ($par_key && $par_key > 0) {
+        $root_index = $par_key;
+        $h = $menu_items->{$par_key};
+      }
+    }
+
+    $self->{BREADCRUMB} = join('', @plain_breadcrumb) if ($#plain_breadcrumb);
+
+    $menu_navigator = $self->element('nav',
+      $self->element('ol',
+        join($self->li('>'), map { $self->li($_) } @menu_links),
+        { class => 'breadcrumb card bg-light mb-0' }),
+      { 'aria-label' => 'Breadcrumb', class => 'm-2' }
+    );
+  }
+
+  return ($menu_navigator, \%tree);
 }
 
 #**********************************************************
@@ -1487,10 +1509,10 @@ sub menu_right {
   my $self = shift;
   my ($menu_item_name, $menu_item_id, $menu_content, $attr) = @_;
   my $right_menu_html = '';
-  my $menu_item = $self->li("<a href='#$menu_item_id' id='$menu_item_id\_btn' data-toggle='tab' aria-expanded='false'>$menu_item_name</a>", { class => 'active' });
+  my $menu_item = $self->li("<a href='#$menu_item_id' id='$menu_item_id\_btn' class='nav-link active' data-toggle='tab' aria-expanded='false'>$menu_item_name</a>", { class => 'nav-item' });
 
   if (!$attr->{HTML}) {
-    $right_menu_html = "<aside class='control-sidebar $attr->{SKIN}'>\n";
+    $right_menu_html = "<aside class='control-sidebar control-sidebar-dark' style='bottom:0 !important;'>\n";
     $right_menu_html .= "<ul class='nav nav-tabs nav-justified control-sidebar-tabs'>\n</ul>\n<div class='tab-content'>\n</div>\n";
   }
   if (!defined($menu_content)) {
@@ -1505,7 +1527,7 @@ sub menu_right {
 
   if (!$attr->{HTML}) {
     $right_menu_html .= "</aside>";
-    $right_menu_html .= "<div class='control-sidebar-bg'></div>";
+    $right_menu_html .= "<div class='p-3 control-sidebar-content'></div>";
   }
 
   return $right_menu_html;
@@ -1524,8 +1546,6 @@ sub menu2 {
   my $root_index = 0;
   my %tree = ();
   my %menu = ();
-  #  my $ext_args       = (defined($attr->{EX_ARGS})) ? $attr->{EX_ARGS} : '';
-  #  my $fl             = $attr->{FUNCTION_LIST};
 
   # make navigate line
   if ($index > 0) {
@@ -1561,7 +1581,7 @@ sub menu2 {
     }
   }
 
-  my $menu_text = "<ul class='nav nav-pills nav-stacked'>\n";
+  my $menu_text = "<ul class='nav nav-pills nav-sidebar flex-column' data-widget='treeview' role='menu' data-accordion='false'>\n";
 
   $menu_text .= $self->mk_menu(\%menu, $menu_args, $attr);
 
@@ -1599,15 +1619,17 @@ sub mk_menu {
 
   foreach my $parent_line (@{$menu->{$parent}}) {
     my ($parent_id, $parent_name) = split(/:/, $parent_line);
-    $formed_menu .= "<li>" .
-      $self->button("$parent_name", "#", { ex_params => "onclick=\"showContent('index.cgi?qindex=$parent_id&header=2$ext_args', this)\" ",
-        NO_LINK_FORMER                               => 1,
-        SKIP_HREF                                    => $attr->{SKIP_HREF},
-        ID                                           => ($fl->{$parent_id}) ? $fl->{$parent_id} : '' }) .
+    $formed_menu .= "<li class='nav-item'>" .
+      $self->button("$parent_name", "#", {
+        class           => 'nav-link',
+        ex_params       => "onclick=\"showContent('index.cgi?qindex=$parent_id&header=2$ext_args', this)\" ",
+        NO_LINK_FORMER  => 1,
+        SKIP_HREF       => $attr->{SKIP_HREF},
+        ID              => ($fl->{$parent_id}) ? $fl->{$parent_id} : '' }) .
       "</li>\n";
 
     if (ref $menu->{$parent_id} eq 'ARRAY') {
-      $formed_menu .= '<ul>';
+      $formed_menu .= '<ul class="nav nav-treeview">';
       $formed_menu .= $self->mk_menu($menu, $menu_args, { %$attr, PARENT => $parent_id });
       $formed_menu .= '</ul>';
     }
@@ -1706,7 +1728,6 @@ sub header {
 =head2 table() - Create table object
 
   Arguments:
-
     $attr
       caption     - table caption
       caption_icon - append icon to caption (exemple 'fa fa-info')
@@ -1727,7 +1748,7 @@ sub header {
       SKIP_TOP_PAGES - Skip top pages
       HIDE_TABLE  - Hide tible to cut
       SELECT_ALL  - Show select ID form
-       'form_name:field_name:show_name'
+        'form_name:field_name:show_name'
       pages       - Show pages
       SHOW_FULL_LIST - Show full list page
       HAS_FUNCTION_FIELDS - boolean. Special CSS rules will be apllied to align last column to right
@@ -1735,8 +1756,7 @@ sub header {
       SHOW_MULTISELECT_ACTIONS - show/hide buttons for selected checkboxes (with param)
 
   Returns:
-
-     Table object
+    Table object
 
   Examples:
 
@@ -1803,8 +1823,7 @@ sub table {
   $self->{footer} = '';
   $self->{summary} = '';
 
-  #  my $width       = (defined($attr->{width}))  ? " width=\"$attr->{width}\""   : '';
-  my $table_responsive = (($attr->{NOT_RESPONSIVE}) ? '' : ' table-responsive');
+  my $table_responsive = (($attr->{NOT_RESPONSIVE}) ? '' : ' card-body table-responsive p-0');
   my $border = ($attr->{border}) ? ' panel-body' : '';
 
   my $table_class = (defined($attr->{class})) ? $attr->{class} : 'table table-striped table-hover table-condensed';
@@ -1849,6 +1868,10 @@ sub table {
       $op = "index=$index";
     }
 
+    if ($FORM{subf}) {
+      $attr->{qs} .= "&subf=$FORM{subf}";
+    }
+
     $pagination = $self->pages($attr->{pages}, "$op$attr->{qs}", { SKIP_NAVBAR => 1, %{$attr ? $attr : {}} });
   }
 
@@ -1858,7 +1881,7 @@ sub table {
       my $col_divider_count = int((scalar keys(%{$attr->{SHOW_COLS}})) / 2);
       my $modal_size = ($col_divider_count >= 3) ? 'lg' : 'sm';
 
-      $show_cols .= "<div class='modal fade' id='" . $attr->{ID} . "_cols_modal' tabindex='-1' role='dialog' aria-hidden='true'>
+      $show_cols .= "<div class='modal fade' id='" . ($attr->{ID} | q{}) . "_cols_modal' tabindex='-1' role='dialog' aria-hidden='true'>
   <div class='modal-dialog modal-$modal_size'>
     <div class='modal-content'>
       <div class='modal-header'>
@@ -1906,7 +1929,7 @@ sub table {
 
         my $footer_btns = "<hr/>
       <div class='row text-center'>
-        <input type='submit' id='del_cols' name=del_cols class='btn btn-default' value='Reset to default'>
+        <input type='submit' id='del_cols' name=del_cols class='btn btn-secondary' value='Reset to default'>
         <input type='submit' id='show_cols' name=show_cols class='btn btn-primary' value='Save'>
       </div>
       ";
@@ -1915,21 +1938,16 @@ sub table {
         $show_cols .= "</FORM>\n";
       }
 
-      $show_cols .= "
+      $show_cols .= "</div></div></div></div>\n";
 
-  </div>
-  </div>
-  </div>
-</div>\n";
-
-      $show_cols_button = "<button title='$lang->{EXTRA_FIELDS}' class='btn btn-box-tool' data-toggle='modal' data-target='#"
+      $show_cols_button = "<button title='$lang->{EXTRA_FIELDS}' class='btn btn-tool' data-toggle='modal' data-target='#"
         . ($attr->{ID} || 'no_id_element')
-        . "_cols_modal'><span class='glyphicon glyphicon-option-horizontal'></span></button>";
+        . "_cols_modal'><span class='fa fa-align-left p-1'></span></button>";
     }
 
-    my $collapse_icon = ($attr->{HIDE_TABLE}) ? 'fa-plus' : 'fa-minus';
+    my $collapse_icon = ($attr->{HIDE_TABLE}) ? 'fa fa-plus' : 'fa fa-minus';
     $self->{table_caption} .= ""
-      . (($attr->{ID}) ? "<button type='button' title='Show/Hide' class='btn btn-box-tool' data-widget='collapse'><i class='fa $collapse_icon'></i></button>" : '')
+      . (($attr->{ID}) ? "<button type='button' title='Show/Hide' class='btn btn-tool' data-card-widget='collapse'><i class='$collapse_icon'></i></button>" : '')
       . $show_cols_button;
   }
 
@@ -1952,13 +1970,11 @@ sub table {
       my @menu_arr = split(/;/, $attr->{MENU});
       if ($attr->{MULTISELECT_ACTIONS}) {
 
-        # Change to actions_panel
         my @actions_from_buttons = map {
           my ($name, $ext_attr, $css_class) = split(/:/, $_);
           {
             TITLE  => $name,
             ACTION => $ext_attr,
-            #            CLASS  => $css_class,
             ICON   => $button_class_icons{$css_class}
           };
         } @menu_arr;
@@ -1968,7 +1984,7 @@ sub table {
       else {
         foreach my $line (@menu_arr) {
           my ($name, $ext_attr, $css_class) = split(/:/, $line);
-          push @menu_buttons, $self->button($name, $ext_attr, { class => $css_class }) . "\n";
+          push @menu_buttons, $self->button($name, $ext_attr, { class => $css_class, ex_params => "class='ml-2'" }) . "\n";
         }
       }
     }
@@ -1985,11 +2001,11 @@ sub table {
       push @export_formats, 'xls';
     }
     #instantiate new dropdown menu
-    $export_obj .= "<button title='Export' role='button' class='dropdown-toggle btn btn-box-tool' data-toggle='dropdown'" .
+    $export_obj .= "<button title='Export' role='button' class='dropdown-toggle btn btn-tool' data-toggle='dropdown'" .
       " aria-haspopup='true' aria-expanded='false'>" .
-      "<span class='glyphicon glyphicon-export'></span>" .
+      "<span class='fa fa-share'></span>" .
       "</button>" .
-      "<ul class='dropdown-menu' style='min-width: 0;'>";
+      "<ul class='dropdown-menu dropdown-menu-right' style='min-width: 0;'>";
 
     #Fill dropdown list with items
     foreach my $export_name (@export_formats) {
@@ -2001,16 +2017,14 @@ sub table {
         $attr->{qs} =~ s/PAGE_ROWS\=\d+/PAGE_ROWS\=100000/;
       }
 
-      $export_obj .= "<li>";
-      $export_obj .= $self->button($export_name,
-        "qindex=$index$attr->{qs}"
-          . (($PG) ? "&pg=$PG" : q{})
-          . (($SORT) ? "&sort=$SORT" : q{})
-          . (($DESC) ? "&desc=$DESC" : q{})
-          . "&EXPORT_CONTENT=$attr->{ID}&header=1$params",
-        { ex_params => 'target=export',
-          class     => '' }) . "\n";
-      $export_obj .= "</li>";
+      $export_obj .= $self->button($export_name, "qindex=$index$attr->{qs}"
+        . (($PG) ? "&pg=$PG" : q{})
+        . (($SORT) ? "&sort=$SORT" : q{})
+        . (($DESC) ? "&desc=$DESC" : q{})
+        . "&EXPORT_CONTENT=$attr->{ID}&header=1$params", {
+          ex_params => 'target=export',
+          class     => 'dropdown-item'
+      }) . "\n";
     }
     #close list and dropdown block
     $export_obj .= "</ul>";
@@ -2021,17 +2035,12 @@ sub table {
   push @header_obj, $self->{EXPORT_OBJ} if ($self->{EXPORT_OBJ});
 
   if ($attr->{IMPORT}) {
-    $self->{table_caption} = qq{<a role='button' title='Import' class='btn btn-box-tool' onclick='loadToModal("$attr->{IMPORT}")'>
-      <span class='glyphicon glyphicon-import'></span>
+    $self->{table_caption} = qq{<a role='button' title='Import' class='btn btn-tool' onclick='loadToModal("$attr->{IMPORT}")'>
+      <span class='fa fa-reply'></span>
     </a>
     } . $self->{table_caption};
   }
 
-  #  if (defined($attr->{VIEW})) {
-  #    $self->{table} .= "<TR><TD class='tcaption'>$attr->{VIEW}</td></TR>\n";
-  #  }
-
-  #my $colspan='';
   if ($#header_obj > -1) {
     $self->{table_export} = $self->{EXPORT_OBJ};
 
@@ -2041,17 +2050,21 @@ sub table {
   }
 
   $attr->{caption} = '' if (!$attr->{caption});
-  my $collapse = ($attr->{HIDE_TABLE}) ? 'collapsed-box' : '';
+  my $collapse = ($attr->{HIDE_TABLE}) ? ' collapsed-card' : '';
 
   if ($attr->{DATA_TABLE}) {
     if (ref($attr->{DATA_TABLE}) ne 'HASH') {
-      $attr->{DATA_TABLE} = {
-        dom => qq'<"row"
-        <"col-md-6"l>
-        <"col-md-6"fp>
-        >rtip'
-      };
+      $attr->{DATA_TABLE} = {};
     }
+
+    $attr->{DATA_TABLE}->{dom} //= qq"<'row dataTable-dom'
+      <'col-sm-12 col-md-6'l>
+      <'col-sm-12 col-md-6'f>>
+      <'row dataTable-top-pagination'<'col-sm-12'p>>
+      <'row'<'col-sm-12'tr>>
+      <'row dataTable-dom'<'col-sm-12 col-md-5'i>
+      <'col-sm-12 col-md-7'p>>";
+
     $attr->{DATA_TABLE}->{language} = { url => "/styles/$self->{HTML}{HTML_STYLE}/plugins/datatables/lang/" . $self->{prototype}{content_language} . ".json" };
     my $ATTR = ($attr) ? JSON->new->indent->encode($attr->{DATA_TABLE}) : '';
     if ($attr->{DT_CLICK}) {
@@ -2086,21 +2099,22 @@ sub table {
     }
   }
 
-  my $box_theme = ($attr->{LITE_HEADER}) ? 'box-solid' : 'box-theme';
-  $self->{table} = $show_cols . '<div class="box ' . $box_theme . ' FK ' . $collapse . '"\>';
+  my $box_theme = ($attr->{LITE_HEADER}) ? 'card-secondary' : 'card-default card-outline';
+  #$self->{table} = $show_cols . '<div class="card ' . $box_theme . ' FK ' . $collapse . '"\>';
+  $self->{table} = $show_cols . '<div class="card ' . $box_theme . ' ' . $collapse . '">';
 
   $self->{table_status_bar} ||= $attr->{caption1} || '';
   $self->{table_export} ||= '';
 
   # Form fist row
-  my $table_caption_size = 9;
+  my $table_caption_size = 10;
   my $table_filters = '';
-  my $table_ext_but_size = 3;
+  my $table_ext_but_size = 2;
   if ($self->{table_status_bar}) {
-    $table_caption_size = 3;
+    $table_caption_size = 2;
     $table_filters = qq{
-      <div class='col-md-6 text-center'>
-        <div class='btn-group btn-group-xs'>
+      <div class='col-md-8 text-center'>
+        <div class='btn-group btn-group-sm'>
           $self->{table_status_bar}
         </div>
       </div>
@@ -2124,11 +2138,11 @@ sub table {
     $caption_icon = "<i class='" . $attr->{caption_icon} . "' style='font-size:18px; margin-right: 5px'></i>";
   }
   if ($attr->{caption} || $self->{table_caption}) {
-    $self->{table} .= "<div class='box-header with-border hidden-print text-center'>
+    $self->{table} .= "<div class='card-header with-border hidden-print text-center'>
     <div class='row'>
       <div class='col-md-$table_caption_size pull-left text-left'>
         $caption_icon
-        <h4 class='box-title table-caption'>$attr->{caption}</h4>
+        <h4 class='card-title table-caption'>$attr->{caption}</h4>
       </div>
       $table_filters
       <div class='col-md-$table_ext_but_size pull-right text-right'>
@@ -2139,18 +2153,28 @@ sub table {
     </div>";
   }
 
-  $self->{table} .= qq{   <div class="$border box-body $table_responsive" id="p_$self->{ID}" align="left">
-  <div class='row'>
-      <div class='col-md-6 pull-left text-left'>
-        $table_export
-      </div>
-      <div class='col-md-6 pull-right text-right'>
-        <div class='hidden-print'>
-            $pagination
-         </div>
+  $self->{table} .= qq{   <div class="$border $table_responsive" id="p_$self->{ID}" align="left">
+  <div class='row pull-left p-1 mr-0'>
+      <div class='card-tools'>
+        <div class='mailbox-controls'>
+          <div class='col-md-6 pull-left text-left'>
+            $table_export
+          </div>
+        </div>
       </div>
     </div>
-  <TABLE $table_class ID="$self->{ID}_">\n};
+  <div class='row pull-right p-1 mr-0'>
+      <div class='card-tools'>
+        <div class='mailbox-controls'>
+          <div class='col-md-6 pull-right text-right'>
+            <div class='hidden-print'>
+                $pagination
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <TABLE $table_class ID='$self->{ID}_'>\n};
 
   $self->{pagination} = $pagination;
 
@@ -2168,6 +2192,7 @@ sub table {
   }
   return $self;
 }
+
 #**********************************************************
 =head2 table_summary($attr) - Add summary in footer box table
 
@@ -2376,10 +2401,10 @@ sub td {
 =head2 table_header($header_arr, $attr) - Table header function button
 
   Arguments
-   $header_arr   - array of elements
-   $attr         - Extra attributes
-     SHOW_ONLY
-     TABS        - SHow like tabs
+    $header_arr   - array of elements
+    $attr         - Extra attributes
+      SHOW_ONLY
+      TABS        - SHow like tabs
 
   Returns:
     $header      - Header
@@ -2458,43 +2483,43 @@ sub table_header {
         if ($attr->{SHOW_ONLY} == $i) {
           $header .= $self->li($self->button($name, $url, \%url_params), { class => "$active" });
           $header .= qq{<li role="presentation" class="dropdown">};
-          #$self->button($name, $url, { class => "btn btn-default $active" });
           $header .= qq{<a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false" ><span class="caret"></span></a>};
         }
         elsif ($attr->{SHOW_ONLY} < $i) {
-          $drop_down .= $self->li($self->button($name, $url, \%url_params))
+          $drop_down .= $self->button($name, $url, \%url_params)
         }
       }
       else {
-        $header .= $self->li($self->button($name, $url, \%url_params), { class => "$active" });
+        $url_params{class} = 'nav-link';
+        $header .= $self->li($self->button($name, $url, \%url_params,), { class => "nav-item $active" });
       }
     }
     elsif ($i == $elements_before_dropdown && $#{$header_arr} > $elements_before_dropdown) {
-      $header .= $self->button($name, $url, { class => "btn btn-default $active" });
-      $header .= "<button class='btn btn-default dropdown-toggle' data-toggle='dropdown'><span class='caret'></span></button>";
+      $header .= $self->button($name, $url, { class => "btn btn-default btn-xs $active" });
+      $header .= "<button class='btn btn-default btn-xs dropdown-toggle' aria-expanded='false' data-toggle='dropdown'><span class='caret'></span></button>";
     }
     elsif ($i > $elements_before_dropdown) {
-      $drop_down .= $self->li($self->button($name, $url, { class => '' }))
+      $drop_down .= $self->button($name, $url, { class => 'dropdown-item' })
     }
     else {
-      $header .= $self->button($name, $url, { class => "btn btn-default $active" });
+      $header .= $self->button($name, $url, { class => "btn btn-default btn-xs $active" });
     }
 
     $i++;
   }
 
   if ($drop_down) {
-    $header .= "<ul class='dropdown-menu dropdown-menu-right'>$drop_down</ul>";
+    $header .= "<div class='dropdown-menu dropdown-menu-right'>$drop_down</div>";
   }
 
   if ($attr->{TABS}) {
-    $header = "<ul class='nav nav-tabs'>$header</ul>";
+    $header = "<nav class='navbar navbar-expand-lg navbar-light bg-light'><ul class='navbar-nav'>$header</ul></nav>";
   }
   elsif ($attr->{NAV}) {
     $header = "<ul class='nav nav-pills'>$header</ul>";
   }
   elsif ($attr->{STAND_ALONE}) {
-    $header = "<div class='btn-group btn-group-xs pull-middle' role='group'>$header</div>";
+    $header = "<div class='btn-group btn-group-sm pull-middle' role='group'>$header</div>";
   }
 
   return $header;
@@ -2504,11 +2529,11 @@ sub table_header {
 =head2 table_title($sort, $desc, $pg, $caption, $qs, $attr) - Show table column  titles with word derectives
 
   Arguments:
-   $sort      - sort column
-   $desc      - DESC / ASC
-   $pg        - page id
-   $caption   - array off caption
-   $qs        -
+    $sort      - sort column
+    $desc      - DESC / ASC
+    $pg        - page id
+    $caption   - array off caption
+    $qs        -
 
   Returns:
     $self->{table_title} - Table object
@@ -2558,27 +2583,29 @@ sub table_title {
 
       }
       elsif ($desc && $desc eq 'DESC') {
-        $img = 'glyphicon-sort-by-attributes-alt';
+        $img = ' fa-sort-amount-desc';
         $desc = '';
       }
       elsif ($sort > 0) {
-        $img = 'glyphicon-sort-by-attributes';
+        $img = 'fa-sort-amount-asc';
         $desc = 'DESC';
       }
 
-      if ($FORM{index}) {
-        $op = "index=$FORM{index}";
+      my $url_index = $FORM{index} || $index;
+      if ($url_index) {
+        $op = "index=$url_index";
       }
-      elsif ($index) {
-        $op = "index=$index";
+
+      my $admin_subf = '';
+      if ($FORM{AID}) {
+        $admin_subf = "&AID=$FORM{AID}";
       }
-      my $admin_subf = '';      
-      if ($FORM{AID} && $FORM{subf}) {
-        $admin_subf = "&AID=$FORM{AID}&subf=$FORM{subf}";  
+      elsif ($FORM{subf}) {
+        #$admin_subf .= "&subf=$FORM{subf}";
       }
-      
-      $self->{table_title} .= $self->button($line, "$op$qs&pg=$pg&sort=$i&desc=$desc" . $admin_subf);
-      $self->{table_title} .= " <span class='glyphicon $img'></span>" if ($img);
+
+      $self->{table_title} .= $self->button($line, "$op$qs&pg=$pg&sort=$i&desc=$desc" . $admin_subf );
+      $self->{table_title} .= " <span class='fa $img'></span>" if ($img);
     }
     else {
       $self->{table_title} .= '';
@@ -2688,7 +2715,7 @@ sub table_select_all_checkbox {
     $table->table_actions_panel([
       {
         TITLE    => $lang{DEL},
-        ICON     => 'glyphicon glyphicon-trash',
+        ICON     => 'fa fa-trash',
         ACTION   => "$SELF_URL?index=$index&del=1",
         PARAM    => "IDS",
         CLASS    => 'btn-danger',
@@ -2696,7 +2723,7 @@ sub table_select_all_checkbox {
       },
       {
         TITLE  => $lang{SEEN},
-        ICON   => 'glyphicon glyphicon-ok',
+        ICON   => 'fa fa-check',
         ACTION => "$SELF_URL?index=$index&seen=1",
         PARAM  => "IDS"
       }
@@ -2730,7 +2757,7 @@ sub table_actions_panel {
     return $self->button($action->{TITLE}, $action->{ACTION}, {
       ICON           => $action->{ICON},
       NO_LINK_FORMER => 1,
-      class          => 'btn btn-sm margin-bottom table-action-button ' . ($action->{CLASS} // 'btn-default'),
+      class          => 'btn btn-sm margin-bottom table-action-button ' . ($action->{CLASS} // 'btn-secondary'),
       ex_params      => qq{data-original-url="$action->{ACTION}" $action_param $comments_param}
     });
   };
@@ -2788,9 +2815,6 @@ sub show {
     . $self->{footer}
     . "</TABLE>\n";
 
-  #  if ($self->{pagination}) {
-  #    $self->{show} .= "<hr/><div class='row'><div class='col-md-3 pull-right text-right'>$self->{pagination}</div></div>"
-  #  }
   $self->{show} .= (($self->{ID}) ? "</div>\n" : '</div>');
 
   if ($self->{summary} || $self->{pagination}) {
@@ -2818,7 +2842,7 @@ sub show {
   Arguments:
     $text   -  Text for format
     $attr   -
-       SKIP_SPACE - Skip space format
+      SKIP_SPACE - Skip space format
 
   Returns:
     $text  -  Formated text
@@ -2835,9 +2859,9 @@ sub link_former {
   $text =~ s/&/&amp;/g;
   $text =~ s/>/&gt;/g;
   $text =~ s/</&lt;/g;
+  $text =~ s/\'/&#39;/g;
   $text =~ s/\"/&quot;/g;
   $text =~ s/\*/&#42;/g;
-  #$text =~ s/\+/%2B/g;
 
   return $text;
 }
@@ -2863,7 +2887,7 @@ sub img {
 
   my $img_path = ($img =~ s/^://) ? "$IMG_PATH/" : '';
 
-  my $class = $attr->{class} || 'img-responsive';
+  my $class = $attr->{class} || 'img-fluid';
   my $ex_params = $attr->{EX_PARAMS} || '';
 
   return "<img alt='" . ($name || q{}) . "' src='$img_path$img' class='$class' $ex_params>";
@@ -2875,7 +2899,7 @@ sub img {
   Arguments:
     $name     - Link name
     $params   - Link params (url)
-    $attr    -
+    $attr
       class          - Add class for element
       BUTTON         - Make link like button
       ID             -
@@ -2904,7 +2928,7 @@ sub img {
 
   Examples:
 
-    print $html->button('User', "index=15&UID=123", { class => 'btn btn-default' });
+    print $html->button('User', "index=15&UID=123", { class => 'btn btn-secondary' });
 
 =cut
 #**********************************************************
@@ -2963,6 +2987,7 @@ sub button {
     $text_message =~ s/'/\\\'/g;
     $text_message =~ s/"/\\\'/g;
     $text_message =~ s/\n/<br>/g;
+    $text_message =~ s/\r//g;
 
     # title, link, attr_json;
     my $onclick_str = q/onClick="cancelEvent(event);/
@@ -2977,7 +3002,7 @@ sub button {
 
   if ($attr->{BUTTON}) {
     if ($attr->{BUTTON} == 2) {
-      $css_class = " class='btn btn-xs btn-primary'";
+      $css_class = " class='btn btn-sm btn-primary'";
     }
     else {
       $css_class = " class='btn btn-default btn-xs'";
@@ -2988,36 +3013,32 @@ sub button {
     $name_text = $name if ($name && $name !~ /\'|\"/);
 
     if ($button_class_icons{$css_class}) {
-      $name = "<span class='glyphicon $button_class_icons{$css_class}'></span>";
-      $css_class = " class='hidden-print'";
+      $name = " <span class='fa $button_class_icons{$css_class} p-1'></span>";
+      #$css_class = " class='btn btn-sm hidden-print'";
     }
     elsif ($css_class eq 'payments') {
-      $name = "<span class='glyphicon " . ($CONF->{CURRENCY_ICON} || 'glyphicon-euro') . "'></span>";
+      $name = " <span class='fa " . ($CONF->{CURRENCY_ICON} || 'fa-euro') . " p-1'></span>";
       $css_class = " class='hidden-print'";
     }
     elsif ($css_class =~ /show/) {
       $css_class = '';
-      $name = "<span class='glyphicon glyphicon-list-alt'></span>";
+      $name = " <span class='fa fa-list-alt p-1'></span>";
     }
-    elsif ($css_class =~ 'change') {
+    elsif ($css_class eq 'change') {
       $css_class = '';
-      $name = "<span class='glyphicon glyphicon-pencil'></span>";
+      $name = " <span class='fa fa-pencil p-1'></span>";
     }
-    #elsif($class =~ 'print') {
-    #  $class='';
-    #  $name="<span class='glyphicon glyphicon-print'></span>";
-    #}
-    elsif ($css_class =~ 'off') {
+    elsif ($css_class =~ 'power-off') {
       $css_class = '';
-      $name = "<span class='glyphicon glyphicon-off text-danger'></span>";
+      $name = "<span class='fa fa-power-off text-danger p-1'></span>";
     }
     elsif ($css_class =~ '_on') {
       $css_class = '';
-      $name = "<span class='glyphicon glyphicon-off text-success'></span>";
+      $name = " <span class='fa fa-power-off text-success p-1'></span>";
     }
     elsif ($css_class =~ 'sendmail') {
       $css_class = '';
-      $name = "<span class='glyphicon glyphicon-envelope'></span>";
+      $name = " <span class='fa fa-envelope p-1'></span>";
     }
     else {
       $css_class = " class='$css_class'";
@@ -3043,7 +3064,7 @@ sub button {
   my $href = ($attr->{SKIP_HREF}) ? '' : "href=\"$params\"";
 
   if ($attr->{ICON}) {
-    $name = qq{<span class="$attr->{ICON}"></span>};
+    $name = qq{ <span class="$attr->{ICON} p-1"></span>};
   }
   elsif ($attr->{ADD_ICON}) {
     $name = qq{<i class="$attr->{ADD_ICON}"></i>$name};
@@ -3053,7 +3074,8 @@ sub button {
 
   if ($attr->{LOAD_TO_MODAL}) {
     my $load_func = ($attr->{LOAD_TO_MODAL} eq 'raw') ? 'loadRawToModal' : 'loadToModal';
-    return qq{<a $css_class onclick="cancelEvent(event);$load_func('$params')" $ex_attr $id_val $title>$name</a>};
+    my $modal_size = $attr->{MODAL_SIZE} ? $attr->{MODAL_SIZE} : '';
+    return qq{<a $css_class onclick="cancelEvent(event);$load_func('$params', null, '$modal_size')" $ex_attr $id_val $title>$name</a>};
   }
 
   return "<a $title $css_class $href $ex_attr $id_val>$name</a>";
@@ -3089,19 +3111,19 @@ sub message {
   my $class = '';
 
   if ($type eq 'err' || $type eq 'error' || $type eq 'danger') {
-    $class = 'callout-danger';
-    $icon = "<span class='glyphicon glyphicon-remove-sign'></span>";
+    $class = 'alert-danger';
+    $icon = "<span class='fa fa-times-circle'></span>";
   }
   elsif ($type eq 'info') {
-    $class = 'callout-success';
-    $icon = "<span class='glyphicon glyphicon-ok-sign'></span>";
+    $class = 'alert-success';
+    $icon = "<span class='fa fa-check-circle'></span>";
   }
   elsif ($type eq 'warn' || $type eq 'warning') {
-    $class = 'callout-warning';
-    $icon = "<span class='glyphicon glyphicon-exclamation-sign'></span>";
+    $class = 'alert-warning';
+    $icon = "<span class='fa fa-exclamation-circle'></span>";
   }
   else {
-    $class = 'callout-' . $type;
+    $class = 'alert-' . $type;
   }
 
   if (!defined($message)) {
@@ -3112,7 +3134,7 @@ sub message {
   }
 
   my $output = qq{
-    <div class="callout $class text-left">
+    <div class="alert $class text-left">
   };
 
   if ($caption) {
@@ -3225,45 +3247,49 @@ sub pages {
   return $self->{pages} if ($count < $PAGE_ROWS);
 
   for (my $i = $begin; ($i <= $count && $i < $PG + $PAGE_ROWS * 5); $i += $PAGE_ROWS) {
-    $self->{pages} .= (($i == $PG) ? $self->li($self->button(($i == 0 ? 1 : $i), "$argument&pg=$i"), { class => 'active' }) : $self->li($self->button(($i == 0 ? 1 : $i), "$argument&pg=$i")));
+    $self->{pages} .= (($i == $PG) ? $self->li($self->button(($i == 0 ? 1 : $i), "$argument&pg=$i", { ex_params => "class='page-link page_link'" }), { class => 'page-item active' }) : $self->li($self->button(($i == 0 ? 1 : $i), "$argument&pg=$i", { ex_params => "page-link class='page-link'" }), { class => 'page-item' }));
   }
 
   my $_GO2PAGE = ($self->{HTML}{LANG}{GO2PAGE}) ? $self->{HTML}{LANG}{GO2PAGE} : '';
   if ($self->{SHOW_FULL_LIST}) {
     $self->{pages} .= $self->element('li',
-      $self->button($self->element('span', '', { class => "fa fa-arrows-v" }),
-        "$argument&PAGE_ROWS=100000")
+      $self->button($self->element('span', '', { class => "fa fa-arrows-v" }), "$argument&PAGE_ROWS=100000", { class => 'page-item' }),
+      { class => 'page-link' }
     );
   }
 
   return qq{
   <div class='hidden-print'>
-    <ul class='pagination pagination-sm'><li><a data-toggle='modal' data-target='#gotopage'>
-      <span class="glyphicon glyphicon-chevron-down"></span></a></li>$self->{pages}
+    <ul class='pagination pagination-sm float-right'>
+      <li class='page-item'>
+        <a data-toggle='modal' data-target='#gotopage' class='page-link'>
+          <span class="fa fa-chevron-down"></span>
+        </a>
+      </li>
+      $self->{pages}
     </ul>
   </div>
-
 
 <div class="modal fade" id="gotopage" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-sm">
         <div class="modal-content">
             <div class="modal-header text-center">
-                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                 <h4 class="modal-title">$_GO2PAGE ( 1 .. $count ):</h4>
+              <h4 class="modal-title">$_GO2PAGE ( 1 .. $count ):</h4>
+              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
             </div>
             <div class="modal-body text-left">
-            <div class='row'>
-              <div class='col-md-9'>
-                <input class='form-control' id='pagevalue' type='text'  size='9' maxlength=8/>
-              </div>
-              <div class='col-md-3'>
-                <button type="button"  class="btn btn-primary pull-right" data-dismiss="modal" onclick="checkval('index.cgi?$argument&pg=')">OK</button>
+              <div class='row'>
+                <div class='col-md-9'>
+                  <input class='form-control' id='pagevalue' type='text'  size='9' maxlength=8/>
+                </div>
+                <div class='col-md-3'>
+                  <button type="button"  class="btn btn-primary pull-right" data-dismiss="modal" onclick="checkval('index.cgi?$argument&pg=')">OK</button>
+                </div>
               </div>
             </div>
-      </div>
+          </div>
         </div>
-    </div>
-</div>
+      </div>
 };
 
 }
@@ -3425,14 +3451,6 @@ sub tpl_show {
       my $delimiter = $2;
       my $default = $3;
 
-      #    if ($var =~ /$\{exec:.+\}$/) {
-      #      my $exec = $1;
-      #      if ($exec !~ /$\/usr/abills\/\misc\/ /);
-      #      my $exec_content = system("$1");
-      #      $tpl =~ s/\%$var\%/$exec_content/g;
-      #     }
-      #    els
-
       if (defined($variables_ref->{$var})) {
         $variables_ref->{$var} =~ s/\%$var\%//g;
       }
@@ -3454,7 +3472,7 @@ sub tpl_show {
       }
       elsif (defined($variables_ref->{$var})) {
         if ($variables_ref->{$var} !~ /\=\'|\' | \'/ && !$attr->{SKIP_QUOTE}) {
-          $variables_ref->{$var} =~ s/\'/&rsquo;/g;
+          $variables_ref->{$var} =~ s/\'/&#39;/g;
         }
         $tpl =~ s/\%$var$delimiter$default%/$variables_ref->{$var}/g;
       }
@@ -3725,7 +3743,7 @@ sub letters_list {
     push @alphabet, $attr->{EXPR};
   }
 
-  my $letters = $self->li($self->button('All', "index=$index"), { class => (!$FORM{letter}) ? 'active' : undef });
+  my $letters = $self->li($self->button('All', "index=$index", { class => 'page-link' }), { class => (!$FORM{letter}) ? 'page-item active' : 'page-item' });
 
   foreach my $line (@alphabet) {
     my $first = '';
@@ -3744,9 +3762,9 @@ sub letters_list {
       my $l = ($i > 10) ? chr($i) : $i;
       my $active = '';
       if ($FORM{letter} && $FORM{letter} eq $l) {
-        $active = 'active';
+        $active = 'page-item active';
       }
-      $letters .= $self->li($self->button($l, "index=$index&letter=$l" . ($pages_qs || '')), { class => $active });
+      $letters .= $self->li($self->button($l, "index=$index&letter=$l" . ($pages_qs || ''), { class => 'page-link' }), { class => $active });
     }
   }
 
@@ -3756,7 +3774,7 @@ sub letters_list {
   }
   else {
     return "
-      <div class='rules hidden-print'>
+      <div class='btn btn-group'>
         <ul class='pagination pagination-sm'>$letters</ul>
       </div>\n";
   }
@@ -3863,7 +3881,6 @@ sub make_charts {
   }
 
   my $compare_x_text = '';
-  #my @compare_data_columns = ();
   if ($CHART_OPTIONS{compare_enable}) {
     if ($series_count != 1) {
       my @compare_x_text_arr = ();
@@ -4093,26 +4110,26 @@ sub make_charts_simple {
 
 =cut
 #**********************************************************
-sub make_charts3 {
-  my $self = shift;
-  my ($name, $type, $attr) = @_;
-
-  $attr->{element} = "graph_" . $attr->{element};
-  my $ATTR = JSON->new->indent->encode($attr);
-
-  my $chart = $self->element('div', undef, { id => $attr->{element}, class => 'graph', style => 'height: 250px' });
-  my $result = $self->element('div', $self->element('h5', $name, { class => 'text-center' }) . $chart, { class => 'span6' });
-
-  $result .= qq(
-  	<link rel='stylesheet' type='text/css' href='/styles/$self->{HTML_STYLE}/plugins/morris/morris.css'>
-    <script type='text/javascript' src='/styles/default_adm/js/raphael.min.js'></script>
-	  <script type='text/javascript' src='/styles/$self->{HTML_STYLE}/plugins/morris/morris.min.js'></script>
-    <script>
-	    Morris.$type($ATTR);
-	  </script> );
-
-  return $result;
-}
+# sub make_charts3 {
+#   my $self = shift;
+#   my ($name, $type, $attr) = @_;
+#
+#   $attr->{element} = "graph_" . $attr->{element};
+#   my $ATTR = JSON->new->indent->encode($attr);
+#
+#   my $chart = $self->element('div', undef, { id => $attr->{element}, class => 'graph', style => 'height: 250px' });
+#   my $result = $self->element('div', $self->element('h5', $name, { class => 'text-center' }) . $chart, { class => 'span6' });
+#
+#   $result .= qq(
+#   	<link rel='stylesheet' type='text/css' href='/styles/$self->{HTML_STYLE}/plugins/morris/morris.css'>
+#     <script type='text/javascript' src='/styles/default_adm/js/raphael.min.js'></script>
+# 	  <script type='text/javascript' src='/styles/$self->{HTML_STYLE}/plugins/morris/morris.min.js'></script>
+#     <script>
+# 	    Morris.$type($ATTR);
+# 	  </script> );
+#
+#   return $result;
+# }
 #**********************************************************
 =head2 br($attr) - Make HTML <br> element (Break line)
 
@@ -4226,7 +4243,7 @@ sub b {
 
   Examples:
 
-    $html->element('div', 'Hello word', { class => "btn btn-default" });
+    $html->element('div', 'Hello word', { class => "btn btn-secondary" });
 
 =cut
 #**********************************************************
@@ -4271,10 +4288,10 @@ sub badge {
   my $self = shift;
   my ($text, $attr) = @_;
 
-  my $type = ($attr->{TYPE}) ? "$attr->{TYPE}" : 'bg-gray-active';
-  my $style = ($attr->{STYLE}) ? "$attr->{STYLE}" : "";
+  my $type = ($attr->{TYPE}) ? "$attr->{TYPE}" : 'badge-info';
+  my $style = ($attr->{STYLE}) ? " $attr->{STYLE}" : "";
 
-  return "<span class='label $type'$style>" . ($text || '') . "</span>";
+  return "<span class='badge $type'$style>" . ($text || '') . "</span>";
 }
 
 #***********************************************************
@@ -4386,33 +4403,34 @@ sub progress_bar {
       $bage_color = $attr->{COLOR} ? $attr->{COLOR} : 'green';
     }
 
-    $ret = qq{<div class="row">
-                <div class="col-md-8">
-                 <div class="progress progress-xs progress-striped $active">
-                   <div class="progress-bar progress-bar-$bar_color" style="width: $complete%"></div>
-                 </div>
-                </div>
-                <div class="col-md-3"><span class="badge bg-$bage_color">$bage_text</span>
-               </div>
-              </div>
+    $ret = qq{
+      <div class="row">
+        <div class="col-md-8">
+          <div class="progress progress-xs progress-striped $active">
+            <div class="progress-bar progress-bar-$bar_color" style="width: $complete%"></div>
+          </div>
+        </div>
+      <div class="col-md-3">
+        <span class="badge bg-$bage_color">$bage_text</span>
+      </div>
     };
   }
   else {
     $bar_color = $attr->{COLOR} ? $attr->{COLOR} : 'green';
     $bage_color = $attr->{COLOR} ? $attr->{COLOR} : 'green';
     $ret = qq{
-   <div class="progress-bar progress-bar-success" style="width: $first_step%">
-     <p style="color: $text_color"> $attr->{TEXT} </p> <span class="sr-only">$first_step% Complete (success)</span>
-   </div> };
+    <div class="progress-bar bg-success" style="width: $first_step%">
+      <span style="color: $text_color"> $attr->{TEXT} </span> <span class="sr-only">$first_step% Complete (success)</span>
+    </div> };
 
     if ($second_step) {
-      $ret .= qq{<div class="progress-bar progress-bar-warning progress-bar-striped" style="width: $second_step%">
+      $ret .= qq{<div class="progress-bar bg-warning" style="width: $second_step%">
       <span class="sr-only">$second_step% Complete (warning) </span>
     </div>};
     }
 
     if ($third_step) {
-      $ret .= qq{ <div class="progress-bar progress-bar-danger" style="width: $third_step%">
+      $ret .= qq{ <div class="progress-bar bg-danger" style="width: $third_step%">
       <span class="sr-only">$third_step% Complete (danger)</span>
     </div> };
     }
@@ -4435,60 +4453,61 @@ sub progress_bar {
 
 ARGUMENTS:
   $panels - hash_ref or array_ref of hash_ref
-   MANDATORY
+  MANDATORY
     * ID     - unique value, used to apply CSS rules (can not start from a number)
     * NUMBER - number
     * TEXT   - text that describes number (Can be a link)
-    * ICON   - an identifying part of glyphicon name (e.g for 'glyphicon glyphicon-plus' it will be 'plus')
+    * ICON   - an identifying part of fa name (e.g for 'fa fa-plus' it will be 'plus')
 
-   OPTIONAL
+  OPTIONAL
     * SIZE   - size in columns if you are too lazy to form a template;
     * LINK   - $html->button formed link element where user can see full information
     * COLOR  - by default it will be got from AColorPalette, but you can pass here HEX, text, RGB or RGBA color
     * TEXT_COLOR - text color (including icon)
+    * URL
 
   $attr
     * OUTPUT2RETURN
 
 EXAMPLES:
 
- $html->short_info_panels_row(
-   {
-     ID     => mk_unique_value(10),
-     NUMBER => 42,
-     ICON   => 'globe',
-     TEXT   => $html->button("The Answer", undef, { GLOBAL_URL => 'https://uk.wikipedia.org/wiki/%D0%92%D1%96%D0%B4%D0%BF%D0%BE%D0%B2%D1%96%D0%B4%D1%8C_%D0%BD%D0%B0_%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%BD%D1%8F_%D0%B6%D0%B8%D1%82%D1%82%D1%8F,_%D0%92%D1%81%D0%B5%D1%81%D0%B2%D1%96%D1%82%D1%83_%D1%96_%D0%B2%D0%B7%D0%B0%D0%B3%D0%B0%D0%BB%D1%96', OUTPUT2RETURN => 1 }),
-     COLOR  => 'purple',
-     SIZE   => 3
-   }
- );
+  $html->short_info_panels_row(
+    {
+      ID     => mk_unique_value(10),
+      NUMBER => 42,
+      ICON   => 'globe',
+      TEXT   => $html->button("The Answer", undef, { GLOBAL_URL => 'https://uk.wikipedia.org/wiki/%D0%92%D1%96%D0%B4%D0%BF%D0%BE%D0%B2%D1%96%D0%B4%D1%8C_%D0%BD%D0%B0_%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%BD%D1%8F_%D0%B6%D0%B8%D1%82%D1%82%D1%8F,_%D0%92%D1%81%D0%B5%D1%81%D0%B2%D1%96%D1%82%D1%83_%D1%96_%D0%B2%D0%B7%D0%B0%D0%B3%D0%B0%D0%BB%D1%96', OUTPUT2RETURN => 1 }),
+      COLOR  => 'purple',
+      SIZE   => 3
+    }
+  );
 
- Row of panels with footer and returned result
+  Row of panels with footer and returned result
 
   my $panel = $html->short_info_panels_row(
   [
-   {
-     ID     => mk_unique_value(10),
-     NUMBER => 42,
-     TEXT   => "The Answer",
-     ICON   => 'globe',
-     LINK   => $html->button("$lang{FULL}", undef, { GLOBAL_URL => 'https://uk.wikipedia.org/wiki/%D0%92%D1%96%D0%B4%D0%BF%D0%BE%D0%B2%D1%96%D0%B4%D1%8C_%D0%BD%D0%B0_%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%BD%D1%8F_%D0%B6%D0%B8%D1%82%D1%82%D1%8F,_%D0%92%D1%81%D0%B5%D1%81%D0%B2%D1%96%D1%82%D1%83_%D1%96_%D0%B2%D0%B7%D0%B0%D0%B3%D0%B0%D0%BB%D1%96', OUTPUT2RETURN => 1 }),
-     COLOR  => 'purple',
-     SIZE   => 3
-   },
-   {
-     ID     => mk_unique_value(10),
-     NUMBER => 42,
-     ICON   => 'globe',
-     TEXT   => $html->button("The Answer", undef, { GLOBAL_URL => 'https://uk.wikipedia.org/wiki/%D0%92%D1%96%D0%B4%D0%BF%D0%BE%D0%B2%D1%96%D0%B4%D1%8C_%D0%BD%D0%B0_%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%BD%D1%8F_%D0%B6%D0%B8%D1%82%D1%82%D1%8F,_%D0%92%D1%81%D0%B5%D1%81%D0%B2%D1%96%D1%82%D1%83_%D1%96_%D0%B2%D0%B7%D0%B0%D0%B3%D0%B0%D0%BB%D1%96', OUTPUT2RETURN => 1 }),
-     COLOR  => 'purple',
-     SIZE   => 3
-   }
-  ],
-   {
-     OUTPUT2RETURN =>1
-   }
- );
+    {
+      ID     => mk_unique_value(10),
+      NUMBER => 42,
+      TEXT   => "The Answer",
+      ICON   => 'globe',
+      LINK   => $html->button("$lang{FULL}", undef, { GLOBAL_URL => 'https://uk.wikipedia.org/wiki/%D0%92%D1%96%D0%B4%D0%BF%D0%BE%D0%B2%D1%96%D0%B4%D1%8C_%D0%BD%D0%B0_%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%BD%D1%8F_%D0%B6%D0%B8%D1%82%D1%82%D1%8F,_%D0%92%D1%81%D0%B5%D1%81%D0%B2%D1%96%D1%82%D1%83_%D1%96_%D0%B2%D0%B7%D0%B0%D0%B3%D0%B0%D0%BB%D1%96', OUTPUT2RETURN => 1 }),
+      COLOR  => 'purple',
+      SIZE   => 3
+    },
+    {
+      ID     => mk_unique_value(10),
+      NUMBER => 42,
+      ICON   => 'globe',
+      TEXT   => $html->button("The Answer", undef, { GLOBAL_URL => 'https://uk.wikipedia.org/wiki/%D0%92%D1%96%D0%B4%D0%BF%D0%BE%D0%B2%D1%96%D0%B4%D1%8C_%D0%BD%D0%B0_%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%BD%D1%8F_%D0%B6%D0%B8%D1%82%D1%82%D1%8F,_%D0%92%D1%81%D0%B5%D1%81%D0%B2%D1%96%D1%82%D1%83_%D1%96_%D0%B2%D0%B7%D0%B0%D0%B3%D0%B0%D0%BB%D1%96', OUTPUT2RETURN => 1 }),
+      COLOR  => 'purple',
+      SIZE   => 3
+    }
+    ],
+    {
+      OUTPUT2RETURN =>1
+    }
+  );
 
 =cut
 #***********************************************************
@@ -4503,7 +4522,7 @@ sub short_info_panels_row {
   #system colors
   my $system_colors = 'PRIMARY, INFO, SUCCESS, WARNING, DEFAULT, DANGER';
 
-  my $result = "<div class='row'>";
+  my $result = "<div class='row justify-content-md-center'>";
   foreach my $panel (@$panels) {
     my $number = ($panel->{NUMBER} && $panel->{NUMBER} ne '') ? $panel->{NUMBER} : '';
     my $number_size = $panel->{NUMBER_SIZE} || '20px';
@@ -4567,7 +4586,7 @@ sub short_info_panels_row {
     my $footer = '';
     if ($panel->{LINK}) {
       $footer = qq{
-        <div class='box-footer row'>
+        <div class='card-footer row'>
           <div class='pull-left'>$link</div>
         </div>
       };
@@ -4576,35 +4595,41 @@ sub short_info_panels_row {
     my $columns = '';
     if ($icon) {
       $columns = qq{
-            <div class="col-xs-3">
-              <i class="glyphicon glyphicon-$icon fa-5x"></i>
-            </div>
-            <div class="col-xs-9 text-right">
-              <div style="font-size: $number_size">$number</div>
-              <div class='summary'>$text</div>
-            </div>
+      <div class='small-box bg-$color'>
+        <div class='inner'>
+          <h3>$number</h3>
+            <p>$text</p>
+          </div>
+          <div class='icon'>
+            <i class='fa fa-$icon fa-5x'></i>
+          </div>
+          <a href='$SELF_URL?};
+
+      $columns .= ($panel->{URL}) ? $panel->{URL} : q{};
+      $columns .= qq{' class='small-box-footer'>
+            More info
+            <i class='fa fa-arrow-circle-right'></i>
+          </a>
+        </div>
+      </div>
       };
     }
     else {
       $columns = qq{
-            <div class="col-xs-12 text-center">
-              <div style="font-size: $number_size">$number</div>
-              <div class='summary'>$text</div>
-            </div>
+        <div class="col-xs-12 text-center">
+          <div style="font-size: $number_size">$number</div>
+          <div class='summary'>$text</div>
+        </div>
       };
     }
 
     my $panel_html = qq{
-
       $color_definition
-      <div class="panel box-$color" id="$id">
-        <div class="box-heading">
-          <div class="row">
-            $columns
-          </div>
+      <div class="small-box bg-$color" id="$id">
+        <div class="card-heading">
+          $columns
         </div>
         $footer
-      </div>
     };
 
     $panel_html = "<div class='col-md-$size'>$panel_html</div>" if ($size ne '');
@@ -4659,7 +4684,7 @@ sub short_info_panels_row {
 
   Example:
 
-   my $list = [
+  my $list = [
 
     { ID => '1',  NAME => 'Level1_1', VALUE => '1' , PRENT_ID => '0'},
     { ID => '2',  NAME => 'Level1_2', VALUE => '2' , PRENT_ID => '0'},
@@ -4772,7 +4797,10 @@ sub form_datepicker {
   my ($name, $value, $attr) = @_;
 
   my $input = $self->form_input($name, $value, { class => 'form-control datepicker', %{$attr // {}} });
-  my $addon = $self->element('div', '<i class="fa fa-calendar"></i>', { class => 'input-group-addon', %{$attr // {}} });
+  my $group_text = $self->element('div', '<i class="fa fa-calendar"></i>', { class => 'input-group-text', %{$attr // {}} });
+  my $addon = $self->element('div', $group_text, { class => 'input-group-append', %{$attr // {}} });
+
+  return $input . $addon if $attr->{RETURN_INPUT};
 
   return $self->element('div', $input . $addon, { class => 'input-group', %{$attr // {}} });
 }
@@ -4855,9 +4883,9 @@ sub form_daterangepicker {
     OUTPUT2RETURN => 1
   });
 
-  my $addon = $self->element('div', '<i class="fa fa-calendar"></i>', { class => 'input-group-addon', OUTPUT2RETURN => 1 });
+  return $input if $attr->{RETURN_INPUT};
 
-  return $self->element('div', $hidden_inputs . $input . $addon, { class => 'input-group', OUTPUT2RETURN => 1 });
+  return $self->element('div', $hidden_inputs . $input, { class => 'input-group', OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
@@ -4880,57 +4908,60 @@ sub form_timepicker {
   my ($name, $value, $attr) = @_;
 
   my $input = $self->form_input($name, $value, { class => 'form-control timepicker', %{$attr // {}} });
-  my $addon = $self->element('div', '<i class="fa fa-clock-o"></i>', { class => 'input-group-addon' });
+  my $group_text = $self->element('div', '<i class="fa fa-clock-o"></i>', { class => 'input-group-text', %{$attr // {}} });
+  my $addon = $self->element('div', $group_text, { class => 'input-group-append' });
 
   return $self->element('div', $input . $addon, { class => 'input-group bootstrap-timepicker', %{$attr ? $attr : {}} });
 }
 
-#**********************************************************
-=head2 form_datetimepicker2($name, $attr)
-
-  Arguments:
-    $name
-      $attr
-         EX_PARAMS - Hash of parameters (See docs http://eonasdan.github.io/bootstrap-datetimepicker/Options/ )
-  Returns:
-    html
-
-=cut
-#**********************************************************
-
-sub form_datetimepicker2 {
-  my ($self, $name, $attr) = @_;
-  my $result;
-
-  $attr->{EX_PARAMS}->{locale} = $self->{content_language};
-  $attr->{EX_PARAMS}->{maxDate} = localtime(time);
-  $attr->{EX_PARAMS}->{format} = 'YYYY-MM-DD HH:mm' if !$attr->{EX_PARAMS}->{format};
-
-  my $ATTR = JSON->new->encode($attr->{EX_PARAMS});
-
-  if ($attr->{ICON}) {
-    $result = qq(
-                  <div class='input-group date' id='$name'>
-                      <input type='text' class='form-control' name='$name' />
-                      <span class='input-group-addon'>
-                          <span class='glyphicon glyphicon-calendar'></span>
-                      </span>
-                  </div>
-  				);
-  }
-  else {
-    $result = $self->form_input($name, $name);
-  }
-  $result .= qq(
-          <script type="text/javascript">
-              \$(function () {
-                  \$('#$name').datetimepicker($ATTR);
-              });
-          </script>
-  );
-
-  return $result;
-}
+# #**********************************************************
+# =head2 form_datetimepicker2($name, $attr)
+#
+#   Arguments:
+#     $name
+#       $attr
+#         EX_PARAMS - Hash of parameters (See docs http://eonasdan.github.io/bootstrap-datetimepicker/Options/ )
+#   Returns:
+#     html
+#
+# =cut
+# #**********************************************************
+#
+# sub form_datetimepicker2 {
+#   my ($self, $name, $attr) = @_;
+#   my $result;
+#
+#   $attr->{EX_PARAMS}->{locale} = $self->{content_language};
+#   $attr->{EX_PARAMS}->{maxDate} = localtime(time);
+#   $attr->{EX_PARAMS}->{format} = 'YYYY-MM-DD HH:mm' if !$attr->{EX_PARAMS}->{format};
+#
+#   my $ATTR = JSON->new->encode($attr->{EX_PARAMS});
+#
+#   if ($attr->{ICON}) {
+#     $result = qq(
+#                   <div class='input-group date' id='$name'>
+#                       <input type='text' class='form-control' name='$name' />
+#                       <div class='input-group-append'>
+#                         <div class='input-group-text'>
+#                           <i class='fa fa-calendar'></i>
+#                         </div>
+#                       </div>
+#                   </div>
+#   				);
+#   }
+#   else {
+#     $result = $self->form_input($name, $name);
+#   }
+#   $result .= qq(
+#           <script type="text/javascript">
+#               \$(function () {
+#                   \$('#$name').datetimepicker($ATTR);
+#               });
+#           </script>
+#   );
+#
+#   return $result;
+# }
 
 #**********************************************************
 =head2 form_datetimepicker($name, $value, $attr) - simple datetime chooser
@@ -4953,14 +4984,6 @@ sub form_datetimepicker2 {
 sub form_datetimepicker {
   my ($self, $name, $value, $attr) = @_;
 
-  #  my $hidden_input = $self->form_input($name, $value, { TYPE => 'hidden', EX_PARAMS => 'class="datetimepicker-hidden"' });
-  #
-  #  my ($date, $time) = split(' ', $value, 2) if ($value);
-  #  my $date_input = $self->element('div', $self->form_datepicker($name . '_DATE', $date ), {class => 'col-md-6', %{ $attr // {} } });
-  #  my $time_input = $self->element('div', $self->form_timepicker($name . '_TIME', $time ), {class => 'col-md-6', %{ $attr // {} } });
-  #
-  #  return $self->element('div', $hidden_input . $date_input . $time_input, { class => 'datetimepicker' });
-
   my $result = '';
 
   my %datetimepicker_options = (
@@ -4981,13 +5004,15 @@ sub form_datetimepicker {
 
   if ($attr->{ICON}) {
     $input = qq(
-                  <div class='input-group' id='$name'>
-                      $input
-                      <span class='input-group-addon'>
-                          <span class='glyphicon glyphicon-calendar'></span>
-                      </span>
-                  </div>
-  				);
+    <div class='input-group' id='$name'>
+      $input
+      <div class='input-group-append'>
+        <div class='input-group-text'>
+          <span class='fa fa-calendar'></span>
+        </div>
+      </div>
+    </div>
+    );
   }
 
   my $event_scripts = '';
@@ -5153,8 +5178,8 @@ sub redirect {
 sub form_blocks_togglable {
   my ($self, $first_block, $second_block, $attr) = @_;
 
-  my $icon1 = $attr->{ICON1} // 'glyphicon glyphicon-plus';
-  my $icon2 = $attr->{ICON2} // 'glyphicon glyphicon-th-list';
+  my $icon1 = $attr->{ICON1} // 'fa fa-plus';
+  my $icon2 = $attr->{ICON2} // 'fa fa-th-list';
 
   my $rnd_str = sub {join '', @_[ map {rand @_} 1 .. shift ]};
 
@@ -5165,7 +5190,7 @@ sub form_blocks_togglable {
     <div id='$id1'>
       <div class='input-group'>
         $first_block
-        <div class='input-group-addon'>
+        <div class='input-group-append'>
           <a data-toggle='block'>
             <span class='$icon1'></span>
           </a>
@@ -5176,7 +5201,7 @@ sub form_blocks_togglable {
     <div id='$id2' style='display: none'>
       <div class='input-group'>
         $second_block
-        <div class='input-group-addon'>
+        <div class='input-group-append'>
           <a data-toggle='block'>
             <span class='$icon2'></span>
           </a>
@@ -5329,12 +5354,12 @@ sub chart {
     $result .= qq{
     <canvas id="$canvas_id" class="chartjs" style="display: block; min-height: 250px"></canvas>
     <script>
-       var c = document.getElementById("$canvas_id");
-       var ctx = c.getContext("2d");
-       var myChart = new Chart(ctx, {
-         type: '$chart_type',
-         data: $chart_data1,
-         options: $chart_options1
+      var c = document.getElementById("$canvas_id");
+      var ctx = c.getContext("2d");
+      var myChart = new Chart(ctx, {
+        type: '$chart_type',
+        data: $chart_data1,
+        options: $chart_options1
       });
     </script>
   };
@@ -5369,22 +5394,22 @@ sub chart {
   $result .= qq{
     <canvas id="$canvas_id" class="chartjs" style="display: block; min-height: 250px"></canvas>
     <script>
-       var c = document.getElementById("$canvas_id");
-       var ctx = c.getContext("2d");
-       var myChart = new Chart(ctx, {
-         type: '$chart_type',
-         data: $json_data,
-         maintainAspectRatio : true,
-         options: {
-           $scales
-           responsive : true,
-           $hide_legend_option
-           title: {
-                   display: true,
-                   text: '$chart_title',
-                   fontSize: 16,
-           },
-         }
+      var c = document.getElementById("$canvas_id");
+      var ctx = c.getContext("2d");
+      var myChart = new Chart(ctx, {
+        type: '$chart_type',
+        data: $json_data,
+        maintainAspectRatio : true,
+        options: {
+          $scales
+          responsive : true,
+          $hide_legend_option
+          title: {
+                  display: true,
+                  text: '$chart_title',
+                  fontSize: 16,
+          },
+        }
       });
     </script>
   };
@@ -5395,56 +5420,6 @@ sub chart {
 
   return $result;
 }
-
-##**********************************************************
-#=head2 form_file_dropzone($attr) - drag'n'drop file upload element
-#
-#  Arguments:
-#    $attr -
-#    NAME
-#  Returns:
-#
-#
-#=cut
-##**********************************************************
-#sub form_file_dropzone {
-#  my ($self, $attr) = @_;
-#
-#  load_pmodule("JSON");
-#  #  require JSON;
-#  #  JSON->import();
-#
-#  my $id = $attr->{ID} || mk_unique_value(5);
-#
-#  my %default_options = (
-#    paramName        => $attr->{NAME} || 'FILE_UPLOAD' ,
-#    maxFiles         => $attr->{MAX_FILES} || 1,
-#    autoProcessQueue => $attr->{HANDLE_URL} ? \1 : \0,
-#  );
-#
-#  my %options = %default_options;
-#
-#  if ($attr->{HANDLE_URL}) {
-#    $options{autoProcessQueue} = \1;
-#    $options{url} = $attr->{HANDLE_URL};
-#  }
-#
-#  my $options_encoded = JSON->new->encode(\%options);
-#
-#  my $content = qq'
-#  <script src="/styles/default_adm/js/dropzone.min.js"></script>
-#  <div id="$id"></div>
-#  <script>
-#    jQuery(function(){
-#      var dropzone = new Dropzone("div#$id", $options_encoded);
-#    });
-#  </script>
-#  ';
-#
-#
-#  return $content;
-#}
-
 
 #**********************************************************
 =head1 AUTHOR
@@ -5477,9 +5452,11 @@ sub chart {
 sub html_tree {
   my $self = shift;
   my ($list, $keys) = @_;
+
   my $DATA = JSON->new->encode($list);
+
   my $result .= qq(
-     <div id="show_tree" style="text-align: left;"> </div>
+    <div id="show_tree" style="text-align: left;"> </div>
     <link rel='stylesheet' href='/styles/default_adm/css/new_tree.css'>
     <script type='text/javascript' src='/styles/default_adm/js/tree/tree.js'></script>
     <script>
@@ -5490,11 +5467,33 @@ sub html_tree {
       make_tree(list, keys);
       });
 	  </script> );
+
+  $result .= "<textarea cols=160 rows=6> '$keys' \n\n $DATA</textarea>";
+
   return $result;
 }
 
 #**********************************************************
-=head2 _make_perm_clases($perm)
+=head2 _make_perm_clases($perm) - make permissions hidden/disabled/readonly classes. 
+
+  Generates HTML classes that allows to hide/disable/make readonly a field, if admin's certain permission is disabled.
+  Classes names: {modifier}-{permission_section}-{permission_action},
+  where {modifier} can be one of following:
+    h - hidden
+    r - readonly
+    d - disabled
+
+  It only affects fields visually, you still need to check permissions before process data from form
+
+  Arguments:
+    $perm - permissions hashref
+  
+  Returns:
+    HTML code (style, script)
+
+  Example:
+    You need to make input readonly, if admin's permission Customers>Credit (0-9) is disabled.
+    In this case, you need to add class r-0-9 to the input.
 
 =cut
 #**********************************************************
@@ -5530,7 +5529,7 @@ sub _make_perm_clases {
 
 #**********************************************************
 =head2 button_isp_express()
-  
+
   Arguments:
     $attr:
       INFO      - Hash value button
@@ -5555,7 +5554,7 @@ sub button_isp_express {
         $informations .= "<li><a href='$value'>$key</a></li>";
       }
 
-      push @titles, 
+      push @titles,
       "<a href='#' class='dropdown-toggle' data-toggle='dropdown'>$title<b class='caret'></b></a>
         <ul class='dropdown-menu multi-column columns-3'>
           <div class='row'>
@@ -5578,27 +5577,21 @@ sub button_isp_express {
   } else {
     foreach my $title (@{ $attr->{INFO} }) {
       my ($key, $value) = each(%$title);
-      $block_button_info .= "<li class='dropdown'><a href='$value' class='dropdown-toggle'>$key</a></li>";
+      $block_button_info .= "<li class='nav-item '><a href='$value' class='nav-link'>$key</a></li>";
     }
   }
 
-  my $result = 
-  "<section class='content-header'>  
-      <nav class='navbar navbar-default' role='navigation'>
-        <div class='navbar-header'>
-          <button type='button' class='navbar-toggle' data-toggle='collapse' data-target='#bs-example-navbar-collapse-1'>
-	          <span class='icon-bar'></span>
-	          <span class='icon-bar'></span>
-	          <span class='icon-bar'></span>
-          </button>
-        </div>
-        <div class='collapse navbar-collapse' id='bs-example-navbar-collapse-1'>
-          <ul class='nav navbar-nav'>
-            $block_button_info
-          </ul>
-        </div>
-      </nav>
-  </section>";
+  my $result = qq{
+    <section class='content-header'>
+        <nav class='navbar navbar-expand-lg navbar-light bg-light' role='navigation'>
+          <div class='collapse navbar-collapse' id='bs-example-navbar-collapse-1'>
+            <ul class='navbar-nav mr-auto'>
+              $block_button_info
+            </ul>
+          </div>
+        </nav>
+    </section>
+  };
 
   return $result;
 }

@@ -38,6 +38,8 @@ sub new {
   $self->{admin} = $admin;
   $self->{conf} = $CONF;
 
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
+
   return $self;
 }
 
@@ -117,7 +119,7 @@ sub messages_new {
 
   if ($attr->{GID}) {
     $self->query('SELECT '. $fields
-      .' FROM (msgs_messages m, users u)'
+      .' FROM (msgs_messages m, users u) '
       . $EXT_TABLE
       . ' '
       . $WHERE . ' AND u.uid=m.uid GROUP BY 7;'
@@ -125,7 +127,7 @@ sub messages_new {
   }
   else {
     $self->query('SELECT ' . $fields
-      . ' FROM msgs_messages m'
+      . ' FROM msgs_messages m '
       . $EXT_TABLE
       . ' '
       . $WHERE
@@ -133,7 +135,7 @@ sub messages_new {
     );
   }
 
-  if ($self->{TOTAL}) {
+  if ($self->{TOTAL} > 0) {
     ($self->{UNREAD}, $self->{TODAY}, $self->{OPENED}, $self->{LAST_ID}, $self->{CHAPTER}, $self->{MSG_ID}) = @{$self->{list}->[0]};
   }
 
@@ -249,8 +251,7 @@ sub messages_list {
     push @WHERE_RULES, "m.resposible IN ($attr->{RESPOSIBLE_IDS})";
   }
 
-  $admin->{permissions}->{0}->{8} = 1;
-  my $WHERE = $self->search_former($attr, [
+  my @search_params = (
     [ 'MSG_ID',                 'INT',    'm.id',                                                                        ],
     [ 'CLIENT_ID',              'STR',    'if(m.uid>0, u.id, mg.name)', 'if(m.uid>0, u.id, mg.name) AS client_id'        ],
     [ 'SUBJECT',                'STR',    'm.subject',                                                                 1 ],
@@ -306,15 +307,22 @@ sub messages_list {
     [ 'ADDRESS_BY_LOCATION_ID', 'STR',    "CONCAT(ds.name, ', ', st.name, ', ', bl.number) AS address_by_location",
       "CONCAT(ds.name, ', ', st.name, ', ', bl.number) AS address_by_location_id"                                        ],
     [ 'ADMIN_DISABLE',          'INT',   'ra.disable', 'ra.disable AS admin_disable',                                  1 ],
-    [ 'DONE_SUM',               'INT',   'SUM(m.resposible && m.state) AS done_sum',                                   1 ]
-  ],
-    { WHERE             => 1,
-      WHERE_RULES       => \@WHERE_RULES,
-      USERS_FIELDS      => 1,
-      SKIP_USERS_FIELDS => [ 'GID', 'UID' ],
-      USE_USER_PI       => 1
-    }
+    [ 'DONE_SUM',               'INT',   'SUM(m.resposible && m.state) AS done_sum',                                   1 ],
+    [ 'PLAN_INTERVAL',          'INT',   'm.plan_interval',                                                            1 ],
+    [ 'PLAN_POSITION',          'INT',   'm.plan_position',                                                            1 ],
+    [ 'SEND_TYPE',              'INT',   'm.send_type',                                                                1 ],
   );
+
+  push(@search_params, [ 'PERFORMERS', 'INT', 'GROUP_CONCAT(DISTINCT ea.name) AS performers', 1 ]) if (Abills::Base::in_array('Employees', \@main::MODULES));
+
+  $admin->{permissions}->{0}->{8} = 1;
+  my $WHERE = $self->search_former($attr, \@search_params, {
+    WHERE             => 1,
+    WHERE_RULES       => \@WHERE_RULES,
+    USERS_FIELDS      => 1,
+    SKIP_USERS_FIELDS => [ 'GID', 'UID' ],
+    USE_USER_PI       => 1
+  });
 
   my $EXT_TABLES = $self->{EXT_TABLES};
 
@@ -332,6 +340,11 @@ sub messages_list {
 
   if ($self->{SEARCH_FIELDS} =~ /mc\./ || $WHERE =~ /mc\./) {
     $EXT_TABLES .= "LEFT JOIN msgs_chapters mc ON (m.chapter=mc.id)";
+  }
+
+  if ($self->{SEARCH_FIELDS} =~ /ea\./) {
+    $EXT_TABLES .= "LEFT JOIN employees_works em ON (em.ext_id=m.id)";
+    $EXT_TABLES .= "LEFT JOIN admins ea ON (em.employee_id=ea.aid)";
   }
 
   if ($admin->{DOMAIN_ID}) {
@@ -401,8 +414,8 @@ sub messages_list {
       LEFT JOIN admins ra ON (m.resposible=ra.aid)
       $WHERE
       GROUP BY $GROUP_BY
-        ORDER BY $SORT $DESC
-        LIMIT $PG, $PAGE_ROWS;",
+      ORDER BY $SORT $DESC
+      LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );
@@ -599,12 +612,16 @@ sub chapters_list {
     $EXT_TABLES .= "LEFT JOIN msgs_messages m ON (mc.id=m.chapter)";
   }
 
-  if ($admin->{DOMAIN_ID}) {
-    $admin->{DOMAIN_ID} =~ s/;/,/g;
-    $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." mc.domain_id IN ($admin->{DOMAIN_ID})";
+  my $domain_id = $attr->{DOMAIN_ID} || $admin->{DOMAIN_ID} || q{};
+
+  if ($domain_id) {
+    $domain_id =~ s/;/,/g;
+    $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." mc.domain_id IN ($domain_id)";
   }
 
-  $self->query("SELECT mc.id, $self->{SEARCH_FIELDS} mc.name, mc.inner_chapter, mc.responsible, mc.autoclose, ra.id AS admin_login
+  $self->query("SELECT mc.id, $self->{SEARCH_FIELDS}
+     mc.name, mc.inner_chapter, mc.responsible,
+     mc.autoclose, ra.id AS admin_login
     FROM msgs_chapters mc
     LEFT JOIN admins ra ON (ra.aid=mc.responsible)
     $EXT_TABLES
@@ -713,10 +730,7 @@ sub admins_list {
     [ 'EMAIL',        'STR', 'a.email',        ],
     [ 'CHAPTER_ID',   'INT', 'ma.chapter_id'   ],
     [ 'DISABLE',      'INT', 'a.disable'       ]
-  ],
-    { WHERE => 1,
-    }
-  );
+  ], { WHERE => 1 });
 
   $self->query("SELECT a.id AS admin_login,
      mc.name AS chapter_name,
@@ -773,7 +787,7 @@ sub admin_change {
 }
 
 #**********************************************************
-=head2 chapter_del($attr)
+=head2 admin_del($attr)
 
 =cut
 #**********************************************************
@@ -787,17 +801,18 @@ sub admin_del {
 }
 
 #**********************************************************
-# Bill
+=head2 admin_info($attr)
+
+=cut
 #**********************************************************
 sub admin_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT * FROM msgs_chapters WHERE id= ? ",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
-  );
+  $self->query("SELECT * FROM msgs_chapters WHERE id= ? ", undef, {
+    INFO => 1,
+    Bind => [ $id ]
+  });
 
   return $self;
 }
@@ -858,7 +873,7 @@ sub message_reply_del {
 }
 
 #**********************************************************
-=head2 messages_list($attr)
+=head2 messages_reply_list($attr)
 
 =cut
 #**********************************************************
@@ -963,7 +978,7 @@ sub messages_reply_list {
       REPLY_TEXT
       STATE            - state that was sent with reply
       REPLY_INNER_MSG  - is this reply inner ( administrators visible only )
-      
+
   Returns:
     $self
 
@@ -998,13 +1013,11 @@ sub message_reply_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_reply',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_reply',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -1053,6 +1066,7 @@ sub attachments_list {
   if ($attr->{SHOW_ALL_COLUMNS}) {
     map {$attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]}} @$search_columns;
   }
+
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
 
   $self->query("SELECT $self->{SEARCH_FIELDS} ma.id
@@ -1117,13 +1131,11 @@ sub attachment_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_attachments',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_attachments',
+    DATA         => $attr,
+  });
 
   return $self->{result};
 }
@@ -1149,13 +1161,8 @@ sub attachment_info {
     $WHERE = "id='$attr->{ID}'";
   }
 
-  if ($attr->{UID}) {
-    $WHERE .= " AND (create_by='$attr->{UID}' or create_by='0')";
-  }
-
-  if (!$WHERE) {
-    return $self;
-  }
+  $WHERE .= " AND (create_by='$attr->{UID}' or create_by='0')" if ($attr->{UID});
+  return $self if (!$WHERE);
 
   $self->query("SELECT id AS attachment_id, filename,
     content_type,
@@ -1167,25 +1174,7 @@ sub attachment_info {
     { INFO => 1 }
   );
 
-  if ($self->{errno} && $self->{errno} == 2) {
-    $self->{errno} = undef;
-  }
-
-  #  if ($self->{conf}{MSGS_ATTACH2FILE} && $self->{CONTENT} && $self->{CONTENT} =~ /^FILE: (..\/)*([a-zA-Z0-9_\-.]+)/){
-  #    require Attach;
-  #    Attach->import();
-  #
-  #    my $Attach = Attach->new($self->{db}, $self->{admin}, $self->{conf}, {
-  #        ATTACH_PATH => ($self->{conf}->{MSGS_ATTACH2FILE} ne '1')
-  #                         ? $self->{conf}->{MSGS_ATTACH2FILE}
-  #                         : 'msgs/'
-  #      });
-  #
-  #    $self->{CONTENT} = $Attach->read_file_from_disk({
-  #      UID => $attr->{UID},
-  #
-  #    })
-  #  }
+  $self->{errno} = undef if ($self->{errno} && $self->{errno} == 2);
 
   return $self;
 }
@@ -1312,7 +1301,8 @@ sub messages_reports {
     [ 'UID', 'INT', 'm.uid', ],
     [ 'MSG_ID', 'INT', 'm.id', ],
   ],
-    { WHERE       => 1,
+    {
+      WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES,
     }
   );
@@ -1347,7 +1337,6 @@ sub messages_reports {
     $attr
   );
 
-  #  LIMIT $PG, $PAGE_ROWS;");
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0 || $PG > 0) {
@@ -1508,19 +1497,16 @@ sub dispatch_info {
   my ($id) = @_;
 
   $self->query("SELECT md.*,
-  a.aid,
-  ra.aid AS resposible_id,
-  a.name AS admin_fio,
-  ra.name AS resposible_fio,
-  cra.name AS admin_create
-FROM msgs_dispatch md
-  LEFT JOIN admins a ON (a.aid=md.aid)
-  LEFT JOIN admins ra ON (ra.aid=md.resposible)
-  LEFT JOIN admins cra ON (cra.aid=md.created_by)
-WHERE md.id= ?",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
+      a.aid,
+      ra.aid AS resposible_id,
+      a.name AS admin_fio,
+      ra.name AS resposible_fio,
+      cra.name AS admin_create
+    FROM msgs_dispatch md
+    LEFT JOIN admins a ON (a.aid=md.aid)
+    LEFT JOIN admins ra ON (ra.aid=md.resposible)
+    LEFT JOIN admins cra ON (cra.aid=md.created_by)
+    WHERE md.id= ?", undef, { INFO => 1, Bind => [ $id ] }
   );
 
   return $self;
@@ -1538,13 +1524,11 @@ sub dispatch_change {
   $attr->{INNER_CHAPTER} = ($attr->{INNER_CHAPTER}) ? 1 : 0;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_dispatch',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_dispatch',
+    DATA         => $attr,
+  });
 
   return $self->{result};
 }
@@ -1562,16 +1546,10 @@ sub dispatch_admins_change {
   my @admins = split(/, /, $attr->{AIDS});
   my @MULTI_QUERY = ();
   foreach my $aid (@admins) {
-    push @MULTI_QUERY, [
-      $attr->{DISPATCH_ID},
-      $aid
-    ];
+    push @MULTI_QUERY, [ $attr->{DISPATCH_ID}, $aid ];
   }
 
-  $self->query("INSERT INTO msgs_dispatch_admins (dispatch_id, aid)
-        VALUES (?, ?);",
-    undef,
-    { MULTI_QUERY => \@MULTI_QUERY });
+  $self->query("INSERT INTO msgs_dispatch_admins (dispatch_id, aid) VALUES (?, ?);", undef, { MULTI_QUERY => \@MULTI_QUERY });
 
   return $self;
 }
@@ -1607,10 +1585,8 @@ sub dispatch_category_info {
 
   $self->query("SELECT *
     FROM msgs_dispatch_category
-  WHERE id= ? ",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
+    WHERE id= ? ",
+    undef, { INFO => 1, Bind => [ $id ] }
   );
 
   return $self;
@@ -1626,13 +1602,11 @@ sub dispatch_category_change {
   my ($attr) = @_;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_dispatch_category',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_dispatch_category',
+    DATA         => $attr,
+  });
 
   return $self->{result};
 }
@@ -1688,11 +1662,7 @@ sub dispatch_category_list {
   my $WHERE = $self->search_former($attr, [
     [ 'ID',   'INT', 'dc.id',   1 ],
     [ 'NAME', 'STR', 'dc.name', 1 ],
-  ],
-    { WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES
-    }
-  );
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   $self->query("SELECT dc.id,
      dc.name
@@ -1707,12 +1677,7 @@ sub dispatch_category_list {
 
   my $list = $self->{list};
 
-  $self->query("SELECT COUNT(*) AS total
-    FROM msgs_dispatch_category dc
-    $WHERE;",
-    undef,
-    { INFO => 1 },
-  );
+  $self->query("SELECT COUNT(*) AS total FROM msgs_dispatch_category dc $WHERE;", undef, { INFO => 1 });
 
   return $list;
 }
@@ -1731,12 +1696,7 @@ sub unreg_requests_count {
     $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." m.domain_id IN ($admin->{DOMAIN_ID})";
   }
 
-  $self->query("SELECT COUNT(m.id) AS unreg_count
-   FROM msgs_unreg_requests m
-   $WHERE",
-    undef,
-    { INFO => 1 }
-  );
+  $self->query("SELECT COUNT(m.id) AS unreg_count FROM msgs_unreg_requests m $WHERE", undef, { INFO => 1 });
 
   return $self;
 }
@@ -1812,8 +1772,8 @@ sub unreg_requests_list {
         LEFT JOIN streets ON (streets.id=builds.street_id)" if ($self->{EXT_TABLES} !~ /streets/);
       }
       elsif ($attr->{ADDRESS_FULL}) {
-        $attr->{BUILD_DELIMITER} = ',' if (!$attr->{BUILD_DELIMITER});
-        push @WHERE_RULES, @{$self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT(streets.name, ' ', builds.number, '$attr->{BUILD_DELIMITER}', m.address_flat) AS address_full", { EXT_FIELD => 1 })};
+        my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
+        push @WHERE_RULES, @{$self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT(streets.name, '$build_delimiter', builds.number, '$build_delimiter', m.address_flat) AS address_full", { EXT_FIELD => 1 })};
 
         $self->{EXT_TABLES} .= "LEFT JOIN builds ON (builds.id=m.location_id)
           LEFT JOIN streets ON (streets.id=builds.street_id)";
@@ -1827,8 +1787,8 @@ sub unreg_requests_list {
     }
     else {
       if ($attr->{ADDRESS_FULL}) {
-        $attr->{BUILD_DELIMITER} = ',' if (!$attr->{BUILD_DELIMITER});
-        push @WHERE_RULES, @{$self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT(m.address_street, ' ', m.address_build, '$attr->{BUILD_DELIMITER}', m.address_flat) AS address_full", { EXT_FIELD => 1 })};
+        my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
+        push @WHERE_RULES, @{$self->search_expr("$attr->{ADDRESS_FULL}", "STR", "CONCAT(m.address_street, '$build_delimiter', m.address_build, '$build_delimiter', m.address_flat) AS address_full", { EXT_FIELD => 1 })};
       }
 
       if ($attr->{ADDRESS_STREET}) {
@@ -2148,8 +2108,7 @@ sub survey_subjects_list {
     [ 'CREATED',    'STR', 'ms.created',                  1 ],
     [ 'FILENAME',   'STR', 'm.filename',                  1 ],
   ],
-    { WHERE => 1,
-    }
+    { WHERE => 1 }
   );
 
   $self->query("SELECT ms.id, ms.name, $self->{SEARCH_FIELDS} ms.id AS survey_id
@@ -2162,15 +2121,7 @@ sub survey_subjects_list {
   );
 
   my $list = $self->{list};
-
-  if ($self->{TOTAL} > 0) {
-    $self->query("SELECT count(*) AS total
-     FROM msgs_survey_subjects ms
-     $WHERE",
-      undef,
-      { INFO => 1 }
-    );
-  }
+  $self->query("SELECT count(*) AS total FROM msgs_survey_subjects ms $WHERE", undef, { INFO => 1 }) if ($self->{TOTAL} > 0);
 
   return $list;
 }
@@ -2184,9 +2135,7 @@ sub survey_subject_add {
   my $self = shift;
   my ($attr) = @_;
 
-  if (!$attr->{NAME}) {
-    return $self;
-  }
+  return $self if (!$attr->{NAME});
 
   $self->query_add('msgs_survey_subjects', { %$attr,
     CREATED  => 'NOW()',
@@ -2224,17 +2173,16 @@ sub survey_subject_info {
   $self->query("SELECT *,
      id AS survey_id
     FROM msgs_survey_subjects
-  WHERE id= ? ",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
+    WHERE id= ? ", undef, { INFO => 1, Bind => [ $id ] }
   );
 
   return $self;
 }
 
 #**********************************************************
-# survey_subjects_change()
+=head2 survey_subject_change($attr)
+
+=cut
 #**********************************************************
 sub survey_subject_change {
   my $self = shift;
@@ -2242,19 +2190,19 @@ sub survey_subject_change {
 
   $admin->{MODULE} = $MODULE;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_survey_subjects',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_survey_subjects',
+    DATA         => $attr,
+  });
 
   return $self->{result};
 }
 
 #**********************************************************
-# survey_subjects_list
+=head2 survey_questions_list($attr)
+
+=cut
 #**********************************************************
 sub survey_questions_list {
   my $self = shift;
@@ -2263,12 +2211,7 @@ sub survey_questions_list {
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-  my $WHERE = $self->search_former($attr, [
-    [ 'SURVEY_ID', 'STR', 'mq.survey_id' ],
-  ],
-    { WHERE => 1,
-    }
-  );
+  my $WHERE = $self->search_former($attr, [ [ 'SURVEY_ID', 'STR', 'mq.survey_id' ], ], { WHERE => 1 });
 
   $self->query("SELECT  mq.num, mq.question, mq.comments, mq.params, mq.user_comments, mq.fill_default, mq.id
     FROM msgs_survey_questions mq
@@ -2279,21 +2222,15 @@ sub survey_questions_list {
   );
 
   my $list = $self->{list};
-
-  if ($self->{TOTAL} > 0) {
-    $self->query("SELECT count(*) AS total
-     FROM msgs_survey_questions mq
-     $WHERE",
-      undef,
-      { INFO => 1 }
-    );
-  }
+  $self->query("SELECT count(*) AS total FROM msgs_survey_questions mq $WHERE", undef, { INFO => 1 }) if ($self->{TOTAL} > 0);
 
   return $list;
 }
 
 #**********************************************************
-# survey_questions_add
+=head2 survey_question_add($attr)
+
+=cut
 #**********************************************************
 sub survey_question_add {
   my $self = shift;
@@ -2305,7 +2242,9 @@ sub survey_question_add {
 }
 
 #**********************************************************
-# urvey_questions_del
+=head2 survey_question_del($attr)
+
+=cut
 #**********************************************************
 sub survey_question_del {
   my $self = shift;
@@ -2317,23 +2256,23 @@ sub survey_question_del {
 }
 
 #**********************************************************
-# survey_questions_info
+=head2 survey_question_info($attr)
+
+=cut
 #**********************************************************
 sub survey_question_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT * FROM msgs_survey_questions WHERE id= ? ",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
-  );
+  $self->query("SELECT * FROM msgs_survey_questions WHERE id= ? ", undef, { INFO => 1, Bind => [ $id ] });
 
   return $self;
 }
 
 #**********************************************************
-# survey_questions_change()
+=head2 survey_questions_change($attr)
+
+=cut
 #**********************************************************
 sub survey_question_change {
   my $self = shift;
@@ -2344,13 +2283,11 @@ sub survey_question_change {
   $attr->{FILL_DEFAULT} = ($attr->{FILL_DEFAULT}) ? 1 : 0;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_survey_questions',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_survey_questions',
+    DATA         => $attr,
+  });
 
   return $self->{result};
 }
@@ -2374,17 +2311,14 @@ sub survey_answer_show {
   my $WHERE = ($attr->{REPLY_ID}) ? "AND reply_id='$attr->{REPLY_ID}'" : "AND msg_id='$attr->{MSG_ID}' AND reply_id='0' ";
 
   $self->query("SELECT question_id,
-  uid,
-  answer,
-  comments,
-  date_time,
-  survey_id
-  FROM msgs_survey_answers
-  WHERE survey_id= ?
-  AND uid= ? $WHERE;",
-    undef,
-    { Bind => [ $attr->{SURVEY_ID}, $attr->{UID} ],
-      %$attr }
+      uid,
+      answer,
+      comments,
+      date_time,
+      survey_id
+    FROM msgs_survey_answers
+    WHERE survey_id= ?
+    AND uid= ? $WHERE;", undef, { Bind => [ $attr->{SURVEY_ID}, $attr->{UID} ], %$attr }
   );
 
   return $self->{list};
@@ -2436,9 +2370,7 @@ sub survey_answer_add {
   my @MULTI_QUERY = ();
 
   foreach my $id (@ids) {
-    if ($attr->{FILL_DEFAULT} && !$fill_default_hash{$id}) {
-      next;
-    }
+    next if ($attr->{FILL_DEFAULT} && !$fill_default_hash{$id});
 
     push @MULTI_QUERY, [ $id,
       $attr->{UID},
@@ -2460,25 +2392,29 @@ sub survey_answer_add {
 }
 
 #**********************************************************
-#
+=head2 survey_answer_del($attr)
+
+=cut
 #**********************************************************
 sub survey_answer_del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del('msgs_survey_answers', $attr,
-    { survey_id => $attr->{SURVEY_ID},
-      uid       => $attr->{UID},
-      reply_id  => ($attr->{REPLY_ID}) ? $attr->{REPLY_ID} : undef,
-      msg_id    => (!$attr->{REPLY_ID}) ? $attr->{MSG_ID} : undef
-    });
+  $self->query_del('msgs_survey_answers', $attr, {
+    SURVEY_ID => $attr->{SURVEY_ID},
+    UID       => $attr->{UID},
+    REPLY_ID  => ($attr->{REPLY_ID}) ? $attr->{REPLY_ID} : undef,
+    MSG_ID    => (!$attr->{REPLY_ID}) ? $attr->{MSG_ID} : undef
+  });
 
   return $self;
 }
 
 
 #**********************************************************
-# pb_list
+=head2 pb_list($attr)
+
+=cut
 #**********************************************************
 sub pb_list {
   my $self = shift;
@@ -2493,8 +2429,7 @@ sub pb_list {
     [ 'STEP_NUM',   'INT', 'pb.step_num'   ],
     [ 'STEP_NAME',  'STR', 'pb.step_name'  ],
     [ 'CHAPTER_ID', 'STR', 'pb.chapter_id' ]
-  ],
-    { WHERE => 1 });
+  ], { WHERE => 1 });
 
   $self->query("SELECT pb.step_num, pb.step_name, pb.step_tip, pb.id
     FROM msgs_proggress_bar pb
@@ -2509,7 +2444,9 @@ sub pb_list {
 }
 
 #**********************************************************
-# pb_add
+=head2 pb_add($attr)
+
+=cut
 #**********************************************************
 sub pb_add {
   my $self = shift;
@@ -2522,7 +2459,9 @@ sub pb_add {
 }
 
 #**********************************************************
-# pb_del
+=head2 pb_del($attr)
+
+=cut
 #**********************************************************
 sub pb_del {
   my $self = shift;
@@ -2534,38 +2473,34 @@ sub pb_del {
 }
 
 #**********************************************************
-# pb_info
+=head2 pb_info($id)
+
+=cut
 #**********************************************************
 sub pb_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
-    FROM msgs_proggress_bar
-  WHERE id= ? ",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
-  );
+  $self->query("SELECT * FROM msgs_proggress_bar WHERE id= ? ", undef, { INFO => 1, Bind => [ $id ] });
 
   return $self;
 }
 
 #**********************************************************
-# pb_change()
+=head2 pb_change($attr)
+
+=cut
 #**********************************************************
 sub pb_change {
   my $self = shift;
   my ($attr) = @_;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_proggress_bar',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_proggress_bar',
+    DATA         => $attr
+  });
 
   return $self->{result};
 }
@@ -2592,8 +2527,7 @@ sub pb_msg_list {
     [ 'RESPONSIBLE_NOTICE', 'STR', 'pb.responsible_notice' ],
     [ 'FOLLOWER_NOTICE',    'STR', 'pb.follower_notice'    ],
     [ 'MAIN_MSG',           'INT', 'mpb.main_msg'          ],
-  ],
-    { WHERE => 1 });
+  ], { WHERE => 1 });
 
   $self->query("SELECT pb.step_num, pb.step_name, mpb.step_date, pb.step_tip,
     mpb.coordx, mpb.coordy, pb.id, pb.user_notice, pb.responsible_notice, pb.follower_notice, mpb.main_msg
@@ -2609,9 +2543,10 @@ sub pb_msg_list {
   return $self->{list};
 }
 
-
 #**********************************************************
-# pb_msg_change
+=head2 pb_msg_change($attr)
+
+=cut
 #**********************************************************
 sub pb_msg_change {
   my $self = shift;
@@ -2630,7 +2565,7 @@ sub pb_msg_change {
 
 
 #**********************************************************
-=head2 msg_watch_info($msg_id, $attr)
+=head2 msg_watch_info($msg_id)
 
 =cut
 #**********************************************************
@@ -2638,18 +2573,15 @@ sub msg_watch_info {
   my $self = shift;
   my ($msg_id) = @_;
 
-  $self->query("SELECT *
-    FROM msgs_watch
-  WHERE main_msg = ? ",
-    undef,
-    { INFO => 1,
-      Bind => [ $msg_id ] }
-  );
+  $self->query("SELECT * FROM msgs_watch WHERE main_msg = ? ", undef, { INFO => 1, Bind => [ $msg_id ] });
 
   return $self;
 }
+
 #**********************************************************
-# msg_watch
+=head2 msg_watch($msg_id, $attr)
+
+=cut
 #**********************************************************
 sub msg_watch {
   my $self = shift;
@@ -2673,9 +2605,7 @@ sub msg_watch_del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del('msgs_watch', undef, { aid => $admin->{AID},
-    main_msg                                  => $attr->{ID},
-  });
+  $self->query_del('msgs_watch', undef, { AID => $admin->{AID}, MAIN_MSG => $attr->{ID} });
 
   return $self->{list};
 }
@@ -2696,8 +2626,7 @@ sub msg_watch_list {
     [ 'MAIN_MSG', 'INT', 'MAIN_MSG' ],
     [ 'AID',      'INT', 'aid'      ],
     [ 'ADD_DATE', 'INT', 'add_date' ],
-  ],
-    { WHERE => 1 });
+  ], { WHERE => 1 });
 
   $self->query("SELECT main_msg, add_date, aid
     FROM msgs_watch
@@ -2755,11 +2684,7 @@ sub status_list {
     [ 'TASK_CLOSED', 'INT', 'task_closed', 1 ],
     [ 'COLOR',       'INT', 'color',       1 ],
     [ 'ICON',        'STR', 'icon',        1 ],
-  ],
-    {
-      WHERE => 1,
-    }
-  );
+  ], { WHERE => 1 });
 
   $self->query("SELECT * FROM msgs_status
     $WHERE
@@ -2770,16 +2695,9 @@ sub status_list {
 
   my $list = $self->{list};
 
-  if ($attr->{STATUS_ONLY} || !$self->{TOTAL} < 1) {
-    return $list;
-  }
+  return $list if ($attr->{STATUS_ONLY} || !$self->{TOTAL} < 1);
 
-  $self->query(
-    "SELECT COUNT(*) AS total
-     FROM msgs_status",
-    undef,
-    { INFO => 1 }
-  );
+  $self->query("SELECT COUNT(*) AS total FROM msgs_status", undef, { INFO => 1 });
 
   return $list || [];
 }
@@ -2819,13 +2737,7 @@ sub status_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
-    FROM msgs_status
-  WHERE id= ? ",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
-  );
+  $self->query("SELECT * FROM msgs_status WHERE id= ? ", undef, { INFO => 1, Bind => [ $id ] });
 
   return $self;
 }
@@ -2845,13 +2757,11 @@ sub status_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_status',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_status',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -2900,10 +2810,8 @@ sub msgs_delivery_list {
 
   delete($self->{SEARCH_FIELDS});
 
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
 
   my $WHERE = $self->search_former(
     $attr,
@@ -2916,7 +2824,6 @@ sub msgs_delivery_list {
       [ 'PRIORITY',    'INT',      'priority',    1 ],
       [ 'STATUS',      'INT',      'status',      1 ],
       [ 'TEXT',        'STR',      'text',        1 ],
-      [ 'SEND_METHOD', 'INT',      'send_method', 1 ],
       [ 'ADDED',       'DATETIME', 'added',       1 ],
       [ 'AID',         'INT',      'aid',         1 ],
     ],
@@ -2931,8 +2838,7 @@ sub msgs_delivery_list {
     FROM msgs_delivery
     $WHERE
     GROUP BY id
-      ORDER BY $SORT $DESC
-      LIMIT $PG, $PAGE_ROWS;",
+      ORDER BY $SORT $DESC;",
     undef,
     $attr
   );
@@ -2940,12 +2846,7 @@ sub msgs_delivery_list {
   my $list = $self->{list};
 
   if ($self->{TOTAL} > 0) {
-    $self->query("SELECT COUNT(*) AS total
-     FROM msgs_delivery md
-     $WHERE",
-      undef,
-      { INFO => 1 }
-    );
+    $self->query("SELECT COUNT(*) AS total FROM msgs_delivery md $WHERE", undef, { INFO => 1 });
   }
 
   return $list;
@@ -2987,13 +2888,7 @@ sub msgs_delivery_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
-    FROM msgs_delivery
-    WHERE id= ? ",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
-  );
+  $self->query("SELECT * FROM msgs_delivery WHERE id= ? ", undef, { INFO => 1, Bind => [ $id ] });
 
   return $self;
 }
@@ -3013,13 +2908,11 @@ sub msgs_delivery_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_delivery',
-      DATA         => $attr
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_delivery',
+    DATA         => $attr
+  });
 
   return $self;
 }
@@ -3158,11 +3051,7 @@ sub delivery_user_list_change {
   my $WHERE = $self->search_former($attr, [
     [ 'UID', 'INT', 'uid' ],
     [ 'ID',  'INT', 'id'  ],
-  ],
-    {
-      WHERE_RULES => \@WHERE_RULES
-    }
-  );
+  ], { WHERE_RULES => \@WHERE_RULES });
 
   my $status = 1;
   $self->query("UPDATE msgs_delivery_users SET status='$status' WHERE $WHERE;", 'do');
@@ -3248,13 +3137,7 @@ sub messages_quick_replys_types_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
-    FROM msgs_quick_replys_types
-  WHERE id= ? ",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
-  );
+  $self->query("SELECT * FROM msgs_quick_replys_types WHERE id= ? ", undef, { INFO => 1, Bind => [ $id ] });
 
   return $self;
 }
@@ -3269,13 +3152,11 @@ sub messages_quick_replys_types_change {
   my ($attr) = @_;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_quick_replys_types',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_quick_replys_types',
+    DATA         => $attr,
+  });
 
   return $self->{result};
 }
@@ -3310,6 +3191,7 @@ sub messages_quick_replys_types_add {
   $self->query_add('msgs_quick_replys_types', $attr);
 
   $admin->system_action_add("MGSG_QUICK_REPORTS_TYPES_ADD:$self->{INSERT_ID}", { TYPE => 1 });
+
   return $self;
 }
 
@@ -3333,11 +3215,7 @@ sub messages_quick_replys_types_list {
   my $WHERE = $self->search_former($attr, [
     [ 'ID',   'INT', 'qrt.id',   1 ],
     [ 'NAME', 'STR', 'qrt.name', 1 ],
-  ],
-    { WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES
-    }
-  );
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   $self->query("SELECT qrt.*
   FROM msgs_quick_replys_types qrt ".
@@ -3351,12 +3229,7 @@ sub messages_quick_replys_types_list {
 
   my $list = $self->{list};
 
-  $self->query("SELECT COUNT(*) AS total
-    FROM msgs_quick_replys_types qrt
-    $WHERE;",
-    undef,
-    { INFO => 1 },
-  );
+  $self->query("SELECT COUNT(*) AS total FROM msgs_quick_replys_types qrt $WHERE;", undef, { INFO => 1 });
 
   return $list;
 }
@@ -3370,13 +3243,7 @@ sub messages_quick_replys_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT *
-    FROM msgs_quick_replys
-  WHERE id= ? ",
-    undef,
-    { INFO => 1,
-      Bind => [ $id ] }
-  );
+  $self->query("SELECT * FROM msgs_quick_replys WHERE id= ? ", undef, { INFO => 1, Bind => [ $id ] });
 
   return $self;
 }
@@ -3391,13 +3258,11 @@ sub messages_quick_replys_change {
   my ($attr) = @_;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_quick_replys',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_quick_replys',
+    DATA         => $attr,
+  });
 
   return $self->{result};
 }
@@ -3455,11 +3320,7 @@ sub messages_quick_replys_list {
     [ 'TYPE_ID', 'INT', 'qr.type_id',       1 ],
     [ 'TYPE',    'STR', 'qrt.name AS type', 1 ],
     [ 'COLOR',   'STR', 'qr.color',         1 ],
-  ],
-    { WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES
-    }
-  );
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   $self->query("SELECT $self->{SEARCH_FIELDS} qr.color,
   qr.reply, qrt.name AS type
@@ -3472,9 +3333,7 @@ sub messages_quick_replys_list {
     $attr
   );
 
-  if ($self->{errno}) {
-    return [];
-  }
+  return [] if ($self->{errno});
 
   my $list = $self->{list};
 
@@ -3519,13 +3378,11 @@ sub quick_replys_tags_change {
   my ($attr) = @_;
 
   $admin->{MODULE} = $MODULE;
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'msgs_quick_replys_tags',
-      DATA         => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_quick_replys_tags',
+    DATA         => $attr
+  });
 
   return $self->{result};
 }
@@ -3561,15 +3418,11 @@ sub quick_replys_tags_add {
   my @MULTI_QUERY = ();
 
   foreach my $id (@ids) {
-    push @MULTI_QUERY, [ $id,
-      $attr->{MSG_ID} || '',
-    ];
+    push @MULTI_QUERY, [ $id, $attr->{MSG_ID} || '' ];
   }
 
-  $self->query("INSERT msgs_quick_replys_tags (quick_reply_id, msg_id)
-        VALUES (?, ?);",
-    undef,
-    { MULTI_QUERY => \@MULTI_QUERY });
+  $self->query("INSERT msgs_quick_replys_tags (quick_reply_id, msg_id) VALUES (?, ?);",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
 
   return $self;
 }
@@ -3595,11 +3448,7 @@ sub quick_replys_tags_list {
     [ 'QUICK_REPLY_ID', 'INT', 'qrt.quick_reply_id', 1 ],
     [ 'REPLY',          'STR', 'qr.reply',           1 ],
     [ 'COLOR',          'STR', 'qr.color',           1 ],
-  ],
-    { WHERE       => 1,
-      WHERE_RULES => \@WHERE_RULES
-    }
-  );
+  ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   $self->query("SELECT qrt.*,
     qr.reply,
@@ -3616,16 +3465,9 @@ sub quick_replys_tags_list {
 
   my $list = $self->{list} || [];
 
-  if ($self->{errno}) {
-    return $list;
-  }
+  return $list if ($self->{errno});
 
-  $self->query("SELECT COUNT(*) AS total
-    FROM msgs_quick_replys_tags qrt
-    $WHERE;",
-    undef,
-    { INFO => 1 },
-  );
+  $self->query("SELECT COUNT(*) AS total FROM msgs_quick_replys_tags qrt $WHERE;", undef, { INFO => 1 });
 
   return $list;
 }
@@ -3668,14 +3510,10 @@ sub messages_report_tags_count {
     [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(mm.date, '%Y-%m-%d')" ],
     [ 'SUBTAG',            'INT',  "mt2.quick_reply_id"               ],
     [ 'TAG_ID',            'INT',  "mt1.quick_reply_id"               ],
-  ],
-    { WHERE => 1 }
-  );
+  ], { WHERE => 1 });
   my $EXT_TABLES = "";
 
-  if ($attr->{SUBTAG}) {
-    $EXT_TABLES = "LEFT JOIN msgs_quick_replys_tags mt2 ON (mt1.msg_id = mt2.msg_id)";
-  }
+  $EXT_TABLES = "LEFT JOIN msgs_quick_replys_tags mt2 ON (mt1.msg_id = mt2.msg_id)" if ($attr->{SUBTAG});
 
   $self->query("SELECT count(mt1.msg_id) as count
     FROM msgs_quick_replys_tags mt1
@@ -3685,6 +3523,7 @@ sub messages_report_tags_count {
     undef,
     { COLS_NAME => 1 }
   );
+
   return $self->{list}->[0]->{count} || 0;
 }
 
@@ -3697,11 +3536,7 @@ sub messages_tags_total_count {
   my $self = shift;
   my ($attr) = @_;
 
-  my $WHERE = $self->search_former($attr, [
-    [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(mm.date, '%Y-%m-%d')" ],
-  ],
-    { WHERE => 1 }
-  );
+  my $WHERE = $self->search_former($attr, [ [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(mm.date, '%Y-%m-%d')" ], ], { WHERE => 1 });
 
   $self->query("SELECT count(*) as total
     FROM msgs_quick_replys_tags mt
@@ -3726,9 +3561,7 @@ sub messages_report_replys_time {
   my $WHERE = $self->search_former($attr, [
     [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(mr.datetime, '%Y-%m-%d')" ],
     [ 'AID',               'INT',  "mr.aid"                               ],
-  ],
-    { WHERE => 1 }
-  );
+  ], { WHERE => 1 });
 
   $self->query("SELECT 
     DATE_FORMAT(mr.datetime, '%Y-%m') AS month,
@@ -3760,10 +3593,10 @@ sub msgs_storage_add {
   my ($attr) = @_;
 
   $self->query_add('msgs_storage', {
-      %$attr,
-      AID  => $self->{admin}{AID},
-      DATE => 'NOW()'
-    });
+    %$attr,
+    AID  => $self->{admin}{AID},
+    DATE => 'NOW()'
+  });
 
   return $self;
 }
@@ -3883,11 +3716,7 @@ sub message_team_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("UPDATE msgs_team_ticket
-                AS mdt SET mdt.id = ?,
-                mdt.responsible = ?,
-                mdt.id_team = ?
-                WHERE mdt.id = ?;", undef, {
+  $self->query("UPDATE msgs_team_ticket AS mdt SET mdt.id = ?, mdt.responsible = ?, mdt.id_team = ? WHERE mdt.id = ?;", undef, {
     Bind => [ $attr->{ID}, $attr->{RESPONSIBLE}, $attr->{ID_TEAM}, $attr->{ID_SEARCH} ]
   });
 
@@ -3931,9 +3760,7 @@ sub responsible_team_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT md.id, md.resposible
-                FROM msgs_dispatch md
-                WHERE md.id = ?", undef, {
+  $self->query("SELECT md.id, md.resposible FROM msgs_dispatch md WHERE md.id = ?", undef, {
     Bind      => [ $id ],
     COLS_NAME => 1,
     INFO      => 1
@@ -3958,14 +3785,12 @@ sub respnosible_info_change {
   my ($id) = @_;
 
   $self->query("SELECT mdt.id, mdt.responsible, mm.subject FROM msgs_team_ticket AS mdt
-                LEFT JOIN msgs_messages AS mm ON mdt.id = mm.id
-                WHERE mdt.id = ?;",
-    undef,
-    {
-      COLS_NAME => 1,
-      INFO      => 1,
-      Bind      => [ $id ]
-    });
+    LEFT JOIN msgs_messages AS mm ON mdt.id = mm.id
+    WHERE mdt.id = ?;", undef, {
+    COLS_NAME => 1,
+    INFO      => 1,
+    Bind      => [ $id ]
+  });
 
   return $self->{list}[0];
 }
@@ -4008,9 +3833,9 @@ sub ticket_team_list {
   );
 
   $self->query("SELECT $self->{SEARCH_FIELDS} mdt.id
-                FROM msgs_team_ticket
-                AS mdt LEFT JOIN admins AS a ON a.aid = mdt.responsible
-                $WHERE $GROUP_BY", undef, {
+    FROM msgs_team_ticket
+    AS mdt LEFT JOIN admins AS a ON a.aid = mdt.responsible
+    $WHERE $GROUP_BY", undef, {
     COLS_NAME => 1,
     INFO      => 1
   });
@@ -4034,8 +3859,7 @@ sub responsible_team_list {
 
   $self->query("SELECT md.id, md.resposible, a.id AS aid, CONCAT(a.name, ' ',  md.id) as name FROM msgs_dispatch AS md
     LEFT JOIN admins a ON md.resposible = a.aid WHERE a.aid IS NOT NULL;",
-    undef,
-    { COLS_NAME => 1, INFO => 1 });
+    undef, { COLS_NAME => 1, INFO => 1 });
 
   return $self->{list};
 }
@@ -4080,12 +3904,8 @@ sub team_location_change {
   my $self = shift;
   my ($id, $attr) = @_;
 
-  $self->query("UPDATE msgs_team_address AS mda
-                SET mda.id_team     = ?,
-                    mda.district_id = ?,
-                    mda.street_id   = ?,
-                    mda.build_id    = ?
-                WHERE mda.id = ?;", undef, {
+  $self->query("UPDATE msgs_team_address AS mda SET mda.id_team = ?, mda.district_id = ?, mda.street_id = ?, mda.build_id = ?
+    WHERE mda.id = ?;", undef, {
     Bind => [ $attr->{ID}, $attr->{DISTRICT_ID}, $attr->{STREET_ID}, $attr->{BUILD_ID}, $id ]
   });
 
@@ -4153,11 +3973,11 @@ sub team_location_list {
   );
 
   $self->query("SELECT $self->{SEARCH_FIELDS} mda.id
-                FROM msgs_team_address AS mda
-         LEFT JOIN districts d on mda.district_id = d.id
-         LEFT JOIN builds b on mda.build_id = b.id
-         LEFT JOIN  streets s on b.street_id = s.id
-                $WHERE", undef, {
+    FROM msgs_team_address AS mda
+    LEFT JOIN districts d on mda.district_id = d.id
+    LEFT JOIN builds b on mda.build_id = b.id
+    LEFT JOIN  streets s on b.street_id = s.id
+    $WHERE", undef, {
     COLS_NAME => 1,
     INFO      => 1
   });
@@ -4228,13 +4048,11 @@ sub msgs_address_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM    => 'ID',
-      TABLE           => 'msgs_address',
-      DATA            => $attr,
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'msgs_address',
+    DATA         => $attr,
+  });
 
   return $self->{result};
 }
@@ -4259,5 +4077,125 @@ sub msgs_address_del {
   return $self;
 }
 
-1;
+#**********************************************************
+=head2 msgs_plugin_add($attr)
 
+  Arguments:
+    ID      - ID Plugin
+
+  Return:
+    query add result
+
+=cut
+#**********************************************************
+sub msgs_plugin_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_add('msgs_admin_plugins', $attr);
+}
+
+#**********************************************************
+=head2 msgs_plugin_del($attr)
+
+  Arguments:
+    ID      - ID Plugin
+
+  Return:
+    query delete result
+
+=cut
+#**********************************************************
+sub msgs_plugin_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_del('msgs_admin_plugins', $attr);
+}
+
+#**********************************************************
+=head2 msgs_plugin_change($attr)
+
+  Arguments:
+    ID
+
+  Return:
+    query change result
+
+=cut
+#**********************************************************
+sub msgs_plugin_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM    => 'PLUGIN_NAME,ID',
+    TABLE           => 'msgs_admin_plugins',
+    DATA            => $attr,
+  });
+
+  return $self->{result};
+}
+
+#**********************************************************
+=head2 msgs_plugin_list($attr)
+
+  Arguments:
+    AID         - Admin aid enabled plugin
+    PLUGIN_NAME - Plugin enabled name
+    MODULE      - Plugin module
+
+  Return:
+    plugin enabled list result
+
+=cut
+#**********************************************************
+sub msgs_plugin_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',            'INT',  'map.id AS aid',         1 ],
+      [ 'PLUGIN_NAME',   'STR',  'map.plugin_name',       1 ],
+      [ 'MODULE',        'STR',  'map.module',            1 ],
+      [ 'PRIORITY',      'INT',  'map.priority',          1 ],
+    ],
+    { WHERE => 1 }
+  );
+
+  $self->query("SELECT $self->{SEARCH_FIELDS} map.module FROM msgs_admin_plugins AS map $WHERE", undef, {
+    COLS_NAME => 1,
+    INFO      => 1
+  });
+
+  return $self->{list} || [ ];
+}
+
+#**********************************************************
+=head2 total_tickets_by_current_month($attr)
+
+=cut
+#**********************************************************
+sub total_tickets_by_current_month {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $WHERE = 'WHERE MONTH(m.date) = MONTH(CURRENT_DATE()) AND YEAR(m.date) = YEAR(CURRENT_DATE())';
+  $WHERE .= " AND m.uid=$attr->{UID}" if $attr->{UID};
+
+  $self->query("SELECT COUNT(*) AS total_tickets, SUM(messages.reply_time) AS total_time FROM (SELECT SUM(r.run_time) AS reply_time
+      FROM msgs_messages m
+      LEFT JOIN msgs_reply r FORCE INDEX FOR JOIN (`main_msg`) ON (m.id=r.main_msg)
+      $WHERE
+      GROUP BY m.id
+      ORDER BY 1) AS messages",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $self;
+}
+
+1;

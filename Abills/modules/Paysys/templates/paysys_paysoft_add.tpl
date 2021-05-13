@@ -16,11 +16,11 @@
   <input type='hidden' name='LMI_PAYMENT_DESC' value='%LMI_PAYMENT_DESC%'>
   %TEST_MODE%
 
-  <div class='box box-primary'>
-    <div class='box-header with-border text-center'>
-      <h4 class='box-title'>Paysoft</h4>
+  <div class='card box-primary'>
+    <div class='card-header with-border text-center'>
+      <h4 class='card-title'>Paysoft</h4>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
       <div class='form-group text-center'>
         <img src='/styles/default_adm/img/paysys_logo/paysoft-logo.png' style="width: auto; max-height: 200px;">
       </div>
@@ -37,7 +37,7 @@
       </div>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type='submit' class='btn btn-primary' value='_{PAY}_'>
     </div>
   </div>

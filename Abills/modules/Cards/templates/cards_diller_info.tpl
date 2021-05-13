@@ -1,6 +1,6 @@
-<div class='box box-info box-form form-horizontal'>
-<div class='box-header with-border'><h4>_{INFO}_</h4></div>
-<div class='box-body'>
+<div class='card box-info box-form form-horizontal'>
+<div class='card-header with-border'><h4>_{INFO}_</h4></div>
+<div class='card-body'>
   <div class='form-group'>
     <label class='col-md-3 control-label text-center'>_{DEPOSIT}_</label>
     <div class='col-md-9'>

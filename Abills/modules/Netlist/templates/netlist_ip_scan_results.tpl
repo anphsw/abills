@@ -5,8 +5,8 @@
   <input type='hidden' name='ADD' value='1'>
 
 
-  <div class='box box-theme'>
-    <div class='box-body'>
+  <div class='card card-primary card-outline'>
+    <div class='card-body'>
       <div class='row'>
         %SCAN_TABLE%
       </div>
@@ -26,7 +26,7 @@
       </div>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input class='btn btn-primary' type='submit' name='action' value='_{ADD}_'/>
     </div>
   </div>

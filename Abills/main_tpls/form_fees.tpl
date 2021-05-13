@@ -3,75 +3,78 @@
     <input type=hidden name=index value='$index'>
     <input type=hidden name=subf value='$FORM{subf}'>
 
-    <fieldset>
-
-        <div class='box box-theme box-big-form'>
-            <div class='box-header with-border'><h4 class='box-title'>_{FEES}_</h4></div>
-            <div class='box-body'>
-
-
-                <div class='form-group'>
-                    <label class='control-label col-md-3' for='SUM'>_{SUM}_:</label>
-                    <div class='col-md-9'>
+        <div class='card card-primary card-outline container-md'>
+            <div class='card-header with-border'>
+                <h4 class='card-title'>_{FEES}_</h4>
+            </div>
+            <div class='card-body'>
+                <div class="form-group row">
+                    <label  class="col-sm-2 col-md-3 col-form-label required" for='SUM'>_{SUM}_</label>
+                    <div class="col-sm-10 col-md-9">
                         <input autofocus id='SUM' name='SUM' value='$FORM{SUM}' placeholder='$FORM{SUM}' class='form-control'
-                               type='text'>
+                            type='text'>
                     </div>
                 </div>
 
-
-                <div class='form-group'>
-                    <label class='control-label col-md-3' for='DESCRIBE'>_{DESCRIBE}_:</label>
-                    <div class='col-md-9'>
+                <div class="form-group row">
+                    <label  class="col-sm-2 col-md-3 col-form-label" for='DESCRIBE'>_{DESCRIBE}_</label>
+                    <div class="col-sm-10 col-md-9">
                         <input id='DESCRIBE' type='text' name='DESCRIBE' value='%DESCRIBE%' class='form-control'>
                     </div>
                 </div>
 
-                <div class='form-group'>
-                    <label class='control-label col-md-3' for='INNER_DESCRIBE'>_{INNER}_:</label>
-                    <div class='col-md-9'>
+                <div class="form-group row">
+                    <label  class="col-sm-2 col-md-3 col-form-label" for='INNER_DESCRIBE'>_{INNER}_</label>
+                    <div class="col-sm-10 col-md-9">
                         <input id='INNER_DESCRIBE' type='text' name='INNER_DESCRIBE' value='%INNER_DESCRIBE%'
-                               class='form-control'>
+                            class='form-control'>
                     </div>
                 </div>
 
-                <div class='form-group'>
-                    <label class='control-label col-md-3' for='METHOD'>_{TYPE}_:</label>
-                    <div class='col-md-9'>
+                <div class="form-group row">
+                    <label  class="col-sm-2 col-md-3 col-form-label" for='METHOD'>_{TYPE}_</label>
+                    <div class="col-sm-10 col-md-9">
                         %SEL_METHOD%
                     </div>
                 </div>
 
-                <div class='form-group'>
-                    <label class='control-label col-md-3' for='CURRENCY'>_{CURRENCY}_ : _{EXCHANGE_RATE}_:</label>
-                    <div class='col-md-9'>
+                <div class="form-group row">
+                    <label  class="col-sm-2 col-md-3 col-form-label" for='CURRENCY'>_{CURRENCY}_ : _{EXCHANGE_RATE}_</label>
+                    <div class="col-sm-10 col-md-9">
                         %SEL_ER%
                     </div>
                 </div>
 
-                <div class='form-group'>
-                    %PERIOD_FORM%
+                <div class="form-group row">
+                    <label  class="col-sm-2 col-md-3 col-form-label">_{BILL}_</label>
+                    <div class="col-sm-10 col-md-9">
+                        %EXT_DATA_FORM%
+                    </div>
                 </div>
 
+                <div class="col-sm-12 col-md-12">
+                    <div class='form-group row'>
+                        %PERIOD_FORM%
+                    </div>
+                </div>
 
-                    %EXT_DATA_FORM%
-                  </div>
+                </div>
 
-                    %SHEDULE_FORM%
+                %SHEDULE_FORM%
 
-                %DOCS_FEES_ELEMENT%
             </div>
+            %DOCS_FEES_ELEMENT%
 
-            <div class='box-footer'>
+            <div class='card-footer'>
                 <input type=submit name='take' value='_{TAKE}_' class='btn btn-primary' id='submitbutton'>
             </div>
 
 
         </div>
-    </fieldset>
 </form>
 
 <script>
-  jQuery('#user').on('submit', function(){
+jQuery('#user').on('submit', function(){
     renameAndDisable('submitbutton', '_{IN_PROGRESS}_...' );
-  });
+});
 </script>

@@ -119,7 +119,7 @@ _bp(undef, undef, { SET_ARGS => { TO_CONSOLE => 1 } });
   elsif (defined($ARGS->{status})) {
     my $running = is_running(\%daemon_args);
     print (($running) ?  'Not running' : 'Running');
-    exit($running) ? 0 : 1;
+    exit (($running) ? 0 : 1);
   }
   elsif (defined($ARGS->{help})) {
     help();

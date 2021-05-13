@@ -228,16 +228,16 @@ sub storage_main_report_charts {
 #**********************************************************
 sub storage_remnants_report {
 
-   reports({
-     PERIOD_FORM=>1,
-     DATE_RANGE=>1,
-     NO_GROUP => 1,
-    NO_TAGS=>1,
-   });
+  reports({
+    PERIOD_FORM => 1,
+    DATE_RANGE  => 1,
+    NO_GROUP    => 1,
+    NO_TAGS     => 1,
+  });
 
   my $list = $Storage->storage_remnants_list({
-    FROM_DATE => $FORM{FROM_DATE} || $DATE,
-    TO_DATE   => $FORM{TO_DATE} || $DATE,
+    FROM_DATE => $FORM{FROM_DATE} || '_SHOW',
+    TO_DATE   => $FORM{TO_DATE} || '_SHOW',
     COLS_NAME => 1
   });
 
@@ -249,24 +249,28 @@ sub storage_remnants_report {
     qs         => $pages_qs,
     ID         => 'REMNANTS_REPORT',
     DATA_TABLE => 1,
+    EXPORT     => 1
   });
 
-  foreach my $item (@$list){
+  foreach my $item (@$list) {
+    my $total_count = ($item->{discard_count} || 0) +  ($item->{installation_count} || 0) +
+      ($item->{inner_use_count} || 0) + ($item->{count} || 0);
     $report_table->addrow(
       ($item->{name} || "$lang{NOT_EXIST}"),
       _translate($item->{measure_name}),
-      ($item->{total_count} || 0),
+      ($total_count),
       ($item->{accountability_count} || 0),
       ($item->{discard_count} || 0),
       ($item->{installation_count} || 0),
       ($item->{reserve_count} || 0),
       ($item->{inner_use_count} || 0),
-      ($item->{main_article_id} == 0 ? $item->{count}  - ($item->{accountability_count} || 0) : $item->{count} ),
+      ($item->{main_article_id} == 0 ?
+        $item->{count} - ($item->{accountability_count} || 0) - ($item->{reserve_count} || 0):
+        $item->{count}),
     );
   }
-    print $report_table->show();
-    return 1;
-
+  print $report_table->show();
+  return 1;
 }
 
 #**********************************************************

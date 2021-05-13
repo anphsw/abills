@@ -10,36 +10,35 @@ var CLIENT_INTERFACE = 1;
 /**
  * Set's predefined icons for menu items
  *
- * Just add new id and glyphicon to decorate new menu element
+ * Just add new id and fa to decorate new menu element
  */
 function setIcons() {
-  
   var menu_icons = {
-    form_info                    : 'glyphicon glyphicon-user',
+    form_info                    : 'fa fa-user',
     form_payments                :  CURRENCY_ICON,
     form_finance                 :  CURRENCY_ICON,
-    dv_user_info                 : 'glyphicon glyphicon-globe',
-    docs_invoices_list           : 'glyphicon glyphicon-briefcase',
-    msgs_user                    : 'glyphicon glyphicon-comment',
-    cards_user_payment           : 'glyphicon glyphicon-credit-card',
-    logout                       : 'glyphicon glyphicon-log-out',
-    voip_user_info               : 'glyphicon glyphicon-earphone',
-    ureports_user_info           : 'glyphicon glyphicon-file',
-    iptv_user_info               : 'glyphicon glyphicon-sound-dolby',
-    abon_client                  : 'glyphicon glyphicon-list',
-    form_passwd                  : 'glyphicon glyphicon-lock',
-    ipn_user_activate            : 'glyphicon glyphicon-road',
-    bonus_service_discount_client: 'glyphicon glyphicon-tower',
-    bonus_user                   : 'glyphicon glyphicon-tower',
-    mail_users_list              : 'glyphicon glyphicon-envelope',
-    poll_user                    : 'glyphicon glyphicon-stats',
+    dv_user_info                 : 'fa fa-globe',
+    docs_invoices_list           : 'fa fa-briefcase',
+    msgs_user                    : 'fa fa-comment',
+    cards_user_payment           : 'fa fa-credit-card',
+    logout                       : 'fa fa-sign-out',
+    voip_user_info               : 'fa fa-phone',
+    ureports_user_info           : 'fa fa-file',
+    iptv_user_info               : 'fa fa-television',
+    abon_client                  : 'fa fa-list',
+    form_passwd                  : 'fa fa-lock',
+    ipn_user_activate            : 'fa fa-road',
+    bonus_service_discount_client: 'fa fa-tower',
+    bonus_user                   : 'fa fa-tower',
+    mail_users_list              : 'fa fa-envelope',
+    poll_user                    : 'fa fa-bar-chart',
     megogo_user_interface        : 'fa fa-maxcdn',
-    o_user                       : 'glyphicon glyphicon-book',
+    o_user                       : 'fa fa-book',
     sharing_user_main            : 'fa fa-share',
-    cams_client_main             : 'glyphicon glyphicon-facetime-video'
+    cams_clients_streams         : 'fa fa-video-camera'
   };
-  
-  var $sidebar = $('ul.sidebar-menu').children('li');
+
+  var $sidebar = $('ul.nav-sidebar').children('li');
   var $menu_items = $sidebar.children('a');
   
   $.each($menu_items, function (i, entry) {
@@ -50,12 +49,11 @@ function setIcons() {
         : 'fa fa-circle';
     var regex_icon = /currency/ig;
     var result = icon.match(regex_icon);
-    if (result == "currency" ) {
-      // console.log(result);
-      $entry.html('<i class="' + icon + '"></i>&nbsp;&nbsp;&nbsp;<span>' +  $entry.html() + '</span>');
+    if (result === "currency" ) {
+      $entry.html('<i class="nav-icon ' + icon + '"></i>&nbsp;&nbsp;&nbsp;' +  $entry.html());
     }
     else {
-      $entry.html('<i class="' + icon + '"></i><span>' +  $entry.html() + '</span>');
+      $entry.html('<i class="nav-icon ' + icon + '"></i>' +  $entry.html());
     }
 
   });

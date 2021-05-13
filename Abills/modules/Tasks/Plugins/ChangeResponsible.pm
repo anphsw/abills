@@ -47,7 +47,7 @@ sub html_for_task_show {
   my $button = $html->button(
     $lang->{CHANGE_RESPONSIBLE},
     "index=$main::index&plugin=ChangeResponsible&fn=change_responsible&ID=$attr->{ID}&" . ($attr->{qs} || "" ),
-    { class => 'btn btn-default btn-block' });
+    { class => 'btn btn-secondary btn-block' });
   return $button;
 }
 
@@ -86,7 +86,7 @@ sub change_responsible {
       BOX_BODY      => "$responsible_select",
       BOX_FOOTER    => $submit_button,
     },
-    { TPL => 'box', MODULE => 'Tasks' });
+    { TPL => 'card', MODULE => 'Tasks' });
 
   return $output;
 }
@@ -98,22 +98,22 @@ __DATA__
 <input type="hidden" name="plugin" value="%plugin%" id="plugin">
 <input type="hidden" name="fn" value="%fn%" id="fn">
 <input type="hidden" name="ID" value="%ID%" id="ID">
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'>
-      <h3 class='box-title'>_{CHANGE_RESPONSIBLE}_</h3>
-      <div class='box-tools pull-right'>
-        <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'>
+      <h3 class='card-title'>_{CHANGE_RESPONSIBLE}_</h3>
+      <div class='card-tools pull-right'>
+        <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
         </button>
       </div>
     </div>
-    <div class='box-body' id='task_box_body'>
+    <div class='card-body' id='task_box_body'>
       <div class="form-group">
         <div class="col-md-12">
         </div>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type="submit" name="chg" value="_{CHANGE}_" class="btn btn-primary" id="chg">
     </div>
   </div>

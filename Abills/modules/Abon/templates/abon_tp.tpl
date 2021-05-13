@@ -1,16 +1,14 @@
-<!--Abon_apon_tp.tpl-->
-
 <form action='$SELF_URL' method='post' class='form-horizontal'>
     <input class='form-control' type='hidden' name='index' value='$index'/>
     <input class='form-control' type='hidden' name='ABON_ID' value='$FORM{ABON_ID}'/>
 
-    <div class='box box-form box-theme'>
-        <div class='box-header with-border'>
+    <div class='card card-primary card-outline container-md col-md-6'>
+        <div class='card-header with-border'>
             <legend>%ACTION_LNG% _{ABON}_</legend>
         </div>
 
-        <div class='box-body'>
-            <div class='form-group'>
+        <div class='card-body'>
+            <div class='form-group row'>
                 <div class='col-md-3'>
                     <label for='%NAME%'>_{NAME}_:</label>
                 </div>
@@ -19,7 +17,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-3'>
                     <label for='PRICE'>_{SUM}_:</label>
                 </div>
@@ -28,7 +26,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-3'>
                     <label for='PERIOD_SEL'>_{PERIOD}_:</label>
                 </div>
@@ -37,7 +35,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-3'>
                     <label for='PAYMENT_TYPE_SEL'>_{PAYMENT_TYPE}_:</label>
                 </div>
@@ -46,7 +44,7 @@
                 </div>
             </div>
             
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-3'>
                     <label for='USER_PORTAL'>_{USER_PORTAL}_:</label>
                 </div>
@@ -55,7 +53,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-7'>
                     <label for='NONFIX_PERIOD'>_{NONFIX_PERIOD}_:</label>
                 </div>
@@ -64,7 +62,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-7'>
                     <label for='MANUAL_ACTIVATE'>_{MANUAL_ACTIVATE}_:</label>
                 </div>
@@ -73,7 +71,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-7'>
                     <label for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
                 </div>
@@ -82,7 +80,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-7'>
                     <label for='DISCOUNT'>_{REDUCTION}_:</label>
                 </div>
@@ -91,14 +89,14 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-7'>
 
                     %EXT_BILL_ACCOUNT%
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-3'>
                     <label for='PRIORITY'>_{PRIORITY}_:</label>
                 </div>
@@ -107,7 +105,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-3'>
                     <label for='FEES_TYPES_SEL'>_{FEES}_ _{TYPE}_:</label>
                 </div>
@@ -116,7 +114,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-7'>
                     <label for='CREATE_ACCOUNT'>_{CREATE}_, _{SEND_ACCOUNT}_:</label>
                 </div>
@@ -125,7 +123,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-7'>
                     <label for='VAT'>_{VAT_INCLUDE}_:</label>
                 </div>
@@ -134,7 +132,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-7'>
                     <label for='ACTIVATE_NOTIFICATION'>_{SERVICE_ACTIVATE_NOTIFICATION}_</label>
                 </div>
@@ -143,7 +141,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <button class='btn btn-secondary' type='button' data-toggle='collapse' data-target='#notification'
                         aria-expanded='true' aria-controls='collapseExample'>
                     _{NOTIFICATION}_ (E-mail)
@@ -198,7 +196,7 @@
             </div>
 
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-3'>
                     <label for='EXT_CMD'>_{EXT_CMD}_:</label>
                 </div>
@@ -207,7 +205,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-3'>
                     <label for='SERVICE_LINK'>URL:(caption|url)</label>
                 </div>
@@ -217,7 +215,7 @@
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-3'>
                     <label for='SERVICE_LINK'>_{DESCRIPTION}_</label>
                 </div>
@@ -228,7 +226,7 @@
             </div>
 
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
            <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LNG%'/>
         </div>
     </div>

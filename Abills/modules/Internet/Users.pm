@@ -21,7 +21,8 @@ our (
   @MONTHES_LIT,
   @MONTHES,
   @WEEKDAYS,
-  $ui
+  $ui,
+  $users
 );
 
 our Abills::HTML $html;
@@ -50,6 +51,7 @@ sub internet_user {
   my ($attr) = @_;
 
   my $uid = $FORM{UID} || $LIST_PARAMS{UID} || 0;
+  my $user_info = $users->pi({ UID => $uid });
   delete($Internet->{errno});
 
   if ($FORM{REGISTRATION_INFO}) {
@@ -62,9 +64,6 @@ sub internet_user {
   elsif ($FORM{PASSWORD} && !$attr->{REGISTRATION}) {
     internet_password_form({ %FORM });
     return 1;
-  }
-  elsif ($FORM{Shedule}) {
-
   }
   elsif ($FORM{add}) {
     if (!$permissions{0}{32} && !$attr->{REGISTRATION}) {
@@ -105,37 +104,21 @@ sub internet_user {
     $FORM{chg} = $Internet->{ID};
   }
 
-  # if (!$permissions{0}{25}) {
-  #   $Internet->{PERSONAL_TP_DISABLE} = 'readonly';
-  # }
-  # if (!$permissions{0}{19}) {
-  #   $Internet->{ACTIVATE_DISABLE} = 'disabled';
-  # }
-  # if (!$permissions{0}{20}) {
-  #   $Internet->{EXPIRE_DISABLE} = 'disabled';
-  # }
-  # if (!$permissions{0}{32}) {
-  #   $Internet->{ADD_SERVICE_HIDE} = "style='display:none'";;
-  # }
-
   if (!$Internet->{TOTAL} || $Internet->{TOTAL} < 1) {
-    $Internet->{TP_ADD} = $html->form_select(
-      'TP_ID',
-      {
-        SELECTED     => $Internet->{TP_ID} || $FORM{TP_ID} || '',
-        SEL_HASH     => sel_tp(),
-        SORT_KEY_NUM => 1,
-        NO_ID        => 1
-      }
-    );
+    $Internet->{TP_ADD} = sel_tp({
+      CHECK_GROUP_GEOLOCATION => $user_info->{LOCATION_ID} || 0,
+      USER_GID                => $user_info->{GID} || 0,
+      SELECT                  => 'TP_ID'
+    });
 
     $Internet->{TP_DISPLAY_NONE} = "style='display:none'";
 
     if ($conf{INTERNET_LOGIN}) {
       $Internet->{LOGIN_FORM} .= $html->tpl_show(templates('form_row'), {
-        ID    => "INTERNET_LOGIN",
+        ID    => 'INTERNET_LOGIN',
         NAME  => $lang{LOGIN},
-        VALUE => $html->form_input('INTERNET_LOGIN', $Internet->{INTERNET_LOGIN}) },
+        VALUE => $html->form_input('INTERNET_LOGIN', $Internet->{INTERNET_LOGIN})
+      },
         { OUTPUT2RETURN => 1, ID => 'LOGIN_FORM' });
     }
 
@@ -149,8 +132,6 @@ sub internet_user {
       $html->message('warn', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 908 }) unless ($FORM{STATMENT_ACCOUNT});
     }
 
-    #my $list = $Msgs->unreg_requests_list({ UID => $attr->{UID}, STATE => '!2', COLS_NAME => 1 });
-
     $Internet->{IP} = '0.0.0.0';
   }
   else {
@@ -160,7 +141,7 @@ sub internet_user {
         { ICON => 'fa fa-key', ex_params =>
           "data-tooltip='$lang{CHANGE} $lang{PASSWD}' data-tooltip-position='top'" }) :
         $html->button("", "index=" . get_function_index('internet_user') . "&UID=$uid&PASSWORD=1&ID=$Internet->{ID}",
-          { ICON => 'fa fa-plus text-warning', ex_params =>
+          { ICON => 'fa fa-plus', ex_params =>
             "data-tooltip='$lang{ADD} $lang{PASSWD}' data-tooltip-position='top'" });
 
       $Internet->{PASSWORD_FORM} = $html->tpl_show(templates('form_row'), {
@@ -185,9 +166,9 @@ sub internet_user {
     }
 
     if ($permissions{0}{10}) {
-      $Internet->{CHANGE_TP_BUTTON} = $html->button($lang{CHANGE},
+      $Internet->{CHANGE_TP_BUTTON} = $html->button('',
         'ID=' . $Internet->{ID} . '&UID=' . $uid . '&index=' . get_function_index('internet_chg_tp'),
-        { class => 'change' });
+        { class => 'btn btn-sm hidden-print fa fa-pencil', TITLE => $lang{CHANGE} });
     }
 
     require Internet::Service_mng;
@@ -203,9 +184,12 @@ sub internet_user {
 
     my $shedule_index = get_function_index('internet_form_shedule');
     if ($permissions{0}{4}) {
-      $Internet->{SHEDULE} = $html->button("",
-        "UID=$uid&ID=$Internet->{ID}&Shedule=status&index=" . (($shedule_index) ? $shedule_index : $index + 4),
-        { ICON => 'glyphicon glyphicon-calendar', TITLE => $lang{SHEDULE} });
+      $Internet->{SHEDULE} = {
+        EXT_BUTTON => $html->button('', "UID=$uid&ID=$Internet->{ID}&Shedule=status&index=" . (($shedule_index) ? $shedule_index : $index + 4), {
+          class      => 'btn-sm hidden-print text-blue',
+          ADD_ICON   => 'fa fa-calendar',
+        })
+      };
     }
 
     $Internet->{ONLINE_TABLE} = internet_user_online($uid);
@@ -241,7 +225,7 @@ sub internet_user {
     $Internet->{DETAIL_STATS} = ($Internet->{DETAIL_STATS} && $Internet->{DETAIL_STATS} == 1) ? ' checked' : '';
     $Internet->{IPN_ACTIVATE} = ($Internet->{IPN_ACTIVATE}) ? 'checked' : '';
     $Internet->{REGISTRATION_INFO} = $html->button("", "qindex=$index&UID=$uid&REGISTRATION_INFO=1",
-      { class => 'btn btn-sm btn-default', ICON => 'glyphicon glyphicon-print', ex_params => 'target=_new' });
+      { class => 'btn btn-info', ICON => 'fa fa-print', ex_params => 'target=_new' });
 
     if ($permissions{0} && $permissions{0}{14}) {
       $Internet->{DEL_BUTTON} = $html->button($lang{DEL}, "index=$index&del=1&UID=$uid&ID=$Internet->{ID}",
@@ -275,32 +259,31 @@ sub internet_user {
     }
 
     if ($conf{INTERNET_LOGIN}) {
-      #With password
+      my $password_button = $html->element('div',
+        $Internet->{PASSWORD_BTN}, { class => 'input-group-text' });
 
-      #With password
+      my $password_append_text = $html->element('div',
+        $password_button, { class => 'input-group-append' });
+
       my $input = $html->element(
         'div',
         $html->form_input('INTERNET_LOGIN', $Internet->{INTERNET_LOGIN}, { OUTPUT2RETURN => 1 })
-          . $html->element(
-          'span',
-          $Internet->{PASSWORD_BTN},
-          { class => 'input-group-addon' }
-        ),
-        { class => 'input-group' }
-      );
+        . $password_append_text,
+        { class => 'input-group' });
 
       $Internet->{LOGIN_FORM} .= $html->tpl_show(templates('form_row'), {
         ID    => 'INTERNET_LOGIN',
         NAME  => $lang{LOGIN} || q{},
-        VALUE => $input || q{}
+        VALUE => $input || q{},
+        #CSS_STYLE => 'style="margin-right: 8px;"',
       },
         { OUTPUT2RETURN => 1 });
     }
 
     if ($conf{DOCS_PDF_PRINT}) {
       $Internet->{REGISTRATION_INFO_PDF} = $html->button("", "qindex=$index&UID=$uid&REGISTRATION_INFO=1&pdf=1",
-        { ex_params => 'target=_new', class => 'btn btn-sm btn-default btn-info', ICON =>
-          'glyphicon glyphicon-print' });
+        { ex_params => 'target=_new', class => 'btn btn-sm btn-info', ICON =>
+          'fa fa-print' });
       $Internet->{PDF_VISIBLE} = 'blok'; # FIXME: 'block'?
     }
   }
@@ -308,7 +291,7 @@ sub internet_user {
   $Internet->{STATUS_SEL} = sel_status({
     STATUS    => $Internet->{STATUS},
     EX_PARAMS => (defined($Internet->{STATUS}) && (!$attr->{REGISTRATION} && !$permissions{0}{18})) ? " disabled=disabled" : ''
-  });
+  }, $Internet->{SHEDULE} || {});
 
   my $service_status_colors = sel_status({ COLORS => 1 });
 
@@ -321,9 +304,6 @@ sub internet_user {
     # Gradient finish
     $Internet->{STATUS_COLOR_GR_F} = Internet::Colors::darken_hex($service_status_colors->[$Internet->{STATUS}], 0.9);
   }
-
-  #Join Service
-  #$Internet->{JOIN_SERVICE_FORM} = internet_join_service($Internet);
 
   my $static_ip_pools = $Nas->ip_pools_list({
     DOMAIN_ID => ($admin->{DOMAIN_ID}) ? $admin->{DOMAIN_ID} : undef,
@@ -360,7 +340,6 @@ sub internet_user {
       SEL_LIST    => $static_ip_pools,
       SEL_OPTIONS => { '' => '' },
       MAIN_MENU   => get_function_index('form_ip_pools'),
-      #MAIN_MENU_ARGV => "chg=". ($tarif_info->{IPPOOL} || ''),
       NO_ID       => 1
     }
   );
@@ -379,7 +358,6 @@ sub internet_user {
       SEL_LIST    => $pool_ipv6_list,
       SEL_OPTIONS => { '0' => '--' },
       MAIN_MENU   => get_function_index('form_ip_pools'),
-      #MAIN_MENU_ARGV => "chg=". ($tarif_info->{IPPOOL} || ''),
       NO_ID       => 1,
       EX_PARAMS => 'style="width: 100%"',
     }
@@ -389,7 +367,6 @@ sub internet_user {
     {
       SELECTED  => $Internet->{IPV6_MASK} || $FORM{IPV6_MASK},
       SEL_ARRAY => [ 32 .. 128 ],
-      #ARRAY_NUM_ID => 1
     }
   );
 
@@ -397,7 +374,6 @@ sub internet_user {
     {
       SELECTED  => $Internet->{IPV6_PREFIX_MASK} || $FORM{IPV6_PREFIX_MASK},
       SEL_ARRAY => [ 32 .. 128 ],
-      #ARRAY_NUM_ID => 1
     }
   );
 
@@ -471,6 +447,11 @@ sub internet_user {
     load_module('Equipment', $html);
     require Equipment;
     Equipment->import();
+
+    if ($FORM{GRAPH}) {
+      equipment_user_graph();
+    }
+
     my $Equipment = Equipment->new($db, $admin, \%conf);
     my $server_vlan_list = $Equipment->vlan_list({ PAGE_ROWS => 2000, COLS_NAME => 1 });
 
@@ -491,7 +472,7 @@ sub internet_user {
     }
     else {
       $Internet->{VLAN_SEL} = $html->element('div', $html->form_input('SERVER_VLAN', ($Internet->{SERVER_VLAN} || q{}), { SIZE => 5 })
-        . "<span class='input-group-addon clear_button'><span class='glyphicon glyphicon-remove'></span></span>", { class => 'input-group'} );
+        . "<div class='input-group-append'><div class='input-group-text clear_results' style='cursor:pointer;'><span class='fa fa-remove'></span></div></div>", { class => 'input-group' } );
     }
 
     if (!$attr->{REGISTRATION}) {
@@ -525,7 +506,7 @@ sub internet_user {
   }
 
   if (!$Internet->{PORT} && !$Internet->{NAS}) {
-    $Internet->{IPOE_SHOW_BOX} = 'collapsed-box';
+    $Internet->{IPOE_SHOW_BOX} = 'collapsed-card';
   }
 
   delete $FORM{pdf};
@@ -594,20 +575,18 @@ sub internet_user {
     UID   => $uid,
     MENU  => $menu,
   },
-    { ID            => 'internet_user',
-      OUTPUT2RETURN => (!$FORM{json}) ? 1 : undef
-    });
+  {
+    ID            => 'internet_user',
+    OUTPUT2RETURN => (!$FORM{json}) ? 1 : undef
+  });
 
   my $service_info_subscribes = q{};
-  if ($user_service_count > 1) {
-    $service_info_subscribes .= internet_user_subscribes($Internet);
-  }
 
-  if ($attr->{PROFILE_MODE}) {
-    return '', $service_info1, $service_info2, $service_info_subscribes;
-  }
+  $service_info_subscribes .= internet_user_subscribes($Internet) if ($user_service_count > 1);
 
-  print(($service_info1 || q{}) . ($service_info2 || q{}) . ($service_info_subscribes || q{}));
+  return ('', $service_info1, $service_info2, $service_info_subscribes) if ($attr->{PROFILE_MODE});
+
+  print(($service_info1 || q{}) . ($service_info2 || q{}) . ($service_info_subscribes || q{}) . ($Internet->{EQUIPMENT_FORM} || q{}));
 
   return 1;
 }
@@ -619,6 +598,9 @@ sub internet_user {
     $attr
       SKIP_MONTH_FEE
       QUITE
+      UID
+      ID
+      STATUS
 
 =cut
 #**********************************************************
@@ -626,7 +608,6 @@ sub internet_user_add {
   my ($attr) = @_;
 
   my $uid = $attr->{UID} || 0;
-
   $attr = internet_user_preproccess($uid, $attr);
 
   if ($attr->{RETURN}) {
@@ -637,7 +618,6 @@ sub internet_user_add {
   my $service_id = $Internet->{ID} || 0;
   if (!$Internet->{errno}) {
     #Make month fee
-    #$Internet->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE} if ($attr->{USER_INFO});
     $Internet->info($uid, { ID => $service_id });
     if (!$attr->{STATUS} && !$attr->{SKIP_MONTH_FEE}) {
       service_get_month_fee($Internet, {
@@ -652,12 +632,13 @@ sub internet_user_add {
     $attr->{ID}=$service_id;
 
     if ($attr->{REGISTRATION}) {
-      my $service_status = sel_status({ HASH_RESULT => 1 });
-      my ($status, $color) = split(/:/, (defined($Internet->{STATUS}) && $service_status->{ $Internet->{STATUS} }) ? $service_status->{ $Internet->{STATUS} } : q{});
-      $Internet->{STATUS_VALUE} = $html->color_mark($status, $color);
-      delete $Internet->{EXTRA_FIELDS};
-      $html->tpl_show(_include('internet_user_info', 'Internet'), $Internet);
-      #internet_ipoe_activate_manual($attr);
+      if (! $attr->{QUITE}) {
+        my $service_status = sel_status({ HASH_RESULT => 1 });
+        my ($status, $color) = split(/:/, (defined($Internet->{STATUS}) && $service_status->{ $Internet->{STATUS} }) ? $service_status->{ $Internet->{STATUS} } : q{});
+        $Internet->{STATUS_VALUE} = $html->color_mark($status, $color);
+        delete $Internet->{EXTRA_FIELDS};
+        $html->tpl_show(_include('internet_user_info', 'Internet'), $Internet);
+      }
       return 0;
     }
     else {
@@ -944,7 +925,8 @@ sub internet_user_change_nas {
         # }
       }
 
-      if ($Equipment_server_vlan->[0]{type_name} eq "PON") {
+      if ($Equipment_server_vlan->[0] &&
+        $Equipment_server_vlan->[0]{type_name} eq "PON") {
         my $Equipment_list = $Equipment->onu_list({
           ONU_DHCP_PORT => $attr->{PORT},
           NAS_ID        => $attr->{NAS_ID},
@@ -1036,7 +1018,7 @@ sub internet_user_preproccess {
       COLS_NAME => 1
     });
 
-    if ($Internet->{TOTAL} > 0 && $list->[0]{uid} && $list->[0]{uid} != $attr->{UID}) {
+    if ($Internet->{TOTAL} > 0 && $list->[0]{uid} && $list->[0]{uid} != $uid) {
       $html->message('err', $lang{ERROR},
         "CID/MAC: $attr->{CID} $lang{EXIST}. $lang{LOGIN}: " . $html->button($list->[0]->{login},
           "index=15&UID=" . $list->[0]{uid}), { ID => 934 });
@@ -1278,7 +1260,7 @@ sub internet_password_form {
 sub internet_user_online {
   my ($uid) = @_;
 
-  my $list = $Sessions->online({
+  my $sessions_online_params = {
     UID                     => $uid,
     CLIENT_IP               => '_SHOW',
     CID                     => '_SHOW',
@@ -1296,7 +1278,13 @@ sub internet_user_online {
     SWITCH_MAC              => '_SHOW',
     CONNECT_INFO            => '_SHOW',
     INTERNET_SKIP_SHOW_DHCP => $conf{DHCP_LEASES_NAS}
-  });
+  };
+
+  if ($conf{IPV6}) {
+    $sessions_online_params->{FRAMED_IPV6_PREFIX} = '_SHOW';
+  }
+
+  my $online_list = $Sessions->online($sessions_online_params);
 
   if ($Sessions->{TOTAL} && $Sessions->{TOTAL} > 0) {
     my $online_index = get_function_index('internet_online');
@@ -1306,28 +1294,28 @@ sub internet_user_online {
       ID      => 'INTERNET_ONLINE',
     });
 
-    foreach my $line (@$list) {
+    foreach my $online (@$online_list) {
       my $alive_check = '';
 
       if ($conf{INTERNET_ALIVE_CHECK}) {
-        my $title = "$lang{LAST_UPDATE}: $line->{last_alive}";
-        if ($line->{last_alive} > $conf{INTERNET_ALIVE_CHECK} * 3) {
-          $alive_check = $html->element('span', '', { title => $title, ICON => 'glyphicon glyphicon-warning-sign text-danger' });
+        my $title = "$lang{LAST_UPDATE}: $online->{last_alive}";
+        if ($online->{last_alive} > $conf{INTERNET_ALIVE_CHECK} * 3) {
+          $alive_check = $html->element('span', '', { title => $title, ICON => 'fa fa-exclamation-triangle text-danger' });
         }
-        elsif ($line->{last_alive} > $conf{INTERNET_ALIVE_CHECK}) {
-          $alive_check = $html->element('span', '', { title => $title, ICON => 'glyphicon glyphicon-warning-sign text-warning' });
+        elsif ($online->{last_alive} > $conf{INTERNET_ALIVE_CHECK}) {
+          $alive_check = $html->element('span', '', { title => $title, ICON => 'fa fa-exclamation-triangle text-warning' });
         }
         else {
-          $alive_check = $html->element('span', '', { title => $title, ICON => 'glyphicon glyphicon-ok-sign text-success' });
+          $alive_check = $html->element('span', '', { title => $title, ICON => 'fa fa-check-circle text-success' });
         }
       }
 
-      if ($line->{connect_info} && $line->{connect_info} =~ /QUOTA:(.+)/) {
+      if ($online->{connect_info} && $online->{connect_info} =~ /QUOTA:(.+)/) {
         $alive_check .= $html->badge('QUOTE:' . $1);
       }
 
       my $switch = q{};
-      if ($line->{switch_id}) {
+      if ($online->{switch_id}) {
         my $nas_index = get_function_index('equipment_info');
 
         if (!$nas_index) {
@@ -1335,23 +1323,28 @@ sub internet_user_online {
         }
 
         if ($nas_index) {
-          $switch = '/' . $html->button($line->{switch_name}, "index=$nas_index&NAS_ID=" . $line->{switch_id});
+          $switch = '/' . $html->button($online->{switch_name}, "index=$nas_index&NAS_ID=" . $online->{switch_id});
         }
         else {
-          $switch = '/' . $line->{switch_mac};
+          $switch = '/' . $online->{switch_mac};
         }
       }
 
-      my $vendor_info = get_oui_info($line->{cid});
+      my $vendor_info = get_oui_info($online->{cid});
+
+      if ($online->{framed_ipv6_prefix}) {
+        $online->{client_ip} .= $html->br() . $online->{framed_ipv6_prefix};
+      }
+
       my @row = (
-        $html->element('abbr', $alive_check . $line->{client_ip}, {
+        $html->element('abbr', $alive_check . $online->{client_ip}, {
           'data-tooltip-position' => 'top',
-          'data-tooltip'          => "$line->{cid}<br>$vendor_info" }),
-        _sec2time_str($line->{duration_sec2}),
-        int2byte($line->{acct_input_octets}),
-        int2byte($line->{acct_output_octets}),
-        ($line->{guest} == 1) ? $html->color_mark($lang{GUEST}, 'bg-danger') : '',
-        $html->button($line->{nas_name}, "index=$online_index&NAS_ID=$line->{nas_id}") . $switch
+          'data-tooltip'          => $online->{cid}. $html->br() .$vendor_info }),
+        _sec2time_str($online->{duration_sec2}),
+        int2byte($online->{acct_input_octets}),
+        int2byte($online->{acct_output_octets}),
+        ($online->{guest} == 1) ? $html->color_mark($lang{GUEST}, 'bg-danger') : '',
+        $html->button($online->{nas_name}, "index=$online_index&NAS_ID=$online->{nas_id}") . $switch
       );
 
       my @function_fields = ();
@@ -1367,17 +1360,17 @@ sub internet_user_online {
           my $index = ($qindex && $qindex eq 'qindex') ? 'qindex' : 'index';
 
           push @function_fields, $html->button($name,
-            "$index=$online_index&diagnostic=$diag_num:$line->{client_ip}+$uid+$line->{nas_id}+$line->{nas_port_id}+$line->{acct_session_id}$pages_qs",
+            "$index=$online_index&diagnostic=$diag_num:$online->{client_ip}+$uid+$online->{nas_id}+$online->{nas_port_id}+$online->{acct_session_id}$pages_qs",
             { TITLE => "$name", BUTTON => 1, NO_LINK_FORMER => 1 });
         }
       }
 
       push @function_fields, $html->button('Z',
-        "index=$online_index&zap=$uid+$line->{nas_id}+$line->{nas_port_id}+$line->{acct_session_id}$pages_qs",
+        "index=$online_index&zap=$uid+$online->{nas_id}+$online->{nas_port_id}+$online->{acct_session_id}$pages_qs",
         { TITLE => 'Zap', class => 'del', NO_LINK_FORMER => 1 }) if ($permissions{5} && $permissions{5}{1});
       push @function_fields, $html->button('H',
-        "index=$online_index&FRAMED_IP_ADDRESS=$line->{client_ip}&hangup=$line->{nas_id}+$line->{nas_port_id}+$line->{acct_session_id}+$line->{user_name}&$pages_qs",
-        { TITLE => 'Hangup', class => 'off', NO_LINK_FORMER => 1 }) if ($permissions{5} && $permissions{5}{2});
+        "index=$online_index&FRAMED_IP_ADDRESS=$online->{client_ip}&hangup=$online->{nas_id}+$online->{nas_port_id}+$online->{acct_session_id}+$online->{user_name}&$pages_qs",
+        { TITLE => 'Hangup', class => 'power-off', NO_LINK_FORMER => 1 }) if ($permissions{5} && $permissions{5}{2});
 
       $table->addrow(@row, join(' ', @function_fields));
     }
@@ -1403,7 +1396,13 @@ sub internet_user_subscribes {
   if ($attr->{UID}) {
     $LIST_PARAMS{GROUP_BY} = 'internet.id';
     $LIST_PARAMS{PAGE_ROWS} = 1000;
+
+    unless ($LIST_PARAMS{UID}) {
+      $LIST_PARAMS{UID} = $attr->{UID};
+    }
+
     my Abills::HTML $table;
+
     ($table) = result_former({
       INPUT_DATA      => $Internet,
       FUNCTION        => 'list',
@@ -1413,8 +1412,8 @@ sub internet_user_subscribes {
       FUNCTION_FIELDS => 'change',
       MAP             => 1,
       MAP_FIELDS      => 'ADDRESS_FLAT,LOGIN,DEPOSIT,FIO,TP_NAME,ONLINE',
-      MAP_FILTERS     => { id => 'search_link:form_users:UID'
-        #online => ''
+      MAP_FILTERS     => {
+        id => 'search_link:form_users:UID'
       },
       EXT_TITLES      => {
         'ip_num'               => 'IP',
@@ -1442,10 +1441,6 @@ sub internet_user_subscribes {
         'id',                  => 'ID',
         'nas_id'               => 'NAS_ID'
       },
-      #      SELECT_VALUE    => {
-      #        #internet_status    => $service_status,
-      #        #login_status => $service_status
-      #      },
       FILTER_COLS     => {
         ip_num => 'int2ip',
       },
@@ -1454,19 +1449,15 @@ sub internet_user_subscribes {
         caption => "$lang{INTERNET} - $lang{SERVICES}",
         qs      => $pages_qs,
         ID      => 'INTERNET_USERS_SUBSCRIBES',
-        #header     => $status_bar,
-        #SELECT_ALL => ($permissions{0}{7}) ? "internet_users_list:IDS:$lang{SELECT_ALL}" : undef,
         EXPORT  => 1,
         MENU    => "$lang{ADD}:index=" . get_function_index('internet_user')
           . (($LIST_PARAMS{UID}) ? "&UID=$LIST_PARAMS{UID}" : q{})
           . "&add_form=1"
           . ':add'
-          #. ";$lang{SEARCH}:index=$index&search_form=1:search"
       },
       MAKE_ROWS       => 1,
       SEARCH_FORMER   => 1,
       MODULE          => 'Internet',
-      TOTAL           => 1,
       SHOW_MORE_THEN  => 1,
       OUTPUT2RETURN   => 1
     });
@@ -1743,9 +1734,8 @@ sub internet_registration_info {
   }
   $Internet->{PASSWORD} = $user->{PASSWORD} if (!$Internet->{PASSWORD});
 
-  if (in_array('Sms', \@MODULES)) {
+  if ($FORM{sms} && in_array('Sms', \@MODULES)) {
     load_module('Sms', $html);
-    
     send_user_memo({ %FORM, %$user, %$Internet, %$pi, %$company_info });
 
     return;
@@ -2045,20 +2035,18 @@ sub internet_chg_tp {
         return 0;
       }
 
-      $Shedule->add(
-        {
-          UID          => $uid,
-          TYPE         => 'tp',
-          ACTION       => "$FORM{ID}:$FORM{TP_ID}",
-          D            => $day,
-          M            => $month,
-          Y            => $year,
-          MODULE       => 'Internet',
-          COMMENTS     => "$lang{FROM}: $Internet->{TP_ID}:" .
-            (($Internet->{TP_NAME}) ? "$Internet->{TP_NAME}" : q{}) . ((!$FORM{GET_ABON}) ? "\nGET_ABON=-1" : '') . ((!$FORM{RECALCULATE}) ? "\nRECALCULATE=-1" : ''),
-          ADMIN_ACTION => 1
-        }
-      );
+      $Shedule->add({
+        UID          => $uid,
+        TYPE         => 'tp',
+        ACTION       => "$FORM{ID}:$FORM{TP_ID}",
+        D            => $day,
+        M            => $month,
+        Y            => $year,
+        MODULE       => 'Internet',
+        COMMENTS     => "$lang{FROM}: $Internet->{TP_ID}:" .
+          (($Internet->{TP_NAME}) ? "$Internet->{TP_NAME}" : q{}) . ((!$FORM{GET_ABON}) ? "\nGET_ABON=-1" : '') . ((!$FORM{RECALCULATE}) ? "\nRECALCULATE=-1" : ''),
+        ADMIN_ACTION => 1
+      });
 
       if (!_error_show($Shedule)) {
         $html->message('info', $lang{CHANGED}, "$lang{TARIF_PLAN} $lang{CHANGED}");
@@ -2108,13 +2096,14 @@ sub internet_chg_tp {
     $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{SHEDULE_ID}]");
   }
 
-  $Shedule->info(
-    {
-      UID    => $uid,
-      TYPE   => 'tp',
-      MODULE => 'Internet'
-    }
-  );
+  $Shedule->info({
+    UID    => $uid,
+    TYPE   => 'tp',
+    MODULE => 'Internet'
+  });
+
+  my $user_info = $users->pi({ UID => $uid });
+  my $tp_gids = $user_info->{LOCATION_ID} ? tp_gids_by_geolocation($user_info->{LOCATION_ID}, $Tariffs, $user_info->{GID}) : '';
 
   my $tp_list = $Tariffs->list({
     MODULE        => 'Dv;Internet',
@@ -2125,6 +2114,7 @@ sub internet_chg_tp {
     MONTH_FEE     => '_SHOW',
     DAY_FEE       => '_SHOW',
     STATUS        => '_SHOW',
+    TP_GID        => $tp_gids || '_SHOW',
     COLS_NAME     => 1
   });
 
@@ -2187,18 +2177,14 @@ sub internet_chg_tp {
     $TPS_HASH{($line->{tp_group_name} || '')}{ $line->{tp_id} } = "$line->{id} $line->{name}" . $small_deposit;
   }
 
-  $Tariffs->{TARIF_PLAN_SEL} = $html->form_select(
-    'TP_ID',
-    {
-      SELECTED       => $Internet->{TP_ID},
-      SEL_HASH       => \%TPS_HASH,
-      SORT_KEY       => 1,
-      SORT_VALUE     => 1,
-      GROUP_COLOR    => 1,
-      MAIN_MENU      => ($permissions{0}{10}) ? get_function_index('internet_tp') : undef,
-      MAIN_MENU_ARGV => "TP_ID=" . ($Internet->{TP_ID} || '')
-    }
-  );
+  $Tariffs->{TARIF_PLAN_SEL} = $html->form_select('TP_ID', {
+    SELECTED       => $Internet->{TP_ID},
+    SEL_HASH       => \%TPS_HASH,
+    SORT_VALUE     => 1,
+    GROUP_COLOR    => 1,
+    MAIN_MENU      => ($permissions{0}{10}) ? get_function_index('internet_tp') : undef,
+    MAIN_MENU_ARGV => "TP_ID=" . ($Internet->{TP_ID} || '')
+  });
 
   $Tariffs->{PARAMS} .= form_period($period, { ABON_DATE => $Internet->{ABON_DATE} });
 
@@ -2587,12 +2573,12 @@ sub internet_user_wizard {
 
   #Info fields
   if (!$attr->{NO_EXTRADATA}) {
+    $attr->{EXT_BILL_ACCOUNT} = 'none' unless ($conf{EXT_BILL_ACCOUNT});
     $users_defaults->{EXDATA} .= $html->tpl_show(templates('form_user_exdata_add'),
       { CREATE_BILL => ' checked',
         GID         => sel_groups({ SKIP_MULTISELECT => 1 })
       },
       { OUTPUT2RETURN => 1 });
-    $users_defaults->{EXDATA} .= $html->tpl_show(templates('form_ext_bill_add'), { CREATE_EXT_BILL => ' checked' }, { OUTPUT2RETURN => 1 }) if ($conf{EXT_BILL_ACCOUNT});
   }
 
   my $internet_defaults = $Internet->defaults();
@@ -2823,6 +2809,20 @@ sub internet_wizard_add {
     $add_values{1}{COMMENTS} =~ s/\\n/\n/g;
   }
 
+  if ($add_values{1}{GID_NAME}) {
+    my $gid_list = $users->group_list({
+      SORT      => 'gid',
+      DESC      => 'desc',
+      PAGE_ROWS => 1,
+      COLS_NAME => 1
+    });
+
+    $users->group_add({
+      GID  => ($gid_list) ? $gid_list->[0]->{gid}+1 : 1,
+      NAME => $add_values{1}{GID_NAME}
+    });
+  }
+
   my Users $user = $users->add({
     %{$add_values{1}},
     CREATE_EXT_BILL => ((defined($attr->{'5.EXT_BILL_DEPOSIT'}) || $attr->{'1.CREATE_EXT_BILL'}) ? 1 : 0)
@@ -2869,32 +2869,9 @@ sub internet_wizard_add {
     _error_show($user, { MESSAGE => "LOGIN: " . ($add_values{2}{LOGIN} || q{}), ID => 922 });
 
     #5 Payments section
-    if ($attr->{'5.SUM'} && $attr->{'5.SUM'} =~ /^[0-9\-\.\,]+$/) {
-      $attr->{'5.SUM'} =~ s/,/\./g;
-      if ($attr->{'5.SUM'} > 0) {
-        my $er = ($FORM{'5.ER'}) ? $Finance->exchange_info($FORM{'5.ER'}) : { ER_RATE => 1 };
-        $Payments->add($user, { %{$add_values{5}}, ER => $er->{ER_RATE} });
-        $users->{DEPOSIT}=$attr->{'5.SUM'};
-        if ($Payments->{errno}) {
-          _error_show($Payments, { MODULE_NAME => $lang{PAYMENTS} });
-          return 0;
-        }
-        else {
-          $message = "$lang{PAYMENTS} $lang{SUM}: " . ($FORM{'5.SUM'} || 0) . ' ' . ($er->{ER_SHORT_NAME} || '') . "\n";
-        }
-      }
-      elsif ($FORM{'5.SUM'} < 0) {
-        my $er = ($FORM{'5.ER'}) ? $Finance->exchange_info($FORM{'5.ER'}) : { ER_RATE => 1 };
-        $Fees->take($user, abs($FORM{'5.SUM'}), { DESCRIBE => 'MIGRATION', ER => $er->{ER_RATE} });
-
-        if ($Fees->{errno}) {
-          _error_show($Fees, { MODULE_NAME => $lang{FEES} });
-          return 0;
-        }
-        else {
-          $message = "$lang{FEES} $lang{SUM}: $FORM{'5.SUM'} " . ($er->{ER_SHORT_NAME} || q{}) . "\n";
-        }
-      }
+    if($add_values{5}) {
+      $add_values{5}{UID} = $uid;
+      internet_wizard_fin($add_values{5});
     }
 
     # Ext bill add
@@ -2960,26 +2937,8 @@ sub internet_wizard_add {
 
     #4 Internet - Make Internet service only with TP
     if ($add_values{4}{TP_ID} || $add_values{4}{TP_NUM} || $add_values{4}{TP_NAME}) {
-      #Get NAS ID by IP
-      if($add_values{4}{NAS_IP}) {
-        $Nas->info({ IP => $add_values{4}{NAS_IP} });
-        $add_values{4}{NAS_ID} = $Nas->{NAS_ID};
-      }
-
-      $add_values{4}{TP_ID} = _check_tp({ %{ $add_values{4}}, MODULE => 'Internet' });
-
-      my $result = internet_user_add({
-        %{$add_values{4}},
-        %$attr,
-        SKIP_MONTH_FEE             => $FORM{SERIAL},
-        UID                        => $uid,
-        QUITE                      => 1,
-        DO_NOT_USE_GLOBAL_USER_PLS => 1,
-      });
-
-      if (!$result) {
-        return 0;
-      }
+      $add_values{4}{UID}=$uid;
+      internet_service_add($add_values{4});
     }
 
     # Add E-Mail account
@@ -3048,6 +3007,7 @@ sub internet_wizard_add {
         form_fees_wizard({ USER_INFO => $user });
       }
     }
+
     #Iptv
     if (scalar keys %{$add_values{11}} > 0) {
       load_module('Iptv', $html);
@@ -3076,6 +3036,33 @@ sub internet_wizard_add {
             });
             $i++;
           }
+        }
+      }
+
+      if ($FORM{CHANGE_TP_DATE}) {
+        $FORM{TP_ID} = _check_tp({
+          TP_NAME => $FORM{CHANGE_TP_NAME},
+          MODULE  => 'Iptv'
+        });
+
+        if ($FORM{TP_ID}) {
+          #Shedule
+          my ($Y, $M, $D) = split(/-/, $FORM{CHANGE_TP_DATE}, 3);
+
+          $Shedule->add(
+            {
+              UID    => $uid,
+              TYPE   => 'tp',
+              ACTION => "$FORM{SERVICE_ID}:$FORM{TP_ID}",
+              D      => $D,
+              M      => $M,
+              Y      => $Y,
+              MODULE => 'Iptv'
+            }
+          );
+        }
+        else {
+          $html->message('err', $lang{ERROR}, "NO TP_ID FOR SHDEULE\nLOGIN: $login UID: $FORM{UID} DATE: $FORM{CHANGE_TP_DATE} TP_NAME: ". ( $FORM{CHANGE_TP_NAME} || q{}));
         }
       }
     }
@@ -3162,10 +3149,129 @@ sub internet_wizard_add {
 }
 
 #*******************************************************************
+=head2 internet_wizard_fin($params)
+
+  Arguments:
+    $params
+
+  Resturn:
+
+=cut
+#*******************************************************************
+sub internet_wizard_fin {
+  my ($params) = @_;
+
+  my $Fees = Finance->fees($db, $admin, \%conf);
+  my $Finance = Finance->new($db, $admin, \%conf);
+  my $message = q{};
+
+  if($params->{USER}) {
+    $user = $params->{USER};
+  }
+
+  if ($params->{SUM} && $params->{SUM} =~ /^[0-9\-\.\,]+$/) {
+    $params->{SUM} =~ s/,/\./g;
+    if ($params->{SUM} > 0) {
+      my $er = ($params->{ER}) ? $Finance->exchange_info($params->{ER}) : { ER_RATE => 1 };
+      $Payments->add($user, { %{$params}, ER => $er->{ER_RATE} });
+      $users->{DEPOSIT}=$params->{SUM};
+      if ($Payments->{errno}) {
+        _error_show($Payments, { MODULE_NAME => $lang{PAYMENTS} });
+        return 0;
+      }
+      else {
+        $message = "$lang{PAYMENTS} $lang{SUM}: " . ($params->{SUM} || 0) . ' ' . ($er->{ER_SHORT_NAME} || '') . "\n";
+      }
+    }
+    elsif ($params->{SUM} < 0) {
+      my $er = ($params->{ER}) ? $Finance->exchange_info($params->{ER}) : { ER_RATE => 1 };
+      $Fees->take($user, abs($params->{SUM}), { DESCRIBE => 'MIGRATION', ER => $er->{ER_RATE} });
+
+      if ($Fees->{errno}) {
+        _error_show($Fees, { MODULE_NAME => $lang{FEES} });
+        return 0;
+      }
+      else {
+        $message = "$lang{FEES} $lang{SUM}: $params->{SUM} " . ($er->{ER_SHORT_NAME} || q{}) . "\n";
+      }
+    }
+  }
+
+  return 1;
+}
+
+#*******************************************************************
+=head2 _check_tp($params)
+
+  Arguments:
+    $params
+
+  Resturn:
+
+=cut
+#*******************************************************************
+sub internet_service_add {
+  my ($params) = @_;
+
+  #Get NAS ID by IP
+  if ($params->{NAS_IP}) {
+    delete $Nas->{NAS_ID};
+    $Nas->info({ IP => $params->{NAS_IP} });
+    if ($Nas->{NAS_ID}) {
+      $params->{NAS_ID} = $Nas->{NAS_ID};
+    }
+  }
+
+  $params->{TP_ID} = _check_tp({ %{$params}, MODULE => 'Internet' });
+  my $service_id = internet_user_add({
+    %{$params},
+    #%$attr,
+    SKIP_MONTH_FEE             => $FORM{SERIAL},
+    QUITE                      => 1,
+    DO_NOT_USE_GLOBAL_USER_PLS => 1,
+    #REGISTRATION               => 1
+  });
+
+  if (!$service_id) {
+    return 0;
+  }
+
+  %FORM = %{$params};
+  $FORM{SERVICE_ID} = $service_id;
+
+  if ($FORM{CHANGE_TP_DATE}) {
+    $FORM{TP_ID} = _check_tp({
+      TP_NAME => $FORM{CHANGE_TP_NAME},
+      MODULE  => 'Internet'
+    });
+
+    my ($Y, $M, $D) = split(/-/, $FORM{CHANGE_TP_DATE}, 3);
+    if ($FORM{TP_ID}) {
+      $Shedule->add(
+        {
+          UID    => $params->{UID},
+          TYPE   => 'tp',
+          ACTION => "$FORM{SERVICE_ID}:$FORM{TP_ID}",
+          D      => $D,
+          M      => $M,
+          Y      => $Y,
+          MODULE => 'Internet'
+        });
+    }
+    else {
+      print "UID: $params->{UID} / $FORM{CHANGE_TP_DATE} / " . ($FORM{CHANGE_TP_NAME} || q{}) . "//\n";
+    }
+  }
+
+  return 0;
+}
+
+#*******************************************************************
 =head2 _check_tp($attr)
 
   Arguments:
     $attr
+      QUITE
 
   Resturn;
     tp_id
@@ -3203,7 +3309,8 @@ sub _check_tp {
       _error_show($Tariffs, { ID => 981, MESSAGE => => $tp_name  });
 
       $attr->{TP_ID} = $Tariffs->{TP_ID} || q{};
-      $html->message('info', $lang{ADD}, $lang{TARIF_PLAN} . ": ". ($attr->{TP_NUM} || $attr->{TP_NAME}). " ($Tariffs->{TP_ID})");
+      $html->message('info', $lang{ADD}, $lang{TARIF_PLAN}
+        . ": ". ($attr->{TP_NUM} || $attr->{TP_NAME}). " ($attr->{TP_ID})") if (! $attr->{QUITE});
     }
     else {
       $attr->{TP_ID} = $tp_list->[0]->{tp_id};

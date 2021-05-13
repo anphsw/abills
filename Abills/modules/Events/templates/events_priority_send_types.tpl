@@ -5,9 +5,9 @@
     <input type='hidden' name='save' value='1'/>
     <input type='hidden' name='AID' value='%AID%'/>
 
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'><h4 class='box-title'>_{NOTIFICATION_TYPE_FOR_PRIORITY}_</h4></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-header with-border'><h4 class='card-title'>_{NOTIFICATION_TYPE_FOR_PRIORITY}_</h4></div>
+      <div class='card-body'>
         <div class='row'>
           <div class='col-md-4'>
             <p class='text-muted'><strong>_{PRIORITY}_</strong></p>
@@ -28,7 +28,7 @@
           </div>
         </div>
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input type='submit' form='form_EVENTS_PRIORITY_SEND_TYPE' class='btn btn-primary' name='submit'
                value='_{SAVE}_'>
       </div>

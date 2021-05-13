@@ -1,15 +1,15 @@
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='ID' value='%ID%'>
-<div class='box box-theme'>
-  <div class='box-header with-border'><h3 class='box-title'>%TYPE_NAME% : %NAME%</h3>
-    <div class='box-tools pull-right'>
+<div class='card card-primary card-outline'>
+  <div class='card-header with-border'><h3 class='card-title'>%TYPE_NAME% : %NAME%</h3>
+    <div class='card-tools pull-right'>
       %INFO%
-      <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+      <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
       </button>
     </div>
   </div>
-  <div class='box-body' id='task_form_body'>
+  <div class='card-body' id='task_form_body'>
     <div class='row'>
       <div class='col-md-9'>
         <h4>%DESCR%</h4>
@@ -17,7 +17,7 @@
         <p>_{RESPONSIBLE}_: %RESPONSIBLE_NAME%</p>
         <p>_{DUE_DATE}_: %CONTROL_DATE%</p>
         <p>_{CREATOR}_: %ADMIN_NAME%</p>
-        <p %HIDE_PARTCIPIANTS%><button type='button' class='btn btn-default btn-xs' data-toggle='modal' data-target='#myModal1' 
+        <p %HIDE_PARTCIPIANTS%><button type='button' class='btn btn-secondary btn-xs' data-toggle='modal' data-target='#myModal1' 
                                      onClick='return openModal()'>_{PARTCIPIANTS}_: <span class='admin_count'></span></button></p>
         <input type='hidden' id='PARTCIPIANTS_LIST' name='PARTCIPIANTS_LIST' value='%PARTCIPIANTS_LIST%'>
       </div>
@@ -41,14 +41,14 @@
                %PARTCIPIANTS%
               </div>
               <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal" onClick='return closeModal()'>Close</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" onClick='return closeModal()'>Close</button>
               </div>
             </div>
             
           </div>
         </div>
 
-  <div class='box-footer'>
+  <div class='card-footer'>
     <button type='button' class='btn btn-primary' data-toggle='modal' data-target='#myModal'>_{CLOSE_TASK}_</button>
   </div>  
 </div>

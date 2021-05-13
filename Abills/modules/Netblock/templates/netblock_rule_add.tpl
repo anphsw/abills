@@ -3,9 +3,9 @@
     <input type=hidden name='chg'   value='$FORM{chg}'>
 
     <fieldset>
-        <div class='box box-theme box-form'>
-            <div class='box-header with-border'><h4 class='box-title'>_{RULES}_</h4></div>
-            <div class='box-body'>
+        <div class='card card-primary card-outline box-form'>
+            <div class='card-header with-border'><h4 class='card-title'>_{RULES}_</h4></div>
+            <div class='card-body'>
 
                 <div class='form-group'>
                     <label for='BLOCKTYPE' class='control-label col-sm-4'>_{BLOCKTYPE}_</label>
@@ -21,7 +21,7 @@
                     </div>
                 </div>
 
-            <div class='box-footer'>
+            <div class='card-footer'>
                 <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
             </div>
         </div>

@@ -39,11 +39,12 @@
 %JS_VARIABLES%
 
 <div class='row'>
-  <div class='box box-theme'>
-    <div class='box-body' id='map-wrapper'>
-      <div id='map' style='height: 85vh'></div>
+  <div class="col-sm-12 col-12">
+    <div class='card card-primary'>
+      <div class='card-body' id='map-wrapper' style="padding: 5px !important;">
+        <div id='map' style='height: 85vh'></div>
+      </div>
     </div>
-    <div class='box-footer'></div>
   </div>
   <div class='clearfix'></div>
 </div>
@@ -72,7 +73,7 @@
     init_map();
     loadLayers();
   } else {
-    putScriptInHead('general_rquests_map', '/styles/default_adm/js/maps/new-general-requests.js',
+    putScriptInHead('general_requests_map', '/styles/default_adm/js/maps/new-general-requests.js',
       putScriptInHead('new_maps', '/styles/default_adm/js/maps/new-maps.js'));
   }
 </script>

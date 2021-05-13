@@ -312,11 +312,6 @@ sub _cdata {
       #          PARSER => '',
       #          WALK   => 1
       #        },
-      'DISTANCE'       => {
-        NAME   => 'DISTANCE',
-        OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.13.1',
-        PARSER => '_cdata_convert_distance'
-      },
       main_onu_info    => {
         #          'HARD_VERSION'     => {
         #            NAME   => '',
@@ -333,18 +328,11 @@ sub _cdata {
           OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.37.1',
           PARSER => '_cdata_convert_voltage'
         }, #voltage = voltage * 0.0001;
-        'MAC'     => {
-          NAME   => 'MAC',
-          OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.7.1.1',
-          PARSER => 'bin2mac',
-          WALK   => 1
+        'DISTANCE'       => {
+          NAME   => 'DISTANCE',
+          OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.13.1',
+          PARSER => '_cdata_convert_distance'
         },
-        #        'VLAN'             => {
-        #          NAME   => '',
-        #          OIDS   => '',
-        #          PARSER => '',
-        #          WALK   => 1
-        #        },
         #        'ONU_PORTS_STATUS' => {
         #          NAME   => '',
         #          OIDS   => '',
@@ -612,18 +600,12 @@ sub _cdata2 {
       #          PARSER => '',
       #          WALK   => 1
       #        },
-      'DISTANCE'       => {
-        NAME   => 'DISTANCE',
-        OIDS   => '1.3.6.1.4.1.17409.2.3.4.1.1.15',
-        PARSER => '_cdata_convert_distance'
-      },
-      'VOLTAGE'        => {
-        NAME      => 'VOLTAGE',
-        OIDS      => '1.3.6.1.4.1.17409.2.3.4.2.1.7',
-        PARSER    => '_cdata2_convert_voltage',
-        ADD_2_OID => '.0.0'
-      }, #voltage = voltage * 0.0001;
       main_onu_info    => {
+        'DISTANCE'     => {
+          NAME   => 'DISTANCE',
+          OIDS   => '1.3.6.1.4.1.17409.2.3.4.1.1.15',
+          PARSER => '_cdata_convert_distance'
+        },
         'HARD_VERSION' => {
           NAME   => 'VERSION',
           OIDS   => '1.3.6.1.4.1.17409.2.3.4.1.1.27',
@@ -640,24 +622,16 @@ sub _cdata2 {
           PARSER    => '_cdata2_convert_voltage',
           ADD_2_OID => '.0.0'
         }, #voltage = voltage * 0.0001;
-        'MAC'          => {
-          NAME   => 'MAC',
-          OIDS   => '1.3.6.1.4.1.17409.2.3.4.1.1.7',
-          PARSER => 'bin2mac',
-          WALK   => 1
-        },
-        #        'VLAN'             => {
-        #          NAME   => '',
-        #          OIDS   => '',
-        #          PARSER => '',
-        #          WALK   => 1
-        #        },
         'ONU_PORTS_STATUS' => {
           NAME    => 'ONU_PORTS_STATUS',
           OIDS    => ' 1.3.6.1.4.1.17409.2.3.5.1.1.5',
           PARSER  => '',
           WALK    => 1,
           TIMEOUT => 10
+        },
+        'MAC_BEHIND_ONU' => {
+          NAME        => 'MAC_BEHIND_ONU',
+          USE_MAC_LOG => 1
         }
       }
     },

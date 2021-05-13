@@ -108,7 +108,7 @@ sub taxes {
     {
       width   => "100%",
       caption => "$lang{TAX_MAGAZINE}",
-      title   => [ "ID", $lang{CODE} . ' ' . $lang{_TAX}, $lang{PERCENT} . ' ' . $lang{_TAX} . ', (%)', $lang{DESCRIPTION}, $lang{IN_USING}, "" ],
+      title   => [ "ID", $lang{CODE} . ' ' . $lang{_TAX}, $lang{PERCENT} . ' ' . $lang{_TAX} . ', (%)', $lang{DESCRIBE}, $lang{IN_USING}, "" ],
       qs      => $pages_qs,
       ID      => "TABLE_ID",
       export  => 1
@@ -117,7 +117,7 @@ sub taxes {
 
   foreach my $item (@$taxes_list) {
     my $del_button  = $html->button("", "index=$index&del=$item->{id}", { class => "del", MESSAGE => "$lang{DEL}?", class => 'del'  });
-    my $edit_button = $html->button("", "index=$index&chg=$item->{id}", { class => "",            ADD_ICON => "glyphicon glyphicon-pencil" });
+    my $edit_button = $html->button("", "index=$index&chg=$item->{id}", { class => "",            ADD_ICON => "fa fa-pencil" });
     $table->addrow($item->{id}, $item->{ratecode}, $item->{rateamount}, $item->{ratedescr}, $current[$item->{current}],  "$edit_button$del_button");
   }
 

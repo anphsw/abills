@@ -627,7 +627,18 @@ sub show {
 }
 
 #**********************************************************
-=head2 button($name, $params, $attr)
+=head2 button($name, $params, $attr) - Create link element
+
+  Arguments:
+    $name     - Link name
+    $params   - Link params (url)
+    $attr
+      ONLY_IN_HTML - link will be returned if we are working with HTML, but will not be returned in export modes like xls, csv, json
+      GLOBAL_URL   - Global link
+      TITLE        -
+
+  Returns:
+    String with element
 
 =cut
 #**********************************************************
@@ -635,6 +646,10 @@ sub button {
   my $self = shift;
   my ($name, $params, $attr) = @_;
   my $ex_attr = '';
+
+  if ($attr->{ONLY_IN_HTML}) {
+    return '';
+  }
 
   if(! $params && ! $name) {
     return '';

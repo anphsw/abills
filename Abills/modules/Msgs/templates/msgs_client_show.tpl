@@ -1,14 +1,16 @@
 <style>
-  body {font-family: Arial, Helvetica, sans-serif;}
-  
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
   .attachment_responsive {
     border-radius: 5px;
     cursor: pointer;
     transition: 0.3s;
   }
-  
+
   .attachment_responsive:hover {opacity: 0.7;}
-  
+
   .modal-img {
     display: none;
     position: fixed;
@@ -22,28 +24,36 @@
     background-color: rgb(0,0,0);
     background-color: rgba(0,0,0,0.9);
   }
-  
+
   .modal-content-img {
     margin: auto;
     display: block;
     max-width: 90%;
   }
 
-  .modal-content-img {  
+  .modal-content-img {
     -webkit-animation-name: zoom;
     -webkit-animation-duration: 0.6s;
     animation-name: zoom;
     animation-duration: 0.6s;
   }
-  
+
   @-webkit-keyframes zoom {
-    from {-webkit-transform:scale(0)} 
-    to {-webkit-transform:scale(1)}
+    from {
+      -webkit-transform:scale(0)
+    }
+    to {
+      -webkit-transform:scale(1)
+    }
   }
-  
+
   @keyframes zoom {
-    from {transform:scale(0)} 
-    to {transform:scale(1)}
+    from {
+      transform:scale(0)
+    }
+    to {
+      transform:scale(1)
+    }
   }
 
   .closeImageResize {
@@ -55,7 +65,7 @@
     font-weight: bold;
     transition: 0.3s;
   }
-  
+
   .closeImageResize:hover,
   .closeImageResize:focus {
     color: #bbb;
@@ -80,35 +90,35 @@
 
 
     <div style='word-wrap: break-word;'>
-        <div class='box box-theme %MAIN_PANEL_COLOR%'>
-            <div class='box-header with-border'>
-                <div class='box-title'>%SUBJECT% </div>
+        <div class='card card-primary card-outline %MAIN_PANEL_COLOR%'>
+            <div class='card-header with-border'>
+                <h4 class='card-title'>%SUBJECT%</h4>
             </div>
-            <div class='box-body'>
+            <div class='card-body'>
                 <div class='table'>
-                <div class='row'>
-                    <div class='col-md-3 text-left'><strong>#:</strong></div>
-                    <div class='col-md-3 text-left'><span class='badge'>%ID%</span></div>
+                    <div class='row'>
+                        <div class='col-md-3 text-left'><strong>#:</strong></div>
+                        <div class='col-md-3 text-left'><span class='badge'>%ID%</span></div>
 
-                    <div class='col-md-3 text-left'><strong>_{CHAPTERS}_:</strong></div>
-                    <div class='col-md-3 text-left'>%CHAPTER_NAME%</div>
-                </div>
+                        <div class='col-md-3 text-left'><strong>_{CHAPTERS}_:</strong></div>
+                        <div class='col-md-3 text-left'>%CHAPTER_NAME%</div>
+                    </div>
 
-                <div class='row'>
-                    <div class='col-md-3 text-left'><strong>_{STATUS}_:</strong></div>
-                    <div class='col-md-3 text-left'>%STATE_NAME%</div>
+                    <div class='row'>
+                        <div class='col-md-3 text-left'><strong>_{STATUS}_:</strong></div>
+                        <div class='col-md-3 text-left'>%STATE_NAME%</div>
 
-                    <div class='col-md-3 text-left'><strong>_{PRIORITY}_:</strong></div>
-                    <div class='col-md-3 text-left'>%PRIORITY_TEXT%</div>
-                </div>
+                        <div class='col-md-3 text-left'><strong>_{PRIORITY}_:</strong></div>
+                        <div class='col-md-3 text-left'>%PRIORITY_TEXT%</div>
+                    </div>
 
-                <div class='row'>
-                    <div class='col-md-3 text-left'><strong>_{CREATED}_:</strong></div>
-                    <div class='col-md-3 text-left'>%DATE%</div>
+                    <div class='row'>
+                        <div class='col-md-3 text-left'><strong>_{CREATED}_:</strong></div>
+                        <div class='col-md-3 text-left'>%DATE%</div>
 
-                    <div class='col-md-3 text-left'><strong>_{UPDATED}_:</strong></div>
-                    <div class='col-md-3 text-left'>%UPDATED%</div>
-                </div>
+                        <div class='col-md-3 text-left'><strong>_{UPDATED}_:</strong></div>
+                        <div class='col-md-3 text-left'>%UPDATED%</div>
+                    </div>
                 </div>
                 <!-- progres start -->
                 %PROGRESSBAR%
@@ -116,15 +126,15 @@
             </div>
         </div>
 
-        <div class='box box-primary'>
-            <div class='box-header with-border'>
-                <h5 class='box-title'>%LOGIN% _{ADDED}_: %DATE%</h5>
+        <div class='card card-primary'>
+            <div class='card-header with-border'>
+                <h5 class='card-title'>%LOGIN% _{ADDED}_: %DATE%</h5>
             </div>
-            <div class='box-body' style='text-align: left'>
+            <div class='card-body'>
                 %MESSAGE%
                 <div class='pull-right'>%QUOTING% %DELETE%</div>
             </div>
-            <div class='box-footer'>%RUN_TIME% %ATTACHMENT%</div>
+            <div class='card-footer'>%RUN_TIME% %ATTACHMENT%</div>
         </div>
 
         %REPLY%
@@ -133,12 +143,12 @@
     <!-- end of table -->
 </form>
 
-<div id="myModalImg" class="modal-img">
-  <span class="closeImageResize">&times;</span>
-  <img class="modal-content-img" id="img_resize">
-  <div id="caption"></div>
+<div id='myModalImg' class='modal-img'>
+  <span class='closeImageResize'>&times;</span>
+  <img class='modal-content-img' id='img_resize'>
+  <div id='caption'></div>
   <br/>
-  <a id='download_btn' class="btn btn-success btn-large">_{DOWNLOAD}_</a>
+  <a id='download_btn' class='btn btn-success btn-large'>_{DOWNLOAD}_</a>
   <br/><br/>
 </div>
 
@@ -147,51 +157,51 @@
   var cancelStr = '_{CANCEL}_';
   var replyId = 0;
 
-  var modal = document.getElementById("myModalImg");
-  var modalImg = document.getElementById("img_resize");
-  var captionText = document.getElementById("caption");
-  
-  var downloadBtn = jQuery('#download_btn');
-  var span = jQuery(".closeImageResize");
+  var modal = document.getElementById('myModalImg');
+  var modalImg = document.getElementById('img_resize');
+  var captionText = document.getElementById('caption');
 
-  jQuery(".attachment_responsive").on('click', function(event) {
-    modal.style.display = "block";
+  var downloadBtn = jQuery('#download_btn');
+  var span = jQuery('.closeImageResize');
+
+  jQuery('.attachment_responsive').on('click', function(event) {
+    modal.style.display = 'block';
     modalImg.src = this.src;
     downloadBtn.attr('href',this.src);
   });
 
   span.on('click', function(event) {
-    modal.style.display = "none";
+    modal.style.display = 'none';
   });
 
   jQuery('#myModalImg').on('click', function(event) {
-    modal.style.display = "none";
+    modal.style.display = 'none';
   });
 
   document.addEventListener('keydown', function(event) {
     const key = event.key;
-    if (key === "Escape") {
-      modal.style.display = "none";
+    if (key === 'Escape') {
+      modal.style.display = 'none';
     }
   });
 
   function quoting_reply(element) {
     var replyField = jQuery('#REPLY_TEXT');
-    
-    var replyElement = jQuery(element).closest(".box").find(".box-body");
+
+    var replyElement = jQuery(element).closest('.card').find('.card-body');
     var oldReplyHtml = replyElement[0].innerHTML;
     var oldReply = replyElement[0].innerText;
-      
+
     oldReply = oldReply.replace(/^/g, '> ');
     oldReply = oldReply.replace(/\n/g, '\n> ');
-    
+
     replyField.val(oldReply);
-  };
+  }
 
   jQuery(function() {
-    jQuery(".quoting-reply-btn").click(function(event){
+    jQuery('.quoting-reply-btn').click(function(event){
       event.preventDefault();
       quoting_reply(this);
     });
-  });
+  }());
 </script>

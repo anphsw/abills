@@ -33,6 +33,8 @@ sub new {
 
   $Bill = Bills->new($db, $admin, $CONF);
 
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
+
   return $self;
 }
 
@@ -289,6 +291,22 @@ sub list {
     }
     );
 
+  if($self->{conf}->{user_payment_journal_show} && defined $attr->{SHOW_PAYMENT}){
+    use POSIX qw(strftime);
+
+    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+
+    $mday = 1;
+    $mon = $mon - $self->{conf}->{user_payment_journal_show} + 1;
+    if ($mon == 13) {
+      $mon = 1;
+      $year++;
+    }
+    my $date_show = POSIX::strftime('%Y-%m-%d', ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst));
+
+    $WHERE .= "AND p.date >= '$date_show'";
+  }
+
   my $EXT_TABLES  = '';
   $EXT_TABLES  = $self->{EXT_TABLES} if($self->{EXT_TABLES});
 
@@ -333,6 +351,109 @@ sub list {
   );
 
   return $list;
+}
+
+#**********************************************************
+=head2 pool_add($user, $attr) - Add user payments
+
+  Attributes:
+    $attr   - Aextra attributes
+
+  Return
+    Object
+
+=cut
+#**********************************************************
+sub pool_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self->query_add('payments_pool', $attr);
+}
+
+#**********************************************************
+=head2 pool_list($attr) - List of payments pool
+
+  Attributes:
+    $attr   - Extra attributes
+
+  Returns:
+    Arrya_refs
+
+=cut
+#**********************************************************
+sub pool_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE =  $self->search_former($attr, [
+    ['SUM',            'INT', 'p.sum',                                                 1 ],#
+    ['METHOD',         'INT', 'p.method',                                              1 ],#
+    ['PAYMENT_ID',     'STR', 'pp.payment_id',                                         1 ],#
+    ['EXT_ID',         'STR', 'p.ext_id',                                              1 ],#
+    ['DATE',           'DATE','DATE_FORMAT(p.date, \'%Y-%m-%d\')',                     1 ],#
+    ['ID',             'INT', 'pp.id',                                                 1 ],#
+    ['STATUS',         'INT', 'pp.status',                                             1 ],#
+    ['UID',            'INT', 'p.uid',                                                 1 ],#
+  ],
+    {
+      WHERE       => 1,
+    }
+  );
+
+  my $EXT_TABLES  = '';
+  $EXT_TABLES  = $self->{EXT_TABLES} if($self->{EXT_TABLES});
+
+  $self->query("SELECT $self->{SEARCH_FIELDS}
+    pp.id
+    FROM payments_pool pp
+    LEFT JOIN payments p ON (p.id = pp.payment_id)
+    $EXT_TABLES
+    $WHERE
+    GROUP BY pp.id
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+      undef,
+      $attr
+    );
+
+  my $list = $self->{list};
+
+  $self->query("SELECT
+    COUNT(*) AS total
+    FROM payments_pool pp
+    LEFT JOIN payments p ON (p.id = pp.payment_id)
+    $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
+}
+
+#**********************************************************
+=head2 pool_change($attr) - Payments change_ pool status
+
+=cut
+#**********************************************************
+sub pool_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes(
+    {
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'payments_pool',
+      DATA         => $attr
+    }
+  );
+
+  return 1;
 }
 
 #**********************************************************
@@ -386,9 +507,18 @@ sub reports {
       $GROUP      = 5;
     }
     elsif ($attr->{TYPE} eq 'PER_MONTH') {
+      my $WHERE_USERS = q{};
+      if ($attr->{FROM_DATE}) {
+        $WHERE_USERS = "WHERE registration <= '$attr->{FROM_DATE} 00:00:00'";
+      }
+      $self->query("SELECT COUNT(*) FROM users $WHERE_USERS;");
+      my $system_users = $self->{list}->[0]->[0] || 0;
       $date = "DATE_FORMAT(p.date, '%Y-%m') AS month";
-      $self->{SEARCH_FIELDS}="ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
-                              ROUND(SUM(p.sum) / (SELECT COUNT(*) FROM users WHERE DATE_FORMAT(registration, '%Y-%m') <= DATE_FORMAT(p.date, '%Y-%m')), 2) AS arpu,";
+      $self->{SEARCH_FIELDS} = "ROUND(SUM(p.sum) / count(DISTINCT p.uid), 2) AS arppu,
+      ROUND(SUM(p.sum) / $system_users, 2) AS arpu,";
+
+      # $self->{SEARCH_FIELDS}="ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
+      #                         ROUND(SUM(p.sum) / (SELECT COUNT(*) FROM users WHERE DATE_FORMAT(registration, '%Y-%m') <= DATE_FORMAT(p.date, '%Y-%m')), 2) AS arpu,";
     }
     elsif ($attr->{TYPE} eq 'GID') {
       $date = "u.gid";
@@ -432,7 +562,7 @@ sub reports {
     }
     else {
       $date = "u.id AS login";
-      $EXT_TABLE_JOINS_HASH{users}=1;
+      $EXT_TABLE_JOINS_HASH{users} = 1;
     }
   }
   elsif ($attr->{MONTH}) {
@@ -443,30 +573,38 @@ sub reports {
     if ($attr->{PAYMENT_DAYS} =~ /(<|>)/) {
       $expr = $1;
     }
-    #push @WHERE_RULES, "p.date $expr CURDATE() - INTERVAL $attr->{PAYMENT_DAYS} DAY";
   }
   else {
+    my $WHERE_USERS = q{};
+    if ($attr->{FROM_DATE}) {
+      $WHERE_USERS = "WHERE registration <= '$attr->{FROM_DATE} 00:00:00'";
+    }
+    $self->query("SELECT COUNT(*) FROM users $WHERE_USERS;");
+    my $system_users = $self->{list}->[0]->[0] || 0;
     $date = "DATE_FORMAT(p.date, '%Y-%m') AS month";
-    $self->{SEARCH_FIELDS}="ROUND(SUM(p.sum) / count(DISTINCT p.uid), 2) AS arppu,
-                            ROUND(SUM(p.sum) / (SELECT count(*) FROM users WHERE DATE_FORMAT(registration, '%Y-%m') <= DATE_FORMAT(p.date, '%Y-%m')), 2) AS arpu,";
+    $self->{SEARCH_FIELDS} = "ROUND(SUM(p.sum) / count(DISTINCT p.uid), 2) AS arppu,
+      ROUND(SUM(p.sum) / $system_users, 2) AS arpu,";
+
+    # $self->{SEARCH_FIELDS} = "ROUND(SUM(p.sum) / count(DISTINCT p.uid), 2) AS arppu,
+    #   ROUND(SUM(p.sum) / (SELECT count(*) FROM users WHERE DATE_FORMAT(registration, '%Y-%m') <= DATE_FORMAT(p.date, '%Y-%m')), 2) AS arpu,";
   }
 
   if ($attr->{ADMINS}) {
-    #push @WHERE_RULES, @{ $self->search_expr($attr->{ADMINS}, 'STR', 'p.aid') };
-    #$date = 'a.id AS admin_login';
-    $EXT_TABLE_JOINS_HASH{admins}=1;
+    $EXT_TABLE_JOINS_HASH{admins} = 1;
   }
 
   if ($admin->{DOMAIN_ID} || $attr->{GID} || $attr->{TAGS} || $self->{SEARCH_FIELDS} =~ /gid/ || $WHERE =~ /u.gid/) {
-    $EXT_TABLE_JOINS_HASH{users}=1;
+    $EXT_TABLE_JOINS_HASH{users} = 1;
   }
 
   $EXT_TABLE_JOINS_HASH{users}=1 if ($self->{EXT_TABLES});
-  my $EXT_TABLES = $self->mk_ext_tables({ JOIN_TABLES     => \%EXT_TABLE_JOINS_HASH,
-                                          EXTRA_PRE_JOIN  => [ 'users:INNER JOIN users u ON (u.uid=p.uid)',
-                                                               'admins:LEFT JOIN admins a ON (a.aid=p.aid)'
-                                                              ]
-                                      });
+  my $EXT_TABLES = $self->mk_ext_tables({
+    JOIN_TABLES => \%EXT_TABLE_JOINS_HASH,
+    EXTRA_PRE_JOIN  => [
+      'users:INNER JOIN users u ON (u.uid=p.uid)',
+      'admins:LEFT JOIN admins a ON (a.aid=p.aid)'
+    ]
+  });
 
   $self->query("SELECT $date, count(DISTINCT p.uid) AS login_count, COUNT(*) AS count, SUM(p.sum) AS sum,
     $self->{SEARCH_FIELDS} p.uid

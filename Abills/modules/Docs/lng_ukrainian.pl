@@ -63,3 +63,6 @@ $lang{LIST_OF_CHARGES}='Список нарахувань';
 $lang{DELETED_GROUP}="Видалити групою";
 $lang{NO_CHECK_DOCUMENT}="Виберіть документи, які потрібно видалити";
 $lang{OPERATION}="Операція успішно виконана";
+$lang{PAYMENT_SUM}='Оплачено';
+
+1;

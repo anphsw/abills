@@ -5,10 +5,10 @@
     <input type=hidden name=chg value='$FORM{chg}'>
     <input type=hidden name=MODULE value='Iptv'>
     <fieldset>
-        <div class='box box-theme box-form'>
-            <div class='box-header with-border'><h4 class='box-title'>_{SCREENS}_</h4></div>
+        <div class='card card-primary card-outline box-form'>
+            <div class='card-header with-border'><h4 class='card-title'>_{SCREENS}_</h4></div>
 
-            <div class='box-body'>
+            <div class='card-body'>
 
                 <div class='form-group'>
                     %STORAGE_FORM%
@@ -41,13 +41,20 @@
                     </div>
                 </div>
 
+                <div class='form-group'>
+                    <label class='control-label col-sm-2 col-md-3' for='COMMENT'>_{DESCRIBE}_:</label>
+                    <div class='col-sm-10 col-md-9'>
+                        <textarea class='form-control' id='COMMENT' name='COMMENT' rows='3'>%COMMENT%</textarea>
+                    </div>
+                </div>
+
                 %FORM_DEVICE%
 
                 %DEVICE_BINDING_CODE_FORM%
 
             </div>
 
-            <div class='box-footer'>
+            <div class='card-footer'>
                 <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
                 %DELETE%
             </div>

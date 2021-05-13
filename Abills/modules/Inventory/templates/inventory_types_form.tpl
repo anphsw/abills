@@ -1,9 +1,9 @@
 <form action=''$SELF_URL?index=$index\&add_article=1' name='depot_form' method=POST class='form form-horizontal'>
     <input type=hidden name=index value=$index>
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'>_{ADD}_ _{TYPE}_</div>
-        <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'>_{ADD}_ _{TYPE}_</div>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='control-label col-md-3'>_{TYPE}_:</label>
 
@@ -22,7 +22,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
                 <input class='btn btn-primary' type=submit name=%ACTION% value=%ACTION_LNG%>
         </div>
     </div>

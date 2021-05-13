@@ -5,12 +5,12 @@
     <input type='hidden' name='IP_ID' value='%IP_ID%'>
 
 
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'>%ACTION_LNG%</div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-header with-border'>%ACTION_LNG%</div>
+      <div class='card-body'>
         <div class='form-group'>
           <a class='col-md-6 pull-right' href='index.cgi?index=%IP_SCAN_INDEX%'>_{SCAN}_ <span
-              class='glyphicon glyphicon-search'></span></a>
+              class='fa fa-search'></span></a>
         </div>
         <div class='form-group'>
           <label class='col-md-3 control-label'>IP:</label>
@@ -98,7 +98,7 @@
         </div>
       </div>
 
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input class='btn btn-primary' type='submit' name='%ACTION%' value='%ACTION_LNG%'>
       </div>
     </div>

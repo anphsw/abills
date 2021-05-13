@@ -1,8 +1,5 @@
 {
   "DEVICE":"BDCOM OLT",
-  "FDB":"1",
-  "FDB_OID" : ".1.3.6.1.4.1.3320.152.1.1.3",
-  "FDB_EXPR" : "(%%d+).(%%d+%%.%%d+%%.%%d+%%.%%d+%%.%%d+%%.%%d+):(.+)|VLAN,ONT_MAC_DEC,MAC_HEX",
   "info" : {
   },
   "status" : {

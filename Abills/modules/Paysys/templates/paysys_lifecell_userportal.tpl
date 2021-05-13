@@ -12,9 +12,9 @@
   <input type='hidden' name='signature' value='%SIGN%'/>
 
   <div class='container-fluid'>
-    <div class='box box-primary'>
-      <div class='box-header with-border text-center'>Lifecell</div>
-      <div class='box-body'>
+    <div class='card box-primary'>
+      <div class='card-header with-border text-center'>Lifecell</div>
+      <div class='card-body'>
 
         <div class='form-group'>
           <img class='col-xs-8 col-xs-offset-2'
@@ -32,7 +32,7 @@
         </div>
 
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input class='btn btn-primary' type='submit' value='_{PAY}_'>
       </div>
 

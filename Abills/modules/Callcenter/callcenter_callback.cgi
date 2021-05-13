@@ -31,12 +31,12 @@ use Contacts;
 use Abills::Misc;
 
 my $sql = Abills::SQL->connect(
-  $conf{dbtype}, 
-  $conf{dbhost}, 
-  $conf{dbname}, 
+  $conf{dbtype},
+  $conf{dbhost},
+  $conf{dbname},
   $conf{dbuser},
-  $conf{dbpasswd}, { 
-    CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : 'utf-8'  
+  $conf{dbpasswd}, {
+    CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : 'utf-8'
   }
 );
 
@@ -52,7 +52,7 @@ exit 1;
 
 #**********************************************************
 =head2 init_call_center()
-  
+
 =cut
 #**********************************************************
 sub init_call_center {
@@ -67,12 +67,12 @@ sub init_call_center {
   foreach my $callcenter ( @callcenter_systems ) {
     my $config_key = ( keys %$callcenter )[0];
     if ($conf{ $config_key } ) {
-      $Callcenter_service = $callcenter->{$config_key};  
+      $Callcenter_service = $callcenter->{$config_key};
 
-      eval { 
-        require "Callcenter/$Callcenter_service.pm"; 
+      eval {
+        require "Callcenter/$Callcenter_service.pm";
       };
-      
+
       if ($@) {
         print $@;
         exit;
@@ -95,7 +95,7 @@ sub init_call_center {
 
 #**********************************************************
 =head2 callcenter_proccess()
-  
+
 =cut
 #**********************************************************
 sub callcenter_proccess {

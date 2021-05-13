@@ -238,7 +238,6 @@ sub internet_stats {
 
   my $table = $html->table(
     {
-      #caption     => $lang{SUM},
       width       => '100%',
       title_plain => [
         $lang{SESSIONS},
@@ -605,6 +604,7 @@ sub internet_stats_periods {
     {
       caption     => $lang{PERIOD},
       width       => '100%',
+      LITE_HEADER => 1,
       title_plain => [ $lang{PERIOD}, $lang{DURATION}, $lang{RECV}, $lang{SEND}, $lang{SUM} ],
       ID          => 'INTERNET_STATS_PERIOD'
     }
@@ -676,6 +676,9 @@ sub internet_sessions {
         SHOW_PERIOD             => 1,
       });
     }
+    else {
+      form_search({ TPL => ' ' }); #we don't need search form if (! FORM{UID}), but call of form_search is needed to set $pages_qs so sorting and pagination will work correctly
+    }
 
     if ($FORM{search}) {
       $sessions = Internet::Sessions->new($db, $admin, \%conf);
@@ -718,26 +721,28 @@ sub internet_sessions {
     DEFAULT_FIELDS  => $default_fields,
     FUNCTION_FIELDS => ($user->{UID}) ? undef : 'internet_stats, del',
     EXT_TITLES      => {
-      'ip'          => 'IP',
-      'netmask'     => 'NETMASK',
-      'duration_sec'=> $lang{DURATION},
-      'speed'       => $lang{SPEED},
-      'port_id'     => $lang{PORT},
-      'cid'         => 'CID',
-      'filter_id'   => 'Filter ID',
-      'tp_id'       => $lang{TARIF_PLAN} .' (Inner ID)',
-      'tp_num'      => $lang{TARIF_PLAN} .' (ID)',
-      'tp_name'     => $lang{TARIF_PLAN},
-      'internet_status' => "Internet $lang{STATUS}",
-      'terminate_cause' => $lang{ACCT_TERMINATE_CAUSE},
-      'start'       => "$lang{START} $lang{SESSIONS}",
-      'end'         => "$lang{END} $lang{SESSIONS}",
-      'duration'    => $lang{DURATION},
-      'sent'        => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{SENT}",
-      'recv'        => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{RECV}",
-      'sum'         => $lang{SUM},
-      'nas_id'      => $lang{NAS},
-      'acct_session_id' => 'Acct-Session-Id'
+      'ip'                 => 'IP',
+      'netmask'            => 'NETMASK',
+      'framed_ipv6_prefix' => 'FRAMED_IPV6_PREFIX',
+      'duration_sec'       => $lang{DURATION},
+      'speed'              => $lang{SPEED},
+      'port_id'            => $lang{PORT},
+      'cid'                => 'CID',
+      'filter_id'          => 'Filter ID',
+      'tp_id'              => $lang{TARIF_PLAN} . ' (Inner ID)',
+      'tp_num'             => $lang{TARIF_PLAN} . ' (ID)',
+      'tp_name'            => $lang{TARIF_PLAN},
+      'internet_status'    => "Internet $lang{STATUS}",
+      'terminate_cause'    => $lang{ACCT_TERMINATE_CAUSE},
+      'start'              => "$lang{START} $lang{SESSIONS}",
+      'end'                => "$lang{END} $lang{SESSIONS}",
+      'duration'           => $lang{DURATION},
+      'sent'               => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{SENT}",
+      'recv'               => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{RECV}",
+      'sum'                => $lang{SUM},
+      'nas_id'             => $lang{NAS},
+      'acct_session_id'    => 'Acct-Session-Id',
+      'guest'              => $lang{GUEST}
     },
     FILTER_COLS  => {
       duration_sec    => '_sec2time_str',
@@ -810,7 +815,6 @@ sub internet_sessions {
   }
 
   print $table->show();
-  #delete $LIST_PARAMS{SORT};
   return 1;
 }
 

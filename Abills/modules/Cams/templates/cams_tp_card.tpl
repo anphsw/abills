@@ -1,7 +1,7 @@
 <div class='col-md-6'>
-  <div class='box box-primary'>
-    <div class='box-header text-center'>%NAME%</div>
-    <div class='box-body'>
+  <div class='card box-primary'>
+    <div class='card-header text-center'>%NAME%</div>
+    <div class='card-body'>
       <div class='form-group'>
         <label class='control-label col-md-6'>_{STREAMS_COUNT}_</label>
         <div class='col-md-6'>
@@ -21,7 +21,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       %SUBSCRIBE_BTN%
     </div>
   </div>

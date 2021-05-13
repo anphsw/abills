@@ -58,9 +58,9 @@
   }
 </style>
 
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{COLOR_SCHEME}_</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline card-form'>
+  <div class='card-header with-border'><h4 class='card-title'>_{COLOR_SCHEME}_</h4></div>
+  <div class='card-body'>
 
     <form name='CABLECAT_COLOR_SCHEME' id='form_CABLECAT_COLOR_SCHEME' method='post' class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
@@ -69,16 +69,16 @@
       <input type='hidden' name='COLORS' value='%COLORS%' id='COLORS_id'/>
       <input type='hidden' value='%CABLECAT_COLORS%' id='CABLECAT_COLORS'/>
 
-      <div class='form-group'>
-        <label class='control-label col-md-3 required' for='NAME_id'>_{NAME}_</label>
-        <div class='col-md-9'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right required' for='NAME_id'>_{NAME}_:</label>
+        <div class='col-md-8'>
           <input type='text' class='form-control' required='required' name='NAME' value='%NAME%' id='NAME_id'/>
         </div>
       </div>
 
-      <div class='form-group'>
-        <label class='control-label col-md-3' for='COLORS_id'>_{COLORS}_</label>
-        <div class='col-md-9'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='COLORS_id'>_{COLORS}_</label>
+        <div class='col-md-8'>
         </div>
       </div>
     </form>
@@ -86,7 +86,7 @@
     <div class='form-group'>
       <div class='btn-group' role='group'>
         <button type='button' class='btn btn-default' id='variantsTrash'>
-          <span class='glyphicon glyphicon-trash text-red'></span>
+          <span class='fa fa-trash text-red'></span>
         </button>
         <button type='button' class='btn btn-default' id='duplicateWithMark'>_{DUPLICATE_WITH_MARK}_</button>
         <button type='button' class='btn btn-default' id='duplicateWithMarkTroughOne'>_{DUPLICATE_WITH_MARK}_
@@ -94,30 +94,27 @@
         </button>
       </div>
     </div>
-    <div class='form-group'>
-      <div id='colorPicker'>
 
+    <div class='form-group'>
+      <div id='colorPicker' class='row'>
         <div class='col-md-6'>
           <p class='text-center'>_{COLOR_SCHEME}_</p>
           <div id='resultContainer'>
             <ul id='resultList'></ul>
           </div>
         </div>
-
         <div class='col-md-6'>
           <p class='text-center'>_{AVAILABLE_COLORS}_</p>
           <div id='variantsContainer'>
             <ul id='variantsList'>
-
             </ul>
           </div>
         </div>
-
       </div>
     </div>
 
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type='submit' form='form_CABLECAT_COLOR_SCHEME' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>

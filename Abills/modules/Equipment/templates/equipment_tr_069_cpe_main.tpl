@@ -5,8 +5,8 @@
 <li id='voip'><a title="VoIP" href="#">VoIP</a></li>
 </ul>
 
-<div class='box box-solid'>
-  <div class='box-body' id=ajax_content style='padding: 0;'>
+<div class='card box-solid'>
+  <div class='card-body' id=ajax_content style='padding: 0;'>
     %HTML_CONTENT%
   </div>
 </div>

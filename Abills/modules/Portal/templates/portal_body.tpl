@@ -57,7 +57,7 @@
 
 
   <style>
-  #form_login span.glyphicon {
+  #form_login span.fa {
     top : 0;
   }
 
@@ -143,44 +143,42 @@
       <div class='modal-content'>
 
         <div class='modal-header modal-header-primary text-center'>
+          <label class='control-label'>
+            <h3>_{SIGN_IN}_</h3>
+          </label>
           <button type='button' class='close' data-dismiss='modal' aria-label='Close'>
             <span aria-hidden='true'>&times;</span>
           </button>
-          <label class='control-label'><h3>_{SIGN_IN}_</h3></label>
         </div>
         <div class='modal-body'>
           <div class='row' id='input_wrapper'>
             <div class='col-md-12 text-center'>%WRONG_PASSWD%</div>
             <div class='form-group has-feedback'>
             <div class='input-group'>
-              <span class='input-group-addon glyphicon glyphicon-globe'></span>
+              <span class='input-group-addon fa fa-globe'></span>
               %SEL_LANGUAGE%
             </div>
           </div>
 
           <div class='form-group'>
             <div class='input-group'>
-              <span class='input-group-addon glyphicon glyphicon-user'></span>
+              <span class='input-group-addon fa fa-user'></span>
               <input type='text' id='user' name='user' value='%user%' class='form-control' placeholder='_{LOGIN}_'>
             </div>
           </div>
 
           <div class='form-group'>
             <div class='input-group'>
-              <span class='input-group-addon glyphicon glyphicon-lock'></span>
+              <span class='input-group-addon fa fa-lock'></span>
               <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
-                     placeholder='_{PASSWD}_'>
+                placeholder='_{PASSWD}_'>
             </div>
           </div>
 
           <div class='row'>
-            <!-- /.col -->
-
             <button type='submit' name='logined' class='btn btn-success btn-block btn-flat form-control'
                     onclick='set_referrer()'>_{ENTER}_
             </button>
-
-            <!-- /.col -->
           </div>
 
         </div>

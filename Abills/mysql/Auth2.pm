@@ -14,6 +14,7 @@ our @EXPORT  = qw(
   check_company_account
   rad_pairs_former
   ex_traffic_params
+  ipv6_2_long
 );
 
 our @EXPORT_OK = qw(
@@ -21,6 +22,7 @@ our @EXPORT_OK = qw(
   check_company_account
   rad_pairs_former
   ex_traffic_params
+  ipv6_2_long
 );
 
 use Abills::Base qw(in_array);
@@ -328,7 +330,7 @@ sub auth {
         }
         # Zap session with same CID
         elsif ( $line->[0] ne ''
-          && ($line->[0] eq $cid && $line->[2] eq $NAS->{NAS_ID})
+          && ($line->[0] eq $cid && ($line->[2] eq $NAS->{NAS_ID} || ! $CONF->{hard_simultaneously_control_skip_nas}) )
           && $NAS->{NAS_TYPE} ne 'ipcad'
           )
         {
@@ -842,7 +844,7 @@ sub nas_pair_former {
       $RAD_PAIRS->{'Framed-Netmask'} = $self->{NETMASK};
     }
 
-    if($self->{GATEWAY}) {
+    if($self->{GATEWAY} && $self->{GATEWAY} ne '0.0.0.0') {
       $RAD_PAIRS->{'DHCP-Router-IP-Address'} = $self->{GATEWAY};
     }
 
@@ -1775,6 +1777,10 @@ sub get_ip {
       if(! $self->{UID}) {
         $WHERE .= $guest;
       }
+      #Get Real NET IP for guest session
+      else {
+        $WHERE .= " AND guest=0";
+      }
     }
     else {
       $WHERE .= $guest;
@@ -2102,8 +2108,8 @@ sub online_add {
     framed_interface_id => $attr->{FRAMED_INTERFACE_ID},
     delegated_ipv6_prefix=>$attr->{DELEGATED_IPV6_PREFIX},
     dhcp_id             => $CONF->{DHCP_ID},
-    switch_port         => $attr->{PORT},
-    switch_mac          => $attr->{NAS_MAC}
+    switch_port         => $attr->{PORT} || $self->{PORT},
+    switch_mac          => $attr->{NAS_MAC} || $self->{NAS_MAC}
   );
 
   # if (! $attr->{NAS_ID}) {
@@ -2227,7 +2233,7 @@ sub pre_auth {
     if ($CONF->{INTERNET_PASSWORD}) {
       my $WHERE = '';
       if ($CONF->{INTERNET_LOGIN}) {
-        $WHERE = "internet.login='". $login ."'";
+        $WHERE = "internet_main.login='". $login ."'";
       }
       else {
         $WHERE = "users.id='". $login ."'";
@@ -2238,7 +2244,7 @@ sub pre_auth {
         LEFT JOIN users ON (users.uid=internet_main.uid)
         WHERE $WHERE;");
 
-      if(! ! $self->{list}->[0]->[0]) {
+      if(! $self->{list}->[0]->[0]) {
         $self->query2("SELECT DECODE(password, '$CONF->{secretkey}') FROM users WHERE id= ?;",
           undef,
           { Bind => [ $login ] });
@@ -2463,11 +2469,11 @@ sub rad_pairs_former  {
     $attr
       AUTH_EXPR
         NAS_MAC, PORT (convert from hex), PORT_MULTI (not converted), DEC_PORT (dec port value), VLAN,
-        SERVER_VLAN, AGENT_REMOTE_ID, CIRCUIT_ID, LOGIN
+        SERVER_VLAN, AGENT_REMOTE_ID, CIRCUIT_ID, LOGIN, USER_MAC
 
   Returns:
     RESULTS - hash_ref
-      NAS_MAC, PORT, VLAN, SERVER_VLAN, AGENT_REMOTE_ID, CIRCUIT_ID, LOGIN
+      NAS_MAC, PORT, VLAN, SERVER_VLAN, AGENT_REMOTE_ID, CIRCUIT_ID, LOGIN, USER_MAC
 
   Conf:
     $conf{AUTH_EXPR}='';
@@ -2817,52 +2823,53 @@ sub dhcp_info {
 
 =cut
 #**********************************************************
-sub leases_add {
-  my $self   = shift;
-  my ($attr, $NAS) = @_;
-
-  return $self if ($self->{RESERVED_IP} && $self->{GUEST_MODE} == $self->{GUEST_LEASES});
-
-  # DELETE OLD leases
-  $self->{UID}=0 if (! $self->{UID});
-  $self->query2("DELETE FROM dhcphosts_leases WHERE (ip=INET_ATON( ? ) AND nas_id= ? )
-    OR (uid= ?  AND flag<> ? );", 'do',
-    { Bind => [
-        $self->{IP},
-        $NAS->{NAS_ID},
-        $self->{UID},
-        $self->{GUEST_MODE} || 0
-      ]});
-
-  #add to dhcp table
-  $self->query2("INSERT INTO dhcphosts_leases
-      (start, ends, state, next_state, hardware, uid,
-       circuit_id, remote_id, hostname,
-       nas_id, ip, port, vlan, server_vlan, switch_mac, flag,
-       dhcp_id)
-    VALUES (NOW(),
-      NOW() + INTERVAL ? SECOND, 2, 1,
-      ?, ?, ?, ?, ?, ?, INET_ATON( ? ), ?, ?, ?, ?, ?, ?)", 'do',
-    { Bind => [
-        ($attr->{LEASES_TIME} + 60),
-        $attr->{USER_MAC},
-        $self->{UID},
-        $attr->{CIRCUIT_ID} || q{},
-        $attr->{AGENT_REMOTE_ID} || q{},
-        (($attr->{HOSTNAME}) ? $attr->{HOSTNAME} : '' ),
-        $NAS->{NAS_ID} || 0,
-        $self->{IP},
-        $attr->{PORT} || '',
-        $attr->{VLAN} || $self->{VLAN} || 0,
-        $attr->{SERVER_VLAN} || $self->{SERVER_VLAN} || 0,
-        $attr->{NAS_MAC} || 0,
-        (($self->{GUEST_MODE}) ? 1 : 0),
-        $CONF->{DHCP_ID} || 0
-      ]}
-  );
-
-  return $self;
-}
+#@deprecated
+# sub leases_add {
+#   my $self   = shift;
+#   my ($attr, $NAS) = @_;
+#
+#   return $self if ($self->{RESERVED_IP} && $self->{GUEST_MODE} == $self->{GUEST_LEASES});
+#
+#   # DELETE OLD leases
+#   $self->{UID}=0 if (! $self->{UID});
+#   $self->query2("DELETE FROM dhcphosts_leases WHERE (ip=INET_ATON( ? ) AND nas_id= ? )
+#     OR (uid= ?  AND flag<> ? );", 'do',
+#     { Bind => [
+#         $self->{IP},
+#         $NAS->{NAS_ID},
+#         $self->{UID},
+#         $self->{GUEST_MODE} || 0
+#       ]});
+#
+#   #add to dhcp table
+#   $self->query2("INSERT INTO dhcphosts_leases
+#       (start, ends, state, next_state, hardware, uid,
+#        circuit_id, remote_id, hostname,
+#        nas_id, ip, port, vlan, server_vlan, switch_mac, flag,
+#        dhcp_id)
+#     VALUES (NOW(),
+#       NOW() + INTERVAL ? SECOND, 2, 1,
+#       ?, ?, ?, ?, ?, ?, INET_ATON( ? ), ?, ?, ?, ?, ?, ?)", 'do',
+#     { Bind => [
+#         ($attr->{LEASES_TIME} + 60),
+#         $attr->{USER_MAC},
+#         $self->{UID},
+#         $attr->{CIRCUIT_ID} || q{},
+#         $attr->{AGENT_REMOTE_ID} || q{},
+#         (($attr->{HOSTNAME}) ? $attr->{HOSTNAME} : '' ),
+#         $NAS->{NAS_ID} || 0,
+#         $self->{IP},
+#         $attr->{PORT} || '',
+#         $attr->{VLAN} || $self->{VLAN} || 0,
+#         $attr->{SERVER_VLAN} || $self->{SERVER_VLAN} || 0,
+#         $attr->{NAS_MAC} || 0,
+#         (($self->{GUEST_MODE}) ? 1 : 0),
+#         $CONF->{DHCP_ID} || 0
+#       ]}
+#   );
+#
+#   return $self;
+# }
 
 #**********************************************************
 =head2 guest_access($RAD, $NAS, $message, $attr) - Enable guest mode

@@ -551,7 +551,9 @@ var ObjectsConfiguration = (function () {
   function getObjects(layer, err_callback, success_callback, object_id = 0, last_object_id = 0) {
     if (!layer['export_function']) return {};
 
-    let url = selfUrl + '?header=2&get_index=' + layer['export_function'] + '&EXPORT_LIST=1&RETURN_JSON=1';
+    // let url = selfUrl + '?header=2&get_index=' + layer['export_function'] + '&EXPORT_LIST=1&RETURN_JSON=1';
+    let url = selfUrl + '?header=2&get_index=maps2_get_objects&EXPORT_LIST=1&RETURN_JSON=1&MODULE=' + layer['module'] +
+      '&FUNCTION=' + layer['export_function'];
     if (FORM['OBJECT_ID'] && !FORM['ADD_POINT'] && (!FORM['LAYER'] || FORM['LAYER'] === layer['id']))
       url += '&OBJECT_ID=' + FORM['OBJECT_ID'];
     else if (object_id !== 0)
@@ -954,7 +956,27 @@ var Markers = (function () {
         return_marker.bindTooltip(marker['NAME'], {
           permanent: false
         });
-    } else {
+    }
+    else if (marker['SVG']) {
+      let svg_icon = L.divIcon({
+        className: "leaflet-data-marker",
+        html: L.Util.template(marker['SVG']), //.replace('#','%23'),
+        iconSize: [23, 23],
+        iconAnchor: [12, 12],
+        popupAnchor: [-10, -2]
+      });
+
+      return_marker = L.marker([marker['COORDX'], marker['COORDY']], {icon: svg_icon});
+
+      if (infoPopup)
+        return_marker.bindPopup(infoPopup, {maxWidth: 400});
+
+      if (marker['NAME'])
+        return_marker.bindTooltip(marker['NAME'], {
+          permanent: false
+        });
+    }
+    else {
       return_marker = L.marker([marker['COORDX'], marker['COORDY']], {icon: greenIcon});
       if (infoPopup)
         return_marker.bindPopup(infoPopup, {maxWidth: 400});
@@ -978,7 +1000,7 @@ var Markers = (function () {
       let lat = e['layer']['_latlng']['lat'];
       let lng = e['layer']['_latlng']['lng'];
 
-      if (layer && layer['id'] === '1' && !FORM['ADD_POINT'])
+      if (layer && layer['id'] == '1' && !FORM['ADD_POINT'])
         Builds.addNewBuildMarker(lat, lng, location_id);
       else if (layer) {
         Markers.addNewMarker(layer, lat, lng, 'layer_' + layer['id']);
@@ -1200,7 +1222,7 @@ var Polygons = (function () {
     map.on(L.Draw.Event.CREATED, function (e) {
 
       let result = Configuration.getCoordsForSend(e.layer._latlngs, 'POLYGON');
-      if (layer['id'] === '12')
+      if (layer['id'] == '12')
         Builds.addNewBuildPolygon(result);
       else {
         layer['latLngStr'] = result['latLngStr'];
@@ -1289,6 +1311,9 @@ var ChangeElement = (function () {
       else if (result['coordx']) {
         link += '&coordx=' + result['coordx'] + '&coordy=' + result['coordy'];
       }
+
+      if (result['distance'])
+        link += '&LENGTH_CALCULATED=' + result['distance'];
 
       let oldPolyline = Objects[object.layer_id][object.object_id];
       Configuration.sendFetch(link, null, function () {
@@ -1435,49 +1460,83 @@ var Controls = (function () {
       container.classList.add('row');
       container.style.width = '14vw';
 
-      let formContainer = document.createElement('form');
+      let colContainer = document.createElement('div');
+      colContainer.classList.add('col-md-12');
+      colContainer.classList.add('p-0');
 
-      let inputGroup = document.createElement('div');
-      inputGroup.classList.add('input-group');
+      let mainFlexContainer = document.createElement('div');
+      mainFlexContainer.classList.add('d-flex');
+      mainFlexContainer.classList.add('bd-highlight');
 
       let selectContainer = this._createSelectContainer();
       let spanContainer = this._createSpanContainer(selectContainer);
 
-      inputGroup.appendChild(spanContainer);
-      inputGroup.appendChild(selectContainer);
-      formContainer.appendChild(inputGroup);
-      container.appendChild(formContainer);
+      mainFlexContainer.appendChild(selectContainer);
+      mainFlexContainer.appendChild(spanContainer);
+      colContainer.appendChild(mainFlexContainer);
+      container.appendChild(colContainer);
 
       return container;
     },
     _createSelectContainer: () => {
+      let flexContainer = document.createElement('div');
+      flexContainer.classList.add('flex-fill');
+      flexContainer.classList.add('bd-highlight');
+      flexContainer.classList.add('d-none');
+
       let selectContainer = document.createElement('div');
-      selectContainer.id = 'select-div';
+      selectContainer.classList.add('select');
+
+      let inputGroup = document.createElement('div');
+      inputGroup.classList.add('input-group-append');
+      inputGroup.classList.add('select2-append');
+
       let select = document.createElement('select');
       select.id = 'objects-select';
       select.style.width = '100%';
-      selectContainer.appendChild(select);
 
-      return selectContainer;
+      inputGroup.appendChild(select);
+      selectContainer.appendChild(inputGroup);
+      flexContainer.appendChild(selectContainer);
+
+      return flexContainer;
     },
     _createSpanContainer: (selectContainer) => {
-      let spanContainer = document.createElement('span');
-      spanContainer.classList.add('input-group-addon');
-      L.DomEvent.on(spanContainer, 'click', () => {
-        if (selectContainer.classList.contains('select-div-visible')) {
-          selectContainer.classList.remove('select-div-visible')
+      let bdContainer = document.createElement('div');
+      bdContainer.classList.add('bd-highlight');
+
+      let button = document.createElement('a');
+      button.classList.add('btn');
+      button.classList.add('btn-sm');
+
+      let iconContainer = document.createElement('span');
+      iconContainer.classList.add('fa');
+      iconContainer.classList.add('fa-search');
+
+      let inputGroupText = document.createElement('div');
+      inputGroupText.classList.add('input-group-text');
+      inputGroupText.classList.add('p-0');
+      inputGroupText.style.height = '38px';
+
+      let appendContainer = document.createElement('div');
+      appendContainer.classList.add('input-group-append');
+      L.DomEvent.on(appendContainer, 'click', () => {
+        if (selectContainer.classList.contains('d-none')) {
+          selectContainer.classList.remove('d-none')
+          inputGroupText.classList.add('rounded-left-0');
         }
         else {
-          selectContainer.classList.add('select-div-visible');
+          selectContainer.classList.add('d-none');
+          inputGroupText.classList.remove('rounded-left-0');
         }
       });
 
-      let iconContainer = document.createElement('i');
-      iconContainer.classList.add('glyphicon');
-      iconContainer.classList.add('glyphicon-search');
-      spanContainer.appendChild(iconContainer);
+      button.appendChild(iconContainer);
+      inputGroupText.appendChild(button);
+      appendContainer.appendChild(inputGroupText);
+      bdContainer.appendChild(appendContainer);
 
-      return spanContainer;
+      return bdContainer;
     }
   });
 
@@ -1633,12 +1692,12 @@ var init_map = function () {
   L.Control.Watermark = L.Control.extend({
     onAdd: function () {
       let href = L.DomUtil.create('a', 'abills_href');
-      href.href = 'http://abills.net.ua/';
+      href.href = MAPS_WATERMARK_URL || 'http://abills.net.ua/';
       href.target = '_blank';
 
       let img = L.DomUtil.create('img', 'abills_href', href);
 
-      img.src = '/images/maps/icons/abills.png';
+      img.src = '/images/maps/icons/' + (MAPS_WATERMARK_ICON || 'abills.png');
       img.style.width = '45px';
 
       return href;

@@ -3,17 +3,17 @@
   <input type='hidden' name='user_search_form' value='2'/>
   <input type='hidden' name='LOGIN' id='LOGIN_id'/>
 
-  <div class='form-group'>
-    <label class='control-label col-md-2' for='LOGIN_SEARCH_id'>_{LOGIN}_</label>
-    <div class='col-md-9'>
+  <div class='form-group row'>
+    <label class='col-md-4 col-form-label text-md-right' for='LOGIN_SEARCH_id'>_{LOGIN}_:</label>
+    <div class='col-md-8'>
       <select name='LOGIN_SEARCH' id='LOGIN_SEARCH_id' class='form-control normal-width'>
-        <option value='' %SEARCH_STORAGE_ARTICLE_EMPTY_STATE%>_{LIVE_SEARCH}_</option>
+        <option value='' %SEARCH_STORAGE_ARTICLE_EMPTY_STATE%>_{LIVE_SEARCH}_:</option>
       </select>
     </div>
   </div>
-  <div class='form-group'>
-    <label class='control-label col-md-2' for='FIO_id'>_{FIO}_</label>
-    <div class='col-md-9'>
+  <div class='form-group row'>
+    <label class='col-md-4 col-form-label text-md-right' for='FIO_id'>_{FIO}_:</label>
+    <div class='col-md-8'>
       <input type='text' class='form-control' name='FIO' id='FIO_id'/>
     </div>
   </div>
@@ -24,39 +24,6 @@
 
 <script>
 
-//  jQuery.getScript('/styles/default_adm/js/ajax-chosen.jquery.min.js', function () {
-//    jQuery('select#LOGIN_SEARCH_id').ajaxChosen({
-//          jsonTermKey: 'LOGIN',
-//          type       : 'GET',
-//          url        : '/admin/index.cgi',
-//          dataType   : 'json',
-//          data       : {
-//            qindex        : 7,
-//            header        : 1,
-//            search        : 1,
-//            type          : 10,
-//            json          : 1,
-//            SKIP_FULL_INFO: 1,
-//            EXPORT_CONTENT: 'USERS_LIST'
-//          }
-//        },
-//        function (data) {
-//          var results = [];
-//
-//          if (data['DATA_1']) {
-//            jQuery.each(data['DATA_1'], function (i, val) {
-//              results.push({
-//                value: val.login,
-//                text : val.login
-//                       + ( val.fio ? ' ' + val.fio : '')
-//                       + ( val.address_full ? ' (' + val.address_full + ') ' : '')
-//              });
-//            });
-//          }
-//
-//          return results;
-//        });
-//  });
 jQuery.getScript('/styles/default_adm/js/select2.min.js', function () {
   var example = jQuery('select#LOGIN_SEARCH_id').select2();
   example.select2({

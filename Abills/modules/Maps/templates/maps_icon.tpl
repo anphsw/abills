@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{ICONS}_</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4 class='card-title'>_{ICONS}_</h4></div>
+  <div class='card-body'>
 
     <form name='MAPS_ICONS' id='form_MAPS_ICONS' method='post' class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
@@ -34,7 +34,7 @@
     </form>
 
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type='submit' form='form_MAPS_ICONS' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>
@@ -64,7 +64,7 @@
 
     var img = document.createElement('img');
     img.src = icon_src;
-    jQuery(img).addClass('img-responsive img-thumbnail');
+    jQuery(img).addClass('img-fluid img-thumbnail');
 
     var strong = document.createElement('strong');
     jQuery(strong).addClass('text-left col-md-6');

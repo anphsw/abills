@@ -5,9 +5,9 @@
 </style>
 
 <div class='col-md-6'>
-<div class='box box-%PANEL_TYPE%'>
-<div class='box-header with-border text-center'>%FILE_NAME%</div>
-<div class='box-body'>
+<div class='card box-%PANEL_TYPE%'>
+<div class='card-header with-border text-center'>%FILE_NAME%</div>
+<div class='card-body'>
   <div class='form-group'>
     <label class='col-md-12'>_{COMMENTS}_</label>
     <div class='col-md-12'>%COMMENT%</div>
@@ -31,6 +31,6 @@
     <label class='col-md-12'>%AVAILABLE_AS_DEMO%</label>
   </div>
 </div>
-<div class='box-footer'>%BUTTON%</div>
+<div class='card-footer'>%BUTTON%</div>
 </div>
 </div>

@@ -18,6 +18,7 @@ $info = $html->badge($Referral->{TOTAL}, { TYPE => 'bg-red' }) if($Referral->{TO
   "04:3::referral_show:IN_MODAL"                   => 4,
   "05:3::referral_form_search:IN_MODAL"            => 4,
   "06:3::referral_set:REFERRER_UID"                => 4,
+  "07:8::referral_redirect:REFERRAL_REQUEST"       => 8,
 );
 
 %USER_FUNCTION_LIST = (

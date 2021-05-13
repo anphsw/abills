@@ -5,9 +5,9 @@
 </style>
 <FORM action='$SELF_URL' METHOD='POST'  enctype='multipart/form-data' class='form form-horizontal'>
 
-<div class='box box-theme'>
-<div class='box-header with-border'><h4 class='box-title'>%SUBJECT%</h4></div>
-<div class='box-body'>
+<div class='card card-primary card-outline'>
+<div class='card-header with-border'><h4 class='card-title'>%SUBJECT%</h4></div>
+<div class='card-body'>
 <input type='hidden' name='qindex' value='$index'/>
 <input type='hidden' name='UID' value='$FORM{UID}'/>
 <input type='hidden' name='ID' value='%ID%'/>
@@ -182,7 +182,7 @@
 
 
 
-<div class='box-footer'>
+<div class='card-footer'>
     <input type=submit class='btn btn-primary' name=change value='_{CHANGE}_'>
 </div>
 </div> <!--box-->
@@ -191,7 +191,7 @@
 
 <div class='noprint' align=center>
 <p>
-    <a href='javascript:window.print();' class='btn btn-default btn-xs print'>_{PRINT}_</a>
-    <a href='javascript:window.close();' class='btn btn-default btn-xs del'>_{CLOSE}_</a>
+    <a href='javascript:window.print();' class='btn btn-secondary btn-xs print'>_{PRINT}_</a>
+    <a href='javascript:window.close();' class='btn btn-secondary btn-xs del'>_{CLOSE}_</a>
 </p>
 </div>

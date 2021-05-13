@@ -1,6 +1,6 @@
 
-<div class='box box-theme'>
-<div class='box-body'>
+<div class='card card-primary card-outline'>
+<div class='card-body'>
 
 <form action='$SELF_URL' method='POST' id='payment-form'>
 <input type=hidden name=OPERATION_ID value='$FORM{OPERATION_ID}'>

@@ -13,17 +13,6 @@
     alert("Error while parsing contacts. Please contact support system");
   }
 
-  var current_destination = '%DESTINATION%';
-
-  jQuery(function () {
-
-    var type_select = jQuery('select#TYPE');
-    var result_wrapper = jQuery('div#DESTINATION_SELECT_WRAPPER');
-
-    var chooser = new ContactChooser(true, contacts_list, type_select, result_wrapper);
-    chooser.setValue(current_destination);
-  })
-
 </script>
 
 %MENU%
@@ -32,49 +21,46 @@
   <input type=hidden name='index' value='$index'>
   <input type=hidden name='UID' value='$FORM{UID}'>
 
-  <fieldset>
-
-    <div class='box box-theme box-form'>
-      <div class='box-body'>
-
-        <div class='form-group'>
-          <label class='control-label col-md-4 col-sm-3' for='TP_ID'>_{TARIF_PLAN}_</label>
-          <div class='col-md-8 col-sm-9'>
+    <div class='card card-secondary'>
+      <div class='card-header with-border'>
+        <h3 class="card-title">
+          _{NOTIFICATIONS}_
+        </h3>
+      </div>
+      <div class='card-body'>
+        <div class="form-group row">
+          <label class="col-sm-4 col-md-4" for='TP_ID'>_{TARIF_PLAN}_</label>
+          <div class="col-sm-8 col-md-8">
             %TP_ID%
           </div>
         </div>
-
-        <div class='form-group'>
-          <label class='control-label col-md-4 col-sm-3' for='TYPE'>_{TYPE}_</label>
-          <div class='col-md-8 col-sm-9'>
+        <div class="form-group row">
+          <label class="col-sm-4 col-md-4" for='TYPE'>_{TYPE}_</label>
+          <div class="col-sm-8 col-md-8">
             %TYPE_SEL%
           </div>
         </div>
-
-        <div class='form-group'>
-          <label class='control-label col-md-4 col-sm-3' for='DESTINATION'>_{DESTINATION}_</label>
-          <div class='col-md-8 col-sm-9' id='DESTINATION_SELECT_WRAPPER'>
-            %DESTINATION_VIEW%
-          </div>
-        </div>
-
-        <div class='form-group'>
-          <label class='control-label col-md-4 col-sm-3' for='STATUS'>_{STATUS}_</label>
-          <div class='col-md-8 col-sm-9'>
+        <div class="form-group row">
+          <label class="col-sm-4 col-md-4" for='STATUS'>_{STATUS}_</label>
+          <div class="col-sm-8 col-md-8">
             %STATUS_SEL%
           </div>
         </div>
-
-        <div class='form-group'>
-          <label class='control-label col-md-4 col-sm-3'>_{REGISTRATION}_</label>
-          <div class='col-md-8 col-sm-9'>
-            <p class="form-control-static">%REGISTRATION%</p>
+        <div class="form-group row">
+          <label class="col-sm-4 col-md-4" for='DESTINATION'>_{DESTINATION}_</label>
+          <div class="col-sm-8 col-md-8" id="DESTINATION_SELECT_WRAPPER">
+            %DESTINATION_VIEW%
           </div>
         </div>
-
+        <div class="form-group row">
+          <label class="col-sm-4 col-md-4">_{REGISTRATION}_</label>
+          <div class="col-sm-8 col-md-8">
+            %REGISTRATION%
+          </div>
+        </div>
       </div>
 
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input type=submit class='btn btn-primary' id='SUBMIT_UREPORTS_USER' name='%ACTION%' value='%LNG_ACTION%'>
         %HISTORY_BTN%
       </div>
@@ -82,6 +68,21 @@
     </div>
 
     <div>%REPORTS_LIST%</div>
-
-  </fieldset>
 </form>
+<script>
+
+  var current_destination = '%DESTINATION%';
+
+  var type_select = jQuery('select#TYPE');
+  var result_wrapper = jQuery('div#DESTINATION_SELECT_WRAPPER');
+
+  var chooser = new ContactChooser(true, contacts_list, type_select, result_wrapper);
+  chooser.setValue(current_destination);
+
+
+  let contactView = document.querySelector('#DESTINATION_SELECT_WRAPPER .select2-selection__rendered');
+
+    contactView.textContent = current_destination
+
+</script>
+

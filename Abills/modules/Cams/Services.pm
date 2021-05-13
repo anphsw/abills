@@ -159,7 +159,7 @@ sub _cams_service_test {
   return 1 if (!$Cams_service || !$Cams_service->can('test'));
 
   $Cams->{SERVICE_TEST} = $html->button($lang{TEST}, "index=$index&test=1&chg=$Cams->{ID}",
-    { class => 'btn btn-default btn-info' });
+    { class => 'btn btn-secondary btn-info' });
 
   return 0 if !$FORM{test};
 
@@ -289,7 +289,7 @@ sub cams_load_service {
     $service_name->import();
 
     if ($service_name->can('new')) {
-      $api_object = $service_name->new($Cams->{db}, $Cams->{admin}, $Cams->{conf}, { %{$Cams_service} });
+      $api_object = $service_name->new($Cams->{db}, $Cams->{admin}, $Cams->{conf}, { %{$Cams_service}, HTML => $html, LANG => \%lang });
     }
     else {
       $html->message('err', $lang{ERROR}, "Can't load '$service_name'. Purchase this module http://abills.net.ua");

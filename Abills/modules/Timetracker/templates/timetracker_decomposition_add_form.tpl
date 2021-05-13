@@ -1,6 +1,6 @@
-            <div class='box box-theme box-form'>
-              <div class='box-header with-border'><h4 class='box-title'>%TITLE%</h4></div>
-              <div class='box-body'>
+            <div class='card card-primary card-outline box-form'>
+              <div class='card-header with-border'><h4 class='card-title'>%TITLE%</h4></div>
+              <div class='card-body'>
                     <form name='ADD_ITEM' id='form_ADD_ITEM' method='GET' class='form form-horizontal'>
                     <input type='hidden' name='index' value='$index' />
                     <input type='hidden' name='ID' value='%ID%' />
@@ -21,7 +21,7 @@
                 </form>
 
               </div>
-              <div class='box-footer text-center'>
+              <div class='card-footer text-center'>
                   <input type='submit' form='form_ADD_ITEM' class='btn btn-primary' name='%SUBMIT_BTN_NAME%' value='%SUBMIT_BTN_VALUE%'>
               </div>
             </div>

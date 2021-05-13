@@ -1,5 +1,6 @@
 $lang{LOCK} = 'Заблоковано';
 $lang{DONE} = 'Виконано';
+$lang{UNDONE} = 'Не виконано';
 $lang{EXECUTION} = 'Запланована дата виконання';
 $lang{RESPOSIBLE} = 'Відповідальний';
 $lang{HIDE} = 'Сховано';
@@ -93,17 +94,10 @@ $lang{AUTO_CLOSE} = 'Автоматичне закриття (днів)';
 $lang{CLOSED_BY_TIME} = "Закрита по закінченню часу";
 $lang{SUBJECT_CHANGED} = "Тема змінена з";
 
-$lang{OPERATOR_STATISTICS} = "Cтатистика оператора техпідтримки";
-$lang{NUMBER_OF_PROCESSED_REQUESTS} = "Кількість оброблених заявок";
-$lang{TIME_SPENT_ON_APPLICATIONS} = "Час витрачений на заявки";
-$lang{AVERAGE_SCORE_FOR_CLOSED_BIDS} = "Середній бал за закриті заявки";
-$lang{RELATIVE_INDICATORS} = "Відносні показники";
-$lang{GROWTH_OF_CHIEVEMENT} = "Приріст успішності за місяць";
-$lang{RANK_AMONG_OTHER_ADMINISTRATORS} = "Рейтинг серед інших адміністраторів";
 $lang{ADD_WORKPLANNING} = "Додати роботу";
 $lang{RELATED_WORK} = "Пов'язані роботи";
 
-$lang{OPERATOR_STATISTICS} = 'Cтатистика оператора техпідтримки';
+$lang{OPERATOR_STATISTICS} = 'Статистика оператора техпідтримки';
 $lang{NUMBER_OF_PROCESSED_REQUESTS} = 'Кількість оброблених заявок';
 $lang{TIME_SPENT_ON_APPLICATIONS} = 'Час витрачений на заявки';
 $lang{AVERAGE_SCORE_FOR_CLOSED_BIDS} = 'Оцінка виконання (середня)';
@@ -168,13 +162,42 @@ $lang{BRIGADE}='Бригада';
 $lang{LOCATION_BRIGADE}='Прив\'язати до геоадресу';
 
 $lang{TICKET_REPORT}='Роботи над заявками';
+$lang{TICKET_REPORT_BY_ADMINS}='Роботи над заявками (по адміністраторам)';
 $lang{DONE_TICKET}='Виконано заявок';
 $lang{SPENT_TIME}='Потрачений час';
 $lang{TICKET_SUM}='Сума заявок';
 $lang{PAID_AMOUT}='Виплаченна сума';
 $lang{NOT_TURNED_ON}='Модуль не включений';
-$lang{HELPDESK}='Стіл довідок';
+$lang{HELPDESK}='Служба підтримки';
 
 $lang{SCRUB_BOX} = 'Бокс повідомлень';
+
+$lang{MSGS_TAGS} = 'Мітка(и)';
+$lang{PLUGINS} = 'Плагіни';
+$lang{MSG_BEFORE_CREATE} = 'Події перед добавленням';
+$lang{MSG_RIGHT} = 'Праві';
+$lang{MSG_BOTTOM} = 'Нижні';
+$lang{MSGS_BEFORE_CREATE} = 'Події перед додаванням заявки';
+$lang{MSGS_AFTER_CREATE} = 'Події після додавання заявки';
+$lang{MSGS_RIGHT} = 'Плагіни в розділі "Управління"';
+$lang{MSGS_BOTTOM} = 'Плагіни внизу заявки';
+$lang{MSGS_BEFORE_REPLY} = 'Події перед відправкою відповіді на зявку';
+$lang{TICKET_INTERACTION_BUTTONS} = 'Кнопки взаємодії з тікети';
+$lang{ADDITIONAL_TICKET_INFORMATION} = 'Додаткова інформація про заявку';
+$lang{CHOICE_OF_WORK_ORDER} = 'Можливість вибрати наряд робіт';
+$lang{PRINT_TICKER_BUTTON} = 'Кнопка друку заявки';
+$lang{SET_TICKET_TO_THE_TASK_BOARD} = 'Встановити заявку на дошку задач';
+$lang{ADDING_WORK_ORDER} = 'Додавання наряду робіт перед створенням заявки';
+$lang{TICKET_MAIN_INFO} = 'Основна інформація по заявці';
+$lang{ADDING_DELIVERY} = 'Додавання розсилки перед створенням заявки';
+$lang{CHECKING_MESSAGE_BY_ADDRESS} = 'Перевірка повідомлень по адресу';
+$lang{PLUGIN_LOADING_ERROR} = 'Помилка завантаження плагіна';
+$lang{TICKET_DISTRIBUTION_BY_CHAPTER} = 'Розподіл заявок в залежності від розділу';
+
+$lang{PERFORMERS} = 'Виконавці';
+
+$lang{NUMBER_OF_PROCESSED_REQUESTS_IN_THE_CURRENT_MONTH} = 'Кількість оброблених заявок в поточному місяці';
+$lang{TIME_SPENT_ON_APPLICATIONS_IN_THE_CURRENT_MONTH} = 'Час витрачений на заявки в поточному місяці';
+$lang{THE_NUMBER_OF_USER_TICKETS_IN_THE_CURRENT_MONTH} = 'Кількість призначених для користувача заявок в поточному місяць і витрачений на них час';
 
 1

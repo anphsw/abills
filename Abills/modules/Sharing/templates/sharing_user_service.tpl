@@ -1,6 +1,6 @@
 <form method='POST'>
 
-<div class='box box-theme'>
+<div class='card card-primary card-outline'>
 %FILES%
 </div>
 

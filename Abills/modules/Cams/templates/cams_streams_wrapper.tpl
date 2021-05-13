@@ -1,6 +1,6 @@
 %EXTRA_LINKS%
 
-%CAMS%
+<div class="row">%CAMS%</div>
 
 <script>
   %ADDITIONAL_SCRIPT%

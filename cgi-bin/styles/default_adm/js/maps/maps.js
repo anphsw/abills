@@ -365,13 +365,13 @@ function configureMap() {
                 var $refresh_button = $('<button></button>',
                     {
                         onclick: 'MapLayers.refreshLayer(' + layer['id'] + ');cancelEvent()',
-                        'class': 'btn btn-xs btn-flat btn-default pull-left'
+                        'class': 'btn btn-xs btn-flat btn-secondary pull-left'
                     })
                     .html($('<i></i>', {'class': 'fa fa-refresh'}));
 
                 var layer_btn = $('<a></a>', {
                     onclick: 'AMapLayersBtns.toggleButton(' + layer['id'] + ')',
-                    'class': 'btn btn-xs btn-default text-left',
+                    'class': 'btn btn-xs btn-secondary text-left',
                     id: 'toggleLayer_' + layer.id
                 })
                     .html($refresh_button[0].outerHTML + layer['lang_name']);

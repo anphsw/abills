@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{AUTO_COORDS}_</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4 class='card-title'>_{AUTO_COORDS}_</h4></div>
+  <div class='card-body'>
 
     <form id='form_GMA' class='form form-horizontal'>
 
@@ -39,7 +39,7 @@
     </form>
 
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <button id='GMA_STOP_BTN' class='btn btn-danger' style='display: none'>_{HOLD_UP}_</button>
     <button id='GMA_EXECUTE_BTN' class='btn btn-primary'>_{START}_</button>
   </div>

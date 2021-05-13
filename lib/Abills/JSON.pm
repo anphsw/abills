@@ -2,7 +2,7 @@ package Abills::JSON;
 
 =head1 NAME
 
- JSON Visualiation Functions
+  JSON Visualiation Functions
 
 =cut
 
@@ -247,10 +247,7 @@ sub form_select {
   $self->{SELECT} .= join(",\n  ", @sel_arr);
   $self->{SELECT} .= "}\n";
 
-  if (!$FORM{EXPORT_CONTENT}) {
-    #push @{ $self->{JSON_OUTPUT} }, $self->{SELECT};
-  }
-  elsif ($attr->{OUTPUT2RETURN}) {
+  if ($attr->{OUTPUT2RETURN}) {
     return $self->{SELECT} || q{};
   }
 
@@ -381,8 +378,7 @@ sub header {
 
   $self->{header}  = "Content-Type: application/json; charset=$CHARSET\n";
   $self->{header} .= "Access-Control-Allow-Headers: *\n";
-  $self->{header} .= "Access-Control-Allow-Origin: *"
-                     . "\n\n";
+  $self->{header} .= "Access-Control-Allow-Origin: *" . "\n\n";
 
   return $self->{header};
 }
@@ -420,9 +416,9 @@ sub table {
   }
 
   if ($attr->{rows}) {
-      foreach my $line (@{$attr->{rows}}) {
-        $self->addrow(@$line);
-      }
+    foreach my $line (@{$attr->{rows}}) {
+      $self->addrow(@$line);
+    }
   }
 
   $self->{ID} = $attr->{ID} || q{};
@@ -431,24 +427,17 @@ sub table {
     $self->{SELECT_ALL}=$attr->{SELECT_ALL};
   }
 
-  if ($self->{ID} && $FORM{EXPORT_CONTENT} eq $self->{ID}) {
-    #$self->{table} .= "{";
-  }
-  else {
+  unless ($self->{ID} && $FORM{EXPORT_CONTENT} eq $self->{ID}) {
     if ($attr->{MAIN_BODY}) {
       $self->{table} .= "{ \"NAME\" : \"TABLE_" . $self->{ID} . "\",";
     }
     else {
-      $self->{table} .= "\"TABLE_" . $self->{ID} . "\" : {";
+      $self->{table} .= "\"TABLE_" . $self->{ID} . "\" :{";
     }
   }
 
   if (defined($attr->{caption})) {
     $self->{table} .= " \"CAPTION\" : \"$attr->{caption}\",\n";
-  }
-
-  if(defined $attr->{rows}) {
-
   }
 
   if (defined($self->{ID})) {
@@ -531,7 +520,8 @@ sub addrow {
     }
     else {
       if ($self->{caption}[$i] && $self->{caption}[$i] !~ /\-/) {
-        push @formed_rows, '"' . $self->{caption}[$i] ."\" : \"$val\"";
+        $val = "\"$val\"" if $val !~ /^{(.+) : (.+)}$/;
+        push @formed_rows, '"' . $self->{caption}[$i] ."\" : $val";
       }
     }
   }
@@ -678,6 +668,7 @@ sub show {
   }
 
   my $json_body ='';
+
   if (ref($self->{FIELDS_IDS}) eq 'HASH') {
     $json_body = $self->{table};
   }
@@ -688,8 +679,8 @@ sub show {
       . "\n] ";
   }
 
-  $json_body .= '}' if (! $FORM{EXPORT_CONTENT});
-  
+  $json_body .= '}' if (!$FORM{EXPORT_CONTENT});
+
   if (! $attr->{OUTPUT2RETURN})  {
     push @{ $self->{HTML}{JSON_OUTPUT} }, $json_body;
     return '';
@@ -703,10 +694,10 @@ sub show {
 
   Arguments:
     $text, $color -
-    
+
   Returns:
     $text
-    
+
 =cut
 #**********************************************************
 sub color_mark {
@@ -730,7 +721,18 @@ sub b {
 
 
 #**********************************************************
-=head2 button($name, $params, $attr)
+=head2 button($name, $params, $attr) - Create link element
+
+  Arguments:
+    $name     - Link name
+    $params   - Link params (url)
+    $attr
+      ONLY_IN_HTML - link will be returned if we are working with HTML, but will not be returned in export modes like xls, csv, json
+      GLOBAL_URL   - Global link
+      TITLE        -
+
+  Returns:
+    String with element
 
 =cut
 #**********************************************************
@@ -739,13 +741,17 @@ sub button {
   my ($name, $params, $attr) = @_;
   my $ex_attr = '';
 
+  if ($attr->{ONLY_IN_HTML}) {
+    return '';
+  }
+
   $params = ($attr->{GLOBAL_URL}) ? $attr->{GLOBAL_URL} : "$params";
   $params = $self->link_former($params);
 
   $ex_attr = " TITLE='$attr->{TITLE}'" if (defined($attr->{TITLE}));
   my $button = "\"$name\" : {
-                     \"url\" : \"$params\",
-                     \"title\" : \"$attr->{TITLE}\"
+                    \"url\" : \"$params\",
+                    \"title\" : \"$attr->{TITLE}\"
                     }\n";
 
   $button = "$name";
@@ -756,7 +762,7 @@ sub button {
 #**********************************************************
 =head2 message($self, $type, $caption, $message) Show message box
 
- $type - info, err
+  $type - info, err
 
 =cut
 #**********************************************************
@@ -773,11 +779,11 @@ sub message {
   }
 
   my $id = ($attr->{ID}) ? qq{,"ID" : "$attr->{ID}" } : '';
-  
+
   if ($attr->{RESPONCE_PARAMS} && ref $attr->{RESPONCE_PARAMS} eq 'HASH'){
     $id .= ',' . join (',', map { qq{ "$_" : "$attr->{RESPONCE_PARAMS}->{$_}" } } (keys %{$attr->{RESPONCE_PARAMS}})  );
   }
-  
+
   my $tpl_id = 'MESSAGE' . (($attr->{ID}) ? '_'.$attr->{ID} : q{});
   my $json_body =  qq/{
                       "type"    : "MESSAGE",
@@ -785,10 +791,10 @@ sub message {
                       "caption" : "$caption",
                       "messaga" : "$message"
                       $id
-                     }/;
+                    }/;
 
   $json_body =~ s/\n/ /gm;
-  
+
   if (! $attr->{OUTPUT2RETURN}) {
     push @{ $self->{JSON_OUTPUT} }, { $tpl_id => $json_body };
     return q{};
@@ -926,7 +932,7 @@ sub tpl_show {
 
   my $tpl_name = $attr->{ID} || "";
   my $tpl_id = $tpl_name || "_INFO";
-  my $no_subject = $attr->{NO_SUBJECT} || '--'; 
+  my $no_subject = $attr->{NO_SUBJECT} || '--';
 
   $tpl_name = "HASH" if (! $attr->{MAIN});
 
@@ -1011,7 +1017,7 @@ sub tpl_show {
 =head2 table_header($header, $attr) - Show table column  titles with wort derectives
 
   Arguments:
-   $header_arr - array of elements
+    $header_arr - array of elements
 
 =cut
 #**********************************************************
@@ -1048,11 +1054,15 @@ sub fetch  {
 
   my $result = join(",\n", @output_arr);
 
-  if ($FORM{EXPORT_CONTENT1} && $#output_arr == 0) {
+  if ($FORM{EXPORT_CONTENT} && $#output_arr == 0) {
     $result = join(",\n\n", @output_arr);
+    $result = '{' . $result . '}' if ($result !~ /^{/);
   }
   elsif($attr->{FULL_RESULT}) {
     $result = join(",\n\n", @output_arr);
+    if ($result !~ /^{/) {
+      $result = '{' . $result . '}';
+    }
   }
   else {
     $result = "{\n". join(",\n\n", @output_arr) ."\n}";

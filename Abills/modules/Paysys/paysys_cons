@@ -207,7 +207,8 @@ sub paysys_import_form_cons {
     close($fh);
   }
 
-  ($DATA_ARR, $BINDING_IDS) = paysys_import_parse($content, $import_expr, $BINDING_FIELD);
+  ($DATA_ARR, $BINDING_IDS) = paysys_import_parse($content, $import_expr,
+    $BINDING_FIELD, { SKIP_ROWS => $argv->{SKIP_ROWS} });
 
   #Make users binding hash
   my %binds_hash = map { $_ => 1} @$BINDING_IDS;
@@ -324,7 +325,7 @@ sub paysys_import_form_cons {
               SUM            => $DATA_ARR->[$i]->{SUM},
               DESCRIBE       => $describe,
               METHOD         => $method,
-              DATE           => $DATA_ARR->[$i]->{DATE},
+              DATE           => "$DATA_ARR->[$i]->{DATE} $DATA_ARR->[$i]->{TIME}",
               EXT_ID         => $ext_id,
               CHECK_EXT_ID   => $ext_id,
               INNER_DESCRIBE => $inner_describe,
@@ -391,6 +392,9 @@ sub paysys_import_form_cons {
 
         if ($Payments->{errno} && $Payments->{errno} == 7) {
           $error_str .= "ERROR: EXIST EXT_ID: $ext_id\n";
+          if ($debug > 2) {
+            $error_str .= "ID: $Payments->{ID} DATE: $Payments->{DATE} SUM: $Payments->{SUM} UID: $Payments->{UID}\n";
+          }
           $error     = 1;
         }
         else {
@@ -528,7 +532,6 @@ sub paysys_import_fees_cons {
 }
 
 #**********************************************************
-# Import fees from_file
 =head2 paysys_import_payments_cons($attr) Import fees from_file
 
 =cut
@@ -536,7 +539,7 @@ sub paysys_import_fees_cons {
 sub paysys_import_payments_cons {
   my @files = ();
   my $filename = $argv->{FILE} || '';
-  my $dir = '';
+  my $dir   = '';
 
   if ($filename =~ s/\*/\.\+/g) {
     $dir = dirname($filename);
@@ -755,7 +758,13 @@ sub paysys_import_pop3 {
 }
 
 #**********************************************************
-=head2 paysys_import_ftp() - import data from ftp
+=head2 paysys_import_ftp($attr) - import data from ftp
+
+  Arguments:
+    $attr
+
+  Return:
+    $content
 
 =cut
 #**********************************************************
@@ -837,16 +846,16 @@ sub paysys_import_ftp {
           $content = convert($content, { $argv->{DECODE} => 1 });
         }
 
-        if (
-          paysys_import_form_cons(
-            {
-              TYPE         => $argv->{TYPE},
-              IMPORT_RULE  => $argv->{IMPORT_RULE},
-              IMPORT_RULES => $conf{PAYSYS_IMPORT_RULES},
-              CONTENT      => $content
-            }
-          )
-        ){
+        my $import_result = paysys_import_form_cons(
+          {
+            TYPE         => $argv->{TYPE},
+            IMPORT_RULE  => $argv->{IMPORT_RULE},
+            IMPORT_RULES => $conf{PAYSYS_IMPORT_RULES},
+            CONTENT      => $content
+          }
+        );
+
+        if ($import_result){
           if ($argv->{BACKUP_FILES} && -d $argv->{BACKUP_FILES}) {
             `cp $local_filename $argv->{BACKUP_FILES}`;
           }
@@ -857,7 +866,7 @@ sub paysys_import_ftp {
           print "Delete LOCAL:$local_filename 'FTP:$filename'\n" if ($debug == 1);
         }
         else {
-          my $message = "
+          my $message = "ERROR paysys_cons:
    Filename: $filename
 
    $content
@@ -865,7 +874,7 @@ sub paysys_import_ftp {
    Error: $error_str
 ";
 
-          sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "POP3 Import Error", "$message", "$conf{MAIL_CHARSET}", "2 (High)");
+          sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "FTP Import Error", "$message", "$conf{MAIL_CHARSET}", "2 (High)");
         }
       }
     }
@@ -874,7 +883,7 @@ sub paysys_import_ftp {
     }
   }
 
-  #return $content;
+  return '';
 }
 
 #**********************************************************
@@ -925,6 +934,7 @@ $import_rules
     dos2win
   PLUGIN=...           - Run plugin
   MAIL=...             - Send a mail with all users info
+  SKIP_ROWS=1          - Skip first row
   help                 - this help
 
 [END]
@@ -940,8 +950,8 @@ sub eript_202 {
   #my $msgs_header = '';
   my $msg_num = substr(time(), 2, 10);
   my $msg_file = $msg_num.'.202';
-
-  my $msg_version = 5;
+  my $ftp_dir = $argv->{FTP_ERIPT_DIR} || 'in/';
+  my $msg_version = $argv->{ERIPT_VERSION} || 5;
 
   "$DATE$TIME" =~ /(\d{4})\-(\d{2})\-(\d{2})(\d{2}):(\d{2}):(\d{2})/;
   my $msg_date = "$1$2$3$4$5$6";
@@ -951,12 +961,12 @@ sub eript_202 {
   my $record_total_count = 0;
 
   #
-  my $msg_provider_id = $conf{PAYSYS_ERIPT_PROVIDER_ID} || 123456;    # Êîä îòïðàâèòåëÿ ñîîáùåíèÿ  M, N8
+  my $msg_provider_id           = $conf{PAYSYS_ERIPT_PROVIDER_ID} || 123456;    # Êîä îòïðàâèòåëÿ ñîîáùåíèÿ  M, N8
   #my $msg_provider_num          = $conf{PAYSYS_ERIPT_PROVIDER_NUM} || 123456;  # Ó÷åòíûé íîìåð ïëàòåëüùèêà ïðîèçâîäèòåëÿ óñëóã  M, N9, äîëæíî ñîäåðæàòü òðè ïîñëåäíèå öèôðû êîäà ÌÔÎ áàíêà, â êîòîðîì îòêðûò ðàñ÷åòíûé ñ÷åò ïðîèçâîäèòåëÿ óñëóãè;
-  my $msg_provider_bank_id = $conf{PAYSYS_ERIPT_PROVIDER_BANK_ID} || 123456;    # Êîä áàíêà ïðîèçâîäèòåëÿ óñëóã  M, N3
+  my $msg_provider_bank_id      = $conf{PAYSYS_ERIPT_PROVIDER_BANK_ID} || 123456;    # Êîä áàíêà ïðîèçâîäèòåëÿ óñëóã  M, N3
   my $msg_provider_bank_account = $conf{PAYSYS_ERIPT_PROVIDER_BANK_ACCOUNT} || 123456;    # Íîìåð óñëóãè ó ïðîèçâîäèòåëÿ óñëóã  O, N8
-  my $msg_provider_service_id = 1;
-  my $msg_valuta = $conf{SYSTEM_CURRENCY} || 974;
+  my $msg_provider_service_id   = $conf{PAYSYS_ERIPT_PROVIDER_SERVICE_ID} || 1;
+  my $msg_valuta                = $conf{SYSTEM_CURRENCY} || 933;
   my $msg_total_sum = 0;
 
   my $num = 0;
@@ -970,42 +980,42 @@ sub eript_202 {
   }
 
   my $account_key = ($conf{PAYSYS_ERIP_ACCOUNT_KEY} && $conf{PAYSYS_ERIP_ACCOUNT_KEY} eq 'LOGIN') ? 'u.id' : 'u.uid';
-  if($Paysys->can('query')){
-    $Paysys->query("SELECT $account_key AS account_key, pi.fio,
-      concat(pi.address_street, ', ', pi.address_build, ', ', pi.address_flat) AS full_address, u.credit, internet.tp_id, tp.month_fee
-    FROM users u, users_pi pi, internet_main internet, tarif_plans tp
-    WHERE u.uid=pi.uid AND u.deleted=0
-      AND u.uid=internet.uid
-      AND internet.tp_id=tp.tp_id
+  my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
+
+  $Paysys->query("SELECT $account_key AS account_key, pi.fio,
+      CONCAT(streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full,
+      u.credit,
+      internet.tp_id AS internet_tp_id,
+      tp.month_fee,
+      IF(company.id IS NULL, b.deposit, cb.deposit) AS deposit
+    FROM users u
+       INNER JOIN users_pi pi ON (u.uid=pi.uid)
+       LEFT JOIN internet_main internet ON (u.uid=internet.uid)
+       LEFT JOIN tarif_plans tp ON (internet.tp_id=tp.tp_id)
+       LEFT JOIN builds ON (builds.id=pi.location_id)
+       LEFT JOIN streets ON (streets.id=builds.street_id)
+       LEFT JOIN districts ON (districts.id=streets.district_id)
+
+       LEFT JOIN companies company FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=company.id)
+       LEFT JOIN bills b ON (u.bill_id = b.id)
+       LEFT JOIN bills cb ON (company.bill_id=cb.id)
+
+    WHERE u.deleted=0
     $WHERE
     ",
       undef,
       { COLS_NAME => 1 }
     );
-  }
-  else{
-    $Paysys->query("SELECT $account_key AS account_key, pi.fio,
-      concat(pi.address_street, ', ', pi.address_build, ', ', pi.address_flat) AS full_address, u.credit, internet.tp_id, tp.month_fee
-    FROM users u, users_pi pi, internet_main internet, tarif_plans tp
-    WHERE u.uid=pi.uid AND u.deleted=0
-      AND u.uid=internet.uid
-      AND internet.tp_id=tp.tp_id
-    $WHERE
-    ",
-      undef,
-      { COLS_NAME => 1 }
-    );
-  }
 
   my $list = $Paysys->{list};
 
   foreach my $line (@{$list}) {
     $num++;
 
-    my $uid = $line->{account_key};
-    my $fio = convert($line->{fio}, { utf82win => 1 });
-    my $address = convert($line->{full_address}, { utf82win => 1 });
-    my $credit = 0;            #$line->[3];
+    my $uid      = $line->{account_key};
+    my $fio      = convert($line->{fio} || q{}, { utf82win => 1 });
+    my $address  = convert($line->{address_full} || q{}, { utf82win => 1 });
+    my $credit   = ($line->{deposit} && $line->{deposit} < 0) ? sprintf("%.2f", $line->{deposit}) : 0;            #$line->[3];
     my $comments = '';
     my $ext_info = '';
 
@@ -1016,17 +1026,22 @@ sub eript_202 {
 
     $record_total_count++;
     $msg_total_sum += $tarif_1 || 0;
-
     my $tariffs_fields = '';     #"1~$tp_id~5~$tarif_1~$tarif_2~0~0~0";
 
     # V2
-    #$message .= "$num^$uid^$fio^$address^$payment_period^$credit^$tariffs_fields^$payment_date^$comments^$ext_info^^^^^^\r\n";
-
-    # V5
-    $message .= "2^$uid^$fio^$address^$payment_period^$credit^$tariffs_fields^$payment_date^$comments^$ext_info^^^^^\r\n";
+    if ($msg_version && $msg_version == 2) {
+      $message .= "$num^$uid^$fio^$address^$payment_period^$credit^$tariffs_fields^$payment_date^$comments^$ext_info^^^^^^\r\n";
+    }
+    else {
+      # V5
+      $message .= "2^$uid^$fio^$address^$payment_period^$credit^$tariffs_fields^$payment_date^$comments^$ext_info^^^^^\r\n";
+    }
   }
 
-  $message = "$msg_version^$msg_provider_id^$msg_num^$msg_date^$record_total_count^$conf{PAYSYS_ERIPT_PROVIDER_NUM}^$msg_provider_bank_id^$msg_provider_bank_account^$msg_provider_service_id^$msg_valuta^\r\n".$message;
+  $conf{PAYSYS_ERIPT_PROVIDER_NUM} //= q{};
+
+  $message = "$msg_version^$msg_provider_id^$msg_num^$msg_date^$record_total_count^$conf{PAYSYS_ERIPT_PROVIDER_NUM}^$msg_provider_bank_id^$msg_provider_bank_account^$msg_provider_service_id^$msg_valuta^\r\n"
+    .$message;
 
   if ($debug > 4) {
     print $message;
@@ -1037,7 +1052,11 @@ sub eript_202 {
     open(my $fh, '>', $upload_file) or die "Can't create file '$upload_file' $!\n";
     print $fh $message;
     close($fh);
-    paysys_import_ftp({ UPLOAD => $upload_file, FTP_DIR => '/in/' });
+
+    paysys_import_ftp({
+      UPLOAD  => $upload_file,
+      FTP_DIR => '/'.$ftp_dir
+    });
   }
 
   return 1;
@@ -1058,7 +1077,7 @@ sub eript_202 {
 sub bss_users_list {
   #my ($attr) = @_;
 
-  my $code = $conf{PAYSYS_BSS_CODE};  # your code
+  my $code = $conf{PAYSYS_BSS_CODE} || q{};  # your code
   my $users_data = '';                            # users data for file
   $Users->{debug}=1 if ($debug > 7);
   my $list = $Users->list(

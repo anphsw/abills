@@ -4,10 +4,10 @@
 <input type='hidden' name='action' value=%ACTION%>
 <input type='hidden' name='id' value=%ID%>
 
-<div class='box box-theme box-form'>
-    <div class='box-header with-border text-primary'>_{TARIFF_PLAN}_</div>
+<div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border text-primary'>_{TARIFF_PLAN}_</div>
 
-<div class='box-body'>
+<div class='card-body'>
 	<div class='form-group'>
         <label class='col-md-3 control-label'>_{NAME}_</label>
 		<div class='col-md-9'>
@@ -40,7 +40,7 @@
 	</div>
 </div>
 
-<div class='box-footer'>
+<div class='card-footer'>
   <button type='submit' class='btn btn-primary'>%BUTTON%</button>
 </div>
 

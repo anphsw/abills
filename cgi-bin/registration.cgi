@@ -134,13 +134,13 @@ elsif ($FORM{get_index} && $FORM{get_index} eq 'form_address_select2') {
   exit 1;
 }
 elsif ( !$FORM{no_addr}
-     && !$FORM{reg}
-     && !$FORM{add}
-     && !$FORM{LOCATION_ID} 
-     && $conf{REGISTRATION_REQUEST}
-     && (in_array('Internet', \@MODULES) || in_array('Iptv', \@MODULES))) {
-    my $address_buttons .= "<button type='button' class='btn btn-lg btn-success' data-toggle='modal' data-target='#checkAddress'>" . $lang{CHECK_ADDRESS} . "</button>";
-    $html->{HEADER_ROW} = $html->element('div', $address_buttons, { class => 'row'});
+    && !$FORM{reg}
+    && !$FORM{add}
+    && !$FORM{LOCATION_ID}
+    && $conf{REGISTRATION_REQUEST}
+    && (in_array('Internet', \@MODULES) || in_array('Iptv', \@MODULES))) {
+  my $address_buttons .= "<button type='button' class='btn btn-lg btn-success' data-toggle='modal' data-target='#checkAddress'>" . $lang{CHECK_ADDRESS} . "</button>";
+  $html->{HEADER_ROW} = $html->element('div', $address_buttons, { class => 'row'});
 }
 elsif ($#REGISTRATION > -1) {
   @REGISTRATION = ('Msgs') if ($FORM{no_addr} && $conf{REGISTRATION_REQUEST});
@@ -149,21 +149,21 @@ elsif ($#REGISTRATION > -1) {
   my $m = ($FORM{module} && $FORM{module} =~ /^[a-z\_0-9]+$/i && in_array($FORM{module}, \@MODULES))
   ? $FORM{module}
   : $REGISTRATION[0];
-  
+
   if ($m eq 'Osbb' || $m eq 'Vacations' || $m eq 'Expert') {
     $INFO_HASH{user_registration} = $FORM{user_registration} || '';
   }
   else {
-    $choose_module_buttons = "<ul class='sidebar-menu tree' data-widget='tree'>";
+    $choose_module_buttons = "<nav class='mt-2'><ul style='padding-left: 10px; padding-right: 10px;' class='nav nav-pills nav-sidebar flex-column nav-child-indent' data-card-widget='tree'>";
     if (defined $#REGISTRATION > 0 && !$FORM{registration}) {
       foreach my $registration_module (@REGISTRATION) {
-        $choose_module_buttons .= "<li><a href='?module=" . $registration_module ."'><span>" . ($lang_module{ $registration_module } || $registration_module). "</span></a></li>"
+        $choose_module_buttons .= "<li class='nav-item'><a class='nav-link' href='?module=" . $registration_module ."'><p>" . ($lang_module{ $registration_module } || $registration_module). "</p></a></li>"
       }
     }
     if (!$FORM{LOCATION_ID} && !$FORM{no_addr} && $conf{CHECK_ADDRESS_REGISTRATION}) {
-      $choose_module_buttons .= "<li><a data-toggle='modal' data-target='#checkAddress'><span>" . $lang{CHECK_ADDRESS} . "</span></a></li>";
+      $choose_module_buttons .= "<li class='nav-item'><a data-toggle='modal' class='nav-link' data-target='#checkAddress'><p>" . $lang{CHECK_ADDRESS} . "</p></a></li>";
     }
-    $choose_module_buttons .= "</ul>";
+    $choose_module_buttons .= "</ul></nav>";
   }
 
   $INFO_HASH{CAPTCHA} = get_captcha();
@@ -175,14 +175,14 @@ elsif ($#REGISTRATION > -1) {
     $FORM{DOMAIN_ID}      = 0;
     $INFO_HASH{DOMAIN_ID} = 0;
   }
-  
+
   if ($conf{REGISTRATION_CAPTCHA} && ($FORM{reg} || $FORM{add})) {
     unless (check_captcha(\%FORM)) {
       delete $FORM{reg};
       delete $FORM{add};
     }
   }
-  
+
   load_module($m, $html);
 
   $m = lc($m);
@@ -191,7 +191,7 @@ elsif ($#REGISTRATION > -1) {
 
   if(defined(&$function)) {
     my $return = &{ \&{$function} }(\%INFO_HASH);
-    
+
     # Send E-mail to admin after registration
     if ($return && $return > 1) {
       my $message = $html->tpl_show(templates('registration_admin_notification'),
@@ -220,7 +220,7 @@ elsif ($#REGISTRATION > -1) {
       )) {
         $html->message('err', $lang{@REGISTRATION}, 'Request sending error');
       }
-  
+
       if ($conf{REGISTRATION_REDIRECT}) {
         $html->redirect($conf{REGISTRATION_REDIRECT}, { MESSAGE => $lang{SENDED} });
         exit 0;
@@ -232,30 +232,35 @@ elsif ($#REGISTRATION > -1) {
   }
 }
 
-$admin->{SETTINGS}->{SKIN}         = 'skin-blue';
+$admin->{SETTINGS}->{SKIN}         = 'navbar-light navbar-orange';
 $admin->{SETTINGS}->{FIXED_LAYOUT} = '';
 $admin->{MENU_HIDDEN}              = '';
 $admin->{RIGHT_MENU_OPEN}          = '';
 
 if (!($FORM{header} && $FORM{header} == 2)) {
   print $html->header();
-  my $address_modal_form = form_address_select2({ REGISTRATION_MODAL => 1 });
+
+  my $address_modal_form = '';
+
+  unless ($FORM{FORGOT_PASSWD}) {
+    $address_modal_form = form_address_select2({ REGISTRATION_MODAL => 1 });
+  }
 
   $OUTPUT{HTML_STYLE} = 'lte_adm';
   $OUTPUT{CONTENT_LANGUAGE} = lc $CONTENT_LANGUAGE;
   $OUTPUT{INDEX_NAME} = 'registration.cgi';
   $OUTPUT{CHECK_ADDRESS_MODAL} = $html->tpl_show(templates('form_address_modal'), { ADDRESS => $address_modal_form }, {OUTPUT2RETURN => 1});
   $OUTPUT{TITLE}      = "$conf{WEB_TITLE} - $lang{REGISTRATION}";
-  $OUTPUT{SELECT_LANGUAGE}   = $INFO_HASH{SEL_LANGUAGE};
-  $OUTPUT{REG_LOGIN} = "style='display:none;'";
-  $OUTPUT{REG_STATE} = "style='display:none;'";
+  $OUTPUT{SELECT_LANGUAGE} = $INFO_HASH{SEL_LANGUAGE};
+  $OUTPUT{REG_LOGIN} = "style='display:none !important;'";
+  $OUTPUT{REG_STATE} = "style='display:none !important;'";
   $OUTPUT{REG_IP} = "style='display:none;'";
   $OUTPUT{DATE} = $DATE;
   $OUTPUT{TIME} = $TIME;
   $OUTPUT{IP} = $ENV{'REMOTE_ADDR'};
   $OUTPUT{BODY} = $html->{OUTPUT};
   $html->{OUTPUT} = '';
-  $OUTPUT{SKIN} = 'skin-green';
+  $OUTPUT{SKIN} = 'navbar-light navbar-orange';
   $OUTPUT{MENU} = $choose_module_buttons;
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_main'), \%OUTPUT);
   $OUTPUT{DOMAIN_ID}=$FORM{DOMAIN_ID} || q{};
@@ -350,30 +355,25 @@ sub password_recovery_process {
   if ($FORM{SEND_SMS} && in_array('Sms', \@MODULES)) {
     load_module('Sms', $html);
 
-    my $Sms = Sms->new($db, $admin, \%conf);
-    $Sms->import();
-    my $list_sms = $Sms->list({ 
-      COLS_NAME => 1,
-      DATETIME  => '_SHOW',
-      UID       => 1,
-      NO_SKIP   => 1,
-    });
+    if ($conf{USER_LIMIT_SMS}) {
+      my $Sms = Sms->new($db, $admin, \%conf);
+      $Sms->import();
 
-    my $current_mount = strftime("%m", localtime(time));
-    my $limit_sms = 0;
-    foreach my $sms_data (@$list_sms) {
-      my (undef, $year, $mount, $day, undef) 
-          = split(/([0-9].+)-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])/, $sms_data->{datetime});
+      my $current_mount = strftime("%Y-%m-01", localtime(time));
+      my $list_sms = $Sms->list({
+        COLS_NAME => 1,
+        DATETIME  => ">=$current_mount",
+        UID       => $uid,
+        NO_SKIP   => 1,
+        PAGE_ROWS => 1000
+      });
 
-      if ($mount eq $current_mount) {
-        ++$limit_sms;
+      my $sended_sms = $Sms->{TOTAL} || 0;
+
+      if ($conf{USER_LIMIT_SMS} > $sended_sms) {
+        $html->message('err', "$lang{ERROR}", "SMS $lang{LIMIT} $conf{USER_LIMIT_SMS}");
+        return 1;
       }
-    }
-
-    if ($conf{USER_LIMIT_SMS} &&  $conf{USER_LIMIT_SMS} <= $limit_sms) {
-      $html->message('err', "$lang{ERROR}", "SMS $lang{LIMIT} $conf{USER_LIMIT_SMS}");
-
-      return 1;
     }
 
     $message =~ s/\n/ /g if ($message);
@@ -413,7 +413,7 @@ sub get_address_connected_message {
   my $Address = Address->new($db, $admin, \%conf);
 
   my $info = $Address->build_info({ID => $FORM{LOCATION_ID}});
-  
+
   return ($info->{PLANNED_TO_CONNECT} && $info->{PLANNED_TO_CONNECT} == 1)
     ? "<div class='callout callout-info'>$lang{CHECK_ADDRESS_PLANNED_TO_CONNECT_MSG}</div>"
     : "<div class='callout callout-info'>$lang{CHECK_ADDRESS_CONNECTED_MSG}</div>";
@@ -425,7 +425,7 @@ sub get_address_connected_message {
 =cut
 #**********************************************************
 sub get_captcha {
-  
+
   return if (!$conf{REGISTRATION_CAPTCHA});
   if ($conf{GOOGLE_CAPTCHA_KEY}) {
     return "<script src='https://www.google.com/recaptcha/api.js'></script><div class='g-recaptcha' data-sitekey='$conf{GOOGLE_CAPTCHA_KEY}'></div>";
@@ -442,9 +442,9 @@ sub get_captcha {
     data_folder   => $CAPTCHA_DIR,
     output_folder => $CAPTCHA_DIR,
   );
-  
+
   $INFO_HASH{CAPTCHA_OBJ} = $Captcha;
-  
+
   if (!(-d $CAPTCHA_DIR || mkdir($CAPTCHA_DIR))) {
     $html->message( 'err', $lang{ERROR}, "$lang{ERR_CANT_CREATE_FILE} '$CAPTCHA_DIR' $lang{ERROR}: $!\n" );
     $html->message( 'info', $lang{INFO}, "$lang{NOT_EXIST} '$CAPTCHA_DIR'" );
@@ -452,17 +452,17 @@ sub get_captcha {
   else {
     my $number_of_characters = 5;
     my $md5sum = eval { return $Captcha->generate_code( $number_of_characters ) };
-    
+
     if (!$md5sum) {
       print "Content-Type: text/html\n\n";
       print "Can't make captcha\n";
       print $@;
       exit;
     }
-    
+
     $INFO_HASH{CAPTCHA} = $html->tpl_show( templates('form_captcha'), { MD5SUM => $md5sum }, { OUTPUT2RETURN => 1 } );
   }
-  
+
   return ($Captcha, $INFO_HASH{CAPTCHA});
 }
 
@@ -470,8 +470,9 @@ sub get_captcha {
 =head2 check_captcha($user_input, $md5hash)
 
   Arguments:
-   $user_input
-   $md5hash
+    $attr
+      $user_input
+      $md5hash
 
   Returns:
     boolean
@@ -482,22 +483,22 @@ sub check_captcha {
   my ($attr) = @_;
 
   if ($conf{GOOGLE_CAPTCHA_KEY}) {
-    my $response = $attr->{'g-recaptcha-response'};
+    my $response = $attr->{'g-recaptcha-response'} || q{};
     my $url = "https://www.google.com/recaptcha/api/siteverify?secret=$conf{GOOGLE_CAPTCHA_SECRET}&response=$response";
     my $result = web_request($url, {
       JSON_RETURN => 1,
     });
-    
+
     if($result && ref $result eq 'HASH' && $result->{success} && $result->{success} ne 'false') {
       return 1;
     }
     $html->message('err', "Captcha: $lang{ERROR}");
     return 0;
   }
-  
+
   my $user_input = $attr->{CCODE} || q{};
   my $md5hash    = $attr->{C} || q{};
-  
+
   load_pmodule('Authen::Captcha', { HEADER => 1 });
 
   my $Captcha = Authen::Captcha->new(
@@ -536,15 +537,14 @@ sub check_captcha {
 #**********************************************************
 sub get_sn_info {
   use Abills::Auth::Core;
-  my $Auth;
 
-  $Auth = Abills::Auth::Core->new({
+  my $Auth = Abills::Auth::Core->new({
     CONF      => \%conf,
     AUTH_TYPE => $FORM{external_auth},
     SELF_URL  => $SELF_URL,
   });
   $Auth->check_access(\%FORM);
-  
+
   if($Auth->{auth_url}) {
     print "Location: $Auth->{auth_url}\n\n";
     exit;
@@ -572,7 +572,7 @@ sub get_sn_info {
       $login_url .= "?external_auth=Facebook";
       $INFO_HASH{login_url} = $login_url;
     }
-  }  
+  }
   return 1;
 }
 
@@ -591,6 +591,7 @@ sub send_pin {
     SKIP_DEL_CHECK => 1,
   });
   exit 0 if ($admin->{TOTAL} > 0);
+
   if (in_array('Sms', \@MODULES)) {
     load_module('Sms', $html);
     my $pin = int(rand(900)) + 100;
@@ -600,6 +601,7 @@ sub send_pin {
     });
     $admin->action_add(0, "Send registration pin $pin to phone $FORM{send_pin}", { TYPE => 50 });
   }
+
   exit 0;
 }
 
@@ -610,7 +612,8 @@ sub send_pin {
 #**********************************************************
 sub verify_phone {
   my ($phone, $pin) = @_;
-  my $list = $admin->action_list({
+
+  $admin->action_list({
     FROM_DATE      => $DATE,
     TO_DATE        => $DATE,
     TYPE           => 50,
@@ -619,10 +622,11 @@ sub verify_phone {
   });
 
   if ($admin->{TOTAL} < 1) {
-    $html->message('err', "Wrong pin.");
+    $html->message('err', "WRONG_PIN");
     delete $FORM{reg};
     delete $FORM{add};
   }
+
   return 1;
 }
 

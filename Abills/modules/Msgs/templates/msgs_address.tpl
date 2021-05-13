@@ -1,15 +1,15 @@
-<div class='box collapsed-box col-md-12'>
-    <div class='box-header'>
-        <h4 class='box-title'>
+<div class='card collapsed-box col-md-12'>
+    <div class='card-header'>
+        <h4 class='card-title'>
                 _{ADDRESS}_
         </h4>
-        <div class='box-tools pull-right'>
-          <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
+        <div class='card-tools pull-right'>
+          <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i class='fa fa-plus'></i>
           </button>
         </div>
     </div>
 
-    <div class='box-body'>
+    <div class='card-body'>
         %ADDRESS_FORM%
     </div>
 </div>

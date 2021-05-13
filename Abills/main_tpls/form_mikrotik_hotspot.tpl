@@ -1,7 +1,7 @@
-<div class='box box-theme box-form'>
+<div class='card card-primary card-outline box-form'>
 
-  <div class='box-header with-border'><h4 class='box-title'>Mikrotik Hotspot</h4></div>
-  <div class='box-body'>
+  <div class='card-header with-border'><h4 class='card-title'>Mikrotik Hotspot</h4></div>
+  <div class='card-body'>
 
     <form name='MIKROTIK_HOTSPOT' id='form_MIKROTIK_HOTSPOT' method='post' class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
@@ -77,7 +77,7 @@
       <div class='row'>
         <div id='walled_garden_controls text-right'>
           <button class='btn btn-xs btn-success' id='walled_garden_add_btn'>
-            <span class='glyphicon glyphicon-plus'></span>
+            <span class='fa fa-plus'></span>
           </button>
         </div>
       </div>
@@ -85,7 +85,7 @@
     </form>
 
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type='submit' form='form_MIKROTIK_HOTSPOT' class='btn btn-primary' name='action' value='_{SET}_'>
   </div>
 </div>
@@ -95,7 +95,7 @@
  <div class='form-group' data-counter='{{counter}}'>
    <label class='control-label col-md-3'>
    <a class='text-danger remove_host_btn form-control-static'>
-       <span class='glyphicon glyphicon-remove'></span>
+       <span class='fa fa-remove'></span>
      </a>
    {{#label}}{{label}}{{/label}}
       </label>

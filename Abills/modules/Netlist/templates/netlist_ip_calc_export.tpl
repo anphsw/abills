@@ -1,11 +1,11 @@
-<div class='box box-primary'>
-    <div class='box-header with-border'><h4 class='box-title'>_{EXPORT}_</h4></div>
+<div class='card box-primary'>
+    <div class='card-header with-border'><h4 class='card-title'>_{EXPORT}_</h4></div>
     <form name='NETLIST_CALC_EXPORT' id='form_NETLIST_CALC_EXPORT' method='post' class='form form-horizontal'>
         <input type='hidden' name='index' value='$index'/>
         <input type='hidden' name='COUNTS' value='$FORM{HOSTS_NUMBER}'/>
         <input type='hidden' name='SUBNET_NETMASK' value='$FORM{SUBNET_MASK}'/>
 
-        <div class='box-body'>
+        <div class='card-body'>
             %EXPORT_TABLE%
             <div class='col-md-8 col-md-push-2'>
                 <div class='form-group'>
@@ -21,7 +21,7 @@
         </div>
     </form>
 
-    <div class='box-footer'>
+    <div class='card-footer'>
         <input type='submit' form='form_NETLIST_CALC_EXPORT' class='btn btn-primary' name='export_pools'
                value='_{EXPORT}_ IP Pools'>
         <input type='submit' form='form_NETLIST_CALC_EXPORT' class='btn btn-primary'  name='export_groups'

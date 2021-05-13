@@ -14,11 +14,11 @@
   jQuery( function() {
     jQuery( ".ui-sortable-forms" ).sortable({
       connectWith: ".ui-sortable-forms",
-      handle: ".box-header",
+      handle: ".card-header",
       cursor: "move",
       placeholder: "portlet-placeholder ui-corner-all"
     });
-    jQuery(".box-header").hover(function() {
+    jQuery(".card-header").hover(function() {
       jQuery(this).css('cursor','pointer');
     }, function() {
       jQuery(this).css('cursor','auto');

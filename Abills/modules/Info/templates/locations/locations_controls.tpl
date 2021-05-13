@@ -3,9 +3,9 @@
 
 <div class='btn-group btn-group-xs'>
     <button class='btn btn-xs btn-primary' id='locationsAdd'>
-        <span class='glyphicon glyphicon-plus'></span>
+        <span class='fa fa-plus'></span>
     </button>
     <button class='btn btn-xs btn-success' id='locationsShow'>
-        <span class='glyphicon glyphicon-map-marker'></span>
+        <span class='fa fa-map-marker'></span>
     </button>
 </div>

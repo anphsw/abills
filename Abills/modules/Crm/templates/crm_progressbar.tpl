@@ -8,7 +8,6 @@
   ol.progtrckr li {
     display: inline-block;
     text-align: center;
-    line-height: 3em;
   }
 
   ol.progtrckrText li {
@@ -65,14 +64,14 @@
 
   ol.progtrckr li:before {
     position: relative;
-    bottom: -2.5em;
+    bottom: -1em;
     float: left;
-    left: 50%;
+    left: 46%;
     line-height: 1em;
   }
 
   ol.progtrckr li.progtrckr-done:before {
-    content: '\0007';
+    content: '\2713';
     color: white;
     background-color: yellowgreen;
     height: 1.2em;
@@ -87,7 +86,7 @@
     color: silver;
     background-color: white;
     font-size: 1.5em;
-    bottom: -1.6em;
+    bottom: -0.5em;
     border-radius: 1.2em;
   }
 
@@ -104,7 +103,7 @@
 
     #step_name li:nth-child(even) {
       position: relative;
-      bottom: -2em;
+      bottom: -1em;
     }
   }
 
@@ -112,17 +111,17 @@
 </style>
 
 <!-- PROGRESSBAR -->
-<div class='box box-primary'>
+<div class='card box-primary'>
 
-  <div class='box-body'>
+  <div class='card-body'>
     <div class='row' id='progressTracker'>
       <input type='hidden' name='STEP_NUM' id='progressStatus' value='%CUR_STEP%'/>
       <input type='hidden' name='END_STEP' id='end_step' value='%END_STEP%'/>
       <hr/>
       <div class='alert alert-info' id='tips'>%TIPS%</div>
-      <ol class='progtrckrText progtrckr-width' id='step_name'></ol>
-      <ol class='progtrckr progtrckr-width' id='step_icon'></ol>
-      <ol class='progtrckrText progtrckr-width' id='step_date'></ol>
+      <div class='col-md-12'><ol class='progtrckrText progtrckr-width' id='step_name'></ol></div>
+      <div class='col-md-12'><ol class='progtrckr progtrckr-width' id='step_icon'></ol></div>
+      <div class='col-md-12'><ol class='progtrckrText progtrckr-width' id='step_date'></ol></div>
       <hr/>
     </div>
     <!-- COMMENTS TO EACH STEP -->

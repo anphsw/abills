@@ -11,9 +11,9 @@
     <input type='hidden' name='sid' value='$sid'>
     <input type='hidden' name='add_form' value=1>
 
-    <div class='box box-primary'>
-        <div class='box-header with-border text-center'><h4 class='box-title'>_{SUBCRIBES}_</h4></div>
-        <div class='box-body'>
+    <div class='card box-primary'>
+        <div class='card-header with-border text-center'><h4 class='card-title'>_{SUBCRIBES}_</h4></div>
+        <div class='card-body'>
 
             <div class='form-group text-center'>
                 <label class='col-md-12 bg-primary text-center'>_{CHOOSE_SYSTEM}_</label>
@@ -32,6 +32,6 @@
             </div>
         </div>
 
-        <div class='box-footer'><input class='btn btn-primary' type='submit' name=add value='_{ADD}_'></div>
+        <div class='card-footer'><input class='btn btn-primary' type='submit' name=add value='_{ADD}_'></div>
     </div>
 </form>

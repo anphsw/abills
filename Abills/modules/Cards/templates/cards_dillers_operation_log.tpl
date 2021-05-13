@@ -3,10 +3,10 @@
     <input type='hidden' name='sid' value="%SID%">
     <input type='hidden' name='operations_log' value="1">
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'><h4 class='box-title'>_{LIST_OF_LOGS}_</h4></div>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'><h4 class='card-title'>_{LIST_OF_LOGS}_</h4></div>
 
-        <div class='box-body'>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='col-md-4 col-sm-3 control-label'>_{PERIOD}_:</label>
                 <div class='col-md-8 col-sm-9'>

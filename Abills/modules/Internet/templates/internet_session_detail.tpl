@@ -1,15 +1,15 @@
 <div class='col-md-12 col-sm-12'>
   <div class='col-md-6 col-sm-6'>
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'>
-        <h4 class='box-title'>_{SESSIONS}_</h4>
-          <div class="box-tools pull-right">
-            <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-header with-border'>
+        <h4 class='card-title'>_{SESSIONS}_</h4>
+          <div class="card-tools pull-right">
+            <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse">
               <i class="fa fa-minus"></i>
             </button>
           </div>
       </div>
-      <div class='box-body'>
+      <div class='card-body'>
         <TABLE width=600 class='table table-striped'>
         <tr><td>_{SESSION_ID}_:</td><td>%SESSION_ID%</td></tr>
         <tr><td>_{BEGIN}_:</td><td align=right>%START%</td></tr>
@@ -28,16 +28,16 @@
     </div>
   </div>
   <div class='col-md-6 col-sm-6'>
-    <div class='box box-theme box-form '>
-      <div class='box-header with-border'>
-        <h4 class='box-title'>_{NAS}_</h4>
-          <div class="box-tools pull-right">
-            <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+    <div class='card card-primary card-outline box-form '>
+      <div class='card-header with-border'>
+        <h4 class='card-title'>_{NAS}_</h4>
+          <div class="card-tools pull-right">
+            <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse">
               <i class="fa fa-minus"></i>
             </button>
           </div>
       </div>
-      <div class='box-body'>
+      <div class='card-body'>
         <TABLE width=600 class='table table-striped'>
           <tr><td>ID:</td><td>%NAS_ID%</td></tr>
           <tr><td>NAME</td><td>%NAS_NAME%</td></tr>

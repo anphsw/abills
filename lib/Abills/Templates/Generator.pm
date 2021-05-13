@@ -224,16 +224,16 @@ sub start_collapse_panel {
 
   my $element = "
     <div class='form-group'>
-      <div class='box box-theme'>
-          <div class='box-header with-border' role='tab' id='$heading_id'>
-            <h4 class='box-title text-center'>
+      <div class='card card-primary card-outline'>
+          <div class='card-header with-border' role='tab' id='$heading_id'>
+            <h4 class='card-title text-center'>
               <a role='button' data-toggle='collapse' href='#$collapse_id' aria-expanded='true' aria-controls='$collapse_id'>
                 $label
               </a>
             </h4>
           </div>
-        <div id='$collapse_id' class='box-collapse collapse' role='tabpanel' aria-labelledby='$heading_id'>
-        <div class='box-body'>
+        <div id='$collapse_id' class='card-collapse collapse' role='tabpanel' aria-labelledby='$heading_id'>
+        <div class='card-body'>
         ";
 
   return $element;

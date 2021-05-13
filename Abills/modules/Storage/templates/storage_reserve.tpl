@@ -5,8 +5,8 @@
 <input type=hidden name=STORAGE_INCOMING_ARTICLES_ID value=$FORM{reserve} />
 
 <fieldset>
-<div class='box box-theme box-form'>
-<div class='box-body form form-horizontal'>
+<div class='card card-primary card-outline box-form'>
+<div class='card-body form form-horizontal'>
 <legend>_{RESERVE}_</legend>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{RESERVED}_:</label>
@@ -21,7 +21,7 @@
     <div class='col-md-9'><textarea class='form-control col-xs-12' name='COMMENTS'>%COMMENTS%</textarea></div>
   </div>
 </div>
-	<div class='box-footer'>
+	<div class='card-footer'>
 		<input class='btn btn-primary' type=submit name=%ACTION% value=%ACTION_LNG%>
 	</div>
 </div>

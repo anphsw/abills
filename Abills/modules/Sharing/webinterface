@@ -2636,7 +2636,7 @@ sub sharing_user_main {
         SKIP_HREF      => 1,
         NO_LINK_FORMER => 1,
         class          => "btn btn-$purchased_panel_type full-width",
-        # ICON           => 'glyphicon glyphicon-download',
+        # ICON           => 'fa fa-download',
         title          => $purchased_button_name,
         ex_params      => qq/onclick=loadToModal('$get_link')/
       });

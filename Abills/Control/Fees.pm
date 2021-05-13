@@ -196,15 +196,13 @@ sub form_fees {
       );
 
       if ($conf{EXT_BILL_ACCOUNT}) {
-        $Fees->{EXT_DATA_FORM}=$html->tpl_show(templates('form_row'), {
-          ID    => 'BILL_ID',
-          NAME  => $lang{BILL},
-          VALUE => $html->form_select('BILL_ID',
-            {
-              SELECTED => $FORM{BILL_ID} || $attr->{USER_INFO}->{BILL_ID},
-              SEL_HASH => \%BILL_ACCOUNTS,
-              NO_ID    => 1
-            }) }, { OUTPUT2RETURN => 1 });
+        $Fees->{EXT_DATA_FORM} = $html->form_select('BILL_ID',
+          {
+            SELECTED => $FORM{BILL_ID} || $attr->{USER_INFO}->{BILL_ID},
+            SEL_HASH => \%BILL_ACCOUNTS,
+            NO_ID    => 1
+          }
+        );
       }
       if (in_array('Docs', \@MODULES) ) {
         $Fees->{DOCS_FEES_ELEMENT} = $html->tpl_show(_include('docs_create_fees', 'Docs'), {},{ OUTPUT2RETURN => 1 });

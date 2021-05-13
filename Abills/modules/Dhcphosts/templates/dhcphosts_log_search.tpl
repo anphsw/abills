@@ -1,6 +1,6 @@
 <div class='col-xs-12 col-md-6'>
-    <div class='box box-theme '>
-        <div class='box-body'>
+    <div class='card card-primary card-outline '>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='control-label col-xs-3' for='MESSAGE'>_{MESSAGE}_ (*):</label>
                 <div class='col-xs-9'>

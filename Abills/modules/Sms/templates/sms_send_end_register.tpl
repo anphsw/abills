@@ -10,33 +10,33 @@
     <input type='hidden' name='STREET_ID' value='$FORM{STREET_ID}'>
     <input type='hidden' name='ADDRESS_FLAT' value='$FORM{ADDRESS_FLAT}'>
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'>
-            <h4 class='box-title'>SMS</h4>
+    <div class='card card-primary card-outline col-md-6 container'>
+        <div class='card-header with-border'>
+            <h4 class='card-title'>SMS</h4>
         </div>
-        <div class='box-body'>
-            <div class='form-group'>
+        <div class='card-body'>
+            <div class='form-group row'>
                 <label class='control-label col-md-4 col-sm-3'>UID:</label>
                 <div class='col-md-8 col-sm-9'>
                     <input type='text' value='%UID%' placeholder='UID'
                            class='form-control' %READONLY%>
                 </div>
             </div>
-            <div class='form-group'>
+            <div class='form-group row'>
                 <label class='control-label col-md-4 col-sm-3'>_{USER}_:</label>
                 <div class='col-md-8 col-sm-9'>
                     <input type='text' name='LOGIN' value='%USER%' placeholder='_{USER}_'
                            class='form-control' %READONLY%>
                 </div>
             </div>
-            <div class='form-group'>
+            <div class='form-group row'>
                 <label class='control-label col-md-4 col-sm-3 required'>_{PHONE}_:</label>
                 <div class='col-md-8 col-sm-9'>
                     <input type='text' name='PHONE' value='%PHONE%' placeholder='_{PHONE}_'
                            class='form-control' required>
                 </div>
             </div>
-            <div class='box-footer'>
+            <div class='card-footer'>
                 %BACK_BUTTON%
                 <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>
             </div>

@@ -27,7 +27,7 @@ our (
 #**********************************************************
 sub user_contract {
 
-  my $uid = $FORM{UID}; 
+  my $uid = $FORM{UID};
   return '' unless ($uid);
 
   if ($FORM{print_add_contract}) {
@@ -165,7 +165,7 @@ sub _user_contracts_table {
     }
     else {
       $sign_button = $html->button($lang{SIGN}, "qindex=" . $f_index . "&UID=$uid&sign=$line->{id}&header=2",
-            { class => 'btn btn-default' });
+            { class => 'btn btn-secondary' });
     }
 
     my $print_button  = '';
@@ -174,13 +174,13 @@ sub _user_contracts_table {
 
     if ($permissions{0} && $permissions{0}{4}) {
       $print_button = $html->button('', "qindex=" . $f_index . "&UID=$uid&print_add_contract=$line->{id}&pdf=1",
-            { ICON => 'glyphicon glyphicon-print', target => '_new', ex_params => "data-tooltip='$lang{PRINT}' data-tooltip-position='top'" });
+            { ICON => 'fa fa-print', target => '_new', ex_params => "data-tooltip='$lang{PRINT}' data-tooltip-position='top'" });
 
       $edit_button = $html->button('', "index=" . $f_index . "&chg=$line->{id}&UID=$uid",
-            { ICON => 'glyphicon glyphicon-pencil', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
+            { ICON => 'fa fa-pencil', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
       
       $delete_button = $html->button('', "index=" . $f_index . "&del=$line->{id}&UID=$uid",
-            { ICON => 'glyphicon glyphicon-trash text-danger', ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='top'" });
+            { ICON => 'fa fa-trash text-danger', ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='top'" });
     }
 
     $table->addrow($line->{name}, $line->{number}, $line->{date}, $sign_button, ($attr->{UI} ? $print_button : $print_button . $edit_button . $delete_button) );
@@ -243,9 +243,9 @@ sub _contract_type_table {
 
   foreach my $line (@$list) {
     my $edit_button = $html->button('', "index=" . get_function_index('contracts_type') . "&chg=$line->{id}",
-            { ICON => 'glyphicon glyphicon-pencil', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
+            { ICON => 'fa fa-pencil', ex_params => "data-tooltip='$lang{EDIT}' data-tooltip-position='top'" });
     my $delete_button = $html->button('', "index=" . get_function_index('contracts_type') . "&del=$line->{id}",
-            { ICON => 'glyphicon glyphicon-trash text-danger', ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='top'" });
+            { ICON => 'fa fa-trash text-danger', ex_params => "data-tooltip='$lang{DEL}' data-tooltip-position='top'" });
     $table->addrow($line->{name}, $line->{template}, $edit_button . $delete_button);
   }
 
@@ -270,7 +270,7 @@ sub _contract_type_select {
       'add=1&index=' . get_function_index('contracts_type'),
       {
         class => 'btn btn-warning',
-        ADD_ICON  => 'glyphicon glyphicon-plus'
+        ADD_ICON  => 'fa fa-plus'
   
       }
     );

@@ -1,8 +1,8 @@
 function make_tree(data, keys) {
   jQuery('#show_tree').on("click", ".children-toggle" , function() {
     jQuery(this).siblings('.ul-list').slideToggle();
-    jQuery(this).children().toggleClass("glyphicon-minus-sign");
-    jQuery(this).children().toggleClass("glyphicon-plus-sign");
+    jQuery(this).children().toggleClass("fa-minus-circle");
+    jQuery(this).children().toggleClass("fa-plus-circle");
   });
 
   var keysArray = keys.split(',');
@@ -37,7 +37,7 @@ function drawTree(treeData, i) {
   for (const key of Object.keys(treeData)) {
     if (key != "") {
       if (treeData[key] && treeData[key] != 1) {
-        htmlTree += "<li class='ul-item '><a class='children-toggle' class='btn btn-lg'><i class='glyphicon glyphicon-plus-sign mn'></i></a><span class='parent'>" + key + "</span>";
+        htmlTree += "<li class='ul-item '><a class='children-toggle' class='btn btn-lg'><i class='fa fa-plus-circle mn'></i></a><span class='parent'>" + key + "</span>";
         drawTree(treeData[key]);
       }
       else {

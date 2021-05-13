@@ -73,21 +73,21 @@
         <div class='col-xs-12 col-md-4 col-md-offset-4 col-lg-2 col-lg-offset-5'>
           <div class='form-group has-feedback'>
             <div class='input-group'>
-              <span class='input-group-addon glyphicon glyphicon-globe'></span>
+              <span class='input-group-addon fa fa-globe'></span>
               %SEL_LANGUAGE%
             </div>
           </div>
 
           <div class='form-group'>
             <div class="input-group">
-             <span class="input-group-addon glyphicon glyphicon-user"></span>
+             <span class="input-group-addon fa fa-user"></span>
              <input type='text' id='user' name='user' value='%user%' class='form-control' placeholder='_{LOGIN}_'>
             </div>
           </div>
 
           <div class='form-group'>
             <div class="input-group">
-              <span class="input-group-addon glyphicon glyphicon-lock"></span>
+              <span class="input-group-addon fa fa-lock"></span>
             <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
                    placeholder='_{PASSWD}_'>
             </div>

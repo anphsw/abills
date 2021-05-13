@@ -5,10 +5,10 @@
     <input type='hidden' name='SUM' value='$FORM{SUM}'>
     <input type='hidden' name='OID' value='$FORM{OPERATION_ID}'>
     
-<div class='box box-primary'>
-    <div class='box-header with-border text-center'>_{BALANCE_RECHARCHE}_</div>
+<div class='card box-primary'>
+    <div class='card-header with-border text-center'>_{BALANCE_RECHARCHE}_</div>
     
-<div class='box-body'>
+<div class='card-body'>
     <div class='form-group'>
         <label class='col-md-3 control-label'>_{ORDER}_:</label>
         <label class='col-md-3 control-label'>$FORM{OPERATION_ID}</label>
@@ -28,7 +28,7 @@
         <label class='control-label col-md-3'> %SUMMA% </label>
     </div>
 </div>   
-    <div class='box-footer'>
+    <div class='card-footer'>
         <input class='btn btn-primary' type='submit' value=_{PAY}_>
     </div>
 </div>    

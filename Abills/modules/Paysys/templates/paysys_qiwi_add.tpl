@@ -7,9 +7,9 @@
 <input type='hidden' name='OPERATION_ID' value='$FORM{OPERATION_ID}' />
 
 
-<div class='box box-primary'>
-<div class='box-header with-border text-center'>Qiwi</div>
-<div class='box-body'>
+<div class='card box-primary'>
+<div class='card-header with-border text-center'>Qiwi</div>
+<div class='card-body'>
 	<div class='form-group'>
 		<label class='col-md-6 text-center'>Operation ID:</label>
 		<label class='col-md-6 control-label'>$FORM{OPERATION_ID}</label>
@@ -25,7 +25,7 @@
 		<div class='col-md-6'><input class='form-control' type='input' name='PHONE' value='%PHONE%'></div>
 	</div>
 </div>
-<div class='box-footer'>
+<div class='card-footer'>
     <input class='btn btn-primary' type=submit value='_{GET_INVOICE}_' name=send_invoice>
 </div>
 

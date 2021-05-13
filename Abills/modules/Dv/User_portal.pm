@@ -149,11 +149,6 @@ sub dv_user_info {
       return 0;
     }
   }
-  #  elsif ($FORM{discovery}) {
-  #    if (dv_dhcp_get_mac_add($user->{REMOTE_ADDR}, $DHCP_INFO)) {
-  #      $html->message('info', $lang{INFO}, "$lang{ACTIVATE}\n\n IP: $Dv->{NEW_IP}\n CID: $DHCP_INFO->{MAC}");
-  #    }
-  #  }
   elsif ($FORM{hangup}) {
     require Abills::Nas::Control;
     Abills::Nas::Control->import();

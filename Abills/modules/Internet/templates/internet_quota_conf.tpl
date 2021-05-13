@@ -2,11 +2,11 @@
 
     <input type=hidden name='index' value='$index'>
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'>
             <h4>QUOTA</h4>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='control-label col-md-3' for='QUOTA'>QUOTA:</label>
                 <div class='col-md-9'>

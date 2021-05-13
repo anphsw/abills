@@ -1,7 +1,7 @@
-<div class='box box-theme box-form'>
-    <div class="box-header"><h4>_{CHANNELS}_</h4></div>
+<div class='card card-primary card-outline box-form'>
+    <div class="card-header"><h4>_{CHANNELS}_</h4></div>
 
-    <div class='box-body'>
+    <div class='card-body'>
         <div class='row'>
             <div class='col-md-12'>
                 <ul class='list-group'>

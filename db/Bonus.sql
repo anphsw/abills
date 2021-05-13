@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS `bonus_log` (
   UNIQUE KEY `id` (`id`),
   KEY `date` (`date`),
   KEY `uid` (`uid`)
-) COMMENT = 'Bonus log';
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Bonus log';
 
 CREATE TABLE IF NOT EXISTS `bonus_service_discount` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -37,7 +39,9 @@ CREATE TABLE IF NOT EXISTS `bonus_service_discount` (
   `tp_id` VARCHAR(200) NOT NULL DEFAULT '',
   `onetime_payment_sum` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`id`)
-) COMMENT = 'Bonus service discount';
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Bonus service discount';
 
 CREATE TABLE IF NOT EXISTS `bonus_turbo` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -46,7 +50,9 @@ CREATE TABLE IF NOT EXISTS `bonus_turbo` (
   `turbo_count` SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
   `comments` TEXT,
   PRIMARY KEY (`id`)
-) COMMENT = 'Bonus turbo';
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Bonus turbo';
 
 CREATE TABLE IF NOT EXISTS `bonus_tps` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -55,13 +61,17 @@ CREATE TABLE IF NOT EXISTS `bonus_tps` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
-) COMMENT = 'Bonus tarif plans';
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Bonus tarif plans';
 
 CREATE TABLE IF NOT EXISTS `bonus_accoumulation` (
   `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `dv_tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `scores` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0
-) COMMENT = 'Bonus accoumulation';
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Bonus accoumulation';
 
 
 CREATE TABLE IF NOT EXISTS `bonus_rules` (
@@ -73,7 +83,9 @@ CREATE TABLE IF NOT EXISTS `bonus_rules` (
   `rule_value` INT(11) UNSIGNED NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `tp_id` (`tp_id`, `period`, `rules`, `rule_value`)
-) COMMENT = 'Bonus rules';
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Bonus rules';
 
 CREATE TABLE IF NOT EXISTS `bonus_main` (
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
@@ -83,6 +95,7 @@ CREATE TABLE IF NOT EXISTS `bonus_main` (
   PRIMARY KEY (`uid`),
   UNIQUE KEY `uid` (`uid`)
 )
+  CHARSET = 'utf8'
   COMMENT = 'Bonus users';
 
 
@@ -91,7 +104,9 @@ CREATE TABLE IF NOT EXISTS `bonus_rules_accomulation` (
   `dv_tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `cost` DOUBLE(15, 6) NOT NULL DEFAULT '0.000000',
   UNIQUE KEY `tp_id` (`tp_id`, `dv_tp_id`)
-) COMMENT = 'Bonus accomulation rules';
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Bonus accomulation rules';
 
 
 CREATE TABLE IF NOT EXISTS `bonus_rules_accomulation_scores` (
@@ -100,7 +115,9 @@ CREATE TABLE IF NOT EXISTS `bonus_rules_accomulation_scores` (
   `cost` DOUBLE(15, 6) NOT NULL DEFAULT '0.000000',
   `changed` DATE NOT NULL DEFAULT '0000-00-00',
   PRIMARY KEY `uid` (`uid`)
-) COMMENT = 'Bonus accomulation scores';
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Bonus accomulation scores';
 
 
 CREATE TABLE IF NOT EXISTS `bonus_tp_using` (
@@ -112,5 +129,6 @@ CREATE TABLE IF NOT EXISTS `bonus_tp_using` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `tps` (`tp_id_main`, `tp_id_bonus`)
 )
+  CHARSET = 'utf8'
   COMMENT = 'Bonus tp using';
 

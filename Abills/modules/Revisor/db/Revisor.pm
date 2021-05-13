@@ -13,8 +13,6 @@ my $MODULE = 'Revisor';
 my Admins $admin;
 my $CONF;
 
-use Abills::Base qw/_bp/;
-
 #**********************************************************
 
 =head2 new($db, $admin, \%conf) - constructor for Revisor DB manage module

@@ -30,6 +30,7 @@ sub new {
 
   $admin->{MODULE} = $MODULE;
   my $self = {};
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
 
   bless($self, $class);
   $self->{db}   =$db;
@@ -124,7 +125,7 @@ sub diller_info {
     $self->{ADDRESS_STREET}   = $Address->{ADDRESS_STREET};
     $self->{ADDRESS_STREET2}  = $Address->{ADDRESS_STREET2};
     $self->{ADDRESS_BUILD}    = $Address->{ADDRESS_BUILD};
-    $self->{ADDRESS_FULL}="$self->{ADDRESS_STREET} $self->{ADDRESS_BUILD}$self->{conf}->{BUILD_DELIMITER} $self->{ADDRESS_FLAT}";
+    $self->{ADDRESS_FULL}="$self->{ADDRESS_STREET}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_BUILD}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_FLAT}";
   }
 
 

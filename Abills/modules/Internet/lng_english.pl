@@ -23,4 +23,11 @@ $lang{TURBO}='Turbo';
 $lang{QUOTA}='Quota';
 
 $lang{NAS_AND_PORT_ALREADY_USE} = 'NAS and Port already use';
+
+$lang{RELOAD_EQUIPMENT_INFO} = 'Reload equipment information';
+
+$lang{USERS_OUTFLOW} = 'Users outflow';
+$lang{TOTAL_USERS} = 'Users total';
+$lang{ONE_MONTH_DEBS}='One month debs';
+
 1;

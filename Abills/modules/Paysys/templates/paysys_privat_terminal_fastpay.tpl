@@ -1,6 +1,6 @@
-<div class='box box-theme form-horizontal'>
-<div class='box-header with-border text-center'>_{PRIVAT_TERMINAL}_</div>
-<div class='box-body'>
+<div class='card card-primary card-outline form-horizontal'>
+<div class='card-header with-border text-center'>_{PRIVAT_TERMINAL}_</div>
+<div class='card-body'>
 <div class='form-group text-center'>
 <div class='alert alert-info' role='alert'>
   <h3>_{FAST_PAY}_</h3>

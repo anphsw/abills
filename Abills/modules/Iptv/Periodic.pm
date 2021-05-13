@@ -752,6 +752,7 @@ sub iptv_sheduler {
   my ($type, $action, $uid, $attr) = @_;
 
   my %info = ();
+  my $debug = $attr->{DEBUG} || 0;
   my ($service_id, $action_) = split(/:/, $action);
   $Iptv->user_info($service_id);
 
@@ -781,9 +782,14 @@ sub iptv_sheduler {
       });
     }
 
+    if ($attr->{GET_ABON} && $attr->{GET_ABON} eq '-1' && $attr->{RECALCULATE} && $attr->{RECALCULATE} eq '-1') {
+      print "Skip: GET_ABON, RECALCULATE\n" if ($debug > 1);
+      return 0;
+    }
+
     my $d = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
     my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
-    $FORM{RECALCULATE} = 0;
+    #$FORM{RECALCULATE} = 0;
 
     if ($Iptv->{errno}) {
       return $Iptv->{errno};

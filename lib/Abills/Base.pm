@@ -86,6 +86,7 @@ our @EXPORT_OK = qw(
   in_array
   tpl_parse
   cfg2hash
+  dsc2hash
   clearquotes
   cmd
   ssh_cmd
@@ -147,6 +148,47 @@ sub cfg2hash {
   return \%hush;
 }
 
+sub dsc2hash {
+  my ($dsc) = @_;
+  my %hash = ();
+
+  return \%hash if (!$dsc);
+
+  $dsc =~ s/\n//g;
+
+  my @dsc_options = $dsc =~ /\w+:\W*::\([\w=,;#\s]+\)/gm;
+
+  foreach my $line (@dsc_options) {
+    my ($key, $value) = $line =~ /(\w+):\W*::\(([\w=,;#\s]+)\)/gm;
+
+    my @key_params = split(/,/, $value);
+    $hash{$key} = [];
+
+    foreach my $key_param (@key_params)
+    {
+      next unless ($key_param);
+
+      my @key_param_properties = split(/;/, $key_param);
+      my %key_param_hash = ();
+
+      foreach my $key_param_property (@key_param_properties) {
+        my ($key_param_property_key, $key_param_property_value) = split(/=/, $key_param_property);
+
+        $key_param_hash{$key_param_property_key} = $key_param_property_value;
+      }
+
+      unless($key_param_hash{page}) {
+        $key_param_hash{page} = 0;
+      }
+
+      push(@{ $hash{$key} }, \%key_param_hash );
+    }
+
+  }
+
+  return \%hash;
+}
+
 #**********************************************************
 =head2 in_array($value, $array) - Check value in array
 
@@ -168,7 +210,12 @@ sub cfg2hash {
 sub in_array {
   my ($value, $array) = @_;
 
-  return 0 if (!defined($value));
+  if (!defined($value)) {
+    return 0;
+  }
+  elsif (ref $array ne 'ARRAY') {
+    return 0;
+  }
 
   if ( $] <= 5.010 ) {
     if (grep { $_ eq $value } @$array) {
@@ -251,7 +298,7 @@ sub convert {
     #$text =~ s/\+/\%2B/g;
 
     if ($attr->{SHOW_URL}) {
-      $text =~ s/([https|http]+:\/\/[a-z\.0-9\/\?\&\-\_\#:\=]+)/<a href=\'$1\' target=_new>$1<\/a>/ig;
+      $text =~ s/(https?:\/\/[^\s]+)/<a href=\'$1\' target=_new>$1<\/a>/ig;
     }
   }
   elsif (defined($attr->{html2text})) {
@@ -822,7 +869,7 @@ sub mk_unique_value {
     else {                    # Numbers only
       push (@check_rules, $numbers);
     }
-    
+
     my $literals = $lowercase;
     if ($case == 1) {         # Uppercase
       $literals = $uppercase;
@@ -850,7 +897,7 @@ sub mk_unique_value {
     $random = int(rand($rand_values));
     $value .= substr($symbols, $random, 1);
   }
-  
+
   foreach my $rule (@check_rules){
     if ($rule && $value !~ /[$rule]+/ ) {
       $value = &mk_unique_value;
@@ -928,7 +975,6 @@ sub time2sec {
     if $attr see 'Arguments'
 
   Examples:
-    
 
 =cut
 #**********************************************************
@@ -1003,6 +1049,10 @@ sub int2byte {
   my $MEGABYTE = $KBYTE_SIZE * $KBYTE_SIZE;
   my $GIGABYTE = $KBYTE_SIZE * $KBYTE_SIZE * $KBYTE_SIZE;
   $val = int($val);
+
+  if (ref $val eq 'Math::BigInt') {
+    $val = $val->numify();
+  }
 
   if ($attr->{DIMENSION}) {
     if ($attr->{DIMENSION} eq 'Mb') {
@@ -1377,7 +1427,7 @@ command execute in backgroud mode without output
       COMMENT         - Comments for debug messaging
 
       $ENV{CMD_EMULATE_MODE}
-         /usr/abills/var/log/cmd.log
+        /usr/abills/var/log/cmd.log
 
   Returns:
 
@@ -1452,8 +1502,8 @@ sub cmd {
     my $DATE = POSIX::strftime("%Y-%m-%d", localtime(time));
     my $TIME = POSIX::strftime("%H:%M:%S", localtime(time));
     if (open(my $fh, '>>', '/usr/abills/var/log/cmd.log')) {
-       print $fh "$DATE $TIME " . $cmd ."\n";
-     close($fh);
+      print $fh "$DATE $TIME " . $cmd ."\n";
+      close($fh);
     }
     else {
       die "Can't open '/usr/abills/var/log/cmd.log' $!\n";
@@ -1552,26 +1602,35 @@ sub ssh_cmd {
   my $nas_port  = 22;
 
   if($attr->{SSH_PORT}) {
-    $nas_port=$attr->{SSH_PORT};
+    if($attr->{SSH_PORT} =~ /^\d+$/) {
+      $nas_port = $attr->{SSH_PORT};
+    }
   }
   elsif ($#mng_array > 1) {
-    $nas_port=$mng_array[2];
+    if($mng_array[2] =~ /^\d+$/) {
+      $nas_port = $mng_array[2];
+    }
   }
 
   $nas_port //= 22;
 
   my $base_dir = $attr->{BASE_DIR} || '/usr/abills/';
-  
+
   # Check for KnownHosts file
   my $known_hosts_file = "$base_dir/Certs/known_hosts";
   my $known_hosts_option = " -o UserKnownHostsFile=$known_hosts_file"
-   ." -o CheckHostIP=no";
-  
-  my $nas_admin = $attr->{NAS_MNG_USER}|| 'abills_admin';
+    ." -o CheckHostIP=no";
+
+  my $nas_admin = 'abills_admin';
+
+  if ($attr->{NAS_MNG_USER} && $attr->{NAS_MNG_USER} =~ /^[a-zA-Z0-9\_\-]+$/) {
+    $nas_admin = $attr->{NAS_MNG_USER};
+  }
+
   my $ssh_key   = $attr->{SSH_KEY}     || "$base_dir/Certs/id_rsa." . $nas_admin;
   my $SSH       = $attr->{SSH_CMD}     || "/usr/bin/ssh -q -p $nas_port $known_hosts_option"
                                             . " -o StrictHostKeyChecking=no -i " . $ssh_key;
-  
+
   my @cmd_arr = ();
   if (ref $cmd eq 'ARRAY') {
     if($attr->{SINGLE_THREAD}) {
@@ -1597,7 +1656,6 @@ sub ssh_cmd {
     }
 
     my $cmds = "$SSH $nas_admin\@$nas_host '$run_cmd'";
-
     if ($debug) {
       print "$cmds\n";
     }
@@ -1828,9 +1886,9 @@ sub _bp {
     $log_string =~ s/\n/$break_line/g;
     $log_string =~ s/\s+/ /g;
     $log_string =~ s/\"/\'/g;
+    $log_string =~ s/\//\\\//g;
 
-    my $string_for_eval = qq/var log_str = "$log_string" ;eval ('console.log(log_str)') /;
-    print qq\<script>try{console.group('[ $filename : $line ] $log_explanation'); $string_for_eval; console.groupEnd();} catch (E) {console.log('DEBUG ERROR: ' + E)} </script>\;
+    print qq{<script> console.log("$log_string") </script>\n};
   }
   elsif ( $attr->{TO_CONSOLE} ){
     my $console_log_string = "[ $filename : $line ] $break_line" . uc ( $explanation ) . " : " . $result_string . $break_line;
@@ -1838,7 +1896,7 @@ sub _bp {
     if ( $attr->{BREAK_LINE} ){
       $console_log_string =~ s/[\n]/$attr->{BREAK_LINE}/g;
     }
-    
+
     if ($attr->{IN_JSON}){
       $console_log_string = " /* \n $console_log_string \n */ ";
     }
@@ -1940,7 +1998,7 @@ sub startup_files {
   my %startup_files = ();
   our $base_dir;
   $base_dir //= '/usr/abills/';
-  
+
   my $startup_conf = $base_dir . '/Abills/programs';
   if ( $attr->{TPL_DIR} ) {
     if (-e "$attr->{TPL_DIR}/programs.tpl") {
@@ -2216,9 +2274,9 @@ sub load_pmodule {
     $date - '2016-01-24'
 
   Returns:
-   string - date incremented by one day
+    string - date incremented by one day
 
-   0 if incorrect date;
+    0 if incorrect date;
 
 =cut
 #**********************************************************

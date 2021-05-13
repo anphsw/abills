@@ -16,10 +16,10 @@
 <input type='hidden' name='PAYMENT_SYSTEM' value='$FORM{PAYMENT_SYSTEM}'>
 %TEST_MODE%
 
-<div class='box box-primary'>
-    <div class='box-header with-border text-center'>_{BALANCE_RECHARCHE}_</div>
+<div class='card box-primary'>
+    <div class='card-header with-border text-center'>_{BALANCE_RECHARCHE}_</div>
 
-<div class='box-body'>
+<div class='card-body'>
     <div class='form-group'>
     	<label class='col-md-6 control-label text-center'>ID:</label>
     	<label class='col-md-6 control-label'>%LMI_PAYMENT_NO%</label>
@@ -38,7 +38,7 @@
     	<label class='col-md-6 control-label'>%ACCOUNTS_SEL%</label>
     </div>
 </div> 
-    <div class='box-footer'>
+    <div class='card-footer'>
         <input type='submit' class='btn btn-primary' value='_{ADD}_'>
     </div>   
 </div>

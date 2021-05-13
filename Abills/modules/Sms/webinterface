@@ -74,7 +74,7 @@ my %sms_status = (
       UID      - User iD
       RIZE_ERROR - Rize arror and stop
 
-   Multi send sms
+  Multi send sms
     NUMBERS  - Hash of NUMBER => UID
     MOre priority then NUMBER option
 
@@ -89,16 +89,16 @@ sub sms_send {
   my $Sms_service = init_sms_service($db, $admin, \%conf);
   my $status = 0;
 
-  return 0 if($Sms_service->{errno});
+  return 0 if ($Sms_service->{errno});
 
   my $numbers = $attr->{NUMBERS};
   if ($conf{SMS_NUMBER_EXPR}) {
-    if($attr->{NUMBER}) {
+    if ($attr->{NUMBER}) {
       $attr->{NUMBER} = _expr($attr->{NUMBER}, $conf{SMS_NUMBER_EXPR});
     }
-    elsif($attr->{NUMBERS}) {
+    elsif ($attr->{NUMBERS}) {
       my %new_numbers  = ();
-      while(my($number, $uid)=each %{ $attr->{NUMBERS} }) {
+      while (my($number, $uid)=each %{ $attr->{NUMBERS} }) {
         my $num = _expr($number, $conf{SMS_NUMBER_EXPR});
         $new_numbers{$num}=$uid;
       }
@@ -107,27 +107,28 @@ sub sms_send {
     }
   }
 
-  $conf{SMS_NUMBER}= "[0-9]{12}" if (! $conf{SMS_NUMBER});
+  $conf{SMS_NUMBER}= "[0-9]{12}" if (!$conf{SMS_NUMBER});
 
-  if (! $attr->{NUMBER} && ! $attr->{NUMBERS}) {
+  if (!$attr->{NUMBER} && !$attr->{NUMBERS}) {
     $html->message('err', $lang{ERROR}, "$lang{ERR_PHONE_NOT_DEFINED}", { ID => 1601 });
   }
-  elsif (! $attr->{NUMBERS} && $conf{SMS_NUMBER} && $attr->{NUMBER} !~ /$conf{SMS_NUMBER}/) {
+  elsif (!$attr->{NUMBERS} && $conf{SMS_NUMBER} && $attr->{NUMBER} !~ /$conf{SMS_NUMBER}/) {
     $html->message('warn', $lang{ERROR}, ($lang{ERR_WRONG_PHONE} || q{})
       . " '$attr->{NUMBER}' ". ((! $user->{UID}) ? "\n "
       . ($lang{OPTIONS} || q{}). " \$conf{SMS_NUMBER}" : ''), { ID => 1602 });
-    if($attr->{RIZE_ERROR}) {
-      return 0;
-    }
+
+    return 0 if ($attr->{RIZE_ERROR});
   }
 
   if ($attr->{UID} && $conf{SMS_LIMIT}) {
-    my $uid_sms_list = $Sms->list({ 
+    my $uid_sms_list = $Sms->list({
       UID      => $attr->{UID},
       INTERVAL => "$DATE/$DATE",
     });
-    if ( $uid_sms_list && scalar(@$uid_sms_list) >= $conf{SMS_LIMIT} ) {
+
+    if ($uid_sms_list && scalar(@$uid_sms_list) >= $conf{SMS_LIMIT}) {
       $html->message( 'err', $lang{ERROR}, "Превышен лимит СМС для этого пользователя" );
+
       return 0;
     }
   }
@@ -140,6 +141,7 @@ sub sms_send {
     print qq{ Service: $Sms_service->{SERVICE_NAME}, NUMBERS => };
     print join(',', keys %$numbers) ;
     print qq{ NUMBER  => $attr->{NUMBER}, $attr->{MESSAGE} };
+
     return 0;
   }
 
@@ -163,7 +165,7 @@ sub sms_send {
     return 0;
   }
   else {
-    if($conf{SMS_FEES}) {
+    if ($conf{SMS_FEES}) {
       if ($attr->{NUMBERS}) {
         while (my ($number, $uid) = each %{ $attr->{NUMBERS} }) {
           $Users->info($uid);
@@ -207,6 +209,7 @@ sub sms_info {
   my ($id) = @_;
 
   my $Sms_service = init_sms_service($db, $admin, \%conf);
+
   return 0 if ($Sms_service->{errno});
 
   $Sms_service->info({ ID => $id });
@@ -226,25 +229,30 @@ sub sms_account_info {
 
   return 0 if ($Sms_service->{errno});
 
-  my $list = $Sms_service->account_info({
-    %LIST_PARAMS,
-    DEBUG        => $conf{SMS_DEBUG} || 0,
-    COLS_NAME    => 1
-  });
+  if ($Sms_service->can('account_info')) {
+    my $list = $Sms_service->account_info({
+      %LIST_PARAMS,
+      DEBUG     => $conf{SMS_DEBUG} || 0,
+      COLS_NAME => 1
+    });
 
-  my $table = $html->table({
-    width      => '100%',
-    caption    => "$Sms_service->{SERVICE_NAME} - $lang{INFO}",
-    ID         => 'REPORTS_SMS',
-  });
+    my $table = $html->table({
+      width   => '100%',
+      caption => "$Sms_service->{SERVICE_NAME} - $lang{INFO}",
+      ID      => 'REPORTS_SMS',
+    });
 
-  foreach my $line (@$list) {
-    while(my($k, $v,) = each %$line) {
-      $table->addrow($k, $v);
+    foreach my $line (@$list) {
+      while (my ($k, $v,) = each %$line) {
+        $table->addrow($k, $v);
+      }
     }
-  }
 
-  print $table->show();
+    print $table->show();
+  }
+  else {
+    $html->message('warn', '', $Sms_service->{SERVICE_NAME} . ' NOT_SUPPORT: account_info');
+  }
 
   return 1;
 }
@@ -261,19 +269,17 @@ sub sms_reports {
 
   return 0 if ($Sms_service->{errno});
 
-  if (! $FORM{desc} && ! $FORM{sort}) {
+  if (!$FORM{desc} && !$FORM{sort}) {
     $LIST_PARAMS{DESC} = 'DESC';
     $LIST_PARAMS{SORT} = 1;
   }
 
-  if($FORM{search_form}) {
-    $Sms_service->{STATUS_SEL} = $html->form_select('STATUS',
-      {
-        SELECTED => $FORM{STATUS} || '',
-        SEL_HASH => { '' => $lang{ALL}, %sms_status },
-        NO_ID    => 1
-      }
-    );   
+  if ($FORM{search_form}) {
+    $Sms_service->{STATUS_SEL} = $html->form_select('STATUS', {
+      SELECTED => $FORM{STATUS} || '',
+      SEL_HASH => { '' => $lang{ALL}, %sms_status },
+      NO_ID    => 1
+    });
 
     $Sms_service->{GROUP_SEL} = sel_groups();
     form_search({
@@ -283,25 +289,25 @@ sub sms_reports {
         { %FORM, %$Sms_service },
         { OUTPUT2RETURN => 1 }
       ),
-      
     });
   }
   else {
     my $phone_search = $html->form_input('SMS_PHONE', $FORM{SMS_PHONE});
-    
     reports({
       PERIOD_FORM     => 1,
       DATE_RANGE      => 1,
       NO_TAGS         => 1,
-      HIDDEN          => { 
-        direct => $FORM{direct} 
+      HIDDEN          => {
+        direct => $FORM{direct},
+        sort   => $FORM{sort},
+        desc   => $FORM{desc}
       },
       EXT_SELECT      => $phone_search,
       EXT_SELECT_NAME => $lang{PHONE}
     });
   }
 
-  if($Sms_service->can('info')){
+  if ($Sms_service->can('info')){
     my @header_arr = ("$lang{MAIN}:index=$index",
       "$lang{DIRECT}:index=$index&direct=1");
 
@@ -310,20 +316,22 @@ sub sms_reports {
 
   if ($FORM{direct}){
     $pages_qs .= "&direct=1";
-    
+
     if ($FORM{SMS_PHONE}) {
       $LIST_PARAMS{PHONE} = $FORM{SMS_PHONE};
+      $pages_qs .= "&SMS_PHONE=$FORM{SMS_PHONE}";
     }
-    
+
     my $list = $Sms_service->info({
       %LIST_PARAMS,
       DEBUG     => $conf{SMS_DEBUG} || 0,
       COLS_NAME => 1
     });
 
-    if ( $Sms_service->{errno} ){
+    if ($Sms_service->{errno}){
       $html->message( 'err', "$Sms_service->{SERVICE_NAME} - $lang{ERROR}",
         "[$Sms_service->{errno}] $sms_status{$Sms_service->{errno}} $Sms_service->{errstr}" );
+
       return 0;
     }
 
@@ -338,14 +346,19 @@ sub sms_reports {
       MENU    => "$lang{SEARCH}:index=$index&search_form=1&direct=1:search",
     });
 
-    foreach my $line ( @{$list} ){
+    foreach my $line (@{ $list }){
       my $status = ($line->{status} && $sms_status{$line->{status}}) ? $sms_status{$line->{status}} : ($line->{status} || q{});
+
       Encode::_utf8_off( $line->{message} );
       Encode::_utf8_off( $line->{number} );
+
       my $destination = $line->{number} || '';
+
       Encode::_utf8_off( $destination );
+
       my $error_code = $line->{error_code} || '';
-      if ( $conf{dbcharset} ne 'utf8' ){ Encode::from_to( $status, 'utf-8', 'windows-1251' ) }
+
+      Encode::from_to($status, 'utf-8', 'windows-1251') if ($conf{dbcharset} ne 'utf8');
 
       $destination =~ s/[\+\ ]+//;
 
@@ -380,7 +393,7 @@ sub sms_reports {
     if ($FORM{SMS_PHONE}) {
       $LIST_PARAMS{SMS_PHONE} = $FORM{SMS_PHONE};
     }
-    
+
     result_former({
       INPUT_DATA      => $Sms,
       FUNCTION        => 'list',
@@ -417,6 +430,12 @@ sub sms_reports {
 #**********************************************************
 =head2 send_user_memo($attr)
 
+  Arguments:
+    $attr
+
+  Return:
+
+
 =cut
 #**********************************************************
 sub send_user_memo {
@@ -427,36 +446,35 @@ sub send_user_memo {
   my $uid = $attr->{UID};
 
   if ($conf{SMS_REG_GREETING}) {
-    require Users;
-    Users->import();
-
-    $Users = Users->new($db, $admin, \%conf);
-    
-    $user = $Users->info($uid, { SHOW_PASSWORD => 1 });
+    # require Users;
+    # Users->import();
+    # $Users = Users->new($db, $admin, \%conf);
   }
 
-  if ( (($attr->{sms} && !$conf{SMS_REG_GREETING}) || 
-       ($attr->{finish} && $conf{SMS_REG_GREETING})) ||
-       ($attr->{sms} && $attr->{ACTION} && $attr->{ACTION} eq 'send') && in_array('Internet', \@MODULES)) {
+  $user = $Users->info($uid, { SHOW_PASSWORD => 1 });
+
+  if ( (($attr->{sms} && !$conf{SMS_REG_GREETING}) ||
+      ($attr->{finish} && $conf{SMS_REG_GREETING})) ||
+      ($attr->{sms} && $attr->{ACTION} && $attr->{ACTION} eq 'send') && in_array('Internet', \@MODULES)) {
 
     my $message;
     if ($attr->{NEW_USER}) {
-      $message = $html->tpl_show(_include('sms_send_user_memo', 'Sms'), { 
+      $message = $html->tpl_show(_include('sms_send_user_memo', 'Sms'), {
         %$attr,
         %$user,
         ISP => $conf{WEB_TITLE}
       }, {
-        OUTPUT2RETURN      => 1, 
-        SKIP_DEBUG_MARKERS => 1 
+        OUTPUT2RETURN      => 1,
+        SKIP_DEBUG_MARKERS => 1
       });
     }
     else {
-      $message = $html->tpl_show(_include('internet_user_memo_sms', 'Internet'), { 
-        %$attr, 
-        %$user 
-      }, { 
-        OUTPUT2RETURN      => 1, 
-        SKIP_DEBUG_MARKERS => 1 
+      $message = $html->tpl_show(_include('internet_user_memo_sms', 'Internet'), {
+        %$attr,
+        %$user
+      }, {
+        OUTPUT2RETURN      => 1,
+        SKIP_DEBUG_MARKERS => 1
       });
     }
 
@@ -472,14 +490,14 @@ sub send_user_memo {
           ($attr->{PHONE}, $attr->{CALL_PHONE}) = split(/;/, $users->{list}->[0]->{phone});
         }
     }
-    
+
     my $sms_id = sms_send(
     {
       NUMBER  => $attr->{PHONE} || $attr->{CALL_PHONE},
       MESSAGE => $message,
       UID     => $attr->{UID},
     });
-  
+
     if ($sms_id) {
       return $html->message('info', $lang{INFO}, "SMS $lang{SENDED}");
     }
@@ -519,7 +537,7 @@ sub sms_send_register {
         TYPE    => 1,
         VALUE   => '_SHOW'
       });
-      
+
       $phone = $user_phone->[0]{value};
     }
   }
@@ -529,7 +547,7 @@ sub sms_send_register {
     send_user_memo({ %$attr, %FORM });
   }
 
-  $html->tpl_show(_include('sms_send_end_register', 'Sms'), { 
+  $html->tpl_show(_include('sms_send_end_register', 'Sms'), {
     %$attr,
     INDEX                   => $index,
     UID                     => $uid,

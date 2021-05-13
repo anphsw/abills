@@ -154,7 +154,7 @@ sub _utf8_encode {
    Arguments:
      $mac  - MAC string
      $attr
-       BIN   - Convert fom binari string
+       BIN   - Convert from binary string
 
    Results:
      MAC (hh:hh:hh:hh:hh:hh)
@@ -209,10 +209,10 @@ sub _mac_former {
 }
 
 #**********************************************************
-=head2 bin2mac($bin_mac) - Convert binarry to MAC (xx:xx:xx:xx:xx:xx);
+=head2 bin2mac($bin_mac) - Convert binary to MAC (xx:xx:xx:xx:xx:xx);
 
   Arguments:
-    $bin_mac  - Binnary mac
+    $bin_mac  - Binary mac
 
   Results:
     $mac  (xx:xx:xx:xx:xx:xx)

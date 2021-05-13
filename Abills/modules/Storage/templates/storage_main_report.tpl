@@ -100,9 +100,9 @@
 
 <div class="row">
   <div class="col-md-4">
-    <div class="box">
-      <div class="box-header">_{STATS}_</div>
-      <div class="box-body">
+    <div class="card">
+      <div class="card-header">_{STATS}_</div>
+      <div class="card-body">
         %CHARTS%
       </div>
     </div>

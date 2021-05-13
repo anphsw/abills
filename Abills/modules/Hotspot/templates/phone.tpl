@@ -1,8 +1,8 @@
 <form METHOD='POST' class='form-inline'>
   <input type=hidden name='mac' value='%mac%'>
   <fieldset>
-    <div class='box box-theme'>
-      <div class='box-body'>
+    <div class='card card-primary card-outline'>
+      <div class='card-body'>
         <div class='form-group'>
           <label class='control-label' for='PHONE'>PHONE</label>
           <div class='input-group'>

@@ -1,8 +1,8 @@
-<div class='box box-theme box-form'>
-  <div class='box-header'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header'>
     <h4>IVR _{MENU}_</h4>
   </div>
-  <div class='box-body'>
+  <div class='card-body'>
 
         <form action=$SELF_URL method=post class='form-horizontal'>
             <input type=hidden name=index value=$index>
@@ -65,7 +65,7 @@
                 </div>
 
    </div>
-   <div class='box-footer'>
+   <div class='card-footer'>
     <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
    </div>
 

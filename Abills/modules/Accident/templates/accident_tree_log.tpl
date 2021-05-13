@@ -1,13 +1,13 @@
 <form action=$SELF_URL METHOD=POST class='form-horizontal'>
     <input type='hidden' name='index' value='%INDEX%'>
 
-    <div class='box box-theme'>
-        <div class='box-header with-border'>
-            <h4 class='box-title'>
+    <div class='card card-primary card-outline'>
+        <div class='card-header with-border'>
+            <h4 class='card-title'>
                 _{ACCIDENT_LOG}_
             </h4>
         </div>
-        <div class="box-body">
+        <div class="card-body">
             <div class='row'>
                 <div class='col-sm-12 col-md-12'>
                     %GEOLOCATION_TREE%

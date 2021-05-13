@@ -2,9 +2,9 @@
     <input type='hidden' name='index' value='%index%'/>
     <input type='hidden' name='UID' value='%UID%'/>
     <input type='hidden' name='sid' value='%sid%'/>
-    <div class='box box-theme'>
-        <div class='box-header with-border'><h4>_{CAMS_ARCHIVE}_</h4></div>
-        <div class='box-body'>
+    <div class='card card-primary card-outline'>
+        <div class='card-header with-border'><h4>_{CAMS_ARCHIVE}_</h4></div>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='col-md-1'>_{CAM}_:</label>
                 <div class='col-md-4'>
@@ -16,7 +16,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input type='submit' class='btn btn-primary' name='show_cameras' value='_{SHOW}_'>
         </div>
     </div>

@@ -7,6 +7,30 @@
 
 $(function () {
 
+  var portShiftInput = $('#PORT_SHIFT');
+  var autoPortShiftCheckbox = $('#AUTO_PORT_SHIFT');
+
+  portShiftInput.prop('disabled', autoPortShiftCheckbox.prop('checked') );
+
+  autoPortShiftCheckbox.on('click', function (e) {
+    portShiftInput.prop('disabled', autoPortShiftCheckbox.prop('checked') );
+  });
+
+  var equipmentType = $('#TYPE_ID');
+  equipmentType.change(function (e) {
+    var type = equipmentType.val();
+
+    var equipmentModelPon = $('#equipmentModelPon');
+    var eponSupportedOnus = $('#EPON_SUPPORTED_ONUS');
+    var gponSupportedOnus = $('#GPON_SUPPORTED_ONUS');
+    var geponSupportedOnus = $('#GEPON_SUPPORTED_ONUS');
+
+    equipmentModelPon.prop('hidden', type != 4); // 4 - PON
+    eponSupportedOnus.prop('disabled', type != 4);
+    gponSupportedOnus.prop('disabled', type != 4);
+    geponSupportedOnus.prop('disabled', type != 4);
+  });
+
   var portCounter = 0;
 
   var hasExtraPortsInput = $('#HAS_EXTRA_PORTS');

@@ -6,33 +6,23 @@ use v5.16;
 use Abills::Base qw/_bp in_array load_pmodule/;
 use Abills::Experimental;
 use JSON qw/to_json from_json/;
-use Maps;
 
 our ($html, %lang, %conf, $admin, $db, @CABLECAT_EXTRA_COLORS, %permissions, @MODULES);
 
-our Maps $Maps;
+our $Maps;
 
-if ( $FORM{json} ) {
-  _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } });
-}
+_bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } }) if ( $FORM{json} );
 
 # DB module is available
-exit if (
-  form_purchase_module(
-    {
-      HEADER          => $user->{UID},
-      MODULE          => 'Cablecat',
-      REQUIRE_VERSION => 7.78,
-    }
-  )
-);
-
-# Using selects from Maps module
-load_module('Maps2', $html);
-# load_module('Maps', $html);
+exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.78 }));
 
 if ( !defined $Maps ) {
-  $Maps = Maps->new($db, $admin, \%conf);
+  eval { require Maps; };
+  if (!$@) {
+    load_module('Maps2', $html);
+    Maps->import();
+    $Maps = Maps->new($db, $admin, \%conf);
+  }
 }
 
 require Cablecat;
@@ -40,6 +30,8 @@ Cablecat->import();
 our Cablecat $Cablecat = Cablecat->new($db, $admin, \%conf);
 use Cablecat::Trace;
 use Cablecat::Cable_blank;
+
+require Cablecat::ImportFields;
 
 require Equipment;
 Equipment->import();
@@ -148,7 +140,7 @@ our %CROSS_FIBER_TYPE = (
 );
 
 require Cablecat::Configure;
-require Cablecat::Layers;
+# require Cablecat::Layers;
 require Cablecat::Commutation;
 require Cablecat::BigCommutation;
 
@@ -158,7 +150,7 @@ require Cablecat::BigCommutation;
 =cut
 #**********************************************************
 sub cablecat_main {
-  
+
   my $menu_button = sub {
     my ($lang_name, $function_name, $class) = @_;
     $html->element('li', $html->button($lang_name, "index=" . get_function_index($function_name)),
@@ -189,14 +181,14 @@ sub cablecat_main {
 #**********************************************************
 sub cablecat_link_info {
   my ($element_type, $element_id, $fiber_num, $direction) = @FORM{'ELEMENT_TYPE', 'ELEMENT_ID', 'FIBER_NUM', 'DIRECTION'};
-  
+
   if ( $FORM{renew} ) {
     my $res = _cablecat_get_link_info($element_id, $fiber_num, !$direction);
     print _cablecat_link_info_cell($element_id, $fiber_num, !$direction, $res);
     return 1;
   }
   elsif ( $FORM{add} && $FORM{TYPE} ) {
-  
+
     my %CONNECTION_TYPE_VALUE = (
       1 => 'CABLE',
       2 => 'EQUIPMENT',
@@ -205,7 +197,7 @@ sub cablecat_link_info {
       5 => 'UID',
       6 => 'CROSS',
     );
-  
+
     my %ID_PARAM_NAME_FOR_TYPE = (
       1 => 'TO_CABLE_ID',
       2 => 'EQUIPMENT_ID',
@@ -214,7 +206,7 @@ sub cablecat_link_info {
       5 => 'UID',
       6 => 'CROSS_ID',
     );
-  
+
     my %FIBER_PARAM_NAME_FOR_TYPE = (
       1 => 'TO_FIBER',
       2 => 'EQUIPMENT_PORT',
@@ -223,27 +215,27 @@ sub cablecat_link_info {
       5 => 'SERVICE_ID',
       6 => 'CROSS_PORT',
     );
-  
+
     my %cable_params = (
       TYPE      => $element_type,
       ID        => $element_id,
       FIBER_NUM => $fiber_num
     );
-  
+
     my $other_element_id_param_name = $ID_PARAM_NAME_FOR_TYPE{$FORM{TYPE}};
     my $other_fiber_param_name = $FIBER_PARAM_NAME_FOR_TYPE{$FORM{TYPE}} || 'empty';
-  
+
     if (!$other_element_id_param_name){
       $html->message('err', $lang{ERROR}, "wrong params given");
       return 0;
     }
-    
+
     my %other_element_params = (
       TYPE      => $CONNECTION_TYPE_VALUE{$FORM{TYPE}},
       ID        => $FORM{$other_element_id_param_name},
       FIBER_NUM => $FORM{$other_fiber_param_name} || q{}
     );
-  
+
     $Cablecat->links_add({
       ELEMENT_1_TYPE => ($direction) ? $other_element_params{TYPE} : $cable_params{TYPE},
       ELEMENT_1_ID   => ($direction) ? $other_element_params{ID} : $cable_params{ID},
@@ -270,22 +262,22 @@ sub cablecat_link_info {
   }
   elsif ( $FORM{request} && $FORM{TYPE} && exists $CONNECTION_TYPES{$FORM{TYPE}} ) {
     load_pmodule('JSON');
-    
+
     #*****************************************************
     # sub_make_select_options - form select options from list
     #
     #*****************************************************
     my $sub_make_select_options = sub {
       my ($list, $key_name, $value_name ) = @_;
-      
+
       my @options = ({ name => '--', value => '--' });
-      
+
       push (@options, map {{ name => $_->{$key_name}, value => $_->{$value_name} }} @{$list});
-      
+
       # Return
       \@options;
     };
-    
+
     #*****************************************************
     # select_next_option - return JSON select to extend search form
     #
@@ -293,7 +285,7 @@ sub cablecat_link_info {
     my $select_next_option = sub {
       my ($name, $label, $list, $attr) = @_;
       my %res = ();
-      
+
       if ( !$list || ref $list ne 'ARRAY' || !scalar @{$list} ) {
         $res{text} = qq{ "$label : $lang{NO_DATA}" };
       }
@@ -301,7 +293,7 @@ sub cablecat_link_info {
         if ( $attr->{has_next} ) {
           $attr->{next} = { load => 1 };
         }
-        
+
         %res = (select => JSON::to_json({
             name    => $name,
             label   => $label,
@@ -310,11 +302,11 @@ sub cablecat_link_info {
           })
         )
       }
-      
+
       push @{$html->{JSON_OUTPUT}}, \%res;
       1;
     };
-    
+
     #*****************************************************
     # input_next_option - return JSON input field to extend search form
     #
@@ -335,32 +327,32 @@ sub cablecat_link_info {
 #    };
 #
     my $type = $CONNECTION_TYPES{$FORM{TYPE}};
-    
+
     my $commutation_select = sub {
       # Get all commutations where this element is involved
-      
+
       my $commutations_list = $Cablecat->get_commutations_for_element($element_type, $element_id);
       _error_show($Cablecat);
-      
+
       my @commutations = map {
         {
           name => "$lang{COMMUTATION}#$_",
           id   => $_
         }
       } @{$commutations_list};
-  
+
       return $select_next_option->('TO_COMMUTATION', $lang{COMMUTATION}, \@commutations, { has_next => 1 });
     };
-  
+
     if ( !$FORM{TO_COMMUTATION} ) {
       return $commutation_select->();
     }
-    
+
     if ( $type eq 'fiber' ) {
-      
+
       # Cable
       if ( !$FORM{TO_CABLE_ID} ) {
-        
+
         my $commutations = $Cablecat->commutations_list({
           ID        => $FORM{TO_COMMUTATION},
           CABLE_IDS => '_SHOW',
@@ -368,48 +360,48 @@ sub cablecat_link_info {
           PAGE_ROWS => 10000
         });
         _error_show($Cablecat);
-        
+
         my %unique_cables = ();
         foreach ( @{$commutations} ) {
           my @cable_ids = split(',\s?', $_->{cable_ids});
           my @cable_names = split(',\s?', $_->{cables});
-          
+
           for( 0 .. $#cable_ids ) {
             $unique_cables{$cable_ids[$_]} = $cable_names[$_];
           }
         }
         # Delete this cable from list
         delete $unique_cables{$element_id};
-        
+
         my @unique_list = map {
           {
             id   => $_,
             name => $unique_cables{$_}
           }
         } sort keys (%unique_cables);
-        
+
         return $select_next_option->('TO_CABLE_ID', $lang{CABLE}, \@unique_list, { has_next => 1 });
       }
       elsif ( !$FORM{TO_FIBER} ) {
         my $cable_id_to_connect = $FORM{TO_CABLE_ID};
-        
+
         my $cable_info = $Cablecat->cables_info($cable_id_to_connect, {
             FIBERS_COUNT     => '_SHOW',
             SHOW_ALL_COLUMNS => 0,
             COLS_UPPER       => 0
           });
-        
+
         my $fibers_list = [ map {{ id => $_, name => $_ }} (1 .. $cable_info->{fibers_count}) ];
-        
+
         return $select_next_option->('TO_FIBER', "$lang{FIBER} #", $fibers_list);
       }
     }
     elsif ( $type eq 'equipment' ) {
-      
+
       # Equipment_select
       if ( !$FORM{EQUIPMENT_ID} ) {
         my $equipment_list = $Equipment->_list({ COLS_NAME => 1, NAS_NAME => '_SHOW', PAGE_ROWS => 10000 });
-        
+
         return $select_next_option->('EQUIPMENT_ID', $lang{EQUIPMENT}, $equipment_list, {
             name_key => 'nas_name',
             id_key   => 'nas_id',
@@ -419,11 +411,11 @@ sub cablecat_link_info {
       elsif ( $FORM{EQUIPMENT_ID} ) {
         my $equipment_info = $Equipment->_info($FORM{EQUIPMENT_ID});
         my $ports_count = $equipment_info->{PORTS};
-        
+
         my @options_list = map {
           { id => $_, name => $_ }
         } (1 ... $ports_count);
-        
+
         return $select_next_option->('EQUIPMENT_PORT', $lang{PORT}, \@options_list);
       }
     }
@@ -436,7 +428,7 @@ sub cablecat_link_info {
           COLS_UPPER => 0
         });
         _error_show($Maps);
-        
+
         return $select_next_option->('POINT_TYPE_ID', $lang{BY_TYPE}, translate_list($point_types_list),
           { has_next => 1 });
       }
@@ -450,7 +442,7 @@ sub cablecat_link_info {
           COLS_UPPER => 0
         });
         _error_show($Maps);
-        
+
         # Port select
         return $select_next_option->('POINT_ID', $lang{OBJECT}, $points_for_type_list);
       }
@@ -464,7 +456,7 @@ sub cablecat_link_info {
           PAGE_ROWS  => 10000
         });
         _error_show($Cablecat);
-        
+
         # connecter select
         return $select_next_option->('WELL_ID', $lang{WELL}, $wells_list, { has_next => 1 });
       }
@@ -477,27 +469,27 @@ sub cablecat_link_info {
           PAGE_ROWS  => 10000
         });
         _error_show($Cablecat);
-        
+
         # Generating name
         @{$splitters_list} = map {$_->{name} = $_->{type} . '_' . $_->{id};
           $_} @{$splitters_list};
-        
+
         # connecter select
         return $select_next_option->('SPLITTER_ID', $lang{SPLITTER}, $splitters_list, { has_next => 1 });
       }
       if ( !$FORM{SPLITTER_DIRECTION} ) {
-        
+
         my @splitter_directions = (
           { name => $lang{ENTER}, id => 1 },
           { name => $lang{OUTER}, id => 2 }
         );
-        
+
         # splitter direction select
         return $select_next_option->('SPLITTER_DIRECTION', $lang{DIRECTION}, \@splitter_directions, { has_next => 1 });
       }
       if ( !$FORM{SPLITTER_PORT} ) {
         my $splitter_info = $Cablecat->splitters_info($FORM{SPLITTER_ID});
-        
+
         my @options = ();
         if ($FORM{SPLITTER_DIRECTION} == 1){
           for (my $i = 1; $i <= $splitter_info->{fibers_out}; $i++){
@@ -514,28 +506,28 @@ sub cablecat_link_info {
       }
     }
     elsif ( $type eq 'client' ) {
-      
+
       my %search_types = (
         1 => 'ADDRESS',
         2 => 'TAGS',
         3 => 'GROUP'
       );
-      
+
       if ( !in_array('Tags', \@MODULES) ) {
         delete $search_types{2};
       }
-      
+
       my %SEARCH_PARAMS = ();
-      
+
       if ( !$FORM{SEARCH_BY} ) {
-        
+
         my @search_options = map {
           {
             id   => $_,
             name => _translate('$lang{' . $search_types{$_} . '}')
           }
         } sort keys %search_types;
-        
+
         # search type select
         return $select_next_option->('SEARCH_BY', $lang{SEARCH}, \@search_options, { has_next => 1 });
       }
@@ -543,7 +535,7 @@ sub cablecat_link_info {
         # Address
         require Address;
         my $Address = Address->new($db, $admin, \%conf);
-        
+
         # District select
         if ( !$FORM{DISTRICT_ID} ) {
           my $districts_list = $Address->district_list({
@@ -551,7 +543,7 @@ sub cablecat_link_info {
             COLS_UPPER => 0,
             PAGE_ROWS  => 10000
           });
-          
+
           return $select_next_option->('DISTRICT_ID', $lang{DISTRICT}, $districts_list, { has_next => 1 });
         }
         elsif ( !$FORM{STREET_ID} ) {
@@ -562,7 +554,7 @@ sub cablecat_link_info {
             COLS_UPPER  => 0,
             PAGE_ROWS   => 10000
           });
-          
+
           return $select_next_option->('STREET_ID', $lang{STREET}, $streets_list, {
               name_key => 'street_name',
               id_key   => 'street_id',
@@ -576,7 +568,7 @@ sub cablecat_link_info {
             COLS_UPPER => 0,
             PAGE_ROWS  => 10000
           });
-          
+
           return $select_next_option->('LOCATION_ID', $lang{BUILD}, $builds_list,
             { name_key => 'number', has_next => 1 });
         }
@@ -589,7 +581,7 @@ sub cablecat_link_info {
         require Tags;
         my $Tags = Tags->new($db, $admin, \%conf);
         if ( !$FORM{TAG_ID} ) {
-          
+
           # Tag select
           my $tags_list = $Tags->list({
             NAME       => '_SHOW',
@@ -598,10 +590,10 @@ sub cablecat_link_info {
             COLS_UPPER => 0,
             PAGE_ROWS  => 10000
           });
-          
+
           return $select_next_option->('TAG_ID', $lang{TAGS}, $tags_list, { has_next => 1 });
         }
-        
+
         # Tags uses his own user search logic
         my $users_list = $Tags->tags_list({
           TAG_ID    => $FORM{TAG_ID},
@@ -609,7 +601,7 @@ sub cablecat_link_info {
           COLS_NAME => 1,
           PAGE_ROWS => 10000,
         });
-        
+
         return $select_next_option->('UID', $lang{USER}, $users_list, {
             name_key => 'login',
             id_key   => 'uid'
@@ -630,7 +622,7 @@ sub cablecat_link_info {
             COLS_NAME => 1,
             PAGE_ROWS => 10000
           });
-          
+
           # Group select
           return $select_next_option->('GROUP_ID', $lang{GROUP}, $groups_list, {
               id_key   => 'gid',
@@ -641,7 +633,7 @@ sub cablecat_link_info {
           $SEARCH_PARAMS{GID} = $FORM{GROUP_ID};
         }
       }
-      
+
       if ( $FORM{UID} ){
         my $select_options = _cablecat_get_user_services_select($FORM{UID}, { RETURN_LIST => 1 });
         return $select_next_option->('SERVICE_ID', $lang{SERVICE}, $select_options, {
@@ -657,7 +649,7 @@ sub cablecat_link_info {
           COLS_NAME => 1,
           PAGE_ROWS => 10000
         });
-        
+
         return $select_next_option->('UID', $lang{USER}, $users_list, {
             name_key => 'login',
             id_key   => 'uid',
@@ -675,7 +667,7 @@ sub cablecat_link_info {
           PAGE_ROWS  => 10000
         });
         _error_show($Cablecat);
-        
+
         # connecter select
         return $select_next_option->('WELL_ID', $lang{WELL}, $wells_list, { has_next => 1 });
       }
@@ -688,7 +680,7 @@ sub cablecat_link_info {
           PAGE_ROWS  => 10000
         });
         _error_show($Cablecat);
-        
+
         # connecter select
         return $select_next_option->('CROSS_ID', $lang{CROSS}, $crosses_list, { has_next => 1 });
       }
@@ -696,19 +688,19 @@ sub cablecat_link_info {
         my $selected_cross = $Cablecat->crosses_info($FORM{CROSS_ID}, { COLS_UPPER => 0 });
         my $ports_count = $selected_cross->{ports_count};
         my @ports_list = map {{ id => $_, name => $_ }} (1 .. $ports_count);
-        
+
         #        _bp('', \@ports_list);
-        
+
         return $select_next_option->('CROSS_PORT', $lang{PORT}, \@ports_list);
       }
     }
   }
-  
+
   push @{$html->{JSON_OUTPUT}},
     {
       text => $lang{ERROR}
     };
-  
+
   return 1;
 }
 
@@ -719,38 +711,38 @@ sub cablecat_link_info {
 #**********************************************************
 sub _cablecat_cable_links_table {
   my ($cable_id) = @_;
-  
+
   my %cable = ();
   # Allow to pass DB row
   if ( !ref $cable_id ) {
     my $cable_info = $Cablecat->cables_info($cable_id);
     return 0 if ( _error_show($Cablecat) );
-    
+
     %cable = %{$cable_info};
   }
   else {
     %cable = %{$cable_id};
     $cable_id = $cable{id};
   }
-  
+
   return '' unless ( $cable{fibers_count} && $cable{modules_count} );
   my $fibers_count = $cable{fibers_count};
   my $modules_count = $cable{modules_count};
   my $fibers_in_module = int($fibers_count / $modules_count);
-  
+
   return '' unless ( $cable{fibers_colors} && $cable{modules_colors} );
   my @colors = split(',', $cable{fibers_colors});
   my @module_colors = split(',', $cable{modules_colors});
-  
+
   # Get commutations for this cable
   my $commutations = $Cablecat->commutations_list({
     CABLE_IDS        => $cable_id,
     SHOW_ALL_COLUMNS => 1,
     PAGE_ROWS        => 10000
   });
-  
+
   return '' if ( _error_show($Cablecat) || !$commutations || !(ref($commutations) eq 'ARRAY') || !scalar(@{$commutations}) );
-  
+
   my $links = $Cablecat->links_for_element_list('CABLE', $cable_id, {
       ID             => '_SHOW',
       COMMUTATION_ID => '_SHOW',
@@ -763,12 +755,12 @@ sub _cablecat_cable_links_table {
       PAGE_ROWS      => 10000
     });
   return 0 if ( _error_show($Cablecat) );
-  
+
   my %left_link_info = ();
   my %right_link_info = ();
   foreach my $link (@{$links}){
     # TODO: check 3 links for same fiber side
-    
+
     if (defined $link->{is_left} && $link->{is_left}){
       if (defined $left_link_info{$link->{fiber_num_1}}){
         # TODO: change direction in DB
@@ -791,13 +783,13 @@ sub _cablecat_cable_links_table {
   my $sub_get_info_for_fiber = sub {
     my ($f_num, $is_right) = @_;
     my $res = '';
-    
+
     my $links_hash = ($is_right) ? \%right_link_info : \%left_link_info;
 
     if (!exists $links_hash->{$f_num}){
       return $html->button('', '', {
           class     => 'add',
-          ICON      => 'glyphicon glyphicon-plus',
+          ICON      => 'fa fa-plus',
           BUTTON    => 1,
           SKIP_HREF => 1,
           ex_params => "onClick='addLinkInfo(\"CABLE\", $cable_id, $f_num, $is_right)'"
@@ -810,18 +802,18 @@ sub _cablecat_cable_links_table {
     }
     return _cablecat_link_info_cell('CABLE', $cable_id, $f_num, !$is_right, $res);
   };
-  
+
   # Table will consist of two columns, and $fibers_num rows
   my @rows = ();
   foreach my $fiber_num ( 0 .. $fibers_count - 1 ) {
     my $module_num = int($fiber_num / $fibers_in_module);
-    
+
     my $fiber_color = $colors[$fiber_num % $fibers_in_module] || "";
     my $module_color = $module_colors[ $module_num ];
     #
     my $info_left = $sub_get_info_for_fiber->(int ($fiber_num + 1), 1);
     my $info_right = $sub_get_info_for_fiber->(int ($fiber_num + 1), 0);
-    
+
     push (@rows,
       [
         $html->element('div', '&nbsp;', {
@@ -837,7 +829,7 @@ sub _cablecat_cable_links_table {
       ]
     );
   }
-  
+
   return _cablecat_links_table('CABLE', $cable_id, {
       caption     => "$lang{INFO} : $cable{name}",
       EXPORT      => 1,
@@ -854,15 +846,15 @@ sub _cablecat_cable_links_table {
 #**********************************************************
 sub _cablecat_splitter_links_table {
   my ($splitter_id) = @_;
-  
+
   my $splitter = $Cablecat->splitters_info($splitter_id);
-  
+
   return '' unless ( $splitter->{fibers_in} && $splitter->{fibers_out} );
-  
+
   # Get commutations for this splitter
   my $commutations = $Cablecat->get_commutations_for_element('SPLITTER', $splitter_id);
   return '' if ( _error_show($Cablecat) || !scalar(@{$commutations}) );
-  
+
   my $links = $Cablecat->links_for_element_list('SPLITTER', $splitter_id, {
       ID             => '_SHOW',
       COMMUTATION_ID => '_SHOW',
@@ -876,14 +868,14 @@ sub _cablecat_splitter_links_table {
       PAGE_ROWS      => 10000
     });
   return 0 if ( _error_show($Cablecat) );
-  
+
   my %left_link_info = ();
   my %right_link_info = ();
   foreach my $link (@{$links}){
-    
+
     # All fibers less than fibers_in are inputs
     # All fibers greater than fibers_out are outputs
-    
+
     if ($link->{fiber_num_1} > $splitter->{fibers_in}){
       if (defined $left_link_info{$link->{fiber_num_1}}){
         # TODO: change direction in DB
@@ -902,7 +894,7 @@ sub _cablecat_splitter_links_table {
       }
     }
   }
-  
+
   my $sub_get_info_for_fiber = sub {
     my ($f_num, $is_right) = @_;
     my $res = '';
@@ -912,7 +904,7 @@ sub _cablecat_splitter_links_table {
     if (!exists $links_hash->{$f_num}){
       return $html->button('', '', {
           class     => 'add',
-          ICON      => 'glyphicon glyphicon-plus',
+          ICON      => 'fa fa-plus',
           BUTTON    => 1,
           SKIP_HREF => 1,
           ex_params => "onClick='addLinkInfo(\"SPLITTER\", $splitter_id, $f_num, $is_right)'"
@@ -931,9 +923,9 @@ sub _cablecat_splitter_links_table {
   my $max_fibers_side = ($splitter->{fibers_in} > $splitter->{fibers_out})
                           ? $splitter->{fibers_in}
                           : $splitter->{fibers_out};
-  
+
   foreach my $fiber_num ( 0 .. $max_fibers_side ) {
-    
+
     my $info_left = '';
     my $info_right = '';
     if ($fiber_num < $splitter->{fibers_in}){
@@ -968,9 +960,9 @@ sub _cablecat_splitter_links_table {
 #**********************************************************
 sub _cablecat_links_table {
   my ($element_type, $element_id, $table_attr) = @_;
-  
+
   my Abills::HTML $table = $html->table($table_attr);
-  
+
   # SHOULD BE THE SAME IN cablecat_link_info
   my %connection_type_lang = (
     1 => 'FIBER',
@@ -980,7 +972,7 @@ sub _cablecat_links_table {
     5 => 'USER',
     6 => 'CROSS',
   );
-  
+
   my @connection_type_modal_select_options = ({ name => '--', value => '--' }, map {
       {
         name  => _translate('$lang{' . $connection_type_lang{$_} . '}'),
@@ -988,7 +980,7 @@ sub _cablecat_links_table {
       };
     } sort keys %CONNECTION_TYPES
   );
-  
+
   $html->tpl_show(_include('cablecat_links_info', 'Cablecat'),
     {
       LINK_TYPE_OPTIONS => JSON::to_json(\@connection_type_modal_select_options),
@@ -996,7 +988,7 @@ sub _cablecat_links_table {
       ELEMENT_ID          => $element_id
     }
   );
-  
+
   return $table->show({ OUTPUT2RETURN => 1 });
 }
 
@@ -1031,7 +1023,7 @@ sub cablecat_nas_trace_connection_form {
       else {
         my $path = $Tracer->get_path_beetween_nases($FORM{NAS_ID}, $FORM{ENDPOINT_NAS_ID});
         _error_show($Tracer);
-        
+
         my $fiber_views = _cablecat_get_conection_path_view($path);
         if (!$fiber_views){
           $html->message('err', $lang{ERROR}, "Can't display commutation_path");
@@ -1110,20 +1102,20 @@ sub cablecat_nas_trace_connection_form {
 =cut
 #**********************************************************
 sub cablecat_user_trace_connection_form {
-  
+
   if ( my $module_load_error = load_pmodule("JSON", { SHOW_RETURN => 1 }) ) {
     print $module_load_error;
     return 0;
   }
-  
+
   my Cablecat::Trace $Tracer = Cablecat::Trace->new($db, $admin, \%conf);
   my %TEMPLATE_PARAMS = ();
-  
-  
+
+
   my $uid = $FORM{UID} || 0;
   my $module_service_id_str = $FORM{USER_SERVICE} || '';
   my ($module, $service_id) = split(':', $module_service_id_str);
-  
+
   # Helper to break from if
   my $return_with_error = sub {
     my ($text, $url, $id) = @_;
@@ -1135,9 +1127,9 @@ sub cablecat_user_trace_connection_form {
     _bp("Called by", [ caller ], {HEADER => 0, EXIT => 0, TO_CONSOLE => 0});
     exit 0;
   };
-  
+
   if ( $FORM{action} ) {
-  
+
     if ( !$uid ) {
       # message about no uid
       $return_with_error->("$lang{REQUIRED_ARG} : UID");
@@ -1145,27 +1137,27 @@ sub cablecat_user_trace_connection_form {
     elsif ( !$service_id ) {
       $return_with_error->("$lang{REQUIRED_ARG} : USER_SERVICE");
     }
-    
+
     my $user_start_link = $Tracer->get_commutation_for_user($uid, $service_id, { RETURN_LINK => 1});
     _error_show($Tracer);
     _error_show($Cablecat);
-    
+
     if (!$user_start_link){
       $html->message('err', $lang{ERROR}, "User is not present on commutation", { ID => 2210 });
       return 0;
     }
-    
+
     my $nas_port ||= $Tracer->get_nas_port_for_service($uid, $service_id);
     if ( !$nas_port ) {
       _error_show($Tracer);
       $return_with_error->($Tracer->{errstr}, undef, $Tracer->{errno});
     }
-    
+
     # Get start commutation for nas_port
     my $equipment_commutation_ids = $Tracer->get_commutation_for_equipment($nas_port->{nas_id}, $nas_port->{port},
       { WITH_TYPE => 1 }
     );
-    
+
     if ( !$equipment_commutation_ids || !ref $equipment_commutation_ids eq 'ARRAY' ) {
       # Show message about no commutation
       _error_show($Tracer);
@@ -1177,7 +1169,7 @@ sub cablecat_user_trace_connection_form {
     elsif (scalar @$equipment_commutation_ids > 1){
       $return_with_error->("Equipment is linked on more than one commutation", undef, 2201);
     }
-    
+
     # Build trace
     my $path = $Tracer->get_path_beetween({
       TYPE      => 'UID',
@@ -1186,7 +1178,7 @@ sub cablecat_user_trace_connection_form {
     },
       $equipment_commutation_ids->[0]
     );
-    
+
     my $fiber_views = _cablecat_get_conection_path_view($path);
     if (!$fiber_views){
       $html->message('err', $lang{ERROR}, "Can't display commutation_path");
@@ -1194,30 +1186,30 @@ sub cablecat_user_trace_connection_form {
     else {
       $TEMPLATE_PARAMS{PATH_VIEW} = $fiber_views;
     }
-    
+
     # Show trace
   }
-  
+
   # user_modal_search() can return numeric value when modlas is loaded
   my $user_modal_search_button = user_modal_search();
   if ( $user_modal_search_button && $user_modal_search_button eq 2 ) {
     return 1;
   }
-  
+
   my @allowed_to_trace_services = ();
   if ( $uid ) {
     $TEMPLATE_PARAMS{USER_LOGIN} = $users->{LOGIN} || '';
-    
+
     # Get list of user services
     my $user_services_search_list = $Tracer->get_user_nas_port_services($uid);
     _error_show($Tracer);
-    
+
     if (!$user_services_search_list || !ref($user_services_search_list) eq 'ARRAY' ){
       $return_with_error->("Can't get user service list");
     }
-    
+
     my @user_connections = @$user_services_search_list;
-    
+
     # Look which nas_id are on commutation scheme
     foreach my $service_port ( @user_connections ) {
       next unless ( $service_port->{NAS_ID} );
@@ -1227,7 +1219,7 @@ sub cablecat_user_trace_connection_form {
       push(@allowed_to_trace_services, $service_port);
     }
   }
-  
+
   $TEMPLATE_PARAMS{USER_SELECT} = $html->form_input('USER_LOGIN', $TEMPLATE_PARAMS{USER_LOGIN} || '', {
       TYPE     => 'text',
       DISABLED => 1
@@ -1243,12 +1235,12 @@ sub cablecat_user_trace_connection_form {
   else {
     $html->message('warn', $lang{ERROR}, "No service ports to trace", { ID => 2220 });
   }
-  
+
   my $search_form = $html->tpl_show(_include('cablecat_user_trace_connection_form', 'Cablecat'),
     \%TEMPLATE_PARAMS,
     { OUTPUT2RETURN => 1 }
   );
-  
+
   print $html->form_main({
     class   => 'form form-inline well well-sm',
     CONTENT => $search_form,
@@ -1257,7 +1249,7 @@ sub cablecat_user_trace_connection_form {
       UID   => $uid || ''
     }
   });
-  
+
   return 1;
 }
 
@@ -1267,29 +1259,29 @@ sub cablecat_user_trace_connection_form {
 =cut
 #**********************************************************
 sub cablecat_links_check {
-  
+
   if ($FORM{del} && $FORM{COMMENTS}){
     $Cablecat->cablecat_links_del($FORM{del});
     show_result($Cablecat, $lang{DELETED});
   }
-  
+
   # Get all links
   my $links = $Cablecat->links_list({
     SHOW_ALL_COLUMNS => 1,
     PAGE_ROWS        => 100000,
   });
-  
+
   # Build a hash by commutation_id
   my %links_by_commutation_id = ();
   my @bad_links = ();
-  
+
   foreach my $link ( @{$links} ) {
     my $fiber_1_key = join('_', $link->{element_1_type}, $link->{element_1_id}, $link->{fiber_num_1});
     my $fiber_2_key = join('_', $link->{element_2_type}, $link->{element_2_id}, $link->{fiber_num_2});
-    
+
     $links_by_commutation_id{$link->{commutation_id}} //= {};
     my $com_hash = $links_by_commutation_id{$link->{commutation_id}};
-    
+
     # If fiber is presented more than once at single commutation, add it to wrong links table
     my $has_bad_link = 0;
     if ( exists $com_hash->{$fiber_1_key} ) {
@@ -1300,33 +1292,33 @@ sub cablecat_links_check {
       push (@bad_links, $link, $com_hash->{$fiber_2_key});
       $has_bad_link = 1;
     }
-    
+
     next if ( $has_bad_link );
-    
+
     $com_hash->{$fiber_1_key} = $link;
     $com_hash->{$fiber_2_key} = $link;
   }
-  
+
   my Abills::HTML $table = $html->table({
     caption     => "Cablecat $lang{WRONG_LINKS}",
     DATA_TABLE  => 1,
     ID          => 'CABLECAT_WRONG_LINK',
     title_plain => [ '#', $lang{COMMUTATION}, 'Element 1', "$lang{FIBER} 1", 'Element 2', "$lang{FIBER} 2", '-' ],
   });
-  
+
   my $commutation_index = get_function_index('cablecat_commutation');
   foreach my $bad_link ( @bad_links ) {
     my $commutation_btn = $html->button(
       "$lang{COMMUTATION}#$bad_link->{commutation_id}",
       "index=$commutation_index&ID=$bad_link->{commutation_id}"
     );
-    
+
     my $del_button = $html->button('', "index=$index&del=$bad_link->{id}", {
         class   => 'btn btn-danger btn-xs',
-        ICON    => 'glyphicon glyphicon-remove',
+        ICON    => 'fa fa-remove',
         CONFIRM => "$lang{DEL}?",
       });
-    
+
     $table->addrow(
       $bad_link->{id},
       $commutation_btn,
@@ -1337,9 +1329,9 @@ sub cablecat_links_check {
       $del_button,
     );
   }
-  
+
   print $table->show();
-  
+
   return 1;
 }
 
@@ -1351,7 +1343,7 @@ sub cablecat_links_check {
 sub _cablecat_get_conection_path_view {
   my ($path) = @_;
   return 0 if (!$path || ref $path ne 'ARRAY');
-  
+
   my %visualization_dispatch = (
     CABLE => sub {
       my ($cable_id, $fiber_num) = @_;
@@ -1376,10 +1368,10 @@ sub _cablecat_get_conection_path_view {
       _error_show($Cablecat) and return 0;
       my $cross_link = $Cablecat->cross_links_info(undef, { CROSS_ID => $cross_id, CROSS_PORT => $port_num });
       _error_show($Cablecat) and return 0;
-      
+
       my $btn = function_button("$lang{CROSS} $cross_info->{name}", 'cablecat_crosses', $cross_id);
       my $link_info = _cablecat_cross_link_info($cross_link, $port_num, $cross_id, { CROSS_INFO => $cross_info });
-      
+
       return "$btn. $lang{PORT} : $port_num -> $link_info";
     },
     UID     => sub {
@@ -1388,7 +1380,7 @@ sub _cablecat_get_conection_path_view {
       _error_show($users);
       my $user = $users_list->[0] || 0;
       my $login = $user->{login} || '';
-      
+
       return "$lang{USER} - " . user_ext_menu($client_id, $login) . " $lang{SERVICE}#$service_id";
     },
     COMMUTATION => sub {
@@ -1408,11 +1400,11 @@ sub _cablecat_get_conection_path_view {
       return join (' - ', @_);
     }
   );
-  
+
   my @before_commutation_views = ();
   my @commutation_order = ();
   my %path_for_commutation = ();
-  
+
   foreach my $connection (@$path){
     my $vis_sub = $visualization_dispatch{$connection->{element_type}};
     my $commutation_id = 0;
@@ -1423,7 +1415,7 @@ sub _cablecat_get_conection_path_view {
         push(@commutation_order, $commutation_id)
       }
     };
-    
+
     my $view = '';
     if ($vis_sub){
       $view .= $vis_sub->($connection->{element_id}, $connection->{fiber_num});
@@ -1435,7 +1427,7 @@ sub _cablecat_get_conection_path_view {
         $connection->{fiber_num}
       );
     }
-    
+
     if (!$commutation_id){
       push (@before_commutation_views, $view);
       next;
@@ -1447,24 +1439,24 @@ sub _cablecat_get_conection_path_view {
       $path_for_commutation{$commutation_id} = [ $view ];
     }
   }
-  
+
   # First adding path before commutation
-  
+
   my $without_commutation = join($html->br, map { $html->element('span', $_) } @before_commutation_views) . $html->br;
   # Then show commutations one by one
   my $commutations_view = '';
   foreach my $commutation_id (@commutation_order){
     my @views = @{$path_for_commutation{$commutation_id}};
-    
+
     $commutations_view .= $visualization_dispatch{COMMUTATION}->($commutation_id);
-    
+
     my @views_list = map {
       $html->element('span', $_, { class => 'list-group-item' });
     } @views;
-    
+
     $commutations_view .= $html->element('div', join('', @views_list), {class => 'list-group' })
   }
-  
+
   return $html->tpl_show(_include('cablecat_commutation_path_view', 'Cablecat'),{
     WITHOUT_COMMUTATION => $without_commutation,
       COMMUTATIONS_LIST => $commutations_view
@@ -1480,21 +1472,21 @@ sub _cablecat_get_conection_path_view {
 sub _cablecat_break_cable_in_two_parts {
   my ($break_cable_id, $inserted_well_id) = @_;
   return unless ( $break_cable_id );
-  
+
   # Get polyline_id
   my $cable_list = $Cablecat->cables_list({ ID => $break_cable_id, POLYLINE_ID => '_SHOW' });
   return 0 unless ($cable_list && ref $cable_list eq 'ARRAY' && scalar (@$cable_list));
   my $polyline_id = $cable_list->[0]{polyline_id};
-  
+
   # Insert well, breaks cable
   my $add_result = $Cablecat->break_cable($break_cable_id, $inserted_well_id);
   if ( !$add_result || ref $add_result ne 'ARRAY' ) {
     _error_show($Cablecat);
     return qq{Can\'t insert well : $add_result };
   };
-  
+
   my ( undef, $cable_id_1, $cable_id_2 ) = @{$add_result};
-  
+
   # Should also break polyline for this cables
   my $break_result = $Maps->break_polyline(
     $polyline_id,
@@ -1503,19 +1495,19 @@ sub _cablecat_break_cable_in_two_parts {
       COORDY => $FORM{COORDY}
     }
   );
-  
+
   if ( !$break_result || ref $break_result ne 'ARRAY' ) {
     _error_show($Maps);
     return qq{Can\'t break polyline : $break_result }
   };
-  
+
   my ($new_object1_id, $new_object2_id ) = @{$break_result};
-  
+
   # Update cables info
   #FIXME: check object adding order
   $Cablecat->cables_change({ ID => $cable_id_1, POINT_ID => $new_object2_id });
   $Cablecat->cables_change({ ID => $cable_id_2, POINT_ID => $new_object1_id });
-  
+
   return 1;
 }
 
@@ -1526,7 +1518,7 @@ sub _cablecat_break_cable_in_two_parts {
 #**********************************************************
 sub _cablecat_get_link_info {
   my ($element_type, $element_id, $fiber_num, $direction, $info) = @_;
-  
+
   if ( !$info ) {
     my $list = $Cablecat->links_for_element_list($element_type, $element_id, {
         FIBER_NUM_1      => $fiber_num,
@@ -1535,42 +1527,42 @@ sub _cablecat_get_link_info {
         PAGE_ROWS        => 1
       });
     _error_show($Cablecat);
-    
+
     $info = $list->[0];
   }
-  
+
   my $other_element_type = $info->{element_2_type};
   my $other_element_id = $info->{element_2_id};
   my $other_element_fiber_in = $info->{fiber_num_2};
-  
+
   return unless ($other_element_type && $other_element_id && $other_element_fiber_in);
-  
+
   # get another linked element
   if ( $other_element_type eq 'CABLE' ) {
     #      my $opposite_element = Cablecat::Trace::_get_another_element_for_link($info, 'CABLE', $cable_id, $f_num );
-    
+
     my $commutation_btn = $html->button(
       $lang{COMMUTATION} . '#' . $info->{commutation_id},
       'get_index=cablecat_commutation&full=1&ID=' . $info->{commutation_id}
     );
-    
+
     my $cable_btn = _cablecat_get_cable_button($other_element_id);
-    
+
     my $att_info = ($info->{attenuation})
       ? "$lang{ATTENUATION} :  $info->{attenuation}"
       : '';
-  
+
     my $comm = ($info->{comments})
       ? "$lang{COMMENTS} :  $info->{comments}"
       : '';
-    
+
     my $res = join($html->br,
       "$cable_btn : $lang{FIBER}# " . $html->b($other_element_fiber_in),
       $commutation_btn,
       $att_info,
       $comm
     );
-    
+
     return $res;
   }
   if ( $other_element_type eq 'UID' ) {
@@ -1591,7 +1583,7 @@ sub _cablecat_get_link_info {
   elsif ( $other_element_type eq 'POINT' ) {
     my $object = $Maps->points_info($other_element_id);
     my $type = _translate($object->{TYPE});
-    
+
     return "$lang{OBJECT} : $object->{NAME}($lang{TYPE} : $type)";
   }
   elsif ( $other_element_type eq 'CROSS' ) {
@@ -1600,11 +1592,11 @@ sub _cablecat_get_link_info {
         SHOW_ALL_COLUMNS => 0,
         NAME             => '_SHOW',
       });
-    
+
     my $cross_link = function_button($cross->{name}, 'cablecat_crosses', $cross->{id});
     return "$lang{CROSS} : $cross_link#$other_element_fiber_in";
   }
-  
+
   return '';
 }
 
@@ -1615,29 +1607,29 @@ sub _cablecat_get_link_info {
 #**********************************************************
 sub _cablecat_link_info_cell {
   my ($element_type, $element_id, $fiber_num, $direction, $data) = @_;
-  
+
   $direction ||= 0;
-  
+
   if ( !$data ) {
     return $html->button('', '', {
         class     => 'add',
-        ICON      => 'glyphicon glyphicon-plus',
+        ICON      => 'fa fa-plus',
         BUTTON    => 1,
         SKIP_HREF => 1,
         ex_params => "onClick='addLinkInfo(\"$element_type\", $element_id, $fiber_num, $direction)'"
       })
   }
-  
+
   my $del_btn = $html->button('', '', {
       class     => 'btn btn-xs btn-danger',
-      ICON      => 'glyphicon glyphicon-remove',
+      ICON      => 'fa fa-remove',
       SKIP_HREF => 1,
       ex_params => "onClick='clearLinkInfo(\"$element_type\", $element_id, $fiber_num, $direction)'"
     });
-  
+
   return $html->element('div', $data, { class => 'col-xs-10' })
     . $html->element('div', $del_btn, { class => 'col-xs-2' });
-  
+
 }
 
 
@@ -1649,11 +1641,11 @@ sub _cablecat_link_info_cell {
 sub _cablecat_get_cable_button {
   my ($cable_id, $attr) = @_;
   state $cables_info = {};
-  
+
   return '' unless ( $cable_id );
-  
+
   if ( !exists $cables_info->{$cable_id} ) {
-    
+
     if ( $attr->{NAME} ) {
       $cables_info->{$cable_id}->{name} = $attr->{NAME};
     }
@@ -1661,11 +1653,11 @@ sub _cablecat_get_cable_button {
       $cables_info->{$cable_id} = $Cablecat->cables_info($cable_id);
       _error_show($Cablecat);
     }
-    
+
   }
-  
+
   my $info = $cables_info->{$cable_id};
-  
+
   return $html->button($info->{name}, 'get_index=cablecat_cables&full=1&chg=' . $cable_id);
 }
 
@@ -1676,20 +1668,20 @@ sub _cablecat_get_cable_button {
 #**********************************************************
 sub _cablecat_address_for_well_id {
   my ($well_id) = @_;
-  
+
   my $well_info = $Cablecat->wells_info($well_id);
   if ( $well_info->{point_id} ) {
     my $point_info = $Maps->points_info($well_info->{point_id}, { ADDRESS_FULL => '_SHOW', COLS_UPPER => 0 });
-    
+
     my $map_btn = _cablecat_result_former_point_id_filter($well_info->{point_id},
       { PARAMS => [ $MAP_LAYER_ID{WELL} ] });
     my $address = $point_info->{address_full} || '';
-    
+
     return  $address . ' ' . $map_btn;
   }
-  
+
   #TODO: show 'edit/set' button
-  
+
   return '';
 }
 
@@ -1698,37 +1690,74 @@ sub _cablecat_address_for_well_id {
 
   Arguments:
     $cable_id,
-    
+
   Returns:
-     length in meters
+    length in meters
 =cut
 #**********************************************************
 sub _cablecat_cable_length {
-  
+
   my ($cable_id) = @_;
-  
+
   my $cable = $Cablecat->cables_info($cable_id);
   my $polyline_id = $cable->{polyline_id};
   return 0 unless ( $cable->{polyline_id} );
-  
+
   my $points_list = $Maps->polyline_points_list({
     POLYLINE_ID => $polyline_id,
     COORDX      => '_SHOW',
     COORDY      => '_SHOW',
   });
   _error_show($Maps);
-  
+
   my @points = @{$points_list};
-  
+
   my $i = 0;
   my $cable_length = 0;
   while ( $i++ < $#points ) {
     $cable_length += Maps::_mercator_to_meters($points[$i]->{COORDX}, $points[$i]->{COORDY},
       $points[$i - 1]->{COORDX}, $points[$i - 1]->{COORDY});
   }
-  
+
   return $cable_length;
 }
+
+
+#**********************************************************
+=head2 cablecat_import_wells_form
+
+=cut
+#**********************************************************
+sub cablecat_import_wells_form {
+  my $import_wells_data = cablecat_import_wells();
+
+  cablecat_import_form($import_wells_data);
+
+  return 1;
+}
+
+
+#**********************************************************
+=head2 cablecat_import_form($import_data)
+  Arguments:
+    $import_data
+      IMPORT_INDEX - index of page where import request will send
+      RESULT_INDEX - index of page where admin redirects after import process will end
+      FIELDS_LIST
+=cut
+#**********************************************************
+sub cablecat_import_form {
+  my ($import_data) = @_;
+
+  $html->tpl_show(_include('cablecat_import', 'Cablecat'), {
+    IMPORT_INDEX => $import_data->{IMPORT_INDEX},
+    RESULT_INDEX => $import_data->{RESULT_INDEX} || $index,
+    OUTPUT_STRUCTURE => $import_data->{FIELDS_LIST}
+  });
+
+  return 1;
+}
+
 
 #**********************************************************
 =head2 _cablecat_get_user_services_select($uid, $attr)
@@ -1738,30 +1767,29 @@ sub _cablecat_cable_length {
     $attr
       RETURN_LIST - returns formatted services list
       WITH_MODULE - will add module name to select option value "$module_name:$_->{id}"
-      
   Returns:
     string html
-  
+
 =cut
 #**********************************************************
 sub _cablecat_get_user_services_select {
   my ($uid, $attr) = @_;
-  
+
   # Should show user services select
   my $Tracer = Cablecat::Trace->new($db, $admin, \%conf);
-  
+
   my ($services, $module_name ) = $Tracer->get_user_services($uid, { NAS_NAME => '_SHOW' });
-  
+
   return 0 if ($Tracer->{errno} || !$services || ref $services ne 'ARRAY');
-  
+
   # Should pass more than one value in select value
   my @select_options = map {{
     id   => $attr->{WITH_MODULE} ? "$module_name:$_->{id}" : $_->{id},
     name => " $module_name: ($_->{nas_name}#$_->{nas_id}) : $lang{PORT} #$_->{port}"
   }} @$services;
-  
+
   return \@select_options if ($attr->{RETURN_LIST});
-  
+
   return  make_select_from_list('USER_SERVICE', \@select_options);
 }
 

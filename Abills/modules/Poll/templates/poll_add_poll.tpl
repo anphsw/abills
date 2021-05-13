@@ -6,10 +6,10 @@
 <input type='hidden' name='id' value='%ID%'>
 %JSON%
 
-<div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{POLL}_</h4></div>
+<div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{POLL}_</h4></div>
 
-<div class='box-body'>
+<div class='card-body'>
   <div class='form-group'>
       <label class='col-md-3 control-label required'>_{SUBJECT}_</label>
   	<div class='col-md-9'>
@@ -59,18 +59,18 @@
               <button class='btn btn-xs btn-danger' id='removeAnswerBtn'
                       data-tooltip='_{DEL_POLL_ANSWER}_'
                       data-tooltip-position='bottom'>
-                  <span class='glyphicon glyphicon-remove'></span>
+                  <span class='fa fa-remove'></span>
               </button>
               <button class='btn btn-xs btn-success' id='addAnswerBtn'
                       data-tooltip='_{ADD_POLL_ANSWER}_'>
-                  <span class='glyphicon glyphicon-plus'></span>
+                  <span class='fa fa-plus'></span>
               </button>
           </div>
       </div>
   </div>
 </div>
 
-<div class='box-footer'>
+<div class='card-footer'>
   <button  form='POLL_ANSWER_FORM' type='submit' class='btn btn-primary'>%BUTTON%</button>
 </div>
 

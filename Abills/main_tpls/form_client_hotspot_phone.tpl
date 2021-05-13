@@ -4,8 +4,8 @@
     <input type=hidden name='DOMAIN_ID' value='%DOMAIN_ID%'>
 
     <fieldset>
-        <div class='box box-theme'>
-            <div class='box-body'>
+        <div class='card card-primary card-outline'>
+            <div class='card-body'>
                 <div class='form-group'>
                     <label class='control-label' for='PHONE'>_{PHONE}_</label>
 

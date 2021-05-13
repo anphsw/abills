@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{CROSS}_ : %WELL%</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline'>
+  <div class='card-header with-border'><h4 class='card-title'>_{CROSS}_ : %WELL%</h4></div>
+  <div class='card-body'>
     <form name='CABLECAT_COMMUTATION_ADD_CROSS_MODAL' id='CABLECAT_COMMUTATION_ADD_CROSS_MODAL' method='post'
           class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
@@ -8,15 +8,15 @@
       <input type='hidden' name='entity' value='CROSS'/>
       <input type='hidden' name='COMMUTATION_ID' value='%COMMUTATION_ID%'/>
 
-      <div class='form-group'>
-        <label class='control-label col-md-3'>_{CROSS}_</label>
+      <div class='form-group row'>
+        <label class='control-label col-md-3'>_{CROSS}_:</label>
         <div class='col-md-9'>
           %CROSS_SELECT%
         </div>
       </div>
 
-      <div class='form-group'>
-        <label class='control-label col-md-3'>_{PORTS}_</label>
+      <div class='form-group row'>
+        <label class='control-label col-md-3'>_{PORTS}_:</label>
         <div class='col-md-4'>%PORT_START_SELECT%</div>
         <div class='col-md-1'></div>
         <div class='col-md-4'>%PORT_FINISH_SELECT%</div>
@@ -26,7 +26,7 @@
 
   </div>
 
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type='submit' form='CABLECAT_COMMUTATION_ADD_CROSS_MODAL' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>

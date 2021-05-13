@@ -112,9 +112,9 @@ sub tasks_table {
   });
 
   foreach my $task (@$tasks_list) {
-    my $del_button = $html->button("", "index=$index&del=$task->{id}&tab=$attr->{TAB}", { class => "text-danger", ADD_ICON => "glyphicon glyphicon-trash", CONFIRM => $lang{CONFIRM} });
-    my $edit_button = $html->button("", "index=$f_index&chg_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "glyphicon glyphicon-pencil" });
-    my $show_button = $html->button("", "index=$index&show_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "glyphicon glyphicon-eye-open" });
+    my $del_button = $html->button("", "index=$index&del=$task->{id}&tab=$attr->{TAB}", { class => "text-danger", ADD_ICON => "fa fa-trash", CONFIRM => $lang{CONFIRM} });
+    my $edit_button = $html->button("", "index=$f_index&chg_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-pencil" });
+    my $show_button = $html->button("", "index=$index&show_task=$task->{id}&tab=$attr->{TAB}", { ADD_ICON => "fa fa-eye" });
     my @fields = ($task->{type_name}, $task->{name}, $task->{responsible_name}, $task->{control_date});
     if ($attr->{TAB}) {
       if ($attr->{TAB} == 1 || $attr->{TAB} == 2) {
@@ -493,8 +493,8 @@ sub tasks_type_table {
   });
 
   foreach my $type (@$types_list) {
-    my $del_button  = $html->button("", "index=$f_index&del=$type->{id}", { class => "text-danger", ADD_ICON => "glyphicon glyphicon-trash", CONFIRM => $lang{CONFIRM} });
-    my $edit_button = $html->button("", "index=$f_index&chg_type=$type->{id}", { ADD_ICON => "glyphicon glyphicon-pencil" });
+    my $del_button  = $html->button("", "index=$f_index&del=$type->{id}", { class => "text-danger", ADD_ICON => "fa fa-trash", CONFIRM => $lang{CONFIRM} });
+    my $edit_button = $html->button("", "index=$f_index&chg_type=$type->{id}", { ADD_ICON => "fa fa-pencil" });
     $table->addrow(
       $type->{name},
       "$edit_button$del_button"

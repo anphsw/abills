@@ -1,13 +1,13 @@
 <form class='form-horizontal' action='$SELF_URL' name='reseller_users' METHOD='POST'>
   <input type=hidden name='index' value='$index'>
   
-  <div class='box box-theme box-big-form'>
-    <div class='box-header with-border'><h3 class="box-title">_{INFO}_</h3>
-      <div class="box-tools pull-right">
+  <div class='card card-primary card-outline box-big-form'>
+    <div class='card-header with-border'><h3 class="card-title">_{INFO}_</h3>
+      <div class="card-tools pull-right">
       </div>
     </div>
 
-    <div class="box-body">
+    <div class="card-body">
 
       <div class='form-group'>
         <label class='control-label col-xs-3' for='LOGIN'>_{LOGIN}_</label>
@@ -93,7 +93,7 @@
       </div>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
   </div>

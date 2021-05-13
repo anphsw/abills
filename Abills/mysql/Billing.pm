@@ -7,7 +7,7 @@ package Billing;
 =cut
 
 use strict;
-our $VERSION = 7.00;
+our $VERSION = 8.01;
 use parent 'main';
 use Tariffs;
 my $CONF;
@@ -109,7 +109,7 @@ sub traffic_calculations {
   if ($prepaid{0} + ($prepaid{1} || 0) > 0) {
     #Traffic transfert function
     if ($self->{TRAFFIC_TRANSFER_PERIOD}) {
-      my $tp = $self->{TP_NUM};
+      my $tp = $self->{TP_ID};
 
       my $uid = "uid='$self->{UID}'";
       if ($self->{UIDS}) {
@@ -132,7 +132,7 @@ sub traffic_calculations {
         SUM(recv2) / $CONF->{MB_SIZE} AS peer_traffic_in,
         SUM(sent2) / $CONF->{MB_SIZE} AS peer_traffic_out,
         DATE_FORMAT(start, '%Y-%m')
-      FROM dv_log
+      FROM internet_log
       WHERE $uid  AND tp_id='$tp'
         AND (  $WHERE  )
       GROUP BY 5;"
@@ -339,7 +339,8 @@ sub get_traffic {
       FROM internet_log_intervals li
       WHERE li.uid $WHERE
         AND li.interval_id='$self->{TI_ID}'
-        AND ($period2)";
+        AND ($period2)
+      GROUP BY li.traffic_type";
     $self->query2($sql);
 
     if ($self->{TOTAL} > 0) {
@@ -353,36 +354,36 @@ sub get_traffic {
     $self->{PERIOD_TRAFFIC} = \%result;
     return \%result;
   }
-  elsif ($CONF->{DV_INTERVAL_PREPAID}) {
-    my $period2 =$period;
-    $period2 =~ s/start/li\.added/g;
-    my $sql = "SELECT li.traffic_type,
-      SUM(li.sent) / $CONF->{MB_SIZE},
-      SUM(li.recv) / $CONF->{MB_SIZE}
-      FROM dv_log_intervals li
-      WHERE li.uid $WHERE
-        AND li.interval_id='$self->{TI_ID}'
-        AND ($period2)";
-    $self->query2($sql);
+  # elsif ($CONF->{DV_INTERVAL_PREPAID}) {
+  #   my $period2 =$period;
+  #   $period2 =~ s/start/li\.added/g;
+  #   my $sql = "SELECT li.traffic_type,
+  #     SUM(li.sent) / $CONF->{MB_SIZE},
+  #     SUM(li.recv) / $CONF->{MB_SIZE}
+  #     FROM dv_log_intervals li
+  #     WHERE li.uid $WHERE
+  #       AND li.interval_id='$self->{TI_ID}'
+  #       AND ($period2)";
+  #   $self->query2($sql);
+  #
+  #   if ($self->{TOTAL} > 0) {
+  #     foreach my $line (@{ $self->{list} }) {
+  #       my $sufix = (! $line->[0]) ? '' : "_".($line->[0]+1);
+  #       $result{'TRAFFIC_OUT'.$sufix} = ($result{'TRAFFIC_OUT'.$sufix}) ? $result{'TRAFFIC_OUT'.$sufix} + $line->[1] : $line->[1];
+  #       $result{'TRAFFIC_IN'.$sufix}  = ($result{'TRAFFIC_IN'.$sufix}) ? $result{'TRAFFIC_IN'.$sufix} + $line->[2] : $line->[2];
+  #     }
+  #   }
+  #
+  #   $self->{PERIOD_TRAFFIC} = \%result;
+  #   return \%result;
+  # }
 
-    if ($self->{TOTAL} > 0) {
-      foreach my $line (@{ $self->{list} }) {
-        my $sufix = (! $line->[0]) ? '' : "_".($line->[0]+1);
-        $result{'TRAFFIC_OUT'.$sufix} = ($result{'TRAFFIC_OUT'.$sufix}) ? $result{'TRAFFIC_OUT'.$sufix} + $line->[1] : $line->[1];
-        $result{'TRAFFIC_IN'.$sufix}  = ($result{'TRAFFIC_IN'.$sufix}) ? $result{'TRAFFIC_IN'.$sufix} + $line->[2] : $line->[2];
-      }
-    }
-
-    $self->{PERIOD_TRAFFIC} = \%result;
-    return \%result;
-  }
-
-  my $log_table = 'dv_log';
-  my $online_table = 'dv_calls';
-  if($self->{INTERNET}) {
-    $log_table ='internet_log';
-    $online_table ='internet_online';
-  }
+  # my $log_table = 'dv_log';
+  # my $online_table = 'dv_calls';
+  # if($self->{INTERNET}) {
+  my $log_table ='internet_log';
+  my $online_table ='internet_online';
+  #}
 
   $self->query2("SELECT
       SUM(sent)  / $CONF->{MB_SIZE} + SUM(acct_output_gigawords) * 4096,
@@ -504,7 +505,6 @@ sub get_traffic_ipn {
      $SESSION_DURATION
      $RAD
      $attr
-       TP_NUM
        TP_ID
        SERVICE_ID
        UID
@@ -617,7 +617,7 @@ sub session_sum {
       }
     }
 
-    $self->{TP_NUM} = $attr->{TP_NUM};
+    #$self->{TP_NUM} = $attr->{TP_NUM};
   }
   elsif ($attr->{UID}) {
     $self->query2("SELECT
@@ -657,7 +657,7 @@ sub session_sum {
     tp.total_time_limit,
     tp.total_traf_limit,
     tp.month_traf_limit,
-    tp.id AS TP_NUM,
+    tp.id AS tp_num,
     tp.neg_deposit_filter_id,
     tp.bills_priority,
     tp.credit AS tp_credit
@@ -671,29 +671,29 @@ sub session_sum {
       );
       $self->{TP_ID}=$attr->{TP_ID};
     }
-    else {
-      $self->query2("SELECT
-    tp.min_session_cost,
-    tp.payment_type,
-    tp.octets_direction,
-    tp.traffic_transfer_period,
-    tp.total_time_limit,
-    tp.total_traf_limit,
-    tp.month_traf_limit,
-    tp.tp_id,
-    tp.neg_deposit_filter_id,
-    tp.bills_priority,
-    tp.credit AS tp_credit
-   FROM tarif_plans tp
-   WHERE tp.id= ? AND tp.domain_id= ? ;",
-        undef,
-        { INFO => 1,
-          Bind => [
-            $attr->{TP_NUM},
-            $self->{DOMAIN_ID} || 0
-          ] }
-      );
-    }
+   #  else {
+   #    $self->query2("SELECT
+   #  tp.min_session_cost,
+   #  tp.payment_type,
+   #  tp.octets_direction,
+   #  tp.traffic_transfer_period,
+   #  tp.total_time_limit,
+   #  tp.total_traf_limit,
+   #  tp.month_traf_limit,
+   #  tp.tp_id,
+   #  tp.neg_deposit_filter_id,
+   #  tp.bills_priority,
+   #  tp.credit AS tp_credit
+   # FROM tarif_plans tp
+   # WHERE tp.id= ? AND tp.domain_id= ? ;",
+   #      undef,
+   #      { INFO => 1,
+   #        Bind => [
+   #          $attr->{TP_NUM},
+   #          $self->{DOMAIN_ID} || 0
+   #        ] }
+   #    );
+   #  }
 
     if ($self->{errno}) {
       #TP not found
@@ -705,64 +705,64 @@ sub session_sum {
       }
     }
 
-    $self->{TP_NUM} = $attr->{TP_NUM};
+    #$self->{TP_NUM} = $attr->{TP_NUM};
   }
   #If defined TP_NUM
-  elsif ($attr->{TP_NUM}) {
-    $self->query2("SELECT
-    u.uid,
-    UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')) AS day_begin,
-    DAYOFWEEK(FROM_UNIXTIME($SESSION_START)) AS day_of_week,
-    DAYOFYEAR(FROM_UNIXTIME($SESSION_START)) AS day_of_year,
-    u.reduction,
-    u.bill_id,
-    u.activate,
-    u.company_id,
-    u.ext_bill_id
-   FROM users u
-   WHERE  u.id='$USER_NAME' and u.domain_id='$attr->{DOMAIN_ID}';",
-   undef,
-   { INFO => 1 }
-    );
-
-    if ($self->{errno}) {
-      #user not found
-      if ($self->{errno} == 2) {
-        return -2, 0, 0, 0, 0, 0;
-      }
-      else {
-        return -3, 0, 0, 0, 0, 0;
-      }
-    }
-
-    $self->query2("SELECT
-    tp.min_session_cost,
-    tp.payment_type,
-    tp.octets_direction,
-    tp.traffic_transfer_period,
-    tp.total_time_limit,
-    tp.total_traf_limit,
-    tp.month_traf_limit,
-    tp.tp_id,
-    tp.bills_priority,
-    tp.credit
-   FROM tarif_plans tp
-   WHERE tp.id='$attr->{TP_NUM}' AND tp.domain_id='$attr->{DOMAIN_ID}';",
-   undef,
-   { INFO => 1 }
-    );
-
-    if ($self->{errno}) {
-      #TP not found
-      if ($self->{errno} == 2) {
-        return -5, 0, 0, 0, 0, 0;
-      }
-      else {
-        return -3, 0, 0, 0, 0, 0;
-      }
-    }
-    $self->{TP_NUM} = $attr->{TP_NUM};
-  }
+  # elsif ($attr->{TP_NUM}) {
+  #   $self->query2("SELECT
+  #   u.uid,
+  #   UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME($SESSION_START), '%Y-%m-%d')) AS day_begin,
+  #   DAYOFWEEK(FROM_UNIXTIME($SESSION_START)) AS day_of_week,
+  #   DAYOFYEAR(FROM_UNIXTIME($SESSION_START)) AS day_of_year,
+  #   u.reduction,
+  #   u.bill_id,
+  #   u.activate,
+  #   u.company_id,
+  #   u.ext_bill_id
+  #  FROM users u
+  #  WHERE  u.id='$USER_NAME' and u.domain_id='$attr->{DOMAIN_ID}';",
+  #  undef,
+  #  { INFO => 1 }
+  #   );
+  #
+  #   if ($self->{errno}) {
+  #     #user not found
+  #     if ($self->{errno} == 2) {
+  #       return -2, 0, 0, 0, 0, 0;
+  #     }
+  #     else {
+  #       return -3, 0, 0, 0, 0, 0;
+  #     }
+  #   }
+  #
+  #   $self->query2("SELECT
+  #   tp.min_session_cost,
+  #   tp.payment_type,
+  #   tp.octets_direction,
+  #   tp.traffic_transfer_period,
+  #   tp.total_time_limit,
+  #   tp.total_traf_limit,
+  #   tp.month_traf_limit,
+  #   tp.tp_id,
+  #   tp.bills_priority,
+  #   tp.credit
+  #  FROM tarif_plans tp
+  #  WHERE tp.id='$attr->{TP_NUM}' AND tp.domain_id='$attr->{DOMAIN_ID}';",
+  #  undef,
+  #  { INFO => 1 }
+  #   );
+  #
+  #   if ($self->{errno}) {
+  #     #TP not found
+  #     if ($self->{errno} == 2) {
+  #       return -5, 0, 0, 0, 0, 0;
+  #     }
+  #     else {
+  #       return -3, 0, 0, 0, 0, 0;
+  #     }
+  #   }
+  #   $self->{TP_NUM} = $attr->{TP_NUM};
+  # }
   elsif ($self->{INTERNET}) {
     return 0, 0, 0, 0, 0, 0;
   }
@@ -782,7 +782,7 @@ sub session_sum {
     tp.octets_direction,
     tp.traffic_transfer_period,
     tp.neg_deposit_filter_id,
-    dv.join_service,
+    i.join_service,
     tp.tp_id,
     tp.total_time_limit,
     tp.total_traf_limit,
@@ -791,8 +791,8 @@ sub session_sum {
     tp.bills_priority,
     tp.credit AS tp_credit
    FROM users u
-   INNER JOIN dv_main dv ON (dv.uid=u.uid)
-   LEFT JOIN tarif_plans tp ON (dv.tp_id=tp.id AND tp.domain_id='$attr->{DOMAIN_ID}')
+   INNER JOIN internet_main i ON (i.uid=u.uid)
+   LEFT JOIN tarif_plans tp ON (i.tp_id=tp.tp_id)
    WHERE u.domain_id='$attr->{DOMAIN_ID}'
      AND u.id='$USER_NAME';",
    undef,
@@ -854,7 +854,7 @@ sub session_sum {
   if ($self->{TOTAL_TIME_LIMIT} && $self->{CHECK_SESSION}) {
     if ($SESSION_DURATION >= $self->{TOTAL_TIME_LIMIT}) {
       $self->{HANGUP} = "$SESSION_DURATION >= $self->{TOTAL_TIME_LIMIT}";
-      return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
+      return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
     }
   }
 
@@ -864,11 +864,11 @@ sub session_sum {
       $self->{CREDIT} = ($self->{CREDIT}>0) ? $self->{CREDIT} : $self->{TP_CREDIT};
       ($self->{DEPOSIT}) = @{ $self->{list}->[0] };
       if ($self->{DEPOSIT} + $self->{CREDIT} < 0) {
-        return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
+        return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
       }
     }
     else {
-      return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
+      return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
     }
   }
 
@@ -888,20 +888,20 @@ sub session_sum {
 
       if ($counters->{TRAFFIC_SUM} >= $self->{TOTAL_TRAF_LIMIT}) {
         $self->{HANGUP} = "$counters->{TRAFFIC_SUM} >= $self->{TOTAL_TRAF_LIMIT}";
-        return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
+        return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
       }
     }
     elsif ($self->{MONTH_TRAF_LIMIT}) {
       my $counters = $self->get_traffic({ UID => $self->{UID} });
       if ($counters->{TRAFFIC_IN} + $counters->{TRAFFIC_OUT} >= $self->{MONTH_TRAF_LIMIT}) {
         $self->{HANGUP} = "$counters->{TRAFFIC_IN} + $counters->{TRAFFIC_OUT} >= $self->{MONTH_TRAF_LIMIT}";
-        return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
+        return $self->{UID}, 0, $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
       }
     }
   }
 
   if ($attr->{USER_INFO}) {
-    return $self->{UID}, $sum, $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
+    return $self->{UID}, $sum, $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
   }
 
   $self->session_splitter($SESSION_START, $SESSION_DURATION, $self->{DAY_BEGIN},
@@ -963,7 +963,7 @@ sub session_sum {
     }
   }
 
-  return $self->{UID}, sprintf("%.6f", $sum), $self->{BILL_ID}, $self->{TP_NUM}, 0, 0;
+  return $self->{UID}, sprintf("%.6f", $sum), $self->{BILL_ID}, $self->{TP_ID}, 0, 0;
 }
 
 #********************************************************************
@@ -1396,12 +1396,9 @@ sub remaining_time {
 
     my @intervals = sort { $a <=> $b } keys %$cur_int;
     $i = -1;
-
     #Check intervals
     foreach my $int_begin (@intervals) {
       my ($int_id, $int_end) = split(/:/, $cur_int->{$int_begin}, 2);
-      $i++;
-
       my $price         = 0;
       my $traf_price    = 0;
       my $int_prepaid   = 0;
@@ -1433,13 +1430,15 @@ sub remaining_time {
         }
 
         #Time calculations/ Time tariff price
-        if ($periods_time_tarif->{$int_id} =~ /%$/) {
-          my $tp = $periods_time_tarif->{$int_id};
-          $tp =~ s/\%//;
-          $price = $mainh_tarif * ($tp / 100);
-        }
-        else {
-          $price = $periods_time_tarif->{$int_id} || 0;
+        if($periods_time_tarif->{$int_id}) {
+          if ($periods_time_tarif->{$int_id} =~ /%$/) {
+            my $tp = $periods_time_tarif->{$int_id};
+            $tp =~ s/\%//;
+            $price = $mainh_tarif * ($tp / 100);
+          }
+          else {
+            $price = $periods_time_tarif->{$int_id} || 0;
+          }
         }
 
         if (!$ATTR{FIRST_INTERVAL}) {

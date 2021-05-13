@@ -1,30 +1,23 @@
 %FUNCTIONS_LIST = (
-  "01:0:$lang{MAP} 2:maps2_main:"                     => 5,
-  "02:0:null:maps2_layers_list:AJAX"                  => 5,
-  "03:0:null:maps2_builds_show:AJAX"                  => 5,
-  "04:0:null:maps2_builds_show:AJAX"                  => 5,
-  "05:0:null:maps2_builds2_show:AJAX"                 => 5,
-  "06:0:null:maps2_districts_show:AJAX"               => 5,
-  "07:0:null:maps2_wifis_show:AJAX"                   => 5,
-  "08:0:null:maps2_show_map:AJAX"                     => 5,
-  "09:1:$lang{DISTRICTS}:maps2_districts_main"        => 5,
+  "01:0:$lang{MAP} 2:maps2_main:"                   => 5,
+  "02:0:null:maps2_layers_list:AJAX"                => 5,
+  "03:0:null:maps2_show_map:AJAX"                   => 5,
+  "04:1:$lang{DISTRICTS}:maps2_districts_main"      => 5,
 
-  "11:1:$lang{AUTO_COORDS}:maps2_auto_coords"         => 5,
+  "5:1:$lang{AUTO_COORDS}:maps2_auto_coords"        => 5,
 
-  "12:1:$lang{OBJECTS}:null"                          => 5,
-  # "13:12:$lang{SHOW}:maps2_objects_main:"             => 5,
-  "14:12:$lang{OBJECT_TYPES}:maps2_point_types_main:" => 5,
-  "15:14::_maps2_icon_ajax_upload:IN_MODAL"           => 5,
-  "16:14::_maps2_icon_filename_select:AJAX"           => 5,
+  "6:1:$lang{OBJECTS}:null"                         => 5,
+  "7:6:$lang{OBJECT_TYPES}:maps2_point_types_main:" => 5,
+  "8:7::_maps2_icon_ajax_upload:IN_MODAL"           => 5,
+  "9:7::_maps2_icon_filename_select:AJAX"           => 5,
 
-  "10:0:$lang{MAP}:maps_objects_reports"              => 4,
-  "17:0:$lang{MAP} 2:maps2_without_edits:"            => 8,
+  "10:0:$lang{MAP}:maps_objects_reports"            => 4,
+  "11:0:$lang{MAP} 2:maps2_without_edits:"          => 8,
 
-  "18:0::maps2_add_external_points:AJAX"              => 5,
+  "12:0::maps2_add_external_points:AJAX"            => 5,
+  "13:0:null:maps2_get_objects:AJAX"                => 5,
 );
 
-if (defined $user->{UID} && $conf{MAPS_PORTAL_UIDS} && in_array($user->{UID}, [split(',', $conf{MAPS_PORTAL_UIDS})])) {
-  %USER_FUNCTION_LIST = (
-    "01:0:$lang{MAP}:maps2_user" => 0,
-  );
+if (defined $user->{UID} && $conf{MAPS_PORTAL_UIDS} && in_array($user->{UID}, [ split(',', $conf{MAPS_PORTAL_UIDS}) ])) {
+  %USER_FUNCTION_LIST = ("01:0:$lang{MAP}:maps2_user" => 0);
 }

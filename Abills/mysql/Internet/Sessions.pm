@@ -13,10 +13,6 @@ our $VERSION = 2.00;
 use parent qw( dbcore );
 use Conf;
 
-my $SORT      = 1;
-my $DESC      = '';
-my $PG        = 0;
-my $PAGE_ROWS = 25;
 my ($admin, $CONF);
 
 #**********************************************************
@@ -37,6 +33,8 @@ sub new {
   if ($CONF->{DELETE_USER}) {
     $self->del($CONF->{DELETE_USER}, '', '', '', { DELETE_USER => $CONF->{DELETE_USER} });
   }
+
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
 
   return $self;
 }
@@ -146,9 +144,9 @@ sub online_update {
 
   my $SET = ($#SET_RULES > -1) ? join(', ', @SET_RULES) : '';
 
-  $self->query("UPDATE internet_online SET
-   $SET
-   WHERE
+  $self->query("UPDATE internet_online SET "
+   . $SET .
+   "WHERE
      user_name= ?
      AND acct_session_id= ?; ", 'do',
     { Bind => [
@@ -185,8 +183,8 @@ sub online_count {
   my $self = shift;
   my ($attr) = @_;
 
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
 
   if($SORT > 9) {
     $SORT = 9;
@@ -326,8 +324,8 @@ sub online {
     return $self;
   }
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my @WHERE_RULES = ();
 
@@ -436,7 +434,6 @@ sub online {
       ['ONLINE_BASE',       '',    '', 'c.cid, c.acct_session_id, UNIX_TIMESTAMP() - c.lupdated AS last_alive, c.uid' ],
       ['SHOW_TP_ID',        'INT', 'tp.tp_id', 'tp.tp_id AS real_tp_id' ],
       ['TP_NUM',            'INT', 'tp.id   AS tp_num',                             1],
-
     ],
     { WHERE             => 1,
       WHERE_RULES       => \@WHERE_RULES,
@@ -470,6 +467,7 @@ sub online {
   #  	$SORT = " c.framed_ip_address+0";
   #  }
   my $LIMIT = '';
+  my $PG = 0;
 
   if ($attr->{LIMIT} && $attr->{PAGE_ROWS}) {
     $PG = ($attr->{PG}) ? $attr->{PG} : 0;
@@ -741,10 +739,10 @@ sub detail_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
 
   my $lupdate;
 
@@ -1106,10 +1104,10 @@ sub list {
   my $self = shift;
   my ($attr) = @_;
 
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
 
   delete $self->{COL_NAMES_ARR};
   delete $self->{EXT_TABLES};
@@ -1148,6 +1146,7 @@ sub list {
       [ 'SENT2',           'INT', 'l.sent2',                      1],
       [ 'RECV2',           'INT', 'l.recv2',                      1],
       [ 'IP',              'IP',  'l.ip',   'INET_NTOA(l.ip) AS ip'],
+      [ 'FRAMED_IPV6_PREFIX',   'IP', 'c.framed_ipv6_prefix',  'INET6_NTOA(c.framed_ipv6_prefix) AS framed_ipv6_prefix', 1 ],
       [ 'CID',             'STR', 'l.cid',                        1],
       [ 'TP_ID',           'INT', 'l.tp_id',                      1],
       [ 'TP_NUM',          'INT', 'tp.id   AS tp_num',            1],
@@ -1162,6 +1161,7 @@ sub list {
       [ 'FROM_DATE|TO_DATE','DATE',"DATE_FORMAT(l.start, '%Y-%m-%d')"],
       [ 'MONTH',           'DATE',"DATE_FORMAT(l.start, '%Y-%m')"    ],
       [ 'UID',             'INT', 'l.uid'                            ],
+      [ 'GUEST',           'INT', 'l.guest',                      1]
     ],
     { WHERE             => 1,
       WHERE_RULES       => \@WHERE_RULES,
@@ -1317,8 +1317,8 @@ sub reports {
   my ($self) = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my @WHERE_RULES= ();
   my $date       = '';
   my $EXT_TABLES = '';
@@ -1566,8 +1566,8 @@ sub reports2 {
   my ($self) = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   
   my $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
@@ -1662,6 +1662,7 @@ sub reports2 {
       $EXT_TABLE_JOINS_HASH{builds} = 1;
       $EXT_TABLE_JOINS_HASH{streets} = 1;
       $EXT_TABLE_JOINS_HASH{districts} = 1;
+      $PAGE_ROWS = 1000;
     }
     elsif ( $attr->{TYPE} eq 'STREET' ){
       $main_field = "streets.name AS street_name";
@@ -1670,6 +1671,7 @@ sub reports2 {
       $EXT_TABLE_JOINS_HASH{users_pi} = 1;
       $EXT_TABLE_JOINS_HASH{builds} = 1;
       $EXT_TABLE_JOINS_HASH{streets} = 1;
+      $PAGE_ROWS = 1000;
     }
     elsif ( $attr->{TYPE} eq 'BUILD' ){
       $main_field = "CONCAT(streets.name, '$CONF->{BUILD_DELIMITER}', builds.number) AS build";
@@ -1761,10 +1763,10 @@ sub list_log_intervals{
   my $self = shift;
   my ($attr) = @_;
 
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my @WHERE_RULES = ();
 

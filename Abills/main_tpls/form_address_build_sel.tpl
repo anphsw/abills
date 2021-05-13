@@ -31,7 +31,7 @@
           <!-- Control for toggle build mode SELECT/ADD -->
           <span class='input-group-addon' %HIDE_ADD_BUILD_BUTTON%>
             <a title='_{ADD}_ _{BUILDS}_' class='BUTTON-ENABLE-ADD'>
-              <span class='glyphicon glyphicon-plus'></span>
+              <span class='fa fa-plus'></span>
             </a>
           </span>
 
@@ -44,7 +44,7 @@
 
           <span class='input-group-addon'>
             <a class='BUTTON-ENABLE-SEL'>
-              <span class='glyphicon glyphicon-list'></span>
+              <span class='fa fa-list'></span>
             </a>
            </span>
 

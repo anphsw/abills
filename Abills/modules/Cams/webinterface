@@ -16,12 +16,15 @@ use Cams;
 use Address;
 use Tariffs;
 use Abills::Experimental;
+use Maps2::Auxiliary;
+
 our ($db, $admin, %conf, $html, %lang, %ADMIN_REPORT, %permissions);
 
 require Cams::Services;
 require Cams::Configure;
 require Cams::Users;
 require Cams::User_portal;
+require Cams::Reports;
 require Abills::Misc;
 
 my $Cams = Cams->new($db, $admin, \%conf);
@@ -29,6 +32,7 @@ my $Address = Address->new($db, $admin, \%conf);
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Users = Users->new($db, $admin, \%conf);
 my $Fees = Fees->new($db, $admin, \%conf);
+my $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 my @service_status = ("$lang{ENABLE}",
   $lang{DISABLE},
@@ -96,10 +100,7 @@ sub cams_main {
           }
         }
 
-        if (in_array('Maps2', \@MODULES)) {
-          load_module('Maps2');
-          $FORM{POINT_ID} = maps2_add_external_object(33, \%FORM);
-        }
+        $FORM{POINT_ID} = $Auxiliary->maps2_add_external_object(33, \%FORM);
 
         delete $FORM{GROUP_ID} if $FORM{FOLDER_ID};
 
@@ -291,8 +292,6 @@ sub cams_main {
 
   my $cameras = $Cams->streams_list({ SHOW_ALL_COLUMNS => 1 });
 
-  load_module('Maps2', $html) if (in_array('Maps2', \@MODULES));
-
   foreach my $one_camera (@$cameras) {
     if ($one_camera->{USER_LOGIN} && $one_camera->{UID}) {
       $one_camera->{USER_LOGIN} = $html->button($one_camera->{USER_LOGIN}, "index=15&LOGIN=$one_camera->{USER_LOGIN}", {
@@ -300,10 +299,7 @@ sub cams_main {
       });
     }
 
-    my $maps_btn = "";
-    if (in_array('Maps2', \@MODULES) && defined $one_camera->{POINT_ID}) {
-      $maps_btn = maps2_show_object_button(33, $one_camera->{POINT_ID}, { CHECK_POINT => 1 });
-    }
+    my $maps_btn = $Auxiliary->maps2_show_object_button(33, $one_camera->{POINT_ID}, { CHECK_POINT => 1 });
 
     $change_button = $html->button('', "index=$index&chg_cam=$one_camera->{ID}", { class => 'change' });
     $delete_button = $html->button('', "index=$index&del_cam=$one_camera->{ID}", { MESSAGE => "$lang{DEL} $one_camera->{NAME}?", class => 'del' });
@@ -686,12 +682,13 @@ sub _cams_show_location {
   return "" if !$address_params || !$address_params->{DISTRICT_ID};
 
   my $address_info = "";
+  my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
   if ($address_params->{BUILD_ID}) {
     $address_info = $Address->address_info($address_params->{BUILD_ID});
 
     if ($Address->{TOTAL}) {
-      return ($address_info->{ADDRESS_DISTRICT} || "") . ", " . ($address_info->{ADDRESS_STREET} || "")
-        . ", " . ($address_info->{ADDRESS_BUILD} || "");
+      return ($address_info->{ADDRESS_DISTRICT} || "") . $build_delimiter . ($address_info->{ADDRESS_STREET} || "")
+        . $build_delimiter . ($address_info->{ADDRESS_BUILD} || "");
     }
   }
   elsif ($address_params->{STREET_ID}) {
@@ -699,7 +696,7 @@ sub _cams_show_location {
     if ($Address->{TOTAL}) {
       my $street_name = $street_info->{NAME} || "";
       $address_info = $Address->district_info({ ID => $street_info->{DISTRICT_ID} });
-      return ($address_info->{NAME} || "") . ", " . $street_name if $Address->{TOTAL};
+      return ($address_info->{NAME} || "") . $build_delimiter . $street_name if $Address->{TOTAL};
     }
   }
 
@@ -1283,191 +1280,6 @@ sub _cams_group_correct {
 }
 
 #**********************************************************
-=head2 cams_maps_layers()
-
-=cut
-#**********************************************************
-sub cams_maps_layers {
-  return {
-    LAYERS      => [ {
-      id         => 33,
-      name       => 'CAMS',
-      lang_name  => $lang{CAMERAS},
-      module     => 'Cams',
-      structure  => 'MARKER',
-      clustering => 1,
-    }, {
-      id         => 34,
-      name       => 'CAMS_REVIEW',
-      lang_name  => $lang{CAMS_REVIEW},
-      module     => 'Cams',
-      structure  => 'POLYGON',
-      clustering => 1,
-    } ],
-    EXPORT_FUNC => {
-      "33" => 'cams_cams_maps',
-      "34" => 'cams_cams_maps_review'
-    }
-  }
-}
-
-#**********************************************************
-=head2 cams_cams_maps()
-
-=cut
-#**********************************************************
-sub cams_cams_maps {
-  
-  my $cameras = $Cams->streams_list({
-    POINT_ID       => $FORM{OBJECT_ID} || $FORM{POINT_ID} || '!',
-    NAME           => '_SHOW',
-    TITLE          => '_SHOW',
-    GROUP_NAME     => '_SHOW',
-    SERVICE_NAME   => '_SHOW',
-    HOST           => '_SHOW',
-    ANGEL          => '_SHOW',
-    LOCATION_ANGEL => '_SHOW',
-    LENGTH         => '_SHOW',
-    PAGE_ROWS      => 10000
-  });
-
-  require Maps;
-  Maps->import();
-  my $Maps = Maps->new($db, $admin, \%conf);
-
-  my @object_ids = map {+$_->{point_id}} @{$cameras};
-
-  my $point_ids = join(';', @object_ids);
-
-  my $points_list = $Maps->points_list({ ID => $point_ids, SHOW_ALL_COLUMNS => 1, EXTERNAL => 1, PAGE_ROWS => 10000 });
-
-  my %point_id_to_id = ();
-  foreach my $camera (@{$cameras}) {
-    $point_id_to_id{$camera->{point_id}} = $camera;
-  }
-
-  my @export_arr = ();
-  foreach my $point (@{$points_list}) {
-    next if (!$point->{coordy} || !$point->{coordx});
-
-    my $index = get_function_index("cams_main");
-    my $link = "$lang{CAM}:<a href='index.cgi?index=$index&chg_cam=$point_id_to_id{$point->{id}}{id}' target='_blank'> $point->{name}</a>";
-    my $tb = "<div class='panel panel-info'>" .
-      "<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>" .
-      "<ul class='list-group'>" .
-      "<li class='list-group-item'>$lang{NAME}: $point_id_to_id{$point->{id}}{name}</li>" .
-      "<li class='list-group-item'>$lang{CAM_TITLE}: $point_id_to_id{$point->{id}}{title}</li>" .
-      "<li class='list-group-item'>$lang{SERVICE}: $point_id_to_id{$point->{id}}{service_name}</li>" .
-      "<li class='list-group-item'>$lang{CAMS_GROUP}: $point_id_to_id{$point->{id}}{group_name}</li>" .
-      "<li class='list-group-item'>Host: $point_id_to_id{$point->{id}}{host}</li>" .
-      "</ul>" .
-      "</div>";
-    my $info = "<div class='panel-group'>$tb</div>";
-
-    my $tpl = qq{
-              {
-               "MARKER": {
-                    "ID"       : $point->{id},
-                    "COORDX"   : $point->{coordx},
-                    "COORDY"   : $point->{coordy},
-                    "INFO"     : "$info",
-                    "TYPE"     : "cams_main",
-                    "NAME"     : "$point_id_to_id{$point->{id}}{name}",
-                    "POINT_ID" : $point_id_to_id{$point->{id}}{point_id}
-                  },
-               "POINT_ID" : $point_id_to_id{$point->{id}}{point_id},
-               "LAYER_ID" : 33
-              }
-      };
-
-    push @export_arr, $tpl;
-  }
-
-  if ($FORM{EXPORT_LIST}) {
-    if ($FORM{RETURN_JSON}) {
-      print "[" . join(", ", @export_arr) . "]";
-      return 1;
-    }
-
-    return join(", ", @export_arr);
-  }
-
-  return join(";", map {"ObjectsArray[ObjectsArray.length] = $_ ;"} @export_arr);
-}
-
-#**********************************************************
-=head2 cams_cams_maps_review()
-
-=cut
-#**********************************************************
-sub cams_cams_maps_review {
-
-  my $cameras = $Cams->streams_list({
-    POINT_ID       => $FORM{OBJECT_ID} || $FORM{POINT_ID} || '!',
-    NAME           => '_SHOW',
-    TITLE          => '_SHOW',
-    GROUP_NAME     => '_SHOW',
-    SERVICE_NAME   => '_SHOW',
-    HOST           => '_SHOW',
-    LENGTH         => '_SHOW',
-    ANGEL          => '_SHOW',
-    LOCATION_ANGEL => '_SHOW',
-    PAGE_ROWS      => 10000
-  });
-
-  require Maps;
-  Maps->import();
-  my $Maps = Maps->new($db, $admin, \%conf);
-
-  my @object_ids = map {+$_->{point_id}} @{$cameras};
-
-  my $point_ids = join(';', @object_ids);
-
-  my $points_list = $Maps->points_list({ ID => $point_ids, SHOW_ALL_COLUMNS => 1, EXTERNAL => 1, PAGE_ROWS => 10000 });
-
-  my %point_id_to_id = ();
-  foreach my $camera (@{$cameras}) {
-    $point_id_to_id{$camera->{point_id}} = $camera;
-  }
-
-  my @export_arr = ();
-
-  foreach my $point (@{$points_list}) {
-    next if (!$point->{coordy} || !$point->{coordx} || !$point_id_to_id{$point->{id}}{angel} || !$point_id_to_id{$point->{id}}{length});
-
-    my $location_angel = $point_id_to_id{$point->{id}}{location_angel} || 0;
-
-    my $tpl = qq{
-              {
-               "SEMICIRCLE": {
-                    "ID"             : "REVIEW_$point->{id}",
-                    "COORDX"         : $point->{coordx},
-                    "COORDY"         : $point->{coordy},
-                    "NAME"           : "$lang{CAMS_REVIEW}: $point_id_to_id{$point->{id}}{name}",
-                    "LENGTH"         : $point_id_to_id{$point->{id}}{length},
-                    "ANGEL"          : $point_id_to_id{$point->{id}}{angel},
-                    "LOCATION_ANGEL" : $point_id_to_id{$point->{id}}{location_angel}
-                  },
-               "LAYER_ID" : 34
-              }
-      };
-
-    push @export_arr, $tpl;
-  }
-
-  if ($FORM{EXPORT_LIST}) {
-    if ($FORM{RETURN_JSON}) {
-      print "[" . join(", ", @export_arr) . "]";
-      return 1;
-    }
-
-    return join(", ", @export_arr);
-  }
-
-  return join(";", map {"ObjectsArray[ObjectsArray.length] = $_ ;"} @export_arr);
-}
-
-#**********************************************************
 =head2 _cams_result_former_point_id_filter()
 
   Arguments:
@@ -1504,12 +1316,12 @@ sub _cams_result_former_point_id_filter {
     # If have location, we can show it on map
     if ($map_points_by_id->{$point_id}{coordx} && $map_points_by_id->{$point_id}{coordy}) {
       return $html->button('', "index=$map_index&show_layer=33&OBJECT_ID=$point_id&BY_POINT_ID=$point_id&SINGLE=1&LAYER_ID=33&POINT_ID=$point_id",
-        { ICON => 'glyphicon glyphicon-globe' })
+        { ICON => 'fa fa-globe' })
     }
     # Else should change existing object
     else {
       return $html->button('', "index=$map_index&add=CUSTOM_POINT&OBJECT_ID=$point_id",
-        { ICON => 'glyphicon glyphicon-map-marker' })
+        { ICON => 'fa fa-map-marker' })
     }
   }
   # If no object defined, propose to add it
@@ -2017,7 +1829,7 @@ sub cams_users_list {
     $pages_qs .= "&letter=$FORM{letter}";
   }
 
-  my $status_bar = $html->button($lang{ALL}, "index=$index$pages_qs", { class => "btn btn-default active" });
+  my $status_bar = $html->button($lang{ALL}, "index=$index$pages_qs", { class => "btn btn-secondary active" });
 
   for (my $i = 0; $i <= 2; $i++) {
     my $name = $service_status[$i];
@@ -2031,7 +1843,7 @@ sub cams_users_list {
     else {
       $qs =~ s/\&SERVICE_STATUS=\d//;
     }
-    $status_bar .= $html->button($name, "index=$index&SERVICE_STATUS=$i$qs", { class => "btn btn-default $active" });
+    $status_bar .= $html->button($name, "index=$index&SERVICE_STATUS=$i$qs", { class => "btn btn-secondary $active" });
   }
   if ($FORM{SERVICES} && $FORM{SERVICES} =~ m/^[<>]?\d+$/) {
     my $search = $FORM{SERVICES};
@@ -2134,7 +1946,7 @@ sub cams_get_badge_info {
     COLS_NAME => 1
   });
 
-  my $subscriptions = $Cams->{TOTAL} > 0 ? $html->badge($Cams->{TOTAL}, { TYPE => 'bg-blue' }) : '';
+  my $subscriptions = $Cams->{TOTAL} > 0 ? $html->badge($Cams->{TOTAL}, { TYPE => 'badge badge-info' }) : '';
   my $cameras_count = 0;
 
   foreach my $subscription (@{$subscription_list}) {
@@ -2147,7 +1959,7 @@ sub cams_get_badge_info {
     $cameras_count += $Cams->{USER_CAMERAS} if $Cams->{USER_CAMERAS} && $Cams->{USER_CAMERAS} > 0;
   }
 
-  my $cameras = $cameras_count > 0 ? $html->badge($cameras_count, { TYPE => 'bg-blue' }) : '';
+  my $cameras = $cameras_count > 0 ? $html->badge($cameras_count, { TYPE => 'badge badge-info' }) : '';
 
   return $subscriptions, $cameras;
 }

@@ -1,21 +1,30 @@
-<div class='box box-danger'>
-    <div class='box-header with-border text-center'>
-            _{NEGATIVE_DEPOSIT}_
-            <br>
-            _{ACTIVATE_NEXT_PERIOD}_:<strong> %TOTAL_DEBET%</strong>
+<div class="card card-danger">
+    <div class="card-header">
+        <h3 class="card-title">_{NEG_DEPOSIT}_</h3>
+        <div class="card-tools">
+            <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                <i class="fa fa-minus"></i>
+            </button>
+        </div>
     </div>
-    <div class='box-body table'>
-        <div class='row' style='margin: 5px 0'>
-            <div class='text-center'>%PAYMENT_BUTTON% %DOCS_BUTTON% %CARDS_BUTTON% %CREDIT_CHG_BUTTON%</div>
+    <div class="card-body">
+        <div class="form-group text-center">
+            <label>_{NEGATIVE_DEPOSIT}_</label>
+            <br>
+            <label>_{ACTIVATE_NEXT_PERIOD}_: %TOTAL_DEBET%</label>
         </div>
-        <div class='row'>
-            <div class='col-md-3 text-1'>_{DEPOSIT}_:</div>
-            <div class='col-md-9 text-2'>%DEPOSIT%</div>
+        <hr/>
+        <div class="form-group row">
+            <label for="neg_deposit" class="col-sm-4 col-md-4 col-form-label">_{DEPOSIT}_</label>
+            <div class="col-sm-8 col-md-8">
+                <input type="text" class="form-control" id="neg_deposit" placeholder="_{DEPOSIT}_" readonly value="%DEPOSIT%">
+            </div>
         </div>
-        <div class='row'>
-            <div class='col-md-3 text-1'>_{CREDIT}_:</div>
-            <div class='col-md-9 text-2'>%CREDIT%</div>
+        <div class="form-group row">
+            <label for="neg_credit" class="col-sm-4 col-md-4 col-form-label">_{CREDIT}_</label>
+            <div class="col-sm-8 col-md-8">
+                <input type="text" class="form-control" id="neg_credit" placeholder="_{CREDIT}_" readonly value="%CREDIT%">
+            </div>
         </div>
     </div>
 </div>
-

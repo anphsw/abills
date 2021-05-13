@@ -1,5 +1,5 @@
 <!--CLIENT START-->
-<body class='hold-transition sidebar-mini %SKIN% layout-boxed %SIDEBAR_HIDDEN%'>
+<body class='sidebar-mini container-lg %SIDEBAR_HIDDEN% text-sm client-body p-0' style='height: auto;'>
 <script>
   try {
     var BACKGROUND_OPTIONS     = '%BACKGROUND_COLOR%' || false;
@@ -64,11 +64,10 @@
           jQuery('#passwordModal').modal('show');
         }
       });
-    };
+    }
   });
 </script>
 <!--Color-->
-<div class='well hidden'></div>
 <div id='primary' class='bg-primary hidden'></div>
 <div class='modal fade' id='comments_add' tabindex='-1' role='dialog'>
   <form id='mForm'>
@@ -84,7 +83,7 @@
           </div>
         </div>
         <div class='modal-footer'>
-          <button type='button' class='btn btn-default' data-dismiss='modal'>_{CANCEL}_</button>
+          <button type='button' class='btn btn-secondary' data-dismiss='modal'>_{CANCEL}_</button>
           <button type='submit' class='btn btn-danger danger' id='mButton_ok'>_{EXECUTE}_!</button>
         </div>
       </div>
@@ -114,14 +113,4 @@
 
 
 <div class='wrapper'>
-  <!-- Main Header -->
-  <header class='main-header' >
-    <!-- client_start -->
-    <a href='%INDEX_NAME%' class='logo' %S_MENU%>
-      <!-- mini logo for sidebar mini 50x50 pixels -->
-      <span class='logo-mini'><b><span style='color: red;'>A</span></b></span>
-      <!-- logo for regular state and mobile devices -->
-      <span class='logo-lg'><b><span style='color: red;'>A</span></b>BillS</span>
-    </a>
-
   %BODY%

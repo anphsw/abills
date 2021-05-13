@@ -14,7 +14,7 @@
   	  </div>
   	  <div class='col-md-2'>
   	  	<a href='%INTERNET%' class='btn btn-primary'>
-  		  	<span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>
+  		  	<span class="fa fa-pencil" aria-hidden="true"></span>
   		  </a>
   	  </div>
     </div>
@@ -28,7 +28,7 @@
   	  </div>
   	  <div class='col-md-2'>
   	  	<a href='%IPTV%' class='btn btn-primary'>
-  		  	<span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>
+  		  	<span class="fa fa-pencil" aria-hidden="true"></span>
   		  </a>
   	  </div>
     </div>
@@ -42,7 +42,7 @@
   	  </div>
   	  <div class='col-md-2'>
   	  	<a href='%VOIP%' class='btn btn-primary'>
-  		  	<span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>
+  		  	<span class="fa fa-pencil" aria-hidden="true"></span>
   		  </a>
   	  </div>
     </div>

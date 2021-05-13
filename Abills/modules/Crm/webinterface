@@ -15,7 +15,12 @@ use Admins;
 use Employees;
 use Abills::Sender::Core;
 use Crm::Leads;
+use Crm::Reports;
+use Crm::Info_fields;
+use Crm::Log;
 require Abills::Defs;
+require Control::Address_mng;
+
 our ($db, $admin, %conf, %lang, $html, @MONTHES, %permissions);
 
 our Crm $Crm = Crm->new($db, $admin, \%conf);
@@ -33,6 +38,7 @@ our @PRIORITY = ($lang{LOW}, $lang{NORMAL}, $lang{HIGH});
 =cut
 #**********************************************************
 sub crm_today_actions {
+
   my $today_actions = $Crm->progressbar_comment_list({
     AID          => $admin->{AID},
     PLANNED_DATE => $DATE,
@@ -45,14 +51,12 @@ sub crm_today_actions {
     PAGE_ROWS    => 999999
   });
 
-  my $actions_table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{ACTION} CRM",
-      title   => [ "$lang{FIO}", "$lang{ACTION}", "$lang{DATE}", '' ],
-      ID      => 'CRM_TODAY_ACTION',
-    }
-  );
+  my $actions_table = $html->table({
+    width   => '100%',
+    caption => "$lang{ACTION} CRM",
+    title   => [ "$lang{FIO}", "$lang{ACTION}", "$lang{DATE}", '' ],
+    ID      => 'CRM_TODAY_ACTION',
+  });
 
   my $leads_function_index = get_function_index('crm_lead_info');
   foreach my $action (@$today_actions) {
@@ -74,7 +78,7 @@ sub crm_today_actions {
 =cut
 #**********************************************************
 sub crm_sales_funnel_widget {
-  return crm_sales_funnel({RETURN_TABLE => 1});
+  return crm_sales_funnel({ RETURN_TABLE => 1 });
 }
 
 #**********************************************************
@@ -88,7 +92,6 @@ sub crm_sales_funnel_widget {
 =cut
 #**********************************************************
 sub crm_start_page {
-  #my ($attr) = @_;
 
   my %START_PAGE_F = (
     'crm_today_actions'       => "$lang{TODAY} $lang{ACTION}",
@@ -96,6 +99,496 @@ sub crm_start_page {
   );
 
   return \%START_PAGE_F;
+}
+
+#**********************************************************
+=head2 crm_competitors($attr)
+
+=cut
+#**********************************************************
+sub crm_competitors {
+
+  $Crm->{ACTION} = 'add';
+  $Crm->{LNG_ACTION} = $lang{ADD};
+  my $competitor_info = {};
+
+  if ($FORM{import}) {
+    _crm_competitors_import();
+    return 1;
+  }
+  elsif ($FORM{add}) {
+    $Crm->crm_competitor_add(\%FORM);
+    $html->message('success', $lang{COMPETITOR_ADDED}) if (!_error_show($Crm));
+  }
+  elsif ($FORM{chg}) {
+    $Crm->{ACTION} = 'change';
+    $Crm->{LNG_ACTION} = $lang{CHANGE};
+
+    $competitor_info = $Crm->crm_competitor_info({ ID => $FORM{chg} });
+  }
+  elsif ($FORM{change}) {
+    $Crm->crm_competitor_change(\%FORM);
+    $html->message('success', $lang{COMPETITOR_CHANGED}) if (!_error_show($Crm));
+  }
+  elsif ($FORM{del}) {
+    $Crm->crm_competitor_del({ ID => $FORM{del} });
+    $html->message('success', $lang{COMPETITOR_DELETED}) if (!_error_show($Crm));
+  }
+
+  _crm_competitor_geolocation(\%FORM) if ($FORM{CLEAR} || $FORM{change_geo});
+
+  my $hidden_inputs = $html->form_input('COMPETITOR_ID', $FORM{chg} || '0', { TYPE => 'hidden' });
+  $hidden_inputs .= $html->form_input('chg', $FORM{chg} || '0', { TYPE => 'hidden' });
+
+  my $geo_list = $Crm->crm_competitor_geo_list({ COMPETITOR_ID => $FORM{chg} || '0', COLS_NAME => 1 });
+
+  $html->tpl_show(_include('crm_competitors', 'Crm'), { %{$Crm}, %{$competitor_info},
+    HIDE_SITE        => $Crm->{ACTION} eq 'add' ? 'hidden' : '',
+    GEOLOCATION_TREE => geolocation_tree({
+      TITLE         => $lang{LOCALITIES_OF_THE_COMPETITOR},
+      INDEX         => $index,
+      BTN_ACTION    => 'change_geo',
+      BTN_LNG       => $lang{CHANGE},
+      HIDDEN_INPUTS => $hidden_inputs
+    }, $geo_list)
+  });
+
+  my $competitors = $Crm->crm_competitor_list({
+    NAME            => '_SHOW',
+    DESCR           => '_SHOW',
+    SITE            => '_SHOW',
+    CONNECTION_TYPE => '_SHOW',
+    COLS_NAME       => 1
+  });
+
+  my $competitors_table = $html->table({
+    width   => '100%',
+    caption => $lang{COMPETITORS},
+    title   => [ 'Id', $lang{NAME}, $lang{COMPETITOR_SITE}, $lang{CONNECTION_TYPE}, $lang{DESCRIBE}, '', '', '' ],
+    ID      => 'CRM_COMPETITORS',
+    MENU    => "$lang{ADD}:index=$index&add_form=1:add",
+    EXPORT  => 1,
+    IMPORT  => "$SELF_URL?get_index=crm_competitors&import=1&header=2",
+  });
+
+  my $competitors_tp_index = get_function_index('crm_competitors_tp');
+  foreach (@{$competitors}) {
+    my $site = $_->{site} ? $html->button('', '', {
+      GLOBAL_URL => $_->{site},
+      target     => '_blank',
+      class      => 'btn btn-sm btn-primary',
+      ICON       => 'fa fa-globe',
+    }) : '';
+
+    my $chg_button = $html->button('', "index=$index&chg=$_->{id}", { class => 'change' });
+    my $del_button = $html->button('', "index=$index&del=$_->{id}", { MESSAGE => "$lang{DEL} $_->{name}?", class => 'del' });
+    my $tps_button = $html->button($lang{TARIF_PLANS}, "index=$competitors_tp_index&COMPETITOR_ID=$_->{id}",
+      { class => 'btn btn-sm btn-default', target => '_blank' });
+
+    $competitors_table->addrow($_->{id}, $_->{name}, $site, $_->{connection_type}, $_->{descr}, $tps_button, $chg_button, $del_button);
+  }
+
+  print $competitors_table->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _crm_competitors_import()
+
+=cut
+#**********************************************************
+sub _crm_competitors_import {
+
+  if ($FORM{add}) {
+    my $import_competitors = import_former(\%FORM);
+    my $total = $#{$import_competitors} + 1;
+
+    map $Crm->crm_competitor_add($_), @{$import_competitors};
+
+    $html->message('info', $lang{INFO}, "$lang{ADDED}\n $lang{FILE}: $FORM{UPLOAD_FILE}{filename}\n Size: $FORM{UPLOAD_FILE}{Size}\n Count: $total");
+    return 1
+  }
+
+  my $import_fields = $html->form_select('IMPORT_FIELDS', {
+    SELECTED  => $FORM{IMPORT_FIELDS},
+    SEL_ARRAY => [
+      'NAME',
+      'SITE',
+      'CONNECTION_TYPE',
+      'DESCR'
+    ],
+    EX_PARAMS => 'multiple="multiple"'
+  });
+
+  $html->tpl_show(templates('form_import'), {
+    IMPORT_FIELDS     => 'NAME,SITE,CONNECTION_TYPE,DESCR',
+    CALLBACK_FUNC     => 'crm_competitors',
+    IMPORT_FIELDS_SEL => $import_fields
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 crm_competitors($attr)
+
+=cut
+#**********************************************************
+sub crm_competitors_tp {
+
+  $Crm->{ACTION} = 'add';
+  $Crm->{LNG_ACTION} = $lang{ADD};
+  my $competitor_info = {};
+
+  if ($FORM{add}) {
+    $Crm->crm_competitors_tps_add(\%FORM);
+    $html->message('success', "$lang{TARIF_PLAN}: $lang{ADDED}") if (!_error_show($Crm));
+  }
+  elsif ($FORM{chg}) {
+    $Crm->{ACTION} = 'change';
+    $Crm->{LNG_ACTION} = $lang{CHANGE};
+
+    $competitor_info = $Crm->crm_competitors_tps_info({ ID => $FORM{chg} });
+  }
+  elsif ($FORM{change}) {
+    $Crm->crm_competitors_tps_change(\%FORM);
+    $html->message('success', "$lang{TARIF_PLAN}: $lang{CHANGED}") if (!_error_show($Crm));
+  }
+  elsif ($FORM{del}) {
+    $Crm->crm_competitors_tps_del({ ID => $FORM{del} });
+    $html->message('success', "$lang{TARIF_PLAN}: $lang{DELETED}") if (!_error_show($Crm));
+  }
+
+  _crm_competitor_tps_geolocation(\%FORM) if ($FORM{CLEAR} || $FORM{change_geo});
+
+  if ($Crm->{ACTION} eq 'add') {
+    $competitor_info->{GEO_MESSAGE} = $html->message('info', $lang{INFO}, $lang{LOCALITIES_CREATED_TP}, { OUTPUT2RETURN => 1});
+  }
+
+  $html->tpl_show(_include('crm_competitors_tp', 'Crm'), { %{$Crm}, %{$competitor_info},
+    COMPETITORS_SEL => _crm_competitors_select({%{$competitor_info}, %FORM}),
+    INFO_FIELDS     => crm_lead_info_field_tpl({ %{$competitor_info}, TP_INFO_FIELDS => 1 }),
+  });
+
+  my $competitors_tps = $Crm->crm_competitors_tps_list({
+    NAME            => '_SHOW',
+    SPEED           => '_SHOW',
+    MONTH_FEE       => '_SHOW',
+    DAY_FEE         => '_SHOW',
+    COMPETITOR_NAME => '_SHOW',
+    COMPETITOR_ID   => $FORM{COMPETITOR_ID} || '_SHOW',
+    COLS_NAME       => 1
+  });
+
+  my $competitors_tps_table = $html->table({
+    width   => '100%',
+    caption => $lang{COMPETITORS_TP},
+    title   => [ 'Id', $lang{NAME}, $lang{COMPETITOR}, $lang{SPEED}, $lang{MONTH_FEE}, $lang{DAY_FEE}, '', '' ],
+    ID      => 'CRM_COMPETITORS_TPS',
+    MENU    => "$lang{ADD}:index=$index&add_form=1:add",
+  });
+
+  foreach (@{$competitors_tps}) {
+    my $chg_button = $html->button('', "index=$index&chg=$_->{id}", { class => 'change' });
+    my $del_button = $html->button('', "index=$index&del=$_->{id}", { MESSAGE => "$lang{DEL} $_->{name}?", class => 'del' });
+
+    $competitors_tps_table->addrow($_->{id}, $_->{name}, $_->{competitor_name},
+      $_->{speed}, $_->{month_fee}, $_->{day_fee}, $chg_button, $del_button);
+  }
+
+  print $competitors_tps_table->show();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 crm_tp_geolocation_tree()
+
+=cut
+#**********************************************************
+sub crm_tp_geolocation_tree {
+  my ($attr) = @_;
+
+  my $competitor_id = $FORM{COMPETITOR_ID} || $attr->{COMPETITOR_ID};
+
+  if (!$competitor_id) {
+    print $html->message('err', $lang{ERROR}, $lang{NO_COMPETITOR_SELECTED}) if $FORM{PRINT_JSON};
+    return '';
+  }
+
+  my $competitor_builds = $Crm->crm_competitor_builds_list($competitor_id);
+  if ($Crm->{TOTAL} < 1) {
+    print $html->message('err', $lang{ERROR}, $lang{COMPETITOR_HAS_NOT_ADDRESS}) if $FORM{PRINT_JSON};
+    return '';
+  }
+
+  my $hidden_inputs = $html->form_input('TP_ID', $FORM{chg} || '0', { TYPE => 'hidden' });
+  $hidden_inputs .= $html->form_input('chg', $FORM{chg} || '0', { TYPE => 'hidden' });
+
+  print geolocation_tree({
+    TITLE         => $lang{LOCALITIES_OF_THE_TP},
+    INDEX         => get_function_index('crm_competitors_tp'),
+    BTN_ACTION    => 'change_geo',
+    BTN_LNG       => $lang{CHANGE},
+    BUILDS        => $competitor_builds,
+    HIDDEN_INPUTS => $hidden_inputs
+  }, $Crm->crm_competitor_tps_geo_list({ TP_ID => $FORM{chg} || '0', COLS_NAME => 1 }));
+
+  return 1;
+}
+
+#**********************************************************
+=head2 crm_mass_adding()
+
+=cut
+#**********************************************************
+sub crm_mass_adding {
+  my ($attr) = @_;
+
+  use Address;
+  my $Address = Address->new($db, $admin, \%conf);
+  my $leads_number = 0;
+
+  if ($FORM{add}) {
+    if ($FORM{BUILD_ID} && $FORM{FLAT_START} && $FORM{FLAT_END}) {
+      for (my $i = $FORM{FLAT_START}; $i <= $FORM{FLAT_END}; $i++){
+        $Crm->crm_lead_add({ ADDRESS_FLAT => $i, BUILD_ID => $FORM{BUILD_ID} });
+
+        $leads_number++ if (!_error_show($Crm));
+      }
+
+      $html->message('success', "$lang{ADDED}", "$lang{LEADS}: $leads_number");
+    }
+    elsif ($FORM{STREET_ID} && $FORM{BUILD_START} && $FORM{BUILD_END}) {
+      for (my $i = $FORM{BUILD_START}; $i <= $FORM{BUILD_END}; $i++){
+        my $build_info = $Address->build_list({ NUMBER => $i, STREET_ID => $FORM{STREET_ID}, COLS_NAME => 1 });
+
+        if ($Address->{TOTAL} > 0) {
+          $Crm->crm_lead_add({ BUILD_ID => $build_info->[0]{id} });
+        }
+        else {
+          $Crm->crm_lead_add({ ADD_ADDRESS_BUILD => $i, STREET_ID => $FORM{STREET_ID} });
+        }
+        $leads_number++ if (!_error_show($Crm));
+      }
+      $html->message('success', "$lang{ADDED}", "$lang{LEADS}: $leads_number");
+    }
+  }
+
+  $Crm->{DISTRICTS_SEL} = sel_districts({ SEL_OPTIONS => { 0 => '--' } });
+  $Crm->{STREETS_SEL} = sel_streets({ SEL_OPTIONS => { 0 => '--' } });
+
+  $html->tpl_show(_include('crm_mass_adding_form', 'Crm'), $Crm);
+}
+
+#**********************************************************
+=head2 _crm_competitor_geolocation($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _crm_competitor_geolocation {
+  my ($attr) = @_;
+
+  return '' if !$attr->{COMPETITOR_ID};
+
+  if ($attr->{CLEAR}) {
+    $Crm->crm_del_competitor_geo({ COMPETITOR_ID => $attr->{COMPETITOR_ID} });
+    $html->message('info', "$lang{GEO}", "$lang{DELETED}") if (!_error_show($Crm));
+    return '';
+  }
+
+  return '' if !$attr->{STREET_ID} && !$attr->{BUILD_ID} && !$attr->{DISTRICT_ID};
+
+  my @streets = ();
+  my @builds = ();
+  my @districts = ();
+
+  @streets = split(',\s?', $attr->{STREET_ID}) if (defined $attr->{STREET_ID});
+  @builds = split(',\s?', $attr->{BUILD_ID}) if (defined $attr->{BUILD_ID});
+  @districts = split(',\s?', $attr->{DISTRICT_ID}) if (defined $attr->{DISTRICT_ID});
+
+  $Crm->crm_del_competitor_geo({ COMPETITOR_ID => $attr->{COMPETITOR_ID} });
+
+  map $Crm->crm_add_competitor_geo({ COMPETITOR_ID => $attr->{COMPETITOR_ID}, BUILD_ID => $_ }), @builds;
+  map $Crm->crm_add_competitor_geo({ COMPETITOR_ID => $attr->{COMPETITOR_ID}, STREET_ID => $_ }), @streets;
+  map $Crm->crm_add_competitor_geo({ COMPETITOR_ID => $attr->{COMPETITOR_ID}, DISTRICT_ID => $_ }), @districts;
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _crm_competitor_tps_geolocation($attr)
+
+  Arguments:
+    $attr -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _crm_competitor_tps_geolocation {
+  my ($attr) = @_;
+
+  return '' if !$attr->{TP_ID};
+
+  if ($attr->{CLEAR}) {
+    $Crm->crm_del_competitor_tps_geo({ TP_ID => $attr->{TP_ID} });
+    $html->message('info', "$lang{GEO}", "$lang{DELETED}") if (!_error_show($Crm));
+    return '';
+  }
+
+  return '' if !$attr->{STREET_ID} && !$attr->{BUILD_ID} && !$attr->{DISTRICT_ID};
+
+  my @streets = ();
+  my @builds = ();
+  my @districts = ();
+
+  @streets = split(',\s?', $attr->{STREET_ID}) if (defined $attr->{STREET_ID});
+  @builds = split(',\s?', $attr->{BUILD_ID}) if (defined $attr->{BUILD_ID});
+  @districts = split(',\s?', $attr->{DISTRICT_ID}) if (defined $attr->{DISTRICT_ID});
+
+  $Crm->crm_del_competitor_tps_geo({ TP_ID => $attr->{TP_ID} });
+
+  map $Crm->crm_add_competitor_tps_geo({ TP_ID => $attr->{TP_ID}, BUILD_ID => $_ }), @builds;
+  map $Crm->crm_add_competitor_tps_geo({ TP_ID => $attr->{TP_ID}, STREET_ID => $_ }), @streets;
+  map $Crm->crm_add_competitor_tps_geo({ TP_ID => $attr->{TP_ID}, DISTRICT_ID => $_ }), @districts;
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _crm_competitors_select()
+
+=cut
+#**********************************************************
+sub _crm_competitors_select {
+  my ($attr, $sel_params) = @_;
+
+  return $html->form_select('COMPETITOR_ID', {
+    SELECTED       => $attr->{COMPETITOR_ID} || 0,
+    SEL_LIST       => $Crm->crm_competitor_list({ NAME => '_SHOW', COLS_NAME => 1 }),
+    SEL_KEY        => 'id',
+    SEL_VALUE      => 'name',
+    NO_ID          => 1,
+    MAIN_MENU      => get_function_index('crm_competitors'),
+    MAIN_MENU_ARGV => "chg=" . ($attr->{COMPETITOR_ID} || ''),
+    ref($sel_params) eq 'HASH' ? %{$sel_params} : ()
+  });
+}
+
+#**********************************************************
+=head2 crm_competitor_tps_select()
+
+=cut
+#**********************************************************
+sub crm_competitor_tps_select {
+  my ($attr) = @_;
+
+  $attr->{COMPETITOR_ID} ||= $FORM{COMPETITOR_ID};
+  $attr->{TP_ID} ||= $FORM{TP_ID};
+
+  my $tps_select = $html->form_select('TP_ID', {
+    SELECTED       => $attr->{TP_ID} || 0,
+    SEL_LIST       => $Crm->crm_competitors_tps_list({
+      NAME            => '_SHOW',
+      COMPETITOR_ID   => $attr->{COMPETITOR_ID} || '_SHOW',
+      COLS_NAME       => 1
+    }),
+    SEL_KEY        => 'id',
+    SEL_VALUE      => 'name',
+    NO_ID          => 1
+  });
+
+  return $attr->{COMPETITOR_ID} ? $tps_select : '' if ($attr->{RETURN_SELECT});
+
+  print $tps_select;
+}
+
+#**********************************************************
+=head2 crm_assessments_select()
+
+=cut
+#**********************************************************
+sub crm_assessments_select {
+  my ($attr) = @_;
+
+  $attr->{ASSESSMENT} ||= $FORM{ASSESSMENT};
+
+  my @assessments = (
+    { id => 1, name => $lang{CRM_BAD} },
+    { id => 2, name => $lang{CRM_UNSATISFACTORILY} },
+    { id => 3, name => $lang{CRM_SATISFACTORILY} },
+    { id => 4, name => $lang{CRM_GOOD} },
+    { id => 5, name => $lang{CRM_IDEALLY} },
+  );
+
+  if ($conf{CRM_COMPETITOR_ASSESSMENT} && ref $conf{CRM_COMPETITOR_ASSESSMENT} eq 'ARRAY') {
+    @assessments = ();
+    while (my ($index,$value) = each @{$conf{CRM_COMPETITOR_ASSESSMENT}}) {
+      push(@assessments, { id => $index + 1, name => $value });
+    }
+  }
+
+  return $html->form_select('ASSESSMENT', {
+    SELECTED    => $attr->{ASSESSMENT} || q{},
+    SEL_LIST    => \@assessments,
+    NO_ID       => 1,
+    SEL_KEY     => 'id',
+    SEL_VALUE   => 'name',
+    SEL_OPTIONS => { "" => "" },
+  });
+}
+
+#**********************************************************
+=head2 crm_assessment_stars($assessment)
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub crm_assessment_stars {
+  my ($assessment) = @_;
+
+  return '' if !$assessment;
+
+  my $stars = '';
+  map $stars .= $html->element('i', '', { class => 'fa fa-star' }), (1..$assessment);
+  if (int($assessment) < $assessment && int($assessment) + 0.5 <= $assessment) {
+    $stars .= $html->element('i', '', { class => 'fa fa-star-half-o' });
+  }
+
+  return $stars;
+}
+
+#**********************************************************
+=head2 crm_assessment_stars($assessment)
+
+=cut
+#**********************************************************
+sub crm_client_to_lead {
+
+  $FORM{add_form} = 1;
+  $FORM{MESSAGE_ONLY} = 1;
+
+  return {} if !$FORM{UID};
+
+  require Users;
+  Users->import();
+  my $Users = Users->new($db, $admin, \%conf);
+  
+  my $user_info = $Users->pi({ UID => $FORM{UID} });
+
+  return {} if $Users->{TOTAL} < 1;
+
+  return $user_info;
 }
 
 1

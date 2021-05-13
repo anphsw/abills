@@ -10,6 +10,8 @@ our (
   %permissions
 );
 
+use Maps2::Auxiliary;
+my $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 #**********************************************************
 =head2 _cablecat_result_former_color_scheme_filter()
@@ -79,11 +81,11 @@ sub _cablecat_result_former_point_id_filter {
 
   if ($point_id) {
     my $link = "index=$map_index&LAYER=$layer_id&OBJECT_ID=$point_id";
-    my $icon = 'glyphicon glyphicon-globe';
+    my $icon = 'fa fa-globe';
 
     # If have location, we can show it on map
     if (!$map_points_by_id->{$point_id}{coordx} || !$map_points_by_id->{$point_id}{coordy}) {
-      $icon = 'glyphicon glyphicon-map-marker';
+      $icon = 'fa fa-map-marker';
       $link .= '&ADD_POINT=1'
     }
 
@@ -111,11 +113,12 @@ sub _cablecat_result_former_cable_point_id_filter {
   $Maps->points_info($point_id);
   return '' if !$Maps->{TOTAL};
 
-  return maps2_show_object_button(
-    $MAP_LAYER_ID{CABLE},
-    $point_id,
-    { GO_TO_MAP => 1, POINT_ID => $point_id, SINGLE => $point_id, ADD_POINT => $polyline_id ? '' : 1 }
-  )
+  return $Auxiliary->maps2_show_object_button($MAP_LAYER_ID{CABLE}, $point_id, {
+    GO_TO_MAP => 1,
+    POINT_ID  => $point_id,
+    SINGLE    => $point_id,
+    ADD_POINT => $polyline_id ? '' : 1
+  })
 }
 
 #**********************************************************

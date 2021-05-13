@@ -85,7 +85,7 @@
                         </div>
                     </div>
                     <div class='modal-footer'>
-                        <button type='button' class='btn btn-default' data-dismiss='modal'>_{CANCEL}_</button>
+                        <button type='button' class='btn btn-secondary' data-dismiss='modal'>_{CANCEL}_</button>
                         <button type='submit' class='btn btn-danger danger' id='mButton'>_{EXECUTE}_!</button>
                     </div>
                 </div>
@@ -109,8 +109,8 @@
                 </div>
                 <div class='modal-body'>
                     <div class='btn-group-vertical' style='background: none'>
-                        <a href='$SELF_URL?index=99' class='btn btn-default btn-xs'><span
-                                class='glyphicon glyphicon-plus'></span> </a>
+                        <a href='$SELF_URL?index=99' class='btn btn-secondary btn-xs'><span
+                                class='fa fa-plus'></span> </a>
                         %QUICK_MENU%
                     </div>
                 </div>

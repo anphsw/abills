@@ -7,10 +7,10 @@
       <input type=hidden name=REGISTRATION_REQUEST value=1>
       <input type=hidden name='DOMAIN_ID' value='%DOMAIN_ID%'>
 
-      <div class='box box-theme box-form center-block'>
-        <div class='box-header with-border'><h4 class='box-title'>_{REGISTRATION}_</h4></div>
+      <div class='card card-primary card-outline box-form center-block'>
+        <div class='card-header with-border'><h4 class='card-title'>_{REGISTRATION}_</h4></div>
 
-        <div class='box-body'>
+        <div class='card-body'>
           %CHECKED_ADDRESS_MESSAGE%
           <div class='row'>
             <div class='col-md-1'></div>
@@ -77,7 +77,7 @@
 
         </div>
 
-        <div class='box-footer text-right'>
+        <div class='card-footer text-right'>
           <input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>
         </div>
 
@@ -86,8 +86,8 @@
   </div>
 
   <div class='col-md-6' data-visible='%MAP_VISIBLE%'>
-    <div class='box box-theme'>
-      <div class='box-body'>
+    <div class='card card-primary card-outline'>
+      <div class='card-body'>
         %MAPS%
         </div>
       </div>

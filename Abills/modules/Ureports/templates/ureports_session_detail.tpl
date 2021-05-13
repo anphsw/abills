@@ -1,6 +1,6 @@
-<div class='box box-theme box-form form-horizontal'>
-    <div class='box-header with-border'>_{DETAIL}_ ureports_session_details</div>
-    <div class='box-body'>
+<div class='card card-primary card-outline box-form form-horizontal'>
+    <div class='card-header with-border'>_{DETAIL}_ ureports_session_details</div>
+    <div class='card-body'>
         <div class='form-group'>
             <label class='control-label col-md-4 col-sm-3'>#</label>
             <div class='col-md-8 col-sm-9'>

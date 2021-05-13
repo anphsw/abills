@@ -12,6 +12,7 @@ use Control::Services;
 use Accident;
 use Address;
 use Users;
+use Abills::Sender::Core;
 
 our (
   $db,
@@ -52,6 +53,7 @@ my @STATUSES_COLORS = ('text-primary', 'text-warning', '#2D9F31');
 my $Accident = Accident->new($db, $admin, \%conf);
 my $Address = Address->new($db, $admin, \%conf);
 my $Users = Users->new($db, $admin, \%conf);
+my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 my $Equipment;
 
 if ($conf{EQUIPMENT_LOG} && in_array('Equipment', \@MODULES)) {
@@ -243,11 +245,11 @@ sub main_log {
     }
 
     push @fields_array, $html->button($lang{CHANGE}, "&change=1&index=" . get_function_index('add_accident_log') . $concat_chg,
-      { class => 'change' });
+      { ICON => 'fa fa-pencil' });
     push @fields_array, $html->button($lang{DEL}, "&del=1&ID=" . ($line->{id} || '') . "&index=" . get_function_index('main_log'),
-      { MESSAGE => $lang{DEL}, class => 'del' });
+      { MESSAGE => $lang{DEL}, class => 'text-danger', ICON=>'fa fa-trash' });
     push @fields_array, $html->button('', "&compensation=1&ID=" . ($line->{id} || '') . "&index=" . get_function_index('accident_compensation'),
-      { class => 'fa fa-check' });
+      { ICON => 'fa fa-check' });
 
     $table->addrow(@fields_array);
   }
@@ -373,6 +375,28 @@ sub add_accident_log {
 
     if (!_error_show($Accident)) {
       $html->message('info', $lang{SUCCESS}, $lang{OPERATION});
+
+      if($insert_id && $conf{ACCIDENT_WARNING} && $FORM{add}) {
+        $Accident->list({
+          ID        => $insert_id,
+          COLS_NAME => 1,
+        });
+
+        $Users->list({
+          LOCATION_ID => $Accident->{list}[0]->{address_id},
+          COLS_NAME   => 1,
+        });
+
+        if($Users->{TOTAL} > 0) {
+
+          for my $user_ (@{$Users->{list}}) {
+            accident_warning({
+              UID  => $user_->{uid},
+              TEXT => $Accident->{list}[0]->{descr},
+            })
+          }
+        }
+      }
     }
   }
 
@@ -597,7 +621,7 @@ sub accident_for_equipment {
         $equipment_element->{nas_descr} || '-',
         $lang{ERROR},
         $html->button('', 'index=' . get_function_index('accident_equipment_log') .
-        '&dash=1&add_form=' . $equipment_element->{nas_id}, { ICON => 'glyphicon glyphicon-plus' })
+        '&dash=1&add_form=' . $equipment_element->{nas_id}, { ICON => 'fa fa-plus' })
       );
     }
   }
@@ -754,11 +778,11 @@ sub accident_equipment_log {
   foreach my $equipment_element (@$list_equipment_error) {
     my $delete = $html->button($lang{DEL},
       "index=$index&del=$equipment_element->{id}",
-      { MESSAGE => "$lang{DEL} [$equipment_element->{id}] ?", class => 'del' } );
+      { MESSAGE => "$lang{DEL} [$equipment_element->{id}] ?", ICON=>'fa fa-trash', class=>'text-danger' } );
 
     my $change = $html->button($lang{CHANGE}, 
       "index=$index&change=$equipment_element->{id}&actions=1",
-      { class => 'change' });
+      { ICON => 'fa fa-pencil' });
 
     $table->addrow(
       $equipment_element->{id},
@@ -824,6 +848,22 @@ sub _equipment_error {
 
     if (!_error_show($Accident)) {
       $html->message('success', $lang{ADDED});
+
+      if($conf{ACCIDENT_WARNING}) {
+        my $Internet = Internet->new($db, $admin, \%conf);
+        my $list = $Internet->list({
+          NAS_ID    => $attr->{id_equipment},
+          COLS_NAME => 1,
+        });
+        if ($Internet->{TOTAL} > 0) {
+          for my $user_ (@$list) {
+            accident_warning({
+              UID  => $user_->{uid},
+              TEXT => $lang{EQUIPMENT_ERR},
+            })
+          }
+        }
+      }
     }
     else {
       $html->message('err', $lang{ERROR});
@@ -1275,6 +1315,39 @@ sub accident_quick_info {
   });
 
   return ($Accident->{TOTAL} > 0) ? $Accident->{TOTAL} : '';
+}
+
+
+#**********************************************************
+=head2 accident_warning($attr) - Send warning to telegram or viber
+
+  Arguments:
+    $attr
+      UID
+      TEXT
+
+=cut
+#**********************************************************
+sub accident_warning {
+  my ($attr) = @_;
+
+  my @types = split ',', $conf{ACCIDENT_WARNING};
+
+
+  my $message = $lang{WARNING}." \n";
+  $message .= $attr->{TEXT};
+
+  for my $type (@types){
+    my $responce = $Sender->send_message({
+      UID         => $attr->{UID},
+      MESSAGE     => $message,
+      SENDER_TYPE => $type,
+    });
+
+    last if($responce);
+  }
+
+  return 1;
 }
 
 1;

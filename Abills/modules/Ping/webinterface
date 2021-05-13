@@ -475,7 +475,7 @@ sub _ping_user_status{
     (
       "",
       "index=".get_function_index($attr->{VALUES}{FUNCTION})."&UID=$attr->{VALUES}{UID}" . "&FROM_DATE_TO_DATE=$user_ping_date/$user_ping_date&FROM_DATE=$user_ping_date&TO_DATE=$user_ping_date" ,
-      {class => "btn btn-user btn-default $icon_class", ICON => 'fa fa-user', ex_params => $ex_params }
+      {class => "btn btn-user btn-secondary $icon_class", ICON => 'fa fa-user', ex_params => $ex_params }
     );
 
   my $return = $ext_menu;

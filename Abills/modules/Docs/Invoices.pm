@@ -115,6 +115,11 @@ sub docs_invoices_add_payments{
 #**********************************************************
 =head2 docs_invoices_list($attr) - Invoices list
 
+  Arguments:
+    $attr
+
+  Results:
+
 =cut
 #**********************************************************
 sub docs_invoices_list{
@@ -152,7 +157,6 @@ sub docs_invoices_list{
     $LIST_PARAMS{UID} = $attr->{USER_INFO}->{UID} ;
   }
 
-  #my @payments_status = ("$lang{UNPAID}", "$lang{PAID}", "$lang{PARTLY_PAID}");
   if ( $FORM{UNINVOICED} ){
     if ( $FORM{apply} ){
       my $payment_list = $Payments->list( {
@@ -394,6 +398,7 @@ sub docs_invoices_list{
     my @MULTI_ARR = ();
     my $doc_num = 0;
 
+    my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
     foreach my $d ( @{$invoices_list} ){
       $d->{AMOUNT_FOR_PAY} = ($d->{DEPOSIT} < 0) ? abs( $d->{DEPOSIT} ) : 0 - $d->{DEPOSIT};
       $d->{NUMBER} = $d->{INVOICE_NUM} || '-';
@@ -401,7 +406,7 @@ sub docs_invoices_list{
       $d->{FROM_DATE_LIT} = "$day " . $MONTHES_LIT[ int( $month ) - 1 ] . " $year $lang{YEAR_SHORT}";
       $d->{DATE_EURO_STANDART} = "$day.$month.$year";
       $d->{FIO} = $d->{CUSTOMER} if ($d->{CUSTOMER});
-      $d->{ADDRESS_FULL} = "$d->{ADDRESS_STREET}, $d->{ADDRESS_BUILD}, $d->{ADDRESS_FLAT}";
+      $d->{ADDRESS_FULL} = "$d->{ADDRESS_STREET}$build_delimiter$d->{ADDRESS_BUILD}$build_delimiter$d->{ADDRESS_FLAT}";
       $d->{TOTAL_SUM} = sprintf( "%.2f", $d->{TOTAL_SUM} );
       $d->{A_FIO} = $d->{ADMIN_FIO};
       $d->{DEPOSIT} = sprintf( "%.2f", $d->{DOCS_DEPOSIT} );
@@ -523,28 +528,45 @@ sub docs_invoices_list{
 
   if ( !$user->{UID} ){
     if($attr->{USER_INFO}) {
-      %LIST_PARAMS = (  UID => $attr->{USER_INFO}->{UID} );
+      %LIST_PARAMS = ( UID => $attr->{USER_INFO}->{UID} );
     }
 
     $LIST_PARAMS{ORDERS_LIST} = $FORM{xml} if ($FORM{xml});
     $LIST_PARAMS{LOGIN} = '_SHOW' if (!$FORM{UID});
     $LIST_PARAMS{ALT_SUM} = ($conf{DOCS_CURRENCY}) ? '_SHOW' : undef;
   }
+  else {
+    delete $LIST_PARAMS{LOGIN};
+  }
 
   my $PAYMENT_METHODS = get_payment_methods();
   my Abills::HTML $table;
   my $invoice_list;
+  my %table_params = ();
+
+  if ($user && $user->{UID}) {
+    %table_params = (
+      title_plain => $lang{INVOICES},
+    );
+  }
+  else {
+    %table_params = (
+      caption     => $lang{INVOICES},
+      SELECT_ALL  => "DOCS_INVOICES_LIST:IDS:$lang{SELECT_ALL}",
+      MENU        => "$lang{SEARCH}:index=". ($index || 0) ."&search_form=1" . (($FORM{UID}) ? "&UID=$FORM{UID}" : '') . ":search",
+    );
+  }
 
   ($table, $invoice_list) = result_former( {
     INPUT_DATA      => $Docs,
     FUNCTION        => 'invoices_list',
     BASE_FIELDS     => (!$user->{UID}) ? 5 : 3,
     DEFAULT_FIELDS  =>
-      ($FORM{UID}) ? 'INVOICE_NUM,DATE,CUSTOMER,PAYMENT_SUM' : 'INVOICE_NUM,DATE,CUSTOMER,PAYMENT_SUM',
+      ($FORM{UID}) ? 'INVOICE_NUM,DATE,CUSTOMER,PAYMENT_SUM' : 'INVOICE_NUM,DATE,PAYMENT_SUM',
     HIDDEN_FIELDS   => 'CURRENCY',
     FUNCTION_FIELDS =>
       (!$user->{UID}) ? (($conf{DOCS_INVOICE_ALT_TPL}) ? 'print,' : '') . 'print,payment,show,send,del' : 'print',
-    MULTISELECT     => ($FORM{UID}) ? 'UID:uid' : '',
+    MULTISELECT     => (!$user->{UID} && $FORM{UID}) ? 'UID:uid' : '',
     EXT_TITLES      => {
       invoice_num    => '#',
       date           => $lang{DATE},
@@ -560,21 +582,18 @@ sub docs_invoices_list{
       currency       => $lang{CURRENCY},
       alt_sum        => "$lang{ALT} $lang{SUM}",
       exchange_rate  => $lang{EXCHANGE_RATE},
-      payment_sum    => "$lang{SUM} $lang{PAYMENTS}",
+      payment_sum    => $lang{PAYMENT_SUM},
       docs_deposit   => $lang{OPERATION_DEPOSIT},
       deposit        => $lang{CURRENT_DEPOSIT},
       sum_vat        => "$lang{SUM} $lang{VAT}"
     },
-    TABLE           => {
-      width      => '100%',
-      caption    => $lang{INVOICES},
-      qs         => $pages_qs,
-      ID         => 'DOCS_INVOICES_LIST',
-      #header     => $status_bar,
-      EXPORT     => 1,
-      #SELECT_ALL => (!$user->{UID}) ? 1 : undef,
-      SELECT_ALL => ($user && $user->{UID}) ? undef : "DOCS_INVOICES_LIST:IDS:$lang{SELECT_ALL}",
-      MENU       => "$lang{SEARCH}:index=". ($index || 0) ."&search_form=1" . (($FORM{UID}) ? "&UID=$FORM{UID}" : '') . ":search",
+    TABLE  => {
+      width       => '100%',
+      qs          => $pages_qs,
+      #LITE_HEADER => 1,
+      ID          => 'DOCS_INVOICES_LIST',
+      EXPORT      => 1,
+      %table_params
     },
   });
 
@@ -632,20 +651,30 @@ sub docs_invoices_list{
         my $invoice_sum = $invoice->{total_sum};
         $val = '';
 
-        if ( $i2p_hash{$invoice->{id}} && !$user->{UID} ){
+        #if ( $i2p_hash{$invoice->{id}} && !$user->{UID} ){
+        if ( $i2p_hash{$invoice->{id}} ){
           foreach my $p2i_val ( @{ $i2p_hash{$invoice->{id}} } ){
             my ($payment_id, $invoiced_sum) = split( /:/, $p2i_val );
-            $val .= $html->button( $invoiced_sum,
-              "index=" . get_function_index( 'form_payments' ) . "&ID=$payment_id&search=1" ) . $html->br();
+            if($user->{UID}) {
+              $val .= $invoiced_sum;
+            }
+            else {
+              $val .= $html->button($invoiced_sum,
+                "index=" . get_function_index('form_payments') . "&ID=$payment_id&search=1");
+            }
+            $val .= $html->br();
             $invoice_sum -= $invoiced_sum;
           }
         }
 
         if ( $invoice_sum > 0 ){
-          $val .= $html->color_mark( sprintf( "%.2f", $invoice_sum ),
-            $_COLORS[6] ) . $html->br() . ((!$user->{UID} ) ? $html->button(
-            "$lang{SEARCH} $lang{PAYMENTS}", "index=$index&UID=$invoice->{uid}&UNINVOICED=$invoice->{id}",
-            { class => 'search' } )                       : '');
+          if (! $user->{UID}) {
+            $val .= $html->color_mark(sprintf("%.2f", $invoice_sum),
+              $_COLORS[6]) . $html->br() . ((!$user->{UID}) ? $html->button(
+              "$lang{SEARCH} $lang{PAYMENTS}", "index=$index&UID=$invoice->{uid}&UNINVOICED=$invoice->{id}",
+              { class => 'search' }) : '');
+          }
+          $table->{rowcolor}='bg-warning';
         }
       }
       elsif ( $field_name eq 'login' ){
@@ -684,7 +713,7 @@ sub docs_invoices_list{
       if ( $conf{DOCS_INVOICE_ALT_TPL} ){
         push @function_fields, $html->button($lang{PRINT_EXT},
           "qindex=$index&print=$invoice->{id}&UID=$invoice->{uid}&alt_tpl=1" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '') . (($users->{DOMAIN_ID}) ? "&DOMAIN_ID=$users->{DOMAIN_ID}" : '')
-          , { ex_params => 'target=_new', class => 'glyphicon glyphicon-print text-success' } );
+          , { ex_params => 'target=_new', class => 'fa fa-print text-success' } );
       }
 
       $invoice->{alt_sum} //= 0;
@@ -693,7 +722,7 @@ sub docs_invoices_list{
       if ( $conf{DOCS_INVOICE_TERMO_PRINTER} ){
         push @function_fields, $html->button('',
           "qindex=$index&print=$invoice->{id}&UID=$invoice->{uid}&termo_printer_tpl=1" . (($users->{DOMAIN_ID}) ? "&DOMAIN_ID=$users->{DOMAIN_ID}" : '')
-          , { ex_params => 'target=_new ', class => 'glyphicon glyphicon-print text-warning', title => $lang{PRINT_TERMO_PRINTER} } );
+          , { ex_params => 'target=_new ', class => 'fa fa-print text-warning', title => $lang{PRINT_TERMO_PRINTER} } );
       }
 
       push @function_fields,
@@ -730,6 +759,7 @@ sub docs_invoices_list{
     }
 
     $table->addrow( @fields_array, join(' ', @function_fields) );
+    delete $table->{rowcolor};
   }
 
   if ( $user && $user->{UID} ){
@@ -1199,7 +1229,6 @@ sub docs_invoice_period {
       if ( !defined( $FORM{NEXT_PERIOD} ) ){
         $FORM{NEXT_PERIOD} = 0;
         $FORM{NEXT_PERIOD} = 0;
-        #$FORM{NEXT_PERIOD} = $Docs->{INVOICING_PERIOD} if ($Docs->{INVOICING_PERIOD});
       }
       $service_activate = $Docs->{INVOICE_DATE};
     }
@@ -1231,12 +1260,6 @@ sub docs_invoice_period {
     }
 
     my $num = 0;
-    #print "1111111111 // $users->{DEPOSIT} //";
-    #    if ( $users->{DEPOSIT} && $users->{DEPOSIT} =~ /\d+/ && $users->{DEPOSIT} > 0 ){
-    #      print "aaaaaaaaaaaaaaaa";
-    #      return 1; #($attr->{REGISTRATION}) ? 1 : 0;
-    #    }
-    #print "222222222222222222";
     my $table = $html->table({
       width       => '100%',
       caption     => ($users->{UID}) ? $lang{ACTIVATE_NEXT_PERIOD} : "$lang{INVOICE} $lang{PERIOD}: $Y-$M",
@@ -1249,13 +1272,13 @@ sub docs_invoice_period {
     my $total_tax_sum     = 0;
     my $total_not_invoice = 0;
     my $amount_for_pay    = 0;
+    my $service_invoice   = '';
 
     # Get invoces
     my %current_invoice = ();
     $Docs->invoices_list(
       {
         UID         => $uid,
-        #PAYMENT_ID  => 0,
         ORDERS_LIST => 1,
         COLS_NAME   => 1,
         PAGE_ROWS   => 1000
@@ -1267,27 +1290,27 @@ sub docs_invoice_period {
         $current_invoice{ $invoice->{orders} } = $invoice->{invoice_id};
       }
     }
+
     #Test function
     if ( !$users->{UID} ){
-      my $list = $Docs->invoice_new(
+      my $invoice_new_list = $Docs->invoice_new(
         {
-          FROM_DATE => '0000-00-00', #$users->{REGISTRATION},  #$FORM{FROM_DATE} || $html->{FROM_DATE},
+          FROM_DATE => '0000-00-00',
           TO_DATE   => $FORM{TO_DATE} || $html->{TO_DATE} || $DATE,
           PAGE_ROWS => 500,
-          UID       => $users->{UID},
+          UID       => $uid,
           TAX       => '_SHOW',
           COLS_NAME => 1
         }
       );
 
-      foreach my $line ( @$list ){
+      foreach my $line ( @$invoice_new_list ){
         next if ($line->{fees_id});
         $num++;
         my $date = $line->{date} || q{};
         $date =~ s/ \d+:\d+:\d+//g;
-        #=comments
-        # Not invoiced fees
-        if ( $line->{dsc} && !$current_invoice{$line->{dsc}} ){
+
+        if ( $line->{dsc} && !$current_invoice{$line->{dsc}} ) {
           $table->addrow(
             $html->form_input( "ORDER_" . $line->{id}, $line->{dsc}, { TYPE => 'hidden', OUTPUT2RETURN => 1 } )
               . $html->form_input( "SUM_" . $line->{id}, $line->{sum}, { TYPE => 'hidden', OUTPUT2RETURN => 1 } )
@@ -1304,15 +1327,12 @@ sub docs_invoice_period {
 
           $total_not_invoice += $line->{sum};
         }
-        #=cut
       }
     }
-    else{
-      #$users = $user;
+    else {
       $FORM{NEXT_PERIOD} = 1 if (! $FORM{NEXT_PERIOD});
     }
 
-    #($users->{DEPOSIT}<0) ? abs($users->{DEPOSIT}) : 0;
     my $date = $DATE;
     if ( $service_activate ne '0000-00-00' ){
       $date = $service_activate;
@@ -1414,12 +1434,22 @@ sub docs_invoice_period {
       }
 
       foreach my $module (keys %services_order) {
-        $table->{extra} = "colspan='6' ";
-        $table->addrow( $html->b($module) );
-        delete $table->{extra};
+        my $service_user = '';
         foreach my $row ( @{ $services_order{$module} } ) {
-          $table->addrow(@{ $row });
+          $service_user .= $html->tpl_show(_include('docs_invoice_service', 'Docs'), {
+            ORDER       => $row->[0],
+            DATE        => $row->[1],
+            LOGIN       => $row->[2],
+            DESCRIBE    => $row->[3],
+            SUM         => $row->[4],
+            TAX         => $row->[5],
+          }, { OUTPUT2RETURN => 1 });
         }
+
+        $service_invoice .= $html->tpl_show(_include('docs_invoice_category', 'Docs'), {
+          MODULE  => $module,
+          SERVICE => $service_user
+        }, { OUTPUT2RETURN => 1 });
       }
     }
 
@@ -1456,7 +1486,6 @@ sub docs_invoice_period {
           . $html->form_input('EXTRA_INVOICE_ID', $num, { TYPE => 'hidden', OUTPUT2RETURN => 1 })
           . $html->form_input('ORDER_' . $num, "$order", { TYPE => 'hidden', OUTPUT2RETURN => 1 })
           . $html->form_input('IDS', "$num", { TYPE => ($users->{UID}) ? 'hidden' : 'checkbox', STATE => 'checked', OUTPUT2RETURN => 1 })
-          #        . $html->form_input( 'FEES_TYPE_' . $num, $FORM{'FEES_TYPE_'. $num}, { TYPE => 'text', OUTPUT2RETURN => 1 } )
           . $num
         ,
         $DATE,
@@ -1482,11 +1511,6 @@ sub docs_invoice_period {
     $table->addrow( $html->b( "$lang{AMOUNT_FOR_PAY}:" ), $html->b( sprintf( "%.2f", $amount_for_pay ) ) );
     $FORM{AMOUNT_FOR_PAY} = sprintf( "%.2f", $amount_for_pay );
 
-    #    $Docs->{FROM_DATE} = $html->date_fld2( 'FROM_DATE',
-    #      { MONTHES => \@MONTHES, FORM_NAME => 'invoice_add', WEEK_DAYS => \@WEEKDAYS } );
-    #    $Docs->{TO_DATE} = $html->date_fld2( 'TO_DATE',
-    #      { MONTHES => \@MONTHES, FORM_NAME => 'invoice_add', WEEK_DAYS => \@WEEKDAYS } );
-
     $Docs->{PERIOD_DATE} = $html->form_daterangepicker({
       NAME      => 'FROM_DATE/TO_DATE',
       FORM_NAME => 'invoice_add',
@@ -1504,29 +1528,23 @@ sub docs_invoice_period {
       return 0 if (!$num);
 
       my $action = $html->form_input( 'make', "$lang{CREATE} $lang{INVOICE}", { TYPE => 'submit', OUTPUT2RETURN => 1 } );
-      #$table->{rowcolor} = 'bg-warning';
       $table->{extra} = ' colspan=\'6\'';
       $table->addrow( $action );
 
-      $html->form_main(
-        {
-          CONTENT => $table->show( { OUTPUT2RETURN => 1 } ),
-          HIDDEN  => {
-            index    => $index,
-            UID      => $uid,
-            DATE     => $DATE,
-            create   => 1,
-            CUSTOMER => $Docs->{CUSTOMER},
-            step     => $FORM{step},
-            #ALL_SERVICES   => 1
-          },
-          NAME    => 'DOCS_SERVICES_INVOICE',
-        }
-      );
+      my $title_form = ($users->{UID}) ? $lang{ACTIVATE_NEXT_PERIOD} : "$lang{INVOICE} $lang{PERIOD}: $Y-$M";
+      $html->tpl_show(_include('docs_user_invoices', 'Docs'), {
+        index             => $index,
+        UID               => $uid,
+        DATE              => $DATE,
+        create            => 1,
+        CUSTOMER          => $Docs->{CUSTOMER},
+        step              => $FORM{step},
+        SERVICE_INVOICE   => $service_invoice,
+        TITLE_INVOICE     => $title_form,
+      });
     }
     else{
       $Docs->{ORDERS} = $table->show( { OUTPUT2RETURN => 1 } );
-      #$FORM{NEXT_PERIOD}=$Docs->{INVOICING_PERIOD} if (! $FORM{NEXT_PERIOD});
       if (!$FORM{pdf}) {
         $html->tpl_show(_include('docs_receipt_add', 'Docs'),
           { %FORM, %{$attr}, %{$Docs}, %{$users} }, { ID => 'docs_receipt_add' });
@@ -1552,7 +1570,6 @@ sub docs_invoice_period {
       {
         SELECTED    => '',
         SEL_HASH    => get_fees_types(),
-        #        NO_ID       => 1,
         NORMAL_WIDTH => 1,
         SEL_OPTIONS => { '' => '--' },
       }

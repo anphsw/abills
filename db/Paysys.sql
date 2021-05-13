@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS `paysys_main` (
   `recurrent_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `recurrent_cron` VARCHAR(25) NOT NULL DEFAULT '',
   `recurrent_module` VARCHAR(25) NOT NULL DEFAULT '',
+  `order_id` varchar(24) NOT NULL DEFAULT '',
   `subscribe_date_start` DATE NOT NULL DEFAULT '0000-00-00',
   UNIQUE (`uid`, `paysys_id`)
 )

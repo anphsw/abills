@@ -23,17 +23,22 @@ our(
   Arguments:
     $attr
       SNMP_COMMUNITY
-      OID             - oid
-      WALK            - walk mode
-      SILENT          - DOn't generate exception
-      TIMEOUT         - Request timeout (Default: 2)
-      SKIP_TIMEOUT    -
-      VERSION         - SNMP version (1 default or v2c)
+      OID              - oid or arrays of oids
+      WALK             - walk mode. should not be used if OID is array
+      DONT_USE_GETBULK - Don't use getbulk for walk mode
+      SILENT           - DOn't generate exception
+      TIMEOUT          - Request timeout (Default: 2)
+      RETRIES          - Request retries (Default: 2)
+      SKIP_TIMEOUT     -
+      VERSION          - SNMP version (1 default or v2c)
       DEBUG
 
   Returns:
       result string
-      ot result array for WALK mode
+      or
+      result array (strings like "$oid:$value") for WALK mode
+      or
+      result array (only values) if OID is array
 
 =cut
 #**********************************************************
@@ -54,6 +59,8 @@ sub snmp_get {
   my $retries = $attr->{RETRIES} || 2;
   my $version = $attr->{VERSION} || 1;
 
+  my $oid_text = ((ref $attr->{OID} eq 'ARRAY') ? ( '(' . join(', ', @{$attr->{OID}}) . ')' ) : ($attr->{OID}));
+
   my ($snmp_community, $port, undef, $port3)=split(/:/, $attr->{SNMP_COMMUNITY} || q{});
   if($port3) {
     $port = $port3;
@@ -65,7 +72,7 @@ sub snmp_get {
   $snmp_community.=':'.$port.":$timeout:$retries:1:$version";
 
   if ($debug > 2) {
-    print "$attr->{SNMP_COMMUNITY} -> $attr->{OID} <br>";
+    print "$attr->{SNMP_COMMUNITY} -> $oid_text<br>\n";
   }
 
   if ($debug > 5) {
@@ -86,12 +93,23 @@ sub snmp_get {
         alarm $timeout * $retries;
       }
 
-      @value_arr = SNMP_util::snmpwalk($snmp_community, $attr->{OID});
+      if (ref $attr->{OID} eq 'ARRAY') {
+        @value_arr = SNMP_util::snmpwalk($snmp_community,
+          { 'use_getbulk' => ($attr->{DONT_USE_GETBULK}) ? 0 : 1 },
+          @{$attr->{OID}}
+        );
+      }
+      else {
+        @value_arr = SNMP_util::snmpwalk($snmp_community,
+          { 'use_getbulk' => ($attr->{DONT_USE_GETBULK}) ? 0 : 1 },
+          $attr->{OID}
+        );
+      }
       alarm 0;
     };
 
     if ($@) {
-      print "timed out ($timeout): $attr->{OID}\n" if(! $attr->{SILENT});
+      print "timed out ($timeout): $oid_text\n" if(! $attr->{SILENT});
       return [] unless $@ eq "alarm\n";                  # propagate unexpected errors
     }
     else {
@@ -101,11 +119,22 @@ sub snmp_get {
     $value = \@value_arr;
   }
   else {
-    $value = SNMP_util::snmpget($snmp_community, $attr->{OID});
+    if (ref $attr->{OID} eq 'ARRAY') {
+      @$value = SNMP_util::snmpget($snmp_community, @{$attr->{OID}});
+      if (@$value) {
+        print "NO errors\n" if ($debug>2);
+      }
+    }
+    else {
+      $value = SNMP_util::snmpget($snmp_community, $attr->{OID});
+      if ($value) {
+        print "NO errors\n" if ($debug>2);
+      }
+    }
   }
 
   if ($SNMP_Session::errmsg && ! $attr->{SILENT}) {
-    my $message = "OID: $attr->{OID}\n\n $SNMP_Session::errmsg\n\n$SNMP_Session::suppress_warnings\n";
+    my $message = "OID: $oid_text\n\n $SNMP_Session::errmsg\n\n$SNMP_Session::suppress_warnings\n";
     if ($html) {
       $html->message('err', $lang{ERROR}, $message);
     }
@@ -124,10 +153,12 @@ sub snmp_get {
   Arguments:
     $attr
       SNMP_COMMUNITY  - {community_name}@{ip_address}[:port]
-      TIMEOUT         - Timeout
+      TIMEOUT         - Request timeout (Default: 2)
+      RETRIES         - Request retries (Default: 2)
       OID             - array ( OID, type, value, OID, type, value, ...)
-      SILENT
-      VERSION
+      SILENT          - don't print errors and always return TRUE
+      IGNORE_ERRORS   - don't print errors that matches this regex
+      VERSION         - SNMP version (1 or v2c, default: 1)
       DEBUG
 
     Returns:
@@ -192,12 +223,14 @@ sub snmp_set {
   }
 
   if ($SNMP_Session::errmsg && ! $attr->{SILENT}) {
-    my $message = "OID: $info\n\n $SNMP_Session::errmsg\n\n$SNMP_Session::suppress_warnings\n";
-    if ($html) {
-      $html->message('err', $lang{ERROR}, $message);
-    }
-    else {
-      print $message;
+    if (!$attr->{IGNORE_ERRORS} || $SNMP_Session::errmsg !~ $attr->{IGNORE_ERRORS}) {
+      my $message = "OID: $info\n\n $SNMP_Session::errmsg\n\n$SNMP_Session::suppress_warnings\n";
+      if ($html) {
+        $html->message('err', $lang{ERROR}, $message);
+      }
+      else {
+        print $message;
+      }
     }
 
     $result = 0;

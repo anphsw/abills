@@ -74,9 +74,9 @@
   <!-- <legend>_{MESSAGES}_</legend> -->
   <fieldset>
 
-    <div class='box box-theme box-big-form'>
-      <div class='box-header with-border'><h4 class='box-title'>_{TASK}_</h4></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline box-big-form'>
+      <div class='card-header with-border'><h4 class='card-title'>_{TASK}_</h4></div>
+      <div class='card-body'>
 
         <input type='hidden' name='index' value='$index'/>
         <input type='hidden' name='add_form' value='1'/>
@@ -107,16 +107,16 @@
       %SEND_EXTRA_FORM%
       %SEND_DELIVERY_FORM%
 
-      <div class="box box-theme box-big-form collapsed-box">
-        <div class="box-header with-border">
-          <h4 class="box-title">_{ADDITIONALLY}_</h4>
-          <div class='box-tools pull-right'>
-            <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-plus'></i>
+      <div class="card card-primary card-outline box-big-form collapsed-box">
+        <div class="card-header with-border">
+          <h4 class="card-title">_{ADDITIONALLY}_</h4>
+          <div class='card-tools pull-right'>
+            <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
             </button>
           </div>
         </div>
 
-        <div id='nas_misc' class='box-body'>
+        <div id='nas_misc' class='card-body'>
 
           <div class='form-group'>
             <label class='control-label col-md-3' for='INNER_MSG'>_{PRIVATE}_</label>
@@ -241,15 +241,15 @@
 
         </div>
       </div>
-      <div class="box box-theme box-big-form collapsed-box">
-        <div class="box-header with-border">
-          <h4 class="box-title">_{SHEDULE}_</h4>
-          <div class='box-tools pull-right'>
-            <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-plus'></i>
+      <div class="card card-primary card-outline box-big-form collapsed-box">
+        <div class="card-header with-border">
+          <h4 class="card-title">_{SHEDULE}_</h4>
+          <div class='card-tools pull-right'>
+            <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-plus'></i>
             </button>
           </div>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
           <div class='row'>
             <div class='col-md-2'>day</div>
             <div class='col-md-2'>month</div>
@@ -268,7 +268,7 @@
         </div>
       </div>
 
-      <div class='box-footer'>
+      <div class='card-footer'>
         %BACK_BUTTON%
         <!--Should stay on single line-->
         <input type='submit' name='%ACTION%' class='btn btn-primary' value='%LNG_ACTION%' id='go' title='Ctrl+Enter'/>

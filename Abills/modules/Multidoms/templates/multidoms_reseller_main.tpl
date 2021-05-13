@@ -5,7 +5,7 @@
         <span class='sr-only'>Toggle navigation</span>
     </a>
     <a href='$SELF_URL' class='header-btn-link' role='button'>
-        <span class='glyphicon glyphicon-home'></span>
+        <span class='fa fa-home'></span>
     </a>
 </nav>
 </header>

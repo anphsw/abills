@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS `iptv_users_screens` (
   `cid` VARCHAR(60) NOT NULL DEFAULT '',
   `serial` VARCHAR(60) NOT NULL DEFAULT '',
   `hardware_id` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+  `comment` VARCHAR(250) DEFAULT '',
   UNIQUE KEY `service_id` (`service_id`, `screen_id`)
 )
   DEFAULT CHARSET=utf8 COMMENT = 'IPTV Extra screens';

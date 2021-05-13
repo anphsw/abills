@@ -2,11 +2,11 @@
   <input type=hidden name=index value=$index>
   <input type=hidden name=ID value=%ID%>
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'>
       <h4>_{INNER_USE}_</h4>
     </div>
-    <div class='box-body form-horizontal'>
+    <div class='card-body form-horizontal'>
 
       <div class='form-group'>
         <label class='col-md-3 control-label required'>_{COUNT}_:</label>
@@ -25,7 +25,7 @@
       </div>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type=submit name=%ACTION% value=%ACTION_LNG% class='btn btn-primary'>
     </div>
   </div>

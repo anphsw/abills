@@ -86,7 +86,7 @@ let Spinner = {
     const spanElement = jQuery('#' + spanElementId);
 
     spanElement.html(status);
-    spanElement.removeClass('btn-default');
+    spanElement.removeClass('btn-secondary');
     spanElement.addClass(color);
   },
 };

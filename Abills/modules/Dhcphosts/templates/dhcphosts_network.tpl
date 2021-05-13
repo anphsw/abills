@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-    <div class='box-header with-border'>_{NETWORKS}_</div>
-    <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'>_{NETWORKS}_</div>
+    <div class='card-body'>
         <form action='$SELF_URL' method='post' class='form-horizontal'>
             <input type='hidden' name='index' value='$index'/>
             <input type='hidden' name='ID' value='$FORM{chg}'/>
@@ -184,7 +184,7 @@
             %DOMAIN_FORM%
 
     </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'/>
           </div>
      </form>

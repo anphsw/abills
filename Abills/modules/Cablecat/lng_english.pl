@@ -13,8 +13,8 @@ $lang{THROUGH_ONE} = 'through one';
 
 $lang{WELL} = 'Point of union';
 $lang{WELLS} = 'Points of union';
-$lang{BOX} = 'Box';
-$lang{BOXES} = 'Boxes';
+$lang{BOX} = 'card';
+$lang{BOXES} = 'cardes';
 $lang{WIFI} = 'Wi-Fi';
 $lang{WIFIS} = 'Wi-Fi';
 $lang{CONNECTER} = 'Muff';

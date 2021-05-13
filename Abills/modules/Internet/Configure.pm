@@ -1,6 +1,6 @@
 =head1 NAME
 
- Internet Configure
+  Internet Configure
 
 =cut
 
@@ -9,19 +9,20 @@ use warnings FATAL => 'all';
 use Abills::Base qw(cmd in_array);
 use Address;
 
+use Abills::Radius_Pairs;
+
 our(
   $db,
   %conf,
   $admin,
   %lang,
-  $html,
   %permissions,
 );
 
+our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Nas      = Nas->new($db, \%conf, $admin);
-my $Address  = Address->new($db, $admin, \%conf);
 
 
 #**********************************************************
@@ -30,9 +31,6 @@ my $Address  = Address->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub internet_tp {
-
-  $FORM{RAD_PAIRS} = radius_params({ %FORM });
-
   internet_tp_clone() if $FORM{ADD_CLONE_TP};
 
   if($FORM{import}){
@@ -96,7 +94,12 @@ sub internet_tp {
       return 0;
     }
 
-    $pages_qs  .= "&TP_ID=$tarif_info->{TP_ID}". (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
+    $pages_qs  .= "&TP_ID=$tarif_info->{TP_ID}";
+
+    if(!$pages_qs =~ /subf/) {
+      $pages_qs .= (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
+    }
+
     my %F_ARGS = (TP => $tarif_info);
 
     $Tariffs->{NAME_SEL} = $html->form_main(
@@ -113,14 +116,14 @@ sub internet_tp {
         ),
         HIDDEN => { index => $index },
         SUBMIT => { show  => $lang{SHOW} },
-        class  => 'navbar-form navbar-right form-inline',
+        class  => 'navbar navbar-expand-lg navbar-light bg-light form-main',
       }
     );
 
     $index = get_function_index('internet_tp');
     $LIST_PARAMS{TP_ID} = $FORM{TP_ID};
 
-    if($FORM{subf} && $index == $FORM{subf}) {
+    if($FORM{subf} && $index eq $FORM{subf}) {
       delete $FORM{subf};
     }
 
@@ -246,7 +249,8 @@ sub internet_tp {
         SEL_OPTIONS => { 0 => '' },
         MAIN_MENU   => get_function_index('form_fees_types'),
         CHECKBOX    => 'create_fees_type',
-        CHECKBOX_TITLE => $lang{CREATE}
+        CHECKBOX_TITLE => $lang{CREATE},
+        # SEL_WIDTH   => '440px'
       }
     );
 
@@ -284,7 +288,12 @@ sub internet_tp {
 
     if ($conf{EXT_BILL_ACCOUNT}) {
       my $checked = ($tarif_info->{EXT_BILL_ACCOUNT}) ? ' checked' : '';
-      $tarif_info->{EXT_BILL_ACCOUNT} = "<tr><td>$lang{EXTRA_BILL}:</td><td><input type='checkbox' name='EXT_BILL_ACCOUNT' value='1' $checked></td></tr>\n";
+      $tarif_info->{EXT_BILL_ACCOUNT} = $html->tpl_show(templates('form_row'), {
+        ID    => 'EXT_BILL_ACCOUNT',
+        NAME  => $lang{EXTRA_BILL},
+        VALUE => "<div class='form-check text-left'>" .
+          "<input type='checkbox' id='EXT_BILL_ACCOUNT' name='EXT_BILL_ACCOUNT' value='1' class='form-check-input' $checked></div>",
+      }, { OUTPUT2RETURN => 1 });
     }
     else {
       $tarif_info->{EXT_BILL_ACCOUNT} = '';
@@ -306,6 +315,16 @@ sub internet_tp {
       ex_params     => "style='float: right'",
       LOAD_TO_MODAL => 1
     });
+
+    $tarif_info->{RAD_PAIRS_FORM} = $html->tpl_show(
+      templates('form_radius_pairs'),
+      {
+        RAD_PAIRS => Abills::Radius_Pairs::parse_radius_params_string($tarif_info->{RAD_PAIRS}),
+        SAVE_INDEX => get_function_index('tp_radius_pairs_save'),
+        ID => $tarif_info->{TP_ID}
+      },
+      { OUTPUT2RETURN => 1 }
+    );
 
     $html->tpl_show(_include('internet_tp', 'Internet'), $tarif_info, { SKIP_VARS => 'IP' });
   }
@@ -417,7 +436,7 @@ sub internet_tp {
 
   foreach my $line (@$list) {
     my @function_fileds = (
-      $html->button('', "index=". get_function_index('form_intervals') ."&TP_ID=$line->{tp_id}", { class => 'interval', TITLE => $lang{INTERVALS}, ADD_ICON =>' glyphicon glyphicon-align-left' }),
+      $html->button('', "index=". get_function_index('form_intervals') ."&TP_ID=$line->{tp_id}", { class => 'interval', TITLE => $lang{INTERVALS}, ADD_ICON =>' fa fa-align-left' }),
     );
     if ($permissions{4}{1}) {
       push @function_fileds, $html->button($lang{CHANGE}, "index=$index&TP_ID=$line->{tp_id}", { class => 'change' });
@@ -578,7 +597,7 @@ sub internet_traf_tarifs {
       $tarif_plan->tt_change({%FORM});
 
       if (!$tarif_plan->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+        $html->message('info', $lang{INFO}, $lang{CHANGED});
         internet_change_shaper($tarif_plan);
       }
     }
@@ -598,7 +617,7 @@ sub internet_traf_tarifs {
       }
     }
 
-    _error_show($tarif_plan);
+    _error_show($tarif_plan, { MODULE => 'Internet' });
 
     $tarif_plan->tt_list({ TI_ID => $FORM{tt}, form => 1 });
     $tarif_plan->{TT_ID} = $tarif_plan->{TOTAL} if (!defined($FORM{chg}));
@@ -611,7 +630,7 @@ sub internet_traf_tarifs {
       $tarif_plan->tt_change({ %FORM  });
 
       if (! _error_show($tarif_plan)) {
-        $html->message('info', $lang{INFO}, "$lang{INTERVALS}");
+        $html->message('info', $lang{INFO}, $lang{INTERVALS});
       }
     }
 
@@ -720,28 +739,27 @@ sub internet_filters {
     $html->tpl_show(_include('internet_filters_form', 'Internet'), $Internet);
   }
 
-
   result_former({
-     INPUT_DATA      => $Internet,
-     FUNCTION        => 'filters_list',
-     DEFAULT_FIELDS  => 'ID, FILTER,PARAMS,DESCR',
-     FUNCTION_FIELDS => 'change,del',
-     EXT_TITLES      => {
+      INPUT_DATA      => $Internet,
+      FUNCTION        => 'filters_list',
+      DEFAULT_FIELDS  => 'ID, FILTER,PARAMS,DESCR',
+      FUNCTION_FIELDS => 'change,del',
+      EXT_TITLES      => {
         ID      => 'ID',
         FILTER  => $lang{NAME},
         PARAMS  => $lang{PARAMS},
         DESCR   => $lang{DESCRIBE},
-     },
-     SKIP_USER_TITLE => 1,
-     TABLE           => {
-       width      => '100%',
-       caption    => $lang{FILTERS},
-       qs         => $pages_qs,
-       MENU       => "$lang{ADD}:index=$index&add_form=1:add",
-       ID         => 'FILTERS_LIST',
-     },
-     MAKE_ROWS    => 1,
-     TOTAL        => 1
+      },
+      SKIP_USER_TITLE => 1,
+      TABLE           => {
+        width      => '100%',
+        caption    => $lang{FILTERS},
+        qs         => $pages_qs,
+        MENU       => "$lang{ADD}:index=$index&add_form=1:add",
+        ID         => 'FILTERS_LIST',
+      },
+      MAKE_ROWS    => 1,
+      TOTAL        => 1
     });
 
   return 1;
@@ -759,22 +777,9 @@ sub internet_filters {
 #**********************************************************
 sub geolocation_group_tp {
 
-  my $list = $Address->build_list({
-    ID                => '_SHOW',
-    STREET_NAME       => '_SHOW',
-    DISTRICT_NAME     => '_SHOW',
-    DISTRICT_ID       => '_SHOW',
-    NUMBER            => '_SHOW',
-    COLS_NAME         => 1,
-    WITH_STREETS_ONLY => 1,
-    SORT              => 'district_name,street_name,number+0',
-    PAGE_ROWS         => 999999
-  });
-
-  # adding tp geo-data to table
   if (($FORM{STREET_ID} || $FORM{BUILD_ID} || $FORM{DISTRICT_ID}) && $FORM{TP_GID} && !$FORM{CLEAR}) {
-    my @streets   = ();
-    my @builds    = ();
+    my @streets = ();
+    my @builds = ();
     my @districts = ();
 
     @streets = split(', ', $FORM{STREET_ID}) if (defined $FORM{STREET_ID});
@@ -784,35 +789,18 @@ sub geolocation_group_tp {
     $Tariffs->del_tp_geo({ TP_GID => $FORM{TP_GID} });
 
     foreach my $st (@streets) {
-      $Tariffs->add_tp_geo(
-        {
-          TP_GID     => $FORM{TP_GID},
-          STREET_ID => $st,
-        }
-      );
+      $Tariffs->add_tp_geo({ TP_GID => $FORM{TP_GID}, STREET_ID => $st });
     }
 
     foreach my $bd (@builds) {
-      $Tariffs->add_tp_geo(
-        {
-          TP_GID    => $FORM{TP_GID},
-          BUILD_ID => $bd,
-        }
-      );
+      $Tariffs->add_tp_geo({ TP_GID => $FORM{TP_GID}, BUILD_ID => $bd });
     }
 
     foreach my $ds (@districts) {
-      $Tariffs->add_tp_geo(
-        {
-          TP_GID       => $FORM{TP_GID},
-          DISTRICT_ID => $ds,
-        }
-      )
+      $Tariffs->add_tp_geo({ TP_GID => $FORM{TP_GID}, DISTRICT_ID => $ds });
     }
 
   }
-
-  # clear all geo-data for tp
   elsif ($FORM{CLEAR}) {
     $Tariffs->del_tp_geo({ TP_GID => $FORM{TP_GID} });
     if (!$Internet->{errno}) {
@@ -820,63 +808,92 @@ sub geolocation_group_tp {
     }
   }
 
-  my $geolist   = $Tariffs->tp_geo_list({ TP_GID => $FORM{ID} || $FORM{TP_GID}, COLS_NAME => 1 });
-  my @streets   = ();
-  my @builds    = ();
-  my @districts = ();
-  my %address   = ();
-
-  foreach my $data (@$geolist) {
-    if ($data->{street_id}) {
-      push(@streets, $data->{street_id});
-      $address{"STREET_ID_$data->{street_id}"} = 1;
-    }
-    elsif ($data->{build_id}) {
-      push(@builds, $data->{build_id});
-      $address{"BUILD_ID_$data->{build_id}"} = 1;
-    }
-    elsif ($data->{district_id}) {
-      push(@districts, $data->{district_id});
-      $address{"DISTRICT_ID_$data->{district_id}"} = 1;
-    }
-  }
-
-  my $input1 = q{};
-  my $input2 = q{};
-  my $input3 = q{};
-  my $keys = "district_name_check,street_name_check,number_check";
-
-  foreach my $line (@$list) {
-    $input1 = $html->form_input("BUILD_ID", $line->{id}, {
-      TYPE      => 'checkbox',
-      class     => 'tree_box',
-      EX_PARAMS => $address{"BUILD_ID_$line->{id}"} ? 'checked' : ''
-    });
-    $line->{number_check} = $html->element('label', ($input1 || q{}) . ' ' . ($line->{number} || q{}));
-    $input2 = $html->form_input("STREET_ID", $line->{street_id}, {
-      TYPE      => 'checkbox',
-      class     => 'tree_box',
-      EX_PARAMS => $address{"STREET_ID_$line->{street_id}"} ? 'checked' : ''
-    });
-    $line->{street_name_check} = $html->element('label', ($input2 || q{}) . ' ' . ($line->{street_name} || q{}));
-    $input3 = $html->form_input("DISTRICT_ID", $line->{district_id}, {
-      TYPE      => 'checkbox',
-      class     => 'tree_box',
-      EX_PARAMS => $address{"DISTRICT_ID_$line->{district_id}"} ? 'checked' : '',
-      ID        => $line->{district_id} });
-    $line->{district_name_check} = $html->element('label', ($input3 || q{}) . ' ' . ($line->{district_name} || q{}));
-  }
-
-  my $tree = $html->html_tree($list, $keys);
+  my $geolist = $Tariffs->tp_geo_list({ TP_GID => $FORM{ID} || $FORM{TP_GID}, COLS_NAME => 1 });
 
   $html->tpl_show(_include('geolocation_tp', 'Internet'), {
-    GEOLOCATION_TREE => $tree,
-    BTN_NAME         => $lang{CHANGE},
-    index            => $index,
-    TP_GID           => $FORM{ID} || $FORM{TP_GID} || '',
+    GEOLOCATION_TREE => geolocation_tree({
+      TITLE         => $lang{GEOLOCATION_TP},
+      INDEX         => $index,
+      BTN_ACTION    => 'change_geo',
+      BTN_LNG       => $lang{CHANGE},
+      HIDDEN_INPUTS => $html->form_input('TP_GID', $FORM{ID} || $FORM{TP_GID}, { TYPE => 'hidden' })
+    }, $geolist)
   });
+
   return 1;
 }
+
+#**********************************************************
+=head2 group_tp_user_groups($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub group_tp_user_groups {
+
+  $Tariffs->tp_group_info($FORM{ID});
+
+  if (!$FORM{ID} || $Tariffs->{TOTAL} < 1) {
+    $html->message('err', $lang{ERROR}, "Не выбрана группа!");
+    return 1;
+  }
+
+  my $tp_name = $Tariffs->{NAME};
+  
+  if ($FORM{change}) {
+    $Tariffs->del_tp_group_users_groups({ TP_GID => $FORM{ID} });
+    for my $group (split(',\s?', $FORM{GID} ? $FORM{GID} : '')) {
+      $Tariffs->add_tp_group_users_groups({ TP_GID => $FORM{ID}, GID => $group });
+    }
+    $html->message('info', $lang{CHANGED}, "$lang{CHANGED} $lang{GROUPS}: $tp_name");
+  }
+  elsif ($FORM{ID}) {
+    my $tp_info = $Tariffs->tp_group_users_groups_info({
+      TP_GID    => $FORM{ID},
+      GIDS      => '_SHOW',
+      GROUP_BY  => 'GROUP BY tpug.tp_gid',
+      COLS_NAME => 1
+    });
+
+    $FORM{GID} = $tp_info->[0]{gids} if $Tariffs->{TOTAL} > 0 && $tp_info->[0]{gids};
+  }
+
+  $html->tpl_show(_include('internet_users_group_sel_form', 'Internet'), {
+    GROUP_SEL  => sel_groups({ FILTER_SEL => 1 }),
+    GROUP_NAME => $html->button($tp_name,  'get_index=form_tp_groups&full=1&header=1&chg=' . $FORM{ID})
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 tp_radius_pairs_save($attr)
+
+  Arguments:
+
+  Return:
+
+=cut
+#**********************************************************
+sub tp_radius_pairs_save {
+  my ($attr) = @_;
+
+  return 1 if !$FORM{ID};
+
+  $Tariffs->change($FORM{ID}, {
+    %{$Tariffs->info($FORM{ID})},
+    TP_ID     => $FORM{ID},
+    RAD_PAIRS => Abills::Radius_Pairs::parse_radius_params_json($FORM{RADIUS_PAIRS})
+  });
+
+  print Abills::Radius_Pairs::build_radius_params_result_response($Tariffs);
+
+  return 1;
+}
+
 
 #**********************************************************
 =head2 internet_tp_clone($attr)

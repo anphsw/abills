@@ -2,9 +2,9 @@
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='module' value='Expert'>
   <div class='col-md-6'>
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'><h3 class='box-title'>Ссылки для получения информации</h3></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-header with-border'><h3 class='card-title'>Ссылки для получения информации</h3></div>
+      <div class='card-body'>
         <div class='col-md-12'>
 
           <div class="form-group">
@@ -23,7 +23,7 @@
 
         </div>
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input type='submit' name='change_links' value='Изменить' class='btn btn-primary'>
       </div>  
     </div>

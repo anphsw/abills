@@ -10,14 +10,14 @@ our (
   $TIME,
   %conf,
   $base_dir,
-  $Hotspot,
-  $users,
-  $admin,
-  $Internet,
-  $Tariffs,
   $db,
 );
 
+our Users  $users;
+our Admins $admin;
+our Tariffs  $Tariffs;
+our Internet $Internet;
+our Hotspot $Hotspot;
 use Abills::Base qw/_bp/;
 
 #**********************************************************
@@ -27,8 +27,12 @@ use Abills::Base qw/_bp/;
 #**********************************************************
 sub hotspot_init {
   #check params
-  errexit("Unknown hotspot.") if (!$FORM{server_name} && !$COOKIES{server_name});
-  errexit("Unknown mac.")     if (!$FORM{mac} || $FORM{mac} !~ /^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$/);
+  if (!$FORM{server_name} && !$COOKIES{server_name}) {
+    errexit("Unknown hotspot.");
+  }
+  elsif (!$FORM{mac} || $FORM{mac} !~ /^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$/) {
+    errexit("Unknown mac.");
+  }
 
   #load hotspot conf
   $Hotspot->load_conf($FORM{server_name} || $COOKIES{server_name});
@@ -137,7 +141,7 @@ sub hotspot_user_registration {
 
   if ( $Hotspot->{hotspot_conf}->{HOTSPOT_GUESTS_GROUP} && $Hotspot->{hotspot_conf}->{HOTSPOT_GUESTS_GID} ) {
     my $group_name = $Hotspot->{hotspot_conf}->{HOTSPOT_GUESTS_GROUP};
-    my $group_id   = $Hotspot->{hotspot_conf}->{HOTSPOT_GUESTS_GID};
+    $group_id   = $Hotspot->{hotspot_conf}->{HOTSPOT_GUESTS_GID};
     $users->group_info($group_id);
     if ($users->{errno}) {
       $users->group_add({
@@ -648,13 +652,15 @@ sub hotspot_tpl_show {
   else {
     return '';
   }
-  open my $fh, '<', $file_path or die;
-  my $tpl = '';
-  while(<$fh>) {
-    $tpl .= $_;
-  }
-  close $fh;
+  open(my $fh, '<', $file_path) or die;
+    my $tpl = '';
+    while(<$fh>) {
+      $tpl .= $_;
+    }
+  close($fh);
+
   $tpl =~ s/\%([a-zA-Z0-9_]+)\%/$attr->{$1} || $1/eg;
+
   return $tpl;
 }
 

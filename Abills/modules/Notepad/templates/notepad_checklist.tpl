@@ -9,7 +9,7 @@
   </div>
   <div class='col-xs-2'>
 	  <button class='btn btn-danger btn-xs note-del'>
-      <span class='glyphicon glyphicon-remove'></span>
+      <span class='fa fa-remove'></span>
     </button>
   </div>
 </div>

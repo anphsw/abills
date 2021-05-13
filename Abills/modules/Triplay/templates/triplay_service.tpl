@@ -4,10 +4,10 @@
 <input type='hidden' name='UID' value=%UID%>
 <input type='hidden' name='action' value=%ACTION%>
 
-<div class='box box-theme box-form'>
-<div class='box-header with-border text-primary'>3PlayBox</div>
+<div class='card card-primary card-outline box-form'>
+<div class='card-header with-border text-primary'>3PlayBox</div>
 
-<div class='box-body'>
+<div class='card-body'>
 	<div class='form-group'>
         <label class='col-md-4 control-label'>_{TARIF_PLAN}_</label>
 		<div class='col-md-8'>
@@ -19,7 +19,7 @@
 	</div>
 </div>
 
-<div class='box-footer'>
+<div class='card-footer'>
 	<button type='submit' class='btn btn-primary'>%BUTTON%</button>
 </div>
 

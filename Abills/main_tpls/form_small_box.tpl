@@ -3,32 +3,37 @@
     <form action=$SELF_URL class='form form-horizontal text-center pswd-confirm' id='changeCreditForm'>
       <div class='modal-content'>
         <div class='modal-header'>
+          <h6 class='modal-title text-center'>_{SET_CREDIT}_</h6>
           <button type='button' class='close' data-dismiss='modal' aria-label='Close'><span
               aria-hidden='true'>&times;</span></button>
-          <h4 class='modal-title text-center'>_{SET_CREDIT}_</h4>
         </div>
         <div class='modal-body' style='padding: 30px;'>
-          <input type=hidden name='index' value='10'>
-          <input type=hidden name='sid' value='$sid'>
+          <input type='hidden' name='index' value='10'>
+          <input type='hidden' name='sid' value='$sid'>
 
-          <div class='form-group'>
-            <label class='col-md-7'>_{CREDIT_SUM}_: </label>
-            <label class='col-md-3'> %CREDIT_SUM%</label>
+          <div class="form-group row">
+            <label class="col-sm-4 col-md-4">_{CREDIT_SUM}_:</label>
+            <div class="col-sm-8 col-md-8">
+              <input type='text' name='CREDIT_SUM' value='%CREDIT_SUM%' class='form-control' readonly>
+            </div>
           </div>
-          <div class='form-group'>
-            <label class='col-md-7'>_{CREDIT_PRICE}_:</label>
-            <label class='col-md-3'>%CREDIT_CHG_PRICE%</label>
-          </div>
-          <div class='form-group'>
-            <label class='col-md-7'>_{ACCEPT}_:</label>
 
-            <div class='col-md-3'>
-              <input type='checkbox' required='required' value='%CREDIT_SUM%' name='change_credit'>
+          <div class="form-group row">
+            <label class="col-sm-4 col-md-4">_{CREDIT_PRICE}_:</label>
+            <div class="col-sm-8 col-md-8">
+              <input type='text' name='CREDIT_CHG_PRICE' value='%CREDIT_CHG_PRICE%' class='form-control' readonly>
+            </div>
+          </div>
+
+          <div class="form-group row">
+            <div class="col-sm-12 col-md-12 custom-control custom-checkbox">
+              <input required='required' class="custom-control-input" type="checkbox" id="change_credit" name="change_credit" value="%CREDIT_SUM%">
+              <label for="change_credit" class="col-sm-4 col-md-4 custom-control-label">_{ACCEPT}_</label>
             </div>
           </div>
         </div>
         <div class='modal-footer'>
-          <input type=submit class='btn btn-primary' value='_{SET}_' name='set'>
+          <input type='submit' class='btn btn-primary' value='_{SET}_' name='set'>
         </div>
       </div>
     </form>
@@ -37,10 +42,10 @@
 <!-- /.modal -->
 
 <div class="callout callout-danger">
-    <h4>Статус: Слишком маленький депозит</h4>
-    <h5>Установить кредит?</h5>
+    <h4>_{STATUS}_: _{NEG_DEPOSIT}_</h4>
+    <h5>_{SET}_ _{CREDIT}_?</h5>
     <label>
-        <input type="checkbox"> Подтвердить
+        <input type="checkbox"> _{CONFIRM}_
     </label>
-    <button type="submit" class="btn btn-primary" name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'>ДА !</button>
+    <button type="submit" class="btn btn-primary" name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'>_{YES}_!</button>
 </div>

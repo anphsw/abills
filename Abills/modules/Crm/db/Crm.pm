@@ -51,7 +51,23 @@ sub crm_lead_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('crm_leads', {%$attr, DATE => $attr->{DATE} || 'NOW()'});
+  if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD}) {
+    use Address;
+    my $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
+    $Address->build_add({
+      STREET_ID         => $attr->{STREET_ID},
+      ADD_ADDRESS_BUILD => $attr->{ADD_ADDRESS_BUILD}
+    });
+    $attr->{BUILD_ID} = $Address->{LOCATION_ID};
+  }
+
+  $self->query_add('crm_leads', { %$attr, DATE => $attr->{DATE} || 'NOW()' });
+  my $insert_id = $self->{INSERT_ID} || 0;
+
+  if ($insert_id) {
+    $self->crm_action_add("INSERT_ID: $insert_id", { ID => $insert_id, TYPE => 1 });
+    $self->{INSERT_ID} = $insert_id;
+  }
 
   return $self;
 }
@@ -67,20 +83,32 @@ sub crm_lead_add {
 
 =cut
  #**********************************************************
- sub crm_lead_change {
+sub crm_lead_change {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'crm_leads',
-      DATA         => $attr
-    }
-  );
+  if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD}) {
+    use Address;
+    my $Address = Address->new($self->{db}, $self->{admin}, $self->{conf});
+    $Address->build_add({
+      STREET_ID         => $attr->{STREET_ID},
+      ADD_ADDRESS_BUILD => $attr->{ADD_ADDRESS_BUILD}
+    });
+    $attr->{BUILD_ID} = $Address->{LOCATION_ID};
+  }
+
+  $self->changes({
+    CHANGE_PARAM    => 'ID',
+    TABLE           => 'crm_leads',
+    DATA            => $attr,
+    SKIP_LOG        => 1,
+    GET_CHANGES_LOG => 1
+  });
+
+  $self->crm_action_add($self->{CHANGES_LOG}, { %{$attr}, TYPE => 2 }) if ($self->{CHANGES_LOG} || $attr->{CHANGES_LOG});
 
   return $self;
- }
+}
 
 #**********************************************************
 =head2 crm_lead_delete() -
@@ -98,6 +126,7 @@ sub crm_lead_delete {
   my ($attr) = @_;
 
   $self->query_del('crm_leads', $attr);
+  $self->crm_action_add("DELETED: $attr->{ID}", { ID => $attr->{ID}, TYPE => 4 }) if !$self->{errno};
 
   return $self;
 }
@@ -120,7 +149,8 @@ sub crm_lead_info {
   $self->query(
     "SELECT *, cl.id as lead_id FROM crm_leads cl
     LEFT JOIN users u ON (u.uid = cl. uid)
-      WHERE cl.id = ?;", undef, {COLS_NAME => 1, COLS_UPPER=> 1, Bind => [ $attr->{ID} ] }
+      WHERE cl.id = ?;", undef,
+      { COLS_NAME => 1, COLS_UPPER=> 1, Bind => [ $attr->{ID} ] }
   );
 
   return $self->{list}->[0] || {};
@@ -141,70 +171,76 @@ sub crm_lead_list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT        = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC        = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $PG          = ($attr->{PG}) ? $attr->{PG} : 0;
-  my $PAGE_ROWS   = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
 
   my @WHERE_RULES = ();
+  my $EXT_TABLES = '';
 
-  if($attr->{FROM_DATE}){
-    push @WHERE_RULES, "date >= '$attr->{FROM_DATE}'";
-  }
-
-  if($attr->{TO_DATE}){
-    push @WHERE_RULES, "date <= '$attr->{TO_DATE}'";
-  }
-
-  if($attr->{PHONE_SEARCH}){
-    push @WHERE_RULES, "cl.phone LIKE '\%$attr->{PHONE_SEARCH}\%'";
-  }
-
-  if($self->{admin}{DOMAIN_ID}){
-    push @WHERE_RULES,
-      "(cl.domain_id='$self->{admin}{DOMAIN_ID}')";
-  }
+  push @WHERE_RULES, "date >= '$attr->{FROM_DATE}'" if ($attr->{FROM_DATE});
+  push @WHERE_RULES, "date <= '$attr->{TO_DATE}'" if ($attr->{TO_DATE});
+  push @WHERE_RULES, "cl.phone LIKE '\%$attr->{PHONE_SEARCH}\%'" if ($attr->{PHONE_SEARCH});
+  push @WHERE_RULES, "(cl.domain_id='$self->{admin}{DOMAIN_ID}')" if ($self->{admin}{DOMAIN_ID});
 
   if ($attr->{LEAD_ID}) {
     $SORT = 'lead_id';
     $DESC = 'DESC';
   }
 
-  my $WHERE = $self->search_former(
-    $attr,
-    [
-      [ 'LEAD_ID',          'INT',   'cl.id as lead_id',               1 ],
-      [ 'USER_LOGIN',       'STR',   'u.id as user_login',             1 ],
-      [ 'FIO',              'STR',   'cl.fio',                         1 ],
-      [ 'PHONE',            'STR',   'cl.phone',                       1 ],
-      [ 'EMAIL',            'STR',   'cl.email',                       1 ],
-      [ 'COMPANY',          'STR',   'cl.company',                     1 ],
-      [ 'LEAD_CITY',        'STR',   'cl.city as lead_city',           1 ],
-      [ 'RESPONSIBLE',      'INT',   'cl.responsible',                 1 ],
-      [ 'ADMIN_NAME',       'STR',   'a.name as admin_name',           1 ],
-      [ 'SOURCE',           'INT',   'cl.source',                      1 ],
-      [ 'SOURCE_NAME',      'STR',   'cls.name as source_name',        1 ],
-      [ 'DATE',             'DATE',  'cl.date',                        1 ],
-      [ 'CURRENT_STEP',     'INT',   'cl.current_step',                1 ],
-      [ 'CURRENT_STEP_NAME','STR',   'cps.name as current_step_name',  1 ],
-      [ 'STEP_COLOR',       'STR',   'cps.color as step_color',        1 ],
-      [ 'ADDRESS',          'STR',   'cl.address',                     1 ],
-      [ 'LAST_ACTION',      'STR',   'cl.id as last_action',           1 ],
-      [ 'PRIORITY' ,        'STR',   'cl.priority',                    1 ],
-      [ 'PERIOD',           'DATE',  'cl.date as period',              1 ],
-      [ 'SOURCE',           'INT',   'cl.source',                      1 ],
-      [ 'COMMENTS',         'STR',   'cl.comments',                      ],
-      [ 'TAG_IDS' ,         'STR',   'cl.tag_ids',                     1 ],
-      [ 'DOMAIN_ID',        'INT',   'cl.domain_id',                   0 ],
-      [ 'CL_UID',           'INT',   'cl.uid',                         0 ],
-    ],
-    {
-      WHERE             => 1,
-      USERS_FIELDS_PRE  => 1,
-      SKIP_USERS_FIELDS => ['FIO', 'PHONE', 'EMAIL', 'COMMENTS', 'DOMAIN_ID'],
-      WHERE_RULES       => \@WHERE_RULES,
-    }
-  );
+  $attr->{SEARCH_COLUMNS} = $attr->{SEARCH_COLUMNS} && ref $attr->{SEARCH_COLUMNS} eq 'ARRAY' ? $attr->{SEARCH_COLUMNS} : ();
+
+  my $search_columns = [
+    [ 'LEAD_ID',          'INT',   'cl.id as lead_id',               1 ],
+    [ 'USER_LOGIN',       'STR',   'u.id as user_login',             1 ],
+    [ 'FIO',              'STR',   'cl.fio',                         1 ],
+    [ 'PHONE',            'STR',   'cl.phone',                       1 ],
+    [ 'EMAIL',            'STR',   'cl.email',                       1 ],
+    [ 'COMPANY',          'STR',   'cl.company',                     1 ],
+    [ 'LEAD_CITY',        'STR',   'cl.city as lead_city',           1 ],
+    [ 'RESPONSIBLE',      'INT',   'cl.responsible',                 1 ],
+    [ 'ADMIN_NAME',       'STR',   'a.name as admin_name',           1 ],
+    [ 'SOURCE',           'INT',   'cl.source',                      1 ],
+    [ 'SOURCE_NAME',      'STR',   'cls.name as source_name',        1 ],
+    [ 'DATE',             'DATE',  'cl.date',                        1 ],
+    [ 'CURRENT_STEP',     'INT',   'cl.current_step',                1 ],
+    [ 'CURRENT_STEP_NAME','STR',   'cps.name as current_step_name',  1 ],
+    [ 'STEP_COLOR',       'STR',   'cps.color as step_color',        1 ],
+    [ 'ADDRESS',          'STR',   'cl.address',                     1 ],
+    [ 'BUILD_ID',         'INT',   'cl.build_id',                    1 ],
+    [ 'ADDRESS_FLAT',     'STR',   'cl.address_flat',                1 ],
+    [ 'LAST_ACTION',      'STR',   'cl.id as last_action',           1 ],
+    [ 'PRIORITY' ,        'STR',   'cl.priority',                    1 ],
+    [ 'PERIOD',           'DATE',  'cl.date as period',              1 ],
+    [ 'SOURCE',           'INT',   'cl.source',                      1 ],
+    [ 'COMMENTS',         'STR',   'cl.comments',                      ],
+    [ 'TAG_IDS' ,         'STR',   'cl.tag_ids',                     1 ],
+    [ 'DOMAIN_ID',        'INT',   'cl.domain_id',                   0 ],
+    [ 'CL_UID',           'INT',   'cl.uid',                         0 ],
+    [ 'COMPETITOR_ID',    'INT',   'cl.competitor_id',               1 ],
+    [ 'COMPETITOR_NAME',  'STR',   'cc.name AS competitor_name',     1 ],
+    [ 'TP_ID',            'INT',   'cl.tp_id',                       1 ],
+    [ 'TP_NAME',          'STR',   'cct.name AS tp_name',            1 ],
+    [ 'ASSESSMENT',       'INT',   'cl.assessment',                  1 ],
+    [ 'LEAD_ADDRESS',     'STR',
+      "IF(cl.build_id, CONCAT(districts.name, ', ', streets.name, ', ', builds.number), '') AS lead_address",  1 ],
+  ];
+
+  map push(@{$search_columns}, $_), @{$attr->{SEARCH_COLUMNS}};
+
+  my $WHERE = $self->search_former($attr, $search_columns, {
+    WHERE             => 1,
+    USERS_FIELDS_PRE  => 1,
+    SKIP_USERS_FIELDS => [ 'FIO', 'PHONE', 'EMAIL', 'COMMENTS', 'DOMAIN_ID', 'ADDRESS_FULL' ],
+    WHERE_RULES       => \@WHERE_RULES,
+  });
+
+  if ($attr->{LEAD_ADDRESS}) {
+    $EXT_TABLES = "LEFT JOIN builds ON (builds.id=cl.build_id)";
+    $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=builds.street_id)
+      LEFT JOIN districts ON (districts.id=streets.district_id) ";
+  }
 
   $self->query(
     "SELECT 
@@ -212,9 +248,12 @@ sub crm_lead_list {
     cl.uid, cl.id
     FROM crm_leads as cl
     LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
+    LEFT JOIN crm_competitors cc ON (cc.id = cl.competitor_id)
+    LEFT JOIN crm_competitors_tps cct ON (cl.tp_id = cct.id AND cc.id = cct.competitor_id)
     LEFT JOIN crm_progressbar_steps cps ON (cps.step_number = cl.current_step)
     LEFT JOIN admins a ON (a.aid = cl.responsible)
     LEFT JOIN users u ON (u.uid = cl.uid)
+    $EXT_TABLES
     $WHERE
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",
@@ -903,6 +942,1073 @@ sub crm_step_number_leads {
     { LIST2HASH => 'step_number,id' });
 
   return $self->{list_hash} || {};
+}
+
+#**********************************************************
+=head2 crm_competitor_add() - add new competitor
+
+  Arguments:
+    $attr  -
+
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitor_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_competitors', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_competitor_del() - del competitor
+
+  Arguments:
+    $attr  -
+
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitor_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_competitors', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_competitor_list()
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitor_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'cc.id';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
+
+  my $EXT_TABLE = '';
+  my @WHERE_RULES = ();
+
+  if ($attr->{BUILD_ID}) {
+    push @WHERE_RULES, "ccg.build_id = $attr->{BUILD_ID}";
+  }
+  elsif ($attr->{STREET_ID}) {
+    push @WHERE_RULES, "(b.street_id = $attr->{STREET_ID} OR ccg.street_id = $attr->{STREET_ID})";
+    $EXT_TABLE = 'LEFT JOIN builds b ON (b.id=ccg.build_id)';
+  }
+  elsif ($attr->{DISTRICT_ID}) {
+    push @WHERE_RULES, "(s.district_id = $attr->{DISTRICT_ID} OR ccg.district_id = $attr->{DISTRICT_ID})";
+    $EXT_TABLE = 'LEFT JOIN builds b ON (b.id=ccg.build_id)';
+    $EXT_TABLE .= 'LEFT JOIN streets s ON (s.id=b.street_id OR s.id=ccg.street_id)';
+  }
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',               'INT', 'cc.id',              1 ],
+      [ 'NAME',             'STR', 'cc.name',            1 ],
+      [ 'DESCR',            'STR', 'cc.descr',           1 ],
+      [ 'SITE',             'STR', 'cc.site',            1 ],
+      [ 'CONNECTION_TYPE',  'STR', 'cc.connection_type', 1 ],
+    ],
+    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
+  );
+
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} cc.id FROM crm_competitors cc
+    LEFT JOIN crm_competitor_geolocation ccg ON (ccg.competitor_id=cc.id)
+    $EXT_TABLE
+    $WHERE
+    GROUP BY cc.id
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query("SELECT COUNT(*) AS total FROM crm_competitors cc $WHERE", undef, { INFO => 1 });
+
+  return $list || [];
+}
+
+#**********************************************************
+=head2 crm_competitor_info()
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitor_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT * FROM crm_competitors cc WHERE cc.id = ?;", undef, { COLS_NAME => 1, COLS_UPPER => 1, Bind => [ $attr->{ID} ] });
+
+  return $self->{list}->[0] || {};
+}
+
+#**********************************************************
+=head2 crm_competitor_change()
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitor_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_competitors',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_competitor_add() - add new competitor
+
+  Arguments:
+    $attr  -
+
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitors_tps_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_competitors_tps', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_competitor_del() - del competitor
+
+  Arguments:
+    $attr  -
+
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitors_tps_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_competitors_tps', $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_competitor_list()
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitors_tps_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'cct.id';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
+  my $GROUP_BY = $attr->{GROUP_BY} || 'cct.id';
+
+  my $EXT_TABLE = '';
+  my @WHERE_RULES = ();
+
+  if ($attr->{BUILD_ID}) {
+    push @WHERE_RULES, "cctg.build_id = $attr->{BUILD_ID}";
+  }
+  elsif ($attr->{STREET_ID}) {
+    push @WHERE_RULES, "(b.street_id = $attr->{STREET_ID} OR cctg.street_id = $attr->{STREET_ID})";
+    $EXT_TABLE = 'LEFT JOIN builds b ON (b.id=cctg.build_id)';
+  }
+  elsif ($attr->{DISTRICT_ID}) {
+    push @WHERE_RULES, "(s.district_id = $attr->{DISTRICT_ID} OR cctg.district_id = $attr->{DISTRICT_ID})";
+    $EXT_TABLE = 'LEFT JOIN builds b ON (b.id=cctg.build_id)';
+    $EXT_TABLE .= 'LEFT JOIN streets s ON (s.id=b.street_id OR s.id=cctg.street_id)';
+  }
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',              'INT', 'cct.id',                     1 ],
+      [ 'NAME',            'STR', 'cct.name',                   1 ],
+      [ 'SPEED',           'INT', 'cct.speed',                  1 ],
+      [ 'MONTH_FEE',       'INT', 'cct.month_fee',              1 ],
+      [ 'DAY_FEE',         'INT', 'cct.day_fee',                1 ],
+      [ 'COMPETITOR_ID',   'INT', 'cct.competitor_id',          1 ],
+      [ 'COMPETITOR_NAME', 'STR', 'cc.name AS competitor_name', 1 ],
+    ],
+    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
+  );
+
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} cct.id
+    FROM crm_competitors_tps cct
+    LEFT JOIN crm_competitors cc ON (cc.id = cct.competitor_id)
+    LEFT JOIN crm_competitor_tps_geolocation cctg ON (cct.id = cctg.tp_id)
+    $EXT_TABLE
+    $WHERE
+    GROUP BY $GROUP_BY
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  return $self->{list} if ($self->{TOTAL} < 1);
+
+  $self->query("SELECT COUNT(*) AS total FROM crm_competitors_tps cct $WHERE", undef, { INFO => 1 });
+
+  return $list || [];
+}
+
+#**********************************************************
+=head2 crm_competitor_info()
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitors_tps_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT * FROM crm_competitors_tps cct WHERE cct.id = ?;", undef, { COLS_NAME => 1, COLS_UPPER => 1, Bind => [ $attr->{ID} ] });
+
+  return $self->{list}->[0] || {};
+}
+
+#**********************************************************
+=head2 crm_competitor_change()
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitors_tps_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'crm_competitors_tps',
+    DATA         => $attr
+  });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_add_competitor_geo($attr) - add geo info
+
+  Arguments:
+    %$attr
+
+  Returns:
+    $self object
+
+  Examples:
+
+=cut
+#*******************************************************************
+sub crm_add_competitor_geo {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_competitor_geolocation', { %$attr });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_del_competitor_geo() - delete geolocation from db
+
+  Arguments:
+    $attr
+
+  Returns:
+
+  Examples:
+
+=cut
+#*******************************************************************
+sub crm_del_competitor_geo {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_competitor_geolocation', undef, { competitor_id => $attr->{COMPETITOR_ID} });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_competitor_geo_list() - get geo list
+
+  Arguments:
+    $attr
+  Returns:
+    @list
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitor_geo_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'COMPETITOR_ID', 'INT', 'ccg.competitor_id', 1 ],
+    [ 'STREET_ID',     'INT', 'ccg.street_id',     1 ],
+    [ 'BUILD_ID',      'INT', 'ccg.build_id',      1 ],
+    [ 'DISTRICT_ID',   'INT', 'ccg.district_id',   1 ]
+  ], { WHERE => 1 });
+
+  $self->query(
+    "SELECT ccg.competitor_id, ccg.street_id, ccg.build_id, ccg.district_id FROM crm_competitor_geolocation ccg $WHERE
+      ORDER BY $SORT $DESC;", undef, $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 crm_competitor_geo_list() - get geo list
+
+  Arguments:
+    $attr
+  Returns:
+    @list
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitor_builds_list {
+  my $self = shift;
+  my ($competitor_id) = @_;
+
+  $self->query("SELECT b.id AS id, b.number AS number, s.name AS street_name, d.name AS district_name, d.id AS district_id, s.id AS street_id
+    FROM builds b
+    LEFT JOIN streets s  ON (s.id=b.street_id)
+    LEFT JOIN districts d  ON (d.id=s.district_id)
+    LEFT JOIN crm_competitor_geolocation ccg ON (ccg.build_id=b.id OR ccg.street_id=s.id OR ccg.district_id=d.id)
+    WHERE competitor_id=?
+    ORDER BY b.id;", undef, { COLS_NAME => 1, Bind => [ $competitor_id ] }
+  );
+
+  return $self->{list} || [];
+}
+
+#*******************************************************************
+=head2 crm_add_competitor_tps_geo($attr) - add geo info
+
+  Arguments:
+    %$attr
+
+  Returns:
+    $self object
+
+  Examples:
+
+=cut
+#*******************************************************************
+sub crm_add_competitor_tps_geo {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('crm_competitor_tps_geolocation', { %$attr });
+
+  return $self;
+}
+
+#*******************************************************************
+=head2 crm_del_competitor_tps_geo() - delete geolocation from db
+
+  Arguments:
+    $attr
+
+  Returns:
+
+  Examples:
+
+=cut
+#*******************************************************************
+sub crm_del_competitor_tps_geo {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_del('crm_competitor_tps_geolocation', undef, { tp_id => $attr->{TP_ID} });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_competitor_tps_geo_list() - get geo list
+
+  Arguments:
+    $attr
+  Returns:
+    @list
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitor_tps_geo_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'TP_ID',       'INT', 'cctg.tp_id',       1 ],
+    [ 'STREET_ID',   'INT', 'cctg.street_id',   1 ],
+    [ 'BUILD_ID',    'INT', 'cctg.build_id',    1 ],
+    [ 'DISTRICT_ID', 'INT', 'cctg.district_id', 1 ]
+  ], { WHERE => 1 });
+
+  $self->query(
+    "SELECT cctg.tp_id, cctg.street_id, cctg.build_id, cctg.district_id FROM crm_competitor_tps_geolocation cctg $WHERE
+      ORDER BY $SORT $DESC;", undef, $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 crm_lead_points_list() - lead points list
+
+  Arguments:
+    $attr
+  Returns:
+    @list
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_lead_points_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
+
+  $self->query("SELECT cl.*, cps.color,cps.name AS step, builds.coordx, builds.coordy ,
+      SUM(plpoints.coordx)/COUNT(plpoints.coordx) AS coordy_2,
+      SUM(plpoints.coordy)/COUNT(plpoints.coordy) AS coordx_2
+    FROM crm_leads as cl
+    LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
+    LEFT JOIN crm_progressbar_steps cps ON (cps.step_number = cl.current_step)
+    LEFT JOIN builds ON (builds.id=cl.build_id)
+    LEFT JOIN maps_points mp ON (builds.id=mp.location_id)
+    LEFT JOIN maps_point_types mt ON (mp.type_id=mt.id)
+    LEFT JOIN maps_coords mc ON (mp.coord_id=mc.id)
+    LEFT JOIN maps_polygons mgone ON (mgone.object_id=mp.id)
+    LEFT JOIN maps_polygon_points plpoints ON(mgone.id=plpoints.polygon_id)
+    GROUP BY cl.id HAVING (coordx <> 0 AND coordy <> 0) OR (coordx_2 <> 0 AND coordy_2 <> 0)
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    { COLS_NAME => 1, COLS_UPPER => 1 }
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 crm_competitors_popular_tps_list ()
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitors_popular_tps_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'cl.tp_id';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
+  my $GROUP_BY = $attr->{GROUP_BY} || 'cl.tp_id';
+
+  my $EXT_TABLE = '';
+  my @WHERE_RULES = ();
+
+  push @WHERE_RULES, "cl.tp_id <> 0";
+
+  if ($attr->{BUILD_ID}) {
+    push @WHERE_RULES, "cctg.build_id = $attr->{BUILD_ID}";
+  }
+  elsif ($attr->{STREET_ID}) {
+    push @WHERE_RULES, "(b.street_id = $attr->{STREET_ID} OR cctg.street_id = $attr->{STREET_ID})";
+    $EXT_TABLE = 'LEFT JOIN builds b ON (b.id=cctg.build_id)';
+  }
+  elsif ($attr->{DISTRICT_ID}) {
+    push @WHERE_RULES, "(s.district_id = $attr->{DISTRICT_ID} OR cctg.district_id = $attr->{DISTRICT_ID})";
+    $EXT_TABLE = 'LEFT JOIN builds b ON (b.id=cctg.build_id)';
+    $EXT_TABLE .= 'LEFT JOIN streets s ON (s.id=b.street_id OR s.id=cctg.street_id)';
+  }
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'ID',              'INT', 'cct.id',                     1 ],
+      [ 'NAME',            'STR', 'cct.name',                   1 ],
+      [ 'MONTH_FEE',       'INT', 'cct.month_fee',              1 ],
+      [ 'DAY_FEE',         'INT', 'cct.day_fee',                1 ],
+      [ 'COMPETITOR_ID',   'INT', 'cct.competitor_id',          1 ],
+      [ 'COMPETITOR_NAME', 'STR', 'cc.name AS competitor_name', 1 ],
+    ],
+    { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
+  );
+
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} COUNT(DISTINCT cl.id) as leads_number, cct.id
+      FROM crm_leads as cl
+      LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
+      LEFT JOIN crm_competitors cc ON (cc.id = cl.competitor_id)
+      LEFT JOIN crm_competitors_tps cct ON (cl.tp_id = cct.id AND cc.id = cct.competitor_id)
+      LEFT JOIN crm_competitor_tps_geolocation cctg ON (cct.id = cctg.tp_id)
+      $EXT_TABLE
+    $WHERE
+    GROUP BY $GROUP_BY
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 crm_competitors_users_list ()
+
+  Arguments:
+    ATTRIBUTES -
+  Returns:
+
+  Examples:
+
+=cut
+#**********************************************************
+sub crm_competitors_users_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{sort}) ? $attr->{sort} : 'avg_assessment';
+  my $DESC = ($attr->{desc}) ? $attr->{desc} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
+  my $GROUP_BY = $attr->{GROUP_BY} || 'cl.competitor_id';
+
+  my $EXT_TABLE = '';
+  my @WHERE_RULES = ();
+
+  push @WHERE_RULES, "cl.competitor_id <> 0";
+
+  if ($attr->{BUILD_ID}) {
+    push @WHERE_RULES, "cl.build_id = $attr->{BUILD_ID}";
+  }
+  elsif ($attr->{STREET_ID}) {
+    push @WHERE_RULES, "b.street_id = $attr->{STREET_ID}";
+    $EXT_TABLE = 'LEFT JOIN builds b ON (b.id=cl.build_id)';
+  }
+  elsif ($attr->{DISTRICT_ID}) {
+    push @WHERE_RULES, "s.district_id = $attr->{DISTRICT_ID}";
+    $EXT_TABLE = 'LEFT JOIN builds b ON (b.id=cl.build_id)';
+    $EXT_TABLE .= 'LEFT JOIN streets s ON (s.id=b.street_id)';
+  }
+
+  my $WHERE = $self->search_former(
+    $attr,
+    [
+      [ 'COMPETITOR_ID',    'INT', 'cl.competitor_id',                                                                    1 ],
+      [ 'COMPETITOR_NAME',  'STR', 'cc.name AS competitor_name',                                                          1 ],
+      [ 'USERS',            'INT', 'COUNT(cl.id) AS users',                                                               1 ],
+      [ 'AVG_ASSESSMENT',   'INT', 'ROUND(AVG(CASE WHEN cl.assessment > 0 THEN cl.assessment END), 1) AS avg_assessment', 1 ],
+      [ 'TOTAL_ASSESSMENT', 'INT', 'COUNT(CASE WHEN cl.assessment > 0 THEN cl.assessment END) AS total_assessment',       1 ],
+      [ 'LEAD_ID',          'INT', 'cl.id as lead_id',                                                                    1 ],
+      [ 'FIO',              'STR', 'cl.fio',                                                                              1 ],
+      [ 'PHONE',            'STR', 'cl.phone',                                                                            1 ],
+      [ 'ASSESSMENT',       'INT', 'cl.assessment',                                                                       1 ],
+    ],
+    { WHERE => 1, WHERE_RULES => \@WHERE_RULES, SKIP_USERS_FIELDS => ['FIO', 'PHONE'] }
+  );
+
+
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} cc.name AS competitor_name
+      FROM crm_leads as cl
+      LEFT JOIN crm_competitors cc ON (cc.id = cl.competitor_id)
+      $EXT_TABLE
+    $WHERE
+    GROUP BY $GROUP_BY
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2  fields_add() - Add info
+
+=cut
+#**********************************************************
+sub fields_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{SQL_FIELD} = "_" . $attr->{SQL_FIELD};
+  my $table_name = $attr->{TP_INFO_FIELDS} ? 'crm_tp_info_fields' : 'crm_info_fields';
+
+  $self->query_add($table_name, $attr);
+
+  return $self;
+}
+
+#**********************************************************
+
+=head2  fields_del() - Delete info
+
+=cut
+
+#**********************************************************
+sub fields_del {
+  my $self = shift;
+  my $id = shift;
+  my ($attr) = @_;
+
+  my $table_name = $attr->{TP_INFO_FIELDS} ? 'crm_tp_info_fields' : 'crm_info_fields';
+
+  $self->query_del($table_name, { ID => $id });
+
+  return $self->{result};
+}
+
+#**********************************************************
+=head2 fields_list($attr) - list
+a
+=cut
+#**********************************************************
+sub fields_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'ID',       'INT', 'id',        1 ],
+    [ 'NAME',     'STR', 'name',      1 ],
+    [ 'SQL_FIELD','STR', 'sql_field', 1 ],
+    [ 'TYPE',     'INT', 'type',      1 ],
+    [ 'PRIORITY', 'INT', 'priority',  1 ],
+    [ 'COMMENT',  'STR', 'comment',   1 ],
+  ],{ WHERE => 1, });
+
+  my $table_name = $attr->{TP_INFO_FIELDS} ? 'crm_tp_info_fields' : 'crm_info_fields';
+
+  $self->query(
+    "SELECT *
+     FROM $table_name
+     $WHERE
+     ORDER BY $SORT $DESC;",
+    undef,
+    { COLS_NAME => 1, COLS_UPPER => 1 }
+  );
+
+  return $self->{list} || [];
+}
+
+
+#**********************************************************
+=head2 fields_change($attr) - change
+
+=cut
+#**********************************************************
+sub fields_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => $attr->{TP_INFO_FIELDS} ? 'crm_tp_info_fields' : 'crm_info_fields',
+    DATA         => $attr,
+  });
+
+  return $self->{result};
+}
+
+#**********************************************************
+=head2 field_info()
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub field_info {
+  my $self = shift;
+  my $id = shift;
+  my ($attr) = @_;
+
+  my $table_name = $attr->{TP_INFO_FIELDS} ? 'crm_tp_info_fields' : 'crm_info_fields';
+
+  $self->query("SELECT cif.* FROM $table_name cif WHERE cif.id = ?;", undef, { INFO => 1, Bind => [ $id ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 lead_field_add($attr) - add lead info field
+  Arguments:
+    $attr
+      FIELD_ID
+      FIELD_TYPE
+
+  Returns:
+    $self
+=cut
+#**********************************************************
+sub lead_field_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my @column_types = (
+    " varchar(120) not null default ''",
+    " int(11) NOT NULL default '0'",
+    " smallint unsigned NOT NULL default '0' ",
+    " text not null ",
+    " tinyint(11) NOT NULL default '0' ",
+    " content longblob NOT NULL",
+    " varchar(100) not null default ''",
+    " int(11) unsigned NOT NULL default '0'",
+    " varchar(12) not null default ''",
+    " varchar(120) not null default ''",
+    " varchar(20) not null default ''",
+    " varchar(50) not null default ''",
+    " varchar(50) not null default ''",
+    " int unsigned NOT NULL default '0' ",
+    " INT(11) UNSIGNED NOT NULL DEFAULT '0' REFERENCES users(uid) ",
+    " varchar(120) not null default ''",
+    " varchar(120) not null default ''",
+    " varchar(120) not null default ''",
+    " varchar(120) not null default ''",
+    " tinyint(2) not null default '0' ",
+    " DATE not null default '0000-00-00' ",
+  );
+
+  $attr->{FIELD_TYPE} = 0 if (!$attr->{FIELD_TYPE});
+
+  my $column_type  = $column_types[ $attr->{FIELD_TYPE} ] || " varchar(120) not null default ''";
+
+
+  my $table = $attr->{TP_INFO_FIELDS} ? 'crm_competitors_tps' : 'crm_leads';
+
+  $self->query('ALTER TABLE ' . $table . ' ADD COLUMN ' .'_' . $attr->{FIELD_ID} . " $column_type;", 'do');
+
+  if (!$self->{errno} || ($self->{errno} && $self->{errno} == 3)) {
+    if ($attr->{FIELD_TYPE} == 2) {
+      $attr->{FIELD_ID} = 'tp_' . $attr->{FIELD_ID} if $attr->{TP_INFO_FIELDS};
+      $self->query("CREATE TABLE _crm_$attr->{FIELD_ID}_list (
+        id smallint unsigned NOT NULL primary key auto_increment,
+        name varchar(120) not null default 0
+        ) DEFAULT CHARSET=$self->{conf}->{dbcharset};", 'do'
+      );
+    }
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 lead_field_del($attr)
+
+  Arguments:
+    $attr
+      FIELD_ID
+  Returns:
+    Object
+
+=cut
+#**********************************************************
+sub lead_field_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $table = $attr->{TP_INFO_FIELDS} ? 'crm_competitors_tps' : 'crm_leads';
+
+  $self->query("ALTER TABLE $table DROP COLUMN `$attr->{FIELD_ID}`;", 'do');
+
+  if (!$self->{errno} || $self->{errno} == 3) {
+    # my $Conf = Conf->new($self->{db}, $admin, $self->{conf});
+    #
+    # $Conf->config_del("$attr->{SECTION}$attr->{FIELD_ID}");
+  }
+
+  return $self;
+}
+
+#**********************************************************
+=head2 info_list_add($attr)
+
+=cut
+#**********************************************************
+sub info_list_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  if (!$attr->{LIST_TABLE_NAME}) {
+    $self->{errno} = 300;
+    $self->{errstr} = 'NO list table';
+    return $self;
+  }
+
+  $attr->{LIST_TABLE_NAME} = '_tp' . $attr->{LIST_TABLE_NAME} if $attr->{TP_INFO_FIELDS};
+
+  $self->query_add("_crm$attr->{LIST_TABLE_NAME}_list", $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 info_list_del($attr) - Info list del value
+
+=cut
+#**********************************************************
+sub info_list_del {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{LIST_TABLE_NAME} = '_tp' . $attr->{LIST_TABLE_NAME} if $attr->{TP_INFO_FIELDS};
+
+  $self->query_del("_crm$attr->{LIST_TABLE_NAME}_list", $attr);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 info_lists_list($attr)
+
+=cut
+#**********************************************************
+sub info_lists_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{LIST_TABLE_NAME} = '_tp' . $attr->{LIST_TABLE_NAME} if $attr->{TP_INFO_FIELDS};
+
+  $self->query("SELECT id, name FROM `_crm$attr->{LIST_TABLE_NAME}_list` ORDER BY name;", undef, $attr);
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 info_list_info($id, $attr)
+
+=cut
+#**********************************************************
+sub info_list_info {
+  my $self = shift;
+  my ($id, $attr) = @_;
+
+  $attr->{LIST_TABLE_NAME} = '_tp' . $attr->{LIST_TABLE_NAME} if $attr->{TP_INFO_FIELDS};
+
+  $self->query("SELECT id, name FROM `_crm$attr->{LIST_TABLE_NAME}_list` WHERE id= ? ;", undef, { INFO => 1, Bind => [ $id ] });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 info_list_change($id, $attr)
+
+=cut
+#**********************************************************
+sub info_list_change {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $attr->{LIST_TABLE_NAME} = '_tp' . $attr->{LIST_TABLE_NAME} if $attr->{TP_INFO_FIELDS};
+
+  $self->changes({
+    CHANGE_PARAM => 'ID',
+    TABLE        => "_crm$attr->{LIST_TABLE_NAME}_list",
+    DATA         => $attr
+  });
+
+  return $self->{result};
+}
+
+
+#**********************************************************
+=head2 crm_action_add($actions, $attr) - Add crm actions
+
+  Arguments:
+    $actions - Action describe
+    $attr -
+      MODULE
+      TYPE
+
+  Results:
+    $self
+
+=cut
+#**********************************************************
+sub crm_action_add {
+  my $self = shift;
+  my ($actions, $attr) = @_;
+
+  $self->query_add('crm_admin_actions', {
+    AID         => $self->{admin}{AID},
+    IP          => $self->{admin}{IP} || '0.0.0.0',
+    LID         => $attr->{ID},
+    DATETIME    => 'NOW()',
+    ACTIONS     => $actions,
+    ACTION_TYPE => ($attr->{TYPE}) ? $attr->{TYPE}   : ''
+  });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_action_del($action_id)
+
+=cut
+#**********************************************************
+sub crm_action_del {
+  my $self = shift;
+  my ($action_id) = @_;
+
+  $self->query_del('crm_admin_actions', { ID => $action_id });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 crm_action_list($attr)
+
+=cut
+#**********************************************************
+sub crm_action_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 'ca.id';
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+
+  my $WHERE = $self->search_former($attr, [
+    ['ACTIONS',           'STR',  'ca.actions',                                       1 ],
+    ['LID',               'INT',  'ca.lid',                                           1 ],
+    ['TYPE',              'INT',  'ca.action_type',                                   1 ],
+    ['IP',                'IP',   'ca.ip', 'INET_NTOA(ca.ip) AS ip',                  1 ],
+    ['DATETIME',          'DATE', 'ca.datetime',                                      1 ],
+    ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(ca.datetime, '%Y-%m-%d')",             1 ],
+    ['AID',               'INT',  'ca.aid',                                           1 ],
+    ['ADMIN',             'STR',  'a.id', 'a.id AS admin',                            1 ],
+    ['LEAD_FIO',          'STR',  'cl.fio', 'cl.fio AS lead_fio',                     1 ]
+  ], { WHERE => 1 });
+
+  $self->query(
+    "SELECT $self->{SEARCH_FIELDS} ca.id
+     FROM crm_admin_actions ca
+      LEFT JOIN admins a ON (ca.aid=a.aid)
+      LEFT JOIN crm_leads cl ON (ca.lid=cl.id)
+      $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list};
+
+  $self->query("SELECT COUNT(*) AS total FROM crm_admin_actions ca
+    LEFT JOIN admins a ON (ca.aid=a.aid)
+    $WHERE;",
+    undef,
+    { INFO => 1 }
+  );
+
+  return $list;
 }
 
 

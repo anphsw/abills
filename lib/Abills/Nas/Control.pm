@@ -99,7 +99,7 @@ sub new {
 =cut
 #***********************************************************
 sub hangup {
-  shift;
+  my $self = shift;
   my ($Nas, $PORT, $USER, $attr) = @_;
 
   my $nas_type = $Nas->{NAS_TYPE} || '';
@@ -126,8 +126,22 @@ sub hangup {
   }
   elsif ($attr->{COA_ACTION}) {
     $params{COA}=1;
-    $params{RAD_PAIRS}  = $attr->{COA_ACTION};
-    radius_request($Nas, \%params);
+
+    if (ref $attr->{COA_ACTION} eq 'ARRAY') {
+      foreach my $coa_request ( @{ $attr->{COA_ACTION} } ) {
+        $params{RAD_PAIRS} = $coa_request;
+
+        # while(my($k, $v)=each %$coa_request) {
+        #   print "  $k -> $v\n";
+        # }
+
+        $self->radius_request($Nas, \%params);
+      }
+    }
+    else {
+      $params{RAD_PAIRS} = $attr->{COA_ACTION};
+      $self->radius_request($Nas, \%params);
+    }
   }
   elsif ($nas_type eq 'mikrotik') {
     my ($ip, $mng_port, $second_port, undef) = split(/:/, $Nas->{NAS_MNG_IP_PORT} || q{}, 4);
@@ -143,18 +157,18 @@ sub hangup {
         'Acct-Session-Id'  => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
       };
 
-      radius_request($Nas, \%params);
+      $self->radius_request($Nas, \%params);
     }
   }
   elsif ($nas_type eq 'huawei_me60') {
-    radius_request($Nas, \%params);
+    $self->radius_request($Nas, \%params);
   }
   elsif ($nas_type eq 'radpppd') {
     hangup_radpppd($Nas, \%params);
   }
   elsif ($nas_type eq 'chillispot') {
     $Nas->{NAS_MNG_IP_PORT} = "$Nas->{NAS_IP}:3799" if (!$Nas->{NAS_MNG_IP_PORT});
-    radius_request($Nas, \%params);
+    $self->radius_request($Nas, \%params);
   }
   elsif ($nas_type eq 'usr') {
     hangup_snmp(
@@ -167,7 +181,7 @@ sub hangup {
     );
   }
   elsif ($nas_type eq 'cisco') {
-    hangup_cisco($Nas, \%params);
+    $self->hangup_cisco($Nas, \%params);
   }
   elsif ($nas_type eq 'unifi') {
     hangup_unifi($Nas, \%params)
@@ -176,7 +190,7 @@ sub hangup {
     hangup_cisco_isg($Nas, \%params);
   }
   elsif ($nas_type eq 'mpd5') {
-    hangup_mpd5($Nas, \%params);
+    $self->hangup_mpd5($Nas, \%params);
   }
   elsif ($nas_type eq 'openvpn') {
     hangup_openvpn($Nas, \%params);
@@ -203,7 +217,7 @@ sub hangup {
       'Acct-Session-Id' => $attr->{SESSION_ID} || $attr->{ACCT_SESSION_ID}
     };
 
-    radius_request($Nas, \%params);
+    $self->radius_request($Nas, \%params);
   }
   elsif ( $nas_type eq 'redback' || $nas_type eq 'zte_m6000'){
     if($attr->{CONNECT_INFO} && $attr->{CONNECT_INFO} !~ /pppoe/) {
@@ -211,17 +225,17 @@ sub hangup {
       $cid =~ s/\-/:/g;
       $params{RAD_PAIRS}->{'User-Name'} = $cid;
     }
-    radius_request( $Nas, \%params );
+    $self->radius_request( $Nas, \%params );
   }
   elsif ($nas_type eq 'mx80') {
     $params{RAD_PAIRS}->{'Acct-Session-Id'} = $params{SESSION_ID};
-    radius_request($Nas, \%params);
+    $self->radius_request($Nas, \%params);
   }
   elsif ($Nas->{NAS_MNG_IP_PORT} && $Nas->{NAS_MNG_IP_PORT} =~ /\d+\.\d+\.\d+\.\d+:\d+:/) {
-    radius_request($Nas, \%params);
+    $self->radius_request($Nas, \%params);
   }
   elsif ($nas_type eq 'lisg_cst') {
-    radius_request($Nas, \%params);
+    $self->radius_request($Nas, \%params);
   }
   else {
     return 1;
@@ -635,6 +649,7 @@ sub hangup_snmp {
 =cut
 #***********************************************************
 sub radius_request {
+  my $self = shift;
   my ($NAS, $attr) = @_;
 
   my $USER = $attr->{USER};
@@ -702,7 +717,7 @@ sub radius_request {
     $r->send_packet(COA_REQUEST) and $type = $r->recv_packet;
   }
   else {
-    $r->send_packet(POD_REQUEST) and $type = $r->recv_packet;
+    $r->send_packet(DISCONNECT_REQUEST) and $type = $r->recv_packet;
   }
 
   my $result;
@@ -710,18 +725,21 @@ sub radius_request {
     # No responce from COA/POD server
     my $message = "No responce from $request_type server '$NAS->{NAS_MNG_IP_PORT}'";
     $result .= $message;
+    $self->{error}=3;
+    $self->{errstr}=$message;
     $Log->log_print('LOG_DEBUG', "$USER", $message, { ACTION => 'CMD' });
   }
 
+  $self->{rad_return}=$type;
+  delete $self->{rad_pairs};
   for my $rad ($r->get_attributes) {
-    $result .= ">> $rad->{'Name'} -> $rad->{'Value'}\n";
+    $result .= ">> ". ($rad->{'Name'} || 'NO_NAME') .' -> '. ($rad->{'Value'} || q{NO_VALUE}) ."\n";
+    $self->{rad_pairs}->{$rad->{'Name'}}=$rad->{'Value'};
   }
 
   if ($attr->{DEBUG}) {
     print "Radius Return: " . ($type || q{}) . "\n Result: " . ($result || 'Empty');
   }
-
-  $r = undef;
 
   return $result;
 }
@@ -1005,6 +1023,7 @@ sub hangup_cisco_isg {
 =cut
 #***********************************************************
 sub hangup_cisco {
+  my $self = shift;
   my ($NAS, $attr) = @_;
   my $exec;
   my $command = '';
@@ -1016,7 +1035,7 @@ sub hangup_cisco {
 
   #POD Version
   if ($mng_port) {
-    radius_request($NAS, $attr);
+    $self->radius_request($NAS, $attr);
   }
   #Rsh version
   elsif ($NAS->{NAS_MNG_USER}) {
@@ -1104,6 +1123,7 @@ sub hangup_dslmax {
 =cut
 #***********************************************************
 sub hangup_mpd5 {
+  my $self = shift;
   my ($NAS, $attr) = @_;
 
   my $PORT = $attr->{PORT};
@@ -1119,7 +1139,7 @@ sub hangup_mpd5 {
 
   if (!$attr->{LOCAL_HANGUP}) {
     $NAS->{NAS_MNG_IP_PORT} = "$hostname:$radius_port";
-    return radius_request($NAS, $attr);
+    return $self->radius_request($NAS, $attr);
   }
 
   $hostname = '127.0.0.1';
@@ -1268,7 +1288,7 @@ sub hangup_pppd_coa {
   $r->add_attributes({ Name => 'Framed-Protocol', Value => 'PPP' }, { Name => 'NAS-Port', Value => "$PORT" });
   $r->add_attributes({ Name => 'Framed-IP-Address', Value =>
     "$attr->{FRAMED_IP_ADDRESS}" }) if ($attr->{FRAMED_IP_ADDRESS});
-  $r->send_packet(POD_REQUEST) and $type = $r->recv_packet;
+  $r->send_packet(DISCONNECT_REQUEST) and $type = $r->recv_packet;
 
   if (!defined $type) {
     # No responce from POD server
@@ -1300,6 +1320,7 @@ sub hangup_pppd_coa {
 =cut
 #***********************************************************
 sub setspeed {
+  my $self = shift;
   my ($Nas, $nas_port, $user_name, $upspeed, $downspeed, $attr) = @_;
 
   my $nas_type = $Nas->{NAS_TYPE};
@@ -1316,7 +1337,7 @@ sub setspeed {
     if ($attr->{FRAMED_IP_ADDRESS}) {
       $RAD_PAIRS{'Framed-IP-Address'} = $attr->{FRAMED_IP_ADDRESS};
     }
-    return radius_request($Nas, { %$attr, RAD_PAIRS => \%RAD_PAIRS, COA => 1 });
+    return $self->radius_request($Nas, { %$attr, RAD_PAIRS => \%RAD_PAIRS, COA => 1 });
   }
   else {
     return -1;

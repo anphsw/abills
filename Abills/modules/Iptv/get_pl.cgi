@@ -36,15 +36,13 @@ use JSON qw/decode_json encode_json/;
 our $DATE = strftime("%Y-%m-%d", localtime(time));
 our $TIME = strftime("%H:%M:%S", localtime(time));
 
-our $html = Abills::HTML->new(
-  {
-    CONF     => \%conf,
-    NO_PRINT => 0,
-    PATH     => $conf{WEB_IMG_SCRIPT_PATH} || '../',
-    CHARSET  => $conf{default_charset},
-    LANG     => \%lang,
-  }
-);
+our $html = Abills::HTML->new({
+  CONF     => \%conf,
+  NO_PRINT => 0,
+  PATH     => $conf{WEB_IMG_SCRIPT_PATH} || '../',
+  CHARSET  => $conf{default_charset},
+  LANG     => \%lang,
+});
 
 if ($html->{language} ne 'english') {
   do $libpath . "/language/english.pl";
@@ -58,6 +56,7 @@ my $Iptv = Iptv->new($db, $admin, \%conf);
 my $Log = Log->new($db, \%conf);
 my $Tariff = Tariffs->new($db, $admin, \%conf);
 my $Shedule = Shedule->new($db, $admin, \%conf);
+my $Users = Users->new($db, $admin, \%conf);
 
 iptv_check_service();
 exit;
@@ -1329,7 +1328,7 @@ sub _iptv_24tv_auth {
 
   my $Internet = Internet->new($db, $admin, \%conf);
   my $user_info = $Internet->list({
-    ONLINE_IP  => $FORM{ip},
+    PHONE      => "*$FORM{phone}",
     UID        => '_SHOW',
     COLS_NAME  => 1,
     COLS_UPPER => 1,
@@ -1372,6 +1371,8 @@ sub _iptv_24tv_packet {
     SUBSCRIBE_ID => $params->{user}{id},
     TP_ID        => '_SHOW',
     MONTH_FEE    => '_SHOW',
+    PHONE        => '_SHOW',
+    LOGIN        => '_SHOW',
     COLS_NAME    => 1,
     COLS_UPPER   => 1,
   });
@@ -1388,13 +1389,15 @@ sub _iptv_24tv_packet {
   if ($params->{packet}{is_base}) {
     _iptv_base_tariffs({
       TV_SERVICE        => $Tv_service,
-      ID                => $Iptv->{TOTAL} ? $user_info->[0]{ID} : 0,
+      ID                => $Iptv->{TOTAL} > 0 ? $user_info->[0]{ID} : 0,
       FILTER_ID         => $params->{packet}{id},
       UID               => $params->{user}{provider_uid},
       SUBSCRIBE_ID      => $params->{user}{id},
       SERVICE_ID        => $attr->{SERVICE_ID},
       CURRENT_MONTH_FEE => $Iptv->{TOTAL} ? $user_info->[0]{MONTH_FEE} : 0,
       TP_ID             => $user_info->[0]{TP_ID},
+      LOGIN             => $user_info->[0]{LOGIN},
+      PHONE             => $user_info->[0]{PHONE}
     });
     return 1;
   }
@@ -1427,8 +1430,8 @@ sub _iptv_24tv_print_err {
   my ($attr) = @_;
 
   print _json_former({
-    "status" => -1,
-    "err"    => -1,
+    "status" => -2,
+    "err"    => -2,
     "errmsg" => $attr->{message}
   });
 
@@ -1449,6 +1452,7 @@ sub _iptv_get_service_fee {
   my ($attr) = @_;
 
   $Iptv->user_info($attr->{INSERT_ID});
+  my $user_info = $Users->info($Iptv->{UID});
 
   my %users_services = ();
   my %FEES_DSC = (
@@ -1467,10 +1471,11 @@ sub _iptv_get_service_fee {
   };
 
   $Iptv->{REDUCTION} = $Iptv->{REDUCTION_FEE} || 0;
-  return get_service_fee($Iptv, \%users_services, {
+  return get_service_fee($user_info, \%users_services, {
     DATE             => $DATE,
     METHOD           => 1,
     PERIOD_ALIGNMENT => $Iptv->{PERIOD_ALIGNMENT},
+    GET_SUM          => 1
   });
 }
 
@@ -1652,11 +1657,20 @@ sub _iptv_base_tariffs {
     return 0;
   }
 
+  $Users->info($attr->{UID});
+  if ($Users->{DEPOSIT} + $Users->{CREDIT} < $tariff_info->[0]{month_fee}) {
+    _iptv_24tv_print_err({ message => 'Не хватает денег на подписку!' });
+    return 0;
+  }
+
+  $Users->pi({ UID => $attr->{UID} });
   my $Tv_service = $attr->{TV_SERVICE};
   if ($Tv_service && $Tv_service->can('user_change') && $attr->{ID}) {
     $Tv_service->{debug} = 0;
     delete $Tv_service->{errno};
+
     my $result = $Tv_service->user_change({
+      FIO           => $Users->{TOTAL} > 0 ? $Users->{FIO} : '',
       UID           => $attr->{UID},
       SUBSCRIBE_ID  => $attr->{SUBSCRIBE_ID},
       TP_FILTER_ID  => $attr->{FILTER_ID},
@@ -1672,9 +1686,14 @@ sub _iptv_base_tariffs {
     $Tv_service->{debug} = 0;
     delete $Tv_service->{errno};
     my $result = $Tv_service->user_sub({
-      UID      => $attr->{SUBSCRIBE_ID},
-      TP       => $attr->{FILTER_ID},
-      DEL_BASE => 1
+      FIO         => $Users->{TOTAL} > 0 ? $Users->{FIO} : '',
+      UID         => $attr->{SUBSCRIBE_ID},
+      LOGIN       => $attr->{LOGIN} || $Users->{LOGIN},
+      PHONE       => $attr->{PHONE} || $Users->{PHONE},
+      TP          => $attr->{FILTER_ID},
+      STATUS      => 0,
+      DEL_BASE    => 1,
+      CHANGE_INFO => 1
     });
     if (ref $result eq "HASH" && $result->{errno}) {
       _iptv_24tv_print_err({ message => "Ошибка при подписке" });
@@ -1702,6 +1721,14 @@ sub _iptv_base_tariffs {
   my $result = _iptv_get_service_fee({ INSERT_ID => $Iptv->{INSERT_ID} });
 
   if ($result) {
+    if ($Tv_service && $Tv_service->can('_user_update_deposit')) {
+      $Users->pi({ UID => $attr->{UID} });
+      $Tv_service->_user_update_deposit({
+        SUBSCRIBE_ID => $attr->{SUBSCRIBE_ID},
+        DEPOSIT      => $Users->{DEPOSIT} || 0
+      });
+    }
+
     print _json_former({ "status" => 1 });
     return 1;
   }

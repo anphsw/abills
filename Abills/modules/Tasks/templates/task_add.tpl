@@ -1,47 +1,47 @@
 <form class='form-horizontal' id='task_add_form'>
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='ID' value='%ID%'>
-  <div class='row'>
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'><h3 class='box-title'>%BOX_TITLE%</h3>
-        <div class='box-tools pull-right'>
-        <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+  
+    <div class='card card-form  card-primary card-outline box-form'>
+      <div class='card-header with-border'><h3 class='card-title'>%BOX_TITLE%</h3>
+        <div class='card-tools pull-right'>
+        <button type='button' class='btn btn-tool' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
           </button>
         </div>
       </div>
-      <div class='box-body' id='task_form_body'>
+      <div class='card-body' id='task_form_body'>
 
-        <div class="form-group">
-          <label class='control-label col-md-4' for='task_type'>_{TASK_TYPE}_:</label>
+        <div class='form-group row'>
+          <label class='col-md-4 col-form-label text-md-right' for='task_type'>_{TASK_TYPE}_:</label>
           <div class='col-md-8'>
             %SEL_TASK_TYPE%
           </div>
         </div>
 
-        <div class="form-group">
-          <label class='control-label col-md-4' for='NAME'>_{TASK_NAME}_:</label>
+        <div class='form-group row'>
+          <label class='col-md-4 col-form-label  text-md-right' for='NAME'>_{TASK_NAME}_:</label>
           <div class='col-md-8'>
-            <input class="form-control" name='NAME' id='NAME' value='%NAME%'>
+            <input class='form-control' name='NAME' id='NAME' value='%NAME%'>
           </div>
         </div>
 
-        <div class="form-group">
-          <label class='control-label col-md-4' for='DESCR'>_{TASK_DESCRIBE}_:</label>
+        <div class='form-group row'>
+          <label class='col-md-4 col-form-label text-md-right' for='DESCR'>_{TASK_DESCRIBE}_:</label>
           <div class='col-md-8'>
-            <textarea class="form-control" rows="5" name='DESCR' id='DESCR'>%DESCR%</textarea>
+            <textarea class='form-control' rows='5' name='DESCR' id='DESCR'>%DESCR%</textarea>
           </div>
         </div>
 
-        <div class="form-group">
-          <label class='control-label col-md-4' for='responsible'>_{RESPONSIBLE}_:</label>
+        <div class='form-group row'>
+          <label class='col-md-4 col-form-label text-md-right' for='responsible'>_{RESPONSIBLE}_:</label>
           <div class='col-md-8'>  
             %SEL_RESPONSIBLE%
           </div>
         </div>
 
-        <div class="form-group">
-          <label class='control-label col-md-4' for='responsible'>_{PARTCIPIANTS}_:</label>
+        <div class='form-group row'>
+          <label class='col-md-4 col-form-label text-md-right' for='responsible'>_{PARTCIPIANTS}_:</label>
           <div class='col-md-8'>
             <input type='hidden' id='PARTCIPIANTS_LIST' name='PARTCIPIANTS_LIST' value='%PARTCIPIANTS_LIST%'>
             <button type='button' class='btn btn-primary pull-left' data-toggle='modal' data-target='#myModal' 
@@ -49,41 +49,41 @@
           </div>
         </div>
                    <!-- Modal -->
-        <div class="modal fade" id="myModal" role="dialog">
-          <div class="modal-dialog">
+        <div class='modal fade' id='myModal' role='dialog'>
+          <div class='modal-dialog'>
           
             <!-- Modal content-->
-            <div class="modal-content">
-              <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 class="modal-title">_{PARTCIPIANTS}_</h4>
+            <div class='modal-content'>
+              <div class='modal-header'>
+                <button type='button' class='close' data-dismiss='modal'>&times;</button>
+                <h4 class='modal-title'>_{PARTCIPIANTS}_</h4>
               </div>
-              <div class="modal-body">
+              <div class='modal-body'>
                %ADMINS_LIST%
               </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal" onClick='return closeModal()'>Close</button>
+              <div class='modal-footer'>
+                <button type='button' class='btn  btn-secondary' data-dismiss='modal' onClick='return closeModal()'>Close</button>
               </div>
             </div>
             
           </div>
         </div>
-
-        <div class='form-group'>
-          <label class='control-label col-md-4' for='CONTROL_DATE'>_{DUE_DATE}_:</label>
+       <div class='col-md-12'>&nbsp;</div>
+        <div class='form-group row'>
+          <label class='col-md-4 col-form-label text-md-right' for='CONTROL_DATE'>_{DUE_DATE}_:</label>
           <div class='col-md-8'>
-            <input type="text" class='datepicker form-control' value='%CONTROL_DATE%' name='CONTROL_DATE' id='CONTROL_DATE'>
+            <input type='text' class='datepicker form-control' value='%CONTROL_DATE%' name='CONTROL_DATE' id='CONTROL_DATE'>
           </div>
         </div>
 
         %PLUGINS_FIELDS%
 
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input type=submit name='%BTN_ACTION%' value='%BTN_NAME%' class='btn btn-primary'>
       </div>  
     </div>
-  </div>
+ 
 </form>
 
 <script type="text/javascript">
@@ -94,7 +94,7 @@
     var pluginsArr = JSON.parse('%JSON_PLUGINS_FIELDS%');
   }
   catch (err) {
-    alert('JSON parse error.');
+    alert('JSON parse PROBLEM.');
   }
     var oldresponsible = '%RESPONSIBLE%';
 

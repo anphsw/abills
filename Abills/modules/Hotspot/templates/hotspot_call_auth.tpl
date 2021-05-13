@@ -1,8 +1,8 @@
 <form METHOD='POST' class='form-inline'>
   <input type=hidden name='PHONE' value='%PHONE%'>
   <input type=hidden name='mac' value='%mac%'>
-  <div class='box box-theme'>
-    <div class='box-body'>
+  <div class='card card-primary card-outline'>
+    <div class='card-body'>
       <p>Перезвоните на номер <a href="tel:123456789">123456789</a></p>
     </div>
   </div>

@@ -8,27 +8,27 @@ use warnings FATAL => 'all';
 =head1 SYNOPSIS
 
   db_check.pl - checks .sql schema files and current DB scheme to find incosistency
-  
+
 =head2 ARGUMENTS
 
- --help, help, ?    - show this help and exit
- 
- FROM_CACHE=1           - Use cache from previous
- ALLOW_DATA_STRIP=1     - Will show commands that can cause stripping current values ( use with caution )
- SHOW_CREATE=1          - Try to check enabled modules and tables that have module like name
- BATCH=1                - no confirm ( print all found ALTER and MODIFY statements to STDOUT )
- APPLY_ALL=1 -a         - no confirm ( apply all found ALTER and MODIFY statements )
- SKIP_DISABLED_MODULES  - skip comparing tables we know it's module specific and module is disabled
- CREATE_NOT_EXIST_TABLES
- 
- Debug options are used for debug only:
-   DEBUG            - debug_level (0..5)
-   FILE             - parse only one .sql file
-   SKIP_DUMP        - skip parsing .sql files
-   D_TABLE          - when DEBUG=5, show table structure from dump
-   D_FIELD          - when DEBUG=5, show D_TABLE field structure from dump
-   S_TABLE          - when DEBUG=5, show table structure from DB
-   S_FIELD          - when DEBUG=5, show S_TABLE field structure from DB
+  --help, help, ?    - show this help and exit
+
+  FROM_CACHE=1           - Use cache from previous
+  ALLOW_DATA_STRIP=1     - Will show commands that can cause stripping current values ( use with caution )
+  SHOW_CREATE=1          - Try to check enabled modules and tables that have module like name
+  BATCH=1                - no confirm ( print all found ALTER and MODIFY statements to STDOUT )
+  APPLY_ALL=1 -a         - no confirm ( apply all found ALTER and MODIFY statements )
+  SKIP_DISABLED_MODULES  - skip comparing tables we know it's module specific and module is disabled
+  CREATE_NOT_EXIST_TABLES
+
+  Debug options are used for debug only:
+    DEBUG            - debug_level (0..5)
+    FILE             - parse only one .sql file
+    SKIP_DUMP        - skip parsing .sql files
+    D_TABLE          - when DEBUG=5, show table structure from dump
+    D_FIELD          - when DEBUG=5, show D_TABLE field structure from dump
+    S_TABLE          - when DEBUG=5, show table structure from DB
+    S_FIELD          - when DEBUG=5, show S_TABLE field structure from DB
 
 =head1 AUTHORS
 

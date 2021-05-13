@@ -207,6 +207,16 @@ sub storage_items {
         SUM                 => $existing_incoming_article->{total_sum} + $FORM{SUM},
         STORAGE_INCOMING_ID => $existing_incoming_article->{storage_incoming_id}
       });
+      if (!_error_show($Storage)) {
+        $Storage->storage_log_add({
+          STORAGE_MAIN_ID => $existing_incoming_article->{sia_id},
+          COUNT           => $FORM{COUNT},
+          STORAGE_ID      => $existing_incoming_article->{storage_id},
+          COMMENTS        => "$lang{ITEM_ADDED_TO} " .
+            $html->button($existing_incoming_article->{sia_id},
+              "index=" . get_function_index('storage_main') . "&add_article=1&chg=$existing_incoming_article->{sia_id}")
+        });
+      }
     }
     else {
       $Storage->storage_incoming_articles_add({ %FORM });
@@ -393,6 +403,7 @@ sub _storage_incoming_article_already_exist {
     SIA_COUNT           => '_SHOW',
     STORAGE_INCOMING_ID => '_SHOW',
     SIA_ID              => '_SHOW',
+    SN                  => '0',
     COLS_NAME           => 1,
     COLS_UPPER          => 1
   });
@@ -898,10 +909,10 @@ sub storage_main {
 
         if ($FORM{STATUS}) {
           if ($FORM{STATUS} == 1) {
-            $fees->take($users, ($list->[0]{sell_price} || 0), { DESCRIBE => "$lang{PAY_FOR_SELL} $list->[0]->{article_name}" });
+            $fees->take($users, ($list->[0]{sell_price} || 0), { DESCRIBE => "$lang{PAY_FOR_SELL} $list->[0]->{article_name} ($list->[0]{serial})" });
           }
           elsif ($FORM{STATUS} == 2) {
-            $fees->take($users, ($list->[0]{sell_price} || 0), { DESCRIBE => "$lang{PAY_FOR_RENT} $list->[0]->{article_name}" });
+            $fees->take($users, ($list->[0]{sell_price} || 0), { DESCRIBE => "$lang{PAY_FOR_RENT} $list->[0]->{article_name} ($list->[0]{serial})" });
           }
           elsif ($FORM{STATUS} == 3) {
             $fees->take($users, ($list->[0]{in_installments_price} || 0),
@@ -989,8 +1000,9 @@ sub storage_main {
     }
 
     my $date_range = $html->form_daterangepicker({
-      NAME        => 'FROM_DATE/TO_DATE',
-      'EX_PARAMS' => 'disabled="disabled"',
+      NAME         => 'FROM_DATE/TO_DATE',
+      'EX_PARAMS'  => 'disabled="disabled"',
+      RETURN_INPUT => 1
     });
 
     $html->tpl_show(_include("storage_reserve_filter", 'Storage'), {
@@ -1380,7 +1392,7 @@ sub storage_main {
     . "&INVOICE_ID=" . ($FORM{INVOICE_ID} || '_SHOW');
     my $reddirect_for_qr_btn = $html->button("$lang{PRINT} QRCode", $url_for_items_in_table, {
         target => '_blank',
-        class  => 'btn btn-sm btn-default'
+        class  => 'btn btn-sm btn-secondary'
       });
 
     my ($table) = result_former(
@@ -1555,10 +1567,11 @@ sub storage_installation {
     );
 
     $Storage->{DATE_SELECT} = $html->form_daterangepicker({
-      NAME       => 'DATE',
-      THIS_MONTH => $FORM{DATE} ? 0 : 1,
-      VALUE      => $FORM{DATE},
-      EX_PARAMS  => 'disabled="disabled"'
+      NAME         => 'DATE',
+      THIS_MONTH   => $FORM{DATE} ? 0 : 1,
+      VALUE        => $FORM{DATE},
+      EX_PARAMS    => 'disabled="disabled"',
+      RETURN_INPUT => 1
     });
 
     $Storage->{SEARCH_STORAGE_ARTICLE_EMPTY_STATE} = 'selected';
@@ -1717,7 +1730,7 @@ sub storage_accountability {
   elsif ($FORM{INCOMING_ARTICLES_ID}){
     my $print_incoming_invoice_button = $html->button("$lang{PRINT}",
       "qindex=$index&print_installation_invoice=1&ID=$FORM{INCOMING_ARTICLES_ID}&header=2", {
-        ICON   => 'glyphicon glyphicon-print',
+        ICON   => 'fa fa-print',
         target => '_blank',
       });
     $html->message('info', $lang{INFO}, "$lang{PRINT}: $print_incoming_invoice_button");
@@ -2140,7 +2153,7 @@ sub storage_user_equipment_add {
     if ($FORM{STATUS}) {
       if ($FORM{STATUS} == 1) {
         $attr->{ACTION} = 12;
-        $fees->take($users, $sell_price, { DESCRIBE => "$lang{PAY_FOR_SELL} $list->[0]->{article_name}" });
+        $fees->take($users, $sell_price, { DESCRIBE => "$lang{PAY_FOR_SELL} $list->[0]->{article_name} ($list->[0]{serial})" });
       }
       elsif ($FORM{STATUS} == 2) {
         $attr->{ACTION} = 13;
@@ -2317,7 +2330,7 @@ sub storage_hardware {
   # RETURN HARDWARE TO STORAGE -------------------------------
   elsif ($FORM{del} && defined ($FORM{UID})) {
     if (!defined($permissions{0}{5})) {
-      $html->message( 'err', $lang{ERROR}, "[13] $err_strs{13}" );
+      $html->message( 'err', $lang{ERROR}, "$lang{PERMISIION_DENIED}" );
       return 0;
     }
     my $list = $Storage->storage_installation_list({
@@ -2344,6 +2357,8 @@ sub storage_hardware {
       ID        => $installation_item->{storage_incoming_articles_id},
       COLS_NAME => 1
     });
+
+    my $storage_id = $incoming_articles->[0]->{storage_id} || 0;
     _error_show($Storage);
 
     if ($Storage->{TOTAL}) {
@@ -2360,7 +2375,7 @@ sub storage_hardware {
       });
 
       if (!_error_show($Storage)) {
-        my $storage_name = $storage_storages->[$incoming_articles->[0]->{storage_id}];
+        my $storage_name = $storage_storages->[$storage_id];
         $html->message('info', $lang{INFO},
           $lang{RETURNED}
         . ' '. ($installation_item->{sta_name} || q{})
@@ -3212,7 +3227,7 @@ sub storage_move_item {
 
     my $move_print_button = $html->button("$lang{PRINT}",
       "qindex=" . get_function_index("storage_main"). "&header=2&incoming_article_id=$FORM{INCOMING_ARTICLE_ID}&print_move=1", {
-        ICON   => 'glyphicon glyphicon-print',
+        ICON   => 'fa fa-print',
         target => '_blank',
       });
 
@@ -3361,7 +3376,7 @@ sub _storage_actions_list {
 
   my $span_carret     = $html->element('span', '', { class => 'caret' });
   my $dropdown_button = $html->element("button", "$lang{ACTIONS_LIST}$span_carret", {
-      class           => 'btn btn-default btn-block dropdown-toggle',
+      class           => 'btn btn-secondary btn-block dropdown-toggle',
       id              => 'dropdownMenu1',
       type            => "button",
       'data-toggle'   => "dropdown",
@@ -3485,12 +3500,12 @@ sub _inner_use_return_button {
 
   return $html->button("$lang{RETURN}",
     "index=$index&show_inner_use=$FORM{show_inner_use}&return_id=$id", {
-      class   => 'btn btn-default btn-xs',
+      class   => 'btn btn-secondary btn-xs',
       MESSAGE => "$lang{RETURN}?",
     }, { OUTPUT2RETURN => 1 }) .
     $html->button("$lang{DISCARD}",
       "index=$index&show_inner_use=$FORM{show_inner_use}&discard_inner_use=1&ID=$id", {
-        class   => 'btn btn-default btn-xs',
+        class   => 'btn btn-secondary btn-xs',
         MESSAGE => "$lang{SPECIFY_THE_REASON_FOR_CANCELLATION}?",
       }, { OUTPUT2RETURN => 1 })
   ;
@@ -3511,11 +3526,11 @@ sub _discard_button {
 
   return $html->button("$lang{PRINT}",
     "qindex=$index&print_discard=$FORM{storage_status}&ID=$id&header=2", {
-      class => 'btn btn-default btn-xs',
+      class => 'btn btn-secondary btn-xs',
     }, { OUTPUT2RETURN => 1 }) .
     $html->button("$lang{RETURN}",
       "index=$index&storage_status=$FORM{storage_status}&return_id=$id", {
-        class   => 'btn btn-default btn-xs',
+        class   => 'btn btn-secondary btn-xs',
         MESSAGE => "$lang{RETURN}",
       }, { OUTPUT2RETURN => 1 });
 }
@@ -3535,22 +3550,22 @@ sub _storage_accountability_buttons {
   return $html->button("$lang{RETURN_STORAGE}",
     "index=$index&del_accountability=1&ID=$id",
     {
-      class => 'btn btn-default btn-xs',
+      class => 'btn btn-secondary btn-xs',
     }, {OUTPUT2RETURN => 1}) .
     $html->button("$lang{PRINT}",
       "index=$index&print_accountability=1&header=2&qindex=265&ID=$id",
       {
-        class   => 'btn btn-default btn-xs',
+        class   => 'btn btn-secondary btn-xs',
       }, {OUTPUT2RETURN => 1}) .
     $html->button("$lang{INSTALL}",
       "index=$index&install_accountability=1&ID=$id",
       {
-        class   => 'btn btn-default btn-xs',
+        class   => 'btn btn-secondary btn-xs',
       }, {OUTPUT2RETURN => 1}) .
     $html->button("$lang{DISCARD}",
       "index=$index&discard_accountability=1&ID=$id",
       {
-        class   => 'btn btn-default btn-xs',
+        class   => 'btn btn-secondary btn-xs',
         MESSAGE => "$lang{SPECIFY_THE_REASON_FOR_CANCELLATION}",
       }, {OUTPUT2RETURN => 1});
 }
@@ -3914,7 +3929,7 @@ sub _print_invoice_button {
   return $html->button("$lang{PRINT}",
     "qindex=$index&print_invoice=1&ID=$id&header=2",
     {
-      class => 'btn btn-default btn-xs',
+      class => 'btn btn-secondary btn-xs',
       target => '_blank',
     }, {OUTPUT2RETURN => 1});
 }
@@ -4267,6 +4282,7 @@ sub storage_hardware_user_portal {
   my $table = $html->table({
     caption => $lang{HARDWARE},
     width   => '100%',
+    LITE_HEADER => 1,
     title   => [ $lang{NAME}, $lang{STATUS}, $lang{DATE} ],
     ID      => 'STORAGE_USER_INSTALLATIONS',
   });

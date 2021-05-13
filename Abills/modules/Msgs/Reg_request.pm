@@ -357,16 +357,16 @@ sub msgs_unreg_requests_list {
         }
 
         $state = $html->element('span', $state, { class =>
-          "glyphicon glyphicon-flag  text-danger" }) if ($line->{admin_read} && $line->{admin_read} eq '0000-00-00 00:00:00');
+          "fa fa-flag  text-danger" }) if ($line->{admin_read} && $line->{admin_read} eq '0000-00-00 00:00:00');
 
         if ($line->{deligation} && $line->{deligation} > 0) {
           if ($attr->{CHAPTERS_DELIGATION}->{ $line->{chapter_id} } == $line->{deligation}) {
             $state = $html->element('span', '',
-              { class => "glyphicon glyphicon-wrench text-danger", alt => "' . $lang{DELIVERED} . '" }) . $state;
+              { class => "fa fa-wrench text-danger", alt => "' . $lang{DELIVERED} . '" }) . $state;
           }
           else {
             $state = $html->element('span', '',
-              { class => "glyphicon glyphicon-wrench  text-warning", alt => "' . $lang{DELIVERED} . '" }) . $state;
+              { class => "fa fa-wrench  text-warning", alt => "' . $lang{DELIVERED} . '" }) . $state;
           }
         }
 

@@ -123,7 +123,7 @@ $lang{MEMO}='Пам&#39;ятка абонента';
 $lang{BIRTHDAY}='День народження';
 $lang{REMEMBER}='Запам&#39;ятати';
 $lang{ERROR}='Помилка';
-$lang{SESSIONS}='Сесій';
+$lang{SESSIONS}='Сесії';
 $lang{ALL}='Всі';
 $lang{OR}=' або';
 $lang{DONT_CREATE_INVOICE}='Не створювати рахунок';
@@ -203,7 +203,7 @@ $lang{NAS}='Сервер доступу';
 $lang{ACTIVE_PERSONAL}='Включений персональний';
 $lang{ERR_WRONG_PHONE}='Неправильний номер телефону';
 $lang{INN}='ІПН';
-$lang{LAST_UPDATE}='Остане оновлення статистики';
+$lang{LAST_UPDATE}='Останнє оновлення статистики';
 $lang{ACTIVATE_NEXT_PERIOD}='Для активації наступного облікового періода потрібно сплатити';
 $lang{OVERQUOTA}='Оверквота';
 $lang{TRAFFIC}='Трафік';
@@ -282,7 +282,7 @@ $lang{MIN}='Мінімально';
 $lang{COMMENTS_PLEASE}=' Коментарі обовязкові';
 $lang{INFO_CHANGE_MSG}='Заповніть дані в порожніх полях';
 $lang{UNDELETE}='Відновити';
-$lang{HOLD_UP}='Призупинено';
+$lang{HOLD_UP}='Призупинити доступ';
 $lang{FREE}='Вільний';
 $lang{FALSE_ATTEMPTS}='Неуспішні спроби';
 $lang{SHOW_ALL}='Показати все';
@@ -293,6 +293,7 @@ $lang{ERR_SHORT_PASSWD}='Закороткий пароль. Довжина не 
 $lang{REPORTS_WIZARD}='Майстер звітів';
 $lang{ERR_NO_FREE_IP_IN_POOL}='Немає вільних IP  адрес';
 $lang{NEW}='Новий';
+$lang{NEW_MESSAGE}='Нове повідомлення';
 $lang{SOLD}='Продано';
 $lang{SUPPORT}='Монтажна бригада';
 $lang{EXTERNAL_PAYMENTS}='Зовнішні платежі';
@@ -539,7 +540,7 @@ $lang{LOGON}='Включити';
 $lang{DOMAIN}='Домен';
 $lang{RESETED}='Обнулено';
 $lang{MAX_ROWS}='Максимальна кількість рядків';
-$lang{DEFAULT}='По замовчуваню';
+$lang{DEFAULT}='За замовчуванням';
 $lang{DOWNLOAD}='Завантажити';
 $lang{ROUTES}='Напрямки';
 $lang{DEBETORS}='Боржники';
@@ -583,7 +584,7 @@ $lang{ORGANIZATION_INFO} = 'Інформація про організацію';
 $lang{FAX} = 'Факс';
 $lang{LAST_ACTIVITY} = 'Остання активність';
 $lang{REACTION_TIME} = 'Час реагування';
-$lang{LIST_OF_LOGS} = 'Cписок логов';
+$lang{LIST_OF_LOGS} = 'Список логів';
 $lang{USER_STATISTIC} = 'Статистика користувачів';
 $lang{POPULAR_MENU} = 'Найпопулярніші меню';
 $lang{POPULAR_TRANSITIONS} = 'Найпопулярніші переходи';
@@ -723,7 +724,7 @@ $lang{PLEASE_CHOOSE_YOUR_LANGUAGE} = 'Виберіть Вашу мову';
 $lang{MONTHES} = 'Місяці';
 $lang{MONTHES_A} = 'Місяці';
 $lang{MANUAL} = 'Вручну';
-$lang{VERSION}='Версия';
+$lang{VERSION}='Версія';
 $lang{FILE_MANAGER} = 'Редактор атачів';
 $lang{PROCESS_RESTARTED_MESSAGE} = 'Процесс було перезапущено';
 
@@ -754,6 +755,9 @@ $lang{PLACEHOLDER} = 'Заповнювач';
 $lang{FUNCTION} = 'Функція';
 $lang{WRONG} = 'Не вірний';
 $lang{ADDITION} = 'Доповнення';
+
+$lang{ERROR_DIR} = 'Не вийшло відкрити папку:';
+$lang{ERROR_FILE} = "Не вийшло відкрити файл: ";
 
 $lang{FIO1}='Прізвище';
 $lang{FIO2}='Ім&#39;я';
@@ -865,6 +869,27 @@ $lang{NOT_DELETED_USERS}='Не враховувати видалених';
 
 $lang{AND}='І';
 $lang{OR}='АБО';
+$lang{PERMISIION_DENIED}='У доступі відмовлено';
+$lang{NEG_DEPOSIT} = 'Занадто маленький депозит для користування послугою.';
+
+$lang{RECOMMENDED_PAYMENT} = 'Рекомендований платіж';
+$lang{PAYMENT_NUMBER} = "Ваш рахунок для поповнення";
+$lang{LAST_PAYMENT_FEE} = "Останнє поповнення рахунку";
+$lang{MAKE_PAYMENT} = "Поповнити рахунок";
+$lang{CONFIRM_PI} = "Підтвердити персональні дані";
+
+$lang{CANCEL_SUSPENSION} = "Відмінити призупинення";
+$lang{WANT_TO_REGISTER_CURRENT_MAC} = "Хочете зареєструвати MAC адрес даного пристрою";
+
+$lang{UNSAVED_CHANGES} = "Незбережені зміни";
+$lang{SAVED} = "Збережено";
+
+$lang{COMMENTS_DOESNT_EXIST} = "Коментаря немає";
+
+$lang{YOUR_DEPOSIT} = 'Ваш депозит';
+
+$lang{LARGE_TEXT} = "Великий текст";
+$lang{DATA_CHANGE} = "Зміна даних";
 
 1;
 

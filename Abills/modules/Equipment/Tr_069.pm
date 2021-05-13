@@ -200,7 +200,7 @@ sub tr_069_faults {
     } 
 
     my $del_btn = $html->button('', "index=$index&del=" . (($line->{_id}) ? $line->{_id} : q{} ),
-      { MESSAGE => "$lang{DEL} Fault?", ICON => 'glyphicon glyphicon-trash text-danger' });
+      { MESSAGE => "$lang{DEL} Fault?", ICON => 'fa fa-trash text-danger' });
 
     push @row, $del_btn;
     push @faults_rows, \@row;

@@ -5,9 +5,9 @@
 <input type='hidden' name='wtch' value=%wtch%>
 
 
-  <div class='box box-primary  box-horizontal'>
-    <div class='box-header with-border'><div class='box-title'>_{EMPLOYEE_PROFILE}_ </div><p class='pull-right'>%rating_icons%</p> </div>
-    <div class='box-body'>
+  <div class='card box-primary  box-horizontal'>
+    <div class='card-header with-border'><div class='card-title'>_{EMPLOYEE_PROFILE}_ </div><p class='pull-right'>%rating_icons%</p> </div>
+    <div class='card-body'>
 
     <div class='form-group'>
     <label class='control-element col-md-3'>_{FIO}_</label>

@@ -6,7 +6,7 @@
             <a class='navbar-brand' href='#' onclick='toggleNavBar()'>
                 <span class='sr-only'>Toggle navigation</span>
                 <h4>
-                    <span class='glyphicon glyphicon-th-list'></span>&nbsp;
+                    <span class='fa fa-th-list'></span>&nbsp;
                 </h4>
             </a>
         </div>
@@ -25,7 +25,7 @@
                         <ul class='nav nav-pills'>
                             <li><p class='navbar-text'>%DATE% %TIME%</p></li>
                             <li><p class='navbar-text'>
-                                <span class='glyphicon glyphicon-user'></span>
+                                <span class='fa fa-user'></span>
                                 <a class='text-danger' href='$SELF_URL?index=50'>$admin->{A_LOGIN}
                                 </a>header.tpl
                                 <abbr title='%ONLINE_USERS%'>
@@ -48,15 +48,15 @@
                                id='UNIVERSAL_SEARCH'
                                placeholder='_{SEARCH}_'>
 
-                        <button class='btn btn-default btn-sm' type='submit'>Ok</button>
+                        <button class='btn btn-secondary btn-sm' type='submit'>Ok</button>
 
                         <a href='http://abills.net.ua/wiki/doku.php/abills:docs:manual:admin:%FUNCTION_NAME%'
                            class='btn btn-primary btn-sm' target='_blank'>?</a>
 
                         <a href='#'
                            onclick='showImgInModal(\"$SELF_URL?$ENV{QUERY_STRING}&amp;qrcode=1&amp;qindex=100000&amp;name=qr_code\")'
-                           class='btn btn-default btn-sm'>
-                            <span class='glyphicon glyphicon-qrcode'></span>
+                           class='btn btn-secondary btn-sm'>
+                            <span class='fa fa-qrcode'></span>
                         </a>
                     </form>
                 </div>
@@ -64,17 +64,17 @@
             <!--//Quick Menu-->
             <div class='row navbar-left hidden-xs' id='quick_menu_row'>
                 <div class='btn-group blocks' style='background: none'>
-                    <a href='$SELF_URL?index=110' class='btn btn-default btn-xs'><span class='glyphicon glyphicon-plus'></span> </a>
+                    <a href='$SELF_URL?index=110' class='btn btn-secondary btn-xs'><span class='fa fa-plus'></span> </a>
                     %QUICK_MENU%
                 </div>
             </div>
         </div>
         <div class='pull-right visible-xs'>
 
-            <button class='btn btn-default btn-sm' data-toggle='modal' data-target='#quickMenuModal'>
+            <button class='btn btn-secondary btn-sm' data-toggle='modal' data-target='#quickMenuModal'>
                 <span class='fa fa-caret-down'></span>
             </button>
-            <button class='btn btn-default btn-sm' data-toggle='modal' data-target='#searchMenuModal'>
+            <button class='btn btn-secondary btn-sm' data-toggle='modal' data-target='#searchMenuModal'>
                 <span class='fa fa-search'></span>
             </button>
 
@@ -83,8 +83,8 @@
 
             <a href='#'
                onclick='showImgInModal(\"$SELF_URL?$ENV{QUERY_STRING}&amp;qrcode=1&amp;qindex=100000&amp;name=qr_code\")'
-               class='btn btn-default btn-sm'>
-                <span class='glyphicon glyphicon-qrcode'></span>
+               class='btn btn-secondary btn-sm'>
+                <span class='fa fa-qrcode'></span>
             </a>
 
         </div>

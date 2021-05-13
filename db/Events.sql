@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS `events_priority_send_types` (
   `priority_id` SMALLINT(6) UNSIGNED NOT NULL REFERENCES `events_priority` (`id`)
     ON DELETE RESTRICT,
   `send_types` VARCHAR(255) NOT NULL DEFAULT '',
-  UNIQUE `aid_priority` (`aid`, `priority_id`)
+  UNIQUE `aid_priority` (`aid`, `priority_id`),
+  KEY `priority_id` (`priority_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Defines how each admin will recieve notifications for defined priority';
@@ -60,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `events` (
   `module` VARCHAR(30) NOT NULL DEFAULT 'EXTERNAL',
   `title` VARCHAR(32) NOT NULL DEFAULT '',
   `comments` TEXT,
-  `extra` VARCHAR(60) NOT NULL DEFAULT '',
+  `extra` VARCHAR(256) NOT NULL DEFAULT '',
   `state_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1 REFERENCES `events_state` (`id`)
     ON DELETE RESTRICT,
   `priority_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 1 REFERENCES `events_priority` (`id`)

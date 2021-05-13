@@ -31,6 +31,7 @@ sub new{
   $self->{db} = $db;
   $self->{admin} = $admin;
   $self->{conf} = $CONF;
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
 
   return $self;
 }
@@ -131,7 +132,7 @@ sub customers_list{
   # ����� ��������, ���, �������� �������, �������� ����,
   #$conf{ADDRESS_REGISTER}=1;
 
-  my $ADDRESS_FULL = ($CONF->{ADDRESS_REGISTER}) ? 'if(u.company_id > 0, company.address, concat(streets.name,\' \', builds.number, \'/\', pi.address_flat)) AS ADDRESS' : 'if(u.company_id > 0, company.address, concat(pi.address_street,\' \', pi.address_build,\'/\', pi.address_flat)) AS ADDRESS';
+  my $ADDRESS_FULL = ($CONF->{ADDRESS_REGISTER}) ? "if(u.company_id > 0, company.address, concat(streets.name, '$CONF->{BUILD_DELIMITER}', builds.number, '$CONF->{BUILD_DELIMITER}', pi.address_flat)) AS ADDRESS" : "if(u.company_id > 0, company.address, concat(pi.address_street, '$CONF->{BUILD_DELIMITER}', pi.address_build, '$CONF->{BUILD_DELIMITER}', pi.address_flat)) AS ADDRESS";
 
   $self->query2( "SELECT
                          u.uid, 

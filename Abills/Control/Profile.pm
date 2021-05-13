@@ -32,15 +32,10 @@ sub admin_profile {
     return 1;
   }
 
-  #our $REFRESH = $admin->{SETTINGS}{REFRESH} || 60;
-
-  my $SEL_LANGUAGE = $html->form_select(
-    'language',
-    {
-      SELECTED => $html->{language},
-      SEL_HASH => \%LANG
-    }
-  );
+  my $SEL_LANGUAGE = $html->form_select('language', {
+    SELECTED => $html->{language},
+    SEL_HASH => \%LANG
+  });
 
   # Events groups
   my $events_groups_select = '';
@@ -57,30 +52,30 @@ sub admin_profile {
     if (my $group_index = get_function_index('events_group')){
       $group_link = "?index=$group_index";
     };
-    
+
     $events_groups_select = _events_group_select({
-        SELECTED  => $this_admin_groups || '',
-        MULTIPLE => 1,
-        MAIN_MENU => $group_link,
-      });
+      SELECTED  => $this_admin_groups || '',
+      MULTIPLE  => 1,
+      MAIN_MENU => $group_link,
+    });
     $events_groups_show = '';
   }
-  
+
   my $subscribe_mng_block = profile_get_admin_sender_subscribe_block($admin->{AID}, 6);
 
   $html->tpl_show(templates('form_admin_profile'), {
-      QUICK_REPORTS        => $quick_reports,
-      SEL_LANGUAGE         => $SEL_LANGUAGE,
-      NO_EVENT             => $admin->{SETTINGS}->{NO_EVENT},
-      NO_EVENT_SOUND       => $admin->{SETTINGS}->{NO_EVENT_SOUND},
-      CONF_PUSH_ENABLED    => $conf{PUSH_ENABLED},
-      PUSH_ENABLED         => $admin->{SETTINGS}->{PUSH_ENABLED},
-      RIGHT_MENU_HIDDEN    => $admin->{SETTINGS}->{RIGHT_MENU_HIDDEN},
-      SUBSCRIBE_BLOCK => $subscribe_mng_block,
-      
-      EVENT_GROUPS_SELECT  => $events_groups_select,
-      EVENTS_GROUPS_HIDDEN => $events_groups_show,
-    });
+    QUICK_REPORTS        => $quick_reports,
+    SEL_LANGUAGE         => $SEL_LANGUAGE,
+    NO_EVENT             => $admin->{SETTINGS}->{NO_EVENT},
+    NO_EVENT_SOUND       => $admin->{SETTINGS}->{NO_EVENT_SOUND},
+    CONF_PUSH_ENABLED    => $conf{PUSH_ENABLED},
+    PUSH_ENABLED         => $admin->{SETTINGS}->{PUSH_ENABLED},
+    RIGHT_MENU_HIDDEN    => $admin->{SETTINGS}->{RIGHT_MENU_HIDDEN},
+    SUBSCRIBE_BLOCK      => $subscribe_mng_block,
+
+    EVENT_GROUPS_SELECT  => $events_groups_select,
+    EVENTS_GROUPS_HIDDEN => $events_groups_show,
+  });
 
   form_profile_search();
 
@@ -127,9 +122,7 @@ sub form_profile_search {
 
   #Get info fields
   my $prefix = $attr->{COMPANY} ? 'ifc*' : 'ifu*';
-  my $list = $Conf->config_list({ PARAM => $prefix,
-      SORT  => 2
-    });
+  my $list = $Conf->config_list({ PARAM => $prefix, SORT => 2 });
 
   my $field_id = '';
   foreach my $line (@$list) {
@@ -391,6 +384,7 @@ sub profile_get_admin_sender_subscribe_block {
   my %allowed_subscribes = (
     #    PUSH     => $conf{PUSH_ENABLED},
     TELEGRAM   => $conf{TELEGRAM_TOKEN},
+    VIBER      => $conf{VIBER_TOKEN},
     CELL_PHONE => in_array('Sms', \@MODULES)
   );
   
@@ -412,7 +406,7 @@ sub profile_get_admin_sender_subscribe_block {
       $html->message('err', $lang{ERROR}, "Can't do it now");
     }
   }
-  
+
   my $contacts_list = $admin->admins_contacts_list({
     AID   => $admin->{AID},
     TYPE  => join(';', map {$Contacts::TYPES{$_}} @types_to_search),
@@ -432,7 +426,7 @@ sub profile_get_admin_sender_subscribe_block {
     
     my $button = '';
     if ( $attr->{HREF} ) {
-      $button = $html->element('a', $icon_html . $text, {
+      $button = $html->element('a', $icon_html. ' ' . $text, {
           href       => $attr->{HREF},
           class      => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
           target     => '_blank',
@@ -440,7 +434,7 @@ sub profile_get_admin_sender_subscribe_block {
         });
     }
     else {
-      $button = $html->element('button', $icon_html . $text, {
+      $button = $html->element('button', $icon_html. ' ' . $text, {
           class => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
           OUTPUT2RETURN => 1
         });
@@ -513,6 +507,35 @@ sub profile_get_admin_sender_subscribe_block {
       );
     }
   }
+
+  if($conf{VIBER_TOKEN} && $conf{VIBER_BOT_NAME}){
+    # Check if subscribed
+    my $viber_cont = grep {$_->{type_id} == $Contacts::TYPES{VIBER}} @{$contacts_list};
+    if (!$viber_cont) {
+      if ($conf{VIBER_BOT_NAME}) {
+        my $link_url = 'viber://pa?chatURI=' . $conf{VIBER_BOT_NAME} . '&context=a_' . ($admin->{SID} || $sid || $admin->{sid}).'&text=/start';
+        push @buttons_html, $make_subscribe_btn->(
+          'Viber',
+          'fa fa-phone',
+          undef,
+          {
+            HREF => $link_url
+          }
+        );
+      }
+    } else {
+      push @buttons_html, $make_subscribe_btn->(
+        'Viber',
+        'fa fa-phone',
+        undef,
+        {
+          HREF        => $SELF_URL . '/admin/index.cgi?index=9&REMOVE_SUBSCRIBE=Viber',
+          UNSUBSCRIBE => 1,
+          BUTTON_CLASSES => 'btn-success'
+        }
+      );
+    }
+  }
   
   my $subscribe_block = join('', map {
       $col_size
@@ -530,14 +553,15 @@ sub profile_get_admin_sender_subscribe_block {
 =cut
 #**********************************************************
 sub admin_info_change {
+
   $admin->info($admin->{AID});
   if ($FORM{chg_pswd} || $FORM{newpassword}) {
     form_passwd();
     if ($FORM{PASSWORD}) {
       $admin->change({
-      AID      => $admin->{AID},
-      PASSWORD => $FORM{PASSWORD},
-    });
+        AID      => $admin->{AID},
+        PASSWORD => $FORM{PASSWORD},
+      });
     }
   }
   if ($FORM{aedit}) {
@@ -570,9 +594,10 @@ sub admin_info_change {
   my $clear_settings_btn = $html->button($lang{CLEAR_SETTINGS}, "index=$index&clear_settings=1", { class => 'btn btn-xs btn-danger' });
 
   $html->tpl_show(templates('form_admin_info_change'), {
-      %$admin,
-      CHG_PSW        => $passwd_btn,
-      CLEAR_SETTINGS => $clear_settings_btn});
+    %$admin,
+    CHG_PSW        => $passwd_btn,
+    CLEAR_SETTINGS => $clear_settings_btn
+  });
 
   return 1;
 }

@@ -7,11 +7,11 @@
     <div id='mapControls' class='pull-left' role='group'></div>
   </div>
   <div class="col-md-12">
-    <div class='box box-theme'>
-      <div class='box-body' id='map-wrapper'>
+    <div class='card card-primary card-outline'>
+      <div class='card-body' id='map-wrapper'>
         <div id='map' class='col-md-12' style='height: 90vh'>
         </div>
-      <div class='box-footer'></div>
+      <div class='card-footer'></div>
     </div>
     <div class='clearfix'></div>
   </div>

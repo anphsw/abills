@@ -1,6 +1,6 @@
-<div class='form-group %class%'>
-  <label class='control-label col-xs-4 col-md-3' for='%ID%'>%NAME%</label>
-  <div class='col-xs-8 col-md-7 %BG_COLOR%'>
+<div class='form-group %class% row'>
+  <label class='col-md-4 col-form-label text-md-right' for='%ID%'>%NAME%:</label>
+  <div class='col-md-8 %BG_COLOR%'>
     %VALUE%
   </div>
 </div>

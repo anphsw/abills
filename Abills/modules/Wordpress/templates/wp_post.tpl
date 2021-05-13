@@ -1,13 +1,13 @@
 <form method='POST'>
 
-<div class='box box-theme box-form'>
-<div class='box-header with-border'>POST</div>
+<div class='card card-primary card-outline box-form'>
+<div class='card-header with-border'>POST</div>
 
-<div class='box-body'>
+<div class='card-body'>
 
 </div>
 
-<div class='box-footer'>
+<div class='card-footer'>
   <input type='submit' name='add' value='%BTN_LANG%'>
 </div>
 </div>

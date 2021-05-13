@@ -42,11 +42,11 @@
   //-->
 </script>
 
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'>
     Hotspot _{SETTINGS}_
   </div>
-  <div class='box-body'>
+  <div class='card-body'>
     <input type=hidden name=wds id=wds class='form-control' value='0'/>
 
     <div class='form-group'>
@@ -105,6 +105,6 @@
     </div>
   </div>
   <div class='form-group'>
-    <a href='_{SELF_URL}_?index=$index&wrt_configure=1&nas=$FORM{NAS_ID}' class='btn btn-xs btn-default'>_{CONFIG}_</a>
+    <a href='_{SELF_URL}_?index=$index&wrt_configure=1&nas=$FORM{NAS_ID}' class='btn btn-xs btn-secondary'>_{CONFIG}_</a>
   </div>
 </div>

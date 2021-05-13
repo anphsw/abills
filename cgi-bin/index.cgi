@@ -191,7 +191,6 @@ if ($conf{USER_FN_LOG}) {
   if (defined($functions{$index})) {
     my $time = gen_time($begin_time, { TIME_ONLY => 1 });
     $Log->log_print('LOG_INFO', '', "$sid : $functions{$index} : $time", { LOG_LEVEL => 6 });
-    #`echo "$sid : $functions{$index} : $time" >> /tmp/fn_speed`;
   }
   $html->test() if ($conf{debugmods} =~ /LOG_DEBUG/);
 }
@@ -231,7 +230,7 @@ sub quick_functions {
     $menu_items{1000}{0} = $lang{LOGOUT};
 
     if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY') {
-      $user->{MONEY_UNIT_NAMES} = $conf{MONEY_UNIT_NAMES}->[0] || '';
+      $user->{MONEY_UNIT_NAME} = $conf{MONEY_UNIT_NAMES}->[0] || '';
     }
 
     if ($FORM{get_index}) {
@@ -415,7 +414,7 @@ sub quick_functions {
     $OUTPUT{SKIN} = $conf{client_theme};
   }
   else {
-    $OUTPUT{SKIN} = 'skin-blue-light';
+    $OUTPUT{SKIN} = 'navbar-dark navbar-primary';
   }
 
   if ($conf{AUTH_G2FA} && $FORM{AUTH_G2FA} && $uid && !$FORM{REFERER}) {  
@@ -559,8 +558,6 @@ sub form_info {
     return 1;
   }
 
-  #my $Payments = Finance->payments($db, $admin, \%conf);
-
   form_credit();
 
   my $deposit = ($user->{CREDIT} == 0) ? $user->{DEPOSIT} + ($user->{TP_CREDIT} || 0) : $user->{DEPOSIT} + $user->{CREDIT};
@@ -570,7 +567,7 @@ sub form_info {
 
   $user->pi();
 
-  if ($FORM{REMOVE_SUBSCRIBE} && in_array($FORM{REMOVE_SUBSCRIBE}, [ qw/Push Telegram/ ])) {
+  if ($FORM{REMOVE_SUBSCRIBE} && in_array($FORM{REMOVE_SUBSCRIBE}, [ qw/Push Telegram Viber/ ])) {
     require Contacts;
     Contacts->import();
 
@@ -616,7 +613,7 @@ sub form_info {
           VALUES                => $user_pi,
           CALLED_FROM_CLIENT_UI => 1,
           COLS_LEFT             => 'col-md-3',
-          COLS_RIGHT            => 'col-md-9'
+          COLS_RIGHT            => 'col-md-12'
         });
       }
 
@@ -633,6 +630,16 @@ sub form_info {
 
       if ($user_pi->{FIO2} && $user_pi->{FIO3}) {
         $user_pi->{FIO_READONLY} = 'readonly';
+      }
+
+      if($conf{CHECK_CHANGE_PI}){
+        my @all_fields = ('FIO', 'PHONE', 'ADDRESS', 'EMAIL', 'CELL_PHONE');
+        my @fields_allow_to_change = split(',\s?', $conf{CHECK_CHANGE_PI});
+        foreach my $key (@all_fields){
+          next if in_array($key, \@fields_allow_to_change);
+
+          $contacts{$key . '_DISABLE'} = 'disabled';
+        }
       }
 
       $html->tpl_show(templates('form_chg_client_info'), { %$user_pi, %contacts }, { SKIP_DEBUG_MARKERS => 1 });
@@ -747,9 +754,7 @@ sub form_info {
           return 1;
         }
       }
-      if ($FORM{FIO1}) {
-        $FORM{FIO} = $FORM{FIO1};
-      }
+      $FORM{FIO} = $FORM{FIO1} if ($FORM{FIO1});
 
       if($conf{CHECK_CHANGE_PI}){
         my @fields_allow_to_change = split(',\s?', $conf{CHECK_CHANGE_PI});
@@ -835,7 +840,9 @@ sub form_info {
 
   if (in_array('Docs', \@MODULES) && !$conf{DOCS_SKIP_USER_MENU}) {
     my $fn_index = get_function_index('docs_invoices_list');
-    $user->{DOCS_ACCOUNT} = $html->button("$lang{INVOICE_CREATE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
+    $user->{DOCS_ACCOUNT} = $html->button("$lang{INVOICE_CREATE}", "index=$fn_index$pages_qs", {
+      ex_params => "class='btn btn-primary btn-xs'"
+    });
   }
 
   if (in_array('Paysys', \@MODULES)) {
@@ -843,14 +850,18 @@ sub form_info {
       my $group_info = $user->group_info($user->{GID});
       if ((exists($group_info->{DISABLE_PAYSYS}) && $group_info->{DISABLE_PAYSYS} == 0) || $group_info->{TOTAL} == 0) {
         my $fn_index = get_function_index('paysys_payment');
-        $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", { BUTTON => 2 });
+        $user->{PAYSYS_PAYMENTS} = $html->button("$lang{BALANCE_RECHARCHE}", "index=$fn_index$pages_qs", {
+          ex_params => "class='btn btn-primary btn-xs'"
+        });
       }
     }
   }
 
   if (in_array('Cards', \@MODULES)) {
     my $fn_index = get_function_index('cards_user_payment');
-    $user->{CARDS_PAYMENTS} = $html->button($lang{ICARDS}, "index=$fn_index$pages_qs", { BUTTON => 2 });
+    $user->{CARDS_PAYMENTS} = $html->button($lang{ICARDS}, "index=$fn_index$pages_qs", {
+      ex_params => "class='btn btn-primary btn-xs'"
+    });
   }
 
   ## Show users info fields
@@ -866,19 +877,8 @@ sub form_info {
     my $name = $info_field_view->{NAME};
     my $view = $info_field_view->{VIEW};
 
-    $user->{INFO_FIELDS} .=
-      $html->element(
-        'div',
-        $html->element('div', ($name || q{}), {
-          class         => 'col-xs-12 col-sm-3 col-md-3 text-1',
-          OUTPUT2RETURN => 1
-        })
-          . $html->element('div', ($view || q{}), {
-          class         => 'col-xs-12 col-sm-9 col-md-9 text-2',
-          OUTPUT2RETURN => 1
-        }),
-        { class => 'row', OUTPUT2RETURN => 1 }
-      );
+    $user->{INFO_FIELDS} .= $html->element('tr', $html->element('td', ($name || q{}), { class => 'font-weight-bold text-right', OUTPUT2RETURN => 1 }) .
+        $html->element('td', ($view || q{}), { OUTPUT2RETURN => 1 }),{ OUTPUT2RETURN => 1 });
   }
 
   if ($conf{user_chg_pi}) {
@@ -892,7 +892,10 @@ sub form_info {
         OUTPUT2RETURN => 1
       }
     );
-    $user->{FORM_CHG_INFO} = $html->button($lang{CHANGE}, "index=$index&sid=$sid&chg=1", { class => 'btn btn-success', OUTPUT2RETURN => 1 });
+    $user->{FORM_CHG_INFO} = $html->button($lang{CHANGE}, "index=$index&sid=$sid&chg=1", {
+      class         => 'btn btn-success btn-xs',
+      OUTPUT2RETURN => 1
+    });
   }
   $user->{ACCEPT_RULES} = $html->tpl_show(templates('form_accept_rules'), { FIO => $user->{FIO}, HIDDEN => "style='display:none;'", CHECKBOX => "checked" }, { OUTPUT2RETURN => 1 });
   if (in_array('Portal', \@MODULES)) {
@@ -901,15 +904,15 @@ sub form_info {
   }
 
   if ($conf{user_chg_passwd} || ($conf{group_chg_passwd} && $conf{group_chg_passwd} eq $user->{GID})) {
-    $user->{CHANGE_PASSWORD} = $html->button($lang{CHANGE_PASSWORD}, "index=17&sid=$sid", { class => 'btn btn-xs btn-primary' });
+    $user->{CHANGE_PASSWORD} = $html->button($lang{CHANGE_PASSWORD}, "index=17&sid=$sid", { class => 'btn btn-sm btn-primary' });
   }
 
   $user->{SOCIAL_AUTH_BUTTONS_BLOCK} = make_social_auth_manage_buttons($user);
   if ($user->{SOCIAL_AUTH_BUTTONS_BLOCK} eq '') {
-    $user->{INFO_TABLE_CLASS} = 'col-md-12';
+    $user->{INFO_CARD_CLASS} = 'col-md-12';
   }
   else {
-    $user->{INFO_TABLE_CLASS} = 'col-md-10';
+    $user->{INFO_CARD_CLASS} = 'col-md-10';
     $user->{HAS_SOCIAL_BUTTONS} = '1';
   }
 
@@ -924,7 +927,7 @@ sub form_info {
     $user->{NO_DISPLAY} = "style='display : none'";
   }
 
-  $user->{SHOW_ACCEPT_RULES} = (exists $conf{ACCEPT_RULES} && $conf{ACCEPT_RULES});
+  $user->{SHOW_ACCEPT_RULES} = (exists $conf{ACCEPT_RULES} && $conf{ACCEPT_RULES}) ? 'd-inline-block' : 'd-none';
 
   my %contacts = ();
   if ($conf{CONTACTS_NEW}) {
@@ -939,7 +942,7 @@ sub form_info {
   }
 
   if ($conf{AUTH_G2FA}) {
-    $contacts{AUTH_G2FA} = $html->button('qr code', "index=$index&sid=$sid&g2fa=1", { class => 'btn btn-xs btn-primary' });
+    $contacts{AUTH_G2FA} = $html->button('qr code', "index=$index&sid=$sid&g2fa=1", { class => 'btn btn-sm btn-primary' });
   }
 
   if (in_array('Accident', \@MODULES) && $conf{USER_ACCIDENT_LOG}) {
@@ -955,21 +958,17 @@ sub form_info {
       $html->{OUTPUT} .= _user_contracts_table($user->{UID}, { UI => 1 });
     }
 
-    if (in_array('Dv', \@MODULES)) {
-      load_module('Dv', $html);
-      dv_user_info();
-    }
-
     if (in_array('Internet', \@MODULES)) {
       load_module('Internet', $html);
+      $LIST_PARAMS{UID} = $user->{UID};
       internet_user_info();
     }
   }
   else {
     require Control::Qrcode;
-    my $code = _encode_url_to_img($user->{_G2FA}, { 
+    my $code = _encode_url_to_img($user->{_G2FA}, {
       AUTH_G2FA_NAME => $conf{AUTH_G2FA_TITLE} || 'ABillS',
-      AUTH_G2FA_MAIL => $conf{ADMIN_MAIL}, 
+      AUTH_G2FA_MAIL => $conf{ADMIN_MAIL},
     });
   }
 
@@ -1039,7 +1038,7 @@ sub form_login_clients {
   $OUTPUT{S_MENU} = 'style="display: none;"';
   $OUTPUT{BODY} = $html->tpl_show(templates('form_client_login'),
     \%first_page,
-    { 
+    {
       MAIN => 1,
       ID   => 'form_client_login'
     });
@@ -1382,6 +1381,10 @@ sub form_fees {
     $LIST_PARAMS{METHOD}=$conf{user_fees_methods};
   }
 
+  if($conf{user_payment_journal_show}) {
+    $LIST_PARAMS{SHOW_PAYMENT} = 1;
+  }
+
   my $Fees = Finance->fees($db, $admin, \%conf);
   my $list = $Fees->list({
     METHOD       => '_SHOW',
@@ -1407,6 +1410,7 @@ sub form_fees {
       $lang{DEPOSIT},
       $lang{TYPE}
     ],
+    LITE_HEADER => 1,
     FIELDS_IDS  => $Fees->{COL_NAMES_ARR},
     qs          => $pages_qs,
     pages       => $Fees->{TOTAL},
@@ -1451,9 +1455,12 @@ sub form_payments_list {
     $LIST_PARAMS{PAGE_ROWS} = $attr->{rows} || '';
   }
 
-  # $conf{user_fees_methods}
   if ($conf{user_payments_methods}) {
     $LIST_PARAMS{METHOD}=$conf{user_payments_methods};
+  }
+
+  if($conf{user_payment_journal_show}) {
+    $LIST_PARAMS{SHOW_PAYMENT} = 1;
   }
 
   my $list = $Payments->list({
@@ -1477,6 +1484,7 @@ sub form_payments_list {
       $lang{SUM},
       $lang{DEPOSIT}
     ],
+    LITE_HEADER => 1,
     FIELDS_IDS  => $Payments->{COL_NAMES_ARR},
     qs          => $pages_qs,
     pages       => $Payments->{TOTAL},
@@ -1759,7 +1767,7 @@ sub form_neg_deposit {
   }
 
   $user_->{DEPOSIT} = sprintf($conf{DEPOSIT_FORMAT} || "%.2f", $user_->{DEPOSIT});
-
+#DEVASX
   $html->tpl_show(templates('form_neg_deposit'), $user_, { ID => 'form_neg_deposit' });
 
   return 1;
@@ -1771,7 +1779,6 @@ sub form_neg_deposit {
 =cut
 #**********************************************************
 sub user_login_background {
-  #  my ($attr) = @_;
 
   require Tariffs;
   Tariffs->import();
@@ -1822,6 +1829,12 @@ sub user_login_background {
 #**********************************************************
 sub form_events {
   my @result_array = ();
+
+  if($conf{SKIP_EVENTS}) {
+    print "Content-Type: application/json;\n\n";
+    print "[ " . join(", ", @result_array) . " ]";
+    return 1;
+  }
 
   my $first_stage = gen_time($begin_time, { TIME_ONLY => 1 });
   print "Content-Type: text/html\n\n";
@@ -1919,6 +1932,10 @@ sub form_custom {
 
   require Control::Users_slides;
 
+  if ($conf{MONEY_UNIT_NAMES}) {
+    $info{MONEY_UNIT_NAME}=(split(/;/, $conf{MONEY_UNIT_NAMES}))[0];
+  }
+
   if (in_array('Accident', \@MODULES) && $conf{USER_ACCIDENT_LOG}) {
     load_module('Accident', $html);
     accident_dashboard_mess();
@@ -1951,61 +1968,47 @@ sub form_custom {
     $html->message('err', $lang{ERROR}, $e);
   };
 
-  foreach my $key (@{$user_info}) {
-    my $main_name = $key->{NAME};
-    if ($key->{SLIDES}) {
-      for (my $i = 0; $i <= $#{$key->{SLIDES}}; $i++) {
-        foreach my $field_id (keys %{$key->{SLIDES}->[$i]}) {
-          my $id = $main_name . '_' . $field_id . '_' . $i;
-          $info{$id} = $key->{SLIDES}->[$i]->{$field_id};
-          $html->{OUTPUT} .= "$i  $id ---------------- $key->{SLIDES}->[$i]->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10);
+  if (ref($user_info) eq 'ARRAY') {
+    foreach my $key (@{$user_info}) {
+      my $main_name = $key->{NAME};
+      if ($key->{SLIDES}) {
+        for (my $i = 0; $i <= $#{$key->{SLIDES}}; $i++) {
+          foreach my $field_id (keys %{$key->{SLIDES}->[$i]}) {
+            my $id = $main_name . '_' . $field_id . '_' . $i;
+            $info{$id} = $key->{SLIDES}->[$i]->{$field_id};
+            $html->{OUTPUT} .= "$i  $id ---------------- $key->{SLIDES}->[$i]->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10);
+          }
         }
       }
-    }
-    else {
-      foreach my $field_id (keys %{$key->{CONTENT}}) {
-        $html->{OUTPUT} .= $main_name . '_' . $field_id . " - $key->{CONTENT}->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10);
-        $info{$main_name . '_' . $field_id} = $key->{CONTENT}->{$field_id};
+      else {
+        foreach my $field_id (keys %{$key->{CONTENT}}) {
+          $html->{OUTPUT} .= $main_name . '_' . $field_id . " - $key->{CONTENT}->{$field_id}<br>" if ($conf{WEB_DEBUG} && $conf{WEB_DEBUG} > 10);
+          $info{$main_name . '_' . $field_id} = $key->{CONTENT}->{$field_id};
+        }
       }
-    }
 
-    if ($key->{QUICK_TPL}) {
-      $info{BIG_BOX} .= $html->tpl_show(_include($key->{QUICK_TPL}, $key->{MODULE}), \%info, { OUTPUT2RETURN => 1 });
+      if ($key->{QUICK_TPL}) {
+        $info{BIG_BOX} .= $html->tpl_show(_include($key->{QUICK_TPL}, $key->{MODULE}), \%info, { OUTPUT2RETURN => 1 });
+      }
     }
   }
 
-  my $cca = check_credit_availability();
-  if (!$cca) {
+  if (!check_credit_availability()) {
     $info{CREDIT_CHG_PRICE} = $user->{CREDIT_CHG_PRICE};
     $info{CREDIT_SUM} = $user->{CREDIT_SUM};
     $info{SMALL_BOX} .= $html->tpl_show(templates('form_small_box'), \%info, { OUTPUT2RETURN => 1 });
   }
 
   if ($html->{NEW_MSGS}) {
-    $info{SMALL_BOX} .= qq{<div class="callout callout-success">
-    <h4>$lang{NEW} $lang{MESSAGE}</h4>
-     <a href='$SELF_URL?get_index=msgs_user' class='btn btn-primary'>$lang{GO} !</a>
-    </div>};
+    $info{SMALL_BOX} .= $html->tpl_show(templates('form_new_msgs_small_box'), \%info, { OUTPUT2RETURN => 1 });
   }
 
   if ($html->{HOLD_UP}) {
-    $info{SMALL_BOX} .= qq{<div class="callout callout-success">
-    <h4>$lang{NEW} $lang{MESSAGE}</h4>
-     <a href='$SELF_URL?get_index=dv_user_info&del=1' class='btn btn-primary'>$lang{GO} !</a>
-    </div>};
+    $info{SMALL_BOX} .= $html->tpl_show(templates('form_hold_up_small_box'), \%info, { OUTPUT2RETURN => 1 });
   }
 
   if (defined($user->{_CONFIRM_PI})) {
-    $info{SMALL_BOX} .= qq{<div class="callout callout-success">
-      <h4>Подтвердить персональные данные</h4>
-            <p>%PERSONAL_INFO_FIO%</p>
-        <p>$lang{PHONE}: %PERSONAL_INFO_PHONE%</p>
-            <label>
-                <input type="checkbox"> $lang{CONFIRM}
-            </label>
-      <a href='$SELF_URL?get_index=form_info&del=1' class='btn btn-primary'>$lang{YES} !</a>
-     </div>
-    };
+    $info{SMALL_BOX} .= $html->tpl_show(templates('form_confirm_pi_small_box'), \%info, { OUTPUT2RETURN => 1 });
   }
 
   $html->tpl_show(templates('form_client_custom'), \%info);
@@ -2174,7 +2177,7 @@ sub make_sender_subscribe_buttons_block {
 
     my $button = '';
     if ($attr->{HREF}) {
-      $button = $html->element('a', $icon_html . $text, {
+      $button = $html->element('a', $icon_html.' ' . $text, {
         href          => $attr->{HREF},
         class         => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
         target        => '_blank',
@@ -2182,13 +2185,13 @@ sub make_sender_subscribe_buttons_block {
       });
     }
     else {
-      $button = $html->element('button', $icon_html . $text, {
+      $button = $html->element('button', $icon_html.' ' . $text, {
         class         => 'btn form-control ' . ($attr->{BUTTON_CLASSES} || ' btn-info '),
         OUTPUT2RETURN => 1
       });
     }
 
-    my $button_wrapper = $html->element('div', $button, { class => 'col-md-3' });
+    my $button_wrapper = $html->element('div', $button, { class => 'col-md-4', OUTPUT2RETURN => 1 });
     my $lang_text = '';
     if ($lang_vars && ref $lang_vars eq 'HASH') {
       $lang_text = join "; \n", map {
@@ -2267,7 +2270,45 @@ sub make_sender_subscribe_buttons_block {
       );
     }
   }
+  if($conf{VIBER_TOKEN} && $conf{VIBER_BOT_NAME}){
+    # Check if subscribed
+    require Contacts;
+    Contacts->import();
+    my $Contacts = Contacts->new($db, $admin, \%conf);
+    my $list = $Contacts->contacts_list({
+      TYPE  => 5,
+      VALUE => '_SHOW',
+      UID   => $user->{UID}
+    });
 
+    $user->{VIBER} //= $list->[0]->{value};
+
+    my $subscribed = (defined $user->{VIBER} && $user->{VIBER});
+    if (!$subscribed) {
+      if ($conf{VIBER_BOT_NAME}) {
+        my $link_url = 'viber://pa?chatURI=' . $conf{VIBER_BOT_NAME} . '&context=u_' . ($user->{SID} || $sid).'&text=/start';
+        $buttons_block .= $make_subscribe_btn->(
+          'Viber',
+          'fa fa-phone',
+          undef,
+          {
+            HREF => $link_url
+          }
+        );
+      }
+    }    else {
+      $buttons_block .= $make_subscribe_btn->(
+        'Viber',
+        'fa fa-phone',
+        undef,
+        {
+          HREF           => '/?index=10&change=1&REMOVE_SUBSCRIBE=Viber',
+          UNSUBSCRIBE    => 1,
+          BUTTON_CLASSES => 'btn-success'
+        }
+      );
+    }
+  }
   return $buttons_block;
 }
 
@@ -2426,7 +2467,7 @@ sub change_pi_popup {
           VALUES                => $user,
           CALLED_FROM_CLIENT_UI => 1,
           COLS_LEFT             => 'col-md-3',
-          COLS_RIGHT            => 'col-md-9',
+          COLS_RIGHT            => 'col-md-12',
           POPUP                 => { $info_field->{SQL_FIELD} => 1 }
         });
         $user->{PINFO} = 1;
@@ -2489,8 +2530,8 @@ sub check_credit_availability {
       $sum = $Internet->{USER_CREDIT_LIMIT};
     }
   }
-  $user->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price);
-  $user->{CREDIT_SUM} = sprintf("%.2f", $sum);
+  $user->{CREDIT_CHG_PRICE} = sprintf("%.2f", $price || 0);
+  $user->{CREDIT_SUM} = sprintf("%.2f", $sum || 0);
 
   return 0;
 }
@@ -2536,7 +2577,7 @@ sub form_credit {
           '#',
           {
             ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'
-              onClick=\"document.getElementById('change_credit').value='1'; document.getElementById('CREDIT_RULE').value='$i'; document.getElementById('CREDIT_CHG_PRICE').textContent='". sprintf("%.2f", $price) ."'\"",
+              onClick=\"document.getElementById('change_credit').value='1'; document.getElementById('CREDIT_RULE').textContent='$days'; document.getElementById('CREDIT_CHG_PRICE').textContent='". sprintf("%.2f", $price || 0) ."'\"",
             class     => 'btn btn-xs btn-success',
             SKIP_HREF => 1
           }
@@ -2561,7 +2602,7 @@ sub form_credit {
 
   #Credit functions
   $month_changes = 0 if (!$month_changes);
-  my $credit_date = POSIX::strftime("%Y-%m-%d", localtime(time + int($days) * 86400));
+  my $credit_date = POSIX::strftime("%Y-%m-%d", localtime(time + int($days || 0) * 86400));
 
   if ($month_changes) {
     my ($y, $m) = split(/\-/, $DATE);
@@ -2670,7 +2711,7 @@ sub form_credit {
         '#',
         {
           ex_params => "name='hold_up_window' data-toggle='modal' data-target='#changeCreditModal'",
-          class     => 'btn btn-xs btn-success',
+          class     => 'btn btn-success btn-xs',
           SKIP_HREF => 1
         }
       );
@@ -2709,14 +2750,6 @@ sub get_credit_limit {
       $credit_limit += $service->{SUM};
     }
     return ($credit_limit+1);
-  }
-  elsif (in_array('Dv', \@MODULES)) {
-    load_module('Dv', $html);
-    my $Dv = Dv->new($db, $admin, \%conf);
-    $Dv->info($user->{UID});
-    if ($Dv->{USER_CREDIT_LIMIT} && $Dv->{USER_CREDIT_LIMIT} > 0) {
-      $credit_limit = $Dv->{USER_CREDIT_LIMIT};
-    }
   }
   elsif (in_array('Internet', \@MODULES)) {
     load_module('Internet', $html);

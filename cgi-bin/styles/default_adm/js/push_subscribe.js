@@ -59,13 +59,13 @@ function updateButton(state, newMessage, pushEnabled) {
     pushBtnIcon.removeClass('fa-bell');
     
     pushButton.removeClass('btn-info');
-    pushButton.addClass('btn-default');
+    pushButton.addClass('btn-secondary');
   }
   else if (!window['isPushEnabled'] && !pushBtnIcon.hasClass('fa-bell')) {
     pushBtnIcon.removeClass('fa-bell-slash');
     pushBtnIcon.addClass('fa-bell');
     
-    pushButton.removeClass('btn-default');
+    pushButton.removeClass('btn-secondary');
     pushButton.addClass('btn-info');
   }
 }

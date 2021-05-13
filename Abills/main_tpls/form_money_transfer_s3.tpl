@@ -1,6 +1,6 @@
-<div class='box box-primary form form-horizontal center-block' style='max-width: 400px'>
-    <div class='box-header with-border'>_{MONEY_TRANSFER}_</div>
-    <div class='box-body'>
+<div class='card box-primary form form-horizontal center-block' style='max-width: 400px'>
+    <div class='card-header with-border'>_{MONEY_TRANSFER}_</div>
+    <div class='card-body'>
         <div class='form-group'>
             <div class='alert alert-success'>_{ADDED}_</div>
         </div>
@@ -21,8 +21,8 @@
             <label class='col-md-6'>%SUM%</label>
         </div>
     </div>
-    <div class='box-footer text-right'>
-        <a href='$SELF_URL' class='btn btn-success '><span class='glyphicon glyphicon-home'></span></a>
+    <div class='card-footer text-right'>
+        <a href='$SELF_URL' class='btn btn-success '><span class='fa fa-home'></span></a>
     </div>
 </div>
 </form>

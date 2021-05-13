@@ -1,16 +1,14 @@
 <form>
-<input type='hidden' name='index' value=$index>
-<input type='hidden' name='ID' value='%ID%'>
+  <input type='hidden' name='index' value=$index>
+  <input type='hidden' name='ID' value='%ID%'>
 
-<div class='row'>
+  <div class='row'>
+    %LEAD_PROFILE_PANEL%
 
-  %LEAD_PROFILE_PANEL%
-
-  <div class='col-md-9'>
-        %PROGRESSBAR%
+    <div class='col-md-9'>
+      %PROGRESSBAR%
+    </div>
   </div>
-</div>
-
 </form>
 
 <!-- Modal -->
@@ -18,8 +16,8 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
         <h4 class="modal-title" id="myModalLabel">_{ADD_TAGS}_</h4>
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
       </div>
       <form id="lead_tags" method="post" action="">
         <input type='hidden' name='index' value=$index>
@@ -37,7 +35,7 @@
 </div><!-- /.modal -->
 
 <script>
-   Events.on("AJAX_SUBMIT.form_CRM_LEAD_SEARCH", function(){
+  Events.on("AJAX_SUBMIT.form_CRM_LEAD_SEARCH", function () {
     location.reload(false)
   })
 </script>

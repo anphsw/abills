@@ -6,12 +6,12 @@
     </div>
 </div>
 
-<div class='box box-theme box-form' style='margin-left:auto; margin-right:auto; width:auto; max-width:500px;'>
-    <div class='box-header with-border text-center'>
-        <h4 class='box-title'>_{CARDS}_ _{INFO}_</h4>
+<div class='card card-primary card-outline box-form' style='margin-left:auto; margin-right:auto; width:auto; max-width:500px;'>
+    <div class='card-header with-border text-center'>
+        <h4 class='card-title'>_{CARDS}_ _{INFO}_</h4>
     </div>
 
-    <div class='box-body form form-horizontal'>
+    <div class='card-body form form-horizontal'>
 
         <div class='form-group'>
             <label class='col-md-6 col-xs-6 control-label'>_{LOGIN}_:</label>
@@ -65,7 +65,7 @@
 
     </div>
 
-    <div class='box-footer'>
+    <div class='card-footer'>
         %FOOTER_TEXT%
     </div>
 

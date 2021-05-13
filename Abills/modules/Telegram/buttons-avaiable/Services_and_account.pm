@@ -53,6 +53,7 @@ sub click {
   $Users->pi({UID => $uid});
   $Users->group_info($Users->{GID});
   $credit_warn = 1 if ($Users->{DEPOSIT} + $Users->{CREDIT} <= 0);
+  my $money_currency = $self->{conf}->{DOCS_MONEY_NAMES} || '';
     
   use Payments;
   my $Payments = Payments->new($self->{db}, $self->{admin}, $self->{conf});
@@ -68,10 +69,11 @@ sub click {
   });
 
   my $message = "$self->{bot}->{lang}->{WELLCOME} $Users->{FIO}\n";
-  $message .= sprintf("$self->{bot}->{lang}->{DEPOSIT}: %.2f\n", $Users->{DEPOSIT});
+  $message .= sprintf("$self->{bot}->{lang}->{DEPOSIT}: %.2f\n", $Users->{DEPOSIT}) . " $money_currency";
   $message .= "\n";
   $message .= "$self->{bot}->{lang}->{LAST_PAYMENT}:\n";
-  $message .= sprintf("$self->{bot}->{lang}->{SUM}: %.2f\n", $last_payments->[0]->{sum}) if ($last_payments->[0]->{sum});
+  $message .= sprintf("$self->{bot}->{lang}->{SUM}: %.2f", $last_payments->[0]->{sum}) if ($last_payments->[0]->{sum});
+  $message .= " $money_currency\n";
   $message .= "$self->{bot}->{lang}->{DATE}: $last_payments->[0]->{datetime}\n" if ($last_payments->[0]->{datetime});
   $message .= "$self->{bot}->{lang}->{DESCRIBE}: $last_payments->[0]->{describe}\n" if ($last_payments->[0]->{describe});
   $message .= "\n";
@@ -136,8 +138,9 @@ sub click {
     }
     else {
       $message .= "$self->{bot}->{lang}->{SPEED}: <b>$line->{speed}</b>\n" if ($line->{speed});
-      $message .= "$self->{bot}->{lang}->{PRICE_MONTH}: <b>$line->{month_fee}</b>\n" if ($line->{month_fee} && $line->{month_fee} > 0);
-      $message .= "$self->{bot}->{lang}->{PRICE_DAY}: <b>$line->{day_fee}</b>\n" if ($line->{day_fee} && $line->{day_fee} > 0);
+      $message .= "$self->{bot}->{lang}->{PRICE_MONTH}: <b>$line->{month_fee}</b>" if ($line->{month_fee} && $line->{month_fee} > 0);
+      $message .= " <b>$money_currency</b>\n";
+      $message .= "$self->{bot}->{lang}->{PRICE_DAY}: <b>$line->{day_fee} $money_currency</b>\n" if ($line->{day_fee} && $line->{day_fee} > 0);
 
       $total_sum_month += $line->{month_fee};
       $total_sum_day   += $line->{day_fee};
@@ -146,14 +149,16 @@ sub click {
     $message .= "\n";
   }
   
-  $message .= "$self->{bot}->{lang}->{SUM_MONTH}: <b>$total_sum_month</b>\n";
-  $message .= "$self->{bot}->{lang}->{SUM_DAY}: <b>$total_sum_day</b>\n";
+  $message .= "$self->{bot}->{lang}->{SUM_MONTH}: <b>$total_sum_month</b>";
+  $message .= " <b>$money_currency</b>\n";
+  $message .= "$self->{bot}->{lang}->{SUM_DAY}: <b>$total_sum_day</b>";
+  $message .= " <b>$money_currency</b>\n";
 
   if ($credit_warn) {
-    if ($self->{conf}{user_credit_change} && $Users->{ALLOW_CREDIT}) {
+    if ($self->{conf}->{user_credit_change} && $Users->{ALLOW_CREDIT}) {
       $message .= "$self->{bot}->{lang}->{MESSAGE_PAYMENT}\n";
       my $inline_button = {
-        text          => "$self->{bot}->{lang}->{SET_CREDIT}",
+        text          => "$self->{bot}->{lang}->{SET_CREDIT_USER}",
         callback_data => "Services_and_account&credit"
       };
       push (@inline_keyboard, [$inline_button]);
@@ -163,7 +168,7 @@ sub click {
     }
   }
 
-  if (in_array('Equipment', \@main::MODULES)) {
+  if (in_array('Equipment', \@main::MODULES) && $self->{conf}->{TELEGRAM_EQUIPMENT_INFO}) {
     my $inline_button = {
       text          => "$self->{bot}->{lang}->{EQUIPMENT_INFO}",
       callback_data => "Services_and_account&equipment_info_bot"
@@ -254,7 +259,7 @@ sub credit {
   my $credit_avaiable = 1;
   my $credit_warning = "$self->{bot}->{lang}->{CREDIT_NOT_EXIST}";
 
-  $credit_avaiable = 0 if (!$self->{conf}{user_credit_change});
+  $credit_avaiable = 0 if (!$self->{conf}->{user_credit_change});
 
   require Internet;
   require Users;
@@ -267,13 +272,13 @@ sub credit {
 
   $credit_avaiable = 0 if (!$Users->{ALLOW_CREDIT});
   
-  my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $self->{conf}{user_credit_change});
+  my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $self->{conf}->{user_credit_change});
   my $credit_date = POSIX::strftime("%Y-%m-%d", localtime(time + int($days) * 86400));
 
   if ($sum == 0 && $Internet->{MONTH_ABON} && !$Internet->{USER_CREDIT_LIMIT}) {
      $sum = $Internet->{MONTH_ABON};
   } elsif ($sum == 0 && $Internet->{USER_CREDIT_LIMIT}) {
-     $sum = $Internet->{USER_CREDIT_LIMIT});
+     $sum = $Internet->{USER_CREDIT_LIMIT};
   }
 
   if ($month_changes) {

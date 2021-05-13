@@ -18,8 +18,8 @@
 </style>
 
 <form method='post' class='form form-horizontal'>
-  <div class='box  box-theme no-padding'>
-    <div class='box-body no-padding' id='body'>
+  <div class='card  card-primary card-outline no-padding'>
+    <div class='card-body no-padding' id='body'>
       <div class='info-box-content' style='margin-left:5px'>
         <span class='info-box-number'>%DISTRICT_NAME% %STREET_NAME% %BUILD_NAME%</span>
 

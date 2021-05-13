@@ -30,10 +30,11 @@ my $sql_errors = '/usr/abills/var/log/sql_errors';
       CHARSET  - Default utf8
       SQL_MODE - Default NO_ENGINE_SUBSTITUTION
       SCOPE    - Allow to create multiple cached pools ( to use with threads)
+      DBPARAMS=""
 
 =cut
 #**********************************************************
-sub connect{
+sub connect {
   my $class = shift;
   my $self = { };
   my ($dbhost, $dbname, $dbuser, $dbpasswd, $attr) = @_;
@@ -42,16 +43,32 @@ sub connect{
   #my %conn_attrs = (PrintError => 0, RaiseError => 1, AutoCommit => 1);
   # TaintIn => 1, TaintOut => 1,
   my DBI $db;
-  if ( $db = DBI->connect_cached( "DBI:mysql:database=$dbname;host=$dbhost;mysql_client_found_rows=0", "$dbuser"
-    , "$dbpasswd", { Taint => 1, private_scope_key => $attr->{SCOPE} || 0 } ) ){
-    $db->{mysql_auto_reconnect} = 1;
-    #For mysql 5 or highter
-    $db->do( "SET NAMES " . $attr->{CHARSET} ) if ($attr->{CHARSET});
-    my $sql_mode = ($attr->{SQL_MODE}) ? $attr->{SQL_MODE} : 'NO_ENGINE_SUBSTITUTION';
-    $db->do( "SET sql_mode='$sql_mode';" );
+  my $db_params = q{};
+
+  if ($attr && $attr->{DBPARAMS}) {
+    $db_params .=";".$attr->{DBPARAMS};
+  }
+
+  my $sql_mode = ($attr->{SQL_MODE}) ? $attr->{SQL_MODE} : 'NO_ENGINE_SUBSTITUTION';
+
+  my $mysql_init_command = "SET sql_mode='$sql_mode'";
+  #For mysql 5 or higher
+  if ($attr->{CHARSET}) {
+    $mysql_init_command .= ", NAMES $attr->{CHARSET}";
+    $self->{dbcharset}=$attr->{CHARSET};
+  }
+
+  if ( $db = DBI->connect_cached( "DBI:mysql:database=$dbname;host=$dbhost;mysql_client_found_rows=0".$db_params, "$dbuser", "$dbpasswd",
+       {
+         Taint                => 1,
+         private_scope_key    => $attr->{SCOPE} || 0,
+         mysql_auto_reconnect => 1,
+         mysql_init_command   => $mysql_init_command
+       } )
+     ) {
     $self->{db} = $db;
   }
-  else{
+  else {
     print "Content-Type: text/html\n\nError: Unable connect to DB server '$dbhost:$dbname'\n";
     $self->{error} = $DBI::errstr;
 
@@ -595,6 +612,7 @@ sub search_former{
     'EXPIRE',
     'REGISTRATION',
     'LAST_PAYMENT',
+    'LAST_FEES',
     'EXT_BILL_ID',
     'EXT_DEPOSIT',
   );
@@ -860,7 +878,7 @@ sub search_expr{
   Returns:
     \@fields - Fields ARRAY_REF
     $self->
-       SORT_BY - Extra sort option
+      SORT_BY - Extra sort option
 
 =cut
 #**********************************************************
@@ -934,7 +952,8 @@ sub search_expr_users{
     PASSWORD       => "STR:DECODE(u.password, '$CONF->{secretkey}') AS password",
     EXT_DEPOSIT    => 'INT:if(company.id IS NULL,ext_b.deposit,ext_cb.deposit) AS ext_deposit',
     EXT_BILL_ID    => 'INT:IF(company.id IS NULL, u.ext_bill_id, company.ext_bill_id) AS ext_bill_id',
-    LAST_PAYMENT   => 'INT:(SELECT max(p.date) FROM payments p WHERE p.uid=u.uid) AS last_payment'
+    LAST_PAYMENT   => 'INT:(SELECT max(p.date) FROM payments p WHERE p.uid=u.uid) AS last_payment',
+    LAST_FEES      => 'INT:(SELECT max(f.date) FROM fees f WHERE f.uid=u.uid) AS last_fees',
     #ADDRESS_FLAT  => 'STR:pi.address_flat',
   );
 
@@ -1122,9 +1141,9 @@ sub search_expr_users{
       }
 
       if ( $attr->{ADDRESS_FULL} ){
-        $attr->{BUILD_DELIMITER} = ',' if (!$attr->{BUILD_DELIMITER});
+        my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
         push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
-            "CONCAT(streets.name, ' ', builds.number, '$attr->{BUILD_DELIMITER}', pi.address_flat) AS address_full",
+            "CONCAT(streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full",
             { EXT_FIELD => 1 } ) };
         $EXT_TABLE_JOINS_HASH{users_pi} = 1;
         $EXT_TABLE_JOINS_HASH{builds} = 1;
@@ -1196,9 +1215,9 @@ sub search_expr_users{
       my $f_count = $self->{SEARCH_FIELDS_COUNT};
 
       if ( $attr->{ADDRESS_FULL} ){
-        $attr->{BUILD_DELIMITER} = ',' if (!$attr->{BUILD_DELIMITER});
+        my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
         push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
-            "CONCAT(pi.address_street, ' ', pi.address_build, '$attr->{BUILD_DELIMITER}', pi.address_flat) AS address_full"
+            "CONCAT(pi.address_street, '$build_delimiter', pi.address_build, '$build_delimiter', pi.address_flat) AS address_full"
             , { EXT_FIELD => 1 } ) };
       }
 

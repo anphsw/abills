@@ -8,11 +8,11 @@
   }
 </style>
 
-<div class='box box-theme box-form'>
-  <div class='box-header with-border text-center'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border text-center'>
     <h4>_{OBJECT}_ _{TYPE}_</h4>
   </div>
-  <div class='box-body'>
+  <div class='card-body'>
     <form name='MAPS_POINT_TYPES_FORM' id='form_MAPS_POINT_TYPES_FORM' method='post' class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
       <input type='hidden' name='%CHANGE_ID%' value='%ID%'/>
@@ -46,7 +46,7 @@
     </form>
 
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type='submit' form='form_MAPS_POINT_TYPES_FORM' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>
@@ -70,7 +70,7 @@
 
     var img = document.createElement('img');
     img.src = icon_src;
-    jQuery(img).addClass('img-responsive img-thumbnail');
+    jQuery(img).addClass('img-fluid img-thumbnail');
 
     var strong = document.createElement('strong');
     jQuery(strong).addClass('text-left col-md-6');

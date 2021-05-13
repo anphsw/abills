@@ -1,6 +1,6 @@
 =head1 NAME
 
-  Dv Reports
+  Internet Reports
 
 =cut
 
@@ -87,8 +87,8 @@ sub internet_report_use {
         DISTRICT        => $lang{DISTRICT},
         STREET          => $lang{STREET},
         BUILD           => $lang{BUILD},
-        TP              => "$lang{TARIF_PLANS}",
-        GID             => "$lang{GROUPS}",
+        TP              => $lang{TARIF_PLANS},
+        GID             => $lang{GROUPS},
         TERMINATE_CAUSE => 'TERMINATE_CAUSE',
         COMPANIES       => $lang{COMPANIES}
       },
@@ -108,7 +108,11 @@ sub internet_report_use {
   );
 
   my %TP_NAMES = ();
-  my $list = $Tariffs->list({ MODULE => 'Dv', NEW_MODEL_TP => 1, COLS_NAME => 1 });
+  my $list = $Tariffs->list({
+    MODULE       => 'Dv;Internet',
+    NEW_MODEL_TP => 1,
+    COLS_NAME    => 1
+  });
   foreach my $line (@$list) {
     $TP_NAMES{ $line->{id} } = $line->{name};
   }
@@ -163,12 +167,12 @@ sub internet_report_use {
     },
     TABLE   => {
       width            => '100%',
-      caption          => "$lang{REPORTS}",
+      caption          => $lang{REPORTS},
       qs               => $pages_qs,
       pages            => $#{ $Sessions->{list} },
       ID               => 'REPORTS_DV_USE',
       EXPORT           => 1,
-      SHOW_COLS_HIDDEN => { 
+      SHOW_COLS_HIDDEN => {
         TYPE        => $FORM{TYPE},
         show        => 1,
         FROM_DATE   => $FORM{FROM_DATE},
@@ -253,13 +257,13 @@ sub internet_report_debetors {
     },
     TABLE           => {
       width      => '100%',
-      caption    => "$lang{DEBETORS}",
+      caption    => "$lang{DEBETORS} - $lang{ONE_MONTH_DEBS}",
       qs         => $pages_qs,
       ID         => 'REPORT_DEBETORS',
       EXPORT     => 1,
     },
     MAKE_ROWS    => 1,
-    MODULE       => 'Dv',
+    MODULE       => 'Internet',
     TOTAL        => "TOTAL:$lang{TOTAL};TOTAL_DEBETORS_SUM:$lang{SUM}"
   });
 
@@ -272,6 +276,15 @@ sub internet_report_debetors {
 =cut
 #**********************************************************
 sub internet_report_tp {
+  reports({
+    PERIODS           => 1,
+    NO_TAGS           => 1,
+    NO_PERIOD         => 1,
+    NO_MULTI_GROUP    => 1,
+    PERIOD_FORM       => 1,
+    NO_STANDART_TYPES => 1,
+    col_md            => 'col-md-11'
+  });
 
   my $list = $Internet->report_tp({
     %LIST_PARAMS,
@@ -295,7 +308,11 @@ sub internet_report_tp {
   foreach my $line (@$list) {
     $line->{id} = 0 if (! defined($line->{id}));
     $line->{tp_id} = 0 if (! defined($line->{tp_id}));
+
     my $main_link = "search=1&index=$internet_users_list_index&TP_ID=$line->{tp_id}";
+
+    $main_link .= "&GID=$FORM{GID}" if $FORM{GID};
+
     $table->addrow(
       $line->{id},
       $html->button($line->{name}, "$main_link"),
@@ -515,7 +532,6 @@ sub internet_pools_report {
 
     $result .= $html->tpl_show(_include('internet_pool_report_single', 'Internet'),
       {
-        COLS_SIZE   => $wrap_size,
         NAME        => $html->button($pool->{pool_name}, "index=$pools_index&chg=$pool->{id}"),
         NAS_NAME    => $pool->{static} ? $lang{STATIC} : ($pool->{nas_name} || $lang{NO}),
         IP_RANGE    => $pool->{first_ip} . '-' . $pool->{last_ip},
@@ -548,10 +564,11 @@ sub internet_pools_report {
       $ip_pools_page .= $html->element('a', $iterations, {
         href => $next_page,
         id   => 'btn_page_' . $iterations,
+        class => 'btn btn-secondary'
       });
     }
   }
-  
+
   $html->tpl_show(_include('internet_page_ippools', 'Internet'), {
     PAGE_IP_POOLS   => $ip_pools_page,
     PG_INDEX        => $FORM{pg},
@@ -565,7 +582,6 @@ sub internet_pools_report {
 
   my $return_html = ($attr->{RETURN_HTML} || $attr->{OUTPUT2RETURN});
   $result = $html->element('div', join('', @rows), {
-      class         => 'row',
       OUTPUT2RETURN => $return_html
     }
   );
@@ -576,6 +592,197 @@ sub internet_pools_report {
   }
 
   return \%charts;
+}
+
+#**********************************************************
+=head2 internet_user_outflow()
+
+=cut
+#**********************************************************
+sub internet_user_outflow {
+
+  use Address;
+  my $Address = Address->new($db, $admin, \%conf);
+
+  my $builds_sel = $html->form_select('BUILD_ID', {
+    SELECTED    => $FORM{BUILD_ID} || 0,
+    NO_ID       => 1,
+    SEL_LIST    => $Address->build_list({
+      STREET_ID => $FORM{STREET_ID} || '_SHOW',
+      NUMBER    => '_SHOW',
+      COLS_NAME => 1,
+      SORT      => 'b.number+0',
+      PAGE_ROWS => 999999
+    }),
+    SEL_KEY     => 'id',
+    SEL_VALUE   => 'number',
+    SEL_OPTIONS => { 0 => '--' },
+  });
+
+  reports({
+    PERIOD_FORM => 1,
+    NO_PERIOD   => 1,
+    NO_GROUP    => 1,
+    NO_TAGS     => 1,
+    EXT_SELECT  => {
+      DISTRICT   => { LABEL => $lang{DISTRICT}, SELECT => sel_districts({ SEL_OPTIONS => { 0 => '--' }, DISTRICT_ID => $FORM{DISTRICT_ID} }) },
+      STREET     => { LABEL => $lang{STREET}, SELECT => sel_streets({ SEL_OPTIONS => { 0 => '--' }, STREET_ID => $FORM{STREET_ID} }) },
+      _BUILD     => { LABEL => $lang{BUILD}, SELECT => $builds_sel },
+    }
+  });
+
+  my $outflow_users = $Internet->users_outflow_report({
+    LOGIN     => '_SHOW',
+    LAST_FEE  => '_SHOW',
+    TP_NAME   => '_SHOW',
+    DEPOSIT   => '_SHOW',
+    COLS_NAME => 1,
+    %FORM
+  });
+
+  my @uids = ();
+  map push(@uids, $_->{uid}), @{$outflow_users};
+  my $uids_str = $Internet->{TOTAL} > 0 ? join(';', @uids) : '';
+
+  my $outflow_users_table = $html->table({
+    width      => '100%',
+    caption    => $lang{USERS_OUTFLOW},
+    title      => [ 'UID', $lang{LOGIN}, $lang{TARIF_PLAN}, "Последнее списание", $lang{DEPOSIT} ],
+    ID         => 'INTERNET_OUTFLOW_USERS',
+    DATA_TABLE => 1
+  });
+
+  foreach my $user (@{$outflow_users}) {
+    my $user_btn = $html->button($user->{login}, "get_index=form_user&header=1&full=1&UID=$user->{uid}");
+    $outflow_users_table->addrow($user->{uid}, $user_btn, $user->{tp_name}, $user->{last_fee}, $user->{deposit});
+  }
+
+  print $outflow_users_table->show();
+
+  $html->tpl_show(_include('internet_user_outflow_report', 'Internet'), {
+    BUILDS_OUTFLOW  => _internet_get_builds_outflow_charts($uids_str),
+    STREETS_OUTFLOW => _internet_get_streets_outflow_charts($uids_str)
+  });
+
+}
+
+#**********************************************************
+=head2 _internet_get_builds_outflow_charts()
+
+=cut
+#**********************************************************
+sub _internet_get_builds_outflow_charts {
+  my ($uids) = @_;
+
+  return '' if !$uids;
+
+  my @builds_outflow = ();
+  my @builds_total = ();
+  my @builds_labels = ();
+
+  my $users_by_build = $Internet->users_outflow_by_address({
+    USERS_COUNT  => '_SHOW',
+    LOCATION_ID  => '<>0',
+    BUILD_NUMBER => '_SHOW',
+    STREET_NAME  => '_SHOW',
+    UID          => $uids,
+    SORT         => 'users_count',
+    DESC         => 'DESC',
+    COLS_NAME    => 1,
+    PAGE_ROWS    => 5
+  });
+
+  my @builds_id = ();
+  foreach my $build (sort { $a->{location_id} <=> $b->{location_id} } @{$users_by_build}) {
+    push(@builds_outflow, $build->{users_count});
+    push(@builds_labels, join(', ', ($build->{street_name}, $build->{build_number})));
+    push(@builds_id, $build->{location_id});
+  }
+
+  my $builds_total_users = $Internet->users_outflow_by_address({
+    USERS_COUNT  => '_SHOW',
+    LOCATION_ID  => join(';', @builds_id),
+    BUILD_NUMBER => '_SHOW',
+    STREET_NAME  => '_SHOW',
+    COLS_NAME    => 1,
+  });
+
+  foreach my $build (sort { $a->{location_id} <=> $b->{location_id} } @{$builds_total_users}) {
+    push(@builds_total, $build->{users_count});
+  }
+
+  return $html->chart({
+    TYPE              => 'bar',
+    X_LABELS          => \@builds_labels,
+    DATA              => {
+      $lang{USERS_OUTFLOW} => \@builds_outflow,
+      $lang{TOTAL_USERS}   => \@builds_total,
+    },
+    BACKGROUND_COLORS => {
+      $lang{USERS_OUTFLOW} => 'rgba(204, 22, 22, 0.5)',
+      $lang{TOTAL_USERS}   => 'rgba(2, 99, 2, 0.5)',
+    },
+    OUTPUT2RETURN     => 1,
+  });
+}
+
+#**********************************************************
+=head2 _internet_get_streets_outflow_charts()
+
+=cut
+#**********************************************************
+sub _internet_get_streets_outflow_charts {
+  my ($uids) = @_;
+
+  return '' if !$uids;
+
+  my @streets_outflow = ();
+  my @streets_total = ();
+  my @streets_labels = ();
+
+  my $users_by_street = $Internet->users_outflow_by_address({
+    USERS_COUNT => '_SHOW',
+    LOCATION_ID => '<>0',
+    STREET_ID   => '_SHOW',
+    STREET_NAME => '_SHOW',
+    UID         => $uids,
+    SORT        => 'users_count',
+    DESC        => 'DESC',
+    GROUP_BY    => 'GROUP BY s.id',
+    COLS_NAME   => 1,
+    PAGE_ROWS   => 5
+  });
+
+  my @streets_id = ();
+  foreach my $street (sort { $a->{street_id} <=> $b->{street_id} } @{$users_by_street}) {
+    push(@streets_outflow, $street->{users_count});
+    push(@streets_labels, $street->{street_name});
+    push(@streets_id, $street->{street_id});
+  }
+
+  my $streets_total_users = $Internet->users_outflow_by_address({
+    USERS_COUNT => '_SHOW',
+    STREET_ID   => join(';', @streets_id),
+    COLS_NAME   => 1,
+  });
+
+  foreach my $street (sort { $a->{street_id} <=> $b->{street_id} } @{$streets_total_users}) {
+    push(@streets_total, $street->{users_count});
+  }
+
+  return $html->chart({
+    TYPE              => 'bar',
+    X_LABELS          => \@streets_labels,
+    DATA              => {
+      $lang{USERS_OUTFLOW} => \@streets_outflow,
+      $lang{TOTAL_USERS}   => \@streets_total,
+    },
+    BACKGROUND_COLORS => {
+      $lang{USERS_OUTFLOW} => 'rgba(204, 22, 22, 0.5)',
+      $lang{TOTAL_USERS}   => 'rgba(2, 99, 2, 0.5)',
+    },
+    OUTPUT2RETURN     => 1,
+  });
 }
 
 1;

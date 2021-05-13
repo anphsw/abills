@@ -3,11 +3,11 @@
   <input type='hidden' name='index' value=$index>
   <input type='hidden' name='ID' value='%ID%'>
 
-  <div class='box box-theme box-form form-horizontal'>
+  <div class='card card-primary card-outline box-form form-horizontal'>
 
-    <div class='box-header with-border '><h4 class='box-title'>_{BONUS}_</h4></div>
+    <div class='card-header with-border '><h4 class='card-title'>_{BONUS}_</h4></div>
 
-    <div class='box-body'>
+    <div class='card-body'>
 
       <div class='form-group'>
         <label class='col-md-3 control-label'>_{BONUS}_</label>
@@ -38,7 +38,7 @@
       </div>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <button class='btn btn-primary' type='submit' name="%ACTION%" value="%ACTION_LANG%">%ACTION_LANG%</button>
     </div>
 

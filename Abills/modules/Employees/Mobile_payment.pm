@@ -17,7 +17,6 @@ use Abills::Base qw(days_in_month mk_unique_value);
 use Digest::MD5 qw(md5_hex);
 use Digest::SHA qw(sha1_hex);
 use Abills::Fetcher qw/web_request/;
-use XML::Simple qw(:strict);
 
 our (
   $db,
@@ -337,6 +336,9 @@ sub employees_mobile_pay {
             </request>};
   $data =~ s/"/\\\"/g;
   $data =~ s/\n//g;
+  require XML::Simple;
+  XML::Simple->import(/qw(:strict)/);
+
   my $result = web_request($url, { DEBUG => $attr->{DEBUG} || 0, POST => $data });
   my $responce = XML::Simple::XMLin($result, ForceArray => 1, KeyAttr => 1);
   $responce_state = $responce->{data}[0]{payment}[0]{state};

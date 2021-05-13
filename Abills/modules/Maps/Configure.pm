@@ -701,7 +701,7 @@ sub maps_point_types_main {
     );
     
     my $add_icon_link = $html->button( '', 'index=' . get_function_index('maps_icons_main') . '&add_form=1', {
-        ICON      => 'glyphicon glyphicon-plus',
+        ICON      => 'fa fa-plus',
         ID        => 'ADD_ICON_BUTTON',
         class     => 'btn btn-success',
         ex_params => ' target="_blank" '
@@ -786,7 +786,7 @@ sub maps_icons_main {
   }
   
   my $open_upload_modal_btn = $html->button('UPLOAD', "get_index=_maps_icon_ajax_upload\&header=2", {
-      ICON          => 'glyphicon glyphicon-upload',
+      ICON          => 'fa fa-upload',
       LOAD_TO_MODAL => 1,
       class         => 'btn btn-success',
       ID            => 'UPLOAD_BUTTON',
@@ -1443,12 +1443,12 @@ sub _maps_result_former_show_custom_point_on_map_btn {
       $icon_attr = "&ICON=$icon_name";
     }
     return $html->button('', "get_index=maps_edit&full=1&add=CUSTOM_POINT$icon_attr&OBJECT_ID=$object_id", {
-        ICON => 'glyphicon glyphicon-plus'
+        ICON => 'fa fa-plus'
       });
   };
   
   return $html->button('', "get_index=maps_edit&full=1&show_layer=$custom_point_layer_id&OBJECT_ID=$object_id",
-    { ICON => 'glyphicon glyphicon-globe' }
+    { ICON => 'fa fa-globe' }
   );
 }
 

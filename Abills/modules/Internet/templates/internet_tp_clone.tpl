@@ -4,11 +4,11 @@
   <input type='hidden' name='ADD_CLONE_TP' value="1">
 
   <div class="form-group">
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'>
-        <h3 class="box-title">_{CLONE}_</h3>
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-header with-border'>
+        <h3 class="card-title">_{CLONE}_</h3>
       </div>
-      <div class='box-body' id="div_body">
+      <div class='card-body' id="div_body">
         <div class='form-group'>
           %INTERNET_TP_SELECT%
         </div>

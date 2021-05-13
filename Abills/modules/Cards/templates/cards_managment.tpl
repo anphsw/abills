@@ -1,5 +1,5 @@
-<div class="box box-theme ">
-  <div class="box-body ">
+<div class="card card-primary card-outline ">
+  <div class="card-body ">
     <div class='row'>
     <div class='form-group col-md-3'>
       <label for='DILLER_ID'>_{DILLERS}_:</label>

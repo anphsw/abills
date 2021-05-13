@@ -149,21 +149,6 @@ sub form_payments {
     form_users();
     return 0;
   }
-  #depricated
-  # elsif ($index != 7) {
-  #   $FORM{type} = $FORM{subf} if ($FORM{subf});
-  #   form_search(
-  #     {
-  #       HIDDEN_FIELDS => {
-  #         subf       => ($FORM{subf}) ? $FORM{subf} : undef,
-  #         COMPANY_ID => $FORM{COMPANY_ID},
-  #         LEAD_ID    => $FORM{LEAD_ID}
-  #       },
-  #       ID            => 'SEARCH_PAYMENTS',
-  #       CONTROL_FORM  => 1
-  #     }
-  #   );
-  # }
 
   form_payments_list($attr);
 
@@ -230,7 +215,7 @@ sub form_payment_add {
       }
     );
 
-    $Payments->{ER_FORM} = $html->tpl_show(templates('form_row_dynamic_size'), {
+    $Payments->{ER_FORM} = $html->tpl_show(templates('form_row'), {
         ID          => '',
         NAME        => "$lang{CURRENCY} : $lang{EXCHANGE_RATE}",
         VALUE       => $Payments->{SEL_ER},
@@ -254,7 +239,7 @@ sub form_payment_add {
     if ($conf{EXT_BILL_ACCOUNT}) {
       $Payments->{EXT_DATA_FORM}=$html->tpl_show(templates('form_row'), {
           ID    => 'BILL_ID',
-          NAME  => "$lang{BILL}",
+          NAME  => $lang{BILL},
           VALUE => $html->form_select('BILL_ID',
             {
               SELECTED => $FORM{BILL_ID} || $attr->{USER_INFO}->{BILL_ID},
@@ -273,19 +258,27 @@ sub form_payment_add {
       }
 
       my $date_field = $html->form_datetimepicker('DATE', $FORM{DATE}, {
-          FORM_ID => 'user_form',
-        });
+        FORM_ID => 'user_form',
+      });
+
+      $Payments->{VALUE} = $date_field;
+      $Payments->{ADDON} = $html->form_input( 'hold_date', '1', {
+        TYPE      => 'checkbox',
+        EX_PARAMS => "NAME='hold_date' data-tooltip='$lang{HOLD}'",
+        ID        => 'DATE',
+        STATE     => (($COOKIES{hold_date}) ? 1 : undef)
+      }, { OUTPUT2RETURN => 1 });
 
       $Payments->{DATE_FORM} = $html->tpl_show(templates('form_row_dynamic_size_input_group'), {
-          ID          => 'DATE',
-          NAME        => $lang{DATE},
-          COLS_LEFT   => 'col-md-3',
-          COLS_RIGHT  => 'col-md-9',
-          VALUE       => $date_field,
-          ADDON       => $html->form_input( 'hold_date', '1', { TYPE => 'checkbox',
-              EX_PARAMS => "NAME='hold_date' data-tooltip='$lang{HOLD}'",
-              ID        => 'DATE',
-              STATE     => (($COOKIES{hold_date}) ? 1 : undef) }, { OUTPUT2RETURN => 1 }) },
+        ID          => 'DATE',
+        NAME        => $lang{DATE}.':',
+        #COLS_LEFT   => 'col-md-3',
+        #COLS_RIGHT  => 'col-md-9',
+        VALUE       => $date_field,
+        ADDON       => $html->form_input( 'hold_date', '1', { TYPE => 'checkbox',
+             EX_PARAMS => "NAME='hold_date' data-tooltip='$lang{HOLD}'",
+             ID        => 'DATE',
+             STATE     => (($COOKIES{hold_date}) ? 1 : undef) }, { OUTPUT2RETURN => 1 }) },
         { OUTPUT2RETURN => 1 });
     }
 
@@ -341,11 +334,22 @@ sub form_payment_add {
       require Employees::Salary;
       Employees->import();
       my $Employees = Employees->new($db, $admin, \%conf);
+
+      my $admin_cash = $attr->{USER_INFO}{admin}{AID};
+      my $employees_cash_all;
+      if($conf{EMPLOYEES_CASHBOX_ALL}){
+        my @cash_all = split(',',$attr->{USER_INFO}{conf}{EMPLOYEES_CASHBOX_ALL});
+        if(in_array("$admin_cash", \@cash_all)) {
+          $employees_cash_all = $Employees->employees_payments_cashbox({ COLS_NAME => 1 });
+        }
+      }
+      my $employees_cash = $Employees->employees_payments_cashbox({ COLS_NAME => 1, AID => $admin_cash});
+
       $attr->{CASHBOX_SELECT} = $html->form_select(
         'CASHBOX_ID',
         {
           SELECTED    => $conf{EMPLOYEES_DEFAULT_CASHBOX} || $FORM{CASHBOX_ID} || $attr->{CASHBOX_ID},
-          SEL_LIST    => $Employees->employees_list_cashbox({ COLS_NAME => 1 }),
+          SEL_LIST    => $employees_cash_all || $employees_cash,
           SEL_KEY     => 'id',
           SEL_VALUE   => 'name',
           NO_ID       => 1,

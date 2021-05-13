@@ -28,15 +28,14 @@ sub add_company {
   $Company->{ACTION}         = 'add';
   $Company->{LNG_ACTION}     = $lang{ADD};
   $Company->{BILL_ID}        = $html->form_input( 'CREATE_BILL', 1, { TYPE => 'checkbox', STATE => 1 } ) . ' ' . $lang{CREATE};
-#  $Company->{ADDRESS_SELECT} = _form_company_address();
   $Company->{ADDRESS_SELECT} = form_address_select2(\%FORM);
 
-  $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1 });
+  $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, COLS_LEFT => 'col-md-3', COLS_RIGHT => 'col-md-9' });
 
   if (in_array('Docs', \@MODULES)) {
-    $Company->{PRINT_CONTRACT} = $html->button( $lang{PRINT},
+    $Company->{PRINT_CONTRACT} = $html->button( '',
       "qindex=15&UID=". ($Company->{UID} || '') ."&PRINT_CONTRACT=". ($Company->{UID} || '')  . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : ''),
-      { ex_params => ' target=new', class => 'print' } );
+      { ex_params => ' target=new', ADD_ICON => 'fa fa-print' } );
 
     if ($conf{DOCS_CONTRACT_TYPES}) {
       $conf{DOCS_CONTRACT_TYPES} =~ s/\n//g;
@@ -49,16 +48,16 @@ sub add_company {
         $CONTRACTS_LIST_HASH{"$prefix|$sufix"} = $name;
       }
 
-      $Company->{CONTRACT_TYPE} = $html->tpl_show(templates('form_row'), { ID => "",
-          NAME                                                                => $lang{TYPE},
-          VALUE                                                                => $html->form_select(
-            'CONTRACT_TYPE',
-            {
-              SELECTED => $FORM{CONTRACT_SUFIX},
-              SEL_HASH => { '' => '', %CONTRACTS_LIST_HASH },
-              NO_ID    => 1
-            })
-        }, { OUTPUT2RETURN => 1 });
+      $Company->{CONTRACT_TYPE} = $html->tpl_show(templates('form_row'), {
+        ID      => "",
+        NAME    => $lang{TYPE},
+        VALUE   => $html->form_select(
+        'CONTRACT_TYPE', {
+          SELECTED => $FORM{CONTRACT_SUFIX},
+          SEL_HASH => { '' => '', %CONTRACTS_LIST_HASH },
+          NO_ID    => 1
+        })
+      }, { OUTPUT2RETURN => 1 });
     }
   }
 
@@ -215,14 +214,18 @@ sub form_companies {
 
     $LIST_PARAMS{COMPANY_ID} = $Company->{ID};
     $FORM{COMPANY_ID}        = $Company->{ID};
-    $LIST_PARAMS{BILL_ID}    = $Company->{BILL_ID};
+    $LIST_PARAMS{BILL_ID}    = $Company->{BILL_ID} if (defined($Company->{DEPOSIT}));
     $pages_qs .= "&COMPANY_ID=$LIST_PARAMS{COMPANY_ID}" if ($LIST_PARAMS{COMPANY_ID});
-    $pages_qs .= "&subf=$FORM{subf}" if ($FORM{subf});
+    #$pages_qs .= "&subf=$FORM{subf}" if ($FORM{subf});
 
+    if(!$pages_qs =~ /subf/) {
+      $pages_qs .= (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
+    }
+    
     if (in_array('Docs', \@MODULES)) {
-      $Company->{PRINT_CONTRACT} = $html->button( "$lang{PRINT}",
+      $Company->{PRINT_CONTRACT} = $html->button( '',
         "qindex=$index$pages_qs&PRINT_CONTRACT=$Company->{ID}" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '')
-        , { ex_params => ' target=new', class => 'print' } );
+        , { ex_params => ' target=new', ADD_ICON => 'fa fa-print' } );
     }
 
     my @menu_functions = (
@@ -254,7 +257,7 @@ sub form_companies {
           index => $index,
         },
         SUBMIT => { show => $lang{SHOW} },
-        class   => 'navbar-form navbar-right',
+        class   => 'navbar-form navbar-right form-inline',
       }
     );
 
@@ -281,8 +284,7 @@ sub form_companies {
         $Company->{EXDATA} = $html->tpl_show(templates('form_ext_bill'), $Company, { OUTPUT2RETURN => 1 });
       }
 
-      $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, VALUES  => $Company });
-#     $Company->{ADDRESS_SELECT}= _form_company_address($Company);
+      $Company->{INFO_FIELDS} = form_info_field_tpl({ COMPANY => 1, VALUES  => $Company, COLS_LEFT => 'col-md-3', COLS_RIGHT => 'col-md-9' });
       $Company->{ADDRESS_SELECT}= form_address_select2({ %FORM, %$Company });
 
       if (in_array('Docs', \@MODULES)) {
@@ -306,7 +308,8 @@ sub form_companies {
                   SELECTED => $FORM{CONTRACT_SUFIX},
                   SEL_HASH => { '' => '--', %CONTRACTS_LIST_HASH },
                   NO_ID    => 1
-                })
+                }),
+              SIZE_MD => 12
             }, { OUTPUT2RETURN => 1 });
         }
       }

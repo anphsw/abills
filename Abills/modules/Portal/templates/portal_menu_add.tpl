@@ -3,9 +3,9 @@
 <input type=hidden name=ID value=%ID%>
 
 
-<div class='box box-theme box-form'>
-<div class='box-header with-border'><h4>%TITLE_NAME%</h4></div>
-<div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+<div class='card-header with-border'><h4>%TITLE_NAME%</h4></div>
+<div class='card-body'>
   <div class='form-group'>
       <label class='col-md-3 control-label'>_{NAME}_:</label>
     <div class='col-md-9'>
@@ -29,7 +29,7 @@
   </div>
   </div>
 </div>
-<div class='box-footer'>
+<div class='card-footer'>
 <input class='btn btn-primary' type=submit name=%ACTION% value=%ACTION_LNG%>
 </div>
 

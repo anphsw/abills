@@ -114,7 +114,7 @@ print << '[END]';
 
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
         <button type="button" class="btn btn-primary" id="addButton">Add field</button>
       </div>
     </div><!-- /.modal-content -->
@@ -155,7 +155,7 @@ print << '[END]';
     </div>
     <div class="row">
       <button class="btn btn-success" id="addNewFieldButton">
-        <span class="glyphicon glyphicon-plus"></span>
+        <span class="fa fa-plus"></span>
       </button>
     </div>
   </div>
@@ -166,7 +166,7 @@ ask_form();
 if ( $FORM{GENERATE} ) {
   my $result = generate_form(\%FORM);
   
-  print "<hr />" . '<h1>Preview</h1>' . $result . "<hr />" . '<div class="row"><div class="col-md-3"><h2>Code</h2></div>' . '<div class="col-md-9"><button class="btn btn-primary btn-lg js-textareacopybtn"><span class="glyphicon glyphicon-export"></span>Copy</button></div></div>';
+  print "<hr />" . '<h1>Preview</h1>' . $result . "<hr />" . '<div class="row"><div class="col-md-3"><h2>Code</h2></div>' . '<div class="col-md-9"><button class="btn btn-primary btn-lg js-textareacopybtn"><span class="fa fa-export"></span>Copy</button></div></div>';
   $result =~ s/textarea/ttextarea/g;
   print "<textarea class='form-control js-copytextarea' rows='" . num_of_lines($result) . "'>$result</textarea><br />";
 }
@@ -262,12 +262,12 @@ sub generate_form {
   
   if ( $in_panel ) {
     $result = "
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>%PANEL_HEADING%</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4 class='card-title'>%PANEL_HEADING%</h4></div>
+  <div class='card-body'>
     $form
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
       <input type='submit' form='form_$form_name' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>\n

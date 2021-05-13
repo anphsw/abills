@@ -3,14 +3,14 @@
   <input type='hidden' name='index' value='%index%'>
   <input type='hidden' name='day' value='%day%'>
 
-  <div class='box box-theme box-big-form'>
-    <div class='box-body'>
-      <div class='form-group'>
-        <label class='col-md-2 control-label'>_{POSITION}_:</label>
+  <div class='card card-primary card-outline box-big-form'>
+    <div class='card-body'>
+      <div class='form-group row'>
+        <label class='col-md-2 col-form-label text-md-right'>_{POSITION}_:</label>
         <div class='col-md-3'>
           %POSITION%
         </div>
-        <label class='col-md-2 control-label'>_{DEPARTMENT}_:</label>
+        <label class='col-md-2 col-form-label text-md-right'>_{DEPARTMENT}_:</label>
         <div class='col-md-3'>
           %DEPARTMENT%
         </div>

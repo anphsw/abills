@@ -1,6 +1,6 @@
 <script src='/styles/default_adm/js/modules/netlist/ipv4network.js'></script>
 <script>
-    jQuery(function () {
+    jQuery(document).ready(function () {
         var ip_input = jQuery('input#IP_id');
         var mask_select = jQuery('select#BIT_MASK');
         var hosts_input = jQuery('input#COUNTS_id');
@@ -55,7 +55,7 @@
         };
 
         var ip_changed = function () {
-            var address = this.value;
+            var address = ip_input.val()
             if (IPv4Network.prototype.isValidIPv4(address)) {
                 network = new IPv4Network();
                 network.setBits(normalizeSelectedMaskToBits(mask_select.val()) || 24);
@@ -63,6 +63,7 @@
             }
             updateFormVisualization();
         };
+
         var mask_selected = function () {
             var bits = normalizeSelectedMaskToBits(this.value);
 
@@ -122,7 +123,6 @@
 
         });
 
-
         if (IPv4Network.prototype.isValidIPv4(ip_input.val()) && hosts_input.val()) {
             network = new IPv4Network();
 
@@ -154,239 +154,234 @@
     <input type='hidden' name='IP_POOLS' value='1'/>
     <input type='hidden' name='chg' value='$FORM{chg}'/>
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'>
-            <div class='box-title'>
-                <h4>IP Pool</h4>
+    <div class='card card-primary card-outline container col-md-6'>
+        <div class='card-header with-border'>
+            <div class='card-title'>
+                <h3 class="card-title">IP Pool</h3>
             </div>
         </div>
-        <div class='box-body'>
-            <div class='form-group'>
-                <label class='control-label col-md-4 required' for='NAME_id'>_{NAME}_</label>
-
-                <div class='col-md-8'>
+        <div class='card-body'>
+            <div class='form-group row'>
+                <label class='col-sm-4 col-md-4 col-form-label' for='NAME_id'>_{NAME}_</label>
+                <div class='col-sm-8 col-md-8'>
                     <input class='form-control' name='NAME' required value='%NAME%' id='NAME_id' maxlength='50'/>
                 </div>
             </div>
-            <div class='form-group'>
-                <label class='control-label col-md-4 required' for='IP_id'>_{FIRST}_ IP</label>
 
-                <div class='col-md-8'>
+            <div class='form-group row'>
+                <label class='col-sm-4 col-md-4 col-form-label' required for='IP_id'>_{FIRST}_ IP</label>
+                <div class='col-sm-8 col-md-8'>
                     <input class='form-control ip-input' name='IP' value='%IP%' id='IP_id' maxlength='39' required/>
                 </div>
             </div>
 
-            <div class='form-group' id='ip-prefix'>
-                <label class='control-label col-md-4'>_{MASK}_ (CIDR)</label>
-                <div class='col-md-8'>
-                    <div class='input-group'>
-                        %BIT_MASK%
-                        <span class='input-group-addon' data-tooltip='_{MANUAL}_'>
-                            <span class='glyphicon glyphicon-wrench'></span>
-                            <input type='checkbox' id='MANUAL_NETMASK'/>
-                        </span>
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label">_{MASK}_ (CIDR)</label>
+                <div class="col-sm-8 col-md-8" id='ip-prefix'>
+                    <div class="input-group">
+                        <div class="input-group-append">
+                            %BIT_MASK%
+                            <div class="input-group-text">
+                                <span class='fa fa-wrench'></span>
+                                <input type='checkbox' id='MANUAL_NETMASK'/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" required for='COUNTS_id'>_{COUNT}_</label>
+                <div class="col-sm-8 col-md-8">
+                    <input class='form-control' type='number' id='COUNTS_id' min='1' name='COUNTS' value='%COUNTS%'
+                        maxlength='15'/>
+                </div>
+            </div>
+
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='IP_SKIP'>_{IP_SKIP}_</label>
+                <div class="col-sm-8 col-md-8">
+                    <textarea class='form-control' rows='2' name='IP_SKIP' id='IP_SKIP'>%IP_SKIP%</textarea>
+                </div>
+            </div>
+
+            <div class='form-group text-muted' id='network_params_hint'>
+                <div class="form-group row">
+                    <label class="col-sm-4 col-md-4 col-form-label">_{NETWORK}_</label>
+                    <div class="col-sm-8 col-md-8">
+                        <p class='form-control-static' id='network_text'></p>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label class="col-sm-4 col-md-4 col-form-label">_{RANGE}_</label>
+                    <div class="col-sm-8 col-md-8">
+                        <p class='form-control-static'>
+                            <span id='first_ip_text'></span> - <span id='last_ip_text'></span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label class="col-sm-4 col-md-4 col-form-label">_{MASK}_</label>
+                    <div class="col-sm-8 col-md-8">
+                        <p class='form-control-static' id='netmask_text'></p>
                     </div>
                 </div>
             </div>
 
             <div class='form-group'>
-                <label class='control-label col-md-4 required' for='COUNTS_id'>_{COUNT}_</label>
-
-                <div class='col-md-8'>
-                    <input class='form-control' type='number' id='COUNTS_id' min='1' name='COUNTS' value='%COUNTS%'
-                           maxlength='15'/>
-                </div>
-            </div>
-
-            <div class='form-group'>
-                <label class='control-label col-md-4 col-sm-3' for='IP_SKIP'>_{IP_SKIP}_</label>
-                <div class='col-md-8 col-sm-9'>
-                    <textarea class='form-control' rows='2' name='IP_SKIP' id='IP_SKIP'>%IP_SKIP%</textarea>
-                </div>
-            </div>
-
-            <div class='form-group text-muted' id='network_params_hint' style='display: none;'>
-                <label class='control-label col-md-4'>_{NETWORK}_</label>
-                <div class='col-md-8 text-left'>
-                    <p class='form-control-static' id='network_text'></p>
-                </div>
-                <label class='control-label col-md-4'>_{RANGE}_</label>
-                <div class='col-md-8 text-left'>
-                    <p class='form-control-static'>
-                        <span id='first_ip_text'></span> - <span id='last_ip_text'></span>
-                    </p>
-                </div>
-                <label class='control-label col-md-4'>_{MASK}_</label>
-                <div class='col-md-8 text-left'>
-                    <p class='form-control-static' id='netmask_text'></p>
-                </div>
-            </div>
-
-            <div class='form-group'>
-                <div class='box box-theme collapsed-box'>
-                    <div class='box-header with-border'>
-                        <div class='box-title'>
-                            <h4>IPv6</h4>
+                <div class='card card-primary card-outline collapsed-card'>
+                    <div class='card-header with-border'>
+                        <div class='card-title'>
+                            <h3 class="card-title">IPv6</h3>
                         </div>
-                        <div class='box-tools pull-right'>
-                            <button type='button' class='btn btn-box-tool' data-widget='collapse'
+                        <div class='card-tools pull-right'>
+                            <button type='button' class='btn btn-tool' data-card-widget='collapse'
                                     data-parent='#accordion'
                                     href='#pool_v6' aria-expanded='false' aria-controls='pool_v6'><i
                                     class='fa fa-plus'></i>
                             </button>
                         </div>
                     </div>
-                    <div class='box-body'>
-                        <div class='form-group'>
-                            <label class='control-label col-md-4' for='IPV6_PREFIX'>_{PREFIX}_</label>
-                            <div class='col-md-8'>
+                    <div class='card-body'>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-md-4 col-form-label" for='IPV6_PREFIX'>_{PREFIX}_</label>
+                            <div class="col-sm-8 col-md-8">
                                 <input class='form-control' name='IPV6_PREFIX' value='%IPV6_PREFIX%' id='IPV6_PREFIX'/>
                             </div>
                         </div>
 
-                        <div class='form-group'>
-                            <label class='control-label col-md-4'>MASK:</label>
-                            <div class='col-md-8'>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-md-4 col-form-label">MASK</label>
+                            <div class="col-sm-8 col-md-8">
                                 %IPV6_BIT_MASK%
                             </div>
                         </div>
 
-                        <div class='form-group'>
-                            <label class='control-label col-md-4' for='IPV6_TEMPLATE'>_{TEMPLATE}_:</label>
-
-                            <div class='col-md-8'>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-md-4 col-form-label" for='IPV6_TEMPLATE'>_{TEMPLATE}_</label>
+                            <div class="col-sm-8 col-md-8">
                                 <input class='form-control' name='IPV6_TEMPLATE' value='%IPV6_TEMPLATE%'
-                                       id='IPV6_TEMPLATE'/>
+                                    id='IPV6_TEMPLATE'/>
                             </div>
                         </div>
-                        <div class='box-footer'>
-                            <div class='box-title'>
-                                <h5><b>Prefix delegated</b></h5>
+
+                        <div class='card-footer card'>
+                            <div class='card-title text-left'>
+                                <b> Prefix delegated</b>
                             </div>
-                            <div class='form-group'>
-                                <label class='control-label col-md-4' for='IPV6_PD'>_{PREFIX}_</label>
-                                <div class='col-md-8'>
-                                    <input class='form-control' name='IPV6_PD' value='%IPV6_PD%' id='IPV6_PD'/>
+
+                            <div class="card-body">
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-md-4 col-form-label" for='IPV6_PD'>_{PREFIX}_</label>
+                                    <div class="col-sm-8 col-md-8">
+                                        <input class='form-control' name='IPV6_PD' value='%IPV6_PD%' id='IPV6_PD'/>
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-md-4 col-form-label">MASK</label>
+                                    <div class="col-sm-8 col-md-8">
+                                        %IPV6_PD_BIT_MASK%
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-md-4 col-form-label" for='IPV6_PD_TEMPLATE'>_{TEMPLATE}_</label>
+                                    <div class="col-sm-8 col-md-8">
+                                        <input class='form-control' name='IPV6_PD_TEMPLATE' value='%IPV6_PD_TEMPLATE%'
+                                            id='IPV6_PD_TEMPLATE'/>
+                                    </div>
                                 </div>
                             </div>
-
-                            <div class='form-group'>
-                                <label class='control-label col-md-4'>MASK:</label>
-
-                                <div class='col-md-8'>
-                                    %IPV6_PD_BIT_MASK%
-                                </div>
-                            </div>
-
-                            <div class='form-group'>
-                                <label class='control-label col-md-4' for='IPV6_PD_TEMPLATE'>_{TEMPLATE}_:</label>
-
-                                <div class='col-md-8'>
-                                    <input class='form-control' name='IPV6_PD_TEMPLATE' value='%IPV6_PD_TEMPLATE%'
-                                           id='IPV6_PD_TEMPLATE'/>
-                                </div>
-                            </div>
-
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class='form-group'>
-                <div class='box box-theme collapsed-box'>
-                    <div class='box-header with-border' role='tab' id='pool_advanced_heading'>
-                        <div class='box-title'>
-                            <h4>_{EXTRA}_</h4>
+                <div class='card card-primary card-outline collapsed-card'>
+                    <div class='card-header with-border' role='tab' id='pool_advanced_heading'>
+                        <div class='card-title'>
+                            <h4 class="card-title">_{EXTRA}_</h4>
                         </div>
-                        <div class='box-tools pull-right'>
-                            <button type='button' class='btn btn-box-tool' data-widget='collapse'
+                        <div class='card-tools pull-right'>
+                            <button type='button' class='btn btn-tool' data-card-widget='collapse'
                                     data-parent='#accordion'
                                     href='#pool_advanced' aria-expanded='false' aria-controls='pool_advanced'><i
                                     class='fa fa-plus'></i>
                             </button>
                         </div>
                     </div>
-                    <div class='box-body'>
-                        <div class='form-group'>
-                            <label class='control-label col-md-4' for='STATIC'>_{STATIC}_:</label>
-                            <div class='col-md-8'>
-                                <input class='control-element' type='checkbox' name='STATIC' id='STATIC'
-                                       value='1' %STATIC%/>
+                    <div class='card-body'>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-md-4 col-form-label" for='STATIC'>_{STATIC}_</label>
+                            <div class="col-sm-8 col-md-8">
+                                <input class='form-check-input' type='checkbox' name='STATIC' id='STATIC'
+                                    value='1' %STATIC%/>
                             </div>
                         </div>
 
-                        <div class='form-group'>
-                            <label class='control-label col-md-4' for='PRIORITY'>_{PRIORITY}_:</label>
-
-                            <div class='col-md-8'>
-                                <input class='form-control' type='number' name='PRIORITY' value='%PRIORITY%'
-                                       maxlength='5' id='PRIORITY'/>
-                            </div>
-                        </div>
-                        <div class='form-group'>
-                            <label class='control-label col-md-4' for='DNS'>DNS (,):</label>
-                            <div class='col-md-8'>
-                                <input class='form-control' name='DNS' value='%DNS%' id='DNS'/>
-                            </div>
-                        </div>
-
-                        <div class='form-group'>
-                            <label class='control-label col-md-4' for='GATEWAY'>_{DEFAULT_GATEWAY}_:</label>
-                            <div class='col-md-8'>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-md-4 col-form-label" for='GATEWAY'>_{DEFAULT_GATEWAY}_</label>
+                            <div class="col-sm-8 col-md-8">
                                 <input class='form-control ip-input' id='GATEWAY' name='GATEWAY' value='%GATEWAY%'/>
                             </div>
                         </div>
-
-
-                        <div class='form-group'>
-                            <label class='control-label col-md-4' for='SPEED'>_{SPEED}_:</label>
-                            <div class='col-md-8'>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-md-4 col-form-label" for='PRIORITY'>_{PRIORITY}_</label>
+                            <div class="col-sm-8 col-md-8">
+                                <input class='form-control' type='number' name='PRIORITY' value='%PRIORITY%'
+                                    maxlength='5' id='PRIORITY'/>
+                            </div>
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-md-4 col-form-label" for='DNS'>DNS (,)</label>
+                            <div class="col-sm-8 col-md-8">
+                                <input class='form-control' name='DNS' value='%DNS%' id='DNS'/>
+                            </div>
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-md-4 col-form-label" for='SPEED'>_{SPEED}_</label>
+                            <div class="col-sm-8 col-md-8">
                                 <input class='form-control' type='number' name='SPEED' id='SPEED' value='%SPEED%'
-                                       maxlength='5'/>
+                                    maxlength='5'/>
                             </div>
                         </div>
-
-                        <div class='form-group'>
-                            <label class='control-label col-md-4' for='VLAN'>Server VLAN:</label>
-                            <div class='col-md-8'>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-md-4 col-form-label" for='VLAN'>Server VLAN</label>
+                            <div class="col-sm-8 col-md-8">
                                 <input class='form-control' type='number' name='VLAN' id='VLAN' value='%VLAN%'
-                                       maxlength='5'/>
+                                    maxlength='5'/>
                             </div>
                         </div>
-
-                        <div class='form-group'>
-                            <label class='control-label col-md-4'>_{NEXT_POOL}_:</label>
-
-                            <div class='col-md-8'>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-md-4 col-form-label">_{NEXT_POOL}_</label>
+                            <div class="col-sm-8 col-md-8">
                                 %NEXT_POOL_ID_SEL%
                             </div>
                         </div>
-
-
                     </div>
                 </div>
             </div>
 
+            <div class="form-group">
+                <div class="form-group row">
+                    <label class="col-sm-4 col-md-4 col-form-label" for='GUEST'>_{GUEST}_</label>
+                    <div class="col-sm-8 col-md-8">
+                        <input type='checkbox' class='form-check-input' value='1' name='GUEST' id='GUEST' %GUEST%>
+                    </div>
+                </div>
 
-            <div class='form-group'>
-                <label class='control-label col-md-4' for='GUEST'>_{GUEST}_:</label>
-
-                <div class='col-md-8'>
-                    <input type='checkbox' value='1' name='GUEST' id='GUEST' %GUEST%>
+                <div class="form-group row">
+                    <label class="col-sm-4 col-md-4 col-form-label" for='COMMENTS'>_{COMMENTS}_</label>
+                    <div class="col-sm-8 col-md-8">
+                        <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='2'>%COMMENTS%</textarea>
+                    </div>
                 </div>
             </div>
-
-            <div class='form-group'>
-                <label class='control-label col-md-4' for='COMMENTS'>_{COMMENTS}_</label>
-                <div class='col-md-8'>
-                    <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='2'>%COMMENTS%</textarea>
-                </div>
-            </div>
-
-
         </div>
 
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input type='submit' name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>
         </div>
     </div>

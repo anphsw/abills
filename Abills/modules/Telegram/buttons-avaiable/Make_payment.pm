@@ -47,6 +47,7 @@ sub click {
   my @inline_keyboard = ();
   my $uid = $self->{bot}->{uid};
   my $message = "$self->{bot}->{lang}->{FIRST_PAYMENT}\n";
+  my $money_currency = $self->{conf}->{DOCS_MONEY_NAMES} || '';
   
   use Users;
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
@@ -76,8 +77,9 @@ sub click {
     my $last_date = $last_payments->[0]{datetime};
 
     $message .= "$self->{bot}->{lang}->{UNIQU_NUMBER}: <b>$users_info->{LOGIN} (UID: $users_info->{UID})</b>\n";
-    $message .= "$self->{bot}->{lang}->{DEPOSIT_USER}: <b>$users_info->{DEPOSIT}</b>\n";
-    $message .= "$self->{bot}->{lang}->{LAST_PAYMENT_SUM}: <b>$last_sum</b>\n$self->{bot}->{lang}->{DATE}: <b>$last_date</b>\n";
+    $message .= "$self->{bot}->{lang}->{DEPOSIT_USER}: <b>$users_info->{DEPOSIT}</b>";
+    $message .= " <b>$money_currency</b>\n";
+    $message .= "$self->{bot}->{lang}->{LAST_PAYMENT_SUM}: <b>$last_sum $money_currency</b>\n$self->{bot}->{lang}->{DATE}: <b>$last_date</b>";
   }
 
   my $inline_button = {

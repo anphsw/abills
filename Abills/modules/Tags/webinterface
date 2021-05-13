@@ -179,23 +179,17 @@ sub tags_list {
   $Tags->{LNG_ACTION} = $lang{ADD};
 
   if( $FORM{add} ) {
-
     $Tags->add({ %FORM });
 
     my $id_tag = $Tags->{INSERT_ID};
     split_responsible($FORM{RESPONSIBLE}, $id_tag);
 
-    if (! _error_show($Tags)) {
-      $html->message('info', $lang{INFO}, "$lang{ADDED}");
-      return 0;
-    }
+    $html->message('info', $lang{INFO}, "$lang{ADDED}") if (!_error_show($Tags));
   }
   elsif( $FORM{change} ) {
     $Tags->change({ %FORM });
 
-    if (! _error_show($Tags)) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
-    }
+    $html->message('info', $lang{INFO}, "$lang{CHANGED}") if (!_error_show($Tags));
 
     $Tags->del_responsible($FORM{ID});
     split_responsible($FORM{RESPONSIBLE}, $FORM{ID});
@@ -203,7 +197,7 @@ sub tags_list {
   elsif( $FORM{chg} ) {
     $Tags->info($FORM{chg}, { RESPONSIBLE => 1 });
 
-    if (! _error_show($Tags)) {
+    if (!_error_show($Tags)) {
       $html->message('info', $lang{INFO}, "$lang{CHANGING}");
       $Tags->{ACTION}     = 'change';
       $Tags->{LNG_ACTION} = $lang{CHANGE};
@@ -213,20 +207,15 @@ sub tags_list {
     $Tags->del($FORM{del});
     $Tags->del_responsible($FORM{del});
 
-    if (!$Tags->{errstr}) {
-      $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{del}] ");
-    }
+    $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{del}] ") if (!$Tags->{errstr});
   }
 
-  $Tags->{PRIORITY_SEL} = $html->form_select(
-    'PRIORITY',
-    {
-      SELECTED     => $Tags->{PRIORITY} || 2,
-      SEL_ARRAY    => \@priority,
-      STYLE        => \@priority_colors,
-      ARRAY_NUM_ID => 1
-    }
-  );
+  $Tags->{PRIORITY_SEL} = $html->form_select('PRIORITY', {
+    SELECTED     => $Tags->{PRIORITY} || 2,
+    SEL_ARRAY    => \@priority,
+    STYLE        => \@priority_colors,
+    ARRAY_NUM_ID => 1
+  });
 
   $Tags->{RESPONSIBLE} = tags_sel({ ADMIN => 1, RESPONSIBLE => $Tags->{RESPONSIBLE} });
 
@@ -237,13 +226,14 @@ sub tags_list {
   result_former({
     INPUT_DATA      => $Tags,
     FUNCTION        => 'list',
-    DEFAULT_FIELDS  => 'NAME,COMMENTS,PRIORITY,RESPONSIBLE',
+    DEFAULT_FIELDS  => 'NAME,COMMENTS,PRIORITY,RESPONSIBLE,COLOR',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
       name        => $lang{NAME},
       priority    => $lang{PRIORITY},
       comments    => $lang{COMMENTS},
       responsible => $lang{RESPONSIBLE},
+      color       => $lang{COLOR}
     },
     SKIP_USER_TITLE => 1,
     SELECT_VALUE    => {
@@ -277,20 +267,34 @@ sub tags_list {
 #**********************************************************
 sub tags_search_form {
 
-  my $list = $Tags->list({ NAME      => '_SHOW',
-                           PRIORITY  => '_SHOW',
-                           COLS_NAME => 1 });
+  my $list = $Tags->list({
+    NAME      => '_SHOW',
+    PRIORITY  => '_SHOW',
+    COLS_NAME => 1
+  });
+
   my $form = '';
 
-  foreach my $line (@$list) {
-    my $input = $html->form_input('TAGS', $line->{id}, { ID => $line->{id}, TYPE => 'checkbox', STATE => ($FORM{TAGS} && in_array($line->{id}, [ split(/, /, $FORM{TAGS}) ] )) ? 'checked' : undef });
+  my @array_tags = ();
 
-    $form .= $html->tpl_show(templates('form_row'), {
-           ID      => "tag_$line->{id}",
-           NAME    => $line->{name},
-           VALUE   => $input,
-         },
-         { OUTPUT2RETURN => 1 });
+  if ($FORM{TAGS}) {
+    @array_tags = split(/, /, $FORM{TAGS});
+  }
+
+  foreach my $line (@$list) {
+    my $state = (in_array($line->{id}, \@array_tags )) ? 'checked' : undef;
+    my $input = $html->form_input('TAGS', $line->{id}, {
+      ID    => $line->{id},
+      TYPE  => 'checkbox',
+      STATE => $state
+    });
+
+    $form .= $html->tpl_show(templates('form_row_checkbox'), {
+      ID      => "tag_$line->{id}",
+      NAME    => $line->{name},
+      INPUT   => $input,
+    },
+    { OUTPUT2RETURN => 1 });
   }
 
   return $form;
@@ -305,12 +309,10 @@ sub tags_sel {
   my ($attr) = @_;
   my $admins_list = ();
 
-  if ($attr->{ADMIN}) {
-    $admins_list = $admin->list({
-      ID        => '_SHOW',
-      COLS_NAME => 1
-    });
-  }
+  $admins_list = $admin->list({
+    ID        => '_SHOW',
+    COLS_NAME => 1
+  }) if ($attr->{ADMIN});
 
   my $tags_list = $Tags->list({
     NAME              => '_SHOW',
@@ -319,17 +321,17 @@ sub tags_sel {
     COLS_NAME         => 1
   });
 
-  my $form = $html->form_select($attr->{ADMIN} ? 'RESPONSIBLE' : 'TAGS',
-    {
-      SELECTED  => ($attr->{ADMIN} ? $attr->{RESPONSIBLE} : $FORM{TAGS}) || '',
-      SEL_LIST  => $attr->{ADMIN} ? $admins_list : $tags_list,
-      EX_PARAMS => 'multiple="multiple"'
-    }
-  );
+  my $input_checkbox = $html->element('input', '', { type => 'checkbox', name => 'TAGS', 'data-input-disables' => 'TAGS', value => '!' });
+  my $ext_button = $html->element('div', $html->element('i', '', { class => 'fa fa-exclamation' }) . $input_checkbox, { class => 'btn btn-sm' });
 
-  if ($attr->{HASH}) {
-    return ($form, $tags_list);
-  }
+  my $form = $html->form_select($attr->{ADMIN} ? 'RESPONSIBLE' : 'TAGS', {
+    SELECTED   => ($attr->{ADMIN} ? $attr->{RESPONSIBLE} : $FORM{TAGS}) || '',
+    SEL_LIST   => $attr->{ADMIN} ? $admins_list : $tags_list,
+    EX_PARAMS  => 'multiple="multiple"',
+    EXT_BUTTON => $attr->{SHOW_EXT_BUTTON} ? $ext_button : ''
+  });
+
+  return($form, $tags_list) if ($attr->{HASH});
 
   return $form;
 }

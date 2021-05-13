@@ -5,9 +5,9 @@
   <input type='hidden' name='upload_key' value='1'/>
   <input type='hidden' name='NAS_ID' value='%NAS_ID%'/>
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4>Mikrotik SSH Key Upload</h4></div>
-    <div class='box-body'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4>Mikrotik SSH Key Upload</h4></div>
+    <div class='card-body'>
 
       <div class='form-group'>
         <label class='control-label col-md-3'>_{LOGIN}_</label>
@@ -24,7 +24,7 @@
       </div>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input class='btn btn-primary' type='submit' name='set' value='_{SET}_' id='go'>
       <button class='btn info' type='button' id='TEST_DATA'>_{TEST}_</button>
     </div>

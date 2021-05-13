@@ -1,11 +1,11 @@
 <form action='$SELF_URL' method='get' class='form form-horizontal'>
   <input type='hidden' name='index' value='$index'>
 
-  <div class='box box-primary' style='max-width: 600px'>
-    <div class='box-header with-border'>
+  <div class='card box-primary' style='max-width: 600px'>
+    <div class='card-header with-border'>
       IPv6 _{CALCULATOR}_
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
 
       <div class='form-group'>
         <label class='control-label col-md-3'>IP </label>
@@ -37,7 +37,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input role='button' type='submit' class='btn btn-primary' value='_{SEND}_'>
     </div>
   </div>

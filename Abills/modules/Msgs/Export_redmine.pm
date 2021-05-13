@@ -205,6 +205,7 @@ sub send_request {
     TPL_DIR       => $CONF->{TPL_DIR}
   });
 
+
   $result = $attr->{_RESULT} if ($attr->{_RESULT});
 
   if ($result =~ /API not enabled/) {
@@ -213,7 +214,7 @@ sub send_request {
     $self->{errstr} = "API_NOT_ENABLED";
     return $result;
   }
-  elsif ($result eq 'Timeout') {
+  elsif ($result =~ /Timeout/) {
     $self->{errno} = 50;
     $self->{error} = 50;
     $self->{errstr} = "TIMEOUT";

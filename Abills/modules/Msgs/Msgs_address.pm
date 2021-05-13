@@ -37,35 +37,35 @@ sub msgs_address {
   my $info_address = $Msgs->msgs_address_info($attr->{chg} || $attr->{ID}) if ($attr->{chg} || $attr->{ID});
 
   if ($attr->{change}) {
-    my $id_ticket       = $attr->{ID};
-    my $district_id     = $attr->{DISTRICT_ID};
-    my $street_id       = $attr->{STREET_ID};
-    my $build_id        = $attr->{BUILD_ID};
-    my $flat            = $attr->{ADDRESS_FLAT};
+    my $id_ticket = $attr->{ID};
+    my $district_id = $attr->{DISTRICT_ID};
+    my $street_id = $attr->{STREET_ID};
+    my $build_id = $attr->{BUILD_ID};
+    my $flat = $attr->{ADDRESS_FLAT};
 
-    $Msgs->msgs_address_change({ 
-       ID          => $id_ticket,
-       DISTRICTS   => $district_id,
-       STREET      => $street_id,
-       BUILD       => $build_id,
-       FLAT        => $flat
+    $Msgs->msgs_address_change({
+      ID        => $id_ticket,
+      DISTRICTS => $district_id,
+      STREET    => $street_id,
+      BUILD     => $build_id,
+      FLAT      => $flat
     });
 
     if ($Msgs->{errno} && $Msgs->{errno} == 4) {
-      $Msgs->msgs_address_add({ 
-         ID          => $id_ticket,
-         DISTRICTS   => $district_id,
-         STREET      => $street_id,
-         BUILD       => $build_id,
-         FLAT        => $flat
-      }); 
+      $Msgs->msgs_address_add({
+        ID        => $id_ticket,
+        DISTRICTS => $district_id,
+        STREET    => $street_id,
+        BUILD     => $build_id,
+        FLAT      => $flat
+      });
 
       if (!_error_show($Msgs)) {
         $html->message('success', $lang{ADDED});
       }
     }
   }
-    
+
   my $address = form_address_select2({
     HIDE_ADD_BUILD_BUTTON => 1,
     LOCATION_ID           => $info_address->[0]{build} || 0,
@@ -74,11 +74,7 @@ sub msgs_address {
     ADDRESS_FLAT          => $info_address->[0]{flat} || ''
   });
 
-  return $html->tpl_show(_include('msgs_address', 'Msgs'), {
-    ADDRESS_FORM => $address
-  },
-  { OUTPUT2RETURN => 1 });
-
+  return $html->tpl_show(_include('msgs_address', 'Msgs'), { ADDRESS_FORM => $address }, { OUTPUT2RETURN => 1 });
 }
 
 1

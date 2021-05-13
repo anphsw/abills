@@ -1,12 +1,12 @@
 
-<div class='box-body'>
+<div class='card-body'>
       <div class='form-group'>
-      <strong><i class='glyphicon glyphicon-earphone'></i> _{PHONE}_</strong>
+      <strong><i class='fa fa-phone'></i> _{PHONE}_</strong>
       <input type='text' class='form-control' name='phone_%POSTFIX_PANEL_ID%' id='phone_%POSTFIX_PANEL_ID%' value='%PHONE%' readonly='readonly'></p>
       </div>
 
       <div class='form-group'>
-      <strong><i class='glyphicon glyphicon-envelope'></i> E-Mail</strong>
+      <strong><i class='fa fa-envelope'></i> E-Mail</strong>
       <input type='text' class='form-control' name='email_%POSTFIX_PANEL_ID%' id='email_%POSTFIX_PANEL_ID%' value='%EMAIL%' readonly='readonly'></p>
       </div>
 
@@ -21,12 +21,12 @@
       </div>
 
       <div class='form-group'>
-      <strong><i class='glyphicon glyphicon-calendar'></i> _{DATE}_ _{REGISTRATION}_</strong>
+      <strong><i class='fa fa-calendar'></i> _{DATE}_ _{REGISTRATION}_</strong>
       <input type='text' class='form-control' name='date_registration_%POSTFIX_PANEL_ID%' id='date_registration_%POSTFIX_PANEL_ID%' value='%DATE%' readonly='readonly'></p>
       </div>
 
       <div class='form-group'>
-      <strong><i class='glyphicon glyphicon-calendar'></i> _{COMPANY}_</strong>
+      <strong><i class='fa fa-calendar'></i> _{COMPANY}_</strong>
       <input type='text' class='form-control' name='company_%POSTFIX_PANEL_ID%' id='company_%POSTFIX_PANEL_ID%' value='%COMPANY%' readonly='readonly'></p>
       </div>
 </div>

@@ -6,9 +6,9 @@
 <input type='hidden' name='TIMESTAMP' value='%TIMESTAMP%'>
 <input type='hidden' name='link_time' value='%LINK_TIME%'>
 
-<div class='box box-theme'>
-<div class='box-header with-border text-center'>_{DOWNLOAD}_ _{FILE}_</div>
-<div class='box-body'>
+<div class='card card-primary card-outline'>
+<div class='card-header with-border text-center'>_{DOWNLOAD}_ _{FILE}_</div>
+<div class='card-body'>
 
 
   <label class='col-md-3'>URL</label>
@@ -18,7 +18,7 @@
 
 
 </div>
-<div class='box-footer'>
+<div class='card-footer'>
   <input type='submit' name='DOWNLOAD_FILE' value='_{DOWNLOAD}_' class='btn btn-primary'>
 </div>
 </div>

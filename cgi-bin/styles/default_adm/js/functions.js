@@ -12,44 +12,49 @@ function capitalizeFirst(string) {
 }
 
 function checkval(url) {
-  
   var val;
   var field = document.getElementById('pagevalue').value;
   if (field == '')
     return alert('#pagevalue value is empty');
-  
+
   val = parseInt(field);
-  
+
   if (isNaN(val))
     return alert('#pagevalue.value is not a number!');
-  
+
   if (val != field)
     return alert('Error parsing #pagevalue.value');
   
   if (val <= 0)
     return alert('Value is less than zero');
-  
+
   window.location = url + val;
 }
 
 function showHidePageJump() {
-  if (document.getElementById('pageJumpWindow').style.display == 'block') {
-    document.getElementById('pageJumpWindow').style.display = 'none';
-  } else {
-    document.getElementById('pageJumpWindow').style.display = 'block';
+  const pageJump = document.getElementById('ADMINS_LIST_cols_modal');
+
+  if (pageJump.style.display == 'block') {
+    return document.getElementById('pageJumpWindow').style.display = 'none';
   }
+
+  document.getElementById('pageJumpWindow').style.display = 'block';
 }
 
 function cancelEvent(e) {
   var event = e || window.event;
-  if (event.preventDefault) {event.preventDefault()}
-  if (event.stopPropagation) {event.stopPropagation()}
+
+  if (event.preventDefault) { event.preventDefault() }
+  if (event.stopPropagation) { event.stopPropagation() }
+
   event.cancelBubble = true;
+
   return false;
 }
 
 function clickButton(id) {
   var btn = document.getElementById(id);
+
   if (btn)
     btn.click();
 }
@@ -57,19 +62,20 @@ function clickButton(id) {
 function randomString(length) {
   var text     = "";
   var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
   for (var i = 0; i < length; i++) {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
+
   return text;
 }
 
 function displayJSONTooltip(result) {
   try {
-    
     // Find message
     var message = null;
     var response_keys = Object.keys(result);
-    
+
     for (var i = 0; i <= response_keys.length; i++){
       var key_name = response_keys[i];
       if (key_name && key_name.match('^MESSAGE_?')){
@@ -77,19 +83,19 @@ function displayJSONTooltip(result) {
         break;
       }
     }
-    
+
     if (message !== 'null') {
       var text = '<h3>' + (message['caption'] || '') + '</h3>';
       if (message['messaga']) {
         text += '<h4>' + (message['messaga'] || '') + '</h4>';
       }
-      
+
       var alert_classes = {
         info   : 'success',
         err    : 'danger',
         warning: 'warn'
       };
-      
+
       aTooltip
           .setText(text)
           .setClass(alert_classes[message['message_type']] || 'info')
@@ -120,12 +126,12 @@ function confirmLink(theLink, Message, CustomMsg) {
   if (CustomMsg != undefined) {
     confirmMsg = CustomMsg;
   }
-  
+
   var is_confirmed = confirm(confirmMsg + Message);
   if (is_confirmed) {
     theLink.href += '&is_js_confirmed=1';
   }
-  
+
   return is_confirmed;
 }
 
@@ -148,21 +154,20 @@ function CopyInputField(from, to) {
  * @return  boolean  always true
  */
 function renameAndDisable(id, text) {
-  
   var $obj = $('#' + id);
-  
+
   $obj.addClass('disabled');
   
   if ($obj.text && typeof($obj.text) === 'function') {
     $obj.text(text);
   }
-  
+
   if ($obj.val && typeof($obj.val) === 'function') {
     $obj.val(text);
   }
-  
+
   $obj.on('click', cancelEvent);
-  
+
   return true;
 }
 
@@ -171,8 +176,8 @@ function isDefined(object) {
 }
 
 
-function getGlyphicon(iconName) {
-  return "<span class='glyphicon glyphicon-" + iconName + "'></span>";
+function getfa(iconName) {
+  return "<span class='fa fa-" + iconName + "'></span>";
 }
 
 function showCommentsModal(title, link_to_confirm, confirmation, attr) {
@@ -180,22 +185,22 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
 
   var double_confirm = '';
   if (confirmation != '-') {
-    double_confirm = confirmation; 
+    double_confirm = confirmation;
   }
-  
+
   //Cache DOM
   var $modal   = $('#comments_add');
   var $mHeader = $modal.find('#mHeader');
   var $mTitle  = $modal.find('#mTitle');
   var $mForm   = $modal.find('#mForm');
-  
+
   // Set up modal
   $mTitle.html(title);
-  
+
   var type         = attr.type || 'comment';
   var ajax_submit  = attr.ajax;
   var event_submit = attr.event;
-  
+
   var submit_types = {
     'default': function (link) {
       window.location.assign(link);
@@ -203,14 +208,14 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
     'ajax'   : function (link) {
       // Save original state of modal
       var clear_comments_modal = $modal.html();
-      
+
       link += '&json=1&header=2&MESSAGE_ONLY=1';
-      
+
       $.getJSON(link, function (data) {
         displayJSONTooltip(data);
         Events.emit('AJAX_SUBMIT.' + ajax_submit, data);
       });
-      
+
       // Revert HTML changes for modal, so next time it's clear
       $modal.on('hidden.bs.modal', function () {
         $modal.html(clear_comments_modal);
@@ -220,13 +225,13 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
       Events.emit(attr.event || '');
     }
   };
-  
+
   var submitForm = ajax_submit
       ? submit_types['ajax']
       : event_submit
           ? submit_types['event']
           : submit_types['default'];
-  
+
   $mForm.off('submit');
 
   if (type === 'confirm') {
@@ -240,7 +245,7 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
   else {
     if (confirmation != '' && confirmation != '-') {
       var $hideTwoConfirm = $mForm.find('#mInputConfirmHide');
-  
+
       $hideTwoConfirm.attr('style', 'display: block;');
     }
 
@@ -249,21 +254,21 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
     $modal.on('shown.bs.modal', function () {
       $mInput.focus();
     });
-    
+
     $mForm.on('submit', function (e) {
       e.preventDefault();
       var comments = $mInput.val();
-      
+
       // Check if comments are present and ask if no
       if (comments === '' || comments === null) {
-        
+
         $mHeader.removeClass('alert-info');
         $mHeader.addClass('alert-danger');
-        
+
         $mTitle.html(_COMMENTS_PLEASE + '!');
         return false;
-      } 
-      
+      }
+
       if (double_confirm != '') {
         var $myInputConfirm = $mForm.find('#mInputConfirm');
         var twoConfirm = $myInputConfirm.val();
@@ -282,12 +287,11 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
         }
 
       }
-      
       // Append comments, and send
       var url = link_to_confirm + '&COMMENTS=' + comments;
-      
+
       submitForm(url);
-      
+
       // Finish
       $modal.modal('hide');
     });
@@ -298,10 +302,10 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
 
 function defineCommentModalLogic(context) {
   var $modal_open_buttons = $('a[data-target="#comments_add"]', context);
-  
+
   $modal_open_buttons.click(function () {
     var $this = $(this);
-    
+
     showCommentsModal($this.data('title'), $this.data('confirmed_link'), {
       ajax: $this.data('ajax-submit'),
       type: $this.data('type')
@@ -319,35 +323,35 @@ function defineCommentModalLogic(context) {
  * Anykey
  */
 function getLocation(successCallback, errorCallback, notInForm) {
-  
+
   function success(position) {
     var x = position.coords.latitude;
     var y = position.coords.longitude;
-    
+
     if (!notInForm) {
       $('#location_x').val(position.coords.latitude);
       $('#location_y').val(position.coords.longitude);
     } else {
       return [x, y];
     }
-    
+
     if (successCallback) {
       successCallback([x, y]);
     }
   }
-  
+
   function error() {
     if (errorCallback) {
       errorCallback();
     }
   }
-  
+
   var options = {
     enableHighAccuracy: true,
-    timeout           : 120000,
-    maximumAge        : 0
+    timeout: 120000,
+    maximumAge: 0
   };
-  
+
   navigator.geolocation.getCurrentPosition(success, error, options);
 }
 
@@ -355,32 +359,31 @@ var aColorPalette = new AColorPalette();
 
 function AColorPalette(colorsArray) {
   this.counter = 0;
-  this.array   = colorsArray || [
+  this.array = colorsArray || [
         '#F44336', // Red
         '#2196F3', // Blue
         '#4CAF50', // Green
         '#FFEB3B', // Yellow
-        
+
         '#00BCD4', // Cyan
         '#CDDC39', // Lime
         '#9C27B0', // Purple
         '#009688', // Teal
-        
+
         '#8BC34A', // Light Green
         '#607D8B', // Blue Grey
         '#9E9E9E', // Grey
         '#FF9800', // Orange
-        
+
         '#795548', // Brown
         '#3F51B5', // Indigo
         '#FFC107', // Amber
         '#673AB7', // Deep Purple
-        
+
         '#FF5722', // Deep Orange
         '#E91E63', // Pink
         '#03A9F4' // Light Blue
       ];
-  
 }
 
 AColorPalette.prototype.getNextColorHex = function () {
@@ -402,29 +405,29 @@ AColorPalette.prototype.getNextColorRGBA = function (opacity) {
 
 AColorPalette.prototype.convertHexToRGB = function (hex) {
   var numbersHex = hex.substring(1); //removing '#'
-  
+
   var rHex = numbersHex.substring(0, 2);
   var gHex = numbersHex.substring(2, 4);
   var bHex = numbersHex.substring(4, 6);
-  
+
   var r = parseInt(rHex, 16) || 0;
   var g = parseInt(gHex, 16) || 0;
   var b = parseInt(bHex, 16) || 0;
-  
+
   return 'rgb(' + r + ', ' + g + ', ' + b + ')';
 };
 
 AColorPalette.prototype.convertHexToRGBA = function (hex, opacity) {
   var numbersHex = hex.substring(1); //removing '#'
-  
+
   var rHex = numbersHex.substring(0, 2) || 0;
   var gHex = numbersHex.substring(2, 4) || 0;
   var bHex = numbersHex.substring(4, 6) || 0;
-  
+
   var r = parseInt(rHex, 16);
   var g = parseInt(gHex, 16);
   var b = parseInt(bHex, 16);
-  
+
   return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + opacity + ')';
 };
 
@@ -461,10 +464,10 @@ function defineResetInputLogic(context) {
  */
 function BlockToggler(first_block_id, second_block_id) {
   this.first_visible = true;
-  
+
   this.first_block  = jQuery('#' + first_block_id);
   this.second_block = jQuery('#' + second_block_id);
-  
+
   this.first_block.find('a[data-toggle="block"]').on('click', this.toggle.bind(this));
   this.second_block.find('a[data-toggle="block"]').on('click', this.toggle.bind(this));
 }
@@ -476,13 +479,13 @@ BlockToggler.prototype.toggle     = function () {
 BlockToggler.prototype.showFirst  = function () {
   this.first_block.show();
   this.second_block.hide();
-  
+
   this.first_visible = true;
 };
 BlockToggler.prototype.showSecond = function () {
   this.second_block.show();
   this.first_block.hide();
-  
+
   this.first_visible = false;
 };
 
@@ -498,37 +501,39 @@ BlockToggler.prototype.showSecond = function () {
 function ensureLength(string, desiredLength, placeholder) {
   //assert string is a string;
   string += "";
-  
+
   placeholder = placeholder || "0";
-  
+
   while (string.length < desiredLength) {
     string = placeholder.concat(string);
   }
-  
+
   return string;
 }
 
 function fixCheckboxSendValue(context) {
   $('form', context).on('submit', function () {
-    var $checkboxes = $(this).find('input[type="checkbox"]').filter('[data-return="1"]');
-    
+    var $checkboxes = $(this)
+                        .find('input[type="checkbox"]')
+                        .filter('[data-return="1"]');
+
     if ($checkboxes.length > 0) {
-      $.each($checkboxes, function (i, checkbox) {
+      $.each($checkboxes, function (_, checkbox) {
         var $checkbox = $(checkbox);
+
         if (!$checkbox.prop('checked')) {
-          
           var newCheckbox = $('<input/>', {
             type   : 'hidden',
             name   : $checkbox.attr('name'),
             value  : 0,
             'class': 'generated-checkbox'
           });
-          
+
           $checkbox.parent().append(newCheckbox);
         }
       });
     }
-    
+
   });
 }
 
@@ -546,7 +551,9 @@ function updateChosen(callback, instant) {
 
   var update = function () {
     $('select').trigger('select2:updated');
-    if (callback) callback();
+
+    if (callback)
+      callback();
   };
 
   if (instant) {
@@ -559,35 +566,37 @@ function updateChosen(callback, instant) {
 function defineCheckPatternLogic(context) {
   'use strict';
   var $patternedInputs = $('input[data-check-for-pattern]', context);
-  
+
   $patternedInputs.on('input', function () {
     var $this = $(this);
     var value = this.value;
-    
+
     var pattern = new RegExp($this.attr('data-check-for-pattern'));
-    
-    if (!pattern.test(value)) {
-      $this.parents('.form-group').addClass('has-error');
+    const formGroup = $this.parents('.form-group');
+
+    if (pattern.test(value)) {
+      formGroup.removeClass('has-error');
     }
     else {
-      $this.parents('.form-group').removeClass('has-error');
+      formGroup.addClass('has-error');
     }
-    
+
   });
 }
 
 function defineLinkedInputsLogic(context) {
-  
+
   function disableSingleLinked(i, e) {
     var $e = $(e);
+
     $e.prop('disabled', true);
     $e.addClass('disabled');
-    
+
     if ($e.is('select')) {
       disableSingleLinked(i, $e.next('div.chosen-container'));
       updateChosen();
     }
-    
+
     if ($e.data('is-checkbox')) {
       $e.data('was-checked', $e.prop('checked'));
       $e.prop('checked', false);
@@ -614,16 +623,16 @@ function defineLinkedInputsLogic(context) {
     var value     = $this.val();
     var linked_id = $this.data('input' + ((enable) ? '-enables' : '-disables'));
     var $linked   = [];
-    
+
     // Saving reference to all linked inputs
     linked_id.split(',').map(function (id) {
       $linked.push($('#' + id));
     });
-    
+
     var has_value = $this.data('is-checkbox')
         ? ($this.prop('checked'))
         : ( value !== '' );
-    
+
     if (enable !== true) {
       $.each($linked, has_value
                         ? disableSingleLinked
@@ -637,36 +646,37 @@ function defineLinkedInputsLogic(context) {
       )
     }
   }
-  
+
   var $linkedForDisableInputs = $('[data-input-disables]', context);
-  var $linkedForEnableInputs  = $('[data-input-enables]', context);
-  
+  var $linkedForEnableInputs = $('[data-input-enables]', context);
+
   if ($linkedForDisableInputs.length > 0) {
     $.each($linkedForDisableInputs, function (i, e) {
       var $this = $(e);
       $this.data('is-checkbox', $this.is('input[type="checkbox"]'));
       $this.data('is-select', $this.is('select'));
-      
+
       var event_name = ($this.data('is-checkbox') || $this.data('is-select')) ? 'change' : 'input';
-      
+
       $this.on(event_name, function () {
         disableAllLinked(this);
       });
-      
+
       disableAllLinked(e)
     });
   }
+
   if ($linkedForEnableInputs.length > 0) {
     $.each($linkedForEnableInputs, function (i, e) {
       var $this = $(e);
       $this.data('is-checkbox', $this.is('input[type="checkbox"]'));
-      
+
       var event_name = $this.data('is-checkbox') ? 'change' : 'input';
-      
+
       $this.on(event_name, function () {
         disableAllLinked(this, true);
       });
-      
+
       disableAllLinked(e, true)
     });
   }
@@ -674,7 +684,7 @@ function defineLinkedInputsLogic(context) {
 
 function defineIpInputLogic(context) {
   $('.ip-input', context).attr('data-check-for-pattern', IPV4REGEXP);
-  
+
   $('.mac-input', context).on('click', function () {
     if (this.value.indexOf(':') == -1) {
       this.value = this.value.replace(/-/g, ':');
@@ -683,7 +693,6 @@ function defineIpInputLogic(context) {
       this.value = this.value.replace(/:/g, '-');
     }
   });
-  
 }
 
 function isValidIp(ip) {
@@ -696,15 +705,15 @@ function isValidIp(ip) {
 function isValidIpv4(ip) {
   if (ip.indexOf('.') != -1) {
     var octets = ip.split('.');
-    
+
     if (octets.length != 4) return false;
-    
+
     var result = true;
     $.each(octets, function (index, octet) {
       if (octet < 0 && octet > 255) result = false;
     });
     return result;
-    
+
   } else {
     return false;
   }
@@ -732,11 +741,10 @@ function _log(level, module, string) {
  * @param position one of: left, top, botom, right
  */
 function renderTooltip($object, info, position) {
-  
   $object.attr('title', undefined);
-  
-  if (typeof position === 'undefined') position = 'right auto';
-  
+
+  if (typeof position === 'undefined') position = 'right';
+
   $object.attr('data-content', info);
   $object.attr('data-html', true);
   $object.attr('data-toggle', 'popover');
@@ -744,19 +752,19 @@ function renderTooltip($object, info, position) {
   $object.attr('data-placement', position);
   $object.attr('data-container', 'body');
   $object.popover();
-  
+
 }
 
 function defineTooltipLogic(context) {
-  
+
   var $hasTooltip = $('[data-tooltip]', context);
-  
+
   for (var i = 0; i < $hasTooltip.length; i++) {
     var $obj = $($hasTooltip[i]);
-    //console.log($obj);
+
     renderTooltip($obj, $obj.attr('data-tooltip'), $obj.attr('data-tooltip-position'));
   }
-  
+
   return true;
 }
 
@@ -792,125 +800,30 @@ function throttle(callback, limit) {
     }
   }
 }
-//
-//function defineStickyNavsLogic() {
-//  var $sticky = $('.sticky');
-//  var $body =  $('body');
-//  var $page = $('#page-content-wrapper');
-//
-//  var bodyColor = $body.css('background-color');
-//
-//  if (bodyColor === 'rgba(0, 0, 0, 0)' || bodyColor === 'rgb(255, 255, 255)') {
-//    bodyColor = 'white';
-//  }
-//
-//  var mainPanel = $('nav.navbar.navbar-inverse.navbar-fixed-top');
-//  var mainPanelHeight = mainPanel.height();
-//
-//  var pageWidth = $page.width();
-//  $body.on('resize', function(){
-//    'use strict';
-//    pageWidth = $page.width();
-//  });
-//
-//  function stick($element, offsetTop) {
-//
-//    if (!$element.hasClass('fixed') && window.screen.availHeight > 10 * offsetTop) {
-//      $element.addClass("fixed text-center");
-//      var backCol = $element.css('background-color');
-//      $element.data('old-background', $element.css('background-color'));
-//
-//      if (backCol === 'rgba(0, 0, 0, 0)' || backCol === 'transparent') {
-//        backCol = bodyColor;
-//      }
-//
-//      $element.css({
-//        position: 'fixed',
-//        top: mainPanelHeight + offsetTop,
-//        'background-color': backCol,
-//        'z-index': 200,
-//        border: '1px solid silver',
-//        width: pageWidth
-//        //'margin-left' : 'auto',
-//        //'margin-right' : 'auto'
-//      });
-//    }
-//  }
-//
-//  function unStick($element) {
-//    if ($element.hasClass('fixed')) {
-//      $element.removeClass("fixed");
-//      $element.css(
-//        {
-//          position: 'relative',
-//          top: '',
-//          'background-color': $element.data('old-background'),
-//          'z-index': 100,
-//          'border': '',
-//          width: ''
-//        }
-//      );
-//    }
-//  }
-//
-//
-//  function checkToStick($element, position, offsetTop) {
-//    var wrapper = $(document);
-//
-//    wrapper.on('scroll', function(event) {
-//
-//      var pageYOffset = window.pageYOffset;
-//
-//      if (pageYOffset == 0) {
-//        unStick($element);
-//      }
-//      else {
-//
-//        throttle(function () {
-//          var shouldBeSticked = (pageYOffset != 0)
-//              && (pageYOffset + offsetTop + mainPanelHeight + $element.outerHeight() > position);
-//
-//          shouldBeSticked ? stick($element, offsetTop) : unStick($element);
-//        }, 100)();
-//
-//      }
-//
-//    });
-//
-//    return $element.outerHeight();
-//  }
-//
-//  var sum = 0;
-//  $.each($sticky, function (i, element) {
-//    var $element = $(element);
-//    //here checkToStick() returns height of $element, so every next element knows its relative position
-//    sum += checkToStick($element, $element.offset().top, sum);
-//  });
-//}
 
 function defineNavbarFormLogic(context) {
   'use strict';
   var $navbarForms = $('form.navbar-form:not(.no-live-select)', context);
   $.each($navbarForms, function (i, form) {
     var $form = $(form);
-    
+
     $.each($form.find('select'), function (j, select) {
       $(select).on('change', function () {
         $form.submit();
       });
     });
-    
+
   });
 }
 
 function defineAutoSubmitSelect(context) {
   var $autoSubmitted = $('select[data-auto-submit]', context);
-  
+
   if ($autoSubmitted.length > 0) {
     $autoSubmitted.on('change', function () {
       var $this  = $(this);
       var params = $this.attr('data-auto-submit');
-      
+
       if (params === 'form') {
         $this.closest('form').submit();
         return true;
@@ -922,37 +835,35 @@ function defineAutoSubmitSelect(context) {
       }
     })
   }
-  
 }
 
 function defineFileInputLogic(context) {
-  
   $('.file-input', context).each(function (i, e) {
     'use strict';
     var $this = $(e);
-    
+
     var $visible_file = $this.find('.file-visible');
     var $hidden_file  = $this.find('.file-hidden');
-    
+
     if ($visible_file.val()) {
       $visible_file.click(function () {
         window.open($visible_file.attr('data-url'), '_blank');
       });
     }
-    
+
     $hidden_file.on("change", function () {
       // Remove onclick listener
       $visible_file.off('click');
-      
+
       // Extracting filename from path
       var full_name_path = $hidden_file.val();
       var real_name      = full_name_path;
-      
+
       var matched = full_name_path.match('(?:.+\\\\)*(.+)$');
       if (matched.length > 0) {
         real_name = matched[1];
       }
-      
+
       $visible_file.val(real_name);
       $visible_file.css("font-weight", "bold");
     });
@@ -972,77 +883,71 @@ function setBoxRefreshingState($box, state){
 }
 
 function initUpButton() {
-  
   var $btn = $('<a/>', {id: 'up-btn', role: 'button', style: 'display : none'});
-  $btn.html($('<span/>', {'class': 'glyphicon glyphicon-chevron-up up-btn-icon'}));
-  
-  var lastPosition             = false;
+
+  $btn.html($('<span/>', {'class': 'fa fa-chevron-up up-btn-icon'}));
+
+  var lastPosition = false;
   var onClickShouldScrollToTop = true;
-  var buttonVisible            = false;
-  
+  var buttonVisible = false;
+
   var setToTop = function () {
     console.log('setToTop');
     // Clear last position
     lastPosition = false;
-    
     // Set flag indicating action
     onClickShouldScrollToTop = true;
-    
+
     // Change icon
     $btn.find('span')
-        .removeClass('glyphicon-chevron-down text-yellow')
-        .addClass('glyphicon-chevron-up');
+        .removeClass('fa-chevron-down text-yellow')
+        .addClass('fa-chevron-up');
   };
   
   var setToLast = function () {
     console.log('setToLast');
-    
+
     lastPosition = window.pageYOffset || document.documentElement.scrollTop;
-    
+
     // Clear flag indicating action
     onClickShouldScrollToTop = false;
-    
-    
+
     // Change icon
-    $btn.find('span')
-        .removeClass('glyphicon-chevron-up')
-        .addClass('glyphicon-chevron-down text-yellow');
+    $btn
+      .find('span')
+      .removeClass('fa-chevron-up')
+      .addClass('fa-chevron-down text-yellow');
   };
-  
+
   $btn.on('click', function (e) {
     cancelEvent(e);
-    
+
     if (onClickShouldScrollToTop) {
       setToLast();
       window.scrollTo(0, 0);
-    }
-    else if (lastPosition) {
+    } else if (lastPosition) {
       window.scrollTo(0, lastPosition || 0);
       setToTop();
     }
   });
-  
+
   $(window).scroll(function () {
-    
     var currentScroll = window.pageYOffset || document.documentElement.scrollTop;
-    
+
     // Show button only if under first 300px, or was returned from top and can return
     if (currentScroll > 300) {
       if (!onClickShouldScrollToTop && lastPosition) setToTop();
-      
+
       if (!buttonVisible) {
         buttonVisible = true;
         $btn.fadeIn();
       }
-    }
-    else {
-      if (onClickShouldScrollToTop && buttonVisible) {
+    } else if (onClickShouldScrollToTop && buttonVisible) {
         buttonVisible = false;
         $btn.fadeOut();
-      }
     }
   });
-  
+
   $('body').prepend($btn);
 }
 
@@ -1059,23 +964,23 @@ function getOffset(el) {
 
 function defineFullWidthSelect(context) {
   var $horizontal_selects = $('.form-horizontal', context).not('.form-main').find('select').not('.normal-width');
-  
+
   $horizontal_selects.on('chosen:showing_dropdown', function (event, params) {
     var $dropdown = params.chosen.dropdown;
-    
+
     // Defining desired width
-    var $form_group      = $dropdown.parents('.form-group').first();
+    var $form_group  = $dropdown.parents('.form-group').first();
     var form_group_width = $form_group.width();
-    
+
     // Count left offset
     var form_group_offset = getOffset($form_group[0]);
-    var dropdown_offset   = getOffset($dropdown[0]);
-    
+    var dropdown_offset = getOffset($dropdown[0]);
+
     var left_offset = form_group_offset.left - dropdown_offset.left;
-    
+
     //Applying new CSS
     $dropdown.css({width: form_group_width, left: left_offset});
-    
+
     // Discarding CSS changes on closeNsrt
     $(params.chosen.form_field).on('chosen:hiding_dropdown', function () {
       $dropdown.css({width: '', left: ''});
@@ -1102,14 +1007,13 @@ function checkCheckboxes(context) {
 }
 
 function initDatepickers(context) {
-  
   if (typeof($(document).datepicker) === 'undefined') {
     return false;
   }
-  
+
   var $datetimepickers  = $('div.datetimepicker', context);
   var $daterangepickers = $('input.date_range_picker', context);
-  
+
   //Date picker
   $('input.datepicker', context).datepicker({
     autoclose     : true,
@@ -1124,48 +1028,46 @@ function initDatepickers(context) {
   })
       .on('show', cancelEvent)
       .on('hide', cancelEvent);
-  
+
   $('input.timepicker', context).timepicker({
     showMeridian: false,
     defaultTime : false,
     explicitMode: false,
   });
-  
+
   if ($datetimepickers.length) {
-    
     $.each($datetimepickers, function (i, e) {
       var $group = $(e);
-      
+
       var $datepart = $group.find('input.datepicker');
       var $timepart = $group.find('input.timepicker');
-      var $hidden   = $group.find('input.datetimepicker-hidden');
-      
+      var $hidden = $group.find('input.datetimepicker-hidden');
+
       var $linked_form = ($hidden.attr('form')) ? $('form#' + $hidden.attr('form')) : $group.parents('form').first();
-      
+
       $linked_form.on('submit', function () {
-        
         $datepart.prop('disabled', true);
         $timepart.prop('disabled', true);
-        $hidden.val($datepart.val() + ' ' + $timepart.val());
+        $hidden.val(`${$datepart.val()} ${$timepart.val()}`);
       })
     })
   }
+
   if ($daterangepickers.length) {
-    
-    var ranges                                     = {};
-    ranges[DATERANGEPICKER_LOCALE['Today']]        = [moment().startOf('day'), moment().endOf('day')];
-    ranges[DATERANGEPICKER_LOCALE['Yesterday']]    = [moment().subtract(1, 'days').startOf('day'), moment().subtract(1, 'days').endOf('day')];
-    ranges[DATERANGEPICKER_LOCALE['Last 7 Days']]  = [moment().subtract(6, 'days').startOf('day'), moment().endOf('day')];
+    var ranges = {};
+    ranges[DATERANGEPICKER_LOCALE['Today']] = [moment().startOf('day'), moment().endOf('day')];
+    ranges[DATERANGEPICKER_LOCALE['Yesterday']] = [moment().subtract(1, 'days').startOf('day'), moment().subtract(1, 'days').endOf('day')];
+    ranges[DATERANGEPICKER_LOCALE['Last 7 Days']] = [moment().subtract(6, 'days').startOf('day'), moment().endOf('day')];
     ranges[DATERANGEPICKER_LOCALE['Last 30 Days']] = [moment().subtract(29, 'days').startOf('day'), moment().endOf('day')];
-    ranges[DATERANGEPICKER_LOCALE['This Month']]   = [moment().startOf('month'), moment().endOf('month')];
-    ranges[DATERANGEPICKER_LOCALE['Last Month']]   = [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')];
-    
+    ranges[DATERANGEPICKER_LOCALE['This Month']] = [moment().startOf('month'), moment().endOf('month')];
+    ranges[DATERANGEPICKER_LOCALE['Last Month']] = [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')];
+
     $.each($daterangepickers, function (i, e) {
       var $e = $(e);
-      
+
       var with_time                    = $e.hasClass('with-time');
       DATERANGEPICKER_LOCALE['format'] = (with_time) ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD';
-      
+
       var has_hidden = $e.data('has-hidden');
       var callback   = undefined;
 
@@ -1181,7 +1083,7 @@ function initDatepickers(context) {
           setDatePickerValue(start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD'), $($e.context), autoUpdateInput)
         }
       }
-      
+
       $e.daterangepicker({
         timePicker          : with_time,
         timePicker24Hour    : true,
@@ -1196,9 +1098,8 @@ function initDatepickers(context) {
         setDatePickerValue(start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD'), $($e.context), autoUpdateInput)
       });
     });
-    
+
   }
-  
 }
 
 function setDatePickerValue(start, end, item, autoUpdate){
@@ -1222,36 +1123,6 @@ function initSelect2(context) {
 
 function initChosen(context) {
   initSelect2(context);
-  // if (typeof(CHOSEN_PARAMS) === 'undefined') {
-  //   return false
-  // }
-  // var $selects = $('select:not(.not-chosen)', context);
-  //
-  // $selects.chosen(CHOSEN_PARAMS);
-  //
-  // // Make selects that would be opened outside body open to up
-  // $selects.on('chosen:showing_dropdown', function (event) {
-  //   setTimeout(function(){
-  //     var $select = $(event.target);
-  //     var $chosen_container = $select.next();
-  //
-  //     var top = $chosen_container.offset().top,
-  //         sctop = $(this).scrollTop(),
-  //         winh = $(this).height(),
-  //         y = top - sctop - winh + 100;
-  //
-  //     if (y > 0 || -y > winh) {
-  //       $select.addClass('chosen-up');
-  //     }
-  //
-  //   }, 100);
-  //
-  // });
-  //
-  // $selects.on('chosen:hiding_dropdown', function(event){
-  //   $(event.target).removeClass('chosen-up');
-  // })
-  
 }
 
 function openModals(context) {
@@ -1264,7 +1135,7 @@ function moveCalloutsToTop() {
 
 function defineAjaxSubmitForms(context) {
   var $ajaxSubmittedForms = $('form.ajax-submit-form', context);
-  
+
   // Make function global
   window['ajaxFormSubmit'] = function (e) {
     cancelEvent(e);
@@ -1274,7 +1145,7 @@ function defineAjaxSubmitForms(context) {
     formData.append('json', 1);
     formData.append('MESSAGE_ONLY', 1);
     formData.append('header', 2);
-    
+
     // Replace index to qindex to allow JSON iteraction
     var index = formData.get('index');
     if (index) {
@@ -1287,45 +1158,33 @@ function defineAjaxSubmitForms(context) {
       }
     }
     console.log(formData);
-  
-    //var $submitters = $form.find('button,input[type="submit"]');
-    //$submitters.addClass('disabled');
-    
+
     jQuery.ajax({
-      url        : $form.attr('action') || '/admin/index.cgi',
-      type       : $form.attr('method') || 'POST',
-      data       : formData,
+      url: $form.attr('action') || '/admin/index.cgi',
+      type: $form.attr('method') || 'POST',
+      data: formData,
       contentType: $form.attr('enctype') || false,
-      cache      : false,
+      cache: false,
       processData: false,
-      success    : function (result) {
+      success: function (result) {
         displayJSONTooltip(result);
-        
+
         var form_id = $form.attr('id') || $form.attr('name');
-        
+
         Events.emit('AJAX_SUBMIT.' + form_id, result);
         Events.emit('AJAX_SUBMIT', {FORM: form_id, RESULT: result});
       },
-      fail       : function (error) {
+      fail: function (error) {
         aTooltip.displayError(error);
       },
-      complete   : function () {
-        //$submitters.removeClass('disabled');
-      }
+      complete: function () {}
     });
   };
-  
+
   if ($ajaxSubmittedForms.length) {
     $ajaxSubmittedForms.on('submit', window['ajaxFormSubmit'])
   }
 }
-//function initInputMask(){
-//  var $masked = $('[data-inputmask]');
-//
-//  $masked.inputmask({"removeMaskOnSubmit" : true, mask : ''});
-//  //$masked.inputmask('setvalue');
-//
-//}
 
 function initFavicon() {
   $.getScript('/styles/default_adm/js/tinyco.min.js', function () {
@@ -1337,6 +1196,7 @@ function initFavicon() {
             ? Tinycon.setBubble('99+')
             : Tinycon.setBubble(new_value);
     };
+
     Events.on('favicon.set', set_value);
     Events.on('favicon.clear', function () {set_value(0)});
     Events.on('favicon.increment', function () { set_value(++badge) });
@@ -1347,82 +1207,84 @@ function initFavicon() {
 }
 
 function initTableMultiselectActions(context){
- var table_panels = $('div.table-action-panel', context);
- if (!table_panels.length) return false;
- 
- table_panels.each(function(i, table_panel){
-   var $table_panel   = $(table_panel);
-  
-   // Collect all checkboxes we should listen for
-   var params        = [];
-   var param_buttons = [];
-  
-   var param_name = $table_panel.data('param');
-   if (typeof (param_name) === 'undefined'){
-     return true;
-   }
-  
-   if (typeof params[param_name] === 'undefined') {
-     params[param_name] = $('input:checkbox[id="' + param_name + '"]');
-   }
-  
-   var submit_action = function ($button, checked_elements) {
-     var action     = $button.data('original-url');
-     var comments   = $button.data('comments');
-    
-     var ids = [];
-     checked_elements.each(function (i, el) {ids.push(el.value)});
-    
-     var link = action + '&' + param_name + '=' + ids.join(',');
-    
-     if (typeof(comments) !== 'undefined') {
-       showCommentsModal(comments, link);
-       return true;
-     }
-     else {
-       $.redirectPost(link);
-     }
-   };
-  
-   var check_elements = function (param_name) {
-     return function() {
-       var checked_elements = params[param_name].filter(':checked');
-  
-       if (checked_elements.length > 0) {
-         $table_panel.show();
-         param_buttons.forEach(function (b) {
-           b.off('click');
-           b.on('click', function (e) {
-             cancelEvent(e);
-             submit_action($(this), checked_elements);
-           });
-         });
-       }
-       else {
-         $table_panel.hide();
-         param_buttons.forEach(function (b) {b.off('click')});
-       }
-     }
-   };
-  
-   // Set listener
-   // Collect params to listen and set listeners
-   var event_to_listen   = 'ontablecheckboxeschange.' + param_name;
-   var function_listener = check_elements(param_name);
-   Events.on(event_to_listen, function_listener);
+  var table_panels = $('div.table-action-panel', context);
 
-   // Init buttons
-   var action_buttons = $table_panel.find('a.table-action-button');
-   action_buttons.each(function (j, button) {
-     var $button = $(button);
-     $button.attr('href', '#');
-     param_buttons.push($button);
-   });
-   
-   // Will show panel if have selected checkboxes
-   function_listener();
- });
- 
+  if (!table_panels.length)
+    return false;
+
+  table_panels.each(function(i, table_panel) {
+    var $table_panel   = $(table_panel);
+
+    // Collect all checkboxes we should listen for
+    var params        = [];
+    var param_buttons = [];
+
+    var param_name = $table_panel.data('param');
+    if (!param_name){
+      return true;
+    }
+
+    if (!params[param_name]) {
+      params[param_name] = $('input:checkbox[id="' + param_name + '"]');
+    }
+
+    var submit_action = function ($button, checked_elements) {
+      var action     = $button.data('original-url');
+      var comments   = $button.data('comments');
+
+      var ids = [];
+      checked_elements.each(function (i, el) {ids.push(el.value)});
+
+      var link = action + '&' + param_name + '=' + ids.join(',');
+
+      if (comments) {
+        showCommentsModal(comments, link);
+        return true;
+      }
+      else {
+        $.redirectPost(link);
+      }
+    };
+
+    var check_elements = function (param_name) {
+      return function() {
+        var checked_elements = params[param_name].filter(':checked');
+
+        if (checked_elements.length > 0) {
+          $table_panel.show();
+          param_buttons.forEach(function (b) {
+            b.off('click');
+            b.on('click', function (e) {
+              cancelEvent(e);
+              submit_action($(this), checked_elements);
+            });
+          });
+        }
+        else {
+          $table_panel.hide();
+          param_buttons.forEach(function (b) {b.off('click')});
+        }
+      }
+    };
+
+    // Set listener
+    // Collect params to listen and set listeners
+    var event_to_listen   = 'ontablecheckboxeschange.' + param_name;
+    var function_listener = check_elements(param_name);
+    Events.on(event_to_listen, function_listener);
+
+    // Init buttons
+    var action_buttons = $table_panel.find('a.table-action-button');
+    action_buttons.each(function (j, button) {
+      var $button = $(button);
+      $button.attr('href', '#');
+      param_buttons.push($button);
+    });
+
+    // Will show panel if have selected checkboxes
+    function_listener();
+  });
+
 }
 
 function initMomentSpans(context){
@@ -1431,7 +1293,7 @@ function initMomentSpans(context){
       var span = jQuery(span_);
       var time = span.data('value');
       if (!time) return;
-      
+
       span.text(' ' + moment(time, 'YYYY-MM-DD hh:mm:ss').fromNow() + ' ');
       span.attr('title', time);
       span.css({
@@ -1439,12 +1301,12 @@ function initMomentSpans(context){
         'text-decoration-style': 'dashed'
       })
     });
-    
+
     jQuery('span.moment-range', context).each(function (i, span_) {
       var span = jQuery(span_);
       var time = span.data('value');
       if (!time) return;
-      
+
       span.text(' ' + moment.duration(time, 'seconds').humanize() + ' ');
       span.attr('title', time + ' s');
     })
@@ -1465,8 +1327,8 @@ function initHelp(context){
     for (var i = 0; i < pairs.length; i++) {
       var pair = pairs[i];
       console.log(pair);
-      var id, text;
-       [id, text] = pair.split(':');
+
+      const [id, text] = pair.split(':');
       renderTooltip($('#' + id), text);
     }
   });
@@ -1557,9 +1419,10 @@ function initMultifileUploadZone(id, name_, max_files_){
   var max_files = max_files_ || 2;
   
   var file_zone = jQuery('#' + id);
-  
+
   var main_input = file_zone.find('input[name='+ name +']');
   var counter_input = jQuery('<input/>', { name : name + '_UPLOADS_COUNT', type : 'hidden' });
+
   file_zone.append(counter_input);
   
   var counter = 0;
@@ -1572,7 +1435,10 @@ function initMultifileUploadZone(id, name_, max_files_){
     
     new_input.data('number', counter);
     new_input.on('change', append_new_input_if_needed);
-    file_zone.append(new_input);
+
+    let form_group = jQuery('<div/>', { class : 'form-group m-1' });
+    form_group.append(new_input);
+    file_zone.append(form_group);
   };
   
   var append_new_input_if_needed = function(){
@@ -1589,17 +1455,16 @@ function initMultifileUploadZone(id, name_, max_files_){
 }
 
 function copyToBuffer(value){
-  
   // Create textarea
   var $textarea = $('<textarea></textarea>')
       .text(value);
-  
+
   // Place on page
   $('footer.main-footer').after($textarea);
-  
+
   // Select text inside
   $textarea.select();
-  
+
   try {
     document.execCommand('copy');
     document.getSelection().removeAllRanges();
@@ -1610,18 +1475,18 @@ function copyToBuffer(value){
   finally {
     $textarea.remove();
   }
-  
 }
 
 /**
  * Used to generate unique identifiers
  * @returns {string}
  */
-function generate_guid(){
+function generate_guid() {
   return generate_s4() + generate_s4() + '-' + generate_s4() + '-' + generate_s4() + '-' +
       generate_s4() + '-' + generate_s4() + generate_s4() + generate_s4();
 }
-function generate_s4 (){
+
+function generate_s4 () {
   return Math.floor((1 + Math.random()) * 0x10000)
       .toString(16)
       .substring(1);
@@ -1632,7 +1497,7 @@ $.extend({
   redirectPost: function (location, args_) {
     var form = '',
     args = args_ || {};
-    
+
     if (location.indexOf('?') !== -1){
       // Deserialize link
       var deserialize = function(data){
@@ -1642,7 +1507,7 @@ $.extend({
             key = null,
             value = null,
             splitParts = null;
-    
+
         var kv = {};
         while(split = splits[i++]){
           splitParts = split.split('=');
@@ -1662,17 +1527,17 @@ $.extend({
         }
         return kv;
       };
-      
+
       var location_args = location.split('?');
       location = location_args[0];
       args = $.extend(args, deserialize(location_args[1]));
     }
-    
+
     $.each(args, function (key, value) {
       value = value.split('"').join('\"');
       form += '<input type="hidden" name="' + key + '" value="' + value + '">';
     });
-    
+
     $('<form action="' + location + '" method="POST" style="display:none;">' + form + '</form>')
         .appendTo($(document.body)).submit();
   }
@@ -1680,12 +1545,11 @@ $.extend({
 
 $(function () {
   pageInit(document);
-  
-  $('a#admin-status').on('click', function(){
-    
-    $.get('?get_index=msgs_admin_quick_message&header=2', function(data){
+
+  $('a#admin-status').on('click', function() {
+    $.get('?get_index=msgs_admin_quick_message&header=2', function(data) {
       // First check function exists
-      if (! data.match(/not exist/)){
+      if (! data.match(/not exist/)) {
         // If data is normal, show it in modal
         loadDataToModal(data, false, true);
       }

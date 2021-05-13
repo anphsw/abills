@@ -1,6 +1,6 @@
-<div class='box box-theme'>
-  <div class='box-header with-border'><h4 class='box-title'>_{OBJECT}_</h4></div>
-  <div class='box-body' id='ADD_CUSTOM_POINT_PANEL_BODY'>
+<div class='card card-primary card-outline'>
+  <div class='card-header with-border'><h4 class='card-title'>_{OBJECT}_</h4></div>
+  <div class='card-body' id='ADD_CUSTOM_POINT_PANEL_BODY'>
     <form action='$SELF_URL' class='form form-horizontal' id='ADD_CUSTOM_POINT_FORM'>
       <input type='hidden' name='COORDX' value='%COORDX%'/>
       <input type='hidden' name='COORDY' value='%COORDY%'/>
@@ -17,11 +17,11 @@
           %TYPE_ID_SELECT%
         </div>
         <div class='col-md-3 btn-group btn-group-sm'>
-          <a href='%TYPES_PAGE_HREF%' class='btn btn-sm btn-default' target='_blank'>
-            <span class='glyphicon glyphicon-list'></span>
+          <a href='%TYPES_PAGE_HREF%' class='btn btn-sm btn-secondary' target='_blank'>
+            <span class='fa fa-list'></span>
           </a>
           <button class='btn btn-sm btn-success' id='ADD_CUSTOM_POINT_REFRESH_BUTTON'>
-            <span class='glyphicon glyphicon-refresh'></span>
+            <span class='fa fa-refresh'></span>
           </button>
         </div>
       </div>
@@ -63,7 +63,7 @@
     </form>
   </div>
 
-  <div class='box-footer text-right'>
+  <div class='card-footer text-right'>
     <input type='submit' class='btn btn-primary' form='ADD_CUSTOM_POINT_FORM' id='ADD_CUSTOM_POINT_SUBMIT' name='action'
            value='_{ADD}_'/>
   </div>

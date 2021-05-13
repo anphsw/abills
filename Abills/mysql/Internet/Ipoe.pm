@@ -33,6 +33,9 @@ sub new {
   ($admin, $CONF) = @_;
 
   $admin->{MODULE} = $MODULE;
+
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
+
   my $self = {
     db          => $db,
     admin       => $admin,

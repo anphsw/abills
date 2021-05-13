@@ -1,42 +1,42 @@
 <form class='form-horizontal' name='users_pi'>
 <div class='row'>
   <div class='col-md-6'>
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'><h3 class='box-title'>%LOGIN%</h3>
-        <div class='box-tools pull-right'>
-        <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-header with-border'><h3 class='card-title'>%LOGIN%</h3>
+        <div class='card-tools pull-right'>
+        <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
           </button>
         </div>
       </div>
-      <div class='box-body'>
+      <div class='card-body'>
         <div class='input-group' style='margin-bottom: -1px;'>
-          <span class='input-group-addon'><span class='glyphicon glyphicon-user'></span></span>
+          <span class='input-group-addon'><span class='fa fa-user'></span></span>
           <input class='form-control' type='text' disabled value='%FIO%' placeholder='_{NO}_'>
         </div>
         <div class='input-group' style='margin-bottom: -1px;'>
-          <span class='input-group-addon'><span class='glyphicon glyphicon-home'></span></span>
+          <span class='input-group-addon'><span class='fa fa-home'></span></span>
           <input class='form-control' type='text' readonly value='%ADDRESS_FULL%' placeholder='_{NO}_'>
         </div>
         <div class='input-group' style='margin-bottom: -1px;'>
-          <span class='input-group-addon'><span class='glyphicon glyphicon-earphone'></span></span>
+          <span class='input-group-addon'><span class='fa fa-phone'></span></span>
           <input class='form-control' type='text' readonly value='%PHONE%' placeholder='_{NO}_'>
         </div>
         <div class='input-group' style='margin-top: 5px;'>
-          <span class='input-group-addon'><span class='align-middle glyphicon glyphicon-exclamation-sign'></span></span>
+          <span class='input-group-addon'><span class='align-middle fa fa-exclamation-circle'></span></span>
           <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='2' readonly>%COMMENTS%</textarea>
         </div>
       </div>
     
-      <div class='box collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
-        <div class='box-header with-border'>
-          <h3 class='box-title'>_{PASPORT}_</h3>
-          <div class='box-tools pull-right'>
-            <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
+      <div class='card collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
+        <div class='card-header with-border'>
+          <h3 class='card-title'>_{PASPORT}_</h3>
+          <div class='card-tools pull-right'>
+            <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i class='fa fa-plus'></i>
             </button>
           </div>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
           <div class='form-group'>
             <label class='control-label col-xs-4 col-md-2' for='PASPORT_NUM'>_{NUM}_</label>
             <div class='col-xs-8 col-sm-4'>
@@ -64,15 +64,15 @@
     </div>
   </div>
   <div class='col-md-6'>
-    <div class='box box-theme box-form'>
-      <div class='box-header with-border'><h3 class='box-title'>_{STATUS}_</h3>
-        <div class='box-tools pull-right'>
-        <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-header with-border'><h3 class='card-title'>_{STATUS}_</h3>
+        <div class='card-tools pull-right'>
+        <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
           </button>
         </div>
       </div>
-      <div class='box-body'>
+      <div class='card-body'>
         <div class='form-group'>
           <label class='control-label col-md-4' for='STATUS'>_{STATUS}_</label>
           <div class='col-md-8'>

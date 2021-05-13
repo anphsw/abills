@@ -1,7 +1,7 @@
 
-<div class='box box-theme box-big-form form-horizontal'>
-    <div class='box-header with-border'><h4 class='box-title'>_{INFO}_</h4></div>
-    <div class='box-body'>
+<div class='card card-primary card-outline box-big-form form-horizontal'>
+    <div class='card-header with-border'><h4 class='card-title'>_{INFO}_</h4></div>
+    <div class='card-body'>
 
         <div class='form-group'>
             <label class='control-label col-md-3 required' for='SUM'>_{DEPOSIT}_:</label>

@@ -6,22 +6,22 @@
     <input type=hidden name=module value=%MODULE%>
     <input type=hidden name=action value=%ACTION%>
 
-    <div class='box box-theme form-horizontal'>
-      <div class='box-heading with-border'><h4 class='box-title'>%ACTION%</h4></div>
+    <div class='card card-primary card-outline form-horizontal'>
+      <div class='card-heading with-border'><h4 class='card-title'>%ACTION%</h4></div>
 
-      <div class='box-body'>
+      <div class='card-body'>
 
         %INPUTS%
 
-        <div class='box-footer'>
+        <div class='card-footer'>
           <button id="%ACTION%Submit" type='button' class='btn btn-primary'>_{START_PAYSYS_TEST}_</button>
         </div>
       </div>
     </div>
   </form>
-  <div class='box box-theme form-horizontal' id="%ACTION%Box" style="display: none">
+  <div class='card card-primary card-outline form-horizontal' id="%ACTION%Box" style="display: none">
 
-    <div class='box-body' id="%ACTION%Results"></div>
+    <div class='card-body' id="%ACTION%Results"></div>
   </div>
 
   <script>

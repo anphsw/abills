@@ -85,10 +85,12 @@ WSClient.prototype = {
     }
     
     this.ws = new WebSocket(this.link);
-    
+
+    //console.log("[ WebSocket ] try connecte: " + this.link);
+
     this.ws.onopen = function () {
       Events.emit('WebSocket.opened');
-      console.log("[ WebSocket ] connected");
+      console.log("[ WebSocket ] connected ");
       self.setup_socket();
     };
     

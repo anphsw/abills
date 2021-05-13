@@ -1,0 +1,407 @@
+package Equipment::Maps_info;
+
+=head1 NAME
+
+  Equipment::Maps_info - info for map
+
+=head1 VERSION
+
+  VERSION: 1.00
+  REVISION: 20201021
+
+=cut
+
+use strict;
+use warnings FATAL => 'all';
+use parent qw(Exporter);
+
+our $VERSION = 1.00;
+
+our (
+  $admin,
+  $CONF,
+  $lang,
+  $html,
+  $db,
+  $Equipment
+);
+
+use constant {
+  EQUIPMENT_MAPS_LAYER_ID => 7,
+  PON_MAPS_LAYER_ID       => 20
+};
+
+our @EXPORT = qw(
+  EQUIPMENT_MAPS_LAYER_ID
+  PON_MAPS_LAYER_ID
+);
+
+#**********************************************************
+=head2 new()
+
+=cut
+#**********************************************************
+sub new {
+  my $class = shift;
+  $db = shift;
+  $admin = shift;
+  $CONF = shift;
+  my $attr = shift;
+
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF,
+  };
+
+  bless($self, $class);
+
+  $html = $attr->{HTML} if $attr->{HTML};
+  $lang = $attr->{LANG} if $attr->{LANG};
+
+  require Equipment;
+  Equipment->import();
+  $Equipment = Equipment->new($db, $admin, $CONF);
+
+  return $self;
+}
+
+#**********************************************************
+=head2 maps2_point_color($point_count, $max_points) - get color for point
+
+  Arguments:
+    $point_count  - Point object count
+    $max_points   - Points max objects
+
+  Returns:
+    string - color name
+
+=cut
+#**********************************************************
+sub location_info {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $location_id = $attr->{LOCATION_ID};
+
+  my $equipment_info_list = $Equipment->_list({
+    LOCATION_ID => $location_id,
+    COLS_NAME   => 1,
+    NAS_NAME    => '_SHOW',
+    NAS_IP      => '_SHOW',
+    NAS_ID      => '_SHOW',
+    STATUS      => '_SHOW',
+    MODEL_NAME  => '_SHOW',
+    MAC         => '_SHOW',
+  });
+
+  return {} if ::_error_show($Equipment);
+
+  my $index = ::get_function_index('equipment_info');
+  my %colors = (0 => 'success', 1 => 'danger', 3 => 'danger', 4 => 'warning');
+  my $tb = '';
+  my $st = 0;
+
+  foreach my $equipment (@{$equipment_info_list}) {
+    $st = $st + $equipment->{status};
+    my $link = "<a href='index.cgi?index=$index&NAS_ID=$equipment->{nas_id}'>$equipment->{nas_name}</a>";
+    $tb .= "<div class='panel panel-$colors{$equipment->{status} || 0}'>" .
+      "<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>" .
+      "<ul class='list-group'>" .
+      "<li class='list-group-item'>IP: $equipment->{nas_ip}</li>" .
+      "<li class='list-group-item'>$lang->{MODEL}: $equipment->{model_name}</li>" .
+      "</ul>" .
+      "</div>";
+  }
+  my $group = "<div class='panel-group'>$tb</div>";
+
+  return {
+    HTML  => $group,
+    COLOR => ($st > 0) ? 'fire' : 'green',
+    COUNT => 1
+  }
+}
+
+#**********************************************************
+=head2 maps_layers()
+
+=cut
+#**********************************************************
+sub maps_layers {
+  return {
+    LAYERS => [ {
+      id              => '7',
+      name            => 'EQUIPMENT',
+      lang_name       => $lang->{EQUIPMENT},
+      module          => 'Equipment',
+      structure       => 'MARKER',
+      clustering      => 1,
+      export_function => 'equipment_maps'
+    }, {
+      id              => '20',
+      name            => 'PON',
+      lang_name       => 'PON',
+      module          => 'Equipment',
+      structure       => 'MARKER',
+      clustering      => 1,
+      export_function => 'pon_maps'
+    } ]
+  }
+}
+
+#**********************************************************
+=head2 equipment_maps()
+
+=cut
+#**********************************************************
+sub equipment_maps {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $equipment_list = $Equipment->_list_with_coords({
+    STATUS    => '_SHOW',
+    COLS_NAME => 1,
+    PAGE_ROWS => 10000,
+  });
+  ::_error_show($Equipment);
+
+  return $Equipment->{TOTAL} if $attr->{ONLY_TOTAL};
+
+  my @export_arr = ();
+  foreach my $point (@{$equipment_list}) {
+
+    my $equipment_info = '';
+    my $info = '';
+    my $count = '';
+    my $color = '';
+
+    if ($attr->{RETURN_JSON}) {
+      my $result = $self->location_info({ LOCATION_ID => $point->{location_id}, TYPE => 'NAS' });
+
+      if ($result && $result->{HTML}) {
+        $result->{HTML} =~ s/\n/ /gm;
+        $result->{HTML} =~ s/\+"+/'/gm;
+        $equipment_info = $result;
+      }
+    }
+
+    if (ref $equipment_info eq 'HASH') {
+      $info = $equipment_info->{HTML} || '';
+      $count = $equipment_info->{COUNT} || 0;
+      $color = $equipment_info->{COLOR} || 'green';
+    }
+
+    $point->{coordy} ||= $point->{coordx_2};
+    $point->{coordx} ||= $point->{coordy_2};
+
+    my $add_class = $color ne 'green' ? 'danger-equipment ' : '';
+
+    my %equipment = (
+      MARKER   => {
+        ID           => $point->{nas_id},
+        COORDX       => $point->{coordy},
+        COORDY       => $point->{coordx},
+        INFO         => $info,
+        TYPE         => "nas_$color",
+        COUNT        => $count,
+        OBJECT_ID    => $point->{location_id},
+        DISABLE_EDIT => 1,
+        LAYER_ID     => EQUIPMENT_MAPS_LAYER_ID,
+        ADD_CLASS    => $add_class,
+      },
+      LAYER_ID => EQUIPMENT_MAPS_LAYER_ID
+    );
+
+    push @export_arr, \%equipment;
+  }
+
+  my $export_string = JSON::to_json(\@export_arr, { utf8 => 0 });
+  if ($attr->{EXPORT_LIST}) {
+    if ($attr->{RETURN_JSON}) {
+      print $export_string;
+      return 1;
+    }
+
+    return $export_string;
+  }
+
+  return $export_string;
+}
+
+#**********************************************************
+=head2 pon_maps()
+
+=cut
+#**********************************************************
+sub pon_maps {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $equipment_list = $Equipment->onu_list({ #XXX pay attention to DELETED status?
+    LOCATION_ID => '_SHOW',
+    LOGIN       => '_SHOW',
+    RX_POWER    => '_SHOW',
+    NAS_NAME    => '_SHOW',
+    MAPS_COORDS => '_SHOW',
+    COLS_NAME   => 1,
+    PAGE_ROWS   => 100000,
+  });
+  ::_error_show($Equipment);
+
+  my %showed_equipment = ();
+  my @export_arr = ();
+  my $count = 0;
+
+  foreach my $point (@{$equipment_list}) {
+    next if (!($point->{build_id} && $point->{maps_coords}));
+
+    my ($coordy, $coordx) = split(/:/, $point->{maps_coords});
+    next if ($coordx eq "0.00000000000000" && $coordy eq "0.00000000000000");
+
+    if ($showed_equipment{$point->{maps_coords}}) {
+      $coordx = $coordx + 0.000005 * + +$showed_equipment{$point->{maps_coords}};
+    }
+    else {
+      $showed_equipment{$point->{maps_coords}} = 1;
+    }
+
+    my $color = 'normal';
+    my $panel_color = "success";
+    if (!$point->{rx_power} || $point->{rx_power} == 65535) {
+      $color = "off";
+      $panel_color = "default";
+    }
+    elsif ($point->{rx_power} > 0) {
+      $color = "off";
+      $panel_color = "default";
+    }
+    elsif ($point->{rx_power} < -8 && $point->{rx_power} > -27) {
+      $color = "normal";
+      $panel_color = "success";
+    }
+    elsif ($point->{rx_power} < -8 && $point->{rx_power} > -30) {
+      $color = "not_normal";
+      $panel_color = "danger";
+    }
+    else {
+      $color = "off";
+      $panel_color = "default";
+    }
+
+    my $link = "UID:<a href='index.cgi?index=15&UID=" . ($point->{uid} || "") . "' target='_blank'>" . ($point->{uid} || "") . "</a>";
+    my $tb = "<div class='panel panel-$panel_color'>" .
+      "<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>" .
+      "<ul class='list-group'>" .
+      "<li class='list-group-item'>$lang->{SIGNAL}: $point->{rx_power}</li>" .
+      "<li class='list-group-item'>$lang->{ADDRESS}: $point->{address_street},$point->{address_build}</li>" .
+      "</ul>" .
+      "</div>";
+    my $info = "<div class='panel-group'>$tb</div>";
+
+    $count++;
+    $point->{location_id} ||= $point->{build_id};
+
+    my %pon = (
+      MARKER   => {
+        ID           => $point->{nas_id} . $count,
+        COORDX       => $coordx,
+        COORDY       => $coordy,
+        INFO         => $info,
+        TYPE         => "pon_$color",
+        OBJECT_ID    => $point->{location_id},
+        DISABLE_EDIT => 1,
+        LAYER_ID     => PON_MAPS_LAYER_ID
+      },
+      LAYER_ID => PON_MAPS_LAYER_ID
+    );
+
+    push @export_arr, \%pon;
+  }
+
+  $equipment_list = $Equipment->_list({
+    MODEL_NAME  => '_SHOW',
+    NAS_NAME    => '_SHOW',
+    NAS_IP      => '_SHOW',
+    COORDX      => '!',
+    COORDY      => '!',
+    TYPE_ID     => '4',
+    LOCATION_ID => '_SHOW',
+    COLS_NAME   => 1,
+    PAGE_ROWS   => 100000,
+  });
+  ::_error_show($Equipment);
+
+  foreach my $point (@{$equipment_list}) {
+    my $ports = "";
+    my $equipment_ports_list = $Equipment->pon_port_list({
+      NAS_ID    => $point->{nas_id},
+      COLS_NAME => 1,
+      PAGE_ROWS => 100000,
+      SORT      => 1,
+    });
+
+    foreach my $item (@{$equipment_ports_list}) {
+      $ports .= $html->badge($item->{branch}) . " ";
+    }
+
+    my $coordx = $point->{coordx};
+    my $coordy = $point->{coordy};
+    if ($showed_equipment{$point->{coordy} . ":" . $point->{coordx}}) {
+      $coordx = $coordx + 0.000005 * + +$showed_equipment{$point->{maps_coords}};
+    }
+    else {
+      $showed_equipment{$point->{coordy} . ":" . $point->{coordx}} = 1;
+    }
+
+    my $color = 'olt';
+    my $panel_color = "success";
+
+    my $index = ::get_function_index('equipment_info');
+    my $link = "OLT:<a href='index.cgi?index=$index&NAS_ID=$point->{nas_id}' target='_blank'> $point->{nas_name}</a>";
+    my $tb = "<div class='panel panel-$panel_color'>" .
+      "<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>" .
+      "<ul class='list-group'>" .
+      "<li class='list-group-item'>IP: $point->{nas_ip}</li>" .
+      "<li class='list-group-item'>$lang->{MODEL}: $point->{model_name}</li>" .
+      "<li class='list-group-item'>$lang->{PORTS}: $ports</li>" .
+      "</ul>" .
+      "</div>";
+    my $info = "<div class='panel-group'>$tb</div>";
+
+    $count++;
+    $point->{location_id} ||= $point->{build_id};
+
+    my %pon = (
+      MARKER   => {
+        ID           => $point->{nas_id} . $count,
+        COORDX       => $coordx,
+        COORDY       => $coordy,
+        INFO         => $info,
+        TYPE         => $color,
+        OBJECT_ID    => $point->{location_id},
+        LAYER_ID     => PON_MAPS_LAYER_ID
+      },
+      LAYER_ID => PON_MAPS_LAYER_ID
+    );
+
+    push @export_arr, \%pon;
+  }
+
+  $count = @export_arr;
+  return $count if $attr->{ONLY_TOTAL};
+
+  my $export_string = JSON::to_json(\@export_arr, { utf8 => 0 });
+
+  if ($attr->{EXPORT_LIST}) {
+    if ($attr->{RETURN_JSON}) {
+      print $export_string;
+      return 1;
+    }
+
+    return $export_string;
+  }
+
+  return $export_string;
+}
+
+1;

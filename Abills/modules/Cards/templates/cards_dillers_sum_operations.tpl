@@ -2,8 +2,8 @@
     <input type='hidden' name='index' value="%INDEX%">
     <input type='hidden' name='operations_log' value="1">
 
-    <div class="box box-theme">
-        <div class="box-header with-border text-center">
+    <div class="card card-primary card-outline">
+        <div class="card-header with-border text-center">
             <h4>
                 _{INFO}_
             </h4>

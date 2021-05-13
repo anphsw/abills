@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{SEARCH}_ : _{EVENTS}_</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline card-form'>
+  <div class='card-header with-border'><h4 class='card-title'>_{SEARCH}_ : _{EVENTS}_</h4></div>
+  <div class='card-body'>
 
     <input type='hidden' name='index' value='$index'/>
 

@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4 class='box-title'>UniFi _{SETTINGS}_</h4></div>
-    <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4 class='card-title'>UniFi _{SETTINGS}_</h4></div>
+    <div class='card-body'>
 
         <form name='UNIFI_SETTINGS' id='form_UNIFI_SETTINGS' method='post' class='form form-horizontal'>
             <input type='hidden' name='index' value='$index' />

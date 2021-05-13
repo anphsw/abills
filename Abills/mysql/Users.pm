@@ -32,7 +32,7 @@ sub new {
 
   $admin->{MODULE} = '';
   $CONF->{MAX_USERNAME_LENGTH} = 10 if (!defined($CONF->{MAX_USERNAME_LENGTH}));
-  $CONF->{BUILD_DELIMITER} = ',' if (! defined($CONF->{BUILD_DELIMITER})) ;
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
 
   my $self = {
     db    => $db,
@@ -201,26 +201,31 @@ sub pi_add {
 
   $self->info_field_attach_add($attr);
   $attr->{CONTRACT_SUFIX} = $attr->{CONTRACT_TYPE};
+
   if ($attr->{CONTRACT_TYPE}) {
     my (undef, $sufix) = split(/\|/, $attr->{CONTRACT_TYPE});
-    $attr->{CONTRACT_SUFIX}=$sufix || $attr->{CONTRACT_TYPE};
+    $attr->{CONTRACT_SUFIX} = $sufix || $attr->{CONTRACT_TYPE};
   }
 
   if ($attr->{STREET_ID} && $attr->{ADD_ADDRESS_BUILD} && ! $attr->{LOCATION_ID}) {
     require Address;
     Address->import();
+
     my $Address = Address->new($self->{db}, $admin, $self->{conf});
     $Address->build_add({
       %$attr,
       COMMENTS => q{}
     });
-    $attr->{LOCATION_ID}=$Address->{LOCATION_ID};
+
+    $attr->{LOCATION_ID} = $Address->{LOCATION_ID};
   }
 
   if ( $self->{conf}->{CONTACTS_NEW} && ($attr->{PHONE} || $attr->{EMAIL}) ) {
     require Contacts;
     Contacts->import();
+
     my $Contacts = Contacts->new($self->{db}, $self->{admin}, $self->{conf});
+
     if($attr->{PHONE}) {
       $Contacts->contacts_add({
         TYPE_ID => 2,
@@ -228,6 +233,7 @@ sub pi_add {
         UID     => $attr->{UID},
       });
     }
+
     if($attr->{EMAIL}) {
       $Contacts->contacts_add({
         TYPE_ID => 9,
@@ -241,7 +247,7 @@ sub pi_add {
 
   return [ ] if ($self->{errno});
 
-  $admin->{MODULE}=q{};
+  $admin->{MODULE} = q{};
 
   $admin->action_add($attr->{UID}, "PI", { TYPE => 1 });
   return $self;
@@ -336,7 +342,7 @@ sub pi {
     else {
       $self->{ADDRESS_STREET_TYPE_NAME} = '';
     }
-    $self->{ADDRESS_FULL} = "$self->{ADDRESS_STREET_TYPE_NAME} $self->{ADDRESS_STREET} $self->{ADDRESS_BUILD}$self->{conf}->{BUILD_DELIMITER} $self->{ADDRESS_FLAT}";
+    $self->{ADDRESS_FULL} = "$self->{ADDRESS_STREET_TYPE_NAME} $self->{ADDRESS_STREET}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_BUILD}$self->{conf}->{BUILD_DELIMITER}$self->{ADDRESS_FLAT}";
   }
 
   if (!$self->{errno} && $self->{conf}{CONTACTS_NEW}) {
@@ -685,7 +691,9 @@ sub list {
 
   my @WHERE_RULES = ();
   if ($attr->{UNIVERSAL_SEARCH}) {
-    $attr->{SKIP_DEL_CHECK}=1;
+    $attr->{SKIP_DEL_CHECK} = 1;
+    $attr->{_MULTI_HIT}     = 1;
+    $SORT = 1;
   }
 
   if ($attr->{TAGS} && $attr->{TAGS} eq '!') {
@@ -705,6 +713,8 @@ sub list {
     'LOGIN_STATUS',
     'PHONE',
     'EMAIL',
+    'FLOOR',
+    'ENTRANCE',
     'ADDRESS_FLAT',
     'PASPORT_DATE',
     'PASPORT_NUM',
@@ -777,7 +787,7 @@ sub list {
 
   if ($attr->{FORGOT_PASSWD} && $attr->{EMAIL} eq '_SHOW') {
     @WHERE_RULES = ();
-    push @WHERE_RULES, "(((SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2)) 
+    push @WHERE_RULES, "(((SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2))
                         LIKE '%" . $attr->{PHONE} ."%') AND (u.id='" . $attr->{LOGIN} . "') AND u.deleted='0') AND u.deleted=0";
   }
 
@@ -835,26 +845,26 @@ sub list {
     }
 
     my $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(" $where_delimeter ", @HAVING_RULES) : '';
-    
+
     $HAVING = _change_having($HAVING);
 
     $self->query("SELECT u.id AS login,
-       $self->{SEARCH_FIELDS}
-       u.uid,
-       u.company_id,
-       u.activate,
-       u.expire,
-       u.gid,
-       u.domain_id,
-       u.deleted
-     FROM users u
-     LEFT JOIN payments p ON (u.uid = p.uid)
-     $EXT_TABLES
-     GROUP BY u.uid
-     $HAVING
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-     undef,
-     $attr
+        $self->{SEARCH_FIELDS}
+        u.uid,
+        u.company_id,
+        u.activate,
+        u.expire,
+        u.gid,
+        u.domain_id,
+        u.deleted
+      FROM users u
+      LEFT JOIN payments p ON (u.uid = p.uid)
+      $EXT_TABLES
+      GROUP BY u.uid
+      $HAVING
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+      undef,
+      $attr
     );
 
     return [ ] if ($self->{errno});
@@ -880,11 +890,11 @@ sub list {
       my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(' and ', @WHERE_RULES) : '';
 
       $self->query("SELECT COUNT(DISTINCT u.uid) AS total FROM users u
-       $EXT_TABLES
-       LEFT JOIN (
+        $EXT_TABLES
+        LEFT JOIN (
           SELECT MAX(date) AS date, uid FROM payments GROUP BY uid
         ) AS p  ON u.uid=p.uid
-       $WHERE;",
+        $WHERE;",
       undef,
       { INFO => 1 }
       );
@@ -894,7 +904,8 @@ sub list {
   }
 
   #Show last fees
-  if ($attr->{FEES} || $attr->{FEES_DAYS} || $attr->{LAST_FEES}) {
+  #if ($attr->{FEES} || $attr->{FEES_DAYS} || $attr->{LAST_FEES}) {
+  if ($attr->{FEES} || $attr->{FEES_DAYS}) {
     my @HAVING_RULES = @WHERE_RULES;
     if ($attr->{FEES}) {
       my $value = @{ $self->search_expr($attr->{FEES}, 'INT') }[0];
@@ -934,24 +945,24 @@ sub list {
     my $HAVING = ($#HAVING_RULES > -1) ? "HAVING " . join(" $where_delimeter ", @HAVING_RULES) : '';
 
     $HAVING = _change_having($HAVING);
-    
+
     $self->query("SELECT u.id AS login,
-       $self->{SEARCH_FIELDS}
-       u.uid,
-       u.company_id,
-       u.activate,
-       u.expire,
-       u.gid,
-       u.domain_id,
-       u.deleted
-     FROM users u
-     LEFT JOIN fees f ON (u.uid = f.uid)
-     $EXT_TABLES
-     GROUP BY u.uid
-     $HAVING
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
-     undef,
-     $attr
+        $self->{SEARCH_FIELDS}
+        u.uid,
+        u.company_id,
+        u.activate,
+        u.expire,
+        u.gid,
+        u.domain_id,
+        u.deleted
+      FROM users u
+      LEFT JOIN fees f ON (u.uid = f.uid)
+      $EXT_TABLES
+      GROUP BY u.uid
+      $HAVING
+      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+      undef,
+      $attr
     );
     return [ ] if ($self->{errno});
 
@@ -979,9 +990,9 @@ sub list {
       my $WHERE = ($#WHERE_RULES > -1) ? "WHERE " . join(" $where_delimeter ", @WHERE_RULES) : '';
 
       $self->query("SELECT count(DISTINCT u.uid) AS total FROM users u
-       LEFT JOIN fees f ON (u.uid = f.uid)
-       $EXT_TABLES
-       $WHERE;",
+        LEFT JOIN fees f ON (u.uid = f.uid)
+        $EXT_TABLES
+        $WHERE;",
       undef,
       { INFO => 1 }
       );
@@ -1041,12 +1052,12 @@ sub list {
   my $list = $self->{list} || [];
 
   if ($self->{TOTAL} == $PAGE_ROWS || $PG > 0 || $attr->{FULL_LIST}) {
-    $self->query("SELECT COUNT(DISTINCT u.id) AS total,
-     SUM(IF(u.expire<CURDATE() AND u.expire>'0000-00-00', 1, 0)) AS total_expired,
-     SUM(IF(u.disable=1, 1, 0)) AS total_disabled,
-     SUM(u.deleted) AS total_deleted
-     FROM users u
-     $EXT_TABLES
+    $self->query("SELECT COUNT(DISTINCT u.uid) AS total,
+      SUM(IF(u.expire<CURDATE() AND u.expire>'0000-00-00', 1, 0)) AS total_expired,
+      COUNT( DISTINCT IF(u.disable=1, u.uid, 0)) - 1 AS total_disabled,
+      COUNT( DISTINCT IF(u.deleted=1, u.uid, 0)) - 1 AS total_deleted
+      FROM users u
+      $EXT_TABLES
     $WHERE",
     undef,
     { INFO => 1 }
@@ -1212,6 +1223,7 @@ sub change {
       return $self;
     }
     $attr->{BILL_ID} = $Bill->{BILL_ID};
+    $self->{BILL_ID} = $Bill->{BILL_ID};
 
     if ($attr->{CREATE_EXT_BILL}) {
       $Bill->create({ UID => $self->{UID} });
@@ -1282,6 +1294,8 @@ sub change {
 sub del {
   my $self = shift;
   my ($attr) = @_;
+
+  $self->{UID} = $self->{UID} || $attr->{UID};
 
   my $comments = ($attr->{COMMENTS}) ? ' '.$attr->{COMMENTS}: q{};
 
@@ -1547,7 +1561,7 @@ sub web_session_update {
   my ($attr) = @_;
 
   $self->query("UPDATE web_users_sessions SET
-     datetime = UNIX_TIMESTAMP()
+    datetime = UNIX_TIMESTAMP()
     WHERE sid = ?;", 'do', { Bind => [ $attr->{SID} ] });
 
   return $self;
@@ -1576,18 +1590,18 @@ sub web_session_add {
   $self->query("DELETE FROM web_users_sessions WHERE uid=?;", 'do', { Bind => [ $attr->{UID} ] });
 
   $self->query("INSERT INTO web_users_sessions
-        (uid, datetime, login, remote_addr, sid, ext_info, coordx, coordy) VALUES
-        (?, UNIX_TIMESTAMP(), ?, INET_ATON( ? ), ?, ?, ?, ?);",
-     'do',
-     { Bind => [
-         $attr->{UID},
-         $attr->{LOGIN},
-         $attr->{REMOTE_ADDR},
-         $attr->{SID},
-         $attr->{EXT_INFO} || '',
-         $attr->{COORDX} || 0,
-         $attr->{COORDY} || 0
-       ] }
+      (uid, datetime, login, remote_addr, sid, ext_info, coordx, coordy) VALUES
+      (?, UNIX_TIMESTAMP(), ?, INET_ATON( ? ), ?, ?, ?, ?);",
+    'do',
+    { Bind => [
+      $attr->{UID},
+      $attr->{LOGIN},
+      $attr->{REMOTE_ADDR},
+      $attr->{SID},
+      $attr->{EXT_INFO} || '',
+      $attr->{COORDX} || 0,
+      $attr->{COORDY} || 0
+    ] }
   );
 
   return $self;
@@ -1633,8 +1647,8 @@ sub web_session_info {
     INET_NTOA(remote_addr) AS remote_addr,
     UNIX_TIMESTAMP() - datetime AS session_time,
     sid
-     FROM web_users_sessions
-     $WHERE;",
+      FROM web_users_sessions
+      $WHERE;",
     undef,
     { INFO => 1,
       Bind => [ @request_arr ] }
@@ -1686,7 +1700,7 @@ sub web_sessions_list {
 
   if (!$attr->{CHECK}) {
     $self->query("SELECT FROM_UNIXTIME(datetime) AS datetime, login, INET_NTOA(remote_addr) AS ip, sid, $self->{SEARCH_FIELDS} uid
-     FROM web_users_sessions
+    FROM web_users_sessions
       $WHERE
       $GROUP
       ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
@@ -1884,18 +1898,18 @@ sub info_field_add {
   if (!$self->{errno} || ($self->{errno} && $self->{errno} == 3)) {
     if ($attr->{FIELD_TYPE} == 2) {
       $self->query("CREATE TABLE _$attr->{FIELD_ID}_list (
-       id smallint unsigned NOT NULL primary key auto_increment,
-       name varchar(120) not null default 0
-       )DEFAULT CHARSET=$self->{conf}->{dbcharset};", 'do'
+        id smallint unsigned NOT NULL primary key auto_increment,
+        name varchar(120) not null default 0
+        )DEFAULT CHARSET=$self->{conf}->{dbcharset};", 'do'
       );
     }
     elsif ($attr->{FIELD_TYPE} == 13) {
       $self->query("CREATE TABLE `_$attr->{FIELD_ID}_file` (`id` int(11) unsigned NOT NULL PRIMARY KEY auto_increment,
-         `filename` varchar(250) not null default '',
-         `content_size` varchar(30) not null  default '',
-         `content_type` varchar(250) not null default '',
-         `content` longblob NOT NULL,
-         `create_time` datetime NOT NULL default '0000-00-00 00:00:00') DEFAULT CHARSET=$self->{conf}->{dbcharset};", 'do'
+          `filename` varchar(250) not null default '',
+          `content_size` varchar(30) not null  default '',
+          `content_type` varchar(250) not null default '',
+          `content` longblob NOT NULL,
+          `create_time` datetime NOT NULL default '0000-00-00 00:00:00') DEFAULT CHARSET=$self->{conf}->{dbcharset};", 'do'
       );
     }
 
@@ -2012,10 +2026,11 @@ sub info_list_info {
   my ($id, $attr) = @_;
 
   $self->query("SELECT id, name FROM `$attr->{LIST_TABLE}` WHERE id= ? ;",
-   undef,
-   { INFO => 1,
-     Bind => [ $id ]
-   });
+    undef,
+    { INFO => 1,
+      Bind => [ $id ]
+    }
+  );
 
   return $self;
 }
@@ -2073,8 +2088,8 @@ sub report_users_summary {
       LEFT JOIN bills cb ON (company.bill_id=cb.id)
     WHERE u.deleted=0 $WHERE
     ;",
- undef,
- { INFO => 1 }
+    undef,
+    { INFO => 1 }
   );
 
   return $self;
@@ -2143,10 +2158,13 @@ sub contacts_migrate {
   );
 
   $self->query("SELECT u.uid, up.phone, up.email
-   FROM users u
-   LEFT JOIN users_pi up ON (u.uid=up.uid)
-   WHERE up.phone <> '' OR up.email <> ''
-   ORDER BY u.uid", undef, { COLS_NAME => 1 });
+    FROM users u
+    LEFT JOIN users_pi up ON (u.uid=up.uid)
+    WHERE up.phone <> '' OR up.email <> ''
+    ORDER BY u.uid",
+    undef,
+    { COLS_NAME => 1 }
+  );
 
   return 0 if ($self->{errno});
   return 1 if (!$self->{list} || scalar @{$self->{list}} <= 0);
@@ -2392,6 +2410,7 @@ sub contracts_type_del {
 
   return $self;
 }
+
 #**********************************************************
 =head2 min_tarif_val() - Get minimum value for internet tarif
 
@@ -2476,6 +2495,7 @@ sub all_data_for_report {
 
   return $self->{list} || {};
 }
+
 #**********************************************************
 =head2 all_new_report($attr) - get all data per month
 
@@ -2517,6 +2537,7 @@ sub all_new_report {
 
   return $self->{list} || {};
 }
+
 #**********************************************************
 =head2 contacts_validation($attr)
 

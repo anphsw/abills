@@ -171,13 +171,13 @@ sub msgs_dispatches {
     if ($day_month eq ($day . $month)) {
       $dispatch->{resposible_admin} ||= "";
       $dispatches_list{$day . $month} .= _msgs_dispatches_job_list($dispatch) .
-        $html->element('h4', "$lang{RESPOSIBLE}: $dispatch->{resposible_admin}") . $html->br();
+        $html->element('h6', "$lang{RESPOSIBLE}: $dispatch->{resposible_admin}", { class => 'text-center' }) . $html->br();
       next;
     }
 
     my $responsible_admin = $dispatch->{resposible_admin} || "";
     $dispatches_list{$day . $month} = (_msgs_dispatches_job_list($dispatch) || "") .
-      $html->element('h4', "$lang{RESPOSIBLE}: $responsible_admin") . $html->br();
+      $html->element('h6', "$lang{RESPOSIBLE}: $responsible_admin", { class => 'text-center' }) . $html->br();
 
     $day_month = $day . $month;
   }
@@ -226,7 +226,7 @@ sub _msgs_dispatches_job_list {
     JAVASCRIPT     => '',
     SKIP_HREF      => 1,
     NO_LINK_FORMER => 1,
-    ex_params      => qq/onclick=modal_view($dispatch->{id},$chg_function)/
+    ex_params      => qq/onclick=modal_view($dispatch->{id},$chg_function) class='h5'/
   });
 
   my $pdf_only = $conf{MSGS_DISPATCH_PDF} ? "&pdf=1" : "";
@@ -241,7 +241,7 @@ sub _msgs_dispatches_job_list {
   });
 
   my $dispatches_table = $html->table({
-    caption     => "$print_btn $dispatch_link: $dispatch->{admins}",
+    caption     => "$print_btn $dispatch_link: <h5>$dispatch->{admins}</h5>",
     title_plain => [ "Id", $lang{TIME}, $lang{MESSAGE}, $lang{LOGIN}, $lang{ADDRESS}, $lang{STATUS}, $lang{PHONE}, $lang{RESPOSIBLE} ],
     width       => '100%',
     qs          => $pages_qs,
@@ -287,6 +287,7 @@ sub _msgs_dispatches_job_list {
     my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
 
     my $user_address = "";
+    my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
     my $user_list = "";
     if ($message->{uid}) {
       $user_list = $users->list({
@@ -295,6 +296,7 @@ sub _msgs_dispatches_job_list {
         PHONE         => '_SHOW',
         DISTRICT_NAME => '_SHOW',
         UID           => $message->{uid},
+        FIO           => '_SHOW',
         COLS_NAME     => 1,
         COLS_UPPER    => 1,
         PAGE_ROWS     => 2,
@@ -302,14 +304,17 @@ sub _msgs_dispatches_job_list {
 
       next if !$users->{TOTAL};
 
-      $user_link = $html->button($user_list->[0]{LOGIN}, "index=" . get_function_index("form_users") . "&UID=$message->{uid}");
-      $user_address = ($user_list->[0]{DISTRICT_NAME} || "") . ", " . ($user_list->[0]{ADDRESS_FULL} || "");
+      $user_link = $html->button($user_list->[0]{LOGIN}, "index=" . get_function_index("form_users") . "&UID=$message->{uid}", {
+        TITLE => $user_list->[0]{FIO} || $user_list->[0]{LOGIN}
+      });
+
+      $user_address = ($user_list->[0]{DISTRICT_NAME} || "") . $build_delimiter . ($user_list->[0]{ADDRESS_FULL} || "");
     }
     elsif ($message->{location_id}) {
       my $address_info = $Address->address_info($message->{location_id});
       if ($Address->{TOTAL}) {
-        $user_address = ($address_info->{ADDRESS_DISTRICT} || "") . ", " .
-          ($address_info->{ADDRESS_STREET} || "") . ", " . ($address_info->{ADDRESS_BUILD} || "");
+        $user_address = ($address_info->{ADDRESS_DISTRICT} || "") . $build_delimiter .
+          ($address_info->{ADDRESS_STREET} || "") . $build_delimiter . ($address_info->{ADDRESS_BUILD} || "");
       }
     }
 
@@ -326,7 +331,7 @@ sub _msgs_dispatches_job_list {
     my ($title, $color) = split(':', $msgs_status->{ $Msgs->{STATE} });
 
     my $status_span = $html->element('span', '&nbsp;', {
-      class                   => 'glyphicon glyphicon-record',
+      class                   => 'fa fa-record',
       "data-tooltip-position" => 'top',
       "data-tooltip"          => $title || "",
       style                   => "color: " . ($color || ""),
@@ -337,7 +342,7 @@ sub _msgs_dispatches_job_list {
       "qindex=$index&header=2&MSGS_STATUS_ID=$message->{id}&MSGS_STATUS=$message->{state_id}",
       {
         LOAD_TO_MODAL => 1,
-        ICON          => 'glyphicon glyphicon-record',
+        ADD_ICON      => 'fa fa-circle',
         TITLE         => $lang{MSGS_TAGS},
         ex_params     => "style='color:$status_color' data-tooltip-position='top' data-tooltip='$title'"
       }
@@ -372,6 +377,7 @@ sub msgs_dispatch {
     $Msgs->dispatch_add({ %FORM });
     msgs_dispatch_admins({ AIDS => $FORM{AIDS}, DISPATCH_ID => $Msgs->{DISPATCH_ID}, ADD => 1 });
     $html->message('info', $lang{INFO}, "$lang{ADDED}") if (!$Msgs->{errno});
+    $html->redirect('?index=' . get_function_index('msgs_dispatches'), { WAIT => 0 });
     return 1 if $FORM{add_modal};
   }
   elsif ($FORM{print}) {
@@ -474,9 +480,9 @@ sub msgs_dispatch {
       if ($line->{location_id_msg} && !$line->{uid}) {
         my $address_info = $Address->address_info($line->{location_id_msg});
         if ($Address->{TOTAL}) {
+          my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
           $address_full = ($address_info->{ADDRESS_DISTRICT} || "") . ", " .
-            ($address_info->{ADDRESS_STREET} || "") . ", " . ($address_info->{ADDRESS_BUILD} || "");
-
+            ($address_info->{ADDRESS_STREET} || "") . $build_delimiter . ($address_info->{ADDRESS_BUILD} || "");
         }
       }
 
@@ -492,6 +498,7 @@ sub msgs_dispatch {
       $ORDERS{ 'ORDER_DATE_' . $i } = $line->{date};
       $ORDERS{ 'PLAN_DATE_' . $i } = $line->{plan_date};
       $ORDERS{ 'PLAN_TIME_' . $i } = $line->{plan_time};
+      $ORDERS{ 'MSGS_NUM_ID_' . $i } = $line->{id};
       $i++;
     }
 
@@ -500,9 +507,7 @@ sub msgs_dispatch {
     if ($dispatch_infos->{CATEGORY}) {
       my $new_template = $template . '_' . $dispatch_infos->{CATEGORY};
       my $template_content = _include($new_template, 'Msgs');
-      if ($template_content !~ /No such / && $template_content ne '') {
-        $template = $new_template;
-      }
+      $template = $new_template if ($template_content !~ /No such / && $template_content ne '');
     }
 
     if ($Msgs->{RESPOSIBLE}) {

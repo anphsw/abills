@@ -2,15 +2,15 @@
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='ID' value='%ID%'>
 <input type='hidden' name='ADDITIONAL_FIELDS' id='additional_fields' value='%ADDITIONAL_FIELDS%'>
-  <div class='box box-theme'>
-    <div class='box-header with-border'><h3 class='box-title'>_{NEW_TYPE}_</h3>
-      <div class='box-tools pull-right'>
-      <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+  <div class='card card-primary card-outline'>
+    <div class='card-header with-border'><h3 class='card-title'>_{NEW_TYPE}_</h3>
+      <div class='card-tools pull-right'>
+      <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
       <i class='fa fa-minus'></i>
         </button>
       </div>
     </div>
-    <div class='box-body'>
+    <div class='card-body'>
       <div class='row'>
         <div class='col-md-12 col-xs-12'>
 
@@ -25,7 +25,7 @@
             <input type='hidden' id='RESPONSIBLE_LIST' name='RESPONSIBLE_LIST' value='%RESPONSIBLE_LIST%'>
             <label class='control-label col-md-4'>_{ASSIGNED_ADMINS}_:</label>
             <div class='col-md-8'>
-              <button type='button' class='btn btn-default pull-left' data-toggle='modal' data-target='#adminsModal' 
+              <button type='button' class='btn btn-secondary pull-left' data-toggle='modal' data-target='#adminsModal' 
                       onClick='return openModal()'>_{SELECTED}_: <span class='admin_count'></span></button>
             </div>
           </div>
@@ -34,7 +34,7 @@
             <input type='hidden' id='PARTCIPIANTS_LIST' name='PARTCIPIANTS_LIST' value='%PARTCIPIANTS_LIST%'>
             <label class='control-label col-md-4'>_{PARTCIPIANTS}_:</label>
             <div class='col-md-8'>
-              <button type='button' class='btn btn-default pull-left' data-toggle='modal' data-target='#partcipiantsModal' 
+              <button type='button' class='btn btn-secondary pull-left' data-toggle='modal' data-target='#partcipiantsModal' 
                       onClick='return openModal()'>_{SELECTED}_: <span class='partcipiants_count'></span></button>
             </div>
           </div>
@@ -43,7 +43,7 @@
             <input type='hidden' id='PLUGINS' name='PLUGINS' value='%PLUGINS%'>
             <label class='control-label col-md-4'>_{PLUGINS}_:</label>
             <div class='col-md-8'>
-              <button type='button' class='btn btn-default pull-left' data-toggle='modal' data-target='#pluginsModal' 
+              <button type='button' class='btn btn-secondary pull-left' data-toggle='modal' data-target='#pluginsModal' 
                       onClick='return openModal()'>_{SELECTED}_: <span class='plugins_count'></span></button>
             </div>
           </div>
@@ -73,7 +73,7 @@
              %ADMINS_LIST%
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-default" data-dismiss="modal" onClick='return closeAdminModal()'>_{CLOSE}_</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal" onClick='return closeAdminModal()'>_{CLOSE}_</button>
             </div>
           </div>
         </div>
@@ -90,7 +90,7 @@
              %ADMINS_LIST%
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-default" data-dismiss="modal" onClick='return closePartcipiantsModal()'>_{CLOSE}_</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal" onClick='return closePartcipiantsModal()'>_{CLOSE}_</button>
             </div>
           </div>
         </div>
@@ -107,7 +107,7 @@
              %SELECT_PLUGINS%
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-default" data-dismiss="modal" onClick='return closePluginsModal()'>_{CLOSE}_</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal" onClick='return closePluginsModal()'>_{CLOSE}_</button>
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@
         </div>
       </div>
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input type=submit name='%BTN_ACTION%' value='%BTN_NAME%' class='btn btn-primary'>
     </div>  
   </div>

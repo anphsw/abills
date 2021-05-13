@@ -58,9 +58,9 @@
     });
 </script>
 
-<div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{REGISTRATION}_ _{TEMPLATE}_</h4></div>
-    <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{REGISTRATION}_ _{TEMPLATE}_</h4></div>
+    <div class='card-body'>
 
         <form name='DOCS_REGISTRATION' id='form_DOCS_REGISTRATION' method='post' class='form form-horizontal'>
             <input type='hidden' name='index' id='INDEX' value='$index'/>
@@ -103,9 +103,9 @@
         </form>
 
     </div>
-    <div class='box-footer'>
-        <input type='submit' class='btn btn-default' form='form_DOCS_REGISTRATION' name='generate' value='_{PREVIEW}_'>
-        <button class='btn btn-primary' id='EXPORT_BTN'><span class='glyphicon glyphicon-print'></span> _{PRINT}_</button>
+    <div class='card-footer'>
+        <input type='submit' class='btn btn-secondary' form='form_DOCS_REGISTRATION' name='generate' value='_{PREVIEW}_'>
+        <button class='btn btn-primary' id='EXPORT_BTN'><span class='fa fa-print'></span> _{PRINT}_</button>
     </div>
 </div>
 <div class='row'>

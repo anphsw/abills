@@ -1,8 +1,8 @@
-<div class='box box-danger'>
-	<div class='box-header with-border'>
+<div class='card box-danger'>
+	<div class='card-header with-border'>
 		_{ERROR}_
 	</div>
-	<div class='box-body table'>
+	<div class='card-body table'>
 		<div class='row' style='margin: 5px 0'>
 			<div class='text-center'>
 				You try to brute password and system block your account.<br>

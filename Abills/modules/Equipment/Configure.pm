@@ -290,6 +290,9 @@ sub equipment_model{
     }
   );
 
+  $Equipment->{AUTO_PORT_SHIFT} = ' checked' if ($Equipment->{AUTO_PORT_SHIFT});
+  $Equipment->{FDB_USES_PORT_NUMBER_INDEX} = ' checked' if ($Equipment->{FDB_USES_PORT_NUMBER_INDEX});
+
   my @contents = ();
 
   if ( opendir( my $fh, "$SNMP_TPL_DIR" ) ) {
@@ -311,7 +314,13 @@ sub equipment_model{
   );
 
   $Equipment->{ADD_BUTTON_INDEX} = get_function_index( 'equipment_model' );
-  $html->tpl_show( _include( 'equipment_model', 'Equipment' ), { %{$Equipment}, %FORM } );
+
+  if (!($Equipment->{TYPE_ID} && $Equipment->{TYPE_ID} == 4)) { # 4 - PON
+    $Equipment->{EQUIPMENT_MODEL_PON_HIDDEN} = 'hidden';
+    $Equipment->{EQUIPMENT_MODEL_PON_DISABLED} = 'disabled';
+  }
+
+  $html->tpl_show( _include( 'equipment_model', 'Equipment' ), { %FORM, %{$Equipment} } );
   $LIST_PARAMS{PAGE_ROWS} = '100000';
 
   result_former({

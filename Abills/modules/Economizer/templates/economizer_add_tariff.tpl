@@ -1,8 +1,8 @@
 <form ction=$SELF_URL METHOD=POST>
 <input type='hidden' name='index' value='$index'>
-  <div class='box box-theme box-form form-horizontal'>
-  <div class='box-header with-border'><h4 class='box-title'>_{SERVICE}_</h4></div>
-  <div class='box-body'>
+  <div class='card card-primary card-outline box-form form-horizontal'>
+  <div class='card-header with-border'><h4 class='card-title'>_{SERVICE}_</h4></div>
+  <div class='card-body'>
     <div class='form-group'>
     <label class='control-label col-md-3'>_{LIGHT}_</label>
     <div class='col-md-9'>
@@ -31,7 +31,7 @@
     </div>
     </div>
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input  type='submit' class='btn btn-primary' value='%BTN_NAME%'>
   </div>
   </div>

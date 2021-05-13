@@ -1505,17 +1505,17 @@ sub cards_report_payments {
     class => 'row',
   } );
   my $box_body = $html->element( 'div', $row_body, {
-    class => 'box-body',
+    class => 'card-body',
   } );
   my $box_footer = $html->element( 'div', $html->form_input( 'show', $lang{SHOW}, { class => 'btn btn-primary btn-block', TYPE => 'submit', OUTPUT2RETURN => 1 } ), {
-    class => 'box-footer',
+    class => 'card-footer',
   } );
-  my $box_header = $html->element( 'div', $lang{FILTERS} . '<div class="box-tools pull-right">
-      <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+  my $box_header = $html->element( 'div', $lang{FILTERS} . '<div class="card-tools pull-right">
+      <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse">
       <i class="fa fa-minus"></i></button></div>',
-    { class => 'box-header with-border'} );
+    { class => 'card-header with-border'} );
   my $report_form = $html->element( 'div', $box_header . $box_body . $box_footer, {
-    class => 'box box-theme',
+    class => 'card card-primary card-outline',
   } );
 
   if ($FORM{show}) {

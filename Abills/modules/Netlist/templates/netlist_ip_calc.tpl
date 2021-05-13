@@ -3,10 +3,10 @@
     <input type='hidden' name='SUBNET_MASK' id='SUBNET_MASK' value='%SUBNET_MASK%'>
     <input type='hidden' name='MASK' id='MASK_INPUT'>
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'>IP _{CALCULATOR}_</div>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'>IP _{CALCULATOR}_</div>
 
-        <div class='box-body'>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='col-md-3 control-label'>IP:</label>
 
@@ -62,7 +62,7 @@
             </div>
         </div>
 
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input class='btn btn-primary' type='submit' name='SHOW' value='_{SHOW}_'>
         </div>
     </div>

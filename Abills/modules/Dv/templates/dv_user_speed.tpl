@@ -9,10 +9,10 @@
     <input type=hidden name=CID value='%ISG_CID_CUR%'>
     <input type=hidden name=sid value='$sid'>
 
-    <div class='box box-theme'>
-        <div class='box-header with-border text-center'><h4 class='box-title'>TURBO _{MODE}_</h4></div>
+    <div class='card card-primary card-outline'>
+        <div class='card-header with-border text-center'><h4 class='card-title'>TURBO _{MODE}_</h4></div>
 
-        <div class='box-body form form-horizontal text-center'>
+        <div class='card-body form form-horizontal text-center'>
             <div class='form-group'>
                 <label class='col-md-3 control-label'>_{SPEED}_ (kb):</label>
 

@@ -118,21 +118,6 @@
     margin-bottom: 2px !important;
 }
 
-#select-div {
-    visibility: hidden;
-    width: 1vw;
-
-    -webkit-transition: all 0.5s ease;
-    -moz-transition: all 0.5s ease;
-    -o-transition: all 0.5s ease;
-    transition: all 0.5s ease;
-}
-
-.select-div-visible {
-    visibility: visible !important;
-    width: 100% !important;
-}
-
 .danger-equipment {
     animation-duration: 1s;
     animation-name: changeIconEquipment;

@@ -23,7 +23,7 @@ use Abills::Base qw(convert date_diff);
 our ($db, $admin, $html, %lang, %conf, %OUTPUT);
 
 my $Poll = Poll->new($db, $admin, \%conf);
-my @panel_colors = ('info', 'success', 'defoult', 'danger'); 
+my @panel_colors = ('info', 'success', 'secondary', 'danger');
 
 #**********************************************************
 
@@ -41,8 +41,8 @@ sub poll_main {
   my $button = $lang{ADD};
   my $action = 'add';
   my $disable = '';
-  my $poll_info; 
-  my $answer_info; 
+  my $poll_info;
+  my $answer_info;
 
   my @STATUSES = ("$lang{ENABLE}", "$lang{IN_WORK}", "$lang{ARCHIVE}", "$lang{REJECTED}");
 
@@ -64,7 +64,6 @@ sub poll_main {
       $html->message('err', $lang{ERROR}, "");
     }
   }
-
   elsif ($FORM{action} && $FORM{action} eq 'change') {
     $Poll->change_poll({ ID => $FORM{id}, %FORM });
 
@@ -98,7 +97,8 @@ sub poll_main {
 
     if ($poll_info->{status} == 1) {
       $disable = 'active';
-    } else {
+    }
+    else {
       $disable = 'disabled';
     }
 
@@ -151,7 +151,7 @@ sub poll_main {
       DEFAULT_FIELDS  => "id, subject,date, description, status, expiration_date",
       FUNCTION_FIELDS => 'poll_discussion:$lang{DISCUSSION}:id,poll_result:$lang{RESULT}:id,change, del',
       FILTER_COLS     => {
-        status        => "_poll_convert_status::STATUS",
+        status => "_poll_convert_status::STATUS",
       },
       EXT_TITLES      => {
         'id'              => 'ID',
@@ -196,7 +196,7 @@ sub poll_answers_add {
   my @answers = split(',', $attr->{ANSWER});
 
   my @extra_answers = ();
-  
+
   if ($attr->{EXTRA_ANSWER}) {
     @extra_answers = split(',', $attr->{EXTRA_ANSWER});
   }
@@ -347,13 +347,13 @@ sub poll_discussion {
 #**********************************************************
 sub poll_user {
 
-  my $check_voter; 
+  my $check_voter;
   my $poll_list = ();
   my %status_code = (
-      OPEN     => 0,
-      IN_WORK  => 1,
-      ARCHIVE  => 2,
-      REJECTED => 3
+    OPEN     => 0,
+    IN_WORK  => 1,
+    ARCHIVE  => 2,
+    REJECTED => 3
   );
 
   my $status_code;
@@ -363,19 +363,21 @@ sub poll_user {
 
   if ($FORM{all}) {
     $poll_list = $Poll->list_poll({
-        COLS_NAME       => 1,
-        REJECTED_STATUS => $status_code{REJECTED}
+      COLS_NAME       => 1,
+      REJECTED_STATUS => $status_code{REJECTED}
     });
-  } else {
+  }
+  else {
     $poll_list = $Poll->list_poll({
-        COLS_NAME         => 1,
-        STATUS            => (!$FORM{status} || $FORM{processed} == 2) ? $status_code{OPEN} : $status_code{ARCHIVE},
-        EXPIRATION_DATE   => $status_code == 2 ? '' : $DATE
+      COLS_NAME       => 1,
+      STATUS          => (!$FORM{status} || ($FORM{processed}  && $FORM{processed} == 2)) ? $status_code{OPEN} : $status_code{ARCHIVE},
+      EXPIRATION_DATE => ($status_code && $status_code == 2) ? '' : $DATE
     });
   }
 
+  my $poll_rows = '';
   foreach my $poll (@$poll_list) {
-    next if $poll->{expiration_date} == '0000-00-00';
+    next if ($poll->{expiration_date} && $poll->{expiration_date} eq '0000-00-00');
 
     my $date_diff = date_diff($poll->{expiration_date}, $DATE);
 
@@ -387,29 +389,33 @@ sub poll_user {
     }
     else {
       my $check = $Poll->list_vote(
-          {
-            COLS_NAME => 1,
-            VOTER     => $user->{UID},
-            POLL_ID   => $poll->{id}
-          }
+        {
+          COLS_NAME => 1,
+          VOTER     => $user->{UID},
+          POLL_ID   => $poll->{id}
+        }
       );
       $check_voter = scalar @$check;
     }
 
     next if ($FORM{index} && !$FORM{new} && !$FORM{processed} && $check_voter && !$FORM{all});
-    next if (($FORM{new} && $check_voter) || ($FORM{processed} eq '2' && !$check_voter) || ($poll->{status} == 1));
+    next if (($FORM{new} && $check_voter) || ($FORM{processed} && $FORM{processed} eq '2' && !$check_voter) || ($poll->{status} == 1));
 
-    $OUTPUT{CONTENT} .= poll_panel_form($check_voter, $result, $poll);
+    $poll_rows .= poll_panel_form($check_voter, $result, $poll);
   }
 
-  my $answer_output = ''; 
+  $OUTPUT{CONTENT} .= $html->tpl_show(_include('poll_rows', 'Poll'), {
+    CONTENT => $poll_rows
+  }, { OUTPUT2RETURN => 1 });
+
+  my $answer_output = '';
   if (defined $FORM{poll}) {
     my $poll_info = $Poll->info_poll({ COLS_NAME => 1, ID => $FORM{poll} });
     my $answer_info = $Poll->info_answer({ COLS_NAME => 1, POLL_ID => $FORM{poll} });
-    my $buttons = ''; 
+    my $buttons = '';
 
     my $check = $Poll->list_vote({ COLS_NAME => 1, VOTER => $user->{UID}, POLL_ID => $FORM{poll} });
-    $check_voter = scalar @$check; 
+    $check_voter = scalar @$check;
 
     if (!$check_voter) {
       $buttons = $html->tpl_show(_include('poll_buttons', 'Poll'),
@@ -471,7 +477,7 @@ sub poll_user {
 
     my $vote_list = $Poll->list_vote({ COLS_NAME => 1, POLL_ID => $FORM{poll} });
 
-    my $max_votes = scalar @$vote_list; 
+    my $max_votes = scalar @$vote_list;
 
     my $buttons = '';
 
@@ -555,13 +561,17 @@ sub poll_user {
   # main template
   if ($FORM{all}) {
     status_active({ TAGS => "LI_ACTIVE_1" })
-  } elsif ($FORM{new} && $FORM{processed}) {
+  }
+  elsif ($FORM{new} && $FORM{processed}) {
     status_active({ TAGS => "LI_ACTIVE_2" })
-  } elsif ($FORM{processed}) {
+  }
+  elsif ($FORM{processed}) {
     status_active({ TAGS => "LI_ACTIVE_3" })
-  } elsif ($FORM{archive}) {
+  }
+  elsif ($FORM{archive}) {
     status_active({ TAGS => "LI_ACTIVE_4" })
-  } else {
+  }
+  else {
     status_active({ TAGS => "LI_ACTIVE_2" })
   }
 
@@ -572,7 +582,7 @@ sub poll_user {
 =head2 status_active($tags)
 
   Arguments:
-     TAGS - Tags status active
+    TAGS - Tags status active
 
   Returns:
     -
@@ -583,8 +593,8 @@ sub status_active {
   my ($attr) = @_;
 
   $html->tpl_show(_include('poll_main', 'Poll'), {
-      %OUTPUT,
-      $attr->{TAGS} => 'active',
+    %OUTPUT,
+    $attr->{TAGS} => 'active',
   });
 
   return 1;
@@ -624,6 +634,7 @@ sub poll_panel_form {
     },
     { OUTPUT2RETURN => 1 }
   );
+
   return $poll_panel;
 }
 
@@ -683,8 +694,8 @@ sub poll_user_add_poll {
   my $button = $lang{ADD};
   my $action = 'add';
   my $disable = '';
-  my $poll_info;  
-  my $answer_info; 
+  my $poll_info;
+  my $answer_info;
 
   my @STATUSES = ("$lang{OPEN}", "$lang{REJECTED}", "$lang{IN_WORK}", "$lang{CLOSE_DONE}");
 
@@ -706,7 +717,6 @@ sub poll_user_add_poll {
       $html->message('err', $lang{ERROR}, "");
     }
   }
-
   elsif ($FORM{action} && $FORM{action} eq 'change') {
     $Poll->change_poll({ ID => $FORM{id}, %FORM });
 
@@ -739,7 +749,8 @@ sub poll_user_add_poll {
 
     if ($poll_info->{status} == 1) {
       $disable = 'active';
-    } else {
+    }
+    else {
       $disable = 'disabled';
     }
 
@@ -806,8 +817,8 @@ sub _poll_convert_status {
   $status //= 0;
 
   my $status_color = ($status >= 0)
-      ? $html->color_mark($STATUSES[ $status ], $STATUSES_COLORS[ $status ])
-      : "$STATUSES[$status]";
+    ? $html->color_mark($STATUSES[ $status ], $STATUSES_COLORS[ $status ])
+    : "$STATUSES[$status]";
 
   return $status_color;
 }

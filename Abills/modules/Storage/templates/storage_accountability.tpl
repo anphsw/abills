@@ -4,8 +4,8 @@
     <input type=hidden name=ADDED_BY_AID value=%ADDED_BY_AID%>
 
     <fieldset>
-        <div class='box box-theme box-form'>
-            <div class='box-body form form-horizontal'>
+        <div class='card card-primary card-outline box-form'>
+            <div class='card-body form form-horizontal'>
                 <legend>_{TO_ACCOUNTABILITY}_</legend>
 
                 <div class='form-group'>
@@ -22,7 +22,7 @@
                     </div>
                 </div>
             </div>
-            <div class='box-footer'>
+            <div class='card-footer'>
                 <input type=submit name=%ACTION% value=%ACTION_LNG% class='btn btn-primary'>
             </div>
         </div>

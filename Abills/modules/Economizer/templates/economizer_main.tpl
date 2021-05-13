@@ -2,11 +2,11 @@
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='ID' value='%ID%'>
   <input type='hidden' name='EXISTING' value='%EXISTING%'>
-    <div class='box box-theme box-form'>
-      <div class='box-header'>
-        <h4 class='box-title'>_{SETTINGS_FORM}_</h4>
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-header'>
+        <h4 class='card-title'>_{SETTINGS_FORM}_</h4>
       </div>
-      <div class='box-body'>
+      <div class='card-body'>
       <div class="form-group">
         <div>
           <label class="control-label col-md-4 col-sm-3">_{RESOURSE_104}_</label>

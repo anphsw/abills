@@ -1,61 +1,54 @@
-<FORM action='$SELF_URL' METHOD='GET' class='form form-horizontal'>
-    <input type='hidden' name='index' value='$index'>
-    <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
-    <input type='hidden' name='TYPE' value='$FORM{TYPE}'>
-    <input type='hidden' name='visual' value='$FORM{visual}'>
-    <input type='hidden' name='unregister_list' value='$FORM{unregister_list}'>
-    <input type='hidden' name='reg_onu' value='$FORM{reg_onu}'>
+<form action='$SELF_URL' class='form form-horizontal' METHOD='GET'>
+  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='NAS_ID' value='$FORM{NAS_ID}'>
+  <input type='hidden' name='TYPE' value='$FORM{TYPE}'>
+  <input type='hidden' name='visual' value='$FORM{visual}'>
+  <input type='hidden' name='unregister_list' value='$FORM{unregister_list}'>
+  <input type='hidden' name='reg_onu' value='$FORM{reg_onu}'>
 
-    <div class='box box-theme box-form center-block'>
-        <div class='box-header with-border'>
-            <h3 class="box-title"> _{REGISTRATION}_ ONU</h3>
+  <div class='card card-primary card-outline card-form'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'> _{REGISTRATION}_ ONU</h4>
+    </div>
+    <div class='card-body'>
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='PON_TYPE'>PON _{TYPE}_:</label>
+        <div class='col-md-8'>
+          <input id='PON_TYPE' name='PON_TYPE' value='%PON_TYPE%' readonly class='form-control' type='text'>
         </div>
-        <div class='box-body'>
+      </div>
 
-            <div class='form-group'>
-                <label class='control-label col-md-5' for='PON_TYPE'>PON _{TYPE}_:</label>
-
-                <div class='col-md-7 control-element'>
-                    <input type='text' name='PON_TYPE' value='%PON_TYPE%' ID='PON_TYPE' readonly class='form-control'>
-                </div>
-            </div>
-
-            <div class='form-group'>
-                <label class='control-label col-md-5' for='BRANCH'>BRANCH:</label>
-
-                <div class='col-md-7 control-element'>
-                    <input type='text' name='BRANCH' value='%BRANCH%' ID='BRANCH' readonly class='form-control'>
-                </div>
-            </div>
-
-            <div class='form-group'>
-                <label class='control-label col-md-5' for='MAC'>MAC:</label>
-
-                <div class='col-md-7 control-element'>
-                    <input type='text' name='MAC' value='%MAC%' ID='MAC' readonly class='form-control'>
-                </div>
-            </div>
-
-            <span class="visible-xs visible-sm col-xs-12" style="padding-top: 5px"> </span>
-            <div class='form-group' id='VLAN_SEL_DIV'>
-                <label class='control-label col-md-5' for='VLAN'>VLAN:</label>
-                <div class='col-md-7 control-element'>
-                    <input type='text' name='VLAN' value='%VLAN%' ID='VLAN' class='form-control'>
-                </div>
-            </div>
-            <div class='form-group'>
-                <label class='control-label col-md-5' for='PORT'>_{PORT}_:</label>
-
-                <div class='col-md-7 control-element'>
-                    <input type='text' name='PORT' value='%PORT%' ID='PORT' class='form-control'>
-                </div>
-            </div>
-
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='BRANCH'>BRANCH:</label>
+        <div class='col-md-8'>
+          <input id='BRANCH' name='BRANCH' value='%BRANCH%' readonly class='form-control' type='text'>
         </div>
-        <div class='box-footer'>
-            <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='MAC'>MAC:</label>
+        <div class='col-md-8'>
+          <input id='MAC' name='MAC' value='%MAC%' readonly class='form-control' type='text'>
         </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='VLAN'>VLAN:</label>
+        <div class='col-md-8'>
+          <input id='VLAN' name='VLAN' value='%VLAN%' class='form-control' type='text'>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='PORT'>_{PORT}_:</label>
+        <div class='col-md-8'>
+          <input id='PORT' name='PORT' value='%PORT%' class='form-control' type='text'>
+        </div>
+      </div>
 
     </div>
-</FORM>
-
+    <div class='card-footer'>
+      <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary float-left'>
+    </div>
+  </div>
+</form>

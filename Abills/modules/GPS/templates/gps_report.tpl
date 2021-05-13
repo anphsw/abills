@@ -15,13 +15,13 @@
     </form>
 </div>
 
-<div class='box box-primary'>
-    <div class='box-header with-border'>
-        <div class='box-title'>GPS _{REPORTS}_</div>
+<div class='card box-primary'>
+    <div class='card-header with-border'>
+        <div class='card-title'>GPS _{REPORTS}_</div>
     </div>
     %REPORT_TABLE%
 
-    <div class='box-title bg-info'><h3>_{PERIOD}_<span class='text-lowercase'> _{AVG}_ </span></h3></div>
+    <div class='card-title bg-info'><h3>_{PERIOD}_<span class='text-lowercase'> _{AVG}_ </span></h3></div>
     %REPORT_AVG_TABLE%
 
 </div>

@@ -1,14 +1,8 @@
-<div class='navbar navbar-static-top'>
-  <div class='navbar-inner'>
-<ul class='nav nav-justified nav-pills'>
-%PILLS%
+<ul class='nav nav-pills mb-3 btn-group w-100' id='pills-tab' role='tablist'>
+  %PILLS%
 </ul>
-</div>
-</div>
 
 
 <div class='tab-content'>
-
-%TIMELINE%
-
+  %TIMELINE%
 </div>

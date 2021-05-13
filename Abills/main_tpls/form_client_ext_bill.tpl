@@ -1,4 +1,9 @@
-<div class="col-xs-12 col-sm-3 col-md-3 text-1">_{EXTRA}_ _{DEPOSIT}_</div>
-<div class="col-xs-12 col-sm-9 col-md-9 text-2">%EXT_BILL_DEPOSIT%</div>
-<div class="col-xs-12 col-sm-3 col-md-3 text-1">_{EXTRA_BILL}_</div>
-<div class="col-xs-12 col-sm-9 col-md-9 text-2">%EXT_BILL_ID%</div>
+<tr>
+  <td class='font-weight-bold text-right'>_{EXTRA}_ _{DEPOSIT}_</td>
+  <td>%EXT_BILL_DEPOSIT%</td>
+</tr>
+
+<tr>
+  <td class='font-weight-bold text-right'>_{EXTRA_BILL}_</td>
+  <td>%EXT_BILL_ID%</td>
+</tr>

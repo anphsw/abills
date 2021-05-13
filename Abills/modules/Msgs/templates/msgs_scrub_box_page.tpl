@@ -13,19 +13,21 @@
     </div>
   </nav>
 
-  <div class='box box-theme'>
-    <div class='box-header with-border'>
-      <h4 class='box-title'>_{SCRUB_BOX}_</h4>
+  <div class='card card-primary card-outline'>
+    <div class='card-header with-border'>
+      <h4 class='card-title'>_{SCRUB_BOX}_</h4>
     </div>
-    <div class='box-body'>
-      %MSGS_BODY%
+    <div class='card-body'>
+      <div class="row">
+        %MSGS_BODY%
+      </div>
     </div>
   </div>
 </form>
 <script>
   var index    = jQuery('#MSGS_INDEX').val();
   var msgs_id  = '';
-  
+
   jQuery('.status').each((index, value) => {
     jQuery(value).height(jQuery(value).parent().height());
   });
@@ -34,7 +36,7 @@
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData("Text", event.target.getAttribute('id'));
     event.dataTransfer.setDragImage(event.target,50,50);
-    
+
     msgs_id = event.srcElement.id;
 
     return true;
@@ -52,7 +54,7 @@
   function dragDrop(event) {
     var data    = event.dataTransfer.getData("Text");
     var stateId = event.srcElement.id;
-    
+
     var uid     = jQuery('#' + msgs_id).attr('user_id');
 
     if (!event.target.offsetParent.offsetParent.id) {
@@ -77,22 +79,22 @@
 
     if (stateId == 1) {
       jQuery('#MSGS_' + msgs_id).removeClass();
-      jQuery('#MSGS_' + msgs_id).addClass('box box-danger');
+      jQuery('#MSGS_' + msgs_id).addClass('card box-danger');
     } else if (stateId == 2) {
       jQuery('#MSGS_' + msgs_id).removeClass();
-      jQuery('#MSGS_' + msgs_id).addClass('box box-success');
+      jQuery('#MSGS_' + msgs_id).addClass('card box-success');
     } else if (stateId == 4) {
       jQuery('#MSGS_' + msgs_id).removeClass();
-      jQuery('#MSGS_' + msgs_id).addClass('box box-warning');
+      jQuery('#MSGS_' + msgs_id).addClass('card box-warning');
     } else {
       jQuery('#MSGS_' + msgs_id).removeClass();
-      jQuery('#MSGS_' + msgs_id).addClass('box');
+      jQuery('#MSGS_' + msgs_id).addClass('card');
     }
 
     jQuery('.status').each((index, value) => {
       jQuery(value).height('auto');
     });
-    
+
     if (!event.target.offsetParent.offsetParent.id) {
       event.target.appendChild(document.getElementById(data));
     } else {
@@ -106,17 +108,17 @@
     jQuery.ajax({
       url        : url,
       type       : "get",
-      data       : data, 
+      data       : data,
       contentType: false,
       cache      : false,
       processData: false,
       success    : function (data) { }
     });
-    
+
     jQuery('.status').each((index, value) => {
       jQuery(value).height(jQuery(value).parent().height());
     });
-    
+
     return false;
   }
 </script>

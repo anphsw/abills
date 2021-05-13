@@ -4,9 +4,9 @@
   <input type='hidden' name='INSTALLATION_ID' value='%INSTALLATION_ID%'>
   <input type='hidden' name='ARTICLE_ID1' value='%STA_ID%'>
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{INSTALLATION}_</h4></div>
-    <div class='box-body form form-horizontal'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{INSTALLATION}_</h4></div>
+    <div class='card-body form form-horizontal'>
 
       <div class='form-group'>
         <label class='col-md-3 control-label'>_{ARTICLE}_</label>
@@ -31,7 +31,7 @@
 
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input class='btn btn-primary' type=submit name=show_installation value='_{CHANGE}_'>
     </div>
   </div>

@@ -1,9 +1,9 @@
 <div class="form-horizontal">
-    <div class="box box-info ">
-        <div class="box-header with-border">
-            <h2 class="box-title"></h2>
+    <div class="card box-info ">
+        <div class="card-header with-border">
+            <h2 class="card-title"></h2>
         </div>
-        <div class="box-body">
+        <div class="card-body">
             <div class="form-group">
                 <label class="col-md-3 control-element" for="SESSION_ID">_{SESSION_ID}_:</label>
                 <div class="col-md-9">
@@ -56,11 +56,11 @@
         </div>
     </div>
 
-    <div class="box box-info ">
-        <div class="box-header with-border">
-            <h2 class="box-title">_{NAS}_</h2>
+    <div class="card box-info ">
+        <div class="card-header with-border">
+            <h2 class="card-title">_{NAS}_</h2>
         </div>
-        <div class="box-body">
+        <div class="card-body">
             <div class="form-group">
                 <label class="col-md-3 control-element">ID:</label>
                 <div class="col-md-9">

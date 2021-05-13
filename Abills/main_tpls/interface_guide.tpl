@@ -1,30 +1,26 @@
-<link rel='stylesheet' href='/styles/default_adm/css/bootstrap-tour.min.css'>
-<script src='/styles/default_adm/js/bootstrap-tour.min.js'></script>
+<link rel='stylesheet' href='/styles/default_adm/css/bootstrap-tourist.css'>
+<script src='/styles/default_adm/js/bootstrap-tourist.min.js'></script>
 
 <script>
-  function getTemplate(i, step) {
-
-    return "<div class='popover tour'>"
-        + "<div class='arrow'></div>"
-        + "<h3 class='popover-title text-bold'></h3>"
-        + "<div class='popover-content'></div>"
-        + "<div class='popover-navigation'>"
-        + "<button class='btn btn-default' data-role='prev'><span class='glyphicon glyphicon-backward'></span></button>"
-        + "<button class='btn btn-default' data-role='next'><span class='glyphicon glyphicon-forward'></span></button>"
-        + "<button class='btn btn-default' data-role='end'>_{FINISH}_</button>"
-        + "</div>"
-        + "</div>";
-  }
-
   jQuery(function () {
 
 //    localStorage.setItem('tour_current_step', '10');
 
-
     // Instance the tour
     var tour = new Tour({
 //      debug   : true,
-      template: getTemplate,
+//       template: getTemplate,
+      backdropOptions: {
+        highlightOpacity: 0.2,
+      },
+      localization: {
+        buttonTexts: {
+          prevButton: "<span class='fa fa-backward'>",
+          nextButton: "<span class='fa fa-forward'>",
+          endTourButton: '_{FINISH}_'
+        }
+      },
+      framework: 'bootstrap4',
       steps   : [
 // Tutorial welcome
         {
@@ -112,8 +108,10 @@
           content  : '_{GUIDE_RIGHT_MENU_TEXT}_',
           backdrop : true,
           placement: 'left',
-          onShow   : function () {
-            jQuery('#control-sidebar-open-btn').on('click', tour.next.bind(tour));
+          onShown   : function () {
+            // jQuery('#control-sidebar-open-btn').on('click', tour.next.bind(tour));
+            jQuery('#right_menu_btn').click();
+            console.log(jQuery('#control-sidebar-open-btn'));
           }
         },
 
@@ -124,7 +122,7 @@
           content  : '_{GUIDE_QUICK_MENU_TEXT}_',
           backdrop : true,
           placement: 'left',
-          onShow   : function () {
+          onShown   : function () {
             if (!jQuery('body').hasClass('control-sidebar-open')) {
               window['\$'].AdminLTE.controlSidebar.open();
             }
@@ -138,7 +136,7 @@
           content  : '_{GUIDE_INTERFACE_SETTINGS_BTN_TEXT}_',
           backdrop : true,
           placement: 'left',
-          onShow   : function () {
+          onShown   : function () {
             if (!jQuery('body').hasClass('control-sidebar-open')) {
               window['\$'].AdminLTE.controlSidebar.open();
             }
@@ -153,7 +151,7 @@
           content  : '_{GUIDE_INTERFACE_SETTINGS_MENU_TEXT}_',
           backdrop : true,
           placement: 'left',
-          onShow   : function () {
+          onShown   : function () {
             if (!jQuery('body').hasClass('control-sidebar-open')) {
               window['\$'].AdminLTE.controlSidebar.open();
             }
@@ -175,9 +173,6 @@
         jQuery.post("/admin/index.cgi", { tour_ended : 1 });
       }
     });
-
-    // Initialize the tour
-    tour.init();
 
     // Start the tour
     tour.start();

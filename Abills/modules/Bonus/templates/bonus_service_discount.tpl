@@ -1,13 +1,13 @@
-<form action='$SELF_URL' class='form form-horizontal'>
+<form action='$SELF_URL' class=''>
     <input type=hidden name=index value=$index>
     <input type=hidden name=ID value=$FORM{chg}>
     <input type=hidden name=TP_ID value=$FORM{TP_ID}>
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'>
-            <h3 class='box-title'>_{RULES}_</h3>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'>
+            <h3 class='card-title'>_{RULES}_</h3>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='control-label col-md-3' for='NAME'>_{NAME}_:</label>
 
@@ -65,8 +65,8 @@
             </div>
 
 
-            <div class='box-header with-border'>
-                <h3 class='box-title'>_{RESULT}_</h3>
+            <div class='card-header with-border'>
+                <h3 class='card-title'>_{RESULT}_</h3>
             </div>
 
             <div class='form-group'>
@@ -114,7 +114,7 @@
 
 
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input class='btn btn-primary' type=submit name=%ACTION% class='form-control' value='%LNG_ACTION%'>
         </div>
     </div>

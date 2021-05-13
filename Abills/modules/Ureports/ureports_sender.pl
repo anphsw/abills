@@ -75,13 +75,7 @@ my $Ureports = Ureports->new( $db, $admin, \%conf );
 my $Fees     = Fees->new( $db, $admin, \%conf );
 my $Tariffs  = Tariffs->new( $db, \%conf, $admin );
 my $Shedule  = Shedule->new( $db, $admin, \%conf );
-my $Sessions;
-if(in_array('Internet', \@MODULES)) {
-  $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-}
-else {
-  $Sessions = Dv_Sessions->new($db, $admin, \%conf);
-}
+my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
 if ($html->{language} ne 'english') {
   do $Bin . "/../language/english.pl";
@@ -190,9 +184,6 @@ sub ureports_periodic_reports{
       $users_params{INTERNET_STATUS} = '_SHOW';
       #$users_params{INTERNET_EXPIRE} = '_SHOW';
     }
-    else {
-      $users_params{DV_TP} = 1;
-      $users_params{DV_STATUS} = '_SHOW';    }
 
     my $ulist = $Ureports->tp_user_reports_list( \%users_params  );
 
@@ -200,7 +191,7 @@ sub ureports_periodic_reports{
       #Check bill id and deposit
       my %PARAMS = ();
       $user->{TP_ID} = $tp->{tp_id};
-      my $internet_status = $user->{DV_STATUS} || $user->{INTERNET_STATUS} || 0;
+      my $internet_status = $user->{INTERNET_STATUS} || 0;
       #my $internet_expire = $user->{INTERNET_EXPIRE} || 0;
       #Skip disabled user
       next if ($internet_status == 1 || $internet_status == 2 || $internet_status == 3);

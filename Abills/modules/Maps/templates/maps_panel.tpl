@@ -4,12 +4,12 @@
     <div class='col-md-6'>
       <p class='text-left'>
         <a data-toggle='collapse' href='#maps_panel_filters' aria-expanded='false' class='collapsed'>
-          <strong>_{FILTERS}_</strong>&nbsp;<span class='glyphicon glyphicon-chevron-down'></span>
+          <strong>_{FILTERS}_</strong>&nbsp;<span class='fa fa-chevron-down'></span>
         </a>
       </p>
 
       <div id='maps_panel_filters' class='panel-collapse collapse' aria-expanded='false'>
-        <div class='box-body'>
+        <div class='card-body'>
           %FILTER_ROWS%
           <div class='form-group'>
             <input type='submit' name='show' value='_{APPLY}_' class='btn btn-primary'>
@@ -23,11 +23,11 @@
       <p class='text-left'>
 
         <a data-toggle='collapse' href='#maps_panel_info' aria-expanded='false' class='collapsed'>
-          <strong>_{INFO}_</strong>&nbsp;<span class='glyphicon glyphicon-chevron-down'></span>
+          <strong>_{INFO}_</strong>&nbsp;<span class='fa fa-chevron-down'></span>
         </a>
       </p>
       <div id='maps_panel_info' class='panel-collapse collapse' aria-expanded='false'>
-        <div class='box-body'>
+        <div class='card-body'>
           %INFO_ROWS%
           <div class='form-group'>
             <input type='submit' name='show' value='_{APPLY}_' class='btn btn-primary'>
@@ -44,10 +44,10 @@
 
     <div data-visible='%SHOW_EDIT_CONTROLS%'>
       <a href='$SELF_URL?get_index=maps_edit&full=1' role='button' class='btn btn-sm btn-success'>
-        <span class='glyphicon glyphicon-pencil'></span>&nbsp;_{EDIT}_
+        <span class='fa fa-pencil'></span>&nbsp;_{EDIT}_
       </a>
-      <!--<a class='btn btn-sm btn-default' role='button'>
-        <span class='glyphicon glyphicon-new-window'></span>&nbsp;_{IN_NEW_WINDOW}_
+      <!--<a class='btn btn-sm btn-secondary' role='button'>
+        <span class='fa fa-external-link'></span>&nbsp;_{IN_NEW_WINDOW}_
       </a>-->
     </div>
 

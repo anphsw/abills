@@ -126,8 +126,24 @@ sub mk {
   $attr->{QUERY} =~ s/%DESC%/$DESC/;
   $attr->{QUERY} =~ s/%PAGES%/LIMIT $PG, $PAGE_ROWS/;
 
-  $self->query("$attr->{QUERY};", undef, $attr);
+  my @queries  = split(/;/, $attr->{QUERY});
+
+  foreach my $query (@queries){
+    $query =~ s/[\r\n\s]+$//g;
+    if (! $query) {
+      next;
+    }
+    $self->query(
+      "$query;",
+      undef,
+      {
+        COLS_NAME => 1 #$query_index == $#QUERY_ARRAY
+      }
+    );
+  }
+
   $list = $self->{list};
+
   $self->{PAGE_TOTAL} = $self->{TOTAL};
 
   $self->{REPORT_COLS_NAME} = $self->{COL_NAMES_ARR};

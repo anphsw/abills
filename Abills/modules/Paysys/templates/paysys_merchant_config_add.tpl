@@ -3,12 +3,12 @@
   <input type='hidden' name='SYSTEM_ID' id='SYSTEM_ID' value='%SYSTEM_ID%'>
   <input type='hidden' name='MERCHANT_ID' id='MERCHANT_ID' value='%MERCHANT_ID%'>
 
-  <div class='box big-box box-theme'>
-    <div class='box-header with-border'>
-      <h4 class="box-title">_{ADD}_ _{_MERCHANT}_</h4>
+  <div class='card big-box card-primary card-outline'>
+    <div class='card-header with-border'>
+      <h4 class="card-title">_{ADD}_ _{_MERCHANT}_</h4>
     </div>
 
-    <div class='box-body'>
+    <div class='card-body'>
 
       <div class='form-group %HIDE_SELECT%'>
         <label class=' col-md-12 col-sm-12'>_{PAY_SYSTEM}_</label>
@@ -28,7 +28,7 @@
 
     </div>
 
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input class='btn btn-primary' type='submit' name='%BTN_NAME%' value='%BTN_VALUE%'>
     </div>
   </div>

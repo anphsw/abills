@@ -73,10 +73,10 @@ sub employees_cashbox_main {
     $html->message("info", "$lang{CHANGE}");
 
     my $cashbox_info = $Employees->employees_info_cashbox({ ID => $FORM{chg} });
-    
+
     $CASHBOX{ID} = $FORM{chg};
     $CASHBOX{NAME} = $cashbox_info->{NAME};
-    $CASHBOX{ADMINS_SELECT} = $cashbox_info->{AID};
+    $CASHBOX{ADMINS} = $cashbox_info->{AID};
     $CASHBOX{COMMENTS} = $cashbox_info->{COMMENTS};
   }
   elsif ($FORM{del}) {
@@ -90,7 +90,7 @@ sub employees_cashbox_main {
     }
   }
 
-  $CASHBOX{ADMINS_SELECT} = sel_admins({ NAME => 'ADMINS', SELECTED => $CASHBOX{ADMINS} });
+  $CASHBOX{ADMINS_SELECT} = sel_admins({ NAME => 'ADMINS', SELECTED => $CASHBOX{ADMINS}});
 
   $html->tpl_show(
     _include('employees_cashbox_add', 'Employees'),
@@ -100,7 +100,6 @@ sub employees_cashbox_main {
       ACTION_LANG => $action_lang,
     }
   );
-
 
   my $types = translate_list($Employees->employees_list_cashbox({ COLS_NAME => 1 }));
 
@@ -1307,255 +1306,46 @@ sub employees_reference_works {
 
   _error_show($Employees);
 
-  $html->tpl_show(
-    _include('employees_reference_works', 'Employees'),
-    {
-      ACTION      => $action,
-      ACTION_LANG => $action_lang,
-      %INFO
-    }
-  );
+  $html->tpl_show(_include('employees_reference_works', 'Employees'), {
+    ACTION      => $action,
+    ACTION_LANG => $action_lang,
+    %INFO
+  });
 
-  result_former(
-    {
-      INPUT_DATA      => $Employees,
-      FUNCTION        => 'employees_list_reference_works',
-      BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => "ID, NAME, SUM, TIME, UNITS, DISABLED, COMMENTS",
-      FUNCTION_FIELDS => 'change, del',
-      SELECT_VALUE    => {
-        disabled => {
-          0 => "$lang{ENABLE}:text-primary",
-          1 => "$lang{DISABLED}:text-danger"
-        },
+  result_former({
+    INPUT_DATA      => $Employees,
+    FUNCTION        => 'employees_list_reference_works',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => "ID, NAME, SUM, TIME, UNITS, DISABLED, COMMENTS",
+    FUNCTION_FIELDS => 'change, del',
+    SELECT_VALUE    => {
+      disabled => {
+        0 => "$lang{ENABLE}:text-primary",
+        1 => "$lang{DISABLED}:text-danger"
       },
-      EXT_TITLES      => {
-        'id'       => "ID",
-        'name'     => "$lang{NAME}",
-        'sum'      => "$lang{SUM}",
-        'TIME'     => "$lang{TIME} ($lang{HOURS})",
-        'disabled' => "$lang{DISABLED}",
-        'units'    => "$lang{UNITS_}",
-        'comments' => "$lang{COMMENTS}",
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => "$lang{REFERENCE_WORKS}",
-        qs      => $pages_qs,
-        ID      => 'REFERENCE_WORKS',
-        header  => '',
-        EXPORT  => 1,
-      },
-      MAKE_ROWS       => 1,
-      SEARCH_FORMER   => 1,
-      MODULE          => 'Employees',
-      TOTAL           => 1
-    }
-  );
-
-  return 1;
-}
-
-#**********************************************************
-=head2 employees_works() -
-
-  Arguments:
-    $attr -
-
-
-  Returns:
-
-  Examples:
-
-=cut
-#**********************************************************
-sub employees_works {
-  my ($attr) = @_;
-
-  $Employees->{ACTION} = 'add';
-  $Employees->{ACTION_LNG} = $lang{ADD};
-
-  if ($FORM{TAKE_FEES} && ($FORM{add} || $FORM{change})) {
-    my $fee_sum = 0;
-    if ($FORM{EXTRA_SUM}) {
-      $fee_sum = $FORM{EXTRA_SUM};
-    }
-    else {
-      $Employees->employees_info_reference_works({ ID => $FORM{WORK_ID} });
-      if ($Employees->{TOTAL}) {
-        $fee_sum = $Employees->{SUM} * ($FORM{RATIO} || 1);
-      }
-    }
-
-    use Fees;
-    my $Fees = Fees->new($db, $admin, \%conf);
-    $Fees->take(
-      $users,
-      sprintf("%.2f", $fee_sum),
-      {
-        DESCRIBE => "msgs_work # $FORM{EXT_ID}"
-      }
-    );
-    if (!_error_show($Fees)) {
-      $html->message('info', "$lang{GETED}: " . sprintf("%.2f", $fee_sum));
-    }
-    $admin->action_add($users->{UID}, "msgs_work #$FORM{EXT_ID} $lang{GETED}: " . sprintf("%.2f", $fee_sum), {});
-    $FORM{FEES_ID} = $Fees->{INSERT_ID};
-  }
-
-  if ($FORM{add}) {
-    $Employees->employees_works_add({ %FORM, DATE => "$DATE $TIME" });
-    if (!$Employees->{errno}) {
-      $html->message('info', $lang{ERROR}, "$lang{WORK} $lang{ADDED} ");
-      return 1;
-    }
-  }
-  elsif ($FORM{change}) {
-    $FORM{WORK_DONE} = 0 if (!$FORM{WORK_DONE});
-    $Employees->employees_works_change(\%FORM);
-    if (!$Employees->{errno}) {
-      $html->message('info', $lang{ERROR}, "$lang{WORK} $lang{CHANGING} ");
-      return 1;
-    }
-  }
-  elsif ($FORM{chg}) {
-    $Employees->employees_works_info($FORM{chg});
-    if (!$Employees->{errno}) {
-      $html->message('info', $lang{ERROR}, "$lang{WORK} $lang{CHANGED} ");
-      $Employees->{ACTION} = 'change';
-      $Employees->{ACTION_LNG} = $lang{CHANGE};
-    }
-  }
-  elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $Employees->employees_works_del($FORM{del});
-    if (!$Employees->{errno}) {
-      $html->message('info', $lang{ERROR}, "$lang{WORK} $lang{DELETED} ");
-      return 1;
-    }
-  }
-
-  _error_show($Employees);
-
-  if ($attr->{EXT_ID}) {
-    $Employees->{EXT_ID} = $attr->{EXT_ID};
-    $Employees->{UID} = $attr->{UID};
-    $Employees->{WORK} = $attr->{EXT_ID};
-  }
-
-  $Employees->{ADMIN_SEL} = sel_admins({ SELECTED => $Employees->{EMPLOYEE_ID}, NAME => 'EMPLOYEE_ID', REQUIRED => 1 });
-  $Employees->{WORK_SEL} = $html->form_select(
-    'WORK_ID',
-    {
-      SELECTED       => $Employees->{WORK_ID} || $FORM{WORK_ID},
-      SEL_LIST       => $Employees->employees_list_reference_works({ COLS_NAME => 1, PAGE_ROWS => 10000 }),
-      SEL_KEY        => 'id',
-      SEL_VALUE      => 'name,sum',
-      NO_ID          => 1,
-
-      #SEL_OPTIONS => { '' => '--' },
-      MAIN_MENU      => get_function_index('employees_reference_works'),
-      MAIN_MENU_ARGV => ($Employees->{WORK_ID}) ? "chg=$Employees->{WORK_ID}" : '',
-      EX_PARAMS      => ' required'
-    }
-  );
-
-  $Employees->{RATIO} ||= 1;
-  if ($Employees->{FEES_ID}) {
-    $Employees->{TAKE_FEES} = $html->b($lang{GETED});
-  }
-  else {
-    my $element1 = $html->form_input('TAKE_FEES', '1', { TYPE => 'checkbox', EX_PARAMS => '' });
-    my $element2 = $html->element('LABEL', "$element1 $lang{TAKE_FEE}", {});
-    my $element3 = $html->element('DIV', "$element2", { "class" => "checkbox" });
-    $Employees->{TAKE_FEES} = $element3;
-  }
-  $Employees->{WORK_DONE} = 'checked' if ($Employees->{WORK_DONE});
-  $html->tpl_show(_include('employees_work_add', 'Employees'), $Employees);
-
-  employees_works_list($attr);
-
-  return 0;
-}
-
-#**********************************************************
-
-=head2 employees_works_list() -
-
-  Arguments:
-    $attr -
-
-
-  Returns:
-
-  Examples:
-
-=cut
-
-#**********************************************************
-sub employees_works_list {
-  my ($attr) = @_;
-
-  $LIST_PARAMS{EXT_ID} = $attr->{EXT_ID};
-  $LIST_PARAMS{WORK_ID} = $attr->{WORK_ID};
-  
-  $pages_qs .= "&WORK=$attr->{EXT_ID}";
-
-  result_former(
-    {
-      INPUT_DATA      => $Employees,
-      FUNCTION        => 'employees_works_list',
-      BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => "DATE,EMPLOYEE,WORK,SUM,COMMENTS,FEES_ID,WORK_DONE",
-      HIDDEN_FIELDS   => "ID,ADMIN_NAME,WORK_ID,RATIO,PAID,EXT_ID,EXTRA_SUM",
-      FUNCTION_FIELDS => 'change, del',
-      SKIP_USER_TITLE => 1,
-      EXT_TITLES      => {
-        'id'         => "ID",
-        'employee'   => $lang{ADMIN},
-        'admin_name' => $lang{ADMIN},
-        'work_id'    => "ID $lang{WORK} ",
-        'work'       => $lang{WORK},
-        'ratio'      => $lang{RATIO},
-        'extra_sum'  => "$lang{EXTRA} $lang{SUM}",
-        'comments'   => $lang{COMMENTS},
-        'paid'       => $lang{PAID},
-        'sum'        => $lang{SUM},
-        'date'       => $lang{DATE},
-        'fees_id'    => $lang{FEE_TAKEN},
-        'work_done'  => $lang{WORK_DONE},
-        'ext_id'     => $lang{MESSAGE},
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => $lang{WORK},
-        qs      => $pages_qs,
-        ID      => 'EMPLOYEES_WORKS',
-        MENU    => "$lang{ADD}:index=$index$pages_qs:add",
-        SHOW_COLS_HIDDEN => {
-          index => $attr->{INDEX},
-          UID   => $attr->{UID},
-          chg   => $attr->{chg}
-        }
-      },
-      SELECT_VALUE    => {
-        paid      => {
-          0 => "$lang{NO}:text-danger",
-          1 => "$lang{YES}:text-primary",
-        },
-        work_done => {
-          0 => "$lang{NO}:text-danger",
-          1 => "$lang{YES}:text-success",
-        },
-      },
-      FILTER_COLS     => {
-        fees_id => '_fee_taken_msg::',
-      },
-      MAKE_ROWS       => 1,
-      SEARCH_FORMER   => 1,
-      MODULE          => 'Employees',
-      TOTAL           => "TOTAL:$lang{TOTAL};TOTAL_SUM:$lang{SUM}",
-    }
-  );
+    },
+    EXT_TITLES      => {
+      'id'       => "ID",
+      'name'     => "$lang{NAME}",
+      'sum'      => "$lang{SUM}",
+      'TIME'     => "$lang{TIME} ($lang{HOURS})",
+      'disabled' => "$lang{DISABLED}",
+      'units'    => "$lang{UNITS_}",
+      'comments' => "$lang{COMMENTS}",
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{REFERENCE_WORKS}",
+      qs      => $pages_qs,
+      ID      => 'REFERENCE_WORKS',
+      header  => '',
+      EXPORT  => 1,
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Employees',
+    TOTAL           => 1
+  });
 
   return 1;
 }
@@ -1724,6 +1514,8 @@ sub employees_report_list {
 sub employees_salary {
   #  $Employees = Employees->new($db, $admin, \%conf);
 
+  my %sum_all = ();
+
   if ($FORM{confirm}) {
     $Employees->employees_add_spending(
       {
@@ -1748,7 +1540,7 @@ sub employees_salary {
       );
       my $payment_statement_button = $html->button("$lang{PRINT}",
         "qindex=" . get_function_index("employees_print_payment_statement") . "&header=2&AID=$FORM{AID}&PRINT_STATEMENT=1", {
-          ICON   => 'glyphicon glyphicon-print',
+          ICON   => 'fa fa-print',
           target => '_blank',
         });
       $html->message("success", "$lang{ADDED}", "Платежная ведомость: $payment_statement_button");
@@ -1757,6 +1549,10 @@ sub employees_salary {
       $html->message("err", "$lang{ERROR}", "$lang{EXIST}");
     }
     delete $FORM{MONTH};
+  }
+
+  if ($FORM{all_salary}) {
+        employees_pay_salary_all(\%FORM, \%sum_all);
   }
 
   my ($year, $month, undef) = split('-', $DATE);
@@ -1869,7 +1665,8 @@ sub employees_salary {
         "$lang{SUM} $lang{PAYED}",
         "$lang{LAST_ACTIVITY}",
         "$lang{SUM_TO_PAY}",
-        '' ],
+        '',
+        ''],
       ID         => 'EMPLOYEES_SALARY',
       DATA_TABLE => 1,
     }
@@ -1985,6 +1782,16 @@ sub employees_salary {
     my $total = $bet + $extra_amount + $sum_for_works;
     my $sum_to_pay = sprintf('%.2f', $total) - sprintf('%.2f', $already_payed_sum);
 
+    if(defined $sum_to_pay){
+      $sum_all{$aid} = $sum_to_pay;
+    }
+
+    my @rows;
+    my $input_name = "SALARY_$aid";
+    my %salary_settings = ();
+    my $checked_all_salary = $html->form_input("$input_name", "1",
+      { TYPE => 'checkbox', STATE => ($salary_settings{$input_name}) ? 'checked' : '' });
+
     $salary_table->addrow(
       $plus_button . '<div style="display:none;">' . $additional_info_for_admin->show() . '</div>',
       $fio,
@@ -2002,11 +1809,39 @@ sub employees_salary {
         { ICON          => 'fa fa-money',
           target        => '_blank',
           LOAD_TO_MODAL => 1,
-        })
+        }),
+      $checked_all_salary
     );
+    $salary_table->addfooter($html->form_input('all_salary', $lang{ALL_SALARY}, { TYPE => 'submit' }));
+    $html->form_main(
+      {
+        CONTENT =>$salary_table->show({ OUTPUT2RETURN => 1 }),
+        HIDDEN  => {
+          ALL_SALARY => 1,
+          AID        => $aid,
+          index      => get_function_index('employees_salary'),
+        },
+        NAME    => 'all_salary',
+        class   => 'hidden-print',
+        ID      => 'all_salary',
+      }
+    );
+
   }
 
-  my $salary_table_template = $salary_table->show();
+  my $salary_table_template =  $html->form_main(
+    {
+      CONTENT =>$salary_table->show({ OUTPUT2RETURN => 1 }),
+      HIDDEN  => {
+        ALL_SALARY => 1,
+       # UID        => $aid,
+        index      => get_function_index('employees_salary'),
+      },
+      NAME    => 'all_salary',
+      class   => 'hidden-print',
+      ID      => 'all_salary',
+    }
+  );
   $html->tpl_show(
     _include('employees_date_choose', 'Employees'),
     {
@@ -2089,7 +1924,7 @@ sub employees_admins_bet {
       $aid_schedule->{bet_per_hour} ? $aid_schedule->{bet_per_hour} : '-',
       $aid_schedule->{bet_overtime} ? $aid_schedule->{bet_overtime} : '-',
       $html->button('', "index=$index&AID_SCHEDULE=$admin_info->{aid}&FIO=$admin_info->{name}",
-        { ICON => 'glyphicon glyphicon-pencil', })
+        { ICON => 'fa fa-pencil', })
     );
   }
 
@@ -2127,7 +1962,7 @@ sub employees_admins_bet {
 
 #**********************************************************
 
-=head2 employees_pay_bets() -
+=head2 employees_pay_salary() -
 
   Arguments:
     $attr -
@@ -2245,10 +2080,10 @@ sub employees_working_time_norms {
     ID          => 'WORKING_TIME_NORMS',
     rows        => [ \@hours_rows, \@days_rows ],
     header      => $html->button('', "index=$index&DATE=$prev_year",
-      { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-left' })
+      { class => 'btn btn-xs btn-secondary fa fa-arrow-left' })
       . $html->button("$year", "index=$index", { class => 'btn btn-xs btn-primary' })
       . $html->button('', "index=$index&DATE=$next_year",
-      { class => 'btn btn-xs btn-default glyphicon glyphicon-arrow-right' }),
+      { class => 'btn btn-xs btn-secondary fa fa-arrow-right' }),
   });
 
   $html->tpl_show(_include('employees_working_time_norms', 'Employees'), {
@@ -2828,6 +2663,84 @@ sub employees_moving_between_cashboxes {
       SEARCH_FORMER   => 1,
       MODULE          => 'Employees',
       TOTAL           => 1
+    }
+  );
+
+  return 1;
+}
+
+#**********************************************************
+
+=head2 employees_pay_salary_all() -
+
+  Arguments:
+    $attr -
+  Returns:
+
+  Examples:
+
+=cut
+
+#**********************************************************
+sub employees_pay_salary_all {
+  my ($attr) = @_;
+  my ($FORM) = @_;
+
+ #my %info;
+  my $admin_info = '';
+  my $all_admins = '';
+
+  foreach my $key (keys %FORM) {
+    if($key =~ /SALARY_(\d+)/){
+      $FORM{aid_salary} = $1;
+      $admin_info = $Admins->info($FORM{aid_salary}, { COLS_NAME => 1 });
+      $FORM{FIO} =  $admin_info->{A_FIO};
+      $all_admins .= $html->tpl_show(
+        _include('employees_salary_fio', 'Employees'),
+        {
+          FIO           => $FORM{FIO},
+        },
+        {
+          OUTPUT2RETURN => 1
+        },
+      );
+    }
+  }
+
+  my $cashbox_select = employees_cashbox_select();
+
+  my $spend_types_select = $html->form_select(
+    'SPENDING_TYPE_ID',
+    {
+      SELECTED    => $FORM{SPENDING_TYPE_ID} || $attr->{ID},
+      SEL_LIST    => $Employees->employees_list_spending_type({ COLS_NAME => 1 }),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { "" => "" },
+      MAIN_MENU   => get_function_index('employees_cashbox_spending_type'),
+    }
+  );
+
+  $html->message('info', $lang{CHECK_DATA_AND_CHOOSE_CASHBOX});
+  my $month = $FORM{month} || 1;
+  my $sum_to_pay = $FORM{sum_to_pay} || 0;
+
+  $html->tpl_show(
+    _include('employees_salary_confirm_all', 'Employees'),
+    {
+     # FIO              => $FORM{FIO},
+     # BET              => $FORM{bet},
+      EXTRA_AMOUNT     => $FORM{extra_amount},
+      FIO_1            => $all_admins,
+    #  SUM              => sprintf('%.2f', $sum_to_pay), #sprintf('%.2f', $bet + $extra_amount + $sum_for_works),
+      TEXT_MONTH       => $MONTHES[ $month - 1 ],
+      MONTH            => $month,
+      YEAR             => $FORM{year},
+      CASHBOX          => $cashbox_select,
+      SPENDING_TYPE_ID => $spend_types_select,
+     # AID              => $FORM{aid_salary},$FORM{aid_salary},$FORM{aid_salary},
+      INDEX            => get_function_index("employees_salary")
     }
   );
 

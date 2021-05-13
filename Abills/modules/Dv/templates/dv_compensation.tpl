@@ -1,6 +1,6 @@
 <div class='noprint'>
-<div class="box box-theme box-form">
-<div class="box-body">
+<div class="card card-primary card-outline box-form">
+<div class="card-body">
 
 <form action='$SELF_URL' method='POST' name='compensation' class='form-horizontal'>
 <input type=hidden name='index' value='$index'>
@@ -36,7 +36,7 @@
     </div>
   </div>
 
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type=submit class='btn btn-primary' name='add' value='_{COMPENSATION}_'>
   </div>
 

@@ -8,17 +8,18 @@ use warnings FATAL => 'all';
 use Abills::Base qw(cmd sec2time in_array);
 use Internet;
 use Fees;
+use Nas;
 
 our (
   $db,
   $admin,
   %conf,
   %lang,
-  $html,
   %permissions,
   $Sessions
 );
 
+our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Fees     = Fees->new($db, $admin, \%conf);
 
@@ -71,6 +72,7 @@ sub internet_turbo_control {
   }
 
   my $Turbo = Turbo->new($db, $admin, \%conf);
+
   my $list = $Turbo->list(
     {
       UID      => $LIST_PARAMS{UID},
@@ -80,16 +82,16 @@ sub internet_turbo_control {
   );
 
   if ($Turbo->{TOTAL} > 0 || $Internet_->{TURBO_MODE_RUN}) {
-    my $last = $list->[0]->[2] || $Internet_->{TURBO_MODE_RUN};
-    $html->message('info', $lang{INFO}, $html->b("$turbo_mods_full[$list->[0]->[1]]") . "\n$lang{REMAIN} $lang{TIME}: $last sec.");
+    my $last = $list->[0]->[2] || $Internet_->{TURBO_MODE_RUN} || 0;
+    $html->message('info', $lang{INFO}, $html->b($turbo_mods_full[$list->[0]->[1] || 0]) . "\n$lang{REMAIN} $lang{TIME}: $last sec.");
   }
-  elsif ($FORM{change} && $FORM{SPEED}) {
+  elsif ($FORM{change} && defined($FORM{SPEED})) {
     if ($user->{DEPOSIT} + $user->{CREDIT} > $price) {
       $Turbo->add(
         {
           UID        => $LIST_PARAMS{UID},
-          MODE_ID    => $FORM{MODE_ID},
-          SPEED      => int($FORM{SPEED}),
+          MODE_ID    => $FORM{SPEED} || $FORM{MODE_ID} || 0,
+          SPEED      => int($FORM{SPEED} || 0),
           SPEED_TYPE => 0,
           TIME       => $FORM{TIME},
         }
@@ -118,38 +120,69 @@ sub internet_turbo_control {
 
       my $ip = $ENV{REMOTE_ADDR};
 
-      if($conf{INTERNET_TURBO_STATIC_IP}) {
-        if(in_array('Dhcphosts', \@MODULES)) {
-          require Dhcphosts;
-          Dhcphosts->import();
-          my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
+      # if($conf{INTERNET_TURBO_STATIC_IP}) {
+      #   if(in_array('Dhcphosts', \@MODULES)) {
+      #     require Dhcphosts;
+      #     Dhcphosts->import();
+      #     my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
+      #
+      #     my $dhcp_list = $Dhcphosts->hosts_list({
+      #       UID       => $Internet_->{UID},
+      #       IP        => '_SHOW',
+      #       PAGE_ROWS => 1,
+      #       COLS_NAME => 1
+      #     });
+      #
+      #     if($Dhcphosts->{TOTAL}) {
+      #       $ip = $dhcp_list->[0]->{ip};
+      #     }
+      #   }
+      #
+      #   if ($Internet_->{IP} && $Internet_->{IP} ne '0.0.0.0') {
+      #     $ip = $Internet_->{IP};
+      #   }
+      # }
 
-          my $dhcp_list = $Dhcphosts->hosts_list({
-            UID       => $Internet_->{UID},
-            IP        => '_SHOW',
-            PAGE_ROWS => 1,
-            COLS_NAME => 1
-          });
+      my %online_info = ();
 
-          if($Dhcphosts->{TOTAL}) {
-            $ip = $dhcp_list->[0]->{ip};
-          }
-        }
+      require Internet::Sessions;
+      Internet::Sessions->import();
+      my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
-        if ($Internet_->{IP} && $Internet_->{IP} ne '0.0.0.0') {
-          $ip = $Internet_->{IP};
+      my $sessions_list = $Sessions->online({
+        UID        => $user->{UID},
+        NAS_ID    => '_SHOW',
+        COLS_NAME => 1
+      });
+
+      if ($Sessions->{TOTAL}) {
+        $online_info{ACCT_SESSION_ID}= $sessions_list->[0]->{acct_session_id};
+        $online_info{NAS_ID}         = $sessions_list->[0]->{nas_id};
+
+        my $Nas = Nas->new($db, \%conf);
+
+        $Nas->info({ NAS_ID => $online_info{NAS_ID} });
+
+        if($Nas->{NAS_ID}) {
+          $online_info{NAS_MNG_IP_PORT} = $Nas->{NAS_MNG_IP_PORT} || '';
+          $online_info{NAS_MNG_USER} = $Nas->{NAS_MNG_USER} || '';
+          $online_info{NAS_MNG_PASSWORD} = $Nas->{NAS_MNG_PASSWORD} || q{};
         }
       }
 
       if ($conf{INTERNET_TURBO_CMD}) {
         cmd($conf{INTERNET_TURBO_CMD}, {
-            PARAMS => { %$user,
-              DEBUG  => $conf{INTERNET_TURBO_CMD_DEBUG},
-              IP     => $ip
-            } });
+          PARAMS => { %$user,
+            IP     => $ip,
+            %online_info
+          },
+          DEBUG  => $conf{INTERNET_TURBO_CMD_DEBUG},
+        });
       }
 
-      $html->message('info', $lang{INFO}, $html->b("$turbo_mods_full[$FORM{MODE_ID}]") . "\n$lang{REMAIN} $lang{TIME}: $FORM{TIME} sec.");
+      $html->message('info', $lang{INFO}, $html->b($turbo_mods_full[$FORM{SPEED} || $FORM{MODE_ID} || 0])
+        . "\n$lang{REMAIN} $lang{TIME}: ". ($FORM{TIME} || 0). " sec."
+      );
     }
     else {
       $html->message('err', "$lang{ERROR}:Turbo", $lang{ERR_SMALL_DEPOSIT});
@@ -160,8 +193,7 @@ sub internet_turbo_control {
       'SPEED',
       {
         SELECTED     => $FORM{SPEED},
-        SEL_ARRAY    => \@turbo_mods_full,
-        SEL_OPTIONS  => { '' => '--' },
+        SEL_ARRAY    => [ '--', @turbo_mods_full ],
         ARRAY_NUM_ID => 1
       }
     );

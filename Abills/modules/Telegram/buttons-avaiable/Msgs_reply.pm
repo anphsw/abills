@@ -82,8 +82,11 @@ sub send_reply {
   use Msgs;
   
   my $Msgs = Msgs->new($self->{db}, $self->{admin}, $self->{conf});
-  my @msgs_text = $attr->{text} =~ /(MSGS_ID=[0-9]+)(\s|\n)*(.+)/gs;
-  
+  my @msgs_text = ();
+  if ($attr->{text}) {
+    @msgs_text = $attr->{text} =~ /(MSGS_ID=[0-9]+)(\s|\n)*(.+)/gs;
+  }
+
   if ($#msgs_text < 0) {
     return 0;
   }

@@ -1,6 +1,6 @@
-  <div class='box box-theme box-big-form'>
-    <div class='box-header with-border'><h3 class='box-title'>_{USER_ACCOUNT}_</h3></div>
-    <div class='box-body'>
+  <div class='card card-primary card-outline box-big-form'>
+    <div class='card-header with-border'><h3 class='card-title'>_{USER_ACCOUNT}_</h3></div>
+    <div class='card-body'>
         <div class='form-group'>
           <label class='control-label col-md-4'>_{DEPOSIT}_</label>
           <div class='col-md-8'>

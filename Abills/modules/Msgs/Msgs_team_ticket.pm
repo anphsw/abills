@@ -99,7 +99,7 @@ sub msgs_team_set_ticket {
   foreach my $element (@$dispatch_all) {
     my $replay_button = 
       $html->button('', "index=" . get_function_index('msgs_admin') . '&chg=' . $element->{id},
-        { class => 'glyphicon glyphicon glyphicon-list-alt' }) if ($element->{responsible} && $element->{responsible} == $admin->{AID});
+        { class => 'fa fa fa-list-alt' }) if ($element->{responsible} && $element->{responsible} == $admin->{AID});
 
     $table->addrow(
       $element->{id},

@@ -16,15 +16,13 @@
         DISPATCH_CREATE.checked = false;
         new_dispatch.style.display = 'none';
         dispatch_list.style.display = 'block';
-      }
-      else {
+      } else {
         DISPATCH_CREATE.checked = true;
         DISPATCH_COMMENTS.value = comments;
         new_dispatch.style.display = 'block';
         dispatch_list.style.display = 'none';
       }
-    }
-    else {
+    } else {
       DISPATCH_CREATE.checked = false;
       DISPATCH_COMMENTS.value = '';
       new_dispatch.style.display = 'none';
@@ -49,15 +47,13 @@
         DELIVERY_CREATE.checked = false;
         new_delivery.style.display = 'none';
         delivery_list.style.display = 'block';
-      }
-      else {
+      } else {
         DELIVERY_CREATE.checked = true;
         DELIVERY_COMMENTS.value = comments;
         new_delivery.style.display = 'block';
         delivery_list.style.display = 'none';
       }
-    }
-    else {
+    } else {
       DELIVERY_CREATE.checked = false;
       DELIVERY_COMMENTS.value = '';
       new_delivery.style.display = 'none';
@@ -65,271 +61,260 @@
     }
   }
 
-  jQuery(function () {
-    var MAX_FILES_COUNT = 3;
-    initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
-  });
+  var MAX_FILES_COUNT = 3;
+  initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
 </script>
 
 <FORM action='$SELF_URL' METHOD='POST' enctype='multipart/form-data' name='add_message' id='add_message'
       class='form-horizontal'>
-  <!-- <legend>_{MESSAGES}_</legend> -->
-  <fieldset>
-
-    <div>
-      %PREVIEW_FORM%
-    </div>
+  <div>
+    %PREVIEW_FORM%
+  </div>
 
 
-    <div class='box box-theme box-big-form'>
-      <div class='box-header with-border'><h4 class='box-title'>_{MESSAGES}_</h4></div>
-      <div class='box-body'>
+  <div class='card container-md'>
+    <div class='card-header with-border'><h4 class='card-title'>_{MESSAGES}_</h4></div>
+    <div class='card-body'>
 
-        <input type='hidden' name='index' value='$index'/>
-        <input type='hidden' name='add_form' value='1'/>
-        <input type='hidden' name='UID' value='$FORM{UID}'/>
-        <input type='hidden' name='ID' value='%ID%'/>
-        <input type='hidden' name='PARENT' value='%PARENT%'/>
-        <input type='hidden' name='PAR' value='%PAR%'/>
-        <input type='hidden' name='step' value='$FORM{step}'/>
-        <input type='hidden' name='check_repeat' value='$FORM{CHECK_REPEAT}'/>
-        <input type='hidden' name='LOCATION_ID' value='$FORM{LOCATION_ID}'>
-        <input type='hidden' name='DISTRICT_ID' value='$FORM{DISTRICT_ID}'>
-        <input type='hidden' name='STREET_ID' value='$FORM{STREET_ID}'>
-        <input type='hidden' name='ADDRESS_FLAT' value='$FORM{ADDRESS_FLAT}'>
+      <input type='hidden' name='index' value='$index'/>
+      <input type='hidden' name='add_form' value='1'/>
+      <input type='hidden' name='UID' value='$FORM{UID}'/>
+      <input type='hidden' name='ID' value='%ID%'/>
+      <input type='hidden' name='PARENT' value='%PARENT%'/>
+      <input type='hidden' name='PAR' value='%PAR%'/>
+      <input type='hidden' name='step' value='$FORM{step}'/>
+      <input type='hidden' name='check_repeat' value='$FORM{CHECK_REPEAT}'/>
+      <input type='hidden' name='LOCATION_ID' value='$FORM{LOCATION_ID}'>
+      <input type='hidden' name='DISTRICT_ID' value='$FORM{DISTRICT_ID}'>
+      <input type='hidden' name='STREET_ID' value='$FORM{STREET_ID}'>
+      <input type='hidden' name='ADDRESS_FLAT' value='$FORM{ADDRESS_FLAT}'>
 
-        <div class='form-group'>
-          <label class='control-label col-md-3' for='CHAPTER'>_{CHAPTERS}_</label>
-
-          <div class='col-md-9'>
-            %CHAPTER_SEL%
-          </div>
+      <div class='form-group row'>
+        <label class='control-label col-md-3' for='CHAPTER'>_{CHAPTERS}_:</label>
+        <div class='col-md-9'>
+          %CHAPTER_SEL%
         </div>
+      </div>
 
-        <div class='form-group'>
-          <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_</label>
-
-          <div class='col-md-9'>
-            <input type='text' name='SUBJECT' id='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%'
-                   class='form-control'>
-          </div>
+      <div class='form-group row'>
+        <label class='control-label col-md-3' for='SUBJECT'>_{SUBJECT}_:</label>
+        <div class='col-md-9'>
+          <input type='text' name='SUBJECT' id='SUBJECT' value='%SUBJECT%' placeholder='%SUBJECT%'
+                 class='form-control'>
         </div>
+      </div>
 
-        <div class='form-group'>
-          <label class='control-label col-md-3' for='COMMENTS'>_{MESSAGE}_</label>
-
-          <div class='col-md-9'>
+      <div class='form-group row'>
+        <label class='control-label col-md-3' for='SUBJECT'>_{MESSAGE}_:</label>
+        <div class='col-md-9'>
             <textarea data-action='drop-zone' class='form-control' id='MESSAGE' name='MESSAGE'
                       rows='3'>%TPL_MESSAGE%</textarea>
-          </div>
-        </div>
-
-        <div class='form-group' id="CHECK_ADDRESS">
-          <label class='control-label col-md-3' for='check_for_address'>_{ATTACH_ADDRESS}_:</label>
-
-          <div class='col-md-9'>
-            <input type="checkbox" class="form-check-input" id="CHECK_FOR_ADDRESS" name="CHECK_FOR_ADDRESS">
-          </div>
         </div>
       </div>
 
       %SEND_TYPES_FORM%
       %SEND_EXTRA_FORM%
+
+      <div class='form-group custom-control custom-checkbox'>
+        <input class='custom-control-input' type='checkbox' id='CHECK_FOR_ADDRESS' name='CHECK_FOR_ADDRESS'>
+        <label for='CHECK_FOR_ADDRESS' class='custom-control-label'>_{ATTACH_ADDRESS}_</label>
+      </div>
+
+      %ADDRESS_FORM%
+      %TAGS_FORM%
       %SEND_DELIVERY_FORM%
 
-      <div class="box box-theme box-big-form collapsed-box">
-        <div class="box-header with-border">
-          <h4 class="box-title">_{ADDITIONALLY}_</h4>
-          <div class='box-tools pull-right'>
-            <button type='button' class='btn btn-box-tool' data-widget='collapse'><i
-              class='fa fa-plus'></i>
+      <div class='card collapsed-card'>
+        <div class='card-header with-border'>
+          <h4 class='card-title'>_{ADDITIONALLY}_</h4>
+          <div class='card-tools pull-right'>
+            <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i
+                class='fa fa-plus'></i>
             </button>
           </div>
         </div>
 
-        <div id='nas_misc' class='box-body'>
+        <div id='nas_misc' class='card-body'>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='INNER_MSG'>_{PRIVATE}_</label>
-
-            <div class='col-md-6'>
-              <input type='checkbox' name='INNER_MSG' value='1' %INNER_MSG%>
-            </div>
+          <div class='form-group custom-control custom-checkbox'>
+            <input class='custom-control-input' type='checkbox' id='INNER_MSG' value='1' name='INNER_MSG' %INNER_MSG%>
+            <label for='INNER_MSG' class='custom-control-label'>_{PRIVATE}_</label>
           </div>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='DATE'>_{DATE}_</label>
-
-            <div class='col-md-6'>
+          <div class='form-group row'>
+            <label class='control-label col-md-3' for='DATE'>_{DATE}_:</label>
+            <div class='col-md-9'>
               <input id='DATE' type='text' name='DATE' value='%DATE%' class='datepicker form-control'>
             </div>
           </div>
 
-          <div class='form-group'>
-            <label class='col-md-3 control-label'>_{ATTACHMENT}_:</label>
+          <div class='form-group row'>
+            <label class='control-label col-md-3' for='ATTACHMENT'>_{ATTACHMENT}_:</label>
             <div class='col-md-9'>
               <div class='input-group'>
-                <div id='file_upload_holder' style='border : 1px solid #d2d6de'>
-                  <input name='FILE_UPLOAD' type='file' data-number='0' class='fixed'>
+                <div class='custom-file' id='file_upload_holder'>
+                  <input name='FILE_UPLOAD' class='custom-file-input' type='file' data-number='0'>
+                  <label class='custom-file-label' for='exampleInputFile'>_{ATTACHMENT}_</label>
+                </div>
+                <div class='input-group-append'>
+                  <span class='input-group-text'>_{FILE}_</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='STATE'>_{STATE}_</label>
-
+          <div class='form-group row'>
+            <label class='control-label col-md-3' for='STATE'>_{STATE}_:</label>
             <div class='col-md-9'>
               %STATE_SEL%
             </div>
           </div>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='PRIORITY'>_{PRIORITY}_</label>
-
+          <div class='form-group row'>
+            <label class='control-label col-md-3' for='PRIORITY'>_{PRIORITY}_:</label>
             <div class='col-md-9'>
               %PRIORITY_SEL%
             </div>
           </div>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='RESPOSIBLE'>_{RESPOSIBLE}_</label>
-
+          <div class='form-group row'>
+            <label class='control-label col-md-3' for='RESPOSIBLE'>_{RESPOSIBLE}_:</label>
             <div class='col-md-9'>
               %RESPOSIBLE%
             </div>
           </div>
 
-          <div class='form-group'>
-            <label class='col-sm-4 col-md-3' for='PLAN_TIME'>_{EXECUTION}_:</label>
-            <div class='col-sm-8 col-md-9'>
-              <input type='hidden' value='%PLAN_TIME%' name='PLAN_TIME' id='PLAN_TIME'/>
-              <input type='hidden' value='%PLAN_DATE%' name='PLAN_DATE' id='PLAN_DATE'/>
-              %PLAN_DATETIME_INPUT%
-            </div>
-          </div>
-
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='DISPATCH'>_{DISPATCH}_</label>
-
-            <div class='col-md-9' id=dispatch_list>
-
+          <div class='form-group row'>
+            <label class='control-label col-md-3' for='PLAN_TIME'>_{EXECUTION}_:</label>
+            <div class='col-md-9'>
               <div class='input-group'>
-                        <span class='input-group-addon'>
-                          _{ADD}_ <input type='checkbox' id=DISPATCH_CREATE name=DISPATCH_CREATE value=1
-                                         onClick='add_comments();' title='_{CREATE}_ _{DISPATCH}_'>
-                        </span>
-                %DISPATCH_SEL%
+                <input type='hidden' value='%PLAN_TIME%' name='PLAN_TIME' id='PLAN_TIME'/>
+                <input type='hidden' value='%PLAN_DATE%' name='PLAN_DATE' id='PLAN_DATE'/>
+                %PLAN_DATETIME_INPUT%
               </div>
             </div>
+          </div>
 
-            <div id=new_dispatch style='display: none'>
-              <div class='col-md-5'>
-                <input type=text id=DISPATCH_COMMENTS name=DISPATCH_COMMENTS value='%DISPATCH_COMMENTS%'
-                       class='form-control'>
-              </div>
-              <label class='control-label col-md-2' for='DISPATCH_PLAN_DATE'>_{DATE}_:</label>
-              <div class='col-md-2'>
-                <input id='DISPATCH_PLAN_DATE' type='text' name='DISPATCH_PLAN_DATE'
-                       value='%DISPATCH_PLAN_DATE%'
-                       class='datepicker form-control'>
+          <div class='form-group row'>
+            <label class='control-label col-md-3' for='DISPATCH'>_{DISPATCH}_:</label>
+            <div class='col-md-9'>
+              <div class='input-group'>
+                <div class='input-group-prepend'>
+                  <div class='input-group-text'>
+                    _{ADD}_
+                    <input type='checkbox' id='DISPATCH_CREATE' name='DISPATCH_CREATE' value='1'
+                           onClick='add_comments();' title='_{CREATE}_ _{DISPATCH}_'>
+                  </div>
+                  %DISPATCH_SEL%
+                </div>
               </div>
             </div>
-
           </div>
 
-          <div class='form-group'>
+          <div class='form-group row'>
+            <label class='control-label col-md-3' for='CALL_PHONE'>_{PHONE}_:</label>
+            <div class='col-md-9'>
+              <div class='input-group'>
+                <div class='input-group-prepend'>
+                  <div class='input-group-text'>
+                    <i class='fa fa-phone'></i>
+                  </div>
+                </div>
+                <input class='form-control' name='CALL_PHONE' value='%CALL_PHONE%'
+                       placeholder='%CALL_PHONE%'
+                       data-inputmask='{'mask' : '(999) 999-9999', 'removeMaskOnSubmit' : true}'
+                       type='text'/>
+              </div>
+            </div>
           </div>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for='SURVEY'>_{TEMPLATES}_ (_{SURVEY}_)</label>
-
+          <div class='form-group row'>
+            <label class='control-label col-md-3' for='SURVEY'>_{TEMPLATES}_ (_{SURVEY}_):</label>
             <div class='col-md-9'>
               %SURVEY_SEL%
             </div>
           </div>
 
-          <div class='form-group'>
-            <label class='control-label col-md-3' for=''>_{PHONE}_</label>
-
-            <div class='col-md-9'>
-              <div class='input-group'>
-                <div class='input-group-addon'>
-                  <i class='fa fa-phone'></i>
+          <div class='form-group' style='display: none;'>
+            <div class='row'>
+              <div class='col-sm-12 col-md-6'>
+                <label class='control-label col-md-10' for='DISPATCH_PLAN_DATE'>_{COMMENTS}_</label>
+                <div class='input-group'>
+                  <input type='text' id='DISPATCH_COMMENTS' name='DISPATCH_COMMENTS' value='%DISPATCH_COMMENTS%'
+                         class='form-control'>
                 </div>
-                <input class='form-control' name='CALL_PHONE' value='%CALL_PHONE%'
-                       placeholder='%CALL_PHONE%'
-                       data-inputmask='{"mask" : "(999) 999-9999", "removeMaskOnSubmit" : true}'
-                       type="text"/>
+              </div>
+
+              <div class='col-sm-12 col-md-6'>
+                <label class='control-label col-md-10' for='DISPATCH_PLAN_DATE'>_{DATE}_</label>
+                <div class='input-group'>
+                  <input id='DISPATCH_PLAN_DATE' type='text' name='DISPATCH_PLAN_DATE'
+                         value='%DISPATCH_PLAN_DATE%'
+                         class='datepicker form-control'>
+                </div>
               </div>
             </div>
-
           </div>
-
         </div>
       </div>
-      <div class="box box-theme box-big-form collapsed-box">
-        <div class="box-header with-border">
-          <h4 class="box-title">_{SHEDULE}_</h4>
-          <div class='box-tools pull-right'>
-            <button type='button' class='btn btn-box-tool' data-widget='collapse'><i
-              class='fa fa-plus'></i>
+
+      <div class='card collapsed-card'>
+        <div class='card-header with-border'>
+          <h4 class='card-title'>_{SHEDULE}_</h4>
+          <div class='card-tools pull-right'>
+            <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i
+                class='fa fa-plus'></i>
             </button>
           </div>
         </div>
-        <div class='box-body'>
-          <div class='row'>
-            <div class='col-md-2'>day</div>
-            <div class='col-md-2'>month</div>
-            <div class='col-md-2'>year</div>
+        <div class='card-body'>
+          <div class='form-group custom-control custom-checkbox'>
+            <input class='custom-control-input' type='checkbox' id='PERIODIC' value='1' name='PERIODIC' %PERIODIC%>
+            <label for='PERIODIC' class='custom-control-label'>_{PERIODICALLY}_</label>
           </div>
           <div class='row'>
+            <label class='control-label col-md-2'>_{DAY}_:</label>
             <div class='col-md-2'><input class='form-control' name='DAY' value='%DAY%'></div>
+            <label class='control-label col-md-2'>_{MONTH}_:</label>
             <div class='col-md-2'><input class='form-control' name='MONTH' value='%MONTH%'></div>
+            <label class='control-label col-md-2'>_{YEAR}_:</label>
             <div class='col-md-2'><input class='form-control' name='YEAR' value='%YEAR%'></div>
-            <div class='col-md-4'>
-              <div class='checkbox'>
-                <label><input type='checkbox' name=PERIODIC value='1'
-                              %PERIODIC%>_{PERIODICALLY}_</label>
-              </div>
-            </div>
           </div>
         </div>
-      </div>
-
-      <div class='box-footer'>
-        %BACK_BUTTON%
-        <!--Should stay on single line-->
-        <input type="submit" name='%ACTION%' class='btn btn-primary' value='%LNG_ACTION%' id='go'
-               title='Ctrl+Enter'/>
       </div>
     </div>
-  </fieldset>
 
-  <div id="confirmModal" class="modal fade" role="dialog">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-          <h4 class="modal-title">_{MASS_MAILING}_</h4>
+    <div class='card-footer'>
+      %BACK_BUTTON%
+      <!--Should stay on single line-->
+      <input type='submit' name='%ACTION%' class='btn btn-primary' value='%LNG_ACTION%' id='go' title='Ctrl+Enter'/>
+    </div>
+  </div>
+
+  <div id='confirmModal' class='modal fade' role='dialog'>
+    <div class='modal-dialog'>
+      <div class='modal-content'>
+        <div class='modal-header'>
+          <button type='button' class='close' data-dismiss='modal'>&times;</button>
+          <h4 class='modal-title'>_{MASS_MAILING}_</h4>
         </div>
-        <div class="modal-footer">
-          <input type="submit" name='%ACTION%' class='btn btn-primary' value='%LNG_ACTION%'
+        <div class='modal-footer'>
+          <input type='submit' name='%ACTION%' class='btn btn-primary' value='%LNG_ACTION%'
                  title='Ctrl+Enter'/>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="confirmRepeatModal" class="modal fade" role="dialog">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-          <h4 id="repeat_title" class="modal-title"></h4>
+  <div id='confirmRepeatModal' class='modal fade' role='dialog'>
+    <div class='modal-dialog'>
+      <div class='modal-content'>
+        <div class='modal-header'>
+          <button type='button' class='close' data-dismiss='modal'>&times;</button>
+          <h4 id='repeat_title' class='modal-title'></h4>
         </div>
-        <div class="modal-footer">
-          <input type="submit" name='%ACTION%' class='btn btn-primary text-center' value='%LNG_ACTION%'
+        <div class='modal-footer'>
+          <input type='submit' name='%ACTION%' class='btn btn-primary text-center' value='%LNG_ACTION%'
                  title='Ctrl+Enter'/>
         </div>
       </div>
@@ -338,7 +323,7 @@
 
 </FORM>
 
-<script src="/styles/default_adm/js/draganddropfile.js"></script>
+<script src='/styles/default_adm/js/draganddropfile.js'></script>
 
 <script>
   jQuery(function () {
@@ -354,29 +339,28 @@
             }
           }
         });
-      }
-      else {
-        jQuery('textarea#MESSAGE').val("");
+      } else {
+        jQuery('textarea#MESSAGE').val('');
       }
     });
 
     jQuery('#go').on('click', function (e) {
       let form_hash = getFormData();
       if (form_hash['check_repeat'] && parseInt(form_hash['check_repeat'])) {
-        let uid = "%UID%" || "";
-        let location_id = form_hash['LOCATION_ID'] || "";
+        let uid = '%UID%' || '';
+        let location_id = form_hash['LOCATION_ID'] || '';
         let results = [];
 
         let link = 'header=2&get_index=msgs_repeat_ticket&UID=' + uid + '&LOCATION_ID=' + location_id;
         jQuery.ajaxSetup({async: false});
         jQuery.get('$SELF_URL', link, function (result) {
-          results = result.split(":");
+          results = result.split(':');
         });
 
         if (parseInt(results[0])) {
           e.preventDefault();
           jQuery('.modal').modal('hide');
-          document.getElementById('repeat_title').innerHTML = results[1] || "";
+          document.getElementById('repeat_title').innerHTML = results[1] || '';
           jQuery('#confirmRepeatModal').modal('show');
           jQuery.ajaxSetup({async: true});
         }
@@ -408,11 +392,11 @@
 
   jQuery('#CHECK_FOR_ADDRESS').change(function () {
     if (jQuery(this).is(':checked')) {
-      jQuery('#PREVIEW').attr("disabled", true);
-      jQuery('#GID').attr("disabled", true);
+      jQuery('#PREVIEW').attr('disabled', true);
+      jQuery('#GID').attr('disabled', true);
     } else {
-      jQuery('#PREVIEW').attr("disabled", false);
-      jQuery('#GID').attr("disabled", false);
+      jQuery('#PREVIEW').attr('disabled', false);
+      jQuery('#GID').attr('disabled', false);
     }
   });
 </script>

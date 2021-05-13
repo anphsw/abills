@@ -94,7 +94,6 @@ function insertColors(colors, $container, options) {
     $insertedDivs[$insertedDivs.length] = next_color;
   });
 
-  console.log($insertedDivs);
   return $insertedDivs;
 }
 

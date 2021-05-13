@@ -1,15 +1,15 @@
 <form class='form-horizontal' id='task_box_form'>
 %HIDDEN_INPUTS%
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'>
-      <h3 class='box-title'>%BOX_TITLE%</h3>
-      <div class='box-tools pull-right'>
-        <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'>
+      <h3 class='card-title'>%BOX_TITLE%</h3>
+      <div class='card-tools pull-right'>
+        <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
         <i class='fa fa-minus'></i>
         </button>
       </div>
     </div>
-    <div class='box-body' id='task_box_body'>%BOX_BODY%</div>
-    <div class='box-footer'>%BOX_FOOTER%</div>
+    <div class='card-body' id='task_box_body'>%BOX_BODY%</div>
+    <div class='card-footer'>%BOX_FOOTER%</div>
   </div>
 </form>

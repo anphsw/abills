@@ -1,57 +1,57 @@
-<div class='col-xs-12 col-md-6'>
-<div class='box box-theme'>
-    <div class='box-body'>
-        <div class='form-group'>
-            <label class='control-label col-xs-3' for='GROUP'>_{GROUP}_:</label>
-            <div class='col-xs-9'>
+<div class="col-sm-12 col-md-6">
+    <div class='card card-primary card-outline'>
+        <div class='card-body'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='GROUP'>_{GROUP}_</label>
+                <div class="col-sm-8 col-md-8">
                     %GROUPS_SEL%
+                </div>
             </div>
-        </div>
 
-        <div class='form-group'>
-            <label class='control-label col-xs-3' for='A_LOGIN'>_{OPERATOR}_ (_{LOGIN}_):</label>
-            <div class='col-xs-9'>
-                <input id='A_LOGIN' name='A_LOGIN' value='%A_LOGIN%' placeholder='%A_LOGIN%' class='form-control'
-                       type='text'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='A_LOGIN'>_{OPERATOR}_ (_{LOGIN}_)</label>
+                <div class="col-sm-8 col-md-8">
+                    <input id='A_LOGIN' name='A_LOGIN' value='%A_LOGIN%' placeholder='%A_LOGIN%' class='form-control'
+                        type='text'>
+                </div>
             </div>
-        </div>
 
-        <div class='form-group'>
-            <label class='control-label col-xs-3' for='DESCRIBE'>_{DESCRIBE}_ _{USERS}_ (*):</label>
-            <div class='col-xs-9'>
-                <input id='DESCRIBE' name='DESCRIBE' value='%DESCRIBE%' placeholder='%DESCRIBE%'
-                       class='form-control' type='text'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='DESCRIBE'>_{DESCRIBE}_ _{USERS}_</label>
+                <div class="col-sm-8 col-md-8">
+                    <input id='DESCRIBE' name='DESCRIBE' value='%DESCRIBE%' placeholder='%DESCRIBE%'
+                        class='form-control' type='text'>
+                </div>
             </div>
-        </div>
 
-        <div class='form-group'>
-            <label class='control-label col-xs-3' for='INNER_DESCRIBE'>_{DESCRIBE}_ _{INNER}_ (*):</label>
-            <div class='col-xs-9'>
-                <input id='INNER_DESCRIBE' name='INNER_DESCRIBE' value='%INNER_DESCRIBE%'
-                       placeholder='%INNER_DESCRIBE%' class='form-control' type='text'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='INNER_DESCRIBE'>_{INNER}_</label>
+                <div class="col-sm-8 col-md-8">
+                    <input id='INNER_DESCRIBE' name='INNER_DESCRIBE' value='%INNER_DESCRIBE%'
+                        placeholder='%INNER_DESCRIBE%' class='form-control' type='text'>
+                </div>
             </div>
-        </div>
 
-        <div class='form-group'>
-            <label class='control-label col-xs-3' for='SEL_METHOD'>_{TYPE}_:</label>
-            <div class='col-xs-9'>
-                %SEL_METHOD%
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='SEL_METHOD'>_{TYPE}_</label>
+                <div class="col-sm-8 col-md-8">
+                    %SEL_METHOD%
+                </div>
             </div>
-        </div>
-
-        <div class='form-group'>
-            <label class='control-label col-xs-3' for='ID'>_{FEES}_ ID (&lt;, &gt;):</label>
-            <div class='col-xs-9'>
-                <input id='ID' name='ID' value='%ID%' placeholder='%ID%' class='form-control' type='text'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='ID'>_{FEES}_ ID</label>
+                <div class="col-sm-8 col-md-8">
+                    <input id='ID' name='ID' value='%ID%' placeholder='%ID%' class='form-control' type='text'>
+                </div>
             </div>
-        </div>
 
-        <div class='form-group'>
-            <label class='control-label col-xs-3' for='SUM'>_{SUM}_ (&lt;, &gt;):</label>
-            <div class='col-xs-9'>
-                <input id='SUM' name='SUM' value='%SUM%' placeholder='%SUM%' class='form-control' type='text'>
+
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='SUM'>_{SUM}_</label>
+                <div class="col-sm-8 col-md-8">
+                    <input id='SUM' name='SUM' value='%SUM%' placeholder='%SUM%' class='form-control' type='text'>
+                </div>
             </div>
         </div>
     </div>
-</div>  
 </div>

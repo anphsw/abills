@@ -114,25 +114,8 @@ sub docs_contract{
   if ( $y =~ /(\d{2})$/ ){
     $users->{CONTRACT_YY} = $1;
   }
-  #User Tp info
-  my $Internet;
-
-  if(in_array('Internet', \@MODULES)) {
-    require Internet;
-    Internet->import();
-    $Internet = Internet->new($db, $admin, \%conf);
-  }
-  else {
-    require Dv;
-    Dv->import();
-    $Internet = Dv->new($db, $admin, \%conf);
-  }
-
-  my $internet_info = $Internet->info($Docs->{UID});
-  $Docs->{DOCS_TPNAME_INTERNET} = $internet_info->{TP_NAME};
 
   my $docs_service_info = docs_module_info({ UID => $Docs->{UID} });
-
   #User Contacts info
   my $contacts = _docs_user_contacts_info( { UID => $Docs->{UID}, } );
 
@@ -359,7 +342,7 @@ sub docs_print{
   if ( $Docs->{UID} ){
     $users->info( $Docs->{UID} ) if (!$users->{BILL_ID});
     $users->pi( { UID => $Docs->{UID} } );
-    $users->{ADDRESS_FULL} = "$users->{ADDRESS_STREET} $conf{BUILD_DELIMITER} $users->{ADDRESS_BUILD} $conf{BUILD_DELIMITER} $users->{ADDRESS_FLAT}" if ($users->{ADDRESS_STREET});
+    $users->{ADDRESS_FULL} = "$users->{ADDRESS_STREET}$conf{BUILD_DELIMITER}$users->{ADDRESS_BUILD}$conf{BUILD_DELIMITER}$users->{ADDRESS_FLAT}" if ($users->{ADDRESS_STREET});
 
     if ( $users->{GID} ){
       $users->group_info( $users->{GID} );
@@ -414,7 +397,7 @@ sub docs_print{
     else {
       my $qrcode_filename = &{$get_qrcode_filename}();
       $attr->{QR_CODE} = $html->img('/images/' . $qrcode_filename, 'qrcode', {
-          class => 'img-responsive center-block'
+          class => 'img-fluid center-block'
         });
     }
   }
@@ -916,7 +899,8 @@ sub docs_pre_payment{
         ORDER             => $FORM{DESCRIBE},
         $LIST_PARAMS{UID} => $FORM{UID},
         SUM               => $FORM{SUM}
-    } });
+      }
+    });
   }
   elsif ( $FORM{INVOICE_ID} ){
     $Docs->invoice_info( $FORM{INVOICE_ID} );
@@ -964,6 +948,7 @@ sub docs_statement_of_account {
     DSC        => '_SHOW',
     SUM        => '_SHOW',
     LAST_DEPOSIT=>'_SHOW',
+    BILL_ID     => '_SHOW',
     %LIST_PARAMS,
     COLS_NAME  => 1,
     COLS_UPPER => 1
@@ -982,6 +967,9 @@ sub docs_statement_of_account {
     INVOICE_NUM => '_SHOW',
     LAST_DEPOSIT=> '_SHOW',
     SUM         => '_SHOW',
+    BILL_ID     => '_SHOW',
+    BILL_ID     => '_SHOW',
+    BILL_ID     => '_SHOW',
     %LIST_PARAMS,
     COLS_NAME   => 1,
     COLS_UPPER  => 1
@@ -996,11 +984,20 @@ sub docs_statement_of_account {
   my @xls_data = ();
   my @data_upload = ();
   my @title_upload = ( $lang{DATE}, $lang{TYPE}, $lang{ACCOUNT}, $lang{BALANCE}, $lang{FEES}, $lang{PAYMENTS}, $lang{DESCRIBE} );
+
+  my %BILL_ACCOUNTS = ();
+
+  if ($conf{EXT_BILL_ACCOUNT}) {
+    $BILL_ACCOUNTS{ $users->{BILL_ID} } = "$lang{PRIMARY} : $users->{BILL_ID}" if ($users->{BILL_ID});
+    $BILL_ACCOUNTS{ $users->{EXT_BILL_ID} } = "$lang{EXTRA} : $users->{EXT_BILL_ID}" if ($users->{EXT_BILL_ID});
+  }
+
   foreach my $date ( sort keys %operations ) {
 
     foreach my $money_operation ( @{ $operations{$date} } ) {
       my $date = ($money_operation->{FEES}) ? $money_operation->{datetime} : $html->b(($money_operation->{datetime}));
       my $login = ($money_operation->{FEES}) ? $users->{LOGIN} : $html->b($users->{LOGIN});
+      my $bill_id = ($money_operation->{FEES}) ? $BILL_ACCOUNTS{$money_operation->{bill_id}} : $BILL_ACCOUNTS{$money_operation->{bill_id}};
       my $invoice = $html->b($money_operation->{invoice_num});
       my $fio = ($money_operation->{FEES}) ? $users->{FIO} : $html->b($users->{FIO});
       my $fees = ($money_operation->{FEES}) ? sprintf("%.2f", $money_operation->{sum} || 0) : '';
@@ -1012,6 +1009,7 @@ sub docs_statement_of_account {
         {
           date        => $date,
           login       => $login,
+          bill_id     => $bill_id,
           invoice_num => $invoice,
           fio         => $fio,
           fees_sum    => $fees,
@@ -1021,10 +1019,10 @@ sub docs_statement_of_account {
         },
         { OUTPUT2RETURN => 1 } );
 
-        push @xls_data, ($date, $login, $invoice, $deposit, $fees, $payments, $describe);
+        push @xls_data, ($date, $login, $bill_id, $invoice, $deposit, $fees, $payments, $describe);
         
-        if ($#xls_data > 6) {
-          push @data_upload, [ $xls_data[7], $xls_data[8], $xls_data[9], $xls_data[10], $xls_data[11], $xls_data[12], $xls_data[13] ];
+        if ($#xls_data > 7) {
+          push @data_upload, [ $xls_data[8], $xls_data[9], $xls_data[10], $xls_data[11], $xls_data[12], $xls_data[13], $xls_data[14] ];
         }
     } 
     
@@ -1048,8 +1046,9 @@ sub docs_statement_of_account {
   );
 
   my $uid = $FORM{UID} || 0;
-  my $upload_xml = $html->button('XLS', "qindex=15&STATMENT_ACCOUNT=1&UID=$uid&header=2&xls=1&EXPORT_CONTENT=DOCS", { 
-    class => 'btn btn-default'
+  my $upload_xml = $html->button('XLS', "qindex=15&STATMENT_ACCOUNT=1&UID=$uid&header=2&xls=1&EXPORT_CONTENT=DOCS"
+    .(($FORM{DATE}) ? "&DATE=$FORM{DATE}" : q{}), {
+    class => 'btn btn-secondary'
   });
 
   if ($FORM{xls}) {
@@ -1232,7 +1231,6 @@ sub _docs_user_contacts_info {
   my ($attr) = @_;
 
   return {} unless ( $attr->{UID} );
-
 
   require Contacts;
   Contacts->import();
@@ -1448,6 +1446,8 @@ sub docs_module_info {
   #Modules info
   my $cross_modules_return = cross_modules_call('_docs', { UID => $attr->{UID} });
 
+  $doc{"DOCS_ABON_SUM_SERVICE"} = 0;
+
   my $service_num = 1;
   foreach my $module (sort keys %$cross_modules_return) {
     if (ref $cross_modules_return->{$module} eq 'ARRAY') {
@@ -1457,12 +1457,15 @@ sub docs_module_info {
         #$name, $describe, sum, $tp_id, tp_name
         my (undef, undef, $sum, undef, $tp_name) = split(/\|/, $line);
         my $module_info = uc($module) . (($module_num) ? "_$module_num" : '');
-        $doc{"DOCS_ABON_" . $module_info }   = $sum || 0;
+        $doc{"DOCS_ABON_" . $module_info }   = sprintf("%.2f", $sum || 0);
         $doc{"DOCS_TPNAME_" . $module_info } = $tp_name || q{};
-        $doc{"DOCS_SERVICE_SUM_" . $service_num } = $sum || 0;
+        $doc{"DOCS_SERVICE_SUM_" . $service_num } = sprintf("%.2f", $sum || 0);
         $doc{"DOCS_SERVICE_NAME_" . $service_num } = $tp_name || q{};
         $service_num++;
         $module_num++;
+
+        $doc{"DOCS_ABON_SUM_SERVICE"} += $doc{"DOCS_ABON_" . $module_info } || 0;
+        $doc{"DOCS_ABON_SUM_SERVICE"} += $doc{"DOCS_SERVICE_SUM_" . $service_num } || 0;
       }
     }
   }

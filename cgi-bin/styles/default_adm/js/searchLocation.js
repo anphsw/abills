@@ -285,7 +285,7 @@ $(function () {
         $flat_input.popover({
           'content'  : content,
           'html'     : true,
-          'placement': 'top auto'
+          'placement': 'top'
         });
         initialized = true;
       }

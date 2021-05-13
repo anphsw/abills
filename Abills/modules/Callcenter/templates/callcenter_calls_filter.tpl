@@ -1,11 +1,11 @@
 <form action=$SELF_URL METHOD=POST >
 <input type='hidden' name='index' value=$index>
   
-<div class='box box-theme box-form form-horizontal'>
+<div class='card card-primary card-outline box-form form-horizontal'>
   
-<div class='box-heading with-border text-primary'><h4 class='box-title'>_{FILTERS}_</h4></div>
+<div class='card-heading with-border text-primary'><h4 class='card-title'>_{FILTERS}_</h4></div>
 
-<div class='box-body'>
+<div class='card-body'>
   <div class='form-group' data-visible='%STATUS_VISIBILITY%'>
     <label class='control-label col-md-3'>_{STATUS}_</label>
     <div class='col-md-9'>
@@ -33,10 +33,10 @@
   </div>
 </div>
 
-<div class='box-footer'>
+<div class='card-footer'>
   <button type='submit' class='btn btn-primary'>_{FILTER}_</button>
   <a href='$SELF_URL?index=$index&refresh=1'  type='button' class='btn btn-success' data-tooltip='_{FILLING_DATA}_' data-visible='%REFRESH_VISIBILITY%'>
-    <span class='glyphicon glyphicon-refresh' aria-hidden='true'></span>
+    <span class='fa fa-refresh' aria-hidden='true'></span>
   </a>
 </div>
 </div>

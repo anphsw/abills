@@ -7,11 +7,11 @@
   <input type='hidden' name='OLD_STORAGE_ID' value='%OLD_STORAGE_ID%'>
 
 
-  <div class='box box-theme box-form form-horizontal'>
+  <div class='card card-primary card-outline box-form form-horizontal'>
 
-    <div class='box-header with-border'><b>_{TRANSFER_ITEM}_</b></div>
+    <div class='card-header with-border'><b>_{TRANSFER_ITEM}_</b></div>
 
-    <div class='box-body'>
+    <div class='card-body'>
 
       <div class='form-group'>
         <label class='col-md-3 control-label'>_{OUT_STORAGE}_</label>
@@ -32,7 +32,7 @@
 
     </div>
 
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input class='btn btn-primary' type='submit' name='move_confirm' value='_{APPLY}_'>
     </div>
 

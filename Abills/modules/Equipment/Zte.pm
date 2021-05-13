@@ -10,6 +10,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(_bp in_array int2byte convert);
 use Abills::Filters qw(bin2mac bin2hex _mac_former);
+use Equipment::Misc qw(equipment_get_telnet_tpl);
 
 our (
   %lang,
@@ -20,7 +21,7 @@ our (
 );
 
 my %type_name = (
-  1  => 'epon_olt_virtualIfBER',
+  1  => 'epon_olt_virtualIfBER', # gpon on C300
   3  => 'epon-onu',
   6  => 'type6',
   9  => 'epon_onu',
@@ -143,7 +144,7 @@ sub _zte_onu_list {
         $onu_info{ONU_DHCP_PORT} = $port_dhcp_id;
 
         foreach my $oid_name (keys %{$snmp}) {
-          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage') {
+          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage' || $oid_name eq 'LLID') {
             next;
           }
           elsif ($oid_name =~ /POWER|TEMPERATURE/ && $status ne '3') {
@@ -232,7 +233,7 @@ sub _zte_onu_list {
             my $value = '';
             my $oid_name = $cols->[$i];
 
-            my $num = ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /C220/i) ? sprintf("%02d", $onu_id) : sprintf("%03d", $onu_id);
+            my $num = ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /C220|C300/i) ? sprintf("%02d", $onu_id) : sprintf("%03d", $onu_id);
             if ($attr->{MODEL_NAME} && ($attr->{MODEL_NAME} =~ /C220|C320/i)
               && ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum')) {
               $num =~ s/^0+/ /g;
@@ -605,7 +606,7 @@ sub _zte {
           OIDS   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.2',
           PARSER => ''
         },
-        'VENDOR_ID'    => {
+        'VENDOR'    => {
           NAME   => 'VENDOR',
           OIDS   => '.1.3.6.1.4.1.3902.1012.3.50.11.2.1.1',
           PARSER => ''
@@ -857,8 +858,8 @@ sub _zte_decode_onu {
   my $bin = sprintf("%032b", $dec);
   my ($bin_type) = $bin =~ /^(\d{4})/;
   my $type = oct("0b$bin_type");
-  my $i = ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /C220/i) ? 0 : 1;
   my $model_name = $attr->{MODEL_NAME} || q{};
+  my $i = ($model_name =~ /C220/i) ? 0 : 1;
   my $result_type = $attr->{TYPE} || q{};
 
   #epon-onu
@@ -868,7 +869,7 @@ sub _zte_decode_onu {
 
     if ($result_type eq 'dhcp') {
       $result{slot} = ($model_name =~ /C220|C320/i) ? sprintf("%02d", $result{slot}) : sprintf("%02d", $result{slot});
-      $result{onu} = ($model_name =~ /C220|C320/i) ? sprintf("%02d", $result{onu}) : sprintf("%03d", $result{onu});
+      $result{onu} = ($model_name =~ /C220|C320|C300/i) ? sprintf("%02d", $result{onu}) : sprintf("%03d", $result{onu});
       if ($model_name =~ /C220/i) {
         $result{slot} =~ s/^0/ /g;
         $result{onu} =~ s/^0/ /g;
@@ -900,6 +901,9 @@ sub _zte_decode_onu {
         if ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum') {
           $result{slot} =~ s/^0/ /g;
         }
+      }
+      elsif ($model_name =~ /C300/i) {
+        $shelf_inc = 1;
       }
     }
     elsif ($model_name =~ /C3/i) {
@@ -1511,7 +1515,7 @@ sub _zte_unregister_form {
     });
   } else {
     my $val = $list[0] || '';
-    $attr->{TEMPLATE} = "<input name='TEMPLATE' class='form-control' readonly value='$val'>";
+    $attr->{TEMPLATE} = "<input id='TEMPLATE' name='TEMPLATE' class='form-control' readonly value='$val'>";
   }
 
   $html->tpl_show(_include('equipment_registred_onu_zte', 'Equipment'), $attr);
@@ -1547,58 +1551,70 @@ sub _zte_get_onu_config {
 
   my $onu_type = $attr->{ONU_TYPE} || $attr->{TYPE};
 
-  if ($onu_type eq 'gpon') {
-    my $username = $attr->{NAS_INFO}->{NAS_MNG_USER};
-    my $password = $attr->{NAS_INFO}->{NAS_MNG_PASSWORD};
-    my $branch = $attr->{BRANCH};
-    my $onu_id = $attr->{ONU_ID};
-    my $branch_and_onu_id = "$branch:$onu_id";
+  my $username = $attr->{NAS_INFO}->{NAS_MNG_USER};
+  my $password = $attr->{NAS_INFO}->{NAS_MNG_PASSWORD};
+  my $branch = $attr->{BRANCH};
+  my $onu_id = $attr->{ONU_ID};
 
-    my ($ip, undef) = split (/:/, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT}, 2);
+  my ($ip, undef) = split (/:/, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT}, 2);
 
-    use Abills::Telnet;
+  my @cmds = @{equipment_get_telnet_tpl({
+    TEMPLATE => "zte_get_onu_config_$onu_type.tpl",
+    BRANCH   => $branch,
+    ONU_ID   => $onu_id
+  })};
 
-    my $t = Abills::Telnet->new();
-
-    $t->set_terminal_size(256, 1000); #if terminal size is small, ZTE does not print all of command output, but prints first *terminal_height* lines, prints '--More--' and lets user scroll it manually
-    $t->prompt('\n.*#$');
-
-    if (!$t->open($ip)) {
-      $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
-      return [];
-    }
-
-    if(!$t->login($username, $password)) {
-      $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
-      return [];
-    }
-
-    my @result = ();
-    my @cmds = (
-      "show gpon onu detail-info gpon-onu_$branch_and_onu_id",
-      "show onu running config gpon-onu_$branch_and_onu_id",
-      "show running-config interface gpon-onu_$branch_and_onu_id"
-    );
-
-    foreach my $cmd (@cmds) {
-      my $cmd_result = $t->cmd($cmd);
-      if ($cmd_result) {
-        push @result, [$cmd, join("\n", @$cmd_result)];
-      }
-      else {
-        push @result, [$cmd, $lang{ERROR} . ' Telnet: ' . $t->errstr()];
-      }
-    }
-
-    if ($t->errstr()) {
-      $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
-    }
-
-    return @result;
+  if (!@cmds) {
+    @cmds = @{equipment_get_telnet_tpl({
+      TEMPLATE => "zte_get_onu_config_$onu_type.tpl.example",
+      BRANCH   => $branch,
+      ONU_ID   => $onu_id
+    })};
   }
-  else {
-    return (["Config getting error", "Config getting is not supported on EPON"]);
+
+  if (!@cmds) {
+    if ($onu_type =~ /epon/i) {
+      return ([$lang{ERROR}, $lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED}]);
+    }
+    else {
+      return ([$lang{ERROR}, $lang{FAILED_TO_GET_TELNET_CMDS_FROM_FILE} . " zte_get_onu_config_$onu_type.tpl"]);
+    }
   }
+
+  use Abills::Telnet;
+
+  my $t = Abills::Telnet->new();
+
+  $t->set_terminal_size(256, 1000); #if terminal size is small, ZTE does not print all of command output, but prints first *terminal_height* lines, prints '--More--' and lets user scroll it manually
+  $t->prompt('\n.*#$');
+
+  if (!$t->open($ip)) {
+    $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
+    return [];
+  }
+
+  if(!$t->login($username, $password)) {
+    $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
+    return [];
+  }
+
+  my @result = ();
+
+  foreach my $cmd (@cmds) {
+    my $cmd_result = $t->cmd($cmd);
+    if ($cmd_result) {
+      push @result, [$cmd, join("\n", @$cmd_result)];
+    }
+    else {
+      push @result, [$cmd, $lang{ERROR} . ' Telnet: ' . $t->errstr()];
+    }
+  }
+
+  if ($t->errstr()) {
+    $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
+  }
+
+  return @result;
 }
 
 1

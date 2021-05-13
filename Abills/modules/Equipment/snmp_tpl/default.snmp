@@ -50,18 +50,10 @@
           "PARSER": ""
     },
     "PORT_IN": {
-      "OIDS": ".1.3.6.1.2.1.2.2.1.10",
-      "PARSER": "hidden"
-    },
-    "PORT_OUT": {
-      "OIDS": ".1.3.6.1.2.1.2.2.1.16",
-      "PARSER": "hidden"
-    },
-    "PORT_IN_64": {
       "OIDS": ".1.3.6.1.2.1.31.1.1.1.6",
       "PARSER": "hidden"
     },
-    "PORT_OUT_64": {
+    "PORT_OUT": {
       "OIDS": ".1.3.6.1.2.1.31.1.1.1.10",
       "PARSER": "hidden"
     },
@@ -71,6 +63,10 @@
     },
     "PORT_NAME": {
       "OIDS": ".1.3.6.1.2.1.31.1.1.1.1",
+      "PARSER": ""
+    },
+    "PORT_INDEX": {
+      "OIDS": "1.3.6.1.2.1.17.1.4.1.2",
       "PARSER": ""
     },
     "PORT_ALIAS": {

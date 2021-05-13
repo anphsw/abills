@@ -7,10 +7,10 @@
   <input type=hidden name="Ds_Signature" value="%SIGN%">
 
 
-  <div class='box box-primary'>
+  <div class='card box-primary'>
 
-    <div class='box-header with-border text-center'>RedSys </div>
-    <div class='box-body'>
+    <div class='card-header with-border text-center'>RedSys </div>
+    <div class='card-body'>
 
       <div class='form-group'>
 
@@ -40,7 +40,7 @@
 
     </div>
 
-    <div class='box-footer'>
+    <div class='card-footer'>
 
         <input class='btn btn-primary' type='submit' value=_{PAY}_>
     

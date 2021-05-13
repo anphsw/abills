@@ -5,15 +5,15 @@
         %CREATE_BTN%
       </div>
     </div>
-    <div class='box box-theme'>
-      <div class='box-header with-border'>
-        <h3 class='box-title'>_{STATE}_</h3>
-        <div class='box-tools'>
-          <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i>
+    <div class='card card-primary card-outline'>
+      <div class='card-header with-border'>
+        <h3 class='card-title'>_{STATE}_</h3>
+        <div class='card-tools'>
+          <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-minus'></i>
           </button>
         </div>
       </div>
-      <div class='box-body no-padding'>
+      <div class='card-body no-padding'>
         <ul class='nav nav-pills nav-stacked text-left'>
           %FILTERS%
         </ul>

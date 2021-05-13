@@ -19,10 +19,12 @@ our (
   $DATE,
   $TIME,
   $debug,
-  $Nas,
   $db,
-  $Sessions
 );
+
+
+our Nas $Nas;
+our Internet::Sessions $Sessions;
 
 mx80_checklines();
 
@@ -115,7 +117,12 @@ sub mx80_checklines {
 
     $SNMP_COMMUNITY = $conf{MX80_SNMP_COMMUNITY} || $nas_info->{nas_mng_password} || 'public';
 
-    my $jnxSubscriberIpAddress = '1.3.6.1.4.1.2636.3.64.1.1.1.3.1.5';
+    #All leathes
+    #my $jnxSubscriberIpAddress = '1.3.6.1.4.1.2636.3.64.1.1.1.3.1.5';
+
+    #Subscribers
+    my $jnxSubscriberIpAddress = '1.3.6.1.4.1.2636.3.64.1.1.1.6.1.5';
+
     if ($debug > 6) {
       print "oid -> $jnxSubscriberIpAddress\n";
     }

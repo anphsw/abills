@@ -101,17 +101,17 @@ sub msgs_sp_show_new {
     my $scalar_closed_in_month = $closed_in_month ? scalar (@$closed_in_month) : 0;
 
     my $opened_per_month_badge = $html->element('small', ($scalar_opened_in_month), {
-        class                   => 'label bg-warning',
+        class                   => 'label badge badge-warning',
         'data-tooltip'          => "$lang{OPEN} $lang{FOR_} $lang{MONTH}",
         'data-tooltip-position' => 'top'
       });
     my $closed_per_month_badge = $html->element('small', ($scalar_closed_in_month), {
-        class                   => 'label bg-green',
+        class                   => 'label badge badge-success',
         'data-tooltip'          => "$lang{CLOSED} $lang{FOR_} $lang{MONTH}",
         'data-tooltip-position' => 'top'
       });
     my $all_opend_messages = $html->element('small', $all_open_msgs, {
-        class => 'label  bg-primary',
+        class                   => 'label badge badge-primary',
         'data-tooltip'          => "$lang{ALL} $lang{OPEN}",
         'data-tooltip-position' => 'top'
       });
@@ -158,8 +158,8 @@ sub msgs_user_watch {
   _error_show($Msgs);
 
   my $badge = $html->element('small', scalar @{$watched_links}, {
-      class => 'label pull-right bg-green',
-    });
+    class => 'label badge badge-success',
+  });
 
   return msgs_sp_table($watched_messages_list, {
     BADGE           => $badge,
@@ -351,7 +351,7 @@ sub msgs_sp_table {
       $html->element('i', '', {
           class                   => $state_icon,
           'data-tooltip'          => $status_name,
-          'data-tooltip-position' => 'left auto'
+          'data-tooltip-position' => 'left'
         },
       ),
 

@@ -1,6 +1,6 @@
 <div class="col-md-6 col-xs-12">
-  <div class='box box-theme box-form'>
-    <div class='box-body'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-body'>
 
     <div class='form-group'>
       <label class='control-label col-md-5' for='SRC_IP'>SRC IP: (192.168.0.1,192.168,10.0/24)</label>

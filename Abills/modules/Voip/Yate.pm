@@ -168,7 +168,7 @@ sub voip_yate_users_list {
     else {
       my $qs = $pages_qs;
       $qs =~ s/\&SERVICE_STATUS=\d//;
-      $status_bar .= ' ' . $html->button($name, $service_status_colors[$i], { class => "btn btn-default $active" });
+      $status_bar .= ' ' . $html->button($name, $service_status_colors[$i], { class => "btn btn-secondary $active" });
     }
   }
 
@@ -333,13 +333,6 @@ sub voip_yate_user {
       }
     );
 
-    #      $html->form_input( 'del', "$lang{DEL}",
-    #      {
-    #        TYPE => 'submit',
-    #        class => 'btn btn-danger',
-    #        MESSAGE => "$lang{DEL} Voip $lang{USER} $FORM{UID}?",
-    #      }
-    #    );
     $user->{ACTION}     = 'set';
     $user->{LNG_ACTION} = $lang{CHANGE};
   }

@@ -23,4 +23,6 @@ $lang{COMPENSATION} = 'Компенсация';
 $lang{PROCENT} = 'Процент';
 $lang{USER_ACCIDENT_EMPTY}='В пользователя нет аварий или поломок!';
 
+$lang{EQUIPMENT_ERR} = "Авария! Мы знаем о ней и занимаемся ее устранением";
+
 1;

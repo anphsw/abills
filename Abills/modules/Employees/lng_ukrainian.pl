@@ -105,5 +105,9 @@ $lang{VACATION}='Відпустка';
 $lang{MOVING_BETWEEN_CASHBOXES}='Переміщення між касами';
 $lang{MOVING}='Переміщення';
 $lang{TYPE_IN_MOVING_TYPE} = 'Тип перміщення між касами';
+$lang{ALL_SALARY} = 'Виплатити';
+
+$lang{TICKET_WORKS} = 'Роботи по заявці';
+$lang{CHECKING_WORKS_BEFORE_CLOSING} = 'Перевірка робіт перед закриттям заявки';
 
 1

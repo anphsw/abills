@@ -42,4 +42,36 @@ $lang{NO_EMAIL}='Вкажіть в конфігураційному файлі E
 $lang{NO_EMAIL_LEAD}='В лідів немає E-Mail: ';
 $lang{DELIVERY} = 'Розсилка';
 
+$lang{COMPETITOR} = 'Конкурент';
+$lang{COMPETITORS} = 'Конкуренти';
+$lang{COMPETITOR_SITE} = 'Сайт конкурента';
+$lang{CONNECTION_TYPE} = 'Тип підключення';
+$lang{COMPETITOR_ADDED} = 'Конкурент доданий';
+$lang{COMPETITOR_DELETED} = 'Конкурента видалено';
+$lang{COMPETITOR_CHANGED} = 'Дані конкурента змінено';
+$lang{LOCALITIES_OF_THE_COMPETITOR} = 'Населені пункти конкурента';
+$lang{LOCALITIES_OF_THE_TP} = 'Населені пункти тарифного плану';
+$lang{COMPETITORS_TP} = 'Тарифні плани конкурентів';
+$lang{NO_COMPETITOR_SELECTED} = 'Конкурент не обраний';
+$lang{LOCALITIES_CREATED_TP} = 'Населені пункти можна вказати тільки для вже створених тарифних планів';
+$lang{COMPETITOR_HAS_NOT_ADDRESS} = "Конкурент не прив'язаний до адреси";
+
+$lang{CRM_MASS_ADDING} = 'Масове додавання';
+
+$lang{CRM_MIN_TARIFF_PLANS} = 'Мінімальні тарифні плани';
+$lang{CRM_MAX_TARIFF_PLANS} = 'Максимальні тарифні плани';
+$lang{CRM_POPULAR_TARIFF_PLANS} = 'Популярні тарифні плани';
+$lang{CRM_ASSESSMENT} = 'Оцінка конкурента';
+
+$lang{CRM_BAD} = 'Погано';
+$lang{CRM_UNSATISFACTORILY} = 'Незадовільно';
+$lang{CRM_SATISFACTORILY} = 'Задовільно';
+$lang{CRM_GOOD} = 'Добре';
+$lang{CRM_IDEALLY} = 'Ідеально';
+$lang{CRM_NUMBER_OF_RATINGS} = 'Кількість оцінок';
+
+$lang{CRM_CHANGED_STEP} = 'Змінено крок';
+$lang{CRM_VIEWING_INFORMATION} = 'Переглянуто інформацію';
+$lang{CRM_RECENT_ACTIVITY} = 'Останні дії';
+
 1

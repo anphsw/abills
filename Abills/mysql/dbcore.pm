@@ -35,7 +35,7 @@ my $sql_errors = '/usr/abills/var/log/sql_errors';
 
 =cut
 #**********************************************************
-sub connect{
+sub connect {
   my $class = shift;
   my $self = { };
   my ($dbhost, $dbname, $dbuser, $dbpasswd, $attr) = @_;
@@ -46,23 +46,30 @@ sub connect{
   my DBI $db;
   my $db_params = q{};
 
-  if($attr && $attr->{DBPARAMS}) {
+  if ($attr && $attr->{DBPARAMS}) {
     $db_params .=";".$attr->{DBPARAMS};
   }
 
-  if ( $db = DBI->connect_cached( "DBI:mysql:database=$dbname;host=$dbhost;mysql_client_found_rows=0".$db_params,
-    "$dbuser", "$dbpasswd", { Taint => 1, private_scope_key => $attr->{SCOPE} || 0 } ) ){
-    $db->{mysql_auto_reconnect} = 1;
-    #For mysql 5 or highter
-    if ($attr->{CHARSET}) {
-      $db->do("SET NAMES " . $attr->{CHARSET});
-      $self->{dbcharset}=$attr->{CHARSET};
-    }
-    my $sql_mode = ($attr->{SQL_MODE}) ? $attr->{SQL_MODE} : 'NO_ENGINE_SUBSTITUTION';
-    $db->do( "SET sql_mode='$sql_mode';" );
+  my $sql_mode = ($attr->{SQL_MODE}) ? $attr->{SQL_MODE} : 'NO_ENGINE_SUBSTITUTION';
+
+  my $mysql_init_command = "SET sql_mode='$sql_mode'";
+  #For mysql 5 or higher
+  if ($attr->{CHARSET}) {
+    $mysql_init_command .= ", NAMES $attr->{CHARSET}";
+    $self->{dbcharset}=$attr->{CHARSET};
+  }
+
+  if ( $db = DBI->connect_cached( "DBI:mysql:database=$dbname;host=$dbhost;mysql_client_found_rows=0".$db_params, "$dbuser", "$dbpasswd",
+       {
+         Taint                => 1,
+         private_scope_key    => $attr->{SCOPE} || 0,
+         mysql_auto_reconnect => 1,
+         mysql_init_command   => $mysql_init_command
+       } )
+     ) {
     $self->{db} = $db;
   }
-  else{
+  else {
     print "Content-Type: text/html\n\nError: Unable connect to DB server '$dbhost:$dbname'\n";
     $self->{error} = $DBI::errstr;
 
@@ -314,7 +321,7 @@ sub query{
       Log->import( 'log_print' );
       Log::log_print( undef, 'LOG_ERR', '',
         "index:". ($attr->{index} || q{}) ."\n"
-         . ($query || q{}) ."\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n"
+          . ($query || q{}) ."\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n"
         , { NAS => 0, LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors' } );
     }
     return $self;
@@ -324,7 +331,7 @@ sub query{
     my @rows = ();
 
     if ( $attr->{COLS_NAME} ){
-      push @{ $self->{COL_NAMES_ARR} }, @{ $q->{NAME} };
+      push @{ $self->{COL_NAMES_ARR} }, @{ $q->{NAME} || []};
 
       while (my $row = $q->fetchrow_hashref()) {
         if ( $attr->{COLS_UPPER} ){
@@ -604,6 +611,7 @@ sub search_former{
 
   my @user_fields = (
     'LOGIN',
+    'UID',
     'FIO',
     'FIO2',
     'FIO3',
@@ -612,6 +620,8 @@ sub search_former{
     'CREDIT_DATE',
     'PHONE',
     'EMAIL',
+    'FLOOR',
+    'ENTRANCE',
     'ADDRESS_FLAT',
     'PASPORT_DATE',
     'PASPORT_NUM',
@@ -639,6 +649,7 @@ sub search_former{
     'EXPIRE',
     'REGISTRATION',
     'LAST_PAYMENT',
+    'LAST_FEES',
     'EXT_BILL_ID',
     'EXT_DEPOSIT',
     'BIRTH_DATE',
@@ -836,7 +847,10 @@ sub search_expr{
     elsif ( $type eq 'STR' ){
       $expr = '=';
       if ($v =~ s/^!//) {
-        $v='';
+        $expr = '<>';
+      }
+      elsif ($v eq '_EMPTY_') {
+        $v = '';
       }
       elsif ( $v =~ /\\\*/ ){
         $v = '*';
@@ -860,7 +874,7 @@ sub search_expr{
         my ($i, $first_ip, $last_ip);
         my @p = split( /\./, $value );
         for ( $i = 0; $i < 4; $i++ ){
-          if (length($p[$i]) < 3 && $p[$i] =~ /(\d{0,2})\*/ ){
+          if (defined($p[$i]) && length($p[$i]) < 3 && $p[$i] =~ /(\d{0,2})\*/ ){
             $first_ip .= $1 || '0';
             $last_ip .= $1 || '255';
           }
@@ -995,11 +1009,11 @@ sub search_expr_users{
     COMMENTS       => 'STR:pi.comments',
     FIO            => 'STR:CONCAT_WS(" ", pi.fio, pi.fio2, pi.fio3) AS fio',
     PHONE          => ($self && $self->{conf} && $self->{conf}{CONTACTS_NEW})
-                        ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2)) AS phone/
-                        : 'STR:pi.phone',
+      ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id IN (1,2)) AS phone/
+      : 'STR:pi.phone',
     EMAIL          => ($self && $self->{conf} && $self->{conf}{CONTACTS_NEW})
-                        ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id=9) AS email/
-                        : 'STR:pi.email',
+      ? q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id=9) AS email/
+      : 'STR:pi.email',
     ACCEPT_RULES   => 'INT:pi.accept_rules',
 
     PASPORT_DATE   => 'DATE:pi.pasport_date',
@@ -1021,11 +1035,14 @@ sub search_expr_users{
     REDUCTION_DATE => 'INT:u.reduction_date',
     COMMENTS       => 'STR:pi.comments',
     BILL_ID        => 'INT:IF(company.id IS NULL,b.id,cb.id) AS bill_id',
-    PASSWORD       => "STR:DECODE(u.password, '". ($CONF->{secretkey} || q{}) ."') AS password",
+    PASSWORD       => "STR:DECODE(u.password, '" . ($CONF->{secretkey} || q{}) . "') AS password",
     EXT_DEPOSIT    => 'INT:IF(company.id IS NULL, ext_b.deposit, ext_cb.deposit) AS ext_deposit',
     EXT_BILL_ID    => 'INT:IF(company.id IS NULL, u.ext_bill_id, company.ext_bill_id) AS ext_bill_id',
     LAST_PAYMENT   => 'INT:(SELECT MAX(p.date) FROM payments p WHERE p.uid=u.uid) AS last_payment',
+    LAST_FEES      => 'INT:(SELECT max(f.date) FROM fees f WHERE f.uid=u.uid) AS last_fees',
     BIRTH_DATE     => 'DATE:pi.birth_date',
+    FLOOR          => 'INT:pi.floor',
+    ENTRANCE       => 'INT:pi.entrance'
     #ADDRESS_FLAT  => 'STR:pi.address_flat',
   );
 
@@ -1120,7 +1137,7 @@ sub search_expr_users{
             elsif ( $type == 16 ){
               if($attr->{$field_id} && $attr->{$field_id} ne '_SHOW') {
                 my ($sn_type, $info) = split( /, /, $attr->{$field_id} );
-                push @fields, @{ $self->search_expr( "$sn_type*$info", 'STR', "pi.$field_name", { EXT_FIELD => 1 } ) };
+                push @fields, @{ $self->search_expr( "$sn_type*". ($info || q{}), 'STR', "pi.$field_name", { EXT_FIELD => 1 } ) };
               }
               else {
                 push @fields, @{ $self->search_expr( $attr->{$field_id}, 'STR', "pi.$field_name", { EXT_FIELD => 1 } ) };
@@ -1245,9 +1262,9 @@ sub search_expr_users{
       }
 
       if ( $attr->{ADDRESS_FULL} ){
-        $attr->{BUILD_DELIMITER} = ',' if (!$attr->{BUILD_DELIMITER});
+        my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
         push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
-            "CONCAT(streets.name, ' ', builds.number, '$attr->{BUILD_DELIMITER}', pi.address_flat) AS address_full",
+            "CONCAT(streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full",
             { EXT_FIELD => 1 } ) };
         $EXT_TABLE_JOINS_HASH{users_pi} = 1;
         $EXT_TABLE_JOINS_HASH{builds} = 1;
@@ -1326,9 +1343,9 @@ sub search_expr_users{
       my $f_count = $self->{SEARCH_FIELDS_COUNT};
 
       if ( $attr->{ADDRESS_FULL} ){
-        $attr->{BUILD_DELIMITER} = ',' if (!$attr->{BUILD_DELIMITER});
+        my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
         push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
-            "CONCAT(pi.address_street, ' ', pi.address_build, '$attr->{BUILD_DELIMITER}', pi.address_flat) AS address_full"
+            "CONCAT(pi.address_street, '$build_delimiter', pi.address_build, '$build_delimiter', pi.address_flat) AS address_full"
             , { EXT_FIELD => 1 } ) };
       }
 
@@ -1801,6 +1818,7 @@ sub changes {
   }
 
   if($attr->{SKIP_LOG}) {
+    $self->{CHANGES_LOG} = $changes_info{CHANGES_LOG} if $attr->{GET_CHANGES_LOG} && $changes_info{CHANGES_LOG};
     return $self;
   }
 

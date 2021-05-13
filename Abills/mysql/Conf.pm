@@ -160,7 +160,6 @@ sub config_info {
 sub config_change {
   my $self = shift;
   my ($param, $attr) = @_;
-  print("addddddddddddddddd");
   if ($attr->{WITHOUT_PARAM_CHANGE}) {
     $self->changes({
       CHANGE_PARAM => 'PARAM',

@@ -1,5 +1,5 @@
-<div class='box box-theme box-form'>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-body'>
 <TABLE width=600 class='table table-striped'>
 <tr><td>_{SESSION_ID}_:</td><td>%SESSION_ID%</td></tr>
 <tr><td>_{BEGIN}_:</td><td align=right>%START%</td></tr>

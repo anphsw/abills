@@ -106,6 +106,11 @@ $lang{ERROR_SHOW_CHANNELS} = "Error show channels";
 
 $lang{GET_LOGIN_AND_PASSWD} = "Get login and password";
 
-$lang{TARIF_PLAN} = 'Tariff plan';
+$lang{TP_NOT_FOUND} = "Tariff plans not found";
+$lang{FILTER_ID_EMPTY} = "The 'Filter_id' field is empty";
+$lang{IPTV_USER_NOT_FOUND} = "User not found";
+$lang{IPTV_ERROR_CREATING_USER} = "Error creating user";
+$lang{IPTV_ERROR_ADDING_TP} = "Error adding TP";
+$lang{IPTV_ERROR_DEL_TP} = "Tariff plan deletion error";
 
 1;

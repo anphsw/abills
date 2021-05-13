@@ -5,11 +5,11 @@
     <input type='hidden' name='sid' value='$sid'>
     <input type='hidden' name='ACCT_INTERIUM_INTERVAL' value='%ACCT_INTERIUM_INTERVAL%'>
 
-    <div class='box box-theme box-form center-block'>
-        <div class='box-header with-border'>
+    <div class='card card-primary card-outline box-form center-block'>
+        <div class='card-header with-border'>
             <h4>_{LOGON}_ Internet</h4>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
 
             %MENU%
 
@@ -31,7 +31,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input type='submit' name='%ACTION%' value='%ACTION_LNG% Internet' class='btn btn-primary'>
         </div>
 

@@ -1,12 +1,12 @@
 <div class='col-md-4 col-lg-4 col-xs-12 col-sm-6'>
-	<div class='box box-theme'>
-		<div class='box-header with-border' style='text-align:center'>
+	<div class='card card-primary card-outline'>
+		<div class='card-header with-border' style='text-align:center'>
 			<h4 style='margin:0'>
 			  <a href='$SELF_URL?BUY_CARDS=1&TP_ID=%TP_ID%&DOMAIN_ID=%DOMAIN_ID%'>_{CARDS}_ %TP_NAME%</a>
 			</h4>
 		</div>
 
-		<div class='box-body'>
+		<div class='card-body'>
 		  <div class='row' style='margin-left: 2%; margin-right: 2%'>
 			<div class='row'>
 			  <label class='col-md-8 col-xs-10'>

@@ -3,10 +3,10 @@
   <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1' />
   <input type=hidden name='ID' value='$FORM{chg}'>
 
-  <div class='box box-theme box-form'>
-    <div class='box-header with-border'><h4 class='box-title'>_{NOTE}_</h4></div>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{NOTE}_</h4></div>
 
-    <div class='box-body'>
+    <div class='card-body'>
 
       <div class='form-group' data-visible='%CAN_SELECT_AID%' style='display: none'>
         <label class='control-label col-md-3' for='AID'>_{ADMIN}_:</label>
@@ -81,7 +81,7 @@
       </div>
 
     </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
       <input class='btn btn-primary' type='submit' name='%ACTION%' value='%SUBMIT_BTN_NAME%'/>
     </div>
   </div>

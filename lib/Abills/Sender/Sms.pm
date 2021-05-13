@@ -13,7 +13,7 @@ use Abills::Sender::Plugin;
 use parent 'Abills::Sender::Plugin';
 use Sms::Init;
 use Sms;
-
+use Abills::Filters;
 
 #**********************************************************
 =head2 send_message($attr)
@@ -47,6 +47,9 @@ sub send_message {
 
   my $Sms = Sms->new($self->{db}, $self->{admin}, $self->{conf});
   my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf});
+
+  $attr->{TO_ADDRESS} =  $self->{conf}->{SMS_NUMBER_EXPR} ?
+    _expr($attr->{TO_ADDRESS}, $self->{conf}->{SMS_NUMBER_EXPR}) : $attr->{TO_ADDRESS},
 
   my $sms_result = $Sms_service->send_sms({
     NUMBER     => $attr->{TO_ADDRESS},

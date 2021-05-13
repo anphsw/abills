@@ -16,16 +16,16 @@
 
   <fieldset>
     <div class='col-md-6'>
-      <div class='box box-theme box-form'>
-        <div class='box-header with-border text-center'>
-          <h3 class='box-title'>DHCP</h3>
-          <div class='box-tools pull-right'>
-            <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i
+      <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border text-center'>
+          <h3 class='card-title'>DHCP</h3>
+          <div class='card-tools pull-right'>
+            <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i
                 class='fa fa-minus'></i>
             </button>
           </div>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
 
           <div class='form-group grpstyle'>
             <label class='control-label col-md-3' for='NETWORKS_SEL'>_{HOSTS_NETWORKS}_:</label>
@@ -105,16 +105,16 @@
 
 
     <div class='col-md-6'>
-      <div class='box box-theme box-form'>
-        <div class='box-header with-border'>
-          <h3 class='box-title'>_{INFO}_</h3>
-          <div class='box-tools pull-right'>
-            <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i
+      <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'>
+          <h3 class='card-title'>_{INFO}_</h3>
+          <div class='card-tools pull-right'>
+            <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i
                 class='fa fa-minus'></i>
             </button>
           </div>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
           %EQUIPMENT_INFO%
         </div>
       </div>
@@ -122,16 +122,16 @@
 
 
     <div class='col-md-6'>
-      <div class='box box-theme box-form collapsed-box'>
-        <div class='box-header with-border'>
-          <h3 class='box-title'>_{EXTRA}_</h3>
-          <div class='box-tools pull-right'>
-            <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i
+      <div class='card card-primary card-outline box-form collapsed-box'>
+        <div class='card-header with-border'>
+          <h3 class='card-title'>_{EXTRA}_</h3>
+          <div class='card-tools pull-right'>
+            <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i
                 class='fa fa-plus'></i>
             </button>
           </div>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
           <div class='form-group grpstyle'>
             <label class='control-label col-md-3' for='BOOT_FILE'>_{FILE}_:</label>
             <div class='col-md-9'>
@@ -177,7 +177,7 @@
       </div>
     </div>
 
-    <div class='box box-theme col-md-12'>
+    <div class='card card-primary card-outline col-md-12'>
       <div class=' box-body '>
         <div class='text-center'>
           %BACK_BUTTON% <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LNG%'>

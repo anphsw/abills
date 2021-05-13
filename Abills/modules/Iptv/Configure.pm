@@ -81,15 +81,12 @@ sub iptv_tp{
           }
         ),
         HIDDEN  => { index => $index },
-        SUBMIT  => { show => $lang{SHOW} },
+        # SUBMIT  => { show => $lang{SHOW} },
         class   => 'navbar-form navbar-right',
       }
     );
 
-    func_menu(
-      {
-        $lang{NAME} => $Tariffs->{NAME_SEL}
-      },
+    func_menu({ $lang{NAME} => $Tariffs->{NAME_SEL} },
       [
         $lang{INFO} . "::TP_ID=$FORM{TP_ID}",
         $lang{INTERVALS} . ':' . get_function_index( 'iptv_intervals' ) . ":TP_ID=$FORM{TP_ID}",
@@ -100,10 +97,9 @@ sub iptv_tp{
       { f_args => { %F_ARGS } }
     );
 
-    if ( $FORM{subf} ){
-      return 0;
-    }
-    elsif ( $FORM{change} ){
+    return 0 if ($FORM{subf});
+
+    if ( $FORM{change} ){
       if ($FORM{create_fees_type}) {
         my $Fees = Finance->fees($db, $admin, \%conf);
         $Fees->fees_type_add({ NAME => $FORM{NAME}});
@@ -129,40 +125,31 @@ sub iptv_tp{
 
   _error_show( $Tariffs );
 
-  if ( $FORM{add_form} ){
+  if ($FORM{add_form}) {
 
-    $tarif_info->{PAYMENT_TYPE_SEL} = $html->form_select(
-      'PAYMENT_TYPE',
-      {
-        SELECTED => $tarif_info->{PAYMENT_TYPE},
-        SEL_HASH => \%payment_types,
-      }
-    );
+    $tarif_info->{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE', {
+      SELECTED => $tarif_info->{PAYMENT_TYPE},
+      SEL_HASH => \%payment_types,
+    });
 
-    $tarif_info->{GROUPS_SEL} = $html->form_select(
-      'TP_GID',
-      {
-        SELECTED       => $tarif_info->{TP_GID} || '',
-        SEL_LIST       => $Tariffs->tp_group_list( { COLS_NAME => 1 } ),
-        SEL_OPTIONS    => { '' => '--' },
-        MAIN_MENU      => $index + 10,
-        MAIN_MENU_ARGV => "chg=$tarif_info->{TP_GID}"
-      }
-    );
+    $tarif_info->{GROUPS_SEL} = $html->form_select('TP_GID', {
+      SELECTED       => $tarif_info->{TP_GID} || '',
+      SEL_LIST       => $Tariffs->tp_group_list({ COLS_NAME => 1 }),
+      SEL_OPTIONS    => { '' => '--' },
+      MAIN_MENU      => $index + 10,
+      MAIN_MENU_ARGV => "chg=$tarif_info->{TP_GID}"
+    });
 
-    $tarif_info->{SEL_METHOD} = $html->form_select(
-      'FEES_METHOD',
-      {
-        SELECTED    => $tarif_info->{FEES_METHOD} || 1,
-        SEL_HASH    => get_fees_types(),
-        NO_ID       => 1,
-        SORT_KEY    => 1,
-        SEL_OPTIONS => { 0 => '' },
-        MAIN_MENU   => get_function_index('form_fees_types'),
-        CHECKBOX    => 'create_fees_type',
-        CHECKBOX_TITLE => $lang{CREATE}
-      }
-    );
+    $tarif_info->{SEL_METHOD} = $html->form_select('FEES_METHOD', {
+      SELECTED       => $tarif_info->{FEES_METHOD} || 1,
+      SEL_HASH       => get_fees_types(),
+      NO_ID          => 1,
+      SORT_KEY       => 1,
+      SEL_OPTIONS    => { 0 => '' },
+      MAIN_MENU      => get_function_index('form_fees_types'),
+      CHECKBOX       => 'create_fees_type',
+      CHECKBOX_TITLE => $lang{CREATE}
+    });
 
     $tarif_info->{REDUCTION_FEE} = ($tarif_info->{REDUCTION_FEE}) ? 'checked' : '';
     $tarif_info->{POSTPAID_FEE} = ($tarif_info->{POSTPAID_FEE}) ? 'checked' : '';
@@ -186,20 +173,14 @@ sub iptv_tp{
       MODULE          => 'Iptv'
     });
 
-    $tarif_info->{SERVICE_SEL} = tv_services_sel({ %$tarif_info, ALL => 1 });
+    $tarif_info->{SERVICE_SEL} = tv_services_sel({ %$tarif_info, ALL => 1, EX_PARAMS => '' });
 
-    if ( $conf{EXT_BILL_ACCOUNT} ){
-      $tarif_info->{EXT_BILL_ACCOUNT} = $html->tpl_show(
-        templates( 'form_row' ),
-        {
-          ID    => 'EXT_BILL_ACCOUNT',
-          NAME  => $lang{EXTRA_BILL},
-          VALUE => $html->form_input( 'EXT_BILL_ACCOUNT', '1', { ID => 'EXT_BILL_ACCOUNT', TYPE => 'checkbox', STATE =>
-                ($tarif_info->{EXT_BILL_ACCOUNT}) ? 'checked' : undef } )
-        },
-        { OUTPUT2RETURN => 1 }
-      );
-    }
+    $tarif_info->{EXT_BILL_ACCOUNT} = $html->tpl_show(templates('form_row'), {
+      ID    => 'EXT_BILL_ACCOUNT',
+      NAME  => $lang{EXTRA_BILL},
+      VALUE => $html->form_input('EXT_BILL_ACCOUNT', '1', { ID => 'EXT_BILL_ACCOUNT', TYPE => 'checkbox', STATE =>
+        ($tarif_info->{EXT_BILL_ACCOUNT}) ? 'checked' : undef })
+    }, { OUTPUT2RETURN => 1 }) if $conf{EXT_BILL_ACCOUNT};
 
     $tarif_info->{STATUS} = "checked" if $tarif_info->{STATUS};
 
@@ -291,15 +272,12 @@ sub iptv_tp{
     }
     $table->addrow( @fields_array,
       $html->button( $lang{INTERVALS}, "index=" . get_function_index( 'iptv_intervals' ) . "&TP_ID=$line->{tp_id}",
-        { class => 'interval' } ).' '. $change .' '. $delete );
+        { class => 'interval', ICON=>"fa fa-align-left" } ).' '. $change .' '. $delete );
   }
 
   print $table->show();
 
-  $table = $html->table({
-    width      => '100%',
-    rows       => [ [ "$lang{TOTAL}:", $html->b( $Tariffs->{TOTAL} ) ] ]
-  });
+  $table = $html->table({ width => '100%', rows => [ [ "$lang{TOTAL}:", $html->b($Tariffs->{TOTAL}) ] ] });
 
   print $table->show();
 
@@ -440,23 +418,20 @@ sub iptv_intervals{
         $link = "&nbsp;";
         $tdcolor = $_COLORS[1];
       }
-      push( @hours, $table->td( "$link", { align => 'center', bgcolor => $tdcolor } ) );
+      push(@hours, $table->td("$link", { align => 'center', bgcolor => $tdcolor }));
     }
     $table->addtd( $table->td( $DAY_NAMES[$i] ), @hours );
   }
 
   print $table->show();
   my $day_id = $FORM{day} || $tarif_plan->{TI_DAY} || $FORM{TI_DAY};
-  $tarif_plan->{SEL_DAYS} = $html->form_select(
-    'TI_DAY',
-    {
-      SELECTED     => $day_id,
-      SEL_ARRAY    => \@DAY_NAMES,
-      ARRAY_NUM_ID => 1
-    }
-  );
+  $tarif_plan->{SEL_DAYS} = $html->form_select('TI_DAY', {
+    SELECTED     => $day_id,
+    SEL_ARRAY    => \@DAY_NAMES,
+    ARRAY_NUM_ID => 1
+  });
 
-  $html->tpl_show( _include( 'iptv_ti', 'Iptv' ), $tarif_plan );
+  $html->tpl_show(_include('iptv_ti', 'Iptv'), $tarif_plan);
 
   return 1;
 }
@@ -559,15 +534,14 @@ sub iptv_ti_channels{
 =cut
 #**********************************************************
 sub iptv_channels{
+
   if( $FORM{import} ){
     upload_m3u();
-    if(!$FORM{import_message}){
-      return 1;
-    }
+    return 1 if(!$FORM{import_message});
   }
-  if ( $FORM{message} ){
-    $html->message( 'info', $lang{INFO}, $FORM{message} );
-  }
+
+  $html->message('info', $lang{INFO}, $FORM{message}) if ($FORM{message});
+
   $Iptv->{ACTION} = 'add';
   $Iptv->{LNG_ACTION} = $lang{ADD};
   $Iptv->{ACTION_STALKER} = 'stalker_add';
@@ -593,131 +567,6 @@ sub iptv_channels{
     2 => 'Temporary not work',
     3 => 'Monitoring'
   );
-
-  if ( $FORM{stalker_add} ){
-    if ( $FORM{NAME} ne '' && $FORM{NUMBER} =~ /\d{1,3}/ ){
-      #$Iptv->stalker_channel_add( { %FORM } );
-      if ( !$Iptv->{errno} ){
-        #stalker_export();
-        $html->tpl_show(
-          _include( 'iptv_redirect', 'Iptv' ),
-          {
-            SECTION => '',
-            MESSAGE => "$lang{ADDED}",
-          }
-        );
-      }
-    }
-    else{
-      $html->message(
-        'info', $lang{INFO}, "$lang{FIELD_ARE_REQUIRED}
-        $lang{NUM},
-        $lang{NAME}"
-      );
-    }
-  }
-  elsif ( $FORM{stalker_del} ){
-    #$Iptv->stalker_channel_del( { STALKER_NAME => $FORM{stalker_del}, ABILLS_ID => $FORM{abills_id} } );
-    if ( !$Iptv->{errno} ){
-      #stalker_export();
-      $html->tpl_show(
-        _include( 'iptv_redirect', 'Iptv' ),
-        {
-          SECTION => '',
-          MESSAGE => "$lang{DELETED}",
-        }
-      );
-    }
-  }
-  elsif ( $FORM{stalker_chg} ){
-    $Iptv->{ACTION_STALKER} = 'stalker_change';
-    $Iptv->{ACTION_LNG_STALKER} = $lang{CHANGE};
-    #$Iptv->stalker_channel_info( { NAME => $FORM{stalker_chg}, } );
-    foreach my $line ( keys %{$Iptv} ){
-      if ( $line eq 'WOWZA_TMP_LINK'
-        || $line eq 'CENSORED'
-        || $line eq 'HD'
-        || $line eq 'BASE_CH'
-        || $line eq 'BONUS_CH'
-        || $line eq 'ENABLE_TV_ARCHIVE'
-        || $line eq 'WOWZA_DVR'
-        || $line eq 'USE_HTTP_TMP_LINK'
-        || $line eq 'ENABLE_WOWZA_LOAD_BALANCING'
-        || $line eq 'ENABLE_MONITORING' )
-      {
-        if ( $Iptv->{$line} == 1 ){
-          $Iptv->{$line} = "checked='checked'";
-        }
-      }
-      elsif ( $line eq 'STATUS' ){
-        if ( $Iptv->{$line} == 0 ){
-          $Iptv->{$line} = "checked='checked'";
-        }
-      }
-    }
-    if ( !$Iptv->{errno} ){
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGING}" );
-    }
-  }
-  elsif ( $FORM{stalker_change} ){
-    my $change_errors = 0;
-    if ( $FORM{NAME} ne '' && $FORM{NUMBER} =~ /\d{1,3}/ ){
-      if ( $FORM{NUMBER} != $FORM{OLD_NUMBER} ){
-        #        my $list = $Iptv->stalker_channel_list( { NUMBER => $FORM{NUMBER} } );
-        #        if ( defined( $list->[0]->[0] ) ){
-        #          $change_errors = 2;
-        #        }
-      }
-      #      if ( $change_errors == 0 ){
-      #        $Iptv->stalker_change_channels( { %FORM } );
-      #        if ( !$Iptv->{errno} ){
-      #          stalker_export();
-      #          $html->tpl_show(
-      #            _include( 'iptv_redirect', 'Iptv' ),
-      #            {
-      #              SECTION => '',
-      #              MESSAGE => "$lang{CHANGED}",
-      #            }
-      #          );
-      #        }
-      #      }
-    }
-    else{
-      $change_errors = 1;
-    }
-    if ( $change_errors > 0 ){
-      $Iptv->{ACTION_STALKER} = 'stalker_change';
-      $Iptv->{ACTION_LNG_STALKER} = $lang{CHANGE};
-      foreach my $line ( keys %FORM ){
-        if ( $line eq 'WOWZA_TMP_LINK'
-          || $line eq 'CENSORED'
-          || $line eq 'HD'
-          || $line eq 'BASE_CH'
-          || $line eq 'BONUS_CH'
-          || $line eq 'ENABLE_TV_ARCHIVE'
-          || $line eq 'WOWZA_DVR'
-          || $line eq 'USE_HTTP_TMP_LINK'
-          || $line eq 'ENABLE_WOWZA_LOAD_BALANCING'
-          || $line eq 'ENABLE_MONITORING' )
-        {
-          if ( $FORM{$line} == 1 || ($FORM{$line} && $FORM{$line} eq 'on' )){
-            $FORM{$line} = "checked='checked'";
-          }
-        }
-        elsif ( $line eq 'STATUS' ){
-          if ( $FORM{$line} == 0 || ($FORM{$line} && $FORM{$line} eq 'on' )){
-            $FORM{$line} = "checked='checked'";
-          }
-        }
-      }
-      if ( $change_errors == 1 ){
-        $html->message( 'info', $lang{INFO}, "$lang{FIELD_ARE_REQUIRED}  $lang{NUM},  $lang{NAME}" );
-      }
-      elsif ( $change_errors == 2 ){
-        $html->message( 'info', $lang{INFO}, $lang{THIS_NUMBER_ALREADY_EXISTS} );
-      }
-    }
-  }
 
   if ( $FORM{add} && $FORM{NAME} ){
     $Iptv->channel_add( \%FORM );
@@ -750,102 +599,79 @@ sub iptv_channels{
     }
   }
 
-  if ( _error_show( $Iptv ) ){
-    return 0;
-  }
+  return 0 if (_error_show($Iptv));
 
   $Iptv->{DISABLE} = 'checked' if ($Iptv->{DISABLE} && $Iptv->{DISABLE} == 1);
   $Iptv->{CHANGE_PARAM} = defined( $Iptv->{CHANGE_PARAM} ) ? $Iptv->{CHANGE_PARAM} : $FORM{CHANGE_PARAM};
   $Iptv->{OLD_NUMBER} = defined( $Iptv->{OLD_NUMBER} ) ? $Iptv->{OLD_NUMBER} : $FORM{OLD_NUMBER};
 
-  $Iptv->{GENRE_SEL} = $html->form_select(
-    "GENRE_ID",
-    {
-      SELECTED => $Iptv->{GENRE_ID} || $FORM{GENRE_ID},
-      SEL_HASH => \%tv_genres,
-      NO_ID    => 1,
+  $Iptv->{GENRE_SEL} = $html->form_select("GENRE_ID", {
+    SELECTED => $Iptv->{GENRE_ID} || $FORM{GENRE_ID},
+    SEL_HASH => \%tv_genres,
+    NO_ID    => 1,
+  });
+
+  $Iptv->{STATE_SEL} = $html->form_select("STATE", {
+    SELECTED => $Iptv->{STATE} || $FORM{STATE},
+    SEL_HASH => \%state_hash,
+    NO_ID    => 1,
+  });
+
+  $html->tpl_show(_include('iptv_channel', 'Iptv'), $Iptv) if ($FORM{add_form});
+
+  form_search({
+    SIMPLE => {
+      $lang{NUM}      => "NUM",
+      $lang{NAME}     => "ROUTE_NAME",
+      $lang{DISABLE}  => "DISABLE",
+      $lang{DESCRIBE} => "DESCRIBE",
+      $lang{PORT}     => "PORT",
+      'URL'           => "URL",
     }
-  );
+  }) if ($FORM{search_form});
 
-  $Iptv->{STATE_SEL} = $html->form_select(
-    "STATE",
-    {
-      SELECTED => $Iptv->{STATE} || $FORM{STATE},
-      SEL_HASH => \%state_hash,
-      NO_ID    => 1,
-    }
-  );
-
-  if ( $FORM{add_form} ){
-    #    if ( defined( $Iptv_stalker ) ){
-    #      $html->tpl_show( _include( 'iptv_stalker_ch_add', 'Iptv' ), { %{$Iptv}, %FORM } );
-    #    }
-    #    else{
-    $html->tpl_show( _include( 'iptv_channel', 'Iptv' ), $Iptv );
-    #    }
-  }
-
-  if ( $FORM{search_form} ){
-    form_search(
-      {
-        SIMPLE => {
-          $lang{NUM}      => "NUM",
-          $lang{NAME}     => "ROUTE_NAME",
-          $lang{DISABLE}  => "DISABLE",
-          $lang{DESCRIBE} => "DESCRIBE",
-          $lang{PORT}     => "PORT",
-          'URL'           => "URL",
-        }
-      }
-    );
-  }
-
-  result_former(
-    {
-      INPUT_DATA        => $Iptv,
-      FUNCTION        => 'channel_list',
-      BASE_FIELDS     => 6,
-      FUNCTION_FIELDS => 'change,del',
-      SKIP_USER_TITLE => 1,
-      EXT_TITLES      => {
-        id        => '#',
-        name      => $lang{NAME},
-        num       => $lang{NUM},
-        port      => $lang{PORT},
-        comments  => $lang{COMMENTS},
-        filter_id => 'Filter-Id',
-        status    => $lang{STATUS},
-        stream    => 'Stream',
-        state     => $lang{STATUS},
-        genre_id  => $lang{GENRE},
+  result_former({
+    INPUT_DATA      => $Iptv,
+    FUNCTION        => 'channel_list',
+    BASE_FIELDS     => 6,
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_TITLES      => {
+      id        => '#',
+      name      => $lang{NAME},
+      num       => $lang{NUM},
+      port      => $lang{PORT},
+      comments  => $lang{COMMENTS},
+      filter_id => 'Filter-Id',
+      status    => $lang{STATUS},
+      stream    => 'Stream',
+      state     => $lang{STATUS},
+      genre_id  => $lang{GENRE},
+    },
+    SELECT_VALUE    => {
+      state    => \%state_hash,
+      status   => {
+        0 => $lang{ENABLE},
+        1 => $lang{DISABLE}
       },
-      SELECT_VALUE => {
-        state    => \%state_hash,
-        status   => {
-          0 => $lang{ENABLE},
-          1 => $lang{DISABLE}
-        },
-        genre_id => \%tv_genres
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => "$lang{CHANNELS}",
-        qs      => $pages_qs,
-        pages   => $Iptv->{TOTAL},
-        ID      => 'IPTV_CHANNELS',
-        MENU    => "$lang{ADD}:add_form=1&index=" . $index . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search",
-        header  => ["$lang{DOWNLOAD_CHANNELS}:index=$index&export=1"],
-        EXPORT  => 1,
-        IMPORT  => "$SELF_URL?get_index=iptv_channels&import=1&header=2",
-      },
-      MAKE_ROWS => 1,
-      TOTAL     => 1
-    }
-  );
+      genre_id => \%tv_genres
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{CHANNELS}",
+      qs      => $pages_qs,
+      pages   => $Iptv->{TOTAL},
+      ID      => 'IPTV_CHANNELS',
+      MENU    => "$lang{ADD}:add_form=1&index=" . $index . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search",
+      header  => [ "$lang{DOWNLOAD_CHANNELS}:index=$index&export=1" ],
+      EXPORT  => 1,
+      IMPORT  => "$SELF_URL?get_index=iptv_channels&import=1&header=2",
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
 
-  if( $FORM{export} ){
-    download_m3u();
-  }
+  download_m3u() if ($FORM{export});
 
   return 1;
 }
@@ -887,16 +713,8 @@ sub iptv_screens{
       $html->message( 'info', $lang{SCREENS}, "$lang{DELETED}" );
     }
   }
-  #  elsif ( $FORM{log_del} && $FORM{COMMENTS} ){
-  #    $Iptv->screens_log_del( "$FORM{log_del}" );
-  #    if ( !$Iptv->{errno} ){
-  #      $html->message( 'info', $lang{SCREENS}, "$lang{LOG} $lang{DELETED}" );
-  #    }
-  #  }
 
-  if ( $FORM{add_form} ){
-    $html->tpl_show( _include( 'iptv_screens_add', 'Iptv' ), $Iptv );
-  }
+  $html->tpl_show(_include('iptv_screens_add', 'Iptv'), $Iptv) if ($FORM{add_form});
 
   _error_show( $Iptv );
   $LIST_PARAMS{TP_ID} = $FORM{TP_ID};

@@ -1,5 +1,5 @@
-<a role='button' data-toggle='modal' class='btn btn-default btn-xs btn-primary' data-target='#info_ajax_upload_modal'>
-    <span class='glyphicon glyphicon-plus'></span>
+<a role='button' data-toggle='modal' class='btn btn-secondary btn-xs btn-primary' data-target='#info_ajax_upload_modal'>
+    <span class='fa fa-plus'></span>
 </a>
 
 <div class='modal fade' id='info_ajax_upload_modal' tabindex='-1' role='dialog'>
@@ -42,7 +42,7 @@
                 </div>
             </div>
             <div class='modal-footer'>
-                <button type='button' class='btn btn-default' data-dismiss='modal'>_{CANCEL}_</button>
+                <button type='button' class='btn btn-secondary' data-dismiss='modal'>_{CANCEL}_</button>
                 <button type='submit' class='btn btn-primary' id='go' form='form_ajax_upload'>_{ADD}_</button>
             </div>
         </div> <!-- /.modal-content -->

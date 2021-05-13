@@ -99,4 +99,6 @@ $lang{NO_COORDINATES_SPECIFIED} = 'Не указаны координаты';
 
 $lang{COMPLETE_PREVIOUS_CHANGE} = 'Завершите предыдущие изменения';
 
+$lang{SHOW_MSGS_MAP} = 'Отобразить сообщение на карте';
+
 1;

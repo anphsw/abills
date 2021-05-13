@@ -1,5 +1,6 @@
 $lang{LOCK} = 'Lock';
 $lang{DONE} = 'Done';
+$lang{UNDONE} = 'Undone';
 $lang{EXECUTION} = 'Planing Execution';
 $lang{RESPOSIBLE} = 'Responsible';
 $lang{HIDE} = 'Hide';
@@ -150,7 +151,8 @@ $lang{TICKET_BRIGADE}='Tickets installers';
 $lang{BRIGADE}='Brigade';
 $lang{LOCATION_BRIGADE}='Snap to geo address';
 
-$lang{TICKET_REPORT}='Work on ticket';
+$lang{TICKET_REPORT}='Works on ticket';
+$lang{TICKET_REPORT_BY_ADMINS}='Work on ticket (by admins)';
 $lang{DONE_TICKET}='Ticket completed';
 $lang{SPENT_TIME}='Spent time';
 $lang{TICKET_SUM}='Ticket sum';
@@ -159,5 +161,31 @@ $lang{NOT_TURNED_ON}='Module not turned on';
 $lang{HELPDESK}='Help Desk';
 
 $lang{SCRUB_BOX} = 'Scrub Box';
+
+$lang{MSGS_TAGS} = 'Tag(s)';
+$lang{PLUGINS} = 'Plugins';
+$lang{MSGS_BEFORE_CREATE} = 'Events before adding a ticket';
+$lang{MSGS_AFTER_CREATE} = 'Events after adding a ticket';
+$lang{MSGS_RIGHT} = 'Plugins in the "Manage" section';
+$lang{MSGS_BOTTOM} = 'Plugins at the bottom of the ticket';
+$lang{MSGS_BEFORE_REPLY} = 'Events before sending a response to the ticket';
+$lang{TICKET_INTERACTION_BUTTONS} = 'Ticket interaction buttons';
+$lang{ADDITIONAL_TICKET_INFORMATION} = 'Additional ticket information';
+$lang{CHOICE_OF_WORK_ORDER} = 'Choice of work order';
+$lang{PRINT_TICKER_BUTTON} = 'Print ticket button';
+$lang{SET_TICKET_TO_THE_TASK_BOARD} = 'Set ticket to the task board';
+$lang{ADDING_WORK_ORDER} = 'Adding a work order before creating a ticket';
+$lang{TICKET_MAIN_INFO} = 'Ticket main info';
+$lang{ADDING_DELIVERY} = 'Adding a delivery before creating a ticket';
+$lang{ADDING_DELIVERY} = 'Adding a delivery before creating a ticket';
+$lang{CHECKING_MESSAGE_BY_ADDRESS} = 'Checking message by address';
+$lang{PLUGIN_LOADING_ERROR} = 'Plugin loading error';
+$lang{TICKET_DISTRIBUTION_BY_CHAPTER} = 'Distribution of tickets depending on the chapter';
+
+$lang{PERFORMERS} = 'Performers';
+
+$lang{NUMBER_OF_PROCESSED_REQUESTS_IN_THE_CURRENT_MONTH} = 'Number of processed requests in the current month';
+$lang{TIME_SPENT_ON_APPLICATIONS_IN_THE_CURRENT_MONTH} = 'Time spent on applications in the current month';
+$lang{THE_NUMBER_OF_USER_TICKETS_IN_THE_CURRENT_MONTH} = 'The number of user tickets in the current month and the time spent on them';
 
 1;

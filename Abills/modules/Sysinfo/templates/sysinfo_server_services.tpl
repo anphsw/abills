@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{SERVICE}_</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4 class='card-title'>_{SERVICE}_</h4></div>
+  <div class='card-body'>
     <form name='sysinfo_services' id='form_sysinfo_services' method='post' class='form form-horizontal'>
       <input type='hidden' name='index' value='$index'/>
       <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1'/>
@@ -32,16 +32,16 @@
     </form>
 
     <div class='form-group'>
-      <div class='box box-theme'>
-        <div class='box-header with-border' role='tab' id='_heading'>
-          <h4 class='box-title text-center'>
+      <div class='card card-primary card-outline'>
+        <div class='card-header with-border' role='tab' id='_heading'>
+          <h4 class='card-title text-center'>
             <a role='button' data-toggle='collapse' href='#_collapse' aria-expanded='true' aria-controls='_collapse'>
               _{EXTRA}_
             </a>
           </h4>
         </div>
-        <div id='_collapse' class='box-collapse collapse' role='tabpanel' aria-labelledby='_heading'>
-          <div class='box-body'>
+        <div id='_collapse' class='card-collapse collapse' role='tabpanel' aria-labelledby='_heading'>
+          <div class='card-body'>
 
             <div class='form-group'>
               <label class='control-label col-md-3 required'
@@ -59,7 +59,7 @@
 
 
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type='submit' form='form_sysinfo_services' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
   </div>
 </div>

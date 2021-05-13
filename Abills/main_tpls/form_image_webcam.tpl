@@ -8,8 +8,8 @@
     }
 </style>
 
-<div class='box box-primary'>
-    <div class='box-body'>
+<div class='card box-primary'>
+    <div class='card-body'>
         <div class='row'>
             <div id='camera_preview'></div>
             <label class='col-md-3' for='snapshot_resolution'>Resolution: </label>
@@ -24,9 +24,9 @@
         </div>
     </div>
 
-    <div class='box-footer'>
+    <div class='card-footer'>
         <div class='row'>
-            <div class='col-md-4 btn btn-default'>
+            <div class='col-md-4 btn btn-secondary'>
                 <label class='control-label col-md-10' id='includeLocation_lbl'
                        for='includeLocation'>Geolocation</label>
 

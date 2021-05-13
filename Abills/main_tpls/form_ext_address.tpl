@@ -1,23 +1,11 @@
-<style>
-  .changesSize {
-    padding-right: 0;
-    padding-left: 12px;
-  }
-  @media screen and (max-width: 768px) {
-    .changesSize {
-      padding: 0;
-    }
-  }
-</style>
-<div class='col-md-7'>
-  <label class='control-label col-sm-3 col-md-7'>_{ENTRANCE}_</label>
-  <div class='col-sm-3 col-md-5 changesSize'>
+<div class="form-group row">
+  <label class="col-sm-3 col-md-2 col-form-label text-md-right">_{ENTRANCE}_:</label>
+  <div class="col-sm-9 col-md-4">
     <input type='text' name='ENTRANCE' value='%ENTRANCE%' class='form-control'/>
   </div>
-</div>
-<div class='col-md-5 no-padding' >
-  <label class='control-label col-sm-3 col-md-4'>_{FLOOR}_</label>
-  <div class='col-sm-3 col-md-8'>
+
+  <label class="col-sm-3 col-md-2 col-form-label text-md-right">_{FLOOR}_:</label>
+  <div class="col-sm-9 col-md-4">
     <input type='text' name='FLOOR' value='%FLOOR%' class='form-control'>
   </div>
 </div>

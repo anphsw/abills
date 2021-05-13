@@ -10,10 +10,12 @@ if (typeof(window['getSimpleRow']) === 'undefined')
   $.getScript('/styles/default_adm/js/dynamicForms.js');
 
 /*Global section*/
-$('.clear_results').click(function (event) {
-  cancelEvent(event);
-  $(this).parents('.input-group').find('input').val('').change();
-});
+jQuery(document).ready(function(){
+  $('.clear_results').click(function (event) {
+    cancelEvent(event);
+    $(this).parents('.input-group').find('input').val('').change();
+  });
+})
 
 /**
  * Makes one row form for going to specified index with a GET parameter;

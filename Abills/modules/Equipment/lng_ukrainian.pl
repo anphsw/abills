@@ -40,7 +40,7 @@ $lang{REBOOT}='Перезавантажити';
 $lang{REBOOTED}='Перезавантажена';
 
 $lang{SYSTEM_ID}='Назва системи';
-$lang{UPTIME}='Час роботи';
+$lang{UPTIME}='Час роботи обладнання';
 $lang{ERR_NOT_RESPONSE}='Пристрій не відповідає';
 $lang{ONU_STATUS} = 'Статус приставки';
 $lang{POWER}='Сила сигнала';
@@ -67,11 +67,11 @@ $lang{UNIQ_MAC_COUNT}='Кількість пристроїв з унікальн
 $lang{REPORT_PON}='Звіт по PON';
 $lang{OLT_COUNT}='Кількість OLT';
 $lang{BRANCH_COUNT}='Кількість гілок';
+$lang{BRANCH_TOTAL_FILL}='Загальний відсоток зайнятості гілок';
 $lang{ONU_COUNT}='Кількість ONU';
 $lang{ACTIVE_ONU_COUNT}='Кількість активних ONU';
 $lang{INACTIVE_ONU_COUNT}='Кількість неактивних ONU';
 $lang{BAD_ONU_COUNT}='Кількість збійних ONU';
-$lang{NOTREGISTRED_ONU_COUNT}='Кількість незареєстрованих ONU';
 
 $lang{NOT_MONITORING}='Не моніторити';
 $lang{SPEED_CHARTS}='Графіки швидкості';
@@ -80,15 +80,14 @@ $lang{SPEED_OUT}='Вихідна швидкість(Mb/s)';
 $lang{SIGNAL} = 'Сигнал';
 
 $lang{REPORT_ON_UNREGISTERED_ONU} = "Звіт по незареєстрованим ONU";
-$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS} = "Звіт по кількості зайнятих і вільних портів";
+$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Звіт по кількості зайнятих і вільних портів на комутаторах";
+$lang{TOTAL_SWITCH_COUNT} = "Кількість комутаторів";
 $lang{TOTAL_ALL_PORTS} = "Загальна кількість портів";
 $lang{TOTAL_BUSY_PORTS} = "Кількість зайнятих портів";
 $lang{TOTAL_FREE_PORTS} = "Кількість вільних портів";
 
 $lang{ELECTRIC_POWER} = "Електрична потужність";
 
-$lang{ERROR_DIR} = 'Не вийшло відкрити папку:';
-$lang{ERROR_FILE} = "Не вийшло відкрити файл: ";
 $lang{EDIT_SUCCESS} = 'Шаблон змінено';
 $lang{INVALID_JSON} = 'Невірний формат файла';
 $lang{FILES_TITLE} = 'Шаблони';
@@ -136,5 +135,39 @@ $lang{ENABLE_CATV_PORT} = 'Увімкнути CATV-порт';
 $lang{CATV_PORT_DISABLED} = 'CATV-порт відключено';
 $lang{CATV_PORT_ENABLED} = 'CATV-порт увімкнено';
 $lang{CATV_PORT_ERROR} = 'Помилка при зміні статуса CATV-порта';
+
+$lang{USE_AUTO_PORT_SHIFT}='Використовувати автоматичне зсування портів';
+
+$lang{LINK_STATUS} = 'Link статус';
+$lang{PORT_TYPE} = 'Тип порта';
+
+$lang{FAILED_TO_GET_TELNET_CMDS_FROM_FILE} = 'Не вдалось отримати Telnet-команди з файлу';
+$lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} = 'Отримання конфігурації ONU для EPON поки що не підтримується. Можете вручну прописати потрібні Telnet-команди в файлі Abills/modules/Equipment/snmp_tpl/zte_get_onu_config_epon.tpl';
+
+$lang{CABLE_TEST_FAILED} = 'не вдалось провести тест кабеля';
+$lang{LAST_CABLE_TEST_TIME} = 'Час останнього запуску кабельного тестера';
+
+$lang{DISPLAYING_USER_EQUIPMENT_INFORMATION} = 'Відображення інформації по обладнанню користувача';
+
+$lang{FDB_USES_PORT_NUMBER_INDEX} = 'FDB використовує номери портів в якості індексів';
+
+$lang{MAC_FLOOD_COUNT} = 'Кількість МАС-адрес';
+
+$lang{CHANGE_PORT} = 'Змінити порт';
+$lang{EQUIPMENT_STATUS} = 'Статус обладнання';
+$lang{PORT_STATUS} = 'Статус порта';
+$lang{PORT_STATUS_CHANGING} = 'Змінюєм статус порта...';
+$lang{PORT_STATUS_CHANGING_SUCCESS} = 'Статус порта змінений успішно';
+$lang{PORT_STATUS_CHANGING_ERROR} = 'Помилка зміни статуса порта';
+$lang{PORT_STATUS_SNMP_TOOLTIP} = 'Змінити статус порта на пристрої, відправивши SNMP-запит';
+$lang{SNMP_ERROR} = 'Помилка SNMP';
+$lang{NAS_WITH_ID_NOT_FOUND} = 'Сервер доступу з таким ID не знайдений';
+
+$lang{DISABLE_INFINITIVE} = 'Відключити';
+$lang{ENABLE_INFINITIVE} = 'Включити';
+
+$lang{EXTERNAL_SYSTEM_LINK} = 'Посилання на зовнішню систему';
+
+$lang{NUMBER_OF_SUPPORTED_ONUS_ON_BRANCH_FOR} = 'Кількість підтримуваних ONU на гілці для';
 
 1

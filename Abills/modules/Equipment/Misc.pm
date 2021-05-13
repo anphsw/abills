@@ -18,9 +18,6 @@ use base 'Exporter';
 our @EXPORT = qw/equipment_get_telnet_tpl/;
 our @EXPORT_OK = @EXPORT;
 
-use FindBin '$Bin';
-our $Bin;
-
 #**********************************************************
 =head2 equipment_get_telnet_tpl($attr) - read telnet template from file and substitute params
 
@@ -47,14 +44,16 @@ sub equipment_get_telnet_tpl {
 
   my @reg_tpl;
 
-  my $template_path = $Bin . '/' . $template;
+  my $base_dir = $main::base_dir || '/usr/abills/';
+
+  my $template_path = $base_dir . 'Abills/modules/Equipment/snmp_tpl/' . $template;
   if (-f $template_path) {
     if ($debug > 3) {
       print "Tpl: $template_path\n";
     }
 
     my $content = '';
-    open(my $fh, '<', $template_path) || die "Can't open '$template_path' $!";
+    open(my $fh, '<', $template_path) || return [];
 
     while(<$fh>) {
       my $line = $_;

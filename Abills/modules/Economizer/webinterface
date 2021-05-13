@@ -741,7 +741,7 @@ sub site_electric {
   # show buttons with all users
   for ($j = 0 ; $j < $i ; $j++) {
     push(@link, 'profile' . $j);
-    push(@array, $html->button($array_user[$j], "index=$index&sid=$sid&id=$j&clickbutton=1", { class => 'btn btn-sm btn-default' }));
+    push(@array, $html->button($array_user[$j], "index=$index&sid=$sid&id=$j&clickbutton=1", { class => 'btn btn-sm btn-secondary' }));
   }
   $table->addrow(@array);
   print $table->show();

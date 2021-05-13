@@ -1,11 +1,11 @@
 <form action='$SELF_URL'>
 <input type='hidden' name='index' value='$index'>
-<div class='box box-theme box-form form-horizontal'>
-    <div class='box-header'>
+<div class='card card-primary card-outline box-form form-horizontal'>
+    <div class='card-header'>
       <h4>SNMP Информация</h4>
     </div>
     
-    <div class='box-body'>
+    <div class='card-body'>
       
       <div class='form-group'>
         <label class='control-label col-md-4' for='SNMP_HOST'>SNMP Host</label>
@@ -51,7 +51,7 @@
         
     </div>
                 
-    <div class='box-footer'>
+    <div class='card-footer'>
     <input class='btn btn-primary' type='submit' name='SHOW' value='_{SHOW}_'>
     </div>
 </div>

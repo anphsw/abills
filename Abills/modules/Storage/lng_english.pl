@@ -102,7 +102,7 @@ $lang{METERS}='m';
 $lang{SM}='sm';
 $lang{MM}='mm';
 $lang{LITERS}='litre';
-$lang{BOXES}='box';
+$lang{BOXES}='card';
 $lang{PER_ONE_ITEM}='per 1 item';
 
 $lang{STORAGES}='Storages';
@@ -155,3 +155,8 @@ $lang{SERIAL_NUMBER_IS_ALREADY_IN_USE} = 'This SN is already in use';
 
 $lang{STORAGE_MONTHS_LEFT} = 'Months left';
 $lang{STORAGE_COMPLETED} = 'Completed';
+
+$lang{ATTACH_EQUIPMENT_TO_TICKET} = 'Ability to attach equipment to a ticket';
+$lang{ITEM_ADDED_TO} = 'Item added to';
+
+1;

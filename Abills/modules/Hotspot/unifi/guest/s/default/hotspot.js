@@ -356,8 +356,8 @@ function getStatusForm(object) {
   }
   
   result += '<div class="col-md-4 col-md-offset-4">'
-      + '<div class="box box-success">'
-      + '<div class="box-header with-border logged-user">'
+      + '<div class="card box-success">'
+      + '<div class="card-header with-border logged-user">'
       + '</div>'
       + '<div class="table-logged-user">'
       + '</div>'

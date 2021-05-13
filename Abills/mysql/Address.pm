@@ -25,7 +25,7 @@ sub new {
   bless($self, $class);
 
   $admin->{MODULE} = '';
-  $CONF->{BUILD_DELIMITER} = ',' if (! defined($CONF->{BUILD_DELIMITER})) ;
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
 
   if(ref $admin eq 'HASH') {
     my ($package, $filename, $line) = caller;
@@ -322,7 +322,10 @@ sub district_add {
     DOMAIN_ID => $attr->{DOMAIN_ID} || $admin->{DOMAIN_ID} || 0
   });
 
-  $admin->system_action_add("DISTRICT:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 }) if (!$self->{errno});
+  if(! $self->{errno}) {
+    $self->{DISTRICT_ID} = $self->{INSERT_ID};
+    $admin->system_action_add("DISTRICT:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 }) if (!$self->{errno});
+  }
 
   return $self;
 }
@@ -476,7 +479,11 @@ sub street_add {
 
   $self->query_add("streets", $attr);
 
-  $admin->system_action_add("STREET:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 }) if (!$self->{errno});
+  if(! $self->{errno}) {
+    $self->{STREET_ID} = $self->{INSERT_ID};
+    $admin->system_action_add("STREET:$self->{INSERT_ID}:$attr->{NAME}", { TYPE => 1 });
+  }
+
   return $self;
 }
 
@@ -503,7 +510,7 @@ sub street_del {
 sub build_list {
   my $self = shift;
   my ($attr) = @_;
-  
+
   if($admin->{DOMAIN_ID}) {
     $attr->{DOMAIN_ID} = $admin->{DOMAIN_ID};
   }
@@ -519,11 +526,11 @@ sub build_list {
     $SORT = "b.number*1";
   }
 
-  my $maps_google_fields = '';
-  if ($attr->{SHOW_MAPS_GOOGLE}) {
-    push @WHERE_RULES, "(b.coordx<>0 and b.coordy)";
-    $maps_google_fields = "b.coordx, b.coordy, ";
-  }
+  # my $maps_google_fields = '';
+  # if ($attr->{SHOW_MAPS_GOOGLE}) {
+  #   push @WHERE_RULES, "(b.coordx<>0 and b.coordy)";
+  #   $maps_google_fields = "b.coordx, b.coordy, ";
+  # }
 
   my $WHERE = $self->search_former($attr, [
       ['NUMBER',            'STR', 'b.number',         ],
@@ -538,10 +545,10 @@ sub build_list {
       ['USERS_COUNT',       'INT', '', 'COUNT(pi.uid) AS users_count' ],
       ['USERS_CONNECTIONS', 'INT', '', 'ROUND((COUNT(pi.uid) / b.flats * 100), 0) AS users_connections' ],
       ['ADDED',             'DATE','b.added',        1 ],
-      ['YANDEX_0',          'INT', 'yandex_0',       1 ],
-      ['YANDEX_1',          'INT', 'yandex_1',       1 ],
-      ['GOOGLE_X',          'INT', 'coordx',         1 ],
-      ['GOOGLE_Y',          'INT', 'coordy',         1 ],
+      # ['YANDEX_0',          'INT', 'yandex_0',       1 ],
+      # ['YANDEX_1',          'INT', 'yandex_1',       1 ],
+      # ['GOOGLE_X',          'INT', 'coordx',         1 ],
+      # ['GOOGLE_Y',          'INT', 'coordy',         1 ],
       ['LOCATION_ID',       'INT', 'b.id',   'b.id AS location_id' ],
       ['COORDX',            'INT', 'b.coordx',       1 ],
       ['COORDY',            'INT', 'b.coordy',       1 ],
@@ -560,7 +567,7 @@ sub build_list {
     }
   );
 
-  $self->{SEARCH_FIELDS} .= $maps_google_fields;
+  #$self->{SEARCH_FIELDS} .= $maps_google_fields;
   my $EXT_TABLES = '';
 
   if ($self->{SEARCH_FIELDS} =~ /s\.|d\./) {

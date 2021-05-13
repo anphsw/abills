@@ -14,18 +14,18 @@
     <input type=hidden name='step' value='$FORM{step}'>
 
     <fieldset>
-            <div class='box box-theme box-big-form'>
+            <div class='card card-primary card-outline box-big-form'>
 
-                <div class='box-header with-border text-center'>
-                    <h3 class="box-title">DHCP</h3>
-                    <div class="box-tools pull-right">
-                        <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i
+                <div class='card-header with-border text-center'>
+                    <h3 class="card-title">DHCP</h3>
+                    <div class="card-tools pull-right">
+                        <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i
                                 class="fa fa-minus"></i>
                         </button>
                     </div>
                 </div>
              <!-- Body 1 -->
-              <div class='box-body' style="padding: 0">
+              <div class='card-body' style="padding: 0">
                 <div class='form-group grpstyle'>
                     <label class='control-label col-md-3' for='NETWORKS_SEL'>_{HOSTS_NETWORKS}_:</label>
                     <div class='col-md-9'>
@@ -98,30 +98,30 @@
                     </div>
 
         <!-- Body 1 -->
-            <div class='box box-default box-big-form collapsed-box' style="border-top: 1px solid #d2d6de; border-radius: 0px;margin-bottom: 0px">
-                <div class='box-header with-border'>
-                    <h3 class="box-title">_{INFO}_</h3>
-                    <div class="box-tools pull-right">
-                        <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i
+            <div class='card box-default box-big-form collapsed-box' style="border-top: 1px solid #d2d6de; border-radius: 0px;margin-bottom: 0px">
+                <div class='card-header with-border'>
+                    <h3 class="card-title">_{INFO}_</h3>
+                    <div class="card-tools pull-right">
+                        <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i
                                 class="fa fa-plus"></i>
                         </button>
                     </div>
                 </div>
-                <div class='box-body'>
+                <div class='card-body'>
                    %EQUIPMENT_INFO%
                 </div>
             </div>
 
-            <div class='box box-default box-big-form collapsed-box' style="border-top: 1px solid #d2d6de;border-radius: 0px;margin-bottom: 0px"">
-                <div class='box-header'>
-                    <h3 class="box-title">_{EXTRA}_</h3>
-                    <div class="box-tools pull-right">
-                        <button type="button" class="btn btn-default btn-xs" data-widget="collapse"><i
+            <div class='card box-default box-big-form collapsed-box' style="border-top: 1px solid #d2d6de;border-radius: 0px;margin-bottom: 0px"">
+                <div class='card-header'>
+                    <h3 class="card-title">_{EXTRA}_</h3>
+                    <div class="card-tools pull-right">
+                        <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse"><i
                                 class="fa fa-plus"></i>
                         </button>
                     </div>
                 </div>
-                <div class='box-body'>
+                <div class='card-body'>
                     <div class='form-group grpstyle'>
                         <label class='control-label col-md-3' for='BOOT_FILE'>_{FILE}_:</label>
                         <div class='col-md-9'>
@@ -166,7 +166,7 @@
                 </div>
             </div>
             </div>
-              <div class="box-footer">
+              <div class="card-footer">
         <div class='form-group' style="padding-left: 10px">
                 %BACK_BUTTON% <input type='submit' class='btn btn-primary' name='%ACTION%' value='%ACTION_LNG%'>
         </div>

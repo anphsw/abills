@@ -30,6 +30,7 @@ our(
     SHOW_ALL - Show all tps
     SEL_OPTIONS - Extra sel options (items)
     EX_PARAMS   - Extra sell options
+    SERVICE_ID  - TP SErvice ID
     SMALL_DEPOSIT_ACTION
     DOMAIN_ID
 
@@ -47,6 +48,9 @@ sub sel_tp {
     $params{MODULE} = $attr->{MODULE};
   }
 
+  my $tp_gids = $attr->{CHECK_GROUP_GEOLOCATION} ?
+    tp_gids_by_geolocation($attr->{CHECK_GROUP_GEOLOCATION}, $Tariffs, $attr->{USER_GID}) : '';
+
   if($attr->{TP_ID}) {
     if($attr->{TP_ID} =~ /:(\d+)/) {
       $attr->{TP_ID} = $1;
@@ -57,18 +61,21 @@ sub sel_tp {
     }
   }
 
+  if ($attr->{SERVICE_ID}) {
+    $params{SERVICE_ID} = $attr->{SERVICE_ID};
+  }
+
   my $list = $Tariffs->list({
     NEW_MODEL_TP => 1,
     DOMAIN_ID    => $users->{DOMAIN_ID} || $admin->{DOMAIN_ID} || $attr->{DOMAIN_D},
     COLS_NAME    => 1,
     STATUS       => '_SHOW',
+    TP_GID       => $tp_gids || '_SHOW',
     %params
   });
 
   if($attr->{TP_ID} && ! $attr->{EX_PARAMS}) {
-    if($Tariffs->{TOTAL}) {
-      return "$list->[0]->{id} : $list->[0]->{name}";
-    }
+    return "$list->[0]->{id} : $list->[0]->{name}" if($Tariffs->{TOTAL});
 
     return $attr->{TP_ID};
   }
@@ -90,20 +97,15 @@ sub sel_tp {
       %extra_options = %{ $attr->{SEL_OPTIONS} };
     }
 
-    if($attr->{EX_PARAMS}) {
-      %EX_PARAMS = ( EX_PARAMS => $attr->{EX_PARAMS} );
-    }
+    %EX_PARAMS = (EX_PARAMS => $attr->{EX_PARAMS}) if ($attr->{EX_PARAMS});
 
-    return $html->form_select(
-      $element_name,
-      {
-        SELECTED    => $attr->{$element_name} // $FORM{$element_name},
-        SEL_HASH    => \%tp_list,
-        SEL_OPTIONS => \%extra_options,
-        NO_ID       => 1,
-        %EX_PARAMS
-      }
-    );
+    return $html->form_select($element_name, {
+      SELECTED    => $attr->{$element_name} // $FORM{$element_name},
+      SEL_HASH    => \%tp_list,
+      SEL_OPTIONS => \%extra_options,
+      NO_ID       => 1,
+      %EX_PARAMS
+    });
   }
 
   return \%tp_list;
@@ -212,6 +214,66 @@ sub get_services {
   }
 
   return \%result;
+}
+
+#**********************************************************
+=head2 tp_gids_by_geolocation($attr)
+
+  Arguments:
+    $location_id
+    $Tariffs
+    $user_gid
+
+  Return:
+
+=cut
+#**********************************************************
+sub tp_gids_by_geolocation {
+  my ($location_id, $Tariffs, $user_gid) = @_;
+
+  use Address;
+  my $Address = Address->new($db, $admin, \%conf);
+  my $address = $Address->address_info($location_id);
+
+  return 0 if ($Address->{TOTAL} < 1 && ! $user_gid);
+
+  my @tp_gids = ();
+
+  my $group_by_build = $Tariffs->tp_geo_list({ TP_GID => '_SHOW', BUILD_ID => $location_id, COLS_NAME => 1 });
+  map(push(@tp_gids, $_->{tp_gid}), @{$group_by_build}) if ($Tariffs->{TOTAL} > 0);
+
+  my $group_by_street = $Tariffs->tp_geo_list({ TP_GID => '_SHOW', STREET_ID => $address->{STREET_ID}, COLS_NAME => 1 });
+  map(push(@tp_gids, $_->{tp_gid}), @{$group_by_street}) if ($Tariffs->{TOTAL} > 0);
+
+  my $group_by_district = $Tariffs->tp_geo_list({ TP_GID => '_SHOW', DISTRICT_ID => $address->{DISTRICT_ID}, COLS_NAME => 1 });
+  map(push(@tp_gids, $_->{tp_gid}), @{$group_by_district}) if ($Tariffs->{TOTAL} > 0);
+
+  my $group_without_location = $Tariffs->tp_geo_list({ TP_GID => '_SHOW', EMPTY_GEOLOCATION => 1, COLS_NAME => 1 });
+  map(push(@tp_gids, $_->{gid}), @{$group_without_location}) if ($Tariffs->{TOTAL} > 0);
+
+  my $gids_by_geolocation = join(';', @tp_gids);
+
+  if ($user_gid) {
+    @tp_gids = ();
+    my $group_by_users_groups = $Tariffs->tp_group_users_groups_info({
+      TP_GID    => $gids_by_geolocation || '_SHOW',
+      GID       => $user_gid,
+      COLS_NAME => 1
+    });
+    map(push(@tp_gids, $_->{tp_gid}), @{$group_by_users_groups}) if ($Tariffs->{TOTAL} > 0);
+  }
+
+  my $group_without_users_groups = $Tariffs->tp_group_users_groups_info({
+    EMPTY_GROUP => 1,
+    TP_GID2     => $gids_by_geolocation || '_SHOW',
+    COLS_NAME   => 1
+  });
+  map(push(@tp_gids, $_->{g_gid}), @{$group_without_users_groups}) if ($Tariffs->{TOTAL} > 0);
+
+  #Add TP without groups
+  push @tp_gids, 0;
+
+  return join(';', @tp_gids);
 }
 
 1;

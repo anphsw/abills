@@ -4,13 +4,13 @@
     <input type='hidden' name='address' value='%ADDRESS%'>
     <input type='hidden' name='ID' value='%ID%'>
 
-    <div class='box box-theme box-form'>
-        <div class='box-header with-border'>
-            <h4 class='box-title'>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-header with-border'>
+            <h4 class='card-title'>
                 _{COMPENSATION}_
             </h4>
         </div>
-        <div class="box-body">
+        <div class="card-body">
 
             <div class="form-group">
                 <label class="control-label col-md-4 col-sm-3">_{SERVICE}_:</label>

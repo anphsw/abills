@@ -1,5 +1,5 @@
-<div class='box box-theme box-form'>
-  <div class='box-body'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-body'>
 
     %MENU%
 
@@ -79,7 +79,7 @@
     </form>
 
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type=submit class='btn btn-danger noprint' form='vlan_user_form' name='del' value='_{DEL}_'>
     <input type=submit class='btn btn-success noprint' form='vlan_user_form' name='%ACTION%' value='%LNG_ACTION%'>
   </div>

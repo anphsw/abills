@@ -10,6 +10,9 @@
   var MAPS_DEFAULT_LATLNG  = '%MAPS_DEFAULT_LATLNG%';
   var MAP_HEIGHT  = '%MAP_HEIGHT%' || 85;
 
+  var MAPS_WATERMARK_URL  = '%MAPS_WATERMARK_URL%' || '';
+  var MAPS_WATERMARK_ICON  = '%MAPS_WATERMARK_ICON%' || '';
+
   var CLIENT_MAP = '%CLIENT_MAP%';
 
   var _NAVIGATION_WARNING        = '_{NAVIGATION_WARNING}_' || 'You have disabled retrieving your location in browser';
@@ -114,7 +117,6 @@
   var MULTIPLE         = "MULTIPLE";
 
   var LAYERS           = JSON.parse('%LAYERS%');
-  var LAYER_LIST_REFS  = JSON.parse('%LAYER_LIST_REFS%');
   var LAYER_ID_BY_NAME = JSON.parse('%LAYER_ID_BY_NAME%');
   var FORM             = JSON.parse('%FORM%');
   var OPTIONS          = JSON.parse('%OPTIONS%');

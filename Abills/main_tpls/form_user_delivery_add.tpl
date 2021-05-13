@@ -47,14 +47,14 @@
           <input form="users_list" id=DELIVERY_CREATE name=DELIVERY_CREATE value=1 onClick='add_delivery();' title='_{CREATE}_ _{DELIVERY}_' type="checkbox" id='DELIVERY_CHECKBOCS' aria-label="Checkbox">
         </span>
         %DELIVERY_SELECT_FORM%
-        <span class="input-group-addon"><a title="info" href="%DELIVERY_SPAN_ADDON_URL%"><span class="glyphicon glyphicon-list-alt"></span></a></span>
+        <span class="input-group-addon"><a title="info" href="%DELIVERY_SPAN_ADDON_URL%"><span class="fa fa-list-alt"></span></a></span>
       </div>
     </div>
 
     <div id=new_delivery style='display: none'>
      <!-- BOX-BODY MU_DELIVERY-->
-     <div class="box box-warning">
-     <div class="box-body" id='delivery_box_body'>
+     <div class="card box-warning">
+     <div class="card-body" id='delivery_box_body'>
 
       <div class='row'>
           <label class='control-label col-md-2 ' for='DELIVERY_COMMENTS'>_{SUBJECT}_:</label>

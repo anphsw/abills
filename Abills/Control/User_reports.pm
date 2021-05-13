@@ -6,12 +6,13 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base;
 use Users;
 use Internet;
+use Service;
 use List::Util qw/max min/;
-our(
-  $html,
+require Abills::Misc;
+
+our (
   %lang,
   @MONTHES,
   @WEEKDAYS,
@@ -19,7 +20,10 @@ our(
   $db,
   $admin,
 );
-my $Users   = Users->new( $db, $admin, \%conf );
+
+our Abills::HTML $html;
+
+my $Users = Users->new($db, $admin, \%conf);
 my $Internet = Internet->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -98,18 +102,19 @@ sub report_new_all_customers {
   });
 
   my $pre_button = $html->button(" ", "index=$index&PRE=" . ($search_year - 1),
-    { class => ' btn btn-sm btn-default', ICON => 'glyphicon glyphicon-arrow-left', TITLE => $lang{BACK} });
+    { class => ' btn btn-sm btn-secondary', ICON => 'fa fa-arrow-left', TITLE => $lang{BACK} });
   my $next_button = $html->button(" ", "index=$index&NEXT=" . ($search_year + 1),
-    { class => 'btn btn-sm btn-default', ICON => 'glyphicon glyphicon-arrow-right', TITLE => $lang{NEXT} });
+    { class => 'btn btn-sm btn-secondary', ICON => 'fa fa-arrow-right', TITLE => $lang{NEXT} });
   print " <div class='col-lg-10' style='padding-left: 0'>
-            <div class='box box-theme'>
-              <div class='box-header with-border'>$pre_button $search_year $next_button<h4 class='box-title'>$lang{REPORT_NEW_ALL_USERS}</h4></div>
-              <div class='box-body'>
+            <div class='card card-primary card-outline'>
+              <div class='card-header with-border'>$pre_button $search_year $next_button<h4 class='card-title'>$lang{REPORT_NEW_ALL_USERS}</h4></div>
+              <div class='card-body'>
                 $chart3
               </div>
           </div>\n";
   return 1;
 }
+
 #**********************************************************
 =head2 report_new_arpu() - show chart for new and all customers
 
@@ -258,18 +263,19 @@ sub report_new_arpu {
   });
 
   my $pre_button = $html->button(" ", "index=$index&PRE=" . ($search_year - 1),
-    { class => ' btn btn-sm btn-default', ICON => 'glyphicon glyphicon-arrow-left', TITLE => $lang{BACK} });
+    { class => ' btn btn-sm btn-secondary', ICON => 'fa fa-arrow-left', TITLE => $lang{BACK} });
   my $next_button = $html->button(" ", "index=$index&NEXT=" . ($search_year + 1),
-    { class => 'btn btn-sm btn-default', ICON => 'glyphicon glyphicon-arrow-right', TITLE => $lang{NEXT} });
+    { class => 'btn btn-sm btn-secondary', ICON => 'fa fa-arrow-right', TITLE => $lang{NEXT} });
   print " <div class='col-lg-10' style='padding-left: 0'>
-            <div class='box box-theme'>
-              <div class='box-header with-border'>$pre_button $search_year $next_button<h4 class='box-title'>$lang{REPORT_NEW_ARPU_USERS}</h4></div>
-              <div class='box-body'>
+            <div class='card card-primary card-outline'>
+              <div class='card-header with-border'>$pre_button $search_year $next_button<h4 class='card-title'>$lang{REPORT_NEW_ARPU_USERS}</h4></div>
+              <div class='card-body'>
                 $chart3
               </div>
           </div>\n";
   return 1;
 }
+
 #**********************************************************
 =head2 report_balance_by_status() - Shows table with statuses,users count and sum deposits
 
@@ -280,8 +286,8 @@ sub report_new_arpu {
 =cut
 #**********************************************************
 sub report_balance_by_status {
-  use Service;
-  my $Service = Service->new( $db, $admin, \%conf );
+
+  my $Service = Service->new($db, $admin, \%conf);
   my $status_list = $Service->status_list({
     NAME      => '_SHOW',
     COLOR     => '_SHOW',
@@ -289,29 +295,34 @@ sub report_balance_by_status {
     SORT      => 'id',
     DESC      => 'ASC'
   });
+
   my $table = $html->table({
     width       => '100%',
     caption     => $lang{REPORT_BALANCE_BY_STATUS},
-    title_plain => [
-      $lang{STATUS},
-      "$lang{COUNT} $lang{USERS}",
-      $lang{BALANCE},
-    ],
+    title_plain => [ $lang{STATUS}, "$lang{COUNT} $lang{USERS}", $lang{BALANCE} ],
     qs          => $pages_qs,
     ID          => 'BALANCE_BY_STATUS'
   });
+
   my $list_index = get_function_index('internet_users_list');
+
+  if ($FORM{DEBUG}) {
+    $Internet->{debug} = 1;
+  }
+
   foreach my $item (@$status_list) {
-    my $report_data = $Internet->report_user_statuses({STATUS =>$item->{id}, COLS_NAME => 1});
+    my $report_data = $Internet->report_user_statuses({ STATUS => $item->{id}, COLS_NAME => 1 });
     $table->addrow(
       $html->color_mark(_translate($item->{name}), $item->{color}),
-      (defined $report_data->{status} && ($item->{id} eq $report_data->{status}))?
+      (defined $report_data->{status} && ($item->{id} eq $report_data->{status})) ?
         $html->button($report_data->{COUNT},
-        'index=' . $list_index . '&header=1&search_form=1&search=1&INTERNET_STATUS=' . $item->{id}): 0,
-      (defined $report_data->{status} && ($item->{id} eq $report_data->{status}))? format_sum($report_data->{deposit}): 0,
-    )
+          'index=' . $list_index . '&header=1&search_form=1&search=1&INTERNET_STATUS=' . $item->{id}) : 0,
+      (defined $report_data->{status} && ($item->{id} eq $report_data->{status})) ? format_sum($report_data->{deposit}) : 0,
+    );
   }
+
   print $table->show();
+
   return 1;
 }
 1;

@@ -63,7 +63,7 @@ sub maps_point_info_table {
   return q{} unless ($objects && ref $objects eq 'ARRAY' && scalar @{$objects});
 
   my $online_block = $html->element('span', '', {
-    class => 'glyphicon glyphicon-ok-circle text-green',
+    class => 'fa fa-check-circle-o text-green',
     title => $lang{ONLINE}
   });
 

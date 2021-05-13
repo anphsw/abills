@@ -13,7 +13,6 @@ use Reports;
 
 our (
   $db,
-  $html,
   $admin,
   %conf,
   %lang,
@@ -23,6 +22,7 @@ our (
   %DATA_HASH
 );
 
+our Abills::HTML $html;
 my $Reports = Reports->new($db, $admin, \%conf);
 
 #**********************************************************
@@ -154,7 +154,7 @@ $Reports->{FIELDS}
       $line->{name},
       $line->{group_name},
       $line->{comments},
-      $html->button("", "qindex=$index&export=$line->{id}", { class => 'glyphicon glyphicon-export', TEXT => $lang{DOWNLOAD} }) .
+      $html->button("", "qindex=$index&export=$line->{id}", { class => 'fa fa-export', TEXT => $lang{DOWNLOAD} }) .
         $html->button("$lang{SHOW}", "index=" . get_function_index('rwizard') . "&REPORT=$line->{id}", { class => 'show', TEXT => $lang{SHOW} }) .
         $html->button("$lang{PRINT}", "qindex=" . get_function_index('rwizard') . "&print=$line->{id}", { class => 'print', TEXT => $lang{PRINT}, TARGET => '_print' }) .
         $html->button("$lang{CHANGE}", "index=$index&chg=$line->{id}", { class => 'change', TEXT => $lang{CHANGE} }) .
@@ -416,6 +416,7 @@ sub rwizard_old {
     $Reports->{QUERY}       =~ s/WHERE\s+AND\s+/WHERE /ig;
     $Reports->{QUERY_TOTAL} =~ s/WHERE\s+AND\s+/WHERE /ig;
     $Reports->{QUERY_TOTAL} =~ s/^[\n\r]+$//g;
+
     if ($FORM{DEBUG}) {
       $Reports->{debug} = 1;
     }
@@ -1210,7 +1211,7 @@ sub _group_sel {
 #**********************************************************
 sub _make_report_menu {
   my ($attr) = @_;
-  my @rows = ("$lang{REPORTS}: " . _report_sel($attr));
+  my @rows = ($html->element('label', $lang{REPORTS}, { class => 'control-label p-1' }) . _report_sel($attr));
 
   $pages_qs .= "&REPORT=$attr->{REPORT}";
   while (my ($k, $v) = each %$attr) {
@@ -1220,17 +1221,19 @@ sub _make_report_menu {
   }
 
   if ($Reports->{QUERY} =~ /DATE_FROM/) {
-    push @rows, "$lang{DATE}: " . $html->date_fld2('DATE_FROM', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports_panel', WEEK_DAYS => \@WEEKDAYS })
+    push @rows, $html->element('label', "$lang{DATE}:", { class => 'control-label p-1' })
+      . $html->date_fld2('DATE_FROM', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports_panel', WEEK_DAYS => \@WEEKDAYS })
       . "-" . $html->date_fld2('DATE_TO', { MONTHES => \@MONTHES, FORM_NAME => 'form_reports_panel', WEEK_DAYS => \@WEEKDAYS });
   }
 
   if ($Reports->{QUERY} =~ /%GID%/) {
-    push @rows, "$lang{GROUP}: " . sel_groups({FILTER_SEL => 1});
+    push @rows, $html->element('label', "$lang{GROUP}:", { class => 'control-label p-1' }) . sel_groups({FILTER_SEL => 1});
   }
 
   if ($Reports->{QUERY} =~ /%DEPOSIT:?([\S]{0,12})%/) {
     my $default_parameters_value = $attr->{DEPOSIT} ? $attr->{DEPOSIT} : $1;
-    push @rows, "DEPOSIT: " . $html->form_input('DEPOSIT', "$default_parameters_value");
+    push @rows, $html->element('label', "DEPOSIT:", { class => 'control-label p-1' })
+      . $html->form_input('DEPOSIT', "$default_parameters_value");
   }
 
   if ($Reports->{QUERY} =~ /%PARAMETER:?([\S]{0,12})%/) {
@@ -1250,7 +1253,7 @@ sub _make_report_menu {
   }
 
   if ($Reports->{QUERY} =~ /%ADMIN_ID%/g) {
-    push @rows, "$lang{ADMINS}: " . $html->form_select(
+    push @rows, $html->element('label', $lang{ADMINS}, { class => 'control-label p-1' }) . $html->form_select(
       'ADMIN_ID',
       {
         SELECTED  => (defined($attr->{ADMIN_ID}) && $attr->{ADMIN_ID} ne '') ? $attr->{ADMIN_ID} : 0,
@@ -1262,17 +1265,19 @@ sub _make_report_menu {
     );
   }
 
-  push @rows, $html->form_input('qindex', $index, { TYPE => 'checkbox' }) . " $lang{PRINT} ",
-    (($permissions{4}) ? $html->form_input('DEBUG', 1, { TYPE => 'checkbox', STATE => $attr->{DEBUG} }) . " $lang{DEBUG}" : ''),
+  push @rows, $html->form_input('qindex', $index, { TYPE => 'checkbox' })
+    . $html->element('label', $lang{PRINT}, { class => 'control-label p-1',  for => 'qindex'}),
+    (($permissions{4}) ? $html->form_input('DEBUG', 1, { TYPE => 'checkbox', STATE => $attr->{DEBUG} }) .
+      $html->element('label', $lang{DEBUG}, { class => 'control-label p-1',  for => 'DEBUG'}) : ''),
     $html->form_input('show', $lang{SHOW}, { TYPE => 'submit' });
 
   my $output = '';
   foreach my $val (@rows) {
-    $output .= ' ' . $html->element('div', $val, { class => 'form-group' });
+    $output .= ' ' . $html->element('div', $val, { class => 'form-group p-2' });
   }
 
-  my $report_panel = $html->element('div', $output, {
-    class => 'well well-sm'
+  my $report_panel = $html->element('div', $html->element('div', $output, { class => 'd-flex row' }), {
+    class => 'card card-body bg-light'
   });
 
   if ($Reports->{QUERY} =~ /%ADDRESS%/) {
@@ -1311,7 +1316,7 @@ sub _make_report_menu {
 sub _read_titles {
   my ($fields) = @_;
 
-  my @cols = split(/[\r\n]+/, $fields);
+  my @cols = split(/[\r\n]+/, $fields || q{});
   my @titles = ();
   my @col_names = ();
   my %cols_params = ();
@@ -1474,8 +1479,8 @@ sub _make_report_query {
 
 
   $Reports->{QUERY}       =~ s/WHERE\s+AND\s+/WHERE /ig;
-  $Reports->{QUERY_TOTAL} =~ s/WHERE\s+AND\s+/WHERE /ig;
   $Reports->{QUERY_TOTAL} //= "";
+  $Reports->{QUERY_TOTAL} =~ s/WHERE\s+AND\s+/WHERE /ig;
   $Reports->{QUERY_TOTAL} =~ s/^[\n\r]+$//g;
 
   return 1;

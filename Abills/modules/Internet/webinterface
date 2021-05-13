@@ -145,6 +145,7 @@ sub internet_users_search {
 
   my $search_form = $html->tpl_show(_include('internet_users_search', 'Internet'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
   $search_form .= $html->tpl_show(templates('form_search_personal_info'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
+  $search_form .= $html->tpl_show(templates('form_search_users_internet'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
 
   form_search({
     SEARCH_FORM  => $search_form,
@@ -159,7 +160,7 @@ sub internet_users_search {
 =head2 internet_multiuser($ids) - Make multiuser panel
 
   Arguments:
-         $ids = string of ids
+        $ids = string of ids
 
 =cut
 #**********************************************************
@@ -260,21 +261,15 @@ sub internet_multiuser {
     }
   }
   elsif ($FORM{MU_SET_IPV4}) {
+    require Internet::User_ips;
     my $Ip_pool  = $Nas->ip_pools_info($FORM{INTERNET_MU_IPV4_POLL});
-    my $first_ip = ip2int($Ip_pool->{IP});
-    my $ip_arr   = $Internet->get_free_static_ip({
-      FIRST => $first_ip,
-      LAST  => $first_ip + $Ip_pool->{COUNTS} - 1,
-      COUNT => $#multiuser_arr + 1,
-    });
-    my $i=0;
+
     foreach my $id (@multiuser_arr) {
       $Internet->change({
         ID  => $id,
         UID => $uid_hash->{$id},
-        IP  => int2ip($ip_arr->[$i++][0]),
+        IP  => get_static_ip($FORM{INTERNET_MU_IPV4_POLL}),
       });
-      last if ($i >= scalar @$ip_arr);
     }
   }
   elsif ($ids && $FORM{MU_TAGS_USER}) {
@@ -296,7 +291,7 @@ sub internet_multiuser {
           %params
         }
       );
-      
+
       if ( _error_show($Internet, { MODULE_NAME => $lang{INTERNET} }) ) {
         last;
       }
@@ -321,8 +316,90 @@ sub internet_users_list {
     return 0;
   }
 
+  if($FORM{import}){
+    if (!$permissions{0}{17}) {
+      $html->message('err', $lang{ERROR}, "$lang{IMPORT} $lang{ERR_ACCESS_DENY}");
+      return 0;
+    }
+
+    if ($FORM{add}) {
+      my $import_accounts = import_former(\%FORM);
+      my $total = $#{$import_accounts} + 1;
+      my $main_id = 'UID';
+
+      if (!$import_accounts->[0]->{UID}) {
+        if ($import_accounts->[0]->{INTERNET_LOGIN}) {
+          $main_id = 'INTERNET_LOGIN';
+        }
+        elsif ($import_accounts->[0]->{MAIN_ID}) {
+          $main_id = $import_accounts->[0]->{MAIN_ID};
+        }
+      }
+
+      foreach my $_user (@$import_accounts) {
+        my $list = $Internet->list({
+          LOGIN     => '_SHOW',
+          $main_id  => $_user->{$main_id},
+          COLS_NAME => 1
+        });
+
+        if ($Internet->{TOTAL} > 0) {
+
+          my $uid = $list->[0]->{uid};
+          $Internet->change({ %$_user, UID => $uid });
+          print $html->button($list->[0]->{login}, "index=15&UID=$uid") . " ($uid)' Ok" . $html->br();
+
+        } else {
+          $Internet->add({ %$_user });
+          if ($Internet->{errno}) {
+            _error_show($users);
+          }
+        }
+      }
+
+      $html->message('info', $lang{INFO}, "$lang{ADDED}\n $lang{FILE}: $FORM{UPLOAD_FILE}{filename}\n Size: $FORM{UPLOAD_FILE}{Size}\n Count: $total");
+
+      return 1;
+    }
+
+    my $import_fields = $html->form_select('IMPORT_FIELDS',
+      {
+        SELECTED  => $FORM{IMPORT_FIELDS},
+        SEL_ARRAY => [
+          'UID',
+          'TP_ID',
+          'STATUS'
+        ],
+        EX_PARAMS => 'multiple="multiple"'
+      });
+
+    my $encode = $html->form_select(
+      'ENCODE',
+      {
+        SELECTED  => $FORM{ENCODE},
+        SEL_ARRAY => [ '', 'win2utf8', 'utf82win', 'win2koi', 'koi2win', 'win2iso', 'iso2win', 'win2dos', 'dos2win' ],
+      }
+    );
+
+    my $extra_row = $html->tpl_show(templates('form_row'), {
+      ID    => 'ENCODE',
+      NAME  => $lang{ENCODE},
+      VALUE => $encode },
+      { OUTPUT2RETURN => 1 });
+
+    $html->tpl_show(templates('form_import'), {
+      IMPORT_FIELDS     => 'UID,TP_ID,STATUS',
+      CALLBACK_FUNC     => 'internet_users_list',
+      IMPORT_FIELDS_SEL => $import_fields,
+      EXTRA_ROWS        => $extra_row
+    });
+
+    return 1;
+  }
+
   if ($FORM{GLOBAL}) {
-    $Internet->{GLOBAL} = 1;
+    #$Internet->{GLOBAL} = 1;
+    $FORM{UNIVERSAL_SEARCH} = 1;
   }
 
   if($FORM{INTERNET_MULTIUSER} && $FORM{IDS}) {
@@ -365,7 +442,7 @@ sub internet_users_list {
                          ? $FORM{INTERNET_STATUS}
                          : undef;
   my $status_bar     = $html->button($lang{ALL}, "index=$index$clear_qs", {
-      class => "btn btn-default " . (!defined $FORM{INTERNET_STATUS} ? 'active' : '' )
+      class => "btn btn-secondary " . (!defined $FORM{INTERNET_STATUS} ? 'active' : '' )
     });
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
@@ -379,7 +456,7 @@ sub internet_users_list {
       $active    = 'active';
     }
 
-    $status_bar .= $html->button($name, "index=$index&INTERNET_STATUS=$i$clear_qs", { class => "btn btn-default $active"  });
+    $status_bar .= $html->button($name, "index=$index&INTERNET_STATUS=$i$clear_qs", { class => "btn btn-secondary $active"  });
   }
 
   ##print $html->letters_list({ pages_qs => $pages_qs });
@@ -409,6 +486,8 @@ sub internet_users_list {
     $EXT_PARAM_FORMER{MAP} = 1;
     $EXT_PARAM_FORMER{MAP_FIELDS} = 'ADDRESS_FLAT,LOGIN,DEPOSIT,FIO,TP_NAME,ONLINE';
   }
+
+  $LIST_PARAMS{GID} = $FORM{GID} if $FORM{GID};
 
   ($table, $list) = result_former({
     INPUT_DATA      => $Internet,
@@ -452,7 +531,9 @@ sub internet_users_list {
       'shedule'               => $lang{SHEDULE},
       'cpe_mac'               => "CPE MAC",
       'nas_id'                => 'NAS_ID',
-      'id'                    => $lang{ID_TP_SEARCH}
+      'id'                    => $lang{ID_TP_SEARCH},
+      'ipv6'                  => 'IPv6 Address',
+      'ipv6_prefix'           => 'IPv6 Prefix'
     },
     SELECT_VALUE => {
       internet_status => $service_status,
@@ -473,6 +554,7 @@ sub internet_users_list {
       header     => $status_bar,
       EXPORT     => 1,
       MENU       => "$lang{ADD}:index=" . $reg_index . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search",
+      IMPORT           => "$SELF_URL?get_index=internet_users_list&header=2&import=1",
     },
     MAKE_ROWS     => 1,
     SEARCH_FORMER => 1,
@@ -492,7 +574,7 @@ sub internet_users_list {
   elsif ($Internet->{TOTAL} == 1) {
     delete $FORM{LOGIN};
     $ui = user_info($list->[0]->{uid});
-    
+
     if ($ui) {
       print $ui->{TABLE_SHOW};
       form_users({ USER_INFO => $ui });
@@ -524,7 +606,7 @@ sub internet_users_list {
 
       if (in_array('Tags', \@MODULES)) {
         load_module('Tags', $html);
-        $Internet->{MU_USER_TAGS} = tags_sel();
+        $Internet->{MU_USER_TAGS} = tags_sel({ ADMIN => 'MU_USER_TAGS' });
       }
       else {
         $Internet->{VISIBLE} = 'display: none;';
@@ -691,7 +773,7 @@ sub internet_error {
   }
 
   $list = $Log->log_list({
-    %LIST_PARAMS, 
+    %LIST_PARAMS,
     ACTION    => $FORM{ACTION} || '_SHOW',
     TEXT      => $FORM{TEXT} || '',
     COLS_NAME => 1
@@ -762,7 +844,8 @@ sub internet_error {
 
     my $auth_switch = q{};
 
-    if($message =~ /NAS_MAC: ([a-f\:0-9]+)/i) {
+    #xx:xx:xx:xx:xx:xx xxxx.xxxx.xxxx
+    if($message =~ /NAS_MAC: ([a-f\:0-9\.]{14,17})/i) {
       $auth_switch = $1;
       if($nas_ids{$auth_switch}) {
         $auth_switch = $nas_ids{$auth_switch};
@@ -971,56 +1054,34 @@ sub internet_payments_maked {
 sub internet_period_select {
   my ($attr) = @_;
 
-  my $rows = ($conf{list_max_recs} && $conf{list_max_recs} =~ /^\d+$/) ? $conf{list_max_recs} : 25;
+  my $date_picker = $html->form_daterangepicker({
+    NAME      => 'FROM_DATE/TO_DATE',
+    FORM_NAME => 'report_panel',
+    VALUE     => $attr->{DATE} || $FORM{'FROM_DATE_TO_DATE'},
+    OUTPUT2RETURN => 1
+  });
 
-  my @rows = (
-    $lang{DATE}.":",
-    $html->form_daterangepicker({
-      NAME      => 'FROM_DATE/TO_DATE',
-      FORM_NAME => 'report_panel',
-      VALUE     => $attr->{DATE} || $FORM{'FROM_DATE_TO_DATE'},
-      OUTPUT2RETURN => 1
-    }),
-    $html->form_select(
-      'DIMENSION',
-      {
-        SELECTED => $FORM{DIMENSION},
-        SEL_HASH => {
-          '' => 'Auto',
-          'Kb' => 'Kb',
-          'Mb' => 'Mb',
-          'Gb' => 'Gb'
-        },
-        NO_ID => 1
-      },
-    ),
-    "Online: ",
-    $html->form_input('ONLINE', 1, { TYPE => 'checkbox', STATE => (! $FORM{rows} && ! $FORM{ONLINE}) ? 1 : $FORM{ONLINE}, OUTPUT2RETURN => 1 }),
-    "$lang{ROWS}: ",
-    $html->form_input('rows', $rows, { SIZE => 4, OUTPUT2RETURN => 1 }),
-    $html->form_input('show', $lang{SHOW}, { TYPE => 'submit', OUTPUT2RETURN => 1 })
-  );
+  my $dimension = $html->form_select('DIMENSION', {
+    SELECTED => $FORM{DIMENSION},
+    SEL_HASH => {
+      ''   => 'Auto',
+      'Kb' => 'Kb',
+      'Mb' => 'Mb',
+      'Gb' => 'Gb'
+    },
+    NO_ID => 1
+  });
 
-  my $info = '';
-  foreach my $val (@rows) {
-    $info .= $html->element('div', $val . ' ', { class => 'form-group', OUTPUT2RETURN => 1 });
-  }
-
-  return $html->form_main(
-    {
-      CONTENT => $html->element('div', $info, { class => 'well well-sm', OUTPUT2RETURN => 1 }),
-      HIDDEN => {
-        sid   => $sid,
-        index => $index,
-        ID    => $attr->{ID},
-        UID   => $attr->{UID} || '',
-      },
-      NAME  => 'stats',
-      ID    => 'stats',
-      class => 'form-inline',
-      OUTPUT2RETURN => 1
-    }
-  );
+  return $html->tpl_show(_include('internet_user_portal_stats', 'Internet'), {
+    DATE_PICKER => $date_picker,
+    DIMENSION   => $dimension,
+    ONLINE      => (! $FORM{rows} && ! $FORM{ONLINE}) ? '' : 'checked',
+    ROWS        => ($conf{list_max_recs} && $conf{list_max_recs} =~ /^\d+$/) ? ($FORM{ROWS} || $conf{list_max_recs}) : 25,
+    SID         => $sid,
+    INDEX       => $index,
+    ID          => $attr->{ID},
+    UID         => $attr->{UID}
+  }, { OUTPUT2RETURN => 1 });
 }
 
 #**********************************************************
@@ -1451,10 +1512,10 @@ sub internet_search {
     if ($#admin_gids > 0) {
       foreach my $admin_gid (@admin_gids) {
         if ($user_gid->{GID} && $admin_gid == $user_gid->{GID}) {
-          $admin_permissions_gid = 1 
+          $admin_permissions_gid = 1
         }
         elsif (!$user_gid->{GID}) {
-          $admin_permissions_gid = 1 
+          $admin_permissions_gid = 1
         }
       }
     }
@@ -1465,7 +1526,7 @@ sub internet_search {
   else {
     $admin_permissions_gid = 1;
   }
-  
+
   my @info = ();
 
   if ($admin_permissions_gid) {

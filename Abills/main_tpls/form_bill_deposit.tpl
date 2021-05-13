@@ -5,8 +5,8 @@
     <input type='hidden' name='bill_correction' value='1'/>
 
 
-    <div class='box box-theme box-form'>
-        <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+        <div class='card-body'>
 
             <fieldset>
                 <legend>_{BILL}_</legend>

@@ -31,17 +31,26 @@ my $Config = Conf->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub api_list {
+  my $admin_list = '';
 
   if ($FORM{DELETE}) {
     $Receipt->api_del($FORM{DELETE});
     $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
   }
   elsif ($FORM{chg}) {
+    $admin_list = $admin->list({AID => $FORM{AID}, COLS_NAME => 1 });
+
+    $FORM{AUTHOR} = $admin_list->[0]->{name};
+
     $Receipt->api_change({ %FORM, API_ID => $FORM{chg} });
+
     $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
   }
   elsif ($FORM{CHANGE}) {
     my $api_info = $Receipt->api_list({ API_ID => $FORM{CHANGE} });
+
+    $api_info->[0]->{AID} = sel_admins({ NAME => 'AID', SELECTED => $api_info->[0]->{aid}});
+
     $html->tpl_show('', {
       %{$api_info->[0]},
       SUBMIT_BTN_ACTION => 'chg',
@@ -50,6 +59,9 @@ sub api_list {
     }, { TPL => 'receipts_api', MODULE => 'Extreceipt' });
   }
   elsif ($FORM{adding}) {
+    $admin_list = $admin->list({AID => $FORM{AID}, COLS_NAME => 1 });
+    $FORM{AUTHOR} = $admin_list->[0]->{name};
+
     $Receipt->api_add(\%FORM);
     $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
   }
@@ -80,20 +92,25 @@ sub api_list {
     }
   }
   elsif ($FORM{ADD}) {
-    $html->tpl_show('', {
-      SUBMIT_BTN_ACTION => 'adding',
-      SUBMIT_BTN_VALUE  => '1',
-      SUBMIT_BTN_NAME   => $lang{ADD},
-    }, { TPL => 'receipts_api', MODULE => 'Extreceipt' });
-  }
+    $FORM{AID} = sel_admins({ NAME => 'AID', SELECTED => $FORM{AID}});
 
+    $html->tpl_show(
+      _include('receipts_api', 'Extreceipt'),
+      {
+        %FORM,
+        SUBMIT_BTN_ACTION => 'adding',
+        SUBMIT_BTN_VALUE  => '1',
+        SUBMIT_BTN_NAME   => $lang{ADD},
+      }
+    );
+  }
   my $api_list = $Receipt->api_list();
 
   my $table = $html->table({
     width               => '100%',
     caption             => "Receipts API : ",
     ID                  => 'API',
-    title               => [ "#", "API name", "" ],
+    title               => [ "#", "API name", "Autor", "" ],
     HAS_FUNCTION_FIELDS => 1,
     MENU                => "$lang{ADD}:index=$index&ADD=1:add"
   });
@@ -102,7 +119,7 @@ sub api_list {
     my $edit_button = $html->button($lang{CHANGE}, "index=$index&CHANGE=$_->{api_id}", { class => 'change' });;
     my $del_button = $html->button($lang{DELETE}, "index=$index&DELETE=$_->{api_id}", { class => 'del' });
     my $test_button = $html->button($lang{TEST}, "index=$index&test=$_->{api_id}", { class => 'test' });
-    $table->addrow($_->{api_id}, $_->{api_name}, $test_button . $edit_button . $del_button);
+    $table->addrow($_->{api_id}, $_->{api_name}, $_->{author}, $test_button . $edit_button . $del_button);
   }
   print $table->show();
 
@@ -134,6 +151,9 @@ sub kkt_list {
     }, { TPL => 'receipts_kkt', MODULE => 'Extreceipt' });
   }
   elsif ($FORM{adding}) {
+    my $api_list = $Receipt->api_list({ API_ID => $FORM{API_ID}, COLS_NAME => 1 });
+    $FORM{ADMINS} = $api_list->[0]->{AUTHOR};
+
     $Receipt->kkt_add(\%FORM);
     $html->message('info', $lang{SUCCESS}) if (_error_show($Receipt));
   }
@@ -159,7 +179,7 @@ sub kkt_list {
     width               => '100%',
     caption             => "KKT",
     ID                  => 'KKT',
-    title               => [ "#", "API name", "KKT $lang{GROUP}", $lang{PAYMENT_METHOD}, $lang{GROUPS}, "" ],
+    title               => [ "#", "API name", "KKT $lang{GROUP}", $lang{PAYMENT_METHOD}, $lang{GROUPS}, $lang{ADMIN}, "" ],
     HAS_FUNCTION_FIELDS => 1,
     MENU                => "$lang{ADD}:index=$index&ADD=1:add"
   });
@@ -167,7 +187,7 @@ sub kkt_list {
   foreach (@$api_list) {
     my $edit_button = $html->button($lang{CHANGE}, "index=$index&CHANGE=$_->{kkt_id}", { class => 'change' });;
     my $del_button = $html->button($lang{DELETE}, "index=$index&DELETE=$_->{kkt_id}", { class => 'del' });
-    $table->addrow($_->{kkt_id}, $_->{api_name}, $_->{kkt_group}, $_->{methods}, $_->{groups}, $edit_button . $del_button);
+    $table->addrow($_->{kkt_id}, $_->{api_name}, $_->{kkt_group}, $_->{methods}, $_->{groups}, $_->{admins}, $edit_button . $del_button);
   }
   print $table->show();
 
@@ -418,7 +438,7 @@ sub _extreceipt_buttons_filter {
   my $buttons = '';
 
   if ($attr->{id} > $conf{"EXTRECEIPT_LAST_ID"}) {
-    $buttons = $html->button($lang{NEW}, "index=$index&new=1&$pages_qs", { class => 'btn btn-xs btn-default' });
+    $buttons = $html->button($lang{NEW}, "index=$index&new=1&$pages_qs", { class => 'btn btn-xs btn-secondary' });
   }
   elsif (!defined($attr->{extst})) {
     return '';

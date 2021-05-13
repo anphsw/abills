@@ -9,8 +9,8 @@
 
 <div class='row'>
   <div class='col-md-6 col-md-offset-3'>
-    <div class='box box-login'>
-      <div class='box-header with-border'>
+    <div class='card box-login'>
+      <div class='card-header with-border'>
         <div class='row' style='display: %RULES_SHOW_STYLE%;'>
           <div class='col-md-2'>
             <button type='button' id='rules-btn' class='btn btn-success pull-left' data-toggle='modal' data-target='#rulesModal'>
@@ -29,7 +29,7 @@
         </div>
         <hr>
       </div>
-      <div class='box-body'>
+      <div class='card-body'>
         <div class='row'>
           <div class='col-lg-12'>
             <form id='login-form' method='post' role='form'>
@@ -42,7 +42,7 @@
                 <div class='form-group'>
                   <div class='input-group'>
                                     <span class='input-group-addon'><span
-                                        class='glyphicon glyphicon-user'></span></span>
+                                        class='fa fa-user'></span></span>
                     <input type='text' name='username' id='username' tabindex='1'
                            class='form-control'
                            placeholder='_{LOGIN}_' value='%HOTSPOT_USERNAME%'>
@@ -51,7 +51,7 @@
                 <div class='form-group'>
                   <div class='input-group'>
                                     <span class='input-group-addon'><span
-                                        class='glyphicon glyphicon-lock'></span></span>
+                                        class='fa fa-lock'></span></span>
                     <input type='password' name='password' id='password' tabindex='2'
                            class='form-control' placeholder='_{PASSWD}_' value='%HOTSPOT_PASSWORD%'>
                   </div>

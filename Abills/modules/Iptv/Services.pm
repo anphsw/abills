@@ -64,13 +64,6 @@ sub tv_services {
       $html->message('info', $lang{SERVICES}, $lang{DELETED});
     }
   }
-  #  elsif ( $FORM{log_del} && $FORM{COMMENTS} ){
-  #    $Iptv->services_log_del( "$FORM{log_del}" );
-  #    if ( !$Iptv->{errno} ){
-  #      $html->message( 'info', $lang{SCREENS}, "$lang{LOG} $lang{DELETED}" );
-  #    }
-  #  }
-  #if ( $FORM{add_form} ){
   _error_show($Iptv);
 
   $Iptv->{USER_PORTAL_SEL} = $html->form_select(
@@ -102,9 +95,6 @@ sub tv_services {
     DEFAULT_FIELDS    => 'NAME,MODULE,STATUS,COMMENT',
     FUNCTION_FIELDS   => 'change,del',
     EXT_TITLES        => {
-      #      name    => $lang{NAME},
-      #      module  => 'Plug-in',
-      #      status  => $lang{STATUS},
       comment => $lang{COMMENTS},
     },
     SKIP_USERS_FIELDS => 1,
@@ -154,7 +144,7 @@ sub tv_service_info {
 
       if ($Tv_service && $Tv_service->can('tp_export')) {
         $Iptv->{TP_IMPORT} = $html->button("$lang{IMPORT} $lang{TARIF_PLAN}", "index=$index&tp_import=1&chg=$Iptv->{ID}",
-          { class => 'btn btn-default btn-success' });
+          { class => 'btn btn-secondary btn-success' });
         if (!tv_service_import_tp($Tv_service)) {
           return 0;
         }
@@ -162,7 +152,7 @@ sub tv_service_info {
 
       if ($Tv_service && $Tv_service->can('channel_export')) {
         $Iptv->{CHANNEL_IMPORT} = $html->button("$lang{IMPORT} $lang{CHANNELS}", "index=$index&channel_import=1&chg=$Iptv->{ID}",
-          { class => 'btn btn-default btn-success' });
+          { class => 'btn btn-secondary btn-success' });
         tv_service_import_channels($Tv_service);
       }
 
@@ -178,16 +168,16 @@ sub tv_service_info {
         }
 
         $Iptv->{SERVICE_TEST} = $html->button($lang{TEST}, "index=$index&test=1&chg=$Iptv->{ID}",
-          { class => 'btn btn-default btn-info' });
+          { class => 'btn btn-secondary btn-info' });
       }
 
       if ($Tv_service && $Tv_service->can('user_params')) {
         $Iptv->{SERVICE_PARAMS} = $html->button($lang{PARAMS}, "index=$index&extra_params=1&service_id=$Iptv->{ID}",
-          { class => 'btn btn-default' });
+          { class => 'btn btn-secondary' });
       }
 
       $Iptv->{CONSOLE} = $html->button('Console', "index=" . get_function_index('iptv_console') . "&SERVICE_ID=$Iptv->{ID}",
-        { class => 'btn btn-default' });
+        { class => 'btn btn-secondary' });
     }
   }
 
@@ -366,8 +356,8 @@ sub tv_service_export_form {
 
   my %extra_option = (tp_import => 2);
 
-  if($Tv_service->{CHANNEL_LIST}) {
-    %extra_option = ( channel_import  =>  1);
+  if ($Tv_service->{CHANNEL_LIST}) {
+    %extra_option = (channel_import => 1);
   }
 
   print $html->form_main({
@@ -406,13 +396,8 @@ sub tv_services_sel {
 
   my %params = ();
 
-  if ($attr->{ALL} || $FORM{search_form}) {
-    $params{SEL_OPTIONS} = { '' => $lang{ALL} };
-  }
-
-  if ($attr->{UNKNOWN}) {
-    $params{SEL_OPTIONS}->{0} = $lang{UNKNOWN};
-  }
+  $params{SEL_OPTIONS} = { '' => $lang{ALL} } if ($attr->{ALL} || $FORM{search_form});
+  $params{SEL_OPTIONS}->{0} = $lang{UNKNOWN} if ($attr->{UNKNOWN});
 
   my $active_service = $attr->{SERVICE_ID} || $FORM{SERVICE_ID};
 
@@ -447,33 +432,27 @@ sub tv_services_sel {
     }
   }
 
-  my $result = $html->form_select(
-    'SERVICE_ID',
-    {
-      SELECTED       => $active_service,
-      SEL_LIST       => $service_list,
-      EX_PARAMS      => "onchange='autoReload()'",
-      MAIN_MENU      => get_function_index('tv_services'),
-      MAIN_MENU_ARGV => ($active_service) ? "chg=$active_service" : q{},
-      %params
-    }
-  );
+  if (!$attr->{HIDE_MENU_BTN}) {
+    $params{MAIN_MENU} = get_function_index('tv_services');
+    $params{MAIN_MENU_ARGV} = ($active_service) ? "chg=$active_service" : q{};
+  }
+
+  my $result = $html->form_select('SERVICE_ID', {
+    SELECTED       => $active_service,
+    SEL_LIST       => $service_list,
+    EX_PARAMS      => defined($attr->{EX_PARAMS}) ? $attr->{EX_PARAMS} : "onchange='autoReload()'",
+    %params
+  });
 
   if (!$active_service && $service_list->[0] && !$FORM{search_form} && ! $attr->{SKIP_DEF_SERVICE}) {
     $FORM{SERVICE_ID} = $service_list->[0]->{id};
   }
 
-  if ($attr->{FORM_ROW}) {
-    $result = $html->tpl_show(
-      templates('form_row'),
-      {
-        ID    => 'SERVICE_ID',
-        NAME  => $lang{SERVICE},
-        VALUE => $result
-      },
-      { OUTPUT2RETURN => 1 }
-    );
-  }
+  $result = $html->tpl_show(templates('form_row'), {
+    ID    => 'SERVICE_ID',
+    NAME  => $lang{SERVICE},
+    VALUE => $result
+  }, { OUTPUT2RETURN => 1 }) if ($attr->{FORM_ROW});
 
   return $result;
 }
@@ -545,7 +524,7 @@ sub tv_load_service {
 }
 
 #**********************************************************
-=head2 _service_portal_filter(url) - 
+=head2 _service_portal_filter(url) -
 
 =cut
 #**********************************************************

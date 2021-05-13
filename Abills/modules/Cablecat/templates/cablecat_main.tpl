@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>Cablecat</h4></div>
-  <div class='box-body text-left'>
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4 class='card-title'>Cablecat</h4></div>
+  <div class='card-body text-left'>
 
     <ul class='list-group'>
       %GO_TO_MAP_BTN%
@@ -13,7 +13,7 @@
       %CROSSES_BTN%
     </ul>
 
-    <div class='box-footer'></div>
+    <div class='card-footer'></div>
   </div>
 </div>
 

@@ -94,7 +94,7 @@ sub find_files {
       ($path_for_del) = $path =~ /(.*)\//;
       push @folders, 
        $html->button(" $fname", "index=$index&TREE=$path",
-       { class => "row default col-md-7 text-left", ADD_ICON => "glyphicon glyphicon-folder-close" }) 
+       { class => "row default col-md-7 text-left", ADD_ICON => "fa fa-folder" }) 
        . $html->element('div', $date_chg, { class => "col-md-5 text-left"}) 
     }
 
@@ -113,23 +113,23 @@ sub find_files {
         my ($real_fname) = $fname =~ /\d*_\d*_(.*)/;
 
         $btn = $html->button(" $real_fname", "index=" . get_function_index('msgs_admin') . "&UID=$uid&chg=$msg_chg#last_msg",
-          { class => "row default col-md-7 text-left", ADD_ICON => "glyphicon glyphicon-file" });
+          { class => "row default col-md-7 text-left", ADD_ICON => "fa fa-file" });
       }
       elsif (scalar @count_ < 2){
         $btn = $html->button(" $fname", "index=$index&TREE=$path", 
-          { class => "row default col-md-7 text-left", ADD_ICON => "glyphicon glyphicon-file" });
+          { class => "row default col-md-7 text-left", ADD_ICON => "fa fa-file" });
       }
       else{
         my ($real_fname) = $fname =~ /.*\_(.*)/;
         $btn = $html->button(" $real_fname", "index=$index&TREE=$path", 
-          { class => "row default col-md-7 text-left", ADD_ICON => "glyphicon glyphicon-file" });
+          { class => "row default col-md-7 text-left", ADD_ICON => "fa fa-file" });
       } 
 
       push @files, 
        $btn 
        . $html->element('div', $date_chg, { class => "col-md-3 text-left"})
        . $html->button("", "index=$index&del=$open_path&TREE=$path", 
-        { class => "text-danger btn-sm col-md-1", ADD_ICON => "glyphicon glyphicon-trash" }); 
+        { class => "text-danger btn-sm col-md-1", ADD_ICON => "fa fa-trash" }); 
     }
   }
   closedir $dh;
@@ -143,7 +143,7 @@ sub find_files {
       $path =~ s/$FROM_DIR\///;
     }
     $content .= "<br>" . $html->button(" /.. ", "index=$index&TREE=$path",
-     { class => "row default col-md-12 text-left", ADD_ICON => "glyphicon glyphicon-folder-open" });
+     { class => "row default col-md-12 text-left", ADD_ICON => "fa fa-folder-open" });
   }
   foreach my $folder (@folders) {
     $content .= $html->br() . $folder;

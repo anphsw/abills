@@ -34,6 +34,8 @@ sub new {
   $self->{conf}  = $CONF;
   $self->{admin} = $admin if ($admin);
 
+  $CONF->{BUILD_DELIMITER} = ', ' if (!defined($CONF->{BUILD_DELIMITER}));
+
   return $self;
 }
 
@@ -79,8 +81,8 @@ sub list {
       ['NAS_IDS',          'INT', 'nas.id'                               ],
       ['NAS_FLOOR',            'STR', 'nas.floor',          'nas.floor AS nas_floor'        ],
       ['NAS_ENTRANCE',         'STR', 'nas.entrance',      'nas.entrance AS nas_entrance'     ],
-      ['ADDRESS_FULL',     'STR', "CONCAT(districts.name, ', ', streets.name, ' ', builds.number)",
-        "CONCAT(streets.name, ' ', builds.number) AS address_full" ],
+      ['ADDRESS_FULL',     'STR', "CONCAT(districts.name, '$self->{conf}->{BUILD_DELIMITER}', streets.name, '$self->{conf}->{BUILD_DELIMITER}', builds.number)",
+        "CONCAT(streets.name, '$self->{conf}->{BUILD_DELIMITER}', builds.number) AS address_full" ],
       ['ZABBIX_HOSTID',  'INT', 'nas.zabbix_hostid', 1 ]
     ],
     { WHERE => 1 }
@@ -303,7 +305,7 @@ sub change {
       CHANGE_PARAM    => 'NAS_ID',
       TABLE           => 'nas',
       FIELDS          => \%FIELDS,
-      OLD_INFO        => $self->info({ NAS_ID => $self->{NAS_ID} }),
+      OLD_INFO        => $self->info({ NAS_ID => $self->{NAS_ID} || $attr->{NAS_ID} }),
       DATA            => $attr,
       EXT_CHANGE_INFO => "NAS_ID:$self->{NAS_ID}"
     }
@@ -458,19 +460,24 @@ sub nas_ip_pools_list {
     [ 'GATEWAY',            'IP',  'pool.gateway',                                          1],
     [ 'STATIC',             'INT', 'pool.static',                                           1],
     [ 'ACTIVE_NAS_ID',      'INT', 'IF(np.nas_id IS NULL, 0, np.nas_id) AS active_nas_id',  1],
-    [ 'IP_SKIP',            'STR', 'pool.ip_skip'                                        ,  1],
-    [ 'IPV6_PREFIX',        'STR', 'INET6_NTOA(pool.ipv6_prefix) AS ipv6_prefix',           1],
-    [ 'IPV6_MASK',          'IP',  'pool.ipv6_mask',                                        1],
-    [ 'IPV6_TEMP',          'STR', 'pool.ipv6_template AS ipv6_temp',                       1],
-    [ 'IPV6_PD',            'STR', 'INET6_NTOA(pool.ipv6_pd) AS ipv6_pd',                   1],
-    [ 'IPV6_PD_MASK',       'STR', 'pool.ipv6_pd_mask',                                     1],
-    [ 'IPV6_PD_TEMP',       'STR', 'pool.ipv6_pd_template AS ipv6_pd_temp',                 1],
+    [ 'IP_SKIP',            'STR', 'pool.ip_skip',                                          1],
     [ 'COMMENTS',           'STR', 'pool.comments',                                         1],
     [ 'DNS',                'STR', 'pool.dns',                                              1],
     [ 'VLAN',               'INT', 'pool.vlan',                                             1],
     [ 'GUEST',              'INT', 'pool.guest',                                            1],
     [ 'NEXT_POOL',          'INT', 'pool.next_pool_id AS next_pool',                        1],
   ];
+
+  if ($IPV6) {
+    push @$search_columns, (
+      [ 'IPV6_PREFIX',        'STR', 'INET6_NTOA(pool.ipv6_prefix) AS ipv6_prefix',           1],
+      [ 'IPV6_MASK',          'IP',  'pool.ipv6_mask',                                        1],
+      [ 'IPV6_TEMP',          'STR', 'pool.ipv6_template AS ipv6_temp',                       1],
+      [ 'IPV6_PD',            'STR', 'INET6_NTOA(pool.ipv6_pd) AS ipv6_pd',                   1],
+      [ 'IPV6_PD_MASK',       'STR', 'pool.ipv6_pd_mask',                                     1],
+      [ 'IPV6_PD_TEMP',       'STR', 'pool.ipv6_pd_template AS ipv6_pd_temp',                 1],
+    );
+  }
 
   if ($attr->{SHOW_ALL_COLUMNS}){
     map { $attr->{$_->[0]} = '_SHOW' unless (exists $attr->{$_->[0]} || (! $attr->{INTERNET} && $_->[0] eq 'INTERNET_IP_FREE') ) } @$search_columns;
@@ -514,12 +521,12 @@ sub nas_ip_pools_set {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del('nas_ippools', undef,  { nas_id => $self->{NAS_ID} });
+  $self->query2("DELETE FROM nas_ippools WHERE nas_id = $self->{NAS_ID} AND pool_id IN ($attr->{ids_remove}) ;", undef, {  });
 
   my @MULTI_QUERY = ();
 
   foreach my $id ( split(/, /, $attr->{ids}) ) {
-    push @MULTI_QUERY, [ $id, $attr->{NAS_ID} ];
+    push @MULTI_QUERY, [ $id, $attr->{NAS_ID} ] if ($id);
   }
 
   $self->query2("INSERT INTO nas_ippools (pool_id, nas_id) VALUES (?, ?);",

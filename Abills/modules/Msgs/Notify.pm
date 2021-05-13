@@ -276,40 +276,35 @@ sub msgs_notify_user {
 
     $Sender->send_message({
       UID         => $user_info->{uid},
-      SUBJECT     => ($conf{WEB_TITLE} || q{}) ." - $lang{NEW_MESSAGE} " . $subject,
+      SUBJECT     => ($conf{WEB_TITLE} || q{}) . " - $lang{NEW_MESSAGE} " . $subject,
       SENDER_TYPE => $send_type || 9,
       TO_ADDRESS  => $to_address,
       MESSAGE     => $message,
       MAIL_TPL    => $mail_message,
-      ATTACHMENTS => ($#{ $ATTACHMENTS } > - 1) ? $ATTACHMENTS : undef,
+      ATTACHMENTS => ($#{$ATTACHMENTS} > -1) ? $ATTACHMENTS : undef,
       ACTIONS     => $preview_url,
-      MAIL_HEADER => [ "X-ABillS-Msg-ID: $message_id", "X-ABillS-REPLY-ID: $reply_id" ]
+      MAIL_HEADER => [ "X-ABillS-Msg-ID: $message_id", "X-ABillS-REPLY-ID: $reply_id" ],
+      MAKE_REPLY  => $message_id,
+      LANG        => \%lang
     });
 
     if($Sender->{errno}) {
       $html->message('err', $lang{ERROR},  "[$Sender->{errno}] $Sender->{errstr}");
     }
 
-    #Fixme remove all sends throght sender
-    if ( $conf{TELEGRAM_TOKEN} && $message_id ne '--' ) {
-      require Msgs::Messaging;
-      
-      my $state = '';
-      if ($message_params->{STATE}) {
-        if ($message_params->{STATE} =~ /:#[0-9a-zA-Z]+/) {
-          $message_params->{STATE} =~ s/:#[0-9a-zA-Z]+//g;
-        }
+    $Sender->send_message_auto({
+      UID         => $user_info->{uid},
+      SUBJECT     => ($conf{WEB_TITLE} || q{}) . " - $lang{NEW_MESSAGE} " . $subject,
+      MESSAGE     => $message,
+      MAIL_TPL    => $mail_message,
+      ATTACHMENTS => ($#{$ATTACHMENTS} > -1) ? $ATTACHMENTS : undef,
+      ACTIONS     => $preview_url,
+      MAIL_HEADER => [ "X-ABillS-Msg-ID: $message_id", "X-ABillS-REPLY-ID: $reply_id" ],
+      MAKE_REPLY  => $message_id,
+      LANG        => \%lang,
+      ALL         => 1
+    });
 
-        $state = "($message_params->{STATE})";
-      }
-
-      msgs_send_via_telegram($message_id, {
-        UID        => $user_info->{uid},
-        MESSAGE    => $message,
-        SUBJECT    => "_{YOU_HAVE_NEW_REPLY}_ '". $html->b($subject)  ."'" . "\n$state",
-        PARSE_MODE => 'HTML'
-      });
-    }
   }
 
   return 1;
@@ -329,7 +324,6 @@ sub msgs_notify_user {
 #**********************************************************
 sub _msgs_notify_user_collect_message_content {
   my ($message_id, $attr) = @_;
-
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
 
   my $subject = ($attr->{SUBJECT} || '') . (($FORM{REPLY_SUBJECT}) ? ' / ' . $FORM{REPLY_SUBJECT} : '');

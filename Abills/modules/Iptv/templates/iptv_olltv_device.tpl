@@ -1,14 +1,14 @@
-<div class='box box-theme'>
-  <div class='box-header with-border'>
-    <h4 class='box-title'>_{DEVICE}_</h4>
-    <div class='box-tools pull-right'>
-      <button type='button' class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i>
+<div class='card card-primary card-outline'>
+  <div class='card-header with-border'>
+    <h4 class='card-title'>_{DEVICE}_</h4>
+    <div class='card-tools pull-right'>
+      <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i class='fa fa-minus'></i>
       </button>
     </div>
   </div>
 
 
- <div class='box-body '>
+ <div class='card-body '>
 
 %STORAGE_FORM%
 
@@ -61,7 +61,7 @@
 <div class='form-group'>
   <label class='control-label col-md-3' for='CID'>MAC (_{DELISMITER}_ ;):</label>
   <div class='col-md-9'>
-      <input id='CID' name='CID' value='%CID%' placeholder='%CID%' class='form-control' type='text'> <!--  %SEND_MESSAGE% -->
+      <input id='CID' name='CID' value='%CID%' placeholder='%CID%' class='form-control' required type='text'> <!--  %SEND_MESSAGE% -->
     </div>
 </div>
 

@@ -10,9 +10,9 @@
 
   <fieldset>
 
-    <div class='box box-theme box-form'>
-      <div class='box-header'><h4 class='box-title'>_{ADD_USER}_</h4></div>
-      <div class='box-body'>
+    <div class='card card-primary card-outline box-form'>
+      <div class='card-header'><h4 class='card-title'>_{ADD_USER}_</h4></div>
+      <div class='card-body'>
 
         <div class='form-group'>
           <label class='control-label col-md-3' for='ID'>#</label>
@@ -61,7 +61,7 @@
 
         %REFERRAL_TP%
 
-        <div class='box-footer'><input id='REG_REQUEST_BTN' type='submit' class='btn btn-primary' name='add_user_' value='%ACTION_LNG%'>
+        <div class='card-footer'><input id='REG_REQUEST_BTN' type='submit' class='btn btn-primary' name='add_user_' value='%ACTION_LNG%'>
         </div>
 
 

@@ -244,7 +244,8 @@ sub list {
     $query =~ s/^ //g;
 
     if ($query =~ /CREATE |UPDATE |INSERT |ALTER /i) {
-      $db->{mysql_client_found_rows}=1;
+      $db->{mysql_client_found_rows} = 1;
+
       if (my $count = $db->do($query)) {
         $self->{AFFECTED} = sprintf("%d", (defined ($count) ? $count : 0));
       }
@@ -265,7 +266,9 @@ sub list {
         $self->{errstr}     = $db->errstr;
         return $self->{errno};
       }
+
       $self->{AFFECTED} = $q->execute();
+
       if ($db->err) {
         $self->{errno}      = 3;
         $self->{sql_errno}  = $db->err;

@@ -5,11 +5,11 @@
     <input type='hidden' name='TYPE' value='$FORM{TYPE}'>
     <input type='hidden' name='visual' value='$FORM{visual}'>
 
-    <div class='box box-theme box-form center-block'>
-        <div class='box-header with-border'>
-            <h3 class="box-title"> _{PORT}_:  %PON_TYPE% %BRANCH%</h3>
+    <div class='card card-primary card-outline box-form center-block'>
+        <div class='card-header with-border'>
+            <h3 class="card-title"> _{PORT}_:  %PON_TYPE% %BRANCH%</h3>
         </div>
-        <div class='box-body'>
+        <div class='card-body'>
 
             <div class='form-group'>
                 <label class='control-label col-md-5' for='VLAN'>VLAN:</label>
@@ -27,7 +27,7 @@
                 </div>
             </div>
         </div>
-        <div class='box-footer'>
+        <div class='card-footer'>
             <input type='submit' name='%ACTION%' value='%ACTION_LNG%' class='btn btn-primary'>
         </div>
 

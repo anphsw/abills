@@ -252,7 +252,7 @@ if ( defined( $argv->{monthly} ) ){
   }
 
   $ADMIN_REPORT{GT} = gen_time( $begin_time );
-  if ( !$argv->{NO_ADM_REPORT} && ! $argv->{FN} ){
+  if ( !$argv->{NO_ADM_REPORT} && (! $argv->{FN} || $argv->{FN} eq 'admin_report_monthly') ){
     my $message = $html->tpl_show( templates( 'admin_report_month' ), \%ADMIN_REPORT, { OUTPUT2RETURN => 1 } );
 
     my @attachments = ({
@@ -322,7 +322,7 @@ elsif ( defined( $argv->{daily} ) ){
 
   $ADMIN_REPORT{GT} = gen_time( $begin_time );
 
-  if ( !$argv->{NO_ADM_REPORT} && ! $argv->{FN}){
+  if ( !$argv->{NO_ADM_REPORT} && (! $argv->{FN} || $argv->{FN} eq 'admin_report_daily') ){
     my $message = $html->tpl_show( templates( 'admin_report_day' ), \%ADMIN_REPORT, { OUTPUT2RETURN => 1, test => 1 } );
 
     my @attachments = ({
@@ -523,7 +523,8 @@ sub sheduler{
       }
     }
 
-    my $text = sprintf( "%-14s| %-12s| %-8s| %-20s| %-14s|", $login, $s->{module}, $type, $action, ($s->{admin_name} || $s->{aid} || q{}) );
+    my $text = sprintf( "%-14s| %-12s| %-8s| %-20s| %-14s|",
+      $login, $s->{module}, $type || q{}, $action ||q{}, ($s->{admin_name} || $s->{aid} || q{}) );
     our %err_strs;
     if ( $ret > 1 ){
       $text .= ($err_strs{$ret}) ? $err_strs{$ret} : 'Error: ' . $ret . ' ' . $error_text;
@@ -533,7 +534,7 @@ sub sheduler{
       $Shedule->del({
         ID       => $shedule_id,
         result   => $ret . $error_text,
-        EXT_INFO => " INFO:$s->{module}:$type:$action",
+        EXT_INFO => " INFO:$s->{module}:$type:". ($action || q{}),
         EXECUTE  => 1
       });
     }
@@ -718,7 +719,7 @@ sub admin_report_daily{
     TYPE           => join(';', keys %action_types),
     LOGIN          => '_SHOW',
     DATETIME       => '_SHOW',
-    ACTION         => '_SHOW',
+    ACTION         => '_SHOW', #XXX probably broken
     ADMIN_LOGIN    => '_SHOW',
     SKIP_DEL_CHECK => 1,
     %LIST_PARAMS,
@@ -804,9 +805,10 @@ sub admin_report_monthly{
   $LIST_PARAMS{MONTH} = "$Y-$M";
   $LIST_PARAMS{PAGE_ROWS} = 100000;
 
-  my $list = $Payments->reports( { %LIST_PARAMS,
-      COLS_NAME => 1
-    } );
+  my $list = $Payments->reports({
+    %LIST_PARAMS,
+    COLS_NAME => 1
+  });
 
   foreach my $line ( @{$list} ){
     $ADMIN_REPORT{PAYMENTS} .= sprintf( "%-19s| %9s| %9s| %12s|\n",
@@ -831,7 +833,11 @@ sub admin_report_monthly{
   $ADMIN_REPORT{FEES} .= sprintf( "%-19s| %9s| %9s| %12s|\n", $lang{DATE}, $lang{USERS}, $lang{COUNT}, $lang{SUM} );
   $ADMIN_REPORT{FEES} .= "---------------------------------------------------------\n";
 
-  $list = $fees->reports( { %LIST_PARAMS, COLS_NAME => 1 } );
+  $list = $fees->reports({
+    %LIST_PARAMS,
+    COLS_NAME => 1
+  });
+
   foreach my $line ( @{$list} ){
     $ADMIN_REPORT{FEES} .= sprintf( "%-19s| %9s| %9s| %12s|\n",
       $line->{date},
@@ -976,6 +982,10 @@ sub backup{
     $mysql_opts = '--set-gtid-purged=OFF';
   }
 
+  if ($conf{dbpasswd}) {
+    $conf{dbpasswd} =~ s/\"/\\\"/g;
+  }
+
   my $cmd =
     qq{ ( $MYSQLDUMP $mysql_opts --default-character-set=$conf{dbcharset} -d --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} ; }
     . qq{   $MYSQLDUMP $mysql_opts --skip-triggers --single-transaction --no-create-info --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname}) | $GZIP > $conf{BACKUP_DIR}/stats-$DATE.sql.gz };
@@ -1091,7 +1101,7 @@ sub credit_operation{
 #*******************************************************************
 =head2 credit_full_set() - Set full credit
 
-  Argv:
+  Arguments:
     DEPOSIT="<10"
     GID=
 

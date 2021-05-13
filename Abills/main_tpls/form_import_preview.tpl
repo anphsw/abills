@@ -9,8 +9,8 @@
   <input type='hidden' name='FILE_IMPORT' value='1'/>
   <input type='hidden' name='rows' value=''/>
 
-  <div class='box box-theme box-form'>
-    <div class='box-body' id='import-form-body-wrapper'>
+  <div class='card card-primary card-outline box-form'>
+    <div class='card-body' id='import-form-body-wrapper'>
 
       %FORM_GROUPS%
 
@@ -19,8 +19,8 @@
 
   %TABLE%
 
-  <div class='box-footer'>
-    <a href='?index=$index' class='btn btn-default'>_{BACK}_</a>
+  <div class='card-footer'>
+    <a href='?index=$index' class='btn btn-secondary'>_{BACK}_</a>
     <input type='submit' class='btn btn-primary' name='TABLE_IMPORT' value='_{IMPORT}_'>
   </div>
 </form>

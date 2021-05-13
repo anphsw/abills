@@ -3,8 +3,6 @@ use strict;
 use v5.16;
 use warnings FATAL => 'all';
 
-use Abills::Base qw/_bp/;
-
 use Abills::Backend::Plugin::BaseAPI;
 use parent 'Abills::Backend::Plugin::BaseAPI';
 

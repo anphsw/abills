@@ -1,7 +1,7 @@
 <div class='col-xs-12 col-md-6'>
-    <div class='box box-theme'>
-        <div class='box-header with-border'>_{SESSIONS}_</div>
-        <div class='box-body'>
+    <div class='card card-primary card-outline'>
+        <div class='card-header with-border'>_{SESSIONS}_</div>
+        <div class='card-body'>
             <div class='form-group'>
                 <label class='col-md-3 control-label'>SUM(>,<)</label>
                 <div class='col-md-9'>

@@ -82,6 +82,12 @@ sub msgs_form_search {
   $Msgs->{PLAN_DATE_PICKER} = $html->form_daterangepicker({
     NAME => 'PLAN_FROM_DATE/PLAN_TO_DATE',
   });
+  $Msgs->{MSGS_TAGS_STATEMENT} = $html->form_select('TAGS_STATEMENT', {
+    ID          => 'TAGS_STATEMENT',
+    SELECTED    => 0,
+    NO_ID       => 1,
+    SEL_OPTIONS => { 0 => "$lang{AND}", 1 => "$lang{OR}", },
+  });
 
   form_search({
     SEARCH_FORM     => $html->tpl_show(_include('msgs_search', 'Msgs'), { %{$Msgs}, %FORM }, { OUTPUT2RETURN => 1 }),
@@ -156,10 +162,9 @@ sub msgs_list {
   if (!$FORM{FROM_DATE} && !$FORM{TO_DATE} && $FORM{CLOSE_FROM_DATE} && $FORM{CLOSE_TO_DATE}) {
     $LIST_PARAMS{CLOSED_DATE} = ">=$FORM{CLOSE_FROM_DATE};<=$FORM{CLOSE_TO_DATE}";
   }
-  
-  if ($FORM{CHAPTER}) {
-    $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER};
-  }
+
+  $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER} if ($FORM{CHAPTER});
+  $LIST_PARAMS{MSGS_TAGS} =~ s/,/;/g if $LIST_PARAMS{MSGS_TAGS} && $LIST_PARAMS{TAGS_STATEMENT};
 
   my $uid_statement = $FORM{UID} ? "&UID=$FORM{UID}" : '';
   ($table, $list) = result_former({
@@ -167,7 +172,7 @@ sub msgs_list {
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,CLIENT_ID,SUBJECT,CHAPTER_NAME,DATETIME,STATE,PRIORITY_ID,RESPOSIBLE_ADMIN_LOGIN',
     HIDDEN_FIELDS   => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,' .
-      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,DISTRICT_ID',
+      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,DISTRICT_ID,PERFORMERS,DOMAIN_ID',
     APPEND_FIELDS   => 'UID',
     FUNCTION        => 'messages_list',
     FUNCTION_FIELDS => 'msgs_admin:show:chg_msgs;uid,msgs_admin:del:del_msgs;state:&ALL_MSGS=1' . $uid_statement,
@@ -286,12 +291,13 @@ sub msgs_list {
         'uid'                    => 'UID',
         'downtime'               => $lang{DOWNTIME},
         'address_by_location_id' => $lang{FULL_MESSAGE_ADDRESS},
+        'performers'             => $lang{PERFORMERS}
       },
       TABLE         => {
         width      => '100%',
         caption    => $lang{MESSAGES},
         qs         => $pages_qs
-                 . (defined($FORM{CHAPTER}) ? "&CHAPTER=$FORM{CHAPTER}" : '')
+          . (defined($FORM{CHAPTER}) ? "&CHAPTER=$FORM{CHAPTER}" : '')
           . (!$FORM{UID} ? '&UID=' : ''),
         ID         => $attr->{LIST_ID} || 'MSGS_LIST',
         header     => msgs_status_bar({ MSGS_STATUS => $msgs_status, NEXT => 1 }),
@@ -322,30 +328,22 @@ sub msgs_list {
   }
 
   my $total_msgs = $Msgs->{TOTAL};
-  my $info = '';
 
+  my %actions_msgs = ();
   if (!$FORM{EXPORT_CONTENT}) {
-    my $dispatch_arr = msgs_dispatch_sel(
-      $attr->{ALLOW_TO_CLEAR_DISPATCH}
-        ? {
-        SELECTED    => $attr->{DISPATCH_ID},
-        SEL_OPTIONS => { '' => '' },
-      }
-        : undef
+    my $dispatch_arr = msgs_dispatch_sel($attr->{ALLOW_TO_CLEAR_DISPATCH} ? {
+      SELECTED    => $attr->{DISPATCH_ID},
+      SEL_OPTIONS => { '' => '' },
+    } : undef
     );
 
     if ($A_CHAPTER && $#{$A_CHAPTER} == -1) {
-      push @$dispatch_arr, $html->form_input('COMMENTS', "$lang{DEL} $lang{MESSAGES}",
+      $actions_msgs{DELETE_MULTI_MSGS} = $html->form_input('COMMENTS', "$lang{DEL} $lang{MESSAGES}",
         { TYPE => 'submit', class => 'btn btn-danger', FORM_ID => 'MSGS_LIST' });
     }
 
-    foreach my $val (@$dispatch_arr) {
-      $info .= $html->element('div', $val, { class => 'form-group' });
-    }
-
-    if ($info) {
-      $info = $html->element('div', $info, { class => 'well well-sm form-inline' })
-    }
+    $actions_msgs{DISPATCH_WORK} = @{ $dispatch_arr }[0];
+    $actions_msgs{DISPATCH_ACTION} = @{ $dispatch_arr }[1];
   }
 
   my $table2 = $html->table({
@@ -353,18 +351,26 @@ sub msgs_list {
     rows  => [ [ "  $lang{TOTAL}: ", $html->b($total_msgs) ] ]
   });
 
-  my $msgs_chategory = _msgs_category();
+  my $category_arr = _msgs_category();
+  $actions_msgs{MSGS_CATEGORY} = @{ $category_arr }[0];
+  $actions_msgs{CATEGORY_BTN} = @{ $category_arr }[1];
 
   print $html->form_main({
     CONTENT => (($table) ? $table->show({ OUTPUT2RETURN => 1 }) : q{})
-      . (($table2) ? $table2->show({ OUTPUT2RETURN => 1 }) : q{})
-      . $info . $msgs_chategory,
+      . (($table2) ? $table2->show({ OUTPUT2RETURN => 1 }) : q{}),
     HIDDEN  => {
       index     => $index,
       STATE     => $FORM{STATE},
     },
     NAME    => 'MSGS_LIST',
     ID      => 'MSGS_LIST',
+  });
+
+  my ($status_field, $status_btn) = _msgs_status_update();
+  $html->tpl_show(_include('msgs_actions', 'Msgs'), {
+    %actions_msgs,
+    STATUS_MSGS => $status_field,
+    STATUS_BTN  => $status_btn
   });
 
   # Quick message preview
@@ -410,7 +416,6 @@ sub msgs_dispatch_sel {
   my ($attr) = @_;
 
   my @rows = (
-    "$lang{DISPATCH}: ",
     $html->form_select(
       'DISPATCH_ID',
       {
@@ -421,7 +426,6 @@ sub msgs_dispatch_sel {
         MAIN_MENU      => get_function_index('msgs_dispatches'),
         MAIN_MENU_ARGV => ($Msgs->{DISPATCH_ID}) ? "chg=$Msgs->{DISPATCH_ID}" : '',
         FORM_ID        => 'MSGS_LIST',
-        SEL_WIDTH      => '300px', #TODO: Change after fixing report form
         %{$attr // {}}
       }
     ),
@@ -466,7 +470,7 @@ sub _msgs_list_client_id_form {
 
   $val = (($attr->{VALUES}->{AID} && $attr->{VALUES}->{AID} != ($conf{USERS_WEB_ADMIN_ID} || 3)) ? $html->element(
     'span', '', {
-    class => 'glyphicon glyphicon-chevron-right',
+    class => 'fa fa-chevron-right',
     title => $lang{OUTGOING}
   }) : '') . ($val || q{-});
 
@@ -502,11 +506,11 @@ sub _msgs_list_plan_date_time_form {
   if ($plan_date_time !~ /0000-00-00 00:00:00/) {
     my ($date, $time) = split(' ', $plan_date_time);
     $val = $html->button($plan_date_time,
-      "index=" . get_function_index('msgs_shedule2') . "&ID=$attr->{VALUES}->{ID}&DATE=$date", { TITLE => $time });
+      "index=" . get_function_index('msgs_task_board') . "&ID=$attr->{VALUES}->{ID}&DATE=$date", { TITLE => $time });
   }
   else {
     $val = $html->button($lang{SHEDULE_BOARD},
-      "index=" . get_function_index('msgs_shedule2') . "&ID=$attr->{VALUES}->{ID}&DATE=$DATE", { BUTTON => 1 });
+      "index=" . get_function_index('msgs_task_board') . "&ID=$attr->{VALUES}->{ID}&DATE=$DATE", { BUTTON => 1 });
   }
 
   return $val;
@@ -536,19 +540,19 @@ sub _msgs_list_state_form {
   }
 
   if (($attr->{admin_read} && $attr->{admin_read} eq '0000-00-00 00:00:00') || ($state_id eq '0' && !$attr->{replies_counts})) {
-    my $icon = $html->element('span', '', { class => 'glyphicon glyphicon-flag text-danger', title=>$lang{UNREPLY_MSGS} });
+    my $icon = $html->element('span', '', { class => 'fa fa-flag text-danger', title=>$lang{UNREPLY_MSGS} });
     $state = $icon . ($state || '');
   }
 
   if ($attr->{deligation} && $attr->{deligation} > 0) {
     if ($attr->{chapter_id} && $deligation->{$attr->{chapter_id}} && $deligation->{$attr->{chapter_id}} == $attr->{deligation}) {
       $state = $html->element('span', '', {
-        class => 'glyphicon glyphicon-wrench text-danger',
+        class => 'fa fa-wrench text-danger',
         alt   => $lang{DELIVERY} }) . $state;
     }
     else {
       $state = $html->element('span', '', {
-        class => 'glyphicon glyphicon-wrench text-warning',
+        class => 'fa fa-wrench text-warning',
         alt   => $lang{DELIVERY} }) . $state;
     }
   }
@@ -557,7 +561,7 @@ sub _msgs_list_state_form {
 }
 
 #**********************************************************
-=head2 _msgs_category() - Draw a html block with 
+=head2 _msgs_category() - Draw a html block with
                           select to search by section
 
   Arguments:
@@ -573,7 +577,7 @@ sub _msgs_category {
 
     my $info = '';
     if ($FORM{search_form}) {
-      return $info;
+      return [];
     }
 
     my @rows_element = _msgs_footer_row($chapter, {
@@ -585,15 +589,7 @@ sub _msgs_category {
       LABEL         => $lang{CHAPTER}
     });
 
-    foreach my $chapter_element (@rows_element) {
-      $info .= $html->element('div', $chapter_element, { class => 'form-group' });
-    }
-
-    if ($info) {
-      $info = $html->element('div', $info . _msgs_status_update(), { class => 'well well-sm form-inline' });
-    }
-
-    return $info;
+    return \@rows_element;
 }
 
 #**********************************************************
@@ -619,8 +615,8 @@ sub _msgs_status_update {
     "STATE_CHANGE",
     {
       SELECTED     => $FORM{STATE_CHANGE} || '_SHOW',
-      SEL_OPTIONS  => { 
-        '_SHOW' => '--' 
+      SEL_OPTIONS  => {
+        '_SHOW' => '--'
       },
       SEL_LIST     => $status_list,
       NO_ID        => 1,
@@ -628,15 +624,15 @@ sub _msgs_status_update {
     }
   );
 
-  my $update_status_btn = $html->form_input('UPDATE_STATUS', $lang{CHANGE}, { 
-    TYPE    => 'submit', 
-    class   => 'btn btn-primary', 
-    FORM_ID => 'MSGS_LIST' 
+  my $update_status_btn = $html->form_input('UPDATE_STATUS', $lang{CHANGE}, {
+    TYPE    => 'submit',
+    class   => 'btn btn-primary',
+    FORM_ID => 'MSGS_LIST'
   });
 
   return '' unless ($status_select || $update_status_btn);
 
-  return "$status_select $update_status_btn";
+  return ($status_select, $update_status_btn);
 }
 
 1;

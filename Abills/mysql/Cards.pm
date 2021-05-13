@@ -130,7 +130,7 @@ sub cards_info {
       IF(c.status = 1 or c.status = 2 or c.status = 4  or c.status = 5, c.status,
               IF(c.uid > 0 && u.activate <> '0000-00-00', 2,
                 IF(c.uid > 0 && u.activate IS NULL, 3, 0)
-                 )
+              )
         ) AS status,
       c.datetime,
       c.expire,

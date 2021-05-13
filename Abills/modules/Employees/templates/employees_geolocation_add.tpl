@@ -2,9 +2,9 @@
 <input type='hidden' name='index' value='%index%'>
 <input type='hidden' name='EID' value='%EID%'>
 
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4>_{EMPLOYEE}_ - %A_LOGIN% : %A_FIO%</h4></div>
-  <div class="box-body">
+<div class='card card-primary card-outline box-form'>
+  <div class='card-header with-border'><h4>_{EMPLOYEE}_ - %A_LOGIN% : %A_FIO%</h4></div>
+  <div class="card-body">
   	<div class='row'>
   		<div class='col-sm-12 col-md-12'>
   		%GEOLOCATION_TREE%
@@ -16,7 +16,7 @@
   	    </label>
   	</div>
   	</div>
-  <div class="box-footer">
+  <div class="card-footer">
   	<input type='submit' class='btn btn-primary' name='BUTTON' value='%BTN_NAME%'>
   </div>
 </div>

@@ -1528,9 +1528,7 @@ sub msgs_admin_report {
     $html->message('err', $lang{ERROR}, "Employees $lang{NOT_TURNED_ON}");
   }
 
-  my $admins_list = $admin->list({ 
-    COLS_NAME => 1 
-  });
+  my $admins_list = $admin->list({ COLS_NAME => 1 });
 
   my $dispatch_list = $Msgs->messages_list({ 
     RESPOSIBLE_ADMIN_LOGIN    => '_SHOW',
@@ -1550,16 +1548,14 @@ sub msgs_admin_report {
     STATUS    => 2,
     COLS_NAME => 1
   });
-  
-  reports(
-    {
-      DATE_RANGE  => 1,
-      DATE        => $FORM{DATE},
-      PERIOD_FORM => 1,
-      NO_TAGS     => 1,
-      NO_GROUP    => 1
-    }
-  );
+
+  reports({
+    DATE_RANGE  => 1,
+    DATE        => $FORM{DATE},
+    PERIOD_FORM => 1,
+    NO_TAGS     => 1,
+    NO_GROUP    => 1
+  });
 
   my $table = $html->table({
     caption => "$lang{REPORTS}",
@@ -1573,26 +1569,26 @@ sub msgs_admin_report {
     ID      => 'MSGS_REPORT',
   });
 
-  my $sum_ticket  = 0;
-  my $sum_time    = '00:00:00';
+  my $sum_ticket = 0;
+  my $sum_time = '00:00:00';
   my $sum_payment = 0;
-  my $sum_salary  = 0;
+  my $sum_salary = 0;
   my $sum_pay_sal = 0;
 
   my @time_operations = ();
 
   foreach my $admin_item (@$admins_list) {
-    my $work_name    = '';
-    my $done_ticket  = 0;
-    my $sum_amout    = 0;
-    my $run_time     = '00:00:00';
-    my %admin_work   = ();
+    my $work_name = '';
+    my $done_ticket = 0;
+    my $sum_amout = 0;
+    my $run_time = '00:00:00';
+    my %admin_work = ();
 
     if (in_array('Employees', \@MODULES)) {
       foreach my $work_item (@$work_list) {
         if ($work_item->{work_done} && $work_item->{work_aid} && $admin_item->{aid} == $work_item->{work_aid}) {
-          $admin_work{ $admin_item->{login} }            = $admin_item->{login};
-          $admin_work{"WORK_AID_$admin_item->{aid}"}     = $admin_item->{aid};
+          $admin_work{ $admin_item->{login} } = $admin_item->{login};
+          $admin_work{"WORK_AID_$admin_item->{aid}"} = $admin_item->{aid};
           $admin_work{"SUM_AMOUT_$admin_item->{login}"} += $work_item->{sum} if ($work_item->{sum});
           $work_name = $work_item->{work};
         }
@@ -1605,13 +1601,13 @@ sub msgs_admin_report {
   
     foreach my $msgs_item (@$dispatch_list) {
       if ($msgs_item->{resposible} && $admin_item->{aid} && $admin_item->{aid} == $msgs_item->{resposible}) {
-        $run_time    = $msgs_item->{run_time} if ($msgs_item->{run_time});
+        $run_time = $msgs_item->{run_time} if ($msgs_item->{run_time});
         $done_ticket = $msgs_item->{done_sum} if ($msgs_item->{done_sum});
       }
-      elsif ($admin_work{ $admin_item->{login} })  {
+      elsif ($admin_work{ $admin_item->{login} }) {
         foreach my $msgs_reply_item (@$msgs_reply_list) {
           if ($admin_work{"WORK_AID_$admin_item->{aid}"} == $msgs_reply_item->{aid} && $msgs_item->{id}) {
-            $run_time     = $msgs_reply_item->{run_time};
+            $run_time = $msgs_reply_item->{run_time};
             $done_ticket += 1;
           }
         }
@@ -1647,13 +1643,7 @@ sub msgs_admin_report {
     }
   }
 
-  $table->addfooter(
-    $html->b($lang{SUM}), 
-    '',
-    $html->b($sum_ticket),
-    $html->b($sum_time),
-    $html->b($sum_payment),
-  );
+  $table->addfooter($lang{SUM}, '', $sum_ticket, $sum_time, $sum_payment);
 
   print $table->show();
 
@@ -1697,6 +1687,72 @@ sub sum_time {
   $seconds = "0$seconds" if ($seconds < 10);
 
   return "$hours:$minutes:$seconds";
+}
+
+#**********************************************************
+=head2 msgs_works_report()
+
+=cut
+#**********************************************************
+sub msgs_works_report {
+
+  if (!in_array('Employees', \@MODULES)) {
+    $html->message('err', $lang{ERROR}, "Employees $lang{NOT_TURNED_ON}");
+    return 1;
+  }
+
+  require Employees;
+  Employees->import();
+  my $Employees = Employees->new($db, $admin, \%conf);
+
+  reports({
+    DATE_RANGE  => 1,
+    DATE        => $FORM{DATE},
+    PERIOD_FORM => 1,
+    NO_TAGS     => 1,
+    NO_GROUP    => 1,
+    EXT_SELECT  => {
+      ADMINS    => { LABEL => $lang{ADMIN}, SELECT => sel_admins({ NAME => 'AID' }) },
+      WORK_DONE => { LABEL => "$lang{STATUS} $lang{WORK}", SELECT => $html->form_select('WORK_DONE', {
+        SELECTED     => $FORM{WORK_DONE},
+        SEL_ARRAY    => [ $lang{UNDONE}, $lang{DONE} ],
+        SEL_OPTIONS  => { "" => "" },
+        ARRAY_NUM_ID => 1,
+      }) },
+    }
+  });
+
+  my $works = $Employees->employees_works_by_type_list({
+    TOTAL_WORKS  => '_SHOW',
+    WORKS_SUM    => '_SHOW',
+    WORK         => '_SHOW',
+    WORK_DONE    => '_SHOW',
+    PERFORMERS   => '_SHOW',
+    TOTAL_DONE   => '_SHOW',
+    EMPLOYEE_AID => $FORM{AID} || '_SHOW',
+    COLS_NAME    => 1,
+    %FORM
+  });
+
+  my $works_table = $html->table({
+    caption => $lang{WORK},
+    title   => [ $lang{WORK}, $lang{COUNT}, $lang{DONE_TICKET}, $lang{PAID_AMOUT}, $lang{PERFORMERS} ],
+    ID      => 'MSGS_WORKS_REPORT',
+  });
+
+  my $total_sum = 0;
+  my $total_done = 0;
+  my $total_works = 0;
+  foreach my $work (@{$works}) {
+    $works_table->addrow($work->{work}, $work->{total_works}, $work->{total_done}, $work->{works_sum}, $work->{performers});
+    $total_sum += $work->{works_sum};
+    $total_done += $work->{total_done};
+    $total_works += $work->{total_works};
+  }
+
+  $works_table->addfooter($lang{TOTAL}, $total_works, $total_done, $total_sum, '');
+
+  print $works_table->show();
 }
 
 1;

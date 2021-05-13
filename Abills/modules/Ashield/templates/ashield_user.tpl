@@ -1,5 +1,5 @@
-<div class='box box-theme'>
-<div class='box-body'>
+<div class='card card-primary card-outline'>
+<div class='card-body'>
 
 %MENU%
 

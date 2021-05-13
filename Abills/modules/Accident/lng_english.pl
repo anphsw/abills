@@ -22,4 +22,6 @@ $lang{WARNING_TIME} = 'The works will be completed by: ';
 $lang{COMPENSATION} = 'Compensation';
 $lang{PROCENT} = 'Procent';
 $lang{USER_ACCIDENT_EMPTY}="The user has no accidents or breakdowns!";
+
+$lang{EQUIPMENT_ERR} = "Crash! We know about it and are engaged in its elimination";
 1;

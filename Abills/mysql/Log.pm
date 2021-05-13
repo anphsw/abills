@@ -114,7 +114,7 @@ sub log_list {
       ['NAS_ID',            'INT',  'l.nas_id',                        1 ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')",   ],
     ],
-    { 
+    {
       WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES,
     }
@@ -152,9 +152,9 @@ sub log_list {
     $MESSAGE    -
     $attr       -
       LOG_FILE  - Log file
-      ACTION    - 
+      ACTION    -
       NAS       - NAS object
-      PRINT     - Print message 
+      PRINT     - Print message
       LOG_LEVEL - Current log level for system
 
   Results:
@@ -265,14 +265,14 @@ sub log_add {
   my ($attr) = @_;
 
   $self->query("INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
- VALUES (NOW(), ?, ?, ?, ?, ?);",
- 'do',
- { Bind => [ $attr->{LOG_TYPE}, 
-             $attr->{ACTION}, 
-             $attr->{USER_NAME} || '-', 
-             $attr->{MESSAGE}, 
-             (! $attr->{NAS_ID}) ? 0 : $attr->{NAS_ID}
-             ] }
+  VALUES (NOW(), ?, ?, ?, ?, ?);",
+  'do',
+  { Bind => [ $attr->{LOG_TYPE}, 
+              $attr->{ACTION}, 
+              $attr->{USER_NAME} || '-', 
+              $attr->{MESSAGE}, 
+              (! $attr->{NAS_ID}) ? 0 : $attr->{NAS_ID}
+              ] }
   );
 
   return 0;
@@ -281,7 +281,7 @@ sub log_add {
 #**********************************************************
 =head2 log_del($attr) - Del log records
 
-=cut 
+=cut
 #**********************************************************
 sub log_del {
   my $self = shift;
@@ -297,7 +297,7 @@ sub log_del {
 =head2 log_reports() - Show log reports
 
   Arguments:
-    $attr   - 
+    $attr
       RETRIES
 
   Returns:
@@ -311,14 +311,14 @@ sub log_reports {
 
   if ($attr->{RETRIES}) {
     $self->query("SELECT user, COUNT(*) AS count FROM errors_log WHERE date>CURDATE()
-     GROUP BY user
-     ORDER BY 2 DESC
-     LIMIT $attr->{RETRIES};", undef, $attr);
+      GROUP BY user
+      ORDER BY 2 DESC
+      LIMIT $attr->{RETRIES};", undef, $attr);
   }
 
   my $list = $self->{list};
 
-  return $list; 
+  return $list;
 }
 
 

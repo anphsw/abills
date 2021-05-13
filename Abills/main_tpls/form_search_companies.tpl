@@ -1,168 +1,157 @@
 <div class='col-xs-12 col-md-6'>
-    <div class='box box-theme box-big-form'>
-       <div class='box-header with-border'><h3 class='box-title'>_{INFO}_</h3>
-       <div class='box-tools pull-right'>
-        <button type='button' class='btn btn-default btn-xs' data-widget='collapse'>
-          <i class='fa fa-minus'></i>
-        </button>
-      </div>
-      </div>
-        <div class='box-body'>
-            <div class='form-group'>
-                <label class='control-label col-xs-3' for='COMPANY_NAME'>_{NAME}_:</label>
-                <div class='col-xs-9'>
+    <div class='card card-primary card-outline'>
+        <div class='card-header with-border'>
+            <h3 class='card-title'>_{INFO}_</h3>
+            <div class='card-tools pull-right'>
+                <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'>
+                    <i class='fa fa-minus'></i>
+                </button>
+            </div>
+        </div>
+        <div class='card-body'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='COMPANY_NAME'>_{NAME}_:</label>
+                <div class="col-sm-8 col-md-8">
                     <textarea cols='40' rows='4' id='COMPANY_NAME' name='COMPANY_NAME' class='form-control'>%COMPANY_NAME%</textarea>
                 </div>
             </div>
-
-            <div class='form-group'>
-                <label for='ADDRESS' class='control-label col-xs-3'>_{ADDRESS}_:</label>
-                <div class='col-xs-9'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='ADDRESS'>_{ADDRESS}_:</label>
+                <div class="col-sm-8 col-md-8">
                     <input class='form-control' id='ADDRESS' placeholder='%ADDRESS%' name='ADDRESS' value='%ADDRESS%'>
                 </div>
             </div>
-
-            <div class='form-group'>
-                <label for='PHONE' class='control-label col-xs-3'>_{PHONE}_:</label>
-                <div class='col-xs-9'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='PHONE'>_{PHONE}_:</label>
+                <div class="col-sm-8 col-md-8">
                     <input class='form-control' id='PHONE' placeholder='%PHONE%' name='PHONE' value='%PHONE%'>
                 </div>
             </div>
-
-            <div class='form-group'>
-                <label for='REPRESENTATIVE' class='control-label col-xs-3'>_{REPRESENTATIVE}_:</label>
-                <div class='col-xs-9'>
+            <div class="form-group row">
+                <label class="col-sm-4 col-md-4 col-form-label" for='REPRESENTATIVE'>_{REPRESENTATIVE}_:</label>
+                <div class="col-sm-8 col-md-8">
                     <input class='form-control' id='REPRESENTATIVE' placeholder='%REPRESENTATIVE%' name='REPRESENTATIVE'
-                           value='%REPRESENTATIVE%'>
+                                value='%REPRESENTATIVE%'>
+                </div>
+            </div>
+ 
+            <div class='card card-primary card-outline collapsed-card'>
+                <div class='card-header with-border'>
+                    <h3 class='card-title'>_{OTHER}_</h3>
+                    <div class='card-tools pull-right'>
+                        <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i class='fa fa-plus'></i>
+                        </button>
+                    </div>
+                </div>
+                <div class='card-body'>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='DEPOSIT'>_{DEPOSIT}_</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input class='form-control' id='DEPOSIT' placeholder='%DEPOSIT%' name='DEPOSIT' value='%DEPOSIT%'>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='CREDIT'>_{CREDIT}_</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='CREDIT_DATE'>_{DATE}_</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input type='date' id='CREDIT_DATE' class='form-control' name='DATE' value=%CREDIT_DATE%>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='REGISTRATION'>_{REGISTRATION}_</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input type='date' id='REGISTRATION' class='form-control' name='DATE' value=%REGISTRATION%>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input id='DISABLE' class="form-check-input" name='DISABLE' value='1' %DISABLE% type='checkbox'>
+                            <label class='form-check-label' for='DISABLE'>_{DISABLE}_:</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class='card card-primary card-outline collapsed-card'>
+                <div class='card-header with-border'>
+                    <h3 class='card-title'>_{BANK}_</h3>
+                    <div class='card-tools pull-right'>
+                        <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i class='fa fa-plus'></i>
+                        </button>
+                    </div>
+                </div>
+                <div class='card-body'>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='VAT'>_{VAT}_ (%):</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input class='form-control' id='VAT' placeholder='%VAT%' name='VAT' value='%VAT%'>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='TAX_NUMBER'>_{TAX_NUMBER}_:</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input class='form-control' id='TAX_NUMBER' placeholder='%TAX_NUMBER%' name='TAX_NUMBER'
+                                value='%TAX_NUMBER%'>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='BANK_ACCOUNT'>_{ACCOUNT}_:</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input class='form-control' id='BANK_ACCOUNT' placeholder='%BANK_ACCOUNT%' name='BANK_ACCOUNT'
+                                value='%BANK_ACCOUNT%'>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='BANK_NAME'>_{BANK}_:</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input class='form-control' id='BANK_NAME' placeholder='%BANK_NAME%' name='BANK_NAME'
+                                value='%BANK_NAME%'>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='COR_BANK_ACCOUNT'>_{COR_BANK_ACCOUNT}_:</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input class='form-control' id='COR_BANK_ACCOUNT' placeholder='%COR_BANK_ACCOUNT%'
+                                name='COR_BANK_ACCOUNT'
+                                value='%COR_BANK_ACCOUNT%'>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='BANK_BIC'>_{BANK_BIC}_:</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input class='form-control' id='BANK_BIC' placeholder='%BANK_BIC%' name='BANK_BIC'
+                                value='%BANK_BIC%'>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-sm-4 col-md-4 col-form-label" for='CONTRACT_ID'>_{CONTRACT_ID}_:</label>
+                        <div class="col-sm-8 col-md-8">
+                            <input class='form-control' id='CONTRACT_ID' placeholder='%CONTRACT_ID%' name='CONTRACT_ID'
+                                value='%CONTRACT_ID%'>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class='card card-primary card-outline collapsed-card'>
+                <div class='card-header with-border'>
+                    <h3 class='card-title'>_{EXTRA_ABBR}_. _{FIELDS}_</h3>
+                    <div class='card-tools pull-right'>
+                        <button type='button' class='btn btn-secondary btn-xs' data-card-widget='collapse'><i class='fa fa-plus'></i>
+                        </button>
+                    </div>
+                </div>
+                <div class='card-body'>
+                    %INFO_FIELDS%
                 </div>
             </div>
         </div>
-
-            <div class='box collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
-              <div class='box-header with-border'>
-                <h3 class='box-title'>_{OTHER}_</h3>
-                <div class='box-tools pull-right'>
-                  <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
-                  </button>
-                </div>
-              </div>
-              <div class='box-body'>
-                <div class='form-group'>
-                    <label for='DEPOSIT' class='control-label col-xs-3'>_{DEPOSIT}_:</label>
-                    <div class='col-xs-9'>
-                        <input class='form-control' id='DEPOSIT' placeholder='%DEPOSIT%' name='DEPOSIT' value='%DEPOSIT%'>
-                    </div>
-                </div>
-
-                <div class='form-group'>
-                    <label for='CREDIT' class='control-label col-xs-3'>_{CREDIT}_:</label>
-                    <div class='col-xs-9'>
-                        <input class='form-control' id='CREDIT' placeholder='%CREDIT%' name='CREDIT' value='%CREDIT%'>
-                    </div>
-                </div>
-
-
-                <div class='form-group' >
-                    <label class='control-label col-xs-3' for='CREDIT_DATE'>_{DATE}_:</label>
-                    <div class='col-xs-9'>
-                        <input type='date' id='CREDIT_DATE' class='form-control' name='DATE' value=%CREDIT_DATE%>
-                    </div>
-                </div>
-
-                <div class='form-group'>
-                    <label class='control-label col-xs-3' for='REGISTRATION'>_{REGISTRATION}_:</label>
-                    <div class='col-xs-9'>
-                        <input type='date' id='REGISTRATION' class='form-control' name='DATE' value=%REGISTRATION%>
-                    </div>
-                </div>
-
-                <div class='form-group'>
-                    <label class='control-label col-xs-3' for='DISABLE'>_{DISABLE}_:</label>
-                    <div class='col-xs-9'>
-                        <input id='DISABLE' name='DISABLE' value='1' %DISABLE% type='checkbox'>
-                    </div>
-                </div>
-
-              </div>
-            </div>
-
-            <div class='box collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
-              <div class='box-header with-border'>
-                <h3 class='box-title'>_{BANK}_</h3>
-                <div class='box-tools pull-right'>
-                  <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
-                  </button>
-                </div>
-              </div>
-              <div class='box-body'>
-
-                <div class='form-group'>
-                    <label for='VAT' class='control-label col-xs-3'>_{VAT}_ (%):</label>
-                    <div class='col-xs-9'>
-                        <input class='form-control' id='VAT' placeholder='%VAT%' name='VAT' value='%VAT%'>
-                    </div>
-                </div>
-
-                <div class='form-group'>
-                    <label for='TAX_NUMBER' class='control-label col-xs-3'>_{TAX_NUMBER}_:</label>
-                    <div class='col-xs-9'>
-                        <input class='form-control' id='TAX_NUMBER' placeholder='%TAX_NUMBER%' name='TAX_NUMBER'
-                               value='%TAX_NUMBER%'>
-                    </div>
-                </div>
-
-                <div class='form-group'>
-                    <label for='BANK_ACCOUNT' class='control-label col-xs-3'>_{ACCOUNT}_:</label>
-                    <div class='col-xs-9'>
-                        <input class='form-control' id='BANK_ACCOUNT' placeholder='%BANK_ACCOUNT%' name='BANK_ACCOUNT'
-                               value='%BANK_ACCOUNT%'>
-                    </div>
-                </div>
-                <div class='form-group'>
-                    <label for='BANK_NAME' class='control-label col-xs-3'>_{BANK}_:</label>
-                    <div class='col-xs-9'>
-                        <input class='form-control' id='BANK_NAME' placeholder='%BANK_NAME%' name='BANK_NAME'
-                               value='%BANK_NAME%'>
-                    </div>
-                </div>
-
-                <div class='form-group'>
-                    <label for='COR_BANK_ACCOUNT' class='control-label col-xs-3'>_{COR_BANK_ACCOUNT}_:</label>
-                    <div class='col-xs-9'>
-                        <input class='form-control' id='COR_BANK_ACCOUNT' placeholder='%COR_BANK_ACCOUNT%'
-                               name='COR_BANK_ACCOUNT'
-                               value='%COR_BANK_ACCOUNT%'>
-                    </div>
-                </div>
-                <div class='form-group'>
-                    <label for='BANK_BIC' class='control-label col-xs-3'>_{BANK_BIC}_:</label>
-                    <div class='col-xs-9'>
-                        <input class='form-control' id='BANK_BIC' placeholder='%BANK_BIC%' name='BANK_BIC'
-                               value='%BANK_BIC%'>
-                    </div>
-                </div>
-                <div class='form-group'>
-                    <label for='CONTRACT_ID' class='control-label col-xs-3'>_{CONTRACT_ID}_:</label>
-                    <div class='col-xs-9'>
-                        <input class='form-control' id='CONTRACT_ID' placeholder='%CONTRACT_ID%' name='CONTRACT_ID'
-                               value='%CONTRACT_ID%'>
-                    </div>
-                </div>
-              </div>
-            </div>
-
-
-            <div class='box collapsed-box' style='margin-bottom: 0px; border-top-width: 1px;'>
-              <div class='box-header with-border'>
-                <h3 class='box-title'>_{EXTRA_ABBR}_. _{FIELDS}_</h3>
-                <div class='box-tools pull-right'>
-                  <button type='button' class='btn btn-default btn-xs' data-widget='collapse'><i class='fa fa-plus'></i>
-                  </button>
-                </div>
-              </div>
-              <div class='box-body'>
-                  %INFO_FIELDS%
-              </div>
-          </div>
     </div>
 </div>

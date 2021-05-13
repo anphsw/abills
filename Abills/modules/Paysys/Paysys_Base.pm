@@ -358,19 +358,20 @@ sub paysys_pay {
   my $method = $system_info->[0]{payment_method} || 0;
 
   #Sucsess
-  cross_modules_call('_pre_payment', {
-    USER_INFO   => $user,
-    SKIP_MODULES=> 'Sqlcmd, Cards',
-    SILENT      => 1,
-    SUM         => $PAYMENT_SUM || $amount,
-    AMOUNT      => $amount || $PAYMENT_SUM,
-    EXT_ID      => "$payment_system:$ext_id",
-    METHOD      => $method || (($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2'),
-    timeout     => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
-    #DEBUG => 5,
-    #SILENT => 0
-  });
-
+  if(!$conf{PAYMENTS_POOL}) {
+    cross_modules_call('_pre_payment', {
+      USER_INFO    => $user,
+      SKIP_MODULES => 'Sqlcmd, Cards',
+      SILENT       => 1,
+      SUM          => $PAYMENT_SUM || $amount,
+      AMOUNT       => $amount || $PAYMENT_SUM,
+      EXT_ID       => "$payment_system:$ext_id",
+      METHOD       => $method || (($conf{PAYSYS_PAYMENTS_METHODS} && $PAYSYS_PAYMENTS_METHODS{$payment_system_id}) ? $payment_system_id : '2'),
+      timeout      => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
+      #DEBUG => 5,
+      #SILENT => 0
+    });
+  }
 
   $payments->add(
     $user,
@@ -384,52 +385,83 @@ sub paysys_pay {
       ER           => $er,
       CURRENCY     => $currency,
       USER_INFO    => $attr->{USER_INFO}
-    }
-  );
+      }
+    );
 
-  #Exists
-  # payments Dublicate
-  if ($payments->{errno} && $payments->{errno} == 7) {
-    my $list = $Paysys->list({ TRANSACTION_ID => "$payment_system:$ext_id", STATUS => '_SHOW', COLS_NAME => 1 });
-    $payments_id = $payments->{ID};
-    # paysys list not exist
-    if ($Paysys->{TOTAL} == 0) {
-      $Paysys->add(
-        {
-          SYSTEM_ID      => $payment_system_id,
-          DATETIME       => $attr->{DATE} || "$DATE $TIME",
-          SUM            => ($attr->{COMMISSION} && $attr->{SUM}) ? $attr->{SUM} : ($PAYMENT_SUM || $amount),
-          UID            => $uid,
-          TRANSACTION_ID => "$payment_system:$ext_id",
-          INFO           => $ext_info,
-          PAYSYS_IP      => $ENV{'REMOTE_ADDR'},
-          STATUS         => 2,
-          USER_INFO      => $attr->{USER_INFO}
+    #Exists
+    # payments Dublicate
+    if ($payments->{errno} && $payments->{errno} == 7) {
+      my $list = $Paysys->list({ TRANSACTION_ID => "$payment_system:$ext_id", STATUS => '_SHOW', COLS_NAME => 1 });
+      $payments_id = $payments->{ID};
+
+      # paysys list not exist
+      if ($Paysys->{TOTAL} == 0) {
+        $Paysys->add(
+          {
+            SYSTEM_ID      => $payment_system_id,
+            DATETIME       => $attr->{DATE} || "$DATE $TIME",
+            SUM            => ($attr->{COMMISSION} && $attr->{SUM}) ? $attr->{SUM} : ($PAYMENT_SUM || $amount),
+            UID            => $uid,
+            TRANSACTION_ID => "$payment_system:$ext_id",
+            INFO           => $ext_info,
+            PAYSYS_IP      => $ENV{'REMOTE_ADDR'},
+            STATUS         => 2,
+            USER_INFO      => $attr->{USER_INFO}
+          }
+        );
+
+        $paysys_id = $Paysys->{INSERT_ID};
+
+        if (!$Paysys->{errno}) {
+          cross_modules_call('_payments_maked', {
+            USER_INFO    => $user,
+            PAYMENT_ID   => $payments_id,
+            SUM          => $PAYMENT_SUM || $amount,
+            AMOUNT       => $amount || $PAYMENT_SUM,
+            SILENT       => 1,
+            QUITE        => 1,
+            timeout      => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
+            SKIP_MODULES => 'Cards',
+          });
         }
-      );
 
-      $paysys_id = $Paysys->{INSERT_ID};
+        $status = 3;
+      }
+      else {
+        $paysys_id = $list->[0]->{id};
 
-      if (! $Paysys->{errno}) {
-        cross_modules_call('_payments_maked', {
-          USER_INFO  => $user,
-          PAYMENT_ID => $payments_id,
-          SUM        => $PAYMENT_SUM || $amount,
-          AMOUNT     => $amount || $PAYMENT_SUM,
-          SILENT     => 1,
-          QUITE      => 1,
-          timeout    => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
-          SKIP_MODULES => 'Cards',
-        });
+        if ($paysys_id && $list->[0]->{status} != 2) {
+
+          $Paysys->change(
+            {
+              ID        => $paysys_id,
+              STATUS    => 2,
+              PAYSYS_IP => $ENV{'REMOTE_ADDR'},
+              INFO      => $ext_info,
+              USER_INFO => $attr->{USER_INFO}
+            }
+          );
+        }
+
+        $status = 13;
+      }
+    }
+    #Payments error
+    elsif ($payments->{errno}) {
+      if ($debug > 3) {
+        print "Payment Error: [$payments->{errno}] $payments->{errstr}\n";
       }
 
-      $status = 3;
+      if ($payments->{errno} == 14) {
+        $status = 14;
+      }
+      else {
+        # happends if deadlock
+        $status = 12;
+      }
     }
     else {
-      $paysys_id = $list->[0]->{id};
-
-      if ( $paysys_id && $list->[0]->{status} != 2) {
-
+      if ($paysys_id) {
         $Paysys->change(
           {
             ID        => $paysys_id,
@@ -440,43 +472,12 @@ sub paysys_pay {
           }
         );
       }
-
-      $status = 13;
-    }
-  }
-  #Payments error
-  elsif ($payments->{errno}) {
-    if ($debug > 3) {
-      print "Payment Error: [$payments->{errno}] $payments->{errstr}\n";
-    }
-
-    if ($payments->{errno}==14) {
-      $status = 14;
-    }
-    else {
-      # happends if deadlock
-      $status = 12;
-    }
-  }
-  else {
-
-    if ( $paysys_id ) {
-      $Paysys->change(
-          {
-            ID        => $paysys_id,
-            STATUS    => 2,
-            PAYSYS_IP => $ENV{'REMOTE_ADDR'},
-            INFO      => $ext_info,
-            USER_INFO => $attr->{USER_INFO}
-          }
-      );
-    }
-    else {
-      $Paysys->add(
+      else {
+        $Paysys->add(
           {
             SYSTEM_ID      => $payment_system_id,
             DATETIME       => $attr->{DATE} || "$DATE $TIME",
-            SUM            => ($attr->{COMMISSION} && $attr->{SUM})  ? $attr->{SUM} : $amount,
+            SUM            => ($attr->{COMMISSION} && $attr->{SUM}) ? $attr->{SUM} : $amount,
             UID            => $uid,
             TRANSACTION_ID => "$payment_system:$ext_id",
             INFO           => $ext_info,
@@ -484,33 +485,42 @@ sub paysys_pay {
             STATUS         => 2,
             USER_INFO      => $attr->{USER_INFO}
           }
-      );
+        );
 
-      $paysys_id = $Paysys->{INSERT_ID};
-    }
+        $paysys_id = $Paysys->{INSERT_ID};
+      }
 
-    if (!$Paysys->{errno}) {
-      cross_modules_call('_payments_maked', {
-        USER_INFO   => $user,
-        PAYMENT_ID  => $payments->{PAYMENT_ID},
-        SUM         => $amount,
-        SILENT      => 1,
-        QUITE       => 1,
-        timeout     => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
-      });
-    }
-    #Transactions registration error
-    else {
-      if ($Paysys->{errno} && $Paysys->{errno} == 7) {
-        $status      = 3;
-        $payments_id = $payments->{ID};
+      if (!$Paysys->{errno}) {
+        if($conf{PAYMENTS_POOL}){
+          $payments->pool_add(
+            {
+              PAYMENT_ID  => $payments->{PAYMENT_ID},
+            }
+          );
+        }
+        else {
+          cross_modules_call('_payments_maked', {
+            USER_INFO  => $user,
+            PAYMENT_ID => $payments->{PAYMENT_ID},
+            SUM        => $amount,
+            SILENT     => 1,
+            QUITE      => 1,
+            timeout    => $conf{PAYSYS_CROSSMODULES_TIMEOUT} || 4,
+          });
+        }
       }
-      #Payments error
-      elsif ($Paysys->{errno}) {
-        $status = 2;
+      #Transactions registration error
+      else {
+        if ($Paysys->{errno} && $Paysys->{errno} == 7) {
+          $status = 3;
+          $payments_id = $payments->{ID};
+        }
+        #Payments error
+        elsif ($Paysys->{errno}) {
+          $status = 2;
+        }
       }
     }
-  }
 
   #Send mail
   if ($conf{PAYSYS_EMAIL_NOTICE}) {
@@ -641,6 +651,12 @@ sub paysys_check_user {
   }
   elsif (!$list->[0]->{bill_id}) {
     return 14;
+  }
+
+  if($list->[0]->{domain_id} > 0){
+    $admin->{DOMAIN_ID} = $list->[0]->{domain_id};
+    # Load DB %conf;
+    our $Conf = Conf->new($db, $admin, \%conf);
   }
 
   if( $conf{PAYSYS_OSMP_EXTRA_INFO}  ){
@@ -1106,6 +1122,7 @@ sub paysys_show_result {
     $attr
       DEBUG
       ENCODE
+      SKIP_ROWS - Skip [SKIP_ROWS] count
 
   Returns:
     return \@DATA_ARR, \@BINDING_IDS;
@@ -1128,8 +1145,13 @@ sub paysys_import_parse {
 
   my @rows       = split(/[\r]{0,1}\n/, $content);
   my $line_count = 1;
+  my $first_row = 0;
+  if($attr->{SKIP_ROWS}) {
+    $first_row=$attr->{SKIP_ROWS};
+  }
 
-  foreach my $line (@rows) {
+  for (my $row = $first_row ; $row <= $#rows ; $row++) {
+    my $line = $rows[$row];
     my %DATA_HASH = ();
 
     if ($attr->{ENCODE}) {
@@ -1139,29 +1161,33 @@ sub paysys_import_parse {
     #next if ($#params < $#EXPR_IDS);
     if (my @res = ($line =~ /$expration/)) {
       for (my $i = 0 ; $i <= $#res ; $i++) {
-        print "$EXPR_IDS[$i] => $res[$i]\n".$html->br() if ($debug > 5);
-        next if ($EXPR_IDS[$i] eq 'UNDEF');
+        my $field_name = $EXPR_IDS[$i] || q{};
+        print "$field_name => $res[$i]\n".$html->br() if ($debug > 5);
+        next if ($field_name eq 'UNDEF');
+        $DATA_HASH{ $field_name } = $res[$i];
 
-        $DATA_HASH{ $EXPR_IDS[$i] } = $res[$i];
-
-        if ($EXPR_IDS[$i] eq 'PHONE') {
-          $DATA_HASH{ $EXPR_IDS[$i] } =~ s/-//g;
+        if ($field_name eq 'PHONE') {
+          $DATA_HASH{ $field_name } =~ s/-//g;
         }
-        elsif ($EXPR_IDS[$i] eq 'CONTRACT_ID') {
-          $DATA_HASH{ $EXPR_IDS[$i] } =~ s/-//g;
+        elsif ($field_name eq 'CONTRACT_ID') {
+          $DATA_HASH{ $field_name } =~ s/-//g;
         }
-        elsif ($EXPR_IDS[$i] eq 'LOGIN') {
-          $DATA_HASH{ $EXPR_IDS[$i] } =~ s/ //g;
+        elsif ($field_name eq 'LOGIN') {
+          $DATA_HASH{ $field_name } =~ s/ //g;
         }
-        elsif ($EXPR_IDS[$i] eq 'SUM') {
-          $DATA_HASH{ $EXPR_IDS[$i] } =~ s/,/\./g;
+        elsif ($field_name eq 'SUM') {
+          $DATA_HASH{ $field_name } =~ s/,/\./g;
         }
-        elsif ($EXPR_IDS[$i] eq 'DATE') {
-          if ($DATA_HASH{ $EXPR_IDS[$i] } =~ /^(\d{2})[.-](\d{2})[.-](\d{4})$/) {
-            $DATA_HASH{ $EXPR_IDS[$i] } = "$3-$2-$1";
+        elsif ($field_name eq 'DATE') {
+          if ($DATA_HASH{DATE} =~ /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/) {
+            $DATA_HASH{DATE} = "$1-$2-$3";
+            $DATA_HASH{TIME} = "$4:$5:$6";
           }
-          elsif ($DATA_HASH{ $EXPR_IDS[$i] } =~ /^(\d{4})[.-](\d{2})[.-](\d{2})$/) {
-            $DATA_HASH{ $EXPR_IDS[$i] } = "$1-$2-$3";
+          elsif ($DATA_HASH{DATE} =~ /^(\d{2})[.-](\d{2})[.-](\d{4})$/) {
+            $DATA_HASH{DATE} = "$3-$2-$1";
+          }
+          elsif ($DATA_HASH{DATE} =~ /^(\d{4})[.-](\d{2})[.-](\d{2})$/) {
+            $DATA_HASH{DATE} = "$1-$2-$3";
           }
         }
       }
@@ -1253,6 +1279,51 @@ sub account_gid_split {
       $self->{conf}{$param} = $self->{conf}{$param . '_' . $gid};
     }
   }
+}
+
+#**********************************************************
+=head2 account_fio_hiden($fio)
+
+  Arguments:
+     $fio
+
+  Returns:
+
+=cut
+#**********************************************************
+sub account_fio_hiden {
+  my $self = shift;
+  my ($fio) = @_;
+
+  my $fio_hiden = '';
+  if($fio eq ''){
+    $fio = $self;
+  }
+  my @join_test;
+
+  my $str_utf8 = decode("UTF-8", $fio);
+
+  if($conf{FIO_HIDEN}){
+    my @split_fio = split(/ /, $str_utf8);
+    my @split_word;
+    foreach my $key(@split_fio){
+      @split_word = split(//, $key);
+      for( my $i=0; $i<@split_word; $i++) {
+        if($i != 0 && ($i%2 == 0 || $i%3 == 0) ){
+          $split_word[$i] = '*';
+        }
+      }
+      my $fio_hiden_1 = join('', @split_word);
+      push(@join_test, $fio_hiden_1);
+    }
+    my $fio_decode = join(' ', @join_test);
+    $fio_hiden = encode("UTF-8", $fio_decode);
+  }
+  else{
+    $fio_hiden = $fio;
+  }
+
+  return $fio_hiden;
 }
 
 1

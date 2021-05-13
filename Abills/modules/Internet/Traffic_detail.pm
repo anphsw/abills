@@ -120,7 +120,7 @@ sub traffic_detail{
       $line->[8],
       $html->button( "",
         "index=" . get_function_index( 'internet_sessions' ) . "&IP=". ($line->[2] || q{}) .",". ($line->[4] || q{})."&START=<=$line->[0]&END=>=$line->[1]&search=1"
-        , { ICON => 'glyphicon glyphicon-search', TITLE => $lang{SESSIONS} } )
+        , { ICON => 'fa fa-search', TITLE => $lang{SESSIONS} } )
     );
   }
   print $table->show();

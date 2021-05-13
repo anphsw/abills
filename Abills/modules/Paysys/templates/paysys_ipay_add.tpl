@@ -1,10 +1,10 @@
 <form id=pay name=pay method='POST' action='%IPAY_URL%'>
 
 
-<div class='box box-primary'>
-    <div class='box-header with-border text-center'>_{BALANCE_RECHARCHE}_</div>
+<div class='card box-primary'>
+    <div class='card-header with-border text-center'>_{BALANCE_RECHARCHE}_</div>
 
-<div class='box-body'>
+<div class='card-body'>
     <div class='form-group'>
         <label class='col-md-6 control-label text-center'>_{ORDER}_:</label>
         <label class='col-md-6 control-label'>%ORDER_ID%</label>
@@ -20,7 +20,7 @@
         <label class='control-label col-md-6'> %SUM% </label>
     </div>
 </div>
-    <div class='box-footer'>
+    <div class='card-footer'>
         <input class='btn btn-primary' type=submit value='_{PAY}_'>
     </div>
 </div>  

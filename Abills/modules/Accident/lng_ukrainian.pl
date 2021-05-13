@@ -16,12 +16,12 @@ $lang{PROCESSING} = 'Обробка';
 $lang{PROCESSED}= 'Опрацьовано';
 $lang{CLOSED}='Закрито';
 
-$lang{ACCIDENT_FOR_EQUIPMENT} = 'Несправне обладнення';
+$lang{ACCIDENT_FOR_EQUIPMENT} = 'Несправне обладнання';
 
 $lang{WARNING_TIME} = 'Роботи будуть завершені до: ';
 $lang{COMPENSATION} = 'Компенсація';
 $lang{PROCENT} = 'Відсоток';
 $lang{USER_ACCIDENT_EMPTY}='В користувача немає аварій чи поломок!';
 
-
+$lang{EQUIPMENT_ERR} = "Аварія! Ми знаємо про неї і займаємося її усуненням";
 1;

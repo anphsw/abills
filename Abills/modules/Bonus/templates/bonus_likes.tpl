@@ -1,15 +1,15 @@
 <form action='$SELF_URL' method='post' class='form form-horizontal'>
   <input type=hidden name=index value=$index>
-  <div class='box box-theme'>
-    <div class='box-header with-border'>
-      <h4 class="box-title table-caption">_{FILTERS}_</h4>
-      <div class="box-tools pull-right">
-        <button type="button" class="btn btn-default btn-xs" data-widget="collapse">
+  <div class='card card-primary card-outline'>
+    <div class='card-header with-border'>
+      <h4 class="card-title table-caption">_{FILTERS}_</h4>
+      <div class="card-tools pull-right">
+        <button type="button" class="btn btn-secondary btn-xs" data-card-widget="collapse">
           <i class="fa fa-minus"></i></button>
       </div>
     </div>
 
-    <div class='box-body'>
+    <div class='card-body'>
       <div class="row align-items-center">
         <div class='form-group'>
           <label class='col-md-3 control-label'>FB likes </label>
@@ -17,7 +17,7 @@
         </div>
 
       </div>
-      <div class='box-footer'>
+      <div class='card-footer'>
         <input type=submit class='btn btn-primary btn-block' name=''>
       </div>
     </div>

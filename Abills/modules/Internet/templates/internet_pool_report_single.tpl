@@ -1,22 +1,9 @@
-<style>
-  table.table-labeled > tbody > tr > td:first-child {
-    text-align: left;
-    font-weight: bold;
-  }
-
-  table.table-labeled > tbody > tr > td:last-child {
-    text-align: left;
-  }
-
-  div.padding-min {
-    padding-right: 5px;
-    padding-left: 5px;
-  }
-</style>
-<div class='col-md-%COLS_SIZE% padding-min'>
-  <div class='box box-theme'>
-    <div class='box-header'><h4 class='box-header with-border'>%NAME%</h4></div>
-    <div class='box-body'>
+<div class='col-md-3 padding-min'>
+  <div class='card card-primary card-outline'>
+    <div class='card-header'>
+      <h4 class='card-header with-border'>%NAME%</h4>
+    </div>
+    <div class='card-body'>
       <p>%IP_RANGE%</p>
 
       <table class='table table-labeled'>

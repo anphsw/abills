@@ -5,11 +5,11 @@
 
 <div class='row'>
     <div class='col-md-3'>
-        <div class="box box-solid">
-            <div class="box-header with-border">
-                <h4 class="box-title">_{EMPLOYEES}_</h4>
+        <div class="card box-solid">
+            <div class="card-header with-border">
+                <h4 class="card-title">_{EMPLOYEES}_</h4>
             </div>
-            <div class="box-body">
+            <div class="card-body">
                 <!-- the events -->
                 <div id="external-events">
                     %ADMINS_LIST%
@@ -19,8 +19,8 @@
         </div>
     </div>
     <div class='col-md-9'>
-        <div class='box box-theme'>
-            <div class='box-body'>
+        <div class='card card-primary card-outline'>
+            <div class='card-body'>
                 <div id='calendar'></div>
             </div>
         </div>

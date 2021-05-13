@@ -1,53 +1,65 @@
 <input type='hidden' name='UID' value='$FORM{UID}'/>
-<div class='form-group'>
-  <!--DEPOSIT-->
-  <label class='control-label col-md-2'>_{DEPOSIT}_</label>
-  <div class='col-md-3'>
-    <h4>
-      <span class='label %DEPOSIT_MARK% pull-left' title='%DEPOSIT%'>%SHOW_DEPOSIT%</span>
-    </h4>
-  </div>
-  <!--DEPOSIT-->
 
-  <span class='visible-xs visible-sm col-xs-12' style='padding-top: 10px'> </span>
-
-  <!--FINANCES-->
-  <label class='control-label col-md-2'>_{FINANCES}_</label>
-  <div class='col-md-5' align='left'>
-    <div class='btn-group'>
-      %PAYMENTS_BUTTON% %FEES_BUTTON% %PRINT_BUTTON%
+<div class='form-group row'>
+    <div class='col-sm col-12 form-group'>
+      <div class='info-box h-100'>
+        <span class='info-box-icon bg-success'>
+          <i class='fa fa-money'></i>
+        </span>
+        <div class='info-box-content'>
+          <div class='row'>
+            <h3 class='col-md-12'>
+              <span class='info-box-number %DEPOSIT_MARK%' title='%DEPOSIT%'>%SHOW_DEPOSIT% %BUTTON_SHOW_LAST%</span>
+            </h3>
+          </div>
+          <span class='info-box-text row'>
+            <div class='btn-group col-md-12'>
+              %PAYMENTS_BUTTON% %FEES_BUTTON% %PRINT_BUTTON%
+            </div>
+          </span>
+        </div>
+      </div>
     </div>
-  </div>
-  <!--FINANCES-->
-
+    <div id='CUSTOM_DISABLE_FORM' class='col-sm col-12 form-group h-0-18'>
+      <div class='info-box h-100'>
+        <div class='info-box-content'>
+          <span class='info-box-text text-center'></span>
+          <div class='info-box-content'>
+            <div class='text-center'> <!-- %DISABLE% -->
+              <div class='custom-control custom-switch custom-switch-on-danger custom-switch-off-success'>
+                <input class='custom-control-input' type='checkbox' name='DISABLE' id='DISABLE' value='1' data-checked='%DISABLE%' style='display: none;'>
+                <label class='custom-control-label' for='DISABLE' id='DISABLE_LABEL'>%DISABLE_LABEL%</label>
+              </div>
+            </div>
+            <input class='form-control' type='text' name='ACTION_COMMENTS' ID='ACTION_COMMENTS' value='%DISABLE_COMMENTS%' size='40'
+                   style='display : none;' />
+          </div>
+        </div>
+      </div>
+    </div>
 </div>
 
-<!-- COMPANY -->
-<div class='form-group'>
-
-  <!--EX_DEPOSIT-->
-  <label class='control-label col-md-2'>_{EXTRA_ABBR}_. _{DEPOSIT}_</label>
-  <div class='col-md-3'>
-    <h4>
-      <span class='label %EXT_DEPOSIT_MARK% pull-left'>%EXT_BILL_DEPOSIT%</span>
-    </h4>
+<!--
+<div class='form-group row'>
+  <label  class='col-sm-2 col-form-label' for='LOGIN'>_{LOGIN}_</label>
+  <div class='col-sm-10'>
+    <input id='LOGIN' name='LOGIN' value='%LOGIN%' data-check-for-pattern='%LOGIN_PATTERN%' readonly class='form-control' type='text'>
   </div>
-  <!--EX_DEPOSIT-->
+</div>
+-->
 
-  <span class='visible-xs visible-sm col-xs-12' style='padding-top: 10px'> </span>
-
-  <!--GROUPS-->
-  <label class='control-label col-md-2' for='GRP'>_{GROUPS}_</label>
-  <div class='col-md-5'>
+<div class='form-group row'>
+  <label class='col-sm-2 col-form-label' for='GRP'>_{GROUPS}_</label>
+  <div class='col-sm-10'>
     <div class='input-group'>
-      <input type=text name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly='readonly'/>
-      <span class='input-group-addon'>
-        <a href='$SELF_URL?index=12&UID=$FORM{UID}'>
-          <span class='glyphicon glyphicon-pencil'></span>
-        </a>
-      </span>
+      <input type='text' name='GRP' value='%GID%:%G_NAME%' ID='GRP' %GRP_ERR% class='form-control' readonly='readonly'/>
+      <div class='input-group-append'>
+        <div class='input-group-text'>
+          <a href='$SELF_URL?index=12&UID=$FORM{UID}'>
+            <i class='fa fa-pencil'></i>
+          </a>
+        </div>
+      </div>
     </div>
   </div>
-  <!--GROUPS-->
-
 </div>

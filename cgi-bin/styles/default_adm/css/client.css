@@ -144,14 +144,14 @@ nav.navbar a.header-btn-link {
     overflow: visible;
 }
 
-div.input-group > span.input-group-addon.glyphicon {
+div.input-group > span.input-group-addon.fa {
     top : 0;
 }
 
 /*div.box-footer {*/
   /*text-align: center;*/
 /*}*/
-.callout .icon, .callout .glyphicon {
+.callout .icon, .callout .fa {
     margin-right: 10px;
  }
 .box-tools > .btn, .btn-box-tool-color {

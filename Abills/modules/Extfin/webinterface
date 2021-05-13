@@ -254,7 +254,7 @@ sub extfin_export_customers {
     my (undef, undef, $name) = split(/:/, $line->[1]);
 
     #my $input = '';
-    $Extfin->{INFO_FIELDS} .= $html->form_input(
+    my $info_fields = $html->form_input(
       'INFO_FIELDS',
       $field_id,
       {
@@ -262,7 +262,10 @@ sub extfin_export_customers {
         STATE => ($FORM{$field_id}) ? 1 : undef
       }
     );
-    $Extfin->{INFO_FIELDS} .= _translate($name) . $html->br();
+
+    my $div_form_check = $html->element('div', $info_fields . _translate($name), { class => 'form-check' });
+
+    $Extfin->{INFO_FIELDS} .= $div_form_check;
   }
 
   #Companies Info list
@@ -276,7 +279,7 @@ sub extfin_export_customers {
 
     #my ($position, $type
     my (undef, undef, $name) = split(/:/, $line->[1]);
-    $Extfin->{INFO_FIELDS_COMPANIES} .= $html->form_input(
+    my $info_fields_companies = $html->form_input(
       'INFO_FIELDS_COMPANIES',
       $field_id,
       {
@@ -284,7 +287,9 @@ sub extfin_export_customers {
         STATE => ($FORM{$field_id}) ? 1 : undef
       }
     );
-    $Extfin->{INFO_FIELDS_COMPANIES} .= _translate($name) . $html->br();
+
+    my $div_form_check = $html->element('div', $info_fields_companies . _translate($name), { class => 'form-check' });
+    $Extfin->{INFO_FIELDS_COMPANIES} .= $div_form_check;
   }
 
   $html->tpl_show(_include('extfin_export_customers', 'Extfin'), $Extfin);

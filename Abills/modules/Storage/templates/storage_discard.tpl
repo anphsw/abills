@@ -3,8 +3,8 @@
 <input type=hidden name=ID value=%ID%>
 
 <fieldset>
-<div class='box box-theme box-form'>
-<div class='box-body form form-horizontal'>
+<div class='card card-primary card-outline box-form'>
+<div class='card-body form form-horizontal'>
 	<legend>_{DISCARD}_</legend>
   <div class='form-group'>
     <label class='col-md-3 control-label'>_{COUNT}_:</label>
@@ -16,7 +16,7 @@
   </div>
   
 </div>
-<div class='box-footer'>
+<div class='card-footer'>
 	<input type=submit name=%ACTION% value=%ACTION_LNG% class='btn btn-primary'>
 </div>
 </div>

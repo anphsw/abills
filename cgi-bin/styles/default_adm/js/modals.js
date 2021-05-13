@@ -33,42 +33,46 @@ function openModal(buttonNumber, type_, size) {
 }
 
 /*  loads content of url in modal and shows it*/
-function loadToModal(url, callback) {
+function loadToModal(url, callback, size) {
   url += "&IN_MODAL=1";
 
-  aModal.clear()
-      .setSmall(false)
-      .setId('CurrentOpenedModal')
-      .setBody(spinner)
-      .show(function () {
-  
-        $.get(url,
-            function (data) {
-              var modalBody = $('#CurrentOpenedModal').find('.modal-body');
-              modalBody.html(data);
-              
-              if (modalBody.find('.box-header').length === 1 && !modalBody.find('.box-header').find('.box-tools').length){
-                var header_inside = modalBody.find('.box-header').first();
-                var header_outside = $('#CurrentOpenedModal_header');
+  let modal = aModal.clear()
+    .setSmall(false)
+    .setId('CurrentOpenedModal')
+    .setBody(spinner);
 
-                if (header_outside){
-                    header_outside.append(header_inside);
-                }
-              }
-              
-              pageInit(modalBody);
-              Events.emit('modal_loaded', modalBody);
-              if (callback) callback();
-              
-            }, 'html')
-            .fail(function (error) {
-              alert('Fail' + JSON.stringify(error));
-        
-              Events.emit('modal_loaded', false);
-            });
+  if (typeof size !== 'undefined') {
+    if (size === 'lg') modal.setLarge(true);
+    if (size === 'sm') modal.setSmall(true);
+  }
+
+  modal.show(function () {
+
+    $.get(url,
+      function (data) {
+        var modalBody = $('#CurrentOpenedModal').find('.modal-body');
+        modalBody.html(data);
+
+        if (modalBody.find('.box-header').length === 1 && !modalBody.find('.box-header').find('.box-tools').length) {
+          var header_inside = modalBody.find('.box-header').first();
+          var header_outside = $('#CurrentOpenedModal_header');
+
+          if (header_outside) {
+            header_outside.append(header_inside);
+          }
+        }
+
+        pageInit(modalBody);
+        Events.emit('modal_loaded', modalBody);
+        if (callback) callback();
+
+      }, 'html')
+      .fail(function (error) {
+        alert('Fail' + JSON.stringify(error));
+
+        Events.emit('modal_loaded', false);
       });
-
-
+  });
 }
 
 /*  loads content of url in modal and shows it*/
@@ -121,26 +125,26 @@ function loadRawToModal(url, callback, size) {
       .setRawMode(true)
       .setBody(spinner)
       .setId('CurrentOpenedModal');
-  
+
   if (typeof size !== 'undefined') {
 
     if (size === 'lg') modal.setLarge(true);
     if (size === 'sm') modal.setSmall(true);
   }
-  
+
   modal.show(function () {
-    
+
     $.get(url, function (data) {
       var modalBody = $('#CurrentOpenedModal').find('.modal-content');
       modalBody.html(data);
       pageInit(modalBody);
       if (callback) callback();
     }, 'html')
-    
+
         .fail(function (error) {
           alert('Fail' + JSON.stringify(error));
         });
-    
+
   });
 }
 
@@ -331,7 +335,7 @@ function AModal() {
 
     var str_func_close = '$("#' + this.id + '").modal("hide");';
     if (!this.rawMode) {
-      var result = "<div class='modal fade' tabindex='-1' id='" + this.id + "' role='dialog' aria-hidden='true'>" +
+      var result = "<div class='modal fade' id='" + this.id + "' role='dialog' aria-hidden='true'>" +
           '<div class="modal-dialog ' + modalClass + '" style="z-index : 10000">' +
           '<div class="modal-content">' +
           '<div class="modal-header" id="'+ this.id +'_header">' +
@@ -364,7 +368,7 @@ function AModal() {
       return result;
     }
     else {
-      return "<div class='modal' tabindex='-1' id='" + this.id + "' role='dialog' aria-hidden='true'>" +
+      return "<div class='modal' id='" + this.id + "' role='dialog' aria-hidden='true'>" +
           '<div class="modal-dialog ' + modalClass + '" style="z-index : 10000">' +
           '<div class="modal-content">' +
           this.body +
@@ -453,7 +457,7 @@ function ATooltip(text) {
 
   this.show = function () {
     this.hide();
-    
+
     if (!this.ready) {
       this.build();
     }
@@ -461,8 +465,9 @@ function ATooltip(text) {
     $('body').prepend(this.body);
     $('#modalTooltip_' + this._id).fadeIn(500);
 
+    clearTimeout(this._timer_id);
     if (this._timeout > 0)
-      setTimeout(function () {
+      this._timer_id = setTimeout(function () {
         self.hide();
       }, this._timeout)
 

@@ -56,7 +56,7 @@
                     </div>
                 </div>
                 <div class='modal-footer'>
-                    <button type='button' class='btn btn-default' data-dismiss='modal'>_{CANCEL}_</button>
+                    <button type='button' class='btn btn-secondary' data-dismiss='modal'>_{CANCEL}_</button>
                     <button type='submit' class='btn btn-danger danger' id='mButton_ok'>_{EXECUTE}_!</button>
                 </div>
             </div>
@@ -69,7 +69,8 @@
 
     <!-- Main Header -->
     <header class='main-header'>
-        <!-- client_start -->
+
+        <!-- Logo -->
         <a href='reseller.cgi' class='logo'>
             <!-- mini logo for sidebar mini 50x50 pixels -->
             <span class='logo-mini'><b><span style='color: red;'>A</span></b></span>

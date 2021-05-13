@@ -316,7 +316,7 @@ sub referral_form_search {
     foreach my $user (@{$users_list}) {
 
       my $link = "?get_index=referral_set&header=2&REFERRER_UID=$user->{uid}&REFERRAL_UID=$uid";
-      my $login_str = "<button class='btn btn-default search-result' data-link='$link'>$user->{login}</button>";
+      my $login_str = "<button class='btn btn-secondary search-result' data-link='$link'>$user->{login}</button>";
 
       $table->addrow(
         $login_str,
@@ -445,12 +445,12 @@ sub referral_get_search_button {
 
   return $html->button('', undef,
     {
-      class          => 'btn btn-sm btn-default',
+      class          => 'btn btn-sm btn-secondary',
       JAVASCRIPT     => '',
       SKIP_HREF      => 1,
       NO_LINK_FORMER => 1,
       ex_params      => qq/onclick=loadRawToModal('?get_index=referral_form_search&header=2&USER_ID=$referral_id')/,
-      ICON           => 'glyphicon glyphicon-search'
+      ICON           => 'fa fa-search'
     });
 }
 
@@ -471,12 +471,12 @@ sub referral_get_show_referrals_button {
   return 0 if !$referrer_id;
 
   return $html->button('', undef, {
-    class          => 'btn btn-sm btn-default',
+    class          => 'btn btn-sm btn-secondary',
     JAVASCRIPT     => '',
     SKIP_HREF      => 1,
     NO_LINK_FORMER => 1,
     ex_params      => qq/onclick=loadToModal('?get_index=referral_show&header=2&USER_ID=$referrer_id')/,
-    ICON           => 'glyphicon glyphicon-tree-deciduous'
+    ICON           => 'fa fa-tree-deciduous'
   });
 }
 
@@ -571,7 +571,7 @@ sub add_friend {
   if ($FORM{chg}) {
     my $info = $Referral->request_list({
       ID        => $FORM{chg},
-      PHONE     => '_SHOW',
+      phone     => '_SHOW',
       COLS_NAME => 1,
     });
     $html->tpl_show(_include('referral_change_form', 'Referral'), {
@@ -592,9 +592,10 @@ sub add_friend {
       INPUT_DATA      => $Referral,
       FUNCTION        => 'request_list',
       BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => 'FIO,PHONE,STATUS',
+      DEFAULT_FIELDS  => 'FIO,phone,STATUS',
       HIDDEN_FIELDS   => 'REFERRER,UID,LOGIN',
       FUNCTION_FIELDS => 'change',
+      FUNCTION_INDEX  => $index,
       SKIP_USER_TITLE => 1,
       TOTAL           => 1,
       EXT_TITLES      => {
@@ -611,34 +612,17 @@ sub add_friend {
         }
       },
       TABLE           => {
-        width => '100%',
-        ID    => 'REFERRAL_TP',
-        MENU  => "$lang{ADD}:index=$index&add_form=1:add"
+        caption     => $lang{ADD_FRIEND},
+        width       => '100%',
+        ID          => 'REFERRAL_TP',
+        MENU        => "$lang{ADD}:index=$index&add_form=1:add",
+        LITE_HEADER => 1
       },
       MAKE_ROWS       => 1,
       MODULE          => 'Referral',
     }
   );
 
-
-  # if ($FORM{get_index} && $FORM{get_index} eq 'form_address_select2') {
-  #   form_address_select2(\%FORM);
-  #   exit 1;
-  # }
-  #
-  # my $lang_sel = $html->form_select(
-  #   'language',
-  #   {
-  #     SELECTED  => $html->{language},
-  #     SEL_HASH  => \%LANG,
-  #     NO_ID     => 1
-  #   }
-  # );
-  #
-  # $FORM{REGISTRATION_REQUEST} = 1;
-  # $FORM{REG_QINDEX} = "qindex=$index&";
-  # $FORM{REFERRAL_UID} = $user->{UID};
-  # msgs_unreg_requests({SEL_LANGUAGE => $lang_sel, NO_BUTTONS => 1});
   return 1;
 }
 
@@ -664,7 +648,7 @@ sub referral_requests {
   if ($FORM{chg}) {
     my $info = $Referral->request_list({
       ID           => $FORM{chg},
-      PHONE        => '_SHOW',
+      phone => '_SHOW',
       ADDRESS      => '_SHOW',
       FIO          => '_SHOW',
       STATUS       => '_SHOW',
@@ -793,10 +777,10 @@ sub referral_requests {
       INPUT_DATA      => $Referral,
       FUNCTION        => 'request_list',
       BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => 'FIO,PHONE,DATE,STATUS,LOGIN,TP_NAME',
+      DEFAULT_FIELDS  => 'phone,FIO,DATE,STATUS,LOGIN,TP_NAME',
       HIDDEN_FIELDS   => 'TP_ID,REFERRAL_TP,UID,ID,REFERRAL_UID',
       FUNCTION_INDEX  => $index,
-      FUNCTION_FIELDS => 'form_wizard:add:fio;phone;referral_request,change,del',
+      FUNCTION_FIELDS => 'referral_redirect:add:fio;phone;referral_request,change,del',
       SKIP_USER_TITLE => 1,
       TOTAL           => 1,
       EXT_TITLES      => {
@@ -1063,7 +1047,12 @@ sub referral_tp {
 
   return 1;
 }
+#**********************************************************
+=head2 referral_quick_info()
 
+
+=cut
+#**********************************************************
 sub referral_quick_info {
   my ($attr) = @_;
 
@@ -1085,6 +1074,19 @@ sub referral_quick_info {
   });
 
   return $Referral->{TOTAL} || 0;
+}
+
+sub referral_redirect {
+
+  if(!$FORM{REFERRAL_REQUEST}){
+    $html->message("warn", $lang{ERROR}, $lang{EMPTY_FIELD});
+    return 1;
+  }
+
+  $html->redirect("?index=".get_function_index("form_wizard").
+    "&FIO=$FORM{FIO}&phone=$FORM{PHONE}&REFERRAL_REQUEST=$FORM{REFERRAL_REQUEST}");
+
+  return 1;
 }
 
 1;

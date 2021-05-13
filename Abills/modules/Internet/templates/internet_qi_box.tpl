@@ -1,9 +1,9 @@
 <!-- small box -->
 <div class='small-box bg-yellow'>
   <div class='inner'>
-    <h4>Тарифный план %INTERNET_TP_NAME%</h4>
+    <h4>_{TARIF_PLAN}_ %INTERNET_TP_NAME%</h4>
     <p>MAC: %INTERNET_CID%</p>
-    <p>Цена: %INTERNET_MONTH_FEE% грн./мес</p>
+    <p>_{PRICE}_: %INTERNET_MONTH_FEE% грн./_{MONTH}_</p>
     <p>%INTERNET_COMMENTS%</p>
   </div>
   <div class='icon'>

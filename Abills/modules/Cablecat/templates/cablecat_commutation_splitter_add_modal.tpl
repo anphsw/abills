@@ -1,6 +1,6 @@
-<div class='box box-theme box-form'>
-  <div class='box-header with-border'><h4 class='box-title'>_{SPLITTERS}_ : %WELL%</h4></div>
-  <div class='box-body'>
+<div class='card card-primary card-outline'>
+  <div class='card-header with-border'><h4 class='card-title'>_{SPLITTERS}_ : %WELL%</h4></div>
+  <div class='card-body'>
     <form name='CABLECAT_COMMUTATION_ADD_MODAL' id='form_CABLECAT_COMMUTATION_ADD_MODAL' method='post'
           class='form form-horizontal ajax-submit-form'>
       <input type='hidden' name='index' value='$index'/>
@@ -10,8 +10,8 @@
       <input type='hidden' name='COMMUTATION_ID' value='%COMMUTATION_ID%'/>
       <input type='hidden' name='CONNECTER_ID' value='%CONNECTER_ID%'/>
 
-      <div class='form-group'>
-        <label for='SPLITTER_ID' class='control-label col-md-3'>_{SPLITTER}_</label>
+      <div class='form-group row'>
+        <label for='SPLITTER_ID' class='control-label col-md-3'>_{SPLITTER}_:</label>
         <div class='col-md-9' id='SPLITTER_ID'>
           %SPLITTERS_SELECT%
         </div>
@@ -22,7 +22,7 @@
     <div id='splitter_form_wrapper'></div>
 
   </div>
-  <div class='box-footer'>
+  <div class='card-footer'>
     <input type='submit' form='form_CABLECAT_COMMUTATION_ADD_MODAL' id='CABLECAT_SPLITTER_ADD_BTN' class='btn btn-primary' name='submit'
            value='%SUBMIT_BTN_NAME%'>
   </div>

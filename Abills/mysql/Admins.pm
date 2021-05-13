@@ -622,7 +622,7 @@ sub action_info {
   my $self = shift;
   my ($id) = @_;
 
-  $self->query("SELECT aid, INET_NTOA(ip) AS ip, datetime, actions, uid, module AS modules, action_type
+  $self->query("SELECT aid, INET_NTOA(ip) AS ip, datetime, actions, uid, module, action_type
     FROM admin_actions WHERE id= ? ;",
     undef,
     { INFO => 1, Bind => [ $id ] }
@@ -716,24 +716,22 @@ sub action_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['UID',          'INT',  'aa.uid',          ],
-      ['LOGIN',        'STR',  'u.id',            ],
-      ['DATETIME',     'DATE', 'aa.datetime'      ],
-      ['RESPOSIBLE',   'INT',  'm.resposible',    ],
-      ['ACTION',       'INT',  'aa.actions',      ],
-      ['TYPE',         'INT',  'aa.action_type',  ],
-      ['MODULE',       'STR',  'aa.module',       ],
+      ['DATETIME',     'DATE', 'aa.datetime',    1 ],
+      ['MODULE',       'STR',  'aa.module',      1 ],
+      ['TYPE',         'INT',  'aa.action_type', 1 ],
+      ['ACTIONS',      'INT',  'aa.actions',     1 ],
+      ['ADMIN_LOGIN',  'STR',  'a.id', 'a.id AS admin_login'               ],
       ['IP',           'IP',   'aa.ip',         "INET_NTOA(aa.ip) AS ip"   ],
       ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')"      ],
       ['MONTH',        'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m')"         ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
       ['AID',          'INT',  'aa.aid'                                    ],
-      ['ADMIN',        'STR',  'a.id', 'a.id as admin_login'               ],
       ['ADMIN_DISABLE','INT',  'a.disable', 'a.disable AS admin_disable', 1],
+      ['UID',          'INT',  'aa.uid',          ],
     ],
     { WHERE       => 1,
       WHERE_RULES => \@WHERE_RULES,
-      USERS_FIELDS=> 1,
+      USERS_FIELDS_PRE => 1,
       USE_USER_PI => 1,
       SKIP_USERS_FIELDS=> [ 'UID' ]
     }
@@ -745,20 +743,20 @@ sub action_list {
     $GROUP_BY = 'GROUP BY aa.id';
   }
 
+  if ($self->{SEARCH_FIELDS} =~ / a\./ || $WHERE =~ / a\./) {
+    $EXT_TABLES =  " LEFT JOIN admins a FORCE INDEX FOR JOIN (`PRIMARY`) ON (aa.aid=a.aid) " . $EXT_TABLES;
+  }
+
+  if ($self->{SEARCH_FIELDS} =~ / u\./ || $WHERE =~ / u\./) {
+    $EXT_TABLES =  " LEFT JOIN users u FORCE INDEX FOR JOIN (`PRIMARY`) ON (aa.uid=u.uid) ". $EXT_TABLES;
+  }
+
   $self->query("SELECT aa.id,
-      u.id AS login,
-      aa.datetime,
-      aa.actions,
-      a.id AS admin_login,
-      aa.module,
-      aa.action_type,
       $self->{SEARCH_FIELDS}
       aa.uid,
       aa.aid
    FROM admin_actions aa
-      LEFT JOIN admins a ON (aa.aid=a.aid)
-      LEFT JOIN users u ON (aa.uid=u.uid)
-      $EXT_TABLES
+     $EXT_TABLES
    $WHERE
    $GROUP_BY
    ORDER BY $SORT $DESC
@@ -770,8 +768,6 @@ sub action_list {
   my $list = $self->{list} || [];
 
   $self->query("SELECT COUNT(*) AS total FROM admin_actions aa
-    LEFT JOIN users u ON (aa.uid=u.uid)
-    LEFT JOIN admins a ON (aa.aid=a.aid)
     $EXT_TABLES
     $WHERE;",
     undef,
@@ -1423,13 +1419,13 @@ sub admins_contacts_list {
     $self->{SEARCH_FIELDS} = '* , '
   }
 
- $self->query("SELECT $self->{SEARCH_FIELDS} ac.id
+  $self->query("SELECT $self->{SEARCH_FIELDS} ac.id
     FROM admins_contacts ac
-   LEFT JOIN users_contact_types uct ON(ac.type_id=uct.id)
- $WHERE $GROUP_BY ORDER BY ac.priority;"
+  LEFT JOIN users_contact_types uct ON(ac.type_id=uct.id)
+  $WHERE $GROUP_BY ORDER BY ac.priority;"
  ,undef, {COLS_NAME => 1,  %{ $attr // {} }});
 
- return $self->{list};
+  return $self->{list} || [];
 }
 
 #**********************************************************

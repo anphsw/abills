@@ -30,7 +30,7 @@ my $debug    = 0;
 #**********************************************************
 =head2 docs_receipt_add($attr)
 
-   Order array format
+  Order array format
     NAME|UNIT|COUNT|PRICE
 
 =cut
@@ -94,7 +94,6 @@ sub docs_receipt_add {
               "qindex=" . get_function_index( 'docs_receipt_list' ) . "&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}",
               { ex_params => 'target=_new', class => 'print' } )
           );
-          #$Docs->docs_receipt_info($Docs->{DOC_ID});
         }
       }
       elsif ( $Docs->{errno} ){
@@ -747,12 +746,12 @@ sub docs_receipt_print {
     $Docs->{TOTAL_ALT_SUM} = sprintf("%.2f", $Docs->{TOTAL_SUM} * $Docs->{EXCHANGE_RATE});
     $Docs->{AMOUNT_FOR_PAY_ALT} = sprintf("%.2f", $Docs->{AMOUNT_FOR_PAY} * $Docs->{EXCHANGE_RATE});
     $Docs->{CHARGED_ALT_SUM} = sprintf("%.2f", $Docs->{CHARGED_SUM} * $Docs->{EXCHANGE_RATE});
-  
+
     $Docs->{TOTAL_ALT_SUM_CENT} = int($Docs->{TOTAL_ALT_SUM} * 100);
     $Docs->{AMOUNT_FOR_PAY_ALT_CENT} = int($Docs->{AMOUNT_FOR_PAY_ALT} * 100);
     $Docs->{CHARGED_ALT_SUM_CENT} = int($Docs->{CHARGED_ALT_SUM} * 100);
   }
-  
+
   if ( $Docs->{PAYMENT_ID} ){
     my $list = $Docs->invoices_list( { PAYMENT_ID => $Docs->{PAYMENT_ID}, COLS_NAME => 1 } );
     if ( $Docs->{TOTAL} > 0 ){
@@ -790,7 +789,7 @@ sub docs_receipt_print {
       $Docs->{TOTAL_SUM} / ((100 + $conf{DOCS_VAT_INCLUDE}) / $conf{DOCS_VAT_INCLUDE}) );
     $Docs->{TOTAL_SUM_WITHOUT_VAT} = sprintf( "%.2f", $Docs->{TOTAL_SUM} - $Docs->{ORDER_TOTAL_SUM_VAT} );
     $Docs->{VAT} = sprintf( "%.2f", $conf{DOCS_VAT_INCLUDE} );
-  
+
     $Docs->{ORDER_TOTAL_SUM_VAT_CENT} = int( $Docs->{ORDER_TOTAL_SUM_VAT} * 100 );
     $Docs->{TOTAL_SUM_WITHOUT_VAT_CENT} = int( $Docs->{TOTAL_SUM_WITHOUT_VAT} * 100 );
     $Docs->{VAT_CENT} = ($Docs->{VAT_CENT} && $Docs->{VAT_CENT} > 0) ? int($Docs->{VAT_CENT} * 100) : 0;
@@ -862,6 +861,7 @@ sub docs_receipt_print_list {
     $D{CONTRACT_DATE} = $line->{contract_date};
     $D{A_FIO} = $line->{admin_name};
     $D{PHONE} = $line->{phone};
+
     my $method = $line->{payment_method};
 
     if ( $conf{DOCS_PAYMENT_METHODS} ){

@@ -17,7 +17,6 @@ $lang{DEAR} = 'Шановний';
 
 $lang{DEPOSIT_NOTIFY_BEFORE_ABON} = 'Сповістити за пару днів до абонплати про стан рахунку';
 
-$lang{RECOMMENDED_PAYMENT} = 'Рекомендований платіж';
 $lang{NEXT_PERIOD_TP} = 'Тарифний план наступного періоду';
 $lang{VISUAL} = 'Налаштування абонентом';
 

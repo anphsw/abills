@@ -1,15 +1,16 @@
 <script type='text/javascript'>
   function selectLanguage() {
     var sLanguage = '';
-    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
       sLanguage = jQuery('#language_mobile').val() || '';
     } else {
       sLanguage = jQuery('#language').val() || '';
     }
-    
+
     var sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&language=' + sLanguage;
     document.location.replace(sLocation);
   }
+
   function set_referrer() {
     document.getElementById('REFERER').value = location.href;
   }
@@ -19,110 +20,112 @@
       jQuery('#tech_works_block').css('display', 'block');
     }
 
-    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
       jQuery('#language_mobile').on('change', selectLanguage);
     } else {
       jQuery('#language').on('change', selectLanguage);
     }
-  })
+  }())
 </script>
 <style>
-  .wrapper {
-    overflow: visible;
-  }
+	.wrapper {
+		overflow: visible;
+	}
 </style>
 
-<nav class='navbar navbar-default' role='navigation'>
-  <div class='container-fluid navbar-right'>
-    <h1 style='font-weight: 600;'>
+<div class='d-flex flex-sm-row flex-md-row-reverse bg-light pl-2 mb-3 border-bottom'>
+  <div class='pt-3 bd-highlight'>
+    <h1 class='h1 font-weight-bolder'>
       <span style='color: red;'>A</span>BillS
-      <small>%TITLE%</small>
+      <small class='text-muted' style='font-size: 65%'>%TITLE%</small>
       &nbsp;
     </h1>
   </div>
-</nav>
+</div>
 
-<div class='container-fluid'>
-
-  <div class='row'>
+<div class='container'>
+  <div class='row p-0 m-0 justify-content-center'>
     <div class='col-md-6 col-md-offset-3'>
       %ERROR_MSG%
     </div>
   </div>
 
-  <div class='row'>
+  <div class='row p-0 m-0 justify-content-center'>
     <div class='col-md-6 col-md-offset-3'>
       <div class='info-box bg-yellow' style='display: none;' id='tech_works_block'>
         <span class='info-box-icon'><i class='fa fa-wrench'></i></span>
-        <!--line height to center text vertical-->
         <div class='info-box-content' style='line-height: 80px'>
-          <!--<span class='info-box-text'>_{TECH_WORKS_ARE_RUNNING_NOW}_</span>-->
           <span class='info-box-number text-center'>%TECH_WORKS_MESSAGE%</span>
-        </div><!-- /.info-box-content -->
-      </div><!-- /.info-box -->
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class='row'>
-    <form action='$SELF_URL' METHOD='post' name='frm' id='form_login' class='form-horizontal'>
+  <div class='row p-0 m-0 justify-content-center'>
+    <div class='pr-0 col-xs-12 col-sm-6 col-md-4'>
+      <form action='$SELF_URL' METHOD='post' name='frm' id='form_login' class='form-horizontal'>
 
-      <input type=hidden name=DOMAIN_ID value='$FORM{DOMAIN_ID}'>
-      <input type=hidden ID=REFERER name=REFERER value='$FORM{REFERER}'>
-      <input type='hidden' id='AUTH_G2FA' name='AUTH_G2FA' value='1'>
-      <input type='hidden' name='G2FA_SUCCESS' value='%G2FA_SUCCESS%'>
-      <input type='hidden' name='LOGIN' value='1'/>
-      <fieldset>
+        <input type=hidden name=DOMAIN_ID value='$FORM{DOMAIN_ID}'>
+        <input type=hidden ID=REFERER name=REFERER value='$FORM{REFERER}'>
+        <input type='hidden' id='AUTH_G2FA' name='AUTH_G2FA' value='1'>
+        <input type='hidden' name='G2FA_SUCCESS' value='%G2FA_SUCCESS%'>
+        <input type='hidden' name='LOGIN' value='1'/>
 
-        <div class='col-xs-12 col-md-4 col-md-offset-4 col-lg-2 col-lg-offset-5'>
-          <div class='form-group has-feedback'>
-            <div class='input-group'>
-              <span class='input-group-addon glyphicon glyphicon-globe'></span>
-              %SEL_LANGUAGE%
-            </div>
-          </div>
-
-          <div class='form-group'>
-            <div class="input-group">
-             <span class="input-group-addon glyphicon glyphicon-user"></span>
-             <input type='text' id='user' name='user' value='%user%' class='form-control' placeholder='_{LOGIN}_'>
-            </div>
-          </div>
-
-          <div class='form-group'>
-            <div class="input-group">
-              <span class="input-group-addon glyphicon glyphicon-lock"></span>
-            <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
-                   placeholder='_{PASSWD}_'>
-            </div>
-          </div>
-
-          <div class='row'>
-            <!-- /.col -->
-
-              <button type='submit' name='logined' class='btn btn-success btn-block btn-flat form-control'
-                      onclick='set_referrer()'>_{ENTER}_
-              </button>
-
-            <!-- /.col -->
-          </div>
-          <div class='row'>
-            %PSWD_BTN%
+        <div class='form-group row has-feedback'>
+          <div class='input-group'>
+            <span class='input-group-addon glyphicon glyphicon-globe'></span>
+            %SEL_LANGUAGE%
           </div>
         </div>
-      </fieldset>
-    </form>
+
+        <div class='form-group row'>
+          <div class='input-group'>
+            <div class='input-group-prepend'>
+              <div class='input-group-text'>
+                <span class='fa fa-user'></span>
+              </div>
+            </div>
+            <input type='text' id='user' name='user' value='%user%' class='form-control' placeholder='_{LOGIN}_'>
+          </div>
+        </div>
+
+        <div class='form-group row'>
+          <div class='input-group'>
+            <div class='input-group-prepend'>
+              <div class='input-group-text'>
+                <span class='fa fa-lock'></span>
+              </div>
+            </div>
+            <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
+                   placeholder='_{PASSWD}_'>
+          </div>
+        </div>
+
+        <div class='form-group row'>
+          <button style='font-size: 1rem !important;' type='submit' name='logined'
+                  class='btn rounded btn-success btn-block btn-flat form-control'
+                  onclick='set_referrer()'>_{ENTER}_
+          </button>
+        </div>
+        <div class='row'>
+          %PSWD_BTN%
+        </div>
+
+      </form>
+    </div>
   </div>
+
 </div>
 
-<script type="text/javascript">
-  jQuery('#form_login').on('submit', function(){
+<script type='text/javascript'>
+  jQuery('#form_login').on('submit', function () {
     var userLogin = jQuery('#user').val();
-    if (typeof(Storage) !== "undefined") {
+    if (typeof (Storage) !== "undefined") {
       localStorage.setItem("lastLogin", userLogin);
     }
   });
 
   jQuery(function () {
     jQuery('#user').val(localStorage.getItem("lastLogin"));
-  })
+  }())
 </script>

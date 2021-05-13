@@ -59,8 +59,7 @@ sub cablecat_cable_reports {
       FUNCTION        => 'cables_list',
       BASE_FIELDS     => 0,
       DEFAULT_FIELDS  => 'ID,NAME,CREATED,LENGTH,RESERVE,LENGTH_CALCULATED,POINT_ID',
-      HIDDEN_FIELDS   => 'TYPE_ID,POLYLINE_ID',
-      #      FUNCTION_FIELDS => 'change,del',
+      HIDDEN_FIELDS   => 'TYPE_ID,POLYLINE_ID,BUILDS_ID,STREET_ID,DISTRICT_ID',
       SKIP_USER_TITLE => 1,
       EXT_FIELDS      => 0,
       EXT_TITLES      => {

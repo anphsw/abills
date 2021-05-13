@@ -1,7 +1,7 @@
-<div class='box box-theme'>
+<div class='card card-primary card-outline'>
   <!-- Default panel contents -->
-  <div class='box-heading'></div>
-  <div class='box-body'>
+  <div class='card-heading'></div>
+  <div class='card-body'>
     <p>%WITHOUT_COMMUTATION%</p>
 
     <!-- List group -->

@@ -153,8 +153,8 @@ sub form_groups {
   elsif (defined($FORM{del}) && $FORM{COMMENTS} && $permissions{0}{5}) {
     $users->list({ GID => $FORM{del} });
 
-    if ($users->{TOTAL} > 0 && $FORM{del} > 0) {
-      $html->message( 'info', $lang{DELETED}, "$lang{USER_EXIST}." );
+    if ($users->{TOTAL} && $users->{TOTAL} > 0 && $FORM{del} > 0) {
+      $html->message( 'info', $lang{DELETED}, $lang{USER_EXIST} );
     }
     else {
       $users->group_del($FORM{del});

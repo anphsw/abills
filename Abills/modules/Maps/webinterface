@@ -327,8 +327,9 @@ sub maps_edit {
       }
       else {
         $Address->address_info($FORM{LOCATION_ID});
+        my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
         $object_id = $Maps->points_add({ %FORM, TYPE_ID => 3, NAME =>
-          "$Address->{ADDRESS_STREET}, $Address->{ADDRESS_BUILD}" });
+          "$Address->{ADDRESS_STREET}$build_delimiter$Address->{ADDRESS_BUILD}" });
         # }
         if (!_error_show($Maps)) {
           $last_object_id = $object_id;
@@ -1566,7 +1567,7 @@ sub maps_show_object_button {
   my %button_params = (
     class => 'btn btn-xs btn-info',
     title => $lang{SHOW},
-    ICON  => 'glyphicon glyphicon-globe',
+    ICON  => 'fa fa-globe',
   );
 
   if (exists $attr->{POINT_ID} && !$attr->{POINT_ID}) {
@@ -1620,7 +1621,7 @@ sub maps_show_add_coords_button {
   my %button_params = (
     class => 'btn btn-xs btn-info',
     title => $lang{SHOW},
-    ICON  => 'glyphicon glyphicon-plus',
+    ICON  => 'fa fa-plus',
   );
 
   if (exists $attr->{POINT_ID} && !$attr->{POINT_ID}) {
@@ -1817,17 +1818,17 @@ sub _maps_btn_for_build {
     my $layer = ($map_object_list->[0]->{coordx}) ? 'BUILD' : 'BUILD2';
     $map_btn = $html->button("", "get_index=maps_show_map&show=$layer&OBJECT_ID=$map_object_list->[0]->{id}&header=1",
       { class => 'btn btn-success btn-sm', target => '_map', ex_params => "data-tooltip-position='top' data-tooltip='$lang{MAP}'", ICON =>
-        'glyphicon glyphicon-globe' });
+        'fa fa-globe' });
   }
   elsif ($attr->{MAP_BTN}) {
     $map_btn = $html->button("", "get_index=maps_edit&LOCATION_ID=$location_id&header=1&LOCATION_TYPE=12",
       { class => 'btn btn-success btn-sm', target => '_map', ex_params => "data-tooltip-position='top' data-tooltip='$lang{MAP} $lang{ADD}'", ICON =>
-        'glyphicon glyphicon-plus' });
+        'fa fa-plus' });
   }
   else {
     $map_btn = $html->button("", "get_index=maps_edit&LOCATION_ID=$location_id&header=1&LOCATION_TYPE=12",
       { target => '_map', ex_params => "data-tooltip-position='top' data-tooltip='$lang{MAP} $lang{ADD}'", ICON =>
-        'glyphicon glyphicon-plus' });
+        'fa fa-plus' });
   }
 
   return $map_btn;
