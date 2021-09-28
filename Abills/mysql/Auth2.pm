@@ -330,8 +330,8 @@ sub auth {
         }
         # Zap session with same CID
         elsif ( $line->[0] ne ''
-          && ($line->[0] eq $cid && ($line->[2] eq $NAS->{NAS_ID} || ! $CONF->{hard_simultaneously_control_skip_nas}) )
-          && $NAS->{NAS_TYPE} ne 'ipcad'
+          && ($line->[0] eq $cid && ($line->[2] eq $NAS->{NAS_ID} || $CONF->{hard_simultaneously_control_skip_nas}) )
+          #&& $NAS->{NAS_TYPE} ne 'ipcad'
           )
         {
           $self->query2("UPDATE internet_online SET status=6 WHERE user_name= ? AND cid= ? AND status <> 2;",
@@ -555,15 +555,19 @@ sub auth {
     return 0, $RAD_PAIRS, '';
   }
 
-  if($self->{IPV6}) {
-    my($p1, $p2, $p3, $p4, $p5, $p6, $p7, $p8)=split(/:/, ipv6_2_long($self->{IPV6}));
-
-    $RAD_PAIRS->{'Framed-IPv6-Prefix'}= ($p1 || q{}) .':'. ($p2 || q{}) .':'. ($p3 || q{}) . ':' . ($p4 ||q{}) .'::/'. $self->{IPV6_MASK};
-    $RAD_PAIRS->{'Framed-Interface-Id'} = ($p5 || q{}) .':'. ($p6 || q{}) .':'. ($p7 || q{}) . ':' . ($p8 ||q{});
+  if ($CONF->{AUTH_SKIP_GUEST_IPV6} && $self->{GUEST}) {
   }
+  else {
+    if ($self->{IPV6}) {
+      my ($p1, $p2, $p3, $p4, $p5, $p6, $p7, $p8) = split(/:/, ipv6_2_long($self->{IPV6}));
 
-  if($self->{IPV6_PREFIX}) {
-    $RAD_PAIRS->{'Delegated-IPv6-Prefix'}=$self->{IPV6_PREFIX}.'/'.$self->{IPV6_PREFIX_MASK};
+      $RAD_PAIRS->{'Framed-IPv6-Prefix'} = ($p1 || q{}) . ':' . ($p2 || q{}) . ':' . ($p3 || q{}) . ':' . ($p4 || q{}) . '::/' . $self->{IPV6_MASK};
+      $RAD_PAIRS->{'Framed-Interface-Id'} = ($p5 || q{}) . ':' . ($p6 || q{}) . ':' . ($p7 || q{}) . ':' . ($p8 || q{});
+    }
+
+    if ($self->{IPV6_PREFIX}) {
+      $RAD_PAIRS->{'Delegated-IPv6-Prefix'} = $self->{IPV6_PREFIX} . '/' . $self->{IPV6_PREFIX_MASK};
+    }
   }
 
   # Return radius attr
@@ -855,7 +859,7 @@ sub nas_pair_former {
       }
     }
 
-    $RAD_PAIRS->{'Session-Timeout'}   = 604800;
+    #$RAD_PAIRS->{'Session-Timeout'}   = 604800;
 
     if(! $attr->{GUEST}) {
       my $EX_PARAMS = $self->ex_traffic_params(
@@ -875,6 +879,9 @@ sub nas_pair_former {
         $RAD_PAIRS->{'PPPD-Upstream-Speed-Limit'} = int($EX_PARAMS->{speed}->{0}->{OUT});
       }
     }
+    # elsif($attr->{GUEST} && ! $self->{UID}) {
+    #   $RAD_PAIRS->{'Session-Timeout'} = 600;
+    # }
   }
   ###########################################################
   # pppd + RADIUS plugin (Linux) http://samba.org/ppp/
@@ -1434,6 +1441,7 @@ sub ex_traffic_params {
   my ($attr) = @_;
 
   my $deposit = (defined($attr->{deposit})) ? $attr->{deposit} : 0;
+  my %EX_PARAMS = ();
   if ($attr->{TT_INTERVAL}) {
     $self->{TT_INTERVAL}=$attr->{TT_INTERVAL};
   }
@@ -1442,7 +1450,23 @@ sub ex_traffic_params {
     $Billing = $attr->{BILLING};
   }
 
-  my %EX_PARAMS = ();
+  if ($CONF->{INTERNET_TURBO_MODE}) {
+    $self->query2("SELECT t.speed,  t.uid, t.id
+     FROM turbo_mode t
+     WHERE UNIX_TIMESTAMP(t.start)+t.time>UNIX_TIMESTAMP()
+      AND t.uid='$self->{UID}';",
+      undef,
+      $attr
+    );
+
+    if ($self->{TOTAL} && $self->{TOTAL} > 0) {
+      $EX_PARAMS{speed}->{0}->{IN} = $self->{list}->[0]->[0];
+      $EX_PARAMS{speed}->{0}->{OUT} = $self->{list}->[0]->[0];
+
+      return \%EX_PARAMS;
+    }
+  }
+
   $EX_PARAMS{traf_limit} = (defined($attr->{traf_limit})) ? $attr->{traf_limit} : 0;
   $EX_PARAMS{traf_limit_lo} = 4090;
 
@@ -2468,7 +2492,7 @@ sub rad_pairs_former  {
     $RAD_REQUEST
     $attr
       AUTH_EXPR
-        NAS_MAC, PORT (convert from hex), PORT_MULTI (not converted), DEC_PORT (dec port value), VLAN,
+        NAS_MAC, PORT (convert from hex), PORT_MULTI (not converted), PORT_DEC (dec port value), VLAN,
         SERVER_VLAN, AGENT_REMOTE_ID, CIRCUIT_ID, LOGIN, USER_MAC
 
   Returns:
@@ -2496,13 +2520,14 @@ sub opt82_parse {
     $CONF = $self->{conf};
   }
 
-  if($attr->{AUTH_EXPR}) {
-    $CONF->{AUTH_EXPR}=$attr->{AUTH_EXPR};
-  }
+  my $auth_expr = $attr->{AUTH_EXPR} || $CONF->{AUTH_EXPR} || q{};
+  # if($attr->{AUTH_EXPR}) {
+  #   $CONF->{AUTH_EXPR}=$attr->{AUTH_EXPR};
+  # }
 
-  if ($CONF->{AUTH_EXPR}) {
-    $CONF->{AUTH_EXPR} =~ s/\n//g;
-    @o82_expr_arr    = split(/;/, $CONF->{AUTH_EXPR});
+  if ($auth_expr) {
+    $auth_expr =~ s/\n//g;
+    @o82_expr_arr    = split(/;/, $auth_expr);
   }
 
   if ($#o82_expr_arr > -1) {
@@ -2531,6 +2556,17 @@ sub opt82_parse {
 
             $result{$EXPR_IDS[$i]}=$res[$i];
           }
+
+          if ($attribute && $attribute eq 'increment_port') { #for H3C: it sends port decremented by 1 (e. g. 6 instead of 7)
+            my $port = $result{PORT_DEC} || hex($result{PORT} || 0);
+            $port++;
+            $result{PORT_MULTI} = $port; #sets PORT_MULTI (will be returned as is, without convertation)
+
+            if ($CONF->{AUTH_EXPR_DEBUG} && $CONF->{AUTH_EXPR_DEBUG} > 3) {
+              $expr_debug .= "  attribute increment_port: new port value is $port\n";
+            }
+          }
+
           #last;
         }
       }
@@ -2798,201 +2834,6 @@ sub dhcp_info {
 
   return $self;
 }
-
-#**********************************************************
-=head2 leases_add($attr, $NAS) - Add IP to leases
-
-  Arguments:
-    $attr
-      RESERVED_IP
-      GUEST_MODE
-      GUEST_LEASES
-
-      LEASES_TIME
-      USER_MAC
-      UID
-      CIRCUIT_ID
-      AGENT_REMOTE_ID
-      HOSTNAME
-      IP
-      PORT
-      VLAN
-      NAS_MAC
-
-    $NAS
-
-=cut
-#**********************************************************
-#@deprecated
-# sub leases_add {
-#   my $self   = shift;
-#   my ($attr, $NAS) = @_;
-#
-#   return $self if ($self->{RESERVED_IP} && $self->{GUEST_MODE} == $self->{GUEST_LEASES});
-#
-#   # DELETE OLD leases
-#   $self->{UID}=0 if (! $self->{UID});
-#   $self->query2("DELETE FROM dhcphosts_leases WHERE (ip=INET_ATON( ? ) AND nas_id= ? )
-#     OR (uid= ?  AND flag<> ? );", 'do',
-#     { Bind => [
-#         $self->{IP},
-#         $NAS->{NAS_ID},
-#         $self->{UID},
-#         $self->{GUEST_MODE} || 0
-#       ]});
-#
-#   #add to dhcp table
-#   $self->query2("INSERT INTO dhcphosts_leases
-#       (start, ends, state, next_state, hardware, uid,
-#        circuit_id, remote_id, hostname,
-#        nas_id, ip, port, vlan, server_vlan, switch_mac, flag,
-#        dhcp_id)
-#     VALUES (NOW(),
-#       NOW() + INTERVAL ? SECOND, 2, 1,
-#       ?, ?, ?, ?, ?, ?, INET_ATON( ? ), ?, ?, ?, ?, ?, ?)", 'do',
-#     { Bind => [
-#         ($attr->{LEASES_TIME} + 60),
-#         $attr->{USER_MAC},
-#         $self->{UID},
-#         $attr->{CIRCUIT_ID} || q{},
-#         $attr->{AGENT_REMOTE_ID} || q{},
-#         (($attr->{HOSTNAME}) ? $attr->{HOSTNAME} : '' ),
-#         $NAS->{NAS_ID} || 0,
-#         $self->{IP},
-#         $attr->{PORT} || '',
-#         $attr->{VLAN} || $self->{VLAN} || 0,
-#         $attr->{SERVER_VLAN} || $self->{SERVER_VLAN} || 0,
-#         $attr->{NAS_MAC} || 0,
-#         (($self->{GUEST_MODE}) ? 1 : 0),
-#         $CONF->{DHCP_ID} || 0
-#       ]}
-#   );
-#
-#   return $self;
-# }
-
-#**********************************************************
-=head2 guest_access($RAD, $NAS, $message, $attr) - Enable guest mode
-
-  Arguments:
-    $RAD_REQUEST
-    $NAS
-    $message
-    $attr
-
-  Returns:
-    0, \%RAD_REPLY;
-=cut
-#**********************************************************
-#sub guest_access {
-  #my $self = shift;
-  #my ($RAD, $NAS, $message, $attr) = @_;
-
-#  my %RAD_REPLY = ();
-#  # Add extra radius params
-#  if ($attr->{VLAN} && $GUEST_POOLS{$attr->{VLAN}}{RAD_REPLY}) {
-#    %RAD_REPLY = (%RAD_REPLY, %{ $GUEST_POOLS{$attr->{VLAN}}{RAD_REPLY} });
-#  }
-#  elsif($GUEST_POOLS{0}{RAD_REPLY}) {
-#    %RAD_REPLY = (%RAD_REPLY, %{ $GUEST_POOLS{0}{RAD_REPLY} });
-#  }
-#
-#  #my $static_dhcp_ip  = $self->{DHCP_STATIC_IP} if($self->{DHCP_STATIC_IP} && $self->{DHCP_STATIC_IP} ne '0.0.0.0');
-#  #undef $self->{DHCP_STATIC_IP};
-#  $self->{GUEST_MODE} = 1;
-#  $self->{INFO}      .= " $message". (($attr->{VLAN}) ? " VLAN: $attr->{VLAN}" : '');
-#  my $ip_pool         = $self->{NEG_DEPOSIT_IPPOOL} || $GUEST_POOLS{$attr->{VLAN}}{POOL_ID} || $GUEST_POOLS{0}{POOL_ID} || 0;
-#  my $WHERE           = '';
-#  #print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! $ip_pool /// $self->{NEG_DEPOSIT_IPPOOL} /////\n";
-#  #if ($CONF->{NAS_PORT_AUTH} && ! in_array($NAS->{NAS_ID}, \@SWITCH_MAC_AUTH)) {
-#  #  $WHERE = ($attr->{PORT} > 0) ? "AND port='$attr->{PORT}' " : '';
-#  #  $WHERE .= "AND switch_mac='$attr->{NAS_MAC}' ";
-#  #}
-#  #else {
-#    $WHERE .= "AND hardware='$attr->{USER_MAC}' ";
-#  #}
-#
-#  if ( $CONF->{INTERNET_GUEST_STATIC_IP}) {
-#    $WHERE .= "AND hardware='$attr->{USER_MAC}' ";
-#  }
-#  else {
-#    $WHERE .= "AND ends > NOW() ";
-#  }
-#
-#  # check work IP
-#  $self->query2("SELECT UNIX_TIMESTAMP(ends)-UNIX_TIMESTAMP() AS leases_time,
-#      INET_NTOA(ip) AS ip, flag FROM dhcphosts_leases
-#      WHERE flag=1 $WHERE FOR UPDATE;",
-#    undef, { COLS_NAME => 1 });
-#
-#  # In leases
-#  if ($self->{TOTAL} > 0) {
-#    if ($self->{TOTAL} == 1 && $self->{list}->[0]->{leases_time} <= 0) {
-#      $self->query2("UPDATE dhcphosts_leases SET ends=NOW() + INTERVAL " . (($self->{LEASES_TIME} || $NAS->{NAS_ALIVE}) + 60) . " SECOND
-#        WHERE flag=1 AND ip=INET_ATON('$self->{list}->[0]->{ip}') $WHERE;",
-#        'do');
-#    }
-#    else {
-#      $attr->{LEASES_TIME} = $self->{list}->[0]->{leases_time};
-#      $self->{IP}          = $self->{list}->[0]->{ip};
-#      $self->{GUEST_LEASES}= $self->{list}->[0]->{flag};
-#      $self->{RESERVED_IP} = 1;
-#    }
-#  }
-#  # New IP
-#  #  elsif ($self->{DHCP_STATIC_IP} && $self->{DHCP_STATIC_IP} ne '0.0.0.0' && $self->{NEG_DEPOSIT_FILTER_ID} && $conf->{INTERNET_GUEST_STATIC_IP}) {
-#  #    rad_pairs_former($self->{NEG_DEPOSIT_FILTER_ID}, { RAD_PAIRS => \%RAD_REPLY });
-#  #    $self->{IP} = $self->{DHCP_STATIC_IP};
-#  #  }
-#  elsif($self->{NEG_DEPOSIT_FILTER_ID}){
-#    if ($self->{IP} eq '0.0.0.0') {
-#      $self->{IP} = $self->get_ip($NAS->{NAS_ID}, $RAD->{'NAS-IP-Address'}, { TP_IPPOOL => $self->{NEG_DEPOSIT_IPPOOL} || $self->{TP_IPPOOL} || $ip_pool });
-#    }
-#    rad_pairs_former( $self->{NEG_DEPOSIT_FILTER_ID}, { RAD_PAIRS => \%RAD_REPLY } );
-#  }
-#  elsif($ip_pool) {
-#    # Send NAK if require not same leases
-#    #if ( $attr->{REQUIRE_USER_IP} && $attr->{REQUIRE_USER_IP} ne '0.0.0.0'  ) {
-#    #  return 1, \%RAD_REPLY;
-#    #}
-#    $self->{IP} = $self->get_guest_ip($ip_pool,
-#      { %$attr,
-#        NAS => $NAS
-#      });
-#
-#    if ($self->{IP} eq '-1') {
-#      $RAD_REPLY{'Reply-Message'} = "Rejected! There is no free IPs in address pools $ip_pool (USED: $self->{USED_IPS})";
-#      return 1, \%RAD_REPLY;
-#    }
-#    elsif ($self->{IP} eq '0') {
-#      $RAD_REPLY{'Reply-Message'}="$self->{errstr} (NAS: $NAS->{NAS_ID})";
-#      return 1, \%RAD_REPLY;
-#    }
-#
-#    # Add IP to leases
-#    if (! $attr->{LEASES_TIME}) {
-#      $attr->{LEASES_TIME}=$conf->{DHCPHOSTS_SESSSION_TIMEOUT} || 600;
-#    }
-#    elsif ($RAD_REPLY{'Session-Timeout'}) {
-#      $attr->{LEASES_TIME}=$RAD_REPLY{'Session-Timeout'};
-#    }
-#    else {
-#      $attr->{LEASES_TIME}= $NAS->{NAS_ALIVE} || $conf->{DHCPHOSTS_SESSSION_TIMEOUT};
-#    }
-#
-#    $RAD_REPLY{'Reply-Message'}=$message. ", Pool $ip_pool";
-#  }
-#
-#  $RAD_REPLY{'Framed-IP-Address'} = $self->{IP} if ($self->{IP} && $self->{IP} !~ /0\.0\.0\.0/);
-#  #$self->{UID}   = 0 if (! $self->{UID});
-#  #$self->{TP_ID} = 0 if (! $self->{TP_ID});
-#
-#  #if ($self->{UID}) {
-#  $self->calls_update($attr, $NAS);
-#  #}
-#  return 0, \%RAD_REPLY;
-#}
-
 
 #**********************************************************
 =head2 ipv6_2_long($ipv6) - Convert IPv6 to long format

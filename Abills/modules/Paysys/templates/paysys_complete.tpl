@@ -1,5 +1,5 @@
-<div>
-    <p><b>_{ADDED}_</b></b>
+<div class='alert alert-success text-left'>
+    <h4><span class='fa fa-check-circle'></span> _{ADDED}_ </h4>
     <p>_{SUM}_: %SUM% </p>
 <p>ID: %TRANSACTION_ID% </p>
 <p>%MESSAGE%</p>

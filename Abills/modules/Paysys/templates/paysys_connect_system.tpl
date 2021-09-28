@@ -1,11 +1,11 @@
-<form name='PAYSYS_CONNECT_SYSTEM' id='form_PAYSYS_CONNECT_SYSTEM' method='post' class='form form-horizontal'>
+<form name='PAYSYS_CONNECT_SYSTEM' id='form_PAYSYS_CONNECT_SYSTEM' method='post'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='ID' value='%ID%'>
   <input type='hidden' name='OLD_NAME' value='%NAME%'>
 
   <div class='card big-box card-primary card-outline'>
     <div class='card-header with-border'>
-      <h4 class="card-title">_{ADD}_ _{PAY_SYSTEM}_</h4>
+      <h4 class='card-title'>_{ADD}_ _{PAY_SYSTEM}_</h4>
     </div>
 
     <div class='card-body'>
@@ -19,21 +19,21 @@
 
       </div>
       <div class='form-group row'>
-        <label class='control-label col-md-3'>ID</label>
+        <label class='control-label col-md-3' FOR='paysys_id'>ID</label>
         <div class='col-md-9'>
           <input type='number' class='form-control' name='PAYSYS_ID' value='%PAYSYS_ID%' id='paysys_id' required>
         </div>
       </div>
       <div class='form-group row'>
-        <label class='control-label col-md-3'>_{NAME}_</label>
+        <label class='control-label col-md-3' FOR='paysys_name'>_{NAME}_</label>
         <div class='col-md-9'>
-          <input type='text' class='form-control' name='NAME' value='%NAME%' id='paysys_name' required pattern='[A-Za-z0-9_]{1,30}' data-tooltip="Только лат. буквы, цифры и подчеркивание">
+          <input type='text' class='form-control' name='NAME' value='%NAME%' id='paysys_name' required pattern='[A-Za-z0-9_]{1,30}' data-tooltip='Только лат. буквы, цифры и подчеркивание'>
         </div>
       </div>
       <div class='form-group row'>
-        <label class='control-label col-md-3'>IP</label>
+        <label class='control-label col-md-3' FOR='IP'>IP</label>
         <div class='col-md-9'>
-          <textarea class='form-control' name='IP'>%IP%</textarea>
+          <textarea class='form-control' name='IP' ID='IP'>%IP%</textarea>
         </div>
       </div>
       <div class='form-group row'>
@@ -43,16 +43,16 @@
         </div>
       </div>
       <div class='form-group row'>
-        <label class='control-label col-md-3'>_{PRIORITY}_</label>
+        <label class='control-label col-md-3' for='PRIORITY'>_{PRIORITY}_</label>
         <div class='col-md-9'>
-          <input type='text' class='form-control' name='PRIORITY' value='%PRIORITY%' >
+          <input type='text' class='form-control' id='PRIORITY' name='PRIORITY' value='%PRIORITY%' >
         </div>
       </div>
 
       <div class='form-group row'>
         <label class='control-label col-md-3 col-sm-4 col-xs-6' for='STATUS'>_{LOGON}_</label>
-        <div class='col-md-9 col-xs-4' style="padding-top: 7px">
-          <input id="STATUS" class="pull-left"  type='checkbox' name='STATUS' data-return='1' value='1' data-checked='%ACTIVE%'>
+        <div class='col-md-9 col-xs-4'>
+          <input id='STATUS' type='checkbox' name='STATUS' data-return='1' value='1' data-checked='%ACTIVE%'>
         </div>
       </div>
 
@@ -81,17 +81,15 @@
       var val = arr[type]['CONF'][sorted[i]];
       var param = sorted[i];
 
-      console.log(sorted[i] + " - " + val);
-
-      var element = jQuery("<div></div>").addClass("form-group row appended_field");
-      element.append(jQuery("<label for=''></label>").text(param).addClass("col-md-3 control-label"));
+      var element = jQuery('<div></div>').addClass('form-group row appended_field');
+      element.append(jQuery("<label for=''></label>").text(param).addClass('col-md-3 control-label'));
       element.append(jQuery("<div></div>").addClass("col-md-9").append(
-        jQuery("<input name='" + param + "' id='" + param + "' value='" + (val || '') + "'>").addClass("form-control")));
+        jQuery("<input name='" + param + "' id='" + param + "' value='" + (val || '') + "'>").addClass('form-control')));
 
       jQuery('#paysys_connect_system_body').append(element);
     }
     jQuery('#paysys_id').val(arr[type]['ID']);
-    var paysys_name_input =  document.getElementById("paysys_name").value;
+    var paysys_name_input =  document.getElementById('paysys_name').value;
     if(!paysys_name_input){
       jQuery('#paysys_name').val(arr[type]['NAME']);
     }
@@ -102,7 +100,7 @@
       rebuild_form(jQuery('#MODULE').val());
     }
 
-    jQuery("#MODULE").change(function () {
+    jQuery('#MODULE').change(function () {
       rebuild_form(jQuery('#MODULE').val());
 
     });

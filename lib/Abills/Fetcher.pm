@@ -103,6 +103,15 @@ sub web_request {
 #**********************************************************
 =head2 json_return($result, $attr) - make json return
 
+  Arguments:
+    $result
+    $attr
+      JSON_RETURN
+      JSON_UTF8
+
+  Results:
+    $perl_scalar
+
 =cut
 #**********************************************************
 sub json_return {
@@ -411,12 +420,12 @@ sub _parse_request_data_hash {
       # If one of keys is array, add inner items to request
       if ( ref $attr->{REQUEST_PARAMS}->{$k} eq 'ARRAY' ) {
         foreach my $val ( @{ $attr->{REQUEST_PARAMS}->{$k} } ) {
-          $val = urlencode($val);
+          $val = urlencode($val, $attr);
           push @params, "$k=$val";
         }
       }
       else {
-        $attr->{REQUEST_PARAMS}->{$k} = urlencode($attr->{REQUEST_PARAMS}->{$k});
+        $attr->{REQUEST_PARAMS}->{$k} = urlencode($attr->{REQUEST_PARAMS}->{$k}, $attr);
         push @params, "$k=$attr->{REQUEST_PARAMS}->{$k}";
       }
     }
@@ -432,7 +441,7 @@ sub _parse_request_data_hash {
         }
         else {
           foreach my $val ( @{ $attr->{REQUEST_PARAMS_JSON}->{$k} } ) {
-            $val = urlencode($val);
+            $val = urlencode($val, $attr);
             push @params, qq{ \\\"$k\\\" : \\\"$val\\\" };
           }
         }
@@ -464,7 +473,7 @@ sub _parse_request_data_hash {
         push @params, qq{ \\\"$k\\\" : { $val } };
       }
       else {
-        $attr->{REQUEST_PARAMS}->{$k} = urlencode($attr->{REQUEST_PARAMS_JSON}->{$k});
+        $attr->{REQUEST_PARAMS}->{$k} = urlencode($attr->{REQUEST_PARAMS_JSON}->{$k}, $attr);
         
         if ( $attr->{REQUEST_PARAMS}->{$k} =~ /true|false/ ) {
           push @params, qq{ \\\"$k\\\" : $attr->{REQUEST_PARAMS}->{$k} };

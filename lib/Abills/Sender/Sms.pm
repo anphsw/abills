@@ -49,7 +49,13 @@ sub send_message {
   my $Sms_service = init_sms_service($self->{db}, $self->{admin}, $self->{conf});
 
   $attr->{TO_ADDRESS} =  $self->{conf}->{SMS_NUMBER_EXPR} ?
-    _expr($attr->{TO_ADDRESS}, $self->{conf}->{SMS_NUMBER_EXPR}) : $attr->{TO_ADDRESS},
+    _expr($attr->{TO_ADDRESS}, $self->{conf}->{SMS_NUMBER_EXPR}) : $attr->{TO_ADDRESS};
+
+  if (! $Sms_service->can('send_sms')) {
+    $self->{errno}=10;
+    $self->{errstr}='SMS_SERVICE_NOT_REGISTER';
+    return 0;
+  }
 
   my $sms_result = $Sms_service->send_sms({
     NUMBER     => $attr->{TO_ADDRESS},

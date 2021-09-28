@@ -145,4 +145,13 @@ $lang{POSITION_SUCCESSFULLY_CHANGED} = 'Позиция успешно измен
 $lang{BIG_COMMUTATION} = 'Большая схема коммутации';
 $lang{CHOOSE_COMMUTATION} = 'Выберите коммутацию';
 
+$lang{ROTATE} = 'Повернуть';
+$lang{FAILED_TO_CHANGE_NAME} = 'Не удалось изменить имя. Отсутствуют необходимые данные!';
+$lang{NAME_ALREADY_IN_USE} = 'Такое имя уже используется';
+$lang{ERROR_ON_CHANGE} = 'Ошибка при изменении';
+$lang{HEIGHT_CANNOT_BE_LESS} = 'Высота не может быть меньше';
+
+$lang{SAVE_PRESET} = 'Сохранить пресет';
+$lang{STRAIGHTEN} = 'Выпрямить';
+
 1;

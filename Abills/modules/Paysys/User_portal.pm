@@ -1,11 +1,15 @@
 #package Paysys::UserPortal;
+=head1 NAME
+
+  User Portal
+
+=cut
+
 use strict;
 use warnings FATAL => 'all';
-
-use Abills::Base qw();
+use Paysys::Init;
 
 our (
-  $html,
   $base_dir,
   $admin,
   $db,
@@ -14,10 +18,17 @@ our (
   @status,
   @status_color,
 );
+
 our Paysys $Paysys;
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 paysys_payment($attr)
+
+  Arguments:
+    $attr
+
+  Results:
 
 =cut
 #**********************************************************
@@ -60,11 +71,9 @@ sub paysys_payment {
   }
 
   if($conf{PAYSYS_IPAY_FAST_PAY}){
-
     if(($FORM{ipay_pay} || $FORM{ipay_register_purchase} || $FORM{ipay_purchase})){
-      #    $user->pi({UID => $user->{UID}});
       if(($FORM{ipay_pay} || $FORM{ipay_register_purchase}) && $FORM{SUM} <= 0){
-        $html->message( 'err', $lang{ERROR}, "$lang{ERR_WRONG_SUM}" );
+        $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_SUM});
         return 1;
       }
 
@@ -75,9 +84,9 @@ sub paysys_payment {
         return $html->message( 'err', $lang{ERROR}, "ERR_BIG_SUM: $conf{PAYSYS_MAX_SUM}" );
       }
 
-      my $Module = _configure_load_payment_module('Ipay.pm');
-      my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
-      $TEMPLATES_ARGS{IPAY_HTML} = $Paysys_Object->user_portal_special($user, { %FORM });
+      my $paysys_plugin = _configure_load_payment_module('Ipay_mp.pm');
+      my $Paysys_plugin = $paysys_plugin->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
+      $TEMPLATES_ARGS{IPAY_HTML} = $Paysys_plugin->user_portal_special($user, { %FORM, %{ ($attr) ? $attr : { }  } });
       return 1;
     }
   }
@@ -94,14 +103,12 @@ sub paysys_payment {
     });
 
     if($Paysys->{errno}){
-      print $html->message('err', "$lang{ERROR}", 'Payment system not exist');
+      print $html->message('err', $lang{ERROR}, 'Payment system not exist');
     }
     else{
       my $Module = _configure_load_payment_module($payment_system_info->{module});
-      my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html, lang => \%lang });
-      return  $Paysys_Object->user_portal($user, {
-          %FORM,
-        });
+      my $Paysys_plugin = $Module->new($db, $admin, \%conf, { HTML => $html, lang => \%lang });
+      return  $Paysys_plugin->user_portal($user, { %FORM, %{ ($attr) ? $attr : { } } });
     }
   }
 
@@ -129,6 +136,7 @@ sub paysys_payment {
 
   $TEMPLATES_ARGS{OPERATION_ID} = mk_unique_value(8, { SYMBOLS => '0123456789' });
   if (in_array('Maps2', \@MODULES) && !$FORM{json}) {
+    require Paysys::Maps;
     $TEMPLATES_ARGS{MAP} = paysys_maps_new();
   }
 
@@ -156,9 +164,8 @@ sub paysys_payment {
     if($user->{GID} && !$group_to_paysys_id{$user->{GID}}){
       next;
     }
-    my $Module = _configure_load_payment_module($payment_system->{module});
-
-    if ($Module->can('user_portal')) {
+    my $Plugin = _configure_load_payment_module($payment_system->{module});
+    if ($Plugin->can('user_portal')) {
       push @payment_systems, _paysys_system_radio({
         NAME    => $payment_system->{merchant_name} || $payment_system->{name},
         MODULE  => $payment_system->{module},
@@ -167,9 +174,9 @@ sub paysys_payment {
       });
       $count++;
     }
-    elsif ($Module->can('user_portal_special')) {
-      my $Paysys_Object = $Module->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
-      $TEMPLATES_ARGS{IPAY_HTML} = $Paysys_Object->user_portal_special($user, { %FORM });
+    elsif ($Plugin->can('user_portal_special')) {
+      my $Paysys_plugin = $Plugin->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang, INDEX => $index, SELF_URL => $SELF_URL });
+      $TEMPLATES_ARGS{IPAY_HTML} = $Paysys_plugin->user_portal_special($user, { %FORM });
     }
   }
 
@@ -208,24 +215,24 @@ sub paysys_external_cmd {
   my $uid = $user->{UID};
 
   if ($conf{PAYSYS_EXTERNAL_START_COMMAND}) {
-    my $start_command         = $conf{PAYSYS_EXTERNAL_START_COMMAND} || q{};
-    my $attempts              = $conf{PAYSYS_EXTERNAL_ATTEMPTS} || 0;
-    my $main_user_information = $Paysys->paysys_user_info({ UID => $uid });
+    my $start_command = $conf{PAYSYS_EXTERNAL_START_COMMAND} || q{};
+    my $attempts      = $conf{PAYSYS_EXTERNAL_ATTEMPTS} || 0;
+    my $user_info     = $Paysys->user_info({ UID => $uid });
 
-    if ($main_user_information->{TOTAL} == 0) {
-      $Paysys->paysys_user_add({
+    if (!$user_info->{TOTAL}) {
+      $Paysys->user_add({
         ATTEMPTS         => 1,
         UID              => $uid,
         EXTERNAL_USER_IP => $ENV{REMOTE_ADDR}
       });
     }
     else {
-      if ($main_user_information->{ATTEMPTS} && (!$attempts || $main_user_information->{ATTEMPTS} < $attempts)) {
+      if ($user_info->{ATTEMPTS} && (!$attempts || $user_info->{ATTEMPTS} < $attempts)) {
         my (undef, $now_month) = split('-', $DATE);
-        my (undef, $last_month) = split('-', $main_user_information->{EXTERNAL_LAST_DATE});
-        my $paysys_id = $main_user_information->{PAYSYS_ID};
+        my (undef, $last_month) = split('-', $user_info->{EXTERNAL_LAST_DATE});
+        my $paysys_id = $user_info->{PAYSYS_ID};
         if (int($now_month) != int($last_month)) {
-          $Paysys->paysys_user_change({
+          $Paysys->user_change({
             ATTEMPTS           => 1,
             UID                => $uid,
             PAYSYS_ID          => $paysys_id,
@@ -234,8 +241,8 @@ sub paysys_external_cmd {
           });
         }
         else {
-          my $user_attempts = $main_user_information->{ATTEMPTS} + 1;
-          $Paysys->paysys_user_change({
+          my $user_attempts = $user_info->{ATTEMPTS} + 1;
+          $Paysys->user_change({
             ATTEMPTS           => $user_attempts,
             UID                => $uid,
             PAYSYS_ID          => $paysys_id,
@@ -246,7 +253,6 @@ sub paysys_external_cmd {
         }
       }
     }
-    #print "Content-Type: text/html\n\n";
 
     my $result = cmd($start_command, {
       PARAMS => { %$user, IP => $ENV{REMOTE_ADDR} },
@@ -416,7 +422,6 @@ sub paysys_user_log {
       qs          => $pages_qs,
       pages       => $Paysys->{TOTAL},
       ID          => 'PAYSYS',
-      LITE_HEADER => 1
     }
   );
 
@@ -434,7 +439,6 @@ sub paysys_user_log {
   $table = $html->table(
     {
       caption     => $lang{ALL},
-      LITE_HEADER => 1,
       width       => '100%',
       rows        => [
         [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM}:", $html->b($Paysys->{SUM_COMPLETE}) ]
@@ -445,6 +449,7 @@ sub paysys_user_log {
 
   return 1;
 }
+
 #**********************************************************
 =head2 paysys_subscribe()
 
@@ -452,42 +457,35 @@ sub paysys_user_log {
 #**********************************************************
 sub paysys_subscribe {
 
-  my $list_t = $Paysys->paysys_user_info({
+  my $paysys_subscribe = $Paysys->user_info({
     UID          => $user->{UID},
   });
 
   my $table = $html->table(
     {
       width       => '100%',
-      caption     => "$lang{TOKEN_PAYMENTS}",
-      title       => [
-        "$lang{DATE}",
-        "$lang{SUM}",
-        "$lang{PAY_SYSTEM}",
-        "$lang{TRANSACTION}",
-        "$lang{STATUS}",
-        '-'
-      ],
+      caption     => $lang{TOKEN_PAYMENTS},
+      title       => [$lang{DATE}, $lang{SUM}, $lang{PAY_SYSTEM}, $lang{TRANSACTION}, $lang{STATUS}, '-' ],
       qs          => $pages_qs,
       pages       => $Paysys->{TOTAL},
-      ID          => 'PAYSYS',
-      LITE_HEADER => 1,
+      ID          => 'PAYSYS_SUBSCRIBES',
     }
   );
 
-  if($list_t->{EXTERNAL_LAST_DATE}){
-    $table->addrow($list_t->{EXTERNAL_LAST_DATE},
-      $list_t->{SUM},
-      $list_t->{RECURRENT_MODULE},
-      $list_t->{ORDER_ID},
+  if($paysys_subscribe->{EXTERNAL_LAST_DATE}){
+    $table->addrow($paysys_subscribe->{EXTERNAL_LAST_DATE},
+      $paysys_subscribe->{SUM},
+      $paysys_subscribe->{RECURRENT_MODULE},
+      $paysys_subscribe->{ORDER_ID},
       $lang{ENABLED},
-      $html->button($lang{HANGUP}, 'index='. get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . 62 . '&SUM=1.00' ));
+      $html->button($lang{DEL}, 'index='. get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . 62 . '&SUM=1.00' ));
   }
 
   print $table->show();
 
   return 1;
 }
+
 #**********************************************************
 =head2 paysys_system_sel()
 
@@ -516,11 +514,11 @@ sub paysys_recurrent_payment {
   my %data = ();
 
   if ($FORM{RECURRENT_CANCEL}) {
-    my $Module = _configure_load_payment_module("$FORM{PAYSYSTEM_NAME}.pm");
+    my $Pasysy_plugin = _configure_load_payment_module("$FORM{PAYSYSTEM_NAME}.pm");
     my $result_code = q{};
     my $result = q{};
-    if ($Module->can('recurrent_cancel')) {
-      my $PAYSYS_OBJECT = $Module->new($db, $admin, \%conf);
+    if ($Pasysy_plugin->can('recurrent_cancel')) {
+      my $PAYSYS_OBJECT = $Pasysy_plugin->new($db, $admin, \%conf);
       ($result_code, $result) = $PAYSYS_OBJECT->recurrent_cancel({ %FORM });
     }
     if ($result_code eq '200') {
@@ -533,11 +531,11 @@ sub paysys_recurrent_payment {
     }
   }
 
-
-  my $info = $Paysys->paysys_user_info({
+  my $info = $Paysys->user_info({
     UID       => $user->{UID},
     COLS_NAME => 1
   });
+
   if (!$info->{RECURRENT_ID}) {
     $html->message('err', $lang{ERROR}, "No regular payment");
     return 0;
@@ -560,6 +558,7 @@ sub paysys_recurrent_payment {
   $data{INDEX} = get_function_index('paysys_recurrent_payment');
 
   $html->tpl_show(_include('paysys_recurrent_payment', 'Paysys'), \%data);
+
   return 1;
 }
 1;

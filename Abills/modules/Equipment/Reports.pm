@@ -33,7 +33,7 @@ our (
 
 load_pmodule("JSON");
 
-our $Equipment = Equipment->new($db, $admin, \%conf);
+our Equipment $Equipment;
 require Equipment::Grabbers;
 
 #*******************************************************************

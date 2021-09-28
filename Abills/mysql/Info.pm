@@ -696,11 +696,18 @@ sub log_comments {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT icc.aid, icc.date_change, icc.id_comments,
+  if($attr->{COMMENT_ID}) {
+    $self->query2("SELECT * FROM info_change_comments WHERE id_comments = ?;", undef, {
+      COLS_NAME => 1,
+      Bind => [ $attr->{COMMENT_ID} ]
+    });
+  } else {
+    $self->query2("SELECT icc.aid, icc.date_change, icc.id_comments,
                 icc.old_comment, icc.text, icc.uid
                 FROM info_change_comments AS icc;", undef, {
-    COLS_NAME => 1
-  });
+      COLS_NAME => 1
+    });
+  }
 
   return $self->{list};
 }

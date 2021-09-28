@@ -1,4 +1,4 @@
-<form method='POST' class='form-horizontal' name='CRM_LEADS' id='CRM_LEADS'>
+<form method='POST' class='form-horizontal' name='CRM_LEADS' id='CRM_LEADS' enctype='multipart/form-data'>
   <input type='hidden' name='index' value='%INDEX%'>
   <input type='hidden' name='send' value='1'>
 
@@ -8,7 +8,7 @@
     </div>
     <div class='card-body'>
       <div class='form-group row'>
-        <label class='col-form-label text-md-right col-md-4'>_{SUBJECT}_:</label>
+        <label class='col-form-label text-md-right col-md-4' for='SUBJECT'>_{SUBJECT}_:</label>
         <div class='col-md-8'>
           <div class='input-group'>
             <input type='text' class='form-control' placeholder='_{SUBJECT}_' name='SUBJECT' id='SUBJECT'
@@ -27,10 +27,23 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-form-label text-md-right col-md-4'>_{MESSAGE}_</label>
+        <label class='col-form-label text-md-right col-md-4' for='MSGS'>_{MESSAGE}_:</label>
         <div class='col-md-8'>
           <div class='input-group'>
             <textarea name='MSGS' id='MSGS' rows='6' cols='45;' class='form-control'>%MSGS%</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='col-form-label text-md-right col-md-4'>_{ATTACHMENT}_:</label>
+        <div class='col-md-8'>
+          <div class='input-group'>
+            <div id='file_upload_holder' class='border rounded w-100'>
+              <div class='form-group  m-1'>
+                <input name='FILE_UPLOAD' type='file' data-number='0' class='fixed'>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -43,3 +56,9 @@
   </div>
   %TABLE%
 </form>
+
+<script>
+  var MAX_FILES_COUNT = 3;
+  initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
+</script>
+<script src='/styles/default_adm/js/draganddropfile.js'></script>

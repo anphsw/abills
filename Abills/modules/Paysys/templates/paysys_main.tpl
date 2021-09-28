@@ -32,24 +32,24 @@
             <h4 class='card-title'>_{BALANCE_RECHARCHE}_</h4>
         </div>
         <div class='card-body'>
-            <div class="form-group row">
-                <label for="transaction" class="col-sm-4 col-md-4 col-form-label text-md-right">_{TRANSACTION}_ #:</label>
-                <div class="col-sm-8 col-md-8">
-                    <input type="text" class="form-control" id="transaction" placeholder="_{TRANSACTION}_ #" readonly value="%OPERATION_ID%">
+            <div class='form-group row'>
+                <label for='transaction' class='col-sm-4 col-md-4 col-form-label text-md-right'>_{TRANSACTION}_ #:</label>
+                <div class='col-sm-8 col-md-8'>
+                    <input type='text' class='form-control' id='transaction' placeholder='_{TRANSACTION}_ #' readonly value='%OPERATION_ID%'>
                 </div>
             </div>
 
-            <div class="form-group row">
-                <label for="sum" class="col-sm-4 col-md-4 col-form-label text-md-right">_{SUM}_:</label>
-                <div class="col-sm-8 col-md-8">
-                    <input class='form-control' type='number' min='0' step='0.01' id="sum" name='SUM' value='%SUM%' autofocus>
+            <div class='form-group row'>
+                <label for='sum' class='col-sm-4 col-md-4 col-form-label text-md-right'>_{SUM}_:</label>
+                <div class='col-sm-8 col-md-8'>
+                    <input class='form-control' type='number' min='0' step='0.01' id='sum' name='SUM' value='%SUM%' autofocus>
                 </div>
             </div>
 
-            <div class="form-group row">
-                <label for="describe" class="col-sm-4 col-md-4 col-form-label text-md-right">_{DESCRIBE}_:</label>
-                <div class="col-sm-8 col-md-8">
-                    <input class='form-control' type='text' name='DESCRIBE' placeholder="_{DESCRIBE}_" value='_{BALANCE_RECHARCHE}_'>
+            <div class='form-group row'>
+                <label for='describe' class='col-sm-4 col-md-4 col-form-label text-md-right'>_{DESCRIBE}_:</label>
+                <div class='col-sm-8 col-md-8'>
+                    <input class='form-control' type='text' name='DESCRIBE' placeholder='_{DESCRIBE}_' value='_{BALANCE_RECHARCHE}_'>
                 </div>
             </div>
 

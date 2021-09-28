@@ -109,7 +109,7 @@ sub payment_register {
         payment_address => $self->{billing_url},
       },
       items => [{
-        name           => $self->{goods},
+        name           => ($self->{goods} || q{}) . ' UID: ' . $attr->{uid},
         price          => "INT:$attr->{sum}",
         quantity       => "INT:1",
         sum            => "INT:$attr->{sum}",

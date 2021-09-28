@@ -10,12 +10,19 @@
     </div>
     <div class="card-body">
       <div class="form-group row">
-        <label class="col-sm-4 col-md-4 control-label" for="UID">UID:</label>
+        <label class="col-sm-4 col-md-4 control-label" for='FIO'>_{FIO}_:</label>
         <div class="col-sm-8 col-md-8">
-          <input id="UID" name="UID" value="%UID%" type="text" class="form-control" />
+          <div class="input-group">
+            <input id='FIO' name='FIO' value='%FIO%' class='form-control' type='text'/>
+            <div class="input-group-append">
+              <div class="input-group-text">
+                <i class='fa fa-exclamation'></i>
+                <input type="checkbox" name='FIO' data-input-disables='FIO' value='!'>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
       <div class="form-group row">
         <label class="col-sm-4 col-md-4 control-label" for="EMAIL">E-Mail:</label>
         <div class="col-sm-8 col-md-8">
@@ -23,11 +30,39 @@
         </div>
       </div>
       <div class="form-group row">
-        <label class="col-sm-4 col-md-4 control-label" for="REGISTRATION">_{REGISTRATION}_:</label>
+        <label class="col-sm-4 col-md-4 control-label" for='PHONE'>_{PHONE}_:</label>
         <div class="col-sm-8 col-md-8">
-          <input id="REGISTRATION" name="REGISTRATION" value="%REGISTRATION%" placeholder="%REGISTRATION%"
-            class="form-control datepicker" type="text" />
+          <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control' type='text'/>
         </div>
+      </div>
+      <div class="form-group row">
+        <label class="col-sm-4 col-md-4 control-label" for='CELL_PHONE'>_{CELL_PHONE}_:</label>
+        <div class="col-sm-8 col-md-8">
+          <div class="input-group">
+            <input id='CELL_PHONE' name='CELL_PHONE' value='%CELL_PHONE%' placeholder='%CELL_PHONE%' class='form-control'
+                   type='text'/>
+            <div class="input-group-append">
+              <div class="input-group-text">
+                <i class='fa fa-exclamation'></i>
+                <input type="checkbox" name='CELL_PHONE' data-input-disables=CELL_PHONE value='!'>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group row">
+        <label class="col-sm-4 col-md-4 control-label" for="REGISTRATION">_{REGISTRATION}_:</label>
+        <div class='col-md-8'>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text">
+                <input type='checkbox' class='form-control-static' data-input-enables='REGISTRATION_FROM_REGISTRATION_TO'/>
+              </span>
+            </div>
+            %REGISTRATION_RANGE%
+          </div>
+        </div>
+
       </div>
       <div class="form-group row">
         <label class="col-sm-4 col-md-4 control-label" for="ACTIVATE">_{ACTIVATE}_:</label>
@@ -62,13 +97,15 @@
       </div>
 
       <div class="form-group row">
-        <div class="form-check col-sm-5 col-md-5">
-          <label class="control-label col-sm-9 col-md-9" for="DISABLE">_{DISABLE}_:</label>
-          <input id="DISABLE" name="DISABLE" value="1" type="checkbox" />
+          <label class="col-sm-4 col-md-4 control-label" for="DISABLE">_{STATUS}_:</label>
+        <div class="col-sm-8 col-md-8">
+        %DISABLE_SELECT%
         </div>
-        <div class="form-check col-sm-7 col-md-7">
-          <label class="control-label" for="DELETED">_{NOT_DELETED_USERS}_:</label>
-          <input id="DELETED" name="DELETED" value="0" type="checkbox" />
+      </div>
+      <div class="form-group row">
+        <label class="col-sm-4 col-md-4 control-label" for="DELETED">_{DELETED}_:</label>
+        <div class="col-sm-8 col-md-8">
+          %DELETE_SELECT%
         </div>
       </div>
     </div>

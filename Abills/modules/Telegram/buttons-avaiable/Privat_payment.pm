@@ -52,29 +52,24 @@ sub click {
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
   $Users->info($uid);
 
-  use Conf;
-  my $Conf = Conf->new($self->{db}, $self->{admin}, $self->{conf});
-
-  my $conf_info = $Conf->config_info({PARAM => "LIKE'%1'"});
-
   my $users_info = $Users->pi({ UID => $uid });
 
   my $account_key =  $users_info->{UID};
   my $gid = $users_info->{GID};
 
-  if($conf_info->{conf}{"PAYSYS_PT_ACCOUNT_KEY" . "_$gid"} eq "CONTRACT_ID"){
+  if(main::get_gid_conf("PAYSYS_PT_ACCOUNT_KEY", $gid) eq "CONTRACT_ID"){
     $account_key = $users_info->{CONTRACT_ID};
   }
-  elsif($conf_info->{conf}{"PAYSYS_PT_ACCOUNT_KEY" . "_$gid"} eq "LOGIN"){
+  elsif(main::get_gid_conf("PAYSYS_PT_ACCOUNT_KEY", $gid) eq "LOGIN"){
     $account_key = $users_info->{LOGIN};
   }
 
   my $deposit = sprintf("%.2f", $users_info->{DEPOSIT});
   my $amount = abs($deposit);
-  my $fast_pay = $conf_info->{conf}{"PAYSYS_PT_FAST_PAY" . "_$gid"};
+  my $fast_pay = main::get_gid_conf("PAYSYS_PT_FAST_PAY", $gid);
   my $url_pay = "$fast_pay"  . "&acc=" .  "$account_key" . "&amount=" . "$amount";
 
-  if (defined $conf_info->{conf}{"PAYSYS_PT_ACCOUNT_KEY" . "_$gid"}) {
+  if (main::get_gid_conf("PAYSYS_PT_ACCOUNT_KEY", $gid)) {
 
     $message .= "$self->{bot}->{lang}->{UNIQU_NUMBER}: <b>$account_key</b>\n";
     $message .= "$self->{bot}->{lang}->{PAYMENT_SUM}: <b>$deposit</b>\n";

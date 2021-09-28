@@ -124,6 +124,7 @@ sub sms_send {
     my $uid_sms_list = $Sms->list({
       UID      => $attr->{UID},
       INTERVAL => "$DATE/$DATE",
+      NO_SKIP  => 1,
     });
 
     if ($uid_sms_list && scalar(@$uid_sms_list) >= $conf{SMS_LIMIT}) {
@@ -400,6 +401,7 @@ sub sms_reports {
       DEFAULT_FIELDS  => 'DATETIME,LOGIN,SMS_STATUS,SMS_PHONE',
       SELECT_VALUE  => {
         sms_status => \%sms_status,
+        ext_status => \%sms_status,
       },
       EXT_TITLES => {
         datetime      => $lang{DATE},

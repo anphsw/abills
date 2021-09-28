@@ -33,6 +33,8 @@ my $Nas      = Nas->new($db, \%conf, $admin);
 sub internet_tp {
   internet_tp_clone() if $FORM{ADD_CLONE_TP};
 
+  $admin->{MODULE} = 'Internet';
+
   if($FORM{import}){
     internet_import_tp();
     return 1;
@@ -385,26 +387,26 @@ sub internet_tp {
     comments                => $lang{DESCRIBE},
     inner_tp_id             => 'ID',
 
-    in_speed                =>  "$lang{SPEED} $lang{RECV}",
-    out_speed               =>  "$lang{SPEED} $lang{SENT}",
-    prepaid                 =>  $lang{PREPAID},
-    in_price                =>  "$lang{PRICE} $lang{RECV}",
-    out_price               =>  "$lang{PRICE} $lang{SENT}",
-    intervals               =>  $lang{INTERVALS},
+    in_speed                => "$lang{SPEED} $lang{RECV}",
+    out_speed               => "$lang{SPEED} $lang{SENT}",
+    prepaid                 => $lang{PREPAID},
+    in_price                => "$lang{PRICE} $lang{RECV}",
+    out_price               => "$lang{PRICE} $lang{SENT}",
+    intervals               => $lang{INTERVALS},
 
-    describe_aid            => "$lang{DESCRIBE} ($lang{ADMIN})"
+    describe_aid            => "$lang{DESCRIBE} ($lang{ADMIN})",
+    status                  => $lang{STATUS},
+    module                  => $lang{MODULE}
   );
 
-  if($permissions{10}) {
-    $ext_titles{domain_id}='Domain ID';
-  }
+  $ext_titles{domain_id}='Domain ID' if($permissions{10});
 
   my Abills::HTML $table;
   my $list;
 
-#  if($FORM{EXPORT_CONTENT}){
-#    $LIST_PARAMS{SHOW_ALL_COLUMNS} = 1;
-#  }
+  my @status_bar = ("$lang{ALL}:index=$index", "$lang{ENABLE}:index=$index&STATUS=0", "$lang{DISABLE}:index=$index&STATUS=1");
+
+  $LIST_PARAMS{STATUS} = $FORM{STATUS} if defined($FORM{STATUS});
 
   ($table, $list) = result_former({
     INPUT_DATA      => $Tariffs,
@@ -415,23 +417,24 @@ sub internet_tp {
     EXT_TITLES      => \%ext_titles,
     SKIP_USER_TITLE => 1,
     SELECT_VALUE    => {
-      time_tarifs  => \%bool_hash,
-      traf_tarifs  => \%bool_hash,
-      payment_type => \%payment_types,
+      time_tarifs      => \%bool_hash,
+      traf_tarifs      => \%bool_hash,
+      payment_type     => \%payment_types,
       octets_direction => \%octets_direction
     },
     TABLE           => {
-      width      => '100%',
-      caption    => $lang{TARIF_PLAN},
-      border     => 1,
-      qs         => $pages_qs,
-      ID         => 'INTERNET_TARIF_PLANS',
-      MENU       => "$lang{ADD}:index=$index&add_form=1:add",
-      EXPORT     => 1,
-      IMPORT     => "$SELF_URL?get_index=internet_tp&import=1&header=2",
-      recs_on_page => 60000
+      width        => '100%',
+      caption      => $lang{TARIF_PLAN},
+      border       => 1,
+      qs           => $pages_qs,
+      ID           => 'INTERNET_TARIF_PLANS',
+      MENU         => "$lang{ADD}:index=$index&add_form=1:add",
+      EXPORT       => 1,
+      IMPORT       => "$SELF_URL?get_index=internet_tp&import=1&header=2",
+      recs_on_page => 60000,
+      header       => \@status_bar,
     },
-    MODULE       => 'Internet',
+    MODULE          => 'Internet',
   });
 
   foreach my $line (@$list) {
@@ -955,6 +958,10 @@ sub _internet_tp_clone_add_tp {
   my $new_ti = $Tariffs->ti_list({ TP_ID => $clone_tp->{TP_ID}, COLS_NAME => 1, COLS_UPPER => 1 });
   delete $clone_tp->{ID};
   $clone_tp->{NAME} = $attr->{NAME} ? $attr->{NAME} : $clone_tp->{NAME} . '_CLONE';
+  $clone_tp->{ALERT} = $clone_tp->{UPLIMIT} || '';
+  $clone_tp->{SIMULTANEOUSLY} = $clone_tp->{LOGINS} || '';
+  $clone_tp->{NEXT_TARIF_PLAN} = $clone_tp->{NEXT_TP_ID} || '';
+  $clone_tp->{ACTIV_PRICE} = $clone_tp->{ACTIVATE_PRICE} || '';
 
   if ($attr->{TP_ID}) {
     $clone_tp->{TP_ID} = $attr->{TP_ID};

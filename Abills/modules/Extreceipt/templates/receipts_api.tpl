@@ -1,13 +1,23 @@
-<div class='card card-primary card-outline  container col-md-6'>
+<form name='API' id='form_API' method='post' action='$SELF_URL'>
+
+<div class='card card-primary card-outline container col-md-6'>
   <div class='card-header with-border'><h4 class='card-title'>_{SETTINGS}_</h4></div>
   <div class='card-body'>
 
-    <form name='API' id='form_API' method='post' class='form form-horizontal'>
+
       <input type='hidden' name='index' value='$index'/>
       <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='%SUBMIT_BTN_VALUE%'/>
+      <input type='hidden' name='chg' value='%ID%'/>
 
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='API_NAME'>API:</label>
+          <label class='control-label col-md-3' for='CONF_NAME'>_{NAME}_:</label>
+          <div class='col-md-9'>
+              <input type='text' class='form-control' value='%CONF_NAME%' name='CONF_NAME' id='CONF_NAME'/>
+          </div>
+      </div>
+
+      <div class='form-group row'>
+        <label class='control-label col-md-3' for='API_NAME'>API plugin:</label>
         <div class='col-md-9'>
           <input type='text' class='form-control' value='%API_NAME%' name='API_NAME' id='API_NAME'/>
         </div>
@@ -75,10 +85,10 @@
           %AID%
         </div>
       </div>
-    </form>
 
   </div>
   <div class='card-footer'>
-    <input type='submit' form='form_API' class='btn btn-primary' name='submit' value='%SUBMIT_BTN_NAME%'>
+    <input type='submit' name=%ACTION% value='%LNG_ACTION%' class='btn btn-primary'>
   </div>
 </div>
+</form>

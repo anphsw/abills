@@ -76,7 +76,7 @@ our (
   $year,
 );
 eval {
-  require "$libpath/libexec/config.pl";
+  do "$libpath/libexec/config.pl";
 };
 if ( $@ ) {
   print "Content-Type: text/html\n\n";

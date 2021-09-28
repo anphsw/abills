@@ -48,6 +48,8 @@ our (
   @REGISTRATION
 );
 
+our $VERSION = 0.02;
+
 do '../libexec/config.pl';
 do 'Abills/Misc.pm';
 
@@ -62,15 +64,13 @@ our $db = Abills::SQL->connect(
   }
 );
 
-our $html = Abills::HTML->new(
-  {
-    IMG_PATH  => "img/",
-    NO_PRINT  => 1,
-    CONF      => \%conf,
-    CHARSET   => $conf{default_charset},
-    HTML_STYLE=> $conf{UP_HTML_STYLE}
-  }
-);
+our $html = Abills::HTML->new({
+  IMG_PATH   => "img/",
+  NO_PRINT   => 1,
+  CONF       => \%conf,
+  CHARSET    => $conf{default_charset},
+  HTML_STYLE => $conf{UP_HTML_STYLE}
+});
 
 if ($html->{language} ne 'english') {
   do $libpath . "/language/english.pl";
@@ -109,17 +109,26 @@ $router->add_custom_handler("users", {
   }
 });
 
+$router->add_custom_handler("version", {
+  method      => 'GET',
+  path        => '/version/',
+  handler     => sub {
+    return {
+      version     => get_version(),
+      billing     => 'ABillS',
+      api_version => $VERSION
+    };
+  },
+  credentials => [ 'ADMIN', 'USER' ]
+});
+
 $router->add_custom_handler("pages", {
   method  => "GET",
   path    => "/pages/index/",
   handler => sub {
     my ($path_params, $query_params) = @_;
 
-    my $index = get_function_index($query_params->{name});
-
-    return {
-      INDEX => $index
-    }
+    return { INDEX => get_function_index($query_params->{name}) }
   }
 });
 
@@ -132,12 +141,14 @@ $router->add_credential('ADMIN', sub {
 });
 
 $router->add_credential('USER', sub {
-  my ($request) = @_;
+  my ($self) = @_;
 
-  my $SID = $ENV{HTTP_CGI_AUTHORIZATION};
+  my $SID = $ENV{HTTP_USERSID};
   my $user_info = $user->info('', { SID => $SID });
 
   my ($UID) = auth_user('', '', $SID);
+
+  $UID = $self->{path_params}{uid} ne $UID ? 0 : $UID if $self->{path_params}{uid};
 
   return $UID != 0;
 });
@@ -148,9 +159,7 @@ if($router->{allowed}) {
   $router->transform(\&Abills::Api::FildsGrouper::group_filds);
 }
 else {
-  $router->{result} = {
-    error => 'Access denied'
-  }
+  $router->{result} = { error => 'Access denied' };
 }
 
 print $router->out(Abills::Api::Formatter::JSONFormatter->new($use_camelize, ['COL_NAMES_ARR']));

@@ -7,24 +7,22 @@
 
 =head1 VERSION
 
-  VERSION: 0.07
-  DATE: 20201012
-  UPDATE: 20210217
+  VERSION: 0.08
+  DATE: 20210512
+  UPDATE: 20210517
 
 =cut
-
-
 package Online_receipts;
+
 use strict;
 use warnings FATAL => 'all';
 
 use Digest::MD5 qw(md5_hex);
 use JSON;
 use utf8 qw/encode/;
-use Abills::Base qw(_bp);
 use Abills::Fetcher;
 
-my $VERSION = 0.07;
+my $VERSION = 0.08;
 my $api_url = '';
 my $curl    = '';
 
@@ -75,36 +73,42 @@ sub init {
 }
 
 #**********************************************************
-=head2 payment_register($attr)
+=head2 payment_register($attr) - Регистрирует платеж в онлайн-кассе
 
-  Регистрирует платеж в онлайн-кассе
+  Arguments:
+    $attr
+
+  Results:
 
 =cut
 #**********************************************************
 sub payment_register {
   my $self = shift;
   my ($attr) = @_;
-Abills::Base::_bp('', $self,{TO_CONSOLE=>1});
+
   if ($self->{debug}) {
     print "\nTry \\printCheck for payment $attr->{payments_id}\n";
   }
-  
+
+  my $phone = $attr->{c_phone} || $attr->{phone} || $attr->{mail} || '';
+  $phone =~ s/[\s]+//g;
+
   my %data = (
     nonce          => $self->get_nonce(),
     app_id         => $self->{APP_ID},
     token          => $self->{TOKEN},
     type           => "printCheck",
     command => {
-      smsEmail54FZ   => ($attr->{c_phone} || $attr->{phone} || $attr->{mail} || ''),
-      payed_cash     => '0',
-      payed_cashless => $attr->{sum},
+      smsEmail54FZ   => $phone,
+      payed_cash     => ($attr->{payment_method}) ? '0' : $attr->{sum},
+      payed_cashless => ($attr->{payment_method}) ? $attr->{sum} : '0',
       author         => $self->{author},
       c_num          => $attr->{payments_id},
       goods  => [{
         count     => 1,
         price     => $attr->{sum},
         sum       => $attr->{sum},
-        name      => $self->{goods},
+        name      => ($self->{goods} || q{}) . ' UID: ' . $attr->{uid},
         item_type => 4,
         # nds_value       => 0, 
         nds_not_apply   => 'true',
@@ -121,8 +125,10 @@ Abills::Base::_bp('', $self,{TO_CONSOLE=>1});
   my $perl_hash = ();
   eval { $perl_hash = decode_json($result); 1 };
   if ($self->{debug}) {
-    print "CMD: $curl $params -s -X POST '$url'\n";
-    print "RESULT: $result\n";
+    my $debug_out = "CMD: $curl $params -s -X POST '$url'\n"
+    . "RESULT: $result\n";
+
+    print "<textarea cols=100 rows=5>$debug_out</textarea>";
   }
 
   return $perl_hash->{command_id} || 0;
@@ -143,7 +149,7 @@ Abills::Base::_bp('', $self,{TO_CONSOLE=>1});
 sub get_info {
   my $self = shift;
   my ($attr) = @_;
-Abills::Base::_bp('get_info', $self);
+
   my %data = (
     nonce  => $self->get_nonce(),
     app_id => $self->{APP_ID},
@@ -254,9 +260,7 @@ sub perl2json {
 }
 
 #**********************************************************
-=head2 payment_cancel($attr)
-
-  Регистрирует отмену чека в онлайн-кассе
+=head2 payment_cancel($attr) - Регистрирует отмену чека в онлайн-кассе
 
 =cut
 #**********************************************************
@@ -267,23 +271,26 @@ sub payment_cancel {
   if ($self->{debug}) {
     print "\nTry \\printPurchaseReturn for payment $attr->{payments_id}\n";
   }
-  
+
+  my $phone = $attr->{c_phone} || $attr->{phone} || $attr->{mail} || '';
+  $phone =~ s/[\s]+//g;
+
   my %data = (
     nonce          => $self->get_nonce(),
     app_id         => $self->{APP_ID},
     token          => $self->{TOKEN},
     type           => "printPurchaseReturn",
     command => {
-      smsEmail54FZ   => ($attr->{c_phone} || $attr->{phone} || $attr->{mail} || ''),
-      payed_cash     => '0',
-      payed_cashless => $attr->{sum},
+      smsEmail54FZ   => $phone,
+      payed_cash     => ($attr->{payment_method}) ? '0' : $attr->{sum},
+      payed_cashless => ($attr->{payment_method}) ? $attr->{sum} : '0',
       author         => $self->{author},
       c_num          => "n" . $attr->{payments_id},
       goods  => [{
         count => 1,
         price => $attr->{sum},
         sum   => $attr->{sum},
-        name  => $self->{goods},
+        name  => ($self->{goods} || q{}) . ' UID: ' . $attr->{uid},
         nds_not_apply   => 'true',
       }]
     }

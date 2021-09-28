@@ -6,10 +6,11 @@
 
 use warnings;
 use strict;
-use Abills::Base qw(sec2time in_array convert int2byte ip2int int2ip date_diff show_hash);
+use Abills::Base qw(sec2time in_array convert int2byte ip2int int2ip date_diff show_hash date_inc next_month );
 use Abills::Filters qw(_mac_former);
 
 require Internet::Stats;
+require Control::Service_control;
 
 our (
   $db,
@@ -29,6 +30,7 @@ my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 my $Nas      = Nas->new($db, \%conf, $admin);
 my $Shedule  = Shedule->new($db, $admin, \%conf);
 my $Log      = Log->new($db, \%conf);
+my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 #**********************************************************
 =head2 internet_user_info()
@@ -214,21 +216,26 @@ sub internet_user_info_proceed {
     return 0;
   }
 
-  require Internet::Service_mng;
-  my $Service = Internet::Service_mng->new({ lang => \%lang, conf => \%conf });
-
-  ($Internet->{NEXT_FEES_WARNING}, $Internet->{NEXT_FEES_MESSAGE_TYPE}) = $Service->service_warning({
-    SERVICE     => $Internet,
-    USER        => $user,
-    DATE        => $DATE,
-    USER_PORTAL => 1
+  my $warning_info = $Service_control->service_warning({
+    MODULE       => 'Internet',
+    DATE         => $DATE,
+    SERVICE_INFO => $Internet,
+    USER_INFO    => $user,
+    USER_PORTAL  => 1
   });
 
+  if (defined $warning_info->{WARNING}) {
+    $Internet->{NEXT_FEES_WARNING} = $warning_info->{WARNING};
+    $Internet->{NEXT_FEES_MESSAGE_TYPE} = $warning_info->{MESSAGE_TYPE};
+  }
+
   if ($Internet->{NEXT_FEES_WARNING}) {
-    $Internet->{NEXT_FEES_WARNING}=$html->message("$Internet->{NEXT_FEES_MESSAGE_TYPE}",
+    $Internet->{NEXT_FEES_WARNING} = $html->message("$Internet->{NEXT_FEES_MESSAGE_TYPE}",
       $Internet->{TP_NAME},
       $Internet->{NEXT_FEES_WARNING},
-      { OUTPUT2RETURN => 1 }) ;  }
+      { OUTPUT2RETURN => 1 }
+    );
+  }
 
   internet_payment_message($Internet, $user, { NO_PAYMENT_BTN => 1 });
 
@@ -603,11 +610,6 @@ sub internet_discovery {
 sub internet_user_chg_tp {
   my ($attr) = @_;
 
-  if($conf{INTERNET_TP_TEST}) {
-    internet_user_chg_tp2($attr);
-    return 1;
-  }
-
   my $period = $FORM{period} || 0;
   if (!$conf{INTERNET_USER_CHG_TP}) {
     $html->message('err', "$lang{CHANGE} $lang{TARIF_PLAN}", $lang{NOT_ALLOW}, { ID => 140 });
@@ -620,11 +622,8 @@ sub internet_user_chg_tp {
     $html->message('err', $lang{ERROR}, $lang{USER_NOT_EXIST}, { ID => 19 });
     return 0;
   }
-  
-  $Internet = $Internet->info($uid, {
-    DOMAIN_ID => $user->{DOMAIN_ID},
-    ID        => $FORM{ID}
-  });
+
+  $Internet = $Internet->info($uid, { DOMAIN_ID => $user->{DOMAIN_ID}, ID => $FORM{ID} });
 
   if ($Internet->{TOTAL} < 1) {
     $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 22 });
@@ -656,240 +655,19 @@ sub internet_user_chg_tp {
     return 0;
   }
 
-  #Get next abon day
-  require Internet::Service_mng;
-  my $Service_mng = Internet::Service_mng->new({
-    lang  => \%lang,
-    admin => $admin,
-    conf  => \%conf,
-    db    => $db,
-    html  => $html
-  });
-
-  $Service_mng->get_next_abon_date({
-    SERVICE => $Internet
-  });
-
-  $Internet->{ABON_DATE} = $Service_mng->{ABON_DATE};
+  my $next_abon = $Service_control->get_next_abon_date({ SERVICE_INFO => $Internet });
+  $Internet->{ABON_DATE} = $next_abon->{ABON_DATE};
 
   if ($FORM{set} && $FORM{ACCEPT_RULES}) {
-    if ($conf{user_confirm_changes}) {
-      return 1 unless ($FORM{PASSWORD});
-      $user->info($user->{UID}, {SHOW_PASSWORD => 1});
-      if ($FORM{PASSWORD} ne $user->{PASSWORD}) {
-        $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD});
-        return 1;
-      }
-    }
-
-    if (!$FORM{TP_ID} || $FORM{TP_ID} < 1) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}: $lang{TARIF_PLAN}", { ID => 141 });
-    }
-    elsif ($conf{INTERNET_USER_CHG_TP_NPERIOD}) {
-
-      if (!$FORM{ID}) {
-        $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}\n $lang{ERR_NO_DATA}: ID");
-      }
-      else {
-        my ($Y, $M, $D) = split(/-/, $Internet->{ABON_DATE}, 3);
-
-        $M = sprintf("%02d", $M);
-        $D = sprintf("%02d", $D);
-        my $seltime = POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900));
-
-        if ($seltime > time()) {
-          $Shedule->add({
-            UID      => $uid,
-            TYPE     => 'tp',
-            ACTION   => "$FORM{ID}:$FORM{TP_ID}",
-            D        => $D,
-            M        => $M,
-            Y        => $Y,
-            MODULE   => 'Internet',
-            COMMENTS => "$lang{FROM}: $Internet->{TP_ID}:$Internet->{TP_NAME}"
-          });
-        }
-        else {
-          $Internet->change({
-            TP_ID    => $FORM{TP_ID},
-            ID       => $FORM{ID},
-            UID      => $uid,
-            STATUS   => ($Internet->{STATUS} == 5) ? 0 : $FORM{STATUS},
-            ACTIVATE => ($Internet->{ACTIVATE} ne '0000-00-00') ? "$DATE" : undef,
-            ID       => $FORM{ID}
-          });
-
-          if (!_error_show($Internet)) {
-            $html->message('info', $lang{CHANGED}, $lang{CHANGED});
-            $Internet->info($uid);
-            service_get_month_fee($Internet) if (!$FORM{INTERNET_NO_ABON});
-          }
-        }
-      }
-    }
-    elsif ($period > 0 && ($conf{INTERNET_USER_CHG_TP_SHEDULE} || $conf{INTERNET_USER_CHG_TP_NOW})) {
-      my ($year, $month, $day);
-      if ($period == 1) {
-        ($year, $month, $day) = split(/-/, $Internet->{ABON_DATE}, 3);
-      }
-      else {
-        ($year, $month, $day) = split(/-/, $FORM{DATE}, 3);
-      }
-
-      if (!$FORM{ID}) {
-        $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}\n $lang{ERR_NO_DATA}: ID", { ID => 144 });
-      }
-      else {
-        #my ($year, $month, $day) = split(/-/, $FORM{DATE}, 3);
-        my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
-
-        if ($seltime <= time()) {
-          $html->message('info', $lang{INFO}, $lang{ERR_WRONG_DATA}, { ID => 145 });
-          return 0;
-        }
-
-        $Shedule->add({
-          UID      => $uid,
-          TYPE     => 'tp',
-          ACTION   => "$FORM{ID}:$FORM{TP_ID}",
-          D        => sprintf("%02d", $day),
-          M        => sprintf("%02d", $month),
-          Y        => $year,
-          MODULE   => 'Internet',
-          COMMENTS => "$lang{FROM}: $Internet->{TP_ID}:$Internet->{TP_NAME}"
-        });
-
-        if (!_error_show($Shedule)) {
-          $html->message('info', $lang{CHANGED}, $lang{CHANGED});
-          $Internet->info($user->{UID});
-        }
-      }
-    }
-    else {
-      if ($user->{CREDIT} + $user->{DEPOSIT} < 0) {
-        $html->message('err', $lang{ERROR}, "$lang{ERR_SMALL_DEPOSIT} - $lang{DEPOSIT}: $user->{DEPOSIT} $lang{CREDIT}: $user->{CREDIT}", { ID => 15 });
-        return 0;
-      }
-      $FORM{UID} = $uid;
-
-      delete $Internet->{ABON_DATE};
-      #Next period change
-      if ($Internet->{MONTH_ABON} > 0
-        && !$Internet->{STATUS}
-        && !$user->{DISABLE}
-        && ! $Internet->{ABON_DISTRIBUTION}) {
-        if ($Internet->{ACTIVATE} ne '0000-00-00') {
-          my ($Y, $M, $D) = split(/-/, $Internet->{ACTIVATE}, 3);
-          $M--;
-          $Internet->{ABON_DATE} = POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, $M, ($Y - 1900), 0, 0, 0) + 31 * 86400 + (($conf{START_PERIOD_DAY}) ? $conf{START_PERIOD_DAY} * 86400 : 0))));
-        }
-        else {
-          my ($Y, $M, $D) = split(/-/, $DATE, 3);
-          $M++;
-          if ($M == 13) {
-            $M = 1;
-            $Y++;
-          }
-
-          if ($conf{START_PERIOD_DAY}) {
-            $D = sprintf("%02d", $conf{START_PERIOD_DAY});
-          }
-          else {
-            $D = '01';
-          }
-          $Internet->{ABON_DATE} = sprintf("%d-%02d-%02d", $Y, $M, $D);
-        }
-      }
-
-      if ($Internet->{ABON_DATE} && ! $conf{INTERNET_USER_CHG_TP_NOW}) {
-        my ($year, $month, $day) = split(/-/, $Internet->{ABON_DATE}, 3);
-        my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
-
-        if ($seltime <= time()) {
-          $html->message('info', $lang{INFO}, "$lang{ERR_WRONG_DATA} ($year, $month, $day)/" . $seltime . "-" . time());
-          return 0;
-        }
-        elsif ($FORM{date_D} && $FORM{date_D} > ($month != 2 ? (($month % 2) ^ ($month > 7)) + 30 : (!($year % 400) || !($year % 4) && ($year % 25) ? 29 : 28))) {
-          $html->message('info', $lang{INFO}, "$lang{ERR_WRONG_DATA} ($year-$month-$day)");
-          return 0;
-        }
-        elsif (!$FORM{ID}) {
-          $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}\n $lang{ERR_NO_DATA}: ID");
-          return 0;
-        }
-
-        $Shedule->add({
-          UID      => $uid,
-          TYPE     => 'tp',
-          ACTION   => "$FORM{ID}:$FORM{TP_ID}",
-          D        => $day,
-          M        => $month,
-          Y        => $year,
-          MODULE   => 'Internet',
-          COMMENTS => "$lang{FROM}: $Internet->{TP_ID}:$Internet->{TP_NAME}"
-        });
-
-        if (! _error_show($Shedule)) {
-          $html->message('info', $lang{CHANGED}, $lang{CHANGED});
-        }
-      }
-      #Imediatly change TP
-      else {
-        $Internet->change({
-          TP_ID => $FORM{TP_ID},
-          ID    => $FORM{ID},
-          UID   => $uid,
-          STATUS=> ($Internet->{STATUS} == 5) ? 0 : ($FORM{STATUS} || undef),
-          ACTIVATE=> ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00') ? $DATE : undef
-        });
-
-        if (! _error_show($Internet)) {
-          #Take fees
-          if (!$Internet->{STATUS}) {
-            service_get_month_fee($Internet) if (!$FORM{INTERNET_NO_ABON});
-            $Internet->change(
-              {
-                ACTIVATE => ($Internet->{ACTIVATE} ne '0000-00-00') ? $DATE : undef,
-                UID      => $user->{UID},
-                ID       => $FORM{ID}
-              }
-            );
-          }
-
-          $html->message('info', $lang{CHANGED}, $lang{CHANGED});
-          $Internet->info($Internet->{UID});
-        }
-      }
-
-      $Internet->info($Internet->{UID});
-    }
+    my $add_result = $Service_control->user_chg_tp({ %FORM, UID => $uid, SERVICE_INFO => $Internet, MODULE => 'Internet' });
+    $html->message('info', $lang{CHANGED}, "$lang{CHANGED}") if !_message_show($add_result);
   }
   elsif ($FORM{del} && $FORM{ACCEPT_RULES}) {
-    if ($conf{user_confirm_changes}) {
-      return 1 unless ($FORM{PASSWORD});
-      $user->info($user->{UID}, {SHOW_PASSWORD => 1});
-      if ($FORM{PASSWORD} ne $user->{PASSWORD}) {
-        $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD});
-        return 1;
-      }
-    }
-    $Shedule->del({
-      UID => $uid || '-',
-      ID  => $FORM{SHEDULE_ID}
-    });
-    if(! $Shedule->{errno}) {
-      $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{SHEDULE_ID}]");
-    }
+    my $del_result = $Service_control->del_user_chg_shedule({ %FORM, UID => $uid });
+    $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{SHEDULE_ID}]") if (!_message_show($del_result));
   }
 
-  my $message='';
-  my $date_ = ($FORM{date_y} || ''). '-' . ($FORM{date_m} || '') .'-'. ($FORM{date_d} || '');
-  $Shedule->info({
-    UID      => $user->{UID},
-    TYPE     => 'tp',
-    DESCRIBE => "$message\n$lang{FROM}: '$date_'",
-    MODULE   => 'Internet'
-  });
+  $Shedule->info({ UID => $user->{UID}, TYPE => 'tp', MODULE => 'Internet' });
 
   my $table;
   if ($Shedule->{TOTAL} > 0) {
@@ -899,9 +677,7 @@ sub internet_user_chg_tp {
       ($service_id, $action) = split(/:/, $action);
     }
 
-    $Tariffs->info(0, {
-       TP_ID  => $action,
-    });
+    $Tariffs->info(0, { TP_ID => $action });
 
     $table = $html->table({
       width      => '100%',
@@ -917,9 +693,8 @@ sub internet_user_chg_tp {
     $Tariffs->{TARIF_PLAN_SEL} = $table->show({ OUTPUT2RETURN => 1 }) . $html->form_input('SHEDULE_ID', "$Shedule->{SHEDULE_ID}", { TYPE => 'HIDDEN', OUTPUT2RETURN => 1 });
     $Tariffs->{TARIF_PLAN_TABLE} = $Tariffs->{TARIF_PLAN_SEL};
     if (!$Shedule->{ADMIN_ACTION}) {
-      $Tariffs->{ACTION}     = 'del';
+      $Tariffs->{ACTION} = 'del';
       $Tariffs->{LNG_ACTION} = "$lang{DEL}  $lang{SHEDULE}";
-      #$Tariffs->{ACTION_FLAG}= $html->form_input('del', "1", { TYPE => 'text', OUTPUT2RETURN => 1 });
     }
   }
   else {
@@ -936,6 +711,13 @@ sub internet_user_chg_tp {
       }),
     });
 
+    my $available_tariffs = $Service_control->available_tariffs({ %FORM, MODULE => 'Internet', UID => $uid });
+
+    if (ref($available_tariffs) ne 'ARRAY' || $#{$available_tariffs} < 0) {
+      $html->message('info', $lang{INFO}, $lang{ERR_NO_AVAILABLE_TP}, { ID => 142 });
+      return 0;
+    }
+
     $table = $html->table({
       width   => '100%',
       ID      => 'INTERNET_TP',
@@ -944,94 +726,38 @@ sub internet_user_chg_tp {
       caption => $lang{TARIF_PLANS},
     });
 
-    # if (! $Internet->{TP_GID}) {
-    #   my $user_location = $user->pi({ UID => $user->{UID} });
-    #   $Internet->{TP_GID} = $user_location->{LOCATION_ID} ? tp_gids_by_geolocation($user_location->{LOCATION_ID}, $Tariffs, $user->{GID}) : '';
-    # }
-
-    my $tp_list = $Tariffs->list({
-      TP_GID          => $Internet->{TP_GID} || '_SHOW',
-      CHANGE_PRICE    => ($FORM{skip_check_deposit}) ? undef : '<=' . ($user->{DEPOSIT} + $user->{CREDIT}),
-      MODULE          => 'Dv;Internet',
-      STATUS          => '<1',
-      MONTH_FEE       => '_SHOW',
-      DAY_FEE         => '_SHOW',
-      CREDIT          => '_SHOW',
-      COMMENTS        => '_SHOW',
-      TP_CHG_PRIORITY => $Internet->{TP_PRIORITY},
-      REDUCTION_FEE   => '_SHOW',
-      NEW_MODEL_TP    => 1,
-      COLS_NAME       => 1,
-      DOMAIN_ID       => $user->{DOMAIN_ID},
-      PAYMENT_TYPE    => '_SHOW'
-    });
-
-    my @skip_tp_changes = ();
-    if ($conf{INTERNET_SKIP_CHG_TPS}) {
-      @skip_tp_changes = split(/,\s?/, $conf{INTERNET_SKIP_CHG_TPS});
-    }
-
-    foreach my $tp (@$tp_list) {
-      next if (in_array($tp->{id}, \@skip_tp_changes));
-      next if ($tp->{tp_id} == $Internet->{TP_ID} && $user->{EXPIRE} eq '0000-00-00');
-      my $radio_but = '';
-
-      my $tp_fee = $tp->{day_fee} + $tp->{month_fee};
-
-      if($tp->{reduction_fee} && $user->{REDUCTION} && $user->{REDUCTION} > 0) {
-        $tp_fee = $tp_fee - (($tp_fee / 100) *  $user->{REDUCTION});
-      }
-
-      $user->{CREDIT} = ($user->{CREDIT} > 0) ? $user->{CREDIT} : (($tp->{credit} > 0) ? $tp->{credit} : 0);
-
-      if ($tp_fee < $user->{DEPOSIT} + $user->{CREDIT} || $tp->{payment_type} || $tp->{abon_distribution}) {
-        $radio_but = $html->form_input('TP_ID', $tp->{tp_id}, { TYPE => 'radio', OUTPUT2RETURN => 1 });
-      }
-      elsif( $conf{INTERNET_USER_CHG_TP_SMALL_DEPOSIT}){
-        $radio_but = $html->form_input('TP_ID', $tp->{tp_id}, { TYPE => 'radio', OUTPUT2RETURN => 1 });
-      }
-      else {
-        $radio_but = $lang{ERR_SMALL_DEPOSIT};
-      }
+    foreach my $tp (@{$available_tariffs}) {
+      my $radio_but = $tp->{ERROR} ? $tp->{ERROR} : $html->form_input('TP_ID', $tp->{tp_id}, { TYPE => 'radio', OUTPUT2RETURN => 1 });
 
       $table->addrow($tp->{id}, $html->b($tp->{name} || q{}) . $html->br() . ($tp->{comments} || q{}), $radio_but);
     }
 
     $Tariffs->{TARIF_PLAN_TABLE} = $table->show({ OUTPUT2RETURN => 1 });
 
-    if ($Tariffs->{TOTAL} == 0) {
-      $html->message('info', $lang{INFO}, $lang{ERR_SMALL_DEPOSIT}, { ID => 142 });
-      return 0;
-    }
-
     if (($conf{INTERNET_USER_CHG_TP_SHEDULE} && !$conf{INTERNET_USER_CHG_TP_NPERIOD}) || $conf{INTERNET_USER_CHG_TP_NOW}) {
-      $Tariffs->{PARAMS} .= form_period($period,
-        { ABON_DATE => $Internet->{ABON_DATE},
-          TP        => $Tariffs,
-          NOW       => $conf{INTERNET_USER_CHG_TP_NOW},
-          SHEDULE   => $conf{INTERNET_USER_CHG_TP_SHEDULE},
-          PERIOD    => $FORM{period},
-          DATE      => $FORM{DATE}
-        });
+      $Tariffs->{PARAMS} .= form_period($period, {
+        ABON_DATE => $Internet->{ABON_DATE},
+        TP        => $Tariffs,
+        NOW       => $conf{INTERNET_USER_CHG_TP_NOW},
+        SHEDULE   => $conf{INTERNET_USER_CHG_TP_SHEDULE},
+        PERIOD    => $FORM{period},
+        DATE      => $FORM{DATE}
+      });
     }
 
     $Tariffs->{ACTION} = 'set';
     $Tariffs->{LNG_ACTION} = $lang{CHANGE};
-    #$html->form_input('hold_up_window', '--'.$lang{CHANGE}, { TYPE          => 'submit',
-    #                                 OUTPUT2RETURN => 1 });
   }
 
-  $Tariffs->{UID}     = $attr->{USER_INFO}->{UID};
-  $Tariffs->{TP_ID}   = $Internet->{TP_ID};
+  $Tariffs->{UID} = $attr->{USER_INFO}->{UID};
+  $Tariffs->{TP_ID} = $Internet->{TP_ID};
   $Tariffs->{TP_NAME} = "$Internet->{TP_NUM}:$Internet->{TP_NAME}";
 
   $Tariffs->{CHG_TP_RULES} = $html->tpl_show(_include('internet_chg_tp_rule', 'Internet'), {}, { OUTPUT2RETURN => 1 });
 
-  $html->tpl_show(templates('form_client_chg_tp'),
-    { %$Tariffs,
-      ID => $Internet->{ID}
-    },
-    { ID => 'INTERNET_CHG_TP'  });
+  $html->tpl_show(templates('form_client_chg_tp'), { %$Tariffs,
+    ID => $Internet->{ID}
+  }, { ID => 'INTERNET_CHG_TP' });
 
   return 1;
 }
@@ -1237,7 +963,6 @@ sub internet_user_stats {
 
   my $table = $html->table(
     {
-      LITE_HEADER => 1,
       caption     => $lang{SUM},
       width       => '100%',
       title_plain => [
@@ -1254,39 +979,40 @@ sub internet_user_stats {
         (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : $lang{TRAFFIC}) . " $lang{SUM}",
         $lang{SUM}
       ],
-      rows       => [
+      rows        => [
         [
           $Sessions->{TOTAL},
           _sec2time_str($Sessions->{DURATION}),
-          int2byte($Sessions->{TRAFFIC_OUT},                             { DIMENSION => $FORM{DIMENSION} }),
-          int2byte($Sessions->{TRAFFIC_IN},                              { DIMENSION => $FORM{DIMENSION} }),
+          int2byte($Sessions->{TRAFFIC_OUT}, { DIMENSION => $FORM{DIMENSION} }),
+          int2byte($Sessions->{TRAFFIC_IN}, { DIMENSION => $FORM{DIMENSION} }),
 
-          int2byte(($Sessions->{TRAFFIC_OUT} || 0) + ($Sessions->{TRAFFIC_IN} || 0),   { DIMENSION => $FORM{DIMENSION} }),
+          int2byte(($Sessions->{TRAFFIC_OUT} || 0) + ($Sessions->{TRAFFIC_IN} || 0), { DIMENSION => $FORM{DIMENSION} }),
 
-          int2byte($Sessions->{TRAFFIC2_OUT},                            { DIMENSION => $FORM{DIMENSION} }),
-          int2byte($Sessions->{TRAFFIC2_IN},                             { DIMENSION => $FORM{DIMENSION} }),
+          int2byte($Sessions->{TRAFFIC2_OUT}, { DIMENSION => $FORM{DIMENSION} }),
+          int2byte($Sessions->{TRAFFIC2_IN}, { DIMENSION => $FORM{DIMENSION} }),
 
-          int2byte(($Sessions->{TRAFFIC2_OUT} || 0) + ($Sessions->{TRAFFIC2_IN}  || 0), { DIMENSION => $FORM{DIMENSION} }),
+          int2byte(($Sessions->{TRAFFIC2_OUT} || 0) + ($Sessions->{TRAFFIC2_IN} || 0), { DIMENSION => $FORM{DIMENSION} }),
           $Sessions->{SUM}
         ]
       ],
-      ID => 'TRAFFIC_SUM'
+      ID          => 'TRAFFIC_SUM'
     }
   );
 
   $Sessions->{TOTALS_FULL} = $table->show({ OUTPUT2RETURN => 1 });
 
   if (-f '../charts.cgi' || -f 'charts.cgi') {
-    if($user->{UID}) {
+    if ($user->{UID}) {
       $Sessions->{GRAPHS} = internet_get_chart_iframe("UID=$uid", '1,2');
     }
   }
 
   if ($Sessions->{TOTAL} > 0) {
-    $Sessions->{SESSIONS} = internet_sessions($list, $Sessions,
-      { OUTPUT2RETURN => 1,
-        INTERNET_UP_SESSIONS => $conf{INTERNET_UP_SESSIONS}
-      });
+    $Sessions->{SESSIONS} = internet_sessions($list, $Sessions, {
+      OUTPUT2RETURN        => 1,
+      INTERNET_UP_SESSIONS => $conf{INTERNET_UP_SESSIONS},
+      PAGES_QS             => $pages_qs
+    });
   }
 
   $html->tpl_show(_include('internet_user_stats', 'Internet'), $Sessions, { ID => 'internet_user_stats' });
@@ -1571,241 +1297,30 @@ sub internet_dhcp_get_mac {
 #**********************************************************
 sub internet_holdup_service {
 
-  my ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
-    undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_) = split(/:/, $conf{INTERNET_USER_SERVICE_HOLDUP});
+  my $holdup_info = $Service_control->user_holdup({ %FORM, UID => $user->{UID}, ID => $Internet->{ID} });
+  
+  if (!$holdup_info->{DEL}) {
+    return '' if (_error_show($holdup_info) || $holdup_info->{success});
 
-  if ($holdup_skip_gids) {
-    my @holdup_skip_gids_arr = split(/,\s?/, $holdup_skip_gids);
-    if (in_array($user->{GID}, \@holdup_skip_gids_arr)) {
+    if (($Internet->{STATUS} && $Internet->{STATUS} == 3) || $Internet->{DISABLE}) {
+      $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .
+        $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}) ."&sid=$sid",
+          { BUTTON => 2, MESSAGE => "$lang{ACTIVATE}?" }) );
       return '';
     }
+
+    $Internet->{FROM_DATE} = date_inc($DATE);
+    $Internet->{TO_DATE} = next_month({ DATE => $DATE });
+    return $html->tpl_show(_include('internet_hold_up', 'Internet'), $Internet, { OUTPUT2RETURN => 1 })
+  }
+  else {
+    $html->message('info', $lang{INFO}, "$lang{HOLD_UP}: $holdup_info->{DATE_FROM} $lang{TO} $holdup_info->{DATE_TO}"
+      . ($holdup_info->{DEL_IDS} ? ($html->br() . $html->button($lang{DEL},
+      "index=$index&ID=$FORM{ID}&del=1&IDS=$holdup_info->{DEL_IDS}". (($sid) ? "&sid=$sid" : q{}),
+      { class => 'btn btn-primary', MESSAGE => "$lang{DEL} $lang{HOLD_UP}?" })) : q{}));
   }
 
-  if ($expr_) {
-    my @holdup_exprs = split(/,\s?/, $expr_);
-    my %holdup_params = ();
-    foreach my $expr_pair (@holdup_exprs) {
-      my ($key, $val)=split(/=/, $expr_pair);
-      $holdup_params{$key}=$val;
-    }
-    if ($holdup_params{REGISTRATION}) {
-      $holdup_params{REGISTRATION} =~ s/^([<>])//;
-      my $param = $1 || '=';
-      if($param eq '>') {
-        $param = '<';
-      }
-      elsif ($param eq '<') {
-        $param = '>'
-      }
-
-      my $days = date_diff($user->{REGISTRATION}, $DATE);
-
-      if(eval ($days . $param . $holdup_params{REGISTRATION})) {
-        $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA} $lang{REGISTRATION}", { ID => 33 });
-        return '';
-      }
-    }
-  }
-
-  if ($FORM{add} && $active_fees && $active_fees > 0 && $user->{DEPOSIT} < $active_fees) {
-    $html->message('err', $lang{HOLDUP}, $lang{ERR_SMALL_DEPOSIT}, { ID => 34 });
-    return '';
-  }
-
-  if ($hold_up_day_fee && $hold_up_day_fee > 0) {
-    $Internet->{DAY_FEES}="$lang{DAY_FEE}: ". sprintf("%.2f", $hold_up_day_fee);
-  }
-
-  if ($FORM{del} && $user_del_shedule) {
-    $Shedule->del(
-      {
-        UID => $user->{UID},
-        IDS => $FORM{del},
-      }
-    );
-
-    $Internet->{STATUS_DAYS}=1;
-
-    if ( $user->{INTERNET_STATUS} == 3) {
-      $Internet->change(
-        {
-          UID    => $user->{UID},
-          ID     => $FORM{ID},
-          STATUS => 0,
-        }
-      );
-
-      service_get_month_fee($Internet, { QUITE => 1 });
-      $html->message('info', $lang{SERVICE}, $lang{ACTIVATE});
-      return '';
-    }
-    elsif($conf{INTERNET_HOLDUP_COMPENSATE}) {
-      $Internet->{TP_INFO} = $Tariffs->info(0, { TP_ID => $Internet->{TP_ID} });
-      service_get_month_fee($Internet, { QUITE => 1 });
-    }
-
-    $html->message('info', $lang{HOLD_UP}, $lang{DELETED});
-  }
-
-  my $list = $Shedule->list(
-    {
-      UID       => $user->{UID},
-      SERVICE_ID=> $Internet->{ID},
-      MODULE    => 'Internet',
-      TYPE      => 'status',
-      COLS_NAME =>1
-    }
-  );
-
-  my %shedule_date = ();
-  my @del_arr     = ();
-
-  foreach my $line (@$list) {
-    my (undef, $action)=split(/:/, $line->{action});
-    $shedule_date{ $action } = ($line->{y} || '*') .'-'. ($line->{m} || '*') .'-'. ($line->{d} || '*');
-    push @del_arr, $line->{id};
-  }
-
-  my $del_ids = join(', ', @del_arr);
-
-  if ($Shedule->{TOTAL}) {
-    $html->message('info', $lang{INFO}, "$lang{HOLD_UP}: ". ($shedule_date{3} || '-') ." $lang{TO} ". ($shedule_date{0} || '-')
-      . (($Shedule->{TOTAL} > 1) ? $html->br()
-      . (($user_del_shedule) ?
-          $html->button($lang{DEL}, "index=$index&ID=$FORM{ID}&del=$del_ids". (($sid) ? "&sid=$sid" : q{}),
-            { class => 'btn btn-primary', MESSAGE => "$lang{DEL} $lang{HOLD_UP}?" }) : q{} ) : ''));
-    return '';
-  }
-
-  if ($FORM{add} && $FORM{ACCEPT_RULES}) {
-    my ($from_year, $from_month, $from_day) = split(/-/, $FORM{FROM_DATE}, 3);
-    my ($to_year,   $to_month,   $to_day)   = split(/-/, $FORM{TO_DATE},   3);
-    my $block_days = date_diff($FORM{FROM_DATE}, $FORM{TO_DATE});
-
-    if ($block_days < $hold_up_min_period) {
-      $html->message('err', $lang{ERR_WRONG_DATA}, "$lang{MIN} $lang{HOLD_UP} $hold_up_min_period $lang{DAYS}");
-    }
-    elsif ($block_days > $hold_up_max_period) {
-      $html->message('err', $lang{ERR_WRONG_DATA}, "$lang{MAX} $lang{HOLD_UP} $hold_up_max_period $lang{DAYS}");
-    }
-    elsif (date_diff($DATE, $FORM{FROM_DATE}) < 1) {
-      $html->message('info', $lang{INFO}, "$lang{ERR_WRONG_DATA}\n $lang{FROM}: $FORM{FROM_DATE}");
-    }
-    elsif ($block_days < 1) {
-      $html->message('info', $lang{INFO}, "$lang{ERR_WRONG_DATA}\n $lang{TO}: $FORM{TO_DATE}");
-    }
-    elsif (!$FORM{ID}) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}\n $lang{ERR_NO_DATA}: ID");
-    }
-    else {
-      $Shedule->add(
-        {
-          UID    => $user->{UID},
-          TYPE   => 'status',
-          ACTION => ($FORM{ID} || q{}) . ':3',
-          D      => $from_day,
-          M      => $from_month,
-          Y      => $from_year,
-          MODULE => 'Internet'
-        }
-      );
-
-      $Shedule->add(
-        {
-          UID    => $user->{UID},
-          TYPE   => 'status',
-          ACTION => ($FORM{ID} || q{}) . ':0',
-          D      => $to_day,
-          M      => $to_month,
-          Y      => $to_year,
-          MODULE => 'Internet'
-        }
-      );
-
-      if (!_error_show($Shedule)) {
-        #compensate period
-        if ($conf{INTERNET_HOLDUP_COMPENSATE}) {
-          internet_compensation({ QUITE => 1, HOLD_UP => 1, UP => 1 });
-        }
-
-        $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n $lang{DATE}: $FORM{FROM_DATE} -> $FORM{TO_DATE}\n  $lang{DAYS}: " . sprintf("%d", $block_days));
-        return '';
-      }
-    }
-  }
-
-  if ($hold_up_period) {
-    $admin->action_list(
-      {
-        UID       => $user->{UID},
-        TYPE      => 14,
-        FROM_DATE => POSIX::strftime("%Y-%m-%d", localtime(time - 86400 * $hold_up_period)),
-        TO_DATE   => "$DATE",
-      }
-    );
-
-    if ($admin->{TOTAL} > 0) {
-      return '';
-    }
-  }
-
-  if (($Internet->{STATUS} && $Internet->{STATUS} == 3) || $Internet->{DISABLE}) {
-    $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .
-      $html->button($lang{ACTIVATE}, "index=$index&del=1&ID=". ($FORM{ID} || q{}) ."&sid=$sid", { BUTTON => 1, MESSAGE => "$lang{ACTIVATE}?" }) );
-    return '';
-  }
-
-  $Internet->{DATE_FROM} = $html->date_fld2(
-    'FROM_DATE',
-    {
-      FORM_NAME => 'holdup_' . $Internet->{ID},
-      WEEK_DAYS => \@WEEKDAYS,
-      MONTHES   => \@MONTHES,
-      NEXT_DAY  => 1
-    }
-  );
-
-  $Internet->{DATE_TO} = $html->date_fld2(
-    'TO_DATE',
-    {
-      FORM_NAME => 'holdup_' . $Internet->{ID},
-      WEEK_DAYS => \@WEEKDAYS,
-      MONTHES   => \@MONTHES,
-    }
-  );
-
-  return (! $Internet->{STATUS}) ? $html->tpl_show(_include('internet_hold_up', 'Internet'), $Internet, { OUTPUT2RETURN => 1 }) : q{};
-}
-
-#**********************************************************
-=head2 internet_user_chg_tp2($attr)
-
-=cut
-#**********************************************************
-sub internet_user_chg_tp2 {
-  my ($attr) = @_;
-
-  print "Content-Type: text/html\n\n";
-  require Internet::Service_mng;
-  my $Service_mng = Internet::Service_mng->new({
-    lang  => \%lang,
-    admin => $admin,
-    conf  => \%conf,
-    db    => $db,
-    html  => $html
-  });
-
-  $Service_mng->service_chg_tp({
-    SERVICE => $Internet,
-    USER    => $user,
-    UID     => $user->{UID},
-    ID      => $FORM{ID},
-    %$attr
-  });
-
-  _error_show($Service_mng);
-
-  return 1;
+  return '';
 }
 
 1;

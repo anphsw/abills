@@ -34,7 +34,10 @@
   <input type='hidden' name='TP_ID' value='$FORM{TP_ID}'>
   <input type='hidden' name='UID' value='%UID%'>
   <input type='hidden' name='DOMAIN_ID' value='%DOMAIN_ID%'>
+  <input type='hidden' name='mac' value='%MAC%'>
   <input type='hidden' name='UNIFI_SITENAME' value='%UNIFI_SITENAME%'>
+  <input type='hidden' name='server_name' value='%server_name%'>
+  <input type='hidden' name='link_login_only' value='%link_login_only%'>
 
   <div class='row'>
     <div class='col-md-3 col-lg-3 col-xs-3 hidden-xs'></div>
@@ -44,7 +47,7 @@
           <h3 style='margin:0'> _{ICARDS}_ - _{BUY}_ </h3>
         </div>
         <div class='card-body' style='margin-top: 0%; padding-top: 1%;'>
-          <div class='row' style='margin-left:2%; margin-top:0%;'>
+          <div style='margin-left:2%; margin-top:0%;'>
             <div class='row'>
               <div class='col-sm-6 col-xs-4 text-right'>
                 <label>ID:</label>
@@ -54,7 +57,7 @@
               </div>
             </div>
 
-            <div class='well' style='padding-bottom: 25px; padding-top:5px; margin-bottom: 5px;'>
+            <div class='row' style='padding-bottom: 25px; padding-top:5px; margin-bottom: 5px;'>
               <div class='col-sm-6 col-xs-4 text-right'>
                 <label>_{SUM}_:</label>
               </div>

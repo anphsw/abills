@@ -15,7 +15,7 @@
       <div class='col-lg-2 col-md-5 col-sm-4'>
         <div class='info-box bg-%DAY_TYPE%'>
 
-          <div class='info-box-content'>
+          <div class='info-box-content text-center'>
             <h2 class='info-box-text'>%DAY% %MONTH%</h2>
             <h3 class='info-box-number'>%DAY_NAME%</h3>
           </div>

@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS `maps_coords` (
 
 CREATE TABLE IF NOT EXISTS `maps_points` (
   `id` INT(11) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  `name` VARCHAR(30) NOT NULL DEFAULT '',
+  `name` VARCHAR(64) NOT NULL DEFAULT '',
   `coord_id` INT(11) REFERENCES `maps_coords` (`id`)
     ON DELETE CASCADE,
   `type_id` SMALLINT(6) REFERENCES `maps_point_types` (`id`)

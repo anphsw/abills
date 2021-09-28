@@ -184,13 +184,16 @@ sub crm_lead_list {
   push @WHERE_RULES, "cl.phone LIKE '\%$attr->{PHONE_SEARCH}\%'" if ($attr->{PHONE_SEARCH});
   push @WHERE_RULES, "(cl.domain_id='$self->{admin}{DOMAIN_ID}')" if ($self->{admin}{DOMAIN_ID});
 
+  push @WHERE_RULES, "cl.responsible='$admin->{AID}'" if (! $attr->{SKIP_RESPOSIBLE} && (!$admin->{permissions}{7} || !$admin->{permissions}{7}{4}));
+
+
   if ($attr->{LEAD_ID}) {
     $SORT = 'lead_id';
     $DESC = 'DESC';
   }
 
   $attr->{SEARCH_COLUMNS} = $attr->{SEARCH_COLUMNS} && ref $attr->{SEARCH_COLUMNS} eq 'ARRAY' ? $attr->{SEARCH_COLUMNS} : ();
-
+  my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
   my $search_columns = [
     [ 'LEAD_ID',          'INT',   'cl.id as lead_id',               1 ],
     [ 'USER_LOGIN',       'STR',   'u.id as user_login',             1 ],
@@ -224,7 +227,10 @@ sub crm_lead_list {
     [ 'TP_NAME',          'STR',   'cct.name AS tp_name',            1 ],
     [ 'ASSESSMENT',       'INT',   'cl.assessment',                  1 ],
     [ 'LEAD_ADDRESS',     'STR',
-      "IF(cl.build_id, CONCAT(districts.name, ', ', streets.name, ', ', builds.number), '') AS lead_address",  1 ],
+      "IF(cl.build_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number), '') AS lead_address",  1 ],
+    [ 'ADDRESS_FULL',     'STR',
+      "IF(cl.build_id, CONCAT(districts.name, '$build_delimiter', streets.name, '$build_delimiter', builds.number, '$build_delimiter', cl.address_flat), '') AS address_full",  1 ],
+
   ];
 
   map push(@{$search_columns}, $_), @{$attr->{SEARCH_COLUMNS}};
@@ -236,14 +242,13 @@ sub crm_lead_list {
     WHERE_RULES       => \@WHERE_RULES,
   });
 
-  if ($attr->{LEAD_ADDRESS}) {
+  if ($attr->{LEAD_ADDRESS} || $attr->{ADDRESS_FULL}) {
     $EXT_TABLES = "LEFT JOIN builds ON (builds.id=cl.build_id)";
     $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=builds.street_id)
       LEFT JOIN districts ON (districts.id=streets.district_id) ";
   }
 
-  $self->query(
-    "SELECT 
+  my $sql =  "SELECT
     $self->{SEARCH_FIELDS}
     cl.uid, cl.id
     FROM crm_leads as cl
@@ -256,10 +261,9 @@ sub crm_lead_list {
     $EXT_TABLES
     $WHERE
     ORDER BY $SORT $DESC
-    LIMIT $PG, $PAGE_ROWS;",
-    undef,
-    $attr
-  );
+    LIMIT $PG, $PAGE_ROWS;";
+
+  $self->query($sql, undef, $attr );
 
   my $list = $self->{list};
 
@@ -1029,6 +1033,7 @@ sub crm_competitor_list {
       [ 'NAME',             'STR', 'cc.name',            1 ],
       [ 'DESCR',            'STR', 'cc.descr',           1 ],
       [ 'SITE',             'STR', 'cc.site',            1 ],
+      [ 'COLOR',            'STR', 'color',              1 ],
       [ 'CONNECTION_TYPE',  'STR', 'cc.connection_type', 1 ],
     ],
     { WHERE => 1, WHERE_RULES => \@WHERE_RULES }
@@ -1461,11 +1466,27 @@ sub crm_lead_points_list {
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
+  my @WHERE_RULES = ();
 
-  $self->query("SELECT cl.*, cps.color,cps.name AS step, builds.coordx, builds.coordy ,
+  if ($admin->{permissions} && !$admin->{permissions}{7} || !$admin->{permissions}{7}{4}) {
+    push @WHERE_RULES, "cl.responsible='$admin->{AID}'";
+  }
+
+  my $WHERE = $self->search_former($attr,[
+    [ 'ID',            'INT',    'cl.id',            1 ],
+    [ 'RESPONSIBLE',   'INT',    'cl.responsible',   1 ],
+    [ 'COMPETITOR_ID', 'STR',    'cl.competitor_id', 1 ],
+  ], {
+    WHERE => 1,
+    WHERE_RULES => \@WHERE_RULES
+  });
+
+  $self->query("SELECT cl.*, cps.color,cps.name AS step, builds.coordx, builds.coordy, cc.name AS competitor,
       SUM(plpoints.coordx)/COUNT(plpoints.coordx) AS coordy_2,
-      SUM(plpoints.coordy)/COUNT(plpoints.coordy) AS coordx_2
+      SUM(plpoints.coordy)/COUNT(plpoints.coordy) AS coordx_2,
+      cc.color AS competitor_color
     FROM crm_leads as cl
+    LEFT JOIN crm_competitors cc ON (cc.id = cl.competitor_id)
     LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
     LEFT JOIN crm_progressbar_steps cps ON (cps.step_number = cl.current_step)
     LEFT JOIN builds ON (builds.id=cl.build_id)
@@ -1474,6 +1495,7 @@ sub crm_lead_points_list {
     LEFT JOIN maps_coords mc ON (mp.coord_id=mc.id)
     LEFT JOIN maps_polygons mgone ON (mgone.object_id=mp.id)
     LEFT JOIN maps_polygon_points plpoints ON(mgone.id=plpoints.polygon_id)
+    $WHERE
     GROUP BY cl.id HAVING (coordx <> 0 AND coordy <> 0) OR (coordx_2 <> 0 AND coordy_2 <> 0)
     ORDER BY $SORT $DESC
     LIMIT $PG, $PAGE_ROWS;",

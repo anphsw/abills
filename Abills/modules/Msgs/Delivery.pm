@@ -10,16 +10,13 @@ use Abills::Base qw(in_array);
 
 our ($db,
   %lang,
-  $html,
   @bool_vals,
-  @MONTHES,
-  @WEEKDAYS,
   @_COLORS,
-  %permissions,
   $admin,
-  $ui,
   %conf
 );
+
+our Abills::HTML $html;
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
@@ -31,6 +28,7 @@ $_COLORS[8] //= '#FFFFFF';
 $_COLORS[9] //= '#FFFFFF';
 
 my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[6]);
+
 #**********************************************************
 =head2 msgs_delivery_main()
 
@@ -100,37 +98,29 @@ sub msgs_delivery_main {
   if ($FORM{add_form} || $FORM{chg} || $FORM{show}) {
     $Msgs->{DATE_PIKER} = $html->form_datepicker('SEND_DATE', $Msgs->{SEND_DATE});
     $Msgs->{TIME_PIKER} = $html->form_timepicker('SEND_TIME', $Msgs->{SEND_TIME});
-    $Msgs->{STATUS_SELECT} = $html->form_select('STATUS',
-      {
-        SELECTED => 0,
-        SEL_HASH => {
-          0 => $lang{D_ACTIVE},
-          1 => $lang{DEFERRED},
-          2 => $lang{DONE},
-        },
-        NO_ID    => 1,
-        SELECTED  => $Msgs->{STATUS} || 0,
-      }
-    );
+    $Msgs->{STATUS_SELECT} = $html->form_select('STATUS', {
+      SELECTED => 0,
+      SEL_HASH => {
+        0 => $lang{D_ACTIVE},
+        1 => $lang{DEFERRED},
+        2 => $lang{DONE},
+      },
+      NO_ID    => 1,
+      SELECTED => $Msgs->{STATUS} || 0,
+    });
 
-    $Msgs->{PRIORITY_SELECT} = $html->form_select(
-      'PRIORITY',
-      {
-        SELECTED     => defined($Msgs->{PRIORITY}) ? $Msgs->{PRIORITY} : 2,
-        SEL_ARRAY    => \@priority,
-        STYLE        => \@priority_colors,
-        ARRAY_NUM_ID => 1
-      }
-    );
+    $Msgs->{PRIORITY_SELECT} = $html->form_select('PRIORITY', {
+      SELECTED     => defined($Msgs->{PRIORITY}) ? $Msgs->{PRIORITY} : 2,
+      SEL_ARRAY    => \@priority,
+      STYLE        => \@priority_colors,
+      ARRAY_NUM_ID => 1
+    });
 
-    $Msgs->{SEND_METHOD_SELECT} = $html->form_select(
-      'SEND_METHOD',
-      {
-        SELECTED => defined($Msgs->{SEND_METHOD}) ? $Msgs->{SEND_METHOD} : 2,
-        SEL_HASH => \%send_methods,
-        NO_ID    => 1
-      }
-    );
+    $Msgs->{SEND_METHOD_SELECT} = $html->form_select('SEND_METHOD', {
+      SELECTED => defined($Msgs->{SEND_METHOD}) ? $Msgs->{SEND_METHOD} : 2,
+      SEL_HASH => \%send_methods,
+      NO_ID    => 1
+    });
 
     if($Msgs->{TEXT}) {
       $Msgs->{TEXT} =~ s/\%/\&#37;/g;
@@ -178,7 +168,7 @@ sub msgs_delivery_main {
       TABLE           => {
         width      => '100%',
         EXPORT     => 1,
-        caption    => "$lang{DELIVERY}",
+        caption    => $lang{DELIVERY},
         qs         => $pages_qs,
         ID         => 'DILIVERY_LIST',
         MENU       => "$lang{ADD}:add_form=1&index=$index:add",
@@ -243,7 +233,7 @@ sub msgs_delivery_main {
 #**********************************************************
 sub msgs_delivery_user_table {
   my ($attr) = @_;
-  my @users_status = ($lang{WAIT_TO_SEND}, $lang{SENDED});
+  my @users_status = ($lang{WAIT_TO_SEND}, $lang{SENDED}, $lang{NOT_DELIVERED});
 
   my $user_list = $Msgs->delivery_user_list({
     MDELIVERY_ID => $attr->{MDELIVERY_ID},

@@ -257,24 +257,26 @@ sub equipment_traps_types {
   }
 
   if ($FORM{SAVE} && $FORM{ID} && $FORM{NAME}) {
-    $Equipment->trap_type_change({ ID => $FORM{ID},
-      NAME                            => $FORM{NAME},
-      OBJECT_ID                       => $FORM{OBJECT_ID},
-      TYPE                            => $FORM{TYPE},
-      EVENT                           => $FORM{EVENT} || 0,
-      SKIP                            => $FORM{SKIP} || 0,
-      COLOR                           => $FORM{COLOR},
-      VARBIND                         => $FORM{VARBIND},
+    $Equipment->trap_type_change({
+      ID        => $FORM{ID},
+      NAME      => $FORM{NAME},
+      OBJECT_ID => $FORM{OBJECT_ID},
+      TYPE      => $FORM{TYPE},
+      EVENT     => $FORM{EVENT} || 0,
+      SKIP      => $FORM{SKIP} || 0,
+      COLOR     => $FORM{COLOR},
+      VARBIND   => $FORM{VARBIND},
     });
   }
   elsif (!$FORM{ID} && $FORM{NAME}) {
-    $Equipment->trap_type_add({ NAME => $FORM{NAME},
-      OBJECT_ID                      => $FORM{OBJECT_ID},
-      TYPE                           => $FORM{TYPE},
-      EVENT                          => $FORM{EVENT} || 0,
-      SKIP                           => $FORM{SKIP} || 0,
-      COLOR                          => $FORM{COLOR},
-      VARBIND                        => $FORM{VARBIND},
+    $Equipment->trap_type_add({
+      NAME      => $FORM{NAME},
+      OBJECT_ID => $FORM{OBJECT_ID},
+      TYPE      => $FORM{TYPE},
+      EVENT     => $FORM{EVENT} || 0,
+      SKIP      => $FORM{SKIP} || 0,
+      COLOR     => $FORM{COLOR},
+      VARBIND   => $FORM{VARBIND},
     });
   }
 
@@ -289,12 +291,13 @@ sub equipment_traps_types {
     COLOR     => '_SHOW',
     VARBIND   => '_SHOW',
   });
-  my %types = (0 => ' ',
-    1            => "ethernet",
-    2            => "power",
-    3            => "cpu",
-    4            => "memory",
-    5            => "mac_notif"
+  my %types = (
+    0   =>  ' ',
+    1   => "ethernet",
+    2   => "power",
+    3   => "cpu",
+    4   => "memory",
+    5   => "mac_notif"
   );
   my $sel = $Equipment->trap_list({
     TRAPOID   => '_SHOW',
@@ -319,10 +322,11 @@ sub equipment_traps_types {
         color => $lang{COLOR},
       },
       SKIP_USER_TITLE => 1,
-      SELECT_VALUE    => { event => { 0 => " ", 1 => " :fa fa-check" },
-        skip                     => { 0 => " ", 1 => " :fa fa-check" },
-        type                     => \%types,
-        name                     => \%$sel
+      SELECT_VALUE    => {
+        event => { 0 => " ", 1 => " :fa fa-check" },
+        skip  => { 0 => " ", 1 => " :fa fa-check" },
+        type  => \%types,
+        name  => \%$sel
       },
       TABLE           => {
         width   => '100%',
@@ -361,9 +365,12 @@ sub equipment_traps_types {
     );
     $html->message('warning', (($FORM{chg}) ? $lang{CHANGE} : $lang{CREATE}) . "  <span class='fa fa-cog fa-spin'></span>");
 
+    #FIXME cause it needs couple of time
+    print('<div class="card card-primary card-outline container-md">');
     print $html->form_main(
       {
-        CONTENT => label_w_text({ NAME => $lang{NAME}, TEXT => $NAME_SEL, RCOL => 4 }) .
+        CONTENT =>
+          label_w_text({ NAME => $lang{NAME}, TEXT => $NAME_SEL, RCOL => 4 }) .
           label_w_text({ NAME => 'OBJECT_ID', TEXT => $html->form_input('OBJECT_ID', $params->[0]->{object_id} || undef) }) .
           label_w_text({ NAME => $lang{TYPE}, TEXT => $TYPE_SEL }) .
           label_w_text({ NAME => $lang{EVENTS},
@@ -384,6 +391,7 @@ sub equipment_traps_types {
           'ID'    => $FORM{chg},
         },
       });
+    print('</div>');
   }
 
   return 1;

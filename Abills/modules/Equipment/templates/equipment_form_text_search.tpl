@@ -1,7 +1,7 @@
 <form action='$SELF_URL' METHOD='GET' name='form_search' class='form form-horizontal'>
   <input type='hidden' name='index' value='$index'>
-  <input type='hidden' name="visual" value='%VISUAL%'>
-  <input type='hidden' name="NAS_ID" value='%NAS_ID%'>
+  <input type='hidden' name='visual' value='%VISUAL%'>
+  <input type='hidden' name='NAS_ID' value='%NAS_ID%'>
 
   <div class='card card-primary card-outline'>
     <div class='card-header with-border' style="border-bottom: none; ">

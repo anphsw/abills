@@ -4,8 +4,8 @@
 
   Auto zap/hangup console utility
 
-  VERSION: 0.27
-  REVISION: 20200703
+  VERSION: 0.28
+  REVISION: 20210610
 
 =cut
 
@@ -22,19 +22,18 @@ BEGIN {
   unshift(@INC, $Bin . '/../', $Bin . '/../lib', $Bin . '/../Abills', $Bin . "/../Abills/$conf{dbtype}/");
 }
 
-my $debug   = 0;
-my $VERSION = 0.27;
+my $debug = 0;
+my $VERSION = 0.28;
 
 use Abills::SQL;
 use Abills::Base qw(check_time parse_arguments gen_time days_in_month in_array);
 use Admins;
 use Nas;
 use POSIX qw(strftime);
+use Internet::Sessions;
+use Internet;
 
 my $begin_time = check_time();
-
-my $Sessions;
-my $Internet;
 
 require Abills::Nas::Control;
 Abills::Nas::Control->import();
@@ -42,7 +41,7 @@ Abills::Nas::Control->import();
 my $argv = parse_arguments(\@ARGV);
 
 if ($argv->{help}) {
-  print << "[END]";
+  print <<"[END]";
 
 autozap.pl Version: $VERSION
 
@@ -64,6 +63,7 @@ autozap.pl Version: $VERSION
   GID=...        - Group ID for hangup
   LIMIT=100      - Hangup limit
   HANGUP_PERIOD  - Hangup only users with hangup period (Extra field: _hangup_period)
+  TURBO          - Turbomode manage
   DEBUG=1..6     -
   help           - This help
 [END]
@@ -86,27 +86,26 @@ my $Nas = Nas->new($db, \%conf);
 $Log = Log->new($db, \%conf);
 $Log->{PRINT} = 1;
 
-if(in_array('Internet', \@MODULES)) {
-  require Internet::Sessions;
-  Internet::Sessions->import();
-  require Internet;
-  Internet->import();
+my $Sessions = Internet::Sessions->new($db, $Admin, \%conf);
+#my $Internet = Internet->new($db, $Admin, \%conf);
 
-  $Sessions = Internet::Sessions->new( $db, $Admin, \%conf );
-  $Internet = Internet->new( $db, $Admin, \%conf );
-}
-else {
-  require Dv_Sessions;
-  Dv_Sessions->import();
-  require Dv;
-  Dv->import();
-
-  $Sessions = Dv_Sessions->new( $db, $Admin, \%conf );
-  $Internet = Dv->new( $db, $Admin, \%conf );
-}
-
-
-my %LIST_PARAMS = ();
+my %LIST_PARAMS = (
+  USER_NAME            => '_SHOW',
+  ACCT_SESSION_ID      => '_SHOW',
+  NAS_PORT_ID          => '_SHOW',
+  NAS_IP               => '_SHOW',
+  CLIENT_IP            => '_SHOW',
+  CONNECT_INFO         => '_SHOW',
+  CID                  => '_SHOW',
+  USER_NAME            => '_SHOW',
+  UID                  => '_SHOW',
+  DEPOSIT              => '_SHOW',
+  CREDIT               => '_SHOW',
+  TP_CREDIT            => '_SHOW',
+  TP_MONTH_FEE         => '_SHOW',
+  TP_DAY_FEE           => '_SHOW',
+  TP_ABON_DISTRIBUTION => '_SHOW',
+);
 
 if ($argv->{LOGIN}) {
   $LIST_PARAMS{USER_NAME} = $argv->{LOGIN};
@@ -115,8 +114,8 @@ elsif ($argv->{UID}) {
   $LIST_PARAMS{UID} = $argv->{UID};
 }
 
-if(defined($argv->{GUEST})) {
-  $LIST_PARAMS{GUEST}=$argv->{GUEST};
+if (defined($argv->{GUEST})) {
+  $LIST_PARAMS{GUEST} = $argv->{GUEST};
 }
 
 if ($argv->{DURATION}) {
@@ -124,7 +123,12 @@ if ($argv->{DURATION}) {
 }
 
 if (defined($argv->{PAYMENT_METHOD})) {
-  $LIST_PARAMS{PAYMENT_METHOD}=$argv->{PAYMENT_METHOD};
+  $LIST_PARAMS{PAYMENT_METHOD} = $argv->{PAYMENT_METHOD};
+}
+
+if ($argv->{TURBO}) {
+  $LIST_PARAMS{TURBO_BEGIN}='_SHOW';
+  $LIST_PARAMS{TURBO_END}="<$DATE $TIME";
 }
 
 if ($argv->{TP_ID}) {
@@ -137,12 +141,12 @@ if ($argv->{GID}) {
 
 if ($argv->{COUNT}) {
   $LIST_PARAMS{PAGE_ROWS} = $argv->{COUNT};
-  $LIST_PARAMS{LIMIT}     = $LIST_PARAMS{PAGE_ROWS};
+  $LIST_PARAMS{LIMIT} = $LIST_PARAMS{PAGE_ROWS};
 }
 
 if ($argv->{LIMIT}) {
   $LIST_PARAMS{PAGE_ROWS} = $argv->{LIMIT};
-  $LIST_PARAMS{LIMIT}     = $LIST_PARAMS{PAGE_ROWS};
+  $LIST_PARAMS{LIMIT} = $LIST_PARAMS{PAGE_ROWS};
 }
 
 if ($argv->{HANGUP_PERIOD}) {
@@ -150,8 +154,7 @@ if ($argv->{HANGUP_PERIOD}) {
 }
 
 $LIST_PARAMS{NAS_ID} = $argv->{NAS_ID} if ($argv->{NAS_ID});
-my %ACCT_INFO = ();
-my $count     = 0;
+my $count = 0;
 
 if ($debug > 1) {
   print "DATE: $DATE $TIME\n";
@@ -160,29 +163,10 @@ if ($debug > 1) {
 if ($argv->{HANGUP}) {
   if ($debug > 6) {
     $Sessions->{debug} = 1;
-    $Nas->{debug}      = 1;
+    $Nas->{debug} = 1;
   }
 
-  $Sessions->online(
-    {
-      USER_NAME            => '_SHOW',
-      ACCT_SESSION_ID      => '_SHOW',
-      NAS_PORT_ID          => '_SHOW',
-      NAS_IP               => '_SHOW',
-      CLIENT_IP            => '_SHOW',
-      CONNECT_INFO         => '_SHOW',
-      CID                  => '_SHOW',
-      USER_NAME            => '_SHOW',
-      UID                  => '_SHOW',
-      DEPOSIT              => '_SHOW',
-      CREDIT               => '_SHOW',
-      TP_CREDIT            => '_SHOW',
-      TP_MONTH_FEE         => '_SHOW',
-      TP_DAY_FEE           => '_SHOW',
-      TP_ABON_DISTRIBUTION => '_SHOW',
-      %LIST_PARAMS
-    }
-  );
+  $Sessions->online(\%LIST_PARAMS);
 
   if ($Sessions->{errno}) {
     print "Error: $Sessions->{errno} $Sessions->{errstr}\n";
@@ -195,18 +179,19 @@ if ($argv->{HANGUP}) {
   foreach my $nas_row (@$nas_list) {
     next if (!defined($online_list->{ $nas_row->{nas_id} }));
     $Nas->info({ NAS_ID => $nas_row->{nas_id} });
-    foreach my $online (@{ $online_list->{ $nas_row->{nas_id} } }) {
-
-      $ACCT_INFO{ACCT_SESSION_ID}    = $online->{acct_session_id} || q{};
-      $ACCT_INFO{NAS_PORT}           = $online->{nas_port_id};
-      $ACCT_INFO{NAS_IP_ADDRESS}     = $nas_row->{nas_ip};
-      $ACCT_INFO{FRAMED_IP_ADDRESS}  = $online->{client_ip};
-      $ACCT_INFO{CONNECT_INFO}       = $online->{connection_info};
-      $ACCT_INFO{CALLING_STATION_ID} = $online->{cid} || q{};
-      $ACCT_INFO{USER_NAME}          = $online->{user_name};
-      $ACCT_INFO{UID}                = $online->{uid};
-      $ACCT_INFO{DEPOSIT}            = $online->{deposit};
-      $ACCT_INFO{CREDIT}             = ($online->{credit} > 0) ? $online->{credit} : $online->{tp_credit};
+    foreach my $online (@{$online_list->{ $nas_row->{nas_id} }}) {
+      my %ACCT_INFO = (
+        ACCT_SESSION_ID    => $online->{acct_session_id} || q{},
+        NAS_PORT           => $online->{nas_port_id},
+        NAS_IP_ADDRESS     => $nas_row->{nas_ip},
+        FRAMED_IP_ADDRESS  => $online->{client_ip},
+        CONNECT_INFO       => $online->{connection_info},
+        CALLING_STATION_ID => $online->{cid} || q{},
+        USER_NAME          => $online->{user_name},
+        UID                => $online->{uid},
+        DEPOSIT            => $online->{deposit},
+        CREDIT             => ($online->{credit} > 0) ? $online->{credit} : $online->{tp_credit},
+      );
 
       if ($argv->{DAYS2FINISH}) {
         my @day2finish = split(/,/, $argv->{DAYS2FINISH});
@@ -277,20 +262,19 @@ if ($argv->{HANGUP}) {
 }
 elsif ($argv->{ACTION_EXPR}) {
   $argv->{LAST_ACTIONS_COUNT} = 250 if (!$argv->{LAST_ACTIONS_COUNT});
-  $argv->{ACTION_COUNT}       = 20  if (!$argv->{ACTION_COUNT});
+  $argv->{ACTION_COUNT} = 20 if (!$argv->{ACTION_COUNT});
 
   if (!$LIST_PARAMS{NAS_ID}) {
     print "Error: Select NAS server\n";
     exit;
   }
 
-  my $list = $Log->log_list(
-    {
-      MESSAGE   => $argv->{ACTION_EXPR},
-      PAGE_ROWS => $argv->{LAST_ACTIONS_COUNT},
-      %LIST_PARAMS
-    }
-  );
+  my $list = $Log->log_list({
+    MESSAGE   => $argv->{ACTION_EXPR},
+    PAGE_ROWS => $argv->{LAST_ACTIONS_COUNT},
+    %LIST_PARAMS
+  });
+
   if ($debug > 0) {
     foreach my $line (@$list) {
       print "$line->[4]\n";
@@ -305,7 +289,7 @@ elsif ($argv->{ACTION_EXPR}) {
 }
 else {
   ZAP_LABEL:
-  $Sessions->zap(0, 0, 0, {%LIST_PARAMS});
+  $Sessions->zap(0, 0, 0, { %LIST_PARAMS });
 }
 
 if ($debug > 0) {

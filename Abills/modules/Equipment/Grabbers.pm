@@ -64,10 +64,6 @@ sub equipment_test {
 
   my %ports_info = ();
 
-  if ( $FORM{ping} ){
-    host_diagnostic( $FORM{ping} );
-  }
-
   if ( $attr->{PORT_INFO} ){
     print "Debug" if($debug);
     if ( $attr->{PORT_INFO} =~ /TRAFFIC/ ){

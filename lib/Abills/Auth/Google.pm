@@ -63,7 +63,8 @@ sub check_access {
       }
     }
     else {
-      _bp('Error getting token');
+      print "Content-Type: text/html\n\n";
+      print "<code>Error getting token</code><br>";
     }
   }
 

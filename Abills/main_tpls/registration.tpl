@@ -27,18 +27,12 @@
 
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/pace/pace.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datepicker/datepicker3.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/QBInfo.css'>
-
   <!-- Ionicons -->
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/font-awesome.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/ionicons.min.css'>
   <!-- Pace style -->
 
   <!-- DataTables -->
-  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datatables/dataTables.bootstrap.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.css'>
-  <link rel='stylesheet' type='text/css' href='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.css'>
   <link rel='stylesheet' type='text/css' href='/styles/default_adm/css/style.css'>
 
   <!-- Toogle Style -->
@@ -65,10 +59,7 @@
 
   <!-- temp -->
   <script src='/styles/default_adm/js/functions.js?v=76.1.9'></script>
-  <script src='/styles/default_adm/js/functions-admin.js?v=0.77.26'></script>
-
-  <!--Keyboard-->
-  <script src='/styles/default_adm/js/keys.js?v=77.70'></script>
+  <script src='/styles/default_adm/js/functions-client.js'></script>
 
   <!-- Navigation bar saving show/hide state -->
   <script  src='/styles/default_adm/js/navBarCollapse.js'></script>
@@ -76,18 +67,11 @@
   <!--Javascript template engine-->
   <script src='/styles/default_adm/js/mustache.min.js'></script>
 
-  <script  src='/styles/default_adm/js/QBinfo.js'></script>
-
-  <!--Event PubSub-->
-  <script src='/styles/default_adm/js/events.js'></script>
-
   <!-- Modal popup windows management -->
   <script src='/styles/default_adm/js/modals.js?v=76.1.9'></script>
 
   <!-- AJAX Search scripts -->
   <script src='/styles/default_adm/js/search.js?v=0.76.34'></script>
-
-  <script src='/styles/default_adm/js/messageChecker.js?v=0.77.26'></script>
 
   <script src='/styles/default_adm/js/msgs/jquery-ui.min.js'></script>
 
@@ -98,12 +82,6 @@
   <script src='/styles/%HTML_STYLE%/plugins/moment/moment.min.js'></script>
   <script src='/styles/%HTML_STYLE%/plugins/datepicker/bootstrap-datepicker.js'></script>
   <script src='/styles/%HTML_STYLE%/plugins/pace/pace.js'></script>
-  <script src='/styles/%HTML_STYLE%/plugins/datatables/jquery.dataTables.min.js'></script>
-  <script src='/styles/%HTML_STYLE%/plugins/datatables/dataTables.bootstrap.min.js'></script>
-  <script src='/styles/%HTML_STYLE%/plugins/timepicker/bootstrap-timepicker.min.js'></script>
-  <script src='/styles/%HTML_STYLE%/plugins/daterangepicker/daterangepicker.js'></script>
-  <script src='/styles/%HTML_STYLE%/plugins/datetimepicker/datetimepicker.min.js'></script>
-
   <script src='/styles/%HTML_STYLE%/dist/js/app.js'></script>
 
   <script src='/styles/%HTML_STYLE%/plugins/datepicker/locales/bootstrap-datepicker.%CONTENT_LANGUAGE%.js'></script>

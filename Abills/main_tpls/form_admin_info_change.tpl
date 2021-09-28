@@ -28,6 +28,10 @@
           <input id='FIO' name='name' value='%A_FIO%' class='form-control' type='text'>
         </div>
       </div>
+
+      <div class='form-group row'>
+       %G2FA%
+      </div>
     </div>
 
     <div class='card-footer'>

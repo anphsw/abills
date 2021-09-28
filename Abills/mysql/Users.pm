@@ -754,6 +754,8 @@ sub list {
 
   if ($self->{conf}{CONTACTS_NEW}){
     push (@ext_fields, 'CELL_PHONE');
+    push (@ext_fields, 'TELEGRAM');
+    push (@ext_fields, 'VIBER');
   }
 
   push @WHERE_RULES, @{ $self->search_expr_users({ %$attr,
@@ -761,6 +763,14 @@ sub list {
     USE_USER_PI => 1,
     SKIP_GID    => ($admin->{GID} && $attr->{_MULTI_HIT}) ? 1 : undef
   }) };
+
+
+  if($attr->{REGISTRATION_FROM_REGISTRATION_TO}){
+    my ($from, $to) = split '/', $attr->{REGISTRATION_FROM_REGISTRATION_TO};
+    push @WHERE_RULES, "u.registration >= '$from'";
+    push @WHERE_RULES, "u.registration <= '$to'";
+  }
+
 
   # Show debeters
   if ($attr->{DEBETERS}) {
@@ -1266,6 +1276,7 @@ sub change {
     delete $attr->{DOMAIN_ID}
   }
 
+  $attr->{UID} ||= $uid;
   $self->changes(
     {
       CHANGE_PARAM => 'UID',
@@ -1550,9 +1561,14 @@ sub bruteforce_del {
 
 #**********************************************************
 =head2 web_session_update($attr)
+
   Attributes:
     $attr
       SID
+      REMOTE_ADDR
+
+  Return:
+    $self
 
 =cut
 #**********************************************************
@@ -1560,8 +1576,13 @@ sub web_session_update {
   my $self = shift;
   my ($attr) = @_;
 
+  my $remote_addr = q{};
+  if ($CONF->{USERPORTAL_MULTI_SESSIONS}) {
+    $remote_addr = ", remote_addr=INET_ATON('$attr->{REMOTE_ADDR}')"
+  }
+
   $self->query("UPDATE web_users_sessions SET
-    datetime = UNIX_TIMESTAMP()
+    datetime = UNIX_TIMESTAMP() $remote_addr
     WHERE sid = ?;", 'do', { Bind => [ $attr->{SID} ] });
 
   return $self;
@@ -1587,7 +1608,21 @@ sub web_session_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("DELETE FROM web_users_sessions WHERE uid=?;", 'do', { Bind => [ $attr->{UID} ] });
+  if ($CONF->{USERPORTAL_MULTI_SESSIONS}) {
+    # $self->query('DELETE FROM web_users_sessions
+    #   WHERE uid=? AND remote_addr=INET_ATON( ? );',
+    #   'do',
+    #   { Bind => [
+    #     $attr->{UID},
+    #     $attr->{REMOTE_ADDR}
+    #   ] });
+    $self->query('DELETE FROM web_users_sessions
+       WHERE UNIX_TIMESTAMP() - datetime > '. ( $CONF->{web_session_timeout} || 86000 ) .';',
+       'do');
+  }
+  else {
+    $self->query("DELETE FROM web_users_sessions WHERE uid=?;", 'do', { Bind => [ $attr->{UID} ] });
+  }
 
   $self->query("INSERT INTO web_users_sessions
       (uid, datetime, login, remote_addr, sid, ext_info, coordx, coordy) VALUES

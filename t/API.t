@@ -11,13 +11,14 @@ use lib '.';
 use Test::More;
 use Test::JSON::More;
 use FindBin '$Bin';
-use FindBin qw( $RealBin );
+use FindBin qw($RealBin);
 use HTTP::Request::Common;
 use Term::ANSIColor;
 use LWP::Simple;
-use JSON qw(decode_json encode_json );
+use JSON qw(decode_json encode_json);
+use experimental 'smartmatch';
 
-require $Bin ."/../libexec/config.pl";
+require $Bin . "/../libexec/config.pl";
 
 BEGIN {
   our $libpath = '../';
@@ -58,21 +59,28 @@ my %colors = (
   INFO     => 'bold white'
 );
 
-opendir (DIR, './Schemas');
+my $ARGS = parse_arguments(\@ARGV);
+
+opendir(DIR, 'schemas');
 my @folder = readdir(DIR);
 
-foreach my $folder (@folder)
-{
+foreach my $folder (@folder) {
   next if ($folder =~ /\./);
 
-  my $request_file = "$RealBin/Schemas/$folder/$folder\_request.json";
-  my $schema_file = "$RealBin/Schemas/$folder/$folder\_schema.json";
+  my $request_file = "$RealBin/schemas/$folder/$folder\_request.json";
+  my $schema_file = "$RealBin/schemas/$folder/$folder\_schema.json";
 
-  open (my $request_str, $request_file);
-  open (my $schema_str, $schema_file);
+  open(my $request_str, $request_file);
+  open(my $schema_str, $schema_file);
 
-  my $request_plain = do { local $/; <$request_str> };
-  my $schema = do { local $/; <$schema_str> };
+  my $request_plain = do {
+    local $/;
+    <$request_str>
+  };
+  my $schema = do {
+    local $/;
+    <$schema_str>
+  };
 
   my $request = decode_json($request_plain);
   my %request_hash = %$request;
@@ -83,13 +91,13 @@ foreach my $folder (@folder)
 }
 
 my $test_number = 0;
-my $apiKey = $ARGV[$#ARGV];
+my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV];
 my $protocol = ("--use-http" ~~ @ARGV) ? "http" : "https";
 
 foreach my $test (@test_list) {
   $test_number++;
 
-  my $url = "$protocol://localhost:9443/api.cgi/$test->{path}";
+  my $url = "$protocol://" . ($ARGS->{URL} ? $ARGS->{URL} : 'localhost:9443') . "/api.cgi/$test->{path}";
 
   my $start_time = gettimeofday();
 
@@ -105,24 +113,25 @@ foreach my $test (@test_list) {
     },
   );
 
-  $Ua->protocols_allowed( [ 'http', 'https'] );
-  $Ua->default_header( KEY => $apiKey );
+  $Ua->protocols_allowed([ 'http', 'https' ]);
+  $Ua->default_header(KEY => $apiKey);
 
-  if($test->{method} eq 'POST'){
-    my $post_request = HTTP::Request->new( 'POST', $url);
+  if ($test->{method} eq 'POST') {
+    my $post_request = HTTP::Request->new('POST', $url);
 
     $post_request->header('Content-Type' => 'application/json');
     $post_request->content(encode_json $test->{body});
 
     $response = $Ua->request($post_request);
 
-  } elsif($test->{method} eq 'GET') {
-    my %params = %{ $test->{params} };
+  }
+  elsif ($test->{method} eq 'GET') {
+    my %params = %{$test->{params}};
 
     my $query = '';
 
     foreach my $key (keys %params) {
-      $query .= $key.'='.$params{$key}.'&';
+      $query .= $key . '=' . $params{$key} . '&';
     }
 
     $response = $Ua->request(GET "$url\?$query");
@@ -133,9 +142,10 @@ foreach my $test (@test_list) {
 
   my $json = $response->content;
 
-  if($http_status == 200) {
+  if ($http_status == 200) {
     print color($colors{OK});
-  } else {
+  }
+  else {
     print color($colors{BAD});
   }
 
@@ -143,7 +153,7 @@ foreach my $test (@test_list) {
 
   print color($colors{INFO}), "Checking is json valid: ", color($colors{CONTRAST});
 
-  if(ok_json($json)) {
+  if (ok_json($json)) {
     print color($colors{INFO}), "Does JSON belong to schema: ", color($colors{CONTRAST});
 
     if (!ok_json_schema($json, $test->{schema})) {
@@ -151,8 +161,9 @@ foreach my $test (@test_list) {
       print color($colors{BAD}), "JSON SCHEMA IS INCORRECT \n";
     }
 
-  } else {
-    print "JSON: $json \n" ;
+  }
+  else {
+    print "JSON: $json \n";
   }
 
   print "------------------------------------\n";

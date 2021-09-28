@@ -1,7 +1,22 @@
 #!/usr/bin/perl
 
+# Авторизация по мак-адресу
+# Регистрация с тарифом по умолчанию
+# При недостаточном депозите - оплата с помощью отправки смс на платный номер
+
 use strict;
 use warnings FATAL => 'all';
+
+#**********************************************************
+=head2 required_fields()
+
+=cut
+#**********************************************************
+sub required_fields {
+  my @keys = ();
+
+  return \@keys;
+}
 
 #**********************************************************
 =head2 scheme_radius_error()
@@ -9,8 +24,8 @@ use warnings FATAL => 'all';
 =cut
 #**********************************************************
 sub scheme_radius_error {
-  my ($uid) = @_;
-  hotspot_sms_pay($uid);
+  my $uid = get_user_uid();
+  hotspot_sms_pay($uid) if ($uid);
   return 1;
 }
 

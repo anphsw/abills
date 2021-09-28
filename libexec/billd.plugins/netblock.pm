@@ -11,6 +11,7 @@
      UNBOUND - User unbound DNS
      BIND9   - Use BIND9 under construction
      RESOLV_LIST - show resolve list
+     CERT_PEM - Certificate path
 
 =cut
 
@@ -1191,22 +1192,5 @@ sub sign_request {
 
   return 1;
 }
-
-#**********************************************************
-=head2 uablock($attr) - Doblocka UA list
-
-=cut
-#**********************************************************
-sub help {
-
-  print << "[END]";
-
-  CERT_PEM - Certificate path
-
-[END]
-  return 1;
-}
-
-
 
 1;

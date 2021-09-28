@@ -1,7 +1,7 @@
 $lang{ACCIDENT_LOG}='Журнал аварій';
 $lang{WORK_END_DATE}='Орієнтовний час виправлення';
 $lang{WORK_REALY_DATE}='Реальний час виправлення';
-$lang{ADD_ACCIDENT}='Добавити аварію';
+$lang{ADD_ACCIDENT}='Додати аварію';
 $lang{OPERATION}='Операція успішно виконана';
 $lang{DESC}='Опис';
 $lang{WAITING}='Очікує';

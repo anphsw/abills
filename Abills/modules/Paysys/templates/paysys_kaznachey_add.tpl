@@ -1,4 +1,4 @@
-<form method="post" action="" class='form form-horizontal'>
+<form method='post' action='' class='form form-horizontal'>
     <input type='hidden' name='action' value='create_payment'>
     <input type='hidden' name='index' value='$index'>
     <input type='hidden' name='PAYMENT_SYSTEM' value='104'>

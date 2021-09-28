@@ -1,13 +1,13 @@
 <form action='https://test.plategka.com/gateway/' method='post'>
-    <input type="hidden" name="merchant_id" value="%MERCHANT_ID%"/>
-    <input type="hidden" name="order_id" value="%OPERATION_ID%"/>
-    <input type="hidden" name="amount" value="%SUM_FOR_PLATEGKA%"/>
-    <input type="hidden" name="date" value="%DATE_TIME%"/>
-    <input type="hidden" name="description" value="%DESCRIPTION%"/>
-    <input type="hidden" name="sd" value="%SD%"/>
-    <input type="hidden" name="billers" value="%BILLERS%"/>
-    <input type="hidden" name="version" value="4"/>
-    <input type="hidden" name="signature" value="%SIGNATURE%"/>
+    <input type='hidden' name='merchant_id' value='%MERCHANT_ID%'/>
+    <input type='hidden' name='order_id' value='%OPERATION_ID%'/>
+    <input type='hidden' name='amount' value='%SUM_FOR_PLATEGKA%'/>
+    <input type='hidden' name='date' value='%DATE_TIME%'/>
+    <input type='hidden' name='description' value='%DESCRIPTION%'/>
+    <input type='hidden' name='sd' value='%SD%'/>
+    <input type='hidden' name='billers' value='%BILLERS%'/>
+    <input type='hidden' name='version' value='4'/>
+    <input type='hidden' name='signature' value='%SIGNATURE%'/>
 
 
     <div class='card box-primary'>

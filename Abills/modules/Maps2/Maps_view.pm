@@ -175,6 +175,7 @@ sub maps2_get_js_variables {
     EXTRA_SCRIPTS    => $layers_list->{EXTRA_SCRIPTS},
     GOOGLE_API_KEY   => $CONF->{GOOGLE_API_KEY},
     YANDEX_API_KEY   => $CONF->{YANDEX_API_KEY},
+    VISICOM_API_KEY  => $CONF->{VISICOM_API_KEY},
     %{$attr},
   };
 }

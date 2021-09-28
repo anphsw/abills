@@ -16,7 +16,7 @@ $lang{CHOICE} = 'Варіант';
 $lang{TRUE_ANSWER} = 'Правильна відповідь';
 $lang{MARK} = 'Оцінка';
 $lang{OPEN_VACANCY} = 'Вільна вакансія';
-$lang{ADD_EMPLOYEE} = 'Добавити співробітника';
+$lang{ADD_EMPLOYEE} = 'Додати співробітника';
 $lang{VACATIONS} = 'Відпустка';
 $lang{HOSPITAL} = 'Лікарняний';
 $lang{BUSINESS_TRIP} = 'Відрядження';
@@ -56,7 +56,7 @@ $lang{NOT_FOUND}='Платіж не знайдено';
 $lang{SEND_SMS_TO_ANYONE}='Відправка смс повідомлення співробітнику, який не зареєстрований в системі.';
 
 #Робота с касами
-$lang{CASHBOX_WORK}='Работа с кассами';
+$lang{CASHBOX_WORK}='Робота з касами';
 $lang{CASHBOXS}='Каси';
 $lang{ADD_CASHBOX}='Додати касу';
 $lang{CASHBOX_ADDED}='Каса додана';
@@ -77,7 +77,7 @@ $lang{CHANGE_DATA}='Внесите изменения';
 $lang{PLANNED}='Запланована';
 $lang{NO_TYPE}='Без типу';
 $lang{TAKE_FEE}='Зняти оплату з абонента';
-$lang{FEE_TAKEN}='Оплата зписана з абонента';
+$lang{FEE_TAKEN}='Оплата списана з абонента';
 $lang{WORK_DONE}='Робота виконана';
 $lang{WORKING_TIME_NORMS}='Норми робочого часу';
 $lang{WORKING_TIME_NORMS_EMPTY}='Не заповнені норми робочого часу';
@@ -104,7 +104,7 @@ $lang{VACATION}='Відпустка';
 
 $lang{MOVING_BETWEEN_CASHBOXES}='Переміщення між касами';
 $lang{MOVING}='Переміщення';
-$lang{TYPE_IN_MOVING_TYPE} = 'Тип перміщення між касами';
+$lang{TYPE_IN_MOVING_TYPE} = 'Тип переміщення між касами';
 $lang{ALL_SALARY} = 'Виплатити';
 
 $lang{TICKET_WORKS} = 'Роботи по заявці';

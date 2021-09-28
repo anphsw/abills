@@ -12,7 +12,7 @@ use warnings;
 our (
   $begin_time,
   %FORM,
-  %LANG,
+#  %LANG,
   $DATE,
   $TIME,
   $CHARSET,
@@ -31,6 +31,7 @@ BEGIN {
   unshift(@INC, $libpath);
   unshift(@INC, $libpath . 'libexec/');
   unshift(@INC, $libpath . 'lib/');
+  unshift(@INC, $libpath . 'Abills/');
 
   unshift(@INC, '/usr/abills/');
   unshift(@INC, '/usr/abills/Abills/');
@@ -60,7 +61,7 @@ use Paysys;
 use Finance;
 use Admins;
 use Customers;
-require Paysys::Configure;
+use Paysys::Init;
 
 our $html = Abills::HTML->new();
 our $db   = Abills::SQL->connect($conf{dbtype},
@@ -82,7 +83,6 @@ my $Users     = Users->new($db, $admin, \%conf);
 my $debug     = 0;
 my $error_str = '';
 
-
 do "Abills/Misc.pm";
 
 #Arguments
@@ -101,8 +101,8 @@ if ($argv->{DEBUG}) {
 my DBI $db_ = $db->{db};
 
 do "language/$conf{default_language}.pl";
-
-do('Abills/modules/Paysys/Paysys_Base.pm');
+do 'Paysys/lng_'.$conf{default_language}.'.pl';
+require Paysys::Paysys_Base;
 
 $DATE = $argv->{DATE} if ($argv->{DATE});
 
@@ -115,33 +115,31 @@ if ($argv->{PLUGIN}) {
   }
 }
 elsif ($argv->{TYPE}) {
-  if (defined($argv->{EMAIL_CHECK})) {
+  my $operation_type = $argv->{TYPE};
+
+  if ($argv->{EMAIL_CHECK}) {
     paysys_import_pop3();
   }
   elsif ($argv->{FTP_CHECK}) {
     paysys_import_ftp();
   }
-  elsif ($argv->{TYPE} eq 'PAYMENTS' || $argv->{TYPE} eq 'CANCEL_PAYMENTS' || $argv->{TYPE} eq 'AUTO') {
+  elsif ($operation_type eq 'PAYMENTS' || $operation_type eq 'CANCEL_PAYMENTS' || $operation_type eq 'AUTO') {
     paysys_import_payments_cons();
   }
-  elsif ($argv->{TYPE} eq 'FEES') {
+  elsif ($operation_type eq 'FEES') {
     paysys_import_fees_cons();
   }
-  elsif ($argv->{TYPE} eq 'ERIPT') {
+  elsif ($operation_type eq 'ERIPT') {
     eript_202();
   }
 }
-elsif($argv->{MAIL} && $argv->{MAIL} ne '') {
-  if($conf{PAYSYS_NEW_SCHEME}){
-    my $module = 'Bss.pm';
-    my $REQUIRE_OBJECT = _configure_load_payment_module($module);
-    my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
+elsif($argv->{MAIL}) {
+  my $module = 'Bss.pm';
+  my $paysys_plugin = _configure_load_payment_module($module);
+  my $Paysys_plugin = $paysys_plugin->new($db, $admin, \%conf, {
+    USER => $Users, DATE => $DATE, lang => \%lang });
 
-    $PAYSYS_OBJECT->get_users_list({MAIL => $argv->{MAIL}});
-  }
-  else{
-      bss_users_list();
-  }
+  $Paysys_plugin->get_users_list({ MAIL => $argv->{MAIL} });
 }
 elsif($argv->{TYME}){
   tyme_import();
@@ -312,12 +310,14 @@ sub paysys_import_form_cons {
       if ($operation_type eq 'PAYMENTS') {
         my $ext_id = '';
         if ($debug < 6) {
-          if (!$DATA_ARR->[$i]->{DATE} && $DATA_ARR->[$i]->{DATE_DMY}) {
-            $DATA_ARR->[$i]->{DATE_DMY} =~ /(\d{2})(\d{2})(\d{4})/;
-            $DATA_ARR->[$i]->{DATE} = "$3-$2-$1";
-          }
+          $DATA_ARR->[$i]->{DATE} = date_convert($DATA_ARR->[$i]->{DATE}, { DATE_DMY => $DATA_ARR->[$i]->{DATE_DMY}  });
+
           my $method = $DATA_ARR->[$i]->{PAYMENT_METHOD} || $argv->{METHOD} || 2;
           $ext_id = $DATA_ARR->[$i]->{EXT_ID} || "$DATA_ARR->[$i]->{DATE}_$FORM{IMPORT_TYPE}.$ID";
+
+          if (! $DATA_ARR->[$i]->{TIME}) {
+            $DATA_ARR->[$i]->{TIME}=$TIME;
+          }
 
           $Payments->add(
             $user,
@@ -338,20 +338,10 @@ sub paysys_import_form_cons {
             $bss_date = $DATA_ARR->[$i]->{DATE};
             if($conf{PAYSYS_NEW_SCHEME}){
               my $module = 'Bss.pm';
-              my $REQUIRE_OBJECT = _configure_load_payment_module($module);
-              my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {USERS => $Users, DATE => $DATE});
+              my $paysysy_plugin = _configure_load_payment_module($module);
+              my $Paysys_plugin = $paysysy_plugin->new($db, $admin, \%conf, {USERS => $Users, DATE => $DATE});
 
-              $PAYSYS_OBJECT->bss_log({
-                AFTER_PAYMENT  =>1,
-                UID     => $user->{UID},
-                SUM     => $DATA_ARR->[$i]->{SUM},
-                DATE    => $DATA_ARR->[$i]->{DATE},
-                EXT_ID  => $ext_id,
-                STATUS  => 1
-              });
-            }
-            else{
-              bss_log({
+              $Paysys_plugin->bss_log({
                 AFTER_PAYMENT  =>1,
                 UID     => $user->{UID},
                 SUM     => $DATA_ARR->[$i]->{SUM},
@@ -363,12 +353,12 @@ sub paysys_import_form_cons {
           }
           elsif($Payments->{errno} && $argv->{METHOD} && $argv->{METHOD}==113){
             $bss_date = $DATA_ARR->[$i]->{DATE};
-            if($conf{PAYSYS_NEW_SCHEME}){
+            #if($conf{PAYSYS_NEW_SCHEME}){
               my $module = 'Bss.pm';
-              my $REQUIRE_OBJECT = _configure_load_payment_module($module);
-              my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
+              my $paysysy_plugin = _configure_load_payment_module($module);
+              my $Paysysy_plugin = $paysysy_plugin->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
 
-              $PAYSYS_OBJECT->bss_log({
+              $Paysysy_plugin->bss_log({
                 AFTER_PAYMENT  =>1,
                 UID     => $user->{UID},
                 SUM     => $DATA_ARR->[$i]->{SUM},
@@ -376,17 +366,17 @@ sub paysys_import_form_cons {
                 EXT_ID  => $ext_id,
                 STATUS  => 2
               });
-            }
-            else{
-              bss_log({
-                AFTER_PAYMENT  =>1,
-                UID     => $user->{UID},
-                SUM     => $DATA_ARR->[$i]->{SUM},
-                DATE    => $DATA_ARR->[$i]->{DATE},
-                EXT_ID  => $ext_id,
-                STATUS  => 2
-              });
-            }
+            # }
+            # else{
+            #   bss_log({
+            #     AFTER_PAYMENT  =>1,
+            #     UID     => $user->{UID},
+            #     SUM     => $DATA_ARR->[$i]->{SUM},
+            #     DATE    => $DATA_ARR->[$i]->{DATE},
+            #     EXT_ID  => $ext_id,
+            #     STATUS  => 2
+            #   });
+            # }
           }
         }
 
@@ -420,7 +410,6 @@ sub paysys_import_form_cons {
               DATE           => $DATA_ARR->[$i]->{DATE} || undef,
               INNER_DESCRIBE => $inner_describe,
               METHOD         => $DATA_ARR->[$i]->{PAYMENT_METHOD} || $argv->{METHOD},
-
               #    EXT_ID       => "$DATA_ARR->[$i]->{DATE}.$FORM{IMPORT_TYPE}.$ID",
               #    CHECK_EXT_ID => "$DATA_ARR->[$i]->{DATE}.$FORM{IMPORT_TYPE}.$ID"
             }
@@ -432,7 +421,7 @@ sub paysys_import_form_cons {
           $error     = 1;
         }
       }
-      elsif ($argv->{TYPE} eq 'CANCEL_PAYMENTS') {
+      elsif ($operation_type eq 'CANCEL_PAYMENTS') {
         my @payments_arr = ();
         for (my $num = 0 ; $num <= $#{$DATA_ARR} ; $num++) {
           #my $ID = $DATA_ARR->[$num]->{PAYSYS_EXT_ID} || $i;
@@ -449,7 +438,7 @@ sub paysys_import_form_cons {
         my $payment_list = $Payments->list(
           {
             EXT_ID    => join(';', @payments_arr),
-            PAGE_ROWS => 1000000,
+            PAGE_ROWS => 10000000,
             COLS_NAME => 1
           }
         );
@@ -488,24 +477,25 @@ sub paysys_import_form_cons {
   ADDED: $total_added_count SUM: $total_added_sum\n" if ($debug > 0);
 
   if($argv->{METHOD} && $argv->{METHOD} == 113){
-    my $list_of_sums = $Paysys->bss_sum_list({DATE => $bss_date, COLS_NAME => 1,});
+    my $list_of_sums = $Paysys->bss_sum_list({ DATE => $bss_date, COLS_NAME => 1,});
 
     if($list_of_sums->[0]){
       $Paysys->bss_sum_change({
-        DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $bss_date,
+        DATE          => ($argv->{BSS_DATE}) ? $argv->{BSS_DATE} : $bss_date,
         LOCAL_STD_SUM => ($list_of_sums->[0]->{local_std_sum} + $total_added_sum),
         # LOCAL_STD_SUM => $total_added_sum,
-        STD_COUNT => ($list_of_sums->[0]->{std_count} + $total_added_count)
+        STD_COUNT     => ($list_of_sums->[0]->{std_count} + $total_added_count)
       });
     }
     else{
       $Paysys->bss_sum_add({
-        DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $bss_date,
-        LOCAL_STD_SUM => $total_added_sum, STD_COUNT => $total_added_count
+        DATE          => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $bss_date,
+        LOCAL_STD_SUM => $total_added_sum,
+        STD_COUNT     => $total_added_count
       });
     }
 
-    sendmail("$conf{ADMIN_MAIL}", "$conf{ADMIN_MAIL}", "BSS Отчет за " . ($bss_date || $argv->{BSS_DATE} || ''), "TOTAL: $total_count\nSUM: $total_sum\n ADDED: $total_added_count\n SUM: $total_added_sum\n", "$conf{MAIL_CHARSET}", "2 (High)");
+    sendmail($conf{ADMIN_MAIL}, $conf{ADMIN_MAIL}, "BSS Отчет за " . ($bss_date || $argv->{BSS_DATE} || ''), "TOTAL: $total_count\nSUM: $total_sum\n ADDED: $total_added_count\n SUM: $total_added_sum\n", "$conf{MAIL_CHARSET}", "2 (High)");
   }
 
   if ($error_str) {
@@ -561,14 +551,13 @@ sub paysys_import_payments_cons {
       }
     close($fh);
 
-    paysys_import_form_cons(
-    {
+    paysys_import_form_cons({
       TYPE         => $argv->{TYPE},
       IMPORT_RULE  => $argv->{IMPORT_RULE},
       IMPORT_RULES => $conf{PAYSYS_IMPORT_RULES},
       CONTENT      => $content
-    }
-    );
+    });
+
     if ($debug < 5) {
       if ($argv->{BACKUP_FILES} && -d $argv->{BACKUP_FILES}) {
         `cp $filename_ $argv->{BACKUP_FILES}`;
@@ -607,7 +596,7 @@ sub paysys_import_pop3 {
   foreach my $mailbox (@mailboxes) {
     my ($host, $username, $password) = split(/:/, $mailbox, 3);
 
-    my $pop = Net::POP3->new($host, Timeout => 60);
+    my $pop = Net::POP3->new($host, Timeout => 60, SSL => $argv->{SSL} || 0);
     if (!$pop) {
       print "POP3 Error: Can't connect '$host' $!\n";
       exit;
@@ -623,10 +612,10 @@ sub paysys_import_pop3 {
         #my $uidl    = $pop->uidl($msgnum);
         my $msg     = $pop->get($msgnum);
         my $full_message = join('', @$msg);
-        my ($header, $message) = split(/\n\n/, $full_message, 2);
+        my ($header, $message) = split(/\r?\n\r?\n/, $full_message, 2);
 
         # Parse header
-        my @lines      = split(/\n/, $header);
+        my @lines      = split(/\r?\n/, $header);
         my $boundary   = '';
         my $date       = '';
         my $subject    = '';
@@ -657,9 +646,9 @@ sub paysys_import_pop3 {
           foreach my $part (@parts) {
             my $encoding = '';
 
-            my ($part_header, $part_body) = split(/\n\n/, $part, 2);
+            my ($part_header, $part_body) = split(/\r?\n\r?\n/, $part, 2);
             @lines = ();
-            @lines = split(/\n/, $part_header) if ($part_header);
+            @lines = split(/\r?\n/, $part_header) if ($part_header);
             foreach my $line (@lines) {
               if ($line =~ /filename="(.+)"/i) {
                 $filename = $1;
@@ -668,7 +657,7 @@ sub paysys_import_pop3 {
                 my $coded_filename = $1;
                 ($coded_filename) = $coded_filename =~ /\?UTF-8\?B\?(.+)?/;
 
-                $filename = decode_base64("$coded_filename");
+                $filename = decode_base64($coded_filename);
               }
               elsif ($line =~ /Content-Transfer-Encoding: (.+)/i) {
                 $encoding = $1;
@@ -678,7 +667,6 @@ sub paysys_import_pop3 {
             if ($encoding eq 'base64') {
               $content .= "\n" . decode_base64($part_body);
             }
-
           }
         }
         else {
@@ -692,25 +680,17 @@ sub paysys_import_pop3 {
         # BSS paysys
         my $delete_this_message = 0;
         my $do_not_import_content = 0;
-        if($argv->{METHOD} == 113){
+        if($argv->{METHOD} && $argv->{METHOD} == 113){
           $content = convert($content, {cp8662utf8 => 1});
-          @lines = split('\n', $content);    # split content per lane
-          $content = '';
-          if($conf{PAYSYS_NEW_SCHEME}){
-            my $module = 'Bss.pm';
-            my $REQUIRE_OBJECT = _configure_load_payment_module($module);
-            my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
+          @lines = split('\r?\n', $content);    # split content per lane
 
-            ($content, $delete_this_message, $do_not_import_content) = $PAYSYS_OBJECT->bss_content_parse(\@lines, {
-                FILE_NAME => $filename,
-              });
-          }
-          else{
-            print "$filename \n";
-            ($content, $delete_this_message, $do_not_import_content) = bss_content_parse(\@lines, {
-                FILE_NAME => $filename,
-              });
-          }
+          my $module = 'Bss.pm';
+          my $paysys_plugin = _configure_load_payment_module($module);
+          my $Plugin = $paysys_plugin->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
+
+          ($content, $delete_this_message, $do_not_import_content) = $Plugin->bss_content_parse(\@lines, {
+              FILE_NAME => $filename,
+          });
 
           if ($delete_this_message) {
             print "Marking to delete this message\n";
@@ -719,17 +699,14 @@ sub paysys_import_pop3 {
           }
         }
 
-        my $check = paysys_import_form_cons(
-            {
-              TYPE         => $argv->{TYPE},
-              IMPORT_RULE  => $argv->{IMPORT_RULE},
-              IMPORT_RULES => $conf{PAYSYS_IMPORT_RULES},
-              CONTENT      => $content,
-            }
-          );
+        my $check = paysys_import_form_cons({
+          TYPE         => $argv->{TYPE},
+          IMPORT_RULE  => $argv->{IMPORT_RULE},
+          IMPORT_RULES => $conf{PAYSYS_IMPORT_RULES},
+          CONTENT      => $content,
+        });
 
-        if ( $check )
-        {
+        if ( $check ) {
           $pop->delete($msgnum);
           print "Delete\n" if ($debug == 1);
         }
@@ -748,7 +725,7 @@ sub paysys_import_pop3 {
         }
       }
 
-    $pop->quit();
+      $pop->quit();
     }
     else {
       print "POP3 Error: Wrong login or password $!\n";
@@ -889,9 +866,9 @@ sub paysys_import_ftp {
 #**********************************************************
 # Main iport  parser
 #**********************************************************
-sub paysys_import {
-
-}
+# sub paysys_import {
+#
+# }
 
 #**********************************************************
 =head2 help() - show manual
@@ -1060,449 +1037,6 @@ sub eript_202 {
   }
 
   return 1;
-}
-
-#***********************************************************
-=head2 bss_users_list() - send users list to email
-
-  Attributes:
-
-  Returns:
-    true
-
-  Examples:
-    bss_users_list();
-=cut
-#***********************************************************
-sub bss_users_list {
-  #my ($attr) = @_;
-
-  my $code = $conf{PAYSYS_BSS_CODE} || q{};  # your code
-  my $users_data = '';                            # users data for file
-  $Users->{debug}=1 if ($debug > 7);
-  my $list = $Users->list(
-    {
-      FIO              => '_SHOW',
-      UID              => '_SHOW',
-      LOGIN            => '_SHOW',
-      CONTRACT_ID      => '_SHOW',
-      DEPOSIT          => '_SHOW',
-      ADDRESS_STREET_2 => '_SHOW',
-      ADDRESS_BUILD    => '_SHOW',
-      ADDRESS_FLAT     => '_SHOW',
-      #$BINDING_FIELD  => "$ids",
-      PAGE_ROWS        => 1000000,
-      COLS_NAME        => 1
-    }
-  );
-
-  my $Dv;
-  if(in_array('Dv', \@MODULES)){
-    use Dv;
-    $Dv = Dv->new($db, $admin, \%conf);
-  }
-
-  foreach my $user (@$list) {
-    my $monthly_abon = 0;  #monthly abon
-    if(in_array('Dv', \@MODULES)) {
-      my $dv_user_info = $Dv->info($user->{uid});
-
-      if (($dv_user_info->{errstr} && $dv_user_info->{errstr} eq 'ERROR_NOT_EXIST') || $dv_user_info->{DISABLE} == 2) {
-        next;
-      }
-
-      if($dv_user_info->{MONTHLY_ABON}){
-        $monthly_abon = $dv_user_info->{MONTHLY_ABON};
-      }
-    }
-
-    $user->{fio}=~s/\s/ /g;
-    $user->{fio}=~s/(\h+)$//g;
-    my $build_number;
-    my $build_drob = '';
-
-    #my ($build_number, $build_drob) = split("/",$user->{address_build}); # get a build number with a letter & build drob
-    if( $user->{address_build} && $user->{address_build} =~ /\// ){
-      ($build_number, $build_drob) = split('/', $user->{address_build});
-    }
-    elsif( $user->{address_build} && $user->{address_build} =~ /\\+/ ){
-      # ($build_number, $build_drob) = split('\\\\', $user->{address_build});
-      $user->{address_build} =~ s/\\+/\//;
-      ($build_number, $build_drob) = split('/', $user->{address_build});
-    }
-    else{
-      $build_number = $user->{address_build} || 0;
-    }
-
-    my $build_digit = 0;
-    my $build_letter;
-
-    if($build_number =~ /[A-za-z]$/){
-      $build_letter = substr($build_number, -1);
-      if($build_letter eq 'A' || $build_letter eq 'a'){
-        $build_digit = 1;
-        $build_number = substr($build_number, 0, length($build_number) - 1);
-      }
-    }
-    elsif($build_number =~ /[А-Яа-я]$/){
-      $build_letter = substr($build_number, -2);
-      if($build_letter eq 'А' || $build_letter eq 'а'){
-        $build_digit = 1;
-      }
-      elsif($build_letter eq 'Б' || $build_letter eq 'б'){
-        $build_digit = 2;
-      }
-      elsif($build_letter eq 'В' || $build_letter eq 'в'){
-        $build_digit = 3;
-      }
-      elsif($build_letter eq 'Г' || $build_letter eq 'г'){
-        $build_digit = 4;
-      }
-      elsif($build_letter eq 'Д' || $build_letter eq 'д'){
-        $build_digit = 5;
-      }
-      elsif($build_letter eq 'Е' || $build_letter eq 'е'){
-        $build_digit = 6;
-      }
-      elsif($build_letter eq 'Ж' || $build_letter eq 'ж'){
-        $build_digit = 7;
-      }
-      elsif($build_letter eq 'З' || $build_letter eq 'з'){
-        $build_digit = 8;
-      }
-      elsif($build_letter eq 'И' || $build_letter eq 'и'){
-        $build_digit = 9;
-      }
-      elsif($build_letter eq 'Й' || $build_letter eq 'й'){
-        $build_digit = 10;
-      }
-      elsif($build_letter eq 'К' || $build_letter eq 'к'){
-        $build_digit = 11;
-      }
-      elsif($build_letter eq 'Л' || $build_letter eq 'л'){
-        $build_digit = 12;
-      }
-      elsif($build_letter eq 'М' || $build_letter eq 'м'){
-        $build_digit = 13;
-      }
-      elsif($build_letter eq 'Н' || $build_letter eq 'н'){
-        $build_digit = 14;
-      }
-      elsif($build_letter eq 'О' || $build_letter eq 'о'){
-        $build_digit = 15;
-      }
-      elsif($build_letter eq 'П' || $build_letter eq 'п'){
-        $build_digit = 16;
-      }
-      elsif($build_letter eq 'Р' || $build_letter eq 'р'){
-        $build_digit = 17;
-      }
-      $build_number = substr($build_number, 0, length($build_number) - 2);
-    }
-    else{
-      $build_digit = 0;
-    }
-
-    # if build doesnt have a drob
-    if(!($build_drob =~ /^\d+?$/)){
-      $build_drob = 0;
-    }
-
-    my $flat_digit  = 0; # flat digit
-    my $flat_number;
-    my $flat_letter = '';
-    if($user->{address_flat} =~ /[A-za-z]$/){
-      $flat_letter = substr($user->{address_flat}, -1);
-      if($flat_letter eq 'A' || $flat_letter eq 'a'){
-        $flat_digit = 1;
-        $flat_number = substr($user->{address_flat}, 0, length($user->{address_flat}) - 1);
-      }
-    }
-    elsif($user->{address_flat} =~ /[А-Яа-я]$/){
-      $flat_letter = substr($user->{address_flat}, -2);
-       if($flat_letter eq 'А' || $flat_letter eq 'а'){
-        $flat_digit = 1;
-      }
-      elsif($flat_letter eq 'Б' || $flat_letter eq 'б'){
-        $flat_digit = 2;
-      }
-      elsif($flat_letter eq 'В' || $flat_letter eq 'в'){
-        $flat_digit = 3;
-      }
-      elsif($flat_letter eq 'Г' || $flat_letter eq 'г'){
-        $flat_digit = 4;
-      }
-      elsif($flat_letter eq 'Д' || $flat_letter eq 'д'){
-        $flat_digit = 5;
-      }
-      elsif($flat_letter eq 'Е' || $flat_letter eq 'е'){
-        $flat_digit = 6;
-      }
-      $flat_number = substr($user->{address_flat}, 0, length($user->{address_flat}) - 2);
-    }
-    else{
-      $flat_number = $user->{address_flat} || 0;
-    }
-    $user->{address_street_2} = $user->{address_street_2} || '';
-    $users_data .= qq{"$user->{uid}","$code","$user->{fio}","$user->{address_street_2}","$build_number","$build_digit","$build_drob","$flat_number","$flat_digit","1","}. sprintf('%.2f',$user->{deposit}) . qq{","} . sprintf('%.2f', $monthly_abon) . qq{","0","I"\n};
-
-#    print qq{"$user->{uid}","$code","$user->{fio}","$user->{address_street_2}","$build_number","$build_digit","$build_drob","$flat_number","$flat_digit","0","0","}. sprintf('%.2f',$user->{deposit}) . qq{","} . sprintf('%.2f', $monthly_abon) . qq{","0","I"\n};
-  }
-
-
-  $users_data = convert($users_data, { utf82cp866 => 1 });
-
-  if( -d "$conf{TPL_DIR}/BSS"){
-    if( open(my $fh, '+>', "$conf{TPL_DIR}/BSS/$conf{PAYSYS_BSS_CODE}.dat") ) {
-      print $fh $users_data;
-      close($fh);
-    }
-  }
-  else{
-    mkdir "$conf{TPL_DIR}/BSS", 777;
-    if( open(my $fh, '+>', "$conf{TPL_DIR}/BSS/$conf{PAYSYS_BSS_CODE}.dat") ) {
-      print $fh $users_data;
-      close($fh);
-    }
-  }
-
-  my $message_body = "Список пользователей $conf{PAYSYS_BSS_ORGANIZATION}";
-
-  sendmail("$conf{ADMIN_MAIL}",
-           "$argv->{MAIL}",
-            $conf{PAYSYS_BSS_ORGANIZATION},
-            $message_body,
-            $conf{MAIL_CHARSET},
-            "0",
-            {
-              ATTACHMENTS => [{
-                                CONTENT      => $users_data,
-                                CONTENT_TYPE => 'Content-type: application/txt',
-                                FILENAME     => "$conf{PAYSYS_BSS_CODE}.dat",
-                              }]
-            });
-  return 1;
-}
-
-
-#**********************************************************
-=head2 bss_log($attr)
-
-  Arguments:
-
-
-  Returns:
-
-=cut
-#**********************************************************
-sub bss_log {
-  my ($attr) = @_;
-
-  if ($attr->{NST_OPL}) {
-    #$attr->{NST_OPL} = convert($attr->{NST_OPL}, { cp8662utf8 => 1 });
-
-    my %BUILDS_LETTERS = (1 => "А", 2 => "Б", 3 => "В", 4 => "Г", 5 => "Д", 6 => "Е");
-    # ($uid, $sum, $date, $code, $fio, $street_sn, $build, $flat, $ext_id)
-    my ($uid, $sum, $date, undef, $fio, $street_sn, $build, $flat, $ext_id) = $attr->{NST_OPL} =~ /^!"(\d+|)","(\d+|\d+[.]\d+)","(\d+)","(\d+)","(.+)","(\d+)","(.+)","(.+)","(\d+)"/;
-    use Address;
-    my $address = Address->new($db, $admin, \%conf);
-    my $street_info = $address->street_list({ COLS_NAME => 1, STREET_NAME => '_SHOW', SECOND_NAME => $street_sn });
-
-    if ($build =~ /-/) {
-      my ($num, $letter_num) = split('-', $build);
-      $build = $num . "" . $BUILDS_LETTERS{$letter_num};
-    }
-
-    if ($flat =~ /-/) {
-      my ($num, $letter_num) = split('-', $flat);
-      $flat = $num . "" . $BUILDS_LETTERS{$letter_num};
-    }
-
-    my $user_info = $Users->list(
-      {
-        COLS_NAME      => 1,
-        FIO            => '_SHOW',
-        ADDRESS_STREET => $street_info->[0]->{street_name},
-        ADDRESS_FLAT   => $flat,
-        ADDRESS_BUILD  => $build
-      }
-    );
-
-    if ($#{$user_info} == 0) {
-      my $status = 3;
-      if ($user_info->[0]->{uid} != $uid) {
-        $uid    = $user_info->[0]->{uid};
-        $status = 4;
-      }
-      $Paysys->bss_add(
-        {
-          UID         => $uid,
-          SUM         => $sum,
-          DATE        => $date,
-          EXT_ID      => $ext_id,
-          ADDRESS     => "$street_info->[0]->{street_name} $build, $flat",
-          FIO         => $fio,
-          STATUS      => $status,
-          DESCRIPTION => "Услуги связи от $fio.\nЛицевой счет $uid.\nПо адресу $street_info->[0]->{street_name} $build, $flat\n"
-        }
-      );
-    }
-    elsif ($#{$user_info} == -1) {
-      my $user_info_by_fio = $Users->list(
-        {
-          COLS_NAME      => 1,
-          FIO            => $fio,
-          ADDRESS_STREET => $street_info->[0]->{street_name},
-          ADDRESS_FLAT   => '_SHOW',
-          ADDRESS_BUILD  => '_SHOW'
-        }
-      );
-
-      my $status = 5;
-      if ($#{$user_info_by_fio} == 0) {
-        if ($user_info_by_fio->[0]->{uid} != $uid) {
-          $uid    = $user_info_by_fio->[0]->{uid};
-          $status = 4;
-        }
-      }
-
-      $Paysys->bss_add(
-        {
-          UID         => $uid ? $uid : '',
-          SUM         => $sum,
-          DATE        => $date,
-          EXT_ID      => $ext_id,
-          ADDRESS     => "$street_info->[0]->{street_name} $build, $flat",
-          FIO         => $fio,
-          STATUS      => $status,
-          DESCRIPTION => "Услуги связи от $fio.\nЛицевой счет $uid.\nПо адресу $street_info->[0]->{street_name} $build, $flat\n"
-        }
-      );
-    }
-  }
-  elsif ($attr->{AFTER_PAYMENT}) {
-    my $user_pi = $Users->pi({ UID => $attr->{UID} });
-    $Paysys->bss_add(
-      {
-        UID         => $attr->{UID},
-        SUM         => $attr->{SUM},
-        DATE        => $attr->{DATE},
-        EXT_ID      => $attr->{EXT_ID},
-        ADDRESS     => $user_pi->{ADDRESS_FULL},
-        FIO         => $user_pi->{FIO},
-        STATUS      => $attr->{STATUS},
-        DESCRIPTION => "Услуги связи от $user_pi->{FIO}.\nЛицевой счет $attr->{UID}.\nПо адресу $user_pi->{ADDRESS_FULL}\n"
-      }
-    );
-  }
-
-  return 1;
-}
-
-#**********************************************************
-=head2 bss_content_parse()
-
-  Arguments:
-     -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub bss_content_parse {
-  my ($lines, $attr) = @_;
-  my $filename = $attr->{FILE_NAME};
-  my $content = $attr->{CONTENT} || '';
-
-  my $nst_content;
-  my $total_sum_day      = 0;
-  my $go_to_next_message = 0;
-  my $delete_message     = 0;
-
-  foreach my $line (@$lines) {
-    next if $line eq '';
-
-    if ($line =~ /^"\d+/) {
-      print "Standart payment line\n$line\n\n" if ($debug > 1);
-
-      my ($uid) = $line =~ /"(\d+)","\d+|\d+[.]\d+","\d+","\d+","","","\d+"/;
-      my $user_pi = $Users->pi({ UID => $uid });
-      my $comment = "Услуги связи от $user_pi->{FIO}. Лицевой счет $uid. По адресу $user_pi->{ADDRESS_FULL}";
-      $content .= $line .
-        ",\"$comment\"" .
-        "\n";
-
-      $delete_message = 1;
-    }
-    elsif ($line =~ /^!/) {
-      print "Not Standart payment line\n$line\n\n" if ($debug > 1);
-
-      $nst_content .= $line . "\n";
-      if($conf{PAYSYS_NEW_SCHEME}){
-        my $module = 'Bss.pm';
-        my $REQUIRE_OBJECT = _configure_load_payment_module($module);
-        my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {USER => $Users, DATE => $DATE});
-
-        $PAYSYS_OBJECT->bss_log({ NST_OPL => $line });
-      }
-      else{
-        bss_log({ NST_OPL => $line });
-      }
-
-      $delete_message     = 1;
-      $go_to_next_message = 1;
-    }
-    elsif ($line =~ /^\*"(\d+.\d+)",/ || $line =~ /^\*"(\d+)",/) {
-      $total_sum_day = $1;
-      my ($sum_date) = $filename =~ /sum_(.+).\d+/;
-
-      my ($year, undef, undef) = split('-', $DATE);
-      my ($day, $month) = $sum_date =~ /(\d{2})(\d{2})/;
-      $sum_date = "$year-$month-$day";
-      # $Paysys->bss_sum_delete({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date});
-      my $list_of_sums = $Paysys->bss_sum_list({ DATE => $sum_date, COLS_NAME => 1 });
-
-      print "Total sum day - $total_sum_day; Date - $sum_date \n" if ($debug > 1);
-
-      if ($list_of_sums->[0]) {
-        print "Total sum changed.\n" if ($debug > 1);
-        # OLD CODE
-        #$Paysys->bss_sum_change({DATE => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date, BANK_STD_SUM => $total_sum_day});
-
-        if ($list_of_sums->[0]->{bank_std_sum} == $total_sum_day || $total_sum_day == 0) {
-        }
-        else {
-          $Paysys->bss_sum_change({
-            DATE         => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date,
-            BANK_STD_SUM => $total_sum_day
-          });
-        }
-      }
-      else {
-        print "Total sum added\n" if ($debug > 1);
-        $Paysys->bss_sum_add({
-          DATE         => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $sum_date,
-          BANK_STD_SUM => $total_sum_day
-        });
-      }
-
-      $delete_message     = 1;
-      $go_to_next_message = 1;
-    }
-    elsif ($line =~ /^Нестандартные : (\d+.\d+)/) {
-      print "Total sum for not standart payments\n" if ($debug > 1);
-
-      $total_sum_day = $1;
-      $Paysys->bss_sum_change({
-        DATE          => $argv->{BSS_DATE} ? $argv->{BSS_DATE} : $DATE,
-        BANK_NSTD_SUM => $total_sum_day });
-
-      $delete_message     = 1;
-      $go_to_next_message = 1;
-    }
-
-  }
-  return $content, $delete_message, $go_to_next_message;
 }
 
 #**********************************************************

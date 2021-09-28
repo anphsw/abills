@@ -10,11 +10,11 @@
                 _{COMPENSATION}_
             </h4>
         </div>
-        <div class="card-body">
+        <div class='card-body'>
 
-            <div class="form-group">
-                <label class="control-label col-md-4 col-sm-3">_{SERVICE}_:</label>
-                <div class="col-md-8 col-sm-9">
+            <div class='form-group row'>
+                <label class='control-label col-md-4 col-sm-3'>_{SERVICE}_:</label>
+                <div class='col-md-8 col-sm-9'>
                     %SERVICE%
                 </div>
             </div>
@@ -22,7 +22,7 @@
             %ADDRESS_FORM%
 
             <div class='col-md-12 col-sm-12'>
-                <input type="submit" class="btn btn-primary col-md-12 col-sm-12" name="COMPENSATION" value="_{COMPENSATION}_">
+                <input type='submit' class='btn btn-primary col-md-12 col-sm-12' name='COMPENSATION' value='_{COMPENSATION}_'>
             </div>
         </div>
     </div>

@@ -3,6 +3,8 @@
     <input type=hidden name='DOMAIN_ID' value='%DOMAIN_ID%'>
     <input type=hidden name='PHONE' value='%PHONE%'>
     <input type=hidden name='mac' value='%mac%'>
+    <input type=hidden name='server_name' value='%server_name%'>
+    <input type=hidden name='link_login_only' value='%link_login_only%'>
 
     <fieldset>
         <div class='card card-primary card-outline'>

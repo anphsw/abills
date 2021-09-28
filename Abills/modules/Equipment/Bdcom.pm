@@ -8,8 +8,14 @@ use strict;
 use warnings;
 use Abills::Base qw(in_array);
 use Abills::Filters qw(bin2mac _mac_former dec2hex);
-our %lang;
-our %ONU_STATUS_TEXT_CODES;
+use Equipment::Misc qw(equipment_get_telnet_tpl);
+
+our (
+  %lang,
+  $html,
+  %conf,
+  %ONU_STATUS_TEXT_CODES
+);
 
 #**********************************************************
 =head2 _bdcom_get_ports($attr) - Get OLT slots and connect ONU
@@ -29,7 +35,7 @@ sub _bdcom_get_ports {
     %{$attr},
     TIMEOUT   => 5,
     VERSION   => 2,
-    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT'
+    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT,PORT_IN_ERR,PORT_OUT_ERR'
   });
 
   foreach my $key (keys %{$ports_info}) {
@@ -348,6 +354,13 @@ sub _bdcom {
         PARSER => '',
         WALK   => 1
       },
+      'catv_port_manage'    => {
+        NAME               => '',
+        OIDS               => '1.3.6.1.4.1.3320.101.10.30.1.2',
+        ENABLE_VALUE       => 1,
+        DISABLE_VALUE      => 2,
+        PARSER             => ''
+      },
       main_onu_info    => {
         'HARD_VERSION'     => {
           NAME   => 'VERSION',
@@ -369,6 +382,20 @@ sub _bdcom {
           OIDS   => '.1.3.6.1.4.1.3320.101.10.1.1.27',
           PARSER => '_bdcom_convert_distance_epon'
         }, #distance = distance * 0.001;
+        'CATV_PORTS_ADMIN_STATUS' => {
+          NAME   => 'CATV_PORTS_ADMIN_STATUS',
+          OIDS   => '1.3.6.1.4.1.3320.101.10.30.1.2',
+          PARSER => '_bdcom_convert_catv_port_admin_status',
+        },
+        'CATV_PORTS_COUNT' => {
+          NAME   => 'CATV_PORTS_COUNT',
+          OIDS   => '1.3.6.1.4.1.3320.101.10.3.1.15',
+        },
+        #'VIDEO_RX_POWER' => { #XXX is very slow, at least when there's no CATV port on ONU
+        #  NAME   => 'VIDEO_RX_POWER',
+        #  OIDS   => '1.3.6.1.4.1.3320.101.10.31.1.2',
+        #  PARSER => '_bdcom_convert_video_power'
+        #},
         'MAC_BEHIND_ONU'   => {
           NAME   => 'MAC_BEHIND_ONU',
           USE_MAC_LOG => 1
@@ -608,7 +635,7 @@ sub _bdcom {
     #    }
   );
 
-  if ($attr->{MODEL} && $attr->{MODEL} =~ /P3310C|P3310D|P3608|P3612-2TE|P3616-2TE/i) {
+  if ($attr->{MODEL} && $attr->{MODEL} =~ /OLT P3310|P3310C|P3310D|P3608|P3612-2TE|P3616-2TE/i) {
     $snmp{epon}->{OLT_RX_POWER}->{OIDS} = '.1.3.6.1.4.1.3320.101.108.1.3';
   }
 
@@ -947,6 +974,276 @@ sub _bdcom_get_fdb {
   }
 
   return %fdb_list;
+}
+
+#**********************************************************
+=head2 _bdcom_unregister($attr) - get unregistered (rejected) ONUs
+
+  Needed only when there are manual registration (gpon onu-authen-method sn, epon onu-authen-method mac)
+  Uses Telnet, because there are no known SNMP OIDs for unregistered data
+
+  Arguments:
+    $attr
+      NAS_INFO
+        NAS_MNG_USER
+        NAS_MNG_PASSWORD
+        NAS_MNG_IP_PORT
+        MODEL_NAME
+
+  Returns:
+    \@unregister - arrayref of unregistered ONUs:
+    [
+      {
+        pon_type   => ...
+        mac_serial => ...
+        branch     => ...
+      },
+      ...
+    ]
+
+=cut
+#**********************************************************
+sub _bdcom_unregister {
+  my ($attr) = @_;
+
+  if (!$conf{EQUIPMENT_BDCOM_ENABLE_ONU_REGISTRATION}) {
+    return [];
+  }
+
+  my $load_data = load_pmodule('Net::Telnet', { SHOW_RETURN => 1 });
+  if ($load_data) {
+    print "$load_data";
+    return [];
+  }
+
+  my $user_name = $attr->{NAS_INFO}->{NAS_MNG_USER};
+  my $password = $conf{EQUIPMENT_OLT_PASSWORD} || $attr->{NAS_INFO}->{NAS_MNG_PASSWORD};
+  my $enable_password = $conf{EQUIPMENT_BDCOM_ENABLE_PASSWORD} || $password;
+
+  my $Telnet = Net::Telnet->new(
+    Prompt  => '/.*(#|>)$/',
+    Timeout => 15,
+    Errmode => 'return'
+  );
+
+  my ($ip) = split(/:/, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT});
+
+  $Telnet->open(
+    Host => $ip
+  );
+
+  if ($Telnet->errmsg) {
+    print "Telnet error: " . $Telnet->errmsg;
+    return [];
+  }
+
+  $Telnet->login($user_name, $password);
+
+  if ($Telnet->errmsg) {
+    print "Telnet error: " . $Telnet->errmsg;
+    return [];
+  }
+
+  $Telnet->print('enable');
+  my ($waitfor_prematch, $waitfor_match) = $Telnet->waitfor(Match => '/(#|>)$/', String => 'password:');
+  if ($waitfor_match eq 'password:') {
+    $Telnet->print($enable_password);
+    ($waitfor_prematch, $waitfor_match) = $Telnet->waitfor('/.*(#|>)$/');
+  }
+
+  if ($waitfor_match =~ />$/) {
+    print "enable failed: $waitfor_prematch\n";
+    return [];
+  }
+
+  my @unregister = ();
+  if ($attr->{NAS_INFO}->{MODEL_NAME} =~ /\bGP/i) { #seems that model_name of GPON OLT always starts with GP
+    my @rejected_onus = $Telnet->cmd('show gpon onu-rejected-information');
+    foreach my $line (@rejected_onus) {
+      if ($line =~ /\d+\s+([0-9A-F]{16})\s+GPON(\d+\/\d+)/) {
+        push @unregister,
+          {
+            pon_type   => 'gpon',
+            mac_serial => $1,
+            branch     => $2
+          };
+      }
+    }
+  }
+  else { #EPON
+    my @rejected_onus = $Telnet->cmd('show epon rejected-onu');
+
+    my $current_branch = '';
+    foreach my $line (@rejected_onus) {
+      if ($line =~ /ONU rejected to register on interface EPON(\d+\/\d+):/) {
+        $current_branch = $1;
+      }
+      if ($line =~ /^\s*([0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4})\s*$/) {
+        my $mac_serial = $1;
+        $mac_serial =~ s/([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})\.([0-9a-f]{2})([0-9a-f]{2})/$1:$2:$3:$4:$5:$6/;
+        push @unregister,
+          {
+            pon_type   => 'epon',
+            mac_serial => $mac_serial,
+            branch     => $current_branch
+          };
+      }
+    }
+  }
+
+  if ($Telnet->errmsg) {
+    print "Telnet error: " . $Telnet->errmsg;
+    return [];
+  }
+
+  $Telnet->close();
+
+  return \@unregister;
+}
+
+#**********************************************************
+=head2 _bdcom_get_onu_config($attr) - Connect to OLT over telnet and get ONU config
+
+  Arguments:
+    $attr
+      NAS_INFO
+        NAS_MNG_IP_PORT
+        NAS_MNG_USER
+        NAS_MNG_PASSWORD
+      PON_TYPE
+      BRANCH
+      ONU_ID
+
+  Returns:
+    @result - array of [cmd, cmd_result]
+
+  commands (EPON):
+    enable
+    show running-config interface EPON %BRANCH%:%ONU_ID%
+
+  commands (GPON):
+    enable
+    show running-config interface GPON %BRANCH%:%ONU_ID%
+
+
+=cut
+#**********************************************************
+sub _bdcom_get_onu_config {
+  my ($attr) = @_;
+
+  my $pon_type = $attr->{PON_TYPE};
+  my $branch = $attr->{BRANCH};
+  my $onu_id = $attr->{ONU_ID};
+
+  my $username = $attr->{NAS_INFO}->{NAS_MNG_USER};
+  my $password = $conf{EQUIPMENT_OLT_PASSWORD} || $attr->{NAS_INFO}->{NAS_MNG_PASSWORD};
+  my $enable_password = $conf{EQUIPMENT_BDCOM_ENABLE_PASSWORD} || $password;
+
+  my ($ip, undef) = split (/:/, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT}, 2);
+
+  my @cmds = @{equipment_get_telnet_tpl({
+    TEMPLATE => "bdcom_get_onu_config_$pon_type.tpl",
+    BRANCH   => $branch,
+    ONU_ID   => $onu_id
+  })};
+
+  if (!@cmds) {
+    @cmds = @{equipment_get_telnet_tpl({
+      TEMPLATE => "bdcom_get_onu_config_$pon_type.tpl.example",
+      BRANCH   => $branch,
+      ONU_ID   => $onu_id
+    })};
+  }
+
+  if (!@cmds) {
+    return ([$lang{ERROR}, $lang{FAILED_TO_GET_TELNET_CMDS_FROM_FILE} . " bdcom_get_onu_config_$pon_type.tpl"]);
+  }
+
+  use Abills::Telnet;
+
+  my $t = Abills::Telnet->new();
+
+  $t->set_terminal_size(256, 1000); #if terminal size is small, BDCOM does not print all of command output, but prints first *terminal_height* lines, prints '--More--' and lets user scroll it manually
+  $t->prompt('\n.*(#|>)$');
+
+  if (!$t->open($ip)) {
+    $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
+    return ();
+  }
+
+  if (!$t->login($username, $password)) {
+    $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
+    return ();
+  }
+
+  my @result = ();
+
+  foreach my $cmd (@cmds) {
+    if ($cmd eq 'enable') {
+      $t->print('enable');
+      my $waitfor_prematch = $t->waitfor('(\n.*(#|>)$)|password:$');
+      my $waitfor_match = $t->{LAST_PROMPT};
+      if ($waitfor_match eq 'password:') {
+        $t->print($enable_password);
+        $waitfor_prematch = $t->waitfor('\n.*(#|>)$');
+        $waitfor_match = $t->{LAST_PROMPT};
+      }
+
+      if ($waitfor_match =~ />$/) {
+        return [$lang{ERROR}, "enable failed: " . join("\n", @$waitfor_prematch)];
+      }
+      next;
+    }
+
+    my $cmd_result = $t->cmd($cmd);
+    if ($cmd_result) {
+      push @result, [$cmd, join("\n", @$cmd_result)];
+    }
+    else {
+      push @result, [$cmd, $lang{ERROR} . ' Telnet: ' . $t->errstr()];
+    }
+  }
+
+  if ($t->errstr()) {
+    $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
+  }
+
+  return @result;
+}
+
+#**********************************************************
+=head2 _bdcom_convert_catv_port_admin_status($status_code);
+
+=cut
+#**********************************************************
+sub _bdcom_convert_catv_port_admin_status {
+  my ($status_code) = @_;
+
+  my $status = 'Unknown';
+
+  my %status_hash = (
+    1 => 'Enable',
+    2 => 'Disable',
+  );
+
+  if ($status_hash{ $status_code }) {
+    $status = $status_hash{ $status_code };
+  }
+
+  return $status;
+}
+
+#**********************************************************
+=head2 _bdcom_convert_video_power($video_power);
+
+=cut
+#**********************************************************
+sub _bdcom_convert_video_power {
+  my ($video_power) = @_;
+
+  return undef if (!defined $video_power || $video_power == 0);
+
+  return $video_power * 0.1;
 }
 
 1

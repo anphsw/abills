@@ -4,17 +4,14 @@
     <input type='hidden' name='language' value='ru'/>
     <div class='container-md'>
         <div class='card box-primary'>
-            <div class='card-header with-border text-center'>LiqPAY</div>
+            <div class='card-header with-border text-center'><img class='col-xs-8 col-xs-offset-2' src='https://www.liqpay.ua/static/img/logo.png' /></div>
             <div class='card-body'>
                 <div class='form-group'>
-                    <img class='col-xs-8 col-xs-offset-2' src='https://www.liqpay.ua/static/img/logo.png' />
-                </div>
-                <div class='form-group'>
                     <a href='https://secure.privatbank.ua/help/verified_by_visa.html'>
-                        <img class='col-md-4 col-md-offset-1 col-xs-10 col-xs-offset-1' src='/img/v-visa.gif' height='150'/>
+                        <img class='col-md-4 col-md-offset-1 col-xs-10 col-xs-offset-1' src='/img/v-visa.gif' height='120'/>
                     </a>
                     <a href='http://www.mastercard.com/ru/personal/ru/cardholderservices/securecode/mastercard_securecode.html'>
-                        <img class='col-md-4 col-md-offset-2 col-xs-10 col-xs-offset-1' src='/img/mastercard-sc.gif' height='150'/>
+                        <img class='col-md-4 col-md-offset-2 col-xs-10 col-xs-offset-1' src='/img/mastercard-sc.gif' height='120'/>
                     </a>
                 </div>
                 <div class='form-group row'>

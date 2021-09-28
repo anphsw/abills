@@ -229,8 +229,8 @@ sub list {
   #my $search_fields = '';
 
   my @QUERY_ARRAY = ();
-  if ($attr->{QUERY} =~ /;/) {
-    @QUERY_ARRAY = split(/;/, $attr->{QUERY});
+  if ($attr->{QUERY} =~ /;\r?\n/) {
+    @QUERY_ARRAY = split(/;\r?\n/, $attr->{QUERY});
   }
   else {
     push @QUERY_ARRAY, $attr->{QUERY};

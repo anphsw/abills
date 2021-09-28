@@ -734,22 +734,15 @@ sub cablecat_wells {
   }
   elsif ($FORM{search_form}) {
 
-    $TEMPLATE_ARGS{TYPE_ID_SELECT} = _cablecat_well_types_select({
-      FILTERS => { TYPE_ID => '!2' }
-    });
+    $TEMPLATE_ARGS{TYPE_ID_SELECT} = _cablecat_well_types_select({ FILTERS => { TYPE_ID => '!2' } });
     $TEMPLATE_ARGS{POINT_ID_SELECT} = _cablecat_point_id_select();
-    $TEMPLATE_ARGS{PARENT_ID_SELECT} = _cablecat_wells_select({
-      NAME    => 'PARENT_ID',
-      FILTERS => { TYPE_ID => '!2' }
-    });
+    $TEMPLATE_ARGS{PARENT_ID_SELECT} = _cablecat_wells_select({ NAME => 'PARENT_ID', FILTERS => { TYPE_ID => '!2' } });
 
     form_search({
       SEARCH_FORM       => $html->tpl_show(_include('cablecat_wells_search', 'Cablecat'), { %TEMPLATE_ARGS, %FORM },
-        { OUTPUT2RETURN => 1 }
-      ),
+        { OUTPUT2RETURN => 1 }),
       PLAIN_SEARCH_FORM => 1
     });
-
   }
 
   return 1 if ($FORM{MESSAGE_ONLY});
@@ -870,9 +863,9 @@ sub cablecat_well_types {
     $show_add_form = 1;
   }
   elsif ($FORM{chg}) {
-    my $tp_info = $Cablecat->well_types_info($FORM{chg});
+    my $well_info = $Cablecat->well_types_info($FORM{chg});
     if (!_error_show($Cablecat)) {
-      %TEMPLATE_ARGS = %{$tp_info};
+      %TEMPLATE_ARGS = %{$well_info};
       $show_add_form = 1;
     }
   }
@@ -882,8 +875,7 @@ sub cablecat_well_types {
   }
 
   if ($show_add_form) {
-
-    $TEMPLATE_ARGS{ICON_SELECT} = _maps2_icon_filename_select({ NAME => 'ICON', NO_EXTENSION => 1 });
+    $TEMPLATE_ARGS{ICON_SELECT} = _maps2_icon_filename_select({ NAME => 'ICON', NO_EXTENSION => 1, ICON => $TEMPLATE_ARGS{ICON} });
 
     $html->tpl_show(_include('cablecat_well_types', 'Cablecat'), {
       %TEMPLATE_ARGS,
@@ -894,37 +886,35 @@ sub cablecat_well_types {
   }
 
   my Abills::HTML $table;
-  ($table) = result_former(
-    {
-      INPUT_DATA      => $Cablecat,
-      FUNCTION        => 'well_types_list',
-      BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => 'ID,NAME,ICON,COMMENTS',
-      FUNCTION_FIELDS => 'change,del',
-      SKIP_USER_TITLE => 1,
-      EXT_FIELDS      => 0,
-      EXT_TITLES      => {
-        id       => '#',
-        name     => $lang{NAME},
-        icon     => $lang{ICON},
-        comments => $lang{COMMENTS}
-      },
-      FILTER_COLS     => {
-        icon => '_cablecat_result_former_icon_filter',
-        name => '_translate',
-      },
-      TABLE           => {
-        width   => '100%',
-        caption => "$lang{WELL} $lang{TYPE}",
-        ID      => 'WELLS_TYPE_TABLE',
-        EXPORT  => 1,
-        MENU    => "$lang{ADD}:index=$index&add_form=1:add"
-      },
-      MAKE_ROWS       => 1,
-      SEARCH_FORMER   => 1,
-      MODULE          => 'Cablecat',
-    }
-  );
+  ($table) = result_former({
+    INPUT_DATA      => $Cablecat,
+    FUNCTION        => 'well_types_list',
+    BASE_FIELDS     => 0,
+    DEFAULT_FIELDS  => 'ID,NAME,ICON,COMMENTS',
+    FUNCTION_FIELDS => 'change,del',
+    SKIP_USER_TITLE => 1,
+    EXT_FIELDS      => 0,
+    EXT_TITLES      => {
+      id       => '#',
+      name     => $lang{NAME},
+      icon     => $lang{ICON},
+      comments => $lang{COMMENTS}
+    },
+    FILTER_COLS     => {
+      icon => '_cablecat_result_former_icon_filter',
+      name => '_translate',
+    },
+    TABLE           => {
+      width   => '100%',
+      caption => "$lang{WELL} $lang{TYPE}",
+      ID      => 'WELLS_TYPE_TABLE',
+      EXPORT  => 1,
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add"
+    },
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Cablecat',
+  });
 
   print $table->show();
 
@@ -1092,36 +1082,31 @@ sub cablecat_connecters {
 
   if ($show_add_form) {
     $TEMPLATE_ARGS{CLASS_FOR_MAIN_FORM} //= 'col-md-6 col-md-offset-3';
-    $TEMPLATE_ARGS{CONNECTER_TYPE_ID_SELECT} = _cablecat_connecter_type_select(
-      {
-        SELECTED => $TEMPLATE_ARGS{CONNECTER_TYPE_ID},
-        REQUIRED => 1,
-        NAME     => 'CONNECTER_TYPE_ID'
-      }
-    );
+    $TEMPLATE_ARGS{CONNECTER_TYPE_ID_SELECT} = _cablecat_connecter_type_select({
+      SELECTED => $TEMPLATE_ARGS{CONNECTER_TYPE_ID},
+      REQUIRED => 1,
+      NAME     => 'CONNECTER_TYPE_ID'
+    });
 
     $TEMPLATE_ARGS{WELL_ID_SELECT} = _cablecat_wells_select({
       SELECTED => $TEMPLATE_ARGS{WELL_ID} || $FORM{WELL_ID},
       NAME     => 'PARENT_ID',
       REQUIRED => 1
-    }
-    );
+    });
+
     $TEMPLATE_ARGS{NAME} //= do {
       $TEMPLATE_ARGS{TYPE}
         ? ($TEMPLATE_ARGS{TYPE}) . '_' . ($Cablecat->connecters_next({ TYPE_ID => $TEMPLATE_ARGS{TYPE_ID} }))
         : ($lang{CONNECTER}) . '_' . ($Cablecat->connecters_next());
     };
 
-    $html->tpl_show(
-      _include('cablecat_connecter', 'Cablecat'),
-      {
-        %TEMPLATE_ARGS,
-        %FORM,
-        NEXT_TYPE_ID      => $Cablecat->connecters_next(),
-        SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
-        SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
-      }
-    );
+    $html->tpl_show(_include('cablecat_connecter', 'Cablecat'), {
+      %TEMPLATE_ARGS,
+      %FORM,
+      NEXT_TYPE_ID      => $Cablecat->connecters_next(),
+      SUBMIT_BTN_ACTION => ($FORM{chg}) ? 'change' : 'add',
+      SUBMIT_BTN_NAME   => ($FORM{chg}) ? $lang{CHANGE} : $lang{ADD},
+    });
 
     if ($TEMPLATE_ARGS{ID}) {
       load_module('Info', $html);
@@ -1327,13 +1312,10 @@ sub cablecat_splitters {
     });
     $TEMPLATE_ARGS{COMMUTATION_ID_SELECT} = _cablecat_commutations_select;
 
-    form_search({
-      SEARCH_FORM       => $html->tpl_show(_include('cablecat_splitters_search', 'Cablecat'),
-        { %TEMPLATE_ARGS, %FORM },
-        { OUTPUT2RETURN => 1 }
-      ),
-      #      ADDRESS_FORM      => 1,
-      PLAIN_SEARCH_FORM => 1
+    form_search({ SEARCH_FORM => $html->tpl_show(_include('cablecat_splitters_search', 'Cablecat'), {
+      %TEMPLATE_ARGS, %FORM
+    }, { OUTPUT2RETURN => 1 }),
+      PLAIN_SEARCH_FORM       => 1
     });
   }
 
@@ -1378,7 +1360,7 @@ sub cablecat_splitters {
     INPUT_DATA      => $Cablecat,
     FUNCTION        => 'splitters_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'ID,TYPE,WELL,POINT_ID,CREATED,FIBERS_COLORS_NAME',
+    DEFAULT_FIELDS  => 'ID,NAME,TYPE,WELL,POINT_ID,CREATED,FIBERS_COLORS_NAME',
     HIDDEN_FIELDS   => 'WELL_ID,TYPE_ID',
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
@@ -1386,6 +1368,7 @@ sub cablecat_splitters {
     EXT_TITLES      => {
       id                 => '#',
       type               => $lang{TYPE},
+      name               => $lang{NAME},
       created            => $lang{CREATED},
       fibers_colors_name => $lang{COLOR_SCHEME},
       installed          => $lang{INSTALLED},
@@ -1494,13 +1477,14 @@ sub cablecat_commutations {
       INPUT_DATA      => $Cablecat,
       FUNCTION        => 'commutations_list',
       BASE_FIELDS     => 0,
-      DEFAULT_FIELDS  => 'ID,CREATED,CONNECTER,CABLES,WELL',
+      DEFAULT_FIELDS  => 'ID,NAME,CREATED,CONNECTER,CABLES,WELL',
       HIDDEN_FIELDS   => 'CONNECTER_ID,CABLE_IDS,WELL_ID',
       FUNCTION_FIELDS => 'cablecat_commutation:change:id:,del',
       SKIP_USER_TITLE => 1,
       EXT_FIELDS      => 0,
       EXT_TITLES      => {
         id        => '#',
+        name      => $lang{NAME},
         cables    => $lang{CABLES},
         created   => $lang{CREATED},
         connecter => $lang{CONNECTER},
@@ -2092,64 +2076,63 @@ sub _cablecat_cross_link_info {
 #**********************************************************
 sub _cablecat_connecter_commutation_list {
   my ($connecter_id, $well_id) = @_;
+
   return '' if (!$connecter_id || ref $connecter_id) || (!$well_id || ref $well_id);
+
   my $commutation_index = get_function_index('cablecat_commutations');
   my $commutation_view_index = get_function_index('cablecat_commutation');
 
-  my $commutations_list = $Cablecat->commutations_list({ CONNECTER_ID => $connecter_id, CREATED => '_SHOW', CABLE_IDS => '_SHOW' });
-  my $table = $html->table(
-    {
-      width               => '100%',
-      caption             => $lang{COMMUTATION},
-      border              => 1,
-      title               => [ '#', $lang{NAME}, $lang{CREATED}, '' ],
-      qs                  => $pages_qs,
-      ID                  => 'CONNECTER_COMMUTATION_TABLE_ID',
-      REFRESH             => 1,
-      HAS_FUNCTION_FIELDS => 1
-    }
-  );
+  my $commutations_list = $Cablecat->commutations_list({
+    CONNECTER_ID => $connecter_id,
+    CREATED      => '_SHOW',
+    CABLE_IDS    => '_SHOW',
+    NAME         => '_SHOW'
+  });
+
+  my $table = $html->table({
+    width               => '100%',
+    caption             => $lang{COMMUTATION},
+    border              => 1,
+    title               => [ '#', $lang{NAME}, $lang{CREATED}, '' ],
+    qs                  => $pages_qs,
+    ID                  => 'CONNECTER_COMMUTATION_TABLE_ID',
+    REFRESH             => 1,
+    HAS_FUNCTION_FIELDS => 1
+  });
 
   foreach my $commutation (@$commutations_list) {
     $commutation->{cable_ids} //= '';
 
-    my $name = "$lang{COMMUTATION}#$commutation->{id}";
+    my $name = $commutation->{name} || "$lang{COMMUTATION}#$commutation->{id}";
     $table->addrow(
       $commutation->{id},
       $html->button($name, "index=$commutation_view_index&ID=$commutation->{id}", { TITLE => "$lang{CABLES} $commutation->{cable_ids} " }),
       $commutation->{created},
-      $html->button(
-        '',
-        "qindex=$commutation_index&del=$commutation->{id}",
-        {
-          class   => 'del',
-          MESSAGE => "$lang{DEL} $name",
-          AJAX    => 'CABLECAT_CREATE_COMMUTATION_FORM'
-        }
-      ),
+      $html->button('', "qindex=$commutation_index&del=$commutation->{id}", {
+        class   => 'del',
+        MESSAGE => "$lang{DEL} $name",
+        AJAX    => 'CABLECAT_CREATE_COMMUTATION_FORM'
+      }),
     );
   }
 
   my $cables_checkboxes_form = _cablecat_well_cables_checkbox_form($well_id);
 
-  my $create_form = $html->form_main(
-    {
-      ID      => 'CABLECAT_CREATE_COMMUTATION_FORM',
-      class   => 'form form-horizontal ajax-submit-form',
-      CONTENT => join($FORM{json} ? ', ' : '', @$cables_checkboxes_form),
-      HIDDEN  => {
-        add          => 1,
-        index        => $commutation_index,
-        CONNECTER_ID => $connecter_id,
-      },
-      SUBMIT  => { add => $lang{CREATE_COMMUTATION}, }
-    }
-  );
+  my $create_form = $html->form_main({
+    ID      => 'CABLECAT_CREATE_COMMUTATION_FORM',
+    class   => 'form form-horizontal ajax-submit-form',
+    CONTENT => join($FORM{json} ? ', ' : '', @$cables_checkboxes_form),
+    HIDDEN  => {
+      add          => 1,
+      index        => $commutation_index,
+      CONNECTER_ID => $connecter_id,
+    },
+    SUBMIT  => { add => $lang{CREATE_COMMUTATION}, }
+  });
 
   return join($FORM{json} ? ', ' : '', ($table->show(), $create_form));
 
 }
-
 
 #**********************************************************
 =head2 _cablecat_well_cables_checkbox_form($well_id)
@@ -2267,13 +2250,11 @@ sub _cablecat_well_connecters {
   my ($well_id) = @_;
   return if (!$well_id || ref $well_id);
 
-  my $connecters_inside = $Cablecat->connecters_list(
-    {
-      WELL_ID => $well_id,
-      TYPE    => '_SHOW',
-      NAME    => '_SHOW'
-    }
-  );
+  my $connecters_inside = $Cablecat->connecters_list({
+    WELL_ID => $well_id,
+    TYPE    => '_SHOW',
+    NAME    => '_SHOW'
+  });
 
   if (!_error_show($Cablecat)) {
     my $connecters_index = get_function_index('cablecat_connecters');
@@ -2355,15 +2336,11 @@ sub _cablecat_well_cable_links {
   my @cables_for_well = ();
   if (scalar @{$cables_in}) {
     push(@cables_for_well,
-      map {
-        $well_cable_row->($_, $_->{well_1}, $_->{well_1_id});
-      } @{$cables_in});
+      map { $well_cable_row->($_, $_->{well_1}, $_->{well_1_id}); } @{$cables_in});
   }
   if (scalar @{$cables_out}) {
     push(@cables_for_well,
-      map {
-        $well_cable_row->($_, $_->{well_2}, $_->{well_2_id});
-      } @{$cables_out});
+      map { $well_cable_row->($_, $_->{well_2}, $_->{well_2_id}); } @{$cables_out});
   }
 
   return join($html->br(), @cables_for_well);
@@ -2382,10 +2359,7 @@ sub _cablecat_get_closest_well {
   my ($attr) = @_;
 
   my ($coordx, $coordy) = split(':', $attr->{COORDS});
-  my $wells = $Cablecat->closest_wells({
-    COORDX => $coordx,
-    COORDY => $coordy
-  });
+  my $wells = $Cablecat->closest_wells({ COORDX => $coordx, COORDY => $coordy });
 
   return 0 if !$Cablecat->{TOTAL} || $Cablecat->{TOTAL} < 2 || $wells->[0]{coords_difference} == $wells->[1]{coords_difference};
   return 0 if $wells->[0]{coords_difference} > 0.00003;

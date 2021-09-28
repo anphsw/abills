@@ -1,21 +1,4 @@
-<script type='text/javascript'>
-    function selectLanguage() {
-        var sLanguage = '';
-        if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
-            sLanguage = jQuery('#language_mobile').val() || '';
-        } else {
-            sLanguage = jQuery('#language').val() || '';
-        }
-        var sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&language=' + sLanguage;
-        location.replace(sLocation);
-    }
-
-    function set_referrer() {
-        document.getElementById('REFERER').value = location.href;
-    }
-</script>
-
-<form action='$SELF_URL' METHOD='POST' class='form-horizontal'>
+<form action='$SELF_URL' METHOD='POST'>
     <input type='hidden' name='module' value='Employees'>
     <div class='card container-md'>
         <div class='card-header with-border'>

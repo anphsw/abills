@@ -10,7 +10,7 @@ use Abills::Base qw(date_diff days_in_month in_array int2byte int2ip sendmail
   mk_unique_value clearquotes);
 require Abills::Result_former;
 require Internet::Stats;
-
+require Control::Service_control;
 
 our (
   $db,
@@ -34,6 +34,7 @@ my $Payments = Finance->payments($db, $admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
 my $Log = Log->new($db, \%conf);
 my $Shedule = Shedule->new( $db, $admin, \%conf );
+my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 require Internet::Ipoe_mng;
 require Internet::User_ips;
@@ -171,14 +172,19 @@ sub internet_user {
         { class => 'btn btn-sm hidden-print fa fa-pencil', TITLE => $lang{CHANGE} });
     }
 
-    require Internet::Service_mng;
-    my $Service = Internet::Service_mng->new({ lang => \%lang, conf => \%conf });
-
-    ($Internet->{NEXT_FEES_WARNING}, $Internet->{NEXT_FEES_MESSAGE_TYPE}) = $Service->service_warning({
-      SERVICE => $Internet,
-      USER    => $users,
-      DATE    => $DATE
+    my $warning_info = $Service_control->service_warning({
+      UID          => $uid,
+      ID           => $Internet->{ID},
+      MODULE       => 'Internet',
+      DATE         => $DATE,
+      SERVICE_INFO => $Internet,
+      USER_INFO    => $users
     });
+
+    if (defined $warning_info->{WARNING}) {
+      $Internet->{NEXT_FEES_WARNING} = $warning_info->{WARNING};
+      $Internet->{NEXT_FEES_MESSAGE_TYPE} = $warning_info->{MESSAGE_TYPE};
+    }
 
     $Internet->{NETMASK_COLOR} = ($Internet->{NETMASK} ne '255.255.255.255') ? 'bg-warning' : '';
 
@@ -401,7 +407,7 @@ sub internet_user {
   if (!$FORM{json} && $Internet->{NAS_ID}) {
     my $Nas_info = Nas->new($db, \%conf, $admin);
     $Nas_info->info({ NAS_ID => $Internet->{NAS_ID} });
-    _error_show($Nas_info);
+    _error_show($Nas_info, { ID => 976 });
 
     $Internet->{NAS_NAME} = $Nas_info->{NAS_NAME} || '';
     $Internet->{NAS_IP} = $Nas_info->{NAS_IP} || '';
@@ -649,7 +655,7 @@ sub internet_user_add {
   }
 
   if (!$service_id) {
-    _error_show($Internet, { ID => 961 });
+    _error_show($Internet, { ID => 961, MODULE => 'Internet' });
     return -1;
   }
 
@@ -730,23 +736,19 @@ sub internet_user_change {
   if (!$attr->{STATUS}
     || (defined($attr->{STATUS}) && ($attr->{STATUS} == 0 || $attr->{STATUS} == 5))) {
 
-    my $list = $Shedule->list(
-      {
-        UID       => $uid,
-        MODULE    => 'Internet',
-        TYPE      => 'status',
-        ACTION    => '0',
-        COLS_NAME => 1
-      }
-    );
+    my $list = $Shedule->list({
+      UID       => $uid,
+      MODULE    => 'Internet',
+      TYPE      => 'status',
+      ACTION    => '0',
+      COLS_NAME => 1
+    });
 
     if ($Shedule->{TOTAL} == 1) {
-      $Shedule->del(
-        {
-          UID => $uid,
-          IDS => $list->[0]->{shedule_id}
-        }
-      );
+      $Shedule->del({
+        UID => $uid,
+        IDS => $list->[0]->{shedule_id}
+      });
     }
 
     internet_ipoe_activate_manual($attr);
@@ -797,6 +799,10 @@ sub internet_user_change {
           service_get_month_fee($Internet);
         }
       }
+    }
+
+    if ($attr->{STATUS}) {
+      _external('', { EXTERNAL_CMD => 'Internet', %{$Internet} });
     }
 
     if ($Internet->{CHG_STATUS} && $Internet->{CHG_STATUS} eq '0->3' && $conf{INTERNET_HOLDUP_COMPENSATE}) {
@@ -1332,12 +1338,13 @@ sub internet_user_online {
 
       my $vendor_info = get_oui_info($online->{cid});
 
+      my $client_ip = $online->{client_ip};
       if ($online->{framed_ipv6_prefix}) {
-        $online->{client_ip} .= $html->br() . $online->{framed_ipv6_prefix};
+        $client_ip .= $html->br() . $online->{framed_ipv6_prefix};
       }
 
       my @row = (
-        $html->element('abbr', $alive_check . $online->{client_ip}, {
+        $html->element('abbr', $alive_check . $client_ip, {
           'data-tooltip-position' => 'top',
           'data-tooltip'          => $online->{cid}. $html->br() .$vendor_info }),
         _sec2time_str($online->{duration_sec2}),
@@ -1351,17 +1358,41 @@ sub internet_user_online {
       if ($conf{INTERNET_EXTERNAL_DIAGNOSTIC}) {
         my @diagnostic_rules = split(/;/, $conf{INTERNET_EXTERNAL_DIAGNOSTIC});
         for (my $diag_num = 0; $diag_num <= $#diagnostic_rules; $diag_num++) {
-          my ($name,undef,undef,$qindex) = split(/:/, $diagnostic_rules[$diag_num]);
+          my ($name, undef, undef, $qindex, $modal_tpl) = split(/:/, $diagnostic_rules[$diag_num]);
 
           if (!$name) {
             $name = 'Diagnostic ' . $diag_num;
           }
 
-          my $index = ($qindex && $qindex eq 'qindex') ? 'qindex' : 'index';
+          my $index_or_qindex = ($qindex && $qindex eq 'qindex') ? 'qindex' : 'index';
 
           push @function_fields, $html->button($name,
-            "$index=$online_index&diagnostic=$diag_num:$online->{client_ip}+$uid+$online->{nas_id}+$online->{nas_port_id}+$online->{acct_session_id}$pages_qs",
-            { TITLE => "$name", BUTTON => 1, NO_LINK_FORMER => 1 });
+            "$index_or_qindex=$online_index&diagnostic=$diag_num:$online->{client_ip}+$uid+$online->{nas_id}+$online->{nas_port_id}+$online->{acct_session_id}$pages_qs",
+            { TITLE => "$name", BUTTON => 1, NO_LINK_FORMER => 1, ID => "internet_external_diagnostic_button_$diag_num" });
+
+          if ($modal_tpl) {
+            push @function_fields,
+              "<script>
+                 \$('#internet_external_diagnostic_button_$diag_num').click(function(e) {
+                   e.preventDefault();
+                   aModal.
+                   clear().
+                   isForm(1).
+                   setFormUrl('$SELF_URL').
+                   setHeader('$lang{PARAMS} $lang{FOR} $name').
+                   setBody(`" .
+                     $html->tpl_show(_include($modal_tpl, 'Internet'), {
+                       INDEX           => $online_index,
+                       INDEX_OR_QINDEX => $index_or_qindex,
+                       DIAGNOSTIC      => "$diag_num:$online->{client_ip} $uid $online->{nas_id} $online->{nas_port_id} $online->{acct_session_id}",
+                       UID             => $uid
+                     }, {OUTPUT2RETURN => 1}) .
+                   "`).
+                   addButton('$lang{EXECUTE}', '', 'primary', 'submit').
+                   show();
+                 })
+               </script>";
+          }
         }
       }
 
@@ -1824,12 +1855,12 @@ sub internet_form_shedule {
 
     my $info = '';
     foreach my $val (@rows) {
-      $info .= $html->element('div', $val, { class => 'form-group' });
+      $info .= $html->element('div', $val, { class => '' });
     }
 
     print $html->form_main(
       {
-        CONTENT => $html->element('div', $info, { class => 'well well-sm' }),
+        CONTENT => $html->element('div', $info, { class => 'navbar navbar-expand-lg navbar-light bg-light' }),
         HIDDEN  => {
           sid     => $sid,
           index   => $index,
@@ -1839,7 +1870,6 @@ sub internet_form_shedule {
         },
         NAME    => 'Shedule',
         ID      => 'Shedule',
-        class   => 'form-inline'
       }
     );
   }
@@ -2180,7 +2210,7 @@ sub internet_chg_tp {
   $Tariffs->{TARIF_PLAN_SEL} = $html->form_select('TP_ID', {
     SELECTED       => $Internet->{TP_ID},
     SEL_HASH       => \%TPS_HASH,
-    SORT_VALUE     => 1,
+    SORT_KEY       => 1,
     GROUP_COLOR    => 1,
     MAIN_MENU      => ($permissions{0}{10}) ? get_function_index('internet_tp') : undef,
     MAIN_MENU_ARGV => "TP_ID=" . ($Internet->{TP_ID} || '')
@@ -2250,128 +2280,31 @@ sub internet_compensation {
   }
 
   if ($FORM{add} && $FORM{FROM_DATE}) {
-    my ($FROM_Y, $FROM_M, $FROM_D) = split(/-/, $FORM{FROM_DATE}, 3);
-    #my $from_date = POSIX::mktime(0, 0, 0, $FROM_D, ($FROM_M - 1), ($FROM_Y - 1900), 0, 0, 0);
-
-    my ($TO_Y, $TO_M, $TO_D) = split(/-/, $FORM{TO_DATE}, 3);
-
-    #my $to_date = POSIX::mktime(0, 0, 0, $TO_D, ($TO_M - 1), ($TO_Y - 1900), 0, 0, 0);
-    my $sum = 0.00;
-    my $days = 0;
-    my $days_in_month = 31;
     my $uid = $users->{UID} || $user->{UID} || $FORM{UID};
 
-    $Internet->info($uid);
+    require Control::Service_control;
+    my $Service_control = Control::Service_control->new($db, $admin, \%conf);
+    my $compensation_info = $Service_control->internet_add_compensation({ %FORM, %{$attr}, UID => $uid });
 
-    my $table = $html->table(
-      {
-        width       => '400',
-        caption     => "$lang{COMPENSATION} $lang{FROM}: $FORM{FROM_DATE} $lang{TO}: $FORM{TO_DATE}",
-        title_plain => [ $lang{MONTH}, $lang{DAYS}, $lang{SUM} ],
-        ID          => 'INTERNET_COMPENSATION_DESCRIBE'
-      }
-    );
+    my $table = $html->table({
+      width       => '400',
+      caption     => "$lang{COMPENSATION} $lang{FROM}: $FORM{FROM_DATE} $lang{TO}: $FORM{TO_DATE}",
+      title_plain => [ $lang{MONTH}, $lang{DAYS}, $lang{SUM} ],
+      ID          => 'INTERNET_COMPENSATION_DESCRIBE',
+      rows        => $compensation_info->{TABLE_ROWS} || []
+    });
 
-    $Internet->{DAY_ABON} //= 0;
-    $Internet->{MONTH_ABON} //= 0;
+    if (!_error_show($compensation_info)) {
+      $compensation_info->{SUM} ||= 0;
+      $html->message('info', $lang{COMPENSATION}, "$lang{COMPENSATION} $lang{SUM}: $compensation_info->{SUM}");
 
-    my $month_abon = $Internet->{MONTH_ABON} || 0;
+      $table->{color} = $_COLORS[3];
+      $table->addrow($html->b("$lang{TOTAL}:"), $html->b($compensation_info->{DAYS}), $html->b($compensation_info->{SUM}));
 
-    if ($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
-      $month_abon = $Internet->{PERSONAL_TP};
+      print $table->show();
     }
 
-    if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00') {
-      $days = date_diff($FORM{FROM_DATE}, $FORM{TO_DATE});
-      $sum = $days * ($month_abon / 30);
-      if ($Internet->{DAY_ABON} > 0 && !$attr->{HOLD_UP}) {
-        $sum += $days * $Internet->{DAY_ABON};
-      }
-    }
-    else {
-      if ("$FROM_Y-$FROM_M" eq "$TO_Y-$TO_M") {
-        $days = $TO_D - $FROM_D + 1;
-        $days_in_month = days_in_month({ DATE => "$FROM_Y-$FROM_M-01" });
-        $sum = sprintf("%.2f", $days * ($Internet->{DAY_ABON}) + $days * (($month_abon || 0) / $days_in_month));
-        $table->addrow("$FROM_Y-$FROM_M", $days, $sum);
-      }
-      elsif ("$FROM_Y-$FROM_M" ne "$TO_Y-$TO_M") {
-        $FROM_D--;
-        do {
-          $days_in_month = days_in_month({ DATE => "$FROM_Y-$FROM_M-01" });
-          my $month_days = ($FROM_M == $TO_M) ? $TO_D : $days_in_month - $FROM_D;
-          $FROM_D = 0;
-          my $month_sum = sprintf("%.2f",
-            $month_days * $Internet->{DAY_ABON} + $month_days * ($month_abon / $days_in_month));
-          $sum += $month_sum;
-          $days += $month_days;
-          $table->addrow("$FROM_Y-$FROM_M", $month_days, $month_sum);
-
-          if ($FROM_M < 12) {
-            $FROM_M = sprintf("%02d", $FROM_M + 1);
-          }
-          else {
-            $FROM_M = sprintf("%02d", 1);
-            $FROM_Y += 1;
-          }
-
-          if ($attr->{HOLD_UP}) {
-            print "HOLLDDDD;";
-            return 1;
-          }
-        } while (($FROM_Y < $TO_Y) || ($FROM_M <= $TO_M && $FROM_Y == $TO_Y));
-      }
-    }
-
-    if ($users->{REDUCTION}) {
-      $sum = $sum - (($sum / 100) * $users->{REDUCTION});
-    }
-
-    $table->{color} = $_COLORS[3];
-
-    if( $Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' ) {
-      my $days_to_holdup = date_diff($DATE, $FORM{TO_DATE});
-      if($attr->{HOLD_UP} && $days_to_holdup > 30) {
-        $sum = 0;
-      }
-    }
-    else {
-      $FORM{FROM_DATE} =~ m/(\d{2}\-\d{2})/;
-      my $from_date = $1 || '';
-      $DATE =~ m/(\d{2}\-\d{2})/;
-      my $cur_date = $1 || '';
-
-      if($from_date ne $cur_date && $attr->{HOLD_UP}) {
-        $sum = 0;
-      }
-    }
-
-    $table->addrow($html->b("$lang{TOTAL}:"), $html->b($days), $html->b($sum));
-    if($sum > 0) {
-      $Payments->add(
-        {
-          BILL_ID => $users->{BILL_ID} || $user->{BILL_ID},
-          UID     => $uid
-        },
-        {
-          SUM            => $sum,
-          METHOD         => 6,
-          DESCRIBE       =>
-            "$lang{COMPENSATION}. $lang{DAYS}: $FORM{FROM_DATE}/$FORM{TO_DATE} ($days)" . (($FORM{DESCRIBE}) ? ". $FORM{DESCRIBE}" : '')
-            ,
-          INNER_DESCRIBE => $FORM{INNER_DESCRIBE}
-        }
-      );
-
-      if (!_error_show($Payments)) {
-        $html->message('info', $lang{COMPENSATION}, "$lang{COMPENSATION} $lang{SUM}: $sum");
-        print $table->show();
-      }
-    }
-
-    if ($attr->{QUITE}) {
-      return 0;
-    }
+    return 0 if $attr->{QUITE};
   }
 
   $html->tpl_show(_include('internet_compensation', 'Internet'), { %FORM, %$Internet });
@@ -2870,7 +2803,8 @@ sub internet_wizard_add {
 
     #5 Payments section
     if($add_values{5}) {
-      $add_values{5}{UID} = $uid;
+      $add_values{5}{UID}  = $uid;
+      $add_values{5}{USER} = $user;
       internet_wizard_fin($add_values{5});
     }
 
@@ -3173,6 +3107,7 @@ sub internet_wizard_fin {
     $params->{SUM} =~ s/,/\./g;
     if ($params->{SUM} > 0) {
       my $er = ($params->{ER}) ? $Finance->exchange_info($params->{ER}) : { ER_RATE => 1 };
+      $Payments->{debug}=1;
       $Payments->add($user, { %{$params}, ER => $er->{ER_RATE} });
       $users->{DEPOSIT}=$params->{SUM};
       if ($Payments->{errno}) {

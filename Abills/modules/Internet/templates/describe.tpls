@@ -21,9 +21,11 @@ internet_users_warning_messages.tpl:russian:Форма оповещения на
 internet_pay_to.tpl:russian:Оплата до определённой даты
 internet_rating_tp.tpl:russian:Тарифный план рейтинга
 internet_reg_complete_mail.tpl:russian:E-mail об успешной регистрации
-internet_stats.tpl:russian:фома статистики
+internet_stats.tpl:russian:Форма статистики
 internet_user_rating.tpl:russian:Форма велдения рейтинга пользователя
 internet_user_rating_pre.tpl:russian:Предварительный просмотр рейтинга
 
 internet_user_memo.tpl:russian:Памятка абонента в  HTML виде:
 internet_chg_tp_rule.tpl:russian:Условия изменения тарифного плана:
+
+internet_external_diagnostic_modal_ping.tpl:russian:Форма параметров для утилиты ping (для внешней диагностики соединения)

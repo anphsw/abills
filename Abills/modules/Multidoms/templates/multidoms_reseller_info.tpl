@@ -1,5 +1,4 @@
-
-<div class='card card-primary card-outline box-big-form form-horizontal'>
+<div class='card card-primary card-outline box-big-form'>
     <div class='card-header with-border'><h4 class='card-title'>_{INFO}_</h4></div>
     <div class='card-body'>
 
@@ -11,7 +10,7 @@
         </div>
 
         <div class='form-group'>
-            <label class='control-label col-md-3' for='DESCRIBE'>_{CREDIT}_:</label>
+            <label class='control-label col-md-3' for='CREDIT'>_{CREDIT}_:</label>
             <div class='col-md-9'>
                 %CREDIT%
             </div>
@@ -25,7 +24,7 @@
         </div>
 
         <div class='form-group'>
-            <label class='control-label col-md-3' for='STATUS'>_{PERCENTAGE}_:</label>
+            <label class='control-label col-md-3' for='PERCENTAGE'>_{PERCENTAGE}_:</label>
             <div class='col-md-9'>
                 %PERCENTAGE%
             </div>

@@ -35,7 +35,7 @@
 
       </div>
       <div class='card-footer'>
-        <input class='btn btn-primary' type='submit' name="easypay_merchant" value='_{PAY}_'>
+        <input class='btn btn-primary' type='submit' name='iframeEasypay' value='_{PAY}_'>
       </div>
 
     </div>

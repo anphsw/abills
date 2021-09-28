@@ -84,8 +84,13 @@
   function setLeadInfo() {
     var phone = jQuery('#phone').val();
     var email = jQuery('#email').val();
+    var defs = '%DEFAULT_CONTACT_TYPES%'.split(',');
 
-    jQuery('input[name="CONTACT_TYPE_2"]').val(phone);
+    if(defs.includes("2")) {
+      jQuery('input[name="CONTACT_TYPE_2"]').val(phone);
+    } else
+    jQuery('input[name="CONTACT_TYPE_1"]').val(phone);
+
     jQuery('input[name="CONTACT_TYPE_9"]').val(email);
 
     var require_phone = jQuery('#PHONE_NUMBER').val();

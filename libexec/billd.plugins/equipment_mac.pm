@@ -1,13 +1,13 @@
 =head1 NAME
 
-  equipment macs
+  Gathers MACs from equipment
 
   Params:
-    SEARCH_MAC
-
-  Arguments:
-
-   CLEAN=1
+    NAS_IPS="IP1,IP2,..." - get MACs only from given IPs
+    TRANSACTION=1         - perform all grabber queries to DB in one transaction
+    DEL_MAC=1             - delete old MACs from DB
+    SNMP_COMMUNITY        - use this SNMP community instead of community configured on NAS
+    SEARCH_MAC            - add event when given MAC(s) appears. now is not working
 
 =cut
 
@@ -25,7 +25,6 @@ use JSON;
 our $SNMP_TPL_DIR = "../Abills/modules/Equipment/snmp_tpl/";
 
 require Abills::Misc;
-require Equipment::Graph;
 require Equipment::Pon_mng;
 require Equipment::Grabbers;
 
@@ -39,71 +38,51 @@ our (
   %lang
 );
 
-$Admin->info( $conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' } );
-my $Equipment = Equipment->new( $db, $Admin, \%conf );
+$Admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
+my $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Events = Events::API->new($db, $Admin, \%conf);
 my $Log = Log->new($db, $Admin);
 
-if($debug > 2) {
-  $Log->{PRINT}=1;
+if ($debug > 2) {
+  $Log->{PRINT} = 1;
 }
 else {
-  $Log->{LOG_FILE} = $var_dir.'/log/equipment_check.log';
+  $Log->{LOG_FILE} = $var_dir . '/log/equipment_check.log';
 }
 
-if ($argv->{DEL_MAC}){
+if ($argv->{TRANSACTION}) {
+  $Equipment->{db}->{db}->begin_work();
+}
+
+if ($argv->{DEL_MAC}) {
   $Equipment->mac_log_del({
     DEL_PERIOD => $conf{EQUIPMENT_MAC_EXPIRE},
   });
 }
-else{
+else {
   equipment_check();
 }
 
+if ($argv->{TRANSACTION}) {
+  $Equipment->{db}->{db}->commit();
+}
+
 #**********************************************************
-=head2 equipment_check($attr)
-
-  Arguments:
-
-
-  Returns:
+=head2 equipment_check()
 
 =cut
 #**********************************************************
 sub equipment_check {
-
-  #my $timeout = $argv->{TOUT} || '5';
   $Log->log_print('LOG_INFO', '', "Equipment check");
 
   my $search_mac = '';
 
-  if($argv->{SEARCH_MAC}) {
+  if ($argv->{SEARCH_MAC}) {
     $search_mac = $argv->{SEARCH_MAC};
   }
 
-#  $Sender->send_message({
-#    TO_ADDRESS => '327930625',
-#    MESSAGE    => 'message go!',
-#    SENDER_TYPE=> 'Telegram',
-#    #UID       => 1
-#  });
-
-#  $Events->events_add( {
-#    # Name for module
-#    MODULE      => 'Equipment',
-#    # Text
-#    COMMENTS    => 'PON',
-#    # Link to see external info
-#    EXTRA       => 'http://abills.net.ua',
-#    # 1..5 Bigger is more important
-#    PRIORITY_ID => 1,
-#
-#  } );
-#
-#  print "event done\n";
-
-  if($debug > 7) {
-    $Equipment->{debug}=1;
+  if ($debug > 7) {
+    $Equipment->{debug} = 1;
   }
 
   if ($argv->{NAS_IPS}) {
@@ -111,44 +90,44 @@ sub equipment_check {
   }
 
   my $total_nas = 0;
-  my $SNMP_COMMUNITY = $argv->{SNMP_COMMUNITY} || $conf{EQUIPMENT_SNMP_COMMUNITY_RO};
-  my $equipment_list = $Equipment->_list( {
-    COLS_NAME       => 1,
-    COLS_UPPER      => 1,
-    PAGE_ROWS       => 100000,
-    SNMP_VERSION    => '_SHOW',
-    NAS_ID          => '_SHOW',
-    MODEL_ID        => '_SHOW',
-    VENDOR_NAME     => '_SHOW',
-    SNMP_TPL        => '_SHOW',
-    TYPE_ID         => '_SHOW',
-    NAS_IP          => '_SHOW',
-    NAS_NAME        => '_SHOW',
-    NAS_MNG_USER    => '_SHOW',
-    MNG_HOST_PORT   => '_SHOW',
-    NAS_MNG_PASSWORD=> '_SHOW',
-    STATUS          => '0',
-    PORT_SHIFT      => '_SHOW',
-    AUTO_PORT_SHIFT => '_SHOW',
+  my $SNMP_COMMUNITY = $argv->{SNMP_COMMUNITY};
+  my $equipment_list = $Equipment->_list({
+    COLS_NAME                  => 1,
+    COLS_UPPER                 => 1,
+    PAGE_ROWS                  => 100000,
+    SNMP_VERSION               => '_SHOW',
+    NAS_ID                     => '_SHOW',
+    MODEL_ID                   => '_SHOW',
+    MODEL_NAME                 => '_SHOW',
+    VENDOR_NAME                => '_SHOW',
+    SNMP_TPL                   => '_SHOW',
+    TYPE_ID                    => '_SHOW',
+    NAS_IP                     => '_SHOW',
+    NAS_NAME                   => '_SHOW',
+    NAS_MNG_USER               => '_SHOW',
+    MNG_HOST_PORT              => '_SHOW',
+    NAS_MNG_PASSWORD           => '_SHOW',
+    STATUS                     => '0',
+    PORT_SHIFT                 => '_SHOW',
+    AUTO_PORT_SHIFT            => '_SHOW',
     FDB_USES_PORT_NUMBER_INDEX => '_SHOW',
     %LIST_PARAMS
-  } );
+  });
 
   foreach my $equip (@$equipment_list) {
-
-    if(! $equip->{NAS_IP}) {
-      if($debug > 0) {
+    if (!$equip->{NAS_IP}) {
+      if ($debug > 0) {
         print "Equipment not found: $equip->{NAS_ID}\n";
       }
       next;
     }
     my $mac_list = $Equipment->mac_log_list({
-      NAS_ID       => $equip->{NAS_ID},
-      COLS_NAME    => 1,
-      PAGE_ROWS    => 100000,
-      MAC          => '_SHOW',
-      VLAN         => '_SHOW',
-      PORT         => '_SHOW',
+      NAS_ID        => $equip->{NAS_ID},
+      COLS_NAME     => 1,
+      PAGE_ROWS     => 100000,
+      MAC           => '_SHOW',
+      VLAN          => '_SHOW',
+      PORT          => '_SHOW',
       UNIX_DATETIME => '_SHOW',
       UNIX_REM_TIME => '_SHOW',
     });
@@ -163,10 +142,10 @@ sub equipment_check {
       $mac_log_hash{ $key }{rem_time} = $list->{unix_rem_time} || 0;
     }
 
-    if(! $argv->{SNMP_COMMUNITY} ) {
-      $SNMP_COMMUNITY = ($equip->{NAS_MNG_PASSWORD} || '').'@'.(($equip->{NAS_MNG_IP_PORT}) ? $equip->{NAS_MNG_IP_PORT} : $equip->{NAS_IP});
+    if (!$argv->{SNMP_COMMUNITY}) {
+      $SNMP_COMMUNITY = ($equip->{NAS_MNG_PASSWORD} || '') . '@' . (($equip->{NAS_MNG_IP_PORT}) ? $equip->{NAS_MNG_IP_PORT} : $equip->{NAS_IP});
     }
-    $Log->log_print('LOG_INFO', '', "NAS_ID: $equip->{NAS_ID} NAS_NAME: ". ($equip->{NAS_NAME} || q{}));
+    $Log->log_print('LOG_INFO', '', "NAS_ID: $equip->{NAS_ID} NAS_NAME: " . ($equip->{NAS_NAME} || q{}));
 
     my $fdb_list = get_fdb({
       %$equip,
@@ -184,53 +163,62 @@ sub equipment_check {
     foreach my $mac_dec (keys %$fdb_list) {
       my $mac = $fdb_list->{$mac_dec}{1} || q{};
       if ($debug > 2) {
-        print 'MAC: '. $mac
+        print 'MAC: ' . $mac
           # 2 port
-          .' Port: '.(($fdb_list->{$mac_dec} && $fdb_list->{$mac_dec}{2}) ? $fdb_list->{$mac_dec}{2} : '')
+          . ' Port: ' . (($fdb_list->{$mac_dec} && $fdb_list->{$mac_dec}{2}) ? $fdb_list->{$mac_dec}{2} : '')
           # 3 status
           # 4 vlan
-          .' Vlan: '.(($fdb_list->{$mac_dec} && $fdb_list->{$mac_dec}{4}) ? $fdb_list->{$mac_dec}{4} : '')
+          . ' Vlan: ' . (($fdb_list->{$mac_dec} && $fdb_list->{$mac_dec}{4}) ? $fdb_list->{$mac_dec}{4} : '')
           # 5 vlan
-          .' Port name: '.(($fdb_list->{$mac_dec} && $fdb_list->{$mac_dec}{5}) ? $fdb_list->{$mac_dec}{5} : '')
-          ."\n";
+          . ' Port name: ' . (($fdb_list->{$mac_dec} && $fdb_list->{$mac_dec}{5}) ? $fdb_list->{$mac_dec}{5} : '')
+          . "\n";
       }
 
-      if($mac eq '00:00:00:00:00:00') {
+      if ($mac eq '00:00:00:00:00:00') {
         next;
       }
 
       my $vlan = $fdb_list->{$mac_dec}{4} || 0;
-      if ($vlan =~ /(\d+)\D+/ ) {
+      if ($vlan =~ /(\d+)\D+/) {
         $vlan = $1;
       }
+
+      if ($vlan > 65000) {
+        $vlan = 0;
+      }
+
       my %data = (
-        NAS_ID => $equip->{NAS_ID},
-        MAC    => $mac,
-        VLAN   => $vlan,
-        PORT   => $fdb_list->{$mac_dec}{2} || 0,
-        PORT_NAME   => $fdb_list->{$mac_dec}{5} || '',
+        NAS_ID    => $equip->{NAS_ID},
+        MAC       => $mac,
+        VLAN      => $vlan,
+        PORT      => $fdb_list->{$mac_dec}{2} || 0,
+        PORT_NAME => $fdb_list->{$mac_dec}{5} || '',
       );
 
-#      if($search_mac && $data{MAC} && $data{MAC} =~ /$search_mac/) {
-#        my %parameters = (
-#          MODULE      => 'Equipment',
-#          COMMENTS    => 'MAC GRABBER: '
-#            . ' '. ($data{MAC} || q{})
-#            . ' '. ($data{NAS_ID} || q{})
-#            . ' '. ($data{VLAN} || q{})
-#            . ' '. ($data{PORT} || q{})
-#            . ' '. ($data{PORT_NAME} || q{}),
-#          EXTRA       => 'http://abills.net.ua',
-#          PRIORITY_ID => 0,
-#        );
-#
-#        $Events->events_add( \%parameters );
-#      }
+      if(defined $search_mac && defined $data{MAC}) {
+        my @macs = split(/,\s?/, $search_mac);
+        for my $mac_s (@macs) {
+          if ($data{MAC} =~ /$mac_s/) {
+            my %parameters = (
+              MODULE      => 'Equipment',
+              COMMENTS    => "MAC GRABBER:\n"
+                . ' MAC: ' . ($data{MAC} || q{})
+                . ' NAS_ID:' . ($data{NAS_ID} || q{})
+                . ' VLAN:' . ($data{VLAN} || q{})
+                . ' PORT:' . ($data{PORT} || q{})
+                . ' PORT_NAME:' . ($data{PORT_NAME} || q{}),
+              EXTRA       => 'http://abills.net.ua',
+              PRIORITY_ID => 0,
+            );
+            $Events->add_event(\%parameters);
+          }
+        }
+      }
+      $Equipment->mac_log_add({ %data, DATETIME => 1 });
 
-#      $Equipment->mac_log_add({ %data, DATETIME => 1 });
       my $key = $data{MAC} . '_' . $data{VLAN} . '_' . $data{PORT};
       $key =~ s/\./_/g;
-      if (ref $mac_log_hash{ $key } eq 'HASH' &&  $mac_log_hash{ $key }{id}) {
+      if (ref $mac_log_hash{ $key } eq 'HASH' && $mac_log_hash{ $key }{id}) {
         $chg_mac_count++;
         push @MAC_LOG_CHG, [
           $data{PORT_NAME},
@@ -241,11 +229,11 @@ sub equipment_check {
       else {
         $add_mac_count++;
         push @MAC_LOG_ADD, [
-            $data{MAC} || '',
-            $data{NAS_ID} || '',
-            $data{VLAN} || '',
-            $data{PORT} || 0,
-            $data{PORT_NAME} || '',
+          $data{MAC} || '',
+          $data{NAS_ID} || '',
+          $data{VLAN} || '',
+          $data{PORT} || 0,
+          $data{PORT_NAME} || '',
         ];
       }
     }
@@ -255,22 +243,22 @@ sub equipment_check {
     if ($#MAC_LOG_ADD > -1) {
       $time = check_time() if ($debug > 2);
       print "Add NEW MACS COUNT:$add_mac_count" if ($debug > 2);
-      $Equipment->mac_log_add( {  MULTI_QUERY => \@MAC_LOG_ADD } );
+      $Equipment->mac_log_add({ MULTI_QUERY => \@MAC_LOG_ADD });
       print " " . gen_time($time) . "\n" if ($debug > 2);
     }
 
-    $add_mac_count=0;
-    if($#MAC_LOG_CHG > -1) {
+    $add_mac_count = 0;
+    if ($#MAC_LOG_CHG > -1) {
       $time = check_time() if ($debug > 2);
       print "UPDATE MACS COUNT:$chg_mac_count" if ($debug > 2);
-      $Equipment->mac_log_change( { MULTI_QUERY => \@MAC_LOG_CHG } );
+      $Equipment->mac_log_change({ MULTI_QUERY => \@MAC_LOG_CHG });
       print " " . gen_time($time) . "\n" if ($debug > 2);
     }
 
-    $chg_mac_count=0;
+    $chg_mac_count = 0;
     @MAC_LOG_CHG = ();
     foreach my $key (keys %mac_log_hash) {
-      if ( $mac_log_hash{ $key }{datetime} >= $mac_log_hash{ $key }{rem_time}) {
+      if ($mac_log_hash{ $key }{datetime} >= $mac_log_hash{ $key }{rem_time}) {
         $chg_mac_count++;
         push @MAC_LOG_CHG, [
           $mac_log_hash{ $key }{id}
@@ -278,19 +266,19 @@ sub equipment_check {
       }
     }
 
-    if($#MAC_LOG_CHG > -1) {
+    if ($#MAC_LOG_CHG > -1) {
       $time = check_time() if ($debug > 2);
       print "UPDATE EXPIRED MACS COUNT:$chg_mac_count" if ($debug > 2);
-      $Equipment->mac_log_change( { REM_TIME => 1,  MULTI_QUERY => \@MAC_LOG_CHG } );
+      $Equipment->mac_log_change({ REM_TIME => 1, MULTI_QUERY => \@MAC_LOG_CHG });
       print " " . gen_time($time) . "\n" if ($debug > 2);
     }
 
-    $chg_mac_count=0;
+    $chg_mac_count = 0;
     @MAC_LOG_CHG = ();
     $total_nas++;
   }
 
-  print "Total NAS: $total_nas\n\n" if($debug);
+  print "Total NAS: $total_nas\n\n" if ($debug);
 
   if ($conf{EQUIPMENT_MAC_PER_PORT}) {
     print "MAC FLOOD:\n\n" if ($debug);
@@ -301,6 +289,11 @@ sub equipment_check {
   return 1;
 }
 
+#**********************************************************
+=head2 mac_flood()
+
+=cut
+#**********************************************************
 sub mac_flood {
   $Equipment->mac_flood_search({
     MIN_COUNT => $conf{EQUIPMENT_MAC_PER_PORT},
@@ -316,7 +309,8 @@ sub mac_flood {
       PRIORITY_ID => 3
     });
   }
-}
 
+  return 1;
+}
 
 1

@@ -83,9 +83,9 @@ sub _msgs_add_address_build {
   return 0 if (!$attr->{ADD_ADDRESS_BUILD} || !$attr->{STREET_ID} || $attr->{LOCATION_ID});
 
   $Address->build_add({ STREET_ID => $attr->{STREET_ID}, ADD_ADDRESS_BUILD => $attr->{ADD_ADDRESS_BUILD} });
-  $attr->{LOCATION_ID} = $Address->{INSERT_ID} if !main::_error_show($Address);
+  $attr->{LOCATION_ID} = $Address->{LOCATION_ID} if !::_error_show($Address);
 
-  return 0;
+  return { RETURN_VARIABLES => { LOCATION_ID => $attr->{LOCATION_ID} } };
 }
 
 #**********************************************************

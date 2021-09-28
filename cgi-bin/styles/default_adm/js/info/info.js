@@ -68,9 +68,9 @@ if (typeof info_script_loaded === 'undefined') {
 
     //Inputs
     var $commentsTextarea = $commentsForm.find('#COMMENTS_TEXT');
-    var $commentsType = $commentsForm.find('#OBJECT_TYPE');
-    var $commentsId = $commentsForm.find('#OBJECT_ID');
-    var $commentsAddIndex = $commentsForm.find('#ADD_INDEX');
+    var $commentsType = $('#OBJECT_TYPE');
+    var $commentsId = $('#OBJECT_ID');
+    var $commentsAddIndex = $('#ADD_INDEX');
 
 
     var $commentsBlock = $('#commentsBlock');
@@ -78,6 +78,7 @@ if (typeof info_script_loaded === 'undefined') {
     Events.on('info_something_changed', function (data) {
       console.log(data);
       renewContent($commentsRefreshBtn, bindDelBtns);
+      renewContent($commentsRefreshBtn, bindEditBtns);
       //renewDOM();
     });
 
@@ -97,6 +98,8 @@ if (typeof info_script_loaded === 'undefined') {
     });
 
     bindDelBtns();
+    bindEditBtns();
+    bindAddBtn();
 
     function renewDOM() {
       $commentModal = $('#info_comments_modal');
@@ -108,32 +111,148 @@ if (typeof info_script_loaded === 'undefined') {
 
       //Inputs
       $commentsTextarea = $commentsForm.find('#COMMENTS_TEXT');
-      $commentsType = $commentsForm.find('#OBJECT_TYPE');
-      $commentsId = $commentsForm.find('#OBJECT_ID');
-      $commentsAddIndex = $commentsForm.find('#ADD_INDEX');
+      $commentsType = $('#OBJECT_TYPE');
+      $commentsId = $('#OBJECT_ID');
+      $commentsAddIndex = $('#ADD_INDEX');
 
       $commentsWrapper = $('#commentsWrapper');
       $commentsBlock = $('#commentsBlock');
     }
 
     function bindDelBtns() {
-      var $commentDelBtn = $('.commentDeleteBtn');
-      $commentDelBtn.on('click', function (e) {
+      $(document).on('click', '.commentDeleteBtn', function (e) {
+        console.log('ASD');
         e.preventDefault();
         var $commentDiv = $(this).parent().parent().parent();
 
         var $icon = $(this).find('.fa');
         $icon.removeClass('fa-trash ');
-        $icon.addClass('fa fa-spinner fa-3x fa-pulse');
+        $icon.addClass('fa fa-spinner fa-pulse');
 
         var url = $(this).data('url');
 
         $.getJSON(url, function (data) {
           if (data.status == 0) {
-            $commentDiv.fadeOut(1000);
+            Events.emit('info_something_changed', 'comments');
+            renewDOM();
           }
         });
       });
+    }
+
+    function bindEditBtns() {
+      var $commentEditBtn = $('.commentEditBtn');
+      $(document).on('click', '.commentEditBtn' ,function (e) {
+        e.preventDefault();
+        var $commentDiv = $(this).parent().parent().parent();
+        var $text = $commentDiv.find(".text").text().trim();
+
+        $commentDiv.find(".text").html("<textarea class='form-control'>"+$text+"</textarea>");
+
+        var $icon = $(this).find('.fa');
+        $icon.removeClass('fa-pencil');
+        $icon.addClass('fa-check');
+        $(this).removeClass('commentEditBtn');
+        $(this).addClass('commentEditSubmit');
+
+        $('.commentEditSubmit').on('click', function () {
+
+          var $icon = $(this).find('.fa');
+          $icon.removeClass('fa-plus ');
+          $icon.addClass('fa fa-spinner fa-pulse');
+
+          var text =  $(this).parent().parent().find("textarea").val();
+          var type = $commentsType.val();
+          var id = $(this).data('id');
+
+          var params = $.param({
+            get_index: 'info_edit',
+            COMMENTS: text,
+            OBJ_TYPE: type,
+            ID: id,
+            COMMENTS_OLD: $text,
+            SAVE: 1,
+            EDIT: 1,
+            header: 2
+          });
+
+          $.post('/admin/index.cgi', params, function (data) {
+            var data = JSON.parse(data);
+            if(data.status === 0) {
+              Events.emit('info_something_changed', 'comments');
+              renewDOM();
+            } else {
+              //print error
+            }
+          })
+        });
+
+      });
+    }
+
+    function bindAddBtn() {
+
+      var $commentAddBtn = $('.commentAddBtn');
+      $commentAddBtn.on('click', function (e) {
+        $commentsBlock = $('#commentsBlock');
+
+        var date = moment(new Date()).format('YYYY-MM-DD HH:MM:SS');
+
+        $commentsBlock.prepend("<div>" +
+          "<div class=\"timeline-item\">" +
+          "  <span class=\"time\"><i class=\"fa fa-clock-o\"></i>"+date+"</span>" +
+          "  <h3 class=\"timeline-header text-left\">"+lang_admin+"</h3>" +
+          "  <div class=\"timeline-body text-left text\"><textarea class='form-control'></textarea></div>" +
+          "  <div class=\"timeline-footer text-left\">" +
+          "<a class='commentAddSubmit m-1'>"+
+          "<span class='fa fa-plus text-success'></span>"+
+          "</a>"+
+          "<a class='commentRemove m-1'>"+
+          "<span class='fa fa-trash text-danger'></span>"+
+          "</a>"+
+          "  </div>" +
+          "</div>" +
+          "</div>");
+
+        $commentsBlock.find("textarea").focus();
+
+        $('.commentRemove').on('click', function () {
+          Events.emit('info_something_changed', 'comments');
+          renewDOM();
+        });
+
+        $('.commentAddSubmit').on('click', function () {
+
+          var $icon = $(this).find('.fa');
+          $icon.removeClass('fa-plus ');
+          $icon.addClass('fa fa-spinner fa-pulse');
+
+          var text =  $(this).parent().parent().find("textarea").val();
+          var type = $commentsType.val();
+          var id = $commentsId.val();
+
+          var params = $.param({
+            get_index: 'info_comment_add',
+            TEXT: text,
+            OBJ_TYPE: type,
+            OBJ_ID: id,
+            header: 2
+          });
+
+          $.post('/admin/index.cgi', params, function (data) {
+            var data = JSON.parse(data);
+            if(data.status === 0) {
+              Events.emit('info_something_changed', 'comments');
+              renewDOM();
+            } else {
+              //print error
+            }
+          })
+        });
+
+
+      });
+
     }
 
     function submitCommentForm() {

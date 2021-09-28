@@ -175,10 +175,10 @@
       <li class='nav-item search-menu d-none d-md-inline-block'>
         <div class='input-group input-group-sm'>
           <input type='text' name='LOGIN'
-                 class='form-control margin search-type-select form-control-navbar not-chosen UNIVERSAL_SEARCH'
+                 class='form-control margin search-type-select not-chosen UNIVERSAL_SEARCH'
                  placeholder='_{SEARCH}_...'>
           <div class='input-group-append'>
-            <button type='submit' id='search-btn' class='btn btn-navbar'>
+            <button type='submit' id='search-btn' class='btn btn-default'>
               <i class='fa fa-search'></i>
             </button>
           </div>
@@ -278,7 +278,7 @@
     </div>
     <div class='form-inline' id='search-div'>
       <div class='input-group' data-widget='sidebar-search'>
-        <input class='form-control form-control-sidebar' type='search' id='Search_menus' placeholder='Search'
+        <input class='form-control form-control-sidebar' type='search' id='Search_menus' placeholder='_{SEARCH}_'
           aria-label='Search'>
         <div class='input-group-append'>
           <button class='btn btn-sidebar'>

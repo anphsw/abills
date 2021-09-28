@@ -45,12 +45,11 @@ use Nas;
 use Log;
 use Fees;
 use Tariffs;
-use Abills::Base qw(in_array sendmail sec2time show_log int2byte cmd next_month days_in_month);
+use Abills::Base qw(in_array sendmail sec2time show_log int2byte cmd next_month days_in_month dirname);
 
 our ($db,
   $admin,
   %conf,
-  $html,
   %lang,
   %ADMIN_REPORT,
   @status,
@@ -63,6 +62,7 @@ our ($db,
   $base_dir
 );
 
+our Abills::HTML $html;
 our $Voip    = Voip->new( $db, $admin, \%conf );
 my $Sessions = Voip_Sessions->new( $db, $admin, \%conf );
 my $Fees     = Fees->new( $db, $admin, \%conf );
@@ -608,7 +608,9 @@ sub voip_online{
     my $nas_port_id = 0;
     require  Abills::Nas::Control;
     my $Nas_cmd = Abills::Nas::Control->new( $db, \%conf );
-    my $ret = $Nas_cmd->hangup( $Nas, "$nas_port_id", "", "$acct_session_id" );
+    my $ret = $Nas_cmd->hangup( $Nas, $nas_port_id, "", {
+      SESSION_ID => $acct_session_id
+    });
 
     if ( $ret == 0 ){
       $message = "$lang{NAS} ID: $nas_id
@@ -622,7 +624,7 @@ sub voip_online{
       $message = 'NAS NOT supported yet';
     }
 
-    $html->message( 'info', $lang{INFO}, "$message" );
+    $html->message( 'info', $lang{INFO}, $message);
   }
   elsif ( $FORM{zapall} ){
     $Sessions->zap( 0, 0, 0, { ALL => 1, %FORM } );
@@ -739,15 +741,20 @@ sub voip_online{
   my $form_link = '';
   my $cure = '';
 
+  if ($FORM{DEBUG}) {
+    $Sessions->{debug}=1;
+  }
+
   if ( $FORM{ZAPED} ){
     $LIST_PARAMS{ZAPED} = 1;
-    $form_link = $html->button( 'On line', "index=$index", { BUTTON => 1, IMG => ':button_activate.png' } );
+    $form_link = $html->element('div', $html->button( 'On line', "index=$index", { BUTTON => 2 } ),
+      { style => 'float: right;' });
     $cure = 'Zap';
   }
   else{
     $Sessions->online( { ZAPED => 1 } );
-    $form_link = $html->button( $lang{ZAPED}, "index=$index&ZAPED=1",
-      { BUTTON => 1, IMG => ':button_del.png' } ) . " ($Sessions->{TOTAL})";
+    $form_link = $html->element('div', $html->button( $lang{ZAPED}, "index=$index&ZAPED=1", { BUTTON => 2 } ),
+      { style => 'float: right;' });
     $cure = 'Online';
   }
 
@@ -755,17 +762,20 @@ sub voip_online{
   #my $dub_ports = $sessions->{dub_ports};
   my $dub_logins = $Sessions->{dub_logins};
 
-  my $table = $html->table(
-    {
-      caption    => "$cure",
-      width      => '100%',
-      title      =>
-      [ "$lang{USER}", "$lang{FIO}", "CALLED_STATION_ID", "CALLING_STATION_ID", "$lang{DURATION}", "$lang{TYPE}",
-        "CLIENT_IP_ADDRESS", "-",
-        "-", "-" ],
-      qs         => $pages_qs,
-    }
-  );
+  my $table = $html->table({
+      caption => "$cure",
+      width   => '100%',
+      title   => [
+        $lang{USER},
+        $lang{FIO},
+        $lang{CALLED_STATION_ID},
+        $lang{CALLING_STATION_ID},
+        $lang{DURATION},
+        $lang{TYPE},
+        $lang{IP_ADDRESS}, "-", "-", "-" ],
+      qs      => $pages_qs,
+      ID      => 'VOIP_ONLINE'
+  });
 
   my $online = $Sessions->{nas_sorted};
   my $nas_list = $Nas->list({ PAGE_ROWS => 10000 });
@@ -781,8 +791,8 @@ sub voip_online{
     my $l = $online->{ $nas_row->[0] };
     my $bg;
     foreach my $line ( @{$l} ){
-      undef($table->{rowcolor});
-      undef($table->{extra});
+      delete($table->{rowcolor});
+      delete($table->{extra});
       if ( defined( $dub_logins->{ $line->[0] } ) ){ $bg = '#FFFF00'; }
 
       #    elsif (defined($dub_ports->{$nas_row->[4]}{$line->[2]})) { $bg='#00FF40';    }
@@ -795,57 +805,56 @@ sub voip_online{
 
       my $user_info = '';
 
-      my $call_type = ($line->[5] == 0) ? $html->color_mark( $call_types[ $line->[5] ],
-          "$_COLORS[7]" )               : $call_types[ $line->[5] ];
-      $table->addrow( $html->button( $line->[0], "index=11&UID=$line->[9]", { TITLE => "$user_info" } ), $line->[1],
-        $line->[2], $line->[3], $line->[4], $call_type, $line->[6],
-        $html->button( 'P', "index=$index&ping=$line->[6]", { TITLE => 'Ping', BUTTON => 1 } ), "$zap", "$hangup" );
+      my $call_type = ($line->[5] == 0) ? $html->color_mark( $call_types[ $line->[5] ], $_COLORS[7] ) : $call_types[ $line->[5] ];
+
+      $table->addrow( $html->button( $line->[0], "index=11&UID=$line->[9]", { TITLE => $user_info } ),
+        $line->[1],
+        $line->[2],
+        $line->[3],
+        $line->[4],
+        $call_type,
+        $line->[6],
+        $html->button( 'P', "index=$index&ping=$line->[6]", { TITLE => 'Ping', BUTTON => 1 } ), $zap, $hangup
+      );
     }
   }
 
-  my $table2 = $html->table(
-    {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b( $Sessions->{TOTAL} ), "$form_link" ] ]
-    }
-  );
+  my $table2 = $html->table({
+    width      => '100%',
+    rows       => [ [ $html->b("$lang{TOTAL}:"), $html->b( $Sessions->{TOTAL} ), "$form_link" ] ]
+  });
 
-  my $total = $table2->show();
-  my $output = $total . $table->show();
-
-  $table = $html->table(
-    {
-      width       => '100%',
-      title_plain =>
-      [ "$lang{REFRESH} (sec): " . $html->form_input( 'REFRESH', int( ($FORM{REFRESH}) ? $FORM{REFRESH} : 0 ),
-          { SIZE => 4 } ), $html->form_input( 'SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' } ) ],
-    }
-  );
+  my $output = $table->show() . $table2->show();
 
   if ( $FORM{ZAPED} ){
-    $output = $html->form_main(
-      {
-        CONTENT => $output,
-        HIDDEN  => {
-          index => "$index",
-          ZAPED => 1
-        },
-        SUBMIT  => { go => "$lang{DEL}" },
-        METHOD  => 'GET'
-      }
-    );
+    $output = $html->form_main({
+      CONTENT => $output,
+      HIDDEN  => {
+        index => "$index",
+        ZAPED => 1
+      },
+      SUBMIT  => { go => "$lang{DEL}" },
+      METHOD  => 'GET'
+    });
   }
-  else{
-    $output .= $html->form_main(
-      {
-        CONTENT => $table->show(),
-        HIDDEN  => { index => "$index" },
-        METHOD  => 'GET'
-      }
-    );
-
-    $output .= $html->button( 'Zap All', "index=$index&zapall=1",
-      { IMG => ':tech_work.png', MESSAGE => "Do you realy want ZAP all sessions ?" } );
+  else {
+    my $justelement = $html->element(
+      'div',
+      $html->element('div',
+        $html->element('label', "$lang{REFRESH} (sec): ")
+        . $html->form_input( 'REFRESH', int( ($FORM{REFRESH}) ? $FORM{REFRESH} : 0 ), { SIZE => 4 } )
+        . $html->element('br')
+        . $html->form_input( 'SHOW', $lang{SHOW}, { TYPE => 'SUBMIT' } )
+        . $html->element('br')
+        . $html->button( 'ZAP All', "index=$index&zapall=1",
+        { class => 'btn btn-danger', IMG => ':tech_work.png', MESSAGE => $lang{MSG_WANT_ZAP} }), { class => 'card-body'}),
+        { class => 'card card-primary card-outline card-form'});
+    $output .= $html->form_main({
+      CONTENT => $justelement,
+      #CONTENT => $table->show(),
+      HIDDEN  => { index => "$index" },
+      METHOD  => 'GET'
+    });
   }
 
   print $output;
@@ -939,8 +948,8 @@ sub voip_sessions{
       duration           => $lang{DURATION},
       sum                => $lang{SUM},
       nas_id             => $lang{NAS},
-      calling_station_id => 'CALLING_STATION_ID',
-      called_station_id  => 'CALLED_STATION_ID'
+      calling_station_id => $lang{CALLING_STATION_ID},
+      called_station_id  => $lang{CALLED_STATION_ID}
     },
     TABLE => {
       width        => '100%',
@@ -1119,13 +1128,11 @@ sub voip_error{
       0  => 'UNKNOWN',
     );
 
-    my $list = $Nas->list(
-      {
+    my $list = $Nas->list({
         NAS_TYPE  => 'asterisk,gnugk,cisco_voip,eltex_smg',
         PAGE_ROWS => 10000,
         COLS_NAME => 1
-      }
-    );
+      });
 
     foreach my $line ( @{$list} ){
       $nas_ids{ $line->{nas_id} } = $line->{nas_name};
@@ -1157,11 +1164,15 @@ sub voip_error{
       }
     );
 
-    form_search( { SEARCH_FORM =>
-      $html->tpl_show(_include('voip_errors_search', 'Voip'), { %FORM, %{$Voip} },
-        { OUTPUT2RETURN => 1 }),
+    if ( $FORM{search_form}){
+    form_search({
+      SEARCH_FORM => $html->tpl_show(
+        _include('voip_errors_search', 'Voip'),
+          { %FORM, %{$Voip} },
+          { OUTPUT2RETURN => 1 }),
       SHOW_PERIOD              =>  1
     });
+    }
 
     if ( !$FORM{sort} ){
       $LIST_PARAMS{SORT} = 1;
@@ -1175,35 +1186,29 @@ sub voip_error{
     $LIST_PARAMS{NAS_ID} = join( ';', keys %nas_ids );
 
     $list = $Log->log_list( { %LIST_PARAMS, COLS_NAME => 1 } );
-    my $table = $html->table(
-      {
-        caption    => $lang{TOTAL},
-        width      => '100%',
-      }
-    );
+
+    my $all_count = $html->table({
+      width      => '100%',
+    });
 
     my $total = 0;
     foreach my $line ( @{ $Log->{list} } ){
-      $table->addrow( $log_levels_rev{ $line->{log_type} }, $line->{count} );
+      $all_count->addrow( $log_levels_rev{ $line->{log_type} }, $line->{count} );
       $total += $line->{count};
     }
 
-    $table->addrow( $lang{TOTAL}, $total );
+    $all_count->addrow( $html->b("$lang{TOTAL}:"), $html->b($total) );
 
-    print $table->show();
-
-    $table = $html->table(
-      {
-        caption => "VoIP $lang{ERROR}",
-        width   => '100%',
-        title   => [ $lang{DATE}, $lang{TYPE}, $lang{ACTION}, $lang{USER}, $lang{TEXT}, "NAS" ],
-        pages   => $total,
-        qs      => $pages_qs,
-        ID      => 'VOIP_ERRORS',
-        EXPORT  => ' XML:&xml=1',
-        MENU    => "$lang{SEARCH}:index=$index&search_form=1:search",
-      }
-    );
+    my $table = $html->table({
+      caption => "VoIP $lang{ERROR}",
+      width   => '100%',
+      title   => [ $lang{DATE}, $lang{TYPE}, $lang{ACTION}, $lang{USER}, $lang{TEXT}, "NAS" ],
+      pages   => $total,
+      qs      => $pages_qs,
+      ID      => 'VOIP_ERRORS',
+      EXPORT  => ' XML:&xml=1',
+      MENU    => "$lang{SEARCH}:index=$index&search_form=1:search",
+    });
 
     foreach my $line ( @{$list} ){
       my $message = $line->{message};
@@ -1223,6 +1228,7 @@ sub voip_error{
     }
 
     print $table->show();
+    print $all_count->show();
   }
 
   return 1;
@@ -2576,7 +2582,8 @@ sub voip_quick_info {
   }
 
   $Voip->user_list({
-    UID        =>  $uid,
+    UID        => $uid,
+    LOGIN      => (! $uid && $attr->{LOGIN}) ? $attr->{LOGIN} : undef,
     TP_NAME    => '_SHOW',
     MONTH_FEE  => '_SHOW',
     CID        => '_SHOW',

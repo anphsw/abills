@@ -24,7 +24,7 @@ function checkval(url) {
 
   if (val != field)
     return alert('Error parsing #pagevalue.value');
-  
+
   if (val <= 0)
     return alert('Value is less than zero');
 
@@ -157,7 +157,7 @@ function renameAndDisable(id, text) {
   var $obj = $('#' + id);
 
   $obj.addClass('disabled');
-  
+
   if ($obj.text && typeof($obj.text) === 'function') {
     $obj.text(text);
   }
@@ -260,7 +260,7 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
       var comments = $mInput.val();
 
       // Check if comments are present and ask if no
-      if (comments === '' || comments === null) {
+      if (type !== 'allow_empty_message' && (comments === '' || comments === null)) {
 
         $mHeader.removeClass('alert-info');
         $mHeader.addClass('alert-danger');
@@ -288,7 +288,7 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
 
       }
       // Append comments, and send
-      var url = link_to_confirm + '&COMMENTS=' + comments;
+      var url = link_to_confirm + '&COMMENTS=' + encodeURIComponent(comments);
 
       submitForm(url);
 
@@ -296,7 +296,7 @@ function showCommentsModal(title, link_to_confirm, confirmation, attr) {
       $modal.modal('hide');
     });
   }
-  
+
   $modal.modal('show');
 }
 
@@ -602,22 +602,22 @@ function defineLinkedInputsLogic(context) {
       $e.prop('checked', false);
     }
   }
-  
+
   function enableSingleLinked(i, e) {
     var $e = $(e);
     $e.prop('disabled', false);
     $e.removeClass('disabled');
-    
+
     if ($e.is('select')) {
       enableSingleLinked(i, $e.next('div.chosen-container'));
       updateChosen();
     }
-    
+
     if ($e.data('is-checkbox')) {
       $e.prop('checked', $e.data('was-checked'));
     }
   }
-  
+
   function disableAllLinked(e, enable) {
     var $this     = $(e);
     var value     = $this.val();
@@ -629,26 +629,55 @@ function defineLinkedInputsLogic(context) {
       $linked.push($('#' + id));
     });
 
-    var has_value = $this.data('is-checkbox')
-        ? ($this.prop('checked'))
-        : ( value !== '' );
+    var has_value = $this.data('is-checkbox') ? ($this.prop('checked')) : ( value !== '' );
 
     if (enable !== true) {
-      $.each($linked, has_value
-                        ? disableSingleLinked
-                        : enableSingleLinked
-      )
+      $.each($linked, has_value ? disableSingleLinked : enableSingleLinked)
     }
     else {
-      $.each($linked, has_value
-                        ? enableSingleLinked
-                        : disableSingleLinked
-      )
+      $.each($linked, has_value ? enableSingleLinked : disableSingleLinked)
+    }
+  }
+
+  function setSelectMultiple(e, enable, event_trigger = true) {
+    let $this = $(e);
+    let value = $this.val();
+    let linked_id = $this.data('select-multiple');
+    let $linked = [];
+
+    // Saving reference to all linked inputs
+    linked_id.split(',').map(function (id) {
+      $linked.push($('#' + id));
+    });
+
+    let has_value = $this.data('is-checkbox') ? ($this.prop('checked')) : (value !== '');
+
+    if (enable !== true) {
+      $.each($linked, has_value ? (index, value) => {
+        jQuery(value).removeAttr('multiple', 'multiple');
+        initChosen();
+        if (event_trigger) jQuery(value).trigger('change');
+      } : (index, value) => {
+        jQuery(value).attr('multiple', 'multiple');
+        initChosen();
+        if (event_trigger) jQuery(value).trigger('change');
+      })
+    } else {
+      $.each($linked, has_value ? (index, value) => {
+        jQuery(value).attr('multiple', 'multiple');
+        initChosen();
+        if (event_trigger) jQuery(value).trigger('change');
+      } : (index, value) => {
+        jQuery(value).removeAttr('multiple', 'multiple');
+        initChosen();
+        if (event_trigger) jQuery(value).trigger('change');
+      })
     }
   }
 
   var $linkedForDisableInputs = $('[data-input-disables]', context);
   var $linkedForEnableInputs = $('[data-input-enables]', context);
+  var $linkedForMultipleSelects = $('[data-select-multiple]', context);
 
   if ($linkedForDisableInputs.length > 0) {
     $.each($linkedForDisableInputs, function (i, e) {
@@ -678,6 +707,21 @@ function defineLinkedInputsLogic(context) {
       });
 
       disableAllLinked(e, true)
+    });
+  }
+
+  if ($linkedForMultipleSelects.length > 0) {
+    $.each($linkedForMultipleSelects, function (i, e) {
+      var $this = $(e);
+      $this.data('is-checkbox', $this.is('input[type="checkbox"]'));
+
+      var event_name = $this.data('is-checkbox') ? 'change' : 'input';
+
+      $this.on(event_name, function () {
+        setSelectMultiple(this, true);
+      });
+
+      setSelectMultiple(e, true, false)
     });
   }
 }
@@ -743,6 +787,8 @@ function _log(level, module, string) {
 function renderTooltip($object, info, position) {
   $object.attr('title', undefined);
 
+  let objectDataContainer = $object.attr('data-container');
+  let dataContainer = objectDataContainer !== undefined ? objectDataContainer : 'body';
   if (typeof position === 'undefined') position = 'right';
 
   $object.attr('data-content', info);
@@ -750,7 +796,7 @@ function renderTooltip($object, info, position) {
   $object.attr('data-toggle', 'popover');
   $object.attr('data-trigger', 'hover');
   $object.attr('data-placement', position);
-  $object.attr('data-container', 'body');
+  $object.attr('data-container', dataContainer);
   $object.popover();
 
 }
@@ -903,7 +949,7 @@ function initUpButton() {
         .removeClass('fa-chevron-down text-yellow')
         .addClass('fa-chevron-up');
   };
-  
+
   var setToLast = function () {
     console.log('setToLast');
 
@@ -1337,9 +1383,9 @@ function initHelp(context){
 
 //document ready
 function pageInit(context) {
-  
+
   context = context || document;
-  
+
   // init chosen
   // initChosen(context);
 
@@ -1348,67 +1394,67 @@ function pageInit(context) {
 
   // Allow auto opening of modals
   openModals(context);
-  
+
   moveCalloutsToTop(context);
-  
+
   // Hide what has to be hidden, show what has to be showed
   hideHidden(context);
-  
+
   // Simple logic for checking checkboxes
   checkCheckboxes(context);
-  
+
   // Main comment modal initialization
   defineCommentModalLogic(context);
-  
+
   // Because of Chosen.js we need custom logic for resetting form
   defineResetInputLogic(context);
-  
+
   // Checking ip-inputs for IPV4 regexp
   defineIpInputLogic(context);
-  
+
   // Checking inputs for defined regexpressions
   defineCheckPatternLogic(context);
-  
+
   // Sticky panels that are fixed on top
   //defineStickyNavsLogic();
-  
+
   // Auto sending navbar form
   defineNavbarFormLogic(context);
-  
+
   // Returning 0 for unchecked chekboxes
   fixCheckboxSendValue(context);
-  
+
   // Make autosubmittable selects work
   defineAutoSubmitSelect(context);
-  
+
   // Define file input logic
   defineFileInputLogic(context);
-  
+
   //Define panel-wide selects
   defineFullWidthSelect(context);
-  
+
   // Concatenate date and time parts
   initDatepickers(context);
-  
+
   // Called on document
   if (context === document) {
     initUpButton(document);
   }
-  
+
   // Find and initialize all tooltips
   defineTooltipLogic(context);
-  
+
   // Allow to use AJAX submitted forms
   defineAjaxSubmitForms(context);
   //InitInputMask
   //initInputMask();
-  
+
   //Allow disable inputs regard to another input value
   defineLinkedInputsLogic(context);
-  
+
   // Init table actions logic
   initTableMultiselectActions(context);
-  
+
   initMomentSpans(context);
 
   initHelp(context);
@@ -1417,14 +1463,14 @@ function pageInit(context) {
 function initMultifileUploadZone(id, name_, max_files_){
   var name = name_ || 'FILE_UPLOAD';
   var max_files = max_files_ || 2;
-  
+
   var file_zone = jQuery('#' + id);
 
   var main_input = file_zone.find('input[name='+ name +']');
   var counter_input = jQuery('<input/>', { name : name + '_UPLOADS_COUNT', type : 'hidden' });
 
   file_zone.append(counter_input);
-  
+
   var counter = 0;
   var append_new_input = function(){
     counter_input.val(++counter);
@@ -1432,7 +1478,7 @@ function initMultifileUploadZone(id, name_, max_files_){
       type : 'file',
       name : name + '_' + counter
     });
-    
+
     new_input.data('number', counter);
     new_input.on('change', append_new_input_if_needed);
 
@@ -1440,17 +1486,17 @@ function initMultifileUploadZone(id, name_, max_files_){
     form_group.append(new_input);
     file_zone.append(form_group);
   };
-  
+
   var append_new_input_if_needed = function(){
     // Get this position
     var position = jQuery(this).data('number') || 0;
-    
+
     // If is last, should append new input and counter starts from 0
     if (position === counter && counter < (max_files - 1)){
       append_new_input();
     }
   };
-  
+
   main_input.on('change', append_new_input_if_needed);
 }
 

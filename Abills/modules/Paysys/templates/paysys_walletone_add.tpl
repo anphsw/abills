@@ -1,4 +1,4 @@
-<form action="https://wl.walletone.com/checkout/checkout/Index" method='post'>
+<form action='https://wl.walletone.com/checkout/checkout/Index' method='post'>
 
 <input type='hidden' name='WMI_MERCHANT_ID' value=%WMI_MERCHANT_ID%>
 <input type='hidden' name='WMI_PAYMENT_AMOUNT' value=%WMI_PAYMENT_AMOUNT%>

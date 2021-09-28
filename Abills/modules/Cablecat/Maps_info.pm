@@ -40,6 +40,9 @@ our %MAP_TYPE_ID = (
   'PILLAR'    => 9,
 );
 
+my $user_points = {};
+my $equipment_points = {};
+
 #**********************************************************
 =head2 new()
 
@@ -72,6 +75,34 @@ sub new {
   $Maps = Maps->new($db, $admin, $CONF);
 
   $Auxiliary = Maps2::Auxiliary->new($db, $admin, $CONF, { HTML => $html, LANG => $lang });
+
+  my $onu_info = $Cablecat->commutation_onu_list({
+    PARENT_ID  => '_SHOW',
+    SERVICE_ID => '_SHOW',
+    UID        => '_SHOW',
+    COLS_NAME  => 1,
+  });
+
+  if ($Cablecat && $Cablecat->{TOTAL} > 0) {
+    foreach my $onu (@$onu_info) {
+      next if !$onu->{parent_id};
+      push @{$user_points->{$onu->{parent_id}}}, $onu;
+    }
+  }
+
+  my $equipment_info = $Cablecat->commutation_equipment_list({
+    PARENT_ID  => '_SHOW',
+    SERVICE_ID => '_SHOW',
+    UID        => '_SHOW',
+    COLS_NAME  => 1,
+  });
+
+  if ($Cablecat && $Cablecat->{TOTAL} > 0) {
+    foreach my $equipment (@$equipment_info) {
+      next if !$equipment->{parent_id};
+      push @{$equipment_points->{$equipment->{parent_id}}}, $equipment;
+    }
+  }
 
   return $self;
 }
@@ -137,11 +168,47 @@ sub maps_wells {
 
   my $wells_index = ::get_function_index('cablecat_wells');
   my $reserve_index = ::get_function_index('cablecat_reserve');
+  my $trace_index = ::get_function_index('cablecat_user_trace_connection_form');
   my @layer_objects = ();
 
   foreach my $well (@{$wells_list}) {
     my $icon_name = $well->{icon} || 'well_green';
     my $marker_info = $self->_cablecat_get_cable_info({ %{$well}, well_index => $wells_index });
+
+    my @ids = split /\|\|/, $well->{ids};
+
+    my $trace_buttons = '';
+
+    my $user_table = $html->table({
+      width       => '100%',
+      caption     => $lang->{USERS},
+      title_plain => [ 'UID', "$lang->{SERVICE} ID", "TRACE" ]
+    });
+
+    my $have_user = 0;
+
+    foreach my $id (@ids) {
+      my $onu_info = $user_points->{$id} || $equipment_points->{$id};
+      next if (!$onu_info);
+
+      foreach my $onu (@$onu_info) {
+        next if (!$onu->{uid});
+
+        $have_user = 1;
+
+        my $link = "?qindex=$trace_index&header=2&UID=$onu->{uid}&USER_SERVICE=$onu->{service_id}&AJAX=1&action=1";
+        my $button = qq{
+         <button class="btn btn-info btn-sm" title='TRACE UID: $onu->{uid} ($onu->{service_id})'
+           onclick="Routes.showRouteFromONUtoOLT(this,'$link')">
+            <span class="fa fa-eye"></span>
+          </button>
+        };
+        $user_table->addrow($onu->{uid}, $onu->{service_id}, $button);
+      }
+
+    }
+
+    $marker_info = $user_table->show() . $marker_info if ($have_user);
 
     push @layer_objects, {
       ID        => +$well->{ids},
@@ -152,6 +219,7 @@ sub maps_wells {
         ID        => +$well->{ids},
         COORDX    => $well->{coordx},
         COORDY    => $well->{coordy},
+        TRACE     => $trace_buttons,
         INFO      => "$marker_info",
         TYPE      => "$icon_name",
         LAYER_ID  => 11,
@@ -162,7 +230,7 @@ sub maps_wells {
     }
   }
 
-   # Coil information
+  # Coil information
   my $coils_list = $Cablecat->coil_list({
     POINT_ID  => '_SHOW',
     NAME      => '_SHOW',
@@ -261,7 +329,7 @@ sub maps_cables {
   my $new_cable_list = $Cablecat->cable_list_with_points($attr);
 
   return $Cablecat->{TOTAL} if $attr->{ONLY_TOTAL};
-  
+
   my $well_index = ::get_function_index('cablecat_wells');
   my $cables_index = ::get_function_index('cablecat_cables');
   my $add_inside_link = "$main::SELF_URL?get_index=cablecat_wells&header=2&add_reserve_form=1";
@@ -285,7 +353,7 @@ sub maps_cables {
     $polyline->{POLYLINE}{STROKEWEIGHT} = $cable->{line_width} || 1;
 
     my $line_info = _cablecat_info_table([
-      [ $lang->{CABLE}, $html->button($cable->{name}, "index=$cables_index&chg=$cable->{id}", { target => '_blank' }) ],
+      [ $lang->{CABLE}, $html->button($cable->{name}, "index=$cables_index&chg=$cable->{cable_id}", { target => '_blank' }) ],
       [ $lang->{CABLE_TYPE}, $cable->{cable_type} ],
       [ "$lang->{WELL} 1", ($cable->{well_1} && $cable->{well_1_id})
         ? $html->button($cable->{well_1}, "index=$well_index&chg=$cable->{well_1_id}", { target => '_blank' })
@@ -343,6 +411,7 @@ sub _cablecat_get_cable_info {
   my $edit_buttons = '';
   my @names;
   my @ids;
+  my @commutations = ();
 
   return '' if !$attr->{total} || $attr->{total} < 0;
 
@@ -355,20 +424,28 @@ sub _cablecat_get_cable_info {
     @ids = split('\|\|', $attr->{ids});
   }
 
+  if ($attr->{commutations}) {
+    my @commutations_list = split(',\s?', $attr->{commutations});
+    foreach my $commutation (@commutations_list) {
+      push(@commutations, $html->button("#$commutation", "get_index=cablecat_commutation&ID=$commutation&full=1", { target => '_blank' }));
+    }
+  }
+
   my @objects;
   for (my $i = 0; $i < $attr->{total}; $i++) {
     push @objects, {
-      well      => $names[$i],
-      installed => $attr->{planned} ? $lang->{NO} : $lang->{YES},
-      comments  => $attr->{comments},
-      id        => $ids[$i],
+      well         => $names[$i],
+      installed    => $attr->{planned} ? $lang->{NO} : $lang->{YES},
+      comments     => $attr->{comments},
+      id           => $ids[$i],
+      commutations => join(', ', @commutations)
     }
   }
 
   $marker_info = maps2_point_info_table($html, $lang, {
     OBJECTS           => \@objects,
-    TABLE_TITLES      => [ 'WELL', 'INSTALLED', 'COMMENTS' ],
-    TABLE_LANG_TITLES => [ $lang->{WELL}, $lang->{INSTALLED}, $lang->{COMMENTS} ],
+    TABLE_TITLES      => [ 'WELL', 'INSTALLED', 'COMMUTATIONS', 'COMMENTS' ],
+    TABLE_LANG_TITLES => [ $lang->{WELL}, $lang->{INSTALLED}, $lang->{COMMUTATIONS}, $lang->{COMMENTS} ],
     LINK_ITEMS        => {
       'well' => {
         'index'        => $attr->{well_index},
@@ -394,7 +471,7 @@ sub _cablecat_get_cable_info {
 }
 
 #**********************************************************
-=head2 _cablecat_info_table()
+=head2 _cablecat_info_table($lines_array)
 
 =cut
 #**********************************************************
@@ -403,7 +480,7 @@ sub _cablecat_info_table {
 
   my $table = '<table class="table table-hover">';
 
-  $table .= join('', map {"<tr><td><strong>$_->[0]</strong></td><td>" . ($_->[1] || q{}) . ' </td></tr>'} @{ $lines_array });
+  $table .= join('', map {"<tr><td><strong>" . ($_->[0] || q{}) . "</strong></td><td>" . ($_->[1] || q{}) . ' </td></tr>'} @{$lines_array});
 
   $table .= '</table>'
 }

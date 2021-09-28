@@ -55,6 +55,7 @@ our %PLUGIN_NAME_FOR_TYPE_ID = (
   10 => 'Push',
   11 => 'Hyber',
   12 => 'XMPP',
+  13 => 'Iptv_message'
 );
 our %TYPE_ID_FOR_PLUGIN_NAME = reverse %{PLUGIN_NAME_FOR_TYPE_ID};
 
@@ -138,7 +139,7 @@ sub sender_load {
     $name->import();
 
     # Initialize
-    my $loaded_plugin = $name->new($self->{conf}, $attr);
+    my $loaded_plugin = $name->new($self->{conf}, { %{$attr}, db => $self->{db}, admin => $self->{admin} });
 
     return 0 if ( !$loaded_plugin );
 
@@ -305,8 +306,18 @@ sub send_message_auto {
     return '';
   }
 
+  my $send_messages_types = ();
+  if ($self->{conf}{MSGS_SEND_MESSAGES_TYPES}) {
+    @{$send_messages_types} = split(/,\s?/, $self->{conf}{MSGS_SEND_MESSAGES_TYPES});
+  }
+  else {
+    @{$send_messages_types} = values %PLUGIN_NAME_FOR_TYPE_ID;
+  }
+
   my $at_least_one_was_successful = 0;
   foreach my $cont ( @{${contacts_list}} ) {
+    next if !in_array($PLUGIN_NAME_FOR_TYPE_ID{$cont->{type_id}}, $send_messages_types);
+
     $at_least_one_was_successful = 1 if ( $self->send_message({
       %{$attr},
       TO_ADDRESS  => $cont->{value},
@@ -315,6 +326,19 @@ sub send_message_auto {
 
     if ( $at_least_one_was_successful && !$attr->{ALL} ) {
       last
+    }
+  }
+
+  #Send email if present. (no email in admins_contacts)
+  if($attr->{AID}){
+    my $info = $self->{admin}->info($attr->{AID});
+
+    if($info->{EMAIL}) {
+      $at_least_one_was_successful = 1 if ($self->send_message({
+        %{$attr},
+        TO_ADDRESS  => $info->{EMAIL},
+        SENDER_TYPE => $PLUGIN_NAME_FOR_TYPE_ID{9},
+      }));
     }
   }
 

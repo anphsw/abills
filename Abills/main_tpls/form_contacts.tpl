@@ -29,7 +29,7 @@
 <input type='hidden' name='DEFAULT_CONTACT_TYPES' value='%DEFAULT_TYPES%'>
 
 <div class='form-group %SIZE_CLASS% mb-0'>
-  <div class='card mb-0'>
+  <div class='card card-outline card-big-form mb-0 border-top'>
     <div class='card-header with-border'>
       <h3 class='card-title'>_{CONTACTS}_</h3>
       <div class='card-tools pull-right'>
@@ -38,13 +38,13 @@
         </button>
       </div>
     </div>
-    <div class='card-body' style='display: block;'>
+    <div class='card-body pt-0'>
       <ul id='contacts_wrapper' class='todo-list'></ul>
       <div id='contacts_controls'>
         <div class='col-xs-8'>
           <span class='text-success' id='contacts_response'></span>
         </div>
-        <div class='col-xs-4 text-right'>
+        <div class='col-xs-4 text-right pr-3'>
           <button role='button' id='contact_add' class='btn btn-sm btn-success'>
             <span class='fa fa-plus'></span>
           </button>

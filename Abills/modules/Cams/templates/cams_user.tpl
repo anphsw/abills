@@ -27,16 +27,16 @@
       %SUBSCRIBE_FORM%
       %SERVICE_FORM%
       <div class='form-group row'>
-        <label class='control-label col-md-3' for='TP_NUM'>_{TARIF_PLAN}_:</label>
+        <label class='control-label col-md-3' for='TP'>_{TARIF_PLAN}_:</label>
         <div class='col-md-9'>
           %TP_ADD%
           <div class='input-group' %TP_DISPLAY_NONE%>
-            <div class="input-group-prepend">
+            <div class='input-group-prepend'>
               <span class='input-group-text bg-light'>%TP_NUM%</span>
             </div>
-            <input type=text name='GRP' value='%TP_NAME%' ID='TP' class='form-control hidden-xs' readonly>
-            <div class="input-group-append">
-              <div class="input-group-text">
+            <input type=text name='TP' value='%TP_NAME%' ID='TP' class='form-control hidden-xs' readonly>
+            <div class='input-group-append'>
+              <div class='input-group-text'>
                 %CHANGE_TP_BUTTON%
               </div>
             </div>
@@ -54,8 +54,7 @@
       <div class='form-group row'>
         <label class='control-label col-md-3' for='EMAIL'>E-mail:</label>
         <div class='col-md-9'>
-          <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control'
-                 type='text'>
+          <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control' type='text'>
         </div>
       </div>
 
@@ -64,9 +63,7 @@
         <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
       </div>
 
-
     </div>
-
   </div>
 
 </form>

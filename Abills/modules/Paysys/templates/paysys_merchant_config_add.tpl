@@ -1,15 +1,14 @@
-<form name='PAYSYS_GROUP_SETTINGS' id='form_PAYSYS_GROUP_SETTINGS' method='post' class='form form-horizontal'>
+<form name='PAYSYS_GROUP_SETTINGS' id='form_PAYSYS_GROUP_SETTINGS' method='post'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='SYSTEM_ID' id='SYSTEM_ID' value='%SYSTEM_ID%'>
   <input type='hidden' name='MERCHANT_ID' id='MERCHANT_ID' value='%MERCHANT_ID%'>
 
   <div class='card big-box card-primary card-outline'>
     <div class='card-header with-border'>
-      <h4 class="card-title">_{ADD}_ _{_MERCHANT}_</h4>
+      <h4 class='card-title'>_{ADD}_ _{_MERCHANT}_</h4>
     </div>
 
     <div class='card-body'>
-
       <div class='form-group %HIDE_SELECT%'>
         <label class=' col-md-12 col-sm-12'>_{PAY_SYSTEM}_</label>
         <div class='col-md-12 col-sm-12'>
@@ -17,19 +16,25 @@
         </div>
       </div>
 
-      <div id='paysys_connect_system_body'></div>
-
-      <div class='form-group'>
-        <label class=' col-sm-12 col-md-12'>_{MERCHANT_NAME2}_:</label>
-        <div class='col-sm-12 col-md-12'>
-          <input type='text' class='form-control' name='MERCHANT_NAME' value='%MERCHANT_NAME%' required>
+      <div id='paysys_connect_system_body'>
+        <div class='form-group' id='ACCOUNT_KEYS_SELECT'>
+          <label class=' col-md-12 col-sm-12' id='KEY_NAME'></label>
+          <div class='col-md-12 col-sm-12'>
+            %ACCOUNT_KEYS_SELECT%
+          </div>
         </div>
       </div>
 
+      <div class='form-group'>
+        <label class=' col-sm-12 col-md-12' for='MERCHANT_NAME'>_{MERCHANT_NAME2}_:</label>
+        <div class='col-sm-12 col-md-12'>
+          <input type='text' class='form-control' id='MERCHANT_NAME' name='MERCHANT_NAME' value='%MERCHANT_NAME%' required>
+        </div>
+      </div>
     </div>
 
     <div class='card-footer'>
-      <input class='btn btn-primary' type='submit' name='%BTN_NAME%' value='%BTN_VALUE%'>
+      <input class='btn btn-primary' type='submit' name='%BTN_NAME%' value='%BTN_VALUE%' id='BTN_ADD'>
     </div>
   </div>
 </form>
@@ -42,6 +47,21 @@
     console.log('JSON parse error.');
   }
 
+  var KEY_NAME;
+  var SHOW_SELECT = 0;
+
+  var defaultSelectedValue = jQuery('#MODULE').serialize();
+  jQuery('#ACCOUNT_KEYS_SELECT').hide();
+
+  jQuery('#KEYS')
+          .append(new Option('CONTRACT_ID', 'CONTRACT_ID'))
+          .append(new Option('UID', 'UID'))
+          .append(new Option('LOGIN', 'LOGIN'))
+          .append(new Option('EMAIL', 'EMAIL'))
+          .append(new Option('PHONE', 'PHONE'))
+          .append(new Option('BILL_ID', 'BILL_ID'));
+
+
   function rebuild_form(type) {
     jQuery('.appended_field').remove();
     var keys = Object.keys(arr[type]['CONF']);
@@ -49,36 +69,73 @@
     var systemID = arr[type]['SYSTEM_ID'];
     jQuery('#SYSTEM_ID').attr('value', systemID);
 
+    if(defaultSelectedValue !== jQuery('#MODULE').serialize()){
+      jQuery('#ACCOUNT_KEYS_SELECT').show();
+    }
+    else if (jQuery('#BTN_ADD').attr('name') === 'change'){
+      jQuery('#ACCOUNT_KEYS_SELECT').show();
+    }
+
     for (var i = 0; i < sorted.length; i++) {
       var val = arr[type]['CONF'][sorted[i]];
       var param = sorted[i];
       param = param.replace(/(_NAME_)/,'_'+ type.toUpperCase()+'_');
 
-     jQuery("input[name*='MFO']").attr("maxlength", "6");
+      jQuery("input[name*='MFO']").attr('maxlength', '6')
+              .attr('title', 'Поле должно содержать 6 цифр')
+              .hover(function(){
+                jQuery(this).tooltip()
+              });
 
-     jQuery("input[name*='MFO']").attr("title", "Поле должно содержать 6 цифр");
+      if(param.includes('ACCOUNT_KEY')){
+        SHOW_SELECT = 1;
+        KEY_NAME = param;
+        jQuery('#KEY_NAME').text(param);
+        if(val) {
+          jQuery('#KEYS').val(val).change();
+        }
+        else {
+          jQuery('#KEYS').val('UID').change();
+        }
+      }
+      else {
+        var element = jQuery("<div></div>").addClass('form-group appended_field');
+        element.append(jQuery("<label for=''></label>").text(param).addClass('col-md-12 col-sm-12'));
+        element.append(jQuery("<div></div>").addClass("col-md-12 col-sm-12").append(
+                jQuery("<input name='" + param + "' id='" + param + "' value='" + (val || '') + "'>").addClass('form-control')));
 
-     jQuery("input[name*='MFO']").hover(function(){
-         jQuery(this).tooltip()
-     });
+        jQuery('#paysys_connect_system_body').append(element);
+      }
 
-    // jQuery("input[name*='ACCOUNT_KEY']");
+      if(i+1 === sorted.length && SHOW_SELECT === 0){
+        jQuery('#ACCOUNT_KEYS_SELECT').hide();
+      }
+      else if(i+1 === sorted.length && SHOW_SELECT === 1) {
+        SHOW_SELECT = 0;
+      }
+    }
+  }
 
-      var element = jQuery("<div></div>").addClass("form-group appended_field");
-      element.append(jQuery("<label for=''></label>").text(param).addClass("col-md-12 col-sm-12 "));
+  jQuery('#BTN_ADD').click(function(){
+    if(!(jQuery('#' + KEY_NAME).size()) && jQuery('#ACCOUNT_KEYS_SELECT:visible').length !== 0) {
+      var element = jQuery("<div></div>").addClass('form-group appended_field hidden');
+      element.append(jQuery("<label for=''></label>").text(KEY_NAME).addClass('col-md-12 col-sm-12'));
       element.append(jQuery("<div></div>").addClass("col-md-12 col-sm-12").append(
-        jQuery("<input name='" + param + "' id='" + param + "' value='" + (val || '') + "'>").addClass("form-control")));
+              jQuery("<input name='" + KEY_NAME + "' id='selected_value' value='" + (jQuery('#KEYS').find(":selected").text() || '') + "'>").addClass('form-control')));
 
       jQuery('#paysys_connect_system_body').append(element);
     }
-  }
+    else if(jQuery('#ACCOUNT_KEYS_SELECT:visible').length === 0){
+      jQuery('#selected_value').remove();
+    }
+  });
 
   jQuery(function () {
     if (jQuery('#MODULE').val()) {
       rebuild_form(jQuery('#MODULE').val());
     }
 
-    jQuery("#MODULE").change(function () {
+    jQuery('#MODULE').change(function () {
       rebuild_form(jQuery('#MODULE').val());
 
     });

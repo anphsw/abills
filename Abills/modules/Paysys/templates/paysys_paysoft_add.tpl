@@ -22,7 +22,7 @@
     </div>
     <div class='card-body'>
       <div class='form-group text-center'>
-        <img src='/styles/default_adm/img/paysys_logo/paysoft-logo.png' style="width: auto; max-height: 200px;">
+        <img src='/styles/default_adm/img/paysys_logo/paysoft-logo.png' style='width: auto; max-height: 200px;'>
       </div>
 
       <div class='form-group'>

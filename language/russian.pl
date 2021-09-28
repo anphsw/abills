@@ -83,6 +83,7 @@ $lang{FLATS} = 'Квартиры';
 $lang{ERR_SYMBOLS_PASSWD} = 'Недопустимые символы в пароле';
 $lang{UNPAID} = 'Не оплачено';
 $lang{EVENTS} = 'События';
+$lang{EVENT}  = 'Событие';
 $lang{USER_INFO} = 'Информация о пользователе';
 $lang{ERR_ENTER_USER_NAME} = 'Введите имя пользователя';
 $lang{JOIN_SERVICE} = 'Совместный сервис';
@@ -523,7 +524,7 @@ $lang{HELP} = 'Помощь';
 $lang{SYSTEM} = 'Система';
 $lang{FINISH} = 'Завершить';
 $lang{TEMPLATES} = 'Шаблоны';
-$lang{TEMPLATE} = 'шаблон';
+$lang{TEMPLATE} = 'Шаблон';
 $lang{DONT_CREATE_INVOICE} = 'Не создавать счет';
 $lang{LAST_LOGIN} = 'Последнее подключение';
 $lang{EQUIPMENT} = 'Оборудование';
@@ -890,4 +891,33 @@ $lang{YOUR_DEPOSIT} = "Ваш депозит";
 $lang{LARGE_TEXT} = "Крупный текст";
 $lang{DATA_CHANGE} = "Изменение данных";
 
+$lang{CRM_SHOW_ALL_LEADS} = "Crm: отобразить всех потенциальных клиентов";
+
+$lang{GEO} = 'Геолокация';
+$lang{CLEAR_GEO} = 'Очистить гео-привязку';
+
+$lang{LEAD} = 'Потенциальный клиент';
+$lang{G2FA} = 'Двухфакторная аутентификация';
+$lang{G2FA_ADD} = 'Добавить двухфакторную аутентификацию';
+$lang{G2FA_REMOVE} = 'Удалить двухфакторную аутентификацию';
+
+$lang{ERR_UID_NOT_DEFINED} = 'Не указан UID';
+$lang{ERR_NO_CREDIT_CHANGE_ACCESS} = 'Нет прав изменить кредит';
+$lang{ERR_CREDIT_USED_ALL_ATTEMPTS} = 'Использованы все попытки установить кредит';
+$lang{SETTING_CREDIT} = 'Установка кредита';
+
+$lang{G2FA_WRONG_CODE} = 'Неверный код!';
+
+$lang{ERR_NO_AVAILABLE_TP} = 'Нет доступных тарифных планов';
+
+$lang{NOT_ALLOWED_TO_CHANGE_TP} = 'Не разрешено изменять тарифный план';
+
+$lang{ADDITIONAL_INFORMATION} = 'Расширенная информация';
+$lang{PORT_CONTROL} = 'Управление портами';
+$lang{PERSONAL_INFO} = 'Персональная информация';
+$lang{REBOOT_SERVICE} = 'Перезагрузка сервиса';
+
+$lang{MSG_WANT_ZAP}       = 'Вы на самом деле хотите ZAP-нуть все сессии?';
+
+$lang{TASK_IN_WORK} = 'В работе';
 1

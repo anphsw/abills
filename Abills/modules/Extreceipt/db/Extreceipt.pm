@@ -30,7 +30,6 @@ sub new {
   };
   
   bless($self, $class);
-  $self->{debug}=1;
   return $self;
 }
 
@@ -48,6 +47,7 @@ sub list {
       ['UID',        'INT', 'p.uid',    1],
       ['PAYMENT_ID', 'INT', 'p.id',     1],
       ['FROM_DATE',  'DATE','p.date',   1],
+      ['PAYMENT_METHOD', 'INT', 'p.id', 'p.id AS payment_method'],
     ],
     { WHERE => 1 }
   );
@@ -64,6 +64,7 @@ sub list {
       ek.kkt_group,
       p.sum,
       p.uid,
+      p.method AS payment_method,
       ucc.value as c_phone,
       IF(ucp.value is NULL, pi.phone, ucp.value) AS phone,
       IF(ucm.value is NULL, pi.email, ucp.value) AS mail
@@ -100,6 +101,7 @@ sub info {
       ek.aid,
       p.sum,
       p.uid,
+      p.method AS payment_method,
       IF(ucp.value IS NULL, pi.phone,  ucp.value) AS phone,
       IF(ucm.value IS NULL, pi.email, ucm.value) AS mail
       FROM extreceipts e
@@ -117,7 +119,7 @@ sub info {
 }
 
 #**********************************************************
-=head2 add($payments_id)
+=head2 add($payments_id, $api)
 
 =cut
 #**********************************************************
@@ -125,7 +127,7 @@ sub add {
   my $self = shift;
   my ($payment_id, $api) = @_;
   
-  $self->query('INSERT INTO extreceipts (payments_id, api)
+  $self->query('INSERT INTO extreceipts (`payments_id`, `api`)
       VALUES (?, ?);',
     'do',
     { Bind => [ $payment_id, $api ] }
@@ -159,29 +161,27 @@ sub get_new_payments {
 
   my $CASE = "CASE\n";
   foreach my $kkt (@$kkt_list) {
-    print "// if (!$kkt->{methods}) { //zzzzzzzzz\n";
+    my @request_params = ();
     if (!$kkt->{methods}) {
       next;
     }
-    elsif ($kkt->{groups} eq '') {
-      $CASE .= "WHEN p.method IN ($kkt->{methods}) THEN $kkt->{kkt_id}\n";
-    }
-    else {
-      $CASE .= "WHEN p.method IN ($kkt->{methods}) AND u.gid IN ($kkt->{groups}) THEN $kkt->{kkt_id}\n";
+
+    if ($kkt->{groups}) {
+      push @request_params, "u.gid IN ($kkt->{groups})";
     }
 
-    if($kkt->{aid} > 0){
-      $CASE .= "WHEN p.aid IN ($kkt->{aid}) THEN $kkt->{kkt_id}\n";
-    }
-    else{
-      next;
+    if($kkt->{aid}){
+      push @request_params, "p.aid IN ($kkt->{aid})";
     }
 
+    push @request_params, "p.method IN ($kkt->{methods})";
+    $CASE .= ' WHEN ' . join(' AND ', @request_params) ." THEN $kkt->{kkt_id}\n";
   }
+
   $CASE .= "ELSE 0\nEND as kkt_id\n";
 
-  $self->query('INSERT INTO extreceipts (payments_id, kkt_id)
-      SELECT p.id, '. $CASE .'
+  $self->query('INSERT INTO extreceipts (payments_id, kkt_id) '
+      . 'SELECT p.id, '. $CASE .'
       FROM payments p
       LEFT JOIN users u ON (u.uid = p.uid)
       WHERE p.id NOT IN (SELECT payments_id FROM extreceipts)
@@ -370,13 +370,15 @@ sub api_list {
   my ($attr) = @_;
 
   my $WHERE =  $self->search_former($attr, [
-      ['API_ID',   'INT', 'ea.api_id',           1],
+      ['CONF_NAME', 'STR', 'ea.conf_name',       1],
+      ['API_ID',    'INT', 'ea.api_id',          1],
+      ['AID',       'int', 'ea.aid',             1]
     ],
     { WHERE => 1 }
   );
 
   $self->query(
-    "SELECT * FROM `extreceipts_api` ea $WHERE;",
+    'SELECT * FROM `extreceipts_api` ea '. $WHERE .';',
     undef,
     { COLS_NAME => 1, COLS_UPPER => 1 }
   );

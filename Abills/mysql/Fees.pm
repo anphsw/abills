@@ -251,6 +251,11 @@ sub list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
+  my @WHERE_RULES = ();
+  if($attr->{FEES_MONTHES}){
+    push @WHERE_RULES, "f.date >= CURDATE() - INTERVAL $attr->{FEES_MONTHES} MONTH";
+  }
+
   my $WHERE =  $self->search_former($attr, [
       ['ID',             'INT', 'f.id',                              ],
       ['DATETIME',       'DATE','f.date',        'f.date AS datetime'],
@@ -283,25 +288,9 @@ sub list {
     { WHERE       => 1,
       USERS_FIELDS=> 1,
       SKIP_USERS_FIELDS=> [ 'BILL_ID', 'UID', 'LOGIN' ],
-      USE_USER_PI => 1
-    }
-    );
-
-  if($self->{conf}->{user_payment_journal_show} && defined $attr->{SHOW_PAYMENT}){
-    use POSIX qw(strftime);
-
-    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
-
-    $mday = 1;
-    $mon = $mon - $self->{conf}->{user_payment_journal_show} + 1;
-    if ($mon == 13) {
-      $mon = 1;
-      $year++;
-    }
-    my $date_show = POSIX::strftime('%Y-%m-%d', ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst));
-
-    $WHERE .= "AND f.date >= '$date_show'";
-  }
+      USE_USER_PI => 1,
+      WHERE_RULES => \@WHERE_RULES,
+    });
 
   my $EXT_TABLES  = $self->{EXT_TABLES};
 
@@ -360,7 +349,7 @@ sub reports {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $PG   = ($attr->{PG})   ? $attr->{PG}   : 0;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $date = "u.id AS login";
+  my $date = "DATE_FORMAT(f.date, '%Y-%m-%d') AS date";
   my @WHERE_RULES = ();
   my %EXT_TABLE_JOINS_HASH = ();
 
@@ -406,7 +395,8 @@ sub reports {
   }
   elsif ($report_type eq 'COMPANIES') {
     $EXT_TABLE_JOINS_HASH{companies}=1;
-    $date       = "c.name AS company_name";
+    $date       = "company.name AS company_name";
+    $attr->{COMPANY_ID}='>0';
   }
   elsif ($report_type eq 'DISTRICT') {
     $date = "districts.name AS district_name";
@@ -437,9 +427,9 @@ sub reports {
     $date = "u.gid";
     $EXT_TABLE_JOINS_HASH{users}=1;
   }
-  # else{
-  #   $date = "u.id AS login";
-  # }
+  elsif($report_type eq 'LOGIN'){
+    $date = "u.id AS login";
+  }
 
   if($attr->{GID}) {
     $EXT_TABLE_JOINS_HASH{users}=1;

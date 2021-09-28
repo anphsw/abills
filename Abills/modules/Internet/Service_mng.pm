@@ -51,226 +51,6 @@ sub new {
   return $self;
 }
 
-#***************************************************************
-=head2 service_warning($attr) - Show warning message and tips
-
-  Arguments:
-    $attr
-      SERVICE - Service object
-      USER     - User object
-      DATE     - Cur date
-      USER_PORTAL - Call from user portal
-
-  Return:
-    $message, $message_type
-      self 
-        ABON_DATE
-        DAY_TO_FEE
-
-  Examples:
-
-     my($message, $message_type) = $self->service_warning({
-       SERVICE  => $Internet [info],
-       USER     => $User [info],
-       DATE     => '2017-12-01'
-     });
-
-=cut
-#***************************************************************
-sub service_warning {
-  my $self = shift;
-  my ($attr) = @_;
-
-  my $warning = '';
-  my $message_type = 'info';
-
-  my $user = $attr->{USER};
-  my $Service = $attr->{SERVICE};
-  $DATE = $attr->{DATE} if ($attr->{DATE});
-
-  $user->{DEPOSIT} = 0 if (!$user->{DEPOSIT} || $user->{DEPOSIT} !~ /^[0-9\.\,\-]+$/);
-  $user->{CREDIT} ||= $user->{COMPANY_CREDIT} || 0;
-  $self->{DAYS_TO_FEE} = 0;
-
-  if ($Service->{EXPIRE} && $Service->{EXPIRE} ne '0000-00-00') {
-    my $expire = date_diff($Service->{EXPIRE}, $DATE);
-    if ($expire >= 0) {
-      $warning = "$lang{EXPIRE}: $Service->{EXPIRE}";
-      $message_type = 'err';
-      return $warning, $message_type;
-    }
-
-    $message_type = 'warn';
-    $warning = "$lang{EXPIRE}: $Service->{EXPIRE}";
-    #return $warning, $message_type;
-  }
-  elsif ($Service->{JOIN_SERVICE} && $Service->{JOIN_SERVICE} > 1) {
-    $message_type = 'warn';
-    return $lang{JOIN_SERVICE}, $message_type;
-  }
-
-  if ($Service->{PERSONAL_TP} && $Service->{PERSONAL_TP} > 0) {
-    $Service->{MONTH_ABON} = $Service->{PERSONAL_TP};
-  }
-
-  $user->{REDUCTION} = 0 if (!$Service->{REDUCTION_FEE} || !$user->{REDUCTION});
-  my $reduction_division = ($user->{REDUCTION} && $user->{REDUCTION} >= 100) ? 0 : ((100 - $user->{REDUCTION}) / 100);
-
-  #use internet warning expr
-  if ($self->{conf}->{INTERNET_WARNING_EXPR}) {
-    if ($self->{conf}->{INTERNET_WARNING_EXPR} =~ /CMD:(.+)/) {
-      $warning = cmd($1, {
-        PARAMS => {
-          language => $html->{language},
-          USER_PORTAL => $attr->{USER_PORTAL},
-          %{ ($attr->{USER}) ? $attr->{USER} : {} },
-          %{ ($attr->{INTERNET}) ? $attr->{INTERNET} : {} }
-        }
-      });
-    }
-  }
-  elsif (!$reduction_division) {
-    return '', $message_type;
-  }
-  # Get next payment period
-  elsif (
-    (!$Service->{STATUS} || $Service->{STATUS} == 10)
-      && !$user->{DISABLE}
-      && ($user->{DEPOSIT} + (($user->{CREDIT} && $user->{CREDIT} > 0) ? $user->{CREDIT} : ($Service->{TP_CREDIT} || 0)) > 0
-      || ($Service->{POSTPAID_ABON} || 0)
-      || ($Service->{PAYMENT_TYPE} && $Service->{PAYMENT_TYPE} == 1))
-  ) {
-    my $days_to_fee = 0;
-    my ($from_year, $from_month, $from_day) = split(/-/, $DATE, 3);
-    #    if ($Service->{REDUCTION_FEE} && $user->{REDUCTION} == 100) {
-    #      $warning = "$lang{NEXT_FEES}: -- $lang{REDUCTION}: 100%";
-    #    }
-    if ($Service->{MONTH_ABON} && $Service->{MONTH_ABON} > 0) {
-      if ($Service->{ABON_DISTRIBUTION} && $Service->{MONTH_ABON} > 0) {
-        my $days_in_month = 30;
-
-        if ($Service->{ACTIVATE} eq '0000-00-00') {
-          my ($y, $m, $d) = split(/-/, $DATE);
-          my $rest_days = 0;
-          my $rest_day_sum = 0;
-          my $deposit = $user->{DEPOSIT} + $user->{CREDIT};
-
-          while ($rest_day_sum < $deposit) {
-            $days_in_month = days_in_month({ DATE => "$y-$m" });
-            my $month_day_fee = ($Service->{MONTH_ABON} * $reduction_division) / $days_in_month;
-            $rest_days = $days_in_month - $d;
-            $rest_day_sum = $rest_days * $month_day_fee;
-
-            if ($rest_day_sum > $deposit) {
-              $days_to_fee += int($deposit / $month_day_fee);
-            }
-            else {
-              $deposit = $deposit - $month_day_fee * $rest_days;
-              $days_to_fee += $rest_days;
-              $rest_day_sum = 0;
-              $d = 1;
-              $m++;
-              if ($m > 12) {
-                $m = 1;
-                $y++;
-              }
-            }
-          }
-        }
-        else {
-          $days_to_fee = int(($user->{DEPOSIT} + $user->{CREDIT}) / (($Service->{MONTH_ABON} * $reduction_division) / $days_in_month));
-        }
-        $warning = $lang{SERVICE_ENDED} || q{};
-      }
-      else {
-        #$warning = "$lang{NEXT_FEES}: ";
-        if ($Service->{ACTIVATE} && $Service->{ACTIVATE} ne '0000-00-00') {
-          my ($Y, $M, $D) = split(/-/, $Service->{ACTIVATE}, 3);
-          if ($Service->{FIXED_FEES_DAY}) {
-            if ($M == 12) {
-              $M = 0;
-              $Y++;
-            }
-
-            $self->{ABON_DATE} = POSIX::strftime("%Y-%m-%d", localtime(POSIX::mktime(0, 0, 12, $D, $M, ($Y - 1900), 0, 0, 0)));
-          }
-          else {
-            $M--;
-            $self->{ABON_DATE} = POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 12, $D, $M, ($Y - 1900), 0, 0, 0) + 31 * 86400)));
-          }
-        }
-        else {
-          my ($Y, $M, $D) = split(/-/, $DATE, 3);
-          if ($self->{conf}->{START_PERIOD_DAY} && $self->{conf}->{START_PERIOD_DAY} > $D) {
-          }
-          else {
-            $M++;
-          }
-
-          if ($M == 13) {
-            $M = 1;
-            $Y++;
-          }
-          if ($self->{conf}->{START_PERIOD_DAY}) {
-            $D = $self->{conf}->{START_PERIOD_DAY};
-          }
-          else {
-            $D = '01';
-          }
-          $self->{ABON_DATE} = sprintf("%d-%02d-%02d", $Y, $M, $D);
-        }
-
-        $days_to_fee = date_diff($DATE, $self->{ABON_DATE});
-        if ($days_to_fee > 0) {
-          $warning = $lang{NEXT_FEES_THROUGHT};
-        }
-      }
-    }
-    elsif ($Service->{DAY_ABON} && $Service->{DAY_ABON} > 0) {
-      $days_to_fee = int(($user->{DEPOSIT} + $user->{CREDIT} > 0) ? ($user->{DEPOSIT} + $user->{CREDIT}) / ($Service->{DAY_ABON} * $reduction_division) : 0);
-      $warning = $lang{SERVICE_ENDED};
-    }
-
-    if ($days_to_fee && $days_to_fee < 5) {
-      $message_type = 'warn';
-    }
-    elsif ($days_to_fee eq 0) {
-      $message_type = 'err' if (!$message_type);
-    }
-    else {
-      $message_type = 'success';
-    }
-
-    if ($Service->{EXPIRE} && $Service->{EXPIRE} ne '0000-00-00') {
-      my $to_expire = date_diff($DATE, $Service->{EXPIRE});
-      if ($days_to_fee > $to_expire) {
-        $days_to_fee = $to_expire;
-      }
-    }
-
-    $self->{DAYS_TO_FEE} = $days_to_fee;
-    $warning =~ s/\%DAYS\%/$days_to_fee/g;
-
-    if ($days_to_fee > 0) {
-      #Calculate days from net day
-      my $expire_date = POSIX::strftime("%Y-%m-%d", localtime(POSIX::mktime(0, 0, 12, $from_day, ($from_month - 1), ($from_year - 1900))
-        + 86400 * $days_to_fee + (($Service->{DAY_ABON} && $Service->{DAY_ABON} > 0) ? 86400 : 0)));
-      $self->{ABON_DATE} = $expire_date;
-      #      $warning .= " ($expire_date)";
-      $warning =~ s/\%EXPIRE_DATE\%/$expire_date/g;
-      if ($Service->{MONTH_ABON} && $Service->{MONTH_ABON} > 0) {
-        $warning .= "\n$lang{SUM}: " . sprintf("%.2f", $Service->{MONTH_ABON} * $reduction_division);
-      }
-    }
-    # elsif ($Service->{INTERNET_EXPIRE} && $Service->{INTERNET_EXPIRE} ne '0000-00-00') {
-    #   #$Service->{SERVICE_EXPIRE_DATE}=$Service->{INTERNET_EXPIRE} if ($FORM{xml});
-    # }
-  }
-
-  return $warning, $message_type;
-}
-
-
 #**********************************************************
 =head2 service_chg_tp($attr)
 
@@ -421,7 +201,6 @@ sub service_chg_tp {
   return $self;
 }
 
-
 #**********************************************************
 =head2 get_next_abon_date($attr)
 
@@ -498,14 +277,7 @@ sub get_next_abon_date {
     $self->{message} = 'MONTH_FEE_0';
   }
   # next month abon period
-  elsif (
-    $month_abon > 0
-    #      && !$self->{STATUS}
-    #      && !$self->{USER_INFO}->{DISABLE}
-    #&& ( $self->{USER_INFO}->{DEPOSIT} + $self->{USER_INFO}->{CREDIT} > 0
-    #|| $self->{POSTPAID_ABON}
-    #|| $self->{PAYMENT_TYPE} == 1)
-  ) {
+  elsif ($month_abon > 0) {
     if ($service_activate ne '0000-00-00') {
       if ($fixed_fees_day) {
         $M++;
@@ -521,7 +293,7 @@ sub get_next_abon_date {
       else {
         $self->{ABON_DATE} = POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900),
           0, 0, 0) + 31 * 86400 + (($start_period_day > 1) ? $start_period_day * 86400 : 0))));
-        $self->{message} = 'NEXT_OERIOD_ABON';
+        $self->{message} = 'NEXT_PERIOD_ABON';
       }
 
     }
@@ -629,13 +401,6 @@ sub change_tp {
     #Take fees
     if (!$Service->{STATUS}) {
       service_get_month_fee($Service) if (!$attr->{INTERNET_NO_ABON});
-      #      $Service->change({
-      #        TP_ID    => $new_tp_id,
-      #        ID       => $service_id,
-      #        UID      => $uid,
-      #        ACTIVATE => ($Service->{ACTIVATE} ne '0000-00-00') ? $DATE : undef,
-      #        STATUS   => ($Service->{STATUS} == 5) ? 0 : ($FORM{STATUS} || undef)
-      #      });
     }
   }
 

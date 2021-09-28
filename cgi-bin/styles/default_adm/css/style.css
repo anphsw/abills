@@ -92,6 +92,34 @@ table {
 
 /* Ordered list for display results. */
 
+.dark-mode ol.mp_list {
+	overflow: hidden;
+	position: absolute;
+	padding-left: 0;
+	width: 344px;
+	z-index: 99999;
+	border: 1px solid #4b545c;
+	border-radius: 4px;
+	margin-left: -160px;
+	margin-top: 35px;
+	background-color: #343a40 !important;
+}
+
+.dark-mode ol.mp_list li {
+	border-bottom: 1px solid #343a40;
+	left: 0;
+	right: 0;
+	width: 350px;
+	padding: 5px 10px;
+	margin-left: -5px;
+	display: block;
+	background-color: #4b545c !important;
+}
+
+.dark-mode ol.mp_list li:hover {
+	background-color: #343a40 !important;
+}
+
 ol.mp_list {
 	overflow: hidden;
 	position: absolute;
@@ -104,7 +132,6 @@ ol.mp_list {
 	margin-top: 35px;
 	background-color: #fff !important;
 }
-
 
 @media only screen and (max-width: 950px) {
 	ol.mp_list {
@@ -610,17 +637,17 @@ body:not(.sidebar-mini-md) .content-wrapper, body:not(.sidebar-mini-md) .main-fo
 /* Dropdown items end. */
 
 .main-sidebar {
-	width: 260px;
+	width: 250px;
 }
 
 @media (min-width: 768px) {
-	body:not(.sidebar-mini-md) .content-wrapper, body:not(.sidebar-mini-md) .main-footer, body:not(.sidebar-mini-md) .main-header {
-		margin-left: 260px;
+	body:not(.sidebar-mini) .content-wrapper, body:not(.sidebar-mini) .main-footer, body:not(.sidebar-mini) .main-header {
+		margin-left: 250px;
 	}
 }
 
 .sidebar-collapse .main-sidebar, .sidebar-collapse .main-sidebar::before {
-	margin-left: -260px;
+	margin-left: -250px;
 }
 
 .card.card-form {
@@ -780,3 +807,13 @@ a:not([href]):not([class]) {
 	color:rgba(0,0,0,.9) !important;
 }
 
+.cursor-pointer {
+	cursor: pointer !important;
+}
+
+.notificationsjs { z-index:9999 !important; }
+
+.nav-sidebar .nav-link p {
+  display: inline-flex;
+  white-space: normal;
+}

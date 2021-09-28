@@ -167,22 +167,32 @@ sub info_comments_make{
   
   my @filled_templates = ();
   my $del_button = qq{};
+  my $edit_button = qq{};
   my $comments_remove_index = get_function_index( 'info_comment_del' );
-  
-  foreach my $comment (@{$comments_list}){
+
+  my @reversed_arr = ();
+  @reversed_arr = reverse @{$comments_list} if ($comments_list);
+
+  foreach my $comment (@reversed_arr){
+    my $not_changed = !$Info->log_comments({COMMENT_ID=>$comment->{id}});
     if (! $FORM{xml}) {
-      $del_button = qq{ <a data-url='?qindex=$comments_remove_index&OBJ_ID=$comment->{id}&header=2' class='commentDeleteBtn pull-right' title="$lang{DEL}">
+      $del_button = qq{ <a data-url='?qindex=$comments_remove_index&OBJ_ID=$comment->{id}&header=2' class='commentDeleteBtn'  title="$lang{DEL}">
       <span class='fa fa-trash text-danger'></span>
+    </a>};
+      $edit_button = qq{ <a class='commentEditBtn' data-id='$comment->{id}' title="$lang{EDIT}">
+      <span class='fa fa-pencil text-primary'></span>
     </a>};
     }
 
     push @filled_templates, $html->tpl_show(
         _include( 'comments/info_comment', 'Info' ),
         {
-          TEXT         => $comment->{text},
-          DATE         => $comment->{date},
-          ADMIN        => $comment->{name},
-          DEL_BUTTON   => $permissions{0}{31} ? $del_button : '',
+          TEXT        => $comment->{text},
+          DATE        => $comment->{date},
+          ADMIN       => $comment->{name},
+          DEL_BUTTON  => $permissions{0}{31} ? $del_button : '',
+          EDIT_BUTTON => $permissions{0}{31} ? $edit_button : '',
+          CHANGED     => !$not_changed ? "($lang{EDITED})" : ''
         },
         { OUTPUT2RETURN => 1, ID => 'info_comment' }
       );
@@ -235,11 +245,14 @@ sub info_comment_add {
     \%FORM
   );
 
-  if (!$Info->{errno}) {
-    $html->message('success', "$lang{ADDED}");
+  if ( !$Info->{errno} ){
+    print qq/ {"status" : 0} /;
   }
-  else {
-    $html->message('danger', "$Info->{errstr}");
+  else{
+    print qq/ {
+      "status" : $Info->{errno},
+      "error"  : $Info->{errstr}
+      } /;
   }
 
   return 1;
@@ -1027,12 +1040,28 @@ sub info_edit {
       });
     }
 
-    $html->tpl_show(_include('info_change', 'Info'), {
-      INDEX => $index,
-      TEXT  => $FORM{text},
-      ID    => $FORM{chg},
-      UID   => $FORM{uid}
-    });
+    if($FORM{EDIT}){
+      if (!$Info->{errno}) {
+        print qq\ {
+        "status" : 0,
+        "message"  : "$lang{SUCCESS}"
+        } \;
+      }
+      else {
+        print qq/ {
+        "status" : $Info->{errno},
+        "message"  : $Info->{errstr}
+        } /;
+      }
+      return 0;
+    } else {
+      $html->tpl_show(_include('info_change', 'Info'), {
+        INDEX => $index,
+        TEXT  => $FORM{text},
+        ID    => $FORM{chg},
+        UID   => $FORM{uid}
+      });
+    }
   }
 
   log_comments_edit();

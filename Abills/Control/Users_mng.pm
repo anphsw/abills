@@ -32,6 +32,7 @@ our (
 );
 
 our Abills::HTML $html;
+our Users $users;
 my @priority_colors = ('btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
 my $Contacts = Contacts->new($db, $admin, \%conf);
 
@@ -94,7 +95,7 @@ sub form_user_profile {
       delete($FORM{CREDIT});
     }
 
-    if ($admin->{CREDIT_DAYS}  && defined($FORM{CREDIT}) && sprintf('%.2f', $FORM{CREDIT}) > 0) {
+    if ($admin->{CREDIT_DAYS}  && defined($FORM{CREDIT}) && sprintf('%.2f', $FORM{CREDIT} || 0) > 0) {
       my $max_credit = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $admin->{CREDIT_DAYS} ));
       if ($FORM{CREDIT_DATE} && $FORM{CREDIT_DATE} ne '0000-00-00' && date_diff($DATE, $FORM{CREDIT_DATE}) > $admin->{CREDIT_DAYS}) {
         $FORM{CREDIT_DATE} = $max_credit;
@@ -255,7 +256,8 @@ sub form_user_profile {
       form_3 => $service_info1 || '',
       form_4 => $service_info2 || '',
       form_5 => $service_info0 || '',
-      form_6 => in_array('Info', \@MODULES) ? info_comments_show('form_user_profile', $user_info->{UID}, {OUTPUT2RETURN => 1, WITH_BOX => 1}) : '',
+      form_6 => (in_array('Info', \@MODULES) &&
+        (!$admin->{MODULES} || $admin->{MODULES}{'Info'})) ? info_comments_show('form_user_profile', $user_info->{UID}, {OUTPUT2RETURN => 1, WITH_BOX => 1}) : '',
     );
 
     foreach my $fn (keys %TOTAL_FNC) {
@@ -462,14 +464,12 @@ sub form_users_multiuser {
     require Ureports;
     my $Ureports = Ureports->new($db, $admin, \%conf);
 
-    $Ureports->user_list_add(
-      {
-        TP_ID  => $FORM{UREPORTS_TP},
-        STATUS => $FORM{UREPORTS_STATUS},
-        UIDS   => $FORM{IDS},
-        TYPE   => $FORM{UREPORTS_TYPE}
-      }
-    );
+    $Ureports->user_list_add({
+      TP_ID  => $FORM{UREPORTS_TP},
+      STATUS => $FORM{UREPORTS_STATUS},
+      UIDS   => $FORM{IDS},
+      TYPE   => $FORM{UREPORTS_TYPE}
+    });
 
     $html->message('err', $lang{INFO}, "$lang{TARIF_PLAN} $lang{NOT} $lang{ADDED} UID:$Ureports->{errnostr}") if ($Ureports->{errnostr});
     $html->message('info', $lang{INFO}, "$Ureports->{TOTAL} $lang{ADDED}") if (!$Ureports->{errno});
@@ -1037,15 +1037,18 @@ sub user_pi {
       }
     }
 
+
+    $attr->{ADDRESS_HIDE} = 1;
     $user_pi->{ADDRESS_TPL} = form_address({
       # Can be received from MSGS reg_request
       %$attr,
       %$user_pi,
-      SHOW        => 1,
+      SHOW        => 0,
       SHOW_BUTTONS => 1,
       SHOW_ADD_BUTTONS => 1,
       EXT_ADDRESS => $ext_address,
     });
+    delete $attr->{ADDRESS_HIDE};
 
     my $pi_form = $html->tpl_show(templates('form_pi'), {
       FORM_ATTR => 'container-md pr-0 pl-0',
@@ -1296,7 +1299,7 @@ sub user_form {
         });
       $user_info->{confirm} = $user_info->{newpassword};
     }
-
+    $attr->{G2FA_HIDDEN} = 'hidden';
     $main_account .= $html->tpl_show(templates('form_password'), { %$user_info, %$attr }, { OUTPUT2RETURN => 1 });
 
     $main_account =~ s/<FORM.+>//ig;
@@ -1463,13 +1466,13 @@ sub user_form {
     if($permissions{1} && $permissions{2}){
       if($last_date_payments gt $last_date_fees){
         $user_info->{BUTTON_SHOW_LAST} = $html->button('', "index=2&UID=" . $uid,
-          { ICON => 'fa fa-arrow-up', ex_params =>
+          { ICON => 'fa fa-arrow-up text-primary', ex_params =>
             "data-tooltip='$lang{LAST_PAYMENT}: $last_date_payments </br> $lang{SUM}: $last_sum_payments ' data-tooltip-position='top' class=''" });
       }
       else{
         $user_info->{BUTTON_SHOW_LAST} = $html->button('', "index=3&UID=" . $uid,
-             { ICON => 'fa fa-arrow-down text-danger', ex_params =>
-               "data-tooltip='$lang{LAST_FEES}: $last_date_fees </br>  $lang{SUM}: $last_sum_fees ' data-tooltip-position='top' class=''" });
+          { ICON => 'fa fa-arrow-down text-white', ex_params =>
+            "data-tooltip='$lang{LAST_FEES}: $last_date_fees </br>  $lang{SUM}: $last_sum_fees ' data-tooltip-position='top' class=''" });
       }
     }
 
@@ -1571,23 +1574,23 @@ sub user_form {
 
     if ($permissions{0}{3}) {
       my $show_btn = $html->button("", "qindex=$index&header=2&UID=$uid&SHOW_PASSWORD=1",
-        { class         => 'btn btn-sm btn-secondary', ICON => 'fa fa-eye',
+        { class         => 'btn btn-sm btn-default', ICON => 'fa fa-eye',
           ex_params     => "data-tooltip='$lang{SHOW} $lang{PASSWD}' data-tooltip-position='top'",
           LOAD_TO_MODAL => 1
         });
 
       my $chg_btn = $html->button("", "index=" . get_function_index('form_passwd') . "&UID=$uid",
-        { class => 'btn btn-sm btn-secondary', ICON => 'fa fa-pencil', ex_params =>
+        { class => 'btn btn-sm btn-default', ICON => 'fa fa-pencil', ex_params =>
           "data-tooltip='$lang{CHANGE} $lang{PASSWD}' data-tooltip-position='top'" });
 
       my $portal_btn = $html->button("", "qindex=$index&header=2&UID=$uid&USER_PORTAL=1&SHOW_PASSWORD=1",
-        { class     => 'btn btn-sm btn-secondary', ICON => 'fa fa-sign-in',
+        { class     => 'btn btn-sm btn-default', ICON => 'fa fa-sign-in',
           ex_params => "data-tooltip='$lang{USER_PORTAL}' data-tooltip-position='top' target='_blank'"
         });
 
       my Users $user_i = $users->info($uid, { SHOW_PASSWORD => 1 });
       my $copy_btn = $html->button("", "", {
-        class     => 'btn btn-sm btn-secondary',
+        class     => 'btn btn-sm btn-default',
         ICON      => 'fa fa-copy',
         ex_params => "data-tooltip='$lang{COPY} $lang{PASSWD}' data-tooltip-position='top'",
         COPY      => $user_i->{PASSWORD},
@@ -1948,8 +1951,13 @@ sub user_right_menu {
             #Get quick info
             my $info = '';
             my $quick_info_fn = lc($module{$key} . '_quick_info');
+
             if ($quick_info_fn) {
-              $info = $html->badge(_function(0, { IF_EXIST => 1, FN_NAME => $quick_info_fn }));
+              $info = $html->badge(_function(0, {
+                IF_EXIST => 1,
+                FN_NAME  => $quick_info_fn,
+                LOGIN    => $FORM{LOGIN}
+              }));
             }
 
             push @items_arr, "$menu_items{$key}{20} $info:UID=$uid&index=" . ($key || 0);
@@ -2247,7 +2255,7 @@ sub form_users_list {
 
   if ($FORM{COMPANY_ID} && !$FORM{change}) {
     print $html->br($html->b("$lang{COMPANY}:") . $FORM{COMPANY_ID});
-    $pages_qs .= "&COMPANY_ID=$FORM{COMPANY_ID}";
+    $pages_qs .= "&COMPANY_ID=$FORM{COMPANY_ID}" if ($pages_qs !~ /COMPANY_ID/);
     $LIST_PARAMS{COMPANY_ID} = $FORM{COMPANY_ID};
     $col_hidden{COMPANY_ID} = $FORM{COMPANY_ID};
   }
@@ -2330,12 +2338,13 @@ sub form_users_list {
         if ( $k && ($k eq 'PHONE' || $k eq 'CELL_PHONE') && $v !~ m/\*/ ) {
           $v = qq{*$v*};
         }
+        next if($v eq ', ');
         $LIST_PARAMS{$k} = $v;
       }
     }
   }
 
-  if ($FORM{json} && $FORM{API_KEY}) {
+  if ($FORM{json} && $FORM{API_KEY} && !$LIST_PARAMS{PAGE_ROWS}) {
     $LIST_PARAMS{PAGE_ROWS} = 100000;
   }
 
@@ -2351,6 +2360,8 @@ sub form_users_list {
       $LIST_PARAMS{UID} = $value;
     }
   }
+
+  $LIST_PARAMS{_MULTI_HIT} = ' OR ' if($FORM{UID} && $FORM{UID} =~ /.*\,.*/);
 
   ($table, $list) = result_former({
     INPUT_DATA      => $users,
@@ -2412,6 +2423,11 @@ sub form_users_list {
   }
 
   my $base_fields = 1;
+
+  if ($FORM{UNIVERSAL_SEARCH}) {
+    $FORM{UNIVERSAL_SEARCH} =~ s/\*//g;
+  }
+
   foreach my $line (@$list) {
     my $uid = $line->{uid};
     my $payments = ($permissions{1}) ? $html->button($lang{PAYMENTS}, "index=2&UID=$uid", { class => 'payments' }) : '';
@@ -3075,7 +3091,7 @@ sub form_wizard {
 
   if ($FORM{step} > 2) {
     push @back_button,
-      $html->form_input('finish', $lang{FINISH}, { TYPE => ($steps{ $FORM{step} }) ? 'submit' : 'hidden' }),
+      $html->form_input('finish', $lang{FINISH}, { TYPE => ($steps{ $FORM{step} }) ? 'submit' : 'hidden' }) . ' ',
       $html->form_input('back', $lang{BACK}, { TYPE => 'submit' });
   }
   else {
@@ -3563,7 +3579,7 @@ sub form_info_field_tpl {
       $input = $html->form_input($field_name, $attr->{VALUES}->{$field_name} || $FORM{$field_name}, { SIZE => 20, ID => $field_name, EX_PARAMS => $disabled_ex_params, OUTPUT2RETURN => 1 });
       if ($attr->{VALUES}->{$field_name}) {
         $input .=
-          qq{  <script type="text/javascript" src="http://download.skype.com/share/skypebuttons/js/skypeCheck.js"></script>  <a href="skype:abills.support?call"><img src="http://mystatus.skype.com/smallclassic/$attr->{VALUES}->{$field_name}" style="border: none;" width="114" height="20"/></a>};
+          qq{  <script type="text/javascript" src="http://download.skype.com/share/skypebuttons/js/skypeCheck.js"></script><a href="skype:abills.support?call"><img src="http://mystatus.skype.com/smallclassic/$attr->{VALUES}->{$field_name}" style="border: none;" width="114" height="20"/></a>};
       }
     }
     elsif ($type == 3) {

@@ -1,5 +1,7 @@
 =head1 NAME
 
+  Turbo mode control
+
 =cut
 
 
@@ -34,9 +36,12 @@ sub internet_turbo_control {
   if($Internet_->{TURBO_MODE}) {
     return 1;
   }
+  elsif($Internet_->{STATUS}) {
+    #$html->message('err', $lang{ERROR}, "$lang{SERVICE} $lang{DISABLED}");
+    return 1;
+  }
 
   $conf{INTERNET_TURBO_MODE} //= q{};
-
   $conf{INTERNET_TURBO_MODE} =~ s/\n//;
 
   my (@turbo_mods) = split(/;/, $conf{INTERNET_TURBO_MODE});
@@ -52,7 +57,8 @@ sub internet_turbo_control {
       next;
     }
 
-    push @turbo_mods_full, sprintf("$name\n $lang{SPEED}: $speed\n $lang{TIME}: %s\n $lang{PRICE}: %.2f %s", sec2time($time, { format => 1 }), $price, (($bonus) ? "($lang{BONUS})" : ''));
+    push @turbo_mods_full, sprintf("$name\n $lang{SPEED}: $speed\n $lang{TIME}: %s\n $lang{PRICE}: %.2f %s",
+      sec2time($time, { format => 1 }), $price, (($bonus) ? "($lang{BONUS})" : ''));
 
     if ($FORM{SPEED} && $FORM{SPEED} == $i) {
       $FORM{MODE_ID} = $i - 1;
@@ -73,29 +79,25 @@ sub internet_turbo_control {
 
   my $Turbo = Turbo->new($db, $admin, \%conf);
 
-  my $list = $Turbo->list(
-    {
-      UID      => $LIST_PARAMS{UID},
-      ACTIVE   => 1,
-      GROUP_BY => q{}
-    }
-  );
+  my $list = $Turbo->list({
+    UID      => $LIST_PARAMS{UID},
+    ACTIVE   => 1,
+    GROUP_BY => q{}
+  });
 
   if ($Turbo->{TOTAL} > 0 || $Internet_->{TURBO_MODE_RUN}) {
     my $last = $list->[0]->[2] || $Internet_->{TURBO_MODE_RUN} || 0;
     $html->message('info', $lang{INFO}, $html->b($turbo_mods_full[$list->[0]->[1] || 0]) . "\n$lang{REMAIN} $lang{TIME}: $last sec.");
   }
-  elsif ($FORM{change} && defined($FORM{SPEED})) {
+  elsif ($FORM{change} && $FORM{SPEED}) {
     if ($user->{DEPOSIT} + $user->{CREDIT} > $price) {
-      $Turbo->add(
-        {
-          UID        => $LIST_PARAMS{UID},
-          MODE_ID    => $FORM{SPEED} || $FORM{MODE_ID} || 0,
-          SPEED      => int($FORM{SPEED} || 0),
-          SPEED_TYPE => 0,
-          TIME       => $FORM{TIME},
-        }
-      );
+      $Turbo->add({
+        UID        => $LIST_PARAMS{UID},
+        MODE_ID    => $FORM{SPEED} || $FORM{MODE_ID} || 0,
+        SPEED      => int($FORM{SPEED} || 0),
+        SPEED_TYPE => 0,
+        TIME       => $FORM{TIME},
+      });
 
       if (_error_show($Turbo, { SILENT_MODE => 1 })) {
         return 0;
@@ -147,7 +149,7 @@ sub internet_turbo_control {
 
       require Internet::Sessions;
       Internet::Sessions->import();
-      my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+      $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
       my $sessions_list = $Sessions->online({
         UID        => $user->{UID},
@@ -265,17 +267,15 @@ sub internet_turbo_mode {
     push @caption, 'TC';
   }
 
-  my $table = $html->table(
-    {
-      width        => '100%',
-      caption      => "TURBO $lang{SESSIONS}",
-      title        => [ @caption, "-" ],
-      qs           => $pages_qs,
-      pages        => $Turbo->{TOTAL},
-      recs_on_page => $LIST_PARAMS{PAGE_ROWS},
-      ID           => 'INTERNET_TURBO_SESSIONS'
-    }
-  );
+  my $table = $html->table({
+    width        => '100%',
+    caption      => "TURBO $lang{SESSIONS}",
+    title        => [ @caption, "-" ],
+    qs           => $pages_qs,
+    pages        => $Turbo->{TOTAL},
+    recs_on_page => $LIST_PARAMS{PAGE_ROWS},
+    ID           => 'INTERNET_TURBO_SESSIONS'
+  });
 
   my $delete = '';
   require Billing;
@@ -283,11 +283,11 @@ sub internet_turbo_mode {
   Billing->new($db, \%conf);
 
   foreach my $line (@$list) {
-    if ($permissions{3}{1}) {
+    if ($permissions{3} && $permissions{3}{1}) {
       $delete = $html->button($lang{DEL}, "index=" . $index . "$pages_qs&del=$line->{id}", { MESSAGE => "$lang{DEL} $lang{SESSIONS} $line->{id} ", class => 'del' });
     }
 
-    $table->addrow($html->button("$line->{login}", "index=11&UID=$line->{uid}"),
+    $table->addrow($html->button($line->{login}, "index=11&UID=$line->{uid}"),
       $line->{mode_id},
       $line->{last_time},
       $line->{start},

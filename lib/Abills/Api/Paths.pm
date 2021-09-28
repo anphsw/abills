@@ -2,312 +2,373 @@ package Abills::Api::Paths;
 
 sub list {
   return {
-    users => [
+    users     => [
       {
-        method  => 'GET',
-        path    => '/users/:uid/',
-        handler => 'info(:uid)',
-        module  => 'Users',
+        method      => 'GET',
+        path        => '/users/:uid/',
+        handler     => 'info(:uid)',
+        module      => 'Users',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'PUT',
-        path    => '/users/:uid/',
-        handler => 'change(:uid, {
+        method      => 'PUT',
+        path        => '/users/:uid/',
+        handler     => 'change(:uid, {
           ...PARAMS
         })',
-        module  => 'Users',
+        module      => 'Users',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'DELETE',
-        path    => '/users/:uid/',
-        handler => 'del({
+        method      => 'DELETE',
+        path        => '/users/:uid/',
+        handler     => 'del({
           UID => :uid,
           ...PARAMS
         })',
-        module  => 'Users',
+        module      => 'Users',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'GET',
-        path    => '/users/:uid/pi/',
-        handler => 'pi({ UID => :uid })',
-        module  => 'Users',
+        method      => 'GET',
+        path        => '/users/:uid/pi/',
+        handler     => 'pi({ UID => :uid })',
+        module      => 'Users',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'POST',
-        path    => '/users/',
-        handler => 'add({
+        method      => 'POST',
+        path        => '/users/',
+        handler     => 'add({
           ...PARAMS
         })',
-        module  => 'Users',
+        module      => 'Users',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'GET',
-        path    => '/users/pi/',
-        handler => 'list({
-          COLS_NAME => 1,
-          ...PARAMS
-        })',
-        module  => 'Users',
+        method      => 'GET',
+        path        => '/users/:uid/pi/',
+        handler     => 'pi({ UID => :uid })',
+        module      => 'Users',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'POST',
-        path    => '/users/:uid/pi/',
-        handler => 'pi_add({
+        method      => 'POST',
+        path        => '/users/:uid/pi/',
+        handler     => 'pi_add({
           UID => :uid,
           ...PARAMS
         })',
-        module => 'Users',
+        module      => 'Users',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'PUT',
-        path    => '/users/:uid/pi/',
-        handler => 'pi_change({
+        method      => 'PUT',
+        path        => '/users/:uid/pi/',
+        handler     => 'pi_change({
           UID => :uid,
           ...PARAMS
         })',
-        module => 'Users',
+        module      => 'Users',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'GET',
-        path    => '/users/:uid/abon/',
-        handler => 'user_tariff_list(:uid, {
+        method      => 'GET',
+        path        => '/users/:uid/abon/',
+        handler     => 'user_tariff_list(:uid, {
           COLS_NAME => 1
         })',
-        module => 'Abon',
+        module      => 'Abon',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'POST',
-        path    => '/users/:uid/internet/',
-        handler => 'add({
+        method      => 'POST',
+        path        => '/users/:uid/internet/',
+        handler     => 'add({
           UID => :uid,
           ...PARAMS
         })',
-        module => 'Internet',
+        module      => 'Internet',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'GET',
-        path    => '/users/:uid/internet/',
-        handler => 'list({
+        method      => 'GET',
+        path        => '/users/:uid/internet/',
+        handler     => 'list({
           UID       => :uid,
-          COLS_NAME => 1,
+          CID             => "_SHOW",
+          INTERNET_STATUS => "_SHOW",
+          TP_NAME         => "_SHOW",
+          MONTH_FEE       => "_SHOW",
+          DAY_FEE         => "_SHOW",
+          TP_ID           => "_SHOW",
+          COLS_NAME       => 1,
           ...PARAMS
         })',
-        module => 'Internet',
+        module      => 'Internet',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'GET',
-        path    => '/users/:uid/internet/:id/',
-        handler => 'info(:uid, {
+        method      => 'GET',
+        path        => '/users/:uid/internet/:id/',
+        handler     => 'info(:uid, {
           ID        => :id,
           COLS_NAME => 1,
           ...PARAMS
         })',
-        module => 'Internet',
+        module      => 'Internet',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'POST',
-        path    => '/users/:uid/contacts/',
-        handler => "contacts_add({
-          UID => :uid,
-          ...PARAMS
+        method      => 'POST',
+        path        => '/users/contacts/',
+        handler     => "contacts_list({
+          ...PARAMS,
+          UID => '_SHOW'
         })",
-        module  => 'Contacts',
+        module      => 'Contacts',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'DELETE',
-        path    => '/users/:uid/contacts/',
-        handler => "contacts_del({
-          UID => :uid,
-          ...PARAMS
+        method      => 'GET',
+        path        => '/users/:uid/contacts/',
+        handler     => "contacts_list({
+          UID       => :uid,
+          VALUE     => '_SHOW',
+          PRIORITY  => '_SHOW',
+          TYPE      => '_SHOW',
+          TYPE_NAME => '_SHOW',
         })",
-        module  => 'Contacts',
+        module      => 'Contacts',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'PUT',
-        path    => '/users/:uid/contacts/',
-        handler => "contacts_change({
+        method      => 'POST',
+        path        => '/users/:uid/contacts/',
+        handler     => "contacts_add({
           UID => :uid,
           ...PARAMS
         })",
-        module  => 'Contacts',
+        module      => 'Contacts',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'DELETE',
+        path        => '/users/:uid/contacts/:id/',
+        handler     => "contacts_del({
+          ID  => :id,
+          UID => :uid,
+          ...PARAMS
+        })",
+        module      => 'Contacts',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'PUT',
+        path        => '/users/:uid/contacts/:id/',
+        handler     => "contacts_change({
+          ID  => :id,
+          UID => :uid,
+          ...PARAMS
+        })",
+        module      => 'Contacts',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/users/:uid/iptv/',
+        handler     => 'user_list({
+          UID          => :uid,
+          SERVICE_ID   => "_SHOW",
+          TP_FILTER    => "_SHOW",
+          MONTH_FEE    => "_SHOW",
+          DAY_FEE      => "_SHOW",
+          TP_NAME      => "_SHOW",
+          SUBSCRIBE_ID => "_SHOW",
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module      => 'Iptv',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/users/:uid/iptv/:id/',
+        handler     => 'user_info(:id, {
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module      => 'Iptv',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+    ],
+    admins    => [
+      {
+        method      => 'POST',
+        path        => '/admins/:aid/contacts/',
+        handler     => 'admin_contacts_add({
+          AID     => :aid,
+          ...PARAMS
+        })',
+        module      => 'Admins',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'PUT',
+        path        => '/admins/:aid/contacts/',
+        handler     => 'admin_contacts_change({
+          AID     => :aid,
+          ...PARAMS
+        })',
+        module      => 'Admins',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/admins/:aid/',
+        handler     => 'info(:aid, {
+          ...PARAMS
+        })',
+        module      => 'Admins',
         credentials => [
           'ADMIN'
         ]
       }
     ],
-    admins => [
+    tp        => [
       {
-        method  => 'POST',
-        path    => '/admins/android/token/save/:aid/:type/',
-        handler => 'admin_contacts_add({
-          AID     => :aid,
-          TYPE_ID => :type,
-          ...PARAMS
-        })',
-        module  => 'Admins',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method  => 'POST',
-        path    => '/admins/android/token/change/:aid/:type/',
-        handler => 'admin_contacts_change({
-          AID     => :aid,
-          TYPE_ID => :type,
-          ...PARAMS
-        })',
-        module  => 'Admins',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method  => 'POST',
-        path    => '/admins/',
-        handler => 'info(undef, {
-          ...PARAMS
-        })',
-        module  => 'Admins',
-        credentials => [
-          'ADMIN'
-        ]
-      }
-    ],
-    tp => [
-      {
-        method  => 'GET',
-        path    => '/tp/:tpID/',
-        handler => 'info(undef, {
+        method      => 'GET',
+        path        => '/tp/:tpID/',
+        handler     => 'info(undef, {
           TP_ID => :tpID,
           ...PARAMS
         })',
-        module  => 'Tariffs',
+        module      => 'Tariffs',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'GET',
-        path    => '/tp/:tpID/intervals/',
-        handler => 'ti_list({
+        method      => 'GET',
+        path        => '/tp/:tpID/intervals/',
+        handler     => 'ti_list({
           TP_ID => :tpID,
           COLS_NAME => 1
         })',
-        module  => 'Tariffs',
+        module      => 'Tariffs',
         credentials => [
           'ADMIN'
         ]
       }
     ],
-    abon => [
+    abon      => [
       {
-        method  => 'GET',
-        path    => '/abon/tariffs/',
-        handler => 'tariff_list({
+        method      => 'GET',
+        path        => '/abon/tariffs/',
+        handler     => 'tariff_list({
           COLS_NAME => 1,
           ...PARAMS
         })',
-        module  => 'Abon',
+        module      => 'Abon',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'GET',
-        path    => '/abon/tariffs/:id/',
-        handler => 'tariff_info(:id)',
-        module  => 'Abon',
-        credentials => [
-          'ADMIN'
-        ]
-      },
-      {
-        method  => 'POST',
-        path    => '/abon/tariffs/',
-        handler => 'tariff_add({
+        method      => 'POST',
+        path        => '/abon/tariffs/',
+        handler     => 'tariff_add({
           ...PARAMS
         })',
-        module  => 'Abon',
+        module      => 'Abon',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'POST',
-        path    => '/abon/tariffs/:id/users/:uid/',
-        handler => 'user_tariff_change({
+        method      => 'GET',
+        path        => '/abon/tariffs/:id/',
+        handler     => 'tariff_info(:id)',
+        module      => 'Abon',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/abon/tariffs/:id/users/:uid/',
+        handler     => 'user_tariff_change({
           IDS => :id,
-          UID   => :uid,
+          UID => :uid,
           ...PARAMS
         })',
-        module  => 'Abon',
+        module      => 'Abon',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'DELETE',
-        path    => '/abon/tariffs/:id/users/:uid/',
-        handler => 'user_tariff_change({
+        method      => 'DELETE',
+        path        => '/abon/tariffs/:id/users/:uid/',
+        handler     => 'user_tariff_change({
           DEL => :id,
-          UID   => :uid,
+          UID => :uid,
         })',
-        module  => 'Abon',
+        module      => 'Abon',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'GET',
-        path    => '/abon/users/',
-        handler => 'user_list({
+        method      => 'GET',
+        path        => '/abon/users/',
+        handler     => 'user_list({
           COLS_NAME => 1,
           ...PARAMS
         })',
-        module  => 'Abon',
+        module      => 'Abon',
         credentials => [
           'ADMIN'
         ]
@@ -315,33 +376,38 @@ sub list {
     ],
     intervals => [
       {
-        method  => 'GET',
-        path    => '/intervals/:tpID/',
-        handler => 'ti_info(:tpID)',
-        module  => 'Tariffs',
+        method      => 'GET',
+        path        => '/intervals/:tpID/',
+        handler     => 'ti_info(:tpID)',
+        module      => 'Tariffs',
         credentials => [
           'ADMIN'
         ]
       }
     ],
-    groups => [
+    groups    => [
       {
-        method  => 'GET',
-        path    => '/groups/',
-        handler => 'groups_list({ COLS_NAME => 1 })',
-        module  => 'Users',
-        type    => 'ARRAY',
+        method      => 'GET',
+        path        => '/groups/',
+        handler     => 'groups_list({
+          NAME           => "_SHOW",
+          DOMAIN_ID      => "_SHOW",
+          DESCR          => "_SHOW",
+          DISABLE_CHG_TP => "_SHOW",
+          COLS_NAME      => 1
+        })',
+        module      => 'Users',
+        type        => 'ARRAY',
         credentials => [
           'ADMIN'
         ]
       }
     ],
-    msgs => [
+    msgs      => [
       {
-        method   => 'POST',
-        path     => '/msgs/:uid/send/',
-        handler  => 'message_add({
-          UID => :uid,
+        method      => 'POST',
+        path        => '/msgs/',
+        handler     => 'message_add({
           ...PARAMS
         })',
         module      => 'Msgs',
@@ -350,25 +416,21 @@ sub list {
         ]
       },
       {
-        method    => 'POST',
-        path      => '/msgs/:id/reply/:aid/',
-        handler   => 'message_reply_add({
-          ID  => :id,
-          AID => :aid,
-          ...PARAMS
-        })',
+        method      => 'GET',
+        path        => '/msgs/:id/',
+        handler     => 'message_info(:id)',
         module      => 'Msgs',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'POST',
-        path    => '/msgs/:state_id/',
-        handler => 'messages_list({
+        method      => 'POST',
+        path        => '/msgs/list/',
+        handler     => 'messages_list({
           COLS_NAME    => 1,
-          STATE_ID     => :state_id,
           SUBJECT      => "_SHOW",
+          STATE_ID     => "_SHOW",
           DATE         => "_SHOW",
           ...PARAMS
         })',
@@ -378,9 +440,12 @@ sub list {
         ]
       },
       {
-        method      => 'GET',
-        path        => '/msgs/info/:id/',
-        handler     => 'message_info(:id)',
+        method      => 'POST',
+        path        => '/msgs/:id/reply/',
+        handler     => 'message_reply_add({
+          ID    => :id,
+          ...PARAMS
+        })',
         module      => 'Msgs',
         credentials => [
           'ADMIN'
@@ -388,9 +453,9 @@ sub list {
       },
       {
         method      => 'GET',
-        path        => '/msgs/info/:msg_id/reply/',
+        path        => '/msgs/:id/reply/',
         handler     => 'messages_reply_list({
-          MSG_ID    => :msg_id,
+          MSG_ID    => :id,
           LOGIN     => "_SHOW",
           ADMIN     => "_SHOW",
           COLS_NAME => 1,
@@ -401,6 +466,20 @@ sub list {
         credentials => [
           'ADMIN'
         ]
+      },
+      {
+        method       => 'POST',
+        path         => '/msgs/reply/:reply_id/attachment/',
+        handler      => 'attachment_add({
+          REPLY_ID  => :reply_id,
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module       => 'Msgs',
+        credentials  => [
+          'ADMIN'
+        ],
+        use_function => '1'
       },
       {
         method      => 'GET',
@@ -414,146 +493,172 @@ sub list {
           'ADMIN'
         ]
       },
-      {
-        method  => 'POST',
-        path    => '/msgs/all/',
-        handler => 'messages_list({
-          COLS_NAME    => 1,
-          SUBJECT      => "_SHOW",
-          STATE_ID     => "_SHOW",
-          DATE         => "_SHOW",
-          ...PARAMS
-        })',
-        module      => 'Msgs',
-        credentials => [
-          'ADMIN'
-        ]
-      }
     ],
-    inventory => [
+    pages     => [],
+    version   => [],
+    builds    => [
       {
-        method      => 'POST',
-        path        => '/inventory/send/bug/',
-        handler     => 'bug_add({
-          ...PARAMS
-        })',
-        module      => 'Inventory',
-        credentials => [
-          'ADMIN'
-        ]
-      }
-    ],
-    pages => [],
-    builds => [
-      {
-        method  => 'GET',
-        path    => '/builds/',
-        handler => "build_list({
+        method      => 'GET',
+        path        => '/builds/',
+        handler     => "build_list({
           COLS_NAME => 1,
           DISTRICT_NAME => '_SHOW',
           STREET_NAME   => '_SHOW',
           ...PARAMS
         })",
-        module  => 'Address',
-        type    => 'ARRAY',
+        module      => 'Address',
+        type        => 'ARRAY',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'GET',
-        path    => '/builds/:id/',
-        handler => "build_info({
+        method      => 'GET',
+        path        => '/builds/:id/',
+        handler     => "build_info({
           COLS_NAME => 1,
           ID => :id,
           ...PARAMS
         })",
-        module  => 'Address',
+        module      => 'Address',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'POST',
-        path    => '/builds/',
-        handler => "build_add({
+        method      => 'POST',
+        path        => '/builds/',
+        handler     => "build_add({
           ...PARAMS
         })",
-        module  => 'Address',
+        module      => 'Address',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'PUT',
-        path    => '/builds/:id/',
-        handler => "build_change({
+        method      => 'PUT',
+        path        => '/builds/:id/',
+        handler     => "build_change({
           ID => :id,
           ...PARAMS
         })",
-        module  => 'Address',
+        module      => 'Address',
         credentials => [
           'ADMIN'
         ]
       },
     ],
-    streets => [
+    streets   => [
       {
-        method  => 'GET',
-        path    => '/streets/',
-        handler => "street_list({
+        method      => 'GET',
+        path        => '/streets/',
+        handler     => "street_list({
           COLS_NAME => 1,
           STREET_NAME => '_SHOW',
+          BUILD_COUNT => '_SHOW',
+          DISTRICT_ID => '_SHOW',
           ...PARAMS
         })",
-        module  => 'Address',
-        type    => 'ARRAY',
+        module      => 'Address',
+        type        => 'ARRAY',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'GET',
-        path    => '/streets/:id/',
-        handler => "street_info({
+        method      => 'GET',
+        path        => '/streets/:id/',
+        handler     => "street_info({
           COLS_NAME => 1,
-          ID => :id,
+          ID        => :id,
           ...PARAMS
         })",
-        module  => 'Address',
+        module      => 'Address',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'POST',
-        path    => '/streets/',
-        handler => "street_add({
+        method      => 'POST',
+        path        => '/streets/',
+        handler     => "street_add({
           ...PARAMS
         })",
-        module  => 'Address',
+        module      => 'Address',
         credentials => [
           'ADMIN'
         ]
       },
       {
-        method  => 'PUT',
-        path    => '/streets/:id/',
-        handler => "street_change({
+        method      => 'PUT',
+        path        => '/streets/:id/',
+        handler     => "street_change({
           ID => :id,
           ...PARAMS
         })",
-        module  => 'Address',
+        module      => 'Address',
         credentials => [
           'ADMIN'
         ]
       },
     ],
-    online => [
+    districts => [
       {
-        method  => 'GET',
-        path    => '/online/:uid/',
-        handler => "online({
+        method      => 'GET',
+        path        => '/districts/',
+        handler     => "district_list({
+          COLS_NAME => 1,
+          ...PARAMS
+        })",
+        module      => 'Address',
+        type        => 'ARRAY',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/districts/',
+        handler     => "district_add({
+          ...PARAMS
+        })",
+        module      => 'Address',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/districts/:id/',
+        handler     => "district_info({
+          COLS_NAME => 1,
+          ID        => :id,
+          ...PARAMS
+        })",
+        module      => 'Address',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'PUT',
+        path        => '/districts/:id/',
+        handler     => "district_change({
+          ID => :id,
+          ...PARAMS
+        })",
+        module      => 'Address',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+    ],
+    online    => [
+      {
+        method      => 'GET',
+        path        => '/online/:uid/',
+        handler     => "online({
           UID             => :uid,
           CLIENT_IP_NUM   => '_SHOW',
           NAS_ID          => '_SHOW',
@@ -562,11 +667,330 @@ sub list {
           DURATION        => '_SHOW',
           STATUS          => '_SHOW',
         })",
-        module  => 'Sessions',
-        subpackage => 'Internet',
-        type    => 'ARRAY',
+        module      => 'Sessions',
+        subpackage  => 'Internet',
+        type        => 'ARRAY',
         credentials => [
           'ADMIN'
+        ]
+      },
+    ],
+    payments  => [
+      {
+        method      => 'GET',
+        path        => '/payments/types/',
+        handler     => 'payment_type_list({
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module      => 'Payments',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/payments/users/:uid/',
+        handler     => 'list({
+          UID       => :uid,
+          DESC      => "DESC",
+          SUM       => "_SHOW",
+          REG_DATE  => "_SHOW",
+          METHOD    => "_SHOW",
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module      => 'Payments',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/payments/users/:uid/',
+        handler     => 'add({ UID => :uid }, {
+          UID       => :uid,
+          ...PARAMS
+        })',
+        module      => 'Payments',
+        credentials => [
+          'ADMIN'
+        ]
+      }
+    ],
+    fees      => [
+      {
+        method      => 'GET',
+        path        => '/fees/types/',
+        handler     => 'fees_type_list({
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module      => 'Fees',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/fees/users/:uid/',
+        handler     => 'list({
+          UID       => :uid,
+          SUM       => "_SHOW",
+          DESCRIBE  => "_SHOW",
+          REG_DATE  => "_SHOW",
+          METHOD    => "_SHOW",
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module      => 'Fees',
+        credentials => [
+          'ADMIN'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/fees/users/:uid/:sum/',
+        handler     => 'take({ UID => :uid },:sum, {
+          UID       => :uid,
+          ...PARAMS
+        })',
+        module      => 'Fees',
+        credentials => [
+          'ADMIN'
+        ]
+      }
+    ],
+    user      => [
+      {
+        method      => 'GET',
+        path        => '/user/:uid/',
+        handler     => 'info(:uid)',
+        module      => 'Users',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/pi/',
+        handler     => 'pi({ UID => :uid })',
+        module      => 'Users',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/user/:uid/credit/',
+        handler     => 'user_set_credit({
+          UID           => :uid,
+          COLS_NAME     => 1,
+          PAGE_ROWS     => 1,
+          change_credit => 1
+        })',
+        module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/credit/',
+        handler     => 'user_set_credit({
+          UID       => :uid,
+          COLS_NAME => 1,
+          PAGE_ROWS => 1
+        })',
+        module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/internet/',
+        handler     => 'list({
+          UID             => :uid,
+          CID             => "_SHOW",
+          INTERNET_STATUS => "_SHOW",
+          TP_NAME         => "_SHOW",
+          MONTH_FEE       => "_SHOW",
+          DAY_FEE         => "_SHOW",
+          TP_ID           => "_SHOW",
+          COLS_NAME       => 1,
+          PAGE_ROWS       => 1
+        })',
+        module      => 'Internet',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/internet/:id/speed/',
+        handler     => 'get_speed({
+          UID             => :uid,
+          SERVICE_ID      => :id,
+          COLS_NAME       => 1,
+          PAGE_ROWS       => 1
+        })',
+        module      => 'Internet',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/user/:uid/internet/:id/holdup/',
+        handler     => 'user_holdup({
+          UID          => :uid,
+          ID           => :id,
+          COLS_NAME    => 1,
+          PAGE_ROWS    => 1,
+          add          => 1,
+          ACCEPT_RULES => 1,
+          ...PARAMS
+        })',
+        module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'DELETE',
+        path        => '/user/:uid/internet/:id/holdup/',
+        handler     => 'user_holdup({
+          UID       => :uid,
+          ID        => :id,
+          del       => 1,
+          COLS_NAME => 1,
+          PAGE_ROWS => 1
+        })',
+        module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/internet/:id/tariffs/',
+        handler     => 'available_tariffs({
+          SKIP_NOT_AVAILABLE_TARIFFS => 1,
+          UID                        => :uid,
+          ID                         => :id,
+          MODULE                     => "Internet"
+        })',
+        module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/internet/:id/warnings/',
+        handler     => 'service_warning({
+          UID    => :uid,
+          ID     => :id,
+          MODULE => "Internet"
+        })',
+        module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'PUT',
+        path        => '/user/:uid/internet/:id/',
+        handler     => 'user_chg_tp({
+          UID    => :uid,
+          ID     => :id,
+          MODULE => "Internet",
+          ...PARAMS
+        })',
+        module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+
+      {
+        method      => 'GET',
+        path        => '/user/:uid/msgs/',
+        handler     => 'messages_list({
+          COLS_NAME     => 1,
+          SUBJECT       => "_SHOW",
+          STATE_ID      => "_SHOW",
+          DATE          => "_SHOW",
+          MESSAGE       => "_SHOW",
+          CHAPTER_NAME  => "_SHOW",
+          CHAPTER_COLOR => "_SHOW",
+          STATE         => "_SHOW",
+          UID           => :uid
+        })',
+        module      => 'Msgs',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/user/:uid/msgs/',
+        handler     => 'message_add({
+          UID => :uid,
+          ...PARAMS
+        })',
+        module      => 'Msgs',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/msgs/:id/',
+        handler     => 'message_info(:id, { UID => :uid })',
+        module      => 'Msgs',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/msgs/:id/reply/',
+        handler     => 'messages_reply_list({
+          MSG_ID    => :id,
+          UID       => :uid,
+          LOGIN     => "_SHOW",
+          ADMIN     => "_SHOW",
+          COLS_NAME => 1
+        })',
+        module      => 'Msgs',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/user/:uid/msgs/:id/reply/',
+        handler     => 'message_reply_add({
+          ID  => :id,
+          UID => :uid,
+          ...PARAMS
+        })',
+        module      => 'Msgs',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/abon/',
+        handler     => 'user_tariff_list(:uid, {
+          COLS_NAME => 1
+        })',
+        module      => 'Abon',
+        credentials => [
+          'USER'
         ]
       },
     ]

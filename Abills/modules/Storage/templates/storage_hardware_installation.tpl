@@ -7,8 +7,8 @@
   function rebuild_form(status) {
     if (status == 3) {
       console.log("Add monthes input");
-      var element = jQuery("<div></div>").addClass("form-group appended_field");
-      element.append(jQuery("<label for=''></label>").text("_{MONTHES}_").addClass("col-md-4 control-label"));
+      var element = jQuery("<div></div>").addClass("form-group row appended_field");
+      element.append(jQuery("<label for=''></label>").text("_{MONTHES}_:").addClass("col-md-4 control-label"));
       element.append(jQuery("<div></div>").addClass("col-md-8").append(
         jQuery("<input name='MONTHES' id='MONTHES' value='%MONTHES%'>").addClass("form-control")));
 

@@ -54,7 +54,7 @@ $lang{NOTE} = 'Замітка';
 $lang{LAST_CONTACT} = 'Послідній контакт с клієнтом';
 $lang{SUBSEQENT_CONTACT} = 'Подальший контакт з клієнтом';
 $lang{WATCHED} = 'Відслідковуються';
-$lang{ADD_DELIVERY} = 'Добавити розсилку';
+$lang{ADD_DELIVERY} = 'Додати розсилку';
 $lang{SEND_TIME} = 'Час відправлення';
 $lang{WAIT_TO_SEND} = 'Чекає відправлення';
 $lang{DISPATCH_PASS} = 'Наряд-путівка на виконання робіт монтажною бригадою';
@@ -172,7 +172,6 @@ $lang{HELPDESK}='Служба підтримки';
 
 $lang{SCRUB_BOX} = 'Бокс повідомлень';
 
-$lang{MSGS_TAGS} = 'Мітка(и)';
 $lang{PLUGINS} = 'Плагіни';
 $lang{MSG_BEFORE_CREATE} = 'Події перед добавленням';
 $lang{MSG_RIGHT} = 'Праві';

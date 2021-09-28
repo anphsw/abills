@@ -39,7 +39,7 @@
               </div>
             </div>
             <div class='form-group row'>
-              <label class='col-md-3 control-label'>_{HOUR_TARIF}_ (1 Hour):</label>
+              <label class='col-md-3 control-label'>_{HOUR_TARIF}_:</label>
               <div class='col-md-9'>
                 <input class='form-control' type=text name=TIME_TARIF value='%TIME_TARIF%'>
               </div>

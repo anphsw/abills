@@ -23,6 +23,7 @@ my @priority_colors = ('#8A8A8A', $_COLORS[8], $_COLORS[9], '#E06161', $_COLORS[
 my @priority = ($lang{VERY_LOW}, $lang{LOW}, $lang{NORMAL}, $lang{HIGH}, $lang{VERY_HIGH});
 
 my $Msgs = Msgs->new($db, $admin, \%conf);
+my $Notify = Msgs::Notify->new($db, $admin, \%conf, {LANG => \%lang, HTML => $html});
 
 #**********************************************************
 =head2 msgs_user_show($attr) - Show message for client
@@ -84,10 +85,18 @@ sub msgs_user_show {
       }
       $html->message( 'info', $lang{INFO}, "$lang{REPLY}" );
 
-      msgs_notify_admins({
+      my $attachments_list = $Msgs->attachments_list({
+        REPLY_ID   => $Msgs->{INSERT_ID},
+        FILENAME     => '_SHOW',
+        CONTENT      => '_SHOW',
+        CONTENT_TYPE => '_SHOW',
+      });
+
+      $Notify->notify_admins({
         MSG_ID        => $FORM{ID},
         SENDER_UID    => $user->{UID},
         MESSAGE_STATE => $FORM{STATE},
+        ATTACHMENTS   => $attachments_list
       });
 
       # Instant redirect
@@ -231,8 +240,8 @@ sub msgs_user_show {
     }
 
     if (!$Msgs->{ACTIVE_SURWEY} && ($Msgs->{STATE} < 1 || $Msgs->{STATE} == 6)) {
-      push @REPLIES, $html->tpl_show(_include('msgs_client_reply', 'Msgs'), { %$Msgs, REPLY_TEXT => $reply },
-        { OUTPUT2RETURN => 1, ID => 'REPLY' });
+      push @REPLIES, $html->tpl_show(_include('msgs_client_reply', 'Msgs'),
+        { %$Msgs, REPLY_TEXT => $reply, MAX_FILES => $conf{MSGS_MAX_FILES} || 3 }, { OUTPUT2RETURN => 1, ID => 'REPLY' });
     }
 
     $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, SHOW_URL => 1, json => $FORM{json} });
@@ -321,24 +330,21 @@ sub msgs_user {
       INNER_MSG  => 0,
     );
 
-    $Msgs->messages_new({%SHOW_PARAMS});
+    $Msgs->messages_new({ %SHOW_PARAMS });
   }
 
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
 
-  $Msgs->{STATE_SEL} = $html->form_select(
-    'STATE',
-    {
-      SELECTED   => $FORM{STATE} || 0,
-      SEL_HASH   => {
-        0 => $msgs_status->{0},
-        1 => $msgs_status->{1},
-        2 => $msgs_status->{2}
+  $Msgs->{STATE_SEL} = $html->form_select('STATE', {
+    SELECTED   => $FORM{STATE} || 0,
+    SEL_HASH   => {
+      0 => $msgs_status->{0},
+      1 => $msgs_status->{1},
+      2 => $msgs_status->{2}
     },
     NO_ID      => 1,
     USE_COLORS => 1,
-    }
-  );
+  });
 
   $Msgs->{PRIORITY_SEL} = msgs_sel_priority();
 
@@ -352,20 +358,16 @@ sub msgs_user {
         COLS_NAME => 1
       });
 
-      if ($Msgs->{TOTAL} > 0){
+      if ($Msgs->{TOTAL} && $Msgs->{TOTAL} > 0) {
         my $message_sent = $fresh_messages->[0] || {};
         my $message_sent_id = $message_sent->{id} || 0;
 
         my $header_message = "$lang{MESSAGE} $message_sent_id. $lang{EXIST} ";
 
-        $html->redirect(
-          "?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
-          . "&ID=$message_sent_id#last_msg",
-          {
-            WAIT => 3,
-            MESSAGE => $header_message
-          }
-        );
+        $html->redirect("?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid}) . "&ID=$message_sent_id#last_msg", {
+          WAIT    => 3,
+          MESSAGE => $header_message
+        });
 
         exit 0;
       }
@@ -375,32 +377,27 @@ sub msgs_user {
       CHAPTER   => $FORM{CHAPTER},
       COLS_NAME => 1
     });
-    
+
     if ($chapters_list && $chapters_list->[0] && $chapters_list->[0]{responsible}) {
       $FORM{RESPOSIBLE} = $chapters_list->[0]{responsible};
     }
 
-    $Msgs->message_add(
-      {
-        UID       => $user->{UID},
-        STATE     => ($FORM{STATE}) ? $FORM{STATE} : 0,
-        USER_READ => "$DATE  $TIME",
-        IP        => $ENV{'REMOTE_ADDR'},
-        %FORM,
-        USER_SEND => 1,
-      }
-    );
+    $Msgs->message_add({
+      UID       => $user->{UID},
+      STATE     => ($FORM{STATE}) ? $FORM{STATE} : 0,
+      USER_READ => "$DATE  $TIME",
+      IP        => $ENV{'REMOTE_ADDR'},
+      %FORM,
+      USER_SEND => 1,
+    });
 
     if ( !$Msgs->{errno} ) {
 
+      my $new_msg_id = $Msgs->{MSG_ID} || 0;
       #Add attachment
       if ( $FORM{FILE_UPLOAD}->{filename} && $Msgs->{MSG_ID} ) {
 
-        my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID}, {
-            MSG_INFO => {
-              UID => $user->{UID}
-            }
-        });
+        my $attachment_saved = msgs_receive_attachments($Msgs->{MSG_ID}, { MSG_INFO => { UID => $user->{UID} } });
 
         if (!$attachment_saved){
           _error_show($Msgs);
@@ -409,24 +406,24 @@ sub msgs_user {
       }
 
       $html->message('info', $lang{INFO}, "$lang{MESSAGE} # $Msgs->{MSG_ID}.  $lang{MSG_SENDED} ");
-      msgs_notify_admins();
+
+      $Notify->notify_admins({ MSG_ID => $new_msg_id });
+      _admin_notify_by_chapter($FORM{CHAPTER}, $new_msg_id) if !$FORM{RESPOSIBLE} && $FORM{CHAPTER};
 
       my $message_added_text = "$lang{MESSAGE} " . ($Msgs->{MSG_ID} ? " #$Msgs->{MSG_ID} " : '') . $lang{MSG_SENDED};
       my $header_message = urlencode($message_added_text);
       my $message_link = "?index=$index&sid=" . ($sid || $user->{SID} || $user->{sid})
         . "&MESSAGE=$header_message&ID=" . ($Msgs->{MSG_ID} || q{}) . '#last_msg';
 
-      $html->redirect( $message_link,
-        {
-          MESSAGE_HTML => $html->message(
-            'info',
-            $lang{INFO},
-            $html->button($message_added_text, $message_link, { class => 'alert-link' }),
-            { OUTPUT2RETURN => 1 }
-          ),
-          WAIT         => '0'
-        }
-      );
+      $html->redirect($message_link, {
+        MESSAGE_HTML => $html->message(
+          'info',
+          $lang{INFO},
+          $html->button($message_added_text, $message_link, { class => 'alert-link' }),
+          { OUTPUT2RETURN => 1 }
+        ),
+        WAIT         => '0'
+      });
       exit 0;
     }
 
@@ -438,18 +435,15 @@ sub msgs_user {
   elsif ($FORM{ID} || $Msgs->{LAST_ID}) {
     msgs_user_show({ MSGS_STATUS => $msgs_status });
   }
-  elsif(!$FORM{SEARCH_MSG_TEXT}) {
-    $Msgs->{CHAPTER_SEL} = $html->form_select(
-      'CHAPTER',
-      {
-        SELECTED       => $Msgs->{CHAPTER} || $conf{MSGS_USER_DEFAULT_CHAPTER} || undef,
-        SEL_LIST       => $Msgs->chapters_list({ INNER_CHAPTER => 0, COLS_NAME => 1 }),
-        MAIN_MENU      => get_function_index('msgs_chapters'),
-        MAIN_MENU_ARGV => ($Msgs->{CHAPTER}) ? "chg=$Msgs->{CHAPTER}" : ''
-      }
-    );
+  elsif (!$FORM{SEARCH_MSG_TEXT}) {
+    $Msgs->{CHAPTER_SEL} = $html->form_select('CHAPTER', {
+      SELECTED       => $Msgs->{CHAPTER} || $conf{MSGS_USER_DEFAULT_CHAPTER} || undef,
+      SEL_LIST       => $Msgs->chapters_list({ INNER_CHAPTER => 0, COLS_NAME => 1 }),
+      MAIN_MENU      => get_function_index('msgs_chapters'),
+      MAIN_MENU_ARGV => ($Msgs->{CHAPTER}) ? "chg=$Msgs->{CHAPTER}" : ''
+    });
 
-    $html->tpl_show(_include('msgs_send_form_user', 'Msgs'),{ %$Msgs });
+    $html->tpl_show(_include('msgs_send_form_user', 'Msgs'),{ %$Msgs, MAX_FILES => $conf{MSGS_MAX_FILES} || 3 });
   }
 
   if ($FORM{MESSAGE}) {
@@ -499,33 +493,27 @@ sub msgs_user {
     $request_search_word =~ s/\%/\\%/gi;
     $request_search_word =~ s/\'/\\'/gi;
 
-    my $list = $Msgs->messages_list(
-      {
-        SUBJECT             => '_SHOW',
-        CHAPTER_NAME        => '_SHOW',
-        DATETIME            => '_SHOW',
-        STATE               => '_SHOW',
-        USER_READ           => '_SHOW',
-        REPLY_TEXT          => '_SHOW',
-        MESSAGE             => '_SHOW',
-        SEARCH_MSGS_BY_WORD => $request_search_word,
-        %LIST_PARAMS,
-        COLS_NAME => 1
-      }
-    );
+    my $list = $Msgs->messages_list({
+      SUBJECT             => '_SHOW',
+      CHAPTER_NAME        => '_SHOW',
+      DATETIME            => '_SHOW',
+      STATE               => '_SHOW',
+      USER_READ           => '_SHOW',
+      REPLY_TEXT          => '_SHOW',
+      MESSAGE             => '_SHOW',
+      SEARCH_MSGS_BY_WORD => $request_search_word,
+      %LIST_PARAMS,
+      COLS_NAME           => 1
+    });
 
-    $table = msgs_user_search_table(
-      {
-        ID          => $FORM{ID},
-        SID         => $sid,
-        TOTAL_MSGS  => $Msgs->{TOTAL},
-        JSON        => $FORM{json},
-        STATUS_BAR  => $status_bar,
-        SEARCH_TEXT => $FORM{SEARCH_MSG_TEXT},
-      },
-      $msgs_status,
-      $list
-    );
+    $table = msgs_user_search_table({
+      ID          => $FORM{ID},
+      SID         => $sid,
+      TOTAL_MSGS  => $Msgs->{TOTAL},
+      JSON        => $FORM{json},
+      STATUS_BAR  => $status_bar,
+      SEARCH_TEXT => $FORM{SEARCH_MSG_TEXT},
+    }, $msgs_status, $list);
   }
   else {
     my $list = $Msgs->messages_list({
@@ -571,19 +559,17 @@ sub msgs_user {
 
   $Msgs->{TOTAL_MSG} = $Msgs->{TOTAL};
 
-  $table = $html->table(
-    {
-      width => '100%',
-      rows  => [
-        [
-          "$lang{TOTAL}:  " . $html->b($Msgs->{TOTAL_MSG}),
-          "$lang{OPEN}: " . $html->b($Msgs->{OPEN}),
-        ]
-      ],
-      ID    => 'MSGS_LIST_TOTAL',
-      OUTPUT2RETURN => 1
-    }
-  );
+  $table = $html->table({
+    width         => '100%',
+    rows          => [
+      [
+        "$lang{TOTAL}:  " . $html->b($Msgs->{TOTAL_MSG}),
+        "$lang{OPEN}: " . $html->b($Msgs->{OPEN}),
+      ]
+    ],
+    ID            => 'MSGS_LIST_TOTAL',
+    OUTPUT2RETURN => 1
+  });
   print $table->show();
 
   delete $LIST_PARAMS{SORT};
@@ -594,7 +580,6 @@ sub msgs_user {
 
   return 1;
 }
-
 
 #**********************************************************
 =head2 msgs_user_search_table() - Create table with find msgs
@@ -617,40 +602,38 @@ my ($attr, $msgs_status, $list) = @_;
 
   my $function_index = get_function_index('msgs_user') || $attr->{INDEX};
 
-  my $table = $html->table(
-      {
-        width       => '100%',
-        caption     => $lang{MESSAGES},
-        title_plain => [ '#', $lang{SUBJECT}, $lang{MESSAGE}, $lang{DATE}, $lang{STATUS}, '-' ],
-        qs          => $pages_qs . "SEARCH_MSG_TEXT=$FORM{SEARCH_MSG_TEXT}",
-        pages       => $attr->{TOTAL_MSGS},
-        ID          => 'MSGS_LIST_SEARCH',
-        header      => $attr->{STATUS_BAR}
-      }
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{MESSAGES},
+    title_plain => [ '#', $lang{SUBJECT}, $lang{MESSAGE}, $lang{DATE}, $lang{STATUS}, '-' ],
+    qs          => $pages_qs . "SEARCH_MSG_TEXT=$FORM{SEARCH_MSG_TEXT}",
+    pages       => $attr->{TOTAL_MSGS},
+    ID          => 'MSGS_LIST_SEARCH',
+    header      => $attr->{STATUS_BAR}
+  });
+
+  foreach my $line (@$list) {
+    $table->{rowcolor} = ($attr->{ID} && $line->{id} == $attr->{ID}) ? 'row_active' : undef;
+
+    #Add color to search word In Subject, messegas, reply
+    my $subject_color = _add_color_search($attr->{SEARCH_TEXT}, $line->{subject});
+    my ($text_color, $have_word_in_text) = _add_color_search($attr->{SEARCH_TEXT}, $line->{message}, { SLICE => 1 });
+    my ($reply_color, $have_word_in_reply) = _add_color_search($attr->{SEARCH_TEXT}, $line->{reply_text}, { SLICE => 1 });
+
+    #Watch if we have word in text if not add standart text
+    my $resul_text = $have_word_in_text ? $text_color : $have_word_in_reply ? $reply_color : $text_color;
+
+    $table->addrow(
+      $line->{id},
+      ($line->{user_read} ne '0000-00-00 00:00:00')
+        ? $html->button((($subject_color) ? " $subject_color" : $lang{NO_SUBJECT}), "index=$function_index&ID=$line->{id}&sid=$sid#last_msg")
+        : $html->button($html->b((($subject_color) ? " $subject_color" : $lang{NO_SUBJECT})), "index=$function_index&ID=$line->{id}&sid=$sid#last_msg"),
+      $resul_text,
+      $line->{datetime},
+      $html->color_mark($msgs_status->{ $line->{state} }),
+      $html->button($lang{SHOW}, "index=$function_index&ID=$line->{id}&sid=$sid", { class => 'show' })
     );
-
-    foreach my $line (@$list) {
-      $table->{rowcolor} = ($attr->{ID} && $line->{id} == $attr->{ID}) ? 'row_active' : undef;
-
-      #Add color to search word In Subject, messegas, reply
-      my $subject_color = _add_color_search($attr->{SEARCH_TEXT}, $line->{subject} );
-      my ($text_color, $have_word_in_text)    = _add_color_search($attr->{SEARCH_TEXT}, $line->{message}, {SLICE => 1} );
-      my ($reply_color, $have_word_in_reply)  = _add_color_search($attr->{SEARCH_TEXT}, $line->{reply_text}, {SLICE => 1} );
-
-      #Watch if we have word in text if not add standart text
-      my $resul_text = $have_word_in_text ? $text_color :  $have_word_in_reply ? $reply_color :  $text_color;
-
-      $table->addrow(
-        $line->{id},
-        ($line->{user_read} ne '0000-00-00 00:00:00')
-        ? $html->button((( $subject_color) ? " $subject_color" : $lang{NO_SUBJECT}), "index=$function_index&ID=$line->{id}&sid=$sid#last_msg")
-        : $html->button($html->b((( $subject_color) ? " $subject_color" : $lang{NO_SUBJECT})), "index=$function_index&ID=$line->{id}&sid=$sid#last_msg"),
-        $resul_text,
-        $line->{datetime},
-        $html->color_mark($msgs_status->{ $line->{state} }),
-        $html->button($lang{SHOW}, "index=$function_index&ID=$line->{id}&sid=$sid", { class => 'show' })
-      );
-    }
+  }
 
   return $table;
 }
@@ -669,40 +652,36 @@ my ($attr, $msgs_status, $list) = @_;
 sub _add_color_search {
   my ($word, $full_text, $attr) = @_;
 
-  if($word && $full_text){
+  return '' if (!$word || !$full_text);
 
-    #Turn off special characters for regexp
-    my $quote_word = quotemeta($word);
+  #Turn off special characters for regexp
+  my $quote_word = quotemeta($word);
 
-    #my $word_with_color;
-    #If we didnt want full text. Slice
-    if($attr->{SLICE}){
+  #my $word_with_color;
+  #If we didnt want full text. Slice
+  if ($attr->{SLICE}) {
 
-      #Slice and search word
-      my ($result_text) = $full_text =~ m/.{0,40}$quote_word.{0,40}/gi;
+    #Slice and search word
+    my ($result_text) = $full_text =~ m/.{0,40}$quote_word.{0,40}/gi;
 
-      #If see search word add color else onle slice
-      if($result_text){
+    #If see search word add color else onle slice
+    if ($result_text) {
 
-        #Add color
-        $result_text =~ s/($quote_word)/<span style='background:yellow'>$1<\/span>/gi;
+      #Add color
+      $result_text =~ s/($quote_word)/<span style='background:yellow'>$1<\/span>/gi;
 
-        return $result_text, 1;
-      }
-      else{
-        ($result_text) = $full_text =~ m/.{0,95}/g;
-        return $result_text, 0;
-      }
+      return $result_text, 1;
     }
-
-    #If see search word add color
-    $full_text =~ s/($quote_word)/<span style='background:yellow'>$1<\/span>/gi;
-
-    return $full_text;
+    else {
+      ($result_text) = $full_text =~ m/.{0,95}/g;
+      return $result_text, 0;
+    }
   }
-  else{
-    return '';
-  }
+
+  #If see search word add color
+  $full_text =~ s/($quote_word)/<span style='background:yellow'>$1<\/span>/gi;
+
+  return $full_text;
 }
 
 #**********************************************************
@@ -711,6 +690,7 @@ sub _add_color_search {
 =cut
 #**********************************************************
 sub _user_edit_reply {
+
   return 1 unless ( $FORM{edit_reply} );
 
   my $list = $Msgs->messages_reply_list({
@@ -723,13 +703,36 @@ sub _user_edit_reply {
   return 1 unless ($list->[0]->{creator_id} eq $user->{LOGIN});
   my $n = gmtime() + 3600 * 3;
   my $d = Time::Piece->strptime($list->[0]->{datetime}, "%Y-%m-%d %H:%M:%S");
-  if (($n-$d)/60 < 5) {
+  if (($n - $d) / 60 < 5) {
     $Msgs->message_reply_change({
-      ID    => $FORM{edit_reply},
-      TEXT  => $FORM{replyText}
+      ID   => $FORM{edit_reply},
+      TEXT => $FORM{replyText}
     });
   };
   return 1;
+}
+
+#**********************************************************
+=head2 _user_edit_reply()
+
+=cut
+#**********************************************************
+sub _admin_notify_by_chapter {
+  my ($chapter_id, $msg_id) = @_;
+
+  return '' if !$chapter_id || !$msg_id;
+
+  my $admins = $Msgs->admins_list({
+    CHAPTER_ID   => $chapter_id,
+    EMAIL_NOTIFY => 1,
+    COLS_NAME    => 1
+  });
+
+  foreach my $send_admin (@{$admins}) {
+    $Notify->notify_admins({ MSG_ID => $msg_id, SEND_TO_AID => $send_admin->{aid}, AID => $send_admin->{aid} });
+  }
+
+  return;
 }
 
 1;

@@ -2,7 +2,7 @@
   <input type='hidden' name='index' value='$index'/>
   <input type='hidden' name='ID' value='%ID%'/>
 
-  <div class='card card-primary card-outline card-form'>
+  <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{REQUESTS}_ %DATE%</h4>
     </div>

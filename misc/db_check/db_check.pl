@@ -315,6 +315,7 @@ sub get_column_definition {
 
   my $default_def = '';
   my $nullable = '';
+  my $primary_key = '';
 
   if (defined $dump_col_info->{Null} && $dump_col_info->{Null} eq 'No') {
     $nullable = ' NOT NULL';
@@ -358,7 +359,11 @@ sub get_column_definition {
       : '';
   }
 
-  return uc($dump_col_info->{Type}) . $nullable . $default_def;
+  if ($dump_col_info->{_raw} && $dump_col_info->{_raw}{is_primary_key}) {
+    $primary_key = ' PRIMARY KEY ';
+  }
+
+  return uc($dump_col_info->{Type}) . $primary_key . $nullable . $default_def;
 }
 
 #**********************************************************

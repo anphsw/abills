@@ -226,7 +226,7 @@ sub auth {
   }
   else {
     if ($self->{IP} ne '0.0.0.0' && $self->{IP} ne $RAD->{'Framed-IP-Address'}) {
-      $RAD_PAIRS{'Reply-Message'} = "Not allow IP '$RAD->{'Framed-IP-Address'}' / $self->{IP} ";
+      $RAD_PAIRS{'Reply-Message'} = "NOT_ALLOW_IP '$RAD->{'Framed-IP-Address'}' / $self->{IP} ";
       $RAD_PAIRS{'Filter-Id'}='not_allow_ip';
       return 1, \%RAD_PAIRS;
     }
@@ -591,7 +591,7 @@ sub accounting {
        { Bind => [
         $acct_status_type, 
         $RAD->{'User-Name'},
-        $RAD->{'Acct-Session-Time'},
+        $RAD->{'Acct-Session-Time'} || 0,
         $RAD->{'Calling-Station-Id'} || q{},
         $RAD->{'Called-Station-Id'} || q{},
         $NAS->{NAS_ID},

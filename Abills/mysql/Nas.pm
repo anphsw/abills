@@ -250,7 +250,7 @@ sub change {
   my $self = shift;
   my ($attr) = @_;
 
-  $attr->{NAS_DISABLE} = (defined($attr->{NAS_DISABLE})) ? 1 : 0;
+  $attr->{NAS_DISABLE} = ($attr->{NAS_DISABLE}) ? 1 : 0;
 
   my %FIELDS = (
     NAS_ID           => 'id',
@@ -358,7 +358,7 @@ sub add {
     return $self;
   }
 
-  $admin->system_action_add("NAS_ID:$self->{NAS_ID}", { TYPE => 1 });
+  $admin->system_action_add("NAS_ID: $self->{NAS_ID}", { TYPE => 1 });
 
   return $self;
 }
@@ -446,9 +446,9 @@ sub nas_ip_pools_list {
     [ 'NAS_NAME',           'STR', 'n.name AS nas_name',                                    1],
     [ 'POOL_NAME',          'STR', 'pool.name AS pool_name',                                1],
     [ 'FIRST_IP',           'IP',  'INET_NTOA(pool.ip) AS first_ip',                        1],
-    [ 'LAST_IP',            'IP',  'INET_NTOA(pool.ip + pool.counts) AS last_ip',           1],
+    [ 'LAST_IP',            'IP',  'INET_NTOA(pool.ip + (pool.counts - 1)) AS last_ip',           1],
     [ 'IP',                 'INT', 'pool.ip',                                               1],
-    [ 'LAST_IP_NUM',        'INT', '(pool.ip + pool.counts) AS last_ip_num',                1],
+    [ 'LAST_IP_NUM',        'INT', '(pool.ip + (pool.counts - 1)) AS last_ip_num',                1],
     [ 'IP_COUNT',           'INT', 'pool.counts AS ip_count',                               1],
     #[ 'IP_FREE',           'INT', '(pool.counts - (SELECT COUNT(*) FROM dv_main dv WHERE dv.ip > pool.ip AND dv.ip <= pool.ip + pool.counts )) AS ip_free', 1],
     [ 'INTERNET_IP_FREE',   'INT', '(pool.counts - (SELECT if(COUNT(*) > pool.counts, pool.counts, COUNT(*)) FROM internet_main internet WHERE internet.ip > pool.ip AND internet.ip <= pool.ip + pool.counts )) AS internet_ip_free', 1],

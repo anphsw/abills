@@ -7,19 +7,17 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Base qw/_bp/;
-
 our (
   $db,
   $admin,
   %lang,
   $users,
-  $html,
   %conf,
   @MONTHES_LIT,
   %permissions,
 );
 
+our Abills::HTML $html;
 #**********************************************************
 =head2 user_contract($attr)
 
@@ -31,12 +29,15 @@ sub user_contract {
   return '' unless ($uid);
 
   if ($FORM{print_add_contract}) {
+    load_module("Docs");
     my $list = $users->contracts_list({ UID => $uid, ID => $FORM{print_add_contract}, COLS_UPPER => 1 });
     $users->info($uid, {SHOW_PASSWORD => 1});
     $users->pi({ UID => $uid });
     my $contract_info = {};
     my ($y, $m, $d) = split( /-/, $list->[0]->{DATE} || $DATE, 3 );
     $contract_info->{CONTRACT_DATE_LIT} = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
+    ($y, $m, $d) = split( /-/, $DATE, 3 );
+    $contract_info->{DATE_LIT} = "$d " . $MONTHES_LIT[ int( $m ) - 1 ] . " $y $lang{YEAR_SHORT}";
     my $company_info = {};
 
     if($users->{COMPANY_ID}){

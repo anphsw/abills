@@ -407,6 +407,8 @@ sub user_list{
     $self->query(
       "SELECT
       $self->{SEARCH_FIELDS}
+      service.disable AS service_status,
+      service.tp_id,
       u.uid,
       service.id
      FROM iptv_main service
@@ -1500,13 +1502,7 @@ sub users_screens_add{
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add( 'iptv_users_screens', {
-      %{$attr},
-      DATE => 'NOW()'
-    },
-    {
-      REPLACE => 1
-    } );
+  $self->query_add( 'iptv_users_screens', { %{$attr}, DATE => 'NOW()' }, { REPLACE => 1 });
 
   my @info = ('CID', 'PIN', 'SERIAL', 'HARDWARE_ID');
   my @actions_history = ();
@@ -1605,6 +1601,7 @@ sub users_screens_list{
     [
       [ 'LOGIN',            'STR',  'u.id', 'u.id AS login'                                     ],
       [ 'NUM',              'INT',  's.num',                                                  1 ],
+      [ 'USERS_SERVICE_ID', 'INT',  'us.service_id AS users_service_id',                      1 ],
       [ 'NAME',             'STR',  's.name',                                                 1 ],
       [ 'MONTH_FEE',        'INT',  's.month_fee',                                            1 ],
       [ 'DAY_FEE',          'INT',  's.day_fee',                                              1 ],
@@ -1669,6 +1666,28 @@ sub users_screens_list{
   }
 
   return $list;
+}
+
+#**********************************************************
+=head2 users_next_screen($attr)
+
+=cut
+#**********************************************************
+sub users_next_screen {
+  my $self = shift;
+  my ($attr) = @_;
+
+  return $self if !$attr->{SERVICE_ID} || !$attr->{TP_ID};
+
+  $self->query("SELECT * FROM iptv_screens
+    WHERE tp_id=$attr->{TP_ID} AND num NOT IN(SELECT screen_id FROM iptv_users_screens WHERE service_id=$attr->{SERVICE_ID})
+    ORDER BY num
+    LIMIT 1",
+    undef,
+    { COLS_NAME => 1, COLS_UPPER => 1 }
+  );
+
+  return defined $self->{list}[0] ? $self->{list}[0] : ();
 }
 
 #**********************************************************
@@ -1834,6 +1853,9 @@ sub services_reports{
   my $self = shift;
   my($attr)=@_;
 
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+
   $self->query( "SELECT service.service_id,
      s.name,
      COUNT(DISTINCT service.uid) AS users,
@@ -1841,7 +1863,8 @@ sub services_reports{
      COUNT(service.id) AS total
   FROM iptv_main service
   LEFT JOIN iptv_services s ON (service.service_id=s.id)
-  GROUP BY service.service_id;",
+  GROUP BY service.service_id
+  ORDER BY $SORT $DESC;",
     undef,
     $attr
   );
@@ -2184,6 +2207,9 @@ sub iptv_users_fees_by_service{
   my $self = shift;
   my ($attr) = @_;
 
+  $SORT = ($attr->{sort}) ? $attr->{sort} : 'f.date';
+  $DESC = (defined $attr->{desc}) ? $attr->{desc} : 'DESC';
+
   return [] if !$attr->{TP_NAMES} || !$attr->{TP_NAMES}[0];
 
   $attr->{DESCRIBE} ||= 'Телевидение:';
@@ -2197,10 +2223,10 @@ sub iptv_users_fees_by_service{
     $WHERE .= " AND f.date>='$attr->{FROM_DATE}' AND f.date<='$attr->{TO_DATE}'";
   }
   
-  $self->query("SELECT f.uid AS uid, f.sum, f.dsc, u.id AS login, f.date
+  $self->query("SELECT u.id AS login, f.date, f.sum, f.dsc, f.uid AS uid
     FROM fees f
     LEFT JOIN users u ON(f.uid=u.uid)
-    $WHERE ORDER BY f.date DESC",
+    $WHERE ORDER BY $SORT $DESC",
     undef, { COLS_NAME => 1}
   );
 

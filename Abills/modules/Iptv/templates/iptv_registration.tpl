@@ -2,8 +2,8 @@
     function autoReload() {
         document.iptv_user_info.add_form.value = '1';
         document.iptv_user_info.TP_ID.value = '';
-        document.iptv_user_info.new.value = '$FORM{new}';
-        document.iptv_user_info.step.value = '$FORM{step}';
+        document.iptv_user_info.new.value = '%new%';
+        document.iptv_user_info.step.value = '%step%';
         document.iptv_user_info.submit();
     }
 </script>

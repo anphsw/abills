@@ -9,7 +9,7 @@
 
   <fieldset>
     %NEXT_FEES_WARNING%
-    <div class='card container-md'>
+    <div class='card card-primary card-outline container-md'>
       <div class='card-header with-border'><h4 class='card-title'>_{TV}_: %ID%</h4></div>
       <div class='card-body'>
         %MENU%

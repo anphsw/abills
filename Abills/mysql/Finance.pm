@@ -38,9 +38,9 @@ sub fees{
   my ($db, $admin, $CONF) = @_;
 
   use Fees;
-  my $fees = Fees->new( $db, $admin, $CONF );
+  my $Fees = Fees->new( $db, $admin, $CONF );
 
-  return $fees;
+  return $Fees;
 }
 
 
@@ -53,10 +53,9 @@ sub payments {
   my ($db, $admin, $CONF) = @_;
 
   use Payments;
+  my $Payments = Payments->new( $db, $admin, $CONF);
 
-  my $payments = Payments->new( $db, $admin, $CONF);
-
-  return $payments;
+  return $Payments;
 }
 
 #**********************************************************

@@ -8,6 +8,7 @@ use strict;
 use warnings;
 use Abills::Base qw(in_array _bp int2byte load_pmodule check_time gen_time);
 use Abills::Filters qw(bin2hex bin2mac);
+use Equipment::Misc qw(equipment_get_telnet_tpl);
 
 our (
   $html,
@@ -28,7 +29,7 @@ sub _huawei_get_ports {
 
   my $ports_info = equipment_test({
     %{$attr},
-    PORT_INFO => 'PORT_NAME,PORT_DESCR,PORT_STATUS,PORT_SPEED,PORT_IN,PORT_OUT,PORT_TYPE,PORT_ALIAS,PORT_NAME',
+    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,PORT_IN,PORT_OUT,PORT_ALIAS,PORT_NAME,PORT_IN_ERR,PORT_OUT_ERR',
   });
 
   foreach my $key (keys %{$ports_info}) {
@@ -754,6 +755,10 @@ sub _huawei {
           NAME   => 'ONU last down cause',
           OIDS   => '.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.24',
           PARSER => '_huawei_convert_onu_last_down_cause'
+        },
+        'MAC_BEHIND_ONU' => {
+          NAME        => 'MAC_BEHIND_ONU',
+          USE_MAC_LOG => 1
         }
       },
       unregister            => {
@@ -1492,6 +1497,9 @@ sub _huawei_get_fdb {
   Arguments:
     $attr
       NAS_INFO
+        NAS_MNG_IP_PORT
+        NAS_MNG_USER
+        NAS_MNG_PASSWORD
 
   Returns:
     TRUE or FALSE
@@ -1513,15 +1521,15 @@ sub _huawei_telnet_open {
   }
 
   my $user_name = $attr->{NAS_INFO}->{NAS_MNG_USER} || q{};
-  my $password = $attr->{NAS_INFO}->{NAS_MNG_PASSWORD} || q{};
+  my $password = $attr->{NAS_INFO}->{NAS_MNG_PASSWORD} || q{}; #XXX conf{EQUIPMENT_OLT_PASSWORD}?
 
   $Telnet = Net::Telnet->new(
     Timeout => $conf{HUAWEI_TELNET_TIMEOUT} || 20,
     Errmode => 'return'
   );
 
-  my ($ip, $mng_port, undef) = split(/:/, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT}, 3);
-  my $port = $mng_port || 23;
+  my ($ip) = split(/:/, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT});
+  my $port = 23;
   $Telnet->open(
     Host => $ip,
     Port => $port
@@ -1544,7 +1552,7 @@ sub _huawei_telnet_open {
     print "Telnet login or password incorrect\n";
     return 0;
   }
-  $Telnet->print(" ") or print "ERROR USER OR PASS";;
+  $Telnet->print(" ") or print "ERROR USER OR PASS";
   $Telnet->print(" ") or print "ERROR USER OR PASS";
   $Telnet->waitfor('/>/i') || print "ERROR USER OR PASS";
   $Telnet->print("enable");
@@ -1575,6 +1583,81 @@ sub _huawei_telnet_cmd {
   my @data = $Telnet->waitfor('/#/');
 
   return $data[0];
+}
+
+#**********************************************************
+=head2 _huawei_get_onu_config($attr) - Connect to OLT over telnet and get ONU config
+
+  Arguments:
+    $attr
+      NAS_INFO
+        NAS_MNG_IP_PORT
+        NAS_MNG_USER
+        NAS_MNG_PASSWORD
+      PON_TYPE
+      BRANCH
+      ONU_ID
+
+  Returns:
+    @result - array of [cmd, cmd_result]
+
+  commands (GPON):
+    display current-configuration ont %BRANCH% %ONU_ID%
+
+=cut
+#**********************************************************
+sub _huawei_get_onu_config {
+  my ($attr) = @_;
+
+  my $branch = $attr->{BRANCH};
+  my $onu_id = $attr->{ONU_ID};
+  my $pon_type = $attr->{PON_TYPE};
+
+  my @cmds = @{equipment_get_telnet_tpl({
+    TEMPLATE => "huawei_get_onu_config_$pon_type.tpl",
+    BRANCH   => $branch,
+    ONU_ID   => $onu_id
+  })};
+
+  if (!@cmds) {
+    @cmds = @{equipment_get_telnet_tpl({
+      TEMPLATE => "huawei_get_onu_config_$pon_type.tpl.example",
+      BRANCH   => $branch,
+      ONU_ID   => $onu_id
+    })};
+  }
+
+  if (!@cmds) {
+    if ($pon_type =~ /epon/i) {
+      return ([$lang{ERROR}, $lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} . 'Abills/modules/Equipment/snmp_tpl/huawei_get_onu_config_epon.tpl']);
+    }
+    else {
+      return ([$lang{ERROR}, $lang{FAILED_TO_GET_TELNET_CMDS_FROM_FILE} . " huawei_get_onu_config_$pon_type.tpl"]);
+    }
+  }
+
+  if (!_huawei_telnet_open({ NAS_INFO => $attr->{NAS_INFO} })) {
+    return ();
+  }
+  $Telnet->prompt('/\n.*\(config\)#/i');
+
+  my @result = ();
+
+  foreach my $cmd (@cmds) {
+    my @cmd_result = $Telnet->cmd($cmd);
+    if (@cmd_result) {
+      push @result, [$cmd, join('', @cmd_result)];
+    }
+    else {
+      push @result, [$cmd, $lang{ERROR} . ' Telnet: ' . $Telnet->errmsg()];
+    }
+  }
+
+  if ($Telnet->errmsg()) {
+    $html->message('err', $lang{ERROR} . ' Telnet', $Telnet->errmsg());
+  }
+
+  return @result;
 }
 
 1

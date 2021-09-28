@@ -18,7 +18,7 @@
         </div>
         <hr style='margin: 0 5px'>
         <div class='row'>
-          <ul class='nav nav-pills nav-stacked col-md-4'>
+          <ul class='nav flex-column'>
 
             %TABS_MENU%
           </ul>
@@ -28,7 +28,7 @@
           </div>
         </div>
       </div>
-      <div class='card-footer'>
+      <div class='card-footer text-center'>
         <input type='submit' form='form_EVENTS_PRIORITY_SEND_TYPE' class='btn btn-primary' name='submit'
                value='_{SAVE}_'>
       </div>

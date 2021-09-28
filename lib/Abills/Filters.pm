@@ -137,6 +137,7 @@ sub _expr {
   Returns:
 
     return normilize string
+
 =cut
 #**********************************************************
 sub _utf8_encode {

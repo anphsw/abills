@@ -31,6 +31,7 @@ our (
 use Abills::Base qw(show_hash);
 use Conf;
 use Extreceipt::db::Extreceipt;
+use Extreceipt::Base;
 
 my $debug = 0;
 
@@ -41,37 +42,10 @@ if ($argv->{DEBUG}) {
   $debug = $argv->{DEBUG};
   $Receipt->{debug}=1 if($debug > 4);
 }
-
-my $api_list = $Receipt->api_list();
-my $Receipt_api = ();
-foreach my $line (@$api_list) {
-  my $api_name = $line->{api_name};
-
-  if ($argv->{API_NAME} && $argv->{API_NAME} ne $api_name) {
-    next;
-  }
-
-  if ($debug > 3) {
-    print "API: $api_name\n";
-  }
-
-  if (eval {
-    require "Extreceipt/API/$api_name.pm";
-    1;
-  }) {
-    $Receipt_api->{$line->{api_id}} = $api_name->new(\%conf, $line);
-    $Receipt_api->{$line->{api_id}}->{debug} = 1 if ($debug);
-    Abills::Base::_bp('', $Receipt_api->{$line->{api_id}}->init(),{HEADER=>1, TO_CONSOLE=>1});
-    if (!$Receipt_api->{$line->{api_id}}->init()) {
-      $Receipt_api->{$line->{api_id}} = ();
-    }
-  }
-  else {
-    print $@;
-    $Receipt_api->{$line->{api_id}} = ();
-  }
-
-}
+my $Receipt_api = receipt_init($Receipt, {
+  API_NAME => $argv->{API_NAME},
+  DEBUG    => ($debug > 2) ? 1 : 0
+});
 
 my %params = ( PAGE_ROWS => 9999 );
 
@@ -136,12 +110,13 @@ sub check_payments {
 #**********************************************************
 sub send_payments {
   my $list = $Receipt->list({
-    STATUS    => 0,
+    STATUS         => 0,
+    PAYMENT_METHOD => '_SHOW',
     %params
   });
 
   foreach my $line (@$list) {
-    Abills::Base::_bp('', $Receipt_api->{$line->{api_id}}, {HEADER=>1});
+    #Abills::Base::_bp('', $Receipt_api->{$line->{api_id}}, {HEADER=>1});
     next if (!$Receipt_api->{$line->{api_id}});
     $line->{phone} =~ s/[^0-9\+]//g;
     if (!$line->{mail} && !$line->{phone}) {
@@ -206,15 +181,16 @@ sub check_receipts {
       print "\n";
       next;
     }
+
     next if (!$Receipt_api->{$line->{api_id}});
     my $Receipt_info = $Receipt_api->{$line->{api_id}};
 
-    Abills::Base::_bp('CHECK', $Receipt_info, {HEADER=>1, TO_CONSOLE=>1});
+    #Abills::Base::_bp('CHECK', $Receipt_info, {HEADER=>1, TO_CONSOLE=>1});
     # next if ($line->{api_name} eq 'Atol');
     my ($fdn, $fda, $date, $payments_id, $error) = $Receipt_info->get_info($line);
     $payments_id ||= $line->{payments_id};
 
-    print "GET_INFO: $payments_id (FDN: $fdn FDA: $fda, DATE: ". ($date || q{n/d}) ." PAYMENT_ID: $payments_id ERROR: $error)\n" if($debug > 1);
+    print "GET_INFO: $payments_id (FDN: $fdn FDA: $fda DATE: ". ($date || q{n/d}) ." PAYMENT_ID: $payments_id ERROR: $error)\n" if($debug > 1);
     if ($error) {
       if($Receipt_info->{error} && $Receipt_info->{error} == 1) {
         print "ERROR: $Receipt_info->{error} PAYMENT_ID: $payments_id ";

@@ -1,16 +1,4 @@
 <script type='text/javascript'>
-  function selectLanguage() {
-    var sLanguage = '';
-    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-      sLanguage = jQuery('#language_mobile').val() || '';
-    } else {
-      sLanguage = jQuery('#language').val() || '';
-    }
-
-    var sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&language=' + sLanguage;
-    document.location.replace(sLocation);
-  }
-
   function set_referrer() {
     document.getElementById('REFERER').value = location.href;
   }
@@ -67,8 +55,6 @@
 
         <input type=hidden name=DOMAIN_ID value='$FORM{DOMAIN_ID}'>
         <input type=hidden ID=REFERER name=REFERER value='$FORM{REFERER}'>
-        <input type='hidden' id='AUTH_G2FA' name='AUTH_G2FA' value='1'>
-        <input type='hidden' name='G2FA_SUCCESS' value='%G2FA_SUCCESS%'>
         <input type='hidden' name='LOGIN' value='1'/>
 
         <div class='form-group row has-feedback'>
@@ -98,6 +84,18 @@
             </div>
             <input type='password' id='passwd' name='passwd' value='%password%' class='form-control'
                    placeholder='_{PASSWD}_'>
+          </div>
+        </div>
+
+        <div class='form-group row %G2FA_hidden%'>
+          <div class='input-group'>
+            <div class='input-group-prepend'>
+              <div class='input-group-text'>
+                <span class='fa fa-asterisk'></span>
+              </div>
+            </div>
+            <input type='password' id='g2fa' name='g2fa' class='form-control'
+                   placeholder='_{CODE}_'>
           </div>
         </div>
 

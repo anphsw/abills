@@ -5,21 +5,40 @@
 
 =head2 VERSION
 
-  VERSION: 1
-  DATE: 20200625
+  VERSION: 2
+  DATE: 20210705
 
-=head2 DESCRIPTION
+=head2 REGISTRATION
 
-Only used for deleting ONU's from BDCOM
+Default templates:
 
-=head2 DELETE
-
-Default deregistration template for EPON:
-
+EPON:
 enable
 conf
 interface epon %BRANCH%
-no epon bind-onu mac %MAC%
+epon bind-onu mac %MAC_SERIAL%
+
+GPON:
+enable
+conf
+interface gpon %BRANCH%
+gpon bind-onu sn %MAC_SERIAL%
+
+=head2 DELETE
+
+Default templates:
+
+EPON:
+enable
+conf
+interface epon %BRANCH%
+no epon bind-onu mac %MAC_SERIAL%
+
+GPON:
+enable
+conf
+interface gpon %BRANCH%
+no gpon bind-onu sn %MAC_SERIAL%
 
 =cut
 
@@ -62,29 +81,51 @@ if ($argv->{help}) {
   exit;
 }
 
-load_pmodule('Net::Telnet');
-
-if ($argv->{del_onu}) {
-  unregister_bdcom();
-  exit 1;
-}
-else {
-  print "register_bdcom can be only used for deleting ONU, exiting\n";
+if (!$argv->{del_onu} && !$conf{EQUIPMENT_BDCOM_ENABLE_ONU_REGISTRATION}) {
+  print "ONU registration is not enabled, exiting\n";
   exit 0;
 }
 
+load_pmodule('Net::Telnet');
+exec_template($argv);
+exit 1;
+
 #**********************************************************
-=head2 unregister_bdcom() - delete ONU
+=head2 exec_template($attr) - login to OLT via telnet and execute commands from template (register or delete ONU)
+
+  Registration needed only when there are manual registration (gpon onu-authen-method sn, epon onu-authen-method mac)
+
+  Arguments:
+    $attr
+      NAS_MNG_USER
+      NAS_MNG_PASSWORD
+      NAS_MNG_IP_PORT
+      PON_TYPE
+
+      TEMPLATE - telnet template filename
+        default:
+          bdcom_registration_$pon_type.tpl
+          bdcom_deregistration_$pon_type.tpl - if $attr->{del_onu}
+
+      del_onu  - delete ONU instead of register if true
+
+      MAC_SERIAL or ONU_MAC_SERIAL - ONU MAC/Serial
+      BRANCH - ONU branch
+      ... - any params, which will be used for substitution in template
 
 =cut
 #**********************************************************
-sub unregister_bdcom {
-  my $host      = $argv->{NAS_MNG_IP_PORT} || '';
-  my $user_name = $argv->{NAS_MNG_USER};
-  my $password  = $argv->{NAS_MNG_PASSWORD};
+sub exec_template {
+  my ($attr) = @_;
 
-  my $pon_type  = $argv->{PON_TYPE} || '';
-  my $template  = $argv->{TEMPLATE} || "bdcom_deregistration_$pon_type.tpl";
+  my $host      = $attr->{NAS_MNG_IP_PORT} || '';
+  my $user_name = $attr->{NAS_MNG_USER};
+  my $password  = $attr->{NAS_MNG_PASSWORD};
+
+  my $pon_type  = $attr->{PON_TYPE} || '';
+  my $template  = $attr->{TEMPLATE} || ($attr->{del_onu} ? "bdcom_deregistration_$pon_type.tpl" : "bdcom_registration_$pon_type.tpl");
+
+  my $enable_password = $conf{EQUIPMENT_BDCOM_ENABLE_PASSWORD} || $password;
 
   my ($ip) = split(/:/, $host);
   my $port = 23;
@@ -94,19 +135,35 @@ sub unregister_bdcom {
     exit 0;
   }
 
-  my $unreg_tpl = equipment_get_telnet_tpl({
-    MAC      => $argv->{ONU_MAC_SERIAL},
-    TEMPLATE => $template,
-    %$argv
+  my $original_mac_serial = $attr->{ONU_MAC_SERIAL} || $attr->{MAC_SERIAL};
+  my $mac_serial = $original_mac_serial;
+  if ($mac_serial && $mac_serial =~ /([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2})/) {
+    $mac_serial = "$1$2.$3$4.$5$6";
+  }
+
+  my $cmds = equipment_get_telnet_tpl({
+    %$attr,
+    MAC        => $mac_serial,
+    MAC_SERIAL => $mac_serial,
+    TEMPLATE   => $template
   });
 
-  if (!@$unreg_tpl) {
-    print "Can't read deregistration template\n";
+  if (!@$cmds) {
+    $cmds = equipment_get_telnet_tpl({
+      %$attr,
+      MAC        => $mac_serial,
+      MAC_SERIAL => $mac_serial,
+      TEMPLATE   => "$template.default"
+    });
+  }
+
+  if (!@$cmds) {
+    print "Can't read template\n";
     exit 0;
   }
 
   my $Telnet = Net::Telnet->new(
-    Prompt  => '/(#|>)$/',
+    Prompt  => '/.*(#|>)$/',
     Timeout => 15,
     Errmode => sub {
       my ($errmsg) = @_;
@@ -124,17 +181,71 @@ sub unregister_bdcom {
 
   $Telnet->login($user_name, $password);
 
-  foreach my $cmd (@$unreg_tpl) {
+  my $registered_onu_id;
+  my $registered_onu_snmp_id;
+  my $registered_onu_dhcp_port;
+
+  foreach my $cmd (@$cmds) {
     print "$cmd\n" if ($debug);
 
-    if($cmd =~ /sleep:(\d+)/) {
+    if ($cmd eq 'enable') {
+      $Telnet->print('enable');
+      my ($waitfor_prematch, $waitfor_match) = $Telnet->waitfor(Match => '/(#|>)$/', String => 'password:');
+      if ($waitfor_match eq 'password:') {
+        $Telnet->print($enable_password);
+        ($waitfor_prematch, $waitfor_match) = $Telnet->waitfor('/.*(#|>)$/');
+      }
+
+      if ($waitfor_match =~ />$/) {
+        print "enable failed: $waitfor_prematch\n";
+        exit 0;
+      }
+      next;
+    }
+
+    if ($cmd =~ /^show run interface/) {
+      my @data = $Telnet->cmd($cmd);
+      foreach my $line (@data) {
+        if ($line =~ /^\s+(g|e)pon bind-onu (sn|mac) $mac_serial (\d+)/) {
+          $registered_onu_id = $3;
+        }
+      }
+
+      if (!$registered_onu_id) {
+        print "Failed to get ONU ID, exiting\n";
+        exit 0;
+      }
+
+      @data = $Telnet->cmd("show interface $pon_type$attr->{BRANCH}:$registered_onu_id | include Ifindex"); #get ONU SNMP ID
+      foreach my $line (@data) {
+        if ($line =~ /^\s+Ifindex is (\d+), unique port number is (\d+)/) {
+          $registered_onu_dhcp_port = sprintf("%02x%02x", $2, $registered_onu_id); #assuming "unique port number" is most significant byte in o82
+          $registered_onu_snmp_id = $1;
+        }
+      }
+
+      if (!$registered_onu_id) {
+        print "Failed to get ONU SNMP ID, exiting\n";
+        exit 0;
+      }
+      next;
+    }
+
+    if ($cmd =~ /sleep:(\d+)/) {
       sleep $1;
     }
 
-    my @data = $Telnet->cmd($cmd) or print "  ERROR: '$cmd'\n";
+    my @data = $Telnet->cmd($cmd);
     if ($debug > 2) {
       print @data;
     }
+  }
+
+  if ($attr->{del_onu}) {
+    print "ONU BDCOM: $attr->{BRANCH}:$attr->{ONU_ID} MAC/Serial $original_mac_serial DELETED\n";
+  }
+  else {
+    print "ONU BDCOM: $attr->{BRANCH}:$registered_onu_id MAC/Serial $original_mac_serial SNMP ID $registered_onu_snmp_id DHCP PORT $registered_onu_dhcp_port ADDED\n";
   }
 
   $Telnet->close();
@@ -150,21 +261,25 @@ print << "[END]";
 
 help: $0
 
-  NAS_MNG_IP_PORT=
-  NAS_MNG_USER=
-  NAS_MNG_PASSWORD=
+  Arguments:
+    NAS_MNG_USER
+    NAS_MNG_PASSWORD
+    NAS_MNG_IP_PORT
+    PON_TYPE
 
+    TEMPLATE - telnet template filename
+      default:
+        bdcom_registration_\$pon_type.tpl
+        bdcom_deregistration_\$pon_type.tpl - if del_onu is true
 
-  TEMPLATE= || 'bdcom_deregistration_%PON_TYPE%.tpl'
+    del_onu  - delete ONU instead of register if true
 
-  MAC=
-  BRANCH=
-  SN ONU_MAC_SERIAL=
-  PON_TYPE=
-  ... - any params, which will be used for substitution in template
+    MAC_SERIAL or ONU_MAC_SERIAL - ONU MAC/Serial
+    BRANCH - ONU branch
+    ... - any params, which will be used for substitution in template
 
-  DEBUG=
-  help
+    DEBUG - debug mode
+    help - print this help
 
 [END]
 

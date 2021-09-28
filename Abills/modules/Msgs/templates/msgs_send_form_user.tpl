@@ -4,6 +4,7 @@
     <input type='hidden' name='index' value='$index'/>
     <input type='hidden' name='sid' value='$sid'/>
     <input type='hidden' name='ID' value='%ID%'/>
+    <input type='hidden' id='MAX_FILES' value='%MAX_FILES%'/>
 
     <div class='card card-primary card-outline'>
       <div class='card-header with-border'>
@@ -45,7 +46,7 @@
           <label class='col-md-4 col-form-label text-md-right'>_{ATTACHMENT}_:</label>
 
           <div class='col-md-8' id='file_upload_holder'>
-            <div class='form-group row'>
+            <div class='form-group m-1'>
               <input name='FILE_UPLOAD' type='file' data-number='0'>
             </div>
           </div>
@@ -68,7 +69,8 @@
 
   // Multi upload logic
   jQuery(function () {
-    var MAX_FILES_COUNT = 3;
+    var MAX_FILES_COUNT = jQuery('#MAX_FILES').val();
+    if (MAX_FILES_COUNT === '') MAX_FILES_COUNT = 3;
     initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
   }());
 </script>

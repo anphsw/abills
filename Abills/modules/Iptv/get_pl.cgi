@@ -23,7 +23,7 @@ our (
 use Abills::Init qw/$db $admin %conf/;
 use Abills::Defs;
 use Abills::HTML;
-use Abills::Base qw(_bp);
+use Abills::Base qw(_bp json_former);
 use POSIX qw(strftime);
 use Log qw(log_add log_print);
 use Iptv;
@@ -265,7 +265,7 @@ sub check_user {
       $result{err} = '-1';
       $result{errmsg} = "User is not found";
       #      $Log->log_print('LOG_WARNING', '', 'No user found', { ACTION => 'AUTH' });
-      print _json_former(\%result);
+      print json_former(\%result);
       exit;
     }
 
@@ -304,7 +304,7 @@ sub check_user {
     }
   }
 
-  print _json_former(\%result);
+  print json_former(\%result);
 }
 
 #**********************************************************
@@ -346,7 +346,7 @@ sub show_user_tp {
     if (!$iptv_list || ref $iptv_list ne 'ARRAY' && !scalar(@$iptv_list) || !$iptv_list->[0]->{tp_id}) {
       $result{ERROR} .= 'Wrong UID. No user found. ';
       $Log->log_print('LOG_WARNING', '', 'No user found', { ACTION => 'AUTH' });
-      print _json_former(\%result);
+      print json_former(\%result);
       exit;
     }
 
@@ -387,41 +387,9 @@ sub show_user_tp {
   #    }
   #  }
 
-  print _json_former(\%result);
+  print json_former(\%result);
 }
 
-#**********************************************************
-=head2 _json_former($request) - hash2json
-
-=cut
-#**********************************************************
-sub _json_former {
-  my ($request) = @_;
-  my @text_arr = ();
-
-  if (ref $request eq 'ARRAY') {
-    foreach my $key (@{$request}) {
-      push @text_arr, _json_former($key);
-    }
-    return '[' . join(', ', @text_arr) . "]";
-  }
-  elsif (ref $request eq 'HASH') {
-    foreach my $key (keys %{$request}) {
-      my $val = _json_former($request->{$key});
-      push @text_arr, qq{\"$key\":$val};
-    }
-    return '{' . join(', ', @text_arr) . "}";
-  }
-  else {
-    $request //= '';
-    if ($request =~ '^[0-9]$') {
-      return qq{$request};
-    }
-    else {
-      return qq{\"$request\"};
-    }
-  }
-}
 
 #**********************************************************
 =head2 transfer_service($attr)
@@ -455,7 +423,7 @@ sub transfer_service {
 
     if (!$iptv_list) {
       $result{status} = '-1';
-      print _json_former(\%result);
+      print json_former(\%result);
       exit;
     }
 
@@ -475,7 +443,7 @@ sub transfer_service {
 
     if (($service->{deposit} + $service->{credit}) <= 0) {
       $result{status} = '-2';
-      print _json_former(\%result);
+      print json_former(\%result);
       exit;
     }
     else {
@@ -508,7 +476,7 @@ sub transfer_service {
 
   $result{id} = $Iptv->{FEES_ID}[0] || 0;
   $result{status} = '1';
-  print _json_former(\%result);
+  print json_former(\%result);
 
   return 1;
 }
@@ -647,7 +615,7 @@ sub smartup_activation {
       if ($Iptv->{TOTAL} > 0) {
         $result{uid} = $device->[0]{UID};
         $result{tid} = $user->[0]{filter_id};
-        print _json_former(\%result);
+        print json_former(\%result);
         exit;
       }
       else {
@@ -657,7 +625,7 @@ sub smartup_activation {
           $final_result{status} = $result{status};
           $final_result{tid} = $res->{tid};
           $final_result{uid} = $res->{uid};
-          print _json_former(\%final_result);
+          print json_former(\%final_result);
           exit;
         }
 
@@ -704,7 +672,7 @@ sub smartup_activation {
                 }
               }
 
-              print _json_former(\%result);
+              print json_former(\%result);
               return 1;
               last;
             }
@@ -742,7 +710,7 @@ sub smartup_activation {
                 });
               }
             }
-            print _json_former(\%result);
+            print json_former(\%result);
             return 1;
           }
         }
@@ -757,7 +725,7 @@ sub smartup_activation {
               #                $result{status} = '';
               #                $result{tid} = '';
               #                $result{uid} = '';
-              #                print _json_former(\%result);
+              #                print json_former(\%result);
               #                return 1;
               #              }
               #              my $Payments = Finance->payments($db, $admin, \%conf);
@@ -797,7 +765,7 @@ sub smartup_activation {
 
               $result{tid} = '';
               $result{uid} = '';
-              print _json_former(\%result);
+              print json_former(\%result);
               return 1;
               last;
             }
@@ -811,7 +779,7 @@ sub smartup_activation {
               $result{status} = '';
               $result{tid} = '';
               $result{uid} = '';
-              print _json_former(\%result);
+              print json_former(\%result);
               return 1;
             }
             my $Payments = Finance->payments($db, $admin, \%conf);
@@ -858,7 +826,7 @@ sub smartup_activation {
               });
             }
 
-            print _json_former(\%result);
+            print json_former(\%result);
             return 1;
           }
         }
@@ -885,14 +853,14 @@ sub smartup_activation {
           my %final_result;
           $final_result{tid} = $res->{tid};
           $final_result{status} = $device->[0]{ENABLE} eq 1 ? "unverified" : "active";
-          print _json_former(\%final_result);
+          print json_former(\%final_result);
           exit;
         }
         else {
           my %final_result;
           $final_result{tid} = '';
           $final_result{status} = '';
-          print _json_former(\%final_result);
+          print json_former(\%final_result);
           exit;
         }
       }
@@ -907,23 +875,23 @@ sub smartup_activation {
           my %final_result;
           $final_result{login} = $res->{login};
           $final_result{balance} = $res->{balance};
-          print _json_former(\%final_result);
+          print json_former(\%final_result);
           exit;
         }
         else {
           my %final_result;
           $final_result{login} = '';
           $final_result{balance} = '';
-          print _json_former(\%final_result);
+          print json_former(\%final_result);
           exit;
         }
       }
-      print _json_former(\%result);
+      print json_former(\%result);
       exit;
     }
   }
 
-  print _json_former(\%result);
+  print json_former(\%result);
 }
 
 #**********************************************************
@@ -991,7 +959,7 @@ sub smartup_pin {
   if ($Iptv->{TOTAL} > 0) {
     if ($attr->{ACTION} eq "pin") {
       $result{pin} = $user->[0]{pin};
-      print _json_former(\%result);
+      print json_former(\%result);
       exit;
     }
     if ($attr->{ACTION} eq "set") {
@@ -1001,7 +969,7 @@ sub smartup_pin {
       });
       if (!$Iptv->{error} && $Iptv->{PIN}) {
         $result{pin} = $Iptv->{PIN};
-        print _json_former(\%result);
+        print json_former(\%result);
       }
       exit;
     }
@@ -1013,7 +981,7 @@ sub smartup_pin {
 
       if ($attr->{ACTION} eq "pin") {
         $final_result{pin} = $res->{pin};
-        print _json_former(\%final_result);
+        print json_former(\%final_result);
         exit;
       }
       if ($attr->{ACTION} eq "set") {
@@ -1029,16 +997,16 @@ sub smartup_pin {
         });
         if (!$Iptv->{error} && $Iptv->{PIN}) {
           $final_result{pin} = $Iptv->{PIN};
-          print _json_former(\%final_result);
+          print json_former(\%final_result);
         }
         exit;
       }
-      print _json_former(\%final_result);
+      print json_former(\%final_result);
       exit;
     }
   }
 
-  print _json_former(\%result);
+  print json_former(\%result);
 }
 
 #**********************************************************
@@ -1335,11 +1303,11 @@ sub _iptv_24tv_auth {
   });
 
   if ($Internet->{TOTAL}) {
-    print _json_former({ "user_id" => $user_info->[0]{uid}, });
+    print json_former({ "user_id" => $user_info->[0]{uid}, });
     return 1;
   }
 
-  print _json_former({
+  print json_former({
     "status" => -1,
     "err"    => -1,
     "errmsg" => "Пользователь не найден"
@@ -1429,7 +1397,7 @@ sub _iptv_24tv_packet {
 sub _iptv_24tv_print_err {
   my ($attr) = @_;
 
-  print _json_former({
+  print json_former({
     "status" => -2,
     "err"    => -2,
     "errmsg" => $attr->{message}
@@ -1592,7 +1560,7 @@ sub _iptv_additional_tariffs {
       IDS   => $tariffs
     });
 
-    print _json_former({ "status" => 1 });
+    print json_former({ "status" => 1 });
     return 1;
   }
 
@@ -1650,7 +1618,7 @@ sub _iptv_base_tariffs {
     _iptv_24tv_print_err({ message => $Shedule->{errstr} }) if ($Shedule->{errno});
     return 0 if $Shedule->{errno};
 
-    print _json_former({
+    print json_former({
       "status" => 1,
       "errmsg" => "Переход на пакет запланирован после окончания текущего!"
     });
@@ -1729,7 +1697,7 @@ sub _iptv_base_tariffs {
       });
     }
 
-    print _json_former({ "status" => 1 });
+    print json_former({ "status" => 1 });
     return 1;
   }
 
@@ -1849,7 +1817,7 @@ sub _iptv_24tv_del_sub {
       }
     }
 
-    print _json_former({ "status" => 1 });
+    print json_former({ "status" => 1 });
     return 1;
   }
 

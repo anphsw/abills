@@ -287,10 +287,21 @@ sub get_commutation_for_equipment {
 #**********************************************************
 sub get_commutation_for_user {
   my ($self,  $uid, $service_id, $attr) =  @_;
+
+
+  my $onu_list = $Cablecat->commutation_onu_list({
+    UID       => $uid,
+    SERVICE_ID => $service_id,
+    ID        => '_SHOW',
+    COLS_NAME => 1
+  });
+
+  return 0 if($Cablecat->{TOTAL} <= 0);
+
   return $self->get_commutation_for_element({
-      TYPE      => 'UID',
-      ID        => $uid,
-      FIBER_NUM => $service_id
+      TYPE      => 'ONU',
+      ID        => $onu_list->[0]->{id},
+      FIBER_NUM => 1
     }, $attr);
 }
 
@@ -315,14 +326,14 @@ sub get_commutation_for_element {
   my ($self, $element_hash, $attr) = @_;
   
   return 0 if !$element_hash->{TYPE};
-  
+
   if ($element_hash->{TYPE} eq 'EQUIPMENT'){
     # Can be present as cross
     my $equipment_cross = $self->get_commutation_for_equipment($element_hash->{ID}, $element_hash->{FIBER_NUM},
       { WITH_TYPE => 1 });
     #TODO: when got cross link, replace $element_hash
   }
-  
+
   my $cable_links = $Cablecat->links_list({
     FOR_ELEMENT_AND_FIBER => {
       ELEMENT_TYPE => $element_hash->{TYPE},
@@ -333,7 +344,9 @@ sub get_commutation_for_element {
     SHOW_ALL_COLUMNS      => ($attr->{RETURN_LINK} || 0),
     PAGE_ROWS             => 1000
   });
-  
+
+  # exit;
+
   if ( $Cablecat->{errno} ) {
     $self->_mimicre_error($Cablecat);
     return 0;
@@ -345,7 +358,7 @@ sub get_commutation_for_element {
   }
   
   my $cable_link = ($attr->{ALL_LINKS} ? $cable_links : $cable_links->[0]);
-  
+
   return $attr->{ALL_LINKS} ? $cable_links
                             : $attr->{RETURN_LINK}
                               ? $cable_link
@@ -370,7 +383,7 @@ sub get_user_nas_port_services {
       NAS_NAME           => '_SHOW',
       RETURN_WITH_MODULE => 1
     });
-  
+
   return 0 if $self->{errno};
   
   if ( !$search_list || !ref $search_list eq 'ARRAY' || !scalar(@{$search_list}) ) {
@@ -411,14 +424,9 @@ sub get_user_nas_port_services {
 #**********************************************************
 sub get_nas_port_for_service {
   my ($self, $uid, $service_id) = @_;
-  
-  my ($service_list, $module_name) = $self->get_user_services($uid, { SERVICE_ID => $service_id, NAS_NAME => '_SHOW' });
-  
-  if (!$module_name) {
-    $self->_raise_error(2211, "No modules for user to port link");
-    return 0;
-  }
-  
+
+  my ($service_list) = $self->get_user_services($uid, { SERVICE_ID => $service_id, NAS_NAME => '_SHOW' });
+
   if (!$service_list || ref $service_list ne 'ARRAY' || !scalar(@$service_list)){
     $self->_raise_error(2212, "Can't find service info");
     return 0
@@ -545,6 +553,14 @@ sub resolve_commutation_path {
         PATH                 => \@full_path
       };
     }
+    elsif ( $other_fiber->{element_type} eq 'ONU' ) {
+      # ONU is dead end
+      return {
+        START_COMMUTATION_ID => $commutation_id,
+        ENDS                 => 1,
+        PATH                 => \@full_path
+      };
+    }
     else {
       $self->{errno} = 2207;
       $self->{errstr} = "Can't resolve $other_fiber->{element_type} ";
@@ -636,7 +652,7 @@ sub get_path_beetween_nases {
     }
     
     my @exit_el_array = @{$exit_element_hash}{qw/element_type element_id fiber_num/};
-    
+
     my $other_commutations_for_element = $Cablecat->links_list({
       COMMUTATION_ID        => "!$exit_element_hash->{commutation_id}",
       _SKIP_TOTAL           => 1,
@@ -708,7 +724,6 @@ sub get_path_beetween {
   
   my $first_commutation_list = $self->get_commutation_for_element($element1, { ALL_LINKS => 1 });
   my $second_commutation_list = $self->get_commutation_for_element($element2, { ALL_LINKS => 1 });
-
   my $first_commutation = -1;
 
   if ( !$first_commutation_list || !$second_commutation_list ) {
@@ -719,7 +734,8 @@ sub get_path_beetween {
                         . ' is not present on any commutation';
     return 0;
   };
-  
+
+
   if ( scalar(@{$first_commutation_list}) > 1 || scalar(@{$second_commutation_list}) > 1 ) {
     # This should not happen for now
     # Single equipment on single commutation
@@ -738,6 +754,7 @@ sub get_path_beetween {
   );
   return 0 if ($self->{errno});
 
+
   my $limit = 300;
   my $limit_counter = 0;
   while ( !$commutation_resolve->{ENDS} && ++$limit_counter < $limit ) {
@@ -753,7 +770,7 @@ sub get_path_beetween {
     }
     
     my @exit_el_array = @{$exit_element_hash}{qw/element_type element_id fiber_num/};
-    
+
     my $other_commutations_for_element = $Cablecat->links_list({
       COMMUTATION_ID        => "!$exit_element_hash->{commutation_id}",
       _SKIP_TOTAL           => 1,
@@ -821,13 +838,26 @@ sub _get_another_element_for_link {
       ||
       ($link->{element_1_type} eq $this_el_type && $link->{element_1_id} eq $this_el_id && $link->{fiber_num_1} != $this_el_fiber)
   );
+
+  my $point_id = 0;
+  my $reverse = 0;
+  my $type = (!$is_first) ? $link->{element_1_type} : $link->{element_2_type};
+  my $id = (!$is_first) ? $link->{element_1_id} : $link->{element_2_id};
+  if($type eq 'CABLE'){
+    my $cable = $Cablecat->cables_info($id);
+
+    $point_id = $cable->{POINT_ID};
+    $reverse = 1 if($is_first);
+  }
   
   return {
     link_id        => $link->{id},
     commutation_id => $link->{commutation_id},
-    element_type   => (!$is_first) ? $link->{element_1_type} : $link->{element_2_type},
-    element_id     => (!$is_first) ? $link->{element_1_id} : $link->{element_2_id},
+    element_type   => $type,
+    element_id     => $id,
     fiber_num      => (!$is_first) ? $link->{fiber_num_1} : $link->{fiber_num_2},
+    point_id       => $point_id,
+    reverse        => $reverse
   };
 }
 
@@ -850,13 +880,26 @@ sub _get_this_element_for_link {
       ||
       ($link->{element_1_type} eq $this_el_type && $link->{element_1_id} eq $this_el_id && $link->{fiber_num_1} != $this_el_fiber)
   );
+
+  my $point_id = 0;
+  my $reverse = 0;
+  my $type = ($is_first) ? $link->{element_1_type} : $link->{element_2_type};
+  my $id = ($is_first) ? $link->{element_1_id} : $link->{element_2_id};
+  if($type eq 'CABLE'){
+    my $cable = $Cablecat->cables_info($id);
+
+    $point_id = $cable->{POINT_ID};
+    $reverse = 1 if($is_first);
+  }
   
   return {
     link_id        => $link->{id},
     commutation_id => $link->{commutation_id},
-    element_type   => ($is_first) ? $link->{element_1_type} : $link->{element_2_type},
-    element_id     => ($is_first) ? $link->{element_1_id} : $link->{element_2_id},
+    element_type   => $type,
+    element_id     => $id,
     fiber_num      => ($is_first) ? $link->{fiber_num_1} : $link->{fiber_num_2},
+    point_id       => $point_id,
+    reverse        => $reverse,
   };
 }
 
@@ -926,20 +969,21 @@ sub get_user_services {
   my ($self, $uid, $attr) = @_;
   
   my @services_list = ();
-  my $module = '';
   if ( in_array('Internet', \@main::MODULES) ) {
     require Internet;
-    
+
     my $Internet = Internet->new(@{$self}{qw/db admin conf/});
     my $services_list = $Internet->list({
       UID       => $uid,
       ID        => ($attr->{SERVICE_ID} || '_SHOW'),
       NAS_ID    => '_SHOW',
+      GROUP_BY  => 'internet.id',
       PORT      => '_SHOW',
       %{ $attr // {} },
       PAGE_ROWS => 1000,
       COLS_NAME => 1,
     });
+
     if ( $Internet->{errno} ) {
       $self->_mimicre_error($Internet);
       return 0;
@@ -961,33 +1005,9 @@ sub get_user_services {
       }
     }
     @services_list = @{$services_list};
-    $module = 'Internet';
   }
-  elsif ( in_array('Dhcphosts', \@main::MODULES) ) {
-    require Dhcphosts;
-    my $Dhcphosts = Dhcphosts->new(@{$self}{qw/db admin conf/});
-    my $hosts_list = $Dhcphosts->hosts_list({
-      UID       => $uid,
-      ID        => ($attr->{SERVICE_ID} || '_SHOW'),
-      NAS_ID    => '_SHOW',
-      NAS_NAME  => '_SHOW',
-      PORTS     => '_SHOW',
-      SHORT     => 1,
-      %{ $attr // {} },
-      PAGE_ROWS => 1000,
-      COLS_NAME => 1,
-    });
-    if ( $Dhcphosts->{errno} ) {
-      $self->_mimicre_error($Dhcphosts);
-      return 0;
-    }
-    if ($hosts_list && ref $hosts_list eq 'ARRAY') {
-      @services_list = map {$_->{port} = $_->{ports}; $_} @{$hosts_list};
-    }
-    $module = 'Dhcphosts';
-  }
-  
-  return wantarray ? ( \@services_list, $module ) : \@services_list;
+
+  return \@services_list;
 }
 
 1;

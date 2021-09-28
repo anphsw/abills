@@ -12,12 +12,20 @@
   </div>
   <div class='card-body'>
     <div id='commentsWrapper' class='row'>
-      <div class="col-md-12">
-        <div class='col-md-12' id='commentsBlock'>
+      <div class='col-md-12'>
+        <div class='col-md-12 timeline' id='commentsBlock'>
           %COMMENTS%
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+  var lang_edit = '_{EDIT}_';
+  var lang_add = '_{ADD}_';
+  var lang_comments = '_{COMMENTS}_';
+  var lang_admin = '_{ADMIN}_';
+</script>
+
 <script src='/styles/default_adm/js/info/info.js'></script>

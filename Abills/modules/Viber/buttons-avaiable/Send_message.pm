@@ -107,7 +107,7 @@ sub simple_msgs {
 
     next unless ($file_content && $file_size && $file_name && $file_extension);
 
-    my $file_content_type = file_content_type($file_extension);
+    my $file_content_type = main::file_content_type($file_extension);
 
     delete($Attachments->{save_to_disk});
 
@@ -356,7 +356,7 @@ sub send_msg {
 
       next unless ($file_content && $file_size && $file_name && $file_extension);
 
-      my $file_content_type = file_content_type($file_extension);
+      my $file_content_type = main::file_content_type($file_extension);
 
       delete($Attachments->{save_to_disk});
 
@@ -405,31 +405,6 @@ sub send_msgs_main_menu {
   });
 
   return 1;
-}
-
-#**********************************************************
-=head2 file_content_type()
-
-=cut
-#**********************************************************
-sub file_content_type {
-  my ($file_extension) = @_;
-
-  my $file_content_type = "application/octet-stream";
-
-  if ( $file_extension && $file_extension eq 'png'
-    || $file_extension eq 'jpg'
-    || $file_extension eq 'gif'
-    || $file_extension eq 'jpeg'
-    || $file_extension eq 'tiff'
-  ) {
-    $file_content_type = "image/$file_extension";
-  }
-  elsif ( $file_extension && $file_extension eq "zip" ) {
-    $file_content_type = "application/x-zip-compressed";
-  }
-
-  return $file_content_type;
 }
 
 

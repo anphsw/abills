@@ -489,6 +489,11 @@ sub cards_list {
     $GROUP_BY='';
   }
 
+
+  if($attr->{USED_FROM_DATE_USED_TO_DATE}){
+    ($attr->{USED_FROM_DATE}, $attr->{USED_TO_DATE}) = split '/', $attr->{USED_FROM_DATE_USED_TO_DATE};
+  }
+
   if ($attr->{USED_FROM_DATE} || $attr->{USED_TO_DATE}) {
     $attr->{STATUS} = 2;
   }

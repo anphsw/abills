@@ -107,7 +107,8 @@ sub _get_main_info {
 
   my $user_info = $users->info($attr->{UID});
   my $user_pi = $users->pi({ UID => $attr->{UID} });
-  $user_pi->{CELL_PHONE_ALL} ||= '--';
+  $user_pi->{CELL_PHONE_ALL} ||= '';
+  $user_pi->{PHONE_ALL} ||= '';
   $user_pi->{FIO} ||= '';
 
   $user_pi->{ADDRESS_STREET} ||= '';
@@ -120,7 +121,8 @@ sub _get_main_info {
     title => $lang->{ADDRESS}
   });
 
-  my $phone = $html->element('p', "<b>$lang->{PHONE}:</b> $user_pi->{CELL_PHONE_ALL}", {
+  my $user_phones = join(', ', ($user_pi->{CELL_PHONE_ALL}, $user_pi->{PHONE_ALL}));
+  my $phone = $html->element('p', "<b>$lang->{PHONE}:</b> $user_phones", {
     class          => 'form-control-static',
     title          => $lang->{PHONE},
     'data-visible' => $lang->{PHONE}

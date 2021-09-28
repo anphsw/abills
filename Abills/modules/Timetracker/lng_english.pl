@@ -1,9 +1,10 @@
 $lang{TIMETRACKER} = "Time Accounting";
 $lang{FILLING_TIMETRACKER} = "Filling in the accounting of time";
+$lang{ADDING_TIMETRACKER}  = "Adding tasks";
 
 $lang{SUPPORT_TIMETRACK} = "Support";
 $lang{SPRINT_TIMETRACK} = "Sprint";
-$lang{COEFFICIENT} = "Focus factor,%";
+$lang{COEFFICIENT} = "Focus-factor,%";
 
 $lang{SUBMIT_BTN_ADD_TIMETRACK} = "Add";
 $lang{SUBMIT_BTN_EDIT_TIMETRACK} = "Edit";
@@ -17,7 +18,7 @@ $lang{ADD_ITEM} = "Add work type";
 $lang{EDIT_ITEM} = "Change job type";
 $lang{NEW_ITEM} = "New job type";
 
-$lang{FOCUS_FACTOR} = "Focus Factor";
+$lang{FOCUS_FACTOR} = "Focus-factor";
 $lang{ELEMENTS} = "Job Type";
 $lang{ELEMENT} = "Job Type";
 
@@ -36,8 +37,8 @@ $lang{EXTERNAL_SYSTEM} = 'External accounting systems';
 
 $lang{EXECUTOR} = 'Executor';
 
-$lang{ERROR_API_KEY} = 'The APIKEY does not have permission to view users or the wrong APIURL. 
-Edit: $conf{TIMETRACKER_REDMINE_APIKEY} & $conf{TIMETRACKER_REDMINE_APIURL}';
+$lang{ERROR_API_KEY} = 'The KEY does not have permission to view users or the wrong URL.
+Edit: $conf{TIMETRACKER_REDMINE_KEY} & $conf{TIMETRACKER_REDMINE_URL}';
 $lang{ERROR_EMAIL} = "Can\'t find user with email";
 $lang{NO_FIELD} = 'no field for dev';
 $lang{DATE} = 'Date';
@@ -50,7 +51,7 @@ $lang{NOT_FOUND} = 'Not found configuration: ';
 $lang{ALL_TIME} = 'Total time, hours';
 
 $lang{ADMINS_LIST} = 'admin list';
-$lang{CLOSE_MOUTH} = 'the number of works closed in a month in a row on Redmine';
+$lang{CLOSED_TASKS} = 'the number of works closed on Redmine';
 $lang{ACTUALLY_HOURS} = 'the number of hours actually spent';
 $lang{SCHEDULED_HOURS} = 'number of hours scheduled';
 $lang{TIME_COMPLEXITY} = 'complexity multiplied by the number of hours planned';

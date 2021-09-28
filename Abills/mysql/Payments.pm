@@ -77,19 +77,18 @@ sub add {
   }
 
   if ($attr->{CHECK_EXT_ID}) {
-    $self->{db}{db}->{AutoCommit} = 0;
+    $db_->{AutoCommit} = 0;
     $self->query("SELECT id, date, sum, uid FROM payments WHERE ext_id=? LIMIT 1 LOCK IN SHARE MODE;",
-     undef,
-     { INFO => 1,
-       Bind => [ $attr->{CHECK_EXT_ID} ]
-     });
+     undef, {
+       INFO => 1,
+       Bind => [ $attr->{CHECK_EXT_ID} ] });
 
     if ($self->{error}) {
       $db_->{AutoCommit} = 1 if(! $db_->{AutoCommit});
       return $self;
     }
     elsif ($self->{TOTAL} > 0) {
-      $self->{db}{db}->{AutoCommit} = 1 if(! $self->{db}{db}->{AutoCommit});
+      $db_->{AutoCommit} = 1 if(! $db_->{AutoCommit});
       $self->{errno}  = 7;
       $self->{errstr} = 'ERROR_DUPLICATE '.$attr->{CHECK_EXT_ID};
       return $self;
@@ -112,15 +111,15 @@ sub add {
     }
 
     $self->query_add('payments', {
-    	%$attr,
-    	UID     => $user->{UID},
-    	BILL_ID => $user->{BILL_ID},
-    	DATE    => ($attr->{DATE}) ? "$attr->{DATE}" : 'NOW()',
-    	DSC     => $attr->{DESCRIBE},
-    	IP      => $admin->{SESSION_IP},
-    	LAST_DEPOSIT => $Bill->{DEPOSIT},
-    	AID     => $admin->{AID},
-    	REG_DATE=> 'NOW()'
+      %$attr,
+      UID          => $user->{UID},
+      BILL_ID      => $user->{BILL_ID},
+      DATE         => ($attr->{DATE}) ? "$attr->{DATE}" : 'NOW()',
+      DSC          => $attr->{DESCRIBE},
+      IP           => $admin->{SESSION_IP},
+      LAST_DEPOSIT => $Bill->{DEPOSIT},
+      AID          => $admin->{AID},
+      REG_DATE     => 'NOW()',
     });
 
     if (!$self->{errno}) {
@@ -253,12 +252,18 @@ sub list {
     push @WHERE_RULES, "p.date $expr CURDATE() - INTERVAL $attr->{PAYMENT_DAYS} DAY";
   }
 
+  if($attr->{PAYMENTS_MONTHES}){
+    push @WHERE_RULES, "p.date >= CURDATE() - INTERVAL $attr->{PAYMENTS_MONTHES} MONTH";
+  }
+
   my $WHERE =  $self->search_former($attr, [
       ['DATETIME',       'DATE','p.date',   'p.date AS datetime'                           ],
       ['LOGIN',          'STR', 'u.id',         'u.id AS login'                            ],
       ['PAYMENT_METHOD', 'INT', 'p.method',                                              1 ],
       ['DSC',            'STR', 'p.dsc',                                                 1 ],
       ['INNER_DESCRIBE', 'STR', 'p.inner_describe'                                         ],
+      ['DSC2',           'STR', 'p.dsc',  'p.dsc AS dsc2'                                  ],
+      ['INNER_DESCRIBE2','STR', 'p.inner_describe', 'p.inner_describe AS inner_describe2'  ],
       ['SUM',            'INT', 'p.sum',                                                 1 ],
       ['LAST_DEPOSIT',   'INT', 'p.last_deposit',                                        1 ],
       ['METHOD',         'INT', 'p.method',                                              1 ],
@@ -290,22 +295,6 @@ sub list {
     	USE_USER_PI => 1
     }
     );
-
-  if($self->{conf}->{user_payment_journal_show} && defined $attr->{SHOW_PAYMENT}){
-    use POSIX qw(strftime);
-
-    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
-
-    $mday = 1;
-    $mon = $mon - $self->{conf}->{user_payment_journal_show} + 1;
-    if ($mon == 13) {
-      $mon = 1;
-      $year++;
-    }
-    my $date_show = POSIX::strftime('%Y-%m-%d', ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst));
-
-    $WHERE .= "AND p.date >= '$date_show'";
-  }
 
   my $EXT_TABLES  = '';
   $EXT_TABLES  = $self->{EXT_TABLES} if($self->{EXT_TABLES});

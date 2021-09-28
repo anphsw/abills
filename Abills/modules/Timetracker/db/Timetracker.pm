@@ -98,7 +98,8 @@ sub list_element {
 
   $self->query2(
     "SELECT id, element, priority, external_system
-     FROM timetracker_element ORDER BY $SORT $DESC;",
+     FROM timetracker_element
+     ORDER BY $SORT $DESC;",
     undef,
     { COLS_NAME => 1 }
   );
@@ -115,18 +116,14 @@ sub list_for_timetracker {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-
-  #my $PG        = ($attr->{PG})        ? $attr->{PG}             : 0;
-  #my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
-
-  my $WHERE = $self->search_former($attr, [
-    [ 'AID', 'STR', 'aid', 1 ],
-    [ 'ELEMENT_ID', 'int', 'element_id', 1 ],
-    [ 'TIME_PER_ELEMENT', 'int', 'time_per_element', 1 ],
-    [ 'DATE', 'DATE', 'date', 1 ], ],
-    { WHERE => 1, });
+  my $WHERE = $self->search_former(
+    $attr,
+    [ [ 'AID',              'STR',  'aid',              1 ],
+      [ 'ELEMENT_ID',       'int',  'element_id',       1 ],
+      [ 'TIME_PER_ELEMENT', 'int',  'time_per_element', 1 ],
+      [ 'DATE',             'DATE', 'date',             1 ], ],
+    { WHERE => 1 }
+  );
 
   $self->query2(
     "SELECT aid, element_id, time_per_element, date
@@ -148,13 +145,11 @@ sub change_element {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->changes2(
-    {
-      CHANGE_PARAM => 'ID',
-      TABLE        => 'timetracker_element',
-      DATA         => $attr,
-    }
-  );
+  $self->changes2({
+    CHANGE_PARAM => 'ID',
+    TABLE        => 'timetracker_element',
+    DATA         => $attr,
+  });
 
   return $self->{result};
 }
@@ -168,20 +163,25 @@ sub change_element_work {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query2("SELECT msgs_messages.state,
-                           Substring(msgs_messages.closed_date, 1, Instr(msgs_messages.closed_date, ' ') - 1),
-                           msgs_messages.resposible,
-                           admins.NAME,
-                           admins.aid,
-                           admins.disable,
-                           Sum(IF(msgs_messages.state, 1, 0)) AS admins_count
-                    FROM admins LEFT JOIN  msgs_messages
-                      ON msgs_messages.state >= 1 AND msgs_messages.state <= 2
-                      AND msgs_messages.resposible = admins.aid
-                      AND SUBSTRING(closed_date, 1, INSTR(closed_date, ' ')-1)
-                      BETWEEN '$attr->{DATA_DAY}' AND '$attr->{TO_DATA_DAY}'
-                      WHERE admins.disable != 2 AND admins.disable != 1
-                    GROUP  BY admins.aid;", undef, {COLS_NAME => 1});
+  $self->query2(
+    "SELECT msgs_messages.state,
+      Substring(msgs_messages.closed_date, 1, Instr(msgs_messages.closed_date, ' ') - 1),
+      msgs_messages.resposible,
+      admins.NAME,
+      admins.aid,
+      admins.disable,
+      Sum(IF(msgs_messages.state, 1, 0)) AS admins_count
+    FROM admins
+      LEFT JOIN msgs_messages
+      ON msgs_messages.state >= 1 AND msgs_messages.state <= 2
+      AND msgs_messages.resposible = admins.aid
+      AND SUBSTRING(closed_date, 1, INSTR(closed_date, ' ')-1)
+      BETWEEN '$attr->{DATA_DAY}' AND '$attr->{TO_DATA_DAY}'
+      WHERE admins.disable != 2 AND admins.disable != 1
+      GROUP BY admins.aid;",
+    undef,
+    {COLS_NAME => 1}
+  );
 
   return $self->{list};
 }
@@ -202,10 +202,13 @@ sub get_run_time {
 
   my ($attr) = @_;
 
-  $self->query2("SELECT aid, run_time FROM msgs_reply 
-                WHERE datetime BETWEEN
-                '$attr->{FROM_DATE}' AND '$attr->{TO_DATE}';",
-                 undef, {COLS_NAME => 1} );
+  $self->query2(
+    "SELECT aid, run_time
+     FROM msgs_reply
+      WHERE datetime BETWEEN
+      '$attr->{FROM_DATE}' AND '$attr->{TO_DATE}';",
+    undef, {COLS_NAME => 1}
+  );
 
   return $self->{list} || [];
 }

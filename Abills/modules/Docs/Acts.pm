@@ -257,14 +257,11 @@ sub docs_acts{
 
   my @rows = (
     "$lang{PERIOD}: ",
-    $html->form_select(
-      'MONTH',
-      {
-        SELECTED  => $FORM{MONTH},
-        SEL_ARRAY => \@MONTH_ARR,
-        NO_ID     => 1
-      }
-    ),
+    $html->form_select('MONTH', {
+      SELECTED  => $FORM{MONTH},
+      SEL_ARRAY => \@MONTH_ARR,
+      NO_ID     => 1
+    }),
     "$lang{ACT} $lang{DATE}: ",
     $html->form_input( 'DATE', $FORM{DATE}, { class => 'form-control datepicker' } ),
     $lang{PREVIEW}.': '. $html->form_input( 'PREVIEW', 1, { TYPE => 'checkbox', STATE => $FORM{PREVIEW} } ),
@@ -272,31 +269,29 @@ sub docs_acts{
   );
 
   my %info = ();
-  foreach my $val ( @rows ){
-    $info{ROWS} .= $html->element( 'div', $val, { class => 'form-group' } );
+  foreach my $val (@rows) {
+    $info{ROWS} .= $html->element('div', $val, { class => 'form-group d-inline-block pr-1' });
   }
 
-  my $report_form = $html->element( 'div', $info{ROWS}, {
-    class => 'well well-sm sticky'
-  } );
+  my $report_form = $html->element('div', $info{ROWS}, {
+    class => 'breadcrumb card bg-light w-100 text-center'
+  });
 
-  print $html->form_main(
-    {
-      CONTENT => $report_form,
-      HIDDEN  => {
-        COMPANY_ID => $FORM{COMPANY_ID},
-        UID        => $uid,
-        subf       => $FORM{subf},
-        index      => $index,
-        create     => 1
-      },
-      METHOD  => 'get',
-      class   => 'form-inline',
-    }
-  );
+  print $html->form_main({
+    CONTENT => $report_form,
+    HIDDEN  => {
+      COMPANY_ID => $FORM{COMPANY_ID},
+      UID        => $uid,
+      subf       => $FORM{subf},
+      index      => $index,
+      create     => 1
+    },
+    METHOD  => 'get',
+    class   => 'form-inline',
+  });
 
-  if( $Company ){
-    $attr->{COMPANY}=$Company;
+  if ($Company) {
+    $attr->{COMPANY} = $Company;
   }
 
   docs_acts_list( $attr );

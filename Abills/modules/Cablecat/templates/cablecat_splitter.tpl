@@ -8,6 +8,13 @@
     <div class='card-body'>
 
       <div class='form-group row'>
+        <label class='col-md-4 col-form-label text-md-right' for='NAME'>_{NAME}_:</label>
+        <div class='col-md-8'>
+          <input id='NAME' name='NAME' value='%NAME%' class='form-control'type='text'>
+        </div>
+      </div>
+
+      <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right required' for='TYPE_ID'>_{SPLITTER_TYPE}_:</label>
         <div class='col-md-8'>
           %TYPE_ID_SELECT%

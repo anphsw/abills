@@ -6,12 +6,12 @@ use warnings;
 our (
   %conf,
   $base_dir,
-  %lang
+  $DATE,
+  $TIME
 );
 
 BEGIN {
-  require '/usr/abills/libexec/config.pl';
-
+  do '../libexec/config.pl';
   our $libpath = '../';
   my $sql_type = 'mysql';
   unshift(@INC,
@@ -26,7 +26,6 @@ BEGIN {
 use Users;
 use Admins;
 use Abills::SQL;
-use Users;
 use Contacts;
 use Abills::Misc;
 
@@ -42,13 +41,11 @@ my $sql = Abills::SQL->connect(
 
 my $db  = $sql->{db};
 
-our $admin    = Admins->new($db, \%conf);
-our $Users    = Users->new($db, $admin, \%conf);
-our $Contacts = Contacts->new($db, $admin, \%conf);
+my $Admin    = Admins->new($db, \%conf);
+# my $Users    = Users->new($db, $Admin, \%conf);
+# my $Contacts = Contacts->new($db, $Admin, \%conf);
 
 callcenter_proccess(\%ENV, init_call_center());
-
-exit 1;
 
 #**********************************************************
 =head2 init_call_center()
@@ -56,7 +53,6 @@ exit 1;
 =cut
 #**********************************************************
 sub init_call_center {
-  my ($attr) = @_;
 
   my $Callcenter_service;
 
@@ -75,26 +71,35 @@ sub init_call_center {
 
       if ($@) {
         print $@;
-        exit;
+        return 0;
       }
       else {
         $Callcenter_service->import();
-        $Callcenter_service = $Callcenter_service->new($db, $admin, \%conf);
+        $Callcenter_service = $Callcenter_service->new($db, $Admin, \%conf);
         last;
       }
     }
   }
 
-  unless ($Callcenter_service) {
+  if (! $Callcenter_service) {
     $Callcenter_service->{errno} = 1;
     $Callcenter_service->{errstr} = 'CALLCENTER_PLUGIN_NOT_CONNECTION';
+    print "$Callcenter_service->{errno} $Callcenter_service->{errstr}";
+    #return 0;
   }
 
   return $Callcenter_service;
 }
 
 #**********************************************************
-=head2 callcenter_proccess()
+=head2 callcenter_proccess($callcenter)
+
+  Arguments:
+    $env
+    $callcenter
+
+  Returns:
+    TRUE or FALSE
 
 =cut
 #**********************************************************
@@ -102,7 +107,9 @@ sub callcenter_proccess {
   my $env = shift;
   my ($callcenter) = @_;
 
-  $callcenter->get_users_service({ %{ $env } });
+  if (! $callcenter->{errno}) {
+    $callcenter->get_users_service($env);
+  }
 
   return 1;
 }

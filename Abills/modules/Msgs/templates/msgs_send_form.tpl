@@ -72,7 +72,7 @@
   </div>
 
 
-  <div class='card container-md'>
+  <div class='card card-primary card-outline container-md'>
     <div class='card-header with-border'><h4 class='card-title'>_{MESSAGES}_</h4></div>
     <div class='card-body'>
 
@@ -128,7 +128,7 @@
         <div class='card-header with-border'>
           <h4 class='card-title'>_{ADDITIONALLY}_</h4>
           <div class='card-tools pull-right'>
-            <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'><i
                 class='fa fa-plus'></i>
             </button>
           </div>
@@ -220,9 +220,9 @@
                     <i class='fa fa-phone'></i>
                   </div>
                 </div>
-                <input class='form-control' name='CALL_PHONE' value='%CALL_PHONE%'
-                       placeholder='%CALL_PHONE%'
-                       data-inputmask='{'mask' : '(999) 999-9999', 'removeMaskOnSubmit' : true}'
+                <input class='form-control' name='PHONE' value='%PHONE%'
+                       placeholder='%PHONE%'
+                       data-inputmask='{"mask" : "(999) 999-9999", "removeMaskOnSubmit" : true}'
                        type='text'/>
               </div>
             </div>
@@ -262,9 +262,7 @@
         <div class='card-header with-border'>
           <h4 class='card-title'>_{SHEDULE}_</h4>
           <div class='card-tools pull-right'>
-            <button type='button' class='btn btn-box-tool' data-card-widget='collapse'><i
-                class='fa fa-plus'></i>
-            </button>
+            <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-plus'></i></button>
           </div>
         </div>
         <div class='card-body'>

@@ -374,8 +374,8 @@ sub pon_maps {
     my %pon = (
       MARKER   => {
         ID           => $point->{nas_id} . $count,
-        COORDX       => $coordx,
-        COORDY       => $coordy,
+        COORDX       => $coordy,
+        COORDY       => $coordx,
         INFO         => $info,
         TYPE         => $color,
         OBJECT_ID    => $point->{location_id},

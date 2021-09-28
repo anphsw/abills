@@ -94,7 +94,7 @@ if(! auth_admin() ) {
 $html->{admin} = $admin;
 
 our @default_search  = ( 'UID', 'LOGIN', 'FIO', 'CONTRACT_ID',
-  'EMAIL', 'PHONE', 'COMMENTS', 'ADDRESS_FULL', 'CITY' );
+  'EMAIL', 'PHONE', 'COMMENTS', 'ADDRESS_FULL', 'CITY', 'TELEGRAM', 'VIBER' );
 
 if($admin->{SID}) {
   $html->set_cookies('admin_sid', $admin->{SID}, '', '');
@@ -122,7 +122,10 @@ if ($index == 2) {
   }
 }
 
-if (defined($FORM{DOMAIN_ID})) {
+if (defined($FORM{DOMAIN_ID})){
+  if($html->get_cookies()->{DOMAIN_ID}) {
+    delete $COOKIES{DOMAIN_ID};
+  }
   $html->set_cookies('DOMAIN_ID', "$FORM{DOMAIN_ID}", "Fri, 1-Jan-2038 00:00:01", $html->{web_path});
 }
 
@@ -344,7 +347,8 @@ sub form_start {
       my $Reports = Reports->new($db, $admin, \%conf);
       my $quick_rwizard_reports = $Reports->list({
         QUICK_REPORT => 1,
-        COLS_NAME    => 1
+        COLS_NAME    => 1,
+        AID          => $admin->{AID},
       });
 
       if ($Reports->{TOTAL} > 0){
@@ -697,9 +701,9 @@ sub form_nas_allow{
     if(in_array('Internet', \@MODULES)) {
       internet_tp();
     }
-    else {
-      dv_tp();
-    }
+    # else {
+    #   dv_tp();
+    # }
 
     return 0;
   }
@@ -1465,8 +1469,9 @@ sub fl {
 
     if ($permissions{3}{5}) {
       push @m, "68:4:$lang{CONFIG}:form_system_changes:::",
-              "86:4:$lang{USER_PORTAL}:report_bruteforce:::",
-              "87:86:$lang{SESSIONS}:report_ui_last_sessions:::",
+              "86:4:$lang{USER_PORTAL}:null:::",
+              "87:86:$lang{BRUTE_ATACK}:report_bruteforce:::",
+              "88:86:$lang{SESSIONS}:report_ui_last_sessions:::",
               "123:86:$lang{USER_STATISTIC}:analiz_user_statistic:::";
     }
   }
@@ -1486,7 +1491,7 @@ sub fl {
 
       "75:5:$lang{HOLIDAYS}:form_holidays:::",
       "85:5:$lang{SHEDULE}:form_shedule:::",
-      "88:90:$lang{CONTACTS} $lang{TYPES}:form_contact_types:::",
+      "89:90:$lang{CONTACTS} $lang{TYPES}:form_contact_types:::",
       "90:5:$lang{MISC}:null:::",
       "91:90:$lang{TEMPLATES}:form_templates:::",
       "92:90:$lang{DICTIONARY}:form_dictionary:::",
@@ -1554,9 +1559,7 @@ sub fl {
 =cut
 #**********************************************************
 sub mk_navigator {
-
   my ($menu_navigator, $menu_text_) = $html->menu(\%menu_items, \%menu_args, \%permissions, { FUNCTION_LIST => \%functions });
-
   if ($html->{ERROR}) {
     $html->message( 'err', $lang{ERROR}, $html->{ERROR} );
     die $html->{ERROR};
@@ -1595,6 +1598,10 @@ sub form_search {
   if ($search_type =~ /^\d+$/ && ($search_type == 2 || $search_type == 3)) {
     $attr->{SHOW_PERIOD} = 1;
   }
+
+  $FORM{DISTRICT_ID} =~ s/,/;/g if $FORM{DISTRICT_ID};
+  $FORM{STREET_ID} =~ s/,/;/g if $FORM{STREET_ID};
+  $FORM{LOCATION_ID} =~ s/,/;/g if $FORM{LOCATION_ID};
 
   if ($FORM{search}) {
     if($FORM{quick_search}) {
@@ -1649,7 +1656,7 @@ sub form_search {
 
     while (my ($k, $v) = each %FORM) {
       $v //= q{};
-      if ($k =~ /([A-Z0-9]+|_[a-z0-9]+)/ && $v ne '' && $k ne '__BUFFER') {
+      if ($k =~ /([A-Z0-9]+|_[a-z0-9]+)/ && $v ne '' && $k ne '__BUFFER' && $v ne ', ') {
         $LIST_PARAMS{$k} = $v;
         $v =~ s/=/%3D/g;
         $v =~ s/\+/%2B/g;
@@ -1830,6 +1837,39 @@ sub form_search {
           }, { OUTPUT2RETURN => 1 });
         }
         $attr->{ADDRESS_FORM}=1;
+
+        $info{REGISTRATION_RANGE} = $html->form_daterangepicker({
+          NAME         => 'REGISTRATION_FROM/REGISTRATION_TO',
+          VALUE        => $FORM{'REGISTRATION_FROM_REGISTRATION_TO'},
+          RETURN_INPUT => 1
+        });
+
+        $info{DISABLE_SELECT} = $html->form_select(
+          'DISABLE',
+          {
+            SELECTED => $FORM{DISABLE},
+            SEL_HASH => {
+            ('' => ''),
+              (0 => $lang{ACTIV}),
+              (1 => $lang{DISABLE}),
+            },
+            NO_ID    => 1
+          });
+
+
+        $info{DELETE_SELECT} = $html->form_select(
+          'DELETED',
+          {
+            SELECTED => $FORM{DELETED} || '',
+            SEL_HASH => {
+              ('' => ''),
+              (0 => $lang{NO}),
+              (1 => $lang{YES})
+            },
+            NO_ID    => 1
+          });
+
+
       }
       elsif ($search_type == 13) {
         $info{INFO_FIELDS}  = form_info_field_tpl({ COMPANY => 1 });
@@ -1857,7 +1897,7 @@ sub form_search {
           );
         }
 
-        $address_form = form_address_select2({%FORM, HIDE_ADD_BUILD_BUTTON => 1});
+        $address_form = form_address_select2({ %FORM, HIDE_ADD_BUILD_BUTTON => 1, MULTIPLE => 1 });
       }
       else {
         my $countries_hash;
@@ -1865,12 +1905,12 @@ sub form_search {
         $address_form = $html->tpl_show(templates('form_address'), { %FORM, %$users }, { OUTPUT2RETURN => 1, ID => 'form_address' });
       }
 
-      $SEARCH_DATA{ADDRESS_FORM} = $html->tpl_show(templates('form_show_hide'),
+      $SEARCH_DATA{ADDRESS_FORM} = $html->tpl_show(templates('form_show_not_hide'),
         {
           CONTENT     => $address_form,
           NAME        => $lang{ADDRESS},
           ID          => 'ADDRESS_FORM',
-          BUTTON_ICON => 'plus'
+          BUTTON_ICON => 'minus'
         },
         { OUTPUT2RETURN => 1 });
     }
@@ -1889,6 +1929,15 @@ sub form_search {
         elsif ($k == 11 || $k == 13 || $permissions{ ($k - 1) }) {
           push @header_arr, "$v:index=$index&type=$k";
         }
+      }
+
+      foreach (sort @MODULES){
+
+        my $function = lc($_) . '_users_list';
+        my $function_index = get_function_index($function);
+        next if(!$function_index);
+        push @header_arr, "$_:index=$function_index&search_form=1";
+
       }
 
       $SEARCH_DATA{SEL_TYPE} =  $html->table_header(\@header_arr, { TABS => 1 });
@@ -2217,13 +2266,12 @@ sub form_shedule {
   }
   print $table->show();
 
-  $table = $html->table(
-    {
-      width      => '100%',
-      ID         => 'SHEDULE_',
-      rows       => [ [ "$lang{TOTAL}:", $html->b( $Shedule->{TOTAL} ) ] ]
-    }
-  );
+  $table = $html->table({
+    width      => '100%',
+    ID         => 'SHEDULE_',
+    rows       => [ [ "$lang{TOTAL}:", $html->b( $Shedule->{TOTAL} ) ] ]
+  });
+
   print $table->show();
 
   return 1;
@@ -2237,7 +2285,7 @@ sub form_shedule {
 sub form_period {
   my ($period, $attr) = @_;
 
-  my @periods = ("$lang{NOW}", "$lang{NEXT_PERIOD}", "$lang{DATE}");
+  my @periods = ($lang{NOW}, $lang{NEXT_PERIOD}, $lang{DATE});
   my $date_fld = $html->date_fld2('DATE', { FORM_NAME => 'user',
       MONTHES => \@MONTHES, WEEK_DAYS => \@WEEKDAYS, NEXT_DAY => 1 });
 
@@ -2250,7 +2298,7 @@ sub form_period {
       STATE         => 1,
       OUTPUT2RETURN => 1
     }
-  ) . "$periods[0]";
+  ) . $periods[0];
 
   $form_period .= "</div>\n";
 
@@ -2968,7 +3016,7 @@ sub post_page {
         }
       }
 
-      if(! $output && -w "$conf{TPL_DIR}/NEW_VERSION") {
+      if(! $output && (-w "$conf{TPL_DIR}/NEW_VERSION" || -w $conf{TPL_DIR})) {
         #Get new version
         $output = web_request('http://abills.net.ua/misc/checksum/VERSION', { BODY_ONLY => 1, TIMEOUT => 1 });
         if(! $output) {
@@ -2989,7 +3037,7 @@ sub post_page {
       $output =~ s/\d+\.(\d+\.\d+)//;
       $output = $1 || 0;
       if($output && $output > $cur_version) {
-        $admin->{VERSION} .= $html->button("NEW VERSION: 0.$output", "", { GLOBAL_URL => 'http://abills.net.ua/wiki/doku.php/abills:changelogs:0.8x', class => 'btn btn-xs btn-success', ex_params => ' target=_blank' });
+        $admin->{VERSION} .= $html->button("NEW VERSION: 0.$output", "", { GLOBAL_URL => 'http://abills.net.ua:8090/display/AB/Changelog', class => 'btn btn-xs btn-success', ex_params => ' target=_blank' });
       }
     }
   }

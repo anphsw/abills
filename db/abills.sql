@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS `admins` (
   `telegram_id`      VARCHAR(15)          NOT NULL DEFAULT '',
   `expire`           DATETIME             NOT NULL DEFAULT '0000-00-00 00:00:00',
   `department`       SMALLINT(3) UNSIGNED NOT NULL DEFAULT '0',
+  `g2fa`             VARCHAR (255)        NOT NULL DEFAULT '',
   PRIMARY KEY (`aid`),
   UNIQUE KEY `id` (`id`),
   KEY domain_id (`domain_id`)
@@ -2140,6 +2141,7 @@ CREATE TABLE IF NOT EXISTS `msgs_quick_replys` (
   `reply`   VARCHAR(250)         NOT NULL DEFAULT '',
   `color`   VARCHAR(7)           NOT NULL DEFAULT '',
   `type_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+  `comment` VARCHAR(250) DEFAULT '',
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8
@@ -2154,8 +2156,8 @@ CREATE TABLE IF NOT EXISTS `msgs_quick_replys_tags` (
   COMMENT = 'Quick replys msgs tags';
 
 CREATE TABLE IF NOT EXISTS `users_contracts` (
-  `id`         SMALLINT(5) unsigned NOT NULL AUTO_INCREMENT,
-  `parrent_id` SMALLINT(5) unsigned NOT NULL DEFAULT '0',
+  `id`         INT(11) unsigned NOT NULL AUTO_INCREMENT,
+  `parrent_id` INT(11) unsigned NOT NULL DEFAULT '0',
   `uid`        INT(11) UNSIGNED     NOT NULL DEFAULT '0',
   `company_id` INT(11) UNSIGNED     NOT NULL DEFAULT '0',
   `number`     VARCHAR(40)          NOT NULL DEFAULT '',

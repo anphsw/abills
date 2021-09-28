@@ -73,6 +73,15 @@ sub messages_new {
 
   if ($attr->{UID}) {
     push @WHERE_RULES, "m.uid='$attr->{UID}'";
+
+    if ($admin->{DOMAIN_ID}) {
+      $admin->{DOMAIN_ID} =~ s/;/,/g;
+      push @WHERE_RULES, "u.domain_id IN ($admin->{DOMAIN_ID})";
+    }
+  }
+  elsif ($admin->{DOMAIN_ID}) {
+    $admin->{DOMAIN_ID} =~ s/;/,/g;
+    push @WHERE_RULES, "c.domain_id IN ($admin->{DOMAIN_ID})";
   }
 
   if ($attr->{CHAPTER}) {
@@ -84,18 +93,11 @@ sub messages_new {
     push @WHERE_RULES, @{$self->search_expr($attr->{STATE}, 'INT', 'm.state')};
   }
 
-  if ($attr->{GID}) {
-    push @WHERE_RULES, "u.gid IN ($attr->{GID})";
-    $EXT_TABLE = "LEFT JOIN users u  ON (m.uid = u.uid)";
-  }
+  push @WHERE_RULES, "u.gid IN ($attr->{GID})" if ($attr->{GID});
+
+  $EXT_TABLE = " LEFT JOIN users u ON (m.uid = u.uid)" if ($attr->{GID} || $attr->{UID});
 
   my $WHERE = ($#WHERE_RULES > -1) ? 'WHERE ' . join(' and ', @WHERE_RULES) : '';
-
-  if ($admin->{DOMAIN_ID}) {
-    $admin->{DOMAIN_ID} =~ s/;/,/g;
-    $WHERE .= (($WHERE) ? 'AND' : 'WHERE ') ." u.domain_id IN ($admin->{DOMAIN_ID})";
-    $EXT_TABLE = "LEFT JOIN users u  ON (m.uid = u.uid)";
-  }
 
   if ($attr->{SHOW_CHAPTERS}) {
     $self->query("SELECT c.id,
@@ -274,7 +276,7 @@ sub messages_list {
     [ 'CLOSED_DATE',            'DATE',   'm.closed_date',                                                             1 ],
     [ 'RUN_TIME',               'DATE',   'SEC_TO_TIME(SUM(r.run_time))', 'SEC_TO_TIME(SUM(r.run_time)) AS run_time'     ],
     [ 'DONE_DATE',              'DATE',   'm.done_date',                                                               1 ],
-    [ 'UID',                    'INT',    'm.uid',                                                                       ],
+    [ 'UID',                    'INT',    'm.uid',                                                                      1 ],
     [ 'DELIGATION',             'INT',    'm.delegation',                                                              1 ],
     [ 'RESPOSIBLE',             'INT',    'm.resposible',                                                                ],
     [ 'PLAN_DATE',              'DATE',   'm.plan_date',                                                               1 ],
@@ -311,6 +313,8 @@ sub messages_list {
     [ 'PLAN_INTERVAL',          'INT',   'm.plan_interval',                                                            1 ],
     [ 'PLAN_POSITION',          'INT',   'm.plan_position',                                                            1 ],
     [ 'SEND_TYPE',              'INT',   'm.send_type',                                                                1 ],
+    [ 'MSGS_TAGS_IDS',          'INT',    'GROUP_CONCAT(DISTINCT qrt.quick_reply_id  ORDER BY qrt.quick_reply_id SEPARATOR ", ") AS msgs_tags',
+      'GROUP_CONCAT(DISTINCT qrt.quick_reply_id  ORDER BY qrt.quick_reply_id SEPARATOR ", ") AS msgs_tags_ids'],
   );
 
   push(@search_params, [ 'PERFORMERS', 'INT', 'GROUP_CONCAT(DISTINCT ea.name) AS performers', 1 ]) if (Abills::Base::in_array('Employees', \@main::MODULES));
@@ -335,7 +339,7 @@ sub messages_list {
   }
 
   if ($self->{SEARCH_FIELDS} =~ /qrt\./ || $WHERE =~ /qrt\./) {
-    $EXT_TABLES .= "LEFT JOIN msgs_quick_replys_tags qrt ON (m.id=qrt.msg_id)";
+    $EXT_TABLES .= "LEFT JOIN msgs_quick_replys_tags qrt FORCE INDEX FOR JOIN (`msg_id`) ON (m.id=qrt.msg_id)";
   }
 
   if ($self->{SEARCH_FIELDS} =~ /mc\./ || $WHERE =~ /mc\./) {
@@ -343,7 +347,7 @@ sub messages_list {
   }
 
   if ($self->{SEARCH_FIELDS} =~ /ea\./) {
-    $EXT_TABLES .= "LEFT JOIN employees_works em ON (em.ext_id=m.id)";
+    $EXT_TABLES .= "LEFT JOIN employees_works em FORCE INDEX FOR JOIN (`ext_id`) ON (em.ext_id=m.id)";
     $EXT_TABLES .= "LEFT JOIN admins ea ON (em.employee_id=ea.aid)";
   }
 
@@ -885,6 +889,7 @@ sub messages_reply_list {
 
   $SORT = ($attr->{SORT} ? $attr->{SORT} : 'datetime');
   $DESC = ($attr->{DESC} ? $attr->{DESC} : 'ASC');
+  my $EXT_TABLES = '';
 
   if ($attr->{PAGE_ROWS}) {
     if ($attr->{PAGE_ROWS} =~ /LIMIT/) {
@@ -936,6 +941,10 @@ sub messages_reply_list {
     }
   );
 
+  if ($self->{SEARCH_FIELDS} =~ /m\./ || $WHERE =~ /m\./) {
+    $EXT_TABLES = " LEFT JOIN msgs_messages m ON (mr.main_msg=m.id) ";
+  }
+
   $self->query("SELECT mr.id,
     $self->{SEARCH_FIELDS}
     mr.datetime,
@@ -957,6 +966,7 @@ sub messages_reply_list {
     LEFT JOIN users u ON (mr.uid=u.uid)
     LEFT JOIN admins a ON (mr.aid=a.aid)
     LEFT JOIN msgs_attachments ma ON (mr.id=ma.message_id and ma.message_type=1 )
+    $EXT_TABLES
     $WHERE
     GROUP BY $GROUP_BY
     ORDER BY $SORT $DESC
@@ -996,7 +1006,7 @@ sub message_reply_add {
     DATETIME  => 'NOW()',
     STATUS    => $attr->{STATE},
     INNER_MSG => $attr->{REPLY_INNER_MSG},
-    ID        => 'undef', # FIXME: WTF?
+    ID        => undef, # Remove main ID
   });
 
   $self->{REPLY_ID} = $self->{INSERT_ID};
@@ -2573,7 +2583,7 @@ sub msg_watch_info {
   my $self = shift;
   my ($msg_id) = @_;
 
-  $self->query("SELECT * FROM msgs_watch WHERE main_msg = ? ", undef, { INFO => 1, Bind => [ $msg_id ] });
+  $self->query('SELECT * FROM msgs_watch WHERE main_msg = ?', undef, { INFO => 1, Bind => [ $msg_id ] });
 
   return $self;
 }
@@ -2581,14 +2591,23 @@ sub msg_watch_info {
 #**********************************************************
 =head2 msg_watch($msg_id, $attr)
 
+  Argumenst:
+    $attr
+      AID
+      ID - Main MSG ID
+
+  Results:
+    $self
+
 =cut
 #**********************************************************
 sub msg_watch {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('msgs_watch', { %$attr,
-    AID      => $admin->{AID},
+  $self->query_add('msgs_watch', {
+    %$attr,
+    AID      => $attr->{AID} || $admin->{AID},
     MAIN_MSG => $attr->{ID},
     ADD_DATE => 'NOW()'
   });
@@ -2599,13 +2618,24 @@ sub msg_watch {
 #**********************************************************
 =head2 msg_watch_del($attr)
 
+  Arguments:
+    $attr
+      ID
+      AID
+  Result:
+
 =cut
 #**********************************************************
 sub msg_watch_del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del('msgs_watch', undef, { AID => $admin->{AID}, MAIN_MSG => $attr->{ID} });
+  my $admin_id = q{};
+  if ($attr->{AID}) {
+    $admin_id = $admin->{AID};
+  }
+
+  $self->query_del('msgs_watch', undef, { AID => $admin_id, MAIN_MSG => $attr->{ID} });
 
   return $self->{list};
 }
@@ -2914,6 +2944,11 @@ sub msgs_delivery_change {
     DATA         => $attr
   });
 
+  if(defined $attr->{STATUS} && $attr->{STATUS} == 0){
+    $self->query("UPDATE msgs_delivery_users SET status = 0
+    WHERE mdelivery_id= ? ", undef, { Bind => [ $attr->{ID} ] });
+  }
+
   return $self;
 }
 
@@ -3053,7 +3088,7 @@ sub delivery_user_list_change {
     [ 'ID',  'INT', 'id'  ],
   ], { WHERE_RULES => \@WHERE_RULES });
 
-  my $status = 1;
+  my $status = $attr->{STATUS} || 1;
   $self->query("UPDATE msgs_delivery_users SET status='$status' WHERE $WHERE;", 'do');
 
   return $self;
@@ -3320,6 +3355,7 @@ sub messages_quick_replys_list {
     [ 'TYPE_ID', 'INT', 'qr.type_id',       1 ],
     [ 'TYPE',    'STR', 'qrt.name AS type', 1 ],
     [ 'COLOR',   'STR', 'qr.color',         1 ],
+    [ 'COMMENT', 'STR', 'qr.comment',       1 ],
   ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   $self->query("SELECT $self->{SEARCH_FIELDS} qr.color,
@@ -3448,12 +3484,14 @@ sub quick_replys_tags_list {
     [ 'QUICK_REPLY_ID', 'INT', 'qrt.quick_reply_id', 1 ],
     [ 'REPLY',          'STR', 'qr.reply',           1 ],
     [ 'COLOR',          'STR', 'qr.color',           1 ],
+    [ 'COMMENT',        'STR', 'qr.comment',         1 ]
   ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
   $self->query("SELECT qrt.*,
     qr.reply,
     qr.type_id,
-    qr.color
+    qr.color,
+    qr.comment
   FROM msgs_quick_replys_tags qrt
   LEFT JOIN msgs_quick_replys qr ON(qr.id=qrt.quick_reply_id)
   $WHERE

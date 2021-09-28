@@ -1,10 +1,3 @@
-/**
- * Created by Anykey on 24.02.2016.
- *
- *   Javascript functions for Equipment/templates/equipment_model.tpl
- *
- */
-
 $(function () {
   var answerCounter = 2;
 

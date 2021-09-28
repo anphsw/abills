@@ -366,7 +366,7 @@ sub iptv_stalker_show_list{
           {
             ID       => $account_hash->{id},
             NAME     => $account_hash->{name},
-            NUM      => $account_hash->{number},
+            NUM      => $account_hash->{id}, #$account_hash->{number},
             PORT     => $account_hash->{id},
             DESCRIBE => $account_hash->{name},
             DISABLE  => 0

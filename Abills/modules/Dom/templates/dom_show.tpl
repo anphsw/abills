@@ -52,10 +52,10 @@
           <div >
             <p>
               <strong><i class="fa fa-list margin-r-5"></i>_{DESCRIBE}_</strong>
-              <span class="label label-success">_{ENABLE}_</span>
-              <span class="label label-danger">_{NEGATIVE}_ _{DEPOSIT}_</span>
-              <span class="label label-warning">_{CREDIT}_</span>
-              <span class="label" style="background-color: #747372">_{DISABLED}_</span>
+              <span class="badge badge-success">_{ENABLE}_</span>
+              <span class="badge badge-danger">_{NEGATIVE}_ _{DEPOSIT}_</span>
+              <span class="badge badge-warning">_{CREDIT}_</span>
+              <span class="badge badge-secondary">_{DISABLED}_</span>
             </p>
           </div>
           %TABLE_NAS%

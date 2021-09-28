@@ -1365,7 +1365,8 @@ sub docs_invoice_period {
       my $period_from = $FORM{FROM_DATE};
       my $period_to   = $FORM{FROM_DATE};
 
-      require Control::Services;
+      delete $INC{"Control/Services.pm"};
+      eval {require Control::Services};
       my $service_info = get_services($user || $users, {
         ACTIVE_ONLY => 1
       });

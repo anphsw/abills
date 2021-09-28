@@ -16,6 +16,7 @@ our (
   %lang,
   $html,
   %conf,
+  %html_color,
   $base_dir,
   %ONU_STATUS_TEXT_CODES
 );
@@ -23,6 +24,7 @@ our (
 my %type_name = (
   1  => 'epon_olt_virtualIfBER', # gpon on C300
   3  => 'epon-onu',
+  4  => 'pon_onu', #can be either epon or gpon
   6  => 'type6',
   9  => 'epon_onu',
   10 => 'gpon_onu'
@@ -38,7 +40,7 @@ sub _zte_get_ports {
 
   my $ports_info = equipment_test({
     %{$attr},
-    PORT_INFO => 'PORT_NAME,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT,PORT_TYPE',
+    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT,PORT_IN_ERR,PORT_OUT_ERR',
   });
 
   my $ports_info_hash = ();
@@ -50,9 +52,9 @@ sub _zte_get_ports {
 
       my $type = $1;
       my $branch = $2;
-      my ($self, $slot, $olt) = $branch =~ /^(\d+)\/(\d+)\/(\d+)/;
-      $self++ if ($self eq '0');
-      my $port_snmp_id = _zte_encode_port(1, $self, $slot, $olt);
+      my ($shelf, $slot, $olt) = $branch =~ /^(\d+)\/(\d+)\/(\d+)/;
+      $shelf++ if ($shelf eq '0');
+      my $port_snmp_id = _zte_encode_port(1, $shelf, $slot, $olt);
       my $port_descr;
 
       $ports_info_hash->{$port_snmp_id} = $ports_info->{$key};
@@ -127,8 +129,9 @@ sub _zte_onu_list {
           MODEL_NAME => $attr->{MODEL_NAME},
         });
 
-        my $port_dhcp_id = _zte_decode_onu($interface_index, {
-          TYPE       => 'dhcp',
+        my $port_dhcp_id = _zte_dhcp_port({
+          PORT_ID => $interface_index,
+          PON_TYPE => 'epon',
           MODEL_NAME => $attr->{MODEL_NAME}
         });
 
@@ -224,20 +227,16 @@ sub _zte_onu_list {
         foreach my $key (keys %{$total_info{ONU_STATUS}}) {
           my %onu_info = ();
           my ($branch, $onu_id) = split(/\./, $key, 2);
-          my $port_dhcp_id = _zte_decode_onu($branch, {
-            TYPE       => 'dhcp',
+          my $port_dhcp_id = _zte_dhcp_port({
+            PORT_ID => $branch,
+            ONU => $onu_id,
+            PON_TYPE => 'gpon',
             MODEL_NAME => $attr->{MODEL_NAME}
           });
 
           for (my $i = 0; $i <= $#{$cols}; $i++) {
             my $value = '';
             my $oid_name = $cols->[$i];
-
-            my $num = ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /C220|C300/i) ? sprintf("%02d", $onu_id) : sprintf("%03d", $onu_id);
-            if ($attr->{MODEL_NAME} && ($attr->{MODEL_NAME} =~ /C220|C320/i)
-              && ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum')) {
-              $num =~ s/^0+/ /g;
-            }
 
             if ($oid_name eq 'ONU_ID') {
               $value = $onu_id;
@@ -249,7 +248,7 @@ sub _zte_onu_list {
               $value = $type;
             }
             elsif ($oid_name eq 'ONU_DHCP_PORT') {
-              $value = $port_dhcp_id . '/' . $num;
+              $value = $port_dhcp_id;
             }
             elsif ($oid_name eq 'ONU_SNMP_ID') {
               $value = $key;
@@ -530,6 +529,11 @@ sub _zte {
           NAME   => 'ONU_TX_POWER',
           OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.1.1.29.1.4',
           PARSER => '_zte_convert_epon_power'
+        },
+        'MAC_BEHIND_ONU' => {
+          NAME                        => 'MAC_BEHIND_ONU',
+          USE_MAC_LOG                 => 1,
+          MAC_LOG_SEARCH_BY_PORT_NAME => 'no_pon_type'
         }
       }
     },
@@ -581,7 +585,7 @@ sub _zte {
         PARSER    => '_zte_convert_temperature',
         ADD_2_OID => '.1'
       },
-      'reset'          => {
+      'reset'          => { #there are different OID on firmware V2
         NAME        => '',
         OIDS        => '.1.3.6.1.4.1.3902.1012.3.50.11.3.1.1',
         RESET_VALUE => 1,
@@ -663,6 +667,11 @@ sub _zte {
           NAME   => 'VIDEO_RX_POWER',
           OIDS   => '.1.3.6.1.4.1.3902.1012.3.50.19.3.1.8',
           PARSER => '_zte_convert_video_power'
+        },
+        'MAC_BEHIND_ONU' => {
+          NAME                        => 'MAC_BEHIND_ONU',
+          USE_MAC_LOG                 => 1,
+          MAC_LOG_SEARCH_BY_PORT_NAME => 'no_pon_type'
         }
       },
     },
@@ -762,6 +771,15 @@ sub _zte {
     delete $snmp{gpon}->{OLT_RX_POWER};
   }
 
+  if ($attr->{MODEL} && $attr->{MODEL} =~ /_V2$|C300/i) {
+    $snmp{gpon}->{reset} = {
+      NAME        => '',
+      OIDS        => '1.3.6.1.4.1.3902.1082.500.20.2.1.10.1.1',
+      RESET_VALUE => 1,
+      RESET_FN    => '_zte_reset_v2'
+    }
+  }
+
   if ($attr->{TYPE}) {
     return $snmp{$attr->{TYPE}};
   }
@@ -838,14 +856,23 @@ sub _zte_set_desc {
 =head2 _zte_decode_onu($dec, $attr) - Decode onu int
 
   Arguments:
-    $dec    - Deciamal port ID
+    $dec    - Decimal port ID
     $attr
-       MODEL_NAME  - C220|C320
-       TYPE        - dhcp
+       MODEL_NAME  - ZTE model name
+       TYPE        - result format. 'dhcp' or empty
+       HASH_RESULT - Return result as hash
        DEBUG
 
   Returns:
-    deparsing string
+    result string
+    or
+    %result - if $attr->{HASH_RESULT} is set
+      type
+      shelf
+      slot
+      olt
+      onu
+      result_string
 
 =cut
 #**********************************************************
@@ -883,10 +910,13 @@ sub _zte_decode_onu {
       }
     }
 
-    return (($attr->{DEBUG}) ? $type . '#' . $type_name{$result{type}} . '_' : '')
-      . ($result{shelf} + $i)
+    $result{shelf} += $i;
+    $result{olt}   += 1;
+
+    $result{result_string} = (($attr->{DEBUG}) ? $type . '#' . $type_name{$result{type}} . '_' : '')
+      . ($result{shelf})
       . '/' . $result{slot}
-      . '/' . ($result{olt} + 1)
+      . '/' . ($result{olt})
       . (($result_type eq 'dhcp') ? '/' : ':')
       . $result{onu};
   }
@@ -897,61 +927,84 @@ sub _zte_decode_onu {
     if ($result_type eq 'dhcp') {
       $result{slot} = ($model_name =~ /C220/i) ? sprintf("%02d", $result{slot}) : sprintf("%02d", $result{slot});
 
-      if ($model_name =~ /C220|C320/i) {
+      if ($model_name =~ /C300/i || $model_name =~ /_V2$/i) {
+        $shelf_inc = 1;
+      }
+
+      if ($model_name =~ /C220|C320/i && $model_name !~ /_V2$/i) {
         if ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum') {
           $result{slot} =~ s/^0/ /g;
         }
-      }
-      elsif ($model_name =~ /C300/i) {
-        $shelf_inc = 1;
       }
     }
     elsif ($model_name =~ /C3/i) {
       $shelf_inc = 1;
     }
 
-    return (($attr->{DEBUG}) ? $type . '#' . $type_name{$result{type}} . '_' : '')
-      . ($result{shelf} + $shelf_inc)
+    $result{shelf} += $shelf_inc;
+
+    $result{result_string} = (($attr->{DEBUG}) ? $type . '#' . $type_name{$result{type}} . '_' : '')
+      . ($result{shelf})
       . '/' . $result{slot}
       . '/' . $result{olt};
   }
   elsif ($type == 6) {
     @result{'type', 'shelf', 'slot'} = map {oct("0b$_")} $bin =~ /^(\d{4})(\d{4})(\d{8})/;
-    return $type . '#' . $type_name{$result{type}}
+
+    $result{result_string} = $type . '#' . $type_name{$result{type}}
       . '_' . $result{shelf}
       . '/' . $result{slot};
   }
   #epon-onu
   elsif ($type == 9) {
-    @result{'type', 'shelf', 'slot', 'olt', 'onu_num', } = map {oct("0b$_")} $bin =~ /^(\d{4})(\d{4})(\d{4})(\d{4})(\d{8})/;
+    @result{'type', 'shelf', 'slot', 'olt', 'onu', } = map {oct("0b$_")} $bin =~ /^(\d{4})(\d{4})(\d{4})(\d{4})(\d{8})/;
 
-    return $type_name{$result{type}}
+    $result{shelf} += 1;
+    $result{olt}   += 1;
+
+    $result{result_string} = $type_name{$result{type}}
       . '_'
-      . ($result{shelf} + 1)
+      . ($result{shelf})
       . '/' . ($result{slot})
-      . '/' . ($result{olt} + 1)
-      . ':' . ($result{onu_num});
+      . '/' . ($result{olt})
+      . ':' . ($result{onu});
   }
   #gpon_onu
-  elsif ($type == 10) {
-    @result{'type', 'shelf', 'slot', 'olt', 'onu_num', } = map {oct("0b$_")} $bin =~ /^(\d{4})(\d{4})(\d{4})(\d{4})(\d{8})/;
+  elsif ($type == 4 || $type == 10) {
+    if ($type == 4) {
+      @result{'type', 'shelf', 'slot', 'olt', 'onu', } = map {oct("0b$_")} $bin =~ /^(\d{4})(\d{4})(\d{5})(\d{3})(\d{8})/;
+    }
+    elsif ($type == 10) {
+      @result{'type', 'shelf', 'slot', 'olt', 'onu', } = map {oct("0b$_")} $bin =~ /^(\d{4})(\d{4})(\d{4})(\d{4})(\d{8})/;
+    }
 
-    return $type_name{$result{type}}
+    $result{shelf} += 1;
+    $result{slot}  += ($model_name =~ /C300|C301/) ? 2 : 1;
+    $result{olt}   += 1;
+    $result{onu}   += 1;
+
+    $result{result_string} = $type_name{$result{type}}
       . '_'
-      . ($result{shelf} + 1)
-      . '/' . ($result{slot} + 1)
-      . '/' . ($result{olt} + 1)
-      . ':' . ($result{onu_num} + 1);
+      . ($result{shelf})
+      . '/' . ($result{slot})
+      . '/' . ($result{olt})
+      . ':' . ($result{onu});
   }
   else {
-    print "Unknown type: $type\n";
+    print "Unknown type: $type\n" if ($attr->{DEBUG});
+    return 0;
   }
 
-  return 0;
+  if ($attr->{HASH_RESULT}) {
+    return \%result;
+  }
+  else {
+    return $result{result_string};
+  }
 }
 
 #**********************************************************
-=head2 _zte_encode_port($type, $self, $slot, $olt) - Decode port
+=head2 _zte_encode_port($type, $shelf, $slot, $olt) - encode port
 
   Arguments:
     $dec
@@ -962,10 +1015,10 @@ sub _zte_decode_onu {
 =cut
 #**********************************************************
 sub _zte_encode_port {
-  my ($type, $self, $slot, $olt) = @_;
+  my ($type, $shelf, $slot, $olt) = @_;
 
   my $bin = sprintf("%04b", $type)
-    . sprintf("%04b", $self - 1)
+    . sprintf("%04b", $shelf - 1)
     . sprintf("%08b", $slot)
     . sprintf("%08b", $olt)
     . '00000000';
@@ -1000,6 +1053,61 @@ sub _zte_encode_onu {
   return oct("0b$bin");
 }
 
+#**********************************************************
+=head2 _zte_dhcp_port($attr) - returns dhcp (option 82) port
+
+  Arguments:
+    $attr
+      PORT_ID
+      ONU - ONU number should be provided with PORT_ID only on GPON
+        or
+      SHELF
+      SLOT
+      OLT
+      ONU
+
+      PON_TYPE - epon or gpon
+      MODEL_NAME
+
+  Returns:
+    $result - string, dhcp (option 82) port
+
+=cut
+#**********************************************************
+sub _zte_dhcp_port {
+  my ($attr) = @_;
+
+  my $shelf = $attr->{SHELF};
+  my $slot  = $attr->{SLOT};
+  my $olt   = $attr->{OLT};
+  my $onu   = $attr->{ONU};
+
+  my $port_id = $attr->{PORT_ID};
+
+  my $pon_type   = $attr->{PON_TYPE};
+  my $model_name = $attr->{MODEL_NAME};
+
+  my $result;
+
+  if ($pon_type eq 'gpon') {
+    my $encoded_port = ($port_id) ? $port_id : _zte_encode_port(1, $shelf, $slot, $olt);
+
+    my $num = (($model_name && $model_name =~ /C220|C300/i) || ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum')) ? sprintf("%02d", $onu) : sprintf("%03d", $onu);
+    if ($model_name && ($model_name =~ /C220|C320/i)
+      && ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum')
+      && ($model_name !~ /_V2$/i)) {
+      $num =~ s/^0+/ /g;
+    }
+
+    $result = _zte_decode_onu($encoded_port, {TYPE => 'dhcp', MODEL_NAME => $model_name}) . '/' . $num;
+  }
+  elsif ($pon_type eq 'epon') {
+    my $encoded_onu = ($port_id) ? $port_id : _zte_encode_onu(3, $shelf, $slot, $olt, $onu);
+    $result = _zte_decode_onu($encoded_onu, {TYPE => 'dhcp', MODEL_NAME => $model_name});
+  }
+
+  return $result;
+}
 
 #**********************************************************
 =head2 _zte_convert_epon_power($power) - Convert power
@@ -1083,8 +1191,6 @@ sub _zte_convert_video_power {
 =cut
 #**********************************************************
 sub _zte_convert_catv_port_admin_status {
-  my ($status_code) = @_;
-
   my ($data) = @_;
   my ($oid, $index) = split(/:/, $data, 2);
   my $port = "$oid";
@@ -1260,11 +1366,12 @@ sub _zte_unregister {
   foreach my $oid_type (keys %$snmp) {
     my $unreg_result = snmp_get({
       %{$attr},
-      WALK   => 1,
-      OID    => $snmp->{$oid_type}->{OIDS},
-      #TIMEOUT => 8,
-      SILENT => 1,
-      DEBUG  => $attr->{DEBUG} || 0
+      WALK             => 1,
+      DONT_USE_GETBULK => 1, #needed because of bug in ZTE C300(?), it returns only first(?) line with getbulk
+      OID              => $snmp->{$oid_type}->{OIDS},
+      #TIMEOUT          => 8,
+      SILENT           => 1,
+      DEBUG            => $attr->{DEBUG} || 0
     });
 
     foreach my $line (@$unreg_result) {
@@ -1351,6 +1458,8 @@ sub _zte_unregister {
 
   Arguments:
     $attr
+      NAS_INFO
+        MODEL_NAME
       DEBUG
 
   Results:
@@ -1376,13 +1485,20 @@ sub _zte_get_fdb {
     $line =~ /(\d+)\.(\d+)\.(\d+\.\d+\.\d+\.\d+\.\d+\.\d+):(\d+)/;
     my ($port, $vlan, $mac, $id) = ($1, $2, $3, $4);
     $mac = _mac_former($mac);
-    my $iface2 = _zte_decode_onu($port);
-    print "$port -> $iface2, $vlan, $mac, $id\n" if ($debug > 1);
+
+    my $port_name = '';
+    my $onu_info = _zte_decode_onu($port, {HASH_RESULT => 1, MODEL_NAME => $attr->{NAS_INFO}->{MODEL_NAME}});
+    if ($onu_info->{type} == 4 || $onu_info->{type} == 10) {
+      $port_name = "$onu_info->{shelf}/$onu_info->{slot}/$onu_info->{olt}:$onu_info->{onu}";
+    }
+
+    print "$port -> $onu_info->{result_string}, $vlan, $mac, $id\n" if ($debug > 1);
 
     $hash{$mac}{1} = $mac;
     #$hash{$key}{2} = port_type;
     $hash{$mac}{2} = $port;
     $hash{$mac}{4} = $vlan;
+    $hash{$mac}{5} = $port_name;
   }
 
   return %hash;
@@ -1399,6 +1515,78 @@ sub _zte_mac_serial {
   $value = uc(join('', unpack("AAAAH*", $value || q{})));
 
   return $value;
+}
+
+#**********************************************************
+=head2 _zte_recode_onu_index_v1_to_v2($attr) - Recode ONU index firmware V1 type to firmware V2 type
+
+  ONU indexes on firmware V1 OIDs and on firmware V2 OIDs are different.
+  This function recodes ONU index from firmware V1 type to firmware V2 type.
+
+  Arguments:
+    $index
+
+  Returns:
+    $onu_index_in_v2_format
+
+=cut
+#**********************************************************
+sub _zte_recode_onu_index_v1_to_v2 {
+  my ($index) = @_;
+
+  my ($branch, $onu_id) = split('\.', $index, 2);
+
+  my $decoded_branch = _zte_decode_onu(
+    $branch,
+    {
+      MODEL_NAME => 'C320_V2', #model name do not matter, as long as it contains 'C3'
+      HASH_RESULT => 1
+    }
+  );
+
+  my $new_branch = unpack("N", pack("CCCC", 17, $decoded_branch->{shelf}, $decoded_branch->{slot}, $decoded_branch->{olt})); #seems 17 is constant
+
+  return "$new_branch.$onu_id\n";
+}
+
+#**********************************************************
+=head2 _zte_reset_v2($attr) - Reset ONU on ZTE with firmware V2 (only GPON)
+
+  ONU indexes on firmware V1 OIDs and on firmware V2 OIDs are different.
+  We are using firmware V1 OIDs even on V2 OLTs, they are mostly working.
+  But V1 OID reset (GPON) is not working on V2 OLTs.
+  To reset we need to recode V1 index that we know to V2 index that is needed to reset.
+
+  Arguments:
+    $attr
+      SNMP_INFO
+      SNMP_COMMUNITY
+      VERSION
+      ONU_SNMP_ID
+
+  Returns:
+    $reset_result - is reset ok, boolean
+
+=cut
+#**********************************************************
+sub _zte_reset_v2 {
+  my ($attr) = @_;
+
+  my $snmp_info = $attr->{SNMP_INFO};
+  my $SNMP_COMMUNITY = $attr->{SNMP_COMMUNITY};
+  my $onu_snmp_id = $attr->{ONU_SNMP_ID};
+
+  my $reset_value = (defined($snmp_info->{reset}->{RESET_VALUE})) ? $snmp_info->{reset}->{RESET_VALUE} : 1;
+
+  $onu_snmp_id = _zte_recode_onu_index_v1_to_v2($onu_snmp_id);
+
+  my $reset_result = snmp_set({
+    SNMP_COMMUNITY => $SNMP_COMMUNITY,
+    VERSION        => $attr->{VERSION},
+    OID            => [ $snmp_info->{reset}->{OIDS} . '.' . $onu_snmp_id, $snmp_info->{reset}->{VALUE_TYPE} || "integer", $reset_value ]
+  });
+
+  return $reset_result;
 }
 
 #**********************************************************
@@ -1503,10 +1691,21 @@ sub _zte_unregister_form {
     my $name = $path_name[$#path_name];
     push @list, $name;
   }
-  if($#list > 0) {
+  if ($#list > 0) {
     my $selected;
-    if ($attr->{PON_TYPE} && $conf{ZTE_DEFAULT_REGISTRATION_TEMPLATE_BY_PON_TYPE}->{$attr->{PON_TYPE}}) {
-      $selected = $conf{ZTE_DEFAULT_REGISTRATION_TEMPLATE_BY_PON_TYPE}->{$attr->{PON_TYPE}};
+    if ($attr->{PON_TYPE}) {
+      if ($attr->{PON_TYPE} eq 'epon' && $attr->{NAS_INFO}->{DEFAULT_ONU_REG_TEMPLATE_EPON}) {
+        $selected = $attr->{NAS_INFO}->{DEFAULT_ONU_REG_TEMPLATE_EPON};
+      }
+      elsif ($attr->{PON_TYPE} eq 'gpon' && $attr->{NAS_INFO}->{DEFAULT_ONU_REG_TEMPLATE_GPON}) {
+        $selected = $attr->{NAS_INFO}->{DEFAULT_ONU_REG_TEMPLATE_GPON};
+      }
+      elsif ($conf{ZTE_DEFAULT_REGISTRATION_TEMPLATE_BY_PON_TYPE}->{$attr->{PON_TYPE}}) {
+        $selected = $conf{ZTE_DEFAULT_REGISTRATION_TEMPLATE_BY_PON_TYPE}->{$attr->{PON_TYPE}};
+      }
+      else {
+        $selected = "zte_registration_" . $attr->{PON_TYPE} . ".tpl";
+      }
     }
     $attr->{TEMPLATE} = $html->form_select('TEMPLATE', {
       SEL_ARRAY     => \@list,
@@ -1543,41 +1742,43 @@ sub _zte_unregister_form {
     show gpon onu detail-info gpon-onu_%BRANCH%:%ONU_ID%
     show onu running config gpon-onu_%BRANCH%:%ONU_ID%
     show running-config interface gpon-onu_%BRANCH%:%ONU_ID%
+    show mac-real-time gpon onu gpon-onu_%BRANCH%:%ONU_ID%
+    show gpon remote-onu interface eth gpon-onu_%BRANCH%:%ONU_ID%
 
 =cut
 #**********************************************************
 sub _zte_get_onu_config {
   my ($attr) = @_;
 
-  my $onu_type = $attr->{ONU_TYPE} || $attr->{TYPE};
-
-  my $username = $attr->{NAS_INFO}->{NAS_MNG_USER};
-  my $password = $attr->{NAS_INFO}->{NAS_MNG_PASSWORD};
+  my $pon_type = $attr->{PON_TYPE};
   my $branch = $attr->{BRANCH};
   my $onu_id = $attr->{ONU_ID};
+
+  my $username = $attr->{NAS_INFO}->{NAS_MNG_USER};
+  my $password = $conf{EQUIPMENT_OLT_PASSWORD} || $attr->{NAS_INFO}->{NAS_MNG_PASSWORD};
 
   my ($ip, undef) = split (/:/, $attr->{NAS_INFO}->{NAS_MNG_IP_PORT}, 2);
 
   my @cmds = @{equipment_get_telnet_tpl({
-    TEMPLATE => "zte_get_onu_config_$onu_type.tpl",
+    TEMPLATE => "zte_get_onu_config_$pon_type.tpl",
     BRANCH   => $branch,
     ONU_ID   => $onu_id
   })};
 
   if (!@cmds) {
     @cmds = @{equipment_get_telnet_tpl({
-      TEMPLATE => "zte_get_onu_config_$onu_type.tpl.example",
+      TEMPLATE => "zte_get_onu_config_$pon_type.tpl.example",
       BRANCH   => $branch,
       ONU_ID   => $onu_id
     })};
   }
 
   if (!@cmds) {
-    if ($onu_type =~ /epon/i) {
-      return ([$lang{ERROR}, $lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED}]);
+    if ($pon_type =~ /epon/i) {
+      return ([$lang{ERROR}, $lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} . 'Abills/modules/Equipment/snmp_tpl/zte_get_onu_config_epon.tpl']);
     }
     else {
-      return ([$lang{ERROR}, $lang{FAILED_TO_GET_TELNET_CMDS_FROM_FILE} . " zte_get_onu_config_$onu_type.tpl"]);
+      return ([$lang{ERROR}, $lang{FAILED_TO_GET_TELNET_CMDS_FROM_FILE} . " zte_get_onu_config_$pon_type.tpl"]);
     }
   }
 
@@ -1590,12 +1791,12 @@ sub _zte_get_onu_config {
 
   if (!$t->open($ip)) {
     $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
-    return [];
+    return ();
   }
 
   if(!$t->login($username, $password)) {
     $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
-    return [];
+    return ();
   }
 
   my @result = ();
@@ -1615,6 +1816,48 @@ sub _zte_get_onu_config {
   }
 
   return @result;
+}
+
+#**********************************************************
+=head2 _zte_convert_cpu_usage($data);
+
+=cut
+#**********************************************************
+sub _zte_convert_cpu_usage {
+  my ($data) = @_;
+
+  my ($slot, $value) = split(/:/, $data, 2);
+  if ($value eq '-1') {
+    $value = '--';
+  }
+  else {
+    my $color = q{};
+    (undef, $color) = split(/:/, equipment_add_color($value)) if ($value =~ /\d+/);
+    $color //= $html_color{green};
+    $value = '<span style="background-color:' . $color . '" class="badge">' . $value . ' %</span>';
+  }
+
+  return ($slot, $value);
+}
+
+#**********************************************************
+=head2 _zte_convert_info_temperature($data)();
+
+=cut
+#**********************************************************
+sub _zte_convert_info_temperature {
+  my ($data) = @_;
+  my ($slot, $value) = split(/:/, $data, 2);
+  if ($value eq '2147483647') {
+    $value = '--';
+  }
+  else {
+    my $color = q{};
+    (undef, $color) = split(/:/, equipment_add_color($value)) if ($value =~ /\d+/);
+    $color //= $html_color{green};
+    $value = '<span style="background-color:' . $color . '" class="badge">' . $value . ' °C</span>';
+  }
+  return($slot, $value);
 }
 
 1

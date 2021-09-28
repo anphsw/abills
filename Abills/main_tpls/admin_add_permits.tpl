@@ -3,9 +3,11 @@
   <input type='hidden' name='AID'   value='%AID%' />
   <input type='hidden' name='subf'  value='%subf%' />
 
-  <input type = "text" name = "TYPE" >
-  <input type='submit' form='form_add_permits' class='btn btn-success btn-sm' name='add_permits' value='_{SAVE}_ _{TEMPLATE}_'>
-
+  <div class='container-fluid text-center' style='margin: 0px 0px 20px 0px;'>
+    %BUTTONS%
+    <input type="text" name="TYPE" >
+    <input type='submit' form='form_add_permits' class='btn btn-success btn-sm' name='add_permits' value='_{SAVE}_ _{TEMPLATE}_'>
+  </div>
   %TABLE1%
   %TABLE2%
 

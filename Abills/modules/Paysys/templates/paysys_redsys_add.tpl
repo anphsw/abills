@@ -1,10 +1,10 @@
 <form name=COMPRA method=POST action='$conf{PAYSYS_REDSYS_URL}' class='form form-horizontal'>
 
-  <input type=hidden name="Ds_SignatureVersion" value="HMAC_SHA256_V1">
+  <input type=hidden name='Ds_SignatureVersion' value='HMAC_SHA256_V1'>
 
-  <input type=hidden name="Ds_MerchantParameters" value="%PARAMS%">
+  <input type=hidden name='Ds_MerchantParameters' value='%PARAMS%'>
 
-  <input type=hidden name="Ds_Signature" value="%SIGN%">
+  <input type=hidden name='Ds_Signature' value='%SIGN%'>
 
 
   <div class='card box-primary'>

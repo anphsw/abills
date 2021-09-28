@@ -384,6 +384,8 @@ sub online {
       ['SERVICE_CID',       'STR', 'service.cid',       'service.cid AS service_cid' ],
       ['GUEST',             'INT', 'c.guest',                                      1 ],
       ['TURBO_MODE',        'INT', 'c.turbo_mode',                                 1 ],
+      ['TURBO_BEGIN',       'INT', 'tm.start', 'tm.start AS turbo_begin' ],
+      ['TURBO_END',         'INT', 'tm.start + interval tm.time second', 'tm.start + interval tm.time second AS turbo_end' ],
       ['JOIN_SERVICE',      'INT', 'c.join_service',                               1 ],
       ['NAS_IP',            'IP',  'c.nas_ip_address',  'c.nas_ip_address AS nas_ip' ],
       ['ACCT_SESSION_TIME', 'INT', 'UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started) AS acct_session_time',1 ],
@@ -410,7 +412,7 @@ sub online {
       ['PORT',              'INT', 'service.port',                                 1 ],
       #['SERVICE_FILTER_ID', 'STR', 'service.filter_id',                           1 ],
       ['INTERNET_STATUS',   'INT', 'service.disable AS internet_status',           1 ],
-      ['DV_STATUS',         'INT', 'service.disable AS internet_status',           1 ],
+      #['DV_STATUS',         'INT', 'service.disable AS internet_status',           1 ],
       ['FRAMED_IP_ADDRESS', 'IP',  'c.framed_ip_address',                          1 ],
       ['HOSTNAME',          'STR', 'c.hostname',                                   1 ],
       ['SWITCH_PORT',       'STR', 'c.switch_port',                                1 ],
@@ -435,7 +437,8 @@ sub online {
       ['SHOW_TP_ID',        'INT', 'tp.tp_id', 'tp.tp_id AS real_tp_id' ],
       ['TP_NUM',            'INT', 'tp.id   AS tp_num',                             1],
     ],
-    { WHERE             => 1,
+    {
+      WHERE             => 1,
       WHERE_RULES       => \@WHERE_RULES,
       USERS_FIELDS      => 1,
       SKIP_USERS_FIELDS => [ 'UID', 'LOGIN', 'ACTIVATE', 'EXPIRE' ],
@@ -455,6 +458,9 @@ sub online {
     }
     elsif ($field =~ /NAS_NAME|NAS_TYPE/ && $EXT_TABLE !~ m/ nas ON /) {
       $EXT_TABLE .= " LEFT JOIN nas ON (nas.id=c.nas_id)";
+    }
+    elsif ($field =~ /TURBO_/ && $EXT_TABLE !~ m/ turbo_mode /) {
+      $EXT_TABLE .= " LEFT JOIN turbo_mode tm ON (c.uid=tm.uid AND tm.start + interval tm.time second > c.started)";
     }
   }
 
@@ -1152,6 +1158,7 @@ sub list {
       [ 'TP_NUM',          'INT', 'tp.id   AS tp_num',            1],
       [ 'TP_NAME',         'STR', 'tp.name AS tp_name',           1],
       [ 'SUM',             'INT', 'l.sum',                        1],
+      [ 'NAS_NAME',        'STR', 'n.name as nas_name',           1],
       [ 'NAS_ID',          'INT', 'l.nas_id',                     1],
       [ 'NAS_PORT',        'INT', 'l.port_id',                    1],
       [ 'ACCT_SESSION_ID', 'STR', 'l.acct_session_id',            1],
@@ -1163,7 +1170,8 @@ sub list {
       [ 'UID',             'INT', 'l.uid'                            ],
       [ 'GUEST',           'INT', 'l.guest',                      1]
     ],
-    { WHERE             => 1,
+    {
+      WHERE             => 1,
       WHERE_RULES       => \@WHERE_RULES,
       USERS_FIELDS      => 1,
       SKIP_USERS_FIELDS => [ 'UID', 'LOGIN' ],
@@ -1183,7 +1191,11 @@ sub list {
   }
 
   if ($self->{SEARCH_FIELDS} =~ /\s?u\.|pi\./ || $self->{SEARCH_FIELDS} =~ /company\.id/ || $WHERE =~ m/ u\.|pi\./) {
-    $EXT_TABLE .= "INNER JOIN users u ON (u.uid=l.uid)";
+    $EXT_TABLE .= " INNER JOIN users u ON (u.uid=l.uid)";
+  }
+
+  if ($self->{SEARCH_FIELDS} =~ /nas_name/ && $EXT_TABLE !~ /nas/) {
+    $EXT_TABLE .= " LEFT JOIN nas n ON (n.id=l.nas_id)";
   }
 
   if ($self->{SEARCH_FIELDS} =~ /tp_bills_priority|tp_name|filter_id|tp_credit|payment_method|show_tp_id|tp_num/ && $EXT_TABLE !~ /tarif_plans/) {
@@ -1707,7 +1719,7 @@ sub reports2 {
     EXTRA_PRE_JOIN => [ 'users:INNER JOIN users u ON (u.uid=l.uid)',
     ]
   } );
-  
+
   $self->query( "SELECT $main_field, $self->{SEARCH_FIELDS}
       l.uid
        FROM internet_log l

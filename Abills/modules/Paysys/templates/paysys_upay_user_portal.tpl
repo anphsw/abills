@@ -1,4 +1,4 @@
-<form action="https://pay.smst.uz/prePay.do" target="_blank" method="POST">
+<form action='https://pay.smst.uz/prePay.do' target='_blank' method='POST'>
   <input type='hidden' name='personalAccount' value='%PERSONAL_ACCOUNT%'>
   <input type='hidden' name='apiVersion' value='1'>
   <input type='hidden' name='serviceId' value='$conf{PAYSYS_UPAY_SERVICE_ID}'>

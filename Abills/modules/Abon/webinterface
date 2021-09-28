@@ -85,9 +85,11 @@ sub abon_quick_info {
     return \%result;
   }
 
-  $Abon->user_tariff_summary({ UID => $uid });
+  if ($uid) {
+    $Abon->user_tariff_summary({ UID => $uid });
+  }
 
-  return ($Abon->{TOTAL_ACTIVE} > 0) ? $Abon->{TOTAL_ACTIVE} : '';
+  return ($Abon->{TOTAL_ACTIVE} && $Abon->{TOTAL_ACTIVE} > 0) ? $Abon->{TOTAL_ACTIVE} : '';
 }
 
 #*******************************************************************
@@ -662,50 +664,38 @@ sub abon_tariffs {
     }
     else {
       $Abon->tariff_add({ %FORM });
-      if (!$Abon->{errno}) {
-        $html->message('info', $lang{INFO}, "$lang{ADDED}");
-      }
+      $html->message('info', $lang{INFO}, "$lang{ADDED}") if (!$Abon->{errno});
     }
   }
   elsif ($FORM{ABON_ID}) {
     $Abon = $Abon->tariff_info($FORM{ABON_ID});
+    return 0 if _error_show($Abon);
 
-    if (_error_show($Abon)) {
-      return 0;
-    }
-    else {
-      $FORM{PERIOD} = $Abon->{PERIOD} if (!defined($FORM{PERIOD}));
-      $Abon->{ACTION} = 'change';
-      $Abon->{ACTION_LNG} = $lang{CHANGE};
-    }
+    $FORM{PERIOD} = $Abon->{PERIOD} if (!defined($FORM{PERIOD}));
+    $Abon->{ACTION} = 'change';
+    $Abon->{ACTION_LNG} = $lang{CHANGE};
 
-   # $pages_qs .= "&ABON_ID=$FORM{ABON_ID}" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
-    $pages_qs .= "&ABON_ID=$FORM{ABON_ID}";
+   $pages_qs .= "&ABON_ID=$FORM{ABON_ID}" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
+    # $pages_qs .= "&ABON_ID=$FORM{ABON_ID}";
 
     $LIST_PARAMS{ABON_ID} = $FORM{ABON_ID};
     $Abon->{ABON_ID} = $FORM{ABON_ID};
-    my %F_ARGS = (
-      ABON_ID => $Abon->{ID} || $FORM{ABON_ID}
-    );
+    my %F_ARGS = (ABON_ID => $Abon->{ID} || $FORM{ABON_ID});
 
-    $Abon->{NAME_SEL} = $html->form_main(
-      {
-        CONTENT => $html->form_select(
-          'ABON_ID',
-          {
-            SELECTED  => $Abon->{ID} || $FORM{ABON_ID},
-            SEL_LIST  => $Abon->tariff_list({ COLS_NAME => 1 }),
-            SEL_KEY   => 'tp_id',
-            SEL_VALUE => 'name',
-          }
-        ),
-        HIDDEN  => { index => $index,
-                     subf  => $FORM{subf}
-                    },
-        SUBMIT  => { show => $lang{SHOW} },
-        class   => 'navbar-form navbar-right form-inline',
-      }
-    );
+    $Abon->{NAME_SEL} = $html->form_main({
+      CONTENT => $html->form_select('ABON_ID', {
+        SELECTED  => $Abon->{ID} || $FORM{ABON_ID},
+        SEL_LIST  => $Abon->tariff_list({ COLS_NAME => 1 }),
+        SEL_KEY   => 'tp_id',
+        SEL_VALUE => 'name',
+      }),
+      HIDDEN => {
+        index => $index,
+        subf  => $FORM{subf}
+      },
+      SUBMIT  => { show => $lang{SHOW} },
+      class   => 'navbar-form navbar-right form-inline',
+    });
 
     func_menu(
       {
@@ -723,64 +713,59 @@ sub abon_tariffs {
     }
     elsif ($FORM{change}) {
       $Abon->tariff_change({ %FORM });
-      if (!$Abon->{errno}) {
-        $html->message('info', $lang{INFO}, $lang{CHANGED});
-      }
+      $html->message('info', $lang{INFO}, $lang{CHANGED}) if !$Abon->{errno};
     }
   }
   elsif (defined($FORM{del}) && $FORM{COMMENTS}) {
     $Abon->tariff_del($FORM{del});
-    if (!$Abon->{errno}) {
-      $html->message('info', $lang{INFO}, $lang{DELETED});
-    }
+    $html->message('info', $lang{INFO}, $lang{DELETED}) if !$Abon->{errno};
   }
 
   _error_show($Abon);
 
-  $Abon->{PERIOD_SEL} = $html->form_select(
-    'PERIOD',
-    {
-      SELECTED     => $FORM{PERIOD},
-      SEL_ARRAY    => \@PERIODS,
-      ARRAY_NUM_ID => 1
-    }
-  );
+  $Abon->{PERIOD_SEL} = $html->form_select('PERIOD', {
+    SELECTED     => $FORM{PERIOD},
+    SEL_ARRAY    => \@PERIODS,
+    ARRAY_NUM_ID => 1
+  });
 
-  $Abon->{PAYMENT_TYPE_SEL} = $html->form_select(
-    'PAYMENT_TYPE',
-    {
-      SELECTED     => $Abon->{PAYMENT_TYPE} || $FORM{PAYMENT_TYPE},
-      SEL_ARRAY    => [ $lang{PREPAID}, $lang{POSTPAID} ],
-      ARRAY_NUM_ID => 1
-    }
-  );
+  $Abon->{PAYMENT_TYPE_SEL} = $html->form_select('PAYMENT_TYPE', {
+    SELECTED     => $Abon->{PAYMENT_TYPE} || $FORM{PAYMENT_TYPE},
+    SEL_ARRAY    => [ $lang{PREPAID}, $lang{POSTPAID} ],
+    ARRAY_NUM_ID => 1
+  });
 
-  $Abon->{PRIORITY} = $html->form_select(
-    'PRIORITY',
-    {
-      SELECTED     => $Abon->{PRIORITY} || 0,
-      SEL_ARRAY    => [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 13, 14, 15 ],
-      ARRAY_NUM_ID => 1
-    }
-  );
+  $Abon->{PRIORITY} = $html->form_select('PRIORITY', {
+    SELECTED     => $Abon->{PRIORITY} || 0,
+    SEL_ARRAY    => [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 13, 14, 15 ],
+    ARRAY_NUM_ID => 1
+  });
 
   my @ACCOUNT_PRIORITY = ($lang{MAIN}, "$lang{EXTRA} $lang{BILL}", "$lang{MAIN}, $lang{EXTRA} $lang{BILL}");
 
-  $Abon->{ACCOUNT_SEL} = $html->form_select(
-    'ACCOUNT',
-    {
-      SELECTED     => $Abon->{ACCOUNT} || 0,
-      SEL_ARRAY    => \@ACCOUNT_PRIORITY,
-      ARRAY_NUM_ID => 1
-    }
-  );
+  $Abon->{ACCOUNT_SEL} = $html->form_select('ACCOUNT', {
+    SELECTED     => $Abon->{ACCOUNT} || 0,
+    SEL_ARRAY    => \@ACCOUNT_PRIORITY,
+    ARRAY_NUM_ID => 1
+  });
 
   $Abon->{PERIOD_ALIGNMENT} = ($Abon->{PERIOD_ALIGNMENT}) ? 'checked' : '';
   $Abon->{NONFIX_PERIOD} = ($Abon->{NONFIX_PERIOD}) ? 'checked' : '';
 
   if ($conf{EXT_BILL_ACCOUNT}) {
     my $checked = ($Abon->{EXT_BILL_ACCOUNT}) ? ' checked' : '';
-    $Abon->{EXT_BILL_ACCOUNT} = "<tr><td>$lang{EXTRA} $lang{BILL}:</td><td><input type='checkbox' name='EXT_BILL_ACCOUNT' value='1' $checked></td></tr>\n";
+
+    my $checkbox = $html->element('input', '', {
+      class          => 'form-check-input',
+      type           => 'checkbox',
+      value          => '1',
+      name           => 'EXT_BILL_ACCOUNT',
+      'data-checked' => ($Abon->{EXT_BILL_ACCOUNT}) ? 'checked' : ''
+    });
+    my $checkbox_container = $html->element('div', $html->element('div', $checkbox, { class => 'form-check' }), { class => 'col-md-8' });
+    my $label = $html->element('label', "$lang{EXTRA} $lang{BILL}:", { class => 'col-md-4 col-form-label text-md-right' });
+
+    $Abon->{EXT_BILL_ACCOUNT} = $label . $checkbox_container;
   }
   else {
     $Abon->{EXT_BILL_ACCOUNT} = '';
@@ -788,29 +773,23 @@ sub abon_tariffs {
 
   my %FEES_METHODS = %{get_fees_types({})};
 
-  $Abon->{FEES_TYPES_SEL} = $html->form_select(
-    'FEES_TYPE',
-    {
-      SELECTED => $Abon->{FEES_TYPE},
-      SEL_HASH => { '' => '', %FEES_METHODS },
-      NO_ID    => 1,
-      SORT_KEY => 1
-    }
-  );
+  $Abon->{FEES_TYPES_SEL} = $html->form_select('FEES_TYPE', {
+    SELECTED => $Abon->{FEES_TYPE},
+    SEL_HASH => { '' => '', %FEES_METHODS },
+    NO_ID    => 1,
+    SORT_KEY => 1
+  });
 
-  $Abon->{USER_PORTAL} = $html->form_select(
-    'USER_PORTAL',
-    {
-      SELECTED => $Abon->{USER_PORTAL} || $FORM{USER_PORTAL},
-      SEL_HASH => { 
-        0 => $lang{USER_PORTAL_NO},
-        1 => $lang{USER_PORTAL_READ},
-        2 => $lang{USER_PORTAL_EDIT}
-      },
-      NO_ID    => 1,
-      SORT_KEY => 1
-    }
-  );
+  $Abon->{USER_PORTAL} = $html->form_select('USER_PORTAL', {
+    SELECTED => $Abon->{USER_PORTAL} || $FORM{USER_PORTAL},
+    SEL_HASH => {
+      0 => $lang{USER_PORTAL_NO},
+      1 => $lang{USER_PORTAL_READ},
+      2 => $lang{USER_PORTAL_EDIT}
+    },
+    NO_ID    => 1,
+    SORT_KEY => 1
+  });
 
   $Abon->{FEES_TYPE} = ($Abon->{FEES_TYPE}) ? 'checked' : '';
   $Abon->{NOTIFICATION_ACCOUNT} = ($Abon->{NOTIFICATION_ACCOUNT}) ? 'checked' : '';
@@ -824,33 +803,32 @@ sub abon_tariffs {
 
   $html->tpl_show(_include('abon_tp', 'Abon'), $Abon);
 
-  my $list = $Abon->tariff_list({ %LIST_PARAMS });
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{ABON}",
-      title   => [ $lang{NAME}, $lang{SUM}, $lang{PERIOD}, $lang{PAYMENT_TYPE}, $lang{PRIORITY}, $lang{DESCRIPTION}, $lang{USERS}, '-', '-' ],
-      qs      => $pages_qs,
-      ID      => 'ABON_TARIFFS'
-    }
-  );
+  my $list = $Abon->tariff_list({ %LIST_PARAMS, COLS_NAME => 1 });
+  my $table = $html->table({
+    width   => '100%',
+    caption => "$lang{ABON}",
+    title   => [ $lang{NAME}, $lang{SUM}, $lang{PERIOD}, $lang{PAYMENT_TYPE}, $lang{PRIORITY}, $lang{DESCRIBE}, $lang{USERS}, '-' ],
+    qs      => $pages_qs,
+    ID      => 'ABON_TARIFFS'
+  });
 
   my $delete = '';
   my $user_index = get_function_index('abon_user_list');
   foreach my $line (@{$list}) {
     if ($permissions{4}{1}) {
-      $delete = $html->button($lang{DEL}, "index=$index&del=$line->[7]", { MESSAGE => "$lang{DEL} $line->[0]?", class => 'del' });
+      $delete = $html->button($lang{DEL}, "index=$index&del=$line->{tp_id}", { MESSAGE => "$lang{DEL} $line->{name}?", class => 'del' });
     }
-    $table->{rowcolor} = ($FORM{ABON_ID} && $FORM{ABON_ID} == $line->[7]) ? $_COLORS[0] : undef;
+    $table->{rowcolor} = ($FORM{ABON_ID} && $FORM{ABON_ID} == $line->{tp_id}) ? $_COLORS[0] : undef;
     $table->addrow(
-      $html->button("$line->[0]", "index=$index&ABON_ID=$line->[7]"),
-      "$line->[1]",
-      $PERIODS[ $line->[2] ],
-      $Payment_Types[ $line->[3] ],
-      $line->[4],
-      $line->[13],
-      $html->button($line->[6], "index=" . $index . "&ABON_ID=$line->[7]&subf=$user_index")
-        . ' ' . $html->button($lang{CHANGE}, "index=$index&ABON_ID=$line->[7]", { class => 'change' })
+      $html->button("$line->{name}", "index=$index&ABON_ID=$line->{tp_id}"),
+      "$line->{price}",
+      $PERIODS[ $line->{period} ],
+      $Payment_Types[ $line->{payment_type} ],
+      $line->{priority},
+      $line->{description},
+      $line->{user_count},
+      $html->button($line->{user_count}, "index=" . $index . "&ABON_ID=$line->{tp_id}&subf=$user_index")
+        . ' ' . $html->button($lang{CHANGE}, "index=$index&ABON_ID=$line->{tp_id}", { class => 'change' })
         . ' ' . $delete
     );
   }
@@ -1398,13 +1376,11 @@ sub abon_client {
 
     $FORM{ 'MANUAL_FEE_' . $FORM{IDS} } = 1;
 
-    abon_user(
-      {
-        USER_INFO     => $user,
-        ACTIVATE_ONLY => 1,
-        QUITE         => 1
-      }
-    );
+    abon_user({
+      USER_INFO     => $user,
+      ACTIVATE_ONLY => 1,
+      QUITE         => 1
+    });
 
     $html->message('info', $lang{INFO}, "$lang{ACTIVATED} [$LIST_PARAMS{UID}]");
   }
@@ -1420,21 +1396,7 @@ sub abon_client {
     }
   );
 
-  if(! $Abon->{TOTAL}) {
-    $html->message('info', $lang{INFO}, $lang{NO_ACTIVE_SERVICE});
-    return 1;
-  }
-
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{EXT_SERVICES},
-      title   => [ $lang{SERVICE}, $lang{DESCRIPTION}, $lang{SUM}, $lang{PERIOD}, $lang{START}, $lang{EXPIRE}, '-' ],
-      qs      => $pages_qs,
-      ID      => 'USER_ABON',
-    }
-  );
-
+  my @rows = ();
   foreach my $line (@{$list}) {
     my $button = '';
     if ($line->{manual_activate} && !$line->{date} && $line->{user_portal} == 2) {
@@ -1449,8 +1411,24 @@ sub abon_client {
       next;
     }
 
-    $table->addrow($line->{name}, $line->{description}, $line->{price}, $PERIODS[ $line->{period} ], $line->{date}, $line->{next_abon}, $button);
+    push @rows, [ $line->{name}, $line->{description}, $line->{price}, $PERIODS[ $line->{period} ], $line->{date}, $line->{next_abon}, $button ];
   }
+
+  if($#rows == -1) {
+    $html->message('info', $lang{INFO}, $lang{NO_ACTIVE_SERVICE});
+    return 1;
+  }
+
+  my $table = $html->table(
+    {
+      width   => '100%',
+      caption => $lang{EXT_SERVICES},
+      title   => [ $lang{SERVICE}, $lang{DESCRIPTION}, $lang{SUM}, $lang{PERIOD}, $lang{START}, $lang{EXPIRE}, '-' ],
+      qs      => $pages_qs,
+      ID      => 'USER_ABON',
+      rows    => \@rows
+    }
+  );
 
   print $table->show();
 

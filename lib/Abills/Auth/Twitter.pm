@@ -5,6 +5,7 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(_bp mk_unique_value urlencode load_pmodule);
 use Abills::Fetcher;
+use Digest::HMAC_SHA1;
 
 my $request_token_url = 'https://api.twitter.com/oauth/request_token';
 my $access_token_url  = 'https://api.twitter.com/oauth/access_token';
@@ -30,10 +31,6 @@ sub request_tokens {
   my $consumer_secret = $attr->{conf}{AUTH_TWITTER_SECRET} || q{};
   my $callback_url = $attr->{conf}{AUTH_TWITTER_URL} || q{};
   $callback_url =~ s/\%SELF_URL\%/$attr->{self_url}/g;
-
-  if (load_pmodule('Digest::HMAC_SHA1', { HEADER => 1 })) {
-    return '';
-  }
 
   # make signature
   my $oauth_nonce = mk_unique_value(32);

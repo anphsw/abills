@@ -1839,12 +1839,6 @@ sub dv_online {
   else {
     # $output .= dv_online_search();
 
-    # $output .=
-    #   $html->button('Zap All', "index=$index&zapall=1", { IMG => ':tech_work.png', MESSAGE => "Do you realy want ZAP all sessions ?" }) . ' '
-    # . $html->button("$lang{GRAPH} $lang{NAS}",         "#", { IMG => ':chart.png', NEW_WINDOW => dv_get_chart_query('NAS_ID=all', '1', $chart_new_window_width, $chart_height) , NEW_WINDOW_SIZE => "$new_window_size" }) . ' '
-    # . $html->button("$lang{GRAPH} $lang{TARIF_PLANS}", "#", { IMG => ':chart.png', NEW_WINDOW => dv_get_chart_query('TP_ID=all', '1', $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" }) . ' '
-    # . $html->button("$lang{GRAPH} $lang{GROUPS}",      "#", { IMG => ':chart.png', NEW_WINDOW => dv_get_chart_query('GID=all', '1', $chart_new_window_width, $chart_height), NEW_WINDOW_SIZE => "$new_window_size" });
-
     $output = dv_online_search()
      .
       $html->button('Zap All', "index=$index&zapall=1", { IMG => ':tech_work.png', MESSAGE => "Do you realy want ZAP all sessions ?" }) . ' '

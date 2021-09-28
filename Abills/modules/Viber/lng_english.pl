@@ -99,4 +99,6 @@ $lang{CREATE_MSGS} = 'Create ticket';
 $lang{DEPOSIT} = 'Deposit';
 $lang{MSGS_CREATE} = 'Message begin for tag: ';
 $lang{WEB_SITE} = 'Website';
+$lang{PAYMENT_CREDENTIAL} = 'Payment credential';
+
 1;

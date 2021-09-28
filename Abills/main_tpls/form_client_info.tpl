@@ -24,7 +24,7 @@
 
 <div class='modal fade' id='changeCreditModal' data-open='%OPEN_CREDIT_MODAL%'>
   <div class='modal-dialog modal-sm'>
-    <form action=$SELF_URL class='form form-horizontal text-center pswd-confirm' id='changeCreditForm'>
+    <form action=$SELF_URL class='text-center pswd-confirm' id='changeCreditForm'>
       <div class='modal-content'>
         <div class='modal-header'>
           <h4 class='modal-title text-center'>_{SET_CREDIT}_</h4>
@@ -48,7 +48,7 @@
           </div>
 
           <div class='form-group row'>
-            <label class='col-md-7'>_{ACCEPT}_:</label>
+            <label class='col-md-7' for='change_credit'>_{ACCEPT}_:</label>
 
             <div class='col-md-3'>
               <input id='change_credit' type='checkbox' required='required' value='%CREDIT_SUM%' name='change_credit'>
@@ -101,9 +101,16 @@
 <div class='row'>
   <div class='col-md-12'>%NEWS%</div>
 
-  <div class='col-md-12' data-visible='%SHOW_SUBSCRIBE_BLOCK%' id='notifications-subscribe-block'>
+  <div class='col-md-12 row' id='notifications-subscribe-block'>
     %SENDER_SUBSCRIBE_BLOCK%
   </div>
+
+  <script>
+    var show = %SHOW_SUBSCRIBE_BLOCK%;
+    if(!show){
+      jQuery("#notifications-subscribe-block").hide();
+    }
+  </script>
 
   <div class='%INFO_CARD_CLASS%'>
     <div class='card card-primary card-outline'>
@@ -162,7 +169,7 @@
             <td class='font-weight-bold text-right'>_{CREDIT}_</td>
             <td>
               <div class='d-flex bd-highlight'>
-                <div class='bd-highlight'>%CREDIT% %MONEY_UNIT_NAMES% ( %CREDIT_DATE% )</div>
+                <div class='bd-highlight'>%CREDIT% %MONEY_UNIT_NAME% ( %CREDIT_DATE% )</div>
                 <div class='ml-auto bd-highlight'>
                   <div class='bd-example'>
                     %CREDIT_CHG_BUTTON%
@@ -171,11 +178,11 @@
               </div>
             </td>
           </tr>
-          <tr data-visible='%SHOW_REDUCTION%'>
+          <tr class='%SHOW_REDUCTION%'>
             <td class='font-weight-bold text-right'>_{REDUCTION}_</td>
             <td>%REDUCTION% %</td>
           </tr>
-          <tr data-visible='%SHOW_REDUCTION%'>
+          <tr class='%SHOW_REDUCTION%'>
             <td class='font-weight-bold text-right'>_{REDUCTION}_ _{DATE}_</td>
             <td>%REDUCTION_DATE%</td>
           </tr>

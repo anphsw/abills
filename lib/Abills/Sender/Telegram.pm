@@ -78,10 +78,10 @@ sub new {
 #**********************************************************
 sub send_message {
   my $self = shift;
-  my ($attr, $callback) = @_;
-  
-  my $text = $attr->{MESSAGE} || return 0;
-  
+  my ($attr) = @_;
+
+  my $text = $attr->{MESSAGE} || '';
+
   if ( $attr->{PARSE_MODE} ) {
     $attr->{TELEGRAM_ATTR} = {} if ( !$attr->{TELEGRAM_ATTR} );
     $attr->{TELEGRAM_ATTR}->{parse_mode} = $attr->{PARSE_MODE}
@@ -97,21 +97,30 @@ sub send_message {
 
   $attr->{TELEGRAM_ATTR}->{reply_markup} = make_reply($attr->{MAKE_REPLY}, $attr) if($attr->{MAKE_REPLY});
 
- my $result = $self->{api}->sendMessage({
+  if($attr->{ATTACHMENTS}){
+    my $result = $self->send_with_attachments($attr);
+
+    if ( $attr->{DEBUG} && $attr->{DEBUG} > 1 ) {
+      _bp("Result attachments", $result, { TO_CONSOLE => 1 });
+    }
+  }
+
+  my $result = $self->{api}->sendMessage({
       chat_id => $attr->{TO_ADDRESS},
       text    => $text,
       %{ $attr->{TELEGRAM_ATTR} // {} }
-    }, $callback);
+    });
   
   if ( $attr->{DEBUG} && $attr->{DEBUG} > 1 ) {
     _bp("Result", $result, { TO_CONSOLE => 1 });
   }
-  
+
+
   if ( $attr->{RETURN_RESULT} ) {
     return $result;
   }
   
-  return $result && $result->{ok} eq '1';
+  return $result && $result->{ok};
 }
 
 #**********************************************************
@@ -210,6 +219,22 @@ sub make_reply(){
       || ''
   );
 
+  my $reply_button = 0;
+
+  my @buttons_files = glob "$conf{base_dir}/Abills/modules/Telegram/buttons-enabled/*.pm";
+  foreach my $file (@buttons_files) {
+    my (undef, $button) = $file =~ m/(.*)\/(.*)\.pm/;
+    if($button eq 'Msgs_reply'){
+      $reply_button = 1;
+    }
+  }
+
+  if($reply_button && !$sender_attr->{AID}){
+      push(@keyboard, { text => $sender_attr->{LANG}->{MSGS_REPLY}, 'callback_data' => 'Msgs_reply&reply&' . $message_id });
+  } elsif($sender_attr->{AID}){
+    push(@keyboard, { text => $sender_attr->{LANG}->{MSGS_REPLY},  switch_inline_query_current_chat => "MSGS_ID=$message_id\n" });
+  }
+
   if ($referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/g) {
     my $site_url = $1;
 
@@ -224,7 +249,7 @@ sub make_reply(){
         $link .= "/admin/index.cgi?get_index=msgs_admin&full=1$receiver_uid&chg=$message_id#last_msg";
       }
 
-      push(@keyboard, { text => $sender_attr->{LANG}->{MSGS_REPLY}, 'url' => $link });
+      push(@keyboard, { text => $sender_attr->{LANG}->{MSGS_OPEN}, 'url' => $link });
     }
   }
 
@@ -233,6 +258,60 @@ sub make_reply(){
       \@keyboard
     ]
   }
+}
+
+#**********************************************************
+=head2 send_with_attachments() - sends message with attachemts
+
+=cut
+#**********************************************************
+sub send_with_attachments {
+  my $self = shift;
+  my ($attr) = @_;
+  my %groups;
+
+  foreach my $file (@{$attr->{ATTACHMENTS}}){
+    my ($type, undef) = split '/', $file->{'content_type'};
+    push @{$groups{$type}}, $file;
+  }
+
+  my ($fn, $param, $result);
+
+  foreach my $group (keys %groups){
+    for my $file (@{$groups{$group}}) {
+      if ($group =~ /image/) {
+        $fn = 'sendPhoto';
+        $param = 'photo';
+      }
+      elsif ($group =~ /video/) {
+        $fn = 'sendVideo';
+        $param = 'video';
+      }
+      else {
+        $fn = 'sendDocument';
+        $param = 'document';
+      }
+
+      my $content = $file->{content};
+      if($content =~ /FILE/){
+        my ($filename) = $content =~ /FILE: (.*)/;
+        open(my $fh, '<', $filename) or next;
+        {
+          local $/;
+          $content = <$fh>;
+        }
+        close($fh);
+      }
+      my $filename = $file->{filename};
+
+      $result = $self->{api}->$fn({
+        RAW_BODY => 1,
+        chat_id  => $attr->{TO_ADDRESS},
+        $param    => [ undef, $filename, 'Content', $content, 'Content-Type', $group ],
+      });
+    }
+  }
+  return $result
 }
 
 1;

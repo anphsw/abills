@@ -1083,9 +1083,56 @@ sub referral_redirect {
     return 1;
   }
 
-  $html->redirect("?index=".get_function_index("form_wizard").
-    "&FIO=$FORM{FIO}&phone=$FORM{PHONE}&REFERRAL_REQUEST=$FORM{REFERRAL_REQUEST}");
+  $Referral->change_request({
+    ID     => $FORM{REFERRAL_REQUEST},
+    STATUS => 1
+  });
 
+  $Referral->request_list({
+    COLS_NAME => 1,
+    ID        => $FORM{REFERRAL_REQUEST},
+    TP_ID     => '_SHOW',
+  });
+
+  if($Referral->{list}[0]->{referral_tp}||$FORM{TP_ID}) {
+
+    if($FORM{TP_ID}){
+      $Referral->change_request({
+        ID     => $FORM{REFERRAL_REQUEST},
+        TP_ID => $FORM{TP_ID}
+      });
+
+    }
+
+    $html->redirect("?index=".get_function_index("form_wizard").
+      "&FIO=$FORM{FIO}&phone=$FORM{PHONE}&REFERRAL_REQUEST=$FORM{REFERRAL_REQUEST}");
+
+  } else {
+
+
+    my $tarifs = $Referral->tp_list({
+      ID        => '_SHOW',
+      NAME      => '_SHOW',
+      COLS_NAME => 1,
+    });
+
+    unshift(@$tarifs, []);
+
+    my $tarif_select = $html->form_select('TP_ID', {
+      SEL_LIST  => $tarifs,
+      SEL_KEY   => 'id',
+      SEL_VALUE => 'name',
+      NO_ID     => 1,
+    });
+
+    $html->tpl_show(_include('referral_tp_select_form', 'Referral'), {
+      ACTION       => $html->form_input('apply', $lang{APPLY}, { TYPE => 'submit', OUTPUT2RETURN => 1 }),
+      TARIF_SELECT => $tarif_select,
+      ID           => $FORM{REFERRAL_REQUEST},
+      FIO           => $FORM{FIO},
+      PHONE           => $FORM{PHONE},
+    });
+  }
   return 1;
 }
 

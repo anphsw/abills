@@ -85,6 +85,9 @@ CREATE TABLE IF NOT EXISTS `equipment_models` (
   `epon_supported_onus` SMALLINT(4) UNSIGNED,
   `gpon_supported_onus` SMALLINT(4) UNSIGNED,
   `gepon_supported_onus` SMALLINT(4) UNSIGNED,
+  `image_url` VARCHAR(500) DEFAULT '',
+  `default_onu_reg_template_epon` VARCHAR(150),
+  `default_onu_reg_template_gpon` VARCHAR(150),
   PRIMARY KEY (`id`),
   KEY type_id (`type_id`),
   UNIQUE KEY `model` (`vendor_id`, `type_id`, `model_name`)
@@ -172,10 +175,10 @@ CREATE TABLE IF NOT EXISTS `equipment_vlans` (
   DEFAULT CHARSET=utf8 COMMENT = 'Equipment vlans';
 
 CREATE TABLE IF NOT EXISTS `equipment_extra_ports` (
-  `model_id` SMALLINT UNSIGNED NOT NULL,
-  `port_number` SMALLINT UNSIGNED NOT NULL,
+  `model_id` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  `port_number` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   `port_type` SMALLINT UNSIGNED NOT NULL DEFAULT '0',
-  `state` TINYINT UNSIGNED NOT NULL DEFAULT '0',
+  `port_combo_with` SMALLINT NOT NULL DEFAULT '0',
   `row` SMALLINT UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY `model_port` (`model_id`, `port_number`)
 )
@@ -230,7 +233,7 @@ CREATE TABLE IF NOT EXISTS `equipment_mac_log` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `mac` VARCHAR(17) NOT NULL DEFAULT '',
   `ip` INT UNSIGNED NOT NULL DEFAULT 0,
-  `port` VARCHAR(10) NOT NULL DEFAULT '',
+  `port` VARCHAR(16) NOT NULL DEFAULT '',
   `vlan` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `nas_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
   `datetime` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
@@ -248,6 +251,7 @@ CREATE TABLE IF NOT EXISTS `equipment_pon_onu` (
   `onu_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `onu_mac_serial` VARCHAR(20) NOT NULL DEFAULT '',
   `onu_desc` VARCHAR(50) NOT NULL DEFAULT '',
+  `onu_billing_desc` VARCHAR(50) NOT NULL DEFAULT '',
   `olt_rx_power` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
   `onu_rx_power` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
   `onu_tx_power` DOUBLE(10, 2) NOT NULL DEFAULT '0.00',
@@ -324,3 +328,38 @@ CREATE TABLE IF NOT EXISTS `equipment_tr_069_settings` (
   PRIMARY KEY (`id`)
 )
   DEFAULT CHARSET = utf8 COMMENT = 'Equipment TR-069 Settings';
+
+CREATE TABLE IF NOT EXISTS `equipment_calculator`(
+    `type` VARCHAR(20) NOT NULL DEFAULT '',
+    `name` VARCHAR(20) NOT NULL DEFAULT '',
+    `value` VARCHAR(255) NOT NULL DEFAULT ''
+)
+  DEFAULT CHARSET=utf8 COMMENT = 'Equipment calculator';
+
+INSERT INTO equipment_calculator (type, name, value) VALUES
+('olt', 'SFP B+', '1.5'),
+('olt', 'SFP', '0'),
+('olt', 'SFP C+', '3'),
+('olt', 'SFP C++', '5'),
+('divider', '1/4', '7.4'),
+('divider', '1/8', '10.7'),
+('splitter', '40/60', '4.01;2.34'),
+('splitter', '10/90', '10.2;0.6'),
+('splitter', '85/15', '0.76;8.16'),
+('splitter', '70/30', '1.56;5.39'),
+('splitter', '95/5', '0.32;13.7'),
+('splitter', '75/25', '1.42;6.29'),
+('splitter', '5/95', '13.7;0.32'),
+('splitter', '45/55', '2.71;3.73'),
+('splitter', '80/20', '1.6;7.11'),
+('splitter', '15/85', '8.16;0.76'),
+('splitter', '60/40', '2.34;4.01'),
+('splitter', '30/70', '5.39;1.56'),
+('splitter', '65/35', '1.93;4.56'),
+('splitter', '90/10', '0.6;10.2'),
+('splitter', '50/50', '3.17;3.19'),
+('splitter', '25/75', '6.29;1.42'),
+('splitter', '35/65', '4.56;1.93'),
+('splitter', '20/80', '7.11;1.6'),
+('splitter', '55/45', '3.73;2.71'),
+('connector', 'SIGNAL_LOSS', '0');

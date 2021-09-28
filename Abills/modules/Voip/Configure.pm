@@ -963,15 +963,13 @@ sub voip_intervals{
 
   _error_show( $tarif_plan );
 
-  my $table = $html->table(
-    {
+  my $table = $html->table({
       width       => '100%',
       title_plain =>
       [ $lang{DAYS}, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 ],
       caption     => $lang{INTERVALS},
       rowcolor    => 'bg-info'
-    }
-  );
+  });
 
   for ( my $i = 0; $i < 9; $i++ ){
     my @hours = ();
@@ -1071,10 +1069,11 @@ sub voip_extra_tarification{
   result_former({
     INPUT_DATA      => $Voip,
     FUNCTION        => 'extra_tarification_list',
-    BASE_FIELDS     => 3,
+    BASE_FIELDS     => 2,
     FUNCTION_FIELDS => 'change,del',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
+      id           => 'ID',
       name         => $lang{NAME},
       prepaid_time => "$lang{PREPAID} $lang{TIME}"
     },

@@ -134,4 +134,13 @@ $lang{POSITION_SUCCESSFULLY_CHANGED} = 'Position successfully changed';
 $lang{BIG_COMMUTATION} = 'Big commutation';
 $lang{CHOOSE_COMMUTATION} = 'Choose commutation';
 
+$lang{ROTATE} = 'Rotate';
+$lang{FAILED_TO_CHANGE_NAME} = 'Failed to change name. Required data missing!';
+$lang{NAME_ALREADY_IN_USE} = 'This name is already in use';
+$lang{ERROR_ON_CHANGE} = 'Error on change';
+$lang{HEIGHT_CANNOT_BE_LESS} = 'Height cannot be less';
+
+$lang{SAVE_PRESET} = 'Save preset';
+$lang{STRAIGHTEN} = 'Straighten';
+
 1;

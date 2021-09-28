@@ -8,12 +8,14 @@ use strict;
 use warnings FATAL => 'all';
 
 our(
-  $Equipment,
   %lang,
-  $html,
   @port_types,
-  $SNMP_TPL_DIR
+  $SNMP_TPL_DIR,
+  $base_dir
 );
+
+our Equipment $Equipment;
+our Abills::HTML $html;
 
 #********************************************************
 =head2 equipment_types()
@@ -59,7 +61,7 @@ sub equipment_types{
 
   result_former(
     {
-      INPUT_DATA        => $Equipment,
+      INPUT_DATA      => $Equipment,
       FUNCTION        => 'type_list',
       BASE_FIELDS     => 2,
       FUNCTION_FIELDS => 'change,del',
@@ -165,21 +167,24 @@ sub equipment_model{
   my $parse_extra_ports = sub {
     my %extra_ports_types = ();
     my %extra_ports_rows = ();
+    my %extra_ports_combo_with = ();
 
     if ( $FORM{HAS_EXTRA_PORTS} && $FORM{HAS_EXTRA_PORTS} > 0 ) {
       my $extra_ports_count = $FORM{HAS_EXTRA_PORTS};
       for ( my $i = 1; $i <= $extra_ports_count; $i++ ) {
-        if ( exists $FORM{"EXTRA_PORT_$i"} && $FORM{"EXTRA_PORT_$i"} ) {
-          my $port_type = $FORM{"EXTRA_PORT_$i"};
+        if ( exists $FORM{"EXTRA_PORT_TYPE_$i"} && $FORM{"EXTRA_PORT_TYPE_$i"} ) {
+          my $port_type = $FORM{"EXTRA_PORT_TYPE_$i"};
           $extra_ports_types{$i} = $port_type;
           $extra_ports_rows{$i} = $FORM{"EXTRA_PORT_ROW_$i"} - 1;
+          $extra_ports_combo_with{$i} = $FORM{"EXTRA_PORT_COMBO_$i"};
         }
       }
     }
 
     {
-      EXTRA_PORTS     => \%extra_ports_types,
-      EXTRA_PORT_ROWS => \%extra_ports_rows
+      EXTRA_PORT_TYPES      => \%extra_ports_types,
+      EXTRA_PORT_ROWS       => \%extra_ports_rows,
+      EXTRA_PORT_COMBO_WITH => \%extra_ports_combo_with
     };
   };
 
@@ -228,6 +233,13 @@ sub equipment_model{
   }
 
   _error_show( $Equipment );
+
+  if ($Equipment->{IMAGE_URL}) {
+    $Equipment->{EQUIPMENT_IMAGE} = $html->element('div',
+      $html->img($Equipment->{IMAGE_URL}, ($Equipment->{MODEL_NAME}) ? "$Equipment->{MODEL_NAME} image" : '', { class => 'img-fluid mb-3' }),
+      { class => 'text-center' }
+    );
+  }
 
   $Equipment->{TYPE_SEL} = $html->form_select(
     'TYPE_ID',
@@ -296,7 +308,7 @@ sub equipment_model{
   my @contents = ();
 
   if ( opendir( my $fh, "$SNMP_TPL_DIR" ) ) {
-    @contents = grep !/^\.\.?$/, readdir $fh;
+    @contents = sort grep !/^\.\.?$/, readdir $fh;
     closedir $fh;
   }
   else {
@@ -320,6 +332,37 @@ sub equipment_model{
     $Equipment->{EQUIPMENT_MODEL_PON_DISABLED} = 'disabled';
   }
 
+  if (!($Equipment->{VENDOR_ID} && $Equipment->{VENDOR_ID} == 12)) { # 12 - ZTE
+    $Equipment->{EQUIPMENT_MODEL_ZTE_HIDDEN} = 'hidden';
+    $Equipment->{EQUIPMENT_MODEL_ZTE_DISABLED} = 'disabled';
+  }
+
+  my $dir = $base_dir . 'Abills/modules/Equipment/snmp_tpl/zte_registration_*.tpl';
+  my @list;
+  for my $file (glob $dir) {
+    my @path_name = split('/', $file);
+    my $name = $path_name[$#path_name];
+    push @list, $name;
+  }
+
+  $Equipment->{DEFAULT_ONU_REG_TEMPLATE_EPON_SELECT} = $html->form_select('DEFAULT_ONU_REG_TEMPLATE_EPON', {
+    SELECTED => $Equipment->{DEFAULT_ONU_REG_TEMPLATE_EPON},
+    SEL_ARRAY     => \@list,
+    SEL_OPTIONS => { '' => '--' },
+    EX_PARAMS => $Equipment->{EQUIPMENT_MODEL_ZTE_DISABLED},
+    OUTPUT2RETURN => 1
+  });
+  $Equipment->{DEFAULT_ONU_REG_TEMPLATE_GPON_SELECT} = $html->form_select('DEFAULT_ONU_REG_TEMPLATE_GPON', {
+    SELECTED => $Equipment->{DEFAULT_ONU_REG_TEMPLATE_GPON},
+    SEL_ARRAY     => \@list,
+    SEL_OPTIONS => { '' => '--' },
+    EX_PARAMS => $Equipment->{EQUIPMENT_MODEL_ZTE_DISABLED},
+    OUTPUT2RETURN => 1
+  });
+
+  if ($Equipment->{MANAGE_WEB}) {
+    $Equipment->{MANAGE_WEB} =~ s/\%/\&#37;/g;
+  }
   $html->tpl_show( _include( 'equipment_model', 'Equipment' ), { %FORM, %{$Equipment} } );
   $LIST_PARAMS{PAGE_ROWS} = '100000';
 

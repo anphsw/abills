@@ -11,11 +11,12 @@ use Abills::Defs;
 use Customers;
 
 our ($db,
-  $html,
   %lang,
   $admin,
   %permissions,
 );
+
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 add_company() - Add company
@@ -216,12 +217,8 @@ sub form_companies {
     $FORM{COMPANY_ID}        = $Company->{ID};
     $LIST_PARAMS{BILL_ID}    = $Company->{BILL_ID} if (defined($Company->{DEPOSIT}));
     $pages_qs .= "&COMPANY_ID=$LIST_PARAMS{COMPANY_ID}" if ($LIST_PARAMS{COMPANY_ID});
-    #$pages_qs .= "&subf=$FORM{subf}" if ($FORM{subf});
+    $pages_qs .= "&subf=$FORM{subf}" if ($FORM{subf} && $pages_qs !~ /subf/);
 
-    if(!$pages_qs =~ /subf/) {
-      $pages_qs .= (($FORM{subf}) ? "&subf=$FORM{subf}" : '');
-    }
-    
     if (in_array('Docs', \@MODULES)) {
       $Company->{PRINT_CONTRACT} = $html->button( '',
         "qindex=$index$pages_qs&PRINT_CONTRACT=$Company->{ID}" . (($conf{DOCS_PDF_PRINT}) ? '&pdf=1' : '')
@@ -257,7 +254,7 @@ sub form_companies {
           index => $index,
         },
         SUBMIT => { show => $lang{SHOW} },
-        class   => 'navbar-form navbar-right form-inline',
+        class  => 'navbar navbar-expand-lg navbar-light bg-light form-main'
       }
     );
 

@@ -126,6 +126,7 @@ $lang{TARIF_PLANS} = 'Tarif plans';
 $lang{TARIF_PLAN} = 'Tarif plan';
 $lang{HOUR_TARIF} = 'Time tariff';
 $lang{TRAFIC_TARIFS} = 'Traffic tarifs';
+$lang{ERR_NO_AVAILABLE_TP} = 'There are no available tariff plans';
 $lang{MONTH_FEE} = 'Month fee';
 $lang{DAY_FEE} = 'Day fee';
 $lang{ACTIVE_DAY_FEE} = 'Active day fees';
@@ -522,6 +523,7 @@ $lang{OVERTIME} = 'Overtime';
 $lang{WORK_TIME} = 'Work time';
 $lang{REPAIR} = 'Repair';
 $lang{EVENTS} = 'Events';
+$lang{EVENT}  = 'Event';
 $lang{ACCT_TERMINATE_CAUSE} = 'Terminate Cause';
 $lang{TAGS} = 'Tags';
 $lang{ACTIVATE_TARIF_PLAN} = 'Activate tarif plan';
@@ -925,4 +927,31 @@ $lang{YOUR_DEPOSIT} = "Your deposit";
 $lang{LARGE_TEXT} = "Large text";
 $lang{DATA_CHANGE} = "Data change";
 
+$lang{CRM_SHOW_ALL_LEADS} = "Crm: Show all leads";
+
+$lang{GEO} = 'Geo area';
+$lang{CLEAR_GEO} = 'Clear geo-link';
+$lang{LEAD} = 'Lead';
+
+$lang{ERR_UID_NOT_DEFINED} = 'UID not defined';
+$lang{ERR_NO_CREDIT_CHANGE_ACCESS} = 'No credit change access';
+$lang{ERR_CREDIT_USED_ALL_ATTEMPTS} = 'All attempts to establish credit were used';
+$lang{SETTING_CREDIT} = 'Setting credit';
+
+
+$lang{G2FA} = 'Two-factor authentication';
+$lang{G2FA_ADD} = 'Add two-factor authentication';
+$lang{G2FA_REMOVE} = 'Remove Two-factor authentication';
+$lang{G2FA_WRONG_CODE} = 'Wrong code!';
+
+$lang{NOT_ALLOWED_TO_CHANGE_TP} = 'Not allowed to change the tariff plan';
+
+$lang{ADDITIONAL_INFORMATION} = 'Extended info';
+$lang{PORT_CONTROL} = 'Port control';
+$lang{PERSONAL_INFO} = 'Personal info';
+$lang{REBOOT_SERVICE} = 'Reboot service';
+
+$lang{MSG_WANT_ZAP}='Do you really want ZAP all sessions?';
+
+$lang{TASK_IN_WORK} = 'In work';
 1;

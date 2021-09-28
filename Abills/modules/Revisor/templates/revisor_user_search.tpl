@@ -36,7 +36,7 @@
         </div>
       
         <div class='form-group row'>
-          <label class='control-label col-md-10' for='LOGIN'>_{LOGIN}_ :</label>
+          <label class='control-label col-md-4' for='LOGIN'>_{LOGIN}_ :</label>
           <div class='col-md-8'>
             <input name='LOGIN' value='%LOGIN%' class='form-control' type='text'>
           </div>

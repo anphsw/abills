@@ -213,6 +213,7 @@ sub iptv_users_list {
       'month_fee'       => $lang{MONTH_FEE},
       'day_fee'         => $lang{DAY_FEE}
     },
+    STATUS_VALS     => sel_status({ HASH_RESULT => 1 }),
     TABLE           => {
       width   => '100%',
       caption => ($FORM{UID}) ? "$lang{SERVICES}" : "$lang{TV} - $lang{USERS}",
@@ -254,6 +255,7 @@ sub iptv_users_list {
 
 =cut
 #**********************************************************
+#@deprecated
 sub iptv_ext_cmd {
   my ($cmd, $attr) = @_;
 
@@ -1343,35 +1345,31 @@ sub iptv_dv_crypt {
       next;
     }
 
-    my $channels_list = $Iptv->channel_ti_list(
-      {
-        INTERVAL_ID => $Tariffs->{list}->[0]->{id},
-        MANDATORY   => 1,
-        COLS_NAME   => 1
-      }
-    );
+    my $channels_list = $Iptv->channel_ti_list({
+      INTERVAL_ID => $Tariffs->{list}->[0]->{id},
+      MANDATORY   => 1,
+      COLS_NAME   => 1
+    });
 
     foreach my $line (@{$channels_list}) {
       $tp_channels_list{ $line->{channel_num} } = $line->{channel_id};
     }
 
     #Main users list
-    my $ulist = $Iptv->user_list(
-      {
-        LOGIN          => '_SHOW',
-        ACTIVATE       => "<=$DATE",
-        EXPIRE         => "0000-00-00,>$DATE",
-        DVCRYPT_ID     => '>0',
-        SERVICE_STATUS => '_SHOW',
-        LOGIN_STATUS   => '_SHOW',
-        DEPOSIT        => '_SHOW',
-        CREDIT         => '_SHOW',
-        TP_ID          => $TP_ID,
-        SORT           => 1,
-        PAGE_ROWS      => 1000000,
-        COLS_NAME      => 1
-      }
-    );
+    my $ulist = $Iptv->user_list({
+      LOGIN          => '_SHOW',
+      ACTIVATE       => "<=$DATE",
+      EXPIRE         => "0000-00-00,>$DATE",
+      DVCRYPT_ID     => '>0',
+      SERVICE_STATUS => '_SHOW',
+      LOGIN_STATUS   => '_SHOW',
+      DEPOSIT        => '_SHOW',
+      CREDIT         => '_SHOW',
+      TP_ID          => $TP_ID,
+      SORT           => 1,
+      PAGE_ROWS      => 1000000,
+      COLS_NAME      => 1
+    });
 
     foreach my $u (@{$ulist}) {
       if ($u->{deposit} + $u->{credit} > 0 && $u->{service_status} == 0) {
@@ -1383,23 +1381,21 @@ sub iptv_dv_crypt {
     }
 
     # Custom channels users list
-    my $list = $Iptv->user_list(
-      {
-        LOGIN          => '_SHOW',
-        PAGE_ROWS      => 1000000,
-        DVCRYPT_ID     => '>0',
-        ACTIVATE       => "<=$DATE",
-        EXPIRE         => "0000-00-00,>$DATE",
-        SERVICE_STATUS => '_SHOW',
-        LOGIN_STATUS   => '_SHOW',
-        DEPOSIT        => '_SHOW',
-        CREDIT         => '_SHOW',
-        TP_ID          => $TP_ID,
-        SORT           => 1,
-        SHOW_CHANNELS  => 1,
-        COLS_NAME      => 1,
-      }
-    );
+    my $list = $Iptv->user_list({
+      LOGIN          => '_SHOW',
+      PAGE_ROWS      => 1000000,
+      DVCRYPT_ID     => '>0',
+      ACTIVATE       => "<=$DATE",
+      EXPIRE         => "0000-00-00,>$DATE",
+      SERVICE_STATUS => '_SHOW',
+      LOGIN_STATUS   => '_SHOW',
+      DEPOSIT        => '_SHOW',
+      CREDIT         => '_SHOW',
+      TP_ID          => $TP_ID,
+      SORT           => 1,
+      SHOW_CHANNELS  => 1,
+      COLS_NAME      => 1,
+    });
 
     foreach my $u (@{$list}) {
       if ($u->{deposit} + $u->{credit} > 0 && $u->{login_status} + $u->{service_status} == 0) {
@@ -1619,8 +1615,7 @@ sub iptv_user_activate {
     SERVICE_NAME      => $lang{TV},
     TP_ID             => $Iptv_info->{TP_NUM},
     TP_NAME           => $Iptv_info->{TP_NAME},
-    FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
-    #FEES_METHOD       => $FEES_METHODS{ $tp->{fees_method} }
+    FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT}
   );
 
   push @{$users_services{$Iptv_info->{UID}}}, {
@@ -1792,17 +1787,6 @@ sub iptv_user_activate {
       USER_INFO    => $user,
       DEBUG        => $debug
     });
-
-    # iptv_account_action({
-    #   USER_CHANNELS => 1,
-    #   IDS           => \@channels_ids,
-    #   BUNDLE_TYPE   => 'subs_renew',
-    #   TP_FILTER_ID  => $Iptv_info->{TP_FILTER_ID},
-    #   ID            => $Iptv_info->{ID},
-    #   UID           => $Iptv_info->{UID},
-    #   USER_INFO     => $user,
-    #   DEBUG         => $debug
-    # });
   }
 
   push @{$users_services{$Iptv_info->{UID}}}, @{$users_services_screens{$Iptv_info->{UID}}};
@@ -1813,7 +1797,7 @@ sub iptv_user_activate {
     DATE              => $DATE,
     METHOD            => 1,
     DEBUG             => $debug,
-    PERIOD_ALIGNMENT  => $Iptv_info->{PERIOD_ALIGNMENT},
+    # PERIOD_ALIGNMENT  => $Iptv_info->{PERIOD_ALIGNMENT},
     # #Fixme
     # ABON_DISTRIBUTION => $Iptv_info->{ABON_DISTRIBUTION}
   });
@@ -1893,10 +1877,7 @@ sub iptv_users_screen_add {
     });
 
     #Get fees
-    get_service_fee($users, \%users_services, {
-      %$Iptv_info,
-      METHOD => 1
-    });
+    get_service_fee($users, \%users_services, { %$Iptv_info, METHOD => 1 });
   }
   elsif (!$Iptv->{errno} && ($attr->{add_screen} && $attr->{add_screen} eq $lang{CHANGE})) {
     $html->message('info', $lang{INFO}, "$lang{SCREENS} $lang{CHANGED} \n ID: $result");
@@ -1921,9 +1902,7 @@ sub iptv_users_screen_add {
 sub iptv_users_screens {
   my ($Iptv_info, $attr) = @_;
 
-  if (!$FORM{chg}) {
-    return 0;
-  }
+  return 0 if !$FORM{chg};
 
   my $uid = $FORM{UID} || 0;
 
@@ -1933,11 +1912,7 @@ sub iptv_users_screens {
     $Iptv->{NUM} = $FORM{screen} if ($FORM{screen});
 
     if ($FORM{del_screen}) {
-      iptv_account_action({
-        %FORM,
-        DEL       => 1,
-        SCREEN_ID => $FORM{screen}
-      });
+      iptv_account_action({ %FORM, DEL => 1, SCREEN_ID => $FORM{screen} });
 
       $Iptv->users_screens_del(\%FORM);
       if (!_error_show($Iptv, { SILENT_MODE => 1 })) {
@@ -1948,109 +1923,83 @@ sub iptv_users_screens {
     elsif ($FORM{add_screen}) {
       iptv_users_screen_add($Iptv_info, \%FORM);
     }
-
-    $Iptv->users_screens_info($FORM{chg}, { SCREEN_ID => $FORM{screen} });
-    if (!$Iptv->{TOTAL}) {
-      $Iptv->{CID} = undef;
-      $Iptv->{LNG_ACTION} = $lang{ADD};
-    }
   }
+
+  my $next_screen = $Iptv->users_next_screen({ SERVICE_ID => $FORM{chg}, TP_ID => $Iptv->{TP_ID} });
 
   my $users_screens_list = $Iptv->users_screens_list({
-    TP_ID      => $Iptv->{TP_ID},
-    NAME       => '_SHOW',
-    NUM        => '_SHOW',
-    DATE       => '_SHOW',
-    SERVICE_ID => $FORM{chg},
-    COLS_NAME  => 1
+    TP_ID            => $Iptv->{TP_ID},
+    NAME             => '_SHOW',
+    NUM              => '_SHOW',
+    DATE             => '_SHOW',
+    USERS_SERVICE_ID => $FORM{chg},
+    COLS_NAME        => 1,
+    SHOW_ASSIGN      => 1
   });
 
-  if ($Iptv->{TOTAL} < 1) {
-    return 0;
-  }
+  return 0 if ($Iptv->{TOTAL} < 1 && !$next_screen->{NUM});
 
   if ($attr->{SHOW_FULL}) {
     my @info_panel = ();
-    my $screen_num = 0;
-    my %screen_busy = ();
 
     foreach my $line (@{$users_screens_list}) {
-      next if (!$line->{service_id});
-
       push @info_panel, {
-        ID            => mk_unique_value(10),
         NUMBER        => $lang{SCREEN} . ' ' . $line->{num} || ' 0',
-        ICON          => 'fa fa-picture-o',
+        ICON          => 'picture-o',
         TEXT          => $line->{name} || q{},
         COLOR         => 'green',
-        SIZE          => 3,
+        SIZE          => 12,
         LIKE_BUTTON   => $attr->{SHOW_FULL} == 2 ? 1 : 0,
         BUTTON_PARAMS => "index=$index$pages_qs&SERVICE_ID=$Iptv->{ID}&chg=$FORM{chg}&SCREEN_ID=$line->{num}&screen=$line->{num}"
       };
-
-      $screen_num++;
-      $screen_busy{$line->{num}} = 'busy';
     }
 
-    if ($attr->{SHOW_FULL} == 2 && $screen_num <= $#{$users_screens_list}) {
-      $screen_num++;
-      #TODO: 10 must be change to max screens for tariff
-      foreach my $i (1 .. 10) {
-        if (!$screen_busy{$i}) {
-          $screen_num = $i;
-          last;
-        }
-      }
-
-      push @info_panel, {
-        ID            => mk_unique_value(10),
-        NUMBER        => '',
-        ICON          => 'fa fa-plus',
-        TEXT          => "$lang{ADD} $lang{SCREENS}",
-        COLOR         => 'blue',
-        SIZE          => 3,
-        LIKE_BUTTON   => 1,
-        BUTTON_PARAMS => "index=$index&screen=$screen_num&UID=$uid&chg=$FORM{chg}"
-      };
-    }
+    push @info_panel, {
+      NUMBER        => $lang{SCREEN} . ' ' . $next_screen->{NUM},
+      ICON          => 'plus',
+      TEXT          => "$lang{ADD} $lang{SCREENS}",
+      COLOR         => 'blue',
+      SIZE          => 12,
+      LIKE_BUTTON   => 1,
+      BUTTON_PARAMS => "index=$index&screen=$next_screen->{NUM}&UID=$uid&chg=$FORM{chg}"
+    } if ($attr->{SHOW_FULL} == 2 && $next_screen->{NUM});
 
     $html->short_info_panels_row(\@info_panel);
   }
   else {
     my @screens_arr = ("$lang{SERVICE}:index=$index&UID=$uid&chg=$FORM{chg}&MODULE=Iptv");
-    my $last_screen = 0;
-    my %screen_busy = ();
-    foreach my $user_screen (@{$users_screens_list}) {
-      next if !$user_screen->{date};
 
+    foreach my $user_screen (@{$users_screens_list}) {
       push @screens_arr, (($user_screen->{name}) ? "$user_screen->{num} $user_screen->{name}" :
         "$lang{SCREENS} $user_screen->{num}") . ":index=$index&screen=$user_screen->{num}&UID=$uid&chg=$FORM{chg}&MODULE=Iptv";
-      $screen_busy{$user_screen->{num}} = 'busy';
     }
 
-    #TODO: 10 must be change to max screens for tariff
-    foreach my $i (1 .. 10) {
-      if (!$screen_busy{$i}) {
-        $last_screen = $i;
-        last;
-      }
-    }
+    push @screens_arr, "$lang{ADD} $lang{SCREENS}:index=$index&screen=$next_screen->{NUM}&UID=$uid" .
+      "&chg=$FORM{chg}&MODULE=Iptv:class=fa fa-picture-o" if ($next_screen->{NUM});
 
-    push @screens_arr,
-      "$lang{ADD} $lang{SCREENS}:index=$index&screen=$last_screen&UID=$uid&chg=$FORM{chg}&MODULE=Iptv:class=fa fa-picture-o";
     print $html->table_header(\@screens_arr, { TABS => 1 });
   }
 
   if ($FORM{screen}) {
     $Iptv->{SHOW_ACTION_BTN} = 'show';
     $Iptv->{SHOW_INFO_FIELDS} = 'hidden';
+
+    $Iptv->users_screens_info($FORM{chg}, { SCREEN_ID => $FORM{screen} });
+    if (!$Iptv->{TOTAL}) {
+      $Iptv->{CID} = undef;
+      $Iptv->{LNG_ACTION} = $lang{ADD};
+    }
+
     if ($Iptv->{SCREEN_ID}) {
       $Iptv->{SHOW_ACTION_BTN} = 'hidden';
       $Iptv->{SHOW_INFO_FIELDS} = 'show';
       $Iptv->{DELETE} = $html->button($lang{DEL},
-        "index=$index$pages_qs&del_screen=1&SERVICE_ID=$Iptv->{ID}&chg=$FORM{chg}&SCREEN_ID=$Iptv->{NUM}&screen=$FORM{screen}"
-        , { MESSAGE => "$lang{DEL} [$Iptv->{NUM}] ?", class => 'btn btn-danger' });
+        "index=$index$pages_qs&del_screen=1&SERVICE_ID=$Iptv->{ID}&chg=$FORM{chg}&SCREEN_ID=$Iptv->{NUM}&screen=$FORM{screen}", {
+          MESSAGE => "$lang{DEL} [$Iptv->{NUM}] ?",
+          class   => 'btn btn-danger'
+        });
     }
+
 
     if ($Tv_service && $Tv_service->{SERVICE_USER_SCREEN_FORM}) {
       my $fn = $Tv_service->{SERVICE_USER_SCREEN_FORM};
@@ -2088,7 +2037,7 @@ sub iptv_payments_maked {
 
   my $users_disable = $users->{DISABLE};
   foreach my $service_user (@{$list}) {
-    next if ($service_user->{service_status} && !in_array($service_user->{service_status}, [4,5]));
+    next if (defined $service_user->{service_status} && !in_array($service_user->{service_status}, [4,5]));
     
     $Iptv->user_info($service_user->{id});
 
@@ -2104,7 +2053,7 @@ sub iptv_payments_maked {
       next;
     }
 
-    return 0 if (!$Iptv->{TP_NUM});
+    next if (!$Iptv->{TP_NUM});
 
     if ($FORM{DISABLE} && !$users_disable) {
       $Iptv->{STATUS} = 1;
@@ -2312,6 +2261,8 @@ sub _iptv_docs_daily_fee {
 
   Arguments:
     $attr
+      UID
+      LOGIN
 
 =cut
 #**********************************************************
@@ -2358,6 +2309,7 @@ sub iptv_quick_info {
 
   $Iptv->user_list({
     UID         => $uid,
+    LOGIN       => (! $uid && $attr->{LOGIN}) ? $attr->{LOGIN} : undef,
     TP_NAME     => '_SHOW',
     MONTH_FEE   => '_SHOW',
     CID         => '_SHOW',

@@ -328,7 +328,7 @@ sub first_available_ont_id {
 
 =cut
 #**********************************************************
-sub help {
+sub help { #TODO: check is this help correct
 
 print << "[END]";
 
@@ -351,7 +351,6 @@ help: $0
   SN ONU_MAC_SERIAL=
   PON_TYPE=
   COMMENTS=
-  LLID=
 
   DEBUG=
   help

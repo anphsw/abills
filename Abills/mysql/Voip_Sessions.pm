@@ -11,11 +11,6 @@ our $VERSION = 7.00;
 use parent qw(dbcore);
 
 my ($admin, $CONF);
-my $SORT = 1;
-my $DESC = '';
-my $PG   = 1;
-my $PAGE_ROWS = 25;
-
 
 #**********************************************************
 # Init
@@ -66,9 +61,9 @@ sub online{
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  my $WHERE;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $WHERE = q{};
 
   if ( defined( $attr->{ZAPED} ) ){
     $WHERE = "c.status=2";
@@ -78,24 +73,24 @@ sub online{
   }
 
   $self->query( "SELECT c.user_name,
-                          pi.fio,
-                          calling_station_id,
-                          called_station_id,
-                          SEC_TO_TIME(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started)),
-                          c.call_origin,
-                          INET_NTOA(c.client_ip_address),
-                          c.status,
-                          c.nas_id,
-                          c.uid,
-  c.acct_session_id,
-  pi.phone,
-  service.tp_id,
-  0,
-  u.credit,
-  if(DATE_FORMAT(c.started, '%Y-%m-%d')=CURDATE(), DATE_FORMAT(c.started, '%H:%i:%s'), c.started)
+    pi.fio,
+    calling_station_id,
+    called_station_id,
+    SEC_TO_TIME(UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started)) AS duration,
+    c.call_origin,
+    INET_NTOA(c.client_ip_address),
+    c.status,
+    c.nas_id,
+    c.uid,
+    c.acct_session_id,
+    pi.phone,
+    service.tp_id,
+    0,
+    u.credit,
+    if(DATE_FORMAT(c.started, '%Y-%m-%d')=CURDATE(), DATE_FORMAT(c.started, '%H:%i:%s'), c.started)
 
  FROM voip_calls c
- LEFT JOIN users u     ON u.uid=c.uid
+ LEFT JOIN users u  ON (u.uid=c.uid)
  LEFT JOIN voip_main service  ON (service.uid=u.uid)
  LEFT JOIN users_pi pi ON (pi.uid=u.uid)
  WHERE $WHERE
@@ -115,7 +110,7 @@ sub online{
   foreach my $line ( @{$list} ){
     $dub_logins{ $line->[0] }++;
     push(
-      @{ $nas_sorted{"$line->[8]"} },
+      @{ $nas_sorted{$line->[8]} },
       [
         $line->[0], $line->[1], $line->[2], $line->[3], $line->[4], $line->[5], $line->[6], $line->[7], $line->[8],
 
@@ -199,7 +194,7 @@ sub zap{
   my ($nas_id, $acct_session_id) = @_;
 
   my $WHERE = ($nas_id && $acct_session_id) ? "WHERE nas_id=INET_ATON('$nas_id') and acct_session_id='$acct_session_id'" : '';
-  $self->query( "UPDATE voip_calls SET status=2 $WHERE;", 'do' );
+  $self->query( 'UPDATE voip_calls SET status=2 '. $WHERE .';', 'do' );
 
   return $self;
 }
@@ -291,10 +286,10 @@ sub list{
   my $self = shift;
   my ($attr) = @_;
 
-  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
-  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 2;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   my $WHERE = '';
   my @WHERE_RULES = ("u.uid=l.uid");
@@ -322,27 +317,28 @@ sub list{
   }
 
   $WHERE = $self->search_former( $attr, [
-      [ 'LOGIN',        'STR',   'u.id AS login',                        1 ],
-      [ 'START',        'DATE',  'l.start',                              1 ],
-      [ 'DATE',         'DATE',  'l.start',                              1 ],
-      [ 'DURATION',     'DATE',  'SEC_TO_TIME(l.duration) AS duration',  1 ],
-      [ 'IP',           'IP',    'l.ip',  'INET_NTOA(l.client_ip_address) AS ip' ],
-      [ 'CALLING_STATION_ID', 'STR', 'l.calling_station_id',             1 ],
-      [ 'CALLED_STATION_ID',  'STR', 'l.called_station_id',              1 ],
-      [ 'TP_ID',        'INT',   'l.tp_id',                              1 ],
-      [ 'SUM',          'INT',   'l.sum',                                1 ],
-      [ 'NAS_ID',       'INT',   'l.nas_id',                             1 ],
-      [ 'NAS_PORT',     'INT',   'l.port_id',                            1 ],
-      [ 'ACCT_SESSION_ID', 'STR','l.acct_session_id',                      ],
-      [ 'TERMINATE_CAUSE', 'INT','l.terminate_cause',                    1 ],
-      [ 'BILL_ID',      'STR',   'l.bill_id',                            1 ],
-      [ 'DURATION_SEC', 'INT',   'l.duration AS duration_sec',           1 ],
-      #[ 'DATE',            'DATE', "DATE_FORMAT(start, '%Y-%m-%d')" ],
-      [ 'START_UNIXTIME', 'INT', 'UNIX_TIMESTAMP(l.start) AS asstart_unixtime', 1 ],
-      [ 'FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.start, '%Y-%m-%d')"    ],
-      [ 'MONTH',        'DATE', "DATE_FORMAT(l.start, '%Y-%m')"            ],
+      [ 'LOGIN',              'STR',    'u.id AS login',                                1 ],
+      [ 'START',              'DATE',   'l.start',                                      1 ],
+      [ 'DATE',               'DATE',   'l.start',                                      1 ],
+      [ 'DURATION',           'DATE',   'SEC_TO_TIME(l.duration) AS duration',          1 ],
+      [ 'IP',                 'IP',     'l.ip',  'INET_NTOA(l.client_ip_address) AS ip'   ],
+      [ 'CALLING_STATION_ID', 'STR',    'l.calling_station_id',                         1 ],
+      [ 'CALLED_STATION_ID',  'STR',    'l.called_station_id',                          1 ],
+      [ 'TP_ID',              'INT',    'l.tp_id',                                      1 ],
+      [ 'SUM',                'INT',    'l.sum',                                        1 ],
+      [ 'NAS_ID',             'INT',    'l.nas_id',                                     1 ],
+      [ 'NAS_PORT',           'INT',    'l.port_id',                                    1 ],
+      [ 'ACCT_SESSION_ID',    'STR',    'l.acct_session_id',                              ],
+      [ 'TERMINATE_CAUSE',    'INT',    'l.terminate_cause',                            1 ],
+      [ 'BILL_ID',            'STR',    'l.bill_id',                                    1 ],
+      [ 'DURATION_SEC',       'INT',    'l.duration AS duration_sec',                   1 ],
+      #[ 'DATE',              'DATE',   "DATE_FORMAT(start, '%Y-%m-%d')"                  ],
+      [ 'START_UNIXTIME',     'INT',    'UNIX_TIMESTAMP(l.start) AS asstart_unixtime',  1 ],
+      [ 'FROM_DATE|TO_DATE',  'DATE',   "DATE_FORMAT(l.start, '%Y-%m-%d')"                ],
+      [ 'MONTH',              'DATE',   "DATE_FORMAT(l.start, '%Y-%m')"                   ],
     ],
-    { WHERE        => 1,
+    {
+      WHERE        => 1,
       WHERE_RULES  => \@WHERE_RULES,
       USERS_FIELDS => 1,
       USE_USER_PI  => 1,
@@ -443,6 +439,8 @@ sub reports{
   my @WHERE_RULES = ();
   my $date = '';
   my $EXT_TABLES = '';
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
   if ( $attr->{INTERVAL} ){
     my ($from, $to) = split( /\//, $attr->{INTERVAL}, 2 );

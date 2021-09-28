@@ -106,14 +106,18 @@ sub _encode_url_to_img {
     $url_to_encode = urldecode($attr->{PARAMS}->{GLOBAL_URL});
   }
   elsif( $attr->{AUTH_G2FA_NAME} && $attr->{AUTH_G2FA_MAIL} ) {
-    $url_to_encode = "otpauth://totp/$attr->{AUTH_G2FA_NAME}:$attr->{AUTH_G2FA_MAIL}?secret=$url&issuer=$attr->{AUTH_G2FA_NAME}"
+    $url_to_encode = "otpauth://totp/$attr->{AUTH_G2FA_MAIL}?secret=$url&issuer=$attr->{AUTH_G2FA_NAME}"
   }
   else {
     $url_to_encode = $url . _stringify_params($attr->{PARAMS}) . "&full=1";
   }
   
   my $img = _generate_image($url_to_encode);
-  
+
+  if($attr->{OUTPUT2RETURN}){
+    return $img;
+  }
+
   if ( $attr->{WRITE_TO_DISK} ) {
     open (my $QRCODE, '>', $conf{TPL_DIR} . "/qrcode.jpg");
     print $QRCODE $img;

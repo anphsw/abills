@@ -56,7 +56,7 @@ $lang{SUBJECT_EDIT} = "Subject changed";
 $lang{CLICK_BACK} = "Click back to return to the previous menu";
 $lang{ADD_FILE} = "File added to message";
 $lang{NOT_SEND_MSGS} = "Something went wrong, no message was sent";
-$lang{SEND_OR_CHANCLE} = "Click send to send message or if you change your mind, click cancel";
+$lang{SEND_OR_CHANCLE} = "Enter text/attach file. \nClick 'Send' to send message or if you change your mind, click 'Cancel'";
 $lang{END_CREDIT_SET} = "You have used all attempts to install credit";
 $lang{CREDIT_ACTIONS} = "Credit will take effect";
 $lang{CREDIT_PRICE} = "Credit Price";
@@ -112,4 +112,8 @@ $lang{CITY24_TELEGRAM} = "You will be redirected to <b>City24</b>  service - Qui
 $lang{PAY_SUM_CHANGE} = "You can change the payment amount on the payment page.";
 $lang{ERRO_PAY} = "You cannot pay.";
 $lang{WEB_SITE} = 'Website';
+$lang{SELECT_CHAPTER} = 'Select chapter:';
+$lang{SUBJECT_ADD} = "Enter subject";
+$lang{ENTER_CARD_DATA} = 'Enter Serial and number/pin\nExample: 000000001/11111111';
+
 1;

@@ -36,45 +36,59 @@ sub events_uni_result_former {
   
   my Abills::HTML $table;
   my $list;
-  ($table, $list) = result_former(
-    {
-      INPUT_DATA      => $Events,
-      FUNCTION        => $attr->{LIST_FUNC},
-      BASE_FIELDS     => 0,
-      #      DEFAULT_FIELDS  => $attr->{DEFAULT_FIELDS},
-      FUNCTION_FIELDS => 'change,del',
-      SKIP_USER_TITLE => 1,
-      EXT_FIELDS      => 0,
-      EXT_TITLES      => $attr->{EXT_TITLES},
-      MULTISELECT     => 'IDS:id:DELETE_EVENTS_FORM',
-      TABLE           => {
-        MULTISELECT_ACTIONS => $attr->{MULTISELECT_ACTIONS},
-        # DATA_TABLE          => 1,
-        width               => '100%',
-        caption             => $attr->{READABLE_NAME},
-        ID                  => uc $attr->{LIST_FUNC},
-        EXPORT              => 1,
-        SHOW_FULL_LIST      => 1,
-        MENU                => "$lang{ADD}:index=$index&show_add_form=1:add;"
-          . ($attr->{HAS_SEARCH} ? "$lang{SEARCH}:index=$index&search_form=1:search" : '')
+  my @status_bar_arr = ();
+
+  my $state_list = $Events->state_list({
+    NAME => '_SHOW',
+  });
+
+  _error_show($Events) and return 0;
+  # Adding all option
+  unshift(@$state_list, { id => 0, name => $lang{ALL} });
+
+  foreach my $status (@$state_list) {
+    push @status_bar_arr, translate_simple($status->{name}).":index=$index&search=2&STATE_ID=".$status->{id};
+  }
+
+  ($table, $list) = result_former({
+    INPUT_DATA      => $Events,
+    FUNCTION        => $attr->{LIST_FUNC},
+    BASE_FIELDS     => 0,
+    #      DEFAULT_FIELDS  => $attr->{DEFAULT_FIELDS},
+    FUNCTION_FIELDS => "change,del",
+    SKIP_USER_TITLE => 1,
+    EXT_FIELDS      => 0,
+    EXT_TITLES      => $attr->{EXT_TITLES},
+    MULTISELECT     => 'IDS:id:DELETE_EVENTS_FORM',
+    TABLE           => {
+      # MULTISELECT_ACTIONS => $attr->{MULTISELECT_ACTIONS}, #TODO: need to review, it doesn't works correctly and broke UI
+      # DATA_TABLE          => 1,
+      width               => '100%',
+      caption             => $attr->{READABLE_NAME},
+      ID                  => uc $attr->{LIST_FUNC},
+      header              => \@status_bar_arr,
+      EXPORT              => 1,
+      SHOW_FULL_LIST      => 1,
+      MENU                =>
+        "$lang{ADD}:index=$index&show_add_form=1:add;"
+        . ($attr->{HAS_SEARCH} ? "$lang{SEARCH}:index=$index&search_form=1:search" : '')
       },
-      MAKE_ROWS       => 1,
-      SEARCH_FORMER   => 1,
-      MODULE          => 'Events',
-      %{ $attr // {} },
-      FILTER_COLS     => {
-        %{$filter_cols},
-        %{ $attr->{FILTER_COLS} // {} },
-      },
-      OUTPUT2RETURN   => 1,
-    }
-  );
+    MAKE_ROWS       => 1,
+    SEARCH_FORMER   => 1,
+    MODULE          => 'Events',
+    %{ $attr // {} },
+    FILTER_COLS     => {
+      %{$filter_cols},
+      %{ $attr->{FILTER_COLS} // {} },
+    },
+    OUTPUT2RETURN   => 1,
+  });
   
   if ($attr->{OUTPUT2RETURN}){
     return $table->show({ OUTPUT2RETURN => 1 });
   }
   
-  print $table->show();
+  print $table->show() if ($table);
   
   if ( $attr->{MANAGEMENT_FORM} ) {
     print $attr->{MANAGEMENT_FORM};
@@ -113,14 +127,12 @@ sub events_uni_page_logic {
     if ( $FORM{FROM_DATE} && $FORM{TO_DATE} ) {
       $FORM{CREATED} = "$FORM{FROM_DATE}/$FORM{TO_DATE}";
     }
-    form_search(
-      {
-        SEARCH_FORM       => $html->tpl_show(
-          _include('events_' . $name . '_search', 'Events'), { %FORM, %{$attr} }, { OUTPUT2RETURN => 1 }
-        ),
-        PLAIN_SEARCH_FORM => 1
-      }
-    );
+    form_search({
+      SEARCH_FORM       => $html->tpl_show(
+        _include('events_' . $name . '_search', 'Events'), { %FORM, %{$attr} }, { OUTPUT2RETURN => 1 }
+      ),
+      PLAIN_SEARCH_FORM => 1
+    });
   }
   elsif ( $FORM{chg} ) {
     my $Events_obj = $Events->$info_func($FORM{chg});

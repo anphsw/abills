@@ -9,7 +9,6 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Abills::Auth::Core;
 use Abills::Defs;
 use Bonus;
 use Finance;
@@ -504,12 +503,6 @@ sub bonus_user {
     require Internet;
     Internet->import();
     $Internet = Internet->new($db, $admin, \%conf);
-    $Internet->info($FORM{UID});
-  }
-  else {
-    require Dv;
-    Dv->import();
-    $Internet = Dv->new($db, $admin, \%conf);
     $Internet->info($FORM{UID});
   }
 
@@ -1130,13 +1123,6 @@ sub bonus_service_discount_mk {
     $Internet = Internet->new($db, $admin, \%conf);
     $Internet->info($attr->{USER_INFO}->{UID});
   }
-  else {
-    require Dv;
-    Dv->import();
-
-    $Internet = Dv->new($db, $admin, \%conf);
-    $Internet->info($attr->{USER_INFO}->{UID});
-  }
 
   my $periods = 0;
   my $registration_days = 0;
@@ -1531,12 +1517,6 @@ sub bonus_turbo_mk {
     $Internet = Internet->new($db, $admin, \%conf);
     $Internet->info($attr->{USER_INFO}->{UID});
   }
-  else {
-    require Dv;
-    Dv->import();
-    $Internet = Dv->new($db, $admin, \%conf);
-    $Internet->info($attr->{USER_INFO}->{UID});
-  }
 
   my $periods = 0;
   my $registration_days = 0;
@@ -1785,11 +1765,6 @@ sub bonus_tp_using_periodic {
     Internet->import();
     $Internet = Internet->new($db, $admin, \%conf);
   }
-  else {
-    require Dv;
-    Dv->import();
-    $Internet = Dv->new($db, $admin, \%conf);
-  }
 
   my %LIST_PARAMS = (
     LOGIN     => '_SHOW',
@@ -1956,12 +1931,14 @@ sub bonus_tp_using {
 
 
 #**********************************************************
-=head2 bonus_likes
+=head2 bonus_likes()
 
 =cut
 #**********************************************************
 sub bonus_likes {
 
+  require Abills::Auth::Core;
+  Abills::Auth::Core->import();
   my $Auth = Abills::Auth::Core->new({
     CONF      => \%conf,
     AUTH_TYPE => ucfirst('Facebook')

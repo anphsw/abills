@@ -6,10 +6,10 @@
   <input type='hidden' name='CUR_VERSION' value='%VERSION%'/>
   <input type='hidden' name='FEEDBACK' value='1'/>
 
-  <div class='form-group'>
+  <div class='form-group row'>
     <label class='control-label col-md-3' for='COMMENTS_ID'>_{YOUR_FEEDBACK}_</label>
     <div class='col-md-9'>
-      <textarea class='form-control col-md-9' rows='5' name='ERROR' id='COMMENTS_ID'>%COMMENTS%</textarea>
+      <textarea class='form-control' rows='5' name='ERROR' id='COMMENTS_ID'>%COMMENTS%</textarea>
     </div>
   </div>
 

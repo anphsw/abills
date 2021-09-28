@@ -19,6 +19,9 @@
 <link rel='stylesheet' href='/styles/default_adm/css/modules/maps/leaflet.draw.css'>
 <script src='/styles/default_adm/js/maps/Leaflet.draw.all.js'></script>
 
+<!--Leaflet.ant-path -->
+<script src="/styles/default_adm/js/maps/leaflet-ant-path.js" type="text/javascript"></script>
+
 <!--Google Maps-->
 <script src='/styles/default_adm/js/maps/Leaflet.GoogleMutant.js'></script>
 

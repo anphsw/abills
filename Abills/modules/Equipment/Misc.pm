@@ -38,10 +38,6 @@ sub equipment_get_telnet_tpl {
   my $template = $attr->{TEMPLATE};
   my $debug    = $attr->{DEBUG} || 0;
 
-  if($attr->{MAC} && $attr->{MAC} =~ /([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2})/) {
-    $attr->{MAC} = "$1$2.$3$4.$5$6";
-  }
-
   my @reg_tpl;
 
   my $base_dir = $main::base_dir || '/usr/abills/';

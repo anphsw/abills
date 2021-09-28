@@ -67,7 +67,7 @@
               <div class='row'>
                 <div class='col-md-4'>
                   <div class="custom-control custom-radio">
-                    <input class="custom-control-input" type="radio" id="STATUS" name="STATUS" %SHOWED%>
+                    <input class="custom-control-input" type="radio" id="STATUS" name="STATUS" value="1" %SHOWED%>
                     <label for="STATUS" class="custom-control-label">_{SHOW}_</label>
                   </div>
                 </div>
@@ -80,7 +80,7 @@
                 </div>
                 <div class='col-md-4'>
                   <div class="custom-control custom-radio">
-                    <input class="custom-control-input" type="radio" id="STATUS_OFF" name="STATUS" %HIDDEN%>
+                    <input class="custom-control-input" type="radio" id="STATUS_OFF" name="STATUS" value="0" %HIDDEN%>
                     <label for="STATUS_OFF" class="custom-control-label">_{HIDE}_</label>
                   </div>
                 </div>

@@ -14,3 +14,4 @@ $lang{NO_ARREARS} = '0 - do not take into account debt';
 $lang{X_ARREARS} = 'X - if the debt is more than X month';
 $lang{REPL_PERCENT} = 'Replenishment percentage';
 $lang{REQUESTS_REFERRAL} = 'Referral requests';
+$lang{SELECT_TARIFF} = 'Select tariff';

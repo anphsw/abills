@@ -16,7 +16,6 @@ our (
 BEGIN {
   use FindBin '$Bin';
   require $Bin . '/../libexec/config.pl';
-  do $Bin . '/../language/english.pl';
   unshift(@INC,
     $Bin . '/../',
     $Bin . '/../lib/',
@@ -39,19 +38,40 @@ use Internet;
 use Tariffs;
 use Hotspot;
 
+require Abills::Templates;
+require Abills::Misc;
+
+our $html = Abills::HTML->new(
+  {
+    IMG_PATH => 'img/',
+    NO_PRINT => 1,
+    CONF     => \%conf,
+    CHARSET  => $conf{default_charset},
+    METATAGS => templates('metatags'),
+    COLORS   => $conf{UI_COLORS},
+    STYLE    => 'default_adm',
+  }
+);
+$html->{show_header} = 1;
+
+do "../language/english.pl";
+if (-f "../language/$html->{language}.pl") {
+  do "../language/$html->{language}.pl";
+}
+
 our $db = Abills::SQL->connect( @conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
 our $admin    = Admins->new($db, \%conf);
 our $users    = Users->new($db, $admin, \%conf);
+our $user     = Users->new($db, $admin, \%conf);
 our $Internet = Internet->new($db, $admin, \%conf);
 our $Tariffs  = Tariffs->new($db, \%conf, $admin);
 our $Hotspot  = Hotspot->new($db, $admin, \%conf);
+Conf->new($db, $admin, \%conf);
 
 require Hotspot::HotspotBase;
 
 # print "Content-type:text/html\n\n";
-parse_query();
-get_cookies();
 hotspot_init();
 
 hotspot_radius_error() if ($FORM{error});

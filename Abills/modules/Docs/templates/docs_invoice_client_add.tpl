@@ -28,16 +28,16 @@
             </div>
 
             <div class='form-group row'>
-                <label class='col-sm-4 col-md-4'>_{PHONE}_</label>
+                <label class='col-sm-4 col-md-4' for='PHONE'>_{PHONE}_</label>
                 <div class='col-sm-8 col-md-8'>
-                    <input type='text' name='PHONE' value='%PHONE%' class='form-control'>
+                    <input type='text' name='PHONE' id='PHONE' value='%PHONE%' class='form-control'>
                 </div>
             </div>
 
             <div class='form-group row'>
-                <label class='col-sm-4 col-md-4'>_{CUSTOMER}_</label>
+                <label class='col-sm-4 col-md-4' for='CUSTOMER'>_{CUSTOMER}_</label>
                 <div class='col-sm-8 col-md-8'>
-                    <input type='text' name='CUSTOMER' value='%CUSTOMER%' class='form-control'>
+                    <input type='text' name='CUSTOMER' id='CUSTOMER' value='%CUSTOMER%' class='form-control'>
                 </div>
             </div>
             %ORDERS%

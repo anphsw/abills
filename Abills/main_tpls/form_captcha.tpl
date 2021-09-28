@@ -1,4 +1,4 @@
-<div class='form-group'>
+<div class='form-group row'>
     <input type='hidden' name='C' value='%MD5SUM%'>
 
     <div class='col-md-1'></div>

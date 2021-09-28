@@ -10,9 +10,9 @@
             </div>
 
             <div class='form-group row'>
-                <label for='ACTION' class='control-label col-md-4'>_{CHANGE}_ (*):</label>
+                <label for='ACTIONS' class='control-label col-md-4'>_{CHANGE}_ (*):</label>
                 <div class='col-md-8'>
-                    <input class='form-control' id='ACTION' placeholder='%ACTION%' name='ACTION' value='%ACTION%'>
+                    <input class='form-control' id='ACTIONS' placeholder='%ACTIONS%' name='ACTIONS' value='%ACTIONS%'>
                 </div>
             </div>
 

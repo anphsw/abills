@@ -1241,7 +1241,7 @@ sub load_conf {
   );
   
   foreach my $line (@{$self->{list}}) {
-    $self->{hotspot_conf}->{$line->{action}} = $line->{page};
+    $self->{HOTSPOT_CONF}->{$line->{action}} = $line->{page};
   }
   
   return 1;

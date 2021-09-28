@@ -270,75 +270,68 @@ sub _storage_translate_measure {
 
 =cut
 #***********************************************************
-sub storage_articles_types{
+sub storage_articles_types {
 
-  if ( $FORM{message} ) {
-    $html->message( 'info', $lang{INFO}, "$FORM{message}" );
+  if ($FORM{message}) {
+    $html->message('info', $lang{INFO}, "$FORM{message}");
   }
 
   $Storage->{ACTION} = 'add';
   $Storage->{ACTION_LNG} = $lang{ADD};
 
-  if ( $FORM{add} ) {
-    if ( $FORM{NAME} ) {
-      $Storage->storage_types_add( { %FORM } );
-      if ( !$Storage->{errno} ) {
-        #$html->message('info', $lang{INFO}, "$lang{ADDED}");
-        $html->tpl_show(
-          _include( 'storage_redirect', 'Storage' ),
-          {
-            SECTION => '',
-            MESSAGE => "$lang{ADDED}",
-          }
-        );
+  if ($FORM{add}) {
+    if ($FORM{NAME}) {
+      $Storage->storage_types_add({ %FORM });
+      if (!$Storage->{errno}) {
+        $html->tpl_show(_include('storage_redirect', 'Storage'), {
+          SECTION => '',
+          MESSAGE => "$lang{ADDED}",
+        });
       }
     }
     else {
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_TYPE_ARE_REQUIRED}" );
-      $html->tpl_show( _include( 'storage_articles_types', 'Storage' ), { %{$Storage}, %FORM } );
+      $html->message('info', $lang{INFO}, "$lang{FIELDS_FOR_TYPE_ARE_REQUIRED}");
+      $html->tpl_show(_include('storage_articles_types', 'Storage'), { %{$Storage}, %FORM });
     }
   }
-  elsif ( $FORM{del} && $FORM{COMMENTS} ) {
-    my $list_in_use = $Storage->storage_articles_list({ARTICLE_TYPE => $FORM{del}});
-    if($Storage->{TOTAL} > 0){
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
+    my $list_in_use = $Storage->storage_articles_list({ ARTICLE_TYPE => $FORM{del} });
+    if ($Storage->{TOTAL} > 0) {
       $html->message('warn', "$lang{ERROR}", "$lang{CANT_DELETE_ERROR2}");
     }
-    else{
-      $Storage->storage_types_del( { ID => $FORM{del} } );
+    else {
+      $Storage->storage_types_del({ ID => $FORM{del} });
 
-      if ( !$Storage->{errno} ) {
-        $html->message( 'info', $lang{INFO}, "$lang{DELETED}" );
+      if (!$Storage->{errno}) {
+        $html->message('info', $lang{INFO}, "$lang{DELETED}");
       }
     }
   }
-  elsif ( $FORM{change} ) {
-    if ( $FORM{NAME} ) {
-      $Storage->storage_types_change( { %FORM } );
-      if ( !$Storage->{errno} ) {
-        $html->tpl_show(
-          _include( 'storage_redirect', 'Storage' ),
-          {
-            SECTION => '',
-            MESSAGE => "$lang{CHANGED}",
-          }
-        );
+  elsif ($FORM{change}) {
+    if ($FORM{NAME}) {
+      $Storage->storage_types_change({ %FORM });
+      if (!$Storage->{errno}) {
+        $html->tpl_show(_include('storage_redirect', 'Storage'), {
+          SECTION => '',
+          MESSAGE => "$lang{CHANGED}",
+        });
       }
     }
     else {
       $Storage->{ACTION} = 'change';
       $Storage->{ACTION_LNG} = $lang{CHANGE};
-      $html->message( 'info', $lang{INFO}, "$lang{FIELDS_FOR_TYPE_ARE_REQUIRED}" );
+      $html->message('info', $lang{INFO}, "$lang{FIELDS_FOR_TYPE_ARE_REQUIRED}");
     }
   }
-  elsif ( $FORM{chg} ) {
+  elsif ($FORM{chg}) {
     $Storage->{ACTION} = 'change';
     $Storage->{ACTION_LNG} = $lang{CHANGE};
-    $Storage->storage_articles_types_info( { ID => $FORM{chg}, } );
+    $Storage->storage_articles_types_info({ ID => $FORM{chg}, });
   }
 
-  _error_show( $Storage );
+  _error_show($Storage);
 
-  $html->tpl_show( _include( 'storage_articles_types', 'Storage' ), { %{$Storage}, %FORM } );
+  $html->tpl_show(_include('storage_articles_types', 'Storage'), { %{$Storage}, %FORM });
 
   $LIST_PARAMS{DOMAIN_ID} = $admin->{DOMAIN_ID} || undef;
 
@@ -347,7 +340,7 @@ sub storage_articles_types{
     FUNCTION        => 'storage_types_list',
     BASE_FIELDS     => 3,
     DEFAULT_FIELDS  => 'ID,NAME,COMMENTS',
-    FUNCTION_FIELDS => 'change' . ((defined( $permissions{4}->{3} )) ? ',del' : ''),
+    FUNCTION_FIELDS => 'change' . ((defined($permissions{4}->{3})) ? ',del' : ''),
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => {
       'id'       => "ID",
@@ -748,11 +741,11 @@ sub _property_list_html {
 
   my $properties_html = '';
   foreach my $property (@$properties_list){
-    $properties_html .= "<div class='form-group'>";
-    $properties_html .= "<label class='col-md-3 control-label'>";
+    $properties_html .= "<div class='form-group row'>";
+    $properties_html .= "<label class='col-md-4 col-form-label text-md-right'>";
     $properties_html .= $property->{name};
-    $properties_html .= "</label>";
-    $properties_html .= "<div class='col-md-9'>";
+    $properties_html .= ":</label>";
+    $properties_html .= "<div class='col-md-8'>";
     $properties_html .= "<input type='text' name='PROPERTY_$property->{id}' class='form-control' value='" . ($PROPERTIES_VALUES{$property->{id}} || '') . "'>";
     $properties_html .= "</div>";
     $properties_html .= "</div>";

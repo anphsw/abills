@@ -161,6 +161,7 @@ REPLACE INTO `cablecat_splitter_types` (`id`, `name`, `fibers_in`, `fibers_out`)
 
 CREATE TABLE IF NOT EXISTS `cablecat_splitters` (
   `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(32) NOT NULL DEFAULT '',
   `type_id` SMALLINT(6) UNSIGNED REFERENCES `cablecat_splitter_types` (`id`)
     ON DELETE RESTRICT,
   `well_id` INT(11) UNSIGNED REFERENCES `cablecat_wells` (`id`),
@@ -168,8 +169,8 @@ CREATE TABLE IF NOT EXISTS `cablecat_splitters` (
     ON DELETE RESTRICT,
   `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`)
     ON DELETE RESTRICT,
-  `commutation_x` DOUBLE(5, 2) NULL,
-  `commutation_y` DOUBLE(5, 2) NULL,
+  `commutation_x` DOUBLE(6, 2) NULL,
+  `commutation_y` DOUBLE(6, 2) NULL,
   `commutation_rotation` SMALLINT NOT NULL DEFAULT 0,
   `color_scheme_id` INT(11) UNSIGNED NOT NULL DEFAULT '1',
   `attenuation` VARCHAR(64) NOT NULL DEFAULT ''
@@ -213,7 +214,9 @@ CREATE TABLE IF NOT EXISTS `cablecat_links` (
 CREATE TABLE IF NOT EXISTS `cablecat_commutations` (
   `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `connecter_id` INT(11) UNSIGNED,
-  `created` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `created` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `height` DOUBLE(6, 2) NULL,
+  `name` VARCHAR(64) NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS `cablecat_commutation_cables` (
@@ -242,7 +245,7 @@ CREATE TABLE IF NOT EXISTS `cablecat_cross_types` (
 
 CREATE TABLE IF NOT EXISTS `cablecat_crosses` (
   `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(32) NOT NULL,
+  `name` VARCHAR(32) NOT NULL DEFAULT '',
   `well_id` INT(11) UNSIGNED REFERENCES `cablecat_wells` (`id`) ON DELETE RESTRICT,
   `color_scheme_id` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   `type_id` SMALLINT(6) UNSIGNED DEFAULT 1
@@ -254,13 +257,28 @@ CREATE TABLE IF NOT EXISTS `cablecat_commutation_equipment` (
   `nas_id` INT(11) UNSIGNED UNIQUE NOT NULL,
   `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`)
     ON DELETE CASCADE,
-  `commutation_x` DOUBLE(5, 2) NULL,
-  `commutation_y` DOUBLE(5, 2) NULL,
+  `commutation_x` DOUBLE(6, 2) NULL,
+  `commutation_y` DOUBLE(6, 2) NULL,
   `commutation_rotation` SMALLINT NOT NULL DEFAULT 0,
   INDEX `_nas_commutation` (`commutation_id`, `nas_id`)
 
 )
   COMMENT = 'Stores equipment existance on commutation';
+
+CREATE TABLE IF NOT EXISTS `cablecat_commutation_onu` (
+  `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `uid` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `service_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`) ON DELETE CASCADE,
+  `commutation_x` double(6,2) DEFAULT NULL,
+  `commutation_y` double(6,2) DEFAULT NULL,
+  `commutation_rotation` smallint(6) DEFAULT 0,
+  INDEX `_commutation_ik` (`commutation_id`),
+  INDEX `_uid_ik` (`uid`),
+  INDEX `_service_ik` (`service_id`)
+)
+
+  COMMENT = 'Stores onu existance on commutation';
 
 CREATE TABLE IF NOT EXISTS `cablecat_commutation_crosses` (
   `commutation_id` INT(11) UNSIGNED REFERENCES `cablecat_commutations` (`id`)
@@ -269,8 +287,8 @@ CREATE TABLE IF NOT EXISTS `cablecat_commutation_crosses` (
     ON DELETE CASCADE,
   `port_start` SMALLINT(6) UNSIGNED NOT NULL,
   `port_finish` SMALLINT(6) UNSIGNED NOT NULL,
-  `commutation_x` DOUBLE(5, 2) NULL,
-  `commutation_y` DOUBLE(5, 2) NULL,
+  `commutation_x` DOUBLE(6, 2) NULL,
+  `commutation_y` DOUBLE(6, 2) NULL,
   `commutation_rotation` SMALLINT NOT NULL DEFAULT 0,
   INDEX `_cross_commutation` (`commutation_id`, `cross_id`)
 )
@@ -326,3 +344,22 @@ CREATE TABLE IF NOT EXISTS `cablecat_scheme_links` (
 )
   CHARSET = 'utf8'
   COMMENT = 'Scheme links for big commutation';
+
+CREATE TABLE IF NOT EXISTS `cablecat_import_presets` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `preset_name` varchar(64) NOT NULL DEFAULT '',
+  `default_object_name` varchar(64) NOT NULL DEFAULT '',
+  `object_name` varchar(64) NOT NULL DEFAULT '',
+  `type_id` varchar(64) NOT NULL DEFAULT '',
+  `default_type_id` SMALLINT(6) NOT NULL,
+  `object` varchar(64) NOT NULL DEFAULT '',
+  `object_add` TINYINT(1) NOT NULL DEFAULT 0,
+  `coordx` varchar(64) NOT NULL DEFAULT '',
+  `coordy` varchar(64) NOT NULL DEFAULT '',
+  `load_url` varchar(128) NOT NULL DEFAULT '',
+  `json_path` varchar(64) NOT NULL DEFAULT '',
+  `filters` varchar(128) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+)
+  CHARSET = 'utf8'
+  COMMENT = 'Presets for wells import';

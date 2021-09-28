@@ -62,7 +62,7 @@
 
         <div class='form-group row' %CASHBOX_HIDDEN%>
           <label  class='col-md-3 col-form-label text-md-right' for='EXT_ID'>_{CASHBOX}_:</label>
-          <div class='col-md-9' style='padding-right: 62px;'>
+          <div class='col-md-9'>
             %CASHBOX_SELECT%
           </div>
         </div>

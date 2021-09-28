@@ -305,6 +305,10 @@ sub menu {
 
     next if ((!defined($attr->{ALL_PERMISSIONS})) && (!$permissions->{ $parent - 1 }) && $parent == 0);
     my $ext_args = ($self->link_former("$EX_ARGS")) ? "EX_ARGS=\"" . $self->link_former($EX_ARGS) . "\"" : q{};
+    if ($val =~ m/<.*>(.*)<\/.*>/) {
+      $val = $1;
+    }
+
     $menu_text .= "<MENU NAME=\"$fl->{$ID}\" ID=\"$ID\" $ext_args DESCRIBE=\"$val\" TYPE=\"MAIN\"/>\n ";
     if (defined($new_hash{$ID})) {
       $level++;

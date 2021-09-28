@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `extreceipts_kkt` (
   `methods`      VARCHAR(30)         NOT NULL DEFAULT '',
   `groups`       VARCHAR(30)         NOT NULL DEFAULT '',
   `admins`       VARCHAR(30)         NOT NULL DEFAULT '',
+  `aid`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`kkt_id`)
 )
   DEFAULT CHARSET = utf8
@@ -26,13 +27,14 @@ CREATE TABLE IF NOT EXISTS `extreceipts_kkt` (
 
 CREATE TABLE IF NOT EXISTS `extreceipts_api` (
   `api_id`       INT(11)    UNSIGNED NOT NULL AUTO_INCREMENT,
+  `conf_name`    VARCHAR(50)         NOT NULL DEFAULT '',
   `api_name`     VARCHAR(20)         NOT NULL DEFAULT '',
   `login`        VARCHAR(60)         NOT NULL DEFAULT '',
   `password`     VARCHAR(120)        NOT NULL DEFAULT '',
   `url`          VARCHAR(200)        NOT NULL DEFAULT '',
   `goods_name`   VARCHAR(200)        NOT NULL DEFAULT '',
   `author`       VARCHAR(30)         NOT NULL DEFAULT '',
-  `aid`          SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+  `aid`          SMALLINT(6)         UNSIGNED NOT NULL DEFAULT '0',
   `callback`     VARCHAR(200)        NOT NULL DEFAULT '',
   `email`        VARCHAR(30)         NOT NULL DEFAULT '',
   `inn`          VARCHAR(30)         NOT NULL DEFAULT '',

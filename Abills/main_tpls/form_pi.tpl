@@ -1,4 +1,4 @@
-<form class='form-horizontal' action='$SELF_URL' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
+<form action='$SELF_URL' name='users_pi' METHOD='POST' ENCTYPE='multipart/form-data'>
 
   <input type='hidden' name='index' value='$index'>
   <input type=hidden name=UID value='%UID%'>
@@ -7,7 +7,7 @@
   <div class='%FORM_ATTR%'>
     %MAIN_USER_TPL%
   </div>
-  <div id='form_2' class='card for_sort %FORM_ATTR%'>
+  <div id='form_2' class='card for_sort card-primary card-outline %FORM_ATTR%'>
     <div class='card-header with-border'>
       <h3 class='card-title'>_{INFO}_</h3>
       <div class='card-tools pull-right'>
@@ -64,8 +64,9 @@
       </div>
 
       <div class='form-group row' data-visible='%OLD_CONTACTS_VISIBLE%' style='display:none'>
-        <label class='control-label col-md-2 col-xs-4' for='PHONE'>_{PHONE}_</label>
-        <div class='input-group col-md-10'>
+        <label class='control-label col-md-2 col-xs-4' for='PHONE'>_{PHONE}_:</label>
+        <div class='col-md-10 col-xs-8'>
+          <div class='input-group'>
           <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%'
                  class='form-control' type='text' %OLD_PHONE_VISIBLE%
                  data-inputmask='{"mask" : "(999) 999-9999", "removeMaskOnSubmit" : true}' />
@@ -75,12 +76,13 @@
               <span class='input-group-addon clear_button'><span class='fa fa-phone'></span></span>
             </div>
           </div>
+          </div>
         </div>
       </div>
 
       <div class='form-group row' data-visible='%OLD_CONTACTS_VISIBLE%' style='display:none'>
-        <label class='control-label col-md-2 col-xs-4' for='EMAIL'>E-mail (;)</label>
-        <div class='input-group col-md-10'>
+        <label class='control-label col-md-2 col-xs-4' for='EMAIL'>E-mail (;):</label>
+        <div class='input-group col-md-10 col-xs-8'>
           <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%'
               class='form-control' type='text' %OLD_PHONE_VISIBLE%>
           <span class='input-group-append'>
@@ -91,21 +93,10 @@
           </span>
         </div>
       </div>
-      <!-- Contact panel -->
-      %CONTACTS%
-      %ADDRESS_TPL%
-
-      <div class='form-group row'>
-        <label class='control-label col-sm-3 col-md-2' for='COMMENTS'>_{COMMENTS}_</label>
-        <div class='col-sm-9 col-md-10'>
-          <div class='input-group'>
-            <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'>%COMMENTS%</textarea>
-          </div>
-        </div>
-      </div>
-
     </div>
 
+    %CONTACTS%
+    %ADDRESS_TPL%
 
 
     <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
@@ -135,6 +126,7 @@
             </div>
           </div>
         </div>
+
         <div class='form-group row'>
           <label class='col-sm-3 col-md-2 control-label' for='PASPORT_GRANT'>_{GRANT}_:</label>
           <div class='col-sm-9 col-md-10'>
@@ -172,6 +164,7 @@
         </div>
       </div>
     </div>
+
     <!-- Contract fields -->
     <div class='card card-outline card-big-form collapsed-card mb-0 border-top'>
       <div class='card-header with-border'>
@@ -238,6 +231,12 @@
       </div>
     </div>
 
+    <div class='form-group row mt-3 mr-3 ml-3'>
+      <div class='input-group'>
+        <textarea class='form-control' id='COMMENTS' placeholder='_{COMMENTS}_' name='COMMENTS' rows='3'>%COMMENTS%</textarea>
+      </div>
+    </div>
+
     <div class='card-footer'>
       <input type=submit class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
@@ -249,7 +248,6 @@
   jQuery('#show_fio').click(function() {
     jQuery('#simple_fio').addClass('d-none');
     jQuery('#full_fio').css('display', 'block');
-
   });
 
   jQuery('#hide_fio').click(function() {

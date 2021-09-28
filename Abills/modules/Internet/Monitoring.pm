@@ -92,7 +92,7 @@ sub internet_online {
     $html->message('info', $lang{INFO}, "$message $ret");
   }
   elsif ($FORM{diagnostic}) {
-    my $res = internet_diagnostic($FORM{diagnostic});
+    my $res = internet_diagnostic($FORM{diagnostic}, \%FORM);
     if ($res == 0) {
       return 0;
     }
@@ -275,24 +275,26 @@ sub internet_online {
   $html->short_info_panels_row(
     [
       {
-        ID          => mk_unique_value(10),
-        NUMBER      => $Sessions->{ONLINE} || ' 0',
-        NUMBER_SIZE => '40px',
-        ICON        => 'plane',
-        TEXT        => 'Online',
-        URL         => "index=$index",
-        COLOR       => 'green',
-        SIZE        => 3
+        ID            => mk_unique_value(10),
+        NUMBER        => $Sessions->{ONLINE} || ' 0',
+        NUMBER_SIZE   => '40px',
+        ICON          => 'plane',
+        TEXT          => 'Online',
+        COLOR         => 'green',
+        SIZE          => 12,
+        LIKE_BUTTON   => 1,
+        BUTTON_PARAMS => "index=$index"
       },
       {
-        ID          => mk_unique_value(10),
-        NUMBER      => $Sessions->{ZAPED} || ' 0',
-        NUMBER_SIZE => '40px',
-        ICON        => 'remove',
-        URL         => "index=$index&ZAPED=1",
-        TEXT        => $lang{ZAPED},
-        COLOR       => 'orange',
-        SIZE        => 3
+        ID            => mk_unique_value(10),
+        NUMBER        => $Sessions->{ZAPED} || ' 0',
+        NUMBER_SIZE   => '40px',
+        ICON          => 'remove',
+        TEXT          => $lang{ZAPED},
+        COLOR         => 'orange',
+        SIZE          => 12,
+        LIKE_BUTTON   => 1,
+        BUTTON_PARAMS => "index=$index&ZAPED=1"
       }
     ]
   );
@@ -418,7 +420,29 @@ sub internet_online {
 
   my $output_filters = internet_online_search();
 
+  my $header = '';
+
+  if (!$FORM{json} && !$FORM{ZAPED}) {
+    $header =
+      ($permissions{5}{1} ? $html->button('Zap All', "index=$index&zapall=1",
+        { class   => 'btn btn-secondary btn-danger', ICON => 'fa fa-trash',
+          MESSAGE => $lang{MSG_WANT_ZAP} }) : '')
+        . $html->button("$lang{GRAPH} $lang{NAS}", "#",
+        { class           => 'btn btn-secondary', ICON => 'fa  fa-server',
+          NEW_WINDOW      => internet_get_chart_query('NAS_ID=all', '1', $chart_new_window_width, $chart_height),
+          NEW_WINDOW_SIZE => "$new_window_size" })
+        . $html->button("$lang{GRAPH} $lang{TARIF_PLANS}", "#",
+        { class           => 'btn btn-secondary', ICON => 'fa fa-opera',
+          NEW_WINDOW      => internet_get_chart_query('TP_ID=all', '1', $chart_new_window_width, $chart_height),
+          NEW_WINDOW_SIZE => "$new_window_size" })
+        . $html->button("$lang{GRAPH} $lang{GROUPS}", "#",
+        { class           => 'btn btn-secondary', ICON => 'fa fa-group',
+          NEW_WINDOW      => internet_get_chart_query('GID=all', '1', $chart_new_window_width, $chart_height),
+          NEW_WINDOW_SIZE => "$new_window_size" });
+  }
+
   my Abills::HTML $table;
+
   ($table, $list) = result_former({
     INPUT_DATA      => $Sessions,
     FUNCTION        => 'online',
@@ -435,6 +459,7 @@ sub internet_online {
     TABLE           => {
       width      => '100%',
       caption    => $cure,
+      header     => $header,
       SELECT_ALL => ($FORM{ZAPED}) ? "users_list:IDS:$lang{SELECT_ALL}" : undef,
       qs         => $pages_qs,
       ID         => 'INTERNET_ONLINE',
@@ -647,26 +672,6 @@ sub internet_online {
   }
   else {
     $output = $output_filters . $output;
-
-    #TODO MOreelegent solution
-    if (!$FORM{json}) {
-      $output .=
-        ($permissions{5}{1} ? $html->button('Zap All', "index=$index&zapall=1",
-          { class   => 'btn btn-secondary btn-danger', ICON => 'fa fa-trash',
-            MESSAGE => "Do you realy want ZAP all sessions ?" }) : '')
-          . $html->button("$lang{GRAPH} $lang{NAS}", "#",
-          { class           => 'btn btn-secondary', ICON => 'fa  fa-server',
-            NEW_WINDOW      => internet_get_chart_query('NAS_ID=all', '1', $chart_new_window_width, $chart_height),
-            NEW_WINDOW_SIZE => "$new_window_size" })
-          . $html->button("$lang{GRAPH} $lang{TARIF_PLANS}", "#",
-          { class           => 'btn btn-secondary', ICON => 'fa fa-opera',
-            NEW_WINDOW      => internet_get_chart_query('TP_ID=all', '1', $chart_new_window_width, $chart_height),
-            NEW_WINDOW_SIZE => "$new_window_size" })
-          . $html->button("$lang{GRAPH} $lang{GROUPS}", "#",
-          { class           => 'btn btn-secondary', ICON => 'fa fa-group',
-            NEW_WINDOW      => internet_get_chart_query('GID=all', '1', $chart_new_window_width, $chart_height),
-            NEW_WINDOW_SIZE => "$new_window_size" });
-    }
   }
 
   if (in_array('Maps2', \@MODULES) && !$FORM{ZAPED}) {
@@ -742,24 +747,25 @@ sub internet_online_search {
       SEL_HASH   => \%FILTER_FIELDS,
       NO_ID      => 1,
       ID         => 'FILTER_FIELD',
-      SEL_OPTIONS=> { '' => '--' }
-      #SEL_WIDTH => '250px'
+      SEL_OPTIONS=> { '' => '--' },
+      SEL_WIDTH => '300px'
     }
   );
 
   return $html->tpl_show(_include('internet_report_form', 'Internet'), {
     FIELDS_SEL => $FIELDS_SEL,
     %FORM
-  }, {
+  },{
     OUTPUT2RETURN => 1
   });
 }
 
 #**********************************************************
-=head2 internet_diagnostic($diagnostic_info) - Global search submodule
+=head2 internet_diagnostic($diagnostic_info) - run internet diagnostics
 
   Arguments:
     $diagnostic_info
+    $extra_params - extra cmd params
 
   Returs:
      TRUE/FALSE
@@ -767,23 +773,22 @@ sub internet_online_search {
 =cut
 #**********************************************************
 sub internet_diagnostic {
-  my ($diagnostic) = @_;
+  my ($diagnostic, $extra_params) = @_;
 
   my ($diag_num, $diag_params) = split(/:/, $diagnostic, 2);
-  my ($ip, $uid, $nas_id, undef, $acct_session_id, $extra_param) = split(/ /, $diag_params);
+  my ($ip, $uid, $nas_id, undef, $acct_session_id, $extra_url_param) = split(/ /, $diag_params);
 
   my ($name, $cmd, $package);
   my @diagnostic_rules = split(/;/, $conf{INTERNET_EXTERNAL_DIAGNOSTIC});
   for (my $i = 0; $i <= $#diagnostic_rules; $i++) {
     my @rule = split(/:/, $diagnostic_rules[$i]);
-    if ($rule[1] eq 'package') {
-      ($name, undef, $package) = @rule;
-    }
-    else {
-      ($name, $cmd) = @rule;
-    }
+
+    ($name, $cmd) = @rule;
 
     if ($i == $diag_num) {
+      if ($rule[1] eq 'package') {
+        ($name, undef, $package) = @rule;
+      }
       last;
     }
   }
@@ -796,13 +801,24 @@ sub internet_diagnostic {
     FRAMED_IP_ADDRESS => $ip
   });
 
+  foreach my $key (keys %$extra_params) {
+    if ($extra_params->{$key} !~ /^[A-Za-z_0-9]*$/) {
+      delete $extra_params->{$key};
+    }
+  }
+
+  my $cmd_params = {
+    %$extra_params,
+    %$ACCT_INFO
+  };
+
   if ($package) {
     my $require_module = "Internet::$package";
     eval {require "Internet/$package.pm";};
     if (!$@) {
       $require_module->import();
-      $require_module->new({ conf => \%conf, html => $html });
-      return $require_module->action($diagnostic, $extra_param);
+      my $required_module_object = $require_module->new({ db => $db, admin => $admin, conf => \%conf, html => $html });
+      return $required_module_object->action($diagnostic, $cmd_params, $extra_url_param);
     }
     else {
       print "Error loading\n";
@@ -811,7 +827,7 @@ sub internet_diagnostic {
   }
   else {
     my $res = cmd($cmd, {
-      PARAMS  => $ACCT_INFO,
+      PARAMS  => $cmd_params,
       timeout => 10,
       SET_ENV => 1
     });
@@ -822,7 +838,11 @@ sub internet_diagnostic {
     }
 
     $res =~ s/\r\n/<br>/g;
-    print $html->message($status || 'info', $lang{DIAGNOSTIC} . ' ' . ($name || q{}), "<pre>$res</pre>");
+    print $html->message(
+      $status || 'info',
+      $lang{DIAGNOSTIC} . ' ' . ($name || q{}),
+      $html->element('pre', $res, { class => 'border rounded bg-light' })
+    );
   }
 
   return 1;
@@ -854,7 +874,7 @@ sub internet_online_builds {
   my $online_users = $Dom->users_online_by_builds();
 
   my %online_users_list = ();
-  map $_->{id} ? push(@{$online_users_list{$_->{id}}}, $_) : (), @{$online_users};
+  map $_->{id} && $#{$online_users_list{$_->{id}}} < 10 ? push(@{$online_users_list{$_->{id}}}, $_) : (), @{$online_users};
 
   my $districts_list = $Address->district_list({
     COLS_NAME => 1,
@@ -976,7 +996,7 @@ sub _internet_get_build_tooltip {
 
   return '' if $tooltip_info eq '';
 
-  return "data-tooltip='$tooltip_info' data-tooltip-position='bottom'";
+  return "data-tooltip='$tooltip_info' data-tooltip-position='bottom' id='BUILD_BTN_$build_id' data-container='#BUILD_BTN_$build_id'";
 }
 
 #**********************************************************

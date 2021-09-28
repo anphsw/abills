@@ -79,7 +79,7 @@ $lang{ACTIVATION_DATA} = "Дата активації";
 $lang{SET_FILTER_ID_IN_TARIFF} = "Укажіть Filter id в тарифе";
 $lang{WATCH_NOW} = "Дивитись зараз";
 $lang{ACTIVATION_CODE} = "Код активаціі";
-$lang{ADD_DEVICE_BY_UNIQ} = "Добавити пристрій по UNIQ";
+$lang{ADD_DEVICE_BY_UNIQ} = "Додати пристрій по UNIQ";
 
 $lang{PROCESSING_ERROR} = "Помилка при обробці";
 $lang{ACCOUNT_NOT_ACTIVATED} = "Аккаунт не активований";

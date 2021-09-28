@@ -1,30 +1,13 @@
-<!-- %RESULT%
-<div class='card card-primary card-outline box-form'>
-  <div class='card-header with-border'><h4 class='card-title'>Декомпозиция</h4></div>
-  <div class='card-body'>
-        <form name='DECOMPOSTION' id='form_DECOMPOSTION' method='post' class='form form-horizontal'>
-        <input type='hidden' name='index' value='$index' />
-        <input type='hidden' name='%SUBMIT_BTN_ACTION%' value='1' />
-
-        %CHECKBOXES%
-    </form>
-
-  </div>
-  <div class='card-footer text-center'>
-      <input type='submit' form='form_DECOMPOSTION' class='btn btn-primary' name='submit' value='Результат'>
-  </div>
-</div> -->
-
 <style type="text/css">
   .material-switch > input[type="checkbox"] {
-    display: none;   
+    display: none;
 }
 
 .material-switch > label {
     cursor: pointer;
     height: 0px;
-    position: relative; 
-    width: 40px;  
+    position: relative;
+    width: 40px;
 }
 
 .material-switch > label::before {
@@ -63,26 +46,16 @@
 }
 </style>
 
-
-<div class="container">
-    <div class="row">
-        <div class="col-xs-12 col-sm-6 col-md-4 col-sm-offset-3 col-md-offset-4">
-        <form name='DECOMPOSTION' id='form_DECOMPOSTION' method='post' class='form form-horizontal'>    
+<div class='card card-primary card-outline card-form'>
+    <div class='card-header with-border'><h4 class='card-title'>_{IT_DECOMPOSITION}_</h4></div>
+    <form name='DECOMPOSITION' id='form_DECOMPOSITION' method='post' class='form form-horizontal'>
         <input type='hidden' name='index' value='$index' />
-        <input type='hidden' name='submit' value='1' /> 
-            <div class="panel panel-default">
-                <!-- Default panel contents -->
-                <div class="panel-heading">_{IT_DECOMPOSITION}_</div>
-            
-                <!-- List group -->
-                <ul class="list-group"> 
-                    %CHECKBOXES%        
-                </ul>
-
-            </div>    
-                <button type="submit" form='form_DECOMPOSTION' class="btn btn-primary btn-md btn-block" name='submit'>_{RESULT}_</button>   
-            </form>            
+        <input type='hidden' name='submit' value='1' />
+        <div class='list-group-flush'>
+            %CHECKBOXES%
         </div>
+            <button type="submit" form='form_DECOMPOSITION' class="btn btn-primary btn-md btn-block" name='submit'>_{RESULT}_</button>
+    </form>
     </div>
 </div>
 

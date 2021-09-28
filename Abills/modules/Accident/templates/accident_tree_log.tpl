@@ -7,14 +7,14 @@
                 _{ACCIDENT_LOG}_
             </h4>
         </div>
-        <div class="card-body">
+        <div class='card-body'>
             <div class='row'>
                 <div class='col-sm-12 col-md-12'>
                     %GEOLOCATION_TREE%
                 </div>
             </div>
             <div class='col-md-12 col-sm-12'>
-                <input type="submit" class="btn btn-primary col-md-12 col-sm-12" name="SAVE" value="%SAVE%">
+                <input type='submit' class='btn btn-primary col-md-12 col-sm-12' name='SAVE' value='%SAVE%'>
             </div>
         </div>
     </div>

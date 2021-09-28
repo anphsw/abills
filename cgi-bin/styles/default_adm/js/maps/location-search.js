@@ -20,14 +20,17 @@ function findLocation(district, street, street_alternative, number, location_id)
   sendFetch(url, function () {
     Spinner.off(spanElementId, NOT_FOUND, 'btn-danger');
   }, function (data) {
-    resultProcessing(data, spanElementId, location_id, number);
+    let result = resultProcessing(data, spanElementId, location_id, number);
+    if (result === -1 && street_alternative) {
+      findLocation(district, street_alternative, undefined, number, location_id);
+    }
   });
 }
 
 function resultProcessing(data, spanElementId, location_id, number) {
   if (data.length === 0) {
     Spinner.off(spanElementId, NOT_FOUND, 'btn-danger');
-    return 0;
+    return -1;
   }
 
   let buildings = [];
@@ -40,7 +43,7 @@ function resultProcessing(data, spanElementId, location_id, number) {
 
   if (buildings.length === 0) {
     Spinner.off(spanElementId, NOT_FOUND, 'btn-danger');
-    return;
+    return -1;
   }
 
   if (buildings.length !== 1) {
@@ -58,7 +61,7 @@ function resultProcessing(data, spanElementId, location_id, number) {
 
     if (buildings.length === 0) {
       Spinner.off(spanElementId, NOT_FOUND, 'btn-danger');
-      return;
+      return -1;
     }
 
     if (buildings.length !== 1) {
@@ -84,9 +87,11 @@ let Spinner = {
   },
   off: function (spanElementId, status, color) {
     const spanElement = jQuery('#' + spanElementId);
+    let contraryClass = color === 'btn-success' ? 'btn-danger' : 'btn-success';
 
     spanElement.html(status);
-    spanElement.removeClass('btn-secondary');
+    spanElement.removeClass('btn-default');
+    spanElement.removeClass(contraryClass);
     spanElement.addClass(color);
   },
 };
@@ -105,7 +110,6 @@ function sendFetch(url, err_callback, success_callback) {
       } catch (e) {
         if (err_callback)
           err_callback();
-
 
         alert("Error: " + e);
       }

@@ -649,8 +649,9 @@ sub button {
 #**********************************************************
 sub message {
   my $self = shift;
-  my ($type, $caption, $message) = @_;
-  my $output = "$type: [CAPTION] $message\n";
+  my ($type, $caption, $message, $attr) = @_;
+  my $id = $attr->{ID} || q{};
+  my $output = "$type: $id $caption $message\n";
 
   if (defined($self->{NO_PRINT})) {
     $self->{OUTPUT} .= $output;

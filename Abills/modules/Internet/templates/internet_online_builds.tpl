@@ -1,3 +1,10 @@
+<style>
+  .popover {
+    max-height: 256px;
+    overflow-y: scroll;
+  }
+</style>
+
 <div class='d-flex justify-content-center form-inline form m-1'>
   <div class='checkbox m-1'>
     <label>

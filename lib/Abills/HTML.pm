@@ -963,20 +963,23 @@ sub form_select {
         $self->{SELECT} .= "<optgroup label='== $k ==' title='$k'>\n";
 
         foreach my $val (@{$attr->{SEL_HASH}->{$k}}) {
-          $self->{SELECT} .= "<option value='$val'";
-          $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$val];' " if ($attr->{STYLE});
+          my $option_value = ref $val eq 'ARRAY' && $val->[0] ? $val->[0] : $val;
+          my $value = ref $val eq 'ARRAY' && $val->[1] ? $val->[1] : $val;
+
+          $self->{SELECT} .= "<option value='$option_value'";
+          $self->{SELECT} .= " style='COLOR:$attr->{STYLE}->[$option_value];' " if ($attr->{STYLE});
           if (defined($attr->{SELECTED})) {
-            if ($val eq $attr->{SELECTED}) {
+            if ($option_value eq $attr->{SELECTED}) {
               $self->{SELECT} .= ' selected'
             }
-            elsif ($val ~~ @multiselect) {
+            elsif ($option_value ~~ @multiselect) {
               $self->{SELECT} .= ' selected';
             }
           }
 
           $self->{SELECT} .= '>';
 
-          $self->{SELECT} .= "$val\n";
+          $self->{SELECT} .= "$value";
         }
         $self->{SELECT} .= "</optgroup>";
       }
@@ -985,9 +988,7 @@ sub form_select {
 
         my @sorted_list = ();
         if ($attr->{SORT_VALUE}) {
-          @sorted_list = sort {
-            $attr->{SEL_HASH}->{$k}->{$a} cmp $attr->{SEL_HASH}->{$k}->{$b}
-          } keys %{$attr->{SEL_HASH}->{$k}};
+          @sorted_list = sort {$attr->{SEL_HASH}->{$k}->{$a} cmp $attr->{SEL_HASH}->{$k}->{$b}} keys %{$attr->{SEL_HASH}->{$k}};
         }
         else {
           @sorted_list = sort {length($a || 0) <=> length($b || 0) || $a cmp $b} keys %{$attr->{SEL_HASH}->{$k}};
@@ -1050,7 +1051,7 @@ sub form_select {
 
         $self->{SELECT} .= '>';
         $self->{SELECT} .= "$k " if (!$attr->{NO_ID});
-        $self->{SELECT} .= $value . "\n";
+        $self->{SELECT} .= $value;
       }
     }
   }
@@ -1091,9 +1092,10 @@ sub form_select {
       <div class='bd-highlight'>
         <div class='input-group-append h-100'>
           <div class='input-group-text p-0 rounded-left-0'>
-            $input $main_menu $ext_button
+            $input $main_menu
           </div>
-        </div>
+          " . _form_select_ext_buttons($ext_button) . "
+      </div>
       </div>
     </div>";
   }
@@ -1104,18 +1106,53 @@ sub form_select {
          <div class='input-group-append select2-append'>
             $self->{SELECT}
           </div>
-      </div>
+      </div>";
+
+    $self->{SELECT} .= _form_select_ext_buttons($ext_button) . "</div>";
+  }
+
+  return  $self->{SELECT};
+}
+
+#**********************************************************
+=head2 _form_select_ext_buttons($ext_button) - Form ext buttons for select
+
+  Arguments:
+    $ext_button
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _form_select_ext_buttons {
+  my $ext_button = shift;
+
+  return '' if !$ext_button;
+
+  if (ref $ext_button ne 'ARRAY') {
+    return "
       <div class='bd-highlight'>
         <div class='input-group-append h-100'>
           <div class='input-group-text p-0 rounded-left-0'>
             $ext_button
           </div>
         </div>
-      </div>
-    </div>";
+      </div>";
   }
 
-  return  $self->{SELECT};
+  my $ext_buttons = '';
+  foreach my $button (@{$ext_button}) {
+    $ext_buttons .= "
+      <div class='bd-highlight'>
+        <div class='input-group-append h-100'>
+          <div class='input-group-text p-0 rounded-left-0'>
+            $button
+          </div>
+        </div>
+      </div>";
+  }
+
+  return $ext_buttons;
 }
 
 #**********************************************************
@@ -1384,23 +1421,26 @@ sub menu {
 
     my $name = '';
     my $menu_circle_icon = '';
-    if (($parent != 0 && (defined($level) && $level >= 1)) && !$main_ids{ $ID }) {
-      $menu_circle_icon = "<i class='nav-icon fa fa-circle-o'></i>";
+    if (($parent != 0 && defined($level)) && !$main_ids{ $ID }) {
+      if ($level == 1) {
+        $menu_circle_icon = q(<i class='nav-icon fa fa-circle-o'></i>);
+      }
+      elsif ($level == 2) {
+        $menu_circle_icon = q(<i class='nav-icon fa fa-dot-circle-o'></i>);
+      }
+      elsif ($level == 3) {
+        $menu_circle_icon = q(<i class='nav-icon fa fa-circle'></i>);
+      }
+      else {
+        $menu_circle_icon = q(<i class='nav-icon fa fa-circle-thin'></i>)
+      }
     }
 
-    if ($menu{$ID}) {
-      $name = "$menu_circle_icon$name_menu";
-    }
-    else {
-      $name = "$menu_circle_icon$name_menu";
-    }
+    $name = "$menu_circle_icon$name_menu";
 
     my $link = $self->button($name, ($menu{$ID} && $fl->{$ID} eq 'null' || $fl->{ "sub" . $ID }) ? "index=$index" : "index=" . (($ID =~ /^sub([0-9]+)/) ? $1 : $ID) . "$ext_args", { ex_params => $ex_params });
     if ($parent == 0) {
       $menu_text .= "<li class='nav-item for_search $active'>$link\n";
-    }
-    elsif (defined($menu{$ID})) {
-      $menu_text .= "<li class='nav-item $active for_search'>$link\n\n";
     }
     else {
       $menu_text .= "<li class='nav-item $active for_search'>$link\n";
@@ -1540,54 +1580,54 @@ sub menu_right {
 sub menu2 {
   my $self = shift;
   return $self->menu(@_);
-  my ($menu_items, $menu_args, $permissions, $attr) = @_;
-
-  my $menu_navigator = '';
-  my $root_index = 0;
-  my %tree = ();
-  my %menu = ();
-
-  # make navigate line
-  if ($index > 0) {
-    $root_index = $index;
-    my $h = $menu_items->{$root_index};
-
-    while (my ($par_key, $name) = each(%$h)) {
-      my $ex_params = (defined($menu_args->{$root_index}) && defined($FORM{ $menu_args->{$root_index} })) ? '&' . "$menu_args->{$root_index}=$FORM{$menu_args->{$root_index}}" : '';
-      $menu_navigator = " " . $self->button($name, "index=$root_index$ex_params") . '/' . $menu_navigator;
-      $tree{$root_index} = 1;
-      if ($par_key > 0) {
-        $root_index = $par_key;
-        $h = $menu_items->{$par_key};
-      }
-    }
-  }
-
-  $FORM{root_index} = $root_index;
-  if ($root_index > 0) {
-    my $ri = $root_index - 1;
-    if (defined($permissions) && (!defined($permissions->{$ri}))) {
-      $self->{ERROR} = "Access deny $ri";
-      return '', '';
-    }
-  }
-
-  my @menu_sorted = sort {$a <=> $b} keys %$menu_items;
-
-  foreach my $ID (@menu_sorted) {
-    my $VALUE_HASH = $menu_items->{$ID};
-    foreach my $parent (sort keys %$VALUE_HASH) {
-      push @{$menu{$parent}}, "$ID:$VALUE_HASH->{$parent}";
-    }
-  }
-
-  my $menu_text = "<ul class='nav nav-pills nav-sidebar flex-column' data-widget='treeview' role='menu' data-accordion='false'>\n";
-
-  $menu_text .= $self->mk_menu(\%menu, $menu_args, $attr);
-
-  $menu_text .= "</ul>\n";
-
-  return($menu_navigator, $menu_text);
+  # my ($menu_items, $menu_args, $permissions, $attr) = @_;
+  #
+  # my $menu_navigator = '';
+  # my $root_index = 0;
+  # my %tree = ();
+  # my %menu = ();
+  #
+  # # make navigate line
+  # if ($index > 0) {
+  #   $root_index = $index;
+  #   my $h = $menu_items->{$root_index};
+  #
+  #   while (my ($par_key, $name) = each(%$h)) {
+  #     my $ex_params = (defined($menu_args->{$root_index}) && defined($FORM{ $menu_args->{$root_index} })) ? '&' . "$menu_args->{$root_index}=$FORM{$menu_args->{$root_index}}" : '';
+  #     $menu_navigator = " " . $self->button($name, "index=$root_index$ex_params") . '/' . $menu_navigator;
+  #     $tree{$root_index} = 1;
+  #     if ($par_key > 0) {
+  #       $root_index = $par_key;
+  #       $h = $menu_items->{$par_key};
+  #     }
+  #   }
+  # }
+  #
+  # $FORM{root_index} = $root_index;
+  # if ($root_index > 0) {
+  #   my $ri = $root_index - 1;
+  #   if (defined($permissions) && (!defined($permissions->{$ri}))) {
+  #     $self->{ERROR} = "Access deny $ri";
+  #     return '', '';
+  #   }
+  # }
+  #
+  # my @menu_sorted = sort {$a <=> $b} keys %$menu_items;
+  #
+  # foreach my $ID (@menu_sorted) {
+  #   my $VALUE_HASH = $menu_items->{$ID};
+  #   foreach my $parent (sort keys %$VALUE_HASH) {
+  #     push @{$menu{$parent}}, "$ID:$VALUE_HASH->{$parent}";
+  #   }
+  # }
+  #
+  # my $menu_text = "<ul class='nav nav-pills nav-sidebar flex-column' data-widget='treeview' role='menu' data-accordion='false'>\n";
+  #
+  # $menu_text .= $self->mk_menu(\%menu, $menu_args, $attr);
+  #
+  # $menu_text .= "</ul>\n";
+  #
+  # return($menu_navigator, $menu_text);
 }
 
 #**********************************************************
@@ -1868,9 +1908,9 @@ sub table {
       $op = "index=$index";
     }
 
-    if ($FORM{subf}) {
-      $attr->{qs} .= "&subf=$FORM{subf}";
-    }
+    # if ($FORM{subf}) {
+    #   $attr->{qs} .= "&subf=$FORM{subf}";
+    # }
 
     $pagination = $self->pages($attr->{pages}, "$op$attr->{qs}", { SKIP_NAVBAR => 1, %{$attr ? $attr : {}} });
   }
@@ -1929,8 +1969,8 @@ sub table {
 
         my $footer_btns = "<hr/>
       <div class='row text-center'>
-        <input type='submit' id='del_cols' name=del_cols class='btn btn-secondary' value='Reset to default'>
-        <input type='submit' id='show_cols' name=show_cols class='btn btn-primary' value='Save'>
+        <input type='submit' id='del_cols' name=del_cols class='btn btn-secondary' value="."\"$lang->{DEFAULT}\"". ">
+        <input type='submit' id='show_cols' name=show_cols class='btn btn-primary' value="."\"$lang->{SAVE}\"". ">
       </div>
       ";
 
@@ -2089,7 +2129,16 @@ sub table {
 		<script>
 		  jQuery(document).ready(function() {
 		  	var table = jQuery("#$self->{ID}_").DataTable($ATTR);
+
+		  	//Save table sort
+		  	jQuery("#$self->{ID}_").on('order.dt', function () {
+          let order = table.order();
+          let desc = order[0][1] === 'desc' ? 'DESC' : '';
+          let sort = parseInt(order[0][0], 0) + 1;
+          jQuery.get('?qindex=$index&header=2&sort=' + sort + '&desc=' + desc);
+        });
 		  });
+
 		</script>
 	  ) . $show_cols;
     # Data table has its own sort
@@ -2135,7 +2184,7 @@ sub table {
   }
   my $caption_icon = '';
   if ($attr->{caption_icon}) {
-    $caption_icon = "<i class='" . $attr->{caption_icon} . "' style='font-size:18px; margin-right: 5px'></i>";
+    $caption_icon = "<i class='" . $attr->{caption_icon} . "' style='font-size:18px; margin-right: 6px; float:left;'></i>";
   }
   if ($attr->{caption} || $self->{table_caption}) {
     $self->{table} .= "<div class='card-header with-border hidden-print text-center'>
@@ -2900,26 +2949,27 @@ sub img {
     $name     - Link name
     $params   - Link params (url)
     $attr
-      class          - Add class for element
-      BUTTON         - Make link like button
-      ID             -
-      NO_LINK_FORMER -
-      JAVASCRIPT     -
-      GLOBAL_URL     - Global link
-      ex_params      -
-      LOAD_TO_MODAL  - loads $params link to modal instead of going to page
-      MESSAGE        - Opens '#comments_add' modal to enter COMMENTS before submit
-      CONFIRM        - Opens '#comments_add' modal without COMMENTS
-      AJAX           - allow AJAX submit form. Will load result page as JSON, and if 'MESSAGE' found in result will show it.
-                       This attribute treated as boolean,
-                       but event with name "AJAX_SUBMIT.$attr->{AJAX}" will be triggered after submit
-                       Expects $params have 'qindex' or 'get_index'.
-      IMG            -
-      TITLE          -
-      SKIP_HREF      -
-      ICON           - Img class <i class=".."></i>
-      ADD_ICON       - Img class <i class=".."></i>. Instead of replacing button text will add icon to it
-      COPY           - onclick button will copy text to clipboard
+      class               - Add class for element
+      BUTTON              - Make link like button
+      ID                  -
+      NO_LINK_FORMER      -
+      JAVASCRIPT          -
+      GLOBAL_URL          - Global link
+      ex_params           -
+      LOAD_TO_MODAL       - loads $params link to modal instead of going to page
+      MESSAGE             - Opens '#comments_add' modal to enter COMMENTS before submit
+      ALLOW_EMPTY_MESSAGE - allow to send modal without COMMENTS
+      CONFIRM             - Opens '#comments_add' modal without COMMENTS
+      AJAX                - allow AJAX submit form. Will load result page as JSON, and if 'MESSAGE' found in result will show it.
+                            This attribute treated as boolean,
+                            but event with name "AJAX_SUBMIT.$attr->{AJAX}" will be triggered after submit
+                            Expects $params have 'qindex' or 'get_index'.
+      IMG                 -
+      TITLE               -
+      SKIP_HREF           -
+      ICON                - Img class <i class=".."></i>
+      ADD_ICON            - Img class <i class=".."></i>. Instead of replacing button text will add icon to it
+      COPY                - onclick button will copy text to clipboard
 
 
   Returns:
@@ -2982,6 +3032,10 @@ sub button {
   if ($attr->{MESSAGE} || $attr->{CONFIRM}) {
     my $text_message = $attr->{MESSAGE} || $attr->{CONFIRM};
     my $comments_type = $attr->{CONFIRM} ? 'confirm' : '';
+    if ($attr->{ALLOW_EMPTY_MESSAGE} && $attr->{MESSAGE}) {
+      $comments_type = 'allow_empty_message'
+    }
+
     my $ajax_params = $attr->{AJAX} || '';
 
     $text_message =~ s/'/\\\'/g;
@@ -3140,9 +3194,9 @@ sub message {
   if ($caption) {
     $output .= "<h4>$icon $caption</h4>";
   }
-  else {
-    #$output .= $icon;
-  }
+  # else {
+  #   #$output .= $icon;
+  # }
 
   $output .= $message;
 
@@ -4522,10 +4576,14 @@ sub short_info_panels_row {
   #system colors
   my $system_colors = 'PRIMARY, INFO, SUCCESS, WARNING, DEFAULT, DANGER';
 
-  my $result = "<div class='row justify-content-md-center'>";
+  my $result = q(<div class='row justify-content-md-center'>);
+
+  if (defined($attr->{MENU_BUTTONS})) {
+    $result = q(<div class='row justify-content-md-center'><div>);
+  }
   foreach my $panel (@$panels) {
     my $number = ($panel->{NUMBER} && $panel->{NUMBER} ne '') ? $panel->{NUMBER} : '';
-    my $number_size = $panel->{NUMBER_SIZE} || '20px';
+    my $number_size = $panel->{NUMBER_SIZE} || '28px';
     my $text = $panel->{TEXT} || '';
 
     my $icon = $panel->{ICON} || '';
@@ -4595,29 +4653,22 @@ sub short_info_panels_row {
     my $columns = '';
     if ($icon) {
       $columns = qq{
-      <div class='small-box bg-$color'>
-        <div class='inner'>
-          <h3>$number</h3>
-            <p>$text</p>
+        <div class='info-box bg-$color'>
+          <span class='info-box-icon'>
+            <i class='fa fa-$icon'></i>
+          </span>
+          <div class='info-box-content'>
+              <span class='info-box-text'>$number</span>
+              <span class='info-box-number'>$text</span>
           </div>
-          <div class='icon'>
-            <i class='fa fa-$icon fa-5x'></i>
-          </div>
-          <a href='$SELF_URL?};
-
-      $columns .= ($panel->{URL}) ? $panel->{URL} : q{};
-      $columns .= qq{' class='small-box-footer'>
-            More info
-            <i class='fa fa-arrow-circle-right'></i>
-          </a>
         </div>
       </div>
       };
     }
     else {
       $columns = qq{
-        <div class="col-xs-12 text-center">
-          <div style="font-size: $number_size">$number</div>
+        <div class='col-xs-12 text-center'>
+          <div style='font-size: $number_size'>$number</div>
           <div class='summary'>$text</div>
         </div>
       };
@@ -4625,12 +4676,16 @@ sub short_info_panels_row {
 
     my $panel_html = qq{
       $color_definition
-      <div class="small-box bg-$color" id="$id">
-        <div class="card-heading">
+      <div class='small-box bg-$color' id='$id'>
+        <div class='card-heading'>
           $columns
         </div>
         $footer
     };
+
+    if (defined($attr->{MENU_BUTTONS})) {
+      $result .= '</div>';
+    }
 
     $panel_html = "<div class='col-md-$size'>$panel_html</div>" if ($size ne '');
     if ($panel->{LIKE_BUTTON} && $panel->{BUTTON_PARAMS}) {
@@ -4640,10 +4695,17 @@ sub short_info_panels_row {
     $result .= $panel_html;
   }
 
-  $result .= "</div>";
+  if (!defined($attr->{MENU_BUTTONS})) {
+    $result .= '</div>';
+  }
 
-  if (defined($self->{NO_PRINT}) && (!defined($attr->{OUTPUT2RETURN}))) {
+
+  if (defined($self->{NO_PRINT})) {
     $self->{OUTPUT} .= $result;
+    return $result;
+  }
+
+  if (defined($attr->{OUTPUT2RETURN})) {
     return $result;
   }
 
@@ -5456,7 +5518,7 @@ sub html_tree {
   my $DATA = JSON->new->encode($list);
 
   my $result .= qq(
-    <div id="show_tree" style="text-align: left;"> </div>
+    <div id="show_tree" style="text-align: left;" class="form-group container"> </div>
     <link rel='stylesheet' href='/styles/default_adm/css/new_tree.css'>
     <script type='text/javascript' src='/styles/default_adm/js/tree/tree.js'></script>
     <script>
@@ -5468,7 +5530,9 @@ sub html_tree {
       });
 	  </script> );
 
-  $result .= "<textarea cols=160 rows=6> '$keys' \n\n $DATA</textarea>";
+  if ($FORM{DEBUG}) {
+    $result .= "<textarea cols=160 rows=6> '$keys' \n\n $DATA</textarea>";
+  }
 
   return $result;
 }

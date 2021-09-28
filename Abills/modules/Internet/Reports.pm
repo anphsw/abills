@@ -10,12 +10,13 @@ use Abills::Base qw(int2byte time2sec sec2time _bp in_array);
 
 our(
   %lang,
-  $html,
   $db,
   $admin,
-  %conf
+  %conf,
+  $pages_qs
 );
 
+our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
@@ -107,15 +108,15 @@ sub internet_report_use {
     PERIOD        => (! $FORM{TYPE} && ! $FORM{DATE}) ? 'month_stats' : ''
   );
 
-  my %TP_NAMES = ();
-  my $list = $Tariffs->list({
-    MODULE       => 'Dv;Internet',
-    NEW_MODEL_TP => 1,
-    COLS_NAME    => 1
-  });
-  foreach my $line (@$list) {
-    $TP_NAMES{ $line->{id} } = $line->{name};
-  }
+  my $TP_NAMES = sel_tp();
+  # my $list = $Tariffs->list({
+  #   MODULE       => 'Dv;Internet',
+  #   NEW_MODEL_TP => 1,
+  #   COLS_NAME    => 1
+  # });
+  # foreach my $line (@$list) {
+  #   $TP_NAMES{ $line->{id} } = $line->{name};
+  # }
 
   if ($FORM{TERMINATE_CAUSE}) {
     $LIST_PARAMS{TERMINATE_CAUSE} = $FORM{TERMINATE_CAUSE};
@@ -129,6 +130,7 @@ sub internet_report_use {
   }
   $Sessions->{debug}=1 if ($FORM{DEBUG});
   my Abills::HTML $table;
+  my $list;
   our %DATA_HASH;
 
   if ($LIST_PARAMS{MONTH}) {
@@ -144,7 +146,7 @@ sub internet_report_use {
     SELECT_VALUE    => {
       terminate_cause => internet_terminate_causes({ REVERSE => 1 }),
       gid             => sel_groups({ HASH_RESULT => 1 }),
-      tp_id           => \%TP_NAMES
+      tp_id           => $TP_NAMES
     },
     CHARTS       => 'users_count,sessions_count,traffic_recv,traffic_sent,duration_sec',
     CHARTS_XTEXT => 'auto',
@@ -183,15 +185,13 @@ sub internet_report_use {
     SEARCH_FORMER => 1,
   });
 
-  print $html->make_charts(
-    {
-      DATA          => \%DATA_HASH,
-      TITLE         => 'Internet',
-      TRANSITION    => 1,
-      OUTPUT2RETURN => 1,
-      %CHARTS
-    }
-  );
+  print $html->make_charts({
+    DATA          => \%DATA_HASH,
+    TITLE         => 'Internet',
+    TRANSITION    => 1,
+    OUTPUT2RETURN => 1,
+    %CHARTS
+  });
 
   print $table->show();
 
@@ -363,7 +363,8 @@ sub internet_pools_report {
   my $static_assigned_list = $Internet->list({
     IP_NUM    => '>0.0.0.0',
     COLS_NAME => 1,
-    PAGE_ROWS => 100000
+    PAGE_ROWS => 100000,
+    GROUP_BY  => 'internet.id'
   });
   _error_show($Internet);
 
@@ -530,13 +531,18 @@ sub internet_pools_report {
     my $pool = $pools_by_id{$pool_id};
     my $errornous_fill = ($pools_by_id{$pool_id}->{static}) ? 'dynamic' : 'static';
 
+
+    my $internet_users_index = get_function_index('internet_users_list');
+    my $users_button = $html->button($ips_for_pool{$pool_id}->{count} // 0,
+      "index=$internet_users_index&IP_POOL=$pool_id&search=1&search_form=1");
+
     $result .= $html->tpl_show(_include('internet_pool_report_single', 'Internet'),
       {
         NAME        => $html->button($pool->{pool_name}, "index=$pools_index&chg=$pool->{id}"),
         NAS_NAME    => $pool->{static} ? $lang{STATIC} : ($pool->{nas_name} || $lang{NO}),
         IP_RANGE    => $pool->{first_ip} . '-' . $pool->{last_ip},
 
-        USED        => $ips_for_pool{$pool_id}->{count} // 0,
+        USED        => $pool->{static} ? $users_button : $ips_for_pool{$pool_id}->{count} // 0,
         FREE        => $ips_for_pool{$pool_id}->{usage}{free} // 100,
         ERROR       => $ips_for_pool{$pool_id}->{usage}{$errornous_fill} // 0,
 

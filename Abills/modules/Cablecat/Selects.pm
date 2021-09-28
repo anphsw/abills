@@ -84,18 +84,7 @@ sub _cablecat_point_id_select {
 sub _cablecat_wells_select {
   my $attr = shift // {};
   
-  my $select_func = make_select_from_db_table(
-    $Cablecat,
-    'Cablecat',
-    'wells',
-    $attr->{NAME} || 'WELL_ID',
-    {
-      FILTERS => {
-        TYPE_ID => 1
-      },
-      %$attr,
-    }
-  );
+  my $select_func = make_select_from_db_table($Cablecat, 'Cablecat', 'wells', $attr->{NAME} || 'WELL_ID', { %$attr });
   
   return &{$select_func};
 }

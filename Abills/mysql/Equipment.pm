@@ -9,7 +9,6 @@ package Equipment;
 use strict;
 use parent 'dbcore';
 use warnings FATAL => 'all';
-use Socket;
 
 my $admin;
 my $CONF;
@@ -326,12 +325,13 @@ sub model_add {
 
   $self->query_add('equipment_models', $attr);
 
-  if (!$self->{errno} && $attr->{EXTRA_PORTS}) {
+  if (!$self->{errno} && $attr->{EXTRA_PORT_TYPES}) {
     $self->extra_port_update(
       {
-        MODEL_ID        => $self->{INSERT_ID},
-        EXTRA_PORTS     => $attr->{EXTRA_PORTS},
-        EXTRA_PORT_ROWS => $attr->{EXTRA_PORT_ROWS}
+        MODEL_ID              => $self->{INSERT_ID},
+        EXTRA_PORT_TYPES      => $attr->{EXTRA_PORT_TYPES},
+        EXTRA_PORT_ROWS       => $attr->{EXTRA_PORT_ROWS},
+        EXTRA_PORT_COMBO_WITH => $attr->{EXTRA_PORT_COMBO_WITH}
       }
     );
   }
@@ -359,12 +359,13 @@ sub model_change {
     }
   );
 
-  if (!$self->{errno} && $attr->{EXTRA_PORTS}) {
+  if (!$self->{errno} && $attr->{EXTRA_PORT_TYPES}) {
     $self->extra_port_update(
       {
-        MODEL_ID        => $attr->{ID},
-        EXTRA_PORTS     => $attr->{EXTRA_PORTS},
-        EXTRA_PORT_ROWS => $attr->{EXTRA_PORT_ROWS}
+        MODEL_ID              => $attr->{ID},
+        EXTRA_PORT_TYPES      => $attr->{EXTRA_PORT_TYPES},
+        EXTRA_PORT_ROWS       => $attr->{EXTRA_PORT_ROWS},
+        EXTRA_PORT_COMBO_WITH => $attr->{EXTRA_PORT_COMBO_WITH}
       }
     );
   }
@@ -431,22 +432,22 @@ sub _list {
   }
 
   my $WHERE = $self->search_former($attr, [
-    [ 'TYPE',                        'STR',  't.id',                          1 ],
-    [ 'NAS_NAME',                    'STR',  'nas.name', 'nas.name AS nas_name' ],
-    [ 'SYSTEM_ID',                   'STR',  'i.system_id',                   1 ],
+    [ 'TYPE',                          'STR',  't.id',                            1 ],
+    [ 'NAS_NAME',                      'STR',  'nas.name', 'nas.name AS nas_name'   ],
+    [ 'SYSTEM_ID',                     'STR',  'i.system_id',                     1 ],
     #TYPE_NAME,PORTS
-    [ 'TYPE_ID',                     'INT',  'm.type_id',                     1 ],
-    [ 'VENDOR_ID',                   'INT',  'm.vendor_id',                   1 ],
-    [ 'NAS_TYPE',                    'STR',  'nas.nas_type',                  1 ],
-    [ 'MODEL_NAME',                  'STR',  'm.model_name',                  1 ],
-    [ 'SNMP_TPL',                    'STR',  'm.snmp_tpl',                    1 ],
-    [ 'MODEL_ID',                    'INT',  'i.model_id',                    1 ],
-    [ 'VENDOR_NAME',                 'STR',  'v.name', 'v.name AS vendor_name'  ],
-    [ 'STATUS',                      'INT',  'i.status',                      1 ],
-    [ 'DISABLE',                     'INT',  'nas.disable',                   1 ],
-    [ 'TYPE_NAME',                   'INT',  'm.type_id', 't.name AS type_name' ],
-    [ 'PORTS',                       'INT',  'm.ports',                       1 ],
-    [ 'PORTS_WITH_EXTRA',            'STR',
+    [ 'TYPE_ID',                       'INT',  'm.type_id',                       1 ],
+    [ 'VENDOR_ID',                     'INT',  'm.vendor_id',                     1 ],
+    [ 'NAS_TYPE',                      'STR',  'nas.nas_type',                    1 ],
+    [ 'MODEL_NAME',                    'STR',  'm.model_name',                    1 ],
+    [ 'SNMP_TPL',                      'STR',  'm.snmp_tpl',                      1 ],
+    [ 'MODEL_ID',                      'INT',  'i.model_id',                      1 ],
+    [ 'VENDOR_NAME',                   'STR',  'v.name', 'v.name AS vendor_name'    ],
+    [ 'STATUS',                        'INT',  'i.status',                        1 ],
+    [ 'DISABLE',                       'INT',  'nas.disable',                     1 ],
+    [ 'TYPE_NAME',                     'INT',  'm.type_id', 't.name AS type_name'   ],
+    [ 'PORTS',                         'INT',  'm.ports',                         1 ],
+    [ 'PORTS_WITH_EXTRA',              'STR',
       'IF(
         (SELECT
           @extra_ports := COUNT(*) FROM equipment_extra_ports
@@ -457,35 +458,37 @@ sub _list {
       ) AS ports_with_extra',
       1
     ],
-    [ 'MAC',                         'INT',  'nas.mac',                       1 ],
-    [ 'PORT_SHIFT',                  'INT',  'm.port_shift',                  1 ],
-    [ 'AUTO_PORT_SHIFT',             'INT',  'm.auto_port_shift',             1 ],
-    [ 'FDB_USES_PORT_NUMBER_INDEX',  'INT',  'm.fdb_uses_port_number_index',  1 ],
-    [ 'EPON_SUPPORTED_ONUS',         'INT',  'm.epon_supported_onus',         1 ],
-    [ 'GPON_SUPPORTED_ONUS',         'INT',  'm.gpon_supported_onus',         1 ],
-    [ 'GEPON_SUPPORTED_ONUS',        'INT',  'm.gepon_supported_onus',        1 ],
-    [ 'NAS_IP',                      'IP',   'nas.ip', 'nas.ip AS nas_ip' ],
-    [ 'MNG_HOST_PORT',               'STR',  'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
-    #['MNG_USER',                    'STR',  'nas.mng_user', 'nas.mng_user as nas_mng_user', ],
-    [ 'NAS_MNG_USER',                'STR',  'nas.mng_user', 'nas.mng_user as nas_mng_user', ],
-    [ 'NAS_MNG_PASSWORD',            'STR',  '', "DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password" ],
-    [ 'NAS_ID',                      'INT',  'i.nas_id',                      1 ],
-    [ 'NAS_GID',                     'INT',  'nas.gid',                       1 ],
-    [ 'NAS_GROUP_NAME',              'STR',  'ng.name', 'ng.name AS nas_group_name' ],
-    [ 'DISTRICT_ID',                 'INT',  'streets.district_id', 'districts.name' ],
-    [ 'LOCATION_ID',                 'INT',  'nas.location_id',               1 ],
-    [ 'DOMAIN_ID',                   'INT',  'nas.domain_id',                 1 ],
-    [ 'DOMAIN_NAME',                 'INT',  'domains.name', 'domains.name AS domain_name' ],
-    [ 'COORDX',                      'INT',  'builds.coordx',                 1 ],
-    [ 'COORDY',                      'INT',  'builds.coordy',                 1 ],
-    [ 'REVISION',                    'STR',  'i.revision',                    1 ],
-    [ 'SNMP_VERSION',                'STR',  'i.snmp_version',                1 ],
-    [ 'SERVER_VLAN',                 'STR',  'i.server_vlan',                 1 ],
-    [ 'LAST_ACTIVITY',               'DATE', 'i.last_activity',               1 ],
-    [ 'INTERNET_VLAN',               'STR',  'i.internet_vlan',               1 ],
-    [ 'TR_069_VLAN',                 'STR',  'i.tr_069_vlan',                 1 ],
-    [ 'IPTV_VLAN',                   'STR',  'i.iptv_vlan',                   1 ],
-    [ 'NAS_DESCR',                   'STR',  'nas.descr AS nas_descr',        1 ],
+    [ 'MAC',                           'INT',  'nas.mac',                         1 ],
+    [ 'PORT_SHIFT',                    'INT',  'm.port_shift',                    1 ],
+    [ 'AUTO_PORT_SHIFT',               'INT',  'm.auto_port_shift',               1 ],
+    [ 'FDB_USES_PORT_NUMBER_INDEX',    'INT',  'm.fdb_uses_port_number_index',    1 ],
+    [ 'EPON_SUPPORTED_ONUS',           'INT',  'm.epon_supported_onus',           1 ],
+    [ 'GPON_SUPPORTED_ONUS',           'INT',  'm.gpon_supported_onus',           1 ],
+    [ 'GEPON_SUPPORTED_ONUS',          'INT',  'm.gepon_supported_onus',          1 ],
+    [ 'DEFAULT_ONU_REG_TEMPLATE_EPON', 'INT',  'm.default_onu_reg_template_epon', 1 ],
+    [ 'DEFAULT_ONU_REG_TEMPLATE_GPON', 'INT',  'm.default_onu_reg_template_gpon', 1 ],
+    [ 'NAS_IP',                        'IP',   'nas.ip', 'nas.ip AS nas_ip' ],
+    [ 'MNG_HOST_PORT',                 'STR',  'nas.mng_host_port', 'nas.mng_host_port AS nas_mng_ip_port', ],
+    #['MNG_USER',                      'STR',  'nas.mng_user', 'nas.mng_user as nas_mng_user', ],
+    [ 'NAS_MNG_USER',                  'STR',  'nas.mng_user', 'nas.mng_user as nas_mng_user', ],
+    [ 'NAS_MNG_PASSWORD',              'STR',  '', "DECODE(nas.mng_password, '$SECRETKEY') AS nas_mng_password" ],
+    [ 'NAS_ID',                        'INT',  'i.nas_id',                        1 ],
+    [ 'NAS_GID',                       'INT',  'nas.gid',                         1 ],
+    [ 'NAS_GROUP_NAME',                'STR',  'ng.name', 'ng.name AS nas_group_name' ],
+    [ 'DISTRICT_ID',                   'INT',  'streets.district_id', 'districts.name' ],
+    [ 'LOCATION_ID',                   'INT',  'nas.location_id',                 1 ],
+    [ 'DOMAIN_ID',                     'INT',  'nas.domain_id',                   1 ],
+    [ 'DOMAIN_NAME',                   'INT',  'domains.name', 'domains.name AS domain_name' ],
+    [ 'COORDX',                        'INT',  'builds.coordx',                   1 ],
+    [ 'COORDY',                        'INT',  'builds.coordy',                   1 ],
+    [ 'REVISION',                      'STR',  'i.revision',                      1 ],
+    [ 'SNMP_VERSION',                  'STR',  'i.snmp_version',                  1 ],
+    [ 'SERVER_VLAN',                   'STR',  'i.server_vlan',                   1 ],
+    [ 'LAST_ACTIVITY',                 'DATE', 'i.last_activity',                 1 ],
+    [ 'INTERNET_VLAN',                 'STR',  'i.internet_vlan',                 1 ],
+    [ 'TR_069_VLAN',                   'STR',  'i.tr_069_vlan',                   1 ],
+    [ 'IPTV_VLAN',                     'STR',  'i.iptv_vlan',                     1 ],
+    [ 'NAS_DESCR',                     'STR',  'nas.descr AS nas_descr',          1 ],
   ],
     { WHERE => 1,
     }
@@ -1159,12 +1162,13 @@ sub equipment_box_list {
 
   Arguments:
     $attr
-      MODEL_ID          - Model ID to change ports
-      EXTRA_PORTS       - hash_ref  port numbers => type
-      EXTRA_PORT_ROWS  - hash_ref  port_number => row
+      MODEL_ID              - Model ID to change ports
+      EXTRA_PORT_TYPES      - hash_ref  port number => type
+      EXTRA_PORT_ROWS       - hash_ref  port_number => row
+      EXTRA_PORT_COMBO_WITH - hash_ref  port_number => combo_with
 
   Returns:
-
+    $self
 
 =cut
 #**********************************************************
@@ -1180,14 +1184,14 @@ sub extra_port_update {
     }
   );
 
-  while (my ($port_number, $port_type) = each %{$attr->{EXTRA_PORTS}}) {
-
+  while (my ($port_number, $port_type) = each %{$attr->{EXTRA_PORT_TYPES}}) {
     $self->query_add('equipment_extra_ports',
       {
-        MODEL_ID    => $attr->{MODEL_ID},
-        PORT_NUMBER => $port_number,
-        PORT_TYPE   => $port_type,
-        ROW         => $attr->{EXTRA_PORT_ROWS}->{$port_number}
+        MODEL_ID        => $attr->{MODEL_ID},
+        PORT_NUMBER     => $port_number,
+        PORT_TYPE       => $port_type,
+        ROW             => $attr->{EXTRA_PORT_ROWS}->{$port_number},
+        PORT_COMBO_WITH => $attr->{EXTRA_PORT_COMBO_WITH}->{$port_number}
       }
     );
   }
@@ -1856,6 +1860,7 @@ sub mac_flood_search {
   $self->query("SELECT PORT, NAS_ID, NAME, COUNT(port) as CNT
           FROM equipment_mac_log
               LEFT JOIN nas n ON (n.id=nas_id)
+          WHERE rem_time < datetime
           GROUP BY port, nas_id HAVING CNT >= $attr->{MIN_COUNT};",
     undef,
     $attr
@@ -2007,29 +2012,30 @@ sub onu_list {
   }
 
   my $WHERE = $self->search_former($attr, [
-    [ 'BRANCH',      'STR', 'p.branch',                      1 ],
-    [ 'BRANCH_DESC', 'STR', 'p.branch_desc',                 1 ],
-    [ 'VLAN_ID',     'STR', 'p.vlan_id',                     1 ],
-    #    [ 'VLAN_ID', 'STR', 'onu.vlan', 1 ],
-    [ 'ONU_ID',      'STR', 'onu.onu_id',                    1 ],
-    [ 'ONU_VLAN',    'STR', 'onu.vlan',                      1 ],
-    [ 'MAC_SERIAL',  'STR', 'onu.onu_mac_serial', 'onu.onu_mac_serial AS mac_serial' ],
-    [ 'ONU_DESC',    'STR', 'onu.onu_desc', 'onu.onu_desc AS onu_desc' ],
-    [ 'OLT_RX_POWER','STR', 'onu.olt_rx_power',              1 ],
-    [ 'RX_POWER',    'STR', 'onu.onu_rx_power', 'onu.onu_rx_power AS rx_power' ],
-    [ 'TX_POWER',    'STR', 'onu.onu_tx_power', 'onu.onu_tx_power AS tx_power' ],
-    [ 'STATUS',      'INT', 'onu.onu_status', 'onu.onu_status AS status' ],
-    [ 'ONU_DHCP_PORT','STR','onu.onu_dhcp_port',              1 ],
-    [ 'ONU_GRAPH',   'STR', 'onu.onu_graph',                  1 ],
-    [ 'NAS_ID',      'STR', 'p.nas_id',                       0 ],
-    [ 'NAS_NAME',    'STR', 'n.name', 'n.name AS nas_name'      ],
-    [ 'NAS_IP',      'STR', 'INET_NTOA(n.ip) AS nas_ip',      1 ],
-    [ 'PON_TYPE',    'STR', 'p.pon_type',                     0 ],
-    [ 'OLT_PORT',    'STR', 'p.id',                           0 ],
-    [ 'ONU_SNMP_ID', 'INT', 'onu.onu_snmp_id',                1 ],
-    [ 'DATETIME',    'DATE','onu.datetime',                   1 ],
-    [ 'DELETED',     'INT', 'onu.deleted',                    1 ],
-    [ 'SERVER_VLAN', 'STR', 'i.server_vlan',                  1 ],
+    [ 'BRANCH',           'STR', 'p.branch',                      1 ],
+    [ 'BRANCH_DESC',      'STR', 'p.branch_desc',                 1 ],
+    [ 'VLAN_ID',          'STR', 'p.vlan_id',                     1 ],
+    #    [ 'VLAN_ID',      'STR', 'onu.vlan', 1 ],
+    [ 'ONU_ID',           'STR', 'onu.onu_id',                    1 ],
+    [ 'ONU_VLAN',         'STR', 'onu.vlan',                      1 ],
+    [ 'MAC_SERIAL',       'STR', 'onu.onu_mac_serial', 'onu.onu_mac_serial AS mac_serial' ],
+    [ 'ONU_DESC',         'STR', 'onu.onu_desc', 'onu.onu_desc AS onu_desc' ],
+    [ 'ONU_BILLING_DESC', 'STR', 'onu.onu_billing_desc',          1 ],
+    [ 'OLT_RX_POWER',     'STR', 'onu.olt_rx_power',              1 ],
+    [ 'RX_POWER',         'STR', 'onu.onu_rx_power', 'onu.onu_rx_power AS rx_power' ],
+    [ 'TX_POWER',         'STR', 'onu.onu_tx_power', 'onu.onu_tx_power AS tx_power' ],
+    [ 'STATUS',           'INT', 'onu.onu_status', 'onu.onu_status AS status' ],
+    [ 'ONU_DHCP_PORT',    'STR', 'onu.onu_dhcp_port',             1 ],
+    [ 'ONU_GRAPH',        'STR', 'onu.onu_graph',                 1 ],
+    [ 'NAS_ID',           'STR', 'p.nas_id',                      0 ],
+    [ 'NAS_NAME',         'STR', 'n.name', 'n.name AS nas_name'     ],
+    [ 'NAS_IP',           'STR', 'INET_NTOA(n.ip) AS nas_ip',     1 ],
+    [ 'PON_TYPE',         'STR', 'p.pon_type',                    0 ],
+    [ 'OLT_PORT',         'STR', 'p.id',                          0 ],
+    [ 'ONU_SNMP_ID',      'INT', 'onu.onu_snmp_id',               1 ],
+    [ 'DATETIME',         'DATE','onu.datetime',                  1 ],
+    [ 'DELETED',          'INT', 'onu.deleted',                   1 ],
+    [ 'SERVER_VLAN',      'STR', 'i.server_vlan',                 1 ],
   ],
     { WHERE        => 1,
       USERS_FIELDS => 1,
@@ -2850,12 +2856,17 @@ sub onu_and_internet_cpe_list {
     p.nas_id AS onu_nas,
     onu.onu_mac_serial AS cpe,
     onu.onu_status,
+    onu.vlan AS onu_vlan,
+    ei.server_vlan AS onu_server_vlan,
     i.nas_id AS user_nas,
     i.port AS user_port,
     i.id AS service_id,
+    i.vlan AS user_vlan,
+    i.server_vlan AS user_server_vlan,
     i.uid
     FROM equipment_pon_onu onu
     LEFT JOIN equipment_pon_ports p ON (p.id=onu.port_id)
+    LEFT JOIN equipment_infos ei ON (ei.nas_id=p.nas_id)
     INNER JOIN internet_main i ON (onu.onu_mac_serial=i.cpe_mac AND i.cpe_mac<>'')
     $WHERE;",
     undef,
@@ -2983,6 +2994,77 @@ sub _list_with_coords {
   my $list = $self->{list} || [];
 
   return $list;
+}
+
+
+#**********************************************************
+=head2 calculator_list($attr) - List of calculator data
+
+=cut
+#**********************************************************
+sub calculator_list {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
+  $PG = ($attr->{PG}) ? $attr->{PG} : 0;
+  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 10000;
+
+
+  my $WHERE = $self->search_former($attr, [
+    [ 'TYPE',       'STR', 'c.type',        1 ],
+    [ 'NAME',       'STR', 'c.name',        1 ],
+    [ 'VALUE',      'STR', 'c.value',       1 ],
+  ],
+    { WHERE => 1, }
+  );
+
+
+  $self->query("SELECT
+        c.type,
+        c.name,
+        c.value
+    FROM equipment_calculator c
+    $WHERE
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
+    undef,
+    $attr
+  );
+
+  my $list = $self->{list} || [];
+
+  return $list;
+}
+
+#**********************************************************
+=head2 calculator_delete($attr) - delete from calculator by type
+
+=cut
+#**********************************************************
+sub calculator_delete {
+  my $self = shift;
+  my ($type) = @_;
+
+  $self->query_del('equipment_calculator', undef,{ TYPE => $type });
+
+
+  return $self;
+}
+
+#**********************************************************
+=head2 calculator_add($attr) - add to calculator types
+
+=cut
+#**********************************************************
+sub calculator_add {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query_add('equipment_calculator', $attr);
+
+  return $self;
 }
 
 1

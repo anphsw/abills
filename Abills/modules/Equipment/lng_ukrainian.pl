@@ -36,7 +36,7 @@ $lang{SELECT_PORT} = 'Виберіть порт';
 $lang{REGISTERED} = 'Зареєстровано';
 $lang{HOURS_} = 'годин';
 
-$lang{REBOOT}='Перезавантажити';
+$lang{REBOOT}='Перезавантаження';
 $lang{REBOOTED}='Перезавантажена';
 
 $lang{SYSTEM_ID}='Назва системи';
@@ -142,7 +142,7 @@ $lang{LINK_STATUS} = 'Link статус';
 $lang{PORT_TYPE} = 'Тип порта';
 
 $lang{FAILED_TO_GET_TELNET_CMDS_FROM_FILE} = 'Не вдалось отримати Telnet-команди з файлу';
-$lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} = 'Отримання конфігурації ONU для EPON поки що не підтримується. Можете вручну прописати потрібні Telnet-команди в файлі Abills/modules/Equipment/snmp_tpl/zte_get_onu_config_epon.tpl';
+$lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} = 'Отримання конфігурації ONU для EPON поки що не підтримується. Можете вручну прописати потрібні Telnet-команди в файлі ';
 
 $lang{CABLE_TEST_FAILED} = 'не вдалось провести тест кабеля';
 $lang{LAST_CABLE_TEST_TIME} = 'Час останнього запуску кабельного тестера';
@@ -169,5 +169,35 @@ $lang{ENABLE_INFINITIVE} = 'Включити';
 $lang{EXTERNAL_SYSTEM_LINK} = 'Посилання на зовнішню систему';
 
 $lang{NUMBER_OF_SUPPORTED_ONUS_ON_BRANCH_FOR} = 'Кількість підтримуваних ONU на гілці для';
+
+$lang{IMAGE_URL} = 'URL зображення';
+
+$lang{EXTRA_PORT} = 'Додатковий порт';
+$lang{ROW_NUMBER} = 'Номер ряду';
+$lang{COMBO_PORT} = 'Комбо-порт';
+
+$lang{ONU_BILLING_DESC} = 'Опис (білінг)';
+$lang{CHANGE_ONU_DESC} = 'Змінити опис ONU';
+$lang{ONU_DESC_CHANGING_SUCCESS} = 'Опис ONU змінений успішно';
+$lang{ONU_DESC_CHANGING_ERROR} = 'Помилка зміни опису ONU';
+
+$lang{SPLITTER} = 'Розділювач';
+$lang{SIGNAL_LOSS} = 'Затухання сигналу';
+$lang{CONNECTOR} = 'Мех. Зєднання';
+
+$lang{PACKETS_WITH_ERRORS} = 'Пакети з помилками';
+$lang{PACKETS_} = 'пакети';
+
+$lang{POLL_NOT_DONE} = 'Опитування не проведено';
+
+$lang{CPU_LOAD} = 'Завантаження ЦП';
+
+$lang{DEFAULT_ONU_REG_TEMPLATE} = 'Шаблон реєстрації ONU за замовчуванням';
+
+$lang{EQUIPMENT_TYPE} = 'Тип обладнання';
+
+$lang{RAM_USAGE} = 'Завантаження ОЗП';
+$lang{SLOT_TEMP} = 'T° слота';
+$lang{SLOT_DESC} = 'Опис';
 
 1

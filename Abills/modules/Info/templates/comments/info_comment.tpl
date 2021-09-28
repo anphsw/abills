@@ -1,16 +1,15 @@
-<div class="comment-wrapper">
-  <div class='row'>
-  <div class="col-md-12 comment-info">
-    <span class="pull-left">%ADMIN%</span>
-   %DEL_BUTTON%
-    <span class=" pull-right">%DATE%</span>
+<div>
+<div class='timeline-item'>
+  <span class='time'><i class='fa fa-clock-o'></i>%DATE%</span>
+  <h3 class='timeline-header text-left'>%ADMIN% %CHANGED%</h3>
+
+  <div class='timeline-body text-left text'>%TEXT%</div>
+
+  <div class='timeline-footer text-left'>
+    %DEL_BUTTON%
+    %EDIT_BUTTON%
+
   </div>
-  </div>
-  <!--<br>-->
-  <hr class="com_line">
-  <div class='row'>
-  <div class='comment-text text-left col-md-12'>
-  %TEXT%
-  </div>
-  </div>
+
+</div>
 </div>

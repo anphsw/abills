@@ -15,7 +15,7 @@
 
         </div>
 
-        <div class='card-footer'><input class='btn btn-primary' type='submit' name="send" value='_{SEND}_'></div>
+        <div class='card-footer'><input class='btn btn-primary' type='submit' name='send' value='_{SEND}_'></div>
     </div>
 
 

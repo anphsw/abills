@@ -173,7 +173,6 @@ $lang{HELPDESK}='Служба поддержки';
 
 $lang{SCRUB_BOX} = 'Бокс сообщений';
 
-$lang{MSGS_TAGS} = 'Метка(и)';
 $lang{PLUGINS} = 'Плагины';
 $lang{MSGS_BEFORE_CREATE} = 'События перед добавлением заявки';
 $lang{MSGS_AFTER_CREATE} = 'События после добавления заявки';

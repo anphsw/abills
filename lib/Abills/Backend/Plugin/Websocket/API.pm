@@ -39,19 +39,19 @@ use Abills::Backend::Utils qw/json_encode_safe json_decode_safe/;
 #**********************************************************
 sub new {
   state $instance;
-  
-  if ( !defined $instance ) {
+
+  if (!defined $instance) {
     my $class = shift;
     my ($session_managers) = @_;
-    
+
     my $self = {};
     bless($self, $class);
-    
+
     $self->{session_managers} = $session_managers;
-    
+
     $instance = $self;
   }
-  
+
   return $instance;
 }
 
@@ -60,57 +60,66 @@ sub new {
 =head2 notify_admin($aid, $notification, $attr) - sends notification to all admin handles
 
   Notify all sockets for this admin
+  Arguments:
+    $aid
+    $notification
+    $attr
+
+  Return:
+
 
 =cut
 #**********************************************************
 sub notify_admin {
-  my ($self, $aid, $notification, $attr) = @_;
-  
-  if ( !$aid || !$notification ) {
+  my $self = shift;
+  my ($aid, $notification, $attr) = @_;
+
+  if (!$aid || !$notification) {
     $Log->info("Bad call of notify_admin. No " . (!$aid ? 'aid' : 'notification') . ' specified');
     return 0;
   };
-  
+
   my $message = '';
-  if ( ref $notification eq 'HASH' ) {
+  if (ref $notification eq 'HASH') {
     $notification->{TYPE} //= 'MESSAGE';
     $message = json_encode_safe($notification)
   }
   else {
     $message = $notification;
   }
-  
+
   # Handling JSON encode errors
-  if ( !$message ) {
-    $Log->info("Broken message. ignoring");
+  if (!$message) {
+    $Log->info("ERR_BROKEN_MESSAGE. IGNORING");
     return 0;
   }
-  
-  $Log->info("Admin($aid) message : " . $message);
-  
+
+  $Log->info("AID: $aid MESSAGE : " . $message);
+
   my Abills::Backend::Plugin::Websocket::SessionsManager $adminSessions = $self->{session_managers}->{admin};
-  
-  if ( $aid eq '*' ) {
+
+  if ($aid eq '*') {
     my $admins_to_notify = $adminSessions->get_all_clients();
-    
-    if ( $admins_to_notify && ref $admins_to_notify eq 'ARRAY' ) {
-      $_->notify({ MESSAGE => $message, %{ $attr ? $attr : {} } }) foreach ( @{$admins_to_notify} );
+
+    if ($admins_to_notify && ref $admins_to_notify eq 'ARRAY') {
+      $_->notify({ MESSAGE => $message, %{$attr ? $attr : {}} }) foreach (@{$admins_to_notify});
     }
     else {
       $Log->alert("Trying to notify when no admins was online");
       return 0;
     }
-    
+
     return 1;
   }
-  
+
   my $Admin = $adminSessions->get_client_for_id($aid);
-  if ( !$Admin ) {
+
+  if (!$Admin) {
     $Log->alert("Trying to notify when admin $aid was not online");
     return 0;
   };
-  
-  return $Admin->notify({ MESSAGE => $message, %{ $attr ? $attr : {} } });
+
+  return $Admin->notify({ MESSAGE => $message, %{$attr ? $attr : {}} });
 }
 
 
@@ -123,7 +132,7 @@ sub notify_admin {
 #**********************************************************
 sub admins_connected {
   my $self = shift;
-  
+
   return $self->{session_managers}->{admin}->get_client_ids();
 }
 
@@ -142,7 +151,7 @@ sub admins_connected {
 sub has_connected {
   my $self = shift;
   my ($type, $id) = @_;
-  
+
   return $self->{session_managers}->{$type}->has_client_with_id($id);
 }
 

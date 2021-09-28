@@ -8,13 +8,11 @@ $admin->{EVENTS_ENABLED} = 1;
   "3:1:$lang{PRIORITY}:events_priority_main:"                => 5,
   "4:1:$lang{ACCESS}:events_privacy_main:"                   => 5,
   "5:1:$lang{GROUP}:events_group_main:"                      => 5,
-  
   "6:0:$lang{NOTIFICATIONS}:events_profile"                  => 9,
   "7:6:$lang{CONFIGURATION}:events_profile_configure"        => 9,
   "8:6:unsubscribe:events_unsubscribe:AJAX"                  => 9,
   "9:6:seen:events_seen_message:AJAX"                        => 9,
   "10:6:notice:events_notice:AJAX"                           => 9,
-
 );
 
 1;

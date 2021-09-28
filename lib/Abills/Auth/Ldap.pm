@@ -35,7 +35,14 @@ sub check_access {
   my $ldap_base  = $self->{conf}->{LDAP_BASE} || "dc=sqd_ldp";
   my $server     = $self->{conf}->{LDAP_IP} || "192.168.0.40";
 
-  my $ldap = Net::LDAP->new( $server ) or die $@;
+  my $ldap = Net::LDAP->new( $server, timeout => 10 );
+
+  if (! $ldap) {
+    $self->{errno}=$@;
+    $self->{errstr}='LDAP Timeout';
+    return 0;
+  }
+
   my $mesg = $ldap->bind("cn=$login,$ldap_base",
                          password => "$password");
 
@@ -45,6 +52,7 @@ sub check_access {
 
   if (! $mesg->{resultCode}) {
     $self->{errno}=21;
+    $self->{errstr}='LDAP Auth Error';
     return 1;
   }
 

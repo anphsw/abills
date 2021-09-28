@@ -201,13 +201,13 @@ sub olltv_user{
     $Tv_service->user_info( { ID => $attr->{ID} } );
 
     for ( my $i = 0; $i <= $#{ $Tv_service->{bought_subs} }; $i++ ){
-      my $label_type = 'label-default';
+      my $label_type = 'badge-light';
 
       if  ($Tv_service->{bought_subs}->[$i]->{service_type} == 1) {
-        $label_type = 'label-primary';
+        $label_type = 'badge-primary';
       }
       elsif($Tv_service->{bought_subs}->[$i]->{service_type} == 4) {
-        $label_type = 'label-info';
+        $label_type = 'badge-info';
       }
 
       $Tv_service->{BOUGHT_SUBSRIBES} .= $html->element('span', " ($Tv_service->{bought_subs}->[$i]->{service_type}) "
@@ -215,7 +215,7 @@ sub olltv_user{
         . ' ' . $html->button($lang{del},
         "index=$index&UID=$FORM{UID}&chg=$attr->{ID}&del_bundle=1&SUB_ID=$Tv_service->{bought_subs}->[$i]->{sub_id}",
         { class => 'del' }), {
-        class          => "label $label_type",
+        class          => "badge $label_type m-1",
         title          => $Tv_service->{bought_subs}->[$i]->{start_date}
           . '-' . $Tv_service->{bought_subs}->[$i]->{expiration_date},
         'data-tooltip' => "BINDING_CODE: $Tv_service->{bought_subs}->[$i]->{device_binding_code}",

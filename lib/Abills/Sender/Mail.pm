@@ -57,9 +57,11 @@ sub send_message {
     $attr->{MESSAGE},
     $self->{conf}->{MAIL_CHARSET} || 'utf-8',
     undef,
-    { TRUSTED_FROM  => $self->{conf}->{SENDMAIL_TRUSTED_FROM},
+    {
+      TRUSTED_FROM  => $self->{conf}->{SENDMAIL_TRUSTED_FROM},
       SENDMAIL_PATH => $self->{conf}->{FILE_SENDMAIL} || undef,
       TEST          => $self->{conf}->{MAIL_TEST} || undef,
+      ATTACHMENTS   => $attr->{ATTACHMENTS} || undef
     }
   );
 

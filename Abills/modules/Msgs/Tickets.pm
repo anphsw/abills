@@ -27,6 +27,7 @@ our (
 our Abills::HTML $html;
 my $Address = Address->new($db, $admin, \%conf);
 my $Msgs = Msgs->new($db, $admin, \%conf);
+my $Notify = Msgs::Notify->new($db, $admin, \%conf, { LANG => \%lang, HTML=>$html });
 my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 my $Attachments = Msgs::Misc::Attachments->new($db, $admin, \%conf);
 
@@ -92,13 +93,13 @@ sub msgs_admin {
   $Msgs->{ACTION} = 'send';
   $Msgs->{LNG_ACTION} = $lang{SEND};
 
-  if ($FORM{chg} && !$FORM{UID}) {
+  if ($FORM{chg}) {
     $Msgs->message_info($FORM{chg});
-    if ($Msgs->{UID}) {
-      $FORM{UID} = $Msgs->{UID};
-      my $user_info = user_info($FORM{UID});
+    if ($Msgs->{UID} && !$FORM{UID}) {
+      my $user_info = user_info($Msgs->{UID});
       print $user_info->{TABLE_SHOW} || q{};
     }
+    $FORM{UID} = $Msgs->{UID} || 0;
   }
 
   $FORM{index} = get_function_index($FORM{get_index}) if (!$FORM{index} && $FORM{get_index});
@@ -168,6 +169,7 @@ sub msgs_admin {
     }
   }
   elsif ($FORM{STORAGE_MSGS_ID}) {
+    load_module('Storage', $html);
     if ($FORM{add}) {
       storage_hardware({ ADD_ONLY => 1 });
       $Msgs->msgs_storage_add({
@@ -177,7 +179,6 @@ sub msgs_admin {
       $FORM{chg} ||= $FORM{STORAGE_MSGS_ID};
     }
     else {
-      load_module('Storage', $html);
       storage_hardware();
 
       return 1;
@@ -470,14 +471,24 @@ sub _msgs_admin_send_message {
       msgs_redirect_filter({ UID => join(',', @uids) });
     }
     else {
-      msgs_notify_user({
+      my @attachments_list;
+
+      foreach (@ATTACHMENTS)  {
+        push @attachments_list, {
+          filename     => $_->{FILENAME},
+          content      => $_->{CONTENT},
+          content_type => $_->{CONTENT_TYPE}
+        }
+      }
+
+      $Notify->notify_user({
         STATE_ID       => $FORM{STATE},
         STATE          => ($FORM{STATE} && $msgs_status->{$FORM{STATE}}) ? $msgs_status->{$FORM{STATE}} : q{},
         REPLY_ID       => 0,
         MSGS           => $Msgs,
         SEND_TYPE      => $FORM{SEND_TYPE},
         MESSAGES_BATCH => \%msg_for_uid,
-        ATTACHMENTS    => \@ATTACHMENTS
+        ATTACHMENTS    => \@attachments_list
       });
     }
   }
@@ -677,7 +688,7 @@ sub _msgs_add_attachments {
   $html->message('info', $lang{MESSAGES}, "$lang{SENDED} $lang{MESSAGE}");
 
   if ($FORM{INNER_MSG}) {
-    msgs_notify_admins();
+    $Notify->notify_admins();
     if ($FORM{SURVEY_ID}) {
       $FORM{chg} = $Msgs->{MSG_ID};
       msgs_admin();
@@ -1027,7 +1038,7 @@ sub msgs_ticket_show {
 
     $Msgs->{CHAPTERS_SEL} = $html->form_select('CHAPTER_ID', {
       SELECTED       => '',
-      SEL_LIST       => $Msgs->chapters_list({ CHAPTER => join(',', keys %{$A_PRIVILEGES}), COLS_NAME => 1 }),
+      SEL_LIST       => $Msgs->chapters_list({ DOMAIN_ID => $users->{DOMAIN_ID}, CHAPTER => join(',', keys %{$A_PRIVILEGES}), COLS_NAME => 1 }),
       MAIN_MENU      => get_function_index('msgs_chapters'),
       MAIN_MENU_ARGV => "chg=$Msgs->{CHAPTER}",
       SEL_OPTIONS    => { '' => '--' },
@@ -1046,7 +1057,8 @@ sub msgs_ticket_show {
       RUN_TIME_STATUS => 'DISABLE',
       MAIN_INNER_MSG  => $Msgs->{INNER_MSG},
       INNER_MSG       => ($FORM{INNER_MSG}) ? ' checked ' : '',
-      SURVEY_SEL      => $survey_sel
+      SURVEY_SEL      => $survey_sel,
+      MAX_FILES       => $conf{MSGS_MAX_FILES} || 3
     }, { OUTPUT2RETURN => 1, ID => 'MSGS_REPLY', NO_SUBJECT => $lang{NO_SUBJECT} });
   }
 
@@ -1078,12 +1090,14 @@ sub msgs_ticket_show {
     $params{MAIN_PANEL_COLOR} = 'card-primary';
   }
 
-  my $msg_tags_list = $Msgs->quick_replys_tags_list({ MSG_ID => $message_id, COLOR => '_SHOW', COLS_NAME => 1 });
+  my $msg_tags_list = $Msgs->quick_replys_tags_list({ MSG_ID => $message_id, COLS_NAME => 1 });
   if ($Msgs->{TOTAL}) {
     foreach my $msg_tag (@{$msg_tags_list}) {
       $params{MSG_TAGS} .= ' ' . $html->element('span', $msg_tag->{reply}, {
-        'class' => 'label new-tags',
-        'style' => "background-color:" . ($msg_tag->{color} || q{}) . ";border-color:". ($msg_tag->{color} || q{}) .";font-weight: bold;"
+        'class'                 => 'label new-tags',
+        'style'                 => "background-color:" . ($msg_tag->{color} || q{}) . ";border-color:" . ($msg_tag->{color} || q{}) . ";font-weight: bold;",
+        'data-tooltip'          => $msg_tag->{comment} || $msg_tag->{reply},
+        'data-tooltip-position' => 'top'
       });
     }
   }
@@ -1159,7 +1173,7 @@ sub msgs_ticket_show {
     show_admin_chat();
   }
 
-  my $plugins_info = _msgs_show_bottom_plugins($Msgs, { %FORM });
+  my $plugins_info = _msgs_show_bottom_plugins($Msgs, { %FORM, %{$attr} });
 
   print $plugins_info;
 
@@ -1334,9 +1348,7 @@ sub _msgs_change_responsible {
   my $previous_responsible_aid = $message_info->{resposible} || 0;
 
   # Check if it's really changed
-  if ($previous_responsible_aid eq $new_responsible_aid) {
-    return 1
-  }
+  return 1 if ($previous_responsible_aid eq $new_responsible_aid);
 
   # Change resposible in DB
   if (!$attr->{SKIP_CHANGE}) {
@@ -1350,31 +1362,21 @@ sub _msgs_change_responsible {
   # Check if now we have resposible and if this is not admin who changes
   return 1 if (!$new_responsible_aid || ($admin->{AID} eq $new_responsible_aid));
 
-  # Send notification if Telegram available
-  if ($conf{TELEGRAM_TOKEN}) {
-    # Safe section
-    eval {
-      require Msgs::Messaging;
-      my $subject = $message_info->{subject} || '';
-      my $first_message_for_mess = $message_info->{message} || '';
+  my $attachments_list = $message_id ? $Msgs->attachments_list({
+    MESSAGE_ID   => $message_id,
+    FILENAME     => '_SHOW',
+    CONTENT      => '_SHOW',
+    CONTENT_TYPE => '_SHOW',
+  }) : [];
 
-      return msgs_send_via_telegram($message_id, {
-        AID         => $new_responsible_aid,
-        SUBJECT     => $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} . " <b>'$subject'</b>",
-        MESSAGE     => $first_message_for_mess || '',
-        SENDER_UID  => $message_info->{uid},
-        SENDER_TYPE => $Contacts::TYPES{TELEGRAM},
-        PARSE_MODE  => 'HTML'
-      });
-    };
-  }
-  else {
-    msgs_notify_admins({
-      MSGS_ID       => $message_id,
-      SKIP_TELEGRAM => 1,
-      AID           => $new_responsible_aid
+  $Notify->notify_admins({
+      SENDER_AID      => $admin->{AID},
+      MSG_ID          => $message_id,
+      AID             => $new_responsible_aid,
+      ATTACHMENTS     => $attachments_list,
+      NEW_RESPONSIBLE => 1
     });
-  }
+
 
   return 1;
 }
@@ -1603,7 +1605,14 @@ sub _msgs_reply_admin {
   my $msgs_status = msgs_sel_status({ HASH_RESULT => 1 });
   $Msgs->message_info($FORM{ID});
 
-  msgs_notify_user({
+  my $attachments_list = $reply_id ? $Msgs->attachments_list({
+    REPLY_ID   => $reply_id,
+    FILENAME     => '_SHOW',
+    CONTENT      => '_SHOW',
+    CONTENT_TYPE => '_SHOW',
+  }) : [];
+
+  $Notify->notify_user({
     UID        => $FORM{UID},
     STATE_ID   => $Msgs->{STATE},
     SEND_TYPE  => $Msgs->{SEND_TYPE},
@@ -1617,14 +1626,15 @@ sub _msgs_reply_admin {
   $Msgs->message_change({
     RESPOSIBLE => $admin->{AID},
     ID         => $FORM{ID},
-  }) if !$FORM{RESPOSIBLE};
+  }) if !$FORM{RESPOSIBLE} || !$Msgs->{RESPOSIBLE};
 
-  msgs_notify_admins({
-    SEND_TYPE  => $Msgs->{SEND_TYPE},
-    STATE      => $msgs_status->{$Msgs->{STATE}},
-    SENDER_AID => $admin->{AID},
-    MSG_ID     => $FORM{ID},
-    MSGS       => $Msgs,
+  $Notify->notify_admins({
+    SEND_TYPE   => $Msgs->{SEND_TYPE},
+    STATE       => $msgs_status->{$Msgs->{STATE}},
+    SENDER_AID  => $admin->{AID},
+    MSG_ID      => $FORM{ID},
+    MSGS        => $Msgs,
+    ATTACHMENTS => $attachments_list
   });
 
   my $header_message = urlencode("$lang{MESSAGE} $lang{SENDED}" . ($FORM{ID} ? " : $FORM{ID}" : ''));
@@ -1667,7 +1677,12 @@ sub msgs_dispatch_admins {
     $active_admins{ $line->{aid} } = 1;
   }
 
-  $list = $admin->list({ %LIST_PARAMS, DISABLE => 0, COLS_NAME => 1, PAGE_ROWS => 1000 });
+  $list = $admin->list({ %LIST_PARAMS,
+    DEPARTMENT => $conf{MSGS_DISPATCH_ADMIN_DEPARTMENT} || '_SHOW',
+    DISABLE    => 0,
+    COLS_NAME  => 1,
+    PAGE_ROWS  => 1000
+  });
 
   my $checkbox = '';
   my $label = '';
@@ -1763,6 +1778,8 @@ sub _msgs_call_action_plugin {
       next if (!$result || ref $result ne 'HASH') ;
 
       _msgs_action_callback($result);
+
+      %FORM = (%FORM, %{$result->{RETURN_VARIABLES}}) if $result->{RETURN_VARIABLES} && ref $result->{RETURN_VARIABLES} eq 'HASH';
 
       return $result->{RETURN_VALUE} if (defined $result->{RETURN_VALUE});
     }

@@ -39,9 +39,9 @@
             </div>
 
             <div class='form-group row'>
-                <label class='col-form-label text-md-right col-md-4' for='MESSAGE'>_{MESSAGE}_:</label>
+                <label class='col-form-label text-md-right col-md-4' for='SEARCH_MSGS_BY_WORD'>_{MESSAGE}_:</label>
                 <div class='col-md-8'>
-                    <input id='MESSAGE' name='MESSAGE' value='%MESSAGE%' placeholder='%MESSAGE%' class='form-control'
+                    <input id='SEARCH_MSGS_BY_WORD' name='SEARCH_MSGS_BY_WORD' value='%SEARCH_MSGS_BY_WORD%' placeholder='%SEARCH_MSGS_BY_WORD%' class='form-control'
                            type='text'>
                 </div>
             </div>

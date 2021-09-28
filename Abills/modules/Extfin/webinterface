@@ -1249,16 +1249,14 @@ sub extfin_debetors {
     }
   );
 
-  print $html->form_main(
-    {
+  print $html->form_main({
       CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
       HIDDEN  => {
         sid   => $sid,
         index => $index,
         UID   => $FORM{UID}
       }
-    }
-  );
+  });
 
   if ($FORM{show}) {
     $LIST_PARAMS{DATE} = "$FORM{FROM_DATE}" if ($FORM{show} && $FORM{SEL_DATE});
@@ -1375,8 +1373,7 @@ sub extfin_payments_fees {
     return 0;
   }
 
-  reports(
-    {
+  reports({
       DATE        => $FORM{DATE},
       REPORT      => '',
       PERIOD_FORM => 1,
@@ -1385,8 +1382,7 @@ sub extfin_payments_fees {
       #  	        	               FIO    => $lang{FIO},
       #  	        	               COMPANIES => "$lang{COMPANIES}"
       #  	        	              }
-    }
-  );
+  });
 
   $LIST_PARAMS{PAGE_ROWS} = 1000000;
 
@@ -1398,18 +1394,16 @@ sub extfin_payments_fees {
   my @CHART_TYPE = ('area', 'line', 'column');
   my $list = $Extfin->report_payments_fees({ %LIST_PARAMS });
 
-  my $table_fees = $html->table(
-    {
+  my $table_fees = $html->table({
       width   => '100%',
       caption => "$lang{PAYMENTS} /  $lang{FEES}",
       border  => 1,
-      title   => [ '#', $lang{LOGIN}, $lang{FIO}, $lang{PAYMENTS}, $lang{FEES}, '-' ],
+      title   => [ '#', $lang{LOGIN}, $lang{FIO}, $lang{PAYMENTS}, $lang{FEES} ],
       qs      => $pages_qs,
       pages   => $Extfin->{TOTAL},
       ID      => 'REPORTS_PAYMENTS_FEES',
       EXPORT  => $lang{EXPORT} . ' XML:&xml=1',
-    }
-  );
+  });
 
   $pages_qs .= "&subf=2" if (!$FORM{subf});
   foreach my $line (@$list) {
@@ -1419,20 +1413,18 @@ sub extfin_payments_fees {
   }
 
   print $table_fees->show();
-  my $table = $html->table(
-    {
+  my $table = $html->table({
       width    => '100%',
       rows     => [ [ "$lang{TOTAL} $lang{USERS}: " . $html->b($Extfin->{USERS_TOTAL}),
         "$lang{TOTAL} $lang{PAYMENTS}: " . $html->b($Extfin->{PAYMENTS_TOTAL}),
         "$lang{TOTAL} $lang{FEES}: " . $html->b($Extfin->{FEES_SUM}) ] ],
       rowcolor => 'even'
-    }
-  );
+  });
+
   print $table->show();
 
   if ($graph_type ne '') {
-    print $html->make_charts(
-      {
+    print $html->make_charts({
         PERIOD        => $graph_type,
         DATA          => \%DATA_HASH,
         AVG           => \%AVG,
@@ -1440,8 +1432,7 @@ sub extfin_payments_fees {
         TRANSITION    => 1,
         OUTPUT2RETURN => 1,
         %CHART
-      }
-    );
+    });
   }
 
   return 1;

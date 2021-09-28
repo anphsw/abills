@@ -7,7 +7,7 @@
       </button>
     </div>
   </div>
-  <div class='card-body'>
+  <div class='card-body table-responsive p-0'>
     %PAYMENT_MESSAGE%
     %NEXT_FEES_WARNING%
     %TP_CHANGE_WARNING%

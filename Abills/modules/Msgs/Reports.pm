@@ -912,7 +912,7 @@ sub msgs_report_tags {
     my $count = $Msgs->messages_report_tags_count({ TAG_ID => $line->{id}, %FORM});
     $line->{count} = $count;
     $span_hash{$line->{id}} = $html->element('span', $line->{reply}, {
-      class => 'label',
+      class => 'badge',
       style => "background-color:$line->{color};",
     });
   }

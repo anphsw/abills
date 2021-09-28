@@ -13,9 +13,11 @@ use warnings FATAL => 'all';
 =cut
 our ($db, $admin, %conf, %lang, $html, %permissions, $Cablecat, $Maps, $Equipment, %MAP_LAYER_ID);
 use Abills::Base qw/in_array/;
-use Cablecat::Cable_blank;
 use Maps2::Auxiliary;
+use Internet;
+use Abills::Experimental;
 my $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+my $Internet = Internet->new($db, $admin, \%conf);
 
 #**********************************************************
 =head2 cablecat_commutation()
@@ -39,9 +41,9 @@ sub cablecat_commutation {
   }
 
   if ($FORM{ID}) {
-    my $tp_info = $Cablecat->commutations_info($FORM{ID});
+    my $commutation_info = $Cablecat->commutations_info($FORM{ID});
     if (!_error_show($Cablecat)) {
-      %TEMPLATE_ARGS = %{$tp_info};
+      %TEMPLATE_ARGS = %{$commutation_info};
       $show_add_form = 1;
     }
   }
@@ -49,20 +51,11 @@ sub cablecat_commutation {
   return 1 if ($FORM{MESSAGE_ONLY});
 
   my $cable_ids = $TEMPLATE_ARGS{CABLE_IDS} || $FORM{CABLE_IDS};
+  my $links_table = '';
 
   if ($show_add_form) {
-    my $id = $FORM{ID} || "";
-    my $com_scheme = $lang{COMMUTATION_SCHEME} || "";
-    my $table_links = $html->table({
-      width      => '100%',
-      caption    => $com_scheme . ": " . $id,
-      title      => [ $lang{PORT}, $lang{MODULE}, $lang{FIBER}, $lang{LINK}, $lang{PORT}, $lang{MODULE}, $lang{FIBER}, $lang{ATTENUATION} ],
-      ID         => 'CABLECAT_ITEMS',
-      DATA_TABLE => 1,
-    });
 
     if (defined $TEMPLATE_ARGS{ID}) {
-
       my $cables = '';
       if ($cable_ids) {
         $cables = _cablecat_commutation_cables_prepare_json($cable_ids, { COMMUTATION_ID => $TEMPLATE_ARGS{ID} });
@@ -81,94 +74,29 @@ sub cablecat_commutation {
       my $crosses = _cablecat_commutation_crosses(undef, { COMMUTATION_ID => $TEMPLATE_ARGS{ID} });
       return 0 if (!$crosses);
 
+      my $ONUS = _cablecat_commutation_onus(undef, { COMMUTATION_ID => $TEMPLATE_ARGS{ID} });
+      return 0 if (!$ONUS);
+
       $TEMPLATE_ARGS{INFO_TABLE} = _cablecat_commutation_info_table($TEMPLATE_ARGS{ID}, \%TEMPLATE_ARGS);
 
-      # Other links
-      my $com_links_list = $Cablecat->links_list({
-        COMMUTATION_ID   => $TEMPLATE_ARGS{ID},
-        SHOW_ALL_COLUMNS => 1,
-        COLS_UPPER       => 0,
-        PAGE_ROWS        => 500000
-      });
-      _error_show($Cablecat);
-
-      $TEMPLATE_ARGS{LINKS} = JSON::to_json(
-        [
-          map {
-            $_->{geometry} = JSON::from_json($_->{geometry}) if ($_->{geometry});
-
-            # Commutation works with indexes
-            $_->{fiber_num_1} -= 1 if ($_->{fiber_num_1});
-            $_->{fiber_num_2} -= 1 if ($_->{fiber_num_2});
-
-            $_;
-          } @{$com_links_list}
-        ]
-      );
-
-      foreach my $link (@$com_links_list) {
-        my %first_element = ();
-        my %second_element = ();
-
-        if ($link->{element_1_type} eq "CABLE") {
-          %first_element = _cablecat_cable_element($link->{element_1_id}, $link->{fiber_num_1});
-        }
-        elsif ($link->{element_1_type} eq "SPLITTER") {
-          %first_element = _cablecat_splitter_element($link->{element_1_id}, $link->{fiber_num_1});
-        }
-        elsif ($link->{element_1_type} eq "EQUIPMENT") {
-          %first_element = _cablecat_equipment_element($link->{element_1_id});
-        }
-        elsif ($link->{element_1_type} eq "CROSS") {
-          %first_element = _cablecat_cross_element($link->{element_1_id});
-        }
-        else {
-          $first_element{NAME} = "";
-          $first_element{MODULE} = "";
-        }
-
-        if ($link->{element_2_type} eq "CABLE") {
-          %second_element = _cablecat_cable_element($link->{element_2_id}, $link->{fiber_num_2});
-        }
-        elsif ($link->{element_2_type} eq "SPLITTER") {
-          %second_element = _cablecat_splitter_element($link->{element_2_id}, $link->{fiber_num_2});
-        }
-        elsif ($link->{element_2_type} eq "EQUIPMENT") {
-          %second_element = _cablecat_equipment_element($link->{element_2_id});
-        }
-        elsif ($link->{element_2_type} eq "CROSS") {
-          %second_element = _cablecat_cross_element($link->{element_2_id});
-        }
-        else {
-          $second_element{NAME} = "";
-          $second_element{MODULE} = "";
-        }
-
-        $first_element{COLOR} = $first_element{COLOR} ? $first_element{COLOR} : "cccccc";
-        $second_element{COLOR} = $second_element{COLOR} ? $second_element{COLOR} : "cccccc";
-
-        $first_element{MODULE_COLOR} = $first_element{MODULE_COLOR} ? $first_element{MODULE_COLOR} : "cccccc";
-        $second_element{MODULE_COLOR} = $second_element{MODULE_COLOR} ? $second_element{MODULE_COLOR} : "cccccc";
-
-        $table_links->addrow($first_element{NAME}, $html->badge($first_element{MODULE}, {STYLE => "style=\"background-color: #$first_element{MODULE_COLOR} !important;\""}),
-          $html->badge($link->{fiber_num_1} + 1, {STYLE => "style=\"background-color: #$first_element{COLOR} !important;\""}), '',
-          $second_element{NAME}, $html->badge($second_element{MODULE}, {STYLE => "style=\"background-color: #$second_element{MODULE_COLOR} !important;\""}),
-          $html->badge($link->{fiber_num_2} + 1, {STYLE => "style=\"background-color: #$second_element{COLOR} !important;\""}), '');
-      }
+      (my $com_links_list, $TEMPLATE_ARGS{LINKS}) = cablecat_commutation_links($TEMPLATE_ARGS{ID});
 
       $TEMPLATE_ARGS{CABLES} = JSON::to_json($cables || []);
       $TEMPLATE_ARGS{SPLITTERS} = JSON::to_json($splitters);
       $TEMPLATE_ARGS{EQUIPMENT} = JSON::to_json($equipment);
       $TEMPLATE_ARGS{CROSSES} = JSON::to_json($crosses);
+      $TEMPLATE_ARGS{ONUS} = JSON::to_json($ONUS);
       $TEMPLATE_ARGS{BTN} = $html->button($lang{PRINT_SCHEME}, "header=2&qindex=" .
         get_function_index('show_box') . "&print=1&ID=" . $FORM{ID}, { target => '_new', class => 'btn btn-default' });
+
+      $links_table = _cablecat_commutation_links_table($com_links_list, { ID => $FORM{ID} });
     }
 
     $html->tpl_show(_include('cablecat_commutation', 'Cablecat'), \%TEMPLATE_ARGS);
 
     print $html->br();
 
-    print $table_links->show();
+    print $links_table->show() if $links_table;
   }
 
   return 1;
@@ -214,6 +142,10 @@ sub cablecat_commutation_ajax {
     show_result($Cablecat, $lang{CHANGED}, '', { ID => 'LINK_CHANGED', RESPONCE_PARAMS => { LINK_ID => $FORM{change} } });
   }
 
+  if ($FORM{change_height} && $FORM{COMMUTATION_ID}) {
+    $Cablecat->commutations_change({ ID => $FORM{COMMUTATION_ID}, HEIGHT => $FORM{change_height} });
+  }
+
   return 1;
 }
 
@@ -242,6 +174,9 @@ sub cablecat_commutation_operations {
   elsif ($FORM{entity} eq 'CROSS') {
     return cablecat_commutation_crosses($info);
   }
+  elsif($FORM{entity} eq 'ONU'){
+    return cablecat_commutation_onu($info);
+  }
 
   if ($FORM{operation} eq 'CLEAR_COMMUTATION') {
     $Cablecat->links_del({}, {
@@ -255,6 +190,12 @@ sub cablecat_commutation_operations {
     $Cablecat->splitters_del({
       COMMUTATION_ID => $FORM{COMMUTATION_ID},
     });
+    _error_show($Cablecat);
+    $Cablecat->commutation_onu_del({},{
+      COMMUTATION_ID => $FORM{COMMUTATION_ID},
+    });
+    _error_show($Cablecat);
+
     show_result($Cablecat, "$lang{DELETED} $lang{ALL}", '', { ID => 'COMMUTATION_CLEARED' });
   }
   elsif ($FORM{operation} eq 'CONNECT_BY_NUMBERS') {
@@ -383,7 +324,6 @@ sub cablecat_commutation_cables {
   }
 }
 
-
 #**********************************************************
 =head2 cablecat_commutation_splitters()
 
@@ -445,7 +385,6 @@ sub cablecat_commutation_splitters {
     show_result($Cablecat, $lang{CHANGED}, '', { ID => 'COORDS_CHANGED' });
   }
 }
-
 
 #**********************************************************
 =head2 cablecat_commutation_equipment()
@@ -546,6 +485,90 @@ sub cablecat_commutation_equipment {
     $Cablecat->commutation_equipment_change({
       _CHANGE_PARAM        => 'NAS_ID',
       NAS_ID               => $FORM{ID},
+      COMMUTATION_X        => $FORM{X},
+      COMMUTATION_Y        => $FORM{Y},
+      COMMUTATION_ROTATION => $FORM{COMMUTATION_ROTATION},
+    });
+    show_result($Cablecat, $lang{CHANGED}, '', { ID => 'COORDS_CHANGED' });
+  }
+}
+
+
+#**********************************************************
+=head2 cablecat_commutation_onu()
+
+=cut
+#**********************************************************
+sub cablecat_commutation_onu {
+  if ($FORM{operation} eq 'LIST') {
+    _error_show($Cablecat) and return 0;
+
+    my $user_list = $Internet->list({
+      COLS_NAME => 1,
+      UID       => '_SHOW',
+      LOGIN     => '_SHOW',
+      PAGE_ROWS     => 999999999,
+    });
+
+    my $user_select = make_select_from_list('UID', $user_list, {
+      SEL_KEY    => 'uid',
+      SEL_VALUE  => 'login',
+      SEL_OPTIONS => { 0 => '' },
+    });
+
+    $html->tpl_show(_include('cablecat_commutation_onu_add_modal', 'Cablecat'), {
+      USER_SELECT => $user_select,
+      COMMUTATION_ID => $FORM{COMMUTATION_ID},
+      SUBMIT_BTN_NAME    => $lang{ADD},
+      %FORM
+    }
+    );
+  } elsif($FORM{operation} eq 'ADD'){
+
+    if($FORM{getServices} && $FORM{UID}){
+
+      my $sercives = $Internet->list({
+        UID       => $FORM{UID},
+        ID        => '_SHOW',
+        GROUP_BY  => 'internet.id',
+        PORT      => '_SHOW',
+        COLS_NAME => 1,
+      });
+
+      print make_select_from_list('SERVICE_ID', $sercives, {
+        NO_ID            => 1,
+        SEL_KEY          => 'id',
+        SEL_VALUE        => 'id,port',
+        SEL_VALUE_PREFIX => 'INTERNET: , PORT: ',
+      });
+
+    } else {
+
+      if(!$FORM{SERVICE_ID}){
+        show_result($Cablecat, $lang{ERROR}, 'NO SERVICE_ID!', { ID => 'ONU_ADDED' });
+        return 1;
+      }
+
+      $Cablecat->commutation_onu_add({
+        UID            => $FORM{UID},
+        SERVICE_ID     => $FORM{SERVICE_ID},
+        COMMUTATION_ID => $FORM{COMMUTATION_ID}
+      });
+
+      show_result($Cablecat, $lang{ADDED}, '', { ID => 'ONU_ADDED' });
+
+    }
+  }
+  elsif ($FORM{operation} eq 'DELETE') {
+    $Cablecat->delete_links_for_element('ONU', $FORM{ID}, { commutation_id => $FORM{COMMUTATION_ID} });
+
+    $Cablecat->commutation_onu_del({}, { ID => $FORM{ID} });
+    show_result($Cablecat, $lang{DEL}, '', { ID => 'ELEMENT_DELETED' });
+  }
+  elsif ($FORM{operation} eq 'SAVE_COORDS') {
+    $Cablecat->commutation_onu_change({
+      _CHANGE_PARAM        => 'ID',
+      ID                   => $FORM{ID},
       COMMUTATION_X        => $FORM{X},
       COMMUTATION_Y        => $FORM{Y},
       COMMUTATION_ROTATION => $FORM{COMMUTATION_ROTATION},
@@ -803,6 +826,81 @@ sub cablecat_commutation_crosses {
 }
 
 #**********************************************************
+=head2 cablecat_commutation_links()
+
+=cut
+#**********************************************************
+sub cablecat_commutation_links {
+  my $commutation_id = shift;
+
+  return '' if !$commutation_id && !$FORM{COMMUTATION_ID};
+
+  my $com_links_list = $Cablecat->links_list({
+    COMMUTATION_ID   => $FORM{COMMUTATION_ID} || $commutation_id,
+    SHOW_ALL_COLUMNS => 1,
+    COLS_UPPER       => 0,
+    PAGE_ROWS        => 500000
+  });
+
+  my $links = JSON::to_json(
+    [
+      map {
+        $_->{geometry} = JSON::from_json($_->{geometry}) if ($_->{geometry});
+
+        # Commutation works with indexes
+        $_->{fiber_num_1} -= 1 if ($_->{fiber_num_1});
+        $_->{fiber_num_2} -= 1 if ($_->{fiber_num_2});
+
+        $_;
+      } @{$com_links_list}
+    ]
+  );
+
+  print $links if $FORM{JSON_RESULT};
+
+  return ($com_links_list, $links);
+}
+
+#**********************************************************
+=head2 cablecat_change_commutation_info()
+
+=cut
+#**********************************************************
+sub cablecat_change_commutation_info {
+
+  my %result = ();
+
+  if (!$FORM{COMMUTATION_ID} || !$FORM{NAME}) {
+    $result{ERROR_MESSAGE} = $lang{FAILED_TO_CHANGE_NAME} || '';
+    print JSON::to_json(\%result) if $FORM{JSON_RESULT};
+    return \%result;
+  }
+
+  $Cablecat->commutations_list({
+    ID        => "!$FORM{COMMUTATION_ID}",
+    NAME      => $FORM{NAME},
+    PAGE_ROWS => 10000
+  });
+
+  if ($Cablecat->{TOTAL} > 0) {
+    $result{ERROR_MESSAGE} = $lang{NAME_ALREADY_IN_USE} || '';
+    print JSON::to_json(\%result) if $FORM{JSON_RESULT};
+    return \%result;
+  }
+
+  $Cablecat->commutations_change({ ID => $FORM{COMMUTATION_ID}, NAME => $FORM{NAME} });
+
+  if ($Cablecat->{error}) {
+    $result{ERROR_MESSAGE} = $lang{ERROR_ON_CHANGE} || '';
+    print JSON::to_json(\%result) if $FORM{JSON_RESULT};
+    return \%result;
+  }
+
+  print JSON::to_json(\%result) if $FORM{JSON_RESULT};
+  return \%result;
+}
+
+#**********************************************************
 =head2 _cablecat_commutation_info_table()
 
 =cut
@@ -825,7 +923,7 @@ sub _cablecat_commutation_info_table {
   my Abills::HTML $table = $html->table({
     width       => '100%',
     caption     => '',
-    title_plain => [ '#', $lang{WELL}, $lang{CONNECTER}, $lang{ADDRESS}, $lang{CREATED} ],
+    title_plain => [ '#', $lang{NAME}, $lang{WELL}, $lang{CONNECTER}, $lang{ADDRESS}, $lang{CREATED} ],
     qs          => $pages_qs,
     ID          => 'CABLECAT_COMMUTATION_INFO_ID',
   });
@@ -836,10 +934,11 @@ sub _cablecat_commutation_info_table {
 
   $table->addrow(
     function_button(
-      $lang{COMMUTATION} . "#$commutation->{ID}",
+      "#$commutation->{ID}",
       'cablecat_commutation',
       $commutation->{ID},
       { ID_PARAM => 'ID' }),
+    _cablecat_form_commutation_name($commutation->{ID}, $commutation->{NAME}),
     _cablecat_result_former_named_chg_link_filter($commutation->{WELL}, {
       VALUES => {
         FUNCTION   => 'cablecat_wells',
@@ -861,6 +960,41 @@ sub _cablecat_commutation_info_table {
   return $table->show();
 }
 
+#**********************************************************
+=head2 _cablecat_form_commutation_name($id, name)
+
+=cut
+#**********************************************************
+sub _cablecat_form_commutation_name {
+  my ($id, $name) = @_;
+
+  $name ||= "";
+  return $name unless $id;
+
+  $html->tpl_show(_include('cablecat_change_commutation_name', 'Cablecat'), {
+    COMMUTATION_ID => $id,
+    SAVE_INDEX     => get_function_index('cablecat_change_commutation_info')
+  });
+
+  my $invalid_div = $html->element('div', '', { class => 'invalid-feedback', id => 'INVALID_NAME_FEEDBACK' });
+
+  my $check_span = $html->element('span', '', { class => 'fa fa-check' });
+  my $pencil_span = $html->element('span', '', { class => 'fa fa-pencil' });
+
+  my $change_input_group = $html->element('div', $pencil_span, {
+    class => 'input-group-text cursor-pointer',
+    id    => 'CHANGE_NAME_BTN'
+  });
+  my $save_input_group = $html->element('div', $check_span, {
+    class => 'input-group-text cursor-pointer d-none',
+    id    => 'SAVE_NAME'
+  });
+
+  my $input_group_append = $html->element('div', $change_input_group . $save_input_group, { class => 'input-group-append' });
+  my $input_name = $html->element('input', '', { class => 'form-control', name => 'NAME', id => 'NAME', readonly => '1', value => $name });
+
+  return $html->element('div', $input_name . $input_group_append . $invalid_div, { class => 'input-group input-group-sm' });
+}
 
 #**********************************************************
 =head2 _cablecat_commutation_cables_prepare_json($cable_id) - get cable info, and return JSON string ref
@@ -896,7 +1030,6 @@ sub _cablecat_commutation_cables_prepare_json {
       COLS_UPPER       => 0,
     });
     _error_show($Cablecat);
-
   }
   elsif ($cable_id) {
     # Return info for cable ( cables ) specified by $cable_id
@@ -1061,6 +1194,36 @@ sub _cablecat_commutation_equipment {
 }
 
 #**********************************************************
+=head2 _cablecat_commutation_onus($cross_id)
+
+=cut
+#**********************************************************
+sub _cablecat_commutation_onus {
+  my ($onu_id, $attr) = @_;
+
+  return '' unless (defined $onu_id || defined $attr->{COMMUTATION_ID});
+  my $onus_list = [];
+
+  $onus_list = $Cablecat->commutation_onu_list({
+    ID               => ($onu_id || '_SHOW'),
+    COMMUTATION_ID   => ($attr->{COMMUTATION_ID} || '_SHOW'),
+    UID              => '_SHOW',
+    SHOW_ALL_COLUMNS => 1,
+    PAGE_ROWS        => 10000,
+    COLS_UPPER       => 0,
+  });
+  _error_show($Cablecat);
+
+  return [
+    map {
+      $_->{commutation_onu_id} = $_->{commutation_id};
+      $_->{id} = $_->{id} if ($_->{id});
+      $_->{uid} = ($_->{uid}) if($_->{uid});
+      $_
+    } @{$onus_list}
+  ];
+}
+#**********************************************************
 =head2 _cablecat_commutation_crosses($cross_id)
 
 =cut
@@ -1100,48 +1263,38 @@ sub _cablecat_cable_element {
   my ($element_id, $fiber_num) = @_;
 
   my %cable = ();
-  my $Commutation_blank = Commutation_blank->new($db, $admin, \%conf);
 
   my $cable_info = $Cablecat->cables_info($element_id);
-  if ($Cablecat->{TOTAL}) {
-    my $cable_type = $Commutation_blank->select_cable_types({ COLS_NAME => 1, ID => $cable_info->{TYPE_ID} });
-    my $color = $Commutation_blank->select_color_schemes({ COLS_NAME => 1, ID => $cable_type->{color_scheme_id} });
-    my @colors = split(',', $color->{colors});
-    my $colors_count = @colors;
+  return () if !$Cablecat->{TOTAL};
 
-    while ($fiber_num >= $colors_count) {
-      $fiber_num -= $colors_count;
-    }
+  my @colors = split(',', $cable_info->{fibers_colors});
+  my $colors_count = @colors;
 
-    $cable{NAME} = $cable_info->{NAME};
-    $cable{MODULES_COUNT} = $cable_info->{MODULES_COUNT};
-    $cable{FIBERS_COUNT} = $cable_info->{FIBERS_COUNT};
-    $cable{COLOR} = $colors[$fiber_num];
-
-    if (length($cable{COLOR}) > 6) {
-      $cable{COLOR} = substr($cable{COLOR}, 0, 6);
-    }
-
-    $color = $Commutation_blank->select_color_schemes({ COLS_NAME => 1, ID => $cable_type->{modules_color_scheme_id} });
-    @colors = split(',', $color->{colors});
-    $colors_count = @colors;
-
-    $fiber_num = $fiber_num ? $fiber_num : 1;
-    my $cur_module_first = $fiber_num / ($cable{FIBERS_COUNT} / $cable{MODULES_COUNT});
-    $cur_module_first += 1;
-    $cable{MODULE} = $cable{MODULES_COUNT} == 1 ? 1 : int $cur_module_first;
-    my $module = $cable{MODULE};
-
-    while ($module > $colors_count) {
-      $module -= $colors_count;
-    }
-
-    $cable{MODULE_COLOR} = $colors[$module - 1];
-    if (length($cable{MODULE_COLOR}) > 6) {
-      $cable{MODULE_COLOR} = substr($cable{MODULE_COLOR}, 0, 6);
-    }
+  while ($fiber_num >= $colors_count) {
+    $fiber_num -= $colors_count;
   }
 
+  $cable{NAME} = $cable_info->{NAME};
+  $cable{MODULES_COUNT} = $cable_info->{MODULES_COUNT};
+  $cable{FIBERS_COUNT} = $cable_info->{FIBERS_COUNT};
+  $cable{COLOR} = $colors[$fiber_num];
+  $cable{COLOR} = substr($cable{COLOR}, 0, 6) if (length($cable{COLOR}) > 6);
+
+  @colors = split(',', $cable_info->{modules_colors});
+  $colors_count = @colors;
+
+  $fiber_num = $fiber_num ? $fiber_num : 1;
+  my $cur_module_first = $fiber_num / ($cable{FIBERS_COUNT} / $cable{MODULES_COUNT});
+  $cur_module_first += 1;
+  $cable{MODULE} = $cable{MODULES_COUNT} == 1 ? 1 : int $cur_module_first;
+  my $module = $cable{MODULE};
+
+  while ($module > $colors_count) {
+    $module -= $colors_count;
+  }
+
+  $cable{MODULE_COLOR} = $colors[$module - 1];
+  $cable{MODULE_COLOR} = substr($cable{MODULE_COLOR}, 0, 6) if (length($cable{MODULE_COLOR}) > 6);
   return %cable;
 }
 
@@ -1233,5 +1386,76 @@ sub _cablecat_cross_element {
 
   return %cross;
 }
+
+#**********************************************************
+=head2 _cablecat_commutation_info_table()
+
+=cut
+#**********************************************************
+sub _cablecat_commutation_links_table {
+  my $com_links_list = shift;
+  my ($attr) = @_;
+
+  my $table_links = $html->table({
+    width      => '100%',
+    caption    => ($lang{COMMUTATION_SCHEME} || "") . ": " . ($attr->{ID} || ""),
+    title      => [ $lang{PORT}, $lang{MODULE}, $lang{FIBER}, $lang{LINK}, $lang{PORT}, $lang{MODULE}, $lang{FIBER}, $lang{ATTENUATION} ],
+    ID         => 'CABLECAT_ITEMS',
+    DATA_TABLE => 1,
+  });
+
+  foreach my $link (@$com_links_list) {
+    my %first_element = ();
+    my %second_element = ();
+
+    if ($link->{element_1_type} eq "CABLE") {
+      %first_element = _cablecat_cable_element($link->{element_1_id}, $link->{fiber_num_1});
+    }
+    elsif ($link->{element_1_type} eq "SPLITTER") {
+      %first_element = _cablecat_splitter_element($link->{element_1_id}, $link->{fiber_num_1});
+    }
+    elsif ($link->{element_1_type} eq "EQUIPMENT") {
+      %first_element = _cablecat_equipment_element($link->{element_1_id});
+    }
+    elsif ($link->{element_1_type} eq "CROSS") {
+      %first_element = _cablecat_cross_element($link->{element_1_id});
+    }
+    else {
+      $first_element{NAME} = "";
+      $first_element{MODULE} = "";
+    }
+
+    if ($link->{element_2_type} eq "CABLE") {
+      %second_element = _cablecat_cable_element($link->{element_2_id}, $link->{fiber_num_2});
+    }
+    elsif ($link->{element_2_type} eq "SPLITTER") {
+      %second_element = _cablecat_splitter_element($link->{element_2_id}, $link->{fiber_num_2});
+    }
+    elsif ($link->{element_2_type} eq "EQUIPMENT") {
+      %second_element = _cablecat_equipment_element($link->{element_2_id});
+    }
+    elsif ($link->{element_2_type} eq "CROSS") {
+      %second_element = _cablecat_cross_element($link->{element_2_id});
+    }
+    else {
+      $second_element{NAME} = "";
+      $second_element{MODULE} = "";
+    }
+
+    $first_element{COLOR} = $first_element{COLOR} ? $first_element{COLOR} : "cccccc";
+    $second_element{COLOR} = $second_element{COLOR} ? $second_element{COLOR} : "cccccc";
+
+    $first_element{MODULE_COLOR} = $first_element{MODULE_COLOR} ? $first_element{MODULE_COLOR} : "cccccc";
+    $second_element{MODULE_COLOR} = $second_element{MODULE_COLOR} ? $second_element{MODULE_COLOR} : "cccccc";
+
+    $table_links->addrow($first_element{NAME}, $html->badge($first_element{MODULE}, {STYLE => "style=\"background-color: #$first_element{MODULE_COLOR} !important;\""}),
+      $html->badge($link->{fiber_num_1} + 1, {STYLE => "style=\"background-color: #$first_element{COLOR} !important;\""}), '',
+      $second_element{NAME}, $html->badge($second_element{MODULE}, {STYLE => "style=\"background-color: #$second_element{MODULE_COLOR} !important;\""}),
+      $html->badge($link->{fiber_num_2} + 1, {STYLE => "style=\"background-color: #$second_element{COLOR} !important;\""}), '');
+  }
+
+  return $table_links;
+}
+
 
 1;

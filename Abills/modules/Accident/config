@@ -1,4 +1,6 @@
-%FUNCTIONS_LIST = ();
+
+our %FUNCTIONS_LIST = ();
+our Abills::HTML $html;
 
 use Accident;
 my $Accident = Accident->new($db, $admin, \%conf);
@@ -10,13 +12,13 @@ $Accident->list({
 my $info = $html->badge($Accident->{TOTAL}, { TYPE => 'bg-red' });
 
 if ($Accident->{TOTAL} > 0) {
-  $FUNCTIONS_LIST{"01:0:$lang{ACCIDENT_LOG} $info:main_log:"} = 8;
+  $FUNCTIONS_LIST{"01:0:$lang{ACCIDENT_LOG} $info:accident_log:"} = 8;
 }
 else {
-  $FUNCTIONS_LIST{"01:0:$lang{ACCIDENT_LOG}:main_log:"} = 8;
+  $FUNCTIONS_LIST{"01:0:$lang{ACCIDENT_LOG}:accident_log:"} = 8;
 }
 
-$FUNCTIONS_LIST{"02:1:$lang{ADD_ACCIDENT}:add_accident_log:"} = 8;
+$FUNCTIONS_LIST{"02:1:$lang{ADD_ACCIDENT}:accident_log_add:"} = 8;
 
 if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
   $Accident->accident_equipment_list({
@@ -36,6 +38,10 @@ $FUNCTIONS_LIST{"04:1:$lang{COMPENSATION}:accident_compensation:"} = 8;
 
 my $badge_accident = $html->badge($Accident->{TOTAL}, { TYPE => 'bg-red' });
 
-$FUNCTIONS_LIST{"05:0:$lang{ACCIDENT_LOG} $badge_accident:user_accident:"} = 20;
+$FUNCTIONS_LIST{"05:0:$lang{ACCIDENT_LOG} $badge_accident:accident_user:"} = 20;
+
+%PERIODIC = (
+  daily   => [ 'accident_auto_close' ],
+);
 
 1;

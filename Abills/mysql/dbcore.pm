@@ -262,9 +262,9 @@ sub query{
     Log->import( 'log_print' );
     $self->{sql_errno} = 0 if (!$self->{sql_errno});
     $self->{sql_errstr} = '' if (!$self->{sql_errstr});
-
+    my $caller = join(', ', caller());
     Log::log_print( undef, 'LOG_ERR', '',
-      "Query:\n$query\n Error:$self->{sql_errno}\n Error str:$self->{sql_errstr}\nundefined \$db",
+      "Query:\n$query\n Error:$self->{sql_errno}\n Error str:$self->{sql_errstr}\nundefined \$db\n$caller",
       { NAS => 0, LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors' } );
     return $self;
   }
@@ -317,11 +317,12 @@ sub query{
       $self->{errno} = 3;
       $self->{errstr} = 'SQL_ERROR';
       $self->{sql_query} = $query;
+      my $caller = join(', ', caller());
       require Log;
       Log->import( 'log_print' );
       Log::log_print( undef, 'LOG_ERR', '',
         "index:". ($attr->{index} || q{}) ."\n"
-          . ($query || q{}) ."\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n"
+          . ($query || q{}) ."\n --$self->{sql_errno}\n --$self->{sql_errstr}\n --AutoCommit: $db->{AutoCommit}\n$caller\n"
         , { NAS => 0, LOG_FILE => ( -w $sql_errors) ? $sql_errors : '/tmp/sql_errors' } );
     }
     return $self;
@@ -669,19 +670,21 @@ sub search_former{
     my ($param, $field_type, $sql_field, $show) = @{$search_param};
     next if (in_array($param, $data->{HIDDEN_COLUMNS}));
     my $param2 = '';
-    if ( $param =~ /^(.*)\|(.*)$/ ){
-      $param = $1;
-      $param2 = $2;
+    if ($param && $param =~ /^(.*)\|(.*)$/ ){
+      $param = $1 || q{};
+      $param2 = $2 || q{};
     }
 
-    if ( $data->{$param} || ($field_type eq 'INT' && defined( $data->{$param} ) && $data->{$param} ne '') ){
+    $field_type //= q{};
+
+    if (($param && $data->{$param}) || ($field_type eq 'INT' && defined( $data->{$param} ) && $data->{$param} ne '') ){
       if ( $sql_field eq '' ){
         $self->{SEARCH_FIELDS} .= "$show, ";
         $self->{SEARCH_FIELDS_COUNT}++;
         push @{ $self->{SEARCH_FIELDS_ARR} }, $show;
       }
       elsif ( $param2 ){
-        push @WHERE_RULES, "($sql_field>='$data->{$param}' and $sql_field<='$data->{$param2}')";
+        push @WHERE_RULES, "($sql_field>='$data->{$param}' and $sql_field<='". ($data->{$param2} || q{}) ."')";
       }
       else{
         push @WHERE_RULES,
@@ -1046,10 +1049,16 @@ sub search_expr_users{
     #ADDRESS_FLAT  => 'STR:pi.address_flat',
   );
 
-  # Add cell_phone
+  # Add cell_phone, viber, telegram
   if ($self->{conf}{CONTACTS_NEW}){
     $users_fields_hash{CELL_PHONE}=
       q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id=1) AS cell_phone/;
+
+    $users_fields_hash{TELEGRAM} =
+      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id = 6) AS telegram/;
+    $users_fields_hash{VIBER} =
+      q/STR:(SELECT GROUP_CONCAT(value SEPARATOR ';') FROM users_contacts uc WHERE uc.uid=u.uid AND type_id = 5) AS viber/;
+
   }
   
   if ( $attr->{DEPOSIT} && $attr->{DEPOSIT} ne '_SHOW' ){
@@ -1261,8 +1270,13 @@ sub search_expr_users{
         $EXT_TABLE_JOINS_HASH{districts} = 1;
       }
 
-      if ( $attr->{ADDRESS_FULL} ){
+      if ( $attr->{ADDRESS_FULL} && !in_array( 'ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS} )){
         my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
+
+        if ($build_delimiter =~ /,/) {
+          $attr->{ADDRESS_FULL} =~ s/,/\*/g;
+        }
+
         push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
             "CONCAT(streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full",
             { EXT_FIELD => 1 } ) };
@@ -1342,7 +1356,7 @@ sub search_expr_users{
     else{
       my $f_count = $self->{SEARCH_FIELDS_COUNT};
 
-      if ( $attr->{ADDRESS_FULL} ){
+      if ( $attr->{ADDRESS_FULL} && !in_array( 'ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS} )){
         my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
         push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
             "CONCAT(pi.address_street, '$build_delimiter', pi.address_build, '$build_delimiter', pi.address_flat) AS address_full"
@@ -1546,7 +1560,9 @@ sub mk_ext_tables{
   foreach my $table_ ( @EXT_TABLES_JOINS ){
     my ($table_name, $join_text) = split( /:/, $table_, 2 );
     if ( $attr->{JOIN_TABLES}->{$table_name} ){
-      $join_tablee .= "$join_text\n";
+      if ($join_tablee !~ /$join_text/) {
+        $join_tablee .= "$join_text\n";
+      }
     }
   }
 

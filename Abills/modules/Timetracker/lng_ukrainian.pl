@@ -1,9 +1,10 @@
 $lang{TIMETRACKER} = "Облік часу";
 $lang{FILLING_TIMETRACKER} = "Заповнення обліку часу";
+$lang{ADDING_TIMETRACKER}  = "Додавання задач";
 
 $lang{SUPPORT_TIMETRACK} = "Саппорт";
 $lang{SPRINT_TIMETRACK} = "Спринт";
-$lang{COEFFICIENT} = "Фокус фактор,%";
+$lang{COEFFICIENT} = "Фокус-фактор, %";
 
 $lang{SUBMIT_BTN_ADD_TIMETRACK} = "Додати";
 $lang{SUBMIT_BTN_EDIT_TIMETRACK} = "Змінити";
@@ -17,7 +18,7 @@ $lang{ADD_ITEM} = "Додати тип робіт";
 $lang{EDIT_ITEM} = "Змінити тип робіт";
 $lang{NEW_ITEM} = "Новий тип робіт";
 
-$lang{FOCUS_FACTOR} = "Фокус Фактор";
+$lang{FOCUS_FACTOR} = "Фокус-фактор";
 $lang{ELEMENTS} = "Тип робіт";
 $lang{ELEMENT} = "Тип робіт";
 
@@ -34,8 +35,8 @@ $lang{RESULT} = 'Результат';
 $lang{AUTOFILL} = 'Заповнити форму';
 $lang{EXTERNAL_SYSTEM} = 'Зовнішні системи обліку';
 
-$lang{ERROR_API_KEY} = 'APIKEY не має дозволу переглядати користувачів або неправильний APIURL.
-Змінити: $ conf (TIMETRACKER_REDMINE_APIKEY) & $ conf (TIMETRACKER_REDMINE_APIURL) ';
+$lang{ERROR_API_KEY} = 'KEY не має дозволу переглядати користувачів або неправильний URL.
+Змінити: $ conf (TIMETRACKER_REDMINE_KEY) & $ conf (TIMETRACKER_REDMINE_URL) ';
 $lang{ERROR_EMAIL} = "Неможливо знайти користувача по електронній пошті";
 $lang{NO_FIELD} = 'не заповнено';
 
@@ -51,7 +52,7 @@ $lang{NOT_FOUND} = 'Немає конфігурації: ';
 $lang{ALL_TIME} = 'Всього часу, години';
 
 $lang{ADMINS_LIST} = 'список адміністраторів';
-$lang{CLOSE_MOUTH} = 'количество закрытых за поточный месяц работ по Redmine';
+$lang{CLOSED_TASKS} = 'кількість закритих завдань';
 $lang{ACTUALLY_HOURS} = 'кількість фактично витрачених годин';
 $lang{SCHEDULED_HOURS} = 'кількість запланованих годин';
 $lang{TIME_COMPLEXITY} = 'складність помножена на кількість запланованих годин';

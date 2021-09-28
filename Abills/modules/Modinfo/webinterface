@@ -7,8 +7,10 @@
 =cut 
 
 use strict;
-our ($html,
-%lang);
+our ($html, $db, %lang);
+use Modinfo::db::Modinfo;
+my $Modinfo = Modinfo->new($db, undef, undef);
+
 
 #**********************************************************
 =head modinfo_start_page_show($attr)
@@ -39,21 +41,29 @@ sub modinfo_start_page_show {
 
 
 #**********************************************************
-=head2 modinfo_show($module_name, $url, $attr)
+=head2 modinfo_show($module_name, $url) - info about module
+
+  Arguments:
+    $module_name
+    $url
+
+  Results:
+    $result
 
 =cut
 #**********************************************************
 sub modinfo_show {
   my ($module_name, $url) = @_;
-
-  if (! $url) {
-    $url = 'http://abills.net.ua/wiki/doku.php?id=abills:docs:modules:'. lc($module_name) .':ru';
+  my $desc_info = $url;
+  unless ($url) {
+    $url = 'http://abills.net.ua:8090/display/AB/'. lc($module_name);
+    $desc_info = 'http://abills.net.ua/wiki/doku.php?id=abills:docs:modules:'. lc($module_name) .':ru';
   }
 
   #Get module info
-  my $body = web_request($url. '&do=export_raw',{ BODY_ONLY => 1 }) ;
 
-  if (! $body) {
+  my $body = web_request($desc_info. '&do=export_raw', { BODY_ONLY => 1 });
+  if (!$body) {
     return '';
   }
   
@@ -70,27 +80,86 @@ sub modinfo_show {
   $futures  =~ s/==(.+)==/<b>$1<\/b>/g;
   $futures  =~ s/[[.+|(.+)]]/$1/g;
   
-  my $result =  "
-<div class='jumbotron'>
-  <div class='container'>
-  <h2>$lang{MODULE} $module_name</h2>
-  <p>$describe</p>
-  <p>$futures</p>
-  <p>". $html->button($lang{DETAIL}, "$url", { ex_params => 'target=_new', BUTTON => 1, GLOBAL_URL => $url  }) ."</p>
-  </div>
-</div>";
+  my $result =
+    "<div class='card card-default card-outline'>
+        <div class='card-header with-border'>
+            <h4 class='card-title table-caption'>$lang{MODULE} <b>$module_name</b></h4>
+            <div class='col-md-2 pull-right text-right'>
+                <div class='btn-group'>
+                    <button type='button' title='Show/Hide' class='btn btn-tool' data-card-widget='collapse'>
+                    <i class='fa fa-minus'></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div style='overflow: scroll; text-align: justify;' class='card-body'>
+            <p>$describe</p>
+            <p>$futures</p>
+            <p>". $html->button($lang{GUIDE_WIKI_LINK}, "$url", { class => 'btn btn-primary', ex_params => 'target=_new', GLOBAL_URL => $url  }) ."</p>
+       </div>
+    </div>";
 
   return $result;
 }
 
 
-#***************************************************************
-#
-#***************************************************************
+#**********************************************************
+=head2 modinfo_tips() - Get random tip from db
+
+  Arguments:
+
+  Results:
+    $card_info
+
+=cut
+#**********************************************************
+sub modinfo_tips {
+  my $tip = $Modinfo->rand_tip();
+  my $card_info =
+    "<div class='card card-default card-outline'>
+        <div class='card-header with-border hidden-print text-center'>
+            <div class='row'>
+                <div class='col-md-10 pull-left text-left'>
+                    <h4 class='card-title table-caption'>"
+                    .$lang{TIPS}.
+                    "</h4>
+                </div>
+                <div class='col-md-2 pull-right text-right'>
+                    <div class='btn-group'>
+                        <button type='button' title='Show/Hide' class='btn btn-tool' data-card-widget='collapse'>
+                        <i class='fa fa-minus'></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class='card-body' style='overflow: scroll; text-align: justify;' id='p_AD'>
+            $tip
+        </div>
+    </div>";
+
+  return $card_info;
+}
+
+
+#**********************************************************
+=head2 modinfo_start_page() - returns module dashboard
+
+  Arguments:
+
+  Results:
+    \%START_PAGE_F
+
+=cut
+#**********************************************************
 sub modinfo_start_page {
-  my %START_PAGE_F = ('modinfo_start_page_show' => 'Module info' );
+  my %START_PAGE_F = (
+      'modinfo_start_page_show' => $lang{MOD_INFO},
+      'modinfo_tips'            => $lang{TIPS}
+  );
 
   return \%START_PAGE_F;
 }
 
-1
+1;

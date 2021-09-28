@@ -83,10 +83,17 @@ sub maps_layers {
     }, {
       id              => '37',
       name            => 'LEAD_TAGS',
-      lang_name       => "$lang->{LEADS} ($lang->{TAGS})",
+      lang_name       => "$lang->{CRM_SHORT_LEADS} ($lang->{TAGS})",
       module          => 'Crm',
       structure       => 'MARKER',
       export_function => 'maps_leads_by_tags'
+    }, {
+      id              => '38',
+      name            => 'LEAD_COMPETITORS',
+      lang_name       => "$lang->{CRM_SHORT_LEADS} ($lang->{COMPETITORS})",
+      module          => 'Crm',
+      structure       => 'MARKER',
+      export_function => 'maps_leads_by_competitors'
     } ]
   }
 }
@@ -119,7 +126,8 @@ sub maps_leads {
       address_flat => $lead->{ADDRESS_FLAT},
       step         => $html->color_mark(::_translate($lead->{STEP}), $lead->{COLOR}),
       phone        => $lead->{PHONE},
-      uid          => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : ''
+      uid          => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : '',
+      competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' . ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
     };
   }
 
@@ -131,8 +139,8 @@ sub maps_leads {
     my $marker_info = maps2_point_info_table($html, $lang, {
       TABLE_TITLE       => $lang->{LEADS},
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID', 'FIO', 'PHONE', 'STEP', 'UID', 'ADDRESS_FLAT' ],
-      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{USER}, $lang->{FLAT} ],
+      TABLE_TITLES      => [ 'ID', 'FIO', 'PHONE', 'STEP', 'UID', 'COMPETITOR', 'ADDRESS_FLAT' ],
+      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{USER}, $lang->{COMPETITOR}, $lang->{FLAT} ],
     });
 
     delete $build_info{$lead->{BUILD_ID}};
@@ -202,7 +210,6 @@ sub maps_leads_by_tags {
       DESC      => 'desc'
     });
 
-
     next if $Tags->{TOTAL} < 1;
 
     my $tags_container = '';
@@ -223,7 +230,8 @@ sub maps_leads_by_tags {
       address_flat => $lead->{ADDRESS_FLAT},
       icon_color   => $tags_list->[0]{color},
       name         => $tags_list->[0]{name},
-      tags         => $tags_container
+      tags         => $tags_container,
+      competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' . ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
     };
   }
 
@@ -235,8 +243,8 @@ sub maps_leads_by_tags {
     my $marker_info = maps2_point_info_table($html, $lang, {
       TABLE_TITLE       => "$lang->{LEADS} ($lang->{TAGS})",
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID', 'FIO', 'PHONE', 'STEP', 'TAGS', 'ADDRESS_FLAT' ],
-      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS}, $lang->{FLAT} ],
+      TABLE_TITLES      => [ 'ID', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ADDRESS_FLAT' ],
+      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS}, $lang->{COMPETITOR}, $lang->{FLAT} ],
     });
 
     my %marker = (
@@ -252,6 +260,82 @@ sub maps_leads_by_tags {
         DISABLE_EDIT => 1
       },
       LAYER_ID  => 37,
+      ID        => $lead->{id},
+      OBJECT_ID => $lead->{build_id}
+    );
+
+    delete $build_info{$lead->{BUILD_ID}};
+    push @objects_to_show, \%marker;
+  }
+
+  return \@objects_to_show if $attr->{RETURN_OBJECTS};
+
+  my $export_string = JSON::to_json(\@objects_to_show, { utf8 => 0 });
+  if ($attr->{RETURN_JSON}) {
+    print $export_string;
+    return 1;
+  }
+
+  return $export_string;
+}
+
+#**********************************************************
+=head2 maps_leads_by_tags()
+
+=cut
+#**********************************************************
+sub maps_leads_by_competitors {
+  my $self = shift;
+  my ($attr) = @_;
+
+  my $leads = $Crm->crm_lead_points_list({ COMPETITOR_ID => '!0' });
+  return $Crm->{TOTAL} if $attr->{ONLY_TOTAL};
+
+  my @objects_to_show = ();
+  my %build_info = ();
+
+  foreach my $lead (@{$leads}) {
+    if ($lead->{UID}) {
+      $lead->{STEP} = $lang->{USER};
+      $lead->{COLOR} = '#28a745';
+    }
+
+    push @{$build_info{$lead->{BUILD_ID}}}, {
+      id           => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
+      fio          => $lead->{FIO},
+      address_flat => $lead->{ADDRESS_FLAT},
+      step         => $html->color_mark(::_translate($lead->{STEP}), $lead->{COLOR}),
+      phone        => $lead->{PHONE},
+      uid          => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : '',
+      competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' . ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
+    };
+  }
+
+  foreach my $lead (@{$leads}) {
+    next if !$build_info{$lead->{BUILD_ID}} || !$lead->{competitor_color};
+
+    my $type = _crm_get_icon($lead->{competitor_color});
+
+    my $marker_info = maps2_point_info_table($html, $lang, {
+      TABLE_TITLE       => "$lang->{LEADS} ($lang->{COMPETITORS})",
+      OBJECTS           => $build_info{$lead->{BUILD_ID}},
+      TABLE_TITLES      => [ 'ID', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR' ],
+      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS}, $lang->{COMPETITOR} ],
+    });
+
+    my %marker = (
+      MARKER    => {
+        LAYER_ID     => 38,
+        ID           => $lead->{id},
+        OBJECT_ID    => $lead->{build_id},
+        COORDX       => $lead->{coordy} || $lead->{coordy_2},
+        COORDY       => $lead->{coordx} || $lead->{coordx_2},
+        SVG          => $type,
+        INFOWINDOW   => $marker_info,
+        NAME         => $lead->{competitor},
+        DISABLE_EDIT => 1
+      },
+      LAYER_ID  => 38,
       ID        => $lead->{id},
       OBJECT_ID => $lead->{build_id}
     );

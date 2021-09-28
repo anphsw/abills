@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS `crm_competitors` (
   `name` VARCHAR(64) NOT NULL DEFAULT '',
   `connection_type` VARCHAR(32) NOT NULL DEFAULT '',
   `site` VARCHAR(150) NOT NULL DEFAULT '',
+  `color` VARCHAR(7) NOT NULL DEFAULT '',
   `descr` TEXT NOT NULL,
   PRIMARY KEY (`id`)
 )

@@ -845,7 +845,7 @@ sub buy_cards {
         REGISTRATION_ONLY => 1,
         UID               => $FORM{UID},
         SUS_URL_PARAMS    => ($FORM{UNIFI_SITENAME}) ? "&UNIFI_SITENAME=$FORM{UNIFI_SITENAME}" : q{},
-        #RETURN_URL    => $ENV{PROT}.'://'. $ENV{SERVER_NAME}.':'. $ENV{SERVER_PORT} . '/start.cgi'
+        RETURN_URL        => $COOKIES{link_login} || $SELF_URL,
       });
 
       $Tariffs->info($FORM{TP_ID});
@@ -1043,7 +1043,8 @@ sub buy_cards {
         PREPAID_MINS    => ($line->{total_time_limit}) ? sprintf("%.1f", $line->{total_time_limit} / 60 / 60) : $lang{UNLIM},
         PREPAID_TRAFFIC => $line->{total_traf_limit} || $lang{UNLIM},
         PRICE           => $line->{activate_price} || 0.00,
-        UNIFI_SITENAME  => ($FORM{UNIFI_SITENAME}) ? "&UNIFI_SITENAME=$FORM{UNIFI_SITENAME}" : q{}
+        UNIFI_SITENAME  => ($FORM{UNIFI_SITENAME}) ? "&UNIFI_SITENAME=$FORM{UNIFI_SITENAME}" : q{},
+        USER_PHONE      => ($FORM{PHONE}) ? "&PHONE=$FORM{PHONE}" : q{},
       },
       { OUTPUT2RETURN => 1 }
     );
@@ -1196,7 +1197,17 @@ sub _send_sms_with_pin {
 sub fast_login {
 
   if ($FORM{error}) {
-    if ($conf{HOTSPOT_USER_PORTAL} && $COOKIES{hotspot_username} && $COOKIES{hotspot_password}) {
+    if ($FORM{error} =~ /USER_NOT_EXIST/) {
+      mk_cookie({
+        hotspot_username => '',
+        hotspot_password => '',
+      },
+        { COOKIE_TIME => gmtime(time() - $auth_cookie_time) . " GMT" }
+      );
+      print "Location: $FORM{link_login_only}\n\n";
+      exit 1;
+    }
+    elsif ($conf{HOTSPOT_USER_PORTAL} && $COOKIES{hotspot_username} && $COOKIES{hotspot_password}) {
       my $user_portal_url = $SELF_URL;
       $user_portal_url =~ s/start/index/;
       $user_portal_url .= "?user=$COOKIES{hotspot_username}&passwd=$COOKIES{hotspot_password}";
@@ -1274,14 +1285,6 @@ sub fast_login {
     }
   }
 
-  if ($FORM{recharge}) {
-    # Online payment proceed
-    my $output = buy_cards();
-    print $html->header();
-    print $output;
-    exit;
-  }
-
   if ($FORM{external_auth_failed}) {
     print $html->header();
     print $html->message('err', $lang{ERROR}, $lang{ERR_SN_ERROR}, { ID => 1536 });
@@ -1296,6 +1299,37 @@ sub fast_login {
   }
 
   $FORM{DST} = $conf{HOTSPOT_REDIRECT_URL} || 'https://www.google.com';
+
+  #===== CHECK PHONE =====
+  if ($conf{HOTSPOT_CHECK_PHONE}) {
+    my $hot_log = $Hotspot->log_list({
+      CID       => $FORM{mac},
+      INTERVAL  => "$DATE/$DATE",
+      ACTION    => 12,
+      PHONE     => '_SHOW',
+      COLS_NAME => 1,
+    });
+
+    if ($Hotspot->{TOTAL} > 0) {
+      #User with this mac already virifed phone today.
+      $FORM{PHONE} = $hot_log->[0]->{phone};
+      if ($conf{HOTSPOT_MAC_CHANGE} && $FORM{PHONE} && $FORM{mac}) {
+        change_user_mac();
+      }
+      $FORM{'3.PHONE'} = $FORM{PHONE};
+    }
+    else {
+      phone_verifycation();
+    }
+  }
+
+  if ($FORM{recharge}) {
+    # Online payment proceed
+    my $output = buy_cards();
+    print $html->header();
+    print $output;
+    exit;
+  }
 
   #===== SHOW FB PAGE =====
   if ($conf{HOTSPOT_SHOW_FB} && $FORM{external_auth}) {
@@ -1346,30 +1380,7 @@ sub fast_login {
     exit;
   }
 
-  #===== CHECK PHONE =====
-  if ($conf{HOTSPOT_CHECK_PHONE}) {
-    my $hot_log = $Hotspot->log_list({
-      CID       => $FORM{mac},
-      INTERVAL  => "$DATE/$DATE",
-      ACTION    => 12,
-      PHONE     => '_SHOW',
-      COLS_NAME => 1,
-    });
-
-    if ($Hotspot->{TOTAL} > 0) {
-      #User with this mac already virifed phone today.
-      $FORM{PHONE} = $hot_log->[0]->{phone};
-      if ($conf{HOTSPOT_MAC_CHANGE} && $FORM{PHONE} && $FORM{mac}) {
-        change_user_mac();
-      }
-      $FORM{'3.PHONE'} = $FORM{PHONE};
-    }
-    else {
-      phone_verifycation();
-    }
-  }
-
-  #===== AUTH =====
+    #===== AUTH =====
   if ($conf{HOTSPOT_ONE_LOGIN_FOR_ALL}) {
     my ($login, $password) = split(/:/, $conf{HOTSPOT_ONE_LOGIN_FOR_ALL});
     $Hotspot->log_add({
@@ -1421,14 +1432,15 @@ sub fast_login {
         require Paysys;
         my $Paysys = Paysys->new($db, $admin, \%conf);
         my $list = $Paysys->list({
-          TRANSACTION_ID => "Liqpay:$op_id",
+          TRANSACTION_ID => "*:$op_id",
           STATUS         => 2,
           SKIP_DEL_CHECK => 1,
           COLS_NAME      => 1,
+          COLS_UPPER     => 1,
         });
         if ($Paysys->{TOTAL} > 0) {
           $FORM{TRUE} = 1;
-          $FORM{OPERATION_ID} = "Liqpay:$op_id";
+          $FORM{OPERATION_ID} = $list->[0]->{TRANSACTION_ID};
         }
       }
     }

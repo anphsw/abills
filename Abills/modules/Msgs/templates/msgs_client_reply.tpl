@@ -75,6 +75,7 @@
       <h4 class='card-title'>_{REPLY}_</h4>
     </div>
     <input type='hidden' name='SUBJECT' value='%SUBJECT%' size=50/>
+    <input type='hidden' id='MAX_FILES' value='%MAX_FILES%'/>
 
     <div class='card-body form form-horizontal' id='card-body'>
       <div class='form-group row'>
@@ -90,7 +91,7 @@
         <label class='col-md-3 control-label'>_{ATTACHMENT}_:</label>
 
         <div class='col-md-9' id='file_upload_holder'>
-          <div class='form-group row'>
+          <div class='form-group m-1'>
             <input name='FILE_UPLOAD' type='file' data-number='0'>
           </div>
         </div>
@@ -119,7 +120,8 @@
       changeEventHandler(e);
     });
 
-    var MAX_FILES_COUNT = 3;
+    var MAX_FILES_COUNT = jQuery('#MAX_FILES').val();
+    if (MAX_FILES_COUNT === '') MAX_FILES_COUNT = 3;
     initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
   }());
 
@@ -251,8 +253,8 @@
   function addBtn() {
     var sigpad = document.querySelector("#signature-pad");
     var buttons = document.createElement("div");
-    buttons.innerHTML = "<button type='button' class='btn btn-secondary' data-action='clear'>_{CLEAR}_</button> "
-      + "<button type='button' class='btn btn-secondary' data-action='sign'>_{SIGN}_</button>";
+    buttons.innerHTML = "<button type='button' class='btn btn-default' data-action='clear'>_{CLEAR}_</button> "
+      + "<button type='button' class='btn btn-default' data-action='sign'>_{SIGN}_</button>";
     sigpad.appendChild(buttons);
 
     var clearButton = sigpad.querySelector("[data-action=clear]");

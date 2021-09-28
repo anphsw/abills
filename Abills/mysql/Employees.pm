@@ -3184,6 +3184,23 @@ sub employees_list_reference_works {
 }
 
 #**********************************************************
+=head2 employees_reference_works_info($id, $attr)
+
+=cut
+#**********************************************************
+sub employees_reference_works_info{
+  my $self = shift;
+  my ($id) = @_;
+
+  $self->query("SELECT * FROM employees_reference_works WHERE id= ? ;", undef, {
+    INFO => 1,
+    Bind => [ $id ]
+  });
+
+  return $self;
+}
+
+#**********************************************************
 =head2 employees_works_list($attr) - list of tp services
 
   Arguments:
@@ -3263,16 +3280,31 @@ sub employees_works_list{
 
 =cut
 #**********************************************************
-sub employees_works_add{
+sub employees_works_add {
   my $self = shift;
   my ($attr) = @_;
 
-  if (!$attr->{EXTRA_SUM}) {
-    $self->employees_info_reference_works({ ID => $attr->{WORK_ID} });
-    $attr->{SUM} = $self->{SUM} * ($attr->{RATIO} || 1) if$self->{TOTAL};
+  my %params = ();
+  my @MULTI_QUERY = ();
+
+  $params{WORK_ID} = $attr->{WORK_ID} ? [ split(/,\s?/, $attr->{WORK_ID}) ] : [];
+  $params{RATIO} = $attr->{RATIO} ? [ split(/,\s?/, $attr->{RATIO}) ] : [];
+  $params{FEES_ID} = $attr->{FEES_ID} ? [ split(/,\s?/, $attr->{FEES_ID}) ] : [];
+
+  for (my $i = 0 ; $i <= $#{$params{WORK_ID}}; $i++) {
+    if (!$attr->{EXTRA_SUM}) {
+      $self->employees_info_reference_works({ ID => $params{WORK_ID}[$i] });
+      $attr->{SUM} = $self->{SUM} * ($params{RATIO}[$i] || 1) if $self->{TOTAL};
+    }
+
+    push @MULTI_QUERY, [ $attr->{DATE}, $attr->{EMPLOYEE_ID}, $params{WORK_ID}[$i], $params{RATIO}[$i], $attr->{SUM} || 0,
+      $attr->{EXTRA_SUM} || 0, $attr->{COMMENTS}, $attr->{EXT_ID}, $admin->{AID}, $attr->{WORK_DONE} || 0,
+      $params{FEES_ID}[$i] || 0];
   }
 
-  $self->query_add('employees_works', { %$attr, AID => $admin->{AID} });
+  $self->query("INSERT INTO employees_works (date, employee_id, work_id, ratio,
+    sum, extra_sum, comments, ext_id, aid, work_done, fees_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", undef, { MULTI_QUERY => \@MULTI_QUERY });
 
   return $self;
 }
@@ -3325,14 +3357,10 @@ sub employees_works_info{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query( "SELECT * FROM employees_works
-    WHERE id= ? ;",
-    undef,
-    {
-      INFO => 1,
-      Bind => [ $id ]
-    }
-  );
+  $self->query("SELECT * FROM employees_works WHERE id= ? ;", undef, {
+    INFO => 1,
+    Bind => [ $id ]
+  });
 
   return $self;
 }

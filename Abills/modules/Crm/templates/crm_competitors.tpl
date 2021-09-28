@@ -39,9 +39,16 @@
             </div>
           </div>
 
-          <div class="form-group row">
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='COLOR'>_{COLOR}_:</label>
+            <div class='col-md-8'>
+              <input type='color' class='form-control' id='COLOR' name='COLOR' VALUE='%COLOR%'>
+            </div>
+          </div>
+
+          <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right' for='DESCR'>_{DESCRIBE}_:</label>
-            <div class="col-md-8">
+            <div class='col-md-8'>
           <textarea class='form-control' id='DESCR' name='DESCR' rows='2'
                     placeholder='%DESCR%'>%DESCR%</textarea>
             </div>

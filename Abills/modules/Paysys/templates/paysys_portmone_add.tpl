@@ -1,12 +1,12 @@
-<form action="https://www.portmone.com.ua/gateway/" method="post">
-    <input type="hidden" name="payee_id" value='%PAYEE_ID%'/>
-    <input type="hidden" name="shop_order_number" value='%SHOP_ORDER_NUMBER%'/>
-    <input type="hidden" name="bill_amount" value='%BILL_AMOUNT%'/>
-    <input type="hidden" name="bill_currency" value='%BILL_CURRENCY%'/>
-    <input type="hidden" name="description" value='%DESCRIBE%'/>
-    <input type="hidden" name="success_url" value='%URL_SUCCESS%'/>
-    <input type="hidden" name="failure_url" value='%URL_FAILED%'/>
-    <input type="hidden" name="attribute1" value='%UID%'/>
+<form action='https://www.portmone.com.ua/gateway/' method='post'>
+    <input type='hidden' name='payee_id' value='%PAYEE_ID%'/>
+    <input type='hidden' name='shop_order_number' value='%SHOP_ORDER_NUMBER%'/>
+    <input type='hidden' name='bill_amount' value='%BILL_AMOUNT%'/>
+    <input type='hidden' name='bill_currency' value='%BILL_CURRENCY%'/>
+    <input type='hidden' name='description' value='%DESCRIBE%'/>
+    <input type='hidden' name='success_url' value='%URL_SUCCESS%'/>
+    <input type='hidden' name='failure_url' value='%URL_FAILED%'/>
+    <input type='hidden' name='attribute1' value='%UID%'/>
 
     <div class='container-fluid'>
         <div class='card box-primary'>

@@ -1,23 +1,4 @@
 
-
-<script type=\"text/javascript\">
-	function selectLanguage() {
-		sLanguage	= '';
-		
-		try {
-			frm = document.forms[0];
-			if(frm.language)
-				sLanguage = frm.language.options[frm.language.selectedIndex].value;
-			sLocation = '$SELF_URL?registration=1&language='+sLanguage;
-			location.replace(sLocation);
-		} catch(err) {
-			alert('Your brownser do not support JS');
-		}
-	}
-</script>
-
-
-<div align=center>
 <form action='$SELF_URL' METHOD='POST'>
 <input type='hidden' name='index' value='$index'>
 <input type='hidden' name='reg_process' value='1'>
@@ -51,7 +32,7 @@
 </table>
 <input type='submit' name='%ACTION%' value='%LNG_ACTION%'>
 </form>
-</div>
+
 
 
 

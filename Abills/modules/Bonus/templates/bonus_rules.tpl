@@ -7,27 +7,27 @@
     <div class='card card-primary card-outline box-form'>
         <div class='card-header with-border'><h4>_{RULES}_</h4></div>
         <div class='card-body'>
-            <div class='form-group'>
+            <div class='form-group row'>
                 <label class='control-label col-md-4' for='PERIOD'>_{PERIOD}_</label>
                 <div class='col-md-8'>
                     %PERIOD%
                 </div>
             </div>
-            <div class='form-group'>
+            <div class='form-group row'>
                 <label class='control-label col-md-4' for='RULE'>_{RULES}_</label>
                 <div class='col-md-8'>
                     %RULE%
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <label class='control-label col-md-4' for='RULE_VALUE'>_{VALUE}_</label>
                 <div class='col-md-8'>
                     <input required='' type='text' class='form-control' id="RULE_VALUE" name='RULE_VALUE' value='%RULE_VALUE%'/>
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <label class='control-label col-md-4' for='ACTIONS'>_{BONUS}_</label>
                 <div class='col-md-8'>
                     <input required='' type='text' class='form-control' id="ACTIONS" name='ACTIONS' value='%ACTIONS%'/>

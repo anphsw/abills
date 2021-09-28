@@ -10,20 +10,6 @@
       </div>
       <div class='card-body'>
         <div class="form-group row">
-          <label class="col-sm-4 col-md-4 control-label" for='FIO'>_{FIO}_:</label>
-          <div class="col-sm-8 col-md-8">
-            <div class="input-group">
-              <input id='FIO' name='FIO' value='%FIO%' class='form-control' type='text'/>
-              <div class="input-group-append">
-                <div class="input-group-text">
-                  <i class='fa fa-exclamation'></i>
-                  <input type="checkbox" name='FIO' data-input-disables='FIO' value='!'>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="form-group row">
           <label class="col-sm-4 col-md-4 control-label" for='CONTRACT_ID'>_{CONTRACT_ID}_:</label>
           <div class="col-sm-8 col-md-8">
             <div class="input-group">
@@ -43,28 +29,6 @@
           <div class="col-sm-8 col-md-8">
             <input id='CONTRACT_DATE' name='CONTRACT_DATE'
               value='%CONTRACT_DATE%' placeholder='%CONTRACT_DATE%' class='form-control datepicker' type='text'/>
-          </div>
-        </div>
-        <div class="form-group row">
-          <label class="col-sm-4 col-md-4 control-label" for='PHONE'>_{PHONE}_:</label>
-          <div class="col-sm-8 col-md-8">
-            <input id='PHONE' name='PHONE' value='%PHONE%' placeholder='%PHONE%' class='form-control' type='text'/>
-          </div>
-        </div>
-
-        <div class="form-group row">
-          <label class="col-sm-4 col-md-4 control-label" for='CELL_PHONE'>_{CELL_PHONE}_:</label>
-          <div class="col-sm-8 col-md-8">
-            <div class="input-group">
-              <input id='CELL_PHONE' name='CELL_PHONE' value='%CELL_PHONE%' placeholder='%CELL_PHONE%' class='form-control'
-                type='text'/>
-              <div class="input-group-append">
-                <div class="input-group-text">
-                  <i class='fa fa-exclamation'></i>
-                  <input type="checkbox" name='CELL_PHONE' data-input-disables=CELL_PHONE value='!'>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 

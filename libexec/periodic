@@ -47,7 +47,13 @@ our $html = Abills::HTML->new( { CONF => \%conf } );
 our $db = Abills::SQL->connect( $conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd},
   { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef } );
 our %PERIODIC;
+our @MODULES;
 our %lang;
+
+our $MYSQLDUMP;
+our $GZIP;
+our $TAR;
+
 
 our $admin = Admins->new( $db, \%conf );
 $admin->info( $conf{SYSTEM_ADMIN_ID}, {
@@ -83,20 +89,24 @@ $admin->{TIME} = $TIME;
 my $argv = parse_arguments( \@ARGV );
 $ADMIN_REPORT{HOSTNAME} = hostname();
 
+if ($argv->{rotate}) {
+  rotate_logs();
+}
+
 my @daily_functions = ('credit_operation', 'reduction_operation');
 push @daily_functions, 'debetors_group_create' if ($conf{DEBETORS_GROUP});
 if ( !$argv->{MODULES} && ! in_array('shedule', \@daily_functions) ){
   push @daily_functions, 'sheduler';
 }
 
-
+my @periodic_modules = @MODULES;
 my @monthly_functions = ();
 my @reports = ();
 
 #make periodic oparation only for selected modules
 if ( $argv->{MODULES} ){
   $argv->{MODULES} =~ s/ //g;
-  @MODULES = split( /,/, $argv->{MODULES} );
+  @periodic_modules = split( /,/, $argv->{MODULES} );
   $argv->{NO_ADM_REPORT} = 1;
 }
 
@@ -127,11 +137,11 @@ if ( $argv->{ALONE} ){
   @daily_functions = ();
 }
 
-if ( in_array( 'Extfin', \@MODULES ) ){
-  @MODULES = ('Extfin', @MODULES);
+if ( in_array( 'Extfin', \@periodic_modules ) ){
+  @periodic_modules = ('Extfin', @periodic_modules);
 }
 
-foreach my $m ( @MODULES ){
+foreach my $m ( @periodic_modules ){
   next if (in_array( $m, \@SKIP_MODULES ));
 
   load_module($m, { %{$html}, CONFIG_ONLY => 1 } );
@@ -354,6 +364,9 @@ elsif ( defined( $argv->{daily} ) ){
 elsif ( defined( $argv->{backup} ) ){
   backup();
 }
+elsif ( defined( $argv->{logrotate} ) ){
+  logrotate();
+}
 elsif ( defined( $argv->{SET_FULL_CREDIT} ) ){
   credit_full_set();
 }
@@ -412,7 +425,7 @@ sub sheduler{
     my $shedule_id = $s->{id};
 
     if ( $debug > 0 ){
-      print "SHEDULE [$shedule_id] $login MODULE: $s->{module} $type:  $action\n";
+      print "SHEDULE [$shedule_id] $login MODULE: $s->{module} $type: ". ($action || q{}) ."\n";
     }
 
     if ( $debug > 7 ) {
@@ -878,7 +891,9 @@ sub admin_report_monthly{
 sub logrotate{
   my $rotate_level = 5;
 
-  if ( $D == 1 ){
+  our $base_dir;
+
+  if ( $D == 1 || $argv->{logrotate}){
     my $logfile = $conf{LOGFILE} || '/usr/abills/var/log/abills.log';
 
     my $cmd = '';
@@ -889,8 +904,8 @@ sub logrotate{
         cmd( $cmd );
       }
     }
-    our $GZIP;
-    $cmd = '$GZIP -c ' . $logfile . ' > ' . $logfile . '.1.gz && >' . $logfile;
+
+    $cmd = "$GZIP -c " . $logfile . ' > ' . $logfile . '.1.gz && >' . $logfile;
     $DEBUG .= $cmd . "\n" if ($debug > 3);
     cmd( $cmd );
   }
@@ -925,6 +940,14 @@ sub backup{
   elsif ( $conf{nobackup} ){
     return 0;
   }
+  elsif ($argv->{BY_TABLE}) {
+    backup_by_table();
+    return 0;
+  }
+  elsif ($argv->{RESTORE}) {
+    restore_by_table($argv);
+    return 0;
+  }
 
   $admin->query( "SHOW TABLE STATUS" );
   my @ignore_tables_arr =
@@ -956,9 +979,6 @@ sub backup{
   $DEBUG .= "DB backup\n" if ($debug > 1);
   $conf{dbcharset} = 'latin1' if (!$conf{dbcharset});
   my $files = startup_files({ TPL_DIR => $conf{TPL_DIR} });
-  our $MYSQLDUMP;
-  our $GZIP;
-  our $TAR;
 
   if($files->{MYSQLDUMP}) {
     $MYSQLDUMP=$files->{MYSQLDUMP};
@@ -1374,20 +1394,18 @@ sub debetors_group_create {
 
 
     #  #Flush from debetors group
-    $DEBUG .= "Delete from debetors Group\n" if ($debug > 1);
+    $DEBUG .= "Delete in debetors Group\n" if ($debug > 1);
 
     #    Return debetor to its group
-    my $list_debetors_min = $users->list(
-      {
-        GID          => "$DEBETOR_GID",
-        DEPOSIT      => "$deposit_min_add",
-        COMMENTS     => '_SHOW',
-        CREDIT       => '_SHOW',
-        LOGIN_STATUS => '_SHOW',
-        PAGE_ROWS    => 1000000,
-        COLS_NAME    => 1
-      }
-    );
+    my $list_debetors_min = $users->list({
+      GID          => "$DEBETOR_GID",
+      DEPOSIT      => "$deposit_min_add",
+      COMMENTS     => '_SHOW',
+      CREDIT       => '_SHOW',
+      LOGIN_STATUS => '_SHOW',
+      PAGE_ROWS    => 1000000,
+      COLS_NAME    => 1
+    });
 
     if ($users->{errno}) {
       print "ERROR: $users->{errno} $users->{errstr} \n";
@@ -1516,6 +1534,103 @@ sub debetors_group_create {
   return 1;
 }
 
+#*******************************************************************
+=head2 backup_by_table() Make backup
+
+  ARGV:
+    BACKUP_IGNORE - Ignore backup tables
+
+=cut
+#*******************************************************************
+sub backup_by_table {
+
+  my $mysql_opts = q{};
+  my $ignore_tables = q{};
+  my $backup_dir = $conf{BACKUP_DIR}.'/_'.$DATE;
+
+  if (! -d $backup_dir) {
+    mkdir($backup_dir);
+  }
+
+  #Move rotate tables
+  $DEBUG .= "Move rotate tables" if ($debug > 1);
+  $admin->query( "SHOW tables;" );
+  foreach my $table ( @{ $admin->{list} } ){
+    my $cmd = qq{ $MYSQLDUMP $mysql_opts --skip-triggers --single-transaction --default-character-set=$conf{dbcharset} -v $ignore_tables --host=$conf{dbhost} --user="$conf{dbuser}" --password="$conf{dbpasswd}" $conf{dbname} $table->[0] | $GZIP > $backup_dir/$table->[0].sql.gz };
+print $cmd."\n";
+    my $res = cmd( $cmd, { DEBUG => $debug, timeout => 0, SHOW_RESULT => 1 } );
+    $DEBUG .= "Backup created: $backup_dir/$table->[0].sql.gz ($res)\n" if ($debug > 1);
+  }
+
+  return 1;
+}
+
+#*******************************************************************
+=head2 backup_by_table() Make backup
+
+  ARGV:
+    BACKUP_IGNORE - Ignore backup tables
+
+=cut
+#*******************************************************************
+sub restore_by_table {
+  my ($attr) = @_;
+
+  my $backup_dir = $conf{BACKUP_DIR}.'/_'.$DATE;
+  my $MYSQL = 'mysql';
+  my $restore_db = $attr->{RESTORE_DB} || 'abills3';
+
+  opendir(my $dir, $backup_dir) or do {
+    print "Can't open dir '$backup_dir'";
+    return 0;
+  };
+
+  my @contents = grep !/^\.\.?$/, readdir $dir;
+  close($dir);
+
+  foreach my $filename (sort @contents ) {
+    if ($filename =~ /\.gz$/) {
+      my $cmd = "$GZIP -d " . $backup_dir .'/'. $filename;
+      my $res = cmd( $cmd, { DEBUG => $debug, timeout => 0, SHOW_RESULT => 1 } );
+      $filename =~ s/\.gz//g;
+
+      $DEBUG .= "DECOMPRESS: $backup_dir/$filename ($res)\n" if ($debug > 1);
+    }
+    my $restore_cmd = qq{$MYSQL -D $restore_db -u root < $backup_dir/$filename };
+    cmd( $restore_cmd, { DEBUG => $debug, timeout => 0, SHOW_RESULT => 1 } );
+    print "$restore_cmd\n" if ($debug > 2);
+  }
+
+  return 1;
+}
+
+#*******************************************************************
+=head2 rotate_logs()
+
+=cut
+#*******************************************************************
+sub rotate_logs {
+  my $rotate_level = 5;
+  my $debug = $argv->{DEBUG} || 0;
+  my @logs_list = glob '/usr/abills/var/log/*.log';
+  foreach my $logfile (@logs_list) {
+    print "Rotate $logfile\n" if ($debug);
+    my $cmd = '';
+    for ( my $i = $rotate_level; $i > 0; $i-- ){
+      if ( -f $logfile . '.' . ($i - 1) . '.gz' ){
+        $cmd = 'mv ' . $logfile . '.' . ($i - 1) . '.gz ' . $logfile . '.' . $i . '.gz';
+        print $cmd . "\n" if ($debug > 3);
+        cmd( $cmd );
+      }
+    }
+
+    $cmd = "$GZIP -c " . $logfile . ' > ' . $logfile . '.1.gz && >' . $logfile;
+    print $cmd . "\n" if ($debug > 3);
+    cmd( $cmd );
+  }
+
+  exit;
+}
 
 #*******************************************************************
 =head2 help()
@@ -1534,6 +1649,9 @@ sub help {
    SKIP_MODULES=[modules_list]- Skip this module in periodic proccess
    NO_ADM_REPORT              - Don't send report to admin via e-mail
    SHEDULE                    - Make Shedule
+   BY_TABLE                   - Backup by table
+   RESTORE_DB                 - Restore DB
+   RESTORE                    - Restore tables from dir _CUR_DATE
    SET_FULL_CREDIT            - Set credit for all services
      FULL_CREDIT_PERIOD       - Period for full credit in days
      COMPANY_ID=\"0\"           - Company ID. All Companies '>0', Non company users '0'

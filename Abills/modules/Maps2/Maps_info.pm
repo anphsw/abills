@@ -173,7 +173,7 @@ sub location_info {
     $count = scalar @{$users_for_location_id->{ $attr->{LOCATION_ID} }};
 
     if ($CONF->{MAPS_BUILD_COLOR_BY_ONLINE}) {
-      $color = (grep {$_->{online} && $_->{online} == 1} @{$users_for_location_id->{ $attr->{LOCATION_ID} }}) ? 'green' : 'red'
+      $color = (grep {$_->{online} && $_->{online} >= 1} @{$users_for_location_id->{ $attr->{LOCATION_ID} }}) ? 'green' : 'red';
     }
 
   }

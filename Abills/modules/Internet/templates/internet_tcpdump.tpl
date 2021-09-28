@@ -17,9 +17,19 @@
       };
 
       eventSource.onmessage = function(e) {
-        document.getElementById('tcpdump_pre').append(e.data+"\n");
-	window.scrollTo({left: 0, top: document.body.scrollHeight, behavior: 'smooth'});
+        if ((window.innerHeight + window.pageYOffset) >= document.body.offsetHeight) {
+          document.getElementById('tcpdump_pre').append(e.data + "\n");
+          window.scrollTo(0,document.body.scrollHeight);
+        }
+        else {
+          document.getElementById('tcpdump_pre').append(e.data + "\n");
+        }
       };
+
+      eventSource.addEventListener("close", function(event) {
+        console.log("Close connection");
+        eventSource.close();
+      });
     </script>
   </head>
   <body>

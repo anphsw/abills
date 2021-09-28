@@ -24,7 +24,6 @@
             </div>
           </div>
 
-
           <div class='form-group row'>
             <label class='col-md-4 col-form-label text-md-right' for='INSTALLED_ID'>_{INSTALLED}_</label>
             <div class='col-md-8'>
@@ -57,6 +56,13 @@
             <label class='col-md-4 col-form-label text-md-right' for='PARENT_ID'>_{INSIDE}_</label>
             <div class='col-md-8'>
               %PARENT_ID_SELECT%
+            </div>
+          </div>
+
+          <div class='form-group row'>
+            <label class='col-md-4 col-form-label text-md-right' for='COMMENTS'>_{COMMENTS}_</label>
+            <div class='col-md-8'>
+              <textarea class='form-control' rows='5' id='COMMENTS' name='COMMENTS'>%COMMENTS%</textarea>
             </div>
           </div>
         </form>

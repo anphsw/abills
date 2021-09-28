@@ -284,17 +284,15 @@ sub storage_remnants_report {
 =cut
 #**********************************************************
 sub storage_statistics {
+
   my $admins_select  = sel_admins({NAME => 'INSTALLED_AID'});
   my $storage_select = storage_storage_sel($Storage, {ALL => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef)});
-  my $type_select    = $html->form_select(
-    'TYPE_ID',
-    {
-      SELECTED    => $FORM{TYPE_ID} || 0,
-      SEL_LIST    => $Storage->storage_types_list( { DOMAIN_ID => ($admin->{DOMAIN_ID} || undef),COLS_NAME => 1 } ),
-      NO_ID       => 1,
-      SEL_OPTIONS => { '' => '--' },
-    }
-  );
+  my $type_select = $html->form_select('TYPE_ID', {
+    SELECTED    => $FORM{TYPE_ID} || 0,
+    SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '--' },
+  });
 
   reports({
     PERIOD_FORM => 1,
@@ -328,16 +326,14 @@ sub storage_statistics {
     COLS_NAME     => 1
   });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{REPORT} $lang{ANALYSIS_ITEMS_SALE}",
-      title      => [ $lang{NAME}, $lang{COUNT}, $lang{REVENUE}, $lang{ADMINS_PERCENT}, $lang{PROFIT}, "$lang{NET_PROFIT}"],
-      ID         => 'STORAGE_SELL_PRICE',
-      DATA_TABLE => { "order"=> [[1, "desc"]]},
-      EXPORT => 1,
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => "$lang{REPORT} $lang{ANALYSIS_ITEMS_SALE}",
+    title      => [ $lang{NAME}, $lang{COUNT}, $lang{REVENUE}, $lang{ADMINS_PERCENT}, $lang{PROFIT}, "$lang{NET_PROFIT}" ],
+    ID         => 'STORAGE_SELL_PRICE',
+    DATA_TABLE => { "order" => [ [ 1, "desc" ] ] },
+    EXPORT     => 1,
+  });
 
   my @popular_count   = ();
   my @popular_price   = ();
@@ -397,20 +393,6 @@ sub storage_statistics {
 
 
   $table->addfooter($html->b($lang{TOTAL_FOR_PERIOD}), $html->b($total_count), $html->b(format_sum($total_sell_price)), $html->b(format_sum($total_admin_percent)), $html->b(format_sum($total_profit)), $html->b(format_sum($total_clear_profit)));
-
-#  my $summary_table = $html->table(
-#    {
-#      width      => '100%',
-#      cols_align => [ 'right', 'right', 'right', 'right' ],
-#      rows       => [
-#        [ "$lang{TOTAL} $lang{COUNT}:", $html->b($total_count), "$lang{TOTAL} $lang{REVENUE}", $html->b(format_sum($total_sell_price)) ],
-#        [ "$lang{TOTAL} $lang{ADMINS_PERCENT}:", $html->b(format_sum($total_admin_percent)), "$lang{TOTAL} $lang{PROFIT}:", $html->b(format_sum($total_profit)) ],
-#        [ "$lang{TOTAL} $lang{NET_PROFIT}:", "", "", $html->b(format_sum($total_clear_profit))]
-#      ]
-#    }
-#  );
-
-
 
   my $val_count = ($max_count!=0 && $max_count>50 )?($max_count/5): 10;
   my $val_price = ($max_price!=0 && $max_price>2000 )?($max_price/5): 300;
@@ -485,14 +467,13 @@ sub storage_statistics {
 =cut
 #**********************************************************
 sub storage_incoming_report {
+
   reports({
     PERIOD_FORM => 1,
     DATE_RANGE  => 1,
     NO_GROUP    => 1,
     NO_TAGS     => 1,
     ADMINS_SELECT => 1,
-    EXT_SELECT => {
-    }
   });
 
   my $goods_list = $Storage->storage_incoming_report_by_date({
@@ -538,17 +519,15 @@ sub storage_incoming_report {
 =cut
 #**********************************************************
 sub storage_in_installments_statistics {
+
   my $admins_select = sel_admins({ NAME => 'INSTALLED_AID' });
   my $storage_select = storage_storage_sel($Storage, { ALL => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) });
-  my $type_select = $html->form_select(
-    'TYPE_ID',
-    {
-      SELECTED    => $FORM{TYPE_ID} || 0,
-      SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
-      NO_ID       => 1,
-      SEL_OPTIONS => { '' => '--' },
-    }
-  );
+  my $type_select = $html->form_select('TYPE_ID', {
+    SELECTED    => $FORM{TYPE_ID} || 0,
+    SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '--' },
+  });
 
   reports({
     PERIOD_FORM   => 1,
@@ -599,16 +578,14 @@ sub storage_in_installments_statistics {
     COLS_NAME     => 1
   });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => "$lang{REPORT} $lang{ANALYSIS_ITEMS_IN_INSTALLMENTS} " . ($FORM{FROM_DATE} || $DATE) . " - " . ($FORM{TO_DATE} || $DATE),
-      title      => [ $lang{NAME}, $lang{COUNT}, "$lang{COUNT} $lang{PAYMENTS}", "$lang{SUM} $lang{FOR_THE_MONTH}", $lang{REVENUE}, $lang{PROFIT}, $lang{ADMINS_PERCENT}, "$lang{NET_PROFIT}"],
-      ID         => 'STORAGE_SELL_PRICE',
-      DATA_TABLE => { "order"=> [[1, "desc"]]},
-      EXPORT => 1,
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => "$lang{REPORT} $lang{ANALYSIS_ITEMS_IN_INSTALLMENTS} " . ($FORM{FROM_DATE} || $DATE) . " - " . ($FORM{TO_DATE} || $DATE),
+    title      => [ $lang{NAME}, $lang{COUNT}, "$lang{COUNT} $lang{PAYMENTS}", "$lang{SUM} $lang{FOR_THE_MONTH}", $lang{REVENUE}, $lang{PROFIT}, $lang{ADMINS_PERCENT}, "$lang{NET_PROFIT}" ],
+    ID         => 'STORAGE_SELL_PRICE',
+    DATA_TABLE => { "order" => [ [ 1, "desc" ] ] },
+    EXPORT     => 1,
+  });
 
   foreach my $item (@$in_installments_items){
     my $profit = ($item->{in_installments_price} - $item->{sum_price}) / $item->{total_months} * $item->{payments_count};
@@ -624,7 +601,6 @@ sub storage_in_installments_statistics {
       sprintf('%.2f', $profit - $admin_sum),
     );
   }
-
 
   print $table->show();
 }
@@ -672,27 +648,28 @@ sub storage_rent_statistics {
   }
 
   my $items = $Storage->storage_rent_stats({
-    DATE          => ($FORM{TO_DATE} ? "<=$FORM{TO_DATE}" : "<=$DATE"),
-    TYPE_ID       => $FORM{TYPE_ID}       || '_SHOW',
-    INSTALLED_AID => $FORM{INSTALLED_AID} || '_SHOW',
-    STORAGE_ID    => $FORM{STORAGE_ID}    || '_SHOW',
-    DOMAIN_ID     => $admin->{DOMAIN_ID}  || undef,
-    TO_DATE       => $FORM{TO_DATE}       || $DATE,
-    FROM_DATE     => $FORM{FROM_DATE}     || $DATE,
-    STA_NAME      => '_SHOW',
-    SAT_NAME      => '_SHOW',
-    COUNT         => '_SHOW',
-    ARTICLE_ID    => '_SHOW',
-    SELL_PRICE    => '_SHOW',
-    SUM_PRICE     => '_SHOW',
-    ADMIN_PERCENT => '_SHOW',
-    TOTAL_MONTHS  => '_SHOW',
-    SUM           => '_SHOW',
-    AMOUNT_PER_MONTH      => '_SHOW',
-    PAYMENTS_COUNT => '_SHOW',
-    SORT          => 'count',
-    TYPE          => 2,
-    COLS_NAME     => 1
+    DATE             => ($FORM{TO_DATE} ? "<=$FORM{TO_DATE}" : "<=$DATE"),
+    TYPE_ID          => $FORM{TYPE_ID} || '_SHOW',
+    INSTALLED_AID    => $FORM{INSTALLED_AID} || '_SHOW',
+    STORAGE_ID       => $FORM{STORAGE_ID} || '_SHOW',
+    DOMAIN_ID        => $admin->{DOMAIN_ID} || undef,
+    TO_DATE          => $FORM{TO_DATE} || $DATE,
+    FROM_DATE        => $FORM{FROM_DATE} || $DATE,
+    STA_NAME         => '_SHOW',
+    SAT_NAME         => '_SHOW',
+    COUNT            => '_SHOW',
+    ARTICLE_ID       => '_SHOW',
+    SELL_PRICE       => '_SHOW',
+    SUM_PRICE        => '_SHOW',
+    ADMIN_PERCENT    => '_SHOW',
+    TOTAL_MONTHS     => '_SHOW',
+    SUM              => '_SHOW',
+    AMOUNT_PER_MONTH => '_SHOW',
+    PAYMENTS_COUNT   => '_SHOW',
+    SORT             => 'count',
+    TYPE             => 2,
+    COLS_NAME        => 1,
+    PAGE_ROWS        => 99999
   });
 
   my $table = $html->table({
@@ -740,15 +717,12 @@ sub storage_installation_report {
 
   my $admins_select = sel_admins({ NAME => 'INSTALLED_AID' });
   my $storage_select = storage_storage_sel($Storage, { ALL => 1, DOMAIN_ID => ($admin->{DOMAIN_ID} || undef) });
-  my $type_select = $html->form_select(
-    'TYPE_ID',
-    {
-      SELECTED    => $FORM{TYPE_ID} || 0,
-      SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
-      NO_ID       => 1,
-      SEL_OPTIONS => { '' => '--' },
-    }
-  );
+  my $type_select = $html->form_select('TYPE_ID', {
+    SELECTED    => $FORM{TYPE_ID} || 0,
+    SEL_LIST    => $Storage->storage_types_list({ DOMAIN_ID => ($admin->{DOMAIN_ID} || undef), COLS_NAME => 1 }),
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '--' },
+  });
 
   reports({
     PERIOD_FORM   => 1,
@@ -785,7 +759,8 @@ sub storage_installation_report {
     AID          => $FORM{INSTALLED_AID} || '_SHOW',
     SAT_ID       => $FORM{TYPE_ID} || '_SHOW',
     STORAGE_ID   => $FORM{STORAGE_ID} || '_SHOW',
-    COLS_NAME    => 1
+    COLS_NAME    => 1,
+    PAGE_ROWS    => 99999
   });
 
   my $installed_table = $html->table({

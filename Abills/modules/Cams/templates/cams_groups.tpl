@@ -20,7 +20,7 @@
         </div>
       </div>
 
-      <div class='form-group row'>%ADDRESS%</div>
+      %ADDRESS%
 
       <div class='form-group row'>
         <label class='control-label col-md-4' for="MAX_USERS">Max. _{USERS}_:</label>

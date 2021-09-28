@@ -23,3 +23,4 @@ $lang{NO_CONTACTS_FOR_TYPE} = 'No registered contacts for this type';
 $lang{INTERNET_DISABLED}='Internet Service disabled';
 $lang{ACCOUNT_REPLENISHMENT} = 'Account replenishment';
 $lang{PAYMENT_MAKED}='Payment maked';
+$lang{LAST_MESSAGE} = 'Last message';

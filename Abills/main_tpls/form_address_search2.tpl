@@ -18,24 +18,8 @@
   <div class='form-group row' style='%EXT_SEL_STYLE%'>
     <label class='col-sm-3 col-md-4 col-form-label text-md-right LABEL-BUILD'>_{ADDRESS_BUILD}_:</label>
     <div class='col-sm-9 col-md-8'>
-
-      <div class='d-flex bd-highlight addBuildMenu'>
-        <div class='flex-fill bd-highlight'>
-          <div class='select'>
-            <div class='input-group-append select2-append' id='%BUILD_ID%_'>
-              %ADDRESS_BUILD%
-            </div>
-          </div>
-        </div>
-        <div class='bd-highlight'>
-          <div class='input-group-append h-100'>
-            <div class='input-group-text p-0 rounded-left-0'>
-              <a title='_{ADD}_ _{BUILDS}_' class='BUTTON-ENABLE-ADD btn btn-sm text-blue'>
-                <span class='fa fa-plus'></span>
-              </a>
-            </div>
-          </div>
-        </div>
+      <div class='addBuildMenu'>
+        %ADDRESS_BUILD%
       </div>
 
       <div class='input-group changeBuildMenu' style='display : none;'>
@@ -75,15 +59,13 @@
 <script>
   jQuery(function () {
     jQuery(document).on('keypress', 'span.select2', function (e) {
-      if (e.originalEvent) {
-        jQuery(this).siblings('select').select2('open');
-      }
+      if (e.originalEvent) jQuery(this).siblings('select').select2('open');
     });
   });
 
   let objectToShow = [];
 
-  function GetStreets%DISTRICT_ID%(data) {
+  function GetStreets(data) {
     var distrId = jQuery("#" + data.id).val();
     distrId = distrId ? distrId : '_SHOW';
     jQuery.post('$SELF_URL', '%QINDEX%header=2&get_index=form_address_select2&DISTRICT_ID=' + distrId
@@ -95,31 +77,29 @@
     });
   }
 
-  function GetBuilds%STREET_ID%(data) {
-    const [formAddress] = jQuery(data).parents('.form-address');
-    let [MULTI_BUILDS] = jQuery(formAddress).find('select#BUILD_ID.MULTI_BUILDS');
-
-    MULTI_BUILDS = +!!MULTI_BUILDS;
-
+  function GetBuilds(data) {
     var strId = jQuery("#" + data.id).val();
+    if (Array.isArray(strId) && strId.length > 1) strId = strId.join(';');
+
     if (!strId || strId == 0) {
       strId = 0;
       jQuery('#ADD_LOCATION_ID').attr('value', '');
     }
 
-    jQuery.post(
-      '$SELF_URL',
-      `%QINDEX%header=2&get_index=form_address_select2&MULTI_BUILDS=${MULTI_BUILDS}&STREET_ID=${strId}&BUILD=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%`,
+    jQuery.post('$SELF_URL',
+      `%QINDEX%header=2&get_index=form_address_select2&STREET_ID=${strId}&BUILD=1&DISTRICT_SELECT_ID=%DISTRICT_ID%&STREET_SELECT_ID=%STREET_ID%&BUILD_SELECT_ID=%BUILD_ID%`,
       function (result) {
-        jQuery('#%BUILD_ID%_').html(result);
+        jQuery('#%BUILD_ID%').html(result);
         initChosen();
         jQuery("#%BUILD_ID%").focus();
         jQuery("#%BUILD_ID%").select2('open');
+
+        activateBuildButtons();
       });
   }
   //Get location_id after change build
   var item = '';
-  function GetLoc%BUILD_ID%(data) {
+  function GetLoc(data) {
     item = jQuery("#" + data.id).val();
 
     if (item == '--') {
@@ -141,8 +121,9 @@
     }, 100);
   }
 
-  if (%BUILD_SELECTED% && !item && %MAPS2_SHOW_OBJECTS%){
-    item = %BUILD_SELECTED%;
+  let selected_builds = jQuery('#ADD_LOCATION_ID').attr('value');
+  if (selected_builds && !item && %MAPS2_SHOW_OBJECTS%){
+    item = selected_builds;
     jQuery('#map_add_btn').fadeIn(300);
     getObjectToMap();
   }
@@ -171,20 +152,27 @@
       }(result));
   }
 
-  //Changing select to input
-  jQuery('.BUTTON-ENABLE-ADD').on('click', function () {
-    jQuery('.addBuildMenu').removeClass('d-flex');
-    jQuery('.addBuildMenu').addClass('d-none');
+  function activateBuildButtons() {
+    //Changing select to input
+    jQuery('.BUTTON-ENABLE-ADD').on('click', function () {
+      let buildDiv = jQuery('.addBuildMenu');
+      buildDiv.removeClass('d-block');
+      buildDiv.addClass('d-none');
 
-    jQuery('.changeBuildMenu').show();
-    jQuery('#map_add_btn').fadeOut(300);
-  });
+      jQuery('.changeBuildMenu').show();
+      jQuery('#map_add_btn').fadeOut(300);
+    });
 
-  //Changing input to select
-  jQuery('.BUTTON-ENABLE-SEL').on('click', function () {
-    jQuery('.addBuildMenu').removeClass('d-none');
-    jQuery('.addBuildMenu').addClass('d-flex');
+    //Changing input to select
+    jQuery('.BUTTON-ENABLE-SEL').on('click', function () {
+      let buildDiv = jQuery('.addBuildMenu');
+      buildDiv.removeClass('d-none');
+      buildDiv.addClass('d-block');
 
-    jQuery('.changeBuildMenu').hide();
-  })
+      jQuery('.changeBuildMenu').hide();
+    })
+  }
+
+  activateBuildButtons();
+
 </script>

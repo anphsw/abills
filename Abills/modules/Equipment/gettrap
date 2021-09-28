@@ -8,7 +8,7 @@
 
 use strict;
 use warnings;
-no warnings qw(numeric);
+no warnings qw(numeric once);
 
 BEGIN {
   use FindBin '$Bin';
@@ -17,20 +17,17 @@ BEGIN {
   unshift(@INC, $libpath . "Abills/$sql_type/", $libpath . '/lib/');
 }
 
-use Abills::Base
-  qw(parse_arguments int2byte ip2int int2ip load_pmodule sec2time);
-
-#use threads;
 use Data::Dumper;
+use Abills::Base qw(parse_arguments load_pmodule sec2time);
+use Abills::Base; #maybe delete?
 use Abills::Server;
 use Abills::Misc;
 use Abills::Filters qw(bin2hex _mac_former);
 use Abills::Sender::Core;
-use Log qw(log_add);
+use Log;
 use Events;
 use Admins;
 use Equipment;
-use Abills::Base;
 our (%conf, $DATE, $TIME, $var_dir);
 
 load_pmodule('Net::SNMPTrapd');
@@ -43,7 +40,7 @@ if ($#ARGV < 0) {
 }
 
 SNMP_util::snmpQueue_MIB_File(grep {-d} glob "$Bin/../Abills/MIBs/private/*");
-SNMP_util::snmpQueue_MIB_File(glob $Bin . "/../Abills/MIBs/*");
+SNMP_util::snmpQueue_MIB_File(glob($Bin . "/../Abills/MIBs/*"));
 SNMP_util::snmpQueue_MIB_File(glob($Bin . "/../Abills/MIBs/private" . '/*/*'));
 SNMP_util::snmpMIB_to_OID(@SNMP_util::MIB_Files);
 
@@ -54,7 +51,7 @@ my $Log = Log->new(undef, \%conf);
 my $argv = parse_arguments(\@ARGV);
 
 my $logs_dir = ($argv->{trapdir}) ? $argv->{trapdir} : $var_dir . "log/";
-my $pid_dir = ($argv->{trapdir}) ? $argv->{trapdir} : $var_dir . "run/";
+my $pid_dir = ($argv->{trapdir})  ? $argv->{trapdir} : $var_dir . "run/";
 
 if (!-d $pid_dir) {
   print "Dir: $pid_dir not exists.";
@@ -70,7 +67,7 @@ if (!$argv->{LOG_FILE} && !defined($argv->{'start'})) {
 }
 
 if (defined($argv->{DEBUG})) {
-  print "Debug mode on\n";
+  print "Debug mode ON\n";
   $debug = $argv->{DEBUG};
 }
 elsif (defined($argv->{help})) {
@@ -79,33 +76,36 @@ elsif (defined($argv->{help})) {
 
 #Demonize section
 if (defined($argv->{'start'}) && !defined($argv->{DEBUG})) {
-  print "Start... debug: $debug\n";
+  print "Starting...\n";
 
-  my $pid_file = daemonize(
-    {
+  my $pid_file = daemonize({
       PROGRAM_NAME => 'gettrap',
       LOG_DIR      => $pid_dir
-    }
-  );
+  });
 
   $Log->log_print('LOG_EMERG', '', "gettrap Daemonize... $pid_file");
 }
 
 #Stop daemon
 elsif (defined($argv->{stop})) {
+  print "Stopping...\n";
   stop_server($pid_dir . "/gettrap.pid");
 
   exit;
 }
+
 elsif (make_pid($pid_dir . "/gettrap.pid") == 1) {
-  print "Already running PID: !\n";
+  #print "Already running PID: !\n";
   exit;
 }
 
 require Abills::SQL;
 my $db = Abills::SQL->connect(
-  $conf{dbtype}, $conf{dbhost}, $conf{dbname},
-  $conf{dbuser}, $conf{dbpasswd}
+  $conf{dbtype},
+  $conf{dbhost},
+  $conf{dbname},
+  $conf{dbuser},
+  $conf{dbpasswd}
 );
 my $Admin = Admins->new($db, \%conf);
 $Admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
@@ -197,7 +197,7 @@ sub request_loop {
         $varb{$k} = $element->{$k};
       }
 
-      my %OIDS = reverse % SNMP_util::OIDS;
+      my %OIDS = reverse %{SNMP_util::OIDS};
       while (my ($key, $value) = each(%varb)) {
         $value =~ s/"/'/g;
         if (exists $macn{$key}) {
@@ -259,14 +259,12 @@ sub request_loop {
       redo if (exists $events{$trapoid} && $events{$trapoid}[3] == 1);
       my $json_text =
         JSON->new->utf8->canonical->allow_bignum->encode(\%varbinds);
-      my $id_num = $Equipment->trap_add(
-        {
+      $Equipment->trap_add({
           IP        => $trap->remoteaddr,
           EVENTNAME => $varbinds{snmpTrapOID},
           TRAPOID   => $trapoid,
           VARBINDS  => $json_text
-        }
-      );
+      });
     }
   }
 
@@ -362,20 +360,21 @@ sub mac_notif {
       "Unknown NAS. Trap: $attr->{VALUE}");
   }
   return 1
-
 }
 
 sub help {
 
-  print "ABillS snmp traps
-  gettrap [Options]
- Options:
-   log        - Log file for gettrap logs
-   IP         - IP address for gettrap binding
-   DEBUG      - debug mode 0..5
+  print "\033[1mABillS SNMP trap sensor\033[0m
 
-   start      - run as service
-   stop       - stop gettrap service
+    \033[1mgettrap\033[0m [Options]
+
+ \033[1mOptions:\033[0m
+    \033[1mstart\033[0m      - run as service
+    \033[1mstop\033[0m       - stop gettrap service
+
+    log        - Log file for gettrap logs
+    IP         - IP address for gettrap binding
+    DEBUG      - debug mode 0..5
    \n";
 
   return 1;

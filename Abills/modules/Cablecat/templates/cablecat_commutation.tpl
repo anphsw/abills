@@ -44,6 +44,11 @@
               <div class='btn-group'>
                 %BTN%
               </div>
+              <div class='btn-group'>
+                <button id='SPACE_SIZE_BTN' type='button' role='button' class='btn btn-default' title='_{SIZE}_'>
+                  _{SIZE}_
+                </button>
+              </div>
             </div>
           </div>
           <div class='ml-auto bd-highlight'>
@@ -69,7 +74,7 @@
 
   <div class='col-md-12'>
     <div id='canvas_container' class='table-responsive'>
-      <div id='drawCanvas'></div>
+      <div id='drawCanvas' oncontextmenu='return false;'></div>
     </div>
   </div>
 </div>
@@ -79,14 +84,16 @@
 
   try {
     document['COMMUTATION_ID'] = '%ID%';
-    document['CONNECTER_ID']   = '%CONNECTER_ID%';
-    document['WELL_ID']        = '%WELL_ID%';
+    document['COMMUTATION_HEIGHT'] = '%HEIGHT%';
+    document['CONNECTER_ID'] = '%CONNECTER_ID%';
+    document['WELL_ID'] = '%WELL_ID%';
 
-    document['CABLES']            = JSON.parse('%CABLES%');
-    document['LINKS']             = JSON.parse('%LINKS%');
-    document['SPLITTERS']         = JSON.parse('%SPLITTERS%');
-    document['EQUIPMENT']         = JSON.parse('%EQUIPMENT%');
-    document['CROSSES']           = JSON.parse('%CROSSES%');
+    document['CABLES'] = JSON.parse('%CABLES%');
+    document['LINKS'] = JSON.parse('%LINKS%');
+    document['SPLITTERS'] = JSON.parse('%SPLITTERS%');
+    document['EQUIPMENT'] = JSON.parse('%EQUIPMENT%');
+    document['CROSSES'] = JSON.parse('%CROSSES%');
+    document['ONUS'] = JSON.parse('%ONUS%');
 
     document['LANG'] = {
       'CABLE'                : '_{CABLE}_',
@@ -105,13 +112,19 @@
       'CHANGE'               : '_{CHANGE}_',
       'SET'                  : '_{SET}_',
       'SPLITTER'             : '_{SPLITTER}_',
+      'ONU'                  : 'ONU',
       'EQUIPMENT'            : '_{EQUIPMENT}_',
       'CROSS'                : '_{CROSS}_',
       'NAME'                 : '_{NAME}_',
       'IP'                   : 'IP',
       'LENGTH'               : '_{LENGTH}_',
       'NO OTHER COMMUTATIONS': '_{NO_OTHER_COMMUTATIONS}_',
-      'OTHER COMMUTATIONS'   : '_{OTHER_COMMUTATIONS}_'
+      'OTHER COMMUTATIONS'   : '_{OTHER_COMMUTATIONS}_',
+      'ROTATE'               : '_{ROTATE}_',
+      'HEIGHT_CANNOT_BE_LESS': '_{HEIGHT_CANNOT_BE_LESS}_',
+      'YES'                  : '_{YES}_',
+      'NO'                   : '_{NO}_',
+      'STRAIGHTEN'           : '_{STRAIGHTEN}_'
     }
   }
   catch (Error) {
@@ -126,6 +139,7 @@
 
 <!-- Draggable -->
 <script src='/styles/default_adm/js/modules/cablecat/raphael.extensions.js'></script>
+<script src='/styles/default_adm/js/modules/cablecat/raphael.filters.js'></script>
 
 <script src='/styles/default_adm/js/modules/cablecat/commutation.drag.js'></script>
 

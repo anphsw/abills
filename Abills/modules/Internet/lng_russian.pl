@@ -29,4 +29,8 @@ $lang{USERS_OUTFLOW} = 'Отток пользователей';
 $lang{TOTAL_USERS} = 'Общее количество пользователей';
 $lang{ONE_MONTH_DEBS}='Один месяц долга';
 
+$lang{PACKET_SIZE} = 'Размер пакета (байт)';
+$lang{PACKET_COUNT} = 'Количество пакетов';
+$lang{PASTE} = 'Вставить';
+
 1;

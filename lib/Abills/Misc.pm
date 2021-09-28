@@ -90,6 +90,7 @@ sub load_module {
     
     my @error_body = (
       "Error: load module '$module'",
+      join(', ', caller()),
       '$!',
       $@,
       '',
@@ -201,15 +202,14 @@ sub _error_show {
   my ($module, $attr)=@_;
 
   my $module_name = $attr->{MODULE_NAME} || $module->{MODULE} || '';
-  #my $id_prefix   = $attr->{ID_PREFIX}  || '';
 
-  my $message     = '';
-  if($attr->{MESSAGE}) {
+  my $message = '';
+  if ($attr->{MESSAGE}) {
     $message = $lang{$attr->{MESSAGE}} || $attr->{MESSAGE};
     $message .= "\n";
   }
 
-  my $errno       = $module->{errno};
+  my $errno = $module->{errno};
 
   if ($errno) {
     if ($attr->{ERROR_IDS}->{$errno}) {
@@ -249,11 +249,12 @@ sub _error_show {
       return 1;
     }
     elsif ($errno == 3) {
+      my $extra_info = join(', ', caller());
       $html->message('err', "$module_name:$lang{ERROR}", $message . "SQL Error: [$errno]\n",
         {
          EXTRA => ($attr->{SILENT_MODE}) ? " [$module->{sql_errno}] " . $module->{sql_errstr} : $html->tpl_show(templates('form_show_hide'),
          {
-           CONTENT => "[" . ($module->{sql_errno} || $errno || '') . "] "
+           CONTENT => "[" . ($module->{sql_errno} || $errno || '') .' / '. $extra_info . "] "
              . ($module->{sql_errstr} || $module->{errstr} || '')
              . $html->br() . $html->br()
              . (($module->{sql_query}) ? $html->pre($module->{sql_query}, { OUTPUT2RETURN => 1 }) : ''),
@@ -282,6 +283,37 @@ sub _error_show {
   }
 
   return 0;
+}
+
+#**********************************************************
+=head2 _message_show($attr); - show message
+
+  Arguments:
+    $attr -
+      message_title
+      message
+      message_type
+      error || ID - error number
+
+  Returns:
+    TRUE - Error
+    FALSE
+
+=cut
+#**********************************************************
+sub _message_show {
+  my ($attr) = @_;
+
+  return 0 if !$attr->{message};
+
+  my $message_title = $attr->{message_title} || $lang{INFO};
+  $message_title = _translate($message_title);
+  my $message = _translate($attr->{message});
+  my $message_type = $attr->{message_type} || 'info';
+
+  $html->message($message_type, $message_title, $message, { ID => $attr->{ID} || $attr->{error} });
+
+  return 1;
 }
 
 #**********************************************************
@@ -352,7 +384,7 @@ sub _function {
       }
     }
   
-    $html->short_info_panels_row(\@info_buttons);
+    $html->short_info_panels_row(\@info_buttons, {MENU_BUTTONS => 1});
     return 1;
   }
   elsif(! defined( &{ $function_name } )) {
@@ -1260,6 +1292,8 @@ sub service_get_month_fee {
   Arguments:
     $file     - File for executions
     $attr     - Extra arguments
+      QUITE
+      EXTERNAL_CMD
 
   Returns:
     1 - Susccess
@@ -1270,21 +1304,34 @@ sub service_get_month_fee {
 sub _external {
   my ($file, $attr) = @_;
 
-  $attr->{LOGIN}      = $users->{LOGIN} || $attr->{LOGIN};
-  $attr->{DEPOSIT}    = $users->{DEPOSIT};
-  $attr->{CREDIT}     = $users->{CREDIT};
-  $attr->{GID}        = $users->{GID};
-  $attr->{COMPANY_ID} = $users->{COMPANY_ID};
+  # $attr->{LOGIN}      = $users->{LOGIN} || $attr->{LOGIN};
+  # $attr->{DEPOSIT}    = $users->{DEPOSIT} if ($users->{DEPOSIT});
+  # $attr->{CREDIT}     = $users->{CREDIT} if ($users->{CREDIT});
+  # $attr->{GID}        = $users->{GID} if ($users->{GID});
+  # $attr->{COMPANY_ID} = $users->{COMPANY_ID} if ($users->{COMPANY_ID});
 
-  my $result = cmd("$file", { ARGV => 1, PARAMS => $attr });
+  if ($attr->{EXTERNAL_CMD}) {
+    my $external_cmd = '_EXTERNAL_CMD';
+    $external_cmd = uc($attr->{EXTERNAL_CMD}).$external_cmd;
+
+    if ($conf{$external_cmd}) {
+      $file = $conf{$external_cmd};
+    }
+    else {
+      return 1;
+    }
+  }
+
+  my $result = cmd($file, { ARGV => 1, PARAMS => $attr });
   my $error = $!;
   my ($num, $message) = split(/:/, $result, 2);
+  # 1 - ok
   if ($num && $num =~ /^\d+$/ && $num == 1) {
-    $html->message('info', "_EXTERNAL $lang{ADDED}", $message) if (!$attr->{QUITE});;
+    $html->message('info', "EXTERNAL $lang{ADDED}", $message) if (!$attr->{QUITE});;
     return 1;
   }
   else {
-    $html->message('err', "_EXTERNAL $lang{ERROR}", "[". ($num || '') ."] ". ($message || q{}) ." ERROR: ". ($error || q{})); # if (!$attr->{QUITE});;
+    $html->message('err', "EXTERNAL $lang{ERROR}", "[". ($num || '') ."] ". ($message || q{}) ." ERROR: ". ($error || q{})) if (!$attr->{QUITE});
     return 0;
   }
 }
@@ -1295,6 +1342,7 @@ sub _external {
 
   Arguments:
     $attr
+      SHORT - Short info
 
   Returns:
     \%FEES_METHODS
@@ -1339,48 +1387,20 @@ sub get_fees_types {
 =cut
 #**********************************************************
 sub get_payment_methods {
-  my ($attr) = @_;
-
   my %PAYMENTS_METHODS = ();
 
-  if($conf{PAYMENT_METHOD_NEW}) {
-    use Payments;
-    my $Payments = Payments->new($db, $admin, \%conf);
+  require Payments;
+  Payments->import();
+  my $Payments = Payments->new($db, $admin, \%conf);
+  my $payment_list = $Payments->payment_type_list({
+    COLS_NAME => 1,
+    SORT      => 'id',
+  });
 
-    my $payment_list = $Payments->payment_type_list({
-      COLS_NAME => 1,
-      SORT      => 'id',
-    });
+  _error_show($Payments) and return 0;
 
-    _error_show($Payments) and return 0;
-
-    foreach my $type (@$payment_list) {
-      $PAYMENTS_METHODS{$type->{id}} = _translate($type->{name});
-    }
-  }
-  else {
-    my @PAYMENT_METHODS = ("$lang{CASH}", "$lang{BANK}", "$lang{EXTERNAL_PAYMENTS}", 'Credit Card', "$lang{BONUS}",
-      "$lang{CORRECTION}", "$lang{COMPENSATION}",
-      "$lang{MONEY_TRANSFER}", "$lang{RECALCULATE}");
-
-    my @PAYMENT_METHODS_ = @PAYMENT_METHODS;
-    push @PAYMENT_METHODS_, @EX_PAYMENT_METHODS if (@EX_PAYMENT_METHODS);
-
-    for (my $i = 0; $i <= $#PAYMENT_METHODS_; $i++) {
-      $PAYMENTS_METHODS{$i} = $PAYMENT_METHODS_[$i];
-    }
-  }
-
-  my %PAYSYS_PAYMENT_METHODS = ();
-  if ($attr->{EXTRA_METHODS}) {
-    %PAYSYS_PAYMENT_METHODS = %{ cfg2hash( $attr->{EXTRA_METHODS} ) };
-  }
-  else {
-    %PAYSYS_PAYMENT_METHODS = %{ cfg2hash( $conf{PAYSYS_PAYMENTS_METHODS} ) };
-  }
-
-  while (my ($k, $v) = each %PAYSYS_PAYMENT_METHODS) {
-    $PAYMENTS_METHODS{$k} = $v;
+  foreach my $type (@$payment_list) {
+    $PAYMENTS_METHODS{$type->{id}} = _translate($type->{name});
   }
 
   return \%PAYMENTS_METHODS;

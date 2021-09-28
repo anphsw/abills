@@ -1,45 +1,50 @@
-# billd plugin
 #**********************************************************
-=head1
+=head1 NAME
+
   Standart execute
     /usr/abills/libexec/billd paysys_periodic
+
+=head1 HELP
+
+  DATE
+  DATE_FROM
+  DATE_TO
+  DEBUG
 
 =cut
 #**********************************************************
 
 use strict;
 use warnings FATAL => 'all';
-unshift(@INC, '/usr/abills/', '/usr/abills/Abills/'); #/usr/abills/Abills/
 
-our $html = Abills::HTML->new( { CONF => \%conf } );
+push @INC, $Bin.'/../', $Bin.'/../Abills/';
+
 our (
   $db,
-  $admin,
   $Admin,
   %conf,
   %lang,
-  $debug,
   $argv,
-  $libpath,
-  $DATE,
+  $base_dir,
+  $debug
 );
 
 require Abills::Misc;
-require Abills::Base;
-use Users;
-$admin = $Admin;
+our $html = Abills::HTML->new( { CONF => \%conf } );
+our $admin = $Admin;
+do $base_dir . "/language/$conf{default_language}.pl";
 
-$debug = $argv->{DEBUG} || 1;
+load_module('Paysys', $html, { LANG_ONLY => 1 });
+require Paysys::Periodic;
 
-our $users = Users->new($db, $admin, \%conf);
+_log('LOG_DEBUG', "Billd plugin for paysys periodic starting");
 
-do "/usr/abills/language/$conf{default_language}.pl";
+paysys_periodic_new({
+  DEBUG => $debug,
+  DATE  => $DATE,
+  %$argv
+});
 
-load_module('Paysys', $html);
-my $version = 7.0;
+_log('LOG_DEBUG', "Billd plugin for paysys peridic stoped");
 
-print "Billd plugin for paysys peridic starting. \n\n";
-
-paysys_periodic_new({DEBUG => $debug, DATE => $DATE, %$argv});
-
-print "Billd plugin for paysys peridic stoped. \n\n";
+1;

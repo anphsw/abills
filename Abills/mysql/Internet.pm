@@ -521,6 +521,10 @@ sub list {
   $self->{SEARCH_FIELDS}  = '';
   $self->{SEARCH_FIELDS_COUNT}=0;
 
+  if($attr->{REGISTRATION_FROM_REGISTRATION_TO}){
+    ($attr->{REGISTRATION_FROM}, $attr->{REGISTRATION_TO}) = split '/', $attr->{REGISTRATION_FROM_REGISTRATION_TO};
+  }
+
   my @search_fields = (
     ['INTERNET_LOGIN',    'STR', 'internet.login',  'internet.login AS internet_login' ],
     ['IP',                'IP',  'internet.ip',     'internet.ip AS ip_num'        ], #'INET_NTOA(internet.ip) AS ip' ],
@@ -585,6 +589,7 @@ sub list {
     ['SHEDULE',           'INT', '', "CONCAT(s.y,'-', s.m, '-', s.d, ' ', s.action) AS shedule" ],
     ['FEES_METHOD',       'INT', 'tp.fees_method',                         1 ],
     ['NAS_IP',            'IP',  'INET_NTOA(nas.ip) AS nas_ip',            1 ],
+    ['REGISTRATION_FROM|REGISTRATION_TO','DATE',"DATE_FORMAT(u.registration, '%Y-%m-%d')"]
   );
 
   if ($CONF->{IPV6}) {
@@ -605,7 +610,7 @@ sub list {
     if ($attr->{GID} =~ /,/) {
       $WHERE .= ' AND u.gid IN (' . $attr->{GID} . ')';
     }
-    else {
+    else {N
       $WHERE .= ' AND u.gid = ' . $attr->{GID};
     }
   }
@@ -767,15 +772,15 @@ sub report_debetors {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE =  $self->search_former($attr, [
-      ['UID',            'INT', 'internet.uid',                           1 ],
-      ['INTERNET_STATUS',      'INT', 'internet.disable as internet_status',          1 ],
+      ['UID',             'INT', 'internet.uid',                           1 ],
+      ['INTERNET_STATUS', 'INT', 'internet.disable AS internet_status',    1 ],
+      ['TP_NAME',         'STR', 'tp.name', 'tp.name AS tp_name' ]
     ],
     {
       USERS_FIELDS_PRE => 1,
       USE_USER_PI      => 1,
       SKIP_USERS_FIELDS=> [ 'UID' ]
-    }
-    );
+    });
 
   my $EXT_TABLES = $self->{EXT_TABLES};
   $WHERE = " AND ". $WHERE if ($WHERE);
@@ -1110,11 +1115,14 @@ sub report_user_statuses {
   my ($attr) = @_;
 
   $self->query("SELECT COUNT(i.uid) AS COUNT,SUM(i.deposit) AS deposit,i.disable AS status
-    FROM (SELECT DISTINCT inter.uid, bill.deposit, inter.disable
-    FROM internet_main AS inter
-    LEFT JOIN bills AS bill
-    ON inter.uid=bill.uid) AS i
-    WHERE i.disable=$attr->{STATUS}
+    FROM (SELECT DISTINCT inter.uid, IF(u.company_id = 0, b.deposit, cb.deposit) AS deposit, inter.disable
+      FROM internet_main AS inter
+      INNER JOIN users u ON (u.uid=inter.uid)
+      LEFT JOIN companies company ON (u.company_id=company.id)
+      LEFT JOIN bills b ON (u.bill_id = b.id)
+      LEFT JOIN bills cb ON (company.bill_id=cb.id)
+    ) AS i
+    WHERE i.disable='$attr->{STATUS}'
     GROUP BY status;",
     undef,
     $attr

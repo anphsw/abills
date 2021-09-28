@@ -18,7 +18,7 @@
 
 Дополнительные услуги: %DOCS_TPNAME_ABON_1%
 <br>
-Сумма  дополнительныйх услуг: %DOCS_ABON_ABON_1%
+Сумма дополнительных услуг: %DOCS_ABON_ABON_1%
 <br>
 
 Oбщая сумма: %DOCS_ABON_SUM_SERVICE%

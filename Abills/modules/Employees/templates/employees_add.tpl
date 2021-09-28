@@ -2,6 +2,7 @@
   <input type=hidden name='index' value='%INDEX%'>
   <input type=hidden name='AID' value='%AID%'>
 
+  <div class="row">
   <div class='col-md-6'>
       <div class='card card-primary card-outline'>
         <div class='card-header with-border'><h4 class='card-title table-caption'>_{EMPLOYEES}_</h4></div>
@@ -220,6 +221,7 @@
 
         </div>
       </div>
+  </div>
   </div>
 
     <div class='col-xs-12'>

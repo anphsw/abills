@@ -24,3 +24,4 @@ $lang{NO_CONTACTS_FOR_TYPE} = 'Немає контактів для вибран
 $lang{INTERNET_DISABLED}='Послуга Інтернет відключена';
 $lang{ACCOUNT_REPLENISHMENT} = 'Поповнення рахунку';
 $lang{PAYMENT_MAKED}= 'Оплату здійснено';
+$lang{LAST_MESSAGE} = 'Посліднє повідомлення';

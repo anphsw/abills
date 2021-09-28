@@ -162,7 +162,6 @@ $lang{HELPDESK}='Help Desk';
 
 $lang{SCRUB_BOX} = 'Scrub Box';
 
-$lang{MSGS_TAGS} = 'Tag(s)';
 $lang{PLUGINS} = 'Plugins';
 $lang{MSGS_BEFORE_CREATE} = 'Events before adding a ticket';
 $lang{MSGS_AFTER_CREATE} = 'Events after adding a ticket';

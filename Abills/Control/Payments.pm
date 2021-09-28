@@ -345,6 +345,12 @@ sub form_payment_add {
       }
       my $employees_cash = $Employees->employees_payments_cashbox({ COLS_NAME => 1, AID => $admin_cash});
 
+      my %params = ("" => "");
+
+      if ($Employees->{TOTAL} == 1) {
+        %params = (REQUIRED => 1);
+      }
+
       $attr->{CASHBOX_SELECT} = $html->form_select(
         'CASHBOX_ID',
         {
@@ -353,8 +359,8 @@ sub form_payment_add {
           SEL_KEY     => 'id',
           SEL_VALUE   => 'name',
           NO_ID       => 1,
-          SEL_OPTIONS => {"" => ""},
-          MAIN_MENU     => get_function_index('employees_cashbox_main'),
+          MAIN_MENU   => get_function_index('employees_cashbox_main'),
+          %params
         }
       );
     }
@@ -577,6 +583,8 @@ sub form_payments_list {
         'id'              => $lang{NUM},
         'datetime'        => $lang{DATE},
         'dsc'             => $lang{DESCRIBE},
+        'dsc2'            => "$lang{DESCRIBE} 2",
+        'inner_describe2' => "$lang{INNER}",
         'sum'             => $lang{SUM},
         'last_deposit'    => $lang{OPERATION_DEPOSIT},
         'deposit'         => $lang{CURRENT_DEPOSIT},

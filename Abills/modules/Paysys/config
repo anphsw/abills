@@ -10,18 +10,19 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
     # Reports 21-40
     "21:0:$lang{PAYSYS}:paysys_log"                                     => 4,
     "22:21:$lang{INTERNAL_REPORTS}:paysys_reports"                      => 4,
+    "23:21:$lang{SUBSCRIBES}:paysys_users"                              => 4,
     # Import Fees 60-70
-    "60:0:Import:paysys_import_fees_new:"                               => 3
+    "60:0:$lang{IMPORT}:paysys_import_fees_new:"                               => 3
   );
 
   if ($conf{PAYSYS_NEW_SETTINGS}) {
     $FUNCTIONS_LIST{"02:1:$lang{SETTINGS}:paysys_configure_main_new:"} = 5;
     $FUNCTIONS_LIST{"04:1:$lang{PAYSYS_SETTINGS_FOR_MERCHANTS}:paysys_add_configure_groups:"} = 5;
-    $FUNCTIONS_LIST{"10:1:PAYSYS_SETTINGS_FOR_GROUPS:paysys_configure_groups_new:AJAX"} = 5;
+    $FUNCTIONS_LIST{"10:1:PAYSYS_SETTINGS_FOR_GROUPS:paysys_configure_groups_new:AJAX"}       = 5;
   }
   else {
     $FUNCTIONS_LIST{"02:1:$lang{SETTINGS}:paysys_configure_main:"} = 5;
-    $FUNCTIONS_LIST{"04:1:$lang{PAYSYS_SETTINGS_FOR_GROUPS}:paysys_configure_groups:"} = 5;
+    $FUNCTIONS_LIST{"04:1:$lang{PAYSYS_SETTINGS_FOR_GROUPS}:paysys_configure_groups:"}        = 5;
   }
 
   unless ($conf{PAYMENT_HIDE_USER_MENU}) {
@@ -31,12 +32,12 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
         %USER_FUNCTION_LIST = (
           "01:0:$lang{BALANCE_RECHARCHE}:paysys_payment:"     => 40,
           "02:1:$lang{LOG}:paysys_user_log:"                  => 40,
-          "02:1:$lang{TOKEN_PAYMENTS}:paysys_subscribe:"  => 40
+          "02:1:$lang{TOKEN_PAYMENTS}:paysys_subscribe:"      => 40
         );
       }
       else {
         %USER_FUNCTION_LIST = (
-          "01:0:$lang{LOG}:paysys_user_log:" => 40
+          "01:0:$lang{LOG}:paysys_user_log:"                  => 40
         );
       }
     }
@@ -45,12 +46,10 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
       $USER_FUNCTION_LIST{"03:1:$lang{RECURRENT_PAYMENT}:paysys_recurrent_payment:"} = 40;
     }
   }
+
   if ($conf{PAYSYS_TERMINALS_ADD}) {
     $FUNCTIONS_LIST{"07:1:$lang{TERMINALS}:paysys_configure_terminals:"} = 5;
     $FUNCTIONS_LIST{"08:7:$lang{ADD} $lang{TYPE}:paysys_configure_terminals_type:"} = 5;
-  }
-  if ($conf{PAYSYS_EXCHANGE_RATES}) {
-    $FUNCTIONS_LIST{"23:21:$lang{NBKR}:paysys_nbkr_ex_rates_print:"} = 4;
   }
 
   %PERIODIC = (daily => [ 'paysys_periodic_new' ],
@@ -58,21 +57,18 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
   );
 
   if ($permissions{1} && $permissions{1}{5}) {
-    $FUNCTIONS_LIST{"05:0:Import:paysys_import_payments_new:"} = 2;
+    $FUNCTIONS_LIST{"05:0:$lang{IMPORT}:paysys_import_payments_new:"} = 2;
   }
 }
 else{
   %FUNCTIONS_LIST = (
     "02:0:$lang{PAYSYS}:paysys_log:"                                        => 4,
-    "06:0:Import:paysys_import_fees:"                                => 3,
-    "09:2:$lang{EXCHANGE_RATES}:null:"                               => 4,
-    "50:9:Privat 24:paysys_p24_ex_rates_print:"                      => 4,
-    "51:9:$lang{NBU}:paysys_nbu_ex_rates_print:"                     => 4,
-    "52:9:$lang{NBKR}:paysys_nbkr_ex_rates_print:"                   => 4,
+    "06:0:$lang{IMPORT}:paysys_import_fees:"                                       => 3,
+    "09:2:$lang{EXCHANGE_RATES}:null:"                                      => 4,
     "07:0:$lang{PAYSYS}:null:"                                              => 5,
-    "16:7:$lang{EXTERNAL_COMMAND}:paysys_external_commands:"         => 5,
-    "19:7:$lang{SETTINGS}:paysys_systems_configuration:"             => 5,
-    "20:7:$lang{PAYSYS_SETTINGS_FOR_GROUPS}:paysys_groups_settings:" => 5,
+    "16:7:$lang{EXTERNAL_COMMAND}:paysys_external_commands:"                => 5,
+    "19:7:$lang{SETTINGS}:paysys_systems_configuration:"                    => 5,
+    "20:7:$lang{PAYSYS_SETTINGS_FOR_GROUPS}:paysys_groups_settings:"        => 5,
     "21:7:$lang{PAYSYS}:paysys_test:PAYSYSTEM"                              => 5,
   );
 
@@ -131,7 +127,7 @@ else{
   );
 
   if ($permissions{1} && $permissions{1}{5}) {
-    $FUNCTIONS_LIST{"05:0:Import:paysys_import_payments:"} = 2;
+    $FUNCTIONS_LIST{"05:0:$lang{IMPORT}:paysys_import_payments:"} = 2;
   }
 }
 1

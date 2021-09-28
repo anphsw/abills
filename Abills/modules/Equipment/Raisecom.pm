@@ -7,8 +7,8 @@
     gpon
       ISCOM5508-GP
 
-  DATE: 12.01.2020
-  UPDATE:
+  DATE: 20200112
+  UPDATE: 20210325
 
 =cut
 
@@ -43,7 +43,7 @@ sub _raisecom_get_ports {
     %{$attr},
     TIMEOUT   => 5,
     VERSION   => 2,
-    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,PORT_ALIAS,TRAFFIC,PORT_INFO'
+    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,PORT_ALIAS,TRAFFIC,PORT_IN_ERR,PORT_OUT_ERR'
   });
 
   foreach my $key (sort keys %{$ports_info}) {

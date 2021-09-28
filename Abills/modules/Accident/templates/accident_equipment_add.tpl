@@ -10,46 +10,46 @@
                 _{ACCIDENT_FOR_EQUIPMENT}_
             </h4>
         </div>
-        <div class="card-body">
-            <div class="form-group row">
-                <label class="control-label col-md-4 col-sm-4">_{NAME}_:</label>
-                <div class="col-md-8 col-sm-8">
+        <div class='card-body'>
+            <div class='form-group row'>
+                <label class='control-label col-md-4 col-sm-4'>_{NAME}_:</label>
+                <div class='col-md-8 col-sm-8'>
                     <input type='text' name='NAME' value='%NAME%'
                            class='form-control' readonly>
                 </div>
             </div>
 
-            <div class="form-group row">
-                <label class="control-label col-md-4 col-sm-4">_{FROM}_:</label>
-                <div class="col-md-8 col-sm-8">
+            <div class='form-group row'>
+                <label class='control-label col-md-4 col-sm-4'>_{FROM}_:</label>
+                <div class='col-md-8 col-sm-8'>
                     <input type='text' class='form-control datepicker' value='%FROM_DATE%' name='FROM_DATE'/>
                 </div>
             </div>
 
-            <div class="form-group row">
-                <label class="control-label col-md-4 col-sm-4">_{TO}_:</label>
-                <div class="col-md-8 col-sm-8">
+            <div class='form-group row'>
+                <label class='control-label col-md-4 col-sm-4'>_{TO}_:</label>
+                <div class='col-md-8 col-sm-8'>
                     <input type='text' class='form-control datepicker' value='%TO_DATE%' name='TO_DATE'/>
                 </div>
             </div>
 
-            <div class="form-group row">
-                <label class="control-label col-md-4 col-sm-4">_{RESPONSIBLE}_:</label>
-                <div class="col-md-8 col-sm-8">
+            <div class='form-group row'>
+                <label class='control-label col-md-4 col-sm-4'>_{RESPONSIBLE}_:</label>
+                <div class='col-md-8 col-sm-8'>
                     %RESPONSIBLE%
                 </div>
             </div>
 
-            <div class="form-group row">
-                <label class="control-label col-md-4 col-sm-4">_{STATUS}_:</label>
-                <div class="col-md-8 col-sm-8">
+            <div class='form-group row'>
+                <label class='control-label col-md-4 col-sm-4'>_{STATUS}_:</label>
+                <div class='col-md-8 col-sm-8'>
                     %STATUS%
                 </div>
             </div>
 
         </div>
-        <div class="card-footer">
-            <input type="submit" class="btn btn-primary" name="BUTTON_ACTION" value="%BUTTON_ACTION%">
+        <div class='card-footer'>
+            <input type='submit' class='btn btn-primary' name='BUTTON_ACTION' value='%BUTTON_ACTION%'>
         </div>
     </div>
 </form>

@@ -1,5 +1,5 @@
 $lang{MEMORY}='Память';
-$lang{CPU}='Процессор';
+$lang{CPU}='Процесор';
 $lang{DISC}='Диск';
 $lang{NETWORK}='Мережа';
 $lang{LOAD}='Завантаження';

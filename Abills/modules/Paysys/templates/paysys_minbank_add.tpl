@@ -12,7 +12,7 @@
 <input type='hidden' name='ServerURL' value='%form_url%'>
 <input type='hidden' name='sid' value='%sid%'>
 <input type='hidden' name='minbank_action' value='1'>
-<link rel="stylesheet" type="text/css" href="https://gate.minbank.ru/api-client/template.css" />
+<link rel='stylesheet' type='text/css' href='https://gate.minbank.ru/api-client/template.css' />
 
 <div class='card box-primary'>
     <div class='card-header with-border text-center'>Московский Индустриальный Банк</div>
@@ -21,7 +21,7 @@
 <div class='alert alert-info'>Вы собираетесь оплатить лицевой счет %account% на сумму %amount%.
 <strong><br>Введите данные для продолжения оплаты.</strong></div>
   <div class='mb-gate-template' data-id='%MB_ID%'>
-    <form class="mb-gate-template__form">
+    <form class='mb-gate-template__form'>
       <input type='hidden' name='account' value='%account%' />
       <input type='hidden' name='amount' value='%amount%' />
       <div class='mb-gate-template__gateway'></div>
@@ -29,7 +29,7 @@
       <div class='mb-gate-template__locker'></div>
     </form>
   </div>
-  <script src="https://gate.minbank.ru/api-client/lib.min.js" data-mb-merchant="%MB_MERCHANT%"></script>
+  <script src='https://gate.minbank.ru/api-client/lib.min.js' data-mb-merchant='%MB_MERCHANT%'></script>
 
 </div>
 

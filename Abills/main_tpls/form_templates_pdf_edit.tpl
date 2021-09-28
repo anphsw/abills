@@ -214,7 +214,7 @@
       this.fontSize = fontSize
       this.fontColor = fontColor
 
-      this.exampleValue = exampleValue
+      this.exampleValue = variable
     }
 
     draw(canvas, context) {
@@ -267,7 +267,7 @@
         dsc += `${fieldKey}:::(`
 
         fields[fieldKey].forEach(field => {
-          dsc += `page=${field.page};x=${Math.round(field.x)};y=${Math.round(field.y)};font_size=${field.fontSize};font_color=${field.fontColor};,`
+          dsc += `page=${field.page + 1};x=${Math.round(field.x)};y=${Math.round(field.y)};font_size=${field.fontSize};font_color=${field.fontColor};,`
         })
 
         dsc += ')\n'
@@ -326,7 +326,7 @@
         }
 
         jQuery(usedFieldNode).find('.used_field_remove').on('click', async () => {
-          pages[pageNumber].pop()
+          pages[pageNumber].splice(jQuery(usedFieldNode).index(),1)
           jQuery(usedFieldNode).remove()
 
           await renderPage(pdf, canvas, context, pageNumber)

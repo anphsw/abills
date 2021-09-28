@@ -117,12 +117,12 @@
               <div class='form-group row'>
                 <label class='col-form-label text-md-right col-md-4'>_{DATE}_:</label>
                 <div class='col-md-8'>
-                  <div class="input-group">
-                    <div class="input-group-prepend">
-              <span class="input-group-text">
-                <input type='checkbox' id='DATE_CHECKBOX' name='DATE_CHECKBOX' class='form-control-static'
-                       data-input-enables='DATE' checked/>
-              </span>
+                  <div class='input-group'>
+                    <div class='input-group-prepend'>
+                      <span class='input-group-text'>
+                        <input type='checkbox' id='DATE_CHECKBOX' name='DATE_CHECKBOX' class='form-control-static'
+                               data-input-enables='PERIOD'/>
+                      </span>
                     </div>
                     %DATE%
                   </div>

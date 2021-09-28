@@ -2,18 +2,14 @@ package Abills::Backend::Plugin::Asterisk;
 use strict;
 use warnings FATAL => 'all';
 
-#use Abills::Backend::Plugin::BasePlugin;
 use parent 'Abills::Backend::Plugin::BasePlugin';
 
 use Abills::Base qw/in_array/;
 use Encode;
-
-#use Voip;
 use Users;
 use Callcenter;
 use Admins;
 
-#my $Voip;
 my $Users;
 my $Callcenter;
 my $Admins;
@@ -30,8 +26,8 @@ my $log_user = ' Asterisk ';
 
 # DEBUGGING EVENTS ( Will be removed )
 my $Event_log = Abills::Backend::Log->new('FILE', 7, 'Asterisk debug', {
-    FILE => ('/usr/abills/var/log/event_asterisk.log'),
-  });
+  FILE => ('/usr/abills/var/log/event_asterisk.log'),
+});
 # DEBUGGING EVENTS
 
 use Abills::Backend::Defs;
@@ -57,31 +53,28 @@ my %calls_statuses = ();
 #**********************************************************
 sub new {
   my $class = shift;
-  
   my ($CONF) = @_;
-  
+
   %conf = %{$CONF};
-  
+
   $db = Abills::SQL->connect(@conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbpasswd'}, {
-      CHARSET => $conf{dbcharset},
-      SCOPE   => 2
-    });
-  
-  $admin = Admins->new($db, \%conf);
-  
+    CHARSET => $conf{dbcharset},
+    SCOPE   => 2
+  });
+
+
   my $self = {
     db    => $db,
     admin => $admin,
     conf  => $CONF,
   };
-  
+
   bless($self, $class);
-  
-#  $Voip = Voip->new($db, $admin, $CONF);
+
   $Users = Users->new($db, $admin, $CONF);
   $Callcenter = Callcenter->new($db, $admin, $CONF);
   $Admins = Admins->new($db, $CONF);
-  
+
   return $self;
 }
 
@@ -92,9 +85,9 @@ sub new {
 #**********************************************************
 sub init {
   my $self = shift;
-  
+
   $self->init_connection();
-  
+
   return 1;
 }
 
@@ -108,15 +101,15 @@ sub init {
 #**********************************************************
 sub init_connection {
   my $self = shift;
-  
+
   eval {require Asterisk::AMI};
-  if ( $@ ) {
+  if ($@) {
     $Log->critical($log_user, "Can't load Asterisk::AMI perl module");
     die "Can't load Asterisk::AMI perl module";
   }
-  
+
   Asterisk::AMI->import();
-  
+
   $Log->info("Connecting to asterisk ");
 
   $self->connect_to_asterisk();
@@ -129,11 +122,11 @@ sub init_connection {
 #**********************************************************
 sub connect_to_asterisk {
   my $self = shift;
-  
+
   $self->{connection_num} //= 0;
-  
-  delete $self->{astman_guard} if ( exists $self->{astman_guard} );
-  
+
+  delete $self->{astman_guard} if (exists $self->{astman_guard});
+
   $self->{astman_guard} = Asterisk::AMI->new(
     PeerAddr   => $conf{ASTERISK_AMI_IP},
     PeerPort   => $conf{ASTERISK_AMI_PORT},
@@ -153,7 +146,7 @@ sub connect_to_asterisk {
       # Counter for connections
       $self->{connection_num}++;
       $Log->info("Connected to Asterisk::AMI (Connection #$self->{connection_num})");
-      
+
       # Clear counter of unsuccessful tries
       $self->{connection_tries} = 0;
     },
@@ -166,7 +159,7 @@ sub connect_to_asterisk {
       $self->reconnect_to_asterisk_in(1) or $self->exit_with_error("Unable to connect to Asterisk");
     }
   );
-  
+
   return $self->{astman_guard};
 }
 
@@ -183,13 +176,13 @@ sub connect_to_asterisk {
 #**********************************************************
 sub reconnect_to_asterisk_in {
   my ($self, $seconds) = @_;
-  
+
   $self->{connection_tries} //= 0;
-  
-  return 0 if ( $self->{connection_tries} >= 20 );
-  
+
+  return 0 if ($self->{connection_tries} >= 20);
+
   $Log->notice("Set timer in $seconds seconds to reestablish connection to Asterisk ");
-  
+
   # Create delayed action
   $self->{guard_timer} = AnyEvent->timer(
     after => $seconds,
@@ -199,7 +192,7 @@ sub reconnect_to_asterisk_in {
       $self->{astman_guard} = $self->connect_to_asterisk();
     }
   );
-  
+
 }
 
 #**********************************************************
@@ -212,26 +205,26 @@ sub reconnect_to_asterisk_in {
 sub process_asterisk_newchannel {
   my ($asterisk, $event) = @_;
 
-  if ( $event->{Event} && $event->{Event} eq 'Newchannel' ) {
-    
+  if ($event->{Event} && $event->{Event} eq 'Newchannel') {
+
     my $called_number = $event->{Exten} || q{};
     my $caller_number = $event->{CallerIDNum} || q{};
 
     return unless $caller_number && $called_number;
 
-    return 0  if ($event->{CallerIDNum} =~ /unknown/);
+    return 0 if ($event->{CallerIDNum} =~ /unknown/);
 
-    if($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}){
+    if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
       $caller_number =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
     }
-    
+
     # CALLCENTER CODE
-    if ( in_array('Callcenter', \@MODULES) ) {
-      if ( $event->{CallerIDNum} && $event->{Exten} ) {
+    if (in_array('Callcenter', \@MODULES)) {
+      if ($event->{CallerIDNum} && $event->{Exten}) {
         my ($call_id, undef) = split('\.', $event->{Uniqueid} || q{});
-        
+
         my $newchannel_handler = sub {
-          
+
           my $user = $Users->list(
             {
               UID       => '_SHOW',
@@ -240,28 +233,26 @@ sub process_asterisk_newchannel {
             }
           );
           my $uid = 0;
-          if ( $Users->{TOTAL} && $Users->{TOTAL} > 0 ) {
+          if ($Users->{TOTAL} && $Users->{TOTAL} > 0) {
             $uid = $user->[0]->{uid};
           }
-          
-          $Callcenter->callcenter_add_cals(
-            {
-              USER_PHONE     => $caller_number,
-              OPERATOR_PHONE => $called_number,
-              ID             => $call_id,
-              UID            => $uid || 0,
-              STATUS         => 1,
-            }
-          );
-          
-          if ( !$Callcenter->{errno} ) {
-            $Log->info("New call added. ID: $call_id");
+
+          $Callcenter->callcenter_add_cals({
+            USER_PHONE     => $caller_number,
+            OPERATOR_PHONE => $called_number,
+            ID             => $call_id,
+            UID            => $uid || 0,
+            STATUS         => 1,
+          });
+
+          if (!$Callcenter->{errno}) {
+            $Log->info("NEW_CALL ID: $call_id");
           }
           else {
-            $Log->info("Can't add new call");
+            $Log->info("ERR_CANT_ADD_CALL");
           }
         };
-        
+
         # check if its in IVR
         my $ivr_is_exist = 0;
         $asterisk->{guard_timer} = AnyEvent->timer(
@@ -274,26 +265,26 @@ sub process_asterisk_newchannel {
             });
 
             print "Total - $Callcenter->{TOTAL}\n";
-            if ( !$Callcenter->{TOTAL} ) {
+            if (!$Callcenter->{TOTAL}) {
               $newchannel_handler->();
             }
           }
         );
-        
+
         # $Callcenter->{debug}=1;
-        
+
         # my $ivr_call_info = $Callcenter->log_list({COLS_NAME => 1, UID=> '_SHOW', UNIQUE_ID => $call_id});
-        
+
         # use Abills::Base;
         # _bp("ivr", $ivr_call_info, {TO_CONSOLE=>1});
       }
     }
-    
+
     $Log->info("Got Newchannel event. $caller_number calling to $called_number ");
-    
+
     notify_admin_about_new_call($called_number, $caller_number);
   }
-  
+
   return 1;
 }
 
@@ -310,17 +301,17 @@ sub process_asterisk_newchannel {
 #**********************************************************
 sub process_asterisk_newstate {
   my ($asterisk, $event) = @_;
-  
-  if ( $event->{ChannelStateDesc} eq 'Up' && $event->{ConnectedLineNum} ne '' ) {
-    
+
+  if ($event->{ChannelStateDesc} eq 'Up' && $event->{ConnectedLineNum} ne '') {
+
     my ($call_id, undef) = split('\.', $event->{Uniqueid});
     $Callcenter->{debug} = 1;
     $Callcenter->callcenter_change_calls({
       STATUS => 2,
       ID     => $call_id
     });
-    
-    if ( !$Callcenter->{errno} ) {
+
+    if (!$Callcenter->{errno}) {
       $calls_statuses{$call_id} = 2;
       $Log->info("Call in process. ID: $call_id");
     }
@@ -328,7 +319,7 @@ sub process_asterisk_newstate {
       $Log->info("Can't change status call");
     }
   }
-  
+
   return 1;
 }
 
@@ -346,17 +337,17 @@ sub process_asterisk_newstate {
 #**********************************************************
 sub process_asterisk_softhangup {
   my ($asterisk, $event) = @_;
-  
-  if ( $event->{ConnectedLineNum} =~ /\d+/ ) {
-    
+
+  if ($event->{ConnectedLineNum} =~ /\d+/) {
+
     my ($call_id, undef) = split('\.', $event->{Uniqueid});
-    
-    if ( defined $calls_statuses{$call_id} && $calls_statuses{$call_id} == 2 ) {
+
+    if (defined $calls_statuses{$call_id} && $calls_statuses{$call_id} == 2) {
       $Callcenter->callcenter_change_calls({
         STATUS => 3,
         ID     => $call_id
       });
-      
+
       delete $calls_statuses{$call_id};
       $Log->info("Call processed. ID: $call_id");
     }
@@ -389,18 +380,18 @@ sub get_admin_by_sip_number {
   my %params = (SIP_NUMBER => $sip_number);
 
   if ($conf{CALLCENTER_ASTERISK_ADMIN_EXPR}) {
-    $params{SIP_NUMBER} = '*'.$sip_number.'*';
+    $params{SIP_NUMBER} = '*' . $sip_number . '*';
   }
 
   my $admins_for_number_list = $Admins->list({
     %params,
-    COLS_NAME  => 1
+    COLS_NAME => 1
   });
 
   my @admins = ();
-  if ( $Admins->{TOTAL} ) {
-    foreach my $admin (@$admins_for_number_list) {
-      push @admins, $admin->{aid};
+  if ($Admins->{TOTAL}) {
+    foreach my $admin_ (@$admins_for_number_list) {
+      push @admins, $admin_->{aid};
     }
   }
 
@@ -426,11 +417,11 @@ sub notify_admin_about_new_call {
   my @online_aids = ();
 
   foreach my $aid (@$admin_aids) {
-    if ($websocket_api->has_connected('admin', $aid) ) {
+    if ($websocket_api->has_connected('admin', $aid)) {
       push @online_aids, $aid;
     }
     else {
-      $Log->notice("Can't notify '$aid', no connection");
+      $Log->notice("CANT_NOTIFY AID: '$aid', no connection");
     }
   }
 
@@ -439,7 +430,7 @@ sub notify_admin_about_new_call {
     return 1;
   }
 
-  if($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}){
+  if ($conf{CALLCENTER_ASTERISK_PHONE_PREFIX}) {
     $caller_number =~ s/$conf{CALLCENTER_ASTERISK_PHONE_PREFIX}//;
   }
 
@@ -455,14 +446,18 @@ sub notify_admin_about_new_call {
     COLS_NAME    => 1
   });
 
-  if ( !$Users->{TOTAL} || $Users->{TOTAL} < 1 ) {
+  if (!$Users->{TOTAL} || $Users->{TOTAL} < 1) {
     # That's not an ABillS registered number
-    $Log->warning("That's not an ABillS registered number '$caller_number'");
+    $Log->warning("UNKNOWN_NUMBER: '$caller_number'");
+    my $notification = _create_lead_notification($caller_number);
+    foreach my $aid (@online_aids) {
+      $websocket_api->notify_admin($aid, $notification);
+    }
     return 1;
   }
 
-  foreach my $user_info (@$search_list){
-    my $notification = _create_user_info_notification({ %{$user_info}, });
+  foreach my $user_info (@$search_list) {
+    my $notification = _create_user_notification({ %{$user_info}, });
     # Notify admin by messageChecker.ParseMessage
     foreach my $aid (@online_aids) {
       $websocket_api->notify_admin($aid, $notification);
@@ -486,47 +481,48 @@ sub notify_admin_about_new_call {
 #**********************************************************
 sub exit_with_error {
   my ($self, $error) = @_;
-  
+
   $websocket_api->notify_admin('*', {
-      TITLE  => 'ASTERISK',
-      TEXT   => $error || 'Unable connect to asterisk',
-      MODULE => 'Callcenter'
-    });
-  
+    TITLE  => 'ASTERISK',
+    TEXT   => $error || 'Unable connect to asterisk',
+    MODULE => 'Callcenter'
+  });
+
   $Log->critical("Unable to connect to Asterisk ");
-  
+
   return 1;
 }
 
 #**********************************************************
-=head2 _create_user_info_notification($user_info)
+=head2 _create_user_notification($user_info) -  Create JSON message from %user_info
 
-  Create JSON message from %user_info
+  Arguments:
+    $user_info
+
+  Return:
+    \%result
 
 =cut
 #**********************************************************
-sub _create_user_info_notification {
+sub _create_user_notification {
   my ($user_info) = @_;
 
-  my $Internet = ();
-  my $Sessions = ();
-  my $tp_name  = '';
+  my $tp_name = '';
   my $internet_status = '';
-  if (in_array( 'Internet', \@MODULES )) {
+
+  if (in_array('Internet', \@MODULES)) {
     require Internet;
-    require Internet::Sessions;
-    $Internet = Internet->new($db, $admin, \%conf);
-    $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+    my $Internet = Internet->new($db, $admin, \%conf);
 
     my $user_internet_main = $Internet->list({
-      UID        => $user_info->{UID},
-      TP_NAME    => '_SHOW',
+      UID             => $user_info->{UID},
+      TP_NAME         => '_SHOW',
       INTERNET_STATUS => '_SHOW',
-      SORT       => 2,
-      DESC       => 'DESC',
-      COLS_NAME  => 1,
-      COLS_UPPER => 1,
-      PAGE_ROWS  => 1});
+      SORT            => 2,
+      DESC            => 'DESC',
+      COLS_NAME       => 1,
+      COLS_UPPER      => 1,
+      PAGE_ROWS       => 1 });
 
     $tp_name = $user_internet_main->[0]->{tp_name} || '';
     $internet_status = $user_internet_main->[0]->{internet_status} || '0';
@@ -535,41 +531,126 @@ sub _create_user_info_notification {
   my $title = ($user_info->{FIO} || '')
     . ' ( '
     . (($user_info->{COMPANY_NAME}) ? $user_info->{COMPANY_NAME} . ' : ' . $user_info->{LOGIN}
-                                    : $user_info->{LOGIN})
+    : $user_info->{LOGIN})
     . ' )';
-  
-  #TODO: localization
+
   our %lang;
-  do "$base_dir/language/" . ($conf{default_language} || 'english' ) . ".pl";
-  my @service_status        = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
+  do "$base_dir/language/" . ($conf{default_language} || 'english') . ".pl";
+  my @service_status = ($lang{ENABLE}, $lang{DISABLE}, $lang{NOT_ACTIVE}, $lang{HOLD_UP},
     "$lang{DISABLE}: $lang{NON_PAYMENT}", $lang{ERR_SMALL_DEPOSIT},
-    $lang{VIRUS_ALERT} );
+    $lang{VIRUS_ALERT});
   my $money_name = '';
-  if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY'){
+  if (exists $conf{MONEY_UNIT_NAMES} && defined $conf{MONEY_UNIT_NAMES} && ref $conf{MONEY_UNIT_NAMES} eq 'ARRAY') {
     $money_name = $conf{MONEY_UNIT_NAMES}->[0] || '';
   }
 
   my $build_delimiter = $conf{BUILD_DELIMITER} || ', ';
-  my $text = "$lang{DEPOSIT} : " . sprintf('%.2f', ($user_info->{DEPOSIT} || 0)) . " $money_name"
-    . '<br/>'
-    . "$lang{ADDRESS} : " . ($user_info->{CITY} || '') . $build_delimiter . ($user_info->{ADDRESS_FULL} || '')
-    . "<br>"
-    . "$lang{TARIF_PLAN} : " . sprintf('%.25s', $tp_name)
-    . "<br>"
-  . "$lang{STATUS} : $service_status[$internet_status]";
+  my $deposit = sprintf('%.2f', ($user_info->{DEPOSIT} || 0));
 
-  
+  if ($deposit < 0) {
+    $deposit = "<span class='badge badge-danger'>$deposit</span>";
+  }
+
+  my $status = $service_status[$internet_status];
+  if ($internet_status == 0) {
+    $status = "<b class='text-success'>$status</b>";
+  }
+  else {
+    $status = "<b class='text-warning'>$status</b>";
+  }
+
+  my $text = "$lang{DEPOSIT} : " . $deposit . " $money_name"
+    . '<br>'
+    . "$lang{ADDRESS} : " . ($user_info->{CITY} || '') . $build_delimiter . ($user_info->{ADDRESS_FULL} || '')
+    . '<br>'
+    . "$lang{TARIF_PLAN} : " . sprintf('%.25s', $tp_name)
+    . '<br>'
+    . "$lang{STATUS} : $status";
+
   my $result = {
     TITLE  => Encode::decode('utf8', $title),
     TEXT   => Encode::decode('utf8', $text),
     EXTRA  => '?index=15&UID=' . $user_info->{UID},
+    ICON   => 'fa fa-user text-success',
     CLIENT => {
       UID   => $user_info->{UID},
-      LOGIN => $user_info->{LOGIN}
+      LOGIN => $user_info->{LOGIN},
     }
   };
-  
+
   return $result;
+}
+
+#**********************************************************
+=head2 _create_lead_notification($number) -  Create JSON message from %user_info
+
+  Arguments:
+    $number
+
+  Return:
+    \%result
+
+=cut
+#**********************************************************
+sub _create_lead_notification {
+  my ($number) = @_;
+
+  my %lead_info = ();
+
+  if (in_array('Crm', \@MODULES)) {
+    require Crm::db::Crm;
+    Crm->import();
+    my $Crm = Crm->new($db, $admin, \%conf);
+    my $crm_leads = $Crm->crm_lead_list({
+      PHONE           => '*' . $number . '*',
+      FIO             => '_SHOW',
+      DATE            => '_SHOW',
+      ADDRESS         => '_SHOW',
+      ADDRESS_FULL    => '_SHOW',
+      SKIP_RESPOSIBLE => 1,
+      SKIP_DEL_CHECK  => 1,
+      COLS_NAME       => 1,
+      PAGE_ROWS       => 10
+    });
+
+    foreach my $lead (@$crm_leads) {
+      $lead_info{FIO} = $lead->{fio};
+      $lead_info{ID} = $lead->{id};
+      $lead_info{ADDRESS_FULL} = $lead->{address_full} || $lead->{address};
+      $lead_info{DATE} = $lead->{date};
+      $Log->info("LEAD_FOUND: '$lead->{id}'");
+    }
+  }
+
+  our %lang;
+  do "$base_dir/language/" . ($conf{default_language} || 'english') . ".pl";
+  my $text = qq{$lang{PHONE} : $number};
+  my $icon = 'fa fa-user text-danger';
+  my $link = '?get_index=crm_leads&full=1&add_form=1&PHONE=' . $number;
+
+  if ($lead_info{'ID'}) {
+    $text = " $lang{FIO} : " .($lead_info{FIO} || q{})
+      .'<br/>'. "$lang{ADDRESS} : ". ($lead_info{ADDRESS_FULL} || q{})
+      .'<br/>'. "$lang{DATE} : ". ($lead_info{DATE} || q{});
+    $icon = 'fa fa-user text-warning';
+    $link = '?get_index=crm_lead_info&full=1&LEAD_ID=' . $lead_info{'ID'} .'&PHONE=' . $number;
+  }
+
+  my %result = (
+    TITLE  => Encode::decode('utf8', ($lead_info{'ID'}) ? $lang{LEAD} : "$lang{UNKNOWN} $lang{USER}"),
+    TEXT   => Encode::decode('utf8', $text),
+    EXTRA  => $link,
+    ICON   => $icon,
+    CLIENT => {
+      FIO          => $lead_info{FIO} || q{},
+      ADDRESS_FULL => $lead_info{ADDRESS_FULL} || q{},
+      ID           => $lead_info{ID} || q{},
+      DATE         => $lead_info{DATE} || q{},
+      PHONE        => $lead_info{PHONE} || $number,
+    }
+  );
+
+  return \%result;
 }
 
 #**********************************************************
@@ -585,16 +666,16 @@ sub _create_user_info_notification {
 #**********************************************************
 sub process_default {
   my ($asterisk, $event) = @_;
-  
+
   # Start debuging events, Will be removed
   my $debug_event = "\n================EVENT START=================\n";
-  foreach my $key ( sort keys %{$event} ) {
+  foreach my $key (sort keys %{$event}) {
     $debug_event .= ($key || '') . "-" . ($event->{$key} || '') . "\n";
   }
   $debug_event .= "================EVENT END=================\n";
   $Event_log->info("$debug_event");
   # End debuging events
-  
+
   return 1;
 }
 

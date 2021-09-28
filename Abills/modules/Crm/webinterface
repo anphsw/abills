@@ -21,8 +21,9 @@ use Crm::Log;
 require Abills::Defs;
 require Control::Address_mng;
 
-our ($db, $admin, %conf, %lang, $html, @MONTHES, %permissions);
+our ($db, $admin, %conf, %lang, @MONTHES, %permissions);
 
+our Abills::HTML $html;
 our Crm $Crm = Crm->new($db, $admin, \%conf);
 
 our @PRIORITY = ($lang{LOW}, $lang{NORMAL}, $lang{HIGH});
@@ -158,13 +159,14 @@ sub crm_competitors {
     DESCR           => '_SHOW',
     SITE            => '_SHOW',
     CONNECTION_TYPE => '_SHOW',
+    COLOR           => '_SHOW',
     COLS_NAME       => 1
   });
 
   my $competitors_table = $html->table({
     width   => '100%',
     caption => $lang{COMPETITORS},
-    title   => [ 'Id', $lang{NAME}, $lang{COMPETITOR_SITE}, $lang{CONNECTION_TYPE}, $lang{DESCRIBE}, '', '', '' ],
+    title   => [ 'Id', $lang{NAME}, $lang{COMPETITOR_SITE}, $lang{CONNECTION_TYPE}, $lang{COLOR}, $lang{DESCRIBE}, '', '', '' ],
     ID      => 'CRM_COMPETITORS',
     MENU    => "$lang{ADD}:index=$index&add_form=1:add",
     EXPORT  => 1,
@@ -185,7 +187,9 @@ sub crm_competitors {
     my $tps_button = $html->button($lang{TARIF_PLANS}, "index=$competitors_tp_index&COMPETITOR_ID=$_->{id}",
       { class => 'btn btn-sm btn-default', target => '_blank' });
 
-    $competitors_table->addrow($_->{id}, $_->{name}, $site, $_->{connection_type}, $_->{descr}, $tps_button, $chg_button, $del_button);
+    $_->{color} ||= '#000000';
+    $competitors_table->addrow($_->{id}, $_->{name}, $site, $_->{connection_type},
+      $html->color_mark($_->{color}, $_->{color}), $_->{descr}, $tps_button, $chg_button, $del_button);
   }
 
   print $competitors_table->show();
@@ -344,7 +348,7 @@ sub crm_tp_geolocation_tree {
 =cut
 #**********************************************************
 sub crm_mass_adding {
-  my ($attr) = @_;
+  #my ($attr) = @_;
 
   use Address;
   my $Address = Address->new($db, $admin, \%conf);
@@ -380,6 +384,8 @@ sub crm_mass_adding {
   $Crm->{STREETS_SEL} = sel_streets({ SEL_OPTIONS => { 0 => '--' } });
 
   $html->tpl_show(_include('crm_mass_adding_form', 'Crm'), $Crm);
+
+  return 1;
 }
 
 #**********************************************************

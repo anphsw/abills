@@ -7,7 +7,7 @@
 		</div>
 
 		<div class='card-body'>
-		  <div class='row' style='margin-left: 2%; margin-right: 2%'>
+		  <div style='margin-left: 2%; margin-right: 2%'>
 			<div class='row'>
 			  <label class='col-md-8 col-xs-10'>
 		        _{TIME_LIMIT}_ (_{HOURS}_):
@@ -50,7 +50,7 @@
 		      </div>
 		  	</div> 
 			<div class='row' style='text-align: center'>
-				<a class='btn btn-primary' href='$SELF_URL?BUY_CARDS=1&TP_ID=%TP_ID%&DOMAIN_ID=%DOMAIN_ID%%UNIFI_SITENAME%'>_{BUY}_</a>
+				<a class='btn btn-primary' href='$SELF_URL?BUY_CARDS=1&TP_ID=%TP_ID%&DOMAIN_ID=%DOMAIN_ID%%HOTSPOT_PARAMS%'>_{BUY}_</a>
 			</div>
 		  </div>
 		</div>

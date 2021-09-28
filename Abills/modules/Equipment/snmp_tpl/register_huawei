@@ -438,8 +438,8 @@ sub telnet_open {
     #    Output_log =>"/tmp/output.log"
   );
 
-  my ($ip, $mng_port, undef) = split(/:/, $argv->{NAS_MNG_IP_PORT}, 3);
-  my $port = $mng_port || 23;
+  my ($ip) = split(/:/, $argv->{NAS_MNG_IP_PORT});
+  my $port = 23;
 
   $Telnet->open(
     Host => $ip,

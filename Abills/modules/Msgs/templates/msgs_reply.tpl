@@ -84,6 +84,7 @@
 
 <input type='hidden' name='MAIN_INNER_MESSAGE' value='%MAIN_INNER_MSG%'/>
 <input type='hidden' name='SUBJECT' value='%SUBJECT%' size=50/>
+<input type='hidden' id='MAX_FILES' value='%MAX_FILES%'/>
 <a name='reply' class='anchor'></a>
 
 <div class='card card-primary card-outline'>
@@ -144,7 +145,7 @@
           <div class='col-md-9'>
             <div class='input-group'>
               <div id='file_upload_holder' style='border : 1px solid #d2d6de'>
-                <div class='form-group  m-1'>
+                <div class='form-group m-1'>
                   <input name='FILE_UPLOAD' type='file' data-number='0' class='fixed'>
                 </div>
               </div>
@@ -262,7 +263,9 @@
     });
   }
 
-  var MAX_FILES_COUNT = 3;
+  var MAX_FILES_COUNT = jQuery('#MAX_FILES').val();
+  if (MAX_FILES_COUNT === '') MAX_FILES_COUNT = 3;
+
   initMultifileUploadZone('file_upload_holder', 'FILE_UPLOAD', MAX_FILES_COUNT);
 
   var survey_select = jQuery('select#SURVEY_ID');

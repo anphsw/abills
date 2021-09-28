@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS `accident_log`
     `end_time`   DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `realy_time` DATETIME             NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `status`     TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
-    `name`       VARCHAR(20)          NOT NULL DEFAULT '',
+    `name`       VARCHAR(255)          NOT NULL DEFAULT '',
     KEY `status` (`status`),
     CONSTRAINT `accident_log`
         FOREIGN KEY (`aid`) REFERENCES `admins` (`aid`) ON DELETE CASCADE
@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS `accident_address`
 (
     `id`         SMALLINT(3) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `ac_id`      INT(11) UNSIGNED NOT NULL DEFAULT 0,
-    `type_id`    TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
-    `address_id` TINYINT(3) UNSIGNED  NOT NULL DEFAULT 0,
+    `type_id`    INT(11) UNSIGNED  NOT NULL DEFAULT 0,
+    `address_id` VARCHAR (255)  NOT NULL DEFAULT 0,
 
     KEY `address_id` (`address_id`),
     KEY `type_id` (`type_id`),

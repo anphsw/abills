@@ -164,7 +164,6 @@ sub msgs_delivery {
 
     my $send_method_id = $Msgs_delivery->{SEND_METHOD} ? $Msgs_delivery->{SEND_METHOD} : 0;
 
-    $Log->log_print('LOG_INFO', '', "Delivery: $mdelivery->{id} Send method: $send_methods->{$send_method_id} ($send_method_id) ");
     $LIST_PARAMS{PAGE_ROWS}    = 1000000;
     $LIST_PARAMS{MDELIVERY_ID} = $mdelivery->{id};
 
@@ -192,20 +191,11 @@ sub msgs_delivery {
       COLS_NAME => 1
     });
 
-    my @users_ids = ();
-
     foreach my $u (@$user_list) {
-      my $email = ($u->{email}) ? $u->{email} : ($conf{USERS_MAIL_DOMAIN}) ? $u->{login} . '@' . $conf{USERS_MAIL_DOMAIN} : '';
-      if (!$email) {
-        print "Login: $u->{login} Don't have mail address. Skip...\n";
-        next;
-      }
 
       $Msgs_delivery->{SENDER} = ($Msgs_delivery->{SENDER}) ? $Msgs_delivery->{SENDER} : $conf{ADMIN_MAIL};
 
-      $Log->log_print('LOG_DEBUG', $u->{login}, "E-mail: $email $Msgs_delivery->{SUBJECT}");
-
-      push @users_ids, $u->{uid};
+      $Log->log_print('LOG_DEBUG', $u->{uid}, "Delivery: $mdelivery->{id} Send method: $send_methods->{$send_method_id} ($send_method_id) UID: $u->{uid}");
 
       my $user_pi = $users->pi({ UID => $u->{uid} });
       my $internet_info = {};
@@ -236,19 +226,9 @@ sub msgs_delivery {
           });
         }
         else {
-          my $to_address;
-          if ( $Msgs_delivery->{SEND_METHOD} ) {
-            if( $Msgs_delivery->{SEND_METHOD} == 9) {
-              $to_address = $email;
-            }
-            elsif( $Msgs_delivery->{SEND_METHOD} == 1 && ! $conf{CONTACTS_NEW} ) {
-              $to_address = $user_pi->{PHONE};
-            }
-          }
 
-          $Sender->send_message({
+          my $status = $Sender->send_message({
             SENDER      => $Msgs_delivery->{SENDER},
-            TO_ADDRESS  => $to_address,
             MESSAGE     => $message,
             SUBJECT     => $Msgs_delivery->{SUBJECT},
             SENDER_TYPE => $Msgs_delivery->{SEND_METHOD} || 0,
@@ -256,8 +236,15 @@ sub msgs_delivery {
             UID         => $user_pi->{UID}
           });
 
+          $Msgs_delivery->delivery_user_list_change({
+            MDELIVERY_ID => $mdelivery->{id}  || '-',
+            UID          => $u->{uid},
+            STATUS       => $status ? 1 : 2
+          });
+
+
           if($Sender->{errno}) {
-            print "ERROR: $Sender->{errno} $Sender->{errstr}\n";
+            $Log->log_print('LOG_DEBUG', $u->{uid}, "Error: $Sender->{errno} $Sender->{errstr}");
           }
         }
 
@@ -267,17 +254,12 @@ sub msgs_delivery {
       }
       elsif($debug > 7) {
         $debug_output .= "TYPE: $Msgs_delivery->{SEND_METHOD} TO: "
-          . (($Msgs_delivery->{SEND_METHOD} && $Msgs_delivery->{SEND_METHOD} == 1) ? $email : '')
+          . "$u->{id} "
           . "$message\n";
       }
     }
 
     if (!$LIST_PARAMS{LOGIN}) {
-      $Msgs_delivery->delivery_user_list_change({
-        MDELIVERY_ID => $mdelivery->{id}  || '-',
-        UID          => join(';', @users_ids)
-      });
-
       $Msgs_delivery->msgs_delivery_change({
         ID          => $mdelivery->{id} || '-',
         SENDED_DATE => "$DATE $TIME",

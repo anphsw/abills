@@ -65,7 +65,6 @@ $debug //= $ARGS->{DEBUG} || $ARGS->{debug} || 3;
 
 $db = Abills::SQL->connect(@conf{'dbtype', 'dbhost', 'dbname', 'dbuser', 'dbpasswd'}, {
   CHARSET => $conf{dbcharset},
-  # SCOPE   => __FILE__ . __LINE__
 });
 
 $admin = Admins->new($db, \%conf);

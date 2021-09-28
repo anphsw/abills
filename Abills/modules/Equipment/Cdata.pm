@@ -9,17 +9,18 @@
     gpon
 
     testing
+      FD1204S
       FD1208S
+      FD1608SN
 
-  DATE: 04.07.2019
-  UPDATE: 21.11.2019
+  DATE: 20190704
+  UPDATE: 20210819
 
 =cut
 
 use strict;
 use warnings;
-use Abills::Base qw(in_array);
-use Abills::Filters qw(bin2mac);
+use Abills::Filters qw(bin2mac bin2hex);
 
 our (
   %lang,
@@ -41,18 +42,16 @@ our (
 #**********************************************************
 sub _cdata_get_ports {
   my ($attr) = @_;
-  #my $res = ();
 
   my $ports_info = equipment_test({
     %{$attr},
     TIMEOUT   => 5,
     VERSION   => 2,
-    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,PORT_ALIAS,TRAFFIC,PORT_INFO'
+    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,TRAFFIC,PORT_IN_ERR,PORT_OUT_ERR'
   });
 
   foreach my $key (sort keys %{$ports_info}) {
-
-    if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} =~ /^1$/ && $ports_info->{$key}{PORT_NAME}
+    if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} == 1 && $ports_info->{$key}{PORT_NAME} #FD11..
       && $ports_info->{$key}{PORT_NAME} =~ /^(.PON).+PON-(\d+)/) {
       my $type = lc($1);
       $ports_info->{$key}{PON_TYPE} = $type;
@@ -61,7 +60,7 @@ sub _cdata_get_ports {
       $ports_info->{$key}{BRANCH} = $2;
       $ports_info->{$key}{PORT_ALIAS} = $ports_info->{$key}{PORT_NAME};
     }
-    elsif ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} =~ /^1$/ && $ports_info->{$key}{PORT_DESCR}
+    elsif ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} == 1 && $ports_info->{$key}{PORT_DESCR} #FD11..
       && $ports_info->{$key}{PORT_DESCR} =~ /^(.PON).+PON-(\d+)/) {
       my $type = lc($1);
       $ports_info->{$key}{PON_TYPE} = $type;
@@ -70,32 +69,21 @@ sub _cdata_get_ports {
       $ports_info->{$key}{BRANCH} = $2;
       $ports_info->{$key}{PORT_ALIAS} = $ports_info->{$key}{PORT_DESCR};
     }
-    elsif (
+    elsif ( #FD12 and FD16..
       $ports_info->{$key}{PORT_TYPE} &&
       $ports_info->{$key}{PORT_TYPE} == 117 &&
       $ports_info->{$key}{PORT_DESCR} &&
-      $ports_info->{$key}{PORT_DESCR} =~ /^(pon)(.+)/) {
-      my $type = lc($1);
-      # my $branch = $2;
-      my $bin_index =  dec2bin($key);
-      my (undef, $port_num, undef) = $bin_index =~ /(\d{9})(\d{8})(\d{8})/;
+      $ports_info->{$key}{PORT_DESCR} =~ /^pon(.+)/) {
+      my $branch = $1;
+      my ($branch_num) = $branch =~ /\d+\/\d+\/(\d+)/;
 
-      my $port_snmp;
-      if ($port_num) {
-        $port_snmp = bin2dec($port_num);
-      }
-      else { #CDATA FD1216 firmware V1.5.1 have different port numbers, that do not match regexp
-        $port_snmp = $key;
+      if ($branch_num < 10) {
+        $branch_num = '0' . $branch_num;
       }
 
-      my $port = $port_snmp - 2 - 8;
-
-      if ($port < 10){
-        $port = "0".$port;
-      }
-      $ports_info->{$key}{PON_TYPE} = "e" . $type;
+      $ports_info->{$key}{PON_TYPE} = $attr->{MODEL_NAME} =~/^FD16/ ? 'gpon' : 'epon';
       $ports_info->{$key}{SNMP_ID} = $key;
-      $ports_info->{$key}{BRANCH} = $port;
+      $ports_info->{$key}{BRANCH} = $branch_num;
       $ports_info->{$key}{BRANCH_DESC} = $ports_info->{$key}{PORT_DESCR};
       $ports_info->{$key}{PORT_ALIAS} = $ports_info->{$key}{PORT_DESCR};
     }
@@ -131,8 +119,12 @@ sub _cdata_get_ports {
 sub _cdata_onu_list {
   my ($port_list, $attr) = @_;
 
-  if ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} eq 'FD1216S') {
-   return _cdata2_onu_list($port_list, $attr);
+
+  if ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /^FD12/) {
+    return _cdata_fd12_onu_list($port_list, $attr);
+  }
+  elsif ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~/^FD16/) {
+    return _cdata_fd16_onu_list($port_list, $attr)
   }
 
   my $debug = $attr->{DEBUG} || 0;
@@ -227,10 +219,16 @@ sub _cdata_onu_list {
       foreach my $onu_numb (sort keys %{$onu_snmp_info{$key}}) {
         next if (!$onu_numb);
 
-        $onu_info{ONU_ID} = $onu_numb;
+        $onu_info{ONU_ID}      = $onu_numb;
         $onu_info{ONU_SNMP_ID} = "$key.$onu_numb";
-        $onu_info{PORT_ID} = $port_ids{$key};
-        $onu_info{PON_TYPE} = $pon_type;
+        $onu_info{PORT_ID}     = $port_ids{$key};
+        $onu_info{PON_TYPE}    = $pon_type;
+        #if ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /FD11/) { #FIXME it was for some provider, whose CDATA sends O82 in other format
+        #  $onu_info{ONU_DHCP_PORT} = sprintf("2d%.2d", $key, $onu_numb);
+        #}
+        #else {
+        #  $onu_info{ONU_DHCP_PORT} = "$key/$onu_numb";
+        #}
         $onu_info{ONU_DHCP_PORT} = "$key/$onu_numb";
         foreach my $oid_name (keys %{$onu_snmp_info{$key}{$onu_numb}}) {
           next if (!$oid_name);
@@ -245,7 +243,7 @@ sub _cdata_onu_list {
 }
 
 #**********************************************************
-=head2 _cdata($attr) - for FD1104SN
+=head2 _cdata($attr) - for FD11..
 
   Parsms:
 
@@ -254,8 +252,11 @@ sub _cdata_onu_list {
 sub _cdata {
   my ($attr) = @_;
 
-  if ($attr->{MODEL} && $attr->{MODEL} eq 'FD1216S') {
-    return _cdata2($attr);
+  if ($attr->{MODEL} && $attr->{MODEL} =~ /^FD12/) {
+    return _cdata_fd12($attr);
+  }
+  elsif ($attr->{MODEL} && $attr->{MODEL} =~ /^FD16/) {
+    return _cdata_fd16($attr)
   }
 
   my %snmp = (
@@ -412,7 +413,7 @@ sub _cdata_convert_power {
 
 =cut
 #**********************************************************
-sub _cdata2_convert_power {
+sub _cdata_fd12_convert_power {
   my ($power) = @_;
 
   return 0 if (!$power);
@@ -458,11 +459,11 @@ sub _cdata_convert_voltage {
   return $voltage;
 }
 #**********************************************************
-=head2 _cdata2_convert_voltage();
+=head2 _cdata_fd12_convert_voltage();
 
 =cut
 #**********************************************************
-sub _cdata2_convert_voltage {
+sub _cdata_fd12_convert_voltage {
   my ($voltage) = @_;
 
   $voltage //= 0;
@@ -472,6 +473,13 @@ sub _cdata2_convert_voltage {
 
   return $voltage;
 }
+
+sub _cdata_sec2time {
+  my ($sec)=@_;
+
+  return sec2time($sec, { str => 1 });
+}
+
 ##**********************************************************
 #=head2 _cdata_unregister($attr);
 #
@@ -534,13 +542,13 @@ sub _cdata2_convert_voltage {
 #}
 
 #**********************************************************
-=head2 _cdata2($attr) - for FD1216S
+=head2 _cdata_fd12($attr) - for FD12..
 
   Parsms:
 
 =cut
 #**********************************************************
-sub _cdata2 {
+sub _cdata_fd12 {
   my ($attr) = @_;
 
   my %snmp = (
@@ -558,13 +566,13 @@ sub _cdata2 {
       'ONU_TX_POWER'   => {
         NAME      => 'ONU_TX_POWER',
         OIDS      => '1.3.6.1.4.1.17409.2.3.4.2.1.5',
-        PARSER    => '_cdata2_convert_power',
+        PARSER    => '_cdata_fd12_convert_power',
         ADD_2_OID => '.0.0'
       },
       'ONU_RX_POWER'   => {
         NAME      => 'ONU_RX_POWER',
         OIDS      => '1.3.6.1.4.1.17409.2.3.4.2.1.4',
-        PARSER    => '_cdata2_convert_power',
+        PARSER    => '_cdata_fd12_convert_power',
         ADD_2_OID => '.0.0'
       },
       'ONU_DESC'       => {
@@ -619,12 +627,12 @@ sub _cdata2 {
         'VOLTAGE'      => {
           NAME      => 'VOLTAGE',
           OIDS      => '1.3.6.1.4.1.17409.2.3.4.2.1.7',
-          PARSER    => '_cdata2_convert_voltage',
+          PARSER    => '_cdata_fd12_convert_voltage',
           ADD_2_OID => '.0.0'
         }, #voltage = voltage * 0.0001;
         'ONU_PORTS_STATUS' => {
           NAME    => 'ONU_PORTS_STATUS',
-          OIDS    => ' 1.3.6.1.4.1.17409.2.3.5.1.1.5',
+          OIDS    => '1.3.6.1.4.1.17409.2.3.5.1.1.5',
           PARSER  => '',
           WALK    => 1,
           TIMEOUT => 10
@@ -650,7 +658,7 @@ sub _cdata2 {
 }
 
 #**********************************************************
-=head2 _cdata2_onu_list()
+=head2 _cdata_fd12_onu_list()
 
   Arguments:
      -
@@ -659,12 +667,11 @@ sub _cdata2 {
 
 =cut
 #**********************************************************
-sub _cdata2_onu_list {
+sub _cdata_fd12_onu_list { #TODO: merge with _cdata_onu_list
   my ($port_list, $attr) = @_;
   my $debug = $attr->{DEBUG} || 0;
   my @onu_list = ();
   my %pon_types = ();
-  my %port_ids = ();
 
   my $snmp_info = equipment_test({
     %{$attr},
@@ -681,7 +688,6 @@ sub _cdata2_onu_list {
   if ($port_list) {
     foreach my $snmp_id (keys %{$port_list}) {
       $pon_types{ $port_list->{$snmp_id}{PON_TYPE} } = 1;
-      $port_ids{$port_list->{$snmp_id}{BRANCH}} = $port_list->{$snmp_id}{ID};
     }
   }
   else {
@@ -701,7 +707,7 @@ sub _cdata2_onu_list {
   }
 
   foreach my $pon_type (keys %pon_types) {
-    my $snmp = _cdata2({ TYPE => $pon_type });
+    my $snmp = _cdata_fd12({ TYPE => $pon_type });
 
     if (!$snmp->{ONU_STATUS}->{OIDS}) {
       print "$pon_type: no oids\n" if ($debug > 0);
@@ -743,92 +749,243 @@ sub _cdata2_onu_list {
         }
       }
     }
-    #    For checking snmp result
-    # Abills::Base::_bp('onu_snmp_info', \%onu_snmp_info, { TO_CONSOLE => 1 });
 
     my %onu_info = ();
-    foreach my $key (sort keys %port_ids) {
-      next if (!$key);
+    foreach my $onu_snmp_id (sort keys %onu_snmp_info) {
+      next if (!$onu_snmp_id);
+      next if (!$onu_snmp_info{$onu_snmp_id}{'ONU_MAC_SERIAL'});
 
-      foreach my $onu_numb (sort keys %onu_snmp_info) {
-        next if (!$onu_numb);
-        next if (!$onu_snmp_info{$onu_numb}{'ONU_MAC_SERIAL'});
+      my $port_snmp_id_1 = $onu_snmp_id & ~0xFF;
+      my $port_snmp_id_2 = ($onu_snmp_id >> 8) & 0xFF;
+      my $port = $port_list->{$port_snmp_id_1} || $port_list->{$port_snmp_id_2};
 
-        my $bin_index =  dec2bin($onu_numb);
-        my (undef, $port_bin, $onu_bin) = $bin_index =~ /(\d{9})(\d{8})(\d{8})/;
-        my $port_snmp = bin2dec($port_bin);
-        my $onu_snmp = bin2dec($onu_bin);
-        my $port = $port_snmp - 2 - 8;
-        #my $onu_id = $onu_snmp;
+      my $branch = $port->{branch};
+      my $onu_id = $onu_snmp_id & 0xFF;
 
-        if ($port < 10){
-          $port = "0".$port;
-        }
-        next if ($key ne $port);
-
-        if ($onu_snmp < 10){
-          $onu_snmp = "0".$onu_snmp;
-        }
-
-        $onu_info{ONU_ID} = $onu_snmp;
-        $onu_info{ONU_SNMP_ID} = "$onu_numb";
-        $onu_info{PORT_ID} = $port_ids{$key};
-        $onu_info{PON_TYPE} = $pon_type;
-        $onu_info{ONU_DHCP_PORT} = dec_to_hex($port) . dec_to_hex($onu_snmp);
-        foreach my $oid_name (keys %{$onu_snmp_info{$onu_numb}}) {
-          next if (!$oid_name);
-          $onu_info{$oid_name} = $onu_snmp_info{$onu_numb}{$oid_name} || q{};
-        }
-        push @onu_list, { %onu_info };
+      $onu_info{ONU_ID} = $onu_id;
+      $onu_info{ONU_SNMP_ID} = $onu_snmp_id;
+      $onu_info{PORT_ID} = $port->{id};
+      $onu_info{PON_TYPE} = $pon_type;
+      $onu_info{ONU_DHCP_PORT} = sprintf("%02x%02x", $branch, $onu_id);
+      foreach my $oid_name (keys %{$onu_snmp_info{$onu_snmp_id}}) {
+        next if (!$oid_name);
+        $onu_info{$oid_name} = $onu_snmp_info{$onu_snmp_id}{$oid_name} || q{};
       }
+      push @onu_list, { %onu_info };
     }
   }
 
   return \@onu_list;
 }
-#**********************************************************
-=head2 dec2bin()
 
-  Arguments:
-     -
+sub _cdata_fd16 {
+  my ($attr) = @_;
 
-  Returns:
+  my %snmp = (
+    epon => {
+    },
+    gpon => {
+      'ONU_MAC_SERIAL' => {
+        NAME   => 'Mac/Serial',
+        OIDS   => '1.3.6.1.4.1.17409.2.8.4.1.1.3',
+        PARSER => 'bin2hex'
+      },
+      'ONU_STATUS'     => {
+        NAME      => 'STATUS',
+        OIDS      => '1.3.6.1.4.1.17409.2.8.4.1.1.7',
+        ADD_2_OID => ''
+      },
+      'ONU_TX_POWER'   => {
+        NAME      => 'ONU_TX_POWER',
+        OIDS      => '1.3.6.1.4.1.17409.2.8.4.4.1.5',
+        PARSER    => '_cdata_fd12_convert_power',
+        ADD_2_OID => '.0.0'
+      },
+      'ONU_RX_POWER'   => {
+        NAME      => 'ONU_RX_POWER',
+        OIDS      => '1.3.6.1.4.1.17409.2.8.4.4.1.4',
+        PARSER    => '_cdata_fd12_convert_power',
+        ADD_2_OID => '.0.0'
+      },
+      'ONU_DESC'       => {
+        NAME      => 'ONU_DESC',
+        OIDS      => '1.3.6.1.4.1.17409.2.8.4.1.1.2',
+        ADD_2_OID => ''
+      },
+      'ONU_IN_BYTE'    => {
+        NAME   => 'PORT_IN',
+        OIDS   => '1.3.6.1.4.1.17409.2.3.10.1.1.4',
+        PARSER => ''
+      },
+      'ONU_OUT_BYTE'   => {
+        NAME   => 'PORT_OUT',
+        OIDS   => '1.3.6.1.4.1.17409.2.3.10.1.1.26',
+        PARSER => ''
+      },
+      'reset'          => {
+        NAME        => '',
+        OIDS        => '1.3.6.1.4.1.17409.2.3.4.1.1.17',
+        RESET_VALUE => 0,
+        PARSER      => ''
+      },
+      main_onu_info    => {
+        'DISTANCE'         => {
+          NAME   => 'DISTANCE',
+          OIDS   => '1.3.6.1.4.1.17409.2.8.4.1.1.9',
+          PARSER => '_cdata_convert_distance'
+        },
+        "PORT_UPTIME" => {
+          "NAME" => 'PORT_UPTIME',
+          "OIDS" => '1.3.6.1.4.1.17409.2.8.4.1.1.13',
+          "PARSER" => '_cdata_sec2time'
+        },
+        'HARD_VERSION'     => {
+          NAME   => 'VERSION',
+          OIDS   => '1.3.6.1.4.1.17409.2.8.4.1.1.14',
+          PARSER => ''
+        },
+        'FIRMWARE'         => {
+          NAME   => 'FIRMWARE',
+          OIDS   => '1.3.6.1.4.1.17409.2.8.4.2.1.2',
+          PARSER => ''
+        },
+        'VOLTAGE'          => {
+          NAME      => 'VOLTAGE',
+          OIDS      => '1.3.6.1.4.1.17409.2.8.4.4.1.7',
+          PARSER    => '_cdata_fd12_convert_voltage',
+          ADD_2_OID => '.0.0'
+        }, #voltage = voltage * 0.0001;
+        'ONU_PORTS_STATUS' => {
+          NAME    => 'ONU_PORTS_STATUS',
+          OIDS    => ' 1.3.6.1.4.1.17409.2.8.5.1.1.5',
+          PARSER  => '',
+          WALK    => 1,
+          TIMEOUT => 10
+        },
+        'MAC_BEHIND_ONU'   => {
+          NAME        => 'MAC_BEHIND_ONU',
+          USE_MAC_LOG => 1
+        }
+      }
+    }
+  );
 
-=cut
-#**********************************************************
-sub dec2bin {
-  my $str = unpack("B32", pack("N", shift));
-  $str =~ s/^0+(?=\d)//;
-  return $str;
+  if ($attr->{TYPE}) {
+    return $snmp{$attr->{TYPE}};
+  }
+
+  return \%snmp;
 }
 
-#**********************************************************
-=head2 bin2dec()
+sub _cdata_fd16_onu_list { #TODO: merge with _cdata_onu_list
+  my ($port_list, $attr) = @_;
+  my $debug = $attr->{DEBUG} || 0;
+  my @onu_list = ();
+  my %pon_types = ();
 
-  Arguments:
-     -
+  my $snmp_info = equipment_test({
+    %{$attr},
+    TIMEOUT  => 5,
+    VERSION  => 2,
+    TEST_OID => 'PORTS,UPTIME'
+  });
 
-  Returns:
+  if (!$snmp_info->{UPTIME}) {
+    print "$attr->{SNMP_COMMUNITY} Not response\n";
+    return [];
+  }
 
-=cut
-#**********************************************************
-sub bin2dec {
-  return unpack("N", pack("B32", substr("0" x 32 . shift, -32)));
-}
+  if ($port_list) {
+    foreach my $snmp_id (keys %{$port_list}) {
+      $pon_types{ $port_list->{$snmp_id}{PON_TYPE} } = 1;
+    }
+  }
+  else {
+    %pon_types = (epon => 1, gpon => 1);
+  }
 
-#**********************************************************
-=head2 dec_to_hex($number)
+  my $ports_descr = snmp_get({
+    %$attr,
+    WALK    => 1,
+    OID     => '.1.3.6.1.2.1.2.2.1.2',
+    VERSION => 2,
+    TIMEOUT => $attr->{TIMEOUT} || 2
+  });
 
-  Arguments:
-    $number -
+  if (!$ports_descr || $#{$ports_descr} < 1) {
+    return [];
+  }
 
-  Returns:
+  foreach my $pon_type (keys %pon_types) {
+    my $snmp = _cdata_fd16({ TYPE => $pon_type });
 
-=cut
-#**********************************************************
-sub dec_to_hex {
-  my ($number) = @_;
-  return sprintf("%02x", $number);
+    if (!$snmp->{ONU_STATUS}->{OIDS}) {
+      print "$pon_type: no oids\n" if ($debug > 0);
+      next;
+    }
+
+    my %onu_snmp_info = ();
+    foreach my $oid_name (sort keys %{$snmp}) {
+      next if ($oid_name eq 'main_onu_info' || $oid_name eq 'reset');
+      if ($snmp->{$oid_name}->{OIDS}) {
+        my $oid = $snmp->{$oid_name}->{OIDS};
+        my $timeout = $snmp->{$oid_name}->{TIMEOUT};
+        print ">> $oid\n" if ($debug > 3);
+        my $result = snmp_get({
+          %{$attr},
+          OID     => $oid,
+          VERSION => 2,
+          WALK    => 1,
+          SILENT  => 1,
+          TIMEOUT => $timeout || 2
+        });
+
+        foreach my $line (@$result) {
+          next if (!$line);
+
+          my ($onu_index, $value) = split(/:/, $line, 2);
+          ($onu_index) = $onu_index =~ /^\d+/g;
+          my $function = $snmp->{$oid_name}->{PARSER};
+
+          if (!defined($value)) {
+            print ">> $line\n";
+          }
+
+          if ($function && defined(&{$function})) {
+            ($value) = &{\&$function}($value);
+          }
+
+          $onu_snmp_info{$onu_index}{$oid_name} = $value;
+        }
+      }
+    }
+
+    my %onu_info = ();
+    foreach my $onu_snmp_id (sort keys %onu_snmp_info) {
+      next if (!$onu_snmp_id);
+      next if (!$onu_snmp_info{$onu_snmp_id}{'ONU_MAC_SERIAL'});
+
+      my $port_snmp_id_1 = $onu_snmp_id & ~0xFF;
+      my $port_snmp_id_2 = ($onu_snmp_id >> 8) & 0xFF;
+      my $port = $port_list->{$port_snmp_id_1} || $port_list->{$port_snmp_id_2};
+
+      my $branch = $port->{branch};
+      my $onu_id = $onu_snmp_id & 0xFF;
+
+      $onu_info{ONU_ID} = $onu_id;
+      $onu_info{ONU_SNMP_ID} = $onu_snmp_id;
+      $onu_info{PORT_ID} = $port->{id};
+      $onu_info{PON_TYPE} = $pon_type;
+      $onu_info{ONU_DHCP_PORT} = sprintf("%02x%02x", $branch, $onu_id);
+      foreach my $oid_name (keys %{$onu_snmp_info{$onu_snmp_id}}) {
+        next if (!$oid_name);
+        $onu_info{$oid_name} = $onu_snmp_info{$onu_snmp_id}{$oid_name} || q{};
+      }
+      push @onu_list, { %onu_info };
+    }
+  }
+
+  return \@onu_list;
 }
 
 1

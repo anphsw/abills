@@ -20,14 +20,21 @@ CREATE TABLE IF NOT EXISTS `ureports_main` (
   `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `registration` DATE NOT NULL,
   `status` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  `type` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
-  `destination` VARCHAR(40) NOT NULL DEFAULT '',
   PRIMARY KEY (`uid`),
   KEY `tp_id` (`tp_id`)
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Ureports user account';
 
+CREATE TABLE IF NOT EXISTS `ureports_user_send_types` (
+  `uid` INTEGER(11) UNSIGNED NOT NULL DEFAULT '0',
+  `type` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
+  `destination` VARCHAR(60) NOT NULL DEFAULT '',
+  KEY (`uid`),
+  KEY (`type`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'Ureports user send types';
 
 CREATE TABLE IF NOT EXISTS `ureports_spool` (
   `id` INTEGER(11) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -35,7 +42,7 @@ CREATE TABLE IF NOT EXISTS `ureports_spool` (
   `added` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `execute` DATE NOT NULL,
   `body` TEXT NOT NULL,
-  `destinatio` VARCHAR(60) NOT NULL DEFAULT '',
+  `destination` VARCHAR(60) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `uid` (`uid`)
 )
@@ -46,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `ureports_spool` (
 CREATE TABLE IF NOT EXISTS `ureports_tp` (
   `msg_price` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `tp_id` SMALLINT(5) UNSIGNED DEFAULT '0',
-  last_active DATE DEFAULT '0000-00-00',
+  `last_active` DATE DEFAULT '0000-00-00',
   KEY `tp_id` (`tp_id`)
 )
   DEFAULT CHARSET = utf8

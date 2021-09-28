@@ -79,6 +79,7 @@ sub plugin_show {
 
   return '' if !$attr->{UID};
   return '' if (!in_array('Internet', \@::MODULES));
+  return '' if ($admin->{MODULES} && !$admin->{MODULES}{Equipment});
 
   my $Internet = Internet->new($db, $admin, $CONF);
 

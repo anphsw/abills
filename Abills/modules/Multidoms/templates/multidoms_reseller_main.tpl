@@ -17,7 +17,7 @@
 </aside>
 
 <div class='content-wrapper'>
-    <section class="content" id='main-content'>
+    <section class='content' id='main-content'>
         %BODY%
     </section>
 

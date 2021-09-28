@@ -236,36 +236,34 @@ sub internet_stats {
     $html->message('info', $lang{INFO}, $lang{NO_RECORD}, { ID => 981 });
   }
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      title_plain => [
-        $lang{SESSIONS},
-        $lang{DURATION},
-        (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : "$lang{TRAFFIC}") . " $lang{SENT}",
-        (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : "$lang{TRAFFIC}") . " $lang{RECV}",
-        (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : "$lang{TRAFFIC}") . " $lang{SUM}",
-        (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : "$lang{TRAFFIC} 2") . " $lang{SENT}",
-        (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : "$lang{TRAFFIC} 2") . " $lang{RECV}",
-        (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : "$lang{TRAFFIC} 2") . " $lang{SUM}",
-        $lang{SUM}
-      ],
-      rows       => [
-        [
-          $Sessions->{TOTAL},
-          _sec2time_str($Sessions->{DURATION}),
-          int2byte($Sessions->{TRAFFIC_IN},                              { DIMENSION => $FORM{DIMENSION} }),
-          int2byte($Sessions->{TRAFFIC_OUT},                             { DIMENSION => $FORM{DIMENSION} }),
-          int2byte(($Sessions->{TRAFFIC_OUT} || 0) + ($Sessions->{TRAFFIC_IN} || 0),   { DIMENSION => $FORM{DIMENSION} }),
-          int2byte($Sessions->{TRAFFIC2_IN},                             { DIMENSION => $FORM{DIMENSION} }),
-          int2byte($Sessions->{TRAFFIC2_OUT},                            { DIMENSION => $FORM{DIMENSION} }),
-          int2byte(($Sessions->{TRAFFIC2_OUT} || 0) + ($Sessions->{TRAFFIC2_IN} || 0), { DIMENSION => $FORM{DIMENSION} }),
-          $Sessions->{SUM}
-        ]
-      ],
-      ID => 'TOTALS_FULL'
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    title_plain => [
+      $lang{SESSIONS},
+      $lang{DURATION},
+      (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : "$lang{TRAFFIC}") . " $lang{SENT}",
+      (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : "$lang{TRAFFIC}") . " $lang{RECV}",
+      (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : "$lang{TRAFFIC}") . " $lang{SUM}",
+      (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : "$lang{TRAFFIC} 2") . " $lang{SENT}",
+      (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : "$lang{TRAFFIC} 2") . " $lang{RECV}",
+      (($TRAFFIC_NAMES->{1}) ? $TRAFFIC_NAMES->{1} : "$lang{TRAFFIC} 2") . " $lang{SUM}",
+      $lang{SUM}
+    ],
+    rows        => [
+      [
+        $Sessions->{TOTAL},
+        _sec2time_str($Sessions->{DURATION}),
+        int2byte($Sessions->{TRAFFIC_IN}, { DIMENSION => $FORM{DIMENSION} }),
+        int2byte($Sessions->{TRAFFIC_OUT}, { DIMENSION => $FORM{DIMENSION} }),
+        int2byte(($Sessions->{TRAFFIC_OUT} || 0) + ($Sessions->{TRAFFIC_IN} || 0), { DIMENSION => $FORM{DIMENSION} }),
+        int2byte($Sessions->{TRAFFIC2_IN}, { DIMENSION => $FORM{DIMENSION} }),
+        int2byte($Sessions->{TRAFFIC2_OUT}, { DIMENSION => $FORM{DIMENSION} }),
+        int2byte(($Sessions->{TRAFFIC2_OUT} || 0) + ($Sessions->{TRAFFIC2_IN} || 0), { DIMENSION => $FORM{DIMENSION} }),
+        $Sessions->{SUM}
+      ]
+    ],
+    ID          => 'TOTALS_FULL'
+  });
 
   $Sessions->{TOTALS_FULL} = $table->show({ OUTPUT2RETURN => 1 });
 
@@ -600,15 +598,12 @@ sub internet_session_detail {
 sub internet_stats_periods {
 
   $Sessions->periods_totals({ %LIST_PARAMS });
-  my $table  = $html->table(
-    {
-      caption     => $lang{PERIOD},
-      width       => '100%',
-      LITE_HEADER => 1,
-      title_plain => [ $lang{PERIOD}, $lang{DURATION}, $lang{RECV}, $lang{SEND}, $lang{SUM} ],
-      ID          => 'INTERNET_STATS_PERIOD'
-    }
-  );
+  my $table = $html->table({
+    caption     => $lang{PERIOD},
+    width       => '100%',
+    title_plain => [ $lang{PERIOD}, $lang{DURATION}, $lang{RECV}, $lang{SEND}, $lang{SUM} ],
+    ID          => 'INTERNET_STATS_PERIOD'
+  });
 
   for (my $i = 0 ; $i < 5 ; $i++) {
     $table->addrow(
@@ -646,27 +641,21 @@ sub internet_sessions {
   }
 
   if (! $list || ref $list eq 'HASH') {
-    $sessions->{SEL_NAS} = $html->form_select(
-      'NAS_ID',
-      {
-        SELECTED       => $FORM{NAS_ID},
-        SEL_LIST       => $Nas->list({%LIST_PARAMS, COLS_NAME => 1}),
-        SEL_KEY        => 'nas_id',
-        SEL_VALUE      => 'nas_name',
-        MAIN_MENU      => get_function_index('form_nas'),
-        MAIN_MENU_ARGV => ($FORM{NAS_ID}) ? "NAS_ID=$FORM{NAS_ID}" : undef,
-        SEL_OPTIONS    => { '' => $lang{ALL} },
-      }
-    );
+    $sessions->{SEL_NAS} = $html->form_select('NAS_ID', {
+      SELECTED       => $FORM{NAS_ID},
+      SEL_LIST       => $Nas->list({ %LIST_PARAMS, COLS_NAME => 1 }),
+      SEL_KEY        => 'nas_id',
+      SEL_VALUE      => 'nas_name',
+      MAIN_MENU      => get_function_index('form_nas'),
+      MAIN_MENU_ARGV => ($FORM{NAS_ID}) ? "NAS_ID=$FORM{NAS_ID}" : undef,
+      SEL_OPTIONS    => { '' => $lang{ALL} },
+    });
 
-    $sessions->{TERMINATE_CAUSE_SEL} = $html->form_select(
-      'TERMINATE_CAUSE',
-      {
-        SELECTED    => $FORM{TERMINATE_CAUSE} || '',
-        SEL_HASH    => $ACCT_TERMINATE_CAUSES,
-        SEL_OPTIONS => { '' => '--' }
-      }
-    );
+    $sessions->{TERMINATE_CAUSE_SEL} = $html->form_select('TERMINATE_CAUSE', {
+      SELECTED    => $FORM{TERMINATE_CAUSE} || '',
+      SEL_HASH    => $ACCT_TERMINATE_CAUSES,
+      SEL_OPTIONS => { '' => '--' }
+    });
 
     if(! $FORM{UID}) {
       form_search({ SEARCH_FORM => $html->tpl_show(_include('internet_sessions_search', 'Internet'),
@@ -697,7 +686,8 @@ sub internet_sessions {
     delete $LIST_PARAMS{LOGIN};
   }
 
-  $LIST_PARAMS{SKIP_DEL_CHECK}=1;
+  map $LIST_PARAMS{$_} = $FORM{$_}, keys %FORM;
+  $LIST_PARAMS{SKIP_DEL_CHECK} = 1;
 
   my $default_fields = q{DATE,DURATION_SEC,SENT,RECV,TP_NAME,IP,CID,SUM,NAS_ID};
 
@@ -741,6 +731,7 @@ sub internet_sessions {
       'recv'               => (($TRAFFIC_NAMES->{0}) ? $TRAFFIC_NAMES->{0} : '') . " $lang{RECV}",
       'sum'                => $lang{SUM},
       'nas_id'             => $lang{NAS},
+      'nas_name'           => "$lang{NAME} $lang{NAS}",
       'acct_session_id'    => 'Acct-Session-Id',
       'guest'              => $lang{GUEST}
     },
@@ -771,11 +762,12 @@ sub internet_sessions {
     my $delete = ($permissions{3} && $permissions{3}{1}) ? $html->button(
         $lang{DEL},
         "index=". get_function_index('internet_stats') ."$pages_qs&del=$line->{uid}+$line->{acct_session_id}+". ($line->{nas_id} || q{}). ((! $FORM{UID}) ? "&UID=$line->{uid}" : ''),
-        { MESSAGE => "$lang{DEL} $lang{SESSIONS} $lang{SESSION_ID} " . ($line->{acct_session_id}) . "?",
+        {
+          MESSAGE => "$lang{DEL} $lang{SESSIONS} $lang{SESSION_ID} " . ($line->{acct_session_id}) . "?",
           class => 'del',
           NO_LINK_FORMER => 1
         }
-      ) : '';
+    ) : '';
 
     my @fields_array = ();
     for (my $i = 0; $i < $sessions->{SEARCH_FIELDS_COUNT}; $i++) {

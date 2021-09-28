@@ -136,6 +136,8 @@ sub form_admins {
         $conf{DEFAULT_PASSWORD_CHANGED} = 1;
       }
 
+      $FORM{G2FA} = '' if(!$FORM{G2FA});
+
       $admin_form->change({ %FORM });
       if (!$admin_form->{errno}) {
         $html->message('info', $lang{CHANGED}, "$lang{CHANGED} ");
@@ -262,6 +264,9 @@ sub form_admins {
 
   $admin_form->{INDEX} = 50;
   $admin_form->{HEADER_NAME} = $lang{ADMINS};
+
+  $admin_form->{G2FA_CHECKED} = $admin_form->{G2FA} ? "checked" : '';
+  $admin_form->{G2FA} = ($admin_form->{G2FA}||$FORM{G2FA})|| Abills::Base::mk_unique_value(5);
 
   if($FORM{show_add_form} || $FORM{AID}){
     $html->tpl_show(templates('form_admin'), $admin_form);
@@ -816,7 +821,7 @@ sub form_admin_permissions {
       $lang{TARIF_PLANS},
       $lang{REDUCTION},
       "$lang{SHOW} $lang{DEPOSIT}",
-      "$lang{WITHOUT_CONFIRM}",
+      $lang{WITHOUT_CONFIRM},
       "$lang{DELETED} $lang{SERVICE}",
       "$lang{CHANGE} $lang{BILL}",
       $lang{COMPENSATION},
@@ -825,27 +830,57 @@ sub form_admin_permissions {
       "$lang{ACTIVATE} $lang{DATE}", # 19
       "$lang{EXPIRE} $lang{DATE}",   # 20
       $lang{BONUS},
-      "PORT CONTROL", # 22
-      "DEVICE REBOOT",
-      "EXTENDED INFO", # 24 user extended info form
+      $lang{PORT_CONTROL}, # 22
+      $lang{REBOOT},
+      $lang{ADDITIONAL_INFORMATION}, # 24 user extended info form
       "$lang{PERSONAL} $lang{TARIF_PLAN}",
-      "SHOW PERSONAL INFO",
+      $lang{PERSONAL_INFO},
       "$lang{CHANGE} $lang{LOGIN}",
       "$lang{SHOW} $lang{GROUPS}",
       "$lang{SHOW} $lang{COMPANIES}",
       "$lang{SHOW} $lang{LOG}",
       "$lang{DEL} $lang{COMMENTS}",
       "$lang{ADD} $lang{SERVICE}",
-    ],                                                                                                                            # Users
+      $lang{LAST_LOGIN} # 33
+    ],
+    # Users
     [ $lang{LIST}, $lang{ADD}, $lang{DEL}, $lang{ALL}, $lang{DATE}, $lang{IMPORT} ],                                              # Payments
     [ $lang{LIST}, $lang{GET}, $lang{DEL}, $lang{ALL} ],                                                                          # Fees
-    [ $lang{LIST}, $lang{DEL}, $lang{PAYMENTS}, $lang{FEES}, $lang{EVENTS}, $lang{SETTINGS}, $lang{LAST_LOGIN}, $lang{ERROR_LOG}, $lang{USERS} ], # reports view
-    [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL}, $lang{ADMINS},
-      "$lang{SYSTEM} $lang{LOG}", $lang{DOMAINS}, "$lang{TEMPLATES} $lang{CHANGE}", 'REBOOT SERVICE', "$lang{SHOW} PIN $lang{ICARDS}", $lang{MOBILE_PAY}, "$lang{SEND} Sms" ], # system magment
+    [ $lang{LIST},
+      $lang{DEL},
+      $lang{PAYMENTS},
+      $lang{FEES},
+      $lang{EVENTS},
+      $lang{SETTINGS},
+      $lang{LAST_LOGIN},
+      $lang{ERROR_LOG},
+      $lang{USERS} ], # reports view
+
+    [ $lang{LIST},
+      $lang{ADD},
+      $lang{CHANGE},
+      $lang{DEL},
+      $lang{ADMINS},
+      "$lang{SYSTEM} $lang{LOG}",
+      $lang{DOMAINS},
+      "$lang{TEMPLATES} $lang{CHANGE}",
+      $lang{REBOOT_SERVICE},
+      "$lang{SHOW} PIN $lang{ICARDS}",
+      $lang{MOBILE_PAY},
+      "$lang{SEND} SMS" ], # system management
+
     [ $lang{MONITORING}, 'ZAP', $lang{HANGUP} ],
+
     [ $lang{SEARCH} ],                                                          # Search
-    [ $lang{ALL}, "$lang{EDIT} $lang{MESSAGE}", "$lang{ADD} CRM $lang{STEP}", $lang{TIME_SHEET} ], # Modules managments
-    [ $lang{PROFILE}, "$lang{SHOW_ADMINS_ONLINE}" ],
+    [
+      $lang{ALL},
+      "$lang{EDIT} $lang{MESSAGE}",
+      "$lang{ADD} CRM $lang{STEP}",
+      $lang{TIME_SHEET},
+      $lang{CRM_SHOW_ALL_LEADS},
+      "$lang{EDIT} $lang{EQUIPMENT}"
+    ], # Modules managments
+    [ $lang{PROFILE}, $lang{SHOW_ADMINS_ONLINE} ],
     [ $lang{LIST}, $lang{ADD}, $lang{CHANGE}, $lang{DEL} ],
   );
 
@@ -932,7 +967,7 @@ sub form_admin_permissions {
   else {
     %permits = %$p;
   }
-
+  my $buttons = '';
   if ($FORM{ADMIN_TYPE} && $FORM{ADMIN_TYPE} ne $lang{ACCOUNTANT}
     && $FORM{ADMIN_TYPE} ne $lang{SUPPORT}
     && $FORM{ADMIN_TYPE} ne $lang{MANAGER}
@@ -952,7 +987,6 @@ sub form_admin_permissions {
 
       print $button;
       print $button_del;
-
     }
   }
   else {
@@ -962,19 +996,16 @@ sub form_admin_permissions {
       my $url_btn = "index=$index" . (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&ADMIN_TYPE=$k";
       my $button = $html->button($ADMIN_TYPES{$k}, $url_btn, { class => $btn_css_style }) . '  ';
 
-      print $button;
-
+      $buttons .= $button;
     }
   }
 
-  my $table = $html->table(
-    {
-      width       => '90%',
-      caption     => $lang{PERMISSION},
-      title_plain => [ 'ID', $lang{NAME}, $lang{DESCRIBE}, '-' ],
-      ID          => 'ADMIN_PERMISSIONS',
-    }
-  );
+  my $table = $html->table({
+    width       => '90%',
+    caption     => $lang{PERMISSION},
+    title_plain => [ 'ID', $lang{NAME}, $lang{DESCRIBE}, '-' ],
+    ID          => 'ADMIN_PERMISSIONS',
+  });
 
   my %describe = ();
   my $content = file_op({
@@ -1053,14 +1084,12 @@ sub form_admin_permissions {
     }
   }
 
-  my $table2 = $html->table(
-    {
-      width       => '500',
-      caption     => "$lang{MODULES}",
-      title_plain => [ $lang{NAME}, $lang{VERSION}, '' ],
-      ID          => 'ADMIN_MODULES'
-    }
-  );
+  my $table2 = $html->table({
+    width       => '500',
+    caption     => "$lang{MODULES}",
+    title_plain => [ $lang{NAME}, $lang{VERSION}, '' ],
+    ID          => 'ADMIN_MODULES'
+  });
 
   my $i = 0;
   my $version = '';
@@ -1087,7 +1116,8 @@ sub form_admin_permissions {
       TABLE1 => $table->show({ OUTPUT2RETURN => 1 }),
       TABLE2 => $table2->show({ OUTPUT2RETURN => 1 }),
       AID    => $FORM{AID},
-      subf   => $FORM{subf}
+      subf   => $FORM{subf},
+      BUTTONS => $buttons
     }
   );
 

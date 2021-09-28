@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 =head1 NAME
 
   Inventory
@@ -6,13 +7,11 @@
 
 use strict;
 use warnings;
-
-use Inventory;
+use Inventory::db::Inventory;
 
 our ($db,
   $admin,
   %conf,
-  $html,
   %lang,
   @WEEKDAYS,
   @MONTHES,
@@ -20,9 +19,10 @@ our ($db,
 );
 
 my $Inventory = Inventory->new($db, $admin, \%conf);
+our Abills::HTML $html;
 
 #***********************************************************
-=head2 inventory_main() - Inventory
+=head2 inventory_main($attr) - Inventory
 
 =cut
 #***********************************************************
@@ -161,10 +161,10 @@ sub inventory_main {
       ip                 => 'IP',
       benchmark_info     => 'BENCHMARK_INFO',
       integration_date   => $lang{DATE},
-      login              => 'Login',
+      login              => $lang{LOGIN},
       password           => $lang{PASSWD},
-      web_access_info    => 'WEB Access',
-      access_info        => 'ACCESS_INFO',
+      web_access_info    => $lang{WEB_ACCESS},
+      access_info        => $lang{ACCESS_INFO},
       responsible        => $lang{ADMIN},
       registration       => $lang{REGISTRATION},
       inventory_comments => $lang{COMMENTS},
@@ -345,7 +345,7 @@ sub inventory_log {
       "$lang{LOGIN}"          => 'LOGIN',
       "$lang{HOSTS_HOSTNAME}" => 'HOSTNAME',
       'IP'                    => 'IP',
-      'STATUS'                => { '' => $lang{ALL}, %status_hash },
+      "$lang{STATUS}"         => { '' => $lang{ALL}, %status_hash },
       'SIGN'                  => 'SIGN',
       'SYS_ID'                => 'SYS_ID',
       'LOG_COMMENTS'          => 'LOG_COMMENTS',
@@ -361,8 +361,8 @@ sub inventory_log {
     FUNCTION_FIELDS => '',
     EXT_TITLES      => {
       'ip'           => 'IP',
-      'hostname',    => 'HOSTNAME',
-      'status',      => 'INVENTORY_STATUS',
+      'hostname',    => $lang{HOSTNAME},
+      'status',      => $lang{INVENTORY_STATUS},
       'sign',        => 'SIGN',
       'agent'        => 'AGENT',
       'sys_id'       => 'SYS_ID',
@@ -396,10 +396,10 @@ sub inventory_bugs {
   #my ($attr) = @_;
 
   my %status = (
-    0 => 'New',
-    1 => 'In work',
-    3 => 'Closed undone',
-    4 => 'Closed done',
+    0 => $lang{NEW},
+    1 => $lang{TASK_IN_WORK},
+    3 => $lang{CLOSED_UNSUCCESSFUL},
+    4 => $lang{CLOSED_SUCCESSFUL},
   );
 
   if ($FORM{change}) {
@@ -471,10 +471,10 @@ sub inventory_bugs {
   if ($FORM{search_form}) {
     form_search({
       SIMPLE => {
-        "$lang{ERROR}"    => 'ERROR',
-        "$lang{COMMENTS}" => 'COMMENTS',
-        "$lang{VERSION}"  => 'VERSION',
-        'STATUS'          => { '' => $lang{ALL}, %status }
+        $lang{ERROR}    => 'ERROR',
+        $lang{COMMENTS} => 'COMMENTS',
+        $lang{VERSION}  => 'VERSION',
+        $lang{STATUS}   => { '' => $lang{ALL}, %status }
       }
     })
   }
@@ -491,12 +491,12 @@ sub inventory_bugs {
       'datetime'    => $lang{DATE},
       'error'       => $lang{ERROR},
       'ip'          => 'IP',
-      'hostname',   => 'HOSTNAME',
+      'hostname',   => $lang{HOSTNAME},
       'status',     => $lang{STATUS},
       'sys_id',     => 'SYS_ID',
       'agent'       => 'AGENT',
       'comments'    => $lang{COMMENTS},
-      'cur_version' => 'CUR_VERSION',
+      'cur_version' => $lang{CUR_VERSION},
       'fix_version' => 'FIX_VERSION',
       'responsible' => $lang{RESPONSIBLE}
     },
@@ -602,7 +602,6 @@ sub inventory_hosts {
   #      SHOW_ONLY => 7
   #    });
   #  print $status_bar;
-
   result_former({
     FUNCTION        => 'hosts_list',
     DEFAULT_FIELDS  => 'ID,VERSION_MAJ,VERSION_MIN,DATETIME,USERS,IP',
@@ -612,11 +611,11 @@ sub inventory_hosts {
       'id'          => 'ID',
       'datetime'    => $lang{DATE},
       'ip'          => 'IP',
-      'hostname',   => 'HOSTNAME',
+      'hostname',   => $lang{HOSTNAME},
       'status',     => $lang{STATUS},
       'sign',       => 'SYS_ID',
-      'users',      => 'USERS',
-      'admins',     => 'ADMIN',
+      'users',      => $lang{USERS},
+      'admins',     => $lang{ADMIN},
       'tps',        => 'TPS',
       'version_maj' => 'V1',
       'version_min' => 'V2'
@@ -698,4 +697,72 @@ sub inventory_former_passwd {
 }
 
 
-1
+#**********************************************************
+=head2 inventory_search($attr) - Global search submodule
+
+  Arguments:
+    $attr
+      SEARCH_TEXT
+      DEBUG
+
+  Returs:
+     TRUE/FALSE
+
+=cut
+#**********************************************************
+sub inventory_search {
+  my ($attr) = @_;
+
+  my @default_search = ('IP', 'COMMENTS', 'ACCESS_INFO', 'WEB_ACCESS_INFO', '_MULTI_HIT');
+
+  my @qs = ();
+  foreach my $field (@default_search) {
+    $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
+    push @qs, "$field=*$attr->{SEARCH_TEXT}*";
+  }
+
+  $LIST_PARAMS{SKIP_RESPOSIBLE}=1;
+
+  if ($attr->{DEBUG}) {
+    $Inventory->{debug} = 1;
+  }
+
+ $Inventory->inventory_main_list({
+    %LIST_PARAMS,
+    SEARCH_ALL => $attr->{SEARCH_TEXT}
+  });
+
+  my @info = ();
+
+  if ($Inventory->{TOTAL}) {
+    push @info, {
+      'TOTAL'        => $Inventory->{TOTAL},
+      'MODULE'       => 'Inventory',
+      'MODULE_NAME'  => 'Inventory',
+      'SEARCH_INDEX' => get_function_index('inventory_hosts')
+        . '&' . join('&', @qs) . "&search=1"
+    };
+  }
+  # elsif ($attr->{SEARCH_TEXT} =~ /\@/ || $attr->{SEARCH_TEXT} =~ /^\d+$/) {
+  #   my $search_type = 'EMAIL';
+  #
+  #   if ($attr->{SEARCH_TEXT} =~ /^\d+$/) {
+  #     $search_type = 'PHONE';
+  #   }
+  #
+  #   push @info, {
+  #     'TOTAL'        => 0,
+  #     'MODULE'       => 'Inventory',
+  #     'MODULE_NAME'  => 'Inventory',
+  #     'SEARCH_INDEX' => get_function_index('inventory_hosts')
+  #       . '&' . join('&', @qs) . "&search=1",
+  #     EXTRA_LINK     => "$lang{ADD}|index=" . get_function_index('inventory_hosts') . "&add_form=1&"
+  #       . "$search_type=$attr->{SEARCH_TEXT}"
+  #   };
+  # }
+
+  return \@info;
+}
+
+1;
+

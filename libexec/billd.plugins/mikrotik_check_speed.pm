@@ -40,7 +40,7 @@ if($argv->{SIMPLE}) {
 
   check_speed2({
     NAS_TYPE     => 'mikrotik',
-    SET_SPEED_FN => 'mikroik_set_speed'
+    SET_SPEED_FN => 'mikrotik_set_speed'
   });
 }
 else {
@@ -521,17 +521,21 @@ sub get_mikrotik_speed_list {
 }
 
 #**********************************************************
-=head2 get_mikrotik_speed_list($attr) Manage mikrotik bandwidth
+=head2 mikrotik_set_speed($nas_info, $port, $user_name, $speed_in, $speed_out, $attr) Manage mikrotik bandwidth
 
   Arguments:
+    $nas_info,
+    $port,
+    $user_name,
+    $speed_in,
+    $speed_out,
     $attr
-
 
   Actions:
 
 =cut
 #**********************************************************
-sub mikroik_set_speed {
+sub mikrotik_set_speed {
   my ($nas_info, $port, $user_name, $speed_in, $speed_out, $attr)=@_;
 
   if($debug > 1) {

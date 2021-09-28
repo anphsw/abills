@@ -1,9 +1,9 @@
 #package Paysys::Reports;
 use strict;
 use warnings FATAL => 'all';
+use Abills::Base qw(date_inc);
 
 our (
-  $html,
   %lang,
   @status,
   @status_color,
@@ -11,9 +11,10 @@ our (
   $db,
   @MONTHES,
   @WEEKDAYS,
-
+  %permissions
 );
 
+our Abills::HTML $html;
 our Paysys $Paysys;
 #**********************************************************
 =head2 paysys_log() - Show paysys operations
@@ -36,7 +37,7 @@ sub paysys_log {
     PAYSYS_ID => '_SHOW',
     NAME      => '_SHOW',
     MODULE    => '_SHOW',
-#    STATUS    => 1,
+    #    STATUS    => 1,
     COLS_NAME => 1,
   });
 
@@ -125,8 +126,8 @@ sub paysys_log {
     });
 
     form_search({ SEARCH_FORM => $html->tpl_show(_include('paysys_search', 'Paysys'),
-        { %info, %FORM },
-        { OUTPUT2RETURN => 1 }),
+      { %info, %FORM },
+      { OUTPUT2RETURN => 1 }),
       ADDRESS_FORM            => 1 });
   }
 
@@ -154,13 +155,13 @@ sub paysys_log {
       datetime       => $lang{DATE},
     },
     TABLE           => {
-      width      => '100%',
-      caption    => "Paysys",
-      qs         => $pages_qs,
-      pages      => $Paysys->{TOTAL},
-      ID         => 'PAYSYS_LOG',
-      EXPORT     => "$lang{EXPORT} XML:&xml=1",
-      MENU       => "$lang{SEARCH}:index=$index&search_form=1:search;",
+      width   => '100%',
+      caption => "Paysys",
+      qs      => $pages_qs,
+      pages   => $Paysys->{TOTAL},
+      ID      => 'PAYSYS_LOG',
+      EXPORT  => "$lang{EXPORT} XML:&xml=1",
+      MENU    => "$lang{SEARCH}:index=$index&search_form=1:search;",
     },
   });
 
@@ -183,15 +184,15 @@ sub paysys_log {
       @fields_array,
       $html->button($lang{INFO}, "index=$index&info=$line->{id}", { class => 'show' })
         . ' ' . ($user->{UID} ? '-' : $html->button($lang{DEL}, "index=$index&del=$line->{id}",
-          { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' }))
+        { MESSAGE => "$lang{DEL} $line->{id}?", class => 'del' }))
     );
   }
   print $table->show();
 
   $table = $html->table(
     {
-      width      => '100%',
-      rows       => [ [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL}), "$lang{SUM}", $html->b($Paysys->{SUM}) ],
+      width => '100%',
+      rows  => [ [ "$lang{TOTAL}:", $html->b($Paysys->{TOTAL}), "$lang{SUM}", $html->b($Paysys->{SUM}) ],
         [ "$lang{TOTAL} $lang{COMPLETE}:", $html->b($Paysys->{TOTAL_COMPLETE}), "$lang{SUM} $lang{COMPLETE}:",
           $html->b($Paysys->{SUM_COMPLETE}) ]
       ]
@@ -210,18 +211,47 @@ sub paysys_log {
 =cut
 #**********************************************************
 sub paysys_reports {
-  my ($attr) = @_;
 
   my $select = _paysys_select_connected_systems();
-  my $selectingroup = $html->element( 'div', $select, { class => 'input-group' } );
-  my $systems = $html->form_main(
-    {
-      CONTENT   => $selectingroup,
-      HIDDEN    => { index => $index },
-      SUBMIT    => { show => $lang{SHOW} },
-      class     => 'navbar-form ',
-    }
-  );
+  my $selectingroup = $html->element('div', $select, { class => 'input-group' });
+
+  if ($permissions{4}) {
+    my %debug_list = (
+      1 => 1,
+      2 => 2,
+      3 => 3,
+      4 => 4,
+      5 => 5,
+      6 => 6,
+      7 => 7,
+      8 => 8,
+      9 => 9);
+
+    my $debug_select = $html->form_select(
+      'DEBUG',
+      {
+        SELECTED => '',
+        SEL_HASH => { %debug_list, '' => $lang{DEBUG} },
+        NO_ID    => 1,
+      }
+    );
+    # $selectingroup .= $html->element('div', $html->form_input('DEBUG', $FORM{DEBUG}, { EX_PARAMS => "placeholder=$lang{DEBUG}" }),
+    #   { class => 'input-group' });
+    $selectingroup .= $debug_select;
+  }
+
+  my $date_form = $html->form_daterangepicker({
+    NAME => 'DATE_FROM/DATE_TO',
+    DATE => $DATE
+  });
+  $date_form = $html->element('div', $date_form, { class => 'input-group pull-left' });
+
+  my $systems = $html->form_main({
+    CONTENT => $date_form . $selectingroup,
+    HIDDEN  => { index => $index },
+    SUBMIT  => { show => $lang{SHOW} },
+    class   => 'navbar navbar-expand-lg navbar-light bg-light form-main',
+  });
 
   func_menu({ $lang{NAME} => $systems });
 
@@ -232,23 +262,34 @@ sub paysys_reports {
       COLS_NAME        => 1
     });
 
-    my $REQUIRE_OBJECT = _configure_load_payment_module($system_info->{module});
-    my $PAYSYS_OBJECT = $REQUIRE_OBJECT->new($db, $admin, \%conf, {
-        CUSTOM_NAME => $system_info->{name},
-        CUSTOM_ID   => $system_info->{paysys_id},
-        DATE        => $DATE
+    my $Paysys_plugin = _configure_load_payment_module($system_info->{module});
+    my $Pay_plugin = $Paysys_plugin->new($db, $admin, \%conf, {
+      CUSTOM_NAME => $system_info->{name},
+      NAME        => $system_info->{name},
+      CUSTOM_ID   => $system_info->{paysys_id},
+      DATE        => $DATE
+    });
+
+    if ($Pay_plugin->can('report')) {
+      my $reg_payments = get_reg_payments({
+        DATE_FROM => $FORM{DATE_FROM},
+        DATE_TO   => $FORM{DATE_TO},
+        EXT_ID    => $Pay_plugin->{SHORT_NAME}
       });
 
-    if ($PAYSYS_OBJECT->can('report')) {
-      $PAYSYS_OBJECT->report({
-        FORM     => \%FORM,
-        LANG     => \%lang,
-        HTML     => $html,
-        INDEX    => $index,
-        OP_SID   => '',
-        MONTHES  => \@MONTHES,
-        WEEKDAYS => \@WEEKDAYS,
-        DATE     => $DATE,
+      $Pay_plugin->report({
+        DEBUG        => $FORM{DEBUG},
+        FORM         => \%FORM,
+        LANG         => \%lang,
+        HTML         => $html,
+        INDEX        => $index,
+        #OP_SID      => '',
+        MONTHES      => \@MONTHES,
+        WEEKDAYS     => \@WEEKDAYS,
+        DATE         => $DATE,
+        DATE_FROM    => $FORM{DATE_FROM},
+        DATE_TO      => $FORM{DATE_TO},
+        REG_PAYMENTS => $reg_payments
       });
     }
     else {
@@ -260,7 +301,7 @@ sub paysys_reports {
 }
 
 #**********************************************************
-=head2 paysys_nbu_exchange_rates($attr) - get exchange rates from nbu
+=head2 paysys_uah_exchange_rates($attr) - get exchange rates from nbu
 
   Arguments:
 
@@ -270,57 +311,102 @@ sub paysys_reports {
 
 =cut
 #**********************************************************
-sub paysys_nbkr_exchange_rates {
-
-  my $nbkr_xml_data = web_request(
-    "http://www.nbkr.kg/XML/daily.xml",
+sub paysys_uah_exchange_rates {
+  my $uah_data = web_request(
+    "https://bank.gov.ua/NBU_Exchange/exchange?json",
     {
       CURL        => 1,
+      JSON_RETURN => 1,
     }
   );
 
-  load_pmodule('XML::Simple');
-
-  my $nbkr_data = eval { XML::Simple::XMLin("$nbkr_xml_data", forcearray => 1) };
-
-  if ($@) {
-    return 0;
-  }
-
-  my $exchange_rate_date = $nbkr_data->{Date};
-
-  my $nkbr_table = $html->table(
+  my $uah_table = $html->table(
     {
       width   => '100%',
-      caption => "$lang{NBKR} $lang{EXCHANGE_RATE}",
-      title   => [ $lang{CURRENCY}, "$exchange_rate_date" ],
-      ID      => 'NBKR_CURRENCY',
-      #EXPORT  => 1
+      caption => "$lang{EXCHANGE_RATE} $lang{NBU}",
+      title   => [ $lang{CURRENCY}, $lang{CURRENCY_BUY}, $lang{UNITS} ],
+      ID      => 'UAH_CURRENCY',
     }
   );
 
-  foreach my $currency (@ {$nbkr_data->{Currency} }){
-    $nkbr_table->addrow("$currency->{ISOCode}/KGS", $html->b($currency->{Value}->[0]));
+  my @val = [];
+  if ($conf{PAYSYS_EXCHANGE_RATES}) {
+    @val = split(/,\s?/, $conf{PAYSYS_EXCHANGE_RATES});
+  }
+  else {
+    @val = ('USD', 'EUR', 'UAH', 'RUB', 'GBP');
+  };
+
+  if (ref $uah_data eq 'ARRAY') {
+    foreach my $uinfo (@{$uah_data}) {
+      foreach my $keys (@val) {
+        if ($uinfo->{CurrencyCodeL} eq $keys) {
+          $uah_table->addrow(
+            $html->b("$uinfo->{CurrencyCodeL} / UAH"),
+            sprintf('%.4f', $uinfo->{Amount}),
+            sprintf('%.d', $uinfo->{Units})
+          );
+        }
+      }
+    }
   }
 
-  return $nkbr_table->show();
+  return $uah_table->show();
 }
 
 #**********************************************************
-=head2 paysys_nbu_ex_rates_print($attr) - print table for nbu exchange rates
+=head2 paysys_rub_exchange_rates() - get exchange rates from nbr
 
   Arguments:
 
 
   Returns:
+    $table
 
 =cut
 #**********************************************************
-sub paysys_nbkr_ex_rates_print {
+sub paysys_rub_exchange_rates {
 
-  print paysys_nbkr_exchange_rates;
+  my $rub_data = web_request(
+    "https://www.cbr-xml-daily.ru/daily_json.js",
+    {
+      CURL        => 1,
+      JSON_RETURN => 1,
+    }
+  );
 
-  return 1;
+  my $rub_table = $html->table(
+    {
+      width   => '100%',
+      caption => "$lang{EXCHANGE_RATE} $lang{CBR}",
+      title   => [ $lang{CURRENCY}, $lang{CURRENCY_BUY}, $lang{UNITS} ],
+      ID      => 'RUB_CURRENCY',
+    }
+  );
+
+  my @val = [];
+  if ($conf{PAYSYS_EXCHANGE_RATES}) {
+    @val = split(/,\s?/, $conf{PAYSYS_EXCHANGE_RATES});
+  }
+  else {
+    @val = ('USD', 'EUR', 'UAH', 'RUB', 'GBP');
+  };
+
+  if (ref $rub_data eq 'HASH') {
+    foreach my $rinfo ($rub_data->{Valute}) {
+      foreach my $keys (@val) {
+        if ($rinfo->{$keys}) {
+          $rub_table->addrow(
+            $html->b("$rinfo->{$keys}{CharCode} / RUB"),
+            sprintf('%.4f', $rinfo->{$keys}{Value}),
+            sprintf('%.d', $rinfo->{$keys}{Nominal})
+          );
+        }
+      }
+    }
+  }
+
+  return $rub_table->show();
 }
 
 #**********************************************************
@@ -334,14 +420,83 @@ sub paysys_nbkr_ex_rates_print {
 =cut
 #**********************************************************
 sub paysys_start_page {
-  #my ($attr) = @_;
-
   my %START_PAGE_F = (
-#    'paysys_nbu_exchange_rates' => "$lang{EXCHANGE_RATE} ". ($lang{NBU} || q{}),
-#    'paysys_p24_exchange_rates' => "$lang{EXCHANGE_RATE} Privat",
-    'paysys_nbkr_exchange_rates'=> "$lang{EXCHANGE_RATE} $lang{NBKR}");
+    'paysys_rub_exchange_rates' => "$lang{EXCHANGE_RATE} $lang{CBR}",
+    'paysys_uah_exchange_rates' => "$lang{EXCHANGE_RATE} $lang{NBU}",
+  );
 
   return \%START_PAGE_F;
+}
+
+#**********************************************************
+=head2 get_reg_payments($attr) - Get register paymnets
+
+  Arguments:
+    $attr
+      DATE_FROM
+      DATE_TO
+      EXT_ID
+
+  Results:
+    \%reg_paymnets_list
+
+=cut
+#**********************************************************
+sub get_reg_payments {
+  #my $self = shift;
+  my ($attr) = @_;
+
+  require Payments;
+  Payments->import();
+  my $Payments = Payments->new($db, $admin, \%conf);
+  my %reg_payments_list = ();
+
+  my $payments_list = $Payments->list({
+    FROM_DATE => $attr->{DATE_FROM},
+    TO_DATE   => date_inc($attr->{DATE_TO}),
+    EXT_ID    => ($attr->{EXT_ID} || q{}) . ':*',
+    LOGIN     => '_SHOW',
+    SUM       => '_SHOW',
+    PAGE_ROWS => 10000,
+    COLS_NAME => 1
+  });
+
+  foreach my $payment (@$payments_list) {
+    $reg_payments_list{$payment->{ext_id}} = {
+      id       => $payment->{id},
+      uid      => $payment->{uid},
+      sum      => $payment->{sum},
+      login    => $payment->{login},
+      datetime => $payment->{datetime},
+    };
+  }
+
+  return \%reg_payments_list;
+}
+
+#**********************************************************
+=head2 paysys_select_connected_systems($attr)
+
+  Arguments:
+    $attr
+
+  Results:
+    Select_form
+
+=cut
+#**********************************************************
+sub _paysys_select_connected_systems {
+  my ($attr) = @_;
+
+  return $html->form_select('SYSTEM_ID',
+    {
+      SELECTED    => $attr->{SYSTEM_ID} || $FORM{SYSTEM_ID} || '',
+      SEL_LIST    => $Paysys->paysys_connect_system_list({ COLS_NAME => 1, ID => '_SHOW', NAME => '_SHOW', PAGE_ROWS => => 9999 }),
+      SEL_KEY     => 'id',
+      SEL_VALUE   => 'name',
+      NO_ID       => 1,
+      SEL_OPTIONS => { '' => '--' },
+    });
 }
 
 1;

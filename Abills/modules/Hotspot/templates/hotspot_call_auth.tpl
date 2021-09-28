@@ -3,7 +3,7 @@
   <input type=hidden name='mac' value='%mac%'>
   <div class='card card-primary card-outline'>
     <div class='card-body'>
-      <p>Перезвоните на номер <a href="tel:123456789">123456789</a></p>
+      <p>Перезвоните на номер <a href="tel:%AUTH_NUMBER%">%AUTH_NUMBER%</a></p>
     </div>
   </div>
 </form>

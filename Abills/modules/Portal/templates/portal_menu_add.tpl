@@ -6,26 +6,26 @@
 <div class='card card-primary card-outline box-form'>
 <div class='card-header with-border'><h4>%TITLE_NAME%</h4></div>
 <div class='card-body'>
-  <div class='form-group'>
+  <div class='form-group row'>
       <label class='col-md-3 control-label'>_{NAME}_:</label>
     <div class='col-md-9'>
       <input class='form-control' name='NAME' type='text' value='%NAME%'/>
     </div>
   </div>
 
-  <div class='form-group'>
+  <div class='form-group row'>
     <label class='col-md-3 control-label'>URL:</label>
     <div class='col-md-9'>
       <input class='form-control' name='URL' type='text' value='%URL%'/>
     </div>
   </div>
 
-  <div class='form-group'>
-  <div class='radio'>
-    <label><input type='radio' name='STATUS' value=1 %SHOWED%>_{SHOW}_ _{MENU}_</label>
+  <div class='form-group row offset-4'>
+  <div class='radio col-md-4'>
+    <label><input type='radio' name='STATUS' value='1' %SHOWED%>_{SHOW}_ _{MENU}_</label>
   </div>
-  <div class='radio'>
-    <label><input type='radio' name='STATUS' value=0 %HIDDEN%>_{HIDE}_ _{MENU}_</label>
+  <div class='radio col-md-4'>
+    <label><input type='radio' name='STATUS' value='0' %HIDDEN%>_{HIDE}_ _{MENU}_</label>
   </div>
   </div>
 </div>

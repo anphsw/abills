@@ -1,10 +1,10 @@
 <form action=''$SELF_URL?index=$index\&add_article=1' name='depot_form' method=POST class='form form-horizontal'>
     <input type=hidden name=index value=$index>
 
-    <div class='card card-primary card-outline box-form'>
+    <div class='card card-primary card-outline card-form'>
         <div class='card-header with-border'>_{ADD}_ _{TYPE}_</div>
         <div class='card-body'>
-            <div class='form-group'>
+            <div class='form-group row'>
                 <label class='control-label col-md-3'>_{TYPE}_:</label>
 
                 <div class='col-md-9'>
@@ -14,7 +14,7 @@
                     </select>
                 </div>
             </div>
-            <div class='form-group'>
+            <div class='form-group row'>
                 <label class='control-label col-md-3'>_{NAME}_:</label>
 
                 <div class='col-md-9'>

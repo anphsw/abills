@@ -264,6 +264,7 @@ sub userside_import {
       CREDIT           => $u->{credit} || 0,
       DISCOUNT         => $u->{discount} || 0,
       DISABLE          => $u->{state_id} || 0,
+      CONTRACT_ID      => $u->{account_number} || 0,
       COMMENTS         => $u->{account_number} || 0,
       SERVICES         => \%services
     };

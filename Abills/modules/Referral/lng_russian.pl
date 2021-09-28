@@ -14,4 +14,5 @@ $lang{PAY_X_MONTH} = 'X - начислять в продолж Х месяцев
 $lang{NO_ARREARS} = '0 - не учитывать задолженность';
 $lang{X_ARREARS} = 'X - если задолженность больше X месяца';
 $lang{REPL_PERCENT} = '% от пополнения';
-$lang{REQUESTS_REFERRAL} = 'Заявки подключение реферал';
+$lang{REQUESTS_REFERRAL} = 'Заявки реферальные';
+$lang{SELECT_TARIFF} = 'Выберете тариф';

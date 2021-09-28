@@ -1,5 +1,6 @@
 <!--CLIENT START-->
 <body class='sidebar-mini container-lg %SIDEBAR_HIDDEN% text-sm client-body p-0' style='height: auto;'>
+%PUSH_STATE%
 <script>
   try {
     var BACKGROUND_OPTIONS     = '%BACKGROUND_COLOR%' || false;
@@ -74,8 +75,8 @@
     <div class='modal-dialog modal-sm'>
       <div class='modal-content'>
         <div id='mHeader' class='modal-header alert-info'>
-          <button type='button' class='close' data-dismiss='modal' aria-hidden='true'>&times;</button>
           <h4 id='mTitle' class='modal-title'>&nbsp;</h4>
+          <button type='button' class='close' data-dismiss='modal' aria-hidden='true'>&times;</button>
         </div>
         <div class='modal-body'>
           <div class='row'>
@@ -83,7 +84,7 @@
           </div>
         </div>
         <div class='modal-footer'>
-          <button type='button' class='btn btn-secondary' data-dismiss='modal'>_{CANCEL}_</button>
+          <button type='button' class='btn btn-default' data-dismiss='modal'>_{CANCEL}_</button>
           <button type='submit' class='btn btn-danger danger' id='mButton_ok'>_{EXECUTE}_!</button>
         </div>
       </div>

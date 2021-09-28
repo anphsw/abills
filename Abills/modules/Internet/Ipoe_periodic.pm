@@ -142,8 +142,7 @@ sub ipoe_periodic_session_restart{
   Auth2->import();
   my $Auth = Auth2->new( $db, \%conf );
   $Sessions->{debug} = 1 if ($debug > 6);
-  my $list = $Sessions->online(
-    {
+  my $list = $Sessions->online({
       USER_NAME       => '_SHOW',
       CLIENT_IP       => '_SHOW',
       NAS_ID          => '_SHOW',
@@ -156,8 +155,7 @@ sub ipoe_periodic_session_restart{
       NETMASK         => '_SHOW',
       NAS_ID          => join( '; ', @nas_ids_arr ),
       %LIST_PARAMS
-    }
-  );
+  });
 
   my $count = 0;
   my %activated_ips = ();

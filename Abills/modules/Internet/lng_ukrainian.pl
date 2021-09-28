@@ -1,5 +1,5 @@
 $lang{INTERNET}='Інтернет+';
-$lang{ADD_SERVICE}='Добавити послугу';
+$lang{ADD_SERVICE}='Додати послугу';
 $lang{MASK}='Маска';
 $lang{SWITCH}='Комутатор';
 $lang{TO_PLAN}='Запланувати';
@@ -29,4 +29,9 @@ $lang{USERS_OUTFLOW} = 'Відтік користувачів';
 $lang{TOTAL_USERS} = 'Загальна кількість користувачів';
 
 $lang{ONE_MONTH_DEBS}='Один місяць боргу';
+
+$lang{PACKET_SIZE} = 'Розмір пакета (байт)';
+$lang{PACKET_COUNT} = 'Кількість пакетів';
+$lang{PASTE} = 'Вставити';
+
 1;

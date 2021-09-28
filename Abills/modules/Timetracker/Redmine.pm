@@ -10,8 +10,8 @@ package Redmine;
 
 =head2 VERSION
 
-  VERSION: 0.1
-  REVISION: 20200220
+  VERSION: 0.2
+  REVISION: 20200806
 
 =head2 SYNOPSIS
 
@@ -20,6 +20,7 @@ package Redmine;
 use warnings FATAL => 'all';
 use strict;
 use Abills::Fetcher qw/web_request/;
+
 
 #**********************************************************
 =head2 new
@@ -30,9 +31,7 @@ use Abills::Fetcher qw/web_request/;
 #**********************************************************
 sub new {
   my $class = shift;
-  my ($db)  = shift;
-  my ($admin, $CONF) = @_;
-
+  my ($db, $admin, $CONF) = @_;
   my $self = {
     db    => $db,
     admin => $admin,
@@ -45,7 +44,7 @@ sub new {
 }
 
 #**********************************************************
-=head2 get_closed_issues_from_redmine($attr) - returns array closed issues from redmine
+=head2 get_closed_issues($attr) - returns array closed issues from redmine
   Arguments:
     $attr = {
       FROM_DATE => '2020-01-01',
@@ -58,24 +57,26 @@ sub new {
     $issues
 
   Example:
-    get_closed_issues_from_redmine($attr);
+    get_closed_issues($attr);
 =cut
 #**********************************************************
-sub get_closed_issues_from_redmine {
+sub get_closed_issues {
+  my $self = shift;
   my ($attr) = @_;
   if (!$attr->{DEBUG}) {
     $attr->{DEBUG} = 0;
   }
-  my $issues_list = {};
-
+  my %issues_list = ();
   for my $aid (@{$attr->{ADMIN_AIDS}}) {
-    my $url = "http://abills.net.ua/r/issues.json?offset=0&limit=100&status_id=closed&assigned_to.cf_8=$aid&closed_on=%3E%3C$attr->{FROM_DATE}|$attr->{TO_DATE}";
+    my $url =
+     $self->{conf}{TIMETRACKER_REDMINE_URL}
+       ."/issues.json?offset=0&limit=100&status_id=closed&assigned_to.cf_8=$aid&closed_on=><$attr->{FROM_DATE}|$attr->{TO_DATE}";
     my $json = web_request($url, { CURL => 1, JSON_RETURN => 1, DEBUG => $attr->{DEBUG} });
-    $issues_list->{$aid} = $json->{issues};
-    $issues_list->{'closed->'.$aid} = $json->{total_count};
+    $issues_list{$aid}            = $json->{issues};
+    $issues_list{'closed->'.$aid} = $json->{total_count};
   }
 
-  return $issues_list;
+  return \%issues_list;
 }
 
 
@@ -99,22 +100,21 @@ sub get_closed_issues_from_redmine {
 sub get_spent_hours {
   my $self = shift;
   my ($attr) = @_;
-  my $hours = {};
-  my $issues_list = get_closed_issues_from_redmine($attr);
+  my %hours = ();
+  my $issues_list = $self->get_closed_issues($attr);
 
   for my $aid (@{$attr->{ADMIN_AIDS}}) {
-    for my $admin_issues ($issues_list->{$aid}) {
-      for my $admin_issue (@{$admin_issues}) {
-        my $issue_id = $admin_issue->{id};
-        my $issue_url = "http://abills.net.ua/r/issues/$issue_id.json";
-        my $json = web_request($issue_url, { CURL => 1, JSON_RETURN => 1, DEBUG => 0 });
-        my $issue = $json->{issue};
-        $hours->{$aid} += sprintf("%.3f",$issue->{spent_hours});
-      }
+    for my $admin_issue (@{$issues_list->{$aid}}) {
+      my $issue_id = $admin_issue->{id};
+      my $issue_url =
+        $self->{conf}{TIMETRACKER_REDMINE_URL} . "/issues/$issue_id.json";
+      my $json = web_request($issue_url, { CURL => 1, JSON_RETURN => 1, DEBUG => 0 });
+      my $issue = $json->{issue};
+      $hours{$aid} += sprintf("%.3f", $issue->{spent_hours});
     }
   }
 
-  return $hours;
+  return \%hours;
 }
 
 
@@ -138,14 +138,13 @@ sub get_spent_hours {
 sub get_closed_tasks {
   my $self = shift;
   my ($attr) = @_;
-  my $closed_tasks = {};
-  my $issues_list = get_closed_issues_from_redmine($attr);
-
+  my %closed_tasks = ();
+  my $issues_list = $self->get_closed_issues($attr);
   for my $aid (@{$attr->{ADMIN_AIDS}}) {
-    $closed_tasks->{$aid} = $issues_list->{'closed->'.$aid};
+    $closed_tasks{$aid} = $issues_list->{'closed->'.$aid};
   }
 
-  return $closed_tasks;
+  return \%closed_tasks;
 }
 
 =head2 get_scheduled_hours_on_complexity($attr) - return scheduled_hours_on_complexity for admin
@@ -167,24 +166,22 @@ sub get_closed_tasks {
 sub get_scheduled_hours_on_complexity {
   my $self = shift;
   my ($attr) = @_;
-  my $result = {};
-  my $issues_list = get_closed_issues_from_redmine($attr);
+  my %result = ();
+  my $issues_list = $self->get_closed_issues($attr);
 
   for my $aid (@{$attr->{ADMIN_AIDS}}) {
-    for my $admin_issues ($issues_list->{$aid}) {
-      for my $admin_issue (@{$admin_issues}) {
-        for my $custom_field (@{$admin_issue->{custom_fields}}) {
-          if($custom_field->{name} eq 'Сложность') {
-            if($custom_field->{value} && $admin_issue->{estimated_hours}) {
-              $result->{$aid} += ($custom_field->{value} * $admin_issue->{estimated_hours});
-            }
+    for my $admin_issue (@{$issues_list->{$aid}}) {
+      for my $custom_field (@{$admin_issue->{custom_fields}}) {
+        if ($custom_field->{name} eq 'Сложность') {
+          if ($custom_field->{value} && $admin_issue->{estimated_hours}) {
+            $result{$aid} += ($custom_field->{value} * $admin_issue->{estimated_hours});
           }
         }
       }
     }
   }
 
-  return $result;
+  return \%result;
 }
 
 #**********************************************************
@@ -207,18 +204,16 @@ sub get_scheduled_hours_on_complexity {
 sub get_scheduled_hours {
   my $self = shift;
   my ($attr) = @_;
-  my $issues_list = get_closed_issues_from_redmine($attr);
-  my $hours = {};
-  
+  my $issues_list = $self->get_closed_issues($attr);
+  my %hours = ();
+
   for my $aid (@{$attr->{ADMIN_AIDS}}) {
-    for my $issues ($issues_list->{$aid}) {
-      for my $issue (@{$issues}) { 
-        $hours->{$aid} += $issue->{estimated_hours} || 0;
-      }
+    for my $issue (@{$issues_list->{$aid}}) {
+      $hours{$aid} += $issue->{estimated_hours} || 0;
     }
   }
 
-  return $hours;
+  return \%hours;
 }
 
-return 1;
+1;

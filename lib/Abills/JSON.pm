@@ -1058,7 +1058,7 @@ sub fetch  {
     $result = join(",\n\n", @output_arr);
     $result = '{' . $result . '}' if ($result !~ /^{/);
   }
-  elsif($attr->{FULL_RESULT}) {
+  elsif($attr->{FULL_RESULT}) { #XXX what is this?
     $result = join(",\n\n", @output_arr);
     if ($result !~ /^{/) {
       $result = '{' . $result . '}';

@@ -33,6 +33,13 @@
                     %GROUP_SEL%
                 </div>
             </div>
+
+            <div class="form-group row">
+                <label class='col-md-4 col-form-label text-md-right'>_{LAST_MESSAGE}_  (*):</label>
+                <div class='col-md-8'>
+                    <textarea type="text" name="LAST_MESSAGE" ID="LAST_MESSAGE" class="form-control">%LAST_MESSAGE%</textarea>
+                </div>
+            </div>
         </div>
         <button name='search' class='btn btn-primary' type='submit' value='_{SEARCH}_'>
             _{SEARCH}_

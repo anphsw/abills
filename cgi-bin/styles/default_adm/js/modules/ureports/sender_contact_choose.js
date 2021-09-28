@@ -5,6 +5,7 @@ function ContactChooser(admin_mode, contacts_list, type_select, value_wrapper) {
 
   this.contacts_list  = contacts_list;
   this.$type_select   = type_select;
+  this.type_names     = {};
   this.$value_wrapper = value_wrapper;
   this.current_value  = null;
   this.in_edit_mode   = false;
@@ -45,18 +46,23 @@ function ContactChooser(admin_mode, contacts_list, type_select, value_wrapper) {
   this.setValue = function (new_value) {
     this.current_value = new_value;
 
-    if (!this.findContactForTypeAndValue(this.current_type, this.current_value)) {
-      var new_contact = {type_id: this.current_type, value: this.current_value};
+    if (this.current_type === null) return;
 
-      if (typeof (this.contacts_by_type[this.current_type]) === 'undefined') {
-        this.contacts_by_type[this.current_type] = [new_contact];
-      }
-      else {
-        this.contacts_by_type[this.current_type].push(new_contact);
-      }
-    }
+    this.current_type.forEach(function(type) {
+      if (self.current_value[type] !== undefined && self.current_value[type] !== ' ' &&
+        !self.findContactForTypeAndValue(type, self.current_value[type])) {
+        var new_contact = {type_id: type, value: self.current_value[type]};
 
-    this.updateValueView(this.current_type, this.current_value);
+        if (typeof (self.contacts_by_type[type]) === 'undefined') {
+          self.contacts_by_type[type] = [new_contact];
+        }
+        else {
+          self.contacts_by_type[type].push(new_contact);
+        }
+      }
+    });
+
+    this.updateValueView(this.current_type);
   };
 
   this.getType = function () {
@@ -67,14 +73,62 @@ function ContactChooser(admin_mode, contacts_list, type_select, value_wrapper) {
     this.updateValueView(new_type);
   };
 
-  this.updateValueView = function (type_id, value) {
+  this.updateValueView = function (type_id) {
     self.is_in_edit_mode = false;
-    this.display         = new ContactValueView(this.contacts_by_type[type_id], type_id, value);
-    this.display.insertViewTo(value_wrapper);
+    let wrapper_content = [];
+
+    if (type_id === null) {
+      value_wrapper.html('');
+      return;
+    }
+
+    type_id.forEach(function (type) {
+      self.display = new ContactValueView(self.contacts_by_type[type], type);
+      wrapper_content.push(self.display.getInsertView(self.type_names[type]));
+    });
+
+    value_wrapper.html('');
+    wrapper_content.forEach(function(content, index) {
+      if (jQuery(content).data('type') !== 'select') {
+        value_wrapper.append(jQuery(content));
+        return;
+      }
+
+      value_wrapper.append(rowContent(self.type_names[type_id[index]], content, type_id[index]));
+      content.select2(typeof CHOSEN_PARAMS !== 'undefined' ? CHOSEN_PARAMS : '');
+
+      if (self.current_value && self.current_value[type_id[index]]) content.val(self.current_value[type_id[index]]).trigger('change');
+    });
+  };
+
+  this.updateValueInput = function (type_id, value) {
+    self.is_in_edit_mode = true;
+
+    value_wrapper.html('');
+
+    if (type_id === null) {
+      return;
+    }
+
+    type_id.forEach(function (type, index) {
+      value_wrapper.append(rowContent(self.type_names[type], jQuery('<input />', {
+        name   : "DESTINATION_" + type,
+        'class': 'form-control',
+        value  : self.contacts_by_type[type] ? self.contacts_by_type[type][0].value : ''
+      }), type));
+    });
+  };
+
+  this.feelTypeNames = function () {
+    let self = this;
+    jQuery('option', this.$type_select).each(function(index, option) {
+      self.type_names[jQuery(option).val()] = jQuery(option).text();
+    });
   };
 
   // Sort contacts by type_id
   this.updateContacts(this.contacts_list);
+  this.feelTypeNames();
 
   this.$type_select.on('change', function () {
     self.current_type = self.$type_select.val();
@@ -88,12 +142,7 @@ function ContactChooser(admin_mode, contacts_list, type_select, value_wrapper) {
 
       if (!self.is_in_edit_mode) {
 
-        value_wrapper.html($('<input />', {
-              name   : "DESTINATION",
-              'class': 'form-control',
-              value  : self.display.getValue()
-            })
-        );
+        self.updateValueInput(self.$type_select.val());
         self.is_in_edit_mode = true;
       }
       else {
@@ -129,10 +178,11 @@ function ContactValueView(contacts_for_type, selected_type, value) {
     return this.value || null;
   };
 
-  this.makeSelect = function (contacts_for_type_id) {
+  this.makeSelect = function (contacts_for_type_id, type_id) {
     var destination_select = jQuery('<select></select>', {
-      'name' : 'DESTINATION',
-      'class': 'form-control'
+      'name' : 'DESTINATION_' + type_id,
+      'class': 'form-control',
+      'data-type': 'select'
     });
 
     for (var i = 0; i < contacts_for_type_id.length; i++) {
@@ -150,41 +200,40 @@ function ContactValueView(contacts_for_type, selected_type, value) {
     renewChosenValue(select, value);
   };
 
-  this.makeAbsentContactText = function (type_id) {
-    return '<p class="form-control-static">' + LANG["NO_CONTACTS_FOR_TYPE"] + '</p>';
+  this.makeAbsentContactText = function (type_id, label = '') {
+    return rowContent(label, LANG["NO_CONTACTS_FOR_TYPE"], type_id);
     // TODO: registration link
   };
 
-  this.makeText = function (type_id, value) {
-    var humanized = this.getHumanizedContactValue(type_id, value);
-    return '<input type="hidden" name="DESTINATION" value="' + value + '"/>'
-        + '<p class="form-control-static">' + humanized + '</p>'
+  this.makeText = function (type_id, value, label) {
+    if (!type_id) return '';
+
+    let result = jQuery('<input type="hidden" name="DESTINATION_' + type_id + '" value="' + value + '"/><p>' + value + '</p>');
+
+    return rowContent(label, result, type_id);
   };
 
-  this.insertViewTo = function (jquery_element) {
+  this.getInsertView = function (type_label) {
     if (typeof(this.contacts_for_type) === 'undefined' || !this.contacts_for_type.length) {
-      jquery_element.html(
-          this.makeAbsentContactText(this.type)
-      );
+      return this.makeAbsentContactText(this.type, type_label);
     }
-    else if (this.contacts_for_type.length === 1) {
+
+    if (this.contacts_for_type.length === 1) {
       /// Value can be absent in contacts
-      if (!this.value) {
-        this.value = this.contacts_for_type[0].value;
-      }
-      jquery_element.html(
-          this.makeText(this.type, this.value)
-      );
+      if (!this.value) this.value = this.contacts_for_type[0].value;
+      return this.makeText(this.type, this.value, type_label);
     }
-    else {
-      var select = this.makeSelect(this.contacts_for_type);
 
-      jquery_element.html(select);
-      select.select2(CHOSEN_PARAMS);
-
-      if (typeof (this.value) !== 'undefined') {
-        this.selectValue(select, this.value)
-      }
-    }
+    return this.makeSelect(this.contacts_for_type, this.type);
   }
+}
+
+function rowContent(label, value, type_id) {
+  let type_container = jQuery('<div class="form-group row">\n' +
+    '        <label class="control-label col-md-2 col-sm-3">' + label + ':</label>\n' +
+    '        <div class="col-md-9 col-sm-8" id="type_content_' + type_id + '">\n' +
+    '        </div>\n' +
+    '      </div>');
+  jQuery(type_container).find('#type_content_' + type_id).append(typeof value === 'object' ? jQuery(value) : value)
+  return jQuery(type_container);
 }

@@ -38,13 +38,13 @@ our %PERIODIC = (
 );
   
 if ($conf{VOIP_YATE}) {
-  $FUNCTIONS_LIST{"01:0:$lang{VOIP} $lang{LIST}:voip_yate_users_list:"} = 11;
+  $FUNCTIONS_LIST{"01:0:$lang{VOIP}:voip_yate_users_list:"} = 11;
   $FUNCTIONS_LIST{"02:0:$lang{VOIP}:voip_yate_user:UID"} = 20;
   $FUNCTIONS_LIST{"3:7:$lang{USERS}:voip_yate_users_list:TP_ID"} = 5;
   $FUNCTIONS_LIST{"30:0:$lang{VOIP}:voip_yate_online:"} = 6;
 } 
 else {
-  $FUNCTIONS_LIST{"01:0:$lang{VOIP} $lang{LIST}:voip_users_list:"} = 11;
+  $FUNCTIONS_LIST{"01:0:$lang{VOIP}:voip_users_list:"} = 11;
   $FUNCTIONS_LIST{"02:0:$lang{VOIP}:voip_user:UID"} = 20;
   $FUNCTIONS_LIST{"3:7:$lang{USERS}:voip_users_list:TP_ID"} = 5;
   $FUNCTIONS_LIST{"30:0:$lang{VOIP}:voip_online:"} = 6;

@@ -173,9 +173,11 @@ sub _info {
    tp.change_price AS tp_change_price,
    tp.period_alignment AS tp_period_alignment,
    cs_services.module AS service_module,
+   c_tp.*,
    service.*
      FROM cams_main service
      LEFT JOIN tarif_plans tp ON (service.tp_id=tp.tp_id)
+     LEFT JOIN cams_tp c_tp ON (c_tp.tp_id=tp.tp_id)
      LEFT JOIN cams_services cs_services ON (cs_services.id=tp.service_id)
    WHERE service.id= ? ;",
     undef,

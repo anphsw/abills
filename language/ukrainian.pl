@@ -259,9 +259,10 @@ $lang{REQUIRED_ARG}='Обов&#39;язковий параметр';
 $lang{FIXED_FEES_DAY}='Фіксована дата абон. плати';
 $lang{FILE}='Файл';
 $lang{EVENTS}='Події';
+$lang{EVENT}= 'Подія';
 $lang{PAYMENTS}='Оплати';
 $lang{TEMPLATES}='Шаблони';
-$lang{TEMPLATE} = 'шаблон';
+$lang{TEMPLATE} = 'Шаблон';
 $lang{ROWS}='Рядків';
 $lang{ACTIVATION_PAYMENT}='Для активації потрібно оплатити';
 $lang{TYPES}='Типи';
@@ -790,9 +791,9 @@ $lang{_TAX} = 'податку';
 $lang{PERCENT} = 'Відсоток';
 $lang{IN_USING} = 'Вже використовується';
 
-$lang{SET_CREDIT} = 'Установити кредит на період: %CREDIT_DAYS% днів';
-$lang{CREDIT_SUM} = 'Сумма кредита';
-$lang{CREDIT_PRICE} = 'Стоимость услуги';
+$lang{SET_CREDIT} = 'Встановити кредит на період: %CREDIT_DAYS% днів';
+$lang{CREDIT_SUM} = 'Сума кредиту';
+$lang{CREDIT_PRICE} = 'Вартість послуги';
 $lang{MODULE_VERSION}='Версія модуля';
 $lang{PLUGIN_VERSION}='Версія плагіна';
 $lang{APPEND}='Доповнити';
@@ -890,6 +891,35 @@ $lang{YOUR_DEPOSIT} = 'Ваш депозит';
 
 $lang{LARGE_TEXT} = "Великий текст";
 $lang{DATA_CHANGE} = "Зміна даних";
+
+$lang{CRM_SHOW_ALL_LEADS} = "Crm: відобразити всіх потенційних клієнтів";
+
+$lang{GEO} = 'Геолокація';
+$lang{CLEAR_GEO} = 'Очистити гео-прив"язку';
+$lang{LEAD} = 'Потенційний кліент';
+
+$lang{G2FA} = 'Двохетапна перевірка';
+$lang{G2FA_ADD} = 'Додати двохетапну перевірку';
+$lang{G2FA_REMOVE} = 'Видалити двохетапну перевірку';
+$lang{G2FA_WRONG_CODE} = 'Неправильний код!';
+
+$lang{ERR_UID_NOT_DEFINED} = 'Не вказано UID';
+$lang{ERR_NO_CREDIT_CHANGE_ACCESS} = 'Немає прав змінити кредит';
+$lang{ERR_CREDIT_USED_ALL_ATTEMPTS} = 'Використані всі спроби встановити кредит';
+$lang{SETTING_CREDIT} = 'Установка кредита';
+
+$lang{ERR_NO_AVAILABLE_TP} = 'Нема доступних тарифних планів';
+
+$lang{NOT_ALLOWED_TO_CHANGE_TP} = 'Не дозволено змінювати тарифний план';
+
+$lang{ADDITIONAL_INFORMATION} = 'Розширена інформація';
+$lang{PORT_CONTROL} = 'Керування портами';
+$lang{PERSONAL_INFO} = 'Персональна інформація';
+$lang{REBOOT_SERVICE} = 'Перезавантаження сервісу';
+
+$lang{MSG_WANT_ZAP} = 'Ви дійсно хочете ZAP-нути всі сесії?';
+
+$lang{TASK_IN_WORK} = 'В роботі';
 
 1;
 

@@ -15,7 +15,9 @@ our(
   %conf,
   $html,
   %lang,
-  $DATE
+  $DATE,
+  %FORM,
+  $users
 );
 
 
@@ -104,6 +106,7 @@ sub sel_tp {
       SEL_HASH    => \%tp_list,
       SEL_OPTIONS => \%extra_options,
       NO_ID       => 1,
+      SORT_KEY    => 1,
       %EX_PARAMS
     });
   }
@@ -135,7 +138,7 @@ sub get_services {
 
   my %result = ();;
 
-  my $cross_modules_return = cross_modules_call('_docs', {
+  my $cross_modules_return = ::cross_modules_call('_docs', {
     UID          => $user_info->{UID},
     REDUCTION    => $user_info->{REDUCTION},
     FULL_INFO    => 1,
@@ -254,13 +257,16 @@ sub tp_gids_by_geolocation {
   my $gids_by_geolocation = join(';', @tp_gids);
 
   if ($user_gid) {
-    @tp_gids = ();
     my $group_by_users_groups = $Tariffs->tp_group_users_groups_info({
       TP_GID    => $gids_by_geolocation || '_SHOW',
       GID       => $user_gid,
       COLS_NAME => 1
     });
-    map(push(@tp_gids, $_->{tp_gid}), @{$group_by_users_groups}) if ($Tariffs->{TOTAL} > 0);
+
+    if ($Tariffs->{TOTAL} > 0) {
+      @tp_gids = ();
+      map(push(@tp_gids, $_->{tp_gid}), @{$group_by_users_groups}) ;
+    }
   }
 
   my $group_without_users_groups = $Tariffs->tp_group_users_groups_info({

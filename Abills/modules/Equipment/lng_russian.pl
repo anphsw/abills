@@ -63,9 +63,9 @@ $lang{REPORT_EQUIPMENT}='Отчет об оборудовании';
 $lang{TOTAL_COUNT}='Количество устройств';
 $lang{ACTIVE_COUNT}='Количество активных устройств';
 $lang{PING_COUNT}='Количество ping';
-$lang{SNMP_COUNT}='Количество snmp';
+$lang{SNMP_COUNT}='Количество SNMP';
 $lang{INACTIVE_COUNT}='Количество неактивных устройств';
-$lang{UNIQ_MAC_COUNT}='Количество устройств с уникальним маком';
+$lang{UNIQ_MAC_COUNT}='Количество устройств с уникальным MAC';
 
 $lang{REPORT_PON}='Отчет по PON';
 $lang{OLT_COUNT}='Количество OLT';
@@ -145,7 +145,7 @@ $lang{LINK_STATUS} = 'Link статус';
 $lang{PORT_TYPE} = 'Тип порта';
 
 $lang{FAILED_TO_GET_TELNET_CMDS_FROM_FILE} = 'Не удалось получить Telnet-команды с файла';
-$lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} = 'Получение конфигурации ONU для EPON пока что не поддерживается. Можете вручную прописать нужные Telnet-команды в файле Abills/modules/Equipment/snmp_tpl/zte_get_onu_config_epon.tpl';
+$lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} = 'Получение конфигурации ONU для EPON пока что не поддерживается. Можете вручную прописать нужные Telnet-команды в файле ';
 
 $lang{CABLE_TEST_FAILED} = 'не удалось провести тест кабеля';
 $lang{LAST_CABLE_TEST_TIME} = 'Время последнего запуска кабельного тестера';
@@ -172,5 +172,36 @@ $lang{ENABLE_INFINITIVE} = 'Включить';
 $lang{EXTERNAL_SYSTEM_LINK} = 'Ссылка на внешнюю систему';
 
 $lang{NUMBER_OF_SUPPORTED_ONUS_ON_BRANCH_FOR} = 'Количество поддерживаемых ONU на ветке для';
+
+$lang{IMAGE_URL} = 'URL изображения';
+
+$lang{EXTRA_PORT} = 'Дополнительный порт';
+$lang{ROW_NUMBER} = 'Номер ряда';
+$lang{COMBO_PORT} = 'Комбо-порт';
+
+$lang{ONU_BILLING_DESC} = 'Описание (биллинг)';
+$lang{CHANGE_ONU_DESC} = 'Изменить описание ONU';
+$lang{ONU_DESC_CHANGING_SUCCESS} = 'Описание ONU изменено успешно';
+$lang{ONU_DESC_CHANGING_ERROR} = 'Ошибка изменения описания ONU';
+
+$lang{SPLITTER} = 'Ответвитель';
+$lang{SIGNAL_LOSS} = 'Затухание сигнала';
+$lang{CONNECTOR} = 'Мех. Соединитель';
+
+$lang{PACKETS_WITH_ERRORS} = 'Пакеты с ошибками';
+$lang{PACKETS_} = 'пакеты';
+
+$lang{POLL_NOT_DONE} = 'Опрос не проведён';
+
+$lang{CPU_LOAD} = 'Загрузка ЦП';
+
+$lang{DEFAULT_ONU_REG_TEMPLATE} = 'Шаблон регистрации ONU по умолчанию';
+
+$lang{EQUIPMENT_TYPE} = 'Тип оборудования';
+
+$lang{RAM_USAGE} = 'Загрузка ОЗУ';
+$lang{SLOT_TEMP} = 'T° слота';
+$lang{SLOT_DESC} = 'Описание';
+
 
 1

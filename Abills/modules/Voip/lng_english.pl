@@ -59,3 +59,7 @@ $lang{NAS_TECH_WORK} = 'Nas maintenice';
 $lang{ASTERISK} = 'Astrisk';
 $lang{TRUNKS} = 'Trunks';
 $lang{VOIP} = 'VoIP';
+$lang{ZAPED}='Zaped';
+$lang{IP_ADDRESS} = 'Client IP-address';
+$lang{CALLED_STATION_ID}  = 'Called station';
+$lang{CALLING_STATION_ID} = 'Calling station';

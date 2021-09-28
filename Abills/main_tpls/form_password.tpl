@@ -47,6 +47,33 @@
   </div>
 </form>
 
+%G2FA_MESSAGE%
+
+<div class="%G2FA_HIDDEN%">
+<form action='$SELF_URL' METHOD='POST' class='form-horizontal'>
+  <input type='hidden' name='index' value='$index'>
+  <input type='hidden' name='g2fa_secret' value='%G2FA_SECRET%'>
+  <input type='hidden' name='g2fa_remove' value='%G2FA_REMOVE%'>
+  <div class='card container-md'>
+    <div class='card-header with-border'><h4 class='card-title'>_{G2FA}_:</h4></div>
+    <div class='card-body'>
+
+      <div class="col-md-12 text-center mb-4">
+        %G2FA_QR%
+      </div>
+
+      <div class="form-group row">
+        <div class="col-md-4 offset-3">
+          <input type='password' class='form-control' id='G2FA' name='g2fa' autocomplete='new-password' placeholder="_{CODE}_" '/>
+        </div>
+        <button class='col-md-2 btn btn-primary'>%G2FA_BUTTON%</button>
+      </div>
+
+    </div>
+  </div>
+</form>
+</div>
+
 <script>
   var password_configuration_string = '$conf{CONFIG_PASSWORD}';
 

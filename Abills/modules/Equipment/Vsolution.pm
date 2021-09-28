@@ -23,7 +23,7 @@ sub _vsolution_get_ports {
     %{$attr},
     TIMEOUT   => 5,
     VERSION   => 2,
-    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT'
+    PORT_INFO => 'PORT_NAME,PORT_TYPE,PORT_DESCR,PORT_STATUS,PORT_SPEED,IN,OUT,PORT_IN_ERR,PORT_OUT_ERR'
   });
 
   foreach my $key (keys %{$ports_info}) {
@@ -361,6 +361,11 @@ sub _vsolution {
           OIDS   => '.1.3.6.1.4.1.37950.1.1.5.12.1.25.1.4',
           PARSER => '',
           WALK   => 1
+        },
+        'MAC_BEHIND_ONU' => {
+          NAME                        => 'MAC_BEHIND_ONU',
+          USE_MAC_LOG                 => 1,
+          MAC_LOG_SEARCH_BY_PORT_NAME => 1
         }
       }
     },

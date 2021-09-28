@@ -17,9 +17,12 @@
       </div>
 
       <div class='form-group row'>
-        <label class='col-md-4 col-form-label text-md-right' for='ICON'>_{ICON}_:</label>
+        <label class='col-md-4 col-form-label text-md-right required' for='ICON_SELECT'>_{ICON}_: </label>
         <div class='col-md-8'>
-          %ICON_SELECT%
+          <div class='d-flex bd-highlight'>
+            <div class='p-2 bd-highlight' id='DIV_ICON'></div>
+            <div class='p-2 flex-fill bd-highlight' id='DIV_SELECT'>%ICON_SELECT%</div>
+          </div>
         </div>
       </div>
 
@@ -38,4 +41,30 @@
   </div>
   
 </form>
+
+<script>
+  jQuery(document).ready(function () {
+    let icon_select = jQuery('#ICON_SELECT');
+    jQuery('#DIV_ICON').html('<img style="max-width: 100px" src="/images/maps/icons/' + icon_select.val() + '.png"/>');
+
+    icon_select.on('change', function () {
+      jQuery('#DIV_ICON').html('<img style="max-width: 100px" src="/images/maps/icons/' + icon_select.val() + '.png"/>');
+    });
+  });
+
+  function updateIcons(fileName) {
+    let selectedIcon = fileName ? fileName : jQuery('#ICON_SELECT').val();
+    jQuery.get('$SELF_URL', 'get_index=_maps2_icon_filename_select&GET_SELECT=1&header=2&ICON=' + selectedIcon, function (result) {
+      if (result.match("<select")){
+        jQuery('#DIV_SELECT').html(result);
+        initChosen();
+
+        jQuery('#DIV_ICON').html('<img style="max-width: 100px" src="/images/maps/icons/' + selectedIcon + '.png"/>');
+        jQuery('#ICON_SELECT').on('change', function () {
+          jQuery('#DIV_ICON').html('<img style="max-width: 100px" src="/images/maps/icons/' + jQuery('#ICON_SELECT').val() + '.png"/>');
+        });
+      }
+    });
+  }
+</script>
 

@@ -63,6 +63,9 @@
       <h4 class='card-title'>_{EQUIPMENT}_ _{INFO}_</h4>
     </div>
     <div class='card-body'>
+
+      %EQUIPMENT_IMAGE%
+
       <div class='form-group row'>
         <label class='col-md-4 col-form-label text-md-right'>ID: %NAS_ID%</label>
         <div class='col-md-8'>
@@ -127,14 +130,14 @@
 
       <div class='form-group row'>
         <label for='LAST_ACTIVITY' class='col-md-4 col-form-label text-md-right'>_{LAST_ACTIVITY}_:</label>
-        <div class='col-md-8'>
+        <div class='col-md-8' style='height: 56px; line-height: 56px; vertical-align: middle;'>
           %LAST_ACTIVITY%
         </div>
       </div>
 
       <div class='form-group row'>
         <label for='PORTS' class='col-md-4 col-form-label text-md-right'>_{FREE_PORTS}_:</label>
-        <div class='col-md-8'>
+        <div class='col-md-8' style='height: 35px; line-height: 35px; vertical-align: middle;'>
           %FREE_PORTS%
         </div>
       </div>

@@ -145,12 +145,13 @@ var AMessageChecker = (function () {
     message.extra       = data['EXTRA'] || '';
     message.responsible = data['RESPOSIBLE'] || '';
     message.seen_url    = data['NOTICED_URL'] || '';
+    message.icon        = data['ICON'] || '';
 
     message.id       = data['ID'] || 0;
     message.group_id = data['GROUP_ID'] || 0;
 
-    if (message.text.length > 100) {
-      message.text = message.text.substr(0, 140) + "...";
+    if (message.text.length > 110) {
+      message.text = message.text.substr(0, 175) + "...";
     }
     return message;
   }
@@ -170,7 +171,8 @@ var AMessageChecker = (function () {
         messageText,
         message.group_id,
         message.id,
-        message.seen_url
+        message.seen_url,
+        message
     );
 
   }
@@ -825,7 +827,7 @@ var EventsMenu = function (id, options) {
       self.events[event['ID']] = event;
       if ('' + event['STATE'] === '1') {
         if (!self.showed_in_session[event['ID']]) {
-          var notifyTpl = '<div data-notify="container" class="col-xs-11 col-sm-3 alert alert-{0}" role="alert">' +
+          var notifyTpl = '<div data-notify="container" class="col-xs-11 col-sm-3 alert notificationsjs alert-{0}" role="alert">' +
               '<div class="text-right">';
           if (event['GROUP_ID'] !== '1') {
             notifyTpl +=

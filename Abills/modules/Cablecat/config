@@ -34,6 +34,11 @@
   "55:0::cablecat_fill_scheme_coords:AJAX"                           => 5,
   "56:0::cablecat_get_added_schemes:AJAX"                            => 5,
   "57:5:$lang{IMPORT}:cablecat_import_wells_form:"                   => 5,
+
+  "58:0::cablecat_commutation_links:AJAX"                            => 0,
+  "59:0::cablecat_change_commutation_info:AJAX"                      => 0,
+
+  "60:0::cablecat_import_presets:AJAX"                               => 0,
 );
 
 1;

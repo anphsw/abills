@@ -8,7 +8,7 @@
   <div class='panel-body'>
     <div class='tab-content'>
       <div class='active tab-pane %TAB1_ACTIVE%' id='tab1default'>
-        <div class='form-inline'>
+        <div class='form-group'>
           %FILTERS%
         </div>
         <div class='form-group'>

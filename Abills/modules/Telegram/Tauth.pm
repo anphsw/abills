@@ -10,7 +10,8 @@ our (
   $Contacts,
   $Users,
   $admin,
-  $Bot
+  $Bot,
+  %conf
 );
 
 #**********************************************************
@@ -122,7 +123,17 @@ sub subscribe_phone {
   # Веб клиент и андроид передают телефон без плюса, виндовс приложение - с плюсом.
   my $phone = $message->{contact}{phone_number};
   $phone =~ s/\D//g;
-  my $list = $Contacts->contacts_list({
+
+
+  if($conf{TELEGRAM_NUMBER_EXPR}) {
+
+    my ($left, $right) = split "/", $conf{TELEGRAM_NUMBER_EXPR};
+
+    $phone =~ s/$left/$right/ge;
+
+  }
+
+    my $list = $Contacts->contacts_list({
     VALUE => $phone,
     UID   => '_SHOW',
   });

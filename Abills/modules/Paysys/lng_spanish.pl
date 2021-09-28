@@ -22,7 +22,7 @@ $lang{UNKNOWN} = 'Desconocido';
 $lang{COMPLETE} = 'Completado';
 $lang{CANCELED} = 'Cancelado';
 $lang{EXPIRED} = 'Expirado';
-$lang{INCORRECT_CHECKSUM} = 'Suma de comprobación es incorrecta';
+$lang{ERR_INCORRECT_CHECKSUM} = 'Suma de comprobación es incorrecta';
 $lang{PAYMENT_ERROR} = 'Error del pago';
 $lang{DUPLICATE} = 'Ya existe pago';
 $lang{USER_ERROR} = 'Error de ID del usuario';
@@ -38,5 +38,6 @@ $lang{EVENTS} = 'Eventos';
 #$lang{SERVICE_FEE}='Сервисный сбор';
 
 $lang{ADD_INFO} = 'Información Adicional';
+$lang{DOCUMENTATION} = 'Documentación';
 
 1;

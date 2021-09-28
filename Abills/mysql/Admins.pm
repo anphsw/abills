@@ -303,7 +303,8 @@ sub info {
       COUNT(ag.aid) AS gids_,
       COUNT(aa.aid) AS admin_access,
       a.aid,
-      a.name AS a_fio
+      a.name AS a_fio,
+      a.g2fa
      FROM
       admins a
      LEFT JOIN admins_groups ag ON (a.aid=ag.aid)
@@ -387,7 +388,7 @@ sub list {
   }
 
   if ($attr->{DEPARTMENT} && $attr->{DEPARTMENT} ne '_SHOW') {
-    push @WHERE_RULES, "a.department = '$attr->{DEPARTMENT}'";
+    push @WHERE_RULES, "a.department IN ($attr->{DEPARTMENT})";
   }
 
   if ($attr->{GID}) {
@@ -398,39 +399,40 @@ sub list {
 
 
   my $WHERE = $self->search_former($attr, [
-      ['ADMIN_NAME',   'STR',  'a.name',  'a.name AS admin_name' ],
+      ['ADMIN_NAME',       'STR',  'a.name',  'a.name AS admin_name' ],
       # ['POSITION',     'STR',  'ep.position',      1 ],
-      ['REGDATE',      'DATE', "a.regdate",       1 ],
-      ['START_WORK',   'DATE', "a.start_work",    1 ],
+      ['REGDATE',          'DATE', "a.regdate",                    1 ],
+      ['START_WORK',       'DATE', "a.start_work",                 1 ],
       #['GID',          'INT',  'ag.gid',          1 ],
       #['GID',          'INT',  'a.gid',           1 ],
-      ['GPS_IMEI',     'STR',  'a.gps_imei',      1 ],
-      ['RFID_NUMBER',   'STR',  'a.rfid_number',  1 ],
-      ['DISABLE',      'INT',  "a.disable",       1 ],
-      ['CELL_PHONE',   'INT',  "a.cell_phone",    1 ],
-      ['BIRTHDAY',     'DATE', 'a.birthday',      1 ],
-      ['API_KEY',      'STR',  'a.api_key',       1 ],
-      ['DOMAIN_NAME',  'STR',  'a.name', 'd.name AS domain_name' ],
-      ['DOMAIN_ID',    'INT',  'a.domain_id',     1 ],
-      ['AID',          'INT',  'a.aid'              ],
-      ['SIP_NUMBER',   'INT',  'a.sip_number',    1 ],
-      ['TELEGRAM_ID',  'STR',  'a.telegram_id',   1 ],
-      ['EMAIL',        'STR',  'a.email',         1 ],
-      ['DEPARTMENT_NAME', 'STR',  'ed.name as department_name',         1 ],
-      ['ID',              'INT',  'a.id',         1 ],
-      ['PHONE',           'STR',  'a.phone',      1 ],
-      ['ADMIN_EXPIRE',    'DATE', 'a.expire AS admin_expire',     1 ],
-      ['ADDRESS',       'STR',    'a.address',        1 ],
-      ['PASPORT_NUM',   'STR',    'a.pasport_num',    1 ],
-      ['PASPORT_DATE',  'STR',    'a.pasport_date',   1 ],
-      ['PASPORT_GRANT', 'STR',    'a.pasport_grant',  1 ],
-      ['INN',           'STR',    'a.inn',            1 ],
-      ['MAX_ROWS',      'INT',    'a.max_rows',       1 ],
-      ['MIN_SEARCH_CHARS', 'INT',    'a.min_search_chars', 1 ],
-      ['MAX_CREDIT',       'INT',    'a.max_credit',       1 ],
-      ['CREDIT_DAYS',      'INT',    'a.credit_days',      1 ],
-      ['COMMENTS',      'STR',    'a.comments',            1 ],
-      ['LOGIN',          'STR',  'a.id'                      ],
+      ['GPS_IMEI',         'STR',  'a.gps_imei',                   1 ],
+      ['RFID_NUMBER',      'STR',  'a.rfid_number',                1 ],
+      ['DISABLE',          'INT',  "a.disable",                    1 ],
+      ['CELL_PHONE',       'INT',  "a.cell_phone",                 1 ],
+      ['BIRTHDAY',         'DATE', 'a.birthday',                   1 ],
+      ['API_KEY',          'STR',  'a.api_key',                    1 ],
+      ['DOMAIN_NAME',      'STR',  'a.name', 'd.name AS domain_name' ],
+      ['DOMAIN_ID',        'INT',  'a.domain_id',                  1 ],
+      ['AID',              'INT',  'a.aid'                           ],
+      ['SIP_NUMBER',       'INT',  'a.sip_number',                 1 ],
+      ['TELEGRAM_ID',      'STR',  'a.telegram_id',                1 ],
+      ['EMAIL',            'STR',  'a.email',                      1 ],
+      ['DEPARTMENT_NAME',  'STR',  'ed.name as department_name',   1 ],
+      ['ID',               'INT',  'a.id',                         1 ],
+      ['PHONE',            'STR',  'a.phone',                      1 ],
+      ['ADMIN_EXPIRE',     'DATE', 'a.expire AS admin_expire',     1 ],
+      ['ADDRESS',          'STR',  'a.address',                    1 ],
+      ['PASPORT_NUM',      'STR',  'a.pasport_num',                1 ],
+      ['PASPORT_DATE',     'STR',  'a.pasport_date',               1 ],
+      ['PASPORT_GRANT',    'STR',  'a.pasport_grant',              1 ],
+      ['INN',              'STR',  'a.inn',                        1 ],
+      ['MAX_ROWS',         'INT',  'a.max_rows',                   1 ],
+      ['MIN_SEARCH_CHARS', 'INT',  'a.min_search_chars',           1 ],
+      ['MAX_CREDIT',       'INT',  'a.max_credit',                 1 ],
+      ['CREDIT_DAYS',      'INT',  'a.credit_days',                1 ],
+      ['COMMENTS',         'STR',  'a.comments',                   1 ],
+      ['LOGIN',            'STR',  'a.id'                            ],
+      ['G2FA',             'STR',  'a.g2fa',                       1 ]
     ],
     {
       WHERE_RULES => \@WHERE_RULES,
@@ -440,14 +442,14 @@ sub list {
 
   my $EMPLOYEE_JOIN = '';
   my $EMPLOYEE_COLS = '';
-  #use Abills::Base;
-  #FIXME: CHECK MODULE
-  if (($self->{SHOW_EMPLOYEES} && $self->{SHOW_EMPLOYEES} == 1) || ($attr->{SHOW_EMPLOYEES})) {
-    $EMPLOYEE_JOIN .= " LEFT JOIN employees_positions ep ON (ep.id=a.position) ";
-    $EMPLOYEE_COLS .= ' ep.position as position, ';
 
-    $EMPLOYEE_JOIN .= " LEFT JOIN employees_department ed ON (ed.id=a.department) ";
-#    $EMPLOYEE_COLS .= ' ed.name as department_name, ';
+  if (Abills::Base::in_array('Employees', \@::MODULES) && (!$self->{admin}{MODULES} || $self->{admin}{MODULES}{Employees})) {
+    if (($self->{SHOW_EMPLOYEES} && $self->{SHOW_EMPLOYEES} == 1) || ($attr->{SHOW_EMPLOYEES})) {
+      $EMPLOYEE_JOIN .= " LEFT JOIN employees_positions ep ON (ep.id=a.position) ";
+      $EMPLOYEE_COLS .= ' ep.position as position, ';
+
+      $EMPLOYEE_JOIN .= " LEFT JOIN employees_department ed ON (ed.id=a.department) ";
+    }
   }
 
   $self->query("SELECT a.aid, a.id AS login,
@@ -499,7 +501,9 @@ sub change {
   if ($attr->{A_LOGIN}) {
     $attr->{ID} = $attr->{A_LOGIN};
   }
-
+  if ($self->{SESSION_IP} && $self->{SESSION_IP} eq '0.0.0.0') {
+    $self->{SESSION_IP} = $ENV{REMOTE_ADDR};
+  }
   $self->{MODULE}  = '';
   $IP              = $self->{SESSION_IP} || '0.0.0.1';
   $attr->{DISABLE} = 0 if (!$attr->{DISABLE} && $attr->{A_LOGIN});
@@ -836,9 +840,7 @@ sub system_action_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former($attr, [
-      # Fixme remove if no needed
-      # ['RESPOSIBLE',   'INT',  'm.resposible',    ],
-      ['ACTION',       'INT',  'aa.actions',      ],
+      ['ACTIONS',      'INT',  'aa.actions',      ],
       ['TYPE',         'INT',  'aa.action_type',  ],
       ['MODULE',       'STR',  'aa.module',       ],
       ['IP',           'IP',   'aa.ip'            ],

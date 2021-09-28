@@ -106,7 +106,7 @@ sub iptv_daily_fees {
   });
   my %users_services_channels = ();
 
-  my %FEES_METHODS = %{get_fees_types({ SHORT => 1 })};
+  my $FEES_METHODS = get_fees_types({ SHORT => 1 });
   foreach my $tp (@{$list}) {
 
     if ($tp->{day_fee} > 0) {
@@ -140,7 +140,7 @@ sub iptv_daily_fees {
           TP_ID           => $tp->{tp_id},
           TP_NAME         => $tp->{name},
           FEES_PERIOD_DAY => $lang{DAY_FEE_SHORT},
-          FEES_METHOD     => $FEES_METHODS{$tp->{fees_method}},
+          FEES_METHOD     => $FEES_METHODS->{$tp->{fees_method}},
         );
 
         my %PARAMS = (
@@ -190,6 +190,7 @@ sub iptv_daily_fees {
       REDUCTION   => 0,
       IPTV_STATUS => 0,
     );
+
     get_service_fee(\%user, \%users_services_channels, {
       DATE   => $ADMIN_REPORT{DATE},
       METHOD => 1,
@@ -451,7 +452,7 @@ sub iptv_monthly_fees {
 
   map $tp_id2id{ $_->{tp_id} } = $_->{id}, @{$tp_list};
 
-  my %FEES_METHODS = %{get_fees_types({ SHORT => 1 })};
+  my $FEES_METHODS = get_fees_types({ SHORT => 1 });
   $Tariffs->{debug} = 1 if ($debug > 6);
   my $list = $Tariffs->list({
     %LIST_PARAMS,
@@ -549,7 +550,7 @@ sub iptv_monthly_fees {
         }
       }
       else {
-        $debug_output .= "Service ended. Login: $u->{login} ($u->{id})\n";
+        $debug_output .= "SERVICE_ENDED. LOGIN: $u->{login} ($u->{id})\n";
         $Iptv->{SERVICE_ID} = $u->{service_id} if !$Iptv->{SERVICE_ID};
         my $result = iptv_account_action({
           change       => 1,
@@ -560,10 +561,15 @@ sub iptv_monthly_fees {
           LOGIN        => $u->{login},
           SUBSCRIBE_ID => $u->{subscribe_id}
         });
-        $Iptv->user_change({
-          ID     => $u->{id},
-          STATUS => 1
-        }) if !$result;
+
+        if (!$result) {
+          $Iptv->user_change({
+            ID     => $u->{id},
+            STATUS => 1
+          });
+
+          _external('', { EXTERNAL_CMD => 'Iptv', %{$Iptv}, QUITE => 1 });
+        }
         next;
       }
 
@@ -592,7 +598,7 @@ sub iptv_monthly_fees {
         TP_ID             => $tp->{tp_id},
         TP_NAME           => $tp->{name},
         FEES_PERIOD_MONTH => $lang{MONTH_FEE_SHORT},
-        FEES_METHOD       => $FEES_METHODS{ $tp->{fees_method} }
+        FEES_METHOD       => $FEES_METHODS->{ $tp->{fees_method} }
       );
       
       my $total_sum = 0;

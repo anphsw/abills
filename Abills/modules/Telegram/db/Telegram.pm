@@ -51,6 +51,24 @@ sub info {
 }
 
 #**********************************************************
+=head2 info_admin($aid)
+
+=cut
+#**********************************************************
+sub info_admin {
+  my $self = shift;
+  my ($aid) = @_;
+
+  $self->query("SELECT * FROM telegram_tmp WHERE aid = ?;",
+    undef,
+    { Bind => [ $aid ], COLS_NAME => 1, COLS_UPPER => 1}
+  );
+  return [ ] if ($self->{errno});
+
+  return $self->{list}->[0];
+}
+
+#**********************************************************
 =head2 add($attr)
 
 =cut
@@ -92,6 +110,20 @@ sub del {
   my ($uid) = @_;
 
   $self->query_del("telegram_tmp", {}, { UID => $uid });
+
+  return $self;
+}
+
+#**********************************************************
+=head2 del_admin($aid)
+
+=cut
+#**********************************************************
+sub del_admin {
+  my $self = shift;
+  my ($aid) = @_;
+
+  $self->query_del("telegram_tmp", {}, { AID => $aid });
 
   return $self;
 }

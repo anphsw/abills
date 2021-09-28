@@ -2,26 +2,24 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Filters qw(_utf8_encode);
-use Abills::Base qw(ip2int cmd);
-#use v5.20.2;
+use Abills::Base qw(ip2int cmd load_pmodule convert);
+
 # FIXME remove this and remove goto
 no warnings 'deprecated';
 
-use Abills::Base qw(load_pmodule convert);
+my $payment_methods = get_payment_methods();
+our %PAYSYS_PAYMENTS_METHODS = %{ $payment_methods };
 
 our ($db,
   %conf,
   $admin,
   $op_sid,
-  $html,
   %lang,
   $base_dir,
   %ADMIN_REPORT,
-  %PAYSYS_PAYMENTS_METHODS,
   @WEEKDAYS,
   @MONTHES,
   %FEES_METHODS,
-  @TERMINAL_STATUS,
   %PAYSYSTEM_CONF,
   $PAYSYSTEM_VERSION,
   $PAYSYSTEM_NAME,
@@ -33,6 +31,9 @@ our ($db,
 our Paysys $Paysys;
 our Payments $Payments;
 our Finance $Fees;
+our Abills::HTML $html;
+
+our @TERMINAL_STATUS = ("$lang{ENABLE}", "$lang{DISABLE}");
 
 my %PAY_SYSTEMS = (
   41 => "Webmoney",
@@ -820,10 +821,10 @@ sub paysys_payment {
     #my $end_command   = ($Config->config_info({PARAM => 'PAYSYS_EXTERNAL_END_COMMAND'}))->{VALUE};
     #my $time          = ($Config->config_info({PARAM => 'PAYSYS_EXTERNAL_TIME'}))->{VALUE};
     my $attempts      = $conf{PAYSYS_EXTERNAL_ATTEMPTS} || 0;
-    my $main_user_information = $Paysys->paysys_user_info({UID => $user->{UID}});
+    my $main_user_information = $Paysys->user_info({UID => $user->{UID}});
 
     if($main_user_information->{TOTAL} == 0){
-      $Paysys->paysys_user_add({ ATTEMPTS          => 1,
+      $Paysys->user_add({ ATTEMPTS          => 1,
         UID               => $user->{UID},
         EXTERNAL_USER_IP  => $ENV{REMOTE_ADDR}});
     }
@@ -833,7 +834,7 @@ sub paysys_payment {
         my (undef, $last_month) = split('-', $main_user_information->{EXTERNAL_LAST_DATE});
         my $paysys_id     = $main_user_information->{PAYSYS_ID};
         if(int($now_month) != int($last_month)){
-          $Paysys->paysys_user_change({
+          $Paysys->user_change({
             ATTEMPTS           => 1,
             UID                => $user->{UID},
             PAYSYS_ID          => $paysys_id,
@@ -843,7 +844,7 @@ sub paysys_payment {
         }
         else{
           my $user_attempts = $main_user_information->{ATTEMPTS} + 1;
-          $Paysys->paysys_user_change({
+          $Paysys->user_change({
             ATTEMPTS  => $user_attempts,
             UID       => $user->{UID},
             PAYSYS_ID => $paysys_id,
@@ -5380,7 +5381,7 @@ sub paysys_monthly {
     return $debug_output;
   }
 
-  my $list = $Paysys->paysys_user_list(
+  my $list = $Paysys->user_list(
     {
       PAYSYS_ID => '_SHOW',
       PAGE_ROWS => 100000,
@@ -7712,4 +7713,36 @@ sub _new_paysys_load {
 
   return $require_module;
 }
+
+#**********************************************************
+=head2 paysys_load($module,  $attr) - Load Paysys modules
+
+=cut
+#**********************************************************
+sub paysys_load {
+  my ($module)=@_;
+
+  if (! $module) {
+    return 0;
+  }
+
+  eval { require "Paysys/". $module .".pm" };
+  if ($@) {
+    print "Content-Type: text/html\n\n";
+
+    print "Error: load module '". $module .".pm' :: $!". $html->br();
+    print "Purchase module from http://abills.net.ua/". $html->br() . $html->br();
+
+    if ($conf{PAYSYS_DEBUG}) {
+      print "=======================================".$html->br();
+      print $@;
+      print $html->br(). "=======================================";
+    }
+
+    exit;
+  }
+
+  return 1;
+}
+
 1;

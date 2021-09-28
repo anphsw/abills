@@ -9,7 +9,7 @@ CREATE TABLE accident_log
     al_end_time   DATETIME             DEFAULT CURRENT_TIMESTAMP() NOT NULL,
     al_realy_time DATETIME             DEFAULT CURRENT_TIMESTAMP() NULL,
     al_status     TINYINT(3)           DEFAULT 0                   NOT NULL,
-    al_name       VARCHAR(20)                                      NOT NULL,
+    al_name       VARCHAR(255)                                     NOT NULL,
     CONSTRAINT accident_log
         FOREIGN KEY (al_aid) REFERENCES admins (aid)
 )
@@ -21,9 +21,9 @@ CREATE TABLE accident_address
 (
     id         TINYINT UNSIGNED AUTO_INCREMENT
         PRIMARY KEY,
-    ac_id      TINYINT UNSIGNED NULL,
-    type_id    TINYINT(3)       NOT NULL,
-    address_id TINYINT(3)       NOT NULL,
+    ac_id      INT(11) UNSIGNED NULL,
+    type_id    INT(11)       NOT NULL,
+    address_id VARCHAR (255)       NOT NULL,
     CONSTRAINT address
         FOREIGN KEY (ac_id) REFERENCES accident_log (al_id)
 )

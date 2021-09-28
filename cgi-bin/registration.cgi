@@ -150,7 +150,7 @@ elsif ($#REGISTRATION > -1) {
   ? $FORM{module}
   : $REGISTRATION[0];
 
-  if ($m eq 'Osbb' || $m eq 'Vacations' || $m eq 'Expert') {
+  if ($m eq 'Osbb' || $m eq 'Expert') {
     $INFO_HASH{user_registration} = $FORM{user_registration} || '';
   }
   else {
@@ -243,7 +243,12 @@ if (!($FORM{header} && $FORM{header} == 2)) {
   my $address_modal_form = '';
 
   unless ($FORM{FORGOT_PASSWD}) {
-    $address_modal_form = form_address_select2({ REGISTRATION_MODAL => 1 });
+    $address_modal_form = form_address_select2({
+      REGISTRATION_MODAL => 1,
+      DISTRICT_SELECT_ID => 'REG_DISTRICT_ID',
+      STREET_SELECT_ID   => 'REG_STREET_ID',
+      BUILD_SELECT_ID    => 'REG_BUILD_ID',
+    });
   }
 
   $OUTPUT{HTML_STYLE} = 'lte_adm';
@@ -370,7 +375,7 @@ sub password_recovery_process {
 
       my $sended_sms = $Sms->{TOTAL} || 0;
 
-      if ($conf{USER_LIMIT_SMS} > $sended_sms) {
+      if ($conf{USER_LIMIT_SMS} <= $sended_sms) {
         $html->message('err', "$lang{ERROR}", "SMS $lang{LIMIT} $conf{USER_LIMIT_SMS}");
         return 1;
       }

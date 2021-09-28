@@ -59,3 +59,7 @@ $lang{NAS_TECH_WORK} = 'Ведуться технічні роботи';
 $lang{ASTERISK} = 'Зірочка';
 $lang{TRUNKS} = 'Транки';
 $lang{VOIP}='Телефонія';
+$lang{ZAPED}='Zaped';
+$lang{IP_ADDRESS} = 'IP-адрес клієнта';
+$lang{CALLED_STATION_ID}  = 'Одержувач виклику';
+$lang{CALLING_STATION_ID} = 'Адресат виклику';

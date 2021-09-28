@@ -24,11 +24,11 @@ BEGIN {
 
 use Abills::Base qw/_bp load_pmodule/;
 
-if ( my $module_load_error = load_pmodule("AnyEvent", { SHOW_RETURN => 1 }) ) {
+if ( my $module_load_error = load_pmodule("LWP::UserAgent", { SHOW_RETURN => 1 }) ) {
   die $module_load_error;
 }
 
-if ( my $module_load_error = load_pmodule("AnyEvent::HTTP", { SHOW_RETURN => 1 }) ) {
+if ( my $module_load_error = load_pmodule("HTTP::Request::Common", { SHOW_RETURN => 1 }) ) {
   die $module_load_error;
 }
 
@@ -36,22 +36,14 @@ if ( my $module_load_error = load_pmodule("JSON", { SHOW_RETURN => 1 }) ) {
   die $module_load_error;
 }
 
-require AnyEvent;
-AnyEvent->import();
-require AnyEvent::Handle;
-AnyEvent::Handle->import();
-require AnyEvent::Socket;
-AnyEvent::Socket->import();
-require AnyEvent::HTTP;
-AnyEvent::HTTP->import();
+if ( my $module_load_error = load_pmodule("IO::Socket::SSL", { SHOW_RETURN => 1 }) ) {
+  die $module_load_error;
+}
 
-my %anyevent_errors = (
-  595 => 'errors during connection establishment, proxy handshake.',
-  596 => 'errors during TLS negotiation, request sending and header processing.',
-  597 => 'errors during body receiving or processing.',
-  598 => 'user aborted request via on_header or on_body.',
-  599 => 'other, usually nonretryable, errors (garbled URL etc.).',
-);
+
+
+use LWP::UserAgent;
+use HTTP::Request::Common;
 
 require JSON;
 JSON->import();
@@ -343,15 +335,12 @@ sub new {
 #**********************************************************
 sub make_request {
   my $self = shift;
-  my ($method_name, $params, $callback) = @_;
+  my ($method_name, $params) = @_;
   
   my $endpoint = 'https://' . $self->{api_host} . '/bot' . $self->{token} . '/' . $method_name;
-  
-  my $waiter = undef;
-  if ( !$callback ) {
-    $waiter = AnyEvent->condvar;
-  }
-  
+
+  my $ua = LWP::UserAgent->new(ssl_opts => { verify_hostname => 0 });
+
   #   Prepare payload
   my $params_encoded = '';
   eval {
@@ -360,56 +349,34 @@ sub make_request {
   if ( $@ ) {
     $Log->alert('REQUEST PARAMS ERROR : ' . $@);
     $Log->alert('REQUEST PARAMS ERROR : ' . $params);
-    
+
     my $res = { error => $@, ok => 0, type => 'on_write' };
-    (!$callback) ? $waiter->send($res) : $callback->($res);
+    return $res;
   }
-  
-  my $len = length $params_encoded;
-  
-  AnyEvent::HTTP::http_request(
-    GET     => $endpoint,
-    body    => $params_encoded,
-    timeout => ($params && $params->{timeout} ) ? ($params->{timeout} + 2) : 2,
-    headers => {
-      'User-Agent'     => 'ABillS Telegram Agent',
-      'Content-Type'   => 'application/json',
-      'Content-Length' => $len
-    },
-    tls_ctx => 'high',
-    sub {
-      my ($body, $hdr) = @_;
-      
-      if ( $hdr->{Status} =~ /^2/ ) {
-      
-        # Decode response
-        my $res = '';
-        eval {
-          $res = $json->decode($body)
-        };
-        if ( $@ ) {
-          $res = { error => $@, ok => 0, type => 'on_decode' };
-        }
-      
-        (!$callback) ? $waiter->send($res) : $callback->($res);
-      }
-      else {
-        $hdr->{Status} //= 1;
-        my $res = {
-          error      => $anyevent_errors{$hdr->{Status}} || $hdr->{Reason},
-          ok         => 0,
-          error_code => $hdr->{Status},
-          type       => 'on_read'
-        };
-        (!$callback) ? $waiter->send($res) : $callback->($res);
-      }
-    }
-  );
-  
-  if ( !$callback ) {
-    return $waiter->recv();
+
+  my $request;
+
+  if($params->{RAW_BODY}){
+    delete $params->{RAW_BODY};
+
+    $request = POST $endpoint,
+      Content_Type => 'multipart/form-data; boundary=----TELEGRAM7MA4YWxkTrZu0gW',
+      Host => $self->{api_host},
+      Content      => $params;
+
+    # Abills::Base::_bp("ASD", $params, {HEADER => 1});
+    # exit;
+  } else {
+    $request = HTTP::Request->new( 'POST', $endpoint );
+    $request->header( 'Content-Type' => 'application/json' );
+    $request->content( $params_encoded );
   }
-  return 1;
+
+  my $result = $ua->request($request);
+
+  return $json->decode($result->{_content}) if($result && $request->{_content});
+  return 0;
+
 }
 
 sub DESTROY {

@@ -1,9 +1,10 @@
 $lang{TIMETRACKER} = "Учет времени";
 $lang{FILLING_TIMETRACKER} = "Заполнение учета времени";
+$lang{ADDING_TIMETRACKER}  = "Добавление задач";
 
 $lang{SUPPORT_TIMETRACK} = "Саппорт";
 $lang{SPRINT_TIMETRACK} = "Спринт";
-$lang{COEFFICIENT} = "Фокус фактор, %";
+$lang{COEFFICIENT} = "Фокус-фактор, %";
 
 $lang{SUBMIT_BTN_ADD_TIMETRACK} = "Добавить";
 $lang{SUBMIT_BTN_EDIT_TIMETRACK} = "Изменить";
@@ -17,7 +18,7 @@ $lang{ADD_ITEM} = "Добавить тип работ";
 $lang{EDIT_ITEM} = "Изменить тип работ";
 $lang{NEW_ITEM} = "Новый тип работ";
 
-$lang{FOCUS_FACTOR} = "Фокус Фактор";
+$lang{FOCUS_FACTOR} = "Фокус-фактор";
 $lang{ELEMENTS} = "Тип работ";
 $lang{ELEMENT} = "Тип работ";
 
@@ -34,8 +35,8 @@ $lang{RESULT} = 'Результат';
 $lang{AUTOFILL} = 'Автозаполнение';
 $lang{EXTERNAL_SYSTEM} = 'Внешние системы учета';
 
-$lang{ERROR_API_KEY} = 'APIKEY не имеет разрешения просматривать пользователей или неправильный APIURL.
-Измените: $conf{TIMETRACKER_REDMINE_APIKEY} & $conf{TIMETRACKER_REDMINE_APIURL} ';
+$lang{ERROR_API_KEY} = 'KEY не имеет разрешения просматривать пользователей или неправильный URL.
+Измените: $conf{TIMETRACKER_REDMINE_KEY} & $conf{TIMETRACKER_REDMINE_URL} ';
 $lang{ERROR_EMAIL} = "Невозможно найти пользователя по электронной почте";
 $lang{NO_FIELD} = 'не заполнено';
 
@@ -51,11 +52,10 @@ $lang{NOT_FOUND} = 'Нет конфигурации: ';
 $lang{ALL_TIME} = 'Всего времени, часы';
 
 $lang{ADMINS_LIST} = 'список администраторов';
-$lang{CLOSE_MOUTH} = 'количество закрытых за поточный месяц работ по Redmine';
-$lang{ACTUALLY_HOURS} = 'количество фактически потраченых часов';
-$lang{SCHEDULED_HOURS} = 'количество запланированых часов';
-$lang{TIME_COMPLEXITY} = 'сложность умноженая на количество запланированых часов';
-$lang{CLOSED_TICKETS} = 'количество закрытых support тикетов';
-$lang{TIME_SUPPORT} = 'сумарное время работы с сапортом';
-$lang{REPORTS_HEADER} = 'Отчет о работе администраторов';
-
+$lang{CLOSED_TASKS} = 'закрыто работ';
+$lang{ACTUALLY_HOURS} = 'фактически потрачено часов';
+$lang{SCHEDULED_HOURS} = 'запланировано часов';
+$lang{TIME_COMPLEXITY} = 'сложность * на количество запланированных часов';
+$lang{CLOSED_TICKETS} = 'закрыто support-тикетов';
+$lang{TIME_SUPPORT} = 'суммарное время support';
+$lang{REPORTS_HEADER} = 'Отчет администраторов';

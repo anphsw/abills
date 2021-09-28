@@ -62,4 +62,6 @@ $lang{CAMS_ONLINE_CHANNELS} = 'Channels/Online';
 $lang{CAMS_UPTIME} = 'Uptime';
 $lang{CAMS_CPU_LOAD} = 'CPU load';
 
+$lang{AUTODETECT} = 'Autodetect';
+
 1;

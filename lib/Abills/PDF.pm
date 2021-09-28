@@ -661,14 +661,14 @@ sub table_title{
     $self->{table_title} .= "<th class='table_title'>$line ";
     if ( $line ne '-' ){
       if ( $sort != $i ){
-        $img = 'sort_none.png';
+        $img = '';
       }
       elsif ( $desc eq 'DESC' ){
-        $img = 'down_pointer.png';
+        $img = '';
         $desc = '';
       }
       elsif ( $sort > 0 ){
-        $img = 'up_pointer.png';
+        $img = '';
         $desc = 'DESC';
       }
 

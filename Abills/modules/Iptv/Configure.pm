@@ -10,7 +10,6 @@ use warnings FATAL => 'all';
 our(
   $Iptv,
   %lang,
-  $html,
   $db,
   %conf,
   $admin,
@@ -19,6 +18,7 @@ our(
 );
 
 our Conf $Conf;
+our Abills::HTML $html;
 my $Tariffs = Tariffs->new( $db, \%conf, $admin );
 
 #**********************************************************

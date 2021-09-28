@@ -1349,6 +1349,56 @@ var ChangeElement = (function () {
 })();
 
 var Routes = (function () {
+  function showRouteFromONUtoOLT(button, link) {
+
+    if(jQuery(button).hasClass('fa-spinner'))
+      return;
+
+    if(!AllLayers["layer_10"])
+      LayersConfiguration.setLayerVisible(undefined, 'layer_10');
+
+    jQuery(button).find('span').removeClass('fa-eye');
+    jQuery(button).find('span').addClass('fa-spinner fa-spin');
+
+    jQuery.ajax({
+      url: link,
+      type: 'GET',
+      contentType: false,
+      cache: false,
+      processData: false,
+      success: function (result) {
+        if(Objects['ant_path_trace']){
+          while (Objects['ant_path_trace'].length){
+            Objects['ant_path_trace'].pop().removeFrom(map);
+          }
+        } else Objects['ant_path_trace'] = [];
+        var data = JSON.parse(result);
+        var cables = data.filter(element => element.element_type === "CABLE");
+        var cables_to_glow = Array.from(new Set(cables.map(cable => cable.element_id)))
+          .map(cable => {
+            return cables.find(cable_ => cable_.element_id === cable && cable_.point_id)
+          });
+
+        jQuery.each(cables_to_glow, function (k, v) {
+
+          var path = new L.Polyline.AntPath(Objects[10][v.point_id]._latlngs, {
+            reverse: v.reverse
+          });
+          path.addTo(map);
+
+          Objects['ant_path_trace'].push(path);
+        });
+
+        jQuery(button).find('span').removeClass('fa-spinner fa-spin');
+        jQuery(button).find('span').addClass('fa-eye');
+
+      },
+      fail: function (error) {
+        aTooltip.displayError(error);
+      },
+    });
+  }
+
   function showRouteBetweenPoints(object) {
     Markers.createMarker({
       COORDX: TempVariables['USER_COORDS']['latitude'],
@@ -1395,7 +1445,8 @@ var Routes = (function () {
   }
 
   return {
-    showRouteBetweenPoints: showRouteBetweenPoints
+    showRouteBetweenPoints: showRouteBetweenPoints,
+    showRouteFromONUtoOLT: showRouteFromONUtoOLT
   }
 })();
 
@@ -1651,7 +1702,7 @@ var init_map = function () {
   };
 
   if (Configuration.onGoogleMaps()) {
-    baseMaps['Google Maps'] = L.gridLayer.googleMutant({
+    baseMaps['Google'] = L.gridLayer.googleMutant({
       type: 'roadmap'
     });
 
@@ -1675,15 +1726,22 @@ var init_map = function () {
   if (Configuration.onYandexMaps())
     baseMaps['Yandex'] = L.yandex('yandex#map');
 
-  if (MAPS_DEFAULT_TYPE)
-    if (MAPS_DEFAULT_TYPE === 'Google' && baseMaps['Google Maps'])
-      baseMaps['Google Maps'].addTo(map);
-    else if (MAPS_DEFAULT_TYPE === 'Yandex' && baseMaps['Yandex'])
-      setTimeout(function () {
-        baseMaps['Yandex'].addTo(map);
-      }, 500);
-    else
-      baseMaps['Leaflet'].addTo(map);
+  if (VISICOM_API_KEY)
+    baseMaps['Visicom'] = L.tileLayer('https://tms{s}.visicom.ua/2.0.0/planet3/base/{z}/{x}/{y}.png?key=' + VISICOM_API_KEY, {
+      maxZoom: 19,
+      tms: true,
+      subdomains: '123'
+    });
+
+  baseMaps['2GIS'] = L.tileLayer('http://tile{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1', {
+    maxZoom: 19,
+    subdomains: '123'
+  });
+
+  if (MAPS_DEFAULT_TYPE && baseMaps[MAPS_DEFAULT_TYPE])
+    setTimeout(function () {
+      baseMaps[MAPS_DEFAULT_TYPE].addTo(map);
+    }, 500);
   else
     baseMaps['Leaflet'].addTo(map);
 

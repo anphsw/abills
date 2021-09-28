@@ -14,7 +14,7 @@ $lang{DISCUSSION_ABSENT} = 'Обговорення відсутнє';
 $lang{DESCRIPTION} = 'Опис';
 $lang{ANSWER} = 'Варіант ';
 $lang{EXPIRATION_DATE} = 'Дата закінчення';
-$lang{ADD_POLL_ANSWER} = 'Добавити варіант';
+$lang{ADD_POLL_ANSWER} = 'Додати варіант';
 $lang{DEL_POLL_ANSWER} = 'Видалити варіант';
 
 1

@@ -2,6 +2,8 @@
 
   Accident 
 
+  Error ids: 50xx
+
 =cut
 
 use strict;
@@ -13,26 +15,31 @@ use Accident;
 use Address;
 use Users;
 use Abills::Sender::Core;
+use Abills::Base qw \in_array date_inc\;
+require Abills::Misc;
 
 our (
   $db,
   $admin,
   %conf,
   %lang,
-  $html,
   @MONTHES,
   %permissions
 );
 
-exit if (
+our Abills::HTML $html;
+
+if (
   form_purchase_module(
     {
       HEADER          => 1,
       MODULE          => 'Accident',
-      REQUIRE_VERSION => 8.08,
+      REQUIRE_VERSION => 8.09,
     }
   )
-);
+) {
+  exit;
+}
 
 my %priority = (
   0 => $lang{VERY_LOW},
@@ -62,10 +69,8 @@ if ($conf{EQUIPMENT_LOG} && in_array('Equipment', \@MODULES)) {
   $Equipment = Equipment->new($db, $admin, \%conf);
 }
 
-my $build_list_address;
-
 #**********************************************************
-=head2 main_log()
+=head2 accident_log()
 
   Arguments:
      -
@@ -75,9 +80,10 @@ my $build_list_address;
 
 =cut
 #**********************************************************
-sub main_log {
-  my $index = get_function_index('main_log');
-  if ($FORM{del}) {
+sub accident_log {
+  my $index = get_function_index('accident_log');
+
+  if ($FORM{del} && $FORM{COMMENTS}) {
     $Accident->address_del({
       ID => $FORM{ID}
     });
@@ -90,18 +96,6 @@ sub main_log {
       $html->message('info', $lang{SUCCESS}, $lang{OPERATION});
     }
   }
-
-  my $form_city = form_address_select2({
-    %FORM,
-    HIDE_FLAT             => 1,
-    HIDE_ADD_BUILD_BUTTON => 1,
-  }, { class => 'form-control' });
-
-  my $datepicker = $html->form_daterangepicker({
-    NAME      => 'FROM_DATE/TO_DATE',
-    FORM_NAME => 'accident_log',
-    VALUE     => $FORM{'FROM_DATE_TO_DATE'},
-  });
 
   if ($FORM{SAVE}) {
     my @id_success = split(/, /, $FORM{ID} ? $FORM{ID} : '');
@@ -117,64 +111,60 @@ sub main_log {
     }
   }
 
-  my $select_priority = $html->form_select(
-    'PRIORITY',
-    {
-      SELECTED    => $FORM{PRIORITY},
-      SORT_VALUE  => 1,
-      SORT_KEY    => 1,
-      NO_ID       => 1,
-      SEL_HASH    => \%priority,
-      SEL_OPTIONS => { '' => '' }
-    },
-    { class => 'form-control' }
-  );
+  if ($FORM{add_form}) {
+    accident_log_add();
+  }
+  else {
+    my $select_admin = sel_admins();
 
-  my $select_admin = $html->form_select(
-    'AID',
-    {
-      SELECT      => $FORM{AID} || 0,
-      SEL_HASH    => sel_admins({ HASH => 1 }),
-      NO_ID       => 1,
-      SEL_OPTIONS => { '' => '' }
-    },
-    { class => 'form-control' }
-  );
+    my $select_priority = $html->form_select(
+      'PRIORITY',
+      {
+        SELECTED    => $FORM{PRIORITY},
+        SORT_VALUE  => 1,
+        SORT_KEY    => 1,
+        NO_ID       => 1,
+        SEL_HASH    => \%priority,
+        SEL_OPTIONS => { '' => '' }
+      },
+      { class => 'form-control' }
+    );
 
-  my $select_status = $html->form_select(
-    'STATUS',
-    {
-      SELECT       => $FORM{STATUS} || 0,
-      SEL_HASH     => \%status,
-      NO_ID        => 1,
-      SORT_KEY_NUM => 1,
-      SEL_OPTIONS  => { '' => '' }
-    },
-    { class => 'form-control' }
-  );
+    my $datepicker = $html->form_daterangepicker({
+      NAME      => 'FROM_DATE/TO_DATE',
+      FORM_NAME => 'accident_log',
+      VALUE     => $FORM{'FROM_DATE_TO_DATE'},
+      RETURN_INPUT => 1
+    });
+    my $select_status = $html->form_select(
+      'STATUS',
+      {
+        SELECTED       => $FORM{STATUS},
+        SEL_HASH     => \%status,
+        NO_ID        => 1,
+        SORT_KEY_NUM => 1,
+        SEL_OPTIONS  => { '' => '' }
+      },
+      { class => 'form-control' }
+    );
 
-  form_search({
-    TPL => $html->tpl_show(_include('accident_log_search', 'Accident'), {
-      INDEX           => $index,
-      SELECT_PRIORITY => $select_priority,
-      DATE_PCIKER     => $datepicker,
-      SELECT_ADDRESS  => $form_city,
-      SELECT_ADMIN    => $select_admin,
-      SELECT_STATUS   => $select_status,
-    }, { OUTPUT2RETURN => 1 })
-  });
+    my $form_city = form_address_select2({
+      %FORM,
+      HIDE_FLAT             => 1,
+      HIDE_ADD_BUILD_BUTTON => 1,
+    }, { class => 'form-control' });
 
-  $build_list_address = $Address->build_list({
-    LOCATION_ID   => '_SHOW',
-    STREET_NAME   => '_SHOW',
-    CITY          => '_SHOW',
-    DISTRICT_ID   => '_SHOW',
-    DISTRICT_NAME => '_SHOW',
-    NUMBER        => '_SHOW',
-    STREET_ID     => '_SHOW',
-    COLS_NAME     => 1,
-    PAGE_ROWS     => 70000
-  });
+    form_search({
+      TPL => $html->tpl_show(_include('accident_log_search', 'Accident'), {
+        INDEX           => $index,
+        SELECT_PRIORITY => $select_priority,
+        DATE_PCIKER     => $datepicker,
+        SELECT_ADDRESS  => $form_city,
+        SELECT_ADMIN    => $select_admin,
+        SELECT_STATUS   => $select_status,
+      }, { OUTPUT2RETURN => 1 })
+    });
+  }
 
   my Abills::HTML $table;
   my $acc_list;
@@ -192,12 +182,11 @@ sub main_log {
     'address_id' => $lang{ADDRESS},
   );
 
-  ($table, $acc_list) = result_former({
+   ($table, $acc_list) = result_former({
     INPUT_DATA      => $Accident,
     FUNCTION        => 'list',
-    BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'ID,PRIORITY,NAME,DATE,STATUS,DESCR,AID,END_TIME,REALY_TIME,ADDRESS_ID',
-    HIDDEN_FIELDS   => 'TYPE_ID,CITY,BUILD,STREET_ID,DISTRICT',
+    DEFAULT_FIELDS  => 'ID,PRIORITY,NAME,DATE,STATUS,DESCR,AID,END_TIME,REALY_TIME',
+    HIDDEN_FIELDS   => 'TYPE_ID,BUILD_ID,STREET_ID,DISTRICT_ID',
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => \%EXT_TITLES,
     TABLE           => {
@@ -206,23 +195,20 @@ sub main_log {
       qs      => $pages_qs,
       title   => [ $lang{PRIORITY} ],
       ID      => 'ACCIDENT_LOG',
-      MENU    => "$lang{ADD}:index=" . get_function_index('add_accident_log') . ":add;",
+      #MENU    => "$lang{ADD}:form_add=1&index=" . get_function_index('accident_log_add') . ":add;",
+      MENU    => "$lang{ADD}:add_form=1&index=$index:add;",
     },
   });
 
   my $dublicat = 0;
   foreach my $line (@$acc_list) {
     my @fields_array = ();
-    my $concat_chg = '';
-    my $type_build = '';
 
     next if ($line->{id} && $dublicat && $dublicat == $line->{id});
-    
+
     $dublicat = $line->{id};
     for (my $i = 0; $i < $Accident->{SEARCH_FIELDS_COUNT}; $i++) {
       my $field_name = $Accident->{COL_NAMES_ARR}->[$i] || '';
-      
-      $concat_chg .= "&" . uc $field_name . "=" . (($field_name eq 'address_id' && $line->{type_id} && $line->{type_id} != 2) ? $type_build : ($line->{$field_name} || ""));
 
       if ($field_name eq "priority") {
         $line->{priority} = $priority{ $line->{priority} };
@@ -240,14 +226,14 @@ sub main_log {
       elsif ($field_name eq "type_id") {
         $line->{type_id} = '';
       }
-      
+
       push @fields_array, $line->{$field_name};
     }
 
-    push @fields_array, $html->button($lang{CHANGE}, "&change=1&index=" . get_function_index('add_accident_log') . $concat_chg,
+    push @fields_array, $html->button($lang{CHANGE}, "&change=$line->{id}&index=" . get_function_index('accident_log_add'),
       { ICON => 'fa fa-pencil' });
-    push @fields_array, $html->button($lang{DEL}, "&del=1&ID=" . ($line->{id} || '') . "&index=" . get_function_index('main_log'),
-      { MESSAGE => $lang{DEL}, class => 'text-danger', ICON=>'fa fa-trash' });
+    push @fields_array, $html->button($lang{DEL}, "&del=1&ID=" . ($line->{id} || '') . "&index=" . get_function_index('accident_log'),
+      { MESSAGE => $lang{DEL}, class => 'text-danger', ICON => 'fa fa-trash' });
     push @fields_array, $html->button('', "&compensation=1&ID=" . ($line->{id} || '') . "&index=" . get_function_index('accident_compensation'),
       { ICON => 'fa fa-check' });
 
@@ -259,7 +245,7 @@ sub main_log {
 }
 
 #**********************************************************
-=head2 add_accident_log()
+=head2 accident_log_add()
 
   Arguments:
      -
@@ -268,18 +254,17 @@ sub main_log {
     -
 =cut
 #**********************************************************
-sub add_accident_log {
-  my $admin_select = sel_admins({ HASH => 1 });
+sub accident_log_add {
+  #my $admin_select = sel_admins({ HASH => 1 });
 
   my @address_array = ();
   my @district_array = ();
   my @street_array = ();
   my @city_array = ();
   my $address_list;
-
   my $type_id = 0;
 
-  my $list = $Address->build_list({
+  my $builds_list = $Address->build_list({
     ID            => '_SHOW',
     STREET_ID     => '_SHOW',
     STREET_NAME   => '_SHOW',
@@ -289,18 +274,17 @@ sub add_accident_log {
     CITY          => '_SHOW',
     LOCATION_ID   => '_SHOW',
     COLS_NAME     => 1,
-    PAGE_ROWS     => 70000,
+    PAGE_ROWS     => 100000,
   });
 
-  if ($FORM{change} && $FORM{ID}) {
-    $address_list = $Accident->accident_address_info($FORM{ID}, $FORM{TYPE_ID});
-    
-    foreach my $address_tree (@$address_list) {
-      $FORM{ADDRESS_ID} .= "$address_tree->{address_id}, ";
-    }
-  }
+  my $info;
 
-  if ($FORM{chg}) {
+  if ($FORM{change}) {
+    $address_list = $Accident->accident_address_info($FORM{change});
+    $info = $Accident->accident_info($FORM{change});
+
+  }
+  elsif ($FORM{chg}) {
     if ($FORM{USER_ACCIDENT}) {
       $Accident->change_element({
         ID => $FORM{al_id},
@@ -311,7 +295,7 @@ sub add_accident_log {
       $Accident->address_del({
         ID => $FORM{al_id}
       });
-      
+
       $Accident->del({
         ID => $FORM{al_id}
       });
@@ -319,91 +303,94 @@ sub add_accident_log {
   }
 
   if ($FORM{add} || $FORM{chg}) {
+    my $accident_id;
     unless ($FORM{USER_ACCIDENT}) {
       $Accident->add({ %FORM });
-    }
-    my $insert_id = $Accident->{INSERT_ID};
-    
-    unless ($FORM{USER_ACCIDENT}) {
+
+      $accident_id = $Accident->{INSERT_ID};
+
       if ($FORM{GEOLOCATION}) {
         $type_id = 1;
-      
         @district_array = split(/, /, $FORM{GEOLOCATION} ? $FORM{GEOLOCATION} : '');
+
+        accident_element_add({
+          ADDRESS   => \@district_array,
+          TYPE_ID   => $type_id,
+          INSERT_ID => $accident_id,
+        });
       }
+
       if ($FORM{CITY}) {
         $type_id = 2;
-        
-        foreach my $element (@$list) {
-          if ($FORM{CITY} && $element->{city} && $FORM{CITY} eq $element->{city}) {
-            push @city_array, $element->{location_id};
-          }
-        }
-        
-        add_accident_element({
+
+        @city_array = split(/, /, $FORM{CITY} ? $FORM{CITY} : '');
+
+        accident_element_add({
           ADDRESS   => \@city_array,
           TYPE_ID   => $type_id,
-          INSERT_ID => $insert_id,
+          INSERT_ID => $accident_id,
         });
-
       }
+
       if ($FORM{STREET}) {
         $type_id = 3;
         @street_array = split(/, /, $FORM{STREET} ? $FORM{STREET} : '');
 
-        add_accident_element({
+        accident_element_add({
           ADDRESS   => \@street_array,
           TYPE_ID   => $type_id,
-          INSERT_ID => $insert_id,
+          INSERT_ID => $accident_id,
         });
       }
+
       if ($FORM{BUILD}) {
         $type_id = 4;
         @address_array = split(/, /, $FORM{BUILD} ? $FORM{BUILD} : '');
 
-        add_accident_element({
+        accident_element_add({
           ADDRESS   => \@address_array,
           TYPE_ID   => $type_id,
-          INSERT_ID => $insert_id,
+          INSERT_ID => $accident_id,
         });
       }
       else {
-        $html->message('err', $lang{ERROR}, $lang{EMPTY_FIELD});
-
+        $html->message('err', $lang{ERROR}, "$lang{ADDRESS} $lang{EMPTY_FIELD}", { ID => 5012 });
         return 1;
       }
     }
 
     if (!_error_show($Accident)) {
-      $html->message('info', $lang{SUCCESS}, $lang{OPERATION});
+      $html->message('info', $lang{SUCCESS}, $lang{OPERATION}.' #'.$accident_id );
 
-      if($insert_id && $conf{ACCIDENT_WARNING} && $FORM{add}) {
-        $Accident->list({
-          ID        => $insert_id,
-          COLS_NAME => 1,
-        });
+      if ($accident_id && $conf{ACCIDENT_WARNING} && $FORM{add}) {
+        $address_list = $Accident->accident_address_info($accident_id, 4);
 
-        $Users->list({
-          LOCATION_ID => $Accident->{list}[0]->{address_id},
-          COLS_NAME   => 1,
-        });
+        for my $address (@$address_list) {
+          $Users->list({
+            LOCATION_ID => $address->{address_id},
+            COLS_NAME   => 1,
+          });
 
-        if($Users->{TOTAL} > 0) {
+          if ($Users->{TOTAL} > 0) {
 
-          for my $user_ (@{$Users->{list}}) {
-            accident_warning({
-              UID  => $user_->{uid},
-              TEXT => $Accident->{list}[0]->{descr},
-            })
+            my $accident = $Accident->accident_info($accident_id);
+            for my $user_ (@{$Users->{list}}) {
+              accident_warning({
+                UID  => $user_->{uid},
+                TEXT => $accident->{descr},
+              })
+            }
           }
         }
       }
+      return $html->redirect("?index=".get_function_index("accident_log"));
     }
   }
 
   my $select_priority = $html->form_select(
     'PRIORITY',
     {
-      SELECTED   => $FORM{PRIORITY} || 0,
+      SELECTED   => $info->{priority} || 0,
       SORT_VALUE => 1,
       SORT_KEY   => 1,
       NO_ID      => 1,
@@ -411,65 +398,61 @@ sub add_accident_log {
     },
     { class => 'form-control' });
 
-  my $select_admin = $html->form_select(
-    'AID',
-    {
-      SELECTED   => $FORM{AID} || 0,
-      SORT_VALUE => 1,
-      SORT_KEY   => 1,
-      NO_ID      => 1,
-      SEL_HASH   => $admin_select,
-    },
-    { class => 'form-control' }
-  );
+  my $select_admin = sel_admins({ SELECTED => $info->{aid} || $admin->{AID}, REQUIRED=>1 });
 
-  my $end_date = $html->form_datepicker('END_TIME', $FORM{END_TIME} || $DATE);
-  my $redate = $html->form_datepicker('REALY_TIME', $FORM{REALY_TIME} || $DATE);
 
-  my $keys = "district_name_check,city_name,street_name_check,number_check";
+  my $end_date = $html->form_datetimepicker('END_TIME', $info->{end_time} || "$DATE $TIME");
+  my $redate = $html->form_datetimepicker('REALY_TIME', $info->{realy_time} || "");
 
-  foreach my $line (@$list) {
-    my $street_id = $html->form_input('STREET', $line->{street_id}, {
+  my $keys = "city_name,district_name_check,street_name_check,number_check";
+
+  my @selected_street = grep $_, map {  $_->{address_id} if($_->{type_id} == 3) } @$address_list;
+  my @selected_district = grep $_, map { $_->{address_id} if($_->{type_id} == 1) } @$address_list;
+  my @selected_build = grep $_, map {  $_->{address_id} if($_->{type_id} == 4) } @$address_list;
+  my @selected_city = grep $_, map {  $_->{address_id} if($_->{type_id} == 2) } @$address_list;
+
+  foreach my $build (@$builds_list) {
+    next if (! $build->{district_name});
+    my $street_id = $html->form_input('STREET', $build->{street_id}, {
       TYPE  => 'checkbox',
-      STATE => ($FORM{STREET_ID} && $FORM{STREET_ID} == $line->{street_id}) ? 1 : 0,
-      ID    => $line->{street_id},
+      STATE => in_array($build->{street_id}, \@selected_street),
+      ID    => $build->{street_id},
     });
 
-    $line->{street_name_check} = $html->element('label', $street_id . ' ' . ($line->{street_name} ? $line->{street_name} : ''));
+    $build->{street_name_check} = $html->element('label', $street_id . ' ' . ($build->{street_name} ? $build->{street_name} : ''));
 
-    my $dist_id = $html->form_input('GEOLOCATION', $line->{district_id}, {
+    my $dist_id = $html->form_input('GEOLOCATION', $build->{district_id}, {
       TYPE  => 'checkbox',
-      STATE => ($FORM{DISTRICT_ID} && $FORM{DISTRICT_ID} == $line->{district_id}) ? 1 : 0,
-      ID    => $line->{district_id},
+      STATE => in_array($build->{district_id}, \@selected_district),
+      ID    => $build->{district_id},
     });
 
-    $line->{district_name_check} = $html->element('label', $dist_id . ' ' . ($line->{district_name} ? $line->{district_name} : ''));
+    $build->{district_name_check} = $html->element('label', $dist_id . ' ' . ($build->{district_name} ? $build->{district_name} : '--'));
 
-    my $number_id = $html->form_input('BUILD', $line->{location_id}, {
+    my $number_id = $html->form_input('BUILD', $build->{location_id}, {
       TYPE  => 'checkbox',
-      STATE => ($FORM{BUILD_ID} && $FORM{BUILD_ID} eq $line->{location_id}) ? 1 : 0,
-      ID    => $line->{location_id},
+      STATE => in_array($build->{location_id}, \@selected_build),
+      ID    => $build->{location_id},
     });
 
-    $line->{number_check} = $html->element('label', $number_id . " $lang{BUILD} " . ($line->{number} ? $line->{number} : ''));
-
-    my $city_id = $html->form_input('CITY', $line->{city}, {
+    $build->{number_check} = $html->element('label', $number_id . " $lang{BUILD} " . ($build->{number} ? $build->{number} : ''));
+    my $city_id = $html->form_input('CITY', $build->{city}, {
       TYPE  => 'checkbox',
-      STATE => ($FORM{CITY} && $line->{city} && $FORM{CITY} eq $line->{city}) ? 1 : 0,
-      ID    => $line->{city},
+      STATE => in_array($build->{city}, \@selected_city),
+      ID    => $build->{city},
     });
 
-    $line->{city_name} = $html->element('label', $city_id . ' ' . ($line->{city} ? $line->{city} : ''));
-
+    $build->{city_name} = $html->element('label', $city_id . ' ' . ($build->{city} ? $build->{city} : ''));
   }
-  my $tree = $html->html_tree($list, $keys, { OUTPUT2RETURN => 1 });
 
-  my $date_today = $html->form_datetimepicker('DATE', $FORM{DATE} || $DATE);
+  my $tree = $html->html_tree($builds_list, $keys, { OUTPUT2RETURN => 1 });
+
+  my $date_today = $html->form_datetimepicker('DATE', $info->{date} || "$DATE $TIME");
 
   my $select_status = $html->form_select(
     'STATUS',
     {
-      SELECT       => $FORM{STATUS} || 1,
+      SELECTED       => $info->{status} || 0,
       SEL_HASH     => \%status,
       NO_ID        => 1,
       SORT_KEY_NUM => 1,
@@ -478,18 +461,18 @@ sub add_accident_log {
   );
 
   $html->tpl_show(_include('accident_add', 'Accident'), {
-    INDEX           => get_function_index('add_accident_log'),
+    INDEX           => $index, #get_function_index('accident_log_add'),
     P_NAME          => $lang{NAME},
-    NAME            => ($FORM{NAME} ? lc $FORM{NAME} : ''),
+    NAME            => ($info->{name} ? lc $info->{name} : ''),
     DESCRIBE        => $lang{DESC},
     SELECT_PRIORITY => $select_priority,
     ADMIN_SELECT    => $select_admin,
     DATEPICKER_END  => $end_date,
     DATEPICKER_REAL => $redate,
     ADD             => !$FORM{change} ? $lang{ADD} : $lang{CHANGE},
-    DESCR           => ($FORM{DESCR} ? lc $FORM{DESCR} : ''),
+    DESCR           => ($info->{descr} ? lc $info->{descr} : ''),
     ADD_CHG         => !$FORM{change} ? 'add' : 'chg',
-    ID_CHANGE       => $FORM{ID},
+    ID_CHANGE       => $info->{id},
     CHG_JS          => $FORM{ADDRESS_ID},
     GEO_TREE        => ($FORM{USER_ACCIDENT}) ? '' : $tree,
     SELECT_STATUS   => $select_status,
@@ -516,7 +499,7 @@ sub accident_widget {
   Admins->import();
   my $Admins = Admins->new($db, $admin, \%conf);
 
-  $build_list_address = $Address->build_list({
+  $Address->build_list({
     LOCATION_ID   => '_SHOW',
     STREET_NAME   => '_SHOW',
     LOCATION_ID   => '_SHOW',
@@ -525,6 +508,7 @@ sub accident_widget {
     DISTRICT_NAME => '_SHOW',
     NUMBER        => '_SHOW',
     STREET_ID     => '_SHOW',
+    DOMAIN_ID     => $admin->{DOMAIN_ID},
     COLS_NAME     => 1,
   });
 
@@ -541,11 +525,11 @@ sub accident_widget {
     END_TIME   => '_SHOW',
     REALY_TIME => '_SHOW',
     DATE       => '_SHOW',
-    ADDRESS_ID => '_SHOW',
     TYPE_ID    => '_SHOW',
     STATUS     => '_SHOW',
     DESCR      => '_SHOW',
     PRIORITY   => '_SHOW',
+    DOMAIN_ID     => $admin->{DOMAIN_ID},
     COLS_NAME  => 1
   });
 
@@ -553,8 +537,8 @@ sub accident_widget {
     {
       width   => '100%',
       caption => $html->button($lang{ACCIDENT_LOG},
-        'index=' . get_function_index('main_log')),
-      title   => [ $lang{NAME}, $lang{ADDRESS}, $lang{ADMIN}, $lang{WORK_END_DATE}, $lang{WORK_REALY_DATE}, $lang{STATUS} ],
+        'index=' . get_function_index('accident_log')),
+      title   => [ $lang{NAME}, $lang{ADMIN}, $lang{WORK_END_DATE}, $lang{WORK_REALY_DATE}, $lang{STATUS} ],
       ID      => 'ACCIDENT',
     }
   );
@@ -572,7 +556,6 @@ sub accident_widget {
     $dublicate = $element->{id};
     $table->addrow(
       $element->{name},
-      $element->{TYPE_IDS},
       $admin_login,
       $element->{end_time},
       $element->{realy_time},
@@ -595,7 +578,7 @@ sub accident_widget {
 =cut
 #**********************************************************
 sub accident_for_equipment {
-  my $equipment_list = $Equipment->_list({ 
+  my $equipment_list = $Equipment->_list({
     NAS_ID    => '_SHOW',
     STATUS    => '_SHOW',
     NAS_NAME  => '_SHOW',
@@ -603,6 +586,15 @@ sub accident_for_equipment {
     PAGE_ROWS => 9999,
     COLS_NAME => 1
   });
+
+  my $equipment_error = $Accident->accident_equipment_list({
+    STATUS => 0,
+    ID_EQUIPMENT => '_SHOW',
+    PAGE_ROWS => 9999,
+    COLS_NAME => 1
+  });
+
+  my @known_errors = map {$_->{id_equipment}} @$equipment_error;
 
   my $table = $html->table(
     {
@@ -613,15 +605,17 @@ sub accident_for_equipment {
       ID      => 'ACCIDENT_EQUIPMENT',
     }
   );
-  
+
   foreach my $equipment_element (@$equipment_list) {
     if ($equipment_element->{status} && $equipment_element->{status} == 3) {
       $table->addrow(
         $equipment_element->{nas_name} || '-',
         $equipment_element->{nas_descr} || '-',
         $lang{ERROR},
+        !in_array($equipment_element->{nas_id}, \@known_errors) ?
         $html->button('', 'index=' . get_function_index('accident_equipment_log') .
-        '&dash=1&add_form=' . $equipment_element->{nas_id}, { ICON => 'fa fa-plus' })
+          '&dash=1&add_form=' . $equipment_element->{nas_id}, { ICON => 'fa fa-plus' }) :
+          $html->color_mark($lang{ADDED}, "#00cc00")
       );
     }
   }
@@ -662,62 +656,59 @@ sub accident_dashboard_mess {
     UID => $user->{UID},
   });
 
-  my $iter = 0;
-  my $mess_warning = '';
-  
   if ($user_date->{LOCATION_ID}) {
-    $build_list_address = $Address->build_list({
+    my $user_location = $Address->build_list({
       LOCATION_ID => $user_date->{LOCATION_ID},
+      DOMAIN_ID   => '_SHOW',
       COLS_NAME   => 1,
       DISTRICT_ID => '_SHOW',
     });
 
     my $accident_list = $Accident->list({
+      DISTRICT_ID => $user_location->[0]->{district_id},
+      STREET_ID   => $user_location->[0]->{street_id},
+      BUILD_ID    => $user_location->[0]->{location_id},
+      DOMAIN_ID   => $user_location->[0]->{domain_id},
       ADDRESS_ID  => '_SHOW',
-      SKIP_STATUS => 2,
+      STATUS      => '0',
       TYPE_ID     => '_SHOW',
       DESCR       => '_SHOW',
       COLS_NAME   => 1
     });
 
-    foreach my $element (@$accident_list) {
-      if ($element->{type_id} && $element->{type_id} == 4) {
-        ++$iter if ($user_date->{LOCATION_ID} && $element->{address_id} eq $user_date->{LOCATION_ID});
-      }
-      elsif ($element->{type_id} && $element->{type_id} == 3) {
-        ++$iter if ($build_list_address->[0]{street_id} && $element->{address_id} == $build_list_address->[0]{street_id});
-      }
-      elsif ($element->{type_id} && $element->{type_id} == 1) {
-        ++$iter if ($build_list_address->[0]{district_id} && $element->{address_id} == $build_list_address->[0]{district_id});
+    if($accident_list){
+      for my $accident (@$accident_list){
+        $html->tpl_show(_include('accident_user_warr', 'Accident'), {
+          MESSAGE => $accident->{descr},
+          END_DATE => $accident->{end_time}
+        });
       }
     }
+
   }
 
   if (in_array('Equipment', \@MODULES) && $conf{EQUIPMENT_LOG}) {
     my $warning_info = $Accident->accident_equipment_list({
-      ID_EQUIPMENT  => '_SHOW',
-      END_DATE      => '_SHOW',
-      NAS_ID        => '_SHOW',
-      STATUS        => '_SHOW',
-      UID           => $user->{UID},
-      EXT_TABLE     => 1,
-      COLS_NAME     => 1,
+      ID_EQUIPMENT => '_SHOW',
+      END_DATE     => '_SHOW',
+      NAS_ID       => '_SHOW',
+      STATUS       => '0',
+      UID          => $user->{UID},
+      EXT_TABLE    => 1,
+      COLS_NAME    => 1,
     });
 
-    if ($warning_info > 0) {
-      if (defined($warning_info->[0]{status}) && defined($warning_info->[0]{status}) != 2) {
-        $mess_warning = $lang{WARNING_TIME} . $warning_info->[0]{end_date};
-
-        ++$iter;
+    if($warning_info){
+      for my $accident (@$warning_info){
+        $html->tpl_show(_include('accident_user_warr', 'Accident'), {
+          MESSAGE => $lang{EQUIPMENT_ERR},
+          END_DATE => $accident->{end_date},
+        });
       }
     }
+
   }
 
-  if ($iter > 0) {
-    return $html->tpl_show(_include('accident_user_warr', 'Accident'), {
-      WORK_MESS => $mess_warning
-    });
-  }
 
   return 0;
 }
@@ -733,10 +724,10 @@ sub accident_dashboard_mess {
 =cut
 #**********************************************************
 sub accident_equipment_log {
-  if($FORM{del} && $FORM{COMMENTS}) {
+  if ($FORM{del} && $FORM{COMMENTS}) {
     $Accident->accident_equipment_del({ ID => $FORM{del} });
 
-    if(!_error_show($Accident)) {
+    if (!_error_show($Accident)) {
       $html->message('success', $lang{SUCCESS});
     }
     else {
@@ -751,36 +742,36 @@ sub accident_equipment_log {
   my $index = get_function_index('accident_equipment_log');
   my $admins_list = sel_admins({ HASH => 1 });
   my $table = $html->table({
-      width      => '100%',
-      caption    => $lang{ACCIDENT_FOR_EQUIPMENT},
-      title      => [ 'ID', $lang{NAME}, $lang{DATE}, $lang{STATUS}, $lang{RESPONSIBLE} ],
-      ID         => 'ACCIDENT_EQUIPMENT',
+    width   => '100%',
+    caption => $lang{ACCIDENT_FOR_EQUIPMENT},
+    title   => [ 'ID', $lang{NAME}, $lang{DATE}, $lang{STATUS}, $lang{RESPONSIBLE} ],
+    ID      => 'ACCIDENT_EQUIPMENT',
   });
 
   my $list_equipment_error = $Accident->accident_equipment_list({
-    ID_EQUIPMENT  => '_SHOW',
-    DATE          => '_SHOW',
-    END_DATE      => '_SHOW',
-    STATUS        => '_SHOW',
-    AID           => '_SHOW',
-    COLS_NAME     => 1,
+    ID_EQUIPMENT => '_SHOW',
+    DATE         => '_SHOW',
+    END_DATE     => '_SHOW',
+    STATUS       => '_SHOW',
+    AID          => '_SHOW',
+    COLS_NAME    => 1,
   });
 
-  my $equipment_list = $Equipment->_list({ 
+  my $equipment_list = $Equipment->_list({
     NAS_ID    => '_SHOW',
     NAS_NAME  => '_SHOW',
     PAGE_ROWS => 9999,
     COLS_NAME => 1
   });
 
-  my %nas_name = map { $_->{nas_id} => $_->{nas_name} } @{ $equipment_list };
+  my %nas_name = map {$_->{nas_id} => $_->{nas_name}} @{$equipment_list};
 
   foreach my $equipment_element (@$list_equipment_error) {
     my $delete = $html->button($lang{DEL},
       "index=$index&del=$equipment_element->{id}",
-      { MESSAGE => "$lang{DEL} [$equipment_element->{id}] ?", ICON=>'fa fa-trash', class=>'text-danger' } );
+      { MESSAGE => "$lang{DEL} [$equipment_element->{id}] ?", ICON => 'fa fa-trash', class => 'text-danger' });
 
-    my $change = $html->button($lang{CHANGE}, 
+    my $change = $html->button($lang{CHANGE},
       "index=$index&change=$equipment_element->{id}&actions=1",
       { ICON => 'fa fa-pencil' });
 
@@ -812,44 +803,43 @@ sub accident_equipment_log {
 #**********************************************************
 sub _equipment_error {
   my ($attr) = @_;
-  my $index = get_function_index('accident_equipment_log');
   my %tpl_info = ();
-  
+
   if ($attr->{dash} || $attr->{change}) {
     if ($attr->{change}) {
       my $info_accident = $Accident->accident_equipment_info($attr->{change});
-      
-      $tpl_info{FROM_DATE}             = $info_accident->[0]{date};
-      $tpl_info{TO_DATE}               = $info_accident->[0]{end_date};
-      $tpl_info{AID}                   = $info_accident->[0]{aid};
-      $tpl_info{STATUS}                = $info_accident->[0]{status};
-      $tpl_info{ID_EQUIPMENT}          = $info_accident->[0]{id_equipment};
-      $tpl_info{chg}                   = $attr->{change};
+
+      $tpl_info{FROM_DATE} = $info_accident->[0]{date};
+      $tpl_info{TO_DATE} = $info_accident->[0]{end_date};
+      $tpl_info{AID} = $info_accident->[0]{aid};
+      $tpl_info{STATUS} = $info_accident->[0]{status};
+      $tpl_info{ID_EQUIPMENT} = $info_accident->[0]{id_equipment};
+      $tpl_info{chg} = $attr->{change};
     }
 
-    my $info = $Equipment->_list({ 
+    my $info = $Equipment->_list({
       NAS_ID    => $attr->{add_form} || $tpl_info{ID_EQUIPMENT},
       NAS_NAME  => '_SHOW',
       COLS_NAME => 1
     });
 
     $tpl_info{id_equipment} = $attr->{add_form};
-    $tpl_info{NAME}         = $info->[0]{nas_name};
+    $tpl_info{NAME} = $info->[0]{nas_name};
   }
 
   if ($attr->{add}) {
     $Accident->accident_equipment_add({
-      ID_EQUIPMENT  => $attr->{id_equipment},
-      DATE          => $attr->{FROM_DATE},
-      END_DATE      => $attr->{TO_DATE},
-      AID           => $attr->{AID},
-      STATUS        => $attr->{ACCIDENT_EQUIPMENT_ID}
+      ID_EQUIPMENT => $attr->{id_equipment},
+      DATE         => $attr->{FROM_DATE},
+      END_DATE     => $attr->{TO_DATE},
+      AID          => $attr->{AID},
+      STATUS       => $attr->{ACCIDENT_EQUIPMENT_ID}
     });
 
     if (!_error_show($Accident)) {
       $html->message('success', $lang{ADDED});
 
-      if($conf{ACCIDENT_WARNING}) {
+      if ($conf{ACCIDENT_WARNING}) {
         my $Internet = Internet->new($db, $admin, \%conf);
         my $list = $Internet->list({
           NAS_ID    => $attr->{id_equipment},
@@ -871,14 +861,14 @@ sub _equipment_error {
   }
 
   if ($attr->{chg}) {
-    $Accident->accident_equipment_chg({ 
-      ID        => $attr->{chg},
-      AID       => $attr->{AID},
-      DATE      => $attr->{FROM_DATE},
-      END_DATE  => $attr->{TO_DATE},
-      STATUS    => $attr->{ACCIDENT_EQUIPMENT_ID}
+    $Accident->accident_equipment_chg({
+      ID       => $attr->{chg},
+      AID      => $attr->{AID},
+      DATE     => $attr->{FROM_DATE},
+      END_DATE => $attr->{TO_DATE},
+      STATUS   => $attr->{ACCIDENT_EQUIPMENT_ID}
     });
-    
+
     if (!_error_show($Accident)) {
       $html->message('success', $lang{CHANGE});
     }
@@ -909,8 +899,8 @@ sub _equipment_error {
 sub _show_equipment_error {
   my ($attr) = @_;
 
-  my $admins_list = sel_admins({ 
-    SELECTED  => $attr->{AID}
+  my $admins_list = sel_admins({
+    SELECTED => $attr->{AID}
   });
 
   my $status_sel = $html->form_select(
@@ -948,19 +938,19 @@ sub _show_equipment_error {
 sub accident_compensation {
   my $index = get_function_index('accident_compensation');
   my $services = sel_tp();
-  
+
   my $accident_info = $Accident->accident_address_info($FORM{ID});
 
   my $type_id = $accident_info->[0]{type_id};
   my $address_id = $accident_info->[0]{address_id};
   my $location_info = _search_address($type_id, $address_id);
-  
+
   my %EXT_TITLES = (
-    'id'         => '#',
-    'procent'    => $lang{PROCENT},
-    'date'       => $lang{DATE},
-    'service'    => $lang{SERVICE},
-    'address_id' => $lang{ADDRESS},
+    'id'          => '#',
+    'procent'     => $lang{PROCENT},
+    'date'        => $lang{DATE},
+    'service'     => $lang{SERVICE},
+    'address_id'  => $lang{ADDRESS},
     'ADDRESS_IDS' => $lang{ADDRESS}
   );
 
@@ -976,15 +966,16 @@ sub accident_compensation {
 
   my $address = form_address_select2({
     DISTRICT_ID => $location_info->{DISTRICT} || 0,
-    STREET_ID   => $location_info->{STREET}   || 0,
-    BUILD_ID    => $location_info->{BUILD}    || 0,
+    STREET_ID   => $location_info->{STREET} || 0,
+    BUILD_ID    => $location_info->{BUILD} || 0,
     HIDE_FLAT   => 1
   });
 
-  $build_list_address = $Address->build_list({
+  my $build_list_address = $Address->build_list({
     LOCATION_ID   => $FORM{LOCATION_ID} || '_SHOW',
     STREET_ID     => $FORM{STREET_ID} || '_SHOW',
     DISTRICT_ID   => $FORM{DISTRICT_ID} || '_SHOW',
+    DOMAIN_ID     => $admin->{DOMAIN_ID},
     STREET_NAME   => '_SHOW',
     CITY          => '_SHOW',
     DISTRICT_NAME => '_SHOW',
@@ -1061,14 +1052,14 @@ sub _accident_add_compensation {
   my ($build_list_address, $attr) = @_;
 
   return 0 if (!in_array('Internet', \@MODULES));
-  
+
   require Internet;
   Internet->import();
   my $Internet = Internet->new($db, $admin, \%conf);
 
   my $day = $Accident->accident_date_compensation($attr->{ID});
   my $money_compensation = 0;
-  
+
   my $error_uid = '';
 
   my $tp_info = $Internet->list({
@@ -1093,9 +1084,9 @@ sub _accident_add_compensation {
   if ($tp_info->[0]->{month_fee} || $tp_info->[0]->{day_fee}) {
     if ($tp_info->[0]->{month_fee}) {
       my @day_count = ();
-      
-      push @day_count, localtime(timelocal(undef, undef, undef, 1, $_, undef))->month_last_day for 0..11;
-      
+
+      push @day_count, localtime(timelocal(undef, undef, undef, 1, $_, undef))->month_last_day for 0 .. 11;
+
       my $month = strftime("%m", localtime(time));
       my $count_month = $day_count[ $month - 1 ];
 
@@ -1110,24 +1101,24 @@ sub _accident_add_compensation {
   }
 
   $Accident->accident_compensation_add({
-    PROCENT      => $money_compensation,
-    DATE         => 'NOW()',
-    SERVICE      => $attr->{SERVICE},
-    TYPE_ID      => $attr->{type_id},
-    ADDRESS_ID   => $attr->{address},
+    PROCENT    => $money_compensation,
+    DATE       => 'NOW()',
+    SERVICE    => $attr->{SERVICE},
+    TYPE_ID    => $attr->{type_id},
+    ADDRESS_ID => $attr->{address},
   });
 
   if (!_error_show($Accident)) {
     require Payments;
     Payments->import();
-    
+
     my $Payments = Payments->new($db, $admin, \%conf);
 
     foreach my $uid (@users_uid) {
       my $user = $Users->info($uid);
       $Payments->add($user, {
-          SUM    => $money_compensation,
-          METHOD => 6
+        SUM    => $money_compensation,
+        METHOD => 6
       });
 
       if (_error_show($Payments)) {
@@ -1181,7 +1172,7 @@ sub _search_address {
 }
 
 #**********************************************************
-=head2 add_accident_element()
+=head2 accident_element_add()
 
   Arguments:
 
@@ -1190,10 +1181,10 @@ sub _search_address {
 
 =cut
 #**********************************************************
-sub add_accident_element {
+sub accident_element_add {
   my ($attr) = @_;
 
-  foreach my $element ( @{ $attr->{ADDRESS} } ) {
+  foreach my $element (@{$attr->{ADDRESS}}) {
     $Accident->address_add({
       AC_ID      => $attr->{INSERT_ID},
       TYPE_ID    => $attr->{TYPE_ID},
@@ -1204,7 +1195,7 @@ sub add_accident_element {
 }
 
 #**********************************************************
-=head2 user_accident()
+=head2 accident_user()
 
   Arguments:
 
@@ -1213,13 +1204,13 @@ sub add_accident_element {
 
 =cut
 #**********************************************************
-sub user_accident {
+sub accident_user {
   my ($attr) = @_;
-  
-  my $admins_list = sel_admins({ HASH => 1 });  
+
+  my $admins_list = sel_admins({ HASH => 1 });
 
   my $user_accident_list = $Accident->user_accident_list({
-    UID => $attr->{USER_INFO}->{UID},
+    UID       => $attr->{USER_INFO}->{UID},
     COLS_NAME => 1
   });
 
@@ -1231,7 +1222,7 @@ sub user_accident {
       ID      => 'ACCIDENT_USER',
     }
   );
-  
+
   my $size = @{$user_accident_list};
 
   unless ($size) {
@@ -1241,16 +1232,14 @@ sub user_accident {
   }
 
   foreach my $user_accident (@$user_accident_list) {
-    my $button_chg = $html->button($lang{CHANGE}, "&change=1&index=" . get_function_index('add_accident_log') 
-          . '&NAME=' . $user_accident->{name} . '&DESCR=' . $user_accident->{descr} . '&AID=' . $user_accident->{aid} . '&STATUS=' . $user_accident->{status}
-          . '&USER_ACCIDENT=1' . '&ID=' . $user_accident->{id},
-            { class => 'change' });
+    my $button_chg = $html->button($lang{CHANGE}, "&change=$user_accident->{id}&index=" . get_function_index('accident_log_add'),
+      { class => 'change' });
 
     $table->addrow(
-      $user_accident->{name}, 
-      $user_accident->{descr}, 
-      $admins_list->{ $user_accident->{aid} }, 
-      $status{ $user_accident->{status} }, 
+      $user_accident->{name},
+      $user_accident->{descr},
+      $admins_list->{ $user_accident->{aid} },
+      $status{ $user_accident->{status} },
       $button_chg
     );
   }
@@ -1272,37 +1261,37 @@ sub accident_quick_info {
   my ($attr) = @_;
   my $uid = $attr->{UID} || $FORM{UID};
 
-  return ( ) if ($FORM{sid});
+  return () if ($FORM{sid});
 
   if ($attr->{UID}) {
     my $list = $Accident->user_accident_list({
       UID       => $uid,
       COLS_NAME => 1
     });
-    
+
     my @result = ();
     my $admins_list = sel_admins({ HASH => 1 });
 
     foreach my $line (@$list) {
-      
+
       push @result, {
-        NAME     => $line->{name},
-        DESC     => $line->{descr},
-        STATUS   => $status{ $line->{status} },
-        AID      => $admins_list->{ $line->{aid} },
+        NAME   => $line->{name},
+        DESC   => $line->{descr},
+        STATUS => $status{ $line->{status} },
+        AID    => $admins_list->{ $line->{aid} },
       };
     }
-    
+
     return \@result;
   }
   elsif ($attr->{GET_PARAMS}) {
     my %result = (
-      HEADER    => $lang{ACCIDENT_LOG},
-      SLIDES    => [ 
-        { NAME   => $lang{NAME} }, 
-        { DESC   => $lang{DESCRIBE} }, 
-        { STATUS => $lang{STATUS} }, 
-        { AID    => $lang{RESPONSIBLE} }, 
+      HEADER => $lang{ACCIDENT_LOG},
+      SLIDES => [
+        { NAME => $lang{NAME} },
+        { DESC => $lang{DESCRIBE} },
+        { STATUS => $lang{STATUS} },
+        { AID => $lang{RESPONSIBLE} },
       ]
     );
 
@@ -1333,19 +1322,55 @@ sub accident_warning {
 
   my @types = split ',', $conf{ACCIDENT_WARNING};
 
-
-  my $message = $lang{WARNING}." \n";
+  my $message = $lang{WARNING} . " \n";
   $message .= $attr->{TEXT};
 
-  for my $type (@types){
+  for my $type (@types) {
     my $responce = $Sender->send_message({
       UID         => $attr->{UID},
       MESSAGE     => $message,
       SENDER_TYPE => $type,
     });
 
-    last if($responce);
+    last if ($responce);
   }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 accident_auto_close($attr) - auto close accident (periodic)
+
+=cut
+#**********************************************************
+sub  accident_auto_close{
+  my ($attr) = @_;
+  my $debug = $attr->{DEBUG} || 0;
+
+  return 0 if(!$DATE);
+
+  $Accident->{debug} = $debug;
+
+  my $list = $Accident->list({
+    STATUS   => 0,
+    END_TIME => "<$DATE",
+    COLS_NAME => 1,
+  });
+
+
+  if($Accident->{TOTAL} > 0) {
+    foreach (@$list) {
+      print "Close $_->{name} ($_->{id})\n" if ($debug);
+      $Accident->change_element({
+        ID     => $_->{id},
+        STATUS => 2
+      });
+    }
+  }
+  else {
+    print "NO Accidents to close\n" if($debug);
+  }
+
 
   return 1;
 }

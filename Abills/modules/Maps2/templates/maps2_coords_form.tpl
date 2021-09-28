@@ -1,22 +1,22 @@
 <form action=$SELF_URL class='form-horizontal'>
   <input type=hidden name=index value=$index>
 
-  <div class='card card-primary card-outline box-form'>
+  <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'><h4 class='card-title'>_{AUTO_COORDS}_</h4></div>
     <div class='card-body'>
       <div class='form-address'>
         <input type='hidden' name='LOCATION_ID' id='ADD_LOCATION_ID' value='%LOCATION_ID%' class='HIDDEN-BUILD'>
 
-        <div class='form-group' style='%EXT_SEL_STYLE%'>
-          <label class='control-label col-sm-3 col-md-4 LABEL-DISTRICT'>_{DISTRICTS}_</label>
-          <div class='col-sm-9 col-md-8'>
+        <div class='form-group row' style='%EXT_SEL_STYLE%'>
+          <label class='col-md-4 col-form-label text-md-right LABEL-DISTRICT'>_{DISTRICTS}_</label>
+          <div class='col-md-8'>
             %DISTRICTS_SELECT%
           </div>
         </div>
 
-        <div class='form-group' style='%EXT_SEL_STYLE%'>
-          <label class='control-label col-sm-3 col-md-4 LABEL-DISTRICT'>_{STREETS}_</label>
-          <div class='col-sm-9 col-md-8'>
+        <div class='form-group row' style='%EXT_SEL_STYLE%'>
+          <label class='col-md-4 col-form-label text-md-right LABEL-DISTRICT'>_{STREETS}_</label>
+          <div class='col-md-8'>
             %STREETS_SELECT%
           </div>
         </div>

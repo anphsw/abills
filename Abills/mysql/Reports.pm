@@ -79,6 +79,7 @@ sub list {
   }
   if (defined($attr->{QUICK_REPORT})) {
     push @WHERE_RULES, "rw.quick_report='1'";
+    push @WHERE_RULES, "IF(rw.gid = 0, 1 , IF(rg.admins = '', 1, FIND_IN_SET($attr->{AID}, rg.admins)))";
   }
   if (defined($attr->{SEND_MAIL})) {
     push @WHERE_RULES, "rw.send_mail='1'";
@@ -97,8 +98,11 @@ sub list {
   );
 
   $list = $self->{list};
-  $self->query("SELECT COUNT(id) AS total FROM reports_wizard rw $WHERE",
-    undef, { INFO => 1 });
+  $self->query("SELECT COUNT(rw.id) AS total FROM reports_wizard rw
+    LEFT JOIN reports_groups rg ON (rg.id=rw.gid) $WHERE",
+    undef,
+    { INFO => 1 }
+  );
 
   return $list;
 }
@@ -126,7 +130,7 @@ sub mk {
   $attr->{QUERY} =~ s/%DESC%/$DESC/;
   $attr->{QUERY} =~ s/%PAGES%/LIMIT $PG, $PAGE_ROWS/;
 
-  my @queries  = split(/;/, $attr->{QUERY});
+  my @queries  = split(/;\r?\n/, $attr->{QUERY});
 
   foreach my $query (@queries){
     $query =~ s/[\r\n\s]+$//g;

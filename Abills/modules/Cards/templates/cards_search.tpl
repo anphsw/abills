@@ -33,17 +33,17 @@
 <div class="col-md-12">
   <div class='card card-primary card-outline'>
     <div class='card-body'>
+
       <div class='form-group row'>
-        <label class='col-sm-3 col-md-3 control-label' >_{USED}_:</label>
-        <div class='col-sm-3 col-md-3'>
-          <div class="input-group">
-            %DATE%
-            <div class="input-group-append">
-              <div class="input-group-text">
-                <i class='fa fa-exclamation'></i>
-                <input type="checkbox" name='USED_FROM_DATE/USED_TO_DATE' data-input-disables='USED_FROM_DATE_USED_TO_DATE,USED_FROM_DATE,USED_TO_DATE' value='!'>
-              </div>
+        <label class='col-sm-3 col-md-3 control-label' for='REGISTRATION'>_{USED}_:</label>
+        <div class='col-md-3'>
+          <div class='input-group'>
+            <div class='input-group-prepend'>
+              <span class='input-group-text'>
+                <input type='checkbox' class='form-control-static' data-input-enables='USED_FROM_DATE_USED_TO_DATE'/>
+              </span>
             </div>
+            %DATE%
           </div>
         </div>
 
@@ -53,6 +53,7 @@
         </div>
 
       </div>
+
 
       <div class='form-group row'>
         <label class='col-md-3 control-label'>_{DILLERS}_:</label>

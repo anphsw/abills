@@ -1,9 +1,9 @@
-<form action=$SELF_URL method='post' class='form-horizontal'>
+<form action=$SELF_URL method='post'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='sid' value='$sid'>
 
   <div class='row'>
-    <div class='col-md-12' align='center'>
+    <div class='col-md-12'>
       <div class='modal-content'>
         <div class='modal-header'><h4>_{RULES}_</h4></div>
         <div class='modal-body'>

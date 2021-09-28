@@ -4,7 +4,7 @@
 
 =head1 VERSION
 
-  VERSION: 0.06
+  VERSION: 0.07
 
 =cut
 
@@ -61,6 +61,9 @@ our $admin = Admins->new($db, \%conf);
 our $Conf = Conf->new($db, $admin, \%conf);
 $ENV{DEBUG} = 1;
 require Userside::Api;
+
+do "./Task.t";
+our %task_request_list;
 
 do '/usr/abills/language/english.pl';
 my %request_list = (
@@ -961,22 +964,24 @@ my %request_list = (
   },
 );
 
-get_json(\%request_list);
+my %final_request_list = (%request_list, %task_request_list);
+
+get_json(\%final_request_list);
 
 sub get_json {
   my ($request_list) = @_;
 
   my %opts = ();
   GetOptions(
-    'local'        => \$opts{local},
-    'userside'     => \$opts{userside},
-    'remote=s'     => \$opts{remote},
-    'debug=s'      => \$opts{debug},
-    'request=s'    => \$opts{request},
-    'max_rows=s'   => \$opts{max_rows},
-    'start_page=s' => \$opts{start_page},
-    'uid=s'        => \$opts{uid},
-    'help'         => \$opts{help},
+    'local'          => \$opts{local},
+    'userside'       => \$opts{userside},
+    'remote=s'       => \$opts{remote},
+    'debug=s'        => \$opts{debug},
+    'request=s'      => \$opts{request},
+    'max_rows=s'     => \$opts{max_rows},
+    'start_page=s'   => \$opts{start_page},
+    'uid=s'          => \$opts{uid},
+    'help'           => \$opts{help},
     'skip_traffic=s' => \$opts{skip_traffic},
   );
 
@@ -1014,7 +1019,7 @@ sub get_json {
       $json = web_request($request_url, { CURL => 1, TIMEOUT => 300 });
     }
     else {
-      userside_api($request, { %opts, %LIST_PARAMS });
+      userside_api($request, { %{$request_list->{$request}->{params}}, %opts, %LIST_PARAMS });
       $json = $html->{RESULT};
     }
 
@@ -1023,13 +1028,13 @@ sub get_json {
         print "COUNT:" . $count . "<json>";
       }
 
-      print $json."\n";
+      print $json . "\n";
 
       if ($opts{debug} > 1) {
         print "<json>\n";
       }
 
-      if($opts{debug} > 2) {
+      if ($opts{debug} > 2) {
         print $count . ".<schema>" . Dumper($request_list->{$request}->{schema}) . "<schema>\n";
       }
     }

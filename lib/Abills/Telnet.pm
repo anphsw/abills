@@ -419,7 +419,7 @@ sub waitfor {
   my ($result, $received_prompt) = $input =~ /(.*)($waitfor)/is;
   $self->{LAST_PROMPT} = $received_prompt;
 
-  my @result_arr = split("\n", $input);
+  my @result_arr = split("\n", $result);
   return \@result_arr;
 }
 

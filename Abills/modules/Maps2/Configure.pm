@@ -157,7 +157,7 @@ sub _maps2_address_streets {
 sub _maps2_icon_filename_select {
   my ($attr) = @_;
 
-  my $name = $attr->{NAME} || 'FILENAME';
+  my $name = $attr->{NAME} || 'ICON';
 
   our $base_dir;
   $base_dir ||= '/usr/abills';
@@ -266,7 +266,7 @@ sub _maps2_icon_ajax_upload {
 
   if (!$FORM{UPLOAD_FILE}) {
     $html->tpl_show(_include('maps2_icon_upload_form', 'Maps2'), {
-      CALLBACK_FUNC => '_maps_icon_ajax_upload',
+      CALLBACK_FUNC => '_maps2_icon_ajax_upload',
       TIMEOUT       => '0',
     });
     return 1;
@@ -280,10 +280,6 @@ sub _maps2_icon_ajax_upload {
     PREFIX     => $upload_path,
     EXTENTIONS => 'jpg,jpeg,png,gif'
   });
-
-  if ($uploaded) {
-    $html->message('info', $lang{SUCCESS});
-  }
 
   return 1;
 }

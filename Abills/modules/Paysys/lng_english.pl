@@ -23,7 +23,7 @@ $lang{UNKNOWN} = 'Unknown';
 $lang{COMPLETE} = 'Complete';
 $lang{CANCELED} = 'Canceled';
 $lang{EXPIRED} = 'Expired';
-$lang{INCORRECT_CHECKSUM} = 'Incorrect Checksum';
+$lang{ERR_INCORRECT_CHECKSUM} = 'Incorrect Checksum';
 $lang{PAYMENT_ERROR} = 'Payment Error';
 $lang{DUPLICATE} = 'Payment Exists';
 $lang{USER_ERROR} = 'User Error';
@@ -49,6 +49,7 @@ $lang{PAYMENT_BY_ANY_CARD_AND_ADD_TO_PURSE}='Payment by plastic card Visa/Master
 $lang{ADD_CARD}='Add card';
 $lang{NBKR} = 'NB of Kyrgyz';
 $lang{NBU}  = 'NB of Ukraine';
+$lang{CBR}  = 'NB of Russia';
 $lang{PAYSYS_SETTINGS_FOR_GROUPS}='Paysys settings for groups';
 $lang{PAYSYS_SETTINGS_FOR_MERCHANTS}='Merchant settings';
 $lang{MERCHANT_NAME} = 'Merchant name';
@@ -96,4 +97,9 @@ $lang{COMMISSION_LIQPAY}='Commission for improved service';
 $lang{EXTERNAL_COMMAND}='External command';
 $lang{BALANCE_RECHARCHE}='BALANCE RECHARCHE';
 $lang{ENTER_ID}='Enter your ID:';
+$lang{SUBSCRIBES}='Subscribes';
+$lang{ERR_TRANSACTION_ERROR}='Result process error. Call support!';
+$lang{TINKOF_OFFER} = 'I agree to regular payments that will be debited from the card once a month automatically';
+$lang{DOCUMENTATION} = 'DOCUMENTATION';
+
 1;

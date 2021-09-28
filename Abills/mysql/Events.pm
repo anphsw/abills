@@ -213,7 +213,7 @@ sub events_list {
     LEFT JOIN events_priority eprio FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.priority_id = eprio.id)
     LEFT JOIN events_state es FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.state_id = es.id)
     LEFT JOIN events_group eg ON (e.group_id = eg.id)
-    LEFT JOIN events_priority_send_types epst FORCE INDEX FOR JOIN (`priority_id`) ON (e.priority_id = epst.priority_id)
+    LEFT JOIN events_priority_send_types epst FORCE INDEX FOR JOIN (`priority_id`) ON (e.priority_id = epst.priority_id AND e.aid = epst.aid)
     $WHERE
     GROUP BY e.id
     ORDER BY $SORT $DESC
@@ -233,7 +233,7 @@ sub events_list {
     LEFT JOIN events_priority eprio FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.priority_id = eprio.id)
     LEFT JOIN events_state es FORCE INDEX FOR JOIN (`PRIMARY`) ON (e.state_id = es.id)
     LEFT JOIN events_group eg ON (e.group_id = eg.id)
-    LEFT JOIN events_priority_send_types epst FORCE INDEX FOR JOIN (`priority_id`) ON (e.aid = epst.aid)
+    LEFT JOIN events_priority_send_types epst FORCE INDEX FOR JOIN (`priority_id`) ON (e.priority_id = epst.priority_id AND e.aid = epst.aid)
     $WHERE;",
     undef,
     { INFO => 1 }

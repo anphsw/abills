@@ -47,18 +47,31 @@ sub click {
   my $self = shift;
   my ($attr) = @_;
 
-  my $message = "$self->{bot}->{lang}->{WRITE_TEXT}\n";
-  $message   .= "$self->{bot}->{lang}->{CHANCLE}\n\n";
-
+  my $message = "$self->{bot}->{lang}->{SELECT_CHAPTER}\n";
   my @keyboard = ();
-  my $subject_button = {
-    text => "$self->{bot}->{lang}->{SUBJECT_EDIT}",
-  };
-  my $cahncle_button = {
+
+
+  my $Msgs = Msgs->new($self->{db}, $self->{admin}, $self->{conf});
+  $Msgs->chapters_list({
+    NAME => '_SHOW',
+    CHAPTER => '_SHOW',
+    INNER_CHAPTER => 0,
+    COLS_NAME => 1
+  });
+
+  for (@{$Msgs->{list}}){
+    my $button = {
+      text          => $_->{name},
+    };
+
+    push @keyboard, [$button];
+  }
+
+  my $button = {
     text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
   };
+  push (@keyboard, [$button]);
 
-  push (@keyboard, [$subject_button], [$cahncle_button]);
 
   $self->{bot}->send_message({
     text         => $message,
@@ -69,11 +82,10 @@ sub click {
     parse_mode   => 'HTML'
   });
 
-
   $self->{bot_db}->add({
     UID    => $self->{bot}->{uid},
     BUTTON => "Send_message",
-    FN     => "add_to_msg",
+    FN     => "select_chapter",
     ARGS   => '{"message":{"text":""}}',
   });
 
@@ -100,7 +112,6 @@ sub simple_msgs {
   my $subject = "Telegram Bot";
   my $chapter = 1;
 
-  use Msgs;
   my $Msgs = Msgs->new($self->{db}, $self->{admin}, $self->{conf});
 
   $Msgs->message_add({
@@ -122,7 +133,7 @@ sub simple_msgs {
 
     next unless ($file_content && $file_size && $file_name && $file_extension);
 
-    my $file_content_type = file_content_type($file_extension);
+    my $file_content_type = main::file_content_type($file_extension);
 
     delete($Attachments->{save_to_disk});
 
@@ -179,7 +190,7 @@ sub add_to_msg {
     return 1;
   }
 
-  $self->send_msgs_main_menu();
+  $self->send_msgs_main_menu($attr->{step_info});
   return 1;
 }
 
@@ -197,6 +208,8 @@ sub add_text_to_msg {
   $msg_hash->{message}->{text} .= "$text\n";
   $info->{ARGS} = encode_json($msg_hash);
   $self->{bot_db}->change($info);
+
+  $attr->{step_info}->{args} = $info->{ARGS};
 
   $self->{bot}->send_message({
     text => "$self->{bot}->{lang}->{ADD_MSGS_TEXT}",
@@ -220,17 +233,11 @@ sub add_title_to_msg {
       $self->cancel_msg();
       return 0;
     }
-    elsif ($text eq "$self->{bot}->{lang}->{BACK}") {
-
-    }
     else {
       my $title = $attr->{message}->{text};
       my $msg_hash = decode_json($info->{args});
       $msg_hash->{message}->{title} = $title;
       $info->{ARGS} = encode_json($msg_hash);
-      $self->{bot}->send_message({
-        text => "$self->{bot}->{lang}->{SUBJECT_EDIT}",
-      });
     }
   }
   else {
@@ -240,7 +247,7 @@ sub add_title_to_msg {
   $info->{FN} = "add_to_msg";
   $self->{bot_db}->change($info);
 
-  $self->send_msgs_main_menu();
+  $self->send_msgs_main_menu($info);
   return 1;
 }
 
@@ -297,6 +304,8 @@ sub add_file_to_msg {
   $info->{ARGS} = encode_json($msg_hash);
   $self->{bot_db}->change($info);
 
+  $attr->{step_info}->{args} = $info->{ARGS};
+
   $self->{bot}->send_message({
     text => "$self->{bot}->{lang}->{ADD_FILE}",
   });
@@ -340,9 +349,8 @@ sub send_msg {
   }
 
   my $subject = $msg_hash->{message}->{title} || "Telegram Bot";
-  my $chapter = 1;
+  my $chapter = $msg_hash->{message}->{chapter};
 
-  use Msgs;
   my $Msgs = Msgs->new($self->{db}, $self->{admin}, $self->{conf});
 
   $Msgs->message_add({
@@ -366,7 +374,7 @@ sub send_msg {
 
       next unless ($file_content && $file_size && $file_name && $file_extension);
 
-      my $file_content_type = file_content_type($file_extension);
+      my $file_content_type = main::file_content_type($file_extension);
 
       delete($Attachments->{save_to_disk});
 
@@ -381,6 +389,25 @@ sub send_msg {
     }
   }
 
+  use Abills::HTML;
+  use Msgs::Notify;
+
+  my $html = Abills::HTML->new({
+    CONF     => $self->{conf},
+    NO_PRINT => 0,
+    PATH     => $self->{conf}->{WEB_IMG_SCRIPT_PATH} || '../',
+    CHARSET  => $self->{conf}->{default_charset},
+  });
+
+
+  my $Notify = Msgs::Notify->new($self->{db}, $self->{admin}, $self->{conf}, {LANG => $self->{bot}->{lang}, HTML => $html});
+
+  $Notify->notify_admins({
+    MSG_ID        => $msg_hash->{message}->{id},
+    MESSAGE       => $text,
+  });
+
+
   $self->{bot_db}->del($self->{bot}->{uid});
   $self->{bot}->send_message({
     text => "$self->{bot}->{lang}->{SEND_MSGS}",
@@ -390,12 +417,13 @@ sub send_msg {
 }
 
 #**********************************************************
-=head2 send_msgs_main_menu()
+=head2 send_msgs_main_menu
 
 =cut
 #**********************************************************
 sub send_msgs_main_menu {
   my $self = shift;
+  my $info = shift;
 
   my @keyboard = ();
   my $button1 = {
@@ -407,7 +435,12 @@ sub send_msgs_main_menu {
   my $button3 = {
     text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
   };
-  push (@keyboard, [$button1], [$button2], [$button3]);
+
+  my $msg_hash = decode_json($info->{args});
+
+  push (@keyboard, [$button1]);
+  push @keyboard, [$button2] if($msg_hash->{message}->{text} || $msg_hash->{message}->{files});
+  push @keyboard, [$button3];
 
   my $message   .= "$self->{bot}->{lang}->{SEND_OR_CHANCLE}\n";
 
@@ -423,28 +456,63 @@ sub send_msgs_main_menu {
   return 1;
 }
 
+
 #**********************************************************
-=head2 file_content_type()
+=head2 select_chapter()
 
 =cut
 #**********************************************************
-sub file_content_type {
-  my ($file_extension) = @_;
+sub select_chapter{
+  my $self = shift;
+  my ($attr) = @_;
 
-  my $file_content_type = "application/octet-stream";
+  my $message = "$self->{bot}->{lang}->{SUBJECT_ADD}:\n";
 
-  if ( $file_extension && $file_extension eq 'png'
-    || $file_extension eq 'jpg'
-    || $file_extension eq 'gif'
-    || $file_extension eq 'jpeg'
-    || $file_extension eq 'tiff'
-  ) {
-    $file_content_type = "image/$file_extension";
+  my @keyboard = ();
+  my $button = {
+    text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
+  };
+  push (@keyboard, [$button]);
+
+
+  my $info = $attr->{step_info};
+
+  if ($attr->{message}->{text}) {
+
+    my $text = encode_utf8($attr->{message}->{text});
+
+    if ($text eq "$self->{bot}->{lang}->{CHANCLE_TEXT}") {
+      $self->cancel_msg();
+      return 0;
+    }
+
+    my $Msgs = Msgs->new($self->{db}, $self->{admin}, $self->{conf});
+    $Msgs->chapters_list({
+      NAME => $text,
+      CHAPTER => '_SHOW',
+      INNER_CHAPTER => 0,
+      COLS_NAME => 1
+    });
+
+    if($Msgs->{list}) {
+      my $msg_hash = decode_json($info->{args});
+      $msg_hash->{message}->{chapter} = $Msgs->{list}->[0]->{id};
+      $info->{ARGS} = encode_json($msg_hash);
+    }
   }
-  elsif ( $file_extension && $file_extension eq "zip" ) {
-    $file_content_type = "application/x-zip-compressed";
-  }
 
-  return $file_content_type;
+  $self->{bot}->send_message({
+    text         => $message,
+    reply_markup => {
+      keyboard        => \@keyboard,
+      resize_keyboard => "true",
+    },
+    parse_mode   => 'HTML'
+  });
+
+
+  $info->{FN} = "add_title_to_msg";
+  $self->{bot_db}->change($info);
+
 }
 1;

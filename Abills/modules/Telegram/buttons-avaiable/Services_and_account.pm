@@ -254,93 +254,15 @@ sub credit {
   my $self = shift;
   my ($attr) = @_;
 
-  return 0 unless ($attr->{uid});
+  require Control::Service_control;
+  my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
 
-  my $credit_avaiable = 1;
-  my $credit_warning = "$self->{bot}->{lang}->{CREDIT_NOT_EXIST}";
+  my $credit_info = $Service_control->user_set_credit({ UID => $attr->{uid}, change_credit => 1 });
 
-  $credit_avaiable = 0 if (!$self->{conf}->{user_credit_change});
-
-  require Internet;
-  require Users;
-  my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
-  my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
-
-  $Users->info($attr->{uid});
-  $Users->group_info($Users->{GID});
-  $Internet->info($attr->{uid});
-
-  $credit_avaiable = 0 if (!$Users->{ALLOW_CREDIT});
-  
-  my ($sum, $days, $price, $month_changes, $payments_expr) = split(/:/, $self->{conf}->{user_credit_change});
-  my $credit_date = POSIX::strftime("%Y-%m-%d", localtime(time + int($days) * 86400));
-
-  if ($sum == 0 && $Internet->{MONTH_ABON} && !$Internet->{USER_CREDIT_LIMIT}) {
-     $sum = $Internet->{MONTH_ABON};
-  } elsif ($sum == 0 && $Internet->{USER_CREDIT_LIMIT}) {
-     $sum = $Internet->{USER_CREDIT_LIMIT};
-  }
-
-  if ($month_changes) {
-    my ($y, $m, undef) = split(/\-/, $main::DATE);
-    $self->{admin}->action_list(
-      {
-        UID       => $attr->{uid},
-        TYPE      => 5,
-        FROM_DATE => "$y-$m-01",
-        TO_DATE   => "$y-$m-31"
-      }
-    );
-
-    if ($self->{admin}->{TOTAL} >= $month_changes) {
-      $credit_avaiable = 0;
-      $credit_warning = "$self->{bot}->{lang}->{END_CREDIT_SET}";
-    }
-  }
-  
-  $credit_avaiable = 0 unless ($Users->{CREDIT} < sprintf("%.2f", $sum));
-
-  if ($credit_avaiable) {
-    $Users->change($attr->{uid}, {
-      UID         => $attr->{uid},
-      CREDIT      => $sum,
-      CREDIT_DATE => $credit_date
-    });
-
-    if (!$Users->{errno}) {
-      if ($price && $price > 0) {
-        require Fees;
-        my $Fees = Fees->new($self->{db}, $self->{admin}, $self->{conf});
-        $Fees->take($Users, $price, { DESCRIBE => "$self->{bot}->{lang}->{ENABLED_CREDIT}" });
-      }
-
-      require Abills::Misc;
-      Abills::Misc->import();
-
-      our $DATE = $main::DATE;
-      our @MODULES = @main::MODULES;
-      our %FORM;
-      our %conf = %{$self->{conf}};
-      our %lang = %main::lang;
-      our $admin = $self->{admin};
-      our $db = $self->{db};
-      my $res = ::cross_modules_call('_payments_maked', {
-        USER_INFO => $Users,
-        SUM       => $sum,
-        SILENT    => 1,
-      });
-      $self->{bot}->send_message({
-        text       => "$self->{bot}->{lang}->{CREDIT_SUCCESS}",
-        parse_mode => 'HTML'
-      });
-    }
-  }
-  else {
-    $self->{bot}->send_message({
-      text       => $credit_warning,
-      parse_mode => 'HTML'
-    });
-  }
+  $self->{bot}->send_message({
+    text       => $credit_info->{error} ? "$self->{bot}{lang}{CREDIT_NOT_EXIST}" : $self->{bot}{lang}{CREDIT_SUCCESS},
+    parse_mode => 'HTML'
+  });
 
   return 1
 }

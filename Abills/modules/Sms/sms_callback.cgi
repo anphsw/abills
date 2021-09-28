@@ -303,14 +303,21 @@ sub send_internet_info {
   $INFO_HASH{TP_NAME}      = $internet_info->{TP_NAME};
   $INFO_HASH{STATUS_NAME}  = $status;
 
+  require Control::Service_control;
+  my $Service = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
-  require Internet::Service_mng;
-  my $Service = Internet::Service_mng->new({ lang => \%lang });
-
-  ($INFO_HASH{NEXT_FEES_WARNING}, $INFO_HASH{NEXT_FEES_MESSAGE_TYPE}) = $Service->service_warning({
-    SERVICE => $Internet,
-    USER    => $user,
+  my $warning_info = $Service_control->service_warning({
+    UID          => $user->{uid},
+    ID           => $Internet->{ID},
+    MODULE       => 'Internet',
+    SERVICE_INFO => $Internet,
+    USER_INFO    => $user
   });
+
+  if (defined $warning_info->{WARNING}) {
+    $INFO_HASH{NEXT_FEES_WARNING} = $warning_info->{WARNING};
+    $INFO_HASH{NEXT_FEES_MESSAGE_TYPE} = $warning_info->{MESSAGE_TYPE};
+  }
 
   my $message = $html->tpl_show('', { %$user, %$internet_info, %INFO_HASH}, {
     TPL                 => 'sms_callback_user_info',

@@ -7,6 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Tags;
+use Users;
 use Crm::db::Crm;
 use Abills::Sender::Core;
 use Abills::Base qw/in_array mk_unique_value/;
@@ -39,6 +40,7 @@ my $Address = Address->new($db, $admin, \%conf);
 =cut
 #**********************************************************
 sub crm_lead_search {
+
   # Add new lead and redirect to profile page
   if ($FORM{add}) {
     $Crm->crm_lead_add({ %FORM });
@@ -68,7 +70,11 @@ sub crm_lead_search {
 
   my $responsible_admin = sel_admins({ NAME => 'RESPONSIBLE' });
 
-  my $date_range = $html->form_daterangepicker({ NAME => 'PERIOD' });
+  my $date_range = $html->form_daterangepicker({
+    NAME         => 'PERIOD',
+    EX_PARAMS    => 'disabled="disabled"',
+    RETURN_INPUT => 1
+  });
 
   my $priority_select = $html->form_select('PRIORITY', {
     SELECTED     => $FORM{PRIORITY} || q{},
@@ -90,6 +96,10 @@ sub crm_lead_search {
     DATE                => $date_range,
     CURRENT_STEP_SELECT => $current_step_select,
     PRIORITY_SEL        => $priority_select,
+    COMPETITORS_SEL   => _crm_competitors_select({ %FORM }, {
+      SEL_OPTIONS => { '' => '' },
+      EX_PARAMS   => 'onchange="loadTps()"',
+    }),
     INDEX               => get_function_index('crm_leads'),
     %FORM
   }, { OUTPUT2RETURN => 1 });
@@ -217,7 +227,21 @@ sub crm_lead_search_old {
 sub crm_leads {
 
   if ($FORM{ID} && $FORM{send} && $FORM{MSGS}) {
-    _crm_send_lead_mess({ %FORM });
+    my @ATTACHMENTS = ();
+    for (my $i = 0; $i <= $FORM{FILE_UPLOAD_UPLOADS_COUNT}; $i++) {
+      my $input_name = 'FILE_UPLOAD' . (($i > 0) ? "_$i" : '');
+
+      next if !$FORM{ $input_name }->{filename};
+
+      push @ATTACHMENTS, {
+        FILENAME     => $FORM{ $input_name }->{filename},
+        CONTENT_TYPE => $FORM{ $input_name }->{'Content-Type'},
+        FILESIZE     => $FORM{ $input_name }->{Size},
+        CONTENT      => $FORM{ $input_name }->{Contents},
+      };
+    }
+
+    _crm_send_lead_mess({ %FORM, ATTACHMENTS => \@ATTACHMENTS });
   }
   elsif (!$FORM{ID} && $FORM{send} && $FORM{MSGS}) {
     $html->message('warn', $lang{ERROR}, $lang{NO_CLICK_USER});
@@ -355,7 +379,7 @@ sub crm_leads {
     $Crm->crm_lead_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0), CURRENT_STEP => 1 });
     $html->message('info', $lang{ADDED}) if (!_error_show($Crm));
   }
-  elsif ($FORM{del}) {
+  elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Crm->crm_lead_delete({ ID => $FORM{del} });
     delete $FORM{COMMENTS};
     $html->message('info', $lang{DELETED}) if (!_error_show($Crm));
@@ -363,6 +387,15 @@ sub crm_leads {
   elsif ($FORM{change}) {
     $Crm->crm_lead_change({ %FORM });
     $html->message('info', $lang{CHANGED}) if (!_error_show($Crm));
+  }
+  elsif ($FORM{CRM_MULTISELECT} && $FORM{ID}) {
+    my @leads = split(/,\s?/, $FORM{ID});
+    
+    foreach my $lead (@leads) {
+      $FORM{TAG_IDS} = $FORM{TAGS} if defined $FORM{TAGS};
+
+      $Crm->crm_lead_change({ %FORM, ID => $lead });
+    }
   }
 
   return 1 if $FORM{MESSAGE_ONLY};
@@ -410,7 +443,8 @@ sub crm_leads {
     'competitor_name'   => "$lang{COMPETITOR}",
     'assessment'        => "$lang{CRM_ASSESSMENT}",
     'uid'               => "UID",
-    'lead_address'      => $lang{ADDRESS}
+    'lead_address'      => $lang{ADDRESS},
+    'source'            => $lang{SOURCE}
   );
 
   my $fields = $Crm->fields_list({ TP_INFO_FIELDS => 1 });
@@ -435,14 +469,15 @@ sub crm_leads {
     FUNCTION        => 'crm_lead_list',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => "LEAD_ID,FIO,PHONE,EMAIL,COMPANY,ADMIN_NAME,DATE,CURRENT_STEP_NAME,LAST_ACTION,PRIORITY,UID,USER_LOGIN,TAG_IDS",
-    HIDDEN_FIELDS   => 'STEP_COLOR,CURRENT_STEP,COMPETITOR_NAME,TP_NAME,ASSESSMENT,LEAD_ADDRESS',
-    MULTISELECT     => 'ID:lead_id:CRM_LEADS',
+    HIDDEN_FIELDS   => 'STEP_COLOR,CURRENT_STEP,COMPETITOR_NAME,TP_NAME,ASSESSMENT,LEAD_ADDRESS,SOURCE',
+    MULTISELECT     => 'ID:lead_id:' . ($FORM{delivery} ? 'CRM_LEADS' : 'crm_lead_multiselect'),
     FUNCTION_FIELDS => 'crm_lead_info:change:lead_id,del',
     FILTER_COLS     => {
       current_step_name => '_crm_current_step_color::STEP_COLOR,',
       last_action       => '_crm_last_action::LEAD_ID',
       tag_ids           => '_crm_tags_name::TAG_IDS',
       assessment        => 'crm_assessment_stars::ASSESSMENT',
+      source            => '_crm_translate_source::SOURCE',
     },
     SKIP_USER_TITLE => 1,
     EXT_TITLES      => \%ext_titles,
@@ -451,7 +486,7 @@ sub crm_leads {
       width       => '100%',
       caption     => $lang{LEADS},
       qs          => $pages_qs,
-      MENU        => "$lang{ADD}:index=$index&add_form=1:add",
+      MENU        => "$lang{ADD}:index=$index&add_form=1:add;$lang{DELIVERY}:delivery=1&index=$index:",
       DATA_TABLE  => { "order" => [ [ 1, "desc" ] ] },
       title_plain => 1,
       header      => $header,
@@ -470,11 +505,17 @@ sub crm_leads {
     MODULE          => 'Crm'
   });
 
-  $html->tpl_show(_include('crm_send_mess', 'Crm'), {
-    INDEX     => $index,
-    TABLE     => ($table) ? $table->show() : q{},
-    TYPE_SEND => _actions_sel()
-  });
+  if ($FORM{delivery}) {
+    $html->tpl_show(_include('crm_send_mess', 'Crm'), {
+      INDEX     => $index,
+      TABLE     => ($table) ? $table->show() : q{},
+      TYPE_SEND => _actions_sel()
+    });
+
+    return 1;
+  }
+
+  _crm_multiselect_form($table);
 
   return 1;
 }
@@ -1090,7 +1131,6 @@ sub crm_short_info {
   my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
 
   # at first search user
-  use Users;
   my $users = Users->new($db, $admin, \%conf);
 
   my $user_info = $users->list({
@@ -1437,6 +1477,8 @@ sub crm_search {
     $LIST_PARAMS{$field} = "*$attr->{SEARCH_TEXT}*";
     push @qs, "$field=*$attr->{SEARCH_TEXT}*";
   }
+
+  $LIST_PARAMS{SKIP_RESPOSIBLE}=1;
 
   if ($attr->{DEBUG}) {
     $Crm->{debug} = 1;
@@ -1845,9 +1887,10 @@ sub _progress_bar_step_sel {
   my ($attr) = @_;
 
   my $progress_bar_steps_list = $Crm->crm_progressbar_step_list({
-    ID        => '_SHOW',
-    NAME      => '_SHOW',
-    COLS_NAME => 1,
+    ID          => '_SHOW',
+    NAME        => '_SHOW',
+    STEP_NUMBER => '_SHOW',
+    COLS_NAME   => 1,
   });
 
   my $id = 1;
@@ -1859,7 +1902,7 @@ sub _progress_bar_step_sel {
   return $html->form_select('CURRENT_STEP', {
     SELECTED    => $attr->{SELECTED} || q{},
     SEL_LIST    => $progress_bar_steps_list,
-    SEL_KEY     => 'id',
+    SEL_KEY     => 'step_number',
     SEL_VALUE   => 'name',
     NO_ID       => 1,
     SEL_OPTIONS => { '' => '--' },
@@ -2001,6 +2044,7 @@ sub _crm_tags_name {
 #**********************************************************
 sub _crm_send_lead_mess {
   my ($attr) = @_;
+
   my @id_leads = split(/, /, $FORM{ID});
   my $Sender = Abills::Sender::Core->new($db, $admin, \%conf);
   my $no_email_leade = '';
@@ -2032,6 +2076,7 @@ sub _crm_send_lead_mess {
           SUBJECT     => $attr->{SUBJECT} || $iter->{current_step_name},
           SENDER_TYPE => 'Mail',
           DEBUG       => 5,
+          ATTACHMENTS => $attr->{ATTACHMENTS} || ''
         });
       }
       else {
@@ -2112,6 +2157,8 @@ sub _crm_lead_to_client {
       $FORM{STREET_ID} = $address_element->{street_id};
     }
   }
+
+  return 1;
 }
 
 #**********************************************************
@@ -2133,4 +2180,60 @@ sub _crm_create_client {
 
   return 1;
 }
+
+#**********************************************************
+=head2 _crm_create_client($attr)
+
+  Arguments:
+    lead_id     - Lead id
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _crm_multiselect_form {
+  my $table = shift;
+
+  if (in_array('Tags', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{'Tags'})) {
+    load_module('Tags', $html);
+    $Crm->{TAGS_SEL} = tags_sel();
+  }
+
+  $Crm->{RESPONSIBLE_ADMIN} = sel_admins({ NAME => 'RESPONSIBLE' });
+
+  print $table->show() if $table;
+  print $html->form_main({
+    CONTENT => $html->tpl_show(_include('crm_lead_multiselect', 'Crm'), $Crm, { OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index           => $index,
+      CRM_MULTISELECT => 1
+    },
+    NAME    => 'crm_lead_multiselect',
+    class   => 'hidden-print',
+    ID      => 'crm_lead_multiselect',
+  });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _crm_translate_source($attr)
+
+  Arguments:
+    source_id - Source id
+
+  Returns:
+    Source name
+
+=cut
+#**********************************************************
+sub _crm_translate_source {
+  my $source_id = shift;
+
+  return '' if !$source_id;
+
+  my $source_info = $Crm->leads_source_info({ ID => $source_id, COLS_NAME => 1 });
+  return $Crm->{TOTAL} > 0 ? _translate($source_info->{NAME}) : '';
+}
+
 1;

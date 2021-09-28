@@ -154,7 +154,7 @@ $Reports->{FIELDS}
       $line->{name},
       $line->{group_name},
       $line->{comments},
-      $html->button("", "qindex=$index&export=$line->{id}", { class => 'fa fa-export', TEXT => $lang{DOWNLOAD} }) .
+      $html->button("", "qindex=$index&export=$line->{id}", { class => 'fa fa-share', TEXT => $lang{DOWNLOAD} }) .
         $html->button("$lang{SHOW}", "index=" . get_function_index('rwizard') . "&REPORT=$line->{id}", { class => 'show', TEXT => $lang{SHOW} }) .
         $html->button("$lang{PRINT}", "qindex=" . get_function_index('rwizard') . "&print=$line->{id}", { class => 'print', TEXT => $lang{PRINT}, TARGET => '_print' }) .
         $html->button("$lang{CHANGE}", "index=$index&chg=$line->{id}", { class => 'change', TEXT => $lang{CHANGE} }) .
@@ -690,9 +690,7 @@ sub rwizard_groups {
 sub rwizard_start_page {
   #my ($attr) = @_;
 
-  my %START_PAGE_F = (
-    'rwizard_sp' => $lang{DEPOSIT_CHECK},
-  );
+  my %START_PAGE_F = ('rwizard_sp' => $lang{DEPOSIT_CHECK});
 
   return \%START_PAGE_F;
 }
@@ -1273,23 +1271,31 @@ sub _make_report_menu {
 
   my $output = '';
   foreach my $val (@rows) {
-    $output .= ' ' . $html->element('div', $val, { class => 'form-group p-2' });
+    $output .= ' ' . $html->element('div', $val, { class => 'form-group p-2 d-flex align-items-center' });
   }
 
   my $report_panel = $html->element('div', $html->element('div', $output, { class => 'd-flex row' }), {
-    class => 'card card-body bg-light'
+    class => 'card card-body bg-light pb-0'
   });
 
+  my $ext_fields = '';
   if ($Reports->{QUERY} =~ /%ADDRESS%/) {
-    $report_panel .= form_address({ SHOW => 1, EXT_SEL_STYLE => 'min-width: 65%' });
+    $ext_fields .= form_address({ SHOW => 1, EXT_SEL_STYLE => 'min-width: 65%' });
   }
 
   if ($Reports->{QUERY} =~ /%BUILDS_LIST%/g) {
-    $report_panel .= form_address_multi_location_select({ SHOW => 1});
+    $ext_fields .= $html->tpl_show(templates('form_row'), {
+      ID    => '',
+      NAME  => $lang{BUILDS},
+      VALUE => sel_builds({ %{$attr}, MULTIPLE => 1 }),
+      class => 'card-form'
+    },{ OUTPUT2RETURN => 1 });
   }
 
+  my $ext_panel = $ext_fields ? $html->element('div', $html->element('div', $ext_fields), { class => 'card card-body bg-light pb-0' }) : '';
+
   my $result = $html->form_main({
-    CONTENT => $report_panel,
+    CONTENT => $report_panel . $ext_panel,
     NAME    => 'rwizard',
     HIDDEN  => {
       'index' => "$index",
@@ -1297,7 +1303,7 @@ sub _make_report_menu {
     },
     ID      => 'form_reports_panel',
     NAME    => 'form_reports_panel',
-    class   => 'form form-inline',
+    class   => 'form',
   });
 
   return $result;
@@ -1466,7 +1472,6 @@ sub _make_report_query {
       }
     }
   }
-
 
   if ($Reports->{QUERY} =~ /%BUILDS_LIST%/g) {
     my $build_query = $attr->{BUILD_ID} ?

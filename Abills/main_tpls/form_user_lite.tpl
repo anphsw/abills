@@ -42,7 +42,7 @@
   <input type=hidden name=UID value='%UID%'>
 
   <!-- General panel -->
-  <div id='form_1' class='card card-big-form for_sort'>
+  <div id='form_1' class='card card-big-form card-primary card-outline for_sort'>
     <div class='card-header with-border'><h3 class='card-title'>_{USER_ACCOUNT}_ %DISABLE_MARK%</h3>
       <div class='card-tools pull-right'>
       <button type='button' class='btn btn-tool' data-card-widget='collapse'>

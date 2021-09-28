@@ -41,7 +41,7 @@
   <input type=hidden name='STREET_ID' value='$FORM{STREET_ID}'>
   <input type=hidden name='ADDRESS_FLAT' value='$FORM{ADDRESS_FLAT}'>
 
-  <div id='form_3' class='card card-big-form for_sort container-md pl-0 pr-0'>
+  <div id='form_3' class='card card-primary card-outline card-big-form for_sort container-md pl-0 pr-0'>
     <div class='card-header with-border'>
       <h4 class='card-title'>_{INTERNET}_: %ID%</h4>
       <div class='card-tools pull-right'>
@@ -145,47 +145,48 @@
         </div>
       </div>
 
-      <div class='card mb-0 border-top card-outline card-big-form %IPOE_SHOW_BOX%'>
-        <div class='card-header with-border'>
-          <h3 class='card-title'>IPoE / DHCP Option 82</h3>
-          <div class='card-tools pull-right'>
-            <button type='button' class='btn btn-tool' data-card-widget='collapse'>
-              <i class='fa fa-plus'></i>
-            </button>
+
+
+    </div>
+    <div class='card mb-0 border-top card-outline card-big-form %IPOE_SHOW_BOX%'>
+      <div class='card-header with-border'>
+        <h3 class='card-title'>IPoE / DHCP Option 82</h3>
+        <div class='card-tools pull-right'>
+          <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+            <i class='fa fa-plus'></i>
+          </button>
+        </div>
+      </div>
+
+      <div class='card-body'>
+        <div class='form-group row'>
+          <label class='col-xs-4 col-md-2 col-form-label text-md-right' for='NAS_SEL'>_{NAS}_</label>
+          <div class='col-xs-8 col-md-10'>
+            <div class='input-group'>
+              %NAS_SEL%
+            </div>
           </div>
         </div>
 
-        <div class='card-body'>
-          <div class='form-group row'>
-            <label class='col-xs-4 col-md-2 col-form-label text-md-right' for='NAS_SEL'>_{NAS}_</label>
-            <div class='col-xs-8 col-md-10'>
-              <div class='input-group'>
-                %NAS_SEL%
+        <div class='form-group row'>
+          <label class='col-xs-4 col-md-2 col-form-label text-md-right' for='PORT'>_{PORT}_</label>
+          <div class='col-xs-8 col-md-10 input-group'>
+            %PORT_SEL%
+          </div>
+        </div>
+
+        <div class='form-group row'>
+          <label class='col-md-2 col-xs-4 col-form-label text-md-right' for='VLAN'>VLAN ID</label>
+          <div class='input-group col-md-4 col-xs-8'>
+            <input type='text' id='VLAN' name='VLAN' value='%VLAN%' class='form-control'/>
+            <div class='input-group-append'>
+              <div class='input-group-text clear_results' style='cursor:pointer;'>
+                <span class='fa fa-remove'></span>
               </div>
             </div>
           </div>
 
-          <div class='form-group row'>
-            <label class='col-xs-4 col-md-2 col-form-label text-md-right' for='PORT'>_{PORT}_</label>
-            <div class='col-xs-8 col-md-10 input-group'>
-              %PORT_SEL%
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='col-md-2 col-xs-4 col-form-label text-md-right' for='VLAN'>VLAN ID</label>
-            <div class='input-group col-md-4 col-xs-8'>
-              <input type='text' id='VLAN' name='VLAN' value='%VLAN%'
-                     class='form-control'/>
-
-              <div class='input-group-append'>
-                <div class='input-group-text clear_results' style='cursor:pointer;'>
-                  <span class='fa fa-remove'></span>
-                </div>
-              </div>
-            </div>
-
-            <label class='col-md-2 col-xs-4 col-form-label text-md-right' for='SERVER_VLAN'>Server</label>
+          <label class='col-md-2 col-xs-4 col-form-label text-md-right' for='SERVER_VLAN'>Server</label>
             <div class='col-md-4 col-xs-8 input-group'>
               %VLAN_SEL%
             </div>
@@ -193,147 +194,144 @@
 
           <div class='form-group row'>
             <label class='col-md-2 text-right' for='IPN_ACTIVATE'>_{ACTIVATE}_ IPN</label>
-
-              <div class='form-check col-md-10'>
-                <input class='form-check-input text-left' id='IPN_ACTIVATE' name='IPN_ACTIVATE' value='1'
-                       type='checkbox' %IPN_ACTIVATE%>
+            <div class='form-check col-md-10'>
+              <input class='form-check-input text-left' id='IPN_ACTIVATE' name='IPN_ACTIVATE' value='1'
+                           type='checkbox' %IPN_ACTIVATE%>
                 %IPN_ACTIVATE_BUTTON%
-              </div>
-
+            </div>
           </div>
         </div>
       </div>
+
 
       <div class='card mb-0 card-outline border-top card-big-form collapsed-card'>
         <div class='card-header with-border'>
           <h3 class='card-title'>_{EXTRA}_</h3>
-          <div class='card-tools pull-right'>
-            <button type='button' class='btn btn-tool' data-card-widget='collapse'>
-              <i class='fa fa-plus'></i>
-            </button>
+            <div class='card-tools pull-right'>
+              <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+                <i class='fa fa-plus'></i>
+              </button>
+            </div>
           </div>
-        </div>
         <div class='card-body'>
-          <div class='form-group row'>
-            <label class='col-xs-4 col-md-3 col-form-label text-md-right'>IPv6 Pool:</label>
-            <div class='col-xs-8 col-md-9'>
-              %STATIC_IPV6_POOL%
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='col-xs-4 col-md-3 col-form-label text-md-right' for='IPV6'>_{STATIC}_ IPv6</label>
-            <div class='col-sm-5 col-md-6'>
-              <div class='input-group'>
-                <input id='IPV6' name='IPV6' value='%IPV6%' placeholder='%IPV6%' class='form-control'
-                       type='text'>
-              </div>
-            </div>
-            <div class='col-sm-3 col-md-3'>
-              %IPV6_MASK_SEL%
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='col-xs-4 col-md-3 col-form-label text-md-right' for='IPV6_PREFIX'>_{PREFIX}_ IPv6</label>
-            <div class='col-sm-5 col-md-6'>
-              <div class='input-group'>
-                <input id='IPV6_PREFIX' name='IPV6_PREFIX' value='%IPV6_PREFIX%' placeholder='%IPV6_PREFIX%'
-                       class='form-control'
-                       type='text'>
-              </div>
-            </div>
-            <div class='col-sm-3 col-md-3'>
-              %IPV6_PREFIX_MASK_SEL%
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='col-3 col-form-label text-md-right' for='SPEED'>_{SPEED}_ (kb)</label>
-            <div class='col-3'>
-              <div class='input-group'>
-                <input id='SPEED' name='SPEED' value='%SPEED%' placeholder='%SPEED%'
-                       class='form-control' type='text'>
+            <div class='form-group row'>
+              <label class='col-xs-4 col-md-3 col-form-label text-md-right'>IPv6 Pool:</label>
+              <div class='col-xs-8 col-md-9'>
+                %STATIC_IPV6_POOL%
               </div>
             </div>
 
-            <label class='col-3 col-form-label text-md-right' for='LOGINS'>_{SIMULTANEOUSLY}_</label>
-            <div class='col-3'>
-              <div class='input-group'>
-                <input id='LOGINS' type='text' name='LOGINS' value='%LOGINS%' class='form-control'>
+            <div class='form-group row'>
+              <label class='col-xs-4 col-md-3 col-form-label text-md-right' for='IPV6'>_{STATIC}_ IPv6</label>
+              <div class='col-sm-5 col-md-6'>
+                <div class='input-group'>
+                  <input id='IPV6' name='IPV6' value='%IPV6%' placeholder='%IPV6%' class='form-control'
+                           type='text'>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div class='form-group row'>
-            <label class='col-3 col-form-label text-md-right' for='SERVICE_ACTIVATE'>_{ACTIVATE}_</label>
-            <div class='col-3'>
-              <div class='input-group'>
-                <input id='SERVICE_ACTIVATE' name='SERVICE_ACTIVATE' value='%SERVICE_ACTIVATE%'
-                       placeholder='%SERVICE_ACTIVATE%'
-                       class='form-control datepicker d-0-19' rel='tcal' type='text'>
+              <div class='col-sm-3 col-md-3'>
+                %IPV6_MASK_SEL%
               </div>
             </div>
 
-            <label class='col-3 col-form-label text-md-right' for='SERVICE_EXPIRE'>_{EXPIRE}_</label>
-            <div class='col-3'>
-              <div class='input-group'>
-                <input id='SERVICE_EXPIRE' name='SERVICE_EXPIRE' value='%SERVICE_EXPIRE%' placeholder='%SERVICE_EXPIRE%'
-                       class='form-control datepicker d-0-20' rel='tcal' type='text'>
+            <div class='form-group row'>
+              <label class='col-xs-4 col-md-3 col-form-label text-md-right' for='IPV6_PREFIX'>_{PREFIX}_ IPv6</label>
+              <div class='col-sm-5 col-md-6'>
+                <div class='input-group'>
+                  <input id='IPV6_PREFIX' name='IPV6_PREFIX' value='%IPV6_PREFIX%' placeholder='%IPV6_PREFIX%'
+                           class='form-control'
+                           type='text'>
+                </div>
+              </div>
+              <div class='col-sm-3 col-md-3'>
+                %IPV6_PREFIX_MASK_SEL%
               </div>
             </div>
-          </div>
 
-          <div class='form-group row'>
-            <label class='col-xs-4 col-md-3 col-form-label text-md-right' for='FILTER_ID'>_{FILTERS}_</label>
-            <div class='col-xs-8 col-md-9'>
-              <div class='input-group'>
-                <input id='FILTER_ID' name='FILTER_ID' value='%FILTER_ID%' placeholder='%FILTER_ID%'
-                       class='form-control' type='text'>
+            <div class='form-group row'>
+              <label class='col-3 col-form-label text-md-right' for='SPEED'>_{SPEED}_ (kb)</label>
+              <div class='col-3'>
+                <div class='input-group'>
+                  <input id='SPEED' name='SPEED' value='%SPEED%' placeholder='%SPEED%'
+                           class='form-control' type='text'>
+                </div>
+              </div>
+
+              <label class='col-3 col-form-label text-md-right' for='LOGINS'>_{SIMULTANEOUSLY}_</label>
+              <div class='col-3'>
+                <div class='input-group'>
+                  <input id='LOGINS' type='text' name='LOGINS' value='%LOGINS%' class='form-control'>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class='form-group row'>
-            <label class='col-xs-4 col-md-3 text-right' for='DETAIL_STATS'>_{DETAIL}_</label>
-            <div class='col-xs-8 col-md-9'>
-              <div class='form-check text-left'>
-                <input id='DETAIL_STATS' class='form-check-input' name='DETAIL_STATS' value='1' %DETAIL_STATS%
-                       type='checkbox'>
+            <div class='form-group row'>
+              <label class='col-3 col-form-label text-md-right' for='SERVICE_ACTIVATE'>_{ACTIVATE}_</label>
+              <div class='col-3'>
+                <div class='input-group'>
+                  <input id='SERVICE_ACTIVATE' name='SERVICE_ACTIVATE' value='%SERVICE_ACTIVATE%'
+                           placeholder='%SERVICE_ACTIVATE%'
+                           class='form-control datepicker d-0-19' rel='tcal' type='text'>
+                </div>
+              </div>
+
+              <label class='col-3 col-form-label text-md-right' for='SERVICE_EXPIRE'>_{EXPIRE}_</label>
+              <div class='col-3'>
+                <div class='input-group'>
+                  <input id='SERVICE_EXPIRE' name='SERVICE_EXPIRE' value='%SERVICE_EXPIRE%' placeholder='%SERVICE_EXPIRE%'
+                           class='form-control datepicker d-0-20' rel='tcal' type='text'>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class='form-group row'>
-            <label class='col-xs-4 col-md-3 text-right'>_{PERSONAL}_ _{TARIF_PLAN}_</label>
-            <div class='col-xs-8 col-md-9'>
-              <div class='input-group'>
-                <input type='text' class='form-control r-0-25' name='PERSONAL_TP' value='%PERSONAL_TP%'>
+            <div class='form-group row'>
+              <label class='col-xs-4 col-md-3 col-form-label text-md-right' for='FILTER_ID'>_{FILTERS}_</label>
+              <div class='col-xs-8 col-md-9'>
+                <div class='input-group'>
+                    <input id='FILTER_ID' name='FILTER_ID' value='%FILTER_ID%' placeholder='%FILTER_ID%'
+                           class='form-control' type='text'>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class='form-group row'>
-            <label class='col-form-label text-md-right col-xs-4 col-md-3'>$lang{MEMO}</label>
-            <div class='input-group text-center col-xs-8 col-md-9'>
-              %REGISTRATION_INFO%
-              %REGISTRATION_INFO_PDF%
+            <div class='form-group row'>
+              <label class='col-xs-4 col-md-3 text-right' for='DETAIL_STATS'>_{DETAIL}_</label>
+              <div class='col-xs-8 col-md-9'>
+                <div class='form-check text-left'>
+                  <input id='DETAIL_STATS' class='form-check-input' name='DETAIL_STATS' value='1' %DETAIL_STATS%
+                           type='checkbox'>
+                </div>
+              </div>
             </div>
-          </div>
 
-          %PASSWORD_FORM%
-          %TURBO_MODE_FORM%
+            <div class='form-group row'>
+              <label class='col-xs-4 col-md-3 text-right'>_{PERSONAL}_ _{TARIF_PLAN}_</label>
+              <div class='col-xs-8 col-md-9'>
+                <div class='input-group'>
+                  <input type='text' class='form-control r-0-25' name='PERSONAL_TP' value='%PERSONAL_TP%'>
+                </div>
+              </div>
+            </div>
 
-          <div class='form-group row'>
-            <label class='col-form-label text-md-right col-xs-4 col-md-3' for='DETAIL_STATS'>_{COMMENTS}_</label>
-            <div class='col-xs-8 col-md-9'>
-              <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'>%INTERNET_COMMENT%</textarea>
+            <div class='form-group row'>
+              <label class='col-form-label text-md-right col-xs-4 col-md-3'>$lang{MEMO}</label>
+              <div class='input-group text-center col-xs-8 col-md-9'>
+                %REGISTRATION_INFO%
+                %REGISTRATION_INFO_PDF%
+              </div>
+            </div>
+
+            %PASSWORD_FORM%
+            %TURBO_MODE_FORM%
+
+            <div class='form-group row'>
+              <label class='col-form-label text-md-right col-xs-4 col-md-3' for='DETAIL_STATS'>_{COMMENTS}_</label>
+              <div class='col-xs-8 col-md-9'>
+                <textarea class='form-control' id='COMMENTS' name='COMMENTS' rows='3'>%INTERNET_COMMENT%</textarea>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-
-    </div>
     <div class='card-footer text-left'>
       %BACK_BUTTON%
       <input type=submit name='%ACTION%' value='%LNG_ACTION%' class='btn btn-primary'/>

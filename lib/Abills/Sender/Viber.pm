@@ -89,7 +89,13 @@ sub send_message {
     $self->{api}{debug} = $attr->{DEBUG};
   }
 
+  $text =~ s/\r//g;
   $text =~ s/\n/\\n/g;
+  $text =~ s/<b>//g;
+  $text =~ s/<\/b>//g;
+
+    $text .= "\\n+ATTACHMENTS" if($attr->{ATTACHMENTS});
+
   if($attr->{MAKE_REPLY}) {
     $text .= "\\n\\n$attr->{LANG}->{MSGS_REPLY}: ";
     $text .= make_reply($attr->{MAKE_REPLY}, $attr);
@@ -142,6 +148,7 @@ sub send_request {
   $attr->{min_api_version} = 7;
 
   my $json_str = $self->perl2json($attr);
+
   my $url      = $self->{api_url} . 'send_message';
 
   my @header = ( 'Content-Type: application/json', 'X-Viber-Auth-Token: '.$self->{token} );

@@ -650,7 +650,7 @@ sub list {
     push @WHERE_RULES, $sql if($sql);
   }
 
-  my $search_columns = [
+  my @search_columns = (
     [ 'TP_ID',               'INT', 'tp.id',                         ],
     [ 'NAME',                'STR', 'tp.name',                       ],
     [ 'TIME_TARIFS',         'INT', '', "IF(SUM(i.tarif) is NULL or sum(i.tarif)=0, 0, 1) AS time_tarifs" ],
@@ -715,13 +715,14 @@ sub list {
     [ 'INTERVALS',           'INT', 'ti.id',   'COUNT(i.id) AS intervals' ],
     [ 'STATUS',              'INT', 'tp.status',                   1 ],
     [ 'DESCRIBE_AID',        'STR', 'tp.describe_aid',             1 ],
-  ];
+    [ 'IPPOOL',              'STR', 'tp.ippool',                   1 ],
+    );
 
   if ($attr->{SHOW_ALL_COLUMNS}){
-    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @$search_columns;
+    map { $attr->{$_->[0]} = '_SHOW' unless exists $attr->{$_->[0]} } @search_columns;
   }
 
-  my $WHERE =  $self->search_former($attr, $search_columns, {
+  my $WHERE =  $self->search_former($attr, \@search_columns, {
     WHERE => 1,
     WHERE_RULES => \@WHERE_RULES
   });
@@ -1268,9 +1269,12 @@ sub tp_geo_list {
   my @WHERE_RULES = ();
 
   if ($attr->{EMPTY_GEOLOCATION}) {
-    push @WHERE_RULES, "tpg.tp_gid IS NULL";
-    $EXT_TABLE .= 'INNER JOIN tp_groups g ON (tpg.tp_gid=g.id)';
-    $EXT_COLUMNS .= ', g.id AS gid';
+    $self->query(
+      "SELECT id AS gid FROM tp_groups WHERE id NOT IN(SELECT tp_gid FROM tp_geolocation GROUP BY tp_gid)
+      ORDER BY $SORT $DESC;", undef, $attr
+    );
+
+    return $self->{list};
   }
 
   my $WHERE = $self->search_former($attr, [
@@ -1354,8 +1358,8 @@ sub tp_group_users_groups_info {
 
   if ($attr->{EMPTY_GROUP}) {
     push @WHERE_RULES, "tpug.tp_gid IS NULL";
-    $EXT_TABLE .= 'INNER JOIN tp_groups g ON (tpug.tp_gid=g.id)';
     $EXT_COLUMNS .= ', g.id AS g_gid';
+    $GROUP_BY = '';
   }
 
   my $WHERE = $self->search_former($attr, [
@@ -1366,6 +1370,19 @@ sub tp_group_users_groups_info {
     [ 'GIDS',    'INT', 'GROUP_CONCAT(DISTINCT tpug.gid) AS gids',          1 ],
   ], { WHERE => 1, WHERE_RULES => \@WHERE_RULES });
 
+  if ($attr->{EMPTY_GROUP}) {
+    $self->query(
+      "SELECT $self->{SEARCH_FIELDS} tpug.id $EXT_COLUMNS
+    FROM tp_groups g
+    LEFT JOIN tp_groups_users_groups tpug ON (tpug.tp_gid=g.id)
+    $WHERE
+    $GROUP_BY
+    ORDER BY $SORT $DESC;", undef, $attr
+    );
+
+    return $self->{list} || [];
+  }
+
   $self->query(
     "SELECT $self->{SEARCH_FIELDS} tpug.id $EXT_COLUMNS
     FROM tp_groups_users_groups tpug
@@ -1375,7 +1392,7 @@ sub tp_group_users_groups_info {
     ORDER BY $SORT $DESC;", undef, $attr
   );
 
-  return $self->{list};
+  return $self->{list} || [];
 }
 
 

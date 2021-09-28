@@ -121,7 +121,7 @@
   <input type=hidden name='create_company_id' id='create_company_id' value='$FORM{company}'>
   <input type=hidden name='company_name' id='company_name' value='$FORM{company_name}'>
 
-  <div id='form_1' class='card card-primary card-outline container-md for_sort'> <!-- XXX card-big-form? -->
+  <div id='form_1' class='card card-primary card-outline container-md for_sort pr-0 pl-0'> <!-- XXX card-big-form? -->
     <div class='card-header with-border'>
       <h4 class='card-title'>_{USER_ACCOUNT}_</h4>
       <div class='card-tools pull-right'>
@@ -177,7 +177,7 @@
                  style='display: none;'>
         </div>
       </div>
-      <div %HIDE_PASSWORD%>%PASSWORD%</div>
+      <div %HIDE_PASSWORD% class='text-center'>%PASSWORD%</div>
     </div>
 
 

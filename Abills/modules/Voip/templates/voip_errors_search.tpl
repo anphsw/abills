@@ -1,26 +1,34 @@
 
 <div class='col-xs-12 col-md-6'>
 <div class='card card-primary card-outline box-big-form'>
+  <div class="card-header with-border">
+    <h3 class="card-title">_{ERROR}_</h3>
+    <div class="card-tools pull-right">
+      <button type="button" class="btn btn-tool" data-card-widget="collapse">
+        <i class="fa fa-minus"></i>
+      </button>
+    </div>
+  </div>
   <div class='card-body'>
-    <div class='form-group'>
+    <div class='form-group row'>
         <label class='col-md-4 control-label'>_{MESSAGE}_</label>
         <div class='col-md-8'>
             <input class='form-control' type=text name=MESSAGE value='%MESSAGE%'>
         </div>
     </div>
-    <div class='form-group'>
+    <div class='form-group row'>
         <label class='col-md-4 control-label'>_{ACTION}_</label>
         <div class='col-md-8'>
             %ACTIONS_SEL%
         </div>
     </div>
-    <div class='form-group'>
+    <div class='form-group row'>
         <label class='col-md-4 control-label'>_{TYPE}_</label>
         <div class='col-md-8'>
             %LOG_TYPE_SEL%
         </div>
     </div>
-    <div class='form-group'>
+    <div class='form-group row'>
         <label class='col-md-4 control-label'>_{NAS}_</label>
         <div class='col-md-8'>
             %NAS_ID_SEL%

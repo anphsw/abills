@@ -7,7 +7,8 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(in_array);
+use Abills::Base qw(in_array mk_unique_value encode_base64);
+
 our ($html,
   $admin,
   $db,
@@ -117,7 +118,9 @@ sub form_profile_search {
     PHONE       => $lang{PHONE},
     COMMENTS    => $lang{COMMENTS},
     ADDRESS_FULL=> $lang{ADDRESS},
-    ADDRESS_STREET2 => $lang{SECOND_NAME}
+    ADDRESS_STREET2 => $lang{SECOND_NAME},
+    TELEGRAM    => 'Telegram',
+    VIBER       => 'Viber',
   );
 
   #Get info fields
@@ -593,10 +596,81 @@ sub admin_info_change {
   my $passwd_btn = $html->button($lang{CHANGE_PASSWORD}, "index=$index&chg_pswd=1", { class => 'btn btn-xs btn-primary' });
   my $clear_settings_btn = $html->button($lang{CLEAR_SETTINGS}, "index=$index&clear_settings=1", { class => 'btn btn-xs btn-danger' });
 
+  my $G2FA = "";
+
+  if(!$admin->{G2FA}) {
+    if ($FORM{add_G2FA}) {
+
+      require Abills::Auth::Core;
+      Abills::Auth::Core->import();
+      my $Auth = Abills::Auth::Core->new({
+        CONF      => \%conf,
+        AUTH_TYPE => 'OATH'
+      });
+
+      if($FORM{PIN}) {
+
+        if($Auth->check_access({PIN => $FORM{PIN}, SECRET => $FORM{add_G2FA}})) {
+
+          $admin->change({
+            AID  => $admin->{AID},
+            G2FA => $FORM{add_G2FA},
+          });
+          $html->redirect("?index=$index", {WAIT => 1});
+        }
+        else {
+          $html->message('err', $lang{ERROR}, "$lang{WRONG} PIN!");
+          $html->redirect("?index=$index&add_G2FA=$FORM{add_G2FA}", {WAIT => 1});
+        }
+
+      }
+      else {
+
+        require Control::Qrcode;
+        my $secret = Abills::Auth::OATH::encode_base32($FORM{add_G2FA});
+        my $img_qr = _encode_url_to_img($secret, {
+          AUTH_G2FA_NAME => $conf{WEB_TITLE} || 'Abills',
+          AUTH_G2FA_MAIL => $admin->{ADMIN},
+          OUTPUT2RETURN  => 1,
+        });
+
+        my $qr = "<img src='data:image/jpg;base64,".encode_base64($img_qr)."'>";
+
+        $G2FA .= $html->element('div', "$qr", { class => 'col-md-12 text-center mb-3' });
+        $G2FA .= $html->element('label', "$lang{CONFIRM} PIN: ", { class => 'control-label col-md-3', for => 'PIN' });
+        $G2FA .= $html->form_input('add_G2FA', $FORM{add_G2FA}, { TYPE => 'hidden' });
+        $G2FA .= $html->form_input('PIN', "", { class => 'form-control col-md-9' });
+      }
+    }
+    else {
+
+      $G2FA = $html->button($lang{G2FA}, "index=$index&add_G2FA=" . uc(mk_unique_value(5)), {
+        class   => 'btn btn-sm col-md-12 btn-secondary',
+        CONFIRM => "$lang{G2FA_ADD}?",
+      });
+    }
+  }
+  else {
+    if ($FORM{remove_G2FA}) {
+
+      $admin->change({
+        AID  => $admin->{AID},
+        G2FA => '',
+      });
+      $html->redirect("?index=$index");
+    } else {
+      $G2FA = $html->button($lang{G2FA_REMOVE}, "index=$index&remove_G2FA=1", {
+        class   => 'btn btn-sm col-md-12 btn-danger',
+        CONFIRM => "$lang{G2FA_REMOVE}?",
+      });
+    }
+  }
+
   $html->tpl_show(templates('form_admin_info_change'), {
     %$admin,
     CHG_PSW        => $passwd_btn,
-    CLEAR_SETTINGS => $clear_settings_btn
+    CLEAR_SETTINGS => $clear_settings_btn,
+    G2FA       => $G2FA
   });
 
   return 1;

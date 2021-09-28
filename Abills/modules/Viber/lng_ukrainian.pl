@@ -99,4 +99,6 @@ $lang{CREATE_MSGS} = 'Створити повідомлення';
 $lang{DEPOSIT} = 'Депозит';
 $lang{MSGS_CREATE} = 'Повідомлення повинно починатися з тега: ';
 $lang{WEB_SITE} = 'Сайт';
+$lang{PAYMENT_CREDENTIAL} = 'Платіжні реквізити';
+
 1;

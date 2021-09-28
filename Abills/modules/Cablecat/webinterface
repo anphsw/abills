@@ -14,7 +14,7 @@ our $Maps;
 _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } }) if ( $FORM{json} );
 
 # DB module is available
-exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.78 }));
+exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.86 }));
 
 if ( !defined $Maps ) {
   eval { require Maps; };
@@ -1009,14 +1009,12 @@ sub cablecat_nas_trace_connection_form {
   my %TEMPLATE_PARAMS = ();
 
   if ($FORM{action}) {
-
     # Check required params
     if (!$FORM{NAS_ID} || !$FORM{ENDPOINT_NAS_ID} ) {
       $html->message('err', $lang{ERROR}, "No required params");
     }
     else {
       my $first_commutation_id = $Tracer->get_commutation_for_equipment($FORM{NAS_ID});
-
       if ( !$first_commutation_id ) {
         $html->message('err', $lang{ERROR}, "Equipment $FORM{NAS_ID} is not present on any commutation");
       }
@@ -1113,8 +1111,7 @@ sub cablecat_user_trace_connection_form {
 
 
   my $uid = $FORM{UID} || 0;
-  my $module_service_id_str = $FORM{USER_SERVICE} || '';
-  my ($module, $service_id) = split(':', $module_service_id_str);
+  my $service_id = $FORM{USER_SERVICE} || '';
 
   # Helper to break from if
   my $return_with_error = sub {
@@ -1157,11 +1154,9 @@ sub cablecat_user_trace_connection_form {
     my $equipment_commutation_ids = $Tracer->get_commutation_for_equipment($nas_port->{nas_id}, $nas_port->{port},
       { WITH_TYPE => 1 }
     );
-
     if ( !$equipment_commutation_ids || !ref $equipment_commutation_ids eq 'ARRAY' ) {
       # Show message about no commutation
-      _error_show($Tracer);
-      $return_with_error->($Tracer->{errstr}, undef, $Tracer->{errno});
+      $return_with_error->('NAS not selected!', undef, $Tracer->{errno});
     }
     elsif ( !scalar(@{$equipment_commutation_ids}) ) {
       $return_with_error->("Can't find commutation for equipment $nas_port->{nas_id} port $nas_port->{port}", undef, $Tracer->{errno});
@@ -1170,14 +1165,27 @@ sub cablecat_user_trace_connection_form {
       $return_with_error->("Equipment is linked on more than one commutation", undef, 2201);
     }
 
+    my $onu_list = $Cablecat->commutation_onu_list({
+      UID        => $uid,
+      SERVICE_ID => $service_id,
+      ID         => '_SHOW',
+      COLS_NAME  => 1
+    });
+
+    return 0 if($Cablecat->{TOTAL} <= 0);
     # Build trace
     my $path = $Tracer->get_path_beetween({
-      TYPE      => 'UID',
-      ID        => $uid,
-      FIBER_NUM => $service_id
+      TYPE      => 'ONU',
+      ID        => $onu_list->[0]->{id},
+      FIBER_NUM => 1
     },
       $equipment_commutation_ids->[0]
     );
+
+    if($FORM{AJAX}){
+      print JSON::to_json($path);
+      return 1;
+    }
 
     my $fiber_views = _cablecat_get_conection_path_view($path);
     if (!$fiber_views){
@@ -1750,14 +1758,14 @@ sub cablecat_import_form {
   my ($import_data) = @_;
 
   $html->tpl_show(_include('cablecat_import', 'Cablecat'), {
-    IMPORT_INDEX => $import_data->{IMPORT_INDEX},
-    RESULT_INDEX => $import_data->{RESULT_INDEX} || $index,
-    OUTPUT_STRUCTURE => $import_data->{FIELDS_LIST}
+    IMPORT_INDEX     => $import_data->{IMPORT_INDEX},
+    RESULT_INDEX     => $import_data->{RESULT_INDEX} || $index,
+    OUTPUT_STRUCTURE => $import_data->{FIELDS_LIST},
+    LOAD_PRESET_BTN  => cablecat_import_presets()
   });
 
   return 1;
 }
-
 
 #**********************************************************
 =head2 _cablecat_get_user_services_select($uid, $attr)
@@ -1778,19 +1786,54 @@ sub _cablecat_get_user_services_select {
   # Should show user services select
   my $Tracer = Cablecat::Trace->new($db, $admin, \%conf);
 
-  my ($services, $module_name ) = $Tracer->get_user_services($uid, { NAS_NAME => '_SHOW' });
-
+  my ($services) = $Tracer->get_user_services($uid, { NAS_NAME => '_SHOW' });
   return 0 if ($Tracer->{errno} || !$services || ref $services ne 'ARRAY');
 
   # Should pass more than one value in select value
   my @select_options = map {{
-    id   => $attr->{WITH_MODULE} ? "$module_name:$_->{id}" : $_->{id},
-    name => " $module_name: ($_->{nas_name}#$_->{nas_id}) : $lang{PORT} #$_->{port}"
+    id   => $_->{id},
+    name => " Internet: (".($_->{nas_name}||'')."#$_->{nas_id}) : $lang{PORT} #".$_->{port}||''
   }} @$services;
 
   return \@select_options if ($attr->{RETURN_LIST});
 
-  return  make_select_from_list('USER_SERVICE', \@select_options);
+  return make_select_from_list('USER_SERVICE', \@select_options);
+}
+
+#**********************************************************
+=head2 cablecat_import_presets($attr)
+
+=cut
+#**********************************************************
+sub cablecat_import_presets {
+
+  if ($FORM{SAVE_PRESET}) {
+
+    if (!$FORM{PRESET_NAME}) {
+      $Cablecat->import_presets_list();
+      $FORM{PRESET_NAME} = 'Preset_' . $Cablecat->{TOTAL};
+    }
+
+    $Cablecat->import_presets_add({ %FORM });
+    return;
+  }
+  
+  if ($FORM{PRESET_ID}) {
+    my $preset = $Cablecat->import_presets_info($FORM{PRESET_ID});
+    print(JSON::to_json($preset));
+    return;
+  }
+
+  return $html->form_select('PRESET', {
+    SELECTED    => '',
+    SEL_LIST    => $Cablecat->import_presets_list({
+      PRESET_NAME => '_SHOW'
+    }),
+    SEL_KEY     => 'id',
+    SEL_VALUE   => 'tp_id,preset_name',
+    SEL_OPTIONS => { 0 => '--' },
+    EX_PARAMS   => 'onChange="loadPreset(this)"',
+  });
 }
 
 1;

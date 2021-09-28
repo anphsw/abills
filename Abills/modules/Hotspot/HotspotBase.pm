@@ -9,16 +9,20 @@ our (
   $DATE,
   $TIME,
   %conf,
+  %lang,
   $base_dir,
   $db,
+  $html,
 );
 
 our Users  $users;
+our Users  $user;
 our Admins $admin;
 our Tariffs  $Tariffs;
 our Internet $Internet;
 our Hotspot $Hotspot;
 use Abills::Base qw/_bp/;
+use Time::Piece;
 
 #**********************************************************
 =head2 hotspot_init()
@@ -38,8 +42,8 @@ sub hotspot_init {
   $Hotspot->load_conf($FORM{server_name} || $COOKIES{server_name});
 
   #domain info
-  if ( $Hotspot->{hotspot_conf}->{DOMAIN_ID} ){
-    $Hotspot->{admin}->info( '', { DOMAIN_ID => $Hotspot->{hotspot_conf}->{DOMAIN_ID} } );
+  if ( $Hotspot->{HOTSPOT_CONF}->{DOMAIN_ID} ){
+    $Hotspot->{admin}->info( '', { DOMAIN_ID => $Hotspot->{HOTSPOT_CONF}->{DOMAIN_ID} } );
     if($Hotspot->{admin}->{errno}) {
       errexit("Unknown domain admin.");
     }
@@ -53,13 +57,32 @@ sub hotspot_init {
   mk_cookie(\%new_cookies);
 
   #load scheme
-  if (!$Hotspot->{hotspot_conf}->{SCHEME}) {
+  if (!$Hotspot->{HOTSPOT_CONF}->{SCHEME}) {
     errexit("Unknown scheme.");
   }
-  my $scheme_name = $Hotspot->{hotspot_conf}->{SCHEME};
+  my $scheme_name = $Hotspot->{HOTSPOT_CONF}->{SCHEME};
   eval { require "Hotspot/Scheme/$scheme_name.pm"; 1; };
   if ($@) {
     errexit("Cant load scheme $scheme_name.<br>$@");
+  }
+  if (!$Hotspot->{HOTSPOT_CONF}->{HOTSPOT_TPS}) {
+    errexit("Miss required config key HOTSPOT_TPS for $FORM{server_name}");
+  }
+  ($Hotspot->{DEFAULT_TP}) = split('\;', $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_TPS});
+  check_config();
+  return 1;
+}
+
+#**********************************************************
+=head2 check_config()
+  Check required config fields
+
+=cut
+#**********************************************************
+sub check_config {
+  my $key_list = required_fields();
+  foreach (@$key_list) {
+    errexit("Miss required config key $_ for $FORM{server_name}") unless $Hotspot->{HOTSPOT_CONF}->{$_};
   }
   return 1;
 }
@@ -69,13 +92,12 @@ sub hotspot_init {
 
 =cut
 #**********************************************************
-sub hotspot_radius_error { 
-  my $uid = get_user_uid();
-  if (!$uid) {
+sub hotspot_radius_error {
+  if ($FORM{error} =~ /USER_NOT_EXIST/) {
     delete_old_cookie();
     return 1;
   }
-  scheme_radius_error($uid);
+  scheme_radius_error($FORM{error});
   errexit($FORM{error});
 }
 
@@ -123,25 +145,41 @@ sub hotspot_registration {
 sub hotspot_user_registration {
   my ($attr) = @_;
 
-  my $tp_id = $Hotspot->{hotspot_conf}->{TRIAL_TP} || $Hotspot->{hotspot_conf}->{TP};
+  if ($Hotspot->{TP_ID}) {
+    $Tariffs->info($Hotspot->{TP_ID});
+  }
+  else {
+    my $tp = $Hotspot->{HOTSPOT_CONF}->{TRIAL_TP} || $Hotspot->{DEFAULT_TP};
+    $Tariffs->info( '', { ID => $tp} );
+  }
+  my $tp_id = $Tariffs->{TP_ID};
+
   if (!$tp_id) {
     errexit("Sorry, can't find tarif for new users.");
   }
-  $Tariffs->info( '', { ID => $tp_id} );
-  my $domain_id = ($Hotspot->{hotspot_conf}->{DOMAIN_ID} || $admin->{DOMAIN_ID} || 0);
+  
+  my $activate = '0000-00-00';
+  my $expire   = '0000-00-00';
+  if ($Tariffs->{AGE}) {
+    $activate = $DATE;
+    my $e_time = Time::Piece->strptime($DATE, "%Y-%m-%d") + $Tariffs->{AGE} * 86400;
+    $expire = $e_time->ymd;
+  }
+
+  my $domain_id = $Hotspot->{HOTSPOT_CONF}->{DOMAIN_ID} || $admin->{DOMAIN_ID} || 0;
 
   my $login = $Hotspot->next_login({
-    LOGIN_LENGTH => ($Hotspot->{hotspot_conf}->{HOTSPOT_LOGIN_LENGTH} || 6),
-    LOGIN_PREFIX => ($Hotspot->{hotspot_conf}->{HOTSPOT_LOGIN_PREFIX} || ''),
+    LOGIN_LENGTH => $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_LOGIN_LENGTH} || 6,
+    LOGIN_PREFIX => $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_LOGIN_PREFIX} || '',
     DOMAIN_ID    => $domain_id,
   });
   my $password = int(rand(90000000)) + 10000000;
   my $cid = uc($attr->{ANY_MAC} ? 'ANY' : $FORM{mac});
   my $group_id = 0;
 
-  if ( $Hotspot->{hotspot_conf}->{HOTSPOT_GUESTS_GROUP} && $Hotspot->{hotspot_conf}->{HOTSPOT_GUESTS_GID} ) {
-    my $group_name = $Hotspot->{hotspot_conf}->{HOTSPOT_GUESTS_GROUP};
-    $group_id   = $Hotspot->{hotspot_conf}->{HOTSPOT_GUESTS_GID};
+  if ( $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_GUESTS_GROUP} && $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_GUESTS_GID} ) {
+    my $group_name = $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_GUESTS_GROUP};
+    $group_id = $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_GUESTS_GID};
     $users->group_info($group_id);
     if ($users->{errno}) {
       $users->group_add({
@@ -158,6 +196,8 @@ sub hotspot_user_registration {
     PASSWORD    => $password,
     GID         => $group_id,
     DOMAIN_ID   => $domain_id,
+    ACTIVATE    => $activate,
+    EXPIRE      => $expire,
     CREATE_BILL => 1,
   });
   if ($users->{errno}) {
@@ -166,13 +206,16 @@ sub hotspot_user_registration {
   my $uid = $users->{UID};
   $users->pi_add({ UID => $uid, PHONE => ($FORM{PHONE} || '') });
 
-  $Internet->add({ 
-    UID   => $uid,
-    TP_ID => $Tariffs->{TP_ID},
-    CID   => $cid,
+  $Internet->add({
+    INTERNET_SKIP_FEE => ($Hotspot->{SKIP_FEE} || ''),
+    UID               => $uid,
+    TP_ID             => $tp_id,
+    CID               => $cid,
+    SERVICE_ACTIVATE  => $activate,
+    SERVICE_EXPIRE    => $expire,
   });
   if ($Internet->{errno}) {
-    errexit("Sorry, can't add internet service.");
+    errexit("Sorry, can't add internet service. $Internet->{errstr}");
   }
 
   $Hotspot->log_add({
@@ -182,6 +225,20 @@ sub hotspot_user_registration {
     PHONE    => $FORM{PHONE} || '',
     COMMENTS => "$login registred, UID:$uid"
   });
+
+  if ($attr->{RECHARGE}) {
+    use Finance;
+    my $Fees = Finance->fees($db, $admin, \%conf);
+    $Fees->take(
+      $users,
+      $Tariffs->{ACTIV_PRICE},
+      { 
+        DESCRIBE => "Take hotspot activation sum",
+        METHOD   => 0
+      },
+    );
+    recharge_balance($uid);
+  }
 
   mikrotik_login({ LOGIN => $login, PASSWORD => $password });
   
@@ -201,7 +258,7 @@ sub mac_login {
     PHONE          => '_SHOW',
     SERVICE_EXPIRE => "0000-00-00,>$DATE",
     CID            => $FORM{mac},
-    TP_NUM         => ($Hotspot->{hotspot_conf}->{HOTSPOT_TPS} || ''),
+    TP_NUM         => $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_TPS},
     COLS_NAME      => 1,
   });
 
@@ -235,7 +292,7 @@ sub phone_login {
     LOGIN          => '_SHOW',
     PHONE          => $FORM{PHONE},
     SERVICE_EXPIRE => "0000-00-00,>$DATE",
-    TP_NUM         => ($Hotspot->{hotspot_conf}->{HOTSPOT_TPS} || ''),
+    TP_NUM         => $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_TPS},
     COLS_NAME      => 1,
   });
   if ( $Internet->{TOTAL} > 0 ){
@@ -281,10 +338,9 @@ sub check_phone_verify {
 #**********************************************************
 sub ask_phone {
   return 1 if ($FORM{PHONE});
-  
-  my $phone_tpl = $Hotspot->{hotspot_conf}->{phone} || 'hotspot_phone';
-  print "Content-type:text/html\n\n";
-  print hotspot_tpl_show( $phone_tpl, \%FORM);
+  my $phone_tpl = $Hotspot->{HOTSPOT_CONF}->{PHONE_TPL} || 'form_client_hotspot_phone';
+  print $html->header();
+  print $html->tpl_show(templates($phone_tpl), \%FORM);
   exit;
 }
 
@@ -307,9 +363,9 @@ sub ask_pin {
   if ($Hotspot->{TOTAL} < 1 || $FORM{send_pin}) {
     send_pin();
   }
-  my $pin_tpl = $Hotspot->{hotspot_conf}->{pin} || 'hotspot_pin';
-  print "Content-type:text/html\n\n";
-  print hotspot_tpl_show( $pin_tpl, \%FORM);
+  my $pin_tpl = $Hotspot->{HOTSPOT_CONF}->{PIN_TPL} || 'hotspot_pin';
+  print $html->header();
+  print $html->tpl_show(_include($pin_tpl, 'Hotspot'), \%FORM);
   exit;
 }
 
@@ -380,9 +436,16 @@ sub verify_call {
     COMMENTS => "Waiting for client call."
   });
 
-  my $auth_tpl = $Hotspot->{hotspot_conf}->{call_auth} || 'hotspot_call_auth'; 
-  print "Content-type:text/html\n\n";
-  print hotspot_tpl_show( $auth_tpl, \%FORM);
+  my $auth_tpl = $Hotspot->{HOTSPOT_CONF}->{CALL_AUTH_TPL} || 'form_client_hotspot_call_auth';
+  my $reload_btn = $html->button($lang{CONTINUE}, '',
+    { GLOBAL_URL => $COOKIES{link_login} || $FORM{link_login_only}, class => 'btn btn-success' });
+  print $html->header();
+  print $html->tpl_show(templates($auth_tpl), {
+    AUTH_NUMBER => $Hotspot->{HOTSPOT_CONF}->{AUTH_NUMBER},
+    mac         => $FORM{mac},
+    PHONE       => $FORM{PHONE},
+    BUTTON      => $reload_btn,
+  });
   exit;
 }
 
@@ -396,7 +459,7 @@ sub hotspot_sms_pay{
   $users->info($uid);
   exit if ($users->{errno});
   $users->pi();
-  my $sms_pay_tpl = $Hotspot->{hotspot_conf}->{sms_pay_tpl} || 'hotspot_sms_pay';
+  my $sms_pay_tpl = $Hotspot->{HOTSPOT_CONF}->{SMS_PAY_TPL} || 'hotspot_sms_pay';
   my $mac = uc($FORM{mac});
   $mac =~ s/://g;
   my $params = ();
@@ -409,22 +472,39 @@ sub hotspot_sms_pay{
   else {
     $params->{SMS_FREE_CODE} = "ICNFREEHS+$mac";
   }
-  print "Content-type:text/html\n\n";
-  print hotspot_tpl_show( $sms_pay_tpl, $params);
+  print $html->header();
+  print $html->tpl_show(_include($sms_pay_tpl, 'Hotspot'), \%FORM);
   exit;
 }
 
 #**********************************************************
-=head2 hotspouser_portal_redirectt_sms_pay()
+=head2 user_portal_redirect()
 
 =cut
 #**********************************************************
 sub user_portal_redirect {
-  if ($COOKIES{hotspot_username} && $COOKIES{hotspot_password}) {
-    my $user_portal_url = "index.cgi?user=$COOKIES{hotspot_username}&passwd=$COOKIES{hotspot_password}";
+  my $hotspot_username = $FORM{hotspot_username} || $COOKIES{hotspot_username};
+  my $hotspot_password = $FORM{hotspot_password} || $COOKIES{hotspot_password};
+  if ($hotspot_username && $hotspot_password) {
+    my $user_portal_url = "index.cgi?user=$hotspot_username&passwd=$hotspot_password";
     print "Location: $user_portal_url\n\n";
     exit;
   }
+  elsif ($FORM{mac}) {
+    my $list = $Internet->list({
+      PASSWORD       => '_SHOW',
+      LOGIN          => '_SHOW',
+      PHONE          => '_SHOW',
+      SERVICE_EXPIRE => "0000-00-00,>$DATE",
+      CID            => $FORM{mac},
+      TP_NUM         => $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_TPS},
+      COLS_NAME      => 1,
+    });
+    my $user_portal_url = "index.cgi?user=" . $list->[0]->{login} . "&passwd=" . $list->[0]->{password};
+    print "Location: $user_portal_url\n\n";
+    exit;
+  }
+  errexit("Something wrong");
   return 1;
 }
 
@@ -460,30 +540,11 @@ sub mikrotik_login {
     hotspot_password=> $attr->{PASSWORD},
   });
 
-  if($Hotspot->{hotspot_conf}->{HOTSPOT_SHOW_AD}) {
-
-    $ad_to_show = $Hotspot->request_random_ad({ COLS_NAME => 1 });
-    my $user_info = $users->list({
-      LOGIN     => $attr->{LOGIN},
-      COLS_NAME => 1,
-    });
-
-    my $tp_info = $Internet->info($user_info->[0]->{uid});
-
-    my @show_tp = split(';', ($conf{HOTSPOT_AD_TP_IDS} || ''));
-    if($ad_to_show->{id} && in_array($tp_info->{TP_ID}, \@show_tp)) {
-      $Hotspot->advert_shows_add({ AD_ID => $ad_to_show->{id}});
-
-      $tpl='hotspot_auto_login_advertisement';
-    }
-  }
   print "Content-type:text/html\n\n";
-  print hotspot_tpl_show($tpl, {
+  print $html->tpl_show(_include($tpl, 'Hotspot'), {
     LOGIN              => $attr->{LOGIN},
     PASSWORD           => $attr->{PASSWORD},
     HOTSPOT_AUTO_LOGIN => $COOKIES{link_login} || $FORM{link_login_only} || '1',
-    TIME               => $conf{HOTSPOT_AD_SHOW_TIME} || 10,
-    ADVERTISEMENT      => $ad_to_show->{url} || '',
     DST                => 'http://google.com',
   });
 
@@ -498,6 +559,7 @@ sub mikrotik_login {
 sub hotspot_ajax {
   print "Content-type:text/html\n\n";
   if ($FORM{ajax} == 1) {
+    # Check auth call
     my $hot_log = $Hotspot->log_list({
       PHONE     => $FORM{PHONE},
       CID       => $FORM{mac},
@@ -510,7 +572,7 @@ sub hotspot_ajax {
     my $hot_log = $Hotspot->log_list({
       CID       => $FORM{mac},
       DATE      => ">$FORM{date}",
-      ACTION    => '22,23',
+      ACTION    => '23,24',
     });
     print ($Hotspot->{TOTAL} < 1 ? 0 : 1);
   }
@@ -526,10 +588,22 @@ sub hotspot_ajax {
 =cut
 #**********************************************************
 sub get_user_uid {
+  my %params;
+  if ($COOKIES{hotspot_username}) {
+    %params = (LOGIN => $COOKIES{hotspot_username});
+  }
+  elsif (check_phone_verify()) {
+    %params = (PHONE => $FORM{PHONE});
+  }
+  else {
+    %params = (CID => uc($FORM{mac}));
+  }
+
   my $list = $Internet->list({
-    PHONE          => '_SHOW',
-    CID            => uc($FORM{mac}),
-    DOMAIN_ID      => ($Hotspot->{hotspot_conf}->{DOMAIN_ID} || ''),
+    %params,
+    DOMAIN_ID      => $Hotspot->{HOTSPOT_CONF}->{DOMAIN_ID} || '',
+    TP_NUM         => $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_TPS},
+    SERVICE_EXPIRE => "0000-00-00,>$DATE",
     COLS_NAME      => 1,
   });
   
@@ -548,10 +622,10 @@ sub get_user_uid {
 sub trial_tp_change {
   my ($uid) = @_;
 
-  return if (!$Hotspot->{hotspot_conf}->{TRIAL_TP} || !$Hotspot->{hotspot_conf}->{TP} || !$uid);
+  return unless ($uid);
   $Internet->info($uid);
-  if ($Internet->{TP_NUM} eq $Hotspot->{hotspot_conf}->{TRIAL_TP}) {
-    $Tariffs->info( '', { ID => $Hotspot->{hotspot_conf}->{TP} });
+  if ($Internet->{TP_NUM} eq $Hotspot->{HOTSPOT_CONF}->{TRIAL_TP}) {
+    $Tariffs->info( '', { ID => $Hotspot->{DEFAULT_TP} });
     $Hotspot->change_tp({
       UID   => $uid,
       TP_ID => $Tariffs->{TP_ID},
@@ -568,43 +642,91 @@ sub trial_tp_change {
 }
 
 #**********************************************************
-=head2 parse_query()
+=head2 choose_tp ()
 
 =cut
 #**********************************************************
-sub parse_query {
-  my $buffer = '';
-  $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/ if ($ENV{'REQUEST_METHOD'});
-  if ($ENV{'REQUEST_METHOD'} eq "POST") {
-    read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
+sub choose_tp {
+  if (!$FORM{TP_ID}) {
+    online_payment_tp_sel();
   }
   else {
-    $buffer = $ENV{'QUERY_STRING'};
-  }
-  my @pairs = split('&', $buffer);
-  foreach my $pair (@pairs) {
-    my ($key, $value) = split('=', $pair);
-    $value =~ tr/+/ /;
-    $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
-    $FORM{$key} = $value;
+    $Hotspot->{TP_ID} = $FORM{TP_ID};
+    $Hotspot->{SKIP_FEE} = 1;
   }
   return 1;
 }
 
 #**********************************************************
-=head2 get_cookies()
-
+=head2 online_payment_tp_sel()
+  select tp for new user
 =cut
 #**********************************************************
-sub get_cookies {
-  if (defined($ENV{'HTTP_COOKIE'})) {
-    my (@rawCookies) = split(/; /, $ENV{'HTTP_COOKIE'});
-    foreach (@rawCookies) {
-      my ($key, $val) = split(/=/, $_);
-      $COOKIES{$key} = $val;
-    }
+sub online_payment_tp_sel {
+
+  my $list = $Tariffs->list({
+    PAYMENT_TYPE     => '<2',
+    TOTAL_TIME_LIMIT => '_SHOW',
+    TOTAL_TRAF_LIMIT => '_SHOW',
+    ACTIV_PRICE      => '_SHOW',
+    AGE              => '_SHOW',
+    NAME             => '_SHOW',
+    IN_SPEED         => '_SHOW',
+    OUT_SPEED        => '_SHOW',
+    DOMAIN_ID        => ($Hotspot->{HOTSPOT_CONF}->{DOMAIN_ID} || ''),
+    TP_ID            => $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_TPS},
+    COLS_NAME        => 1,
+  });
+
+  my $cards = '';
+  my $params = "&PHONE=$FORM{PHONE}&mac=$FORM{mac}&server_name=$FORM{server_name}&link_login_only=$FORM{link_login_only}";
+  my $tpl = $Hotspot->{HOTSPOT_CONF}->{TP_CARD_TPL} || 'form_buy_cards_card';
+  foreach my $line (@{$list}) {
+    $cards .= $html->tpl_show(templates($tpl), {
+      TP_NAME         => $line->{name},
+      ID              => $line->{id},
+      TP_ID           => $line->{tp_id},
+      AGE             => $line->{age} || $lang{UNLIM},
+      DOMAIN_ID       => $Hotspot->{HOTSPOT_CONF}->{DOMAIN_ID} || '',
+      SPEED_IN        => $line->{in_speed} || $lang{UNLIM},
+      SPEED_OUT       => $line->{out_speed} || $lang{UNLIM},
+      PREPAID_MINS    => $line->{total_time_limit} ? sprintf("%.1f", $line->{total_time_limit} / 60 / 60) : $lang{UNLIM},
+      PREPAID_TRAFFIC => $line->{total_traf_limit} || $lang{UNLIM},
+      PRICE           => $line->{activate_price} || 0.00,
+      HOTSPOT_PARAMS  => $params,
+    }, { OUTPUT2RETURN => 1 });
   }
-  return 1;
+  print $html->header();
+  print $cards;
+  exit;
+}
+
+#**********************************************************
+=head2 recharge_balance()
+  fast redirect to $Hotspot->{HOTSPOT_CONF}{PAYMENT_URL}
+=cut
+#**********************************************************
+sub recharge_balance {
+  my ($uid) = @_;
+  $uid = get_user_uid() unless ($uid);
+  return 1 unless ($uid);
+
+  my $internet_info = $Internet->info($uid);
+  $Tariffs->info($internet_info->{TP_ID});
+  my $payment_url = $Hotspot->{HOTSPOT_CONF}{PAYMENT_URL};
+  $payment_url =~ s/%UID%/$uid/g;
+  $payment_url =~ s/%SUM%/$Tariffs->{ACTIV_PRICE}/g;
+
+  $Hotspot->log_add({
+    HOTSPOT  => $COOKIES{server_name},
+    CID      => $FORM{mac} || '',
+    PHONE    => $FORM{PHONE} || '',
+    ACTION   => 22,
+    COMMENTS => "UID:$uid initiate fast online payment SUM:$Tariffs->{ACTIV_PRICE}",
+  });
+
+  print "Location: $payment_url\n\n";
+  exit;
 }
 
 #**********************************************************
@@ -628,40 +750,10 @@ sub mk_cookie {
   my $cookies_time = gmtime( time() + $auth_cookie_time ) . " GMT";
   foreach my $key (keys %$cookie_vals) {
     my $value = $cookie_vals->{$key};
-    my $cookie = "Set-Cookie: $key=$value; expires=\"$cookies_time\";\n";
+    my $cookie = "Set-Cookie: $key=$value; expires=\"$cookies_time\"; SameSite=None; Secure\n";
     print $cookie;
   }
   return 1;
-}
-
-#**********************************************************
-=head2 hotspot_tpl_show()
-
-=cut
-#**********************************************************
-sub hotspot_tpl_show {
-  my ($tpl_file, $attr) = @_;
-  $tpl_file .= '.tpl' if ($tpl_file !~ m/\.tpl$/);
-  my $file_path = '';
-  if ( -e "$base_dir/Abills/templates/$tpl_file" ) {
-    $file_path = "$base_dir/Abills/templates/$tpl_file";
-  }
-  elsif ( -e "$base_dir/Abills/modules/Hotspot/templates/$tpl_file" ) {
-    $file_path = "$base_dir/Abills/modules/Hotspot/templates/$tpl_file";
-  }
-  else {
-    return '';
-  }
-  open(my $fh, '<', $file_path) or die;
-    my $tpl = '';
-    while(<$fh>) {
-      $tpl .= $_;
-    }
-  close($fh);
-
-  $tpl =~ s/\%([a-zA-Z0-9_]+)\%/$attr->{$1} || $1/eg;
-
-  return $tpl;
 }
 
 #**********************************************************
@@ -675,5 +767,123 @@ sub errexit {
   print $str;
   exit;
 }
+
+
+# Code below - payment without uid, work only with liqpay, temporaly disabled
+
+#**********************************************************
+=head2 registration_payment()
+  online payment operation
+  Step 1: check old payments
+  Step 2: select tp
+  Step 3: select system
+=cut
+#**********************************************************
+# sub registration_payment {
+#   load_module('Paysys');
+#   registration_payment_check();
+#   if (!$Hotspot->{TP_ID}) {
+#     if ($FORM{TRUE}) {
+#       errexit('Оплата еще не получена. Попробуйте подключиться позже.');
+#     }
+#     elsif ($FORM{PAYMENT_SYSTEM}) {
+#       online_payment_make();
+#     }
+#     elsif ($FORM{TP_ID}) {
+#       online_payment_system_sel();
+#     }
+#     else {
+#       online_payment_tp_sel();
+#     }
+#   }
+
+#   return 1;
+# }
+
+#**********************************************************
+=head2 registration_payment_check()
+  check activate payments
+=cut
+#**********************************************************
+# sub registration_payment_check {
+#   my $hot_log = $Hotspot->log_list({
+#     CID       => $FORM{mac},
+#     INTERVAL  => "$DATE/$DATE",
+#     ACTION    => 21,
+#     PHONE     => $FORM{PHONE},
+#     COMMENTS  => '_SHOW',
+#     COLS_NAME => 1,
+#   });
+
+#   if ($Hotspot->{TOTAL} > 0) {
+#     my ($op_id) = $hot_log->[0]->{comments} =~ m/op_id\:\'(.*)\'/;
+#     my $Paysys = Paysys->new($db, $admin, \%conf);
+#     my $list = $Paysys->list({
+#       TRANSACTION_ID => "*:$op_id",
+#       STATUS         => 2,
+#       SKIP_DEL_CHECK => 1,
+#       COLS_NAME      => 1,
+#       COLS_UPPER     => 1,
+#     });
+#     if ($Paysys->{TOTAL} > 0) {
+#       ($Hotspot->{TP_ID}) = $hot_log->[0]->{comments} =~ m/tp_id\:(\d+)/;
+#       $Hotspot->{SKIP_FEE} = 1;
+#     }
+#   }
+#   return 1;
+# }
+
+#**********************************************************
+=head2 online_payment_system_sel()
+  user already select tp, next step choose system
+=cut
+#**********************************************************
+# sub online_payment_system_sel {
+#   my $tpl = $Hotspot->{HOTSPOT_CONF}->{PAYMENT_SYSTEM_TPL} || 'form_buy_cards_paysys';
+#   my $unique = mk_unique_value(8, { SYMBOLS => '0123456789' });
+#   $Tariffs->info($FORM{TP_ID});
+
+#   print $html->header();
+#   print $html->tpl_show(templates($tpl), { %FORM,
+#     SUM               => $Tariffs->{ACTIV_PRICE},
+#     DESCRIBE          => '',
+#     OPERATION_ID      => $unique,
+#     UID               => ($FORM{UID} || $unique),
+#     TP_ID             => $FORM{TP_ID},
+#     DOMAIN_ID         => ($Hotspot->{HOTSPOT_CONF}->{DOMAIN_ID} || ''),
+#     MAC               => ($FORM{mac} || ''),
+#     PAYSYS_SYSTEM_SEL => paysys_system_sel(),
+#   });
+
+#   exit;
+# }
+
+#**********************************************************
+=head2 online_payment_make()
+  select tp for new user
+=cut
+#**********************************************************
+# sub online_payment_make {
+#   $Hotspot->log_add({
+#     HOTSPOT  => $COOKIES{server_name},
+#     CID      => $FORM{mac},
+#     PHONE    => $FORM{PHONE},
+#     ACTION   => 21,
+#     COMMENTS => "New user initiate online payment op_id:'$FORM{OPERATION_ID}' tp_id:$FORM{TP_ID}",
+#   });
+#   if (!$FORM{UID} && $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_GUESTS_GID}) {
+#     $user->{GID} = $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_GUESTS_GID};
+#   }
+#   my $ret = paysys_payment({
+#     OUTPUT2RETURN     => 1,
+#     QUITE             => 1,
+#     REGISTRATION_ONLY => 1,
+#     UID               => $FORM{UID} || $FORM{OPERATION_ID},
+#     RETURN_URL        => $COOKIES{link_login} || $SELF_URL,
+#   });
+#   print $html->header();
+#   print $ret;
+#   exit;
+# }
 
 1;

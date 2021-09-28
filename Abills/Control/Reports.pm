@@ -17,6 +17,7 @@ our (
   $admin,
   $var_dir,
   $base_dir,
+  $pages_qs
 );
 
 our Abills::HTML $html;
@@ -108,6 +109,9 @@ sub reports {
   elsif ($FORM{COMPANY_NAME}) {
     $LIST_PARAMS{COMPANY_NAME} = $FORM{COMPANY_NAME};
   }
+  elsif ($FORM{DISTRICT_ID}) {
+    $LIST_PARAMS{DISTRICT_ID} = $FORM{DISTRICT_ID};
+  }
 
   if ($LIST_PARAMS{UID}) {
     $pages_qs .= "&UID=$LIST_PARAMS{UID}";
@@ -163,11 +167,21 @@ sub reports {
   if ($attr->{PERIOD_FORM}) {
     if (!$attr->{NO_PERIOD}) {
       if ($attr->{DATE_RANGE}) {
+        my $date = $attr->{DATE};
+
+        if ($FORM{'FROM_DATE_TO_DATE'}) {
+          $date = $FORM{'FROM_DATE_TO_DATE'};
+        }
+        elsif(! $attr->{DATE}) {
+          ($y, $m, $d) = split(/-/, $DATE, 3) if (! $y);
+          $date = "$y-$m-01/$DATE";
+        }
+
         push @rows, $html->element('label', "$lang{DATE}: ", { class => 'col-md-2 control-label' })
           . $html->element('div', $html->form_daterangepicker({
           NAME      => 'FROM_DATE/TO_DATE',
           FORM_NAME => 'report_panel',
-          VALUE     => $attr->{DATE} || $FORM{'FROM_DATE_TO_DATE'},
+          VALUE     => $date,
           WITH_TIME => $attr->{TIME_FORM} || 0,
         }), { class => 'col-md-8' });
       }
@@ -221,6 +235,10 @@ sub reports {
             NO_ID    => 1
           }
         ), { class => 'col-md-8' });
+      }
+
+      if ($FORM{TYPE}) {
+        $pages_qs .= "&TYPE=$FORM{TYPE}"
       }
     }
 
@@ -417,6 +435,7 @@ sub report_fees {
       STREET    => $lang{STREET},
       BUILD     => $lang{BUILD},
       GID       => $lang{GROUPS},
+      LOGIN     => $lang{LOGIN},
     }
   });
 

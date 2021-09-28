@@ -53,12 +53,12 @@ function loadToModal(url, callback, size) {
         var modalBody = $('#CurrentOpenedModal').find('.modal-body');
         modalBody.html(data);
 
-        if (modalBody.find('.box-header').length === 1 && !modalBody.find('.box-header').find('.box-tools').length) {
-          var header_inside = modalBody.find('.box-header').first();
+        if (modalBody.find('.card-header').length === 1 && !modalBody.find('.card-header').find('.card-tools').length) {
+          var header_inside = modalBody.find('.card-header').first();
           var header_outside = $('#CurrentOpenedModal_header');
 
           if (header_outside) {
-            header_outside.append(header_inside);
+            header_outside.prepend(header_inside);
           }
         }
 
@@ -206,9 +206,9 @@ function AModal() {
   this.body    = spinner;
   this.rawMode = false;
   this.is_form = false;
-  this.timeout = 0;
+  this.form_url = '';
 
-  this.isSmall = false;
+  this.size = false;
 
   this.callback = null;
 
@@ -222,13 +222,14 @@ function AModal() {
     return this;
   };
 
-  this.setRawMode = function (boolean) {
-    this.rawMode = boolean;
+  this.setFormUrl = function (url) {
+    this.form_url = encodeURI(url);
     return this;
   };
 
-  this.setTimeout = function (milliseconds) {
-    this.setTimeout(milliseconds);
+  this.setRawMode = function (boolean) {
+    this.rawMode = boolean;
+    return this;
   };
 
   this.setHeader = function (data) {
@@ -279,8 +280,8 @@ function AModal() {
     return this;
   };
 
-  this.addButton = function (text, btnId, class_) {
-    this.footer += '<button id="' + btnId + '" class="btn btn-' + class_ + '">' + text + '</button>';
+  this.addButton = function (text, btnId, class_, type) {
+    this.footer += '<button id="' + btnId + '" class="btn btn-' + class_ + ' type="' + type + '">' + text + '</button>';
     return this;
   };
 
@@ -335,26 +336,20 @@ function AModal() {
 
     var str_func_close = '$("#' + this.id + '").modal("hide");';
     if (!this.rawMode) {
+      var form = (this.is_form) ? ("<form class='form form-horizontal' " + ((this.form_url) ? ("action='" + this.form_url + "'") : "") + ">") : "";
       var result = "<div class='modal fade' id='" + this.id + "' role='dialog' aria-hidden='true'>" +
           '<div class="modal-dialog ' + modalClass + '" style="z-index : 10000">' +
           '<div class="modal-content">' +
+          form +
           '<div class="modal-header" id="'+ this.id +'_header">' +
-          this.header +
+          '<h4 class="modal-title">' + this.header + '</h4>' +
           '<button type="button" class="close" onclick=' + str_func_close + '>' +
           '<span aria-hidden="true">&times;</span>' +
           '</button>' +
           '</div>' +  //modal-header
           '<div class="modal-body form-horizontal">';
 
-      if (this.is_form) {
-        result += "<form class='form form-horizontal'>"
-      }
-
       result += this.body;
-
-      if (this.is_form) {
-        result += "</form>"
-      }
 
       result += '</div>';//modal-body
       if (this.footer) {
@@ -362,6 +357,11 @@ function AModal() {
             this.footer +
             '</div>';//footer
       }
+
+      if (this.is_form) {
+        result += "</form>"
+      }
+
       result += '</div>' +//modal-content
           '</div>' + //modal-dialog
           '</div>'; //modal

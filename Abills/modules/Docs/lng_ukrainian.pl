@@ -20,9 +20,9 @@ $lang{ERR_NO_ORDERS}='Не выбрані замовлення';
 @money_unit_names = ('грн','коп');
 
 
-$lang{PAID}='Оплаченний';
+$lang{PAID}='Оплачений';
 $lang{PARTLY_PAID}='Частково оплачений';
-$lang{UNPAID}='Не оплаченний';
+$lang{UNPAID}='Не оплачений';
 $lang{VAT_INCLUDE}='З урахуванням податку';
 $lang{AMOUNT_FOR_PAY}='Сума для оплати';
 #$lang{ACTIVATE_NEXT_PERIOD}='Для активації наступного облікового періода потрібно сплатити';
@@ -33,7 +33,7 @@ $lang{NEXT_PERIODS}='Наступні обрахункові періоди';
 $lang{INCLUDE_CUR_BILLING_PERIOD}='Включити рахунки за поточний період';
 $lang{NOT_INCLUDE_CUR_BILLING_PERIOD}='Не включати рахунки за поточний період';
 
-$lang{LAST_INVOICE_DATE}='Дата останього рахунку';
+$lang{LAST_INVOICE_DATE}='Дата останнього рахунку';
 $lang{NEXT_INVOICE_DATE}='Дата наступного рахунку';
 
 
@@ -44,19 +44,19 @@ $lang{ALT}='Альтернативная';
 $lang{CURRENCY}='Валюта';
 
 $lang{INCLUDE_DEPOSIT}='Врахувати депозит';
-$lang{APPLY_TO_INVOICE}='Автоматично розпреділити по рахункам';
-$lang{PRINT_EXT}='Розширенный друк';
-$lang{PRINT_EXT_LIST}='Друк разширенного шаблону';
+$lang{APPLY_TO_INVOICE}='Автоматично розподілити по рахункам';
+$lang{PRINT_EXT}='Розширений друк';
+$lang{PRINT_EXT_LIST}='Друк розширеного шаблону';
 $lang{NEXT_PERIOD_INVOICE}='Рахунки за період';
 $lang{STATEMENT_OF_ACCOUNT}='Виписка по особовому рахунку';
 
 $lang{ORDERS}='Замовлення';
-$lang{SKIP_PAY_ADD}='Пропещено рахунків';
+$lang{SKIP_PAY_ADD}='Пропущено рахунків';
 
 $lang{CONNECT_TO} = 'Підключіться до';
 
 $lang{PAYMENTS_NOT_EQUAL_DOC}='Сума документа відрізняэться від суми платежу';
-$lang{PRINT_TERMO_PRINTER} = 'Чек для термо-прінтера';
+$lang{PRINT_TERMO_PRINTER} = 'Чек для термопринтера';
 $lang{UNPAID_INVOICES} = 'Неоплачені рахунки';
 $lang{SAVE_CONTROL_SUM}='Завантажити контрольну суму документа';
 $lang{LIST_OF_CHARGES}='Список нарахувань';

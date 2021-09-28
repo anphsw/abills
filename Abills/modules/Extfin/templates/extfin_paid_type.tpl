@@ -3,20 +3,20 @@
 <input type=hidden name=index value=$index>
 <input type=hidden name=ID value=%ID%>
 
-<div class='card card-primary card-outline box-form form-horizontal'>
-  <div class='card-body'>
-    <div class='form-group'>
-    <label class='col-md-3 control-label'>_{NAME}_:</label>
-    <div class='col-md-9'>
-      <input class='form-control' type=text name=NAME value='%NAME%'>
-    </div>
-    </div>
-    <div class='form-group'>
-      <div class='checkbox'>
-      <label>
-      <input type='checkbox' name=PERIODIC value='1' %PERIODIC%> _{PERIOD}_
-      </label>
+<div class='card card-primary card-outline card-form'>
+  <div class='card-header'>
+    <div class='card-title'>_{TYPE}_</div>
   </div>
+  <div class='card-body'>
+    <div class='form-group row'>
+      <label class='col-md-3 control-label'>_{NAME}_:</label>
+      <div class='col-md-9'>
+        <input class='form-control' type=text name=NAME value='%NAME%'>
+      </div>
+    </div>
+    <div class='form-group row'>
+      <label class='col-md-3 control-label'>_{PERIOD}_</label>
+      <input type='checkbox' name=PERIODIC value='1' %PERIODIC%>
     </div>
   </div>
   <div class='card-footer'>

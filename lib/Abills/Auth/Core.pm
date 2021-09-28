@@ -44,6 +44,7 @@ sub new {
   }
   else {
     print "Content-Type: text/html\n\n";
+    print "Cn't load '$name'";
     print $@;
   }
 
@@ -69,7 +70,7 @@ sub check_access {
     });
   }
 
-  $self = $self->SUPER::check_access($attr);
+  my $result = $self->SUPER::check_access($attr);
 
   if ($self->{conf} && $self->{conf}->{auth_debug}) {
     $request = 'Result: ';
@@ -86,7 +87,7 @@ sub check_access {
     });
   }
 
-  return $self;
+  return $result;
 }
 
 #**********************************************************

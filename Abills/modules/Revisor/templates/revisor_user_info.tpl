@@ -1,5 +1,4 @@
 <form class='form-horizontal' name='users_pi'>
-<div class='row'>
   <div class='col-md-6'>
     <div class='card card-primary card-outline box-form'>
       <div class='card-header with-border'><h3 class='card-title'>%LOGIN%</h3>
@@ -37,7 +36,7 @@
           </div>
         </div>
         <div class='card-body'>
-          <div class='form-group'>
+          <div class='form-group row'>
             <label class='control-label col-xs-4 col-md-2' for='PASPORT_NUM'>_{NUM}_</label>
             <div class='col-xs-8 col-sm-4'>
               <input id='PASPORT_NUM' name='PASPORT_NUM' value='%PASPORT_NUM%'
@@ -51,7 +50,7 @@
                      class='datepicker form-control'>
             </div>
           </div>
-          <div class='form-group'>
+          <div class='form-group row'>
             <label class='control-label col-xs-4 col-md-2' for='PASPORT_GRANT'>_{GRANT}_</label>
             <div class='col-xs-8 col-md-10'>
                     <textarea class='form-control' id='PASPORT_GRANT' name='PASPORT_GRANT'
@@ -94,6 +93,5 @@
         %BUTTON%
       </div>
     </div>  
-  </div>
-</div>  
+  </div>  
 </form>

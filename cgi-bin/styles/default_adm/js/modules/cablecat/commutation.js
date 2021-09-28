@@ -27,6 +27,7 @@ var LINKS     = document.LINKS || [];
 var SPLITTERS = document.SPLITTERS || [];
 var EQUIPMENT = document.EQUIPMENT || [];
 var CROSSES   = document.CROSSES || [];
+var ONUS      = document.ONUS || [];
 //var options = document['OPTIONS'] || {};
 
 // Caching objects info
@@ -45,8 +46,6 @@ var DEFAULT_SCHEME_OPTIONS = {
   ROUTER_HEIGHT_MARGIN: 5,
   OPPOSITE_SHIFT      : 3
 };
-
-console.log(CABLES);
 
 var COLORS_NAME = {
     '#fcfefc' : 'White',
@@ -69,6 +68,14 @@ var COLORS_NAME = {
     '#9c3232' : 'Cherry',
 };
 
+var TYPE_VARIABLE_NAME = {
+  'EQUIPMENT' : 'EQUIPMENT',
+  'CROSS'     : 'CROSSES',
+  'CABLE'     : 'CABLES',
+  'SPLITTER'  : 'SPLITTERS',
+  'ONU'       : 'ONUS',
+};
+
 $(function () {
 
   //Instantiate classes
@@ -79,15 +86,45 @@ $(function () {
   $body.on('expanded.pushMenu collapsed.pushMenu', function () {
     setTimeout(redraw, 400);
   });
-  jQuery(window).on('resize', redraw);
+  jQuery(window).on('resize', debounce(function () {
+    redraw();
+  }));
 
   $('button#commutation_print').on('click', commutation_print);
+
+  function debounce(func){
+    var timer;
+    return function(event){
+      if(timer) clearTimeout(timer);
+      timer = setTimeout(func,100,event);
+    };
+  }
 });
 
 function redraw() {
+
   paper = null;
-  $('#drawCanvas').empty();
-  cablecatMain();
+
+  let url = '?header=2&get_index=cablecat_commutation_links&JSON_RESULT=1&COMMUTATION_ID=' + document['COMMUTATION_ID'];
+
+  fetch(url)
+    .then(function (response) {
+      if (!response.ok)
+        throw Error(response.statusText);
+
+      return response;
+    })
+    .then(function (response) {
+      return response.json();
+    })
+    .then(result => async function (result) {
+      LINKS = result;
+      $('#drawCanvas').empty();
+      cablecatMain();
+    }(result))
+    .catch(function (error) {
+      alert(error);
+    });
 }
 
 function initOptions(options) {
@@ -102,21 +139,13 @@ function initOptions(options) {
   var width  = options.minWidth || max_width;
   var height = options.minHeight || max_height;
 
-  //console.log('init: width', width, 'height', height,
-  //    'scale', scale,
-  //    'max_width : ', max_width,
-  //    'max_height : ', max_height
-  //);
 
   scale = ((width) * scale >= max_width)
     ? (Math.ceil(((width / max_width) * 100) / 100))
     : scale;
 
-  //width = (scale != options['scale']) ? width * scale : max_width;
   width = max_width;
   height *= (options.minHeight) ? scale : 1;
-
-  //console.log('result: width', width, 'height', height, 'scale', scale);
 
   SCHEME_OPTIONS = {
     SCALE: scale,
@@ -155,6 +184,7 @@ function initOptions(options) {
   SCHEME_OPTIONS.CANVAS_Y_CENTER = SCHEME_OPTIONS.CANVAS_HEIGHT / 2;
   SCHEME_OPTIONS.CANVAS_X_CENTER = SCHEME_OPTIONS.CANVAS_WIDTH / 2;
   SCHEME_OPTIONS.ZOOM            = (scale < 1.5);
+  SCHEME_OPTIONS.CANVAX_X_LINK   = SCHEME_OPTIONS.CANVAS_WIDTH - SCHEME_OPTIONS.CABLE_FULL_HEIGHT * 2;
 }
 
 function cablecatMain() {
@@ -195,6 +225,7 @@ function cablecatMain() {
 
 
   $.each(SPLITTERS, function (i, e) {
+    if (e === undefined) return;
     var splitter = new Splitter(e);
     splitter.render();
 
@@ -206,6 +237,7 @@ function cablecatMain() {
   });
 
   $.each(EQUIPMENT, function (i, e) {
+    if (e === undefined) return;
     var equipment = new Equipment(e);
     equipment.render();
 
@@ -219,6 +251,7 @@ function cablecatMain() {
 
 
   $.each(CROSSES, function (i, e) {
+    if (e === undefined) return;
     var cross = new Cross(e);
     cross.render();
     ACommutation.addElement('CROSS', {
@@ -229,10 +262,28 @@ function cablecatMain() {
 
   });
 
+  $.each(ONUS, function (i, e) {
+    if (e === undefined) return;
+    e.ports = 1;
+    var onu = new ONU(e);
+    onu.render();
+
+    ACommutation.addElement('ONU', {
+      id    : onu.id,
+      uid   : onu.uid,
+      fibers: 1,
+      origin: onu
+    });
+
+  });
+
+
   $.each(LINKS, function(i, link){
+    if (link === null) return;
     ACommutation.addLink($.extend({}, link, {
       element_id_1: link.element_1_type + '_' + link.element_1_id,
-      element_id_2: link.element_2_type + '_' + link.element_2_id
+      element_id_2: link.element_2_type + '_' + link.element_2_id,
+      links_index : i
     }));
   });
 
@@ -252,7 +303,8 @@ function CableManager(cablesArr) {
     bottom: []
   };
 
-  $.each(cablesArr, function(i, cableRaw){
+  $.each(cablesArr, function (i, cableRaw) {
+    if (cableRaw === undefined) return;
     var cable = new Cable(cableRaw);
     cable.raw = cableRaw;
 
@@ -273,15 +325,16 @@ function CableManager(cablesArr) {
     + DEFAULT_SCHEME_OPTIONS.MODULE_HEIGHT + DEFAULT_SCHEME_OPTIONS.FIBER_HEIGHT;
 
   //  - get max needed width
-  var max_top_width    = this.cable_by_positions.top.reduce(this.getSideWidth, 0);
+  var max_top_width = this.cable_by_positions.top.reduce(this.getSideWidth, 0);
   var max_bottom_width = this.cable_by_positions.bottom.reduce(this.getSideWidth, 0);
-  this.min_width       = Math.max(max_top_width, max_bottom_width) + edge_margin * 3;
+  this.min_width = Math.max(max_top_width, max_bottom_width) + edge_margin * 3;
 
   // - and height
-  var max_left_width  = this.cable_by_positions.left.reduce(this.getSideWidth, 0);
+  var max_left_width = this.cable_by_positions.left.reduce(this.getSideWidth, 0);
   var max_right_width = this.cable_by_positions.right.reduce(this.getSideWidth, 0);
-  this.min_height     = Math.max(max_left_width, max_right_width) + edge_margin * 3;
-
+  this.min_height = Math.max(max_left_width, max_right_width) + edge_margin * 3;
+  this.calculated_min_height = this.min_height;
+  this.min_height = document['COMMUTATION_HEIGHT'] ? document['COMMUTATION_HEIGHT'] : this.min_height;
 }
 
 CableManager.prototype = {
@@ -296,7 +349,6 @@ CableManager.prototype = {
     return this.cables;
   },
   getCableForFiber: function (fiberId) {
-    //console.log(fiberId);
     return fibers[fiberId].cable;
   },
   getCableById    : function (cableId) {
@@ -342,9 +394,8 @@ Commutation.prototype = {
     $.each(new_element.fibers, function(i, e){
       var fiber_num = fiber_offset + i;
       var fiber_id  = new_element.id + '_' + fiber_num;
-      
+
       self.fiber_by_id[fiber_id]       = new_element.origin.fibers[i];
-      // console.log(new_element.origin.fibers[i]);
       self.element_for_fiber[fiber_id] = new_element;
 
       self.modifyFiberMeta(new_element, new_element.origin.fibers[i], fiber_num);
@@ -375,6 +426,7 @@ Commutation.prototype = {
   setLinks          : function (links_map) {
     this.links_for_fiber = {};
     for (var i = 0; i < LINKS.length; i++) {
+      if (LINKS[i] === null) continue;
       var fiber_1_id = LINKS[i]['element_1_type'] + '_' + LINKS[i]['element_1_id'] + '_' + LINKS[i]['fiber_num_1'];
       var fiber_2_id = LINKS[i]['element_2_type'] + '_' + LINKS[i]['element_2_id'] + '_' + LINKS[i]['fiber_num_2'];
 
@@ -395,9 +447,9 @@ Commutation.prototype = {
 
     if (start_present && end_present) {
       // Do not change color when connecting to splitter
-      if (linkObj.element_2.type === SPLITTER) {
-        linkObj.color = this.getFiberById(start_id).color;
-      }
+      // if (linkObj.element_2.type === SPLITTER) {
+      //   linkObj.color = this.getFiberById(start_id).color;
+      // }
 
       var link                     = new Link(linkObj);
       this.links_by_id[linkObj.id] = link;
@@ -449,6 +501,7 @@ Commutation.prototype = {
   },
   removeElementByTypeAndId   : function (type, id) {
     var element  = this.getElementByTypeAndId(type, id);
+    let variableTypeName = type === "EQUIPMENT" ? type : type + "S"
     var drawable = element.origin;
 
     var self = this;
@@ -472,6 +525,16 @@ Commutation.prototype = {
         aTooltip.displayMessage(data.MESSAGE_ELEMENT_DELETED, 2000);
         if (drawable && drawable.clear) {
           drawable.clear();
+        }
+
+        if (TYPE_VARIABLE_NAME[type] && window[TYPE_VARIABLE_NAME[type]]) {
+          for (let i = 0; i < window[TYPE_VARIABLE_NAME[type]].length; i++) {
+            if (window[TYPE_VARIABLE_NAME[type]][i].id !== element.origin.id) continue;
+
+            window[TYPE_VARIABLE_NAME[type]][i] = undefined;
+            redraw();
+            break;
+          }
         }
       }
       else {
@@ -501,7 +564,6 @@ Commutation.prototype = {
   addLink                    : function (linkObj, renderNow) {
     if (typeof linkObj === 'undefined' || !linkObj) {
       alert('linkObj is not defined');
-      console.warn(linkObj);
     }
 
     // Get elements for fibers
@@ -550,6 +612,7 @@ Commutation.prototype = {
         self.rawLinks.splice(self.rawLinks.indexOf(link), 1);
         // Maybe remove from links by element hash
         link.clear();
+        redraw();
       }
       else {
         alert('Error happened')
@@ -642,14 +705,14 @@ Commutation.prototype = {
     for (var i = 0; i < links_to_redraw.length; i++) {
       links_to_redraw[i].clear();
       links_to_redraw[i].render(true);
+      this.setFiberConnected(links_to_redraw[i].end);
+      this.setFiberConnected(links_to_redraw[i].start);
     }
   },
   setFiberConnected          : function (fiber_id) {
     if (typeof(this.fiber_by_id[fiber_id]) !== 'undefined') {
       this.fiber_by_id[fiber_id].connected = true;
-
       // Element was rendered but it don't know it has fiber connected
-
     }
   },
   startConnectingOperationFor: function (event) {
@@ -712,30 +775,6 @@ Commutation.prototype = {
     var currentZoom = this.zoomObject.getCurrentZoom();
     this.zoomObject.applyZoom(-currentZoom);
   },
-  //setZoom : function(value){
-  //  if (+value === 0){
-  //    value = 100;
-  //  }
-  //  // transform from percentage
-  //  var new_zoom = ( value - 100 ) / 50;
-  //  var current_zoom = this.zoomObject.getCurrentZoom();
-  //
-  //  // No need to deal with the zoom
-  //  if (current_zoom === new_zoom) return ;
-  //
-  //  // panZoom understands only delta
-  //  var delta = new_zoom - current_zoom;
-  //
-  //  if (delta > 0){
-  //    this.zoomObject.zoomIn(delta);
-  //  }
-  //  else {
-  //    this.zoomObject.zoomOut(-delta);
-  //  }
-  //
-  //  console.log('before', current_zoom, 'delta', delta, 'new zoom', this.zoomObject.getCurrentZoom());
-  //  console.log(this.zoomObject);
-  //}
 };
 
 /** Logical models */
@@ -744,18 +783,13 @@ function Link(rawLink) {
 
   this.is_cable_link = (rawLink.element_1.type === 'CABLE' && rawLink.element_2.type === 'CABLE') ? 1 : 0;
 
-  this.geometry = rawLink.geometry;
-  this.id       = rawLink.id || null;
-  this.color    = rawLink.color || null;
+  this.geometry    = rawLink.geometry;
+  this.id          = rawLink.id || null;
+  this.color       = rawLink.color || null;
+  this.links_index = rawLink.links_index || null;
 
-  this.start = (rawLink.fiber_id_1)
-    ? rawLink.fiber_id_1
-    : rawLink.element_1.id + '_' + rawLink.fiber_num_1;
-
-  this.end = (rawLink.fiber_id_2)
-    ? rawLink.fiber_id_2
-    : rawLink.element_2.id + '_' + rawLink.fiber_num_2;
-
+  this.start = (rawLink.fiber_id_1) ? rawLink.fiber_id_1 : rawLink.element_1.id + '_' + rawLink.fiber_num_1;
+  this.end = (rawLink.fiber_id_2) ? rawLink.fiber_id_2 : rawLink.element_2.id + '_' + rawLink.fiber_num_2;
   this.name = this.start + ' - ' + this.end;
 
   this.startFiber = ACommutation.getFiberById(this.start);
@@ -765,10 +799,7 @@ function Link(rawLink) {
   ACommutation.setFiberConnected(this.end);
 
   // Saving raw attributes to self
-  this.attributes.forEach(function (attr_name) {
-    self[attr_name] = rawLink[attr_name];
-  });
-
+  this.attributes.forEach(function (attr_name) {self[attr_name] = rawLink[attr_name];});
 }
 
 Link.prototype = {
@@ -1180,6 +1211,11 @@ Drawable.prototype = {
       }
     }
 
+    let self = this;
+    this.rendered.click(function(e) {
+      self.draggableCircle.attr({cx: e.offsetX, cy: e.offsetY});
+    });
+
     this.drawConnectedCircles();
   },
   drawFiber              : function (fiber, index) {
@@ -1203,7 +1239,7 @@ Drawable.prototype = {
     $(fiber_rect.node)
       .data('fiber-id', this.type + '_' + this.id + '_' + index);
 
-    if (this.type === 'EQUIPMENT' || this.type === 'CROSS') {
+    if (this.type === 'EQUIPMENT' || this.type === 'CROSS' || this.type === 'ONU') {
       let fiber_num = paper.text(
         fiber.x + 4,
         fiber.y + 15,
@@ -1237,7 +1273,7 @@ Drawable.prototype = {
   redrawShell            : function () {
     this.clearShell();
 
-    if ((this.type === 'EQUIPMENT' || this.type === 'CROSS') && !this.height_chanched) {
+    if ((this.type === 'EQUIPMENT' || this.type === 'CROSS' || this.type  === 'ONU') && !this.height_chanched) {
       this.height += 7;
       this.height_chanched = 1;
     }
@@ -1318,16 +1354,16 @@ Drawable.prototype = {
   },
   makeDraggable          : function () {
     // Draggable circle
-    this.draggableCircle = paper.circle(this.x, this.y, SCHEME_OPTIONS.FIBER_MARGIN / 4).attr({fill: 'green'});
+    this.draggableCircle = paper.circle(this.x, this.y, SCHEME_OPTIONS.FIBER_MARGIN / 4).attr({fill: 'green', class: 'cursor-pointer'});
 
     var self = this;
-    // Make draggable
     this.draggableCircle.draggable({
       moveCb: function (x, y) {
         self.x = x;
         self.y = y;
         self.redraw();
         self.draggableCircle.toFront();
+        ACommutation.redrawLinksForElement(self.type + '_' + self.id);
       },
       endCb : function () {
         self.saveCoords();
@@ -1361,7 +1397,6 @@ Drawable.prototype = {
     }
 
     if (!this.id) {
-      console.log(this);
       console.warn(this.type + ' without id');
       return;
     }
@@ -1396,7 +1431,7 @@ Drawable.prototype = {
     if (this.type !== 'SPLITTER' || !fiber.attenuation)
       return 0;
 
-    let fiber_num = paper.text(fiber.x + 4, fiber.y - 7, fiber.attenuation);
+    let fiber_num = paper.text(fiber.x + 4, fiber.y - 15, fiber.attenuation);
 
     fiber_num.toFront();
     this.rendered.push(fiber_num);
@@ -1417,7 +1452,7 @@ Rotatable.prototype = Object.create(Drawable.prototype);
 $.extend(Rotatable.prototype, {
   makeDraggable          : function () {
     Drawable.prototype.makeDraggable.apply(this);
-    this.makeRotatable();
+    // this.makeRotatable();
   },
   makeRotatable          : function () {
     var self = this;
@@ -1724,14 +1759,16 @@ $.extend(Cable.prototype, {
       var x, y;
 
       if (vertical) {
-        x = (typeof cable.start_x === 'number') ? cable.start_x :
+        let cable_x = parseInt(cable.start_x);
+        x = (!isNaN(cable_x) && cable_x > 0) ? cable_x :
           (SCHEME_OPTIONS.CABLE_FULL_HEIGHT / 2) + SCHEME_OPTIONS.CABLE_FULL_HEIGHT + offset;
         y = (mirrored) ? SCHEME_OPTIONS.CANVAS_HEIGHT - height : 0;
       }
       else {
-        x = (mirrored) ? SCHEME_OPTIONS.CANVAS_WIDTH - height : 0;
-        y = (typeof cable.start_y === 'number') ? cable.start_y :
+        let cable_y = parseInt(cable.start_y);
+        y = (!isNaN(cable_y) && cable_y > 0) ? cable_y :
           (SCHEME_OPTIONS.CABLE_FULL_HEIGHT / 2) + SCHEME_OPTIONS.CABLE_FULL_HEIGHT + offset;
+        x = (mirrored) ? SCHEME_OPTIONS.CANVAS_WIDTH - height : 0;
       }
 
       //if not vertical, flip height and width
@@ -1975,18 +2012,12 @@ $.extend(Cable.prototype, {
 
       var text = paper.text(text_x, text_y, description);
 
-      var color = SCHEME_OPTIONS.FONT_COLOR;
-
-      if (info_object.image.color === 'black' || info_object.image.color === ('#000000')) {
-        color = '#ffffff';
-      }
-
       text.attr({
         'font-family': SCHEME_OPTIONS.FONT,
         'font-size'  : SCHEME_OPTIONS.FONT_SIZE * SCHEME_OPTIONS.SCALE,
         'font-weight': 400,
-        fill         : color
-      });
+        'fill'       : SCHEME_OPTIONS.FONT_COLOR
+      }).paperEf();
 
       //if cable is horizontal, need to rotate text
       if (!vertical) {
@@ -2148,6 +2179,43 @@ $.extend(Splitter.prototype, {
       }
     }
   }
+});
+
+function ONU(onu_raw, options) {
+  this.raw    = onu_raw;
+  this.uid    = onu_raw.uid;
+  this.fibers = new Array(+onu_raw.ports);
+  Rotatable.apply(this, arguments);
+
+  this.id   = onu_raw.id;
+  this.type = 'ONU';
+
+
+  if (!this.id) {
+    throw new Error("Got onu without id")
+  }
+
+  this.calculateSizes();
+  this.calculateFiberPositions();
+
+  this['node-data'] = {
+    'onu-id': this.id
+  };
+
+  ONU.prototype.num += 1;
+}
+
+
+ONU.prototype = Object.create(Rotatable.prototype);
+ONU.prototype = $.extend(ONU.prototype, {
+  num           : 0,
+  type          : 'ONU',
+  fiber_attr    : {
+    fill: 'lightgrey'
+  },
+  'height-fiber':  1/4,
+  'color-shell' : 'seagreen',
+
 });
 
 function Equipment(equipment_raw, options) {
@@ -2609,6 +2677,7 @@ function CommutationControlsAbstract() {
   this.$plus_dropdown = this.$panel.find('ul.dropdown-menu.plus-options');
   this.$adv_dropdown  = this.$panel.find('ul.dropdown-menu.advanced-options');
   this.$info_btn      = this.$panel.find('button#info-btn');
+  this.$space_size    = this.$panel.find('button#SPACE_SIZE_BTN');
 
   // Zoom controls
   this.$zoom_in_btn   = this.$panel.find('button#ZOOM_IN');
@@ -2651,6 +2720,19 @@ function CommutationControlsAbstract() {
       + '&CONNECTER_ID=' + this.connecter_id
       + '&COMMUTATION_ID=' + this.commutation_id
       + '&entity=EQUIPMENT'
+      + '&operation=LIST'
+    );
+
+  };
+
+  this.addONU = function () {
+
+    loadToModal('?qindex=' + INDEX
+      + '&header=2'
+      + '&WELL_ID=' + this.well_id
+      + '&CONNECTER_ID=' + this.connecter_id
+      + '&COMMUTATION_ID=' + this.commutation_id
+      + '&entity=ONU'
       + '&operation=LIST'
     );
 
@@ -2747,21 +2829,38 @@ function CommutationControlsAbstract() {
   };
 
   this.clearCommutation = function () {
-    Events.once('modal_loaded', function () {
-      setTimeout(function () {
-        location.reload(true)
-      }, 1000);
-    });
+    let self = this;
+    aModal.clear()
+      .setBody('<div id="confirmModalContent">' + _translate("CLEAR") + '?</div>')
+      .setSmall(true)
+      .addButton(_translate("NO"), "confirmModalCancelBtn", "default")
+      .addButton(_translate("YES"), "confirmModalConfirmBtn", "success")
+      .show(bindBtnEvents);
 
-    loadToModal('?qindex=' + INDEX
-      + '&header=' + 2
-      + '&WELL_ID=' + this.well_id
-      + '&CONNECTER_ID=' + this.connecter_id
-      + '&COMMUTATION_ID=' + this.commutation_id
-      + '&operation=CLEAR_COMMUTATION'
-    );
+
+    function bindBtnEvents(modal) {
+      $('#confirmModalCancelBtn').on('click', function () {
+        modal.hide();
+      });
+
+      $('#confirmModalConfirmBtn').on('click', function () {
+        Events.once('modal_loaded', function () {
+          setTimeout(function () {
+            location.reload(true)
+          }, 1000);
+        });
+
+
+        loadToModal('?qindex=' + INDEX
+          + '&header=' + 2
+          + '&WELL_ID=' + self.well_id
+          + '&CONNECTER_ID=' + self.connecter_id
+          + '&COMMUTATION_ID=' + self.commutation_id
+          + '&operation=CLEAR_COMMUTATION'
+        );
+      });
+    }
   };
-
 
   this.addLink = function () {
     alert('Add link');
@@ -2788,7 +2887,8 @@ function CommutationControlsAbstract() {
     'Link'     : this.addLink,
     'Splitter' : this.addSplitter,
     'Equipment': this.addEquipment,
-    'Cross'    : this.addCross
+    'Cross'    : this.addCross,
+    'ONU'     : this.addONU,
   };
 
   this.advanced_options = {
@@ -2801,6 +2901,72 @@ function CommutationControlsAbstract() {
 
   this.initOptionsList(this.$plus_dropdown, this.add_options);
   this.initOptionsList(this.$adv_dropdown, this.advanced_options);
+
+  this.$space_size.on('click', function() {
+
+    let div = document.createElement('div');
+    div.classList.add('form-row');
+
+    let label = document.createElement('label');
+    label.classList.add('col-md-4');
+    label.classList.add('col-form-label');
+    label.classList.add('text-md-right');
+    label.innerHTML = 'Висота:';
+
+    let input_div = document.createElement('div');
+    input_div.classList.add('col-md-8');
+
+    let input = document.createElement('input');
+    input.classList.add('form-control');
+    input.setAttribute("type", "number");
+    input.setAttribute("min", (ACableManager.calculated_min_height * 2).toString());
+    input.setAttribute("value", (ACableManager.calculated_min_height * 2).toString());
+    input.setAttribute("id", 'new_height');
+
+    let feedback = document.createElement('div');
+    feedback.classList.add('invalid-feedback');
+    feedback.innerHTML = _translate('HEIGHT_CANNOT_BE_LESS') + ": " + ACableManager.calculated_min_height * 2;
+
+    input_div.appendChild(input);
+    input_div.appendChild(feedback);
+
+    div.appendChild(label);
+    div.appendChild(input_div);
+    aModal.clear()
+      .setId('ModalLocation')
+      .setBody(div.outerHTML)
+      .addButton(_translate('Set'), 'changeSizeButton', 'primary')
+      .show();
+
+    jQuery('#changeSizeButton').on('click', function () {
+      let new_height = jQuery('#new_height');
+
+      if (Number.parseInt(new_height.val()) < Number.parseInt(new_height.attr('min'))) {
+        new_height.addClass('is-invalid');
+        return;
+      }
+
+      let params = {
+        qindex: INDEX,
+        json: 1,
+        header: 2,
+        commutation: 1,
+        change_height: new_height.val() / 2,
+        COMMUTATION_ID: document['COMMUTATION_ID']
+      };
+      jQuery.post(SELF_URL, params, function (data) {
+        new_height.removeClass('is-invalid').addClass('is-valid');
+        aModal.hide();
+        document['COMMUTATION_HEIGHT'] = new_height.val() / 2;
+        SCHEME_OPTIONS.CANVAS_HEIGHT = new_height.val();
+        jQuery('#drawCanvas').css('height', new_height.val());
+        drawGrid(25, 0.1);
+        redraw();
+      }).fail(function (error) {
+        aTooltip.displayError(error);
+      });
+    })
+  });
 
   this.$zoom_in_btn.on('click', function () {
     ACommutation.zoomIn()
@@ -3010,6 +3176,7 @@ function initContextMenus() {
           icon    : 'delete',
           callback: function () {
             if (confirm(_translate('Delete connection') + '?')) {
+              if (link.links_index && LINKS[link.links_index]) LINKS[link.links_index] = null;
               ACommutation.removeLink(link)
             }
           }
@@ -3025,7 +3192,7 @@ function initContextMenus() {
           callback: link.editComments.bind(link)
         },
         clear            : {
-          name    : _translate('Clear'),
+          name    : _translate('STRAIGHTEN'),
           icon    : 'fa-remove',
           callback: link.clearGeometry.bind(link)
         }
@@ -3183,7 +3350,6 @@ function initContextMenus() {
 
       var splitter = splitter_el.origin.raw;
 
-      console.log(splitter);
       return {
         items: {
           // Fiber label
@@ -3203,6 +3369,20 @@ function initContextMenus() {
             icon    : 'delete',
             callback: function () {
               ACommutation.removeElementByTypeAndId('SPLITTER', splitter_id)
+            }
+          },
+          rotate: {
+            name    : capitalizeFirst(_translate('Rotate').toLowerCase()),
+            icon    : 'fa-undo',
+            callback: function () {
+              splitter_el.origin.rotation_angle = ((splitter_el.origin.rotation_angle || 0) + 90) % 360;
+
+              splitter_el.origin.redraw();
+
+              splitter_el.origin.draggableCircle.toFront();
+
+              splitter_el.origin.saveCoords();
+              ACommutation.redrawLinksForElement(splitter_el.origin.type + '_' + splitter_el.origin.id);
             }
           }
         }
@@ -3229,11 +3409,12 @@ function initContextMenus() {
 
       var equipment = equipment_el.origin.raw;
 
+
       return {
         items: {
           // Fiber label
           full_name : {
-            name : equipment.type + '#' + equipment.id,
+            name : equipment.model_name + '#' + equipment.id,
             icon : 'preview',
             items: {
               change: {
@@ -3248,6 +3429,74 @@ function initContextMenus() {
             icon    : 'delete',
             callback: function () {
               ACommutation.removeElementByTypeAndId('EQUIPMENT', equipment_id)
+            }
+          },
+          rotate: {
+            name    : capitalizeFirst(_translate('ROTATE').toLowerCase()),
+            icon    : 'fa-undo',
+            callback: function () {
+              equipment_el.origin.rotation_angle = ((equipment_el.origin.rotation_angle || 0) + 90) % 360;
+
+              equipment_el.origin.redraw();
+
+              equipment_el.origin.draggableCircle.toFront();
+
+              equipment_el.origin.saveCoords();
+              ACommutation.redrawLinksForElement(equipment_el.origin.type + '_' + equipment_el.origin.id);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  //Init equipment context-menu
+  $.contextMenu({
+    // define which elements trigger this menu
+    selector      : ".onu",
+    trigger       : 'right',
+    itemClickEvent: "click",
+
+    build: function ($trigger) {
+
+      var onu_id = $trigger.data('onu-id');
+      var onu_el = ACommutation.getElementByTypeAndId('ONU', onu_id);
+
+      if (!onu_el) {
+        alert('Error creating menu. can\'t find onu ' + onu_id);
+        return false;
+      }
+
+      var onu = onu_el.origin.raw;
+
+
+      return {
+        items: {
+          // Fiber label
+          full_name : {
+            name : 'UID: '+ onu.uid,
+            icon    : 'fa-external-link',
+            callback: open_url_function('?get_index=form_users&full=1&UID=' + onu.uid, true),
+          },
+          connection: {
+            name    : capitalizeFirst(_translate('Remove %s from scheme', 'onu').toLowerCase()),
+            icon    : 'delete',
+            callback: function () {
+              ACommutation.removeElementByTypeAndId('ONU', onu_id)
+            }
+          },
+          rotate: {
+            name    : capitalizeFirst(_translate('ROTATE').toLowerCase()),
+            icon    : 'fa-undo',
+            callback: function () {
+              onu_el.origin.rotation_angle = ((onu_el.origin.rotation_angle || 0) + 90) % 360;
+
+              onu_el.origin.redraw();
+
+              onu_el.origin.draggableCircle.toFront();
+
+              onu_el.origin.saveCoords();
+              ACommutation.redrawLinksForElement(onu_el.origin.type + '_' + onu_el.origin.id);
             }
           }
         }
@@ -3308,6 +3557,20 @@ function initContextMenus() {
                 + "&PORT_FINISH=" + cross.port_finish
                 + "&COMMUTATION_ID=" + document['COMMUTATION_ID']);
             }
+          },
+          rotate: {
+            name    : capitalizeFirst(_translate('ROTATE').toLowerCase()),
+            icon    : 'fa-undo',
+            callback: function () {
+              cross_el.origin.rotation_angle = ((cross_el.origin.rotation_angle || 0) + 90) % 360;
+
+              cross_el.origin.redraw();
+
+              cross_el.origin.draggableCircle.toFront();
+
+              cross_el.origin.saveCoords();
+              ACommutation.redrawLinksForElement(cross_el.origin.type + '_' + cross_el.origin.id);
+            }
           }
         }
       }
@@ -3338,10 +3601,16 @@ function drawGrid(step, strokeWidth) {
     path_command += makePathCommand([{x: 0, y: yy}, {x: SCHEME_OPTIONS.CANVAS_WIDTH, y: yy}]);
   }
 
-  paper.path(path_command).attr({
+  let old_grid = document.getElementById("grid-path");
+
+  if (old_grid) old_grid.remove();
+
+  let grid = paper.path(path_command).attr({
     'stroke-color': 'silver',
     'stroke-width': strokeWidth,
-  }).node.id = "grid-path";
+  });
+  grid.toBack();
+  grid.node.id = "grid-path";
 }
 
 function makePathCommand(pointsArr) {
@@ -3471,8 +3740,8 @@ function computePath(start, end) {
       }
     }
     else {
-      var middle_x =
-            SCHEME_OPTIONS.CANVAS_X_CENTER + offset;
+      var middle_x = SCHEME_OPTIONS.CANVAX_X_LINK + offset;
+      SCHEME_OPTIONS.CANVAX_X_LINK -= 10;
 
       if (startPoint.y === endPoint.y) {
         result.push({x: middle_x, y: startPoint.y});

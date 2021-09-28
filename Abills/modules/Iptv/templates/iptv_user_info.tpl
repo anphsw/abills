@@ -14,7 +14,7 @@
         </button>
       </div>
     </div>
-    <div class='card-body'>
+    <div class='card-body p-0'>
       <table class='table table-bordered table-sm'>
         <tr>
           <td class='text-bold'>_{STATUS}_</td>

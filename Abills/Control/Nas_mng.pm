@@ -30,6 +30,12 @@ my $Nas = Nas->new($db, \%conf, $admin);
 =cut
 #**********************************************************
 sub form_nas {
+
+  if (in_array('Equipment', \@MODULES)) {
+    require Equipment;
+    Equipment->import();
+  }
+
   if ($FORM{NAS_ID} && !$FORM{del}) {
     if(form_nas_mng($FORM{NAS_ID})) {
       return 1;
@@ -72,13 +78,13 @@ sub form_nas {
   }
   elsif ($permissions{4} && $permissions{4}{3} && $FORM{del} && $FORM{COMMENTS}) {
     $Nas->del($FORM{del});
-    if (in_array('Equipment', \@MODULES)) {
-    use Equipment;
-    my $Equipment = Equipment->new($db, $admin, \%conf);
-    $Equipment->_del($FORM{del});
-    }
+
     if (!$Nas->{errno}) {
       $html->message('info', $lang{INFO}, "$lang{DELETED} [$FORM{del}]");
+      if (in_array('Equipment', \@MODULES)) {
+        my $Equipment = Equipment->new($db, $admin, \%conf);
+        $Equipment->_del($FORM{del});
+      }
     }
   }
   elsif ($FORM{wrt_configure}) {
@@ -90,8 +96,6 @@ sub form_nas {
 
   my %equipment_filter = ();
   if (in_array('Equipment', \@MODULES)) {
-    require Equipment;
-    Equipment->import();
     my $Equipment = Equipment->new($db, $admin, \%conf);
     my $list = $Equipment->_list({ COLS_NAME => 1, PAGE_ROWS => 100000 });
     foreach my $line (@$list) {
@@ -197,7 +201,7 @@ sub form_nas_mng {
         subf  => $FORM{subf}
       },
       SUBMIT => { show => "$lang{SHOW}" },
-      class  => 'navbar-form navbar-right form-inline',
+      class  => 'navbar navbar-expand-lg navbar-light bg-light form-main',
     }
   );
 
@@ -659,18 +663,44 @@ sub form_nas_console_command {
 
     push @exec_cmd, "$wait_char\t$FORM{CMD}", "$wait_char\texit";
 
-    my $res = Abills::Nas::Control::telnet_cmd3("$nas_ip:$nas_telnet_port", \@exec_cmd, {
-      debug => $FORM{DEBUG}, LOG => $Log });
 
-    $result = [ split(/\n/, $res || q{}) ];
-    my @caption = ();
+    use Abills::Telnet;
 
-    if($result && $#{ $result } > -1) {
-      @caption = split('\|', $result->[0]);
+    my $t = Abills::Telnet->new();
+    $t->set_terminal_size(256, 1000);
+    my $prompt = $conf{NAS_MNG_PROMPT} ? $conf{NAS_MNG_PROMPT} : '\n.*[\$%#\]>]';
+    $t->prompt($prompt);
+
+    if (!$t->open("$nas_ip:$nas_telnet_port")) {
+      $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
     }
 
-    $result->[0] = undef;
-    $result->[1] = undef;
+    if(!$t->login($Nas_->{NAS_MNG_USER}, $Nas_->{NAS_MNG_PASSWORD})) {
+      $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
+    }
+
+    $result = [];
+    $FORM{CMD} =~ s/\r//g;
+    my @cmds = split '\n', $FORM{CMD};
+    foreach my $cmd (@cmds) {
+      $result = $t->cmd($cmd, {PROMPT => '\n.*[\$%#\]>\?] ?$'});
+      sleep 1;
+      if(!$result) {
+        $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
+        $result = [];
+      }
+    }
+
+    my @caption = ();
+
+    if($result->[0] && $result->[0] =~ /\|/) {
+      if ($result && $#{$result} > -1) {
+        @caption = split('\|', $result->[0]);
+      }
+
+      $result->[0] = undef;
+      $result->[1] = undef;
+    }
 
     my $ip_col = 3;
     my $acct_session_col = 2;
@@ -702,22 +732,22 @@ sub form_nas_console_command {
         });
         _error_show($Sessions);
       }
-      else {
-        require Dv_Sessions;
-        Dv_Sessions->import();
-        my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
-        $users_online_list = $Dv_Sessions->online({
-          COLS_NAME       => 1,
-          NAS_ID          => $nas_id,
-          CLIENT_IP       => '_SHOW',
-          LOGIN           => '_SHOW',
-          #NAS_ID          => '_SHOW',
-          NAS_PORT_ID     => '_SHOW',
-          ACCT_SESSION_ID => '_SHOW',
-          USER_NAME       => '_SHOW',
-        });
-        _error_show($Dv_Sessions);
-      }
+      # else {
+      #   require Dv_Sessions;
+      #   Dv_Sessions->import();
+      #   my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
+      #   $users_online_list = $Dv_Sessions->online({
+      #     COLS_NAME       => 1,
+      #     NAS_ID          => $nas_id,
+      #     CLIENT_IP       => '_SHOW',
+      #     LOGIN           => '_SHOW',
+      #     #NAS_ID          => '_SHOW',
+      #     NAS_PORT_ID     => '_SHOW',
+      #     ACCT_SESSION_ID => '_SHOW',
+      #     USER_NAME       => '_SHOW',
+      #   });
+      #   _error_show($Dv_Sessions);
+      # }
 
       my $online_index = get_function_index('internet_online');
 
@@ -841,18 +871,18 @@ sub form_nas_console_command {
             });
             _error_show($Sessions);
           }
-          else {
-            require Dv_Sessions;
-            Dv_Sessions->import();
-            my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
-            $users_online_list = $Dv_Sessions->online({
-              COLS_NAME => 1,
-              NAS_ID    => $nas_id,
-              CLIENT_IP => '_SHOW',
-              LOGIN     => '_SHOW'
-            });
-            _error_show($Dv_Sessions);
-          }
+          # else {
+          #   require Dv_Sessions;
+          #   Dv_Sessions->import();
+          #   my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
+          #   $users_online_list = $Dv_Sessions->online({
+          #     COLS_NAME => 1,
+          #     NAS_ID    => $nas_id,
+          #     CLIENT_IP => '_SHOW',
+          #     LOGIN     => '_SHOW'
+          #   });
+          #   _error_show($Dv_Sessions);
+          # }
 
           require Abills::Experimental;
           my $users_online_hash = sort_array_to_hash($users_online_list, 'client_ip');
@@ -1000,7 +1030,7 @@ sub form_mrtg_cfg {
     $Nas_->info({ NAS_ID => $attr->{NAS_ID} }) if ($attr->{NAS_ID});
   };
 
-  my $comments;
+  #my $comments;
   $FORM{query_type} //= 1;
 
   my $mrtg_cfgmaker = cmd("which cfgmaker");
@@ -1034,7 +1064,7 @@ sub form_mrtg_cfg {
     $html->tpl_show(templates('form_mrtg'), {SELECT => $select, NAME => $nas_name, %FORM});
    }
   else {
-    $html->message('error', "$lang{ERROR}", "No cfgmaker found. Is MRTG installed ?");
+    $html->message('error', $lang{ERROR}, "No cfgmaker found. Is MRTG installed ?");
     return 1;
   }
  
@@ -1665,7 +1695,6 @@ sub form_ip_pools {
       $html->message('info', $lang{INFO}, "$lang{CHANGING}");
       $Nas->{ACTION}  = 'change';
       $Nas->{GATEWAY} = int2ip($Nas->{GATEWAY});
-
       my $netmask_binary = sprintf('%032b', $Nas->{NETMASK});
       $Nas->{BIT_MASK}     = index($netmask_binary, '0');
       $Nas->{BIT_MASK_NUM} = 32 - $Nas->{BIT_MASK} + 1;
@@ -1741,7 +1770,7 @@ sub form_ip_pools {
       }
     );
 
-    if ($Nas->{IP}) {
+    if ($Nas->{IP} && ! $FORM{chg}) {
       $Nas->{IP}=join('.', (split(/\./, int2ip($Nas->{IP})))[0..2] ) .'.'.'2';
     }
 
@@ -1793,7 +1822,9 @@ sub form_ip_pools {
         id       => sub {
           my ($id, $line) = @_;
 
-          my $static = ($line->{static}) ? 'static' : '';
+          my $static = ($line->{static}) ? $html->badge('static',
+            {TYPE => 'badge-secondary align-text-top'}) : '';
+
           my $select_checkbox = $html->form_input(
               'ids',
               $line->{id},
@@ -1807,6 +1838,15 @@ sub form_ip_pools {
 
           my $checked_id = $id . '&nbsp;' . $select_checkbox . '&nbsp;' . $static;
           ($html && $html->{TYPE} && $html->{TYPE} eq 'html') ? $checked_id : $id;
+        },
+        pool_name => sub {
+          my ($name, $line) = @_;
+
+          my $internet_users_index = get_function_index('internet_users_list');
+          my $users_button = $html->button($name,
+            "index=$internet_users_index&IP_POOL=$line->{id}&search=1&search_form=1");
+
+          return $line->{static} ? $users_button : $name;
         },
         nas_name => sub {
           my ($name, $line) = @_;
@@ -1906,11 +1946,11 @@ sub form_nas_stats {
     Internet::Sessions->import();
     $Sessions = Internet::Sessions->new($db, $admin, \%conf);
   }
-  else {
-    require Dv_Sessions;
-    Dv_Sessions->import();
-    $Sessions = Dv_Sessions->new($db, $admin, \%conf);
-  }
+  # else {
+  #   require Dv_Sessions;
+  #   Dv_Sessions->import();
+  #   $Sessions = Dv_Sessions->new($db, $admin, \%conf);
+  # }
 
   require Log;
   Log->import();
@@ -1990,7 +2030,7 @@ sub form_nas_stats {
     {
       width      => '100%',
       caption    => $lang{STATS},
-      title      => [ "NAS", "NAS_PORT", $lang{SESSIONS}, $lang{LAST_LOGIN}, $lang{AVG}, $lang{MIN}, $lang{MAX} ],
+      title      => [ "NAS", $lang{PORT}, $lang{SESSIONS}, $lang{LAST_LOGIN}, $lang{AVG}, $lang{MIN}, $lang{MAX} ],
       ID         => 'NAS_STATS',
     }
   );
@@ -2363,7 +2403,6 @@ sub nas_radius_pairs_save {
 
   return 1 if !$FORM{ID};
 
-  $Nas->{debug}=1;
   $Nas->change({
     %{$Nas->info({
       NAS_ID        => $FORM{ID}

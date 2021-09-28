@@ -143,9 +143,40 @@ sub internet_users_search {
     }
   );
 
+  $Internet_->{REGISTRATION_RANGE} = $html->form_daterangepicker({
+    NAME         => 'REGISTRATION_FROM/REGISTRATION_TO',
+    VALUE        => $FORM{'REGISTRATION_FROM_REGISTRATION_TO'},
+    RETURN_INPUT => 1
+  });
+
+  $Internet_->{DISABLE_SELECT} = $html->form_select(
+    'DISABLE',
+    {
+      SELECTED => $FORM{DISABLE},
+      SEL_HASH => {
+        ('' => ''),
+        (0 => $lang{ACTIV}),
+        (1 => $lang{DISABLE}),
+      },
+      NO_ID    => 1
+    });
+
+
+  $Internet_->{DELETE_SELECT} = $html->form_select(
+    'DELETED',
+    {
+      SELECTED => $FORM{DELETED},
+      SEL_HASH => {
+        ('' => ''),
+        (0 => $lang{NO}),
+        (1 => $lang{YES})
+      },
+      NO_ID    => 1
+    });
+
   my $search_form = $html->tpl_show(_include('internet_users_search', 'Internet'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
   $search_form .= $html->tpl_show(templates('form_search_personal_info'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
-  $search_form .= $html->tpl_show(templates('form_search_users_internet'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
+  $search_form .= $html->tpl_show(templates('form_search_users'), { %$Internet_, %FORM }, { OUTPUT2RETURN => 1 });
 
   form_search({
     SEARCH_FORM  => $search_form,
@@ -272,10 +303,17 @@ sub internet_multiuser {
       });
     }
   }
-  elsif ($ids && $FORM{MU_TAGS_USER}) {
-    if (in_array('Tags', \@MODULES)) {
-      load_module('Tags', $html);
-      set_tags_users($ids, { TAGS => $FORM{TAGS} });
+  elsif (defined($FORM{MU_TAGS_USER} && in_array('Tags', \@MODULES))) {
+    require Tags;
+
+    my $Tags = Tags->new($db, $admin, \%conf);
+
+    foreach my $id (@multiuser_arr) {
+      $Tags->tags_user_change({
+        IDS => $FORM{TAGS},
+        UID => $uid_hash->{$id},
+      });
+      $html->message('err', $lang{INFO}, "$lang{TAGS} $lang{NOT} $lang{ADDED} UID:$id") if ($Tags->{errno});
     }
   }
   elsif (!%params) {
@@ -493,9 +531,9 @@ sub internet_users_list {
     INPUT_DATA      => $Internet,
     FUNCTION        => 'list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,INTERNET_STATUS',
+    DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,INTERNET_STATUS,ID, TP_ID',
     HIDDEN_FIELDS   => 'PRIORITY',
-    APPEND_FIELDS   =>  'TP_ID,ID,UID',
+    APPEND_FIELDS   =>  'UID',
     FUNCTION_FIELDS => 'form_payments,internet_stats',
     %EXT_PARAM_FORMER,
     MAP_FILTERS     => { id => 'search_link:form_users:UID'
@@ -606,7 +644,7 @@ sub internet_users_list {
 
       if (in_array('Tags', \@MODULES)) {
         load_module('Tags', $html);
-        $Internet->{MU_USER_TAGS} = tags_sel({ ADMIN => 'MU_USER_TAGS' });
+        $Internet->{MU_USER_TAGS} = tags_sel();
       }
       else {
         $Internet->{VISIBLE} = 'display: none;';
@@ -670,18 +708,29 @@ sub internet_users_list {
 sub internet_error_user {
   my ($attr) = @_;
 
+  $attr->{USER_FORM}=1;
+
+  if (!$permissions{0}{33}) {
+    $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
+    return 1;
+  }
+
   return internet_error($attr);
 }
 
 #**********************************************************
 =head2 internet_error($attr)
 
+  Arguments:
+    $attr
+      USER_FORM
+
 =cut
 #**********************************************************
 sub internet_error {
   my ($attr)    = @_;
 
-  if (!$permissions{3}{6}) {
+  if (!$attr->{USER_FORM} && !$permissions{3}{6}) {
     $html->message('warn', $lang{WARNING}, $lang{ERR_ACCESS_DENY});
     return 1;
   }
@@ -1133,6 +1182,63 @@ sub internet_registration {
         my $uid = $users->{UID};
         $users->info($uid);
 
+        if($FORM{AUTO_ADDRESS}){
+          my $Address = Address->new($db, $admin, \%conf);
+          my $district_id;
+          my $street_id;
+          my $location_id;
+
+          my $districts = $Address->district_list({
+            NAME         => "*$FORM{AUTO_DISTRICT}*",
+            COLS_NAME    => 1
+          });
+
+          if($Address->{TOTAL} <= 0){
+            $Address->district_add({
+              NAME => $FORM{AUTO_DISTRICT},
+              ZIP  => $FORM{AUTO_POST_CODE}
+            });
+            $district_id = $Address->{INSERT_ID};
+          } else {
+            $district_id = $districts->[0]->{id};
+          }
+
+          my $streets = $Address->street_list({
+            STREET_NAME  => "*$FORM{AUTO_STREET}*",
+            DISTRICT_ID  => $district_id,
+            COLS_NAME    => 1
+          });
+
+          if($Address->{TOTAL} <= 0){
+            $Address->street_add({
+              NAME => $FORM{AUTO_STREET},
+              DISTRICT_ID  => $district_id,
+            });
+            $street_id = $Address->{INSERT_ID};
+          } else {
+            $street_id = $streets->[0]->{id};
+          }
+
+          my $builds = $Address->build_list({
+            STREET_ID   => $street_id,
+            NUMBER      => "*$FORM{AUTO_BUILD}*",
+            COLS_NAME    => 1
+          });
+
+          if($Address->{TOTAL} <= 0){
+            $Address->build_add({
+              NUMBER => $FORM{AUTO_BUILD},
+              STREET_ID  => $street_id,
+            });
+            $location_id = $Address->{INSERT_ID};
+          } else {
+            $location_id = $builds->[0]->{id};
+          }
+
+          $FORM{LOCATION_ID} = $location_id;
+
+        }
+
         #3 personal info
         $users->pi_add(
           {
@@ -1246,7 +1352,15 @@ sub internet_registration {
     }
   );
 
-  if ($conf{INTERNET_REGISTRATION_ADDRESS}) {
+  if($conf{INTERNET_AUTO_REGISTRATION_ADDRESS}) {
+    $attr->{API_KEY} = $conf{INTERNET_AUTO_REGISTRATION_ADDRESS};
+    $attr->{REGION} = $conf{INTERNET_AUTO_REGISTRATION_ADDRESS_REGIONS};
+    $attr->{LANG} = $conf{INTERNET_AUTO_REGISTRATION_ADDRESS_LANG};
+
+    $Internet->{ADDRESS_TPL} = $html->tpl_show(_include('form_internet_auto_address', 'Internet'),
+      { %$Internet, %$attr, %FORM }, {ID => 'INTERNET_AUTO_ADDRESS', OUTPUT2RETURN => 1});
+  }
+  elsif ($conf{INTERNET_REGISTRATION_ADDRESS}) {
     require Control::Address_mng;
     $Internet->{ADDRESS_TPL} = form_address_select2();
 #      $html->tpl_show(templates('form_address_search'), { %FORM, %$attr },
@@ -1355,7 +1469,7 @@ sub internet_docs {
   }
 
   foreach my $service_info ( @$service_list ) {
-    if($service_info->{internet_status} && $service_info->{internet_status} != 5) {
+    if($service_info->{internet_status} && $service_info->{internet_status} != 5 && ! $attr->{SHOW_ALL}) {
       next
     }
 
@@ -1446,8 +1560,9 @@ sub internet_quick_info {
   }
 
   $Internet->list({
-    UID        =>  $uid,
-    COLS_NAME  => 1,
+    UID       => $uid,
+    LOGIN     => (! $uid && $attr->{LOGIN}) ? $attr->{LOGIN} : undef,
+    COLS_NAME => 1,
   });
 
   return ($Internet->{TOTAL_SERVICES} && $Internet->{TOTAL_SERVICES} > 0) ? $Internet->{TOTAL_SERVICES} : '';

@@ -9,6 +9,7 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array next_month convert);
 use Abills::HTML;
 use Tariffs;
+require Control::Service_control;
 
 our (
   %lang,
@@ -23,6 +24,7 @@ our (
 our Abills::HTML $html;
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Shedule = Shedule->new($db, $admin, \%conf);
+my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 
 #**********************************************************
 =head2 iptv_subcribe_add() - IPTV user interface
@@ -127,7 +129,7 @@ sub iptv_user_info {
     $LIST_PARAMS{SKIP_GID} = 1;
   }
 
-  my $Shedule = Shedule->new($db, $admin, \%conf);
+  #my $Shedule = Shedule->new($db, $admin, \%conf);
   my %PORTAL_ACTIONS = ();
   my $service_list = $Iptv->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
 
@@ -175,8 +177,8 @@ sub iptv_user_info {
       $Iptv->user_add({ %FORM, UID => $user->{UID}, IPTV_ACTIVATE => $DATE || '0000-00-00' });
       if (!$Iptv->{errno}) {
         $Iptv->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE};
-        $Iptv->{TP_INFO}{ABON_DISTRIBUTION} = 0;
-        $Iptv->{TP_INFO}{PERIOD_ALIGNMENT} = 0;
+        $Iptv->{TP_INFO}{ABON_DISTRIBUTION} ||= 0;
+        $Iptv->{TP_INFO}{PERIOD_ALIGNMENT} ||= 0;
 
         service_get_month_fee($Iptv, { SERVICE_NAME => $lang{TV} }) if (!$FORM{STATUS});
         $Iptv->{ID} = $Iptv->{INSERT_ID};
@@ -283,6 +285,7 @@ sub iptv_user_info {
     FUNCTION        => 'user_list',
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'TP_NAME,CID,SERVICE_STATUS,MONTH_FEE,DAY_FEE,IPTV_EXPIRE',
+    HIDDEN_FIELDS   => 'UID',
     FUNCTION_FIELDS => 'change',
     TABLE           => {
       width     => '100%',
@@ -294,6 +297,7 @@ sub iptv_user_info {
       ID        => 'IPTV_USERS_LIST',
     },
     SKIP_USER_TITLE => 1,
+    STATUS_VALS     => sel_status({ HASH_RESULT => 1 }),
     EXT_TITLES      => {
       'cid'            => 'MAC',
       'tp_name'        => $lang{TARIF_PLAN},
@@ -539,9 +543,8 @@ sub iptv_user_chg_tp {
     return 1;
   }
 
-  my $Service_result = get_next_abon_date({ SERVICE => $Iptv });
-
-  $Iptv->{ABON_DATE} = $Service_result;
+  my $next_abon = $Service_control->get_next_abon_date({ SERVICE_INFO => $Iptv });
+  $Iptv->{ABON_DATE} = $next_abon->{ABON_DATE};
 
   #Get TP groups
   $Tariffs->tp_group_info($Iptv->{TP_GID});
@@ -550,107 +553,13 @@ sub iptv_user_chg_tp {
     return 0;
   }
 
-  if ($FORM{TP_ID} && $Iptv->{TP_ID} == $FORM{TP_ID}) {
-
-  }
-  elsif ($FORM{set} && $FORM{ACCEPT_RULES} && $FORM{TP_ID}) {
-
-    if ($period > 0 && $conf{IPTV_USER_CHG_TP_SHEDULE}) {
-      if ($period == 1) {
-        ($FORM{date_Y}, $FORM{date_M}, $FORM{date_D}) = split(/-/, $Iptv->{ABON_DATE}, 3);
-      }
-      else {
-        ($FORM{date_Y}, $FORM{date_M}, $FORM{date_D}) = split('-', $FORM{DATE}) if $FORM{DATE} && !$FORM{date_Y};
-      }
-
-      my $seltime = POSIX::mktime(0, 0, 0, $FORM{date_D}, $FORM{date_M}, ($FORM{date_Y} - 1900));
-      if ($seltime <= time()) {
-        $html->message('info', $lang{INFO}, "$lang{ERR_WRONG_DATA}", { ID => 804 });
-        return 0;
-      }
-
-      my $message = q{};
-      $Shedule->add({
-        UID      => $LIST_PARAMS{UID},
-        TYPE     => 'tp',
-        ACTION   => $FORM{ID} && $FORM{TP_ID} ? "$FORM{ID}:$FORM{TP_ID}" : $FORM{TP_ID},
-        D        => sprintf("%02d", $FORM{date_D}),
-        M        => sprintf("%02d", $FORM{date_M}),
-        Y        => $FORM{date_Y},
-        DESCRIBE => "$message\n $lang{FROM}: '$FORM{date_Y}-$FORM{date_M}-$FORM{date_D}'",
-        MODULE   => 'Iptv'
-      });
-      if (!_error_show($Shedule, { ID => 805 })) {
-        $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
-        $Iptv->user_info($user->{UID});
-        iptv_user_channels({ QUIET => 1, SERVICE_INFO => $Iptv });
-      }
-    }
-    else {
-      # Get next month
-      my ($Y, $M, $D);
-      if ($user->{ACTIVATE} eq '0000-00-00') {
-        # Get next month
-        ($Y, $M, $D) = split(/-/, $DATE, 3);
-      }
-      else {
-        ($Y, $M, $D) = split(/-/, $user->{ACTIVATE}, 3);
-      }
-
-      if (!$conf{IPTV_USER_CHG_TP_NEXT_MONTH} && ($Iptv->{MONTH_FEE} == 0 || $Iptv->{ABON_DISTRIBUTION})) {
-        ($Y, $M, $D) = split(/-/,
-          POSIX::strftime("%Y-%m-%d", localtime((POSIX::mktime(0, 0, 0, $D, ($M - 1), ($Y - 1900), 0, 0, 0) + 86400))));
-      }
-      else {
-        if ($user->{ACTIVATE} eq '0000-00-00') {
-          # Get next month
-          ($Y, $M, $D) = split(/-/, $DATE, 3);
-          $D = '01';
-        }
-        else {
-          ($Y, $M, $D) = split(/-/, $user->{ACTIVATE}, 3);
-        }
-        $M++;
-        if ($M == 13) {
-          $M = 1;
-          $Y++;
-        }
-        $M = sprintf("%02.d", $M);
-      }
-
-      my $seltime = POSIX::mktime(0, 0, 0, $D, $M, ($Y - 1900));
-      my $message = '';
-      if ($seltime > time()) {
-        $Shedule->add({
-          UID      => $LIST_PARAMS{UID},
-          TYPE     => 'tp',
-          ACTION   => $FORM{ID} && $FORM{TP_ID} ? "$FORM{ID}:$FORM{TP_ID}" : $FORM{TP_ID},
-          D        => sprintf("%02d", $D),
-          M        => sprintf("%02d", $M),
-          Y        => $Y,
-          DESCRIBE => "$message\n $lang{FROM}: '$Y-$M-$D'",
-          MODULE   => 'Iptv'
-        });
-      }
-      else {
-        $FORM{UID} = $LIST_PARAMS{UID};
-        $Iptv->user_change({ %FORM });
-        if (!_error_show($user)) {
-          if ($Iptv->{TP_INFO}->{MONTH_FEE} > 0 && !$Iptv->{STATUS}) {
-            service_get_month_fee($Iptv, { SERVICE_NAME => "$lang{TV}" });
-          }
-          $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
-          $Iptv->user_info($user->{UID});
-        }
-      }
-    }
+  if ($FORM{set} && $FORM{ACCEPT_RULES} && $FORM{TP_ID}) {
+    my $add_result = $Service_control->user_chg_tp({ %FORM, UID => $LIST_PARAMS{UID}, SERVICE_INFO => $Iptv, MODULE => 'Iptv', DISABLE_CHANGE_TP => 1 });
+    $html->message('info', $lang{CHANGED}, "$lang{CHANGED}") if !_message_show($add_result);
   }
   elsif ($FORM{del}) {
-    $Shedule->del({
-      UID => $LIST_PARAMS{UID} || '-',
-      ID  => $FORM{SHEDULE_ID}
-    });
-    $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{SHEDULE_ID}]");
+    my $del_result = $Service_control->del_user_chg_shedule({ %FORM, UID => $LIST_PARAMS{UID} || '' });
+    $html->message('info', $lang{DELETED}, "$lang{DELETED} [$FORM{SHEDULE_ID}]") if (!_message_show($del_result));
   }
 
   my $shedules = $Shedule->list({
@@ -684,23 +593,12 @@ sub iptv_user_chg_tp {
     SEL_VALUE => 'id,name',
   });
 
-  my $tp_list = $Tariffs->list({
-    TP_GID            => $Iptv->{TP_GID},
-    CHANGE_PRICE      => '_SHOW',
-    MODULE            => 'Iptv',
-    NEW_MODEL_TP      => 1,
-    PRIORITY          => $Iptv->{TP_PRIORITY},
-    ABON_DISTRIBUTION => '_SHOW',
-    DAY_FEE           => '_SHOW',
-    MONTH_FEE         => '_SHOW',
-    COMMENTS          => '_SHOW',
-    COLS_NAME         => 1,
-    DOMAIN_ID         => $user->{DOMAIN_ID},
-    SERVICE_ID        => $Iptv->{SERVICE_ID} || '_SHOW',
-    STATUS            => '0',
-    PAYMENT_TYPE      => '_SHOW',
-    REDUCTION_FEE     => '_SHOW'
-  });
+  my $available_tariffs = $Service_control->available_tariffs({ %FORM, MODULE => 'Iptv', UID => $user->{UID} });
+
+  if (ref($available_tariffs) ne 'ARRAY' || $#{$available_tariffs} < 0) {
+    $html->message('info', $lang{INFO}, $lang{ERR_NO_AVAILABLE_TP}, { ID => 142 });
+    return 0;
+  }
 
   $table = $html->table({
     width       => '100%',
@@ -710,42 +608,14 @@ sub iptv_user_chg_tp {
     FIELDS_IDS  => $Tariffs->{COL_NAMES_ARR},
   });
 
-  my @skip_tp_changes = ();
-  my $count_access_tps = 0;
-
-  @skip_tp_changes = split(/,\s?/, $conf{IPTV_SKIP_CHG_TPS}) if ($conf{IPTV_SKIP_CHG_TPS}) ;
-  push(@skip_tp_changes, $Iptv->{TP_ID});
-
-  foreach my $tp (@{$tp_list}) {
-    next if (in_array($tp->{tp_id}, \@skip_tp_changes));
-    # next if ($user->{EXPIRE} eq '0000-00-00');
-    next if $tp->{change_price} * ((100 - $user->{REDUCTION}) / 100) >= ($user->{DEPOSIT} + $user->{CREDIT}) && !$tp->{payment_type};
-
-    if ($tp->{reduction_fee}) {
-      $tp->{day_fee} *= ((100 - $user->{REDUCTION}) / 100);
-      $tp->{month_fee} *= ((100 - $user->{REDUCTION}) / 100);
-    }
-
-    my $radio_but = '';
-    $user->{CREDIT} = ($user->{CREDIT} && $user->{CREDIT} > 0) ? $user->{CREDIT} : (($tp->{credit} && $tp->{credit} > 0) ? $tp->{credit} : 0);
-    if (($tp->{day_fee} + $tp->{month_fee} < $user->{DEPOSIT} + $user->{CREDIT}) || $tp->{payment_type} == 1 || $tp->{abon_distribution}) {
-      $radio_but = $html->form_input('TP_ID', $tp->{tp_id}, { TYPE => 'radio', OUTPUT2RETURN => 1 });
-    }
-    else {
-      $radio_but = $lang{ERR_SMALL_DEPOSIT};
-    }
+  foreach my $tp (@{$available_tariffs}) {
+    my $radio_but = $tp->{ERROR} ? $tp->{ERROR} : $html->form_input('TP_ID', $tp->{tp_id}, { TYPE => 'radio', OUTPUT2RETURN => 1 });
 
     my $tp_name = _iptv_portal_get_service_info_btn($tp) || $tp->{name} || '';
-
     $table->addrow($tp->{id}, $tp_name, $tp->{day_fee}, $tp->{month_fee}, $radio_but);
-    $count_access_tps++;
   }
 
   $Tariffs->{TARIF_PLAN_TABLE} = $table->show({ OUTPUT2RETURN => 1 });
-  if ($Tariffs->{TOTAL} == 0 || !$count_access_tps) {
-    $html->message('info', $lang{INFO}, "$lang{ERR_SMALL_DEPOSIT}", { ID => 842 });
-    return 0;
-  }
 
   $Tariffs->{PARAMS} .= form_period($period, {
     ABON_DATE => $Iptv->{ABON_DATE},

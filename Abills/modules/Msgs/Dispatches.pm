@@ -325,7 +325,7 @@ sub _msgs_dispatches_job_list {
     $message->{uid} = $message->{uid} || "";
     my $link = $html->button($message->{message} || $lang{ERR_NO_MESSAGE},
       "index=" . get_function_index("msgs_admin") . "&UID=$message->{uid}&chg=$message->{id}",
-      { ex_params => "style='color:$chapter_color' data-tooltip='$tooltip_btn'" }
+      { ex_params => "style='color:$chapter_color'", TITLE => $message->{chapter_name} }
     );
 
     my ($title, $color) = split(':', $msgs_status->{ $Msgs->{STATE} });

@@ -18,48 +18,55 @@ my $Timetracker = Timetracker->new($db, $admin, \%conf);
 
 =cut
 #**********************************************************
+
+
 sub all_report_time {
   require Timetracker::Redmine;
+  if(!$conf{TIMETRACKER_REDMINE_URL}){
+    $html->message('err', $lang{NOT_CONFIGURED}, "$lang{NOT_FOUND} \$conf{TIMETRACKER_REDMINE_URL}");
+    return 1;
+  }
   Redmine->import();
   my $Redmine = Redmine->new($db, $admin, \%conf);
 
-  reports(
-    {
+  reports({
       NO_GROUP    => 1,
       NO_TAGS     => 1,
       DATE_RANGE  => 1,
       DATE        => $FORM{DATE},
       REPORT      => '',
       PERIOD_FORM => 1,
-    }
-  );
+  });
 
-  my $table_support = $html->table(
-    {
+  my $table_support = $html->table({
       width   => "100%",
       caption => $lang{REPORTS_HEADER},
-      title   => [ $lang{ADMINS_LIST}, $lang{CLOSE_MOUTH}, $lang{SCHEDULED_HOURS},
+      title   => [
+        $lang{ADMINS_LIST},
+        $lang{CLOSED_TASKS},
+        $lang{SCHEDULED_HOURS},
         $lang{TIME_COMPLEXITY},
         $lang{ACTUALLY_HOURS},
-        $lang{CLOSED_TICKETS}, $lang{TIME_SUPPORT} ],
+        $lang{CLOSED_TICKETS},
+        $lang{TIME_SUPPORT} ],
       qs      => $pages_qs,
       ID      => "TIMETRACKER_REPORT1",
       EXPORT  => 1
-    }
-  );
+  });
 
   my $admins_list = sel_admins({ HASH=>1, DISABLE => 0 });
 
   my @admin_aids = ();
 
-  for my $aid (keys %{$admins_list}) {
+
+  for my $aid (sort keys %{$admins_list}) {
     push(@admin_aids, $aid);
   }
 
   if (!$FORM{FROM_DATE} || !$FORM{TO_DATE}) {
     my ($day, $month, $year) = (localtime)[3,4,5];
     $FORM{FROM_DATE} = sprintf("%04d-%02d-%02d", $year+1900, $month+1, 1);
-    $FORM{TO_DATE} = sprintf("%04d-%02d-%02d", $year+1900, $month+1, $day);
+    $FORM{TO_DATE}   = sprintf("%04d-%02d-%02d", $year+1900, $month+1, $day);
   }
 
   my %attr = (
@@ -68,12 +75,12 @@ sub all_report_time {
     DEBUG => 0,
     ADMIN_AIDS => \@admin_aids,
   );
-  
-  my $spent_hours = $Redmine->get_spent_hours(\%attr);
-  my $closed_tasks = $Redmine->get_closed_tasks(\%attr);
-  my $hours_on_complexity = $Redmine->get_scheduled_hours_on_complexity(\%attr);
-  my $scheduled_hours = $Redmine->get_scheduled_hours(\%attr);
-  my $cloused_support_ticket = get_cloused_support_ticket(\%attr);
+
+  my $spent_hours           = $Redmine->get_spent_hours(\%attr);
+  my $closed_tasks          = $Redmine->get_closed_tasks(\%attr);
+  my $scheduled_hours       = $Redmine->get_scheduled_hours(\%attr);
+  my $hours_on_complexity   = $Redmine->get_scheduled_hours_on_complexity(\%attr);
+  my $closed_support_ticket = get_closed_support_ticket(\%attr);
   my $run_time_with_support = get_run_time_with_support(\%attr);
 
   my $total_closed_tasks = 0;
@@ -82,14 +89,14 @@ sub all_report_time {
   my $total_spent_hours = 0;
   my $total_scheduled_hours = 0;
 
-  for my $aid (keys %{$admins_list}) {
+  for my $aid (sort keys %{$admins_list}) {
     $table_support->addrow(
-      $admins_list->{$aid} || 0, 
+      $admins_list->{$aid} || 0,
       $closed_tasks->{$aid} || 0,
       $scheduled_hours->{$aid} || 0,
       $hours_on_complexity->{$aid} || 0,
       $spent_hours->{$aid} || 0,
-      $cloused_support_ticket->{$aid} || 0,
+      $closed_support_ticket->{$aid} || 0,
       $run_time_with_support->{$aid} || 0
     );
 
@@ -132,24 +139,24 @@ sub all_report_time {
     get_cloused_support_ticket($attr)
 =cut
 #**********************************************************
-sub get_cloused_support_ticket {
+sub get_closed_support_ticket {
   my ($attr) = @_;
-  my $cloused_support_ticket = {};
+  my %closed_support_ticket = ();
 
   my $size_support = $Timetracker->change_element_work({
-    DATA_DAY => $attr->{FROM_DATE},
+    DATA_DAY    => $attr->{FROM_DATE},
     TO_DATA_DAY => $attr->{TO_DATE},
   });
 
-  foreach my $admin (@$size_support){
+  for my $admin (@{$size_support}) {
     for my $aid (@{$attr->{ADMIN_AIDS}}) {
       if($aid == $admin->{aid}){
-        $cloused_support_ticket->{$aid} = $admin->{admins_count};
+        $closed_support_ticket{$aid} = $admin->{admins_count};
       }
     }
   }
 
-  return $cloused_support_ticket;
+  return \%closed_support_ticket;
 }
 
 =head2 get_run_time_with_support($attr) - get run time with support ticket for admin
@@ -170,28 +177,28 @@ sub get_cloused_support_ticket {
 #**********************************************************
 sub get_run_time_with_support {
   my ($attr) = @_;
-  my $time_with_support = {};
+  my %time_with_support = ();
 
   my $all_time_with_support = $Timetracker->get_run_time({
     FROM_DATE => $attr->{FROM_DATE}.' 00:00:00',
-    TO_DATE => $attr->{TO_DATE}.' 23:59:59',
+    TO_DATE   => $attr->{TO_DATE}.' 23:59:59',
   });
 
   for my $times (@{$all_time_with_support}) {
     for my $aid (@{$attr->{ADMIN_AIDS}}) {
       if($times->{aid} == $aid) {
-        $time_with_support->{$aid} += $times->{run_time};
-        Abills::Base::sec2time($times->{run_time}, {format => 1});
+        $time_with_support{$aid} += $times->{run_time};
+        sec2time($times->{run_time}, {format => 1});
       }
     }
   }
 
   for my $aid (@{$attr->{ADMIN_AIDS}}) {
-    $time_with_support->{$aid} = Abills::Base::sec2time($time_with_support->{$aid}, {format => 1});
+    $time_with_support{$aid} = sec2time($time_with_support{$aid}, {format => 1});
   }
 
-  return $time_with_support;
+  return \%time_with_support;
 }
 
 
-return 1;
+1;

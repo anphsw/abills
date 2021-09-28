@@ -79,7 +79,7 @@ sub plugin_show {
 
   $attr->{UID} ||= '';
   $attr->{chg} ||= $attr->{ID};
-  return '' if !$attr->{chg} || !$attr->{index};
+  return '' if !$attr->{chg} || !$attr->{index} || !$attr->{UID};
 
   my $table = $html->table({
     width      => '100%',

@@ -6,55 +6,42 @@
  */
 
 $(function () {
-
-  var portShiftInput = $('#PORT_SHIFT');
-  var autoPortShiftCheckbox = $('#AUTO_PORT_SHIFT');
-
-  portShiftInput.prop('disabled', autoPortShiftCheckbox.prop('checked') );
-
-  autoPortShiftCheckbox.on('click', function (e) {
-    portShiftInput.prop('disabled', autoPortShiftCheckbox.prop('checked') );
-  });
-
-  var equipmentType = $('#TYPE_ID');
-  equipmentType.change(function (e) {
-    var type = equipmentType.val();
-
-    var equipmentModelPon = $('#equipmentModelPon');
-    var eponSupportedOnus = $('#EPON_SUPPORTED_ONUS');
-    var gponSupportedOnus = $('#GPON_SUPPORTED_ONUS');
-    var geponSupportedOnus = $('#GEPON_SUPPORTED_ONUS');
-
-    equipmentModelPon.prop('hidden', type != 4); // 4 - PON
-    eponSupportedOnus.prop('disabled', type != 4);
-    gponSupportedOnus.prop('disabled', type != 4);
-    geponSupportedOnus.prop('disabled', type != 4);
-  });
-
-  var portCounter = 0;
-
-  var hasExtraPortsInput = $('#HAS_EXTRA_PORTS');
+  //cache DOM
   var $form = $('#EQUIPMENT_MODEL_INFO_FORM');
 
   var $rowsNumInput = $form.find('#ROWS_COUNT_id');
+  var $portsNumInput = $form.find('#PORTS');
 
-  //cache DOM
+  var $hasExtraPortsInput = $('#HAS_EXTRA_PORTS');
+
   var $wrapper = $('#extraPortWrapper');
   var $controls = $('#extraPortControls');
 
   var $addBtn = $controls.find('#addPortBtn');
   var $remBtn = $controls.find('#removePortBtn');
 
-  var $templateSelectWrapper = $wrapper.find('#templateWrapper');
-  var labelText = $templateSelectWrapper.find('label').text();
-  var $portTypes = $templateSelectWrapper.find('option');
+  var $portShiftInput = $('#PORT_SHIFT');
+  var $autoPortShiftCheckbox = $('#AUTO_PORT_SHIFT');
 
-  var portTypesHTML = "";
-  $.each($portTypes, function (i, option) {
-    portTypesHTML += option.outerHTML;
-  });
+  var $templateSelectWrapper = $wrapper.find('#templateWrapper');
+  var $portTypeOptions = $templateSelectWrapper.find('option');
 
   $templateSelectWrapper.remove();
+
+  //Misc variables
+  var portTypes = ['', 'RJ45', 'GBIC', 'Gigabit', 'SFP', 'QSFP', 'EPON', 'GPON'];
+
+  var portCounter = 0;
+
+  var extraPorts = {};
+  var portsComboBusy = {};
+
+  var comboPortSelect2Params = Object.assign({}, CHOSEN_PARAMS, { allowClear: 1, placeholder: '' });
+
+  var portTypesHTML = '';
+  $.each($portTypeOptions, function (i, option) {
+    portTypesHTML += option.outerHTML;
+  });
 
   //bind Events
   $addBtn.on('click', function (e) {
@@ -69,60 +56,92 @@ $(function () {
 
   $form.on('submit', function () {
     if (portCounter > 0) {
-      hasExtraPortsInput.val(portCounter);
+      $hasExtraPortsInput.val(portCounter);
     }
   });
 
-  $rowsNumInput.on('change', function(){
-    updateMaxRowsValue($(this).val())
-  });
-
-  $(function(){
-    updateMaxRowsValue($rowsNumInput.val());
-  });
-
-  function updateMaxRowsValue(number){
-    console.log(number);
-    if (typeof(number) !== 'undefined' && number > 0){
-      $('.extraPortRow').attr('max', number);
+  $rowsNumInput.on('change', function() {
+    var rowsNum = $(this).val();
+    if (typeof(rowsNum) !== 'undefined' && rowsNum > 0){
+      $('.extraPortRow').attr('max', rowsNum);
     }
-  }
+  });
+
+  $autoPortShiftCheckbox.on('click', function (e) {
+    $portShiftInput.prop('disabled', $autoPortShiftCheckbox.prop('checked') );
+  });
+
+  $('#TYPE_ID').on('change', function (e) {
+    var type = $(this).val();
+
+    $('#equipmentModelPon').prop('hidden', type != 4); // 4 - PON
+    $('#EPON_SUPPORTED_ONUS').prop('disabled', type != 4);
+    $('#GPON_SUPPORTED_ONUS').prop('disabled', type != 4);
+    $('#GEPON_SUPPORTED_ONUS').prop('disabled', type != 4);
+  });
+
+  $('#VENDOR_ID').on('change', function (e) {
+    var vendor_id = $(this).val();
+
+    $('#equipmentModelZte').prop('hidden', vendor_id != 12); // 12 - ZTE
+    $('#DEFAULT_ONU_REG_TEMPLATE_EPON').prop('disabled', vendor_id != 12);
+    $('#DEFAULT_ONU_REG_TEMPLATE_GPON').prop('disabled', vendor_id != 12);
+  });
+
+  $portsNumInput.on('change', function(){
+    updateExtraPortsComboSelects();
+  });
+
+  $('#PORTS_TYPE').on('change', function(){
+    updateExtraPortsComboSelects();
+  });
+
+  $portShiftInput.prop('disabled', $autoPortShiftCheckbox.prop('checked') );
 
   fillExistingPorts($('#extraPortsJson').val());
 
   function addNewPortSelect() {
-    $wrapper.append(getNewSelect(++portCounter));
+    $wrapper.append(getNewExtraPortGroup(++portCounter));
+    extraPorts[portCounter] = { portType: 1 }; // 1 - RJ45
+    $.each(extraPorts, function(number, extraPort) {
+      var $extraPortComboSelect = $('#EXTRA_PORT_COMBO_' + number);
+      var thisPortType = extraPort["portType"];
 
-    function getNewSelect(number) {
-      var $selectDiv = $('<div class="form-group" id="EXTRA_PORT_' + number + '">' +
-        '<label class="control-label col-md-5">' + labelText + ' ' + number + '</label>' +
-        '<div class="col-md-4">' +
-        '<select class="form-control" name="EXTRA_PORT_' + number + '"></select>' +
-        '</div>' +
-        '<div class="col-md-3">' +
-        '<input type="number" min="1" value="1" class="form-control extraPortRow" name="EXTRA_PORT_ROW_' + number + '">' +
-        '</div>' +
-        '</div>');
-
-      $selectDiv.find('input').attr('max', $rowsNumInput.val());
-      $selectDiv.find('select').html(portTypesHTML);
-      $selectDiv.find('select').select2(CHOSEN_PARAMS);
-
-      return $selectDiv;
-    }
+      if (thisPortType != 1) {
+        $extraPortComboSelect.append('<option value="' + portCounter + '"> e' + portCounter + ' (' + portTypes[1] + ')' + '</option>');
+      }
+    });
+    updateExtraPortsComboSelects(portCounter);
   }
 
   function removeLastPort() {
+    var wasComboWithPortNumber = extraPorts[portCounter]['combo'];
+    if (wasComboWithPortNumber > 0) {
+      extraPorts[wasComboWithPortNumber]['combo'] = null;
+      $('#EXTRA_PORT_COMBO_' + wasComboWithPortNumber).val('').change();
+    }
+    else if (wasComboWithPortNumber < 0) {
+      delete portsComboBusy[wasComboWithPortNumber];
+    }
+
+    delete extraPorts[portCounter];
+    $.each(extraPorts, function(number, extraPort) {
+      var $extraPortComboSelect = $('#EXTRA_PORT_COMBO_' + number);
+      $extraPortComboSelect.find('option[value=' + portCounter + ']').remove();
+      $extraPortComboSelect.val(extraPort['combo']);
+    });
+
     $('#EXTRA_PORT_' + portCounter--).remove();
   }
 
   function fillExistingPorts(jsonString) {
     try {
       if (typeof(jsonString) !== 'undefined' && jsonString.length > 0) {
-        var port_rows = JSON.parse(jsonString);
-        $.each(port_rows, function (i, row) {
-          appendRow(i, row);
+        var ports = JSON.parse(jsonString);
+        $.each(ports, function (index, port) {
+          appendPort(port);
         })
+        updateExtraPortsComboSelects();
       }
 
     } catch (Error) {
@@ -130,43 +149,128 @@ $(function () {
       alert("[ Equipment.js ] Error parsing existing ports : " + Error);
     }
 
-    function appendRow(rowNumber, row) {
-        if (!row.hasOwnProperty('portNumber')) return;
+    function appendPort(port) {
+      if (!port.hasOwnProperty('portNumber')) return;
 
-        var rowNumber  = row.rowNumber;
-        var portNumber = row.portNumber;
-        var portType   = row.portType;
+      var portNumber    = port.portNumber;
+      var rowNumber     = port.rowNumber;
+      var portType      = port.portType || 1;
+      var portComboWith = port.portComboWith;
 
-        $wrapper.append(getFilledExtraPortGroup(rowNumber, portNumber, portType));
+      extraPorts[portNumber] = { "portType": portType, "combo": portComboWith };
+      if (portComboWith < 0) {
+        portsComboBusy[portComboWith] = portNumber;
+      }
 
-        //renewChosenValue($('#EXTRA_PORT_' + portNumber), portType);
+      $wrapper.append(getNewExtraPortGroup(portNumber, rowNumber, portType));
 
-        if(portNumber > portCounter) portCounter = portNumber;
+      if (portNumber > portCounter) portCounter = portNumber;
+    }
+  }
+
+  function updateExtraPortsComboSelects(number) {
+    var portsCount = $portsNumInput.val();
+    var portType = $('#PORTS_TYPE option:selected').val();
+    var extraPortComboSelectBasePortsHTML = '';
+    for (var i = 1; i <= portsCount; i++) {
+      extraPortComboSelectBasePortsHTML += '<option value="-' + i + '">' + i + ' (' + portTypes[portType] + ')' + '</option>';
     }
 
-    function getFilledExtraPortGroup(rowNumber, number, portType) {
+    if (number) {
+      updateExtraPortComboSelect(number, extraPorts[number]);
+    }
+    else {
+      $.each(extraPorts, function(number, extraPort) {
+        updateExtraPortComboSelect(number, extraPort);
+      });
+    }
 
-      var $selectDiv = $('<div class="form-group" id="EXTRA_PORT_' + number + '">' +
-        '<label class="control-label col-md-5">' + labelText + ' ' + number + '</label>' +
-        '<div class="col-md-4">' +
-        '<select class="form-control" name="EXTRA_PORT_' + number + '"></select>' +
+    function updateExtraPortComboSelect(number, extraPort) {
+      var $extraPortComboSelect = $('#EXTRA_PORT_COMBO_' + number);
+
+      var thisPortType = extraPort["portType"];
+
+      var extraPortComboSelectHTML = '';
+      if (thisPortType != portType) {
+        extraPortComboSelectHTML = extraPortComboSelectBasePortsHTML;
+      }
+
+      $.each(extraPorts, function(number, extraPort){
+        if (extraPort["portType"] != thisPortType) { //XXX may have list what port types can be combo, e. g. no need to have RJ45 <-> Gigabit combo
+          extraPortComboSelectHTML  += '<option value="' + number + '"> e' + number + ' (' + portTypes[extraPort["portType"]] + ')' + '</option>';
+        }
+      });
+
+      $extraPortComboSelect.html(extraPortComboSelectHTML);
+      $extraPortComboSelect.val(extraPort['combo']);
+    }
+  }
+
+  function getNewExtraPortGroup(number, rowNumber, portType) {
+    rowNumber = rowNumber || 0;
+    portType = portType || 1;
+
+    var $extraPortGroup = $('<div class="form-group row" id="EXTRA_PORT_' + number + '">' +
+        '<label class="col-md-4 col-form-label text-md-right">' + LANG['EXTRA_PORT'] + ' ' + number + ':</label>' +
+        '<div class="col-md-3">' +
+          '<select class="form-control EXTRA_PORT_TYPE" style="width: 100%" name="EXTRA_PORT_TYPE_' + number + '"></select>' +
+          '<small class="form-text text-muted mb-3 mb-md-0">' + LANG['PORT_TYPE'] + '</small>' +
+        '</div>' +
+        '<div class="col-md-2">' +
+          '<input type="number" min="1" value="' + (rowNumber + 1) + '" class="form-control extraPortRow" name="EXTRA_PORT_ROW_' + number + '">' +
+          '<small class="form-text text-muted mb-3 mb-md-0">' + LANG['ROW_NUMBER'] + '</small>' +
         '</div>' +
         '<div class="col-md-3">' +
-        '<input type="number" min="1" value="' + parseInt(+rowNumber + 1) + '" class="form-control extraPortRow" name="EXTRA_PORT_ROW_' + number + '">' +
+          '<select class="form-control EXTRA_PORT_COMBO" style="width: 100%" name="EXTRA_PORT_COMBO_' + number + '" id="EXTRA_PORT_COMBO_' + number + '"></select>' +
+          '<small class="form-text text-muted">' + LANG['COMBO_PORT'] + '</small>' +
         '</div>' +
-        '</div>');
+      '</div>');
 
-      var $select = $selectDiv.find('select');
+    $extraPortGroup.find('input').attr('max', $rowsNumInput.val());
 
-      $select.html(portTypesHTML);
+    var $selectType = $extraPortGroup.find('select.EXTRA_PORT_TYPE');
+    $selectType.html(portTypesHTML);
+    $selectType.val(portType).change();
+    $selectType.select2(CHOSEN_PARAMS);
 
-      var optionToSelect = $select.children('option')[portType];
-      $(optionToSelect).prop('selected', true);
+    $selectType.on('change', function(){
+      extraPorts[number]['portType'] = $(this).val();
+      updateExtraPortsComboSelects();
+    });
 
-      $select.select2(CHOSEN_PARAMS);
+    var $selectCombo = $extraPortGroup.find('select.EXTRA_PORT_COMBO');
+    $selectCombo.select2(comboPortSelect2Params);
 
-      return $selectDiv;
-    }
+    $selectCombo.on('change', function() {
+      var wasComboWithPortNumber = extraPorts[number]['combo'];
+      if (wasComboWithPortNumber > 0) {
+        extraPorts[wasComboWithPortNumber]['combo'] = null;
+        $('#EXTRA_PORT_COMBO_' + wasComboWithPortNumber).val('').change();
+      }
+      else if (wasComboWithPortNumber < 0) {
+        delete portsComboBusy[wasComboWithPortNumber];
+      }
+
+      var newComboWithPortNumber = $(this).val();
+      extraPorts[number]['combo'] = newComboWithPortNumber;
+
+      if (portsComboBusy[newComboWithPortNumber]) {
+        var extraPortNumber = portsComboBusy[newComboWithPortNumber];
+        extraPorts[extraPortNumber]['combo'] = null;
+        $('#EXTRA_PORT_COMBO_' + extraPortNumber).val('').change();
+      }
+      if (newComboWithPortNumber < 0) {
+        portsComboBusy[newComboWithPortNumber] = number;
+      }
+
+      if (!newComboWithPortNumber || newComboWithPortNumber < 0) { return; }
+
+      if (extraPorts[newComboWithPortNumber]['combo'] != number) {
+        $('#EXTRA_PORT_COMBO_' + newComboWithPortNumber).val(number).change();
+      }
+    });
+
+    return $extraPortGroup;
   }
 });
 

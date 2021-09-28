@@ -62,4 +62,6 @@ $lang{CAMS_ONLINE_CHANNELS} = 'Канали/Online';
 $lang{CAMS_UPTIME} = 'Час безвідмовної роботи';
 $lang{CAMS_CPU_LOAD} = 'Загрузка CPU';
 
+$lang{AUTODETECT} = 'Автовизначення';
+
 1;

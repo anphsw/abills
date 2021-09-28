@@ -8,7 +8,7 @@
   %IMG_DATA%
 </div>
 <div class='form-group text-center'>
-  <a href='%LINK%' class='btn btn-primary btn-lg' role='button' target="_blank" name='FASTPAY'>_{PAY_ADD}_</a>
+  <a href='%LINK%' class='btn btn-primary btn-lg' role='button' target='_blank' name='FASTPAY'>_{PAY_ADD}_</a>
 </div>
 </div>
 </div>

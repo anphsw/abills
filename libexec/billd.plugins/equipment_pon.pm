@@ -16,6 +16,7 @@
    CPE_CHECK
    CPE_FILL
    FORCE_FILL
+   VLANS - used with CPE_CHECK/CPE_FILL/FORCE_FILL. check or fill abonent's VLAN/SERVER_VLAN
    FILL_CPE_FROM_NAS_AND_PORT
    SERIAL_SCAN
    SNMP_SERIAL_SCAN_ALL
@@ -50,7 +51,6 @@ our (
 my $running_threads = $argv->{THREADS} || 10;
 our $Equipment = Equipment->new($db, $Admin, \%conf);
 my $Events = Events::API->new($db, $Admin, \%conf);
-my $Sender = Abills::Sender::Core->new($db, $Admin, \%conf);
 
 do 'Abills/Misc.pm';
 
@@ -166,17 +166,18 @@ sub _equipment_pon_load {
   our $SNMP_TPL_DIR = $Bin . "/../Abills/modules/Equipment/snmp_tpl/";
   #"/usr/abills/Abills/modules/Equipment/snmp_tpl/";
 
-  #needed for multi, each thread must have its own connection
-  $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef }, \%conf);
-  if (!$db->{db}) {
-    print "Error: SQL connect error\n";
-    exit;
+  if ($argv->{multi}) {
+    #needed for multi, each thread must have its own connection
+    $db = Abills::SQL->connect($conf{dbtype}, $conf{dbhost}, $conf{dbname}, $conf{dbuser}, $conf{dbpasswd}, { CHARSET => ($conf{dbcharset}) ? $conf{dbcharset} : undef }, \%conf);
+    if (!$db->{db}) {
+      print "Error: SQL connect error\n";
+      exit;
+    }
+
+    $Admin = Admins->new($db, \%conf);
+    $Admin->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
+    $Equipment = Equipment->new($db, $Admin, \%conf);
   }
-
-  my $admin_ = Admins->new($db, \%conf);
-  $admin_->info($conf{SYSTEM_ADMIN_ID}, { IP => '127.0.0.1' });
-  $Equipment = Equipment->new($db, $admin_, \%conf);
-
 
   if (!$nas_info->{nas_ip}) {
     print "NAS_ID: $nas_info->{nas_id} deleted\n";
@@ -412,15 +413,16 @@ sub _equipment_pon_load {
         print " " . gen_time($time) . "\n" if ($debug > 2);
         my $serials_with_descriptions = join(', ', map { $_->[8] . " ($_->[10])" } @ONU_ADD);
 
-        if ($conf{ADMIN_MAIL}) {
-          $Sender->send_message({
-            TO_ADDRESS  => $conf{ADMIN_MAIL},
-            MESSAGE     => "Add " . ($#ONU_ADD + 1) . " new onu on NAS_ID: $nas_id (" . ($nas_info->{NAME} || q{}) . ") Serials (descriptions): $serials_with_descriptions\n",
-            SUBJECT     => "Add new ONU",
-            SENDER_TYPE => 'Mail',
-            DEBUG       => 5,
-          });
+        if ($argv->{multi}) {
+          $Events = Events::API->new($db, $Admin, \%conf);
         }
+        $Events->add_event({
+          MODULE      => 'Equipment',
+          TITLE       => "Add new ONU",
+          COMMENTS    => "Add " . ($#ONU_ADD + 1) . " new onu on NAS_ID: $nas_id (" . ($nas_info->{NAME} || q{}) . ") Serials (descriptions): $serials_with_descriptions",
+          PRIORITY_ID => 3
+        });
+
       }
       if ($#MULTI_QUERY > -1) {
         $time = check_time() if ($debug > 2);
@@ -705,15 +707,22 @@ sub _save_port_and_nas_to_internet_main {
   my $check_mode = $argv->{CPE_CHECK} && !$argv->{CPE_FILL} && !$argv->{FORCE_FILL};
 
   my %onus_by_uid;
+  my %attached_onu_by_uid;
   foreach my $onu (@$onu_list) {
+    next if (!$onu->{onu_nas});
+
     push @{$onus_by_uid{$onu->{uid}}}, $onu;
+
+    if ($onu->{user_nas} eq $onu->{onu_nas} && $onu->{user_port} eq $onu->{onu_port}) {
+      $attached_onu_by_uid{$onu->{uid}} = $onu;
+    }
   }
 
   foreach my $uid (keys %onus_by_uid) {
     my @uid_onu_list = @{$onus_by_uid{$uid}};
     my $onu_to_set = $uid_onu_list[0];
 
-    if (($check_mode || $argv->{FORCE_FILL} || !$onu_to_set->{user_port} || !$onu_to_set->{user_nas}) && ($onu_to_set->{onu_nas})) {
+    if ($check_mode || $argv->{FORCE_FILL} || !$onu_to_set->{user_port} || !$onu_to_set->{user_nas}) {
       if (scalar @uid_onu_list > 1) {
         print "WARNING: there are more than one ONU with MAC $onu_to_set->{cpe}\n";
 
@@ -725,23 +734,21 @@ sub _save_port_and_nas_to_internet_main {
           }
           else {
             print "Not changing user's ONU (User:$onu_to_set->{uid})\n" if (!$check_mode);
-            next;
           }
         }
         else {
           print "Not changing user's ONU (User:$onu_to_set->{uid})\n" if (!$check_mode);
-          next;
+          $onu_to_set = undef;
         }
       }
 
-      if ($onu_to_set->{user_nas} ne $onu_to_set->{onu_nas} || $onu_to_set->{user_port} ne $onu_to_set->{onu_port}) {
+      if ($onu_to_set && ($onu_to_set->{user_nas} ne $onu_to_set->{onu_nas} || $onu_to_set->{user_port} ne $onu_to_set->{onu_port})) {
         if ($check_mode) {
           if ($onu_to_set->{onu_port} ne $onu_to_set->{user_port}) {
-            $onu_to_set->{onu_port} //= '';
-            print "User:$onu_to_set->{uid},  port does not match user_port:'$onu_to_set->{user_port}'/onu_port:'$onu_to_set->{onu_port}'\n";
+            print "User:$onu_to_set->{uid},  port does not match. user_port:'$onu_to_set->{user_port}'/onu_port:'$onu_to_set->{onu_port}'\n";
           }
           if ($onu_to_set->{onu_nas} ne $onu_to_set->{user_nas}) {
-            print "User:$onu_to_set->{uid},  nas does not match user_nas:'$onu_to_set->{user_nas}'/onu_nas:'$onu_to_set->{onu_nas}'\n";
+            print "User:$onu_to_set->{uid},  nas does not match. user_nas:'$onu_to_set->{user_nas}'/onu_nas:'$onu_to_set->{onu_nas}'\n";
           }
         }
         else {
@@ -753,6 +760,40 @@ sub _save_port_and_nas_to_internet_main {
           });
           print "User:$onu_to_set->{uid} add port ($onu_to_set->{onu_port}) and nas ($onu_to_set->{onu_nas})\n";
         }
+      }
+      $attached_onu_by_uid{$onu_to_set->{uid}} = $onu_to_set;
+    }
+
+    if ($argv->{VLANS}) {
+      my $attached_onu = $attached_onu_by_uid{$uid};
+      next if (!$attached_onu);
+      if ($check_mode) {
+        if ($attached_onu->{onu_vlan} != $attached_onu->{user_vlan}) {
+          print "User:$uid,  vlan does not match. user_vlan:'$attached_onu->{user_vlan}'/onu_vlan:'$attached_onu->{onu_vlan}'\n";
+        }
+        if ($attached_onu->{onu_server_vlan} != $attached_onu->{user_server_vlan}) {
+          print "User:$attached_onu->{uid},  server_vlan does not match. user_server_vlan:'$attached_onu->{user_server_vlan}'/onu_server_vlan:'$attached_onu->{onu_server_vlan}'\n";
+        }
+      }
+      elsif (($attached_onu->{onu_vlan} != $attached_onu->{user_vlan} || $attached_onu->{onu_server_vlan} != $attached_onu->{user_server_vlan})) {
+        my $vlan_to_set = $attached_onu->{user_vlan};
+        my $server_vlan_to_set = $attached_onu->{user_server_vlan};
+
+        if ($attached_onu->{onu_vlan} != $attached_onu->{user_vlan} && (!$attached_onu->{user_vlan} || $argv->{FORCE_FILL})) {
+          $vlan_to_set = $attached_onu->{onu_vlan};
+          print "User:$uid add vlan ($attached_onu->{onu_vlan})\n"
+        }
+        if ($attached_onu->{onu_server_vlan} != $attached_onu->{user_server_vlan} && (!$attached_onu->{user_server_vlan} || $argv->{FORCE_FILL})) {
+          $server_vlan_to_set = $attached_onu->{onu_server_vlan};
+          print "User:$uid add server_vlan ($attached_onu->{onu_server_vlan})\n"
+        }
+
+        $Internet->change({
+          UID         => $attached_onu->{uid},
+          ID          => $attached_onu->{service_id},
+          VLAN        => $vlan_to_set,
+          SERVER_VLAN => $server_vlan_to_set
+        });
       }
     }
   }
@@ -769,16 +810,17 @@ sub _fill_cpe_from_nas_and_port {
   my $Internet = Internet->new($db, $Admin, \%conf);
 
   my $internet_list = $Internet->list({
-    NAS_ID  => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
-    PORT    => '_SHOW',
-    CPE_MAC => '_SHOW',
+    NAS_ID    => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
+    PORT      => '_SHOW',
+    CPE_MAC   => '_SHOW',
+    PAGE_ROWS => 1000000000,
     COLS_NAME => 1
   });
 
   my $onu_list = $Equipment->onu_list({
-    NAS_ID  => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
+    NAS_ID     => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
     MAC_SERIAL => '_SHOW',
-    COLS_NAME => 1
+    COLS_NAME  => 1
   });
 
   my %macs_by_nas_port = ();

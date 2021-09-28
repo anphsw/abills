@@ -258,6 +258,7 @@ sub _employees_work_query {
     $Employees->{WORK_ID} = $attr->{chg_work};
     if (!$Employees->{errno}) {
       $Employees->{ACTION} = 'change_work';
+      $Employees->{HIDE_ADD_WORK} = 'none';
       $Employees->{ACTION_LNG} = $lang->{CHANGE};
       return 0;
     }
@@ -274,10 +275,9 @@ sub _employees_work_query {
 }
 
 #**********************************************************
-=head2 _emplayees_take_fees() -
+=head2 _emplayees_take_fees()
 
   Arguments:
-    $attr -
 
   Returns:
 
@@ -288,40 +288,28 @@ sub _emplayees_take_fees {
 
   return if !($attr->{TAKE_FEES} && ($attr->{add_work} || $attr->{change_work}));
 
-  my $fee_sum = 0;
-  if ($attr->{EXTRA_SUM}) {
-    $fee_sum = $attr->{EXTRA_SUM};
+  my @WORKS = split(/,\s?/, $attr->{WORK_ID});
+  my @RATIOS = split(/,\s?/, $attr->{RATIO});
+  my @FEES_IDS = ();
+
+  for (my $i = 0 ; $i <= $#WORKS; $i++) {
+    my $fee_sum = 0;
+    if ($attr->{EXTRA_SUM}) {
+      $fee_sum = $attr->{EXTRA_SUM};
+    }
+    else {
+      my $work_info = $Employees->employees_reference_works_info($WORKS[$i]);
+      $fee_sum = $work_info->{SUM} * ($RATIOS[$i] || 1) if ($Employees->{TOTAL} > 0);
+    }
+
+    $users->info($attr->{UID});
+    $Fees->take($users, sprintf("%.2f", $fee_sum), { DESCRIBE => "msgs_work # $attr->{EXT_ID}" });
+    $html->message('info', "$lang->{GETED}: " . sprintf("%.2f", $fee_sum)) if (!main::_error_show($Fees));
+    $admin->action_add($users->{UID}, "msgs_work #$attr->{EXT_ID} $lang->{GETED}: " . sprintf("%.2f", $fee_sum), {});
+    push @FEES_IDS, $Fees->{INSERT_ID} || 0;
   }
-  else {
-    my $work_info = _emplayees_get_work($attr->{WORK_ID});
-    $fee_sum = $work_info->[0]->{sum} * ($attr->{RATIO} || 1) if ($Employees->{TOTAL});
-  }
 
-  $users->info($attr->{UID});
-  $Fees->take($users, sprintf("%.2f", $fee_sum), { DESCRIBE => "msgs_work # $attr->{EXT_ID}" });
-  $html->message('info', "$lang->{GETED}: " . sprintf("%.2f", $fee_sum)) if (!main::_error_show($Fees));
-  $admin->action_add($users->{UID}, "msgs_work #$attr->{EXT_ID} $lang->{GETED}: " . sprintf("%.2f", $fee_sum), {});
-  $attr->{FEES_ID} = $Fees->{INSERT_ID};
-}
-
-#**********************************************************
-=head2 _emplayees_get_work() -
-
-  Arguments:
-    $attr -
-
-  Returns:
-
-=cut
-#**********************************************************
-sub _emplayees_get_work {
-  my ($work_id) = @_;
-
-  my @work_ids = split(', ', $work_id);
-
-  my $list_work = $Employees->employees_list_reference_works({ ID => $work_ids[1], COLS_NAME => 1 });
-
-  return $list_work || [];
+  $attr->{FEES_ID} = join(',', @FEES_IDS);
 }
 
 1;

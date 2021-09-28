@@ -14,7 +14,8 @@
           <div class='card-header with-border'>
             <h4 class='card-title'>_{SUBSCRIBE}_ OLLTV</h4>
             <div class='card-tools pull-right'>
-              <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-minus'></i></button>
+              <button type='button' class='btn btn-tool' data-card-widget='collapse'><i class='fa fa-minus'></i>
+              </button>
             </div>
           </div>
 
@@ -32,25 +33,25 @@
               </div>
             </div>
 
-            <div class='form-group'>
-              <label class='col-form-label text-md-right col-md-3' for='TP'>_{TARIF_PLAN}_:</label>
+            <div class='form-group row'>
+              <label class='col-form-label text-md-right col-md-3' for='GRP'>_{TARIF_PLAN}_:</label>
               <div class='col-md-9'>
                 %TP_ADD%
                 <div class='input-group' %TP_DISPLAY_NONE%>
                   <div class='hidden-xs input-group-prepend'>
-                    <div class='input-group-text clear_results' style='cursor:pointer;'>%TP_NUM%</div>
+                    <div class='input-group-text cursor-pointer'>%TP_NUM%</div>
                   </div>
-                  <input type=text name='GRP' value='%TP_NAME%' ID='TP' class='form-control hidden-xs'
+                  <input type=text name='GRP' value='%TP_NAME%' ID='GRP' class='form-control hidden-xs'
                          readonly>
-                  <input type=text name='GRP1' value='%TP_ID%:%TP_NAME%' ID='TP' class='form-control visible-xs'
+                  <input type=text name='GRP1' value='%TP_ID%:%TP_NAME%' ID='GRP1' class='form-control visible-xs'
                          readonly>
                   <div class='input-group-append'>
-                    <div class='input-group-text clear_results' style='cursor:pointer;'>
+                    <div class='input-group-text cursor-pointer'>
                       %CHANGE_TP_BUTTON%
                     </div>
                   </div>
                   <div class='input-group-append'>
-                    <div class='input-group-text clear_results' style='cursor:pointer;'>
+                    <div class='input-group-text cursor-pointer'>
                       <a href='$SELF_URL?index=$index&UID=$FORM{UID}&pay_to=1' class='$conf{CURRENCY_ICON}'
                          title='_{PAY_TO}_'></a>
                     </div>
@@ -106,7 +107,7 @@
             <div class='form-group row'>
               %REGISTRATION_INFO% %REGISTRATION_INFO_PDF%
             </div>
-            <div>
+            <div class='text-center'>
               %BOUGHT_SUBSRIBES%
             </div>
           </div>
@@ -116,7 +117,7 @@
         <div class='card card-primary card-outline'>
           <div class='card-body '>
 
-            <div class='form-group'>
+            <div class='form-group row'>
               <label class='control-label col-md-3 required' for='EMAIL'>E-mail:</label>
               <div class='col-md-9'>
                 <input id='EMAIL' name='EMAIL' required value='%EMAIL%' placeholder='%EMAIL%' class='form-control'
@@ -124,14 +125,14 @@
               </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
               <label class='control-label col-md-3' for='GENDER'>_{GENDER}_:</label>
               <div class='col-md-9'>
                 %GENDER_SEL%
               </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
               <label class='control-label col-md-3' for='CITY'>_{CITY}_:</label>
               <div class='col-md-4'>
                 <input id='CITY' name='CITY' value='%CITY%' placeholder='%CITY%' class='form-control' type='text'>
@@ -143,7 +144,7 @@
               </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
               <label class='control-label col-md-3' for='FIO'>_{FIO}_:</label>
               <div class='col-md-5'>
                 <input id='FIO' name='FIO' value='%FIO%' placeholder='%FIO%' class='form-control' type='text'>
@@ -153,7 +154,7 @@
               </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
               <label class='control-label col-md-3' for='BIRTH_DATE'>_{BIRTH_DATE}_:</label>
               <div class='col-md-3'>
                 <input id='BIRTH_DATE' name='BIRTH_DATE' value='%BIRTH_DATE%' placeholder='%BIRTH_DATE%'

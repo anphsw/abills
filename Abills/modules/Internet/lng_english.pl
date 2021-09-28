@@ -30,4 +30,8 @@ $lang{USERS_OUTFLOW} = 'Users outflow';
 $lang{TOTAL_USERS} = 'Users total';
 $lang{ONE_MONTH_DEBS}='One month debs';
 
+$lang{PACKET_SIZE} = 'Packet size (bytes)';
+$lang{PACKET_COUNT} = 'Packet count';
+$lang{PASTE} = 'Paste';
+
 1;

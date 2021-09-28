@@ -628,8 +628,6 @@ sub msgs_quick_replys_types {
     $Msgs->{ACTION} = 'added';
     $Msgs->{ACTION_LNG} = $lang{ADD};
 
-    $html->message( 'info', $lang{INFO}, "$lang{ADD}" );
-
     $html->tpl_show(_include('msgs_quick_replys_types','Msgs'), { %$Msgs });
   }
   elsif($FORM{added}){
@@ -658,8 +656,6 @@ sub msgs_quick_replys_types {
     if (!$Msgs->{errno}) {
       $Msgs->{ACTION} = 'change';
       $Msgs->{ACTION_LNG} = $lang{CHANGE};
-
-      $html->message( 'info', $lang{INFO}, "$lang{CHANGE}" );
 
       $html->tpl_show(_include('msgs_quick_replys_types','Msgs'), { %$Msgs });
     }
@@ -795,16 +791,11 @@ sub msgs_quick_replys {
     $Msgs->{ACTION} = 'added';
     $Msgs->{ACTION_LNG} = $lang{ADD};
 
-    $Msgs->{QUICK_REPLYS_CATEGORY} = $html->form_select(
-      'TYPE_ID',
-      {
-        SEL_LIST => $Msgs->messages_quick_replys_types_list({ COLS_NAME => 1 }),
-        NO_ID    => 1,
-        REQUIRED => 1,
-      }
-    );
-
-    $html->message('info', $lang{INFO}, "$lang{ADD}");
+    $Msgs->{QUICK_REPLYS_CATEGORY} = $html->form_select('TYPE_ID', {
+      SEL_LIST => $Msgs->messages_quick_replys_types_list({ COLS_NAME => 1 }),
+      NO_ID    => 1,
+      REQUIRED => 1,
+    });
 
     $html->tpl_show(_include('msgs_quick_replys', 'Msgs'), { %{$Msgs} });
   }
@@ -831,21 +822,16 @@ sub msgs_quick_replys {
   elsif ( $FORM{chg} ) {
     $Msgs->messages_quick_replys_info($FORM{chg});
 
-    $Msgs->{QUICK_REPLYS_CATEGORY} = $html->form_select(
-      'TYPE_ID',
-      {
-        SELECTED => $Msgs->{TYPE_ID} ? $Msgs->{TYPE_ID} : 1,
-        SEL_LIST => $Msgs->messages_quick_replys_types_list({ COLS_NAME => 1 }),
-        NO_ID    => 1,
-        REQUIRED => 1,
-      }
-    );
+    $Msgs->{QUICK_REPLYS_CATEGORY} = $html->form_select('TYPE_ID', {
+      SELECTED => $Msgs->{TYPE_ID} ? $Msgs->{TYPE_ID} : 1,
+      SEL_LIST => $Msgs->messages_quick_replys_types_list({ COLS_NAME => 1 }),
+      NO_ID    => 1,
+      REQUIRED => 1,
+    });
 
-    if ( !$Msgs->{errno} ) {
+    if (!$Msgs->{errno}) {
       $Msgs->{ACTION} = 'change';
       $Msgs->{ACTION_LNG} = $lang{CHANGE};
-
-      $html->message('info', $lang{INFO}, "$lang{CHANGE}");
 
       $html->tpl_show(_include('msgs_quick_replys', 'Msgs'), { %{$Msgs} });
     }
@@ -856,8 +842,8 @@ sub msgs_quick_replys {
   elsif ( $FORM{change} ) {
     $Msgs->messages_quick_replys_change({ %FORM });
 
-    if ( !$Msgs->{errno} ) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}") if ( !$Msgs->{errno} );
+    if (!$Msgs->{errno}) {
+      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
     }
     else {
       $html->message('err', $lang{ERROR}, $Msgs->{errno});
@@ -867,7 +853,7 @@ sub msgs_quick_replys {
   result_former({
     INPUT_DATA      => $Msgs,
     FUNCTION        => 'messages_quick_replys_list',
-    DEFAULT_FIELDS  => 'ID,REPLY,TYPE,COLOR,',
+    DEFAULT_FIELDS  => 'ID,REPLY,TYPE,COLOR,COMMENT',
     HIDDEN_FIELDS   => 'TYPE_ID',
     FUNCTION_FIELDS => 'change,del',
     EXT_TITLES      => {
@@ -876,6 +862,7 @@ sub msgs_quick_replys {
       type_id => "$lang{TYPE} ID",
       type    => $lang{TYPE},
       color   => $lang{COLOR},
+      comment => $lang{COMMENTS}
     },
     SKIP_USER_TITLE => 1,
     TABLE           => {

@@ -4,7 +4,7 @@
 
   <div class='card big-box card-primary card-outline'>
     <div class='card-header with-border'>
-      <h4 class="card-title">_{GROUP}_: %GROUP_NAME%</h4>
+      <h4 class='card-title'>_{GROUP}_: %GROUP_NAME%</h4>
     </div>
     <div class='card-body'>
       %PAYSYSTEM_SEL%

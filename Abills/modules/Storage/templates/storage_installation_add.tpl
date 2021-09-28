@@ -46,10 +46,10 @@
         <label class='col-md-4 col-form-label text-md-right' for='LOGIN'>_{USER}_:</label>
         <input type=hidden name=UID id='UID_HIDDEN' value='%UID%'/>
         <div class='col-md-8'>
-          <div class="input-group">
+          <div class='input-group'>
             <input type='text' form='unexistent' class='form-control' name='LOGIN' value='%USER_LOGIN%' id='LOGIN'
                    readonly='readonly'/>
-            <div class="input-group-append">
+            <div class='input-group-append'>
               %USER_SEARCH%
             </div>
           </div>

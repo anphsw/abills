@@ -21,6 +21,7 @@ BEGIN {
 
   do $Bin . "/../../language/$conf{TELEGRAM_LANG}.pl";
   do $Bin . "/../../Abills/modules/Telegram/lng_$conf{TELEGRAM_LANG}.pl";
+  do $Bin . "/../../Abills/modules/Msgs/lng_$conf{TELEGRAM_LANG}.pl";
 
   unshift(@INC,
     $Bin . '/../../',
@@ -43,6 +44,8 @@ use db::Telegram;
 use Buttons;
 use Tauth;
 use Abills::Misc;
+use Msgs;
+use Abills::Sender::Core;
 
 our $db = Abills::SQL->connect( @conf{qw/dbtype dbhost dbname dbuser dbpasswd/},
   { CHARSET => $conf{dbcharset} });
@@ -50,6 +53,9 @@ our $admin    = Admins->new($db, \%conf);
 our $Bot_db   = Telegram->new($db, $admin, \%conf);
 our $Users    = Users->new($db, $admin, \%conf);
 our $Contacts = Contacts->new($db, $admin, \%conf);
+
+use Abills::Misc;
+use Abills::Templates;
 
 my $message = ();
 my $fn_data = "";
@@ -119,7 +125,7 @@ sub message_process {
       });
       exit 1;
     }
-    admin_fast_replace($message->{text}, $fn_data);
+    admin_fast_replace($message, $fn_data);
     return 1;
   }
 
@@ -240,9 +246,16 @@ sub admin_fast_replace {
   my ($msgs, $callback_data) = @_;
 
   my ($packed, $func_name, $msgs_id) = split(/\:/, $callback_data);
-  my @msgs_text = $msgs =~ /(MSGS_ID=[0-9]+)(\s|\n)*(.+)/gs;
 
-  unless ($msgs_text[0] && $msgs_text[2]) {
+  my @msgs_text = [];
+  if($msgs->{text} || $msgs->{caption}) {
+    $msgs->{text} = $msgs->{caption} if ($msgs->{caption});
+    @msgs_text = $msgs->{text} =~ /(MSGS_ID=[0-9]+)(\s|\n)*(.*)/gs;
+  }
+
+  unless (($msgs_text[0])
+    || ($msgs->{photo} || $msgs->{document})) {
+
     $Bot->send_message({
       text         => "$lang{SEND_ERROR}",
     });
@@ -250,30 +263,154 @@ sub admin_fast_replace {
     return 1;
   }
 
-  $msgs_text[0] =~ s/MSGS_ID=//g;
-
-  use Msgs;
   my $Msgs = Msgs->new($db, $admin, \%conf);
-  my $aid = get_aid($message->{chat}{id});
+  my $aid = get_aid($msgs->{chat}{id});
 
-  $Msgs->message_reply_add({
-    ID              => $msgs_text[0],
-    REPLY_TEXT      => $msgs_text[2],
-    AID             => $aid,
-  });
+  if(!ref $msgs_text[0]) {
+    $msgs_text[0] =~ s/MSGS_ID=//g;
 
-  $Msgs->message_change({
-    ID         => $msgs_text[0],
-    STATE      => 6,
-  });
+    $Msgs->message_reply_add({
+      ID         => $msgs_text[0],
+      REPLY_TEXT => $msgs_text[2] || '',
+      AID        => $aid,
+    });
+
+    $Bot_db->del_admin($aid);
+
+    $Bot_db->add({
+      AID  => $aid,
+      ARGS => '{"message":{"id":"' . $Msgs->{INSERT_ID} . '", "msg_id":"' . $msgs_text[0] . '"}}',
+    });
+
+    $Msgs->message_change({
+      ID    => $msgs_text[0],
+      STATE => 6,
+    });
+  }
+
+  my $info =$Bot_db->info_admin($aid);
+
+  if($Bot_db->{TOTAL} > 0 && (defined $msgs->{caption} || !$#msgs_text)) {
+    my $msg_hash = decode_json($info->{args});
+
+    $Bot->send_message({
+      text         => "$lang{SEND_ERROR}",
+    }) unless ($msg_hash->{message}->{id});
+
+    my $message_id = $msg_hash->{message}->{id};
+    my $original =  $msg_hash->{message}->{msg_id};
+
+    my $file_id;
+
+    if ($msgs->{photo}) {
+      my $photo = pop @{$msgs->{photo}};
+      $file_id = $photo->{file_id};
+    }
+    else {
+      $file_id = $msgs->{document}->{file_id};
+    }
+
+    my $Attachments = Msgs::Misc::Attachments->new($db, $admin, \%conf);
+    my ($file_path, $file_size, $file_content) = $Bot->get_file($file_id);
+    my ($file_name, $file_extension) = $file_path =~ m/.*\/(.*)\.(.*)/;
+
+    $Bot->send_message({
+      text         => "$lang{SEND_ERROR}",
+    }) unless ($file_content && $file_size && $file_name && $file_extension);
+
+    my $file_content_type = file_content_type($file_extension);
+
+    delete($Attachments->{save_to_disk});
+
+
+    $Attachments->attachment_add({
+      REPLY_ID     => $message_id,
+      FILENAME     => "$file_name.$file_extension",
+      CONTENT_TYPE => $file_content_type,
+      FILESIZE     => $file_size,
+      CONTENT      => $file_content,
+      MESSAGE_TYPE => 1,
+    });
+
+    $Bot->send_message({
+      text => "$lang{ADD_FILE} ($file_name.$file_extension) MSG_ID=$original",
+    });
+    return 1 if(ref $msgs_text[0]);
+  }
 
   unless (_error_show($Msgs)) {
     $Bot->send_message({
       text         => "$lang{SEND_SUCCESS}",
     });
+
+    use Abills::HTML;
+    use Msgs::Notify;
+
+    my $html = Abills::HTML->new({
+      CONF     => \%conf,
+      NO_PRINT => 0,
+      PATH     => $conf{WEB_IMG_SCRIPT_PATH} || '../',
+      CHARSET  => $conf{default_charset},
+    });
+
+    load_module('Msgs', {
+      language => $conf{TELEGRAM_LANG}
+    });
+
+    my $Notify = Msgs::Notify->new($db, $admin, \%conf, {LANG => \%lang, HTML => $html});
+    $Notify->notify_user({
+      REPLY_ID               => $Msgs->{INSERT_ID},
+      MSG_ID                 => $msgs_text[0],
+      MESSAGE                => $msgs_text[2] || '',
+      FIND_USER              => 1,
+    });
+
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 file_content_type()
+
+=cut
+#**********************************************************
+sub file_content_type {
+  my ($file_extension) = @_;
+
+  my $file_content_type = "application/octet-stream";
+
+  if ( $file_extension && $file_extension eq 'png'
+    || $file_extension eq 'jpg'
+    || $file_extension eq 'gif'
+    || $file_extension eq 'jpeg'
+    || $file_extension eq 'tiff'
+  ) {
+    $file_content_type = "image/$file_extension";
+  }
+  elsif ( $file_extension && $file_extension eq "zip" ) {
+    $file_content_type = "application/x-zip-compressed";
+  }
+
+  return $file_content_type;
+}
+
+#**********************************************************
+=head2 get_gid_conf($param, $git)
+
+=cut
+#**********************************************************
+sub get_gid_conf{
+  my $param = shift;
+  my $gid = shift;
+
+  use Conf;
+  my $Conf = Conf->new($db, $admin, \%conf);
+
+  my $conf_info = $Conf->config_info({PARAM => "LIKE'%1'"});
+  $conf_info = $conf_info->{conf};
+
+  return $conf_info->{$param."_$gid"} ?  $conf_info->{$param."_$gid"} : $conf_info->{"$param"};
 }
 
 1;

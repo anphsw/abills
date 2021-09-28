@@ -8,21 +8,19 @@ use strict;
 use warnings FATAL => 'all';
 use Tariffs;
 use Triplay;
-use Abills::Base;
+#use Abills::Base;
 
 our (
   $db,
   %conf,
   %lang,
   $admin,
-  $html,
-  %permissions,
+  %permissions
 );
 
+our Abills::HTML $html;
 my $Triplay = Triplay->new($db, $admin, \%conf);
 our $Tariffs = Tariffs->new($db, \%conf, $admin);
-
-
 
 #**********************************************************
 =head2 test()
@@ -37,7 +35,7 @@ our $Tariffs = Tariffs->new($db, \%conf, $admin);
 sub triplay_users_services {
   my ($attr) = @_;
 
-  my $users_services_list = $Triplay->list_user_service({
+  my $users_services_list = $Triplay->user_list({
     UID         => $attr->{UID} || '_SHOW',
     #    TP_ID       => '_SHOW',
 #    INTERNET_TP => '_SHOW',
@@ -103,9 +101,9 @@ sub triplay_users_services {
 =cut
 #**********************************************************
 sub _triplay_abonplata_count {
-  my ($uid, $attr) = @_;
+  my ($uid) = @_;
 
-  return 'This user has not services  ' unless ($uid);
+  return 'This user has not services  ' if (! $uid);
 
   my $user_services_information = cross_modules_call('_docs', {
       UID => $uid,

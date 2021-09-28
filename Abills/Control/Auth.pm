@@ -7,9 +7,10 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(sendmail decode_base64 mk_unique_value in_array);
 
+require Abills::Misc;
+
 our(
   $db,
-  $admin,
   %conf,
   %lang,
   %err_strs,
@@ -18,6 +19,7 @@ our(
   %OUTPUT,
 );
 
+our Admins $admin;
 our Abills::HTML $html;
 
 #**********************************************************
@@ -94,6 +96,11 @@ sub auth_admin {
           if ( $admin->{errno} == 4 ) {
             $err = $lang{ERR_WRONG_PASSWD};
           }
+          else {
+            if ($FORM{user} && $FORM{passwd}) {
+              $err = $admin->{errstr};
+            }
+          }
         }
 
         form_login({ ERROR => $err });
@@ -158,7 +165,7 @@ sub auth_admin {
       my $message = $lang{ERR_ACCESS_DENY};
 
       if ($admin->{errno} == 2) {
-        $message = "Account DISABLE or $admin->{errstr}";
+        $message = "ACCOUNT DISABLE or $admin->{errstr}";
       }
       elsif ($admin->{errno} == 3) {
         $message = $lang{ERR_UNALLOW_IP};
@@ -311,6 +318,12 @@ sub form_login {
     $first_page{PSWD_BTN} = $html->button("$lang{FORGOT_PASSWORD}?", "index=10&forgot_passwd=1");
   }
 
+  $first_page{G2FA_hidden} = 'hidden';
+  if($FORM{G2FA}){
+    $first_page{G2FA_hidden} = '';
+    $first_page{password} = $FORM{password};
+  }
+
   $html->tpl_show(templates('form_login'), \%first_page, $attr);
 
   return 1;
@@ -394,11 +407,11 @@ sub check_permissions {
     }
     #LDAP auth
     if($conf{LDAP_IP}) {
-      require Abills::Auth::Ldap;
-      Abills::Auth::Ldap->import();
+      require Abills::Auth::Core;
+      Abills::Auth::Core->import();
       my $Auth = Abills::Auth::Core->new({
         CONF      => \%conf,
-        AUTH_TYPE => $FORM{external_auth}
+        AUTH_TYPE => 'Ldap'
       });
 
       my $result = $Auth->check_access({
@@ -412,6 +425,7 @@ sub check_permissions {
       }
       else {
         $admin->{errno} = 5;
+        $admin->{errstr}=$Auth->{errstr};
         return 2;
       }
     }
@@ -426,6 +440,32 @@ sub check_permissions {
   }
 
   $admin->info($admin->{AID}, \%PARAMS);
+
+  if($login && $password) {
+    if (!$FORM{g2fa}) {
+      if ($admin->{G2FA}) {
+        $FORM{user} = $login;
+        $FORM{password} = $password;
+        $FORM{G2FA} = 1;
+        return 1;
+      }
+    }
+    else {
+      require Abills::Auth::Core;
+      Abills::Auth::Core->import();
+      my $Auth = Abills::Auth::Core->new({
+        CONF      => \%conf,
+        AUTH_TYPE => 'OATH'
+      });
+
+      if (!$Auth->check_access({SECRET => $admin->{G2FA}, PIN => $FORM{g2fa}})) {
+        $admin->{errno} = 5;
+        $admin->{errstr} = 'ERROR_WRONG_PIN';
+        $FORM{G2FA} = 1;
+        return 2;
+      }
+    }
+  }
 
   if ($admin->{errno}) {
     if ($admin->{errno} == 4) {
@@ -530,7 +570,16 @@ sub check_permissions {
 }
 
 #**********************************************************
-=head2 auth_user($user_name, $password, $session_id, $attr)
+=head2 auth_user($user_name, $password, $session_id, $attr) - AUth user sessions
+
+  Arguments:
+    $user_name
+    $password
+    $session_id
+    $attr
+
+  Returns:
+    ($ret, $session_id, $login)
 
 =cut
 #**********************************************************
@@ -576,6 +625,7 @@ sub auth_user {
         $user->{LOGIN} = $user->{list}->[0]->{login};
         $user->{UID} = $uid;
         $res = $uid;
+        $OUTPUT{PUSH_STATE} = "<script>history.pushState(null, null, 'index.cgi?index=10&sid=$sid');</script>";
       }
       else {
         if(! $sid) {
@@ -629,7 +679,7 @@ sub auth_user {
       $user->web_session_del({ SID => $session_id });
       return 0;
     }
-    elsif ($user->{REMOTE_ADDR} ne $REMOTE_ADDR) {
+    elsif (! $conf{USERPORTAL_MULTI_SESSIONS} && $user->{REMOTE_ADDR} ne $REMOTE_ADDR) {
       $html->message( 'err', "$lang{ERROR}", 'WRONG IP' );
       $user->web_session_del({ SID => $session_id });
       return 0;
@@ -637,7 +687,7 @@ sub auth_user {
     else {
       $user->info($user->{UID}, { USERS_AUTH => 1 });
       $admin->{DOMAIN_ID}=$user->{DOMAIN_ID};
-      $user->web_session_update({ SID => $session_id });
+      $user->web_session_update({ SID => $session_id, REMOTE_ADD => $REMOTE_ADDR  });
       #Add social id
       if ($Auth->{USER_ID}) {
         $user->pi_change( {
@@ -685,7 +735,6 @@ sub auth_user {
   elsif ($login && !$password) {
     $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD}, {OUTPUT2RETURN => 1} );
   }
-
   #Get user ip
   if (defined($res) && $res > 0) {
     $user->info($user->{UID} || 0, {
@@ -693,23 +742,47 @@ sub auth_user {
         DOMAIN_ID => $FORM{DOMAIN_ID}
       });
 
+    if($conf{AUTH_G2FA}) {
+      $user->pi();
+      if(!$FORM{g2fa}){
+      if ($user->{_G2FA}) {
+        $FORM{user} = $login;
+        $FORM{password} = $password;
+        $FORM{G2FA} = 1;
+        delete $FORM{logined};
+        return (0, $session_id, $login);
+      }
+      } else {
+        my $OATH = Abills::Auth::Core->new({
+          CONF      => \%conf,
+          AUTH_TYPE => 'OATH'
+        });
+
+        if (!$OATH->check_access({SECRET => $user->{_G2FA}, PIN => $FORM{g2fa}})) {
+          $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{G2FA_WRONG_CODE}, {OUTPUT2RETURN => 1} );
+          $FORM{G2FA} = 1;
+          delete $FORM{logined};
+          return (0, $session_id, $login);
+        }
+      }
+    }
+
     if ($user->{TOTAL} > 0) {
       $session_id          = mk_unique_value(16);
       $ret                 = $user->{UID};
       $user->{REMOTE_ADDR} = $REMOTE_ADDR;
       $admin->{DOMAIN_ID}  = $user->{DOMAIN_ID};
       $login               = $user->{LOGIN};
-      $user->web_session_add(
-        {
-          UID         => $user->{UID},
-          SID         => $session_id,
-          LOGIN       => $login,
-          REMOTE_ADDR => $REMOTE_ADDR,
-          EXT_INFO    => $ENV{HTTP_USER_AGENT},
-          COORDX      => $FORM{coord_x} || '',
-          COORDY      => $FORM{coord_y} || ''
-        }
-      );
+
+      $user->web_session_add({
+        UID         => $user->{UID},
+        SID         => $session_id,
+        LOGIN       => $login,
+        REMOTE_ADDR => $REMOTE_ADDR,
+        EXT_INFO    => $ENV{HTTP_USER_AGENT},
+        COORDX      => $FORM{coord_x} || '',
+        COORDY      => $FORM{coord_y} || ''
+      });
     }
     else {
       $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', $lang{ERROR}, $lang{ERR_WRONG_PASSWD}, {OUTPUT2RETURN => 1} );
@@ -733,24 +806,25 @@ sub auth_user {
   }
 
   #Vacations only part
-  if (in_array('Vacations', \@MODULES) ) {
-    load_module('Vacations');
-    my $Vacations = Vacations->new($db, $admin, \%conf);
-    if ($ret) {
-      $Vacations->vacation_log_add({
-        IP       => $REMOTE_ADDR,
-        EMAIL    => $login,
-        COMMENTS => "Success login",
-      });
-    }
-    else {
-      $Vacations->vacation_log_add({
-        IP       => $REMOTE_ADDR,
-        EMAIL    => $login,
-        COMMENTS => "Wrong password",
-      });
-    }
-  }
+  #@deprecated
+  # if (in_array('Vacations', \@MODULES) ) {
+  #   load_module('Vacations');
+  #   my $Vacations = Vacations->new($db, $admin, \%conf);
+  #   if ($ret) {
+  #     $Vacations->vacation_log_add({
+  #       IP       => $REMOTE_ADDR,
+  #       EMAIL    => $login,
+  #       COMMENTS => "Success login",
+  #     });
+  #   }
+  #   else {
+  #     $Vacations->vacation_log_add({
+  #       IP       => $REMOTE_ADDR,
+  #       EMAIL    => $login,
+  #       COMMENTS => "Wrong password",
+  #     });
+  #   }
+  # }
 
   return ($ret, $session_id, $login);
 }
@@ -853,11 +927,11 @@ sub auth_sql {
 
   if ($conf{WEB_AUTH_KEY} eq 'LOGIN') {
     $user->info(0, {
-        LOGIN      => $user_name,
-        PASSWORD   => $password,
-        DOMAIN_ID  => $FORM{DOMAIN_ID} || 0,
-        USERS_AUTH => 1
-      });
+      LOGIN      => $user_name,
+      PASSWORD   => $password,
+      DOMAIN_ID  => $FORM{DOMAIN_ID} || 0,
+      USERS_AUTH => 1
+    });
   }
   else {
     my @a_method = split(/,/, $conf{WEB_AUTH_KEY});
@@ -878,7 +952,10 @@ sub auth_sql {
   }
 
   if ($user->{TOTAL} < 1) {
-    $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message( 'err', "$lang{ERROR}", "$lang{ERR_WRONG_PASSWD}", {OUTPUT2RETURN => 1} ) if (! $conf{PORTAL_START_PAGE});
+    if (! $conf{PORTAL_START_PAGE}) {
+      $OUTPUT{LOGIN_ERROR_MESSAGE} = $html->message('err', $lang{ERROR},
+        $lang{ERR_WRONG_PASSWD}, { OUTPUT2RETURN => 1 });
+    }
   }
   elsif (_error_show($user)) {
   }

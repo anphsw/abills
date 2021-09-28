@@ -94,6 +94,7 @@ sub handle {
   my ($self) = @_;
 
   my $handler = parse_request($self, $self->{query_params});
+
   my $route = $handler->{route};
 
   $route->{subpackage} = $route->{subpackage} || '';
@@ -103,15 +104,13 @@ sub handle {
       my $credential = $self->{credentials}->{$credential_name};
 
       if(defined $credential) {
-        if($credential->($self->{query_params})) {
+        if ($credential->($handler)) {
           $self->{allowed} = 1;
         }
       }
     }
 
-    unless($self->{allowed}) {
-      return;
-    }
+    return unless $self->{allowed};
   }
   else {
     $self->{allowed} = 1;
@@ -143,7 +142,13 @@ sub handle {
 
     my $module = eval "$module_package->new(\$self->{db}, \$self->{admin}, \$self->{conf})";
 
-    $self->{result} = eval "\$module->$handler->{signature}";
+    if ($module && $handler->{function_name} && $module->can($handler->{function_name})) {
+      my $function_name = $handler->{function_name};
+      $self->{result} = eval {$module->$function_name($handler->{signature_params});};
+    }
+    else {
+      $self->{result} = eval "\$module->$handler->{signature}";
+    }
 
     if($@) {
       $self->{errno} = 2;
@@ -229,9 +234,7 @@ sub parse_request {
   my $query_params = $self->{query_params};
 
   foreach my $route (@{ $self->{resource} }) {
-    if($route->{method} ne $ENV{REQUEST_METHOD}) {
-      next;
-    }
+    next if($route->{method} ne $ENV{REQUEST_METHOD});
 
     my $route_path_template = $route->{path};
     my $router_handler = $route->{handler};
@@ -242,12 +245,11 @@ sub parse_request {
     $route_path_template =~ s/(\/)/\\\//g;
     $route_path_template = '^'.$route_path_template.'$';
 
-    unless($request_path =~ $route_path_template) {
-      next;
-    }
+    next unless($request_path =~ $route_path_template);
 
     my @request_values = $request_path =~ $route_path_template;
     my %path_params = ();
+    my $signature_params = ();
 
     while (@path_keys) {
       my $key   = shift(@path_keys);
@@ -255,7 +257,8 @@ sub parse_request {
 
       $path_params{$key} = $value;
 
-      $router_handler =~ s/\:$key/\'$value\'/gm;
+      $signature_params->{$key} = $value;
+      $router_handler =~ s/\:$key/\"$value\"/gm;
     }
 
     my $rest_params = '';
@@ -263,7 +266,8 @@ sub parse_request {
     for my $query_key (keys %{ $query_params }) {
       my $key   = Abills::Api::Camelize::decamelize($query_key);
       my $value = $query_params->{$query_key} || q{};
-      $rest_params .= "$key => '$value',";
+      $signature_params->{$key} = $value;
+      $rest_params .= "$key => '" . qq{$value} . "',";
     }
 
     chop($rest_params);
@@ -272,10 +276,14 @@ sub parse_request {
 
     $router_handler =~ s/\.\.\.PARAMS/$rest_params/gm;
 
+    my ($function_name, undef) = split(/\(/, $router_handler);
+
     return {
-      route       => $route,
-      signature   => $router_handler,
-      path_params => \%path_params,
+      route            => $route,
+      signature        => $router_handler,
+      signature_params => $signature_params,
+      function_name    => $route->{use_function} ? $function_name : undef,
+      path_params      => \%path_params,
     };
   }
 }

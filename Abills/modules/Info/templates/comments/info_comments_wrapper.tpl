@@ -1,7 +1,7 @@
 <link href='/styles/default_adm/css/info.css' rel='stylesheet'>
 
 <div id='commentsWrapper' class='row'>
-  <div class="col-md-12">
+  <div class='col-md-12'>
     <div class='col-md-12 comments-controls'>
         <div class='col-md-3 pull-left'>
             _{COMMENTS}_

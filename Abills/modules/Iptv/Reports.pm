@@ -241,6 +241,8 @@ sub iptv_users_fees {
     NO_TAGS         => 1
   });
 
+  $FORM{show} ||= 1 if ($FORM{FROM_DATE} && $FORM{TO_DATE});
+
   return 0 unless $FORM{show} || $FORM{EXPORT_CONTENT};
 
   my $tps = $Tariffs->list({ MODULE => 'Iptv', COLS_NAME => 1, SERVICE_ID => $FORM{SERVICE_ID} || '_SHOW' });

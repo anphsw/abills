@@ -5,8 +5,8 @@ use warnings FATAL => 'all';
 use Abills::Base qw/in_array/;
 
 my (
-  $admin, 
-  $CONF, 
+  $admin,
+  $CONF,
   $db
 );
 
@@ -24,11 +24,11 @@ my $Employees_work;
 #**********************************************************
 sub new {
   my $class = shift;
-  $db       = shift;
-  $admin    = shift;
-  $CONF     = shift;
+  $db = shift;
+  $admin = shift;
+  $CONF = shift;
 
-  my $attr  = shift;
+  my $attr = shift;
 
   $html = $attr->{HTML} if $attr->{HTML};
   $lang = $attr->{LANG} if $attr->{LANG};

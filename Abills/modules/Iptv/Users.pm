@@ -8,6 +8,9 @@ use warnings FATAL => 'all';
 use Abills::Base qw(in_array cmd);
 use Shedule;
 require Abills::Misc;
+require Control::Service_control;
+require Control::Services;
+
 
 our (
   %FORM,
@@ -32,6 +35,7 @@ our Iptv $Iptv;
 
 my $Tariffs = Tariffs->new($db, \%conf, $admin);
 my $Shedule = Shedule->new($db, $admin, \%conf);
+my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
 #my $Iptv = Iptv->new( $db, $admin, \%conf );
 
 #**********************************************************
@@ -116,6 +120,9 @@ sub iptv_user {
         USER       => $users,
         REACTIVATE => (!$Iptv->{STATUS}) ? 1 : 0,
       });
+    }
+    else {
+      _external('', { EXTERNAL_CMD => 'Iptv', %{$Iptv}, QUITE => 1 });
     }
 
     if (!$Iptv->{errno}) {
@@ -233,19 +240,22 @@ sub iptv_user {
         { BUTTON => 1 });
     }
 
-    require Internet::Service_mng;
-    my $Service = Internet::Service_mng->new({ lang => \%lang });
-
-    ($Iptv->{NEXT_FEES_WARNING}, $Iptv->{NEXT_FEES_MESSAGE_TYPE}) = $Service->service_warning({
-      SERVICE => $Iptv,
-      USER    => $users,
-      DATE    => $DATE
+    my $warning_info = $Service_control->service_warning({
+      UID         => $Iptv->{UID},
+      ID          => $Iptv->{ID},
+      MODULE      => 'Iptv',
+      DATE        => $DATE
     });
+
+    if (defined $warning_info->{WARNING}) {
+      $Iptv->{NEXT_FEES_WARNING} = $warning_info->{WARNING};
+      $Iptv->{NEXT_FEES_MESSAGE_TYPE} = $warning_info->{MESSAGE_TYPE};
+    }
 
     $Iptv->{NEXT_FEES_WARNING} = $html->message($Iptv->{NEXT_FEES_MESSAGE_TYPE}, $Iptv->{TP_NAME},
       $Iptv->{NEXT_FEES_WARNING}, { OUTPUT2RETURN => 1 }) if ($Iptv->{NEXT_FEES_WARNING});
 
-    _iptv_user_shedules();
+    _iptv_user_shedules($users);
   }
 
   $Iptv->{STATUS_SEL} = sel_status({ STATUS => $Iptv->{STATUS} });
@@ -701,10 +711,11 @@ sub iptv_account_action {
     }
 
     $enable_catv_port=1;
-    if ($conf{IPTV_USER_EXT_CMD}) {
-      $Iptv->{ACTION} = 'down' if ($attr->{STATUS});
-      iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %{$users}, %{$Iptv} });
-    }
+    _external('', { EXTERNAL_CMD => 'Iptv', %{$users}, %{$Iptv}, ACTION => 'up', QUITE => 1 });
+    # if ($conf{IPTV_USER_EXT_CMD}) {
+    #   $Iptv->{ACTION} = 'down' if ($attr->{STATUS});
+    #   iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %{$users}, %{$Iptv} });
+    # }
 
     if ($Tv_service && $Tv_service->can('user_add')) {
       $users->info($uid, { SHOW_PASSWORD => 1 });
@@ -819,10 +830,11 @@ sub iptv_account_action {
       }) if $conf{IPTV_SUBSCRIBE_CMD};
     }
 
-    if ($conf{IPTV_USER_EXT_CMD}) {
-      $Iptv->{ACTION} = 'down' if ($FORM{STATUS});
-      iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %{$users}, %{$Iptv} });
-    }
+    _external('', { EXTERNAL_CMD => 'Iptv', %{$users}, %{$Iptv}, ACTION => 'down', QUITE => 1 });
+    # if ($conf{IPTV_USER_EXT_CMD}) {
+    #   $Iptv->{ACTION} = 'down' if ($FORM{STATUS});
+    #   iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %{$users}, %{$Iptv} });
+    # }
   }
   elsif ($attr->{channels}) {
     if ($Tv_service && ref $Tv_service ne 'HASH') {
@@ -1010,10 +1022,11 @@ sub iptv_account_action {
       }) if ($conf{IPTV_SUBSCRIBE_CMD});
     }
 
-    if ($conf{IPTV_USER_EXT_CMD}) {
-      $Iptv->{ACTION} = 'down' if ($FORM{STATUS});
-      iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %{$users}, %{$Iptv} });
-    }
+    _external('', { EXTERNAL_CMD => 'Iptv', %{$users}, %{$Iptv}, ACTION => 'down', QUITE => 1 });
+    # if ($conf{IPTV_USER_EXT_CMD}) {
+    #   $Iptv->{ACTION} = 'down' if ($FORM{STATUS});
+    #   iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %{$users}, %{$Iptv} });
+    # }
   }
   elsif ($attr->{hangup}) {
     if ($Tv_service && $Tv_service->can('hangup')) {
@@ -1121,13 +1134,15 @@ sub iptv_chg_tp {
         D            => $day,
         M            => $month,
         Y            => $year,
-        COMMENTS     => "$lang{FROM}: $Iptv->{TP_ID}:$Iptv->{TP_NAME}",
+        COMMENTS     => "$lang{FROM}: $Iptv->{TP_ID}:"
+          . (($Iptv->{TP_NAME}) ? "$Iptv->{TP_NAME}" : q{})
+          . ((!$FORM{GET_ABON}) ? "\nGET_ABON=-1" : '') . ((!$FORM{RECALCULATE}) ? "\nRECALCULATE=-1" : ''),
         ADMIN_ACTION => 1,
         MODULE       => 'Iptv'
       });
 
       if (!_error_show($Shedule)) {
-        $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
+        $html->message('info', $lang{CHANGED}, $lang{CHANGED});
         $Iptv->user_info($FORM{ID} || $Iptv->{UID});
       }
     }
@@ -1302,6 +1317,7 @@ sub _iptv_show_exist_shedule {
 =head2 _iptv_user_shedules($attr)
 
   Arguments:
+    $attr
 
   Return:
 
@@ -1312,10 +1328,11 @@ sub _iptv_user_shedules {
 
   $attr->{chg} ||= $FORM{chg};
 
-  return 0 unless $attr->{chg};
+  return 0 if(! $attr->{chg});
+  my $uid = $user->{UID} || $attr->{UID} || $FORM{UID};
 
   my $shedules = $Shedule->list({
-    UID          => $user->{UID},
+    UID          => $uid,
     TYPE         => 'tp',
     MODULE       => 'Iptv',
     SHEDULE_DATE => ">=$DATE",

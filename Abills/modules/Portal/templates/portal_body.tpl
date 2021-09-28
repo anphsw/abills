@@ -23,26 +23,11 @@
 
   <!-- TRY TO WITHOUT IT -->
   <!-- <script src='/styles/%HTML_STYLE%/js/bootstrap.min.js'></script> -->
-  <script src='/styles/%HTML_STYLE%/js/chosen.jquery.min.js'></script>
+  <!-- <script src='/styles/%HTML_STYLE%/js/chosen.jquery.min.js'></script> -->
   <!-- <script src='/styles/default_adm/js/navBarCollapse.js' language='javascript'></script> -->
   <script src='/styles/lte_adm/plugins/datepicker/bootstrap-datepicker.js'></script>
   <script src='/styles/lte_adm/plugins/timepicker/bootstrap-timepicker.min.js'></script>
 
-  <script type='text/javascript'>
-    function selectLanguage() {
-      var sLanguage = '';
-      if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
-        sLanguage = jQuery('#language_mobile').val() || '';
-      } else {
-        sLanguage = jQuery('#language').val() || '';
-      }
-      var sLocation = '$SELF_URL?DOMAIN_ID=$FORM{DOMAIN_ID}&language=' + sLanguage;
-      document.location.replace(sLocation);
-    }
-    function set_referrer() {
-      document.getElementById('REFERER').value = location.href;
-    }
-  </script>
   <script>
     \$(document).ready(function () {
       // Show the Modal on load
@@ -106,10 +91,10 @@
       color: #fff;
       padding: 20px 0;
       z-index: 99999;
-      position: fixed; 
-      width: 100%; 
-      height: 100px; 
-      bottom: 0; 
+      position: fixed;
+      width: 100%;
+      height: 100px;
+      bottom: 0;
       left: 0;
     }
 
@@ -135,7 +120,7 @@
 </head>
 <body class='skin-blue-light sidebar-collapse layout-boxed '>
 <div id='login_form' class='modal fade' role='dialog'>
-  <form method='post' class='form form-horizontal' id='form_login'
+  <form method='post' id='form_login'
         action='$ENV{PROT}://$ENV{SERVER_NAME}:$ENV{SERVER_PORT}/index.cgi'>
         <input type='hidden' id='HIDDE_COOKIE' name='HIDDE_COOKIE' value='%COOKIE_POLICY_VISIBLE%'>
 
@@ -192,7 +177,7 @@
             </div>
         <div class='modal-footer'>
           <a href='registration.cgi?FORGOT_PASSWD=1' target='_blank'>_{FORGOT_PASSWORD}_?</a>
-          
+
         </div>
 
       </div>
@@ -221,13 +206,13 @@
 
 
 
-  
+
       <!-- Collect the nav links, forms, and other content for toggling -->
       <div class='collapse navbar-collapse' id='navbar-collapse'>
         <ul class='nav navbar-nav'>
           %MENU%
         </ul>
-  
+
         <ul class='nav navbar-nav navbar-right'>
           <li>
           %REGISTRATION%
@@ -240,11 +225,11 @@
         </ul>
       </div><!-- /.navbar-collapse -->
     </div><!-- /.container-fluid -->
-  </nav>`
+  </nav>
 </header>
 
 <div id='bodyPan'>
-  
+
   <ul class="list-unstyled">
     %CONTENT%
   </ul>
@@ -260,9 +245,9 @@
 
 </div>
   <div id="cookieAcceptBar" class="cookieAcceptBar" style="display: none;">
-    _{COOKIE_AGREEMENTS}_  
+    _{COOKIE_AGREEMENTS}_
     <a href="%COOKIE_URL_DOC%" target="_blank">_{COOKIE_URL}_</a>
-    <br> 
+    <br>
     <button id="cookieAcceptBarConfirm" class="btn btn-success" onclick="hideBanner()">_{SUCCESS}_</button>
   </div>
 </body>
@@ -271,7 +256,7 @@
 <script>
   jQuery(document).on('ready', function() {
     var successCookie = localStorage.getItem('successCookie');
-    
+
     if (successCookie != '1') {
       jQuery('#cookieAcceptBar').show();
 

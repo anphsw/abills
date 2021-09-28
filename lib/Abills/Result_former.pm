@@ -199,9 +199,8 @@ sub result_former {
   @cols = _result_former_columns($attr);
   # _info_fields_hide();
 
-  _sort_table(
-    $attr->{TABLE}->{ID}, $sort, \@cols
-  );
+  _sort_table($attr->{TABLE}->{ID}, $sort, \@cols);
+
 
   my @hidden_fields = _result_former_hidden_fields($attr, \@cols);
 
@@ -298,6 +297,12 @@ sub result_former {
     Abills::HTML->import();
   }
 
+  if ($attr->{TABLE}{DATA_TABLE} && $LIST_PARAMS{SORT}) {
+    $attr->{TABLE}{DATA_TABLE} = {} if ref $attr->{TABLE}{DATA_TABLE} ne 'HASH';
+
+    $attr->{TABLE}{DATA_TABLE}{order} = [ [ $LIST_PARAMS{SORT} - 1, lc($LIST_PARAMS{DESC}) || 'asc' ] ];
+  }
+
   my Abills::HTML $table = $html->table({
     SHOW_COLS           => ($attr->{TABLE}{SHOW_COLS}) ? $attr->{TABLE}{SHOW_COLS} : \%SEARCH_TITLES,
     %{$attr->{TABLE}},
@@ -313,7 +318,7 @@ sub result_former {
   $table->{HIDDEN_FIELD_COUNT} = $#hidden_fields + 1;
 
   if ($attr->{MAKE_ROWS} && $data->{list}) {
-    return 0 if !_result_former_make_rows({ %{$attr}, EXT_ATTR => {
+    return $table if !_result_former_make_rows({ %{$attr}, EXT_ATTR => {
       SEARCH_FIELDS_COUNT   => $search_fields_count,
       BASE_FIELDS           => $base_fields,
       HIDDEN_FIELDS         => \@hidden_fields,
@@ -1093,14 +1098,13 @@ sub _get_login_value {
   my ($attr, $line) = @_;
 
   my $val = '';
-
   if (!$FORM{EXPORT_CONTENT}) {
-    my $dv_status_color = undef;
-    if (defined($line->{dv_status}) && $attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{dv_status}) {
-      (undef, $dv_status_color) = split(/:/, $attr->{SELECT_VALUE}->{dv_status}->{ $line->{dv_status} } || '');
+    my $login_status_color = undef;
+    if (defined($line->{login_status}) && $attr->{SELECT_VALUE} && $attr->{SELECT_VALUE}->{login_status}) {
+      (undef, $login_status_color) = split(/:/, $attr->{SELECT_VALUE}->{login_status}->{ $line->{login_status} } || '');
     }
     $val = user_ext_menu($line->{uid}, $line->{login}, { NO_CHANGE => 1, EXT_PARAMS => ($attr->{MODULE} ?
-      "MODULE=$attr->{MODULE}" : undef), dv_status_color => $dv_status_color });
+      "MODULE=$attr->{MODULE}" : undef), dv_status_color => $login_status_color });
   }
   else {
     $val = $line->{login};
@@ -1158,6 +1162,8 @@ sub _get_status_value {
   my $val = '';
 
   if ($attr->{STATUS_VALS} && ref($attr->{STATUS_VALS}) eq "HASH") {
+    return $val if (!$attr->{STATUS_VALS}{$line->{$col_name} || q{}});
+
     my ($status_value, $status_color) = split(':', $attr->{STATUS_VALS}{$line->{$col_name}});
     $val = (defined $line->{$col_name} && $line->{$col_name} >= 0) ? $html->color_mark($status_value, $status_color) :
       (defined $status_value ? $status_value : '');

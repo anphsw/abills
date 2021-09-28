@@ -55,7 +55,7 @@
             </div>
 
             <div class='form-group'>
-                <div class="row">
+                <div class='row'>
                     <div class='col-md-6'>
                         <label class='control-label col-md-4' for='START_WORK'>_{START}_: </label>
                         <div class='col-md-8'>
@@ -100,7 +100,7 @@
 
     jQuery('.list-checkbox').each(function () {
         console.log(jQuery(this));
-        if (jQuery(this).is(":checked")) {
+        if (jQuery(this).is(':checked')) {
             if (jQuery(this).val() == 6 || jQuery(this).val() == 7) {
                 jQuery(this).parent().addClass('list-group-item-danger');
             }

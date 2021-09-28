@@ -41,10 +41,8 @@
 
       <div class='form-group row hidden' id='BUILDS_SELECT_CONTAINER'>
         <label class='col-form-label text-md-right col-md-4'>_{BUILD}_:</label>
-        <div class='col-md-8'>
-          <div class='input-group' id='BUILD_CONTAINER'>
-            %BUILDS_SEL%
-          </div>
+        <div class='col-md-8' id='BUILD_CONTAINER'>
+          %BUILDS_SEL%
         </div>
       </div>
 

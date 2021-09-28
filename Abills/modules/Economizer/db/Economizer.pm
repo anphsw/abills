@@ -1,3 +1,4 @@
+package Economizer;
 
 =head1 Economizer
 
@@ -11,7 +12,6 @@ my $Economizer = Economizer->new($db, $admin, \%conf);
 
 =cut
 
-package Economizer;
 use strict;
 use parent 'main';
 use warnings;
@@ -232,7 +232,14 @@ sub list_user_info {
 
   my $WHERE = $self->search_former(
     $attr,
-    [ [ 'ID', 'INT', 'eui.id', ], [ 'UID', 'INT', 'eui.uid', ], [ 'DATE', 'DATE', 'eui.date', 1 ], [ 'LIGHT', 'INT', 'eui.light', 1 ], [ 'GAS', 'INT', 'eui.gas', 1 ], [ 'WATER', 'INT', 'eui.water', 1 ], [ 'COMMUNAL', 'DOUBLE', 'eui.communal', 1 ], [ 'COMMENTS', 'STR', 'eui.comments', 1 ], ],
+    [ [ 'ID',       'INT',    'eui.id',         ],
+      [ 'UID',      'INT',    'eui.uid',        ],
+      [ 'DATE',     'DATE',   'eui.date',     1 ],
+      [ 'LIGHT',    'INT',    'eui.light',    1 ],
+      [ 'GAS',      'INT',    'eui.gas',      1 ],
+      [ 'WATER',    'INT',    'eui.water',    1 ],
+      [ 'COMMUNAL', 'DOUBLE', 'eui.communal', 1 ],
+      [ 'COMMENTS', 'STR',    'eui.comments', 1 ], ],
     {
       WHERE => 1,
     }
@@ -251,10 +258,10 @@ sub list_user_info {
 
   $self->query2(
     "SELECT
-    $self->{SEARCH_FIELDS}
-    eui.id
+      $self->{SEARCH_FIELDS}
+      eui.id
     FROM economizer_user_info as eui
-    $WHERE
+      $WHERE
     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
@@ -295,47 +302,47 @@ sub info_user_info {
   if ($attr->{PREV_DATE}) {
     $self->query2(
       "SELECT eui.id,
-    eui.uid,
-    eui.date,
-    eui.light,
-    eui.gas,
-    eui.water,
-    eui.communal,
-    eui.comments
-    FROM economizer_user_info as eui
-    WHERE eui.date < \"$attr->{PREV_DATE}\" && eui.uid = $attr->{UID}
-    ORDER BY date desc;", undef, { COLS_NAME => 1 }
+        eui.uid,
+        eui.date,
+        eui.light,
+        eui.gas,
+        eui.water,
+        eui.communal,
+        eui.comments
+      FROM economizer_user_info as eui
+        WHERE eui.date < \"$attr->{PREV_DATE}\" && eui.uid = $attr->{UID}
+      ORDER BY date desc;", undef, { COLS_NAME => 1 }
     );
   }
 
   if ($attr->{NEXT_DATE}) {
     $self->query2(
       "SELECT eui.id,
-    eui.uid,
-    eui.date,
-    eui.light,
-    eui.gas,
-    eui.water,
-    eui.communal,
-    eui.comments
-    FROM economizer_user_info as eui
-    WHERE eui.date > \"$attr->{NEXT_DATE}\" && eui.uid = $attr->{UID}
-    ORDER BY date;", undef, { COLS_NAME => 1 }
+        eui.uid,
+        eui.date,
+        eui.light,
+        eui.gas,
+        eui.water,
+        eui.communal,
+        eui.comments
+      FROM economizer_user_info as eui
+        WHERE eui.date > \"$attr->{NEXT_DATE}\" && eui.uid = $attr->{UID}
+      ORDER BY date;", undef, { COLS_NAME => 1 }
     );
   }
 
   if ($attr->{ID}) {
     $self->query2(
       "SELECT eui.id,
-    eui.uid,
-    eui.date,
-    eui.light,
-    eui.gas,
-    eui.water,
-    eui.communal,
-    eui.comments
-    FROM economizer_user_info as eui
-      WHERE eui.id = ?;", undef, { COLS_NAME => 1, Bind => [ $attr->{ID} ] }
+        eui.uid,
+        eui.date,
+        eui.light,
+        eui.gas,
+        eui.water,
+        eui.communal,
+        eui.comments
+      FROM economizer_user_info as eui
+        WHERE eui.id = ?;", undef, { COLS_NAME => 1, Bind => [ $attr->{ID} ] }
     );
   }
 
@@ -589,12 +596,46 @@ sub add_main {
   my $password104      = '\'' . $attr->{PASSWORD104} . '\'';
   my $password_electro = '\'' . $attr->{PASSWORD_ELECTRO} . '\'';
   if ($existing_user eq 'yes') {
-    $self->query2("UPDATE economizer_main SET login104 = ?,password104 = ENCODE( ?,'$self->{conf}->{secretkey}' ), login_electro=?,password_electro= ENCODE( ?,'$self->{conf}->{secretkey}' ), user_id = ?  WHERE user_id = $value_user_id;",
-      undef, { Bind => [ $attr->{LOGIN104}, $attr->{PASSWORD104}, $attr->{LOGIN_ELECTRO}, $attr->{PASSWORD_ELECTRO}, $attr->{USER_ID} ] });
+    $self->query2(
+      "UPDATE economizer_main
+        SET login104 = ?,
+            password104 = ENCODE( ?,'$self->{conf}->{secretkey}' ),
+            login_electro=?,
+            password_electro= ENCODE( ?,'$self->{conf}->{secretkey}' ),
+            user_id = ?
+        WHERE
+            user_id = $value_user_id;",
+      undef,
+      {
+        Bind => [ $attr->{LOGIN104},
+                  $attr->{PASSWORD104},
+                  $attr->{LOGIN_ELECTRO},
+                  $attr->{PASSWORD_ELECTRO},
+                  $attr->{USER_ID} ]
+      }
+    );
   }
   else {
-    $self->query2("INSERT INTO economizer_main (login104,password104, login_electro,password_electro,user_id) VALUES (?, ENCODE( ?,'$self->{conf}->{secretkey}'),  ?, ENCODE( ?,'$self->{conf}->{secretkey}'), ? );",
-      undef, { Bind => [ $attr->{LOGIN104}, $attr->{PASSWORD104}, $attr->{LOGIN_ELECTRO}, $attr->{PASSWORD_ELECTRO}, $attr->{USER_ID} ] });
+    $self->query2(
+      "INSERT INTO economizer_main
+        (login104,password104,
+         login_electro,
+         password_electro,user_id)
+       VALUES
+        (?,
+         ENCODE( ?,'$self->{conf}->{secretkey}'),
+         ?,
+         ENCODE( ?,'$self->{conf}->{secretkey}'),
+         ? );",
+      undef,
+      {
+        Bind => [ $attr->{LOGIN104},
+                  $attr->{PASSWORD104},
+                  $attr->{LOGIN_ELECTRO},
+                  $attr->{PASSWORD_ELECTRO},
+                  $attr->{USER_ID} ]
+      }
+    );
   }
   return $self;
 }
@@ -612,7 +653,18 @@ sub add_main {
 sub take_main_data() {
   my $self = shift;
   my ($attr) = @_;
-  $self->query2("SELECT id, login104,DECODE(password104,'$self->{conf}->{secretkey}'), login_electro, DECODE( password_electro,'$self->{conf}->{secretkey}'), user_id FROM economizer_main; ", undef, $attr);
+  $self->query2(
+    "SELECT
+      id,
+      login104,
+      DECODE(password104,'$self->{conf}->{secretkey}'),
+      login_electro,
+      DECODE( password_electro,'$self->{conf}->{secretkey}'),
+      user_id
+     FROM economizer_main;",
+    undef,
+    $attr
+  );
   return $self->{list};
 }
 

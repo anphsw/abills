@@ -4,7 +4,7 @@
 
   libexec/billd
 
-Accounting control deamon
+Accounting control daemon
 Speed control
 Use plugin system libexec/billd.plugins
 
@@ -232,7 +232,7 @@ if (!$argv->{SKIPPID}) {
 }
 
 #***********************************************************
-=head2 deamon() - Deamon Mode
+=head2 deamon() - Daemon Mode
 
 =cut
 #***********************************************************
@@ -558,10 +558,10 @@ sub check_lines{
 
           #if we get speed for both intervals, and it was changed
           if ( $curr && $last && ($curr_speed_in != $new_speed_in || $curr_speed_out != $new_speed_out) ){
-            my $ret = setspeed(
+            my $ret = $Nas_cmd->setspeed(
               $nas,
-              "$online->{nas_port_id}",
-              "$online->{user_name}",
+              $online->{nas_port_id},
+              $online->{user_name},
               $new_speed_out,
               $new_speed_in,
               {
@@ -759,7 +759,7 @@ sub coa_former {
     my $list = $Internet->get_speed({
       BURST     => 1,
       COLS_NAME => 1,
-      LOGIN     => $online->{user_name},
+      UID       => $online->{uid},
       DOMAIN_ID => $online->{domain_id}
     });
 
@@ -2465,7 +2465,7 @@ sub check_speed_change{
 }
 
 #**********************************************************
-=head2 check_pptpd() - Check Active pptpd deamons
+=head2 check_pptpd() - Check Active pptpd daemons
 
   Kill All pptpd without parent
 
@@ -3717,6 +3717,10 @@ sub get_result{
 sub _log {
   my($type, $message, $attr)=@_;
 
+  if ($debug < 3 && $type eq 'LOG_DEBUG') {
+    return 1;
+  }
+
   print "$type: $message\n";
 
   return 1;
@@ -3727,7 +3731,7 @@ sub _log {
 
 =cut
 #**********************************************************
-sub help{
+sub help {
 
   my $plugins = '';
   #get plugins
@@ -3735,25 +3739,26 @@ sub help{
     my @contents = grep /\.pm$/, readdir $dh;
   closedir $dh;
 
-  foreach my $p ( @contents ){
+  foreach my $p (sort @contents) {
     $p =~ s/\.pm//;
     $plugins .= "  $p\n";
   }
 
-  print "Help:
+  print "
+\033[1mBILLD PLUGINS\033[0m
+  \033[1mbilld\033[0m [plugin] [parameters]
 
-  billd [plugin] [parameters]
-
-CHECK exist connections
+\033[1mCHECK exist connections\033[0m
   checkppp    - check Active ppp on FreeBSD session and disconnect unknown ip
   checkmpd    - check Active mpd5 on FreeBSD session and disconnect unknown ip
   checkmpd2   - Extended check Active mpd5 on FreeBSD session and disconnect unknown ip
   check_cisco_cid - check Cisco cids
   check_cisco_if - check Active Cisco interfaces and disconnect unknown nas-port
   checkpppd   - check Active pppd on Linux session and disconnect unknown ip
-  check_pptpd - check Active PoPToP deamon on Linux
+  check_pptpd - check Active PoPToP daemon on Linux
   checkmikro  - check Active ppp on Mikrotik session and disconnect unknown ip.
-CHECK speed
+
+\033[1mCHECK speed\033[0m
   checkspeed       - check cure speed for user on FreeBSD and Linux NAS. Arguments NAS_IDS=xx
     SHOW_SPEED=1   - Only show current speed
     RECONFIGURE=1  - Reconfigure speed settings
@@ -3769,12 +3774,14 @@ CHECK speed
   mikrotik         - check speed on mikrotik
   accel_ppp        - push speed to accel-ppp
   SKIPPID          - SKip PID create for multi exec scripts
- PLUGINS
+
+ \033[1mPLUGINS\033[0m
 $plugins
- CHECK connection Alive
+
+ \033[1mCHECK connection Alive\033[0m
   checklines    - Check alive connections
   -force        - Force run. Kill pre running proccess
-  -d            - deamon mode
+  -d            - daemon mode
 
   DEBUG=1..7    - debug mode
   NAS_IDS=...   - Make actions for NAS

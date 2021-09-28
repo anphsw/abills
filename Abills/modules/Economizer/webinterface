@@ -16,7 +16,7 @@
 
 use warnings;
 use strict;
-use Economizer;
+use Economizer::db::Economizer;
 our ($db, $admin, %conf, %lang, $html);
 our Economizer $Economizer = Economizer->new($db, $admin, \%conf);
 
@@ -204,7 +204,7 @@ sub e_statistics {
   my %INFORMATION;
   require JSON;
 
-  my @YEARS = ('2016', '2017', '2018', '2019', '2020');
+  my @YEARS = ('2016', '2017', '2018', '2019', '2020', '2021');
   my ($year, undef, undef) = split('-', $DATE);
 
   $INFORMATION{YEARS_SELECT} = $html->form_select(
@@ -236,6 +236,10 @@ sub e_statistics {
     }
   );
 
+  if (!$info_list) {
+    $html->message('danger', "NOT EXIST");
+    return 1;
+  }
   if (scalar(@$info_list) < 2) {
     $html->message('info', "$lang{NO_PUBLIC_UTILITIES_FOR_THIS_YEAR}");
   }
@@ -772,8 +776,8 @@ m/<tr >\s+<td class="text-center">\s+ <strong>\s+(.*?)\.(.*?)\s+<\/strong>\s+<\/
       # add electric's payment data to db
       $Economizer->add_user_money_electric(
         {
-          DATE      => $1 . '.' . $2,
-          SALDO     => $3 . '.' . $4,
+          DATE      => $1 .  '.' . $2,
+          SALDO     => $3 .  '.' . $4,
           ACCRUED   => $21 . '.' . $22,
           PAID      => $25 . '.' . $26,
           REMAINDER => $27 . '.' . $28,
@@ -786,12 +790,19 @@ m/<tr >\s+<td class="text-center">\s+ <strong>\s+(.*?)\.(.*?)\s+<\/strong>\s+<\/
 
     my $table_money = $html->table(
       {
-        width   => '100%',
-        caption => $lang{PAYMENT_HISTORY},
-        border  => 2,
-        title   => [ 'Id', $lang{DATE}, $lang{SALDO}, $lang{ACCRUED}, $lang{PAID}, $lang{REMAINDER}, '-', '-' ],
-        cols_align => [ 'center', 'center', 'center', 'center', 'center', 'center' ],
-        ID         => 'COMPANY_ID',
+        width       => '100%',
+        caption     => $lang{PAYMENT_HISTORY},
+        border      => 2,
+        title       => [ 'Id',
+                          $lang{DATE},
+                          $lang{SALDO},
+                          $lang{ACCRUED},
+                          $lang{PAID},
+                          $lang{REMAINDER},
+                          '-',
+                          '-' ],
+        cols_align  => [ 'center', 'center', 'center', 'center', 'center', 'center' ],
+        ID          => 'COMPANY_ID',
       }
     );
     my $list_money = $Economizer->take_money_electric();
@@ -811,12 +822,18 @@ m/<tr >\s+<td class="text-center">\s+ <strong>\s+(.*?)\.(.*?)\s+<\/strong>\s+<\/
 
     # parse html and take counter data of electric
     my $curl_counter = WWW::Curl::Easy->new;
-    $curl_counter->setopt(CURLOPT_URL,    "https://my.oe.if.ua/consumers/$array_number_insite[$FORM{id}]/indexes");
-    $curl_counter->setopt(CURLOPT_COOKIE, $first_cookie . ';' . ".AspNet.ApplicationCookie=$applic_cookie" . ';ESOPeriods_2= %7B%22PeriodFrom%22%3A201601%2C%22PeriodTo%22%3A' . $nowtime . '%2C%22ViewMode%22%3A0%7D%0A');
+    $curl_counter->setopt(CURLOPT_URL,
+      "https://my.oe.if.ua/consumers/$array_number_insite[$FORM{id}]/indexes");
+    $curl_counter->setopt(CURLOPT_COOKIE,
+      $first_cookie . ';'
+        . ".AspNet.ApplicationCookie=$applic_cookie"
+        . ';ESOPeriods_2= %7B%22PeriodFrom%22%3A201601%2C%22PeriodTo%22%3A'
+        . $nowtime . '%2C%22ViewMode%22%3A0%7D%0A');
     my $response_body_counter;
     $curl_counter->setopt(CURLOPT_WRITEDATA, \$response_body_counter);
     my $retcode_counter = $curl_counter->perform;
-    while ($response_body_counter =~ m/<tr >\s+<td rowspan="1">(.*?)<\/td>\s+<td rowspan="1" class="text-center">(.*?)\.(.*?)\.(.*?)<\/td>\s+<td class="text-center">без зони<\/td>\s+<td class="text-right">(.*?)<\/td>\s+<td rowspan="1">(.*?)<\/td>/g) {
+    while ($response_body_counter =~
+      m/<tr >\s+<td rowspan="1">(.*?)<\/td>\s+<td rowspan="1" class="text-center">(.*?)\.(.*?)\.(.*?)<\/td>\s+<td class="text-center">без зони<\/td>\s+<td class="text-right">(.*?)<\/td>\s+<td rowspan="1">(.*?)<\/td>/g) {
 
       # add data counter of electric to db
       $Economizer->add_user_electro_counter(
@@ -906,14 +923,13 @@ sub add_main {
   $html->tpl_show(
     _include('economizer_main', 'Economizer'),
     {
-      ID          => $FORM{ID},
-      INDEX       => $index,
-      LOGIN104    => $html->form_input('LOGIN104', $FORM{LOGIN104}, { OUTPUT2RETURN => 1 }),
-      PASSWORD104 =>,
-      $html->form_input('PASSWORD104', $FORM{PASSWORD104}, { OUTPUT2RETURN => 1 }),
-      LOGIN_ELECTRO    => $html->form_input('LOGIN_ELECTRO',    $FORM{LOGIN_ELECTRO},    { OUTPUT2RETURN => 1 }),
-      PASSWORD_ELECTRO => $html->form_input('PASSWORD_ELECTRO', $FORM{PASSWORD_ELECTRO}, { OUTPUT2RETURN => 1 }),
-      BUTTON_ADD       => $html->form_input("ADD",              $lang{ADD},              { TYPE          => "submit", OUTPUT2RETURN => 1 }),
+      ID                => $FORM{ID},
+      INDEX             => $index,
+      LOGIN104          => $html->form_input('LOGIN104',          $FORM{LOGIN104},          { OUTPUT2RETURN => 1 }),
+      PASSWORD104       => $html->form_input('PASSWORD104',       $FORM{PASSWORD104},       { OUTPUT2RETURN => 1 }),
+      LOGIN_ELECTRO     => $html->form_input('LOGIN_ELECTRO',     $FORM{LOGIN_ELECTRO},     { OUTPUT2RETURN => 1 }),
+      PASSWORD_ELECTRO  => $html->form_input('PASSWORD_ELECTRO',  $FORM{PASSWORD_ELECTRO},  { OUTPUT2RETURN => 1 }),
+      BUTTON_ADD        => $html->form_input("ADD",               $lang{ADD}, { TYPE => "submit", OUTPUT2RETURN => 1 }),
     }
   );
   return 1;

@@ -473,7 +473,7 @@ sub portal_articles {
       $line->{title},
       $line->{date},
       $line->{end_date},
-      ($line->{status} && $STATUS[ $line->{status} ]) ? $STATUS[ $line->{status} ] : $line->{status},
+      (defined($line->{status}) && $STATUS[ $line->{status} ]) ? $STATUS[ $line->{status} ] : $line->{status},
       ($line->{on_main_page} && $line->{on_main_page} == 1) ? $lang{YES} : $lang{NO},
       ($line->{archive} && $ARCHIVE[ $line->{archive} ]) ? $ARCHIVE[ $line->{archive} ] : $line->{archive},
       ($line->{importance} && $IMPORTANCE[ $line->{importance} ]) ? $IMPORTANCE[ $line->{importance} ] : $line->{importance},

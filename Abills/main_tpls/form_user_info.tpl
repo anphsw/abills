@@ -1,10 +1,10 @@
-<div class='card container-md'>
+<div class='card card-primary card-outline container-md'>
     <div class="card-header">
         <h4 class="card-title">_{INFO}_</h4>
     </div>
-<div class='card-body'>
+<div class='card-body table-responsive p-0'>
 
-<table class='table table-striped table-hover'>
+<table class='table table-striped table-hover p-0'>
     <TR>
         <TD>_{LOGIN}_:</TD>
         <TD><a href='$SELF_URL?index=15&UID=%UID%'>%LOGIN%</a></TD>

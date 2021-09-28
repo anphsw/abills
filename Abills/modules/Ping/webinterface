@@ -232,7 +232,7 @@ sub ping_reports {
   if ($old_from_date && $old_to_date && $old_from_date eq $old_to_date) {
     my $column_num = 0;
     $i = 0;
-    for ($i ; $i <= 23 ; $i++) {
+    for ($i=0; $i <= 23 ; $i++) {
       $column_num++;
       $from_date = ($i <= 9 ? 0 : '') . $i . ':00:00';
       $COLUMN{ $lang{MAX_LOSS_RATE} . '(%)' }->[$column_num] = '0';

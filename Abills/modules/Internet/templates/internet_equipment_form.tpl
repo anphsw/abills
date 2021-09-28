@@ -1,4 +1,4 @@
-<div id='form_4' class='card card-big-form for_sort container-md'>
+<div id='form_4' class='card card-primary card-outline card-big-form for_sort container-md pr-0 pl-0'>
   <div class='card-header with-border'>
     <h3 class='card-title'>_{EQUIPMENT}_</h3>
     <div class='card-tools pull-right'>

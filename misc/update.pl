@@ -10,11 +10,11 @@ use feature 'say';
 
 =head1 VERSION
 
-  0.03
+  VERSION: 0.04
 
 =head1 SYNOPSIS
 
-  update.pl - script for updating ABillS
+  update.pl - script for updating ABillS and modules
   
   Arguments:
      -D, --debug      - numeric(1..7), level of verbosity
@@ -86,7 +86,8 @@ BEGIN {
     'login=s'                       => \$OPTIONS{USERNAME},
     'password=s'                    => \$OPTIONS{PASSWORD},
     'dl|license'                    => \$OPTIONS{renew_license},
-    'sql-update|sql_update'         => \$OPTIONS{update_sql}
+    'sql-update|sql_update'         => \$OPTIONS{update_sql},
+    'apache_check'                  => \$OPTIONS{apache_check}
   ) or die pod2usage();
 
   if (!-d $OPTIONS{PREFIX} && !-d "$OPTIONS{PREFIX}/lib") {
@@ -148,55 +149,67 @@ my @abills_var_directories = (
 );
 
 my $ABILLS_VERSION = get_abills_version();
-
 my $SYS_ID = get_sys_id();
 my $ABILLS_SIGN = authenticate();
 chomp $SYS_ID;
 chomp $ABILLS_SIGN;
 
-if (!$ABILLS_SIGN) {
-  say 'Authentication required';
-  exit 0;
-}
 
-if ($OPTIONS{renew_license}) {
-  if (renew_license()) {
-    say 'License have been successfully saved';
-  }
-  else {
-    say 'Failed to save new license. Please check errors above';
-  }
-  exit 0;
-}
-
-if ($OPTIONS{update_sql}) {
-  if (update_sql()) {
-    say 'SQL have been successfully updated';
-  }
-  else {
-    say 'Failed to update SQL. Please check errors above';
-  }
-  exit 0;
-}
-
-check_perl_version($recommended_perl_version);
-check_used_perl_modules();
-
-if (!$OPTIONS{skip_check_sql} && !check_sql_version()) {
-  print "  If you want to skip MySQL version check, use --skip-check-sql \n";
-  exit 1;
-};
-
-main();
-
-exit 0;
+update();
 
 #**********************************************************
-=head2 main()
+=head2 update()
 
 =cut
 #**********************************************************
-sub main {
+sub update {
+
+  if ($OPTIONS{apache_check}) {
+    apache_check();
+    return 0;
+  }
+  elsif (!$ABILLS_SIGN) {
+    say 'Authentication required';
+    return 0;
+  }
+  elsif ($OPTIONS{renew_license}) {
+    if (renew_license()) {
+      say 'License have been successfully saved';
+    }
+    else {
+      say 'Failed to save new license. Please check errors above';
+    }
+    return 0;
+  }
+  elsif ($OPTIONS{update_sql}) {
+    if (update_sql()) {
+      say 'SQL have been successfully updated';
+    }
+    else {
+      say 'Failed to update SQL. Please check errors above';
+    }
+    return 0;
+  }
+
+  check_perl_version($recommended_perl_version);
+  check_used_perl_modules();
+
+  if (!$OPTIONS{skip_check_sql} && !check_sql_version()) {
+    print "  If you want to skip MySQL version check, use --skip-check-sql \n";
+    return 0;
+  };
+
+  full_update();
+
+  return 1;
+}
+
+#**********************************************************
+=head2 full_update()
+
+=cut
+#**********************************************************
+sub full_update {
 
   if ($DEBUG < 4 && !$OPTIONS{skip_backup}) {
     sources_backup() or return 0;
@@ -213,11 +226,11 @@ sub main {
 
   print "Checking for updated modules \n";
   update_modules();
-
   renew_license();
 
   print "Success \n";
 
+  return 1;
 }
 
 #**********************************************************
@@ -478,7 +491,7 @@ sub authenticate {
 }
 
 #**********************************************************
-=head2 sources_update()
+=head2 sources_update($type)
 
   Arguments :
     $type - 'git', 'free', 'snapshot'
@@ -1267,7 +1280,6 @@ sub check_ssh_access {
   }
 
   return 1;
-
 }
 
 #**********************************************************
@@ -1544,3 +1556,35 @@ sub _download_and_parse_sql_updates {
 
   return 1;
 }
+
+#**********************************************************
+=head2 apache_check()
+
+=cut
+#**********************************************************
+sub apache_check {
+
+  print "apache_check\n";
+
+  use FindBin '$Bin';
+  my $apache_log_dir = q{/var/log/httpd/};
+  my $filters      = q{};
+  my $filter_expr = $Bin . '/.apache_check_filter';
+
+  if (-f $filter_expr) {
+    $filters = `cat $filter_expr`;
+    my @filter_rows = split(/\n/, $filters);
+    if (-d $apache_log_dir) {
+      foreach my $filter ( @filter_rows ) {
+        my $cmd = qq{grep "$filter" $apache_log_dir/*};
+        print $cmd if ($DEBUG);
+        my $result = `$cmd`;
+        print $result;
+      }
+    }
+  }
+
+  return 1;
+}
+
+1;

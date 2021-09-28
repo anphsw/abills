@@ -169,7 +169,7 @@ sub run_end_command {
     $Paysys->{debug} = 1;
   }
 
-  my $users_list = $Paysys->paysys_user_list({ COLS_NAME => 1, CLOSED => 0, PAGE_ROWS => 1000 });
+  my $users_list = $Paysys->user_list({ COLS_NAME => 1, CLOSED => 0, PAGE_ROWS => 1000 });
 
   foreach my $user (@$users_list) {
     my ($user_date, $user_time) = split(' ', $user->{external_last_date});
@@ -188,7 +188,7 @@ sub run_end_command {
         PARAMS => { IP => $user->{external_user_ip}, UID => $user->{uid} }
       });
 
-      $Paysys->paysys_user_change({
+      $Paysys->user_change({
         UID       => $user->{uid},
         PAYSYS_ID => $user->{paysys_id},
         CLOSED    => 1

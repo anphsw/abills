@@ -23,7 +23,6 @@ use Time::Piece;
 
 our ($db,
   %lang,
-  $html,
   @bool_vals,
   @MONTHES,
   @WEEKDAYS,
@@ -33,6 +32,7 @@ our ($db,
 );
 
 our Admins $admin;
+our Abills::HTML $html;
 
 our $Msgs = Msgs->new($db, $admin, \%conf);
 my $users = Users->new($db, $admin, \%conf);
@@ -175,7 +175,7 @@ sub msgs_status_bar {
   }
   if ($FORM{EVERYTHING_EXCEPT_DONE}) {
     $LIST_PARAMS{STATE} = "!2";
-    $pages_qs .= "&EVERYTHING_EXCEPT_DONE=1$sort_qs";
+    $pages_qs .= "&EVERYTHING_EXCEPT_DONE=1";
   }
 
   push @header_arr, "$lang{EVERYTHING_EXCEPT_DONE}:index=$index&EVERYTHING_EXCEPT_DONE=1$sort_qs:class=dropdown-item";
@@ -605,14 +605,14 @@ sub msgs_registration {
     else {
       my $password = mk_unique_value(8);
 
-      $users->add(
-        {
-          LOGIN       => $FORM{LOGIN},
-          CREATE_BILL => 1,
-          PASSWORD    => $password
-        }
-      );
+      $users->add({
+        LOGIN       => $FORM{LOGIN},
+        CREATE_BILL => 1,
+        PASSWORD    => $password
+      });
+
       my $message = '';
+
       if (!_error_show($users)) {
         my $uid = $users->{UID};
         $users->info($uid);
@@ -675,15 +675,13 @@ sub msgs_survey_show {
 
   _error_show($Msgs);
 
-  my $list = $Msgs->survey_answer_show(
-    {
-      SURVEY_ID => $attr->{SURVEY_ID},
-      UID       => $uid,
-      MSG_ID    => $attr->{MSG_ID},
-      REPLY_ID  => ($attr->{REPLY_ID} || 0),
-      COLS_NAME => 1
-    }
-  );
+  my $list = $Msgs->survey_answer_show({
+    SURVEY_ID => $attr->{SURVEY_ID},
+    UID       => $uid,
+    MSG_ID    => $attr->{MSG_ID},
+    REPLY_ID  => ($attr->{REPLY_ID} || 0),
+    COLS_NAME => 1
+  });
 
   #$Msgs->{UID} = $user->{UID} if ( $user->{UID} );
 
@@ -1488,17 +1486,15 @@ sub msgs_quick_replys_tags {
 # #**********************************************************
 sub msgs_operator_statistics {
 
-  my $operator_statistics_list = $Msgs->messages_list(
-    {
-      COLS_NAME  => 1,
-      RESPOSIBLE => '_SHOW',
-      STATE_ID   => 2,
-      RUN_TIME   => '_SHOW',
-      RATING     => '_SHOW',
-      DONE_DATE  => "_SHOW",
-      PAGE_ROWS  => 100000,
-    }
-  );
+  my $operator_statistics_list = $Msgs->messages_list({
+    COLS_NAME  => 1,
+    RESPOSIBLE => '_SHOW',
+    STATE_ID   => 2,
+    RUN_TIME   => '_SHOW',
+    RATING     => '_SHOW',
+    DONE_DATE  => '_SHOW',
+    PAGE_ROWS  => 100000,
+  });
 
   if (!$FORM{YEAR} || !$FORM{MONTH}) {
     ($FORM{YEAR}, $FORM{MONTH}) = split('-', $DATE);
@@ -1506,46 +1502,35 @@ sub msgs_operator_statistics {
 
   my @years = ();
   ($years[0], undef, undef) = split('-', $DATE);
-  # ($years[0]) = $DATE =~ /^(\d{4})/;
   $years[1] = $years[0] - 1;
   $years[2] = $years[0] - 2;
 
-  my $table_for_the_month = $html->table(
-    {
-      caption => "$lang{RELATIVE_INDICATORS} $lang{FOR_THE_MONTH}",
-      title   => [ '', '' ],
-      qs      => $pages_qs,
-      ID      => "STATISTICS",
-      export  => 1
-    }
-  );
+  my $table_for_the_month = $html->table({
+    caption => "$lang{RELATIVE_INDICATORS} $lang{FOR_THE_MONTH}",
+    title   => [ '', '' ],
+    qs      => $pages_qs,
+    ID      => "STATISTICS",
+    export  => 1
+  });
 
-  my $table_for_all_time = $html->table(
-    {
-      caption => "$lang{RELATIVE_INDICATORS} $lang{FOR_ALL_TIME}",
-      title   => [ '', '' ],
-      qs      => $pages_qs,
-      ID      => "STATISTICS",
-      export  => 1
-    }
-  );
+  my $table_for_all_time = $html->table({
+    caption => "$lang{RELATIVE_INDICATORS} $lang{FOR_ALL_TIME}",
+    title   => [ '', '' ],
+    qs      => $pages_qs,
+    ID      => "ALL_TIME_STATISTICS",
+    export  => 1
+  });
 
-  my $month_select = $html->form_select(
-    'MONTH',
-    {
-      SELECTED     => $FORM{MONTH},
-      SEL_ARRAY    => [ '', @MONTHES ],
-      ARRAY_NUM_ID => 1,
-    }
-  );
+  my $month_select = $html->form_select('MONTH', {
+    SELECTED     => $FORM{MONTH},
+    SEL_ARRAY    => [ '', @MONTHES ],
+    ARRAY_NUM_ID => 1,
+  });
 
-  my $year_select = $html->form_select(
-    'YEAR',
-    {
-      SELECTED  => $FORM{YEAR},
-      SEL_ARRAY => [ '', @years ],
-    }
-  );
+  my $year_select = $html->form_select('YEAR', {
+    SELECTED  => $FORM{YEAR},
+    SEL_ARRAY => [ '', @years ],
+  });
 
   my %time_applications_per_month = ();
   my %time_applications_per_all_time = ();
@@ -1592,11 +1577,6 @@ sub msgs_operator_statistics {
     $rank_administrators_per_all_time{ $item->{resposible} }++;
     $dates_without_day{ $item->{done_date} }++;
   }
-  # _bp('1',\%time_applications_per_month);
-  # if(@$operator_statistics_list){
-  #   return 1;
-  # }
-
 
   #calculate average score for the month
   if ($score_closed_bids_per_month) {
@@ -1649,12 +1629,6 @@ sub msgs_operator_statistics {
     $spent_time_administrators_per_all_time += $time;
   }
 
-  #debug
-  # _bp('',\%dates_without_day);
-  # _bp('1',\%time_applications_per_month);
-  # _bp('1',\%rank_administrators_per_all_time);
-  # _bp('1',\%rank_administrators_per_month);
-
   #calculate the rating among other administrators
   if ($rank_administrators_per_month{ $admin->{AID} } && $number_of_months_worked) {
     $growth_of_chievement = int(($rank_administrators_per_month{ $admin->{AID} } * 100) /
@@ -1670,9 +1644,7 @@ sub msgs_operator_statistics {
 
 
   #table addrows for the month
-  $table_for_the_month->addrow(
-    $lang{GROWTH_OF_CHIEVEMENT}, $growth_of_chievement . "%"
-  );
+  $table_for_the_month->addrow($lang{GROWTH_OF_CHIEVEMENT}, $growth_of_chievement . "%");
 
   $table_for_the_month->addrow(
     $lang{NUMBER_OF_PROCESSED_REQUESTS},
@@ -1686,18 +1658,14 @@ sub msgs_operator_statistics {
 
   $table_for_the_month->addrow(
     $lang{TIME_SPENT_ON_APPLICATIONS},
-    int($time_applications_per_month{$admin->{AID}} * 100
-      / $spent_time_administrators_per_month) . "%"
-  ) if ($time_applications_per_month{$admin->{AID}}
-  );
+    int($time_applications_per_month{$admin->{AID}} * 100 / $spent_time_administrators_per_month) . "%"
+  ) if ($time_applications_per_month{$admin->{AID}});
 
   $table_for_the_month->addrow(
     $lang{AVERAGE_PER_APPLICATION},
     sec2time($time_applications_per_month{$admin->{AID}} /
-      $rank_administrators_per_month{ $admin->{AID} }, { str => 1 })
-  ) if ($time_applications_per_month{$admin->{AID}} &&
-    $rank_administrators_per_month{ $admin->{AID}}
-  );
+      $rank_administrators_per_month{$admin->{AID} }, { str => 1 })
+  ) if ($time_applications_per_month{$admin->{AID}} && $rank_administrators_per_month{$admin->{AID}});
 
   $table_for_the_month->addrow(
     "$lang{TIME_SPENT_ON_APPLICATIONS} $lang{ALL_ADMINS_REQ}",
@@ -1708,12 +1676,11 @@ sub msgs_operator_statistics {
     $lang{ADMINISTRATORS_RANK}, $rank_administrators_for_the_month || $lang{NO_DATA_STAT}
   );
 
-
   #table addrows for all time
   $table_for_all_time->addrow(
     $lang{NUMBER_OF_PROCESSED_REQUESTS},
-    $rank_administrators_per_all_time{$admin->{AID}} . " (" . int(
-      $rank_administrators_per_all_time{$admin->{AID}} * 100 / (scalar @$operator_statistics_list)) . "%)"
+    $rank_administrators_per_all_time{$admin->{AID}} . " (" .
+      int($rank_administrators_per_all_time{$admin->{AID}} * 100 / (scalar @$operator_statistics_list)) . "%)"
   ) if ($rank_administrators_per_all_time{$admin->{AID}});
 
   $table_for_all_time->addrow(
@@ -1732,53 +1699,44 @@ sub msgs_operator_statistics {
     $lang{TIME_SPENT_ON_APPLICATIONS},
     int($time_applications_per_all_time{$admin->{AID}} * 100
       / $spent_time_administrators_per_all_time) . "%"
-  ) if ($time_applications_per_all_time{$admin->{AID}} &&
-    $spent_time_administrators_per_all_time
-  );
+  ) if ($time_applications_per_all_time{$admin->{AID}} && $spent_time_administrators_per_all_time);
 
   $table_for_all_time->addrow(
     $lang{AVERAGE_PER_APPLICATION},
     sec2time($time_applications_per_all_time{$admin->{AID}} /
-      $rank_administrators_per_all_time{ $admin->{AID} }, { str => 1 })
-  ) if ($time_applications_per_all_time{$admin->{AID}} &&
-    $rank_administrators_per_all_time{ $admin->{AID}}
-  );
+      $rank_administrators_per_all_time{$admin->{AID} }, { str => 1 })
+  ) if ($time_applications_per_all_time{$admin->{AID}} && $rank_administrators_per_all_time{$admin->{AID}});
 
   $table_for_all_time->addrow(
     "$lang{TIME_SPENT_ON_APPLICATIONS} $lang{ALL_ADMINS_REQ}",
     sec2time($spent_time_administrators_per_all_time, { str => 1 })
-  ) if ($spent_time_administrators_per_all_time
-  );
+  ) if ($spent_time_administrators_per_all_time);
 
   $table_for_all_time->addrow(
     $lang{ADMINISTRATORS_RANK}, $rank_administrators_for_all_time
-  ) if ($rank_administrators_for_all_time
-  );
+  ) if ($rank_administrators_for_all_time);
 
-  $html->tpl_show(
-    _include("msgs_operator_statistics_reports", "Msgs"),
-    {
-      YEAR  => $year_select,
-      MONTH => $month_select,
-    }
-  );
+  $html->tpl_show(_include("msgs_operator_statistics_reports", "Msgs"), {
+    YEAR  => $year_select,
+    MONTH => $month_select,
+  });
 
   $html->short_info_panels_row(
     [
       {
         ID     => mk_unique_value(10),
-        NUMBER => $rank_administrators_per_month{ $admin->{AID} },
+        NUMBER => $rank_administrators_per_month{ $admin->{AID} } || "-",
         TEXT   => $lang{NUMBER_OF_PROCESSED_REQUESTS},
         ICON   => 'wrench',
-        COLOR  => '#00a65a',
+        COLOR  => 'success',
         SIZE   => 4
       },
       {
         ID     => mk_unique_value(10),
         NUMBER => sec2time($time_applications_per_month{$admin->{AID}}, { str => 1 }),
-        ICON   => 'time',
+        ICON   => 'clock-o',
         TEXT   => $lang{TIME_SPENT_ON_APPLICATIONS},
-        COLOR  => '#f39c12',
+        COLOR  => 'warning',
         SIZE   => 4
       },
       {
@@ -1786,19 +1744,14 @@ sub msgs_operator_statistics {
         NUMBER => $score_closed_bids_per_month,
         ICON   => 'star',
         TEXT   => $lang{AVERAGE_SCORE_FOR_CLOSED_BIDS},
-        COLOR  => '#3c8dbc',
+        COLOR  => 'info',
         SIZE   => 4
       }
-    ],
-    {
-      OUTPUT2RETURN => 1
-    }
+    ]
   );
 
-  print $html->element('div', $table_for_the_month->show(), { class => "col-md-4" });
-  print $html->element('div', $table_for_all_time->show(), { class => "col-md-4" });
-  print $html->element('div', '', { class => "row" });
-
+  print $html->element('div', $html->element('div', $table_for_the_month->show(), { class => "col-md-4", OUTPUT2RETURN => 1 }) .
+    $html->element('div', $table_for_all_time->show(), { class => "col-md-4", OUTPUT2RETURN => 1 }), { class => "row" });
 }
 
 #**********************************************************
@@ -1835,21 +1788,19 @@ sub msgs_receive_attachments {
 
     my $add_attachment = sub {
       my $form_param_name = shift;
-      $Attachments->attachment_add(
-        {
-          # Both values are stored in one column
-          MSG_ID       => $msg_id,
-          REPLY_ID     => $attr->{REPLY_ID},
-          MESSAGE_TYPE => $attr->{REPLY_ID} ? 1 : 0,
+      $Attachments->attachment_add({
+        # Both values are stored in one column
+        MSG_ID       => $msg_id,
+        REPLY_ID     => $attr->{REPLY_ID},
+        MESSAGE_TYPE => $attr->{REPLY_ID} ? 1 : 0,
 
-          CONTENT      => $FORM{$form_param_name}->{Contents},
-          FILESIZE     => $FORM{$form_param_name}->{Size},
-          FILENAME     => $FORM{$form_param_name}->{filename},
-          CONTENT_TYPE => $FORM{$form_param_name}->{'Content-Type'},
+        CONTENT      => $FORM{$form_param_name}->{Contents},
+        FILESIZE     => $FORM{$form_param_name}->{Size},
+        FILENAME     => $FORM{$form_param_name}->{filename},
+        CONTENT_TYPE => $FORM{$form_param_name}->{'Content-Type'},
 
-          UID          => $message->{UID} || $attr->{UID}
-        }
-      );
+        UID          => $message->{UID} || $attr->{UID}
+      });
     };
 
     $add_attachment->('FILE_UPLOAD');
@@ -2020,6 +1971,64 @@ sub _msgs_footer_row {
   );
 
   return @rows;
+}
+
+#**********************************************************
+=head2 msgs_admin_quick_message()
+
+=cut
+#**********************************************************
+sub msgs_admin_quick_message {
+  unless ( $conf{PUSH_ENABLED} || $conf{WEBSOCKET_ENABLED} ) {
+    $html->message('err', $lang{ERROR}, 'Need Websocket or Push to be configured');
+    return 0;
+  }
+
+  if ( $FORM{MESSAGE} && $FORM{AID} && $FORM{SEND_TYPE} ) {
+
+    my $Sender = Abills::Sender::Core::->new($db, $admin, \%conf);
+    foreach my $aid ( split(',\s?', $FORM{AID}) ) {
+
+      # Send via sender
+      my $sended = $Sender->send_message({
+        AID         => $aid,
+        TITLE       => $admin->{A_FIO} ? "$lang{FROM} : $admin->{A_FIO} " : '',
+        MESSAGE     => $FORM{MESSAGE},
+        SENDER_TYPE => $FORM{SEND_TYPE}
+      });
+
+      if ( $sended ) {
+        $html->message('info', $lang{SENT} . ' : ' . $aid);
+      }
+    }
+
+    return 1;
+  }
+
+  my $admins_online_list = $admin->online_list();
+  # make list with checkboxes
+
+  # Form HTML for checkbox panel
+  my $checkboxes_html = '';
+  foreach my $adm ( sort {$a->{aid} <=> $b->{aid}} @{$admins_online_list} ) {
+       next if ($adm->{aid} == $admin->{AID});
+
+    my $checkbox = $html->form_input('AID', $adm->{aid}, { TYPE => 'checkbox' });
+    my $label = $html->element('label', $checkbox . $adm->{admin});
+    my $checkbox_group = $html->element('div', $label, { class => 'checkbox col-md-6 text-left' });
+
+    $checkboxes_html .= $checkbox_group;
+  }
+
+  $html->tpl_show(_include('msgs_admin_quick_message', 'Msgs'),
+    {
+      CHECKBOXES            => $checkboxes_html,
+      PUSH_RADIO_VISIBLE    => $conf{PUSH_ENABLED},
+      BROWSER_RADIO_VISIBLE => $conf{WEBSOCKET_ENABLED}
+    }
+  );
+
+  return 1;
 }
 
 1;

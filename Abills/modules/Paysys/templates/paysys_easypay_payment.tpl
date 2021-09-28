@@ -4,4 +4,4 @@
     height: 70em;
   }
 </style>
-<iframe id="iframeEasypay" src="%FORWARDURL%"></iframe>
+<iframe id='iframeEasypay' src="%FORWARDURL%"></iframe>

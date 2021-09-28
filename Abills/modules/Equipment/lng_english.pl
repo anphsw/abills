@@ -143,7 +143,7 @@ $lang{LINK_STATUS} = 'Link status';
 $lang{PORT_TYPE} = 'Port type';
 
 $lang{FAILED_TO_GET_TELNET_CMDS_FROM_FILE} = 'Failed to get Telnet-commands from file';
-$lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} = 'Getting ONU configuration currently is not supported. You can manually write needed Telnet-commands to file Abills/modules/Equipment/snmp_tpl/zte_get_onu_config_epon.tpl';
+$lang{ONU_CONFIGURATION_FOR_EPON_IS_NOT_SUPPORTED} = 'Getting ONU configuration for EPON currently is not supported. You can manually write needed Telnet-commands to file ';
 
 $lang{CABLE_TEST_FAILED} = 'failed to run cable test';
 $lang{LAST_CABLE_TEST_TIME} = 'Time of last cable tester run';
@@ -170,5 +170,35 @@ $lang{ENABLE_INFINITIVE} = 'Enable';
 $lang{EXTERNAL_SYSTEM_LINK} = 'External system link';
 
 $lang{NUMBER_OF_SUPPORTED_ONUS_ON_BRANCH_FOR} = 'Number of supported ONUs on branch for';
+
+$lang{IMAGE_URL} = 'Image URL';
+
+$lang{EXTRA_PORT} = 'Extra port';
+$lang{ROW_NUMBER} = 'Row number';
+$lang{COMBO_PORT} = 'Combo port';
+
+$lang{ONU_BILLING_DESC} = 'Description (billing)';
+$lang{CHANGE_ONU_DESC} = 'Change ONU description';
+$lang{ONU_DESC_CHANGING_SUCCESS} = 'ONU description changed successfully';
+$lang{ONU_DESC_CHANGING_ERROR} = 'ONU description changing error';
+
+$lang{SPLITTER} = 'Splitter';
+$lang{SIGNAL_LOSS} = 'Signal Loss';
+$lang{CONNECTOR} = 'Meh. Connection';
+
+$lang{PACKETS_WITH_ERRORS} = 'Packets with errors';
+$lang{PACKETS_} = 'packets';
+
+$lang{POLL_NOT_DONE} = 'Polling failed';
+
+$lang{CPU_LOAD} = 'CPU load';
+
+$lang{DEFAULT_ONU_REG_TEMPLATE} = 'Default ONU registration template';
+
+$lang{EQUIPMENT_TYPE} = 'Equipment type';
+
+$lang{RAM_USAGE} = 'RAM load';
+$lang{SLOT_TEMP} = 'T° slot';
+$lang{SLOT_DESC} = 'Description';
 
 1

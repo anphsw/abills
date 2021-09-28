@@ -63,16 +63,14 @@ sub msgs_form_search {
     }
   );
 
-  $Msgs->{CHAPTER_SEL} = $html->form_select(
-    'CHAPTER',
-    {
-      SELECTED       => $FORM{CHAPTER} || 0,
-      SEL_LIST       => $Msgs->chapters_list({ CHAPTER => join(',', keys %{$A_PRIVILEGES}), COLS_NAME => 1 }),
-      MAIN_MENU      => get_function_index('msgs_chapters'),
-      MAIN_MENU_ARGV => "chg=" . ($Msgs->{CHAPTER} || q{}),
-      SEL_OPTIONS    => { '' => $lang{ALL} },
-    }
-  );
+  $Msgs->{CHAPTER_SEL} = $html->form_select('CHAPTER', {
+    SELECTED    => $FORM{CHAPTER} || '_SHOW',
+    SEL_LIST    => $Msgs->chapters_list({ CHAPTER => join(',', keys %{$A_PRIVILEGES}), COLS_NAME => 1 }),
+    # MAIN_MENU      => get_function_index('msgs_chapters'),
+    # MAIN_MENU_ARGV => "chg=" . ($Msgs->{CHAPTER} || q{}),
+    SEL_OPTIONS => { '_SHOW' => $lang{ALL} },
+    MULTIPLE    => 1
+  });
 
   $Msgs->{PLAN_DATE} = "0000-00-00";
   $Msgs->{PLAN_TIME} = "00:00:00";
@@ -156,14 +154,17 @@ sub msgs_list {
     });
     _error_show($Msgs);
 
-    $LIST_PARAMS{MSG_ID} = join(';', map {$_->{main_msg}} @$watched_links) || 0;
+    $LIST_PARAMS{MSG_ID} = join(';', map {$_->{main_msg}} @$watched_links) || '';
   }
 
   if (!$FORM{FROM_DATE} && !$FORM{TO_DATE} && $FORM{CLOSE_FROM_DATE} && $FORM{CLOSE_TO_DATE}) {
     $LIST_PARAMS{CLOSED_DATE} = ">=$FORM{CLOSE_FROM_DATE};<=$FORM{CLOSE_TO_DATE}";
   }
 
-  $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER} if ($FORM{CHAPTER});
+  if ($FORM{CHAPTER}) {
+    $FORM{CHAPTER} =~ s/,/;/g;
+    $LIST_PARAMS{CHAPTER} = $FORM{CHAPTER};
+  }
   $LIST_PARAMS{MSGS_TAGS} =~ s/,/;/g if $LIST_PARAMS{MSGS_TAGS} && $LIST_PARAMS{TAGS_STATEMENT};
 
   my $uid_statement = $FORM{UID} ? "&UID=$FORM{UID}" : '';
@@ -172,7 +173,7 @@ sub msgs_list {
     BASE_FIELDS     => 0,
     DEFAULT_FIELDS  => 'ID,CLIENT_ID,SUBJECT,CHAPTER_NAME,DATETIME,STATE,PRIORITY_ID,RESPOSIBLE_ADMIN_LOGIN',
     HIDDEN_FIELDS   => 'UID,ADMIN_DISABLE,PRIORITY,STATE_ID,CHG_MSGS,DEL_MSGS,ADMIN_READ,REPLIES_COUNTS,' .
-      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,DISTRICT_ID,PERFORMERS,DOMAIN_ID',
+      'RESPOSIBLE,MESSAGE,USER_NAME,DATE,DISTRICT_ID,PERFORMERS,DOMAIN_ID,MSGS_TAGS_IDS',
     APPEND_FIELDS   => 'UID',
     FUNCTION        => 'messages_list',
     FUNCTION_FIELDS => 'msgs_admin:show:chg_msgs;uid,msgs_admin:del:del_msgs;state:&ALL_MSGS=1' . $uid_statement,
@@ -227,6 +228,7 @@ sub msgs_list {
         priority_id            => sub {
           my ($priority_id) = @_;
           $priority_id //= 3; # Normal
+          $priority_id = 3 if !$priority[$priority_id];
           my $icon = $html->color_mark($priority[$priority_id], $priority_colors[$priority_id]);
           $html->element('span', $icon, { "data-tooltip" => "$priority_lit[$priority_id]" || "", "data-tooltip-position" => 'top' });
         },
@@ -261,6 +263,7 @@ sub msgs_list {
         plan_date_time         => "_msgs_list_plan_date_time_form::FUNCTION=msgs_list,ID",
         status                 => "_msgs_list_status_form::FUNCTION=msgs_list",
         disable                => "_msgs_list_status_form::FUNCTION=msgs_list",
+        msgs_tags_ids          => '_msgs_message_tags_name::MSGS_TAGS_IDS'
       },
       EXT_TITLES    => {
         'id'                     => $lang{NUM},
@@ -291,13 +294,14 @@ sub msgs_list {
         'uid'                    => 'UID',
         'downtime'               => $lang{DOWNTIME},
         'address_by_location_id' => $lang{FULL_MESSAGE_ADDRESS},
-        'performers'             => $lang{PERFORMERS}
+        'performers'             => $lang{PERFORMERS},
+        'msgs_tags_ids'          => $lang{MSGS_TAGS}
       },
       TABLE         => {
         width      => '100%',
         caption    => $lang{MESSAGES},
         qs         => $pages_qs
-          . (defined($FORM{CHAPTER}) ? "&CHAPTER=$FORM{CHAPTER}" : '')
+          . (defined($FORM{CHAPTER}) && $FORM{CHAPTER} ne '_SHOW' ? "&CHAPTER=$FORM{CHAPTER}" : '')
           . (!$FORM{UID} ? '&UID=' : ''),
         ID         => $attr->{LIST_ID} || 'MSGS_LIST',
         header     => msgs_status_bar({ MSGS_STATUS => $msgs_status, NEXT => 1 }),
@@ -420,7 +424,14 @@ sub msgs_dispatch_sel {
       'DISPATCH_ID',
       {
         SELECTED       => $Msgs->{DISPATCH_ID} || '',
-        SEL_LIST       => $Msgs->dispatch_list({ COMMENTS => '_SHOW', PLAN_DATE => '_SHOW', MESSAGE_COUNT => '_SHOW', STATE => 0, COLS_NAME => 1 }),
+        SEL_LIST       => $Msgs->dispatch_list({
+          COMMENTS      => '_SHOW',
+          PLAN_DATE     => '_SHOW',
+          MESSAGE_COUNT => '_SHOW',
+          STATE         => 0,
+          COLS_NAME     => 1,
+          PAGE_ROWS     => 9999
+        }),
         SEL_KEY        => 'id',
         SEL_VALUE      => 'plan_date,comments,message_count',
         MAIN_MENU      => get_function_index('msgs_dispatches'),
@@ -633,6 +644,46 @@ sub _msgs_status_update {
   return '' unless ($status_select || $update_status_btn);
 
   return ($status_select, $update_status_btn);
+}
+
+#**********************************************************
+=head2 _msgs_message_tags_name($tags)
+
+  Arguments:
+    $tags -
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _msgs_message_tags_name {
+  my ($tags) = @_;
+
+  return '' if !$tags;
+
+  $tags =~ s/,/;/;
+  my $tags_info = $Msgs->messages_quick_replys_list({
+    ID        => $tags,
+    REPLY     => '_SHOW',
+    COLOR     => '_SHOW',
+    COMMENT   => '_SHOW',
+    COLS_NAME => 1
+  });
+  return '' if $Msgs->{TOTAL} < 1;
+  
+  my $tags_name = '';
+
+  foreach my $tag (@{$tags_info}) {
+    $tag->{color} ||= '';
+    $tags_name .= $html->element('span', $tag->{reply}, {
+      'class'                 => 'label new-tags m-1',
+      'style'                 => "background-color:" . $tag->{color} . ";border-color:" . $tag->{color} . ";font-weight: bold;",
+      'data-tooltip'          => $tag->{comment} || $tag->{reply},
+      'data-tooltip-position' => 'top'
+    });
+  }
+
+  return $tags_name;
 }
 
 1;

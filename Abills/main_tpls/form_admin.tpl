@@ -262,6 +262,15 @@
                     </div>
 
                     <div class='form-group row'>
+                        <label class='col-md-3 col-form-label text-md-right' for='G2FA'>_{G2FA}_:</label>
+                        <div class='col-md-9'>
+                            <div class='form-check'>
+                                <input type='checkbox' class='form-check-input' id='G2FA' name='G2FA' value='%G2FA%' %G2FA_CHECKED%>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class='form-group row'>
                         <div class='col-md-1'>
                             %GPS_ROUTE_BTN%
                         </div>

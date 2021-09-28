@@ -61,7 +61,7 @@ sub events_profile_configure {
   _error_show($Events) and return 0;
   
   $FORM{AID} ||= $admin->{AID};
-  
+
   if ($FORM{submit}) {
     foreach my $priority (@{ $priorities }) {
       next if (!exists $FORM{ 'SEND_TYPES_' . $priority->{id} });
@@ -134,7 +134,7 @@ sub events_profile_configure {
     $_->{name} =~ s/^_//g;
     $_->{name} =~ s/_$//g;
     
-    "<li><a href='#priority_$_->{id}_tab' data-toggle='pill'>" . _translate('$lang' . uc($_->{name}) ) . "</a></li>"
+    "<li class='nav-item'><a class='nav-link' href='#priority_$_->{id}_tab' data-toggle='pill'>" . _translate('$lang' . uc($_->{name}) ) . "</a></li>"
   } @{ $priorities };
   
   my $priority_tabs_menu = join('', @priority_tabs_lis);
@@ -194,26 +194,26 @@ sub events_profile {
   $LIST_PARAMS{PAGE_ROWS} = 10000;
   $LIST_PARAMS{AID} = $admin->{AID};
   
-  my ($table) = events_uni_result_former({
+  print events_uni_result_former({
     LIST_FUNC       => "events_list",
     DEFAULT_FIELDS  => "ID,TITLE,COMMENTS,PRIORITY_NAME,STATE_NAME,GROUP_NAME",
     HIDDEN_FIELDS   => "PRIORITY_ID,STATE_ID,GROUP_ID,COMMENTS,EXTRA,CREATED,MODULE,AID",
-    MULTISELECT_ACTIONS => [
-      {
-        TITLE    => $lang{DEL},
-        ICON     => 'fa fa-trash',
-        ACTION   => "$SELF_URL?index=$index&del=1",
-        PARAM    => "IDS",
-        CLASS    => 'btn-danger',
-        COMMENTS => "$lang{DEL}?"
-      },
-      {
-        TITLE  => $lang{SEEN},
-        ICON   => 'fa fa-check',
-        ACTION => "$SELF_URL?index=$index&seen=1",
-        PARAM  => "IDS"
-      }
-    ],
+    #MULTISELECT_ACTIONS => [
+    #  {
+    #    TITLE    => $lang{DEL},
+    #    ICON     => 'fa fa-trash',
+    #    ACTION   => "$SELF_URL?index=$index&del=1",
+    #    PARAM    => "IDS",
+    #    CLASS    => 'btn-danger',
+    #    COMMENTS => "$lang{DEL}?"
+    #  },
+    #  {
+    #    TITLE  => $lang{SEEN},
+    #    ICON   => 'fa fa-check',
+    #    ACTION => "$SELF_URL?index=$index&seen=1",
+    #    PARAM  => "IDS"
+    #  }
+    # ],
     EXT_TITLES      => {
       id            => "#",
       comments      => $lang{COMMENTS},
@@ -247,33 +247,6 @@ sub events_profile {
     HAS_SEARCH      => 1,
     OUTPUT2RETURN   => 1,
   });
-  
-  
-  my $state_list = $Events->state_list({
-    NAME => '_SHOW',
-  });
-  _error_show($Events) and return 0;
-  # Adding all option
-  unshift(@$state_list, { id => 0, name => $lang{ALL} });
-  
-  my $filters_html = join('', map {
-      my $button = $html->button(translate_simple($_->{name}), "index=$index&search=1&STATE_ID=$_->{id}");
-      $html->element('li', $button, {
-          class         => (defined $FORM{STATE_ID} && $FORM{STATE_ID} eq $_->{id} ? 'active' : ''),
-          OUTPUT2RETURN => 1,
-        });
-    } @$state_list
-  );
-
-  $html->tpl_show(_include('events_events_profile', 'Events'),
-    {
-      TABLE   => $table,
-      FILTERS => $filters_html,
-      CREATE_BTN => $html->button($lang{CREATE}, "index=$index&show_add_form=1",{
-          class => 'btn btn-sm btn-primary btn-block margin-bottom'
-        })
-    }
-  );
   
   return 1;
 }

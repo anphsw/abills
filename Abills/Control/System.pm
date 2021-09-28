@@ -12,7 +12,7 @@ use Abills::Defs;
 use Abills::Fetcher;
 use Abills::Backend::Utils qw/json_encode_safe json_decode_safe/;
 use Abills::Base qw(convert dsc2hash clearquotes int2byte days_in_month
-  in_array startup_files load_pmodule urlencode);
+  in_array startup_files load_pmodule urlencode encode_base64);
 use JSON;
 
 our ($db,
@@ -2500,7 +2500,7 @@ sub form_prog_pathes {
       my $filename = "$conf{TPL_DIR}/programs.tpl";
       if (open(my $fh, '+>', $filename) ) {
         for (my $i = 0 ; $i < $#PROGS_ARR ; $i++) {
-          if ($FORM{$PROGS_ARR[$i]} =~ /^([\/A-Za-z0-9_\.\-\s]+)$/) {
+          if ($FORM{$PROGS_ARR[$i]} =~ /^([\/A-Za-z0-9_\.\-]+)/) {
             my $r = $1;
             print $fh "$PROGS_ARR[$i]=$r\n";
           }
@@ -2629,6 +2629,7 @@ sub organization_info {
     $info{VALUE} = $FORM{chg_form_value};
     $info{TAGS_PANEL} = $html->element('p', $FORM{chg_form}, { class => 'col-form-label' }); #need col-form-label to vertically align this text with label
     $info{VALUE_INPUT} = $html->form_input('VALUE', $FORM{chg_form_value}, { TYPE => 'text' });
+    $info{TAGS_PANEL} = $FORM{chg_form};
     $Conf->config_info($FORM{change});
 
     $html->tpl_show(templates('form_information_about_organization'), \%info);

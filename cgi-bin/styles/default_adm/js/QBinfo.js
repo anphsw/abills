@@ -32,17 +32,17 @@ function getOptimaBottomQBinfo(margin, firstDiv, height) {
 }
 
 
-function QBinfo(title, msg, group_id, event_id, seen_url) {
+function QBinfo(title, msg, group_id, event_id, seen_url, extra) {
   
   var time        = 15000;
   var align       = 'bottom-right';
   var width       = 300;
-  var height      = 140;
-  var icon        = '/img/information.png';
+  var height      = 150;
+  var icon        = 'fa fa-check-circle text-success';
   var position    = 'absolute';
   var effect      = 600;
   var time_effect = 'fade';
-  
+
   // COUNT div's of QBinfo
   var id = ++last_QBInfo_number;
   
@@ -67,12 +67,17 @@ function QBinfo(title, msg, group_id, event_id, seen_url) {
   d.style.top      = QBtop;
   d.style.left     = QBleft;
   document.body.appendChild(d);
-  
+
+  if (extra.icon !== '') {
+    icon = extra.icon;
+  }
+
   /*
    * Input info in DIV
    */
+
   var codeInput = '<table border="0" class="topQBinfo" width="100%"><tr>'
-      + '<td valign="middle" align="center" width="10%"><img src="' + icon + '" border="0" width="16" class="imgQBinfo" /></td>'
+      + '<td valign="middle" align="center" width="10%"><span class="'+ icon +'"></span></td>'
       + '<td valign="middle" align="left" class="titleQBinfo" width="80%">' + title + '</td>';
   
   if (group_id && group_id !== '1') {

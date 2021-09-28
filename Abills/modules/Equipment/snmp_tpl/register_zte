@@ -3,7 +3,7 @@
 
  ZTE Configuration utility
 
-=head2 EXAMLES
+=head2 REGISTRATION
 
 conf t
 interface gpon-olt_1/1/2
@@ -28,9 +28,13 @@ interface gpon-onu_1/1/2:1
 exit
 exit
 
+=head2 DELETE
+
+config t
+interface gpon-olt_1/1/2
+no onu 2
 
 =cut
-
 
 use strict;
 BEGIN {
@@ -60,7 +64,7 @@ if ($debug > 5) {
   `echo "@ARGV" >> /tmp/register`;
 }
 
-if($argv->{help}) {
+if ($argv->{help}) {
   help();
   exit;
 }
@@ -84,6 +88,7 @@ sub register_zte {
   #Onu info
   my $mac       = $argv->{MAC} || q{};
   my $branch    = $argv->{BRANCH} || '1/1/1';
+  my $onu_id    = $argv->{ONU_ID} || q{}; #used for del_onu
   my $profile   = $argv->{PROFILE} || 'ABILLS_PROFILE';
   my $vlan      = $argv->{VLAN_ID} || $argv->{PORT_VLAN} || $argv->{SERVER_VLAN} || '1001';
   my $onu_type  = $argv->{ONU_TYPE} || 'ZTE-F601';
@@ -93,10 +98,9 @@ sub register_zte {
   my $llid      = $argv->{LLID};
   my $template  = $argv->{TEMPLATE};
 
-  my ($ip, undef, $mng_port, undef) = split(/:/, $host, 4);
-  my $port = $mng_port || 23;
+  my ($ip) = split(/:/, $host);
 
-  if(! $ip) {
+  if (! $ip) {
     print "OLT IP not defined\n";
     return 0;
   }
@@ -108,77 +112,54 @@ sub register_zte {
   );
 
   $Telnet->open(
-    Host => $ip,
-    Port => $port,
+    Host => $ip
   );
 
   if ($Telnet->errmsg) {
-    print "Problem connecting to $ip, port: $port\n";
+    print "Problem connecting to $ip\n";
     return 0;
   }
 
-  my $new = 0;
+  my @data = $Telnet->waitfor('/Username:/i');
 
-  if($new) {
-    $Telnet->login($user_name, $password);
-    my @lines = $Telnet->cmd("show running-config interface $pon_type-olt_1/1/3");
-    print @lines;
-    exit;
-  }
-  else {
-    my @data = $Telnet->waitfor('/Username:/i');
-
-    if ($Telnet->errmsg) {
-      print ">Problem connecting to $ip, port: $port\n";
-      return 0;
-    }
-
-    if ($debug > 2) {
-      print @data;
-    }
-
-    $Telnet->print($user_name);
-    @data = $Telnet->waitfor('/password:/i');
-    if ($debug > 2) {
-      print @data;
-    }
-
-    $Telnet->print($password);
-    if ($Telnet->errmsg) {
-      print "Telnet login or password incorrect\n";
-      return 0;
-    }
-
-    $Telnet->prompt('/#$/');
-    $Telnet->errmode("return");
-    @data = $Telnet->waitfor('/#$/i');
-    print @data if ($debug > 3);
-    $Telnet->prompt('/#$/');
+  if ($Telnet->errmsg) {
+    print ">Problem connecting to $ip\n";
+    return 0;
   }
 
+  if ($debug > 2) {
+    print @data;
+  }
 
-  if($argv->{del_onu}) {
+  $Telnet->print($user_name);
+  @data = $Telnet->waitfor('/password:/i');
+  if ($debug > 2) {
+    print @data;
+  }
+
+  $Telnet->print($password);
+  my (undef, $waitfor_match) = $Telnet->waitfor('/(Username:|#)$/i');
+
+  if ($waitfor_match =~ /Username:/i) {
+    print "Telnet login or password incorrect\n";
+    return 0;
+  }
+
+  if ($argv->{del_onu}) {
     my $errcode = unregister_onu({
       TELNET     => $Telnet,
+      PON_TYPE   => $pon_type,
       BRANCH     => $branch,
-      MAC        => $mac,
-      PROFILE    => $profile,
-      VLAN       => $vlan,
-      ONU_TYPE   => $onu_type,
-      PON_TYPE   => $pon_type,
-      PON_TYPE   => $pon_type,
-      ONU_SERIAL => $sn,
-      LLID       => $llid,
-      #REG_IFACE  => $reg_iface
+      ONU_ID     => $onu_id
     });
 
     exit $errcode;
   }
-  elsif($pon_type eq 'epon') {
-    print "EPON registration\n" if($debug > 3);
+  elsif ($pon_type eq 'epon') {
+    print "EPON registration\n" if ($debug > 3);
 
     my $max_onu_id = $llid;
-    if(! $max_onu_id) {
+    if (! $max_onu_id) {
       telnet_cmd($Telnet, "show onu all-status epon-olt_$branch", { CMD => 1 });
       my $arr = telnet_cmd($Telnet, "show onu all-status epon-olt_$branch", { CMD => 1 });
 
@@ -192,7 +173,7 @@ sub register_zte {
       }
     }
 
-    print "Reg NUM: $max_onu_id  \n" if($debug > 3);
+    print "Reg NUM: $max_onu_id  \n" if ($debug > 3);
 
     register_onu({
       TELNET       => $Telnet,
@@ -214,7 +195,7 @@ sub register_zte {
     my $max_onu_id = $llid;
     my $reg_iface  = qq{$pon_type-onu_$branch}; #:$max_onu_id};
 
-    if(! $max_onu_id) {
+    if (! $max_onu_id) {
       $max_onu_id = get_max_onu_id2($Telnet, $branch);
       my $arr = telnet_cmd($Telnet, "show $pon_type onu uncfg $pon_type-olt_$branch");
 
@@ -283,7 +264,7 @@ sub get_tpl {
   my $pon_type   = $attr->{PON_TYPE} || 'gpon';
   my $template   = $attr->{TEMPLATE};
 
-  if($attr->{MAC} && $attr->{MAC} =~ /([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2})/) {
+  if ($attr->{MAC} && $attr->{MAC} =~ /([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2}):([0-9a-f]{1,2})/) {
     $attr->{MAC} = "$1$2.$3$4.$5$6";
   }
 
@@ -307,23 +288,23 @@ sub get_tpl {
     "exit"
   );
 
-  if(-f $Bin. '/'.$template) {
+  if (-f $Bin. '/'.$template) {
     my $content = '';
-    if($debug > 3) {
+    if ($debug > 3) {
       print "Tpl: ". $Bin. '/'.$template."\n";
     }
     open(my $fh, '<', $Bin. '/'.$template) || die "Can;t open '". $Bin. '/'.$template . "' $!";
       while(<$fh>) {
         my $line = $_;
-        if($line && $line !~ /#/) {
+        if ($line && $line !~ /#/) {
           while($line =~ /\%([A-Z0-9\_]+)\%/ig) {
             my $param = $1;
-            if($attr->{$param}) {
-              print "$param -> $attr->{$param}\n" if($debug > 4);
+            if ($attr->{$param}) {
+              print "$param -> $attr->{$param}\n" if ($debug > 4);
               $line =~ s/\%$param\%/$attr->{$param}/g;
             }
             else {
-              if($debug < 6) {
+              if ($debug < 6) {
                 $line =~ s/\%$param\%//g;
               }
               print "NO input params '$param'\n";
@@ -333,7 +314,7 @@ sub get_tpl {
         }
       }
     close($fh);
-    print $content if($debug > 3);
+    print $content if ($debug > 3);
 
     @reg_tpl = split(/\n/, $content);
   }
@@ -346,9 +327,14 @@ sub get_tpl {
 =head2 unregister_onu($attr)
 
   Arguments:
-     $attr
+    $attr
+      TELNET
+      PON_TYPE
+      BRANCH
+      ONU_ID
 
   Returns:
+    true or false
 
 =cut
 #**********************************************************
@@ -356,48 +342,20 @@ sub unregister_onu {
   my ($attr) = @_;
 
   my $Telnet     = $attr->{TELNET};
-  my $branch     = $attr->{BRANCH};
-  #my $onu_type   = $attr->{ONU_TYPE};
-  my $onu_serial = $attr->{ONU_SERIAL};
   my $pon_type   = $attr->{PON_TYPE} || 'gpon';
+  my $branch     = $attr->{BRANCH};
+  my $onu_id     = $attr->{ONU_ID};
 
-  #  onu 1 type ZTE-F601 sn ZTEGC1271D8D
-  #  onu 1 profile  line ASMODEUS remote VLAN_1001
+  if (!$branch || !$onu_id) {
+    print "No branch or ONU ID\n";
+    return 0;
+  }
 
   my @arr = (
     "config t",
     "interface $pon_type-olt_$branch",
+    "no onu $onu_id",
   );
-
-  if (! $attr->{LLID}) {
-    my $onu_list = telnet_cmd($Telnet, "show running-config interface $pon_type-olt_$branch");
-    my @remove_onu = ();
-    my $onu_id = 0;
-
-    if (!$onu_serial) {
-      print "No onu serial: '$onu_serial'";
-      return 0;
-    }
-
-    foreach my $line (@$onu_list) {
-      if ($line =~ /$onu_serial/) {
-        if ($line =~ /onu\s+(\d+)\s+/) {
-          $onu_id = $1;
-          push @remove_onu, 'no onu ' . $onu_id;
-        }
-      }
-    }
-
-    if ($#remove_onu == - 1) {
-      print "Onu: $onu_serial not found";
-      return 0;
-    }
-
-    push @arr, @remove_onu;
-  }
-  else {
-    push @arr, 'no onu ' . $attr->{LLID};
-  }
 
   foreach my $cmd (@arr) {
     print "$cmd\n" if ($debug);
@@ -407,6 +365,8 @@ sub unregister_onu {
       print @data;
     }
   }
+
+  print "ONU ZTE: $branch:$onu_id DELETED\n";
 
   return 1;
 }
@@ -434,7 +394,7 @@ sub register_onu {
   foreach my $cmd (@$reg_tpl) {
     print "$cmd\n" if ($debug);
 
-    if($cmd =~ /sleep:(\d+)/) {
+    if ($cmd =~ /sleep:(\d+)/) {
       sleep $1;
     }
 
@@ -528,7 +488,7 @@ sub telnet_cmd {
   my @data = ();
 
   #Get max id
-  if($attr->{CMD}) {
+  if ($attr->{CMD}) {
     @data = $Telnet->cmd($cmd) or print "ERROR CMD '$cmd'\n";
   }
   else {
@@ -547,7 +507,12 @@ sub telnet_cmd {
   return \@arr;
 }
 
-sub help {
+#**********************************************************
+=head2 help() - print help
+
+=cut
+#**********************************************************
+sub help { #TODO: check is this help correct
 
 print << "[END]";
 
@@ -561,6 +526,7 @@ help: $0
 
   MAC=
   BRANCH= || '1/1/1';
+  ONU_ID=
   PROFILE= || 'ABILLS_PROFILE';
   VLAN_ID= PORT_VLAN= SERVER_VLAN=
   ONU_TYPE=

@@ -328,6 +328,7 @@ sub form_fees_list {
         $line->{ext_bill_deposit} = ($line->{ext_bill_deposit} < 0) ? $html->color_mark($line->{ext_bill_deposit}, $_COLORS[6]) : $line->{ext_bill_deposit};
       }
       elsif($field_name eq 'deleted') {
+        $line->{deleted} //= 0;
         $line->{deleted} = $html->color_mark($bool_vals[ $line->{deleted} ], ($line->{deleted} == 1) ? $state_colors[ $line->{deleted} ] : '');
       }
       elsif($field_name eq 'login' && $line->{uid}) {

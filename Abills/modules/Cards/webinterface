@@ -226,6 +226,7 @@ sub cards_main {
       NAME      => 'USED_FROM_DATE/USED_TO_DATE',
       FORM_NAME => 'search_form',
       VALUE     => $FORM{'USED_FROM_DATE_USED_TO_DATE'},
+      RETURN_INPUT => 1
     });
     
     $Cards->{CREATED_DATE} = $html->date_fld2('CREATED_DATE', { MONTHES => \@MONTHES, FORM_NAME => 'form_search', WEEK_DAYS => \@WEEKDAYS, NO_DEFAULT_DATE => 1 });
@@ -279,10 +280,6 @@ sub cards_main {
   my $cards_list;
   delete $FORM{STATUS};
   delete ($Cards->{error});
-
-  if (defined($FORM{DOMAIN_ID})) {
-    $LIST_PARAMS{_MULTI_HIT}=1;
-  }
 
   ($table, $cards_list) = result_former({
      INPUT_DATA      => $Cards,

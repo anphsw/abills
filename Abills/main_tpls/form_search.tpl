@@ -22,11 +22,15 @@
             </div>
           </div>
           <div class='card-body'>
+
             <div class='form-group row'>
               <label class='col-md-4 col-form-label text-md-right' for='LOGIN'>_{LOGIN}_ (*,):</label>
-              <div class='col-md-8'>
+              <div class='col-md-6'>
                 <input id='LOGIN' name='LOGIN' value='%LOGIN%' placeholder='%LOGIN%'
                   class='form-control' type='text'>
+              </div>
+              <div class="col-md-2">
+                <input placeholder="UID" pattern="\d+\,?\*?" id="UID" name="UID" value="%UID%" type="text" class="form-control" />
               </div>
             </div>
 

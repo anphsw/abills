@@ -60,6 +60,8 @@ our @EXPORT = qw(
   date_inc
   indexof
   dirname
+  json_former
+  xml_former
 );
 
 our @EXPORT_OK = qw(
@@ -99,6 +101,8 @@ our @EXPORT_OK = qw(
   load_pmodule
   indexof
   dirname
+  json_former
+  xml_former
 );
 
 # As said in perldoc, should be called once on a program
@@ -178,8 +182,10 @@ sub dsc2hash {
       }
 
       unless($key_param_hash{page}) {
-        $key_param_hash{page} = 0;
+        $key_param_hash{page} = 1;
       }
+
+      $key_param_hash{page} -= 1;
 
       push(@{ $hash{$key} }, \%key_param_hash );
     }
@@ -237,7 +243,7 @@ sub in_array {
   Arguments:
     $value - scalar
     @array - array to search
-  
+
   Returns:
    index of first entry of $value in @array or -1
 
@@ -298,14 +304,14 @@ sub convert {
     #$text =~ s/\+/\%2B/g;
 
     if ($attr->{SHOW_URL}) {
-      $text =~ s/(https?:\/\/[^\s]+)/<a href=\'$1\' target=_new>$1<\/a>/ig;
+      $text =~ s/(https?:\/\/[^\s<]+)/<a href=\'$1\' target=_new>$1<\/a>/ig;
     }
   }
   elsif (defined($attr->{html2text})) {
-  	$text =~ s/\%([A-Fa-f0-9]{2})/pack('C', hex($1))/seg;
+    $text =~ s/\%([A-Fa-f0-9]{2})/pack('C', hex($1))/seg;
   }
   elsif (defined($attr->{txt2translit})) {
-  	$text = txt2translit($text);
+    $text = txt2translit($text);
   }
   elsif ($attr->{'from_tpl'}) {
     $text =~ s/textarea/__textarea__/g;
@@ -1693,9 +1699,9 @@ sub ssh_cmd {
 =cut
 #**********************************************************
 sub date_diff {
-	my ($from_date, $to_date) = @_;
+  my ($from_date, $to_date) = @_;
 
-  return 0 if ( ($from_date eq '0000-00-00') || ($to_date eq '0000-00-00') ); 
+  return 0 if ( ($from_date eq '0000-00-00') || ($to_date eq '0000-00-00') );
 
   require Time::Piece unless $Time::Piece::VERSION;
   if ($from_date =~ /(.+)\s/) {
@@ -1950,9 +1956,9 @@ sub _bp {
 =cut
 #**********************************************************
 sub urlencode {
-  my ($text) = @_;
+  my ($text, $attr) = @_;
 
-  #$s =~ s/ /+/g;
+  $text =~ s/ /+/g if $attr->{REPLACE_SPACES};
   #$s =~ s/([^A-Za-z0-9\+-])/sprintf("%%%02X", ord($1))/seg;
   $text =~ s/([^A-Za-z0-9\_\.\-])/sprintf("%%%2.2X", ord($1))/ge;
 
@@ -1993,7 +1999,7 @@ Analise file /usr/abills/Abills/programs and return hash_ref of params
 =cut
 #**********************************************************
 sub startup_files {
-	my ($attr) = @_;
+  my ($attr) = @_;
 
   my %startup_files = ();
   our $base_dir;
@@ -2278,6 +2284,9 @@ sub load_pmodule {
 
     0 if incorrect date;
 
+  Example:
+    my $prev_date = date_inc($date);
+
 =cut
 #**********************************************************
 sub date_inc {
@@ -2287,7 +2296,7 @@ sub date_inc {
   return 0 unless ( $year && $month && $day );
 
   if ( ++$day >= 29 ){
-    my $days_in_month = days_in_month( {DATE => $date} );
+    my $days_in_month = days_in_month({ DATE => $date });
     if ( $day > $days_in_month ){
       if ( ++$month == 13 ){
         $year++;
@@ -2318,6 +2327,129 @@ sub dirname {
   }
 
   return $x;
+}
+
+#**********************************************************
+=head2 json_former($request) - hash2json
+
+  Arguments
+    $var (strinf|arr|hash)
+
+  Result
+    JSON_string
+
+=cut
+#**********************************************************
+sub json_former {
+  my ($request) = @_;
+  my @text_arr = ();
+
+  if (ref $request eq 'ARRAY') {
+    foreach my $key (@{$request}) {
+      push @text_arr, json_former($key);
+    }
+    return '[' . join(', ', @text_arr) . "]";
+  }
+  elsif (ref $request eq 'HASH') {
+    foreach my $key (keys %{$request}) {
+      my $val = json_former($request->{$key});
+      push @text_arr, qq{\"$key\":$val};
+    }
+    return '{' . join(', ', @text_arr) . "}";
+  }
+  else {
+    $request //= '';
+    if ($request =~ '^[0-9]$') {
+      return qq{$request};
+    }
+    else {
+      return qq{\"$request\"};
+    }
+  }
+}
+
+#**********************************************************
+=head2 xml_former($response, %PARAMS) - hash2xml
+
+  Arguments
+    $response string
+    %PARAMS
+      PRETTY    - good looking xml
+      ROOT_NAME - parent element(name)
+      ENCODING  - <?xml version="1.0" encoding="$PARAMS->{ENCODING}" ?>
+      VERSION   - <?xml version="1.0" ?>
+  Result
+    xml string
+
+=cut
+#**********************************************************
+sub xml_former {
+  my ($response, $params) = @_;
+  my @result = ();
+  my ($nl, $indent);
+
+  if ($params->{PRETTY}) {
+    $nl = "\n";
+    $indent = $params->{indent};
+  }
+  else {
+    $nl = "";
+    $indent = "";
+  }
+
+  if ($params->{ENCODING}) {
+    push @result,
+      $indent, '<', '?xml version="1.0" encoding="', $params->{ENCODING}, '" ?', '>', $nl;
+  }
+  elsif ($params->{VERSION}) {
+    push @result,
+      $indent, '<', '?xml version="1.0" ?', '>', $nl;
+  }
+
+  if ($params->{ROOT_NAME}) {
+    push @result,
+      $indent, '<', $params->{ROOT_NAME}, '>', $nl,
+      xml_former_body($response, { indent => "$indent  ", nl => $nl }),
+      $indent, '</', $params->{ROOT_NAME}, '>', $nl;
+  }
+  else {
+    push @result,
+      xml_former_body($response, { indent => "$indent  ", nl => $nl }),
+  }
+  return (join('', @result));
+}
+
+#**********************************************************
+=head2 xml_former_body($response, %PARAMS)
+
+  Arguments
+    $response string
+    %PARAMS
+      indent    - good looking xml
+      nl        - parent element(name)
+  Result
+    xml string
+
+=cut
+#**********************************************************
+sub xml_former_body {
+  my ($response, $params) = @_;
+  my @result = ();
+  foreach my $key (sort keys %{$response}) {
+    if (ref $response->{$key} eq 'HASH') {
+      push @result,
+        $params->{indent}, '<', $key, '>', $params->{nl},
+        xml_former_body($response->{$key}, { indent => "$params->{indent}  ", nl => $params->{nl} }),
+        $params->{indent}, '</', $key, '>', $params->{nl};
+    }
+    else {
+      push @result,
+        $params->{indent}, '<', $key, '>',
+        $response->{$key},
+        '</', $key, '>', $params->{nl};
+    }
+  }
+  return (join('', @result));
 }
 
 =head1 AUTHOR

@@ -35,7 +35,8 @@ our ($db,
   @hundred,
   @money_unit_names,
   $Conf,
-  %ADMIN_REPORT
+  %ADMIN_REPORT,
+  $Bin
 );
 
 our Abills::HTML $html;
@@ -1444,7 +1445,10 @@ sub docs_module_info {
   my %doc = ();
 
   #Modules info
-  my $cross_modules_return = cross_modules_call('_docs', { UID => $attr->{UID} });
+  my $cross_modules_return = cross_modules_call('_docs', {
+    UID      => $attr->{UID},
+    SHOW_ALL => 1
+  });
 
   $doc{"DOCS_ABON_SUM_SERVICE"} = 0;
 
