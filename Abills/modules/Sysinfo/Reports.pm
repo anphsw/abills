@@ -13,7 +13,8 @@ use Abills::Base qw(int2byte indexof);
 my %sysinfo_hash = ();
 my $os           = sysinfo_get_os();
 
-our ($admin, $db, $html, %lang, %conf, $SORT, %permissions);
+our ($admin, $db, %lang, %conf, $SORT, %permissions);
+our Abills::HTML $html;
 
 $conf{SYSINFO_SUDOERS_D} ||= '';
 
@@ -1521,7 +1522,7 @@ sub sysinfo_sp_info {
     my $mem_free     = $sysctl{"vm.stats.vm.v_free_count"} * $sysctl{"hw.pagesize"};
 
     $ram = $html->progress_bar({
-      TEXT     => int2byte($mem_phys) ." $lang{FREE}: ". int2byte($mem_free),
+      TOP_TEXT     => int2byte($mem_phys) ." $lang{FREE}: ". int2byte($mem_free),
       TOTAL    => $mem_phys,
       COMPLETE => $mem_phys - $mem_free
     });
@@ -1555,9 +1556,9 @@ sub sysinfo_sp_info {
     }
 
     $ram = $html->progress_bar({
-      TEXT     => int2byte(($memmory{MemTotal} || 0) * 1024) ." $lang{FREE}: ". int2byte(($memmory{MemFree} || 0) * 1024),
       TOTAL    => $memmory{MemTotal},
-      COMPLETE => $memmory{MemTotal} - $memmory{MemFree}
+      COMPLETE => $memmory{MemTotal} - $memmory{MemFree},
+      TOP_TEXT => int2byte(($memmory{MemTotal} || 0) * 1024) ." $lang{FREE}: ". int2byte(($memmory{MemFree} || 0) * 1024)
     });
   }
 
@@ -1565,9 +1566,9 @@ sub sysinfo_sp_info {
   $swap_info->{swap_total} //= 0;
   $swap_info->{swap_used}  //= 0;
   my $swap = $html->progress_bar({
-    TEXT     => int2byte($swap_info->{swap_total} * 1024) ." $lang{FREE}: ". int2byte(($swap_info->{swap_total} - $swap_info->{swap_used}) * 1024),
     TOTAL    => $swap_info->{swap_total},
-    COMPLETE => $swap_info->{swap_used}
+    COMPLETE => $swap_info->{swap_used},
+    TOP_TEXT     => int2byte($swap_info->{swap_total} * 1024) ." $lang{FREE}: ". int2byte(($swap_info->{swap_total} - $swap_info->{swap_used}) * 1024)
   });
 
   my $info       = $sysinfo_hash{$os}{'disk'}->({ SHORT => 1 });
@@ -1582,9 +1583,9 @@ sub sysinfo_sp_info {
     if ($line =~ /^\//) {
       if (in_array($info->{Mounted}->[$i], ['/', '/var', '/usr', @user_defined_mount_points ] )) {
         $hdd .= $html->progress_bar({
-          TEXT     => "$info->{Mounted}->[$i]:  " . int2byte(($info->{Size}->[$i] || 0) * 1024) ." $lang{USED}: ". int2byte(($info->{Used}->[$i] || 0) * 1024),
-          TOTAL    => $info->{Size}->[$i],
-          COMPLETE => $info->{Used}->[$i]
+          TOTAL         => $info->{Size}->[$i],
+          COMPLETE      => $info->{Used}->[$i],
+          TOP_TEXT => "$info->{Mounted}->[$i]:  " . int2byte(($info->{Size}->[$i] || 0) * 1024) . " $lang{USED}: " . int2byte(($info->{Used}->[$i] || 0) * 1024),
         });
       }
     }
@@ -1611,26 +1612,24 @@ sub sysinfo_sp_info {
   ($load) = $load =~ /([\d]+\.?[\d]?)/;
 
   $load = $html->progress_bar({
-    TEXT     => sprintf('%.2f%%', $load), #/$load_2/$load_3",
+    TOP_TEXT     => sprintf('%.2f%%', $load), #/$load_2/$load_3",
     TOTAL    => 100,
     COMPLETE => $load
   });
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      caption    => $html->button($lang{SYSTEM_INFO}, "index=".get_function_index('sysinfo_main')),
-      ID         => 'SYSTEM_INFO',
-      rows       => [
-        [ $lang{CPU},    $cpu    ],
-        [ $lang{MEMORY}, $ram    ],
-        [ 'SWAP',        $swap   ],
-        [ $lang{DISC},   $hdd    ],
-        [ $lang{LOAD},   $load   ],
-        [ $lang{UPTIME}, $uptime ],
-      ]
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    caption    => $html->button($lang{SYSTEM_INFO}, "index=".get_function_index('sysinfo_main')),
+    ID         => 'SYSTEM_INFO',
+    rows       => [
+      [ $lang{CPU},    $cpu    ],
+      [ $lang{MEMORY}, $ram    ],
+      [ 'SWAP',        $swap   ],
+      [ $lang{DISC},   $hdd    ],
+      [ $lang{LOAD},   $load   ],
+      [ $lang{UPTIME}, $uptime ],
+    ]
+  });
 
   my $reports .= $table->show();
 
@@ -1724,23 +1723,21 @@ sub sysinfo_sp_ps {
     %services_init_scripts = %{ sysinfo_get_process_pathes() };
   }
 
-  my $table = $html->table(
-    {
-      width       => '100%',
-      title_plain => [ $lang{COMMAND}, '', 'CPU %', 'MEM %', 'MEM Mb', '-' ],
-      caption     => $html->button( "$lang{PROCCESS_LIST}", 'index=' . get_function_index('sysinfo_processes') ),
-      ID          => 'PROCCESS_LIST',
-      EXTRA_BTN =>  $html->button(
-        '',
-        'index=' . get_function_index('sysinfo_processes'),
-        {
-          ADD_ICON => 'fa fa-fw fa-info',
-          class    => 'btn btn-tool ',
-          TITLE    => $lang{INFO}
-        }
-      ),
-    }
-  );
+  my $table = $html->table({
+    width       => '100%',
+    title_plain => [ $lang{COMMAND}, '', 'CPU %', 'MEM %', 'MEM Mb', '-' ],
+    caption     => $html->button( "$lang{PROCCESS_LIST}", 'index=' . get_function_index('sysinfo_processes') ),
+    ID          => 'PROCCESS_LIST',
+    EXTRA_BTN =>  $html->button(
+      '',
+      'index=' . get_function_index('sysinfo_processes'),
+      {
+        ADD_ICON => 'fa fa-fw fa-info',
+        class    => 'btn btn-tool ',
+        TITLE    => $lang{INFO}
+      }
+    ),
+  });
 
   my $restart_index = get_function_index('sysinfo_services');
   foreach my $ps_name ( keys %watch_proccess ) {

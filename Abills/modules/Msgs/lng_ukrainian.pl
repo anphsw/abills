@@ -164,9 +164,9 @@ $lang{LOCATION_BRIGADE}='Прив\'язати до геоадресу';
 $lang{TICKET_REPORT}='Роботи над заявками';
 $lang{TICKET_REPORT_BY_ADMINS}='Роботи над заявками (по адміністраторам)';
 $lang{DONE_TICKET}='Виконано заявок';
-$lang{SPENT_TIME}='Потрачений час';
+$lang{SPENT_TIME}='Витрачений час';
 $lang{TICKET_SUM}='Сума заявок';
-$lang{PAID_AMOUT}='Виплаченна сума';
+$lang{PAID_AMOUT}='Виплачена сума';
 $lang{NOT_TURNED_ON}='Модуль не включений';
 $lang{HELPDESK}='Служба підтримки';
 
@@ -198,5 +198,11 @@ $lang{PERFORMERS} = 'Виконавці';
 $lang{NUMBER_OF_PROCESSED_REQUESTS_IN_THE_CURRENT_MONTH} = 'Кількість оброблених заявок в поточному місяці';
 $lang{TIME_SPENT_ON_APPLICATIONS_IN_THE_CURRENT_MONTH} = 'Час витрачений на заявки в поточному місяці';
 $lang{THE_NUMBER_OF_USER_TICKETS_IN_THE_CURRENT_MONTH} = 'Кількість призначених для користувача заявок в поточному місяць і витрачений на них час';
+$lang{NEW_TICKETS} = 'Нові заявки';
+$lang{CLOSED} = 'Закрито';
+$lang{RESPONSE_TIME} = 'Час відповіді';
+$lang{SUPPORT_SYSTEM_STATS} = 'Статистика служби підримки';
+
+$lang{DYNAMICS_OF_MESSAGES_AND_REPLIES} = 'Динаміка повідомлень та відповідей';
 
 1

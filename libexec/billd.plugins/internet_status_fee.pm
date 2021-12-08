@@ -89,7 +89,7 @@ sub internet_status_fee {
     }
 
     $Internet->{debug} = 1 if ($debug > 5);
-    my $ulist = $Internet->list(
+    my $ulist = $Internet->user_list(
       {
         INTERNET_ACTIVATE => "$activate_date",
         #EXPIRE       => "0000-00-00,>$ADMIN_REPORT{DATE}",

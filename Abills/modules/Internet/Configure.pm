@@ -7,7 +7,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(cmd in_array);
-use Address;
+#use Address;
 
 use Abills::Radius_Pairs;
 
@@ -22,8 +22,6 @@ our(
 our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);
 my $Tariffs  = Tariffs->new($db, \%conf, $admin);
-my $Nas      = Nas->new($db, \%conf, $admin);
-
 
 #**********************************************************
 =head2 internet_tp() - Tarif plans
@@ -204,6 +202,7 @@ sub internet_tp {
       }
     );
 
+    my $Nas      = Nas->new($db, \%conf, $admin);
     my $nas_ip_pools_list = $Nas->ip_pools_list({ STATIC => 0, SHOW_ALL_COLUMNS => 1, COLS_NAME => 1 });
 
     $tarif_info->{IP_POOLS_SEL} = $html->form_select(
@@ -705,20 +704,20 @@ sub internet_import_tp {
 sub internet_filters {
 
   $Internet->{ACTION} = 'add';
-  $Internet->{BTN}    = $lang{ADD};
+  $Internet->{ACTION_LNG}    = $lang{ADD};
 
   if($FORM{add}) {
     $Internet->filters_add({ %FORM });
 
     if (! _error_show($Internet)) {
-      $html->message('info', $lang{INFO}, "$lang{ADDED}");
+      $html->message('info', $lang{INFO}, $lang{ADDED});
     }
   }
   elsif($FORM{change}) {
     $Internet->filters_change({ %FORM });
 
     if (! _error_show($Internet)) {
-      $html->message('info', $lang{INFO}, "$lang{CHANGED}");
+      $html->message('info', $lang{INFO}, $lang{CHANGED});
     }
   }
   elsif($FORM{chg}) {
@@ -726,10 +725,8 @@ sub internet_filters {
 
     if (! _error_show($Internet)) {
       $Internet->{ACTION} = 'change';
-      $Internet->{BTN}    = $lang{CHANGE};
+      $Internet->{ACTION_LNG} = $lang{CHANGE};
     }
-
-    $html->tpl_show(_include('internet_filters_form', 'Internet'), $Internet);
   }
   elsif($FORM{del} && $FORM{COMMENTS}) {
     $Internet->filters_del({ID => $FORM{del}});
@@ -738,32 +735,39 @@ sub internet_filters {
     }
   }
 
-  if($FORM{add_form}){
+  _error_show($Internet);
+
+  if($FORM{add_form} || $FORM{chg}){
+    if ($Internet->{USER_PORTAL}) {
+      $Internet->{USER_PORTAL}='checked';
+    }
+
     $html->tpl_show(_include('internet_filters_form', 'Internet'), $Internet);
   }
 
   result_former({
-      INPUT_DATA      => $Internet,
-      FUNCTION        => 'filters_list',
-      DEFAULT_FIELDS  => 'ID, FILTER,PARAMS,DESCR',
-      FUNCTION_FIELDS => 'change,del',
-      EXT_TITLES      => {
-        ID      => 'ID',
-        FILTER  => $lang{NAME},
-        PARAMS  => $lang{PARAMS},
-        DESCR   => $lang{DESCRIBE},
-      },
-      SKIP_USER_TITLE => 1,
-      TABLE           => {
-        width      => '100%',
-        caption    => $lang{FILTERS},
-        qs         => $pages_qs,
-        MENU       => "$lang{ADD}:index=$index&add_form=1:add",
-        ID         => 'FILTERS_LIST',
-      },
-      MAKE_ROWS    => 1,
-      TOTAL        => 1
-    });
+    INPUT_DATA      => $Internet,
+    FUNCTION        => 'filters_list',
+    DEFAULT_FIELDS  => 'FILTER,PARAMS,DESCR',
+    FUNCTION_FIELDS => 'change,del',
+    EXT_TITLES      => {
+      ID          => 'ID',
+      FILTER      => $lang{NAME},
+      PARAMS      => $lang{PARAMS},
+      DESCR       => $lang{DESCRIBE},
+      USER_PORTAL => $lang{USER_PORTAL},
+    },
+    SKIP_USER_TITLE => 1,
+    TABLE           => {
+      width   => '100%',
+      caption => $lang{FILTERS},
+      qs      => $pages_qs,
+      MENU    => "$lang{ADD}:index=$index&add_form=1:add",
+      ID      => 'FILTERS_LIST',
+    },
+    MAKE_ROWS       => 1,
+    TOTAL           => 1
+  });
 
   return 1;
 }

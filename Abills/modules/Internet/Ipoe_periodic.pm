@@ -213,7 +213,7 @@ sub ipoe_periodic_session_restart{
       $debug_output .= "IP: $online->{client_ip} (CONNECT_INFO: $connect_info) UNKNOWN_NAS\n";
     }
     else{
-      $Internet->info( $online->{uid} );
+      $Internet->user_info( $online->{uid} );
       my %AUTH_REQUEST = (
         ACCT_STATUS_TYPE     => 1,
         'User-Name'          => $online->{user_name},
@@ -425,10 +425,10 @@ sub ipoe_start_active{
 
   $LIST_PARAMS{INTERNET_STATUS}=0;
   if($conf{INTERNET_IPOE_NEGATIVE}) {
-    $LIST_PARAMS{INTERNET_STATUS}='0;5';
+    $LIST_PARAMS{INTERNET_STATUS}='0;3;5';
   }
 
-  my $internet_list = $Internet->list(
+  my $internet_list = $Internet->user_list(
     {
       INTERNET_ACTIVATE=> "<=$DATE",
       INTERNET_EXPIRE=> "0000-00-00,>$DATE",

@@ -70,14 +70,11 @@ sub equipment_ports_full {
   }
 
   #Check snmp template
-  my $ports_tpl;
   my %tpl_fields = ();
 
-  if ( defined( $Equipment_->{STATUS} ) && $Equipment_->{STATUS} != 1 ){
+  if ( defined( $Equipment_->{STATUS} ) && $Equipment_->{STATUS} != 1 ) { #XXX check certain equipment statuses
     my $perl_scalar = _get_snmp_oid( $Equipment_->{SNMP_TPL} );
     if ( $perl_scalar && $perl_scalar->{ports} ){
-      $ports_tpl = $perl_scalar->{ports};
-
       foreach my $key ( keys %{ $perl_scalar->{ports} } ){
         next if (ref $key eq 'HASH');
         next if ($perl_scalar->{ports}->{$key}->{REQUIRES_CABLE_TEST});
@@ -123,7 +120,8 @@ sub equipment_ports_full {
         TRAFFIC           => $lang{TRAFFIC},
         PORT_SPEED        => $lang{SPEED},
         PORT_IN_ERR       => "$lang{PACKETS_WITH_ERRORS} (in/out)",
-        PORT_IN_DISCARDS  => "Discarded $lang{PACKETS_} (in/out)"
+        PORT_IN_DISCARDS  => "Discarded $lang{PACKETS_} (in/out)",
+        PORT_UPTIME       => $lang{PORT_UPTIME}
       },
       SHOW_COLS_HIDDEN => {
         visual => $FORM{visual},
@@ -156,7 +154,7 @@ sub equipment_ports_full {
   }
 
   #Get snmp info
-  if ( ! $Equipment_->{STATUS} ) {
+  if ( ! $Equipment_->{STATUS} ) { #XXX check certain equipment statuses, not only Active
     my $run_cable_test = in_array('CABLE_TESTER', \@cols);
     $ports_snmp_info = equipment_test({
         VERSION         => $Equipment_->{SNMP_VERSION},
@@ -224,9 +222,11 @@ sub equipment_ports_full {
   my %users_mac = ();
 
   my $users_mac = $Equipment->mac_log_list({
-    PORT         => '_SHOW',
     NAS_ID       => $nas_id,
+    PORT         => '_SHOW',
     MAC          => '_SHOW',
+    DATETIME     => '_SHOW',
+    VLAN         => '_SHOW',
     ONLY_CURRENT => 1,
     PAGE_ROWS    => 1000000,
     COLS_NAME    => 1
@@ -324,32 +324,43 @@ sub equipment_ports_full {
         }
         push @row, $value;
       }
-      elsif ( $col_id eq 'MAC' )  {
+      elsif ( $col_id eq 'MAC' ) {
         my $value = q{};
-        if($users_mac{$port}) {
-          my @macs = sort map { $_->{mac} } (values @{$users_mac{$port}});
+        if ($users_mac{$port}) {
           $value = join ($html->br(),
             map {
-              $html->color_mark($_, 'code') .
+              $html->element('code',
+                $_->{mac},
+                {
+                  'data-tooltip-position' => 'top',
+                  'data-tooltip' => $html->b("$lang{LAST_ACTIVITY}:") . $html->br() . $_->{datetime} . $html->br() .
+                                    $html->b('VLAN:') . $html->br() . $_->{vlan}
+                }
+              ) .
               $html->button($lang{VENDOR},
-                "index=$index&visual=2&NAS_ID=$FORM{NAS_ID}&mac_info=$_",
+                "index=$index&visual=2&NAS_ID=$FORM{NAS_ID}&mac_info=$_->{mac}",
                 { class => 'info', ONLY_IN_HTML => 1 }
               )
-            } @macs
+            } sort {$a->{mac} cmp $b->{mac}} @{$users_mac{$port}}
           );
         }
         push @row, $value;
       }
       elsif ( $col_id eq 'MAC_DYNAMIC' ) {
-        my @macs = sort map { $_->{'1'} } @{$macs_dynamic{$port}};
         my $value = join ($html->br(),
           map {
-            $html->color_mark($_, 'code') .
+            $html->element('code',
+              $_->{1}, # 1 - mac
+              {
+                'data-tooltip-position' => 'top',
+                'data-tooltip' => $html->b('VLAN:') . $html->br() . $_->{4} # 4 - vlan
+              }
+            ) .
             $html->button($lang{VENDOR},
-              "index=$index&visual=2&NAS_ID=$FORM{NAS_ID}&mac_info=$_",
+              "index=$index&visual=2&NAS_ID=$FORM{NAS_ID}&mac_info=$_->{1}", # 1 - mac
               { class => 'info', ONLY_IN_HTML => 1 }
             )
-          } @macs
+          } sort {$a->{1} cmp $b->{1}} @{$macs_dynamic{$port}} # 1 - mac
         );
 
         push @row, $value;
@@ -693,7 +704,7 @@ sub equipments_get_used_ports{
     }
     $LIST_PARAMS{GROUP_BY}=' internet.id';
 
-    $list = $Internet->list({
+    $list = $Internet->user_list({
       %LIST_PARAMS,
       LOGIN           => '_SHOW',
       FIO             => '_SHOW',
@@ -1099,7 +1110,7 @@ sub equipment_port_info {
 }
 
 #**********************************************************
-=head2 port_result_former($port_info)
+=head2 port_result_former($port_info, $attr) - Create HTML of specific port's (or ONU's) info.
 
   Arguments:
     $port_info
@@ -1185,10 +1196,11 @@ sub port_result_former {
         . $lang{SENDED} .': '. int2byte($port_info->{$port_id}->{ONU_OUT_BYTE});
     }
     elsif($key eq 'PORT_IN') {
+      #PORT_IN and PORT_OUT is swapped because we want to show traffic from abonent's side
       $key = $lang{TRAFFIC};
-      $value = $lang{RECV} .': '.int2byte($value)
+      $value = $lang{RECV} .': '.int2byte($port_info->{$port_id}->{PORT_OUT})
         . $html->br()
-        . $lang{SENDED} .': '. int2byte($port_info->{$port_id}->{PORT_OUT});
+        . $lang{SENDED} .': '. int2byte($port_info->{$port_id}->{PORT_IN});
     }
     elsif($key eq 'ONU_RX_POWER'){
       my $color_num = '';
@@ -1237,15 +1249,24 @@ sub port_result_former {
 
         $description .= "Speed: $speed ".$html->br() if ($speed);
         $description .= "Duplex: $duplex ".$html->br() if ($duplex);
-        $description .= "Native Vlan : $vlan ".$html->br() if ($vlan);
+        $description .= "Native Vlan: $vlan ".$html->br() if ($vlan);
 
         my $btn = q{};
         if ($admin_state) {
-          my $describe_state = ($admin_state eq 'Enable') ? 'shutdown' : 'undo shutdown';
+          my $describe_state = ($admin_state eq 'Enable') ? $lang{DISABLE_PORT} : $lang{ENABLE_PORT};
+          my $disable_or_enable_url_param = ($admin_state eq 'Enable') ? 'disable_eth_port' : 'enable_eth_port';
           my $badge_type = ($admin_state eq 'Enable') ? 'up' : 'down';
           $color = ($admin_state eq 'Enable') ? $color : 'text-red';
-          my $badge = $html->element('span', '', { class => 'fa fa-power-off', 'data-tooltip' => $describe_state, 'data-tooltip-position' => 'top'});
-          $btn .= $html->element('span', $badge, { class => 'badge badge-' . $badge_type }); #TODO: fix this on/off button. look at same in CATV_PORTS_STATUS
+          my $badge = $html->element('span',
+            $html->button("",
+              "NAS_ID=$FORM{NAS_ID}" .
+              "&index=" . get_function_index('equipment_info') .
+              "&visual=4&$disable_or_enable_url_param=$port" .
+              "&ONU=$FORM{ONU}&info_pon_onu=$FORM{info_pon_onu}&ONU_TYPE=$FORM{ONU_TYPE}",
+              { ADD_ICON => 'fa fa-power-off', MESSAGE => "$describe_state $port?"}),
+            { 'data-tooltip' => $describe_state, 'data-tooltip-position' => 'top' }
+          );
+          $btn .= $html->element('span', $badge, { class => 'badge badge-' . $badge_type });
         }
         $btn .= $html->element('span', '', { class => 'icon icon-eth ' . $color });
         $btn .= $html->element('span', $port, { class => 'port-num' });

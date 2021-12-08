@@ -3,37 +3,39 @@
     <input type='hidden' name='ID' value='%ID%'>
     <input type='hidden' name='PARENT_ID' value='%PARENT_ID%'>
     <input type='hidden' name='GROUP_ID_SELECTED' value='%GROUP_ID_SELECTED%'>
-    <div class='card card-primary card-outline box-form'>
-        <div class='card-header with-border'><h4>_{CAMERAS}_: _{FOLDER}_</h4></div>
+    <div class='card card-primary card-outline card-form'>
+        <div class='card-header with-border'>
+            <h4 class='card-title'>_{CAMERAS}_: _{FOLDER}_</h4>
+        </div>
         <div class='card-body'>
-            <div class='form-group'>
-                <label class='control-label col-md-3 required'>_{SERVICE}_</label>
+            <div class='form-group row'>
+                <label class='control-label col-md-3 required'>_{SERVICE}_:</label>
                 <div class='col-md-9'>
                     %SERVICES_SELECT%
                 </div>
             </div>
 
-            <div class='form-group'>
-                <label class='control-label col-md-3 required'>_{GROUP}_</label>
+            <div class='form-group row'>
+                <label class='control-label col-md-3 required'>_{GROUP}_:</label>
                 <div class='col-md-9'>
                     %GROUP_SELECT%
                 </div>
             </div>
 
-            <div class='form-group'>
-                <label class='control-label col-md-3' for="TITLE">_{NAME}_</label>
+            <div class='form-group row'>
+                <label class='control-label col-md-3' for="TITLE">_{NAME}_:</label>
                 <div class='col-md-9'>
                     <input type='text' class='form-control' id="TITLE" name='TITLE' value='%TITLE%'/>
                 </div>
             </div>
 
-            <div class='form-group'>
+            <div class='form-group row'>
                 <div class='col-md-1'></div>
                 <div class='col-md-11'>%ADDRESS%</div>
             </div>
 
-            <div class='form-group'>
-                <label class='control-label col-md-3' for="COMMENT">_{COMMENTS}_</label>
+            <div class='form-group row'>
+                <label class='control-label col-md-3' for="COMMENT">_{COMMENTS}_:</label>
                 <div class='col-md-9'>
                     <textarea class='form-control' rows='5' id="COMMENT" name='COMMENT'>%COMMENT%</textarea>
                 </div>

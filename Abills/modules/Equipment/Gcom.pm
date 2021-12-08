@@ -242,11 +242,11 @@ sub _gcom {
         },
         #XXX works not on every firmware. on some firmware may respond with many useless lines (100k+), because of it PON Grabber effectively stops working
         #'ONU_IN_BYTE'    => {
-        #  NAME   => 'PORT_IN',
+        #  NAME   => 'ONU_IN_BYTE',
         #  OIDS   => '1.3.6.1.4.1.13464.1.13.3.17.1.11',
         #},
         #'ONU_OUT_BYTE'   => {
-        #  NAME   => 'PORT_OUT',
+        #  NAME   => 'ONU_OUT_BYTE',
         #  OIDS   => '1.3.6.1.4.1.13464.1.13.3.17.1.4',
         #},
         'reset'          => {
@@ -305,11 +305,11 @@ sub _gcom {
           OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.4.1.8',
         },
         'ONU_IN_BYTE'    => {
-          NAME   => 'PORT_IN',
+          NAME   => 'ONU_IN_BYTE',
           OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.7.1.7',
         },
         'ONU_OUT_BYTE'   => {
-          NAME   => 'PORT_OUT',
+          NAME   => 'ONU_OUT_BYTE',
           OIDS   => '1.3.6.1.4.1.13464.1.14.2.4.1.7.1.5',
         },
         #'reset'          => { #not tested

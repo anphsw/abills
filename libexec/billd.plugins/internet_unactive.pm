@@ -84,7 +84,7 @@ sub internet_unactive{
       }
 
       if ($debug < 6) {
-        $Internet->change({
+        $Internet->user_change({
           UID    => $uid,
           STATUS => 5,
           ID     => $u->{id},

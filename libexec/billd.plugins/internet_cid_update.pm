@@ -49,7 +49,7 @@ sub internet_cid_update {
       print "$online->{user_name} (SERVICE_ID: $online->{service_id}): ONLINE: $online->{cid} SERVICE_CID: $online->{service_cid}\n";
     }
 
-    $Internet->change({
+    $Internet->user_change({
       CID        => $online->{cid},
       UID        => $online->{uid},
       SERVICE_ID => $online->{service_id}

@@ -82,7 +82,7 @@ $lang{SPEED_OUT}='Исходящая скорость(Mb/s)';
 $lang{SIGNAL} = 'Сигнал';
 
 $lang{REPORT_ON_UNREGISTERED_ONU} = "Отчет по незарегистрированным ONU";
-$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Отчет по количеству занятых и свободных портов на коммутаторах";
+$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Занятые и свободные порты на коммутаторах";
 $lang{TOTAL_SWITCH_COUNT} = "Количество коммутаторов";
 $lang{TOTAL_ALL_PORTS} = "Общее количество портов";
 $lang{TOTAL_BUSY_PORTS} = "Количество занятых портов";
@@ -135,7 +135,7 @@ $lang{DISABLE_CATV_PORT} = 'Отключить CATV-порт';
 $lang{ENABLE_CATV_PORT} = 'Включить CATV-порт';
 $lang{CATV_PORT_DISABLED} = 'CATV-порт отключен';
 $lang{CATV_PORT_ENABLED} = 'CATV-порт включен';
-$lang{CATV_PORT_ERROR} = 'Ошибка при изменении статуса CATV-порта';
+$lang{CATV_PORT_STATUS_CHANGING_ERROR} = 'Ошибка при изменении статуса CATV-порта';
 
 $lang{SHOW_ONU_CONFIG} = 'Показать конфигурацию ONU';
 
@@ -203,5 +203,14 @@ $lang{RAM_USAGE} = 'Загрузка ОЗУ';
 $lang{SLOT_TEMP} = 'T° слота';
 $lang{SLOT_DESC} = 'Описание';
 
+$lang{FOR_GRAPH} = 'графика';
+
+$lang{DISABLE_PORT} = 'Отключить порт';
+$lang{ENABLE_PORT} = 'Включить порт';
+$lang{PORT_DISABLED} = 'Порт отключен';
+$lang{PORT_ENABLED} = 'Порт включен';
+$lang{PORT_STATUS_CHANGING_ERROR} = 'Ошибка при изменении статуса порта';
+
+$lang{RUN_CMD_ON_EQUIPMENT} = 'Запустить команду на оборудовании';
 
 1

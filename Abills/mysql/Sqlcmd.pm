@@ -365,10 +365,12 @@ sub sqlcmd_info {
     group by event_type'
   );
 
-  $query->execute();
+  if ($query) {
+    $query->execute();
 
-  while (@row = $query->fetchrow_array()) {
-    $memory{ $row[0] } = $row[1];
+    while (@row = $query->fetchrow_array()) {
+      $memory{ $row[0] } = $row[1];
+    }
   }
 
   return \%stats, \%vars, \%memory;

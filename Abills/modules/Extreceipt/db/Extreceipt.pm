@@ -65,7 +65,7 @@ sub list {
       p.sum,
       p.uid,
       p.method AS payment_method,
-      ucc.value as c_phone,
+      ucc.value AS c_phone,
       IF(ucp.value is NULL, pi.phone, ucp.value) AS phone,
       IF(ucm.value is NULL, pi.email, ucp.value) AS mail
       FROM extreceipts e
@@ -79,7 +79,10 @@ sub list {
       GROUP BY e.payments_id
       $limit;",
     undef,
-    { %$attr, COLS_NAME => 1, COLS_UPPER => 1 }
+    { %$attr,
+      COLS_NAME => 1,
+      COLS_UPPER => 1
+    }
   );
 
   return $self->{list};

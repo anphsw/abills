@@ -54,7 +54,7 @@ sub click {
   $Users->info($uid);
   $Users->group_info($Users->{GID});
 
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     ID              => '_SHOW',
     TP_NAME         => '_SHOW',
     SPEED           => '_SHOW',

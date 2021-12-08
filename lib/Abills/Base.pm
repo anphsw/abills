@@ -1050,6 +1050,17 @@ sub sec2date {
 sub int2byte {
   my ($val, $attr) = @_;
 
+  if ($attr->{DELIMITER}) {
+    if ($val >= 0) {
+      return scalar reverse join $attr->{DELIMITER}, unpack("(A3)*", reverse int($val));
+    }
+    else {
+      return "-" . scalar reverse join $attr->{DELIMITER}, unpack("(A3)*", reverse int(-$val));
+    }
+  }
+
+
+
   my $KBYTE_SIZE = 1024;
   $KBYTE_SIZE = int($attr->{KBYTE_SIZE}) if (defined($attr->{KBYTE_SIZE}));
   my $MEGABYTE = $KBYTE_SIZE * $KBYTE_SIZE;
@@ -2359,7 +2370,13 @@ sub json_former {
   }
   else {
     $request //= '';
-    if ($request =~ '^[0-9]$') {
+    if ($request =~ '^([0])' && $request =~'^\w{2,}$') {
+      return qq{\"$request\"};
+    }
+    elsif (!$request && !($request =~ '[0]')){
+      return qq{\"$request\"};
+    }
+    elsif ($request =~ '^-?\d*\.?\d*$') {
       return qq{$request};
     }
     else {
@@ -2388,13 +2405,13 @@ sub xml_former {
   my @result = ();
   my ($nl, $indent);
 
+  $indent = "";
+
   if ($params->{PRETTY}) {
     $nl = "\n";
-    $indent = $params->{indent};
   }
   else {
     $nl = "";
-    $indent = "";
   }
 
   if ($params->{ENCODING}) {
@@ -2435,19 +2452,27 @@ sub xml_former {
 sub xml_former_body {
   my ($response, $params) = @_;
   my @result = ();
-  foreach my $key (sort keys %{$response}) {
-    if (ref $response->{$key} eq 'HASH') {
-      push @result,
-        $params->{indent}, '<', $key, '>', $params->{nl},
-        xml_former_body($response->{$key}, { indent => "$params->{indent}  ", nl => $params->{nl} }),
-        $params->{indent}, '</', $key, '>', $params->{nl};
+  if (ref $response eq 'HASH') {
+    foreach my $key (sort keys %{$response}) {
+      if (ref $response->{$key} eq 'HASH') {
+        push @result,
+          $params->{indent}, '<', $key, '>', $params->{nl},
+          xml_former_body($response->{$key}, { indent => "$params->{indent}  ", nl => $params->{nl} }),
+          $params->{indent}, '</', $key, '>', $params->{nl};
+      }
+      else {
+        push @result,
+          $params->{indent}, '<', $key, '>',
+          $response->{$key},
+          '</', $key, '>', $params->{nl};
+      }
     }
-    else {
-      push @result,
-        $params->{indent}, '<', $key, '>',
-        $response->{$key},
-        '</', $key, '>', $params->{nl};
+  }
+  elsif (ref $response eq 'ARRAY') {
+    foreach my $key (@{$response}) {
+      push @result, xml_former_body($key, { indent => "$params->{indent}  ", nl => $params->{nl} });
     }
+    return join('', @result);
   }
   return (join('', @result));
 }

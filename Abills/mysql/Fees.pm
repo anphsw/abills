@@ -269,7 +269,8 @@ sub list {
       ['METHOD_ID',      'INT', 'f.method', 'f.method AS method_id'  ],
       ['COMPANY_ID',     'INT', 'u.company_id',                      ],
       ['A_LOGIN',        'STR', 'a.id',                            1 ],
-      ['ADMIN_NAME',     'STR', "IF(a.name is NULL, 'Unknown', a.name) AS admin_name", 1 ],
+      ['ADMIN_NAME',     'STR', 'a.id'                               ],
+      ['ADMIN_NAME',     'STR', '', "IF(a.name is NULL, 'Unknown', a.name) AS admin_name" ],
       ['BILL_ID',        'INT', 'f.bill_id',                       1 ],
       ['IP',             'INT', 'f.ip',      'INET_NTOA(f.ip) AS ip' ],
       ['AID',            'INT', 'f.aid',                             ],
@@ -278,6 +279,7 @@ sub list {
       ['INNER_DESCRIBE', 'STR', 'f.inner_describe',                  ],
       ['DATE',           'DATE','DATE_FORMAT(f.date, \'%Y-%m-%d\')'  ],
       ['FROM_DATE|TO_DATE','DATE', 'DATE_FORMAT(f.date, \'%Y-%m-%d\')'  ],
+      ['FROM_DATE_TIME|TO_DATE_TIME','DATE', "f.date"                   ],
       ['MONTH',          'DATE', "DATE_FORMAT(f.date, '%Y-%m')"      ],
       ['REG_DATE',       'DATE', "f.reg_date", "f.reg_date",       1 ],
       ['TAX',            'INT',  'ft.tax',                         1 ],
@@ -382,7 +384,7 @@ sub reports {
     $attr->{TAX_SUM}='_SHOW';
   }
   elsif ($report_type eq 'ADMINS') {
-    $date = "a.id AS admin_login";
+    $date = "a.id AS admin_name";
     $EXT_TABLE_JOINS_HASH{admins} = 1;
   }
   elsif ($report_type eq 'PER_MONTH') {

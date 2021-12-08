@@ -105,6 +105,19 @@
             </div>
 
             <div class='form-group row'>
+              <label class='control-label col-md-3 text-right' for='IPTV_ACTIVATE'>_{ACTIVATE}_:</label>
+              <div class='col-md-3'>
+                <input id='IPTV_ACTIVATE' name='IPTV_ACTIVATE' value='%IPTV_ACTIVATE%'
+                       placeholder='%IPTV_ACTIVATE%' class='datepicker form-control' type='text'>
+              </div>
+              <label class='control-label col-md-2 text-right' for='IPTV_EXPIRE'>_{EXPIRE}_:</label>
+              <div class='col-md-4'>
+                <input id='IPTV_EXPIRE' name='IPTV_EXPIRE' value='%IPTV_EXPIRE%'
+                       placeholder='%IPTV_EXPIRE%' class='datepicker form-control' type='text'>
+              </div>
+            </div>
+
+            <div class='form-group row'>
               %REGISTRATION_INFO% %REGISTRATION_INFO_PDF%
             </div>
             <div class='text-center'>
@@ -121,6 +134,14 @@
               <label class='control-label col-md-3 required' for='EMAIL'>E-mail:</label>
               <div class='col-md-9'>
                 <input id='EMAIL' name='EMAIL' required value='%EMAIL%' placeholder='%EMAIL%' class='form-control'
+                       type='text'>
+              </div>
+            </div>
+
+            <div class='form-group row'>
+              <label class='control-label col-md-3 required' for='PHONE'>_{PHONE}_:</label>
+              <div class='col-md-9'>
+                <input id='PHONE' name='PHONE' required value='%PHONE%' placeholder='%PHONE%' class='form-control'
                        type='text'>
               </div>
             </div>

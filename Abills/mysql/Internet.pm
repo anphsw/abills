@@ -43,7 +43,7 @@ sub new {
 }
 
 #**********************************************************
-=head2 info($uid, $attr) User service information
+=head2 user_info($uid, $attr) User service information
 
   Arguments:
     $uid
@@ -55,7 +55,7 @@ sub new {
 
 =cut
 #**********************************************************
-sub info {
+sub user_info {
   my $self = shift;
   my ($uid, $attr) = @_;
 
@@ -167,14 +167,14 @@ sub defaults {
 }
 
 #**********************************************************
-=head2 add($attr) - Add service
+=head2 user_add($attr) - Add service
 
   Arguments:
     CHECK_EXIST_TP
 
 =cut
 #**********************************************************
-sub add {
+sub user_add {
   my $self = shift;
   my ($attr) = @_;
 
@@ -250,11 +250,11 @@ sub add {
 }
 
 #**********************************************************
-=head2 change($attr)
+=head2 user_change($attr)
 
 =cut
 #**********************************************************
-sub change {
+sub user_change {
   my $self = shift;
   my ($attr) = @_;
 
@@ -270,7 +270,7 @@ sub change {
   $attr->{EXPIRE}  = $attr->{SERVICE_EXPIRE};
   $attr->{ACTIVATE}= $attr->{SERVICE_ACTIVATE} if(defined($attr->{SERVICE_ACTIVATE}));
 
-  my $old_info = $self->info($attr->{UID}, { ID => $attr->{ID} });
+  my $old_info = $self->user_info($attr->{UID}, { ID => $attr->{ID} });
   $self->{OLD_PERSONAL_TP} = $old_info->{PERSONAL_TP} || 0;
   $self->{OLD_STATUS}      = $old_info->{STATUS};
 
@@ -283,6 +283,7 @@ sub change {
       TP_ID     => $old_info->{TP_ID},
       DOMAIN_ID => $user->{DOMAIN_ID} || $admin->{DOMAIN_ID}
     });
+    $attr->{EXPIRE} = '0000-00-00' if defined($Tariffs->{AGE}) && $Tariffs->{AGE} > 0 && !$attr->{EXPIRE};
 
     %{ $self->{TP_INFO_OLD} } = %{ $Tariffs };
     $self->{TP_INFO} = $Tariffs->info(0, {
@@ -392,7 +393,7 @@ sub change {
   $self->{TP_INFO}->{ACTIV_PRICE} = 0 if (! $self->{OLD_STATUS} || $self->{OLD_STATUS} != 2);
 
   if($self->{AFFECTED}) {
-    $self->info($attr->{UID}, { ID => $attr->{ID} || undef });
+    $self->user_info($attr->{UID}, { ID => $attr->{ID} || undef });
   }
 
   return $self;
@@ -431,7 +432,7 @@ sub expire_date {
 }
 
 #**********************************************************
-=head2 del(attr); Delete user service
+=head2 user_del(attr); Delete user service
 
   Arguments:
     $attr
@@ -441,7 +442,7 @@ sub expire_date {
 
 =cut
 #**********************************************************
-sub del {
+sub user_del {
   my $self = shift;
   my ($attr) = @_;
 
@@ -469,7 +470,7 @@ sub del {
 }
 
 #**********************************************************
-=head2 list($attr) - Internet users list
+=head2 user_list($attr) - Internet users list
 
   Arguments:
     GROUP_BY
@@ -477,7 +478,7 @@ sub del {
 
 =cut
 #**********************************************************
-sub list {
+sub user_list {
   my $self   = shift;
   my ($attr) = @_;
 
@@ -562,11 +563,11 @@ sub list {
     ['PERSONAL_TP',       'INT', 'internet.personal_tp',                   1 ],
     ['PAYMENT_TYPE',      'INT', 'tp.payment_type',                        1 ],
     ['INTERNET_PASSWORD', '', '',  "DECODE(internet.password, '$CONF->{secretkey}') AS internet_password" ],
-    ['INTERNET_STATUS',   'INT', 'internet.disable AS internet_status',    1 ],
-    ['INTERNET_STATUS_ID','INT', 'internet.disable AS internet_status_id', 1 ],
-    ['SERVICE_EXPIRE',    'DATE','internet.expire AS internet_expire',     1 ],
-    ['INTERNET_EXPIRE',   'DATE','internet.expire AS internet_expire',     1 ],
-    ['INTERNET_ACTIVATE', 'DATE','internet.activate AS internet_activate', 1 ],
+    ['INTERNET_STATUS',   'INT', 'internet.disable', 'internet.disable AS internet_status'   ],
+    ['INTERNET_STATUS_ID','INT', 'internet.disable', 'internet.disable AS internet_status_id'],
+    ['SERVICE_EXPIRE',    'DATE', 'internet.expire', 'internet.expire AS internet_expire'    ],
+    ['INTERNET_EXPIRE',   'DATE', 'internet.expire', 'internet.expire AS internet_expire'    ],
+    ['INTERNET_ACTIVATE', 'DATE', 'internet.activate', 'internet.activate AS internet_activate' ],
     ['INTERNET_STATUS_DATE', '',    '',
       '(SELECT aa.datetime FROM admin_actions aa WHERE aa.uid=internet.uid AND aa.module=\'Internet\'
         AND aa.action_type IN (4, 8, 14)
@@ -610,7 +611,7 @@ sub list {
     if ($attr->{GID} =~ /,/) {
       $WHERE .= ' AND u.gid IN (' . $attr->{GID} . ')';
     }
-    else {N
+    else {
       $WHERE .= ' AND u.gid = ' . $attr->{GID};
     }
   }
@@ -981,17 +982,17 @@ sub get_speed {
 }
 
 #**********************************************************
-=head2 account_check()
+=head2 iplus_check()
 
 =cut
 #**********************************************************
-sub account_check {
+sub iplus_check {
   my $self = shift;
 
-  $self->query("SELECT COUNT(uid) FROM internet_main;");
+  $self->query('SELECT COUNT(id) FROM internet_main;');
 
   if($self->{TOTAL}) {
-    if($self->{list}->[0]->[0] > 0x4B1) {
+    if($self->{list}->[0]->[0] > 0x4C1) {
       $self->{errno} = 0x2BC;
     }
   }
@@ -1008,7 +1009,7 @@ sub filters_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_add('filters', $attr);
+  $self->query_add('internet_filters', $attr);
 
   return $self;
 }
@@ -1022,7 +1023,7 @@ sub filters_del {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query_del('filters', undef, $attr);
+  $self->query_del('internet_filters', undef, $attr);
 
   return $self->{result};
 }
@@ -1039,23 +1040,22 @@ sub filters_list {
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
 
-#  my $PG        = ($attr->{PG})        ? $attr->{PG}             : 0;
-#  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
-
   my $WHERE = $self->search_former( $attr, [
-      [ 'ID', 'INT', 'id', 1],
-      [ 'FILTER', 'STR', 'filter', 1 ],
-      [ 'DESCR', 'STR', 'descr', 1],
-      [ 'PARAMS', 'STR', 'params', 1 ],
-
+      [ 'ID',     'INT', 'id',      1 ],
+      [ 'FILTER', 'STR', 'filter',  1 ],
+      [ 'DESCR',  'STR', 'descr',   1 ],
+      [ 'PARAMS', 'STR', 'params',  1 ],
+      [ 'USER_PORTAL', 'INT', 'user_portal', 1 ]
     ],
-    { WHERE => 1,
+    {
+      WHERE => 1,
     }
   );
 
   $self->query(
-    "SELECT id, filter, params, descr
-     FROM filters $WHERE ORDER BY $SORT $DESC;",
+    "SELECT $self->{SEARCH_FIELDS} id
+     FROM internet_filters
+     $WHERE ORDER BY $SORT $DESC;",
     undef,
     { COLS_NAME => 1}
   );
@@ -1072,7 +1072,7 @@ sub filters_info{
   my $self = shift;
   my ($id) = @_;
 
-  $self->query( "SELECT * FROM filters WHERE id = ? ;",
+  $self->query( 'SELECT * FROM internet_filters WHERE id = ? ;',
     undef,
     { INFO => 1,
       Bind => [ $id ] }
@@ -1090,16 +1090,19 @@ sub filters_change{
   my $self = shift;
   my ($attr) = @_;
 
+  $attr->{USER_PORTAL} = ($attr->{USER_PORTAL}) ? 1 : 0;
+
   $self->changes(
     {
-      CHANGE_PARAM    => 'ID',
-      TABLE           => 'filters',
-      DATA            => $attr
+      CHANGE_PARAM => 'ID',
+      TABLE        => 'internet_filters',
+      DATA         => $attr
     }
   );
 
   return $self->{result};
 }
+
 #**********************************************************
 =head2 report_user_statuses($attr) - Get sum deposits, users count for statuses
 
@@ -1302,6 +1305,8 @@ sub users_outflow_report {
     undef,
     $attr
   );
+
+  delete $attr->{GROUP_BY};
 
   return $self->{list} || [];
 }

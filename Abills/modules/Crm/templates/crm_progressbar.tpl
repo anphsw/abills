@@ -174,14 +174,30 @@
   }
 
   function checkStep(step) {
-    var endStep = jQuery('#end_step').val();
-    
+    let endStep = jQuery('#end_step').val();
+    let convertLeadBtn = jQuery('#lead_to_client');
+
     if (endStep == step) {
-      jQuery('#lead_to_client').attr('disabled', false);
-      jQuery('#lead_to_client').attr('style', 'pointer-events: ;');
+      convertLeadBtn.attr('disabled', false).attr('style', 'pointer-events: ;');
+
+      confirmModal = new AModal();
+      confirmModal
+        .setBody('<h4 class="modal-title"><div id="confirmModalContent">_{ADD_USER}_?</div></h4>')
+        .addButton('_{NO}_', 'confirmModalCancelBtn', 'default')
+        .addButton('_{YES}_', 'confirmModalConfirmBtn', 'success')
+        .show(function () {
+          jQuery('#confirmModalConfirmBtn').on('click', function () {
+            confirmModal.hide();
+            document.getElementById('lead_to_client').click();
+          });
+
+          jQuery('#confirmModalCancelBtn').on('click', function () {
+            confirmModal.hide();
+          });
+        });
+
     } else {
-      jQuery('#lead_to_client').attr('disabled', true);
-      jQuery('#lead_to_client').attr('style', 'pointer-events: none;');
+      convertLeadBtn.attr('disabled', true).attr('style', 'pointer-events: none;');
     }
   }
 

@@ -239,6 +239,7 @@ CREATE TABLE IF NOT EXISTS `equipment_mac_log` (
   `datetime` DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
   `rem_time` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `port_name` VARCHAR(50) NOT NULL DEFAULT '',
+  UNIQUE KEY `mac_2` (`mac`, `port`, `vlan`, `nas_id`),
   KEY `mac` (`mac`),
   KEY `nas_id` (`nas_id`)
 )

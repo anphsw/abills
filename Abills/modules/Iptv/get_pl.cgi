@@ -390,7 +390,6 @@ sub show_user_tp {
   print json_former(\%result);
 }
 
-
 #**********************************************************
 =head2 transfer_service($attr)
 
@@ -480,7 +479,6 @@ sub transfer_service {
 
   return 1;
 }
-
 
 #**********************************************************
 =head2 smartup_activation($attr)
@@ -1055,7 +1053,7 @@ sub _ip_user_search {
 
   my $default_count = @$default_params;
 
-  my $Internet_user_list = $Internet->list({
+  my $Internet_user_list = $Internet->user_list({
     LOGIN      => '_SHOW',
     UID        => '_SHOW',
     FIO        => '_SHOW',
@@ -1218,7 +1216,6 @@ sub _ip_user_search {
 #**********************************************************
 sub iptv_check_service {
 
-  print "Content-Type: text/html\n\n";
   my $extra_params = $Iptv->extra_params_list({
     SERVICE_ID => '_SHOW',
     GROUP_ID   => '_SHOW',
@@ -1235,15 +1232,448 @@ sub iptv_check_service {
 
   foreach my $param (@{$extra_params}) {
     if ($param->{SERVICE_ID} && check_ip($ENV{REMOTE_ADDR}, "$param->{IP_MAC}")) {
-      my $function_name = "iptv_" . ($param->{SERVICE_MODULE} || "");
-      if (defined(&{$function_name})) {
-        &{\&{$function_name}}($param);
-        return 1;
-      }
+      my $function_name = "iptv_" . (lc $param->{SERVICE_MODULE} || "");
+      next if (!defined(&{$function_name}));
+
+      print "Content-Type: text/json\n\n" if $param->{SERVICE_MODULE} ne 'Smotreshka';
+      &{\&{$function_name}}($param);
+      return 1;
     }
   }
 
   return 0;
+}
+
+#**********************************************************
+=head2 print_result($result, $attr)
+
+=cut
+#**********************************************************
+sub print_result {
+  my $result = shift;
+  my ($attr) = @_;
+
+  print "Status: $attr->{STATUS}\n" if $attr->{STATUS};
+  print "Content-Type: text/json\n\n";
+
+  print json_former($result);
+}
+
+#**********************************************************
+=head2 iptv_smotreshka($attr)
+
+=cut
+#**********************************************************
+sub iptv_smotreshka {
+  my ($attr) = @_;
+
+  my $params = $FORM{__BUFFER} ? decode_json($FORM{__BUFFER}) : ();
+
+  if (!$params->{id} || !$params->{offerId}) {
+    print_result({ id => 'error_bad_request', message => 'Не переданы обязательные поля' }, { STATUS => 400 });
+    return;
+  }
+
+  my $user_info = _smotreshka_get_user($params->{id}, $attr->{SERVICE_ID});
+  return if !$user_info;
+
+  my $tariff = _smotreshka_get_tp($params->{offerId}, $attr->{SERVICE_ID});
+  return if !$tariff;
+
+  my $tp_price = $tariff->{month_fee} || $tariff->{day_fee};
+  if ($tp_price && $user_info->{deposit} < $tp_price) {
+    print_result({
+      id      => 'no_sufficient_balance',
+      message => 'Не не хватает денежных средств на лицевом счёте'
+    }, { STATUS => 400 });
+    return;
+  }
+
+  _smotreshka_change_tp($tariff, $user_info, { %{$attr}, QUERY_ARGS => $params->{queryArgs} ? $params->{queryArgs}[0] : () });
+}
+
+#**********************************************************
+=head2 _smotreshka_change_tp($tariff, $user_info, $attr)
+
+=cut
+#**********************************************************
+sub _smotreshka_change_tp {
+  my ($tariff, $user_info, $attr) = @_;
+
+  load_module('Iptv', $html);
+  my $Tv_service = tv_load_service($attr->{SERVICE_MODULE}, { SERVICE_ID => $attr->{SERVICE_ID} });
+  if (!$Tv_service || !$Tv_service->can('user_change')) {
+    print_result({ id => 'internal_error', message => 'Сервис не найден' }, { STATUS => 500 });
+    return 0;
+  }
+
+  $Iptv->{db}{db}->{AutoCommit} = 0;
+  $Iptv->{db}->{TRANSACTION} = 1;
+
+  $Iptv->user_change({
+    TP_ID  => $tariff->{tp_id},
+    ID     => $user_info->{id},
+    UID    => $user_info->{uid},
+    STATUS => 0
+  });
+
+  if ($Iptv->{errno}) {
+    print_result({ id => 'internal_error', message => 'Ошибка при подключении сервиса' }, { STATUS => 500 });
+    $Iptv->{db}{db}->rollback();
+    return 0;
+  }
+
+  _iptv_get_service_fee({ INSERT_ID => $user_info->{id}, GET_FEE => 1 });
+
+  $Tv_service->user_change({
+    TP_FILTER_ID => $tariff->{filter_id},
+    SUBSCRIBE_ID => $user_info->{subscribe_id},
+    ID           => $user_info->{id},
+    TP_INFO_OLD  => { FILTER_ID => $user_info->{filter_id} },
+    QUERY_ARGS   => $attr->{QUERY_ARGS}
+  });
+
+  if ($Tv_service->{errno}) {
+    print_result({ id => 'internal_error', message => 'Ошибка при подключении сервиса' }, { STATUS => 500 });
+    $Iptv->{db}{db}->rollback();
+    return 0;
+  }
+
+  $Iptv->{db}{db}->commit();
+
+  use Fees;
+  my $Fees = Fees->new($db, $admin, \%conf);
+
+  my $last_fee = $Fees->list({ UID => $user_info->{uid}, DESC => 'DESC', PAGE_ROWS => 1, COLS_NAME => 1 });
+
+  print_result({ id => 'subscription_added', transaction => { id => $last_fee->[0]{id} } }, { STATUS => 200 });
+}
+
+#**********************************************************
+=head2 _smotreshka_get_user($subscribe_id, $service_id))
+
+=cut
+#**********************************************************
+sub _smotreshka_get_user {
+  my ($subscribe_id, $service_id) = @_;
+
+  my $users_list = $Iptv->user_list({
+    UID          => '_SHOW',
+    LOGIN        => '_SHOW',
+    TP_FILTER    => '_SHOW',
+    SUBSCRIBE_ID => $subscribe_id,
+    SERVICE_ID   => $service_id,
+    COLS_NAME    => 1,
+    PAGE_ROWS    => 99999,
+  });
+
+  if ($Iptv->{TOTAL} < 1 || !$users_list->[0]{uid}) {
+    print_result({
+      id      => 'error_no_account',
+      message => 'Аккаунт не найден в БД биллинга',
+      details => "Не удалось найти аккаунт с идентификатором $subscribe_id"
+    }, { STATUS => 400 });
+    return;
+  }
+
+  return $users_list->[0] || {};
+}
+
+#**********************************************************
+=head2 _smotreshka_get_user($tp, $service_id)
+
+=cut
+#**********************************************************
+sub _smotreshka_get_tp {
+  my ($tp, $service_id) = @_;
+
+  my $tariff = $Tariff->list({
+    FILTER_ID  => $tp,
+    SERVICE_ID => $service_id,
+    MONTH_FEE  => '_SHOW',
+    DAY_FEE    => '_SHOW',
+    COLS_NAME  => 1
+  });
+
+  if ($Tariff->{TOTAL} < 1) {
+    print_result({
+      id      => 'error_bad_request',
+      message => 'Услуга не найдена в БД биллинга',
+      details => "Не удалось найти ТП с идентификатором $tp"
+    }, { STATUS => 400 });
+    return;
+  }
+
+  return $tariff->[0] || {};
+}
+
+#**********************************************************
+=head2 iptv_wink($attr)
+
+=cut
+#**********************************************************
+sub iptv_wink {
+  my ($attr) = @_;
+
+  my %paths = (
+    '/activation-status'   => {
+      METHOD   => 'GET',
+      FUNCTION => '_wink_activation_status'
+    },
+    '/deactivation-status' => {
+      METHOD   => 'GET',
+      FUNCTION => '_wink_deactivation_status'
+    },
+    '/service/[^/]+/?$'    => {
+      METHOD   => 'PUT',
+      FUNCTION => '_wink_activate_deactivate_service'
+    },
+    '/service/[^/]+/?$'    => {
+      METHOD   => 'POST',
+      FUNCTION => '_wink_onetime_purchase'
+    },
+    '/account/[^/]+\?san=' => {
+      METHOD   => 'GET',
+      FUNCTION => '_wink_account_san'
+    }
+  );
+
+  foreach my $path (keys %paths) {
+    next if ($ENV{REQUEST_URI} !~ /$path/g || $paths{$path}{METHOD} ne $ENV{REQUEST_METHOD});
+
+    my $function_name = $paths{$path}{FUNCTION};
+    return if (!defined(&{$function_name}));
+
+    &{\&{$function_name}}($ENV{REQUEST_URI}, { SERVICE_ID => $attr->{SERVICE_ID} });
+  }
+}
+
+#**********************************************************
+=head2 _wink_activation_status($request, $attr)
+
+=cut
+#**********************************************************
+sub _wink_activation_status {
+  my $request = shift;
+  my ($attr) = @_;
+
+  my (undef, undef, $uid, undef, $tp, undef) = split(/\//, $request);
+
+  my ($tariff, $user_info) = _wink_check_user_and_tp($uid, $tp, $attr->{SERVICE_ID});
+  return if !$tariff;
+
+  my $tp_price = $tariff->{month_fee} || $tariff->{day_fee};
+  if ($tp_price && $user_info->{DEPOSIT} < $tp_price) {
+    print json_former({ code => 1, message => 'Не хватает средств для активации' });
+    return;
+  }
+
+  # $Iptv->user_list({ SERVICE_ID => $attr->{SERVICE_ID}, UID => 1, TP_FILTER => '_SHOW', COLS_NAME => 1 });
+  # if ($Iptv->{TOTAL} > 0) {
+  #   print json_former({ code => 1, message => 'Уже активирован другой сервис' });
+  #   return;
+  # }
+
+  print json_former({ code => 0, executionType => 'today' });
+}
+
+#**********************************************************
+=head2 _wink_deactivation_status($request, $attr)
+
+=cut
+#**********************************************************
+sub _wink_deactivation_status {
+  my $request = shift;
+  my ($attr) = @_;
+
+  my (undef, undef, $uid, undef, $tp, undef) = split(/\//, $request);
+
+  my ($tariff, $user_info) = _wink_check_user_and_tp($uid, $tp, $attr->{SERVICE_ID});
+  return if !$tariff;
+
+  my $iptv_info = $Iptv->user_list({ SERVICE_ID => $attr->{SERVICE_ID}, UID => $uid, TP_ID => $tariff->{tp_id}, COLS_NAME => 1 });
+  if ($Iptv->{TOTAL} < 1) {
+    print json_former({ code => 1, message => 'Услуга не найдена' });
+    return;
+  }
+
+  print json_former({ code => 0, executionType => 'today' });
+}
+
+#**********************************************************
+=head2 _wink_activate_deactivate_service($request, $attr)
+
+=cut
+#**********************************************************
+sub _wink_activate_deactivate_service {
+  my $request = shift;
+  my ($attr) = @_;
+
+  my (undef, undef, $uid, undef, $tp) = split(/\//, $request);
+
+  my ($tariff, $user_info) = _wink_check_user_and_tp($uid, $tp, $attr->{SERVICE_ID});
+  return if !$tariff;
+
+  my $params = $FORM{__BUFFER} ? decode_json($FORM{__BUFFER}) : ();
+
+  if (!$params->{operationType} || ($params->{operationType} ne 'signoff' && $params->{operationType} ne 'signon')) {
+    print json_former({ code => 2, message => 'Не указан тип операции' });
+    return;
+  }
+
+  my $iptv_info = $Iptv->user_list({
+    SERVICE_ID => $attr->{SERVICE_ID},
+    UID        => $uid,
+    TP_FILTER  => '_SHOW',
+    COLS_NAME  => 1
+  });
+
+  if ($params->{operationType} eq 'signoff') {
+    if ($Iptv->{TOTAL} < 1) {
+      print json_former({ code => 1, message => 'Услуга не найдена' });
+      return;
+    }
+
+    $Iptv->user_del({ ID => $iptv_info->[0]{id} });
+    if ($Iptv->{errno}) {
+      print json_former({ code => 1, message => 'Ошибка при отключении' });
+      return;
+    }
+
+    print json_former({ code => 0, executionType => 'today' });
+    return;
+  }
+
+  if ($Iptv->{TOTAL} > 0 && $iptv_info->[0]{filter_id} eq $tp) {
+    print json_former({ code => 1, message => 'Эта услуга уже подключена' });
+    return;
+  }
+
+  my $tp_price = $tariff->{month_fee} || $tariff->{day_fee};
+  if ($tp_price && $user_info->{DEPOSIT} < $tp_price) {
+    print json_former({ code => 1, message => 'Не хватает средств для активации' });
+    return;
+  }
+
+  $Iptv->{db}{db}->{AutoCommit} = 0;
+  $Iptv->{db}->{TRANSACTION} = 1;
+  $Iptv->user_del({ ID => $iptv_info->[0]{id} }) if ($Iptv->{TOTAL} > 0);
+
+  $Iptv->user_add({ UID => $uid, TP_ID => $tariff->{tp_id}, SERVICE_ID => $attr->{SERVICE_ID} });
+  if (!$Iptv->{errno}) {
+    $Iptv->user_info($Iptv->{INSERT_ID});
+    service_get_month_fee($Iptv, { SERVICE_NAME => $lang{TV}, MODULE => 'Iptv', QUITE => 1 });
+
+    delete($Iptv->{db}->{TRANSACTION});
+    $Iptv->{db}{db}->commit();
+    $Iptv->{db}{db}->{AutoCommit} = 1;
+
+    print json_former({ code => 0, executionType => 'today' });
+    return;
+  }
+
+  $Iptv->{db}{db}->rollback();
+  print json_former({ code => 1, message => 'Ошибка при подключении' });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 _wink_account_san($request, $attr)
+
+=cut
+#**********************************************************
+sub _wink_account_san {
+  my $request = shift;
+  my ($attr) = @_;
+
+  my ($uid) = $request =~ /\/(\w+)\?/;
+  my $user_info = $Users->info($uid);
+  if ($Users->{TOTAL} < 1) {
+    print json_former({ code => 1, message => 'Пользователь не найден' });
+    return 0;
+  }
+
+  my $deposit = sprintf("%.2f", $user_info->{DEPOSIT}) * 100;
+  print json_former({ code => 0, balance => $deposit });
+}
+
+#**********************************************************
+=head2 _wink_onetime_purchase($request, $attr)
+
+=cut
+#**********************************************************
+sub _wink_onetime_purchase {
+  my $request = shift;
+  my ($attr) = @_;
+
+  my (undef, undef, $uid, undef, $tp) = split(/\//, $request);
+
+  my ($tariff, $user_info) = _wink_check_user_and_tp($uid, $tp, $attr->{SERVICE_ID});
+  return if !$tariff;
+
+  my $iptv_info = $Iptv->user_list({ SERVICE_ID => $attr->{SERVICE_ID}, UID => $uid, TP_ID => $tariff->{tp_id}, COLS_NAME => 1 });
+  if ($Iptv->{TOTAL} < 1) {
+    print json_former({ code => 1, message => 'Услуга не найдена' });
+    return;
+  }
+
+  my $params = $FORM{__BUFFER} ? decode_json($FORM{__BUFFER}) : ();
+  if (!defined $params->{description} && !$params->{price}) {
+    print json_former({ code => 1, message => 'Не переданы все параметры (цена или описание)' });
+    return;
+  }
+
+  my $price = $params->{price} / 100;
+  if ($price > $user_info->{DEPOSIT}) {
+    print json_former({ code => 2, message => 'Не хватает средств' });
+    return;
+  }
+
+  use Fees;
+  my $Fees = Fees->new($db, $admin, \%conf);
+  $Fees->take($user_info, $price, { DESCRIBE => $params->{description} });
+
+  if ($Fees->{errno}) {
+    print json_former({ code => 2, message => 'Ошибка при оплате' });
+    return;
+  }
+
+  print json_former({ code => 0, transactionId => $Fees->{FEES_ID} });
+}
+
+#**********************************************************
+=head2 _wink_check_user_and_tp($uid, $tp, $service_id)
+
+=cut
+#**********************************************************
+sub _wink_check_user_and_tp {
+  my ($uid, $tp, $service_id) = @_;
+
+  if (!$uid || !$tp) {
+    print json_former({ code => 1, message => 'Неверные данные' });
+    return 0;
+  }
+
+  my $user_info = $Users->info($uid);
+  if ($Users->{TOTAL} < 1) {
+    print json_former({ code => 1, message => 'Пользователь не найден' });
+    return 0;
+  }
+
+  my $tariff = $Tariff->list({
+    FILTER_ID  => $tp,
+    SERVICE_ID => $service_id,
+    MONTH_FEE  => '_SHOW',
+    DAY_FEE    => '_SHOW',
+    COLS_NAME  => 1
+  });
+  if ($Tariff->{TOTAL} < 1) {
+    print json_former({ code => 1, message => 'Тарифный план не найден' });
+    return 0;
+  }
+
+  return $tariff->[0], $user_info;
 }
 
 #**********************************************************
@@ -1295,7 +1725,7 @@ sub _iptv_24tv_auth {
   my ($attr) = @_;
 
   my $Internet = Internet->new($db, $admin, \%conf);
-  my $user_info = $Internet->list({
+  my $user_info = $Internet->user_list({
     PHONE      => "*$FORM{phone}",
     UID        => '_SHOW',
     COLS_NAME  => 1,
@@ -1443,7 +1873,7 @@ sub _iptv_get_service_fee {
     DATE             => $DATE,
     METHOD           => 1,
     PERIOD_ALIGNMENT => $Iptv->{PERIOD_ALIGNMENT},
-    GET_SUM          => 1
+    GET_SUM          => $attr->{GET_FEE} ? 0 : 1
   });
 }
 
@@ -1823,7 +2253,6 @@ sub _iptv_24tv_del_sub {
 
   return 0;
 }
-
 
 1;
 

@@ -45,6 +45,6 @@ paysys_periodic_new({
   %$argv
 });
 
-_log('LOG_DEBUG', "Billd plugin for paysys peridic stoped");
+_log('LOG_DEBUG', "Billd plugin for paysys periodic stopped");
 
 1;

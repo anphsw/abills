@@ -63,5 +63,6 @@ $lang{CAMS_UPTIME} = 'Uptime';
 $lang{CAMS_CPU_LOAD} = 'CPU load';
 
 $lang{AUTODETECT} = 'Autodetect';
+$lang{CHOOSE_SERVICE} = 'Choose service';
 
 1;

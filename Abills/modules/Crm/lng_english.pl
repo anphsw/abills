@@ -69,5 +69,7 @@ $lang{CRM_VIEWING_INFORMATION} = 'Viewing information';
 $lang{CRM_RECENT_ACTIVITY} = 'Recent activity';
 
 $lang{CRM_SHORT_LEADS} = 'Leads';
+$lang{CRM_USER_NOT_FOUND} = 'User not found';
+$lang{CRM_USER_LINKED} = 'User is already linked';
 
 1

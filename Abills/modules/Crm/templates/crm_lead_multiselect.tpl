@@ -1,4 +1,4 @@
-<div class='card card-primary card-outline %PARAMS% collapsed-card' form='internet_users_list'>
+<div class='card card-primary card-outline %PARAMS% collapsed-card'>
   <div class='card-header with-border'>
     <h4 class='card-title'>_{MULTIUSER_OP}_</h4>
     <div class='card-tools pull-right'>

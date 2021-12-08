@@ -317,7 +317,7 @@ sub paysys_import_form_new {
       print $table->show();
     }
 
-    my $ids = join(';', @{ ($BINDING_IDS) ? $BINDING_IDS : {} });
+    my $ids = join(';', @{ ($BINDING_IDS && ref $BINDING_IDS eq 'ARRAY') ? $BINDING_IDS : [] });
 
     if ($ids eq '') {
       $html->message( 'err', $lang{ERROR}, "'$ids' $lang{USER_NOT_EXIST}" );

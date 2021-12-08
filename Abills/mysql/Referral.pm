@@ -233,13 +233,15 @@ sub tp_list{
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $WHERE = $self->search_former( $attr, [
-    [ 'ID', 'INT', 'r.id', 1 ],
-    [ 'NAME', 'str', 'r.name', 1 ],
-    [ 'BONUS_AMOUNT', 'INT', 'r.bonus_amount', 1 ],
+    [ 'ID',              'INT', 'r.id', 1 ],
+    [ 'NAME',            'str', 'r.name', 1 ],
+    [ 'BONUS_AMOUNT',    'INT', 'r.bonus_amount', 1 ],
     [ 'PAYMENT_ARREARS', 'INT', 'r.payment_arrears', 1 ],
-    [ 'PERIOD', 'INT', 'r.period', 1],
-    [ 'REPL_PERCENT', 'INT', 'r.repl_percent', 1],
-    [ 'BONUS_BILL', 'INT', 'r.bonus_bill', 1],
+    [ 'PERIOD',          'INT', 'r.period', 1],
+    [ 'REPL_PERCENT',    'INT', 'r.repl_percent', 1],
+    [ 'SPEND_PERCENT',   'INT', 'r.spend_percent', 1],
+    [ 'BONUS_BILL',      'INT', 'r.bonus_bill', 1],
+    [ 'IS_DEFAULT',      'INT', 'r.is_default', 1],
   ],
     {
       WHERE => 1
@@ -291,6 +293,7 @@ sub request_list{
     [ 'TP_ID', 'INT', 'r.tp_id as referral_tp', 1],
     [ 'TP_NAME', 'INT', 'rt.name as tp_name', 1],
     [ 'REFERRAL_UID', 'INT', 'r.referral_uid', 1],
+    [ 'USER_STATUS',  'INT', 'ur.disable', 1],
     ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(r.date, '%Y-%m-%d')" ],
   ],
     {
@@ -304,6 +307,7 @@ sub request_list{
      $self->{SEARCH_FIELDS} r.id
      FROM referral_requests r
      LEFT JOIN users u ON (u.uid = r.referrer)
+     LEFT JOIN users ur ON (ur.uid = r.referral_uid)
      LEFT JOIN referral_tp rt ON (r.tp_id = rt.id)
     $WHERE $GROUP_BY ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
      ",
@@ -342,6 +346,29 @@ sub tp_info{
 }
 
 #**********************************************************
+=head2 get_default_tp()
+
+  Arguments:
+
+  Returns:
+
+=cut
+#**********************************************************
+sub get_default_tp{
+  my $self = shift;
+
+  $self->query("SELECT * FROM referral_tp WHERE is_default = ? ",
+    undef,
+    {
+      INFO => 1,
+      Bind => [ 1 ],
+    }
+  );
+
+  return $self;
+}
+
+#**********************************************************
 =head2 log_list($attr)
 
   Arguments:
@@ -355,7 +382,7 @@ sub log_list{
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : '';
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   my $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
@@ -366,7 +393,8 @@ sub log_list{
     [ 'DATE', 'STR', 'rl.date', 1 ],
     [ 'REFERRAL_REQUEST', 'STR', 'rl.referral_request', 1 ],
     [ 'TP_ID', 'INT', 'rr.tp_id', 1 ],
-    [ 'REFERRER', 'INT', 'rr.referrer', 1 ],
+    [ 'LOG_TYPE', 'INT', 'rl.log_type', 1 ],
+    [ 'REFERRER', 'INT', 'rl.referrer', 1 ],
   ],
     {
       WHERE => 1
@@ -383,7 +411,7 @@ sub log_list{
 
   $self->query(
     "SELECT
-       $self->{SEARCH_FIELDS}, rl.id
+        $self->{SEARCH_FIELDS} rl.id
      FROM referral_log rl
      LEFT JOIN referral_requests rr ON (rl.referral_request = rr.id)
     $WHERE ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;
@@ -392,7 +420,7 @@ sub log_list{
     $attr
   );
 
-  return $self->{LIST};
+  return $self->{list} || [];
 }
 
 #**********************************************************
@@ -464,7 +492,7 @@ sub tp_add{
   my $self = shift;
   my ($attr) = @_;
 
-  return $self->query_add( 'referral_tp', $attr, { REPLACE => 1 } );
+  return $self->query_add( 'referral_tp', $attr );
 }
 
 #**********************************************************

@@ -49,7 +49,7 @@ sub deposit_info {
     $Internet->{debug}=1;
   }
 
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     LOGIN     => '_SHOW',
     DEPOSIT   => '_SHOW',
     TP_CREDIT => '_SHOW',

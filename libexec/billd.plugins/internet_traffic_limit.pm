@@ -155,7 +155,7 @@ sub internet_traffic_limit_block {
       print "  TP_ID: $tp->{tp_id} MONTH_TRAF_LIMIT: $tp->{MONTH_TRAF_LIMIT}\n";
     }
 
-    my $internet_list = $Internet->list({
+    my $internet_list = $Internet->user_list({
       INTERNET_ACTIVATE => '_SHOW',
       LOGIN           => '_SHOW',
       DEPOSIT         => '_SHOW',
@@ -258,7 +258,7 @@ sub internet_traffic_limit_block {
           if (defined($traffic_use) && $traffic_use >= $tp->{ $period . '_TRAF_LIMIT' }) {
             print "$DATE $TIME UID: $uid Rejected! $period TP_ID: $tp->{tp_id} ACTIVATE: $u->{internet_activate} Traffic limit utilized '$traffic_use/$tp->{ $period . '_TRAF_LIMIT' } Mb'\n";
             if($debug < 6) {
-              $Internet->change({
+              $Internet->user_change({
                 UID    => $uid,
                 STATUS => 10
               });
@@ -313,7 +313,7 @@ sub internet_traffic_limit_unblock {
       print "  TP_ID: $tp->{tp_id} MONTH_TRAF_LIMIT: $tp->{MONTH_TRAF_LIMIT}\n";
     }
 
-    my $internet_list = $Internet->list({
+    my $internet_list = $Internet->user_list({
       INTERNET_ACTIVATE=> '_SHOW',
       LOGIN            => '_SHOW',
       DEPOSIT          => '_SHOW',
@@ -340,7 +340,7 @@ sub internet_traffic_limit_unblock {
       }
 
       if($d == 1 && $u->{internet_activate} eq '0000-00-00') {
-        $Internet->change({
+        $Internet->user_change({
           UID    => $uid,
           STATUS => 0,
           ID     => $u->{id},
@@ -349,7 +349,7 @@ sub internet_traffic_limit_unblock {
         print "$DATE $TIME UID: $uid unblock\n";
       }
       elsif($u->{internet_activate} ne '0000-00-00' && date_diff($u->{internet_activate}, $DATE) > 30) {
-        $Internet->change({
+        $Internet->user_change({
           UID    => $uid,
           STATUS => 0,
           ID     => $u->{id},

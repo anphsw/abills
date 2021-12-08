@@ -68,7 +68,7 @@ sub click {
   }
 
   my $button = {
-    text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
+    text => "$self->{bot}->{lang}->{CANCEL_TEXT}",
   };
   push (@keyboard, [$button]);
 
@@ -101,9 +101,9 @@ sub simple_msgs {
   my $self = shift;
   my ($attr) = @_;
 
-  if ($attr->{text} eq decode_utf8('$self->{bot}->{lang}->{CHANCLE_TEXT}')) {
+  if ($attr->{text} eq decode_utf8('$self->{bot}->{lang}->{CANCEL_TEXT}')) {
     $self->{bot}->send_message({
-      text => "$self->{bot}->{lang}->{SEND_CHANCLE}",
+      text => "$self->{bot}->{lang}->{SEND_CANCEL}",
     });
 
     return 1;
@@ -165,7 +165,7 @@ sub add_to_msg {
 
   if ($attr->{message}->{text}) {
     my $text = encode_utf8($attr->{message}->{text});
-    if ($text eq "$self->{bot}->{lang}->{CHANCLE_TEXT}") {
+    if ($text eq "$self->{bot}->{lang}->{CANCEL_TEXT}") {
       $self->cancel_msg();
       return 0;
     }
@@ -229,7 +229,7 @@ sub add_title_to_msg {
 
   if ($attr->{message}->{text}) {
     my $text = encode_utf8($attr->{message}->{text});
-    if ($text eq "$self->{bot}->{lang}->{CHANCLE_TEXT}") {
+    if ($text eq "$self->{bot}->{lang}->{CANCEL_TEXT}") {
       $self->cancel_msg();
       return 0;
     }
@@ -263,14 +263,14 @@ sub add_title {
 
   my $message = "$self->{bot}->{lang}->{SUBJECT_MSGS}\n";
   $message   .= "$self->{bot}->{lang}->{CLICK_BACK}\n";
-  $message   .= "$self->{bot}->{lang}->{CHANCLE}\n";
+  $message   .= "$self->{bot}->{lang}->{CANCEL}\n";
 
   my @keyboard = ();
   my $button1 = {
     text => "$self->{bot}->{lang}->{BACK}",
   };
   my $button2 = {
-    text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
+    text => "$self->{bot}->{lang}->{CANCEL_TEXT}",
   };
   push (@keyboard, [$button1], [$button2]);
 
@@ -321,7 +321,7 @@ sub cancel_msg {
   my $self = shift;
   $self->{bot_db}->del($self->{bot}->{uid});
   $self->{bot}->send_message({
-    text => "$self->{bot}->{lang}->{SEND_CHANCLE}",
+    text => "$self->{bot}->{lang}->{SEND_CANCEL}",
   });
   return 1;
 }
@@ -433,7 +433,7 @@ sub send_msgs_main_menu {
     text => "$self->{bot}->{lang}->{SEND}",
   };
   my $button3 = {
-    text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
+    text => "$self->{bot}->{lang}->{CANCEL_TEXT}",
   };
 
   my $msg_hash = decode_json($info->{args});
@@ -442,7 +442,7 @@ sub send_msgs_main_menu {
   push @keyboard, [$button2] if($msg_hash->{message}->{text} || $msg_hash->{message}->{files});
   push @keyboard, [$button3];
 
-  my $message   .= "$self->{bot}->{lang}->{SEND_OR_CHANCLE}\n";
+  my $message   .= "$self->{bot}->{lang}->{SEND_OR_CANCEL}\n";
 
   $self->{bot}->send_message({
     text         => $message,
@@ -470,7 +470,7 @@ sub select_chapter{
 
   my @keyboard = ();
   my $button = {
-    text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
+    text => "$self->{bot}->{lang}->{CANCEL_TEXT}",
   };
   push (@keyboard, [$button]);
 
@@ -481,7 +481,7 @@ sub select_chapter{
 
     my $text = encode_utf8($attr->{message}->{text});
 
-    if ($text eq "$self->{bot}->{lang}->{CHANCLE_TEXT}") {
+    if ($text eq "$self->{bot}->{lang}->{CANCEL_TEXT}") {
       $self->cancel_msg();
       return 0;
     }

@@ -116,6 +116,10 @@ sub action {
     my (undef, undef, $nas_ssh_port) = split(':', $nas_info->{NAS_MNG_IP_PORT});
     $nas_ssh_port ||= 22;
 
+    if ($self->{conf}->{INTERNET_EXTERNAL_DIAGNOSTIC_TCPDUMP_SSH_PORT}) {
+      $nas_ssh_port = $self->{conf}->{INTERNET_EXTERNAL_DIAGNOSTIC_TCPDUMP_SSH_PORT};
+    }
+
     $params = { %$nas_info, %$params };
 
     my $base_dir = $main::base_dir || '/usr/abills/';
@@ -127,10 +131,7 @@ sub action {
       push @event_stream_cmd, '-i', tpl_parse("$base_dir/Certs/id_rsa.%NAS_MNG_USER%", $params);
       push @event_stream_cmd, tpl_parse('%NAS_MNG_USER%@%NAS_IP_ADDRESS%', $params);
 
-      if ($params->{CONNECT_INFO}) {
-        push @event_stream_cmd, tpl_parse('sudo tcpdump -n -vv -i %CONNECT_INFO%', $params);
-      }
-      elsif ($params->{ACCT_SESSION_ID}) {
+      if ($params->{ACCT_SESSION_ID}) {
         push @event_stream_cmd,
           tpl_parse('INTERFACE=`accel-cmd ' . ($self->{conf}->{INTERNET_EXTERNAL_DIAGNOSTIC_ACCEL_CMD_EXTRA_PARAMS} || '') . ' show sessions ifname match sid %ACCT_SESSION_ID% | grep -o "ipoe[0-9]\\+"`;', $params) .
           'if [ $INTERFACE ];' .

@@ -224,7 +224,7 @@ sub send_user_memo_callback {
     $company_info = $Company->info($user->{company_id});
   }
 
-  my $internet_info = $Internet->info($user->{uid});
+  my $internet_info = $Internet->user_info($user->{uid});
   my $pi = $users->pi({ UID => $uid });
 
   $internet_info->{PASSWORD} = $user->{PASSWORD} if (!$internet_info->{PASSWORD});
@@ -273,7 +273,7 @@ sub send_internet_info {
   my $code = 0;
 
   my $Internet = Internet->new($db, $admin, \%conf);
-  my $internet_info = $Internet->info($user->{uid});
+  my $internet_info = $Internet->user_info($user->{uid});
   my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
   $Sessions->prepaid_rest({
@@ -555,7 +555,7 @@ sub hold_up_user {
 
   my $Internet = Internet->new($db, $admin, \%conf);
 
-  my $user_services = $Internet->list({
+  my $user_services = $Internet->user_list({
     UID             => $user->{uid},
     INTERNET_STATUS => '0',
     COLS_NAME       => 1
@@ -568,7 +568,7 @@ sub hold_up_user {
   }
 
   foreach my $service (@$user_services) {
-    $Internet->change({ UID => $user->{uid}, ID => $service->{id}, STATUS => 3 });
+    $Internet->user_change({ UID => $user->{uid}, ID => $service->{id}, STATUS => 3 });
   }
 
   if ($Internet->{errno}) {
@@ -625,7 +625,7 @@ sub activate_user {
 
   my $Internet = Internet->new($db, $admin, \%conf);
 
-  my $user_services = $Internet->list({UID => $user->{uid}, INTERNET_STATUS => 3, COLS_NAME => 1});
+  my $user_services = $Internet->user_list({UID => $user->{uid}, INTERNET_STATUS => 3, COLS_NAME => 1});
 
   if ($Internet->{TOTAL} == 0) {
     show_command_result(7, "$lang{ALL_SERVICE_NOT_ACTIVE} $user->{uid}");
@@ -634,7 +634,7 @@ sub activate_user {
   }
 
   foreach my $service (@$user_services) {
-    $Internet->change({ UID => $user->{uid}, ID => $service->{id}, STATUS => 0 });
+    $Internet->user_change({ UID => $user->{uid}, ID => $service->{id}, STATUS => 0 });
   }
 
   if ($Internet->{errno}) {
@@ -673,7 +673,7 @@ sub get_user_info {
   my ($cid) = @_;
 
   my $Internet = Internet->new($db, $admin, \%conf);
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     PHONE          => '_SHOW',
     CID            => $cid,
     COLS_NAME      => 1,

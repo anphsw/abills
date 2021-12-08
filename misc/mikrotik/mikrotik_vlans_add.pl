@@ -66,7 +66,7 @@ if (!$uid) {
 
 my $user_info          = $Users->info($uid);
 #my $user_personal_info = $Users->pi({UID => $uid});
-my $user_internet_info = $Internet->info($uid);
+my $user_internet_info = $Internet->user_info($uid);
 
 _bp("User info",          $user_info,          { TO_CONSOLE => 1 }) if ($DEBUG > 1);
 #_bp("User personal info", $user_personal_info, { TO_CONSOLE => 1 }) if ($DEBUG > 1);

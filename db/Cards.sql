@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `cards_bruteforce` (
   `pin` VARCHAR(20) NOT NULL DEFAULT '',
   `datetime` DATETIME NOT NULL  DEFAULT CURRENT_TIMESTAMP
 )
+  DEFAULT CHARSET=utf8
   COMMENT = 'Cards bruteforce check';
 
 CREATE TABLE IF NOT EXISTS `cards_dillers` (
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS `cards_dillers` (
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `uid` (`uid`)
 )
+  DEFAULT CHARSET=utf8
   COMMENT = 'Cards dillers';
 
 
@@ -50,6 +52,7 @@ CREATE TABLE IF NOT EXISTS `cards_users` (
   KEY `login` (`login`),
   PRIMARY KEY (`id`)
 )
+  DEFAULT CHARSET=utf8
   COMMENT = 'Cards list';
 
 CREATE TABLE IF NOT EXISTS `dillers_tps` (
@@ -71,6 +74,7 @@ CREATE TABLE IF NOT EXISTS `dillers_tps` (
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `name` (`name`)
 )
+  DEFAULT CHARSET=utf8
   COMMENT = 'Resellers Tarif Plans';
 
 
@@ -80,4 +84,15 @@ CREATE TABLE IF NOT EXISTS `dillers_permits` (
   `section` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
   UNIQUE KEY `diller_id` (`diller_id`, `section`)
 )
+  DEFAULT CHARSET=utf8
   COMMENT = 'Dillers Permisions';
+
+
+CREATE TABLE IF NOT EXISTS `cards_gids`
+(
+    `gid`    SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
+    `serial` VARCHAR(10)          NOT NULL DEFAULT '',
+    UNIQUE KEY `serial` (`gid`, `serial`)
+)
+  DEFAULT CHARSET=utf8
+  COMMENT = 'Cards list';

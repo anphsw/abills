@@ -14,6 +14,9 @@
   SLEEP - Sleep in second after each send
   API_NAME - Use only one API
 
+  LOGIN - comming soon
+  UID
+
 =cut
 
 use strict;
@@ -47,13 +50,21 @@ my $Receipt_api = receipt_init($Receipt, {
   DEBUG    => ($debug > 2) ? 1 : 0
 });
 
-my %params = ( PAGE_ROWS => 9999 );
+my %params = ( PAGE_ROWS => 10999 );
 
 if($argv->{PAYMENT_ID}) {
   $params{PAYMENT_ID}=$argv->{PAYMENT_ID};
 }
 elsif($argv->{FROM_DATE}) {
   $params{FROM_DATE}=$argv->{FROM_DATE}
+}
+
+if ($argv->{LOGIN}) {
+  $params{LOGIN}=$argv->{LOGIN};
+}
+
+if ($argv->{UID}) {
+  $params{UID}=$argv->{UID};
 }
 
 if ($argv->{PAGE_ROWS}) {
@@ -120,7 +131,7 @@ sub send_payments {
     next if (!$Receipt_api->{$line->{api_id}});
     $line->{phone} =~ s/[^0-9\+]//g;
     if (!$line->{mail} && !$line->{phone}) {
-      $line->{mail} = $line->{uid} . '@myisp.ru';
+      $line->{mail} = $conf{EXTRECEIPTS_FAIL_EMAIL} || ($line->{uid} . '@myisp.ru');
     }
     my $command_id = $Receipt_api->{$line->{api_id}}->payment_register($line);
 
@@ -190,7 +201,7 @@ sub check_receipts {
     my ($fdn, $fda, $date, $payments_id, $error) = $Receipt_info->get_info($line);
     $payments_id ||= $line->{payments_id};
 
-    print "GET_INFO: $payments_id (FDN: $fdn FDA: $fda DATE: ". ($date || q{n/d}) ." PAYMENT_ID: $payments_id ERROR: $error)\n" if($debug > 1);
+    print "GET_INFO: $payments_id (FDN: ". ($fdn || 'N/d') ." FDA: $fda DATE: ". ($date || q{n/d}) ." PAYMENT_ID: $payments_id ERROR: $error)\n" if($debug > 1);
     if ($error) {
       if($Receipt_info->{error} && $Receipt_info->{error} == 1) {
         print "ERROR: $Receipt_info->{error} PAYMENT_ID: $payments_id ";
@@ -247,12 +258,19 @@ sub resend_errors {
   foreach my $line (@$list) {
     next if (!$Receipt_api->{$line->{api_id}});
     if (!$line->{mail} && !$line->{phone}) {
-      $line->{mail} = $line->{uid} . '@myisp.ru';
+      $line->{mail} = $conf{EXTRECEIPTS_FAIL_EMAIL} || ($line->{uid} . '@myisp.ru');
     }
+
+    print "$line->{c_phone} $line->{mail}\n" if ($debug > 1);
+
     $line->{payments_id} .= "-e";
     my $command_id = $Receipt_api->{$line->{api_id}}->payment_register($line);
     if ($command_id) {
-      $Receipt->change({ PAYMENTS_ID => $line->{payments_id}, COMMAND_ID => $command_id, STATUS => 1 });
+      $Receipt->change({
+        PAYMENTS_ID => $line->{payments_id},
+        COMMAND_ID  => $command_id,
+        STATUS      => 1
+      });
     }
   }
 

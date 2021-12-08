@@ -10,7 +10,7 @@ use Tags;
 use Users;
 use Crm::db::Crm;
 use Abills::Sender::Core;
-use Abills::Base qw/in_array mk_unique_value/;
+use Abills::Base qw/in_array mk_unique_value json_former/;
 
 our (
   @PRIORITY,
@@ -386,6 +386,11 @@ sub crm_leads {
   }
   elsif ($FORM{change}) {
     $Crm->crm_lead_change({ %FORM });
+    if ($FORM{RETURN_JSON}) {
+      print 'error' if $Crm->{error};
+      return 1;
+    }
+
     $html->message('info', $lang{CHANGED}) if (!_error_show($Crm));
   }
   elsif ($FORM{CRM_MULTISELECT} && $FORM{ID}) {
@@ -413,6 +418,15 @@ sub crm_leads {
   );
 
   my $header = $html->table_header(\@header_arr, { SHOW_ONLY => 3 });
+  $header .= $html->button('', '', {
+    NO_LINK_FORMER => 1,
+    JAVASCRIPT     => 1,
+    SKIP_HREF      => 1,
+    class          => 'btn btn-default',
+    ICON           => 'fa fa-users',
+    ID             => 'CHECK_LEADS_BTN',
+    ex_params      => "data-tooltip-position='top' data-tooltip='$lang{MATCH_USER}'",
+  });
 
   if ($FORM{ALL_LEADS}) {
     #    $LIST_PARAMS{'CL_UID'} = '0';
@@ -515,6 +529,7 @@ sub crm_leads {
     return 1;
   }
 
+  $html->tpl_show(_include('crm_check_leads', 'Crm'));
   _crm_multiselect_form($table);
 
   return 1;
@@ -534,19 +549,11 @@ sub crm_leads {
 sub crm_lead_info {
   my ($lead_id) = @_;
 
-  if ($FORM{SAVE_TAGS}) {
-    _crm_tags(\%FORM);
-  }
+  _crm_tags(\%FORM) if $FORM{SAVE_TAGS};
 
   if ($FORM{delete_uid}) {
-    $Crm->crm_lead_change({
-      ID  => $FORM{LEAD_ID},
-      UID => 0,
-    });
-
-    if (!_error_show($Crm)) {
-      $html->message('info', "$lang{SUCCESS}", "$lang{DELETED}");
-    }
+    $Crm->crm_lead_change({ ID => $FORM{LEAD_ID}, UID => 0 });
+    $html->message('info', "$lang{SUCCESS}", "$lang{DELETED}") if !_error_show($Crm);
   }
 
   if ($FORM{SAVE}) {
@@ -562,21 +569,20 @@ sub crm_lead_info {
     $html->message('success', "$lang{SUCCESS} $lang{IMPORT}", "");
   }
 
-  if ($FORM{LEAD_ID}) {
-    $lead_id = $FORM{LEAD_ID};
-  }
+  $lead_id = $FORM{LEAD_ID} if $FORM{LEAD_ID};
 
   if (defined $FORM{CUR_STEP}) {
     $Crm->crm_lead_change({ ID => $FORM{LEAD_ID}, CURRENT_STEP => $FORM{CUR_STEP} || '1' });
-
     return 1;
   }
 
   if ($FORM{add_uid}) {
-    $Crm->crm_lead_change({
-      ID  => $FORM{LEAD_ID},
-      UID => $FORM{add_uid},
-    });
+    $Crm->crm_lead_change({ ID => $FORM{LEAD_ID}, UID => $FORM{add_uid} });
+
+    if ($FORM{RETURN_JSON}) {
+      print json_former({ error => $Crm->{errno} || 0 });
+      return;
+    }
 
     if (!_error_show($Crm)) {
       my $lead_button = $html->button("$lang{LEAD}", "index=" . get_function_index("crm_lead_info") . "&LEAD_ID=$FORM{LEAD_ID}");
@@ -599,12 +605,10 @@ sub crm_lead_info {
 
   if (defined $FORM{STEP_ID} && defined $FORM{add_message}) {
     $Crm->progressbar_comment_add({ %FORM, DOMAIN_ID => ($admin->{DOMAIN_ID} || 0) , DATE => "$DATE $TIME" });
-
     _error_show($Crm);
   }
   elsif ($FORM{delete_message}) {
     $Crm->progressbar_comment_delete({ ID => $FORM{delete_message} });
-
     _error_show($Crm);
   }
 
@@ -800,6 +804,9 @@ sub crm_progressbar_steps {
 sub crm_progressbar_show {
   my ($lead_id) = @_;
 
+  my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
+  return '' if _error_show($Crm) || $Crm->{TOTAL} < 1;
+
   my $pb_list = translate_list($Crm->crm_progressbar_step_list({
     STEP_NUMBER => '_SHOW',
     NAME        => '_SHOW',
@@ -808,19 +815,13 @@ sub crm_progressbar_show {
     COLS_NAME   => 1
   }));
 
-  my $lead_info = $Crm->crm_lead_info({ ID => $lead_id });
-
-  _error_show($Crm);
-
-  return '' if $Crm->{TOTAL} < 1;
-
   my $progress_name = '';
   my $cur_step = $lead_info->{CURRENT_STEP};
   my $steps_comments = '';
   my $timeline = '';
 
   my $tips = '';
-  my $css;
+  my $css = '';
   foreach my $line (@$pb_list) {
     $css .= "li.step" . ($line->{step_number}) . "{border-bottom: 12px solid $line->{color} !important;}\n";
     $css .= "li.step" . ($line->{step_number}) . ":before{background-color: $line->{color} !important;}\n";
@@ -835,8 +836,8 @@ sub crm_progressbar_show {
       $active_element_data = "in active";
     }
 
-    $steps_comments .= "<li class='nav-item btn btn-default p-0'><a id='b$line->{id}' data-toggle='pill' role='tab' aria-controls='s$line->{id}' aria-selected='true' " .
-      "href='#s$line->{id}' class='d-block p-2'>$line->{name}</a></li>";
+    $steps_comments .= "<li class='nav-item btn btn-default p-0'><a id='b$line->{id}' data-toggle='pill' role='tab'"
+      . "aria-controls='s$line->{id}' aria-selected='true' href='#s$line->{id}' class='d-block p-2'>$line->{name}</a></li>";
 
     my $messages_list = $Crm->progressbar_comment_list({
       STEP_ID      => $line->{id},
@@ -1119,7 +1120,7 @@ sub crm_short_info {
     my $Callcenter = Callcenter->new($db, $admin, \%conf);
     my $admin_info = $admin->info($admin->{AID});
 
-    $Callcenter->callcenter_add_cals({
+    $Callcenter->callcenter_add_calls({
       USER_PHONE     => $lead_phone,
       OPERATOR_PHONE => $admin_info->{PHONE} || 0,
       STATUS         => 3,
@@ -2002,7 +2003,7 @@ sub _crm_tags {
 sub _crm_tags_name {
   my ($tags) = @_;
 
-  return '' if $tags eq '';
+  return '' if (! $tags);
 
   my $tags_named = qq{};
   my @priority_colors = ('', 'btn-secondary', 'btn-info', 'btn-success', 'btn-warning', 'btn-danger');
@@ -2234,6 +2235,76 @@ sub _crm_translate_source {
 
   my $source_info = $Crm->leads_source_info({ ID => $source_id, COLS_NAME => 1 });
   return $Crm->{TOTAL} > 0 ? _translate($source_info->{NAME}) : '';
+}
+
+#**********************************************************
+=head2 crm_find_user_by_email()
+
+=cut
+#**********************************************************
+sub crm_users_by_lead_email {
+
+  return 1 if !$FORM{ID};
+
+  $Crm->crm_users_by_lead_email($FORM{ID});
+
+  return if $Crm->{TOTAL} < 1 || !$Crm->{UID};
+
+  print json_former({ UID => $Crm->{UID}, EXIST => $Crm->{LEAD_UID} ? 1 : 0, LOGIN => $Crm->{LOGIN} });
+}
+
+#**********************************************************
+=head2 crm_lead_map_multiple_update()
+
+=cut
+#**********************************************************
+sub crm_lead_map_multiple_update {
+
+  if ($FORM{CRM_MULTISELECT}) {
+    $FORM{MESSAGE_ONLY} = 1;
+    crm_leads();
+
+    return 1;
+  }
+
+  my $leads = $Crm->crm_lead_list({
+    FIO               => '_SHOW',
+    ADMIN_NAME        => '_SHOW',
+    CURRENT_STEP_NAME => '_SHOW',
+    STEP_COLOR        => '_SHOW',
+    TAG_IDS           => '_SHOW',
+    BUILD_ID          => $FORM{IDS},
+    COLS_NAME         => 1,
+    SORT              => 'cl.id'
+  });
+
+  my $lead_table = $html->table({
+    width      => '100%',
+    caption    => $lang{LEADS},
+    ID         => 'CRM_LEAD_LIST',
+    title      => [ '#', $lang{FIO}, $lang{RESPOSIBLE}, $lang{STEP}, $lang{TAGS} ],
+    HIDE_TABLE => 1
+  });
+
+  my @leads_id = ();
+  foreach my $lead (@{$leads}) {
+    my $step = _crm_current_step_color($lead->{current_step_name}, { VALUES => { STEP_COLOR => $lead->{step_color} } });
+    my $tags = _crm_tags_name($lead->{tag_ids});
+
+    $lead_table->addrow($lead->{id}, $lead->{fio}, $lead->{admin_name}, $step, $tags);
+    push @leads_id, $lead->{id};
+  }
+
+  if (in_array('Tags', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{'Tags'})) {
+    load_module('Tags', $html);
+    $Crm->{TAGS_SEL} = tags_sel();
+  }
+
+  $html->tpl_show(_include('crm_lead_map_multiple_update', 'Crm'), { %{$Crm},
+    LEADS_TABLE       => $lead_table->show(),
+    RESPONSIBLE_ADMIN => sel_admins({ NAME => 'RESPONSIBLE' }),
+    IDS               => join(',', @leads_id)
+  });
 }
 
 1;

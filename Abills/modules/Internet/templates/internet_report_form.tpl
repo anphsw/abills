@@ -8,9 +8,11 @@
       <input type='text' name='FILTER' value='%FILTER%' class='form-control' id='FILTER'>
     </div>
 
-    <div class='form-group row' style='margin: 0 5px;'>
-      <label class='control-label' for='FILTER_FIELD'>_{FIELDS}_: </label>
-      %FIELDS_SEL%
+    <div class='form-group col-md-3 row' style='margin: 0 5px;'>
+      <label class='col-md-3 control-label' for='FILTER_FIELD'>_{FIELDS}_: </label>
+      <div class='col-md-9'>
+        %FIELDS_SEL%
+      </div>
     </div>
 
     <div class='form-group row' style='margin: 0 5px;'>

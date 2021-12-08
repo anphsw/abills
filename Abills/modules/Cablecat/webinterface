@@ -14,7 +14,7 @@ our $Maps;
 _bp('', '', { SET_ARGS => { TO_CONSOLE => 1 } }) if ( $FORM{json} );
 
 # DB module is available
-exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.86 }));
+exit if (form_purchase_module({ HEADER => $user->{UID}, MODULE => 'Cablecat', REQUIRE_VERSION => 7.89 }));
 
 if ( !defined $Maps ) {
   eval { require Maps; };
@@ -973,21 +973,16 @@ sub _cablecat_links_table {
     6 => 'CROSS',
   );
 
-  my @connection_type_modal_select_options = ({ name => '--', value => '--' }, map {
-      {
-        name  => _translate('$lang{' . $connection_type_lang{$_} . '}'),
-        value => $_
-      };
-    } sort keys %CONNECTION_TYPES
-  );
+  my @connection_type_modal_select_options = ({ name => '--', value => '--' }, map {{
+    name  => _translate('$lang{' . $connection_type_lang{$_} . '}'),
+    value => $_
+  };} sort keys %CONNECTION_TYPES);
 
-  $html->tpl_show(_include('cablecat_links_info', 'Cablecat'),
-    {
-      LINK_TYPE_OPTIONS => JSON::to_json(\@connection_type_modal_select_options),
-      ELEMENT_TYPE        => $element_type,
-      ELEMENT_ID          => $element_id
-    }
-  );
+  $html->tpl_show(_include('cablecat_links_info', 'Cablecat'), {
+    LINK_TYPE_OPTIONS => JSON::to_json(\@connection_type_modal_select_options),
+    ELEMENT_TYPE      => $element_type,
+    ELEMENT_ID        => $element_id
+  });
 
   return $table->show({ OUTPUT2RETURN => 1 });
 }
@@ -1015,7 +1010,7 @@ sub cablecat_nas_trace_connection_form {
     }
     else {
       my $first_commutation_id = $Tracer->get_commutation_for_equipment($FORM{NAS_ID});
-      if ( !$first_commutation_id ) {
+      if (!$first_commutation_id) {
         $html->message('err', $lang{ERROR}, "Equipment $FORM{NAS_ID} is not present on any commutation");
       }
       else {
@@ -1023,8 +1018,8 @@ sub cablecat_nas_trace_connection_form {
         _error_show($Tracer);
 
         my $fiber_views = _cablecat_get_conection_path_view($path);
-        if (!$fiber_views){
-          $html->message('err', $lang{ERROR}, "Can't display commutation_path");
+        if (!$fiber_views) {
+          $html->message('err', $lang{ERROR}, $lang{CANNOT_DISPLAY_COMMUTATION_PATH});
         }
         else {
           $TEMPLATE_PARAMS{PATH_VIEW} = $fiber_views;
@@ -1060,28 +1055,25 @@ sub cablecat_nas_trace_connection_form {
   my $given_nas_id = $FORM{ENDPOINT_NAS_ID};
   my $given_nas_list = [];
 
-  my $search_form = $html->tpl_show(_include('cablecat_nas_trace_connection_form', 'Cablecat'),
-    {
-      NAS_ID_SELECT     => $html->form_select('NAS_ID', {
-        SELECTED    => $given_nas_id,
-        SEL_LIST    => $given_nas_list,
-        SEL_VALUE   => 'nas_name',
-        SEL_KEY     => 'nas_id',
-        SEL_OPTIONS => (!$given_nas_id && $given_nas_list && scalar(@{$given_nas_list} > 1))
-                          ? { '' => '' }
-                          : undef,
-        NORMAL_WIDTH => 1,
-      }),
+  my $search_form = $html->tpl_show(_include('cablecat_nas_trace_connection_form', 'Cablecat'), {
+    NAS_ID_SELECT     => $html->form_select('NAS_ID', {
+      SELECTED     => $given_nas_id,
+      SEL_LIST     => $given_nas_list,
+      SEL_VALUE    => 'nas_name',
+      SEL_KEY      => 'nas_id',
+      SEL_OPTIONS  => (!$given_nas_id && $given_nas_list && scalar(@{$given_nas_list} > 1))
+        ? { '' => '' } : undef,
+      NORMAL_WIDTH => 1,
+    }),
 
-      END_NAS_ID_SELECT => $html->form_select('ENDPOINT_NAS_ID', {
-        SELECTED     => $FORM{ENDPOINT_NAS_ID} || '',
-        SEL_HASH     => $FORM{ENDPOINT_NAS_ID} ? { $FORM{ENDPOINT_NAS_ID} => 'Loading...' } : {},
-        NORMAL_WIDTH => 1
-      }),
+    END_NAS_ID_SELECT => $html->form_select('ENDPOINT_NAS_ID', {
+      SELECTED     => $FORM{ENDPOINT_NAS_ID} || '',
+      SEL_HASH     => $FORM{ENDPOINT_NAS_ID} ? { $FORM{ENDPOINT_NAS_ID} => 'Loading...' } : {},
+      NORMAL_WIDTH => 1
+    }),
 
-      %TEMPLATE_PARAMS
-    }, { OUTPUT2RETURN => 1 }
-  );
+    %TEMPLATE_PARAMS
+  }, { OUTPUT2RETURN => 1 });
 
   print $html->form_main({
     class   => 'form form-inline well well-sm',
@@ -1100,8 +1092,9 @@ sub cablecat_nas_trace_connection_form {
 =cut
 #**********************************************************
 sub cablecat_user_trace_connection_form {
+  my ($attr) = @_;
 
-  if ( my $module_load_error = load_pmodule("JSON", { SHOW_RETURN => 1 }) ) {
+  if (my $module_load_error = load_pmodule("JSON", { SHOW_RETURN => 1 })) {
     print $module_load_error;
     return 0;
   }
@@ -1109,60 +1102,60 @@ sub cablecat_user_trace_connection_form {
   my Cablecat::Trace $Tracer = Cablecat::Trace->new($db, $admin, \%conf);
   my %TEMPLATE_PARAMS = ();
 
-
-  my $uid = $FORM{UID} || 0;
-  my $service_id = $FORM{USER_SERVICE} || '';
+  my $uid = $FORM{UID} || $attr->{UID} || 0;
+  my $service_id = $FORM{USER_SERVICE} || $attr->{SERVICE_ID} || '';
 
   # Helper to break from if
   my $return_with_error = sub {
     my ($text, $url, $id) = @_;
-    $url //= "?index=$index";
+
+    if ($FORM{RETURN_JSON}) {
+      print Abills::Base::json_former({ error => $text });
+      exit;
+    }
+
     my $message = $html->message('err', $lang{ERROR}, $text, { OUTPUT2RETURN => 1, ID => $id });
     print $message;
-#    $html->redirect($url, { MESSAGE => $message });
-    use Abills::Base qw/_bp/;
-    _bp("Called by", [ caller ], {HEADER => 0, EXIT => 0, TO_CONSOLE => 0});
     exit 0;
   };
 
-  if ( $FORM{action} ) {
+  if ($FORM{action}) {
 
-    if ( !$uid ) {
+    if (!$uid) {
       # message about no uid
       $return_with_error->("$lang{REQUIRED_ARG} : UID");
     }
-    elsif ( !$service_id ) {
+    elsif (!$service_id) {
       $return_with_error->("$lang{REQUIRED_ARG} : USER_SERVICE");
     }
 
-    my $user_start_link = $Tracer->get_commutation_for_user($uid, $service_id, { RETURN_LINK => 1});
+    my $user_start_link = $Tracer->get_commutation_for_user($uid, $service_id, { RETURN_LINK => 1 });
     _error_show($Tracer);
     _error_show($Cablecat);
 
-    if (!$user_start_link){
-      $html->message('err', $lang{ERROR}, "User is not present on commutation", { ID => 2210 });
+    if (!$user_start_link) {
+      $html->message('err', $lang{ERROR}, "$lang{USER} $lang{IS_NOT_PRESENT_ON_ANY_COMMUTATION}", { ID => 2210 });
       return 0;
     }
 
     my $nas_port ||= $Tracer->get_nas_port_for_service($uid, $service_id);
-    if ( !$nas_port ) {
+    if (!$nas_port) {
       _error_show($Tracer);
       $return_with_error->($Tracer->{errstr}, undef, $Tracer->{errno});
     }
 
     # Get start commutation for nas_port
     my $equipment_commutation_ids = $Tracer->get_commutation_for_equipment($nas_port->{nas_id}, $nas_port->{port},
-      { WITH_TYPE => 1 }
-    );
-    if ( !$equipment_commutation_ids || !ref $equipment_commutation_ids eq 'ARRAY' ) {
+      { WITH_TYPE => 1 });
+    if (!$equipment_commutation_ids || !ref $equipment_commutation_ids eq 'ARRAY') {
       # Show message about no commutation
-      $return_with_error->('NAS not selected!', undef, $Tracer->{errno});
+      $return_with_error->("$lang{EQUIPMENT} $lang{IS_NOT_PRESENT_ON_ANY_COMMUTATION}", undef, $Tracer->{errno});
     }
-    elsif ( !scalar(@{$equipment_commutation_ids}) ) {
-      $return_with_error->("Can't find commutation for equipment $nas_port->{nas_id} port $nas_port->{port}", undef, $Tracer->{errno});
+    elsif (!scalar(@{$equipment_commutation_ids})) {
+      $return_with_error->("$lang{CANNOT_FIND_COMMUTATION_FOR_EQUIPMENT} $nas_port->{nas_id} $lang{PORT} $nas_port->{port}", undef, $Tracer->{errno});
     }
-    elsif (scalar @$equipment_commutation_ids > 1){
-      $return_with_error->("Equipment is linked on more than one commutation", undef, 2201);
+    elsif (scalar @$equipment_commutation_ids > 1) {
+      $return_with_error->($lang{LINKED_MORE_THAN_ONE_COMMUTATION}, undef, 2201);
     }
 
     my $onu_list = $Cablecat->commutation_onu_list({
@@ -1172,40 +1165,38 @@ sub cablecat_user_trace_connection_form {
       COLS_NAME  => 1
     });
 
-    return 0 if($Cablecat->{TOTAL} <= 0);
+    return 0 if $Cablecat->{TOTAL} <= 0;
     # Build trace
+    $equipment_commutation_ids->[0]{FIBER_NUM} = _cablecat_convert_nas_port($nas_port->{nas_id}, $nas_port->{port});
     my $path = $Tracer->get_path_beetween({
       TYPE      => 'ONU',
-      ID        => $onu_list->[0]->{id},
+      ID        => $onu_list->[0]{id},
       FIBER_NUM => 1
-    },
-      $equipment_commutation_ids->[0]
-    );
+    }, $equipment_commutation_ids->[0]);
 
-    if($FORM{AJAX}){
-      print JSON::to_json($path);
-      return 1;
+    my ($fiber_views, $commutations_priority) = _cablecat_get_conection_path_view($path);
+
+    if ($FORM{AJAX}) {
+      $return_with_error->($lang{CANNOT_DISPLAY_COMMUTATION_PATH}) if !$path;
+      my $result = { path => $path || {}, fiber_views => $fiber_views, commutations_priority => $commutations_priority };
+
+      print JSON::to_json($result) if !$attr->{SILENT};
+      return $result;
     }
-
-    my $fiber_views = _cablecat_get_conection_path_view($path);
-    if (!$fiber_views){
-      $html->message('err', $lang{ERROR}, "Can't display commutation_path");
+    
+    if (!$fiber_views) {
+      $html->message('err', $lang{ERROR}, $lang{CANNOT_DISPLAY_COMMUTATION_PATH});
     }
     else {
       $TEMPLATE_PARAMS{PATH_VIEW} = $fiber_views;
     }
-
-    # Show trace
   }
 
-  # user_modal_search() can return numeric value when modlas is loaded
   my $user_modal_search_button = user_modal_search();
-  if ( $user_modal_search_button && $user_modal_search_button eq 2 ) {
-    return 1;
-  }
+  return 1 if ($user_modal_search_button && $user_modal_search_button eq 2);
 
   my @allowed_to_trace_services = ();
-  if ( $uid ) {
+  if ($uid) {
     $TEMPLATE_PARAMS{USER_LOGIN} = $users->{LOGIN} || '';
 
     # Get list of user services
@@ -1213,7 +1204,7 @@ sub cablecat_user_trace_connection_form {
     _error_show($Tracer);
 
     if (!$user_services_search_list || !ref($user_services_search_list) eq 'ARRAY' ){
-      $return_with_error->("Can't get user service list");
+      $return_with_error->($lang{CANNOT_GET_USER_SERVICE_LIST});
     }
 
     my @user_connections = @$user_services_search_list;
@@ -1221,44 +1212,120 @@ sub cablecat_user_trace_connection_form {
     # Look which nas_id are on commutation scheme
     foreach my $service_port ( @user_connections ) {
       next unless ( $service_port->{NAS_ID} );
+
       my $c_id = $Tracer->get_commutation_for_equipment($service_port->{NAS_ID}, $service_port->{PORT});
-      next unless ( $c_id );
+      next unless ($c_id);
+
       $service_port->{COMMUTATION_ID} = $c_id;
       push(@allowed_to_trace_services, $service_port);
     }
   }
 
   $TEMPLATE_PARAMS{USER_SELECT} = $html->form_input('USER_LOGIN', $TEMPLATE_PARAMS{USER_LOGIN} || '', {
-      TYPE     => 'text',
-      DISABLED => 1
-    });
+    TYPE     => 'text',
+    DISABLED => 1
+  });
   $TEMPLATE_PARAMS{SEARCH_BTN} = $user_modal_search_button;
 
-  if (!$uid){
-
-  }
-  elsif (scalar @allowed_to_trace_services){
-    $TEMPLATE_PARAMS{USER_SERVICE_SELECT} = _cablecat_get_user_services_select($uid, { WITH_MODULE => 1 });
-  }
-  else {
-    $html->message('warn', $lang{ERROR}, "No service ports to trace", { ID => 2220 });
+  if ($uid) {
+    if (scalar @allowed_to_trace_services){
+      $TEMPLATE_PARAMS{USER_SERVICE_SELECT} = _cablecat_get_user_services_select($uid, { WITH_MODULE => 1 });
+    }
+    else {
+      $html->message('warn', $lang{ERROR}, $lang{NO_SERVICE_PORTS_TO_TRACE}, { ID => 2220 });
+    }
   }
 
   my $search_form = $html->tpl_show(_include('cablecat_user_trace_connection_form', 'Cablecat'),
-    \%TEMPLATE_PARAMS,
-    { OUTPUT2RETURN => 1 }
-  );
+    \%TEMPLATE_PARAMS, { OUTPUT2RETURN => 1 });
 
   print $html->form_main({
     class   => 'form form-inline well well-sm',
     CONTENT => $search_form,
-    HIDDEN  => {
-      index => $index,
-      UID   => $uid || ''
-    }
+    HIDDEN  => { index => $index, UID   => $uid || '' }
   });
 
   return 1;
+}
+
+#**********************************************************
+=head2 cablecat_equipment_trace()
+
+=cut
+#**********************************************************
+sub cablecat_equipment_trace {
+
+  if (!$FORM{NAS_ID}) {
+    print Abills::Base::json_former({ error => "$lang{REQUIRED_ARG} : UID" });
+    return 1;
+  }
+
+  my $users_list = $Cablecat->users_list_by_equipment($FORM{NAS_ID});
+  if ($Cablecat->{TOTAL} < 1) {
+    print Abills::Base::json_former({ error => $lang{NOT_USERS_FOR_EQUIPMENT} });
+    return 1;
+  }
+
+  my $result = {};
+  foreach my $user (@{$users_list}) {
+    my $user_json = cablecat_user_trace_connection_form({ SILENT => 1, UID => $user->{uid}, SERVICE_ID => $user->{service_id} });
+
+    $result->{$user->{service_id}} = { uid => $user->{uid}, path => $user_json };
+  }
+
+  print JSON::to_json($result) if $FORM{AJAX};
+  return $result;
+}
+
+#**********************************************************
+=head2 _cablecat_convert_nas_port($nas_id, $port)
+
+=cut
+#**********************************************************
+sub _cablecat_convert_nas_port {
+  my ($nas_id, $port) = @_;
+
+  my $equipment_info = $Equipment->_list({
+    NAS_ID      => $nas_id,
+    VENDOR_NAME => '_SHOW',
+    COLS_NAME   => 1
+  });
+  return $port if $Equipment->{TOTAL} < 1;
+
+  my $function = '_cablecat_convert_' . lc($equipment_info->[0]{vendor_name}) . '_port';
+
+  return $port if !defined(&{$function});
+
+  return &{ \&$function }($port);
+
+  return $port;
+}
+
+#**********************************************************
+=head2 _cablecat_convert_bdcom_port($port)
+
+=cut
+#**********************************************************
+sub _cablecat_convert_bdcom_port {
+  my $port = shift;
+  
+  return 0 if !$port;
+
+  my $branch = substr($port, 0, 2);
+  return $port if $branch !~ /^[[:xdigit:]]+$/;
+  
+  return hex($branch);
+}
+
+#**********************************************************
+=head2 _cablecat_convert_cdata_port($port)
+
+=cut
+#**********************************************************
+sub _cablecat_convert_cdata_port {
+  my $port = shift;
+
+  return _cablecat_convert_bdcom_port($port);
 }
 
 #**********************************************************
@@ -1350,6 +1417,7 @@ sub cablecat_links_check {
 #**********************************************************
 sub _cablecat_get_conection_path_view {
   my ($path) = @_;
+
   return 0 if (!$path || ref $path ne 'ARRAY');
 
   my %visualization_dispatch = (
@@ -1357,13 +1425,30 @@ sub _cablecat_get_conection_path_view {
       my ($cable_id, $fiber_num) = @_;
       my $cable_info = $Cablecat->cables_info($cable_id);
       _error_show($Cablecat) and return 0;
+
+      return {
+        fiber_num   => $fiber_num,
+        fiber_color => _cablecat_get_color_by_fiber($cable_info->{fibers_colors}, $fiber_num, { COLOR_ONLY => 1 }),
+        name        => $cable_info->{name},
+        id          => $cable_id,
+        type        => $lang{CABLE}
+      } if $FORM{AJAX};
+
       my $btn = function_button($cable_info->{name}, 'cablecat_cables', $cable_id);
-      return  "$btn  : $lang{FIBER} #" . $fiber_num;
+      return  "$btn  : " . _cablecat_get_color_by_fiber($cable_info->{fibers_colors}, $fiber_num);
     },
     EQUIPMENT => sub {
       my ($equipment_id, $fiber_num) = @_;
       my $equipment_info = $Equipment->_info($equipment_id);
       _error_show($Equipment) and return 0;
+
+      return {
+        fiber_num   => $fiber_num,
+        fiber_color => '#ccc',
+        id          => $equipment_id,
+        type        => $lang{EQUIPMENT}
+      } if $FORM{AJAX};
+
       my $btn = function_button(
         ($equipment_info->{SYSTEM_ID} || $lang{EQUIPMENT}) . ' #' . $equipment_id,
         'equipment_info', $equipment_id
@@ -1397,23 +1482,34 @@ sub _cablecat_get_conection_path_view {
     },
     SPLITTER => sub {
       my ($splitter_id, $fiber_num) = @_;
+      my $splitter = $Cablecat->splitters_info($splitter_id);
+
+      return {
+        fiber_num   => $fiber_num,
+        fiber_color => _cablecat_get_color_by_fiber($splitter->{fibers_colors}, $fiber_num, { COLOR_ONLY => 1 }),
+        id          => $splitter_id,
+        type        => $lang{SPLITTER}
+      } if $FORM{AJAX};
+
       return function_button(
         $lang{SPLITTER} . "#$splitter_id",
         'cablecat_splitters',
         $splitter_id
-      ) . " - $lang{FIBER}#$fiber_num";
+      ) . " : " . _cablecat_get_color_by_fiber($splitter->{fibers_colors}, $fiber_num);
     },
-    DEFAULT => sub {
-      #            my ($element_type, $element_id, $fiber_num) = @_;
-      return join (' - ', @_);
-    }
+    ERROR => sub {
+      my (undef, $err_str) = @_;
+      return $html->element('span', _translate($err_str), { class => 'item-danger' });
+    },
+    DEFAULT => sub { return join (' - ', @_); }
   );
 
   my @before_commutation_views = ();
   my @commutation_order = ();
   my %path_for_commutation = ();
+  my @path_array = ();
 
-  foreach my $connection (@$path){
+  foreach my $connection (@$path) {
     my $vis_sub = $visualization_dispatch{$connection->{element_type}};
     my $commutation_id = 0;
     if ($connection->{commutation_id}){
@@ -1424,45 +1520,42 @@ sub _cablecat_get_conection_path_view {
       }
     };
 
-    my $view = '';
-    if ($vis_sub){
-      $view .= $vis_sub->($connection->{element_id}, $connection->{fiber_num});
-    }
-    else {
-      $view .= $visualization_dispatch{DEFAULT}->(
-        $connection->{element_type},
-        $connection->{element_id},
-        $connection->{fiber_num}
-      );
-    }
+    my $view = $vis_sub ? $vis_sub->($connection->{element_id}, $connection->{fiber_num}) :
+      $visualization_dispatch{DEFAULT}->($connection->{element_type}, $connection->{element_id}, $connection->{fiber_num});
 
     if (!$commutation_id){
       push (@before_commutation_views, $view);
       next;
     }
-    elsif (exists $path_for_commutation{$commutation_id}){
+    
+    if (exists $path_for_commutation{$commutation_id}){
       push (@{$path_for_commutation{$commutation_id}}, $view);
     }
     else{
+      push (@path_array, $commutation_id);
       $path_for_commutation{$commutation_id} = [ $view ];
     }
   }
 
-  # First adding path before commutation
+  return \%path_for_commutation, \@path_array if $FORM{AJAX};
 
+  # First adding path before commutation
   my $without_commutation = join($html->br, map { $html->element('span', $_) } @before_commutation_views) . $html->br;
   # Then show commutations one by one
   my $commutations_view = '';
   foreach my $commutation_id (@commutation_order){
     my @views = @{$path_for_commutation{$commutation_id}};
 
-    $commutations_view .= $visualization_dispatch{COMMUTATION}->($commutation_id);
+    my $commutation_view = $visualization_dispatch{COMMUTATION}->($commutation_id);
 
     my @views_list = map {
-      $html->element('span', $_, { class => 'list-group-item' });
+      $html->element('span', $_, { class => 'list-group-item ' . ($_ =~ /item-danger/ ? 'list-group-item-danger' : '') });
     } @views;
 
-    $commutations_view .= $html->element('div', join('', @views_list), {class => 'list-group' })
+
+    $commutation_view .= $html->element('div', join('', @views_list), { class => 'list-group mt-1' });
+
+    $commutations_view .= $html->element('div', $commutation_view, { class => 'border rounded card-group p-2 mb-3 d-block' });
   }
 
   return $html->tpl_show(_include('cablecat_commutation_path_view', 'Cablecat'),{
@@ -1471,6 +1564,21 @@ sub _cablecat_get_conection_path_view {
   },{ OUTPUT2RETURN => 1 });
 }
 
+#**********************************************************
+=head2 _cablecat_get_color_by_fiber($colors_str, $fiber_num)
+
+=cut
+#**********************************************************
+sub _cablecat_get_color_by_fiber {
+  my ($colors_str, $fiber_num, $attr) = @_;
+
+  my @colors = map '#' . substr($_, 0, 6), split(',\s?', $colors_str);
+  my $fiber_color = $colors[($fiber_num - 1) % scalar(@colors)];
+
+  return $fiber_color if $attr->{COLOR_ONLY};
+
+  return $html->element('span', "$lang{FIBER} #$fiber_num", { style => "color: $fiber_color;" });
+}
 
 #**********************************************************
 =head2 _cablecat_break_cable_in_two_parts()

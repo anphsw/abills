@@ -344,7 +344,9 @@ sub abon_user {
 
           if ($ext_cmd) {
             my $cmd = $ext_cmd;
-            $cmd .= " ACTION=ACTIVE UID=$users->{UID} TP_ID=$Abon->{TP_INFO}->{TP_ID} COMMENTS=\"$Abon->{COMMENTS}\" SUM=" . sprintf("%.2f", $Abon->{TP_INFO}->{PRICE});
+            $cmd .= " ACTION=ACTIVE UID=$users->{UID} TP_ID=$Abon->{TP_INFO}->{TP_ID} COMMENTS=\""
+              .($Abon->{COMMENTS} || q{}) ."\" SUM="
+              . sprintf("%.2f", $Abon->{TP_INFO}->{PRICE});
             cmd($cmd);
           }
 
@@ -1389,22 +1391,25 @@ sub abon_client {
     $LIST_PARAMS{UID},
     {
       COLS_NAME         => 1,
-      USER_PORTAL       => 1,
-      USER_PORTAL_EDIT  => '_SHOW',
+      USER_PORTAL       => '>0',
+      #USER_PORTAL_EDIT  => '_SHOW',
       SERVICE_LINK      => '_SHOW',
-      _MULTI_HIT        => 1
+      #_MULTI_HIT        => 1
     }
   );
 
   my @rows = ();
   foreach my $line (@{$list}) {
     my $button = '';
-    if ($line->{manual_activate} && !$line->{date} && $line->{user_portal} == 2) {
-      $button = $html->button("$lang{ACTIVATE}", "index=$index&add=$line->{id}", { class => 'btn btn-primary' });
-    }
-    elsif ($line->{date} && $line->{service_link} && $line->{user_portal} == 2) {
-      my ($caption, $url) = split(/\|/, $line->{service_link}, 2);
-      $button = $html->button(_translate($caption), "", { class => 'btn btn-primary', GLOBAL_URL => "$url&sid=$sid" });
+    if ($line->{user_portal} == 2) {
+      if ($line->{manual_activate} && !$line->{date}) {
+        $button = $html->button($lang{ACTIVATE}, "index=$index&add=$line->{id}", { class => 'btn btn-primary' });
+      }
+      elsif ($line->{date} && $line->{service_link}) {
+        my ($caption, $url) = split(/\|/, $line->{service_link}, 2);
+        $button = $html->button(_translate($caption), "", { class => 'btn btn-primary',
+          GLOBAL_URL => (($url) ? $url : q{}). "&sid=$sid" });
+      }
     }
 
     if (!$line->{manual_activate} && !$line->{date}) {
@@ -1419,16 +1424,15 @@ sub abon_client {
     return 1;
   }
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{EXT_SERVICES},
-      title   => [ $lang{SERVICE}, $lang{DESCRIPTION}, $lang{SUM}, $lang{PERIOD}, $lang{START}, $lang{EXPIRE}, '-' ],
-      qs      => $pages_qs,
-      ID      => 'USER_ABON',
-      rows    => \@rows
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{EXT_SERVICES},
+    FIELDS_IDS => $Abon->{COL_NAMES_ARR},
+    title   => [ $lang{SERVICE}, $lang{DESCRIPTION}, $lang{SUM}, $lang{PERIOD}, $lang{START}, $lang{EXPIRE}, '-' ],
+    qs      => $pages_qs,
+    ID      => 'USER_ABON',
+    rows    => \@rows
+  });
 
   print $table->show();
 

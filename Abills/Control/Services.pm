@@ -99,7 +99,14 @@ sub sel_tp {
       %extra_options = %{ $attr->{SEL_OPTIONS} };
     }
 
-    %EX_PARAMS = (EX_PARAMS => $attr->{EX_PARAMS}) if ($attr->{EX_PARAMS});
+    if ($attr->{EX_PARAMS}) {
+      if (ref $attr->{EX_PARAMS} eq 'HASH') {
+        %EX_PARAMS = %{ $attr->{EX_PARAMS} };
+      }
+      else {
+        %EX_PARAMS = (EX_PARAMS => $attr->{EX_PARAMS}) ;
+      }
+    }
 
     return $html->form_select($element_name, {
       SELECTED    => $attr->{$element_name} // $FORM{$element_name},

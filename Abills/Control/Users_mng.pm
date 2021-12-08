@@ -685,39 +685,33 @@ sub form_social_networks {
     AUTH_TYPE => ucfirst($network)
   });
 
-  if ($Auth->can('get_info')) {
-    $Auth->get_info({ CLIENT_ID => $id });
+  return 1 if !$Auth->can('get_info');
 
-    if ($Auth->{errno}) {
-      $html->message('err', $lang{ERROR}, "$Auth->{errno} $Auth->{errstr}");
+  $Auth->get_info({ CLIENT_ID => $id });
+  $html->message('err', $lang{ERROR}, "$Auth->{errno} $Auth->{errstr}") if $Auth->{errno};
+
+  my $table = $html->table({ width => '400' });
+
+  foreach my $key (sort keys %{$Auth->{result}}) {
+    my $result = '';
+    if (ref $Auth->{result}->{$key} eq 'HASH') {
+      $result = show_hash($Auth->{result}->{$key}, { OUTPUT2RETURN => 1, DELIMITER => $html->br() });
     }
-
-    my $table = $html->table(
-      {
-        width => '400',
-      }
-    );
-
-    foreach my $key (sort keys %{$Auth->{result}}) {
-      my $result = '';
-      if (ref $Auth->{result}->{$key} eq 'HASH') {
-        $result = show_hash($Auth->{result}->{$key}, { OUTPUT2RETURN => 1, DELIMITER => $html->br() });
-      }
-      elsif (ref $Auth->{result}->{$key} eq 'ARRAY') {
-        if($Auth->{result}->{$key}->[0]->{url} && $Auth->{result}->{$key}->[0]->{url} !~ /.jpg/) {
-          $result = join($html->br(), @{$Auth->{result}->{$key}});
-        } else {
-          $result = join($html->br(), $html->img($Auth->{result}->{$key}->[0]->{url}, '', { }));
-        }
+    elsif (ref $Auth->{result}->{$key} eq 'ARRAY') {
+      if ($Auth->{result}->{$key}->[0]->{url} && $Auth->{result}->{$key}->[0]->{url} !~ /.jpg/) {
+        $result = join($html->br(), @{$Auth->{result}->{$key}});
       }
       else {
-        $result = $Auth->{result}->{$key};
+        $result = join($html->br(), $html->img($Auth->{result}->{$key}->[0]->{url}, '', {}));
       }
-      Encode::_utf8_off($result);
-      $table->addrow($key, $result);
     }
-    print $table->show();
+    else {
+      $result = $Auth->{result}->{$key};
+    }
+    Encode::_utf8_off($result);
+    $table->addrow($key, $result);
   }
+  print $table->show();
 
   return 1;
 }
@@ -1956,7 +1950,8 @@ sub user_right_menu {
               $info = $html->badge(_function(0, {
                 IF_EXIST => 1,
                 FN_NAME  => $quick_info_fn,
-                LOGIN    => $FORM{LOGIN}
+                LOGIN    => $FORM{LOGIN},
+                FN_INDEX => $key
               }));
             }
 
@@ -2495,6 +2490,9 @@ sub form_users_list {
       elsif ($col_name eq 'country_id') {
         $line->{$col_name} = $countries_hash->{$line->{$users->{COL_NAMES_ARR}->[$i]}};
       }
+      elsif ($col_name eq 'build_id') {
+        $line->{$col_name} = form_add_map(undef, { BUILD_ID => $line->{$col_name} });
+      }
       elsif ($FORM{UNIVERSAL_SEARCH}) {
         if ($FORM{UNIVERSAL_SEARCH} && $line->{$col_name}) {
           $line->{$col_name} =~ s/(.{0,100})"$FORM{UNIVERSAL_SEARCH}"(.{0,100})/$1$search_color_mark$2/;
@@ -2827,7 +2825,6 @@ sub user_company {
   Customers->import();
   my $customer = Customers->new($db, $admin, \%conf);
   my $company = $customer->company();
-
   form_search(
     {
       SIMPLE        => { $lang{COMPANY} => 'COMPANY_NAME' },
@@ -2835,17 +2832,15 @@ sub user_company {
     }
   );
   delete $LIST_PARAMS{UID};
-
+  $LIST_PARAMS{SKIP_GID} = 1;
   my $list = $company->list({ %LIST_PARAMS, COLS_NAME => 1 });
-  my $table = $html->table(
-    {
-      width => '100%',
-      title => [ "$lang{NAME}", "$lang{DEPOSIT}", '-' ],
-      qs    => $pages_qs,
-      pages => $company->{TOTAL},
-      ID    => 'COMPANY_LIST'
-    }
-  );
+  my $table = $html->table({
+    width => '100%',
+    title => [ $lang{NAME}, $lang{DEPOSIT}, '-' ],
+    qs    => $pages_qs,
+    pages => $company->{TOTAL},
+    ID    => 'COMPANY_LIST'
+  });
 
   $FORM{UID} = 0 if (!$FORM{UID});
   my $user_index = get_function_index('form_users');
@@ -4158,7 +4153,7 @@ sub user_modal_search {
         }
       );
       foreach my $user (@{$users_list}) {
-        my $login_str = "<button class='btn btn-secondary clickSearchResult' "
+        my $login_str = "<button class='btn btn-default clickSearchResult' "
           . "data-value='UID::$user->{uid}#@#LOGIN::$user->{login}'>$user->{login}</button>";
         $table->addrow(
           $login_str,
@@ -4185,7 +4180,7 @@ sub user_modal_search {
     JAVASCRIPT     => 1,
     SKIP_HREF      => 1,
     ex_params      => qq{onclick="loadRawToModal('?qindex=$index&header=2&user_search_form=1$ex_params')"},
-    class          => 'btn btn-secondary',
+    class          => 'btn btn-default',
     ICON           => 'fa fa-search',
     %{$attr->{BTN_ATTR} // {}}
   });

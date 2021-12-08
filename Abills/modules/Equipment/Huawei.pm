@@ -521,12 +521,12 @@ sub _huawei {
         PARSER => '_huawei_convert_desc'
       },
       'ONU_IN_BYTE'         => {
-        NAME   => 'PORT_IN',
+        NAME   => 'ONU_IN_BYTE',
         OIDS   => '',
         PARSER => ''
       },
       'ONU_OUT_BYTE'        => {
-        NAME   => 'PORT_OUT',
+        NAME   => 'ONU_OUT_BYTE',
         OIDS   => '',
         PARSER => ''
       },
@@ -642,12 +642,12 @@ sub _huawei {
         PARSER => '_huawei_convert_desc'
       },
       'ONU_IN_BYTE'         => {
-        NAME   => 'PORT_IN',
+        NAME   => 'ONU_IN_BYTE',
         OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.4.23.1.4',
         PARSER => ''
       },
       'ONU_OUT_BYTE'        => {
-        NAME   => 'PORT_OUT',
+        NAME   => 'ONU_OUT_BYTE',
         OIDS   => '1.3.6.1.4.1.2011.6.128.1.1.4.23.1.3',
       },
       'LINE_PROFILE'        => {
@@ -668,6 +668,13 @@ sub _huawei {
         ENABLE_VALUE       => 1,
         DISABLE_VALUE      => 2,
         USING_CATV_PORT_ID => 1,
+        PARSER             => ''
+      },
+      'eth_port_manage'         => {
+        NAME               => '',
+        OIDS               => '1.3.6.1.4.1.2011.6.128.1.1.2.62.1.5',
+        ENABLE_VALUE       => 1,
+        DISABLE_VALUE      => 2,
         PARSER             => ''
       },
       main_onu_info         => {
@@ -1473,7 +1480,7 @@ sub _huawei_get_fdb {
     my $port_types = ({ eth => 'ethernet', gpon => 'GPON ', epon => 'EPON ' });
     foreach my $line (@list) {
       #print "$line ||| <br>";
-      if ($line =~ /([-0-9]+)\s+.+\s+([a-z]+)\s+([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\s+([a-z]+)\s+(\d+)\s+\/(\d+)\s+\/(\d+)\s+([-0-9]+)\s+([-0-9]+)\s+(\d+)/) {
+      if ($line =~ /([-0-9]+)\s+.+\s+([a-z]+)\s+([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\-([a-f0-9]{2})([a-f0-9]{2})\s+([a-z]+)\s+(\d+)\s+\/(\d+)\s+\/(\d+)\s+\w?\s*([-0-9]+)\s+([-0-9]+)\s+(\d+)/) {
         #print "$1 | $2 | $3 | $4 | $5 | $6 | $7 | $8 | $9 | $10 | $11 | $12 | $13 | $14 | $15 | <br>";
         my $mac = "$3:$4:$5:$6:$7:$8";
         my ($srv_port, $port_type, $frame, $slot, $port, $onu_id, $van_id) = ($1, $2, $10, $11, $12, $13, $15);

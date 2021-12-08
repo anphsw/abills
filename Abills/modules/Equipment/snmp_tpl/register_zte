@@ -176,6 +176,7 @@ sub register_zte {
     print "Reg NUM: $max_onu_id  \n" if ($debug > 3);
 
     register_onu({
+      %$argv,
       TELNET       => $Telnet,
       BRANCH       => $branch,
       MAC          => $mac,
@@ -223,6 +224,7 @@ sub register_zte {
     }
 
     register_onu({
+      %$argv,
       TELNET       => $Telnet,
       BRANCH       => $branch,
       ONU_ID       => $max_onu_id,

@@ -466,7 +466,7 @@ sub reports {
 
   $attr->{SKIP_DEL_CHECK}=1;
   my $WHERE =  $self->search_former($attr, [
-      ['METHOD',            'INT',  'p.method'                          ],
+      ['METHOD',            'INT',  'p.method'                         ],
       ['MONTH',             'DATE', "DATE_FORMAT(p.date, '%Y-%m')"     ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(p.date, '%Y-%m-%d')"  ],
       ['DATE',              'DATE', "DATE_FORMAT(p.date, '%Y-%m-%d')"  ],
@@ -479,23 +479,25 @@ sub reports {
     }
   );
 
+  my $type = $attr->{TYPE} || q{};
+
   if ($attr->{INTERVAL}) {
-    if ($attr->{TYPE} eq 'HOURS') {
+    if ($type eq 'HOURS') {
       $date = "DATE_FORMAT(p.date, '%H') AS hour";
     }
-    elsif ($attr->{TYPE} eq 'DAYS') {
+    elsif ($type eq 'DAYS') {
       $date = "DATE_FORMAT(p.date, '%Y-%m-%d') AS date";
     }
-    elsif ($attr->{TYPE} eq 'PAYMENT_METHOD') {
+    elsif ($type eq 'PAYMENT_METHOD') {
       $date = "p.method";
     }
-    elsif ($attr->{TYPE} eq 'FIO') {
+    elsif ($type eq 'FIO') {
       $EXT_TABLE_JOINS_HASH{users}=1;
       $EXT_TABLE_JOINS_HASH{users_pi}=1;
       $date       = "pi.fio";
       $GROUP      = 5;
     }
-    elsif ($attr->{TYPE} eq 'PER_MONTH') {
+    elsif ($type eq 'PER_MONTH') {
       my $WHERE_USERS = q{};
       if ($attr->{FROM_DATE}) {
         $WHERE_USERS = "WHERE registration <= '$attr->{FROM_DATE} 00:00:00'";
@@ -503,28 +505,28 @@ sub reports {
       $self->query("SELECT COUNT(*) FROM users $WHERE_USERS;");
       my $system_users = $self->{list}->[0]->[0] || 0;
       $date = "DATE_FORMAT(p.date, '%Y-%m') AS month";
-      $self->{SEARCH_FIELDS} = "ROUND(SUM(p.sum) / count(DISTINCT p.uid), 2) AS arppu,
+      $self->{SEARCH_FIELDS} = "ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
       ROUND(SUM(p.sum) / $system_users, 2) AS arpu,";
 
       # $self->{SEARCH_FIELDS}="ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
       #                         ROUND(SUM(p.sum) / (SELECT COUNT(*) FROM users WHERE DATE_FORMAT(registration, '%Y-%m') <= DATE_FORMAT(p.date, '%Y-%m')), 2) AS arpu,";
     }
-    elsif ($attr->{TYPE} eq 'GID') {
+    elsif ($type eq 'GID') {
       $date = "u.gid";
       $EXT_TABLE_JOINS_HASH{users}=1;
     }
-    elsif ($attr->{TYPE} eq 'ADMINS') {
+    elsif ($type eq 'ADMINS') {
       $date = "a.id AS admin_name";
       $EXT_TABLE_JOINS_HASH{admins}=1;
       $self->{SEARCH_FIELDS} = 'p.aid,';
     }
-    elsif ($attr->{TYPE} eq 'COMPANIES') {
+    elsif ($type eq 'COMPANIES') {
       $date       = "company.name AS company_name";
       $self->{SEARCH_FIELDS} = 'u.company_id,';
       $EXT_TABLE_JOINS_HASH{users}=1;
       $EXT_TABLE_JOINS_HASH{companies}=1;
     }
-    elsif ($attr->{TYPE} eq 'DISTRICT') {
+    elsif ($type eq 'DISTRICT') {
       $date = "districts.name AS district_name";
       $self->{SEARCH_FIELDS} = 'districts.id AS district_id,';
       $EXT_TABLE_JOINS_HASH{users}=1;
@@ -533,7 +535,7 @@ sub reports {
       $EXT_TABLE_JOINS_HASH{streets}=1;
       $EXT_TABLE_JOINS_HASH{districts}=1;
     }
-    elsif ($attr->{TYPE} eq 'STREET') {
+    elsif ($type eq 'STREET') {
       $date = "streets.name AS street_name";
       $self->{SEARCH_FIELDS} = 'streets.id AS street_id,';
       $EXT_TABLE_JOINS_HASH{users}=1;
@@ -541,7 +543,7 @@ sub reports {
       $EXT_TABLE_JOINS_HASH{builds}=1;
       $EXT_TABLE_JOINS_HASH{streets}=1;
     }
-    elsif ($attr->{TYPE} eq 'BUILD') {
+    elsif ($type eq 'BUILD') {
       $date = "CONCAT(streets.name, '$CONF->{BUILD_DELIMITER}', builds.number) AS build";
       $self->{SEARCH_FIELDS} = 'builds.id AS location_id,';
       $EXT_TABLE_JOINS_HASH{users}=1;
@@ -571,7 +573,7 @@ sub reports {
     $self->query("SELECT COUNT(*) FROM users $WHERE_USERS;");
     my $system_users = $self->{list}->[0]->[0] || 0;
     $date = "DATE_FORMAT(p.date, '%Y-%m') AS month";
-    $self->{SEARCH_FIELDS} = "ROUND(SUM(p.sum) / count(DISTINCT p.uid), 2) AS arppu,
+    $self->{SEARCH_FIELDS} = "ROUND(SUM(p.sum) / COUNT(DISTINCT p.uid), 2) AS arppu,
       ROUND(SUM(p.sum) / $system_users, 2) AS arpu,";
 
     # $self->{SEARCH_FIELDS} = "ROUND(SUM(p.sum) / count(DISTINCT p.uid), 2) AS arppu,
@@ -595,7 +597,10 @@ sub reports {
     ]
   });
 
-  $self->query("SELECT $date, count(DISTINCT p.uid) AS login_count, COUNT(*) AS count, SUM(p.sum) AS sum,
+  $self->query("SELECT $date,
+    COUNT(DISTINCT p.uid) AS login_count,
+    COUNT(DISTINCT p.id) AS count,
+    SUM(p.sum) / (COUNT(*) - COUNT(DISTINCT p.id) + 1) AS sum,
     $self->{SEARCH_FIELDS} p.uid
     FROM payments p
       $EXT_TABLES
@@ -611,8 +616,8 @@ sub reports {
 
   if ($self->{TOTAL} > 0) {
     $self->query("SELECT COUNT(DISTINCT p.uid) AS total_users,
-      COUNT(*) AS total_operation,
-      SUM(p.sum) AS total_sum
+      COUNT(DISTINCT p.id) AS total_operation,
+      SUM(p.sum) / (COUNT(*) - COUNT(DISTINCT p.id) + 1) AS total_sum
     FROM payments p
       $EXT_TABLES
       $WHERE;",

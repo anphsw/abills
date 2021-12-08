@@ -31,6 +31,8 @@
   "50:0:CRM:crm_user_service:UID"                                 => 0,
   "51:0:CRM:crm_competitor_tps_select:AJAX"                       => 0,
   "52:0::crm_tp_geolocation_tree:AJAX"                            => 0,
+  "53:0::crm_users_by_lead_email:AJAX"                            => 0,
+  "54:0::crm_lead_map_multiple_update:AJAX"                       => 0,
 
   "33:-1:$lang{LEAD}:crm_leads:UID"                               => 15,
 );

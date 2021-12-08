@@ -1324,6 +1324,9 @@ sub ureports_payments_maked {
 
   return '' if ($FORM{DISABLE} || $FORM{CREDIT});
   return '' if (!$attr->{SUM} || $attr->{SUM} !~ /\d+/);
+
+  $Ureports->tp_user_reports_reset_date({ UID => $user->{UID}, REPORT_ID => 15 });
+
   my %users_params = ();
 
   if (in_array('Internet', \@MODULES)) {

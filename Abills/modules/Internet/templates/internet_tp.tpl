@@ -1,4 +1,4 @@
-<script src="/styles/default_adm/js/copy-paste.js" defer=""></script>
+<script src='/styles/default_adm/js/copy-paste.js' defer=''></script>
 <form action='$SELF_URL' METHOD='POST'>
 
   <input type=hidden name='index' value='$index'>
@@ -10,8 +10,8 @@
         <div class='card-header with-border'>
           <h4 class='card-title'>_{TARIF_PLAN}_</h4>
           %CLONE_BTN%
-          <a title="_{PASTE}_" class="btn btn-sm btn-default" style="float: right" id="paste_btn"><span class="fa fa-paste"></span></a>
-          <a title="_{COPY}_" class="btn btn-sm btn-default" style="float: right" id="copy_btn"><span class="fa fa-copy"></span></a>
+          <a title='_{PASTE}_' class='btn btn-sm btn-default' style='float: right' id='paste_btn'><span class='fa fa-paste'></span></a>
+          <a title='_{COPY}_' class='btn btn-sm btn-default' style='float: right' id='copy_btn'><span class='fa fa-copy'></span></a>
         </div>
         <div class='card-body'>
           <div class='form-group row'>
@@ -216,7 +216,7 @@
             </div>
           </div>
 
-          <div class="form-group row bg-light">
+          <div class='form-group row bg-light'>
             <label for='AGE' class='control-label col-md-4'>_{AGE}_ (_{DAYS}_):</label>
             <div class='col-md-8'>
               <input class='form-control' id='AGE' placeholder='%AGE%' name='AGE' value='%AGE%'>

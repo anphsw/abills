@@ -62,7 +62,7 @@
           <div class='card-header with-border'>
             <h3 class='card-title'>_{EXTRA}_</h3>
             <div class='card-tools pull-right'>
-              <button type='button' class='btn btn-box-tool btn-sm' data-card-widget='collapse'><i
+              <button type='button' class='btn btn-tool btn-sm' data-card-widget='collapse'><i
                   class='fa fa-plus'></i>
               </button>
             </div>

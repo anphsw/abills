@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS `callcenter_calls_handler` (
   `date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uid` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
-)
+) DEFAULT CHARSET = utf8
   COMMENT = 'Callcenter calls handler';
 
 CREATE TABLE IF NOT EXISTS `callcenter_ivr_log` (
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS `callcenter_ivr_log` (
   `duration` INT(11) UNSIGNED NOT NULL DEFAULT 0,
   `unique_id` VARCHAR(20) NOT NULL DEFAULT '',
   KEY `uid`(`uid`)
-)
+) DEFAULT CHARSET = utf8
   COMMENT = 'Voip ivr log';
 
 
@@ -36,9 +36,11 @@ CREATE TABLE IF NOT EXISTS `callcenter_ivr_menu` (
   `function` VARCHAR(100) NOT NULL DEFAULT '',
   `domain_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   `audio_file` VARCHAR(200) NOT NULL DEFAULT '',
+  `chapter_id` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`main_id`, `name`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT = 'Voip IVR Menu';
 
 CREATE TABLE IF NOT EXISTS `callcenter_cdr` (
@@ -61,8 +63,17 @@ CREATE TABLE IF NOT EXISTS `callcenter_cdr` (
   KEY `dst` (`dst`),
   KEY `accountcode` (`accountcode`)
 )
+  DEFAULT CHARSET = utf8
   COMMENT='Callcenter asterisk CDR';
 
+CREATE TABLE IF NOT EXISTS `callcenter_ivr_menu_chapters`(
+	`id` SMALLINT(5) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(20)  NOT NULL  DEFAULT '',
+  `numbers` VARCHAR(200) NULL NULL DEFAULT '',
+  UNIQUE KEY (`id`)
+)
+  DEFAULT CHARSET = utf8
+  COMMENT = 'IVR menus chapters';
 
 -- CREATE TABLE IF NOT EXISTS `call_center_ast_config` (
 --   `id` int(11) NOT NULL AUTO_INCREMENT,

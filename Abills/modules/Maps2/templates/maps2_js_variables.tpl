@@ -70,9 +70,10 @@
   var _CHANGE = '_{CHANGE}_' || 'Change';
   var _ERROR = '_{ERROR}_' || 'Error';
   var _COMPLETE_PREVIOUS_CHANGE = '_{COMPLETE_PREVIOUS_CHANGE}_' || 'Complete previous changes';
-
-
+  var _DOWNLOAD = '_{DOWNLOAD}_' || 'Download';
+  var _SCALE = '_{MAPS_SCALE}_' || 'Scale';
   var _DELETE      = '_{DELETE}_' || 'Delete';
+  var _COMMUTATION      = '_{COMMUTATION}_' || 'Commutation';
 
   //ENABLING FEATURES
   var SHOW_MARKERS              = '%SHOW_MARKERS%' || true;

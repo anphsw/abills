@@ -510,7 +510,7 @@ sub hosts_list {
   my Internet $Internet = $self->{Internet};
   
   #  $Internet->{debug} =1;
-  my $users_with_mac_on_nas = $Internet->list({
+  my $users_with_mac_on_nas = $Internet->user_list({
     
     USER_DISABLE => 0,
     LOGIN        => '_SHOW',

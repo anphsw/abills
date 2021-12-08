@@ -80,7 +80,7 @@
       </div>
       %SEARCH_FORM%
     </div>
-    <button class='btn btn-primary btn-block' type='submit' name='search' id='go' value=1>
+    <button class='btn btn-primary btn-block mb-4' type='submit' name='search' id='go' value=1>
       <i class='fa fa-search'></i> _{SEARCH}_
     </button>
 

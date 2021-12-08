@@ -40,6 +40,7 @@ use Abills::Api::Formatter::JSONFormatter;
 use Abills::Api::FildsGrouper;
 
 our (
+  %conf,
   %LANG,
   %lang,
   @MONTHES,
@@ -48,7 +49,7 @@ our (
   @REGISTRATION
 );
 
-our $VERSION = 0.02;
+our $VERSION = 0.05;
 
 do '../libexec/config.pl';
 do 'Abills/Misc.pm';
@@ -87,8 +88,6 @@ my $use_camelize = defined $ENV{HTTP_CAMELIZE} ? $ENV{HTTP_CAMELIZE} : (
   defined $conf{API_FILDS_CAMELIZE} ? $conf{API_FILDS_CAMELIZE} : 1
 );
 
-print Abills::JSON::header();
-
 my $router = Abills::Api::Router->new($ENV{PATH_INFO}, $db, $user, $admin, \%conf, \%FORM);
 
 require Control::Auth;
@@ -110,16 +109,25 @@ $router->add_custom_handler("users", {
 });
 
 $router->add_custom_handler("version", {
-  method      => 'GET',
-  path        => '/version/',
-  handler     => sub {
+  method  => 'GET',
+  path    => '/version/',
+  handler => sub {
     return {
       version     => get_version(),
       billing     => 'ABillS',
       api_version => $VERSION
     };
   },
-  credentials => [ 'ADMIN', 'USER' ]
+});
+
+$router->add_custom_handler("currency", {
+  method  => 'GET',
+  path    => '/currency/',
+  handler => sub {
+    return {
+      system_currency => $conf{SYSTEM_CURRENCY}
+    };
+  },
 });
 
 $router->add_custom_handler("pages", {
@@ -155,13 +163,17 @@ $router->add_credential('USER', sub {
 
 $router->handle();
 
-if($router->{allowed}) {
-  $router->transform(\&Abills::Api::FildsGrouper::group_filds);
+if ($router->{allowed}) {
+  $router->transform(\&Abills::Api::FildsGrouper::group_fields);
+  $router->{status} = '400' if !$router->{status} && $router->{errno};
 }
 else {
   $router->{result} = { error => 'Access denied' };
+  $router->{status} = '401'
 }
 
-print $router->out(Abills::Api::Formatter::JSONFormatter->new($use_camelize, ['COL_NAMES_ARR']));
+print Abills::JSON::header(undef, { STATUS => $router->{status} || '' });
+
+print $router->out(Abills::Api::Formatter::JSONFormatter->new($use_camelize, [ 'COL_NAMES_ARR' ]));
 
 1;

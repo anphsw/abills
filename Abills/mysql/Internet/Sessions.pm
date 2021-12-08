@@ -11,7 +11,7 @@ package Internet::Sessions;
 use strict;
 our $VERSION = 2.00;
 use parent qw( dbcore );
-use Conf;
+#use Conf;
 
 my ($admin, $CONF);
 
@@ -334,6 +334,7 @@ sub online {
   }
   elsif($attr->{NAS_ERROR_SESSIONS}) {
     push @WHERE_RULES, "(c.status>3 AND c.status<>6)";
+    $attr->{GROUP_BY}='c.cid';
   }
   elsif ($attr->{ALL} || ($attr->{STATUS} && $attr->{STATUS} ne '_SHOW')) {
   }
@@ -349,6 +350,11 @@ sub online {
 
   if($attr->{INTERNET_SKIP_SHOW_DHCP}) {
     $attr->{NAS_TYPE}='!dhcp';
+  }
+
+  if ($attr->{_WHERE_RULES}) {
+    push @WHERE_RULES, $attr->{_WHERE_RULES};
+    delete $attr->{_WHERE_RULES};
   }
 
   $attr->{SKIP_DEL_CHECK}=1;
@@ -373,15 +379,15 @@ sub online {
       ['CID',               'STR', 'c.cid',                                        1 ],
       ['TP_NAME',           'STR', 'tp.name AS tp_name',                           1 ],
       ['STARTED',           'DATE','c.started', 'IF(DATE_FORMAT(c.started, "%Y-%m-%d")=CURDATE(), DATE_FORMAT(c.started, "%H:%i:%s"), c.started) AS started' ],
-      ['NETMASK',           'IP',  'service.netmask',        'INET_NTOA(service.netmask) AS netmask'],
+      ['NETMASK',           'IP',  'internet.netmask',        'INET_NTOA(internet.netmask) AS netmask'],
       ['CONNECT_INFO',      'STR', 'c.connect_info',                               1 ],
-      ['SPEED',             'INT', 'service.speed',                                1 ],
+      ['SPEED',             'INT', 'internet.speed',                                1 ],
       ['SESSION_SUM',       'INT', 'c.sum AS session_sum',                         1 ],
       ['CALLS_TP_ID',       'INT', 'c.tp_id AS online_tp_id',                      1 ],
       ['ONLINE_TP_ID',      'INT', 'c.tp_id AS online_tp_id',                      1 ],
       ['STATUS',            'INT', 'c.status',                                     1 ],
-      ['TP_ID',             'INT', 'service.tp_id',                                1 ],
-      ['SERVICE_CID',       'STR', 'service.cid',       'service.cid AS service_cid' ],
+      ['TP_ID',             'INT', 'internet.tp_id',                                1 ],
+      ['SERVICE_CID',       'STR', 'internet.cid',       'internet.cid AS service_cid' ],
       ['GUEST',             'INT', 'c.guest',                                      1 ],
       ['TURBO_MODE',        'INT', 'c.turbo_mode',                                 1 ],
       ['TURBO_BEGIN',       'INT', 'tm.start', 'tm.start AS turbo_begin' ],
@@ -389,9 +395,9 @@ sub online {
       ['JOIN_SERVICE',      'INT', 'c.join_service',                               1 ],
       ['NAS_IP',            'IP',  'c.nas_ip_address',  'c.nas_ip_address AS nas_ip' ],
       ['ACCT_SESSION_TIME', 'INT', 'UNIX_TIMESTAMP() - UNIX_TIMESTAMP(c.started) AS acct_session_time',1 ],
-      ['FILTER_ID',         'STR', 'IF(service.filter_id<>\'\', service.filter_id, tp.filter_id) AS filter_id',  1 ],
+      ['FILTER_ID',         'STR', 'IF(internet.filter_id<>\'\', internet.filter_id, tp.filter_id) AS filter_id',  1 ],
       ['SESSION_START',     'INT', 'UNIX_TIMESTAMP(started) AS started_unixtime',  1 ],
-      ['SERVICE_STATUS',    'INT', 'service.disable', 'service.disable AS service_status'],
+      ['SERVICE_STATUS',    'INT', 'internet.disable', 'internet.disable AS service_status'],
       ['TP_BILLS_PRIORITY', 'INT', 'tp.bills_priority',                            1 ],
       ['TP_CREDIT',         'INT', 'tp.credit',             'tp.credit AS tp_credit' ],
       ['TP_MONTH_FEE',      'INT', 'tp.month_fee',    'tp.month_fee AS tp_month_fee' ],
@@ -400,19 +406,19 @@ sub online {
       ['NAS_NAME',          'STR', 'nas.name',                'nas.name AS nas_name' ],
       ['PAYMENT_METHOD',    'INT', 'tp.payment_type',                              1 ],
       ['TP_CREDIT_TRESSHOLD','INT','tp.credit_tresshold',                          1 ],
-      ['ACTIVATE',          'DATE','service.activate',                             1 ],
+      ['ACTIVATE',          'DATE','internet.activate',                             1 ],
       ['EXPIRED',           'DATE',"IF(u.expire>'0000-00-00' AND u.expire <= CURDATE(), 1, 0) AS expired", 1 ],
       ['EXPIRE',            'DATE','u.expire',                                     1 ],
-      ['INTERNET_EXPIRED',        'DATE',"IF(service.expire>'0000-00-00' AND service.expire <= CURDATE(), 1, 0) AS internet_expired", 1 ],
-      ['INTERNET_EXPIRE',         'DATE','service.expire AS internet_expire',      1 ],
-      ['DV_EXPIRED',        'DATE',"IF(service.expire>'0000-00-00' AND service.expire <= CURDATE(), 1, 0) AS internet_expired", 1 ],
-      ['DV_EXPIRE',         'DATE','service.expire AS internet_expire',            1 ],
-      ['IP',                'IP',  'service.ip',       'INET_NTOA(service.ip) AS ip' ],
-      ['SIMULTANEONSLY',    'INT', 'service.logins',                               1 ],
-      ['PORT',              'INT', 'service.port',                                 1 ],
-      #['SERVICE_FILTER_ID', 'STR', 'service.filter_id',                           1 ],
-      ['INTERNET_STATUS',   'INT', 'service.disable AS internet_status',           1 ],
-      #['DV_STATUS',         'INT', 'service.disable AS internet_status',           1 ],
+      ['INTERNET_EXPIRED',        'DATE',"IF(internet.expire>'0000-00-00' AND internet.expire <= CURDATE(), 1, 0) AS internet_expired", 1 ],
+      ['INTERNET_EXPIRE',         'DATE','internet.expire AS internet_expire',      1 ],
+      ['DV_EXPIRED',        'DATE',"IF(internet.expire>'0000-00-00' AND internet.expire <= CURDATE(), 1, 0) AS internet_expired", 1 ],
+      ['DV_EXPIRE',         'DATE','internet.expire AS internet_expire',            1 ],
+      ['IP',                'IP',  'internet.ip',       'INET_NTOA(internet.ip) AS ip' ],
+      ['SIMULTANEONSLY',    'INT', 'internet.logins',                               1 ],
+      ['PORT',              'INT', 'internet.port',                                 1 ],
+      #['SERVICE_FILTER_ID', 'STR', 'internet.filter_id',                           1 ],
+      ['INTERNET_STATUS',   'INT', 'internet.disable AS internet_status',           1 ],
+      #['DV_STATUS',         'INT', 'internet.disable AS internet_status',           1 ],
       ['FRAMED_IP_ADDRESS', 'IP',  'c.framed_ip_address',                          1 ],
       ['HOSTNAME',          'STR', 'c.hostname',                                   1 ],
       ['SWITCH_PORT',       'STR', 'c.switch_port',                                1 ],
@@ -427,7 +433,7 @@ sub online {
       ['CIRCUIT_ID',        'STR', 'c.circuit_id',                                 1 ],
       ['NAS_ID',            'INT', 'c.nas_id',                                     1 ],
       ['NAS_TYPE',          'INT', 'nas.nas_type',                                 1 ],
-      ['CPE_MAC',           'STR', 'service.cpe_mac',                              1 ],
+      ['CPE_MAC',           'STR', 'internet.cpe_mac',                              1 ],
       #['GID',               'INT', 'u.gid',                                        1 ],
       ['ACCT_SESSION_ID',   'STR', 'c.acct_session_id',                            1 ],
       ['SERVICE_ID',        'INT', 'c.service_id',                                 1 ],
@@ -451,7 +457,7 @@ sub online {
       print "internet_online/online: Wrong field name\n";
     }
     elsif ($field =~ /TP_BILLS_PRIORITY|TP_NAME|FILTER_ID|TP_CREDIT|PAYMENT_METHOD|SHOW_TP_ID|TP_NUM/ && $EXT_TABLE !~ /tarif_plans/) {
-      $EXT_TABLE .= " LEFT JOIN tarif_plans tp ON (tp.tp_id=service.tp_id)";
+      $EXT_TABLE .= " LEFT JOIN tarif_plans tp ON (tp.tp_id=internet.tp_id)";
     }
     elsif ($field =~ /SWITCH_NAME|SWITCH_ID/ && $EXT_TABLE !~ m/ switch /) {
       $EXT_TABLE .= " LEFT JOIN nas AS switch ON (c.switch_mac <> '' AND c.switch_mac=switch.mac)";
@@ -484,12 +490,12 @@ sub online {
     $SORT = $self->{SORT_BY};
   }
 
-  #       LEFT JOIN internet_main service ON (service.id = c.service_id OR (c.service_id = 0 AND  service.uid = c.uid))
+  #       LEFT JOIN internet_main service ON (internet.id = c.service_id OR (c.service_id = 0 AND  internet.uid = c.uid))
   $self->query("SELECT $self->{SEARCH_FIELDS}
     c.uid,c.nas_id,c.acct_session_id,c.user_name
       FROM internet_online c
       LEFT JOIN users u ON (u.uid=c.uid)
-      LEFT JOIN internet_main service ON (service.id = c.service_id)
+      LEFT JOIN internet_main internet ON (internet.id = c.service_id)
       $EXT_TABLE
       $WHERE
       GROUP BY $GROUP_BY
@@ -556,6 +562,14 @@ sub online_join_services {
 #**********************************************************
 =head2 online_del($attr) - Del online session
 
+  Arguments:
+    $attr
+      STATUS
+      SESSIONS_LIST
+
+  Return:
+    True or FASE
+
 =cut
 #**********************************************************
 sub online_del {
@@ -564,9 +578,17 @@ sub online_del {
 
   my $WHERE = '';
 
-  if ($attr->{SESSIONS_LIST}) {
+  if($attr->{STATUS}) {
+    $WHERE = "status IN ( '$attr->{STATUS}' )";
+
+    if ($attr->{QUICK}) {
+      $self->query("DELETE FROM internet_online WHERE $WHERE;", 'do');
+      return $self;
+    }
+  }
+  elsif ($attr->{SESSIONS_LIST}) {
     my $session_list = join("', '", @{ $attr->{SESSIONS_LIST} });
-    $WHERE = "acct_session_id in ( '$session_list' )";
+    $WHERE = "acct_session_id IN ( '$session_list' )";
 
     if ($attr->{QUICK}) {
       $self->query("DELETE FROM internet_online WHERE $WHERE;", 'do');
@@ -670,19 +692,19 @@ sub zap {
   if ($attr->{NAS_ID}) {
     $WHERE = "WHERE nas_id='$attr->{NAS_ID}'";
   }
-  elsif (!defined($attr->{ALL})) {
+  elsif (!$attr->{ALL}) {
     $WHERE = "WHERE nas_id='$nas_id'";
   }
 
   if($nas_port_id) {
-    $WHERE .= "AND nas_port_id='$nas_port_id'";
+    $WHERE .= " AND nas_port_id='$nas_port_id'";
   }
 
   if ($acct_session_id) {
-    $WHERE .= "AND acct_session_id='$acct_session_id'";
+    $WHERE .= " AND acct_session_id='$acct_session_id'";
   }
 
-  $self->query("UPDATE internet_online SET status='2' $WHERE;", 'do');
+  $self->query('UPDATE internet_online SET status=2 ' . $WHERE .';', 'do');
   return $self;
 }
 
@@ -750,7 +772,7 @@ sub detail_list {
   my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 2;
   my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
 
-  my $lupdate;
+  my $lupdate = '';
 
   my $WHERE = ($attr->{SESSION_ID}) ? "and acct_session_id='$attr->{SESSION_ID}'" : '';
   my $GROUP;
@@ -1580,7 +1602,6 @@ sub reports2 {
 
   my $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
   my $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
-  
   my $PG   = ($attr->{PG}) ? $attr->{PG} : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
@@ -1832,17 +1853,19 @@ sub log_rotate{
     return $self;
   }
 
-  push @rq, 'CREATE TABLE IF NOT EXISTS errors_log_new LIKE errors_log;',
-    #'CREATE TABLE IF NOT EXISTS errors_log_new_sorted LIKE errors_log;',
-    'RENAME TABLE errors_log TO errors_log_old, errors_log_new TO errors_log;',
-    #'INSERT INTO errors_log_new_sorted SELECT max(date), log_type, action, user, message, nas_id FROM errors_log_old GROUP BY user ORDER BY 1;'
-    ,
-    'DROP TABLE errors_log_old;',
-    #'INSERT INTO errors_log_new_sorted SELECT max(date), log_type, action, user, message, nas_id FROM errors_log GROUP BY user;'
-    ,
-    #'RENAME TABLE errors_log TO errors_log_old, errors_log_new_sorted TO errors_log;',
-    #'DROP TABLE errors_log_old;'
-  ;
+  if (! $CONF->{CONNECT_LOG}) {
+    push @rq, 'CREATE TABLE IF NOT EXISTS errors_log_new LIKE errors_log;',
+      #'CREATE TABLE IF NOT EXISTS errors_log_new_sorted LIKE errors_log;',
+      'RENAME TABLE errors_log TO errors_log_old, errors_log_new TO errors_log;',
+      #'INSERT INTO errors_log_new_sorted SELECT max(date), log_type, action, user, message, nas_id FROM errors_log_old GROUP BY user ORDER BY 1;'
+      ,
+      'DROP TABLE errors_log_old;',
+      #'INSERT INTO errors_log_new_sorted SELECT max(date), log_type, action, user, message, nas_id FROM errors_log GROUP BY user;'
+      ,
+      #'RENAME TABLE errors_log TO errors_log_old, errors_log_new_sorted TO errors_log;',
+      #'DROP TABLE errors_log_old;'
+    ;
+  }
 
   if (!$attr->{DAILY}) {
     use POSIX qw(strftime);

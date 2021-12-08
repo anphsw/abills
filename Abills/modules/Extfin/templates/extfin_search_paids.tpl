@@ -4,21 +4,17 @@
   </div>
   <div class='card-body'>
     <div class='form-group row'>
-      <div class='col-sm-12 col-md-12'>
-        <label class='control-label col-md-12'>_{SUM}_</label>
-        <div class='input-group'>
+        <label class='control-label col-md-3'>_{SUM}_</label>
+        <div class='col-md-9'>
           <input type='text' class='form-control' name='SUM'>
         </div>
-      </div>
     </div>
 
     <div class='form-group row'>
-      <div class='col-sm-12 col-md-12'>
-        <label class='control-label col-md-12'>_{DESCRIBE}_</label>
-        <div class='input-group'>
+        <label class='control-label col-md-3'>_{DESCRIBE}_</label>
+        <div class='col-md-9'>
           <input type='text' class='form-control' name='DESCRIBE'>
         </div>
-      </div>
     </div>
   </div>
 </div>

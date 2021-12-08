@@ -94,7 +94,7 @@ $lang{NO} = 'Нет';
 $lang{MIN_SEARCH_CHARS} = 'Мин. символов поиска';
 $lang{NOT_ALLOW} = 'Неразрешённая операция';
 $lang{UPLIMIT} = 'Предупреждение';
-$lang{NOT_ACTIVE} = 'Не активизирован';
+$lang{NOT_ACTIVE} = 'Не активирован';
 $lang{CURRENT} = 'Текущий';
 $lang{TEST} = 'Тест';
 $lang{DENSITY_OF_CONNECTIONS} = 'Плотность подключения';
@@ -880,7 +880,7 @@ $lang{MAKE_PAYMENT} = "Пополнить счет";
 $lang{CONFIRM_PI} = "Подтвердить персональные данны";
 
 $lang{CANCEL_SUSPENSION} = "Отменить приостановление";
-$lang{WANT_TO_REGISTER_CURRENT_MAC} = "Вы хотите зарегистрировать мак адрес текущего устройства";
+$lang{WANT_TO_REGISTER_CURRENT_MAC} = "Вы хотите зарегистрировать MAC-адрес текущего устройства";
 
 $lang{UNSAVED_CHANGES} = "Несохраненные изменения";
 $lang{SAVED} = "Сохранено";
@@ -920,4 +920,12 @@ $lang{REBOOT_SERVICE} = 'Перезагрузка сервиса';
 $lang{MSG_WANT_ZAP}       = 'Вы на самом деле хотите ZAP-нуть все сессии?';
 
 $lang{TASK_IN_WORK} = 'В работе';
+
+$lang{LAST_POLL} = 'Последний опрос';
+
+$lang{EXPIRE_DATE} = 'Дата окончания';
+
+$lang{MODE} = 'Режим';
+$lang{ERROR_VIEW_INFORMATION} = 'Нет разрешения на просмотр информации';
+
 1

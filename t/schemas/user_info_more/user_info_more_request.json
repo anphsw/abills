@@ -1,6 +1,6 @@
 {
   "name": "USER_INFO_PI",
   "method": "GET",
-  "path": "users/1/pi/",
+  "path": "user/:uid/pi/",
   "params": {}
 }

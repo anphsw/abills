@@ -82,7 +82,7 @@ sub next_payments {
   my ($uid) = @_;
   my $DATE = strftime "%Y-%m-%d", localtime(time);
   my ($year, $month, $day) = split(/-/, $DATE, 3);
-  $Internet->info($uid);
+  $Internet->user_info($uid);
   $Users->info($uid);
 
   if($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
@@ -229,7 +229,7 @@ sub change_tp_callback {
   my ($first_message, $chat_id, $client_type, $client_id) = @_;
 
   $Users->info($client_id);
-  $Internet->info($client_id);
+  $Internet->user_info($client_id);
 
   my $disable_chg_tp = 0;
   if ($Users->{GID}) {
@@ -243,7 +243,7 @@ sub change_tp_callback {
     $Telegram_Bot->send_text("_{NOT_ALLOW}_", $chat_id);
   }
   else {
-    my $services_list = $Internet->list({
+    my $services_list = $Internet->user_list({
       UID       => $client_id,
       ID        => '_SHOW',
       TP_NAME   => '_SHOW',
@@ -371,7 +371,7 @@ sub info_callback {
     COLS_NAME => 1,
   });
 
-  my $services_list = $Internet->list({
+  my $services_list = $Internet->user_list({
     UID       => $client_id,
     ID        => '_SHOW',
     TP_NAME   => '_SHOW',
@@ -451,7 +451,7 @@ sub avaiable_tp_for_change {
   my ($uid, $service_id) = @_;
 
   $Users->info($uid);
-  $Internet->info($uid, { ID => $service_id });
+  $Internet->user_info($uid, { ID => $service_id });
 
   my $active_tp = $Internet->{TP_NAME};
   my %skip_tp;

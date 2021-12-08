@@ -102,7 +102,7 @@ sub list {
       {
         method      => 'POST',
         path        => '/users/:uid/internet/',
-        handler     => 'add({
+        handler     => 'user_add({
           UID => :uid,
           ...PARAMS
         })',
@@ -114,7 +114,7 @@ sub list {
       {
         method      => 'GET',
         path        => '/users/:uid/internet/',
-        handler     => 'list({
+        handler     => 'user_list({
           UID       => :uid,
           CID             => "_SHOW",
           INTERNET_STATUS => "_SHOW",
@@ -133,7 +133,7 @@ sub list {
       {
         method      => 'GET',
         path        => '/users/:uid/internet/:id/',
-        handler     => 'info(:uid, {
+        handler     => 'user_info(:uid, {
           ID        => :id,
           COLS_NAME => 1,
           ...PARAMS
@@ -496,6 +496,7 @@ sub list {
     ],
     pages     => [],
     version   => [],
+    currency  => [],
     builds    => [
       {
         method      => 'GET',
@@ -810,7 +811,7 @@ sub list {
       {
         method      => 'GET',
         path        => '/user/:uid/internet/',
-        handler     => 'list({
+        handler     => 'user_list({
           UID             => :uid,
           CID             => "_SHOW",
           INTERNET_STATUS => "_SHOW",
@@ -828,10 +829,22 @@ sub list {
       },
       {
         method      => 'GET',
-        path        => '/user/:uid/internet/:id/speed/',
+        path        => '/user/:uid/internet/speed/',
         handler     => 'get_speed({
           UID             => :uid,
-          SERVICE_ID      => :id,
+          COLS_NAME       => 1,
+          PAGE_ROWS       => 1
+        })',
+        module      => 'Internet',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/internet/speed/:tpid/',
+        handler     => 'get_speed({
+          TP_NUM          => :tpid,
           COLS_NAME       => 1,
           PAGE_ROWS       => 1
         })',
@@ -874,11 +887,22 @@ sub list {
       },
       {
         method      => 'GET',
-        path        => '/user/:uid/internet/:id/tariffs/',
+        path        => '/user/:uid/internet/tariffs/',
         handler     => 'available_tariffs({
           SKIP_NOT_AVAILABLE_TARIFFS => 1,
           UID                        => :uid,
-          ID                         => :id,
+          MODULE                     => "Internet"
+        })',
+        module      => 'Control::Service_control',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/internet/tariffs/all/',
+        handler     => 'available_tariffs({
+          UID                        => :uid,
           MODULE                     => "Internet"
         })',
         module      => 'Control::Service_control',
@@ -989,6 +1013,53 @@ sub list {
           COLS_NAME => 1
         })',
         module      => 'Abon',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/payments/',
+        handler     => 'list({
+          UID       => :uid,
+          DSC       => "_SHOW",
+          SUM       => "_SHOW",
+          REG_DATE  => "_SHOW",
+          METHOD    => "_SHOW",
+          EXT_ID    => "_SHOW",
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module      => 'Payments',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'POST',
+        path        => '/user/:uid/payments/add',
+        handler     => 'add({ UID => :uid }, {
+          UID       => :uid,
+          ...PARAMS
+        })',
+        module      => 'Payments',
+        credentials => [
+          'USER'
+        ]
+      },
+      {
+        method      => 'GET',
+        path        => '/user/:uid/fees/',
+        handler     => 'list({
+          UID       => :uid,
+          SUM       => "_SHOW",
+          DESCRIBE  => "_SHOW",
+          REG_DATE  => "_SHOW",
+          METHOD    => "_SHOW",
+          COLS_NAME => 1,
+          ...PARAMS
+        })',
+        module      => 'Fees',
         credentials => [
           'USER'
         ]

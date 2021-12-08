@@ -1366,7 +1366,7 @@ sub _get_ips_info_for_internet {
   my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
   # Get info from internet_main
-  my $users_list = $Internet->list({
+  my $users_list = $Internet->user_list({
     UID       => '_SHOW',
     ONLINE    => '_SHOW',
     PAGE_ROWS => 10000000,

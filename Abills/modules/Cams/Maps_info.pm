@@ -102,6 +102,7 @@ sub cams_maps {
     ANGEL          => '_SHOW',
     LOCATION_ANGEL => '_SHOW',
     LENGTH         => '_SHOW',
+    FOLDER_NAME    => '_SHOW',
     PAGE_ROWS      => 10000
   });
 
@@ -122,6 +123,14 @@ sub cams_maps {
   foreach my $point (@{$points_list}) {
     next if (!$point->{coordy} || !$point->{coordx} || !$point_id_to_id{$point->{id}});
 
+    my $group_lng = $lang->{CAMS_GROUP};
+    my $group_value = $point_id_to_id{$point->{id}}{group_name} || '';
+
+    if ($point_id_to_id{$point->{id}}{folder_name}) {
+      $group_lng = $lang->{FOLDER};
+      $group_value = $point_id_to_id{$point->{id}}{folder_name};
+    }
+
     my $index = ::get_function_index("cams_main");
     my $link = "$lang->{CAM}:<a href='index.cgi?index=$index&chg_cam=$point_id_to_id{$point->{id}}{id}' target='_blank'> $point->{name}</a>";
     my $tb = "<div class='panel panel-info'>" .
@@ -130,7 +139,7 @@ sub cams_maps {
       "<li class='list-group-item'>$lang->{NAME}: $point_id_to_id{$point->{id}}{name}</li>" .
       "<li class='list-group-item'>$lang->{CAM_TITLE}: $point_id_to_id{$point->{id}}{title}</li>" .
       "<li class='list-group-item'>$lang->{SERVICE}: $point_id_to_id{$point->{id}}{service_name}</li>" .
-      "<li class='list-group-item'>$lang->{CAMS_GROUP}: $point_id_to_id{$point->{id}}{group_name}</li>" .
+      "<li class='list-group-item'>$group_lng: $group_value</li>" .
       "<li class='list-group-item'>Host: $point_id_to_id{$point->{id}}{host}</li>" .
       "</ul>" .
       "</div>";

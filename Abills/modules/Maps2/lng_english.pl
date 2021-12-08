@@ -103,5 +103,6 @@ $lang{NO_COORDINATES_SPECIFIED} = 'No coordinates specified';
 $lang{COMPLETE_PREVIOUS_CHANGE} = 'Complete previous changes';
 
 $lang{SHOW_MSGS_MAP} = 'Show message on map';
+$lang{MAPS_SCALE} = 'Scale';
 
 1;

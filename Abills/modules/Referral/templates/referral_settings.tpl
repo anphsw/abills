@@ -50,12 +50,29 @@
       </div>
 
       <div class='form-group row'>
+        <label class='control-label col-md-3' for='MAX_LEVEL_id'>_{SPEND_PERCENT}_</label>
+        <div class='col-md-9'>
+          <input type='number' min='0' max='100' class='form-control'
+                 data-tooltip='<b>_{MIN}_</b>: 0 <br> <b>_{MAX}_</b>:100'
+                 name='SPEND_PERCENT' value='%SPEND_PERCENT%' id='SPEND_PERCENT'/>
+        </div>
+      </div>
+
+      <div class='form-group row'>
         <label class='control-label col-md-3' for='BONUS_BILL'>_{BILL}_</label>
         <div class='col-md-9'>
           %BILL_SELECT%
         </div>
       </div>
 
+      <div class='form-group row'>
+        <label class='col-md-3 text-right' for='IS_DEFAULT'>_{DEFAULT}_</label>
+        <div class='col-sm-9'>
+          <div class='form-check text-left'>
+            <input type='checkbox' class='form-check-input' id='IS_DEFAULT' value='1' %DEFAULT% name='IS_DEFAULT'>
+          </div>
+        </div>
+      </div>
     </div>
     <div class='card-footer'>
       %ACTION%

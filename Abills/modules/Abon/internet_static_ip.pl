@@ -104,7 +104,7 @@ sub active {
     $Internet->{debug} = 1;
   }
 
-  my $internet_list = $Internet->list({
+  my $internet_list = $Internet->user_list({
     #ONLINE_IP => '>=' . $first_ip . ';<=' . $last_ip,
     COLS_NAME => 1,
     ID        => '_SHOW',
@@ -112,7 +112,7 @@ sub active {
     PAGE_ROWS => 100000,
   });
 
-  my $service = $Internet->list({
+  my $service = $Internet->user_list({
     UID       => $argv->{UID},
     COLS_NAME => 1,
     ID        => '_SHOW',
@@ -146,7 +146,7 @@ sub active {
         print "SET IP: " . int2ip($ip) . " UID: $argv->{UID}\n";
       }
 
-      $Internet->change({
+      $Internet->user_change({
         ID  => $service_id,
         UID => $argv->{UID},
         IP  => int2ip($ip),
@@ -165,14 +165,14 @@ sub active {
 =cut
 #********************************************************
 sub alert {
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     UID       => $argv->{UID},
     ID        => '_SHOW',
     COLS_NAME => 1,
   });
 
   my $ip = int2ip(0);
-  $Internet->change({
+  $Internet->user_change({
     ID  => $list->[0]->{id},
     UID => $argv->{UID},
     IP  => $ip,

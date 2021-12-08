@@ -144,7 +144,7 @@ sub internet_daily_fees {
       }
 
       $Internet->{debug} = 1 if ($debug > 6);
-      my $ulist = $Internet->list({
+      my $ulist = $Internet->user_list({
         LOGIN           => '_SHOW',
         ACTIVATE        => "<=$ADMIN_REPORT{DATE}",
         EXPIRE          => "0000-00-00,>$ADMIN_REPORT{DATE}",
@@ -313,7 +313,7 @@ sub internet_daily_fees {
 
         #Get users for bonus payments
         #Ipn users for daily payments
-        my $ulist = $Internet->list(
+        my $ulist = $Internet->user_list(
           {
             LOGIN        => '_SHOW',
             INTERNET_ACTIVATE  => "<=$ADMIN_REPORT{DATE}",
@@ -426,7 +426,7 @@ sub internet_holdup_fees {
   $USERS_LIST_PARAMS{EXT_BILL} = 1              if ($conf{BONUS_EXT_FUNCTIONS});
   $USERS_LIST_PARAMS{TP_ID}    = $attr->{TP_ID} if ($attr->{TP_ID});
 
-  my $internet_list = $Internet->list(
+  my $internet_list = $Internet->user_list(
     {
       INTERNET_ACTIVATE     => "<=$ADMIN_REPORT{DATE}",
       #INTERNET_EXPIRE       => "0000-00-00,>$ADMIN_REPORT{DATE}",
@@ -539,7 +539,7 @@ sub internet_monthly_next_tp {
 
   foreach my $tp_info (@$tp_list) {
     $Internet->{debug} = 1 if ($debug > 6);
-    my $internet_list = $Internet->list({
+    my $internet_list = $Internet->user_list({
       INTERNET_ACTIVATE  => "<=$ADMIN_REPORT{DATE}",
       INTERNET_EXPIRE    => "0000-00-00,>$ADMIN_REPORT{DATE}",
       INTERNET_STATUS    => "0;5",
@@ -621,7 +621,7 @@ sub internet_monthly_next_tp {
         }
 
         if($debug < 8) {
-          $Internet->change({
+          $Internet->user_change({
             ID             => $user{ID},
             UID            => $user{UID},
             STATUS         => $status,
@@ -673,6 +673,7 @@ sub internet_monthly_fees {
 
   my %USERS_LIST_PARAMS = ();
   $USERS_LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
+  $USERS_LIST_PARAMS{UID} = $attr->{UID} if ($attr->{UID});
   $USERS_LIST_PARAMS{EXT_BILL} = 1 if ($conf{BONUS_EXT_FUNCTIONS});
   $USERS_LIST_PARAMS{REGISTRATION} = "<$ADMIN_REPORT{DATE}";
   $USERS_LIST_PARAMS{GID}   = $attr->{GID} if ($attr->{GID});
@@ -760,7 +761,7 @@ sub internet_monthly_fees {
       }
 
       $Internet->{debug} = 1 if ($debug > 5);
-      my $ulist = $Internet->list({
+      my $ulist = $Internet->user_list({
         INTERNET_ACTIVATE => "$activate_date",
         INTERNET_EXPIRE   => "0000-00-00,>$ADMIN_REPORT{DATE}",
         INTERNET_STATUS   => "0;5",
@@ -795,7 +796,7 @@ sub internet_monthly_fees {
           MAIN_BILL_ID => ($ext_deposit_op) ? $u->{bill_id} : 0,
           REDUCTION    => $u->{reduction},
           ACTIVATE     => $u->{internet_activate},
-          DEPOSIT      => $u->{deposit},
+          DEPOSIT      => $u->{deposit} || 0,
           CREDIT       => ($u->{credit} > 0) ? $u->{credit} : $TP_INFO->{CREDIT},
           #Old
           # CREDIT       => ($u->{credit} > 0) ? $u->{credit} : ($conf{user_credit_change}) ? 0 : $TP_INFO->{CREDIT},
@@ -841,7 +842,7 @@ sub internet_monthly_fees {
 
         #***************************************************************
         #Min use Makes only 1 of month
-        if ($TP_INFO->{MIN_USE} > 0 && $d != $START_PERIOD_DAY && !$conf{INTERNET_MIN_USER_FULLPERIOD}) {
+        if ($TP_INFO->{MIN_USE} > 0 && $d == $START_PERIOD_DAY && !$conf{INTERNET_MIN_USER_FULLPERIOD}) {
           #Check activation date
           my $min_use = $TP_INFO->{MIN_USE};
 
@@ -857,7 +858,7 @@ sub internet_monthly_fees {
           }
 
           my $used = ($used_traffic{ $user{UID} }) ? $used_traffic{ $user{UID} } : 0;
-          $FEES_PARAMS{DESCRIBE} = "$lang{MIN_USE}";
+          $FEES_PARAMS{DESCRIBE} = $lang{MIN_USE};
 
           #summary for all company users with same tarif plan
           if ($user{COMPANY_ID} > 0 && $processed_users{ $user{COMPANY_ID} }) {
@@ -865,7 +866,7 @@ sub internet_monthly_fees {
           }
 
           if ($user{COMPANY_ID} > 0) {
-            my $company_users = $Internet->list({
+            my $company_users = $Internet->user_list({
               TP_ID      => $TP_INFO->{TP_ID},
               LOGIN      => '_SHOW',
               COMPANY_ID => $user{COMPANY_ID},
@@ -884,14 +885,14 @@ sub internet_monthly_fees {
           }
 
           #Get Fees sum for min_user
-          if ($conf{MIN_USE_FEES_CONSIDE}) {
+          #if ($conf{MIN_USE_FEES_CONSIDE}) {
             $Fees->list({
               UID     => $user{UID},
               DATE    => ($user{ACTIVATE} ne '0000-00-00') ? ">=$user{ACTIVATE}" : $DATE,
               METHODS => $conf{MIN_USE_FEES_CONSIDE},
             });
             $used += $Fees->{SUM} if ($Fees->{SUM});
-          }
+          #}
 
           $debug_output .= "  USED: $used\n" if ($debug > 3);
 
@@ -916,12 +917,16 @@ sub internet_monthly_fees {
 
               if ($debug < 8) {
                 if($sum > 0) {
-                  $Fees->take(\%user, $sum, { %FEES_PARAMS });
+                  $Fees->take(\%user, $sum, {
+                    %FEES_PARAMS,
+                    DATE => $pre_month_end,
+                    METHOD => $conf{MIN_USE_FEES_CONSIDE} || 1
+                  });
                 }
 
                 $debug_output .= " $user{LOGIN} UID: $user{UID} SUM: $sum REDUCTION: $user{REDUCTION}\n" if ($debug > 0);
                 if ($user{ACTIVATE} ne '0000-00-00') {
-                  $Internet->change({
+                  $Internet->user_change({
                     ID       => $user{ID},
                     UID      => $user{UID},
                     ACTIVATE => '0000-00-00'
@@ -1098,7 +1103,7 @@ sub internet_monthly_fees {
                     print "\n";
                   }
                   else {
-                    $Internet->change({
+                    $Internet->user_change({
                       UID      => $user{UID},
                       ACTIVATE => $ADMIN_REPORT{DATE}
                     });
@@ -1222,7 +1227,7 @@ sub internet_monthly_fees {
 
         next if (!defined($expr_hash{0}));
 
-        my $ulist = $Internet->list(
+        my $ulist = $Internet->user_list(
           {
             ACTIVATE     => "<=$ADMIN_REPORT{DATE}",
             EXPIRE       => "0000-00-00,>$ADMIN_REPORT{DATE}",
@@ -1327,88 +1332,6 @@ sub internet_monthly_fees {
 }
 
 #**********************************************************
-=head2 internet_service_activate($attr)
-
-  Arguments:
-    $attr
-      TP_INFO
-      USER_INFO
-        UID
-        ID
-      DEBUG
-
-=cut
-#**********************************************************
-sub internet_service_activate {
-  my ($attr)=@_;
-
-  $Internet->change({
-    ID     => $attr->{USER_INFO}->{ID},
-    UID    => $attr->{USER_INFO}->{UID},
-    STATUS => 0
-  });
-  $attr->{USER_INFO}->{INTERNET_STATUS} = 0;
-
-  _external('', { EXTERNAL_CMD => 'Internet', %{ $attr->{USER_INFO} }, QUITE => 1 });
-
-  return 1;
-}
-
-#**********************************************************
-=head2 internet_service_deactivate($attr)
-
-  Arguments:
-    $attr
-      TP_INFO
-      USER_INFO
-      DEBUG
-
-=cut
-#**********************************************************
-sub internet_service_deactivate {
-  my ($attr)=@_;
-
-  my $debug_output = q{};
-  my $TP_INFO = $attr->{TP_INFO};
-  my $user_info = $attr->{USER_INFO};
-  my $debug = $attr->{DEBUG} || 0;
-  my $action = 0;
-
-  if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $TP_INFO->{SMALL_DEPOSIT_ACTION} == -1) {
-    if ($debug < 8) {
-      if ($user_info->{INTERNET_STATUS} != 5) {
-        $Internet->change({
-          ID     => $user_info->{ID},
-          UID    => $user_info->{UID},
-          STATUS => 5
-        });
-
-        $user_info->{INTERNET_STATUS} = 5;
-      }
-    }
-    $action++;
-    $debug_output .= " SMALL_DEPOSIT_BLOCK." if ($debug > 3);
-  }
-  elsif($TP_INFO->{SMALL_DEPOSIT_ACTION}) {
-    if ($debug < 8) {
-      $Internet->change({
-        UID   => $user_info->{UID},
-        TP_ID => $TP_INFO->{SMALL_DEPOSIT_ACTION}
-      });
-    }
-
-    $action++;
-    $debug_output .= " SMALL_DEPOSIT_CHG_TP." if ($debug > 3);
-  }
-
-  if ($action) {
-    _external('', { EXTERNAL_CMD => 'Internet', %{$attr->{USER_INFO}}, QUITE => 1 });
-  }
-
-  return $debug_output;
-}
-
-#**********************************************************
 =head2 internet_users_warning_messages($attr)
 
 =cut
@@ -1447,7 +1370,7 @@ sub internet_users_warning_messages {
 
   $LIST_PARAMS{LOGIN} = $attr->{LOGIN} if ($attr->{LOGIN});
   $Internet->{debug}=1 if($debug > 5);
-  my $internet_list = $Internet->list({
+  my $internet_list = $Internet->user_list({
     %LIST_PARAMS,
     LOGIN             => '_SHOW',
     FIO               => '_SHOW',
@@ -1503,7 +1426,7 @@ sub internet_users_warning_messages {
     if($conf{INTERNET_ALERT_REDIRECT_FILTER} && in_array($u->{to_next_period}, \@allert_redirect_days)) {
       $debug_output .= "  $u->{LOGIN} Redirect\n";
       $type='redirect';
-      $Internet->change({
+      $Internet->user_change({
         UID       => $u->{UID},
         FILTER_ID => $conf{INTERNET_ALERT_REDIRECT_FILTER}
       });
@@ -1513,7 +1436,7 @@ sub internet_users_warning_messages {
       }
     }
 
-    $Internet->info($u->{client_ip} , { ID => $u->{id}});
+    $Internet->user_info($u->{client_ip} , { ID => $u->{id}});
     $Service_mng->get_next_abon_date({
       SERVICE => $Internet
     });
@@ -1596,7 +1519,6 @@ sub internet_sheduler {
   my ($type, $action, $uid, $attr) = @_;
 
   my $debug = $attr->{DEBUG} || 0;
-
   $action //= q{};
   my $d  = (split(/-/, $ADMIN_REPORT{DATE}, 3))[2];
   my $START_PERIOD_DAY = $conf{START_PERIOD_DAY} || 1;
@@ -1613,13 +1535,13 @@ sub internet_sheduler {
     }
 
     my %params = ();
-    my $user = $Internet->info($uid, { ID => $service_id });
+    my $user = $Internet->user_info($uid, { ID => $service_id });
 
-    if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' && !$Internet->{STATUS}) {
-      $params{ACTIVATE} = $DATE;
-    }
+    # if ($Internet->{ACTIVATE} && $Internet->{ACTIVATE} ne '0000-00-00' && !$Internet->{STATUS}) {
+    #   $params{ACTIVATE} = $DATE;
+    # }
 
-    $Internet->change({
+    $Internet->user_change({
       UID         => $uid,
       TP_ID       => $tp_id,
       ID          => $service_id,
@@ -1656,7 +1578,7 @@ sub internet_sheduler {
       ($service_id, $action)=split(/:/, $action);
     }
 
-    $Internet->change({
+    $Internet->user_change({
       UID        => $uid,
       STATUS     => $action,
       SERVICE_ID => $service_id
@@ -1682,6 +1604,18 @@ sub internet_sheduler {
         if ($Fees->{errno}) {
           print "Error: Holdup fees: $Fees->{errno} $Fees->{errstr}\n";
         }
+      }
+
+      if ($conf{INTERNET_HOLDUP_COMPENSATE}) {
+        $Internet->{TP_INFO_OLD} = $Tariffs->info(0, { TP_ID => $Internet->{TP_ID} });
+        if ($Internet->{TP_INFO_OLD}->{PERIOD_ALIGNMENT}) {
+          #$Internet->{TP_INFO}->{MONTH_FEE} = 0;
+          service_recalculate($Internet, { RECALCULATE => 1, QUITE => 1, USER_INFO => $user });
+        }
+      }
+
+      if ($action) {
+        _external('', { EXTERNAL_CMD => 'Internet', %{$Internet} });
       }
     }
     elsif ($action == 0) {

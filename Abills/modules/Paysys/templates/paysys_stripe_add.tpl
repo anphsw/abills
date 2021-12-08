@@ -1,32 +1,37 @@
 <div class='card card-primary card-outline'>
-    <div class='card-body'>
+    <form action='$SELF_URL' method='POST' id='payment-form'>
+        <input type='hidden' name='OPERATION_ID' value='$FORM{OPERATION_ID}'>
+        <input type='hidden' name='PAYMENT_SYSTEM' value='$FORM{PAYMENT_SYSTEM}'>
+        <input type='hidden' name='TP_ID' value='$FORM{TP_ID}'>
+        <input type='hidden' name='PHONE' value='$FORM{PHONE}'>
+        <input type='hidden' name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
+        <input type='hidden' name='index' value='$index'>
 
-        <form action='$SELF_URL' method='POST' id='payment-form'>
-            <input type='hidden' name='OPERATION_ID' value='$FORM{OPERATION_ID}'>
-            <input type='hidden' name='PAYMENT_SYSTEM' value='$FORM{PAYMENT_SYSTEM}'>
-            <input type='hidden' name='TP_ID' value='$FORM{TP_ID}'>
-            <input type='hidden' name='PHONE' value='$FORM{PHONE}'>
-            <input type='hidden' name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
-            <input type='hidden' name='index' value='$index'>
+        <div class='card-header with-border text-center pb-0'>
+            <h4>_{BALANCE_RECHARCHE}_</h4>
+        </div>
+        <div class='card-body pt-0'>
+            <div class='text-center'>
+                <img src='/styles/default_adm/img/paysys_logo/stripe-logo.png'
+                     style='width: auto; max-height: 200px;'
+                     alt='Stripe'>
+            </div>
 
-            <table style='min-width:350px;' width='auto'>
-                <tr>
-                    <th colspan='2' class='form_title'>Stripe</th>
-                </tr>
-                <tr>
-                    <td>_{ORDER}_:</td>
-                    <td>$FORM{OPERATION_ID}</td>
-                </tr>
-                <tr>
-                    <td>_{SUM}_:</td>
-                    <td>$FORM{SUM}</td>
-                </tr>
-                <tr>
-                    <td>_{DESCRIBE}_:</td>
-                    <td>%LOGIN% $FORM{DESCRIBE}</td>
-                </tr>
-            </table>
-            <button type='submit' class='btn btn-primary btn-sm mt-2'>_{PAY}_</button>
+            <ul class='list-group list-group-unbordered mb-3'>
+                <li class='list-group-item'>
+                    <b>_{DESCRIBE}_</b>
+                    <div class='float-right'>%LOGIN% $FORM{DESCRIBE}</div>
+                </li>
+                <li class='list-group-item'>
+                    <b>_{ORDER}_</b>
+                    <div class='float-right'>$FORM{OPERATION_ID}</div>
+                </li>
+                <li class='list-group-item'>
+                    <b>_{SUM}_</b>
+                    <div class='float-right'>$FORM{SUM}</div>
+                </li>
+            </ul>
+            <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
 
             <script
                     src='https://checkout.stripe.com/checkout.js'
@@ -36,13 +41,14 @@
                     data-image='https://stripe.com/img/v3/newsroom/social.png'
                     data-name='$conf{WEB_TITLE}'
                     data-locale='auto'
+                    data-amount='%AMOUNT%'
+                    data-currency='eur'
             >
             </script>
-
-            <script>
-                document.getElementsByClassName('stripe-button-el')[0].style.display = 'none';
-            </script>
-        </form>
-    </div>
+        </div>
+        <script>
+            document.getElementsByClassName('stripe-button-el')[0].style.display = 'none';
+        </script>
+    </form>
 </div>
 

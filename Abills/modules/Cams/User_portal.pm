@@ -47,6 +47,11 @@ sub cams_user_info {
   my $user_groups = '';
 
   if ($FORM{add}) {
+    if (!$FORM{SERVICE_ID}) {
+      $html->message('err', $lang{ERROR}, $lang{CHOOSE_SERVICE});
+      return 1;
+    }
+
     $Cams->{db}{db}->{AutoCommit} = 0;
     $Cams->{db}->{TRANSACTION} = 1;
     $Cams->users_list({
@@ -84,32 +89,25 @@ sub cams_user_info {
       }
     }
 
-    if ($conf{CAMS_CHECK_USER_GROUPS} && $Cams->{ID} && !$conf{CAMS_FOLDER}) {
-      _cams_autofill_groups($Cams);
-    }
-    elsif ($conf{CAMS_CHECK_USER_FOLDERS} && $Cams->{ID} && $conf{CAMS_FOLDER}) {
-      _cams_autofill_folders($Cams);
-    }
+    _cams_autofill_groups($Cams) if ($conf{CAMS_CHECK_USER_GROUPS} && $Cams->{ID});
+    _cams_autofill_folders($Cams) if ($conf{CAMS_CHECK_USER_FOLDERS});
   }
   elsif ($FORM{chg} || ($FORM{ID} && !$FORM{del})) {
     $Cams->{ACTION} = 'change';
     $Cams->{LNG_ACTION} = $lang{CHANGE};
 
-    my $result = $Cams->_list({
-      SERVICE_ID => '_SHOW',
-      TP_ID      => '_SHOW',
-      STATUS     => '_SHOW',
-      ID         => $FORM{chg},
-      COLS_NAME  => 1,
-      COLS_UPPER => 1,
-      PAGE_ROWS  => 99999,
-    });
+    my $result = $Cams->_info($FORM{chg});
 
-    if ($Cams->{TOTAL}) {
-      $FORM{SERVICE_ID} = $result->[0]{SERVICE_ID};
-      $Cams->{SERVICE_ID} = $result->[0]{SERVICE_ID};
-      $Cams->{TP_ID} = $result->[0]{TP_ID};
-      $Cams->{STATUS} = $result->[0]{STATUS};
+    if ($Cams->{TOTAL} > 0) {
+      $FORM{SERVICE_ID} = $result->{SERVICE_ID};
+      $Cams->{SERVICE_ID} = $result->{SERVICE_ID};
+      $Cams->{TP_ID} = $result->{TP_ID};
+      $Cams->{STATUS} = $result->{STATUS};
+    }
+
+    if (!$result->{SERVICE_ID} || !$PORTAL_ACTIONS{$result->{SERVICE_ID}}) {
+      $html->message('info', $lang{INFO}, $lang{ERROR_VIEW_INFORMATION}, { ID => 804 });
+      return 1; 
     }
   }
   elsif ($FORM{change}) {
@@ -143,15 +141,19 @@ sub cams_user_info {
   if (!$Cams->{ID}) {
     $Cams->{TP_ADD} = $html->form_select('TP_ID', {
       SELECTED  => $FORM{TP_ID} || $Cams->{TP_ID} || '',
-      SEL_LIST  => $Cams->tp_list({ TP_ID => '_SHOW', NAME => '_SHOW', SERVICE_ID => ($FORM{SERVICE_ID} || $Cams->{SERVICE_ID} || "_SHOW") }),
+      SEL_LIST  => !$FORM{SERVICE_ID} && !$Cams->{SERVICE_ID} ? [] : $Cams->tp_list({
+        TP_ID      => '_SHOW',
+        NAME       => '_SHOW',
+        SERVICE_ID => $FORM{SERVICE_ID} || $Cams->{SERVICE_ID}
+      }),
       SEL_KEY   => 'tp_id',
       SEL_VALUE => 'tp_id,name',
+      EX_PARAMS => 'required="required"',
     });
 
     $Cams->{TP_DISPLAY_NONE} = "style='display:none'";
   }
 
-  $FORM{FOLDER_CHANGE} = 1 if ($FORM{change_now} && $conf{CAMS_FOLDER});
   $Cams_service = cams_user_services(\%FORM, $user, $Cams);
 
   $FORM{SUBSCRIBE_FORM} = cams_services_sel({ %FORM, %$Cams, FORM_ROW => 1, UNKNOWN => 1, USER_PORTAL => '2' });
@@ -159,16 +161,15 @@ sub cams_user_info {
   $html->tpl_show(_include('cams_user_add_tp', 'Cams'), { %FORM, %$Cams, });
 
   if ($FORM{UID} && $FORM{chg}) {
-    if (!$conf{CAMS_FOLDER}) {
-      $user_groups .= cams_user_groups({ SERVICE_INFO => $Cams, UID => $FORM{UID}, SERVICE_ID => $Cams->{SERVICE_ID} });
-    }
-    else {
-      $user_groups .= cams_user_folders({ SERVICE_INFO => $Cams, UID => $FORM{UID}, SERVICE_ID => $Cams->{SERVICE_ID} });
-    }
+    my $user_folders = cams_user_folders({ SERVICE_INFO => $Cams, UID => $FORM{UID}, SERVICE_ID => $Cams->{SERVICE_ID} });
+
+    $user_groups .= defined($user_folders) ?
+      $user_folders : cams_user_groups({ SERVICE_INFO => $Cams, UID => $FORM{UID}, SERVICE_ID => $Cams->{SERVICE_ID} });
   }
 
   $LIST_PARAMS{SERVICE_NAME} = "_SHOW";
   $LIST_PARAMS{PORTAL} = 1;
+
   result_former({
     INPUT_DATA      => $Cams,
     FUNCTION        => 'users_list',
@@ -206,7 +207,7 @@ sub cams_user_info {
 #**********************************************************
 sub cams_clients_streams {
 
-  $Cams->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
+  my $services = $Cams->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
 
   return 1 if (!$Cams->{TOTAL});
 
@@ -221,6 +222,7 @@ sub cams_clients_streams {
     STATUS     => '_SHOW',
     ID         => '_SHOW',
     UID        => $uid,
+    SERVICE_ID => join(';', map { $_->{id} } @{$services}),
     COLS_NAME  => 1,
   });
 
@@ -270,11 +272,13 @@ sub cams_clients_streams {
 
 =cut
 #**********************************************************
-sub cams_user_streams_management {
+  sub cams_user_streams_management {
 
-  $Cams->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
+  my $services = $Cams->services_list({ USER_PORTAL => '>1', COLS_NAME => 1 });
 
   return 1 if (!$Cams->{TOTAL});
+
+  return cams_user_get_group_folders() if ($FORM{GET_FOLDER_SELECT});
 
   my %CAMS_STREAM = ();
   my $show_add_form = 0;
@@ -290,7 +294,9 @@ sub cams_user_streams_management {
   $html->tpl_show(_include('cams_choose_service', 'Cams'), {
     %CAMS_STREAM, %FORM,
     UID           => $user->{UID} || $FORM{UID},
-    TARIFF_SELECT => cams_tariffs_sel({ UID => $FORM{UID} }),
+    TARIFF_SELECT => cams_tariffs_sel({ UID => $FORM{UID} }, {
+      SERVICE_ID => join(';', map { $_->{id} } @{$services})
+    }),
   });
 
   if ($FORM{show_cameras} && !$FORM{TP_ID}) {
@@ -329,7 +335,7 @@ sub cams_user_streams_management {
       $correct_name = _cams_group_correct({
         GROUP_ID     => $FORM{GROUP_ID} || $Cams->{GROUP_ID},
         CHECK_GROUPS => 1,
-      }) if $conf{CAMS_FOLDER};
+      }) if $FORM{FOLDER_ID};
       if ($correct_name) {
         $Cams->stream_add(\%FORM);
         $FORM{CAM_ID} = $Cams->{INSERT_ID} || "";
@@ -421,15 +427,14 @@ sub cams_user_streams_management {
       ID         => $user_tps->[0]{id},
       UID        => $FORM{UID},
       SERVICE_ID => $FORM{SERVICE_ID} || $Cams->{list}[0]{SERVICE_ID},
-    }) if !$conf{CAMS_FOLDER};
+    });
 
     $CAMS_STREAM{FOLDERS_SELECT} = _cams_folders_select({
       TP_ID      => $FORM{CAMS_TP_ID},
       ID         => $user_tps->[0]{id},
       UID        => $FORM{UID},
       SERVICE_ID => $FORM{SERVICE_ID} || $Cams->{list}[0]{SERVICE_ID},
-    }) if $conf{CAMS_FOLDER};
-    $FORM{FOLDERS} = 1 if $conf{CAMS_FOLDER};
+    });
 
     $CAMS_STREAM{ORIENTATION_SELECT} = _cams_orientation_select({ SELECTED => ($CAMS_STREAM{ORIENTATION} || 0) });
     $CAMS_STREAM{ARCHIVE_SELECT} = _cams_archive_select({ SELECTED => $CAMS_STREAM{ARCHIVE} });
@@ -454,6 +459,7 @@ sub cams_user_streams_management {
       DISABLED_CHECKED   => $CAMS_STREAM{DISABLED} ? 'checked' : '',
       SUBMIT_BTN_ACTION  => ($FORM{chg_cam}) ? 'change_cam' : 'add_cam',
       SUBMIT_BTN_NAME    => ($FORM{chg_cam}) ? $lang{CHANGE} : $lang{ADD},
+      FUNCTION_INDEX     => get_function_index('cams_user_streams_management')
     });
   }
 
@@ -537,8 +543,7 @@ sub cams_user_streams_management {
 sub cams_archives {
   my %CAMS_STREAM = ();
 
-  $Cams->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
-
+  my $services = $Cams->services_list({ USER_PORTAL => '>0', COLS_NAME => 1 });
   return 1 if (!$Cams->{TOTAL});
 
   $FORM{UID} = $user->{UID} ? $user->{UID} : "";
@@ -553,6 +558,7 @@ sub cams_archives {
   my $user_tps = $Cams->_list({
     SHOW_ALL_COLUMNS => '_SHOW',
     UID              => $FORM{UID},
+    SERVICE_ID       => join(';', map {$_->{id}} @{$services}),
     COLS_NAME        => 1,
   });
 
@@ -571,7 +577,7 @@ sub cams_archives {
   $FORM{CAMS_SELECT} = $html->form_select('CAMERA_ID', {
     SELECTED  => $FORM{CAMERA_ID} || 0,
     SEL_LIST  => \@user_cameras,
-    SEL_VALUE => 'service_name,camera_name',
+    SEL_VALUE => 'service_name,title',
     SEL_KEY   => 'camera_id',
     NO_ID     => 1,
   });
@@ -640,6 +646,32 @@ sub cams_show_camera_archive {
   # }
 
   return 0;
+}
+
+#*******************************************************************
+=head2 cams_user_get_group_folders($attr)
+
+  Arguments:
+    $attr
+
+=cut
+#*******************************************************************
+sub cams_user_get_group_folders {
+
+  print $html->form_select('FOLDER_ID', {
+    SELECTED  => $FORM{FOLDER_ID} || q{},
+    SEL_LIST  => $Cams->folder_list({
+      ID          => '_SHOW',
+      PARENT_NAME => '_SHOW',
+      GROUP_ID    => $FORM{GROUP_ID},
+      COLS_NAME   => 1,
+    }),
+    SEL_VALUE => 'parent_name,title',
+    SEL_KEY   => 'id',
+    NO_ID     => 1
+  });
+
+  return 1;
 }
 
 1;

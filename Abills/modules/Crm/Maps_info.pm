@@ -74,19 +74,24 @@ sub new {
 sub maps_layers {
   return {
     LAYERS => [ {
-      id              => '36',
-      name            => 'LEAD',
-      lang_name       => $lang->{LEADS},
-      module          => 'Crm',
-      structure       => 'MARKER',
-      export_function => 'maps_leads'
+      id                       => '36',
+      name                     => 'LEAD',
+      lang_name                => $lang->{LEADS},
+      module                   => 'Crm',
+      structure                => 'MARKER',
+      export_function          => 'maps_leads',
+      multiple_update_function => 'crm_lead_map_multiple_update'
     }, {
       id              => '37',
       name            => 'LEAD_TAGS',
       lang_name       => "$lang->{CRM_SHORT_LEADS} ($lang->{TAGS})",
       module          => 'Crm',
       structure       => 'MARKER',
-      export_function => 'maps_leads_by_tags'
+      export_function => 'maps_leads_by_tags',
+      filter          => 'TAGS',
+      sublayers       => [],
+      tooltip_content => '<span style=\"background-color: %color%; border-color: %color%\" ' .
+        'class=\"label new-tags m-1\">%name%</span>'
     }, {
       id              => '38',
       name            => 'LEAD_COMPETITORS',
@@ -121,9 +126,11 @@ sub maps_leads {
     }
 
     push @{$build_info{$lead->{BUILD_ID}}}, {
-      id           => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
+      id_btn       => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
+      id           => $lead->{ID},
       fio          => $lead->{FIO},
       address_flat => $lead->{ADDRESS_FLAT},
+      address_full => $lead->{ADDRESS_FULL},
       step         => $html->color_mark(::_translate($lead->{STEP}), $lead->{COLOR}),
       phone        => $lead->{PHONE},
       uid          => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : '',
@@ -139,8 +146,11 @@ sub maps_leads {
     my $marker_info = maps2_point_info_table($html, $lang, {
       TABLE_TITLE       => $lang->{LEADS},
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID', 'FIO', 'PHONE', 'STEP', 'UID', 'COMPETITOR', 'ADDRESS_FLAT' ],
-      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{USER}, $lang->{COMPETITOR}, $lang->{FLAT} ],
+      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'UID', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT' ],
+      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{USER},
+        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT} ],
+      EDITABLE_FIELDS   => [ 'FIO', 'PHONE' ],
+      CHANGE_FUNCTION   => 'crm_leads'
     });
 
     delete $build_info{$lead->{BUILD_ID}};
@@ -153,7 +163,7 @@ sub maps_leads {
         COORDY       => $lead->{coordx} || $lead->{coordx_2},
         SVG          => $type,
         INFOWINDOW   => $marker_info,
-        NAME         => $lead->{fio},
+        NAME         => $lead->{ADDRESS_FULL},
         DISABLE_EDIT => 1
       },
       LAYER_ID  => 36,
@@ -205,6 +215,7 @@ sub maps_leads_by_tags {
       NAME      => '_SHOW',
       PRIORITY  => '_SHOW',
       COLOR     => '_SHOW',
+      COMMENTS  => '_SHOW',
       COLS_NAME => 1,
       SORT      => 't.priority',
       DESC      => 'desc'
@@ -223,14 +234,17 @@ sub maps_leads_by_tags {
     }
 
     push @{$build_info{$lead->{BUILD_ID}}}, {
-      id           => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
+      id_btn       => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
+      id           => $lead->{ID},
       fio          => $lead->{FIO},
       step         => $html->color_mark(::_translate($lead->{STEP}), $lead->{color}),
       phone        => $lead->{PHONE},
       address_flat => $lead->{ADDRESS_FLAT},
+      address_full => $lead->{ADDRESS_FULL},
       icon_color   => $tags_list->[0]{color},
       name         => $tags_list->[0]{name},
       tags         => $tags_container,
+      tags_list    => $tags_list,
       competitor   => $lead->{COMPETITOR} ? $html->button($lead->{COMPETITOR}, 'index=' . ::get_function_index('crm_competitors') . "&chg=$lead->{COMPETITOR_ID}") : ''
     };
   }
@@ -243,8 +257,11 @@ sub maps_leads_by_tags {
     my $marker_info = maps2_point_info_table($html, $lang, {
       TABLE_TITLE       => "$lang->{LEADS} ($lang->{TAGS})",
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ADDRESS_FLAT' ],
-      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS}, $lang->{COMPETITOR}, $lang->{FLAT} ],
+      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT' ],
+      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS},
+        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT} ],
+      EDITABLE_FIELDS   => [ 'FIO', 'PHONE' ],
+      CHANGE_FUNCTION   => 'crm_leads'
     });
 
     my %marker = (
@@ -256,12 +273,13 @@ sub maps_leads_by_tags {
         COORDY       => $lead->{coordx} || $lead->{coordx_2},
         SVG          => $type,
         INFOWINDOW   => $marker_info,
-        NAME         => $build_info{$lead->{BUILD_ID}}[0]{name} . ': ' . $lead->{fio},
+        NAME         => "<b>$build_info{$lead->{BUILD_ID}}[0]{name}</b>" . ': ' . $lead->{fio},
         DISABLE_EDIT => 1
       },
       LAYER_ID  => 37,
       ID        => $lead->{id},
-      OBJECT_ID => $lead->{build_id}
+      OBJECT_ID => $lead->{build_id},
+      TAGS      => $build_info{$lead->{BUILD_ID}}[0]{tags_list}
     );
 
     delete $build_info{$lead->{BUILD_ID}};
@@ -301,9 +319,11 @@ sub maps_leads_by_competitors {
     }
 
     push @{$build_info{$lead->{BUILD_ID}}}, {
-      id           => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
+      id_btn       => $html->button($lead->{ID}, 'index=' . ::get_function_index('crm_lead_info') . "&LEAD_ID=$lead->{ID}"),
+      id           => $lead->{ID},
       fio          => $lead->{FIO},
       address_flat => $lead->{ADDRESS_FLAT},
+      address_full => $lead->{ADDRESS_FULL},
       step         => $html->color_mark(::_translate($lead->{STEP}), $lead->{COLOR}),
       phone        => $lead->{PHONE},
       uid          => $lead->{UID} ? $html->button($lead->{UID}, 'index=' . ::get_function_index('form_users') . "&UID=$lead->{UID}") : '',
@@ -319,8 +339,11 @@ sub maps_leads_by_competitors {
     my $marker_info = maps2_point_info_table($html, $lang, {
       TABLE_TITLE       => "$lang->{LEADS} ($lang->{COMPETITORS})",
       OBJECTS           => $build_info{$lead->{BUILD_ID}},
-      TABLE_TITLES      => [ 'ID', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR' ],
-      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS}, $lang->{COMPETITOR} ],
+      TABLE_TITLES      => [ 'ID_BTN', 'FIO', 'PHONE', 'STEP', 'TAGS', 'COMPETITOR', 'ADDRESS_FULL', 'ADDRESS_FLAT' ],
+      TABLE_LANG_TITLES => [ 'ID', $lang->{FIO}, $lang->{PHONE}, $lang->{STEP}, $lang->{TAGS},
+        $lang->{COMPETITOR}, $lang->{ADDRESS}, $lang->{FLAT} ],
+      EDITABLE_FIELDS   => [ 'FIO', 'PHONE' ],
+      CHANGE_FUNCTION   => 'crm_leads'
     });
 
     my %marker = (

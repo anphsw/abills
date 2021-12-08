@@ -15,7 +15,8 @@ our (
   $debug,
   $user_id,
   $payment_sum,
-  $payment_id
+  $payment_id,
+  $argv
 );
 
 my $Payment_plugin = Paysys::systems::Fondy->new($db, $admin, \%conf);
@@ -23,11 +24,12 @@ if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;
 }
 
+$payment_id = int(rand(10000));
+$user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 $payment_sum *= 100;
-my $sign_string = '';
 
-$sign_string .= $payment_sum . '|' . 'UAH' .  '|' . $user_id . '|' . '25478' . '|' . $payment_id . '|' . 'approved' . '|' . '21.12.2014 11:21:30' . '|';
-my $signature = ''; #$Payment_plugin->mk_sign($sign_string);
+my $sign_string .= $payment_sum . '|' . 'UAH' .  '|' . $user_id . '|' . '25478' . '|' . $payment_id . '|' . 'approved' . '|' . '21.12.2014 11:21:30' . '|';
+my $signature = $Payment_plugin->mk_sign($sign_string);
 
 our @requests = ({
     name    => 'PAY',
@@ -43,8 +45,6 @@ order_time=21.12.2014 11:21:30
     get     => 1,
     result  => qq{}
 });
-
-#rectoken=da39a3ee5e6b4b0d3255bfef95601890afd80709 use if need
 
 test_runner($Payment_plugin, \@requests, { VALIDATE => 'xml_compare' });
 

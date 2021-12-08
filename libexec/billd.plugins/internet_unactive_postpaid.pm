@@ -67,7 +67,7 @@ sub internet_unactive_postpaid {
 
     my $month_fee = $tp->{month_fee};
 
-    my $internet_list = $Internet->list({
+    my $internet_list = $Internet->user_list({
       INTERNET_ACTIVATE => '_SHOW',
       LOGIN             => '_SHOW',
       DEPOSIT           => '_SHOW',
@@ -91,7 +91,7 @@ sub internet_unactive_postpaid {
         }
 
         if ($debug < 6) {
-          $Internet->change({
+          $Internet->user_change({
             UID    => $uid,
             STATUS => 5,
           });

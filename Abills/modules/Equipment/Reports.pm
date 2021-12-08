@@ -278,7 +278,7 @@ sub equipment_switch_report {
   });
 
   foreach my $switch (@$switch_list) {
-    $Internet->list({
+    $Internet->user_list({
       NAS_ID    => $switch->{NAS_ID},
       PORT      => '_SHOW',
       COLS_NAME => 1

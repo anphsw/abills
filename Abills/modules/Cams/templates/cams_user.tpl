@@ -18,7 +18,7 @@
   <input type=hidden name='add_form' value=''>
 
   %NEXT_FEES_WARNING%
-  <div class='card card-primary card-outline card-form card-big-form container-md'>
+  <div class='card card-primary card-outline card-form'>
     <div class='card-header with-border'>
       <h3 class='card-title'>_{CAMERAS}_: %ID%</h3>
     </div>
@@ -57,12 +57,10 @@
           <input id='EMAIL' name='EMAIL' value='%EMAIL%' placeholder='%EMAIL%' class='form-control' type='text'>
         </div>
       </div>
-
-      <div class='card-footer'>
-        %BACK_BUTTON%
-        <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
-      </div>
-
+    </div>
+    <div class='card-footer'>
+      %BACK_BUTTON%
+      <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
   </div>
 

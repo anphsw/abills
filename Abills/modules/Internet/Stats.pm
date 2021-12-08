@@ -124,13 +124,13 @@ sub internet_stats {
     }
   }
 
-  $Internet->info($uid);
+  $Internet->user_info($uid);
 
   #Join Service
   if ($users->{COMPANY_ID}) {
     if ($Internet->{JOIN_SERVICE}) {
       my @uids = ();
-      my $list = $Internet->list(
+      my $list = $Internet->user_list(
         {
           JOIN_SERVICE => ($Internet->{JOIN_SERVICE}==1) ? $Internet->{UID} : $Internet->{JOIN_SERVICE},
           COMPANY_ID   => $attr->{USER_INFO}->{COMPANY_ID},
@@ -459,7 +459,7 @@ sub internet_session_detail {
   $Sessions->{RECALC} = $html->button($lang{RECALCULATE}, "index=$index&RECALC=1&SESSION_ID=$FORM{SESSION_ID}&UID=$uid", { BUTTON => 1 });
   $Sessions->{SUM}    = sprintf("%.6f", $Sessions->{SUM});
 
-  $Internet->info($uid);
+  $Internet->user_info($uid);
   my $TRAFFIC_NAMES = internet_traffic_names($Sessions->{TP_ID});
 
   if ($Tariffs->{TOTAL} && $Tariffs->{TOTAL} > 0) {

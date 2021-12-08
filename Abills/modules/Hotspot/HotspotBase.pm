@@ -206,7 +206,7 @@ sub hotspot_user_registration {
   my $uid = $users->{UID};
   $users->pi_add({ UID => $uid, PHONE => ($FORM{PHONE} || '') });
 
-  $Internet->add({
+  $Internet->user_add({
     INTERNET_SKIP_FEE => ($Hotspot->{SKIP_FEE} || ''),
     UID               => $uid,
     TP_ID             => $tp_id,
@@ -252,7 +252,7 @@ sub hotspot_user_registration {
 =cut
 #**********************************************************
 sub mac_login {
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     PASSWORD       => '_SHOW',
     LOGIN          => '_SHOW',
     PHONE          => '_SHOW',
@@ -287,7 +287,7 @@ sub phone_login {
   if ($FORM{PHONE} !~ /^\+?[0-9]+$/) {
     errexit("Wrong phone.");
   }
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     PASSWORD       => '_SHOW',
     LOGIN          => '_SHOW',
     PHONE          => $FORM{PHONE},
@@ -491,7 +491,7 @@ sub user_portal_redirect {
     exit;
   }
   elsif ($FORM{mac}) {
-    my $list = $Internet->list({
+    my $list = $Internet->user_list({
       PASSWORD       => '_SHOW',
       LOGIN          => '_SHOW',
       PHONE          => '_SHOW',
@@ -599,7 +599,7 @@ sub get_user_uid {
     %params = (CID => uc($FORM{mac}));
   }
 
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     %params,
     DOMAIN_ID      => $Hotspot->{HOTSPOT_CONF}->{DOMAIN_ID} || '',
     TP_NUM         => $Hotspot->{HOTSPOT_CONF}->{HOTSPOT_TPS},
@@ -623,7 +623,7 @@ sub trial_tp_change {
   my ($uid) = @_;
 
   return unless ($uid);
-  $Internet->info($uid);
+  $Internet->user_info($uid);
   if ($Internet->{TP_NUM} eq $Hotspot->{HOTSPOT_CONF}->{TRIAL_TP}) {
     $Tariffs->info( '', { ID => $Hotspot->{DEFAULT_TP} });
     $Hotspot->change_tp({
@@ -711,7 +711,7 @@ sub recharge_balance {
   $uid = get_user_uid() unless ($uid);
   return 1 unless ($uid);
 
-  my $internet_info = $Internet->info($uid);
+  my $internet_info = $Internet->user_info($uid);
   $Tariffs->info($internet_info->{TP_ID});
   my $payment_url = $Hotspot->{HOTSPOT_CONF}{PAYMENT_URL};
   $payment_url =~ s/%UID%/$uid/g;

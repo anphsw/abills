@@ -8,8 +8,8 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(in_array);
 
+our Abills::HTML $html;
 our (
-  $html,
   %lang,
   $admin,
   %permissions,
@@ -509,12 +509,25 @@ sub _hash2html {
 
   Attributes:
     $function_fields - Function fields name (array_ref)
-      form_payments
-      stats
-      change
-      cpmpany_id
-      ex_info
-      del
+      Each array element may be one of following:
+        form_payments
+        change
+        cpmpany_id
+        ex_info - if module Info is enabled
+        print_in_new_tab
+        del
+      Or
+        =~ /stats/
+      Or
+        In format "function_name:name:param:ex_param", where
+          #XXX documentation
+          function_name
+          name
+          param
+          ex_param - optional
+      Or
+        In format "FUNCTION_NAME=function_name" - Will run function_name($line) for each line. Its result will be put to function fields as is
+
     $line            - array_ref of list result
     $attr            - Extra attributes
       TABLE          - Table object hash_ref
@@ -637,6 +650,15 @@ sub table_function_fields {
 
         $qs .= 'index=' . (($functiom_name) ? get_function_index($functiom_name) : $index);
         $qs .= $ex_param;
+      }
+      elsif ($function_fields->[$i] =~ /^FUNCTION_NAME=([a-z0-9\_\-]+)$/) {
+        my $function = $1;
+
+        if (defined(&{$function})) {
+          push @fields_array, &{\&$function}($line);
+        }
+
+        next;
       }
       else {
         $qs = "index=" . get_function_index($functiom_name);
@@ -764,7 +786,7 @@ sub _result_former_columns {
 }
 
 #**********************************************************
-=head2 _result_former_fields($attr)
+=head2 _result_former_hidden_fields($attr)
 
   Arguments:
     $attr
@@ -803,7 +825,7 @@ sub _result_former_hidden_fields {
 }
 
 #**********************************************************
-=head2 _result_former_($attr)
+=head2 _result_former_append_fields($attr, $cols)
 
   Arguments:
 
@@ -828,7 +850,7 @@ sub _result_former_append_fields {
 }
 
 #**********************************************************
-=head2 _result_former_data($attr)
+=head2 _result_former_data($attr, $hidden_fields)
 
   Arguments:
 
@@ -868,7 +890,7 @@ sub _result_former_data {
 }
 
 #**********************************************************
-=head2 _result_former_data_extra_fields($attr)
+=head2 _result_former_data_extra_fields($data, $SEARCH_TITLES)
 
   Arguments:
 
@@ -900,7 +922,7 @@ sub _result_former_data_extra_fields {
 }
 
 #**********************************************************
-=head2 _get_search_($attr)
+=head2 _get_search_titles($attr, $data)
 
   Arguments:
     $attr,
@@ -937,6 +959,7 @@ sub _get_search_titles {
     'expire'          => "$lang{EXPIRE}",
     'credit_date'     => "$lang{CREDIT} $lang{DATE}",
     'reduction'       => "$lang{REDUCTION}",
+    'reduction_date'  => "$lang{REDUCTION} $lang{DATE}",
 
     'deleted'         => "$lang{DELETED}",
     'uid'             => 'UID',
@@ -964,15 +987,17 @@ sub _get_search_titles {
     $SEARCH_TITLES{tags} = $lang{TAGS} if (!$admin->{MODULES} || $admin->{MODULES}{Tags});
   }
 
+  if (in_array('Maps2', \@MODULES) && (!$admin->{MODULES} || $admin->{MODULES}{Maps2})) {
+    $SEARCH_TITLES{build_id} = $lang{LOCATION} if (!$admin->{MODULES} || $admin->{MODULES}{Maps2});
+  }
+
   if (in_array('Multidoms', \@MODULES) && (!$admin->{DOMAIN_ID} || $admin->{DOMAIN_ID} =~ /[,;]+/)) {
     $SEARCH_TITLES{domain_id} = 'DOMAIN ID';
     $SEARCH_TITLES{domain_name} = $lang{DOMAIN};
   }
 
   $SEARCH_TITLES{accept_rules} = $lang{ACCEPT_RULES} if ($conf{ACCEPT_RULES});
-
-  $SEARCH_TITLES{'ext_deposit'} = "$lang{EXTRA} $lang{DEPOSIT}" if ($conf{EXT_BILL_ACCOUNT});
-
+  $SEARCH_TITLES{ext_deposit} = "$lang{EXTRA} $lang{DEPOSIT}" if ($conf{EXT_BILL_ACCOUNT});
   $SEARCH_TITLES{cell_phone} = $lang{CELL_PHONE} if ($conf{CONTACTS_NEW} && !$attr->{SKIP_USERS_FIELDS});
 
   _result_former_data_extra_fields($data, \%SEARCH_TITLES);
@@ -988,7 +1013,7 @@ sub _get_search_titles {
 }
 
 #**********************************************************
-=head2 _result_former_get_total_table($attr)
+=head2 _result_former_get_total_table($attr, $data, $table)
 
   Arguments:
 
@@ -1030,7 +1055,7 @@ sub _result_former_get_total_table {
 }
 
 #**********************************************************
-=head2 _result_former_get_value($attr)
+=head2 _result_former_get_value($attr, $col_name, $line, $service_status, $service_status_colors)
 
   Arguments:
 
@@ -1056,6 +1081,10 @@ sub _result_former_get_value {
 
   if ($col_name =~ /status$/ && (!$attr->{SELECT_VALUE} || !$attr->{SELECT_VALUE}->{$col_name})) {
     return _get_status_value($attr, $line, $col_name, $service_status, $service_status_colors);
+  }
+
+  if ($col_name =~ /build_id/) {
+    return _get_location_value($line, $col_name);
   }
 
   if ($col_name =~ /deposit/) {
@@ -1086,7 +1115,7 @@ sub _result_former_get_value {
 }
 
 #**********************************************************
-=head2 _get_login_value($attr)
+=head2 _get_login_value($attr, $line)
 
   Arguments:
 
@@ -1114,7 +1143,7 @@ sub _get_login_value {
 }
 
 #**********************************************************
-=head2 _get_filter_cols_value($attr)
+=head2 _get_filter_cols_value($attr, $line, $col_name)
 
   Arguments:
 
@@ -1148,7 +1177,7 @@ sub _get_filter_cols_value {
 }
 
 #**********************************************************
-=head2 _get_status_value($attr)
+=head2 _get_status_value($attr, $line, $col_name, $service_status, $service_status_colors)
 
   Arguments:
 
@@ -1178,7 +1207,7 @@ sub _get_status_value {
 }
 
 #**********************************************************
-=head2 _get_tags_value($attr)
+=head2 _get_tags_value($line, $col_name)
 
   Arguments:
 
@@ -1207,7 +1236,24 @@ sub _get_tags_value {
 }
 
 #**********************************************************
-=head2 _result_former_map($attr)
+=head2 _get_location_value($line, $col_name)
+
+=cut
+#**********************************************************
+sub _get_location_value {
+  my ($line, $col_name) = @_;
+
+  return $line->{$col_name} if (!in_array('Maps2', \@MODULES) || ($admin->{MODULES} && !$admin->{MODULES}{Maps2}));
+  return $line->{$col_name} if (!$line->{$col_name} || $line->{$col_name} eq '');
+
+  my $location_btn = $line->{$col_name};
+  eval { $location_btn = form_add_map(undef, { BUILD_ID => $line->{$col_name} }); };
+
+  return $location_btn;
+}
+
+#**********************************************************
+=head2 _result_former_map($attr, $data)
 
   Arguments:
 
@@ -1255,7 +1301,7 @@ sub _result_former_map {
 }
 
 #**********************************************************
-=head2 _result_former_make_charts($attr)
+=head2 _result_former_make_charts($attr, $line, $data, $chart_num)
 
   Arguments:
 
@@ -1297,7 +1343,7 @@ sub _result_former_make_charts {
 }
 
 #**********************************************************
-=head2 _result_former_make_rows($attr)
+=head2 _result_former_make_rows($attr, $data, $table)
 
   Arguments:
     $attr
@@ -1396,7 +1442,7 @@ sub _result_former_make_rows {
 #**********************************************************
 sub _column_no_permitss {
 
-  _info_fields_hide();
+  # _info_fields_hide();
 
   my (undef, $name_var, $fields_data) = split(/(SEARCH_FIELDS=)(.+[A-Z][0-9])/, $admin->{WEB_OPTIONS} || q{});
   my @web_options_admin = ();
@@ -1436,31 +1482,31 @@ sub _column_no_permitss {
 
 =cut
 #**********************************************************
-sub _info_fields_hide {
-
-  # return 0 unless (($admin->{SETTING} || $FORM{show_columns}));
-  # 
-  # my @info_fields = ();
-  # if (! $FORM{show_columns}) {
-  #   @info_fields = split(', ', $admin->{SETTING});
-  # }
-  # else {
-  #   @info_fields = split(', ', $FORM{show_columns});
-  # }
-  #
-  # my %hash_fields = ();
-  # foreach my $key (@info_fields) {
-  #   $hash_fields{$key} = 1;
-  # }
-  #
-  # foreach my $key (sort keys %LIST_PARAMS) {
-  #   if ($key =~ /^_/ && !$hash_fields{ $key }) {
-  #     delete($LIST_PARAMS{ $key });
-  #   }
-  # }
-
-  return 1;
-}
+# sub _info_fields_hide {
+#
+#   return 0 unless (($admin->{SETTING} || $FORM{show_columns}));
+#
+#   my @info_fields = ();
+#   if (!$FORM{show_columns}) {
+#     @info_fields = split(', ', $admin->{SETTING});
+#   }
+#   else {
+#     @info_fields = split(', ', $FORM{show_columns});
+#   }
+#
+#   my %hash_fields = ();
+#   foreach my $key (@info_fields) {
+#     $hash_fields{$key} = 1;
+#   }
+#
+#   foreach my $key (sort keys %LIST_PARAMS) {
+#     if ($key =~ /^_/ && !$hash_fields{ $key }) {
+#       delete($LIST_PARAMS{ $key });
+#     }
+#   }
+#
+#   return 1;
+# }
 
 #**********************************************************
 =head2 _sort_table($name_table, $sort, $cols)

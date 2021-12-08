@@ -49,11 +49,11 @@ sub equipment_test {
   else {
     my $perl_scalar = _get_snmp_oid( $attr->{SNMP_TPL} );
 
-    if($perl_scalar && $perl_scalar->{ports}) {
+    if ($perl_scalar && $perl_scalar->{ports}) {
       %snmp_ports_info = %{ $perl_scalar->{ports} };
     }
 
-    if($perl_scalar && $perl_scalar->{info}) {
+    if ($perl_scalar && $perl_scalar->{info}) {
       %snmp_info = %{ $perl_scalar->{info} };
       if ( !$snmp_info{PORTS}{OIDS} ) {
         $snmp_info{PORTS} = $perl_scalar->{ports}->{PORT_TYPE};
@@ -91,6 +91,16 @@ sub equipment_test {
       $attr->{PORT_ID} = $new_port_id;
     }
 
+    my $equipment_uptime;
+    if (in_array('PORT_UPTIME', \@port_info_list) && $snmp_info{UPTIME}->{OIDS}) {
+      $equipment_uptime = snmp_get({
+        %{$attr},
+        OID                       => $snmp_info{UPTIME}->{OIDS},
+        NO_PRETTY_PRINT_TIMETICKS => 1,
+        DEBUG                     => ($debug > 2) ? 1 : undef
+      });
+    }
+
     foreach my $type ( @port_info_list ){
       my $oid = '';
       my $function;
@@ -113,9 +123,10 @@ sub equipment_test {
 
       my $ports_info = snmp_get({
         %{$attr},
-        OID     => $oid . (($attr->{PORT_ID}) ? ".$attr->{PORT_ID}" : q{}),
-        WALK    => ($attr->{PORT_ID}) ? 0 : 1,
-        DEBUG   => ($debug > 2) ? 1 : undef
+        OID                       => $oid . (($attr->{PORT_ID}) ? ".$attr->{PORT_ID}" : q{}),
+        WALK                      => ($attr->{PORT_ID}) ? 0 : 1,
+        NO_PRETTY_PRINT_TIMETICKS => ($type eq 'PORT_UPTIME') ? 1 : 0,
+        DEBUG                     => ($debug > 2) ? 1 : undef
       });
 
       if ( !defined($ports_info) ){
@@ -126,13 +137,17 @@ sub equipment_test {
         ($ports_info) = &{ \&$function }($ports_info); #XXX will it work if $ports_info is array?
       }
 
-      if($attr->{PORT_ID}) {
+      if ($attr->{PORT_ID}) {
+        if ($type eq 'PORT_UPTIME') {
+          $ports_info = (defined $equipment_uptime && defined $ports_info) ? sec2time(($equipment_uptime - $ports_info)/100, {str => 1} ) : '?';
+        }
+
         $ports_info{$attr->{PORT_ID}}{$type} = $ports_info;
         next;
       }
 
       if ($attr->{AUTO_PORT_SHIFT} && $type eq 'PORT_INDEX') {
-        foreach my $port ( @{$ports_info} ){
+        foreach my $port ( @{$ports_info} ) {
           next if (!defined($port));
           my ($port_index, $port_id) = split( /:/, $port, 2 );
 
@@ -141,14 +156,19 @@ sub equipment_test {
         next;
       }
 
-      foreach my $port ( @{$ports_info} ){
+      foreach my $port ( @{$ports_info} ) {
         next if (!defined($port));
         my ($port_id, $data) = split( /:/, $port, 2 );
+
+        if ($type eq 'PORT_UPTIME') {
+          $data = (defined $equipment_uptime && defined $data) ? sec2time(($equipment_uptime - $data)/100, {str => 1} ) : '?';
+        }
+
         $ports_info{$port_id}{$type} = $data;
       }
     }
 
-    if($snmp_ports_info{RUN_CABLE_TEST}{OIDS} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{OIDS}) {
+    if ($snmp_ports_info{RUN_CABLE_TEST}{OIDS} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{OIDS}) {
       my $skip_ports = $snmp_ports_info{RUN_CABLE_TEST}{SKIP_PORTS} || $snmp_ports_info{RUN_CABLE_TEST_SET_PORT}{SKIP_PORTS};
       if (ref $skip_ports ne 'ARRAY') {
         $skip_ports = undef;

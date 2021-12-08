@@ -163,6 +163,7 @@ sub _curl_request {
   
   my $CURL = $attr->{FILE_CURL} || $conf{FILE_CURL} || _find_curl();
   if ( !-f $CURL ) {
+    print "Content-Type: text/html\n\n";
     print "'curl' not found. use \$conf{FILE_CURL}\n";
     return 0;
   }
@@ -223,7 +224,7 @@ sub _curl_request {
   if ( $attr->{REQUEST_PARAMS_JSON} ) {
     $request_params = '-d "{' . join(',', @request_params_arr) . '}"';
   }
-  elsif ( $#request_params_arr > - 1 ) {
+  elsif ( $#request_params_arr > -1 ) {
     $request_params = join('&', @request_params_arr);
     if ( $attr->{GET} ) {
       $request_url .= "?" . $request_params;

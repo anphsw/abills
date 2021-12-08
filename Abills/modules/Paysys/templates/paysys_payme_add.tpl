@@ -1,101 +1,101 @@
-<form action='%URL%' method='post'>
+<div class='card card-primary card-outline'>
+    <form action='%URL%' method='post'>
 
-  <!-- Идентификатор WEB Кассы -->
-  <input type='hidden' name='merchant' value='%MERCHANT_ID%'/>
-  <!-- Сумма платежа в тийинах -->
-  <input type='hidden' name='amount' value='%AMOUNT%'/>
-  <!-- Поля Объекта Account -->
-  <input type='hidden' name='account[%CHECK_FIELD%]' value='%USER_ID%'/>
-  <input type='hidden' name='account[TRANSACTION_ID]' value='%TRANSACTION_ID%'/>
-  <!-- ==================== НЕОБЯЗАТЕЛЬНЫЕ ПОЛЯ ====================== -->
-  <!-- Язык. Доступные значения: ru|uz|en
-       Другие значения игнорируются
-       Значение по умолчанию ru -->
-  <input type='hidden' name='lang' value='ru'/>
+        <!-- WEB Checkout ID -->
+        <input type='hidden' name='merchant' value='%MERCHANT_ID%'/>
+        <!-- Payment amount in tiyin -->
+        <input type='hidden' name='amount' value='%AMOUNT%'/>
+        <!-- Object Fields Class Account -->
+        <input type='hidden' name='account[%CHECK_FIELD%]' value='%USER_ID%'/>
+        <input type='hidden' name='account[TRANSACTION_ID]' value='%TRANSACTION_ID%'/>
+        <!-- ==================== OPTIONAL FIELDS ====================== -->
+        <!-- Language. Available values: ru | uz | en
+              Other values are ignored
+              Default value ru -->
+        <input type='hidden' name='lang' value='ru'/>
 
-  <!-- Валюта. Доступные значения: 643|840|860|978
-       Другие значения игнорируются
-       Значение по умолчанию 860
-       Коды валют в ISO формате
-       643 - RUB
-       840 - USD
-       860 - UZS
-       978 - EUR -->
-  <input type='hidden' name='currency' value='860'/>
+        <!-- Currency. Available Values: 643 | 840 | 860 | 978
+              Other values are ignored
+              The default is 860
+              ISO currency codes
+              643 - RUB
+              840 - USD
+              860 - UZS
+              978 - EUR -->
+        <input type='hidden' name='currency' value='860'/>
 
-  <!-- URL возврата после оплаты или отмены платежа.
-       Если URL возврата не указан, он берется из заголовка запроса Referer.
-       URL возврата может содержать параметры, которые заменяются Paycom при запросе.
-       Доступные параметры для callback:
-       :transaction - id транзакции или 'null' если транзакцию не удалось создать
-       :account.{field} - поля объекта Account
-       Пример: https://your-service.uz/paycom/:transaction -->
-  <!--<input type='hidden' name='callback' value='{url возврата после платежа}'/>-->
+        <!-- URL of refund after payment or cancellation of payment.
+  If no return URL is specified, it is taken from the Referer request header.
+  The return URL can contain parameters that Paycom replaces when requested.
+  Available parameters for callback:
+  : transaction - transaction id or 'null' if the transaction could not be created
+  : account. {field} - fields of the Account object
+  Example: https://your-service.uz/paycom/:transaction ->
+  <! - <input type = 'hidden' name = 'callback' value = '{return url after payment}' /> -->
 
-  <!-- Таймаут после успешного платежа в миллисекундах.
-       Значение по умолчанию 15
-       После успешной оплаты, по истечении времени callback_timeout
-       производится перенаправление пользователя по url возврата после платежа -->
-  <input type='hidden' name='callback_timeout' value='15'/>
+        <!-- Timeout after successful payment in milliseconds.
+        Default value 15
+        After successful payment, after callback_timeout
+        the user is redirected to the return url after payment -->
+        <input type='hidden' name='callback_timeout' value='15'/>
 
-  <!-- Выбор платежного инструмента Paycom.
-       В Paycom доступна регистрация несколько платежных
-       инструментов. Если платёжный инструмент не указан,
-       пользователю предоставляется выбор инструмента оплаты.
-       Если указать id определённого платежного инструмента -
-       пользователь перенаправляется на указанный платежный инструмент. -->
-  <!--<input type='hidden' name='payment' value='{payment_id}'/>-->
+        <!-- Selecting a payment instrument Paycom.
+        Multiple payment registrations are available at Paycom
+        tools. If the payment instrument is not specified,
+        the user is given a choice of payment instrument.
+        If you specify the id of a certain payment instrument -
+        the user is redirected to the specified payment instrument. -->
+        <!-- <input type = 'hidden' name = 'payment' value = '{payment_id}' /> -->
 
-  <!-- Описание платежа
-       Для описания платежа доступны 3 языка: узбекский, русский, английский.
-       Для описания платежа на нескольких языках следует использовать
-       несколько полей с атрибутом  name='description[{lang}]'
-       lang может принимать значения ru|en|uz -->
-  <input type='hidden' name='description' value='PaymentDesc Payme'/>
-  <input type='hidden' name='description' value='%DESCRIBE%'/>
+        <!-- Payment description
+  There are 3 languages ​​available to describe the payment: Uzbek, Russian, English.
+  To describe the payment in several languages, use
+  several fields with attribute name = 'description [{lang}]'
+  lang can take the values ​​ru | en | uz -->
+        <input type='hidden' name='description' value='PaymentDesc Payme'/>
+        <input type='hidden' name='description' value='%DESCRIBE%'/>
 
-  <!-- Объект детализации платежа
-       Поле для детального описания платежа, например, перечисления
-       купленных товаров, стоимости доставки, скидки.
-       Значение поля (value) — JSON-строка закодированная в BASE64 -->
-  <!--<input type='hidden' name='detail' value='{JSON объект детализации в BASE64}'/>-->
-  <!-- ================================================================== -->
+        <!-- Payment detail object
+        A field for a detailed description of a payment, for example, a transfer
+        purchased goods, shipping costs, discounts.
+        Field value (value) - JSON-string encoded in BASE64 -->
+        <!-- <input type = 'hidden' name = 'detail' value = '{JSON detail object in BASE64}' /> -->
+        <!-- ============================================== ==================== -->
 
 
+        <div class='card-header with-border text-center'>
+            <h4>_{BALANCE_RECHARCHE}_</h4>
+        </div>
 
-  <div class='card box-primary '>
-    <div class='card-header with-border'><h4>_{BALANCE_RECHARCHE}_</h4></div>
+        <div class='card-body'>
+            <div class='form-group text-center'>
+                <img src='/styles/default_adm/img/paysys_logo/payme-logo.png'
+                     style='width: auto; max-height: 200px;'
+                     alt='payme'>
+            </div>
 
-    <div class='card-body'>
+            <table style='min-width:350px;' width='auto'>
+                <tr>
+                    <td>_{PAY_SYSTEM}_:</td>
+                    <td>Upay</td>
+                </tr>
+                <tr>
+                    <td>_{ORDER}_:</td>
+                    <td>$FORM{OPERATION_ID}</td>
+                </tr>
+                <tr>
+                    <td>_{SUM}_:</td>
+                    <td>$FORM{SUM}</td>
+                </tr>
+                <tr>
+                    <td>_{DESCRIBE}_:</td>
+                    <td>$FORM{DESCRIBE}</td>
+                </tr>
+            </table>
+        </div>
+        <div class='card-footer'>
+            <input class='btn btn-primary' type=submit value=_{PAY}_>
+        </div>
 
-      <div class='form-group text-center'>
-        <img src='/styles/default_adm/img/paysys_logo/payme-logo.png' style='width: auto; max-height: 200px;'>
-      </div>
-
-      <div class='form-group row'>
-        <label class='col-md-6 control-label text-center'>_{ORDER}_:</label>
-        <label class='col-md-6 control-label'>$FORM{OPERATION_ID}</label>
-      </div>
-
-      <div class='form-group row'>
-        <label class='col-md-6 control-label text-center'> _{PAY_SYSTEM}_:</label>
-        <label class='col-md-6 control-label'>Payme</label>
-      </div>
-
-      <div class='form-group row'>
-        <label class='control-label col-md-6 text-center'>_{DESCRIBE}_:</label>
-        <label class='control-label col-md-6'>%DESCRIBE%</label>
-      </div>
-
-      <div class='form-group row'>
-        <label class='control-label col-md-6 text-center'>_{SUM}_:</label>
-        <label class='control-label col-md-6'>$FORM{SUM}</label>
-      </div>
-    </div>
-    <div class='card-footer'>
-      <input class='btn btn-primary' type=submit value=_{PAY}_>
-    </div>
-  </div>
-
-</form>
-
+    </form>
+</div>

@@ -606,9 +606,9 @@ sub search_former{
   $self->{SEARCH_VALUES}          = [];
   @{ $self->{SEARCH_FIELDS_ARR} } = ();
 
-  if ($data->{_WHERE_RULES}) {
-    push @WHERE_RULES, $data->{_WHERE_RULES};
-  }
+  # if ($data->{_WHERE_RULES}) {
+  #   push @WHERE_RULES, $data->{_WHERE_RULES};
+  # }
 
   my @user_fields = (
     'LOGIN',
@@ -1273,16 +1273,18 @@ sub search_expr_users{
       if ( $attr->{ADDRESS_FULL} && !in_array( 'ADDRESS_FULL', $attr->{SKIP_USERS_FIELDS} )){
         my $build_delimiter = $attr->{BUILD_DELIMITER} || $self->{conf}{BUILD_DELIMITER} || ', ';
 
-        if ($build_delimiter =~ /,/) {
-          $attr->{ADDRESS_FULL} =~ s/,/\*/g;
-        }
+        # if ($build_delimiter =~ /,/) {
+        #   $attr->{ADDRESS_FULL} =~ s/,/\*/g;
+        # }
 
         push @fields, @{ $self->search_expr( $attr->{ADDRESS_FULL}, "STR",
-            "CONCAT(streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full",
+            "CONCAT(" . ($self->{conf}{ADDRESS_FULL_SHOW_DISTRICT} ? "districts.name, '$build_delimiter'," : "") .
+            "streets.name, '$build_delimiter', builds.number, '$build_delimiter', pi.address_flat) AS address_full",
             { EXT_FIELD => 1 } ) };
         $EXT_TABLE_JOINS_HASH{users_pi} = 1;
         $EXT_TABLE_JOINS_HASH{builds} = 1;
         $EXT_TABLE_JOINS_HASH{streets} = 1;
+        $EXT_TABLE_JOINS_HASH{districts} = 1;
       }
 
       if ( $attr->{DISTRICT_NAME} ){
@@ -1464,7 +1466,9 @@ sub search_expr_users{
   }
 
   if ( $attr->{CONTRACT_ID} || $attr->{CREDIT} ){
-    $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+    if (! $attr->{SKIP_USERS_FIELDS}) {
+      $EXT_TABLE_JOINS_HASH{users_pi} = 1;
+    }
     $EXT_TABLE_JOINS_HASH{companies} = 1;
   }
 
@@ -1653,7 +1657,7 @@ sub changes {
   my $OLD_DATA = $attr->{OLD_INFO};
   if ( $OLD_DATA->{errno} ){
     print  "Old date errors: $OLD_DATA->{errno} '$TABLE' $change_params_list\n";
-    print %{$DATA} if($DATA);
+    print %{$DATA} if($DATA && ref $DATA eq 'HASH');
     print "\nError: $OLD_DATA->{errstr}\n";
     $self->{errno} = $OLD_DATA->{errno};
     $self->{errstr} = $OLD_DATA->{errstr};

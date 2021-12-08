@@ -2,7 +2,7 @@
 <script type='text/javascript' src='/styles/default_adm/js/raphael.min.js'></script>
 <script type='text/javascript' src='/styles/lte_adm/plugins/morris/morris.min.js'></script>
 
-<div class='card container-md'>
+<div class='card card-primary card-outline container-md'>
   <div class='card-header with-border'>
     <h4 class='card-title'>_{SPEED_CHARTS}_</h4>
   </div>

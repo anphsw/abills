@@ -143,4 +143,16 @@ $lang{HEIGHT_CANNOT_BE_LESS} = 'Height cannot be less';
 $lang{SAVE_PRESET} = 'Save preset';
 $lang{STRAIGHTEN} = 'Straighten';
 
+$lang{CHAIN_SEEMS_TO_BE_BROKEN} = 'The chain seems to be broken.';
+$lang{AFTER_COMMUTATION} = 'After commutation';
+$lang{LAST_ELEMENT} = 'Last element';
+$lang{IS_NOT_PRESENT_ON_ANY_COMMUTATION} = 'is not present on any commutation';
+$lang{CANNOT_FIND_COMMUTATION_FOR_EQUIPMENT} = 'Cannot find commutation for equipment';
+$lang{LINKED_MORE_THAN_ONE_COMMUTATION} = 'Equipment is linked on more than one commutation';
+$lang{CANNOT_GET_USER_SERVICE_LIST} = 'Cannot get user service list';
+$lang{NO_SERVICE_PORTS_TO_TRACE} = 'No service ports to trace';
+$lang{CANNOT_DISPLAY_COMMUTATION_PATH} = 'Cannot display commutation path';
+
+$lang{NOT_USERS_FOR_EQUIPMENT} = 'No user was found on the commutation for this equipment';
+
 1;

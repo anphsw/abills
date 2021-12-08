@@ -35,7 +35,7 @@ my $Payments = Finance->payments($db, $admin, \%conf);
 #**********************************************************
 sub page {
   my ($uid) = @_;
-  my $Internet_info = $Internet->info($uid);
+  my $Internet_info = $Internet->user_info($uid);
   if ($Internet_info->{errno}) {
     $html->message("err", $lang{ERROR}, $lang{NOTABLES});
     return 1;

@@ -180,7 +180,7 @@ sub iptv_user_info {
         $Iptv->{TP_INFO}{ABON_DISTRIBUTION} ||= 0;
         $Iptv->{TP_INFO}{PERIOD_ALIGNMENT} ||= 0;
 
-        service_get_month_fee($Iptv, { SERVICE_NAME => $lang{TV} }) if (!$FORM{STATUS});
+        service_get_month_fee($Iptv, { SERVICE_NAME => $lang{TV}, MODULE => 'Iptv' }) if (!$FORM{STATUS});
         $Iptv->{ID} = $Iptv->{INSERT_ID};
 
         $Iptv->user_info($Iptv->{ID});
@@ -251,10 +251,7 @@ sub iptv_user_info {
   }
   elsif ($FORM{chg} || $FORM{del_shedule_tp}) {
     $FORM{chg} ||= $FORM{ID} if $FORM{ID};
-    my $return = iptv_user_service({
-      PORTAL_ACTIONS => \%PORTAL_ACTIONS,
-      ID             => $FORM{chg}
-    });
+    my $return = iptv_user_service({ PORTAL_ACTIONS => \%PORTAL_ACTIONS, ID => $FORM{chg} });
 
     return 1 if ($return && $return == 2);
   }
@@ -343,6 +340,13 @@ sub iptv_user_service {
   my $additional_tables;
 
   $Iptv->user_info($user_service_id, { UID => $user->{UID} });
+  my $iptv_service_id = $Iptv->{SERVICE_ID} || 0;
+
+  if (!$iptv_service_id || !$PORTAL_ACTIONS->{$iptv_service_id}) {
+    $html->message('info', $lang{INFO}, $lang{ERROR_VIEW_INFORMATION}, { ID => 804 });
+    return 1;
+  }
+
   $Tv_service = undef;
   $Tv_service = tv_load_service($Iptv->{SERVICE_MODULE}, { SERVICE_ID => $Iptv->{SERVICE_ID} }) if ($Iptv->{SERVICE_ID});
 
@@ -424,10 +428,12 @@ sub iptv_user_service {
     }
   }
 
-  $Iptv->{TP_CHANGE_BTN} = $html->button($lang{CHANGE}, 'index=' . get_function_index('iptv_user_chg_tp')
-    . '&ID=' . $user_service_id . '&sid=' . $sid, { class => 'btn btn-xs btn-primary' }) if ($conf{IPTV_USER_CHG_TP} && !$Iptv->{STATUS});
+  if ($conf{IPTV_USER_CHG_TP} && !$Iptv->{STATUS} && $PORTAL_ACTIONS->{$iptv_service_id} == 2) {
+    $Iptv->{TP_CHANGE_BTN} = $html->button($lang{CHANGE}, 'index=' . get_function_index('iptv_user_chg_tp')
+      . '&ID=' . $user_service_id . '&sid=' . $sid, { class => 'btn btn-xs btn-primary' });
+  }
 
-  if (in_array(2, [ values %$PORTAL_ACTIONS ]) && !$Iptv->{STATUS}) {
+  if ($PORTAL_ACTIONS->{$iptv_service_id} == 2 && !$Iptv->{STATUS}) {
     $Iptv->{DISABLE_BTN} = $html->button($lang{DISABLE_SERVICE},
       'index=' . get_function_index('iptv_user_info') . '&sid=' . $sid . "&ID=$Iptv->{ID}&disable=1", { class => 'btn btn-xs btn-danger' });
     $conf{IPTV_USER_CHG_CHANNELS} = 1;

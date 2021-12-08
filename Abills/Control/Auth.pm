@@ -415,7 +415,7 @@ sub check_permissions {
       });
 
       my $result = $Auth->check_access({
-        LOGIN    => $login . ',ou=users',
+        LOGIN    => $login,
         PASSWORD => $password
       });
 
@@ -894,7 +894,7 @@ sub passwordless_access {
 
     my $Internet = Internet->new($db, $admin, \%conf);
 
-    my $internet_list = $Internet->list({
+    my $internet_list = $Internet->user_list({
       IP        => $remote_addr,
       %params,
       LOGIN     => '_SHOW',

@@ -76,7 +76,7 @@ sub internet_user {
     }
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
-    $Internet->del(\%FORM);
+    $Internet->user_del(\%FORM);
     if (!$Internet->{errno}) {
       $html->message('info', $lang{INFO}, $lang{DELETED});
     }
@@ -96,7 +96,7 @@ sub internet_user {
 
   my $user_service_count = 0;
   if (!$FORM{add_form}) {
-    $Internet->info($uid, {
+    $Internet->user_info($uid, {
       DOMAIN_ID => $users->{DOMAIN_ID},
       ID        => $FORM{chg}
     });
@@ -620,11 +620,11 @@ sub internet_user_add {
     return 0;
   }
 
-  $Internet->add($attr);
+  $Internet->user_add($attr);
   my $service_id = $Internet->{ID} || 0;
   if (!$Internet->{errno}) {
     #Make month fee
-    $Internet->info($uid, { ID => $service_id });
+    $Internet->user_info($uid, { ID => $service_id });
     if (!$attr->{STATUS} && !$attr->{SKIP_MONTH_FEE}) {
       service_get_month_fee($Internet, {
         REGISTRATION               => 1,
@@ -689,7 +689,8 @@ sub internet_ipoe_activate_manual {
       ADMIN_ACTIVATE => 1,
       IP             => $attr->{IP},
       UID            => $attr->{UID},
-      ID             => $attr->{ID} || $Internet->{ID}
+      ID             => $attr->{ID} || $Internet->{ID},
+      ACTIVE         => 1
     });
   }
 
@@ -727,15 +728,14 @@ sub internet_user_change {
     $attr->{PORT} = $FORM{PORT};
   }
 
-  $Internet->change({
+  $Internet->user_change({
     %$attr,
     DETAIL_STATS => $attr->{DETAIL_STATS} || 0,
     IPN_ACTIVATE => $attr->{IPN_ACTIVATE} || 0
   });
 
   if (!$attr->{STATUS}
-    || (defined($attr->{STATUS}) && ($attr->{STATUS} == 0 || $attr->{STATUS} == 5))) {
-
+    || (defined($attr->{STATUS}) && in_array($attr->{STATUS}, [0, 3, 5]))) {
     my $list = $Shedule->list({
       UID       => $uid,
       MODULE    => 'Internet',
@@ -1018,7 +1018,7 @@ sub internet_user_preproccess {
     if (!$conf{INTERNET_CID_FORMAT}) {
       $attr->{CID} = Abills::Filters::_mac_former($attr->{CID});
     }
-    my $list = $Internet->list({
+    my $list = $Internet->user_list({
       LOGIN     => '_SHOW',
       CID       => $attr->{CID},
       COLS_NAME => 1
@@ -1038,7 +1038,7 @@ sub internet_user_preproccess {
 
   #Check dublicate IP
   if ($attr->{IP} && $attr->{IP} =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/ && $attr->{IP} ne '0.0.0.0') {
-    my $list = $Internet->list({
+    my $list = $Internet->user_list({
       IP        => $attr->{IP},
       LOGIN     => '_SHOW',
       COLS_NAME => 1
@@ -1057,7 +1057,7 @@ sub internet_user_preproccess {
 
   #Check duplicate SVLAN ans CVLAN
   if ($conf{INTERNET_CHECK_VLANS} && $attr->{SERVER_VLAN} && $attr->{VLAN}) {
-    my $list = $Internet->list({
+    my $list = $Internet->user_list({
       SERVER_VLAN => $attr->{SERVER_VLAN},
       VLAN        => $attr->{VLAN},
       CID         => $attr->{CID} || "_SHOW",
@@ -1077,7 +1077,7 @@ sub internet_user_preproccess {
   }
 
   if ($attr->{NAS_ID} && $attr->{PORT}) {
-    my $list = $Internet->list({
+    my $list = $Internet->user_list({
       NAS_ID    => $attr->{NAS_ID},
       PORT      => $attr->{PORT},
       LOGIN     => "_SHOW",
@@ -1097,7 +1097,7 @@ sub internet_user_preproccess {
 
   #Check duplicate CPE MAC
   if ($attr->{CPE_MAC}) {
-    my $list = $Internet->list({
+    my $list = $Internet->user_list({
       CPE_MAC   => $attr->{CPE_MAC},
       LOGIN     => "_SHOW",
       COLS_NAME => 1
@@ -1150,7 +1150,7 @@ sub internet_join_service {
   if ($company_id) {
     my $join_services_users = q{};
 
-    my $list = $Internet->list(
+    my $list = $Internet->user_list(
       {
         JOIN_SERVICE => 1,
         COMPANY_ID   => $company_id,
@@ -1171,7 +1171,7 @@ sub internet_join_service {
     );
 
     if ($Internet->{JOIN_SERVICE} && $Internet->{JOIN_SERVICE} == 1) {
-      $list = $Internet->list(
+      $list = $Internet->user_list(
         {
           JOIN_SERVICE => $uid,
           LOGIN        => '_SHOW',
@@ -1242,7 +1242,7 @@ sub internet_password_form {
     }
   );
 
-  $Internet->info($uid, { ID => $attr->{ID} });
+  $Internet->user_info($uid, { ID => $attr->{ID} });
   $password_form->{EXTRA_ROW} = $html->tpl_show(templates('form_row'), { ID => '',
     NAME                                                                    => "$lang{PASSWD}",
     VALUE                                                                   => $Internet->{PASSWORD}
@@ -1436,7 +1436,7 @@ sub internet_user_subscribes {
 
     ($table) = result_former({
       INPUT_DATA      => $Internet,
-      FUNCTION        => 'list',
+      FUNCTION        => 'user_list',
       BASE_FIELDS     => 0,
       DEFAULT_FIELDS  => (($conf{INTERNET_LOGIN}) ? 'INTERNET_LOGIN,' : q{}) . 'IP,TP_NAME,INTERNET_STATUS,ONLINE,ID',
       HIDDEN_FIELDS   => 'UID',
@@ -1621,7 +1621,7 @@ sub internet_test {
 
           foreach my $opt_key (keys %options) {
             if ($options{$opt_key} eq 'CID') {
-              $Internet->info($FORM{UID});
+              $Internet->user_info($FORM{UID});
               $options{$opt_key} = $Internet->{CID};
             }
             elsif ($options{$opt_key} eq 'LOGIN') {
@@ -1650,7 +1650,7 @@ sub internet_test {
     else {
       $request = "User-Name=" . $ui->{LOGIN};
 
-      $Internet->info($FORM{UID});
+      $Internet->user_info($FORM{UID});
       if ($Internet->{CID}) {
         $request .= "\nCalling-Station-Id=" . $Internet->{CID};
       }
@@ -1701,7 +1701,7 @@ sub internet_registration_info {
   # Info
   load_module('Docs', $html);
   $users = Users->new($db, $admin, \%conf);
-  $Internet = $Internet->info($uid);
+  $Internet = $Internet->user_info($uid);
   my $pi = $users->pi({ UID => $uid });
   my $user = $users->info($uid, { SHOW_PASSWORD => $permissions{0}{3} });
   my $company_info = {};
@@ -1980,7 +1980,7 @@ sub internet_chg_tp {
   if (defined($attr->{USER_INFO})) {
     $user = $attr->{USER_INFO};
     $uid = $user->{UID};
-    $Internet = $Internet->info($uid,
+    $Internet = $Internet->user_info($uid,
       { DOMAIN_ID => $user->{DOMAIN_ID},
         ID        => $FORM{ID}
       });
@@ -2065,6 +2065,10 @@ sub internet_chg_tp {
         return 0;
       }
 
+      my $comments = "$lang{FROM}: $Internet->{TP_ID}:" .
+        (($Internet->{TP_NAME}) ? "$Internet->{TP_NAME}" : q{}) . ((!$FORM{GET_ABON}) ? "\nGET_ABON=-1" : '')
+        . ((!$FORM{RECALCULATE}) ? "\nRECALCULATE=-1" : '');
+
       $Shedule->add({
         UID          => $uid,
         TYPE         => 'tp',
@@ -2073,14 +2077,13 @@ sub internet_chg_tp {
         M            => $month,
         Y            => $year,
         MODULE       => 'Internet',
-        COMMENTS     => "$lang{FROM}: $Internet->{TP_ID}:" .
-          (($Internet->{TP_NAME}) ? "$Internet->{TP_NAME}" : q{}) . ((!$FORM{GET_ABON}) ? "\nGET_ABON=-1" : '') . ((!$FORM{RECALCULATE}) ? "\nRECALCULATE=-1" : ''),
+        COMMENTS     => $comments,
         ADMIN_ACTION => 1
       });
 
       if (!_error_show($Shedule)) {
         $html->message('info', $lang{CHANGED}, "$lang{TARIF_PLAN} $lang{CHANGED}");
-        $Internet->info($uid, { ID => $FORM{chg} });
+        $Internet->user_info($uid, { ID => $FORM{chg} });
       }
     }
     else {
@@ -2089,7 +2092,7 @@ sub internet_chg_tp {
       }
 
       $FORM{PERSONAL_TP} = 0.00;
-      $Internet->change(\%FORM);
+      $Internet->user_change(\%FORM);
 
       if( $Internet->{TP_INFO} && $Internet->{TP_INFO}->{MONTH_FEE} && $Internet->{TP_INFO}->{MONTH_FEE} < $users->{DEPOSIT}) {
         $Internet->{STATUS} = 0;
@@ -2104,7 +2107,7 @@ sub internet_chg_tp {
           service_get_month_fee($Internet);
           if ($FORM{ACTIVE_SERVICE}) {
             $FORM{STATUS}=0;
-            $Internet->change(\%FORM);
+            $Internet->user_change(\%FORM);
           }
         }
         else {
@@ -2248,7 +2251,7 @@ sub internet_user_del {
   my ($uid, $attr) = @_;
 
   $Internet->{UID} = $uid;
-  $Internet->del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
+  $Internet->user_del({ UID => $uid, COMMENTS => $attr->{COMMENTS} });
   $Log->log_del({ LOGIN => $attr->{LOGIN} });
 
   return 0;
@@ -3014,7 +3017,7 @@ sub internet_wizard_add {
     }
 
     # Info
-    my $internet = $Internet->info($uid);
+    my $internet = $Internet->user_info($uid);
     my $pi = $user->pi({ UID => $uid });
     $user = $user->info($uid, { SHOW_PASSWORD => 1 });
 

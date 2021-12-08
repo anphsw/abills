@@ -378,7 +378,9 @@ sub header {
 
   $self->{header}  = "Content-Type: application/json; charset=$CHARSET\n";
   $self->{header} .= "Access-Control-Allow-Headers: *\n";
-  $self->{header} .= "Access-Control-Allow-Origin: *" . "\n\n";
+  $self->{header} .= "Access-Control-Allow-Origin: *" . "\n";
+  $self->{header} .= "Status: $attr->{STATUS}\n" if $attr->{STATUS};
+  $self->{header} .= "\n";
 
   return $self->{header};
 }

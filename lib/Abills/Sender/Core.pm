@@ -101,11 +101,10 @@ sub new {
     $self->{SENDER_TYPE} = $attr->{SENDER_TYPE};
   }
 
-  if($attr->{BASE_DIR}) {
-    $base_dir = $attr->{BASE_DIR};
-  }
+  $base_dir = $attr->{BASE_DIR} if $attr->{BASE_DIR};
 
-  if ( $db ) {
+
+  if ($db) {
     require Contacts;
     Contacts->import();
     $Contacts = Contacts->new($db, $admin, $CONF);
@@ -290,17 +289,12 @@ sub send_message_auto {
   my ($self, $attr) = @_;
 
   my $contacts_list;
-  if ( $attr->{UID} ) {
-    $contacts_list = $Contacts->contacts_list({
-      UID              => $attr->{UID},
-      SHOW_ALL_COLUMNS => 1
-    });
+  if ($attr->{UID}) {
+    $contacts_list = $Contacts->contacts_list({ UID => $attr->{UID}, SHOW_ALL_COLUMNS => 1 });
+    push(@{$contacts_list}, { type_id => 9, value => $attr->{USER_EMAIL} }) if $attr->{USER_EMAIL};
   }
-  elsif ( $attr->{AID} ) {
-    $contacts_list = $self->{admin}->admins_contacts_list({
-      AID              => $attr->{AID},
-      SHOW_ALL_COLUMNS => 1
-    });
+  elsif ($attr->{AID}) {
+    $contacts_list = $self->{admin}->admins_contacts_list({ AID => $attr->{AID}, SHOW_ALL_COLUMNS => 1 });
   }
   else {
     return '';

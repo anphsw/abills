@@ -1169,6 +1169,11 @@ sub paysys_add_configure_groups {
     return 1;
   }
 
+  my $PAYSYSTEM_ID = 0;
+  if($FORM{PAYSYSTEM_ID}){
+    $PAYSYSTEM_ID = $FORM{PAYSYSTEM_ID};
+  }
+
   my $list = $Paysys->merchant_settings_list({
     ID             => '_SHOW',
     MERCHANT_NAME  => '_SHOW',
@@ -1176,7 +1181,7 @@ sub paysys_add_configure_groups {
     PAYSYSTEM_NAME => '_SHOW',
     MODULE         => '_SHOW',
     COLS_NAME      => 1
-  });
+  }, $PAYSYSTEM_ID);
 
   my $table = $html->table({
     ID         => 'MERCHANT_TABLE',
@@ -1446,11 +1451,17 @@ sub paysys_configure_groups_new {
   }
 
   if ($FORM{save_merch_gr}) {
+    my $delete = 1;
     foreach my $key (keys %FORM) {
       next if (!$key);
       if ($key =~ /SETTINGS_/) {
         my (undef, $gid, $system_id) = split('_', $key);
         $Paysys->paysys_merchant_to_groups_delete({ PAYSYS_ID => $system_id, GID => (defined $gid && $gid == 0) ? '0' : $gid });
+        if($delete) {
+          _del_paysys_to_config({GID => $gid});
+          $delete = 0;
+        }
+
         next if ($FORM{"SETTINGS_$gid" . "_$system_id"} eq '');
         $Paysys->paysys_merchant_to_groups_add({
           GID       => $gid,
@@ -1767,6 +1778,42 @@ sub del_settings_to_config {
     }
   }
 
+  return 1;
+}
+
+#**********************************************************
+=head2 _del_paysys_to_config($attr)
+
+  Arguments:
+    $attr -
+      GID
+
+  Returns:
+
+=cut
+#**********************************************************
+sub _del_paysys_to_config {
+  my ($attr) = @_;
+  my $Config = Conf->new($db, $admin, \%conf);
+
+  my $list_systems = $Paysys->paysys_connect_system_list({
+    PAYSYS_ID => '_SHOW',
+    COLS_NAME        => 1,
+  });
+
+  foreach my $systems (@{$list_systems}) {
+    my $list_merchants = $Paysys->merchant_settings_list({
+      ID             => '_SHOW',
+      COLS_NAME      => 1
+    }, $systems->{paysys_id});
+
+    if ($list_merchants) {
+      my $params_list = $Paysys->merchant_params_info({ MERCHANT_ID => $list_merchants->[0]->{id} });
+      foreach my $param (keys %{$params_list}) {
+        $Config->config_del($param . "_$attr->{GID}");
+      }
+    }
+  }
   return 1;
 }
 

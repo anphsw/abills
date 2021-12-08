@@ -266,14 +266,14 @@ sub crm_competitors_tp {
 
   _crm_competitor_tps_geolocation(\%FORM) if ($FORM{CLEAR} || $FORM{change_geo});
 
-  if ($Crm->{ACTION} eq 'add') {
+  if ($Crm->{ACTION} && $Crm->{ACTION} eq 'add') {
     $competitor_info->{GEO_MESSAGE} = $html->message('info', $lang{INFO}, $lang{LOCALITIES_CREATED_TP}, { OUTPUT2RETURN => 1});
   }
 
-  $html->tpl_show(_include('crm_competitors_tp', 'Crm'), { %{$Crm}, %{$competitor_info},
-    COMPETITORS_SEL => _crm_competitors_select({%{$competitor_info}, %FORM}),
-    INFO_FIELDS     => crm_lead_info_field_tpl({ %{$competitor_info}, TP_INFO_FIELDS => 1 }),
-  });
+   $html->tpl_show(_include('crm_competitors_tp', 'Crm'), { %{$Crm}, %{ ($competitor_info) ? $competitor_info : {} },
+     COMPETITORS_SEL => _crm_competitors_select({ %{ ($competitor_info) ? $competitor_info : {} }, %FORM }),
+     INFO_FIELDS     => crm_lead_info_field_tpl({ TP_INFO_FIELDS => 1, %{ ($competitor_info) ? $competitor_info : {} } }),
+   });
 
   my $competitors_tps = $Crm->crm_competitors_tps_list({
     NAME            => '_SHOW',

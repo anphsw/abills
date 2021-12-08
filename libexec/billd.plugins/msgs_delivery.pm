@@ -40,19 +40,19 @@ my $Sender = Abills::Sender::Core->new(
   \%conf
 );
 
-my $Log         = Log->new($db, $Admin);
+my $Log = Log->new($db, $Admin);
 my %list_params = %LIST_PARAMS;
-our $html       = Abills::HTML->new( { CONF => \%conf } );
-%LIST_PARAMS    = %list_params;
+our $html = Abills::HTML->new({ CONF => \%conf });
+%LIST_PARAMS = %list_params;
 
-if($debug > 2) {
-  $Log->{PRINT}=1;
+if ($debug > 2) {
+  $Log->{PRINT} = 1;
 }
 else {
-  $Log->{LOG_FILE} = $var_dir.'/log/msgs_delivery.log';
+  $Log->{LOG_FILE} = $var_dir . '/log/msgs_delivery.log';
 }
 
-if($argv->{CUSTOM_DELIVERY}) {
+if ($argv->{CUSTOM_DELIVERY}) {
   custom_delivery();
 }
 else {
@@ -69,7 +69,7 @@ sub custom_delivery {
   my $text = get_content($argv->{CUSTOM_DELIVERY});
 
   my $addresses = '';
-  if($argv->{ADDRESS_LIST}) {
+  if ($argv->{ADDRESS_LIST}) {
     $addresses = get_content($argv->{ADDRESS_LIST});
   }
   else {
@@ -77,22 +77,22 @@ sub custom_delivery {
     exit;
   }
 
-  my $subject   = '';
+  my $subject = '';
 
-  if($text =~ s/Subject: (.+)//) {
+  if ($text =~ s/Subject: (.+)//) {
     $subject = $1;
   }
 
   my @address_list = split(/\n\r?/, $addresses);
 
   foreach my $to_address (@address_list) {
-    print "$to_address // $subject \n\n $text \n" if($debug > 3);
+    print "$to_address // $subject \n\n $text \n" if ($debug > 3);
 
     $Sender->send_message({
-      TO_ADDRESS => $to_address,
-      MESSAGE    => $text,
-      SUBJECT    => $subject,
-      SENDER_TYPE=> 'Mail',
+      TO_ADDRESS  => $to_address,
+      MESSAGE     => $text,
+      SUBJECT     => $subject,
+      SENDER_TYPE => 'Mail',
       #UID       => 1
     });
   }
@@ -106,12 +106,12 @@ sub custom_delivery {
 =cut
 #**********************************************************
 sub get_content {
-  my($filename) = shift;
+  my ($filename) = shift;
 
   my $content = '';
 
-  if(open(my $fh, '<', $filename)) {
-    while(<$fh>) {
+  if (open(my $fh, '<', $filename)) {
+    while (<$fh>) {
       $content .= $_;
     }
     close($fh);
@@ -135,21 +135,18 @@ sub msgs_delivery {
   my $debug_output = '';
   $debug_output .= "Mdelivery\n" if ($debug > 1);
 
-  my $send_methods = $Sender->available_types({ HASH_RETURN => 1});
+  my $send_methods = $Sender->available_types({ HASH_RETURN => 1 });
 
   my $Msgs_delivery = Msgs->new($db, $Admin, \%conf);
-  my $SEND_DATE           = $argv->{DATE} || $DATE;
-  $LIST_PARAMS{STATUS}    = 0;
+  my $SEND_DATE = $argv->{DATE} || $DATE;
+  my $SEND_TIME = $TIME;
+  $LIST_PARAMS{STATUS} = 0;
   $LIST_PARAMS{SEND_DATE} = "<=$SEND_DATE";
+  $LIST_PARAMS{SEND_TIME} = "<=$SEND_TIME";
 
-  if($debug>6) {
-    $Msgs_delivery->{debug}=1;
-  }
+  $Msgs_delivery->{debug} = 1 if $debug > 6;
 
-  my $delivery_list = $Msgs_delivery->msgs_delivery_list({
-    %LIST_PARAMS,
-    COLS_NAME => 1
-  });
+  my $delivery_list = $Msgs_delivery->msgs_delivery_list({ %LIST_PARAMS, COLS_NAME => 1 });
 
   my $users = Users->new($db, $Admin, \%conf);
   my $Internet;
@@ -164,7 +161,7 @@ sub msgs_delivery {
 
     my $send_method_id = $Msgs_delivery->{SEND_METHOD} ? $Msgs_delivery->{SEND_METHOD} : 0;
 
-    $LIST_PARAMS{PAGE_ROWS}    = 1000000;
+    $LIST_PARAMS{PAGE_ROWS} = 1000000;
     $LIST_PARAMS{MDELIVERY_ID} = $mdelivery->{id};
 
     $Msgs_delivery->attachment_info({ MSG_ID => $mdelivery->{id}, COLS_NAME => 1 });
@@ -172,15 +169,15 @@ sub msgs_delivery {
     my @ATTACHMENTS = ();
 
     if ($Msgs_delivery->{TOTAL} > 0) {
-      foreach my $line (@{ $Msgs_delivery->{list} }) {
+      foreach my $line (@{$Msgs_delivery->{list}}) {
         push @ATTACHMENTS,
-        {
-          ATTACHMENT_ID => $line->{attachment_id},
-          FILENAME      => $line->{filename},
-          CONTENT_TYPE  => $line->{content_type},
-          FILESIZE      => $line->{filesize},
-          CONTENT       => $line->{content}
-        };
+          {
+            ATTACHMENT_ID => $line->{attachment_id},
+            FILENAME      => $line->{filename},
+            CONTENT_TYPE  => $line->{content_type},
+            FILESIZE      => $line->{filesize},
+            CONTENT       => $line->{content}
+          };
       }
     }
 
@@ -200,7 +197,7 @@ sub msgs_delivery {
       my $user_pi = $users->pi({ UID => $u->{uid} });
       my $internet_info = {};
       if (in_array('Internet', \@MODULES)) {
-        $internet_info = $Internet->info($u->{uid});
+        $internet_info = $Internet->user_info($u->{uid});
       }
 
       my $message = $html->tpl_show($Msgs_delivery->{TEXT}, {
@@ -209,12 +206,12 @@ sub msgs_delivery {
         USER_LOGIN => $u->{login},
         PASSWORD   => $u->{password}
       },
-      {
+        {
           OUTPUT2RETURN      => 1,
           SKIP_DEBUG_MARKERS => 1
-      });
+        });
 
-      if($debug < 6) {
+      if ($debug < 6) {
         if (!$Msgs_delivery->{SEND_METHOD}) {
           $Msgs_delivery->message_add({
             UID        => $user_pi->{UID},
@@ -237,22 +234,21 @@ sub msgs_delivery {
           });
 
           $Msgs_delivery->delivery_user_list_change({
-            MDELIVERY_ID => $mdelivery->{id}  || '-',
+            MDELIVERY_ID => $mdelivery->{id} || '-',
             UID          => $u->{uid},
             STATUS       => $status ? 1 : 2
           });
 
-
-          if($Sender->{errno}) {
+          if ($Sender->{errno}) {
             $Log->log_print('LOG_DEBUG', $u->{uid}, "Error: $Sender->{errno} $Sender->{errstr}");
           }
         }
 
-        if($argv->{SLEEP}) {
+        if ($argv->{SLEEP}) {
           sleep int($argv->{SLEEP});
         }
       }
-      elsif($debug > 7) {
+      elsif ($debug > 7) {
         $debug_output .= "TYPE: $Msgs_delivery->{SEND_METHOD} TO: "
           . "$u->{id} "
           . "$message\n";

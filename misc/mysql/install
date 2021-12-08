@@ -2,4 +2,3 @@
 #my.cnf                          > [/etc/]/my.cnf
 :OS=FREEBSD:exec:%RESTART_MYSQL% restart
 :OS=LINUX:exec: %RESTART_MYSQL% start
-:OS=LINUX:exec: %RESTART_MYSQL% start

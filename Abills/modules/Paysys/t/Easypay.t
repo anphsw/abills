@@ -14,7 +14,8 @@ our (
   $debug,
   $user_id,
   $payment_sum,
-  $payment_id
+  $payment_id,
+  $argv
 );
 
 require Paysys::systems::Easypay;
@@ -22,10 +23,11 @@ my $Payment_plugin = Paysys::systems::Easypay->new($db, $admin, \%conf);
 if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;
 }
-$user_id = $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || 111111111111;
+
+$user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || q{};
 my $sign = q{};
 my $service_id = q{2431};
-my $order_id = q{6223372036854775807};
+my $order_id = int(rand(1000000000));
 
 our @requests = (
   {
@@ -61,7 +63,7 @@ our @requests = (
   <Sign>$sign</Sign>
   <Confirm>
     <ServiceId>$service_id</ServiceId>
-    <PaymentId>210</PaymentId>
+    <PaymentId></PaymentId>
   </Confirm>
 </Request>
      }
@@ -73,7 +75,7 @@ our @requests = (
   <Sign>$sign</Sign>
   <Cancel>
     <ServiceId>$service_id</ServiceId>
-    <PaymentId>210</PaymentId>
+    <PaymentId></PaymentId>
   </Cancel>
 </Request>
      }

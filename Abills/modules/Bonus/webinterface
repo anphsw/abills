@@ -1,3 +1,4 @@
+#!perl
 =head1 NAME
 
   Bonus web functions
@@ -503,7 +504,7 @@ sub bonus_user {
     require Internet;
     Internet->import();
     $Internet = Internet->new($db, $admin, \%conf);
-    $Internet->info($FORM{UID});
+    $Internet->user_info($FORM{UID});
   }
 
   $FORM{DV_TP_ID} = $Internet->{TP_ID};
@@ -1068,6 +1069,7 @@ sub bonus_service_discount_client {
      $attr
        METHOD
        SUM
+       USER_INFO
 
   Results:
 
@@ -1078,6 +1080,16 @@ sub bonus_service_discount_mk {
   my $return = 0;
 
   my @excluder_arr = ();
+
+  my $user_info = $attr->{USER_INFO};
+  if ($user_info->{GID}) {
+    $user_info->group_info($users->{GID});
+
+    if (!$user_info->{BONUS}) {
+      $html->message('warn', $lang{BONUS_DISABLED_FOR_GROUP}, '', { ID => 1901 });
+      return 0;
+    }
+  }
 
   if (!$conf{BONUS_SERVICE_EXCLUDE}) {
     $conf{BONUS_SERVICE_EXCLUDE} = '!4,!6';
@@ -1121,7 +1133,7 @@ sub bonus_service_discount_mk {
     Internet->import();
 
     $Internet = Internet->new($db, $admin, \%conf);
-    $Internet->info($attr->{USER_INFO}->{UID});
+    $Internet->user_info($user_info->{UID});
   }
 
   my $periods = 0;
@@ -1146,7 +1158,7 @@ sub bonus_service_discount_mk {
 
   my %RESULT = ();
   if ($RULES{PERIOD}) {
-    my ($year, $month, $day) = split(/-/, $attr->{USER_INFO}->{REGISTRATION}, 3);
+    my ($year, $month, $day) = split(/-/, $user_info->{REGISTRATION}, 3);
     my $seltime = POSIX::mktime(0, 0, 0, $day, ($month - 1), ($year - 1900));
     $registration_days = int((time() - $seltime) / 86400);
 
@@ -1196,7 +1208,7 @@ sub bonus_service_discount_mk {
     }
     else {
       $list = $Payments->list({
-        UID        => $attr->{USER_INFO}->{UID},
+        UID        => $user_info->{UID},
         TOTAL_ONLY => 1,
         METHOD     => $conf{BONUS_SERVICE_EXCLUDE} || '!4,!6'
       });
@@ -1247,11 +1259,11 @@ sub bonus_service_discount_mk {
   #Result
   if ($RESULT{DISCOUNT} && $RESULT{DISCOUNT} > 0) {
     $users->change(
-      $attr->{USER_INFO}->{UID},
+      $user_info->{UID},
       {
         REDUCTION      => $RESULT{DISCOUNT},
         REDUCTION_DATE => $RESULT{DISCOUNT_PERIOD},
-        UID            => $attr->{USER_INFO}->{UID}
+        UID            => $user_info->{UID}
       }
     );
     $html->message('info', $lang{INFO},
@@ -1263,16 +1275,15 @@ sub bonus_service_discount_mk {
   }
 
   if ($RESULT{BONUS_SUM} && $RESULT{BONUS_SUM} > 0) {
-    my $user = $attr->{USER_INFO};
     $user->{MAIN_BILL_ID} = $user->{BILL_ID};
 
     $Payments->add(
-      $user,
+      $user_info,
       {
         SUM          => $RESULT{BONUS_SUM},
         METHOD       => 4,
         DESCRIBE     => $lang{BONUS} . (($RESULT{ID}) ? " # $RESULT{ID}" : q{}),
-        BILL_ID      => ($RESULT{BONUS_EXT_ACCOUNT}) ? $attr->{USER_INFO}->{EXT_BILL_ID} : $attr->{USER_INFO}->{BILL_ID},
+        BILL_ID      => ($RESULT{BONUS_EXT_ACCOUNT}) ? $user_info->{EXT_BILL_ID} : $user_info->{BILL_ID},
         EXT_ID       => ($attr->{EXT_ID}) ? 'B_' . $attr->{EXT_ID} : undef,
         CHECK_EXT_ID => ($attr->{EXT_ID}) ? 'B_' . $attr->{EXT_ID} : undef
       }
@@ -1515,7 +1526,7 @@ sub bonus_turbo_mk {
     require Internet;
     Internet->import();
     $Internet = Internet->new($db, $admin, \%conf);
-    $Internet->info($attr->{USER_INFO}->{UID});
+    $Internet->user_info($attr->{USER_INFO}->{UID});
   }
 
   my $periods = 0;
@@ -1546,7 +1557,7 @@ sub bonus_turbo_mk {
 
     #Result
     if ($RESULT{TURBO_COUNT} && $RESULT{TURBO_COUNT} > 0) {
-      $Internet->change(
+      $Internet->user_change(
         {
           UID             => $attr->{USER_INFO}->{UID},
           FREE_TURBO_MODE => $RESULT{TURBO_COUNT}
@@ -1796,7 +1807,7 @@ sub bonus_tp_using_periodic {
     ) {
       $debug_output .= "$line->{login} [$line->{uid}] $line->{tp_id_bonus} -> $line->{tp_id_main} AGE: $line->{age} DEPOSIT: $line->{deposit}\n" if ($debug > 0);
       if ($debug < 6) {
-        $Internet->change({
+        $Internet->user_change({
           UID   => $line->{uid},
           TP_ID => $line->{tp_id_main}
         });

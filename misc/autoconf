@@ -601,7 +601,7 @@ sub check_install {
         $check_body =~ s/\$/\\\$/g;
 
         if ($dest_body =~ m/$check_body/sg) {
-          print "File: $folder/$dest\n Skipp. Parameters exists\n\n";
+          print "File: $folder/$dest\n Skip. Parameters exists\n\n";
           if ($debug == 2) {
             print $config_body;
           }

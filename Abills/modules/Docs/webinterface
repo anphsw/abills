@@ -625,6 +625,9 @@ sub docs_payments_maked{
 
         if ( $FORM{SUM} > $doc->{total_sum} - ($doc->{payment_sum} || 0) ){
           $payment_sum = $doc->{total_sum} - ($doc->{payment_sum} || 0);
+          if ($attr->{USER_INFO} && $attr->{USER_INFO}->{COMPANY_ID}) {
+            return 1;
+          }
           print "Pre link: ADD_SUM: $FORM{SUM} total_sum: $doc->{total_sum} payment_sum: ". ($doc->{payment_sum} || 0) ." Doc id: $doc->{id}\n";
         }
 

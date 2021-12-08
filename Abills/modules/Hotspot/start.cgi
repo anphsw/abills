@@ -481,7 +481,7 @@ sub get_hotspot_account {
     }
   }
   elsif ($FORM{mac}) {
-    my $list = $Internet->list({
+    my $list = $Internet->user_list({
       #DATE => $DATE,
       PASSWORD  => '_SHOW',
       CID       => $FORM{mac},
@@ -556,7 +556,7 @@ sub get_hotspot_account {
     else {
       $extra_auth = 1;
       #Check register phone
-      my $internet_list = $Internet->list({
+      my $internet_list = $Internet->user_list({
         #DATE => $DATE,
         PASSWORD  => '_SHOW',
         CID       => '_SHOW',
@@ -1223,7 +1223,7 @@ sub fast_login {
       exit;
     }
     elsif ($FORM{error} =~ /NEG_DEPOSIT/) {
-      my $list = $Internet->list({
+      my $list = $Internet->user_list({
         LOGIN     => ($COOKIES{hotspot_username} || $FORM{username}),
         UID       => '_SHOW',
 
@@ -1606,7 +1606,7 @@ sub fast_mac_login {
     exit;
   }
 
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     PASSWORD       => '_SHOW',
     LOGIN          => '_SHOW',
     PHONE          => '_SHOW',
@@ -1649,7 +1649,7 @@ sub phone_login {
     exit;
   }
 
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     PASSWORD       => '_SHOW',
     LOGIN          => '_SHOW',
     PHONE          => $FORM{PHONE},
@@ -2037,7 +2037,7 @@ sub check_auth {
 =cut
 #**********************************************************
 sub change_user_mac {
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     LOGIN          => '_SHOW',
     UID            => '_SHOW',
     PHONE          => $FORM{PHONE},
@@ -2048,7 +2048,7 @@ sub change_user_mac {
   });
 
   if ($Internet->{TOTAL} > 0 && $list->[0]->{cid} ne $FORM{mac}) {
-    $Internet->change({
+    $Internet->user_change({
       UID => $list->[0]->{uid},
       CID => $FORM{mac},
     });
@@ -2085,7 +2085,7 @@ sub mikrotik_login {
       COLS_NAME => 1,
     });
 
-    my $tp_info = $Internet->info($user_info->[0]->{uid});
+    my $tp_info = $Internet->user_info($user_info->[0]->{uid});
 
     my @show_tp = split(';', ($conf{HOTSPOT_AD_TP_IDS} || ''));
     if ($ad_to_show->{id} && in_array($tp_info->{TP_ID}, \@show_tp)) {

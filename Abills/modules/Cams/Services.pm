@@ -140,6 +140,7 @@ sub cams_service_info {
 
   _cams_service_test($Cams_service);
   _cams_service_import_models($Cams_service);
+  _cams_service_import_cameras($Cams_service, $Cams->{ID});
 
   return 1;
 }
@@ -175,7 +176,7 @@ sub _cams_service_test {
 }
 
 #**********************************************************
-=head2 _cams_service_test($attr)
+=head2 _cams_service_import_models($attr)
 
   Arguments:
 
@@ -257,6 +258,199 @@ sub _cams_import_vendors {
 }
 
 #**********************************************************
+=head2 _cams_service_import_cameras($attr)
+
+=cut
+#**********************************************************
+sub _cams_service_import_cameras {
+  my $Cams_service = shift;
+  my $service_id = shift;
+
+  return 1 if (!$Cams_service || !$Cams_service->can('import_cameras'));
+
+  if ($FORM{import_cameras}) {
+    my $cameras = $Cams_service->import_cameras($service_id);
+    _cams_cameras_import_form($cameras);
+  }
+  elsif ($FORM{make_cameras_import} && $FORM{IDS}) {
+    my $cameras = $Cams_service->import_cameras($service_id);
+    my @ids = split(',\s?', $FORM{IDS});
+    my @added_cameras = ();
+    
+    foreach my $id (@ids) {
+      my $camera = $cameras->{$id};
+      next if !$camera;
+
+      my $group = $Cams->group_list({ SUBGROUP_ID => $camera->{organization_id}, ID => '_SHOW', COLS_NAME => 1 });
+      my $group_id = 0;
+      if ($Cams->{TOTAL} < 1) {
+        next if (!$Cams_service->can('group_info'));
+
+        my $new_group = $Cams_service->group_info({ SUBGROUP_ID => $camera->{organization_id} });
+        next if !$new_group->{id};
+
+        $Cams->group_add({
+          NAME        => $new_group->{title},
+          MAX_USERS   => $new_group->{user_limit},
+          MAX_CAMERAS => $new_group->{camera_limit},
+          SUBGROUP_ID => $camera->{organization_id},
+          SERVICE_ID  => $camera->{service_id}
+        });
+        next if !$Cams->{INSERT_ID};
+
+        $group_id = $camera->{organization_id};
+      }
+      else {
+        $group_id = $group->[0]{id};
+      }
+
+      my $folder_id = $camera->{folder_id} ? _cams_import_folder($Cams_service, {
+        FOLDER_ID       => $camera->{folder_id},
+        SERVICE_ID      => $service_id,
+        ORGANIZATION_ID => $camera->{organization_id},
+        GROUP_ID        => $group_id
+      }) : 0;
+
+      next if !$folder_id && !$group_id;
+
+      $Cams->stream_add({
+        NAME        => $camera->{name},
+        TITLE       => $camera->{title},
+        HOST        => $camera->{host},
+        RTSP_PORT   => $camera->{port},
+        RTSP_PATH   => $camera->{path},
+        LOGIN       => $camera->{login},
+        PASSWORD    => $camera->{password},
+        ORIENTATION => 1,
+        TYPE        => 1,
+        FOLDER_ID   => $folder_id,
+        GROUP_ID    => !$folder_id ? $group_id : 0
+      });
+      next if !$Cams->{INSERT_ID};
+
+      push(@added_cameras, {
+        ID    => $Cams->{INSERT_ID},
+        NAME  => $camera->{name},
+        TITLE => $camera->{title},
+        HOST  => $camera->{host},
+        PORT  => $camera->{port},
+      });
+    }
+
+    my $number_of_cameras = @added_cameras;
+
+    if ($number_of_cameras > 0) {
+      my $table = $html->table({
+        width       => '100%',
+        caption     => $lang{ADDED} . ': ' . $lang{CAMERAS},
+        title_plain => [ '#', $lang{NAME}, $lang{CAM_TITLE}, 'Host', $lang{PORT} ],
+        ID          => 'CAMS_CAMERAS',
+        EXPORT      => 1
+      });
+
+      foreach my $camera (@added_cameras) {
+        $table->addrow(
+          $camera->{ID},
+          $camera->{NAME},
+          $camera->{TITLE},
+          $camera->{HOST},
+          $camera->{PORT},
+          $html->button('', "index=" . get_function_index('cams_main') . "&chg_cam=$camera->{ID}", { class => 'change' })
+        );
+      }
+
+      print $table->show();
+    }
+  }
+  
+  $Cams->{IMPORT_CAMERAS} = $html->button('Импорт камер', "index=$index&import_cameras=1&chg=$Cams->{ID}",
+    { class => 'btn btn-success' });
+  
+  return;
+}
+
+#**********************************************************
+=head2 _cams_import_folder()
+
+=cut
+#**********************************************************
+sub _cams_import_folder {
+  my $Cams_service = shift;
+  my ($attr) = @_;
+
+  return 0 if !$attr->{FOLDER_ID} || !$attr->{SERVICE_ID};
+
+  my $folder = $Cams->folder_list({
+    SUBFOLDER_ID => $attr->{FOLDER_ID},
+    SERVICE_ID   => $attr->{SERVICE_ID},
+    ID           => '_SHOW',
+    COLS_NAME    => 1
+  });
+  return $folder->[0]{id} if $Cams->{TOTAL} > 0;
+
+  return 0 if (!$Cams_service || !$Cams_service->can('folder_info'));
+  my $folder_in_service = $Cams_service->folder_info({ SUBFOLDER_ID => $attr->{FOLDER_ID}, SUBGROUP_ID => $attr->{ORGANIZATION_ID} });
+
+  return 0 if !$folder_in_service->{id};
+
+  my $parent_id = 0;
+  if ($folder_in_service->{parent_id}) {
+    $parent_id = _cams_import_folder($Cams_service, { %{$attr}, FOLDER_ID  => $folder_in_service->{parent_id} });
+  }
+
+  $Cams->folder_add({
+    PARENT_ID    => $parent_id,
+    TITLE        => $folder_in_service->{title} || '',
+    GROUP_ID     => $attr->{GROUP_ID} || 0,
+    SERVICE_ID   => $attr->{SERVICE_ID},
+    SUBFOLDER_ID => $folder_in_service->{id}
+  });
+
+  return $Cams->{INSERT_ID} || 0;
+}
+
+#**********************************************************
+=head2 _cams_cameras_import_form($cameras)
+
+=cut
+#**********************************************************
+sub _cams_cameras_import_form {
+  my ($cameras) = @_;
+
+  my $table = $html->table({
+    width       => '100%',
+    caption     => $lang{CAMERAS},
+    title_plain => [ '#', $lang{NAME}, $lang{CAM_TITLE}, 'Host', $lang{PORT} ],
+    ID          => 'CAMS_IMPORT_CAMERAS',
+    EXPORT      => 1
+  });
+
+  foreach my $key (keys %{$cameras}) {
+    my $camera = $cameras->{$key};
+    $table->addrow(
+      $html->form_input('IDS', $camera->{name}, { TYPE => 'checkbox' }),
+      $camera->{name},
+      $camera->{title},
+      $camera->{host},
+      $camera->{port}
+    );
+  }
+
+  print $html->form_main({
+    CONTENT => $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index               => $index,
+      make_cameras_import => 2,
+      chg                 => $Cams->{ID},
+    },
+    METHOD  => 'get',
+    SUBMIT  => { import => $lang{IMPORT} }
+  });
+
+  return 1;
+}
+
+#**********************************************************
 =head2 cams_load_service($service_name, $attr) - Load service module
 
   Argumnets:
@@ -289,6 +483,7 @@ sub cams_load_service {
     $service_name->import();
 
     if ($service_name->can('new')) {
+      $Cams_service->{DEBUG} = 0 if $Cams_service->{DEBUG} < 4 && $admin->{AID} eq '3';
       $api_object = $service_name->new($Cams->{db}, $Cams->{admin}, $Cams->{conf}, { %{$Cams_service}, HTML => $html, LANG => \%lang });
     }
     else {
@@ -327,7 +522,7 @@ sub cams_services_sel {
   my %params = ();
 
   $params{SEL_OPTIONS} = { '' => $lang{ALL} } if ($attr->{ALL} || $FORM{search_form});
-  $params{SEL_OPTIONS}->{0} = $lang{UNKNOWN} if ($attr->{UNKNOWN});
+  $params{SEL_OPTIONS}->{0} = '--' if ($attr->{UNKNOWN});
 
   my $active_service = $attr->{SERVICE_ID} || $FORM{SERVICE_ID};
 
@@ -393,7 +588,7 @@ sub cams_services_sel {
 =cut
 #**********************************************************
 sub cams_tariffs_sel {
-  my ($attr) = @_;
+  my ($attr, $ext_params) = @_;
 
   my %params = ();
   $params{SEL_OPTIONS} = { '' => $lang{ALL} } if ($attr->{ALL} || $FORM{search_form});
@@ -411,7 +606,8 @@ sub cams_tariffs_sel {
     STATUS       => 0,
     SERVICE_ID   => '_SHOW',
     COLS_NAME    => 1,
-    PAGE_ROWS    => 1
+    PAGE_ROWS    => 1,
+    ref($ext_params) eq 'HASH' ? %{$ext_params} : ()
   });
 
   if ($attr->{HASH_RESULT}) {

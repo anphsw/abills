@@ -60,7 +60,7 @@ sub ubiquiti_online{
   }
 
   #Get users mac
-  my $list = $Internet->list( {
+  my $list = $Internet->user_list( {
     CID       => '!',
     TP_ID     => '_SHOW',
     PAGE_ROWS => 100000,

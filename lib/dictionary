@@ -509,6 +509,7 @@ ATTRIBUTE DHCP-Option82          245 octets
 
 #Huawai ME60
 VENDOR          Huawei        2011
-ATTRIBUTE  Huawei-Qos-Profile-Name	     31  string Huawei
-
+ATTRIBUTE  Huawei-Qos-Profile-Name	        31  string Huawei
+ATTRIBUTE  Huawei-Input-Average-Rate         2   integer Huawei
+ATTRIBUTE  Huawei-Output-Average-Rate        5   integer Huawei
 

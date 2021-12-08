@@ -443,15 +443,6 @@ sub iptv_monthly_fees {
     }
   }
 
-  my %tp_id2id = ();
-  my $tp_list = $Tariffs->list({
-    MODULE       => 'Iptv',
-    NEW_MODEL_TP => 1,
-    COLS_NAME    => 1
-  });
-
-  map $tp_id2id{ $_->{tp_id} } = $_->{id}, @{$tp_list};
-
   my $FEES_METHODS = get_fees_types({ SHORT => 1 });
   $Tariffs->{debug} = 1 if ($debug > 6);
   my $list = $Tariffs->list({
@@ -541,7 +532,6 @@ sub iptv_monthly_fees {
     });
 
     foreach my $u (@{$ulist_main}) {
-
       if ($u->{iptv_expire} && $u->{iptv_expire} eq '0000-00-00') {
         if ($d != $START_PERIOD_DAY && !$tp->{abon_distribution} && (!$u->{iptv_activate} || $u->{iptv_activate} eq '0000-00-00')) {
           $debug_output .= "Next period\n" if ($debug > 2);
@@ -563,11 +553,7 @@ sub iptv_monthly_fees {
         });
 
         if (!$result) {
-          $Iptv->user_change({
-            ID     => $u->{id},
-            STATUS => 1
-          });
-
+          $Iptv->user_change({ ID => $u->{id}, STATUS => 1, UID => $u->{uid} });
           _external('', { EXTERNAL_CMD => 'Iptv', %{$Iptv}, QUITE => 1 });
         }
         next;
@@ -578,6 +564,7 @@ sub iptv_monthly_fees {
 
       $debug_output .= " Login: $u->{login} ($u->{uid})  TP_ID: $u->{tp_id} Fees: $tp->{month_fee} REDUCTION: $u->{reduction}  " .
         "$u->{deposit} $u->{credit}\n" if ($debug > 3);
+
       my %user = (
         ID           => $u->{id},
         LOGIN        => $u->{login},
@@ -603,8 +590,8 @@ sub iptv_monthly_fees {
       
       my $total_sum = 0;
       my $user_month_fee = ($user{REDUCTION} && $user{REDUCTION} > 0) ? $month_fee * (100 - $user{REDUCTION}) / 100 : $month_fee;
-      if ($user_month_fee > 0 || $min_use > 0) {
 
+      if ($user_month_fee > 0 || $min_use > 0) {
         #Check bill ID and deposit
         if (!$user{BILL_ID} && !defined($user{DEPOSIT})) {
           print "[ $user{UID} ] $user{LOGIN} - Don't have money account\n";
@@ -653,7 +640,7 @@ sub iptv_monthly_fees {
           my $active_unixtime = POSIX::mktime(0, 0, 0, $activate_d, ($activate_m - 1), $activate_y - 1900, 0, 0, 0);
           next if 31 * 86400 > ($date_unixtime - $active_unixtime);
         }
-        #Block negative
+        #Block negative users withot small_deposit_action
         elsif (!$tp->{small_deposit_action}) {
           $debug_output .= "Block negative Login: $u->{login} ($user{ID}) // $user{DEPOSIT} + $user{CREDIT} > 0\n";
           iptv_account_action({
@@ -666,21 +653,11 @@ sub iptv_monthly_fees {
           });
           next;
         }
-        #Block small deposit
-        if (iptv_neg_deposti_action({ TP => $tp, USER => \%user, SERVICES => $users_services{ $u->{uid} } })) {
-          my $tp_num = 0;
-          
-          $tp_num = $tp_id2id{$tp->{small_deposit_action}}  if ($tp->{small_deposit_action} && $tp->{small_deposit_action} > 0);
 
-          iptv_account_action({
-            NEGDEPOSIT   => 1,
-            FILTER_ID    => $tp->{filter_id},
-            ID           => $user{ID},
-            UID          => $user{UID},
-            LOGIN        => $user{LOGIN},
-            SUBSCRIBE_ID => $user{SUBSCRIBE_ID},
-            TP_NUM       => $tp_num
-          });
+        #Block small deposit
+        if (iptv_service_deactivate({ TP_INFO => $tp,
+          USER_INFO => \%user,
+          SERVICES  => $users_services{ $u->{uid} } })) {
 
           $debug_output .= " SMALL_DEPOSIT_BLOCK." if ($debug > 3);
           next;
@@ -735,11 +712,14 @@ sub iptv_users_warning_messages {
       $USER_INFO{TP_NAME}, $USER_INFO{DEPOSIT}, $USER_INFO{CREDIT});
     my $message = $html->tpl_show(_include('iptv_users_warning_messages', 'Iptv'), \%USER_INFO,
       { notprint => 'yes' });
-    sendmail("$conf{ADMIN_MAIL}", "$email", "???????????? ??????? ??????????.", "$message", "$conf{MAIL_CHARSET}",
+    sendmail($conf{ADMIN_MAIL}, $email, "???????????? ??????? ??????????.", $message, $conf{MAIL_CHARSET},
       "2 (High)");
   }
+
   $ADMIN_REPORT{USERS_WARNINGS} .= "---------------------------------------------------------------
 $lang{TOTAL}: $Iptv->{TOTAL}\n";
+
+  return 1;
 }
 
 #***********************************************************
@@ -836,6 +816,7 @@ sub iptv_sheduler {
       STATUS => $action_
     });
     $Iptv->{STATUS} = $action_;
+
     iptv_account_action({
       %info,
       #CHANGE_TP => 1,

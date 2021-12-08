@@ -464,7 +464,8 @@ sub snmputils_periodic {
 
   foreach my $line (@$list) {
     my $type = $line->{nas_type} || '';
-    $debug_output .= "NAS ID: $line->{nas_id} TYPE: $type MNG INFO: ". ($line->{nas_mng_ip_port} || ''). " $line->{nas_rad_pairs}\n" if ($debug > 1);
+    $debug_output .= "NAS ID: $line->{nas_id} TYPE: $type MNG INFO: "
+      . ($line->{nas_mng_ip_port} || ''). ' '. ($line->{nas_rad_pairs} || q{}) ."\n" if ($debug > 1);
 
     if (!$line->{nas_mng_password}) {
       print "NAS_ID: $line->{nas_id} Not defined Snmp Community\n" if ($debug > 0);

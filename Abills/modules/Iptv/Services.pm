@@ -168,16 +168,16 @@ sub tv_service_info {
         }
 
         $Iptv->{SERVICE_TEST} = $html->button($lang{TEST}, "index=$index&test=1&chg=$Iptv->{ID}",
-          { class => 'btn btn-secondary btn-info' });
+          { class => 'btn btn-info' });
       }
 
       if ($Tv_service && $Tv_service->can('user_params')) {
         $Iptv->{SERVICE_PARAMS} = $html->button($lang{PARAMS}, "index=$index&extra_params=1&service_id=$Iptv->{ID}",
-          { class => 'btn btn-secondary' });
+          { class => 'btn btn-default' });
       }
 
       $Iptv->{CONSOLE} = $html->button('Console', "index=" . get_function_index('iptv_console') . "&SERVICE_ID=$Iptv->{ID}",
-        { class => 'btn btn-secondary' });
+        { class => 'btn btn-default' });
     }
   }
 
@@ -551,7 +551,6 @@ sub _service_extra_params {
   $other_attr{PARAMS_ACTION} = "$lang{ADD} $lang{PARAMS}";
 
   use Users;
-  use Abills::Base qw (_bp);
   my $Users = Users->new($db, $admin, \%conf);
   my $groups_list = $Users->groups_list({
     COLS_NAME       => 1,
@@ -621,29 +620,23 @@ sub _service_extra_params {
     $Iptv->extra_params_del($FORM{delete});
   }
 
-  my $select_group = $html->form_select(
-    'GROUP_ID',
-    {
-      SELECTED    => $other_attr{GROUP_ID}|| 0,
-      SEL_LIST    => $groups_list,
-      SEL_KEY     => 'gid',
-      SEL_VALUE   => 'name',
-      NO_ID       => 1,
-      SEL_OPTIONS => { '' => '--' },
-    }
-  );
+  my $select_group = $html->form_select('GROUP_ID', {
+    SELECTED    => $other_attr{GROUP_ID} || 0,
+    SEL_LIST    => $groups_list,
+    SEL_KEY     => 'gid',
+    SEL_VALUE   => 'name',
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '--' },
+  });
 
-  my $select_tp = $html->form_select(
-    'TP_ID',
-    {
-      SELECTED    => $other_attr{TP_ID} || 0,
-      SEL_LIST    => $tariffs,
-      SEL_KEY     => 'tp_id',
-      SEL_VALUE   => 'name',
-      NO_ID       => 1,
-      SEL_OPTIONS => { '' => '--' },
-    }
-  );
+  my $select_tp = $html->form_select('TP_ID', {
+    SELECTED    => $other_attr{TP_ID} || 0,
+    SEL_LIST    => $tariffs,
+    SEL_KEY     => 'tp_id',
+    SEL_VALUE   => 'name',
+    NO_ID       => 1,
+    SEL_OPTIONS => { '' => '--' },
+  });
 
   $html->tpl_show( _include( 'iptv_extra_params_add', 'Iptv' ), {
     GROUP_LIST => $select_group,
@@ -653,7 +646,7 @@ sub _service_extra_params {
   });
 
   my $extra_params = $Iptv->extra_params_list({
-    SERVICE_ID => $FORM{SERVICE_ID},
+    SERVICE_ID => $FORM{service_id} || $FORM{SERVICE_ID},
     SMS_TEXT   => '_SHOW',
     SEND_SMS   => '_SHOW',
     IP_MAC     => '_SHOW',

@@ -243,7 +243,7 @@ sub quick_functions {
     else {
       $OUTPUT{MENU} = $html->menu2(
         \%menu_items,
-        \%menu_args,
+        \%menu_args, #XXX always empty
         undef,
         {
           EX_ARGS         => "&sid=$sid",
@@ -1939,12 +1939,12 @@ sub fl {
       require Companies;
       Companies->import();
       my $Company = Companies->new($db, $admin, \%conf);
-      my $list = $Company->admins_list({
+      my $company_list = $Company->admins_list({
         UID       => $user->{UID},
         COLS_NAME => 1
       });
-      if ($list && ref $list eq 'ARRAY'
-        && $list->[0]->{is_company_admin} eq '1'
+
+      if ($Company->{TOTAL} > 0 && $company_list->[0]->{is_company_admin} eq '1'
       ) {
         push @m, "44:40:$user->{COMPANY_NAME}:form_company_list::";
       }
@@ -2565,7 +2565,7 @@ sub check_credit_availability {
   if (!$sum || $sum =~ /\d+/ && $sum == 0) {
     load_module('Internet', $html);
     my $Internet = Internet->new($db, $admin, \%conf);
-    $Internet->info($user->{UID});
+    $Internet->user_info($user->{UID});
     if ($Internet->{USER_CREDIT_LIMIT} && $Internet->{USER_CREDIT_LIMIT} > 0) {
       $sum = $Internet->{USER_CREDIT_LIMIT};
     }

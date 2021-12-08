@@ -791,7 +791,6 @@ neg_deposit() {
     #iptables -t nat -D PREROUTING -s 10.100.0.0/16 -p tcp -m tcp --dport 80 -j DNAT --to-destination 10.100.1.1:80
     #${IPT} -t nat -A PREROUTING -s ${IP} -p tcp --dport 80 -j REDIRECT --to-ports 80 ${USER_IF} --to-destination ${PORTAL_IP}:80
     ${IPT} -t nat -A PREROUTING -s ${USER_NET} -p tcp --dport 80 -j DNAT ${USER_IF} --to-destination ${PORTAL_IP}:80
-
   done;
 
   #Ipset redirect

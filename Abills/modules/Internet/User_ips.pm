@@ -56,7 +56,7 @@ sub get_static_ip {
 
   my %users_ips = ();
 
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     PAGE_ROWS => 1000000,
     IP        => ">=$Ip_pool->{IP}",
     SKIP_GID  => 1,

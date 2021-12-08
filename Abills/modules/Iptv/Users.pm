@@ -113,28 +113,7 @@ sub iptv_user {
     }
   }
   elsif ($FORM{change}) {
-    $Iptv->user_change(\%FORM);
-
-    if ($Iptv->{OLD_STATUS} && !$Iptv->{STATUS}) {
-      iptv_user_activate($Iptv, {
-        USER       => $users,
-        REACTIVATE => (!$Iptv->{STATUS}) ? 1 : 0,
-      });
-    }
-    else {
-      _external('', { EXTERNAL_CMD => 'Iptv', %{$Iptv}, QUITE => 1 });
-    }
-
-    if (!$Iptv->{errno}) {
-      $Iptv->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE};
-
-      if ($FORM{change_now}) {
-        $Iptv->user_channels({ ID => $FORM{ID} });
-      }
-
-      $Iptv->{MESSAGE} = "$lang{CHANGED}: $FORM{ID}";
-    }
-    $Iptv->{MANDATORY_CHANNELS} = iptv_mandatory_channels($attr->{TP_ID} || $Iptv->{TP_ID});
+    iptv_user_change({ %FORM, USER_INFO => $attr->{USER_INFO} || () });
   }
   elsif ($FORM{del} && $FORM{COMMENTS}) {
     $Iptv->user_info($FORM{del});
@@ -485,31 +464,63 @@ sub iptv_user_add {
   }
 
   $Iptv->user_add($attr);
-  if (!$Iptv->{errno}) {
-    $Iptv->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE};
-    $Iptv->{ID} = $Iptv->{INSERT_ID};
-    $Iptv->{MANDATORY_CHANNELS} = iptv_mandatory_channels($attr->{TP_ID});
+  return 0 if $Iptv->{errno};
 
-    if (!$FORM{STATUS}) {
-      $Iptv->user_info($Iptv->{ID});
+  $Iptv->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE};
+  $Iptv->{ID} = $Iptv->{INSERT_ID};
+  $Iptv->{MANDATORY_CHANNELS} = iptv_mandatory_channels($attr->{TP_ID});
 
-      ::service_get_month_fee($Iptv, {
-        SERVICE_NAME               => $lang{TV},
-        DO_NOT_USE_GLOBAL_USER_PLS => 1
-      });
+  if (!$FORM{STATUS}) {
+    $Iptv->user_info($Iptv->{ID});
 
-      _iptv_get_fees_mandatory_channels({%{$Iptv}, UID => $attr->{UID} }) if $Iptv->{MANDATORY_CHANNELS};
+    ::service_get_month_fee($Iptv, {
+      SERVICE_NAME               => $lang{TV},
+      DO_NOT_USE_GLOBAL_USER_PLS => 1,
+      MODULE                     => 'Iptv'
+    });
 
-      if ($attr->{SERVICE_ADD}) {
-        $FORM{add} = 1;
-        $Tv_service = iptv_user_services($attr);
-      }
+    _iptv_get_fees_mandatory_channels({ %{$Iptv}, UID => $attr->{UID} }) if $Iptv->{MANDATORY_CHANNELS};
+
+    if ($attr->{SERVICE_ADD}) {
+      $FORM{add} = 1;
+      $Tv_service = iptv_user_services($attr);
     }
-
-    return $Iptv->{ID};
   }
 
-  return 0;
+  return $Iptv->{ID};
+
+}
+
+#**********************************************************
+=head2 iptv_user_change($attr) - User change
+
+=cut
+#**********************************************************
+sub iptv_user_change {
+  my ($attr) = @_;
+
+  $Iptv->user_change($attr);
+
+  if ($Iptv->{OLD_STATUS} && !$Iptv->{STATUS}) {
+    iptv_user_activate($Iptv, {
+      USER       => $users,
+      REACTIVATE => (!$Iptv->{STATUS}) ? 1 : 0,
+    });
+  }
+  else {
+    _external('', { EXTERNAL_CMD => 'Iptv', %{$Iptv}, QUITE => 1 });
+  }
+
+  if (!$Iptv->{errno}) {
+    $Iptv->{ACCOUNT_ACTIVATE} = $attr->{USER_INFO}->{ACTIVATE};
+
+    if ($attr->{change_now}) {
+      $Iptv->user_channels({ ID => $attr->{ID} });
+    }
+
+    $Iptv->{MESSAGE} = "$lang{CHANGED}: $attr->{ID}";
+  }
+  $Iptv->{MANDATORY_CHANNELS} = iptv_mandatory_channels($attr->{TP_ID} || $Iptv->{TP_ID});
 }
 
 #**********************************************************
@@ -712,10 +723,6 @@ sub iptv_account_action {
 
     $enable_catv_port=1;
     _external('', { EXTERNAL_CMD => 'Iptv', %{$users}, %{$Iptv}, ACTION => 'up', QUITE => 1 });
-    # if ($conf{IPTV_USER_EXT_CMD}) {
-    #   $Iptv->{ACTION} = 'down' if ($attr->{STATUS});
-    #   iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %{$users}, %{$Iptv} });
-    # }
 
     if ($Tv_service && $Tv_service->can('user_add')) {
       $users->info($uid, { SHOW_PASSWORD => 1 });
@@ -831,10 +838,6 @@ sub iptv_account_action {
     }
 
     _external('', { EXTERNAL_CMD => 'Iptv', %{$users}, %{$Iptv}, ACTION => 'down', QUITE => 1 });
-    # if ($conf{IPTV_USER_EXT_CMD}) {
-    #   $Iptv->{ACTION} = 'down' if ($FORM{STATUS});
-    #   iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %{$users}, %{$Iptv} });
-    # }
   }
   elsif ($attr->{channels}) {
     if ($Tv_service && ref $Tv_service ne 'HASH') {
@@ -1023,10 +1026,6 @@ sub iptv_account_action {
     }
 
     _external('', { EXTERNAL_CMD => 'Iptv', %{$users}, %{$Iptv}, ACTION => 'down', QUITE => 1 });
-    # if ($conf{IPTV_USER_EXT_CMD}) {
-    #   $Iptv->{ACTION} = 'down' if ($FORM{STATUS});
-    #   iptv_ext_cmd($conf{IPTV_USER_EXT_CMD}, { %{$users}, %{$Iptv} });
-    # }
   }
   elsif ($attr->{hangup}) {
     if ($Tv_service && $Tv_service->can('hangup')) {
@@ -1152,7 +1151,7 @@ sub iptv_chg_tp {
 
         #Take Fees
         if (!$Iptv->{STATUS} && $FORM{GET_ABON}) {
-          service_get_month_fee($Iptv, { SERVICE_NAME => $lang{TV} });
+          service_get_month_fee($Iptv, { SERVICE_NAME => $lang{TV}, MODULE => 'Iptv' });
         }
         $html->message('info', $lang{CHANGED}, "$lang{CHANGED}");
         $Iptv->user_info($FORM{ID} || $user->{UID});

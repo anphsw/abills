@@ -246,16 +246,16 @@ sub maps2_builds2_show {
     $attr->{LOCATION_ID} ||= $attr->{OBJECT_ID};
     delete $attr->{OBJECT_ID};
   }
-  $attr->{LAST_OBJECT_ID} = "> $attr->{LAST_OBJECT_ID}" if $attr->{LAST_OBJECT_ID};
 
   my $list_builds_objects = $Maps->build2_list_with_points({
     LOCATION_ID   => $attr->{LOCATION_ID} || '_SHOW',
     COORDS        => '_SHOW',
     FULL_ADDRESS  => '_SHOW',
-    OBJECT_ID     => $attr->{OBJECT_ID} || $attr->{LAST_OBJECT_ID} || '_SHOW',
+    OBJECT_ID     => $attr->{OBJECT_ID} || '_SHOW',
     COORDX_CENTER => '_SHOW',
     COORDY_CENTER => '_SHOW',
     COLS_NAME     => 1,
+    PAGE_ROWS     => $attr->{NEW_OBJECT} ? 1 : ''
   });
 
   return $Maps->{TOTAL} if ($attr->{ONLY_TOTAL} || !$Maps->{TOTAL});
@@ -338,9 +338,9 @@ sub maps2_wifis_show {
   my ($attr) = @_;
 
   my $list_wifi_objects = $self->_maps2_get_layer_objects(LAYER_ID_BY_NAME->{WIFI}, {
-    ID        => $attr->{OBJECT_ID} || '_SHOW',
-    OBJECT_ID => $attr->{LAST_OBJECT_ID} ? "> $attr->{LAST_OBJECT_ID}" : '_SHOW',
-    COLS_NAME => 1
+    ID         => $attr->{OBJECT_ID} || '_SHOW',
+    NEW_OBJECT => $attr->{NEW_OBJECT} || '',
+    COLS_NAME  => 1
   });
 
   if ($attr->{ONLY_TOTAL}) {
@@ -440,6 +440,13 @@ sub maps2_districts_show {
 sub _maps2_get_old_builds {
   my ($attr, $count_object, $export_hash_arr, $object_info, $to_screen) = @_;
 
+  my %ext_params = ();
+  if ($attr->{NEW_OBJECT} && !$attr->{OBJECT_ID}) {
+    $ext_params{DESC} = 'DESC';
+    $ext_params{SORT} = 'b.id';
+    $ext_params{PAGE_ROWS} = 1;
+  }
+
   my $builds_list = $Address->build_list({
     DISTRICT_ID        => $attr->{DISTRICT_ID} || '>0',
     DISTRICT_NAME      => '_SHOW',
@@ -453,8 +460,8 @@ sub _maps2_get_old_builds {
     COLS_NAME          => 1,
     PG                 => '0',
     PAGE_ROWS          => 10000,
-    LOCATION_ID        => $attr->{LAST_OBJECT_ID} ? "> $attr->{LAST_OBJECT_ID}" :
-      $attr->{ID} || $attr->{OBJECT_ID} || $attr->{LOCATION_ID} || '_SHOW'
+    LOCATION_ID        => $attr->{ID} || $attr->{OBJECT_ID} || $attr->{LOCATION_ID} || '_SHOW',
+    %ext_params
   });
 
   $$count_object += $Address->{TOTAL} if $Address->{TOTAL};
@@ -671,7 +678,7 @@ sub _maps2_get_layer_objects {
       SHOW_ALL_COLUMNS => 1,
       COLS_UPPER       => 1,
       OBJECT_ID        => $attr->{ID} || '_SHOW',
-      PAGE_ROWS        => 10000
+      PAGE_ROWS        => $attr->{NEW_OBJECT} ? 1 : 10000
     });
 
     next if (!$this_type_objects_list || ref $this_type_objects_list ne 'ARRAY' || scalar(@{$this_type_objects_list}) <= 0);
@@ -692,7 +699,7 @@ sub _maps2_get_layer_objects {
         $map_object_row->{POINTS} = [ map {[ +$_->{coordx}, +$_->{coordy} ]} @{$points_list} ];
       }
     }
-
+    
     push(@OBJECTS, map {{
       uc($object_type) => $_,
       LAYER_ID         => $layer_id,

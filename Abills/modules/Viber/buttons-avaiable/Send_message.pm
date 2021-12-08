@@ -48,7 +48,7 @@ sub click {
   my ($attr) = @_;
 
   my $message = "$self->{bot}->{lang}->{WRITE_TEXT}\\n";
-  $message   .= "$self->{bot}->{lang}->{CHANCLE}\\n\\n";
+  $message   .= "$self->{bot}->{lang}->{CHANCEL}\\n\\n";
 
   my @keyboard = $self->get_keyboard();
 
@@ -229,7 +229,7 @@ sub add_title {
 
   my $message = "$self->{bot}->{lang}->{SUBJECT_MSGS}\\n";
   $message   .= "$self->{bot}->{lang}->{CLICK_BACK}\\n";
-  $message   .= "$self->{bot}->{lang}->{CHANCLE}\\n";
+  $message   .= "$self->{bot}->{lang}->{CHANCEL}\\n";
 
   my @keyboard = ();
   my $back_button = {
@@ -242,7 +242,7 @@ sub add_title {
   my $cahncle_button = {
     ActionType => 'reply',
     ActionBody => 'fn:Send_message&cancel_msg',
-    Text       => $self->{bot}->{lang}->{CHANCLE_TEXT},
+    Text       => $self->{bot}->{lang}->{CHANCEL_TEXT},
     BgColor    => "#FF0000",
     TextSize   => 'regular'
   };
@@ -296,7 +296,7 @@ sub cancel_msg {
   my $self = shift;
   $self->{bot_db}->del($self->{bot}->{uid});
   $self->{bot}->send_message({
-    text => "$self->{bot}->{lang}->{SEND_CHANCLE}",
+    text => "$self->{bot}->{lang}->{SEND_CHANCEL}",
     type => 'text'
   });
 
@@ -392,7 +392,7 @@ sub send_msgs_main_menu {
 
   my @keyboard = $self->get_keyboard();
 
-  my $message   .= "$self->{bot}->{lang}->{SEND_OR_CHANCLE}\\n";
+  my $message   .= "$self->{bot}->{lang}->{SEND_OR_CHANCEL}\\n";
 
   $self->{bot}->send_message({
     text         => $message,
@@ -433,7 +433,7 @@ sub get_keyboard {
   my $cahncle_button = {
     ActionType => 'reply',
     ActionBody => 'fn:Send_message&cancel_msg',
-    Text       => $self->{bot}->{lang}->{CHANCLE_TEXT},
+    Text       => $self->{bot}->{lang}->{CHANCEL_TEXT},
     BgColor    => "#FF0000",
     TextSize   => 'regular'
   };

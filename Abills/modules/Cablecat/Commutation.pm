@@ -503,7 +503,7 @@ sub cablecat_commutation_onu {
   if ($FORM{operation} eq 'LIST') {
     _error_show($Cablecat) and return 0;
 
-    my $user_list = $Internet->list({
+    my $user_list = $Internet->user_list({
       COLS_NAME => 1,
       UID       => '_SHOW',
       LOGIN     => '_SHOW',
@@ -523,11 +523,12 @@ sub cablecat_commutation_onu {
       %FORM
     }
     );
-  } elsif($FORM{operation} eq 'ADD'){
+  } 
+  elsif($FORM{operation} eq 'ADD'){
 
     if($FORM{getServices} && $FORM{UID}){
 
-      my $sercives = $Internet->list({
+      my $sercives = $Internet->user_list({
         UID       => $FORM{UID},
         ID        => '_SHOW',
         GROUP_BY  => 'internet.id',

@@ -17,6 +17,7 @@ our (
 my $Address = Address->new($db, $admin, \%conf);
 my $Dom = Dom->new($db, $admin, \%conf);
 my $Nas = Nas->new($db, \%conf, $admin);
+
 #**********************************************************
 =head2 dom_info() Create 2D build model
   Returns:
@@ -26,11 +27,7 @@ my $Nas = Nas->new($db, \%conf, $admin);
 sub dom_info {
   my %info;
   my $address_info = $Address->address_info($FORM{LOCATION_ID});
-  my $build_info = $Address->build_info(
-    {
-      ID => $FORM{LOCATION_ID},
-    }
-  );
+  my $build_info = $Address->build_info({ ID => $FORM{LOCATION_ID} });
   my $nas_i = $Nas->list({
     LOCATION_ID     => $FORM{LOCATION_ID},
     NAS_NAME        => '_SHOW',
@@ -54,25 +51,23 @@ sub dom_info {
     return 0;
   }
 
-  my $users_list = $Dom->list(
-    {
-      FIO                 => '_SHOW',
-      LOCATION_ID         => $FORM{LOCATION_ID},
-      ADDRESS_BUILD       => '_SHOW',
-      UID                 => '_SHOW',
-      CITY                => '_SHOW',
-      COMPANY_ID          => '_SHOW',
-      DISABLE             => '_SHOW',
-      CREDITOR            => '_SHOW',
-      DEBETOR             => '_SHOW',
-      ADDRESS_FLAT        => '_SHOW',
-      ADDRESS_STREET      => '_SHOW',
-      NAME                => '_SHOW',
-      NUMBERING_DIRECTION => '_SHOW',
-      PAGE_ROWS           => 10000,
-      COLS_NAME           => 1,
-    }
-  );
+  my $users_list = $Dom->list({
+    FIO                 => '_SHOW',
+    LOCATION_ID         => $FORM{LOCATION_ID},
+    ADDRESS_BUILD       => '_SHOW',
+    UID                 => '_SHOW',
+    CITY                => '_SHOW',
+    COMPANY_ID          => '_SHOW',
+    DISABLE             => '_SHOW',
+    CREDITOR            => '_SHOW',
+    DEBETOR             => '_SHOW',
+    ADDRESS_FLAT        => '_SHOW',
+    ADDRESS_STREET      => '_SHOW',
+    NAME                => '_SHOW',
+    NUMBERING_DIRECTION => '_SHOW',
+    PAGE_ROWS           => 10000,
+    COLS_NAME           => 1,
+  });
 
   $info{DISTRICT_NAME} = $address_info->{ADDRESS_DISTRICT};
   $info{STREET_NAME} = $address_info->{ADDRESS_STREET};
@@ -81,10 +76,7 @@ sub dom_info {
   $Dom->{TOTAL} //= 1;
 
   my %user_by_flat;
-  my %lang_pack = (
-    FLAT => $lang{ADDRESS_FLAT},
-    FIO  => $lang{FIO},
-  );
+  my %lang_pack = (FLAT => $lang{ADDRESS_FLAT}, FIO => $lang{FIO});
 
   $info{BUILD_FLATS} = $build_info->{FLATS};
   $info{BUILD_FLORS} = $build_info->{FLORS};
@@ -116,7 +108,6 @@ sub dom_info {
       $build_schema{dom}[$i - 1]{entrances} = $i;
       $build_schema{dom}[$i - 1]{data}[$j - 1] = { floors => $j, flats => $flats };
       $info{BUILD_FLATS} += $flats;
-      # $build_schema{$i}{$j} = $flats;
     }
   }
   $info{FLATS_SUM_WITH_NON_DB_INFO} = $info{FLORS_ROOMS} * $info{FLORS_SUM};
@@ -124,6 +115,8 @@ sub dom_info {
   $info{USER_SUM_WITH_NO_ROOM} = 0;
 
   foreach my $user (@$users_list) {
+    $user->{fio} =~ s/\"/\\\"/g;
+    $user->{fio} =~ s/\'/&#39;/g;
     $user_by_flat{ $user->{address_flat} } = $user;
     if ($user->{address_flat} > $info{FLATS_SUM_WITH_NON_DB_INFO}) {
       $info{USER_SUM_WITH_NO_ROOM}++;
@@ -134,7 +127,6 @@ sub dom_info {
       else {
         $info{USER_WITH_NO_ROOM_UID} .= $user->{uid};
       }
-
     }
   }
   $info{CLIENTS_FLATS_SUM} = $Dom->{TOTAL} - $info{USER_SUM_WITH_NO_ROOM};
@@ -148,18 +140,12 @@ sub dom_info {
   $info{USER_INFO} = $json_text;
   $info{BUILD_SCHEMA} = $json_build_schema;
 
-  my $table = $html->table(
-    {
-      width   => '100%',
-      caption => $lang{SWITCHBOARDS},
-      title   => [
-        $lang{NAME},
-        $lang{ENTRANCE},
-        $lang{FLOOR},
-      ],
-      ID      => 'DOM',
-    }
-  );
+  my $table = $html->table({
+    width   => '100%',
+    caption => $lang{SWITCHBOARDS},
+    title   => [ $lang{NAME}, $lang{ENTRANCE}, $lang{FLOOR} ],
+    ID      => 'DOM',
+  });
   foreach my $item (@$nas_i) {
     $table->addrow( $item->{nas_name}, $item->{nas_entrance}, $item->{nas_floor} );
   }

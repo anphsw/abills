@@ -295,6 +295,7 @@ sub compare_tables {
 
       print "Expected: '$col_definition' . Got: '$current_def') \n" if ($debug);
 
+      $col_definition =~ s/PRIMARY KEY//g;
       show_tip("ALTER TABLE `$table_name` MODIFY COLUMN `$col` " . "$col_definition;", {
         PREV => uc($current_def),
         NEW  => uc($col_definition)

@@ -3,7 +3,7 @@
 
   Internet module
 
-  Internet Dialup/VPN/IPoE functions
+  Internet PPPoE/VPN/IPoE web control functions
 
   Error ID: 9xx
 
@@ -84,9 +84,9 @@ sub internet_users_search {
   $index=get_function_index('internet_users_list') if ( $functions{$index} && $functions{$index} ne 'internet_users_list' );
   $Internet->{GROUP_SEL}  = sel_groups();
   $Internet->{STATUS_SEL} = sel_status({
-    STATUS => $FORM{INTERNET_STATUS} || '',
-    ALL    => 1,
-    NAME   => 'INTERNET_STATUS'
+    STATUS    => $FORM{INTERNET_STATUS} || '',
+    NAME      => 'INTERNET_STATUS',
+    EX_PARAMS => 'multiple="multiple"'
   });
 
   if ($conf{INTERNET_LOGIN}) {
@@ -201,7 +201,7 @@ sub internet_multiuser {
   my @multiuser_arr = split(/, /, $ids || q{});
   my @multiuser_no_error;
   my %params;
-  $Internet->list({
+  $Internet->user_list({
     GROUP_BY  => 'internet.id',
     ID        => join(';', @multiuser_arr),
     LIST2HASH => 'id,uid',
@@ -233,7 +233,7 @@ sub internet_multiuser {
   elsif ($FORM{MU_TP} && $FORM{TP_SHEDULE} ne '0000-00-00') {
     my ($year, $month, $day) = split(/-/, $FORM{TP_SHEDULE}, 3);
     foreach my $id (@multiuser_arr) {
-      $Internet->info($uid_hash->{$id}, { ID => $id });
+      $Internet->user_info($uid_hash->{$id}, { ID => $id });
       $Shedule->add(
         {
           UID          => $uid_hash->{$id},
@@ -281,7 +281,7 @@ sub internet_multiuser {
       $ipv6_pd    =~ s/\{UID\}/$uid_hex/g;
       $ipv6_pd    =~ s/\{ID\}/$id_hex/g;
 
-      $Internet->change({
+      $Internet->user_change({
         ID               => $id,
         UID              => $uid_hash->{$id},
         IPV6             => $ipv6,
@@ -296,7 +296,7 @@ sub internet_multiuser {
     my $Ip_pool  = $Nas->ip_pools_info($FORM{INTERNET_MU_IPV4_POLL});
 
     foreach my $id (@multiuser_arr) {
-      $Internet->change({
+      $Internet->user_change({
         ID  => $id,
         UID => $uid_hash->{$id},
         IP  => get_static_ip($FORM{INTERNET_MU_IPV4_POLL}),
@@ -322,7 +322,7 @@ sub internet_multiuser {
   }
   else {
     foreach my $id (@multiuser_arr) {
-      $Internet->change(
+      $Internet->user_change(
         {
           ID  => $id,
           UID => $uid_hash->{$id},
@@ -375,7 +375,7 @@ sub internet_users_list {
       }
 
       foreach my $_user (@$import_accounts) {
-        my $list = $Internet->list({
+        my $list = $Internet->user_list({
           LOGIN     => '_SHOW',
           $main_id  => $_user->{$main_id},
           COLS_NAME => 1
@@ -384,11 +384,11 @@ sub internet_users_list {
         if ($Internet->{TOTAL} > 0) {
 
           my $uid = $list->[0]->{uid};
-          $Internet->change({ %$_user, UID => $uid });
+          $Internet->user_change({ %$_user, UID => $uid });
           print $html->button($list->[0]->{login}, "index=15&UID=$uid") . " ($uid)' Ok" . $html->br();
 
         } else {
-          $Internet->add({ %$_user });
+          $Internet->user_add({ %$_user });
           if ($Internet->{errno}) {
             _error_show($users);
           }
@@ -471,6 +471,9 @@ sub internet_users_list {
   if($LIST_PARAMS{TP_ID} && $LIST_PARAMS{TP_ID} =~ /,/) {
     $LIST_PARAMS{TP_ID} =~ s/,\s?/;/g;
   }
+  if($LIST_PARAMS{INTERNET_STATUS} && $LIST_PARAMS{INTERNET_STATUS} =~ /,/) {
+    $LIST_PARAMS{INTERNET_STATUS} =~ s/,\s?/;/g;
+  }
 
   # To prevent duplicating INTERNET_STATUS field in URL, should cut it from original $qs
   my $clear_qs = $pages_qs || q{};
@@ -479,9 +482,7 @@ sub internet_users_list {
   my $current_status = (defined $FORM{INTERNET_STATUS} && $FORM{INTERNET_STATUS} =~ /^\d+$/)
                          ? $FORM{INTERNET_STATUS}
                          : undef;
-  my $status_bar     = $html->button($lang{ALL}, "index=$index$clear_qs", {
-      class => "btn btn-secondary " . (!defined $FORM{INTERNET_STATUS} ? 'active' : '' )
-    });
+  my @status_bar     = "$lang{ALL}:index=$index$clear_qs";
 
   my $service_status = sel_status({ HASH_RESULT => 1 });
   foreach my $i (sort keys %$service_status) {
@@ -494,7 +495,7 @@ sub internet_users_list {
       $active    = 'active';
     }
 
-    $status_bar .= $html->button($name, "index=$index&INTERNET_STATUS=$i$clear_qs", { class => "btn btn-secondary $active"  });
+    push @status_bar, "$name:index=$index&INTERNET_STATUS=$i$clear_qs";
   }
 
   ##print $html->letters_list({ pages_qs => $pages_qs });
@@ -529,9 +530,9 @@ sub internet_users_list {
 
   ($table, $list) = result_former({
     INPUT_DATA      => $Internet,
-    FUNCTION        => 'list',
+    FUNCTION        => 'user_list',
     BASE_FIELDS     => 0,
-    DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,INTERNET_STATUS,ID, TP_ID',
+    DEFAULT_FIELDS  => 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,INTERNET_STATUS,ID,TP_ID',
     HIDDEN_FIELDS   => 'PRIORITY',
     APPEND_FIELDS   =>  'UID',
     FUNCTION_FIELDS => 'form_payments,internet_stats',
@@ -558,6 +559,7 @@ sub internet_users_list {
       'online_duration'       => 'Online ' . $lang{DURATION},
       'month_fee'             => $lang{MONTH_FEE},
       'day_fee'               => $lang{DAY_FEE},
+      'internet_activate'     => "Internet $lang{ACTIVATE}",
       'internet_expire'       => "Internet $lang{EXPIRE}",
       'internet_login'        => "Internet $lang{LOGIN}",
       'internet_password'     => "Internet $lang{PASSWD}",
@@ -589,7 +591,7 @@ sub internet_users_list {
       caption    => "$lang{INTERNET} - $lang{USERS}",
       qs         => $pages_qs,
       ID         => 'INTERNET_USERS_LIST',
-      header     => $status_bar,
+      header     => \@status_bar,
       EXPORT     => 1,
       MENU       => "$lang{ADD}:index=" . $reg_index . ':add' . ";$lang{SEARCH}:index=$index&search_form=1:search",
       IMPORT           => "$SELF_URL?get_index=internet_users_list&header=2&import=1",
@@ -752,7 +754,7 @@ sub internet_error {
     $LIST_PARAMS{LOGIN} = $user->{LOGIN};
 
     if ($conf{INTERNET_LOGIN}) {
-      $Internet->info($user->{UID});
+      $Internet->user_info($user->{UID});
       if ($Internet->{INTERNET_LOGIN}) {
         $LIST_PARAMS{LOGIN}.=";$Internet->{INTERNET_LOGIN}";
       }
@@ -821,6 +823,10 @@ sub internet_error {
     $LIST_PARAMS{DESC} = 'DESC';
   }
 
+  if ($conf{CONNECT_LOG}) {
+    $LIST_PARAMS{REQUEST_COUNT}='_SHOW';
+  }
+
   $list = $Log->log_list({
     %LIST_PARAMS,
     ACTION    => $FORM{ACTION} || '_SHOW',
@@ -871,7 +877,7 @@ sub internet_error {
   $table = $html->table({
     caption => "Internet $lang{ERROR}",
     width   => '100%',
-    title   => [ $lang{DATE}, $lang{TYPE}, $lang{ACTION}, $lang{USER}, $lang{TEXT}, "NAS" ],
+    title   => [ $lang{DATE}, $lang{TYPE}, $lang{ACTION}, $lang{USER}, $lang{TEXT}, '', "NAS" ],
     pages   => $total,
     qs      => $pages_qs,
     header  => $header,
@@ -907,7 +913,8 @@ sub internet_error {
       $line->{action},
         ($conf{INTERNET_LOGIN}) ? $html->button($line->{user}, "index=". get_function_index('internet_users_list'). "&INTERNET_LOGIN=$line->{user}&search=1")  : $html->button($line->{user}, "index=11&LOGIN=$line->{user}"),
       $message,
-        (! $auth_switch || $auth_switch eq $main_nas) ? $main_nas : $auth_switch . $html->br() . $main_nas
+      $line->{request_count} || 0,
+       (! $auth_switch || $auth_switch eq $main_nas) ? $main_nas : $auth_switch . $html->br() . $main_nas
     );
   }
 
@@ -987,7 +994,7 @@ sub internet_payments_maked {
   $user=$attr->{USER_INFO} if ($attr->{USER_INFO});
   return '' if ($FORM{DISABLE});
 
-  my $service_list = $Internet->list({
+  my $service_list = $Internet->user_list({
     UID         => $user->{UID},
     TP_NUM      => '>0',
     GROUP_BY    => 'internet.id',
@@ -995,7 +1002,7 @@ sub internet_payments_maked {
   });
 
   foreach my $service (@$service_list) {
-    $Internet->info($user->{UID}, { ID => $service->{id} });
+    $Internet->user_info($user->{UID}, { ID => $service->{id} });
 
     if ($Internet->{PERSONAL_TP} && $Internet->{PERSONAL_TP} > 0) {
       $Internet->{MONTH_ABON} = $Internet->{PERSONAL_TP};
@@ -1018,7 +1025,7 @@ sub internet_payments_maked {
     if ($conf{payment_chg_activate} && $Internet->{SERVICE_ACTIVATE} ne '0000-00-00') {
       if ($conf{payment_chg_activate} ne 2
         || date_diff($Internet->{SERVICE_ACTIVATE}, $DATE) > 30) {
-        $Internet->change({
+        $Internet->user_change({
           ACTIVATE => $DATE,
           UID      => $user->{UID},
           ID       => $Internet->{ID},
@@ -1050,7 +1057,7 @@ sub internet_payments_maked {
         }
       }
 
-      $Internet->change({
+      $Internet->user_change({
         UID    => $user->{UID},
         ID     => $Internet->{ID},
         STATUS => 0,
@@ -1062,6 +1069,16 @@ sub internet_payments_maked {
       }
 
       #$Internet->{ACCOUNT_ACTIVATE} = $user->{ACTIVATE} || '0000-00-00';
+      $conf{MONTH_FEE_TIME}='01:00:00';
+
+      #Skip month fee before month periodic
+      if ($conf{MONTH_FEE_TIME}) {
+        my $start_day = $conf{START_PERIOD_DAY} || 1;
+        my (undef, undef, $d)=split(/\-/, $DATE, 3);
+        if ($start_day == $d && time2sec($TIME) < time2sec($conf{MONTH_FEE_TIME}) ) {
+          $attr->{SHEDULER} = 1;
+        }
+      }
       service_get_month_fee($Internet, $attr);
     }
     elsif ($conf{INTERNET_PAY_ACTIVATE}) {
@@ -1081,9 +1098,10 @@ sub internet_payments_maked {
           $service_params{STATUS} = 0;
         }
 
-        $Internet->change(\%service_params);
+        $Internet->user_change(\%service_params);
+        service_get_month_fee($Internet, $attr);
       }
-      service_get_month_fee($Internet, $attr);
+      #service_get_month_fee($Internet, $attr);
     }
   }
 
@@ -1256,7 +1274,7 @@ sub internet_registration {
 
         #4 Dv
         $conf{REGISTRATION_DEFAULT_TP} = 0 if (!$conf{REGISTRATION_DEFAULT_TP});
-        $Internet->add(
+        $Internet->user_add(
           {
             UID   => $uid,
             TP_ID => $FORM{TP_ID} || $conf{REGISTRATION_DEFAULT_TP},
@@ -1272,7 +1290,7 @@ sub internet_registration {
             $Internet->{PASSWD} = "$lang{SEND_REG} E-mail";
           }
 
-          $Internet->info($uid);
+          $Internet->user_info($uid);
           if ($attr->{ACTIVATE_PAYMENT}) {
             $Payments->add(
               $users,
@@ -1283,7 +1301,7 @@ sub internet_registration {
             );
 
             if ($FORM{STATUS}) {
-              $Internet->change({
+              $Internet->user_change({
                 UID    => $uid,
                 STATUS => 0
               });
@@ -1315,6 +1333,12 @@ sub internet_registration {
           if ($FORM{EMAIL}) {
             my $message = $html->tpl_show(_include('internet_reg_complete_mail', 'Internet'), { %$Internet, %FORM, PASSWORD => "$password" }, { OUTPUT2RETURN => 1 });
             sendmail($conf{ADMIN_MAIL}, $FORM{EMAIL}, $lang{REGISTRATION}, $message, $conf{MAIL_CHARSET}, '');
+          }
+
+          #Referral
+          if($FORM{REFERRER}){
+            load_module('Referral', $html);
+            referral_link_registred({REFERRED => $FORM{REFERRER}, UID => $uid});
           }
 
           return $uid;
@@ -1394,7 +1418,7 @@ sub internet_docs {
   my %info     = ();
   our %FEES_METHODS;
 
-  my $service_list = $Internet->list({
+  my $service_list = $Internet->user_list({
     UID              => $uid,
     MONTH_FEE        => '_SHOW',
     DAY_FEE          => '_SHOW',
@@ -1522,7 +1546,7 @@ sub internet_quick_info {
   my $uid = $attr->{UID} || $FORM{UID};
 
   if ($attr->{UID}) {
-    my $list = $Internet->list({
+    my $list = $Internet->user_list({
       UID        =>  $uid,
       TP_NAME    => '_SHOW',
       MONTH_FEE  => '_SHOW',
@@ -1559,7 +1583,7 @@ sub internet_quick_info {
     return $result;
   }
 
-  $Internet->list({
+  $Internet->user_list({
     UID       => $uid,
     LOGIN     => (! $uid && $attr->{LOGIN}) ? $attr->{LOGIN} : undef,
     COLS_NAME => 1,
@@ -1613,7 +1637,7 @@ sub internet_search {
     $Internet->{debug} = 1;
   }
 
-  my $intertnet_list = $Internet->list({
+  my $intertnet_list = $Internet->user_list({
     %LIST_PARAMS,
     UNIVERSAL_SEARCH => 1,
     COLS_NAME => 1
@@ -1745,7 +1769,7 @@ sub set_tags_users {
 
     return 1;
   }
-  my $tags_users = $Internet->list({
+  my $tags_users = $Internet->user_list({
     COLS_NAME => 1,
   });
 
@@ -1761,6 +1785,88 @@ sub set_tags_users {
   }
 
   return 1;
+}
+
+#**********************************************************
+=head2 internet_service_activate($attr)
+
+  Arguments:
+    $attr
+      TP_INFO
+      USER_INFO
+        UID
+        ID
+      DEBUG
+
+=cut
+#**********************************************************
+sub internet_service_activate {
+  my ($attr)=@_;
+
+  $Internet->user_change({
+    ID     => $attr->{USER_INFO}->{ID},
+    UID    => $attr->{USER_INFO}->{UID},
+    STATUS => 0
+  });
+  $attr->{USER_INFO}->{INTERNET_STATUS} = 0;
+
+  _external('', { EXTERNAL_CMD => 'Internet', %{ $attr->{USER_INFO} }, %{$Internet}, QUITE => 1 });
+
+  return 1;
+}
+
+#**********************************************************
+=head2 internet_service_deactivate($attr)
+
+  Arguments:
+    $attr
+      TP_INFO
+      USER_INFO
+      DEBUG
+
+=cut
+#**********************************************************
+sub internet_service_deactivate {
+  my ($attr)=@_;
+
+  my $debug_output = q{};
+  my $TP_INFO = $attr->{TP_INFO};
+  my $user_info = $attr->{USER_INFO};
+  my $debug = $attr->{DEBUG} || 0;
+  my $action = 0;
+
+  if ($TP_INFO->{SMALL_DEPOSIT_ACTION} && $TP_INFO->{SMALL_DEPOSIT_ACTION} == -1) {
+    if ($debug < 8) {
+      if (! $user_info->{INTERNET_STATUS} || $user_info->{INTERNET_STATUS} != 5) {
+        $Internet->user_change({
+          ID     => $user_info->{ID},
+          UID    => $user_info->{UID},
+          STATUS => 5
+        });
+
+        $user_info->{INTERNET_STATUS} = 5;
+      }
+    }
+    $action++;
+    $debug_output .= " SMALL_DEPOSIT_BLOCK." if ($debug > 3);
+  }
+  elsif($TP_INFO->{SMALL_DEPOSIT_ACTION}) {
+    if ($debug < 8) {
+      $Internet->user_change({
+        UID   => $user_info->{UID},
+        TP_ID => $TP_INFO->{SMALL_DEPOSIT_ACTION}
+      });
+    }
+
+    $action++;
+    $debug_output .= " SMALL_DEPOSIT_CHG_TP." if ($debug > 3);
+  }
+
+  if ($action) {
+    _external('', { EXTERNAL_CMD => 'Internet', %{$attr->{USER_INFO}}, %{$Internet}, QUITE => 1 });
+  }
+
+  return $debug_output;
 }
 
 1

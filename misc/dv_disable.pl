@@ -179,7 +179,7 @@ HAVING (u_credit+u_deposit) < 0 $HAVING_DATE;", undef, { COLS_NAME => 1 } );
 
       if ( $DEBUG < 6 ){
         if (in_array('Internet', \@MODULES)){
-          $Internet->change( {
+          $Internet->user_change( {
             UID    => $user->{uid},
             STATUS => $ARGS->{SET_STATUS} || 5
           } );

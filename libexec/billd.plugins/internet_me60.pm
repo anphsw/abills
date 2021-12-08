@@ -96,7 +96,7 @@ sub change_profile {
 
     foreach my $online (@{$l}) {
       if (!$online->{uid}) {
-        my $internet_user_list = $Internet->list({
+        my $internet_user_list = $Internet->user_list({
           LOGIN         => '_SHOW',
           ALL_FILTER_ID => '_SHOW',
           CID           => _mac_former($online->{user_name}),

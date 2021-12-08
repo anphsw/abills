@@ -1037,11 +1037,11 @@ function defineFullWidthSelect(context) {
 function hideHidden(context) {
   $('[data-visible]', context).each(function (i, e) {
     var $e = $(e);
-    $e.data('visible') ? $e.css({'display': 'block'}) : $e.css({'display': 'none'});
+    $e.data('visible') ? $e.css({'display': ''}) : $e.addClass('hidden');
   });
   $('[data-hidden]', context).each(function (i, e) {
     var $e = $(e);
-    $e.data('hidden') ? $e.css({'display': 'none'}) : $e.css({'display': 'block'});
+    $e.data('hidden') ? $e.addClass('hidden') : $e.css({'display': ''});
   });
 }
 
@@ -1155,17 +1155,24 @@ function setDatePickerValue(start, end, item, autoUpdate){
 }
 
 function initSelect2(context) {
-    if (typeof(SELECT2_PARAMS) === 'undefined') {
-        var SELECT2_PARAMS = {
-            // width: 'auto',
-            placeholder: '',
-            dropdownAutoWidth: true,
-            allowClear: true
-        };
-      }
-    var $selects = $('select:not(.not-select2)', context);
-    $selects.select2(SELECT2_PARAMS);
+  if (typeof (SELECT2_PARAMS) === 'undefined') {
+    var SELECT2_PARAMS = {
+      width: '100%',
+      placeholder: '',
+      dropdownAutoWidth: true,
+      allowClear: true
+    };
   }
+
+  var $selects = $('select:not(.not-select2)', context);
+  $selects.select2(Object.assign({}, SELECT2_PARAMS, { templateResult: formatState, templateSelection: formatState }));
+
+  function formatState(state) {
+    if (!state.id) return state.text;
+
+    return $('<span style="' + $(state.element).data('style') + '"> ' + state.text + '</span>');
+  }
+}
 
 function initChosen(context) {
   initSelect2(context);

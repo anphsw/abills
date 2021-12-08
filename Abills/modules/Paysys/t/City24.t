@@ -19,8 +19,8 @@ our (
   $argv
 );
 
-my $login = $argv->{LOGIN} || q{};
-my $password = $argv->{PASSWORD} || q{};
+my $login = $argv->{LOGIN} || $conf{PAYSYS_CITY24_LOGIN} || q{};
+my $password = $argv->{PASSWORD} || $conf{PAYSYS_CITY24_PASSWORD} || q{};
 
 my $Payment_plugin = Paysys::systems::City24->new($db, $admin, \%conf);
 $Payment_plugin->{TEST}=1;
@@ -29,6 +29,9 @@ if ($debug > 3) {
 }
 
 $payment_sum = int($payment_sum * 100);
+$payment_id = int(rand(10000));
+$user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
+my $date = POSIX::strftime('%Y%m%d%H%M%S', localtime());
 
 our @requests = (
   {
@@ -55,7 +58,7 @@ our @requests = (
     <password>$password</password>
     <command>pay</command>
     <transactionID>1234567890123</transactionID>
-    <payTimestamp>20101008162022</payTimestamp>
+    <payTimestamp>$date</payTimestamp>
     <payID>$payment_id</payID>
     <payElementID>0</payElementID>
     <account>$user_id</account>

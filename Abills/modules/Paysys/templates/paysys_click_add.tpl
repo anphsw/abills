@@ -1,31 +1,42 @@
-<form action='%URL%' method='get' target='_blank'>
-    <input type='hidden' name='merchant_id' value='%MERCHANT_ID%' />
-    <input type='hidden' name='merchant_user_id' value='%UID%' />
-    <input type='hidden' name='service_id' value='%SERVICE_ID%' />
-    <input type='hidden' name='transaction_param' value='%TRANSACTION_ID%' />
-    <input type='hidden' name='amount' value='%AMOUNT%' />
+<div class='card card-primary card-outline'>
+    <form action='%URL%' method='get' target='_blank'>
+        <input type='hidden' name='merchant_id' value='%MERCHANT_ID%'/>
+        <input type='hidden' name='merchant_user_id' value='%UID%'/>
+        <input type='hidden' name='service_id' value='%SERVICE_ID%'/>
+        <input type='hidden' name='transaction_param' value='%TRANSACTION_ID%'/>
+        <input type='hidden' name='amount' value='%AMOUNT%'/>
 
-    <div class='card box-primary '>
-        <div class='card-header with-border'><h4>_{BALANCE_RECHARCHE}_</h4></div>
-
+        <div class='card-header with-border text-center'>
+            <h4>_{BALANCE_RECHARCHE}_</h4>
+        </div>
         <div class='card-body'>
-            <div class='form-group'>
-                <label class='col-md-6 control-label text-right'>_{ORDER}_:</label>
-                <label class='col-md-6 control-label'>$FORM{OPERATION_ID}</label>
+            <div class='form-group text-center'>
+                <img src='/styles/default_adm/img/paysys_logo/click-logo.png'
+                     style='width: auto; max-height: 200px;'
+                     alt='click'>
             </div>
 
-            <div class='form-group'>
-                <label class='col-md-6 control-label text-right'> _{PAY_SYSTEM}_:</label>
-                <label class='col-md-6 control-label'>Click</label>
-            </div>
-
-            <div class='form-group'>
-                <label class='control-label col-md-6 text-right'>_{SUM}_:</label>
-                <label class='control-label col-md-6'> $FORM{SUM} </label>
-            </div>
+            <table style='min-width:350px;' width='auto'>
+                <tr>
+                    <td>_{PAY_SYSTEM}_:</td>
+                    <td>Click</td>
+                </tr>
+                <tr>
+                    <td>_{ORDER}_:</td>
+                    <td>$FORM{OPERATION_ID}</td>
+                </tr>
+                <tr>
+                    <td>_{SUM}_:</td>
+                    <td>$FORM{SUM}</td>
+                </tr>
+                <tr>
+                    <td>_{DESCRIBE}_:</td>
+                    <td>$FORM{DESCRIBE}</td>
+                </tr>
+            </table>
         </div>
         <div class='card-footer'>
             <input class='btn btn-primary' type=submit value=_{PAY}_>
         </div>
-    </div>
-</form>
+    </form>
+</div>

@@ -4,6 +4,9 @@ use strict;
 use warnings FATAL => 'all';
 use Abills::Base qw(in_array);
 
+require Control::Service_control;
+my $Service_control;
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -12,15 +15,18 @@ use Abills::Base qw(in_array);
 sub new {
   my $class = shift;
   my ($db, $admin, $conf, $bot) = @_;
-  
+
   my $self = {
     db    => $db,
     admin => $admin,
     conf  => $conf,
     bot   => $bot,
   };
-  
+
   bless($self, $class);
+
+  $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
+
   return $self;
 }
 
@@ -31,8 +37,8 @@ sub new {
 #**********************************************************
 sub btn_name {
   my $self = shift;
-  
-    return $self->{bot}->{lang}->{SERVICES};
+
+  return $self->{bot}{lang}{SERVICES};
 }
 
 #**********************************************************
@@ -51,10 +57,10 @@ sub click {
   use Users;
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
   $Users->info($uid);
-  $Users->pi({UID => $uid});
+  $Users->pi({ UID => $uid });
   $Users->group_info($Users->{GID});
   $credit_warn = 1 if ($Users->{DEPOSIT} + $Users->{CREDIT} <= 0);
-    
+
   use Payments;
   my $Payments = Payments->new($self->{db}, $self->{admin}, $self->{conf});
   my $last_payments = $Payments->list({
@@ -81,7 +87,7 @@ sub click {
 
   require Internet;
   my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     ID              => '_SHOW',
     TP_NAME         => '_SHOW',
     SPEED           => '_SHOW',
@@ -97,13 +103,13 @@ sub click {
   $message .= "$self->{bot}->{lang}->{YOUR_SERVICE}:\\n";
 
   my $total_sum_month = 0;
-  my $total_sum_day   = 0;
-  
+  my $total_sum_day = 0;
+
   foreach my $line (@$list) {
     $message .= "$self->{bot}->{lang}->{INTERNET}: $line->{tp_name}\\n";
     if ($line->{internet_status} == 3) {
       require Shedule;
-      my $Shedule  = Shedule->new($self->{db}, $self->{admin}, $self->{conf});
+      my $Shedule = Shedule->new($self->{db}, $self->{admin}, $self->{conf});
       my $shedule_list = $Shedule->list({
         UID        => $uid,
         SERVICE_ID => $line->{id},
@@ -113,29 +119,32 @@ sub click {
         COLS_NAME  => 1
       });
 
+      my $can_stop_holdup = $Service_control->user_holdup({ ID => $line->{id}, UID => $uid });
+      my $inline_button = '';
+
       if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0) {
         my $holdup_stop_date = ($shedule_list->[0]->{d} || '*')
-                       . '.' . ($shedule_list->[0]->{m} || '*')
-                       . '.' . ($shedule_list->[0]->{y} || '*');
+          . '.' . ($shedule_list->[0]->{m} || '*')
+          . '.' . ($shedule_list->[0]->{y} || '*');
         $message .= "$self->{bot}->{lang}->{SERVICE_STOP_DATE} $holdup_stop_date\\n";
-        my $inline_button = {
-          Text          => "$self->{bot}->{lang}->{CANCEL_STOP}",
+        $inline_button = {
+          Text       => "$self->{bot}->{lang}->{CANCEL_STOP}",
           ActionType => 'reply',
           ActionBody => "fn:Services_and_account&stop_holdup&$line->{id}&$shedule_list->[0]->{id}",
           TextSize   => 'regular'
         };
-        push (@inline_keyboard, $inline_button);
       }
       else {
         $message .= "$self->{bot}->{lang}->{SERVICE_STOP}\\n";
-        my $inline_button = {
-          Text          => "$self->{bot}->{lang}->{CANCEL_STOP}",
+        $inline_button = {
+          Text       => "$self->{bot}->{lang}->{CANCEL_STOP}",
           ActionType => 'reply',
           ActionBody => "fn:Services_and_account&stop_holdup&$line->{id}",
           TextSize   => 'regular'
         };
-        push (@inline_keyboard, $inline_button);
       }
+
+      push(@inline_keyboard, $inline_button) if !$can_stop_holdup->{error} && $inline_button;
     }
     elsif ($line->{internet_status} == 5) {
       $message .= "$self->{bot}->{lang}->{SMALL_DEPOSIT}\\n\\n";
@@ -149,12 +158,12 @@ sub click {
       $message .= " $money_currency\\n" if ($line->{day_fee} && $line->{day_fee} > 0);
 
       $total_sum_month += $line->{month_fee};
-      $total_sum_day   += $line->{day_fee};
+      $total_sum_day += $line->{day_fee};
     }
 
     $message .= "\\n";
   }
-  
+
   $message .= "$self->{bot}->{lang}->{SUM_MONTH}: $total_sum_month";
   $message .= " $money_currency\\n";
   $message .= "$self->{bot}->{lang}->{SUM_DAY}: $total_sum_day";
@@ -164,12 +173,12 @@ sub click {
     if ($self->{conf}{user_credit_change} && $Users->{ALLOW_CREDIT}) {
       $message .= "$self->{bot}->{lang}->{MESSAGE_PAYMENT}\\n";
       my $inline_button = {
-        Text          => "$self->{bot}->{lang}->{SET_CREDIT_USER}",
+        Text       => "$self->{bot}->{lang}->{SET_CREDIT_USER}",
         ActionType => 'reply',
         ActionBody => "fn:Services_and_account&credit",
         TextSize   => 'regular'
       };
-      push (@inline_keyboard, $inline_button);
+      push(@inline_keyboard, $inline_button);
     }
     else {
       $message .= "$self->{bot}->{lang}->{MESSAGE_PAYMENT}\\n";
@@ -178,31 +187,31 @@ sub click {
 
   if (in_array('Equipment', \@main::MODULES)) {
     my $inline_button = {
-      Text          => "$self->{bot}->{lang}->{EQUIPMENT_INFO}",
+      Text       => "$self->{bot}->{lang}->{EQUIPMENT_INFO}",
       ActionType => 'reply',
       ActionBody => "fn:Services_and_account&equipment_info_bot",
       TextSize   => 'regular'
     };
-    push (@inline_keyboard, $inline_button);
+    push(@inline_keyboard, $inline_button);
   }
   else {
     my $inline_button = {
-      Text          => "$self->{bot}->{lang}->{EQUIPMENT_INFO}",
+      Text       => "$self->{bot}->{lang}->{EQUIPMENT_INFO}",
       ActionType => 'reply',
       ActionBody => "fn:Services_and_account&online_info_bot",
       TextSize   => 'regular'
     };
-    push (@inline_keyboard, $inline_button);
+    push(@inline_keyboard, $inline_button);
   }
 
   if ($self->{conf}->{VIBER_RESET_MAC}) {
     my $inline_button = {
-      Text          => "$self->{bot}->{lang}->{INFO_MAC}",
+      Text       => "$self->{bot}->{lang}->{INFO_MAC}",
       ActionType => 'reply',
       ActionBody => "fn:Services_and_account&mac_info",
       TextSize   => 'regular'
     };
-    push (@inline_keyboard, $inline_button);
+    push(@inline_keyboard, $inline_button);
   }
 
   my $inline_button = {
@@ -212,24 +221,22 @@ sub click {
     BgColor    => "#FF0000",
     TextSize   => 'regular'
   };
-  push (@inline_keyboard, $inline_button);
+  push(@inline_keyboard, $inline_button);
 
   my $msg = {
-      keyboard => {
-        Type          => 'keyboard',
-        DefaultHeight => "true",
-        Buttons => \@inline_keyboard
-      },
+    keyboard => {
+      Type          => 'keyboard',
+      DefaultHeight => "true",
+      Buttons       => \@inline_keyboard
+    },
   };
 
-  if(!$attr->{argv}[0] && !$attr->{argv}[0] ne "back") {
+  if (!$attr->{argv}[0] && !$attr->{argv}[0] ne "back") {
     $msg->{text} = $message if (!$attr->{NO_MSG});
     $msg->{type} = 'text' if (!$attr->{NO_MSG});
   }
 
   $self->{bot}->send_message($msg);
-
-
 
   return "NO_MENU";
 }
@@ -243,37 +250,18 @@ sub stop_holdup {
   my $self = shift;
   my ($attr) = @_;
 
-  require Internet;
-  my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
-
-  $Internet->info($self->{bot}->{uid}, {
-    ID => $attr->{argv}[0]
+  my $stop_holdup_result = $Service_control->user_holdup({
+    UID => $self->{bot}->{uid},
+    ID  => $attr->{argv}[0],
+    del => 1,
+    IDS => $attr->{argv}[2] ? $attr->{argv}[2] : 0
   });
 
-  if ( $Internet->{STATUS} == 3) {
-    if ($attr->{argv}[1]) {
-      require Shedule;
-      my $Shedule  = Shedule->new($self->{db}, $self->{admin}, $self->{conf});
-      $Shedule->del({
-        UID => $self->{bot}->{uid},
-        IDS => $attr->{argv}[2],
-      });
-    }
+  $self->{bot}->send_message({
+    text       => $stop_holdup_result->{error} ?  $self->{bot}{lang}{ACTIVATION_ERROR} : $self->{bot}{lang}{SERVICE_ACTIVATED},
+    parse_mode => 'HTML'
+  });
 
-    $Internet->change({
-      UID    => $self->{bot}->{uid},
-      ID     => $attr->{argv}[0],
-      STATUS => 0,
-    });
-
-    $self->{bot}->send_message({
-      text => "$self->{bot}->{lang}->{SERVICE_ACTIVETED}",
-      type => 'text'
-    });
-
-    require Abills::Misc;
-    main::service_get_month_fee($Internet, { QUITE => 1, DATE => $main::DATE });
-  }
   return 1;
 }
 
@@ -286,14 +274,11 @@ sub credit {
   my $self = shift;
   my ($attr) = @_;
 
-  require Control::Service_control;
-  my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
-
   my $credit_info = $Service_control->user_set_credit({ UID => $attr->{uid}, change_credit => 1 });
 
   $self->{bot}->send_message({
-    text       => $credit_info->{error} ? "$self->{bot}->{lang}->{CREDIT_NOT_EXIST}" : $self->{bot}->{lang}->{CREDIT_SUCCESS},
-    type       => 'text'
+    text => $credit_info->{error} ? "$self->{bot}->{lang}->{CREDIT_NOT_EXIST}" : $self->{bot}->{lang}->{CREDIT_SUCCESS},
+    type => 'text'
   });
 
   return 1
@@ -318,11 +303,11 @@ sub equipment_info_bot {
 
   require Internet;
   my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
-  my $intertnet_nas = $Internet->list({
-    NAS_ID    => '_SHOW',
-    PORT      => '_SHOW',
-    ONLINE    => '_SHOW',
-    CID       => '_SHOW',
+  my $internet_nas = $Internet->user_list({
+    NAS_ID     => '_SHOW',
+    PORT       => '_SHOW',
+    ONLINE     => '_SHOW',
+    CID        => '_SHOW',
     ONLINE_CID => '_SHOW',
     UID        => $uid,
     COLS_NAME  => 1,
@@ -331,11 +316,11 @@ sub equipment_info_bot {
   require Equipment;
   my $Equipment = Equipment->new($self->{db}, $self->{admin}, $self->{conf});
   my $onu_list = $Equipment->onu_list({
-    STATUS      => '_SHOW',
-    BRANCH      => '_SHOW',
-    BRANCH_DESC => '_SHOW',
-    ONU_DHCP_PORT => $intertnet_nas->[0]{port},
-    NAS_ID        => $intertnet_nas->[0]{nas_id},
+    STATUS        => '_SHOW',
+    BRANCH        => '_SHOW',
+    BRANCH_DESC   => '_SHOW',
+    ONU_DHCP_PORT => $internet_nas->[0]{port},
+    NAS_ID        => $internet_nas->[0]{nas_id},
     COLS_NAME     => 1,
   });
 
@@ -345,24 +330,24 @@ sub equipment_info_bot {
   else {
     $message .= "$self->{bot}->{lang}->{EQUIPMENT_USER}: $onu_list->[0]{branch_desc} $onu_list->[0]{branch}\\n";
     $message .= "$self->{bot}->{lang}->{STATUS}: " . $status{ $onu_list->[0]{status} } . "\\n";
-    if ($intertnet_nas->[0]{online}) {
+    if ($internet_nas->[0]{online}) {
       $message .= "$self->{bot}->{lang}->{CONNECTED}: Online\\n";
     }
     else {
       $message .= "$self->{bot}->{lang}->{CONNECTED}: Offline\\n";
     }
 
-    if ($intertnet_nas->[0]{cid} 
-        && $intertnet_nas->[0]{online_cid} 
-        && $intertnet_nas->[0]{cid} ne $intertnet_nas->[0]{online_cid}) {
-        $message .= "$self->{bot}->{lang}->{MAC_INVALID}\\n";
-        $message .= "$self->{bot}->{lang}->{ALLOW_MAC}: $intertnet_nas->[0]{cid}\\n";
-        $message .= "$self->{bot}->{lang}->{INVALID_MAC}: $intertnet_nas->[0]{online_cid}\\n";
+    if ($internet_nas->[0]{cid}
+      && $internet_nas->[0]{online_cid}
+      && $internet_nas->[0]{cid} ne $internet_nas->[0]{online_cid}) {
+      $message .= "$self->{bot}->{lang}->{MAC_INVALID}\\n";
+      $message .= "$self->{bot}->{lang}->{ALLOW_MAC}: $internet_nas->[0]{cid}\\n";
+      $message .= "$self->{bot}->{lang}->{INVALID_MAC}: $internet_nas->[0]{online_cid}\\n";
     }
   }
 
   $self->{bot}->send_message({
-    text       => $message,
+    text => $message,
     type => 'text'
   });
 
@@ -388,26 +373,26 @@ sub mac_info {
   my $no_menu = 0;
 
   if ($attr->{argv}[0] && $attr->{argv}[0] eq 'reset_mac') {
-    $Internet->change({
+    $Internet->user_change({
       UID => $uid,
       CID => '',
     });
-    
+
     $message = "$self->{bot}->{lang}->{RESET_MAC_SUCCESS}";
   }
   else {
-    my $intertnet_info = $Internet->info($uid);
+    my $intertnet_info = $Internet->user_info($uid);
 
     if ($intertnet_info->{CID}) {
       $mac = $intertnet_info->{CID};
       my $inline_button = {
-        Text          => "$self->{bot}->{lang}->{RESET_MAC}",
+        Text       => "$self->{bot}->{lang}->{RESET_MAC}",
         ActionType => 'reply',
         ActionBody => "fn:Services_and_account&mac_info&reset_mac",
         TextSize   => 'regular'
       };
 
-      push (@inline_keyboard, $inline_button);
+      push(@inline_keyboard, $inline_button);
 
       $inline_button = {
         ActionType => 'reply',
@@ -416,7 +401,7 @@ sub mac_info {
         BgColor    => "#FF0000",
         TextSize   => 'regular'
       };
-      push (@inline_keyboard, $inline_button);
+      push(@inline_keyboard, $inline_button);
 
       $message = "$self->{bot}->{lang}->{YOUR_MAC}: $mac";
       $no_menu = 1;
@@ -432,9 +417,9 @@ sub mac_info {
   };
 
   $msg->{keyboard} = {
-      Type          => 'keyboard',
-      DefaultHeight => "true",
-      Buttons => \@inline_keyboard
+    Type          => 'keyboard',
+    DefaultHeight => "true",
+    Buttons       => \@inline_keyboard
   } if (@inline_keyboard);
 
   $self->{bot}->send_message($msg);
@@ -455,7 +440,7 @@ sub online_info_bot {
 
   require Internet::Sessions;
   my $Sessions = Internet::Sessions->new($self->{db}, $self->{admin}, $self->{conf});
-  
+
   my $sessions_list = $Sessions->online(
     {
       CLIENT_IP          => '_SHOW',
@@ -477,8 +462,8 @@ sub online_info_bot {
   }
 
   $self->{bot}->send_message({
-    text       => $message,
-    type       => 'text'
+    text => $message,
+    type => 'text'
   });
 
   return 1;

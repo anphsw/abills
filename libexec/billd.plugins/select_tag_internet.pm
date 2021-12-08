@@ -81,7 +81,7 @@ sub select_tag_internet {
 sub select_tp_user {
   my ($attr) = @_;
 
-  my $list_internet = $Internet->list({
+  my $list_internet = $Internet->user_list({
     TP_NAME   => $attr->{TP_NAME},
     MONTH_FEE => '_SHOW',
     COLS_NAME => 1
@@ -162,7 +162,7 @@ sub set_tag_reducation {
     COLS_NAME => 1
   });
 
-  my $list_internet = $Internet->list({
+  my $list_internet = $Internet->user_list({
     TP_NAME   => $attr->{TP_NAME},
     MONTH_FEE => '_SHOW',
     COLS_NAME => 1

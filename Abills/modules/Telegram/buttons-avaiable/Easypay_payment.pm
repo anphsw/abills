@@ -46,7 +46,7 @@ sub click {
 
   my @inline_keyboard = ();
   my $uid = $self->{bot}->{uid};
-  my $message = "$self->{bot}->{lang}->{EASYPAY_TELEGRAM}\n";
+  my $message = "$self->{bot}{lang}{EASYPAY_TELEGRAM}\n";
 
   use Users;
   my $Users = Users->new($self->{db}, $self->{admin}, $self->{conf});
@@ -70,25 +70,23 @@ sub click {
   my $url_pay = "$fast_pay"  . "?account=" .  "$account_key" . "&amount=" . "$amount";
 
   if (main::get_gid_conf("PAYSYS_EASYPAY_ACCOUNT_KEY", $gid)) {
-    $message .= "$self->{bot}->{lang}->{UNIQU_NUMBER}: <b>$account_key</b>\n";
-    $message .= "$self->{bot}->{lang}->{PAYMENT_SUM}: <b>$deposit</b>\n";
-    $message .= "$self->{bot}->{lang}->{PAY_SUM_CHANGE}\n";
+    $message .= "$self->{bot}{lang}{UNIQUE_NUMBER}: <b>$account_key</b>\n";
+    $message .= "$self->{bot}{lang}{PAYMENT_SUM}: <b>$deposit</b>\n";
+    $message .= "$self->{bot}{lang}{PAY_SUM_CHANGE}\n";
   }
   else{
-    $message .= "$self->{bot}->{lang}->{ERRO_PAY}\n";
+    $message .= "$self->{bot}{lang}{ERROR_PAY}\n";
   }
 
   my $inline_button = {
-    text     => "$self->{bot}->{lang}->{EASYPAY_PAYMENT}",
+    text     => "$self->{bot}{lang}{EASYPAY_PAYMENT}",
     url      => "$url_pay"
   };
   push (@inline_keyboard, [$inline_button]);
 
   $self->{bot}->send_message({
     text         => $message,
-    reply_markup => {
-      inline_keyboard => \@inline_keyboard
-    },
+    reply_markup => { inline_keyboard => \@inline_keyboard },
     parse_mode   => 'HTML'
   });
 

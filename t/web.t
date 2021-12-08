@@ -213,7 +213,7 @@ if ($global_begin_time > 0) {
 sub show_speed_report  {
   my ($speed_hash_ref)=@_;
 
-  printf("%25s | %.5s| %12s | 6s |\n", 'function', 'Time', 'Queries', 'Status');
+  printf("%25s | %.5s| %12s | %6s |\n", 'function', 'Time', 'Queries', 'Status');
   print "---------------------------------------------------------\n";
 
   foreach my $fn ( sort { $speed_hash_ref->{$a} <=> $speed_hash_ref->{$b} } keys %$speed_hash_ref ) {
@@ -250,7 +250,7 @@ sub show_speed_report  {
 =cut
 #************************************************
 sub show_all_vars {
-  print "\nGlobal Vars ";
+  print "\nGlobal Vars: ";
 
   eval { require Devel::Size; };
   my $top = ($ARGV[0] && ($ARGV[0] ne 'ui' || $ARGV[0] ne 'brutal')) ? $ARGV[0] : 0;
@@ -276,6 +276,7 @@ sub show_all_vars {
   my $i          = 0;
   my $info       = '';
   my $total_size = 0;
+  my $report_limit = 10;
   foreach my $ps ( sort { $info_{$b} <=> $info_{$a} } keys %info_) {
     my $size = size($ps);
     $total_size += $size;
@@ -286,6 +287,9 @@ sub show_all_vars {
       }
     }
     $i++;
+    if ($report_limit < $i) {
+      last;
+    }
   }
 
   print $info;

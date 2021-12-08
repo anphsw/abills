@@ -177,10 +177,9 @@ sub crm_lead_list {
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 999999;
 
   my @WHERE_RULES = ();
-  my $EXT_TABLES = '';
 
-  push @WHERE_RULES, "date >= '$attr->{FROM_DATE}'" if ($attr->{FROM_DATE});
-  push @WHERE_RULES, "date <= '$attr->{TO_DATE}'" if ($attr->{TO_DATE});
+  push @WHERE_RULES, "cl.date >= '$attr->{FROM_DATE}'" if ($attr->{FROM_DATE});
+  push @WHERE_RULES, "cl.date <= '$attr->{TO_DATE}'" if ($attr->{TO_DATE});
   push @WHERE_RULES, "cl.phone LIKE '\%$attr->{PHONE_SEARCH}\%'" if ($attr->{PHONE_SEARCH});
   push @WHERE_RULES, "(cl.domain_id='$self->{admin}{DOMAIN_ID}')" if ($self->{admin}{DOMAIN_ID});
 
@@ -242,10 +241,19 @@ sub crm_lead_list {
     WHERE_RULES       => \@WHERE_RULES,
   });
 
+  my $EXT_TABLES = $self->{EXT_TABLES};
+
+  # if ($attr->{LEAD_ADDRESS}) {
+  #   $EXT_TABLES .= " LEFT JOIN districts ON (districts.id=streets.district_id) ";
+  # }
+
   if ($attr->{LEAD_ADDRESS} || $attr->{ADDRESS_FULL}) {
-    $EXT_TABLES = "LEFT JOIN builds ON (builds.id=cl.build_id)";
+    $EXT_TABLES .= "LEFT JOIN builds ON (builds.id=cl.build_id)";
     $EXT_TABLES .= "LEFT JOIN streets ON (streets.id=builds.street_id)
       LEFT JOIN districts ON (districts.id=streets.district_id) ";
+  }
+  if($self->{SEARCH_FIELDS} =~ /company\./) {
+    $EXT_TABLES .= 'LEFT JOIN companies company FORCE INDEX FOR JOIN (`PRIMARY`) ON (u.company_id=company.id)';
   }
 
   my $sql =  "SELECT
@@ -1484,12 +1492,15 @@ sub crm_lead_points_list {
   $self->query("SELECT cl.*, cps.color,cps.name AS step, builds.coordx, builds.coordy, cc.name AS competitor,
       SUM(plpoints.coordx)/COUNT(plpoints.coordx) AS coordy_2,
       SUM(plpoints.coordy)/COUNT(plpoints.coordy) AS coordx_2,
-      cc.color AS competitor_color
+      cc.color AS competitor_color,
+      CONCAT(districts.name, ',', streets.name, ',', builds.number) AS address_full
     FROM crm_leads as cl
     LEFT JOIN crm_competitors cc ON (cc.id = cl.competitor_id)
     LEFT JOIN crm_leads_sources cls ON (cls.id = cl.source)
     LEFT JOIN crm_progressbar_steps cps ON (cps.step_number = cl.current_step)
     LEFT JOIN builds ON (builds.id=cl.build_id)
+    LEFT JOIN streets ON (streets.id=builds.street_id)
+    LEFT JOIN districts ON (districts.id=streets.district_id)
     LEFT JOIN maps_points mp ON (builds.id=mp.location_id)
     LEFT JOIN maps_point_types mt ON (mp.type_id=mt.id)
     LEFT JOIN maps_coords mc ON (mp.coord_id=mc.id)
@@ -2033,5 +2044,24 @@ sub crm_action_list {
   return $list;
 }
 
+#**********************************************************
+=head2 crm_users_by_lead_email($id)
+
+=cut
+#**********************************************************
+sub crm_users_by_lead_email {
+  my $self = shift;
+  my $id = shift;
+
+  $self->query(
+    "SELECT cl.id, cl.email, uc.uid, cl.uid AS lead_uid, u.id AS login FROM crm_leads cl
+     LEFT JOIN users_contacts uc on (uc.value <> '' AND cl.email=uc.value)
+     LEFT JOIN users u ON (u.uid=uc.uid)
+     WHERE cl.email <> '' AND cl.id = ?;",
+    undef, { INFO => 1, Bind => [ $id ] }
+  );
+
+  return $self;
+}
 
 1

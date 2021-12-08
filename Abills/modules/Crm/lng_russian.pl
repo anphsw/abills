@@ -75,5 +75,7 @@ $lang{CRM_VIEWING_INFORMATION} = 'Просмотрено информацию';
 $lang{CRM_RECENT_ACTIVITY} = 'Последние действия';
 
 $lang{CRM_SHORT_LEADS} = 'Потен. клиенты';
+$lang{CRM_USER_NOT_FOUND} = 'Пользователь не найден';
+$lang{CRM_USER_LINKED} = 'Пользователь уже привязан';
 
 1

@@ -514,7 +514,7 @@ sub form_templates {
   }
   elsif ($FORM{FILE_UPLOAD}) {
     if($FORM{FILE_UPLOAD}{filename}) {
-      upload_file($FORM{FILE_UPLOAD}, { EXTENTIONS => 'tpl,jpg,pdf,dsc,gif,jpeg' });
+      upload_file($FORM{FILE_UPLOAD}, { EXTENTIONS => 'tpl,jpg,pdf,dsc,gif,jpeg,png' });
       $admin->system_action_add("$lang{ADDED} $lang{FILE} - $FORM{FILE_UPLOAD}{filename}", { TYPE => 62 });
     }
   }
@@ -2347,8 +2347,8 @@ sub form_intervals {
             $line2->[1],
             $line2->[2],
             $line2->[3],
-            int2byte($line2->[4] * $conf{KBYTE_SIZE}, { KBYTE_SIZE => $conf{KBYTE_SIZE} }),
-            int2byte($line2->[5] * $conf{KBYTE_SIZE}, { KBYTE_SIZE => $conf{KBYTE_SIZE} }),
+            int2byte($line2->[4], { KBYTE_SIZE => $conf{KBYTE_SIZE}, DELIMITER => ' ' }),
+            int2byte($line2->[5], { KBYTE_SIZE => $conf{KBYTE_SIZE}, DELIMITER => ' ' }),
             $line2->[6],
             convert($line2->[7], { text2html => 1 }),
             $html->button($lang{CHANGE}, "index=$index$pages_qs&tt=$TI_ID&chg=$line2->[0]&subf=$FORM{subf}", { class => 'change' }),

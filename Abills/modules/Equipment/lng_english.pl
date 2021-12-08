@@ -81,7 +81,7 @@ $lang{SPEED_OUT}='Out speed(Mb/s)';
 $lang{SIGNAL} = 'Signal';
 
 $lang{REPORT_ON_UNREGISTERED_ONU} = "Report on unregistered onu";
-$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Report on number of busy and free ports on switches";
+$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Busy and free ports on switches";
 $lang{TOTAL_SWITCH_COUNT} = "Number of switches";
 $lang{TOTAL_ALL_PORTS} = "Total number of ports";
 $lang{TOTAL_BUSY_PORTS} = "Number of busy ports";
@@ -135,7 +135,7 @@ $lang{DISABLE_CATV_PORT} = 'Disable CATV-port';
 $lang{ENABLE_CATV_PORT} = 'Enable CATV-port';
 $lang{CATV_PORT_DISABLED} = 'CATV-port disabled';
 $lang{CATV_PORT_ENABLED} = 'CATV-port enabled';
-$lang{CATV_PORT_ERROR} = 'Error when changing CATV-port status';
+$lang{CATV_PORT_STATUS_CHANGING_ERROR} = 'Error when changing CATV-port status';
 
 $lang{USE_AUTO_PORT_SHIFT} = 'Use auto port shift';
 
@@ -200,5 +200,15 @@ $lang{EQUIPMENT_TYPE} = 'Equipment type';
 $lang{RAM_USAGE} = 'RAM load';
 $lang{SLOT_TEMP} = 'T° slot';
 $lang{SLOT_DESC} = 'Description';
+
+$lang{FOR_GRAPH} = 'graph';
+
+$lang{DISABLE_PORT} = 'Disable port';
+$lang{ENABLE_PORT} = 'Enable port';
+$lang{PORT_DISABLED} = 'Port disabled';
+$lang{PORT_ENABLED} = 'Port enabled';
+$lang{PORT_STATUS_CHANGING_ERROR} = 'Error when changing port status';
+
+$lang{RUN_CMD_ON_EQUIPMENT} = 'Run command on equipment';
 
 1

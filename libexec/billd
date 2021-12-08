@@ -258,10 +258,11 @@ sub run_plugins{
 sub check_lines{
   $Sessions->{debug} = 1 if ($debug > 4);
 
-  $Sessions->online_del( {
-    SESSIONS_LIST => [ 'IP' ],
-    QUICK         => 1
-  } );
+  $Sessions->online_del({
+    #SESSIONS_LIST => [ 'IP' ],
+    STATUS => 11,
+    QUICK  => 1
+  });
 
   if ( $argv->{TRANSACTION} ){
     $db->{db}->{AutoCommit} = 0;
@@ -269,51 +270,49 @@ sub check_lines{
     print "Transaction Start\n" if ($debug > 3);
   }
 
-  $Sessions->online(
-    {
-      'USER_NAME'           => '_SHOW',
-      'LOGIN'               => '_SHOW',
-      'NAS_PORT_ID'         => '_SHOW',
-      'CLIENT_IP'           => '_SHOW',
-      'DURATION'            => '_SHOW',
-      'ACCT_INPUT_OCTETS'   => '_SHOW',
-      'ACCT_OUTPUT_OCTETS'  => '_SHOW',
-      'EX_INPUT_OCTETS'     => '_SHOW',
-      'EX_OUTPUT_OCTETS'    => '_SHOW',
-      'ACCT_SESSION_ID'     => '_SHOW',
-      'JOIN_SERVICE'        => '_SHOW',
-      'LAST_ALIVE'          => '_SHOW',
-      'ACCT_SESSION_TIME'   => '_SHOW',
-      'DURATION_SEC'        => '_SHOW',
-      'DEPOSIT'             => '_SHOW',
-      'CREDIT'              => '_SHOW',
-      'TP_ID'               => '_SHOW',
-      'TP_NUM'              => '_SHOW',
-      'LOGIN_STATUS'        => '_SHOW',
-      'SERVICE_STATUS'      => '_SHOW',
-      'SESSION_SUM'         => '_SHOW',
-      'CALLS_TP_ID'         => '_SHOW',
-      'STATUS'              => '_SHOW',
-      'FILTER_ID'           => '_SHOW',
-      'TP_BILLS_PRIORITY'   => '_SHOW',
-      'GUEST'               => '_SHOW',
-      'CID'                 => '_SHOW',
-      'TP_CREDIT'           => '_SHOW',
-      'EXPIRED'             => '_SHOW',
-      'EXPIRE'              => '_SHOW',
-      'INTERNET_EXPIRED'    => '_SHOW',
-      'DV_EXPIRED'          => '_SHOW',
-      'DV_EXPIRE'           => '_SHOW',
-      'NETMASK'             => '_SHOW',
-      'TP_CREDIT_TRESSHOLD' => '_SHOW',
-      'ONLINE_TP_ID'        => '_SHOW',
-      'SERVICE_ID'          => '_SHOW',
-      'IP'                  => '_SHOW',
-      'SKIP_DEL_CHECK'      => 1,
-      %LIST_PARAMS,
-      ALL                   => 1
-    }
-  );
+  $Sessions->online({
+    'USER_NAME'           => '_SHOW',
+    'LOGIN'               => '_SHOW',
+    'NAS_PORT_ID'         => '_SHOW',
+    'CLIENT_IP'           => '_SHOW',
+    'DURATION'            => '_SHOW',
+    'ACCT_INPUT_OCTETS'   => '_SHOW',
+    'ACCT_OUTPUT_OCTETS'  => '_SHOW',
+    'EX_INPUT_OCTETS'     => '_SHOW',
+    'EX_OUTPUT_OCTETS'    => '_SHOW',
+    'ACCT_SESSION_ID'     => '_SHOW',
+    'JOIN_SERVICE'        => '_SHOW',
+    'LAST_ALIVE'          => '_SHOW',
+    'ACCT_SESSION_TIME'   => '_SHOW',
+    'DURATION_SEC'        => '_SHOW',
+    'DEPOSIT'             => '_SHOW',
+    'CREDIT'              => '_SHOW',
+    'TP_ID'               => '_SHOW',
+    'TP_NUM'              => '_SHOW',
+    'LOGIN_STATUS'        => '_SHOW',
+    'SERVICE_STATUS'      => '_SHOW',
+    'SESSION_SUM'         => '_SHOW',
+    'CALLS_TP_ID'         => '_SHOW',
+    'STATUS'              => '_SHOW',
+    'FILTER_ID'           => '_SHOW',
+    'TP_BILLS_PRIORITY'   => '_SHOW',
+    'GUEST'               => '_SHOW',
+    'CID'                 => '_SHOW',
+    'TP_CREDIT'           => '_SHOW',
+    'EXPIRED'             => '_SHOW',
+    'EXPIRE'              => '_SHOW',
+    'INTERNET_EXPIRED'    => '_SHOW',
+    'DV_EXPIRED'          => '_SHOW',
+    'DV_EXPIRE'           => '_SHOW',
+    'NETMASK'             => '_SHOW',
+    'TP_CREDIT_TRESSHOLD' => '_SHOW',
+    'ONLINE_TP_ID'        => '_SHOW',
+    'SERVICE_ID'          => '_SHOW',
+    'IP'                  => '_SHOW',
+    'SKIP_DEL_CHECK'      => 1,
+    %LIST_PARAMS,
+    ALL                   => 1
+  });
 
   print "==> check_lines\n" if ($debug > 1);
   my $online_session = $Sessions->{nas_sorted};
@@ -1237,7 +1236,7 @@ sub check_speed_linux{
       my $tp = 0;
       my $tp_id = 0;
       if ( $line->{uid} > 0 ){
-        $Internet->info( $line->{uid} );
+        $Internet->user_info( $line->{uid} );
         $tp    = $Internet->{TP_ID};
         $tp_id = $Internet->{TP_NUM};
       }
@@ -2277,7 +2276,7 @@ sub check_speed{
   # Old dummy net methods
   # Static speed form ipfw dummynet shaper
   else{
-    my $list = $Internet->list({
+    my $list = $Internet->user_list({
       SPEED     => '>0',
       PAGE_ROWS => 100000,
       GROUP_BY  => (in_array('Internet', \@MODULES)) ? 'internet.speed' : 'dv.speed',
@@ -3136,7 +3135,7 @@ sub speed_expr{
           my $tp = 0;
           my $tp_id = 0;
           if ( $line->{uid} > 0 ){
-            $Internet->info( $line->{uid} );
+            $Internet->user_info( $line->{uid} );
             $tp    = $Internet->{TP_ID};
             $tp_id = $Internet->{TP_NUM};
           }

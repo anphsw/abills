@@ -15,20 +15,24 @@
                 </div>
             </div>
 
-            <div class='form-group row'>
+            <div class='form-group row' style='background-color: %STATUS_COLOR%'>
                 <label class='col-md-4 control-label'>_{STATUS}_</label>
                 <div class='col-md-8'>
                     %STATUS_SEL%
                 </div>
             </div>
-            <br>
+
             %SERVICES_INFO%
             <br>
             <div class='form-group'>
-                <label for='COMMENTS'>
-                    <span class='col' style='line-height: 2.2em;'>_{COMMENTS}_:</span>
-                    <textarea rows='5' cols='100' name='COMMENTS' class='form-control' id='COMMENTS'>%COMMENTS%</textarea>
+                <label for='COMMENTS' class='col-md-12'>
+                    <span class='col'>_{COMMENTS}_:</span>
                 </label>
+
+                <div class='col-md-12'>
+                    <textarea rows='5' cols='100' name='COMMENTS' class='form-control' id='COMMENTS'>%COMMENTS%</textarea>
+                </div>
+
             </div>
 
         </div>

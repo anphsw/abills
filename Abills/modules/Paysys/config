@@ -12,17 +12,17 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
     "22:21:$lang{INTERNAL_REPORTS}:paysys_reports"                      => 4,
     "23:21:$lang{SUBSCRIBES}:paysys_users"                              => 4,
     # Import Fees 60-70
-    "60:0:$lang{IMPORT}:paysys_import_fees_new:"                               => 3
+    "60:0:$lang{IMPORT}:paysys_import_fees_new:"                        => 3
   );
 
   if ($conf{PAYSYS_NEW_SETTINGS}) {
     $FUNCTIONS_LIST{"02:1:$lang{SETTINGS}:paysys_configure_main_new:"} = 5;
-    $FUNCTIONS_LIST{"04:1:$lang{PAYSYS_SETTINGS_FOR_MERCHANTS}:paysys_add_configure_groups:"} = 5;
-    $FUNCTIONS_LIST{"10:1:PAYSYS_SETTINGS_FOR_GROUPS:paysys_configure_groups_new:AJAX"}       = 5;
+    $FUNCTIONS_LIST{"04:1:$lang{PAYSYS_SETTINGS_FOR_MERCHANTS}:paysys_add_configure_groups:"}   = 5;
+    $FUNCTIONS_LIST{"10:1:PAYSYS_SETTINGS_FOR_GROUPS:paysys_configure_groups_new:AJAX"}         = 5;
   }
   else {
-    $FUNCTIONS_LIST{"02:1:$lang{SETTINGS}:paysys_configure_main:"} = 5;
-    $FUNCTIONS_LIST{"04:1:$lang{PAYSYS_SETTINGS_FOR_GROUPS}:paysys_configure_groups:"}        = 5;
+    $FUNCTIONS_LIST{"02:1:$lang{SETTINGS}:paysys_configure_main:"}                              = 5;
+    $FUNCTIONS_LIST{"04:1:$lang{PAYSYS_SETTINGS_FOR_GROUPS}:paysys_configure_groups:"}          = 5;
   }
 
   unless ($conf{PAYMENT_HIDE_USER_MENU}) {
@@ -63,7 +63,7 @@ if ($conf{PAYSYS_NEW_SCHEME}) {
 else{
   %FUNCTIONS_LIST = (
     "02:0:$lang{PAYSYS}:paysys_log:"                                        => 4,
-    "06:0:$lang{IMPORT}:paysys_import_fees:"                                       => 3,
+    "06:0:$lang{IMPORT}:paysys_import_fees:"                                => 3,
     "09:2:$lang{EXCHANGE_RATES}:null:"                                      => 4,
     "07:0:$lang{PAYSYS}:null:"                                              => 5,
     "16:7:$lang{EXTERNAL_COMMAND}:paysys_external_commands:"                => 5,

@@ -21,7 +21,6 @@ use Dillers;
 our ($db,
   %conf,
   $admin,
-  $html,
   %lang,
   %permissions,
   @MONTHES,
@@ -41,7 +40,7 @@ our ($db,
 
 require Cards::Dillers;
 
-my $payments  = Payments->new($db, $admin, \%conf);
+our Abills::HTML $html;
 my $Cards     = Cards->new($db, $admin, \%conf);
 
 if(in_array('Internet', \@MODULES)) {
@@ -474,12 +473,13 @@ sub cards_add {
           0,
           $FORM{EXPIRE},
           $admin->{AID},
-          $FORM{DILLER_ID},
-          $FORM{DILLER_ID},
+          $FORM{DILLER_ID} || 0,
+          $FORM{DILLER_ID} || 0,
           $sum,
           0,
           $admin->{DOMAIN_ID} || 0,
-          $FORM{COMMISSION}
+          $FORM{COMMISSION} || 0,
+          $FORM{GID} || 0
         ];
 
         if (defined($FORM{EXPORT}) && $FORM{EXPORT} eq 'XML') {
@@ -525,6 +525,7 @@ sub cards_add {
   $Cards->{DILLERS_SEL}    = cards_dillers_sel();
   $Cards->{PASSWD_LENGTH}  = $conf{CARDS_PAYMENT_PIN_LENGTH} if ($conf{CARDS_PAYMENT_PIN_LENGTH});
   $Cards->{PASSWD_SYMBOLS} = $conf{CARDS_PIN_SYMBOLS} if ($conf{CARDS_PIN_SYMBOLS});
+  $Cards->{GID_SEL}        = sel_groups({ SKIP_MULTISELECT => 1, EX_PARAMS => $FORM{GROUP_REQ} });
 
   $Cards->{CARDS_TYPE} = $html->tpl_show(_include('cards_payment', 'Cards'), { %$Cards, %FORM }, { notprint => 1 });
   $Cards->{TYPE_CAPTION} = $lang{PAYMENTS};
@@ -836,7 +837,7 @@ sub cards_users_gen_confim {
 }
 
 #**********************************************************
-=head2 cards_user_payment() - Clietn cards rechrge
+=head2 cards_user_payment() - Client cards recharge
 
 =cut
 #**********************************************************
@@ -882,16 +883,20 @@ sub cards_user_payment  {
       return 0;
     }
     elsif ($Cards->{TOTAL} < 1) {
-      $html->message('err', "$lang{CARD_SERVICE}:$lang{ERROR}", "$lang{NOT_EXIST}", { ID => 603 });
+      $html->message('err', "$lang{CARD_SERVICE}:$lang{ERROR}", $lang{NOT_EXIST}, { ID => 603 });
       $Cards->bruteforce_add({ UID => $LIST_PARAMS{UID}, PIN => $FORM{PIN} });
       $_db->commit();
+    }
+    elsif ($user->{GID} && $Cards->{ALLOW_GID} && ! in_array($user->{GID}, [ split(/,\s?/, $Cards->{ALLOW_GID}) ])) {
+      $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 611 });
+      return 0;
     }
     elsif ($Cards->{SUM} < 1) {
       $html->message('err', $lang{ERROR}, "$lang{SUM}: $Cards->{SUM}", { ID => 604 });
       return 0;
     }
     elsif ($Cards->{UID} == $LIST_PARAMS{UID}) {
-      $html->message('err', $lang{ERROR}, "$lang{ERR_WRONG_DATA}", { ID => 605 });
+      $html->message('err', $lang{ERROR}, $lang{ERR_WRONG_DATA}, { ID => 605 });
       return 0;
     }
     elsif ($Cards->{STATUS} != 0) {
@@ -938,6 +943,7 @@ sub cards_user_payment  {
         `echo "$DATE $TIME $user->{LOGIN} :$rand  $Cards->{SERIAL}$Cards->{NUMBER} A:$ENV{HTTP_USER_AGENT} QS:$ENV{QUERY_STRING} RA:$ENV{REMOTE_ADDR} $output  ($gt)"  >> /tmp/cards_debug`;
       }
 
+      my $Payments  = Payments->new($db, $admin, \%conf);
       #Sucsess
       cross_modules_call('_pre_payment', {
         USER_INFO    => $user,
@@ -950,7 +956,7 @@ sub cards_user_payment  {
       });
 
       my $cards_number_length = $conf{CARDS_NUMBER_LENGTH} || 11;
-      $payments->add(
+      $Payments->add(
         $user,
         {
           SUM          => $Cards->{SUM},
@@ -962,7 +968,7 @@ sub cards_user_payment  {
         }
       );
 
-      if (!$payments->{errno}) {
+      if (!$Payments->{errno}) {
         #FIX ME
         # $user->{DEPOSIT} += $Cards->{SUM} - $Cards->{COMMISSION};
 
@@ -1037,8 +1043,8 @@ sub cards_user_payment  {
         }
 
         # Check if not card exist
-        $payments->list({ EXT_ID => "$Cards->{SERIAL}$Cards->{NUMBER}", TOTAL_ONLY => 1 });
-        if ($payments->{TOTAL} <= 1) {
+        $Payments->list({ EXT_ID => "$Cards->{SERIAL}$Cards->{NUMBER}", TOTAL_ONLY => 1 });
+        if ($Payments->{TOTAL} <= 1) {
           $_db->commit();
         }
 
@@ -1064,9 +1070,9 @@ sub cards_user_payment  {
 
         return 0;
       }
-      elsif ($payments->{errno}) {
+      elsif ($Payments->{errno}) {
         $_db->rollback();
-        if ($payments->{errno} == 7) {
+        if ($Payments->{errno} == 7) {
           $html->message('err', $lang{ERROR}, "$status[2]", { ID => 608 });
           if ($Cards->{STATUS} != 2) {
             $Cards->cards_change(
@@ -1080,7 +1086,7 @@ sub cards_user_payment  {
           }
         }
         else {
-          $html->message('err', $lang{ERROR}, "$lang{ERROR} ". (($user->{UID}) ? '' : "$payments->{errno} $payments->{errstr}"), { ID => 609 });
+          $html->message('err', $lang{ERROR}, "$lang{ERROR} ". (($user->{UID}) ? '' : "$Payments->{errno} $Payments->{errstr}"), { ID => 609 });
         }
       }
     }
@@ -1579,6 +1585,84 @@ sub cards_periodic {
   $Cards->cards_chg_status();
 
   return $debug_output;
+}
+
+
+#**********************************************************
+=head2 cards_groups() Cards groups
+
+
+=cut
+#**********************************************************
+sub cards_groups {
+
+  if ($FORM{change} && $FORM{GID}) {
+    $Cards->cards_gids_change(\%FORM);
+    if (! $Cards->{errno}) {
+      $html->message('info', $lang{INFO}, $lang{CHANGED} ."\n"
+        . 'GID: '. $FORM{GID} ."\n"
+        . 'SERIAL '. $FORM{SERIAL});
+    }
+  }
+
+  if ($FORM{SERIAL}) {
+    $LIST_PARAMS{SERIAL}=$FORM{SERIAL};
+  }
+
+  _error_show($Cards);
+
+  my ($table) = result_former({
+    INPUT_DATA      => $Cards,
+    FUNCTION        => 'cards_gids_list',
+    BASE_FIELDS     => 3,
+    #DEFAULT_FIELDS  => (defined($FORM{SERIAL})) ? 'SERIAL,NUMBER,LOGIN,SUM,STATUS,EXPIRE,CREATED,USED_DATE,DILLER_NAME,DILLER_DATE,DILLER_SOLD_DATE' : 'SERIAL,CARDS_COUNT,CARDS_SUM,CARDS_ACTIVE,CARDS_DILLERS,LAST_CREATED',
+    #FUNCTION_FIELDS => (defined($FORM{SERIAL})) ? 'del' : 'show,del',
+    EXT_TITLES      => {
+      name   => $lang{GROUPS},
+      gid    => $lang{GID},
+      serial => $lang{SERIAL},
+      assign => $lang{YES},
+    },
+    TABLE => {
+      width      => '100%',
+      caption_plain => "$lang{ICARDS} - $lang{SERIAL}",
+      qs         => $pages_qs,
+      pages      => $Cards->{TOTAL},
+      ID         => 'CARDS_SERIAL_GIDS',
+      SELECT_ALL => "CARDS_SERIAL_GIDS:GID:$lang{SELECT_ALL}",
+    },
+    MULTISELECT     => 'GID:gid:CARDS_SERIAL_GIDS',
+    MAKE_ROWS       => 1,
+#    TOTAL           => 1
+  });
+
+  my $sel_serial = $html->form_select('SERIAL', {
+    SELECTED    => $FORM{SERIAL},
+    SEL_LIST    => $Cards->cards_list({ COLS_NAME => 1, PAGE_ROWS => 10000 }),
+    SEL_KEY     => 'serial',
+    SEL_VALUE   => 'serial',
+    FORM_NAME   => 'CARDS_SERIAL_GIDS',
+    NO_ID       => 1,
+    SEL_OPTIONS => { "" => "" },
+  });
+
+
+  print $html->form_main({
+    CONTENT => $sel_serial . $table->show({ OUTPUT2RETURN => 1 }),
+    HIDDEN  => {
+      index => $index,
+      #INTERNET_MULTIUSER => 1
+    },
+    SUBMIT  => {
+      change => $lang{CHANGE},
+      show   => $lang{SHOW}
+    },
+    class   => 'hidden-print',
+    NAME    => 'CARDS_SERIAL_GIDS',
+    ID      => 'CARDS_SERIAL_GIDS',
+  });
+
+  return 1;
 }
 
 1

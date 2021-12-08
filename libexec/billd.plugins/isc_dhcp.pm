@@ -119,7 +119,7 @@ sub isc_dhcp_config {
     $subnet_tpls .= $html->tpl_show(_include('internet_isc_dhcp_conf_subnet', 'Internet'), { %$subnet }, { OUTPUT2RETURN => 1 }) . "\n";
   }
 
-  my $hosts = $Internet->list({
+  my $hosts = $Internet->user_list({
     COLS_NAME      => 1,
     COLS_UPPER     => 1,
     LOGIN          => '_SHOW',

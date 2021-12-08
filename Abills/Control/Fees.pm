@@ -52,7 +52,8 @@ sub form_fees {
       );
     }
   }
-  elsif ($attr->{USER_INFO}) {
+
+  if ($attr->{USER_INFO}) {
     my $user = $attr->{USER_INFO};
     my $Shedule = Shedule->new($db, $admin, \%conf);
 

@@ -172,10 +172,19 @@ sub msgs_admin {
     load_module('Storage', $html);
     if ($FORM{add}) {
       storage_hardware({ ADD_ONLY => 1 });
-      $Msgs->msgs_storage_add({
-        MSGS_ID         => $FORM{STORAGE_MSGS_ID},
-        INSTALLATION_ID => $FORM{INSTALLATION_ID},
-      }) if ($FORM{INSTALLATION_ID});
+
+      if ($FORM{INSTALLATION_ID}) {
+        my @installations = split(',\s?', $FORM{INSTALLATION_ID});
+        foreach my $installation (@installations) {
+          next if !$installation;
+
+          $Msgs->msgs_storage_add({
+            MSGS_ID         => $FORM{STORAGE_MSGS_ID},
+            INSTALLATION_ID => $installation,
+          });
+        }
+      }
+
       $FORM{chg} ||= $FORM{STORAGE_MSGS_ID};
     }
     else {
@@ -229,7 +238,6 @@ sub msgs_admin {
       $html->message('info', $lang{INFO}, $lang{SUCCESS});
     }
   }
-
   if ($FORM{chg}) {
     $Msgs->{TAB2_ACTIVE} = (!$Msgs->{TAB1_ACTIVE}) ? "active" : "";
     msgs_ticket_show({
@@ -250,17 +258,10 @@ sub msgs_admin {
 
     return 1;
   }
-  elsif ($FORM{del} && $FORM{COMMENTS}) {
-    msgs_redirect_filter({
-      DEL    => 1,
-      UID    => $uid,
-      MSG_ID => $FORM{del}
-    });
+  elsif ($FORM{del} && $FORM{COMMENTS} && _msgs_check_admin_privileges($A_PRIVILEGES, { ID => $FORM{del} })) {
+    msgs_redirect_filter({ DEL => 1, UID => $uid, MSG_ID => $FORM{del} });
 
-    if ($conf{MSGS_ADDRESS}) {
-      $Msgs->msgs_address_del({ ID => $FORM{del} });
-    }
-
+    $Msgs->msgs_address_del({ ID => $FORM{del} }) if $conf{MSGS_ADDRESS};
     $Msgs->message_team_del($FORM{del});
     if (!_error_show($Msgs)) {
       $Msgs->message_del({ ID => $FORM{del}, UID => $uid });
@@ -533,7 +534,7 @@ sub _msgs_make_delivery {
       require Internet;
       Internet->import();
       my $Internet = Internet->new($db, $admin, \%conf);
-      $internet_info = $Internet->info($user_info->{uid}, { COLS_NAME => 1, COLS_UPPER => 1 });
+      $internet_info = $Internet->user_info($user_info->{uid}, { COLS_NAME => 1, COLS_UPPER => 1 });
     }
 
     my $message = $html->tpl_show($FORM{MESSAGE}, { USER_LOGIN => $user_pi->{LOGIN}, %{$user_pi}, %{$internet_info} }, {
@@ -1004,17 +1005,13 @@ sub msgs_ticket_show {
   my $REPLIES = msgs_ticket_reply($message_id);
 
   $Msgs->{MESSAGE} = convert($Msgs->{MESSAGE}, { text2html => 1, json => $FORM{json}, SHOW_URL => 1 });
+  my $subject_before_convert = $Msgs->{SUBJECT} || '';
   $Msgs->{SUBJECT} = convert($Msgs->{SUBJECT}, { text2html => 1, json => $FORM{json} });
 
   my $msgs_rating_message = '';
   my $rating_icons = '';
   if ($Msgs->{RATING} && $Msgs->{RATING} > 0) {
-    for (my $i = 0; $i < $Msgs->{RATING}; $i++) {
-      $rating_icons .= "\n" . $html->element('i', '', { class => 'fa fa-star' });
-    };
-    for (my $i = 0; $i < 5 - $Msgs->{RATING}; $i++) {
-      $rating_icons .= "\n" . $html->element('i', '', { class => 'fa fa-star-o' });
-    };
+    $rating_icons = msgs_assessment_stars($Msgs->{RATING});
 
     my $sig_image = '';
     if ($conf{TPL_DIR} && $Msgs->{UID} && $message_id) {
@@ -1033,7 +1030,8 @@ sub msgs_ticket_show {
   }
 
   my %params = ();
-  if (!$Msgs->{ACTIVE_SURWEY} && ($A_PRIVILEGES->{ $Msgs->{CHAPTER} } || scalar keys %{$A_PRIVILEGES} == 0)) {
+
+  if (!$Msgs->{ACTIVE_SURWEY} && _msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER}, HIDE_ALERT => 1 })) {
     my $survey_sel = msgs_survey_sel();
 
     $Msgs->{CHAPTERS_SEL} = $html->form_select('CHAPTER_ID', {
@@ -1117,14 +1115,15 @@ sub msgs_ticket_show {
   $Msgs->{ID} = $Msgs->{MAIN_ID};
 
   while ($Msgs->{MESSAGE} && $Msgs->{MESSAGE} =~ /\[\[(\d+)\]\]/) {
-    my $msg_button = $html->button($1, "&index=$index&chg=$1",
-      { class => 'badge bg-blue' });
+    my $msg_button = $html->button($1, "&index=$index&chg=$1", { class => 'badge bg-blue' });
     $Msgs->{MESSAGE} =~ s/\[\[\d+\]\]/$msg_button/;
   }
-  # Button for subject chaning
-  if (scalar keys %{$A_PRIVILEGES} == 0 || ($Msgs->{CHAPTER} && $A_PRIVILEGES->{$Msgs->{CHAPTER}} && $A_PRIVILEGES->{$Msgs->{CHAPTER}} == 3)) {
+
+  return 0 if(!_msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER} }));
+  if (_msgs_check_admin_privileges($A_PRIVILEGES, { CHAPTER => $Msgs->{CHAPTER}, PRIVILEGE_LVL => 3, HIDE_ALERT => 1 })) {
+    $subject_before_convert =~ s/\'/\\\'/g;
     $params{CHANGE_SUBJECT_BUTTON} = $html->button("$lang{CHANGE} $lang{SUBJECT}",
-      "qindex=" . get_function_index('_msgs_show_change_subject_template') . "&header=2&subject=" . ($Msgs->{SUBJECT} || q{}) . "&msg_id=$Msgs->{ID}",
+      "qindex=" . get_function_index('_msgs_show_change_subject_template') . "&header=2&subject=$subject_before_convert&msg_id=$Msgs->{ID}",
       {
         LOAD_TO_MODAL  => 1,
         NO_LINK_FORMER => 1,
@@ -1132,10 +1131,6 @@ sub msgs_ticket_show {
         TITLE          => $lang{SUBJECT}
       }
     );
-  }
-  elsif($Msgs->{CHAPTER} && ! $A_PRIVILEGES->{$Msgs->{CHAPTER}}) {
-    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 791 });
-    return 0;
   }
 
   $params{PROGRESSBAR} = msgs_progress_bar_show($Msgs);
@@ -1153,19 +1148,10 @@ sub msgs_ticket_show {
   $html->tpl_show(_include($msgs_show_tpl, 'Msgs'), { %{$Msgs}, %params });
 
   if (!$FORM{quick} && (!$Msgs->{RESPOSIBLE} || ($Msgs->{RESPOSIBLE} =~ /^\d+$/ && $Msgs->{RESPOSIBLE} == $admin->{AID}))) {
-    my %msgs_params = (
-      UID        => $uid,
-      ID         => $message_id,
-      SKIP_LOG   => 1
-    );
+    my %msgs_params = (UID => $uid, ID => $message_id, SKIP_LOG => 1);
+    $msgs_params{ADMIN_READ} = "$DATE $TIME" if !$FORM{deligate};
 
-    unless ($FORM{deligate}) {
-      $msgs_params{ADMIN_READ} = "$DATE $TIME";
-    }
-
-    $Msgs->message_change({
-      %msgs_params
-    });
+    $Msgs->message_change({ %msgs_params });
   }
 
   if($conf{MSGS_CHAT}) {
@@ -1851,6 +1837,45 @@ sub _msgs_edit_reply_button {
     class => 'btn btn-default btn-xs reply-edit-btn',
     ex_params => "reply_id='$reply_id'"
   });
+}
+
+#**********************************************************
+=head2 _msgs_check_admin_privileges($privileges, $attr)
+
+  Arguments:
+    $privileges
+    $attr
+      CHAPTER
+      ID
+      HIDE_ALERT - don't show err message
+      PRIVILEGE_LVL - check privilege level
+
+  Return:
+    1 or 0
+
+=cut
+#**********************************************************
+sub _msgs_check_admin_privileges {
+  my ($privileges) = shift;
+  my ($attr) = @_;
+
+  my $chapter = $attr->{CHAPTER};
+  if (!$chapter && $attr->{ID}) {
+    $Msgs->message_info($attr->{ID});
+    $chapter = $Msgs->{CHAPTER};
+  }
+
+  if (!$chapter) {
+    $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 791 }) if !$attr->{HIDE_ALERT};
+    return 0 ;
+  }
+
+  return 1 if scalar keys %{$privileges} == 0;
+  return ($privileges->{$chapter} >= $attr->{PRIVILEGE_LVL} ? 1 : 0) if $attr->{PRIVILEGE_LVL};
+  return 1 if $privileges->{$chapter};
+
+  $html->message('err', $lang{ERROR}, $lang{ERR_ACCESS_DENY}, { ID => 791 }) if !$attr->{HIDE_ALERT};
+  return 0 ;
 }
 
 1

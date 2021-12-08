@@ -56,6 +56,9 @@ our $default_prompt = '[\$%#>] $';
     $attr
       PROMPT - sets prompt to wait for - regexp (case insensitive, single line)
       TIMEOUT - sets waitfor's timeout - a whole number of seconds
+      NO_CRLF - if set, prints LF ('\n') as end of line instead of required by telnet's standard CRLF ('\r\n').
+                needed because some telnet servers (example - mpd's console) interprets CRLF as two newlines, not one.
+                true or false
 
   Returns:
     $self
@@ -75,6 +78,7 @@ sub new {
 
   $self->{PROMPT} = $attr->{PROMPT} || $default_prompt;
   $self->{TIMEOUT} = $attr->{TIMEOUT} || 5;
+  $self->{NO_CRLF} = $attr->{NO_CRLF} ? 1 : 0;
 
   return $self;
 }
@@ -139,6 +143,32 @@ sub timeout {
   }
 
   return $old_timeout;
+}
+
+#**********************************************************
+=head2 no_crlf($no_crlf) - if $no_crlf is set, replaces NO_CRLF option with it, and returns old NO_CRLF option. else just returns current NO_CRLF option
+
+  Arguments:
+    $no_crlf - if set, prints LF ('\n') as end of line instead of required by telnet's standard CRLF ('\r\n').
+               needed because some telnet servers (example - mpd's console) interprets CRLF as two newlines, not one.
+               true or false
+
+  Returns:
+    $old_no_crlf
+
+=cut
+#**********************************************************
+sub no_crlf {
+  my $self = shift;
+  my ($no_crlf) = @_;
+
+  my $old_no_crlf = $self->{NO_CRLF};
+
+  if ($no_crlf) {
+    $self->{NO_CRLF} = $no_crlf;
+  }
+
+  return $old_no_crlf;
 }
 
 #**********************************************************
@@ -250,7 +280,7 @@ sub put {
 }
 
 #**********************************************************
-=head2 print($string) - puts string to socket, escaping FF bytes in it, and ending it with \r\n
+=head2 print($string) - puts string to socket, escaping FF bytes in it, and ending it with \r\n (or just \n if NO_CRLF is set)
 
   Arguments:
     $string
@@ -267,7 +297,9 @@ sub print {
 
   $string =~ s/\xff/\xff\xff/gs; #FF byte must be escaped by another FF, to prevent interpreting it as Interpret as Command
 
-  return $self->put("$string\r\n");
+  my $end_of_line = $self->{NO_CRLF} ? "\n" : "\r\n";
+
+  return $self->put("$string$end_of_line");
 }
 
 #**********************************************************
@@ -431,6 +463,9 @@ sub waitfor {
     $attr
       PROMPT - sets prompt to wait for - regexp (case insensitive, single line)
       TIMEOUT - sets waitfor's timeout - a whole number of seconds
+      NO_CRLF - if set, prints LF ('\n') as end of line instead of required by telnet's standard CRLF ('\r\n').
+                needed because some telnet servers (example - mpd's console) interprets CRLF as two newlines, not one.
+                true or false
 
   Returns:
     \@result_arr - lines of result
@@ -447,6 +482,9 @@ sub cmd {
   }
   if ($attr->{PROMPT}) {
     $self->prompt($attr->{PROMPT});
+  }
+  if ($attr->{NO_CRLF}) {
+    $self->no_crlf($attr->{NO_CRLF});
   }
 
   $self->print($cmd) or return 0;
@@ -467,6 +505,9 @@ sub cmd {
       PASSWORD
       PROMPT - sets prompt to wait for - regexp (case insensitive, single line)
       TIMEOUT - sets waitfor's timeout - a whole number of seconds
+      NO_CRLF - if set, prints LF ('\n') as end of line instead of required by telnet's standard CRLF ('\r\n').
+                needed because some telnet servers (example - mpd's console) interprets CRLF as two newlines, not one.
+                true or false
     OR
     ($username, $password, $attr) - username and password, attr (optional)
 
@@ -497,6 +538,9 @@ sub login {
   }
   if ($attr->{PROMPT}) {
     $self->prompt($attr->{PROMPT});
+  }
+  if ($attr->{NO_CRLF}) {
+    $self->no_crlf($attr->{NO_CRLF});
   }
 
   $self->waitfor($login_regexp) or return 0;

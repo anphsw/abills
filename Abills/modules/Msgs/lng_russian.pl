@@ -196,5 +196,11 @@ $lang{PERFORMERS} = 'Исполнители';
 $lang{NUMBER_OF_PROCESSED_REQUESTS_IN_THE_CURRENT_MONTH} = 'Количество обработанных заявок в текущем месяце';
 $lang{TIME_SPENT_ON_APPLICATIONS_IN_THE_CURRENT_MONTH} = 'Время потраченное на заявки в текущем месяце';
 $lang{THE_NUMBER_OF_USER_TICKETS_IN_THE_CURRENT_MONTH} = 'Количество пользовательских заявок за текущий месяц и потраченное на них время';
+$lang{NEW_TICKETS} = 'Новые заявки';
+$lang{CLOSED} = 'Закрыто';
+$lang{RESPONSE_TIME} = 'Время ответа';
+$lang{SUPPORT_SYSTEM_STATS} = 'Статистика службы поддержки';
+
+$lang{DYNAMICS_OF_MESSAGES_AND_REPLIES} = 'Динамика сообщений и ответов';
 
 1

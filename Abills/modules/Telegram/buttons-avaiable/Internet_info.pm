@@ -3,6 +3,9 @@ package Internet_info;
 use strict;
 use warnings FATAL => 'all';
 
+require Control::Service_control;
+my $Service_control;
+
 #**********************************************************
 =head2 new($Botapi)
 
@@ -20,6 +23,8 @@ sub new {
   };
   
   bless($self, $class);
+
+  $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
   
   return $self;
 }
@@ -32,7 +37,7 @@ sub new {
 sub btn_name {
   my $self = shift;
 
-  return $self->{bot}->{lang}->{INTERNET};
+  return $self->{bot}{lang}{INTERNET};
 }
 
 #**********************************************************
@@ -54,7 +59,7 @@ sub click {
   $Users->info($uid);
   $Users->group_info($Users->{GID});
 
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     ID              => '_SHOW',
     TP_NAME         => '_SHOW',
     SPEED           => '_SHOW',
@@ -83,25 +88,28 @@ sub click {
         COLS_NAME  => 1
       });
 
+      my $can_stop_holdup = $Service_control->user_holdup({ ID => $line->{id}, UID => $uid });
+      my $inline_button = '';
+
       if ($Shedule->{TOTAL} && $Shedule->{TOTAL} > 0) {
         my $holdup_stop_date = ($shedule_list->[0]->{d} || '*')
                        . '.' . ($shedule_list->[0]->{m} || '*')
                        . '.' . ($shedule_list->[0]->{y} || '*');
         $message .= "<b>$self->{bot}->{lang}->{SERVICE_STOP_DATE} $holdup_stop_date</b>\n";
-        my $inline_button = {
+       $inline_button = {
           text          => "$self->{bot}->{lang}->{CANCEL_STOP}",
           callback_data => "Internet_info&stop_holdup&$line->{id}&$shedule_list->[0]->{id}"
         };
-        $inline_keyboard = [ [$inline_button] ];
       }
       else {
         $message .= "<b>$self->{bot}->{lang}->{SERVICE_STOP}</b>\n";
-        my $inline_button = {
+        $inline_button = {
           text          => "$self->{bot}->{lang}->{CANCEL_STOP}",
           callback_data => "Internet_info&stop_holdup&$line->{id}"
         };
-        $inline_keyboard = [ [$inline_button] ];
       }
+
+      $inline_keyboard = [ [ $inline_button ] ] if !$can_stop_holdup->{error} && $inline_button;
     }
     elsif ($line->{internet_status} == 5) {
       $message .= "<b>$self->{bot}->{lang}->{SMALL_DEPOSIT}</b>\n\n";
@@ -155,37 +163,18 @@ sub stop_holdup {
   my $self = shift;
   my ($attr) = @_;
 
-  require Internet;
-  my $Internet = Internet->new($self->{db}, $self->{admin}, $self->{conf});
-
-  $Internet->info($attr->{uid}, {
-    ID => $attr->{argv}[2]
+  my $stop_holdup_result = $Service_control->user_holdup({
+    UID => $attr->{uid},
+    ID  => $attr->{argv}[2],
+    del => 1,
+    IDS => $attr->{argv}[3] ? $attr->{argv}[3] : 0
   });
 
-  if ( $Internet->{STATUS} == 3) {
-    if ($attr->{argv}[3]) {
-      require Shedule;
-      my $Shedule  = Shedule->new($self->{db}, $self->{admin}, $self->{conf});
-      $Shedule->del({
-        UID => $attr->{uid},
-        IDS => $attr->{argv}[3],
-      });
-    }
+  $self->{bot}->send_message({
+    text       => $stop_holdup_result->{error} ?  $self->{bot}{lang}{ACTIVATION_ERROR} : $self->{bot}{lang}{SERVICE_ACTIVATED},
+    parse_mode => 'HTML'
+  });
 
-    $Internet->change({
-      UID    => $attr->{uid},
-      ID     => $attr->{argv}[2],
-      STATUS => 0,
-    });
-
-    $self->{bot}->send_message({
-      text       => "$self->{bot}->{lang}->{SERVICE_ACTIVETED}",
-      parse_mode => 'HTML'
-    });
-
-    require Abills::Misc;
-    service_get_month_fee($Internet, { QUITE => 1, DATE => $main::DATE });
-  }
   return 1;
 }
 
@@ -197,9 +186,6 @@ sub stop_holdup {
 sub credit {
   my $self = shift;
   my ($attr) = @_;
-
-  require Control::Service_control;
-  my $Service_control = Control::Service_control->new($self->{db}, $self->{admin}, $self->{conf});
 
   my $credit_info = $Service_control->user_set_credit({ UID => $attr->{uid}, change_credit => 1 });
 

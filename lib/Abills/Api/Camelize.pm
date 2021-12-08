@@ -2,11 +2,12 @@ package Abills::Api::Camelize;
 
 #**********************************************************
 =head2 camelize($string)
-#   Arguments:
-#     $string - make snake_case string to camelCase
 
-#   Return:
-#     $camel_string
+  Arguments:
+     $string - make snake_case string to camelCase
+
+   Return:
+     $camel_string
 =cut
 #**********************************************************
 sub camelize {
@@ -25,17 +26,18 @@ sub camelize {
 
 #**********************************************************
 =head2 decamelize($string)
-#   Arguments:
-#     $string - make camelCase string to snake_case
 
-#   Return:
-#     $snake_case
+  Arguments:
+     $string - make camelCase string to snake_case
+
+   Return:
+     $snake_case
 =cut
 #**********************************************************
 sub decamelize {
   my ($string) = @_;
 
-  if($string eq uc($string)) {
+  if ($string eq uc($string)) {
     return $string;
   }
 
@@ -43,7 +45,7 @@ sub decamelize {
 
   $string =~ s{(\w+)}{
     ($a = $1) =~ s<(^[A-Z]|(?![a-z])[A-Z])><
-        "_" . lc $1
+      "_" . lc $1
     >eg;
     substr $a, 1;
   }eg;

@@ -14,7 +14,6 @@ our (
   $admin,
   %conf,
   %lang,
-  $html,
   @units,
   @MONTHES,
   @WEEKDAYS,
@@ -25,6 +24,7 @@ our (
 
 my $Docs     = Docs->new( $db, $admin, \%conf );
 my $Payments = Payments->new( $db, $admin, \%conf );
+our Abills::HTML $html;
 my $debug    = 0;
 
 #**********************************************************
@@ -55,16 +55,17 @@ sub docs_receipt_add {
       my $date = $FORM{DATE} || $DATE;
 
       if ( !$Docs->{errno} ){
+        my $index = get_function_index('docs_receipt_list');
         if ( $conf{DOCS_PDF_PRINT} ){
           $html->message(
             'info',
             "$lang{RECEIPT} $lang{ADDED} ",
             "$lang{RECEIPT} $lang{NUM}: [$Docs->{DOC_ID}]\n $lang{DATE}: $date\n "
               . $html->button( "$lang{SEND} E-mail",
-              "qindex=" . get_function_index( 'docs_receipt_list' ) . "&sendmail=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}",
+              "qindex=$index&sendmail=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}",
               { ex_params => 'target=_new', class => 'sendmail' } ) . ' '
               . $html->button( $lang{PRINT},
-              "qindex=" . get_function_index( 'docs_receipt_list' ) . "&print=$Docs->{DOC_ID}&&RECEIPT_ID=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}&pdf=1"
+              "qindex=$index&print=$Docs->{DOC_ID}&&RECEIPT_ID=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}&pdf=1"
               , { ex_params => 'target=_new', class => 'print' } )
           );
 
@@ -88,11 +89,15 @@ sub docs_receipt_add {
             "$lang{RECEIPT} $lang{ADDED}",
             "$lang{RECEIPT} $lang{NUM}: [$Docs->{DOC_ID}]\n $lang{DATE}: $date\n"
               . $html->button( "$lang{SEND_MAIL}",
-              "qindex=" . get_function_index( 'docs_receipt_list' ) . "&sendmail=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}",
+              "qindex=$index&sendmail=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}",
               { ex_params => 'target=_new', class => 'sendmail' } ) . ' '
               . $html->button( $lang{PRINT},
-              "qindex=" . get_function_index( 'docs_receipt_list' ) . "&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}",
+              "qindex=$index&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}",
               { ex_params => 'target=_new', class => 'print' } )
+              . (defined($conf{DOCS_INVOICE_TERMO_PRINTER}) ?
+                $html->button('',
+              "qindex=$index&print=$Docs->{DOC_ID}&UID=$LIST_PARAMS{UID}&termo_printer_tpl=1",
+              { ex_params => 'target=_new', class => 'fa fa-print text-warning', TITLE => $lang{PRINT_TERMO_PRINTER}} ) : ' ')
           );
         }
       }
@@ -807,8 +812,7 @@ sub docs_receipt_print {
     $FORM{pdf} = $conf{DOCS_PDF_PRINT};
     $attr->{SEND_EMAIL} = 1;
   }
-
-  return docs_print( 'receipt', { %{$Docs}, %{$attr} } );
+  return docs_print( $FORM{termo_printer_tpl} ? 'invoice_termo_printer' : 'receipt', { %{$Docs}, %{$attr} } );
 }
 
 #**********************************************************

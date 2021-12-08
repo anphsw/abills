@@ -46,7 +46,7 @@ sub dv_get_fee {
     }
   }
 
-  my $dv_list = $Internet->list({
+  my $dv_list = $Internet->user_list({
     LOGIN     => '_SHOW',
     DEPOSIT   => '_SHOW',
     CREDIT    => '_SHOW',

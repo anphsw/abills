@@ -22,7 +22,8 @@ our %FUNCTIONS_LIST = (
   "20:8:$lang{ADMIN_STATISTICS}:msgs_admin_statistics:"              => 4,
   "20:8:$lang{REPLYS_AND_TIME}:report_replys_and_time:"              => 4,
   "22:8:$lang{TICKET_REPORT_BY_ADMINS}:msgs_admin_report:"           => 4,
-  "22:8:$lang{TICKET_REPORT}:msgs_works_report:"                     => 4,
+  "23:8:$lang{TICKET_REPORT}:msgs_works_report:"                     => 4,
+  "24:8:$lang{SUPPORT_SYSTEM_STATS}:msgs_support_stats:"             => 4,
 
   "70:2:$lang{PLUGINS}:msgs_plugins_list:"                           => 5,
   "71:70:Msgs:msgs_plugin_priority:AJAX"                             => 5,

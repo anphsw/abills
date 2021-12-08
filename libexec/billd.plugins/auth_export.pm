@@ -221,7 +221,7 @@ sub get_user_accounts {
     }
   }
 
-  my $internet_list = $Internet->list({
+  my $internet_list = $Internet->user_list({
     LOGIN     => '_SHOW',
     PASSWORD  => '_SHOW',
     CID       => '_SHOW',

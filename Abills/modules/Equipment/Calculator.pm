@@ -9,7 +9,10 @@ use warnings FATAL => 'all';
 use Abills::Base qw\_bp\;
 use JSON;
 
-our (%lang, $html, $Equipment, %FORM, $SELF_URL);
+our (%lang, %FORM, $db, $admin, $SELF_URL);
+
+our Abills::HTML $html;
+our $Equipment = Equipment->new($db, $admin, \%conf);
 
 #************************************************************
 =head2 calculator_main() - main function

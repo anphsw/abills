@@ -231,6 +231,7 @@ sub print_links {
 sub size_calculations {
   my ($object, $side, $page_was_created) = @_;
 
+  $object->{FIBERS_COUNT} //= 0;
   my $object_height = ($object->{FIBERS_COUNT} + 1) * $SCHEME_OPTIONS{PORT_HEIGHT} + $SCHEME_OPTIONS{HEADER_HEIGHT};
   my $opposite_side = $side eq 'RIGHT' ? 'LEFT' : 'RIGHT';
   my $has_place = 0;
@@ -283,7 +284,7 @@ sub _get_cables {
   my %cable_objects = ();
   my $commutation_info = $Cablecat->commutations_info($FORM{ID});
 
-  $commutation_info->{CABLE_IDS} =~ s/,/;/;
+  $commutation_info->{CABLE_IDS} =~ s/,/;/ if ($commutation_info->{CABLE_IDS});
   my $cables_list = $Cablecat->cables_list({
     ID               => $commutation_info->{CABLE_IDS} || '_SHOW',
     SHOW_ALL_COLUMNS => 1,
@@ -323,6 +324,9 @@ sub _get_splitters {
   foreach my $splitter (@{$splitters}) {
     my @fibers_colors = $splitter->{fibers_colors} ? split(/,\s?/, $splitter->{fibers_colors}) : ();
     my @attenuation = $splitter->{attenuation} ? split(/\//, $splitter->{attenuation}) : ();
+
+    $splitter->{fibers_in} //= 0;
+    $splitter->{fibers_out} //= 0;
 
     $splitter_objects{$splitter->{id}} = {
       FIBERS_COUNT  => $splitter->{fibers_in} + $splitter->{fibers_out},
@@ -543,6 +547,8 @@ sub splitter_print_info {
 
   my $fibers_count = 1;
 
+  return if !$object->{FIBERS_IN} || !$object->{FIBERS_OUT};
+
   for (my $i = 1; $i <= $object->{FIBERS_IN}; $i++) {
     $img->line(
       $object->{X_END},
@@ -680,7 +686,7 @@ sub _draw_column_block {
   my ($object, $end_x, $column_name, $options) = @_;
 
   my $column_width = $options->{$column_name . '_COLUMN_WIDTH'};
-  return '' if !$column_width || $column_name < 0;
+  return '' if !$column_width || $column_width < 0;
 
   $img->rectangle($end_x, $object->{FIBERS_START_Y}, $end_x - $column_width, $object->{FIBERS_END_Y});
   $end_x -= $column_width;

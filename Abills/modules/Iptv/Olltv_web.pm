@@ -242,14 +242,11 @@ sub olltv_user{
   }
 
   $Tv_service = olltv_device( $attr, { EXTRA_SERVICE => $Tv_service, %{$attr} } );
-  $Tv_service->{BUNDLE_TYPE_SEL} = $html->form_select(
-    'BUNDLE_TYPE',
-    {
-      SELECTED => $bundle->{activation_type} || $bundle->{service_type} || $FORM{BUNDLE_TYPE},
-      SEL_HASH => $Tv_service->bundle_types(),
-      NO_ID    => 1
-    }
-  );
+  $Tv_service->{BUNDLE_TYPE_SEL} = $html->form_select('BUNDLE_TYPE', {
+    SELECTED => $bundle->{activation_type} || $bundle->{service_type} || $FORM{BUNDLE_TYPE},
+    SEL_HASH => $Tv_service->bundle_types(),
+    NO_ID    => 1
+  });
 
   if ( !$attr->{ID} ){
     $user = $users->pi( { UID => $FORM{UID} } );
@@ -260,19 +257,18 @@ sub olltv_user{
       $Tv_service->{BIRTH_DATE} = $users->{_BIRTH_DATE};
     }
   }
-  else{
-    $Tv_service->user_info(
-      {
-        FULL         => 1,
-        SUBSCRIBE_ID => $Iptv->{SUBSCRIBE_ID},
-        UID          => $users->{UID},
-        ID           => $Iptv->{ID}
-      }
-    );
+  else {
+    $Tv_service->user_info({
+      FULL         => 1,
+      SUBSCRIBE_ID => $Iptv->{SUBSCRIBE_ID},
+      UID          => $users->{UID},
+      ID           => $Iptv->{ID}
+    });
     $Tv_service->{OLLTV_USER_ID} = $Tv_service->{ID};
   }
 
   $Tv_service->{EMAIL} = $Tv_service->{email} if ($Tv_service->{email});
+  $Tv_service->{PHONE} = $Tv_service->{phone} if ($Tv_service->{phone});
 
   if ( $Tv_service->{lastname} ){
     Encode::_utf8_off( $Tv_service->{lastname} );

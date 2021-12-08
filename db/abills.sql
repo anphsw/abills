@@ -228,6 +228,7 @@ CREATE TABLE IF NOT EXISTS `errors_log` (
   `user`     VARCHAR(20)          NOT NULL DEFAULT '',
   `message`  VARCHAR(120)         NOT NULL DEFAULT '',
   `nas_id`   SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0',
+  `request_count` INT(11) UNSIGNED NOT NULL DEFAULT '0',
   KEY `i_user_date` (`user`, `date`),
   KEY `log_type` (`log_type`)
 )
@@ -459,16 +460,8 @@ CREATE TABLE IF NOT EXISTS `fees` (
   KEY `date` (`date`),
   KEY `uid` (`uid`),
   KEY `aid` (`aid`)
-);
-
-CREATE TABLE IF NOT EXISTS `filters` (
-  `id`     SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `filter` VARCHAR(100)         NOT NULL DEFAULT '',
-  `params` VARCHAR(200)         NOT NULL DEFAULT '',
-  `descr`  VARCHAR(200)         NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `filter` (`filter`)
-);
+) DEFAULT CHARSET = utf8
+  COMMENT = 'Fees list';
 
 CREATE TABLE IF NOT EXISTS `groups` (
   `gid`            SMALLINT(4) UNSIGNED NOT NULL DEFAULT '0',
@@ -495,7 +488,7 @@ CREATE TABLE IF NOT EXISTS `holidays` (
   PRIMARY KEY (`day`)
 )
   DEFAULT CHARSET = utf8
-  COMMENT = 'Hillidays list';
+  COMMENT = 'Hollidays list';
 
 CREATE TABLE IF NOT EXISTS `info_fields` (
   `id`          TINYINT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -517,6 +510,18 @@ CREATE TABLE IF NOT EXISTS `info_fields` (
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Info_fields';
+
+CREATE TABLE IF NOT EXISTS `internet_filters` (
+    `id`          SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `filter`      VARCHAR(100)         NOT NULL DEFAULT '',
+    `params`      VARCHAR(200)         NOT NULL DEFAULT '',
+    `descr`       VARCHAR(200)         NOT NULL DEFAULT '',
+    `user_portal` TINYINT(1)           NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `filter` (`filter`)
+) DEFAULT CHARSET = utf8
+    COMMENT = 'Internet filters list';
+
 
 CREATE TABLE IF NOT EXISTS `internet_log_intervals` (
   `interval_id`     SMALLINT(6) UNSIGNED   NOT NULL DEFAULT '0',
@@ -921,10 +926,7 @@ CREATE TABLE IF NOT EXISTS `msgs_address` (
 	`districts` SMALLINT(6) UNSIGNED DEFAULT 0  NOT NULL,
 	`street`    SMALLINT(6) UNSIGNED DEFAULT 0  NOT NULL,
 	`build`     SMALLINT(6) UNSIGNED DEFAULT 0  NOT NULL,
-	`flat`      VARCHAR(5)           DEFAULT '' NOT NULL,
-  
-  CONSTRAINT `msgs_id` FOREIGN KEY (`id`)
-      REFERENCES `msgs_messages` (`id`) ON DELETE CASCADE
+	`flat`      VARCHAR(5)           DEFAULT '' NOT NULL
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Msgs set address';
@@ -1873,7 +1875,7 @@ INSERT INTO `admins` (`id`, `name`, `regdate`, `password`, `gid`, `aid`, `disabl
 VALUES
   ('users_web', 'Users web portal', curdate(), ENCODE(md5(RAND()), 'test12345678901234567890'), 0, 3, 0, '', '', '',
                 '2001-01-01', '2001-01-01', NOW());
-INSERT INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
+REPLACE INTO `admin_permits` (`aid`, `section`, `actions`, `module`) VALUES
   (1, 0, 0, ''),
   (1, 0, 1, ''),
   (1, 0, 2, ''),
@@ -2216,11 +2218,12 @@ CREATE TABLE `msgs_admin_plugins` (
   DEFAULT CHARSET = utf8
   COMMENT = 'Set admin msgs plugin';
 
-  CREATE TABLE `payments_pool` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `payment_id` varchar(28) NOT NULL DEFAULT '',
-  `status`     TINYINT(1) UNSIGNED  NOT NULL DEFAULT '0',
+CREATE TABLE `payments_pool` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `payment_id` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `status`     TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `payment_id` (`payment_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8 COMMENT='Payments log pool';
+) DEFAULT CHARSET=utf8
+  COMMENT='Payments log pool';
 

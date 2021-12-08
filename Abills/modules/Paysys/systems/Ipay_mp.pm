@@ -10,11 +10,21 @@ package Paysys::systems::Ipay_mp;
 
   https://walletmc.ipay.ua/doc.php
 
+=gead1 IPs
+
+  89.111.46.143
+  89.111.46.144
+  62.80.166.62
+  109.237.93.180
+  81.94.235.66
+  86.111.90.144/28
+  81.94.235.64/28
+
 =head2 VERSION
 
   Date: 07.06.2018
-  UPDATED: 20210910
-  VERSION: 8.09
+  UPDATED: 20211122
+  VERSION: 8.20
 
 =cut
 
@@ -28,7 +38,7 @@ use Abills::Base qw(load_pmodule _bp);
 use Abills::Fetcher;
 require Abills::Templates;
 require Paysys::Paysys_Base;
-our $PAYSYSTEM_VERSION = '8.09';
+our $PAYSYSTEM_VERSION = '8.17';
 
 
 my $PAYSYSTEM_NAME       = 'Ipay_mp';
@@ -42,8 +52,9 @@ my %PAYSYSTEM_CONF = (
   PAYSYS_IPAY_REQUEST_URL  => 'https://walletmc.ipay.ua/',
   PAYSYS_IPAY_SIGN_KEY     => '',
   PAYSYS_IPAY_MERCHANT_KEY => '',
-  PAYSYS_IPAY_NOTIFY_KEY   => '',
+  PAYSYS_IPAY_NOTIFY_KEY   => '', # key for Ipay web portal payment
   PAYSYS_IPAY_ACCOUNT_KEY  => 'UID',
+  PAYSYS_IPAY_DESC_KEY     => ''
 );
 
 # my %MERCHANT_CONF = (
@@ -175,11 +186,11 @@ sub create_request_params {
 
     # $REQUEST_HASH{request}{body}{guid}=$attr->{GUID};
     if($self->{conf}{PAYSYS_IPAY_DESC}){
-      $self->{conf}{PAYSYS_IPAY_DESC} =~ s/\%([^\%]+)\%/($user->{$1} || '')/g;
-      $request{request}{body}{pmt_desc}          = $self->{conf}{PAYSYS_IPAY_DESC};
+      $self->{conf}{PAYSYS_IPAY_DESC}   =~ s/\%([^\%]+)\%/($user->{$1} || '')/g;
+      $request{request}{body}{pmt_desc} = $self->{conf}{PAYSYS_IPAY_DESC};
     }
     else{
-      $request{request}{body}{pmt_desc}          = utf8::decode("Оплата услуг согласно счету " . ($user->{_PIN_ABS} || $user->{BILL_ID} || ''));
+      $request{request}{body}{pmt_desc} = utf8::decode("Оплата услуг согласно счету " . ($user->{_PIN_ABS} || $user->{BILL_ID} || ''));
     }
 
     $request{request}{body}{pmt_info}{invoice} = $attr->{INVOICE} * 100;
@@ -228,7 +239,8 @@ sub create_request_params {
     $request{request}{body}{lang}    = $self->{conf}->{PAYSYS_IPAY_LANGUAGE} || 'ru';
   }
 
-  my $json_request_string = $json->encode(\%request);
+  #my $json_request_string = $json->encode(\%request);
+  my $json_request_string = Abills::Base::json_former(\%request);
   $json_request_string =~ s/\"/\\\"/g;
 
   return $json_request_string;
@@ -252,7 +264,7 @@ sub get_settings {
     NAME    => $PAYSYSTEM_NAME,
     CONF    => \%PAYSYSTEM_CONF,
     DOCS    => 'http://abills.net.ua:8090/display/AB/Ipay',
-    IP      => ''
+    IP      => '89.111.46.143,89.111.46.144,89.21.77.5'
   );
 
   return %SETTINGS;
@@ -285,7 +297,7 @@ sub _request {
   });
 
   if (! $check_result) {
-    $html->message('err', $self->{lang}->{ERROR}, $self->{lang}->{ERR_WRONG_DATA});
+    $html->message('err', $self->{lang}->{ERROR}, $self->{lang}->{ERR_WRONG_DATA}, { ID => 1790 });
     return {};
   }
   elsif ($check_result =~ /Timeout/) {
@@ -296,7 +308,7 @@ sub _request {
   my $result = $json->decode($check_result);
 
   if($result->{response} && $result->{response}->{error}){
-    $html->message('err', $self->{lang}->{ERROR}, $result->{response}->{error});
+    $html->message('err', $self->{lang}->{ERROR}, $result->{response}->{error}, { ID => 1791 });
     return {};
   }
 
@@ -348,7 +360,7 @@ sub user_portal_special {
       $html->message('info', $self->{lang}->{SUCCESS}, $self->{lang}->{DELETED}, { ID => '1111' });
     }
     else {
-      $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{NOT} $self->{lang}->{DELETED}");
+      $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{NOT} $self->{lang}->{DELETED}", { ID => 1112 });
     }
   }
   # make payment if registered
@@ -365,31 +377,39 @@ sub user_portal_special {
 
     my $result = $self->_request($json_create_payment_string, { TREE => 'response' });
 
+    my $desc = 'IPAY MasterPass';
+    if ($user->{PAYSYS_IPAY_DESC_KEY}) {
+      $desc = $self->{lang}->{IPAY_DESCRIBE} . $user->{PAYSYS_IPAY_DESC_KEY};
+    }
+
     if ($result->{pmt_status} && $result->{pmt_status} == 5) {
-      my ($status_code) = main::paysys_pay(
-        {
-          PAYMENT_SYSTEM    => $PAYSYSTEM_SHORT_NAME,
-          PAYMENT_SYSTEM_ID => $PAYSYSTEM_ID,
-          CHECK_FIELD       => 'UID',
-          USER_ID           => $user->{UID},
-          SUM               => ($result->{invoice} / 100),
-          EXT_ID            => $result->{pmt_id},
-          DATA              => $attr,
-          #DATE              => $DATETIME,
-          #CURRENCY_ISO      => $conf{PAYSYS_OSMP_CURRENCY},
-          MK_LOG           => 1,
-          DEBUG            => 1,
-          ERROR            => 1,
-          PAYMENT_DESCRIBE => 'IPAY MasterPass',
-          USER_INFO_OBJECT => $user,
-        }
-      );
+      my ($status_code) = main::paysys_pay({
+        PAYMENT_SYSTEM    => $PAYSYSTEM_SHORT_NAME,
+        PAYMENT_SYSTEM_ID => $PAYSYSTEM_ID,
+        CHECK_FIELD       => 'UID',
+        USER_ID           => $user->{UID},
+        SUM               => ($result->{invoice} / 100),
+        EXT_ID            => $result->{pmt_id},
+        DATA              => $attr,
+        #DATE              => $DATETIME,
+        #CURRENCY_ISO      => $conf{PAYSYS_OSMP_CURRENCY},
+        MK_LOG            => 1,
+        DEBUG             => 1,
+        #ERROR             => 1,
+        PAYMENT_DESCRIBE  => $desc,
+        USER_INFO         => $user,
+      });
+
       if ($status_code == 0) {
         $html->message('info', $self->{lang}->{SUCCESS}, "$self->{lang}->{SUCCESS} $self->{lang}->{TRANSACTION}: $result->{pmt_id}", { ID => 2222 });
       }
+      else {
+        $html->message('err', $self->{lang}->{ERROR}, "$status_code", { ID => 2223 });
+      }
     }
     elsif($result->{pmt_status} && $result->{pmt_status} == 4){
-      $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{ERROR} $self->{lang}->{TRANSACTION}: $result->{pmt_id}");
+      $html->message('err', $self->{lang}->{ERROR}, "$self->{lang}->{PAYMENT_ERROR}: $result->{bank_response}->{error_group}\n$self->{lang}->{TRANSACTION}: $result->{pmt_id}",
+        { ID => 2224 });
     }
   }
   elsif ($attr->{ipay_purchase}) {
@@ -509,163 +529,6 @@ sub user_portal_special {
 }
 
 #**********************************************************
-=head2 process()
-
-  Arguments:
-     -
-
-  Returns:
-
-=cut
-#**********************************************************
-# sub proccess {
-#   my $self = shift;
-#   my ($FORM) = @_;
-#
-#   my $buffer = $FORM->{__BUFFER};
-#   $main::html = Abills::HTML->new({CONF => $self->{conf}});
-#   my ($xml) = $buffer =~ /xml\=(<.+>)/gms;
-#   main::mk_log($xml, {PAYSYS_ID => 'Ipay_mp', REQUEST => 'Request'});
-#   #  _bp("test", $xml, {TO_CONSOLE => 1});
-#   #  my $xml = q{<?xml version="1.0" encoding="utf-8"?>
-#   #<payment id="14706320">
-#   #<ident>83ced0ac0c6525522ef64c4412816afdgf98113e7cc861</ident>
-#   #<status>5</status>
-#   #<amount>1000</amount>
-#   #<currency>UAH</currency>
-#   #<timestamp>1478301940</timestamp>
-#   #<transactions>
-#   #<transaction id="26852267">
-#   #<mch_id>205452</mch_id>
-#   #<srv_id>0</srv_id>
-#   #<amount>1000</amount>
-#   #<currency>UAH</currency>
-#   #<type>20</type>
-#   #<status>11</status>
-#   #<code>00</code>
-#   #<desc>INTERNET</desc>
-#   #<info>{"account_number":"151348","amount":"10.00","mcc":"4814"}</info>
-#   #</transaction>
-#   #<transaction id="26852267">
-#   #<mch_id>205452</mch_id>
-#   #<srv_id>0</srv_id>
-#   #<amount>1000</amount>
-#   #<currency>UAH</currency>
-#   #<type>21</type>
-#   #<status>11</status>
-#   #<code>00</code>
-#   #<desc>INTENT</desc>
-#   #<info>{"account_number":"1","amount":"10.00","mcc":"4814"}</info>
-#   #</transaction>
-#   #</transactions>
-#   #<salt>78f9bf28be7f632427492403ef69b273cc8bf6fd</salt>
-#   #<sign>522e04769878e412678d4bf8a2554442f7454505c9fc0fa07714a4cc6f8469704d63a6d664d47a4f64efb
-#   #77a185df28d302c1f80a011a32gfdgdfgb5ef2938102305d8hcef44</sign>
-#   #</payment>
-#   #  };
-#
-#   load_pmodule('XML::Simple');
-#   my $xs = XML::Simple->new(ForceArray => 1, KeepRoot => 1);
-#   my $ref = $xs->XMLin($xml);
-#
-#   if($ref->{check}){
-#     print "Content-Type: text/xml\n\n";
-#
-#     my ($check_status, $user_object) = main::paysys_check_user({
-#       CHECK_FIELD => $self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID',
-#       USER_ID     => $ref->{check}[0]{pay_account}[0],
-#     });
-#
-#     if($check_status == 0){
-#       print qq{<response>
-# <check_code>0</check_code>
-# <desc>ok</desc>
-# <datetime>$main::DATE $main::TIME</datetime>
-# <info>{"name":"$user_object->{fio}","balance":"$user_object->{deposit}"}</info>
-# </response>};
-#     }
-#     else{
-#       print qq{<response>
-# <check_code>1</check_code>
-# <desc>Inside Error: $check_status</desc>
-# <datetime>$main::DATE $main::TIME</datetime>
-# <info></info>
-# </response>};
-#     }
-#
-#     return 1;
-#   }
-#
-#   print "Content-Type: text/html\n\n";
-#
-#   my $payment = $ref->{payment};
-#   my ($payment_id) = keys %$payment;
-#
-#   my $payment_status = $payment->{$payment_id}->{status}->[0];
-#
-#   my $transaction = $payment->{$payment_id}->{transactions}->[0]->{transaction};
-#   my ($transaction_id) = keys %$transaction;
-#
-#   my $json_transaction_info = $transaction->{$transaction_id}->{info}->[0];
-#
-#   my $desc = $transaction->{$transaction_id}->{desc}->[0];
-#   my $hash_transaction_info = $json->decode($json_transaction_info);
-#
-#   my $payment_amount = '';
-#   my $account = '';
-#   if (exists ($hash_transaction_info->{step_2} )) {
-#     $payment_amount = $hash_transaction_info->{step_2}{invoice};
-#     $account        = $hash_transaction_info->{step_1}{acc};
-#   }
-#   else {
-#     $payment_amount = $hash_transaction_info->{invoice} / 100;
-#     $account        = $hash_transaction_info->{acc};
-#   }
-#
-#   my %DATA = ();
-#   my $account_key = $self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID';
-#   $DATA{$account_key} = $account;
-#   $DATA{amount} = $payment_amount;
-#   $DATA{payment_status} = $payment_status;
-#   $DATA{transaction_id} = $transaction_id;
-#
-#   if($payment_status == 5){
-#     my ($status_code) = main::paysys_pay( {
-#       PAYMENT_SYSTEM    => $PAYSYSTEM_SHORT_NAME,
-#       PAYMENT_SYSTEM_ID => $PAYSYSTEM_ID,
-#       CHECK_FIELD       => $account_key,
-#       USER_ID           => $account,
-#       SUM               => $payment_amount,
-#       EXT_ID            => $payment_id,
-#       DATA              => \%DATA,
-#       DATE              => "$main::DATE $main::TIME",
-#       MK_LOG            => 1,
-#       DEBUG             => $DEBUG,
-#       PAYMENT_DESCRIBE  => $desc|| 'Ipay payment',
-#     } );
-#
-#     print $status_code;
-#   }
-#
-#   return 1;
-# }
-
-#**********************************************************
-=head2 periodic()
-
-  Arguments:
-     -
-
-  Returns:
-
-=cut
-#**********************************************************
-# sub periodic {
-#
-#   return 1;
-# }
-
-#**********************************************************
 =head2 reports($attr)
 
   Arguments:
@@ -775,17 +638,21 @@ sub proccess {
   my ($FORM) = @_;
 
   my $buffer = $FORM->{__BUFFER} || q{};
-  my ($xml) = $buffer =~ /xml\=(<.+>)/gms;
+  my $xml = $buffer;
+  $xml =~ s/^xml\=//;
+  $xml =~ s/\\\"/"/g;
   my $debug = $self->{DEBUG} || 0;
-
-  $xml =~ s/\\\"/"/g if ($xml);
 
   if ($debug > 0) {
     main::mk_log($xml, { PAYSYS_ID => 'Ipay', REQUEST => 'Request' });
   }
 
   load_pmodule('XML::Simple');
-  my $request = eval{ XML::Simple::XMLin($xml || q{}, ForceArray => 1, KeepRoot => 1) };
+  my $request = eval{ XML::Simple::XMLin($xml || q{},
+    #ForceArray => 1,
+    KeyAttr => {},
+    KeepRoot => 1
+  ) };
 
   if ($@) {
     main::mk_log("CONTENT:\n" . $buffer . "\n-- XML Error:\n" . $@ . "\n--\n",
@@ -796,31 +663,10 @@ sub proccess {
   }
 
   my $result = q{};
-  my $ipay_salt    = $request->{salt}  || q{};
-  my $payment_sign = $request->{sign} || q{};
-
-  if($request->{payment}) {
-    my ($payment_id) = keys %{ $request->{payment} };
-    $ipay_salt = $request->{payment}->{$payment_id}->{salt}->[0] || q{};
-    $payment_sign = $request->{payment}->{$payment_id}->{sign}->[0] || q{};
-  }
-  else {
-    $ipay_salt = $request->{salt} || q{};
-    $payment_sign = $request->{sign} || q{};
-  }
-
-  if ($self->{conf}->{PAYSYS_IPAY_NOTIFY_KEY}) {
-    $self->{conf}->{PAYSYS_IPAY_SIGN_KEY}=$self->{conf}->{PAYSYS_IPAY_NOTIFY_KEY};
-  }
-
-  my $signature = $self->mk_sign({ salt => $ipay_salt });
-  if($signature ne $payment_sign) {
-    $result = 'ERR_INCORRECT_CHECKSUM';
-  }
-  elsif($request->{check}){
-    my ($check_status, $user_object) = main::paysys_check_user({
-      CHECK_FIELD => $self->{conf}{PAYSYS_IPAYC_ACCOUNT_KEY} || 'UID',
-      USER_ID     => $request->{check}[0]{pay_account}[0],
+  if($request->{check}){
+    my ($check_status, $user_info) = main::paysys_check_user({
+      CHECK_FIELD => $self->{conf}{PAYSYS_IPAY_ACCOUNT_KEY} || 'UID',
+      USER_ID     => $request->{check}{pay_account},
     });
 
     if($check_status == 0){
@@ -828,7 +674,7 @@ sub proccess {
 <check_code>0</check_code>
 <desc>ok</desc>
 <datetime>$main::DATE $main::TIME</datetime>
-<info>{"name":"$user_object->{fio}","balance":"$user_object->{deposit}"}</info>
+<info>{"name":"$user_info->{FIO}","balance":"$user_info->{DEPOSIT}"}</info>
 </response>};
     }
     else{
@@ -841,14 +687,29 @@ sub proccess {
     }
   }
   elsif($request->{payment}) {
-    my $payment = $request->{payment};
-    my ($payment_id) = keys %$payment;
-    my $payment_status = $payment->{$payment_id}->{status}->[0] || 0;
-    my $payment_amount = ($payment->{$payment_id}->{amount}->[0]) ? $payment->{$payment_id}->{amount}->[0] / 100 :  0;
-    my $transaction = $payment->{$payment_id}->{transactions}->[0]->{transaction};
-    my ($transaction_id) = keys %{ $transaction };
-    my $json_transaction_info = $transaction->{$transaction_id}->{info}->[0];
-    my $desc = $transaction->{$transaction_id}->{desc}->[0];
+    my $payment      = $request->{payment};
+    my $ipay_salt    = $payment->{salt}  || q{};
+    my $payment_sign = $payment->{sign} || q{};
+    my $payment_id = $payment->{id};
+
+    # PAYSYS_IPAY_NOTIFY_KEY key for Ipay web portal payment
+    if ($self->{conf}->{PAYSYS_IPAY_NOTIFY_KEY}) {
+      $self->{conf}->{PAYSYS_IPAY_SIGN_KEY}=$self->{conf}->{PAYSYS_IPAY_NOTIFY_KEY};
+    }
+
+    my $signature = $self->mk_sign({ salt => $ipay_salt });
+    if($ipay_salt && $signature ne $payment_sign) {
+      $result = 'ERR_INCORRECT_CHECKSUM';
+    }
+
+    #($payment_id) = keys %$payment;
+    my $payment_status = $payment->{status} || 0;
+    my $payment_amount = ($payment->{amount}) ? $payment->{amount} / 100 :  0;
+
+    my $transaction = $payment->{transactions}->{transaction};
+    my $transaction_id = $transaction->[0]->{id};
+    my $json_transaction_info = $transaction->[0]->{info};
+    my $desc = $transaction->[0]->{desc};
     my $transaction_extra_info;
     if ($json_transaction_info) {
       $json_transaction_info =~ s/^"|"$//g;
@@ -864,7 +725,7 @@ sub proccess {
       }
       else {
         $payment_amount = $transaction_extra_info->{invoice} / 100 if ($transaction_extra_info->{invoice});
-        $account = $transaction_extra_info->{acc} || q{};
+        $account = $transaction_extra_info->{step_1}->{acc} || q{};
       }
     }
 
@@ -880,7 +741,7 @@ sub proccess {
       my ($status_code) = main::paysys_pay({
         PAYMENT_SYSTEM    => $PAYSYSTEM_SHORT_NAME,
         PAYMENT_SYSTEM_ID => $PAYSYSTEM_ID,
-        CHECK_FIELD       => 'UID', #$account_key,
+        CHECK_FIELD       => 'UID',
         USER_ID           => $account,
         SUM               => $payment_amount,
         EXT_ID            => $payment_id,

@@ -147,7 +147,7 @@ sub _zte_onu_list {
         $onu_info{ONU_DHCP_PORT} = $port_dhcp_id;
 
         foreach my $oid_name (keys %{$snmp}) {
-          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage' || $oid_name eq 'LLID') {
+          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage' || $oid_name eq 'LLID' || $snmp->{$oid_name}->{SKIP}) { #XXX add SKIP for all these oids?
             next;
           }
           elsif ($oid_name =~ /POWER|TEMPERATURE/ && $status ne '3') {
@@ -185,7 +185,7 @@ sub _zte_onu_list {
         next if ($port_list->{$snmp_id}{PON_TYPE} ne $type);
         my $cols = [ 'PORT_ID', 'ONU_ID', 'ONU_SNMP_ID', 'PON_TYPE', 'ONU_DHCP_PORT' ];
         foreach my $oid_name (keys %{$snmp}) {
-          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage') {
+          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage' || $snmp->{$oid_name}->{SKIP}) {
             next;
           }
 
@@ -312,7 +312,7 @@ sub _zte_onu_list2 { #TODO: delete?
         $onu_info{ONU_DHCP_PORT} = $port_dhcp_id;
 
         foreach my $oid_name (keys %{$snmp}) {
-          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage') {
+          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage' || $snmp->{$oid_name}->{SKIP}) {
             next;
           }
           elsif ($oid_name =~ /POWER|TEMPERATURE/ && $status ne '3') {
@@ -349,7 +349,7 @@ sub _zte_onu_list2 { #TODO: delete?
         next if ($port_list->{$snmp_id}{PON_TYPE} ne $type);
         my $cols = [ 'PORT_ID', 'ONU_ID', 'ONU_SNMP_ID', 'PON_TYPE', 'ONU_DHCP_PORT' ];
         foreach my $oid_name (keys %{$snmp}) {
-          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage') {
+          if ($oid_name eq 'reset' || $oid_name eq 'main_onu_info' || $oid_name eq 'catv_port_manage' || $snmp->{$oid_name}->{SKIP}) {
             next;
           }
 
@@ -446,7 +446,7 @@ sub _zte {
         PARSER => 'bin2mac'
       },
       'ONU_STATUS'     => {
-        NAME   => 'ONU_STATUS',
+        NAME   => 'STATUS',
         OIDS   => '.1.3.6.1.4.1.3902.1015.1010.1.7.4.1.17',
         PARSER => ''
       },
@@ -598,6 +598,12 @@ sub _zte {
         DISABLE_VALUE      => 2,
         USING_CATV_PORT_ID => 1,
         PARSER             => ''
+      },
+      'disable_onu_manage' => {
+        OIDS               => '1.3.6.1.4.1.3902.1012.3.28.1.1.17',
+        SKIP               => 1,
+        ENABLE_VALUE       => 1,
+        DISABLE_VALUE      => 2,
       },
       'LLID'           => {
         NAME   => 'LLID',
@@ -895,7 +901,8 @@ sub _zte_decode_onu {
       'onu'} = map {oct("0b$_")} $bin =~ /^(\d{4})(\d{4})(\d{5})(\d{3})(\d{8})(\d{8})/;
 
     if ($result_type eq 'dhcp') {
-      $result{slot} = ($model_name =~ /C220|C320/i) ? sprintf("%02d", $result{slot}) : sprintf("%02d", $result{slot});
+      #$result{slot} = ($model_name =~ /C220|C320/i) ? sprintf("%02d", $result{slot}) : sprintf("%02d", $result{slot});
+      $result{slot} = sprintf("%02d", $result{slot});
       $result{onu} = ($model_name =~ /C220|C320|C300/i) ? sprintf("%02d", $result{onu}) : sprintf("%03d", $result{onu});
       if ($model_name =~ /C220/i) {
         $result{slot} =~ s/^0/ /g;
@@ -956,18 +963,23 @@ sub _zte_decode_onu {
       . '/' . $result{slot};
   }
   #epon-onu
-  elsif ($type == 9) {
+  elsif ($type == 9) { #probably is used only on firmware V2
     @result{'type', 'shelf', 'slot', 'olt', 'onu', } = map {oct("0b$_")} $bin =~ /^(\d{4})(\d{4})(\d{4})(\d{4})(\d{8})/;
 
     $result{shelf} += 1;
     $result{olt}   += 1;
 
-    $result{result_string} = $type_name{$result{type}}
-      . '_'
+    if ($result_type eq 'dhcp') {
+      $result{slot} = sprintf("%02d", $result{slot});
+      $result{onu} = ($model_name =~ /C220|C320|C300/i) ? sprintf("%02d", $result{onu}) : sprintf("%03d", $result{onu}); #XXX copied from type == 3, tested only on C320_V2
+    }
+
+    $result{result_string} = (($attr->{DEBUG}) ? $type_name{$result{type}} . '_' : '')
       . ($result{shelf})
       . '/' . ($result{slot})
       . '/' . ($result{olt})
-      . ':' . ($result{onu});
+      . (($result_type eq 'dhcp') ? '/' : ':')
+      . $result{onu};
   }
   #gpon_onu
   elsif ($type == 4 || $type == 10) {
@@ -1006,11 +1018,16 @@ sub _zte_decode_onu {
 #**********************************************************
 =head2 _zte_encode_port($type, $shelf, $slot, $olt) - encode port
 
+  It seems port always use $type == 1
+
   Arguments:
-    $dec
+    $type
+    $shelf
+    $slot
+    $olt
 
   Returns:
-    deparsing string
+    encoded decimal
 
 =cut
 #**********************************************************
@@ -1027,28 +1044,47 @@ sub _zte_encode_port {
 }
 
 #**********************************************************
-=head2 _zte_encode_onu($type, $shelf, $slot, $olt, $onu) - encode onu
+=head2 _zte_encode_onu($type, $shelf, $slot, $olt, $onu, $model_name) - encode ONU's SNMP ID
+
+  Used to create SNMP ID for newly registered EPON ONUs.
+  May work incorrectly with $type is not 3 or 9, but it seems we don't need
+  this function for other types.
 
   Arguments:
     $type
-      $shelf
-      $slot
-      $olt
-      $onu
+    $shelf
+    $slot
+    $olt
+    $onu
+    $model_name
+
   Returns:
-    encodec decimal
+    encoded decimal
 
 =cut
 #**********************************************************
 sub _zte_encode_onu {
-  my ($type, $shelf, $slot, $olt, $onu) = @_;
+  my ($type, $shelf, $slot, $olt, $onu, $model_name) = @_;
 
-  my $bin = sprintf("%04b", $type)
-    . sprintf("%04b", $shelf)
-    . sprintf("%05b", $slot)
-    . sprintf("%03b", $olt - 1)
-    . sprintf('%08b', $onu)
-    . '00000000';
+  my $bin;
+  if ($type == 9) {
+    $bin = sprintf("%04b", $type)
+      . sprintf("%04b", $shelf - 1)
+      . sprintf("%04b", $slot)
+      . sprintf("%04b", $olt - 1)
+      . sprintf('%08b', $onu)
+      . '00000000';
+  }
+  else {
+    my $shelf_decrement = ($model_name =~ /C220/i) ? 0 : 1;
+
+    $bin = sprintf("%04b", $type)
+      . sprintf("%04b", $shelf - $shelf_decrement)
+      . sprintf("%05b", $slot)
+      . sprintf("%03b", $olt - 1)
+      . sprintf('%08b', $onu)
+      . '00000000';
+  }
 
   return oct("0b$bin");
 }
@@ -1090,6 +1126,7 @@ sub _zte_dhcp_port {
   my $result;
 
   if ($pon_type eq 'gpon') {
+    $shelf++ if ($shelf && $shelf eq '0'); #XXX needed for ZTE C2xx, not tested on real hardware. move to _zte_encode_port?
     my $encoded_port = ($port_id) ? $port_id : _zte_encode_port(1, $shelf, $slot, $olt);
 
     my $num = (($model_name && $model_name =~ /C220|C300/i) || ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum')) ? sprintf("%02d", $onu) : sprintf("%03d", $onu);
@@ -1102,7 +1139,7 @@ sub _zte_dhcp_port {
     $result = _zte_decode_onu($encoded_port, {TYPE => 'dhcp', MODEL_NAME => $model_name}) . '/' . $num;
   }
   elsif ($pon_type eq 'epon') {
-    my $encoded_onu = ($port_id) ? $port_id : _zte_encode_onu(3, $shelf, $slot, $olt, $onu);
+    my $encoded_onu = ($port_id) ? $port_id : _zte_encode_onu(($model_name =~ /_V2$/i) ? 9 : 3, $shelf, $slot, $olt, $onu, $model_name);
     $result = _zte_decode_onu($encoded_onu, {TYPE => 'dhcp', MODEL_NAME => $model_name});
   }
 

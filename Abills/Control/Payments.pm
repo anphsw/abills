@@ -92,7 +92,7 @@ sub form_payments {
       }
     );
   }
-  elsif ($attr->{USER_INFO}) {
+  if ($attr->{USER_INFO}) {
     my $user = $attr->{USER_INFO};
     $Payments->{UID} = $user->{UID};
 
@@ -449,6 +449,7 @@ sub payment_add {
       $FORM{PAYMENT_SUM} = $FORM{SUM};
     }
 
+    my $uid = $user->{UID};
     #Make pre payments functions in all modules
     cross_modules_call('_pre_payment', { %$attr });
     if (!$conf{PAYMENTS_NOT_CHECK_INVOICE_SUM} && ($FORM{INVOICE_SUM} && $FORM{INVOICE_SUM} != $FORM{PAYMENT_SUM})) {
@@ -456,6 +457,7 @@ sub payment_add {
         " $lang{INVOICE} $lang{SUM}: $Docs->{TOTAL_SUM}\n $lang{PAYMENTS} $lang{SUM}: $FORM{SUM}" );
     }
     else {
+      $user->{UID} = $uid;
       $Payments->add($user, { %FORM,
           INNER_DESCRIBE => ($FORM{INNER_DESCRIBE} || q{})
             . (($FORM{DATE} && $COOKIES{hold_date}) ? " $DATE $TIME" : '') });

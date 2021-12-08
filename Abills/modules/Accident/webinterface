@@ -841,7 +841,7 @@ sub _equipment_error {
 
       if ($conf{ACCIDENT_WARNING}) {
         my $Internet = Internet->new($db, $admin, \%conf);
-        my $list = $Internet->list({
+        my $list = $Internet->user_list({
           NAS_ID    => $attr->{id_equipment},
           COLS_NAME => 1,
         });
@@ -1062,7 +1062,7 @@ sub _accident_add_compensation {
 
   my $error_uid = '';
 
-  my $tp_info = $Internet->list({
+  my $tp_info = $Internet->user_list({
     TP_ID     => $attr->{SERVICE},
     DAY_FEE   => '_SHOW',
     MONTH_FEE => '_SHOW',

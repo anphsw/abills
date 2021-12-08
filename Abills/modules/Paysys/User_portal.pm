@@ -8,6 +8,7 @@
 use strict;
 use warnings FATAL => 'all';
 use Paysys::Init;
+use Users;
 
 our (
   $base_dir,
@@ -155,13 +156,13 @@ sub paysys_payment {
   my $count = 1;
   my @payment_systems = ();
   foreach my $payment_system (@$connected_systems) {
-    if( $user->{GID}
+    if(defined($user->{GID})
         && exists $group_to_paysys_id{$user->{GID}}
         && !( in_array($payment_system->{paysys_id}, $group_to_paysys_id{$user->{GID}}) ) ) {
       next;
     }
 
-    if($user->{GID} && !$group_to_paysys_id{$user->{GID}}){
+    if(defined($user->{GID}) && !$group_to_paysys_id{$user->{GID}}){
       next;
     }
     my $Plugin = _configure_load_payment_module($payment_system->{module});
@@ -458,27 +459,57 @@ sub paysys_user_log {
 sub paysys_subscribe {
 
   my $paysys_subscribe = $Paysys->user_info({
-    UID          => $user->{UID},
+    UID => $user->{UID},
   });
 
   my $table = $html->table(
     {
-      width       => '100%',
-      caption     => $lang{TOKEN_PAYMENTS},
-      title       => [$lang{DATE}, $lang{SUM}, $lang{PAY_SYSTEM}, $lang{TRANSACTION}, $lang{STATUS}, '-' ],
-      qs          => $pages_qs,
-      pages       => $Paysys->{TOTAL},
-      ID          => 'PAYSYS_SUBSCRIBES',
+      width   => '100%',
+      caption => $lang{TOKEN_PAYMENTS},
+      title   => [ $lang{DATE}, $lang{SUM}, $lang{PAY_SYSTEM}, $lang{TRANSACTION}, $lang{STATUS}, '-' ],
+      qs      => $pages_qs,
+      pages   => $Paysys->{TOTAL},
+      ID      => 'PAYSYS_SUBSCRIBES',
     }
   );
 
-  if($paysys_subscribe->{EXTERNAL_LAST_DATE}){
+  if (defined($paysys_subscribe->{PAYSYS_ID}) && $paysys_subscribe->{PAYSYS_ID} == 0) {
+    $Paysys->user_del({
+      PAYSYS_ID => $paysys_subscribe->{PAYSYS_ID},
+      UID       => $paysys_subscribe->{UID}
+    });
+  }
+
+  if ($paysys_subscribe->{EXTERNAL_LAST_DATE}) {
+    my $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . '&SUM=1.00';
+    my $Users = Users->new($db, $admin, \%conf);
+    if ($paysys_subscribe->{PAYSYS_ID} == 62) {
+      my $list = $Users->list({
+        GID        => '_SHOW',
+        COLS_NAME  => 1,
+        COLS_UPPER => 1,
+        UID        => $paysys_subscribe->{UID}
+      });
+
+      my $default_conf_token = $paysys_subscribe->{conf}->{"PAYSYS_LIQPAY_SUBSCRIBE_TOKEN"} || 0;
+      my $default_conf_sub = $paysys_subscribe->{conf}->{"PAYSYS_LIQPAY_SUBSCRIBE"} || 0;
+      my $gid_conf_token = $paysys_subscribe->{conf}->{"PAYSYS_LIQPAY_SUBSCRIBE_TOKEN_$list->[0]->{GID}"} || 0;
+      my $gid_conf_sub = $paysys_subscribe->{conf}->{"PAYSYS_LIQPAY_SUBSCRIBE_$list->[0]->{GID}"} || 0;
+
+      if ($gid_conf_sub == 1 || ($default_conf_sub == 1 && !$gid_conf_sub)) {
+        $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . '&SUM=1.00&UNSUBSRIBE=1&UID=' . $paysys_subscribe->{UID};
+      }
+      elsif ($gid_conf_token == 1 || ($default_conf_token == 1 && !$gid_conf_token)) {
+        $btn_index = 'index=' . get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . $paysys_subscribe->{PAYSYS_ID} . '&SUM=1.00&UNTOKEN=1&UID=' . $paysys_subscribe->{UID};
+      }
+    }
+
     $table->addrow($paysys_subscribe->{EXTERNAL_LAST_DATE},
       $paysys_subscribe->{SUM},
       $paysys_subscribe->{RECURRENT_MODULE},
       $paysys_subscribe->{ORDER_ID},
       $lang{ENABLED},
-      $html->button($lang{DEL}, 'index='. get_function_index('paysys_payment') . '&PAYMENT_SYSTEM=' . 62 . '&SUM=1.00' ));
+      $html->button($lang{DEL}, $btn_index));
   }
 
   print $table->show();

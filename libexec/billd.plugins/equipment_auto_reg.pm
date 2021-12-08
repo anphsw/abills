@@ -1,12 +1,21 @@
 =head1 NAME
 
- billd plugin
+  billd plugin
 
- DESCRIBE: PON auto registration
+  DESCRIPTION: PON auto registration/deregistration
 
- Arguments:
+  Supported OLTs: Huawei, ZTE, BDCOM
 
-   NAS_IDS
+  Arguments:
+
+    NAS_IDS - NAS IDs, separated by ';'
+    BRANCHES - branches to operate on in format 'epon:1/1/1', separated by ';'
+    FORCE_FILL_NAS - register even if abonent's NAS are already filled. NAS will be overwritten
+    FORCE_FILL_NAS_AND_PORT - register even if abonent's NAS and Port are already filled. NAS and Port will be overwritten
+    REGISTER_NOT_ATTACHED_TO_ABONENT - will register ONUs that are not attached to abonent by CPE MAC
+    EXTRA_REG_PARAMS - extra params for registration script
+    DEREGISTER - deregister all ONUs on specified branches. Must be used with NAS_IDS (only one NAS ID) and BRANCHES
+    DEBUG - debug level
 
 =cut
 
@@ -104,7 +113,6 @@ sub _auto_reg {
     NAS_MNG_PASSWORD              => '_SHOW',
     SNMP_TPL                      => '_SHOW',
     LOCATION_ID                   => '_SHOW',
-    VENDOR_NAME                   => '_SHOW',
     SNMP_VERSION                  => '_SHOW',
     INTERNET_VLAN                 => '_SHOW',
     TR_069_VLAN                   => '_SHOW',
@@ -152,7 +160,7 @@ sub _auto_reg {
         }
 
         my $internet_list = ();
-        my $internet_list1 = $Internet->list({
+        my $internet_list1 = $Internet->user_list({
           INTERNET_ACTIVATE=> '_SHOW',
           INTERNET_STATUS  => '0',
           CPE_MAC          => $ont_info->{mac_serial} || $ont_info->{sn},
@@ -166,11 +174,11 @@ sub _auto_reg {
         foreach my $ui (@$internet_list1) {
           push( @{$internet_list}, $ui );
         }
-        if ($ont_info->{vendor}) {
+        if ((lc $ont_info->{pon_type}) eq 'gpon' && $ont_info->{vendor} && $ont_info->{mac_serial}) {
           $ont_info->{vendor_mac_serial} = $ont_info->{vendor} . $ont_info->{mac_serial};
           $ont_info->{vendor_mac_serial} =~ s/^([A-Z]{4})[A-F0-9]{8}/$1/g;
 
-          my $internet_list2 = $Internet->list({
+          my $internet_list2 = $Internet->user_list({
             INTERNET_ACTIVATE=> '_SHOW',
             INTERNET_STATUS  => '0',
             CPE_MAC          => $ont_info->{vendor_mac_serial},
@@ -185,6 +193,8 @@ sub _auto_reg {
             push( @{$internet_list}, $ui );
           }
         }
+
+        my $ont_attached_to_abon = 0;
 
         foreach my $user_infos (@$internet_list) {
           if ($argv->{FORCE_FILL_NAS}) {
@@ -229,6 +239,14 @@ sub _auto_reg {
             }
             last;
           }
+        }
+
+        if ($argv->{REGISTER_NOT_ATTACHED_TO_ABONENT} && !$ont_attached_to_abon) {
+          foreach my $key (keys %$ont_info) {
+            $ont_info->{uc($key)} = $ont_info->{$key};
+          }
+
+          my $ont = _register_onu({ NAS_INFO => $nas, SNMP_COMMUNITY => $SNMP_COMMUNITY, BRANCH => $ont_info->{branch},  %{$ont_info} });
         }
       }
     }
@@ -477,7 +495,7 @@ sub _register_onu {
       return $onu;
     }
     elsif ($result =~ /ONU ZTE: (\d+)\/(\d+)\/(\d+)\:(\d+) ADDED/) {
-      return equipment_register_onu_add_zte_($result, $nas_id, $port_list, $attr);
+      return equipment_register_onu_add_zte($result, $nas_id, $port_list, $attr);
     }
     elsif ($result =~ /ONU BDCOM: (\d+)\/(\d+)\:(\d+) .* SNMP ID (\d+) DHCP PORT ([0-9a-f]{4}) ADDED/) {
       return equipment_register_onu_add_bdcom($result, $nas_id, $port_list, $attr);
@@ -552,6 +570,7 @@ sub _auto_deregister {
     OLT_PORT   => $port_ids_string,
     BRANCH     => '_SHOW',
     MAC_SERIAL => '_SHOW',
+    DELETED    => '_SHOW',
     COLS_NAME  => 1,
     COLS_UPPER => 1
   });
@@ -564,39 +583,49 @@ sub _auto_deregister {
   }
 
   foreach my $onu (@$onus) {
-    my $result = cmd($cmd, {
-      DEBUG   => ($debug > 1) ? $debug : 0,
-      PARAMS  => { %$onu, %$nas, del_onu => 1 },
-      ARGV    => 1,
-      timeout => 30
-    });
+    my $result;
+    if (!$onu->{deleted}) {
+      $result = cmd($cmd, {
+        DEBUG   => ($debug > 1) ? $debug : 0,
+        PARAMS  => { %$onu, %$nas, del_onu => 1 },
+        ARGV    => 1,
+        timeout => 30
+      });
+    }
 
     my $result_code = $? >> 8;
 
-    if ($result_code && $result =~ /ONU.*DELETED/) {
+    if ($onu->{deleted} || $result_code && $result =~ /ONU.*DELETED/) {
       $Equipment->onu_del($onu->{id});
 
-      my $internet_list = $Internet->list({
-        NAS_ID    => $nas_id,
-        CPE_MAC   => $onu->{mac_serial},
-        UID       => '_SHOW',
-        COLS_NAME => 1,
-        PAGE_ROWS => 10000000,
-      });
-
-      foreach my $user_info (@$internet_list) {
-        $Internet->change({
-          UID         => $user_info->{uid},
-          ID          => $user_info->{id},
-          NAS_ID1     => 0,
-          PORT        => '',
-          VLAN        => 0,
-          SERVER_VLAN => 0,
+      if ($onu->{mac_serial}) {
+        my $internet_list = $Internet->user_list({
+          NAS_ID    => $nas_id,
+          CPE_MAC   => $onu->{mac_serial},
+          UID       => '_SHOW',
+          COLS_NAME => 1,
+          PAGE_ROWS => 10000000,
         });
+
+        foreach my $user_info (@$internet_list) {
+          $Internet->user_change({
+            UID         => $user_info->{uid},
+            ID          => $user_info->{id},
+            NAS_ID1     => 0,
+            PORT        => '',
+            VLAN        => 0,
+            SERVER_VLAN => 0,
+          });
+        }
       }
 
-      print "Successfully deleted ONU $onu->{branch}:$onu->{onu_id}\n";
-      print "$cmd exit code: $result_code, output: $result\n" if ($debug);
+      if (!$onu->{deleted}) {
+        print "Successfully deleted ONU $onu->{branch}:$onu->{onu_id}\n";
+        print "$cmd exit code: $result_code, output: $result\n" if ($debug);
+      }
+      else {
+        print "Successfully deleted ONU $onu->{branch}:$onu->{onu_id} from database\n";
+      }
     }
     else {
       print "Failed to delete ONU $onu->{branch}:$onu->{onu_id}\n";
@@ -619,62 +648,6 @@ sub tr_069_setting {
   my $settings = JSON::to_json($onu_setting, { utf8 => 0 });
   $Equipment->tr_069_settings_change($id, { SETTINGS => $settings });
   return 1;
-}
-#********************************************************
-=head2 equipment_register_onu_add_zte($nas_type, $nas_id, $port_list, $attr) - add registered ONU to DB: ZTE version
-
-  Arguments:
-    $result - cmd's output
-    $nas_id
-    $port_list
-    $attr
-      NAS_INFO
-      VENDOR_NAME
-      NAS_ID
-
-=cut
-#********************************************************
-sub equipment_register_onu_add_zte_ { #TODO: use equipment_register_onu_add_zte from Pon_mng.pm instead?
-  my ($result, $nas_id, $port_list, $attr) = @_;
-  $result =~ /ONU ZTE: (\d+)\/(\d+)\/(\d+)\:(\d+) ADDED/;
-
-  my $onu = ();
-  $onu->{NAS_ID} = $nas_id;
-  $onu->{ONU_ID} = $4;
-  my $raw_branch = sprintf('%.2d', $2) . '/' . $3;
-  my $raw_onu = sprintf('%.2d', $4);
-  my $encoded_onu = ($port_list->[0]->{PON_TYPE} && $port_list->[0]->{PON_TYPE} eq 'epon') ? _zte_encode_onu(3, 0, $2, $3, $4) : 0;
-
-  my $model_name = $attr->{NAS_INFO}->{MODEL_NAME}  || q{};
-
-  if ($model_name =~ /C220/i) {
-    $raw_branch =~ s/^0/ /g;
-    $raw_onu =~ s/^0/ /g;
-  }
-  elsif ($model_name =~ /C320/i) {
-    $raw_onu = sprintf("%03d", $raw_onu);
-    if ($conf{EQUIPMENT_ZTE_O82} && $conf{EQUIPMENT_ZTE_O82} eq 'dsl-forum') {
-      $raw_branch =~ s/^0/ /g;
-      $raw_onu =~ s/^0/ /g;
-    }
-  }
-
-  $onu->{ONU_DHCP_PORT} = '0/' . $raw_branch . '/' . $raw_onu;
-  $onu->{PORT_ID} = $port_list->[0]->{ID};
-  $onu->{ONU_MAC_SERIAL} = ($attr->{MAC} && $attr->{MAC} =~ /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/gm) ? $attr->{MAC} : $attr->{SN};
-  $onu->{ONU_DESC} = $attr->{ONU_DESC};
-  $onu->{ONU_SNMP_ID} = ($encoded_onu != 0) ? $encoded_onu : $port_list->[0]->{SNMP_ID} . '.' . $onu->{ONU_ID};
-  $onu->{LINE_PROFILE} = 'ONU';
-  $onu->{SRV_PROFILE} = 'ALL';
-
-  my $onu_list = $Equipment->onu_list({ COLS_NAME => 1, OLT_PORT => $onu->{PORT_ID}, ONU_SNMP_ID => $onu->{ONU_SNMP_ID} });
-  if ($onu_list->[0]->{id}) {
-    $Equipment->onu_change({ ID => $onu_list->[0]->{id}, ONU_STATUS => 0, DELETED => 0, %{$onu} });
-  }
-  else {
-    $Equipment->onu_add({ %{$onu} });
-  }
-  return $onu;
 }
 
 1

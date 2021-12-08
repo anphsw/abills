@@ -553,7 +553,11 @@ sub _list {
 
   if ($self->{TOTAL} > 0) {
     foreach my $eq (@{$self->{list}}) {
-      $eq->{nas_ip} = Abills::Base::int2ip($eq->{nas_ip}) if(ref $eq eq 'HASH' && $eq->{nas_ip});
+      if (ref $eq eq 'HASH' && $eq->{nas_ip}) {
+        my $nas_ip = Abills::Base::int2ip($eq->{nas_ip});
+        $eq->{nas_ip} = $nas_ip;
+        $eq->{NAS_IP} = $nas_ip;
+      }
     }
   }
 
@@ -1883,7 +1887,8 @@ sub mac_log_add {
   my ($attr) = @_;
 
   if ($attr->{MULTI_QUERY}) {
-    $self->query("INSERT INTO equipment_mac_log (
+    #REPLACE - if there will be duplicates, don't raise UNIQUE KEY error
+    $self->query("REPLACE INTO equipment_mac_log (
       mac,
       nas_id,
       vlan,
@@ -1894,28 +1899,28 @@ sub mac_log_add {
       undef,
       { MULTI_QUERY => $attr->{MULTI_QUERY} });
   }
-  else {
-    $self->query("SELECT ip FROM equipment_mac_log  WHERE nas_id='$attr->{NAS_ID}'
-       AND mac='$attr->{MAC}'
-       AND vlan='$attr->{VLAN}'
-       AND port='$attr->{PORT}'" #XXX rewrite as Bind?
-    );
+  #else {
+  #  $self->query("SELECT ip FROM equipment_mac_log  WHERE nas_id='$attr->{NAS_ID}'
+  #     AND mac='$attr->{MAC}'
+  #     AND vlan='$attr->{VLAN}'
+  #     AND port='$attr->{PORT}'" #XXX rewrite as Bind?
+  #  );
 
-    if ($self->{TOTAL}) {
-      $self->query("UPDATE equipment_mac_log SET datetime=NOW()
-        WHERE nas_id='$attr->{NAS_ID}'
-          AND mac='$attr->{MAC}'
-          AND vlan='$attr->{VLAN}'
-          AND port='$attr->{PORT}'",
-        'do'
-      );
-    }
-    else {
-      $self->query("INSERT INTO equipment_mac_log (mac, nas_id, vlan, port, port_name, datetime) VALUES
-                    ('$attr->{MAC}', '$attr->{NAS_ID}', '$attr->{VLAN}', '$attr->{PORT}', '$attr->{PORT_NAME}', NOW());", 'do'
-      );
-    }
-  }
+  #  if ($self->{TOTAL}) {
+  #    $self->query("UPDATE equipment_mac_log SET datetime=NOW()
+  #      WHERE nas_id='$attr->{NAS_ID}'
+  #        AND mac='$attr->{MAC}'
+  #        AND vlan='$attr->{VLAN}'
+  #        AND port='$attr->{PORT}'",
+  #      'do'
+  #    );
+  #  }
+  #  else {
+  #    $self->query("INSERT INTO equipment_mac_log (mac, nas_id, vlan, port, port_name, datetime) VALUES
+  #                  ('$attr->{MAC}', '$attr->{NAS_ID}', '$attr->{VLAN}', '$attr->{PORT}', '$attr->{PORT_NAME}', NOW());", 'do'
+  #    );
+  #  }
+  #}
 
   return $self;
 }
@@ -2129,6 +2134,30 @@ sub onu_list {
 }
 
 #**********************************************************
+=head2 onu_date_status($attr)
+  Uploads date, status
+=cut
+#**********************************************************
+sub onu_date_status {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT
+      onu.id AS ID,
+      onu.datetime,
+      onu.onu_status
+    FROM equipment_pon_onu onu
+    INNER JOIN equipment_pon_ports p ON (p.id=onu.port_id)
+    INNER JOIN nas n ON (n.id=p.nas_id)
+    WHERE (p.nas_id='$attr->{NAS_ID}')",
+    undef,
+    $attr
+  );
+  my $list = $self->{list};
+  return $list;
+}
+
+#**********************************************************
 =head2 onu_list_vlan($attr)
 
 =cut
@@ -2167,8 +2196,8 @@ sub onu_list_vlan {
     [ 'DATETIME', 'DATE', 'onu.datetime', 1 ],
     [ 'DELETED', 'STR', 'onu.deleted', 1 ]
   ],
-    { WHERE => 1,
-    });
+    { WHERE => 1 }
+  );
 
   if ($attr->{TRAFFIC}) {
     my @fields = @{$self->search_expr("$attr->{TRAFFIC}", "STR", "CONCAT(onu.onu_in_byte, ',', onu.onu_out_byte) AS traffic", { EXT_FIELD => 1 })};

@@ -33,4 +33,5 @@ $lang{PACKET_SIZE} = 'Размер пакета (байт)';
 $lang{PACKET_COUNT} = 'Количество пакетов';
 $lang{PASTE} = 'Вставить';
 
+$lang{NO_TARIFF_SELECTED} = 'Тарифный план не выбран!';
 1;

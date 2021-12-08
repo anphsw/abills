@@ -1,6 +1,6 @@
 package Abills::Api::FildsGrouper;
 
-sub group_filds {
+sub group_fields {
   my ($result) = @_;
 
   if(ref $result eq 'ARRAY') {
@@ -18,19 +18,19 @@ sub group_filds {
 sub group {
   my ($result) = @_;
 
-  foreach my $fild_name (keys %$result) {
-    if($fild_name =~ m/(.*)_(\d*)$/gm) {
-      delete $result->{$fild_name};
+  foreach my $field_name (keys %$result) {
+    if($field_name =~ m/(.*)_(\d*)$/gm) {
+      delete $result->{$field_name};
     }
   }
 
-  foreach my $fild_name (keys %$result) {
-    if($fild_name =~ m/(.*)_ALL$/gm) {
-      my $old_fild_name = $fild_name;
-      $fild_name =~ s/_ALL$//gm;
+  foreach my $field_name (keys %$result) {
+    if($field_name =~ m/(.*)_ALL$/gm) {
+      my $old_fild_name = $field_name;
+      $field_name =~ s/_ALL$//gm;
 
       my @list = split (', ', $result->{$old_fild_name});
-      $result->{$fild_name} = \@list;
+      $result->{$field_name} = \@list;
       delete $result->{$old_fild_name};
     }
   }

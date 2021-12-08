@@ -70,7 +70,7 @@ sub list_users {
     exit;
   }
 
-  my $user_list = $Internet->list({
+  my $user_list = $Internet->user_list({
     GID       => $gid,
     TP_ID     => $tp_id,
     ONLINE    => '_SHOW',

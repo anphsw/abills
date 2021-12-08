@@ -6,7 +6,7 @@ package Cams;
 
 =VERSION
 
-  VERSION = 0.02
+  VERSION = 0.03
 
 =cut
 
@@ -221,8 +221,8 @@ sub users_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT = ($attr->{SORT}) ? $attr->{SORT} : '';
-  $DESC = ($attr->{DESC}) ? '' : 'DESC';
+  $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 1000;
 
@@ -270,7 +270,7 @@ sub users_list {
    LEFT JOIN tarif_plans tp    ON (cm.tp_id=tp.tp_id)
    LEFT JOIN cams_services s   ON (tp.service_id=s.id)
    $EXT_TABLE
-   $WHERE GROUP BY cm.id LIMIT $PG, $PAGE_ROWS ;",
+   $WHERE GROUP BY cm.id ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS ;",
     undef,
     {
       COLS_NAME => 1,
@@ -426,7 +426,7 @@ sub tp_list {
   my ($attr) = @_;
 
   $SORT = ($attr->{SORT}) ? $attr->{SORT} : 1;
-  $DESC = ($attr->{DESC}) ? 'DESC' : '';
+  $DESC = ($attr->{DESC}) ? $attr->{DESC} : '';
   $PG = ($attr->{PG}) ? $attr->{PG} : 0;
   $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
@@ -477,7 +477,7 @@ sub tp_list {
    FROM cams_tp ctp
    LEFT JOIN tarif_plans   tp ON (ctp.tp_id=tp.tp_id)
    LEFT JOIN cams_services s  ON (ctp.service_id=s.id)
-    $WHERE ORDER BY $SORT;",
+    $WHERE ORDER BY $SORT $DESC;",
     undef,
     {
       COLS_NAME => 1,
@@ -675,15 +675,7 @@ sub streams_list {
 
   my $WHERE = $self->search_former($attr, $search_columns, { WHERE => 1 });
 
-  my $EXTRA_JOIN = "LEFT JOIN cams_services s ON (g.service_id=s.id)";
-
-  if ($CONF->{CAMS_FOLDER}) {
-    $WHERE .= $WHERE ? " AND cs.group_id=0" : "WHERE cs.group_id=0";
-    $EXTRA_JOIN = "LEFT JOIN cams_services s ON (f.service_id=s.id)";
-  }
-  else {
-    $WHERE .= $WHERE ? " AND cs.folder_id=0" : "WHERE cs.folder_id=0";
-  }
+  my $EXTRA_JOIN = "LEFT JOIN cams_services s ON (f.service_id=s.id OR g.service_id=s.id)";
 
   $self->query2(
     "SELECT $self->{SEARCH_FIELDS} cs.id, cs.coordx, cs.coordy
@@ -1351,14 +1343,9 @@ sub user_folders {
     push @MULTI_QUERY, [ $attr->{ID}, $attr->{TP_ID}, $id ];
   }
 
-  $self->query(
-    "INSERT INTO cams_users_folders
-     (id, tp_id, folder_id, changed)
-        VALUES (?, ?, ?, NOW());",
-    undef,
-    { MULTI_QUERY => \@MULTI_QUERY }
-  );
-
+  $self->query("INSERT INTO cams_users_folders (id, tp_id, folder_id, changed) VALUES (?, ?, ?, NOW());",
+    undef, { MULTI_QUERY => \@MULTI_QUERY });
+  
   return $self;
 }
 
@@ -1482,6 +1469,28 @@ sub user_cameras_list {
   $self->{USER_CAMERAS} = $self->{TOTAL};
 
   return $self->{list};
+}
+
+#**********************************************************
+=head2 user_total_cameras($attr)
+
+  Arguments:
+    $uid
+
+=cut
+#**********************************************************
+sub user_total_cameras {
+  my $self = shift;
+  my $uid = shift;
+
+  return 0 if !$uid;
+
+  $self->query("SELECT COUNT(c.id) AS total FROM cams_users_cameras uc
+    LEFT JOIN cams_main c ON (uc.id = c.id AND c.tp_id = uc.tp_id)
+    WHERE c.uid = ?;", undef, { INFO => 1, Bind => [ $uid ] }
+  );
+
+  return $self;
 }
 
 #**********************************************************

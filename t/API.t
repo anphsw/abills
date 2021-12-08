@@ -2,6 +2,10 @@
 
   API test
 
+=head1 VERSION
+
+  VERSION: 0.10
+
 =cut
 
 use strict;
@@ -60,12 +64,15 @@ my %colors = (
 );
 
 my $ARGS = parse_arguments(\@ARGV);
+my $sid = q{};
+my $uid = q{};
 
 opendir(DIR, 'schemas');
 my @folder = readdir(DIR);
 
 foreach my $folder (@folder) {
   next if ($folder =~ /\./);
+  next if ($folder =~ /admin/);
 
   my $request_file = "$RealBin/schemas/$folder/$folder\_request.json";
   my $schema_file = "$RealBin/schemas/$folder/$folder\_schema.json";
@@ -94,14 +101,50 @@ my $test_number = 0;
 my $apiKey = $ARGS->{KEY} || $ARGV[$#ARGV];
 my $protocol = ("--use-http" ~~ @ARGV) ? "http" : "https";
 
+my $response;
+
 foreach my $test (@test_list) {
+  next if ($test->{name} ne 'LOGIN');
+
+  $test->{body}->{login} = $conf{API_TEST_USER_LOGIN} || "test";
+  $test->{body}->{password} = $conf{API_TEST_USER_PASSWORD} || "123456";
+
+  test_check($test);
+
+  if($response->{_content}){
+    my $res = decode_json($response->{_content});
+    $sid = $res->{sid};
+    $uid = $res->{uid};
+  }
+}
+
+foreach my $test (@test_list) {
+  next if ($test->{name} eq 'LOGIN');
+  test_check($test);
+}
+
+#**********************************************************
+=head2 test_check($test)
+
+  Params
+    $test - test params hash
+
+  Returns
+    prints result of test
+=cut
+#**********************************************************
+sub test_check {
+  my ($test) = @_;
   $test_number++;
+
+  if ($test->{path} =~ /user\//g && $test->{path} =~ /:uid/g) {
+    $test->{path} =~ s/:uid/$uid/g;
+    # Abills::Base::_bp('', $test->{path}, {TO_CONSOLE => 1});
+  }
 
   my $url = "$protocol://" . ($ARGS->{URL} ? $ARGS->{URL} : 'localhost:9443') . "/api.cgi/$test->{path}";
 
   my $start_time = gettimeofday();
-
-  my $response;
 
   my $http_status = 0;
   my $execution_time = 0;
@@ -117,24 +160,37 @@ foreach my $test (@test_list) {
   $Ua->default_header(KEY => $apiKey);
 
   if ($test->{method} eq 'POST') {
-    my $post_request = HTTP::Request->new('POST', $url);
+    my $header;
 
-    $post_request->header('Content-Type' => 'application/json');
-    $post_request->content(encode_json $test->{body});
+    if ($test->{path} =~ /user\//g) {
+      $header = [ 'USERSID' => "$sid", 'Content-Type' => 'application/json; charset=UTF-8' ];
+    }
+    else {
+      $header = [ 'Content-Type' => 'application/json; charset=UTF-8' ];
+    }
+
+    my $post_request = HTTP::Request->new('POST', $url, $header, encode_json($test->{body}));
 
     $response = $Ua->request($post_request);
-
   }
   elsif ($test->{method} eq 'GET') {
     my %params = %{$test->{params}};
-
     my $query = '';
+    my $header;
 
+    if ($test->{path} =~ /user\//g) {
+      $header = [ 'USERSID' => "$sid", 'Content-Type' => 'application/json; charset=UTF-8' ];
+    }
+    else {
+      $header = [ 'Content-Type' => 'application/json; charset=UTF-8' ];
+    }
     foreach my $key (keys %params) {
       $query .= $key . '=' . $params{$key} . '&';
     }
 
-    $response = $Ua->request(GET "$url\?$query");
+    my $get_request = HTTP::Request->new('GET', "$url\?$query", $header);
+
+    $response = $Ua->request($get_request);
   }
 
   $http_status = $response->code();

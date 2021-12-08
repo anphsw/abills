@@ -564,7 +564,8 @@ sub session_sum {
     u.domain_id,
     u.credit,
     u.ext_bill_id,
-    i.tp_id
+    i.tp_id,
+    i.detail_stats
    FROM users u
    INNER JOIN internet_main i ON (i.uid=u.uid)
    WHERE i.id='$attr->{SERVICE_ID}';",

@@ -85,39 +85,24 @@ sub notify_admins {
   my $referer = ($CONF->{BILLING_URL} || $ENV{HTTP_REFERER} || '');
   if ( $referer && $referer =~ /(https?:\/\/[a-zA-Z0-9:\.\-]+)\/?/g ) {
     $site = $1 || '';
-    $preview_url_without_message_id = $site . "/index.cgi?get_index=msgs_user&ID=";
+    $preview_url_without_message_id = $site . "/admin/index.cgi?get_index=msgs_admin&full=1&chg=";
   }
 
-  my $message_info = $Msgs->messages_list({
-    MSG_ID     => $message_id,
-    RESPOSIBLE => '_SHOW',
-    MESSAGE    => '_SHOW',
-    STATE      => '_SHOW',
-    SUBJECT    => '_SHOW',
-    COLS_NAME  => 1
-  });
+  my $message_info = $Msgs->message_info($message_id);
+  if ($Msgs->{errno} || (!$attr->{AID} && !$message_info->{RESPOSIBLE})) {
+    return 0;
+  }
 
-  if (
-      # Error
-      $Msgs->{errno}
-        # Broken response
-        || (!$message_info || ref $message_info ne 'ARRAY' || !$message_info->[0] || ref $message_info->[0] ne 'HASH')
-        # If no resposible, don't need to notify
-        || (!$attr->{AID} && !$message_info->[0]->{resposible}))
-    {
-      return 0;
-    }
-
-  my $resposible_aid = $message_info->[0]->{resposible} || q{};
+  my $resposible_aid = $message_info->{RESPOSIBLE} || q{};
 
   return 1 if ($attr->{SENDER_AID} && $attr->{SENDER_AID} eq $resposible_aid);
-  my $subject = ($message_info->[0]->{subject} || $FORM{SUBJECT} || q{});
-  my $message = $FORM{MESSAGE} || $FORM{REPLY_TEXT} || $attr->{MESSAGE} || $message_info->[0]->{message} || '';
-  $message = ($message_info->[0]->{message} || '') if ($attr->{NEW_RESPONSIBLE});
+  my $subject = ($message_info->{SUBJECT} || $FORM{SUBJECT} || q{});
+  my $message = $FORM{MESSAGE} || $FORM{REPLY_TEXT} || $attr->{MESSAGE} || $message_info->{MESSAGE} || '';
+  $message = ($message_info->{MESSAGE} || '') if ($attr->{NEW_RESPONSIBLE});
 
   # Get status name
   my $state_msg = '';
-  if (defined $message_info->[0]->{state}) {
+  if (defined $message_info->{STATE}) {
     $Msgs->status_list({
       ID          => '_SHOW',
       NAME        => '_SHOW',
@@ -127,38 +112,40 @@ sub notify_admins {
 
     if (!$Msgs->{errno}) {
       my $status_hash = $Msgs->{list_hash};
-      my $status_name = $status_hash->{$message_info->[0]->{state}} || '';
+      my $status_name = $status_hash->{$message_info->{STATE}} || '';
       $status_name = ::_translate($status_name);
       $state_msg = "\n ($lang{STATE} : $status_name)";
     }
   }
 
   my $ATTACHMENTS = $attr->{ATTACHMENTS} || [];
-  my $RESPOSIBLE = ($FORM{RESPOSIBLE} && $FORM{RESPOSIBLE} eq $resposible_aid) ? $lang{YES} : $lang{NO};
+  my $RESPONSIBLE = ($FORM{RESPOSIBLE} && $FORM{RESPOSIBLE} eq $resposible_aid) ? $lang{YES} : $lang{NO};
+  my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
+    ? $preview_url_without_message_id . $message_id : undef;
+  $preview_url .= "&UID=$message_info->{UID}" if $message_info->{UID} && $preview_url;
+
   my $mail_message = $html->tpl_show(::_include('msgs_email_notify', 'Msgs'), {
-    SITE       => $site,
-    LOGIN      => $Msgs->{LOGIN} || $FORM{LOGIN} || $ui->{LOGIN} || $user->{LOGIN} || '',
-    ADMIN      => ($FORM{INNER_MSG}) ? "$lang{ADMIN}: $admin->{A_LOGIN} (" . ($admin->{A_FIO} || q{}) . '}' : '',
-    UID        => $Msgs->{UID} || $FORM{UID} || '',
-    DATE       => $DATE,
-    TIME       => $TIME,
-    ID         => $message_id . (($reply_id) ? " / $reply_id" : ''),
-    RESPOSIBLE => $RESPOSIBLE,
-    SUBJECT    => $subject,
-    STATUS     => $attr->{STATE} || $FORM{STATE} || 0,
-    MESSAGE    => $message,
-    ATTACHMENT => ($FORM{FILE_UPLOAD} && $FORM{FILE_UPLOAD}->{filename}) ? $FORM{FILE_UPLOAD}->{filename} : q{}
+    SITE        => $site,
+    LOGIN       => $message_info->{LOGIN} || $FORM{LOGIN} || $ui->{LOGIN} || $user->{LOGIN} || '',
+    ADMIN       => ($FORM{INNER_MSG}) ? "$lang{ADMIN}: $admin->{A_LOGIN} (" . ($admin->{A_FIO} || q{}) . '}' : '',
+    UID         => $message_info->{UID} || $FORM{UID} || '',
+    DATE        => $main::DATE,
+    TIME        => $main::TIME,
+    ID          => $message_id . (($reply_id && $reply_id ne '--') ? " / $reply_id" : ''),
+    RESPONSIBLE => $RESPONSIBLE,
+    SUBJECT     => $subject,
+    STATUS      => $message_info->{STATE} || $attr->{STATE} || $FORM{STATE} || 0,
+    MESSAGE     => $message,
+    ATTACHMENT  => ($FORM{FILE_UPLOAD} && $FORM{FILE_UPLOAD}->{filename}) ? $FORM{FILE_UPLOAD}->{filename} : q{},
+    SUBJECT_URL => $preview_url,
   }, { OUTPUT2RETURN => 1 });
 
-  my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
-    ? $preview_url_without_message_id . $message_id
-    : undef;
-  if($attr->{NEW_RESPONSIBLE}){
-    $subject = $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} . " '".$html->b($subject)."'";
-  } else {
-    $subject = "#$message_id ".$lang{YOU_HAVE_NEW_REPLY} . " '" . $html->b($subject) . "'" . $state_msg;
+  if ($attr->{NEW_RESPONSIBLE}) {
+    $subject = $lang{YOU_HAVE_BEEN_SET_AS_RESPONSIBLE_IN} . " '" . $subject . "'";
   }
-
+  else {
+    $subject = "#$message_id " . $lang{YOU_HAVE_NEW_REPLY} . " '" . $subject . "'" . $state_msg;
+  }
 
   $Sender->send_message_auto({
     AID         => $attr->{NEW_RESPONSIBLE} ? $attr->{AID} : ($resposible_aid || $attr->{SEND_TO_AID}),
@@ -167,7 +154,7 @@ sub notify_admins {
     MAIL_TPL    => $mail_message,
     ATTACHMENTS => ($#{$ATTACHMENTS} > -1) ? $ATTACHMENTS : undef,
     ACTIONS     => $preview_url,
-    MAIL_HEADER => [ "X-ABillS-Msg-ID: $message_id", "X-ABillS-REPLY-ID: $reply_id" ],
+    MAIL_HEADER => [ "X-ABillS-Msg-ID: $message_id", "X-ABillS-REPLY-ID: $reply_id", "Content-Type: text/html;" ],
     MAKE_REPLY  => $message_id,
     LANG        => \%lang,
     PARSE_MODE  => 'HTML',
@@ -228,6 +215,7 @@ sub notify_user {
   my $reply_id = $attr->{REPLY_ID} || 0;
   my $message_params = $self->_msgs_notify_user_collect_message_content($message_id, $attr);
   return 0 if (!$message_params);
+
   my $message = $message_params->{MESSAGE};
   my $subject = $message_params->{SUBJECT};
   my $state   = $message_params->{STATE};
@@ -260,8 +248,7 @@ sub notify_user {
   foreach my $user_info  ( @{$users_list} ) {
 
     my $preview_url = ($preview_url_without_message_id && $message_id ne '--')
-      ? $preview_url_without_message_id . $message_id
-      : undef;
+      ? $preview_url_without_message_id . $message_id : undef;
 
     my $mail_message = $html->tpl_show(::_include($message_tpl, 'Msgs'), {
       SITE        => $site,
@@ -278,25 +265,21 @@ sub notify_user {
       MESSAGE     => $message,
     }, { OUTPUT2RETURN => 1 });
 
-    #Old Contacts depricated
-    my $to_address;
-    if(! $CONF->{CONTACTS_NEW}) {
-      if(!  $send_type) {
-        $to_address = $user_info->{email};
-      }
-      elsif ( $send_type == 1 && $user_info->{phone}) {
-        $to_address = $user_info->{phone};
-      }
-      elsif (in_array( $send_type, [0, 1]) && $user_info->{email}) {
-        $to_address = $user_info->{email};
-      }
-    }
+    # #Old Contacts depricated
+    # my $to_address;
+    # if(! $CONF->{CONTACTS_NEW}) {
+    #   if(!  $send_type) {
+    #     $to_address = $user_info->{email};
+    #   }
+    #   elsif ( $send_type == 1 && $user_info->{phone}) {
+    #     $to_address = $user_info->{phone};
+    #   }
+    #   elsif (in_array( $send_type, [0, 1]) && $user_info->{email}) {
+    #     $to_address = $user_info->{email};
+    #   }
+    # }
 
-    if($Sender->{errno}) {
-      $html->message('err', $lang{ERROR},  "[$Sender->{errno}] $Sender->{errstr}");
-    }
-
-    $subject = "#$message_id ".$lang{YOU_HAVE_NEW_REPLY} . " '" . $html->b($subject) . "'";
+    $subject = "#$message_id ".$lang{YOU_HAVE_NEW_REPLY} . " '" . $subject . "'";
 
     $Sender->send_message_auto({
       UID         => $user_info->{uid},
@@ -309,9 +292,11 @@ sub notify_user {
       MAKE_REPLY  => $message_id,
       LANG        => \%lang,
       PARSE_MODE  => 'HTML',
-      ALL         => 1
+      ALL         => 1,
+      USER_EMAIL  => !$CONF->{CONTACTS_NEW} ? $user_info->{email} : ''
     });
 
+    $html->message('err', $lang{ERROR},  "[$Sender->{errno}] $Sender->{errstr}") if $Sender->{errno};
   }
 
   return 1;

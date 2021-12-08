@@ -522,7 +522,7 @@ sub form_nas_console {
   _error_show($Nas_);
 
   if ($FORM{ACTION}) {
-    form_nas_console_command($Nas_);
+    form_nas_console_command($Nas_, \%FORM);
   }
 
   my @quick_cmd = ();
@@ -593,203 +593,229 @@ sub form_nas_console {
   return 1;
 }
 #**********************************************************
-=head2 form_nas_console_command($Nas_)
+=head2 form_nas_console_command($Nas_, $attr) - runs command on NAS and prints its output with HTML formatting
+
+  Arguments
+    $Nas_
+      NAS_ID
+      NAS_IP
+      NAS_NAME
+      NAS_TYPE
+      NAS_MNG_IP_PORT
+      NAS_MNG_USER
+      NAS_MNG_PASSWORD
+    $attr
+      NAS_MNG_IP_PORT
+      NAS_MNG_USER
+      NAS_MNG_PASSWORD
+      CMD - command to run on NAS
+      TYPE - connection type (protocol) to connect to NAS, telnet/ssh/rsh
+      SIMPLER_OUTPUT - simpler output format, <pre> instead of table
+      NAS_INFO_IN_CAPTION - print NAS info (id, name, ip) in caption
+      TIMEOUT - timeout. currently works only for telnet
+      DEBUG
 
 =cut
 #***********************************************************
 sub form_nas_console_command {
-  my ($Nas_) = @_;
+  my ($Nas_, $attr) = @_;
 
   my $result;
   my $col_delimeter = '';
-  my $nas_id          = $FORM{NAS_ID} || '';
-  $pages_qs = "&console=1&NAS_ID=$nas_id&full=1&ACTION=1&CMD=$FORM{CMD}";
-  $Nas_->{NAS_MNG_IP_PORT}  = $FORM{NAS_MNG_IP_PORT}  if ($FORM{NAS_MNG_IP_PORT});
-  $Nas_->{NAS_MNG_USER}     = $FORM{NAS_MNG_USER}     if ($FORM{NAS_MNG_USER});
-  $Nas_->{NAS_MNG_PASSWORD} = $FORM{NAS_MNG_PASSWORD} if ($FORM{NAS_MNG_PASSWORD});
+  my $nas_id = $attr->{NAS_ID} || '';
+  $pages_qs = "&console=1&NAS_ID=$nas_id&full=1&ACTION=1&CMD=$attr->{CMD}";
+
+  $Nas_->{NAS_MNG_IP_PORT}  = $attr->{NAS_MNG_IP_PORT}  if ($attr->{NAS_MNG_IP_PORT});
+  $Nas_->{NAS_MNG_USER}     = $attr->{NAS_MNG_USER}     if ($attr->{NAS_MNG_USER});
+  $Nas_->{NAS_MNG_PASSWORD} = $attr->{NAS_MNG_PASSWORD} if ($attr->{NAS_MNG_PASSWORD});
 
   my $wait_char = ']';
 
-  require Log;
-  Log->import('log_print');
-  my $Log = Log->new($db, \%conf);
-  $Log->{PRINT} = 1;
+  #require Log;
+  #Log->import('log_print');
+  #my $Log = Log->new($db, \%conf);
+  #$Log->{PRINT} = 1;
+
   require Abills::Nas::Control;
-  Abills::Nas::Control->import(qw/telnet_cmd3 rsh_cmd/);
+  Abills::Nas::Control->import(qw/rsh_cmd/);
   Abills::Nas::Control->new($db, \%conf);
 
-  $admin->system_action_add("NAS_Command:$FORM{CMD}", { TYPE => 14 });
+  $admin->system_action_add("NAS_Command:$attr->{CMD}", { TYPE => 14 });
 
-  if ($FORM{CMD} =~ /^([a-z]+):(.+)/) {
-    $FORM{TYPE} = $1 || q{};
-    $FORM{CMD}  = $2 || q{};
+  if ($attr->{CMD} =~ /^([a-z]+):(.+)/) {
+    $attr->{TYPE} = $1 || q{};
+    $attr->{CMD}  = $2 || q{};
   }
 
   my $table = $html->table(
     {
-      caption    => "$lang{RESULT}: $FORM{CMD}",
+      caption    => "$lang{RESULT}: $attr->{CMD}" . ($attr->{NAS_INFO_IN_CAPTION} ? " (NAS $Nas_->{NAS_ID}: $Nas_->{NAS_NAME}, $Nas_->{NAS_IP})" : ''),
       ID         => 'CONSOLE_RESULT',
       qs         => $pages_qs,
       DATA_TABLE => 1,
       EXPORT     => 1,
-      MENU       => "$lang{SAVE}::btn bg-olive margin export-btn",
+      MENU       => "$lang{SAVE}::btn bg-olive margin export-btn", #XXX does not work
     }
   );
 
   my $total_rows = 0;
 
-  my $type = $FORM{TYPE} || '';
+  my $type = $attr->{TYPE} || '';
   if ($Nas_->{NAS_TYPE} =~ /mpd|accel/ || ($type eq 'telnet')) {
+    my $telnet_attr = {
+      PROMPT  => ($conf{NAS_MNG_PROMPT} ? $conf{NAS_MNG_PROMPT} : '\n.*[\$%#\]>\?] ?$'),
+      TIMEOUT => $attr->{TIMEOUT}
+    };
+
     if ($Nas_->{NAS_TYPE} =~ /accel/) {
-      $wait_char     = '#';
+      $wait_char     = '#'; #XXX should be used as prompt for accel? test it.
+    }
+    elsif ($Nas_->{NAS_TYPE} =~ /mpd/) {
+      $telnet_attr->{PROMPT}  = '\n\[.*\] $';
+      $telnet_attr->{NO_CRLF} = 1; #mpd interprets CRLF as two newlines somewhy
     }
 
-    $col_delimeter = '\||\+';
+    $col_delimeter = '\||\+'; #XXX sometimes splits lines when it shouldn't (example: mikrotik's /system clock print, "gmt-offset: +03:00")
 
     my ($nas_ip, $nas_rad_port, $nas_telnet_port, undef) = split(/:/, $Nas_->{NAS_MNG_IP_PORT} || q{});
 
     if (!$nas_telnet_port) {
       $nas_telnet_port = $nas_rad_port || 23;
     }
-    my @exec_cmd = ();
-
-    if ($Nas_->{NAS_MNG_USER}) {
-      push @exec_cmd, "sername\t$Nas_->{NAS_MNG_USER}";
-    }
-
-    if ($Nas_->{NAS_MNG_PASSWORD}) {
-      push @exec_cmd, "assword\t$Nas_->{NAS_MNG_PASSWORD}";
-    }
-
-    push @exec_cmd, "$wait_char\t$FORM{CMD}", "$wait_char\texit";
-
 
     use Abills::Telnet;
 
-    my $t = Abills::Telnet->new();
+    my $t = Abills::Telnet->new($telnet_attr);
+
     $t->set_terminal_size(256, 1000);
-    my $prompt = $conf{NAS_MNG_PROMPT} ? $conf{NAS_MNG_PROMPT} : '\n.*[\$%#\]>]';
-    $t->prompt($prompt);
 
     if (!$t->open("$nas_ip:$nas_telnet_port")) {
       $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
+      return 0;
     }
 
-    if(!$t->login($Nas_->{NAS_MNG_USER}, $Nas_->{NAS_MNG_PASSWORD})) {
+    if (!$t->login($Nas_->{NAS_MNG_USER}, $Nas_->{NAS_MNG_PASSWORD})) {
       $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
+      return 0;
     }
 
     $result = [];
-    $FORM{CMD} =~ s/\r//g;
-    my @cmds = split '\n', $FORM{CMD};
-    foreach my $cmd (@cmds) {
-      $result = $t->cmd($cmd, {PROMPT => '\n.*[\$%#\]>\?] ?$'});
+    $attr->{CMD} =~ s/\r//g;
+    my @cmds = split '\n', $attr->{CMD};
+    foreach my $cmd (@cmds) { #XXX only result of last cmd will be shown, is it ok?
+      $result = $t->cmd($cmd);
       sleep 1;
-      if(!$result) {
+      if (!$result) {
         $html->message('err', $lang{ERROR} . ' Telnet', $t->errstr());
         $result = [];
       }
     }
 
-    my @caption = ();
+    if (!$attr->{SIMPLER_OUTPUT}) {
+      my @caption = ();
 
-    if($result->[0] && $result->[0] =~ /\|/) {
-      if ($result && $#{$result} > -1) {
-        @caption = split('\|', $result->[0]);
+      if($result->[0] && $result->[0] =~ /\|/) {
+        if ($result && $#{$result} > -1) {
+          @caption = split('\|', $result->[0]);
+        }
+
+        $result->[0] = undef;
+        $result->[1] = undef;
       }
 
-      $result->[0] = undef;
-      $result->[1] = undef;
-    }
+      my $ip_col = 3;
+      my $acct_session_col = 2;
+      if($attr->{CMD} eq "show sessions"){
+        if($Nas_->{NAS_TYPE} =~ /mpd/) {
+          @caption = ('IF', 'client_ip', 'BUNDLE', 'SESSION_ID', 'VLAN', '-', 'acct_session_id', $lang{LOGIN}, 'MAC', $lang{USER}, $lang{HANGUP});
+          $ip_col = 1;
+          $acct_session_col = 6;
+        }
+        else {
+          push(@caption, $lang{USER}, $lang{HANGUP});
+          $ip_col = 3;
+        }
 
-    my $ip_col = 3;
-    my $acct_session_col = 2;
-    if($FORM{CMD} eq "show sessions"){
-      if($Nas_->{NAS_TYPE} =~ /mpd/) {
-        @caption = ('IF', 'client_ip', 'BUNDLE', 'SESSION_ID', 'VLAN', '-', 'acct_session_id', $lang{LOGIN}, 'MAC', $lang{USER}, $lang{HANGUP});
-        $ip_col = 1;
-        $acct_session_col = 6;
-      }
-      else {
-        push(@caption, $lang{USER}, $lang{HANGUP});
-        $ip_col = 3;
-      }
+        my $users_online_list = undef;
+        if ( in_array('Internet', \@MODULES) ) {
+          require Internet::Sessions;
+          Internet::Sessions->import();
+          my Internet::Sessions $Sessions = Internet::Sessions->new($db, $admin, \%conf);
+          $users_online_list = $Sessions->online({
+            COLS_NAME       => 1,
+            NAS_ID          => $nas_id,
+            CLIENT_IP       => '_SHOW',
+            LOGIN           => '_SHOW',
+            #NAS_ID          => '_SHOW',
+            NAS_PORT_ID     => '_SHOW',
+            ACCT_SESSION_ID => '_SHOW',
+            USER_NAME       => '_SHOW',
+          });
+          _error_show($Sessions);
+        }
+        # else {
+        #   require Dv_Sessions;
+        #   Dv_Sessions->import();
+        #   my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
+        #   $users_online_list = $Dv_Sessions->online({
+        #     COLS_NAME       => 1,
+        #     NAS_ID          => $nas_id,
+        #     CLIENT_IP       => '_SHOW',
+        #     LOGIN           => '_SHOW',
+        #     #NAS_ID          => '_SHOW',
+        #     NAS_PORT_ID     => '_SHOW',
+        #     ACCT_SESSION_ID => '_SHOW',
+        #     USER_NAME       => '_SHOW',
+        #   });
+        #   _error_show($Dv_Sessions);
+        # }
 
-      my $users_online_list = undef;
-      if ( in_array('Internet', \@MODULES) ) {
-        require Internet::Sessions;
-        Internet::Sessions->import();
-        my Internet::Sessions $Sessions = Internet::Sessions->new($db, $admin, \%conf);
-        $users_online_list = $Sessions->online({
-          COLS_NAME       => 1,
-          NAS_ID          => $nas_id,
-          CLIENT_IP       => '_SHOW',
-          LOGIN           => '_SHOW',
-          #NAS_ID          => '_SHOW',
-          NAS_PORT_ID     => '_SHOW',
-          ACCT_SESSION_ID => '_SHOW',
-          USER_NAME       => '_SHOW',
-        });
-        _error_show($Sessions);
-      }
-      # else {
-      #   require Dv_Sessions;
-      #   Dv_Sessions->import();
-      #   my $Dv_Sessions = Dv_Sessions->new($db, $admin, \%conf);
-      #   $users_online_list = $Dv_Sessions->online({
-      #     COLS_NAME       => 1,
-      #     NAS_ID          => $nas_id,
-      #     CLIENT_IP       => '_SHOW',
-      #     LOGIN           => '_SHOW',
-      #     #NAS_ID          => '_SHOW',
-      #     NAS_PORT_ID     => '_SHOW',
-      #     ACCT_SESSION_ID => '_SHOW',
-      #     USER_NAME       => '_SHOW',
-      #   });
-      #   _error_show($Dv_Sessions);
-      # }
+        my $online_index = get_function_index('internet_online');
 
-      my $online_index = get_function_index('internet_online');
+        require Abills::Experimental;
+        my $users_online_hash = sort_array_to_hash($users_online_list, 'client_ip');
 
-      require Abills::Experimental;
-      my $users_online_hash = sort_array_to_hash($users_online_list, 'client_ip');
+        foreach my $line ( @{$result} ) {
+          if($line){
+            $line =~ s/\s+$//g;
+            $line =~ s/\s+/\|/g;
+            my @row = split('\|', $line || '');
 
-      foreach my $line ( @{$result} ) {
-        if($line){
-          $line =~ s/\s+$//g;
-          $line =~ s/\s+/\|/g;
-          my @row = split('\|', $line || '');
+            my $ip = $row[$ip_col] || q{};
+            $ip =~ s/\s+//g;
+            next if(! $ip);
 
-          my $ip = $row[$ip_col] || q{};
-          $ip =~ s/\s+//g;
-          next if(! $ip);
+            my $uid             = $users_online_hash->{$ip}->{uid} || '';
+            my $login           = $users_online_hash->{$ip}->{login} || '';
+            my $nas_port_id     = $users_online_hash->{$ip}->{nas_port_id} ? $users_online_hash->{$ip}->{nas_port_id} : '';
+            my $acct_session_id = $users_online_hash->{$ip}->{acct_session_id} || $row[$acct_session_col] || '';
+            my $user_name       = $users_online_hash->{$ip}->{user_name} || '';
 
-          my $uid             = $users_online_hash->{$ip}->{uid} || '';
-          my $login           = $users_online_hash->{$ip}->{login} || '';
-          my $nas_port_id     = $users_online_hash->{$ip}->{nas_port_id} ? $users_online_hash->{$ip}->{nas_port_id} : '';
-          my $acct_session_id = $users_online_hash->{$ip}->{acct_session_id} || $row[$acct_session_col] || '';
-          my $user_name       = $users_online_hash->{$ip}->{user_name} || '';
-
-          if($uid && $login){
-            $line .= " |". $html->button($login, "index=15&UID=$uid");
+            if($uid && $login){
+              $line .= " |". $html->button($login, "index=15&UID=$uid");
+            }
+            else {
+              $line .= " |";
+            }
+            $line .= " |". $html->button('H',
+              "index=$online_index&FRAMED_IP_ADDRESS=$ip&hangup=$nas_id%2B$nas_port_id%2B$acct_session_id%2B$user_name"
+              , { TITLE => 'Hangup', class => 'off',
+                NO_LINK_FORMER => 1
+              });
           }
-          else {
-            $line .= " |";
-          }
-          $line .= " |". $html->button('H',
-            "index=$online_index&FRAMED_IP_ADDRESS=$ip&hangup=$nas_id%2B$nas_port_id%2B$acct_session_id%2B$user_name"
-            , { TITLE => 'Hangup', class => 'off',
-              NO_LINK_FORMER => 1
-            });
         }
       }
+      $table->{table} .= $table->table_title_plain(\@caption);
     }
-    $table->{table} .= $table->table_title_plain(\@caption);
   }
   elsif ($type eq 'rsh') {
-    $result = Abills::Nas::Control::rsh_cmd($FORM{CMD}, { DEBUG => $FORM{DEBUG} || undef, %$Nas_ });
+    $result = Abills::Nas::Control::rsh_cmd($attr->{CMD}, {
+      DEBUG => $attr->{DEBUG} || undef,
+      %$Nas_,
+      RSH_CMD => $conf{RSH_CMD}
+    });
   }
-  elsif ($Nas_->{NAS_TYPE} =~ 'mikrotik' && $FORM{CMD} ne "export compact") {
+  elsif ($Nas_->{NAS_TYPE} =~ 'mikrotik' && $attr->{CMD} ne "export compact") {
     require Abills::Nas::Mikrotik;
     Abills::Nas::Mikrotik->import();
     my $Mikrotik = Abills::Nas::Mikrotik->new(
@@ -799,7 +825,7 @@ sub form_nas_console_command {
         FROM_WEB         => 1,
         MESSAGE_CALLBACK => sub { $html->message('info', $_[0], $_[1]) },
         ERROR_CALLBACK   => sub { $html->message('err', $_[0], $_[1]) },
-        DEBUG            => $FORM{DEBUG} || 0
+        DEBUG            => $attr->{DEBUG} || 0
       }
     );
 
@@ -814,7 +840,7 @@ sub form_nas_console_command {
       return 0;
     }
 
-    my $cmd = $FORM{CMD};
+    my $cmd = $attr->{CMD};
     if (!$cmd){
       $html->message('err', $lang{ERROR}, "Need command to execute");
       return 0;
@@ -910,7 +936,7 @@ sub form_nas_console_command {
 
         #          $table = $html->table({
         #            width       => '500',
-        #            caption     => "$lang{RESULT}: $FORM{CMD}",
+        #            caption     => "$lang{RESULT}: $attr->{CMD}",
         #            title_plain => \@columns,
         #            ID          => 'CONSOLE_RESULT',
         #            EXPORT      => 1,
@@ -930,9 +956,9 @@ sub form_nas_console_command {
   }
   else {
     $table->{table} .= $table->table_title_plain(["result"]);
-    $FORM{CMD} =~ s/\\\"/\"/g;
-    $result = ssh_cmd($FORM{CMD}, {
-      DEBUG => $FORM{DEBUG},
+    $attr->{CMD} =~ s/\\\"/\"/g;
+    $result = ssh_cmd($attr->{CMD}, {
+      DEBUG => $attr->{DEBUG},
       %$Nas_
     });
     my @result2 = ();
@@ -967,48 +993,58 @@ sub form_nas_console_command {
     }
   }
 
-  if ($FORM{CMD} =~ /^sh sss session$/) {
+  if ($attr->{CMD} =~ /^sh sss session$/) {
     $col_delimeter = '\s+';
   }
 
-  foreach my $line (@{$result}) {
-    next if (!$line);
-    my @row = ();
+  if ($attr->{SIMPLER_OUTPUT}) {
+    print $html->message(
+      (@$result) ? 'info' : 'err',
+      "$lang{RESULT}: $attr->{CMD}" . ($attr->{NAS_INFO_IN_CAPTION} ? " (NAS $Nas_->{NAS_ID}: $Nas_->{NAS_NAME}, $Nas_->{NAS_IP})" : ''),
+      (@$result) ? $html->element('pre', join("\n", @$result), { class => 'border rounded bg-light' }) : $lang{ERROR}
+    );
+  }
+  else {
+    foreach my $line (@{$result}) {
+      next if (!$line);
+      my @row = ();
 
-    if ($col_delimeter) {
-      @row = split(/$col_delimeter/, $line || q{});
-    }
-    elsif ($FORM{CMD} =~ /compact/) {
-      push @row, $line;
-    }
-    else {
-      $line =~ s/\s/\&nbsp;/g;
-      push @row, $html->color_mark($line, 'code');
-    }
-
-    if ($FORM{CMD} =~ /^sh sss session$/) {
-      if ($#row > 6) {
-        next;
+      if ($col_delimeter) {
+        @row = split(/$col_delimeter/, $line || q{});
       }
-      if ($row[0] !~ /^Current/) {
-        push @row, $html->button($lang{SHOW}, "index=$index&console=1&NAS_ID=$nas_id&full=1&CMD=rsh:sh sss session uid $row[0]&ACTION=1");
+      elsif ($attr->{CMD} =~ /compact/) {
+        push @row, $line;
       }
+      else {
+        $line =~ s/\s/\&nbsp;/g;
+        push @row, $html->color_mark($line, 'code');
+      }
+
+      if ($attr->{CMD} =~ /^sh sss session$/) {
+        if ($#row > 6) {
+          next;
+        }
+        if ($row[0] !~ /^Current/) {
+          push @row, $html->button($lang{SHOW}, "index=$index&console=1&NAS_ID=$nas_id&full=1&CMD=rsh:sh sss session uid $row[0]&ACTION=1");
+        }
+      }
+
+      $table->addrow(@row);
+      $total_rows++;
     }
 
-    $table->addrow(@row);
-    $total_rows++;
+    print $table->show();
+
+    # $table = $html->table(
+    #   {
+    #     width => '100%',
+    #     rows  => [ [ "$lang{TOTAL}:", $html->b($total_rows) ] ]
+    #   }
+    # );
+
+    #    print $table->show();
   }
 
-  print $table->show();
-
-  # $table = $html->table(
-  #   {
-  #     width => '100%',
-  #     rows  => [ [ "$lang{TOTAL}:", $html->b($total_rows) ] ]
-  #   }
-  # );
-
-  #    print $table->show();
   return 1;
 }
 

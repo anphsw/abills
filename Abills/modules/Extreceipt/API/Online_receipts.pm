@@ -7,9 +7,9 @@
 
 =head1 VERSION
 
-  VERSION: 0.08
-  DATE: 20210512
-  UPDATE: 20210517
+  VERSION: 0.11
+  DATE: 20211104
+  UPDATE: 20211102
 
 =cut
 package Online_receipts;
@@ -22,7 +22,7 @@ use JSON;
 use utf8 qw/encode/;
 use Abills::Fetcher;
 
-my $VERSION = 0.08;
+my $VERSION = 0.11;
 my $api_url = '';
 my $curl    = '';
 
@@ -91,7 +91,14 @@ sub payment_register {
   }
 
   my $phone = $attr->{c_phone} || $attr->{phone} || $attr->{mail} || '';
-  $phone =~ s/[\s]+//g;
+  $phone =~ s/\s+//g;
+  $phone =~ s/\W+//g;
+  if ($phone !~ /^[0-9]{11}$/) {
+    $phone = q{};
+  }
+  if (! $phone) {
+    $phone = $self->{conf}->{EXTRECEIPTS_FAIL_EMAIL} || ($attr->{uid} . '@myisp.ru');
+  }
 
   my %data = (
     nonce          => $self->get_nonce(),
@@ -273,7 +280,14 @@ sub payment_cancel {
   }
 
   my $phone = $attr->{c_phone} || $attr->{phone} || $attr->{mail} || '';
-  $phone =~ s/[\s]+//g;
+  $phone =~ s/\s+//g;
+  $phone =~ s/\W+//g;
+  if ($phone !~ /^[0-9]{11}$/) {
+    $phone = q{};
+  }
+  if (! $phone) {
+    $self->{conf}->{EXTRECEIPTS_FAIL_EMAIL} || ($attr->{uid} . '@myisp.ru');
+  }
 
   my %data = (
     nonce          => $self->get_nonce(),

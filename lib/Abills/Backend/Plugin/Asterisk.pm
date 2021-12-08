@@ -237,7 +237,7 @@ sub process_asterisk_newchannel {
             $uid = $user->[0]->{uid};
           }
 
-          $Callcenter->callcenter_add_cals({
+          $Callcenter->callcenter_add_calls({
             USER_PHONE     => $caller_number,
             OPERATOR_PHONE => $called_number,
             ID             => $call_id,
@@ -514,7 +514,7 @@ sub _create_user_notification {
     require Internet;
     my $Internet = Internet->new($db, $admin, \%conf);
 
-    my $user_internet_main = $Internet->list({
+    my $user_internet_main = $Internet->user_list({
       UID             => $user_info->{UID},
       TP_NAME         => '_SHOW',
       INTERNET_STATUS => '_SHOW',

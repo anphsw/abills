@@ -22,6 +22,7 @@
    SNMP_SERIAL_SCAN_ALL
    QUERY_OIDS - query only this OIDs
    TRANSACTION - perform all grabber queries to DB in one transaction
+   DEBUG - debug level
 
 =cut
 
@@ -752,7 +753,7 @@ sub _save_port_and_nas_to_internet_main {
           }
         }
         else {
-          $Internet->change({
+          $Internet->user_change({
             UID    => $onu_to_set->{uid},
             ID     => $onu_to_set->{service_id},
             NAS_ID => $onu_to_set->{onu_nas},
@@ -788,7 +789,7 @@ sub _save_port_and_nas_to_internet_main {
           print "User:$uid add server_vlan ($attached_onu->{onu_server_vlan})\n"
         }
 
-        $Internet->change({
+        $Internet->user_change({
           UID         => $attached_onu->{uid},
           ID          => $attached_onu->{service_id},
           VLAN        => $vlan_to_set,
@@ -809,7 +810,7 @@ sub _fill_cpe_from_nas_and_port {
   require Internet;
   my $Internet = Internet->new($db, $Admin, \%conf);
 
-  my $internet_list = $Internet->list({
+  my $internet_list = $Internet->user_list({
     NAS_ID    => ($argv->{NAS_IDS}) ? $argv->{NAS_IDS} : '_SHOW',
     PORT      => '_SHOW',
     CPE_MAC   => '_SHOW',
@@ -835,7 +836,7 @@ sub _fill_cpe_from_nas_and_port {
     }
 
     if ($macs_by_nas_port{$line->{nas_id}} && $macs_by_nas_port{$line->{nas_id}}{$line->{port}}) {
-      $Internet->change({
+      $Internet->user_change({
         UID => $line->{uid},
         ID  => $line->{id},
         CPE_MAC => $macs_by_nas_port{$line->{nas_id}}{$line->{port}}

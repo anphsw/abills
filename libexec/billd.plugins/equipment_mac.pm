@@ -214,7 +214,6 @@ sub equipment_check {
           }
         }
       }
-      $Equipment->mac_log_add({ %data, DATETIME => 1 });
 
       my $key = $data{MAC} . '_' . $data{VLAN} . '_' . $data{PORT};
       $key =~ s/\./_/g;

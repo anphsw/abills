@@ -132,16 +132,16 @@ sub user_set_credit {
 
     return { error => $Users->{errno}, errstr => $Users->{errstr} } if $Users->{errno};
 
+    my $user_info = $Users->info($attr->{UID}, { SHOW_PASSWORD => 1 });
     $self->_show_message('info', '$lang{CHANGED}', '$lang{CREDIT}: ' . $sum);
     if ($price && $price > 0) {
       my $Fees = Finance->fees($db, $admin, $CONF);
       $Fees->take($Users, $price, { DESCRIBE => ::_translate('$lang{CREDIT} $lang{ENABLE}') });
     }
 
-    ::cross_modules_call('_payments_maked', { USER_INFO => $Users, SUM => $sum, SILENT => 1 });
-
+    ::cross_modules_call('_payments_maked', { USER_INFO => $user_info, SUM => $sum, SILENT => 1 });
     if ($CONF->{external_userchange}) {
-      return () if (!::_external($CONF->{external_userchange}, $Users));
+      return () if (!::_external($CONF->{external_userchange}, $user_info));
     }
 
     return $credit_info;
@@ -188,7 +188,7 @@ sub internet_add_compensation {
   my @table_rows = ();
 
   $Users->info($attr->{UID});
-  $Internet->info($attr->{UID});
+  $Internet->user_info($attr->{UID});
   $Internet->{DAY_ABON} ||= 0;
   $Internet->{MONTH_ABON} ||= 0;
 
@@ -296,7 +296,7 @@ sub user_holdup {
   my ($hold_up_min_period, $hold_up_max_period, $hold_up_period, $hold_up_day_fee,
     undef, $active_fees, $holdup_skip_gids, $user_del_shedule, $expr_) = split(/:/, $CONF->{INTERNET_USER_SERVICE_HOLDUP});
   my $user_info = $Users->info($attr->{UID});
-  my $internet_info = $Internet->info($attr->{UID}, { ID => $attr->{ID} });
+  my $internet_info = $Internet->user_info($attr->{UID}, { ID => $attr->{ID} });
   return { error => 4406, errstr => 'ERR_NO_SERVICE_HOLDUP_ACCESS' } if (!$Internet->{TOTAL} || $Internet->{TOTAL} < 1);
 
   if ($holdup_skip_gids) {
@@ -308,7 +308,7 @@ sub user_holdup {
   return $check_exp_result if $check_exp_result->{error};
 
   if ($attr->{add} && $active_fees && $active_fees > 0 && $user_info->{DEPOSIT} < $active_fees) {
-    $self->_show_message('err', '$lang{HOLDUP}', '$lang{ERR_SMALL_DEPOSIT}');
+    $self->_show_message('err', '$lang{HOLD_UP}', '$lang{ERR_SMALL_DEPOSIT}');
     return { error => 4407, errstr => 'ERR_SMALL_DEPOSIT' };
   }
 
@@ -318,6 +318,51 @@ sub user_holdup {
 
   if ($attr->{del} && $user_del_shedule) {
     return $self->_del_holdup({ %{$attr}, INTERNET_STATUS => $internet_info->{DISABLE} });
+  }
+
+  if ($attr->{add} && $attr->{ACCEPT_RULES}) {
+    return $self->_add_holdup({ %{$attr}, HOLD_UP_MAX_PERIOD => $hold_up_max_period, HOLD_UP_MIN_PERIOD => $hold_up_min_period });
+  }
+
+  my ($y, $m) = split(/\-/, $main::DATE);
+  if ($hold_up_max_period && $CONF->{INTERNET_USER_SERVICE_HOLDUP_MP}) {
+    $self->{TO_DATE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * $hold_up_max_period)),
+  }
+
+  if ($hold_up_period) {
+    my $action_list = $admin->action_list({
+      UID       => $attr->{UID},
+      TYPE      => '14;8',
+      DATETIME  => '_SHOW',
+      FROM_DATE => ($CONF->{INTERNET_USER_SERVICE_HOLDUP_MP}) ? "$y-$m-01" : POSIX::strftime("%Y-%m-%d", localtime(time - 86400 * $hold_up_period)),
+      DATE      => '_SHOW',
+      TO_DATE   => $main::DATE,
+      COLS_NAME => 1
+    });
+
+    #If holdup period not expire can't holdup
+    if ($admin->{TOTAL} > 0) {
+      my $hold_up_days  = 0;
+      my $hold_up_start = '';
+      my $min_period    = 0;
+      foreach my $action (@$action_list) {
+        if ($action->{action_type} == 14) {
+          $hold_up_start = $action->{date};
+          $min_period = date_diff($action->{datetime}, $main::DATE);
+        }
+        else {
+          $hold_up_days += date_diff($hold_up_start, $main::DATE) if ($hold_up_start);
+          $min_period = 0;
+        }
+      }
+
+      if ($min_period < $hold_up_min_period) {
+        return { error => 4410, errstr => 'HOLDUP_PERIOD_NOT_EXPIRE' };
+      }
+      elsif($CONF->{INTERNET_USER_SERVICE_HOLDUP_MP}) {
+        $self->{TO_DATE} = POSIX::strftime("%Y-%m-%d", localtime(time + 86400 * ($hold_up_max_period - $hold_up_days))),
+      }
+    }
   }
 
   my ($del_ids, $shedule_date) = $self->_get_holdup_ids($attr->{UID}, $attr->{ID});
@@ -330,28 +375,6 @@ sub user_holdup {
     };
   }
 
-  if ($attr->{add} && $attr->{ACCEPT_RULES}) {
-    return $self->_add_holdup({ %{$attr}, HOLD_UP_MAX_PERIOD => $hold_up_max_period, HOLD_UP_MIN_PERIOD => $hold_up_min_period });
-  }
-
-  if ($hold_up_period) {
-    my $action_list = $admin->action_list({
-      UID       => $attr->{UID},
-      TYPE      => 14,
-      DATETIME  => '_SHOW',
-      FROM_DATE => POSIX::strftime("%Y-%m-%d", localtime(time - 86400 * $hold_up_period)),
-      TO_DATE   => $main::DATE,
-      COLS_NAME => 1
-    });
-
-    #If holdup period not expire can't holdup
-    if ($admin->{TOTAL} > 0) {
-      if (date_diff($action_list->[0]->{datetime}, $main::DATE) < $hold_up_min_period) {
-        return { error => 4410, errstr => 'HOLDUP_PERIOD_NOT_EXPIRE' };
-      }
-    }
-  }
-
   return ();
 }
 
@@ -361,8 +384,8 @@ sub user_holdup {
   Arguments:
     $attr
        UID
-       ID
        MODULE
+       SKIP_NOT_AVAILABLE_TARIFFS
 
   Returns:
     \@tariffs
@@ -474,6 +497,8 @@ sub available_tariffs {
       service_id => $tp->{service_id},
       day_fee    => $tp->{day_fee},
       month_fee  => $tp->{month_fee},
+      out_speed  => $tp->{out_speed},
+      in_speed   => $tp->{in_speed},
       ERROR      => ::_translate('$lang{ERR_SMALL_DEPOSIT}')
     });
   }
@@ -1166,14 +1191,14 @@ sub _chg_tp_immediately {
   my $change_params = {
     TP_ID    => $attr->{TP_ID},
     UID      => $attr->{UID},
-    STATUS   => ($Service->{STATUS} == 5) ? 0 : $attr->{STATUS},
+    STATUS   => ($Service->{STATUS} == 5) ? 0 : ($attr->{STATUS} || 0),
     ACTIVATE => ($Service->{ACTIVATE} ne '0000-00-00') ? "$main::DATE" : undef,
     ID       => $attr->{ID}
   };
 
-  return { CHANGE_DATA => $change_params, UID => $attr->{UID} } if ($attr->{DISABLE_CHANGE_TP} || !$Service->can('change'));
+  return { CHANGE_DATA => $change_params, UID => $attr->{UID} } if ($attr->{DISABLE_CHANGE_TP} || !$Service->can('user_change'));
 
-  $Service->change($change_params);
+  $Service->user_change($change_params);
 
   if (!$Service->{errno}) {
     $self->_show_message('info', '$lang{CHANGED}', '$lang{CHANGED}');
@@ -1296,10 +1321,7 @@ sub _service_info {
     error         => 4501
   } if (!$attr->{UID} || !$attr->{MODULE});
 
-  my %info_function = (
-    'info'      => [ $attr->{UID}, { ID => $attr->{ID} } ],
-    'user_info' => $attr->{ID}
-  );
+  my %info_function = ('Iptv' => $attr->{ID});
 
   eval {require $attr->{MODULE} . '.pm';};
 
@@ -1311,23 +1333,16 @@ sub _service_info {
   } if ($@);
 
   my $module = $attr->{MODULE}->new($db, $admin, $CONF);
-  my $function_name = '';
-  foreach my $function (keys %info_function) {
-    if ($module->can($function)) {
-      $function_name = $function;
-      last;
-    }
-  }
 
   return {
     message       => 'CANNOT_GET_SERVICE_INFO',
     message_type  => 'err',
     message_title => '$lang{ERROR}',
     error         => 4503
-  } if !$function_name;
+  } if !$module->can('user_info') ;
 
-  return $module->$function_name(ref($info_function{$function_name}) eq 'ARRAY' ?
-    @{$info_function{$function_name}} : $info_function{$function_name});
+  return $module->user_info($info_function{$attr->{MODULE}} ?
+    $info_function{$attr->{MODULE}} : ($attr->{UID}, { ID => $attr->{ID} }));
 }
 
 #**********************************************************
@@ -1403,7 +1418,7 @@ sub _get_credit_limit {
   }
 
   if (in_array('Internet', \@::MODULES)) {
-    $Internet->info($attr->{UID});
+    $Internet->user_info($attr->{UID});
     if ($Internet->{USER_CREDIT_LIMIT} && $Internet->{USER_CREDIT_LIMIT} > 0) {
       $credit_limit = $Internet->{USER_CREDIT_LIMIT};
     }
@@ -1594,7 +1609,7 @@ sub _del_holdup {
   $Internet->{STATUS_DAYS} = 1;
 
   if ($attr->{INTERNET_STATUS} == 3) {
-    $Internet->change({
+    $Internet->user_change({
       UID    => $attr->{UID},
       ID     => $attr->{ID},
       STATUS => 0,

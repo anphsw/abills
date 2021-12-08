@@ -96,9 +96,9 @@ sub log_list {
   my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
   my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
-  if (defined($attr->{LOGIN})) {
-    push @WHERE_RULES, "l.user = '$attr->{LOGIN}'";
-  }
+  # if ($attr->{LOGIN}) {
+  #   push @WHERE_RULES, "l.user = '$attr->{LOGIN}'";
+  # }
 
   if ($attr->{TEXT}) {
     push @WHERE_RULES, "message REGEXP '$attr->{TEXT}'";
@@ -112,6 +112,7 @@ sub log_list {
       ['USER',              'STR',  'l.user',                          1 ],
       ['MESSAGE',           'STR',  'l.message',                       1 ],
       ['NAS_ID',            'INT',  'l.nas_id',                        1 ],
+      ['REQUEST_COUNT',     'INT',  'l.request_count',                 1 ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(l.date, '%Y-%m-%d')",   ],
     ],
     {
@@ -120,10 +121,11 @@ sub log_list {
     }
   );
 
-  $self->query("SELECT l.date, l.log_type, l.action, l.user, l.message, l.nas_id
+  $self->query("SELECT l.date, l.log_type, l.action, l.user, l.message, $self->{SEARCH_FIELDS} l.nas_id
   FROM errors_log l
   $WHERE
-  ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+  ORDER BY $SORT $DESC
+  LIMIT $PG, $PAGE_ROWS;",
   undef,
   $attr
   );
@@ -264,16 +266,66 @@ sub log_add {
   my $self = shift;
   my ($attr) = @_;
 
-  $self->query("INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
+  if ($self->{conf}->{CONNECT_LOG}) {
+    $self->query("SELECT request_count FROM errors_log
+      WHERE
+       date > CURDATE()
+       AND user= ?
+       AND message = ?
+       AND nas_id= ?
+      ;",
+    undef,
+    { Bind => [
+      $attr->{USER_NAME},
+      $attr->{MESSAGE},
+      ($attr->{NAS_ID}) ? $attr->{NAS_ID} : 0
+    ]});
+
+    if ($self->{TOTAL}) {
+      $self->query('UPDATE errors_log SET
+          request_count = request_count + 1,
+          date = NOW()
+        WHERE
+           date > curdate()
+           AND action = ?
+           AND user = ?
+           AND message = ?
+           AND nas_id =? ;
+         ',
+        'do',
+        { Bind => [
+          $attr->{ACTION},
+          $attr->{USER_NAME} || '-',
+          $attr->{MESSAGE},
+          ($attr->{NAS_ID}) ? $attr->{NAS_ID} : 0
+        ] }
+      );
+    }
+    else {
+      $self->query("INSERT INTO errors_log (date, log_type, action, user, message, nas_id, request_count)
+  VALUES (NOW(), ?, ?, ?, ?, ?, 1);",
+        'do',
+        { Bind => [ $attr->{LOG_TYPE},
+          $attr->{ACTION},
+          $attr->{USER_NAME} || '-',
+          $attr->{MESSAGE},
+          (!$attr->{NAS_ID}) ? 0 : $attr->{NAS_ID}
+        ] }
+      );
+    }
+  }
+  else {
+    $self->query("INSERT INTO errors_log (date, log_type, action, user, message, nas_id)
   VALUES (NOW(), ?, ?, ?, ?, ?);",
-  'do',
-  { Bind => [ $attr->{LOG_TYPE}, 
-              $attr->{ACTION}, 
-              $attr->{USER_NAME} || '-', 
-              $attr->{MESSAGE}, 
-              (! $attr->{NAS_ID}) ? 0 : $attr->{NAS_ID}
-              ] }
-  );
+      'do',
+      { Bind => [ $attr->{LOG_TYPE},
+        $attr->{ACTION},
+        $attr->{USER_NAME} || '-',
+        $attr->{MESSAGE},
+        (!$attr->{NAS_ID}) ? 0 : $attr->{NAS_ID}
+      ] }
+    );
+  }
 
   return 0;
 }

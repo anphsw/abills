@@ -1,5 +1,6 @@
 <div class='form-address'>
   <input type='hidden' name='LOCATION_ID' id='ADD_LOCATION_ID' value='%LOCATION_ID%' class='HIDDEN-BUILD'>
+  <input type='hidden' name='MAPS2_SHOW_OBJECTS' id='MAPS2_SHOW_OBJECTS' value='%MAPS2_SHOW_OBJECTS%'>
 
   <div class='form-group row' style='%EXT_SEL_STYLE%'>
     <label class='col-sm-3 col-md-4 col-form-label text-md-right LABEL-DISTRICT'>_{DISTRICTS}_:</label>
@@ -63,8 +64,6 @@
     });
   });
 
-  let objectToShow = [];
-
   function GetStreets(data) {
     var distrId = jQuery("#" + data.id).val();
     distrId = distrId ? distrId : '_SHOW';
@@ -102,14 +101,11 @@
   function GetLoc(data) {
     item = jQuery("#" + data.id).val();
 
-    if (item == '--') {
-      item = '';
-    }
+    if (item == '--') item = '';
 
-    if (%MAPS2_SHOW_OBJECTS%) {
+    if (jQuery('#MAPS2_SHOW_OBJECTS').val()) {
       if (item && item !== '0') {
         jQuery('#map_add_btn').fadeIn(300);
-        objectToShow = [];
         getObjectToMap();
       } else
         jQuery('#map_add_btn').fadeOut(200);
@@ -122,22 +118,15 @@
   }
 
   let selected_builds = jQuery('#ADD_LOCATION_ID').attr('value');
-  if (selected_builds && !item && %MAPS2_SHOW_OBJECTS%){
+  if (selected_builds && !item && jQuery('#MAPS2_SHOW_OBJECTS').val()){
     item = selected_builds;
     jQuery('#map_add_btn').fadeIn(300);
     getObjectToMap();
   }
 
-  function getObjectId (){
-    return {
-      OBJECTS   : objectToShow,
-      OBJECT_ID : item
-    };
-  }
-
   function getObjectToMap() {
-    let url = '$SELF_URL?header=2&get_index=maps2_show_map&RETURN_HASH_OBJECT=1';
-    fetch(url + '&OBJECT_ID=' + item)
+    let url = '$SELF_URL?header=2&get_index=form_address_select2&PRINT_BUTTON=1&MAP_BUILT_BTN=' + item;
+    fetch(url)
       .then(function (response) {
         if (!response.ok)
           throw Error(response.statusText);
@@ -145,10 +134,10 @@
         return response;
       })
       .then(function (response) {
-        return response.json();
+        return response.text();
       })
       .then(result => async function (result) {
-        objectToShow = result;
+        jQuery('#map_add_btn').html(result);
       }(result));
   }
 

@@ -328,12 +328,12 @@ sub _bdcom {
         PARSER => ''
       },
       'ONU_IN_BYTE'    => {
-        NAME   => 'PORT_IN',
+        NAME   => 'ONU_IN_BYTE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.10', #ifHCOutOctets. reversed because we need traffic from ONU side
         PARSER => ''
       },
       'ONU_OUT_BYTE'   => {
-        NAME   => 'PORT_OUT',
+        NAME   => 'ONU_OUT_BYTE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.6', #ifHCInOctets. reversed because we need traffic from ONU side
         PARSER => ''
       },
@@ -437,7 +437,7 @@ sub _bdcom {
         NAME   => 'OLT_RX_POWER',
         OIDS   => '.1.3.6.1.4.1.3320.9.183.1.1.5',
         PARSER => '_bdcom_convert_power',
-        SKIP   => 'P3616-2TE'
+        #SKIP   => 'P3616-2TE' #seems that SKIP is not used anywhere. fix? rename to SKIP_MODEL?
       }, #olt_rx_power = olt_rx_power * 0.1;
       'ONU_DESC'            => {
         NAME   => 'DESCRIBE',
@@ -445,12 +445,12 @@ sub _bdcom {
         PARSER => ''
       },
       'ONU_IN_BYTE'         => {
-        NAME   => 'PORT_IN',
+        NAME   => 'ONU_IN_BYTE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.10', #ifHCOutOctets. reversed because we need traffic from ONU side
         PARSER => ''
       },
       'ONU_OUT_BYTE'        => {
-        NAME   => 'PORT_OUT',
+        NAME   => 'ONU_OUT_BYTE',
         OIDS   => '.1.3.6.1.2.1.31.1.1.1.6', #ifHCInOctets. reversed because we need traffic from ONU side
         PARSER => ''
       },

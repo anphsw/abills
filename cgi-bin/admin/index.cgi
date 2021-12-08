@@ -234,7 +234,7 @@ main_function($function_name);
 post_page();
 
 #**********************************************************
-=head2 form_admin_qm()
+=head2 form_admin_qm() - Admin's quick menu
 
 =cut
 #**********************************************************
@@ -268,7 +268,7 @@ sub form_admin_qm {
     }
 
     my $button = '';
-    if ( defined($menu_args{$qm_id}) && $menu_args{$qm_id} !~ /=/ ) {
+    if ( defined($menu_args{$qm_id}) && $menu_args{$qm_id} !~ /=/ ) { #XXX broken when there's comma (',') in $menu_args{$qm_id} or arg name is not 'LOGIN'
       $button = "<a class='$active' onclick='openModal($qm_btns_counter, \"ArrayBased\")' ><i class='fa fa-circle-o'></i>$qm_name</a>";
       $quick_menu_script .= "modalsSearchArray.push(['$lang{LOGIN}','LOGIN',$qm_id,'$SELF_URL']);\n";
       $qm_btns_counter++;
@@ -1323,10 +1323,11 @@ sub form_passwd {
   $password_form->{PW_LENGTH}  = $conf{PASSWD_LENGTH}  || 6;
   $password_form->{ACTION}     = 'change';
   $password_form->{LNG_ACTION} = $lang{CHANGE};
+  $password_form->{CONFIG_PASSWORD} = $conf{CONFIG_PASSWORD} || q{};
 
   if(! $FORM{generated_pw} || ! $FORM{newpassword} || ! $FORM{confirm}) {
     $password_form->{newpassword}=mk_unique_value($password_form->{PW_LENGTH},
-      {  SYMBOLS => $password_form->{PW_LENGTH} });
+      {  SYMBOLS => $password_form->{PW_CHARS} });
     $password_form->{confirm}=$password_form->{newpassword};
   }
 
@@ -1897,7 +1898,10 @@ sub form_search {
           );
         }
 
-        $address_form = form_address_select2({ %FORM, HIDE_ADD_BUILD_BUTTON => 1, MULTIPLE => 1 });
+        $address_form = form_address_select2({ %FORM,
+          HIDE_ADD_BUILD_BUTTON => $conf{HIDE_SEARCH_BUILD_INPUT} ? 1 : 0,
+          MULTIPLE              => 1
+        });
       }
       else {
         my $countries_hash;
@@ -2410,21 +2414,22 @@ sub sel_admins {
   if($attr->{HASH}) {
     my %admins_hash = ();
     foreach my $line (@$admins_list) {
-      $admins_hash{$line->{aid}}=$line->{login};
+      $admins_hash{$line->{aid}} = $line->{login};
     }
 
     return \%admins_hash;
   }
 
   return $html->form_select($select_name, {
-    SELECTED    => $attr->{SELECTED} || $attr->{$select_name} || $FORM{$select_name} || 0,
-    SEL_LIST    => $admins_list,
-    SEL_KEY     => 'aid',
-    SEL_VALUE   => 'name,login',
-    NO_ID       => 1,
-    SEL_OPTIONS => { '' => '--' },
-    REQUIRED    => ($attr->{REQUIRED}) ? 'required' : undef,
-    ID          => $attr->{ID} ? $attr->{ID} : undef
+    SELECTED           => $attr->{SELECTED} || $attr->{$select_name} || $FORM{$select_name} || 0,
+    SEL_LIST           => $admins_list,
+    SEL_KEY            => 'aid',
+    SEL_VALUE          => 'name,login',
+    NO_ID              => 1,
+    SEL_OPTIONS        => { '' => '--' },
+    REQUIRED           => ($attr->{REQUIRED}) ? 'required' : undef,
+    ID                 => $attr->{ID} ? $attr->{ID} : undef,
+    %{($attr->{EX_PARAMS} && ref $attr->{EX_PARAMS} eq 'HASH') ? $attr->{EX_PARAMS} : {}}
   });
 }
 

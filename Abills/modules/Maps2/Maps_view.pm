@@ -51,11 +51,7 @@ sub new {
   $CONF = shift;
   my $attr = shift;
 
-  my $self = {
-    db    => $db,
-    admin => $admin,
-    conf  => $CONF,
-  };
+  my $self = { db => $db, admin => $admin, conf => $CONF };
 
   bless($self, $class);
 
@@ -81,7 +77,7 @@ sub show_map {
   my ($form, $attr) = @_;
   
   return 1 if $self->maps2_get_objects_to_show($form, $attr);
-
+  
   my ($icon, $watermark_url) = $CONF->{MAPS_WATERMARK} ? split('\|', $CONF->{MAPS_WATERMARK}) : ('', '');
 
   my $javascript_vars = $html->tpl_show(::_include('maps2_js_variables', 'Maps2'),

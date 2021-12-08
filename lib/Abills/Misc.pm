@@ -1,4 +1,3 @@
-
 =head1 NAME
 
   Abills::Misc - ABillS misc functions
@@ -87,7 +86,7 @@ sub load_module {
   eval{ require "$module/webinterface" };
   if ($@) {
     print "Content-Type: text/html\n\n";
-    
+
     my @error_body = (
       "Error: load module '$module'",
       join(', ', caller()),
@@ -97,7 +96,7 @@ sub load_module {
       'INC: ',
       @INC
     );
-    
+
     print join((($html) ? $html->br() : "\n"), @error_body);
     if ($ENV{DEBUG}) {
       exit;
@@ -365,25 +364,44 @@ sub _function {
     }
     return 0;
   }
-  elsif ($function_name eq 'null'){
+  elsif ($function_name eq 'null') { #if menu element's function is 'null', print page with menu subelements of this menu element
     my @info_buttons = ();
     foreach my $key (sort keys %menu_items) {
-      my $args_ =  $menu_args{$key} || q{};
-      if($args_ && ! $FORM{$args_}) {
+      next if (!defined($menu_items{$key}{$index}) || $menu_items{$key}{$index} eq '' || $key == 10); #10 - logout
+
+      my $ext_args = '';
+      my $skip_this_key = 0;
+      if (defined($menu_args{$key}) && $menu_args{$key} ne 'defaultindex') {
+        my @menu_args_list = ($menu_args{$key});
+        if ($menu_args{$key} =~ /,/) {
+          @menu_args_list = split(',', $menu_args{$key});
+        }
+
+        foreach my $menu_arg (@menu_args_list) {
+          if ($menu_arg =~ /=/) {
+            $ext_args .= "&$menu_arg";
+          }
+          elsif (defined $FORM{$menu_arg}) {
+            $ext_args .= "&$menu_arg=$FORM{$menu_arg}";
+          }
+          else {
+            $skip_this_key = 1;
+            last;
+          }
+        }
+      }
+
+      if ($skip_this_key) {
         next;
       }
-      if (defined($menu_items{$key}{$index}) && $menu_items{$key}{$index} ne '' && $key != 10) {
-        push @info_buttons, {
-            ID     => mk_unique_value( 10 ),
-            NUMBER => $html->button( $menu_items{$key}{$index}, "index=$key" ),
-            #          TEXT   => $html->button( $menu_items{$key}{$index}, "index=$key" ),
-            #            TEXT_COLOR => '#001a00',
-            #          COLOR  => '#AAAAAA',
-            SIZE   => 4
-          };
-      }
+
+      push @info_buttons, {
+        ID     => mk_unique_value( 10 ),
+        NUMBER => $html->button( $menu_items{$key}{$index}, "index=$key$ext_args" ),
+        SIZE   => 4
+      };
     }
-  
+
     $html->short_info_panels_row(\@info_buttons, {MENU_BUTTONS => 1});
     return 1;
   }
@@ -394,7 +412,7 @@ sub _function {
     print join(',', caller) . "\n";
     exit;
   }
-  
+
   eval {
     # Will show stacktrace on fail, but can be not installed
     require Carp::Always;
@@ -502,76 +520,94 @@ sub cross_modules_call {
     # $added = 1; #Don't remove
   }
 
+  my @users_uids = ();
+  if ($attr->{USER_INFO}->{COMPANY_ID}) {
+    if ($users && $users->can('list')) {
+      my $users_list = $users->list({ COMPANY_ID => $attr->{USER_INFO}->{COMPANY_ID}, COLS_NAME => 1 });
+      foreach my $user_info (@{$users_list}) {
+        push @users_uids, $user_info->{uid};
+      }
+    }
+  }
+  else {
+    push @users_uids, $attr->{USER_INFO}->{UID} || $attr->{UID};
+  }
+
+
   #Default silent mode (off)
   #our $silent=0;
   my $silent=0;
+  my %full_return = ();
+  my $check_time = 0;
 
   if (defined($attr->{SILENT})) {
     $silent=$attr->{SILENT};
   }
 
-  my $check_time=0;
-  if ($attr->{DEBUG}) {
-    print "Function:  $function_sufix Timout: $timeout Silent: ". ($silent || 'no') ."<br>\n";
-    $check_time = check_time();
-  }
+  foreach my $uid ( @users_uids ) {
+    $attr->{USER_INFO}->{UID}=$uid;
 
-  my %full_return  = ();
-  my @skip_modules = ();
-  my $SAVEOUT;
-  my $output_redirect = '/dev/null';
-
-  eval {
-    if ($silent) {
-      if ($conf{CROSS_MODULES_DEBUG}) {
-        $output_redirect = $conf{CROSS_MODULES_DEBUG};
-      }
-
-      #disable stdout output
-      open($SAVEOUT, ">&", \*STDOUT) or die "Save STDOUT: $!";
-      #Reset out
-      open STDIN,  '>',  '/dev/null';
-      open STDOUT, '>>', $output_redirect;
-      open STDERR, '>>', $output_redirect;
+    if ($attr->{DEBUG}) {
+      print "Function:  $function_sufix Timout: $timeout Silent: " . ($silent || 'no') . "<br>\n";
+      $check_time = check_time();
     }
 
-    if ($attr->{SKIP_MODULES}) {
-      $attr->{SKIP_MODULES} =~ s/\s+//g;
-      @skip_modules = split(/,/, $attr->{SKIP_MODULES});
+    my @skip_modules = ();
+    my $SAVEOUT;
+    my $output_redirect = '/dev/null';
+
+    eval {
+      if ($silent) {
+        if ($conf{CROSS_MODULES_DEBUG}) {
+          $output_redirect = $conf{CROSS_MODULES_DEBUG};
+        }
+
+        #disable stdout output
+        open($SAVEOUT, ">&", \*STDOUT) or die "Save STDOUT: $!";
+        #Reset out
+        open STDIN, '>', '/dev/null';
+        open STDOUT, '>>', $output_redirect;
+        open STDERR, '>>', $output_redirect;
+      }
+
+      if ($attr->{SKIP_MODULES}) {
+        $attr->{SKIP_MODULES} =~ s/\s+//g;
+        @skip_modules = split(/,/, $attr->{SKIP_MODULES});
+      }
+
+      if ($silent) {
+        local $SIG{ALRM} = sub {die "alarm\n"}; # NB: \n required
+        alarm $timeout;
+      }
+
+      foreach my $mod (@MODULES) {
+        if (in_array($mod, \@skip_modules)) {
+          next;
+        }
+
+        if ($attr->{DEBUG}) {
+          print " $mod -> " . lc($mod) . $function_sufix . "<br>\n";
+        }
+
+        load_module($mod, $html);
+        my $function = lc($mod) . $function_sufix;
+        my $return;
+        if (defined(&$function)) {
+          $return = &{\&$function}($attr);
+        }
+
+        if ($attr->{DEBUG} && $check_time) {
+          print gen_time($check_time) . " <br>\n ";
+          $check_time = check_time();
+        }
+        $full_return{$mod} = $return;
+      }
+    };
+
+    if ($silent && $SAVEOUT) {
+      # off disable stdout output
+      open(STDOUT, ">&", $SAVEOUT);
     }
-
-    if ($silent) {
-      local $SIG{ALRM} = sub { die "alarm\n" };    # NB: \n required
-      alarm $timeout;
-    }
-
-    foreach my $mod (@MODULES) {
-      if (in_array($mod, \@skip_modules)) {
-        next;
-      }
-
-      if ($attr->{DEBUG}) {
-        print " $mod -> ". lc($mod).$function_sufix ."<br>\n";
-      }
-
-      load_module($mod, $html);
-      my $function = lc($mod) . $function_sufix;
-      my $return;
-      if (defined(&$function)) {
-        $return = &{ \&$function }($attr);
-      }
-
-      if($attr->{DEBUG} && $check_time) {
-        print gen_time($check_time) . " <br>\n ";
-        $check_time = check_time();
-      }
-      $full_return{$mod} = $return;
-    }
-  };
-
-  if ($silent && $SAVEOUT) {
-    # off disable stdout output
-    open(STDOUT, ">&", $SAVEOUT);
   }
 
   if($@) {
@@ -725,6 +761,130 @@ sub fees_dsc_former {
   return $text;
 }
 
+#**********************************************************
+=head2 service_recalculate($Service, $attr) - Make month feee
+
+  Arguments:
+    $Service - Module object
+    $attr
+      SERVICE_NAME - Service name
+      DATE         - date of fees
+      SHEDULER     - execute from sheduler
+      EXT_DESCRIBE - Extra decribe
+      QUITE        - Quite mode
+      MODULE       - Caller module
+      DEBUG
+
+    Extra config option:
+
+     $conf{DV_CURDATE_ACTIVATE}=1; - Activate non payment service by cur date
+     $conf{INTERNET_PAY_ACTIVATE}=1; - Activate non payment service by cur date
+
+  Returns:
+    total_sum
+      Hash of results
+         [ ACTIVATE  => 0 ]
+         [ MONTH_FEE => 0 ]
+
+      @{ $Service->{FEES_ID} }
+
+=cut
+#**********************************************************
+sub service_recalculate {
+  my ($Service, $attr) = @_;
+
+  my $rest_days     = 0;
+  my $debug         = $attr->{DEBUG} || 0;
+  my $rest_day_sum2 = 0;
+  my $return_sum    = 0;
+  my $message       = '';
+  my $tp            = $Service->{TP_INFO};
+  my $Payments      = Finance->payments($Service->{db}, $admin, \%conf);
+  my $Users         = $attr->{USER_INFO};
+  my $days_in_month = days_in_month({ DATE => $DATE });
+  my (undef, undef, $d)   = split(/-/, $DATE, 3);
+  my $service_activate = $Service->{ACTIVATE} || $Users->{ACTIVATE} || '0000-00-00';
+  my $start_day = $conf{START_PERIOD_DAY} || 1;
+
+  # my %total_sum = (
+  #   ACTIVATE  => 0,
+  #   MONTH_FEE => 0
+  # );
+
+  if ($debug) {
+    print "$Service->{TP_INFO_OLD}->{MONTH_FEE} ($Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) => $tp->{MONTH_FEE} SHEDULE: $attr->{SHEDULER}\n";
+  }
+
+  if (($attr->{SHEDULER} && $start_day == $d)
+    || ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} == ($tp->{MONTH_FEE} || 0)
+    && $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} <  $Service->{TP_INFO}->{ABON_DISTRIBUTION})) {
+    #if ($attr->{SHEDULER}) {
+    undef $user;
+    #}
+
+    return 0;
+    #return \%total_sum;
+  }
+
+  if ($service_activate eq '0000-00-00') {
+    if ($d != $start_day) {
+      $rest_days     = $days_in_month - $d + 1;
+      $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $Service->{TP_INFO_OLD}->{MONTH_FEE}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
+      $return_sum           = $rest_day_sum2;
+      #PERIOD_ALIGNMENT
+      $tp->{PERIOD_ALIGNMENT}=1;
+    }
+    # Get back full month abon in 1 day of month
+    elsif (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) {
+      $return_sum = $Service->{TP_INFO_OLD}->{MONTH_FEE};
+    }
+  }
+  else {
+    if ( $attr->{SHEDULER} && date_diff($service_activate, $DATE) >= 31 ) {
+      #if ($attr->{SHEDULER}) {
+      undef $user;
+      #}
+
+      #return \%total_sum;
+      return 0;
+    }
+    elsif (! $attr->{SHEDULER} && date_diff($service_activate, $DATE) < 31) {
+      $rest_days     = 30 - date_diff($service_activate, $DATE);
+      if($Service->{TP_INFO_OLD}->{MONTH_FEE}) {
+        $rest_day_sum2 = (!$Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $rest_days > 0) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} / 30 * $rest_days : 0;
+      }
+      else {
+        $rest_day_sum2 = 0;
+      }
+
+      $return_sum = $rest_day_sum2;
+    }
+  }
+
+  if ($Users->{REDUCTION} && $Users->{REDUCTION} > 0 && $tp->{REDUCTION_FEE}) {
+    $return_sum = $return_sum * (100 - $Users->{REDUCTION}) / 100;
+  }
+
+  #Compensation
+  if (defined($return_sum) && $return_sum > 0) {
+    $Payments->add($Users, {
+      SUM      => abs($return_sum),
+      METHOD   => 8,
+      DESCRIBE => "$lang{TARIF_PLAN}: $Service->{TP_INFO_OLD}->{NAME} ($Service->{TP_INFO_OLD}->{ID}) ($lang{DAYS}: $rest_days)",
+    });
+
+    if ($Payments->{errno}) {
+      _error_show($Payments) if (!$attr->{QUITE});
+    }
+    else {
+      $message .= "$lang{RECALCULATE}\n$lang{RETURNED}: ". sprintf("%.2f", abs($return_sum))."\n" if (!$attr->{QUITE});
+    }
+    return $message;
+  }
+
+  return 1;
+}
+
 
 #**********************************************************
 =head2 service_get_month_fee($Service, $attr) - Make month feee
@@ -737,6 +897,7 @@ sub fees_dsc_former {
       SHEDULER     - execute from sheduler
       EXT_DESCRIBE - Extra decribe
       QUITE        - Quite mode
+      MODULE       - Caller module
       DEBUG
 
     Extra config option:
@@ -761,9 +922,8 @@ sub service_get_month_fee {
 
   require Finance;
   Finance->import();
-  my $Fees     = Finance->fees($Service->{db}, $admin, \%conf);
-  my $Payments = Finance->payments($Service->{db}, $admin, \%conf);
-  my $Users    = Users->new($Service->{db}, $admin, \%conf);
+  my $Fees  = Finance->fees($Service->{db}, $admin, \%conf);
+  my $Users = Users->new($Service->{db}, $admin, \%conf);
 
   $conf{START_PERIOD_DAY} = 1 if (!$conf{START_PERIOD_DAY});
   $DATE=$attr->{DATE} if ($attr->{DATE});
@@ -775,63 +935,18 @@ sub service_get_month_fee {
   );
 
   my $service_name = $attr->{SERVICE_NAME} || 'Internet';
-  my $tp = $Service->{TP_INFO};
-  my $uid = $Service->{UID} || 0;
+  my $module       = $attr->{MODULE} || 'Internet';
+  my $tp           = $Service->{TP_INFO};
+  my $uid          = $Service->{UID} || 0;
 
   $Users = $user if ($user && $user->{UID} && !$attr->{DO_NOT_USE_GLOBAL_USER_PLS});
   if (! $Users->{BILL_ID}) {
     $user  = $Users->info($uid);
   }
 
-  my $service_activate = $Service->{ACTIVATE} || $Users->{ACTIVATE};
+  $attr->{USER_INFO}=$Users;
 
-#Make bonus
-# Depricated
-#  if ($conf{DV_BONUS} && $service_name eq 'Internet') {
-#    eval { require Bonus_rating; };
-#    if (!$@) {
-#      Bonus_rating->import();
-#    }
-#    else {
-#      $html->message('err', $lang{ERROR}, "Can't load 'Bonus_rating'. Purchase this module http://abills.net.ua") if (!$attr->{QUITE});
-#      return 0;
-#    }
-#
-#    my $Bonus_rating = Bonus_rating->new($Service->{db}, $admin, \%conf);
-#    $Bonus_rating->info($tp->{TP_ID});
-#
-#    if ($Bonus_rating->{TOTAL} && $Bonus_rating->{TOTAL} > 0) {
-#      my $bonus_sum = 0;
-#      if ($FORM{add} && $Bonus_rating->{ACTIVE_BONUS} > 0) {
-#        $bonus_sum = $Bonus_rating->{ACTIVE_BONUS};
-#      }
-#      elsif ($Bonus_rating->{CHANGE_BONUS} > 0) {
-#        $bonus_sum = $Bonus_rating->{CHANGE_BONUS};
-#      }
-#
-#      if ($bonus_sum > 0) {
-#        if (!$Users->{BILL_ID}) {
-#          $Users->info($uid);
-#        }
-#        my $u = $Users;
-#        $u->{BILL_ID} = ($Bonus_rating->{EXT_BILL_ACCOUNT}) ? $Users->{EXT_BILL_ID} : $Users->{BILL_ID};
-#
-#        $Payments->add($u,
-#          {
-#            SUM      => $bonus_sum,
-#            METHOD   => 4,
-#            DESCRIBE => "$lang{BONUS}: $lang{TARIF_PLAN}: $Service->{TP_ID}",
-#          }
-#        );
-#        if ($Payments->{errno}) {
-#          _error_show($Payments) if (!$attr->{QUITE});
-#        }
-#        else {
-#          $html->message('info', $lang{INFO}, "$lang{BONUS}: $bonus_sum") if (!$attr->{QUITE});
-#        }
-#      }
-#    }
-#  }
+  my $service_activate = $Service->{ACTIVATE} || $Users->{ACTIVATE};
 
   #Get active price
   if ($tp->{ACTIV_PRICE} && $tp->{ACTIV_PRICE} > 0) {
@@ -883,77 +998,11 @@ sub service_get_month_fee {
       ) {
     #Get back month fee
     if ( $FORM{RECALCULATE} || $attr->{RECALCULATE}) {
-      my $rest_days     = 0;
-      my $rest_day_sum2 = 0;
-      my $sum           = 0;
-
-      if ($debug) {
-        print "$Service->{TP_INFO_OLD}->{MONTH_FEE} ($Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) => $tp->{MONTH_FEE} SHEDULE: $attr->{SHEDULER}\n";
-      }
-
-      if (($attr->{SHEDULER} && $conf{START_PERIOD_DAY} == $d)
-        || ($Service->{TP_INFO_OLD}->{MONTH_FEE} && $Service->{TP_INFO_OLD}->{MONTH_FEE} == $tp->{MONTH_FEE}
-             && $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} <  $Service->{TP_INFO}->{ABON_DISTRIBUTION})) {
-        if ($attr->{SHEDULER}) {
-          undef $user;
-        }
+      my $result = service_recalculate($Service, $attr);
+      if (! $result) {
         return \%total_sum;
       }
-
-      if ($service_activate eq '0000-00-00') {
-        if ($d != $conf{START_PERIOD_DAY}) {
-          $rest_days     = $days_in_month - $d + 1;
-          $rest_day_sum2 = (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $Service->{TP_INFO_OLD}->{MONTH_FEE}) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} /  $days_in_month * $rest_days : 0;
-          $sum           = $rest_day_sum2;
-          #PERIOD_ALIGNMENT
-          $tp->{PERIOD_ALIGNMENT}=1;
-        }
-        # Get back full month abon in 1 day of month
-        elsif (! $Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION}) {
-          $sum = $Service->{TP_INFO_OLD}->{MONTH_FEE};
-        }
-      }
-      else {
-        #If
-        if ( $attr->{SHEDULER} && date_diff($service_activate, $DATE) >= 31 ) {
-          if ($attr->{SHEDULER}) {
-            undef $user;
-          }
-
-          return \%total_sum;
-        }
-        elsif (! $attr->{SHEDULER} && date_diff($service_activate, $DATE) < 31) {
-          $rest_days     = 30 - date_diff($service_activate, $DATE);
-          if($Service->{TP_INFO_OLD}->{MONTH_FEE}) {
-            $rest_day_sum2 = (!$Service->{TP_INFO_OLD}->{ABON_DISTRIBUTION} && $rest_days > 0) ? $Service->{TP_INFO_OLD}->{MONTH_FEE} / 30 * $rest_days : 0;
-          }
-          else {
-            $rest_day_sum2 = 0;
-          }
-
-          $sum           = $rest_day_sum2;
-        }
-      }
-
-      if ($Users->{REDUCTION} && $Users->{REDUCTION} > 0 && $tp->{REDUCTION_FEE}) {
-        $sum = $sum * (100 - $Users->{REDUCTION}) / 100;
-      }
-
-      #Compensation
-      if (defined($sum) && $sum > 0) {
-        $Payments->add($Users, {
-          SUM      => abs($sum),
-          METHOD   => 8,
-          DESCRIBE => "$lang{TARIF_PLAN}: $Service->{TP_INFO_OLD}->{NAME} ($Service->{TP_INFO_OLD}->{ID}) ($lang{DAYS}: $rest_days)",
-        });
-
-        if ($Payments->{errno}) {
-          _error_show($Payments) if (!$attr->{QUITE});
-        }
-        else {
-          $message .= "$lang{RECALCULATE}\n$lang{RETURNED}: ". sprintf("%.2f", abs($sum))."\n" if (!$attr->{QUITE});
-        }
-      }
+      $message = $result if ($result ne 1);
     }
 
     my $sum   = $tp->{MONTH_FEE} || 0;
@@ -969,7 +1018,7 @@ sub service_get_month_fee {
 
     my %FEES_DSC = (
       SERVICE_NAME    => $service_name,
-      MODULE          => $service_name.':',
+      MODULE          => $module.':',
       TP_ID           => $tp->{TP_ID},
       TP_NAME         => $tp->{NAME} || '',
       FEES_PERIOD_DAY => $lang{MONTH_FEE_SHORT},
@@ -1082,12 +1131,14 @@ sub service_get_month_fee {
           $FEES_DSC{PERIOD} = "($active_y-$m-$active_d-$end_period)";
           if(in_array('Internet', \@MODULES)) {
             my $change_function = '';
+            #@Fixme
             if($Service->can('change')) {
               $change_function = 'change';
             }
             elsif($Service->can('user_change')) {
               $change_function = 'user_change';
             }
+
             if($change_function) {
               $Service->$change_function({
                 ACTIVATE => $DATE,
@@ -1157,7 +1208,7 @@ sub service_get_month_fee {
         # old status "Too small deposit"
         elsif ($Service->{OLD_STATUS} && $Service->{OLD_STATUS} == 5) {
           if(in_array('Internet', \@MODULES)) {
-            $Service->change({
+            $Service->user_change({
               ACTIVATE => $DATE,
               UID      => $uid,
               ID       => $Service->{ID}
@@ -1193,7 +1244,7 @@ sub service_get_month_fee {
           if (in_array($Service->{OLD_STATUS}, [ 1, 3 ])) {
             $DATE = strftime("%Y-%m-%d", localtime(time));
             if(in_array('Internet', \@MODULES)) {
-              $Service->change({
+              $Service->user_change({
                 ACTIVATE => $DATE,
                 UID      => $uid,
                 ID       => $Service->{ID}
@@ -1269,8 +1320,7 @@ sub service_get_month_fee {
 
   if($debug < 6) {
     my $external_cmd = '_EXTERNAL_CMD';
-    $external_cmd = uc($service_name).$external_cmd;
-
+    $external_cmd = uc($module).$external_cmd;
     if ($conf{$external_cmd}) {
       if (!_external($conf{$external_cmd}, { %FORM, %$Users, %$Service, %$attr })) {
         print "Error: external cmd '$conf{$external_cmd}'\n";
@@ -1322,12 +1372,16 @@ sub _external {
     }
   }
 
-  my $result = cmd($file, { ARGV => 1, PARAMS => $attr });
+  my $result = cmd($file, {
+    ARGV    => 1,
+    PARAMS  => $attr,
+    timeout => $conf{EXTERNAL_CMD_TIMEOUT} || 5
+  });
   my $error = $!;
   my ($num, $message) = split(/:/, $result, 2);
   # 1 - ok
   if ($num && $num =~ /^\d+$/ && $num == 1) {
-    $html->message('info', "EXTERNAL $lang{ADDED}", $message) if (!$attr->{QUITE});;
+    $html->message('info', "EXTERNAL $lang{ADDED}", $message) if (!$attr->{QUITE});
     return 1;
   }
   else {
@@ -1987,7 +2041,7 @@ sub address_list_tree_menu{
   #
 
   my ($list, $parentness_hash) = Address->new($db, $admin, \%conf)->address_parentness(\&in_array, $attr);
-  
+
   #Now build a tree menu for this structure
   my $level_name_keys = ['DISTRICT_NAME','STREET_NAME', 'BUILD_NAME'];
   my $level_id_keys = ['DISTRICT_ID','STREET_ID', 'BUILD_ID'];
@@ -2006,8 +2060,8 @@ sub address_list_tree_menu{
       LEVEL_VALUE_KEYS  => $level_id_keys,
       LEVEL_ID_KEYS  => $level_id_keys,
       LEVEL_CHECKBOX_NAME => $level_id_keys,
-      
-      COL_SIZE => $col_size, 
+
+      COL_SIZE => $col_size,
 
       CHECKBOX_STATE     => $attr->{CHECKED}
     }
@@ -2114,7 +2168,7 @@ sub import_former {
         foreach my $info_line (@{ $perl_scalar->{DATA_1} }) {
           push @import_data, $info_line;
         }
-      } 
+      }
       else {
         foreach my $info_line (@{ $perl_scalar->{DATA_1} }) {
           foreach my $key ( keys %$info_line ) {
@@ -2238,7 +2292,7 @@ sub mk_menu {
 }
 
 #**********************************************************
-=head2 custom_menu($module_menu, $maxnumber, $module)
+=head2 mk_menu_extra($module_menu, $maxnumber, $module)
 
 =cut
 #**********************************************************
@@ -2301,12 +2355,12 @@ sub mk_menu_extra {
 #**********************************************************
 sub custom_menu {
   my ($attr) = @_;
-  
+
   my $tpl_name = $attr->{TPL_NAME} || 'admin_menu';
   my @menu = ();
-  
+
   my $menu_content = templates($tpl_name);
-  
+
   if ( $html && $html->{TYPE} && !$html->{TYPE} eq 'html' ) {
     $menu_content = $html->tpl_show($menu_content, {}, {
         ID            => $tpl_name,
@@ -2314,13 +2368,13 @@ sub custom_menu {
         OUTPUT2RETURN => 1
       });
   }
-  
+
   if ( !$menu_content ) {
     return \@menu;
   }
-  
+
   my @rows = split(/\n/, $menu_content);
-  
+
   foreach my $line ( @rows ) {
     $line =~ s/^[\s\r]+//g;
     if ( $line =~ /^#/
@@ -2330,7 +2384,7 @@ sub custom_menu {
     }
     push @menu, $line;
   }
-  
+
   return \@menu;
 }
 
@@ -2626,7 +2680,7 @@ sub format_sum {
     $result = scalar reverse (join (' ', $rev =~ m/\d{1,3}/g));
     $result = $negative . $result . "." . $fraction;
   }
-  
+
   return $result;
 }
 

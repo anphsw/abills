@@ -125,7 +125,7 @@
           data-container="body"
           data-original-title=""
           title=""
-          class='p-1 fa fa-comment contact-comment-edit-btn text-blue form-control-static'
+          class='p-1 fa fa-comment contact-comment-edit-btn {{#comments}}text-blue{{/comments}} {{^comments}}text-secondary{{/comments}} form-control-static'
           data-id='{{id}}'>
          </span>
         </a>

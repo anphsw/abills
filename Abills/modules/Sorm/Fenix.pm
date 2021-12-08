@@ -230,7 +230,7 @@ sub ABONENT_IDENT_report {
   }
 
   $User->pi({ UID => $uid });
-  $Internet->info($uid);
+  $Internet->user_info($uid);
 
   my @arr;
 
@@ -292,7 +292,7 @@ sub ABONENT_SRV_report {
   }
 
   $User->pi({ UID => $uid });
-  $Internet->info($uid);
+  $Internet->user_info($uid);
 
   my @arr;
 
@@ -325,7 +325,7 @@ sub ABONENT_ADDR_report {
   }
 
   $User->pi({ UID => $uid });
-  $Internet->info($uid);
+  $Internet->user_info($uid);
 
   my @arr;
   my $sorm_id = $self->{conf}->{SORM_ISP_ID};

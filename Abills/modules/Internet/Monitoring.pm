@@ -872,9 +872,13 @@ sub internet_online_builds {
   Dom->import();
   my $Dom = Dom->new($db, $admin, \%conf);
   my $online_users = $Dom->users_online_by_builds();
+  my $offline_users = $Dom->users_offline_by_builds();
 
   my %online_users_list = ();
   map $_->{id} && $#{$online_users_list{$_->{id}}} < 10 ? push(@{$online_users_list{$_->{id}}}, $_) : (), @{$online_users};
+
+  my %offline_users_list = ();
+  map $_->{id} ? push(@{$offline_users_list{$_->{id}}}, $_) : (), @{$offline_users};
 
   my $districts_list = $Address->district_list({
     COLS_NAME => 1,
@@ -895,10 +899,7 @@ sub internet_online_builds {
 
     my $streets_content = '';
     foreach my $street (@{$streets}) {
-      my %street_users = (
-        total  => 0,
-        online => 0,
-      );
+      my %street_users = (total => 0, online => 0);
 
       my $builds_content = '';
       my $builds_count = @{$street->{builds}} || 0;
@@ -927,7 +928,8 @@ sub internet_online_builds {
         $builds_content .= $html->button($build_number,
           "index=7&type=11&search=1&search_form=1&LOCATION_ID=$build_id&BUILDS=$street->{street_id}", {
             class         => 'btn btn-lg btn-build m-1 ' . $btn_class,
-            ex_params     => _internet_get_build_tooltip($build_id, \%online_users_list) || '',
+            ex_params     => _internet_get_build_tooltip($build_id, $btn_class eq 'btn-danger'
+              ? \%offline_users_list : \%online_users_list) || '',
             OUTPUT2RETURN => 1,
           }
         );

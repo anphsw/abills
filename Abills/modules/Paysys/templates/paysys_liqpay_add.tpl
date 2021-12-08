@@ -1,39 +1,41 @@
-<form id='liqpay_form' method='post' action='https://www.liqpay.ua/api/checkout' accept-charset='utf-8'>
-    %BODY%
-    <input type='hidden' name='signature' value='%SIGN%'/>
-    <input type='hidden' name='language' value='ru'/>
-    <div class='container-md'>
-        <div class='card box-primary'>
-            <div class='card-header with-border text-center'><img class='col-xs-8 col-xs-offset-2' src='https://www.liqpay.ua/static/img/logo.png' /></div>
-            <div class='card-body'>
-                <div class='form-group'>
-                    <a href='https://secure.privatbank.ua/help/verified_by_visa.html'>
-                        <img class='col-md-4 col-md-offset-1 col-xs-10 col-xs-offset-1' src='/img/v-visa.gif' height='120'/>
-                    </a>
-                    <a href='http://www.mastercard.com/ru/personal/ru/cardholderservices/securecode/mastercard_securecode.html'>
-                        <img class='col-md-4 col-md-offset-2 col-xs-10 col-xs-offset-1' src='/img/mastercard-sc.gif' height='120'/>
-                    </a>
-                </div>
-                <div class='form-group row'>
-                    <label class='font-weight-bold text-center col-md-6 form-control-label'>_{ORDER}_:</label>
-                    <label class='font-weight-bold col-md-6 form-control-label'>$FORM{OPERATION_ID}</label>
-                </div>
-                <div class='form-group row'>
-                    <label class='font-weight-bold text-center col-md-6 form-control-label col-xs-12'>_{BALANCE_RECHARCHE_SUM}_:</label>
-                    <label class='font-weight-bold col-md-6 form-control-label col-xs-12'>%SUM%</label>
-                </div>
-                <div class='form-group row'>
-                    <label class='font-weight-bold text-center col-md-6 form-control-label'>_{COMMISSION_LIQPAY}_:</label>
-                    <label class='font-weight-bold col-md-6 form-control-label'>%COMMISSION_SUM%</label>
-                </div>
-                <div class='form-group row'>
-                    <label class='font-weight-bold text-center col-md-6 form-control-label'>_{TOTAL}_ _{SUM}_:</label>
-                    <label class='font-weight-bold col-md-6 form-control-label'>%TOTAL_SUM%</label>
-                </div>
-            </div>
-            <div class='card-footer'>
-                <input class='btn btn-primary' type='submit' value='_{PAY}_'>
-            </div>
+<div class='card card-primary card-outline'>
+    <form id='liqpay_form' method='post' action='https://www.liqpay.ua/api/checkout' accept-charset='utf-8'>
+        %BODY%
+        <input type='hidden' name='signature' value='%SIGN%'/>
+        <input type='hidden' name='language' value='ru'/>
+
+        <div class='card-header with-border text-center pb-0'>
+            <h4>_{BALANCE_RECHARCHE}_</h4>
         </div>
-    </div>
-</form>
+        <div class='card-body pt-0'>
+            <div class='text-center'>
+                <img src='https://static.tildacdn.com/tild6661-6134-4564-b761-306638373830/liqpaypngpagespeedce.png'
+                     style='max-width: 320px; max-height: 200px;'
+                     alt='LiqPay'>
+            </div>
+
+            <ul class='list-group list-group-unbordered mb-3'>
+                <li class='list-group-item'>
+                    <b>_{DESCRIBE}_</b>
+                    <div class='float-right'>$FORM{DESCRIBE}</div>
+                </li>
+                <li class='list-group-item'>
+                    <b>_{ORDER}_</b>
+                    <div class='float-right'>$FORM{OPERATION_ID}</div>
+                </li>
+                <li class='list-group-item'>
+                    <b>_{BALANCE_RECHARCHE_SUM}_</b>
+                    <div class='float-right'>%SUM%</div>
+                </li>
+                <li class='list-group-item'>
+                    <b>_{COMMISSION_LIQPAY}_</b>
+                    <div class='float-right'>%COMMISSION_SUM%</div>
+                </li>
+                <li class='list-group-item'>
+                    <b>_{TOTAL}_ _{SUM}_</b>
+                    <div class='float-right'>%TOTAL_SUM%</div>
+                </li>
+            </ul>
+            <input type='submit' class='btn btn-primary float-right' value='_{PAY}_'>
+    </form>
+</div>

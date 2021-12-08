@@ -23,14 +23,15 @@ our(
   Arguments:
     $attr
       SNMP_COMMUNITY
-      OID              - oid or arrays of oids
-      WALK             - walk mode. should not be used if OID is array
-      DONT_USE_GETBULK - Don't use getbulk for walk mode
-      SILENT           - DOn't generate exception
-      TIMEOUT          - Request timeout (Default: 2)
-      RETRIES          - Request retries (Default: 2)
-      SKIP_TIMEOUT     -
-      VERSION          - SNMP version (1 default or v2c)
+      OID                       - oid or arrays of oids
+      WALK                      - walk mode. should not be used if OID is array
+      DONT_USE_GETBULK          - Don't use getbulk for walk mode
+      NO_PRETTY_PRINT_TIMETICKS - Don't convert TimeTicks into human readable format ('50 days, 2:14:20'), return number instead (432806000)
+      SILENT                    - DOn't generate exception
+      TIMEOUT                   - Request timeout (Default: 2)
+      RETRIES                   - Request retries (Default: 2)
+      SKIP_TIMEOUT              -
+      VERSION                   - SNMP version (1 default or v2c)
       DEBUG
 
   Returns:
@@ -79,12 +80,17 @@ sub snmp_get {
     return [];
   }
 
-  if ($attr->{WALK}) {
-    if(! $attr->{OID}) {
-      print "Unknown oid\n";
-      return [];
-    }
+  if (!$attr->{OID}) {
+    print "Unknown oid\n";
+    return [];
+  }
 
+  my $old_pretty_print_timeticks = $BER::pretty_print_timeticks;
+  if ($attr->{NO_PRETTY_PRINT_TIMETICKS}) {
+    $BER::pretty_print_timeticks = 0;
+  }
+
+  if ($attr->{WALK}) {
     my @value_arr = ();
 
     eval {
@@ -110,7 +116,7 @@ sub snmp_get {
 
     if ($@) {
       print "timed out ($timeout): $oid_text\n" if(! $attr->{SILENT});
-      return [] unless $@ eq "alarm\n";                  # propagate unexpected errors
+      $value = [] unless $@ eq "alarm\n";                  # propagate unexpected errors
     }
     else {
       print "NO errors\n" if ($debug>2);
@@ -132,6 +138,8 @@ sub snmp_get {
       }
     }
   }
+
+  $BER::pretty_print_timeticks = $old_pretty_print_timeticks;
 
   if ($SNMP_Session::errmsg && ! $attr->{SILENT}) {
     my $message = "OID: $oid_text\n\n $SNMP_Session::errmsg\n\n$SNMP_Session::suppress_warnings\n";

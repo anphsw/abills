@@ -104,7 +104,7 @@ sub form_companies {
 
     if (!$Company->{errno}) {
       $html->message( 'info', $lang{ADDED},
-        "$lang{ADDED} " . $html->button( "$FORM{NAME}", 'index=13&COMPANY_ID=' . $Company->{COMPANY_ID}, { BUTTON => 1 } ) );
+        "$lang{ADDED} " . $html->button( "$FORM{NAME}", 'index=13&COMPANY_ID=' . $Company->{COMPANY_ID}, { BUTTON => 2 } ) );
     }
   }
   elsif ($FORM{import}) {
@@ -117,7 +117,7 @@ sub form_companies {
     my $imported      = 0;
     my $impoted_named = '';
     if (defined($FORM{FILE_DATA})) {
-      my @rows = split(/[\r]{0,1}\n/, $FORM{"FILE_DATA"}{'Contents'});
+      my @rows = split(/[\r]{0,1}\n/, $FORM{'FILE_DATA'}{'Contents'});
 
       foreach my $line (@rows) {
         my @params = split(/\t/, $line);
@@ -320,6 +320,8 @@ sub form_companies {
       $pages_qs .= "&letter=$FORM{letter}";
     }
 
+    $LIST_PARAMS{SKIP_GID} = 1;
+
     result_former({
       INPUT_DATA      => $Company,
       FUNCTION        => 'list',
@@ -327,11 +329,26 @@ sub form_companies {
       BASE_FIELDS     => 1,
       FUNCTION_FIELDS => defined( $permissions{0}{5} ) ? 'company_id,del' : 'company_id',
       EXT_TITLES      => {
-        'name'        => $lang{NAME},
-        'users_count' => $lang{USERS},
-        'status'      => $lang{STATUS},
-        'tax_number'  => $lang{TAX_NUMBER},
+        'name'          => $lang{NAME},
+        'users_count'   => $lang{USERS},
+        'status'        => $lang{STATUS},
+        'tax_number'    => $lang{TAX_NUMBER},
+        'deposit'       => $lang{DEPOSIT},
+        'credit'        => $lang{CREDIT},
+        'contract_id'   => $lang{CONTRACT},
+        'contract_date' => "$lang{CONTRACT} $lang{DATE}",
+        'registration'  => $lang{REGISTRATION},
+        'district_name' => $lang{DISTRICTS},
+        'address_full'  => "$lang{FULL} $lang{ADDRESS}",
+        'address_street'=> $lang{ADDRESS_STREET},
+        'address_build' => $lang{ADDRESS_BUILD},
+        'address_flat'  => $lang{ADDRESS_FLAT},
+        'ddress_street2'=> $lang{SECOND_NAME},
+        'city'          => $lang{CITY},
+        'zip'           => $lang{ZIP},
+        'phone'         => $lang{PHONE}
       },
+      SKIP_USER_TITLE => 1,
       FILTER_COLS   => {
         users_count => ($FORM{json}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
         users_count => ($admin->{MAX_ROWS}) ? '' : "_company_user_link::FUNCTION=form_users,ID",
@@ -353,15 +370,13 @@ sub form_companies {
     });
 
     if (!$FORM{search}) {
-      print $html->form_main(
-        {
-          CONTENT => "$lang{FILE}: ".$html->form_input( 'FILE_DATA', '', { TYPE => 'file' } ),
-          ENCTYPE => 'multipart/form-data',
-          HIDDEN  => { index => $index, },
-          SUBMIT  => { import => "$lang{IMPORT}" },
-          TARGET  => 'new'
-        }
-      );
+      print $html->form_main({
+        CONTENT => "$lang{FILE}: ".$html->form_input( 'FILE_DATA', '', { TYPE => 'file' } ),
+        ENCTYPE => 'multipart/form-data',
+        HIDDEN  => { index => $index, },
+        SUBMIT  => { import => $lang{IMPORT} },
+        TARGET  => 'new'
+      });
     }
   }
 
@@ -382,14 +397,14 @@ sub _company_user_link{
   return $html->button($params, "index=11&COMPANY_ID=$attr->{VALUES}->{ID}" );
 }
 
-#**********************************************************
-=head2 _company_users_count()
-
-=cut
-#**********************************************************
-sub _company_users_count{
-  return "";
-}
+# #**********************************************************
+# =head2 _company_users_count()
+#
+# =cut
+# #**********************************************************
+# sub _company_users_count{
+#   return "";
+# }
 
 #**********************************************************
 =head2 form_companie_admins($attr)

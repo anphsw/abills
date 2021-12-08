@@ -20,7 +20,8 @@ our (
   $users
 );
 
-my $Address = Address->new( $db, $admin, \%conf );
+my $Address = Address->new($db, $admin, \%conf);
+my $Auxiliary;
 
 #**********************************************************
 =head2 form_districts()
@@ -443,7 +444,7 @@ sub form_builds{
     SKIP_USER_TITLE => 1,
     FILTER_COLS     => {
       users_count => 'search_link:form_search:LOCATION_ID,type=11',
-      coordx      => 'form_add_map:ID:ID,COORDX,add=1',
+      coordx      => 'form_add_map:ID:ID,',
       number      =>  in_array( 'Dom', \@MODULES )?'form_show_construct:ID:ID,':'',
     },
     # for button MESSAGE
@@ -565,46 +566,34 @@ sub form_location_media{
 sub form_add_map {
   my (undef, $attr) = @_;
 
-  return '' if ((!$attr->{VALUES}->{ID} || !$attr->{DISTRICT_ID}) && !in_array('Maps2', \@MODULES));
-
-  eval { require Maps; };
-  return '' if ($@);
-
-  use Maps2::Maps_info;
-  my $Maps_info = Maps2::Maps_info->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
-
-  my $map_index = get_function_index('maps2_main');
-  my $icon = 'fa fa-globe';
+  if (!$Auxiliary) {
+    use Maps2::Auxiliary;
+    $Auxiliary = Maps2::Auxiliary->new($db, $admin, \%conf, { HTML => $html, LANG => \%lang });
+  }
 
   if ($attr->{DISTRICT_ID}) {
+    eval { require Maps; };
+    return '' if ($@);
+
     Maps->import();
     my $Maps = Maps->new($db, $admin, \%conf);
 
-    my $district_info = $Maps->districts_list({
-      DISTRICT_ID => $attr->{DISTRICT_ID},
-      OBJECT_ID   => '_SHOW'
-    });
-
+    my $district_info = $Maps->districts_list({ DISTRICT_ID => $attr->{DISTRICT_ID}, OBJECT_ID => '_SHOW' });
     my $object_id = ($Maps->{TOTAL}) ? ($district_info->[0]{object_id} || q{}) : '';
-    my $link = "index=$map_index&LAYER=4&OBJECT_ID=" . $object_id;
-    $icon = 'fa fa-globe';
-    return $html->button('', $link, { ICON => $icon });
+
+    return $Auxiliary->maps2_show_object_button(4, $object_id);
   }
 
-  my $objects = $Maps_info->maps2_get_build_objects({ LOCATION_ID => $attr->{VALUES}->{ID} });
+  my $object_id = $attr->{BUILD_ID} || $attr->{VALUES}{ID};
+  $Address->build_info({ ID => $object_id });
 
-  my $count = @{$objects};
-
-  if (!$count) {
-    my $link = "index=$map_index&LAYER=1&OBJECT_ID=$attr->{VALUES}->{ID}&ADD_POINT=1";
-    $icon = 'fa fa-map-marker';
-    return $html->button('', $link, { ICON => $icon });
+  my %params = (CHECK_BUILD => 1, ADD_POINT => 1, LOAD_TO_MODAL => 1, BTN_CLASS => 'btn btn-sm btn-success');
+  if (!$Address->{COORDX} || !$Address->{COORDY}) {
+    $params{ICON} = 'fa fa-map-marker';
+    $params{BTN_CLASS} = 'btn btn-sm btn-primary';
   }
 
-  my $object_id = $objects->[0]{LAYER_ID} && $objects->[0]{LAYER_ID} == 12 ? $objects->[0]{OBJECT_ID} : $attr->{VALUES}->{ID};
-  my $link = "index=$map_index&LAYER=$objects->[0]{LAYER_ID}&OBJECT_ID=$object_id";
-
-  return $html->button('', $link, { ICON => $icon, ex_params => 'target=new' });
+  return $Auxiliary->maps2_show_object_button(1, $object_id, \%params);
 }
 
 #**********************************************************
@@ -1122,6 +1111,12 @@ sub _street_type_select {
 sub form_address_select2 {
   my ($attr) = @_;
   my $form = q{};
+
+  if ($FORM{MAP_BUILT_BTN}) {
+    my $map_button = form_add_map(undef, { BUILD_ID => $FORM{MAP_BUILT_BTN} });
+    print $map_button if $FORM{PRINT_BUTTON};
+    return $map_button;
+  }
 
   my $district_select_name = q{DISTRICT_ID};
   my $street_select_name = q{STREET_ID};

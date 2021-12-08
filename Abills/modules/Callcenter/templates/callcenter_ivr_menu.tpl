@@ -1,13 +1,14 @@
-<div class='card card-primary card-outline card-form'>
-  <form action=$SELF_URL method=post class='form-horizontal'>
+<form action=$SELF_URL method=post>
+  <input type=hidden name=index value=$index>
+  <input type=hidden name=ID value='%ID%'>
+
+  <div class='card card-primary card-outline card-form'>
     <div class='card-header'>
       <div class='card-title'>
         <h4>IVR _{MENU}_</h4>
       </div>
     </div>
     <div class='card-body'>
-      <input type=hidden name=index value=$index>
-      <input type=hidden name=ID value='%ID%'>
       <div class='form-group row'>
         <label class='control-label col-md-3' for='MAIN_ID'>_{MAIN}_:</label>
         <div class='col-md-9'>
@@ -18,7 +19,7 @@
       <div class='form-group row'>
         <label class='control-label col-md-3' for='NUMBER'>_{NUMBER}_:</label>
         <div class='col-md-9'>
-          <select class='form-control control-element' id='NUMBER' name='NUMBER' value='%NUMBER%' placeholder='%NUMBER%'>
+          <select class='form-control control-element' id='NUMBER' name='NUMBER'>
             <option value=0>0</option>
             <option value=1>1</option>
             <option value=2>2</option>
@@ -65,6 +66,12 @@
         </div>
       </div>
 
+      <div class='form-group row'>
+        <label class='control-label col-md-3' for='CHAPTER_ID'>_{CHAPTERS}_:</label>
+        <div class='col-md-9'>
+          %CHAPTER_SEL%
+        </div>
+      </div>
 
       <div class='form-group row'>
         <label class='control-label col-md-3' for='DISABLE'>_{DISABLE}_:</label>
@@ -76,5 +83,5 @@
     <div class='card-footer'>
       <input type='submit' class='btn btn-primary' name='%ACTION%' value='%LNG_ACTION%'>
     </div>
-  </form>
 </div>
+</form>

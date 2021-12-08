@@ -8,7 +8,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use Abills::Base qw(_bp in_array load_pmodule);
+use Abills::Base qw(in_array load_pmodule);
 use Abills::Defs;
 use Abills::Misc;
 use JSON;
@@ -17,7 +17,6 @@ use Payments;
 
 our ($db,
   $admin,
-  $html,
   %lang,
   %permissions,
   @WEEKDAYS,
@@ -25,6 +24,8 @@ our ($db,
   %FORM,
   @status
 );
+
+our Abills::HTML $html;
 
 #**********************************************************
 =head2 form_admins() - Admins mange form
@@ -36,7 +37,7 @@ sub form_admins {
   my $Employees;
 
   if (in_array('Employees', \@MODULES)) {
-    load_module("Employees", $html);
+    load_module('Employees', $html);
     $Employees = Employees->new($db, $admin, \%conf);
   }
 
@@ -985,8 +986,8 @@ sub form_admin_permissions {
         (($FORM{subf}) ? "&subf=$FORM{subf}" : '') . "&AID=$FORM{AID}&del_permits=$k",
         { ADD_ICON => "fa fa-remove", MESSAGE => "$lang{DEL} $ADMIN_TYPES{$k}" }) : '';
 
-      print $button;
-      print $button_del;
+      $buttons .= $button;
+      $buttons .= $button_del;
     }
   }
   else {
@@ -1039,11 +1040,11 @@ sub form_admin_permissions {
       foreach my $action (@$actions_list) {
         my $action_describe = $describe{$k}{$action_index} || '';
         $table->addrow(
-          "$action_index",
-          "$action",
-          "$action_describe",
+          $action_index,
+          $action,
+          $action_describe,
           $html->form_input(
-            $k . "_$action_index",
+            $k . '_'. $action_index,
             1,
             {
               TYPE          => 'checkbox',
@@ -1131,7 +1132,7 @@ sub form_admin_permissions {
 #**********************************************************
 sub form_admin_payment_types {
   my ($attr) = @_;
-  my $payments = Payments->new($db, $admin, \%conf);
+  my $Payments = Payments->new($db, $admin, \%conf);
 
   if (!defined($attr->{ADMIN})) {
     $FORM{subf} = 146;
@@ -1143,7 +1144,7 @@ sub form_admin_payment_types {
   my Admins $admin_ = $attr->{ADMIN};
 
   if($FORM{set}) {
-    $payments->admin_payment_type_del({
+    $Payments->admin_payment_type_del({
       AID => $FORM{AID}
     });
 
@@ -1151,7 +1152,7 @@ sub form_admin_payment_types {
       my @payments_type_ids = split(',', $FORM{ADMIN_PAYMENTS_TYPE});
 
       foreach (@payments_type_ids) {
-        $payments->admin_payment_type_add({
+        $Payments->admin_payment_type_add({
           AID => $FORM{AID},
           PAYMENTS_TYPE_ID => $_
         });
@@ -1159,7 +1160,7 @@ sub form_admin_payment_types {
     }
   }
 
-  my $payments_type_list = $payments->payment_type_list({
+  my $payments_type_list = $Payments->payment_type_list({
       COLS_NAME => 1,
       AID => $admin_->{AID},
   });
@@ -1267,7 +1268,7 @@ sub form_admins_contacts_save {
   $FORM{CONTACTS} =~ s/\\\"/\"/g;
 
   my $contacts = $json->decode($FORM{CONTACTS});
-  # Abills::Base::_bp('', $contacts, { TO_CONSOLE => 1 });
+
   my DBI $db_ = $admin->{db}->{db};
   if (ref $contacts eq 'ARRAY') {
     $db_->{AutoCommit} = 0;
@@ -1308,8 +1309,6 @@ sub form_admins_contacts_save {
       HIDDEN   => '0'
     }
   );
-  
-  # Abills::Base::_bp('', $admin_contacts_list, { TO_CONSOLE => 1 });
 
   my $contacts_json = JSON->new()->utf8(0)->encode({
     contacts => $admin_contacts_list,

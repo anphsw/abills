@@ -245,10 +245,10 @@ sub tp_group_list {
   my $self = shift;
   my ($attr) = @_;
 
-  my $SORT = ($attr->{SORT}) ? $attr->{SORT} : "2, 3";
+  my $SORT = ($attr->{SORT} && $attr->{SORT} =~ /^\d$/ && $attr->{SORT} < 5) ? $attr->{SORT} : "2, 3";
   my $DESC = (defined($attr->{DESC})) ? $attr->{DESC} : '';
 
-  $self->query("SELECT tg.id, tg.name, tg.user_chg_tp, count(tp.id) AS tarif_plans_count
+  $self->query("SELECT tg.id, tg.name, tg.user_chg_tp, COUNT(tp.id) AS tarif_plans_count
    FROM tp_groups tg
    LEFT JOIN tarif_plans tp ON (tg.id=tp.gid)
    GROUP BY tg.id

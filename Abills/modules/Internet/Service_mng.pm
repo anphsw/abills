@@ -112,7 +112,7 @@ sub service_chg_tp {
   }
 
   if ($uid && $Service->can('info')) {
-    $Service = $Service->info($uid,
+    $Service = $Service->user_info($uid,
       {
         ID => $attr->{ID}
       });
@@ -387,7 +387,7 @@ sub change_tp {
     $CHANGE_PARAMS{ACTIVATE} = $DATE;
   }
 
-  $Service->change({
+  $Service->user_change({
     TP_ID  => $new_tp_id,
     ID     => $service_id,
     UID    => $uid,
@@ -404,7 +404,7 @@ sub change_tp {
     }
   }
 
-  $Service->info($uid, { ID => $service_id });
+  $Service->user_info($uid, { ID => $service_id });
 }
 
 #**********************************************************

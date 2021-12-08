@@ -186,5 +186,11 @@ $lang{PERFORMERS} = 'Performers';
 $lang{NUMBER_OF_PROCESSED_REQUESTS_IN_THE_CURRENT_MONTH} = 'Number of processed requests in the current month';
 $lang{TIME_SPENT_ON_APPLICATIONS_IN_THE_CURRENT_MONTH} = 'Time spent on applications in the current month';
 $lang{THE_NUMBER_OF_USER_TICKETS_IN_THE_CURRENT_MONTH} = 'The number of user tickets in the current month and the time spent on them';
+$lang{NEW_TICKETS} = 'New tickets';
+$lang{CLOSED} = 'Closed';
+$lang{RESPONSE_TIME} = 'Response time';
+$lang{SUPPORT_SYSTEM_STATS} = 'Support system stats';
+
+$lang{DYNAMICS_OF_MESSAGES_AND_REPLIES} = 'Dynamics of messages and replies';
 
 1;

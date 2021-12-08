@@ -5,6 +5,7 @@
     <input type=hidden name='DOMAIN_ID' value='$FORM{DOMAIN_ID}'>
     <input type=hidden name='module' value='Internet'>
     <input type=hidden name='_FACEBOOK' value='%USER_ID%'>
+    <input type=hidden name='REFERRER'  value='%REFERRER%'>
 
     <div class='card center-block container-md'>
 

@@ -3,7 +3,7 @@
     <input type='hidden' name='chg' value=$FORM{chg}>
 
     <div class='card card-primary card-outline card-form'>
-        <div class='card-header with-border text-primary'>_{TARIFF_PLAN}_</div>
+        <h4 class='card-title'>_{TARIF_PLAN}_</h4>
 
         <div class='card-body'>
             <div class='form-group row'>
@@ -45,6 +45,17 @@
                               id='COMMENT'>%COMMENT%</textarea>
                 </div>
             </div>
+
+            <div class='form-group row'>
+                <label class='col-md-3 control-label' for='PERIOD_ALIGNMENT'>_{MONTH_ALIGNMENT}_:</label>
+                <div class='col-md-9'>
+                    <div class='form-check text-left'>
+                        <input type='checkbox' class='form-check-input' id='PERIOD_ALIGNMENT' name='PERIOD_ALIGNMENT'
+                               %PERIOD_ALIGNMENT% value='1'>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <div class='card-footer'>

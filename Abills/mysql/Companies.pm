@@ -234,7 +234,6 @@ sub list {
   $attr->{SKIP_DEL_CHECK} = 1;
 
   my @WHERE_RULES = ();
-
   my $info_fields_list;
 
   if($CONF->{info_fields_new}) {
@@ -334,9 +333,9 @@ sub list {
     {
       WHERE_RULES      => \@WHERE_RULES,
       USERS_FIELDS_PRE => 1,
-      USE_USER_PI      => 1,
+      #USE_USER_PI      => 1,
       SKIP_USERS_FIELDS=> [ 'DEPOSIT', 'CREDIT', 'BILL_ID', 'CREDIT_DATE', 'ADDRESS',
-        'REGISTRATION', 'CONTRACT_ID', 'CONTRACT_DATE', 'PHONE',
+        'REGISTRATION', 'CONTRACT_ID', 'CONTRACT_DATE', 'PHONE', 'FIO',
         'DOMAIN_ID', 'LOCATION_ID', 'ADDRESS_FLAT', 'DOMAIN_ID', 'COMPANY_NAME'
       ],
       WHERE            => 1,
@@ -365,7 +364,8 @@ sub list {
     $EXT_TABLE
     $WHERE
     GROUP BY c.id
-    ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+    ORDER BY $SORT $DESC
+    LIMIT $PG, $PAGE_ROWS;",
     undef,
     $attr
   );

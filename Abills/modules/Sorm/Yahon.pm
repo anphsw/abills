@@ -150,7 +150,7 @@ sub user_info_report {
   delete $Internet->{IP};
   delete $Internet->{CID};
   delete $Internet->{NETMASK};
-  $Internet->info($uid);
+  $Internet->user_info($uid);
 
   my ($family, $name, $surname) = split(' ', $User->{FIO} || q{});
 
@@ -785,7 +785,7 @@ sub payment_report {
   my $self = shift;
   my ($attr) = @_;
 
-  $Internet->info($attr->{uid});
+  $Internet->user_info($attr->{uid});
   my $ip = ($Internet->{IP} ne '0.0.0.0') ? $Internet->{IP} : "";
 
   my $string = '"' . $self->{conf}->{SORM_ISP_ID} .'";';                             # идентификатор филиала из справочника

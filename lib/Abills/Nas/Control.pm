@@ -1399,6 +1399,7 @@ sub hangup_unifi {
     $attr
        NAS_MNG_USER
        NAS_MNG_IP_PORT
+       RSH_CMD =>
 
   Results:
     command result
@@ -1419,7 +1420,9 @@ sub rsh_cmd {
 
   $cmd =~ s/\\\"/\"/g;
 
-  my $command = "/usr/bin/rsh -o StrictHostKeyChecking=no -l $mng_user $ip \"$cmd\"";
+  my $rsh_cmd = ($attr->{RSH_CMD}) ? $attr->{RSH_CMD} : '/usr/bin/rsh -o StrictHostKeyChecking=no';
+
+  my $command = "$rsh_cmd -l $mng_user $ip \"$cmd\"";
   if ($Log) {
     $Log->log_print('LOG_DEBUG', '', "$command", { ACTION => 'CMD' });
   }

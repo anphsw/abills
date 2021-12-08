@@ -4,7 +4,7 @@ ID: %ID%
 _{SUBJECT}_: %SUBJECT%
 _{STATUS}_: %STATUS%
 _{LOGIN}_: %LOGIN%
-_{RESPOSIBLE}_: %RESPOSIBLE%
+_{RESPONSIBLE}_: %RESPONSIBLE%
 %ADMIN%
 ---------------------------------------
 _{HELLO}_, %FIO%

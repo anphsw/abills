@@ -9,7 +9,8 @@ use warnings FATAL => 'all';
 use Abills::Base qw\_bp in_array\;
 use SNMP_util;
 use Carp;
-our ($db, $admin, %conf, $html, %lang, $index, %FORM, $base_dir);
+our ($db, $admin, %conf, %lang, $index, %FORM, $base_dir);
+our Abills::HTML $html;
 
 my %loaded_mibs = ();
 my %OIDS_HASH = %SNMP_util::OIDS;

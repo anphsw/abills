@@ -185,6 +185,8 @@ sub maps2_point_info_table {
     $point_info_object .= '<tr>' . join('', map {'<th>' . ($_ || q{}) . '</th>'} @{$attr->{TABLE_LANG_TITLES}}) . '</tr>';
   }
 
+  my $editable_fields = $attr->{EDITABLE_FIELDS} && ref($attr->{EDITABLE_FIELDS}) eq 'ARRAY' ? $attr->{EDITABLE_FIELDS} : [];
+
   foreach my $u (@{$objects}) {
     $point_info_object .= '<tr>';
 
@@ -203,7 +205,15 @@ sub maps2_point_info_table {
 
       next if $value eq '-1';
 
-      $point_info_object .= '<td>' . ($value || q{}) . '</td>';
+      my $ext_params = "data-field='$table_titles->[$i]'";
+
+      if (in_array($table_titles->[$i], $editable_fields) && $attr->{CHANGE_FUNCTION}) {
+        $ext_params .= " onclick='editField(this)'";
+        $ext_params .= " data-url='?header=2&get_index=$attr->{CHANGE_FUNCTION}&RETURN_JSON=1&change=1'";
+        $ext_params .= " data-id='$u->{id}'";
+      }
+
+      $point_info_object .= '<td ' . $ext_params . '>' . ($value || q{}) . '</td>';
     }
 
     $point_info_object .= '</tr>';
@@ -381,15 +391,32 @@ sub maps2_show_object_button {
   my $params = '';
 
   my %button_params = (
-    class  => 'btn btn-xs btn-info',
+    class  => $attr->{BTN_CLASS} || 'btn btn-xs btn-primary',
     title  => $lang->{SHOW},
-    ICON   => 'fa fa-globe',
+    ICON   => $attr->{ICON} || 'fa fa-globe',
     target => '_blank'
   );
 
   if ($attr->{CHECK_POINT} && $object_id) {
     my $point_info = $Maps->points_info($object_id);
     $attr->{ADD_POINT} = 1 if $Maps->{TOTAL} > 0 && !($point_info->{coordx} && $point_info->{coordy});
+  }
+
+  if ($attr->{CHECK_BUILD} && $object_id) {
+    my $build2 = $Maps->build2_list_with_points({
+      LOCATION_ID   => $object_id || '_SHOW',
+      COORDS        => '_SHOW',
+      OBJECT_ID     => '_SHOW',
+      COLS_NAME     => 1,
+    });
+
+    if ($Maps->{TOTAL} > 0) {
+      $layer_id = 12;
+      $object_id = $build2->[0]{object_id};
+      $attr->{ADD_POINT} = 0;
+      $button_params{class} = 'btn btn-xs btn-success';
+      $button_params{ICON} = 'fa fa-globe';
+    }
   }
 
   $button_params{class} = 'btn btn-xs btn-warning disabled' if (exists $attr->{POINT_ID} && !$attr->{POINT_ID});
@@ -414,6 +441,12 @@ sub maps2_show_object_button {
   if ($name) {
     $button_params{ADD_ICON} = $button_params{ICON};
     delete $button_params{ICON}
+  }
+
+  if ($attr->{LOAD_TO_MODAL}) {
+    $button_params{LOAD_TO_MODAL} = 1;
+    $params =~ s/index=\d+/get_index=maps2_main/;
+    $params .= '&header=2&SMALL=1&MODAL=1&CLEAR_LAYERS=1';
   }
 
   return $html->button($name, $params, \%button_params)

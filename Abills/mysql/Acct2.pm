@@ -190,11 +190,11 @@ sub accounting {
   # Stop status
   elsif ($acct_status_type == 2) {
 
-    $RAD->{'Acct-Terminate-Cause'} = ($RAD->{'Acct-Terminate-Cause'} && defined($ACCT_TERMINATE_CAUSES{$RAD->{'Acct-Terminate-Cause'}})) ? $ACCT_TERMINATE_CAUSES{$RAD->{'Acct-Terminate-Cause'}} : 0;
-
-    #IPN Service
-    if ($NAS->{NAS_EXT_ACCT} || $NAS->{NAS_TYPE} eq 'ipcad') {
-      $self->query2("SELECT
+    my $terminate_cause = ($RAD->{'Acct-Terminate-Cause'} && defined($ACCT_TERMINATE_CAUSES{$RAD->{'Acct-Terminate-Cause'}})) ? $ACCT_TERMINATE_CAUSES{$RAD->{'Acct-Terminate-Cause'}} : 0;
+    if ($RAD->{'Acct-Session-Time'} > 5) {
+      #IPN Service
+      if ($NAS->{NAS_EXT_ACCT} || $NAS->{NAS_TYPE} eq 'ipn') {
+        $self->query2("SELECT
        online.acct_input_octets AS inbyte,
        online.acct_output_octets AS outbyte,
        online.acct_input_gigawords,
@@ -210,51 +210,51 @@ sub accounting {
     INNER JOIN users u ON (online.uid=u.uid)
     WHERE online.user_name= ?
       AND online.acct_session_id= ? ;",
-        undef,
-        { INFO => 1,
-          Bind => [ $RAD->{'User-Name'} || '',
-            $RAD->{'Acct-Session-Id'}
-          ] }
-      );
+          undef,
+          { INFO => 1,
+            Bind => [ $RAD->{'User-Name'} || '',
+              $RAD->{'Acct-Session-Id'}
+            ] }
+        );
 
-      if ($self->{errno}) {
-        if ($self->{errno} == 2) {
-          $self->{errno}  = 2;
-          $self->{errstr} = "Session account Not Exist '". $RAD->{'Acct-Session-Id'} ."'";
+        if ($self->{errno}) {
+          if ($self->{errno} == 2) {
+            $self->{errno} = 2;
+            $self->{errstr} = "Session account Not Exist '" . $RAD->{'Acct-Session-Id'} . "'";
+            return $self;
+          }
           return $self;
         }
-        return $self;
-      }
 
-      if ($self->{COMPANY_ID} > 0) {
-        $self->query2("SELECT bill_id FROM companies WHERE id= ? ;", undef, { Bind => [ $self->{COMPANY_ID} ] });
-        if ($self->{TOTAL} < 1) {
-          $self->{errno}  = 2;
-          $self->{errstr} = "Company not exists '$self->{COMPANY_ID}'";
-          return $self;
+        if ($self->{COMPANY_ID} > 0) {
+          $self->query2("SELECT bill_id FROM companies WHERE id= ? ;", undef, { Bind => [ $self->{COMPANY_ID} ] });
+          if ($self->{TOTAL} < 1) {
+            $self->{errno} = 2;
+            $self->{errstr} = "Company not exists '$self->{COMPANY_ID}'";
+            return $self;
+          }
+          ($self->{BILL_ID}) = @{$self->{list}->[0]};
         }
-        ($self->{BILL_ID}) = @{ $self->{list}->[0] };
-      }
 
-      # if ($self->{INBYTE} > 4294967296) {
-      #   $RAD->{$input_gigawords} = int($self->{INBYTE} / 4294967296);
-      #   $RAD->{INBYTE}           = $self->{INBYTE} - $RAD->{$input_gigawords} * 4294967296;
-      # }
-      #
-      # if ($self->{OUTBYTE} > 4294967296) {
-      #   $RAD->{$output_gigawords} = int($self->{OUTBYTE} / 4294967296);
-      #   $RAD->{OUTBYTE}           = $self->{OUTBYTE} - $RAD->{$output_gigawords} * 4294967296;
-      # }
+        # if ($self->{INBYTE} > 4294967296) {
+        #   $RAD->{$input_gigawords} = int($self->{INBYTE} / 4294967296);
+        #   $RAD->{INBYTE}           = $self->{INBYTE} - $RAD->{$input_gigawords} * 4294967296;
+        # }
+        #
+        # if ($self->{OUTBYTE} > 4294967296) {
+        #   $RAD->{$output_gigawords} = int($self->{OUTBYTE} / 4294967296);
+        #   $RAD->{OUTBYTE}           = $self->{OUTBYTE} - $RAD->{$output_gigawords} * 4294967296;
+        # }
 
-      my $ipv6 = '';
-      if ($conf->{IPV6} && $RAD->{'Framed-IPv6-Prefix'}) {
-        my $interface_id = $RAD->{'Framed-Interface-Id'} || q{};
-        $interface_id =~ s/\/\d+//g;
-        $ipv6 =  ", framed_ipv6_prefix =INET6_ATON('". $RAD->{'Framed-IPv6-Prefix'}.'::'.$interface_id ."')";
-      }
+        my $ipv6 = '';
+        if ($conf->{IPV6} && $RAD->{'Framed-IPv6-Prefix'}) {
+          my $interface_id = $RAD->{'Framed-Interface-Id'} || q{};
+          $interface_id =~ s/\/\d+//g;
+          $ipv6 = ", framed_ipv6_prefix =INET6_ATON('" . $RAD->{'Framed-IPv6-Prefix'} . '::' . $interface_id . "')";
+        }
 
-      if ($self->{UID} > 0) {
-        $self->query2("INSERT INTO internet_log SET
+        if ($self->{UID} > 0) {
+          $self->query2('INSERT INTO internet_log SET
           uid= ? ,
           start=NOW() - INTERVAL ? SECOND,
           tp_id= ? ,
@@ -273,10 +273,10 @@ sub accounting {
           terminate_cause= ? ,
           acct_input_gigawords= ? ,
           acct_output_gigawords= ?,
-          guest= ?
-          $ipv6",
-          'do',
-          { Bind => [
+          guest= ? '
+            . $ipv6,
+            'do',
+            { Bind => [
               $self->{UID} || 0,
               $RAD->{'Acct-Session-Time'},
               $self->{TP_ID},
@@ -292,134 +292,41 @@ sub accounting {
               $self->{INBYTE2},
               $RAD->{'Acct-Session-Id'},
               $self->{BILL_ID},
-              $RAD->{'Acct-Terminate-Cause'},
+              $terminate_cause,
               $RAD->{$input_gigawords},
               $RAD->{$output_gigawords},
               $self->{GUEST} || 0
             ] }
-        );
+          );
+        }
       }
-    }
-    elsif ($conf->{rt_billing}) {
-      $self->rt_billing($RAD, $NAS);
-      if ($self->{errno}) {
-        #DEbug only
-        if ($conf->{ACCT_DEBUG}) {
-          require POSIX;
-          POSIX->import(qw( strftime ));
-          my $DATE_TIME = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime(time));
-          `echo "$DATE_TIME $self->{UID} - $RAD->{'User-Name'} / $RAD->{'Acct-Session-Id'} / Time: $RAD->{'Acct-Session-Time'} / $self->{errstr}" >> /tmp/unknown_session.log`;
+      elsif ($conf->{rt_billing}) {
+        $self->rt_billing($RAD, $NAS);
+        if ($self->{errno}) {
+          #DEbug only
+          if ($conf->{ACCT_DEBUG}) {
+            require POSIX;
+            POSIX->import(qw(strftime));
+            my $DATE_TIME = POSIX::strftime("%Y-%m-%d %H:%M:%S", localtime(time));
+            `echo "$DATE_TIME $self->{UID} - $RAD->{'User-Name'} / $RAD->{'Acct-Session-Id'} / Time: $RAD->{'Acct-Session-Time'} / $self->{errstr}" >> /tmp/unknown_session.log`;
+          }
+
+          ($self->{UID},
+            $self->{SUM},
+            $self->{BILL_ID},
+            $self->{TP_ID},
+            $self->{TIME_TARIF},
+            $self->{TRAF_TARIF}) = $Billing->session_sum($RAD->{'User-Name'},
+            time - $RAD->{'Acct-Session-Time'},
+            $RAD->{'Acct-Session-Time'},
+            $RAD,
+            { SERVICE_ID => $self->{SERVICE_ID} }
+          );
+        }
+        else {
+          $self->{SUM} += $self->{CALLS_SUM};
         }
 
-        ($self->{UID},
-         $self->{SUM},
-         $self->{BILL_ID},
-         $self->{TP_ID},
-         $self->{TIME_TARIF},
-         $self->{TRAF_TARIF}) = $Billing->session_sum($RAD->{'User-Name'},
-                 time - $RAD->{'Acct-Session-Time'},
-                 $RAD->{'Acct-Session-Time'},
-                 $RAD,
-          { SERVICE_ID => $self->{SERVICE_ID} }
-        );
-      }
-      else {
-        $self->{SUM} += $self->{CALLS_SUM};
-      }
-
-      $self->query2("INSERT INTO internet_log SET
-          uid= ? ,
-          start=NOW() - INTERVAL ? SECOND,
-          tp_id= ? ,
-          duration= ? ,
-          sent= ? ,
-          recv= ? ,
-          sum= ? ,
-          nas_id= ? ,
-          port_id= ? ,
-          ip=INET_ATON( ? ),
-          CID= ? ,
-          sent2= ? ,
-          recv2= ? ,
-          acct_session_id= ? ,
-          bill_id= ? ,
-          terminate_cause= ? ,
-          acct_input_gigawords= ? ,
-          acct_output_gigawords= ? ",
-        'do',
-        { Bind => [
-            $self->{UID} || 0,
-            $RAD->{'Acct-Session-Time'},
-            $self->{TP_ID} || 0,
-            $RAD->{'Acct-Session-Time'},
-            $RAD->{OUTBYTE},
-            $RAD->{INBYTE},
-            $self->{SUM} || 0,
-            $NAS->{NAS_ID},
-            $RAD->{'NAS-Port'} || 0,
-            $RAD->{'Framed-IP-Address'},
-            $RAD->{'Calling-Station-Id'} || '_2',
-            $RAD->{OUTBYTE2},
-            $RAD->{INBYTE2},
-            $RAD->{'Acct-Session-Id'},
-            $self->{BILL_ID},
-            $RAD->{'Acct-Terminate-Cause'},
-            $RAD->{$input_gigawords},
-            $RAD->{$output_gigawords}
-          ] }
-      );
-
-      if ($self->{errno}) {
-        print "Error: [$self->{errno}] $self->{errstr}\n";
-      }
-    }
-    else {
-      my %EXT_ATTR = ();
-
-      #Get connected TP
-      $self->query2("SELECT uid, tp_id, connect_info, service_id FROM internet_online WHERE
-          acct_session_id= ? AND nas_id= ? ;",
-        undef,
-        { Bind => [ $RAD->{'Acct-Session-Id'}, $NAS->{NAS_ID} ]}
-      );
-
-      ($EXT_ATTR{UID}, $EXT_ATTR{TP_ID}, $EXT_ATTR{CONNECT_INFO}, $EXT_ATTR{SERVICE_ID}) =
-        @{ $self->{list}->[0] } if ($self->{TOTAL} > 0);
-
-      ($self->{UID},
-        $self->{SUM},
-        $self->{BILL_ID},
-        $self->{TP_ID},
-        $self->{TIME_TARIF},
-        $self->{TRAF_TARIF}) = $Billing->session_sum($RAD->{'User-Name'},
-        (time - $RAD->{'Acct-Session-Time'}),
-        $RAD->{'Acct-Session-Time'},
-        $RAD,
-        \%EXT_ATTR);
-
-      $self->{TP_ID} //= $EXT_ATTR{TP_ID};
-      #  return $self;
-      if ($self->{UID} == -2) {
-        $self->{errno}  = 1;
-        $self->{errstr} = "ACCT [". $RAD->{'User-Name'} ."] Not exist";
-      }
-      elsif ($self->{UID} == -3) {
-        my $filename      = $RAD->{'User-Name'}.$RAD->{'Acct-Session-Id'};
-        $RAD->{SQL_ERROR} = "$Billing->{errno}:$Billing->{errstr}";
-        $self->{errno}    = 1;
-        $self->{errstr}   = "SQL Error ($Billing->{errstr}) SESSION: '$filename'";
-        $Billing->mk_session_log($RAD);
-        return $self;
-      }
-      elsif ($self->{SUM} < 0) {
-        $self->{LOG_DEBUG} = "ACCT [". $RAD->{'User-Name'} ."] small session (".
-          $RAD->{'Acct-Session-Time'} .", $RAD->{INBYTE}, $RAD->{OUTBYTE})";
-      }
-      elsif ($self->{UID} <= 0) {
-        $self->{LOG_DEBUG} = 'ACCT ['. $RAD->{'User-Name'} ."] small session (".
-          $RAD->{'Acct-Session-Time'} .", $RAD->{INBYTE}, $RAD->{OUTBYTE}), $self->{UID}";
-      }
-      else {
         $self->query2("INSERT INTO internet_log SET
           uid= ? ,
           start=NOW() - INTERVAL ? SECOND,
@@ -440,7 +347,100 @@ sub accounting {
           acct_input_gigawords= ? ,
           acct_output_gigawords= ? ",
           'do',
-          { Bind => [ $self->{UID} || 0,
+          { Bind => [
+            $self->{UID} || 0,
+            $RAD->{'Acct-Session-Time'},
+            $self->{TP_ID} || 0,
+            $RAD->{'Acct-Session-Time'},
+            $RAD->{OUTBYTE},
+            $RAD->{INBYTE},
+            $self->{SUM} || 0,
+            $NAS->{NAS_ID},
+            $RAD->{'NAS-Port'} || 0,
+            $RAD->{'Framed-IP-Address'},
+            $RAD->{'Calling-Station-Id'} || '_2',
+            $RAD->{OUTBYTE2},
+            $RAD->{INBYTE2},
+            $RAD->{'Acct-Session-Id'},
+            $self->{BILL_ID},
+            $terminate_cause,
+            $RAD->{$input_gigawords},
+            $RAD->{$output_gigawords}
+          ] }
+        );
+
+        if ($self->{errno}) {
+          print "Error: [$self->{errno}] $self->{errstr}\n";
+        }
+      }
+      else {
+        my %EXT_ATTR = ();
+
+        #Get connected TP
+        $self->query2("SELECT uid, tp_id, connect_info, service_id FROM internet_online WHERE
+          acct_session_id= ? AND nas_id= ? ;",
+          undef,
+          { Bind => [ $RAD->{'Acct-Session-Id'}, $NAS->{NAS_ID} ] }
+        );
+
+        ($EXT_ATTR{UID}, $EXT_ATTR{TP_ID}, $EXT_ATTR{CONNECT_INFO}, $EXT_ATTR{SERVICE_ID}) =
+          @{$self->{list}->[0]} if ($self->{TOTAL} > 0);
+
+        ($self->{UID},
+          $self->{SUM},
+          $self->{BILL_ID},
+          $self->{TP_ID},
+          $self->{TIME_TARIF},
+          $self->{TRAF_TARIF}) = $Billing->session_sum($RAD->{'User-Name'},
+          (time - $RAD->{'Acct-Session-Time'}),
+          $RAD->{'Acct-Session-Time'},
+          $RAD,
+          \%EXT_ATTR);
+
+        $self->{TP_ID} //= $EXT_ATTR{TP_ID};
+        #  return $self;
+        if ($self->{UID} == -2) {
+          $self->{errno} = 1;
+          $self->{errstr} = "ACCT [" . $RAD->{'User-Name'} . "] Not exist";
+        }
+        elsif ($self->{UID} == -3) {
+          my $filename = $RAD->{'User-Name'} . $RAD->{'Acct-Session-Id'};
+          $RAD->{SQL_ERROR} = "$Billing->{errno}:$Billing->{errstr}";
+          $self->{errno} = 1;
+          $self->{errstr} = "SQL Error ($Billing->{errstr}) SESSION: '$filename'";
+          $Billing->mk_session_log($RAD);
+          return $self;
+        }
+        elsif ($self->{SUM} < 0) {
+          $self->{LOG_DEBUG} = "ACCT [" . $RAD->{'User-Name'} . "] small session (" .
+            $RAD->{'Acct-Session-Time'} . ", $RAD->{INBYTE}, $RAD->{OUTBYTE})";
+        }
+        elsif ($self->{UID} <= 0) {
+          $self->{LOG_DEBUG} = 'ACCT [' . $RAD->{'User-Name'} . "] small session (" .
+            $RAD->{'Acct-Session-Time'} . ", $RAD->{INBYTE}, $RAD->{OUTBYTE}), $self->{UID}";
+        }
+        else {
+          $self->query2("INSERT INTO internet_log SET
+          uid= ? ,
+          start=NOW() - INTERVAL ? SECOND,
+          tp_id= ? ,
+          duration= ? ,
+          sent= ? ,
+          recv= ? ,
+          sum= ? ,
+          nas_id= ? ,
+          port_id= ? ,
+          ip=INET_ATON( ? ),
+          CID= ? ,
+          sent2= ? ,
+          recv2= ? ,
+          acct_session_id= ? ,
+          bill_id= ? ,
+          terminate_cause= ? ,
+          acct_input_gigawords= ? ,
+          acct_output_gigawords= ? ",
+            'do',
+            { Bind => [ $self->{UID} || 0,
               $RAD->{'Acct-Session-Time'},
               $self->{TP_ID} || $EXT_ATTR{TP_ID},
               $RAD->{'Acct-Session-Time'},
@@ -455,28 +455,28 @@ sub accounting {
               $RAD->{INBYTE2},
               $RAD->{'Acct-Session-Id'},
               $self->{BILL_ID},
-              $RAD->{'Acct-Terminate-Cause'},
+              $terminate_cause,
               $RAD->{$input_gigawords},
               $RAD->{$output_gigawords}
             ] }
-        );
+          );
 
-        if ($self->{errno}) {
-          my $filename = $RAD->{'User-Name'}.$RAD->{'Acct-Session-Id'};
-          $self->{LOG_WARNING} = "ACCT [". $RAD->{'User-Name'} ."] Making accounting file '$filename'";
-          $Billing->mk_session_log($RAD);
-        }
+          if ($self->{errno}) {
+            my $filename = $RAD->{'User-Name'} . $RAD->{'Acct-Session-Id'};
+            $self->{LOG_WARNING} = "ACCT [" . $RAD->{'User-Name'} . "] Making accounting file '$filename'";
+            $Billing->mk_session_log($RAD);
+          }
 
-        # If SQL query filed
-        else {
-          if ($self->{SUM} > 0) {
-            $self->query2("UPDATE bills SET deposit=deposit - ? WHERE id= ? ;", 'do',
-              { Bind => [  $self->{SUM}, $self->{BILL_ID} ]});
+          # If SQL query filed
+          else {
+            if ($self->{SUM} > 0) {
+              $self->query2("UPDATE bills SET deposit=deposit - ? WHERE id= ? ;", 'do',
+                { Bind => [ $self->{SUM}, $self->{BILL_ID} ] });
+            }
           }
         }
       }
     }
-
     # Delete from session
     $self->query2("DELETE FROM internet_online WHERE acct_session_id= ? AND nas_id= ? ;",
       'do', { Bind => [ $RAD->{'Acct-Session-Id'}, $NAS->{NAS_ID} ] });
@@ -497,9 +497,9 @@ sub accounting {
       acct_output_gigawords='". $RAD->{$output_gigawords} ."',";
       }
 
-      $self->query2("UPDATE internet_online SET
-        $ipn_fields
-        status= ? ,
+      $self->query2('UPDATE internet_online SET'
+        . $ipn_fields
+        . "status= ? ,
         acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
         framed_ip_address=INET_ATON( ? ),
         lupdated=UNIX_TIMESTAMP()
@@ -516,7 +516,7 @@ sub accounting {
 
       return $self;
     }
-    elsif ($NAS->{NAS_TYPE} eq 'ipcad') {
+    elsif ($NAS->{NAS_TYPE} eq 'ipn') {
       return $self;
     }
     elsif ($conf->{rt_billing}) {
@@ -538,13 +538,13 @@ sub accounting {
       $ex_octets = "ex_input_octets='$RAD->{INBYTE2}',  ex_output_octets='$RAD->{OUTBYTE2}', ";
     }
 
-    $self->query2("UPDATE internet_online SET
+    $self->query2('UPDATE internet_online SET
       status= ? ,
       acct_session_time=UNIX_TIMESTAMP()-UNIX_TIMESTAMP(started),
       acct_input_octets= ? ,
-      acct_output_octets= ? ,
-      $ex_octets
-      framed_ip_address=INET_ATON( ? ),
+      acct_output_octets= ? ,'
+      . $ex_octets
+      . 'framed_ip_address=INET_ATON( ? ),
       lupdated=UNIX_TIMESTAMP(),
       sum=sum + ? ,
       acct_input_gigawords= ? ,
@@ -552,7 +552,7 @@ sub accounting {
     WHERE
       acct_session_id= ?
       AND user_name= ?
-      AND nas_id= ? ;", 'do',
+      AND nas_id= ? ;', 'do',
       { Bind => [
           $acct_status_type,
           $RAD->{'INBYTE'},
@@ -567,6 +567,14 @@ sub accounting {
         ]}
     );
   }
+  elsif($acct_status_type == '7' || $acct_status_type == '8') {
+    $self->query2("UPDATE internet_online SET status = 2
+           WHERE nas_id = ?;", 'do',
+      { Bind => [
+          $NAS->{'NAS_ID'}
+        ]
+      });
+  }
   else {
     $self->{errno}  = 1;
     $self->{errstr} = "ACCT [". $RAD->{'User-Name'} ."] Unknown accounting status: ". $RAD->{'Acct-Status-Type'}." (". $RAD->{'Acct-Session-Id'} .")";
@@ -579,8 +587,8 @@ sub accounting {
     return $self;
   }
 
-  #detalization for Exppp
-  if ($conf->{s_detalization} && $self->{UID}) {
+  #detalization radius acct request
+  if (($conf->{s_detalization} || $self->{DETAIL_STATS}) && $self->{UID}) {
     $self->query2("INSERT INTO s_detail (acct_session_id, nas_id, acct_status, last_update, recv1, sent1, recv2, sent2, uid, sum)
        VALUES (?, ?, ?, UNIX_TIMESTAMP(), ?, ?, ?, ?, ?, ?);",
       'do',
@@ -685,6 +693,8 @@ sub rt_billing {
       DOMAIN_ID  => ($NAS->{DOMAIN_ID}) ? $NAS->{DOMAIN_ID} : 0,
     }
   );
+
+  $self->{DETAIL_STATS} = ($Billing->{DETAIL_STATS}) ? $Billing->{DETAIL_STATS} : 0;
 
   #  return $self;
   if ($self->{UID} == -2) {
@@ -859,7 +869,7 @@ sub add_unknown_session {
         nas_id= ? ,
         tp_id= ? ,
         uid= ? ,
-        service_id = ? $guest_mode";
+        service_id = ? ". $guest_mode;
 
   $self->query2($sql, 'do', { Bind =>
     [ $attr->{ACCT_STATUS_TYPE},

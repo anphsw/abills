@@ -227,9 +227,9 @@ sub accounting {
 
   my $acct_status_type = $ACCT_TYPES{ $RAD_REQUEST{'Acct-Status-Type'} };
 
-  if ($acct_status_type > 6) {
-    return RLM_MODULE_OK;
-  }
+  # if ($acct_status_type > 6) {
+  #   return RLM_MODULE_OK;
+  # }
 
   $RAD_REQUEST{INTERIUM_INBYTE}   = 0;
   $RAD_REQUEST{INTERIUM_OUTBYTE}  = 0;
@@ -654,7 +654,7 @@ sub auth_ {
     ($r, $RAD_PAIRS) = $auth_mod{$nas_type}->auth($RAD, $nas);
     $RAD_REQUEST{'User-Name'} = $auth_mod{$nas_type}->{LOGIN} if ($auth_mod{$nas_type}->{LOGIN});
 
-    $extra_info = ($auth_mod{$nas_type}->{INFO}) ? ' '.$auth_mod{$nas_type}->{INFO} .' ' : '';
+    $extra_info = ($auth_mod{$nas_type}->{INFO}) ? $auth_mod{$nas_type}->{INFO} : '';
   }
   elsif ($AUTH{ default }) {
     my $auth_module = $AUTH{ default };
@@ -667,7 +667,7 @@ sub auth_ {
     $auth_mod{default} = $auth_module->new($db, \%conf);
     ($r, $RAD_PAIRS) = $auth_mod{default}->auth($RAD, $nas);
     $RAD_REQUEST{'User-Name'} = $auth_mod{"default"}->{LOGIN} if ($auth_mod{"default"}->{LOGIN});
-    $extra_info = ($auth_mod{ default }->{INFO}) ? ' '.$auth_mod{default}->{INFO} .' ' : '';
+    $extra_info = ($auth_mod{ default }->{INFO}) ? $auth_mod{default}->{INFO} : '';
 
     $nas_type = 'default';
   }
@@ -730,7 +730,7 @@ sub auth_ {
 
   my $CID = ($RAD_REQUEST{'Calling-Station-Id'}) ? " CID: ". $RAD_REQUEST{'Calling-Station-Id'} : '';
 
-  if ($begin_time > 0) {
+  if ($begin_time > 0 && ! $conf{CONNECT_LOG}) {
     my $gen_time = Time::HiRes::gettimeofday() - $begin_time;
     $GT = sprintf(" GT: %2.5f", $gen_time);
   }
@@ -772,7 +772,7 @@ sub access_deny {
 #**********************************************************
 # http://chimera.labs.oreilly.com/books/1234000001527/ch06.html#vicunas-06-7
 #**********************************************************
-sub mk_debug_log {
+#sub mk_debug_log {
 #  my ($info_arr, $attr) = @_;
 
 =comments
@@ -840,8 +840,6 @@ sub test_vars {
 }
 
 =cut
-
-
-}
+#}
 
 1

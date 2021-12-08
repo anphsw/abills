@@ -20,7 +20,7 @@
 <script src='/styles/default_adm/js/maps/Leaflet.draw.all.js'></script>
 
 <!--Leaflet.ant-path -->
-<script src="/styles/default_adm/js/maps/leaflet-ant-path.js" type="text/javascript"></script>
+<script src='/styles/default_adm/js/maps/leaflet-ant-path.js' type='text/javascript'></script>
 
 <!--Google Maps-->
 <script src='/styles/default_adm/js/maps/Leaflet.GoogleMutant.js'></script>
@@ -39,17 +39,42 @@
 <script src='/styles/default_adm/js/maps/Leaflet.BigImage.js'></script>
 <link rel='stylesheet' href='/styles/default_adm/css/modules/maps/Leaflet.BigImage.css'>
 
+<script type='text/javascript' src='/styles/default_adm/js/maps/Map.SelectArea.js'></script>
+
+<script type='text/javascript' src='/styles/default_adm/js/maps/Leaflet.CenterCoordinates.js'></script>
+<link rel='stylesheet' href='/styles/default_adm/css/modules/maps/Leaflet.CenterCoordinates.css'>
+
+<script type='text/javascript' src='/styles/default_adm/js/maps/leaflet-sidebar.min.js'></script>
+<link rel='stylesheet' href='/styles/default_adm/css/modules/maps/leaflet-sidebar.min.css'>
+
 %JS_VARIABLES%
 
 <div class='row'>
-  <div class="col-sm-12 col-12">
+  <div class='col-sm-12 col-12'>
     <div class='card card-primary'>
-      <div class='card-body' id='map-wrapper' style="padding: 5px !important;">
+      <div class='card-body' id='map-wrapper' style='padding: 5px !important;'>
         <div id='map' style='height: 85vh'></div>
       </div>
     </div>
   </div>
   <div class='clearfix'></div>
+</div>
+
+<div id='sidebar' class='leaflet-sidebar hidden'>
+  <div class='leaflet-sidebar-tabs'>
+    <ul role='tablist'>
+      <li class='active'><a href='#home' role='tab'><i class='fa fa-bars'></i></a></li>
+    </ul>
+  </div>
+
+  <div class='leaflet-sidebar-content'>
+    <div class='leaflet-sidebar-pane active' id='home'>
+      <h1 class='leaflet-sidebar-header'>
+        <div class='leaflet-sidebar-close'><i class='fa fa-caret-left'></i></div>
+      </h1>
+      <div id='leaflet-sidebar-body'></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -80,6 +105,3 @@
       putScriptInHead('new_maps', '/styles/default_adm/js/maps/new-maps.js'));
   }
 </script>
-
-<!--<script src='/styles/default_adm/js/maps/new-general-requests.js'></script>-->
-<!--<script id='maps_main' src='/styles/default_adm/js/maps/new-maps.js'></script>-->

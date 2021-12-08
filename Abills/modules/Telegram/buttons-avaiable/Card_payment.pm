@@ -49,7 +49,7 @@ sub click {
   my @keyboard = ();
 
   my $button = {
-    text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
+    text => "$self->{bot}->{lang}->{CANCEL_TEXT}",
   };
   push (@keyboard, [$button]);
 
@@ -90,11 +90,11 @@ sub check_serial {
 
   if ($attr->{message}->{text}) {
     my $text = encode_utf8($attr->{message}->{text});
-    if($text eq $self->{bot}->{lang}->{CHANCLE_TEXT}){
+    if($text eq $self->{bot}->{lang}->{CANCEL_TEXT}){
 
       $self->{bot_db}->del($self->{bot}->{uid});
       $self->{bot}->send_message({
-        text => "$self->{bot}->{lang}->{SEND_CHANCLE}",
+        text => "$self->{bot}->{lang}->{SEND_CANCEL}",
       });
 
       return 0;

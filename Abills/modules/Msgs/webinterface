@@ -258,7 +258,7 @@ sub msgs_redirect_filter {
   #Del filter
   if ($conf{MSGS_REDIRECT_FILTER_DEL} && $attr->{DEL}) {
     $action = 'del';
-    $Internet_service->change({ UID => $attr->{UID}, FILTER_ID => '' });
+    $Internet_service->user_change({ UID => $attr->{UID}, FILTER_ID => '' });
 
     if ($conf{MSGS_REDIRECT_FILTER_DEL} =~ /EXEC:(.+)/) {
       $cmd = $1;
@@ -275,7 +275,7 @@ sub msgs_redirect_filter {
     my $rad = $2;
 
     if ($rad) {
-      $Internet_service->change({
+      $Internet_service->user_change({
         UID       => $attr->{UID},
         FILTER_ID => $rad
       });
@@ -842,12 +842,16 @@ sub msgs_survey_show {
 #***************************************************************
 sub msgs_start_page {
 
-  my %START_PAGE_F = ('msgs_sp_show_new' => "$lang{MESSAGES}",
-    'msgs_sp_show_overdue'               => "$lang{MESSAGES} $lang{OVERDUE}",
-    'msgs_user_watch'                    => "$lang{MESSAGE_ADMIN_WATCH}",
-    'msgs_dispatch_quick_report'         => "$lang{DISPATCH}",
-    'msgs_open_msgs'                     => "$lang{OPEN_MSGS}",
-    'msgs_rating'                        => "$lang{EVALUATION_OF_PERFORMANCE}"
+  my %START_PAGE_F = (
+    msgs_sp_show_new                      => $lang{MESSAGES},
+    msgs_sp_show_overdue                  => "$lang{MESSAGES} $lang{OVERDUE}",
+    msgs_user_watch                       => $lang{MESSAGE_ADMIN_WATCH},
+    msgs_dispatch_quick_report            => $lang{DISPATCH},
+    msgs_open_msgs                        => $lang{OPEN_MSGS},
+    msgs_rating                           => $lang{EVALUATION_OF_PERFORMANCE},
+    msgs_support_stats_block              => $lang{SUPPORT_SYSTEM_STATS},
+    msgs_support_stats_chart              => $lang{RESPONSE_TIME},
+    msgs_dynamics_of_messages_and_replies => $lang{DYNAMICS_OF_MESSAGES_AND_REPLIES},
   );
 
   return \%START_PAGE_F;
@@ -1160,8 +1164,7 @@ sub msgs_location_info {
     COLS_NAME    => 1,
     COLS_UPPER   => 1,
     %{$attr},
-  }
-  );
+  });
 
   _error_show($Msgs);
   my @messages_array = ();
@@ -1186,8 +1189,7 @@ sub msgs_location_info {
             $index_param . "&UID=$message->{uid}&chg=$message->{id}") . $html_br;
         }
       }
-    }
-    );
+    });
 
     $transformed =~ s/"/'/g;
 
@@ -1197,7 +1199,7 @@ sub msgs_location_info {
   my %result = (
     HTML  => join('', @messages_array),
     COUNT => scalar @messages_array,
-      COLOR => 'green'
+    COLOR => 'green'
   );
 
   return \%result;
@@ -1232,14 +1234,9 @@ sub msgs_sel_status {
 
   foreach my $line (@{$list}) {
     my $color = $line->{color} || '';
-    $hash{$line->{id}} = exists $line->{name}
-      ? _translate($line->{name})
-      : '';
+    $hash{$line->{id}} = exists $line->{name} ? _translate($line->{name}) : '';
 
-    if ($attr->{HASH_RESULT} && $color) {
-      $hash{$line->{id}} .= ":$color";
-    }
-
+    $hash{$line->{id}} .= ":$color" if ($attr->{HASH_RESULT} && $color);
     $style[$line->{id}] = '#' . $color;
   }
 
@@ -1248,34 +1245,21 @@ sub msgs_sel_status {
     $style[0] = '#0000FF';
   }
 
-  my $SERVICE_SEL = '';
-  if ($attr->{COLORS}) {
-    return \@style;
-  }
-  elsif ($attr->{HASH_RESULT}) {
-    return \%hash;
-  }
-  else {
-    my $status_id = (defined($attr->{$select_name})) ? $attr->{$select_name} : $FORM{$select_name};
+  return \@style if $attr->{COLORS} ;
+  return \%hash if $attr->{HASH_RESULT};
 
-    $SERVICE_SEL = $html->form_select(
-      $select_name,
-      {
-        SELECTED     => $status_id || $attr->{SELECTED_ID} || '_SHOW',
-        SEL_HASH     => \%hash,
-        STYLE        => \@style,
-        #USE_COLOR      => 1,
-        SORT_KEY_NUM => 1,
-        NO_ID        => 1,
-        SEL_OPTIONS  => ($attr->{ALL}) ? { '_SHOW' => "$lang{ALL}" } : undef,
-        EX_PARAMS    => ($attr->{MULTI_SEL}) ? 'multiple="multiple"' : undef
-        #MAIN_MENU      => get_function_index('form_status'),
-        #MAIN_MENU_ARGV => "chg=$status_id"
-      }
-    );
-  }
+  my $status_id = (defined($attr->{$select_name})) ? $attr->{$select_name} : $FORM{$select_name};
 
-  return $SERVICE_SEL;
+  return $html->form_select($select_name, {
+    SELECTED     => $status_id || $attr->{SELECTED_ID} || '_SHOW',
+    SEL_HASH     => \%hash,
+    STYLE        => \@style,
+    #USE_COLOR      => 1,
+    SORT_KEY_NUM => 1,
+    NO_ID        => 1,
+    SEL_OPTIONS  => ($attr->{ALL}) ? { '_SHOW' => "$lang{ALL}" } : undef,
+    EX_PARAMS    => ($attr->{MULTI_SEL}) ? 'multiple="multiple"' : undef
+  });
 }
 
 #**********************************************************
@@ -1339,8 +1323,6 @@ sub msgs_sel_tags {
         NO_ID        => 1,
         SEL_OPTIONS  => ($attr->{ALL}) ? { '' => "$lang{ALL}" } : undef,
         EX_PARAMS    => ($attr->{MULTI_SEL}) ? 'multiple="multiple"' : undef
-        #MAIN_MENU      => get_function_index('form_status'),
-        #MAIN_MENU_ARGV => "chg=$status_id"
       }
     );
   }
@@ -1356,30 +1338,20 @@ sub msgs_sel_tags {
 sub _quick_replys_tags_table {
   my ($info, $tags_info, $number) = @_;
 
-  my $table = $html->table(
-    {
-      width      => '100%',
-      FIELDS_IDS => $Msgs->{COL_NAMES_ARR},
-      qs         => $pages_qs,
-      ID         => "TAGS_TYPE_$number",
-    }
-  );
+  my $table = $html->table({
+    width      => '100%',
+    FIELDS_IDS => $Msgs->{COL_NAMES_ARR},
+    qs         => $pages_qs,
+    ID         => "TAGS_TYPE_$number",
+  });
 
   my $type_name = '';
 
   foreach my $line (sort keys %{$info}) {
-
-    $table->addrow(
-      $html->form_input(
-        'TAGS_IDS',
-        $info->{$line}->{id},
-        {
-          TYPE  => 'CHECKBOX',
-          STATE => $tags_info->{$info->{$line}->{id}} ? 1 : undef,
-        }
-      ),
-      $tags_info->{"reply_$info->{$line}->{id}"}
-    );
+    $table->addrow($html->form_input('TAGS_IDS', $info->{$line}->{id}, {
+      TYPE  => 'CHECKBOX',
+      STATE => $tags_info->{$info->{$line}->{id}} ? 1 : undef,
+    }), $tags_info->{"reply_$info->{$line}->{id}"});
     $type_name = $info->{$line}->{type};
   }
 
@@ -1398,17 +1370,12 @@ sub _quick_replys_tags_table {
 #**********************************************************
 sub msgs_sel_priority {
 
-  my $PRIORITY_SEL_FORM = $html->form_select(
-    'PRIORITY',
-    {
-      SELECTED     => 2,
-      SEL_ARRAY    => \@priority,
-      STYLE        => \@priority_colors,
-      ARRAY_NUM_ID => 1,
-    }
-  );
-
-  return $PRIORITY_SEL_FORM;
+  return $html->form_select('PRIORITY', {
+    SELECTED     => 2,
+    SEL_ARRAY    => \@priority,
+    STYLE        => \@priority_colors,
+    ARRAY_NUM_ID => 1,
+  });
 }
 
 
@@ -1436,14 +1403,9 @@ sub msgs_quick_replys_tags {
     return 1;
   }
 
-  my $msg_tags_list = $Msgs->quick_replys_tags_list({
-    MSG_ID    => $FORM{MSGS_ID},
-    COLS_NAME => 1
-  });
+  my $msg_tags_list = $Msgs->quick_replys_tags_list({ MSG_ID => $FORM{MSGS_ID}, COLS_NAME => 1 });
 
-  if (_error_show($Msgs)) {
-    return 1;
-  }
+  return 1 if _error_show($Msgs);
 
   my %info;
   my %quick_replys_list;
@@ -1460,11 +1422,10 @@ sub msgs_quick_replys_tags {
   }
 
   foreach my $msg_tag (@$msg_tags_list) {
+    next if !$msg_tag->{quick_reply_id};
 
-    if ($msg_tag->{quick_reply_id}) {
-      $tag_info{$msg_tag->{quick_reply_id}} = 1;
-      $tag_info{'reply_' . $msg_tag->{quick_reply_id}} = $msg_tag->{reply};
-    }
+    $tag_info{$msg_tag->{quick_reply_id}} = 1;
+    $tag_info{'reply_' . $msg_tag->{quick_reply_id}} = $msg_tag->{reply};
   }
 
   foreach my $type_key (sort keys %quick_replys_list) {
@@ -1472,9 +1433,7 @@ sub msgs_quick_replys_tags {
     $info{LIST} .= _quick_replys_tags_table($quick_replys_list{$type_key}, \%tag_info, $i++);
   }
 
-  $info{SUMBIT_BTN} = $html->form_input('CHANGE_MSGS_TAGS', "$lang{CHANGE}", {
-    TYPE => 'submit',
-  });
+  $info{SUMBIT_BTN} = $html->form_input('CHANGE_MSGS_TAGS', "$lang{CHANGE}", { TYPE => 'submit' });
 
   return $html->tpl_show(_include('msgs_quick_replys_tags', 'Msgs'), { %$Msgs, %info });
 }
@@ -1507,7 +1466,6 @@ sub msgs_operator_statistics {
 
   my $table_for_the_month = $html->table({
     caption => "$lang{RELATIVE_INDICATORS} $lang{FOR_THE_MONTH}",
-    title   => [ '', '' ],
     qs      => $pages_qs,
     ID      => "STATISTICS",
     export  => 1
@@ -1515,7 +1473,6 @@ sub msgs_operator_statistics {
 
   my $table_for_all_time = $html->table({
     caption => "$lang{RELATIVE_INDICATORS} $lang{FOR_ALL_TIME}",
-    title   => [ '', '' ],
     qs      => $pages_qs,
     ID      => "ALL_TIME_STATISTICS",
     export  => 1
@@ -1770,9 +1727,7 @@ sub msgs_operator_statistics {
 sub msgs_receive_attachments {
   my ($msg_id, $attr) = @_;
 
-  if (!$msg_id) {
-    return 0;
-  }
+  return 0 if !$msg_id;
 
   my $message = $attr->{MSG_INFO} || do {
     my $list = $Msgs->messages_list({ ID => $msg_id, COLS_NAME => 1 });
@@ -1784,40 +1739,39 @@ sub msgs_receive_attachments {
   return 0 unless ($message && ref $message eq 'HASH');
 
   # If at least one file input is filled
-  if ($FORM{FILE_UPLOAD}->{filename}) {
+  return 1 if !$FORM{FILE_UPLOAD}->{filename};
 
-    my $add_attachment = sub {
-      my $form_param_name = shift;
-      $Attachments->attachment_add({
-        # Both values are stored in one column
-        MSG_ID       => $msg_id,
-        REPLY_ID     => $attr->{REPLY_ID},
-        MESSAGE_TYPE => $attr->{REPLY_ID} ? 1 : 0,
+  my $add_attachment = sub {
+    my $form_param_name = shift;
+    $Attachments->attachment_add({
+      # Both values are stored in one column
+      MSG_ID       => $msg_id,
+      REPLY_ID     => $attr->{REPLY_ID},
+      MESSAGE_TYPE => $attr->{REPLY_ID} ? 1 : 0,
 
-        CONTENT      => $FORM{$form_param_name}->{Contents},
-        FILESIZE     => $FORM{$form_param_name}->{Size},
-        FILENAME     => $FORM{$form_param_name}->{filename},
-        CONTENT_TYPE => $FORM{$form_param_name}->{'Content-Type'},
+      CONTENT      => $FORM{$form_param_name}->{Contents},
+      FILESIZE     => $FORM{$form_param_name}->{Size},
+      FILENAME     => $FORM{$form_param_name}->{filename},
+      CONTENT_TYPE => $FORM{$form_param_name}->{'Content-Type'},
 
-        UID          => $message->{UID} || $attr->{UID}
-      });
-    };
+      UID          => $message->{UID} || $attr->{UID}
+    });
+  };
 
-    $add_attachment->('FILE_UPLOAD');
+  $add_attachment->('FILE_UPLOAD');
 
-    if ($FORM{FILE_UPLOAD_UPLOADS_COUNT} && $FORM{FILE_UPLOAD_UPLOADS_COUNT} >= 1) {
-      for (my $i = 1; $i <= $FORM{FILE_UPLOAD_UPLOADS_COUNT}; $i++) {
-        my $param_name = "FILE_UPLOAD_" . $i;
+  if ($FORM{FILE_UPLOAD_UPLOADS_COUNT} && $FORM{FILE_UPLOAD_UPLOADS_COUNT} >= 1) {
+    for (my $i = 1; $i <= $FORM{FILE_UPLOAD_UPLOADS_COUNT}; $i++) {
+      my $param_name = "FILE_UPLOAD_" . $i;
 
-        if ($FORM{$param_name}->{filename}) {
-          $FORM{$param_name}->{filename} = $i.'_'.$FORM{$param_name}->{filename};
-          $add_attachment->($param_name);
-        }
+      if ($FORM{$param_name}->{filename}) {
+        $FORM{$param_name}->{filename} = $i . '_' . $FORM{$param_name}->{filename};
+        $add_attachment->($param_name);
       }
     }
-
-    _error_show($Attachments);
   }
+
+  _error_show($Attachments);
 
   return 1;
 }
@@ -1838,9 +1792,7 @@ sub msgs_receive_attachments {
 sub msgs_get_attachments_view {
   my ($attachments_attr, $attr) = @_;
 
-  if (!$attachments_attr) {
-    return 0;
-  }
+  return 0 if !$attachments_attr;
 
   # Receiving search params in same attribute
   if (ref $attachments_attr eq 'HASH') {
@@ -1891,10 +1843,7 @@ sub msgs_get_attachments_view {
       ($line->{filename} || 'No name'),
       "qindex=$index&ATTACHMENT=$line->{id}",
       { TARGET => '_new' }
-    )
-      . "  ($lang{SIZE}:   " . int2byte($line->{content_size}) . ')'
-      . $html->element('hr', '', { OUTPUT2RETURN => 1 });
-
+    ) . "  ($lang{SIZE}:   " . int2byte($line->{content_size}) . ')' . $html->element('hr', '', { OUTPUT2RETURN => 1 });
   }
 
   return $result;
@@ -1913,9 +1862,7 @@ sub msgs_get_attachments_view {
 sub msgs_receive_signature {
   my ($uid, $msg_id, $imgdata) = @_;
 
-  if (!$uid || !$msg_id || !$imgdata) {
-    return 0;
-  }
+  return 0 if (!$uid || !$msg_id || !$imgdata);
 
   my $sig_img = "$conf{TPL_DIR}/attach/msgs/$uid/$msg_id" . "_sig.png";
   if (open(my $fh, '>', $sig_img)) {
@@ -1965,10 +1912,7 @@ sub _msgs_footer_row {
     FORM_ID => $attr->{FOR_FORM}
   });
 
-  my @rows = (
-      $select,
-      $button,
-  );
+  my @rows = ($select, $button);
 
   return @rows;
 }
@@ -1979,6 +1923,7 @@ sub _msgs_footer_row {
 =cut
 #**********************************************************
 sub msgs_admin_quick_message {
+
   unless ( $conf{PUSH_ENABLED} || $conf{WEBSOCKET_ENABLED} ) {
     $html->message('err', $lang{ERROR}, 'Need Websocket or Push to be configured');
     return 0;
@@ -1997,7 +1942,7 @@ sub msgs_admin_quick_message {
         SENDER_TYPE => $FORM{SEND_TYPE}
       });
 
-      if ( $sended ) {
+      if ($sended) {
         $html->message('info', $lang{SENT} . ' : ' . $aid);
       }
     }
@@ -2010,8 +1955,8 @@ sub msgs_admin_quick_message {
 
   # Form HTML for checkbox panel
   my $checkboxes_html = '';
-  foreach my $adm ( sort {$a->{aid} <=> $b->{aid}} @{$admins_online_list} ) {
-       next if ($adm->{aid} == $admin->{AID});
+  foreach my $adm (sort {$a->{aid} <=> $b->{aid}} @{$admins_online_list}) {
+    next if ($adm->{aid} == $admin->{AID});
 
     my $checkbox = $html->form_input('AID', $adm->{aid}, { TYPE => 'checkbox' });
     my $label = $html->element('label', $checkbox . $adm->{admin});
@@ -2020,15 +1965,98 @@ sub msgs_admin_quick_message {
     $checkboxes_html .= $checkbox_group;
   }
 
-  $html->tpl_show(_include('msgs_admin_quick_message', 'Msgs'),
-    {
-      CHECKBOXES            => $checkboxes_html,
-      PUSH_RADIO_VISIBLE    => $conf{PUSH_ENABLED},
-      BROWSER_RADIO_VISIBLE => $conf{WEBSOCKET_ENABLED}
-    }
-  );
+  $html->tpl_show(_include('msgs_admin_quick_message', 'Msgs'), {
+    CHECKBOXES            => $checkboxes_html,
+    PUSH_RADIO_VISIBLE    => $conf{PUSH_ENABLED},
+    BROWSER_RADIO_VISIBLE => $conf{WEBSOCKET_ENABLED}
+  });
 
   return 1;
+}
+
+#**********************************************************
+=head2 msgs_support_stats()
+
+=cut
+#**********************************************************
+sub msgs_support_stats {
+  my ($attr) = @_;
+
+  $FORM{AID} ||= $attr->{AID};
+  my ($year, $month, undef) = split('-', $DATE);
+  my $report_date = sprintf('%d-%02d', $FORM{YEAR} || $year, $FORM{MONTH} || $month);
+  my $admin_hash = sel_admins({ HASH => 1 });
+
+  $html->tpl_show(_include("msgs_support_stats_filters", "Msgs"), {
+    YEAR  => $html->form_select('YEAR', { SELECTED => $FORM{YEAR} || $year, SEL_ARRAY => [ $year - 20 .. $year ] }),
+    MONTH => $html->form_select('MONTH', { SELECTED => $FORM{MONTH} || $month, SEL_ARRAY => [ '', @MONTHES ], ARRAY_NUM_ID => 1 }),
+    AID   => sel_admins()
+  }) if !$attr->{QUICK_REPORT};
+
+  my @periods_priority = ('less15min', 'between15_30min', 'between30_60min', 'between1_2hrs', 'between2_4hrs',
+    'between4_8hrs', 'between8_12hrs', 'between12_24hrs', 'between24_48hrs', 'more48');
+  my $replies_period = $Msgs->total_replies_by_time({ DATE => $report_date, AID => $FORM{AID} || '' });
+
+  my %period = ();
+  my $total_replies = 0;
+  foreach my $reply_period ( @{$replies_period}) {
+    $period{$reply_period->{period}} = $reply_period->{total};
+    $total_replies += $reply_period->{total};
+  }
+
+  my @data = ();
+  map push(@data, $period{$_} || 0), @periods_priority;
+
+  my $replies_chart = $html->chart({
+    TYPE        => 'bar',
+    X_LABELS    => ['< 15min', '15-30min', '30-60min', '1-2hrs', '2-4hrs', '4-8hrs', '8-12hrs', '12-24hrs', '24-48hrs', '> 48hrs'],
+    DATA        => {
+      $lang{RESPONSE_TIME} => \@data,
+    },
+    BACKGROUND_COLORS => { $lang{RESPONSE_TIME} => 'rgba(54, 123, 245, 0.8)', },
+    OUTPUT2RETURN => 1,
+  });
+
+  $Msgs->messages_list({ MONTH_CLOSED => $report_date, RESPOSIBLE => $FORM{AID} || '_SHOW', COLS_NAME => 1, PAGE_ROWS => 99999 });
+  my $report = $html->tpl_show(_include('msgs_support_stats', 'Msgs'), {
+    CHART          => $replies_chart,
+    TOTAL_REPLIES  => $total_replies || 0,
+    TOTAL_TICKETS  => $Msgs->{TOTAL} > 0 ? $Msgs->{TOTAL} : 0,
+    CLOSED_TICKETS => ($Msgs->{CLOSED} || 0) + ($Msgs->{UNMAKED} || 0),
+    RATING         => msgs_assessment_stars($Msgs->{AVG_RATING} || 0),
+    ADMIN          => $admin_hash->{$FORM{AID} || ''} || $lang{ALL},
+    ref($attr) eq 'HASH' ? %{$attr} : ()
+  }, { OUTPUT2RETURN => 1 });
+
+  return $report if $attr->{QUICK_REPORT};
+
+  print $report;
+}
+
+#**********************************************************
+=head2 msgs_assessment_stars()
+
+=cut
+#**********************************************************
+sub msgs_assessment_stars {
+  my ($assessment) = @_;
+
+  return '' if !$assessment;
+
+  my $stars = '';
+  map $stars .= $html->element('i', '', { class => 'fa fa-star text-yellow' }), (1..$assessment);
+  if (int($assessment) < $assessment && int($assessment) + 0.5 <= $assessment) {
+    $stars .= $html->element('i', '', { class => 'fa fa-star-half-o text-yellow' });
+    $assessment++;
+  }
+
+  return $stars if $assessment >= 5;
+
+  foreach my $rat ($assessment..5 - 1) {
+    $stars .= $html->element('i', '', { class => 'fa fa-star-o text-yellow' });
+  }
+
+  return $stars;
 }
 
 1;

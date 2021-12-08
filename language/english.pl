@@ -954,4 +954,12 @@ $lang{REBOOT_SERVICE} = 'Reboot service';
 $lang{MSG_WANT_ZAP}='Do you really want ZAP all sessions?';
 
 $lang{TASK_IN_WORK} = 'In work';
+
+$lang{LAST_POLL} = 'Last poll';
+
+$lang{EXPIRE_DATE} = 'Expiration date';
+
+$lang{MODE} = 'Mode';
+$lang{ERROR_VIEW_INFORMATION} = 'No permission to view information';
+
 1;

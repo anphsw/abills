@@ -16,6 +16,14 @@
   DATE: 20190704
   UPDATE: 20210819
 
+=head1 extra_info
+
+  .1.3.6.1.4.1.17409.2.3.1.2.1.1.2.1 = STRING: "TAsvan_CDATA1608"
+  .1.3.6.1.4.1.17409.2.3.1.2.1.1.3.1 = STRING: "FD1608SN-R1"
+
+  Pon PORTS
+   1.3.6.1.4.1.17409.2.3.3.1.1.21.1.0
+
 =cut
 
 use strict;
@@ -43,6 +51,8 @@ our (
 sub _cdata_get_ports {
   my ($attr) = @_;
 
+  my $debug = $attr->{DEBUG} || 0;
+
   my $ports_info = equipment_test({
     %{$attr},
     TIMEOUT   => 5,
@@ -51,6 +61,7 @@ sub _cdata_get_ports {
   });
 
   foreach my $key (sort keys %{$ports_info}) {
+    print "$key / $ports_info->{$key}{PORT_NAME} / $ports_info->{$key}{PORT_TYPE} //\n" if ($debug);
     if ($ports_info->{$key}{PORT_TYPE} && $ports_info->{$key}{PORT_TYPE} == 1 && $ports_info->{$key}{PORT_NAME} #FD11..
       && $ports_info->{$key}{PORT_NAME} =~ /^(.PON).+PON-(\d+)/) {
       my $type = lc($1);
@@ -212,27 +223,22 @@ sub _cdata_onu_list {
 #    For checking snmp result
     #    Abills::Base::_bp('onu_snmp_info', \%onu_snmp_info, { TO_CONSOLE => 1 });
 
-    my %onu_info = ();
-    foreach my $key (sort keys %port_ids) {
-      next if (!$key);
+    foreach my $branch (sort keys %port_ids) {
+      next if (!$branch);
 
-      foreach my $onu_numb (sort keys %{$onu_snmp_info{$key}}) {
-        next if (!$onu_numb);
+      foreach my $onu_id (sort keys %{$onu_snmp_info{$branch}}) {
+        next if (!$onu_id);
 
-        $onu_info{ONU_ID}      = $onu_numb;
-        $onu_info{ONU_SNMP_ID} = "$key.$onu_numb";
-        $onu_info{PORT_ID}     = $port_ids{$key};
+        my %onu_info = ();
+
+        $onu_info{ONU_ID}      = $onu_id;
+        $onu_info{ONU_SNMP_ID} = "$branch.$onu_id";
+        $onu_info{PORT_ID}     = $port_ids{$branch};
         $onu_info{PON_TYPE}    = $pon_type;
-        #if ($attr->{MODEL_NAME} && $attr->{MODEL_NAME} =~ /FD11/) { #FIXME it was for some provider, whose CDATA sends O82 in other format
-        #  $onu_info{ONU_DHCP_PORT} = sprintf("2d%.2d", $key, $onu_numb);
-        #}
-        #else {
-        #  $onu_info{ONU_DHCP_PORT} = "$key/$onu_numb";
-        #}
-        $onu_info{ONU_DHCP_PORT} = "$key/$onu_numb";
-        foreach my $oid_name (keys %{$onu_snmp_info{$key}{$onu_numb}}) {
+        $onu_info{ONU_DHCP_PORT} = sprintf("%02x%02x", $branch, $onu_id); #according to #S18564 ONU_DHCP_PORT on FD11* always matches this format
+        foreach my $oid_name (keys %{$onu_snmp_info{$branch}{$onu_id}}) {
           next if (!$oid_name);
-          $onu_info{$oid_name} = $onu_snmp_info{$key}{$onu_numb}{$oid_name} || q{};
+          $onu_info{$oid_name} = $onu_snmp_info{$branch}{$onu_id}{$oid_name} || q{};
         }
         push @onu_list, { %onu_info };
       }
@@ -314,16 +320,15 @@ sub _cdata {
       #          WALK   => 1
       #        },
       main_onu_info    => {
-        #          'HARD_VERSION'     => {
-        #            NAME   => '',
-        #            OIDS   => '',
-        #          PARSER => ''
-        #      },
-        #        'FIRMWARE'         => {
-        #          NAME   => '',
-        #          OIDS   => '',
-        #          PARSER => ''
-        #      },
+        'HARD_VERSION'     => {
+          NAME   => 'VERSION',
+          OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.5.1',
+          PARSER => ''
+        },
+        'FIRMWARE'         => {
+          NAME   => 'FIRMWARE',
+          OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.6.1',
+        },
         'VOLTAGE' => {
           NAME   => 'VOLTAGE',
           OIDS   => '1.3.6.1.4.1.34592.1.3.4.1.1.37.1',
@@ -581,12 +586,12 @@ sub _cdata_fd12 {
         ADD_2_OID => ''
       },
       'ONU_IN_BYTE'    => {
-        NAME   => 'PORT_IN',
+        NAME   => 'ONU_IN_BYTE',
         OIDS   => '1.3.6.1.4.1.17409.2.3.10.1.1.4',
         PARSER => ''
       },
       'ONU_OUT_BYTE'   => {
-        NAME   => 'PORT_OUT',
+        NAME   => 'ONU_OUT_BYTE',
         OIDS   => '1.3.6.1.4.1.17409.2.3.10.1.1.26',
         PARSER => ''
       },
@@ -750,10 +755,11 @@ sub _cdata_fd12_onu_list { #TODO: merge with _cdata_onu_list
       }
     }
 
-    my %onu_info = ();
     foreach my $onu_snmp_id (sort keys %onu_snmp_info) {
       next if (!$onu_snmp_id);
       next if (!$onu_snmp_info{$onu_snmp_id}{'ONU_MAC_SERIAL'});
+
+      my %onu_info = ();
 
       my $port_snmp_id_1 = $onu_snmp_id & ~0xFF;
       my $port_snmp_id_2 = ($onu_snmp_id >> 8) & 0xFF;
@@ -813,12 +819,12 @@ sub _cdata_fd16 {
         ADD_2_OID => ''
       },
       'ONU_IN_BYTE'    => {
-        NAME   => 'PORT_IN',
+        NAME   => 'ONU_IN_BYTE',
         OIDS   => '1.3.6.1.4.1.17409.2.3.10.1.1.4',
         PARSER => ''
       },
       'ONU_OUT_BYTE'   => {
-        NAME   => 'PORT_OUT',
+        NAME   => 'ONU_OUT_BYTE',
         OIDS   => '1.3.6.1.4.1.17409.2.3.10.1.1.26',
         PARSER => ''
       },
@@ -960,10 +966,11 @@ sub _cdata_fd16_onu_list { #TODO: merge with _cdata_onu_list
       }
     }
 
-    my %onu_info = ();
     foreach my $onu_snmp_id (sort keys %onu_snmp_info) {
       next if (!$onu_snmp_id);
       next if (!$onu_snmp_info{$onu_snmp_id}{'ONU_MAC_SERIAL'});
+
+      my %onu_info = ();
 
       my $port_snmp_id_1 = $onu_snmp_id & ~0xFF;
       my $port_snmp_id_2 = ($onu_snmp_id >> 8) & 0xFF;

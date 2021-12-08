@@ -156,14 +156,14 @@ CREATE TABLE IF NOT EXISTS `storage_reserve`
 CREATE TABLE IF NOT EXISTS `storage_suppliers`
 (
     `id`         SMALLINT(6)          NOT NULL AUTO_INCREMENT,
-    `name`       VARCHAR(15)          NOT NULL DEFAULT '',
+    `name`       VARCHAR(40)          NOT NULL DEFAULT '',
     `date`       DATE                 NOT NULL,
     `okpo`       VARCHAR(12)          NOT NULL DEFAULT '',
     `inn`        VARCHAR(20)          NOT NULL DEFAULT '',
     `inn_svid`   VARCHAR(40)          NOT NULL DEFAULT '',
     `bank_name`  VARCHAR(200)         NOT NULL DEFAULT '',
     `mfo`        VARCHAR(8)           NOT NULL DEFAULT '',
-    `account`    VARCHAR(16)          NOT NULL DEFAULT '',
+    `account`    VARCHAR(30)          NOT NULL DEFAULT '',
     `phone`      VARCHAR(16)          NOT NULL DEFAULT '',
     `phone2`     VARCHAR(16)          NOT NULL DEFAULT '',
     `fax`        VARCHAR(16)          NOT NULL DEFAULT '',

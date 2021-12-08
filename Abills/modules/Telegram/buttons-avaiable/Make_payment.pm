@@ -76,7 +76,7 @@ sub click {
     my $last_sum = $last_payments->[0]{sum};
     my $last_date = $last_payments->[0]{datetime};
 
-    $message .= "$self->{bot}->{lang}->{UNIQU_NUMBER}: <b>$users_info->{LOGIN} (UID: $users_info->{UID})</b>\n";
+    $message .= "$self->{bot}->{lang}->{UNIQUE_NUMBER}: <b>$users_info->{LOGIN} (UID: $users_info->{UID})</b>\n";
     $message .= "$self->{bot}->{lang}->{DEPOSIT_USER}: <b>$users_info->{DEPOSIT}</b>";
     $message .= " <b>$money_currency</b>\n";
     $message .= "$self->{bot}->{lang}->{LAST_PAYMENT_SUM}: <b>$last_sum $money_currency</b>\n$self->{bot}->{lang}->{DATE}: <b>$last_date</b>";

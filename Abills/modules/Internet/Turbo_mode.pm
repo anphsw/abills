@@ -32,7 +32,6 @@ my $Fees     = Fees->new($db, $admin, \%conf);
 #**********************************************************
 sub internet_turbo_control {
   my Internet $Internet_ = shift;
-
   if($Internet_->{TURBO_MODE}) {
     return 1;
   }
@@ -113,7 +112,7 @@ sub internet_turbo_control {
           return 0;
         }
         else {
-          $Internet_->change({
+          $Internet_->user_change({
             UID             => $user->{UID},
             FREE_TURBO_MODE => ($Internet_->{FREE_TURBO_MODE}-1)
           });
@@ -191,6 +190,9 @@ sub internet_turbo_control {
     }
   }
   else {
+    if (defined($FORM{SPEED} && $FORM{SPEED} == 0)) {
+      $html->message('err', "$lang{ERROR}:Turbo", $lang{NO_TARIFF_SELECTED});
+    }
     $Internet_->{SPEED_SEL} = $html->form_select(
       'SPEED',
       {

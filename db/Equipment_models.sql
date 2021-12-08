@@ -449,8 +449,11 @@ REPLACE INTO `equipment_models` (
        (315, 4, 12, '', 'C320_V2', 'http://lanmarket.ua/zte/zte-zxa10-c320-2651/', 16, '', '', 'zte.snmp', 'ZTE C320 with firmware 2.*', 2, 4, '',
         0, 0, 0, 0, 0, 0, 4, 0, 0, 0, NULL, NULL, NULL, ''),
        (316, 4, 30, '', 'FD1608SN', 'https://cdatatec.com/product-item/8pon-ports-gpon-olt-fd1608sn/', 8, '', '', 'cdata_fd16.snmp', '', 1, 8, '', 0, 0,
-        0, 0, 0, 0, 7, 0, 0, 70, NULL, NULL, NULL, 'https://cdatatec.com/wp-content/uploads/2019/03/GPON-OLT-1608SN-.png');
-
+        0, 0, 0, 0, 7, 0, 0, 70, NULL, NULL, NULL, 'https://cdatatec.com/wp-content/uploads/2019/03/GPON-OLT-1608SN-.png'),
+       (317, 4, 34, '', 'G008',     'https://www.hsgq.com/gpon-olt/8-pon-port-gpon-olt.html', 8, '', '', 'default.snmp',             '', 1, 8, '', 0, 0,
+        0, 0, 0, 0, 7, 0, 0, 110,NULL, NULL, NULL, 'https://www.hsgq.com/static/upload/image/20201120/1605852142461169.png'),
+       (318, 4, 30, '', 'FD1616SN', 'https://cdatatec.com/product-item/16pon-gpon-olt-fd1616sn/', 16, '', '', 'cdata_fd16.snmp',     '', 1, 16,'', 0, 0,
+        0, 0, 0, 0, 7, 0, 0, 70, NULL, NULL, NULL, 'https://cdatatec.com/wp-content/uploads/2019/03/GPON-OLT-1616SN-R1.jpg');
 
 REPLACE INTO `equipment_extra_ports` (`model_id`, `port_number`, `port_type`, `port_combo_with`, `row`)
 VALUES (101, 1, 4, 0, 0),
@@ -1123,7 +1126,29 @@ VALUES (101, 1, 4, 0, 0),
        (316, 9, 4, 0, 0),
        (316, 10, 4, 0, 0),
        (316, 11, 4, 0, 0),
-       (316, 12, 1, 0, 0);
+       (316, 12, 1, 0, 0),
+       (317, 1,  1, 0, 0),
+       (317, 2,  1, 0, 0),
+       (317, 3,  1, 0, 0),
+       (317, 4,  1, 0, 0),
+       (317, 5,  4, -1, 0),
+       (317, 6,  4, -1, 0),
+       (317, 7,  4, -1, 0),
+       (317, 8,  4, -1, 0),
+       (317, 9,  1, 0, 0),
+       (317, 10, 1, 0, 0),
+       (318, 1,  1, 0, 0),
+       (318, 2,  1, 0, 0),
+       (318, 3,  4, 0, 0),
+       (318, 4,  4, 0, 0),
+       (318, 5,  4, 0, 0),
+       (318, 6,  1, 0, 0),
+       (318, 7,  1, 0, 0),
+       (318, 8,  1, 0, 0),
+       (318, 9,  4, 0, 0),
+       (318, 10, 4, 0, 0),
+       (318, 11, 4, 0, 0),
+       (318, 12, 1, 0, 0);
 
 
 REPLACE INTO `equipment_vendors` (`id`, `name`, `support`, `site`)
@@ -1159,7 +1184,8 @@ VALUES (1, 'Cisco', '', 'http://cisco.com'),
        (30, 'CDATA', '', 'http://ru.cdatatec.com/'),
        (31, 'Brocade', '', 'https://www.broadcom.com'),
        (32, 'Netgear', '', 'https://www.netgear.ru/business/products/switches/'),
-       (33, 'GCOM', '', 'https://gcom.com.ua/');
+       (33, 'GCOM', '', 'https://gcom.com.ua/'),
+       (34, 'HSGQ', '', 'https://www.hsgq.com/');
 
 REPLACE INTO `equipment_types` (`id`, `name`)
 VALUES (1, 'Switch'),

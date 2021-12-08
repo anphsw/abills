@@ -274,6 +274,7 @@ sub messages_list {
     [ 'MSG_PHONE',              'STR',    'm.phone', 'm.phone AS msg_phone'                                              ],
     [ 'USER_READ',              'INT',    'm.user_read',                                                               1 ],
     [ 'CLOSED_DATE',            'DATE',   'm.closed_date',                                                             1 ],
+    [ 'MONTH_CLOSED',           'DATE',   'DATE_FORMAT(m.closed_date, \'%Y-%m\')',                                     1 ],
     [ 'RUN_TIME',               'DATE',   'SEC_TO_TIME(SUM(r.run_time))', 'SEC_TO_TIME(SUM(r.run_time)) AS run_time'     ],
     [ 'DONE_DATE',              'DATE',   'm.done_date',                                                               1 ],
     [ 'UID',                    'INT',    'm.uid',                                                                      1 ],
@@ -427,10 +428,10 @@ sub messages_list {
   my $list = $self->{list} || [];
 
   $self->query("SELECT COUNT(DISTINCT m.id) AS total,
-  COUNT(DISTINCT IF(m.admin_read = '0000-00-00 00:00:00', m.id, 0)) AS in_work,
-  COUNT(DISTINCT IF(m.state = 0, m.id, 0)) AS open,
-  COUNT(DISTINCT IF(m.state = 1, m.id, 0)) AS unmaked,
-  COUNT(DISTINCT IF(m.state = 2, m.id, 0)) AS closed
+    SUM(IF(m.admin_read = '0000-00-00 00:00:00', 1, 0)) AS in_work,
+    SUM(IF(m.state = 0, 1, 0)) AS open,
+    SUM(IF(m.state = 1, 1, 0)) AS unmaked,
+    SUM(IF(m.state = 2, 1, 0)) AS closed
     FROM msgs_messages m
     LEFT JOIN admins a ON (m.aid=a.aid)
     $EXT_TABLES
@@ -4235,5 +4236,111 @@ sub total_tickets_by_current_month {
 
   return $self;
 }
+
+#**********************************************************
+=head2 total_replies_by_time($attr)
+
+=cut
+#**********************************************************
+sub total_replies_by_time {
+  my $self = shift;
+  my ($attr) = shift;
+
+  my $date = $attr->{DATE};
+  return $self if !$date;
+
+  my $aid_statement = $attr->{AID} ? "AND mr.aid=$attr->{AID} " : "AND mr.aid <> 0";
+
+  $self->query("SELECT DATE_FORMAT(m.date, '%Y-%m') AS month, AVG(m.rating) AS avg_rating
+    FROM msgs_messages m
+    WHERE DATE_FORMAT(m.closed_date,'%Y-%m') = '$date' AND m.state IN(1,2)" . ($attr->{AID} ? " AND m.resposible=$attr->{AID}" : '') . "
+    GROUP BY month",
+    undef,
+    { INFO => 1 }
+  );
+
+  $self->query("SELECT count(m.id) as total, (case
+
+    when ((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement)) IS NULL then 'empty'
+
+    when (TIMEDIFF((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement), m.datetime)) <= CAST('00:15:00' AS time) then 'less15min'
+
+    when (TIMEDIFF((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement), m.datetime)) <= CAST('00:30:00' AS time) then 'between15_30min'
+
+    when (TIMEDIFF((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement), m.datetime)) <= CAST('01:00:00' AS time) then 'between30_60min'
+
+    when (TIMEDIFF((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement), m.datetime)) <= CAST('02:00:00' AS time) then 'between1_2hrs'
+
+    when (TIMEDIFF((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement), m.datetime)) <= CAST('04:00:00' AS time) then 'between2_4hrs'
+
+    when (TIMEDIFF((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement), m.datetime)) <= CAST('08:00:00' AS time) then 'between4_8hrs'
+
+    when (TIMEDIFF((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement), m.datetime)) <= CAST('12:00:00' AS time) then 'between8_12hrs'
+
+    when (TIMEDIFF((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement), m.datetime)) <= CAST('24:00:00' AS time) then 'between12_24hrs'
+
+    when (TIMEDIFF((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement), m.datetime)) <= CAST('48:00:00' AS time) then 'between24_48hrs'
+
+    when (TIMEDIFF((SELECT MIN(mr.datetime) FROM msgs_reply mr
+    WHERE mr.main_msg=m.main_msg AND mr.datetime > m.datetime $aid_statement), m.datetime)) > CAST('48:00:00' AS time) then 'more48'
+
+    end) as period
+
+    FROM msgs_reply m
+    WHERE DATE_FORMAT(m.datetime, '%Y-%m') = '$date'
+    GROUP BY period
+
+    HAVING period <> 'empty'",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  return $self->{list} || [];
+}
+
+#**********************************************************
+=head2 messages_and_replies_for_two_weeks($attr)
+
+=cut
+#**********************************************************
+sub messages_and_replies_for_two_weeks {
+  my $self = shift;
+
+  $self->query("SELECT
+      SUM(IF(uid <> 0, 1, 0)) AS messages,
+      DATE_FORMAT(date, '%Y-%m-%d') AS day
+    FROM msgs_messages
+    WHERE DATEDIFF(DATE_FORMAT(NOW(), '%Y-%m-%d' ), DATE_FORMAT(date, '%Y-%m-%d' )) <= 14
+    GROUP BY day",
+    undef,
+    { COLS_NAME => 1 }
+  );
+  
+  my $new_msgs_list = $self->{list} || [];
+
+  $self->query("SELECT
+      SUM(IF(aid <> 0, 1, 0)) AS replies,
+      SUM(IF(uid <> 0 AND aid = 0, 1, 0)) AS messages,
+      DATE_FORMAT(datetime, '%Y-%m-%d') AS day
+    FROM msgs_reply
+    WHERE DATEDIFF(DATE_FORMAT(NOW(), '%Y-%m-%d' ), DATE_FORMAT(datetime, '%Y-%m-%d' )) <= 14
+    GROUP BY day",
+    undef,
+    { COLS_NAME => 1 }
+  );
+
+  return [ @{$new_msgs_list}, @{$self->{list} || []} ];
+}
+
 
 1;

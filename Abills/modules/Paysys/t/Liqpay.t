@@ -8,7 +8,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 4;
+use Test::More tests => 5;
 use Data::Dumper;
 
 our (%FORM, %LIST_PARAMS, %functions, %conf, $html, %lang, @_COLORS, $base_dir, $db, $admin);

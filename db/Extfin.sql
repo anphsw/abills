@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS `extfin_paids_periodic` (
   `type_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `sum` DOUBLE(14, 2) UNSIGNED NOT NULL DEFAULT '0.00',
   `date` DATE NOT NULL DEFAULT '0000-00-00',
+  `activate` DATE NOT NULL DEFAULT '0000-00-00',
+  `expire` DATE NOT NULL DEFAULT '0000-00-00',
   `aid` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0',
   `comments` VARCHAR(100) NOT NULL DEFAULT '',
   `maccount_id` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0',
@@ -35,7 +37,9 @@ CREATE TABLE IF NOT EXISTS `extfin_paids_periodic` (
 CREATE TABLE IF NOT EXISTS `extfin_paids_types` (
   `id` SMALLINT(6) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(120) NOT NULL DEFAULT '',
+  `sum` DOUBLE(14, 6) NOT NULL DEFAULT '0.000000',
   `periodic` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `month_alignment` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 )
   COMMENT = 'Extfin payments types';
@@ -66,4 +70,4 @@ CREATE TABLE IF NOT EXISTS `extfin_balance_reports` (
   UNIQUE KEY `id` (`id`),
   UNIQUE KEY `period` (`period`, `bill_id`)
 )
-  COMMENT = 'Extfin  users balanse reports';
+  COMMENT = 'Extfin users balance reports';

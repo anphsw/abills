@@ -39,6 +39,7 @@
   "59:0::cablecat_change_commutation_info:AJAX"                      => 0,
 
   "60:0::cablecat_import_presets:AJAX"                               => 0,
+  "61:0::cablecat_equipment_trace:AJAX"                              => 0,
 );
 
 1;

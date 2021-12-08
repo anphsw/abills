@@ -18,20 +18,20 @@
             </div>
           </div>
           <div class='card-body'>
-            <div id="group_form" class='form-group row'>
+            <div id='group_form' class='form-group row'>
               <label class='control-label col-md-3 required'>_{CAMS_GROUP}_:</label>
               <div class='col-md-8'>
                 %GROUPS_SELECT%
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
-            <div id="folder_form" class='form-group row'>
-              <label class='control-label col-md-3 required'>_{FOLDER}_:</label>
+            <div id='folder_form' class='form-group row'>
+              <label class='control-label col-md-3'>_{FOLDER}_:</label>
               <div class='col-md-8'>
                 %FOLDER_SELECT%
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
@@ -39,7 +39,7 @@
               <div class='col-md-8'>
                 <input type='text' class='form-control' name='OWNER' value='%OWNER%' id='OWNER_id'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
@@ -48,7 +48,7 @@
                 <input type='text' class='form-control' required='required' name='TITLE' value='%TITLE%'
                        id='TITLE_id'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
@@ -57,7 +57,7 @@
                 <input type='text' class='form-control' required='required' name='NAME' value='%NAME%'
                        id='NAME_id'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
@@ -66,16 +66,15 @@
                 <input type='text' class='form-control'
                        required='required' name='HOST' value='%HOST%' id='HOST_id'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
-              <label class='control-label col-md-3 required' for='RTSP_PORT_id'>RTSP _{PORT}_:</label>
+              <label class='control-label col-md-3 ' for='RTSP_PORT_id'>RTSP _{PORT}_:</label>
               <div class='col-md-8'>
-                <input type='text' class='form-control'
-                       required='required' name='RTSP_PORT' value='%RTSP_PORT%' id='RTSP_PORT_id'/>
+                <input type='text' class='form-control' name='RTSP_PORT' value='%RTSP_PORT%' id='RTSP_PORT_id'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
             <div class='form-group row'>
               <label class='control-label col-md-3 required' for='RTSP_PATH_id'>RTSP _{PATH}_:</label>
@@ -83,7 +82,7 @@
                 <input type='text' class='form-control'
                        required='required' name='RTSP_PATH' value='%RTSP_PATH%' id='RTSP_PATH_id'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             %MODELS_FORM%
@@ -96,7 +95,7 @@
                 <input type='text' class='form-control' required='required' name='LOGIN' value='%LOGIN%'
                        id='LOGIN_id'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
@@ -105,15 +104,15 @@
                 <input type='text' class='form-control' required='required' name='PASSWORD'
                        value='%PASSWORD%' id='PASSWORD_id'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <hr>
 
-            <div class="form-group custom-control custom-checkbox">
-              <input class="custom-control-input" type="checkbox" id="DISABLED" name="DISABLED"
+            <div class='form-group custom-control custom-checkbox'>
+              <input class='custom-control-input' type='checkbox' id='DISABLED' name='DISABLED'
                      %DISABLED_CHECKED% value='1'>
-              <label for="DISABLED" class="custom-control-label">_{DISABLED}_</label>
+              <label for='DISABLED' class='custom-control-label'>_{DISABLED}_</label>
             </div>
           </div>
         </div>
@@ -135,7 +134,7 @@
                 <input type='text' class='form-control' name='EXTRA_URL' value='%EXTRA_URL%'
                        id='EXTRA_URL'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
@@ -143,7 +142,7 @@
               <div class='col-md-8'>
                 %ORIENTATION_SELECT%
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
@@ -151,40 +150,40 @@
               <div class='col-md-8'>
                 %ARCHIVE_SELECT%
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
               <div class='checkbox col-md-6 text-center'>
-                <div class="form-group custom-control custom-checkbox">
-                  <input class="custom-control-input" type="checkbox" id="CONSTANTLY_WORKING" name="CONSTANTLY_WORKING"
+                <div class='form-group custom-control custom-checkbox'>
+                  <input class='custom-control-input' type='checkbox' id='CONSTANTLY_WORKING' name='CONSTANTLY_WORKING'
                          %CONSTANTLY_WORKING% value='1'>
-                  <label for="CONSTANTLY_WORKING" class="custom-control-label">_{CONSTANTLY_WORKING}_
-                    <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a></label>
+                  <label for='CONSTANTLY_WORKING' class='custom-control-label'>_{CONSTANTLY_WORKING}_
+                    <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a></label>
                 </div>
               </div>
               <div class='checkbox col-md-6 text-center'>
-                <div class="form-group custom-control custom-checkbox">
-                  <input class="custom-control-input" type="checkbox" id="PRE_IMAGE" name="PRE_IMAGE"
+                <div class='form-group custom-control custom-checkbox'>
+                  <input class='custom-control-input' type='checkbox' id='PRE_IMAGE' name='PRE_IMAGE'
                          %PRE_IMAGE% value='1'>
-                  <label for="PRE_IMAGE" class="custom-control-label">_{PRE_IMAGE}_
-                    <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a></label>
+                  <label for='PRE_IMAGE' class='custom-control-label'>_{PRE_IMAGE}_
+                    <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a></label>
                 </div>
               </div>
               <div class='checkbox col-md-6 text-center'>
-                <div class="form-group custom-control custom-checkbox">
-                  <input class="custom-control-input" type="checkbox" id="LIMIT_ARCHIVE" name="LIMIT_ARCHIVE"
+                <div class='form-group custom-control custom-checkbox'>
+                  <input class='custom-control-input' type='checkbox' id='LIMIT_ARCHIVE' name='LIMIT_ARCHIVE'
                          %LIMIT_ARCHIVE% value='1'>
-                  <label for="LIMIT_ARCHIVE" class="custom-control-label">_{LIMIT_ARCHIVE}_
-                    <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a></label>
+                  <label for='LIMIT_ARCHIVE' class='custom-control-label'>_{LIMIT_ARCHIVE}_
+                    <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a></label>
                 </div>
               </div>
               <div class='checkbox col-md-6 text-center'>
-                <div class="form-group custom-control custom-checkbox">
-                  <input class="custom-control-input" type="checkbox" id="ONLY_VIDEO" name="ONLY_VIDEO"
+                <div class='form-group custom-control custom-checkbox'>
+                  <input class='custom-control-input' type='checkbox' id='ONLY_VIDEO' name='ONLY_VIDEO'
                          %ONLY_VIDEO% value='1'>
-                  <label for="ONLY_VIDEO" class="custom-control-label">_{ONLY_VIDEO}_
-                    <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a></label>
+                  <label for='ONLY_VIDEO' class='custom-control-label'>_{ONLY_VIDEO}_
+                    <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a></label>
                 </div>
               </div>
             </div>
@@ -194,7 +193,7 @@
                 <input type='text' class='form-control' name='PRE_IMAGE_URL' value='%PRE_IMAGE_URL%'
                        id='PRE_IMAGE_URL'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
@@ -202,7 +201,7 @@
               <div class='col-md-8'>
                 %TYPE_SELECT%
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
@@ -211,25 +210,25 @@
                 <input type='text' class='form-control' name='LENGTH' value='%LENGTH%'
                        id='LENGTH'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
               <label class='control-label col-md-3'>_{CAMERA_ANGLE}_:</label>
               <div class='col-md-8'>
-                <input type='number' class='form-control' name='ANGEL' value='%ANGEL%' max="360"
+                <input type='number' class='form-control' name='ANGEL' value='%ANGEL%' max='360'
                        id='ANGEL'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
 
             <div class='form-group row'>
               <label class='control-label col-md-3'>_{CAMERA_ANGLE_LOCATION}_:</label>
               <div class='col-md-8'>
-                <input type='number' class='form-control' name='LOCATION_ANGEL' value='%LOCATION_ANGEL%' max="360"
+                <input type='number' class='form-control' name='LOCATION_ANGEL' value='%LOCATION_ANGEL%' max='360'
                        id='LOCATION_ANGEL'/>
               </div>
-              <a href="#" data-toggle="tooltip" title=""><span class="fa fa-question-circle"></span></a>
+              <a href='#' data-toggle='tooltip' title=''><span class='fa fa-question-circle'></span></a>
             </div>
           </div>
         </div>
@@ -244,9 +243,9 @@
 
 <script>
   if ('%FOLDERS%') {
-    var folder_select = document.getElementById("FOLDER_ID");
-    folder_select.textContent = "";
-    folder_select.value = "";
+    var folder_select = document.getElementById('FOLDER_ID');
+    folder_select.textContent = '';
+    folder_select.value = '';
 
     autoReload();
   } else {
@@ -262,11 +261,11 @@
     if ('%FOLDERS%' && '%FOLDERS%' > 0)
       folder = '%FOLDERS%';
 
-    var groups = document.getElementById("GROUP_ID");
+    var groups = document.getElementById('GROUP_ID');
     var result = groups.value;
     jQuery.post('$SELF_URL', 'header=2&get_index=cams_get_group_folders&GROUP_ID=' + result + '&FOLDER_ID=' + folder, function (data) {
-      folder_select.textContent = "";
-      folder_select.value = "";
+      folder_select.textContent = '';
+      folder_select.value = '';
       folder_select.innerHTML = data;
     });
   }

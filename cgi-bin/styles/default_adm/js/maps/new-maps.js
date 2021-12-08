@@ -214,12 +214,13 @@ var Configuration = (function () {
     jQuery("#disabled_layer_" + layer['id']).hide();
 
     jQuery('#' + buttonId).on("click", function () {
-      if (!AllLayers[buttonId]) {
-        Configuration.addDisabled(layer['id']);
-        ObjectsConfiguration.getObjects(layer, errGetObject, successGetObject);
-      } else {
-        successGetObject(layer['id']);
+      if (AllLayers[buttonId] || (layer.sublayers && AllLayers[layer.sublayers[0]])) {
+        successGetObject(layer);
+        return;
       }
+
+      Configuration.addDisabled(layer['id']);
+      ObjectsConfiguration.getObjects(layer, errGetObject, successGetObject);
     });
 
     if (FORM['LAYER'] && FORM['LAYER'] === layer['id']) {
@@ -261,12 +262,33 @@ var Configuration = (function () {
       });
     }
 
-    function successGetObject(layer_id) {
+    function successGetObject(layer) {
+      let layer_id = layer['id'];
       let buttonId = "layer_" + layer_id;
       let btn_element = jQuery('#' + buttonId);
 
-      if (btn_element.hasClass('btn_not_active')) {
-        AllLayers[buttonId].addTo(map);
+      if (layer['multiple_update_function']) {
+        map.off('areaselected');
+        map.on('areaselected', e => {
+          let selectedObjects = [];
+          jQuery.each(Objects[layer_id], function(index, value) {
+            if (!e.bounds.contains(value.getLatLng())) return;
+            selectedObjects.push(index);
+          });
+          if (selectedObjects.length < 1) return;
+
+          loadToModal(`index.cgi?get_index=${layer['multiple_update_function']}&header=2&IDS=${selectedObjects.join(';')}`);
+        });
+      }
+
+      if (FORM['SMALL'] || btn_element.hasClass('btn_not_active')) {
+        if (AllLayers[buttonId]) AllLayers[buttonId].addTo(map);
+
+        if (layer.sublayers) {
+          layer.sublayers.forEach(sublayer => {
+            if (AllLayers[sublayer]) AllLayers[sublayer].addTo(map);
+          });
+        }
 
         if (Objects['ADD_CLASS'][layer_id]) {
           jQuery.each(Objects['ADD_CLASS'][layer_id], function (index, value) {
@@ -274,11 +296,23 @@ var Configuration = (function () {
             delete Objects['ADD_CLASS'][layer_id][index];
           });
         }
+        createSublayersTooltip(layer, btn_element);
 
         btn_element.addClass('btn_active');
         btn_element.removeClass('btn_not_active');
-      } else {
-        AllLayers[buttonId].remove();
+      }
+      else {
+        if (AllLayers[buttonId]) AllLayers[buttonId].remove();
+
+        if (layer.sublayers) {
+          layer.sublayers.forEach(sublayer => {
+            if (AllLayers[sublayer]) AllLayers[sublayer].remove();
+          });
+        }
+
+        btn_element.popover('hide');
+        btn_element.popover('disable');
+
         btn_element.addClass('btn_not_active');
         btn_element.removeClass('btn_active');
       }
@@ -291,7 +325,7 @@ var Configuration = (function () {
     }
 
     function createButton(layer_name, id) {
-      return "<div class='button_cont'>" + "<a class='btn_not_active btn_in_menu' id='" + id + "'>" +
+      return "<div class='button_cont' id='button_" + id + "'>" + "<a class='btn_not_active btn_in_menu' id='" + id + "'>" +
         layer_name + "<i class='fa fa-circle-o-notch fa-spin spin-load' id='disabled_" + id + "'></i></a></div>";
     }
 
@@ -299,6 +333,74 @@ var Configuration = (function () {
       return "<div class='button_cont'>" + "<a class='btn_not_active btn_in_menu' id='" + id + "'>" +
         layer_name + "<i class='fa fa-circle-o-notch fa-spin spin-load' id='disabled_" + id + "'></i></a><button id='" +
         add_id + "' class='circle plus'></button></div>";
+    }
+
+    function createSublayersTooltip(layer, container) {
+      if (!layer.sublayers) return;
+
+      if (container.data('tooltip')) {
+        container.popover('enable');
+        container.popover('show');
+        return;
+      }
+
+      container.attr('data-tooltip', 1);
+
+      let content = '';
+      layer.sublayers.forEach(sublayer => {
+        if (!layer[sublayer]) return;
+
+        let sublayer_info = layer[sublayer];
+        let label = layer['tooltip_content'] ? layer['tooltip_content'] :
+          '<label class="form-check-label">' + sublayer_info.name + '</label>';
+
+        if (layer['tooltip_content'] ) {
+          Object.keys(sublayer_info).forEach(key => {
+            label = label.replace(new RegExp('%' + key + '%', "g"), sublayer_info[key]);
+          });
+
+          label = label.replace(/\\\"/g, '\"');
+        }
+
+        content += '<div class="form-group form-check mb-0">\n' +
+          '<input type="checkbox" checked class="form-check-input" id="' + sublayer + '">\n' + label + '  </div>';
+      });
+
+      content += '<a class="close-button cursor-pointer" id="close_' + layer.id + '">×</a>'
+
+      container.popover({
+        container: 'body',
+        html: true,
+        placement: 'right',
+        sanitize: false,
+        content: content
+      });
+
+      jQuery(container).on('inserted.bs.popover', function () {
+        jQuery('.popover').prependTo("#map");
+        jQuery('#navbar-button-container').animate({scrollTop:  jQuery('#navbar-button-container').scrollTop() + 1});
+      });
+
+      jQuery(container).on('shown.bs.popover', function () {
+        layer.sublayers.forEach(sublayer => {
+          jQuery('#' + sublayer).on('change', function () {
+            let sublayer_id = jQuery(this).prop('id');
+            if (!AllLayers[sublayer_id]) return;
+
+            if (jQuery(this).prop('checked')) {
+              AllLayers[sublayer_id].addTo(map);
+            }
+            else {
+              AllLayers[sublayer_id].remove();
+            }
+          })
+        });
+
+        jQuery('#close_' + layer.id).on('click', function() {
+          container.popover('hide');
+        });
+      });
+      container.popover('show');
     }
   }
 
@@ -339,19 +441,17 @@ var Configuration = (function () {
   }
 
   function onGoogleMaps() {
-    if (GOOGLE_API_KEY) {
-      putScriptInHead('google_api_script', 'https://maps.googleapis.com/maps/api/js?key=' + GOOGLE_API_KEY);
-    }
+    if (!GOOGLE_API_KEY) return;
 
-    return GOOGLE_API_KEY ? 1 : 0;
+    putScriptInHead('google_api_script', 'https://maps.googleapis.com/maps/api/js?key=' + GOOGLE_API_KEY);
+    return 1;
   }
 
   function onYandexMaps() {
-    if (YANDEX_API_KEY) {
-      putScriptInHead('yandex_api_script', 'https://api-maps.yandex.ru/2.1/?apikey=' + YANDEX_API_KEY + '&lang=ru_RU');
-    }
+    if (!YANDEX_API_KEY) return 0;
 
-    return YANDEX_API_KEY ? 1 : 0;
+    putScriptInHead('yandex_api_script', 'https://api-maps.yandex.ru/2.1/?apikey=' + YANDEX_API_KEY + '&lang=ru_RU');
+    return 1;
   }
 
   function changeIconSize(layer_id, objects, size) {
@@ -483,7 +583,7 @@ var ObjectsConfiguration = (function () {
   }
 
   function showCustomObjects() {
-    if (!FORM['OBJECT_TO_SHOW'])
+    if (!FORM['OBJECT_TO_SHOW'] || FORM['OBJECT_TO_SHOW'].length < 1)
       return 0;
 
     if (FORM['BUILD_ROUTE']) {
@@ -548,18 +648,20 @@ var ObjectsConfiguration = (function () {
     }
   }
 
-  function getObjects(layer, err_callback, success_callback, object_id = 0, last_object_id = 0) {
+  function getObjects(layer, err_callback, success_callback, object_id = 0,ext_url = '') {
     if (!layer['export_function']) return {};
+    if (FORM['CLEAR_LAYERS'] && AllLayers['layer_' + layer['id']]) AllLayers['layer_' + layer['id']] = undefined;
 
-    // let url = selfUrl + '?header=2&get_index=' + layer['export_function'] + '&EXPORT_LIST=1&RETURN_JSON=1';
-    let url = selfUrl + '?header=2&get_index=maps2_get_objects&EXPORT_LIST=1&RETURN_JSON=1&MODULE=' + layer['module'] +
-      '&FUNCTION=' + layer['export_function'];
-    if (FORM['OBJECT_ID'] && !FORM['ADD_POINT'] && (!FORM['LAYER'] || FORM['LAYER'] === layer['id']))
-      url += '&OBJECT_ID=' + FORM['OBJECT_ID'];
+
+    let url = `${selfUrl}?header=2&get_index=maps2_get_objects&EXPORT_LIST=1&RETURN_JSON=1&MODULE=` +
+      `${layer['module']}&FUNCTION=${layer['export_function']}`;
+
+    if (FORM['OBJECT_ID'] && (!FORM['LAYER'] || FORM['LAYER'] === layer['id']))
+      url += `&OBJECT_ID=${FORM['OBJECT_ID']}`;
     else if (object_id !== 0)
-      url += '&OBJECT_ID=' + object_id;
-    else if (last_object_id !== 0)
-      url += '&LAST_OBJECT_ID=' + last_object_id;
+      url += `&OBJECT_ID=${object_id}`;
+
+    url += ext_url;
 
     fetch(url)
       .then(function (response) {
@@ -583,14 +685,15 @@ var ObjectsConfiguration = (function () {
 
   function showObject(layer, objects, err_callback, success_callback) {
 
-    if (FORM['ADD_POINT']) {
-      ObjectsConfiguration.addCustomObject(layer);
+    if (objects.length < 1) {
+      if (FORM['ADD_POINT']) ObjectsConfiguration.addCustomObject(layer);
+      else if (err_callback) err_callback(layer['id']);
     }
 
-    if (objects.length === 0 && err_callback)
-      err_callback(layer['id']);
-
-    if (objects[0] && objects[0]['MARKER']) {
+    if (layer.filter) {
+      showFiltersMarkerObjects(layer, objects);
+    }
+    else if (objects[0] && objects[0]['MARKER']) {
       showMarkerObjects(layer, objects);
     }
     else if (objects[0] && objects[0]['POLYLINE']) {
@@ -604,7 +707,7 @@ var ObjectsConfiguration = (function () {
     }
 
     if (success_callback)
-      success_callback(layer['id']);
+      success_callback(layer);
 
     let items = [];
     for (let i = 0; i < ObjectsName.length; i++) {
@@ -616,6 +719,25 @@ var ObjectsConfiguration = (function () {
     Configuration.removeDisabled(layer['id']);
   }
 
+  function showFiltersMarkerObjects(layer, objects) {
+    let filter = layer.filter;
+    jQuery.each(objects, function (index, object) {
+      let filter_items = object[filter];
+      if (!filter_items) return;
+
+      filter_items.forEach(item => {
+        let filter_name = 'layer_' + layer['id'].toString() + '_filter_' + item.id;
+        if (!AllLayers[filter_name]) {
+          AllLayers[filter_name] = new L.FeatureGroup();
+          layer['sublayers'].push(filter_name);
+          layer[filter_name] = item;
+        }
+
+        AllLayers[filter_name].addLayer(Markers.createMarker(object['MARKER'], layer));
+      });
+    })
+  }
+
   function showMarkerObjects(layer, objects) {
     if (!AllLayers['layer_' + layer['id'].toString()])
       AllLayers['layer_' + layer['id'].toString()] = objects.length > 1000 ? L.markerClusterGroup({
@@ -624,10 +746,10 @@ var ObjectsConfiguration = (function () {
       }) : new L.layerGroup();
 
     let closest_object = null;
-    jQuery.each(objects, function (index) {
-      AllLayers['layer_' + layer['id'].toString()].addLayer(Markers.createMarker(objects[index]['MARKER'], layer));
+    jQuery.each(objects, function (index, object) {
+      AllLayers['layer_' + layer['id'].toString()].addLayer(Markers.createMarker(object['MARKER'], layer));
 
-      closest_object = ObjectsConfiguration.getClosestObject(closest_object, objects[index]['MARKER']);
+      closest_object = ObjectsConfiguration.getClosestObject(closest_object, object['MARKER']);
     });
 
     if (closest_object && FORM['BUILD_ROUTE'])
@@ -695,20 +817,6 @@ var ObjectsConfiguration = (function () {
     });
   }
 
-  function getObjectFromOtherModules() {
-    if (typeof getObjectId === "function") {
-      let objects_to_show = getObjectId();
-      if (objects_to_show['OBJECTS'])
-        FORM['OBJECT_TO_SHOW'] = objects_to_show['OBJECTS'];
-
-      if (objects_to_show['OBJECT_ID'])
-        FORM['OBJECT_ADD'] = objects_to_show['OBJECT_ID'];
-
-      if (FORM['OBJECT_TO_SHOW'] && FORM['OBJECT_TO_SHOW'].length === 0 && !FORM['MSGS_MAP'])
-        FORM['ADD_BUILD'] = 1;
-    }
-  }
-
   function setObjectInArray(layer_id, object_id, content, object) {
     if (!Objects[layer_id])
       Objects[layer_id] = {};
@@ -760,7 +868,6 @@ var ObjectsConfiguration = (function () {
     getObjects: getObjects,
     showObject: showObject,
     deleteObject: deleteObject,
-    getObjectFromOtherModules: getObjectFromOtherModules,
     setObjectInArray: setObjectInArray,
     panToObject: panToObject,
     getClosestObject: getClosestObject,
@@ -774,18 +881,16 @@ var LayersConfiguration = (function () {
       Layers[layers[index].id] = layers[index];
       Configuration.createMenuButton(layers[index]);
     });
+
+    defineTooltipLogic(jQuery('#navbar-container'));
   }
 
   function refreshLayer(layer, point_id) {
-    let objects_keys = [];
-    if (!point_id)
-      objects_keys = Objects[layer.id] ? Object.keys(Objects[layer.id]) : [];
-    else if (AllLayers['layer_' + layer.id]) {
+    if (point_id && AllLayers['layer_' + layer.id]) {
       AllLayers['layer_' + layer.id].removeLayer(Objects[layer.id][point_id]);
     }
 
-    ObjectsConfiguration.getObjects(layer, undefined, undefined,
-      point_id, objects_keys[objects_keys.length - 1] || 0);
+    ObjectsConfiguration.getObjects(layer, undefined, undefined, point_id, '&NEW_OBJECT=1');
   }
 
   function setLayerVisible(layer, id) {
@@ -826,9 +931,10 @@ var Builds = (function () {
           LayersConfiguration.refreshLayer(Layers[LAYER_ID_BY_NAME['BUILD']]);
         });
       } else {
-        let link = aBillingAddressManager.registerBuild(location_id || locationC.getLocationId(), lat, lng);
+        let location = location_id || locationC.getLocationId();
+        let link = aBillingAddressManager.registerBuild(location, lat, lng);
         loadToModal(link, function () {
-          LayersConfiguration.refreshLayer(Layers[LAYER_ID_BY_NAME['BUILD']]);
+          LayersConfiguration.refreshLayer(Layers[LAYER_ID_BY_NAME['BUILD']], location);
         });
       }
     });
@@ -996,22 +1102,23 @@ var Markers = (function () {
   function drawMarker(layer) {
     map.off(L.Draw.Event.CREATED);
     map.on(L.Draw.Event.CREATED, function (e) {
-      let location_id = FORM['OBJECT_ADD'] ? FORM['OBJECT_ADD'] : undefined;
+      let location_id = FORM['ADD_POINT'] || FORM['OBJECT_ID'] ? FORM['OBJECT_ID'] : undefined;
       let lat = e['layer']['_latlng']['lat'];
       let lng = e['layer']['_latlng']['lng'];
 
-      if (layer && layer['id'] == '1' && !FORM['ADD_POINT'])
-        Builds.addNewBuildMarker(lat, lng, location_id);
-      else if (layer) {
-        Markers.addNewMarker(layer, lat, lng, 'layer_' + layer['id']);
-      } else {
-        if (jQuery('#CurrentOpenedModal'))
-          jQuery('#CurrentOpenedModal').modal('hide');
+      if (!layer) return;
 
-        let link = aBillingAddressManager.registerBuild(location_id, lat, lng);
-        let callback = typeof getObjectToMap === "function" ? getObjectToMap : undefined;
-        loadToModal(link, callback);
+      if (layer['id'] == '1') {
+        if (!FORM['ADD_POINT']) Builds.addNewBuildMarker(lat, lng, location_id);
+        else {
+          loadToModal(aBillingAddressManager.registerBuild(location_id, lat, lng), function () {
+            LayersConfiguration.refreshLayer(Layers[LAYER_ID_BY_NAME['BUILD']]);
+          });
+        }
+        return;
       }
+
+      Markers.addNewMarker(layer, lat, lng, 'layer_' + layer['id']);
     });
 
     new L.Draw.Marker(map, drawControl.options.draw.marker).enable();
@@ -1349,54 +1456,255 @@ var ChangeElement = (function () {
 })();
 
 var Routes = (function () {
+  var closeControlBtn;
   function showRouteFromONUtoOLT(button, link) {
 
-    if(jQuery(button).hasClass('fa-spinner'))
-      return;
+    if (jQuery(button).hasClass('fa-spinner')) return;
 
-    if(!AllLayers["layer_10"])
-      LayersConfiguration.setLayerVisible(undefined, 'layer_10');
+    if (!AllLayers['layer_10']) LayersConfiguration.setLayerVisible(undefined, 'layer_10');
 
     jQuery(button).find('span').removeClass('fa-eye');
     jQuery(button).find('span').addClass('fa-spinner fa-spin');
 
     jQuery.ajax({
-      url: link,
+      url: link + '&RETURN_JSON=1',
       type: 'GET',
       contentType: false,
       cache: false,
       processData: false,
       success: function (result) {
-        if(Objects['ant_path_trace']){
-          while (Objects['ant_path_trace'].length){
-            Objects['ant_path_trace'].pop().removeFrom(map);
-          }
-        } else Objects['ant_path_trace'] = [];
-        var data = JSON.parse(result);
-        var cables = data.filter(element => element.element_type === "CABLE");
-        var cables_to_glow = Array.from(new Set(cables.map(cable => cable.element_id)))
-          .map(cable => {
-            return cables.find(cable_ => cable_.element_id === cable && cable_.point_id)
-          });
+        _removeTrace();
+        let data = JSON.parse(result);
+        if (_showError(data, button)) return;
 
-        jQuery.each(cables_to_glow, function (k, v) {
+        L.control.sidebar({
+          autopan: false,
+          closeButton: true,
+          container: 'sidebar',
+          position: 'right',
+        }).addTo(map);
 
-          var path = new L.Polyline.AntPath(Objects[10][v.point_id]._latlngs, {
-            reverse: v.reverse
-          });
-          path.addTo(map);
+        closeControlBtn = createCloseTraceBtn();
+        map.addControl(closeControlBtn);
 
-          Objects['ant_path_trace'].push(path);
+        jQuery('#leaflet-sidebar-body').html('')
+        drawRouteFromOltToUser(data, button).forEach(e => {
+          jQuery('#leaflet-sidebar-body').append(e);
         });
-
-        jQuery(button).find('span').removeClass('fa-spinner fa-spin');
-        jQuery(button).find('span').addClass('fa-eye');
-
+        jQuery('#sidebar').removeClass('hidden').addClass('leaflet-sidebar-right');
       },
       fail: function (error) {
         aTooltip.displayError(error);
       },
     });
+  }
+
+  function showRouteFromOLT(button, link) {
+    if (jQuery(button).hasClass('fa-spinner')) return;
+
+    if (!AllLayers['layer_10']) LayersConfiguration.setLayerVisible(undefined, 'layer_10');
+
+    jQuery(button).find('span').removeClass('fa-eye');
+    jQuery(button).find('span').addClass('fa-spinner fa-spin');
+
+    jQuery.ajax({
+      url: link + '&RETURN_JSON=1',
+      type: 'GET',
+      contentType: false,
+      cache: false,
+      processData: false,
+      success: function (result) {
+        _removeTrace();
+        let data = JSON.parse(result);
+        if (_showError(data, button)) return;
+
+        L.control.sidebar({
+          autopan: false,
+          closeButton: true,
+          container: 'sidebar',
+          position: 'right',
+        }).addTo(map);
+
+        closeControlBtn = createCloseTraceBtn();
+        map.addControl(closeControlBtn);
+
+        jQuery('#leaflet-sidebar-body').html('')
+        Object.keys(data).forEach(key => {
+          let commutations = document.createElement('div');
+          drawRouteFromOltToUser(data[key].path, button).forEach(e => {
+            commutations.appendChild(e);
+          });
+
+          jQuery('#leaflet-sidebar-body').append(createCard(`UID: ${data[key].uid}`, commutations));
+        });
+
+        jQuery('#sidebar').removeClass('hidden').addClass('leaflet-sidebar-right');
+      }
+    });
+  }
+
+  function drawRouteFromOltToUser(data, button) {
+    let path = data['path'];
+    let fiberViews = data['fiber_views'];
+    let commutationsPriority = data['commutations_priority'];
+    let cables = path.filter(element => element.element_type === "CABLE");
+    let error = path.filter(element => element.element_type === "ERROR");
+    let cables_to_glow = Array.from(new Set(cables.map(cable => cable.element_id))).map(cable => {
+      return cables.find(cable_ => cable_.element_id === cable && cable_.point_id)
+    });
+
+    let antColor = error.length > 0 ? '#df4759' : '#42ba96';
+    jQuery.each(cables_to_glow, function (k, v) {
+      let path = new L.Polyline.AntPath(Objects[10][v.point_id]._latlngs, {
+        reverse: v.reverse,
+        color: antColor,
+        opacity: 0.8
+      });
+      path.addTo(map);
+
+      Objects['ant_path_trace'].push(path);
+    });
+
+    jQuery(button).find('span').removeClass('fa-spinner fa-spin');
+    jQuery(button).find('span').addClass('fa-eye');
+
+    let commutationBlocks = [];
+    commutationsPriority.forEach(function(commutation) {
+
+      commutationBlocks.push(createCard(`${_COMMUTATION}: ${commutation}`,
+        createCommutationPath(fiberViews[commutation])));
+    });
+
+    return commutationBlocks;
+  }
+
+  function createCloseTraceBtn() {
+    let closeBtn = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function() {
+        let container = document.createElement('div');
+        container.classList.add('leaflet-bar');
+        container.classList.add('leaflet-control');
+
+        container.appendChild(this._createHrefContainer());
+
+        return container;
+      },
+      _createHrefContainer: () => {
+        let containerHref = document.createElement('a');
+        containerHref.title = 'Remove trace';
+        containerHref.id = 'remove-trace';
+        containerHref.classList.add('polyline-measure-unicode-icon');
+
+        L.DomEvent.on(containerHref, 'click', () => {
+          map.removeControl(closeControlBtn);
+          closeControlBtn = undefined;
+
+          if (Objects['ant_path_trace']) {
+            while (Objects['ant_path_trace'].length) {
+              Objects['ant_path_trace'].pop().removeFrom(map);
+            }
+          }
+
+          jQuery('#leaflet-sidebar-body').html('');
+          jQuery('#sidebar').addClass('hidden').removeClass('leaflet-sidebar-right');
+        });
+
+        let _containerIcon = document.createElement('i');
+        _containerIcon.classList.add('fa');
+        _containerIcon.classList.add('fa-close');
+
+        containerHref.appendChild(_containerIcon);
+
+        return containerHref;
+      }
+    });
+
+    if (closeControlBtn){
+      map.removeControl(closeControlBtn);
+      closeControlBtn = undefined;
+    }
+    return new closeBtn();
+  }
+
+  function createCard(title, body) {
+    let card = document.createElement('div');
+    card.classList.add('card');
+    card.classList.add('collapsed-card');
+    card.classList.add('m-2');
+
+    let cardHeader = document.createElement('div');
+    cardHeader.classList.add('card-header');
+    cardHeader.classList.add('with-border');
+
+    let cardTitle = document.createElement('h4');
+    cardTitle.classList.add('card-title');
+    cardTitle.innerHTML = title;
+
+    let cardHeaderTool = document.createElement('div');
+    cardHeaderTool.classList.add('card-tools');
+    cardHeaderTool.classList.add('pull-right');
+
+    let collapseBtn = document.createElement('button');
+    collapseBtn.classList.add('btn');
+    collapseBtn.classList.add('btn-tool');
+    collapseBtn.style.color = '#adb5bd';
+    collapseBtn.dataset.cardWidget = 'collapse';
+
+    let icon = document.createElement('i');
+    icon.classList.add('fa');
+    icon.classList.add('fa-plus');
+
+    let cardBody = document.createElement('div');
+    cardBody.classList.add('card-body');
+    cardBody.classList.add('p-1');
+    cardBody.appendChild(body);
+
+    collapseBtn.appendChild(icon);
+    cardHeaderTool.appendChild(collapseBtn);
+    cardHeader.appendChild(cardTitle);
+    cardHeader.appendChild(cardHeaderTool);
+    card.appendChild(cardHeader);
+    card.appendChild(cardBody);
+
+    return card;
+  }
+
+  function createCommutationPath(path) {
+    let mainBlock = document.createElement('div');
+    mainBlock.classList.add('list-group');
+
+    path.forEach(function(branch) {
+      let listItem = document.createElement('span');
+      listItem.classList.add('list-group-item');
+      listItem.classList.add('p-2');
+
+      if (typeof branch !== 'object') {
+        listItem.innerHTML = branch;
+        mainBlock.appendChild(listItem);
+        return;
+      }
+
+      let fiber = document.createElement('span');
+      fiber.classList.add('border');
+      fiber.classList.add('rounded');
+      fiber.classList.add('p-1');
+      fiber.style.backgroundColor = branch['fiber_color'];
+      fiber.innerHTML = branch['fiber_num'];
+
+      let leftArrow = document.createElement('span');
+      leftArrow.innerHTML = ' &#10229; ';
+
+      let element = document.createElement('span');
+      element.innerHTML = branch['type'] + (branch['name'] ? ` | ${branch['name']}` : '');
+
+      listItem.appendChild(fiber);
+      listItem.appendChild(leftArrow);
+      listItem.appendChild(element);
+      mainBlock.appendChild(listItem);
+    });
+
+    return mainBlock;
   }
 
   function showRouteBetweenPoints(object) {
@@ -1444,9 +1752,30 @@ var Routes = (function () {
       });
   }
 
+  function _removeTrace() {
+    if (!Objects['ant_path_trace']) {
+      Objects['ant_path_trace'] = []
+      return;
+    }
+
+    while (Objects['ant_path_trace'].length) {
+      Objects['ant_path_trace'].pop().removeFrom(map);
+    }
+  }
+
+  function _showError(data, button) {
+    if (!data['error']) return 0;
+
+    aTooltip.displayError(data['error']);
+    jQuery(button).find('span').removeClass('fa-spinner fa-spin');
+    jQuery(button).find('span').addClass('fa-eye');
+    return 1;
+  }
+
   return {
     showRouteBetweenPoints: showRouteBetweenPoints,
-    showRouteFromONUtoOLT: showRouteFromONUtoOLT
+    showRouteFromONUtoOLT: showRouteFromONUtoOLT,
+    showRouteFromOLT: showRouteFromOLT
   }
 })();
 
@@ -1479,12 +1808,15 @@ var Controls = (function () {
       containerHref.classList.add('leaflet-control-zoom-in');
       containerHref.innerText = '-';
       controlContainer.appendChild(containerHref);
-      
+
       let buttonsContainer = document.createElement('div');
       buttonsContainer.id = 'navbar-button-container';
 
       container.appendChild(controlContainer);
       container.appendChild(buttonsContainer);
+
+      L.DomEvent.disableScrollPropagation(buttonsContainer);
+      L.DomEvent.disableClickPropagation(buttonsContainer);
 
       L.DomEvent.on(containerHref, 'click', () => {
         if (self.hideLayers) {
@@ -1668,8 +2000,6 @@ var Controls = (function () {
 })();
 
 var init_map = function () {
-  ObjectsConfiguration.getObjectFromOtherModules();
-
   let defaultLat = 0;
   let defaultLng = 0;
 
@@ -1686,9 +2016,8 @@ var init_map = function () {
     zoom: 6,
     measureControl: true,
     drawControl: true,
-    fullscreenControl: true
-    // preferCanvas: true,
-    // renderer: L.canvas()
+    fullscreenControl: true,
+    selectArea: true
   });
 
   let leaflet_map = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1697,26 +2026,12 @@ var init_map = function () {
     crossOrigin: true
   });
 
-  baseMaps = {
-    "Leaflet": leaflet_map
-  };
+  baseMaps = {"Leaflet": leaflet_map};
 
   if (Configuration.onGoogleMaps()) {
-    baseMaps['Google'] = L.gridLayer.googleMutant({
-      type: 'roadmap'
-    });
-
-    baseMaps['Satellite'] = L.gridLayer.googleMutant({
-      type: 'satellite'
-    });
-
-    baseMaps['Terrain'] = L.gridLayer.googleMutant({
-      type: 'terrain'
-    });
-
-    // baseMaps['Hybrid'] = L.gridLayer.googleMutant({
-    //   type: 'hybrid'
-    // });
+    baseMaps['Google'] = L.gridLayer.googleMutant({type: 'roadmap'});
+    baseMaps['Satellite'] = L.gridLayer.googleMutant({type: 'satellite'});
+    baseMaps['Terrain'] = L.gridLayer.googleMutant({type: 'terrain'});
     baseMaps['Hybrid'] = L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{
       maxZoom: 20,
       subdomains:['mt0','mt1','mt2','mt3']
@@ -1762,27 +2077,18 @@ var init_map = function () {
     }
   });
 
-  L.control.watermark = function (opts) {
-    return new L.Control.Watermark(opts);
-  };
-
+  L.control.watermark = function (opts) { return new L.Control.Watermark(opts) };
   L.control.watermark({position: 'bottomleft'}).addTo(map);
 
-  L.control.BigImage({position: 'topright', downloadTitle: 'Скачать', inputTitle: 'Выберите масштаб:'}).addTo(map);
+  L.control.BigImage({position: 'topright', downloadTitle: _DOWNLOAD, inputTitle: `${_SCALE}:`}).addTo(map);
+  L.control.CenterCoordinates().addTo(map);
 
   Configuration.createControl();
 
   Controls.showControls();
 
-  if (!FORM['OBJECT_TO_SHOW'] || FORM['OBJECT_TO_SHOW'].length === 0)
-    Configuration.getLocation();
-
-  if (!FORM['SMALL'])
-    L.control.polylineMeasure(Configuration.getOptions()).addTo(map);
-
-  if (FORM['ADD_BUILD']) {
-    Markers.drawMarker();
-  }
+  if (!FORM['OBJECT_TO_SHOW'] || FORM['OBJECT_TO_SHOW'].length === 0) Configuration.getLocation();
+  if (!FORM['SMALL']) L.control.polylineMeasure(Configuration.getOptions()).addTo(map);
 
   if (localStorage.getItem('LAST_LNG') && localStorage.getItem('LAST_LAT') && localStorage.getItem('LAST_ZOOM')) {
     map.setView([localStorage.getItem('LAST_LAT'), localStorage.getItem('LAST_LNG')], localStorage.getItem('LAST_ZOOM'));
@@ -1853,6 +2159,61 @@ function fillSearchSelect(items, pageSize) {
       dataAdapter: CustomData
     });
   });
+}
+
+function editField(element) {
+  let $jelement = jQuery(element)
+
+  let oldValue = $jelement.text();
+  let newValue = oldValue;
+  let fieldName = $jelement.data('field');
+  let url = $jelement.data('url');
+  let id = $jelement.data('id');
+
+  if ($jelement.data('input')) return;
+
+  $jelement.data('input', true);
+  $jelement.html('<div class="input-group input-group-sm" style="min-width: 150px;">' +
+    '<input name="NAME" class="form-control" value="' + oldValue + '" id="' + fieldName + '_FIELD">' +
+    '<div class="input-group-append"><div class="input-group-text cursor-pointer" id="CHANGE_' + fieldName + '_BTN">' +
+    '<span class="fa fa-save"></span></div></div></div>'
+  );
+
+  jQuery('#CHANGE_' + fieldName + '_BTN').on('click', function() {
+    url += '&' + fieldName + '=' + jQuery('#' + fieldName + '_FIELD').val();
+    url += '&ID=' + id;
+    jQuery('#' + fieldName + '_FIELD').prop('disabled', true);
+    jQuery('#CHANGE_' + fieldName + '_BTN').hide();
+
+    fetch(url)
+      .then(response => {
+        if (!response.ok) throw response;
+        return response;
+      })
+      .then(response => response.text())
+      .then(result => {
+        $jelement.data('input', false);
+        if (result) {
+          $jelement.html(oldValue);
+          return;
+        }
+        newValue = jQuery('#' + fieldName + '_FIELD').val();
+        $jelement.html(newValue);
+
+        map.on('popupopen', changePopover);
+      })
+      .catch(err => {
+        $jelement.data('input', false);
+        $jelement.html(oldValue);
+      });
+  });
+
+  function changePopover(e) {
+    let test = jQuery(e.popup._contentNode);
+    test.find(`[data-id='${id}'][data-field='${fieldName}']`).html(newValue);
+    jQuery(e.popup._contentNode).html(test.html());
+    map.off('popupopen', changePopover);
+  }
 }
 
 init_map();

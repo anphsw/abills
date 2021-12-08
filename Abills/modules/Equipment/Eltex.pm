@@ -462,12 +462,12 @@ sub _eltex {
         PARSER => ''
       },
       'ONU_IN_BYTE'    => {
-        NAME   => 'PORT_IN',
+        NAME   => 'ONU_IN_BYTE',
         OIDS   => '',
         PARSER => ''
       },
       'ONU_OUT_BYTE'   => {
-        NAME   => 'PORT_OUT',
+        NAME   => 'ONU_OUT_BYTE',
         OIDS   => '',
         PARSER => ''
       },
@@ -536,12 +536,12 @@ sub _eltex {
         PARSER => ''
       },
       'ONU_IN_BYTE'    => {
-        NAME   => 'PORT_IN',
+        NAME   => 'ONU_IN_BYTE',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.6',
         PARSER => ''
       },
       'ONU_OUT_BYTE'   => {
-        NAME   => 'PORT_OUT',
+        NAME   => 'ONU_OUT_BYTE',
         OIDS   => '.1.3.6.1.4.1.35265.1.22.3.1.1.10',
         PARSER => ''
       },

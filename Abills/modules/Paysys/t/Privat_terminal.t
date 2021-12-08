@@ -15,13 +15,17 @@ our (
   $debug,
   $user_id,
   $payment_sum,
-  $payment_id
+  $payment_id,
+  $argv
 );
 
 my $Payment_plugin = Paysys::systems::Privat_terminal->new($db, $admin, \%conf);
 if ($debug > 3) {
   $Payment_plugin->{DEBUG}=7;
 }
+
+$payment_id = int(rand(10000));
+$user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 
 our @requests = (
    {

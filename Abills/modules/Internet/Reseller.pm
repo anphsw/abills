@@ -115,7 +115,7 @@ sub internet_r_list {
     main::_make_payment($FORM->{UID}, $FORM->{SUM}, 'Internet');
   }
 
-  my $list = $Internet->list({
+  my $list = $Internet->user_list({
     ID                 => '_SHOW',
     GID                => $users->{GID},
     UID                => '_SHOW',

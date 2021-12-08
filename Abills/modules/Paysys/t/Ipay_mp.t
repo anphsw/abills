@@ -73,7 +73,12 @@ our @requests = (
   <sign>52096b12a7b537ea9b7fa90513d5d71c5724eda3a3ef70d52906c2b12ad619433655b72804690912f02a0107ae05e4dcdaa5e9bee9ad572431d496c4b7ca9ca2</sign>
 </payment>},
     result  => q{}
-  }
+  },
+    {
+      name    => 'check',
+      request => qq{xml=<?xml version="1.0" encoding="utf-8"?><check><mch_id>dfcbc8b24aef69c676ed9bff3df3d503b9d15445</mch_id><srv_id>0</srv_id><pay_account>10061</pay_account></check>},
+      result  => q{}
+    }
 );
 
 test_runner($Payment_plugin, \@requests, { VALIDATE => 'xml_compare' });

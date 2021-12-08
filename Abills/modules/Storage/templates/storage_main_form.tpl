@@ -92,7 +92,7 @@
       </div>
       <div class='form-group row'>
         <label class='col-md-3 col-form-label text-md-right required'>_{SUM_ALL}_: </label>
-        <div class='col-md-9'><input class='form-control' required name='SUM' type='number' step='0.1' value='%SUM%' %DISABLED%/>
+        <div class='col-md-9'><input class='form-control' required name='SUM' type='number' step='0.01' value='%SUM%' %DISABLED%/>
         </div>
       </div>
       <div class='form-group row'>

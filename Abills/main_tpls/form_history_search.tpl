@@ -1,5 +1,15 @@
 <div class='col-xs-12 col-md-6'>
     <div class='card card-primary card-outline'>
+
+        <div class='card-header'>
+            <h3 class='card-title'>_{OTHER}_</h3>
+            <div class='card-tools pull-right'>
+                <button type='button' class='btn btn-tool' data-card-widget='collapse'>
+                    <i class='fa fa-minus'></i>
+                </button>
+            </div>
+        </div>
+
         <div class='card-body'>
 
             <div class='form-group row'>

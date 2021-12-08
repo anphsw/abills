@@ -238,13 +238,14 @@ sub pon_maps {
   my ($attr) = @_;
 
   my $equipment_list = $Equipment->onu_list({ #XXX pay attention to DELETED status?
-    LOCATION_ID => '_SHOW',
+    LOCATION_ID => '!',
     LOGIN       => '_SHOW',
+    UID         => '_SHOW',
     RX_POWER    => '_SHOW',
     NAS_NAME    => '_SHOW',
     MAPS_COORDS => '_SHOW',
     COLS_NAME   => 1,
-    PAGE_ROWS   => 100000,
+    PAGE_ROWS   => 100000
   });
   ::_error_show($Equipment);
 
@@ -289,8 +290,8 @@ sub pon_maps {
     }
 
     my $link = "UID:<a href='index.cgi?index=15&UID=" . ($point->{uid} || "") . "' target='_blank'>" . ($point->{uid} || "") . "</a>";
-    my $tb = "<div class='panel panel-$panel_color'>" .
-      "<div class='panel-heading'><h3 class='panel-title'>$link</h3></div>" .
+    my $tb = "<div class='card card-$panel_color'>" .
+      "<div class='card-header'><h3 class='card-title'>$link</h3></div>" .
       "<ul class='list-group'>" .
       "<li class='list-group-item'>$lang->{SIGNAL}: $point->{rx_power}</li>" .
       "<li class='list-group-item'>$lang->{ADDRESS}: $point->{address_street},$point->{address_build}</li>" .
@@ -341,7 +342,7 @@ sub pon_maps {
     });
 
     foreach my $item (@{$equipment_ports_list}) {
-      $ports .= $html->badge($item->{branch}) . " ";
+      $ports .= $html ? ($html->badge($item->{branch}) . " ") : "$item->{branch} ";
     }
 
     my $coordx = $point->{coordx};

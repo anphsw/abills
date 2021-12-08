@@ -726,7 +726,7 @@ sub action_list {
       ['ACTIONS',      'INT',  'aa.actions',     1 ],
       ['ADMIN_LOGIN',  'STR',  'a.id', 'a.id AS admin_login'               ],
       ['IP',           'IP',   'aa.ip',         "INET_NTOA(aa.ip) AS ip"   ],
-      ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')"      ],
+      ['DATE',         'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')", "DATE_FORMAT(aa.datetime, '%Y-%m-%d') AS date" ],
       ['MONTH',        'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m')"         ],
       ['FROM_DATE|TO_DATE', 'DATE', "DATE_FORMAT(aa.datetime, '%Y-%m-%d')" ],
       ['AID',          'INT',  'aa.aid'                                    ],

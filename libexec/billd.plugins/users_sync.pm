@@ -678,7 +678,7 @@ sub user_import {
 #  my $user_info = $attr->{EXT_SYSTEM};
 #  my $uid       = $attr->{UID};
 #
-#  my $internet_services = $Internet->list({
+#  my $internet_services = $Internet->user_list({
 #    TP_ID     => '_SHOW',
 #    CID       => '_SHOW',
 #    IP        => '_SHOW',
@@ -784,7 +784,7 @@ sub odoo_service_sync {
 
     my $service_count = scalar(keys %user_tp);
 
-    my $internet_list = $Internet->list({
+    my $internet_list = $Internet->user_list({
       LOGIN     => $login,
       TP_ID     => '_SHOW',
       ID        => '_SHOW',
@@ -813,7 +813,7 @@ sub odoo_service_sync {
           }
 
           if($new_tp) {
-            $Internet->add({
+            $Internet->user_add({
               UID   => $internet_list->[0]->{uid},
               TP_ID => $new_tp,
               IP    => $ip,
@@ -833,7 +833,7 @@ sub odoo_service_sync {
           delete $user_tp{$list->{tp_id}};
         }
 
-        $Internet->change({
+        $Internet->user_change({
           ID    => $internet_list->[0]->{id},
           UID   => $internet_list->[0]->{uid},
           CID   => $cid,
@@ -855,7 +855,7 @@ sub odoo_service_sync {
           print "ADD: " . ($login2uid{$login} || qq{NO UID LOGIN: $login }) . " -> " . ($tp_id || 'n/d') . "\n";
         }
 
-        $Internet->add({
+        $Internet->user_add({
           UID   => $login2uid{$login},
           TP_ID => $tp_id,
           IP    => $ip,
@@ -1290,7 +1290,7 @@ sub add_internet {
     $Internet->{debug} = 1;
   }
 
-  $Internet->list({ UID => $service_info->{UID} });
+  $Internet->user_list({ UID => $service_info->{UID} });
 
   my $tp_name = $service_info->{contract_lines}->[0]->{product_name};
   my $tp_ids = _get_tp();
@@ -1327,7 +1327,7 @@ sub add_internet {
   }
 
   if(! $Internet->{TOTAL}) {
-    $Internet->add({
+    $Internet->user_add({
       UID   => $service_info->{UID},
       TP_ID => $tp_ids->{$tp_name} || 0,
       IP    => $ip,
@@ -1338,7 +1338,7 @@ sub add_internet {
     });
   }
   else {
-    $Internet->change({
+    $Internet->user_change({
       UID   => $service_info->{UID},
       TP_ID => $tp_ids->{$tp_name} || 0,
       IP    => $ip,
@@ -1500,7 +1500,7 @@ sub odoo_service_sync_company {
     next;
     my $service_count = scalar(keys %user_tp);
 
-    my $internet_list = $Internet->list({
+    my $internet_list = $Internet->user_list({
       LOGIN     => $login,
       TP_ID     => '_SHOW',
       ID        => '_SHOW',

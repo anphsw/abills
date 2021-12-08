@@ -42,7 +42,7 @@ sub network_map {
   _error_show($Equipment);
 
   foreach my $line (@$nas_list) {
-    my $online = $Internet->list({
+    my $online = $Internet->user_list({
       NAS_ID    => $line->{nas_id},
       ONLINE    => '_SHOW',
       COLS_NAME => 1
@@ -112,7 +112,7 @@ sub user_route {
   my $user_uid = $attr->{UID} || $FORM{UID} || return '';
 
   my $user_info = $Users->info($user_uid);
-  my $intenet_info = $Internet->list({
+  my $intenet_info = $Internet->user_list({
     UID => $user_uid,
     IP  => '_SHOW',
     NAS_ID => '_SHOW',
@@ -169,7 +169,7 @@ sub user_route {
       }
 
       if ($nas_info->[0]->{nas_id}) {
-        my $online = $Internet->list({
+        my $online = $Internet->user_list({
           NAS_ID    => $nas_info->[0]->{nas_id},
           ONLINE    => '_SHOW',
           COLS_NAME => 1

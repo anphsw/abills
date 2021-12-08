@@ -226,7 +226,7 @@ sub ipn_activate {
   my ($attr) = @_;
 
   my $nas_id = $attr->{nas_id};
-  $Internet->info($attr->{uid});
+  $Internet->user_info($attr->{uid});
 
   my %DATA = (
     ACCT_STATUS_TYPE     => 1,

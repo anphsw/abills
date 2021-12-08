@@ -86,7 +86,7 @@ sub cams_main {
         CHECK_GROUPS => 1,
       });
       if ($correct_name) {
-        if ($conf{CAMS_FOLDER}) {
+        if ($FORM{FOLDER_ID}) {
           my $folder = $Cams->folder_info($FORM{FOLDER_ID});
           if ($Cams->{TOTAL}) {
             $FORM{SERVICE_ID} = $folder->{SERVICE_ID};
@@ -184,54 +184,53 @@ sub cams_main {
   }
 
   if ($show_add_form) {
-    if (!$conf{CAMS_FOLDER}) {
-      $camera->{GROUPS_SELECT} = $html->form_select('GROUP_ID', {
-        SELECTED  => $camera->{GROUP_ID} || q{},
-        SEL_LIST  => $Cams->group_list({
-          NAME         => "_SHOW",
-          SERVICE_NAME => "_SHOW",
-          COLS_NAME    => 1,
-        }),
-        SEL_VALUE => 'service_name,name',
-        SEL_KEY   => 'id',
-        NO_ID     => 1,
-        EX_PARAMS => 'required="required"',
-      });
+    # if ($camera->{FOLDER_ID}) {
+    #   $camera->{GROUPS_SELECT} = $html->form_select('GROUP_ID', {
+    #     SELECTED  => $camera->{GROUP_ID} || q{},
+    #     SEL_LIST  => $Cams->group_list({
+    #       NAME         => "_SHOW",
+    #       SERVICE_NAME => "_SHOW",
+    #       COLS_NAME    => 1,
+    #     }),
+    #     SEL_VALUE => 'service_name,name',
+    #     SEL_KEY   => 'id',
+    #     NO_ID     => 1,
+    #     EX_PARAMS => 'required="required"',
+    #   });
+    # }
+    # else {
+    $camera->{FOLDERS} = $camera->{FOLDER_ID} || -1;
+    $camera->{FOLDER_SELECT} = $html->form_select('FOLDER_ID', {
+      SELECTED  => $camera->{FOLDER_ID} || q{},
+      SEL_LIST  => $Cams->folder_list({
+        ID          => '_SHOW',
+        PARENT_NAME => '_SHOW',
+        COLS_NAME   => 1,
+      }),
+      SEL_VALUE => 'parent_name,title',
+      SEL_KEY   => 'id',
+      NO_ID     => 1
+    });
+
+    my $group_info = $camera;
+
+    if ($camera->{FOLDER_ID}) {
+      $group_info = $Cams->folder_info($camera->{FOLDER_ID});
     }
-    else {
-      $camera->{FOLDERS} = $camera->{FOLDER_ID} || -1;
-      $camera->{FOLDER_SELECT} = $html->form_select('FOLDER_ID', {
-        SELECTED  => $camera->{FOLDER_ID} || q{},
-        SEL_LIST  => $Cams->folder_list({
-          ID          => '_SHOW',
-          PARENT_NAME => '_SHOW',
-          COLS_NAME   => 1,
-        }),
-        SEL_VALUE => 'parent_name,title',
-        SEL_KEY   => 'id',
-        NO_ID     => 1,
-        EX_PARAMS => 'required="required"',
-      });
 
-      my $group_info = $camera;
-
-      if ($camera->{FOLDER_ID}) {
-        $group_info = $Cams->folder_info($camera->{FOLDER_ID});
-      }
-
-      $camera->{GROUPS_SELECT} = $html->form_select('GROUP_ID', {
-        SELECTED  => $group_info->{GROUP_ID} || q{},
-        SEL_LIST  => $Cams->group_list({
-          NAME         => "_SHOW",
-          SERVICE_NAME => "_SHOW",
-          COLS_NAME    => 1,
-        }),
-        SEL_VALUE => 'service_name,name',
-        SEL_KEY   => 'id',
-        NO_ID     => 1,
-        EX_PARAMS => "required='required' onchange='autoReload()'",
-      });
-    }
+    $camera->{GROUPS_SELECT} = $html->form_select('GROUP_ID', {
+      SELECTED  => $group_info->{GROUP_ID} || q{},
+      SEL_LIST  => $Cams->group_list({
+        NAME         => "_SHOW",
+        SERVICE_NAME => "_SHOW",
+        COLS_NAME    => 1,
+      }),
+      SEL_VALUE => 'service_name,name',
+      SEL_KEY   => 'id',
+      NO_ID     => 1,
+      EX_PARAMS => "required='required' onchange='autoReload()'",
+    });
+    # }
 
     $camera->{ORIENTATION_SELECT} = _cams_orientation_select({ SELECTED => ($camera->{ORIENTATION} || 0) });
     $camera->{ARCHIVE_SELECT} = _cams_archive_select({ SELECTED => $camera->{ARCHIVE} });
@@ -279,11 +278,10 @@ sub cams_main {
     });
   }
 
-  my $group_folder = $conf{CAMS_FOLDER} ? $lang{FOLDER} : $lang{GROUP};
   my $cameras_table = $html->table({
     width      => '100%',
     caption    => $lang{CAMERAS},
-    title      => [ "#", $lang{SERVICE}, $lang{OWNER}, $group_folder, $lang{NAME}, $lang{CAM_TITLE},
+    title      => [ "#", $lang{SERVICE}, $lang{OWNER}, $lang{GROUP}, $lang{FOLDER}, $lang{NAME}, $lang{CAM_TITLE},
       "Host", "RTSP Path", "RTSP Port", "$lang{LOCATION}", "", "" ],
     ID         => 'CAMERAS_ITEMS',
     DATA_TABLE => 1,
@@ -303,7 +301,7 @@ sub cams_main {
 
     $change_button = $html->button('', "index=$index&chg_cam=$one_camera->{ID}", { class => 'change' });
     $delete_button = $html->button('', "index=$index&del_cam=$one_camera->{ID}", { MESSAGE => "$lang{DEL} $one_camera->{NAME}?", class => 'del' });
-    $cameras_table->addrow($one_camera->{ID}, $one_camera->{SERVICE_NAME}, $one_camera->{USER_LOGIN}, $one_camera->{GROUP_NAME} || $one_camera->{FOLDER_NAME}, $one_camera->{NAME},
+    $cameras_table->addrow($one_camera->{ID}, $one_camera->{SERVICE_NAME}, $one_camera->{USER_LOGIN}, $one_camera->{GROUP_NAME}, $one_camera->{FOLDER_NAME}, $one_camera->{NAME},
       $one_camera->{TITLE}, $one_camera->{HOST}, $one_camera->{RTSP_PATH}, $one_camera->{RTSP_PORT}, $maps_btn, $change_button, $delete_button);
   }
 
@@ -701,7 +699,7 @@ sub _cams_show_location {
   }
 
   $address_info = $Address->district_info({ ID => $address_params->{DISTRICT_ID} });
-  return($address_info->{NAME} || "") if $Address->{TOTAL};
+  return ($address_info->{NAME} || "") if $Address->{TOTAL};
 
   return "";
 }
@@ -830,7 +828,6 @@ sub cams_user_folders {
 
   if ($FORM{change_now}) {
     $Cams->user_folders(\%FORM);
-    $FORM{FOLDER_CHANGE} = 1;
   }
 
   $current_user_folders = $Cams->user_folders_list({
@@ -889,14 +886,17 @@ sub cams_user_folders {
   my %submit_h = ();
   $submit_h{change_now} = "$lang{CHANGE}";
 
+  return undef if !$folders_table->{rows};
+
   return $html->form_main({
     CONTENT => $folders_table->show({ OUTPUT2RETURN => 1 }),
     HIDDEN  => {
-      UID   => $FORM{UID},
-      ID    => $FORM{chg} || $FORM{ID},
-      TP_ID => $Cams->{TP_ID},
-      index => $index,
-      chg   => $FORM{chg},
+      UID            => $FORM{UID},
+      ID             => $FORM{chg} || $FORM{ID},
+      TP_ID          => $Cams->{TP_ID},
+      index          => $index,
+      chg            => $FORM{chg},
+      CHANGE_FOLDERS => 1,
     },
     METHOD  => 'get',
     SUBMIT  => \%submit_h
@@ -1730,8 +1730,7 @@ sub cams_get_group_folders {
     }),
     SEL_VALUE => 'parent_name,title',
     SEL_KEY   => 'id',
-    NO_ID     => 1,
-    EX_PARAMS => 'required="required"',
+    NO_ID     => 1
   });
 
   return 1;
@@ -1829,7 +1828,7 @@ sub cams_users_list {
     $pages_qs .= "&letter=$FORM{letter}";
   }
 
-  my $status_bar = $html->button($lang{ALL}, "index=$index$pages_qs", { class => "btn btn-secondary active" });
+  my $status_bar = $html->button($lang{ALL}, "index=$index$pages_qs", { class => "btn btn-default active" });
 
   for (my $i = 0; $i <= 2; $i++) {
     my $name = $service_status[$i];
@@ -1843,7 +1842,7 @@ sub cams_users_list {
     else {
       $qs =~ s/\&SERVICE_STATUS=\d//;
     }
-    $status_bar .= $html->button($name, "index=$index&SERVICE_STATUS=$i$qs", { class => "btn btn-secondary $active" });
+    $status_bar .= $html->button($name, "index=$index&SERVICE_STATUS=$i$qs", { class => "btn btn-default $active" });
   }
   if ($FORM{SERVICES} && $FORM{SERVICES} =~ m/^[<>]?\d+$/) {
     my $search = $FORM{SERVICES};
@@ -1867,7 +1866,7 @@ sub cams_users_list {
     BASE_FIELDS    => 0,
     FUNCTION       => 'users_list',
     DEFAULT_FIELDS => 'LOGIN,FIO,DEPOSIT,CREDIT,TP_NAME,SERVICE_STATUS,SERVICE_NAME',
-    EXT_TITLES => {
+    EXT_TITLES     => {
       'id'             => 'ID',
       'filter_id'      => 'Filter ID',
       'tp_name'        => $lang{TARIF_PLAN},
@@ -1963,5 +1962,71 @@ sub cams_get_badge_info {
 
   return $subscriptions, $cameras;
 }
+
+#**********************************************************
+=head cams_quick_info($attr) - Quick information
+
+  Arguments:
+    $attr
+      UID
+      LOGIN
+
+=cut
+#**********************************************************
+sub cams_quick_info {
+  my ($attr) = @_;
+  my $result;
+
+  my $uid = $attr->{UID} || $FORM{UID};
+
+  if ($attr->{GET_PARAMS}) {
+    return {
+      HEADER    => $lang{CAMERAS},
+      QUICK_TPL => 'cams_qi_box',
+      FIELDS    => {
+        TP_NAME     => $lang{TARIF_PLAN},
+        STATUS      => $lang{STATUS},
+        MONTH_FEE   => $lang{MONTH_FEE},
+        TP_COMMENTS => $lang{COMMENTS},
+      }
+    };
+  }
+
+  if ($attr->{UID}) {
+    my $user_info = $Cams->user_info($uid);
+    return {} if $Cams->{TOTAL} < 1;
+
+    my $service_status = sel_status({ HASH_RESULT => 1 });
+    $user_info->{STATUS} = defined($user_info->{SERVICE_STATUS}) ? $service_status->{ $user_info->{SERVICE_STATUS} } : '';
+    ($user_info->{STATUS}, undef) = split(':', $user_info->{STATUS});
+
+    return $user_info;
+  }
+
+  my $fn_name = $functions{$attr->{FN_INDEX}} || 0;
+  return 0 if !$fn_name;
+
+  if ($fn_name eq 'cams_user') {
+    $Cams->_list({
+      UID         => $uid,
+      LOGIN       => (!$uid && $attr->{LOGIN}) ? $attr->{LOGIN} : '_SHOW',
+      TP_NAME     => '_SHOW',
+      MONTH_FEE   => '_SHOW',
+      CID         => '_SHOW',
+      TP_COMMENTS => '_SHOW',
+      STATUS      => '_SHOW',
+      IP          => '_SHOW',
+      COLS_NAME   => 1,
+      COLS_UPPER  => 1
+    });
+    return $Cams->{TOTAL} < 1 ? 0 : $Cams->{TOTAL};
+  }
+
+  return 0 if !$uid;
+
+  $Cams->user_total_cameras($uid);
+  return $Cams->{TOTAL} < 1 ? 0 : $Cams->{TOTAL}
+}
+
 
 1;

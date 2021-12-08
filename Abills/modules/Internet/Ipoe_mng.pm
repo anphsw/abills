@@ -40,6 +40,7 @@ my $Log            = Log->new($db, \%conf);
      IP
      UID
      ID    - Internet service ID
+     ACTIVE- Active sassions
 
   Results:
 
@@ -51,7 +52,8 @@ sub internet_ipoe_activate{
 
   my $ip       = '0.0.0.0';
   my $IP_INPUT = '';
-  $Internet->info( $LIST_PARAMS{UID}, $attr );
+
+  $Internet->user_info( $LIST_PARAMS{UID}, $attr );
   my $static_ip= $Internet->{IP};
 
   if ( $Internet->{STATUS} && $Internet->{STATUS} > 0 && !$conf{INTERNET_IPOE_NEGATIVE}){
@@ -151,7 +153,7 @@ sub internet_ipoe_activate{
 
     $Internet_ipoe->online_alive( { %FORM, LOGIN => $LIST_PARAMS{LOGIN} } );
     if ( $Internet_ipoe->{TOTAL} < 1 ){
-      $html->message( 'err', $lang{ERROR}, "$lang{NOT_ACTIVE}", { ID => 322 } );
+      $html->message( 'err', $lang{ERROR}, $lang{NOT_ACTIVE}, { ID => 322 } );
     }
     elsif ( $Internet_ipoe->{errno} ){
       _error_show( $Internet_ipoe );
@@ -161,10 +163,10 @@ sub internet_ipoe_activate{
     }
     return 0;
   }
-  elsif ( $FORM{ACTIVE} ){
+  elsif ( $attr->{ACTIVE} ){
 
     if ( int( $nas_id ) < 1 ){
-      $html->message( 'err', $lang{ERROR}, "Unknown NAS", { ID => 323 } );
+      $html->message( 'err', $lang{ERROR}, $lang{ERR_UNKNOWN_IP}, { ID => 323 } );
     }
     else{
       my $user = $users->info( $LIST_PARAMS{UID} );
@@ -235,7 +237,7 @@ sub internet_ipoe_activate{
         my ($r, $RAD_PAIRS) = $Auth->auth( \%RAD_REQUEST, $Nas);
         delete ( $RAD_PAIRS->{'Session-Timeout'} );
 
-        my $debug = 0;
+        my $debug = $FORM{DEBUG} || 0;
         if($debug) {
           print "Result: $r\n";
           while(my($k, $v)=each %$RAD_PAIRS ) {
@@ -254,15 +256,13 @@ sub internet_ipoe_activate{
 
         if ( $r == 1 ){
           $html->message( 'err', $lang{ERROR}, $RAD_PAIRS->{'Reply-Message'}, { ID => 324 } );
-          $Log->log_add(
-            {
-              LOG_TYPE  => $Log::log_levels{'LOG_WARNING'},
-              ACTION    => 'AUTH',
-              USER_NAME => $user->{LOGIN} || '-',
-              MESSAGE   => "$RAD_PAIRS->{'Reply-Message'}",
-              NAS_ID    => $nas_id
-            }
-          );
+          $Log->log_add({
+            LOG_TYPE  => $Log::log_levels{'LOG_WARNING'},
+            ACTION    => 'AUTH',
+            USER_NAME => $user->{LOGIN} || '-',
+            MESSAGE   => $RAD_PAIRS->{'Reply-Message'},
+            NAS_ID    => $nas_id
+          });
         }
         else{
           $Internet_ipoe->user_status( { %DATA } );

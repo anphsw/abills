@@ -63,5 +63,6 @@ $lang{CAMS_UPTIME} = 'Время безотказной работы';
 $lang{CAMS_CPU_LOAD} = 'Загрузка CPU';
 
 $lang{AUTODETECT} = 'Автоопределение';
+$lang{CHOOSE_SERVICE} = 'Выберите услугу';
 
 1;

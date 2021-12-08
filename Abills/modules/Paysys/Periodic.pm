@@ -24,7 +24,7 @@ our (
 );
 
 my $Paysys = Paysys->new($db, $admin, \%conf);
-my $Payments = Finance->payments($db, $admin, \%conf);
+#my $Payments = Finance->payments($db, $admin, \%conf);
 
 #**********************************************************
 =head2 paysys_periodic($attr)
@@ -54,7 +54,7 @@ sub paysys_periodic_new {
   # }
 
   if (! $attr->{DATE_FROM}) {
-    $attr->{DATE_FROM} = POSIX::strftime( '%Y-%m-%d', localtime( time - 86400 ) )
+    $attr->{DATE_FROM} = POSIX::strftime( '%Y-%m-%d', localtime( time - 86400 * 3 ) )
   }
 
   my $connected_systems_list = $Paysys->paysys_connect_system_list({

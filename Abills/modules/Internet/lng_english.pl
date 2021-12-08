@@ -34,4 +34,5 @@ $lang{PACKET_SIZE} = 'Packet size (bytes)';
 $lang{PACKET_COUNT} = 'Packet count';
 $lang{PASTE} = 'Paste';
 
+$lang{NO_TARIFF_SELECTED} = 'No tariff plan selected!';
 1;

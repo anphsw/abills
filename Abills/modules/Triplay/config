@@ -8,4 +8,8 @@ our %FUNCTIONS_LIST = (
   "20:0:3play:triplay_user:UID"           => 20,
 );
 
+our %PERIODIC = (
+  monthly => [ 'triplay_monthly_fees' ],
+);
+
 1

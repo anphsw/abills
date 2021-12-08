@@ -79,8 +79,8 @@ $lang{SPEED_IN}='Вхідна швидкість(Mb/s)';
 $lang{SPEED_OUT}='Вихідна швидкість(Mb/s)';
 $lang{SIGNAL} = 'Сигнал';
 
-$lang{REPORT_ON_UNREGISTERED_ONU} = "Звіт по незареєстрованим ONU";
-$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Звіт по кількості зайнятих і вільних портів на комутаторах";
+$lang{REPORT_ON_UNREGISTERED_ONU} = "Звіт по незареєстрованих ONU";
+$lang{REPORT_ON_NUMBER_OF_BUSY_AND_FREE_PORTS_ON_SWITCHES} = "Зайняті та вільні порти на комутаторах";
 $lang{TOTAL_SWITCH_COUNT} = "Кількість комутаторів";
 $lang{TOTAL_ALL_PORTS} = "Загальна кількість портів";
 $lang{TOTAL_BUSY_PORTS} = "Кількість зайнятих портів";
@@ -134,7 +134,7 @@ $lang{DISABLE_CATV_PORT} = 'Відключити CATV-порт';
 $lang{ENABLE_CATV_PORT} = 'Увімкнути CATV-порт';
 $lang{CATV_PORT_DISABLED} = 'CATV-порт відключено';
 $lang{CATV_PORT_ENABLED} = 'CATV-порт увімкнено';
-$lang{CATV_PORT_ERROR} = 'Помилка при зміні статуса CATV-порта';
+$lang{CATV_PORT_STATUS_CHANGING_ERROR} = 'Помилка при зміні статуса CATV-порта';
 
 $lang{USE_AUTO_PORT_SHIFT}='Використовувати автоматичне зсування портів';
 
@@ -199,5 +199,15 @@ $lang{EQUIPMENT_TYPE} = 'Тип обладнання';
 $lang{RAM_USAGE} = 'Завантаження ОЗП';
 $lang{SLOT_TEMP} = 'T° слота';
 $lang{SLOT_DESC} = 'Опис';
+
+$lang{FOR_GRAPH} = 'графіка';
+
+$lang{DISABLE_PORT} = 'Відключити порт';
+$lang{ENABLE_PORT} = 'Увімкнути порт';
+$lang{PORT_DISABLED} = 'Порт відключено';
+$lang{PORT_ENABLED} = 'Порт увімкнено';
+$lang{PORT_STATUS_CHANGING_ERROR} = 'Помилка при зміні статуса порта';
+
+$lang{RUN_CMD_ON_EQUIPMENT} = 'Запустити команду на обладнанні';
 
 1

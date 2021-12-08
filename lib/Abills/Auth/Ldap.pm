@@ -28,14 +28,16 @@ sub check_access {
   my $self = shift;
   my($attr) = @_;
 
-  my $login    = $attr->{LOGIN} || q{};
-  my $password = $attr->{PASSWORD} || q{};
-  my $debug    = $self->{debug} || 0;
+  my $login      = $attr->{LOGIN} || q{};
+  my $password   = $attr->{PASSWORD} || q{};
+  my $debug      = $self->{debug} || 0;
 
   my $ldap_base  = $self->{conf}->{LDAP_BASE} || "dc=sqd_ldp";
   my $server     = $self->{conf}->{LDAP_IP} || "192.168.0.40";
 
   my $ldap = Net::LDAP->new( $server, timeout => 10 );
+
+  my $user_name = ($ldap_base =~ /\@/) ? "$login$ldap_base" : "cn=$login,ou=users,$ldap_base";
 
   if (! $ldap) {
     $self->{errno}=$@;
@@ -43,17 +45,20 @@ sub check_access {
     return 0;
   }
 
-  my $mesg = $ldap->bind("cn=$login,$ldap_base",
-                         password => "$password");
+  my $mesg = $ldap->bind($user_name, password => $password);
 
   print "Result: $mesg->{resultCode} $mesg->{errorMessage}\n" if ($debug);
-
   $ldap->unbind;
 
   if (! $mesg->{resultCode}) {
-    $self->{errno}=21;
-    $self->{errstr}='LDAP Auth Error';
+    #$self->{errno}=21;
+    #$self->{errstr}='LDAP Auth Error';
     return 1;
+  }
+  elsif ($mesg->{resultCode} == 49) {
+    $self->{errno}=$mesg->{resultCode};
+    $self->{errstr}='LDAP Auth Error: ' . $mesg->{errorMessage};
+    #return 0;
   }
 
   return 0;

@@ -1,6 +1,6 @@
 <script src='/styles/default_adm/js/modules/config/password_generator.js'></script>
 
-<form action='$SELF_URL' METHOD='POST' class='form-horizontal'>
+<form action='$SELF_URL' METHOD='POST'>
   <input type='hidden' name='index' value='$index'>
   %HIDDDEN_INPUT%
   <div class='card container-md'>
@@ -9,32 +9,32 @@
 
       %EXTRA_ROW%
 
-      <div class="form-group row">
+      <div class='form-group row'>
         <label class='control-label col-sm-4 col-md-4 ' for='FIRST_PASSWORD_INPUT'>_{NEW}_ _{PASSWD}_</label>
-        <div class="col-sm-8 col-md-8">
+        <div class='col-sm-8 col-md-8'>
           <input type='password' class='form-control' id='FIRST_PASSWORD_INPUT' name='newpassword' value='%newpassword%' autocomplete='new-password' title='_{PASSWD}_'/>
         </div>
       </div>
 
-      <div class="form-group row">
+      <div class='form-group row'>
         <label class='control-label col-sm-4 col-md-4 ' for='SECOND_PASSWORD_INPUT'>_{CONFIRM_PASSWD}_</label>
-        <div class="col-sm-8 col-md-8">
+        <div class='col-sm-8 col-md-8'>
           <input type='password' class='form-control' name='confirm' value='%confirm%' id='SECOND_PASSWORD_INPUT' title='_{CONFIRM}_'/>
         </div>
       </div>
 
-      <div class="form-group row">
-        <label class="control-label col-6">
+      <div class='form-group row'>
+        <div class='control-label col-6'>
           <input type='button' id='GENERATE_BTN' class='btn btn-info btn-xs' value='_{GENERED_PARRWORD}_'>
           <input type='button' id='COPY_BTN' class='btn btn-info btn-xs' value='_{COPY}_'>
-        </label>
+        </div>
 
-        <div class="col-6">
+        <div class='col-6'>
           <input type='text' class='form-control' name='generated_pw' id='GENERATED_PW' autocomplete='off'/>
         </div>
       </div>
 
-      <div class='form-group row' data-visible='%RESET_INPUT_VISIBLE%'>
+      <div class='form-group row' data-visible='%RESET_INPUT_VISIBLE%' style='display:none;'>
         <label class='control-label col-md-5'>_{RESET}_</label>
         <div class='col-md-7'>
           <input type='checkbox' name='RESET' class='control-element' style='margin-top: 7px;'/>
@@ -49,7 +49,7 @@
 
 %G2FA_MESSAGE%
 
-<div class="%G2FA_HIDDEN%">
+<div class='%G2FA_HIDDEN%'>
 <form action='$SELF_URL' METHOD='POST' class='form-horizontal'>
   <input type='hidden' name='index' value='$index'>
   <input type='hidden' name='g2fa_secret' value='%G2FA_SECRET%'>
@@ -58,13 +58,13 @@
     <div class='card-header with-border'><h4 class='card-title'>_{G2FA}_:</h4></div>
     <div class='card-body'>
 
-      <div class="col-md-12 text-center mb-4">
+      <div class='col-md-12 text-center mb-4'>
         %G2FA_QR%
       </div>
 
-      <div class="form-group row">
-        <div class="col-md-4 offset-3">
-          <input type='password' class='form-control' id='G2FA' name='g2fa' autocomplete='new-password' placeholder="_{CODE}_" '/>
+      <div class='form-group row'>
+        <div class='col-md-4 offset-3'>
+          <input type='password' class='form-control' id='G2FA' name='g2fa' autocomplete='new-password' placeholder='_{CODE}_' />
         </div>
         <button class='col-md-2 btn btn-primary'>%G2FA_BUTTON%</button>
       </div>
@@ -75,11 +75,11 @@
 </div>
 
 <script>
-  var password_configuration_string = '$conf{CONFIG_PASSWORD}';
+  var password_configuration_string = '%CONFIG_PASSWORD%';
 
   var password_config_params = {
-    LENGTH : '$conf{PASSWD_LENGTH}',
-    SYMBOLS : '$conf{PASSWD_SYMBOLS}' || '1234567890abcdefgjhiklmnopqrstyquvwxyz'
+    LENGTH : '%PW_LENGTH%',
+    SYMBOLS : '%PW_CHARS%' || '1234567890abcdefgjhiklmnopqrstyquvwxyz'
   };
 
   if (password_configuration_string !== ''){
@@ -94,7 +94,7 @@
       password_config_params.CHARS = password_params_arr[1] || 0;
     }
 
-    password_config_params.LENGTH = '$conf{PASSWD_LENGTH}';
+    password_config_params.LENGTH = '%PW_LENGTH%';
     delete password_config_params['SYMBOLS'];
   }
 

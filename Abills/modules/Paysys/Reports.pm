@@ -213,7 +213,7 @@ sub paysys_log {
 sub paysys_reports {
 
   my $select = _paysys_select_connected_systems();
-  my $selectingroup = $html->element('div', $select, { class => 'input-group' });
+  my $selection_group = $html->element('div', $select, { class => 'input-group' });
 
   if ($permissions{4}) {
     my %debug_list = (
@@ -235,9 +235,9 @@ sub paysys_reports {
         NO_ID    => 1,
       }
     );
-    # $selectingroup .= $html->element('div', $html->form_input('DEBUG', $FORM{DEBUG}, { EX_PARAMS => "placeholder=$lang{DEBUG}" }),
+    # $selection_group .= $html->element('div', $html->form_input('DEBUG', $FORM{DEBUG}, { EX_PARAMS => "placeholder=$lang{DEBUG}" }),
     #   { class => 'input-group' });
-    $selectingroup .= $debug_select;
+    $selection_group .= $debug_select;
   }
 
   my $date_form = $html->form_daterangepicker({
@@ -247,7 +247,7 @@ sub paysys_reports {
   $date_form = $html->element('div', $date_form, { class => 'input-group pull-left' });
 
   my $systems = $html->form_main({
-    CONTENT => $date_form . $selectingroup,
+    CONTENT => $date_form . $selection_group,
     HIDDEN  => { index => $index },
     SUBMIT  => { show => $lang{SHOW} },
     class   => 'navbar navbar-expand-lg navbar-light bg-light form-main',
@@ -299,6 +299,22 @@ sub paysys_reports {
 
   return 1;
 }
+#**********************************************************
+=head2 _paysys_get_exchange_rates() - get user exchange rates
+
+  Returns:
+    @exchange_rates
+
+=cut
+#**********************************************************
+sub _paysys_get_exchange_rates {
+  if (defined($conf{PAYSYS_EXCHANGE_RATES})) {
+    return split(/,\s?/, $conf{PAYSYS_EXCHANGE_RATES});
+  }
+  else {
+    return ('USD', 'EUR', 'UAH', 'RUB', 'GBP', 'KZT');
+  };
+}
 
 #**********************************************************
 =head2 paysys_uah_exchange_rates($attr) - get exchange rates from nbu
@@ -320,22 +336,14 @@ sub paysys_uah_exchange_rates {
     }
   );
 
-  my $uah_table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{EXCHANGE_RATE} $lang{NBU}",
-      title   => [ $lang{CURRENCY}, $lang{CURRENCY_BUY}, $lang{UNITS} ],
-      ID      => 'UAH_CURRENCY',
-    }
-  );
+  my $uah_table = $html->table({
+    width   => '100%',
+    caption => "$lang{EXCHANGE_RATE} $lang{NBU}",
+    title   => [ $lang{CURRENCY}, $lang{CURRENCY_BUY}, $lang{UNITS} ],
+    ID      => 'UAH_CURRENCY',
+  });
 
-  my @val = [];
-  if ($conf{PAYSYS_EXCHANGE_RATES}) {
-    @val = split(/,\s?/, $conf{PAYSYS_EXCHANGE_RATES});
-  }
-  else {
-    @val = ('USD', 'EUR', 'UAH', 'RUB', 'GBP');
-  };
+  my @val = _paysys_get_exchange_rates();
 
   if (ref $uah_data eq 'ARRAY') {
     foreach my $uinfo (@{$uah_data}) {
@@ -366,7 +374,6 @@ sub paysys_uah_exchange_rates {
 =cut
 #**********************************************************
 sub paysys_rub_exchange_rates {
-
   my $rub_data = web_request(
     "https://www.cbr-xml-daily.ru/daily_json.js",
     {
@@ -375,27 +382,19 @@ sub paysys_rub_exchange_rates {
     }
   );
 
-  my $rub_table = $html->table(
-    {
-      width   => '100%',
-      caption => "$lang{EXCHANGE_RATE} $lang{CBR}",
-      title   => [ $lang{CURRENCY}, $lang{CURRENCY_BUY}, $lang{UNITS} ],
-      ID      => 'RUB_CURRENCY',
-    }
-  );
+  my $rub_table = $html->table({
+    width   => '100%',
+    caption => "$lang{EXCHANGE_RATE} $lang{CBR}",
+    title   => [ $lang{CURRENCY}, $lang{CURRENCY_BUY}, $lang{UNITS} ],
+    ID      => 'RUB_CURRENCY',
+  });
 
-  my @val = [];
-  if ($conf{PAYSYS_EXCHANGE_RATES}) {
-    @val = split(/,\s?/, $conf{PAYSYS_EXCHANGE_RATES});
-  }
-  else {
-    @val = ('USD', 'EUR', 'UAH', 'RUB', 'GBP');
-  };
+  my @val = _paysys_get_exchange_rates();
 
   if (ref $rub_data eq 'HASH') {
     foreach my $rinfo ($rub_data->{Valute}) {
       foreach my $keys (@val) {
-        if ($rinfo->{$keys}) {
+        if (defined($rinfo->{$keys})) {
           $rub_table->addrow(
             $html->b("$rinfo->{$keys}{CharCode} / RUB"),
             sprintf('%.4f', $rinfo->{$keys}{Value}),
@@ -407,6 +406,54 @@ sub paysys_rub_exchange_rates {
   }
 
   return $rub_table->show();
+}
+
+#**********************************************************
+=head2 paysys_kgs_exchange_rates() - get exchange rates from nbkr
+
+  Arguments:
+
+
+  Returns:
+    $table
+
+=cut
+#**********************************************************
+sub paysys_kgs_exchange_rates {
+
+  my $kgs_xml_data = web_request(
+    "http://www.nbkr.kg/XML/daily.xml",
+    {
+      CURL        => 1,
+    }
+  );
+
+  load_pmodule('XML::Simple');
+
+  my $kgs_data = XML::Simple::XMLin("$kgs_xml_data", forcearray => 1);
+
+  if ($@) {
+    return 0;
+  }
+
+  my $kgs_table = $html->table({
+    width   => '100%',
+    caption => "$lang{EXCHANGE_RATE} $lang{NBKR}",
+    title   => [ $lang{CURRENCY}, $lang{CURRENCY_BUY}, $lang{UNITS} ],
+    ID      => 'NBKR_CURRENCY',
+  });
+
+  my @val = _paysys_get_exchange_rates();
+
+  foreach my $currency (sort @ {$kgs_data->{Currency} }){
+    foreach my $keys (@val) {
+      if ($currency->{ISOCode} eq $keys) {
+        $kgs_table->addrow($html->b("$currency->{ISOCode} / KGS"), $currency->{Value}->[0], $currency->{Nominal}->[0]);
+      }
+    }
+  }
+
+  return $kgs_table->show();
 }
 
 #**********************************************************
@@ -423,6 +470,7 @@ sub paysys_start_page {
   my %START_PAGE_F = (
     'paysys_rub_exchange_rates' => "$lang{EXCHANGE_RATE} $lang{CBR}",
     'paysys_uah_exchange_rates' => "$lang{EXCHANGE_RATE} $lang{NBU}",
+    'paysys_kgs_exchange_rates' => "$lang{EXCHANGE_RATE} $lang{NBKR}"
   );
 
   return \%START_PAGE_F;
@@ -443,7 +491,7 @@ sub paysys_start_page {
 =cut
 #**********************************************************
 sub get_reg_payments {
-  #my $self = shift;
+  # my $self = shift;
   my ($attr) = @_;
 
   require Payments;

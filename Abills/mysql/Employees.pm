@@ -4061,15 +4061,53 @@ sub employees_works_by_type_list{
 
   my $list = $self->{list};
 
-  $self->query( "SELECT COUNT(*) AS total, SUM(if(w.extra_sum > 0, w.extra_sum, w.sum)) AS total_sum
+  $self->query( "SELECT COUNT(*) AS total, SUM(IF(w.extra_sum > 0, w.extra_sum, w.sum)) AS total_sum
    FROM employees_works w
    LEFT JOIN admins a ON (a.aid=w.aid)
+   LEFT JOIN admins employee ON (employee.aid=w.employee_id)
    LEFT JOIN employees_reference_works AS crw ON (crw.id = w.work_id)
     $WHERE", undef, { INFO => 1 }
   );
 
 
   return $list;
+}
+
+#**********************************************************
+=head2 employees_work_for_map($attr)
+
+  Arguments:
+    $attr
+
+=cut
+#**********************************************************
+sub employees_work_for_map {
+  my $self = shift;
+  my ($attr) = @_;
+
+  $self->query("SELECT ew.*, mm.id, u.uid, b.id AS build_id, a.id AS admin, crw.name,
+      IF(b.coordx <> 0, b.coordx , SUM(plpoints.coordy)/COUNT(plpoints.polygon_id)) AS coordx,
+      IF(b.coordy <> 0, b.coordy , SUM(plpoints.coordx)/COUNT(plpoints.polygon_id)) AS coordy
+    FROM employees_works ew
+    LEFT JOIN admins a ON (a.aid=ew.aid)
+    LEFT JOIN admins employee ON (employee.aid=ew.employee_id)
+    LEFT JOIN employees_reference_works AS crw ON (crw.id = ew.work_id)
+    LEFT JOIN msgs_messages mm ON (mm.id = ew.ext_id)
+    LEFT JOIN users u ON (mm.uid = u.uid)
+    LEFT JOIN users_pi up ON (up.uid = u.uid)
+    LEFT JOIN builds b ON (b.id = up.location_id OR b.id = mm.location_id)
+    LEFT JOIN maps_points mp ON (b.id=mp.location_id)
+    LEFT JOIN maps_point_types mt ON (mp.type_id=mt.id)
+    LEFT JOIN maps_coords mc ON (mp.coord_id=mc.id)
+    LEFT JOIN maps_polygons mgone ON (mgone.object_id=mp.id)
+    LEFT JOIN maps_polygon_points plpoints ON(mgone.id=plpoints.polygon_id)
+    GROUP BY ew.id HAVING (coordx <> 0 AND coordy <> 0);",
+    undef,
+    $attr
+  );
+
+  return $self->{list} || [];
+
 }
 
 1;

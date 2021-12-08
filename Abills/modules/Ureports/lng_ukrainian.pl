@@ -12,7 +12,7 @@ $lang{DAYS_TO_EXPIRE} = 'Днів до завершення тарифу';
 $lang{SMALL_DEPOSIT_FOR_NEXT_MONTH} = 'Замалий депозит для роботи в наступному місяці';
 $lang{PAYMENTS_INFO} = 'Інформувати про платежі';
 
-$lang{ALL_SERVICE_EXPIRE} = 'Всі послуги завершаться через ХХ  днів';
+$lang{ALL_SERVICE_EXPIRE} = 'Всі послуги завершаться через XX днів';
 $lang{DEAR} = 'Шановний';
 
 $lang{DEPOSIT_NOTIFY_BEFORE_ABON} = 'Сповістити за пару днів до абонплати про стан рахунку';

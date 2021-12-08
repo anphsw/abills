@@ -40,9 +40,6 @@ our %MAP_TYPE_ID = (
   'PILLAR'    => 9,
 );
 
-my $user_points = {};
-my $equipment_points = {};
-
 #**********************************************************
 =head2 new()
 
@@ -55,11 +52,7 @@ sub new {
   $CONF = shift;
   my $attr = shift;
 
-  my $self = {
-    db    => $db,
-    admin => $admin,
-    conf  => $CONF,
-  };
+  my $self = { db => $db, admin => $admin, conf => $CONF };
 
   bless($self, $class);
 
@@ -75,34 +68,6 @@ sub new {
   $Maps = Maps->new($db, $admin, $CONF);
 
   $Auxiliary = Maps2::Auxiliary->new($db, $admin, $CONF, { HTML => $html, LANG => $lang });
-
-  my $onu_info = $Cablecat->commutation_onu_list({
-    PARENT_ID  => '_SHOW',
-    SERVICE_ID => '_SHOW',
-    UID        => '_SHOW',
-    COLS_NAME  => 1,
-  });
-
-  if ($Cablecat && $Cablecat->{TOTAL} > 0) {
-    foreach my $onu (@$onu_info) {
-      next if !$onu->{parent_id};
-      push @{$user_points->{$onu->{parent_id}}}, $onu;
-    }
-  }
-
-  my $equipment_info = $Cablecat->commutation_equipment_list({
-    PARENT_ID  => '_SHOW',
-    SERVICE_ID => '_SHOW',
-    UID        => '_SHOW',
-    COLS_NAME  => 1,
-  });
-
-  if ($Cablecat && $Cablecat->{TOTAL} > 0) {
-    foreach my $equipment (@$equipment_info) {
-      next if !$equipment->{parent_id};
-      push @{$equipment_points->{$equipment->{parent_id}}}, $equipment;
-    }
-  }
 
   return $self;
 }
@@ -155,60 +120,29 @@ sub maps_wells {
   my ($attr) = @_;
 
   my $wells_list = $Cablecat->wells_with_coords({
-    POINT_ID  => $attr->{LAST_OBJECT_ID} ? "> $attr->{LAST_OBJECT_ID}" : $attr->{OBJECT_ID} || $attr->{POINT_ID} || '!',
+    POINT_ID  => $attr->{OBJECT_ID} || $attr->{POINT_ID} || '!',
     NAME      => '_SHOW',
     TYPE_ID   => '_SHOW',
     ICON      => '_SHOW',
     COMMENTS  => '_SHOW',
-    PAGE_ROWS => 10000
+    PAGE_ROWS => $attr->{NEW_OBJECT} ? 1 : 99999
   });
   ::_error_show($Cablecat);
 
   return $Cablecat->{TOTAL} if $attr->{ONLY_TOTAL};
 
+  my $user_points = _cablecat_get_user_points();
+  my $equipment_points = _cablecat_get_equipment_points();
   my $wells_index = ::get_function_index('cablecat_wells');
   my $reserve_index = ::get_function_index('cablecat_reserve');
-  my $trace_index = ::get_function_index('cablecat_user_trace_connection_form');
   my @layer_objects = ();
 
   foreach my $well (@{$wells_list}) {
     my $icon_name = $well->{icon} || 'well_green';
     my $marker_info = $self->_cablecat_get_cable_info({ %{$well}, well_index => $wells_index });
 
-    my @ids = split /\|\|/, $well->{ids};
-
-    my $trace_buttons = '';
-
-    my $user_table = $html->table({
-      width       => '100%',
-      caption     => $lang->{USERS},
-      title_plain => [ 'UID', "$lang->{SERVICE} ID", "TRACE" ]
-    });
-
-    my $have_user = 0;
-
-    foreach my $id (@ids) {
-      my $onu_info = $user_points->{$id} || $equipment_points->{$id};
-      next if (!$onu_info);
-
-      foreach my $onu (@$onu_info) {
-        next if (!$onu->{uid});
-
-        $have_user = 1;
-
-        my $link = "?qindex=$trace_index&header=2&UID=$onu->{uid}&USER_SERVICE=$onu->{service_id}&AJAX=1&action=1";
-        my $button = qq{
-         <button class="btn btn-info btn-sm" title='TRACE UID: $onu->{uid} ($onu->{service_id})'
-           onclick="Routes.showRouteFromONUtoOLT(this,'$link')">
-            <span class="fa fa-eye"></span>
-          </button>
-        };
-        $user_table->addrow($onu->{uid}, $onu->{service_id}, $button);
-      }
-
-    }
-
-    $marker_info = $user_table->show() . $marker_info if ($have_user);
+    $marker_info = _cablecat_user_trace($user_points, $well->{ids}) . $marker_info;
+    $marker_info = _cablecat_equipment_trace($equipment_points, $well->{ids}) . $marker_info;
 
     push @layer_objects, {
       ID        => +$well->{ids},
@@ -219,7 +153,6 @@ sub maps_wells {
         ID        => +$well->{ids},
         COORDX    => $well->{coordx},
         COORDY    => $well->{coordy},
-        TRACE     => $trace_buttons,
         INFO      => "$marker_info",
         TYPE      => "$icon_name",
         LAYER_ID  => 11,
@@ -396,6 +329,139 @@ sub maps_cables {
   }
 
   return $export_string;
+}
+
+#**********************************************************
+=head2 _cablecat_get_equipment_points()
+
+=cut
+#**********************************************************
+sub _cablecat_get_equipment_points {
+
+  my $equipment_points = {};
+  my $equipment_info = $Cablecat->commutation_equipment_list({
+    PARENT_ID  => '_SHOW',
+    NAS_ID     => '_SHOW',
+    MODEL_NAME => '_SHOW',
+    MODEL_ID   => '_SHOW',
+    COLS_NAME  => 1,
+  });
+  return $equipment_points if !$Cablecat || $Cablecat->{TOTAL} < 1;
+
+  foreach my $equipment (@{$equipment_info}) {
+    next if !$equipment->{parent_id};
+
+    push(@{$equipment_points->{$equipment->{parent_id}}}, $equipment);
+  }
+
+  return $equipment_points;
+}
+
+#**********************************************************
+=head2 _cablecat_get_user_points()
+
+=cut
+#**********************************************************
+sub _cablecat_get_user_points {
+
+  my $user_points = {};
+  my $onu_info = $Cablecat->commutation_onu_list({
+    PARENT_ID  => '_SHOW',
+    SERVICE_ID => '_SHOW',
+    UID        => '_SHOW',
+    COLS_NAME  => 1,
+  });
+
+  return $user_points if !$Cablecat || $Cablecat->{TOTAL} < 1;
+
+  foreach my $onu (@{$onu_info}) {
+    next if !$onu->{parent_id};
+    push @{$user_points->{$onu->{parent_id}}}, $onu;
+  }
+
+  return $user_points;
+}
+
+#**********************************************************
+=head2 _cablecat_user_trace($user_points, $id)
+
+=cut
+#**********************************************************
+sub _cablecat_user_trace {
+  my ($user_points, $id) = @_;
+
+  my @ids = split /\|\|/, $id;
+
+  my $user_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{USERS},
+    title_plain => [ 'UID', "$lang->{SERVICE} ID", $lang->{TRACE_UP_TO} ]
+  });
+
+  my $have_user = 0;
+  my $trace_index = ::get_function_index('cablecat_user_trace_connection_form');
+
+  foreach my $id (@ids) {
+    my $onu_info = $user_points->{$id};
+    next if (!$onu_info);
+
+    foreach my $onu (@$onu_info) {
+      next if (!$onu->{uid});
+
+      $have_user = 1;
+
+      my $link = "?qindex=$trace_index&header=2&UID=$onu->{uid}&USER_SERVICE=$onu->{service_id}&AJAX=1&action=1";
+      my $button = qq{
+         <button class="btn btn-info btn-sm" title='TRACE UID: $onu->{uid} ($onu->{service_id})'
+           onclick="Routes.showRouteFromONUtoOLT(this,'$link')">
+            <span class="fa fa-eye"></span>
+          </button>
+        };
+      $user_table->addrow($onu->{uid}, $onu->{service_id}, $button);
+    }
+  }
+
+  return $have_user ? $user_table->show() : '';
+}
+
+#**********************************************************
+=head2 _cablecat_equipment_trace($equipment_points, $id)
+
+=cut
+#**********************************************************
+sub _cablecat_equipment_trace {
+  my ($equipment_points, $id) = @_;
+
+  my @ids = split /\|\|/, $id;
+
+  my $equipment_table = $html->table({
+    width       => '100%',
+    caption     => $lang->{EQUIPMENT},
+    title_plain => [ '#', $lang->{MODEL}, $lang->{TRACE_UP_TO} ]
+  });
+
+  my $have_equipment = 0;
+  my $trace_index = ::get_function_index('cablecat_equipment_trace');
+
+  foreach my $id (@ids) {
+    my $equipments = $equipment_points->{$id};
+    next if (!$equipments);
+
+    foreach my $equipment (@{$equipments}) {
+      $have_equipment = 1;
+
+      my $link = "?qindex=$trace_index&header=2&NAS_ID=$equipment->{nas_id}&AJAX=1&action=1";
+      my $button = qq{
+         <button class="btn btn-info btn-sm" title='TRACE NAS: #$equipment->{nas_id}'
+           onclick="Routes.showRouteFromOLT(this,'$link')">
+            <span class="fa fa-eye"></span>
+          </button>
+        };
+      $equipment_table->addrow($equipment->{nas_id}, $equipment->{model_name}, $button);
+    }
+  }
+
+  return $have_equipment ? $equipment_table->show() : '';
 }
 
 #**********************************************************

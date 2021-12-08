@@ -40,7 +40,7 @@ my $Service_control = Control::Service_control->new($db, $admin, \%conf, { HTML 
 sub internet_user_info {
   my $uid = $LIST_PARAMS{UID};
   if (!$FORM{ID}) {
-    my $list = $Internet->list({
+    my $list = $Internet->user_list({
       GROUP_BY  => 'internet.id',
       UID       => $uid,
       DOMAIN_ID => $user->{DOMAIN_ID},
@@ -85,7 +85,7 @@ sub internet_user_info_proceed {
 
     my $nas_list = $Nas->{list_hash};
     #Check deposit and disable STATUS
-    my $list = $Internet->list(
+    my $list = $Internet->user_list(
       {
         LOGIN          => $user->{LOGIN},
         CREDIT         => '_SHOW',
@@ -150,13 +150,13 @@ sub internet_user_info_proceed {
     }
   }
 
-  $Internet->info($uid, {
+  $Internet->user_info($uid, {
     ID        => $FORM{ID},
     DOMAIN_ID => $user->{DOMAIN_ID}
   });
 
   if ($FORM{activate}) {
-    $Internet->change({
+    $Internet->user_change({
       UID      => $uid,
       ID       => $FORM{ID},
       STATUS   => 0,
@@ -329,11 +329,13 @@ sub internet_user_info_proceed {
   internet_service_info($Internet);
 
   if($conf{INTERNET_ALERT_REDIRECT_FILTER} && $conf{INTERNET_ALERT_REDIRECT_FILTER} eq $Internet->{FILTER_ID}) {
-    $Internet->change({
+    $Internet->user_change({
       UID       => $user->{UID},
       FILTER_ID => ''
     });
   }
+
+  internet_filters_control($Internet);
 
   return 1;
 }
@@ -520,18 +522,16 @@ sub internet_discovery {
     return 1;
   }
 
-  my $session_list = $Sessions->online(
-    {
-      CLIENT_IP => $user_ip,
-      #USER_NAME => $user->{LOGIN},
-      ACCT_SESSION_ID => '_SHOW',
-      NAS_ID    => '_SHOW',
-      UID       => '_SHOW',
-      GUEST     => '_SHOW',
-      SORT      => 'guest',
-      DESC      => 'DESC',
-    }
-  );
+  my $session_list = $Sessions->online({
+    CLIENT_IP => $user_ip,
+    #USER_NAME => $user->{LOGIN},
+    ACCT_SESSION_ID => '_SHOW',
+    NAS_ID    => '_SHOW',
+    UID       => '_SHOW',
+    GUEST     => '_SHOW',
+    SORT      => 'guest',
+    DESC      => 'DESC',
+  });
 
   if ($Sessions->{TOTAL} < 1 || $session_list->[0]->{guest} && ! $session_list->[0]->{uid}) {
 
@@ -568,22 +568,10 @@ sub internet_discovery {
               .  "CID: $DHCP_INFO->{MAC}");
 
           if ($session_list->[0]->{acct_session_id}) {
-            $Nas->info({ NAS_ID => $session_list->[0]->{nas_id} });
-            $Sessions->online_info( { ACCT_SESSION_ID  => $session_list->[0]->{acct_session_id}, NAS_ID => $session_list->[0]->{nas_id} });
-
-            #              END {
-            require Abills::Nas::Control;
-            Abills::Nas::Control->import();
-
-            my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
-            sleep 1;
-            $Nas_cmd->hangup($Nas, 0, '',
-              {
-
-                %$Sessions
-              }
-            );
-            `echo "hangup" >> /tmp/hagup`;
+            internet_hangup({
+              ACCT_SESSION_ID => $session_list->[0]->{acct_session_id},
+              UID             => $session_list->[0]->{uid},
+            });
           }
         }
       }
@@ -623,7 +611,7 @@ sub internet_user_chg_tp {
     return 0;
   }
 
-  $Internet = $Internet->info($uid, { DOMAIN_ID => $user->{DOMAIN_ID}, ID => $FORM{ID} });
+  $Internet = $Internet->user_info($uid, { DOMAIN_ID => $user->{DOMAIN_ID}, ID => $FORM{ID} });
 
   if ($Internet->{TOTAL} < 1) {
     $html->message('info', $lang{INFO}, $lang{NOT_ACTIVE}, { ID => 22 });
@@ -787,6 +775,7 @@ sub internet_user_stats {
   if ($user->{COMPANY_ID}) {
     if ($FORM{COMPANY_ID}) {
       $users = Users->new($db, $admin, \%conf);
+      require Internet::Reports;
       internet_report_use();
       return 0;
     }
@@ -806,11 +795,11 @@ sub internet_user_stats {
       $Internet->{JOIN_SERVICES_USERS} = $html->button($lang{COMPANY}, "&sid=$sid&index=$index&COMPANY_ID=$user->{COMPANY_ID}", { BUTTON => 1 }) . ' ';
     }
 
-    $Internet->info($uid);
+    $Internet->user_info($uid);
 
     if ($Internet->{JOIN_SERVICE}) {
       my @uids = ();
-      my $list = $Internet->list(
+      my $list = $Internet->user_list(
         {
           JOIN_SERVICE => ($Internet->{JOIN_SERVICE}==1) ? $uid : $Internet->{JOIN_SERVICE},
           COMPANY_ID   => $attr->{USER_INFO}->{COMPANY_ID},
@@ -900,7 +889,7 @@ sub internet_user_stats {
   #PEriods totals
   $Sessions->{PERIOD_STATS} = internet_stats_periods({ UID => $uid });
   $Sessions->{PERIOD_SELECT}= internet_period_select({ UID => $uid });
-  $Internet->info($uid);
+  $Internet->user_info($uid);
 
   my $TRAFFIC_NAMES = internet_traffic_names($Internet->{TP_ID});
 
@@ -1021,7 +1010,7 @@ sub internet_user_stats {
 }
 
 #**********************************************************
-=head2 internet_dhcp_get_mac_add($ip, $DHCP_INFO, $attr) - Add discovery mac to Dhcphosts
+=head2 internet_dhcp_get_mac_add($ip, $DHCP_INFO, $attr) - Add discovery mac
 
   Arguments:
     $ip
@@ -1084,7 +1073,7 @@ sub internet_dhcp_get_mac_add {
       if ($PARAMS_HASH{PORTS}) {
         $PARAMS_HASH{PORT} = $PARAMS_HASH{PORTS};
       }
-      my $list = $Internet->list({
+      my $list = $Internet->user_list({
         NAS_ID    => $PARAMS_HASH{NAS_ID},
         UID       => $user->{UID},
         PORT      => $PARAMS_HASH{PORTS},
@@ -1093,18 +1082,16 @@ sub internet_dhcp_get_mac_add {
       });
 
       if ($Internet->{TOTAL} > 0) {
-        $Internet->change(
-          {
-            %PARAMS_HASH,
-            ID     => $list->[0]->{id},
-            UID    => $list->[0]->{uid},
-            NETWORK=> $net_id,
-            #MAC    => $PARAMS_HASH{MAC}
-          }
-        );
+        $Internet->user_change({
+          %PARAMS_HASH,
+          ID     => $list->[0]->{id},
+          UID    => $list->[0]->{uid},
+          NETWORK=> $net_id,
+          #MAC    => $PARAMS_HASH{MAC}
+        });
       }
       else {
-        my $internet_list = $Internet->list({
+        my $internet_list = $Internet->user_list({
           UID       => $user->{UID},
           PORT      => '_SHOW',
           NAS_ID    => '_SHOW',
@@ -1113,15 +1100,13 @@ sub internet_dhcp_get_mac_add {
         });
         foreach my $service (@$internet_list) {
           if ((!$service->{nas_id} && !$service->{port}) || $Internet->{TOTAL} == 1) {
-             $Internet->change(
-              {
-                %PARAMS_HASH,
-                ID     => $service->{id},
-                UID    => $service->{uid},
-                NETWORK=> $net_id,
-                #MAC    => $PARAMS_HASH{MAC}
-              }
-            );
+            $Internet->user_change({
+              %PARAMS_HASH,
+              ID     => $service->{id},
+              UID    => $service->{uid},
+              NETWORK=> $net_id,
+              #MAC    => $PARAMS_HASH{MAC}
+            });
           }
         }
       }
@@ -1189,7 +1174,8 @@ IP discovery function
 sub internet_dhcp_get_mac {
   my ($ip, $attr) = @_;
 
-  $Internet->info(0, {
+  #Get user by static IP
+  $Internet->user_info(0, {
     IP => $ip
   });
 
@@ -1216,7 +1202,7 @@ sub internet_dhcp_get_mac {
   }
 
   #Get mac from DB
- if ($conf{DHCPHOSTS_LEASES} && $conf{DHCPHOSTS_LEASES} eq 'db') {
+  if ($conf{DHCPHOSTS_LEASES} && $conf{DHCPHOSTS_LEASES} eq 'db') {
     my $list = $Sessions->online({
       FRAMED_IP_ADDRESS => $ip,
       VLAN        => '_SHOW',
@@ -1243,9 +1229,9 @@ sub internet_dhcp_get_mac {
     }
 
     $PARAMS{CUR_IP}=$ip;
-    if (defined($PARAMS{NAS_ID}) && $PARAMS{NAS_ID} == 0 && $PARAMS{CIRCUIT_ID} ) {
-      ($PARAMS{NAS_ID}, $PARAMS{PORTS}, $PARAMS{VLAN}, $PARAMS{NAS_MAC})=dhcphosts_o82_info({ %PARAMS });
-    }
+    # if (defined($PARAMS{NAS_ID}) && $PARAMS{NAS_ID} == 0 && $PARAMS{CIRCUIT_ID} ) {
+    #   ($PARAMS{NAS_ID}, $PARAMS{PORTS}, $PARAMS{VLAN}, $PARAMS{NAS_MAC})=dhcphosts_o82_info({ %PARAMS });
+    # }
 
     return \%PARAMS;
   }
@@ -1298,9 +1284,9 @@ sub internet_dhcp_get_mac {
 sub internet_holdup_service {
 
   my $holdup_info = $Service_control->user_holdup({ %FORM, UID => $user->{UID}, ID => $Internet->{ID} });
-  
+
   if (!$holdup_info->{DEL}) {
-    return '' if (_error_show($holdup_info) || $holdup_info->{success});
+    return '' if ($holdup_info->{error} || _error_show($holdup_info) || $holdup_info->{success});
 
     if (($Internet->{STATUS} && $Internet->{STATUS} == 3) || $Internet->{DISABLE}) {
       $html->message('info', $lang{INFO}, "$lang{HOLD_UP}\n " .
@@ -1310,17 +1296,102 @@ sub internet_holdup_service {
     }
 
     $Internet->{FROM_DATE} = date_inc($DATE);
-    $Internet->{TO_DATE} = next_month({ DATE => $DATE });
+    $Internet->{TO_DATE} = $Service_control->{TO_DATE} || next_month({ DATE => $DATE });
     return $html->tpl_show(_include('internet_hold_up', 'Internet'), $Internet, { OUTPUT2RETURN => 1 })
   }
   else {
     $html->message('info', $lang{INFO}, "$lang{HOLD_UP}: $holdup_info->{DATE_FROM} $lang{TO} $holdup_info->{DATE_TO}"
       . ($holdup_info->{DEL_IDS} ? ($html->br() . $html->button($lang{DEL},
-      "index=$index&ID=$FORM{ID}&del=1&IDS=$holdup_info->{DEL_IDS}". (($sid) ? "&sid=$sid" : q{}),
+      "index=$index&ID=". ($FORM{ID} || q{}) ."&del=1&IDS=$holdup_info->{DEL_IDS}". (($sid) ? "&sid=$sid" : q{}),
       { class => 'btn btn-primary', MESSAGE => "$lang{DEL} $lang{HOLD_UP}?" })) : q{}));
   }
 
   return '';
 }
 
+#**********************************************************
+=head2 internet_filters_control($attr) - Hold up user service
+
+=cut
+#**********************************************************
+sub internet_filters_control {
+  my ($Service) = @_;
+
+  my Internet $Internet_ = $Service;
+
+  if ($FORM{FILTER_DEL}) {
+    $Internet_->user_change({
+      FILTER_ID => '',
+      UID       => $user->{UID}
+    });
+
+    internet_hangup({ UID => $user->{UID} });
+  }
+  elsif ($FORM{FILTER_ID}) {
+    $Internet_->filters_info($FORM{FILTER_ID});
+
+    $Internet_->user_change({
+      FILTER_ID => $Internet_->{PARAMS},
+      UID       => $user->{UID}
+    });
+
+    $html->message('info', $lang{PARENT_CONTROL}, $lang{ACTIVATE});
+    internet_hangup({ UID => $user->{UID} });
+    return 1;
+  }
+
+  my $filters_list = $Internet_->filters_list({
+    USER_PORTAL => 1,
+    FILTER      => '_SHOW',
+    PARAMS      => '_SHOW'
+  });
+
+  my $buttons = q{};
+  foreach my $filter (@$filters_list) {
+    if($Internet_->{FILTER_ID} && $Internet_->{FILTER_ID} eq $filter->{params}) {
+      $buttons .= $html->button($lang{DEL} .' '. $filter->{filter}, "index=$index&FILTER_DEL=1", { BUTTON => 1 });
+    }
+    else {
+      $buttons .= $html->button($filter->{filter}, "index=$index&FILTER_ID=$filter->{id}", { BUTTON => 2 });
+    }
+  }
+
+  if ($buttons) {
+    $html->tpl_show(_include('internet_parental_control', 'Internet'), { BUTTONS => $buttons });
+  }
+
+  return 1;
+}
+
+#**********************************************************
+=head2 internet_hangup($attr) - Hangup active sessions
+
+  Arguments:
+    $attr
+      UID
+      ACCT_SESSION_ID
+
+  Results:
+    TRUE or False
+
+=cut
+#**********************************************************
+sub internet_hangup {
+  my ($attr)=@_;
+
+  $Sessions->online_info( $attr );
+  $Nas->info({ NAS_ID => $Sessions->{NAS_ID} });
+
+  require Abills::Nas::Control;
+  Abills::Nas::Control->import();
+
+  my $Nas_cmd = Abills::Nas::Control->new($db, \%conf);
+  sleep 1;
+  $Nas_cmd->hangup($Nas, 0, '', $Sessions);
+  `echo "hangup" >> /tmp/hagup`;
+
+  return 1;
+}
+
 1;
+

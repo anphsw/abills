@@ -85,6 +85,35 @@ our %html_color = (
   'blue'      => '#00c0ef',
   'dark_blue' => '#3c8dbc');
 
+my $dlink_switch_cmds = [
+  #disables clipaging (changing config), as there is no way to disable paging only for current session
+  { NAME => 'show config current_config',                    CMD => "disable clipaging\nshow config current_config" },
+  { NAME => 'show address_binding dhcp_snoop binding_entry', CMD => "disable clipaging\nshow address_binding dhcp_snoop binding_entry" },
+  { NAME => 'show address_binding blocked all',              CMD => "disable clipaging\nshow address_binding blocked all" }
+];
+our %cmds_on_equipment_by_model_id = ( # model_id => [ { NAME => 'command name 1', CMD => 'command1' }, { CMD => 'command2' }, ...], ... #NAME is optional
+  107  => $dlink_switch_cmds, #D-Link DES-3200-10-Gigabit
+  108  => $dlink_switch_cmds, #D-Link DES-3200-10-SFP
+  109  => $dlink_switch_cmds, #D-Link DES-3200-18
+  110  => $dlink_switch_cmds, #D-Link DES-3200-26
+  111  => $dlink_switch_cmds, #D-Link DES-3200-28
+  148  => $dlink_switch_cmds, #D-Link DES-3200-28F
+  150  => $dlink_switch_cmds, #D-Link DES-3200-28
+  210  => $dlink_switch_cmds, #D-Link DES-3200-10
+  258  => $dlink_switch_cmds, #D-Link DES-3200-28f(c1)
+  102  => $dlink_switch_cmds, #DES-3526
+  104  => $dlink_switch_cmds, #DES-1228
+  105  => $dlink_switch_cmds, #DES-3528
+  123  => $dlink_switch_cmds, #DES-1228/ME
+  124  => $dlink_switch_cmds, #DGS-3120-24SC
+  128  => $dlink_switch_cmds, #DGS-3100-24TG
+  129  => $dlink_switch_cmds, #DGS-3120-24SC/*EI
+  205  => $dlink_switch_cmds, #DES-1210-28/ME
+  307  => $dlink_switch_cmds, #DES-1210-28/ME/B2
+  308  => $dlink_switch_cmds, #DES-1210-28/ME/B3
+  1005 => $dlink_switch_cmds  #DXS-1210-12SC
+);
+
 if ($permissions{4}) {
   require Equipment::Configure;
 }
@@ -936,7 +965,8 @@ sub equipment_list {
     INPUT_DATA      => $Equipment,
     FUNCTION        => '_list',
     DEFAULT_FIELDS  => 'NAS_NAME,STATUS,NAS_IP,MODEL_NAME,VENDOR_NAME,TYPE_NAME,PORTS_WITH_EXTRA,ADDRESS_FULL',
-    FUNCTION_FIELDS => 'equipment_traps:show:nas_id,equipment_info:change:nas_id,equipment_info:del:nas_id;&del=nas_id',
+    HIDDEN_FIELDS   => 'MODEL_ID,STATUS',
+    FUNCTION_FIELDS => 'FUNCTION_NAME=equipment_run_cmd_on_equipment_button,equipment_traps:show:nas_id,equipment_info:change:nas_id,equipment_info:del:nas_id;&del=nas_id',
     MAP             => 1,
     MAP_SHOW_ITEMS  => {
       'nas_name'      => $lang{NAS},
@@ -2074,6 +2104,7 @@ sub equipment_user_info {
       NAS_MNG_PASSWORD => '_SHOW',
       NAS_IP           => '_SHOW',
       TYPE_ID          => '_SHOW',
+      MODEL_ID         => '_SHOW',
       MODEL_NAME       => '_SHOW',
       TYPE_NAME        => '_SHOW',
       VENDOR_ID        => '_SHOW',
@@ -2131,6 +2162,11 @@ sub equipment_user_info {
           "get_index=internet_user&full=1&UID=$attr->{UID}&GRAPH=1&NAS_ID=$nas_id&PORT=$attr->{PORT}",
           { ICON => 'fa fa-bar-chart' }
         )
+        . equipment_run_cmd_on_equipment_button({
+          nas_id   => $nas_id,
+          model_id => $Nas_info->{model_id},
+          status   => $Nas_info->{status}
+        })
       ];
 
       foreach my $snmp_id (@sequence) {
@@ -2648,6 +2684,95 @@ sub mac_flood {
   print $table->show();
 
   return 0;
+}
+
+#**********************************************************
+=head2 equipment_run_cmd_on_equipment() - runs one of predefined cmds on equipment and displays result
+
+  Arguments:
+    $FORM{NAS_ID} - Equipment's NAS id
+    $FORM{CMD_ID} - Id of cmd to run
+
+=cut
+#**********************************************************
+sub equipment_run_cmd_on_equipment {
+  if (!defined $FORM{NAS_ID} || !defined $FORM{CMD_ID}) {
+    return 0;
+  }
+
+  my $list = $Equipment->_list({
+    NAS_ID           => $FORM{NAS_ID},
+    MNG_HOST_PORT    => '_SHOW',
+    NAS_MNG_USER     => '_SHOW',
+    NAS_MNG_PASSWORD => '_SHOW',
+    NAS_IP           => '_SHOW',
+    NAS_NAME         => '_SHOW',
+    NAS_TYPE         => '_SHOW',
+    STATUS           => '_SHOW',
+    MODEL_ID         => '_SHOW',
+    COLS_UPPER       => 1,
+    COLS_NAME        => 1
+  });
+  my $equipment_info = $list->[0];
+
+  if (!$equipment_info->{status}) { #XXX check certain equipment statuses, not only Active
+    require Control::Nas_mng;
+    return form_nas_console_command($equipment_info,
+      {
+        TYPE                => 'telnet', #currently only telnet
+        CMD                 => $cmds_on_equipment_by_model_id{$equipment_info->{model_id}}[$FORM{CMD_ID}]->{CMD},
+        TIMEOUT             => 10,
+        SIMPLER_OUTPUT      => 1,
+        NAS_INFO_IN_CAPTION => 1
+      }
+    );
+  }
+
+  return 0;
+}
+
+#********************************************************
+=head2 equipment_run_cmd_on_equipment_button($attr) - return dropdown-button with list of possible cmds to run
+
+  Arguments:
+    $attr - attrs, may be table's line
+      nas_id   - Equipment's NAS id
+      model_id - Equipment's model id
+      status   - Equipment's status
+
+=cut
+#********************************************************
+sub equipment_run_cmd_on_equipment_button {
+  my ($attr) = @_;
+
+  my @cmds;
+
+  @cmds = @{$cmds_on_equipment_by_model_id{$attr->{model_id}}} if ($cmds_on_equipment_by_model_id{$attr->{model_id}});
+
+  my $result = '';
+
+  if (@cmds && !$attr->{status}) { #XXX check certain equipment statuses, not only Active
+    my @dropdown_items = ();
+    for (my $cmd_id = 0; $cmd_id <= $#cmds; $cmd_id++) {
+      push @dropdown_items, {
+        NAME => $cmds[$cmd_id]->{NAME} || $cmds[$cmd_id]->{CMD},
+        URL  => "index=" . get_function_index('equipment_run_cmd_on_equipment') . "&NAS_ID=" . $attr->{nas_id} . "&CMD_ID=$cmd_id"
+      };
+    }
+
+    $result = $html->dropdown(
+      undef,
+      {
+        TITLE      => $lang{RUN_CMD_ON_EQUIPMENT},
+        class      => 'fa fa-terminal',
+        ID         => "run_cmd_on_equipment_dropdown_$attr->{nas_id}",
+        GLOBAL_URL => '#'
+      },
+      \@dropdown_items
+    );
+  }
+
+  return $result;
 }
 
 1;

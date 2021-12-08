@@ -129,7 +129,7 @@ function ABillingLocation(LocationArray) {
     jQuery.get(aBillingAddressManager.addressChooseLocation(), function (data) {
       aModal.clear()
         .setId('ModalLocation')
-        .setHeader('<b>' + _CHOOSE_ADDRESS + '</b>')
+        .setHeader(_CHOOSE_ADDRESS)
         .setBody(data)
         .addButton(_CANCEL, 'districtModalCancelButton', 'default')
         .addButton(_YES, 'districtModalButton', 'primary')

@@ -44,7 +44,7 @@
     },
     "total": {
       "$id": "#/properties/total",
-      "type": "string"
+      "type": "number"
     },
     "companyId": {
       "$id": "#/properties/companyId",
@@ -85,6 +85,14 @@
     "deposit": {
       "$id": "#/properties/deposit",
       "type": "number"
+    },
+    "credit": {
+      "$id": "#/properties/credit",
+      "type": "number"
+    },
+    "gName": {
+      "$id": "#/properties/gName",
+      "type": "string"
     }
   }
 }

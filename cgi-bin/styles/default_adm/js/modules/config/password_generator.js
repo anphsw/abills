@@ -40,14 +40,14 @@ function generatePassword(options) {
   
   var password = "";
   console.log(options);
-  
+
   if (options.SYMBOLS) {
     var parsed_options = getPasswordParamsForSymbols(options.SYMBOLS);
     delete options.SYMBOLS;
     options.CASE  = parsed_options.CASE;
     options.CHARS = parsed_options.CHARS;
   }
-  
+
   console.log(options);
   
   options.CASE  = options.CASE || 0;

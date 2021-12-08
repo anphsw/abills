@@ -83,7 +83,7 @@ sub plugin_show {
 
   my $Internet = Internet->new($db, $admin, $CONF);
 
-  my $user_info = $Internet->info($attr->{UID});
+  my $user_info = $Internet->user_info($attr->{UID});
   my $info = $html->tpl_show(::_include('internet_equipment_form', 'Internet'), $user_info, {
     ID => 'internet_equipment_form', OUTPUT2RETURN => 1
   });

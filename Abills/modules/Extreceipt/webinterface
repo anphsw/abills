@@ -399,9 +399,10 @@ sub _extreceipt_send {
   }
 
 
-  $info->[0]->{phone} //= '';
-  #$info->[0]->{phone} =~ s/[^0-9\+]//g;
-  $info->[0]->{mail} //= ($info->[0]->{uid} . '@myISP.ru');
+  # $info->[0]->{phone} //= '';
+  # $info->[0]->{phone} =~ s/\s+//g;
+  # $info->[0]->{phone} =~ s/\W+//g;
+  # $info->[0]->{mail} //= ($info->[0]->{uid} . '@myISP.ru');
 
   my $command_id = $Receipt->{API}->{$api_id}->payment_register($info->[0]);
   if ($command_id) {

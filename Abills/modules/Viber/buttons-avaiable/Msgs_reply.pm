@@ -40,11 +40,11 @@ sub reply {
 
   my $message = "$self->{bot}->{lang}->{WRITE_TEXT}\n";
   $message   .= "$self->{bot}->{lang}->{SEND_FILE}\n";
-  $message   .= "$self->{bot}->{lang}->{CHANCLE}";
+  $message   .= "$self->{bot}->{lang}->{CHANCEL}";
   
   my @keyboard = ();
   my $button = {
-    text => "$self->{bot}->{lang}->{CHANCLE_TEXT}",
+    text => "$self->{bot}->{lang}->{CHANCEL_TEXT}",
   };
   push (@keyboard, [$button]);
 

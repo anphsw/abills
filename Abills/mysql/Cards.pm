@@ -6,8 +6,8 @@ package Cards;
 
 =head1 VERSION
 
-  VERSION: 7.39;
-  REVISION: 20180322
+  VERSION: 8.01;
+  REVISION: 20211122
 
 =cut
 
@@ -17,15 +17,11 @@ use Tariffs;
 use Users;
 use Fees;
 
-our $VERSION = 7.39;
+our $VERSION = 8.01;
 my $uid;
 my $MODULE   = 'Cards';
 my ($admin, $CONF);
-my $SORT = 1;
-my $DESC = '';
-my $PG   = 1;
-my $PAGE_ROWS = 25;
-my $internet_user_table = 'dv_main';
+my $internet_user_table = 'internet_main';
 
 
 #**********************************************************
@@ -39,12 +35,13 @@ sub new {
   ($admin, $CONF) = @_;
 
   $admin->{MODULE} = $MODULE;
-  my $self = {};
+  my $self = {
+    db    => $db,
+    admin => $admin,
+    conf  => $CONF
+  };
 
   bless($self, $class);
-  $self->{db}   =$db;
-  $self->{admin}=$admin;
-  $self->{conf} =$CONF;
 
   if ($CONF->{DELETE_USER}) {
     $self->{UID} = $CONF->{DELETE_USER};
@@ -85,10 +82,11 @@ sub cards_service_info {
     tp.total_time_limit AS time_limit,
     tp.total_traf_limit AS traf_limit
     FROM users u
-    INNER JOIN $internet_user_table dv ON (dv.uid=u.uid)
-    INNER JOIN tarif_plans tp ON (dv.tp_id=tp.id $WHERE)
+    INNER JOIN $internet_user_table internet ON (internet.uid=u.uid)
+    INNER JOIN tarif_plans tp ON (internet.tp_id=tp.id $WHERE)
     WHERE
-      u.deleted=0 AND u.uid= ? ",
+          u.deleted=0
+      AND u.uid= ? ",
     undef,
     { INFO => 1,
       Bind => [ $attr->{UID} || 0 ]
@@ -113,9 +111,10 @@ sub cards_info {
   }
 
   my $WHERE = $self->search_former($attr, [
-      ['ID',           'INT',  'c.id'             ],
+      ['ID',           'INT',  'c.id'                                ],
       ['PIN',          'STR',  "DECODE(c.pin, '$CONF->{secretkey}')" ],
       ['SERIAL',       'STR',  "CONCAT(c.serial, IF($self->{CARDS_NUMBER_LENGTH}>0, MID(c.number, 11-$self->{CARDS_NUMBER_LENGTH}+1, $self->{CARDS_NUMBER_LENGTH}), c.number))",  ],
+      ['CARD_GID',     'INT',  'c.gid', 'c.gid AS card_gid' ]
     ],
     { WHERE => 1,
     	WHERE_RULES => \@WHERE_RULES
@@ -139,9 +138,12 @@ sub cards_info {
       c.uid,
       c.diller_id,
       c.id,
-      c.commission
+      c.commission,
+      c.gid AS card_gid,
+      GROUP_CONCAT(cg.gid SEPARATOR ',') AS allow_gid
     FROM cards_users c
     LEFT JOIN users u ON (c.uid = u.uid)
+    LEFT JOIN cards_gids cg ON (cg.serial=c.serial)
     $WHERE;",
     undef,
     { INFO => 1 }
@@ -157,16 +159,16 @@ sub defaults {
   my $self = shift;
 
   my %DATA = (
-    'SERIAL'         => '',
-    'BEGIN'          => 0,
-    'COUNT'          => 0,
-    'LOGIN_BEGIN'    => 0,
-    'LOGIN_COUNT'    => 0,
-    'PASSWD_SYMBOLS' => '1234567890',
-    'PASSWD_LENGTH'  => 8,
-    'SUM'            => '0.00',
-    'LOGIN_LENGTH'   => 5,
-    'EXPIRE'         => '0000-00-00',
+    SERIAL           => '',
+    BEGIN            => 0,
+    COUNT            => 0,
+    LOGIN_BEGIN      => 0,
+    LOGIN_COUNT      => 0,
+    PASSWD_SYMBOLS   => '1234567890',
+    PASSWD_LENGTH    => 8,
+    SUM              => '0.00',
+    LOGIN_LENGTH     => 5,
+    EXPIRE           => '0000-00-00',
     DILLER_ID        => 0,
     UID              => 0,
     DOMAIN_ID        => 0,
@@ -193,9 +195,9 @@ sub cards_add {
   if ($attr->{MULTI_ADD}) {
     $self->query("INSERT INTO cards_users (
        serial, number, login, pin, status, expire,aid,
-       diller_id, diller_date, sum, uid, domain_id, created, commission)
+       diller_id, diller_date, sum, uid, domain_id, created, commission, gid)
      VALUES (?,?,?,ENCODE(?, '$CONF->{secretkey}'),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),
-       ?,?,?,NOW(),?);",
+       ?,?,?,NOW(),?,?);",
      undef,
      { MULTI_QUERY =>  $attr->{MULTI_ADD} }
     );
@@ -203,9 +205,9 @@ sub cards_add {
   else {
     $self->query("INSERT INTO cards_users (
        serial, number, login, pin, status, expire,aid,
-       diller_id, diller_date, sum, uid, domain_id, created, commission)
+       diller_id, diller_date, sum, uid, domain_id, created, commission, gid)
      VALUES (?,?,?,ENCODE(?, ?),?,?,?,?,if (? > 0, NOW(), '0000-00-00'),
-       ?,?,?,NOW(),?);",
+       ?,?,?,NOW(),?, ?);",
      'do',
      { Bind => [
         $attr->{SERIAL} || '',
@@ -221,7 +223,8 @@ sub cards_add {
         $attr->{SUM} || 0,
         $attr->{UID} || 0,
         $admin->{DOMAIN_ID} || 0,
-        $attr->{COMMISSION} || 0
+        $attr->{COMMISSION} || 0,
+        $attr->{GID} || 0
        ]
      });
   }
@@ -235,7 +238,7 @@ sub cards_add {
 }
 
 #**********************************************************
-=head2 cards_change()
+=head2 cards_change($attr)
 
 =cut
 #**********************************************************
@@ -373,17 +376,15 @@ sub cards_change {
   $attr->{PIN}     = $old_info->{PIN};
   $admin->{MODULE} = $MODULE;
 
-  $self->changes(
-    {
-      CHANGE_PARAM    => 'ID',
-      TABLE           => 'cards_users',
-      FIELDS          => \%FIELDS,
-      OLD_INFO        => $old_info,
-      DATA            => $attr,
-      EXT_CHANGE_INFO => (($attr->{STATUS} == 2) ? $self->{ID} : "ID:$self->{ID} $attr->{SERIAL}$attr->{NUMBER}"),
-      ACTION_ID       => (($attr->{STATUS} == 2) ? 31 : undef)
-    }
-  );
+  $self->changes({
+    CHANGE_PARAM    => 'ID',
+    TABLE           => 'cards_users',
+    FIELDS          => \%FIELDS,
+    OLD_INFO        => $old_info,
+    DATA            => $attr,
+    EXT_CHANGE_INFO => (($attr->{STATUS} == 2) ? $self->{ID} : "ID:$self->{ID} $attr->{SERIAL}$attr->{NUMBER}"),
+    ACTION_ID       => (($attr->{STATUS} == 2) ? 31 : undef)
+  });
 
   if(! $self->{AFFECTED}) {
     $self->{error}  = 11;
@@ -448,10 +449,10 @@ sub cards_list {
   my $GROUP = "cu.serial";
   my $GROUP_BY = (defined($attr->{SERIAL}) && $attr->{SERIAL} ne '_SHOW') ? '' : "GROUP BY $GROUP";
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}           : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}           : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}             : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}           : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}           : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}             : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? int($attr->{PAGE_ROWS}) : 25;
 
   my @WHERE_RULES = ();
 
@@ -488,7 +489,6 @@ sub cards_list {
     push @WHERE_RULES, @{ $self->search_expr($attr->{SERIAL}, 'STR', 'cu.serial') };
     $GROUP_BY='';
   }
-
 
   if($attr->{USED_FROM_DATE_USED_TO_DATE}){
     ($attr->{USED_FROM_DATE}, $attr->{USED_TO_DATE}) = split '/', $attr->{USED_FROM_DATE_USED_TO_DATE};
@@ -553,11 +553,12 @@ sub cards_list {
       LEFT JOIN groups g ON (cu.gid = g.gid)
       LEFT JOIN cards_dillers cd ON (cu.diller_id = cd.id)
       LEFT JOIN users u ON (cu.uid = u.uid)
-      LEFT JOIN $internet_user_table dv ON (u.uid = dv.uid)
-      LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and dv.tp_id = tp.id)
+      LEFT JOIN $internet_user_table internet ON (u.uid = internet.uid)
+      LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' AND internet.tp_id = tp.tp_id)
       $WHERE
       GROUP BY 1,2
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+      ORDER BY $SORT $DESC
+      LIMIT $PG, $PAGE_ROWS;",
       undef,
       $attr
       );
@@ -570,8 +571,8 @@ sub cards_list {
       LEFT JOIN groups g ON (cu.gid = g.gid)
       LEFT JOIN cards_dillers cd ON (cu.diller_id = cd.id)
       LEFT JOIN users u ON (cu.uid = u.uid)
-      LEFT JOIN $internet_user_table dv ON (u.uid = dv.uid)
-      LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and dv.tp_id = tp.id)
+      LEFT JOIN $internet_user_table internet ON (u.uid = internet.uid)
+      LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.id)
       $WHERE;",
       undef, { INFO => 1 }
       );
@@ -587,11 +588,12 @@ sub cards_list {
       LEFT JOIN groups g ON (cu.gid = g.gid)
       LEFT JOIN cards_dillers cd ON (cu.diller_id = cd.id)
       LEFT JOIN users u ON (cu.uid = u.uid)
-      LEFT JOIN $internet_user_table dv ON (u.uid = dv.uid)
-      LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and dv.tp_id = tp.id)
+      LEFT JOIN $internet_user_table internet ON (u.uid = internet.uid)
+      LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.tp_id)
       $WHERE
       GROUP BY 1,2
-      ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+      ORDER BY $SORT $DESC
+      LIMIT $PG, $PAGE_ROWS;",
       undef,
       $attr
       );
@@ -603,8 +605,8 @@ sub cards_list {
   else {
     my $EXT_TABLES = '';
     if ($attr->{TP_ID}) {
-      $EXT_TABLES = "LEFT JOIN $internet_user_table dv ON (u.uid = dv.uid)
-        LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and dv.tp_id = tp.id)";
+      $EXT_TABLES = "LEFT JOIN $internet_user_table internet ON (u.uid = internet.uid)
+        LEFT JOIN tarif_plans tp ON (tp.domain_id='$admin->{DOMAIN_ID}' and internet.tp_id = tp.id)";
     }
 
     $self->query("SELECT cu.serial, $self->{SEARCH_FIELDS}
@@ -1084,10 +1086,10 @@ sub cards_report_payments {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my @WHERE_RULES = ();
 
@@ -1242,10 +1244,10 @@ sub bruteforce_list {
   my $self = shift;
   my ($attr) = @_;
 
-  $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
-  $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
-  $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
-  $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
+  my $SORT      = ($attr->{SORT})      ? $attr->{SORT}      : 1;
+  my $DESC      = ($attr->{DESC})      ? $attr->{DESC}      : '';
+  my $PG        = ($attr->{PG})        ? $attr->{PG}        : 0;
+  my $PAGE_ROWS = ($attr->{PAGE_ROWS}) ? $attr->{PAGE_ROWS} : 25;
 
   my $fields = "u.id,
                SUM(IF(DATE_FORMAT(cb.datetime, '%Y-%m-%d')=CURDATE(), 1, 0)),
@@ -1309,7 +1311,8 @@ sub bruteforce_list {
      LEFT JOIN users u ON (cb.uid = u.uid)
      $WHERE
      $GROUP
-     ORDER BY $SORT $DESC LIMIT $PG, $PAGE_ROWS;",
+     ORDER BY $SORT $DESC
+     LIMIT $PG, $PAGE_ROWS;",
      undef, $attr
   );
 
@@ -1369,20 +1372,6 @@ sub bruteforce_del {
 }
 
 #**********************************************************
-# Periodic
-#**********************************************************
-#sub periodic {
-#  my $self = shift;
-#  my ($period) = @_;
-#
-#  if ($period eq 'daily') {
-#    $self->daily_fees();
-#  }
-#
-#  return $self;
-#}
-
-#**********************************************************
 =head2  cards_chg_status()
 
 =cut
@@ -1393,11 +1382,62 @@ sub cards_chg_status {
   $self->query("UPDATE cards_users cu, errors_log l SET
       cu.status=2,
       cu.datetime=NOW()
-    WHERE cu.login<>'' AND cu.status=0 AND cu.login=l.user;",
+    WHERE cu.login<>''
+    AND cu.status=0
+    AND cu.login=l.user;",
     'do',
   );
 
   return $self;
+}
+
+#**********************************************************
+=head2 cards_gids_change($attr)
+
+=cut
+#**********************************************************
+sub cards_gids_change {
+  my $self = shift;
+  my ($attr)=@_;
+  my $serial = $attr->{SERIAL};
+
+  my @gids = split(/,\s?/, $attr->{GID});
+  $self->query("DELETE FROM cards_gids WHERE serial='$serial';", 'do');
+
+  foreach my $gid ( @gids ) {
+    $self->query("INSERT INTO cards_gids (gid, serial) VALUES ('$gid', '$serial');", 'do');
+  }
+
+  $admin->action_add($uid, "CARDS_GIDS $serial");
+
+  return $self;
+}
+
+
+#**********************************************************
+=head2 cards_gids_change($attr)
+
+=cut
+#**********************************************************
+sub cards_gids_list {
+  my $self = shift;
+  my ($attr)=@_;
+
+  my $JOIN_WHERE = q{};
+  if ($attr->{SERIAL}) {
+    $JOIN_WHERE = "AND cg.serial='$attr->{SERIAL}'";
+  }
+
+  $self->query("SELECT g.gid, g.name, cg.serial, cg.gid AS assign
+   FROM groups g
+   LEFT JOIN cards_gids cg ON (g.gid=cg.gid $JOIN_WHERE)
+   GROUP BY g.gid
+   ORDER BY 1;",
+    undef, $attr);
+
+  my $list = $self->{list} || [];
+
+  return $list;
 }
 
 1

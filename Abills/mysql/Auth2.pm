@@ -2143,7 +2143,7 @@ sub online_add {
   my $sql = "INSERT INTO internet_online SET started=NOW(),
      lupdated        = UNIX_TIMESTAMP(),
      status          = '11',
-     acct_session_id = 'IP',
+     acct_session_id = '". ($attr->{ACCT_SESSION_ID} || 'IP') ."',
      nas_ip_address  = INET_ATON('". ($attr->{'NAS_IP_ADDRESS'} || '0.0.0.0') ."')";
 
   while(my ($k, $v) = each %insert_hash) {
@@ -2394,7 +2394,7 @@ sub neg_deposit_filter_former {
       }
     }
 
-    $self->{INFO} .= ' NEG_FILTER';
+    $self->{INFO} .= ($self->{INFO}) ? ' NEG_FILTER' : 'NEG_FILTER';
     if($RAD_PAIRS->{'Reply-Message'}) {
       $RAD_PAIRS->{'Reply-Message'} .= ' GUEST';
     }

@@ -154,4 +154,16 @@ $lang{HEIGHT_CANNOT_BE_LESS} = 'Высота не может быть меньш
 $lang{SAVE_PRESET} = 'Сохранить пресет';
 $lang{STRAIGHTEN} = 'Выпрямить';
 
+$lang{CHAIN_SEEMS_TO_BE_BROKEN} = 'Цепь, кажется, разорвана.';
+$lang{AFTER_COMMUTATION} = 'После коммутации';
+$lang{LAST_ELEMENT} = 'Последний элемент';
+$lang{IS_NOT_PRESENT_ON_ANY_COMMUTATION} = 'отсутствует на коммутации';
+$lang{CANNOT_FIND_COMMUTATION_FOR_EQUIPMENT} = 'Не удается найти коммутацию для оборудования';
+$lang{LINKED_MORE_THAN_ONE_COMMUTATION} = 'Оборудование подключается более чем к одной коммутации';
+$lang{CANNOT_GET_USER_SERVICE_LIST} = 'Не удается получить список услуг пользователя';
+$lang{NO_SERVICE_PORTS_TO_TRACE} = 'Нет сервисных портов для отслеживания';
+$lang{CANNOT_DISPLAY_COMMUTATION_PATH} = 'Невозможно отобразить путь коммутации';
+
+$lang{NOT_USERS_FOR_EQUIPMENT} = 'На коммутации для этого оборудования не найдено ни одного пользователя';
+
 1;

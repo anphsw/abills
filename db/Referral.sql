@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `referral_log` (
     `date` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `referral_request` INT(11) UNSIGNED NOT NULL DEFAULT 0,
     `tp_id` SMALLINT(6) UNSIGNED NOT NULL DEFAULT 0,
+    `log_type` SMALLINT(1) UNSIGNED NOT NULL DEFAULT 0,
     KEY uid (`uid`),
     KEY referral_request (`referral_request`)
 )
@@ -32,7 +33,9 @@ CREATE TABLE IF NOT EXISTS `referral_tp` (
     `payment_arrears` INT(11) UNSIGNED NOT NULL  DEFAULT 0,
     `period` INT(11) UNSIGNED NOT NULL  DEFAULT 0,
     `repl_percent` SMALLINT(3) UNSIGNED NOT NULL  DEFAULT 0,
-    `bonus_bill` TINYINT(1) UNSIGNED NOT NULL  DEFAULT 0
+    `spend_percent` SMALLINT(3) UNSIGNED NOT NULL  DEFAULT 0,
+    `bonus_bill` TINYINT(1) UNSIGNED NOT NULL  DEFAULT 0,
+    `is_default`SMALLINT(1) NOT NULL DEFAULT 0
 )
   DEFAULT CHARSET = utf8
   COMMENT = 'Referral tp table stores information about referral tarifs';

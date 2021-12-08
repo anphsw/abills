@@ -203,6 +203,8 @@ sub user_change{
     my $Tariffs = Tariffs->new( $self->{db}, $CONF, $admin );
 
     $Tariffs->info( $old_info->{TP_ID} );
+    $attr->{EXPIRE} = '0000-00-00' if defined($Tariffs->{AGE}) && $Tariffs->{AGE} > 0 && !$attr->{EXPIRE};
+
     %{ $self->{TP_INFO_OLD} } = %{$Tariffs};
     $self->{TP_INFO} = $Tariffs->info( $attr->{TP_ID} );
     my $User = Users->new( $self->{db}, $admin, $CONF );
@@ -235,7 +237,8 @@ sub user_change{
       $Fees->take( $User, $Tariffs->{CHANGE_PRICE}, { DESCRIBE => "CHANGE_TP" } );
     }
 
-    $self->expire_date($attr, $Tariffs) if $Tariffs->{AGE} > 0 ;
+    $self->expire_date($attr, $Tariffs) if $Tariffs->{AGE} > 0;
+    $attr->{EXPIRE} = $attr->{IPTV_EXPIRE} if $attr->{IPTV_EXPIRE};
   }
   elsif ( ($old_info->{STATUS} == 1 || $old_info->{STATUS} == 2 || $old_info->{STATUS} == 4
     || $old_info->{STATUS} == 5) && $attr->{STATUS} == 0 ){

@@ -72,7 +72,7 @@
     },
     "taxNumber": {
       "$id": "#/properties/taxNumber",
-      "type": "string"
+      "type": "number"
     },
     "zip": {
       "$id": "#/properties/zip",
@@ -100,7 +100,7 @@
     },
     "addressFlat": {
       "$id": "#/properties/addressFlat",
-      "type": "string"
+      "type": "number"
     },
     "contractSufix": {
       "$id": "#/properties/addressFlat",

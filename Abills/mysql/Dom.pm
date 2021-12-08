@@ -132,6 +132,27 @@ sub users_online_by_builds {
 }
 
 #**********************************************************
+=head2 users_offline_by_builds() - show users offline by builds
+
+=cut
+#**********************************************************
+sub users_offline_by_builds {
+  my $self = shift;
+
+  my $online_list = $self->query2("SELECT b.id AS id, up.uid, up.fio, b.number, i.status
+    FROM users u
+    LEFT JOIN internet_online i ON (i.uid = u.uid)
+    LEFT JOIN users_pi up ON (up.uid=u.uid)
+    LEFT JOIN builds AS b ON (b.id=up.location_id)
+    WHERE i.status IS NULL
+    GROUP BY u.uid;",
+    undef, { COLS_NAME => 1 }
+  );
+
+  return $online_list->{list} || [];
+}
+
+#**********************************************************
 =head2 streets_list_with_builds($attr)
 
   Arguments:

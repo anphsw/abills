@@ -451,9 +451,12 @@ sub report_fees {
   my Abills::HTML $table_fees;
   my $list;
 
-  if ($FORM{DATE}) {
+  if ($FORM{DATE} || $FORM{search}) {
     $graph_type = '';
     $LIST_PARAMS{DATE} = $FORM{DATE};
+    delete($FORM{search_form});
+    delete($FORM{type});
+
     form_fees();
     return 0;
   }
@@ -463,7 +466,7 @@ sub report_fees {
 
     if ($type) {
       $type = $type;
-      $pages_qs .= "&TYPE=$type";
+      $pages_qs .= "&TYPE=$type" if $pages_qs !~ /&TYPE=/;
     }
     else {
       $graph_type = 'month_stats';
@@ -674,7 +677,7 @@ sub report_payments {
     my $type = $FORM{TYPE} || '';
     if ($type) {
       $type = $type;
-      $pages_qs .= "&TYPE=$type";
+      $pages_qs .= "&TYPE=$type" if $pages_qs !~ /&TYPE=/;
     }
     else {
       $graph_type = 'month_stats';

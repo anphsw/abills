@@ -34,7 +34,7 @@ use Address;
 exit if form_purchase_module({
   HEADER          => $user->{UID},
   MODULE          => 'Maps',
-  REQUIRE_VERSION => 7.71,
+  REQUIRE_VERSION => 7.74,
 });
 
 require Maps;
@@ -669,7 +669,8 @@ sub maps2_without_edits {
     SHOW_SEARCH         => 1,
     MAPS_DEFAULT_TYPE   => $conf{MAPS_DEFAULT_TYPE} || 'OSM',
     HIDE_EDIT_BUTTONS   => 1,
-    MAPS_DEFAULT_LATLNG => $conf{MAPS_DEFAULT_LATLNG} || ''
+    MAPS_DEFAULT_LATLNG => $conf{MAPS_DEFAULT_LATLNG} || '',
+    SKIP_OBJECTS        => 1
   });
 }
 

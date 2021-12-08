@@ -18,7 +18,6 @@ our(
 
 our Abills::HTML $html;
 my $Internet = Internet->new($db, $admin, \%conf);
-my $Tariffs  = Tariffs->new($db, \%conf, $admin);
 my $Sessions = Internet::Sessions->new($db, $admin, \%conf);
 
 if($conf{INTERNET_TRAFFIC_DETAIL}) {
@@ -109,14 +108,6 @@ sub internet_report_use {
   );
 
   my $TP_NAMES = sel_tp();
-  # my $list = $Tariffs->list({
-  #   MODULE       => 'Dv;Internet',
-  #   NEW_MODEL_TP => 1,
-  #   COLS_NAME    => 1
-  # });
-  # foreach my $line (@$list) {
-  #   $TP_NAMES{ $line->{id} } = $line->{name};
-  # }
 
   if ($FORM{TERMINATE_CAUSE}) {
     $LIST_PARAMS{TERMINATE_CAUSE} = $FORM{TERMINATE_CAUSE};
@@ -135,6 +126,10 @@ sub internet_report_use {
 
   if ($LIST_PARAMS{MONTH}) {
     delete($LIST_PARAMS{MONTH});
+  }
+  if ($FORM{DISTRICT_ID}) {
+    $pages_qs =~ s/&TYPE=[A-Z,\+ ]+//;
+    $pages_qs .= "&DISTRICT_ID=$FORM{DISTRICT_ID}&TYPE=USER";
   }
 
   ($table, $list) = result_former({
@@ -360,7 +355,7 @@ sub internet_pools_report {
   my Nas $Nas = Nas->new($db, \%conf, $admin);
 
   # Get dv static ips
-  my $static_assigned_list = $Internet->list({
+  my $static_assigned_list = $Internet->user_list({
     IP_NUM    => '>0.0.0.0',
     COLS_NAME => 1,
     PAGE_ROWS => 100000,

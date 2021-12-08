@@ -47,7 +47,7 @@ my $Users = Users->new($db, $admin, \%conf);
 my @status = ($lang{ENABLE}, $lang{DISABLED});
 
 my @service_status = (
-  "$lang{ENABLE}",
+  $lang{ENABLE},
   $lang{DISABLE},
   $lang{NOT_ACTIVE},
   $lang{HOLD_UP},
@@ -255,55 +255,55 @@ sub iptv_users_list {
 
 =cut
 #**********************************************************
-#@deprecated
-sub iptv_ext_cmd {
-  my ($cmd, $attr) = @_;
-
-  if (in_array('Dhcphosts', \@MODULES)) {
-    require Dhcphosts;
-    Dhcphosts->import();
-    my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
-    my $hosts_list = $Dhcphosts->hosts_list({
-      PORTS             => '!',
-      LOGIN             => 'LOGIN',
-      UID               => $attr->{UID},
-      NAS_ID            => '>0',
-      NAS_IP            => '!0.0.0.0',
-      SHOW_NAS_MNG_INFO => 1,
-      COLS_NAME         => 1
-    });
-
-    my $cmd_tpl = $cmd;
-    my @cmd_arr = ();
-    foreach my $host (@{$hosts_list}) {
-      $cmd = tpl_parse($cmd_tpl,
-        {
-          LOGIN        => $host->{login},
-          NAS_IP       => $host->{mng_host_port} || $host->{nas_ip},
-          NAS_ID       => $host->{nas},
-          PORT_ID      => $host->{ports},
-          IP           => $host->{ip},
-          NAS_LOGIN    => $host->{mng_user},
-          NAS_PASSWORD => $host->{mng_password},
-        }
-      );
-      push @cmd_arr, $cmd;
-    }
-    if ($#cmd_arr > -1) {
-      $cmd = join(';', @cmd_arr);
-    }
-  }
-  if (!$attr->{ACTION}) {
-    $attr->{ACTION} = 'up';
-  }
-
-  cmd($cmd, {
-    PARAMS => { %{$attr} },
-    DEBUG  => $conf{IPTV_CMD_DEBUG}
-  });
-
-  return 1;
-}
+# #@deprecated
+# sub iptv_ext_cmd {
+#   my ($cmd, $attr) = @_;
+#
+#   if (in_array('Dhcphosts', \@MODULES)) {
+#     require Dhcphosts;
+#     Dhcphosts->import();
+#     my $Dhcphosts = Dhcphosts->new($db, $admin, \%conf);
+#     my $hosts_list = $Dhcphosts->hosts_list({
+#       PORTS             => '!',
+#       LOGIN             => 'LOGIN',
+#       UID               => $attr->{UID},
+#       NAS_ID            => '>0',
+#       NAS_IP            => '!0.0.0.0',
+#       SHOW_NAS_MNG_INFO => 1,
+#       COLS_NAME         => 1
+#     });
+#
+#     my $cmd_tpl = $cmd;
+#     my @cmd_arr = ();
+#     foreach my $host (@{$hosts_list}) {
+#       $cmd = tpl_parse($cmd_tpl,
+#         {
+#           LOGIN        => $host->{login},
+#           NAS_IP       => $host->{mng_host_port} || $host->{nas_ip},
+#           NAS_ID       => $host->{nas},
+#           PORT_ID      => $host->{ports},
+#           IP           => $host->{ip},
+#           NAS_LOGIN    => $host->{mng_user},
+#           NAS_PASSWORD => $host->{mng_password},
+#         }
+#       );
+#       push @cmd_arr, $cmd;
+#     }
+#     if ($#cmd_arr > -1) {
+#       $cmd = join(';', @cmd_arr);
+#     }
+#   }
+#   if (!$attr->{ACTION}) {
+#     $attr->{ACTION} = 'up';
+#   }
+#
+#   cmd($cmd, {
+#     PARAMS => { %{$attr} },
+#     DEBUG  => $conf{IPTV_CMD_DEBUG}
+#   });
+#
+#   return 1;
+# }
 
 #*******************************************************************
 =head2 online_users() - Active users
@@ -719,7 +719,8 @@ sub iptv_user_channels {
           $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
           service_get_month_fee($Iptv, {
             EXT_DESCRIBE => " $lang{CHANNEL}: $line->{channel_num}",
-            SERVICE_NAME => "$lang{TV}",
+            SERVICE_NAME => $lang{TV},
+            MODULE       => 'Iptv',
             QUIET        => 1
           });
         }
@@ -1107,12 +1108,12 @@ sub iptv_channels_day_fees {
 }
 
 #**********************************************************
-=head2 iptv_neg_deposti_action($attr)
+=head2 iptv_service_deactivate($attr)
 
   Arguments:
     $attr
-      TP
-      USER
+      TP_INFO
+      USER_INFO
       SERVICES - Services hash
 
   Results:
@@ -1120,17 +1121,13 @@ sub iptv_channels_day_fees {
 
 =cut
 #**********************************************************
-sub iptv_neg_deposti_action {
+sub iptv_service_deactivate {
   my ($attr) = @_;
 
-  my $tp = $attr->{TP};
-  my $user = $attr->{USER};
+  my $tp_info   = $attr->{TP_INFO};
+  my $user_info = $attr->{USER_INFO};
   my $sum = 0;
-
-  $user->{id} ||= $user->{ID};
-  $user->{uid} ||= $user->{UID};
-  $user->{deposit} ||= $user->{DEPOSIT};
-  $user->{credit} ||= $user->{CREDIT};
+  my $action = 0;
 
   if ($attr->{SERVICES}) {
     foreach my $service (@{$attr->{SERVICES}}) {
@@ -1139,27 +1136,56 @@ sub iptv_neg_deposti_action {
   }
 
   #Block small deposit
-  return 0 if !($tp->{small_deposit_action});
+  return 0 if (! $tp_info->{small_deposit_action});
 
-  if ($sum > $user->{deposit} + $user->{credit}) {
-    my $params = { ID => $user->{id}, UID => $user->{uid} };
+  if ($sum > $user_info->{DEPOSIT} + $user_info->{CREDIT}) {
+    my %params = (
+      ID => $user_info->{ID},
+      UID => $user_info->{UID}
+    );
 
-    $params->{STATUS} = 5 if ($tp->{small_deposit_action} == -1);
-    $params->{TP_ID} = $tp->{small_deposit_action} if ($tp->{small_deposit_action} != -1);
+    $params{STATUS} = 5 if ($tp_info->{small_deposit_action} == -1);
+    $params{TP_ID} = $tp_info->{small_deposit_action} if ($tp_info->{small_deposit_action} != -1);
 
-    $Iptv->user_change({ %{$params} });
+    $Iptv->user_change(\%params);
 
-    return 1;
+    #OLD functions now use only filters
+    # my %tp_id2id = ();
+    # my $tp_list = $Tariffs->list({
+    #   MODULE       => 'Iptv',
+    #   NEW_MODEL_TP => 1,
+    #   COLS_NAME    => 1
+    # });
+    #
+    # map $tp_id2id{ $_->{tp_id} } = $_->{id}, @{$tp_list};
+    # my $tp_num = 0;
+    # $tp_num = $tp_id2id{$tp_info->{small_deposit_action}}  if ($tp_info->{small_deposit_action} && $tp_info->{small_deposit_action} > 0);
+
+    iptv_account_action({
+      NEGDEPOSIT   => 1,
+      FILTER_ID    => $tp_info->{filter_id},
+      ID           => $user_info->{ID},
+      UID          => $user_info->{UID},
+      LOGIN        => $user_info->{LOGIN},
+      SUBSCRIBE_ID => $user_info->{SUBSCRIBE_ID},
+      TP_NUM       => $tp_info->{tp_num}
+    });
+
+    $action = 1;
   }
-  else {
+  elsif(! $attr->{DEACTIVATE_ONLY}) {
     $Iptv->user_change({
-      ID     => $user->{id},
-      UID    => $user->{uid},
+      ID     => $user_info->{id},
+      UID    => $user_info->{uid},
       STATUS => 0
     });
   }
 
-  return 0;
+  if ($action) {
+    _external('', { EXTERNAL_CMD => 'Iptv', %{$attr->{USER_INFO}}, %{$Iptv}, QUITE => 1 });
+  }
+
+  return $action;
 }
 
 #**********************************************************
@@ -1611,7 +1637,7 @@ sub iptv_user_activate {
   my $d = (split(/-/, $DATE))[2];
 
   my %FEES_DSC = (
-    MODULE            => "Iptv",
+    MODULE            => 'Iptv',
     SERVICE_NAME      => $lang{TV},
     TP_ID             => $Iptv_info->{TP_NUM},
     TP_NAME           => $Iptv_info->{TP_NAME},
@@ -1676,6 +1702,16 @@ sub iptv_user_activate {
     }
     return 0;
   }
+
+  my %change_params = (
+    ID     => $Iptv_info->{ID},
+    UID    => $Iptv_info->{UID},
+    STATUS => 0,
+  );
+
+  $change_params{IPTV_ACTIVATE} = $DATE if ($DATE && $Iptv_info->{IPTV_ACTIVATE} ne '0000-00-00');
+  $Iptv->{db}->{db}->{AutoCommit} = 0;
+  $Iptv->user_change({ %change_params });
 
   foreach my $service (@{$users_services{$Iptv_info->{UID}}}) {
     iptv_account_action({
@@ -1802,14 +1838,8 @@ sub iptv_user_activate {
     # ABON_DISTRIBUTION => $Iptv_info->{ABON_DISTRIBUTION}
   });
 
-  my %change_params = (
-    ID     => $Iptv_info->{ID},
-    UID    => $Iptv_info->{UID},
-    STATUS => 0,
-  );
-
-  $change_params{IPTV_ACTIVATE} = $DATE if ($DATE && $Iptv_info->{IPTV_ACTIVATE} ne '0000-00-00');
-  $Iptv->user_change({ %change_params });
+  $Iptv->{db}->{db}->commit() if(! $Iptv->{db}->{db}->{AutoCommit});
+  $Iptv->{db}->{db}->{AutoCommit} = 1;
 
   if (!$attr->{SILENT}) {
     $html->message('info', $lang{TV}, "$lang{ACTIVATE} \n" . join("\n", @result_message), { ID => 803 });
@@ -2015,6 +2045,12 @@ sub iptv_users_screens {
 
 #**********************************************************
 =head2 iptv_payments_maked($attr) - Cross module payment maked
+
+  Arguments:
+    $attr
+      USER_INFO
+
+  Results:
 
 =cut
 #**********************************************************
@@ -2853,7 +2889,8 @@ sub _iptv_get_new_channel_fees {
       $Iptv->{ACCOUNT_ACTIVATE} = $users->{ACTIVATE};
       service_get_month_fee($Iptv, {
         EXT_DESCRIBE => " $lang{CHANNEL}: $channel->{INTERVAL_CHANNEL_ID}",
-        SERVICE_NAME => $lang{TV}
+        SERVICE_NAME => $lang{TV},
+        MODULE       => 'Iptv'
       });
     }
     else {
@@ -2866,6 +2903,43 @@ sub _iptv_get_new_channel_fees {
   }
 
   return 0;
+}
+
+#**********************************************************
+=head2 iptv_service_activate($attr)
+
+  Arguments:
+    $attr
+      TP_INFO
+      USER_INFO
+        UID
+        ID
+      DEBUG
+
+=cut
+#**********************************************************
+sub iptv_service_activate {
+  my ($attr)=@_;
+
+  my $user_info = $attr->{USER_INFO};
+
+  $Iptv->user_change({
+    ID     => $user_info->{ID},
+    UID    => $user_info->{UID},
+    STATUS => 0
+  });
+  $attr->{USER_INFO}->{SERVICE_STATUS} = 0;
+
+  iptv_account_action({
+    %{($Iptv && ref $Iptv eq 'HASH') ? $Iptv : {}},
+    change    => 1,
+    USER_INFO => $user_info,
+    SILENT    => 1
+  });
+
+  _external('', { EXTERNAL_CMD => 'Iptv', %{ $attr->{USER_INFO} }, QUITE => 1 });
+
+  return 1;
 }
 
 1

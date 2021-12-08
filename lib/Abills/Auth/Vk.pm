@@ -23,31 +23,31 @@ use Encode;
 #**********************************************************
 sub check_access {
   my $self = shift;
-  my ($attr)=@_;
+  my ($attr) = @_;
 
-  my $client_id    = $self->{conf}->{AUTH_VK_ID} || q{};
+  my $client_id = $self->{conf}->{AUTH_VK_ID} || q{};
   my $redirect_uri = $self->{conf}->{AUTH_VK_URL} || q{};
-  my $version      = '5.62';
-  my $client_secret= $self->{conf}->{AUTH_VK_SECRET} || q{};
-  $self->{debug}   = $self->{conf}->{AUTH_VK_DEBUG} || 0;
-  $redirect_uri    =~ s/\%SELF_URL\%/$self->{self_url}/g;
+  my $version = '5.62';
+  my $client_secret = $self->{conf}->{AUTH_VK_SECRET} || q{};
+  $self->{debug} = $self->{conf}->{AUTH_VK_DEBUG} || 0;
+  $redirect_uri =~ s/\%SELF_URL\%/$self->{self_url}/g;
 
   my $redirect_encoded = urlencode($redirect_uri);
 
   if ($attr->{code}) {
     my $request = qq(https://oauth.vk.com/access_token?client_id=$client_id&client_secret=$client_secret&redirect_uri=$redirect_encoded&code=$attr->{code});
     my $result = web_request($request, { JSON_RETURN => 1 });
-    if($self->{debug}) {
+    if ($self->{debug}) {
       print "Content-Type: text/html\n\n";
       print "Ok";
       show_hash($result, DELIMITER => '<br>');
       print "Redirect: $redirect_uri //";
     }
 
-    if($result->{user_id}) {
-#      $self->{SID}         = $result->{access_token};
-      $self->{EXPIRE}      = $result->{expires_in};
-      $self->{USER_ID}     = 'vk, '.$result->{user_id};
+    if ($result->{user_id}) {
+      #      $self->{SID}         = $result->{access_token};
+      $self->{EXPIRE} = $result->{expires_in};
+      $self->{USER_ID} = 'vk, ' . $result->{user_id};
       $self->{CHECK_FIELD} = '_VK';
     }
 
@@ -70,25 +70,26 @@ sub check_access {
 #**********************************************************
 sub get_info {
   my $self = shift;
-  my ($attr)=@_;
-  
-  my $client_id = $attr->{CLIENT_ID};
-  
-  my $request = qq{https://api.vk.com/method/users.get?uids=$client_id&fields=uid,first_name,last_name,screen_name,sex,bdate,photo_big };
+  my ($attr) = @_;
 
+  my $client_id = $attr->{CLIENT_ID};
+  my $request = qq{https://api.vk.com/method/users.get?uids=$client_id&fields=uid,first_name,last_name,screen_name,sex,bdate,photo_big};
+
+
+  $request .= "&v=5.131&access_token=$self->{conf}{AUTH_VK_SERVICE_KEY}" if $self->{conf}{AUTH_VK_SERVICE_KEY};
   my $result = web_request($request, { JSON_RETURN => 1, JSON_UTF8 => 1 });
 
-  if($result->{error}) {
-    $self->{errno}=$result->{error}{error_code};
-    $self->{errstr}=$result->{error}{error_msg};
+  if ($result->{error}) {
+    $self->{errno} = $result->{error}{error_code};
+    $self->{errstr} = $result->{error}{error_msg};
   }
-  elsif($result->{response}) {
+  elsif ($result->{response}) {
     $self->{result} = $result->{response}->[0];
   }
   else {
     $self->{result} = $result;
   }
-  return $self;  
+  return $self;
 }
 
 #**********************************************************
@@ -106,20 +107,17 @@ sub get_info {
 sub get_request {
   my $self = shift;
   my ($request) = @_;
-  
+
   unless ($request->{METHOD}) {return 1;}
-  
-  my $request_url = 'https://api.vk.com/method/'
-	. ($request->{METHOD}) . '?'
-	. ($request->{PARAMS} || q{})
-	. "&v=5.52";
-_bp('', $request_url);	
+
+  my $request_url = 'https://api.vk.com/method/' . ($request->{METHOD}) . '?'
+    . ($request->{PARAMS} || q{}) . "&v=5.52";
+
   my $result = web_request($request_url, {
     JSON_RETURN => 1,
-#	JSON_UTF8   => 1,
     DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
   });
-  
+
   return $result;
 }
 
@@ -138,37 +136,27 @@ _bp('', $request_url);
 sub count_vk_likes {
   my $self = shift;
   my ($attr) = @_;
-  
-  #my $client_id    = $self->{conf}->{AUTH_VK_ID} || q{};
-  my $version      = '5.62';
-  #my $client_secret= $self->{conf}->{AUTH_VK_SECRET} || q{};
-  
-  unless ($attr->{OWNER_ID} && $attr->{POST_ID}) {return 1;}
-  
-#  my $request_token_url = 'https://oauth.vk.com/access_token?client_id='
-#    . $client_id . '&client_secret=' . $client_secret
-#	. '&v=' . $version . '&grant_type=client_credentials';
-#	
-#  my $response = web_request($request_token_url, {
-#    JSON_RETURN => 1,
-#  });
 
-  my $access_token='f0002012682259e2f9ff36765880ad14bd8c461817c9e243bd1eefe109118110afc853609991afcb1c354';
-  
+  #my $client_id    = $self->{conf}->{AUTH_VK_ID} || q{};
+  my $version = '5.62';
+  #my $client_secret= $self->{conf}->{AUTH_VK_SECRET} || q{};
+
+  unless ($attr->{OWNER_ID} && $attr->{POST_ID}) {return 1;}
+
+  my $access_token = 'f0002012682259e2f9ff36765880ad14bd8c461817c9e243bd1eefe109118110afc853609991afcb1c354';
+
   my $request_url = 'https://api.vk.com/method/'
-	. 'execute.GatherLikes?'
-	. 'user=' . $attr->{OWNER_ID}
-	. '&post=' . $attr->{POST_ID}
-	. '&offset=0&v=' . $version
+    . 'execute.GatherLikes?'
+    . 'user=' . $attr->{OWNER_ID}
+    . '&post=' . $attr->{POST_ID}
+    . '&offset=0&v=' . $version
     . '&access_token=' . $access_token;
-	
-  
+
   my $result = web_request($request_url, {
     JSON_RETURN => 1,
-#	JSON_UTF8   => 1,
     DEBUG       => ($self->{debug} && $self->{debug} > 2) ? $self->{debug} : 0
   });
-  
+
   return $result;
 }
 

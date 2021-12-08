@@ -15,7 +15,8 @@ our (
   $debug,
   $user_id,
   $payment_sum,
-  $payment_id
+  $payment_id,
+  $argv
 );
 
 my $Payment_plugin = Paysys::systems::24_non_stop->new($db, $admin, \%conf);
@@ -23,8 +24,8 @@ if ($debug > 3) {
   $Payment_plugin->{DEBUG} = 7;
 }
 
-$payment_id = 'C9D93D03-3822-4229-8E6E-0FA2742C8D7';
-$user_id    = $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || 5317;
+$payment_id = int(rand(10000));
+$user_id = $argv->{user} || $Payment_plugin->{conf}->{PAYSYS_TEST_USER} || '';
 
 my $sign_check = $Payment_plugin->mk_checksum({
   ACT         => 1,

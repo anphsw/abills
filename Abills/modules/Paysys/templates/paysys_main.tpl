@@ -18,6 +18,13 @@
         box-shadow: 10px 10px 5px #AAAAAA;
         z-index: 101;
     }
+
+    .paysys-card {
+        padding-bottom: 50px;
+        padding-top: 50px;
+        padding-left: 0px;
+        padding-right: 0px;
+    }
 </style>
 
 <form method='POST' action='$SELF_URL' class='form form-horizontal'>

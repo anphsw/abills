@@ -84,7 +84,7 @@ sub _raisecom_get_onu_info {
   foreach my $oid_name (sort keys %{$snmp_info}) {
     my $oid = $snmp_info->{$oid_name}->{OIDS} || q{};
 
-    if (!$oid || $oid_name eq 'reset') {
+    if (!$oid || $oid_name eq 'reset' || $snmp_info->{$oid_name}->{SKIP}) {
       next;
     }
 
@@ -289,12 +289,12 @@ sub _raisecom { #TODO: move part of OIDs to main_onu_info, fix _raisecom_get_onu
         ONU_INDEX_DECODER => 1,
       },
       'ONU_IN_BYTE'    => {
-        NAME   => 'PORT_IN',
+        NAME   => 'ONU_IN_BYTE',
         OIDS   => '1.3.6.1.4.1.8886.18.3.6.5.2.1.15',
         ONU_INDEX_DECODER => 1,
       },
       'ONU_OUT_BYTE'   => {
-        NAME   => 'PORT_OUT',
+        NAME   => 'ONU_OUT_BYTE',
         OIDS   => '1.3.6.1.4.1.8886.18.3.6.5.2.1.2',
         ONU_INDEX_DECODER => 1,
       },
